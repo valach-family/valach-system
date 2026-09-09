@@ -27,7 +27,7 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync, statSy
 const require = createRequire(import.meta.url);
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-// A TELJES MENET KAPCSOLÓJA — EGY OTTHONBAN, EXPORTÁLVA (D-VS-704).
+// A TELJES MENET KAPCSOLÓJA — EGY OTTHONBAN, EXPORTÁLVA (D-VS-5004).
 // Miért nem elég a `--mind` sztring a helyén: a repó megnyitásakor a `package.json` `docs:html`
 // sora `--all`-t kapott (emlékezetből, nem innen), és mivel a kapcsoló nem egyezett, a parancs
 // NULLA lapot készített — miközben „elkészült" mondattal, nulla kilépési kóddal zárt. Réteg-határon

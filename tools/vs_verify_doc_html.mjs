@@ -156,7 +156,7 @@ check('DHT06', 'a TARTALOMJEGYZÉK létezik és teljes (a három forrás-csoport
   && String(pkg.scripts['docs:html'] || '').includes('vs_doc_html.mjs')
   && (claudeMd.match(/```bash\n[\s\S]*?```/g) || []).some((b) => /npm run docs:html/.test(b) && /git pull origin main/.test(b)));
 
-// ── DHT07 — A DEKLARÁLT PARANCS TÉNYLEG LAPOKAT KÉSZÍT (D-VS-704) ─────────────────────────────
+// ── DHT07 — A DEKLARÁLT PARANCS TÉNYLEG LAPOKAT KÉSZÍT (D-VS-5004) ─────────────────────────────
 // MIÉRT SZÜLETETT: a DHT06 azt mérte, hogy a `docs:html` sor HIVATKOZIK az eszközre — a kettő
 // VISZONYÁT nem (KUKA-024). Így a `--all`/`--mind` elgépelés mellett a pin zöld maradt, miközben a
 // parancs NULLA lapot készített és sikert jelentett. A pin ezért innentől LEFUTTATJA a

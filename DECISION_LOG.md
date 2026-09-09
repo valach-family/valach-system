@@ -1,16 +1,81 @@
 # DECISION LOG — Valach System (V3)
 
-**A számozás a 700-as blokkból megy.** A V2 (`valach-family/vs`) a 700 ALATT marad, a V3 a 700-tól —
-így két repó egyszerre oszthat számot ütközés nélkül, és a `D-VS-…` továbbra is EGY dolgot jelöl,
-nem kettőt. Gépi őr: `npm run verify:decision-numbers` (kiírja a következő szabad számot, és piros
-lesz, ha valaki a blokkon kívülre lép).
+**A számozás az 5000-es blokkból megy.** A V2 (`valach-family/vs`) az 5000 ALATT marad, a V3 az
+5000-től — így két repó egyszerre oszthat számot ütközés nélkül, és a `D-VS-…` továbbra is EGY
+dolgot jelöl, nem kettőt. Gépi őr: `npm run verify:decision-numbers` (kiírja a következő szabad
+számot, és piros lesz, ha valaki a blokkon kívülre lép).
 
-A 700 előtti döntések a V2 repó `DECISION_LOG.md`-jében élnek. Nem másoljuk át: egy fogalomnak EGY
+**A határ mérésből jön, nem tippből** (D-VS-5005): az első alak a 700 volt, és a V2 akkor a 670-nél
+állt — 29 szabad szám, a git-történetből mért ütemen (433 → 670 huszonkét nap alatt) **egy hét**.
+A V2 nem áll le: a Shoprenter-szinkron és a folyamatok alapszintű működése még hátravan, három
+cégtér használja a KS kiváltására. Az 5000-es határ **4329 szabad számot** hagy neki, ami a mért
+leggyorsabb ütemen is több mint egy év.
+
+Az 5000 előtti döntések a V2 repó `DECISION_LOG.md`-jében élnek. Nem másoljuk át: egy fogalomnak EGY
 otthona van (KUKA-018).
 
 ---
 
-## D-VS-704 — A `docs:html` a repó megnyitása óta NULLA lapot készített, és sikert jelentett
+## D-VS-5005 — A blokk-határ 700 → 5000: a V2 egy héten belül elfogyott volna
+
+**Dátum:** 2026-09-09 · **Sáv:** Claude-AUX · **Kör:** CMD-VS-300-002-001 R45
+**Megtalálta: az OPERÁTOR** — *„biztos hogy jó, hogy 700-tól már a v3 van? hova mennek majd a v2-nek
+a maradék apró dolgai?"*
+
+### A lelet — mérve, nem tippelve
+
+A D-VS-5000 a V3-nak a **700-as** blokkot adta. A kérdésre elvégzett mérés (a V2 repó git-történetéből,
+`DECISION_LOG.md` a `main` egymást követő állapotain):
+
+| dátum | legmagasabb D-VS | Δ | ütem |
+|---|---|---|---|
+| 2026-08-18 | 433 | — | — |
+| 2026-08-22 | 520 | +87 | 21,8 / nap |
+| 2026-08-26 | 577 | +57 | 14,3 / nap |
+| 2026-08-30 | 607 | +30 | 7,5 / nap |
+| 2026-09-03 | 642 | +35 | 8,8 / nap |
+| 2026-09-06 | 659 | +17 | 5,7 / nap |
+| 2026-09-09 | 670 | +11 | 3,7 / nap |
+
+**237 szám 22 nap alatt (~10,8/nap), a mai ütem 3,7/nap.** A V2-nek a 700-as határig **29** száma
+maradt — vagyis a mai, leglassabb ütemen is **kb. egy hét**, az átlagon **három nap**.
+
+És a V2 nem áll le. Az operátor kimondta: a Claude-DEV sávval folytatódik minden, ami nem érinti
+erősen a jogosultságot; a folyamatok maradnak, amíg alapszinten működnek; három cégtér használja a
+KS kiváltására; a **Shoprenter-szinkron még nem működik**. Tehát nem „pár apró dolog" jön még.
+
+### Miért ez a legrosszabb fajta hiba
+
+A túlcsordulás **NÉMA lett volna**: a V2 kiadja a D-VS-700-at, a V3 is — és a `D-VS-…` onnantól
+két különböző döntést jelöl, két repóban, visszamenőleg javíthatatlanul (a szám kódba, KUKA-
+bejegyzésekbe, board-körökbe és képernyőkre is beég). Ez a **KUKA-045** alakja a névtéren: a kézzel
+léptetett határ nem szabály, hanem tipp a jövőről — és a tévedése nem jelez.
+
+### A javítás
+
+**A V3 blokkja 5000-től.** A meglévő öt bejegyzés átszámozva: D-VS-700…704 → **D-VS-5000…5004**
+(11 fájlban, minden hivatkozással együtt — egy napos, öt bejegyzés, ez volt a legolcsóbb pillanat).
+
+**A határ mérésből számolt fedezet, nem kerek szám:** 5000 − 671 = **4329 szabad szám** a V2-nek, ami
+a MÉRT leggyorsabb ütemen (10,8/nap) is több mint egy év, a mai ütemen három. A V2 ennél hamarabb
+nyugdíjba megy.
+
+**Amit NEM választottunk, és miért:** külön előtag (`D-V3-…`). Az soha nem ütközne, de a **VERZIÓT
+tenné egy állandó azonosítóba** — pontosan azt a hibát, amit a repó nevénél kivezettünk (D-VS-5000:
+a verzió git-CÍMKE, nem név). Az 5000 nem azt mondja, hogy „V3", hanem azt, hogy *melyik repó naplója
+osztja* — ha egyszer V4 lesz, ugyanebben a repóban folytatódik, ugyanebből a blokkból.
+
+### Gépi jel — MINDKÉT repóban, és a fogyás LÁTSZIK
+
+- **V3:** `verify:decision-numbers` **DNR03** — minden szám `>= 5000`.
+- **V2:** `verify:decision-numbers` **DNR04** (ÚJ) — minden szám `< 5000`. **Eddig NEM volt felső
+  határ ezen az oldalon**, tehát a V2 vidáman átlépett volna a V3 blokkjába. Visszacsúszásra mérve:
+  egy `D-VS-5001` fejléc a V2 naplójában → `3/4 PASS — 1 FAIL`.
+- **És a némaság ellen:** a V2 őre minden futáskor **kiírja a maradék szabad helyet**, és 250 alatt
+  FIGYELMEZTET a teendővel. A blokk elfogyása így rendszer-állapot, nem egy `.md`-ben álló mondat
+  (KUKA-019) — jóval a baj előtt megszólal, nem akkor, amikor már késő.
+
+## D-VS-5004 — A `docs:html` a repó megnyitása óta NULLA lapot készített, és sikert jelentett
 
 **Dátum:** 2026-09-09 · **Sáv:** Claude-AUX · **Kör:** CMD-VS-300-002-001 R44
 **Megtalálta:** a saját munkám — az operátornak szánt állapot-lap készítésekor futtattam a parancsot.
@@ -25,7 +90,7 @@ A kapcsoló nem egyezett, tehát a cél-lista ÜRES maradt, és a parancs ezt í
 ```
 
 — **nulla kilépési kóddal**, „Nyisd meg dupla kattintással" zárómondattal. Tehát a repó megnyitása
-óta (D-VS-700) **egyetlen olvasható lap sem készült**, miközben a parancs sikeresnek látszott. És
+óta (D-VS-5000) **egyetlen olvasható lap sem készült**, miközben a parancs sikeresnek látszott. És
 pont ez az a parancs, ami az operátor EGYETLEN olvasható alakját állítja elő (KUKA-079).
 
 ### Miért nem fogta meg a söprés
@@ -58,7 +123,7 @@ söprés piros. A pin ma 9/9, a söprés 6/6.
 
 ---
 
-## D-VS-703 — A repó-terv három kérdése lezárva: a PITR BE VAN KAPCSOLVA
+## D-VS-5003 — A repó-terv három kérdése lezárva: a PITR BE VAN KAPCSOLVA
 
 **Dátum:** 2026-09-09 · **Sáv:** Claude-AUX · **Kör:** CMD-VS-300-002-001 R44
 **Forrás:** operátori válasz — *„a pitr engedélyezve van a railway / valach-family projects /
@@ -97,7 +162,7 @@ a kimenete a `var/reports/` alá, a névszabály szerint.
 
 ---
 
-## D-VS-702 — A mérőműszer hazudott: a Q18 reprodukálva és lezárva
+## D-VS-5002 — A mérőműszer hazudott: a Q18 reprodukálva és lezárva
 
 **Dátum:** 2026-09-09 · **Sáv:** Claude-AUX · **Kör:** CMD-VS-300-002-001 R42 → R43
 **Forrás:** a külső tárgyaló fél független ellenőrzése (R42 — ANALYSIS), 17 kiegészítő eset.
@@ -167,7 +232,7 @@ nélkül. `verify:release-order` 27/27 · `verify:artifact-naming` 28/28.
   lenyomat még **nincs**.
 - **Egyetlen kapu sem billent át.** A G4/G5/G6 nyitva marad.
 
-## D-VS-701 — A generált fájlok neve és helye: `v3_v3.1.1_20260909_104201_…` a `var/` alatt
+## D-VS-5001 — A generált fájlok neve és helye: `v3_v3.1.1_20260909_104201_…` a `var/` alatt
 
 **Dátum:** 2026-09-09 · **Sáv:** Claude-AUX
 **Operátori parancs:** *„Az újra generálódó fileok (script logok, backupok) a következő file néven
@@ -246,7 +311,7 @@ méri, tehát a helyes állítás gépi úton áll.
 
 ---
 
-## D-VS-700 — A V3 repó megnyitása: `valach-family/valach-system`
+## D-VS-5000 — A V3 repó megnyitása: `valach-family/valach-system`
 
 **Dátum:** 2026-09-09 · **Sáv:** Claude-AUX · **Operátori jóváhagyás:** *„ok, valach-system mehet,
 a három környezet is jó"*

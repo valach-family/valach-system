@@ -3,7 +3,7 @@
 **Ez a fájl a memória.** A rendszer minden körben automatikusan betölti; ami itt nincs, az a
 következő körben nem létezik.
 
-**A repó neve verzió-semleges, és ez szándékos** (D-VS-700): a termék EGY, a verzió CÍMKE a
+**A repó neve verzió-semleges, és ez szándékos** (D-VS-5000): a termék EGY, a verzió CÍMKE a
 git-történetben (`v3.0.0`, `v3.1.0`, `v4.0.0`). Nem lesz `vs4` nevű repó. A V2 a saját nevén él
 tovább (`valach-family/vs`), és onnan jött át minden, ami nem verzió-függő: a tanulságok, az
 operátori állandók, a szállítási forma.
@@ -230,7 +230,7 @@ cél-fájlok tényleg itt vannak.
 
 ### 4. A KIADÁSI MENETREND — ettől lehet visszaállni
 
-Az operátori döntés (D-VS-700) három szabálya, gépi őrrel (`npm run verify:release-order`):
+Az operátori döntés (D-VS-5000) három szabálya, gépi őrrel (`npm run verify:release-order`):
 
 1. **A verzió CÍMKE:** `FŐ.ALVERZIÓ.JAVÍTÁS`. Egy `main` ág; `release/3.x` ág CSAK akkor születik,
    ha egy régi verziót támogatni kell, miközben a `main` továbbment. A v4 ugyanebben a repóban lesz.
@@ -258,7 +258,7 @@ a szakasz KIMONDOTT hiány, nem feledékenység (KUKA-050).
 
 ### 5. KÖRNYEZETEK
 
-Három környezet EGY Railway-projektben (D-VS-700):
+Három környezet EGY Railway-projektben (D-VS-5000):
 
 | környezet | mire való | adat |
 |---|---|---|
@@ -289,8 +289,9 @@ megállítja.
   oda sem kerülhet** — a feltöltés gépi titok-őrön megy át.
 - `DATABASE_URL` és bármely kulcs **soha nem kerül chatbe** (csak `.env`). Üzleti adat (törzs, árak,
   bolti válasz) **nem kerül a repóba** — csak operátori csatornán.
-- **D-VS szám: a V3 a 700-as blokkból oszt** (D-VS-700). A V2 (`vs` repó) a 700 ALATT marad, a V3 a
-  700-tól — így két repó egyszerre oszthat számot ütközés nélkül, és a szám továbbra is EGY dolgot
+- **D-VS szám: a V3 az 5000-es blokkból oszt** (D-VS-5000 · a határ D-VS-5005). A V2 (`vs` repó) az
+  5000 ALATT marad, a V3 az 5000-től — így két repó egyszerre oszthat számot ütközés nélkül, és a
+  szám továbbra is EGY dolgot
   jelöl. Ezt ne emlékezetből: **`npm run verify:decision-numbers`** kiírja a következő szabad számot,
   és piros lesz, ha a blokkot valaki átlépi.
 - **Ne írj új `.md`-t azért, hogy „legyen dokumentálva".** Ami operatív, az ide jön; ami

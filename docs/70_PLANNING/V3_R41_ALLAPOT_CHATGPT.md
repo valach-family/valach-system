@@ -113,4 +113,4 @@ Ezeken semmi nem változott, és egyikre sem érkezett válasz:
 *A hivatkozott gépi jelek a V3 repóban: `npm run verify:v3ref` (6 próba · 10 mutáció) ·
 `npm run verify:release-order` (a menetrend, fixtúra-önpróbával) ·
 `npm run verify:artifact-naming` (a származás) · `npm run verify:kuka` (az őr-otthon kimondva).
-Naplók: D-VS-700 (a repó), D-VS-701 (a névszabály).*
+Naplók: D-VS-5000 (a repó), D-VS-5001 (a névszabály).*

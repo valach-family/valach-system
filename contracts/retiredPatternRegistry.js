@@ -2058,7 +2058,7 @@ const RETIRED_PATTERNS = Object.freeze([
     forbidden: Object.freeze([
       // SOR-KEZDETHEZ kötve: a KUKA-táblázat SORÁBAN idézve szerepel a rossz minta (az a leírás, nem
       // használat) — csak egy VALÓDI parancs-sor a találat. (Ezt is a verifier fogta meg saját magán.)
-      // A V3 REPÓBAN ÚJRA CÉLOZVA (D-VS-700), és ez KIMONDVA, nem csendben: a V2-beli alak egyetlen
+      // A V3 REPÓBAN ÚJRA CÉLOZVA (D-VS-5000), és ez KIMONDVA, nem csendben: a V2-beli alak egyetlen
       // literált tiltott (`cd ~/vs`), a mai alak MINDEN tippelt rövidítést (`cd ~/…`) — megengedő
       // szabály kizáró felsorolás helyett (KUKA-057). A tanulság változatlan: az operátor útja
       // adott és idézőjeles, a környezetét nem tippeljük.
@@ -3347,7 +3347,7 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'Ahol egy név két rétegben él, ott nem elég mindkét oldalt megmérni: a pin a KETTŐ EGYEZÉSÉT '
       + 'mérje, és lehetőleg azzal az értékkel, amit a HÍVÓ ténylegesen átad — különben a mérés a saját '
       + 'előfeltevését igazolja vissza, nem a valóságot. '
-      + 'VISSZATÉRT (2026-09-09, D-VS-704) — A SAJÁT NYITÓ CSOMAGOMBAN: a V3 `package.json` `docs:html` '
+      + 'VISSZATÉRT (2026-09-09, D-VS-5004) — A SAJÁT NYITÓ CSOMAGOMBAN: a V3 `package.json` `docs:html` '
       + 'sora `--all`-t kapott, miközben az eszköz `--mind`-ot ismer. Ugyanaz az osztály: a kapcsoló nevét '
       + 'EMLÉKEZETBŐL írtam a package.json-ba, ahelyett hogy az eszköztől kérdeztem volna meg. Következmény: '
       + 'a `npm run docs:html` a repó megnyitása óta NULLA lapot készített — és „6 lap … elkészült" helyett '
