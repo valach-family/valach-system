@@ -10,6 +10,76 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-702 — A mérőműszer hazudott: a Q18 reprodukálva és lezárva
+
+**Dátum:** 2026-09-09 · **Sáv:** Claude-AUX · **Kör:** CMD-VS-300-002-001 R42 → R43
+**Forrás:** a külső tárgyaló fél független ellenőrzése (R42 — ANALYSIS), 17 kiegészítő eset.
+
+### 1. A lelet, ami mindent megelőz
+
+A külső fél a `run.mjs` helyére azonnal 86-tal kilépő programot tett — se JSON, se lefutott próba.
+A `mutate.mjs` erre **„10 mutáció · 10 elkapva"**-t írt ki és **0-val zárt**. **Reprodukáltam.**
+
+Egy sor okozta: `catch { failed = ['(a futás összeomlott)']; }` — a JSON-hibát BIZONYÍTÉKNAK
+számolta. Mellette a `wrongCatcher` ki volt számolva, de a kilépési feltétel nem használta.
+
+**Ez a KUKA-051/089 a mérő-eszközön** — a lehető legrosszabb helyen: ha a mérő zöldet mond a
+semmire, minden rá hivatkozó bizonyíték nem gyengébb, hanem **hamis**. Az R33 „10/10 mutáció
+elkapva" állítása ezért nem az volt, aminek jelentettem; visszamenőleg nem hitelesítem.
+
+### 2. A javítás
+
+Öt ítélet (`CAUGHT` · `WRONG_CATCHER` · `SURVIVED` · `HARNESS_ERROR` · `STALE_ANCHOR`), és minden
+nem-`CAUGHT` piros. A hiba SOHA nem észlelés. A **megnevezett** próbának kell buknia. Futásidejű
+kivétel csak akkor bizonyíték, ha a mutáció szerződése előre kimondja — és a kimenet kiírja, hogy a
+bizonyíték ereje korlátozott.
+
+**És a lényeg: két ÁLLANDÓ kapu minden futáskor** — (a) az alapvonal zöld-e, (b) a **Q18-ellenpróba**:
+egy szándékosan elrontott futtatót `HARNESS_ERROR`-nak kell minősíteni. A (b) minden futásnál
+elvégzi a külső fél támadását a saját kódunkon. Ez az egyetlen dolog, amitől a többi számnak értéke
+van.
+
+**Bizonyítva:** a Q18-támadás a javított mérőn → alapvonal-kapu piros, a mutációk **nem futnak**,
+kilépési kód 1. Az M6 elkapóját `P-A08`-ra írva → `WRONG_CATCHER`, kilépési kód 1.
+
+### 3. Három további, ugyanebből a pontból
+
+- **`v3ref:evidence` nem létezett**, pedig az R33 rá hivatkozott — nem létező futtatóra hivatkozó
+  riport (KUKA-011/038 osztálya). Felvéve.
+- **`executed_by: 'Claude-AUX'` beégetve** — a rekord akkor is a mi nevünket vitte, amikor a külső
+  fél futtatta a saját gépén: a bizonyíték a végrehajtójáról hazudott (KUKA-056). Most
+  `--executed-by=` / env / kimondott `unknown`.
+- **A hatókör nélküli `verified_by`** üresen marad; helyette próbánkénti, hatókörös rekordok
+  (`v3ref/reviews.mjs`) **`residual` mezővel** és `gate_closed: false`-szal, a forrás-committhoz
+  kötve — az elévülés kimondva (KUKA-041 · KUKA-050).
+
+### 4. És három lelet a SAJÁT, EGY KÖRREL KORÁBBI őreimben
+
+Nem a külső fél sorrendjének 2. pontja, hanem **hamis biztonságot állítottak** — ezért nem vártak:
+
+- **Q16:** a kiadási menetrend őre KIZÁRÓ felsorolással dolgozott, ezért a `TRUNCATE`, a
+  `DROP legacy_code` (a `COLUMN` szó a Postgresben **opcionális**), az azonnal érvényesített `CHECK`
+  és a `DELETE` mind **`expand, ok:true`** választ kapott. Most **megengedő szabály** (KUKA-057):
+  `expand` · `contract` · `data_change` · `unknown`, és csak az ismert-biztonságos megy át magától.
+  Kimondva a kódban: **az őr előszűrő, nem SQL-értelmező.**
+- **SemVer:** `3.1.0-alpha` és `3.1.0` között 0-t adott, és elfogadta a `03.1.0` alakot. Szigorú
+  parse + előkiadás-rendezés (semver.org 11.4).
+- **`artifactNaming`:** `area:'toString'` → `undefined/…` út (örökölt kulcs), perjeles „verzió" →
+  útvonal-részek a névben. Sajátkulcs-ellenőrzés + szigorú verzió-alak.
+
+**Mind a hat új viselkedés FIXTÚRÁVAL őrizve** — hogy ne ismétlődjön a Q16 osztálya: új ág, mérés
+nélkül. `verify:release-order` 27/27 · `verify:artifact-naming` 28/28.
+
+### 5. Ami NEM történt meg — kimondva
+
+- **Az R42 §3 2–5. pontja el sem kezdődött** (Q01–Q15 magviselkedés · A08 konkurencia · A07+A15 ·
+  a többi core-eset). Szándékosan: a mérő hibás volt, tehát bármilyen „a mutáció megfogja" állítás
+  addig értéktelen lett volna.
+- **Q17 valódi íróra** (futásazonosító + atomi létrehozás) — ilyen író ma nincs; a helye az elsőnél.
+- **A gépi bizonyíték teljes mezőkészlete** részben van meg: UTC-időpont, futásazonosító és tartalmi
+  lenyomat még **nincs**.
+- **Egyetlen kapu sem billent át.** A G4/G5/G6 nyitva marad.
+
 ## D-VS-701 — A generált fájlok neve és helye: `v3_v3.1.1_20260909_104201_…` a `var/` alatt
 
 **Dátum:** 2026-09-09 · **Sáv:** Claude-AUX
