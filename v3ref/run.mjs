@@ -222,6 +222,27 @@ probe('P-A14', 'R32/A14 · K12 · C13 (javított)',
     } finally { w.store.close(); }
   });
 
+// ── KI FUTTATTA (R42 §3/1) ──────────────────────────────────────────────────────────────────────
+// Sorrend: `--executed-by=NÉV` · `V3REF_EXECUTED_BY` · `unknown`. Soha nincs beírt alapérték.
+const EXECUTED_BY = (() => {
+  const arg = process.argv.find((a) => a.startsWith('--executed-by='));
+  if (arg) return arg.slice('--executed-by='.length).trim() || 'unknown';
+  const env = (process.env.V3REF_EXECUTED_BY || '').trim();
+  return env || 'unknown';
+})();
+
+import { REVIEWS_FOR, staleFor } from './reviews.mjs';
+
+// A FELÜLVIZSGÁLAT A FORRÁS-ÁLLAPOTHOZ KÖTÖTT. Ha a mai commit más, mint amin a felülvizsgálat
+// készült, a rekord NEM a mai kódra vonatkozik. A futtató megmondhatja, min fut
+// (`--source-commit=` vagy `V3REF_SOURCE_COMMIT`); ha nem mondja meg, a kimenet ezt KIMONDJA —
+// nem tesz úgy, mintha a pecsét friss volna (KUKA-050: az állítás elévül).
+const SOURCE_COMMIT = (() => {
+  const arg = process.argv.find((a) => a.startsWith('--source-commit='));
+  if (arg) return arg.slice('--source-commit='.length).trim() || null;
+  return (process.env.V3REF_SOURCE_COMMIT || '').trim() || null;
+})();
+
 // ── Futtatás ────────────────────────────────────────────────────────────────────────────────────
 export function runAll() {
   const started = new Date().toISOString();
@@ -240,8 +261,17 @@ export function runAll() {
       expected: r.expected,
       actual: r.actual,
       status: r.pass ? 'PASS' : 'FAIL',
-      executed_by: 'Claude-AUX',
+      // A VÉGREHAJTÓ NEM ÉGETHETŐ BE (R42 §3/1). Korábban itt `'Claude-AUX'` állt, ezért a
+      // rekord AKKOR IS a mi nevünket vitte, amikor a külső fél futtatta a saját gépén —
+      // a bizonyíték a végrehajtójáról hazudott. Innentől a futtató mondja meg magáról, és ha
+      // nem mondja, a rekord ezt KIMONDJA (`unknown`), nem tippel (KUKA-056: az aláíró EMBER,
+      // nem egy beírt szöveg).
+      executed_by: EXECUTED_BY,
+      // Az ÖSSZESÍTŐ hitelesítés üresen marad: az R42 §1 szerint a hatókör nélküli pecsét
+      // értelmetlen. A hatókörös felülvizsgálatok külön, nevesített rekordban élnek
+      // (`v3ref/reviews.mjs`) — ott mindegyik megmondja, MEDDIG érvényes.
       verified_by: null,
+      reviews: REVIEWS_FOR(p.id),
       at: started,
     };
   });
@@ -251,7 +281,20 @@ export function runAll() {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const records = runAll();
   if (process.argv.includes('--json')) {
-    console.log(JSON.stringify({ norm_version: NORM_VERSION, impl_version: IMPL_VERSION, records }, null, 2));
+    const stale = staleFor(SOURCE_COMMIT);
+    console.log(JSON.stringify({
+      norm_version: NORM_VERSION,
+      impl_version: IMPL_VERSION,
+      executed_by: EXECUTED_BY,
+      source_commit: SOURCE_COMMIT,
+      // A felülvizsgálatok érvényessége KIMONDVA: melyik nem a mai forrásra vonatkozik.
+      review_binding: SOURCE_COMMIT
+        ? (stale.length
+          ? { status: 'stale', detail: stale.map((r) => `${r.probe_id}: ${r.stale}`) }
+          : { status: 'current', detail: [] })
+        : { status: 'unknown_source_commit', detail: ['a futtató nem mondta meg, melyik forrás-állapoton fut (--source-commit= vagy V3REF_SOURCE_COMMIT)'] },
+      records,
+    }, null, 2));
   } else {
     console.log('');
     console.log('V3 MAGREFERENCIA — PRÓBAFUTÁS (G5)');
@@ -266,6 +309,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log('');
     console.log(`  Környezet: node ${process.version} · node:sqlite · elkülönített tároló (NEM a V2 adatbázisa)`);
     console.log(`RESULT: ${records.length - fails}/${records.length} PASS`);
+    console.log('');
+    console.log(`  Végrehajtó: ${EXECUTED_BY}${EXECUTED_BY === 'unknown' ? '  (nem lett megadva — a rekord ezt KIMONDJA, nem tippel)' : ''}`);
+    const st = staleFor(SOURCE_COMMIT);
+    console.log(`  Felülvizsgálat: ${SOURCE_COMMIT ? (st.length ? `ELÉVÜLT ${st.length} próbán (más forrás-állapot)` : 'a mai forrás-állapotra érvényes') : 'ISMERETLEN forrás-állapot — a hatókörös ítéletek érvényessége nem eldönthető'}`);
+    console.log('  Az ÖSSZESÍTŐ hitelesítés (verified_by) üresen marad — az R42 §1 szerint a hatókör');
+    console.log('  nélküli pecsét értelmetlen. A hatókörös ítéletek próbánként a rekordban állnak.');
   }
   if (records.some((r) => r.status !== 'PASS')) process.exit(1);
 }

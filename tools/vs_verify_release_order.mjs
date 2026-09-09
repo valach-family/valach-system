@@ -117,9 +117,38 @@ const FIXTURES = [
     sql: '-- ide jön majd egy DROP COLUMN, de még nem\nALTER TABLE partner ADD COLUMN note TEXT;', expect: { shape: 'expand', ok: true } },
   { name: 'SET NOT NULL is bontás (a régi kód üresen írhatta)',
     sql: 'ALTER TABLE partner ALTER COLUMN vat_number SET NOT NULL;', expect: { shape: 'contract', ok: false } },
+
+  // ── R42 Q16: AZ ISMERETLEN SQL NEM BIZTONSÁGOS BŐVÍTÉS ────────────────────────────────────────
+  // Mind a négyre `expand, ok:true` volt a válasz, mielőtt a kizáró felsorolást megengedő
+  // szabályra cseréltük (KUKA-057). Ezek a sorok azok, amiket a külső fél MEGMÉRT.
+  { name: 'Q16 — TRUNCATE nem bővítés (a kód visszagörgetése nem hozza vissza az adatot)',
+    sql: 'TRUNCATE TABLE partner;', expect: { shape: 'data_change', ok: false } },
+  { name: 'Q16 — a DROP-ban a COLUMN szó OPCIONÁLIS (dokumentált Postgres-alak)',
+    sql: 'ALTER TABLE partner DROP legacy_code;', expect: { shape: 'contract', ok: false } },
+  { name: 'Q16 — azonnal érvényesített CHECK kizárja a régi írókat',
+    sql: 'ALTER TABLE partner ADD CONSTRAINT c CHECK (vat IS NOT NULL);', expect: { shape: 'contract', ok: false } },
+  { name: 'Q16 — DELETE nem bővítés',
+    sql: 'DELETE FROM stock_movement WHERE id < 100;', expect: { shape: 'data_change', ok: false } },
+  { name: 'Q16 — a FEL NEM ISMERT alak sem engedély (az őr nem SQL-értelmező)',
+    sql: 'SELECT pg_sleep(1);', expect: { shape: 'unknown', ok: false } },
+  { name: 'Q16 — NOT VALID megszorítás viszont bővítés (a régi írókat nem zárja ki)',
+    sql: 'ALTER TABLE partner ADD CONSTRAINT c CHECK (vat IS NOT NULL) NOT VALID;', expect: { shape: 'expand', ok: true } },
+  { name: 'Q16 — KIMONDOTT besorolással az adatváltozás átmegy',
+    sql: '-- BESOROLÁS: data_change — a 2019-es sorok egységesítése, a 042-es mentésből visszaállítható\nUPDATE partner SET x = 1;',
+    expect: { shape: 'data_change', ok: true } },
+  { name: 'Q16 — de a MÁSIK osztály deklarációja nem fogadható el',
+    sql: '-- BESOROLÁS: expand — szerintem ártalmatlan\nTRUNCATE TABLE partner;',
+    expect: { shape: 'data_change', ok: false } },
+
+  // ── R42 §2.4: SZIGORÚ SemVer ──────────────────────────────────────────────────────────────────
+  { name: 'SemVer — az ELŐKIADÁS korábbi a véglegesnél (a régi alak 0-t adott)',
+    sql: '-- KIVEZETVE: 3.0.0-alpha\nALTER TABLE partner DROP COLUMN x;', expect: { shape: 'contract', ok: true },
+    version: '3.0.0' },
+  { name: 'SemVer — vezető nullás alak NEM érvényes',
+    sql: '-- KIVEZETVE: 03.0.0\nALTER TABLE partner DROP COLUMN x;', expect: { shape: 'contract', ok: false } },
 ];
 for (const f of FIXTURES) {
-  const v = classifyMigration(f.sql, VERSION);
+  const v = classifyMigration(f.sql, f.version || VERSION);
   check('REL06', `önpróba: ${f.name}`, v.shape === f.expect.shape && v.ok === f.expect.ok,
     `kapott: shape=${v.shape} ok=${v.ok} (${v.reason})`);
 }

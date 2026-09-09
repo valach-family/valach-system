@@ -61,6 +61,9 @@ const AREAS = Object.freeze({
 
 const pad = (n, w = 2) => String(n).padStart(w, '0');
 
+// SZIGORÚ SemVer — ugyanaz az alak, amit a kiadási menetrend használ (semver.org 2.0.0).
+const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+
 /**
  * A NÉV IDŐ-RÉSZE a gép HELYI idejéből. Nem `toISOString()` — az UTC-re vált, és a fájlnév
  * hazudna az embernek, aki a saját gépén nézi (a V2-ben 40 szerszám épített kézzel ilyen nevet,
@@ -107,6 +110,11 @@ function slug(kind) {
 function artifactName({ kind, ext, version, at = new Date() }) {
   const v = String(version || '').trim();
   if (!v) throw new Error('artifactNaming: hiányzik a verzió (a package.json-ból kell jönnie, nem gépelve)');
+  // R42 §2.4 mérése: perjeleket tartalmazó „verzió" ÚTVONAL-RÉSZEKET vitt a fájlnévbe
+  // (`v1_v1.0.0/../../etc_…`). A `majorLine` csak az elejét nézte, a többit változatlanul beírtuk.
+  // A verzió a `package.json`-ból jön, tehát ma bizalmas bemenet — de a közös segédnek nem szabad
+  // ezen múlnia: EGY nem várt hívó, és a név útvonallá válik.
+  if (!SEMVER.test(v)) throw new Error(`artifactNaming: a verzió nem érvényes SemVer: ${JSON.stringify(v)}`);
   const e = String(ext || '').trim().replace(/^\.+/, '').toLowerCase();
   if (!/^[a-z0-9]{1,8}$/.test(e)) throw new Error(`artifactNaming: nem értelmezhető kiterjesztés: ${ext}`);
   const { date, time } = stampParts(at);
@@ -118,8 +126,11 @@ function artifactName({ kind, ext, version, at = new Date() }) {
  * @returns {string} pl. 'var/backups/v3_v3.1.1_20260909_104201_sema_mentes.sql'
  */
 function artifactPath({ area, ...rest }) {
-  const a = AREAS[area];
-  if (!a) throw new Error(`artifactNaming: ismeretlen terület: ${area} — a választható: ${Object.keys(AREAS).join(', ')}`);
+  // R42 §2.4 mérése: `area: 'toString'` az ÖRÖKÖLT tulajdonságot találta meg, és `undefined/…`
+  // útvonalat adott — hiba nélkül. A sima objektum indexelése örökölt kulcsot is talál; SAJÁT
+  // kulcsra kell kérdezni (ugyanaz a hiba-osztály, mint a Q07 a jogosultsági osztályoknál).
+  const a = Object.prototype.hasOwnProperty.call(AREAS, area) ? AREAS[area] : null;
+  if (!a) throw new Error(`artifactNaming: ismeretlen terület: ${JSON.stringify(area)} — a választható: ${Object.keys(AREAS).join(', ')}`);
   return `${a.dir}/${artifactName(rest)}`;
 }
 

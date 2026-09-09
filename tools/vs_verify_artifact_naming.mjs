@@ -68,6 +68,14 @@ check('ART02', 'üres megnevezésre MONDATTAL áll meg', throwsWith(() => N.arti
 check('ART02', 'ismeretlen területre MONDATTAL áll meg, és FELSOROLJA a választhatókat (KUKA-064)',
   throwsWith(() => N.artifactPath({ area: 'nincs_ilyen', kind: 'x', ext: 'txt', version: VERSION }),
     /ismeretlen terület[\s\S]*logs/));
+// ── R42 §2.4 két MÉRT bemenet-hibája ───────────────────────────────────────────────────────────
+// Mindkettő hiba nélkül adott vissza rossz nevet, mielőtt bezártuk.
+check('ART02', 'ÖRÖKÖLT kulcs nem terület: `area:"toString"` MONDATTAL áll meg (korábban `undefined/…` utat adott)',
+  throwsWith(() => N.artifactPath({ area: 'toString', kind: 'x', ext: 'txt', version: VERSION }), /ismeretlen terület/));
+check('ART02', 'a „verzió" nem vihet ÚTVONAL-RÉSZT a névbe (korábban `v1_v1.0.0\/..\/..\/etc_…` lett)',
+  throwsWith(() => N.artifactName({ kind: 'x', ext: 'txt', version: '1.0.0/../../etc' }), /SemVer/));
+check('ART02', 'a nem SemVer alak elutasítva (vezető nulla)',
+  throwsWith(() => N.artifactName({ kind: 'x', ext: 'txt', version: '03.1.0' }), /SemVer/));
 
 // ── ART03: a területek — zárt halmaz, mind a var/ alatt, mind magyarázattal ──────────────────────
 const areaKeys = Object.keys(N.AREAS);

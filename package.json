@@ -9,6 +9,7 @@
   },
   "scripts": {
     "docs:html": "node tools/vs_doc_html.mjs --all",
+    "v3ref:evidence": "node v3ref/run.mjs --json",
     "v3ref:mutate": "node v3ref/mutate.mjs",
     "v3ref:run": "node v3ref/run.mjs",
     "verify:artifact-naming": "node tools/vs_verify_artifact_naming.mjs",
