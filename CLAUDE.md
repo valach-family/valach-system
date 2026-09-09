@@ -304,3 +304,49 @@ megállítja.
 - **A SZÖVEG A VALÓSÁGOT KÖVETI** (KUKA-050): minden új/módosuló felirat előtt a kérdés — IGAZ-E,
   amit állít. Rendszer-változásnál a rá hivatkozó leíró szövegek is a kör munkalistájára kerülnek.
   Függő ígéret („egyelőre", „hamarosan") csak NEVESÍTVE élhet: indok + dátum + kivezetési feltétel.
+
+---
+
+### 7. A KÖNYVTÁRREND ÉS A GENERÁLT FÁJLOK NEVE (operátori parancs, 2026-09-09)
+
+*„Az újra generálódó fileok (script logok, backupok) a következő file néven legyenek:
+`v3_v3.1.1_20260909_104201_…`. A könyvtárstuktúra nagyjából már jó volt a v2-ben is, de nézd át
+azért, és ezek alapján készüljön minden."*
+
+**A NÉV — hat darab, alulvonással.** Soha nem gépeljük: `artifactPath({ area, kind, ext, version })`
+(`contracts/artifactNaming.js`). A verzió a `package.json`-ból jön (KUKA-005 · KUKA-033), az idő a
+gép **helyi** ideje (a fájlnevet ember olvassa a saját gépén).
+
+```
+var/backups/v3_v3.1.1_20260909_104201_sema_mentes.sql
+            │  │      │        │      └─ mi ez (kisbetűs, ékezet nélkül)
+            │  │      │        └──────── idő (helyi)
+            │  │      └───────────────── dátum
+            │  └──────────────────────── a pontos verzió, ami írta
+            └─────────────────────────── a fő vonal
+```
+
+**Amit az előtag NEM csinál, és ezt ki kell mondani:** nem rendez. Mérve: `v3_v3.10.0` az előtaggal
+is a `v3_v3.9.0` ELÉ kerül. Ami rendez: a fix szélességű **dátum+idő** — egy vonalon belül az
+ábécé-rend pontosan idő-rend. **A verzió a névben SZÁRMAZÁS** (melyik kiadás írta — ez kell a
+visszaállításhoz), nem rendezési kulcs.
+
+**A HELY — minden generált kimenet a `var/` alá.** A V2-ben ez kilenc külön helyen élt
+(`backups/` · `runtime_logs/` · `test_logs/` · `test-results/` · `audit_out/` · `i18n_munka/` ·
+`i18n_atiras/` · `logs/` · `tmp/`), és egy elrontott út `undefined/` nevű, **követett** könyvtárat
+hozott létre három képpel a repóban. Egy fogalomnak egy otthona (KUKA-018 · KUKA-003).
+
+| Terület | Mi kerül ide |
+|---|---|
+| `var/logs` | futás-naplók |
+| `var/backups` | adatbázis-mentések — **ÜZLETI ADAT**, a repóba soha |
+| `var/reports` | mérések, átvilágítások |
+| `var/exports` | kivitt adat — **ÜZLETI ADAT** |
+| `var/tmp` | eldobható |
+
+A `var/` gitignore-olva van, egyetlen kivétellel: a `var/README.md` **látszik**, hogy egy új kör
+tudja, hova írjon. **Egyetlen szerszám sem gyárt kézzel időbélyeges nevet** — gépi jel:
+`npm run verify:artifact-naming` (ART01–ART07; bizonyítottan pirosra vált a visszacsúszásra).
+
+**Kivétel, kimondva:** a `docs/_olvashato/` marad a helyén (nem költözik a `var/` alá) — a forrása
+mellett él, és az operátori terminál-blokk erre az útra hivatkozik.

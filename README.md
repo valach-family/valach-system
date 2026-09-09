@@ -42,6 +42,7 @@ a környezethez kötött kihagyásokat **nevesítve** írja ki — nem néma zö
 | `tools/` | söprés, ellenőrzők, a lap-eszközök (`.md` → olvasható HTML), a board-eszközök |
 | `migrations/` | üres, kiadás-naplóval — az első séma-lépés helye |
 | `docs/70_PLANNING/` | a V3 tervek és a tárgyalási lapok |
+| `var/` | **minden generált kimenet** (naplók, mentések, riportok, kivitel) — gitignore-olva; a szerkezetet a `var/README.md` írja le |
 
 ## Amit a repó ma NEM tud — kimondva
 

@@ -10,6 +10,85 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-701 — A generált fájlok neve és helye: `v3_v3.1.1_20260909_104201_…` a `var/` alatt
+
+**Dátum:** 2026-09-09 · **Sáv:** Claude-AUX
+**Operátori parancs:** *„Az újra generálódó fileok (script logok, backupok) a következő file néven
+legyenek: v3_v3.1.1_20260909_104201_… A könyvtárstuktúra nagyjából már jó volt a v2-ben is, de nézd
+át azért, és ezek alapján készüljön minden."*
+
+### 1. A V2 átnézése — három lelet, mérve
+
+| Lelet | Mért adat |
+|---|---|
+| **Szétszórt otthon** | a generált kimenet **kilenc** helyre ment: `backups/` · `runtime_logs/` · `test_logs/` · `test-results/` · `audit_out/` · `i18n_munka/` · `i18n_atiras/` · `logs/` · `tmp/` — mindegyik külön alkalommal, külön `.gitignore`-sorral (KUKA-018 · KUKA-003) |
+| **`undefined/`** | egy elrontott út `undefined` nevű könyvtárat hozott létre — és az **KÖVETETT** a gitben, **3 PNG-vel**. Nem gitignore-olva, tehát a hiba be is került a repóba |
+| **40 kézzel gyártott név** | 40 szerszám épít időbélyeges fájlnevet kézzel, legalább **három** különböző alakban (`toISOString().slice(0,19).replace(/[:T]/g,'')` · `.replace(/[-:T]/g,'').slice(0,12)` · `.slice(0,10)`) — egy fogalom, negyven másolat, három nyelvjárás |
+
+Az operátor „nagyjából jó volt" ítélete pontos: a **szerkezet** helyes (a generált kimenet a
+forráson kívül, gitignore-olva), a **darabszám** és a **kézi névgyártás** a gyenge pont.
+
+### 2. A döntés
+
+- **A NÉV:** `v3_v3.1.1_20260909_104201_<mit>.<kiterjesztés>` — pontosan az operátor kérése szerint.
+  Nevet **soha nem gépelünk**: `artifactPath({ area, kind, ext, version })`
+  (`contracts/artifactNaming.js`, REL-01 mintájára nevezett feloldó).
+- **A verzió a `package.json`-ból jön**, nem emlékezetből (KUKA-005 · KUKA-033).
+- **Az idő a gép HELYI ideje**, nem UTC — a fájlnevet ember olvassa a saját gépén, és a 12:42-kor
+  készült mentés ne „10:42"-t mondjon. Felhőben futtatva ez UTC lesz: a fájl a **keletkezés helyének**
+  idejét viseli, és ez ki van mondva.
+- **A HELY:** minden generált kimenet a **`var/`** alá, öt nevezett területre (`logs` · `backups` ·
+  `reports` · `exports` · `tmp`). A `var/` gitignore-olva; egyetlen kivétel a `var/README.md`, hogy a
+  szerkezet **látsszon** — különben egy új kör nem tudná, hova írjon (KUKA-011).
+- **Kivétel, kimondva:** a `docs/_olvashato/` marad a helyén — a forrása mellett él, és az operátori
+  terminál-blokk erre az útra hivatkozik.
+
+### 3. Amit a saját őröm cáfolt meg — a `v3_` előtag indoka
+
+Az első alakban azt írtam a kódba, hogy az előtag azért kell, mert így „a v4 nem kerül a v3.9 és a
+v3.10 közé". **A saját mérésem cáfolta meg:**
+
+```
+ELŐTAGGAL     → v3_v3.10.0_…   v3_v3.9.0_…   v4_v4.0.0_…
+ELŐTAG NÉLKÜL →    v3.10.0_…      v3.9.0_…      v4.0.0_…
+```
+
+A `3.10` **mindkét** alakban a `3.9` elé kerül (ábécé-rendben `1` < `9`), és a v4 **mindkét** alakban
+a végén áll. **Az előtag tehát nem rendez.** Ami rendez: a fix szélességű **dátum+idő** — egy vonalon
+belül az ábécé-rend pontosan idő-rend. A verzió a névben **származás** (melyik kiadás írta — ez kell
+a visszaállításhoz, `VERSIONING.md` 5.), nem rendezési kulcs.
+
+Az előtag marad, mert az operátor így kérte és a szemnek segít — de **hamis indoklással nem**
+(KUKA-033: a levezetett állítás a méréséig csak javaslat). Az ART06 önpróba most az **ellenpárt** is
+méri, tehát a helyes állítás gépi úton áll.
+
+### 4. Gépi jel
+
+`npm run verify:artifact-naming` — **ART01–ART07, 25 ellenőrzés**:
+
+- **ART01** a feloldó **karakterre** az operátor mintáját adja (fixtúrákon, a mai verzióval is)
+- **ART02** verzió/megnevezés/terület hiányára **MONDATTAL** áll meg, és a terület-hiba **felsorolja**
+  a választhatókat (KUKA-064) — nem néma tartalék-érték (KUKA-020)
+- **ART03** a területek zárt halmaza mind a `var/` alatt, mind érdemi magyarázattal; az üzleti adatot
+  hordozók **ki vannak mondva**
+- **ART04** a `var/` gitignore-olva, a `var/README.md` mégis látszik, és **minden területet felsorol**
+  (a lap nem csúszhat el a kódtól — KUKA-018)
+- **ART05** egyetlen szerszám sem gyárt kézzel időbélyeges nevet — **bizonyítottan tüzel**: egy
+  V2-alakú fájlt bemásolva a próba PIROSRA vált, majd eltávolítva visszazöldül
+- **ART06** önpróba a rendezésre **és az ellenpárra** (lásd a 3. pontot)
+- **ART07** a név visszafejthető (melyik kiadás írta, mikor), és idegen alakra **nem** ad hamis
+  eredményt
+
+### 5. Ami NEM történt meg — kimondva
+
+- **A V2-t nem alakítottam át.** A hatókör-szabály (D-VS-667) érvényben van: ott csak az épül, ami a
+  következő hónapokhoz kell. A `undefined/` könyvtár és a 40 kézi névgyártás **a V2-ben marad**;
+  jelentve az operátornak, javítás külön döntésre.
+- **Nincs még olyan szerszám, ami ténylegesen ír** a `var/` alá — a szabály előbb áll, mint az első
+  írója. Ezt az ART05 „a mérés nem üres" padlója és a `var/README.md` mondja ki, nem hallgatja el.
+
+---
+
 ## D-VS-700 — A V3 repó megnyitása: `valach-family/valach-system`
 
 **Dátum:** 2026-09-09 · **Sáv:** Claude-AUX · **Operátori jóváhagyás:** *„ok, valach-system mehet,

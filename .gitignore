@@ -12,3 +12,9 @@ backups/
 
 .DS_Store
 *.log
+
+# GENERÁLT KIMENET — minden ide megy (contracts/artifactNaming.js → AREAS).
+# A tartalom SOHA nem kerül a repóba (üzleti adat is van köztük); a szerkezet viszont látsszon,
+# ezért a leíró lap kivétel — enélkül egy új kör nem tudná, hova írjon (KUKA-011).
+var/*
+!var/README.md
