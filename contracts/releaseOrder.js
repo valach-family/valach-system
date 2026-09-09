@@ -74,11 +74,36 @@ const DATA_CHANGE_PATTERNS = Object.freeze([
 ]);
 
 // ISMERT, VISSZAFELÉ ÁRTALMATLAN alakok — CSAK ezek mennek át deklaráció nélkül.
+// ═══ R45 L03–L05 — A SZÖVEGES ALAKBÓL NEM KÖVETKEZIK A FELTÉTEL NÉLKÜLI KOMPATIBILITÁS ═════════
+//
+// Három alak eddig automatikusan `expand, ok:true` volt, holott MINDHÁROM kiszoríthatja a régi írót
+// vagy megbukhat a meglévő adaton:
+//
+//   L03  `ADD CONSTRAINT … CHECK … NOT VALID` — a `NOT VALID` a MEGLÉVŐ sorok végigellenőrzését
+//        halasztja el, de az ÚJ beszúrást/módosítást a feltétel MÁR korlátozza. A régi fixtúránk
+//        indoklása („ettől a régi író biztosan nem szorul ki") ezért HAMIS volt.
+//        Forrás: PostgreSQL 18 — ALTER TABLE, ADD table_constraint … NOT VALID.
+//   L04  `CREATE UNIQUE INDEX` — a MÚLTBELI duplikátumon megbukik, és a régi író ezután
+//        duplikátumot próbálhat írni.
+//   L05  `ADD COLUMN … NOT NULL` — a meglévő sorokra alapérték kell, és az új mezőt NEM író
+//        régi kód beszúrása elbukik.
+//
+// Ezek nem TILTOTT műveletek. Csak nem BIZONYÍTOTTAN ártalmatlanok — ezért saját alakot kapnak, és
+// a szerzőnek KI KELL MONDANIA, hogyan marad kompatibilis a régi író (KUKA-033: a levezetett
+// állítás javaslat, amíg a mérése le nem futott).
+const RESTRICTIVE_PATTERNS = Object.freeze([
+  { name: 'ADD CONSTRAINT NOT VALID (az ÚJ írásokat már korlátozza)',
+    re: /\bADD\s+CONSTRAINT\b[\s\S]*\bNOT\s+VALID\b/i },
+  { name: 'CREATE UNIQUE INDEX (a múltbeli duplikátumon megbukik)',
+    re: /\bCREATE\s+(?:UNIQUE\s+INDEX|INDEX\s+CONCURRENTLY\s+UNIQUE)\b|\bCREATE\s+UNIQUE\b/i },
+  { name: 'ADD COLUMN … NOT NULL (a meglévő sorok és a régi író)',
+    re: /\bADD\s+(?:COLUMN\s+)?[A-Za-z_][\w]*\b[\s\S]{0,120}?\bNOT\s+NULL\b/i },
+]);
+
 const EXPAND_PATTERNS = Object.freeze([
   { name: 'CREATE TABLE', re: /^\s*CREATE\s+TABLE\b/i },
   { name: 'CREATE INDEX', re: /^\s*CREATE\s+(?:UNIQUE\s+)?INDEX\b/i },
   { name: 'ADD COLUMN', re: /^\s*ALTER\s+TABLE\b[\s\S]*\bADD\s+(?:COLUMN\b)?/i },
-  { name: 'ADD CONSTRAINT NOT VALID', re: /\bADD\s+CONSTRAINT\b[\s\S]*\bNOT\s+VALID\b/i },
   { name: 'DROP DEFAULT / DROP NOT NULL', re: /\bALTER\s+COLUMN\b[\s\S]{0,120}?\bDROP\s+(?:DEFAULT|NOT\s+NULL)\b/i },
   { name: 'SET DEFAULT', re: /\bALTER\s+COLUMN\b[\s\S]{0,120}?\bSET\s+DEFAULT\b/i },
   { name: 'COMMENT', re: /^\s*COMMENT\s+ON\b/i },
@@ -148,12 +173,17 @@ function statementsOf(sql) {
 
 // A szerző KIMONDOTT besorolása az `unknown`/`data_change` alakokra:
 //   -- BESOROLÁS: data_change — a 2019-es sorok egységesítése, visszaállítás a 042-es mentésből
-function declaredShape(sql) {
-  const m = /^\s*--\s*BESOROLÁS:\s*(expand|contract|data_change)\s*[—-]\s*(.+)$/mi.exec(String(sql || ''));
-  return m ? { shape: m[1].toLowerCase(), why: m[2].trim() } : null;
+function declaredShapes(sql) {
+  // R45 L07: a régi alak `expand|contract|data_change`-et fogadott, de az `unknown` mondatra
+  // ugyanezt a fejlécet ajánlotta — amit aztán elutasított. A hibaüzenet által ajánlott folytatás
+  // MŰKÖDJÖN (KUKA-064): ismeretlen alakhoz `unknown`, szorítóhoz `restrictive` a helyes szó.
+  // Ez NEM vak fejléc-elfogadás: a besorolásnak EGYEZNIE kell a mért alakkal, és az indok kötelező.
+  const all = [...String(sql || '')
+    .matchAll(/^\s*--\s*BESOROLÁS:\s*(expand|restrictive|contract|data_change|unknown)\s*[—-]\s*(.+)$/gmi)];
+  return all.map((m) => ({ shape: m[1].toLowerCase(), why: m[2].trim() }));
 }
 
-const RANK = { expand: 0, contract: 1, data_change: 2, unknown: 3 };
+const RANK = { expand: 0, restrictive: 1, contract: 2, data_change: 3, unknown: 4 };
 
 function classifyStatement(st) {
   const hit = (list) => list.filter((p) => p.re.test(st)).map((p) => p.name);
@@ -161,6 +191,10 @@ function classifyStatement(st) {
   if (contract.length) return { shape: 'contract', operations: contract };
   const data = hit(DATA_CHANGE_PATTERNS);
   if (data.length) return { shape: 'data_change', operations: data };
+  // A SZORÍTÓ alak az EXPAND ELŐTT dől el: az `ADD COLUMN … NOT NULL` az `ADD COLUMN` mintára is
+  // illeszkedne, és akkor némán bővítés lenne (R45 L05).
+  const restrictive = hit(RESTRICTIVE_PATTERNS);
+  if (restrictive.length) return { shape: 'restrictive', operations: restrictive };
   const expand = hit(EXPAND_PATTERNS);
   if (expand.length) return { shape: 'expand', operations: expand };
   return { shape: 'unknown', operations: [`fel nem ismert alak: ${st.slice(0, 60)}${st.length > 60 ? '…' : ''}`] };
@@ -182,41 +216,63 @@ function classifyMigration(sql, currentVersion) {
   const operations = [...new Set(parts.filter((p) => p.shape === worst.shape).flatMap((p) => p.operations))];
   const shape = worst.shape;
 
-  if (shape === 'expand') {
-    return { shape, operations, retired_in: null, ok: true, reason: 'ismert, visszafelé ártalmatlan bővítés — a régi kód alól semmit nem vesz ki' };
+  // ═══ R45 L06 — MINDEN ALAK MINDEN KÖTELME EGYÜTT ════════════════════════════════════════════
+  //
+  // A régi alak a fájl LEGMAGASABBRA rangsorolt EGYETLEN kategóriáját nézte. Így egy vegyes fájlban
+  // (`DROP legacy_code;` + `UPDATE …`) a `data_change` „elnyelte" a bontást: `ok:true`,
+  // `retired_in:null` — a kivezetési kötelezettség NYOMTALANUL eltűnt. Egy adatváltozási indoklás
+  // nem helyettesít kivezetést; a KÖTELMEK ÖSSZEADÓDNAK, nem versenyeznek (KUKA-048: a kivétel
+  // hatókörét a mérce dönti el).
+  const declared = declaredShapes(sql);
+  const declaredFor = (s) => declared.find((d) => d.shape === s) || null;
+  const shapesPresent = [...new Set(parts.map((x) => x.shape))].sort((a, b) => RANK[a] - RANK[b]);
+  const opsOf = (s) => [...new Set(parts.filter((x) => x.shape === s).flatMap((x) => x.operations))];
+  const problems = [];
+
+  for (const s of shapesPresent) {
+    const ops = opsOf(s);
+    if (s === 'expand') continue;                                  // ismert, ártalmatlan bővítés
+
+    if (s === 'contract') {
+      const retired = declaredRetiredIn(sql);
+      if (!retired) {
+        problems.push(`BONTÁS (${ops.join(', ')}) KIVEZETVE fejléc nélkül — ki kell mondani, melyik `
+          + 'kiadásban hagyta abba a kód a használatát: `-- KIVEZETVE: <verzió>`');
+        continue;
+      }
+      const cmp = compareSemver(retired, currentVersion);
+      if (cmp === null) problems.push(`a KIVEZETVE (${retired}) vagy a mai verzió (${currentVersion}) nem érvényes SemVer`);
+      else if (cmp >= 0) {
+        problems.push(`a bontás UGYANABBAN (vagy későbbi) a kiadásban áll, mint ahol a kód abbahagyta `
+          + `a használatát (KIVEZETVE ${retired}, mai verzió ${currentVersion}) — így a visszagörgetés eltöri az adatbázist`);
+      }
+      continue;
+    }
+
+    const d = declaredFor(s);
+    if (!d) {
+      problems.push(
+        s === 'restrictive'
+          ? `SZORÍTÓ művelet (${ops.join(', ')}) — szerkezetileg bővítés, de a MEGLÉVŐ adaton megbukhat, `
+            + 'és a régi írót korlátozhatja; kell egy `-- BESOROLÁS: restrictive — <hogyan marad kompatibilis a régi író>` fejléc'
+          : s === 'data_change'
+            ? `ADATVÁLTOZÁS (${ops.join(', ')}) — a kód visszagörgetése ezt NEM vonja vissza; `
+              + 'kell egy `-- BESOROLÁS: data_change — <mit és honnan állítható vissza>` fejléc'
+            : `ISMERETLEN alak (${ops.join(' · ')}) — az őr NEM SQL-értelmező, ezért nem minősíti `
+              + 'biztonságosnak; kell egy `-- BESOROLÁS: unknown — <miért biztonságos ez az alak>` fejléc');
+    }
   }
 
-  if (shape === 'contract') {
-    const retired = declaredRetiredIn(sql);
-    if (!retired) {
-      return { shape, operations, retired_in: null, ok: false,
-        reason: `bontó művelet (${operations.join(', ')}) KIVEZETVE fejléc nélkül — ki kell mondani, melyik kiadásban hagyta abba a kód a használatát` };
-    }
-    const cmp = compareSemver(retired, currentVersion);
-    if (cmp === null) {
-      return { shape, operations, retired_in: retired, ok: false,
-        reason: `a KIVEZETVE (${retired}) vagy a mai verzió (${currentVersion}) nem érvényes SemVer` };
-    }
-    if (cmp >= 0) {
-      return { shape, operations, retired_in: retired, ok: false,
-        reason: `a bontás UGYANABBAN (vagy későbbi) a kiadásban áll, mint ahol a kód abbahagyta a használatát (KIVEZETVE ${retired}, mai verzió ${currentVersion}) — így a visszagörgetés eltöri az adatbázist` };
-    }
-    return { shape, operations, retired_in: retired, ok: true,
-      reason: `a kód a ${retired} kiadásban hagyta abba a használatát, a bontás ennél későbbi kiadásban áll` };
+  const retiredIn = declaredRetiredIn(sql);
+  if (problems.length) {
+    return { shape, operations, retired_in: retiredIn, ok: false, shapes: shapesPresent,
+      reason: problems.join(' · ') };
   }
-
-  // data_change és unknown: KIMONDOTT besorolás nélkül nincs engedély (Q16).
-  const decl = declaredShape(sql);
-  if (!decl || decl.shape !== shape) {
-    return { shape, operations, retired_in: null, ok: false,
-      reason: shape === 'data_change'
-        ? `ADATVÁLTOZÁS (${operations.join(', ')}) — a kód visszagörgetése ezt NEM vonja vissza; `
-          + 'kell egy `-- BESOROLÁS: data_change — <mit és honnan állítható vissza>` fejléc'
-        : `ISMERETLEN alak (${operations.join(' · ')}) — az őr NEM SQL-értelmező, ezért nem minősíti `
-          + 'biztonságosnak; kell egy `-- BESOROLÁS: expand|contract|data_change — <indok>` fejléc' };
-  }
-  return { shape, operations, retired_in: declaredRetiredIn(sql), ok: true,
-    reason: `a szerző kimondta a besorolást: ${decl.shape} — ${decl.why}` };
+  return { shape, operations, retired_in: retiredIn, ok: true, shapes: shapesPresent,
+    reason: shapesPresent.length === 1 && shapesPresent[0] === 'expand'
+      ? 'ismert, visszafelé ártalmatlan bővítés — a régi kód alól semmit nem vesz ki'
+      : `minden alak kötelme teljesítve (${shapesPresent.join(' + ')})`
+        + declared.map((d) => ` · ${d.shape}: ${d.why}`).join('') };
 }
 
 module.exports = {
@@ -224,7 +280,7 @@ module.exports = {
   CONTRACTION_PATTERNS,
   DATA_CHANGE_PATTERNS,
   EXPAND_PATTERNS,
-  declaredShape,
+  declaredShapes,
   statementsOf,
   classifyMigration,
   declaredRetiredIn,

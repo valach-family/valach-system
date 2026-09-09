@@ -128,8 +128,13 @@ javítva: szigorú alak (vezető nulla tilos) + előkiadás-rendezés a semver.o
   fixtúra-készlet mondja ki.
 - **A gépi bizonyíték teljes mezőkészlete** (kötelező UTC, időzóna-eltolás, futásazonosító,
   konfiguráció-verzió, tartalmi lenyomat, monoton óra az időtartamhoz) **részben van meg**: ma a
-  `source_commit`, az `executed_by`, a `norm_version` és az `impl_version` áll benne. **UTC-időpont,
+  `source_commit`, az `executed_by`, a `norm_version` és az `impl_version` áll benne. **~~UTC-időpont,~~
   futásazonosító és tartalmi lenyomat még nincs.** Ez a következő kör 1. pontjának maradéka.
+
+  **JAVÍTVA (R45 P01):** az „UTC-időpont még nincs" állításom **HAMIS volt** — a rekord `at` mezője
+  már akkor is UTC-ben állt (`…Z`). A külső fél mérte meg a saját rekordunkon. A hiányzó eredet-mezők
+  leltárát innentől a MEGLÉVŐ rekordból kiindulva kell vezetni, nem emlékezetből (KUKA-005).
+  A futásazonosító és a tartalmi lenyomat azóta megvan (`run_id` · `source_digest`).
 - **A migrációs lenyomat védett alaphoz mérése** (nem az együtt átírt LEDGER) — elfogadom a
   leletet, nem javítottam. A telepített környezet migrációs nyilvántartása külön bizonyíték;
   az első valódi migráció előtt kell.

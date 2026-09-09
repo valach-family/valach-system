@@ -39,8 +39,18 @@ Nem 18 egyforma súlyú hiba, de mind valódi.
 | **Q16–Q17** | **A SAJÁT őreim**, amiket egy körrel korábban én írtam, és **hamis biztonságot** állítottak (pl. egy tábla-ürítést „biztonságos bővítésnek" minősítettek). |
 | **Q18** | **Maga a mérőműszer.** Ez volt a legsúlyosabb: a mérő „minden rendben"-t írt ki akkor is, amikor **egyetlen próba sem futott le**. |
 
-**A Q16, Q17 és Q18 már kész** — az előző körben javítottam. **A Q01–Q15 a következő kör**, és
-igen: ez is mehet ChatGPT nélkül, mert minden esethez oda van írva, mi a hiba és mi a helyes válasz.
+**JAVÍTVA (R45 · 2026-09-09):** a fenti táblázat első alakja azt mondta, hogy „a Q16, Q17 és Q18
+már kész". **Ez az általános alakban nem volt tartható**, és a külső fél megcáfolta:
+
+- **Q18** — az EREDETI összeomlási alak javult, de a mérőnek ÖT MÁSIK hazugság-alakja maradt
+  (H02–H06). Mind reprodukált. Azóta mind a hat ellenpróba a mérő ÁLLANDÓ kapuja.
+- **Q16** — az osztályozó javult, de a TELJES kiadási őr átengedte: csak a `contract` csoport
+  elutasítását nézte, tehát egy `TRUNCATE TABLE partner` mellett 27/27 PASS-t írt ki. Javítva.
+- **Q17** — a névvalidáció javult; az azonos nevű tényleges írás ütközésvédelme **rögzített
+  függő** az első valódi íróig, nem lezárás.
+
+**A Q01–Q15 ezután jön**, és igen: ez is mehet ChatGPT nélkül, mert minden esethez oda van írva,
+mi a hiba és mi a helyes válasz.
 
 ### „A PITR engedélyezve van a Railway / valach-family / valach-system-ben"
 
@@ -49,8 +59,9 @@ Naplózva: **D-VS-3003**.
 
 Amit ez a gyakorlatban jelent:
 
-- **A legrosszabb esetben másodperceket veszítünk, nem egy napot.** PITR nélkül az utolsó mentésig
-  esnénk vissza, ami akár 24 óra munkája.
+- **Elvben másodpercek, nem egy nap** — PITR nélkül az utolsó mentésig esnénk vissza (akár 24 óra).
+  **DE ez a szolgáltatás LEÍRT képessége, nem mért garancia** (R45): vállalássá csak ellenőrzött
+  szolgáltatási feltételekkel ÉS egy lefuttatott visszaállítási próbával válik.
 - **A visszaállítás nem állítja le az élest.** A Railway az eredeti MELLÉ épít egy új adatbázist —
   megnézzük, és utána döntünk, mit másolunk vissza.
 - **De ez nem mentesít a fegyelem alól.** A rossz kiadást továbbra sem adatbázis-visszaállítással
@@ -92,12 +103,16 @@ ugyanazt a szállítást jelzi → egy hatás) és **nyitóállomány**.
 | **Visszaállítási rend + PITR** | ✔ leírva, PITR bekapcsolva |
 | **A 89 tanulság (KUKA) átemelve** | ✔ és mindegyiknél KIMONDVA, hol él az őre: **4 a V3-ban · 83 a V2-ben · 2-nek nincs** |
 | **A generált fájlok neve és helye** (`v3_v3.1.1_20260909_104201_…`) | ✔ gépi őrrel |
-| **Működő mag-referencia** (`v3ref/`) | ✔ fut, adatbázis nélkül: 6 próba + 10 mutáció |
-| **A mérőműszer önpróbája** | ✔ minden futásnál elvégzi magán a külső fél támadását |
+| **Működő mag-referencia** (`v3ref/`) | ✔ fut ELKÜLÖNÍTETT SQLite-tárolón: 6 próba + 10 mutáció |
+| **A mérőműszer önpróbája** | ✔ minden futásnál elvégzi magán a külső fél HAT támadását (R45 H02–H06 + Q18) |
 
 **Amit ez a referencia MA tud:** végigvezet egy meghívást, egy jogosultsági döntést és egy parancsot
 a hatásig. **Amit NEM tud:** nem ír valódi készlet-főkönyvet, nincs mögötte Postgres, nincs
 képernyő. Ez szándékos — a szabályt bizonyítjuk, nem a terméket építjük.
+
+**PONTOSÍTÁS (R45):** korábban azt írtam, hogy „adatbázis nélkül fut". Ez pontatlan volt — a
+referencia **elkülönített SQLite-tárolót** használ. A különbség számít: a tranzakciós és
+versenyhelyzeti bizonyíték megítéléséhez tudni kell, hogy VAN tároló, csak nem a Postgres.
 
 ---
 
@@ -118,16 +133,21 @@ egyetlen felülvizsgálata 18 új leletet hozott. Ha a következő is ennyit hoz
 > **A core-core akkor van kész, amikor egy független ellenőrző kör már NEM talál maghibát**,
 > csak hatókör- és profil-megjegyzést.
 
-Ez mérhető, nem érzés alapú, és pontosan azt méri, ami számít. **Ma nem tartunk itt:** a legutóbbi
-kör 15 nyitott maghibát adott.
+**PONTOSÍTVA (R45):** ez önmagában NEM elég lezárási feltétel, és igazuk van. Kell mellé: előre
+rögzített teljes vállalt lefedettség · megfelelő negatív kontroll · valódi futási bizonyíték ·
+megszakítási/versenyhelyzeti mérés · és a G1–G8 kapuk tételes állapota. A „most nem találtunk új
+hibát" ezek MELLETT kiegészítő eredmény, nem helyettük.
+
+**Ma nem tartunk itt:** a legutóbbi kör 15 nyitott maghibát adott, plusz öt mérőhibát (javítva).
 
 ### És mikortól mehet a mini modulok tervezése?
 
-**A 4. pont után** — nem az összes után. Ok: a modulok a maggal a **behozatalon, az egyeztetésen és
-a nyitóállományon** keresztül érintkeznek. Amíg ez a felület mozog, minden modul-terv mozog vele.
-Az 5. pont már olyan eseteket csiszol, amik a modul-határt nem tolják el.
+Az első alakomban azt írtam: „a 4. pont után". **A külső fél ezt megcáfolta, és elfogadom** —
+az 5. pontban maradó esetek (összesítési jog · együttes képviselet · azonosság-korrekció · történet ·
+visszavonás) **a mag HATÁRÁT érintik**, nem finomítások. Bizonyítás nélkül nem minősíthetem őket
+annak. A jogosultságot megjelenítő felület sem független ezektől.
 
-**Tehát: 2. + 3. + 4. pont ⇒ ~5–8 kör, és utána indulhat a modul-tervezés.**
+**A valós sorrend tehát: a 2–5. pont MIND kell**, és utána indul a modul-tervezés.
 
 ### Ami NINCS blokkolva
 

@@ -9,6 +9,10 @@
 //
 //   node v3ref/run.mjs            # emberi kimenet
 //   node v3ref/run.mjs --json     # bizonyítékrekordok (R32 §4 alakja)
+import { readFileSync, readdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { openStore, clockFrom } from './store.mjs';
 import { observeInvite, redeemInvite, rememberIntent, resumeIntent } from './invite.mjs';
 import { rightAt, revokeMembership } from './authz.mjs';
@@ -232,6 +236,7 @@ const EXECUTED_BY = (() => {
 })();
 
 import { REVIEWS_FOR, staleFor } from './reviews.mjs';
+import { MANIFEST_VERSION, EXPECTED_IDS, PROBE_STATUS, assertionOf } from './manifest.mjs';
 
 // A FELÜLVIZSGÁLAT A FORRÁS-ÁLLAPOTHOZ KÖTÖTT. Ha a mai commit más, mint amin a felülvizsgálat
 // készült, a rekord NEM a mai kódra vonatkozik. A futtató megmondhatja, min fut
@@ -243,16 +248,46 @@ const SOURCE_COMMIT = (() => {
   return (process.env.V3REF_SOURCE_COMMIT || '').trim() || null;
 })();
 
+// ── A FORRÁS TARTALMI LENYOMATA — MÉRVE, NEM BEMONDVA (R45 P01) ─────────────────────────────────
+//
+// A külső fél a ténylegesen `71c69bb…` forráson futó programnak a RÉGI `c58f5f6…` commitot adta át
+// `--source-commit`-ként, és a kimenet ezt „a mai forrásra érvényes"-nek mondta. A bemondott commit
+// tehát nem forrás-azonosság, hanem PUSZTA ÁLLÍTÁS (a KUKA-056 alakja a forráson: az aláíró nem egy
+// beírt szöveg). Innentől a futtató KISZÁMOLJA a saját forrás-csomagja tartalmi lenyomatát; a
+// bemondott commit külön mezőben, KÜLÖN NÉVEN marad, és soha nem lép a mérés helyébe.
+const REF_DIR = dirname(fileURLToPath(import.meta.url));
+export function sourceDigest() {
+  const files = readdirSync(REF_DIR).filter((f) => f.endsWith('.mjs')).sort();
+  const h = createHash('sha256');
+  for (const f of files) { h.update(f); h.update('\0'); h.update(readFileSync(join(REF_DIR, f))); h.update('\0'); }
+  return { digest: `sha256:${h.digest('hex')}`, files };
+}
+
 // ── Futtatás ────────────────────────────────────────────────────────────────────────────────────
 export function runAll() {
   const started = new Date().toISOString();
   const records = probes.map((p) => {
-    let r;
-    try { r = p.fn(); } catch (e) { r = { expected: '(futás)', actual: `KIVÉTEL: ${e.message}`, pass: false }; }
+    // TÍPUSOS KIMENET (R45 §3): a bukott ÁLLÍTÁS és a próbán belüli KIVÉTEL két külön dolog.
+    // A régi alak mindkettőt `FAIL`-be csomagolta, ezért egy idegen infrastruktúra-kivétel
+    // ugyanúgy „bizonyítéknak" látszott, mint a nevezett állítás bukása (R45 H06).
+    let r; let thrown = null;
+    try { r = p.fn(); } catch (e) {
+      thrown = {
+        error_code: (e && (e.code || e.name)) || 'Error',
+        phase: 'probe_body',
+        message: (e && e.message) || String(e),
+      };
+      r = { expected: '(a próba állítása)', actual: `KIVÉTEL a próba testében: ${thrown.message}`, pass: false };
+    }
+    const status = thrown ? PROBE_STATUS.THREW : (r.pass ? PROBE_STATUS.PASS : PROBE_STATUS.FAIL);
     return {
       probe_id: p.id,
       maps_to: p.maps,
       title: p.title,
+      // A BUKOTT ÁLLÍTÁS NEVE — enélkül nem eldönthető, hogy a MEGFELELŐ állítás bukott-e el.
+      assertion_id: status === PROBE_STATUS.FAIL ? assertionOf(p.id) : null,
+      error_code: thrown ? thrown.error_code : null,
+      phase: thrown ? thrown.phase : null,
       norm_version: NORM_VERSION,
       impl_version: IMPL_VERSION,
       command: 'node v3ref/run.mjs',
@@ -260,7 +295,7 @@ export function runAll() {
       initial_world: `determinisztikus óra ${T0}`,
       expected: r.expected,
       actual: r.actual,
-      status: r.pass ? 'PASS' : 'FAIL',
+      status,
       // A VÉGREHAJTÓ NEM ÉGETHETŐ BE (R42 §3/1). Korábban itt `'Claude-AUX'` állt, ezért a
       // rekord AKKOR IS a mi nevünket vitte, amikor a külső fél futtatta a saját gépén —
       // a bizonyíték a végrehajtójáról hazudott. Innentől a futtató mondja meg magáról, és ha
@@ -280,12 +315,26 @@ export function runAll() {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const records = runAll();
+  const src = sourceDigest();
+  // FUTÁSAZONOSÍTÓ: két futás eredménye ne legyen összekeverhető (R45 §2). A tartalmi lenyomatból
+  // és az indulás idejéből származik, tehát nem véletlen — visszakereshető.
+  const RUN_ID = `run_${createHash('sha256').update(src.digest).update(records[0] ? records[0].at : '')
+    .digest('hex').slice(0, 16)}`;
   if (process.argv.includes('--json')) {
     const stale = staleFor(SOURCE_COMMIT);
     console.log(JSON.stringify({
       norm_version: NORM_VERSION,
       impl_version: IMPL_VERSION,
+      manifest_version: MANIFEST_VERSION,
+      expected_probe_ids: EXPECTED_IDS,
+      run_id: RUN_ID,
+      // MÉRT forrás-azonosság (a futtató SAJÁT számítása) — ez a bizonyíték.
+      source_digest: src.digest,
+      source_files: src.files,
       executed_by: EXECUTED_BY,
+      // BEMONDOTT commit — a hívó ÁLLÍTÁSA, nem mérés. Külön néven áll, hogy ne lehessen
+      // összekeverni a mérttel (R45 P01).
+      declared_source_commit: SOURCE_COMMIT,
       source_commit: SOURCE_COMMIT,
       // A felülvizsgálatok érvényessége KIMONDVA: melyik nem a mai forrásra vonatkozik.
       review_binding: SOURCE_COMMIT
@@ -300,14 +349,17 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log('V3 MAGREFERENCIA — PRÓBAFUTÁS (G5)');
     console.log('='.repeat(78));
     for (const r of records) {
-      console.log(`  ${r.status === 'PASS' ? 'PASS' : 'FAIL'} [${r.probe_id}] ${r.title}`);
+      console.log(`  ${r.status.padEnd(11)} [${r.probe_id}] ${r.title}`);
       console.log(`        leképezés: ${r.maps_to}`);
       console.log(`        várt:      ${r.expected}`);
       console.log(`        mért:      ${r.actual}`);
     }
-    const fails = records.filter((r) => r.status !== 'PASS').length;
+    const fails = records.filter((r) => r.status !== PROBE_STATUS.PASS).length;
     console.log('');
     console.log(`  Környezet: node ${process.version} · node:sqlite · elkülönített tároló (NEM a V2 adatbázisa)`);
+    console.log(`  Futásazonosító: ${RUN_ID}`);
+    console.log(`  Forrás-lenyomat (MÉRT): ${src.digest}  (${src.files.length} fájl)`);
+    console.log(`  Bemondott commit (ÁLLÍTÁS, nem mérés): ${SOURCE_COMMIT || '(nem lett megadva)'}`);
     console.log(`RESULT: ${records.length - fails}/${records.length} PASS`);
     console.log('');
     console.log(`  Végrehajtó: ${EXECUTED_BY}${EXECUTED_BY === 'unknown' ? '  (nem lett megadva — a rekord ezt KIMONDJA, nem tippel)' : ''}`);
@@ -316,5 +368,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log('  Az ÖSSZESÍTŐ hitelesítés (verified_by) üresen marad — az R42 §1 szerint a hatókör');
     console.log('  nélküli pecsét értelmetlen. A hatókörös ítéletek próbánként a rekordban állnak.');
   }
-  if (records.some((r) => r.status !== 'PASS')) process.exit(1);
+  if (records.some((r) => r.status !== PROBE_STATUS.PASS)) process.exit(1);
 }

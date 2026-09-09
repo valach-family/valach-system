@@ -33,6 +33,57 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-090',
+    date: '2026-09-09',
+    title: 'A MÉRŐ A MÉRT FÉLTŐL KÉRDEZTE MEG, MIT KELLETT VOLNA MÉRNIE — öt további hazugság-alak',
+    what: 'A Q18 (KUKA-089 / D-VS-3002) javítása után a mutációs eszköz MÉG MINDIG „10 mutáció · 10 '
+      + 'elkapva"-t írt ki és 0-val zárt ÖT másik támadásra, mind reprodukálva: (H02) a mutáns '
+      + 'indulása után `process.exit(86)`, JSON nélkül — az M5 `runtime_error` szerződése a TELJES '
+      + 'FUTTATÓ hibáját is elkapásnak vette; (H03) a mutánsok egyetlen próbát sem futtattak, csak '
+      + '`SKIP` rekordot adtak a hat ismert azonosítóhoz — a `status !== \'PASS\'` bármit bukásnak '
+      + 'fogadott el; (H04) csak a BUKOTT rekordok kerültek a kimenetbe — a hiányzó négy rekordot '
+      + 'semmi nem vette észre; (H05) valódi JSON, de a futtató 86-tal lépett ki — az értelmezhető '
+      + 'JSON mellett a rendellenes folyamat-kilépés elveszett; (H06) a rekordokat idegen '
+      + 'infrastruktúra-kivételre cserélve — a mérő nem nézte, hogy a MEGFELELŐ ÁLLÍTÁS bukott-e el.',
+    why_wrong: 'a közös gyökér: a mérő a VÁRT PRÓBAKÉSZLETET a FUTÁS EREDMÉNYÉBŐL olvasta ki. Ez '
+      + 'körkörös (KUKA-054 a mérő-eszközön): a mutáns által visszaadott rövidebb vagy hamis lista '
+      + 'AUTOMATIKUSAN új „teljes készletté" vált, tehát a mért fél mondta meg, mit kellett volna '
+      + 'mérni. Mellette a `status !== \'PASS\'` EGYETLEN megkülönböztetést ismert, ezért a `SKIP`, '
+      + 'a kihagyás és az idegen kivétel is „bukott állításnak" számított — pedig egyik sem az.',
+    replaced_by: 'ELŐBB ÉRVÉNYES MÉRÉS, UTÁNA ÍTÉLET. (1) A várt készlet KÜLSŐ szerződés '
+      + '(`v3ref/manifest.mjs`), a futás eredményétől függetlenül — hiányzó, ismétlődő és ISMERETLEN '
+      + 'azonosító egyaránt mérőhiba. (2) TÍPUSOS kimenetek: `PASS` · `FAIL` (nevezett állítás) · '
+      + '`THREW` (hibakód + fázis) · `SKIP` · `NOT_STARTED`; bizonyíték CSAK a `FAIL`. (3) A '
+      + 'kilépési kód szerződés (0 vagy 1), és ellentmondása az eredménnyel mérőhiba. (4) A '
+      + '`runtime_error` SZŰKÍTVE: csak a próbán BELÜLI, ELŐRE megnevezett hibakódú és fázisú kivétel '
+      + '— a teljes futtató hibája SOHA. (5) Az elkapáshoz a NEVEZETT próba NEVEZETT állítása '
+      + 'kell (`assertion_id`), nem elég, hogy „valami történt" azon a próbán.',
+    decision: 'D-VS-3006',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (R45 H02–H06), 19 rögzített ellenpróbával, pozitív kontrollokkal. '
+      + 'A saját, egy körrel korábban írt Q18-kapunk mind az ötben ZÖLD maradt — mert azt mérte, '
+      + 'HOGY VAN-E JSON, nem azt, hogy ÉRVÉNYES-E A MÉRÉS.',
+    lesson: 'A MÉRŐ SOHA NE A MÉRT FÉLTŐL KÉRDEZZE MEG, MIT KELLETT VOLNA MÉRNIE. A várt készlet, '
+      + 'a várt állapotok és az elkapás oka mind KÜLSŐ, előre rögzített szerződés — különben a '
+      + 'megtámadott futás a saját hazugságát teszi mércévé. És: egy javítás nem attól kész, hogy a '
+      + 'megnevezett alak eltűnt, hanem attól, hogy a HIBA-OSZTÁLY minden alakjára van ellenpróba — '
+      + 'a Q18 javítása után öt testvér-alak maradt életben (KUKA-084 „a szivárgás átköltözött" '
+      + 'elve a mérőn). Az ellenpróbák ezért ÁLLANDÓ kapuk, nem egyszeri bizonyítás.',
+    guard_note: 'gépi jel: `npm run verify:v3ref` — a mutációs eszköz MINDEN futáskor lefuttatja a '
+      + 'HAT hazugság-ellenpróbát (Q18 · H03 · H04 · H05 · H06 · H0X) a SAJÁT kódunkon, és mindegyiknél '
+      + 'megköveteli, hogy se `probe_fail`, se `runtime_error` szerződés alatt NE legyen elkapás. '
+      + 'Bizonyítottan piros a visszacsúszásra: az M5 hibakódját `MAS_HIBAKOD`-ra írva a verdikt '
+      + 'WRONG_CATCHER, kilépési kód 1.',
+    forbidden: Object.freeze([]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/manifest.mjs'], pattern: 'export function checkResultSet',
+        reason: 'a várt készlet KÜLSŐ szerződés, és a mérő ezt HÍVJA (KUKA-009)' }),
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: 'ALLOWED_EXIT_CODES',
+        reason: 'a rendellenes kilépési kód mérőhiba, akkor is, ha van értelmezhető JSON (H05)' }),
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: 'const ATTACKS = \\[',
+        reason: 'a hat hazugság-ellenpróba ÁLLANDÓ kapu, nem kapcsolóra futó egyszeri bizonyítás' }),
+    ]),
+  }),
+  Object.freeze({
     id: 'KUKA-089',
     date: '2026-09-09',
     title: 'A HIÁNYZÓ ÉLES ERŐFORRÁS MINT A PRÓBA ELMARADÁSÁNAK INDOKA — a próbához nem AZ erőforrás kell, hanem EGY erőforrás',

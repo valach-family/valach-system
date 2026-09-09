@@ -78,6 +78,23 @@ if (hasLedger) {
 
 // ── REL03: a BONTÁS-SZABÁLY az ÉLŐ migrációkon ───────────────────────────────────────────────────
 const verdicts = named.map((f) => ({ file: f, v: classifyMigration(read(`${MIG_DIR}/${f}`), VERSION) }));
+// ═══ R45 Q16 — A JAVÍTÁS ELJUTOTT AZ OSZTÁLYOZÓIG, A FOGYASZTÓJÁIG NEM ══════════════════════════
+//
+// Az előző kör megengedő szabályra cserélte a KIZÁRÓ felsorolást — az OSZTÁLYOZÓ azóta helyesen
+// mond `data_change, ok:false`-t a `TRUNCATE TABLE partner`-re és `unknown, ok:false`-t a
+// `SELECT 1`-re. **Csak épp ez a verifier egyiket sem nézte:** a `contract` alakra szűrt, tehát a
+// másik két csoport elutasítása NEM tette pirossá a teljes ellenőrzést (R45 L01 · L02: 27/27 PASS,
+// exit 0 egy tábla-ürítés mellett).
+//
+// Ez PONTOSAN ugyanaz a hiba-osztály, mint a mai `docs:html` lelet (D-VS-3004): a darab ép volt, a
+// VISZONY halott (KUKA-024). Innentől: MINDEN megvizsgált migráció MINDEN elutasítása megállít.
+const rejected = verdicts.filter((x) => !x.v.ok);
+check('REL03', `NINCS elutasított migráció — bármely alakban (${verdicts.length} migráció mérve; elutasítva: ${rejected.length})`
+  // NEM ZSÁKUTCA (KUKA-064): a mondat megnevezi a FÁJLT, a BESOROLÁST és az INDOKOT — enélkül a
+  // felhasználó ott áll meg, ahol elindult.
+  + (rejected.length ? `\n         ${rejected.map((x) => `${x.file} → [${x.v.shape}] ${x.v.reason}`).join('\n         ')}` : ''),
+  rejected.length === 0);
+
 const contractions = verdicts.filter((x) => x.v.shape === 'contract');
 const broken = contractions.filter((x) => !x.v.ok);
 check('REL03', `minden bontó migráció megfelel a menetrendnek (${contractions.length} bontó a ${named.length}-ből)`,
@@ -131,8 +148,35 @@ const FIXTURES = [
     sql: 'DELETE FROM stock_movement WHERE id < 100;', expect: { shape: 'data_change', ok: false } },
   { name: 'Q16 — a FEL NEM ISMERT alak sem engedély (az őr nem SQL-értelmező)',
     sql: 'SELECT pg_sleep(1);', expect: { shape: 'unknown', ok: false } },
-  { name: 'Q16 — NOT VALID megszorítás viszont bővítés (a régi írókat nem zárja ki)',
-    sql: 'ALTER TABLE partner ADD CONSTRAINT c CHECK (vat IS NOT NULL) NOT VALID;', expect: { shape: 'expand', ok: true } },
+  // ═══ R45 L03–L07 — A SAJÁT FIXTÚRÁM INDOKLÁSA VOLT HAMIS ══════════════════════════════════════
+  // A régi sor azt állította, hogy a `NOT VALID` megszorítás „a régi írókat nem zárja ki". A
+  // PostgreSQL szerint a `NOT VALID` csak a MEGLÉVŐ sorok végigellenőrzését halasztja el; az ÚJ
+  // beszúrást/módosítást a feltétel MÁR korlátozza. Tehát a fixtúra egy HAMIS állítást őrzött
+  // zölden — pontosan az a hiba-osztály, amiről a KUKA-068 szól (a pin védte a hibát).
+  { name: 'R45 L03 — NOT VALID megszorítás: SZORÍTÓ, mert az ÚJ írásokat már korlátozza',
+    sql: 'ALTER TABLE partner ADD CONSTRAINT c CHECK (vat IS NOT NULL) NOT VALID;',
+    expect: { shape: 'restrictive', ok: false } },
+  { name: 'R45 L04 — CREATE UNIQUE INDEX: SZORÍTÓ (a múltbeli duplikátumon megbukhat)',
+    sql: 'CREATE UNIQUE INDEX ix_partner_code ON partner(code);',
+    expect: { shape: 'restrictive', ok: false } },
+  { name: 'R45 L05 — ADD COLUMN … NOT NULL: SZORÍTÓ (meglévő sorok + az új mezőt nem író régi kód)',
+    sql: 'ALTER TABLE partner ADD COLUMN required TEXT NOT NULL;',
+    expect: { shape: 'restrictive', ok: false } },
+  { name: 'R45 L03 — a SZORÍTÓ átmegy, ha a szerző kimondja, hogyan marad kompatibilis a régi író',
+    sql: '-- BESOROLÁS: restrictive — a 3.0.0 óta minden író kitölti; a meglévő sorokat a 041 töltötte fel\nALTER TABLE partner ADD COLUMN required TEXT NOT NULL;',
+    expect: { shape: 'restrictive', ok: true } },
+  { name: 'R45 L06 — VEGYES fájl: az adatváltozás NEM nyeli el a bontás kivezetési kötelmét',
+    sql: '-- BESOROLÁS: data_change — a 2019-es sorok egységesítése\nALTER TABLE partner DROP legacy_code;\nUPDATE partner SET x = 1;',
+    expect: { shape: 'data_change', ok: false } },
+  { name: 'R45 L06 — ugyanaz KIVEZETVE fejléccel is: MINDKÉT kötelem teljesül',
+    sql: '-- BESOROLÁS: data_change — a 2019-es sorok egységesítése, a 042-es mentésből visszaállítható\n-- KIVEZETVE: 2.9.0\nALTER TABLE partner DROP legacy_code;\nUPDATE partner SET x = 1;',
+    expect: { shape: 'data_change', ok: true } },
+  { name: 'R45 L07 — a hibaüzenet által AJÁNLOTT folytatás tényleg működik (nem zsákutca)',
+    sql: '-- BESOROLÁS: unknown — csak olvasó mondat, semmilyen sémát és adatot nem érint\nSELECT 1;',
+    expect: { shape: 'unknown', ok: true } },
+  { name: 'R45 L07 — de a ROSSZ besorolás NEM elég: az `expand` fejléc egy ismeretlen mondaton nem engedély',
+    sql: '-- BESOROLÁS: expand — szerintem ártalmatlan\nSELECT 1;',
+    expect: { shape: 'unknown', ok: false } },
   { name: 'Q16 — KIMONDOTT besorolással az adatváltozás átmegy',
     sql: '-- BESOROLÁS: data_change — a 2019-es sorok egységesítése, a 042-es mentésből visszaállítható\nUPDATE partner SET x = 1;',
     expect: { shape: 'data_change', ok: true } },

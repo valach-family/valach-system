@@ -79,6 +79,10 @@ const MUTATIONS = [
   // VISELKEDÉS észlelése — de NEM bizonyítja, hogy két gazdasági hatás sikeresen lekönyvelődött.
   // Ezért itt `runtime_error` a szerződés: ELŐRE kimondva, hogy a bizonyíték ereje ennyi.
   { id: 'M5', rule: 'K07', catcher: 'P-A08', expect: 'runtime_error',
+    // A HIBAKÓD ÉS A FÁZIS ELŐRE RÖGZÍTVE, MÉRÉSBŐL (R45 §4/5). A régi alak BÁRMILYEN kivételt
+    // elfogadott — így a teljes futtató összeomlása is „elkapás" lett (H02). Innentől csak EZ a
+    // kivétel, EBBEN a fázisban bizonyíték; bármi más WRONG_CATCHER.
+    error_code: 'ERR_SQLITE_ERROR', phase: 'probe_body',
     what: 'az ismétlésvédelem nem fog: a hatás MÁSODSZOR is megszületik',
     evidence_limit: 'a mai kódon egyedi kulcs-ütközést vált ki — ez a VISELKEDÉS-VÁLTOZÁS észlelése, '
       + 'NEM két sikeresen lekönyvelt hatás bizonyítéka (R42 §2.3)',
@@ -117,21 +121,53 @@ const MUTATIONS = [
     to: "  if (prior && prior.declared_hash === declaredHash) return { ok: true, effect_id: prior.effect_id, state: prior.state, replayed: true };\n  const decision = rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence });\n  if (!decision.allowed) {" },
 ];
 
-// A próbák NEVE — a mutáció-térkép csak LÉTEZŐ próbát nevezhet meg (R42 §3/1: „Próba- és
-// bizonyítékazonosítók verzióhoz kötöttek"). Egy elgépelt `catcher` némán WRONG_CATCHER-t okozna.
-function probeIdsOf(runResult) {
-  return (runResult.records || []).map((r) => r.probe_id);
-}
+// ═══ A MÁSODIK KÖR: ÖT TOVÁBBI HAZUGSÁG-ALAK (R45 H02–H06) ══════════════════════════════════════
+//
+// A Q18 javítása után a külső fél ÖT másik utat talált, amin a mérő MÉG MINDIG „10/10 elkapva"-t
+// írt ki és 0-val zárt. Mind az öt reprodukált:
+//
+//   H02  a mutáns indulása UTÁN `process.exit(86)`, JSON nélkül → az M5 `runtime_error` szerződése
+//        a TELJES FUTTATÓ hibáját is elkapásnak vette
+//   H03  a mutánsok nem futtattak próbát, csak `SKIP` rekordot adtak a hat ismert azonosítóhoz →
+//        a `status !== 'PASS'` bármit bukásnak fogadott el
+//   H04  csak a BUKOTT rekordok kerültek a kimenetbe → a hiányzó rekordokat semmi nem vette észre
+//   H05  valódi JSON, de a futtató 86-tal lépett ki → az értelmezhető JSON mellett a rendellenes
+//        folyamat-kilépés elveszett
+//   H06  a rekordokat idegen infrastruktúra-kivételt jelző `FAIL`-re cserélve → a mérő nem nézte,
+//        hogy a MEGFELELŐ ÁLLÍTÁS bukott-e el
+//
+// A KÖZÖS TANULSÁG: **előbb érvényes mérés, utána mutációs ítélet.** A mérő eddig a MÉRT FÉLTŐL
+// kérdezte meg, mit kellett volna mérnie (KUKA-054 a mérőn). Innentől a várt készlet külső
+// szerződés (`manifest.mjs`), a kilépési kód és az eredménycsomag ellentmondása mérőhiba, és
+// bizonyíték CSAK a nevezett próba nevezett ÁLLÍTÁSÁNAK bukása.
+
+import { MANIFEST_VERSION, EXPECTED_IDS, PROBE_STATUS, checkResultSet, assertionOf } from './manifest.mjs';
+
+// A `run.mjs` SZERZŐDÉSE: 0 = minden próba PASS · 1 = van nem-PASS. Minden más kód mérőhiba —
+// akkor is, ha közben értelmezhető JSON érkezett (H05).
+const ALLOWED_EXIT_CODES = Object.freeze([0, 1]);
 
 /**
- * EGY futtatás osztályozása. Ez a függvény dönti el, mi számít BIZONYÍTÉKNAK — és a Q18 után
- * ez a rendszer legkényesebb pontja. A hiba SOHA nem lehet észlelés.
+ * EGY futtatás osztályozása — ELŐBB ÉRVÉNYESSÉG, UTÁNA ÍTÉLET.
+ * Ez a függvény dönti el, mi számít BIZONYÍTÉKNAK. A hiba SOHA nem lehet észlelés.
  *
- * @returns {{kind:'ok'|'harness', failed?:string[], all?:string[], why?:string}}
+ * @returns {{kind:'ok'|'harness', why?:string, failed?:string[], threw?:object[], records?:object[]}}
  */
 export function classifyRun(spawnResult) {
-  if (spawnResult.error) return { kind: 'harness', why: `a futtató nem indult el: ${spawnResult.error.message}` };
+  // (1) el sem indult · jel állította le · időtúllépés
+  if (spawnResult.error) {
+    const to = spawnResult.error.code === 'ETIMEDOUT' ? ' (IDŐTÚLLÉPÉS)' : '';
+    return { kind: 'harness', why: `a futtató nem futott le${to}: ${spawnResult.error.message}` };
+  }
   if (spawnResult.signal) return { kind: 'harness', why: `a futtatót jel állította le: ${spawnResult.signal}` };
+
+  // (2) RENDELLENES KILÉPÉSI KÓD — H05. Ezt a JSON megléte NEM írja felül: ha a folyamat állapota
+  // és az eredménycsomag ellentmond, azt nem szabad elhallgatni.
+  if (!ALLOWED_EXIT_CODES.includes(spawnResult.status)) {
+    return { kind: 'harness', why: `a futtató rendellenes kilépési kóddal zárt: ${spawnResult.status} (a szerződés szerint csak 0 vagy 1 lehet)` };
+  }
+
+  // (3) értelmezhető JSON
   let out;
   try { out = JSON.parse(spawnResult.stdout); } catch {
     return {
@@ -141,9 +177,37 @@ export function classifyRun(spawnResult) {
     };
   }
   if (!out || !Array.isArray(out.records)) return { kind: 'harness', why: 'a JSON-ban nincs `records` tömb' };
-  if (out.records.length === 0) return { kind: 'harness', why: 'a futtató NULLA próbát adott vissza' };
-  const failed = out.records.filter((x) => x.status !== 'PASS').map((x) => x.probe_id);
-  return { kind: 'ok', failed, all: probeIdsOf(out) };
+
+  // (4) A TERVEZETT KÉSZLET — KÜLSŐ szerződésből, nem a futás eredményéből (H03 · H04).
+  const set = checkResultSet(out.records);
+  if (!set.ok) return { kind: 'harness', why: `az eredménycsomag nem felel meg a tervezett készletnek — ${set.problems.join(' · ')}` };
+  if (out.manifest_version && out.manifest_version !== MANIFEST_VERSION) {
+    return { kind: 'harness', why: `más manifest-verzió: ${out.manifest_version} ≠ ${MANIFEST_VERSION}` };
+  }
+
+  // (5) EGYETLEN ÁLLÍTÁS SEM FUTOTT LE — H03. A `SKIP`/`NOT_STARTED` nem bukott állítás, és a
+  // mai hatpróbás csomaghoz NINCS deklarált korai-megállási profil (R45), tehát a kihagyás mérőhiba.
+  const ran = out.records.filter((r) => r.status === PROBE_STATUS.PASS
+    || r.status === PROBE_STATUS.FAIL || r.status === PROBE_STATUS.THREW);
+  const skipped = out.records.filter((r) => r.status === PROBE_STATUS.SKIP || r.status === PROBE_STATUS.NOT_STARTED);
+  if (ran.length === 0) return { kind: 'harness', why: 'EGYETLEN próba állítása sem futott le (csak SKIP/NOT_STARTED)' };
+  if (skipped.length) {
+    return { kind: 'harness', why: `${skipped.length} próba kimaradt (${skipped.map((r) => r.probe_id).join(', ')}) — deklarált korai-megállási profil nincs` };
+  }
+
+  // (6) A KILÉPÉSI KÓD ÉS AZ EREDMÉNY EGYEZZEN. Ha ellentmondanak, nem tudjuk, melyik igaz.
+  const nonPass = out.records.filter((r) => r.status !== PROBE_STATUS.PASS);
+  const expectedCode = nonPass.length ? 1 : 0;
+  if (spawnResult.status !== expectedCode) {
+    return { kind: 'harness', why: `a kilépési kód (${spawnResult.status}) ellentmond az eredménynek (${nonPass.length} nem-PASS ⇒ ${expectedCode})` };
+  }
+
+  return {
+    kind: 'ok',
+    records: out.records,
+    failed: out.records.filter((r) => r.status === PROBE_STATUS.FAIL).map((r) => r.probe_id),
+    threw: out.records.filter((r) => r.status === PROBE_STATUS.THREW),
+  };
 }
 
 function runIn(dir) {
@@ -153,8 +217,10 @@ function runIn(dir) {
 
 function withCopy(fn) {
   const dir = mkdtempSync(join(tmpdir(), 'v3mut-'));
-  try { cpSync(REF, join(dir, 'v3ref'), { recursive: true }); return fn(dir); }
-  finally { rmSync(dir, { recursive: true, force: true }); }
+  try {
+    cpSync(REF, join(dir, 'v3ref'), { recursive: true });
+    return fn(dir);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 
 // ── (a) ALAPVONAL: a mutálatlan másolat zöld? ────────────────────────────────────────────────────
@@ -162,25 +228,133 @@ function baselineGate() {
   return withCopy((dir) => {
     const c = classifyRun(runIn(dir));
     if (c.kind === 'harness') return { ok: false, why: `az ALAPVONAL nem futott le: ${c.why}` };
-    if (c.failed.length) return { ok: false, why: `az ALAPVONAL piros: ${c.failed.join(', ')}` };
-    return { ok: true, probes: c.all };
+    if (c.failed.length || c.threw.length) {
+      return { ok: false, why: `az ALAPVONAL piros: ${[...c.failed, ...c.threw.map((r) => `${r.probe_id}(kivétel)`)].join(', ')}` };
+    }
+    return { ok: true, probes: c.records.map((r) => r.probe_id) };
   });
 }
 
-// ── (b) Q18-ELLENPRÓBA: az elrontott futtatót HARNESS_ERROR-nak kell mondani ─────────────────────
-// Ez a kapu bizonyítja, hogy a Q18 hiba ma nincs jelen. Pontosan azt csináljuk, amit a külső fél:
-// a `run.mjs` helyére azonnal kilépő program kerül, JSON nélkül.
-function q18Gate() {
+// ── (b)–(f) A HAZUGSÁG-ELLENPRÓBÁK: MINDEN futáskor, nem kapcsolóra ──────────────────────────────
+//
+// Mindegyik a `run.mjs` helyére tesz egy TÁMADÓ futtatót, és megköveteli, hogy az eszköz NE
+// mondja elkapásnak. Ez az egyetlen dolog, amitől a többi számnak értéke van: a mérő minden
+// futáskor elvégzi magán a külső fél támadásait.
+
+/** A támadó futtató forrása: adott JSON-t ír ki, adott kóddal lép ki. */
+const fakeRunner = (jsonExpr, exitCode) =>
+  `const out = ${jsonExpr};\nprocess.stdout.write(JSON.stringify(out));\nprocess.exit(${exitCode});\n`;
+
+const RECORDS = (mapper) => `${JSON.stringify(EXPECTED_IDS)}.map((id) => (${mapper}))`;
+
+const ATTACKS = [
+  { id: 'Q18', what: 'a futtató azonnal 86-tal kilép, JSON nélkül',
+    runner: 'process.exit(86);\n' },
+
+  { id: 'H03', what: 'egyetlen próba sem fut, csak SKIP rekordok a hat ismert azonosítóhoz',
+    runner: fakeRunner(`{ manifest_version: ${JSON.stringify(MANIFEST_VERSION)}, records: ${RECORDS("{ probe_id: id, status: 'SKIP' }")} }`, 1) },
+
+  { id: 'H04', what: 'csak a BUKOTT rekordok kerülnek a kimenetbe (hiányos csomag)',
+    runner: fakeRunner(`{ manifest_version: ${JSON.stringify(MANIFEST_VERSION)}, records: [{ probe_id: ${JSON.stringify(EXPECTED_IDS[0])}, status: 'FAIL', assertion_id: 'x' }] }`, 1) },
+
+  { id: 'H05', what: 'valódi alakú JSON, de a futtató 86-tal lép ki',
+    runner: fakeRunner(`{ manifest_version: ${JSON.stringify(MANIFEST_VERSION)}, records: ${RECORDS("{ probe_id: id, status: 'PASS' }")} }`, 86) },
+
+  // H06 KÜLÖN MÉRCE, ÉS EZT KI KELL MONDANI (KUKA-048: a kivétel hatókörét a MÉRCE dönti el, nem
+  // a kényelem). A H06 kimenete FORMAILAG érvényes mérés: minden tervezett próba szerepel, ismert
+  // állapottal. Tehát nem mérőhiba — a követelmény az, hogy NE legyen belőle ELKAPÁS: a várt üzleti
+  // állítás bukása és egy váratlan kivétel KÉT KÜLÖN kimenet (R45 H06). A helyes ítélet:
+  // WRONG_CATCHER. Ha ezt is `harness`-nak követelném, a mérce hazudna arról, mit mértem.
+  { id: 'H06', requires: 'not_caught', expect_verdict: 'WRONG_CATCHER',
+    what: 'idegen infrastruktúra-kivétel a nevezett próbán, bukott ÁLLÍTÁS helyett',
+    runner: fakeRunner(`{ manifest_version: ${JSON.stringify(MANIFEST_VERSION)}, records: ${RECORDS("{ probe_id: id, status: 'THREW', error_code: 'ECONNREFUSED', phase: 'infrastructure' }")} }`, 1) },
+
+  { id: 'H0X', what: 'ISMÉTLŐDŐ és ISMERETLEN azonosító a kimenetben',
+    runner: fakeRunner(`{ manifest_version: ${JSON.stringify(MANIFEST_VERSION)}, records: [...${RECORDS("{ probe_id: id, status: 'PASS' }")}, { probe_id: ${JSON.stringify(EXPECTED_IDS[0])}, status: 'PASS' }, { probe_id: 'P-KITALALT', status: 'FAIL', assertion_id: 'x' }] }`, 1) },
+];
+
+/**
+ * Egy támadás akkor VÉDETT, ha a mérő mérőhibának minősíti — ÉS ha a `runtime_error` szerződésű
+ * mutáció sem tudja belőle elkapást csinálni (H02: a teljes futtató hibája SOHA nem bizonyíték).
+ */
+function attackGate(a) {
+  const requires = a.requires || 'harness';
   return withCopy((dir) => {
-    writeFileSync(join(dir, 'v3ref', 'run.mjs'), 'process.exit(86);\n');
+    writeFileSync(join(dir, 'v3ref', 'run.mjs'), a.runner);
     const c = classifyRun(runIn(dir));
+
+    if (requires === 'harness' && c.kind !== 'harness') {
+      return { ok: false, why: `A MÉRŐ HAZUDIK: a támadást ÉRVÉNYES MÉRÉSNEK fogadta el (${a.what})` };
+    }
+
+    // A KÖZÖS, MINDIG ÉRVÉNYES KÖVETELMÉNY: egyik szerződés alatt SEM lehet ELKAPÁS.
+    // A `runtime_error` ág külön is mérve — ez a H02: a teljes futtató hibája SOHA nem bizonyíték.
+    const vRuntime = verdictFor({ expect: 'runtime_error', catcher: EXPECTED_IDS[0], error_code: 'A_SZERZODESBEN_ALLO' }, c);
+    const vFail = verdictFor({ expect: 'probe_fail', catcher: EXPECTED_IDS[0] }, c);
+    for (const [name, v] of [['runtime_error', vRuntime], ['probe_fail', vFail]]) {
+      if (v.verdict === 'CAUGHT') {
+        return { ok: false, why: `A MÉRŐ HAZUDIK: a(z) ${name} szerződés ELKAPÁSNAK vette (${v.why})` };
+      }
+    }
+    if (a.expect_verdict && vFail.verdict !== a.expect_verdict) {
+      return { ok: false, why: `az ítélet ${vFail.verdict}, de a szerződés ${a.expect_verdict}-t vár — ${vFail.why}` };
+    }
     return {
-      ok: c.kind === 'harness',
+      ok: true,
       why: c.kind === 'harness'
         ? `helyesen HARNESS_ERROR — ${c.why}`
-        : 'A MÉRŐ ÚJRA HAZUDIK: a nem futó próbát ÉSZLELÉSNEK minősítette (R42 Q18)',
+        : `formailag érvényes mérés, de helyesen ${vFail.verdict} — ${vFail.why}`,
     };
   });
+}
+
+/**
+ * AZ ÍTÉLET — a nevezett próba nevezett ÁLLÍTÁSA bukott-e el?
+ * Külön függvény, hogy az ellenpróbák is EZT hívják, ne egy másolatát (KUKA-009).
+ */
+function verdictFor(m, c) {
+  if (c.kind === 'harness') return { verdict: 'HARNESS_ERROR', why: c.why };
+
+  const rec = (c.records || []).find((r) => r.probe_id === m.catcher);
+  if (!rec) return { verdict: 'HARNESS_ERROR', why: `a nevezett próba (${m.catcher}) nincs az eredményben` };
+
+  if (m.expect === 'runtime_error') {
+    // SZŰKÍTVE (R45 §4): csak a próbán BELÜLI, ELŐRE MEGNEVEZETT hibakódú kivétel bizonyíték.
+    // A teljes futtató hibája, idegen kivétel és a próba előtti összeomlás SOHA nem az.
+    if (rec.status !== PROBE_STATUS.THREW) {
+      const other = c.failed.filter((id) => id !== m.catcher);
+      if (c.failed.includes(m.catcher)) {
+        return { verdict: 'CAUGHT', why: `a nevezett ${m.catcher} ÁLLÍTÁSA bukott (a szerződés kivételt is megengedett volna)` };
+      }
+      return other.length
+        ? { verdict: 'WRONG_CATCHER', why: `bukott: ${other.join(', ')} — de a nevezett ${m.catcher} nem` }
+        : { verdict: 'SURVIVED', why: 'minden próba átment' };
+    }
+    if (m.error_code && rec.error_code !== m.error_code) {
+      return { verdict: 'WRONG_CATCHER', why: `a ${m.catcher} kivételt dobott, de MÁS hibakóddal: ${rec.error_code} ≠ a szerződésben álló ${m.error_code}` };
+    }
+    if (m.phase && rec.phase !== m.phase) {
+      return { verdict: 'WRONG_CATCHER', why: `a ${m.catcher} kivétele MÁS fázisban keletkezett: ${rec.phase} ≠ ${m.phase}` };
+    }
+    return { verdict: 'CAUGHT', weak: true,
+      why: `a nevezett ${m.catcher} a szerződésben ELŐRE rögzített kivételt dobta (${rec.error_code} · ${rec.phase})` };
+  }
+
+  // `probe_fail`: a NEVEZETT ÁLLÍTÁSNAK kell buknia — nem elég, hogy „valami történt" a próbán.
+  if (rec.status === PROBE_STATUS.THREW) {
+    return { verdict: 'WRONG_CATCHER', why: `a ${m.catcher} nem az állítását bukta, hanem KIVÉTELT dobott (${rec.error_code} · ${rec.phase}) — ez nem a szerződés szerinti bizonyíték` };
+  }
+  if (rec.status !== PROBE_STATUS.FAIL) {
+    const other = c.failed.filter((id) => id !== m.catcher);
+    return other.length
+      ? { verdict: 'WRONG_CATCHER', why: `bukott: ${other.join(', ')} — de a nevezett ${m.catcher} NEM` }
+      : { verdict: 'SURVIVED', why: 'minden próba átment' };
+  }
+  const want = assertionOf(m.catcher);
+  if (want && rec.assertion_id !== want) {
+    return { verdict: 'WRONG_CATCHER', why: `a ${m.catcher} bukott, de MÁS állításon: ${rec.assertion_id} ≠ ${want}` };
+  }
+  return { verdict: 'CAUGHT', why: `a nevezett ${m.catcher} a nevezett állításán bukott (${want})` };
 }
 
 function runMutation(m, knownProbes) {
@@ -194,23 +368,7 @@ function runMutation(m, knownProbes) {
       return { ...m, verdict: 'STALE_ANCHOR', why: 'a mutáció horgonya NEM TALÁLHATÓ a forrásban — a mutáció elavult' };
     }
     writeFileSync(target, src.replace(m.from, m.to));
-    const c = classifyRun(runIn(dir));
-
-    if (c.kind === 'harness') {
-      // A ROSSZ FUTÁS NEM ÉSZLELÉS — kivéve, ha a mutáció szerződése ELŐRE kimondta.
-      if (m.expect === 'runtime_error') {
-        return { ...m, verdict: 'CAUGHT', why: `előre rögzített futásidejű hiba — ${c.why}`, weak: true };
-      }
-      return { ...m, verdict: 'HARNESS_ERROR', why: c.why };
-    }
-    if (c.failed.length === 0) return { ...m, verdict: 'SURVIVED', why: 'minden próba átment' };
-    if (!c.failed.includes(m.catcher)) {
-      return { ...m, verdict: 'WRONG_CATCHER', why: `bukott: ${c.failed.join(', ')} — de a nevesített ${m.catcher} NEM` };
-    }
-    if (m.expect === 'runtime_error') {
-      return { ...m, verdict: 'CAUGHT', why: `a nevesített ${m.catcher} bukott (a szerződés futásidejű hibát is megengedett)`, weak: true };
-    }
-    return { ...m, verdict: 'CAUGHT', why: `a nevesített ${m.catcher} bukott` };
+    return { ...m, ...verdictFor(m, classifyRun(runIn(dir))) };
   });
 }
 
@@ -220,24 +378,30 @@ console.log('V3 MAGREFERENCIA — MUTÁCIÓS PRÓBA (G6)');
 console.log('='.repeat(78));
 
 const base = baselineGate();
-const q18 = q18Gate();
-console.log(`  KAPU (a) alapvonal:     ${base.ok ? 'ZÖLD' : 'PIROS'} — ${base.ok ? `${base.probes.length} próba futott` : base.why}`);
-console.log(`  KAPU (b) Q18-ellenpróba: ${q18.ok ? 'ZÖLD' : 'PIROS'} — ${q18.why}`);
+console.log(`  KAPU (a) ALAPVONAL: ${base.ok ? 'ZÖLD' : 'PIROS'} — ${base.ok ? `${base.probes.length} próba futott, mind PASS` : base.why}`);
+console.log('');
+console.log('  KAPUK (b) HAZUGSÁG-ELLENPRÓBÁK — a külső fél támadásai a SAJÁT kódunkon, minden futáskor:');
+const attacks = ATTACKS.map((a) => ({ ...a, ...attackGate(a) }));
+for (const a of attacks) {
+  console.log(`    ${a.ok ? 'ZÖLD ' : 'PIROS'} [${a.id}] ${a.what}`);
+  console.log(`           → ${a.why}`);
+}
+const attacksOk = attacks.every((a) => a.ok);
 console.log('');
 
 let results = [];
-if (base.ok && q18.ok) {
+if (base.ok && attacksOk) {
   results = MUTATIONS.map((m) => runMutation(m, base.probes));
-  console.log('  Minden sor EGY elrontott őr. A NEVESÍTETT próbának kell pirosra váltania.');
+  console.log('  Minden sor EGY elrontott őr. A NEVEZETT próba NEVEZETT ÁLLÍTÁSÁNAK kell buknia.');
   console.log('');
   for (const r of results) {
     console.log(`  ${r.verdict.padEnd(13)} [${r.id}·${r.rule}] ${r.what}`);
     console.log(`                → ${r.why}`);
-    if (r.weak) console.log(`                ⚠ a bizonyíték ereje korlátozott: ${r.evidence_limit || 'előre rögzített futásidejű hiba'}`);
+    if (r.weak) console.log(`                ⚠ a bizonyíték ereje korlátozott: ${r.evidence_limit || 'előre rögzített, próbán belüli kivétel'}`);
   }
 } else {
-  console.log('  A mutációk NEM FUTOTTAK: a két kapu valamelyike piros, tehát az eredményük');
-  console.log('  értelmezhetetlen volna. A hiányzó mérés nem zöld (KUKA-051 · KUKA-089).');
+  console.log('  A mutációk NEM FUTOTTAK: valamelyik kapu piros, tehát az eredményük értelmezhetetlen');
+  console.log('  volna. A hiányzó mérés nem zöld (KUKA-051 · KUKA-089).');
 }
 
 const count = (v) => results.filter((r) => r.verdict === v).length;
@@ -246,8 +410,11 @@ const harness = count('HARNESS_ERROR'), stale = count('STALE_ANCHOR');
 const weak = results.filter((r) => r.weak).length;
 
 console.log('');
+console.log(`  Manifest: ${MANIFEST_VERSION} · tervezett próbák: ${EXPECTED_IDS.length} (${EXPECTED_IDS.join(', ')})`);
 console.log(`  ${MUTATIONS.length} mutáció · ${caught} elkapva (ebből ${weak} korlátozott erejű)`
   + ` · ${survived} túlélte · ${wrong} rossz próba · ${harness} mérőhiba · ${stale} elavult horgony`);
-const clean = base.ok && q18.ok && survived === 0 && wrong === 0 && harness === 0 && stale === 0;
-console.log(`RESULT: ${clean ? 'MINDEN VESZÉLYES MUTÁCIÓ A NEVESÍTETT PRÓBÁVAL ÉSZLELT' : 'HIÁNYOS — lásd a fenti sorokat'}`);
+console.log(`  ${attacks.length} hazugság-ellenpróba · ${attacks.filter((a) => a.ok).length} védett`);
+const clean = base.ok && attacksOk && results.length === MUTATIONS.length
+  && survived === 0 && wrong === 0 && harness === 0 && stale === 0;
+console.log(`RESULT: ${clean ? 'MINDEN VESZÉLYES MUTÁCIÓ A NEVEZETT ÁLLÍTÁSSAL ÉSZLELT' : 'HIÁNYOS — lásd a fenti sorokat'}`);
 process.exit(clean ? 0 : 1);
