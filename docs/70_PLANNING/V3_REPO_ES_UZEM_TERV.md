@@ -198,10 +198,10 @@ Ez a repó-nyitás valódi munkája — nem a `git init`.
 
 ---
 
-## 7. Amit kérek tőled — **MIND A HÁROM MEGVÁLASZOLVA (D-VS-5003)**
+## 7. Amit kérek tőled — **MIND A HÁROM MEGVÁLASZOLVA (D-VS-3003)**
 
 1. ~~**A név megerősítése**~~ → **`valach-family/valach-system`** *(„ok, valach-system mehet")*.
-   A repó megnyitva, a nyitó csomag benne (D-VS-5000).
+   A repó megnyitva, a nyitó csomag benne (D-VS-3000).
 2. ~~**Három környezet rendben van-e**~~ → **igen** *(„a három környezet is jó")*. Eldöntve;
    a tényleges felállításuk még hátra van.
 3. ~~**PITR be van-e kapcsolva**~~ → **IGEN**, a `valach-system` projekten (2026-09-09).

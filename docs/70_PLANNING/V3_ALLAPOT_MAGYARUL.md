@@ -45,7 +45,7 @@ igen: ez is mehet ChatGPT nélkül, mert minden esethez oda van írva, mi a hiba
 ### „A PITR engedélyezve van a Railway / valach-family / valach-system-ben"
 
 **Köszönöm — ezzel a repó-terv mindhárom kérdése le van zárva** (név · három környezet · PITR).
-Naplózva: **D-VS-5003**.
+Naplózva: **D-VS-3003**.
 
 Amit ez a gyakorlatban jelent:
 
@@ -152,7 +152,7 @@ ha akarod, az a szálon párhuzamosan mehet, és nem kell megvárnia semmit. Ezt
 **Már van, és pontosan azért, amit írsz.**
 
 - A V3 naplója a **700-as számtól** indul, az új repóban. Ma három bejegyzés van benne
-  (D-VS-5000 · 701 · 702), plusz a mai (703). **Semmit nem másoltam át.**
+  (D-VS-3000 · 701 · 702), plusz a mai (703). **Semmit nem másoltam át.**
 - A V2 naplója a **700 alatt** marad. A két repó így egyszerre oszthat számot ütközés nélkül —
   gépi őr figyeli.
 - A V3 napló első bekezdése kimondja, hogy a 700 előtti döntések a V2 repóban élnek, és
@@ -182,7 +182,7 @@ az eszközre — azt nem, hogy **készít-e lapot**.
 **Javítva, három ponton:** a kapcsoló-lista most magától az eszköztől jön (nem gépelem le) · több
 írásmódot is elfogad · és **a nulla lap innentől PIROS**, olyan mondattal, ami megmondja a helyes
 hívást. Az őr mostantól tényleg **lefuttatja** a parancsot és lapokat követel; visszaállítva a régi
-alakot, bizonyítottan pirosra vált. Naplózva: **D-VS-5004**.
+alakot, bizonyítottan pirosra vált. Naplózva: **D-VS-3004**.
 
 Azért írom ide, mert ez pontosan az a hibafajta, ami miatt a mag ilyen lassan halad: **egy darab
 külön-külön hibátlan volt, csak a kettő KAPCSOLATA volt halott** — és ezt semmi nem jelezte.
@@ -201,4 +201,4 @@ körtől a lapok mennek a boardra, és nem kell átmásolnod őket.
 ---
 
 *Gépi jelek ezen az állapoton: `npm run verify:sweep` 6/6 zöld · `npm run verify:v3ref` (két kapu +
-10 mutáció) · `npm run verify:kuka` (89 tanulság, mind otthonnal). Napló: D-VS-5003.*
+10 mutáció) · `npm run verify:kuka` (89 tanulság, mind otthonnal). Napló: D-VS-3003.*

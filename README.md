@@ -17,7 +17,7 @@ az üzleti adat.
 | hogyan dolgozunk itt, mit szabad és mit nem | **`CLAUDE.md`** — ez az aktív memória, a rendszer minden körben betölti |
 | verziók, ágak, migráció, visszaállás | **`VERSIONING.md`** |
 | mi változott melyik kiadásban | **`CHANGELOG.md`** |
-| miért éppen így | **`DECISION_LOG.md`** (a V3 a `D-VS-5000`-tól számoz) |
+| miért éppen így | **`DECISION_LOG.md`** (a V3 a `D-VS-3000`-tól számoz) |
 | mit buktunk el már egyszer | `contracts/retiredPatternRegistry.js` — 89 tanulság, gépi jelekkel |
 
 ## Első futás

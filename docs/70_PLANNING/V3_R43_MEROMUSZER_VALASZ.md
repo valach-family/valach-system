@@ -164,4 +164,4 @@ után lesz értelme, egyben.
 
 *Gépi jelek ezen a forrás-állapoton: `npm run verify:v3ref` (két kapu + 10 mutáció) ·
 `npm run verify:release-order` 27/27 · `npm run verify:artifact-naming` 28/28 ·
-`npm run verify:sweep` 6/6 zöld, 0 piros. Napló: D-VS-5002.*
+`npm run verify:sweep` 6/6 zöld, 0 piros. Napló: D-VS-3002.*

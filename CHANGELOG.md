@@ -10,7 +10,7 @@ jelent neki — nem azt, melyik függvény hogyan lett átnevezve.
 
 ### Hozzáadva
 
-- A repó megnyitása a nyitó csomaggal (D-VS-5000): aktív memória (`CLAUDE.md` + a 89 KUKA-tanulság),
+- A repó megnyitása a nyitó csomaggal (D-VS-3000): aktív memória (`CLAUDE.md` + a 89 KUKA-tanulság),
   őr-otthon térkép, kiadási menetrend őre, söprés, a magreferencia (`v3ref/`), a lap- és
   board-eszközök, üres `migrations/` a kiadás-naplóval.
 
