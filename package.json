@@ -1,0 +1,19 @@
+{
+  "name": "valach-system",
+  "version": "3.0.0-alpha",
+  "private": true,
+  "description": "Valach System (VS) — canonical implementation repository. A verzió CÍMKE a git-történetben, nem a repó neve.",
+  "type": "commonjs",
+  "engines": { "node": ">=22.5.0" },
+  "scripts": {
+    "verify:sweep": "node tools/vs_verify_sweep.mjs",
+    "verify:kuka": "node tools/vs_verify_kuka.mjs",
+    "verify:release-order": "node tools/vs_verify_release_order.mjs",
+    "verify:decision-numbers": "node tools/vs_verify_decision_numbers.mjs",
+    "verify:doc-html": "node tools/vs_verify_doc_html.mjs",
+    "verify:v3ref": "node v3ref/run.mjs && node v3ref/mutate.mjs",
+    "v3ref:run": "node v3ref/run.mjs",
+    "v3ref:mutate": "node v3ref/mutate.mjs",
+    "docs:html": "node tools/vs_doc_html.mjs --all"
+  }
+}

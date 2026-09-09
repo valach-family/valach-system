@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.*
+!.env.example
+
+# SZÁRMAZTATOTT — a forrás mindig az .md (KUKA-079)
+docs/_olvashato/
+
+# ÜZLETI ADAT — soha nem kerül a repóba (operátori állandó)
+backups/
+*.dump
+
+.DS_Store
+*.log

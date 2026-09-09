@@ -1,0 +1,4 @@
+{
+  "_comment": "KIADÁS-NAPLÓ. Ami itt szerepel, az MÁR LEFUTOTT valahol — a tartalma kőbe van vésve, javítani ÚJ migrációval lehet. A verify:release-order sha256-tal méri, hogy senki nem írta át. Ami NINCS benne, az még nem ment ki: az szerkeszthető. Sor alakja: { file, sha256, released_in }.",
+  "released": []
+}
