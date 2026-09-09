@@ -4,6 +4,7 @@
 //
 //   node tools/vs_doc_html.mjs docs/70_PLANNING/V3_TERV.md   # egy lap
 //   node tools/vs_doc_html.mjs --mind                        # minden terv-lap + doktrína + napló
+//   node tools/vs_doc_html.mjs --all                         # ugyanaz (lásd ALL_FLAGS — KUKA-014)
 //   node tools/vs_doc_html.mjs --mind --nyit                 # + kiírja, mit nyisson meg
 //
 // MIÉRT (operátori parancs 2026-09-05): „mint mondtam már sokszor, .md-ket nem tudok megnyitni …
@@ -25,6 +26,14 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync, statSy
 
 const require = createRequire(import.meta.url);
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+// A TELJES MENET KAPCSOLÓJA — EGY OTTHONBAN, EXPORTÁLVA (D-VS-704).
+// Miért nem elég a `--mind` sztring a helyén: a repó megnyitásakor a `package.json` `docs:html`
+// sora `--all`-t kapott (emlékezetből, nem innen), és mivel a kapcsoló nem egyezett, a parancs
+// NULLA lapot készített — miközben „elkészült" mondattal, nulla kilépési kóddal zárt. Réteg-határon
+// átgépelt azonosító (KUKA-036) + néma üres eredmény sikerként jelentve (KUKA-012 · KUKA-041).
+// Innentől a `package.json` értékét a pin EHHEZ méri, nem egy második, kézi listához.
+export const ALL_FLAGS = Object.freeze(['--mind', '--all']);
 const OUT_DIR = join(ROOT, 'docs', '_olvashato');
 
 // EGY OTTHON: ugyanaz a fordító, amit a board is hív (MDR-01).
@@ -95,7 +104,8 @@ const args = process.argv.slice(2);
 if (args.length && !process.env.VS_DOC_HTML_LIB) {
   const say = (s = '') => console.log(s);
   const targets = [];
-  if (args.includes('--mind')) {
+  const wantsAll = ALL_FLAGS.some((f) => args.includes(f));
+  if (wantsAll) {
     for (const dir of ['docs/70_PLANNING', 'docs/10_DOCTRINE']) {
       if (!existsSync(join(ROOT, dir))) continue;
       for (const f of readdirSync(join(ROOT, dir))) if (f.endsWith('.md')) targets.push(`${dir}/${f}`);
@@ -124,9 +134,25 @@ if (args.length && !process.env.VS_DOC_HTML_LIB) {
   }
   // A TARTALOMJEGYZÉK csak a teljes menetnél születik: egy lap-renderelés ne írja felül a listát
   // egyetlen sorral (KUKA-012 — a fél-igazság rosszabb, mint a semmi).
-  const idx = args.includes('--mind') ? renderIndex(entries) : null;
+  const idx = wantsAll ? renderIndex(entries) : null;
   say('');
   say(`${done.length} lap elkészült ide: docs/_olvashato/`);
+
+  // A NULLA LAP NEM SIKER. Ez a KUKA-012 gomb-alakja: ha az operátor lefuttatja a blokkot és
+  // „elkészült"-et olvas, azt hiszi, van mit megnyitnia. Zsákutca nélkül (KUKA-064): a mondat
+  // megmondja, mi a helyes hívás, és felsorolja, mit talált.
+  if (done.length === 0) {
+    say('');
+    say('HIBA: EGYETLEN lap sem készült el — ez nem siker, ezért piros.');
+    if (!targets.length) {
+      say(`  Nem volt mit fordítani. A teljes menet kapcsolója: ${ALL_FLAGS.join(' vagy ')}`);
+      say(`  Kapott kapcsolók: ${args.join(' ') || '(egy sem)'}`);
+      say('  Egy lap: node tools/vs_doc_html.mjs docs/70_PLANNING/<lap>.md');
+    } else {
+      say(`  ${targets.length} cél volt, de mind kimaradt vagy hibára futott (lásd fent).`);
+    }
+    process.exit(1);
+  }
   if (args.includes('--nyit') || done.length <= 3) for (const d of done) say(`  ${d}`);
   say('');
   if (idx) {

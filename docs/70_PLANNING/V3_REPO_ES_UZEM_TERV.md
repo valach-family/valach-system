@@ -198,16 +198,26 @@ Ez a repó-nyitás valódi munkája — nem a `git init`.
 
 ---
 
-## 7. Amit kérek tőled
+## 7. Amit kérek tőled — **MIND A HÁROM MEGVÁLASZOLVA (D-VS-703)**
 
-1. **A név megerősítése** — `valach-family/valach-system` (vagy `vsys`, ha rövidebbet szeretnél).
-   Szám a névbe nem kerül.
-2. **Három környezet rendben van-e** (production · staging · demo mint cégtér a stagingben)?
-3. **Nézd meg a Railway-en, hogy az időpontra visszaállítás (PITR) be van-e kapcsolva** a mai
-   adatbázisokon. Ezt te látod, én nem. Ha nincs, érdemes bekapcsolni — a V2-nél is.
+1. ~~**A név megerősítése**~~ → **`valach-family/valach-system`** *(„ok, valach-system mehet")*.
+   A repó megnyitva, a nyitó csomag benne (D-VS-700).
+2. ~~**Három környezet rendben van-e**~~ → **igen** *(„a három környezet is jó")*. Eldöntve;
+   a tényleges felállításuk még hátra van.
+3. ~~**PITR be van-e kapcsolva**~~ → **IGEN**, a `valach-system` projekten (2026-09-09).
 
-Ha ez a három megvan, a következő körben megnyitom a repót a 6. pont szerinti nyitó csomaggal, és a
-végén ugyanúgy kapsz egy olvasható lapot arról, mi került bele és mi maradt a `vs`-ben.
+### Amit a 3. válasz lezár, és amit nem
+
+**Lezárja a §4 első számát:** a legrosszabb esetben elveszíthető adat **másodperc-nagyságrend**.
+
+**Nem lezárva, és ez kimondott:**
+
+- A §4 szabálya **változatlan** — a rossz kiadást a KÓD visszagörgetése javítja, nem a
+  visszaállítás. A PITR a végső háló három esetre: valódi adat-sérülés · téves tömeges törlés ·
+  célzott javító-eseménnyel helyre nem hozható romlás.
+- **A visszaállítás-gyakorlat még nem futott le.** A nem próbált mentés nem mentés (KUKA-038) —
+  ez **nevesített függő** az első éles adatig, a kimenete a `var/reports/` alá kerül.
+- **A V2 (`vs`) projekten a PITR állapota továbbra sem mért.** Ha ott nincs bekapcsolva, érdemes.
 
 ---
 

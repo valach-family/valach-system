@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
@@ -154,6 +155,40 @@ check('DHT06', 'a TARTALOMJEGYZÉK létezik és teljes (a három forrás-csoport
   && /npm run docs:html/.test(idxHtml)
   && String(pkg.scripts['docs:html'] || '').includes('vs_doc_html.mjs')
   && (claudeMd.match(/```bash\n[\s\S]*?```/g) || []).some((b) => /npm run docs:html/.test(b) && /git pull origin main/.test(b)));
+
+// ── DHT07 — A DEKLARÁLT PARANCS TÉNYLEG LAPOKAT KÉSZÍT (D-VS-704) ─────────────────────────────
+// MIÉRT SZÜLETETT: a DHT06 azt mérte, hogy a `docs:html` sor HIVATKOZIK az eszközre — a kettő
+// VISZONYÁT nem (KUKA-024). Így a `--all`/`--mind` elgépelés mellett a pin zöld maradt, miközben a
+// parancs NULLA lapot készített és sikert jelentett. A pin ezért innentől LEFUTTATJA a
+// `package.json`-ban álló parancsot, és lapokat követel; a kapcsolót pedig az eszköz SAJÁT,
+// exportált listájához méri, nem egy második, kézi másolathoz (KUKA-036 · KUKA-018).
+const declared = String(pkg.scripts['docs:html'] || '');
+const declaredArgs = declared.split(/\s+/).filter((t) => t.startsWith('--'));
+const flagOk = Array.isArray(mod.ALL_FLAGS) && mod.ALL_FLAGS.length > 0
+  && declaredArgs.some((a) => mod.ALL_FLAGS.includes(a));
+
+let ranPages = 0; let ranCode = -1;
+try {
+  const r = spawnSync(process.execPath, [join(ROOT, 'tools', 'vs_doc_html.mjs'), ...declaredArgs],
+    { cwd: ROOT, encoding: 'utf8', timeout: 60_000, env: { ...process.env, VS_DOC_HTML_LIB: '' } });
+  ranCode = r.status;
+  const m = /(\d+) lap elkészült/.exec(r.stdout || '');
+  ranPages = m ? Number(m[1]) : 0;
+} catch { /* a check méri */ }
+
+check('DHT07', `a "docs:html" parancs TÉNYLEG lapokat készít — a kapcsoló az eszköz saját listájából (${(mod.ALL_FLAGS || []).join(' | ')}), és a futás ${ranPages} lapot adott, padló 1`,
+  flagOk && ranCode === 0 && ranPages >= 1);
+
+// És a NULLA LAP legyen PIROS: a néma siker a KUKA-012/041 gomb-alakja. Bizonyítottan mérve —
+// ugyanaz az eszköz, felismerhetetlen kapcsolóval, nem zárhat nullával.
+let zeroCode = 0;
+try {
+  const r = spawnSync(process.execPath, [join(ROOT, 'tools', 'vs_doc_html.mjs'), '--nincs-ilyen-kapcsolo'],
+    { cwd: ROOT, encoding: 'utf8', timeout: 60_000 });
+  zeroCode = r.status;
+} catch { zeroCode = 0; }
+check('DHT07', 'a NULLA lap PIROS: ismeretlen kapcsolóval az eszköz nem zárhat sikerrel (ellenpróba)',
+  zeroCode === 1);
 
 rmSync(TMP, { recursive: true, force: true });
 

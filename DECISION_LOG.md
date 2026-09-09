@@ -10,6 +10,93 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-704 — A `docs:html` a repó megnyitása óta NULLA lapot készített, és sikert jelentett
+
+**Dátum:** 2026-09-09 · **Sáv:** Claude-AUX · **Kör:** CMD-VS-300-002-001 R44
+**Megtalálta:** a saját munkám — az operátornak szánt állapot-lap készítésekor futtattam a parancsot.
+
+### A lelet
+
+A `package.json` `docs:html` sora `--all` kapcsolót adott át; az eszköz a `--mind`-ot ismeri.
+A kapcsoló nem egyezett, tehát a cél-lista ÜRES maradt, és a parancs ezt írta ki:
+
+```
+0 lap elkészült ide: docs/_olvashato/
+```
+
+— **nulla kilépési kóddal**, „Nyisd meg dupla kattintással" zárómondattal. Tehát a repó megnyitása
+óta (D-VS-700) **egyetlen olvasható lap sem készült**, miközben a parancs sikeresnek látszott. És
+pont ez az a parancs, ami az operátor EGYETLEN olvasható alakját állítja elő (KUKA-079).
+
+### Miért nem fogta meg a söprés
+
+A `verify:doc-html` DHT06 tétele azt mérte, hogy a `docs:html` sor **hivatkozik-e** az eszközre
+(`.includes('vs_doc_html.mjs')`). Ez igaz volt. A **viszonyt** — hogy a leírt parancs tényleg
+készít-e lapot — semmi nem mérte (**KUKA-024**: két hibátlan oldal együtt is lehet halott lánc).
+
+### A hiba osztálya: KUKA-036, visszatérve — a saját nyitó csomagomban
+
+Réteg-határon átmenő azonosítót (itt: egy kapcsoló nevét) **emlékezetből** írtam a `package.json`-ba,
+ahelyett hogy az eszköztől kérdeztem volna meg. A néma siker pedig **KUKA-012 · KUKA-041**: az üres
+eredmény sikerként jelentve. A regiszter KUKA-036 bejegyzése kiegészítve, VISSZATÉRT jelöléssel.
+
+### A javítás — három darab, mind kell
+
+1. **A kapcsoló-lista EGY otthonban, exportálva:** `ALL_FLAGS` a `tools/vs_doc_html.mjs`-ben.
+   A `package.json` értékét a pin EHHEZ méri, nem egy második, kézi másolathoz (KUKA-018).
+2. **Több írásmód elismerve** (`--mind` · `--all`) — egy be/ki kapcsoló ne EGYETLEN titkos írásmódot
+   ismerjen el (**KUKA-014**); a feloldó egy, a nevek többen lehetnek.
+3. **A NULLA lap PIROS**, mondattal, ami kiírja a helyes hívást és a kapott kapcsolókat — nem
+   zsákutca (**KUKA-064**).
+
+### Gépi jel
+
+`npm run verify:doc-html` **DHT07**: a pin **LEFUTTATJA** a `package.json`-ban álló `docs:html`
+parancsot, és lapokat követel (**padló 1**); mellé ellenpróba: ismeretlen kapcsolóval az eszköznek
+**1-gyel** kell zárnia. **Visszacsúszásra mérve piros** — a `--minden` alakkal a DHT07 FAIL, a
+söprés piros. A pin ma 9/9, a söprés 6/6.
+
+---
+
+## D-VS-703 — A repó-terv három kérdése lezárva: a PITR BE VAN KAPCSOLVA
+
+**Dátum:** 2026-09-09 · **Sáv:** Claude-AUX · **Kör:** CMD-VS-300-002-001 R44
+**Forrás:** operátori válasz — *„a pitr engedélyezve van a railway / valach-family projects /
+valach-system -ben"*
+
+### A három kérdés (V3_REPO_ES_UZEM_TERV.md §7) — mind megválaszolva
+
+| # | Kérdés | Operátori válasz |
+|---|---|---|
+| 1 | A repó neve | **`valach-family/valach-system`** — *„ok, valach-system mehet"* |
+| 2 | Három környezet (éles · teszt · demo mint cégtér a tesztben) | **rendben** — *„a három környezet is jó"* |
+| 3 | Be van-e kapcsolva az időpontra visszaállítás (PITR) | **IGEN**, a `valach-system` projekten |
+
+### Amit a 3. válasz eldönt — és amit NEM
+
+**Eldönti a legrosszabb esetet:** a maximális adatvesztés **másodperc-nagyságrend**, nem az utolsó
+mentésig terjedő akár 24 óra. Ez a repó-terv §4-ének első száma, és eddig nyitva állt.
+
+**NEM dönti el a visszaállítás rendjét, és ezt ki kell mondani** (KUKA-050 — a szöveg a valóságot
+kövesse, a képesség megléte nem eljárás): a bekapcsolt PITR **nem** teszi a visszaállítást első
+eszközzé. A §4 szabálya változatlan: *a rossz kiadást a KÓD visszagörgetése javítja, nem az adatbázis
+visszaállítása* — a visszaállítás a mentési pont óta született MINDEN valódi munkát eldobná.
+A PITR a végső háló, három nevesített esetre: valódi adat-sérülés · téves tömeges törlés · olyan
+romlás, amit célzott javító-esemény nem tud helyrehozni.
+
+**És a képesség megléte nem bizonyíték arra, hogy működik** (KUKA-038). A `backups`/PITR-út egyetlen
+érvényes bizonyítéka egy lefuttatott visszaállítás. **Nevesített függő:** az első éles adat előtt
+ütemezett visszaállítás-gyakorlat, a V2-ből átemelt eszközzel. Amíg ez nem futott le, a
+visszaállítási képességet sehol nem jelentjük késznek.
+
+### Gépi jel
+
+Ezen a körön **nincs új gépi jel, és ez kimondott**: a PITR a Railway szolgáltatás-beállítása, a
+repó kódjából nem mérhető. A jel akkor születik meg, amikor az első visszaállítás-gyakorlat lefut —
+a kimenete a `var/reports/` alá, a névszabály szerint.
+
+---
+
 ## D-VS-702 — A mérőműszer hazudott: a Q18 reprodukálva és lezárva
 
 **Dátum:** 2026-09-09 · **Sáv:** Claude-AUX · **Kör:** CMD-VS-300-002-001 R42 → R43

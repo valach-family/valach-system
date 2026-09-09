@@ -3346,11 +3346,24 @@ const RETIRED_PATTERNS = Object.freeze([
     lesson: 'RÉTEG-HATÁRON ÁTMENŐ AZONOSÍTÓT SOHA NE GÉPELJ LE — kérdezd meg attól, aki már tudja. '
       + 'Ahol egy név két rétegben él, ott nem elég mindkét oldalt megmérni: a pin a KETTŐ EGYEZÉSÉT '
       + 'mérje, és lehetőleg azzal az értékkel, amit a HÍVÓ ténylegesen átad — különben a mérés a saját '
-      + 'előfeltevését igazolja vissza, nem a valóságot.',
+      + 'előfeltevését igazolja vissza, nem a valóságot. '
+      + 'VISSZATÉRT (2026-09-09, D-VS-704) — A SAJÁT NYITÓ CSOMAGOMBAN: a V3 `package.json` `docs:html` '
+      + 'sora `--all`-t kapott, miközben az eszköz `--mind`-ot ismer. Ugyanaz az osztály: a kapcsoló nevét '
+      + 'EMLÉKEZETBŐL írtam a package.json-ba, ahelyett hogy az eszköztől kérdeztem volna meg. Következmény: '
+      + 'a `npm run docs:html` a repó megnyitása óta NULLA lapot készített — és „6 lap … elkészült" helyett '
+      + '„0 lap elkészült" mondattal, NULLA kilépési kóddal zárt, tehát SIKERNEK látszott (KUKA-012 · '
+      + 'KUKA-041). Épp azt a parancsot, ami az operátor egyetlen olvasható alakját állítja elő (KUKA-079). '
+      + 'A pin zöld volt, mert azt mérte, hogy a `docs:html` sor HIVATKOZIK-e az eszközre — a VISZONYT nem '
+      + '(KUKA-024). Két javítás, mindkettő kell: a kapcsoló-lista az eszköz EXPORTÁLT `ALL_FLAGS`-e '
+      + '(a package.json ehhez mérve, nem egy második kézi másolathoz), és több írásmódot is elismer '
+      + '(KUKA-014); a NULLA lap pedig PIROS, mondattal, ami kiírja a helyes hívást (KUKA-064).',
     guard_note: 'gépi jel: `npm run verify:bulk-edit` BE01 (a kulcsok a lekérdező-spec útvonal-nevei; a '
       + 'belső, egyes számú alak NEM célpont) + BE06 (a kliens és a szerver listája szó szerint azonos, '
       + 'és a szerkeszthető felületek `query.entity`-je tényleg célpont). A pin bizonyítottan pirosat ad '
-      + 'a régi alakra (visszaállítva 2 FAIL).',
+      + 'a régi alakra (visszaállítva 2 FAIL). '
+      + 'A VISSZATÉRÉS jele a V3-ban: `npm run verify:doc-html` DHT07 — a pin LEFUTTATJA a package.json-ban '
+      + 'álló `docs:html` parancsot és lapokat követel (padló 1), plusz ellenpróbaként megköveteli, hogy '
+      + 'ismeretlen kapcsolóval az eszköz 1-gyel zárjon. Mérve: a régi alakon (`--minden`) a DHT07 piros.',
     forbidden: Object.freeze([]),
     positive: Object.freeze([
       Object.freeze({ paths: ['src/services/bulkEditService.js'], pattern: 'const pathOf = \\(specKey\\) => getSpec\\(specKey\\)\\.path;',
