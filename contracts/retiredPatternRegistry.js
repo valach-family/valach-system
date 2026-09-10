@@ -33,6 +33,63 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-091',
+    date: '2026-09-10',
+    title: 'A KÜLSŐ PRÓBA BUKOTT, ÉS ÉN A PRÓBÁT HIBÁZTATTAM — a legönigazolóbb helyzet, ami létezik',
+    what: 'A Q01–Q15 javítása után a külső fél VÁLTOZATLAN próbájából egy tétel (Q14) továbbra is '
+      + 'bukott. A riportba azt akartam leírni, hogy „a ti Q14 és Q15 elvárásotok együtt nem '
+      + 'teljesíthető" — vagyis nem a mi javításunk hibás, hanem az ő szerződésük. A Q14 állítása '
+      + '`first.ok && second.ok && count === 2`, a mienk 3 kiadási sort adott: a beadás válasza is '
+      + 'leltárba került, mert a Q15 ezt látszott követelni.',
+    why_wrong: 'A Q15 állítása `!r.resolved || count > 0` — VAGY-kapcsolat, és a BAL ágra nem '
+      + 'gondoltam. Négy lehetséges alakon lemérve a KÉT állítást: van olyan alak, amiben MINDKETTŐ '
+      + 'teljesül (a beadás nem szolgáltat ki tartalmat). Az ütközés tehát a MI tervezői '
+      + 'döntésünkből eredt, nem az ő szabályaikból — az „ellentmondanak egymásnak" mondat a saját '
+      + 'hibánkat nevezte volna át az ő hibájukká. Ez a KUKA-054 (körkörös mérés) alakja a SAJÁT '
+      + 'VÉDEKEZÉSÜNKÖN: a mintát (az értelmezést) ott a mért tulajdonság választotta ki, itt a '
+      + 'magyarázatot az érdekeltség.',
+    replaced_by: 'A JAVÍTÁS NEM A ZÖLDHÖZ IGAZODOTT, HANEM AHHOZ, MIT TUD MEG A HÍVÓ. (1) A '
+      + 'BEFOGADÁS válasza nem szolgáltat ki tartalmat, és nem is leltározódik: az `effect_id` a '
+      + 'hívó SAJÁT bemeneteinek lenyomata (`hash(book|actor|idem_key)`), a `state` ezen az ágon '
+      + 'állandó — új tényt nem közöl, tehát nincs mit leltározni (KUKA-052: halott rovatra állított '
+      + 'őr hamis riasztás-gyár). (2) Az ISMÉTLÉS ága ELLENBEN egy MÁR LÉTEZŐ parancs állapotát '
+      + 'közli — ÚJ tény, marad `command_replay` sorral. (3) A feloldott TARTALOM kiszolgálás, '
+      + 'tehát KIZÁRÓLAG a leltározott olvasó úton mehet ki: EGYETLEN kijárat a korábbi kettő '
+      + 'helyett. (4) A `command_accept` kiadás-fajta KIVEZETVE — a szó is, nem csak a hívás: a '
+      + '`disclose` ismeretlen fajtaként DOB rá (fail-closed).',
+    decision: 'D-VS-3007',
+    found_by: 'A SAJÁT ÖNCÁFOLÓ MÉRÉSEM, közvetlenül azelőtt, hogy a téves állítás kiment volna. '
+      + 'A független ellen-vizsgálatot 22 ügynökkel indítottam, és 21 elhalt a munkamenet '
+      + 'jogosultsági rétegének hibáján (minden eszköz-bemenet `unknown`-ként érkezett, a `pwd` is); '
+      + 'az egyetlen visszatérő HELYESEN nem talált ki leleteket, hanem megmérte és megnevezte a '
+      + 'blokkot. A cáfolat ezért kézi munka lett — és pont ezért került be ide.',
+    lesson: 'AMIKOR EGY KÜLSŐ PRÓBA BUKIK, ÉS A MAGYARÁZATOM AZ, HOGY A PRÓBA A HIBÁS, AZ A LÉTEZŐ '
+      + 'LEGÖNIGAZOLÓBB HELYZET. Ilyenkor nem magyarázni kell, hanem a SAJÁT ÁLLÍTÁST megcáfolni, '
+      + 'MÉRÉSSEL, MIELŐTT kimegy (KUKA-033: a levezetett állítás javaslat, amíg a mérése le nem '
+      + 'futott). A konkrét eljárás, ami itt bevált: sorold fel a LEHETSÉGES ALAKOKAT, és futtasd '
+      + 'MINDEGYIKRE a másik fél MINDEN állítását — ha van alak, amiben mind teljesül, akkor nem az '
+      + 'ő szerződésük ütközik, hanem a te tervezésed rossz. És a cáfolat haszna nem a szégyen: '
+      + 'itt a helyes alak SZIGORÚBB lett, mint amit védeni akartam.',
+    guard_note: 'gépi jel: `npm run verify:v3ref` — a `P-CMD-disclosure` méri, hogy a befogadás '
+      + 'NEM ad vissza tartalmat ÉS nem ír leltár-sort, hogy a tartalom az olvasó úton MÉGIS '
+      + 'kimegy (különben a „nincs kiadás" úgy is teljesülne, hogy semmi nem megy ki — KUKA-012), '
+      + 'hogy az ISMÉTLÉS leltározva van, és hogy a kivezetett `command_accept` nem tér vissza '
+      + 'némán. Két mutáció őrzi mindkét irányt, bizonyítottan pirosan: M16 (a befogadás megint '
+      + 'kiszolgál, leltár nélkül) · M27 (az ismétlés nyom nélkül közli egy létező parancs '
+      + 'állapotát). MAGÁRA A TANULSÁGRA (az önigazoló magyarázatra) nincs és nem is lehet gépi '
+      + 'jel — ez a kimondott korlátja ennek a bejegyzésnek.',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/command.mjs'], pattern: "kind: 'command_accept'",
+        reason: 'a befogadás nem kiadás — a fajta kivezetve, a `disclose` dobna rá' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'accept\\.resolved === undefined',
+        reason: 'a próba MÉRI, hogy a befogadás nem szolgáltat ki tartalmat' }),
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: "!kinds\\.some\\(\\(k\\) => k\\.view === 'command_accept'\\)",
+        reason: 'a kivezetett kiadás-fajta nem térhet vissza némán (KUKA-064 kivezetés-alakja)' }),
+    ]),
+  }),
+  Object.freeze({
     id: 'KUKA-090',
     date: '2026-09-09',
     title: 'A MÉRŐ A MÉRT FÉLTŐL KÉRDEZTE MEG, MIT KELLETT VOLNA MÉRNIE — öt további hazugság-alak',
