@@ -18,7 +18,7 @@
 //
 // PURE + INERT: nincs futtatás, nincs I/O. Csak a szerződés.
 
-export const MANIFEST_VERSION = 'v3ref-manifest-1';
+export const MANIFEST_VERSION = 'v3ref-manifest-2';
 
 /**
  * A VÁRT PRÓBÁK. Minden bejegyzés megnevezi az ÁLLÍTÁST is (`assertion`), amit a próba mér —
@@ -32,6 +32,21 @@ export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({ id: 'P-K03-intent', assertion: 'K03-pending-intent-resumable' }),
   Object.freeze({ id: 'P-A08', assertion: 'A08-single-effect-and-today-right' }),
   Object.freeze({ id: 'P-A14', assertion: 'A14-evidence-freshness-profile' }),
+
+  // ── A Q01–Q15 KÖR (D-VS-3007) ────────────────────────────────────────────────────────────────
+  // Tíz új próba a tizenöt megnevezett maghibára, plusz a teljesség-kritika ÉLŐ leletére
+  // (P-INVITE-window). A készlet KÜLSŐ szerződés: ha egy próba kiesik a futásból, az MÉRŐHIBA,
+  // nem „kevesebb próba".
+  Object.freeze({ id: 'P-CMD-namespace', assertion: 'Q01-command-key-is-scoped' }),
+  Object.freeze({ id: 'P-CMD-identity', assertion: 'Q02Q03-identity-covers-nested-type-version' }),
+  Object.freeze({ id: 'P-CMD-finalize', assertion: 'Q04-right-rechecked-before-write' }),
+  Object.freeze({ id: 'P-CMD-disclosure', assertion: 'Q14Q15-every-release-is-ledgered' }),
+  Object.freeze({ id: 'P-AUTHZ-opclass', assertion: 'Q07-unknown-op-class-denied' }),
+  Object.freeze({ id: 'P-AUTHZ-membership-time', assertion: 'Q08-membership-validity-interval' }),
+  Object.freeze({ id: 'P-AUTHZ-evidence', assertion: 'Q05Q06-evidence-three-axes' }),
+  Object.freeze({ id: 'P-INVITE-window', assertion: 'INV-expired-invite-grants-nothing' }),
+  Object.freeze({ id: 'P-INVITE-authority', assertion: 'Q09Q10Q13-redeem-gates' }),
+  Object.freeze({ id: 'P-INVITE-effect', assertion: 'Q11Q12-real-effect-and-atomicity' }),
 ]);
 
 export const EXPECTED_IDS = Object.freeze(EXPECTED_PROBES.map((p) => p.id));

@@ -77,24 +77,45 @@ CREATE TABLE channel_proof (
   PRIMARY KEY (subject_id, namespace, value_norm)
 );
 
+-- A PARANCS NÉVTERE (Q01). Az "idem_key" EGYEDÜL NEM azonosság: az ismétlésvédelmi kulcsot a
+-- KLIENS adja, tehát két különböző hívó ugyanazt a szöveget választhatja. A régi
+-- "idem_key TEXT PRIMARY KEY" miatt Bob — akinek CSAK a B könyvben volt tagsága — ugyanazzal a
+-- kulccsal az A KÖNYV hatásazonosítóját kapta vissza, "replayed:true"-val, és B-ben SOHA nem
+-- született hatás. A hatókört a SZERVER képezi, nem a hívó.
+--
+-- A "type"/"type_version" SZÁNDÉKOSAN NINCS a névtérben: ott MÁSODIK, néma hatást szülne. Az
+-- AZONOSSÁG-lenyomatban viszont KONFLIKTUST ad — ez a Q03 követelménye (mérve: a két alak
+-- kizárja egymást, ezért a névtér és az azonosság KÉT KÜLÖN fogalom).
 CREATE TABLE command (
-  idem_key      TEXT PRIMARY KEY,
+  idem_key      TEXT NOT NULL,
   actor         TEXT NOT NULL,
   book_id       TEXT NOT NULL,
   type          TEXT NOT NULL,
   type_version  TEXT NOT NULL,
-  declared_hash TEXT NOT NULL,
+  -- A NÉV IS TÉNY: a régi "declared_hash" azt állította, hogy csak a tartalom van benne, holott
+  -- a művelet és a verziója is beleszámít (Q03). Ez nem kozmetika — a hibás név hibás modellt tanít.
+  identity_hash TEXT NOT NULL,
   resolved_json TEXT NOT NULL,
   effect_id     TEXT,
   state         TEXT NOT NULL,
-  finalized_at  TEXT
+  finalized_at  TEXT,
+  PRIMARY KEY (book_id, actor, idem_key)
 );
 
+-- A KIADÁS-LELTÁR (K05). Az azonosságot a TÁROLÓ adja (Q14): a régi, IDŐBŐL képzett azonosító
+-- determinisztikus órán ütközött, és a MÁSODIK jogos olvasás nyers
+-- "UNIQUE constraint failed"-del állt meg. Kézzel léptetett sorszámot NEM írunk — az a saját
+-- megkerülésére tanít (KUKA-045).
+--   · "ref"    MIRE vonatkozik a kiadás (enélkül két parancs kiadása egy könyvben azonos sort ad)
+--   · "fields" MIT adtunk ki (a mezőUTAKAT, nem az ÉRTÉKET — a leltár ne legyen az adat MÁSODIK
+--     otthona: akkor ő maga lenne a következő szivárgás)
 CREATE TABLE disclosure (
-  id            TEXT PRIMARY KEY,
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
   recipient     TEXT NOT NULL,
   view          TEXT NOT NULL,
   scope         TEXT NOT NULL,
+  ref           TEXT NOT NULL,
+  fields        TEXT NOT NULL,
   at            TEXT NOT NULL
 );
 `;
@@ -110,9 +131,87 @@ export function openStore() {
     path,
     close() { db.close(); rmSync(dir, { recursive: true, force: true }); },
     run(sql, ...params) { return db.prepare(sql).run(...params); },
+    // A tranzakció a TÁROLÓ szolgáltatása — a hívó nem ír BEGIN-t a kezével (KUKA-003).
+    tx(fn) { return withTransaction(db, fn); },
     all(sql, ...params) { return db.prepare(sql).all(...params); },
     get(sql, ...params) { return db.prepare(sql).get(...params); },
   };
+}
+
+// ── AZ IDŐPILLANAT EGY ALAKJA (INS-01) ──────────────────────────────────────────────────────────
+//
+// MIÉRT SZÜLETETT. A rendszerben NÉGY helyen áll idő-összehasonlítás, és MIND A NÉGY SZÖVEGET
+// hasonlított össze (`a <= b`), nem időpontot. Ez ISO-8601-en általában működik — amíg mindenki
+// ugyanabban a zónában, ugyanazzal a tizedes-pontossággal ír. Amint nem:
+//
+//   MÉRVE, ÉLŐ KÓDON:  expires_at = '2026-09-09T09:00:00+02:00'  (valósan 07:00Z, tehát LEJÁRT)
+//                      óra        = '2026-09-09T08:00:00.000Z'
+//                      szöveg-összehasonlítás: '…09:00:00+02:00' <= '…08:00:00.000Z'  →  FALSE
+//                      eredmény:  a LEJÁRT meghívó ÉLŐ TAGSÁGOT adott (shape:'birth')
+//
+// Ez a lelet NINCS a külső fél tizenöt esete között — a saját teljesség-kritikánk találta meg,
+// és élő kódon megmértük. A hiba-osztály a KUKA-039 (a fél őr): három hívóra terveztünk
+// idő-ellenőrzést, a negyedikre nem, és a negyedik NÉMÁN adott jogot.
+//
+// A SZABÁLY: a döntés a bizonyíték BÁJTJAIBÓL jöjjön, ne a futtató gép időzónájából.
+//   · ZÓNA KÖTELEZŐ — a zóna nélküli alakot a `Date.parse` HELYI időként értelmezi, tehát
+//     ugyanaz a bemenet két gépen két időpontot jelentene. Ez nem elemzés-kérdés: ELUTASÍTJUK.
+//   · nem véges eredmény (`NaN`) ⇒ nem ok. A `NaN` JSON-ban `null`-ként látszik, tehát a hívó
+//     azt hihetné, hogy „nincs megadva" — a KUKA-020 alakja az időn.
+//   · MINDEN olvasó EZT hívja (KUKA-009): a tagság, a bizonyíték, a meghívó-ablak és a próbák.
+//     Aki a saját `Date.parse`-át írja, az egy ötödik igazságot teremt (KUKA-003).
+const ISO_WITH_ZONE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+/**
+ * Egy időpont-szöveg ELDÖNTHETŐ ezredmásodperce.
+ * @returns {{ok: true, ms: number} | {ok: false, reason: string}}
+ */
+export function instantMs(iso) {
+  if (typeof iso !== 'string' || iso.trim() === '') return { ok: false, reason: 'instant_missing' };
+  const s = iso.trim();
+  if (!ISO_WITH_ZONE.test(s)) return { ok: false, reason: 'instant_not_canonical' };
+  const ms = Date.parse(s);
+  if (!Number.isFinite(ms)) return { ok: false, reason: 'instant_unparseable' };
+  return { ok: true, ms };
+}
+
+/**
+ * KÉT időpont viszonya — a hívó ne a nyers számokkal dolgozzon.
+ * @returns {{ok: true, cmp: -1|0|1} | {ok: false, reason: string, which: 'a'|'b'}}
+ */
+export function compareInstants(a, b) {
+  const x = instantMs(a);
+  if (!x.ok) return { ok: false, reason: x.reason, which: 'a' };
+  const y = instantMs(b);
+  if (!y.ok) return { ok: false, reason: y.reason, which: 'b' };
+  return { ok: true, cmp: x.ms < y.ms ? -1 : (x.ms > y.ms ? 1 : 0) };
+}
+
+// ── TRANZAKCIÓ-PRIMITÍV (TX-01) ─────────────────────────────────────────────────────────────────
+//
+// MIÉRT A TÁROLÓBAN. A Q12 gyökér-oka nem a `redeemInvite` figyelmetlensége volt, hanem hogy a
+// tároló NEM ADOTT tranzakció-primitívet — tehát egyetlen hívó SEM tudott atomi lenni. Egy
+// fogalomnak EGY otthona (KUKA-003).
+//
+// MÉRVE (Node v22.22.2, node:sqlite):
+//   · a `BEGIN`/`ROLLBACK` az `exec`-en át működik,
+//   · egy közbeni hiba (trigger ABORT) után a ROLLBACK a MÁR BEÍRT sorokat is eldobja → 0 sor,
+//   · a BEÁGYAZOTT `BEGIN` hibát dob ('cannot start a transaction within a transaction'),
+//     ezért a beágyazást KI KELL ZÁRNI, nem „általában nem fordul elő" alapon remélni.
+//
+// A COMMIT a `try`-on BELÜL van, a ROLLBACK pedig CSAK futó tranzakcióra megy: egy bukott COMMIT
+// után a vak ROLLBACK MÁSODIK kivétele elnyelné az elsőt — a valódi ok eltűnne (KUKA-026).
+export function withTransaction(db, fn) {
+  if (db.isTransaction) throw new Error('withTransaction: beágyazott tranzakció — a hívó már tranzakcióban van');
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const out = fn();
+    db.exec('COMMIT');
+    return out;
+  } catch (e) {
+    if (db.isTransaction) { try { db.exec('ROLLBACK'); } catch { /* az EREDETI hiba megy tovább */ } }
+    throw e;
+  }
 }
 
 // Determinisztikus idő: a próbának reprodukálhatónak kell lennie (R32 §4 bizonyítékrekord).

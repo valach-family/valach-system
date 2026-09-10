@@ -16,6 +16,154 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3007 — A tizenöt megnevezett maghiba javítva, a KÜLSŐ FÉL saját próbáján mérve
+
+**Dátum:** 2026-09-10 · **Sáv:** Claude-AUX · **Kör:** CMD-VS-300-002-001 R46 → R47
+**Rendelte:** az OPERÁTOR („mehet a Q01–Q15") · **A hibalistát adta:** a KÜLSŐ TÁRGYALÓ FÉL (R42 §3/2)
+
+### 1. Mit mérünk, és miért a TI próbátokkal
+
+A javítás bizonyítéka nem a saját próbánk zöldje. A saját próba a saját olvasatunkat igazolja
+vissza (KUKA-054) — ezért a külső fél **változatlan** `challenge.mjs`-ét futtattuk a MAI forráson,
+a `source/` alá bemásolt `v3ref/*.mjs` + `contracts/*` állománnyal.
+
+| | R42 (`c58f5f6…`) | ma |
+|---|---|---|
+| tétel | 17 | 17 |
+| **PASS** | **0** | **16** |
+| FAIL | 17 | 1 (Q17) |
+| ERROR | 0 | 0 |
+
+A fixtúrájuk VÁLTOZATLANUL betöltődött, pedig a séma több ponton változott — tehát nem a mi új
+alakunkra szabott próbát mértünk.
+
+### 2. A tizenöt tétel — a javítás helye
+
+| # | hol | mi lett belőle |
+|---|---|---|
+| Q01 | `command.mjs` · `commandScope` | az ismétlésvédelmi kulcs HATÓKÖRÖS: `(book_id, actor, idem_key)` az elsődleges kulcs; hiányos címre KIVÉTEL, nem néma szűkítés |
+| Q02 · Q03 | `command.mjs` · `canonicalize`, `commandIdentity` | REKURZÍV kanonizálás minden szinten; az azonosság a típust ÉS a típus-verziót is lefedi |
+| Q04 | `command.mjs` · `submitCommand` | a jog ÚJRA megkérdezve a `resolve()` UTÁN, az INSERT ELŐTT |
+| Q05 · Q06 | `authz.mjs` · `instantMs`, `evidenceStandingAt` | a bizonyíték HÁROM tengelye külön: kor · HATÁLY (`valid_until` kötelező) · megvonás; ismeretlen mező nem nyelődik el |
+| Q07 | `authz.mjs` · `OP_CLASSES` (Map) | az ÖRÖKÖLT név (`toString` · `constructor` · `__proto__`) nem talál profilt ⇒ fail-closed |
+| Q08 | `authz.mjs` · `membershipEffectiveAt` | a tagság KÉT vége EGY feloldón — ugyanezt hívja a meghívó-oldal is |
+| Q09 · Q10 · Q13 | `invite.mjs` · `inviteGrantAt`, `redeemShapeFor`, `membershipOutcome` | a kibocsátó MAI joga · az idegen alany őre · négy KÜLÖN tagság-kimenet |
+| Q11 · Q12 | `invite.mjs` · `redeemInvite`, `store.tx` | a születés VALÓBAN fiókot hoz létre; minden írás EGY tranzakcióban |
+| Q14 · Q15 | `store.mjs` séma + `command.mjs` · `disclose` | a kiadási sor saját azonosítót kapott (az időbélyeg nem azonosság); a feloldott TARTALOM kizárólag a leltározott OLVASÓ úton mehet ki |
+
+Állandó jelek: **16 próba · mind PASS** · **27 mutáció · mind a NEVEZETT állításon elkapva** ·
+6 állandó hazugság-ellenpróba · mind védett.
+
+### 3. AMIT A SAJÁT TELJESSÉG-KRITIKÁNK TALÁLT — és a külső fél NEM
+
+> **A LEJÁRT MEGHÍVÓ TAGSÁGOT ADOTT, HA AZ IDŐPONTJA ELTOLÁSOS ZÓNÁBAN ÁLLT.**
+
+A régi kód SZÖVEGET hasonlított (`inv.expires_at <= clock.now()`). Mérve, az akkori ÉLŐ forráson:
+`expires_at = '2026-09-09T09:00:00+02:00'` valósan **07:00Z**, az óra 08:00Z — tehát **LEJÁRT**;
+szövegként viszont `'…T09…' > '…T08…'`, tehát „még nyitva". A beváltás lefutott, `shape: 'birth'`,
+és **tagságot adott**.
+
+Ez a saját KUKA-039-ünk („a fél őr"): a bizonyíték-oldalon bevezettük az `instantMs` feloldót, és a
+meghívó-oldalra NEM vittük végig — egy körrel azután, hogy a szabályt idéztük. Javítva
+(`inviteWindowAt`), állandó próba `P-INVITE-window`, mutáció **M21**.
+
+### 4. A Q14 — ELŐSZÖR TÉVEDTÜNK, ÉS A SAJÁT MÉRÉSÜNK CÁFOLT MEG
+
+Ezt a kört először azzal a mondattal zártuk volna, hogy *„a Q14 azért bukik, mert a külső fél Q14 és
+Q15 elvárása ütközik"*. **Ez téves volt.** A cáfolat nem érvelésből jött, hanem abból, hogy a saját
+állításunkat próbáltuk megbuktatni: a Q15 állítása `!r.resolved || count > 0`, tehát a BAL ág is
+elég — arra nem gondoltunk. Négy alakon lemérve a külső fél KÉT állítását:
+
+| alak | a beadás ad tartalmat? | leltároz? | sorok | Q14 | Q15 |
+|---|---|---|---|---|---|
+| **A** — az akkori alakunk | igen | igen | 3 | **FAIL** | PASS |
+| **B** — nem ad, nem leltároz | nem | nem | 2 | **PASS** | PASS |
+| **C** — nem ad, de leltározza az `effect_id`/`state`-et | nem | igen | 3 | **FAIL** | PASS |
+
+Létezik tehát olyan alak, amiben MINDKETTŐ teljesül: az ütközés a MI tervezői döntésünkből eredt.
+
+**A javítás mégsem a „B" lett** — nem a zöldhöz igazítottuk a kódot, hanem megkérdeztük, MIT TUD MEG
+a hívó az egyes ágakon:
+
+- **BEFOGADÁS:** az `effect_id` a hívó SAJÁT bemeneteinek lenyomata (`hash(book|actor|idem_key)`),
+  a `state` ezen az ágon állandó — a hívó semmi olyat nem tud meg, amit ne ő adott volna. Ami nem
+  közöl új tényt, arra leltár-sort írni zaj, nem védelem.
+- **ISMÉTLÉS:** a válasz egy MÁR LÉTEZŐ parancs állapotát közli — ÚJ tény, marad leltározva.
+- **A FELOLDOTT TARTALOM:** kiszolgálás, tehát KIZÁRÓLAG a leltározott olvasó úton mehet ki.
+  A külső fél szavaival: a beadás válasza „ELŐKÉSZÍTVE", nem „KISZOLGÁLVA".
+
+A `command_accept` kiadás-fajta ezért **kivezetve** — a szó is, nem csak a hívás: a `disclose`
+ismeretlen fajtaként DOB rá, ha valaki visszatenné (KUKA-052, fail-closed).
+
+**Ettől a tartalomnak EGYETLEN kijárata maradt** (korábban kettő) — tehát a javítás nem csak zöldre
+vitte a Q14-et, hanem szigorúbb adatkiadási alakot is adott. Két mutáció őrzi mindkét irányt:
+**M16** (a beadás megint kiszolgál, leltár nélkül) és **M27** (az ismétlés nyom nélkül közli egy
+létező parancs állapotát) — mindkettő bizonyítottan PIROS.
+
+**A TANULSÁG, amit magunkra nézve rögzítünk:** amikor egy KÜLSŐ próba bukik, és a magyarázatunk az,
+hogy *a próba a hibás*, az a létező legönigazolóbb helyzet (KUKA-054 a saját védekezésünkön).
+Ilyenkor nem magyarázni kell, hanem a SAJÁT állítást megcáfolni — itt ez történt, és a cáfolat nem
+csak a tévedést mutatta meg, hanem egy jobb alakot is.
+
+**Q17 — az egyetlen megmaradt FAIL, valódi és NYITOTT.** Két azonos hívás ugyanazt az útnevet adja.
+Szándékosan nem javítva: az operátor a Q01–Q15-öt rendelte meg, és az R46-ban már visszavontuk a
+korábbi „Q17 kész" állításunkat. Ez **kockázat, nem ütemezés**: amint a rendszer valódi állományokat
+ír, két egyidejű futás felülírhatja egymást. A következő kör bemenete.
+
+### 5. A FELÜLVIZSGÁLATOK MARADÉKAI — mondatonként, gépi őrrel
+
+Az R42 hat próbához adott hatókörös ítéletet, és mindegyikhez **maradékot** írt, ami NÉV SZERINT
+sorolta a Q01–Q15 ellenpéldákat. Ha csak annyit írnánk, hogy „javítva", a lap a mai kódról állítana
+valótlant (KUKA-050) — a vallomást viszont nem írjuk át, mert az TÖRTÉNELEM (KUKA-062).
+
+Ezért KÜLÖN rekord áll melléjük: `v3ref/reviews.mjs` → **`RESIDUAL_RESOLUTIONS`**. Mért mai állás:
+
+**23 mondat · 15 próbával MÉRVE · 0 „javítva de méretlen" · 8 NYITOTT** — és a nyolc nyitott a
+futtató képernyőjén NÉV SZERINT megjelenik (HTTP-réteg · fiókváltási út · belépés ·
+csatornabizonyítás · MFA · `pending_intent` lejárat · a szándék-életút · a 24 óra mint
+tesztparaméter).
+
+**A lezárás nem lehet szó.** A `checkResolutions` a futtató INDÍTÁSAKOR fut, és négy irányban mér;
+bizonyítottan piros mind a háromra, amit kipróbáltunk:
+
+- kitalált mondat (nem szerepel a vallomás maradékában) → *„a mondat SZÓ SZERINT nem szerepel"*
+- „mérve", de nem létező próbára → *„a megnevezett próba nincs a szerződésben"*
+- néma lezárás, érdemi indok nélkül → *„az indok túl rövid"*
+
+Mindkét irányban mér: amelyik vallomásnak van maradéka, ahhoz KELL bejegyzés (KUKA-039).
+
+### 6. Egy maradék, amit ÚJRA megmértünk — és igazuk volt
+
+Az R42 a P-A14-hez ezt írta: *„a megvonás → képviseleti lekérdezés kombináció külön hiányzik"*.
+A tizenöt javítás után újra megnéztük: a kombinációt **semmi nem mérte**. A meglévő ág a BIZONYÍTÉK
+megvonását nézte (`revoked: true`) — az MÁSIK tengely.
+
+Pótolva: a `P-AUTHZ-evidence` utolsó ága visszavonja a TAGSÁGOT, majd hibátlan, friss megbízással
+kérdez ⇒ `membership_revoked`. Új mutáció (**M26**) megcseréli a két ág sorrendjét, és
+bizonyítottan pirosra viszi — mert a képviseleti ág `return`-öl, tehát a sorrend-csere NÉMÁN adna
+`allowed: true`-t (KUKA-002: két tengely, és a sorrendjük a szabály).
+
+### 7. Ami NEM történt meg — kimondva
+
+- **A08 konkurencia** (R42 §3/3): valódi párhuzamos kapcsolatokkal. A Q04 determinisztikus
+  ellenpróbája NEM helyettesíti.
+- **A07 + A15** (§3/4) · **A06 · A05 · A01/A02 · A09 · A10** (§3/5) · **Q17** (4. pont).
+- **Bemenet-séma-regiszter** — enélkül a Q02 „ismeretlen mező ELUTASÍTÁSA" fele nem teljesíthető.
+  Ma az ismeretlen mező az AZONOSSÁGBA beleszámít (nem tűnik el), de nem tiltott.
+- **A „megmaradó független szervezeti alap"** (Q09) nincs modellezve: ma a kibocsátó személyes
+  joga az EGYETLEN alap.
+- **Visszaállítási próba** ütemezve, az első éles adat ELŐTT; **migráció-ujjlenyomat** védett
+  kiadási alapvonalhoz mérve. Mindkettő NEVESÍTETT függő.
+
+### Gépi jelek
+
+- `npm run verify:v3ref` — 16 próba + **27** mutáció + 6 hazugság-ellenpróba
+- `npm run verify:sweep` — teljes söprés
+- a maradék-őr a futtatóba van kötve (`checkResolutions`), tehát nem külön parancs: hibás
+  maradék-tábla mellett a próbafutás **2-es kóddal** áll meg, mielőtt bármit mérne
+
+---
+
 ## D-VS-3006 — A mérő ÖT további alakban hazudott, és a kiadási őr átengedte, amit elutasított
 
 **Dátum:** 2026-09-09 · **Sáv:** Claude-AUX · **Kör:** CMD-VS-300-002-001 R45 → R46

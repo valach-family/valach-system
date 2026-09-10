@@ -1,4 +1,4 @@
-// V3 MAGREFERENCIA — K07: parancs, egyszeri hatás és újrapróbálás.
+// V3 MAGREFERENCIA — K07: parancs, egyszeri hatás, újrapróbálás és KIADÁS.
 //
 // Az R32 K07 zárómondata a mérce, és ez a MI C08-as ellenpéldánk JAVÍTOTT alakja — a másik fél
 // itt helyesbített minket, és igaza volt:
@@ -6,61 +6,224 @@
 //    az ismételt kérőnek CSAK A JELENLEG KIADHATÓ vetületet adjuk. Visszavont jog esetén sem
 //    eredményadatot, sem védett létezési jelzést nem adunk pusztán a kulcs ismeretére."
 //
-// Vagyis a mi javaslatunk („az eltárolt eredményt szó szerint visszajátsszuk") HIBÁS volt:
-// visszavont olvasójognál újra kiadta volna az adatot. A helyes alak: a HATÁS változatlan, a
-// VÁLASZ mai jogon megy át.
+// ═══ EZ A FÁJL HAT MEGNEVEZETT MAGHIBÁT HORDOZOTT (Q01–Q04 · Q14 · Q15) ═════════════════════════
+//
+// A négy fogalom, amit a régi kód EGYBE mosott — és ezért mindegyik hibás volt:
+//
+//   NÉVTÉR      KINEK a kulcsa ez?          → (book_id, actor, idem_key)          [Q01]
+//   AZONOSSÁG   UGYANAZ a művelet?          → hash(type, type_version, declared)  [Q02 · Q03]
+//   VÉGLEGESÍTÉS mikor lesz KÉSZ?           → jog ÚJRA a feloldás UTÁN            [Q04]
+//   KIADÁS      mit adtunk oda, KINEK?      → EGY kapu, HÁROM hívó                [Q14 · Q15]
+//
+// A szétválasztás nem elegancia: a régi kódban a `type` változása NÉMÁN a régi hatásra mutatott
+// (azonosság hiánya), a kulcs pedig könyvek KÖZÖTT szivárgott (névtér hiánya). Egy fogalom, egy
+// otthon (KUKA-003); és ahol két fogalom egy oszlopon ült, ott mindkettő hazudott (KUKA-002).
 import { createHash } from 'node:crypto';
 import { rightAt } from './authz.mjs';
 
-const canon = (obj) => JSON.stringify(obj, Object.keys(obj).sort());
+// ═══ KANONIZÁLÁS (Q02) ══════════════════════════════════════════════════════════════════════════
+//
+// A régi alak EGY sor volt: `JSON.stringify(obj, Object.keys(obj).sort())`. A második argumentum
+// TÖMBKÉNT megadva NEM „rendezés", hanem MEZŐ-SZŰRŐ, és MINDEN szinten hat: a `lines[].sku` és a
+// `lines[].qty` egyszerűen KIESETT a hash-elt szövegből. Mérve: a mennyiség 1 → 999 változása
+// ugyanannak a kérésnek látszott, konfliktus nélkül.
+//
+// AMIT A KANONIZÁLÓ MEGKÖVETEL, ÉS MIÉRT:
+//   · `toJSON` az ELSŐ ág — különben a mai `JSON.stringify` által megkülönböztetett `Date`-ek
+//     egyetlen `{}`-vé olvadnának össze. Ez REGRESSZIÓ lett volna, nem javítás.
+//   · az objektum-kulcsok MINDEN szinten rendezettek — a sorrend nem azonosság
+//   · a TÖMB sorrendje JELENTÉSES marad (két tétel felcserélése MÁS kérés)
+//   · nem véges szám ⇒ `non_finite_number`; `undefined`/függvény/szimbólum ⇒ `unsupported_value`
+//     (a `{note: undefined}` ≡ `{}` néma összeolvadás DEKLARÁLT szabályt kap, nem véletlent)
+//
+// KIMONDVA, MI NEM KÉSZÜLT EL: a Q02 elvárásának másik fele — „az ISMERETLEN mezőt a séma
+// UTASÍTSA EL" — ebben a körben NEM teljesül. Séma-regiszter nélkül az ismeretlen mező nem
+// kiesik (ez a lelet zárva), hanem ÚJ AZONOSSÁGOT képez. A zárt bemenetséma külön, nagyobb
+// döntés; kimondjuk, nem csendben hagyjuk el (KUKA-051).
+export const CANON_VERSION = 'canon-1';
+
+export class CanonError extends Error {
+  constructor(reason, path) {
+    super(`kanonizálás: ${reason} itt: ${path || '(gyökér)'}`);
+    this.name = 'CanonError';
+    this.reason = reason;
+    this.path = path || '';
+  }
+}
+
+export function canonicalize(v, path = '') {
+  if (v !== null && typeof v === 'object' && typeof v.toJSON === 'function') {
+    return canonicalize(v.toJSON(path), path);
+  }
+  if (v === null) return 'null';
+  const t = typeof v;
+  if (t === 'boolean') return v ? 'true' : 'false';
+  if (t === 'number') {
+    if (!Number.isFinite(v)) throw new CanonError('non_finite_number', path);
+    return JSON.stringify(v);
+  }
+  if (t === 'string') return JSON.stringify(v);
+  if (t === 'undefined' || t === 'function' || t === 'symbol' || t === 'bigint') {
+    throw new CanonError('unsupported_value', path);
+  }
+  if (Array.isArray(v)) {
+    // A TÖMB SORRENDJE JELENTÉSES — nem rendezzük.
+    return `[${v.map((x, i) => canonicalize(x, `${path}[${i}]`)).join(',')}]`;
+  }
+  const proto = Object.getPrototypeOf(v);
+  if (proto !== Object.prototype && proto !== null) throw new CanonError('unsupported_value', path);
+  const keys = Object.keys(v).sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${canonicalize(v[k], path ? `${path}.${k}` : k)}`).join(',')}}`;
+}
+
 const hash = (s) => createHash('sha256').update(s).digest('hex').slice(0, 32);
 
+// ═══ AZONOSSÁG (Q03) — UGYANAZ A MŰVELET? ═══════════════════════════════════════════════════════
+//
+// A régi kód CSAK a `declared` tartalmat hash-elte, ezért a `stock.receipt` → `stock.issue` csere
+// és az `1` → `2` verzióváltás is NÉMÁN a RÉGI hatásra mutatott. Névteret választani szabad, MÁS
+// MŰVELETET ugyanannak minősíteni nem.
+//
+// A KÖNYV NINCS benne: az a NÉVTÉRBEN áll. Ugyanaz a tény ne üljön két helyen (KUKA-002).
+export function commandIdentity({ type, typeVersion, declared }) {
+  return hash(`${CANON_VERSION}|${canonicalize({ type, type_version: typeVersion, declared })}`);
+}
+
+// ═══ NÉVTÉR (Q01) — KINEK A KULCSA? ═════════════════════════════════════════════════════════════
+//
+// A hatókört a SZERVER képezi. A `commandScope` HIÁNYOS címre DOB — a bekötési hiba nem lehet
+// ugyanaz a válasz, mint a valódi „nem" (KUKA-020).
+export function commandScope({ bookId, actor, idemKey }) {
+  const missing = [];
+  if (!bookId) missing.push('bookId');
+  if (!actor) missing.push('actor');
+  if (!idemKey) missing.push('idemKey');
+  if (missing.length) throw new Error(`commandScope: hiányos hatókör-cím: ${missing.join(', ')}`);
+  return Object.freeze({ bookId, actor, idemKey });
+}
+
+export function findCommandInScope(store, scope) {
+  return store.get('SELECT * FROM command WHERE book_id = ? AND actor = ? AND idem_key = ?',
+    scope.bookId, scope.actor, scope.idemKey);
+}
+
+/** A hatás azonosítója a TELJES hatókörből — két névtér SOHA nem oszthat egy hatásazonosítót. */
+export function effectIdFor(scope) {
+  return `eff_${hash(`${scope.bookId}|${scope.actor}|${scope.idemKey}`)}`;
+}
+
+// ═══ A KIADÁSI KAPU (Q15 + Q14) — EGY HELY, HÁROM HÍVÓ ═════════════════════════════════════════
+//
+// A K05 leltár-szabály a régi kódban EGYETLEN ág törzsében élt (`readCommandResult`), ezért a
+// BEFOGADÁS és az ISMÉTLÉS nyom nélkül adott ki hatásazonosítót, állapotot és feloldott adatot:
+// a leltárban NULLA sor állt. Ha egy szabály két helyen kell, de egy helyen áll, az nem szabály,
+// hanem véletlen (KUKA-039).
+//
+// A BORÍTÉK (`ok`, `error`, `message`) NEM tartalom — a többi minden mezőútja KIADOTT TARTALOM,
+// és bekerül a `fields` listába. Az `effect_id` és a `state` is: a lelet KIFEJEZETTEN megnevezte
+// őket („a retry ág ugyanígy ad állapotot és effect_id-t leltár nélkül").
+// A `command_accept` KIVEZETVE (R47): a befogadás válasza nem közöl új tényt, tehát nincs mit
+// leltározni. A szót is elvesszük, nem csak a hívást — a halott rovatra állított őr hamis
+// riasztás-gyár, és a `disclose` így ismeretlen fajtaként DOB rá, ha valaki visszatenné
+// (KUKA-052 · fail-closed).
+export const DISCLOSURE_VIEW = Object.freeze(['command_replay', 'command_result']);
+const ENVELOPE = Object.freeze(['ok', 'error', 'message']);
+
+/** A kiadott mezőUTAK — az ÉRTÉK szándékosan nem kerül a leltárba (az lenne a második otthon). */
+export function releasedFieldPaths(body, prefix = '') {
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) return prefix ? [prefix] : [];
+  return Object.keys(body).sort().flatMap((k) => (prefix === '' && ENVELOPE.includes(k)
+    ? []
+    : releasedFieldPaths(body[k], prefix ? `${prefix}.${k}` : k)));
+}
+
+export function disclose({ store, kind, scope, ref, recipient, body, clock }) {
+  if (!DISCLOSURE_VIEW.includes(kind)) throw new Error(`disclose: ismeretlen kiadás-fajta: ${kind}`);
+  store.run('INSERT INTO disclosure (recipient, view, scope, ref, fields, at) VALUES (?,?,?,?,?,?)',
+    recipient, kind, scope, ref, JSON.stringify(releasedFieldPaths(body)), clock.now());
+  return body;
+}
+
+// ── A PARANCS BEFOGADÁSA ────────────────────────────────────────────────────────────────────────
 export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion, declared, resolve, clock, externalEvidence }) {
-  const declaredHash = hash(canon(declared));
-  const prior = store.get('SELECT * FROM command WHERE idem_key = ?', idemKey);
+  const scope = commandScope({ bookId, actor, idemKey });
+  const identity = commandIdentity({ type, typeVersion, declared });
 
   // A JOGOT ELŐBB kérdezzük meg, mint hogy a kulcsról bármit mondanánk. Enélkül a puszta
-  // ÚJRAPRÓBÁLÁS elárulná, hogy a kulcshoz tartozik-e parancs — vagyis a kulcs próbálgatható
-  // létezés-csatorna lenne (KUKA-084). Ezt a lyukat a SAJÁT referenciámban találtam meg, miután
-  // a K07-et újraolvastam; a P-A08 próbám előtte a szivárgó viselkedést írta elő helyesként.
-  const decision = rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence });
-  if (!decision.allowed) {
-    return Object.freeze({
-      ok: false, error: 'not_available',
-      message: 'ehhez a művelethez most nincs jogod ebben a könyvben',
-      effect_id: null, state: null,
-    });
+  // ÚJRAPRÓBÁLÁS elárulná, hogy a kulcshoz tartozik-e parancs — a kulcs próbálgatható
+  // létezés-csatorna lenne (KUKA-084).
+  const refused = Object.freeze({
+    ok: false, error: 'not_available',
+    message: 'ehhez a művelethez most nincs jogod ebben a könyvben',
+    effect_id: null, state: null,
+  });
+  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {
+    return refused;
   }
 
+  const prior = findCommandInScope(store, scope);
   if (prior) {
-    // K07: „Azonos kulcs és ELTÉRŐ deklarált tartalom KONFLIKTUS."
-    if (prior.declared_hash !== declaredHash) {
-      return { ok: false, error: 'idempotency_conflict', message: 'ugyanaz a kulcs más tartalommal érkezett' };
+    // K07: „Azonos kulcs és ELTÉRŐ deklarált tartalom KONFLIKTUS." Az azonosság a MŰVELETET és a
+    // VERZIÓT is lefedi, tehát a `stock.receipt` → `stock.issue` csere is ide esik (Q03).
+    if (prior.identity_hash !== identity) {
+      return Object.freeze({ ok: false, error: 'idempotency_conflict', message: 'ugyanaz a kulcs más művelettel vagy tartalommal érkezett' });
     }
-    // Azonos tartalom: a MÁR LÉTEZŐ parancshoz kapcsolódik — új hatás NEM keletkezik.
-    return { ok: true, effect_id: prior.effect_id, state: prior.state, replayed: true };
+    // AZ ISMÉTLÉS IS KIADÁS (Q15): a hatásazonosító és az állapot védett tény.
+    return store.tx(() => Object.freeze(disclose({
+      store, kind: 'command_replay', scope: scope.bookId, ref: idemKey, recipient: actor, clock,
+      body: { ok: true, effect_id: prior.effect_id, state: prior.state, replayed: true },
+    })));
   }
 
-  // K07: „a tartósan befogadott parancshoz KÜLÖN tároljuk a feloldott bemenetet és annak verzióit…
-  // A kiválasztási időpont a művelettípus szerződése." A feloldás EGYSZER fut, és rögzül.
-  const resolved = resolve ? resolve() : {};
-  const effectId = `eff_${idemKey}`;
-  store.run(
-    `INSERT INTO command (idem_key, actor, book_id, type, type_version, declared_hash,
-                          resolved_json, effect_id, state, finalized_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?)`,
-    idemKey, actor, bookId, type, typeVersion, declaredHash,
-    JSON.stringify(resolved), effectId, 'finalized', clock.now());
-  return { ok: true, effect_id: effectId, state: 'finalized', replayed: false, resolved };
+  // ── A FELOLDÁS, majd a VÉGLEGESÍTÉSI KAPU (Q04) ───────────────────────────────────────────────
+  // A feloldás EGYSZER fut és RÖGZÜL. De közben eltelik idő: a régi kód a feloldás UTÁN azonnal
+  // véglegesített, tehát ha a `resolve` alatt visszavonták a jogot, a parancs MÉGIS `finalized`
+  // lett és adatot adott vissza. A jogot ÚJRA meg kell kérdezni, közvetlenül az írás előtt.
+  //
+  // KUKA-088 — MELYIK ELLENŐRZÉST FAGYASZTOTTUK BE? A PILLANATKÉPET fagyasztjuk (a feloldott
+  // bemenet nem változhat utólag), a JOGOT nem: az minden kiadásnál újra fut.
+  const resolvedJson = JSON.stringify(resolve ? resolve() : {});
+
+  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {
+    // A feloldás alatt elveszett a jog ⇒ a parancs NEM lesz kész. Semmit nem írunk.
+    return refused;
+  }
+
+  const effectId = effectIdFor(scope);
+  return store.tx(() => {
+    store.run(
+      `INSERT INTO command (idem_key, actor, book_id, type, type_version, identity_hash,
+                            resolved_json, effect_id, state, finalized_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`,
+      idemKey, actor, bookId, type, typeVersion, identity,
+      resolvedJson, effectId, 'finalized', clock.now());
+    // A BEFOGADÁS NEM SZOLGÁLTAT KI TARTALMAT, ÉS NEM IS KIADÁS (R47 · Q14 × Q15).
+    //
+    // Az első alakunk itt visszaadta a feloldott tartalmat (`resolved: snapshot`) ÉS leltárba is
+    // tette. Ezt „a ti két elvárásotok ütközik" mondattal adtuk volna ki — TÉVESEN. Megmérve a
+    // ti KÉT állításotokat négy lehetséges alakon, a helyes válasz ez:
+    //
+    //   · a `resolved` KISZOLGÁLÁS, tehát CSAK a leltározott olvasó úton mehet ki (Q15 szigorú
+    //     olvasata) — a beadás válasza „ELŐKÉSZÍTVE", nem „KISZOLGÁLVA" (a ti szavaitok);
+    //   · a befogadás válaszában maradó `effect_id` a hívó SAJÁT bemeneteinek lenyomata
+    //     (`hash(book|actor|idem_key)`), a `state` pedig ezen az ágon állandó — tehát a hívó
+    //     SEMMI OLYAT nem tud meg, amit ne ő maga adott volna. Ami nem közöl új tényt, arra
+    //     leltár-sort írni zaj, nem védelem (KUKA-052: az őr azt mérje, ami tényleg történik).
+    //
+    // Az ISMÉTLÉS ága ELLENBEN kiadás marad: ott a válasz egy MÁR LÉTEZŐ parancs állapotát
+    // közli, ami a hívó számára ÚJ tény — azt a `command_replay` sor rögzíti.
+    return Object.freeze({ ok: true, effect_id: effectId, state: 'finalized', replayed: false });
+  });
 }
 
 // ── A VÁLASZ KIADÁSA (K07 + K05) ────────────────────────────────────────────────────────────────
 // Külön művelet a hatástól. A kulcs ISMERETE nem jogosultság: a mai jogot minden kiadásnál
 // ellenőrizzük, és a nemleges válasz NEM árulja el, hogy a parancs létezik-e (KUKA-084).
-export function readCommandResult({ store, idemKey, requester, clock, externalEvidence }) {
-  const cmd = store.get('SELECT * FROM command WHERE idem_key = ?', idemKey);
-
-  // A NEM LÉTEZŐ és a NEM LÁTHATÓ parancs válasza AZONOS — különben a kulcs próbálgatható.
+//
+// A CÍM OPCIONÁLIS. Ha kötelezővé tennénk, a cím nélkül hívó ellenpróbák NEVEZETT DOBÁSRA
+// futnának, és egy valódi lelet FAIL helyett MÉRŐHIBÁVÁ maszkolódna — épp az az alak, amit a
+// saját mérőnk tilt. Nulla mező ⇒ puszta kulcs, de CSAK egyértelmű, MA IS LÁTHATÓ sorra.
+export function readCommandResult({ store, idemKey, requester, bookId, actor, clock, externalEvidence }) {
   const refused = Object.freeze({
     ok: false,
     error: 'not_available',
@@ -68,20 +231,44 @@ export function readCommandResult({ store, idemKey, requester, clock, externalEv
     effect_id: null,
     result: null,
   });
+
+  const addressed = bookId !== undefined || actor !== undefined;
+  if (addressed && !(bookId && actor)) {
+    // RÉSZLEGES cím: bekötési hiba, nem valódi „nem" (KUKA-020).
+    throw new Error('readCommandResult: részleges hatókör-cím — bookId és actor együtt kell');
+  }
+
+  let cmd;
+  if (addressed) {
+    cmd = findCommandInScope(store, commandScope({ bookId, actor, idemKey }));
+  } else {
+    // A JELÖLTEKET ELŐBB A MAI JOG SZŰRI, és csak a LÁTHATÓK között követelünk egyértelműséget.
+    // Enélkül egy IDEGEN könyvben megjelenő azonos kulcs átbillenthetné a kérő korábban sikeres
+    // olvasását `refused`-ra — vagyis egy hatókörén KÍVÜL keletkezett tény üzenne neki.
+    const rows = store.all('SELECT * FROM command WHERE idem_key = ?', idemKey);
+    const visible = rows.filter((r) => rightAt({
+      store, subjectId: requester, bookId: r.book_id, opClass: 'own_book', clock, externalEvidence,
+    }).allowed);
+    if (visible.length !== 1) return refused;
+    cmd = visible[0];
+  }
   if (!cmd) return refused;
 
-  const decision = rightAt({ store, subjectId: requester, bookId: cmd.book_id, opClass: 'own_book', clock, externalEvidence });
-  if (!decision.allowed) return refused;
+  if (!rightAt({ store, subjectId: requester, bookId: cmd.book_id, opClass: 'own_book', clock, externalEvidence }).allowed) {
+    return refused;
+  }
 
-  // A HATÁS változatlan; a VETÜLET most készül, mai jogon.
+  // A HATÁS változatlan; a VETÜLET most készül, mai jogon. A HATÓKÖR A KIADOTT REKORDBÓL jön,
+  // nem a kérésből — különben a leltár a ROSSZ könyvre könyvelne (KUKA-002).
   const resolved = JSON.parse(cmd.resolved_json);
-  store.run('INSERT INTO disclosure (id, recipient, view, scope, at) VALUES (?,?,?,?,?)',
-    `dsc_${idemKey}_${requester}_${clock.now()}`, requester, 'command_result', cmd.book_id, clock.now());
-  return Object.freeze({
-    ok: true,
-    error: null,
-    message: 'az eredmény kiadva',
-    effect_id: cmd.effect_id,
-    result: Object.freeze({ ...resolved }),
-  });
+  return store.tx(() => Object.freeze(disclose({
+    store, kind: 'command_result', scope: cmd.book_id, ref: cmd.idem_key, recipient: requester, clock,
+    body: {
+      ok: true,
+      error: null,
+      message: 'az eredmény kiadva',
+      effect_id: cmd.effect_id,
+      result: Object.freeze({ ...resolved }),
+    },
+  })));
 }
