@@ -363,9 +363,14 @@ export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion
     //
     // Ez UGYANAZ a hibaosztály, mint a C02/C03 a meghívó-oldalon, csak MÁSIK ÍRÓN: a döntés
     // határa és az ÍRÁS határa két külön határ (KUKA-039 — a szabály itt is kell, nem csak ott).
-    // Ugyanezt a három ágat végigmérve az ISMÉTLÉS és az OLVASÁS MÁR ZÁRVA VAN (mindkettő
-    // `not_available`-t ad, nulla leltár-sorral) — ezt kimondjuk, hogy a lelet ne legyen tágabb,
-    // mint amit mértünk.
+    //
+    // ITT KORÁBBAN AZ ÁLLT, hogy „ugyanezt a három ágat végigmérve az ISMÉTLÉS és az OLVASÁS MÁR
+    // ZÁRVA VAN". EZ TÉVES VOLT, és a külső fél N08/N09 esete megcáfolta: a mi mérésünk a
+    // megvonást a HÍVÁS ELŐTT végezte, nem a `store.tx` BELÉPÉSÉNÉL (KUKA-094). A mondat a
+    // javítás után is itt maradt, és az R53 §5 joggal kérte a törlését: a KÓDBA ÍRT PRÓZA SEM
+    // AUTOMATIKUSAN NORMA — ugyanúgy elévül, mint bármely leíró szöveg (KUKA-050). A mai,
+    // érvényes magyarázat a `releaseAllowed` fejlécében áll, EGY helyen: minden kiadás a saját
+    // írás-tranzakcióján BELÜL kérdezi meg a mai jogot.
     if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {
       return refused;
     }

@@ -48,345 +48,8 @@ import { availableParallelism } from 'node:os';
 const REF = dirname(fileURLToPath(import.meta.url));
 const RUN_TIMEOUT_MS = 60000;
 
-// Minden mutáció EGY őrt ront el, és megnevezi, MELYIK próbának kell elkapnia, MILYEN MÓDON.
-//   expect: 'probe_fail'    — a nevesített próba FAIL-t ad (ez a szabályos alak)
-//   expect: 'runtime_error' — a mutáció a szerződés szerint ELŐRE VÁRHATÓAN kivételt okoz; csak
-//                             akkor bizonyíték, ha itt előre ki van mondva (R42 §2.3)
-const MUTATIONS = [
-  // ── A HAT EREDETI PRÓBA ŐREI (újrahorgonyozva a Q01–Q15 kör után) ───────────────────────────
-  { id: 'M1', rule: 'K03', catcher: 'P-A04', expect: 'probe_fail',
-    what: 'a semleges válasz elárulja, hogy a címhez tartozik-e fiók',
-    file: 'invite.mjs',
-    from: "  if (!inv || !hasProvenChannel(store, viewerSubjectId, inv.invitee_namespace, inv.invitee_value)) {\n    return UNPROVEN;\n  }",
-    to: "  if (!inv || !hasProvenChannel(store, viewerSubjectId, inv.invitee_namespace, inv.invitee_value)) {\n    return Object.freeze({ ...UNPROVEN, account_exists: !!(inv && addressHolders(store, inv.invitee_namespace, inv.invitee_value, clock.now()).live.length) });\n  }" },
+import { MUTATIONS } from './mutations.mjs';
 
-  // M2 SZERZŐDÉSE MÉRÉSBŐL VÁLTOZOTT, ÉS EZT KI KELL MONDANI. A meglévő hitelesítő adat védelme
-  // MOST KÉT helyen áll: az alak-feloldó nem küldi az írás-ágra, ÉS az SQL `WHERE` sem engedi.
-  // Egyetlen szerkesztéssel tehát NEM lehet NÉMA felülírást előidézni — a kód a próbálkozást
-  // NEVEZETT hibakóddal állítja meg. A bizonyíték ereje ezért korlátozott: azt mutatja, hogy a
-  // VÉDELEM TÜZEL, nem azt, hogy egy néma felülírást észlelnénk (KUKA-033: nem állítunk többet).
-  { id: 'M2', rule: 'K03', catcher: 'P-K03-cred', expect: 'runtime_error',
-    error_code: 'CREDENTIAL_WRITE_BLOCKED', phase: 'probe_body',
-    error_match: 'hitelesítő|credential',
-    what: 'a meghívó beváltása a MEGLÉVŐ hitelesítő adat írás-ágára fut (a mi KUKA-086-os hibánk)',
-    evidence_limit: 'a védelem KÉT helyen áll (alak-feloldó + SQL WHERE), ezért egyetlen szerkesztés '
-      + 'nem tud néma felülírást csinálni — ez a VÉDELEM TÜZELÉSÉNEK bizonyítéka',
-    file: 'invite.mjs',
-    from: "  return (row.credential === null || row.credential === undefined || row.credential === '')\n    ? 'credential_missing' : 'credential_set';",
-    to: "  return 'credential_missing';" },
-
-  { id: 'M3', rule: 'K03', catcher: 'P-K03-intent', expect: 'probe_fail',
-    what: 'a függő szándék elvész, tehát a kézi beváltás zsákutcába fut (a mi D-VS-667-es hibánk)',
-    file: 'invite.mjs',
-    from: "  return row ? row.invite_token : null;",
-    to: "  return null;" },
-
-  // R51: az M4 ÚJRA-HORGONYOZVA. A J1 javítás óta a kiadás védelme KÉTRÉTEGŰ: a tranzakción kívüli
-  // szűrés MELLETT a `store.tx`-en BELÜL is fut egy jog-ellenőrzés. Az egyrétegű rontás ezért
-  // TÚLÉLTE — jó hír a kódnak, rossz hír a mutációnak (KUKA-041). Mindkét réteget elveszi.
-  { id: 'M4', rule: 'K07', catcher: 'P-A08', expect: 'probe_fail',
-    what: 'az eredmény kiadása MINDKÉT rétegen kihagyja a MAI jog ellenőrzését (a mi hibás C08-as javaslatunk)',
-    file: 'command.mjs',
-    edits: [
-      { from: "  if (!rightAt({ store, subjectId: requester, bookId: cmd.book_id, opClass: 'own_book', clock, externalEvidence }).allowed) {\n    return refused;\n  }",
-        to: "  if (false) {\n    return refused;\n  }" },
-      { from: "    if (!releaseAllowed({ store, subjectId: requester, bookId: cmd.book_id, clock, externalEvidence })) {\n      return refused;\n    }",
-        to: "    if (false) {\n      return refused;\n    }" },
-    ] },
-
-  { id: 'M5', rule: 'K07', catcher: 'P-A08', expect: 'runtime_error',
-    error_code: 'ERR_SQLITE_ERROR', phase: 'probe_body',
-    error_match: 'UNIQUE constraint failed: command\\.',
-    what: 'az ismétlésvédelem nem fog: a hatás MÁSODSZOR is megszületik',
-    evidence_limit: 'a mai kódon egyedi kulcs-ütközést vált ki — ez a VISELKEDÉS-VÁLTOZÁS észlelése, '
-      + 'NEM két sikeresen lekönyvelt hatás bizonyítéka (R42 §2.3)',
-    file: 'command.mjs',
-    from: "  const prior = findCommandInScope(store, scope);",
-    to: "  const prior = null;" },
-
-  { id: 'M6', rule: 'K12', catcher: 'P-A14', expect: 'probe_fail',
-    what: 'a lejárt külső bizonyíték türelmi időt kap',
-    file: 'authz.mjs',
-    from: "  if (Number.isFinite(profile?.max_age_ms) && age > profile.max_age_ms) {",
-    to: "  if (false && Number.isFinite(profile?.max_age_ms) && age > profile.max_age_ms) {" },
-
-  { id: 'M7', rule: 'K09', catcher: 'P-A08', expect: 'probe_fail',
-    what: 'a visszavont tagság továbbra is jogot ad',
-    file: 'authz.mjs',
-    from: "    if (r.ms <= now.ms) return Object.freeze({ effective: false, reason: 'membership_revoked' });",
-    to: "    if (false) return Object.freeze({ effective: false, reason: 'membership_revoked' });" },
-
-  { id: 'M8', rule: 'K05', catcher: 'P-A08', expect: 'probe_fail',
-    what: 'a NEM LÉTEZŐ és a NEM LÁTHATÓ parancs válasza eltér — a kulcs próbálgathatóvá válik',
-    file: 'command.mjs',
-    from: "    if (visible.length !== 1) return refused;",
-    to: "    if (visible.length !== 1) return Object.freeze({ ...refused, error: rows.length ? 'not_available' : 'unknown_key' });" },
-
-  { id: 'M9', rule: 'K03', catcher: 'P-A04b', expect: 'probe_fail',
-    what: 'a postafiók birtokosa is csak a semleges választ kapja — a javítás zsákutcát csinál (KUKA-064)',
-    file: 'invite.mjs',
-    from: "  if (!inv || !hasProvenChannel(store, viewerSubjectId, inv.invitee_namespace, inv.invitee_value)) {",
-    to: "  if (!inv || true) {" },
-
-  { id: 'M10', rule: 'K07', catcher: 'P-A08', expect: 'probe_fail',
-    what: 'az ÚJRAPRÓBÁLÁS a jog-ellenőrzés ELŐTT felel a kulcsra — a kulcs létezés-csatornává válik',
-    file: 'command.mjs',
-    from: "  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {\n    return refused;\n  }\n\n  const prior = findCommandInScope(store, scope);",
-    to: "  const prior = findCommandInScope(store, scope);\n  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {\n    return prior ? Object.freeze({ ...refused, error: 'exists_but_not_available' }) : refused;\n  }" },
-
-  // ── A Q01–Q15 KÖR ŐREI ──────────────────────────────────────────────────────────────────────
-  { id: 'M11', rule: 'K07', catcher: 'P-CMD-namespace', expect: 'probe_fail',
-    what: 'Q01 — a kulcs-keresésből kiesik az AKTOR tengely: két aktor közös névteret oszt',
-    file: 'command.mjs',
-    from: "  return store.get('SELECT * FROM command WHERE book_id = ? AND actor = ? AND idem_key = ?',\n    scope.bookId, scope.actor, scope.idemKey);",
-    to: "  return store.get('SELECT * FROM command WHERE book_id = ? AND idem_key = ?',\n    scope.bookId, scope.idemKey);" },
-
-  { id: 'M12', rule: 'K07', catcher: 'P-CMD-namespace', expect: 'probe_fail',
-    what: 'Q01 — a hatásazonosító nem hordozza a teljes hatókört: két névtér EGY hatásazonosítón',
-    file: 'command.mjs',
-    from: "  return `eff_${hash(commandRef(scope))}`;",
-    to: "  return `eff_${scope.idemKey}`;" },
-
-  { id: 'M13', rule: 'K07', catcher: 'P-CMD-identity', expect: 'probe_fail',
-    what: 'Q02 — visszatér a tört kanonizálás: a BEÁGYAZOTT mezők némán kiesnek a lenyomatból',
-    file: 'command.mjs',
-    from: "  return hash(`${CANON_VERSION}|${canonicalize({ type, type_version: typeVersion, declared })}`);",
-    to: "  return hash(`${CANON_VERSION}|${JSON.stringify(declared, Object.keys(declared).sort())}|${type}|${typeVersion}`);" },
-
-  { id: 'M14', rule: 'K07', catcher: 'P-CMD-identity', expect: 'probe_fail',
-    what: 'Q03 — a MŰVELET és a VERZIÓ kiesik az azonosságból: más művelet a régi hatásra mutat',
-    file: 'command.mjs',
-    from: "  return hash(`${CANON_VERSION}|${canonicalize({ type, type_version: typeVersion, declared })}`);",
-    to: "  return hash(`${CANON_VERSION}|${canonicalize({ declared })}`);" },
-
-  // R49: az M15 ÚJRA-HORGONYOZVA. A parancs-oldali véglegesítési kapu (D-VS-3008) óta a védelem
-  // KÉTRÉTEGŰ: a feloldás utáni ellenőrzés MELLETT a tranzakción belül is fut egy. Az egyrétegű
-  // rontás ezért TÚLÉLTE — nem azért, mert a hiba nincs meg, hanem mert egyetlen szerkesztés nem
-  // tudja kinyitni. Ez jó hír a kódnak és ROSSZ hír a mutációnak: egy próba, ami nem tud pirosra
-  // váltani, nem bizonyít semmit (KUKA-041). Ezért a mutáció MINDKÉT réteget elveszi — ez a valódi
-  // visszacsúszás-osztály: „a jogot a feloldás után egyáltalán nem kérdezzük meg újra".
-  { id: 'M15', rule: 'K07', catcher: 'P-CMD-finalize', expect: 'probe_fail',
-    what: 'Q04 — a feloldás UTÁNI jog-ellenőrzés MINDKÉT rétege elmarad: az elvesztett jog mellett is véglegesül',
-    file: 'command.mjs',
-    edits: [
-      { from: "  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {\n    // A feloldás alatt elveszett a jog ⇒ a parancs NEM lesz kész. Semmit nem írunk.\n    return refused;\n  }",
-        to: "  if (false) {\n    return refused;\n  }" },
-      { from: "    if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {\n      return refused;\n    }\n    store.run(",
-        to: "    store.run(" },
-    ] },
-
-  // R47: az M16 ÚJRA-HORGONYOZVA. A régi alakja azt rontotta el, hogy a BEFOGADÁS leltározzon —
-  // csakhogy a befogadás ma már SZÁNDÉKOSAN nem leltároz (nem közöl új tényt), ezért a mutáció
-  // értelmét vesztette és TÚLÉLT. Az ÚJ veszély ezen a tengelyen az, hogy a befogadás megint
-  // KISZOLGÁLJON: visszaadja a feloldott tartalmat, megkerülve az egyetlen leltározott olvasó utat.
-  { id: 'M16', rule: 'K05', catcher: 'P-CMD-disclosure', expect: 'probe_fail',
-    what: 'Q15 — a BEFOGADÁS válasza megint KISZOLGÁLJA a feloldott tartalmat, leltár nélkül',
-    file: 'command.mjs',
-    from: "    return commandReceipt({ effectId, state: 'finalized', replayed: false });",
-    to: "    return Object.freeze({ ...commandReceipt({ effectId, state: 'finalized', replayed: false }), resolved: JSON.parse(resolvedJson) });" },
-
-  // A PÁRJA: az ISMÉTLÉS ága EGY MÁR LÉTEZŐ parancs állapotát közli — az a hívónak ÚJ tény, tehát
-  // leltározni KELL. Ha ez elmarad, a kulcs próbálgatásával nyom nélkül derül ki, mi létezik.
-  { id: 'M27', rule: 'K05', catcher: 'P-CMD-disclosure', expect: 'probe_fail',
-    what: 'az ISMÉTLÉS ága nyom nélkül közli egy MÁR LÉTEZŐ parancs állapotát',
-    file: 'command.mjs',
-    from: "    return store.tx(() => {\n      // R51/J1 (N09):",
-    to: "    if (true) return commandReceipt({ effectId: prior.effect_id, state: prior.state, replayed: true });\n    return store.tx(() => {\n      // R51/J1 (N09):" },
-
-  { id: 'M17', rule: 'K04', catcher: 'P-AUTHZ-opclass', expect: 'probe_fail',
-    what: 'Q07 — visszatér a sima objektum-indexelés: az ÖRÖKÖLT kulcs profilt talál',
-    file: 'authz.mjs',
-    from: "  return typeof opClass === 'string' && OP_CLASSES.has(opClass) ? OP_CLASSES.get(opClass) : null;",
-    to: "  return FRESHNESS_PROFILE[opClass] || null;" },
-
-  { id: 'M18', rule: 'K04', catcher: 'P-AUTHZ-membership-time', expect: 'probe_fail',
-    what: 'Q08 — a JÖVŐBELI tagsági kezdet nem zár: a 2099-es dátum MA is jogot ad',
-    file: 'authz.mjs',
-    from: "  if (g.ms > now.ms) return Object.freeze({ effective: false, reason: 'membership_not_yet_effective' });",
-    to: "  if (false) return Object.freeze({ effective: false, reason: 'membership_not_yet_effective' });" },
-
-  { id: 'M19', rule: 'K12', catcher: 'P-AUTHZ-evidence', expect: 'probe_fail',
-    what: 'Q06 — a HATÁLY tengelye eltűnik: friss lekérdezés mellett a LEJÁRT megbízás is enged',
-    file: 'authz.mjs',
-    from: "  const until = instantMs(ev.valid_until);\n  if (!until.ok) return Object.freeze({ ok: false, reason: `evidence_valid_until_${until.reason}` });\n  if (until.ms <= now.ms) return Object.freeze({ ok: false, reason: 'evidence_expired' });",
-    to: "  // a hatály-tengely eltávolítva" },
-
-  { id: 'M20', rule: 'K12', catcher: 'P-AUTHZ-evidence', expect: 'probe_fail',
-    what: 'Q05 — a JÖVŐBELI lekérés frissességnek számít (a negatív kor kisebb a plafonnál)',
-    file: 'authz.mjs',
-    from: "  if (age < 0) return Object.freeze({ ok: false, reason: 'evidence_future_dated' });",
-    to: "  if (false) return Object.freeze({ ok: false, reason: 'evidence_future_dated' });" },
-
-  { id: 'M21', rule: 'K03', catcher: 'P-INVITE-window', expect: 'probe_fail',
-    what: 'a meghívó lejárata visszatér SZÖVEG-összehasonlításra (a teljesség-kritika élő lelete)',
-    file: 'invite.mjs',
-    from: "  if (exp.ms <= now.ms) return Object.freeze({ open: false, reason: 'invite_expired' });",
-    to: "  if (inv.expires_at <= nowIso) return Object.freeze({ open: false, reason: 'invite_expired' });" },
-
-  { id: 'M22', rule: 'K03', catcher: 'P-INVITE-authority', expect: 'probe_fail',
-    what: 'Q10 — az IDEGEN alany őre elmarad: más ember alanyára is beváltható a meghívó',
-    file: 'invite.mjs',
-    from: "  if (shape === 'foreign_existing_subject') {\n    return Object.freeze({\n      ok: false, error: 'account_authentication_required',",
-    to: "  if (shape === 'foreign_existing_subject') {\n    return Object.freeze({\n      ok: false, error: 'invite_not_actionable'," },
-
-  { id: 'M23', rule: 'K03', catcher: 'P-INVITE-authority', expect: 'probe_fail',
-    what: 'Q09 — a kibocsátó MAI joga nincs megkérdezve: visszavont jogú kibocsátó meghívója is ad tagságot',
-    file: 'invite.mjs',
-    from: "  const grant = inviteGrantAt({ store, invite: inv, clock });",
-    to: "  const grant = Object.freeze({ ok: true, issuer_role: 'admin' });" },
-
-  { id: 'M24', rule: 'K09', catcher: 'P-INVITE-authority', expect: 'probe_fail',
-    what: 'Q13 — a VISSZAVONT tagság némán elnyelődik: a meghívó elfogy, hozzáférés nélkül',
-    file: 'invite.mjs',
-    edits: [
-      { from: "  if (!outcome.grants_access) {", to: "  if (false) {" },
-      { from: "    if (!outcome2.grants_access) {", to: "    if (false) {" },
-    ] },
-
-  { id: 'M25', rule: 'K03', catcher: 'P-INVITE-effect', expect: 'probe_fail',
-    what: 'Q12 — az írások NEM atomiak: a megszakadt beváltás félkész jogadást hagy',
-    file: 'invite.mjs',
-    from: "  return store.tx(() => {",
-    to: "  return ((fn) => fn())(() => {" },
-
-  // Az R42 P-A14 NEVEZETT maradéka: „a megvonás → képviseleti lekérdezés kombináció külön hiányzik".
-  // A két tengely SORRENDJE dönt: ha a képviseleti jogcím a tagság-vizsgálat ELÉ kerül, a VISSZAVONT
-  // tag hibátlan megbízással újra bejut. Ez nem elméleti: a képviseleti ág `return`-öl, tehát a
-  // sorrend-csere némán ad vissza `allowed:true`-t (KUKA-002 — két tengely, és a sorrendjük a szabály).
-  { id: 'M28', rule: 'K09', catcher: 'P-AUTHZ-revoke-now', expect: 'probe_fail',
-    what: 'K09 — a mai viselkedes: minden meglevo revoked_at ertek blokkolja az azonnali megvonast',
-    file: 'authz.mjs',
-    from: "  if (prev.ms <= now.ms) return Object.freeze({ act: false, reason: 'revocation_already_effective' });\n  return Object.freeze({ act: true, effective_at: nowIso, reason: 'revocation_pulled_forward', previous_effective_at: existingRevokedAt });",
-    to: "  return Object.freeze({ act: false, reason: 'revocation_already_effective' });" },
-
-  { id: 'M29', rule: 'K09', catcher: 'P-AUTHZ-revoke-now', expect: 'probe_fail',
-    what: 'K09 — TULZARAS: a mar hatalyos megvonas meghosszabbodik',
-    file: 'authz.mjs',
-    from: "  if (prev.ms <= now.ms) return Object.freeze({ act: false, reason: 'revocation_already_effective' });",
-    to: "  if (false) return Object.freeze({ act: false, reason: 'revocation_already_effective' });" },
-
-  { id: 'M26', rule: 'K04/K12', catcher: 'P-AUTHZ-evidence', expect: 'probe_fail',
-    what: 'a képviseleti jogcím a TAGSÁG-vizsgálat elé kerül: visszavont tag megbízással újra bejut',
-    file: 'authz.mjs',
-    from: "  const eff = membershipEffectiveAt(m, clock.now());\n  if (!eff.effective) {",
-    to: "  const eff = membershipEffectiveAt(m, clock.now());\n  if (!eff.effective && !needsExternalEvidence(profile)) {" },
-
-  // ═══ A HAT ÚJ ŐR MUTÁCIÓI (R49 · D-VS-3008) ═══════════════════════════════════════════════════
-  //
-  // Egy próba, ami sosem pirosodik, DÍSZ (KUKA-041). Mindegyik új őrhöz tartozik egy mutáció, ami
-  // a VALÓDI visszacsúszást játssza el — nem elméleti rontást.
-
-  // A LEGVESZÉLYESEBB ALAK: a kapu MEGVAN, csak a ROSSZ OLDALON — az őr a tranzakció ELŐTTI,
-  // ELAVULT sort nézi. Saját kézzel mérve: enélkül a battéria végig zöld maradt, miközben a KÜLSŐ
-  // próba 30/30 → 28/30 esett.
-  { id: 'M31', rule: 'K03/K09', catcher: 'P-INVITE-finalize-gate', expect: 'probe_fail',
-    what: 'a meghívó véglegesítési kapuja az ELAVULT sort nézi (a kapu megvan, rossz oldalon)',
-    file: 'invite.mjs',
-    from: "    const fresh = store.get('SELECT * FROM invite WHERE token = ?', token);",
-    to: "    const fresh = inv;" },
-
-  { id: 'M32', rule: 'K04/K07', catcher: 'P-CMD-finalize-gate', expect: 'probe_fail',
-    what: 'a PARANCS-oldali véglegesítési kapu eltűnik: a tx-határon visszavont jog mellett is könyvel',
-    file: 'command.mjs',
-    from: "    if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {\n      return refused;\n    }\n    store.run(",
-    to: "    store.run(" },
-
-  { id: 'M33', rule: 'K04', catcher: 'P-AUTHZ-roles', expect: 'probe_fail',
-    what: 'C05 — az ISMERETLEN szerep megint jogot kap: a zárt regiszter kiiktatva',
-    file: 'authz.mjs',
-    from: "  const grant = roleGrants(m.role, opClass);",
-    to: "  const grant = true;" },
-
-  { id: 'M34', rule: 'K07', catcher: 'P-CANON-shape', expect: 'probe_fail',
-    what: 'C08 — az idegen `toJSON` adapter megint lefut, tehát elrejtheti a deklarált tartalmat',
-    file: 'command.mjs',
-    from: "    throw new CanonError('adapter_not_allowed', path);",
-    to: "    return canonicalize(v.toJSON(), path);" },
-
-  { id: 'M35', rule: 'K12', catcher: 'P-TIME-calendar', expect: 'probe_fail',
-    what: 'C09 — a naptári visszaolvasás kiesik: a február 30. megint érvényes időponttá normalizálódik',
-    file: 'store.mjs',
-    from: "    return { ok: false, reason: 'instant_not_a_calendar_day' };",
-    to: "    return { ok: true, ms };" },
-
-  { id: 'M36', rule: 'K03', catcher: 'P-IDENTITY-address', expect: 'probe_fail',
-    what: 'C07 — a KÖTÉSEK számát mérjük az ALANYOK helyett: két bizonyíték egy emberre „több élő alany"',
-    file: 'invite.mjs',
-    from: "    live: Object.freeze([...new Set(live)]),",
-    to: "    live: Object.freeze(live)," },
-
-  // R50 — A NYUGTA-SZERZŐDÉS KÉT VISSZACSÚSZÁSA. Ez a kör azért van, mert a külső fél megcáfolta
-  // az R47-es indokunkat („a befogadás nem közöl új tényt"), és a javítás CSAK akkor ér valamit,
-  // ha a hiánya PIROSRA vált — különben ugyanaz a helyzet, mint a véglegesítési kapunál: a
-  // legfontosabb rész őrizetlen, és a nem mért rész ZÖLDNEK látszik (KUKA-051).
-  { id: 'M37', rule: 'K05', catcher: 'P-CMD-receipt', expect: 'probe_fail',
-    what: 'R50 — a VÉGLEGESÍTÉS megint nyomtalan: a nyugta-sor elmarad, a válasz mégis „kész"-t mond',
-    file: 'command.mjs',
-    from: "    recordCommandEvent({ store, event: 'command_finalized', scope, effectId, state: 'finalized', clock });\n    return commandReceipt(",
-    to: "    return commandReceipt(" },
-
-  // A MÁSODIK a veszélyesebb: a nyugta MEGVAN, csak nem a hatással EGY tranzakcióban. A `store.tx`
-  // a visszautasító ágon is COMMITÁL (nem dob), tehát a tx ELÉ tett írás akkor is megmarad, ha a
-  // parancs sosem született meg — nyugta egy meg nem történt hatásról. Ugyanaz az alak, mint az
-  // M31 a meghívó-oldalon: a védelem megvan, csak ROSSZ OLDALON.
-  // R51: az M38 SZERZŐDÉSE MÉRÉSBŐL VÁLTOZOTT, ÉS EZT KI KELL MONDANI (KUKA-033). A J3 javítás óta
-  // a nyugtázó felület MAGA utasítja el a tranzakción kívüli hívást (`RECEIPT_OUTSIDE_TX`), tehát
-  // a „nyugta a hatás tranzakcióján kívül" alak egyetlen szerkesztéssel többé NEM idézhető elő
-  // némán: NEVEZETT kivétellel áll meg. A bizonyíték ereje ezért korlátozott — azt mutatja, hogy a
-  // VÉDELEM TÜZEL, nem azt, hogy egy néma árva nyugtát észlelnénk (ugyanaz az alak, mint az M2).
-  { id: 'M38', rule: 'K05', catcher: 'P-CMD-receipt', expect: 'runtime_error',
-    error_code: 'RECEIPT_OUTSIDE_TX', phase: 'probe_body',
-    error_match: 'véglegesítés tranzakciójából',
-    what: 'R50 — a nyugta KILÉP a hatás tranzakciójából: elutasított parancsról is maradna nyugta-sor',
-    evidence_limit: 'a J3 óta a nyugtázó felület a tranzakción kívüli hívást NEVEZETT hibakóddal '
-      + 'állítja meg, ezért ez a VÉDELEM TÜZELÉSÉNEK bizonyítéka, nem néma árva soré',
-    file: 'command.mjs',
-    from: "  const effectId = effectIdFor(scope);\n  return store.tx(() => {",
-    to: "  const effectId = effectIdFor(scope);\n  recordCommandEvent({ store, event: 'command_finalized', scope, effectId, state: 'finalized', clock });\n  return store.tx(() => {" },
-
-  // R51 — AZ ÚJ ŐRÖK VISSZACSÚSZÁSAI (J1–J4). Minden javítás mellé elrontás-próba, ugyanabban a
-  // körben: a javítás akkor kész, ha a HIÁNYA bizonyítottan pirosra vált (KUKA-092).
-  { id: 'M39', rule: 'K03', catcher: 'P-INVITE-terms', expect: 'probe_fail',
-    what: 'R51/J2 — a meghívó feltételei megint változtathatók: a döntés és az írás két példányból dolgozik',
-    file: 'invite.mjs',
-    from: "    if (inviteTerms(fresh) !== inviteTerms(inv)) {",
-    to: "    if (false) {" },
-
-  { id: 'M40', rule: 'K03', catcher: 'P-INVITE-terms', expect: 'probe_fail',
-    what: 'R51/J2 — a tagság-írás megint az ELAVULT sor szerepét használja (N10 gyökere)',
-    file: 'invite.mjs',
-    edits: [
-      { from: "    if (inviteTerms(fresh) !== inviteTerms(inv)) {", to: "    if (false) {" },
-      { from: "        subjectId, fresh.book_id, fresh.offered_role, clock.now());",
-        to: "        subjectId, inv.book_id, inv.offered_role, clock.now());" },
-    ] },
-
-  { id: 'M41', rule: 'K05', catcher: 'P-CMD-receipt-integrity', expect: 'probe_fail',
-    what: 'R51/J3 — a nyugta megint írható a véglegesítés tranzakcióján KÍVÜLRŐL',
-    file: 'command.mjs',
-    from: "  if (!store.db?.isTransaction) fail('RECEIPT_OUTSIDE_TX'",
-    to: "  if (false) fail('RECEIPT_OUTSIDE_TX'" },
-
-  { id: 'M42', rule: 'K05', catcher: 'P-CMD-receipt-integrity', expect: 'probe_fail',
-    what: 'R51/J3 — a nyugta tartalmát senki nem méri a PARANCS sorához: idegen hatás és lehetetlen állapot is átmegy',
-    file: 'command.mjs',
-    edits: [
-      { from: "  if (cmd.effect_id !== effectId) fail('RECEIPT_EFFECT_MISMATCH'", to: "  if (false) fail('RECEIPT_EFFECT_MISMATCH'" },
-      { from: "  if (cmd.state !== state) fail('RECEIPT_STATE_MISMATCH'", to: "  if (false) fail('RECEIPT_STATE_MISMATCH'" },
-    ] },
-
-  { id: 'M43', rule: 'K05', catcher: 'P-CMD-disclosure', expect: 'probe_fail',
-    what: 'R51/J4 — a NULLA SOROS leltár-írás megint kiengedi a védett tartalmat (N12)',
-    file: 'command.mjs',
-    from: "  if (res?.changes !== 1) {\n    const err = new Error('disclose:",
-    to: "  if (false) {\n    const err = new Error('disclose:" },
-
-  { id: 'M44', rule: 'K05', catcher: 'P-CMD-disclosure', expect: 'probe_fail',
-    what: 'R51/J4 — visszatér a KÉTÉRTELMŰ mezőút: az `a.b` nevű mező és az `a` alatti `b` egy útra képződik',
-    file: 'command.mjs',
-    from: "    : releasedFieldPaths(body[k], [...prefix, `k:${escSeg(k)}`])));",
-    to: "    : releasedFieldPaths(body[k], [...prefix, String(k)])));" },
-];
 
 // ═══ A MÁSODIK KÖR: ÖT TOVÁBBI HAZUGSÁG-ALAK (R45 H02–H06) ══════════════════════════════════════
 //
@@ -780,6 +443,14 @@ function verdictFor(m, c) {
 //
 // A 16-os felső korlát azért van, hogy egy nagy gépen se induljon korlátlan gyerek-folyamat.
 //
+// R53 UTÁN A SZŰK KERESZTMETSZET MÁSHOL VOLT, ÉS EZT MEG IS MÉRTÜK. A 27. próba felvételével a
+// falióra 21,8 mp-re nőtt — a párhuzamosság hangolása itt már nem segített volna, mert a költség
+// 90%-a a TÁROLÓ FELÉPÍTÉSE volt (nyitás + séma, lemez-szinkronnal): 20 tárolón mérve 510 ms,
+// futásonként ~50 tárolóval. A `journal_mode=MEMORY` + `synchronous=OFF` beállítással ugyanez
+// 28 ms (18×), a teljes battéria pedig 21 799 ms → 3 031 ms, VÁLTOZATLAN eredménnyel (43/43 · 8/8).
+// A tanulság a mérésre: az időkorlátot ne a párhuzamossággal próbáljuk kihajtani, amíg nem tudjuk,
+// MIRE megy el az idő — a hangolás a mérés SAJÁT előfeltevését igazolta volna vissza (KUKA-054).
+//
 // KIMONDOTT KORLÁT: a falóra a MI gépünkön mért szám. A külső fél a saját, gyorsabb gépén 1,7 mp-et
 // mért ugyanerre - tehát ott bőven van tartalék -, de LASSABB gépen a korlát közelebb kerülhet.
 // Ezért a futás KIÍRJA a mért időt ÉS a korlátot: a különbség sosem néma (KUKA-012).
@@ -874,9 +545,31 @@ console.log('');
 console.log(`  Manifest: ${MANIFEST_VERSION} · tervezett próbák: ${EXPECTED_IDS.length} (${EXPECTED_IDS.join(', ')})`);
 console.log(`  ${MUTATIONS.length} mutáció · ${caught} elkapva (ebből ${weak} korlátozott erejű)`
   + ` · ${survived} túlélte · ${wrong} rossz próba · ${harness} mérőhiba · ${stale} elavult horgony`);
-console.log(`  falióra: ${Date.now() - WALL_T0} ms · párhuzamosság: ${POOL} · külső korlát: 15000 ms`);
+// AZ IDŐKORLÁT IS SZERZŐDÉS, ÉS EDDIG NEM VOLT ŐRE (R53 után mérve). A külső fél a battériát
+// 15 000 ms-os korláttal futtatja; ha túllépjük, náluk a folyamatot JEL állítja le, és a mérés
+// „harness"-hibává válik — nem a kódról szól többé. Ez pontosan meg is történt: a 27. próba
+// felvételével a falióra 15 021 ms lett, és az ő futásukban IDŐTÚLLÉPÉS-ként állt. A saját
+// futtatóm ezt csak KIÍRTA, nem gátolta — a nem mért korlát ZÖLDNEK látszik (KUKA-051).
+//
+// A KAPU A KORLÁT ELŐTT ÁLL, NEM RAJTA. Egy őr, ami pont akkor tüzel, amikor a baj bekövetkezik,
+// nem őr. Ezért a saját falióránknak a külső korlát 80%-a alatt kell maradnia: a maradék 20% a
+// LASSABB gép tartaléka. KIMONDOTT KORLÁT: ez a MI gépünkön mért idő — egy nálunk 25%-kal lassabb
+// gépen a külső korlát akkor is elérhető, ha itt zöld. A tartalék tehát csökkenti, de nem szünteti
+// meg a kockázatot; a kiírt százalék miatt viszont a sodródás sosem néma (KUKA-012).
+const EXTERNAL_WALL_LIMIT_MS = 15000;
+const WALL_BUDGET_MS = Math.round(EXTERNAL_WALL_LIMIT_MS * 0.8);
+const wall = Date.now() - WALL_T0;
+const wallOk = wall <= WALL_BUDGET_MS;
+console.log(`  falióra: ${wall} ms · párhuzamosság: ${POOL} · külső korlát: ${EXTERNAL_WALL_LIMIT_MS} ms`
+  + ` · saját költségvetés: ${WALL_BUDGET_MS} ms (a korlát 80%-a) · kihasználva: ${Math.round((wall / EXTERNAL_WALL_LIMIT_MS) * 100)}%`);
+if (!wallOk) {
+  console.log(`  IDŐ-TÚLLÉPÉS: a battéria ${wall} ms alatt futott, a saját költségvetés ${WALL_BUDGET_MS} ms.`);
+  console.log('    A külső fél 15 000 ms-os korlátjánál ez IDŐTÚLLÉPÉS-ként állna meg, és a mérés');
+  console.log('    „mérőhibává" válna — nem a kódról szólna többé. Mérd meg, MIRE megy el az idő,');
+  console.log('    mielőtt a párhuzamosságot hangolod (a tapasztalat szerint a tároló felépítése).');
+}
 console.log(`  ${attacks.length} hazugság-ellenpróba · ${attacks.filter((a) => a.ok).length} védett`);
 const clean = base.ok && attacksOk && results.length === MUTATIONS.length
-  && survived === 0 && wrong === 0 && harness === 0 && stale === 0;
+  && survived === 0 && wrong === 0 && harness === 0 && stale === 0 && wallOk;
 console.log(`RESULT: ${clean ? 'MINDEN VESZÉLYES MUTÁCIÓ A NEVEZETT ÁLLÍTÁSSAL ÉSZLELT' : 'HIÁNYOS — lásd a fenti sorokat'}`);
 process.exit(clean ? 0 : 1);

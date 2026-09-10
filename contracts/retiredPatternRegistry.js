@@ -221,9 +221,9 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'próba-padlója csak a MEGLÉVŐK néma eltűnését fogja meg; ez a bejegyzés kimondott korlátja.',
     forbidden: Object.freeze([]),
     positive: Object.freeze([
-      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: "id: 'M31'",
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M31'",
         reason: 'a „kapu rossz oldalon" visszacsúszás mérve van' }),
-      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: "id: 'M32'",
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M32'",
         reason: 'a parancs-oldali véglegesítési kapu eltűnése mérve van' }),
     ]),
   }),
@@ -407,7 +407,7 @@ const RETIRED_PATTERNS = Object.freeze([
     positive: Object.freeze([
       Object.freeze({ paths: ['v3ref/command.mjs'], pattern: 'Hatás visszajátszása és válasz kiadása KÜLÖN',
         reason: 'a két tengely a kódban is kettéválasztva áll' }),
-      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: 'kihagyja a MAI jog ellenőrzését',
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: 'kihagyja a MAI jog ellenőrzését',
         reason: 'a mutáció bizonyítja, hogy a próba elkapja a visszalépést' }),
     ]),
   }),
@@ -4611,6 +4611,97 @@ const RETIRED_PATTERNS = Object.freeze([
         reason: 'a híd megszólal magáról — a napló nem állítja valakiről, hogy ő írt alá' }),
       Object.freeze({ paths: ['src/security/systemDeveloper.js'], pattern: 'never_derived_from_tenant',
         reason: 'a személy-szintű fejlesztő-fogalom a helyén áll' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-096',
+    date: '2026-09-10',
+    title: 'A KAPU, AMI A SAJÁT MÉRÉSÉT NÉMÍTOTTA EL',
+    what: 'A normatív mag önellenőrzése a futtató legvégén állt, de a JSON kiírása ELŐTT: ha nem '
+      + 'volt zöld, `process.exit(2)`-vel megállt, és a futás egyáltalán nem adott eredménycsomagot. '
+      + 'A külső fél F04 ellenpróbája pontosan ilyen helyzetet állít elő (a megvonás kitörli a '
+      + 'korábbi parancsokat ⇒ a REV-N1 próbája bukik ⇒ a norma-kapu piros), tehát az ő mérésük '
+      + 'nem a bukott próbát látta volna, hanem egy értelmezhetetlen, JSON nélküli kilépést.',
+    why_wrong: 'A kapu és a MÉRÉS két külön dolog, és a kapu nem előzheti meg a mérés kiadását. Egy '
+      + 'szabályos regresszió (bukott próba) és egy hazug regiszter (szerkezeti hiba) NEM ugyanaz a '
+      + 'hiba-osztály, mégis egyetlen néma kijáratra futottak (KUKA-020). A következménye a '
+      + 'legrosszabb fajta: a mérő fél nem azt olvassa, hogy „ez a próba elbukott", hanem azt, hogy '
+      + '„a te futtatód nem működik" — a lelet elveszik, és a vita a mérőeszközről szól.',
+    replaced_by: 'A BIZONYÍTÉK ELŐBB MEGY KI, A KILÉPÉSI KÓD UTÁNA DÖNT. A `checkNorms` két, KÜLÖN '
+      + 'nevezett hibaosztályt ad vissza: `integrity_problems` (a regiszter magáról állít valótlant '
+      + '⇒ 2-es kód) és `evidence_problems` (ebben a futásban nem áll meg a bizonyíték ⇒ a rekordok '
+      + 'már kimondták, 1-es kód). Mindkettő BENNE VAN a kiadott JSON-ban (`norm_evidence`), és a '
+      + 'kilépés csak a teljes kimenet után történik.',
+    decision: 'D-VS-3010',
+    found_by: 'Claude-AUX — a külső fél F04 programjának elolvasásából, MIELŐTT lefuttattuk volna: '
+      + 'a régi alakon a `JSON.parse(stdout)` biztosan elszállt volna.',
+    lesson: 'AMI MÉR, AZ NE NÉMÍTSA EL A MÉRÉST. Ha egy kapu a mérés UTÁN fut, a kimenet kiadása '
+      + 'ELŐBB következik, a kilépési kód UTÁNA — különben a saját őrünk teszi olvashatatlanná a '
+      + 'saját leletünket. És minden ilyen kapunál szét kell választani, hogy a MÉRŐ hibás-e vagy a '
+      + 'MÉRT dolog: a kettő más kijáraton megy ki, más kóddal, nevezve.',
+    guard_note: 'gépi jel: `v3ref/run.mjs` — a `norm_evidence` a `--json` kimenet része, a '
+      + '2-es kilépés a kiírás UTÁN áll; és a külső fél R53/F04 programja a mai forráson lefutva '
+      + 'megkapja a rekordokat (a `P-CMD-finalize-gate` FAIL-lel, `A-REV-N1b` hamis állítással).',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/run.mjs'],
+        pattern: 'checkNorms\\([^)]*\\);\\s*\\n\\s*if \\(!nrm\\.ok\\)',
+        reason: 'a norma-kapu nem állhat meg a bizonyíték kiadása ELŐTT (KUKA-096)' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'norm_evidence',
+        reason: 'a bizonyíték-lánc a kiadott csomag része' }),
+      Object.freeze({ paths: ['v3ref/norms.mjs'], pattern: 'integrity_problems',
+        reason: 'a regiszter-hiba és a bizonyíték-hiány KÜLÖN csatornán megy ki' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-097',
+    date: '2026-09-10',
+    title: 'A KIÍRT, DE NEM MÉRT IDŐ-KÖLTSÉGVETÉS',
+    what: 'A mutációs battéria minden futáskor kiírta a faliórát ÉS a külső fél 15 000 ms-os '
+      + 'korlátját — de a kilépési kód sosem függött tőle. A 27. próba felvételével a falióra '
+      + '15 021 ms lett: nálam minden zöld maradt, a külső fél harness-ében viszont a folyamatot '
+      + 'JEL állította le, és a mérés IDŐTÚLLÉPÉS-ként állt. Amikor javítani kezdtem, majdnem a '
+      + 'párhuzamosságot hangoltam tovább — a MÉRÉS viszont azt mondta, hogy a költség 90%-a a '
+      + 'TÁROLÓ FELÉPÍTÉSE (nyitás + séma, lemez-szinkronnal): 20 tárolón 510 ms, futásonként ~50 '
+      + 'tárolóval. Két beállítással (journal_mode=MEMORY, synchronous=OFF) ugyanez 28 ms.',
+    why_wrong: 'KÉT hiba egy helyen. (1) A NEM MÉRT KORLÁT ZÖLDNEK LÁTSZIK: a falióra kiírása '
+      + 'FELIRAT volt, nem őr (KUKA-051 · KUKA-004) — a szerződés egy nem funkcionális része '
+      + 'őrizetlenül sodródott, amíg egy KÜLSŐ fél mérése el nem tört rajta. (2) A HANGOLÁS A SAJÁT '
+      + 'ELŐFELTEVÉSEMET IGAZOLTA VOLNA VISSZA: egy korábbi körben a párhuzamosság segített, ezért '
+      + 'automatikusan ott kerestem a megoldást — mérés nélkül a „javítás" ugyanannak a gombnak a '
+      + 'tekergetése lett volna, a valódi ok mellett (KUKA-054 · KUKA-030).',
+    replaced_by: 'AZ IDŐ-KÖLTSÉGVETÉS ŐR, A KORLÁT ELŐTT. A futtató saját költségvetése a külső '
+      + 'korlát 80%-a (12 000 ms): efölött PIROS, mondattal — mert egy őr, ami pont akkor tüzel, '
+      + 'amikor a baj bekövetkezik, nem őr; a maradék 20% a lassabb gép tartaléka. A kiírás mostantól '
+      + 'a kihasználtságot is mutatja, tehát a sodródás sosem néma. Az ephemer tároló beállítása a '
+      + 'rekord `environment` mezőjében KIMONDVA áll (a kényszerek és a tranzakciók élnek, az '
+      + 'összeomlás-tartósság nem — a fájl a futás végén törlődik). Mért eredmény: 21 799 ms → '
+      + '2 012 ms, VÁLTOZATLAN kimenettel (43/43 elkapva · 8/8 hazugság-ellenpróba).',
+    decision: 'D-VS-3010',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL harness-e (az R51 program `baselines` sora: exit=null, '
+      + 'elapsed_ms=15 021, SIGTERM) — a saját futtatóm ugyanezt zölden jelentette.',
+    lesson: 'A NEM FUNKCIONÁLIS KÖLTSÉGVETÉS IS SZERZŐDÉS, ÉS ŐR JÁR HOZZÁ. Ha egy külső fél korláttal '
+      + 'futtatja a mérésünket, az a korlát a mi szerződésünk része: kiírni kevés, mérni kell — a '
+      + 'kapu pedig a korlát ELŐTT álljon, ne rajta. És mielőtt bármit hangolnék egy korláthoz, MEG '
+      + 'KELL MÉRNI, MIRE MEGY EL AZ IDŐ: a korábban bevált gomb tekergetése a saját előfeltevésem '
+      + 'visszaigazolása, nem javítás.',
+    guard_note: 'gépi jel: `node v3ref/mutate.mjs` — a falióra a saját költségvetéshez mérve '
+      + 'BUKTATJA a futást (`wallOk` a `clean` feltétel része), és a kiírás a kihasználtságot is '
+      + 'mutatja; a tároló-beállítás a `v3ref/store.mjs`-ben, kimondva a rekord `environment` mezőjében.',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: 'survived === 0 && wrong === 0 && harness === 0 && stale === 0;',
+        reason: 'a falióra-költségvetés nem eshet ki a zöld feltételéből (KUKA-097)' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: 'WALL_BUDGET_MS',
+        reason: 'a saját költségvetés nevezett, és a zöld feltétele' }),
+      Object.freeze({ paths: ['v3ref/store.mjs'], pattern: 'journal_mode = MEMORY',
+        reason: 'az ephemer tároló beállítása a helyén, kimondott indokkal' }),
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'synchronous=OFF',
+        reason: 'a környezet KIMONDJA, mi igaz rá — nem néma gyorsítás' }),
     ]),
   }),
 

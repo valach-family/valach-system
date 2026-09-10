@@ -12,6 +12,7 @@
 
 import { instantMs } from './store.mjs';
 import { rightAt, membershipEffectiveAt, KNOWN_ROLES, roleDelegates } from './authz.mjs';
+import { canonicalize } from './command.mjs';
 
 const norm = (s) => String(s == null ? '' : s).trim().toLowerCase();
 
@@ -113,13 +114,78 @@ export function redeemShapeFor({ actingSubjectId, target, accountState }) {
 // mégis mozdul, a régi token nem váltható be — új meghívó kell (nevezett `invite_terms_changed`,
 // nem zsákutca: a mondat megmondja, mi történt — KUKA-064).
 //
-// A lenyomat SZÁNDÉKOSAN nem tartalmazza a `redeemed_at`-ot és az `expires_at`-ot: azok nem
-// feltételek, hanem ÁLLAPOT — a saját nevezett ellenőrzésük (`inviteWindowAt`) méri őket.
-export const INVITE_TERMS = Object.freeze(['book_id', 'invitee_namespace', 'invitee_value', 'offered_role', 'issuer_subject']);
+// ── R53/F02: A KÉZI ÖSSZEFŰZÉS ÜTKÖZÖTT, ÉS VOLT MÁR JÓ MEGOLDÁS A SZOMSZÉD FÁJLBAN ─────────────
+//
+// A régi alak `f=érték` párokat fűzött `|` jellel. A külső fél megmutatta, hogy ez ÜTKÖZIK:
+//   { book_id: 'A|invitee_namespace=email', invitee_namespace: 'x', … }
+//   { book_id: 'A',                          invitee_namespace: 'email|invitee_namespace=x', … }
+// KÉT KÜLÖNBÖZŐ feltétel-készlet, EGY szöveg. Mérve, a mi kódunkon: ütközött.
+//
+// A csúnya nem az ütközés, hanem hogy KÉZZEL ÍRTAM egy második azonosság-protokollt, miközben a
+// parancs-azonosságnál MÁR ÁLL egy zárt, típusos, mért kanonizálás (`canonicalize`) — az idézőjelez,
+// escape-el és rendezett kulcsokkal dolgozik, tehát elválasztó-ütközése fogalmilag nincs. Ez a
+// KUKA-003 pontos alakja: ha egy fogalomnak már van otthona, nem írunk mellé másodikat.
+//
+// ── R53/F01: ÉS A LENYOMAT ÖNMAGÁBAN NEM VÁLTOZTATHATATLANSÁG ───────────────────────────────────
+//
+// Az R52-es alak a beváltás KÉT OLVASÁSA KÖZÖTTI változást fogta meg. Ha a sort KORÁBBAN írták át,
+// mindkét olvasás már az átírt értéket látja — tehát TOCTOU-védelem volt, nem a KIADOTT ajánlat
+// változtathatatlansága. A külső fél ezt egy sorral megmutatta: `UPDATE invite SET offered_role
+// = 'admin'` a beváltás ELŐTT, és a címzett admin lett.
+//
+// Ezért a `expires_at` MOST BEKERÜL a feltételek közé (a korábbi indok — „az ÁLLAPOT, nem feltétel" —
+// megdőlt: a lejárat megrövidítése ugyanúgy a kiadott ajánlat átírása), és a feltételek a KIADÁS
+// pillanatában PECSÉTET kapnak (`invite_terms`, lásd `store.mjs`). Innentől a lenyomat nem az
+// esetleg átírt élő sorból képződik, hanem a PECSÉTBŐL, és az élő sort ahhoz MÉRJÜK.
+//
+// HIÁNYZÓ MEZŐ ⇒ `null`, nem kivétel: a `inviteTerms` publikus és részleges objektumra is hívható
+// (a külső fél is így hívja). A tárolt sorban mind a hat oszlop NOT NULL, tehát élesben nem fordul elő.
+export const INVITE_TERMS = Object.freeze([
+  'book_id', 'invitee_namespace', 'invitee_value', 'offered_role', 'issuer_subject', 'expires_at',
+]);
 
 export function inviteTerms(row) {
   if (!row) return null;
-  return INVITE_TERMS.map((f) => `${f}=${String(row[f])}`).join('|');
+  const picked = {};
+  for (const f of INVITE_TERMS) picked[f] = row[f] === undefined ? null : row[f];
+  return canonicalize(picked);
+}
+
+/**
+ * A KIADÁSKOR LEPECSÉTELT FELTÉTELEK (R53/F01 · INV-06).
+ *
+ * A pecsétet a tároló ÍRJA, `AFTER INSERT ON invite` triggerrel — nem egy általunk írt
+ * kiadás-függvény. Ez SZÁNDÉKOS: a meghívók egy része (a külső fél próbáiban MINDEGYIK) NYERS
+ * pozicionális `INSERT`-tel születik, tehát bármilyen alkalmazás-oldali pecsételő függvényt
+ * megkerülnének, és a pecsét épp ott hiányozna, ahol a támadás történik (KUKA-013: ha az őr csak
+ * az egyik írót ismeri, egy másik író visszateszi az adatot).
+ *
+ * @returns {{ok:true, sealed:object}|{ok:false, reason:string}}
+ */
+export function sealedTerms(store, token) {
+  const sealed = store.get('SELECT * FROM invite_terms WHERE token = ?', token);
+  // FAIL-CLOSED: pecsét nélküli meghívó nem váltható be. Ilyen sor csak akkor keletkezhet, ha
+  // valaki a triggert megkerülve írt — azt nem hisszük el, hanem NEVEZVE megállunk (KUKA-020).
+  if (!sealed) return Object.freeze({ ok: false, reason: 'invite_terms_unsealed' });
+  return Object.freeze({ ok: true, sealed });
+}
+
+/**
+ * A KIADOTT AJÁNLAT az IGAZSÁG, az élő sor csak ÁLLAPOTOT hordoz (`redeemed_at`).
+ * Ha az élő sor feltétel-oszlopai eltérnek a pecséttől, a token NEM váltható be: a változtatás
+ * útja a régi visszavonása + ÚJ meghívó, nem a helyben átírás.
+ */
+export function authoritativeInvite(store, token) {
+  const live = store.get('SELECT * FROM invite WHERE token = ?', token);
+  if (!live) return Object.freeze({ ok: false, reason: 'invite_unknown' });
+  const s = sealedTerms(store, token);
+  if (!s.ok) return Object.freeze({ ok: false, reason: s.reason });
+  if (inviteTerms(live) !== inviteTerms(s.sealed)) {
+    return Object.freeze({ ok: false, reason: 'invite_terms_changed' });
+  }
+  // A KIADOTT feltételek + az élő ÁLLAPOT. A `redeemed_at` szándékosan az élő sorból jön: az az
+  // egyetlen mező, aminek a változása a rendszer SAJÁT, szabályos írása (a fogyasztás).
+  return Object.freeze({ ok: true, invite: Object.freeze({ ...s.sealed, redeemed_at: live.redeemed_at }) });
 }
 
 // ═══ A TAGSÁG KIMENETE — Q13 ═══════════════════════════════════════════════════════════════════
@@ -280,12 +346,26 @@ export function resumeIntent({ store, sessionId }) {
 // „Meglévő fiókhoz tagságot adunk megfelelő elfogadással; NEM ÍRUNK JELSZÓT, nem törlünk második
 //  faktort vagy más céges jogot. Új fiók létrehozása és fiókhelyreállítás külön eljárás."
 export function redeemInvite({ store, token, actingSubjectId, newCredential, clock }) {
-  const inv = store.get('SELECT * FROM invite WHERE token = ?', token);
+  // A KIADOTT AJÁNLAT AZ IGAZSÁG (R53/F01). Nem az élő sort olvassuk: ha azt a kiadás óta
+  // átírták, a token halott — a változtatás útja a visszavonás + ÚJ meghívó.
+  const auth = authoritativeInvite(store, token);
+  const inv = auth.ok ? auth.invite : store.get('SELECT * FROM invite WHERE token = ?', token);
 
   // (1) CSATORNA ELŐBB — ugyanaz a bájt-azonos elutasítás, mint az ismeretlen tokenre (KUKA-084).
   if (!inv || !hasProvenChannel(store, actingSubjectId, inv.invitee_namespace, inv.invitee_value)) {
     return Object.freeze({ ok: false, error: 'invitee_identity_required' });
   }
+
+  // (1/b) A KIADOTT FELTÉTELEK ÉRVÉNYESSÉGE (R53/F01). A CSATORNA-ellenőrzés UTÁN áll: a
+  // pecsét-eltérés a meghívó TÉNYE, azt csak a bizonyított címzett tudhatja meg (KUKA-083/084).
+  if (!auth.ok) return Object.freeze({
+    ok: false,
+    error: auth.reason === 'invite_terms_changed' ? 'invite_terms_changed' : 'invite_not_actionable',
+    reason: auth.reason,
+    message: auth.reason === 'invite_terms_changed'
+      ? 'a meghívó feltételei a kiadás óta megváltoztak — kérj új meghívót'
+      : 'ez a meghívó nem váltható be',
+  });
 
   // (2) A MEGHÍVÓ ABLAKA — valódi IDŐ-összehasonlítással (a kritikus élő lelete).
   const win = inviteWindowAt(inv, clock.now());
@@ -354,15 +434,27 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
   // adnának — a valódi „nem"-ből programhiba lenne (KUKA-020).
   return store.tx(() => {
     // VÉGLEGESÍTÉSI KAPU — a változható tények ÚJRAOLVASVA, az ÍRÁS határán belül.
-    const fresh = store.get('SELECT * FROM invite WHERE token = ?', token);
+    // A VÉGLEGESÍTÉSI HATÁRON ÚJRA a KIADOTT ajánlatot oldjuk fel: így egyszerre méri a
+    // pecsét-eltérést (F01) és a két olvasás közötti változást (R51/J2 · N10).
+    const freshAuth = authoritativeInvite(store, token);
+    if (!freshAuth.ok) {
+      return Object.freeze({
+        ok: false,
+        error: freshAuth.reason === 'invite_terms_changed' ? 'invite_terms_changed' : 'invite_not_actionable',
+        reason: freshAuth.reason,
+        message: 'a meghívó feltételei a kiadás óta megváltoztak — kérj új meghívót',
+      });
+    }
+    const fresh = freshAuth.invite;
     const win2 = inviteWindowAt(fresh, clock.now());
     if (!win2.open) return Object.freeze({ ok: false, error: 'invite_not_actionable', reason: win2.reason });
     const grant2 = inviteGrantAt({ store, invite: fresh, clock });
     if (!grant2.ok) return Object.freeze({ ok: false, error: 'invite_not_actionable', reason: grant2.reason });
 
-    // (7a) A FELTÉTELEK VÁLTOZTATHATATLANOK (R51/J2 · N10). A fenti két ellenőrzés a FRISS soron
-    // fut, de a döntés, amivel ideáig eljutottunk (alak · idegen-alany-őr · kimenet), a BEOLVASOTT
-    // példányon született. Ha a kettő feltételei eltérnek, a döntés egy MÁSIK meghívóra vonatkozik.
+    // (7a) A KÉT PÉLDÁNY EGYEZÉSE (R51/J2 · N10). Az R52-ben ez volt a teljes védelem; ma a
+    // PECSÉT a erősebb őr, és ez a sor a maradék rést zárja: a döntés, amivel ideáig eljutottunk,
+    // a `inv` példányon született. Kimondva: ha a pecsét-ellenőrzés hibátlan, ez soha nem tüzel —
+    // de a hallgatólagos ráhagyatkozás pont az a fajta fél őr, amit a KUKA-039 tilt.
     if (inviteTerms(fresh) !== inviteTerms(inv)) {
       return Object.freeze({
         ok: false, error: 'invite_terms_changed',

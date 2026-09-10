@@ -16,6 +16,108 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3010 — Az R53 négy lelete javítva: a kiadott meghívó pecsétje és a NORMA-BIZONYÍTÉK lánc
+
+**Kör:** CMD-VS-300-002-001 R53→R54 · sáv: Claude-AUX · a külső fél független ellenőrzése az
+R52-re, négy célzott ellenpróbával.
+
+**A bemenet.** A mi R49-es harminc esetünk náluk 30/30, az R51-es tizennégy 14/14, a referencia
+26/26 PASS, a mutációs futás 43/43. Az ÚJ négyből **egy sem felelt meg** — mind a négyet
+reprodukáltuk.
+
+### F01 — a KIADOTT meghívó helyben átírható volt
+
+Az R52-es védelmünk a beváltás KÉT OLVASÁSA KÖZÖTTI változást fogta meg. Ha a sort KORÁBBAN írták
+át, mindkét olvasás már az átírt értéket látta: `user` meghívóból **admin tagság** lett. Ez
+TOCTOU-védelem volt, nem a kiadott ajánlat változtathatatlansága.
+
+**Javítás:** a kiadáskor `AFTER INSERT` trigger PECSÉTELI a feltételeket egy append-only
+`invite_terms` táblába (UPDATE/DELETE trigger tiltja); a beváltás az `authoritativeInvite`
+feloldón át a PECSÉTET olvassa, és eltérésnél `invite_terms_changed`. A kapu a CSATORNA-ellenőrzés
+UTÁN áll: a pecsét-eltérés a meghívó ténye, azt csak a bizonyított címzett tudhatja meg
+(KUKA-083/084).
+
+### F02 — az `inviteTerms` ütköző összefűzése
+
+Két külön feltétel-készlet azonos szöveget adott (`|` és `=` a mezőértékekben). **Javítás:** a
+kézi összefűzés helyett a parancsazonosságnál már bevált, zárt, típusos `canonicalize`.
+
+### F03 — a norma „megépült"-nek mondta magát idegen próbára
+
+A régi kapu csak azt kérdezte, hogy a megadott PRÓBANÉV szerepel-e a tervezett készletben. A külső
+fél a REV-N1-et az idegen, de létező `P-A04`-re kötötte át: `{"ok":true,"problems":[]}`. **A puszta
+LÉTEZÉS nem bizonyíték arra, hogy AZT mérte** → **KUKA-038 VISSZATÉRT**.
+
+**Javítás — a kötés iránya MEGFORDUL.** A norma NEM tárol próbanevet. A MANIFEST próbarekordja
+deklarálja, melyik atomi klauzulát melyik ÁLLÍTÁSSAL váltja be (`discharges`), a próba pedig
+futásidőben KIADJA az állítás-azonosítóit (`asserts`). Egy klauzula csak akkor fedett, ha
+(1) legalább egy manifest-próba deklarálja · (2) MINDEN deklaráló próba rekordja PASS ebben a
+futásban · (3) a deklarált állítást a próba tényleg kiadta és igaznak mérte · (4) van mutáció, ami
+azt a próbát nevezi elkapónak. A `state` mező MEGSZŰNT: az állapot SZÁMOLÓDIK.
+
+### F04 — a REV-N1 egyik felét senki nem mérte
+
+A külső fél másolatában a megvonás KITÖRÖLTE a korábbi parancsokat, nyugtákat és kiadásokat — a
+REV-N1-hez rendelt próba mégis PASS maradt, mert csak azt mérte, hogy megvonás UTÁN nincs ÚJ hatás.
+**Egy fél feltételt zártam le, és a védelmet egészként jelentettem** → **KUKA-095 VISSZATÉRT**.
+
+**Javítás:** a REV-N1 HÁROM atomi klauzula (N1a új művelet tiltva · N1b a korábbi esemény megmarad ·
+N1c a joghatás külön felülvizsgálatban változhat — ez utóbbi KIMONDOTT hiány, mert más gépezetet
+kíván). A `P-CMD-finalize-gate` negyedik ága (Y4) méri, hogy a megvonás után a `command`,
+`command_event` és `disclosure` sorok VÁLTOZATLANUL megvannak — ellenpárral, hogy a megvonás hatni
+is köteles. Az ő beavatkozásukon a próba bizonyítottan FAIL (`A-REV-N1b` hamis, `A-REV-N1a` igaz).
+
+### A saját két leletünk ebben a körben
+
+**KUKA-096 — a kapu, ami a saját mérését némította el.** A norma-kapu a JSON kiírása ELŐTT lépett ki
+2-es kóddal. Az F04 ellenpróbája pontosan ilyen helyzetet állít elő, tehát az ő mérésük nem a bukott
+próbát látta volna, hanem egy értelmezhetetlen, JSON nélküli kilépést. Innentől a bizonyíték ELŐBB
+megy ki, a kilépési kód UTÁNA dönt; a szerkezeti hazugság (2-es) és a bizonyíték-hiány (1-es) két
+külön kijárat.
+
+**KUKA-097 — a kiírt, de nem mért idő-költségvetés.** A 27. próba felvételével a mutációs battéria
+15 021 ms-ra nőtt: nálam zöld maradt, az ő harness-ükben IDŐTÚLLÉPÉS lett. A mérés szerint a költség
+90%-a a TÁROLÓ FELÉPÍTÉSE volt (20 tárolón 510 ms; `journal_mode=MEMORY` + `synchronous=OFF`
+mellett 28 ms) — majdnem a párhuzamosságot hangoltam tovább, mérés nélkül. Ma a falióra ŐRZÖTT: a
+saját költségvetés a külső korlát 80%-a, és a `clean` feltétel része. Mért eredmény:
+**21 799 ms → 2 012 ms**, változatlan kimenettel.
+
+### §5 · §6 — egyetlen normatív alap és a REV-N1 újraszövegezése
+
+- A futás EGYETLEN kanonikus norma-verziót közöl (`NORM_CONTRACT_VERSION`, a `NORM_VERSION` már nem
+  kézzel írt szöveg, hanem ebből származik), mellette KÜLÖN, saját sémaverzióval a bizonyíték-index
+  (`NRM-01` · `nrm-2`) és tartalmi lenyomat. Az `NRM-01` a K01–K16 **gépi bizonyíték-indexe** lett:
+  minden klauzula megnevezi, melyik K-szabályt indexeli, és a K-szabály MONDATÁT nem ismétli meg.
+- A `command.mjs` megcáfolt R50-kommentje **törölve**, a helyén a mai magyarázat áll, kimondva, hogy
+  a kódba írt próza sem automatikusan norma.
+- A REV-N1 az általuk javasolt szövegre cserélve („…joghatása külön, bizonyítékhoz és alkalmazandó
+  profilhoz kötött felülvizsgálatban változhat, új korrekciós eseménnyel").
+- A hat `planned` norma sorrendje az ő §7-ük szerint (REV-N3 → REV-N5 → REV-N2 → ORG-N1 → ORG-N3 →
+  REV-N4) az `OB-5` lezárási feltételében rögzítve. Operátori döntést nem kértek, nem is kérünk.
+
+### Az ellenpróba, amit MI adunk vissza
+
+Az ő F03 esetük a mai forráson **más okból** zöld: a `probe:` mező, amit a programjuk szövegesen
+cserél, MEGSZŰNT (ez volt az ő §4/2 kérésük), tehát a csere no-op, és a `pass` a régi hívási alak
+fail-closed viselkedéséből jön. Ezt nem hallgatjuk el: az `f03-restated.mjs` a támadást a MAI
+szerződésre fogalmazza újra (a MANIFESTBEN kötjük át a klauzulát az idegen `P-A04`-re) — végponttól
+végpontig mérve **2-es kilépés**, és a lelet mindkét irányt megnevezi. Mellette kötelező ellenpár:
+érintetlen forráson 0-s kód, a két klauzula fedett.
+
+### Kimondott maradék
+
+Az `OB-7` új blokkoló: a gépezet az ÁTKÖTÉST teszi lehetetlenné, a TARTALMI megfelelést nem tudja
+igazolni. Aki egy idegen próbába beleírja a klauzula állítás-azonosítóját, azt a gép nem leplezi le
+— a maradék szűkebb lett, de nem nulla, és emberi felülvizsgálat tárgya marad.
+
+**Mérés a kör végén:** referencia **27/27 PASS** · mutáció **43/43 elkapva, 0 túlélő, 0 elavult
+horgony, 8/8 hazugság-ellenpróba, falióra 2 012 ms** · az ő programjaik: R49 **30/30**, R51
+**14/14**, R53 **4/4** · saját újrafogalmazott F03: **2/2** · `verify:kuka` **160/160**. A három
+korlátozott erejű mutáció (M2 · M5 · M38) a futás kimenetén NÉV SZERINT és INDOKKAL látszik — az
+elkapás és a bizonyíték ereje két külön tény.
+
+---
+
 ## D-VS-3009 — Az R51 tíz lelete javítva; a megvonás és a szervezeti alap a normatív magba
 
 **Kör:** CMD-VS-300-002-001 R51→R52 · sáv: Claude-AUX · a külső fél független ellenőrzése az

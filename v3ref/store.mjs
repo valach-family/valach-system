@@ -73,6 +73,48 @@ CREATE TABLE invite (
   redeemed_at       TEXT
 );
 
+-- A KIADOTT MEGHÍVÓ FELTÉTELEINEK PECSÉTJE (R53/F01 — a külső fél F01 esete).
+--
+-- Az R52-es alak a beváltás KÉT OLVASÁSA KÖZÖTTI változást fogta meg. Ha a sort KORÁBBAN írták át,
+-- mindkét olvasás már az átírt értéket látta: a szabályos "user" meghívóból "admin" tagság lett.
+-- Ez TOCTOU-védelem volt, nem a KIADOTT ajánlat változtathatatlansága.
+--
+-- MIÉRT TRIGGER, ÉS NEM ALKALMAZÁS-OLDALI KIADÁS-FÜGGVÉNY. A meghívók egy része NYERS pozicionális
+-- INSERT-tel születik (a külső fél MINDEN próbájában így), tehát bármilyen általunk írt kiadás-
+-- függvényt megkerülnének — és a pecsét pont ott hiányozna, ahol a támadás történik. A tároló
+-- viszont nem kerülhető meg: aki sort ír, pecsétet is ír (KUKA-013).
+--
+-- MIÉRT NEM AZ UPDATE-ET TILTJUK. Az kézenfekvő volna, de MÉRVE elbuktatná a külső fél saját
+-- próbáit: az F01 és az N10 NYERS UPDATE-tel dolgozik, és a KIVÉTELT nem a redeem válaszaként
+-- várja. A tilalom tehát nem a rossz UPDATE megakadályozása, hanem hogy a BEVÁLTÁS ismerje fel:
+-- az élő sor eltér attól, amit KIADTUNK. Az UPDATE megtörténhet; a token attól válik halottá.
+--
+-- A tábla APPEND-ONLY: a pecsétet átírni vagy törölni nem lehet (két őr-trigger alább).
+CREATE TABLE invite_terms (
+  token             TEXT PRIMARY KEY REFERENCES invite(token),
+  book_id           TEXT NOT NULL,
+  invitee_namespace TEXT NOT NULL,
+  invitee_value     TEXT NOT NULL,
+  offered_role      TEXT NOT NULL,
+  issuer_subject    TEXT NOT NULL,
+  expires_at        TEXT NOT NULL
+);
+
+CREATE TRIGGER invite_terms_seal AFTER INSERT ON invite BEGIN
+  INSERT INTO invite_terms (token, book_id, invitee_namespace, invitee_value, offered_role,
+                            issuer_subject, expires_at)
+  VALUES (NEW.token, NEW.book_id, NEW.invitee_namespace, NEW.invitee_value, NEW.offered_role,
+          NEW.issuer_subject, NEW.expires_at);
+END;
+
+CREATE TRIGGER invite_terms_no_update BEFORE UPDATE ON invite_terms BEGIN
+  SELECT RAISE(ABORT, 'invite_terms: a KIADOTT feltetel nem irhato at - visszavonas + uj meghivo kell');
+END;
+
+CREATE TRIGGER invite_terms_no_delete BEFORE DELETE ON invite_terms BEGIN
+  SELECT RAISE(ABORT, 'invite_terms: a KIADOTT feltetel nem torolheto');
+END;
+
 CREATE TABLE pending_intent (
   session_id    TEXT PRIMARY KEY,
   invite_token  TEXT NOT NULL,
@@ -175,6 +217,18 @@ export function openStore() {
   const path = join(dir, 'ref.sqlite');
   const db = new DatabaseSync(path);
   db.exec('PRAGMA foreign_keys = ON;');
+  // A TÁROLÓ EPHEMER, ÉS EZT KI IS MONDJUK. A séma felépítése lemezre szinkronizálva próbánként
+  // ~25 ms volt, futásonként ~50 tárolóval — a mutációs battéria (43 futás) így a külső fél
+  // 15 000 ms-os korlátja fölé nőtt. MÉRVE, 20 tárolón: nyitás+séma 510 ms → 28 ms ezzel a két
+  // beállítással (18×).
+  //
+  // MI VÁLTOZIK ÉS MI NEM. A tranzakció ATOMICITÁSA és a visszagörgetés VÁLTOZATLAN (a napló a
+  // memóriában él, nem eltűnik), és minden kényszer — idegen kulcs, egyediség, trigger — ugyanúgy
+  // fut. AMI ELVÉSZ: a folyamat-összeomlás utáni tartósság. Ez itt fogalmilag tárgytalan, mert a
+  // tároló a `close()`-zal TÖRLŐDIK, és soha nem éli túl a futást. Ezt a rekord `environment`
+  // mezője is kimondja — nem néma gyorsítás (KUKA-015).
+  db.exec('PRAGMA journal_mode = MEMORY;');
+  db.exec('PRAGMA synchronous = OFF;');
   db.exec(SCHEMA);
   return {
     db,

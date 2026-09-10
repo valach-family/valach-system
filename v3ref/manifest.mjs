@@ -18,12 +18,19 @@
 //
 // PURE + INERT: nincs futtatás, nincs I/O. Csak a szerződés.
 
-export const MANIFEST_VERSION = 'v3ref-manifest-2';
+export const MANIFEST_VERSION = 'v3ref-manifest-3';
 
 /**
  * A VÁRT PRÓBÁK. Minden bejegyzés megnevezi az ÁLLÍTÁST is (`assertion`), amit a próba mér —
  * mert egy próbát nem az AZONOSÍTÓJA tesz megfelelő elkapóvá, hanem az, hogy a MEGFELELŐ ÁLLÍTÁS
  * bukik el (R45 H06: idegen infrastruktúra-kivétel ugyanazon a próbán NEM ugyanaz a bizonyíték).
+ *
+ * A `discharges` MEZŐ (R53 §4/2 — ÚJ). Itt fordul meg a norma ↔ bizonyíték kötés iránya. Eddig a
+ * NORMA nevezett meg egy szabadon választott próbanevet, és a kapu csak a név LÉTEZÉSÉT nézte —
+ * ezért lehetett a REV-N1-et az idegen `P-A04`-re átkötni úgy, hogy a kapu zöld maradjon (F03).
+ * Innentől a PRÓBA mondja meg, MELYIK atomi klauzulát MELYIK állítással váltja be, a norma pedig
+ * egyáltalán nem tárol próbanevet. A próbának FUTÁSIDŐBEN ki is kell adnia ezeket az
+ * állítás-azonosítókat (`asserts`), különben a deklaráció üres ígéret (KUKA-016).
  */
 export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({ id: 'P-A04', assertion: 'A04-two-worlds-byte-identical' }),
@@ -45,7 +52,15 @@ export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({ id: 'P-AUTHZ-membership-time', assertion: 'Q08-membership-validity-interval' }),
   Object.freeze({ id: 'P-AUTHZ-evidence', assertion: 'Q05Q06-evidence-three-axes' }),
   Object.freeze({ id: 'P-INVITE-window', assertion: 'INV-expired-invite-grants-nothing' }),
-  Object.freeze({ id: 'P-INVITE-authority', assertion: 'Q09Q10Q13-redeem-gates' }),
+  Object.freeze({
+    id: 'P-INVITE-authority', assertion: 'Q09Q10Q13-redeem-gates',
+    // ORG-N2a: a kibocsátó jogának megvonása után a függő meghívó NEM ad tagságot, és a nemleges
+    // válasz NEVEZETT. Ez a próba (c) ága; a tiltó alapértelmezés az EGYETLEN szervezeti klauzula,
+    // aminek ma bizonyítéka van.
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'ORG-N2a', assertion: 'A-ORG-N2a-issuer-basis-withdrawn-is-fail-closed' }),
+    ]),
+  }),
   Object.freeze({ id: 'P-INVITE-effect', assertion: 'Q11Q12-real-effect-and-atomicity' }),
   Object.freeze({ id: 'P-AUTHZ-revoke-now', assertion: 'K09-immediate-revocation-pulls-forward' }),
 
@@ -56,11 +71,28 @@ export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({ id: 'P-CMD-receipt', assertion: 'R50-finalization-receipt-is-durable-and-atomic' }),
   Object.freeze({ id: 'P-CMD-receipt-integrity', assertion: 'R51J3-receipt-bound-to-command-fact' }),
   Object.freeze({ id: 'P-INVITE-terms', assertion: 'R51J2-invite-terms-immutable-outcome-in-tx' }),
-  Object.freeze({ id: 'P-CMD-finalize-gate', assertion: 'R49-command-gate-at-write-boundary' }),
+  Object.freeze({
+    id: 'P-CMD-finalize-gate', assertion: 'R49-command-gate-at-write-boundary',
+    // A REV-N1 KÉT bizonyítható klauzulája. A régi alak csak az ELSŐT mérte, és a norma egészét
+    // „megépült"-nek mondta — a külső fél F04 ellenpéldája (a megvonás KITÖRLI a korábbi
+    // parancsokat) ezért maradhatott PASS. Egy fél feltételt zártam le, és készként jelentettem
+    // (KUKA-095). A második klauzula ÖNÁLLÓ állítást kapott, a próba (Y4) ágán.
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N1a', assertion: 'A-REV-N1a-dependent-new-op-and-release-blocked' }),
+      Object.freeze({ clause: 'REV-N1b', assertion: 'A-REV-N1b-earlier-record-and-decision-survive' }),
+    ]),
+  }),
   Object.freeze({ id: 'P-AUTHZ-roles', assertion: 'R49C05-unknown-role-grants-nothing' }),
   Object.freeze({ id: 'P-CANON-shape', assertion: 'R49C08C10-canon-shape-closed' }),
   Object.freeze({ id: 'P-TIME-calendar', assertion: 'R49C09-calendar-fields-validated' }),
   Object.freeze({ id: 'P-IDENTITY-address', assertion: 'R49C07-bindings-are-not-subjects' }),
+
+  // ── A NORMA-BIZONYÍTÉK KAPU SAJÁT ELLENPRÓBÁI (R53 · D-VS-3010) ───────────────────────────────
+  // A kapu, ami nem tud hazudni, csak akkor ér valamit, ha ezt MÉRJÜK is. Ez a próba a saját
+  // norma-indexünket támadja nyolc irányból — köztük a külső fél F03 támadásának ÚJ ALAKJÁVAL
+  // (idegen, létező próbára átkötés) és a KÖTELEZŐ ellenpárral (a helyes csomagon zöld), mert az
+  // őr, ami mindent pirosra visz, ugyanolyan haszontalan, mint az, ami mindent átenged (KUKA-049).
+  Object.freeze({ id: 'P-NORM-evidence', assertion: 'R53F03F04-norm-evidence-gate-cannot-lie' }),
 ]);
 
 export const EXPECTED_IDS = Object.freeze(EXPECTED_PROBES.map((p) => p.id));
