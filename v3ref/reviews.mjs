@@ -34,6 +34,14 @@ export const REVIEWS = Object.freeze([
       + 'változtathatja a kiadható választ — a visszaadott objektum JSON-alakjára',
     residual: 'nem méri a HTTP státuszt, fejlécet, redirectet, böngészőképet, háttérkérést vagy '
       + 'időzítést; működő fiókváltási utat sem igazol',
+    // A MARADÉK MONDATAI — EZ a lista a kötelem forrása (R49/R01). A prózát a lista alá
+    // rendeljük: minden mondatnak SZÓ SZERINT szerepelnie kell a `residual` szövegben, és
+    // MINDEGYIKHEZ kell állás-bejegyzés. Enélkül egy mondat törlése némán 'lezárttá' tenné a
+    // maradékot (KUKA-039: mindkét irány, KUKA-012: a hiány nem lehet néma).
+    residual_clauses: Object.freeze([
+      "nem méri a HTTP státuszt, fejlécet, redirectet, böngészőképet, háttérkérést vagy időzítést",
+      "működő fiókváltási utat sem igazol",
+    ]),
     full_scenario_verified: false,
     gate_closed: false,
   }),
@@ -48,6 +56,15 @@ export const REVIEWS = Object.freeze([
     residual: 'a „mindkét világban végigjut" cím NEM hitelesített: egyik világban sem vált be '
       + 'meghívót, nem hoz létre fiókot, nem jelentkezik be; a csatornabizonyítékot közvetlenül '
       + 'adatbázisba írja — tesztbemenet, nem hitelesítéspróba. Ellenpélda: Q10, Q11',
+    // A MARADÉK MONDATAI — EZ a lista a kötelem forrása (R49/R01). A prózát a lista alá
+    // rendeljük: minden mondatnak SZÓ SZERINT szerepelnie kell a `residual` szövegben, és
+    // MINDEGYIKHEZ kell állás-bejegyzés. Enélkül egy mondat törlése némán 'lezárttá' tenné a
+    // maradékot (KUKA-039: mindkét irány, KUKA-012: a hiány nem lehet néma).
+    residual_clauses: Object.freeze([
+      "egyik világban sem vált be meghívót, nem hoz létre fiókot",
+      "nem jelentkezik be",
+      "a csatornabizonyítékot közvetlenül adatbázisba írja",
+    ]),
     full_scenario_verified: false,
     gate_closed: false,
   }),
@@ -62,6 +79,17 @@ export const REVIEWS = Object.freeze([
       + 'változatlan marad és új tagság jön létre',
     residual: 'nem igazolja az MFA, a másik fiók, a kibocsátói jog, a régi/visszavont tagság és a '
       + 'tranzakciós hibák kezelését. Ellenpélda: Q09–Q13',
+    // A MARADÉK MONDATAI — EZ a lista a kötelem forrása (R49/R01). A prózát a lista alá
+    // rendeljük: minden mondatnak SZÓ SZERINT szerepelnie kell a `residual` szövegben, és
+    // MINDEGYIKHEZ kell állás-bejegyzés. Enélkül egy mondat törlése némán 'lezárttá' tenné a
+    // maradékot (KUKA-039: mindkét irány, KUKA-012: a hiány nem lehet néma).
+    residual_clauses: Object.freeze([
+      "a másik fiók",
+      "a kibocsátói jog",
+      "a régi/visszavont tagság",
+      "a tranzakciós hibák kezelését",
+      "az MFA",
+    ]),
     full_scenario_verified: false,
     gate_closed: false,
   }),
@@ -77,6 +105,14 @@ export const REVIEWS = Object.freeze([
       + 'session-rotáció, sessionhöz kötött folytatás, lejárati teszt, több párhuzamos meghívó '
       + 'vagy visszatérési cél; a pending_intent csak created_at-ot tárol, a resumeIntent nem '
       + 'ellenőriz lejáratot',
+    // A MARADÉK MONDATAI — EZ a lista a kötelem forrása (R49/R01). A prózát a lista alá
+    // rendeljük: minden mondatnak SZÓ SZERINT szerepelnie kell a `residual` szövegben, és
+    // MINDEGYIKHEZ kell állás-bejegyzés. Enélkül egy mondat törlése némán 'lezárttá' tenné a
+    // maradékot (KUKA-039: mindkét irány, KUKA-012: a hiány nem lehet néma).
+    residual_clauses: Object.freeze([
+      "a pending_intent csak created_at-ot tárol, a resumeIntent nem ellenőriz lejáratot",
+      "nincs valódi belépés, session-rotáció, sessionhöz kötött folytatás, lejárati teszt, több párhuzamos meghívó vagy visszatérési cél",
+    ]),
     full_scenario_verified: false,
     gate_closed: false,
   }),
@@ -91,6 +127,17 @@ export const REVIEWS = Object.freeze([
       + 'utáni kiadás ága helyes',
     residual: 'K07-re NEM elég: más könyv, beágyazott bemenet, műveletverzió, véglegesítés '
       + 'közbeni megvonás és kiadási leltár esetén eltérés. Ellenpélda: Q01–Q04, Q14–Q15',
+    // A MARADÉK MONDATAI — EZ a lista a kötelem forrása (R49/R01). A prózát a lista alá
+    // rendeljük: minden mondatnak SZÓ SZERINT szerepelnie kell a `residual` szövegben, és
+    // MINDEGYIKHEZ kell állás-bejegyzés. Enélkül egy mondat törlése némán 'lezárttá' tenné a
+    // maradékot (KUKA-039: mindkét irány, KUKA-012: a hiány nem lehet néma).
+    residual_clauses: Object.freeze([
+      "más könyv",
+      "beágyazott bemenet",
+      "műveletverzió",
+      "véglegesítés közbeni megvonás",
+      "kiadási leltár",
+    ]),
     full_scenario_verified: false,
     gate_closed: false,
   }),
@@ -106,6 +153,18 @@ export const REVIEWS = Object.freeze([
     residual: 'a 24 óra TESZTPARAMÉTER, nem jogi/adminisztratív szabály; hibás idő, valódi '
       + 'hatálylejárat, ismeretlen osztály és jövőbeli tagság nincs kezelve; a megvonás → '
       + 'képviseleti lekérdezés kombináció hiányzik. Ellenpélda: Q05–Q08',
+    // A MARADÉK MONDATAI — EZ a lista a kötelem forrása (R49/R01). A prózát a lista alá
+    // rendeljük: minden mondatnak SZÓ SZERINT szerepelnie kell a `residual` szövegben, és
+    // MINDEGYIKHEZ kell állás-bejegyzés. Enélkül egy mondat törlése némán 'lezárttá' tenné a
+    // maradékot (KUKA-039: mindkét irány, KUKA-012: a hiány nem lehet néma).
+    residual_clauses: Object.freeze([
+      "a 24 óra TESZTPARAMÉTER, nem jogi/adminisztratív szabály",
+      "hibás idő",
+      "valódi hatálylejárat",
+      "ismeretlen osztály",
+      "jövőbeli tagság",
+      "a megvonás → képviseleti lekérdezés kombináció hiányzik",
+    ]),
     full_scenario_verified: false,
     gate_closed: false,
   }),
@@ -418,6 +477,46 @@ export function residualStandingFor(probeId) {
  *
  * @param {string[]} expectedProbeIds a manifest szerződése (a hívó adja át — nincs körkörös import)
  */
+// ═══ MELYIK PRÓBA MIT ZÁR — A PRÓBA OLDALÁRÓL KIMONDVA (R49/R02) ═══════════════════════════════
+//
+// A maradék-bejegyzés megnevezi a próbát; itt a PRÓBA nevezi meg a mondatot. A kettőnek EGYEZNIE
+// kell — egy idegen próbára átírt bejegyzés így nem tud „mérve" maradni (KUKA-039).
+export const PROBE_CLOSES = new Map([
+  ["P-INVITE-effect", Object.freeze([
+    "egyik világban sem vált be meghívót, nem hoz létre fiókot",
+    "a tranzakciós hibák kezelését",
+  ])],
+  ["P-INVITE-authority", Object.freeze([
+    "a másik fiók",
+    "a kibocsátói jog",
+    "a régi/visszavont tagság",
+  ])],
+  ["P-CMD-namespace", Object.freeze([
+    "más könyv",
+  ])],
+  ["P-CMD-identity", Object.freeze([
+    "beágyazott bemenet",
+    "műveletverzió",
+  ])],
+  ["P-CMD-finalize", Object.freeze([
+    "véglegesítés közbeni megvonás",
+  ])],
+  ["P-CMD-disclosure", Object.freeze([
+    "kiadási leltár",
+  ])],
+  ["P-AUTHZ-evidence", Object.freeze([
+    "hibás idő",
+    "valódi hatálylejárat",
+    "a megvonás → képviseleti lekérdezés kombináció hiányzik",
+  ])],
+  ["P-AUTHZ-opclass", Object.freeze([
+    "ismeretlen osztály",
+  ])],
+  ["P-AUTHZ-membership-time", Object.freeze([
+    "jövőbeli tagság",
+  ])],
+]);
+
 export function checkResolutions(expectedProbeIds) {
   const problems = [];
   const known = new Set(REVIEWS.map((r) => r.probe_id));
@@ -435,17 +534,39 @@ export function checkResolutions(expectedProbeIds) {
     if (r.state === 'measured') {
       if (!r.probe) problems.push(`${tag}: „measured", de nincs megnevezve próba`);
       else if (!contract.has(r.probe)) problems.push(`${tag}: a megnevezett próba (${r.probe}) nincs a szerződésben`);
+      // A PUSZTA LÉTEZÉS NEM LEZÁRÁS (R49/R02). A régi alak beérte azzal, hogy a megnevezett próba
+      // SZEREPEL a szerződésben — így bármelyik meglévő, IDEGEN próbára átírva a maradék „mérve"
+      // maradt. A kötés KÉTIRÁNYÚ: a próbának magának is ki kell mondania, MELYIK mondatot zárja.
+      else if (!(PROBE_CLOSES.get(r.probe) || []).includes(r.clause)) {
+        problems.push(`${tag}: a megnevezett próba (${r.probe}) NEM mondja ki, hogy ezt a mondatot zárja`);
+      }
     }
     if (r.state === 'open' && r.probe) problems.push(`${tag}: „open", mégis próbára hivatkozik`);
     if (String(r.note || '').trim().length < 40) problems.push(`${tag}: az indok túl rövid (érdemi mondat kell)`);
   }
 
-  // MINDKÉT IRÁNY (KUKA-039): amelyik vallomásnak van maradéka, ahhoz KELL bejegyzés — különben
-  // egy egész maradék-halmaz némán kimarad a lapról.
+  // MINDKÉT IRÁNY, MONDAT SZINTEN (KUKA-039 + R49/R01). A régi alak PRÓBÁNKÉNT kérdezte, hogy
+  // „van-e legalább egy bejegyzés" — ezért egyetlen MONDAT állás-bejegyzésének a törlése némán
+  // átment: a próbának maradt másik bejegyzése. A kötelem a MONDATHOZ tartozik, nem a próbához.
   for (const rev of REVIEWS) {
+    const clauses = Array.isArray(rev.residual_clauses) ? rev.residual_clauses : null;
     if (!String(rev.residual || '').trim()) continue;
-    if (!RESIDUAL_RESOLUTIONS.some((r) => r.probe_id === rev.probe_id)) {
-      problems.push(`${rev.probe_id}: van maradéka, de EGYETLEN állás-bejegyzés sem tartozik hozzá`);
+    if (!clauses || clauses.length === 0) {
+      problems.push(`${rev.probe_id}: van maradéka, de nincs MONDATOKRA bontva (residual_clauses)`);
+      continue;
+    }
+    for (const c of clauses) {
+      if (!String(rev.residual).includes(c)) {
+        problems.push(`${rev.probe_id} · „${c.slice(0, 40)}…": a mondat SZÓ SZERINT nincs a maradék szövegében`);
+      }
+      const hits = RESIDUAL_RESOLUTIONS.filter((r) => r.probe_id === rev.probe_id && r.clause === c);
+      if (hits.length === 0) problems.push(`${rev.probe_id} · „${c.slice(0, 40)}…": a maradék e MONDATÁHOZ nincs állás-bejegyzés`);
+      if (hits.length > 1) problems.push(`${rev.probe_id} · „${c.slice(0, 40)}…": ${hits.length} állás-bejegyzés tartozik ugyanahhoz a mondathoz`);
+    }
+    for (const r of RESIDUAL_RESOLUTIONS.filter((x) => x.probe_id === rev.probe_id)) {
+      if (!clauses.includes(r.clause)) {
+        problems.push(`${rev.probe_id} · „${String(r.clause).slice(0, 40)}…": olyan mondathoz tartozik, ami nincs a maradék mondat-listáján`);
+      }
     }
   }
 
@@ -459,6 +580,6 @@ export function checkResolutions(expectedProbeIds) {
  */
 export function staleFor(currentCommit) {
   if (!currentCommit) return REVIEWS.map((r) => ({ ...r, stale: 'ismeretlen mai commit' }));
-  return REVIEWS.filter((r) => r.source_commit !== currentCommit)
-    .map((r) => ({ ...r, stale: `a felülvizsgálat a ${r.source_commit.slice(0, 12)} állapoton készült` }));
+  return REVIEWS.filter((r) => r.source_digest !== currentCommit)
+    .map((r) => ({ ...r, stale: `a felülvizsgálat a ${String(r.source_digest || r.source_commit).slice(0, 20)} forrás-lenyomaton készült` }));
 }

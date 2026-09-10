@@ -47,6 +47,7 @@ export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({ id: 'P-INVITE-window', assertion: 'INV-expired-invite-grants-nothing' }),
   Object.freeze({ id: 'P-INVITE-authority', assertion: 'Q09Q10Q13-redeem-gates' }),
   Object.freeze({ id: 'P-INVITE-effect', assertion: 'Q11Q12-real-effect-and-atomicity' }),
+  Object.freeze({ id: 'P-AUTHZ-revoke-now', assertion: 'K09-immediate-revocation-pulls-forward' }),
 ]);
 
 export const EXPECTED_IDS = Object.freeze(EXPECTED_PROBES.map((p) => p.id));

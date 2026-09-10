@@ -11,7 +11,7 @@
 // visszaadott alakja egyetlen helyen születik, és a próba a KETTŐ EGYEZÉSÉT méri (A04).
 
 import { instantMs } from './store.mjs';
-import { rightAt, membershipEffectiveAt } from './authz.mjs';
+import { rightAt, membershipEffectiveAt, KNOWN_ROLES, roleDelegates } from './authz.mjs';
 
 const norm = (s) => String(s == null ? '' : s).trim().toLowerCase();
 
@@ -63,7 +63,13 @@ export function addressHolders(store, namespace, value, nowIso) {
     }
     live.push(r.subject_id);
   }
-  return Object.freeze({ live: Object.freeze(live), all: Object.freeze(rows.map((r) => r.subject_id)) });
+  // A CÍM MÖGÖTT EMBEREK ÁLLNAK, NEM SOROK (R49/C09→C07). Ugyanannak az alanynak KÉT forrásból
+  // felvett, egyaránt élő kötése EGY ember — a sor-számlálás „több élő alanyt" mondana, és a
+  // meghívó némán elakadna (KUKA-002: a sor és az AZONOSSÁG két különböző tény).
+  return Object.freeze({
+    live: Object.freeze([...new Set(live)]),
+    all: Object.freeze([...new Set(rows.map((r) => r.subject_id))]),
+  });
 }
 
 // ═══ A BELÉPÉS MEGLÉTE — EGY DEFINÍCIÓ (INV-03) — Q11 ══════════════════════════════════════════
@@ -123,18 +129,24 @@ export function membershipOutcome(existing, offeredRole, nowIso) {
 // KIMONDVA, MIT NEM ÉPÍTÜNK: nincs önbevalló `grant_basis_kind` mező. Egy olyan oszlop, amit a
 // kibocsátó maga tölt ki, kiírná magát a jog-ellenőrzés alól — bárki, aki meghívó-sort tud írni,
 // megkerülné a kaput. A jogalap a MEGLÉVŐ `rightAt`-tól jön, nem egy másolatból.
-export const DELEGABLE_ROLES = Object.freeze({ admin: Object.freeze(['admin', 'user']), user: Object.freeze([]) });
+// A DELEGÁLÁS UGYANABBÓL A ZÁRT REGISZTERBŐL (R49/C05). Külön lista két helyen = két igazság
+// (KUKA-003/018): aki új szerepet vesz fel, csak az egyiket írná át.
+export const DELEGABLE_ROLES = Object.freeze(Object.fromEntries(
+  KNOWN_ROLES.map((r) => [r, roleDelegates(r)]),
+));
 
 export function inviteGrantAt({ store, invite, clock }) {
   const d = rightAt({ store, subjectId: invite.issuer_subject, bookId: invite.book_id, opClass: 'own_book', clock });
   if (!d.allowed) return Object.freeze({ ok: false, reason: 'issuer_right_withdrawn' });
   const role = d.detail && d.detail.role;
-  const delegable = Object.prototype.hasOwnProperty.call(DELEGABLE_ROLES, role) ? DELEGABLE_ROLES[role] : null;
+  const delegable = roleDelegates(role);
   if (!delegable) {
     // KONFIGURÁCIÓS HIÁNY — DOB. A hiány NE olvadjon össze a valódi „nem"-mel (KUKA-020): a
     // futtató kivételként könyveli, a mérő szerint az NEM szabályos bizonyíték, tehát a hiány
     // HIÁNYKÉNT jelenik meg, nem zöldként.
-    throw new Error(`inviteGrantAt: nincs delegálási profil a(z) "${role}" szerephez`);
+    // NEM DOBUNK (R49/C05 + KUKA-064): a nem ismert szerep VALÓDI, nevezett elutasítás — a nyers
+    // kivétel a véglegesítési kapun belül ROLLBACK-kel és értelmezhetetlen hibával állna meg.
+    return Object.freeze({ ok: false, reason: 'role_not_recognised' });
   }
   if (!delegable.includes(invite.offered_role)) {
     return Object.freeze({ ok: false, reason: 'role_not_delegable' });
@@ -320,6 +332,13 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
   // vesz, tehát a tisztán OLVASÓ elutasítások zár-versengés alatt `database is locked` KIVÉTELT
   // adnának — a valódi „nem"-ből programhiba lenne (KUKA-020).
   return store.tx(() => {
+    // VÉGLEGESÍTÉSI KAPU — a változható tények ÚJRAOLVASVA, az ÍRÁS határán belül.
+    const fresh = store.get('SELECT * FROM invite WHERE token = ?', token);
+    const win2 = inviteWindowAt(fresh, clock.now());
+    if (!win2.open) return Object.freeze({ ok: false, error: 'invite_not_actionable', reason: win2.reason });
+    const grant2 = inviteGrantAt({ store, invite: fresh, clock });
+    if (!grant2.ok) return Object.freeze({ ok: false, error: 'invite_not_actionable', reason: grant2.reason });
+
     let subjectId = target;
     if (shape === 'birth') {
       subjectId = `sub_${token}`;

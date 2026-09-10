@@ -171,9 +171,25 @@ const FIXTURES = [
   { name: 'R45 L06 — ugyanaz KIVEZETVE fejléccel is: MINDKÉT kötelem teljesül',
     sql: '-- BESOROLÁS: data_change — a 2019-es sorok egységesítése, a 042-es mentésből visszaállítható\n-- KIVEZETVE: 2.9.0\nALTER TABLE partner DROP legacy_code;\nUPDATE partner SET x = 1;',
     expect: { shape: 'data_change', ok: true } },
-  { name: 'R45 L07 — a hibaüzenet által AJÁNLOTT folytatás tényleg működik (nem zsákutca)',
+  // ═══ R49/L05 — AZ ÖNBEVALLÓ `unknown` FEJLÉC KIVEZETVE ════════════════════════════════════════
+  //
+  // A régi sor azt mérte, hogy az `-- BESOROLÁS: unknown` fejléc ÁTENGEDI az ismeretlen alakot —
+  // és ez volt a KUKA-064 szerinti „ajánlott folytatás". A külső fél MÉRTE (R49/L05), hogy egy
+  // HIBÁT DOBÓ `DO $$ … $$` blokk ugyanezzel a fejléccel `ok:true`-t kap: a szerző EGYETLEN SZAVA
+  // engedéllyé vált. Ezért az `unknown` kikerült a fejléc-nyelvtanból.
+  //
+  // A KUKA-064 KÖTELME NEM SZŰNIK MEG, csak az ajánlott út változott — és a REL06 dolga továbbra
+  // is az, hogy a MINDENKORI üzenet által ajánlott folytatást MÉRJE. Ezért ez a fixtúra-pár az ÚJ
+  // ajánlást méri: (a) írd át FELISMERT alakra ⇒ működik · (b) az önbevalló fejléc ⇒ NEM engedély.
+  { name: 'R49 L05 — az ÚJ ajánlott folytatás működik: felismert alakra átírva ÁTMEGY',
+    sql: '-- BESOROLÁS: expand — a felismert alak, amit az üzenet ajánl\nALTER TABLE partner ADD COLUMN note TEXT;',
+    expect: { shape: 'expand', ok: true } },
+  { name: 'R49 L05 — az ÖNBEVALLÓ `unknown` fejléc többé NEM engedély (a szerző szava nem bizonyíték)',
     sql: '-- BESOROLÁS: unknown — csak olvasó mondat, semmilyen sémát és adatot nem érint\nSELECT 1;',
-    expect: { shape: 'unknown', ok: true } },
+    expect: { shape: 'unknown', ok: false } },
+  { name: 'R49 L05 — a HIBÁT DOBÓ blokk sem megy át önbevallással (a külső fél mért esete)',
+    sql: "-- BESOROLÁS: unknown — x\nDO $$ BEGIN RAISE EXCEPTION 'failure'; END $$;",
+    expect: { shape: 'unknown', ok: false } },
   { name: 'R45 L07 — de a ROSSZ besorolás NEM elég: az `expand` fejléc egy ismeretlen mondaton nem engedély',
     sql: '-- BESOROLÁS: expand — szerintem ártalmatlan\nSELECT 1;',
     expect: { shape: 'unknown', ok: false } },

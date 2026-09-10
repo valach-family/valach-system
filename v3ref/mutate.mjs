@@ -41,7 +41,8 @@ import { cpSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:f
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, spawn } from 'node:child_process';
+import { availableParallelism } from 'node:os';
 
 const REF = dirname(fileURLToPath(import.meta.url));
 const RUN_TIMEOUT_MS = 60000;
@@ -65,6 +66,7 @@ const MUTATIONS = [
   // VÉDELEM TÜZEL, nem azt, hogy egy néma felülírást észlelnénk (KUKA-033: nem állítunk többet).
   { id: 'M2', rule: 'K03', catcher: 'P-K03-cred', expect: 'runtime_error',
     error_code: 'CREDENTIAL_WRITE_BLOCKED', phase: 'probe_body',
+    error_match: 'hitelesítő|credential',
     what: 'a meghívó beváltása a MEGLÉVŐ hitelesítő adat írás-ágára fut (a mi KUKA-086-os hibánk)',
     evidence_limit: 'a védelem KÉT helyen áll (alak-feloldó + SQL WHERE), ezért egyetlen szerkesztés '
       + 'nem tud néma felülírást csinálni — ez a VÉDELEM TÜZELÉSÉNEK bizonyítéka',
@@ -86,6 +88,7 @@ const MUTATIONS = [
 
   { id: 'M5', rule: 'K07', catcher: 'P-A08', expect: 'runtime_error',
     error_code: 'ERR_SQLITE_ERROR', phase: 'probe_body',
+    error_match: 'UNIQUE constraint failed: command\\.',
     what: 'az ismétlésvédelem nem fog: a hatás MÁSODSZOR is megszületik',
     evidence_limit: 'a mai kódon egyedi kulcs-ütközést vált ki — ez a VISELKEDÉS-VÁLTOZÁS észlelése, '
       + 'NEM két sikeresen lekönyvelt hatás bizonyítéka (R42 §2.3)',
@@ -133,7 +136,7 @@ const MUTATIONS = [
   { id: 'M12', rule: 'K07', catcher: 'P-CMD-namespace', expect: 'probe_fail',
     what: 'Q01 — a hatásazonosító nem hordozza a teljes hatókört: két névtér EGY hatásazonosítón',
     file: 'command.mjs',
-    from: "  return `eff_${hash(`${scope.bookId}|${scope.actor}|${scope.idemKey}`)}`;",
+    from: "  return `eff_${hash(commandRef(scope))}`;",
     to: "  return `eff_${scope.idemKey}`;" },
 
   { id: 'M13', rule: 'K07', catcher: 'P-CMD-identity', expect: 'probe_fail',
@@ -230,6 +233,18 @@ const MUTATIONS = [
   // A két tengely SORRENDJE dönt: ha a képviseleti jogcím a tagság-vizsgálat ELÉ kerül, a VISSZAVONT
   // tag hibátlan megbízással újra bejut. Ez nem elméleti: a képviseleti ág `return`-öl, tehát a
   // sorrend-csere némán ad vissza `allowed:true`-t (KUKA-002 — két tengely, és a sorrendjük a szabály).
+  { id: 'M28', rule: 'K09', catcher: 'P-AUTHZ-revoke-now', expect: 'probe_fail',
+    what: 'K09 — a mai viselkedes: minden meglevo revoked_at ertek blokkolja az azonnali megvonast',
+    file: 'authz.mjs',
+    from: "  if (prev.ms <= now.ms) return Object.freeze({ act: false, reason: 'revocation_already_effective' });\n  return Object.freeze({ act: true, effective_at: nowIso, reason: 'revocation_pulled_forward', previous_effective_at: existingRevokedAt });",
+    to: "  return Object.freeze({ act: false, reason: 'revocation_already_effective' });" },
+
+  { id: 'M29', rule: 'K09', catcher: 'P-AUTHZ-revoke-now', expect: 'probe_fail',
+    what: 'K09 — TULZARAS: a mar hatalyos megvonas meghosszabbodik',
+    file: 'authz.mjs',
+    from: "  if (prev.ms <= now.ms) return Object.freeze({ act: false, reason: 'revocation_already_effective' });",
+    to: "  if (false) return Object.freeze({ act: false, reason: 'revocation_already_effective' });" },
+
   { id: 'M26', rule: 'K04/K12', catcher: 'P-AUTHZ-evidence', expect: 'probe_fail',
     what: 'a képviseleti jogcím a TAGSÁG-vizsgálat elé kerül: visszavont tag megbízással újra bejut',
     file: 'authz.mjs',
@@ -297,6 +312,10 @@ export function classifyRun(spawnResult) {
   // (4) A TERVEZETT KÉSZLET — KÜLSŐ szerződésből, nem a futás eredményéből (H03 · H04).
   const set = checkResultSet(out.records);
   if (!set.ok) return { kind: 'harness', why: `az eredménycsomag nem felel meg a tervezett készletnek — ${set.problems.join(' · ')}` };
+  // (4/b) A CSOMAG SAJÁT AZONOSSÁGA KÖTELEZŐ (R49/H03): manifest-verzió és MÉRT forrás-lenyomat
+  // nélkül a kimenet nem mondja meg, MIT mért — a hiányzó kötés nem lehet néma (KUKA-012).
+  if (!out.manifest_version) return { kind: 'harness', why: 'a kimenetből hiányzik a manifest-verzió — a csomag nem mondja meg, melyik tervezett készletre vonatkozik' };
+  if (!out.source_digest) return { kind: 'harness', why: 'a kimenetből hiányzik a MÉRT forrás-lenyomat (source_digest) — a csomag nem mondja meg, melyik forráson mért' };
   if (out.manifest_version && out.manifest_version !== MANIFEST_VERSION) {
     return { kind: 'harness', why: `más manifest-verzió: ${out.manifest_version} ≠ ${MANIFEST_VERSION}` };
   }
@@ -359,7 +378,7 @@ function baselineGate() {
 
 /** A támadó futtató forrása: adott JSON-t ír ki, adott kóddal lép ki. */
 const fakeRunner = (jsonExpr, exitCode) =>
-  `const out = ${jsonExpr};\nprocess.stdout.write(JSON.stringify(out));\nprocess.exit(${exitCode});\n`;
+  `const out = { source_digest: 'sha256:hamis', ...${jsonExpr} };\nprocess.stdout.write(JSON.stringify(out));\nprocess.exit(${exitCode});\n`;
 
 const RECORDS = (mapper) => `${JSON.stringify(EXPECTED_IDS)}.map((id) => (${mapper}))`;
 
@@ -440,6 +459,10 @@ function verdictFor(m, c) {
     if (rec.status !== PROBE_STATUS.THREW) {
       const other = c.failed.filter((id) => id !== m.catcher);
       if (c.failed.includes(m.catcher)) {
+        const wantA = assertionOf(m.catcher);
+        if (wantA && rec.assertion_id !== wantA) {
+          return { verdict: 'WRONG_CATCHER', why: `a ${m.catcher} MÁS állítást bukott: ${rec.assertion_id} ≠ ${wantA}` };
+        }
         return { verdict: 'CAUGHT', why: `a nevezett ${m.catcher} ÁLLÍTÁSA bukott (a szerződés kivételt is megengedett volna)` };
       }
       return other.length
@@ -451,6 +474,13 @@ function verdictFor(m, c) {
     }
     if (m.phase && rec.phase !== m.phase) {
       return { verdict: 'WRONG_CATCHER', why: `a ${m.catcher} kivétele MÁS fázisban keletkezett: ${rec.phase} ≠ ${m.phase}` };
+    }
+    if (!m.error_match) {
+      return { verdict: 'HARNESS_ERROR', why: `a ${m.id || m.catcher} runtime_error szerződése nem nevezi meg a kivétel HELYÉT (error_match hiányzik)` };
+    }
+    const msg = String(rec.error_message ?? rec.actual ?? '');
+    if (!new RegExp(m.error_match).test(msg)) {
+      return { verdict: 'WRONG_CATCHER', why: `a ${m.catcher} kivétele IDEGEN: ${msg} — nem illeszkedik a szerződésben álló helyre (${m.error_match})` };
     }
     return { verdict: 'CAUGHT', weak: true,
       why: `a nevezett ${m.catcher} a szerződésben ELŐRE rögzített kivételt dobta (${rec.error_code} · ${rec.phase})` };
@@ -473,6 +503,41 @@ function verdictFor(m, c) {
   return { verdict: 'CAUGHT', why: `a nevezett ${m.catcher} a nevezett állításán bukott (${want})` };
 }
 
+const POOL = Math.max(1, Math.min(8, availableParallelism()));
+function runInAsync(dir) {
+  return new Promise((res) => {
+    const c = spawn(process.execPath, [join(dir, 'v3ref', 'run.mjs'), '--json'], { encoding: 'utf8' });
+    let stdout = ''; let stderr = '';
+    const timer = setTimeout(() => { c.kill('SIGKILL'); }, RUN_TIMEOUT_MS);
+    c.stdout.on('data', (d) => { stdout += d; });
+    c.stderr.on('data', (d) => { stderr += d; });
+    c.on('error', (error) => { clearTimeout(timer); res({ status: null, signal: null, error, stdout, stderr }); });
+    c.on('close', (status, signal) => { clearTimeout(timer); res({ status, signal, error: undefined, stdout, stderr }); });
+  });
+}
+async function pool(items, limit, fn) {
+  const out = new Array(items.length); let next = 0;
+  const worker = async () => { while (next < items.length) { const i = next++; out[i] = await fn(items[i]); } };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+async function runMutationAsync(m, knownProbes) {
+  if (!knownProbes.includes(m.catcher)) {
+    return { ...m, verdict: 'STALE_ANCHOR', why: `a megnevezett próba nem létezik: ${m.catcher}` };
+  }
+  const dir = mkdtempSync(join(tmpdir(), 'v3mut-'));
+  try {
+    cpSync(REF, join(dir, 'v3ref'), { recursive: true });
+    const target = join(dir, 'v3ref', m.file);
+    const src = readFileSync(target, 'utf8');
+    if (!src.includes(m.from)) {
+      return { ...m, verdict: 'STALE_ANCHOR', why: 'a mutáció horgonya NEM TALÁLHATÓ a forrásban — a mutáció elavult' };
+    }
+    writeFileSync(target, src.replace(m.from, m.to));
+    return { ...m, ...verdictFor(m, classifyRun(await runInAsync(dir))) };
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
 function runMutation(m, knownProbes) {
   if (!knownProbes.includes(m.catcher)) {
     return { ...m, verdict: 'STALE_ANCHOR', why: `a megnevezett próba nem létezik: ${m.catcher}` };
@@ -490,6 +555,7 @@ function runMutation(m, knownProbes) {
 
 // ── Futtatás ─────────────────────────────────────────────────────────────────────────────────────
 console.log('');
+const WALL_T0 = Date.now();
 console.log('V3 MAGREFERENCIA — MUTÁCIÓS PRÓBA (G6)');
 console.log('='.repeat(78));
 
@@ -507,7 +573,7 @@ console.log('');
 
 let results = [];
 if (base.ok && attacksOk) {
-  results = MUTATIONS.map((m) => runMutation(m, base.probes));
+  results = await pool(MUTATIONS, POOL, (m) => runMutationAsync(m, base.probes));
   console.log('  Minden sor EGY elrontott őr. A NEVEZETT próba NEVEZETT ÁLLÍTÁSÁNAK kell buknia.');
   console.log('');
   for (const r of results) {
@@ -529,6 +595,7 @@ console.log('');
 console.log(`  Manifest: ${MANIFEST_VERSION} · tervezett próbák: ${EXPECTED_IDS.length} (${EXPECTED_IDS.join(', ')})`);
 console.log(`  ${MUTATIONS.length} mutáció · ${caught} elkapva (ebből ${weak} korlátozott erejű)`
   + ` · ${survived} túlélte · ${wrong} rossz próba · ${harness} mérőhiba · ${stale} elavult horgony`);
+console.log(`  falióra: ${Date.now() - WALL_T0} ms · párhuzamosság: ${POOL} · külső korlát: 15000 ms`);
 console.log(`  ${attacks.length} hazugság-ellenpróba · ${attacks.filter((a) => a.ok).length} védett`);
 const clean = base.ok && attacksOk && results.length === MUTATIONS.length
   && survived === 0 && wrong === 0 && harness === 0 && stale === 0;

@@ -92,6 +92,10 @@ const DATA_CHANGE_PATTERNS = Object.freeze([
 // a szerzőnek KI KELL MONDANIA, hogyan marad kompatibilis a régi író (KUKA-033: a levezetett
 // állítás javaslat, amíg a mérése le nem futott).
 const RESTRICTIVE_PATTERNS = Object.freeze([
+  // SET DEFAULT: szerkezetileg bővítés, de a RÉGI ÍRÓ viselkedését változtatja meg — az
+  // oszlopot kihagyó, VÁLTOZATLAN kód innentől MÁS értéket ír. Ez nem „visszafelé ártalmatlan",
+  // ezért kimondott besorolás kell hozzá (R49/L08).
+  { name: 'SET DEFAULT', re: /\bALTER\s+COLUMN\b[\s\S]{0,120}?\bSET\s+DEFAULT\b/i },
   { name: 'ADD CONSTRAINT NOT VALID (az ÚJ írásokat már korlátozza)',
     re: /\bADD\s+CONSTRAINT\b[\s\S]*\bNOT\s+VALID\b/i },
   { name: 'CREATE UNIQUE INDEX (a múltbeli duplikátumon megbukik)',
@@ -105,7 +109,6 @@ const EXPAND_PATTERNS = Object.freeze([
   { name: 'CREATE INDEX', re: /^\s*CREATE\s+(?:UNIQUE\s+)?INDEX\b/i },
   { name: 'ADD COLUMN', re: /^\s*ALTER\s+TABLE\b[\s\S]*\bADD\s+(?:COLUMN\b)?/i },
   { name: 'DROP DEFAULT / DROP NOT NULL', re: /\bALTER\s+COLUMN\b[\s\S]{0,120}?\bDROP\s+(?:DEFAULT|NOT\s+NULL)\b/i },
-  { name: 'SET DEFAULT', re: /\bALTER\s+COLUMN\b[\s\S]{0,120}?\bSET\s+DEFAULT\b/i },
   { name: 'COMMENT', re: /^\s*COMMENT\s+ON\b/i },
   { name: 'CREATE SCHEMA/TYPE/SEQUENCE', re: /^\s*CREATE\s+(?:SCHEMA|TYPE|SEQUENCE|EXTENSION)\b/i },
 ]);
@@ -179,7 +182,7 @@ function declaredShapes(sql) {
   // MŰKÖDJÖN (KUKA-064): ismeretlen alakhoz `unknown`, szorítóhoz `restrictive` a helyes szó.
   // Ez NEM vak fejléc-elfogadás: a besorolásnak EGYEZNIE kell a mért alakkal, és az indok kötelező.
   const all = [...String(sql || '')
-    .matchAll(/^\s*--\s*BESOROLÁS:\s*(expand|restrictive|contract|data_change|unknown)\s*[—-]\s*(.+)$/gmi)];
+    .matchAll(/^\s*--\s*BESOROLÁS:\s*(expand|restrictive|contract|data_change)\s*[—-]\s*(.+)$/gmi)];
   return all.map((m) => ({ shape: m[1].toLowerCase(), why: m[2].trim() }));
 }
 
@@ -206,12 +209,44 @@ function classifyStatement(st) {
  * @returns {{shape:'expand'|'contract'|'data_change'|'unknown', operations:string[],
  *            retired_in:string|null, ok:boolean, reason:string}}
  */
+// A MONDAT NEM A LEGKISEBB EGYSÉG (R49/L07). Egy `ALTER TABLE` MONDATBAN több, egymástól
+// független AKCIÓ állhat vesszővel elválasztva, és a mondat-szintű mintaillesztés a LEGELSŐ
+// illeszkedő akció szerint minősíti az EGÉSZET — így az `ADD COLUMN note TEXT, ENABLE ROW LEVEL
+// SECURITY` némán „bővítés" lett. A vágás felső szintű (zárójel- és idézőjel-tudatos), és a
+// horgony `^`, hogy az akció ELEJE döntsön (KUKA-002: két tény nem ülhet egy soron).
+function splitTopLevelCommas(str) {
+  const out = []; let depth = 0; let quote = null; let cur = '';
+  for (let i = 0; i < str.length; i += 1) {
+    const c = str[i];
+    if (quote) { cur += c; if (c === quote) { if (str[i + 1] === quote) { cur += str[i + 1]; i += 1; } else quote = null; } continue; }
+    if (c === "'" || c === '"') { quote = c; cur += c; continue; }
+    if (c === '(') depth += 1;
+    if (c === ')') depth -= 1;
+    if (c === ',' && depth === 0) { out.push(cur.trim()); cur = ''; continue; }
+    cur += c;
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
+function classifyUnits(sql) {
+  const units = [];
+  for (const st of statementsOf(sql)) {
+    const head = /^\s*ALTER\s+TABLE\s+(?:ONLY\s+)?[\w".]+\s+/i.exec(st);
+    if (!head) { units.push(classifyStatement(st)); continue; }
+    const rest = st.slice(head[0].length);
+    const actions = splitTopLevelCommas(rest);
+    if (actions.length <= 1) { units.push(classifyStatement(st)); continue; }
+    for (const a of actions) units.push(classifyStatement(`ALTER TABLE t ${a}`));
+  }
+  return units;
+}
+
 function classifyMigration(sql, currentVersion) {
   const sts = statementsOf(sql);
   if (sts.length === 0) {
     return { shape: 'unknown', operations: [], retired_in: null, ok: false, reason: 'a migráció NEM tartalmaz végrehajtható mondatot' };
   }
-  const parts = sts.map(classifyStatement);
+  const parts = classifyUnits(sql);
   const worst = parts.reduce((a, b) => (RANK[b.shape] > RANK[a.shape] ? b : a));
   const operations = [...new Set(parts.filter((p) => p.shape === worst.shape).flatMap((p) => p.operations))];
   const shape = worst.shape;
@@ -259,7 +294,11 @@ function classifyMigration(sql, currentVersion) {
             ? `ADATVÁLTOZÁS (${ops.join(', ')}) — a kód visszagörgetése ezt NEM vonja vissza; `
               + 'kell egy `-- BESOROLÁS: data_change — <mit és honnan állítható vissza>` fejléc'
             : `ISMERETLEN alak (${ops.join(' · ')}) — az őr NEM SQL-értelmező, ezért nem minősíti `
-              + 'biztonságosnak; kell egy `-- BESOROLÁS: unknown — <miért biztonságos ez az alak>` fejléc');
+              + 'biztonságosnak, és a SZERZŐ SAJÁT besorolása itt nem engedély (R49/L05: a bizonyítatlan '
+              + 'kompatibilitás nem hagyható jóvá magától). A teendő: írd át felismert alakra '
+              + '(`ALTER TABLE …`, `CREATE …`, `UPDATE …`), vagy kérj NEVESÍTETT, felülvizsgált '
+              + 'kivételt a kiadási szerződésbe — az a kivétel a FÁJLHOZ és a felülvizsgálóhoz kötött, '
+              + 'nem egy magadról írt megjegyzéshez.');
     }
   }
 

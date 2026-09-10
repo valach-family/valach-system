@@ -52,6 +52,16 @@ CREATE TABLE membership (
   PRIMARY KEY (subject_id, book_id)
 );
 
+CREATE TABLE membership_revocation (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject_id    TEXT NOT NULL,
+  book_id       TEXT NOT NULL,
+  recorded_at   TEXT NOT NULL,
+  effective_at  TEXT NOT NULL,
+  previous_effective_at TEXT,
+  transition    TEXT NOT NULL
+);
+
 CREATE TABLE invite (
   token             TEXT PRIMARY KEY,
   book_id           TEXT NOT NULL REFERENCES book(id),
@@ -172,6 +182,18 @@ export function instantMs(iso) {
   if (!ISO_WITH_ZONE.test(s)) return { ok: false, reason: 'instant_not_canonical' };
   const ms = Date.parse(s);
   if (!Number.isFinite(ms)) return { ok: false, reason: 'instant_unparseable' };
+  // NEM LÉTEZŐ NAPTÁRI NAP (R49/C09). A `Date.parse` a '2026-02-30'-at NÉMÁN március 2-ra fordítja,
+  // tehát egy ÉRVÉNYTELEN bizonyíték érvényes időtartammá normalizálódna. A dátum-mezőket
+  // VISSZAOLVASSUK: ha a naptár nem adja vissza ugyanazt a napot, a bemenet nem eldönthető.
+  const f = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  const d = new Date(ms);
+  const off = /([+-])(\d{2}):(\d{2})$/.exec(s);
+  const local = off
+    ? new Date(ms + (off[1] === '+' ? 1 : -1) * ((+off[2]) * 60 + (+off[3])) * 60000)
+    : d;
+  if (local.getUTCFullYear() !== +f[1] || local.getUTCMonth() + 1 !== +f[2] || local.getUTCDate() !== +f[3]) {
+    return { ok: false, reason: 'instant_not_a_calendar_day' };
+  }
   return { ok: true, ms };
 }
 

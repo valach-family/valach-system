@@ -9,7 +9,7 @@
 // A döntés NEVEZETT alakot ad vissza (nem igent/nemet), hogy a képernyő meg tudja mondani, MIÉRT
 // nem lehet (a mi KUKA-062-es tanulságunk: a jog-alapot nevezni kell).
 
-import { instantMs } from './store.mjs';
+import { instantMs, withTransaction } from './store.mjs';
 
 // ═══ JOG-OSZTÁLY: SAJÁT KULCS, NEM ÖRÖKÖLT (Q07) ════════════════════════════════════════════════
 //
@@ -169,6 +169,30 @@ export function evidenceStandingAt(ev, nowIso, profile) {
   return Object.freeze({ ok: true, age_ms: age, source_down: ev.source_down === true });
 }
 
+// ═══ A SZEREPEK ZÁRT REGISZTERE (R49/C05) ══════════════════════════════════════════════════════
+//
+// A jogot ma a tagsági SOR LÉTEZÉSE adta, a szerepet senki nem mérte — egy elgépelt vagy
+// migrációból maradt `role` érték TELJES írásjogot kapott. A delegálás oldalán MÁR VOLT zárt
+// lista (`DELEGABLE_ROLES` az invite.mjs-ben), tehát ugyanaz a tény két helyen élt, és csak az
+// egyik ág mérte (KUKA-039). Innentől EGY otthon, KÉT arca: mit tehet · mit adhat tovább.
+// Map, hogy örökölt kulcs (`toString`, `constructor`) ne találjon bele (Q07 tanulsága).
+const ROLE_REGISTRY = new Map([
+  ['admin', { grants: ['own_book', 'representation'], delegates: ['admin', 'user'] }],
+  ['user', { grants: ['own_book', 'representation'], delegates: [] }],
+]);
+export const KNOWN_ROLES = Object.freeze([...ROLE_REGISTRY.keys()]);
+/** null = a szerep NEM ismert (nem eldönthető) · true/false = ismert szerep, jár-e rá. */
+export function roleGrants(role, opClass) {
+  const r = ROLE_REGISTRY.get(role);
+  if (!r) return null;
+  return r.grants.includes(opClass);
+}
+/** null = a szerep NEM ismert · tömb = mely szerepeket adhatja tovább. */
+export function roleDelegates(role) {
+  const r = ROLE_REGISTRY.get(role);
+  return r ? Object.freeze([...r.delegates]) : null;
+}
+
 export function rightAt({ store, subjectId, bookId, opClass, clock, externalEvidence }) {
   const profile = profileFor(opClass);
   if (!profile) return deny('unknown_op_class', 'ehhez a művelethez nincs frissességi profil');
@@ -182,6 +206,19 @@ export function rightAt({ store, subjectId, bookId, opClass, clock, externalEvid
       : (eff.reason === 'membership_revoked'
         ? 'a tagságod ehhez a könyvhöz vissza lett vonva'
         : 'a tagságod ehhez a könyvhöz most nem hatályos'));
+  }
+
+  // A SZEREP IS TÉNY, NEM CÍMKE (R49/C05). A tagsági sor LÉTEZÉSE nem jog: a szerepnek a zárt
+  // regiszterben kell állnia, és a kért művelet-osztálynak járnia kell rá. A nem ismert szerep
+  // NEM ugyanaz, mint a „nem jár rá" (KUKA-020) — és az elutasítás megmondja, mi a teendő
+  // (KUKA-064): melyik szerep állt, és mik a felvehető szerepek.
+  const grant = roleGrants(m.role, opClass);
+  if (grant === null) {
+    return deny('role_not_recognised',
+      `a tagságodon nem ismert szerep áll ("${m.role}") — felvehető szerepek: ${KNOWN_ROLES.join(', ')}`);
+  }
+  if (grant === false) {
+    return deny('role_not_entitled', `a(z) "${m.role}" szerephez ez a művelet nem tartozik (${opClass})`);
   }
 
   // K12: külső bizonyíték csak akkor számít, ha a profil kéri — a PREDIKÁTUMON át, amit az
@@ -202,7 +239,33 @@ function allow(basis, detail) { return Object.freeze({ allowed: true, basis, det
 function deny(reason, message) { return Object.freeze({ allowed: false, basis: null, reason, message }); }
 
 // K09: a megvonás KÜLÖN esemény, nem sor-törlés — a történet megmarad.
+export function revocationTransition(existingRevokedAt, nowIso) {
+  const now = instantMs(nowIso);
+  if (!now.ok) return Object.freeze({ act: false, reason: `clock_${now.reason}` });
+  if (existingRevokedAt === null || existingRevokedAt === undefined) {
+    return Object.freeze({ act: true, effective_at: nowIso, reason: 'revocation_recorded', previous_effective_at: null });
+  }
+  const prev = instantMs(existingRevokedAt);
+  if (!prev.ok) return Object.freeze({ act: true, effective_at: nowIso, reason: 'revocation_replaces_undecidable', previous_effective_at: existingRevokedAt });
+  if (prev.ms <= now.ms) return Object.freeze({ act: false, reason: 'revocation_already_effective' });
+  return Object.freeze({ act: true, effective_at: nowIso, reason: 'revocation_pulled_forward', previous_effective_at: existingRevokedAt });
+}
+
 export function revokeMembership({ store, subjectId, bookId, clock }) {
-  store.run('UPDATE membership SET revoked_at = ? WHERE subject_id = ? AND book_id = ? AND revoked_at IS NULL',
-    clock.now(), subjectId, bookId);
+  const nowIso = clock.now();
+  const m = store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', subjectId, bookId);
+  if (!m) return Object.freeze({ ok: false, changed: false, reason: 'no_membership' });
+  const t = revocationTransition(m.revoked_at, nowIso);
+  if (!t.act) return Object.freeze({ ok: true, changed: false, reason: t.reason, effective_at: m.revoked_at ?? null });
+  return withTransaction(store.db, () => {
+    const res = store.run(
+      'UPDATE membership SET revoked_at = ? WHERE subject_id = ? AND book_id = ?',
+      t.effective_at, subjectId, bookId);
+    if (res.changes !== 1) throw new Error('revokeMembership: a megvonás NULLA sort írt — bekötési hiba');
+    store.run(
+      `INSERT INTO membership_revocation (subject_id, book_id, recorded_at, effective_at, previous_effective_at, transition)
+       VALUES (?,?,?,?,?,?)`,
+      subjectId, bookId, nowIso, t.effective_at, t.previous_effective_at ?? null, t.reason);
+    return Object.freeze({ ok: true, changed: true, reason: t.reason, effective_at: t.effective_at });
+  });
 }

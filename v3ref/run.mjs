@@ -15,8 +15,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { openStore, clockFrom } from './store.mjs';
 import { observeInvite, redeemInvite, rememberIntent, resumeIntent } from './invite.mjs';
-import { rightAt, revokeMembership } from './authz.mjs';
-import { submitCommand, readCommandResult } from './command.mjs';
+import { rightAt, revokeMembership, revocationTransition } from './authz.mjs';
+import { submitCommand, readCommandResult, commandRef } from './command.mjs';
 
 export const NORM_VERSION = 'R32/K01-K16';
 export const IMPL_VERSION = 'v3ref-0.1';
@@ -354,7 +354,14 @@ probe('P-CMD-disclosure', 'R32/K05 · Q14 · Q15',
         && results.length === 2 && results[0].id !== results[1].id
         // (5) A kivezetett `command_accept` NEM térhet vissza némán.
         && !kinds.some((k) => k.view === 'command_accept')
-        && kinds.every((k) => k.ref === 'k1' && JSON.parse(k.fields).includes('effect_id'));
+        // (6) A LELTÁR-SOR HIVATKOZÁSA A TELJES HATÓKÖRT HORDOZZA (R49/C06). A puszta kulcs
+        //     (`k1`) NEM azonosít: egy könyvön belül két aktor UGYANAZT a kulcsot használhatja,
+        //     és akkor a két sor bájtra azonos — a leltár nem mondaná meg, melyikről szól.
+        //     A pin a FELOLDÓT HÍVJA, nem másolja le az alakot (KUKA-009).
+        && kinds.every((k) => k.ref === commandRef({ bookId: 'book_a', actor: 'sub_alice', idemKey: 'k1' })
+          && JSON.parse(k.fields).includes('effect_id'))
+        && commandRef({ bookId: 'book_a', actor: 'sub_alice', idemKey: 'k1' })
+          !== commandRef({ bookId: 'book_a', actor: 'sub_bob', idemKey: 'k1' });
       return {
         expected: 'befogadás: NINCS tartalom és NINCS leltár-sor · a tartalom olvasásra kimegy · ismétlés leltározva · két olvasás = két KÜLÖN sor',
         actual: `befogadás után leltár=${afterAccept} · befogadás tartalma=${accept.resolved === undefined ? 'NINCS' : 'VAN'} · olvasott ár=${r1.result && r1.result.price} · sorok=${kinds.length} (${kinds.map((k) => k.view).join(',')}) · olvasó sorok azonosítói=${results.map((k) => k.id).join('/')}`,
@@ -436,6 +443,38 @@ probe('P-AUTHZ-evidence', 'R32/K12 · Q05 · Q06',
       return {
         expected: 'hiányzó/olvashatatlan/zóna nélküli/jövőbeli idő ⇒ tilt · FRISS lekérés + LEJÁRT hatály ⇒ evidence_expired · ismeretlen mező ⇒ tilt · source_down ⇒ ENGED · VISSZAVONT TAGSÁG + hibátlan megbízás ⇒ membership_revoked',
         actual: `hiányzó=${missing.reason} · olvashatatlan=${unreadable.reason} · zóna nélkül=${noZone.reason} · jövő=${future.reason} · lejárt hatály=${expired.reason} · idegen mező=${alien.reason} · kiesés=${good.allowed} · visszavont tag képviselettel=${revokedThenRepresent.reason}`,
+        pass: ok,
+      };
+    } finally { w.store.close(); }
+  });
+
+probe('P-AUTHZ-revoke-now', 'R32/K09',
+  'Az AZONNALI megvonás ELŐREHOZZA az ütemezettet, de a MÁR HATÁLYOSAT nem hosszabbítja meg',
+  () => {
+    const w = twoActorWorld();
+    try {
+      const ask = (s) => rightAt({ store: w.store, subjectId: s, bookId: 'book_a', opClass: 'own_book', clock: w.clock });
+      // (a) jovore utemezett + azonnali megvonas => MOST hatalyos
+      w.store.run('UPDATE membership SET revoked_at = ? WHERE subject_id = ?', '2099-01-01T00:00:00.000Z', 'sub_alice');
+      const pulled = revokeMembership({ store: w.store, subjectId: 'sub_alice', bookId: 'book_a', clock: w.clock });
+      const aliceNow = ask('sub_alice');
+      // (b) MAR hatalyos (multbeli) => NEM hosszabbit
+      w.store.run('UPDATE membership SET revoked_at = ? WHERE subject_id = ?', '2026-09-01T00:00:00.000Z', 'sub_carol');
+      const already = revokeMembership({ store: w.store, subjectId: 'sub_carol', bookId: 'book_a', clock: w.clock });
+      const carolDate = w.store.get('SELECT revoked_at FROM membership WHERE subject_id = ?', 'sub_carol').revoked_at;
+      // (c) a tortenet megmarad
+      const hist = w.store.get('SELECT * FROM membership_revocation WHERE subject_id = ?', 'sub_alice');
+      // (d) a NEVEZETT feloldo HIVVA (KUKA-009)
+      const t = revocationTransition('2099-01-01T00:00:00.000Z', w.clock.now());
+      const ok = pulled.changed === true && pulled.reason === 'revocation_pulled_forward'
+        && !aliceNow.allowed && aliceNow.reason === 'membership_revoked'
+        && already.changed === false && already.reason === 'revocation_already_effective'
+        && carolDate === '2026-09-01T00:00:00.000Z'
+        && hist && hist.previous_effective_at === '2099-01-01T00:00:00.000Z'
+        && t.act === true && t.reason === 'revocation_pulled_forward';
+      return {
+        expected: 'utemezett=elorehozva · mar hatalyos=valtozatlan · elozmeny megorizve · a feloldo hivva',
+        actual: `elorehozas=${pulled.reason} · alice=${aliceNow.reason} · mar hatalyos=${already.reason} · carol=${carolDate} · elozmeny=${hist && hist.previous_effective_at}`,
         pass: ok,
       };
     } finally { w.store.close(); }
@@ -593,6 +632,7 @@ export function runAll() {
       // A BUKOTT ÁLLÍTÁS NEVE — enélkül nem eldönthető, hogy a MEGFELELŐ állítás bukott-e el.
       assertion_id: status === PROBE_STATUS.FAIL ? assertionOf(p.id) : null,
       error_code: thrown ? thrown.error_code : null,
+      error_message: thrown ? thrown.message : null,
       phase: thrown ? thrown.phase : null,
       norm_version: NORM_VERSION,
       impl_version: IMPL_VERSION,
@@ -641,7 +681,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const RUN_ID = `run_${createHash('sha256').update(src.digest).update(records[0] ? records[0].at : '')
     .digest('hex').slice(0, 16)}`;
   if (process.argv.includes('--json')) {
-    const stale = staleFor(SOURCE_COMMIT);
+    const stale = staleFor(src.digest);
     console.log(JSON.stringify({
       norm_version: NORM_VERSION,
       impl_version: IMPL_VERSION,
@@ -657,7 +697,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       declared_source_commit: SOURCE_COMMIT,
       source_commit: SOURCE_COMMIT,
       // A felülvizsgálatok érvényessége KIMONDVA: melyik nem a mai forrásra vonatkozik.
-      review_binding: SOURCE_COMMIT
+      review_binding: true
         ? (stale.length
           ? { status: 'stale', detail: stale.map((r) => `${r.probe_id}: ${r.stale}`) }
           : { status: 'current', detail: [] })

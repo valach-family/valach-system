@@ -52,8 +52,16 @@ export class CanonError extends Error {
 }
 
 export function canonicalize(v, path = '') {
+  // ADAPTER CSAK NEVEZETT FAJTÁRA (R49/C08). A `toJSON` a DEKLARÁLT tartalom fölé ír: egy
+  // bemondott mező más értéket kanonizálhat, mint amit hordoz, tehát KÉT különböző szándék
+  // ugyanazt az azonosságot kapná. A `Date` az EGYETLEN engedélyezett adapter, mert annak az
+  // alakja szabvány; minden más `toJSON`-t hordozó tárgy ELUTASÍTVA (KUKA-020: nem néma).
+  if (v instanceof Date) {
+    if (!Number.isFinite(v.getTime())) throw new CanonError('non_finite_number', path);
+    return JSON.stringify(v.toISOString());
+  }
   if (v !== null && typeof v === 'object' && typeof v.toJSON === 'function') {
-    return canonicalize(v.toJSON(path), path);
+    throw new CanonError('adapter_not_allowed', path);
   }
   if (v === null) return 'null';
   const t = typeof v;
@@ -67,6 +75,11 @@ export function canonicalize(v, path = '') {
     throw new CanonError('unsupported_value', path);
   }
   if (Array.isArray(v)) {
+    // LYUKAS TÖMB ELUTASÍTVA (R49/C10): a `map` átlépi a lyukat, ezért az `Array(1)` és a `[]`
+    // BÁJTRA azonos alakot adna — két különböző bemenet egy azonossággal (KUKA-012 a kanonizálón).
+    for (let i = 0; i < v.length; i += 1) {
+      if (!(i in v)) throw new CanonError('sparse_array', `${path}[${i}]`);
+    }
     // A TÖMB SORRENDJE JELENTÉSES — nem rendezzük.
     return `[${v.map((x, i) => canonicalize(x, `${path}[${i}]`)).join(',')}]`;
   }
@@ -108,8 +121,25 @@ export function findCommandInScope(store, scope) {
 }
 
 /** A hatás azonosítója a TELJES hatókörből — két névtér SOHA nem oszthat egy hatásazonosítót. */
+// ═══ A HATÓKÖR EGY ALAKJA (R49/C04 + C06) ══════════════════════════════════════════════════════
+//
+// A hármas (könyv · aktor · kulcs) eddig KÉT helyen lapult ki egymástól függetlenül, és MINDKÉT
+// lapítás veszteséges volt: az `effectIdFor` elválasztó-karakteres összefűzést hashelt (tehát
+// nem injektív — a `|` áttolható egyik tengelyről a másikra), a kiadás-leltár pedig KÉT laza
+// oszlopra képezte, amiből az AKTOR tengelye egyszerűen eltűnt. A helyes kódoló MÁR OTT ÁLLT
+// ugyanebben a fájlban (`canonicalize`), csak az azonosság ágán hívtuk (KUKA-039).
+// A verzió-előtag nem dísz: egy későbbi kódolás-váltás így nem lesz néma.
+export const SCOPE_VERSION = 'scope-1';
+export function commandRef(scope) {
+  const s = commandScope({
+    bookId: scope.bookId ?? scope.book_id,
+    actor: scope.actor,
+    idemKey: scope.idemKey ?? scope.idem_key,
+  });
+  return `${SCOPE_VERSION}|${canonicalize({ book_id: s.bookId, actor: s.actor, idem_key: s.idemKey })}`;
+}
 export function effectIdFor(scope) {
-  return `eff_${hash(`${scope.bookId}|${scope.actor}|${scope.idemKey}`)}`;
+  return `eff_${hash(commandRef(scope))}`;
 }
 
 // ═══ A KIADÁSI KAPU (Q15 + Q14) — EGY HELY, HÁROM HÍVÓ ═════════════════════════════════════════
@@ -147,7 +177,17 @@ export function disclose({ store, kind, scope, ref, recipient, body, clock }) {
 // ── A PARANCS BEFOGADÁSA ────────────────────────────────────────────────────────────────────────
 export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion, declared, resolve, clock, externalEvidence }) {
   const scope = commandScope({ bookId, actor, idemKey });
-  const identity = commandIdentity({ type, typeVersion, declared });
+  // A KANONIZÁLÁS TISZTA FELOLDÓ: DOB, ha a bemenet nem eldönthető. A HATÁR viszont nem dobhat
+  // ki nyers kivételt a hívóra — az ugyanabba a csatornába kerülne, mint a programhiba
+  // (KUKA-020), és a mérő nem tudná megkülönböztetni a valódi „nem"-től (KUKA-064: mondja meg,
+  // mit kell javítani). Ezért a határon NEVEZETT elutasítássá fordítjuk.
+  let identity;
+  try {
+    identity = commandIdentity({ type, typeVersion, declared });
+  } catch (e) {
+    if (!(e instanceof CanonError)) throw e;
+    return Object.freeze({ ok: false, error: 'declared_not_canonical', reason: e.reason, at: e.path ?? null });
+  }
 
   // A JOGOT ELŐBB kérdezzük meg, mint hogy a kulcsról bármit mondanánk. Enélkül a puszta
   // ÚJRAPRÓBÁLÁS elárulná, hogy a kulcshoz tartozik-e parancs — a kulcs próbálgatható
@@ -170,7 +210,7 @@ export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion
     }
     // AZ ISMÉTLÉS IS KIADÁS (Q15): a hatásazonosító és az állapot védett tény.
     return store.tx(() => Object.freeze(disclose({
-      store, kind: 'command_replay', scope: scope.bookId, ref: idemKey, recipient: actor, clock,
+      store, kind: 'command_replay', scope: scope.bookId, ref: commandRef(scope), recipient: actor, clock,
       body: { ok: true, effect_id: prior.effect_id, state: prior.state, replayed: true },
     })));
   }
@@ -262,7 +302,7 @@ export function readCommandResult({ store, idemKey, requester, bookId, actor, cl
   // nem a kérésből — különben a leltár a ROSSZ könyvre könyvelne (KUKA-002).
   const resolved = JSON.parse(cmd.resolved_json);
   return store.tx(() => Object.freeze(disclose({
-    store, kind: 'command_result', scope: cmd.book_id, ref: cmd.idem_key, recipient: requester, clock,
+    store, kind: 'command_result', scope: cmd.book_id, ref: commandRef(cmd), recipient: requester, clock,
     body: {
       ok: true,
       error: null,
