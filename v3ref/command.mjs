@@ -152,12 +152,49 @@ export function effectIdFor(scope) {
 // A BORÍTÉK (`ok`, `error`, `message`) NEM tartalom — a többi minden mezőútja KIADOTT TARTALOM,
 // és bekerül a `fields` listába. Az `effect_id` és a `state` is: a lelet KIFEJEZETTEN megnevezte
 // őket („a retry ág ugyanígy ad állapotot és effect_id-t leltár nélkül").
-// A `command_accept` KIVEZETVE (R47): a befogadás válasza nem közöl új tényt, tehát nincs mit
-// leltározni. A szót is elvesszük, nem csak a hívást — a halott rovatra állított őr hamis
+// A `command_accept` KIVEZETVE (R47) — de NEM a régi indokkal. Az R47-ben azt írtuk ide, hogy „a
+// befogadás válasza nem közöl új tényt, tehát nincs mit leltározni". A külső fél ezt MEGCÁFOLTA,
+// és igaza van: a SIKERES VÉGLEGESÍTÉS a szerver oldalán keletkezett új tény — a hívó a kulcsot
+// és a tartalmat adta, azt viszont nem ő adta, hogy a parancs KÉSZ LETT.
+//
+// A helyes megkülönböztetés nem „új tény / nem új tény", hanem hogy MELYIK KÉRDÉSRE FELEL A SOR:
+//   · KIADÁS (`disclosure`): ki látott olyan tartalmat, ami a kéréstől FÜGGETLENÜL is állt;
+//   · NYUGTA (`command_event`): mit KÖTELEZETT EL a szerver ebben a kérésben.
+// Két kérdés, két otthon (KUKA-002) — de EGYIK sem maradhat üresen. Az R47-es alak a kiadás-sort
+// helyesen nem írta, a helyére viszont SEMMIT nem tett, és ettől a véglegesítés nyomtalan lett.
+// A szót azért is elvesszük, nem csak a hívást, mert a halott rovatra állított őr hamis
 // riasztás-gyár, és a `disclose` így ismeretlen fajtaként DOB rá, ha valaki visszatenné
 // (KUKA-052 · fail-closed).
 export const DISCLOSURE_VIEW = Object.freeze(['command_replay', 'command_result']);
 const ENVELOPE = Object.freeze(['ok', 'error', 'message']);
+
+// ═══ A NYUGTA-SZERZŐDÉS (R50) ══════════════════════════════════════════════════════════════════
+//
+// A nyugta ALAKJA egy helyen születik, és MINDKÉT ág hívja (KUKA-039) — a befogadás és az
+// ismétlés ugyanazt a borítékot adja, tehát a hívó nem tud a kettő között alak-különbségből
+// következtetni arra, hogy melyik történt (a `replayed` mező MONDJA MEG, nem a forma).
+//
+// NYOMOT viszont csak ott hagyunk, ahol a szerver TÉNYLEG elkötelezett valamit: az ismétlés
+// semmit nem ír, tehát nyugta-sort sem szül (az ismétlés KIADÁS, és `command_replay` sorral már
+// leltározva van). Egyetlen esemény-fajta él ma; a regiszter ZÁRT, tehát ismeretlen fajtára DOB.
+export const RECEIPT_EVENT = Object.freeze(['command_finalized']);
+
+/** A nyugta ALAKJA — a befogadás és az ismétlés KÖZÖS borítéka. */
+export function commandReceipt({ effectId, state, replayed }) {
+  return Object.freeze({ ok: true, effect_id: effectId, state, replayed });
+}
+
+/**
+ * A nyugta TARTÓS nyoma. A hívó KÖTELESSÉGE a hatás tranzakcióján BELÜL hívni: ha a hatás
+ * visszagördül, a nyugta sem állhat meg (KUKA-026 ellenpárja — a kudarc nyoma nem utazhat a
+ * visszagördülő tranzakcióval, a siker nyugtája viszont KÖTELEZŐEN azzal utazik).
+ */
+export function recordCommandEvent({ store, event, scope, effectId, state, clock }) {
+  if (!RECEIPT_EVENT.includes(event)) throw new Error(`recordCommandEvent: ismeretlen nyugta-fajta: ${event}`);
+  store.run(
+    'INSERT INTO command_event (book_id, actor, idem_key, event, state, effect_id, at) VALUES (?,?,?,?,?,?,?)',
+    scope.bookId, scope.actor, scope.idemKey, event, state, effectId, clock.now());
+}
 
 /** A kiadott mezőUTAK — az ÉRTÉK szándékosan nem kerül a leltárba (az lenne a második otthon). */
 export function releasedFieldPaths(body, prefix = '') {
@@ -208,10 +245,11 @@ export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion
     if (prior.identity_hash !== identity) {
       return Object.freeze({ ok: false, error: 'idempotency_conflict', message: 'ugyanaz a kulcs más művelettel vagy tartalommal érkezett' });
     }
-    // AZ ISMÉTLÉS IS KIADÁS (Q15): a hatásazonosító és az állapot védett tény.
+    // AZ ISMÉTLÉS IS KIADÁS (Q15): a hatásazonosító és az állapot védett tény. Az ismétlés NEM
+    // ír semmit, tehát NYUGTA-sort nem szül — de a borítékot ugyanaz a feloldó adja (KUKA-039).
     return store.tx(() => Object.freeze(disclose({
       store, kind: 'command_replay', scope: scope.bookId, ref: commandRef(scope), recipient: actor, clock,
-      body: { ok: true, effect_id: prior.effect_id, state: prior.state, replayed: true },
+      body: commandReceipt({ effectId: prior.effect_id, state: prior.state, replayed: true }),
     })));
   }
 
@@ -231,28 +269,44 @@ export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion
 
   const effectId = effectIdFor(scope);
   return store.tx(() => {
+    // ── VÉGLEGESÍTÉSI KAPU A PARANCS-OLDALON (R49 · a mi teljesség-vizsgálatunk lelete) ─────────
+    //
+    // A fenti jog-ellenőrzés a TRANZAKCIÓN KÍVÜL áll, tehát csak azt zárja le, ami a `resolve()`
+    // ALATT történt. MÉRVE, a mai kódon: ha a megvonás a `store.tx` HATÁRÁN következik be, a
+    // parancs `finalized` lesz és a sor megszületik — a visszavont jogú aktor hatást könyvel.
+    //
+    // Ez UGYANAZ a hibaosztály, mint a C02/C03 a meghívó-oldalon, csak MÁSIK ÍRÓN: a döntés
+    // határa és az ÍRÁS határa két külön határ (KUKA-039 — a szabály itt is kell, nem csak ott).
+    // Ugyanezt a három ágat végigmérve az ISMÉTLÉS és az OLVASÁS MÁR ZÁRVA VAN (mindkettő
+    // `not_available`-t ad, nulla leltár-sorral) — ezt kimondjuk, hogy a lelet ne legyen tágabb,
+    // mint amit mértünk.
+    if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {
+      return refused;
+    }
     store.run(
       `INSERT INTO command (idem_key, actor, book_id, type, type_version, identity_hash,
                             resolved_json, effect_id, state, finalized_at)
        VALUES (?,?,?,?,?,?,?,?,?,?)`,
       idemKey, actor, bookId, type, typeVersion, identity,
       resolvedJson, effectId, 'finalized', clock.now());
-    // A BEFOGADÁS NEM SZOLGÁLTAT KI TARTALMAT, ÉS NEM IS KIADÁS (R47 · Q14 × Q15).
+    // A BEFOGADÁS NEM SZOLGÁLTAT KI TARTALMAT — DE NYUGTÁT AD (R47 · Q14 × Q15 · R50-ben javítva).
     //
     // Az első alakunk itt visszaadta a feloldott tartalmat (`resolved: snapshot`) ÉS leltárba is
-    // tette. Ezt „a ti két elvárásotok ütközik" mondattal adtuk volna ki — TÉVESEN. Megmérve a
-    // ti KÉT állításotokat négy lehetséges alakon, a helyes válasz ez:
+    // tette. Ezt „a ti két elvárásotok ütközik" mondattal adtuk volna ki — TÉVESEN (KUKA-091).
+    // A `resolved` KISZOLGÁLÁS, tehát CSAK a leltározott olvasó úton mehet ki (Q15 szigorú
+    // olvasata): a beadás válasza „ELŐKÉSZÍTVE", nem „KISZOLGÁLVA" (a ti szavaitok). Ez áll.
     //
-    //   · a `resolved` KISZOLGÁLÁS, tehát CSAK a leltározott olvasó úton mehet ki (Q15 szigorú
-    //     olvasata) — a beadás válasza „ELŐKÉSZÍTVE", nem „KISZOLGÁLVA" (a ti szavaitok);
-    //   · a befogadás válaszában maradó `effect_id` a hívó SAJÁT bemeneteinek lenyomata
-    //     (`hash(book|actor|idem_key)`), a `state` pedig ezen az ágon állandó — tehát a hívó
-    //     SEMMI OLYAT nem tud meg, amit ne ő maga adott volna. Ami nem közöl új tényt, arra
-    //     leltár-sort írni zaj, nem védelem (KUKA-052: az őr azt mérje, ami tényleg történik).
+    // A MÁSODIK FELE VISZONT NEM ÁLLT. Azt írtuk, hogy a válaszban maradó `effect_id` és `state`
+    // a hívó saját bemeneteinek lenyomata, tehát „nem közöl új tényt, nincs mit leltározni". Ti
+    // ezt megcáfoltátok: a SIKERES VÉGLEGESÍTÉS a szerver oldalán keletkezett új tény. Az
+    // `effect_id` valóban levezethető, de az, hogy a parancs KÉSZ LETT, nem — épp ez az, amiért
+    // a hívó egyáltalán hív. A hibás következtetés nem az volt, hogy nem `disclosure` sort
+    // írtunk (nem kiszolgálás), hanem hogy a helyére SEMMIT nem tettünk.
     //
-    // Az ISMÉTLÉS ága ELLENBEN kiadás marad: ott a válasz egy MÁR LÉTEZŐ parancs állapotát
-    // közli, ami a hívó számára ÚJ tény — azt a `command_replay` sor rögzíti.
-    return Object.freeze({ ok: true, effect_id: effectId, state: 'finalized', replayed: false });
+    // Ezért a nyugta a `command_event` könyvbe kerül, UGYANEBBEN a tranzakcióban: nyugtát csak
+    // megtörtént hatásról adunk, és megtörtént hatás nem maradhat nyugta nélkül.
+    recordCommandEvent({ store, event: 'command_finalized', scope, effectId, state: 'finalized', clock });
+    return commandReceipt({ effectId, state: 'finalized', replayed: false });
   });
 }
 

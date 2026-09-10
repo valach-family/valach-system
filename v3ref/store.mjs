@@ -128,6 +128,30 @@ CREATE TABLE disclosure (
   fields        TEXT NOT NULL,
   at            TEXT NOT NULL
 );
+
+-- A NYUGTA-KÖNYV (R50 — a külső fél cáfolatára). KÉT KÜLÖN KÉRDÉS, KÉT KÜLÖN OTTHON (KUKA-002):
+--   · a disclosure arra felel, KI MIT LÁTOTT olyan tényből, ami a kéréstől FÜGGETLENÜL is állt;
+--   · a command_event arra, MIT KÖTELEZETT EL A SZERVER ebben a kérésben.
+--
+-- Az R47-es alakunk azt állította, hogy a befogadás válasza „nem közöl új tényt, tehát nincs mit
+-- leltározni". A külső fél ezt megcáfolta, és IGAZA VAN: a hívó a saját bemeneteit adta, de azt,
+-- hogy a parancs VÉGLEGESÜLT-E, nem ő adta — az a szerver oldalán keletkezett új tény. A hiba nem
+-- a leltár HELYE volt, hanem hogy a tény SEHOL nem hagyott nyomot: a kiadás-sort helyesen nem
+-- írtuk (nem kiszolgálás), de a helyére semmit nem tettünk.
+--
+-- A sor a HATÁSSAL EGY TRANZAKCIÓBAN születik. Ez a KUKA-026 ellenpárja, és fordított előjelű:
+-- a KUDARC nyoma nem utazhat a visszagördülő tranzakcióban, a SIKER nyugtája viszont KÖTELEZŐEN
+-- azzal utazik — különben nyugtát adnánk olyan hatásról, ami nem történt meg.
+CREATE TABLE command_event (
+  id        INTEGER PRIMARY KEY AUTOINCREMENT,
+  book_id   TEXT NOT NULL,
+  actor     TEXT NOT NULL,
+  idem_key  TEXT NOT NULL,
+  event     TEXT NOT NULL,
+  state     TEXT NOT NULL,
+  effect_id TEXT NOT NULL,
+  at        TEXT NOT NULL
+);
 `;
 
 export function openStore() {

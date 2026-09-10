@@ -33,6 +33,101 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-093',
+    date: '2026-09-10',
+    title: '„A HÍVÓ ÚGYIS TUDJA" — a mentesítő indok, ami a BEMENETET és az EREDMÉNYT összemosta',
+    what: 'Az R47-ben kivezettük a befogadás kiadás-sorát, és ezt azzal indokoltuk, hogy a válasz '
+      + '„nem közöl új tényt, tehát nincs mit leltározni": az `effect_id` a hívó saját bemeneteinek '
+      + 'lenyomata, a `state` pedig ezen az ágon állandó. Az indokot beírtuk a kódba, a KUKA-091 '
+      + 'bejegyzésbe, a naplóba és a kimenő riportba is.',
+    why_wrong: 'A külső fél megcáfolta, és igaza van: a SIKERES VÉGLEGESÍTÉS a szerver oldalán '
+      + 'keletkezett új tény. Az `effect_id` tényleg levezethető a bemenetből, de az, hogy a parancs '
+      + 'KÉSZ LETT-E, nem — épp ezért hív a hívó egyáltalán. Az indokom KÉT különböző dolgot mosott '
+      + 'össze: amit a hívó ADOTT, és amit a hívó MEGTUDOTT. A hiba nem a leltár HELYE volt (a '
+      + '`disclosure` sor elhagyása helyes: a befogadás nem kiszolgálás), hanem hogy a helyére '
+      + 'SEMMIT nem tettünk, és ettől a véglegesítés nyomtalan maradt. A mentesítő indok pedig '
+      + 'kényelmes volt: kevesebb munkát írt elő, és épp ezért kellett volna jobban megnézni.',
+    replaced_by: 'NYUGTA-SZERZŐDÉS (R50). KÉT KÉRDÉS, KÉT OTTHON, DE EGYIK SEM ÜRES: a `disclosure` '
+      + 'arra felel, KI LÁTOTT olyan tartalmat, ami a kéréstől függetlenül is állt; a `command_event` '
+      + 'arra, MIT KÖTELEZETT EL a szerver ebben a kérésben. A nyugta ALAKJÁT egy feloldó adja '
+      + '(`commandReceipt`), amit a befogadás ÉS az ismétlés is hív, tehát a hívó a válasz ALAKJÁBÓL '
+      + 'nem tudja megkülönböztetni a két ágat (a `replayed` mondja meg). NYOMOT viszont csak ott '
+      + 'hagyunk, ahol a szerver tényleg elkötelezett valamit: az ismétlés semmit nem ír, tehát nem '
+      + 'szül nyugta-sort. A sor a HATÁSSAL EGY TRANZAKCIÓBAN születik — ez a KUKA-026 ellenpárja: a '
+      + 'kudarc nyoma nem utazhat a visszagördülő tranzakcióval, a siker nyugtája viszont kötelezően '
+      + 'azzal utazik, különben meg nem történt hatásról adnánk nyugtát.',
+    decision: 'D-VS-3008',
+    found_by: 'A KÜLSŐ TÁRGYALÓ FÉL, a saját R47-es indokunkra adott cáfolatként. A saját '
+      + 'söprésünk végig zöld volt, és a saját pinünk (P-CMD-disclosure) is — mert azt mérte, hogy '
+      + 'NINCS kiadás-sor, nem azt, hogy a tény hagyott-e valahol nyomot.',
+    lesson: 'AMIKOR EGY NYOM ELHAGYÁSÁT AZZAL INDOKLOM, HOGY „A HÍVÓ EZT ÚGYIS TUDJA", KÉT DOLGOT '
+      + 'KELL SZÉTVÁLASZTANI: mit ADOTT a hívó, és mit TUDOTT MEG. Az első tényleg levezethető, a '
+      + 'második nem — és a siker/kudarc majdnem mindig a másodikba esik. A gyanújel az, hogy az '
+      + 'indok KEVESEBB munkát ír elő: a mentesítő magyarázat érdekelt magyarázat (KUKA-091 rokona). '
+      + 'És a helyes kérdés nem az, hogy „kell-e ide leltár-sor?", hanem hogy „HOL keletkezett a '
+      + 'tény, és hol hagy nyomot?" — ha a válasz „sehol", a tervezés nincs kész.',
+    guard_note: 'gépi jel: `npm run verify:v3ref` **P-CMD-receipt** — a befogadás PONTOSAN egy '
+      + 'nyugta-sort ír a válasz hatásazonosítójával, az ismétlés egyet sem de AZONOS borítékot ad, '
+      + 'a tx-határon visszavont jog mellett NULLA parancs- ÉS NULLA nyugta-sor marad, és a '
+      + 'nyugta-fajta regisztere zárt (ismeretlen fajtára dob). Két mutáció őrzi, bizonyítottan '
+      + 'pirosan: M37 (a nyugta-sor elmarad, a válasz mégis „kész"-t mond) · M38 (a nyugta kilép a '
+      + 'hatás tranzakciójából, tehát elutasított parancsról is marad nyugta).',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/command.mjs'], pattern: 'nem közöl új tényt, tehát nincs mit',
+        reason: 'a megcáfolt indok nem térhet vissza a kódba (R50)' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/command.mjs'], pattern: "recordCommandEvent\\(\\{ store, event: 'command_finalized'",
+        reason: 'a véglegesítés nyugtát ír — a hatással egy tranzakcióban' }),
+      Object.freeze({ paths: ['v3ref/command.mjs'], pattern: 'export function commandReceipt',
+        reason: 'a nyugta alakja EGY otthonban él, mindkét ág hívja (KUKA-039)' }),
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: "probe\\('P-CMD-receipt'",
+        reason: 'a nyugta-szerződésnek van mérése, nem csak szándéka' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'KUKA-092',
+    date: '2026-09-10',
+    title: 'A SAJÁT JAVÍTÁSOM LEGFONTOSABB FELE ŐRIZETLEN MARADT — a zöld battéria a hiányról hallgat',
+    what: 'Az R49-ben a külső fél 30 új esettel jött, amiből 19 bukott. A javítások után a saját '
+      + 'battériám 17/17 zöldet és 29/29 elkapott mutációt mutatott. Kíváncsiságból KITÖRÖLTEM a '
+      + 'frissen beépített ötsoros véglegesítési kaput — és a saját battériám VÁLTOZATLANUL 17/17 '
+      + 'zöld maradt, 29/29 elkapással; egyedül a KÜLSŐ próba esett 30/30-ról 28/30-ra.',
+    why_wrong: 'Vagyis a kör legfontosabb javítását SEMMI sem őrizte a mi oldalunkon: ha valaki '
+      + 'holnap visszabontja, minden zöld marad, és a hibát megint csak a külső fél találná meg. '
+      + 'Ez a KUKA-051 a SAJÁT JAVÍTÁSAINKRA fordítva: a nem mért rész nem „ismeretlen állapotú", '
+      + 'hanem ZÖLDNEK LÁTSZIK — és a legrosszabb helyen, épp a friss munkán, ahol a legnagyobb a '
+      + 'bizalom. A javítás elvégzése és a javítás MEGŐRZÉSE két külön munka; a kör csak a '
+      + 'másodikkal együtt van kész. A saját teljesség-vizsgálat ráadásul kimutatta, hogy a hét '
+      + 'szükséges őrből HAT hiányzott — tehát nem egyedi mulasztás volt, hanem a kör alapállása.',
+    replaced_by: 'MINDEN JAVÍTÁS MELLÉ ŐR ÉS ELRONTÁS-PRÓBA, UGYANABBAN A KÖRBEN. Az R49/R50 körben '
+      + 'hét új próba (P-INVITE-finalize-gate · P-CMD-finalize-gate · P-CMD-receipt · P-AUTHZ-roles '
+      + '· P-CANON-shape · P-TIME-calendar · P-IDENTITY-address) és nyolc új mutáció (M31–M38) '
+      + 'született, és MINDEGYIKET külön lemértük a régi kódon. A KAPU: egy javítás akkor kész, ha '
+      + 'a visszabontása bizonyítottan PIROSRA vált — nem akkor, ha a battéria zöld.',
+    found_by: 'A SAJÁT KÍSÉRLETEM, a kör zárása előtt: kitöröltem a saját kapumat, és megnéztem, '
+      + 'mi történik. Ez az eljárás általánosítható, és innentől az elvárás: aki javít, próbálja ki, '
+      + 'hogy a javítása hiányát bármi észreveszi-e.',
+    decision: 'D-VS-3008',
+    lesson: 'A ZÖLD BATTÉRIA A HIÁNYRÓL SEMMIT NEM MOND. Egy próba, ami nem tud pirosra váltani, nem '
+      + 'bizonyít semmit (KUKA-041), és ezt nem elég ELVBEN tudni: a friss javításon KI KELL '
+      + 'PRÓBÁLNI — töröld ki a saját őrödet, és nézd meg, észreveszi-e bármi. Ha nem, a kör nem '
+      + 'zárható. A külső próba zöldje sem helyettesíti: az ő battériájuk a MI visszacsúszásunkat '
+      + 'csak addig fogja, amíg ők futtatják.',
+    guard_note: 'gépi jel: a v3ref MUTÁCIÓS szerződése — M31 (a meghívó véglegesítési kapuja az '
+      + 'ELAVULT sort nézi: a kapu megvan, rossz oldalon) · M32 (a parancs-oldali kapu eltűnik) · '
+      + 'M37/M38 (a nyugta). Mind a nyolc bizonyítottan pirosra vált a visszacsúszásra. MAGÁRA A '
+      + 'MULASZTÁSRA (hogy egy javítás mellől HIÁNYZIK az őr) nincs teljes gépi jel — a manifest '
+      + 'próba-padlója csak a MEGLÉVŐK néma eltűnését fogja meg; ez a bejegyzés kimondott korlátja.',
+    forbidden: Object.freeze([]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: "id: 'M31'",
+        reason: 'a „kapu rossz oldalon" visszacsúszás mérve van' }),
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: "id: 'M32'",
+        reason: 'a parancs-oldali véglegesítési kapu eltűnése mérve van' }),
+    ]),
+  }),
+  Object.freeze({
     id: 'KUKA-091',
     date: '2026-09-10',
     title: 'A KÜLSŐ PRÓBA BUKOTT, ÉS ÉN A PRÓBÁT HIBÁZTATTAM — a legönigazolóbb helyzet, ami létezik',
@@ -49,10 +144,14 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'VÉDEKEZÉSÜNKÖN: a mintát (az értelmezést) ott a mért tulajdonság választotta ki, itt a '
       + 'magyarázatot az érdekeltség.',
     replaced_by: 'A JAVÍTÁS NEM A ZÖLDHÖZ IGAZODOTT, HANEM AHHOZ, MIT TUD MEG A HÍVÓ. (1) A '
-      + 'BEFOGADÁS válasza nem szolgáltat ki tartalmat, és nem is leltározódik: az `effect_id` a '
-      + 'hívó SAJÁT bemeneteinek lenyomata (`hash(book|actor|idem_key)`), a `state` ezen az ágon '
-      + 'állandó — új tényt nem közöl, tehát nincs mit leltározni (KUKA-052: halott rovatra állított '
-      + 'őr hamis riasztás-gyár). (2) Az ISMÉTLÉS ága ELLENBEN egy MÁR LÉTEZŐ parancs állapotát '
+      + 'BEFOGADÁS válasza nem szolgáltat ki tartalmat, tehát KIADÁS-sort nem ír — de NYUGTÁT ad, '
+      + 'és azt rögzíti (`command_event`, a hatással egy tranzakcióban). [R50-BEN JAVÍTVA: az itt '
+      + 'eredetileg álló indok — „az `effect_id` a hívó saját bemeneteinek lenyomata, a `state` '
+      + 'állandó, tehát nem közöl új tényt, nincs mit leltározni" — TÉVES VOLT, és a külső fél '
+      + 'cáfolta meg. Az `effect_id` valóban levezethető, de az, hogy a parancs VÉGLEGESÜLT-E, nem '
+      + 'a hívó bemenete: az a szerver oldalán keletkezett új tény. A `disclosure` sor elhagyása '
+      + 'helyes volt (nem kiszolgálás), a helyére viszont semmit nem tettünk — lásd KUKA-093.] '
+      + '(2) Az ISMÉTLÉS ága ELLENBEN egy MÁR LÉTEZŐ parancs állapotát '
       + 'közli — ÚJ tény, marad `command_replay` sorral. (3) A feloldott TARTALOM kiszolgálás, '
       + 'tehát KIZÁRÓLAG a leltározott olvasó úton mehet ki: EGYETLEN kijárat a korábbi kettő '
       + 'helyett. (4) A `command_accept` kiadás-fajta KIVEZETVE — a szó is, nem csak a hívás: a '

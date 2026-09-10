@@ -16,6 +16,109 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3008 — A külső fél 30 ellenőrző esete: a hiányzó ŐRÖK megépítve, és a NYUGTA-SZERZŐDÉS
+
+**Kör:** CMD-VS-300-002-001 R49→R50 · sáv: Claude-AUX · a külső fél független ellenőrzése az
+R47-es javításunkra.
+
+**A bemenet.** A külső fél a saját, VÁLTOZATLAN próbájával visszamérte az R47-et, és 30 ÚJ esetet
+adott a javításaink VARRATAIRA. Ebből 19 bukott. Reprodukáltuk: **19/19, karakterre az ő
+számaikkal** — vagyis a leletük megállt, nem kellett hozzá értelmezés.
+
+**A kör legfontosabb megállapítása viszont a SAJÁT kezünkből jött.** A javítások átvezetése után a
+saját battériánk 17/17 zöldet és 29/29 elkapott mutációt mutatott. Kísérletként **kitöröltük a
+frissen beépített ötsoros véglegesítési kaput** — és a saját battériánk VÁLTOZATLANUL zöld maradt;
+egyedül a KÜLSŐ próba esett 30/30-ról 28/30-ra. A kör legfontosabb javítását tehát semmi nem
+őrizte a mi oldalunkon. A teljesség-vizsgálat ezután kimutatta: **a hét szükséges saját őrből hat
+hiányzott.** → **KUKA-092**.
+
+**A második megállapítás a külső féltől jött, és a mi R47-es INDOKUNKAT cáfolta meg.** Az R47-ben
+azzal vezettük ki a befogadás kiadás-sorát, hogy a válasz „nem közöl új tényt": az `effect_id` a
+hívó saját bemeneteinek lenyomata, a `state` állandó. Ez **téves**. Az `effect_id` valóban
+levezethető, de az, hogy a parancs **VÉGLEGESÜLT-E**, nem a hívó bemenete — az a szerver oldalán
+keletkezett új tény, és épp ezért hív a hívó egyáltalán. A `disclosure` sor elhagyása helyes volt
+(a befogadás nem kiszolgálás), de a **helyére semmit nem tettünk**, ezért a véglegesítés
+nyomtalan maradt. → **KUKA-093**.
+
+### Amit a kör megépített
+
+**1. NYUGTA-SZERZŐDÉS (R50).** Két kérdés, két otthon, de egyik sem üres:
+* a `disclosure` arra felel, **KI LÁTOTT** olyan tartalmat, ami a kéréstől függetlenül is állt;
+* az új `command_event` könyv arra, **MIT KÖTELEZETT EL a szerver** ebben a kérésben.
+
+A nyugta ALAKJÁT egy feloldó adja (`commandReceipt`), amit a befogadás ÉS az ismétlés is hív —
+a hívó a válasz alakjából nem tudja megkülönböztetni a két ágat, a `replayed` mondja meg
+(KUKA-039). NYOMOT viszont csak ott hagyunk, ahol a szerver tényleg elkötelezett valamit: az
+ismétlés semmit nem ír, tehát nyugta-sort sem szül. A sor a **hatással EGY tranzakcióban**
+születik — ez a KUKA-026 ellenpárja: a kudarc nyoma nem utazhat a visszagördülő tranzakcióval,
+a siker nyugtája viszont kötelezően azzal utazik, különben meg nem történt hatásról adnánk nyugtát.
+
+**2. VÉGLEGESÍTÉSI KAPU A PARANCS-OLDALON.** A feloldás utáni jog-ellenőrzés a tranzakción KÍVÜL
+állt, tehát csak azt zárta le, ami a `resolve()` alatt történt. Mérve: ha a megvonás a `store.tx`
+HATÁRÁN következik be, a parancs `finalized` lett és a sor megszületett. Ugyanezt a három ágat
+végigmérve az ISMÉTLÉS és az OLVASÁS **már zárva volt** (mindkettő `not_available`, nulla
+leltár-sorral) — ezt kimondjuk, hogy a lelet ne legyen tágabb, mint amit mértünk.
+
+**3. HAT ÚJ PRÓBA A HIÁNYZÓ ŐRÖK HELYÉRE** (`P-INVITE-finalize-gate` · `P-CMD-finalize-gate` ·
+`P-AUTHZ-roles` · `P-CANON-shape` · `P-TIME-calendar` · `P-IDENTITY-address`), plusz a
+`P-CMD-receipt` a nyugta-szerződésre. **24/24 PASS.**
+
+**4. NYOLC ÚJ MUTÁCIÓ** (M31–M38), és az M15 ÚJRA-HORGONYOZVA. **37 mutáció · 37 elkapva · 0
+túlélte · 0 rossz próba · 0 mérőhiba · 0 elavult horgony.**
+
+### Amit a saját mérésünk talált a saját munkánkban, a kör közben
+
+* **Az M15 TÚLÉLTE** az első futást — nem azért, mert a hiba nincs meg, hanem mert az új parancs-
+  oldali kapu KÉTRÉTEGŰVÉ tette a védelmet, és egyetlen szerkesztés nem tudja kinyitni. A mutációt
+  átírtuk: MINDKÉT réteget elveszi. Egy próba, ami nem tud pirosra váltani, nem bizonyít semmit.
+* **Az `also` kulcs, amit kitaláltam, NEM LÉTEZETT.** Az M15 újra-horgonyzásához egy második
+  szerkesztést egy `also` mezőbe írtam — a futtató viszont soha nem olvasta. Ez a **KUKA-016**
+  visszatérése (kitalált mezőnév a regiszterben). Nem lett néma: a mutációs szerződés `SURVIVED`
+  ítélete PIROS, tehát a saját eszközünk fogta meg. A helyére `edits` tömb került, EGY normalizálón
+  át, MINDEN szerkesztés horgonyát külön mérve.
+* **Az M31 TÚLÉLTE** — és ez a saját ÚJ próbám lyuka volt. A `P-INVITE-finalize-gate` három ága az
+  ÓRÁT és a TAGSÁG-táblát mozgatta, amiket a kapu úgyis frissen olvas; egyik sem mérte, hogy a
+  **MEGHÍVÓ SAJÁT SORÁT** is újra kell olvasni. Két új ág került be: a határon VISSZAVONT meghívó
+  (elavult olvasással tagság születne — valódi jogsértés) és a határon KÖZBEN FELHASZNÁLT meghívó
+  (elavult olvasással a válasz KIVÉTEL lenne a nevezett elutasítás helyett — KUKA-020).
+* **A `P-TIME-calendar` első alakja TÚLKÖVETELT:** azonos indokot vártam a 13. hónapra és a
+  február 30-ra. A 13. hónap már ALAKILAG sem időpont, a február 30. viszont szabályos alakú, csak
+  nem létező nap — a megkülönböztetés TÖBBET mond, nem kevesebbet. A követelmény az én kitalált
+  többletem volt, nem a joghatár része; javítva.
+
+### Mérés
+
+| Mérés | Eredmény |
+|---|---|
+| A külső fél VÁLTOZATLAN próbája (`check.mjs`, 30 eset) | **30/30** |
+| V3 magreferencia próbák (`verify:v3ref`) | **24/24 PASS** |
+| Mutációs battéria | **37/37 elkapva**, 0 túlélte, 0 mérőhiba, 0 elavult horgony |
+| Hazugság-ellenpróbák (a mérő önmagán) | **6/6 védett** |
+| KUKA-regiszter (`verify:kuka`) | **142/142** |
+| Teljes söprés (`verify:sweep`) | **6 zöld · 0 env-kihagyás · 0 piros** |
+
+### Kimondott korlátok — amit ez a kör NEM zárt le
+
+1. **A falióra a MI gépünkön mért szám.** 37 mutáció, 4 mag: a mag-számhoz kötött párhuzamosság
+   12,0 mp-et adott a külső fél 15 000 ms-os korlátja mellett. A plafon rossz volt: egy
+   mutáció-futás nem telíti a magot (folyamat-indítás és modul-betöltés dominál), ezért kétszeres
+   túlfoglalásra váltottunk — **9,9 mp, változatlan eredménnyel**. Lassabb gépen a korlát közelebb
+   kerülhet; a futás ezért KIÍRJA a mért időt és a korlátot.
+2. **A több-írós véglegesítési határ nincs megoldva.** A `node:sqlite` `BEGIN IMMEDIATE` egyetlen
+   íróval dolgozik. Postgresen sor-zár vagy verzió-őr kell — ez tervezési adósság, nem elintézett
+   kérdés.
+3. **A megvonás VISSZAMENŐLEGES hatálya** nyitott: ma a megvonás előre hat, a már megszületett
+   hatásokat nem érinti. Hogy ez helyes-e, üzleti döntés, nem technikai.
+4. **A `releasedFieldPaths` pont-összefűzése kétértelmű**: az `a.b` nevű mező és az `a` alatti `b`
+   ugyanazt az utat adja. Ma nem okoz kárt (a leltár nem kulcs), de nevesített adósság.
+5. **A szigorúbb kiadási osztályozót NEM mértük vissza a V2 migrációs korpuszán.** A V3-ban NULLA
+   `.sql` migráció van, tehát az a mérés ÜRES halmazon futott — semmit nem bizonyít. Ezt kimondjuk,
+   nem hallgatjuk el.
+6. **Q17 (műtermék-útvonal ütközése)** és a **bemeneti séma-regiszter** nyitott tételek.
+7. **A Q09 „maradék önálló szervezeti alapja"** — a külső fél kérdése — nincs megválaszolva.
+
+---
+
 ## D-VS-3007 — A tizenöt megnevezett maghiba javítva, a KÜLSŐ FÉL saját próbáján mérve
 
 **Dátum:** 2026-09-10 · **Sáv:** Claude-AUX · **Kör:** CMD-VS-300-002-001 R46 → R47

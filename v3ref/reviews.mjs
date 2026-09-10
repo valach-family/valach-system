@@ -371,9 +371,11 @@ export const RESIDUAL_RESOLUTIONS = Object.freeze([
     probe: 'P-CMD-disclosure',
     note: 'Q14/Q15: a feloldott TARTALOM kizárólag a leltározott OLVASÓ úton mehet ki; a kiadási '
       + 'sor saját egyedi azonosítót kapott, tehát az időbélyeg többé nem azonosság, és két '
-      + 'egyidejű olvasás két külön sort ír. A BEFOGADÁS válasza nem szolgáltat ki tartalmat '
-      + '(és nem is leltározódik: az `effect_id` a hívó saját bemeneteinek lenyomata, a `state` '
-      + 'ezen az ágon állandó — új tényt nem közöl); az ISMÉTLÉS ága viszont igen, és leltározva van',
+      + 'egyidejű olvasás két külön sort ír. A BEFOGADÁS válasza nem szolgáltat ki tartalmat, '
+      + 'tehát KIADÁS-sort nem ír — de NYUGTÁT ad, és azt a `command_event` könyv rögzíti, a '
+      + 'hatással egy tranzakcióban (R50: az „új tényt nem közöl" indokot a külső fél megcáfolta, '
+      + 'mert a sikeres VÉGLEGESÍTÉS a szerver oldalán keletkezett tény — KUKA-093); az ISMÉTLÉS '
+      + 'ága kiadás, és leltározva van',
     limit: 'az „előkészítve / átadás megkísérelve / kiszolgálva / ember elolvasta" NÉGY állapotból '
       + 'ma KETTŐ különül el (befogadás ≠ kiszolgálás); a másik kettő nincs megépítve',
   }),

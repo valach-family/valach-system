@@ -151,11 +151,21 @@ const MUTATIONS = [
     from: "  return hash(`${CANON_VERSION}|${canonicalize({ type, type_version: typeVersion, declared })}`);",
     to: "  return hash(`${CANON_VERSION}|${canonicalize({ declared })}`);" },
 
+  // R49: az M15 ÚJRA-HORGONYOZVA. A parancs-oldali véglegesítési kapu (D-VS-3008) óta a védelem
+  // KÉTRÉTEGŰ: a feloldás utáni ellenőrzés MELLETT a tranzakción belül is fut egy. Az egyrétegű
+  // rontás ezért TÚLÉLTE — nem azért, mert a hiba nincs meg, hanem mert egyetlen szerkesztés nem
+  // tudja kinyitni. Ez jó hír a kódnak és ROSSZ hír a mutációnak: egy próba, ami nem tud pirosra
+  // váltani, nem bizonyít semmit (KUKA-041). Ezért a mutáció MINDKÉT réteget elveszi — ez a valódi
+  // visszacsúszás-osztály: „a jogot a feloldás után egyáltalán nem kérdezzük meg újra".
   { id: 'M15', rule: 'K07', catcher: 'P-CMD-finalize', expect: 'probe_fail',
-    what: 'Q04 — a feloldás UTÁNI jog-ellenőrzés elmarad: a közben elvesztett jog mellett is véglegesül',
+    what: 'Q04 — a feloldás UTÁNI jog-ellenőrzés MINDKÉT rétege elmarad: az elvesztett jog mellett is véglegesül',
     file: 'command.mjs',
-    from: "  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {\n    // A feloldás alatt elveszett a jog ⇒ a parancs NEM lesz kész. Semmit nem írunk.\n    return refused;\n  }",
-    to: "  if (false) {\n    return refused;\n  }" },
+    edits: [
+      { from: "  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {\n    // A feloldás alatt elveszett a jog ⇒ a parancs NEM lesz kész. Semmit nem írunk.\n    return refused;\n  }",
+        to: "  if (false) {\n    return refused;\n  }" },
+      { from: "    if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {\n      return refused;\n    }\n    store.run(",
+        to: "    store.run(" },
+    ] },
 
   // R47: az M16 ÚJRA-HORGONYOZVA. A régi alakja azt rontotta el, hogy a BEFOGADÁS leltározzon —
   // csakhogy a befogadás ma már SZÁNDÉKOSAN nem leltároz (nem közöl új tényt), ezért a mutáció
@@ -164,8 +174,8 @@ const MUTATIONS = [
   { id: 'M16', rule: 'K05', catcher: 'P-CMD-disclosure', expect: 'probe_fail',
     what: 'Q15 — a BEFOGADÁS válasza megint KISZOLGÁLJA a feloldott tartalmat, leltár nélkül',
     file: 'command.mjs',
-    from: "    return Object.freeze({ ok: true, effect_id: effectId, state: 'finalized', replayed: false });",
-    to: "    return Object.freeze({ ok: true, effect_id: effectId, state: 'finalized', replayed: false, resolved: JSON.parse(resolvedJson) });" },
+    from: "    return commandReceipt({ effectId, state: 'finalized', replayed: false });",
+    to: "    return Object.freeze({ ...commandReceipt({ effectId, state: 'finalized', replayed: false }), resolved: JSON.parse(resolvedJson) });" },
 
   // A PÁRJA: az ISMÉTLÉS ága EGY MÁR LÉTEZŐ parancs állapotát közli — az a hívónak ÚJ tény, tehát
   // leltározni KELL. Ha ez elmarad, a kulcs próbálgatásával nyom nélkül derül ki, mi létezik.
@@ -250,6 +260,70 @@ const MUTATIONS = [
     file: 'authz.mjs',
     from: "  const eff = membershipEffectiveAt(m, clock.now());\n  if (!eff.effective) {",
     to: "  const eff = membershipEffectiveAt(m, clock.now());\n  if (!eff.effective && !needsExternalEvidence(profile)) {" },
+
+  // ═══ A HAT ÚJ ŐR MUTÁCIÓI (R49 · D-VS-3008) ═══════════════════════════════════════════════════
+  //
+  // Egy próba, ami sosem pirosodik, DÍSZ (KUKA-041). Mindegyik új őrhöz tartozik egy mutáció, ami
+  // a VALÓDI visszacsúszást játssza el — nem elméleti rontást.
+
+  // A LEGVESZÉLYESEBB ALAK: a kapu MEGVAN, csak a ROSSZ OLDALON — az őr a tranzakció ELŐTTI,
+  // ELAVULT sort nézi. Saját kézzel mérve: enélkül a battéria végig zöld maradt, miközben a KÜLSŐ
+  // próba 30/30 → 28/30 esett.
+  { id: 'M31', rule: 'K03/K09', catcher: 'P-INVITE-finalize-gate', expect: 'probe_fail',
+    what: 'a meghívó véglegesítési kapuja az ELAVULT sort nézi (a kapu megvan, rossz oldalon)',
+    file: 'invite.mjs',
+    from: "    const fresh = store.get('SELECT * FROM invite WHERE token = ?', token);",
+    to: "    const fresh = inv;" },
+
+  { id: 'M32', rule: 'K04/K07', catcher: 'P-CMD-finalize-gate', expect: 'probe_fail',
+    what: 'a PARANCS-oldali véglegesítési kapu eltűnik: a tx-határon visszavont jog mellett is könyvel',
+    file: 'command.mjs',
+    from: "    if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {\n      return refused;\n    }\n    store.run(",
+    to: "    store.run(" },
+
+  { id: 'M33', rule: 'K04', catcher: 'P-AUTHZ-roles', expect: 'probe_fail',
+    what: 'C05 — az ISMERETLEN szerep megint jogot kap: a zárt regiszter kiiktatva',
+    file: 'authz.mjs',
+    from: "  const grant = roleGrants(m.role, opClass);",
+    to: "  const grant = true;" },
+
+  { id: 'M34', rule: 'K07', catcher: 'P-CANON-shape', expect: 'probe_fail',
+    what: 'C08 — az idegen `toJSON` adapter megint lefut, tehát elrejtheti a deklarált tartalmat',
+    file: 'command.mjs',
+    from: "    throw new CanonError('adapter_not_allowed', path);",
+    to: "    return canonicalize(v.toJSON(), path);" },
+
+  { id: 'M35', rule: 'K12', catcher: 'P-TIME-calendar', expect: 'probe_fail',
+    what: 'C09 — a naptári visszaolvasás kiesik: a február 30. megint érvényes időponttá normalizálódik',
+    file: 'store.mjs',
+    from: "    return { ok: false, reason: 'instant_not_a_calendar_day' };",
+    to: "    return { ok: true, ms };" },
+
+  { id: 'M36', rule: 'K03', catcher: 'P-IDENTITY-address', expect: 'probe_fail',
+    what: 'C07 — a KÖTÉSEK számát mérjük az ALANYOK helyett: két bizonyíték egy emberre „több élő alany"',
+    file: 'invite.mjs',
+    from: "    live: Object.freeze([...new Set(live)]),",
+    to: "    live: Object.freeze(live)," },
+
+  // R50 — A NYUGTA-SZERZŐDÉS KÉT VISSZACSÚSZÁSA. Ez a kör azért van, mert a külső fél megcáfolta
+  // az R47-es indokunkat („a befogadás nem közöl új tényt"), és a javítás CSAK akkor ér valamit,
+  // ha a hiánya PIROSRA vált — különben ugyanaz a helyzet, mint a véglegesítési kapunál: a
+  // legfontosabb rész őrizetlen, és a nem mért rész ZÖLDNEK látszik (KUKA-051).
+  { id: 'M37', rule: 'K05', catcher: 'P-CMD-receipt', expect: 'probe_fail',
+    what: 'R50 — a VÉGLEGESÍTÉS megint nyomtalan: a nyugta-sor elmarad, a válasz mégis „kész"-t mond',
+    file: 'command.mjs',
+    from: "    recordCommandEvent({ store, event: 'command_finalized', scope, effectId, state: 'finalized', clock });\n    return commandReceipt(",
+    to: "    return commandReceipt(" },
+
+  // A MÁSODIK a veszélyesebb: a nyugta MEGVAN, csak nem a hatással EGY tranzakcióban. A `store.tx`
+  // a visszautasító ágon is COMMITÁL (nem dob), tehát a tx ELÉ tett írás akkor is megmarad, ha a
+  // parancs sosem született meg — nyugta egy meg nem történt hatásról. Ugyanaz az alak, mint az
+  // M31 a meghívó-oldalon: a védelem megvan, csak ROSSZ OLDALON.
+  { id: 'M38', rule: 'K05', catcher: 'P-CMD-receipt', expect: 'probe_fail',
+    what: 'R50 — a nyugta KILÉP a hatás tranzakciójából: elutasított parancsról is marad nyugta-sor',
+    file: 'command.mjs',
+    from: "  const effectId = effectIdFor(scope);\n  return store.tx(() => {",
+    to: "  const effectId = effectIdFor(scope);\n  recordCommandEvent({ store, event: 'command_finalized', scope, effectId, state: 'finalized', clock });\n  return store.tx(() => {" },
 ];
 
 // ═══ A MÁSODIK KÖR: ÖT TOVÁBBI HAZUGSÁG-ALAK (R45 H02–H06) ══════════════════════════════════════
@@ -348,6 +422,37 @@ export function classifyRun(spawnResult) {
 function runIn(dir) {
   return spawnSync(process.execPath, [join(dir, 'v3ref', 'run.mjs'), '--json'],
     { encoding: 'utf8', timeout: RUN_TIMEOUT_MS });
+}
+
+// ── EGY MUTÁCIÓ = EGY VAGY TÖBB SZERKESZTÉS ──────────────────────────────────────────────────────
+//
+// A rövid alak (`from`/`to`) EGY szerkesztés — a 35-ből 34 ilyen. A hosszú alak (`edits: [{from,to}]`)
+// akkor kell, amikor a védelem TÖBBRÉTEGŰ, és egyetlen réteg elvétele még nem viszi pirosra a
+// próbát: ilyenkor az egy-szerkesztéses mutáció TÚLÉL, és egy próba, ami nem tud pirosra váltani,
+// nem bizonyít semmit (KUKA-041). A két alak EGY otthonon megy át (KUKA-003): a normalizálót
+// MINDKÉT futtató hívja, tehát a párhuzamos és a soros ág nem tud elcsúszni (KUKA-039).
+//
+// MINDEN szerkesztés horgonyát KÜLÖN mérjük, és a hiányzó horgony a TELJES mutációt elavulttá
+// teszi. A néma fél-mutáció ugyanaz a hazugság, mint a néma fél-őr: úgy nézne ki, mint egy
+// elvégzett rontás, közben a védelem egy része érintetlenül állna (KUKA-039 · KUKA-012).
+function editsOf(m) {
+  return Array.isArray(m.edits) ? m.edits : [{ from: m.from, to: m.to }];
+}
+
+/** @returns {{ok:true, src:string}|{ok:false, at:number, count:number}} */
+function applyEdits(src, edits) {
+  let out = src;
+  for (let i = 0; i < edits.length; i++) {
+    if (!out.includes(edits[i].from)) return { ok: false, at: i + 1, count: edits.length };
+    out = out.replace(edits[i].from, edits[i].to);
+  }
+  return { ok: true, src: out };
+}
+
+function staleAnchorWhy(bad) {
+  return bad.count > 1
+    ? `a mutáció ${bad.at}./${bad.count} horgonya NEM TALÁLHATÓ a forrásban — a mutáció elavult`
+    : 'a mutáció horgonya NEM TALÁLHATÓ a forrásban — a mutáció elavult';
 }
 
 function withCopy(fn) {
@@ -503,7 +608,15 @@ function verdictFor(m, c) {
   return { verdict: 'CAUGHT', why: `a nevezett ${m.catcher} a nevezett állításán bukott (${want})` };
 }
 
-const POOL = Math.max(1, Math.min(8, availableParallelism()));
+// A PÁRHUZAMOSSÁG TÚLFOGLAL, ÉS EZ SZÁNDÉKOS. Egy mutáció-futás nem telíti a magot: az idejének
+// nagyobb része folyamat-indítás és modul-betöltés (I/O), nem számolás. A mag-számhoz kötött plafon
+// ezért ROSSZ plafon volt — 37 mutációnál 12,0 mp-et adott a külső fél 15 000 ms-os korlátja
+// mellett, kétszeres túlfoglalással viszont 9,9 mp-et, VÁLTOZATLAN eredménnyel (37/37 elkapva).
+// A 12-es felső korlát azért van, hogy egy nagy gépen se induljon korlátlan gyerek-folyamat.
+//
+// KIMONDOTT KORLÁT: a falióra a MI gépünkön mért szám (4 mag). Lassabb gépen a korlát közelebb
+// kerülhet — ezért a futás KIÍRJA a mért időt és a korlátot, hogy a különbség ne néma legyen.
+const POOL = Math.max(1, Math.min(12, availableParallelism() * 2));
 function runInAsync(dir) {
   return new Promise((res) => {
     const c = spawn(process.execPath, [join(dir, 'v3ref', 'run.mjs'), '--json'], { encoding: 'utf8' });
@@ -529,11 +642,9 @@ async function runMutationAsync(m, knownProbes) {
   try {
     cpSync(REF, join(dir, 'v3ref'), { recursive: true });
     const target = join(dir, 'v3ref', m.file);
-    const src = readFileSync(target, 'utf8');
-    if (!src.includes(m.from)) {
-      return { ...m, verdict: 'STALE_ANCHOR', why: 'a mutáció horgonya NEM TALÁLHATÓ a forrásban — a mutáció elavult' };
-    }
-    writeFileSync(target, src.replace(m.from, m.to));
+    const applied = applyEdits(readFileSync(target, 'utf8'), editsOf(m));
+    if (!applied.ok) return { ...m, verdict: 'STALE_ANCHOR', why: staleAnchorWhy(applied) };
+    writeFileSync(target, applied.src);
     return { ...m, ...verdictFor(m, classifyRun(await runInAsync(dir))) };
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }
@@ -544,11 +655,9 @@ function runMutation(m, knownProbes) {
   }
   return withCopy((dir) => {
     const target = join(dir, 'v3ref', m.file);
-    const src = readFileSync(target, 'utf8');
-    if (!src.includes(m.from)) {
-      return { ...m, verdict: 'STALE_ANCHOR', why: 'a mutáció horgonya NEM TALÁLHATÓ a forrásban — a mutáció elavult' };
-    }
-    writeFileSync(target, src.replace(m.from, m.to));
+    const applied = applyEdits(readFileSync(target, 'utf8'), editsOf(m));
+    if (!applied.ok) return { ...m, verdict: 'STALE_ANCHOR', why: staleAnchorWhy(applied) };
+    writeFileSync(target, applied.src);
     return { ...m, ...verdictFor(m, classifyRun(runIn(dir))) };
   });
 }
