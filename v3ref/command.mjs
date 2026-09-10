@@ -158,8 +158,19 @@ export function effectIdFor(scope) {
 // és a tartalmat adta, azt viszont nem ő adta, hogy a parancs KÉSZ LETT.
 //
 // A helyes megkülönböztetés nem „új tény / nem új tény", hanem hogy MELYIK KÉRDÉSRE FELEL A SOR:
-//   · KIADÁS (`disclosure`): ki látott olyan tartalmat, ami a kéréstől FÜGGETLENÜL is állt;
+//   · KIADÁS (`disclosure`): MILYEN VÉDETT TARTALMAT engedett/szolgált ki a rendszer, KINEK,
+//     MILYEN ALAPON;
 //   · NYUGTA (`command_event`): mit KÖTELEZETT EL a szerver ebben a kérésben.
+//
+// KÉT PONTOSÍTÁS, AMIT A KÜLSŐ FÉL KÉRT (R51/J4), MERT AZ R50-ES MEGFOGALMAZÁSUNK TÉVEDETT:
+//   (a) a kiadási leltár NEM „KI LÁTOTT" BIZONYOSSÁG. Azt rögzíti, mit ENGEDETT KI a szerver —
+//       az emberi elolvasást semmilyen szerver-oldali sor nem bizonyítja. A későbbi hálózati
+//       átadás külön állapot lehet, de azt ma nem modellezzük (nevesített hiány).
+//   (b) a leltár NEM CSAK a kérés előtt is álló adatra vonatkozik. Egy FRISSEN SZÁMOLT, idegen
+//       árakat felhasználó összesítés ugyanúgy védett adatkiadás. A saját, minimális véglegesítési
+//       nyugta külön kezelése NEM általános felmentés minden újonnan előálló tartalomra — ha ezt
+//       nem mondjuk ki, a következő számolt nézet kicsúszik a leltár alól (KUKA-048: a kivétel
+//       hatókörét a MÉRCE dönti el, nem a kényelem).
 // Két kérdés, két otthon (KUKA-002) — de EGYIK sem maradhat üresen. Az R47-es alak a kiadás-sort
 // helyesen nem írta, a helyére viszont SEMMIT nem tett, és ettől a véglegesítés nyomtalan lett.
 // A szót azért is elvesszük, nem csak a hívást, mert a halott rovatra állított őr hamis
@@ -190,24 +201,94 @@ export function commandReceipt({ effectId, state, replayed }) {
  * visszagördülő tranzakcióval, a siker nyugtája viszont KÖTELEZŐEN azzal utazik).
  */
 export function recordCommandEvent({ store, event, scope, effectId, state, clock }) {
-  if (!RECEIPT_EVENT.includes(event)) throw new Error(`recordCommandEvent: ismeretlen nyugta-fajta: ${event}`);
-  store.run(
+  const fail = (code, msg) => { const e = new Error(`recordCommandEvent: ${msg}`); e.code = code; throw e; };
+
+  // (1) A ZÁRT NÉVLISTA CSAK AZ EGYIK FELTÉTEL (R51/J3). Az R50-ben ezt önmagában elégnek
+  // jelentettük — a külső fél megmutatta, hogy MEGENGEDETT névvel is lehet hamis nyugtát írni.
+  if (!RECEIPT_EVENT.includes(event)) fail('RECEIPT_UNKNOWN_EVENT', `ismeretlen nyugta-fajta: ${event}`);
+
+  // (2) A NYUGTÁZÓ FELÜLET CSAK A VÉGLEGESÍTÉS TRANZAKCIÓJÁBÓL HASZNÁLHATÓ (N03). Tranzakción
+  // kívül hívva a sor a hatás sorsától FÜGGETLENÜL maradna meg — épp az ellenkezője annak, amit a
+  // nyugta jelent (a KUKA-026 ellenpárja: a siker nyugtája a hatással utazik).
+  if (!store.db?.isTransaction) fail('RECEIPT_OUTSIDE_TX', 'a nyugta csak a véglegesítés tranzakciójából írható');
+
+  // (3) A NYUGTA A PARANCS TÉNYÉHEZ KÖTŐDIK, NEM A HÍVÓ SZAVÁHOZ (N03 · N05). Az árva sort az
+  // idegen kulcs is megfogná, de a HAMIS TARTALMÚ sort (más hatásazonosító, lehetetlen állapot)
+  // nem — azt itt kell mérni, a parancs SAJÁT sorához (KUKA-035: amit egy okirat kimond, azt ne
+  // vezesd le — olvasd ki).
+  const cmd = store.get('SELECT effect_id, state FROM command WHERE book_id = ? AND actor = ? AND idem_key = ?',
+    scope.bookId, scope.actor, scope.idemKey);
+  if (!cmd) fail('RECEIPT_NO_COMMAND', 'nincs ilyen parancs — árva nyugta nem születhet');
+  if (cmd.effect_id !== effectId) fail('RECEIPT_EFFECT_MISMATCH', 'a nyugta hatásazonosítója eltér a parancsétól');
+  if (cmd.state !== state) fail('RECEIPT_STATE_MISMATCH', `a nyugta állapota (${state}) eltér a parancsétól (${cmd.state})`);
+
+  const res = store.run(
     'INSERT INTO command_event (book_id, actor, idem_key, event, state, effect_id, at) VALUES (?,?,?,?,?,?,?)',
     scope.bookId, scope.actor, scope.idemKey, event, state, effectId, clock.now());
+
+  // (4) A SZÜKSÉGES ÍRÁS TÉNYLEG EGY SORT HOZZON LÉTRE (N02). A régi alak a visszatérési értéket
+  // nem nézte: nulla soros beszúrás mellett a parancs véglegesült, a válasz sikert mondott, és
+  // nyugta SEHOL nem keletkezett. Ugyanaz a szabály, mint a kiadási leltárnál (`disclose`).
+  if (res?.changes !== 1) fail('RECEIPT_NOT_WRITTEN', 'a nyugta sora NEM jött létre — a véglegesítés nem nyugtázható');
 }
 
-/** A kiadott mezőUTAK — az ÉRTÉK szándékosan nem kerül a leltárba (az lenne a második otthon). */
-export function releasedFieldPaths(body, prefix = '') {
-  if (body === null || typeof body !== 'object' || Array.isArray(body)) return prefix ? [prefix] : [];
-  return Object.keys(body).sort().flatMap((k) => (prefix === '' && ENVELOPE.includes(k)
+/**
+ * A kiadott mezőUTAK — az ÉRTÉK szándékosan nem kerül a leltárba (az lenne a második otthon).
+ *
+ * TÍPUSOS, ÜTKÖZÉSMENTES SZEGMENS-SOR (R51/J4). A régi alak pontokkal fűzött össze, és ettől az
+ * `{"a.b": 1}` meg az `{"a": {"b": 1}}` UGYANAZT az utat adta. Ezt nyitott adósságként közöltük,
+ * „ma nem okoz kárt, mert a leltár nem kulcs" indokkal — a külső fél megcáfolta: a kár MAGÁBAN A
+ * LELTÁRBAN van. Egy incidensnél épp azt kellene megmondani, MELYIK adat jutott ki; ha két
+ * különböző mező azonos útra képződik, az érintetti és mezőköri rekonstrukció HIBÁS lesz. Egy
+ * leltár, ami nem tudja megkülönböztetni, mit adott ki, nem leltár (KUKA-002: két tény egy
+ * ábrázoláson).
+ *
+ * Az alak: szegmensenként `k:<kulcs>` (objektum-kulcs) vagy `i:<index>` (tömb-index), `/` jellel
+ * összefűzve; a kulcsban lévő `~` és `/` JSON-Pointer módjára védve (`~0`, `~1`). Így az objektum-
+ * kulcs és a tömb-index sem mosódik össze, és a tömb ELEMEI is megjelennek — a régi alak a tömböt
+ * EGY levélnek vette, tehát a benne kiadott mezőket el sem sorolta.
+ */
+const escSeg = (s) => String(s).replace(/~/g, '~0').replace(/\//g, '~1');
+
+export function releasedFieldPaths(body, prefix = []) {
+  if (Array.isArray(body)) return body.flatMap((v, i) => releasedFieldPaths(v, [...prefix, `i:${i}`]));
+  if (body === null || typeof body !== 'object') return prefix.length ? [prefix.join('/')] : [];
+  return Object.keys(body).sort().flatMap((k) => (prefix.length === 0 && ENVELOPE.includes(k)
     ? []
-    : releasedFieldPaths(body[k], prefix ? `${prefix}.${k}` : k)));
+    : releasedFieldPaths(body[k], [...prefix, `k:${escSeg(k)}`])));
+}
+
+/**
+ * A KIADÁS ENGEDÉLYEZÉSI PONTJA (R51/J1) — a tranzakción BELÜL, minden kiadó ág számára EGY helyen.
+ *
+ * Az R50-ben azt írtuk, hogy az olvasás és az ismétlés a tranzakció határán MÁR ZÁRVA van. Ez
+ * TÉVES volt, és a külső fél N08/N09 esete cáfolta meg. A saját próbánk azért adott zöldet, mert
+ * a megvonást a HÍVÁS ELŐTT végezte — azt a KÜLSŐ, tranzakción kívüli ellenőrzés elkapja —, nem a
+ * `store.tx` BELÉPÉSÉNÉL. Gyengébb esetet mértünk, és az erősebb állítást írtuk le (KUKA-094).
+ *
+ * Ezért a szabály innentől NEM ágakra szabott: minden KIADÁS a saját írás-tranzakcióján BELÜL
+ * kérdezi meg a mai jogot, ugyanezzel a feloldóval (KUKA-039). A hívó a saját `refused` alakját
+ * adja vissza — a nemleges válasz nem árulhatja el, hogy a parancs létezik-e (KUKA-084).
+ */
+export function releaseAllowed({ store, subjectId, bookId, clock, externalEvidence }) {
+  return rightAt({ store, subjectId, bookId, opClass: 'own_book', clock, externalEvidence }).allowed;
 }
 
 export function disclose({ store, kind, scope, ref, recipient, body, clock }) {
   if (!DISCLOSURE_VIEW.includes(kind)) throw new Error(`disclose: ismeretlen kiadás-fajta: ${kind}`);
-  store.run('INSERT INTO disclosure (recipient, view, scope, ref, fields, at) VALUES (?,?,?,?,?,?)',
+  const res = store.run(
+    'INSERT INTO disclosure (recipient, view, scope, ref, fields, at) VALUES (?,?,?,?,?,?)',
     recipient, kind, scope, ref, JSON.stringify(releasedFieldPaths(body)), clock.now());
+  // A SIKERES AUDIT-ÍRÁS A KIADÁS FELTÉTELE (R51/J4 · N12). A régi alak a visszatérési értéket nem
+  // nézte: nulla soros beszúrás mellett a védett tartalom KIMENT, a leltár pedig üres maradt —
+  // pontosan az a néma hazugság, ami ellen a leltár épült (KUKA-012). A hiányzó sor PROGRAMHIBA,
+  // nem valódi „nem", ezért DOB és nem `refused`-ot ad (KUKA-020): a tranzakció visszagördül, és
+  // a tartalom SOSEM hagyja el a rendszert. Ugyanez a szabály áll a nyugtára (`recordCommandEvent`).
+  if (res?.changes !== 1) {
+    const err = new Error('disclose: a kiadási leltár sora NEM jött létre — a védett tartalom nem adható ki');
+    err.code = 'DISCLOSURE_NOT_LEDGERED';
+    throw err;
+  }
   return body;
 }
 
@@ -246,11 +327,16 @@ export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion
       return Object.freeze({ ok: false, error: 'idempotency_conflict', message: 'ugyanaz a kulcs más művelettel vagy tartalommal érkezett' });
     }
     // AZ ISMÉTLÉS IS KIADÁS (Q15): a hatásazonosító és az állapot védett tény. Az ismétlés NEM
-    // ír semmit, tehát NYUGTA-sort nem szül — de a borítékot ugyanaz a feloldó adja (KUKA-039).
-    return store.tx(() => Object.freeze(disclose({
-      store, kind: 'command_replay', scope: scope.bookId, ref: commandRef(scope), recipient: actor, clock,
-      body: commandReceipt({ effectId: prior.effect_id, state: prior.state, replayed: true }),
-    })));
+    // ír hatást, tehát NYUGTA-sort nem szül — de a borítékot ugyanaz a feloldó adja (KUKA-039).
+    return store.tx(() => {
+      // R51/J1 (N09): a jogot a KIADÁS tranzakcióján BELÜL kérdezzük meg. A fenti, tranzakción
+      // kívüli ellenőrzés csak azt zárja, ami a hívás ELŐTT történt.
+      if (!releaseAllowed({ store, subjectId: actor, bookId, clock, externalEvidence })) return refused;
+      return Object.freeze(disclose({
+        store, kind: 'command_replay', scope: scope.bookId, ref: commandRef(scope), recipient: actor, clock,
+        body: commandReceipt({ effectId: prior.effect_id, state: prior.state, replayed: true }),
+      }));
+    });
   }
 
   // ── A FELOLDÁS, majd a VÉGLEGESÍTÉSI KAPU (Q04) ───────────────────────────────────────────────
@@ -355,14 +441,21 @@ export function readCommandResult({ store, idemKey, requester, bookId, actor, cl
   // A HATÁS változatlan; a VETÜLET most készül, mai jogon. A HATÓKÖR A KIADOTT REKORDBÓL jön,
   // nem a kérésből — különben a leltár a ROSSZ könyvre könyvelne (KUKA-002).
   const resolved = JSON.parse(cmd.resolved_json);
-  return store.tx(() => Object.freeze(disclose({
-    store, kind: 'command_result', scope: cmd.book_id, ref: commandRef(cmd), recipient: requester, clock,
-    body: {
-      ok: true,
-      error: null,
-      message: 'az eredmény kiadva',
-      effect_id: cmd.effect_id,
-      result: Object.freeze({ ...resolved }),
-    },
-  })));
+  return store.tx(() => {
+    // R51/J1 (N08): a KIADÁS engedélyezési pontja a tranzakción BELÜL van. A fenti ellenőrzés a
+    // jelölt-szűréshez kell; a kiadás pillanatában érvényes jogot ez a hívás méri.
+    if (!releaseAllowed({ store, subjectId: requester, bookId: cmd.book_id, clock, externalEvidence })) {
+      return refused;
+    }
+    return Object.freeze(disclose({
+      store, kind: 'command_result', scope: cmd.book_id, ref: commandRef(cmd), recipient: requester, clock,
+      body: {
+        ok: true,
+        error: null,
+        message: 'az eredmény kiadva',
+        effect_id: cmd.effect_id,
+        result: Object.freeze({ ...resolved }),
+      },
+    }));
+  });
 }

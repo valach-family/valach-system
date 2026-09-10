@@ -37,7 +37,8 @@
 //
 // A (b) az egyetlen dolog, ami miatt a többi számnak van értéke. Ezért fut mindig, nem kapcsolóra.
 
-import { cpSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { cpSync, readFileSync, writeFileSync, mkdtempSync, rmSync, readdirSync } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -80,11 +81,18 @@ const MUTATIONS = [
     from: "  return row ? row.invite_token : null;",
     to: "  return null;" },
 
+  // R51: az M4 ÚJRA-HORGONYOZVA. A J1 javítás óta a kiadás védelme KÉTRÉTEGŰ: a tranzakción kívüli
+  // szűrés MELLETT a `store.tx`-en BELÜL is fut egy jog-ellenőrzés. Az egyrétegű rontás ezért
+  // TÚLÉLTE — jó hír a kódnak, rossz hír a mutációnak (KUKA-041). Mindkét réteget elveszi.
   { id: 'M4', rule: 'K07', catcher: 'P-A08', expect: 'probe_fail',
-    what: 'az eredmény kiadása kihagyja a MAI jog ellenőrzését (a mi hibás C08-as javaslatunk)',
+    what: 'az eredmény kiadása MINDKÉT rétegen kihagyja a MAI jog ellenőrzését (a mi hibás C08-as javaslatunk)',
     file: 'command.mjs',
-    from: "  if (!rightAt({ store, subjectId: requester, bookId: cmd.book_id, opClass: 'own_book', clock, externalEvidence }).allowed) {\n    return refused;\n  }",
-    to: "  if (false) {\n    return refused;\n  }" },
+    edits: [
+      { from: "  if (!rightAt({ store, subjectId: requester, bookId: cmd.book_id, opClass: 'own_book', clock, externalEvidence }).allowed) {\n    return refused;\n  }",
+        to: "  if (false) {\n    return refused;\n  }" },
+      { from: "    if (!releaseAllowed({ store, subjectId: requester, bookId: cmd.book_id, clock, externalEvidence })) {\n      return refused;\n    }",
+        to: "    if (false) {\n      return refused;\n    }" },
+    ] },
 
   { id: 'M5', rule: 'K07', catcher: 'P-A08', expect: 'runtime_error',
     error_code: 'ERR_SQLITE_ERROR', phase: 'probe_body',
@@ -182,8 +190,8 @@ const MUTATIONS = [
   { id: 'M27', rule: 'K05', catcher: 'P-CMD-disclosure', expect: 'probe_fail',
     what: 'az ISMÉTLÉS ága nyom nélkül közli egy MÁR LÉTEZŐ parancs állapotát',
     file: 'command.mjs',
-    from: "    return store.tx(() => Object.freeze(disclose({\n      store, kind: 'command_replay',",
-    to: "    if (true) return Object.freeze({ ok: true, effect_id: prior.effect_id, state: prior.state, replayed: true });\n    return store.tx(() => Object.freeze(disclose({\n      store, kind: 'command_replay'," },
+    from: "    return store.tx(() => {\n      // R51/J1 (N09):",
+    to: "    if (true) return commandReceipt({ effectId: prior.effect_id, state: prior.state, replayed: true });\n    return store.tx(() => {\n      // R51/J1 (N09):" },
 
   { id: 'M17', rule: 'K04', catcher: 'P-AUTHZ-opclass', expect: 'probe_fail',
     what: 'Q07 — visszatér a sima objektum-indexelés: az ÖRÖKÖLT kulcs profilt talál',
@@ -230,8 +238,10 @@ const MUTATIONS = [
   { id: 'M24', rule: 'K09', catcher: 'P-INVITE-authority', expect: 'probe_fail',
     what: 'Q13 — a VISSZAVONT tagság némán elnyelődik: a meghívó elfogy, hozzáférés nélkül',
     file: 'invite.mjs',
-    from: "  if (!outcome.grants_access) {",
-    to: "  if (false) {" },
+    edits: [
+      { from: "  if (!outcome.grants_access) {", to: "  if (false) {" },
+      { from: "    if (!outcome2.grants_access) {", to: "    if (false) {" },
+    ] },
 
   { id: 'M25', rule: 'K03', catcher: 'P-INVITE-effect', expect: 'probe_fail',
     what: 'Q12 — az írások NEM atomiak: a megszakadt beváltás félkész jogadást hagy',
@@ -319,11 +329,63 @@ const MUTATIONS = [
   // a visszautasító ágon is COMMITÁL (nem dob), tehát a tx ELÉ tett írás akkor is megmarad, ha a
   // parancs sosem született meg — nyugta egy meg nem történt hatásról. Ugyanaz az alak, mint az
   // M31 a meghívó-oldalon: a védelem megvan, csak ROSSZ OLDALON.
-  { id: 'M38', rule: 'K05', catcher: 'P-CMD-receipt', expect: 'probe_fail',
-    what: 'R50 — a nyugta KILÉP a hatás tranzakciójából: elutasított parancsról is marad nyugta-sor',
+  // R51: az M38 SZERZŐDÉSE MÉRÉSBŐL VÁLTOZOTT, ÉS EZT KI KELL MONDANI (KUKA-033). A J3 javítás óta
+  // a nyugtázó felület MAGA utasítja el a tranzakción kívüli hívást (`RECEIPT_OUTSIDE_TX`), tehát
+  // a „nyugta a hatás tranzakcióján kívül" alak egyetlen szerkesztéssel többé NEM idézhető elő
+  // némán: NEVEZETT kivétellel áll meg. A bizonyíték ereje ezért korlátozott — azt mutatja, hogy a
+  // VÉDELEM TÜZEL, nem azt, hogy egy néma árva nyugtát észlelnénk (ugyanaz az alak, mint az M2).
+  { id: 'M38', rule: 'K05', catcher: 'P-CMD-receipt', expect: 'runtime_error',
+    error_code: 'RECEIPT_OUTSIDE_TX', phase: 'probe_body',
+    error_match: 'véglegesítés tranzakciójából',
+    what: 'R50 — a nyugta KILÉP a hatás tranzakciójából: elutasított parancsról is maradna nyugta-sor',
+    evidence_limit: 'a J3 óta a nyugtázó felület a tranzakción kívüli hívást NEVEZETT hibakóddal '
+      + 'állítja meg, ezért ez a VÉDELEM TÜZELÉSÉNEK bizonyítéka, nem néma árva soré',
     file: 'command.mjs',
     from: "  const effectId = effectIdFor(scope);\n  return store.tx(() => {",
     to: "  const effectId = effectIdFor(scope);\n  recordCommandEvent({ store, event: 'command_finalized', scope, effectId, state: 'finalized', clock });\n  return store.tx(() => {" },
+
+  // R51 — AZ ÚJ ŐRÖK VISSZACSÚSZÁSAI (J1–J4). Minden javítás mellé elrontás-próba, ugyanabban a
+  // körben: a javítás akkor kész, ha a HIÁNYA bizonyítottan pirosra vált (KUKA-092).
+  { id: 'M39', rule: 'K03', catcher: 'P-INVITE-terms', expect: 'probe_fail',
+    what: 'R51/J2 — a meghívó feltételei megint változtathatók: a döntés és az írás két példányból dolgozik',
+    file: 'invite.mjs',
+    from: "    if (inviteTerms(fresh) !== inviteTerms(inv)) {",
+    to: "    if (false) {" },
+
+  { id: 'M40', rule: 'K03', catcher: 'P-INVITE-terms', expect: 'probe_fail',
+    what: 'R51/J2 — a tagság-írás megint az ELAVULT sor szerepét használja (N10 gyökere)',
+    file: 'invite.mjs',
+    edits: [
+      { from: "    if (inviteTerms(fresh) !== inviteTerms(inv)) {", to: "    if (false) {" },
+      { from: "        subjectId, fresh.book_id, fresh.offered_role, clock.now());",
+        to: "        subjectId, inv.book_id, inv.offered_role, clock.now());" },
+    ] },
+
+  { id: 'M41', rule: 'K05', catcher: 'P-CMD-receipt-integrity', expect: 'probe_fail',
+    what: 'R51/J3 — a nyugta megint írható a véglegesítés tranzakcióján KÍVÜLRŐL',
+    file: 'command.mjs',
+    from: "  if (!store.db?.isTransaction) fail('RECEIPT_OUTSIDE_TX'",
+    to: "  if (false) fail('RECEIPT_OUTSIDE_TX'" },
+
+  { id: 'M42', rule: 'K05', catcher: 'P-CMD-receipt-integrity', expect: 'probe_fail',
+    what: 'R51/J3 — a nyugta tartalmát senki nem méri a PARANCS sorához: idegen hatás és lehetetlen állapot is átmegy',
+    file: 'command.mjs',
+    edits: [
+      { from: "  if (cmd.effect_id !== effectId) fail('RECEIPT_EFFECT_MISMATCH'", to: "  if (false) fail('RECEIPT_EFFECT_MISMATCH'" },
+      { from: "  if (cmd.state !== state) fail('RECEIPT_STATE_MISMATCH'", to: "  if (false) fail('RECEIPT_STATE_MISMATCH'" },
+    ] },
+
+  { id: 'M43', rule: 'K05', catcher: 'P-CMD-disclosure', expect: 'probe_fail',
+    what: 'R51/J4 — a NULLA SOROS leltár-írás megint kiengedi a védett tartalmat (N12)',
+    file: 'command.mjs',
+    from: "  if (res?.changes !== 1) {\n    const err = new Error('disclose:",
+    to: "  if (false) {\n    const err = new Error('disclose:" },
+
+  { id: 'M44', rule: 'K05', catcher: 'P-CMD-disclosure', expect: 'probe_fail',
+    what: 'R51/J4 — visszatér a KÉTÉRTELMŰ mezőút: az `a.b` nevű mező és az `a` alatti `b` egy útra képződik',
+    file: 'command.mjs',
+    from: "    : releasedFieldPaths(body[k], [...prefix, `k:${escSeg(k)}`])));",
+    to: "    : releasedFieldPaths(body[k], [...prefix, String(k)])));" },
 ];
 
 // ═══ A MÁSODIK KÖR: ÖT TOVÁBBI HAZUGSÁG-ALAK (R45 H02–H06) ══════════════════════════════════════
@@ -358,7 +420,24 @@ const ALLOWED_EXIT_CODES = Object.freeze([0, 1]);
  *
  * @returns {{kind:'ok'|'harness', why?:string, failed?:string[], threw?:object[], records?:object[]}}
  */
-export function classifyRun(spawnResult) {
+export function classifyRun(spawnResult, expected) {
+  // (0) A CSOMAGOT A SZÜLŐ ÁLTAL ELVÁRT FORRÁSHOZ ÉS FUTÁSHOZ KELL KÖTNI (R51/J5 · M01).
+  //
+  // Az R49-ben megköveteltük, hogy a kimenet HOZZON forrás-lenyomatot — de csak a JELENLÉTÉT
+  // néztük. A külső fél megmutatta: `source_digest: "wrong"`, futásazonosító nélkül, 24 PASS
+  // rekorddal az eredmény `ok` lett. A puszta jelenlét-vizsgálat nem azonosítás (KUKA-038: a
+  // létezés nem bizonyíték arra, hogy AZT mérte).
+  //
+  // Ezért a szülő a VALÓBAN előállított (mutált!) forrás-csomagból számolja az elvárt lenyomatot,
+  // és minden gyermeknek EGYEDI futás-jelet oszt ki. A kettő hiánya nem enyhébb eset: ha a hívó
+  // nem tudja megmondani, mit várt, akkor nincs mihez mérni — MÉRŐHIBA, nem PASS.
+  //
+  // KIMONDOTT KORLÁT: ez KONZISZTENCIA- és ELAVULT-EREDMÉNY elleni védelem. Egy ROSSZINDULATÚ
+  // futtató, ami a szülőtől kapott jelet visszaírja, ezzel nem lelepleződik — arra kriptográfiai
+  // hitelesítés kellene, amit nem ígérünk (a külső fél maga is így fogalmazta meg).
+  if (!expected || !expected.digest || !expected.runToken) {
+    return { kind: 'harness', why: 'a hívó nem adta meg az ELVÁRT forrás-lenyomatot és futás-jelet — a csomag eredete nem ellenőrizhető' };
+  }
   // (1) el sem indult · jel állította le · időtúllépés
   if (spawnResult.error) {
     const to = spawnResult.error.code === 'ETIMEDOUT' ? ' (IDŐTÚLLÉPÉS)' : '';
@@ -393,6 +472,13 @@ export function classifyRun(spawnResult) {
   if (out.manifest_version && out.manifest_version !== MANIFEST_VERSION) {
     return { kind: 'harness', why: `más manifest-verzió: ${out.manifest_version} ≠ ${MANIFEST_VERSION}` };
   }
+  // (4/c) A LENYOMAT ÉS A FUTÁS-JEL EGYEZZEN AZZAL, AMIT A SZÜLŐ ELŐÁLLÍTOTT (R51/J5).
+  if (out.source_digest !== expected.digest) {
+    return { kind: 'harness', why: `a mért forrás-lenyomat NEM az, amit a szülő előállított: ${out.source_digest} ≠ ${expected.digest}` };
+  }
+  if (out.run_token !== expected.runToken) {
+    return { kind: 'harness', why: 'a csomag nem ehhez a futáshoz tartozik (hiányzó vagy eltérő futás-jel) — korábbi futás eredménye nem fogadható el' };
+  }
 
   // (5) EGYETLEN ÁLLÍTÁS SEM FUTOTT LE — H03. A `SKIP`/`NOT_STARTED` nem bukott állítás, és a
   // mai hatpróbás csomaghoz NINCS deklarált korai-megállási profil (R45), tehát a kihagyás mérőhiba.
@@ -419,9 +505,28 @@ export function classifyRun(spawnResult) {
   };
 }
 
-function runIn(dir) {
+// ── A SZÜLŐ ÁLTAL ELŐÁLLÍTOTT FORRÁS AZONOSSÁGA (R51/J5) ────────────────────────────────────────
+//
+// UGYANAZ az algoritmus, amit a gyermek `sourceDigest()`-je futtat — de a szülő a SAJÁT kezével,
+// a MUTÁCIÓ UTÁNI könyvtáron. Így az elvárt érték nem a gyermek szava, hanem a szülő mérése.
+// Ha a két algoritmus elcsúszna, minden futás MÉRŐHIBÁRA menne — vagyis a csúszás nem néma
+// (KUKA-018: ahol egy fogalomnak két ábrázolása van, a különbségnek látszania kell).
+export function digestOfBundle(dir) {
+  const refDir = join(dir, 'v3ref');
+  const files = readdirSync(refDir).filter((f) => f.endsWith('.mjs')).sort();
+  const h = createHash('sha256');
+  for (const f of files) { h.update(f); h.update('\0'); h.update(readFileSync(join(refDir, f))); h.update('\0'); }
+  return `sha256:${h.digest('hex')}`;
+}
+
+/** A szülő elvárása EGY gyermek-futásra: mit állítottunk elő, és melyik futás ez. */
+function expectationFor(dir) {
+  return { digest: digestOfBundle(dir), runToken: `rt_${randomUUID()}` };
+}
+
+function runIn(dir, runToken) {
   return spawnSync(process.execPath, [join(dir, 'v3ref', 'run.mjs'), '--json'],
-    { encoding: 'utf8', timeout: RUN_TIMEOUT_MS });
+    { encoding: 'utf8', timeout: RUN_TIMEOUT_MS, env: { ...process.env, V3REF_RUN_TOKEN: runToken } });
 }
 
 // ── EGY MUTÁCIÓ = EGY VAGY TÖBB SZERKESZTÉS ──────────────────────────────────────────────────────
@@ -466,7 +571,8 @@ function withCopy(fn) {
 // ── (a) ALAPVONAL: a mutálatlan másolat zöld? ────────────────────────────────────────────────────
 function baselineGate() {
   return withCopy((dir) => {
-    const c = classifyRun(runIn(dir));
+    const e = expectationFor(dir);
+    const c = classifyRun(runIn(dir, e.runToken), e);
     if (c.kind === 'harness') return { ok: false, why: `az ALAPVONAL nem futott le: ${c.why}` };
     if (c.failed.length || c.threw.length) {
       return { ok: false, why: `az ALAPVONAL piros: ${[...c.failed, ...c.threw.map((r) => `${r.probe_id}(kivétel)`)].join(', ')}` };
@@ -481,9 +587,32 @@ function baselineGate() {
 // mondja elkapásnak. Ez az egyetlen dolog, amitől a többi számnak értéke van: a mérő minden
 // futáskor elvégzi magán a külső fél támadásait.
 
-/** A támadó futtató forrása: adott JSON-t ír ki, adott kóddal lép ki. */
-const fakeRunner = (jsonExpr, exitCode) =>
-  `const out = { source_digest: 'sha256:hamis', ...${jsonExpr} };\nprocess.stdout.write(JSON.stringify(out));\nprocess.exit(${exitCode});\n`;
+// A TÁMADÓ FUTTATÓ EREDET-HELYES (R51/J5 után). Amíg beégetett hamis lenyomatot adott, az ÚJ
+// eredet-ellenőrzés MINDEN támadást azon állított meg — vagyis a H03 és a H06 többé nem a SAJÁT
+// tengelyét mérte (a H03 „egyetlen próba sem futott" helyett lenyomat-eltérésre lett zöld). Ez a
+// KUKA-049 alakja a saját mérőnkön: a jel a TÜNETET mérte, nem a mechanizmust — és a rossz okból
+// zöld jel ugyanolyan hamis, mint a piros.
+//
+// Ezért a hamis futtató UGYANÚGY kiszámolja a saját csomagja lenyomatát, és visszaadja a szülőtől
+// kapott futás-jelet. Így minden támadás eljut ahhoz a szakaszhoz, amit VIZSGÁLNI akar. Ez egyben
+// KIMONDJA az eredet-ellenőrzés korlátját is: egy futtató, ami a kapott jelet visszaírja, ezen a
+// kapun átmegy — az eredet-ellenőrzés ELAVULT és IDEGEN FORRÁSÚ csomag ellen véd, nem rosszindulat
+// ellen. Erre külön két támadás mér (H08 · H09).
+const fakeRunner = (jsonExpr, exitCode, digestExpr = 'MEASURED_DIGEST') =>
+  `import { readdirSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const D = dirname(fileURLToPath(import.meta.url));
+const h = createHash('sha256');
+for (const f of readdirSync(D).filter((x) => x.endsWith('.mjs')).sort()) {
+  h.update(f); h.update('\\0'); h.update(readFileSync(join(D, f))); h.update('\\0');
+}
+const MEASURED_DIGEST = 'sha256:' + h.digest('hex');
+const out = { source_digest: ${digestExpr}, run_token: process.env.V3REF_RUN_TOKEN ?? null, ...${jsonExpr} };
+process.stdout.write(JSON.stringify(out));
+process.exit(${exitCode});
+`;
 
 const RECORDS = (mapper) => `${JSON.stringify(EXPECTED_IDS)}.map((id) => (${mapper}))`;
 
@@ -511,6 +640,16 @@ const ATTACKS = [
 
   { id: 'H0X', what: 'ISMÉTLŐDŐ és ISMERETLEN azonosító a kimenetben',
     runner: fakeRunner(`{ manifest_version: ${JSON.stringify(MANIFEST_VERSION)}, records: [...${RECORDS("{ probe_id: id, status: 'PASS' }")}, { probe_id: ${JSON.stringify(EXPECTED_IDS[0])}, status: 'PASS' }, { probe_id: 'P-KITALALT', status: 'FAIL', assertion_id: 'x' }] }`, 1) },
+
+  // H08 · H09 — AZ ÚJ EREDET-ELLENŐRZÉS SAJÁT ELLENPRÓBÁI (R51/J5 · a külső fél M01 esete).
+  // A javítás akkor kész, ha a HIÁNYA bizonyítottan pirosra vált (KUKA-092). Mindkét csomag
+  // FORMAILAG hibátlan — 24 tervezett próba, mind PASS, helyes manifest-verzió, 0-s kilépés —,
+  // tehát a régi osztályozó ÉRVÉNYES MÉRÉSNEK fogadta volna el őket.
+  { id: 'H08', what: 'formailag hibátlan csomag, de IDEGEN forrás-lenyomattal',
+    runner: fakeRunner(`{ manifest_version: ${JSON.stringify(MANIFEST_VERSION)}, records: ${RECORDS("{ probe_id: id, status: 'PASS' }")} }`, 0, "'sha256:idegen'") },
+
+  { id: 'H09', what: 'formailag hibátlan csomag, de EGY KORÁBBI futás jelével',
+    runner: fakeRunner(`{ manifest_version: ${JSON.stringify(MANIFEST_VERSION)}, records: ${RECORDS("{ probe_id: id, status: 'PASS' }")}, run_token: 'rt_egy_korabbi_futasbol' }`, 0) },
 ];
 
 /**
@@ -518,10 +657,31 @@ const ATTACKS = [
  * mutáció sem tudja belőle elkapást csinálni (H02: a teljes futtató hibája SOHA nem bizonyíték).
  */
 function attackGate(a) {
-  const requires = a.requires || 'harness';
   return withCopy((dir) => {
     writeFileSync(join(dir, 'v3ref', 'run.mjs'), a.runner);
-    const c = classifyRun(runIn(dir));
+    const e = expectationFor(dir);
+    return judgeAttack(a, classifyRun(runIn(dir, e.runToken), e));
+  });
+}
+
+// A PÁRHUZAMOS ALAK. Az ÍTÉLET ugyanaz a `judgeAttack` — a soros és a párhuzamos ág nem tud
+// elcsúszni (KUKA-039), mert a döntést EGY otthon hozza; csak a futtatás módja különbözik.
+// Miért kellett: nyolc ellenpróba sorosan ~2 mp-et adott a falórához, és a külső fél 15 000 ms-os
+// gyermek-korlátjához a 42 mutációval együtt már NEM fért bele. A lassulás nem elfogadható
+// „részlet": a korlát túllépése az ő oldalukon MÉRŐHIBA lenne, a MI hibánkból.
+async function attackGateAsync(a) {
+  const dir = mkdtempSync(join(tmpdir(), 'v3mut-'));
+  try {
+    cpSync(REF, join(dir, 'v3ref'), { recursive: true });
+    writeFileSync(join(dir, 'v3ref', 'run.mjs'), a.runner);
+    const e = expectationFor(dir);
+    return judgeAttack(a, classifyRun(await runInAsync(dir, e.runToken), e));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
+function judgeAttack(a, c) {
+  {
+    const requires = a.requires || 'harness';
 
     if (requires === 'harness' && c.kind !== 'harness') {
       return { ok: false, why: `A MÉRŐ HAZUDIK: a támadást ÉRVÉNYES MÉRÉSNEK fogadta el (${a.what})` };
@@ -545,7 +705,7 @@ function attackGate(a) {
         ? `helyesen HARNESS_ERROR — ${c.why}`
         : `formailag érvényes mérés, de helyesen ${vFail.verdict} — ${vFail.why}`,
     };
-  });
+  }
 }
 
 /**
@@ -610,16 +770,24 @@ function verdictFor(m, c) {
 
 // A PÁRHUZAMOSSÁG TÚLFOGLAL, ÉS EZ SZÁNDÉKOS. Egy mutáció-futás nem telíti a magot: az idejének
 // nagyobb része folyamat-indítás és modul-betöltés (I/O), nem számolás. A mag-számhoz kötött plafon
-// ezért ROSSZ plafon volt — 37 mutációnál 12,0 mp-et adott a külső fél 15 000 ms-os korlátja
-// mellett, kétszeres túlfoglalással viszont 9,9 mp-et, VÁLTOZATLAN eredménnyel (37/37 elkapva).
-// A 12-es felső korlát azért van, hogy egy nagy gépen se induljon korlátlan gyerek-folyamat.
+// ezért ROSSZ plafon volt. Négyszeres túlfoglalás, a MI gépünkön (4 mag) mérve, 42 mutációval:
 //
-// KIMONDOTT KORLÁT: a falióra a MI gépünkön mért szám (4 mag). Lassabb gépen a korlát közelebb
-// kerülhet — ezért a futás KIÍRJA a mért időt és a korlátot, hogy a különbség ne néma legyen.
-const POOL = Math.max(1, Math.min(12, availableParallelism() * 2));
-function runInAsync(dir) {
+//   párhuzamosság  4 →  15,1 mp   (a külső fél 15 000 ms-os korlátja FÖLÖTT — az ő oldalukon ez
+//                                  MÉRŐHIBA lenne, a MI hibánkból)
+//   párhuzamosság  8 →  14,3 mp
+//   párhuzamosság 12 →  12,6 mp
+//   párhuzamosság 16 →  11,1-11,7 mp   <- ez az alak, VÁLTOZATLAN eredménnyel (42/42 · 8/8)
+//
+// A 16-os felső korlát azért van, hogy egy nagy gépen se induljon korlátlan gyerek-folyamat.
+//
+// KIMONDOTT KORLÁT: a falóra a MI gépünkön mért szám. A külső fél a saját, gyorsabb gépén 1,7 mp-et
+// mért ugyanerre - tehát ott bőven van tartalék -, de LASSABB gépen a korlát közelebb kerülhet.
+// Ezért a futás KIÍRJA a mért időt ÉS a korlátot: a különbség sosem néma (KUKA-012).
+const POOL = Math.max(1, Math.min(16, availableParallelism() * 4));
+function runInAsync(dir, runToken) {
   return new Promise((res) => {
-    const c = spawn(process.execPath, [join(dir, 'v3ref', 'run.mjs'), '--json'], { encoding: 'utf8' });
+    const c = spawn(process.execPath, [join(dir, 'v3ref', 'run.mjs'), '--json'],
+      { encoding: 'utf8', env: { ...process.env, V3REF_RUN_TOKEN: runToken } });
     let stdout = ''; let stderr = '';
     const timer = setTimeout(() => { c.kill('SIGKILL'); }, RUN_TIMEOUT_MS);
     c.stdout.on('data', (d) => { stdout += d; });
@@ -645,7 +813,8 @@ async function runMutationAsync(m, knownProbes) {
     const applied = applyEdits(readFileSync(target, 'utf8'), editsOf(m));
     if (!applied.ok) return { ...m, verdict: 'STALE_ANCHOR', why: staleAnchorWhy(applied) };
     writeFileSync(target, applied.src);
-    return { ...m, ...verdictFor(m, classifyRun(await runInAsync(dir))) };
+    const e = expectationFor(dir);
+    return { ...m, ...verdictFor(m, classifyRun(await runInAsync(dir, e.runToken), e)) };
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 
@@ -658,7 +827,8 @@ function runMutation(m, knownProbes) {
     const applied = applyEdits(readFileSync(target, 'utf8'), editsOf(m));
     if (!applied.ok) return { ...m, verdict: 'STALE_ANCHOR', why: staleAnchorWhy(applied) };
     writeFileSync(target, applied.src);
-    return { ...m, ...verdictFor(m, classifyRun(runIn(dir))) };
+    const e = expectationFor(dir);
+    return { ...m, ...verdictFor(m, classifyRun(runIn(dir, e.runToken), e)) };
   });
 }
 
@@ -672,7 +842,7 @@ const base = baselineGate();
 console.log(`  KAPU (a) ALAPVONAL: ${base.ok ? 'ZÖLD' : 'PIROS'} — ${base.ok ? `${base.probes.length} próba futott, mind PASS` : base.why}`);
 console.log('');
 console.log('  KAPUK (b) HAZUGSÁG-ELLENPRÓBÁK — a külső fél támadásai a SAJÁT kódunkon, minden futáskor:');
-const attacks = ATTACKS.map((a) => ({ ...a, ...attackGate(a) }));
+const attacks = (await pool(ATTACKS, POOL, attackGateAsync)).map((r, i) => ({ ...ATTACKS[i], ...r }));
 for (const a of attacks) {
   console.log(`    ${a.ok ? 'ZÖLD ' : 'PIROS'} [${a.id}] ${a.what}`);
   console.log(`           → ${a.why}`);

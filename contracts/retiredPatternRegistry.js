@@ -33,6 +33,106 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-095',
+    date: '2026-09-10',
+    title: 'AZ EGYIK FELTÉTELT LEZÁRTAM, ÉS A VÉDELMET JELENTETTEM KÉSZNEK',
+    what: 'Az R50-ben megépítettük a nyugta-könyvet, és a védelmét egyetlen mondattal adtuk ki: '
+      + '„a nyugta-fajták regisztere ZÁRT, tehát ismeretlen fajtára dob". A külső fél négy esettel '
+      + 'mutatta meg, mi maradt nyitva MEGENGEDETT fajtanév mellett: ÁRVA nyugta nem létező '
+      + 'parancsra (N03) · MÁSODIK nyugta ugyanarra a parancsra (N04) · idegen hatásazonosító és '
+      + 'lehetetlen állapot (N05) · NULLA SOROS beszúrás, amitől a parancs véglegesült, a válasz '
+      + 'sikert mondott, és nyugta sehol nem keletkezett (N02).',
+    why_wrong: 'A zárt névlista EGY feltétel volt a sok közül, de úgy jelentettem, mintha A '
+      + 'védelem volna. Ahol egy őrnek TÖBB, EGYMÁSTÓL FÜGGETLEN feltétele van, ott az egyik '
+      + 'teljesítése nem részleges siker, hanem MEGTÉVESZTŐ siker: a többi feltétel hiánya '
+      + 'láthatatlanná válik mögötte (KUKA-041 a saját védelmünkön). A saját P-CMD-receipt '
+      + 'próbám is csak azt mérte, amit megépítettem — tehát zölden igazolta vissza a hiányt.',
+    replaced_by: 'A NYUGTA A PARANCS TÉNYÉHEZ KÖTVE, HÁROM SZINTEN. (1) SÉMA: idegen kulcs a '
+      + 'parancs elsődleges kulcsára (árva sor lehetetlen) + egyediség a (parancs × esemény) '
+      + 'páron (második nyugta lehetetlen); a `foreign_keys` pragma a nyitáskor BE van kapcsolva, '
+      + 'különben a kényszer néma dísz volna. (2) ÍRÓ: a hívás csak a véglegesítés tranzakciójából '
+      + 'jöhet, a nyugta hatásazonosítója és állapota a PARANCS SAJÁT sorához mérve, és a beszúrás '
+      + 'PONTOSAN egy sort kell hogy írjon. (3) MÉRÉS: mind az öt kísérlet NEVEZETT hibakóddal áll '
+      + 'meg, és a nyugta-könyvben pontosan egy sor marad. Ugyanez a „nulla soros írás nem siker" '
+      + 'szabály áll a kiadási leltárra is (`disclose`), mert ott a NÉMA KÖVETKEZMÉNY súlyosabb: '
+      + 'a védett tartalom kimenne, a leltár üresen maradna.',
+    decision: 'D-VS-3009',
+    found_by: 'A KÜLSŐ TÁRGYALÓ FÉL (R51 J3 · J4), négy célzott ellenpróbával a saját, egy héttel '
+      + 'korábban kiadott nyugta-szerződésünkön.',
+    lesson: 'AMIKOR EGY VÉDELEMNEK TÖBB, EGYMÁSTÓL FÜGGETLEN FELTÉTELE VAN, FEL KELL SOROLNI ŐKET, '
+      + 'MIELŐTT KÉSZNEK JELENTEM. A kérdés nem az, hogy „van-e őr?", hanem hogy „hányféleképpen '
+      + 'lehet ezt elrontani, és mindegyiket fogja-e?" — ha a felsorolás elmarad, az elsőként '
+      + 'megépített feltétel eltakarja a többit. Konkrét eljárás, ami itt bevált: minden ÍRÁSNÁL '
+      + 'végig kell kérdezni négy dolgot — létezik-e, amihez kötődik · lehet-e belőle KETTŐ · '
+      + 'igaz-e a TARTALMA · TÉNYLEG létrejött-e a sor. És ahol a séma ki tudja kényszeríteni, ott '
+      + 'a séma kényszerítse ki, ne a jóindulat.',
+    guard_note: 'gépi jel: `npm run verify:v3ref` **P-CMD-receipt-integrity** (mind az öt kísérlet '
+      + 'nevezett hibakóddal, és a könyvben pontosan 1 sor) + **P-CMD-disclosure** kibővítve a '
+      + 'nulla soros leltár-írásra. Három mutáció őrzi, bizonyítottan pirosan: M41 (a tranzakció-'
+      + 'kötés eltűnik) · M42 (a tartalmat senki nem méri a parancs sorához) · M43 (a nulla soros '
+      + 'leltár-írás megint kiengedi a tartalmat).',
+    forbidden: Object.freeze([]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/store.mjs'], pattern: 'FOREIGN KEY \\(book_id, actor, idem_key\\) REFERENCES command',
+        reason: 'az árva nyugtát a SÉMA zárja ki, nem a jóindulat' }),
+      Object.freeze({ paths: ['v3ref/store.mjs'], pattern: 'UNIQUE \\(book_id, actor, idem_key, event\\)',
+        reason: 'egy véglegesítéshez EGY nyugta — séma-szinten' }),
+      Object.freeze({ paths: ['v3ref/command.mjs'], pattern: "fail\\('RECEIPT_OUTSIDE_TX'",
+        reason: 'a nyugtázó felület csak a véglegesítés tranzakciójából használható' }),
+      Object.freeze({ paths: ['v3ref/command.mjs'], pattern: "err\\.code = 'DISCLOSURE_NOT_LEDGERED'",
+        reason: 'sikeres leltár-írás nélkül a védett tartalom nem adható ki' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'KUKA-094',
+    date: '2026-09-10',
+    title: 'A GYENGÉBB ESETET MÉRTEM, ÉS AZ ERŐSEBB ÁLLÍTÁST ÍRTAM LE',
+    what: 'Az R50-ben megépítettük a parancs-oldali véglegesítési kaput a BEFOGADÁS ágán, és a '
+      + 'riportba ezt írtuk: „Ugyanezt a három ágat végigmérve az ISMÉTLÉS és az OLVASÁS MÁR ZÁRVA '
+      + 'VAN — ezt kimondjuk, hogy a lelet ne legyen tágabb, mint amit mértünk." A külső fél N08/N09 '
+      + 'esete megcáfolta: a `store.tx` BELÉPÉSÉNÉL beavatkozva az olvasás visszaadta a védett '
+      + '`price: 100` tartalmat, az ismétlés a sikeres nyugtát, és MINDKETTŐ kiadási sort írt.',
+    why_wrong: 'A saját próbám Y2/Y3 ága a megvonást a HÍVÁS ELŐTT végezte — azt a tranzakción '
+      + 'KÍVÜLI ellenőrzés úgyis elkapja. Vagyis egy GYENGÉBB forgatókönyvet mértem, és az ERŐSEBB '
+      + 'állítást írtam le. A mondat, amivel a hatókör-fegyelmemet dicsértem („ne legyen tágabb, '
+      + 'mint amit mértünk"), pontosan azt a hibát fedte el, amiről szólt. Ugyanebben a körben '
+      + 'MÁSODSZOR is előjött ez az alak, a saját mérőmön: az új eredet-ellenőrzés a hamis futtató '
+      + 'beégetett lenyomatán fogta meg a H03 támadást, tehát a H03 zöld maradt — de már NEM azt '
+      + 'mérte, amit állít („egyetlen próba sem futott"), hanem egy lenyomat-eltérést.',
+    replaced_by: 'EGY BEAVATKOZÁSI ALAK, MINDEN ÁGON. A `P-CMD-finalize-gate` mind a három ága '
+      + 'UGYANAZT a `store.tx`-belépési beavatkozást kapja, és az olvasó ág a TARTALOM hiányát is '
+      + 'méri, nem csak a hibakódot. A kód oldalán EGY nevezett feloldó (`releaseAllowed`) fut a '
+      + 'kiadás tranzakcióján BELÜL, mindhárom kiadó ágon (KUKA-039). A mérőn: a hamis futtató '
+      + 'EREDET-HELYES lett, tehát minden támadás eljut ahhoz a szakaszhoz, amit vizsgálni akar.',
+    decision: 'D-VS-3009',
+    found_by: 'A KÜLSŐ TÁRGYALÓ FÉL (R51 J1), a saját, VÁLTOZATLAN mérőprogramjával. A mi '
+      + 'söprésünk, a 24 próbánk és a 37 mutációnk végig zölden állt.',
+    lesson: 'MINDEN ÁLLÍTÁS MELLÉ ODA KELL TENNI, MELYIK FORGATÓKÖNYV MÉRTE — és ha egy állítás '
+      + 'TÖBB ágra vonatkozik, MINDEN ágnak UGYANAZT a beavatkozást kell kapnia. Ha az ágak '
+      + 'különböző erősségű próbát kapnak, a leggyengébb határozza meg, mit tudunk — de a riportba '
+      + 'a legerősebb ág szövege kerül. Gyanújel, amit ebből a körből viszünk tovább: ha egy próba '
+      + 'ágai NEM ugyanúgy néznek ki, meg kell indokolni, MIÉRT — a „így volt kényelmesebb" nem '
+      + 'indok. És a második alak (a rossz okból zöld jel) ugyanennek a családnak a mérő-oldali '
+      + 'párja: egy új, KORÁBBI szakaszban futó ellenőrzés a MEGLÉVŐ próbákat is elveheti a saját '
+      + 'tengelyüktől — új kapu beépítésekor végig kell nézni, mit fog meg ELŐBB, mint kellene.',
+    guard_note: 'gépi jel: `npm run verify:v3ref` **P-CMD-finalize-gate** (mind a három ág a '
+      + '`store.tx` belépésénél, és az olvasó ág a TARTALOM hiányát is méri) + **M4** mutáció '
+      + 'kétrétegű alakban. A mérő-oldali párra: a nyolc hazugság-ellenpróba mindegyike KIÍRJA, '
+      + 'MILYEN INDOKKAL zöld — a H03 indoka ma „EGYETLEN próba állítása sem futott le", nem '
+      + 'lenyomat-eltérés. MAGÁRA A TÚLZÓ ÁLLÍTÁSRA nincs gépi jel — ez a bejegyzés kimondott '
+      + 'korlátja; a mérce a `norms.mjs` állapot-regisztere, ami minden „megépült" mellé NEVEZETT '
+      + 'próbát követel.',
+    forbidden: Object.freeze([]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/command.mjs'], pattern: 'export function releaseAllowed',
+        reason: 'a kiadás engedélyezési pontja EGY feloldó, a tranzakción belül' }),
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'const atBoundary = \\(w\\) => \\{ const orig = w\\.store\\.tx;',
+        reason: 'mind a három ág UGYANAZT a beavatkozást kapja' }),
+      Object.freeze({ paths: ['v3ref/norms.mjs'], pattern: 'export function checkNorms',
+        reason: 'minden „megépült" állítás mellé nevezett próba kell — a regiszter nem tud hazudni' }),
+    ]),
+  }),
+  Object.freeze({
     id: 'KUKA-093',
     date: '2026-09-10',
     title: '„A HÍVÓ ÚGYIS TUDJA" — a mentesítő indok, ami a BEMENETET és az EREDMÉNYT összemosta',

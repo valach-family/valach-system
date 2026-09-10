@@ -375,7 +375,10 @@ export const RESIDUAL_RESOLUTIONS = Object.freeze([
       + 'tehát KIADÁS-sort nem ír — de NYUGTÁT ad, és azt a `command_event` könyv rögzíti, a '
       + 'hatással egy tranzakcióban (R50: az „új tényt nem közöl" indokot a külső fél megcáfolta, '
       + 'mert a sikeres VÉGLEGESÍTÉS a szerver oldalán keletkezett tény — KUKA-093); az ISMÉTLÉS '
-      + 'ága kiadás, és leltározva van',
+      + 'ága kiadás, és leltározva van. R51/J4 pontosítás: a `command` sor a végleges állapotot MÁR '
+      + 'rögzítette, tehát a „semmilyen nyom nem volt" túl erős állítás volt; és a kiadási leltár '
+      + 'nem „ki LÁTOTT" bizonyosság, hanem hogy MIT ENGEDETT KI a rendszer — a frissen SZÁMOLT '
+      + 'tartalomra is',
     limit: 'az „előkészítve / átadás megkísérelve / kiszolgálva / ember elolvasta" NÉGY állapotból '
       + 'ma KETTŐ különül el (befogadás ≠ kiszolgálás); a másik kettő nincs megépítve',
   }),

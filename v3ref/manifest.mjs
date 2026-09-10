@@ -54,6 +54,8 @@ export const EXPECTED_PROBES = Object.freeze([
   // KULSO proba 30/30 -> 28/30 esett. A javitas legfontosabb fele orizetlen volt (KUKA-051).
   Object.freeze({ id: 'P-INVITE-finalize-gate', assertion: 'R49C02C03-redeem-gate-at-write-boundary' }),
   Object.freeze({ id: 'P-CMD-receipt', assertion: 'R50-finalization-receipt-is-durable-and-atomic' }),
+  Object.freeze({ id: 'P-CMD-receipt-integrity', assertion: 'R51J3-receipt-bound-to-command-fact' }),
+  Object.freeze({ id: 'P-INVITE-terms', assertion: 'R51J2-invite-terms-immutable-outcome-in-tx' }),
   Object.freeze({ id: 'P-CMD-finalize-gate', assertion: 'R49-command-gate-at-write-boundary' }),
   Object.freeze({ id: 'P-AUTHZ-roles', assertion: 'R49C05-unknown-role-grants-nothing' }),
   Object.freeze({ id: 'P-CANON-shape', assertion: 'R49C08C10-canon-shape-closed' }),

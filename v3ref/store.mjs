@@ -130,18 +130,32 @@ CREATE TABLE disclosure (
 );
 
 -- A NYUGTA-KÖNYV (R50 — a külső fél cáfolatára). KÉT KÜLÖN KÉRDÉS, KÉT KÜLÖN OTTHON (KUKA-002):
---   · a disclosure arra felel, KI MIT LÁTOTT olyan tényből, ami a kéréstől FÜGGETLENÜL is állt;
+--   · a disclosure arra felel, MILYEN VÉDETT TARTALMAT ENGEDETT KI a rendszer, KINEK, MILYEN
+--     ALAPON — beleértve a kérés közben FRISSEN ELŐÁLLÓ tartalmat is (R51/J4 pontosítás);
 --   · a command_event arra, MIT KÖTELEZETT EL A SZERVER ebben a kérésben.
 --
 -- Az R47-es alakunk azt állította, hogy a befogadás válasza „nem közöl új tényt, tehát nincs mit
 -- leltározni". A külső fél ezt megcáfolta, és IGAZA VAN: a hívó a saját bemeneteit adta, de azt,
--- hogy a parancs VÉGLEGESÜLT-E, nem ő adta — az a szerver oldalán keletkezett új tény. A hiba nem
--- a leltár HELYE volt, hanem hogy a tény SEHOL nem hagyott nyomot: a kiadás-sort helyesen nem
--- írtuk (nem kiszolgálás), de a helyére semmit nem tettünk.
+-- hogy a parancs VÉGLEGESÜLT-E, nem ő adta — az a szerver oldalán keletkezett új tény.
+--
+-- PONTOSÍTVA (R51/J4): az R50-ben azt írtuk ide, hogy a tény „SEHOL nem hagyott nyomot". Ez TÚL
+-- ERŐS volt, és a külső fél helyesbítette: a a parancs sor a végleges állapotot MÁR RÖGZÍTETTE.
+-- Az eseménykönyv ettől még hasznos — de KÜLÖN MEGNEVEZETT szerződésként, nem egy nemlétező
+-- hiány pótlásaként. A valódi hiba az volt, hogy a véglegesítés tényéhez nem tartozott NEVEZETT,
+-- a hatással atomi nyugta, amire a rá épülő mini modulok építhetnének.
 --
 -- A sor a HATÁSSAL EGY TRANZAKCIÓBAN születik. Ez a KUKA-026 ellenpárja, és fordított előjelű:
 -- a KUDARC nyoma nem utazhat a visszagördülő tranzakcióban, a SIKER nyugtája viszont KÖTELEZŐEN
 -- azzal utazik — különben nyugtát adnánk olyan hatásról, ami nem történt meg.
+-- A NYUGTA INVARIÁNSAI A SÉMÁBAN, NEM A JÓINDULATBAN (R51/J3 — a külső fél N03/N04 esete).
+-- Az R50-es alak csak egy ZÁRT ESEMÉNY-NÉVLISTÁT védett, és ezt „a regiszter zárt" mondattal
+-- készre is jelentettük. A név csak az EGYIK feltétel: megengedett névvel is lehetett ÁRVA nyugtát
+-- írni (nem létező parancsra) és MÁSODIK nyugtát ugyanarra a parancsra.
+--   · IDEGEN KULCS a parancs elsődleges kulcsára ⇒ árva sor lehetetlen (a foreign_keys pragma BE
+--     van kapcsolva a nyitáskor — enélkül a kényszer néma dísz volna, KUKA-041);
+--   · EGYEDISÉG a (parancs × esemény) páron ⇒ egy véglegesítéshez EGY nyugta.
+-- Amit a séma nem tud (a nyugta ÁLLAPOTA és HATÁSAZONOSÍTÓJA egyezzen a parancséval, és a hívás
+-- a véglegesítés tranzakciójából jöjjön), azt az író recordCommandEvent kényszeríti ki.
 CREATE TABLE command_event (
   id        INTEGER PRIMARY KEY AUTOINCREMENT,
   book_id   TEXT NOT NULL,
@@ -150,7 +164,9 @@ CREATE TABLE command_event (
   event     TEXT NOT NULL,
   state     TEXT NOT NULL,
   effect_id TEXT NOT NULL,
-  at        TEXT NOT NULL
+  at        TEXT NOT NULL,
+  FOREIGN KEY (book_id, actor, idem_key) REFERENCES command (book_id, actor, idem_key),
+  UNIQUE (book_id, actor, idem_key, event)
 );
 `;
 

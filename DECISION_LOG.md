@@ -16,6 +16,109 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3009 — Az R51 tíz lelete javítva; a megvonás és a szervezeti alap a normatív magba
+
+**Kör:** CMD-VS-300-002-001 R51→R52 · sáv: Claude-AUX · a külső fél független ellenőrzése az
+R50-re, tizennégy célzott ellenpróbával a JAVÍTÁSAINK VARRATAIN.
+
+**A bemenet.** A ti R49-es harminc esetetek náluk is 30/30. Az ÚJ tizennégyből **négy megfelelt, tíz
+nem**. Reprodukáltuk: **10/10, karakterre az ő eredményükkel.**
+
+### A kör legsúlyosabb lelete: a SAJÁT ÁLLÍTÁSOM volt hamis
+
+Az R50 §2.3-ban ezt írtam: *„Ugyanezt a három ágat végigmérve az ISMÉTLÉS és az OLVASÁS MÁR ZÁRVA
+VAN — ezt kimondjuk, hogy a lelet ne legyen tágabb, mint amit mértünk."*
+
+**Nem volt zárva.** Az N08/N09 a `store.tx` BELÉPÉSÉNÉL avatkozik be; ott az olvasás visszaadta a
+védett `price: 100` tartalmat, az ismétlés a sikeres nyugtát, és mindkettő kiadási sort írt. Az ok:
+a saját próbám Y2/Y3 ága a megvonást a HÍVÁS ELŐTT végezte — azt a tranzakción KÍVÜLI ellenőrzés
+úgyis elkapja. **Gyengébb esetet mértem, és az erősebb állítást írtam le** — miközben a mondat, amivel
+a hatókör-fegyelmemet dicsértem, pontosan ezt a hibát fedte el. → **KUKA-094**.
+
+### A második: az egyik feltételt lezártam, és a védelmet jelentettem késznek
+
+Az R50-es nyugta-könyv védelmét egyetlen mondattal adtam ki („a fajták regisztere ZÁRT"). Négy eset
+mutatta meg, mi maradt nyitva MEGENGEDETT fajtanév mellett: árva nyugta nem létező parancsra (N03) ·
+második nyugta ugyanarra (N04) · idegen hatásazonosító és lehetetlen állapot (N05) · **nulla soros
+beszúrás**, amitől a parancs véglegesült, a válasz sikert mondott, és nyugta sehol nem keletkezett
+(N02). → **KUKA-095**.
+
+### A javítások — öt csoport
+
+**J1 · A kiadás engedélyezési pontja a tranzakción BELÜL** (N08 · N09). EGY nevezett feloldó
+(`releaseAllowed`), amit MIND A HÁROM kiadó ág hív. A próba mind a három ága UGYANAZT a
+tx-belépési beavatkozást kapja, és az olvasó ág a TARTALOM hiányát is méri, nem csak a hibakódot.
+
+**J2 · A meghívó döntése a FRISS sorhoz kötve** (N10 · N11). A feltételek VÁLTOZTATHATATLANOK
+(`inviteTerms`, INV-05): ha a döntés és az írás nem ugyanarra a példányra vonatkozik,
+`invite_terms_changed` — nem zsákutca, a mondat megmondja, hogy új meghívó kell. A KIMENET a
+tranzakción BELÜL számolódik újra; minden írás a friss sorból dolgozik. A régi alak a friss soron
+ELLENŐRZÖTT, de a RÉGI példány `admin` szerepét ÍRTA.
+
+**J3 · A nyugta invariánsai kikényszerítve** (N02–N05). SÉMA: idegen kulcs a parancs elsődleges
+kulcsára + egyediség a (parancs × esemény) páron. ÍRÓ: csak a véglegesítés tranzakciójából; a
+hatásazonosító és az állapot a PARANCS SAJÁT sorához mérve; a beszúrás PONTOSAN egy sort ír.
+
+**J4 · A kiadás nyoma és két fogalmi pontosítás** (N12). Sikeres leltár-írás nélkül a védett
+tartalom NEM adható ki (`DISCLOSURE_NOT_LEDGERED`, a tranzakció visszagördül). Mellé a mezőút
+TÍPUSOS és ÜTKÖZÉSMENTES lett (`k:` kulcs · `i:` index · `~0`/`~1` védés): az `{"a.b":…}` és az
+`{"a":{"b":…}}` többé nem képződik egy útra — ezt nyitott adósságként közöltük, ők megcáfolták,
+mert a kár MAGÁBAN A LELTÁRBAN van (incidensnél nem lehetne megmondani, melyik adat jutott ki).
+
+**J5 · A futás azonosítása** (M01). A szülő a VALÓBAN előállított (mutált) forrás-csomagból számolja
+az elvárt lenyomatot, és minden gyermeknek EGYEDI futás-jelet oszt ki; eltérés vagy hiány =
+MÉRŐHIBA. Két új hazugság-ellenpróba méri (H08 idegen lenyomat · H09 korábbi futás jele).
+
+### Két fogalmi állításunkat ők helyesbítették, és igazuk volt
+
+1. **„a tény SEHOL nem hagyott nyomot"** — TÚL ERŐS. A `command` sor a végleges állapotot MÁR
+   rögzítette; az eseménykönyv ettől még hasznos, de KÜLÖN megnevezett szerződésként, nem egy nem
+   létező hiány pótlásaként.
+2. **A kiadási leltár NEM „KI LÁTOTT" bizonyosság, és NEM csak a kérés előtt is álló adatra
+   vonatkozik.** Azt rögzíti, mit ENGEDETT KI a rendszer — a frissen SZÁMOLT, idegen árakat
+   felhasználó összesítés is védett adatkiadás. Ha ezt nem mondjuk ki, a következő számolt nézet
+   kicsúszik a leltár alól.
+
+### A NORMATÍV MAG — kódban, nem prózában
+
+Új: `v3ref/norms.mjs` (NRM-01). A megvonás protokollja **öt nevezett szabály** (REV-N1…N5), a
+megmaradó szervezeti alap **három** (ORG-N1…N3), és **hat nyitott blokkoló** (OB-1…6). A regiszter
+nem tud hazudni: `implemented` ⇒ NEVEZETT próba, ami a tervezett készletben SZEREPEL; `planned` ⇒
+NEVEZETT hiány, legalább 40 karakter; minden blokkolóhoz INDOK és LEZÁRÁSI FELTÉTEL; padló a
+darabszámokon. A futtató KAPUKÉNT futtatja — hamis állapotra 2-es kilépési kód.
+
+**Az őszinte állapot, amit a regiszter kimond:** a nyolc szabályból **kettő** megépült (REV-N1,
+ORG-N2), **hat** `planned`. Az ORG-N2 (tiltó alapértelmezés, amíg nincs explicit szervezeti alap)
+nem hiányosság, hanem a hiányzó modell helyes kezelése.
+
+### Mérés
+
+| Mérés | Eredmény |
+|---|---|
+| A külső fél **R51-es tizennégy** esete | **14/14** |
+| A külső fél **R49-es változatlan harminc** esete | **30/30** |
+| V3 magreferencia próbák | **26/26 PASS** (24 → 26) |
+| Mutációs battéria | **43/43 elkapva**, 0 túlélte, 0 mérőhiba, 0 elavult horgony |
+| Hazugság-ellenpróbák | **8/8 védett** (6 → 8) |
+| Retired-pattern regiszter | **151/151** |
+| Teljes söprés | **6 zöld · 0 piros** |
+
+### Kimondott korlátok
+
+1. **A falóra a MI gépünkön mért szám: 11,8 mp** a 15 000 ms-os korlát mellett. A 43 mutációval a
+   négyes párhuzamosság 15,1 mp-et adott — a korlát FÖLÖTT —, ezért négyszeres túlfoglalásra
+   váltottunk (mérve: 4 mag → 15,1 · 8 → 14,3 · 12 → 12,6 · 16 → 11,1–11,8 mp, változatlan
+   eredménnyel). A külső fél a saját gépén 1,7 mp-et mért; LASSABB gépen a korlát közelebb kerülhet.
+2. A hat nyitott blokkoló (OB-1…6) a `norms.mjs`-ben áll, nem itt — hogy a következő kör ne a
+   naplóból keresse elő.
+3. **Az eredet-ellenőrzés korlátja kimondva:** ELAVULT és IDEGEN FORRÁSÚ csomag ellen véd, nem
+   rosszindulat ellen. Egy futtató, ami a szülőtől kapott jelet visszaírja, ezen a kapun átmegy —
+   ehhez kriptográfiai hitelesítés kellene, amit nem ígérünk.
+4. Az N03–N05 belső írófelület-próbák: nem állítjuk, hogy egy távoli felhasználó ma közvetlenül
+   hívhatná ezeket. A közös magfelület megbízhatóságát mérik, a rá épülő mini modulok számára.
+
+---
+
 ## D-VS-3008 — A külső fél 30 ellenőrző esete: a hiányzó ŐRÖK megépítve, és a NYUGTA-SZERZŐDÉS
 
 **Kör:** CMD-VS-300-002-001 R49→R50 · sáv: Claude-AUX · a külső fél független ellenőrzése az

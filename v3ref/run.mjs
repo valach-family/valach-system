@@ -16,7 +16,7 @@ import { dirname, join } from 'node:path';
 import { openStore, clockFrom, instantMs } from './store.mjs';
 import { observeInvite, redeemInvite, rememberIntent, resumeIntent, inviteGrantAt } from './invite.mjs';
 import { rightAt, revokeMembership, revocationTransition, roleGrants, KNOWN_ROLES } from './authz.mjs';
-import { submitCommand, readCommandResult, commandRef, canonicalize, CanonError, recordCommandEvent } from './command.mjs';
+import { submitCommand, readCommandResult, commandRef, canonicalize, CanonError, recordCommandEvent, releasedFieldPaths } from './command.mjs';
 
 export const NORM_VERSION = 'R32/K01-K16';
 export const IMPL_VERSION = 'v3ref-0.1';
@@ -359,13 +359,35 @@ probe('P-CMD-disclosure', 'R32/K05 · Q14 · Q15',
         //     és akkor a két sor bájtra azonos — a leltár nem mondaná meg, melyikről szól.
         //     A pin a FELOLDÓT HÍVJA, nem másolja le az alakot (KUKA-009).
         && kinds.every((k) => k.ref === commandRef({ bookId: 'book_a', actor: 'sub_alice', idemKey: 'k1' })
-          && JSON.parse(k.fields).includes('effect_id'))
+          && JSON.parse(k.fields).includes('k:effect_id'))
+        // (6/b) A MEZŐÚT TÍPUSOS ÉS ÜTKÖZÉSMENTES (R51/J4). A pontos összefűzés az `{"a.b":…}` és
+        //       az `{"a":{"b":…}}` esetet EGY útra képezte — incidensnél nem lehetne megmondani,
+        //       melyik adat jutott ki. A tömb ELEMEI is megjelennek, indexelve.
+        && releasedFieldPaths({ a: { b: 1 } })[0] !== releasedFieldPaths({ 'a.b': 1 })[0]
+        && releasedFieldPaths({ a: [{ b: 1 }] })[0] === 'k:a/i:0/k:b'
+        && releasedFieldPaths({ 'a/b': 1 })[0] === 'k:a~1b'
         && commandRef({ bookId: 'book_a', actor: 'sub_alice', idemKey: 'k1' })
           !== commandRef({ bookId: 'book_a', actor: 'sub_bob', idemKey: 'k1' });
+
+      // (7) A SIKERES LELTÁR-ÍRÁS A KIADÁS FELTÉTELE (R51/J4 · a külső fél N12 esete).
+      // A tárolót rávesszük, hogy a leltár-beszúrás NULLA sort írjon. A régi alak a visszatérési
+      // értéket nem nézte: a védett tartalom KIMENT, a leltár pedig üres maradt — vagyis pont az
+      // a néma hazugság, ami ellen a leltár egyáltalán épült (KUKA-012). Ma NEVEZETT hibával áll
+      // meg, a tranzakció visszagördül, és a tartalom nem hagyja el a rendszert.
+      w.store.db.exec('CREATE TRIGGER t_disclosure_skip BEFORE INSERT ON disclosure BEGIN SELECT RAISE(IGNORE); END;');
+      const before = w.store.get('SELECT count(*) AS n FROM disclosure').n;
+      let blocked = 'NEM_DOBOTT'; let leaked = null;
+      try {
+        const r = readCommandResult({ store: w.store, idemKey: 'k1', requester: 'sub_alice', bookId: 'book_a', actor: 'sub_alice', clock: w.clock });
+        leaked = r?.result ?? null;
+      } catch (e) { blocked = e.code || e.name; }
+      const after = w.store.get('SELECT count(*) AS n FROM disclosure').n;
+      const ledgerGate = blocked === 'DISCLOSURE_NOT_LEDGERED' && leaked === null && after === before;
+
       return {
-        expected: 'befogadás: NINCS tartalom és NINCS leltár-sor · a tartalom olvasásra kimegy · ismétlés leltározva · két olvasás = két KÜLÖN sor',
-        actual: `befogadás után leltár=${afterAccept} · befogadás tartalma=${accept.resolved === undefined ? 'NINCS' : 'VAN'} · olvasott ár=${r1.result && r1.result.price} · sorok=${kinds.length} (${kinds.map((k) => k.view).join(',')}) · olvasó sorok azonosítói=${results.map((k) => k.id).join('/')}`,
-        pass: ok,
+        expected: 'befogadás: NINCS tartalom és NINCS leltár-sor · a tartalom olvasásra kimegy · ismétlés leltározva · két olvasás = két KÜLÖN sor · NULLA soros leltár-írás ⇒ NINCS kiadás',
+        actual: `befogadás után leltár=${afterAccept} · befogadás tartalma=${accept.resolved === undefined ? 'NINCS' : 'VAN'} · olvasott ár=${r1.result && r1.result.price} · sorok=${kinds.length} (${kinds.map((k) => k.view).join(',')}) · olvasó sorok azonosítói=${results.map((k) => k.id).join('/')} · nulla soros leltár=${blocked}/kiszivárgott=${JSON.stringify(leaked)}`,
+        pass: ok && ledgerGate,
       };
     } finally { w.store.close(); }
   });
@@ -709,25 +731,141 @@ probe('P-CMD-finalize-gate', 'R32/K04 · K07 · R49 (saját teljesség-lelet)',
     };
     const pull = (w) => revokeMembership({ store: w.store, subjectId: 'sub_alice', bookId: 'book_a', clock: w.clock });
 
-    // (Y1) BEFOGADÁS: a megvonás a tranzakció HATÁRÁN — a külső jog-ellenőrzés ezt már nem látja.
-    const a = mk(); const txa = a.store.tx; a.store.tx = (fn) => { pull(a); return txa(fn); };
+    // MIND A HÁROM ÁG A TRANZAKCIÓ BELÉPÉSÉNÉL KAPJA A MEGVONÁST (R51/J1 — javítva).
+    //
+    // AZ ELSŐ ALAKOM ITT TÉVEDETT, ÉS A TÉVEDÉST KI IS ADTAM ÁLLÍTÁSKÉNT. Az Y2/Y3 ágat úgy
+    // mértem, hogy a megvonás a HÍVÁS ELŐTT történt — azt a tranzakción KÍVÜLI ellenőrzés úgyis
+    // elkapja. Ebből azt a következtetést írtam az R50-be, hogy „az ismétlés és az olvasás ezen a
+    // határon MÁR ZÁRVA VAN". A külső fél N08/N09 esete megcáfolta: a `store.tx` BELÉPÉSÉNÉL
+    // beavatkozva mindkettő KIADOTT — az olvasás a védett tartalmat is. Gyengébb esetet mértem, és
+    // az erősebb állítást írtam le (KUKA-094). Innentől mind a három ág UGYANAZT a beavatkozást
+    // kapja, tehát a próba a VALÓDI határt méri.
+    const atBoundary = (w) => { const orig = w.store.tx; w.store.tx = (fn) => { pull(w); return orig(fn); }; };
+
+    // (Y1) BEFOGADÁS.
+    const a = mk(); atBoundary(a);
     const y1 = CMD(a); const rows1 = a.store.get('SELECT count(*) AS n FROM command').n; a.store.close();
-    // (Y2) ISMÉTLÉS visszavont joggal.
-    const b = mk(); CMD(b); pull(b);
+    // (Y2) ISMÉTLÉS: a parancs MÁR LÉTEZIK, a jogot a tx-határon vonják vissza.
+    const b = mk(); CMD(b); atBoundary(b);
     const y2 = CMD(b); const d2 = b.store.get('SELECT count(*) AS n FROM disclosure').n; b.store.close();
-    // (Y3) OLVASÁS visszavont joggal.
-    const c = mk(); CMD(c); pull(c);
+    // (Y3) OLVASÁS ugyanígy — itt a VÉDETT TARTALOM a tét, nem csak az állapot.
+    const c = mk(); CMD(c); atBoundary(c);
     const y3 = readCommandResult({ store: c.store, idemKey: 'k1', requester: 'sub_alice', bookId: 'book_a', actor: 'sub_alice', clock: c.clock });
     const d3 = c.store.get('SELECT count(*) AS n FROM disclosure').n; c.store.close();
 
     const ok = y1.ok === false && rows1 === 0 && y2.ok === false && d2 === 0 && y3.ok === false && d3 === 0
       // A NEMLEGES VÁLASZ AZONOS a soha nem látott kulcséval — a létezés nem szivároghat (KUKA-084).
-      && y1.error === 'not_available' && y2.error === 'not_available' && y3.error === 'not_available';
+      && y1.error === 'not_available' && y2.error === 'not_available' && y3.error === 'not_available'
+      // ÉS A TARTALOM SEM MEGY KI: az olvasó ág `result` mezője üres marad.
+      && (y3.result === null || y3.result === undefined);
     return {
-      expected: 'befogadás · ismétlés · olvasás mind not_available · NULLA parancs-sor · NULLA leltár-sor',
-      actual: `befogadás=${y1.error}/${rows1} sor · ismétlés=${y2.error}/${d2} leltár · olvasás=${y3.error}/${d3} leltár`,
+      expected: 'a tx-HATÁRÁN visszavont joggal mindhárom ág not_available · NULLA parancs-sor · NULLA leltár-sor · NULLA tartalom',
+      actual: `befogadás=${y1.error}/${rows1} sor · ismétlés=${y2.error}/${d2} leltár · olvasás=${y3.error}/${d3} leltár/tartalom=${JSON.stringify(y3.result ?? null)}`,
       pass: ok,
     };
+  });
+
+probe('P-INVITE-terms', 'R32/K03 · R51 J2 (a külső fél N10 · N11)',
+  'A meghívó FELTÉTELEI változtathatatlanok, és a KIMENET a tranzakción belül dől el',
+  () => {
+    const mk = () => {
+      const w = buildWorld({ inviteeHasAccount: false });
+      w.store.run('INSERT INTO channel_proof (subject_id, namespace, value_norm, proven_at) VALUES (?,?,?,?)',
+        'sub_holder', 'email', 'kovacs@pelda.hu', w.clock.now());
+      return w;
+    };
+    const atBoundary = (w, mutate) => {
+      const orig = w.store.tx;
+      w.store.tx = (fn) => { mutate(w); return orig(fn); };
+      return redeemInvite({ store: w.store, token: 'tok_1', actingSubjectId: 'sub_holder', newCredential: 'c', clock: w.clock });
+    };
+
+    // (a) A SZEREP LEFOKOZÁSA a határon. A régi alak a friss soron ELLENŐRZÖTT, de a RÉGI példány
+    // szerepét ÍRTA — a meghívóban `user`, a tagságban `admin`. Ma: nevezett elutasítás.
+    const w1 = mk();
+    w1.store.run("UPDATE invite SET offered_role = 'admin' WHERE token = 'tok_1'");
+    const r1 = atBoundary(w1, (w) => w.store.run("UPDATE invite SET offered_role = 'user' WHERE token = 'tok_1'"));
+    const m1 = w1.store.all("SELECT role FROM membership WHERE book_id = 'book_a' AND subject_id <> 'sub_issuer'");
+    w1.store.close();
+
+    // (b) A CÍMZETT TAGSÁGÁT vonják meg a határon, miközben a döntés `already_active` volt.
+    // A régi alak SIKERT adott és ELFOGYASZTOTTA a meghívót, hozzáférés nélkül. Itt a címzettnek
+    // MÁR VAN alanya és belépése (`membership_only` ág), tehát a saját nevében váltja be.
+    const w2 = buildWorld({ inviteeHasAccount: true });
+    w2.store.run('INSERT INTO channel_proof (subject_id, namespace, value_norm, proven_at) VALUES (?,?,?,?)',
+      'sub_invitee', 'email', 'kovacs@pelda.hu', w2.clock.now());
+    w2.store.run('INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)',
+      'sub_invitee', 'book_a', 'user', w2.clock.now());
+    const orig2 = w2.store.tx;
+    w2.store.tx = (fn) => { revokeMembership({ store: w2.store, subjectId: 'sub_invitee', bookId: 'book_a', clock: w2.clock }); return orig2(fn); };
+    const r2 = redeemInvite({ store: w2.store, token: 'tok_1', actingSubjectId: 'sub_invitee', newCredential: 'c', clock: w2.clock });
+    const used2 = w2.store.get("SELECT redeemed_at FROM invite WHERE token = 'tok_1'").redeemed_at;
+    w2.store.close();
+
+    // (c) ELLENPÁR — az őr NE ZÁRJON TÚL (KUKA-049): változatlan feltételek mellett a beváltás MEGY.
+    const w3 = mk();
+    const r3 = redeemInvite({ store: w3.store, token: 'tok_1', actingSubjectId: 'sub_holder', newCredential: 'c', clock: w3.clock });
+    const m3 = w3.store.all("SELECT role FROM membership WHERE book_id = 'book_a' AND subject_id <> 'sub_issuer'");
+    w3.store.close();
+
+    const ok = r1.ok === false && r1.error === 'invite_terms_changed' && m1.length === 0
+      && r2.ok === false && r2.error === 'membership_not_granted' && used2 === null
+      && r3.ok === true && m3.length === 1;
+    return {
+      expected: 'lefokozás ⇒ invite_terms_changed + 0 tagság · megvont tagság ⇒ nem fogy el a meghívó · változatlan ⇒ MEGY',
+      actual: `lefokozás=${r1.error}/${m1.length} tagság · megvonás=${r2.error}/redeemed=${used2}`
+        + ` · ellenpár=${r3.ok}/${m3.length} tagság`,
+      pass: ok,
+    };
+  });
+
+probe('P-CMD-receipt-integrity', 'R32/K05 · R51 J3 (a külső fél N02–N05)',
+  'A nyugta a PARANCS tényéhez kötött: nincs árva · nincs második · nincs hamis tartalmú · nincs nulla soros',
+  () => {
+    const w = openStore(); const clock = clockFrom(T0);
+    try {
+      w.run('INSERT INTO subject (id, kind) VALUES (?,?)', 'sub_alice', 'person');
+      w.run('INSERT INTO book (id, name) VALUES (?,?)', 'book_a', 'A');
+      w.run('INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)',
+        'sub_alice', 'book_a', 'admin', clock.now());
+      const accept = submitCommand({
+        store: w, clock, idemKey: 'k1', actor: 'sub_alice', bookId: 'book_a',
+        type: 'stock.receipt', typeVersion: '1', declared: { sku: 'X' }, resolve: () => ({ price: 100 }),
+      });
+      const scope = { bookId: 'book_a', actor: 'sub_alice', idemKey: 'k1' };
+      const codeOf = (fn) => { try { fn(); return 'NEM_DOBOTT'; } catch (e) { return e.code || e.name; } };
+
+      // (a) TRANZAKCIÓN KÍVÜL nem írható.
+      const outside = codeOf(() => recordCommandEvent({
+        store: w, event: 'command_finalized', scope, effectId: accept.effect_id, state: 'finalized', clock }));
+      // (b) ÁRVA nyugta nem létező parancsra.
+      const orphan = codeOf(() => w.tx(() => recordCommandEvent({
+        store: w, event: 'command_finalized', scope: { ...scope, idemKey: 'nincs_ilyen' },
+        effectId: accept.effect_id, state: 'finalized', clock })));
+      // (c) MÁSODIK nyugta ugyanarra a parancsra.
+      const twice = codeOf(() => w.tx(() => recordCommandEvent({
+        store: w, event: 'command_finalized', scope, effectId: accept.effect_id, state: 'finalized', clock })));
+      // (d) HAMIS TARTALOM: megengedett fajta, de idegen hatásazonosító.
+      const wrongEffect = codeOf(() => w.tx(() => recordCommandEvent({
+        store: w, event: 'command_finalized', scope, effectId: 'eff_idegen', state: 'finalized', clock })));
+      // (e) HAMIS TARTALOM: lehetetlen állapot.
+      const wrongState = codeOf(() => w.tx(() => recordCommandEvent({
+        store: w, event: 'command_finalized', scope, effectId: accept.effect_id, state: 'lehetetlen', clock })));
+
+      const rows = w.get('SELECT count(*) AS n FROM command_event').n;
+      const ok = outside === 'RECEIPT_OUTSIDE_TX'
+        && orphan === 'RECEIPT_NO_COMMAND'
+        && twice === 'ERR_SQLITE_ERROR'          // az EGYEDISÉG a SÉMÁBAN áll, nem a jóindulatban
+        && wrongEffect === 'RECEIPT_EFFECT_MISMATCH'
+        && wrongState === 'RECEIPT_STATE_MISMATCH'
+        && rows === 1;                            // a befogadás EGY nyugtája, semmi több
+      return {
+        expected: 'mind az öt kísérlet NEVEZETT hibával áll meg, és a nyugta-könyvben PONTOSAN 1 sor marad',
+        actual: `tx-en kívül=${outside} · árva=${orphan} · második=${twice} · hamis hatás=${wrongEffect}`
+          + ` · hamis állapot=${wrongState} · sorok=${rows}`,
+        pass: ok,
+      };
+    } finally { w.close(); }
   });
 
 probe('P-AUTHZ-roles', 'R32/K04 · R49 C05',
@@ -843,6 +981,7 @@ const EXECUTED_BY = (() => {
   return env || 'unknown';
 })();
 
+import { checkNorms, normsSummary } from './norms.mjs';
 import { REVIEWS, REVIEWS_FOR, staleFor, residualStandingFor, checkResolutions } from './reviews.mjs';
 import { MANIFEST_VERSION, EXPECTED_IDS, PROBE_STATUS, assertionOf } from './manifest.mjs';
 
@@ -898,6 +1037,7 @@ export function runAll() {
       error_message: thrown ? thrown.message : null,
       phase: thrown ? thrown.phase : null,
       norm_version: NORM_VERSION,
+      norms: normsSummary(),
       impl_version: IMPL_VERSION,
       command: 'node v3ref/run.mjs',
       environment: `node ${process.version} · node:sqlite · elkülönített ideiglenes fájl`,
@@ -939,6 +1079,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     for (const p of res.problems) console.error(`  · ${p}`);
     process.exit(2);
   }
+
+  // A NORMATÍV MAG ÖNELLENŐRZÉSE (R51 §3/§4/§5.3) — ugyanaz a kapu-elv. Ha egy szabály
+  // „megépült"-nek mondja magát nem létező próbára, vagy egy hiány nincs megnevezve, az ugyanaz a
+  // díszpipa, mint a hatókör nélküli pecsét volt (KUKA-041).
+  const nrm = checkNorms(EXPECTED_IDS);
+  if (!nrm.ok) {
+    console.error('\nA NORMATÍV MAG HIBÁS — a szabályok állapota nem hiteles:');
+    for (const p of nrm.problems) console.error(`  · ${p}`);
+    process.exit(2);
+  }
   // FUTÁSAZONOSÍTÓ: két futás eredménye ne legyen összekeverhető (R45 §2). A tartalmi lenyomatból
   // és az indulás idejéből származik, tehát nem véletlen — visszakereshető.
   const RUN_ID = `run_${createHash('sha256').update(src.digest).update(records[0] ? records[0].at : '')
@@ -951,6 +1101,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       manifest_version: MANIFEST_VERSION,
       expected_probe_ids: EXPECTED_IDS,
       run_id: RUN_ID,
+      // A SZÜLŐ ÁLTAL KIOSZTOTT FUTÁS-JEL (R51/J5). A saját `run_id` a futás TARTALMÁBÓL
+      // származik, tehát két azonos forrású futás azonos jelet adna — a szülő nem tudná
+      // megkülönböztetni a MOSTANIT egy korábbi eredménytől. Ezt a jelet a hívó adja, mi csak
+      // visszaadjuk; ha nincs, üres marad, és a szülő MÉRŐHIBÁNAK minősíti (fail-closed).
+      run_token: process.env.V3REF_RUN_TOKEN ?? null,
       // MÉRT forrás-azonosság (a futtató SAJÁT számítása) — ez a bizonyíték.
       source_digest: src.digest,
       source_files: src.files,

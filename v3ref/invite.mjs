@@ -101,6 +101,27 @@ export function redeemShapeFor({ actingSubjectId, target, accountState }) {
   return accountState === 'credential_set' ? 'membership_only' : 'self_credential_set';
 }
 
+// ═══ A MEGHÍVÓ FELTÉTELEI VÁLTOZTATHATATLANOK (R51/J2 · INV-05) ════════════════════════════════
+//
+// A külső fél N10 esete: a meghívó admin szerepet ajánl, a tranzakció HATÁRÁN a sor `user`-re
+// csökken, a friss ablak/jog-ellenőrzés a `user` ajánlatot látja — az ÍRÁS viszont a KORÁBBAN
+// olvasott sor `admin` szerepét használta. Eredmény: a meghívóban `user`, az új tagságban `admin`.
+//
+// A hiba nem a hiányzó újraolvasás volt (azt az R50-ben megépítettük), hanem hogy a DÖNTÉS és az
+// ÍRÁS két KÜLÖNBÖZŐ példányból dolgozott. Nem több szétszórt `if` a megoldás: a kiadott feltételek
+// VÁLTOZTATHATATLANOK, és ezt ki kell KÉNYSZERÍTENI, nem kommentben kijelenteni. Ha a feltétel
+// mégis mozdul, a régi token nem váltható be — új meghívó kell (nevezett `invite_terms_changed`,
+// nem zsákutca: a mondat megmondja, mi történt — KUKA-064).
+//
+// A lenyomat SZÁNDÉKOSAN nem tartalmazza a `redeemed_at`-ot és az `expires_at`-ot: azok nem
+// feltételek, hanem ÁLLAPOT — a saját nevezett ellenőrzésük (`inviteWindowAt`) méri őket.
+export const INVITE_TERMS = Object.freeze(['book_id', 'invitee_namespace', 'invitee_value', 'offered_role', 'issuer_subject']);
+
+export function inviteTerms(row) {
+  if (!row) return null;
+  return INVITE_TERMS.map((f) => `${f}=${String(row[f])}`).join('|');
+}
+
 // ═══ A TAGSÁG KIMENETE — Q13 ═══════════════════════════════════════════════════════════════════
 //
 // A régi `ON CONFLICT DO NOTHING` a MEGVÁLTOZOTT tényt nyelte el: visszavont vagy más szerepű
@@ -339,6 +360,32 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
     const grant2 = inviteGrantAt({ store, invite: fresh, clock });
     if (!grant2.ok) return Object.freeze({ ok: false, error: 'invite_not_actionable', reason: grant2.reason });
 
+    // (7a) A FELTÉTELEK VÁLTOZTATHATATLANOK (R51/J2 · N10). A fenti két ellenőrzés a FRISS soron
+    // fut, de a döntés, amivel ideáig eljutottunk (alak · idegen-alany-őr · kimenet), a BEOLVASOTT
+    // példányon született. Ha a kettő feltételei eltérnek, a döntés egy MÁSIK meghívóra vonatkozik.
+    if (inviteTerms(fresh) !== inviteTerms(inv)) {
+      return Object.freeze({
+        ok: false, error: 'invite_terms_changed',
+        message: 'a meghívó feltételei közben megváltoztak — kérj új meghívót',
+      });
+    }
+
+    // (7b) A KIMENET ÚJRASZÁMOLVA, A TRANZAKCIÓN BELÜL (R51/J2 · N11). A régi alak a tranzakción
+    // KÍVÜL eldöntött `outcome`-ot hozta be: ha a címzett tagságát a határon megvonták, az
+    // `already_active` döntés SIKERT adott és ELFOGYASZTOTTA a meghívót, miközben a jog már hamis.
+    // Egy ellenőrzött döntési pillanat van, és az itt van.
+    const outcome2 = membershipOutcome(
+      target ? store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', target, fresh.book_id) : null,
+      fresh.offered_role, clock.now());
+    if (!outcome2.grants_access) {
+      return Object.freeze({
+        ok: false, error: 'membership_not_granted', outcome: outcome2.outcome,
+        message: outcome2.outcome === 'role_differs'
+          ? 'ehhez a könyvhöz már más szerepkörrel tartozol — a szerep módosítása külön eljárás'
+          : 'ehhez a könyvhöz korábban visszavont tagságod van — az újranyitás külön döntés',
+      });
+    }
+
     let subjectId = target;
     if (shape === 'birth') {
       subjectId = `sub_${token}`;
@@ -347,8 +394,8 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
         `INSERT INTO external_id (subject_id, namespace, issuer, jurisdiction, value_raw, value_norm,
                                   cardinality, valid_from, valid_to)
          VALUES (?,?,?,?,?,?,?,?,NULL)`,
-        subjectId, inv.invitee_namespace, 'self_asserted', 'n/a',
-        inv.invitee_value, norm(inv.invitee_value), 'one_to_one', clock.now());
+        subjectId, fresh.invitee_namespace, 'self_asserted', 'n/a',
+        fresh.invitee_value, norm(fresh.invitee_value), 'one_to_one', clock.now());
       store.run('INSERT INTO account (subject_id, credential) VALUES (?,?)', subjectId, newCredential);
     } else if (shape === 'self_credential_set') {
       // A LÉTEZŐ SZEMÉLY, a FIÓK MEGLÉTE és a HITELESÍTŐ MEGLÉTE HÁROM KÜLÖN ÁLLAPOT (Q11).
@@ -368,10 +415,12 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
       }
     }
 
-    if (outcome.outcome === 'granted') {
+    // MINDEN ÍRÁS A FRISS SORBÓL DOLGOZIK. A régi alak itt `inv.offered_role`-t írt — az ELAVULT
+    // példány szerepét —, tehát a friss ellenőrzés és az írás két külön igazságot hordozott (N10).
+    if (outcome2.outcome === 'granted') {
       store.run(
         `INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)`,
-        subjectId, inv.book_id, inv.offered_role, clock.now());
+        subjectId, fresh.book_id, fresh.offered_role, clock.now());
     }
 
     // A FOGYASZTÁS ÖN-ŐRZŐ: `WHERE redeemed_at IS NULL`. Ez tartja meg a TOCTOU-védelmet
@@ -380,6 +429,6 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
       clock.now(), token);
     if (used.changes !== 1) throw new Error('redeemInvite: a meghívót közben már felhasználták');
 
-    return Object.freeze({ ok: true, shape, outcome: outcome.outcome, subject_id: subjectId, book_id: inv.book_id });
+    return Object.freeze({ ok: true, shape, outcome: outcome2.outcome, subject_id: subjectId, book_id: fresh.book_id });
   });
 }
