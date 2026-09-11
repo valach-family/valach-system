@@ -4864,14 +4864,19 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'azonosítunk (a szerződést és a róla vezetett indexet), akkor KÉT lenyomat kell, külön néven — '
       + 'egybe olvasztva egyik változása sem látszik biztosan (KUKA-002 a hasheken). És ha a megnevezett '
       + 'dolog bájtjai nincsenek nálunk, azt KI KELL MONDANI: a hiányzó kötés hangosabb, mint egy hamis.',
-    guard_note: 'gépi jel: a kiadott `norm_contract` a `contractRef()`-ből jön, a `digest_scope` és a '
-      + '`source_document.text_digest: null` a kimenet része; és a D01 újrafogalmazott alakja mérve: '
-      + 'a K01 címének változása MEGVÁLTOZTATJA a szerződés- és az együttes lenyomatot, az INDEXÉT nem.',
+    guard_note: 'gépi jel: a kiadott `norm_contract` a `contractRef()`-ből jön, a `digest_scope` a '
+      + 'kimenet része; és a D01 újrafogalmazott alakja mérve: a K01 címének változása MEGVÁLTOZTATJA a '
+      + 'szerződés- és az együttes lenyomatot, az INDEXÉT nem. '
+      + 'A NEVEZETT HIÁNY 2026-09-11-én BEZÁRULT (D-VS-3012): a normaszöveg bájtazonos másolata a '
+      + 'repóban áll (`v3ref/source-documents/R32_board_v1.md`), és a `text_digest` MÉRVE, a fájl '
+      + 'bájtjaiból születik — betöltéskor az elvárthoz hasonlítva, eltérésnél `NORM_SOURCE_ARTIFACT_'
+      + 'MISMATCH`, hiányzó fájlnál `NORM_SOURCE_ARTIFACT_MISSING`. A szöveg ezért itt is követi a '
+      + 'valóságot (KUKA-050): a régi „null, nevezett hiánnyal" alak MÁR NEM a mai állapot.',
     positive: Object.freeze([
       Object.freeze({ paths: ['v3ref/normContract.mjs'], pattern: 'contractDigest',
         reason: 'a szerződés lenyomata a szerződés saját bájtjaiból' }),
-      Object.freeze({ paths: ['v3ref/normContract.mjs'], pattern: 'text_digest: null',
-        reason: 'a hiányzó normaszöveg-kötés KIMONDVA, nem pótolva' }),
+      Object.freeze({ paths: ['v3ref/normContract.mjs'], pattern: 'text_digest: MEASURED\\.text_digest',
+        reason: 'a normaszöveg-kötés MÉRVE él (a nevezett hiány bezárult), nem bemásolt konstansként' }),
       Object.freeze({ paths: ['v3ref/norms.mjs'], pattern: 'contentReviewState',
         reason: 'a tartalmi jóváhagyás a konkrét lenyomatokhoz kötve, elavulással' }),
     ]),
@@ -4916,6 +4921,134 @@ const RETIRED_PATTERNS = Object.freeze([
     positive: Object.freeze([
       Object.freeze({ paths: ['v3ref/store.mjs'], pattern: 'a saját szabályunk is ezt mondja: a próbát a HATÁRHOZ igazítjuk',
         reason: 'a visszavont indoklás helyén a helyes irány áll, kimondva' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-103',
+    date: '2026-09-11',
+    title: 'A KAPU AZ ELLENŐRZÖTT CSOMAGTÓL KÉRDEZTE MEG, MIHEZ MÉRJE',
+    what: 'A falszifikációs bizonyíték elfogadója (`falsificationQualifies`) a csomag `mutated_digest` '
+      + 'mezőjét a UGYANANNAK A CSOMAGNAK a `base_digest` mezőjéhez mérte, és a `run_token`-t is a '
+      + 'csomagból fogadta el. Egy önmagában következetes, de KITALÁLT csomag ezért átment: elég volt '
+      + 'két különböző hash-t és egy tetszőleges futásazonosítót beírni. A külső fél az R57-ben pontosan '
+      + 'ezt mérte meg: „a kapu a csomag saját állításait használja viszonyítási alapként".',
+    why_wrong: 'A BIZONYÍTÉK NEM IGAZOLHATJA ÖNMAGÁT. Ha az elvárt érték abból a csomagból származik, '
+      + 'amit épp ellenőrzünk, akkor nem ellenőrzés történik, hanem BELSŐ KÖVETKEZETESSÉG-vizsgálat — '
+      + 'az pedig a hamisítványra ugyanúgy igaz, mint a valódira (a KUKA-054 alakja a bizonyítékon: a '
+      + 'mérés a saját bemenetét igazolta vissza). A kapu így a legdrágább fajta díszvezérlő volt: '
+      + 'zöldet mondott arról, hogy a visszabontás MEGTÖRTÉNT, miközben semmilyen futás nem állt mögötte.',
+    replaced_by: 'AZ ELVÁRT ÉRTÉK A SZÜLŐ FUTÁSI KÖRNYEZETÉBŐL JÖN, és hiányában a kapu FAIL-CLOSED. '
+      + 'A battéria a saját, mért `BASE_DIGEST`-jét, a mutációnkénti `run_tokens[mutation_id]`-t és a '
+      + 'mutációnkénti `mutated_digests[mutation_id]`-t adja át `expectation`-ként; a kapu ehhez méri a '
+      + 'csomagot, és külön nézi, hogy a mutáció a REGISZTERBEN van-e, hogy az állítást a MANIFEST '
+      + 'kiadja-e, és hogy a csomag önmagával nem mond-e ellent (`verdict` ⇄ `probe_status`).',
+    decision: 'D-VS-3012',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R57 F02) — a saját, frissen írt kapunkon.',
+    lesson: 'AKITŐL AZ ELVÁRT ÉRTÉKET KÉRDEZZÜK, AZ NEM LEHET AZ ELLENŐRZÖTT FÉL. Minden ellenőrzőnél ki '
+      + 'kell mondani, HONNAN jön a viszonyítási alap — és ha a válasz „a bemenetből", akkor a kapu '
+      + 'nincs kész. A hiány nem lehet megengedő: elvárás nélkül a helyes válasz az elutasítás, nem a '
+      + 'jóindulat. ÉS A MÁSODIK FELE: amikor egy kaput SZIGORÍTUNK, a saját ellen-vezérléseinket ÚJRA '
+      + 'KELL KÖTNI a valódi szerződéshez — itt a `P-NORM-evidence` kitalált mutáció-azonosítókkal '
+      + 'dolgozott, ezért a szigorítás után a régi támadások a HELYES okból bukták el a kaput, és a '
+      + 'próba zöldje már mást bizonyított volna, mint amit a címe ígér (KUKA-051 a mérésen).',
+    guard_note: 'gépi jel: `npm run verify:v3ref` → `P-NORM-evidence` n13–n19 (idegen alap-lenyomat · '
+      + 'másik futás azonosítója · regiszteren kívüli mutáció · rossz mutált lenyomat · ellentmondó '
+      + 'verdikt/állapot · HIÁNYZÓ elvárás · manifestben nem deklarált állítás) — mind a hét a régi, '
+      + 'megengedő alakon bizonyítottan átment volna.',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: 'result\\.mutated_digest\\s*===\\s*result\\.base_digest',
+        reason: 'a csomag önmagához mérése nem térhet vissza (KUKA-103)' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: 'nincs ELVÁRT érték a szülő futási környezetéből',
+        reason: 'elvárás nélkül a kapu fail-closed, NÉVVEL kimondva' }),
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: 'expectation\\.run_tokens\\[result\\.mutation_id\\]',
+        reason: 'a futásazonosító MUTÁCIÓNKÉNT, a szülőtől jön — nem a csomagból' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-104',
+    date: '2026-09-11',
+    title: 'A KAPU KIMONDTA AZ ELTÉRÉST — ÉS NULLÁVAL ZÁRT',
+    what: 'A battéria a képernyőn kiírta, mely klauzulák maradtak `not_falsified` állapotban, de a '
+      + 'KILÉPÉSI KÓDJA ettől független volt: a futás `0`-val zárt akkor is, ha egyetlen kötelező '
+      + 'klauzula sem volt fedve. Ráadásul KÖTELEZŐ KÉSZLET nem is létezett — „fedett" az volt, ami '
+      + 'történetesen fedett lett, tehát a mérce a saját eredményéből származott.',
+    why_wrong: 'KÉT CSATORNA, KÉT KÜLÖNBÖZŐ IGAZSÁG (KUKA-080 a gépi jelen). Az EMBER a mondatot olvassa, '
+      + 'a GÉP a kilépési kódot — és a láncba kötött fogyasztó (söprés, CI, a külső fél futtatója) csak '
+      + 'az utóbbit látja: számára a futás ZÖLD volt. A hiányzó kötelező készlet pedig ugyanaz a hiba egy '
+      + 'szinttel feljebb: elvárás nélkül minden eredmény „megfelel", mert nincs, amihez mérni (KUKA-041: '
+      + 'a díszpipa sikert jelent arról, ami meg sem történt).',
+    replaced_by: 'NEVEZETT KÖTELEZŐ KÉSZLET (`REQUIRED_EVIDENCE`, `req-1`: REV-N1a · REV-N1b · ORG-N2a), '
+      + 'FÁZIS-FÜGGŐ elvárt állapottal (a magpróbán `falsification_pending` elég, a battérián `covered` '
+      + 'kell), és a battéria `clean` minősítése CSAK akkor áll fenn, ha `normFinal.required.ok` — a '
+      + 'kilépési kód tehát a kimondott ítéletet hordozza. Ami hiányzik, azt a futás NÉVVEL sorolja fel.',
+    decision: 'D-VS-3012',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R57 F01).',
+    lesson: 'AMIT A KÉPERNYŐ KIMOND, AZT A KILÉPÉSI KÓDNAK IS KI KELL MONDANIA. Minden ellenőrzőnél két '
+      + 'kérdés: mi a KÖTELEZŐ készlet (mihez mérünk, mielőtt megnéznénk az eredményt), és MELYIK '
+      + 'CSATORNÁN látszik a nemleges válasz? Ha a nemleges eredmény csak szövegben áll, akkor a gépi '
+      + 'fogyasztó számára nem létezik. És a mérce soha ne az eredményből származzon.',
+    guard_note: 'gépi jel: `npm run verify:v3ref` → `P-NORM-evidence` n20 (hiányzó kötelező klauzula ⇒ '
+      + '`required.ok:false`) és n21 (teljes készlet ⇒ `ok:true`); a battérián a `clean` feltétele '
+      + 'kimondottan tartalmazza a `required.ok`-t, és a `why[]` megnevezi az okot.',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: 'a kötelező készlet csak tájékoztató',
+        reason: 'a kötelező készlet nem süllyedhet vissza tájékoztatássá (KUKA-104)' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: 'export const REQUIRED_EVIDENCE',
+        reason: 'a kötelező bizonyíték-készlet NEVEZETT és egy otthonban áll' }),
+      Object.freeze({ paths: ['v3ref/mutate.mjs'],
+        pattern: 'normFinal\\.required\\.ok',
+        reason: 'a végleges minősítés (és rajta a kilépési kód) a kötelező készlethez kötött' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-105',
+    date: '2026-09-11',
+    title: 'A TARTALMI JÓVÁHAGYÁS PUSZTA HASHEKBŐL',
+    what: 'A klauzula `content_review` mezője akkor számított `current`-nek, ha a benne álló lenyomatok '
+      + 'egyeztek a mai szerződés-, klauzula- és forrás-lenyomattal. Se FELÜLVIZSGÁLÓ, se IDŐPONT, se '
+      + 'megvizsgált HELYZET, se POZITÍV/NEGATÍV bizonyíték, se MARADÉK nem kellett hozzá. A külső fél '
+      + 'egyetlen sorral megcáfolta (R57 E04): két hash beírásával „érvényes tartalmi jóváhagyás" született.',
+    why_wrong: 'A HASH AZONOSSÁGOT BIZONYÍT, NEM ÁTNÉZÉST. Az egyező lenyomat annyit mond, hogy a szöveg '
+      + 'nem változott azóta — arról semmit, hogy VALAKI VALAHA elolvasta és jóváhagyta. A mező NEVE '
+      + '(„tartalmi felülvizsgálat") emberi munkát ígért, a TARTALMA gépi egybeesés volt: a felirat '
+      + 'többet állított, mint amit a gép teljesített (KUKA-015), és a hiányzó tanú ugyanúgy „zöldnek" '
+      + 'látszott, mint a meglévő (KUKA-012 a jóváhagyáson).',
+    replaced_by: 'NEVEZETT, KÖTELEZŐ MEZŐ-KÉSZLET (`CONTENT_REVIEW_REQUIRED`, 11 mező: felülvizsgáló '
+      + 'azonosító/szerep/függetlenség · időpont · a HÁROM lenyomat · manifest-lenyomat · a megvizsgált '
+      + 'helyzet és tulajdonság · pozitív és negatív bizonyíték · maradék), és NÉGY állapot: `none` · '
+      + '`incomplete` (a hiányzó mezők NEVÉVEL) · `stale` (az ELCSÚSZOTT lenyomatok nevével) · `current`. '
+      + 'A hiányos rekord soha nem lehet `current`.',
+    decision: 'D-VS-3012',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R57 F03 / E04).',
+    lesson: 'AMI EMBERI ÍTÉLETET ÁLLÍT, ANNAK MEG KELL NEVEZNIE AZ EMBERT, AZ IDŐT ÉS A BIZONYÍTÉKOT. Egy '
+      + 'jóváhagyás-rekordnál a kérdés nem az, hogy „egyezik-e", hanem hogy KI, MIKOR, MIT nézett meg, és '
+      + 'MI MARADT NYITVA — a lenyomat csak azt dönti el, hogy az ítélet még a MAI szövegre vonatkozik-e. '
+      + 'És a hiányt a hiányos rekord mondja ki, ne a hiánya: a „nincs jóváhagyás" és a „hiányos '
+      + 'jóváhagyás" két különböző válasz (KUKA-064).',
+    guard_note: 'gépi jel: `npm run verify:v3ref` → `P-NORM-evidence` n22/n23 — a négy állapot nyolc '
+      + 'esetben mérve, köztük a külső fél pontos ellenpéldája (csak a két hash) és a teljes, majd '
+      + 'elcsúsztatott rekord.',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: 'a lenyomat-egyezés elég a tartalmi jóváhagyáshoz',
+        reason: 'a puszta hash-egyezésből származó jóváhagyás nem térhet vissza (KUKA-105)' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: 'CONTENT_REVIEW_REQUIRED',
+        reason: 'a jóváhagyás kötelező mező-készlete NEVEZETT, és minden olvasó ezt hívja' }),
     ]),
   }),
 

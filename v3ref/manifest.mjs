@@ -163,3 +163,21 @@ export function checkResultSet(records) {
 
   return { ok: problems.length === 0, problems };
 }
+
+// ── A MANIFEST SAJÁT LENYOMATA (R57/F03) ────────────────────────────────────────────────────────
+// A tartalmi jóváhagyás ehhez is kötődik: ha a PRÓBA-KÉSZLET vagy a beváltás-deklaráció változik,
+// a rá épült review elavul. Enélkül egy néma manifest-átírás túlélné a jóváhagyást — és épp ezt
+// kifogásolta a külső fél (R57/F03: „azok változása a mostani két hash alapján nem avultatná el").
+import { createHash as __createHashForManifestDigest } from 'node:crypto';
+
+export function manifestDigest() {
+  const bytes = JSON.stringify({
+    version: MANIFEST_VERSION,
+    probes: EXPECTED_PROBES.map((p) => ({
+      id: p.id,
+      assertion: p.assertion ?? null,
+      discharges: (p.discharges || []).map((d) => [d.clause, d.assertion]),
+    })),
+  });
+  return `sha256:${__createHashForManifestDigest('sha256').update(bytes).digest('hex')}`;
+}

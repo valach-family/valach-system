@@ -1207,15 +1207,34 @@ probe('P-NORM-evidence', 'R32/K11 · R53 F03 · F04 · KUKA-038 · KUKA-095',
     // A SZINTETIKUS MUTÁCIÓS EREDMÉNYEK (R55/F03). Minden deklarált klauzula-állításhoz EGY,
     // eredet-helyes eredmény: alkalmazva, két KÜLÖNBÖZŐ forrás-lenyomat, futás-jel, és a HAMISRA
     // fordult állítás NÉV SZERINT. A kapu innentől ezt kéri — a puszta definíció nem elég.
-    const okResults = () => baseProbes.flatMap((p) => (p.discharges || []).map((d, i) => ({
-      mutation_id: `Mszint_${p.id}_${i}`, catcher: p.id, applied: true,
-      base_digest: 'sha256:alap', mutated_digest: 'sha256:mutalt', run_token: 'rt_proba',
-      probe_id: p.id, probe_status: 'FAIL', failed_assertions: [d.assertion],
-      verdict: 'CAUGHT', evidence_limit: null,
-    })));
+    // A SZINTETIKUS CSOMAG A VALÓDI SZERZŐDÉST BESZÉLI (R57/F02). Korábban kitalált
+    // mutáció-azonosítókkal (`Mszint_…`) és kitalált lenyomatokkal dolgozott — vagyis a saját
+    // nyelvjárását mérte, nem a fogyasztóét (KUKA-068). Mostantól VALÓDI regiszter-mutációt választ,
+    // és az „elvárt" értékeket EGY helyről veszi, ahogy az éles battéria is: a szülő adja, a csomag
+    // nem írhatja felül magának.
+    const mutOf = (probeId, i) => {
+      const owned = MUTATIONS.filter((m) => m.catcher === probeId);
+      return owned[i] || owned[0] || null;
+    };
+    const EXPECT = {
+      base_digest: 'sha256:alap_a_szulotol',
+      run_tokens: Object.fromEntries(MUTATIONS.map((m) => [m.id, `rt_${m.id}`])),
+      mutated_digests: Object.fromEntries(MUTATIONS.map((m) => [m.id, `sha256:mutalt_${m.id}`])),
+    };
+    const okResults = () => baseProbes.flatMap((p) => (p.discharges || []).map((d, i) => {
+      const m = mutOf(p.id, i);
+      return {
+        mutation_id: m ? m.id : `NINCS_MUTACIO_${p.id}`, catcher: p.id, applied: true,
+        base_digest: EXPECT.base_digest,
+        mutated_digest: m ? EXPECT.mutated_digests[m.id] : 'sha256:nincs',
+        run_token: m ? EXPECT.run_tokens[m.id] : 'rt_nincs',
+        probe_id: p.id, probe_status: 'FAIL', failed_assertions: [d.assertion],
+        verdict: 'CAUGHT', evidence_limit: null,
+      };
+    }));
     const base = (over) => ({
       probes: clone(baseProbes), mutations: MUTATIONS, records: clone(baseRecords),
-      mutationResults: okResults(), ...over,
+      mutationResults: okResults(), expectation: EXPECT, ...over,
     });
     const findP = (b, id) => b.probes.find((p) => p.id === id);
     const findR = (b, id) => b.records.find((r) => r.probe_id === id);
@@ -1381,9 +1400,103 @@ probe('P-NORM-evidence', 'R32/K11 · R53 F03 · F04 · KUKA-038 · KUKA-095',
       return { pass: both.every((x) => x.red), detail: both.map((x) => `${x.v}:${x.red}`).join(' ') };
     });
 
+    // ── R57/F02 — AZ EREDET TÉNYLEGES ÖSSZEHASONLÍTÁSA ─────────────────────────────────────────
+    // A külső fél E01/E03 esete KITÖLTÖTT csomaggal jött: minden mező a helyén, csak épp IDEGEN.
+    // Az R56-os kapu a mezők MEGLÉTÉT nézte, ezért mindhárom klauzulát `covered`-nek fogadta el.
+    // Ezek a kontrollok a MEGLÉT helyett az EGYEZÉST mérik — külön-külön minden eredet-tengelyen.
+    const noneCovered = (over) => {
+      const res = checkNorms(base(over));
+      return { pass: !res.chain.some((c) => c.result === 'covered'), detail: res.chain.filter((c) => c.result === 'covered').length + ' fedett' };
+    };
+    control('n13', 'IDEGEN alap-lenyomat PIROS (nem a mért alapé)', () => noneCovered({
+      mutationResults: okResults().map((r) => ({ ...r, base_digest: 'sha256:idegen-alap' })),
+    }));
+    control('n14', 'MÁS futás jele PIROS (elavult csomag)', () => noneCovered({
+      mutationResults: okResults().map((r) => ({ ...r, run_token: 'rt_egy_korabbi_futasbol' })),
+    }));
+    control('n15', 'NEM REGISZTERBELI mutáció-azonosító PIROS', () => noneCovered({
+      mutationResults: okResults().map((r) => ({ ...r, mutation_id: 'NOT_IN_REGISTRY' })),
+    }));
+    control('n16', 'a VÁRTTÓL eltérő mutált lenyomat PIROS', () => noneCovered({
+      mutationResults: okResults().map((r) => ({ ...r, mutated_digest: 'sha256:mas-mutalt' })),
+    }));
+    control('n17', 'ELLENTMONDÓ csomag PIROS (SURVIVED ítélet · PASS próba-állapot)', () => {
+      const both = [
+        okResults().map((r) => ({ ...r, verdict: 'SURVIVED' })),
+        okResults().map((r) => ({ ...r, probe_status: 'PASS' })),
+      ].map((mutationResults) => noneCovered({ mutationResults }).pass);
+      return { pass: both.every(Boolean), detail: both.join('/') };
+    });
+    control('n18', 'ELVÁRÁS NÉLKÜL fail-closed (a csomag nem igazolhatja saját magát)',
+      () => noneCovered({ expectation: undefined }));
+    control('n19', 'a manifest által NEM deklarált állításra hivatkozó bizonyíték PIROS', () => {
+      // A csomag olyan állítást nevez meg, amit a próba nem deklarál: a `failed_assertions` idegen.
+      const res = checkNorms(base({
+        mutationResults: okResults().map((r) => ({ ...r, failed_assertions: ['A-IDEGEN-allitas'] })),
+      }));
+      return { pass: !res.chain.some((c) => c.result === 'covered'), detail: `${res.chain.filter((c) => c.result === 'covered').length} fedett` };
+    });
+
+    // ── R57/F01 — A KÖTELEZŐ KÉSZLET ───────────────────────────────────────────────────────────
+    control('n20', 'a KÖTELEZŐ készlet hiánya kimondva (üres bukott-lista ⇒ required.ok=false)', () => {
+      const res = checkNorms(base({ mutationResults: okResults().map((r) => ({ ...r, failed_assertions: [] })) }));
+      const ok = res.required && res.required.ok === false && res.required.missing.length > 0
+        && res.evidence_problems.some((x) => x.includes('KÖTELEZŐ BIZONYÍTÉK'));
+      return { pass: !!ok, detail: res.required ? `${res.required.missing.length} hiány` : 'nincs required blokk' };
+    });
+    control('n21', 'a HELYES csomagnál a kötelező készlet teljesül', () => {
+      const res = checkNorms(base());
+      return { pass: !!(res.required && res.required.ok === true), detail: res.required ? res.required.satisfied.join(',') : 'nincs' };
+    });
+
+    // ── R57 §6 — A FORRÁSDOKUMENTUM KÖTÉSE ─────────────────────────────────────────────────────
+    // ── R57/F03 — A TARTALMI JÓVÁHAGYÁS SZERZŐDÉSE ────────────────────────────────────────────
+    // NÉGY állapot, mind a négyre kontroll. A `current` ELLENPÁRJA külön fontos: enélkül nem
+    // tudnánk, hogy a kapu egyáltalán ÁTENGEDHETŐ-e — egy soha nem teljesülő szabály ugyanolyan
+    // haszontalan, mint egy mindent átengedő (KUKA-049: az őr ne a kért eredményt jelentse kudarcnak).
+    // A próba SZINTETIKUS klauzulán fut: a valódi 18 klauzula `none` marad, ahogy van.
+    control('n23', 'a tartalmi jóváhagyás NÉGY állapota (none · incomplete · stale · current)', () => {
+      const bind = { source_digest: 'sha256:forras', manifest_digest: 'sha256:manifest' };
+      const cl = { id: 'PROBA-X', covers: ['K00'], text: 'szintetikus klauzula a kapu méréséhez' };
+      const full = () => ({
+        reviewer: { id: 'proba-ellenorzo', role: 'független szemle', independent_of: 'a szerző' },
+        at: '2026-09-11T00:00:00.000Z',
+        contract_digest: contractRefDigest(),
+        clause_digest: clauseDigestOf(cl),
+        source_digest: bind.source_digest,
+        manifest_digest: bind.manifest_digest,
+        situation: 'élethelyzet', property: 'mérendő tulajdonság',
+        positive_evidence: 'pozitív eset', negative_evidence: 'ellenpélda', residual: 'mi maradt ki',
+      });
+      const st = (over, b2 = bind) => contentReviewState({ ...cl, content_review: over }, b2).state;
+      const cases = {
+        none: st(undefined) === 'none',
+        incomplete_ures: st({ contract_digest: contractRefDigest(), clause_digest: clauseDigestOf(cl) }) === 'incomplete',
+        incomplete_hianyos_ellenorzo: st({ ...full(), reviewer: { id: 'x' } }) === 'incomplete',
+        incomplete_nincs_maradek: st({ ...full(), residual: null }) === 'incomplete',
+        stale_forras_elcsuszott: st({ ...full(), source_digest: 'sha256:regi' }) === 'stale',
+        stale_manifest_elcsuszott: st({ ...full(), manifest_digest: 'sha256:regi' }) === 'stale',
+        stale_nincs_kotes: st(full(), null) === 'stale',
+        current_teljes: st(full()) === 'current',
+      };
+      const bad2 = Object.entries(cases).filter(([, v]) => !v).map(([k]) => k);
+      return { pass: bad2.length === 0, detail: bad2.length ? `NEM: ${bad2.join(', ')}` : '8/8 állapot helyes' };
+    });
+
+    control('n22', 'az R32 forráskötés MÉRT és egyezik a külső fél kiadott értékével', () => {
+      const m = sourceArtifactMeasurement();
+      const ok = m.measured.text_digest === m.attested.text_digest
+        && m.measured.byte_length === m.attested.byte_length
+        && m.measured.section_digest === m.attested.section.digest;
+      return { pass: ok, detail: `${m.measured.byte_length} bájt · ${m.measured.text_digest.slice(0, 23)}…` };
+    });
+
     const bad = controls.filter((c) => !c.pass);
+    const attacks = controls.length - 1;
     return {
-      expected: 'mind a tizenkét támadás PIROS, és a helyes csomag ZÖLD (n0)',
+      // A SZÁM MÉRT, NEM KÉZZEL LÉPTETETT (KUKA-045): új kontroll felvételekor ez a mondat magától
+      // igazat mond, és nem kell egy feliratot utánaigazítani.
+      expected: `mind a ${attacks} támadás PIROS, és a helyes csomag ZÖLD (n0)`,
       actual: bad.length === 0
         ? `${controls.length - 1}/${controls.length - 1} támadás elhárítva + ellenpár zöld · ${controls.map((c) => `${c.id}:${c.detail}`).join(' | ').slice(0, 220)}`
         : `NEM VÉDETT: ${bad.map((c) => `${c.id} (${c.what}) → ${c.detail}`).join(' · ')}`,
@@ -1401,7 +1514,10 @@ const EXECUTED_BY = (() => {
   return env || 'unknown';
 })();
 
-import { checkNorms, normsSummary, OPEN_BLOCKERS, NORM_CONTRACT_VERSION, NORMS_INDEX_ID, NORMS_INDEX_SCHEMA, contractRef, indexDigest } from './norms.mjs';
+import { checkNorms, normsSummary, OPEN_BLOCKERS, NORM_CONTRACT_VERSION, NORMS_INDEX_ID, NORMS_INDEX_SCHEMA, contractRef, indexDigest, contentReviewState, clauseDigest as clauseDigestOf } from './norms.mjs';
+const contractRefDigest = () => contractRef().digest;
+import { sourceArtifactMeasurement } from './normContract.mjs';
+import { manifestDigest } from './manifest.mjs';
 import { REVIEWS, REVIEWS_FOR, staleFor, residualStandingFor, checkResolutions } from './reviews.mjs';
 import { MANIFEST_VERSION, EXPECTED_IDS, EXPECTED_PROBES, PROBE_STATUS, assertionOf } from './manifest.mjs';
 import { MUTATIONS } from './mutations.mjs';
@@ -1524,7 +1640,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   // bukott próba mellett a hívó egyáltalán nem kapott eredménycsomagot — a mérő pedig „harness"
   // hibát látott ott, ahol valójában szabályos regresszió volt. A bizonyíték kimegy, azután dől el
   // a kilépési kód.
-  const nrm = checkNorms({ probes: EXPECTED_PROBES, mutations: MUTATIONS, records });
+  // A TARTALMI JÓVÁHAGYÁS KÖTÉSEI (R57/F03): melyik FORRÁS- és MANIFEST-állapoton érvényes egy
+  // review. Enélkül a jóváhagyás nem igazolható, tehát nem lehet `current` — és a teszt/kód
+  // változása magától elavultat (ezt a külső fél E04 zárómondata kérte).
+  const reviewBindings = { source_digest: src.digest, manifest_digest: manifestDigest() };
+  const nrm = checkNorms({ probes: EXPECTED_PROBES, mutations: MUTATIONS, records, review_bindings: reviewBindings });
   // FUTÁSAZONOSÍTÓ: két futás eredménye ne legyen összekeverhető (R45 §2). A tartalmi lenyomatból
   // és az indulás idejéből származik, tehát nem véletlen — visszakereshető.
   const RUN_ID = `run_${createHash('sha256').update(src.digest).update(records[0] ? records[0].at : '')
@@ -1547,6 +1667,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         // A FÁZIS KIMONDVA (R55/F03/1): a magpróba a mutációs battéria ELŐTT fut, tehát a
         // falszifikációról itt nem nyilatkozunk — a klauzulák `falsification_pending` állapotúak.
         falsification_stage: nrm.falsification_stage,
+        // A KÖTELEZŐ KÉSZLET ÁLLAPOTA a kimenet része (R57/F01) — az olvasó ne a lánc soraiból
+        // fejtse vissza, hogy mit vállaltunk bizonyítottnak.
+        required: nrm.required,
         integrity_problems: nrm.integrity_problems,
         evidence_problems: nrm.evidence_problems,
         norms: nrm.norms,

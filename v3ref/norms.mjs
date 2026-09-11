@@ -410,6 +410,30 @@ export const NORM_FLOORS = Object.freeze({
   revocation: 5, orgBasis: 3, blockers: 7, clauses: 18, kClauses: 16,
 });
 
+/**
+ * A KÖTELEZŐ BIZONYÍTÉK-KÉSZLET (R57/F01 — az ő E02 esetük).
+ *
+ * MIÉRT SZÜLETETT. A külső fél a `failed_assertions` listákat üresre cserélte a valóban lefutott
+ * mutációk összesítésekor. Az összesítő HELYESEN felismerte a hiányt („0/18 FEDETT · 3 állítás
+ * teljesült, de NEM falszifikált"), a CLI mégis sikeres mondattal, 0 kilépési kóddal zárt: a végső
+ * `clean` csak a REGISZTER szerkezeti épségét nézte, a bizonyíték hiányát nem. Egy automatizált
+ * következő lépés így sikernek veheti azt, amit a részletes napló már hibásnak nevez (KUKA-096
+ * fordítottja: ott a kapu némította el a mérést, itt a mérés beszél és a kapu nem hallgat rá).
+ *
+ * MIÉRT NEM „MIND A 18". A 18 klauzulából ma HÁRMAT vállalunk bizonyítottnak; a többi nyitott, és a
+ * nyitottságuk NEVESÍTVE áll. Ha a hiányukat futási hibává tennénk, a kapu minden körben piros
+ * volna, és megtanulnánk figyelmen kívül hagyni — a zajos őr rosszabb, mint a hiányzó (KUKA-034).
+ * Ezért a készlet EXPLICIT és VERZIÓZOTT: ami benne van, arra bizonyíték KELL; ami nincs, az
+ * nyitott, és a lánc kimondja. A készlet bővítése tudatos lépés, nem mellékhatás.
+ */
+export const REQUIRED_EVIDENCE = Object.freeze({
+  version: 'req-1',
+  since: 'R58',
+  clauses: Object.freeze(['REV-N1a', 'REV-N1b', 'ORG-N2a']),
+  why: 'ez a három klauzula az, amire ma bizonyítékot VÁLLALUNK (a mutációs battéria megbuktatja a '
+    + 'deklarált állításukat). A többi klauzula nyitott — a hiányuk nem futási hiba, de kimondott.',
+});
+
 /** EGY KLAUZULA KANONIKUS ALAKJA — ehhez kötődik a tartalmi jóváhagyás (R55 §6 · OB-7). */
 export function clauseDigest(clause) {
   const bytes = JSON.stringify({ id: clause.id, covers: [...clause.covers], text: clause.text });
@@ -439,23 +463,103 @@ export function normsDigest() {
 }
 
 /**
- * A KLAUZULÁNKÉNTI TARTALMI FELÜLVIZSGÁLAT ÁLLAPOTA (R55 §6 · OB-7).
+ * A KLAUZULÁNKÉNTI TARTALMI FELÜLVIZSGÁLAT ÁLLAPOTA (R55 §6 · R57/F03 · OB-7).
  *
- * A külső fél kimondta, mi az OB-7 elfogadható lezárási alakja: klauzulánként rögzített, független
- * tartalmi felülvizsgálat, a KONKRÉT verziókhoz kötve — és „változás esetén az érintett korábbi
- * tartalmi jóváhagyás váljon elavulttá". A GÉPEZET ettől a körtől megvan; a TARTALOM még nem.
- * A hiányt ÉRTÉKKÉNT mondjuk ki (`none`), nem hallgatással (KUKA-012).
+ * MIÉRT SZIGORODOTT. Az R56-os alak KÉT hashből mondott `current`-et: ha a szerződés- és a
+ * klauzula-lenyomat stimmelt, a jóváhagyás érvényesnek számított — ellenőrző, időpont, bizonyíték
+ * és maradék hatókör NÉLKÜL. A külső fél E04 esete pontosan ezt tette: egy `{contract_digest,
+ * clause_digest}` párra `{"state":"current","by":null,"at":null,"residual":null}` jött vissza.
+ * Vagyis a mechanizmus, aminek az OB-7 lezárását kellene hordoznia, üres rekordot is elfogadott —
+ * a díszpipa (KUKA-041) alakja a tartalmi jóváhagyáson.
+ *
+ * A MÁSIK FELE: a jóváhagyás a TESZT és az IMPLEMENTÁCIÓ tartalmához sem kötődött, tehát azok
+ * változása nem avultatta volna el. Egy review, amit egy néma kód-átírás túlél, nem review.
+ *
+ * A MAI SZERZŐDÉS. A rekord KÖTELEZŐ tartalmú, és három kötést hordoz (szerződés · klauzula ·
+ * a vizsgált forrás és manifest). Ebből:
+ *   · hiányos rekord ⇒ `incomplete` — és megnevezi, MI hiányzik;
+ *   · bármelyik kötés elcsúszott ⇒ `stale` — és megnevezi, MELYIK;
+ *   · `current` CSAK a teljes, minden kötésben egyező rekordra.
+ * Ha a futás nem adja át a forrás/manifest kötést, a `current` nem adható ki: nem tudjuk igazolni,
+ * és a nem igazolható jóváhagyás fail-closed (KUKA-020).
+ *
+ * AMI EZZEL NEM LETT KÉSZ, ÉS KIMONDJUK: a `reviewer.id` egy SZÖVEG. Azt, hogy a felülvizsgáló
+ * tényleg független volt-e, ez a mechanizmus nem bizonyítja — csak azt kényszeríti ki, hogy a
+ * kérdésre VÁLASZOLNI kelljen, és a válasz a rekordban álljon. A regisztrálás JOGÁNAK ellenőrzése
+ * nyitott tétel (a külső fél R57/F03 zárómondata), és az OB-7 tartalmi igazságát továbbra is
+ * érdemi, független review mondja ki — nem ez a függvény.
  */
-export function contentReviewState(clause) {
+const CONTENT_REVIEW_REQUIRED = Object.freeze([
+  ['reviewer', (r) => r.reviewer && r.reviewer.id && r.reviewer.role && r.reviewer.independent_of,
+    'ki vizsgálta (azonosító + szerep + kitől független)'],
+  ['at', (r) => !!r.at, 'mikor'],
+  ['contract_digest', (r) => !!r.contract_digest, 'melyik szerződés-lenyomatra'],
+  ['clause_digest', (r) => !!r.clause_digest, 'melyik klauzula-lenyomatra'],
+  ['source_digest', (r) => !!r.source_digest, 'melyik forrás-állapoton'],
+  ['manifest_digest', (r) => !!r.manifest_digest, 'melyik teszt-/manifest-állapoton'],
+  ['situation', (r) => !!r.situation, 'milyen élethelyzetre'],
+  ['property', (r) => !!r.property, 'mi a mérendő tulajdonság'],
+  ['positive_evidence', (r) => !!r.positive_evidence, 'pozitív bizonyíték'],
+  ['negative_evidence', (r) => !!r.negative_evidence, 'negatív (ellenpélda) bizonyíték'],
+  ['residual', (r) => !!r.residual, 'mi MARADT KI (maradék hatókör)'],
+]);
+
+export function contentReviewState(clause, bindings) {
   const r = clause && clause.content_review;
-  if (!r) return Object.freeze({ state: 'none', why: 'nincs rögzített tartalmi felülvizsgálat' });
-  if (r.contract_digest !== contractDigest()) {
-    return Object.freeze({ state: 'stale', why: 'a jóváhagyás MÁS szerződés-lenyomatra született' });
+  if (!r || typeof r !== 'object') {
+    return Object.freeze({ state: 'none', why: 'nincs rögzített tartalmi felülvizsgálat' });
   }
-  if (r.clause_digest !== clauseDigest(clause)) {
-    return Object.freeze({ state: 'stale', why: 'a klauzula SZÖVEGE a jóváhagyás óta megváltozott' });
+
+  // (1) TELJESSÉG. A hiányt NEVESÍTVE mondjuk ki — a néma hiány ugyanaz a hazugság, mint a néma
+  // üres lista (KUKA-012), és a felsorolás megmondja, mit kell pótolni (KUKA-064).
+  const missing = CONTENT_REVIEW_REQUIRED.filter(([, ok]) => !ok(r)).map(([field, , what]) => ({ field, what }));
+  if (missing.length) {
+    return Object.freeze({
+      state: 'incomplete',
+      why: `a jóváhagyás hiányos — ${missing.map((m) => `${m.field} (${m.what})`).join(' · ')}`,
+      missing: Object.freeze(missing.map((m) => Object.freeze(m))),
+      by: (r.reviewer && r.reviewer.id) || null,
+    });
   }
-  return Object.freeze({ state: 'current', by: r.by || null, at: r.at || null, residual: r.residual || null });
+
+  // (2) KÖTÉSEK. Mind a négy tengelyen egyeznie kell; az eltérést NEVEZZÜK MEG, hogy tudni lehessen,
+  // mit kell újra megnézni — nem az egészet, csak az érintett bizonyítékot.
+  const want = {
+    contract_digest: contractDigest(),
+    clause_digest: clauseDigest(clause),
+    source_digest: bindings && bindings.source_digest,
+    manifest_digest: bindings && bindings.manifest_digest,
+  };
+  if (!want.source_digest || !want.manifest_digest) {
+    return Object.freeze({
+      state: 'stale',
+      why: 'a futás nem adta át a forrás/manifest kötést, ezért a jóváhagyás NEM igazolható '
+        + '(a nem igazolható jóváhagyás nem `current`)',
+      by: r.reviewer.id,
+    });
+  }
+  const drifted = Object.entries(want)
+    .filter(([k, v]) => r[k] !== v)
+    .map(([k]) => k);
+  if (drifted.length) {
+    return Object.freeze({
+      state: 'stale',
+      why: `a jóváhagyás óta elcsúszott: ${drifted.join(' · ')} — az érintett bizonyítékot újra kell nézni`,
+      drifted: Object.freeze(drifted),
+      by: r.reviewer.id,
+    });
+  }
+
+  return Object.freeze({
+    state: 'current',
+    by: r.reviewer.id,
+    role: r.reviewer.role,
+    independent_of: r.reviewer.independent_of,
+    at: r.at,
+    situation: r.situation,
+    property: r.property,
+    residual: r.residual,
+  });
 }
 
 /** A próbák MELYIK klauzulát MILYEN állítással váltják be — a manifestből, nem a normából. */
@@ -486,13 +590,67 @@ export function dischargeMap(probes) {
  * forrás MÉRT lenyomata (és a kettő különbözik) · futás-jel · a NEVEZETT próba · és a ténylegesen
  * HAMISRA fordult állítás-azonosítók.
  */
-export function falsificationQualifies(result, { probe, assertion }) {
+export function falsificationQualifies(result, { probe, assertion, expectation, mutations, allowedAssertions }) {
   if (!result || typeof result !== 'object') return 'nincs eredmény';
+
+  // (0) FAIL-CLOSED AZ ELVÁRÁS HIÁNYÁRA (R57/F02 — az ő E01/E03 esetük). A csomag NEM igazolhatja
+  // saját magát: az alap-lenyomatot, a futás-jelet és a várt mutált lenyomatot a SZÜLŐ megbízható
+  // futási környezete adja. Elvárás nélkül nincs `covered` — különben egy idegen, kitöltött csomag
+  // ugyanúgy átmegy, mint a valódi (KUKA-033: a levezetett állítás nem bizonyíték).
+  if (!expectation || typeof expectation !== 'object') {
+    return 'nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát';
+  }
+
   if (result.applied !== true) return 'a mutáció alkalmazása nincs igazolva';
   if (!result.base_digest || !result.mutated_digest) return 'hiányzik az alap- vagy a mutált forrás lenyomata';
   if (result.base_digest === result.mutated_digest) return 'a mutált forrás lenyomata AZONOS az alapéval — a szerkesztés nem történt meg';
   if (!result.run_token) return 'hiányzik a futás-jel (nem eldönthető, MELYIK futás eredménye)';
   if (result.probe_id !== probe) return `más próbáról szól (${result.probe_id} ≠ ${probe})`;
+
+  // (1) A MUTÁCIÓ LÉTEZZEN A REGISZTERBEN, és a regiszter szerint EZ a próba kapja el. A csomag
+  // `probe_id` mezője önmagában csak állítás — az elkapót a mutáció DEFINÍCIÓJA mondja meg.
+  const known = Array.isArray(mutations) ? mutations.find((m) => m && m.id === result.mutation_id) : null;
+  if (!known) return `a mutáció nincs a regiszterben: ${result.mutation_id}`;
+  if (known.catcher !== probe) return `a regiszter szerint a(z) ${result.mutation_id} elkapója ${known.catcher}, nem ${probe}`;
+
+  // (2) AZ ELVÁRT ÉRTÉKEK TÉNYLEGES ÖSSZEHASONLÍTÁSA. Nem a mezők MEGLÉTE számít (azt az R56 már
+  // mérte, és a külső fél épp ezt kerülte meg kitöltött, idegen csomaggal), hanem az EGYEZÉS.
+  if (expectation.base_digest && result.base_digest !== expectation.base_digest) {
+    return `az alap-lenyomat IDEGEN (${result.base_digest} ≠ a mért alapé)`;
+  }
+  // A FUTÁS-JEL MUTÁCIÓNKÉNT SZÜLETIK, tehát mutációnként is hasonlítjuk: egy MÁSIK mutáció
+  // (vagy egy korábbi menet) jele sem megy át.
+  const wantToken = expectation.run_tokens && expectation.run_tokens[result.mutation_id];
+  if (wantToken && result.run_token !== wantToken) {
+    return `a futás-jel MÁS futásból való (${result.run_token} ≠ a(z) ${result.mutation_id} mostani futásáé)`;
+  }
+  if (!wantToken && expectation.run_tokens) {
+    return `a(z) ${result.mutation_id} mutációhoz nem tartozik futás-jel ebben a menetben`;
+  }
+  const wantMutated = expectation.mutated_digests && expectation.mutated_digests[result.mutation_id];
+  if (wantMutated && result.mutated_digest !== wantMutated) {
+    return `a mutált forrás lenyomata nem a(z) ${result.mutation_id} mérteké`;
+  }
+  if (!wantMutated && expectation.mutated_digests) {
+    return `a(z) ${result.mutation_id} mutációra nem született mért lenyomat ebben a futásban`;
+  }
+
+  // (3) A MANIFEST ENGEDJE MEG ezt a próba↔állítás párt. Ha a próba nem deklarálja az állítást,
+  // akkor a bizonyíték olyasmiről szól, amit senki nem ígért (KUKA-016 a bizonyíték-kötésen).
+  if (allowedAssertions && !allowedAssertions.has(`${probe}\u0000${assertion}`)) {
+    return `a manifest szerint a(z) ${probe} próba nem deklarálja ezt az állítást: ${assertion}`;
+  }
+
+  // (4) ÖSSZHANG: az ítélet, a próba-állapot és a bukott állítás-lista egy történetet mondjon.
+  // Egy „SURVIVED" ítélet vagy egy „PASS" próba-állapot mellé kiadott bukott állítás ELLENTMONDÁS —
+  // a csomag ilyenkor nem hiányos, hanem HAZUDIK, és ezt külön kell mondani (KUKA-020).
+  if (result.verdict && result.verdict !== 'CAUGHT') {
+    return `ellentmondó csomag: az ítélet ${result.verdict}, mégis bizonyítékként érkezett`;
+  }
+  if (result.probe_status && result.probe_status !== 'FAIL') {
+    return `ellentmondó csomag: a próba állapota ${result.probe_status}, de a mutációnak meg kellett buktatnia`;
+  }
+
   const failed = Array.isArray(result.failed_assertions) ? result.failed_assertions : [];
   if (!failed.includes(assertion)) return `a futás NEM buktatta meg a deklarált állítást (${assertion})`;
   return null;
@@ -535,6 +693,19 @@ export function checkNorms(evidence) {
   // ELŐTT fut: ott az állítás teljesüléséről tudunk nyilatkozni, a falszifikációról nem. A hiányuk
   // tehát nem HIBA, hanem ÁLLAPOT — de akkor a klauzula NEM fedett, csak `falsification_pending`.
   const mutationResults = Array.isArray(evidence.mutationResults) ? evidence.mutationResults : null;
+  // AZ ELVÁRT ÉRTÉKEK A SZÜLŐ FUTÁSI KÖRNYEZETÉBŐL (R57/F02). A csomag nem adhatja meg a saját
+  // elvárásait; ha ez hiányzik, a minősítés fail-closed (lásd `falsificationQualifies`).
+  const expectation = evidence.expectation && typeof evidence.expectation === 'object'
+    ? evidence.expectation : null;
+  // A TARTALMI JÓVÁHAGYÁS KÖTÉSEI (R57/F03): melyik FORRÁS- és MANIFEST-állapoton született. Ezeket
+  // a futás adja; enélkül a jóváhagyás nem igazolható, tehát nem lehet `current`.
+  const reviewBindings = evidence.review_bindings && typeof evidence.review_bindings === 'object'
+    ? evidence.review_bindings : null;
+  // A MANIFEST szerint MEGENGEDETT próba↔állítás párok — a bizonyíték csak ilyenre hivatkozhat.
+  const allowedAssertions = new Set();
+  for (const pr of probes || []) {
+    for (const d of pr.discharges || []) allowedAssertions.add(`${pr.id}\u0000${d.assertion}`);
+  }
   const byClause = dischargeMap(probes);
   const recordOf = new Map(records.map((r) => [r.probe_id, r]));
   const knownProbe = new Set(probes.map((p) => p.id));
@@ -655,11 +826,12 @@ export function checkNorms(evidence) {
           // A KLAUZULA SAJÁT ÁLLÍTÁSÁT KELL MEGBUKTATNI (R55/F03/3). Egy több-állításos próba
           // összesített FAIL állapota nem igazolja mindegyik klauzulát.
           const tried = mutationResults.filter((x) => x && x.probe_id === d.probe);
-          const good = tried.find((x) => falsificationQualifies(x, { probe: d.probe, assertion: d.assertion }) === null);
+          const qual = (x) => falsificationQualifies(x, { probe: d.probe, assertion: d.assertion, expectation, mutations, allowedAssertions });
+          const good = tried.find((x) => qual(x) === null);
           if (!good) {
             result = 'not_falsified';
             const reasons = tried.length
-              ? tried.map((x) => `${x.mutation_id}: ${falsificationQualifies(x, { probe: d.probe, assertion: d.assertion })}`).join(' · ')
+              ? tried.map((x) => `${x.mutation_id}: ${qual(x)}`).join(' · ')
               : 'egyetlen mutációs eredmény sem érkezett erre a próbára';
             why = `a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — ${reasons}`;
             evid.push(`NORMA/${norm.id}/${clauseId}: ${why}`);
@@ -681,7 +853,7 @@ export function checkNorms(evidence) {
         evidence_limit: weakEvidence,
         // A TARTALMI MEGFELELÉS KÜLÖN TENGELY: a gépi lánc épsége és az emberi felülvizsgálat NEM
         // ugyanaz a kérdés (KUKA-002). Ma minden klauzula `none` — kimondva, nem elhallgatva.
-        content_review: contentReviewState(clause),
+        content_review: contentReviewState(clause, reviewBindings),
         result,
         why,
       }));
@@ -758,13 +930,50 @@ export function checkNorms(evidence) {
     });
   });
 
+  // ── A KÖTELEZŐ BIZONYÍTÉK-KÉSZLET KIÉRTÉKELÉSE (R57/F01) ────────────────────────────────────
+  // A mérce FÁZIS-FÜGGŐ, és ezt ki is mondjuk. A referencia-futás a battéria ELŐTT fut, tehát ott
+  // a `falsification_pending` a helyes végállapot (R55/F03/1 — ezt a külső fél maga mondta ki);
+  // a battéria UTÁN viszont `covered` kell, különben a bizonyíték nem áll meg.
+  const stage = mutationResults === null ? 'pending' : 'measured';
+  const resultOf = new Map();
+  for (const c of chain) {
+    const prev = resultOf.get(c.clause_id);
+    // Egy klauzulának több sora is lehet; a leggyengébb dönt (ha bármelyik szem szakad, nincs kész).
+    const rank = { covered: 3, falsification_pending: 2 };
+    if (!prev || (rank[c.result] || 0) < (rank[prev] || 0)) resultOf.set(c.clause_id, c.result);
+  }
+  const acceptable = stage === 'measured' ? new Set(['covered']) : new Set(['covered', 'falsification_pending']);
+  const requiredSatisfied = [];
+  const requiredMissing = [];
+  for (const id of REQUIRED_EVIDENCE.clauses) {
+    const r = resultOf.get(id) || 'nincs ilyen klauzula-sor a láncban';
+    if (acceptable.has(r)) requiredSatisfied.push(id);
+    else requiredMissing.push({ clause_id: id, result: r });
+  }
+  if (requiredMissing.length) {
+    // NEM integritási hiba: a regiszter nem hazudik magáról, a BIZONYÍTÉK hiányzik (KUKA-020).
+    evid.push(`KÖTELEZŐ BIZONYÍTÉK (${REQUIRED_EVIDENCE.version}): ${requiredMissing.length} klauzula nem áll meg — `
+      + requiredMissing.map((m) => `${m.clause_id}: ${m.result}`).join(' · '));
+  }
+  const required = Object.freeze({
+    version: REQUIRED_EVIDENCE.version,
+    stage,
+    expected_state: stage === 'measured' ? 'covered' : 'covered VAGY falsification_pending',
+    clauses: REQUIRED_EVIDENCE.clauses,
+    satisfied: Object.freeze(requiredSatisfied),
+    missing: Object.freeze(requiredMissing.map((m) => Object.freeze(m))),
+    ok: requiredMissing.length === 0,
+  });
+
   const problems = [...integrity, ...evid];
   return Object.freeze({
     ok: problems.length === 0,
     integrity_ok: integrity.length === 0,
     legacy_call: false,
     // A FÁZIS KIMONDVA: a referencia-futás nem állíthatja, hogy a falszifikáció is kész.
-    falsification_stage: mutationResults === null ? 'pending' : 'measured',
+    falsification_stage: stage,
+    // A KÖTELEZŐ KÉSZLET ÁLLAPOTA — ezt nézi a battéria végső kapuja (R57/F01).
+    required,
     problems,
     integrity_problems: integrity,
     evidence_problems: evid,

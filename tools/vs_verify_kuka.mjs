@@ -2,7 +2,8 @@
 // Valach System — KUKA (kivezetett megoldások) + ÁLLANDÓ OPERÁTORI SZABÁLYOK verifier.
 // READ-ONLY + offline. Exit 0/1.
 //
-// A V2-ből átjött 89 tanulság AKTÍV MEMÓRIA: ami itt nincs, az a következő körben nem létezik.
+// A V2-ből átjött tanulságok AKTÍV MEMÓRIA: ami itt nincs, az a következő körben nem létezik.
+// (A darabszámot nem írjuk le: a kimenet a MÉRT értéket mondja ki — KUKA-045.)
 // Ez az őr a V2-belihez képest EGY dologgal többet tud, és épp azért, mert új repó vagyunk:
 //
 //   KUK01  a regiszter alakja (kötelező mezők, egyedi azonosítók, guard_note ha nincs jel)
@@ -172,7 +173,9 @@ async function main() {
   console.log(`  A V2-BEN ÉL (vs):    ${vsHomed.length} db, padló ${VS_HOMED_CEILING} — a tanulság érvényes, a JEL itt NEM fut`);
   console.log(`  NINCS gépi jele:     ${noneHomed.length} — ${noneHomed.join(', ') || '—'} (a bejegyzés maga mondja ki)`);
   console.log('');
-  console.log('Ez NEM hiba, hanem a valóság kimondása: a 89 tanulság átjött, a hozzájuk tartozó');
+  // A SZÁM MÉRVE, NEM KÉZZEL LÉPTETVE (KUKA-045): a felirat a regiszter mai méretét írja ki — egy
+  // beírt szám a következő bejegyzésnél némán elcsúszna a mért értéktől.
+  console.log(`Ez NEM hiba, hanem a valóság kimondása: a ${RETIRED_PATTERNS.length} tanulság átjött, a hozzájuk tartozó`);
   console.log('őrök nagy része a V2 kódjához tapad. Ahogy a V3 megépíti a saját megfelelőjét, a');
   console.log('„vs" szám CSÖKKEN — nőnie nem szabad, azt a KUK07 padló fogja meg.');
   process.exit(fail ? 1 : 0);

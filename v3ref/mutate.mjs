@@ -618,8 +618,19 @@ console.log(`  ${attacks.length} hazugság-ellenpróba · ${attacks.filter((a) =
 let normFinal = null;
 if (base.ok && attacksOk && results.length === MUTATIONS.length) {
   const mutationResults = results.map((r) => r.falsification).filter(Boolean);
+  // AZ ELVÁRT ÉRTÉKEK A SZÜLŐ MEGBÍZHATÓ KÖRNYEZETÉBŐL (R57/F02). Ezeket EZ a futtató mérte és
+  // osztotta ki — a bizonyíték-csomag nem adhatja meg őket saját magának. Innentől az idegen vagy
+  // elavult csomag nem tud `covered`-et előállítani, akkor sem, ha minden mezője ki van töltve.
+  const withEvidence = results.filter((r) => r.falsification && r.falsification.mutated_digest);
+  const expectation = {
+    base_digest: BASE_DIGEST,
+    // A FUTÁS-JEL MUTÁCIÓNKÉNT SZÜLETIK (`expectationFor` → `rt_<uuid>`), tehát az elvárás is
+    // mutációnként tartja — ez szigorúbb, mint egy közös token: egy MÁSIK mutáció jele sem megy át.
+    run_tokens: Object.fromEntries(withEvidence.map((r) => [r.id, r.falsification.run_token])),
+    mutated_digests: Object.fromEntries(withEvidence.map((r) => [r.id, r.falsification.mutated_digest])),
+  };
   normFinal = checkNorms({
-    probes: EXPECTED_PROBES, mutations: MUTATIONS, records: base.records, mutationResults,
+    probes: EXPECTED_PROBES, mutations: MUTATIONS, records: base.records, mutationResults, expectation,
   });
   const cov = normFinal.chain.filter((c) => c.result === 'covered');
   const notFals = normFinal.chain.filter((c) => c.result === 'not_falsified');
@@ -637,6 +648,13 @@ if (base.ok && attacksOk && results.length === MUTATIONS.length) {
     console.log('    A REGISZTER SZERKEZETI HIBÁI:');
     for (const x of normFinal.integrity_problems) console.log(`      · ${x}`);
   }
+  // A KÖTELEZŐ KÉSZLET KIMONDVA (R57/F01). A külső fél E02 esete pontosan az volt, hogy a napló már
+  // kimondta a hiányt, a kilépési kód mégis sikert jelentett. Innentől ez a blokk beszél, és a
+  // `clean` hallgat rá.
+  const req = normFinal.required;
+  console.log(`    KÖTELEZŐ BIZONYÍTÉK (${req.version}, ${req.stage}): `
+    + `${req.satisfied.length}/${req.clauses.length} teljesül — elvárt állapot: ${req.expected_state}`);
+  for (const m of req.missing) console.log(`      HIÁNYZIK  ${m.clause_id} → ${m.result}`);
 } else {
   console.log('');
   console.log('  NORMA-BIZONYÍTÉK: a végleges minősítés NEM készült el (a battéria nem futott végig).');
@@ -645,6 +663,48 @@ if (base.ok && attacksOk && results.length === MUTATIONS.length) {
 const clean = base.ok && attacksOk && results.length === MUTATIONS.length
   && survived === 0 && wrong === 0 && harness === 0 && stale === 0 && wallOk
   // A NORMA-KAPU SZERKEZETI ÉPSÉGE a zöld feltétele: a hazug regiszter nem enyhébb eset.
-  && !!normFinal && normFinal.integrity_ok;
-console.log(`RESULT: ${clean ? 'MINDEN VESZÉLYES MUTÁCIÓ A NEVEZETT ÁLLÍTÁSSAL ÉSZLELT' : 'HIÁNYOS — lásd a fenti sorokat'}`);
+  && !!normFinal && normFinal.integrity_ok
+  // ÉS A KÖTELEZŐ BIZONYÍTÉK IS (R57/F01). Enélkül a futás sikert jelentett arról, amit a saját
+  // naplója már hibásnak nevezett — és egy automatizált következő lépés a sikert hitte volna el.
+  && !!normFinal.required && normFinal.required.ok;
+const why = [];
+if (normFinal && !normFinal.integrity_ok) why.push('a norma-regiszter szerkezeti hibát jelez');
+if (normFinal && normFinal.required && !normFinal.required.ok) {
+  why.push(`hiányzó kötelező bizonyíték (${normFinal.required.missing.map((m) => m.clause_id).join(', ')})`);
+}
+if (!wallOk) why.push('a falióra a saját költségvetés fölé ment');
+if (survived || wrong || harness || stale) why.push('a mutációs battéria nem tiszta');
+console.log(`RESULT: ${clean ? 'MINDEN VESZÉLYES MUTÁCIÓ A NEVEZETT ÁLLÍTÁSSAL ÉSZLELT' : `HIÁNYOS — ${why.join(' · ') || 'lásd a fenti sorokat'}`}`);
+
+// GÉPPEL OLVASHATÓ VÉGEREDMÉNY (R57 §7 — „a teljes lánc géppel olvasható végeredményét is adjátok
+// át; a terminál három FEDVE sora kevés a későbbi újraellenőrzéshez"). A fájl a futás mellé kerül,
+// és a KÜLSŐ FÉL ebből dolgozik, nem a képernyő-kivonatból (KUKA-072: a terv nem üzenet, hanem fájl).
+try {
+  const outPath = join(REF, 'v3ref-mutation-result.json');
+  writeFileSync(outPath, `${JSON.stringify({
+    at: new Date().toISOString(),
+    node: process.version,
+    base_digest: BASE_DIGEST,
+    clean,
+    why,
+    wall_ms: wall,
+    mutations: { total: MUTATIONS.length, caught: results.length - survived - wrong - harness - stale, survived, wrong, harness, stale },
+    lie_probes: { total: ATTACKS.length, defended: attacksOk ? ATTACKS.length : null },
+    norm_evidence: normFinal ? {
+      contract: normFinal.contract,
+      index_digest: normFinal.index_digest,
+      falsification_stage: normFinal.falsification_stage,
+      required: normFinal.required,
+      integrity_ok: normFinal.integrity_ok,
+      integrity_problems: normFinal.integrity_problems,
+      evidence_problems: normFinal.evidence_problems,
+      chain: normFinal.chain,
+    } : null,
+    mutation_results: results.map((r) => r.falsification).filter(Boolean),
+  }, null, 2)}\n`);
+  console.log(`  gépi végeredmény: ${outPath}`);
+} catch (e) {
+  console.log(`  gépi végeredmény NEM íródott ki: ${e.message}`);
+}
+
 process.exit(clean ? 0 : 1);

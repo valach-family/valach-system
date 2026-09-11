@@ -18,6 +18,7 @@
     "verify:kuka": "node tools/vs_verify_kuka.mjs",
     "verify:release-order": "node tools/vs_verify_release_order.mjs",
     "verify:sweep": "node tools/vs_verify_sweep.mjs",
-    "verify:v3ref": "node v3ref/run.mjs && node v3ref/mutate.mjs"
+    "verify:v3ref": "node v3ref/run.mjs && node v3ref/mutate.mjs",
+    "verify:external-checks": "node v3ref/external-checks/run-all.mjs"
   }
 }

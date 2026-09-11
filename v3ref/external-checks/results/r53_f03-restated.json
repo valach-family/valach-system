@@ -1,0 +1,110 @@
+{
+  "program": "f03-restated.mjs",
+  "at": "2026-09-11T11:22:57.540Z",
+  "node": "v22.22.2",
+  "cases": [
+    {
+      "id": "G01",
+      "expected": "a norma-index NEM fogadja el az idegen, létező próbára átkötött klauzulát",
+      "pass": true,
+      "exit": 2,
+      "integrity_ok": false,
+      "integrity_problems": [
+        "NORMA/REV-N1/REV-N1a: a(z) P-A04 próba NEM adta ki a deklarált állítást: A-REV-N1a-dependent-new-op-and-release-blocked",
+        "PRÓBA/P-CMD-finalize-gate: kiadott egy állítás-azonosítót, amit a manifest nem deklarál: A-REV-N1a-dependent-new-op-and-release-blocked — a bizonyíték-kötés fél maradt (KUKA-039)"
+      ],
+      "stderr": "A NORMA-BIZONYÍTÉK INDEX HIBÁS — a regiszter magáról állít valótlant: |   · NORMA/REV-N1/REV-N1a: a(z) P-A04 próba NEM adta ki a deklarált állítást: A-REV-N1a-dependent-new-op-and-release-blocked |   · PRÓBA/P-CMD-finalize-gate: kiadott egy állítás-azonosítót, amit a manifest nem deklarál: A-REV-N1a-dependent-new-op-and-release-blocked — a bizonyíték-kötés fél maradt (KUKA-039)"
+    },
+    {
+      "id": "G02",
+      "expected": "érintetlen forráson a kapu ZÖLD, és a két bizonyítható klauzula állítása teljesült, falszifikáció FÜGGŐBEN (a magpróba nem állít többet, mint amit mért)",
+      "pass": true,
+      "exit": 0,
+      "falsification_stage": "pending",
+      "pending_clauses": [
+        "REV-N1a",
+        "REV-N1b",
+        "ORG-N2a"
+      ],
+      "norm_states": [
+        {
+          "id": "REV-N1",
+          "clauses_total": 3,
+          "clauses_covered": 0,
+          "clauses_pending": 2,
+          "covered_clause_ids": [],
+          "pending_clause_ids": [
+            "REV-N1a",
+            "REV-N1b"
+          ],
+          "state": "pending"
+        },
+        {
+          "id": "REV-N2",
+          "clauses_total": 2,
+          "clauses_covered": 0,
+          "clauses_pending": 0,
+          "covered_clause_ids": [],
+          "pending_clause_ids": [],
+          "state": "planned"
+        },
+        {
+          "id": "REV-N3",
+          "clauses_total": 3,
+          "clauses_covered": 0,
+          "clauses_pending": 0,
+          "covered_clause_ids": [],
+          "pending_clause_ids": [],
+          "state": "planned"
+        },
+        {
+          "id": "REV-N4",
+          "clauses_total": 2,
+          "clauses_covered": 0,
+          "clauses_pending": 0,
+          "covered_clause_ids": [],
+          "pending_clause_ids": [],
+          "state": "planned"
+        },
+        {
+          "id": "REV-N5",
+          "clauses_total": 3,
+          "clauses_covered": 0,
+          "clauses_pending": 0,
+          "covered_clause_ids": [],
+          "pending_clause_ids": [],
+          "state": "planned"
+        },
+        {
+          "id": "ORG-N1",
+          "clauses_total": 2,
+          "clauses_covered": 0,
+          "clauses_pending": 0,
+          "covered_clause_ids": [],
+          "pending_clause_ids": [],
+          "state": "planned"
+        },
+        {
+          "id": "ORG-N2",
+          "clauses_total": 1,
+          "clauses_covered": 0,
+          "clauses_pending": 1,
+          "covered_clause_ids": [],
+          "pending_clause_ids": [
+            "ORG-N2a"
+          ],
+          "state": "pending"
+        },
+        {
+          "id": "ORG-N3",
+          "clauses_total": 2,
+          "clauses_covered": 0,
+          "clauses_pending": 0,
+          "covered_clause_ids": [],
+          "pending_clause_ids": [],
+          "state": "planned"
+        }
+      ]
+    }
+  ]
+}

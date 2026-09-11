@@ -1,0 +1,1036 @@
+{
+  "at": "2026-09-11T11:23:02.350Z",
+  "node": "v22.22.2",
+  "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+  "clean": true,
+  "why": [],
+  "wall_ms": 3477,
+  "mutations": {
+    "total": 46,
+    "caught": 46,
+    "survived": 0,
+    "wrong": 0,
+    "harness": 0,
+    "stale": 0
+  },
+  "lie_probes": {
+    "total": 8,
+    "defended": 8
+  },
+  "norm_evidence": {
+    "contract": {
+      "id": "NCT-01",
+      "version": "R32/K01-K16",
+      "digest": "sha256:a1e3a59dc0aeb5d695513d7e3a1e1e4998e1d337572101f90ec9a97eae7570f0",
+      "digest_scope": "a címjegyzék (azonosító + cím + verzió) ÉS a rögzített R32 forrásszöveg lenyomata — a teljes dokumentum bájtjaiból mérve, nem bemásolt konstansból",
+      "source_document": {
+        "name": "R32",
+        "artifact": "v3ref/source-documents/R32_board_v1.md",
+        "board_document": "20260908_V3_CORE_EGYSEGES_R32_CHATGPT",
+        "board_version": 1,
+        "attested_by": "chatgpt-v3",
+        "attested_in": "CMD-VS-300-002-001 R57 — ANALYSIS",
+        "byte_length": 61040,
+        "text_digest": "sha256:cc8a8b5fabe4313001092071ef2819c924d2491fd8d35ddc92aab7b95dc9e3b5",
+        "section": {
+          "name": "K01–K16 (a 2. szakasz)",
+          "range": [
+            10202,
+            39196
+          ],
+          "byte_length": 28994,
+          "digest": "sha256:4f4f57eb26244c0f92a6744a76313a4ab5690c844232d35de56c6a3b1f918d33"
+        },
+        "note": "ez az R32 TÖRTÉNETI 1. verziójának kötése. A későbbi körökben elfogadott pontosításokat (pl. a megvonás és a bejelentés bontása) nem vonja vissza: azok a verziózott indexen és kifejezett módosítási kapcsolaton át követhetők, és a következő konszolidáció ÚJ verziót és ÚJ lenyomatot kap. Nem nevezzük változatlan R32-nek azt, amit közben módosítottunk."
+      }
+    },
+    "index_digest": "sha256:14bdcf7afa219506e4c253d84370e28594cb31f2409d6ed0de83e79b6aa1ed2d",
+    "falsification_stage": "measured",
+    "required": {
+      "version": "req-1",
+      "stage": "measured",
+      "expected_state": "covered",
+      "clauses": [
+        "REV-N1a",
+        "REV-N1b",
+        "ORG-N2a"
+      ],
+      "satisfied": [
+        "REV-N1a",
+        "REV-N1b",
+        "ORG-N2a"
+      ],
+      "missing": [],
+      "ok": true
+    },
+    "integrity_ok": true,
+    "integrity_problems": [],
+    "evidence_problems": [],
+    "chain": [
+      {
+        "norm_id": "REV-N1",
+        "clause_id": "REV-N1a",
+        "covers": [
+          "K07",
+          "K09"
+        ],
+        "assertion_id": "A-REV-N1a-dependent-new-op-and-release-blocked",
+        "probe_id": "P-CMD-finalize-gate",
+        "mutation_candidates": [
+          "M32",
+          "M47",
+          "M48",
+          "M49"
+        ],
+        "falsified_by": "M32",
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "covered",
+        "why": null
+      },
+      {
+        "norm_id": "REV-N1",
+        "clause_id": "REV-N1b",
+        "covers": [
+          "K08",
+          "K09"
+        ],
+        "assertion_id": "A-REV-N1b-earlier-record-and-decision-survive",
+        "probe_id": "P-CMD-finalize-gate",
+        "mutation_candidates": [
+          "M32",
+          "M47",
+          "M48",
+          "M49"
+        ],
+        "falsified_by": "M47",
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "covered",
+        "why": null
+      },
+      {
+        "norm_id": "REV-N1",
+        "clause_id": "REV-N1c",
+        "covers": [
+          "K08"
+        ],
+        "assertion_id": null,
+        "probe_id": null,
+        "mutation_candidates": [],
+        "falsified_by": null,
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "no_evidence",
+        "why": "Nincs korrekciós esemény-fogalom és nincs „alkalmazandó profil\" a magban, tehát a joghatás felülvizsgálata nem modellezhető. A REV-N2 (hatály ⊥ tudomás) és a REV-N4 (kompenzáló folyamat) megépítése ELŐFELTÉTEL — enélkül csak azt tudjuk kimondani, hogy a régi sort nem írjuk át."
+      },
+      {
+        "norm_id": "REV-N2",
+        "clause_id": "REV-N2a",
+        "covers": [
+          "K08"
+        ],
+        "assertion_id": null,
+        "probe_id": null,
+        "mutation_candidates": [],
+        "falsified_by": null,
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "no_evidence",
+        "why": "A mai `membership.revoked_at` EGYETLEN időpont, tehát a két tengelyt nem tudja szétválasztani — ez a KUKA-002 alakja a megvonáson. Nincs esemény-fajta a múltbeli hatályú, mai rögzítésű helyesbítésre, és nincs nézet, ami a két alakot külön reprodukálná."
+      },
+      {
+        "norm_id": "REV-N2",
+        "clause_id": "REV-N2b",
+        "covers": [
+          "K08",
+          "K09"
+        ],
+        "assertion_id": null,
+        "probe_id": null,
+        "mutation_candidates": [],
+        "falsified_by": null,
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "no_evidence",
+        "why": "Nincs „felülvizsgálati kör\" fogalom a magban: se állapota, se listája, se lezárása. A REV-N2a idő-modellje nélkül nem is számolható ki, MELY műveletek érintettek."
+      },
+      {
+        "norm_id": "REV-N3",
+        "clause_id": "REV-N3a",
+        "covers": [
+          "K04",
+          "K09"
+        ],
+        "assertion_id": null,
+        "probe_id": null,
+        "mutation_candidates": [],
+        "falsified_by": null,
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "no_evidence",
+        "why": "A `revokeMembership` ma nem kérdez hatáskört a HÍVÓTÓL — a magreferencia szintjén a megvonás bemenetnek számít, tehát bárki „megvonhatna\". A jogosulatlan kifogás elleni kapu nincs megépítve."
+      },
+      {
+        "norm_id": "REV-N3",
+        "clause_id": "REV-N3b",
+        "covers": [
+          "K05",
+          "K09"
+        ],
+        "assertion_id": null,
+        "probe_id": null,
+        "mutation_candidates": [],
+        "falsified_by": null,
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "no_evidence",
+        "why": "Nincs kifogás-fogalom, tehát nincs mihez kötni az olvasási tilalmat. A veszély a KUKA-085 alakja: visszavonható ENGEDÉLYT lehet építeni, visszavonható MEGISMERÉST nem — ezért ezt a klauzulát a bejelentés bevezetése ELŐTT kell megépíteni, nem utána."
+      },
+      {
+        "norm_id": "REV-N3",
+        "clause_id": "REV-N3c",
+        "covers": [
+          "K05",
+          "K15"
+        ],
+        "assertion_id": null,
+        "probe_id": null,
+        "mutation_candidates": [],
+        "falsified_by": null,
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "no_evidence",
+        "why": "Nincs bejelentés-fogadó út a magban, tehát se a semleges válasz, se a visszaélés-korlát nem mérhető. A klauzula az R55 §7 korrekciójából született, és a REV-N3a hatáskör-modelljével EGYÜTT kell megépülnie — külön-külön mindkettő félrevezető: hatáskör nélkül a bejelentés jogot mozdítana, bejelentés nélkül a hatáskör elfojtja a jelzést."
+      },
+      {
+        "norm_id": "REV-N4",
+        "clause_id": "REV-N4a",
+        "covers": [
+          "K06",
+          "K08"
+        ],
+        "assertion_id": null,
+        "probe_id": null,
+        "mutation_candidates": [],
+        "falsified_by": null,
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "no_evidence",
+        "why": "Nincs kompenzáló-esemény fogalom a magban. A V2-ben van (`reverse`), de a V3 magja ezt még nem modellezi, és a kettő összekötése nem történt meg."
+      },
+      {
+        "norm_id": "REV-N4",
+        "clause_id": "REV-N4b",
+        "covers": [
+          "K04",
+          "K06"
+        ],
+        "assertion_id": null,
+        "probe_id": null,
+        "mutation_candidates": [],
+        "falsified_by": null,
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "no_evidence",
+        "why": "A REV-N4a esemény-fogalma nélkül nincs mit jóváhagyni; a jóváhagyói hatáskör pedig a REV-N3a hatáskör-modelljére épülne, ami szintén nincs meg."
+      },
+      {
+        "norm_id": "REV-N5",
+        "clause_id": "REV-N5a",
+        "covers": [
+          "K09",
+          "K15"
+        ],
+        "assertion_id": null,
+        "probe_id": null,
+        "mutation_candidates": [],
+        "falsified_by": null,
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "no_evidence",
+        "why": "Nincs a tagságtól FÜGGETLEN, alany-szintű tiltás-fogalom; ma minden tiltás könyvenkénti tagság-megvonás. A „minden alkalmazható engedő útra érvényes\" követelmény (R51 §4) ezért nem is mérhető: egyetlen engedő út van."
+      },
+      {
+        "norm_id": "REV-N5",
+        "clause_id": "REV-N5b",
+        "covers": [
+          "K09",
+          "K15"
+        ],
+        "assertion_id": null,
+        "probe_id": null,
+        "mutation_candidates": [],
+        "falsified_by": null,
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "no_evidence",
+        "why": "A magban egyetlen tiltás-fajta van (könyvenkénti tagság-megvonás), tehát a hét fajta és az ok→hatókör leképezés fogalmilag sem jelenik meg. Az R55 §7 korrekciójából született: a korábbi szövegünk feltétel nélkül mondta, hogy a független könyv sértetlen — ez kompromittált HITELESÍTŐNÉL téves."
+      },
+      {
+        "norm_id": "REV-N5",
+        "clause_id": "REV-N5c",
+        "covers": [
+          "K09"
+        ],
+        "assertion_id": null,
+        "probe_id": null,
+        "mutation_candidates": [],
+        "falsified_by": null,
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "no_evidence",
+        "why": "A REV-N5a/b tiltás-fogalma nélkül nincs alanya. Az ellenpár-mérés (a többi jogosult joga megmarad) csak akkor futtatható, ha a tiltás létezik — enélkül a klauzula méretlen, tehát KUKA-051 szerint zöldnek LÁTSZANA."
+      },
+      {
+        "norm_id": "ORG-N1",
+        "clause_id": "ORG-N1a",
+        "covers": [
+          "K04",
+          "K14"
+        ],
+        "assertion_id": null,
+        "probe_id": null,
+        "mutation_candidates": [],
+        "falsified_by": null,
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "no_evidence",
+        "why": "A mai `invite.issuer_subject` EGYETLEN személyre mutat, és a jogalapot a `rightAt` MAI válasza adja. Se határozat-azonosító, se verzió, se hatály nincs tárolva, tehát a kiadott meghívó nem tudja megmondani, MI alapján adták ki."
+      },
+      {
+        "norm_id": "ORG-N1",
+        "clause_id": "ORG-N1b",
+        "covers": [
+          "K04",
+          "K05"
+        ],
+        "assertion_id": null,
+        "probe_id": null,
+        "mutation_candidates": [],
+        "falsified_by": null,
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "no_evidence",
+        "why": "A mai meghívó egyetlen `offered_role` mezőt visz; művelet- és adatkör-korlát nincs. A korlát nélküli felhatalmazás a KUKA-041 alakja a jogon: a szűkítés látszik a papíron, de semmi nem kényszeríti ki."
+      },
+      {
+        "norm_id": "ORG-N2",
+        "clause_id": "ORG-N2a",
+        "covers": [
+          "K03",
+          "K04"
+        ],
+        "assertion_id": "A-ORG-N2a-issuer-basis-withdrawn-is-fail-closed",
+        "probe_id": "P-INVITE-authority",
+        "mutation_candidates": [
+          "M22",
+          "M23",
+          "M24"
+        ],
+        "falsified_by": "M23",
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "covered",
+        "why": null
+      },
+      {
+        "norm_id": "ORG-N3",
+        "clause_id": "ORG-N3a",
+        "covers": [
+          "K04"
+        ],
+        "assertion_id": null,
+        "probe_id": null,
+        "mutation_candidates": [],
+        "falsified_by": null,
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "no_evidence",
+        "why": "A magban EGYETLEN jogalap-út van (tagság), tehát a VAGY/ÉS megkülönböztetés fogalmilag sem jelenik meg. A modell bővítése nélkül ez nem mérhető — és a méretlen klauzula zöldnek látszana (KUKA-051), ezért áll itt kimondva."
+      },
+      {
+        "norm_id": "ORG-N3",
+        "clause_id": "ORG-N3b",
+        "covers": [
+          "K04",
+          "K15"
+        ],
+        "assertion_id": null,
+        "probe_id": null,
+        "mutation_candidates": [],
+        "falsified_by": null,
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat"
+        },
+        "result": "no_evidence",
+        "why": "A REV-N5a alany-szintű tiltás-fogalma és az ORG-N3a vagylagos út egyszerre előfeltétel; egyik sincs meg, tehát az elsőbbségi szabálynak ma nincs alanya."
+      }
+    ]
+  },
+  "mutation_results": [
+    {
+      "mutation_id": "M1",
+      "catcher": "P-A04",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:74ce7f4e28ea6ea26f0fed71b85f303522bc69a739a23bd72bc42a0b05060857",
+      "run_token": "rt_3658c90c-20bd-43d9-8fd5-3fc2e412b88c",
+      "probe_id": "P-A04",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M2",
+      "catcher": "P-K03-cred",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:9842a6a1e7ef5071f63ed388afb51f12faf9675944c54836c5cd8320b0f8b36e",
+      "run_token": "rt_4a875213-e1e3-414e-b64f-8df7c759dceb",
+      "probe_id": "P-K03-cred",
+      "probe_status": "THREW",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": "a védelem KÉT helyen áll (alak-feloldó + SQL WHERE), ezért egyetlen szerkesztés nem tud néma felülírást csinálni — ez a VÉDELEM TÜZELÉSÉNEK bizonyítéka"
+    },
+    {
+      "mutation_id": "M3",
+      "catcher": "P-K03-intent",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:ede426a33ac3fcddbb2d714ff070186ede2031a7f4e9e621a5e1c1c987091c1b",
+      "run_token": "rt_b935fcde-d8b4-4d15-a486-a54657dd94c5",
+      "probe_id": "P-K03-intent",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M4",
+      "catcher": "P-A08",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:d7a2483c8ac4fb2e925d80dbb3b8f3707961c7c9de6d177d895c77f7b87db7be",
+      "run_token": "rt_a1f1fc54-fce3-4231-8f5f-f9b5b2c9ce96",
+      "probe_id": "P-A08",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M5",
+      "catcher": "P-A08",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:4aa130e6f36bb30aef3503ccdde8692bb8f9f2f7e0c5c0ca659f0d91264f2450",
+      "run_token": "rt_695573a7-41bb-448d-be27-d90deb3bb7ed",
+      "probe_id": "P-A08",
+      "probe_status": "THREW",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": "a mai kódon egyedi kulcs-ütközést vált ki — ez a VISELKEDÉS-VÁLTOZÁS észlelése, NEM két sikeresen lekönyvelt hatás bizonyítéka (R42 §2.3)"
+    },
+    {
+      "mutation_id": "M6",
+      "catcher": "P-A14",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:5ee0eb4c967040a88d5229da1c5b2ec09a63b3ddf16e1db352c75f3830fe097f",
+      "run_token": "rt_05bea41e-225e-49ca-8324-6b32689760ba",
+      "probe_id": "P-A14",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M7",
+      "catcher": "P-A08",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:dc04f0fd189208be12070cc4b4e52cbe7d6218d01ab33e2cfbff9680fd420af1",
+      "run_token": "rt_18c49f76-046c-4fc0-9417-3c6955c80743",
+      "probe_id": "P-A08",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M8",
+      "catcher": "P-A08",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:48736c4081a14576caf826bc9b2b6ee8d01c4376312c57ed9c78e26f2b366d91",
+      "run_token": "rt_b19ef087-f175-4a5d-b547-d3c6f97ad705",
+      "probe_id": "P-A08",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M9",
+      "catcher": "P-A04b",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:c77e8d6c89a42e8f88711476f61bf6ecee4693d85381c8fac6511e72798fbd65",
+      "run_token": "rt_5bd41cf9-9d7f-428a-82d0-e409760d18e1",
+      "probe_id": "P-A04b",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M10",
+      "catcher": "P-A08",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:08981c59f100fd5ea041e625ed292488f3fb677ec48082cb9335927b1634c614",
+      "run_token": "rt_3fc86cfb-39df-4f3f-9dc0-fa0ae3ab6c51",
+      "probe_id": "P-A08",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M11",
+      "catcher": "P-CMD-namespace",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:379f1e7b48b4abbcfccf29ca293190b45ca5d61827768a5df28a21777a8436d5",
+      "run_token": "rt_c8fad894-8319-478a-9c22-bfead0a59918",
+      "probe_id": "P-CMD-namespace",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M12",
+      "catcher": "P-CMD-namespace",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:94f9ba504aadba0a64587ededbd0ed018a7c12b215b409bf4ab9e2ab3244c300",
+      "run_token": "rt_e1b70c47-1ccb-4856-9b13-f44bc2ddbe96",
+      "probe_id": "P-CMD-namespace",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M13",
+      "catcher": "P-CMD-identity",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:62a8fb51059c441dfe808b63ecb92a8f1ec9287126a4aa4a5e993ef940c0b156",
+      "run_token": "rt_bf953569-39e7-4603-baad-a8a840b744af",
+      "probe_id": "P-CMD-identity",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M14",
+      "catcher": "P-CMD-identity",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:ce57b47c4caa32471d25ee552630edc400814f09f2a0d4a1462afb8602d9081c",
+      "run_token": "rt_68880ccf-e5cf-4f69-9bcb-121ef91eed61",
+      "probe_id": "P-CMD-identity",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M15",
+      "catcher": "P-CMD-finalize",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:8fbd7c6f73502b268b60caaa24bec247d39bebed3ccb2a41f724247b777d639b",
+      "run_token": "rt_61bd6d42-0fa7-4af4-a88e-8ada5579c9bb",
+      "probe_id": "P-CMD-finalize",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M16",
+      "catcher": "P-CMD-disclosure",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:0237a66d4d128574697a7919eb2d736360d79738fa81556e609e040186886d2c",
+      "run_token": "rt_bdef6efe-673c-498c-9bd9-0f0a788f9750",
+      "probe_id": "P-CMD-disclosure",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M27",
+      "catcher": "P-CMD-disclosure",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:ea34e48681ccef809b6daeedfb45233afe98f2962c61b95a2b5212ee62b75a77",
+      "run_token": "rt_5bb7aec9-14f9-4e53-97f5-1532f7fb6832",
+      "probe_id": "P-CMD-disclosure",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M17",
+      "catcher": "P-AUTHZ-opclass",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:f252fb5336fdeb096cc7cbad773016728e29a6d9ee9c5a77c0c99ffafae45240",
+      "run_token": "rt_fd2b698e-112f-4846-8352-7222fef6971c",
+      "probe_id": "P-AUTHZ-opclass",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M18",
+      "catcher": "P-AUTHZ-membership-time",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:70d30cc3a5b58a1c9b74a7882d1a2f99b248e0fe79445a06e1ef24e6450dcf86",
+      "run_token": "rt_7403c311-4e84-498b-8441-8fe40e773e68",
+      "probe_id": "P-AUTHZ-membership-time",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M19",
+      "catcher": "P-AUTHZ-evidence",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:d226de8c5a4e99f58d938af86bf93894ff1f3833866c47a622a7f37d11395078",
+      "run_token": "rt_38a146fc-9bac-48e7-b22d-0ee673b49c75",
+      "probe_id": "P-AUTHZ-evidence",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M20",
+      "catcher": "P-AUTHZ-evidence",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:327003f4def75a7fb85f89b02e8d9c45a79ffff58667c13ae8106d4c5d387cfe",
+      "run_token": "rt_e70d5b85-704e-4c1a-b8f0-71e0083157c7",
+      "probe_id": "P-AUTHZ-evidence",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M21",
+      "catcher": "P-INVITE-window",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:89974b30970443c4e1361fe49e0ce049458fb4e283915b48cb9b2909ca125955",
+      "run_token": "rt_7eaf69c7-0e70-4362-aa71-d2db5db46bc8",
+      "probe_id": "P-INVITE-window",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M22",
+      "catcher": "P-INVITE-authority",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:7fd10148946dc528e670f53f96fd5d6c8248144caee83e954d02697e6be6f89b",
+      "run_token": "rt_311aa5f7-c64b-478b-ac2e-97d7cb6d8a39",
+      "probe_id": "P-INVITE-authority",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M23",
+      "catcher": "P-INVITE-authority",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:0877861b2e0c268481b6050318cdec52a65893a9c755b3e0faef27813c775541",
+      "run_token": "rt_5ad35b07-79a6-4b6c-9b12-542dd72bf5d7",
+      "probe_id": "P-INVITE-authority",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-ORG-N2a-issuer-basis-withdrawn-is-fail-closed"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M24",
+      "catcher": "P-INVITE-authority",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:471e5d1661ebf5df589fffbbfce5896acc3c81e120503e17a7326feece5a75aa",
+      "run_token": "rt_7758ba83-c955-4d2e-8018-cbfbcb398b5a",
+      "probe_id": "P-INVITE-authority",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-ORG-N2a-issuer-basis-withdrawn-is-fail-closed"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M25",
+      "catcher": "P-INVITE-effect",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:7f76846a10ea7f6fcd37cf33ac4fb6bae147f479aabbcfae5e034626df0c7abe",
+      "run_token": "rt_44b6f069-2ac3-4753-9f4c-25d7d35bbf94",
+      "probe_id": "P-INVITE-effect",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M28",
+      "catcher": "P-AUTHZ-revoke-now",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:214774795e24d1997e19946d7aa5c26464aedc92063fc14004f40b0d5fa7def4",
+      "run_token": "rt_80cf2c30-993f-4b82-80df-8f61714a2273",
+      "probe_id": "P-AUTHZ-revoke-now",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M29",
+      "catcher": "P-AUTHZ-revoke-now",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:f2587fc0403b23ee075a3746969386132206e6dd0757fb78ea6e69755066acae",
+      "run_token": "rt_53a0f370-eb43-4a9b-9228-59d584cb41df",
+      "probe_id": "P-AUTHZ-revoke-now",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M26",
+      "catcher": "P-AUTHZ-evidence",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:bd7074329ebeb2ee087eb52306314ff32bb1ee3e23858fdaacf9cae23bf45844",
+      "run_token": "rt_183906b2-c766-483c-8b93-7f0f4fb5d5f0",
+      "probe_id": "P-AUTHZ-evidence",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M31",
+      "catcher": "P-INVITE-finalize-gate",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:b0d9f5f46e4ef162a510d267c8aef36a6a496255b4059c11e2723b3cd756c888",
+      "run_token": "rt_8b282c70-dba6-47dd-8e00-8b4d06c98b32",
+      "probe_id": "P-INVITE-finalize-gate",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M32",
+      "catcher": "P-CMD-finalize-gate",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:5bbd1cb762932e49602752059a5bfda1d07bbbf85eb4abe4788b2181b25d8035",
+      "run_token": "rt_b64845ec-e39d-4480-a839-77a09a91afa9",
+      "probe_id": "P-CMD-finalize-gate",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N1a-dependent-new-op-and-release-blocked"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M33",
+      "catcher": "P-AUTHZ-roles",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:a677fc48bf3a24cf6a33314a4b9ae3edfb38bf7bde507e68d3e0b23547fd0377",
+      "run_token": "rt_4d952de5-966b-4010-b50d-fa37e16e2049",
+      "probe_id": "P-AUTHZ-roles",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M34",
+      "catcher": "P-CANON-shape",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:db4acb6c23cc831809251801f1682f8f2f8508983c4445c2995e59193c67742f",
+      "run_token": "rt_e918df64-4115-4866-b9bb-c7905b6f8746",
+      "probe_id": "P-CANON-shape",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M35",
+      "catcher": "P-TIME-calendar",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:846804dfef4ac85340038ddb673393be3411a75ba00e4b918a6d73fd77a54037",
+      "run_token": "rt_b1b30de6-92ab-4d72-9c0b-68e9546a4dd5",
+      "probe_id": "P-TIME-calendar",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M36",
+      "catcher": "P-IDENTITY-address",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:5433daf0d4c27a304412f616bc5fccfa6e9acb2fd437cf165b7d833280ce73ed",
+      "run_token": "rt_2aa6a912-3b8e-448c-9824-c2e468298e19",
+      "probe_id": "P-IDENTITY-address",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M37",
+      "catcher": "P-CMD-receipt",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:d1e3a68708f781cb7ad4949e002e0c5a1e6dff202e2272cab35436cb669fb16e",
+      "run_token": "rt_604fb7ee-176d-4f49-bf65-cc77898d3ad2",
+      "probe_id": "P-CMD-receipt",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M38",
+      "catcher": "P-CMD-receipt",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:29766bb4d81fc63166cc2a029e7bf67141199d93b919d6003bd773690123d39d",
+      "run_token": "rt_d4215b5d-768e-4bd0-8248-92683a61e420",
+      "probe_id": "P-CMD-receipt",
+      "probe_status": "THREW",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": "a J3 óta a nyugtázó felület a tranzakción kívüli hívást NEVEZETT hibakóddal állítja meg, ezért ez a VÉDELEM TÜZELÉSÉNEK bizonyítéka, nem néma árva soré"
+    },
+    {
+      "mutation_id": "M39",
+      "catcher": "P-INVITE-terms",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:ca03517d1434f4ff41dc4dbd4d987305c711f39fd33c8517380bc975113a6e83",
+      "run_token": "rt_38fd6c81-b4d8-49c2-932e-9407ea27ec85",
+      "probe_id": "P-INVITE-terms",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M40",
+      "catcher": "P-INVITE-terms",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:73521a996b56c331b6b74c8a367c9bcda4db2b715ff213fd6b099ba91e0a0199",
+      "run_token": "rt_b7a049dd-6fa6-4ad1-8573-d9c010355066",
+      "probe_id": "P-INVITE-terms",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M41",
+      "catcher": "P-CMD-receipt-integrity",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:bcc30fed6fe79f71348d5aa9dbb3f0d86b3f9256c5609a1526fdea84748363b9",
+      "run_token": "rt_f084d896-a3a4-4ec5-9f6a-4b632dfe4fd9",
+      "probe_id": "P-CMD-receipt-integrity",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M42",
+      "catcher": "P-CMD-receipt-integrity",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:34faef6538bd5245cc7a595580f763dc13416da9addbac79140c291c8f4c1504",
+      "run_token": "rt_aa92100e-826d-4a44-835e-7bd7d3f4c7c1",
+      "probe_id": "P-CMD-receipt-integrity",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M43",
+      "catcher": "P-CMD-disclosure",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:00c0e972e1d54264084808fd033dc721ac55a27567b7f303bfcee27aec14bd87",
+      "run_token": "rt_08da273a-5b27-4a63-88d3-3082dfc1ec0b",
+      "probe_id": "P-CMD-disclosure",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M44",
+      "catcher": "P-CMD-disclosure",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:12437e4a077929f94b522e234279e3ea298f988ded7928c8acc77da3b208b0a3",
+      "run_token": "rt_f53681a5-dae2-48c4-a21e-5bf69ce4dbb8",
+      "probe_id": "P-CMD-disclosure",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M47",
+      "catcher": "P-CMD-finalize-gate",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:491887232246afe7564f236364924fb61a43efc4f2bbc3a403f2d322ed0e6b61",
+      "run_token": "rt_92472a16-506c-4020-aa69-f8be973ef63b",
+      "probe_id": "P-CMD-finalize-gate",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N1b-earlier-record-and-decision-survive"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M48",
+      "catcher": "P-CMD-finalize-gate",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:406e1c09d29f9ec30c248fb0917072415965c6d4e32dad7f963f0a917512c690",
+      "run_token": "rt_1721a857-a591-4ca9-8f37-5941a31553fc",
+      "probe_id": "P-CMD-finalize-gate",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N1b-earlier-record-and-decision-survive"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M49",
+      "catcher": "P-CMD-finalize-gate",
+      "applied": true,
+      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+      "mutated_digest": "sha256:96f05abcd1e3a60c4e81cb92fb4ef89480a955f0c155a434f615ab929beeb2f1",
+      "run_token": "rt_4025fbc2-9c01-4b8b-961a-3272da385a2e",
+      "probe_id": "P-CMD-finalize-gate",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N1b-earlier-record-and-decision-survive"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    }
+  ]
+}

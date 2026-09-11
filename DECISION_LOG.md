@@ -16,6 +16,95 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3012 — Az R57 három lelete javítva: a bizonyíték nem igazolhatja önmagát
+
+**Kör:** CMD-VS-300-002-001 R57→R58 · sáv: **Claude-v3** (az R57-ig `Claude-AUX`) · a külső fél
+(**chatgpt-v3**, az R57-ig `ChatGPT`) független ellenőrzése az R56-ra.
+
+**A bemenet MÉRVE, nem rekonstruálva.** Az R57 programja a saját gépünkön **9/9 MEGFELEL**
+eredménnyel futott le — de ez a javítások UTÁNI állapot; a leletek a javítás ELŐTT valósak voltak,
+és mind a hármat kódon reprodukáltuk. A külső fél öt pecsét-állításunkat (T01–T05) megerősítette, és
+négy ponton (E01–E04) MEGCÁFOLT.
+
+### R57-F02 — a kapu az ellenőrzött csomagtól kérdezte meg, mihez mérje
+
+A `falsificationQualifies` a csomag `mutated_digest` mezőjét **ugyanannak a csomagnak** a
+`base_digest` mezőjéhez mérte, és a `run_token`-t is a csomagból fogadta el. Egy önmagában
+következetes, de KITALÁLT csomag ezért átment. → **KUKA-103**
+
+**Javítás:** az elvárt érték a SZÜLŐ futási környezetéből jön (`expectation.base_digest` ·
+`run_tokens[mutation_id]` · `mutated_digests[mutation_id]`), és **hiányában a kapu fail-closed**.
+Mellé három független feltétel: a mutáció a REGISZTERBEN van · az állítást a MANIFEST kiadja · a
+csomag önmagával nem mond ellent (`verdict` ⇄ `probe_status`).
+
+**Ami ebből következett — és amit külön ki kell mondani:** a szigorítás PIROSRA vitte a saját
+`P-NORM-evidence` próbánkat, mert annak szintetikus csomagjai kitalált mutáció-azonosítókkal
+dolgoztak. A próbát a VALÓDI szerződéshez kötöttük újra (igazi regiszter-mutációk + egy
+`EXPECT` objektum), nem a kaput lazítottuk vissza.
+
+### R57-F01 — a kapu kimondta az eltérést, és NULLÁVAL zárt
+
+A battéria a képernyőn kiírta, mely klauzulák maradtak `not_falsified`, de a kilépési kódja ettől
+független volt; és kötelező bizonyíték-KÉSZLET nem is létezett. → **KUKA-104**
+
+**Javítás:** `REQUIRED_EVIDENCE` (`req-1`: REV-N1a · REV-N1b · ORG-N2a), FÁZIS-FÜGGŐ elvárt
+állapottal (magpróbán `falsification_pending` elég, battérián `covered` kell), és a `clean`
+minősítés feltétele kimondottan tartalmazza a `required.ok`-t — tehát a kilépési kód a kimondott
+ítéletet hordozza. A hiányt a futás NÉVVEL sorolja fel (`why[]`).
+
+### R57-F03 — a tartalmi jóváhagyás puszta hashekből
+
+A `content_review` `current`-nek számított, ha a lenyomatok egyeztek: felülvizsgáló, időpont,
+bizonyíték és maradék nélkül. → **KUKA-105**
+
+**Javítás:** `CONTENT_REVIEW_REQUIRED` — 11 kötelező mező, és NÉGY állapot: `none` · `incomplete`
+(a hiányzó mezők NEVÉVEL) · `stale` (az elcsúszott lenyomatokéval) · `current`.
+
+### Az R32-kötés nevezett hiánya BEZÁRULT
+
+A KUKA-101 kimondott hiánya (`source_document.text_digest: null`) megszűnt: a normaszöveg
+bájtazonos másolata a repóban áll (`v3ref/source-documents/R32_board_v1.md`, 61 040 bájt), és a
+`text_digest` **mérve** születik a fájl bájtjaiból — betöltéskor az elvárthoz hasonlítva, romlásnál
+`NORM_SOURCE_ARTIFACT_MISMATCH`, hiányzó fájlnál `NORM_SOURCE_ARTIFACT_MISSING`. A külső fél
+kimondott feltétele volt, hogy ez **ne bemásolt konstans** legyen. A KUKA-101 szövege és a CLAUDE.md
+sora ezzel együtt frissült (KUKA-050: a szöveg a valóságot követi).
+
+### ÁTADHATÓSÁG — a programok a repóba, egy paranccsal futtathatóan
+
+Az R57 §7 követelménye. A külső fél az R57-ben SAJÁT rekonstrukciót futtatott, mert a hivatkozott
+programokat a megadott commit fájlfájában nem találta — ez a mi mulasztásunk volt (KUKA-079). Ezért:
+`v3ref/external-checks/` (a külső fél R57-es programja + a mi két újrafogalmazott programunk,
+mindhárom VÁLTOZATLANUL, a szerző megnevezve) + `run-all.mjs`, ami a környezetet maga rakja össze
+(`source/` · `source-manifest.json` · `evidence/`), a gépi eredményt a `results/` alá teszi, és
+**nem-nulla kóddal zár**, ha bármelyik eset elbukik. Mindkét irány mérve: érintetlen forráson
+3/3 program · 16/16 eset · kilépés 0 — szándékosan eltört magpróbán kilépés 1. A bemondott commit
+itt is ÁLLÍTÁS: ha a lemásolt forráson nem-könyvelt változás áll, a futtató `+uncommitted` jelöléssel
+és a fájlok felsorolásával mondja ki (R45 P01 / KUKA-056).
+
+### Sáv-átnevezés
+
+Operátori parancs: `Claude-AUX → Claude-v3` · `ChatGPT → chatgpt-v3` · a V2 sáv `Claude-DEV →
+Claude-v2` · `chatgpt-v2`. A V2 oldalán ez nem átnevezés, hanem REGISZTER lett (LANE-01,
+D-VS-675): egy forrás, két testvér-feloldó, generált adatbázis-normalizálás, és a régi nevek
+**aliasok** — a külső fél a mi átnevezésünkről nem tud, ezért a régi néven érkező hívást elfogadjuk
+és a mai névre fordítjuk (KUKA-081 · KUKA-064).
+
+### Mit nem kapott KUKA-számot, és miért
+
+A kör során három SAJÁT hibám bukott ki, mindhárom egy MÁR MEGLÉVŐ bejegyzés visszatérése, nem új
+minta — ezért nem kapnak új számot, de itt ki vannak mondva: (1) a sáv-verifier történet-padlóját
+100-ra **tippeltem**, a mérés 18-at adott (KUKA-045); (2) a gépi eredmény kiírásánál egy `resolve`
+nevű, nem létező nevet hívtam, amit a szintaxis-ellenőrzés nem lát (KUKA-044); (3) a döntési számot
+a kör ELEJÉN mértem szabadnak, a másik sáv közben elvitte — a szám ellenőrzése a **PUSH pillanatában**
+érvényes, nem a kör elején (a lecke a V2 sávnak írt levél §6c pontjába került; gépi jele
+`verify:decision-numbers` már van, a hiba a HASZNÁLAT idejében volt).
+
+**Mérés a kör végén:** magreferencia **28/28** · mutációs battéria **46/46 észlelt**, 8/8
+hazugság-próba, `3/3 kötelező klauzula fedve` · a külső fél programja **9/9** · külső futtató
+**3/3 program** · `verify:kuka` **191/191**.
+
+---
+
 ## D-VS-3011 — Az R55 hat lelete javítva: a pecsét minden írási úton, és a bizonyíték MÉRÉS
 
 **Kör:** CMD-VS-300-002-001 R55→R56 · sáv: Claude-AUX · a külső fél független ellenőrzése az
