@@ -1,19 +1,11 @@
 {
-  "at": "2026-09-11T11:22:57.987Z",
+  "at": "2026-09-11T11:24:50.219Z",
   "node": "v22.22.2",
   "source": {
-    "commit": "49eef87c0ea7b0840e240eb0d0382e0d45400c37+uncommitted",
-    "clean": false,
-    "dirty_files": [
-      "v3ref/manifest.mjs",
-      "v3ref/mutate.mjs",
-      "v3ref/normContract.mjs",
-      "v3ref/norms.mjs",
-      "v3ref/run.mjs",
-      "v3ref/external-checks/",
-      "v3ref/source-documents/"
-    ],
-    "note": "a lemásolt forráson nem-könyvelt változás áll — a bemondott commit ezért jelölt"
+    "commit": "20afac677a37d6e2afbdc67c6b3338eb50e566dd",
+    "clean": true,
+    "dirty_files": [],
+    "note": "a lemásolt forrás a könyvelt állapoton áll"
   },
   "programs": [
     {
@@ -22,13 +14,13 @@
       "by": "chatgpt-v3 — KÜLSŐ, független fél",
       "origin": "R57 (változatlanul, ahogy a boardon érkezett)",
       "exit": 0,
-      "ms": 7668,
+      "ms": 7647,
       "total": 9,
       "failed": [],
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r57_r56-challenge.json",
       "stderr": [
-        "(node:20609) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:22506) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null
@@ -39,13 +31,13 @@
       "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
       "origin": "R56",
       "exit": 0,
-      "ms": 4239,
+      "ms": 4245,
       "total": 5,
       "failed": [],
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r55_restated.json",
       "stderr": [
-        "(node:21435) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:23332) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null
@@ -56,7 +48,7 @@
       "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
       "origin": "R54",
       "exit": 0,
-      "ms": 497,
+      "ms": 495,
       "total": 2,
       "failed": [],
       "ok": true,
