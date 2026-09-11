@@ -4705,6 +4705,220 @@ const RETIRED_PATTERNS = Object.freeze([
     ]),
   }),
 
+  Object.freeze({
+    id: 'KUKA-098',
+    date: '2026-09-11',
+    title: 'A TILALOM NEM A VÁLTOZTATHATATLANSÁG — a tároló SAJÁT konfliktus-feloldása átment rajta',
+    what: 'Az R54-ben a kiadott meghívó feltételeit „append-only" pecséttel védtük: BEFORE UPDATE és '
+      + 'BEFORE DELETE trigger a pecsét-táblán. A külső fél két rendes DML-írással megkerülte, séma- '
+      + 'vagy triggerletiltás nélkül: (S01) `INSERT OR REPLACE INTO invite_terms ... SELECT ... FROM '
+      + 'invite` — a REPLACE a régi sort TÖRLI és újat ír, a törlés BEFORE DELETE triggerét viszont az '
+      + 'SQLite csak bekapcsolt `recursive_triggers` mellett futtatja, és a kapcsolat alapértéke KI; '
+      + '(S02) `INSERT OR REPLACE INTO invite` ugyanazzal a tokennel, `admin` szereppel. Mindkét '
+      + 'beváltás SIKERES volt, és ADMIN tagságot adott a `user` ajánlatra.',
+    why_wrong: 'A védelmet a SZÁNDÉK oldaláról írtam meg („ne lehessen átírni · ne lehessen törölni"), '
+      + 'nem a MŰVELETEK oldaláról. A tároló viszont a saját konfliktus-feloldásából ÚJ műveletet '
+      + 'szintetizál (REPLACE = törlés + beszúrás), és annak a törlés-fele a kapcsolat ALAPÉRTELMEZETT '
+      + 'beállításával néma. Két külön hiba egy helyen: a művelet-halmaz nem volt teljes, és a '
+      + 'védelem egy KÖRNYEZETI alapértéken múlt, amit sosem mondtunk ki és sosem olvastunk vissza '
+      + '(KUKA-014 alakja a tárolón).',
+    replaced_by: 'A VÉDELEM A MŰVELETEK TELJES HALMAZÁRA, ÉS AZ ADAPTER KÉNYSZERÍTI KI. Négy őr, '
+      + 'mindegyik a BESZÚRÁS oldaláról is zár, tehát pragmától FÜGGETLENÜL: `invite_terms_no_reseal` '
+      + '(egy tokenre MÁSODIK pecsét soha) · `invite_no_change_sealed` (a KIADOTT mezők nem '
+      + 'módosulnak, a `redeemed_at` igen — az ÉLETCIKLUS külön tengely) · `invite_no_reissue` '
+      + '(lepecsételt token újra nem adható ki) · `invite_no_delete_sealed`. Mellé az `openStore` '
+      + 'BEÁLLÍTJA és VISSZA IS OLVASSA a `recursive_triggers`-t, és nevezett hibakóddal áll meg, ha '
+      + 'nem alkalmazódott. A második réteg (beváltás-kori pecsét-összevetés) MEGMARAD, és a próba '
+      + 'őrök NÉLKÜLI tárolón külön méri — a védelem nem múlhat a triggerek meglétén.',
+    decision: 'D-VS-3011',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (R55 S01 · S02) — reprodukálva a saját gépünkön, karakterre.',
+    lesson: 'AMIT MŰVELETEK TILTÁSÁVAL VÉDÜNK, OTT A MŰVELET-HALMAZNAK TELJESNEK KELL LENNIE — '
+      + 'beleértve azokat, amiket a tároló MÁSOKBÓL SZINTETIZÁL (REPLACE · UPSERT · ugyanazon kulcs '
+      + 'újra-beillesztése). Az „UPDATE és DELETE tiltva" nem ugyanaz, mint „a sor változtathatatlan". '
+      + 'És a védelem SOHA ne egy környezeti alapértéken múljon: amit a viselkedés feltételez, azt az '
+      + 'adapter állítsa be ÉS olvassa vissza — a néma alapérték a legrosszabb fajta függőség, mert '
+      + 'egy másik gépen csendben más lesz.',
+    guard_note: 'gépi jel: `verify:v3ref` **P-INVITE-seal** — nyolc írási alak (UPDATE · DELETE · '
+      + 'REPLACE a pecséten · UPDATE a kiadott mezőn · UPDATE a lejáraton · REPLACE · UPSERT · DELETE '
+      + 'az élő soron) mind elutasítva, a pecsét `user` marad, jog-bővülés SEHOL; ELLENPÁRRAL (a '
+      + 'fogyasztás és az ÚJ kiadás megy) és a pragma visszaolvasásával.',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/store.mjs'],
+        pattern: 'PRAGMA recursive_triggers = OFF',
+        reason: 'a REPLACE törlés-fele némán átmenne a pecsét-őrökön (KUKA-098)' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/store.mjs'], pattern: 'invite_terms_no_reseal',
+        reason: 'a pecsét a BESZÚRÁS oldaláról is zárt — pragmától függetlenül' }),
+      Object.freeze({ paths: ['v3ref/store.mjs'], pattern: 'invite_no_reissue',
+        reason: 'ugyanaz a token nem adható ki másodszor' }),
+      Object.freeze({ paths: ['v3ref/store.mjs'], pattern: 'STORE_PRAGMA_NOT_APPLIED',
+        reason: 'az adapter visszaolvassa a beállítást, és nevezett hibával áll meg' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-099',
+    date: '2026-09-11',
+    title: 'A DARABSZÁM NEM A TÖRTÉNET',
+    what: 'A REV-N1b („a korábban rögzített esemény és akkori engedélyezési döntése nem törlődik") '
+      + 'bizonyítéka a `command`, `command_event` és `disclosure` táblák `count(*)` értékét '
+      + 'hasonlította megvonás előtt és után. A külső fél N03 esete ezt megdöntötte: a megvonás '
+      + 'UGYANAZT a sort hagyta ott MÁS TARTALOMMAL (`resolved_json` → `{"tampered":true}`), a '
+      + 'darabszám változatlan maradt, az állításom IGAZ maradt, és a teljes battéria zöld volt.',
+    why_wrong: 'A darabszám a történet HELYETTESÍTŐJE volt, nem a történet (KUKA-073 alakja a '
+      + 'méréseken). A tegnapi bevételezés sora megvan — csak már nem azt mondja, amit tegnap mondott; '
+      + 'a norma épp erről szól. Ráadásul a „semmi nem változhat" alakú javítás is rossz lett volna: '
+      + 'az megtiltotta volna a SZABÁLYOS audit-bővülést is (KUKA-049 — az őr, ami a kért eredményt '
+      + 'jelenti kudarcnak).',
+    replaced_by: 'TARTALMI PILLANATKÉP, ÉS A HOZZÁFŰZÉS MEGENGEDETT. Két nevezett feloldó, amit a '
+      + 'próba HÍV: `auditSnapshot` (a hatókörre szűkített, rendezett TELJES sorok) és '
+      + '`priorRowsSurvive` (minden KORÁBBI sor változatlanul megvan; ÚJ sor jöhet). A sorokat '
+      + 'EGÉSZBEN hasonlítjuk, kanonikus alakban — így egyszerre fogja meg a TÖRLÉST, a '
+      + 'TARTALOM-ÁTÍRÁST és az AZONOS DARABSZÁMÚ SOR-CSERÉT. Pozitív kontroll a próbában: a megvonás '
+      + 'után hozzáfűzött, jogos audit-bejegyzés NEM sérti a normát.',
+    decision: 'D-VS-3011',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (R55 N03) — a beavatkozás a saját gépünkön reprodukálva.',
+    lesson: 'AHOL EGY NORMA AZT MONDJA, HOGY „NEM TÖRLŐDIK", OTT A MÉRÉS A TARTALMAT HASONLÍTSA, NE A '
+      + 'DARABSZÁMOT. A kardinalitás olcsó helyettesítő, és pontosan azt a támadást engedi át, ami a '
+      + 'történetet átírja a nyoma eltüntetése nélkül. És a javítás ne csapjon át az ellenkezőjébe: a '
+      + 'megőrzés-szabály a RÉGI sorokra szól, a napló BŐVÜLHET — különben a saját auditunkat tiltanánk.',
+    guard_note: 'gépi jel: `verify:v3ref` **P-CMD-finalize-gate** (Y4 ág: tartalmi pillanatkép + '
+      + 'hozzáfűzés-ellenpár) + három visszabontási kontroll, mind bizonyítottan piros: **M47** '
+      + '(törlés) · **M48** (tartalom-átírás) · **M49** (azonos darabszámú sor-csere).',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'priorRowsSurvive',
+        reason: 'a megőrzés tartalmi összehasonlítással mérve, nem darabszámmal' }),
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M48'",
+        reason: 'a tartalom-átírás mint önálló visszabontási kontroll' }),
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M49'",
+        reason: 'az azonos darabszámú sor-csere mint önálló visszabontási kontroll' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-100',
+    date: '2026-09-11',
+    title: 'A SZÁNDÉK MINT BIZONYÍTÉK — a mutáció NEVE a futása helyett',
+    what: 'Az R54-es norma-kapu negyedik feltétele azt ellenőrizte, hogy egy mutáció DEFINÍCIÓJÁBAN '
+      + 'szerepel-e a próba neve. A külső fél N01 esete két, SOHA NEM FUTTATOTT, `{id, catcher}` alakú '
+      + 'bejegyzést adott át: a kapu `ok:true`-t mondott, és mindhárom klauzulát `covered` állapotúnak '
+      + 'jelentette. Az N04 pedig megmutatta, hogy ugyanaz a mutáció (M32) KÉT klauzulához volt '
+      + 'beírva, miközben a futása csak az EGYIK állítást buktatja — a másik falszifikálatlan maradt.',
+    why_wrong: 'A visszabontási kontroll TERV volt, nem MÉRÉS: a lista azt mondta meg, mit SZÁNDÉKOZUNK '
+      + 'elrontani, nem azt, hogy mi TÖRTÉNT (KUKA-038 a mutációkon). És egy több-állításos próba '
+      + 'ÖSSZESÍTETT bukása nem igazolja mindegyik klauzulát — ez a KUKA-095 („egy fél feltétel") '
+      + 'alakja a bizonyíték-oldalon: a durvább szemcsézettség elrejti, melyik állítás nincs fedve.',
+    replaced_by: 'A KAPU EREDMÉNYT KAP, EREDETTEL, ÁLLÍTÁSONKÉNT. `falsificationQualifies` — egy '
+      + 'mutációs eredmény csak akkor bizonyíték, ha az alkalmazás IGAZOLT, az alap- és a mutált '
+      + 'forrás MÉRT lenyomata megvan és KÜLÖNBÖZIK, van futás-jel, a NEVEZETT próbáról szól, és a '
+      + 'ténylegesen HAMISRA fordult állítások között ott van ÉPP EZ. A referencia-futás — ami a '
+      + 'battéria ELŐTT fut — nem állíthat többet, mint amit mért: az állapota `falsification_pending`, '
+      + 'a végleges minősítés a battéria után születik. A REV-N1b saját kontrollokat kapott '
+      + '(M47/M48/M49); az M32 ma már NEM számít a bizonyítékának.',
+    decision: 'D-VS-3011',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (R55 N01 · N04).',
+    lesson: 'A VISSZABONTÁSI KONTROLL A FUTÁSA, NEM A NEVE. Egy deklarált mutáció terv; bizonyíték '
+      + 'akkor lesz belőle, ha LEFUTOTT, és az eredménye HOZZA AZ EREDETÉT is (mit rontottunk el, '
+      + 'melyik futásban, mi bukott meg). A szemcsézettség pedig legyen azonos a normáéval: ha a norma '
+      + 'ÁLLÍTÁSOKRA bomlik, a falszifikáció is ÁLLÍTÁSONKÉNT kell hogy szóljon — az összesített FAIL '
+      + 'elrejti, melyik állítás maradt méretlen. És ami a mérés SORRENDJÉBŐL következik, azt ki kell '
+      + 'mondani: egy korábbi fázis nem nyilatkozhat egy későbbi fázis eredményéről.',
+    guard_note: 'gépi jel: `verify:v3ref` **P-NORM-evidence** (n9 — soha nem futtatott definíció nem '
+      + 'ad fedettséget · n10 — MÁS állítást buktató eredmény nem igazolja a klauzulát · n11 — eredet '
+      + 'nélküli eredmény nem bizonyíték) + a mutációs battéria végleges minősítése, ami a REV-N1b-t '
+      + 'ma az M47-nek tulajdonítja, nem az M32-nek.',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/norms.mjs'], pattern: 'falsificationQualifies',
+        reason: 'az eredmény elfogadhatósága nevezett feloldóban, eredet-követelménnyel' }),
+      Object.freeze({ paths: ['v3ref/norms.mjs'], pattern: 'falsification_pending',
+        reason: 'a referencia-futás nem állít többet, mint amit mért' }),
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: 'falsificationEvidence',
+        reason: 'a battéria eredet-helyes eredményt ad át a kapunak' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-101',
+    date: '2026-09-11',
+    title: 'A LENYOMAT, AMI NEM ANNAK A DOLOGNAK A LENYOMATA, AMIT MEGNEVEZ',
+    what: 'A futás `norm_contract.version: R32/K01-K16` mellé kiadott egy `digest` mezőt — de az a '
+      + 'hash a MI nyolc REV/ORG szabályunk kiválasztott mezőiből készült, nem abból a szerződésből, '
+      + 'amit megnevezett. A külső fél D01 diagnosztikája ezt mérve mutatta meg: a K01 helyi CÍMÉT '
+      + 'átírva a lenyomat VÁLTOZATLAN maradt.',
+    why_wrong: 'Egy azonosító, ami nem a megnevezett dolog bájtjaiból származik, nem azonosít — csak '
+      + 'úgy NÉZ KI, mintha azonosítana (KUKA-038 a hasheken). A veszélye nagyobb a hiányzó '
+      + 'lenyomaténál: arra épülő „tartalmi jóváhagyás" akkor is érvényesnek látszana, ha a szerződés '
+      + 'közben megváltozott — épp az elavulást nem venné észre, ami ellen való.',
+    replaced_by: 'KÉT ARTEFAKTUM, KÉT LENYOMAT, ÉS A HIÁNY KIMONDVA. A kanonikus szerződés saját '
+      + 'otthont kapott (`v3ref/normContract.mjs`, NCT-01): verziózott, és a `contractDigest` a SAJÁT '
+      + 'kanonikus bájtjaiból képződik. Az index (NRM-01) külön `indexDigest`-et kap, és hivatkozik a '
+      + 'szerződés verziójára és lenyomatára. Mellé klauzulánkénti `clauseDigest` és '
+      + '`contentReviewState`: egy tartalmi jóváhagyás a KONKRÉT szerződés- és klauzula-lenyomathoz '
+      + 'kötődik, és bármelyik változása ELAVULTTÁ teszi. KIMONDOTT HIÁNY: a K01–K16 teljes '
+      + 'normaszövege a külső félnél él, nálunk csak az azonosító és a cím — ezért a '
+      + '`source_document.text_digest` NULL, nevezett hiánnyal; nem pótoljuk egy hihető hash-sel.',
+    decision: 'D-VS-3011',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (R55 D01 diagnosztika).',
+    lesson: 'A LENYOMAT ANNAK A DOLOGNAK A BÁJTJAIBÓL SZÜLESSEN, AMIT MEGNEVEZ. Ha két dolgot '
+      + 'azonosítunk (a szerződést és a róla vezetett indexet), akkor KÉT lenyomat kell, külön néven — '
+      + 'egybe olvasztva egyik változása sem látszik biztosan (KUKA-002 a hasheken). És ha a megnevezett '
+      + 'dolog bájtjai nincsenek nálunk, azt KI KELL MONDANI: a hiányzó kötés hangosabb, mint egy hamis.',
+    guard_note: 'gépi jel: a kiadott `norm_contract` a `contractRef()`-ből jön, a `digest_scope` és a '
+      + '`source_document.text_digest: null` a kimenet része; és a D01 újrafogalmazott alakja mérve: '
+      + 'a K01 címének változása MEGVÁLTOZTATJA a szerződés- és az együttes lenyomatot, az INDEXÉT nem.',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/normContract.mjs'], pattern: 'contractDigest',
+        reason: 'a szerződés lenyomata a szerződés saját bájtjaiból' }),
+      Object.freeze({ paths: ['v3ref/normContract.mjs'], pattern: 'text_digest: null',
+        reason: 'a hiányzó normaszöveg-kötés KIMONDVA, nem pótolva' }),
+      Object.freeze({ paths: ['v3ref/norms.mjs'], pattern: 'contentReviewState',
+        reason: 'a tartalmi jóváhagyás a konkrét lenyomatokhoz kötve, elavulással' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-102',
+    date: '2026-09-11',
+    title: 'A PRÓBÁHOZ IGAZÍTOTT HATÁR — gyengébb terméket választottam, hogy a régi teszt ne dobjon',
+    what: 'Az R54-ben KIÍRTAM az indokot, amiért a kiadott meghívó élő sorának UPDATE-jét nem tiltom: '
+      + '„MÉRVE elbuktatná a külső fél saját próbáit: az F01 és az N10 NYERS UPDATE-tel dolgozik, és a '
+      + 'KIVÉTELT nem a redeem válaszaként várja." A külső fél ezt VISSZAVONTA: „Nem indokolt gyengébb '
+      + 'termékhatárt választani azért, hogy a régi F01/N10 ne dobjon kivételt." A szigorúbb határ '
+      + 'bevezetésekor valóban elbukott három régi eset (R49/C11, R51/N10, R53/F01) — mindhárom azért, '
+      + 'mert a veszélyes írás ma már LÉTRE SEM JÖN.',
+    why_wrong: 'A MEGLÉVŐ MÉRÉS ALAKJÁT engedtem a TERMÉK JOGHATÁRÁNAK meghatározására. Ez fordított '
+      + 'irány: a próba a határt méri, nem a határ igazodik a próbához. A hiba ráadásul a legrosszabb '
+      + 'fajta indoklásba volt csomagolva — „mérve" —, ami a mérés tekintélyét adta egy tervezési '
+      + 'engedménynek (KUKA-033: a levezetett szabály nem bizonyíték attól, hogy mérés áll mellette).',
+    replaced_by: 'A HATÁR ELŐBB, A PRÓBA UTÁNA. A kiadott ajánlat minden írási úton változtathatatlan '
+      + '(KUKA-098), és ami emiatt elavul, azt ÚJRAFOGALMAZZUK, nem megkerüljük: a saját próbáink a '
+      + 'szigorúbb alakhoz igazodtak (`P-INVITE-seal`, és a második réteget kimondottan őrök nélküli '
+      + 'tárolón mérjük), a külső fél három elavult esetéhez pedig átadható újrafogalmazás készült '
+      + '(C11 · N10 · F01), mindegyik ELLENPÁRRAL. Az elavulást KIMONDJUK: melyik eset, miért, és hogy '
+      + 'a határ SZIGORÚBB lett, nem gyengébb.',
+    decision: 'D-VS-3011',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (R55 §2 „Saját korrekcióm") — a saját, LEÍRT indoklásomon.',
+    lesson: 'SOHA NE A PRÓBA ALAKJA DÖNTSE EL A TERMÉK JOGHATÁRÁT. Ha egy szigorúbb határ elbuktat egy '
+      + 'meglévő tesztet, a teszt avult el, nem a határ rossz — az elavult esetet ÚJRA KELL '
+      + 'FOGALMAZNI a szándéka szerint, ellenpárral, és az elavulást ki kell mondani. És ha egy '
+      + 'tervezési engedmény mellé azt írom, hogy „mérve", az nem teszi méréssé: a mérés azt mondta '
+      + 'meg, hogy a régi teszt eldobna egy kivételt — nem azt, hogy a gyengébb határ helyes.',
+    guard_note: 'gépi jel: KÖZVETLEN nincs (a hiba egy leírt tervezési indoklás volt) — helyette a '
+      + 'KUKA-098 őrei mérik a szigorúbb határt, és az újrafogalmazott esetek (`restated.mjs`: '
+      + 'C11-restated · N10-restated · F01-restated) mérik, hogy a SZÁNDÉK továbbra is teljesül. '
+      + 'Az alábbi tiltó-minta a régi indoklás visszatérését fogja meg.',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref'],
+        pattern: 'MIÉRT NEM AZ UPDATE-ET TILTJUK',
+        reason: 'a próbához igazított, gyengébb határ indoklása nem térhet vissza (KUKA-102)' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/store.mjs'], pattern: 'a saját szabályunk is ezt mondja: a próbát a HATÁRHOZ igazítjuk',
+        reason: 'a visszavont indoklás helyén a helyes irány áll, kimondva' }),
+    ]),
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

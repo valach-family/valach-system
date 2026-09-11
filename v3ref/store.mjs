@@ -84,12 +84,40 @@ CREATE TABLE invite (
 -- függvényt megkerülnének — és a pecsét pont ott hiányozna, ahol a támadás történik. A tároló
 -- viszont nem kerülhető meg: aki sort ír, pecsétet is ír (KUKA-013).
 --
--- MIÉRT NEM AZ UPDATE-ET TILTJUK. Az kézenfekvő volna, de MÉRVE elbuktatná a külső fél saját
--- próbáit: az F01 és az N10 NYERS UPDATE-tel dolgozik, és a KIVÉTELT nem a redeem válaszaként
--- várja. A tilalom tehát nem a rossz UPDATE megakadályozása, hanem hogy a BEVÁLTÁS ismerje fel:
--- az élő sor eltér attól, amit KIADTUNK. Az UPDATE megtörténhet; a token attól válik halottá.
+-- R55/F01 — A HATÁR MEGERŐSÍTVE, ÉS A KORÁBBI INDOKOM VISSZAVONVA.
 --
--- A tábla APPEND-ONLY: a pecsétet átírni vagy törölni nem lehet (két őr-trigger alább).
+-- Az R54-ben azt írtam, hogy az élő sor UPDATE-jét SZÁNDÉKOSAN nem tiltjuk, mert a külső fél saját
+-- F01/N10 próbája nyers UPDATE-tel dolgozik, és kivételt nem vár. A külső fél ezt VISSZAVONTA:
+-- "Nem indokolt gyengébb termékhatárt választani azért, hogy a régi F01/N10 ne dobjon kivételt."
+-- Igaza van, és a saját szabályunk is ezt mondja: a próbát a HATÁRHOZ igazítjuk, nem fordítva.
+--
+-- ÉS A KÉT ŐR ÖNMAGÁBAN NEM VOLT APPEND-ONLY TÁROLÓ. Az R55 S01/S02 esete ezt mérve mutatta meg:
+--   S01 - INSERT OR REPLACE INTO invite_terms ... : a REPLACE a régi sort TÖRLI és újat ír, a
+--         törlés BEFORE DELETE triggerét viszont az SQLite csak bekapcsolt rekurzív triggerek
+--         mellett futtatja (a kapcsolat alapértéke: KI). A pecsét átíródott.
+--   S02 - INSERT OR REPLACE INTO invite ... ugyanazzal a tokennel, admin szereppel: a kiadott
+--         ajánlat helyére új ajánlat került. Egyik esetben sem kellett sémát vagy triggert tiltani.
+-- Mindkét beváltás SIKERES volt, és ADMIN tagságot adott.
+--
+-- A TANULSÁG A VÉDELEM ALAKJÁRÓL: az UPDATE és a DELETE TILTÁSA nem ugyanaz, mint a sor
+-- VÁLTOZTATHATATLANSÁGA - a köztük lévő rést a tároló saját konfliktus-feloldása nyitotta ki. A
+-- védelmet ezért a MŰVELETEK teljes halmazára kell szabni (UPDATE - DELETE - REPLACE - UPSERT -
+-- ugyanazon token újra-beillesztése), és a kapcsolati beállítást az ADAPTER kényszerítse ki, ne a
+-- környezet alapértéke döntse el (lásd openStore: a recursive_triggers BE, és VISSZA IS OLVASSUK).
+--
+-- A NÉGY ŐR EGYÜTT (mindegyik a MŰVELET oldaláról zár, nem a szándék oldaláról):
+--   invite_terms_no_update / no_delete  - a pecsét sorát átírni vagy törölni nem lehet;
+--   invite_terms_no_reseal              - ugyanarra a tokenre MÁSODIK pecsét nem születhet (ez
+--                                         zárja a REPLACE-t a pecsét-táblán, pragmától FÜGGETLENÜL);
+--   invite_no_change_sealed             - az élő meghívó KIADOTT mezői nem módosulhatnak; a
+--                                         redeemed_at (az ÉLETCIKLUS mezője) igen;
+--   invite_no_reissue / no_delete_sealed - lepecsételt tokent újra beilleszteni vagy törölni nem
+--                                         lehet (ez zárja a REPLACE-t az élő táblán is).
+--
+-- A MÁSODIK RÉTEG MEGMARAD, ÉS EZ SZÁNDÉKOS. A beváltás továbbra is a PECSÉTHEZ méri az élő sort
+-- (authoritativeInvite). Ma ez a tárolón nem tud tüzelni - de a védelem nem a triggerek MEGLÉTÉN
+-- múlhat: egy másik adapter, egy javítóprogram vagy egy trigger nélküli séma ugyanide ír. A
+-- próba ezt a réteget KÜLÖN méri, a triggereket ideiglenesen elvéve (P-INVITE-seal, (h) ág).
 CREATE TABLE invite_terms (
   token             TEXT PRIMARY KEY REFERENCES invite(token),
   book_id           TEXT NOT NULL,
@@ -113,6 +141,42 @@ END;
 
 CREATE TRIGGER invite_terms_no_delete BEFORE DELETE ON invite_terms BEGIN
   SELECT RAISE(ABORT, 'invite_terms: a KIADOTT feltetel nem torolheto');
+END;
+
+-- R55/F01 (S01): a REPLACE nem "modositas", hanem TORLES + BESZURAS. A torles trigger-e a
+-- kapcsolat alapertelmezesevel nem fut le, ezert a BESZURAS oldalarol is zarni kell: egy tokenre
+-- MASODIK pecset soha nem szulethet. Ez a ket fenti ort a pragmatol FUGGETLENUL egesziti ki.
+CREATE TRIGGER invite_terms_no_reseal BEFORE INSERT ON invite_terms
+WHEN EXISTS (SELECT 1 FROM invite_terms WHERE token = NEW.token) BEGIN
+  SELECT RAISE(ABORT, 'invite_terms: erre a tokenre MAR van kiadott feltetel - masodik pecset nem szulethet');
+END;
+
+-- R55/F01: az ELO meghivo KIADOTT mezoi valtozhatatlanok. Az ELETCIKLUS mezoje (redeemed_at)
+-- viszont igen - a fogyasztas a rendszer sajat, szabalyos irasa. Ket kulon dolog, ket kulon
+-- kezeles: a tilalom a mezokre szol, nem a sorra.
+CREATE TRIGGER invite_no_change_sealed BEFORE UPDATE ON invite
+WHEN NEW.token             <> OLD.token
+  OR NEW.book_id           <> OLD.book_id
+  OR NEW.invitee_namespace <> OLD.invitee_namespace
+  OR NEW.invitee_value     <> OLD.invitee_value
+  OR NEW.offered_role      <> OLD.offered_role
+  OR NEW.issuer_subject    <> OLD.issuer_subject
+  OR NEW.expires_at        <> OLD.expires_at BEGIN
+  SELECT RAISE(ABORT, 'invite: a KIADOTT ajanlat nem irhato at - visszavonas + uj meghivo kell');
+END;
+
+-- R55/F01 (S02): ugyanaz a token nem adhato ki masodszor. Ez zarja az INSERT OR REPLACE-t es a
+-- kezi ujra-beszurast is, mielott barmi torlodne.
+CREATE TRIGGER invite_no_reissue BEFORE INSERT ON invite
+WHEN EXISTS (SELECT 1 FROM invite_terms WHERE token = NEW.token) BEGIN
+  SELECT RAISE(ABORT, 'invite: ez a token MAR ki lett adva - ugyanaz a token nem adhato ki ujra');
+END;
+
+-- R55/F01: a lepecsetelt elo sor torlese sem ut a pecseten. A meghivo eletciklusa a redeemed_at-en
+-- (es kesobb a visszavonason) megy, nem a sor eltuntetesen.
+CREATE TRIGGER invite_no_delete_sealed BEFORE DELETE ON invite
+WHEN EXISTS (SELECT 1 FROM invite_terms WHERE token = OLD.token) BEGIN
+  SELECT RAISE(ABORT, 'invite: kiadott meghivo sora nem torolheto - a visszavonas kulon esemeny');
 END;
 
 CREATE TABLE pending_intent (
@@ -229,6 +293,22 @@ export function openStore() {
   // mezője is kimondja — nem néma gyorsítás (KUKA-015).
   db.exec('PRAGMA journal_mode = MEMORY;');
   db.exec('PRAGMA synchronous = OFF;');
+  // A VÉDELMET AZ ADAPTER KÉNYSZERÍTSE KI, NE A KÖRNYEZET ALAPÉRTÉKE (R55/F01).
+  //
+  // Az SQLite alapértéke `recursive_triggers = OFF`, és emiatt a REPLACE által kiváltott TÖRLÉS
+  // nem futtatja a BEFORE DELETE triggert — pontosan ezen a résen ment át az S01. A négy őr ma
+  // ettől függetlenül is zár (mindegyik a BESZÚRÁS oldaláról is), de a beállítást akkor is
+  // kimondjuk és VISSZAOLVASSUK: ha egy jövőbeli Node vagy build másképp állítja, azt HANGOSAN
+  // tudjuk meg, nem egy szivárgásból (KUKA-014: a kapcsoló ne egyetlen titkos írásmódon múljon).
+  db.exec('PRAGMA recursive_triggers = ON;');
+  const rt = db.prepare('PRAGMA recursive_triggers').get();
+  const rtOn = rt && Number(Object.values(rt)[0]) === 1;
+  if (!rtOn) {
+    const err = new Error('openStore: a recursive_triggers nem kapcsolt be — a tároló-őrök egy '
+      + 'részének a viselkedése nem garantálható; a futás nem indul el');
+    err.code = 'STORE_PRAGMA_NOT_APPLIED';
+    throw err;
+  }
   db.exec(SCHEMA);
   return {
     db,

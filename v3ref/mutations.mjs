@@ -362,4 +362,41 @@ export const MUTATIONS = [
     file: 'command.mjs',
     from: "    : releasedFieldPaths(body[k], [...prefix, `k:${escSeg(k)}`])));",
     to: "    : releasedFieldPaths(body[k], [...prefix, String(k)])));" },
+  // ── R55/F02 · F03 — A REV-N1b SAJÁT VISSZABONTÁSI KONTROLLJAI ──────────────────────────────────
+  //
+  // MIÉRT KELL HÁROM. A külső fél N04 esete megmutatta, hogy az M32 (a parancs-oldali véglegesítési
+  // kapu eltűnése) csak az `A-REV-N1a` állítást buktatja — a REV-N1b-t NEM falszifikálja semmi,
+  // pedig oda is be volt írva kontrollnak. Egy több-állításos próba ÖSSZESÍTETT bukása nem igazolja
+  // mindegyik klauzulát. A REV-N1b („a korábbi esemény és döntése nem törlődik") három módon
+  // sérülhet, és mindhárom KÜLÖN kontrollt kíván (KUKA-039: a fél őr):
+  //   M47 - a megvonás TÖRLI a korábbi parancsokat (a külső fél F04 beavatkozása)
+  //   M48 - a megvonás MEGHAGYJA a sort, de ÁTÍRJA a tartalmát (az N03 beavatkozása; a régi,
+  //         darabszám-alapú állításom ezt NEM vette észre)
+  //   M49 - AZONOS DARABSZÁMÚ SOR-CSERE: egy nyugta helyére egy másik kerül
+  { id: 'M47', rule: 'K08/K09', catcher: 'P-CMD-finalize-gate', expect: 'probe_fail',
+    what: 'R55/F02 — a megvonás KITÖRLI a korábbi parancsokat, nyugtákat és kiadásokat (a múlt eltűnik)',
+    file: 'authz.mjs',
+    from: "    return Object.freeze({ ok: true, changed: true, reason: t.reason, effective_at: t.effective_at });",
+    to: "    store.run('DELETE FROM disclosure WHERE recipient = ? AND scope = ?', subjectId, bookId);\n"
+      + "    store.run('DELETE FROM command_event WHERE actor = ? AND book_id = ?', subjectId, bookId);\n"
+      + "    store.run('DELETE FROM command WHERE actor = ? AND book_id = ?', subjectId, bookId);\n"
+      + "    return Object.freeze({ ok: true, changed: true, reason: t.reason, effective_at: t.effective_at });" },
+
+  { id: 'M48', rule: 'K08/K09', catcher: 'P-CMD-finalize-gate', expect: 'probe_fail',
+    what: 'R55/F02 — a megvonás MEGHAGYJA a sort, de ÁTÍRJA a tartalmát (a darabszám stimmel, a történet nem)',
+    file: 'authz.mjs',
+    from: "    return Object.freeze({ ok: true, changed: true, reason: t.reason, effective_at: t.effective_at });",
+    to: "    store.run('UPDATE command SET resolved_json = ? WHERE actor = ? AND book_id = ?', '{\"tampered\":true}', subjectId, bookId);\n"
+      + "    return Object.freeze({ ok: true, changed: true, reason: t.reason, effective_at: t.effective_at });" },
+
+  { id: 'M49', rule: 'K08/K09', catcher: 'P-CMD-finalize-gate', expect: 'probe_fail',
+    what: 'R55/F02 — AZONOS DARABSZÁMÚ SOR-CSERE: a régi nyugta helyére másik kerül',
+    file: 'authz.mjs',
+    from: "    return Object.freeze({ ok: true, changed: true, reason: t.reason, effective_at: t.effective_at });",
+    to: "    store.run('DELETE FROM command_event WHERE actor = ? AND book_id = ?', subjectId, bookId);\n"
+      + "    store.run(`INSERT INTO command_event (book_id, actor, idem_key, event, state, effect_id, at)\n"
+      + "               SELECT book_id, actor, idem_key, 'command_finalized', 'finalized', 'eff_HAMIS', ? FROM command\n"
+      + "               WHERE actor = ? AND book_id = ?`, nowIso, subjectId, bookId);\n"
+      + "    return Object.freeze({ ok: true, changed: true, reason: t.reason, effective_at: t.effective_at });" },
+
 ];

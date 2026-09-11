@@ -46,6 +46,7 @@ import { spawnSync, spawn } from 'node:child_process';
 import { availableParallelism } from 'node:os';
 
 const REF = dirname(fileURLToPath(import.meta.url));
+let BASE_DIGEST = null;   // az ALAP (mutálatlan) forrás lenyomata — az alapvonal-kapu tölti fel
 const RUN_TIMEOUT_MS = 60000;
 
 import { MUTATIONS } from './mutations.mjs';
@@ -71,7 +72,8 @@ import { MUTATIONS } from './mutations.mjs';
 // szerződés (`manifest.mjs`), a kilépési kód és az eredménycsomag ellentmondása mérőhiba, és
 // bizonyíték CSAK a nevezett próba nevezett ÁLLÍTÁSÁNAK bukása.
 
-import { MANIFEST_VERSION, EXPECTED_IDS, PROBE_STATUS, checkResultSet, assertionOf } from './manifest.mjs';
+import { MANIFEST_VERSION, EXPECTED_IDS, EXPECTED_PROBES, PROBE_STATUS, checkResultSet, assertionOf } from './manifest.mjs';
+import { checkNorms } from './norms.mjs';
 
 // A `run.mjs` SZERZŐDÉSE: 0 = minden próba PASS · 1 = van nem-PASS. Minden más kód mérőhiba —
 // akkor is, ha közben értelmezhető JSON érkezett (H05).
@@ -232,6 +234,36 @@ function withCopy(fn) {
 }
 
 // ── (a) ALAPVONAL: a mutálatlan másolat zöld? ────────────────────────────────────────────────────
+
+// ── A FALSZIFIKÁCIÓS BIZONYÍTÉK (R55/F03) ───────────────────────────────────────────────────────
+//
+// MIÉRT NEM ELÉG A DEFINÍCIÓ. A norma-kapu eddig azt kérdezte, hogy egy mutáció DEFINÍCIÓJÁBAN
+// szerepel-e a próba neve. A külső fél N01 esete két, SOHA NEM FUTTATOTT `{id, catcher}` bejegyzést
+// adott át, és a kapu mindhárom klauzulát fedettnek mondta. Innentől a kapu EREDMÉNYT kap, és az
+// eredmény hozza magával az EREDETÉT is: az alkalmazás igazolva, az alap- és a mutált forrás MÉRT
+// lenyomata (a kettő különbözik), a futás-jel, a nevezett próba — és a ténylegesen HAMISRA fordult
+// állítás-azonosítók. Nem a mutáció ÖSSZESÍTETT bukása számít, hanem hogy MELYIK állítás bukott
+// (N04: az M32 az egyik REV-N1 klauzulát buktatja, a másikat nem).
+function falsificationEvidence(m, c, e, v) {
+  const rec = (c.records || []).find((r) => r.probe_id === m.catcher);
+  const failedAssertions = rec && Array.isArray(rec.assertions)
+    ? rec.assertions.filter((a) => a && a.pass === false).map((a) => a.id)
+    : [];
+  return Object.freeze({
+    mutation_id: m.id,
+    catcher: m.catcher,
+    applied: true,                       // ide csak alkalmazott szerkesztés után jutunk el
+    base_digest: BASE_DIGEST,
+    mutated_digest: e.digest,
+    run_token: e.runToken,
+    probe_id: m.catcher,
+    probe_status: rec ? rec.status : null,
+    failed_assertions: Object.freeze(failedAssertions),
+    verdict: v.verdict,
+    evidence_limit: m.evidence_limit || null,
+  });
+}
+
 function baselineGate() {
   return withCopy((dir) => {
     const e = expectationFor(dir);
@@ -240,7 +272,9 @@ function baselineGate() {
     if (c.failed.length || c.threw.length) {
       return { ok: false, why: `az ALAPVONAL piros: ${[...c.failed, ...c.threw.map((r) => `${r.probe_id}(kivétel)`)].join(', ')}` };
     }
-    return { ok: true, probes: c.records.map((r) => r.probe_id) };
+    // A REKORDOK ÉS AZ ALAP-LENYOMAT IS KELL: a norma-bizonyíték végleges minősítése a battéria
+    // UTÁN ezekből születik (R55/F03/2 — a kapu tényleges eredményeket kapjon, ne definíciókat).
+    return { ok: true, probes: c.records.map((r) => r.probe_id), records: c.records, digest: e.digest };
   });
 }
 
@@ -485,7 +519,9 @@ async function runMutationAsync(m, knownProbes) {
     if (!applied.ok) return { ...m, verdict: 'STALE_ANCHOR', why: staleAnchorWhy(applied) };
     writeFileSync(target, applied.src);
     const e = expectationFor(dir);
-    return { ...m, ...verdictFor(m, classifyRun(await runInAsync(dir, e.runToken), e)) };
+    const c = classifyRun(await runInAsync(dir, e.runToken), e);
+    const v = verdictFor(m, c);
+    return { ...m, ...v, falsification: falsificationEvidence(m, c, e, v) };
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 
@@ -499,7 +535,9 @@ function runMutation(m, knownProbes) {
     if (!applied.ok) return { ...m, verdict: 'STALE_ANCHOR', why: staleAnchorWhy(applied) };
     writeFileSync(target, applied.src);
     const e = expectationFor(dir);
-    return { ...m, ...verdictFor(m, classifyRun(runIn(dir, e.runToken), e)) };
+    const c = classifyRun(runIn(dir, e.runToken), e);
+    const v = verdictFor(m, c);
+    return { ...m, ...v, falsification: falsificationEvidence(m, c, e, v) };
   });
 }
 
@@ -510,6 +548,8 @@ console.log('V3 MAGREFERENCIA — MUTÁCIÓS PRÓBA (G6)');
 console.log('='.repeat(78));
 
 const base = baselineGate();
+// AZ ALAP FORRÁS LENYOMATA — ehhez méri a norma-kapu, hogy a mutált csomag TÉNYLEG más (R55/F03).
+BASE_DIGEST = base.digest || digestOfBundle(REF.replace(/\/v3ref$/, '')) || null;
 console.log(`  KAPU (a) ALAPVONAL: ${base.ok ? 'ZÖLD' : 'PIROS'} — ${base.ok ? `${base.probes.length} próba futott, mind PASS` : base.why}`);
 console.log('');
 console.log('  KAPUK (b) HAZUGSÁG-ELLENPRÓBÁK — a külső fél támadásai a SAJÁT kódunkon, minden futáskor:');
@@ -569,7 +609,42 @@ if (!wallOk) {
   console.log('    mielőtt a párhuzamosságot hangolod (a tapasztalat szerint a tároló felépítése).');
 }
 console.log(`  ${attacks.length} hazugság-ellenpróba · ${attacks.filter((a) => a.ok).length} védett`);
+
+// ── A NORMA-BIZONYÍTÉK VÉGLEGES MINŐSÍTÉSE (R55/F03/2) ──────────────────────────────────────────
+//
+// A magpróba a battéria ELŐTT fut, tehát ott a falszifikáció fogalmilag nem eldönthető: a
+// klauzulák `falsification_pending` állapotúak. A VÉGLEGES minősítés ITT születik, a TÉNYLEGES
+// mutációs futások eredményéből — nem a definícióikból (a külső fél N01 esete).
+let normFinal = null;
+if (base.ok && attacksOk && results.length === MUTATIONS.length) {
+  const mutationResults = results.map((r) => r.falsification).filter(Boolean);
+  normFinal = checkNorms({
+    probes: EXPECTED_PROBES, mutations: MUTATIONS, records: base.records, mutationResults,
+  });
+  const cov = normFinal.chain.filter((c) => c.result === 'covered');
+  const notFals = normFinal.chain.filter((c) => c.result === 'not_falsified');
+  console.log('');
+  console.log('  NORMA-BIZONYÍTÉK — VÉGLEGES MINŐSÍTÉS (a tényleges mutációs eredményekből)');
+  console.log(`    szerződés ${normFinal.contract.version} · ${normFinal.contract.digest}`);
+  console.log(`    index ${normFinal.index_digest}`);
+  console.log(`    ${cov.length}/${normFinal.chain.length} klauzula-sor FEDETT · ${notFals.length} állítás teljesült, de NEM falszifikált`);
+  for (const c of cov) {
+    console.log(`    FEDVE  ${c.clause_id} → ${c.assertion_id} @ ${c.probe_id} · falszifikálta: ${c.falsified_by}`
+      + (c.evidence_limit ? '  ⚠ korlátozott erejű' : ''));
+  }
+  for (const c of notFals) console.log(`    NEM FALSZIFIKÁLT  ${c.clause_id} → ${c.why.slice(0, 150)}`);
+  if (!normFinal.integrity_ok) {
+    console.log('    A REGISZTER SZERKEZETI HIBÁI:');
+    for (const x of normFinal.integrity_problems) console.log(`      · ${x}`);
+  }
+} else {
+  console.log('');
+  console.log('  NORMA-BIZONYÍTÉK: a végleges minősítés NEM készült el (a battéria nem futott végig).');
+  console.log('  A hiányzó mérés nem zöld (KUKA-051).');
+}
 const clean = base.ok && attacksOk && results.length === MUTATIONS.length
-  && survived === 0 && wrong === 0 && harness === 0 && stale === 0 && wallOk;
+  && survived === 0 && wrong === 0 && harness === 0 && stale === 0 && wallOk
+  // A NORMA-KAPU SZERKEZETI ÉPSÉGE a zöld feltétele: a hazug regiszter nem enyhébb eset.
+  && !!normFinal && normFinal.integrity_ok;
 console.log(`RESULT: ${clean ? 'MINDEN VESZÉLYES MUTÁCIÓ A NEVEZETT ÁLLÍTÁSSAL ÉSZLELT' : 'HIÁNYOS — lásd a fenti sorokat'}`);
 process.exit(clean ? 0 : 1);

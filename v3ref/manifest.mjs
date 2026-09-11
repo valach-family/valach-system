@@ -70,6 +70,7 @@ export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({ id: 'P-INVITE-finalize-gate', assertion: 'R49C02C03-redeem-gate-at-write-boundary' }),
   Object.freeze({ id: 'P-CMD-receipt', assertion: 'R50-finalization-receipt-is-durable-and-atomic' }),
   Object.freeze({ id: 'P-CMD-receipt-integrity', assertion: 'R51J3-receipt-bound-to-command-fact' }),
+  Object.freeze({ id: 'P-INVITE-seal', assertion: 'R55F01-issued-offer-immutable-on-every-write-path' }),
   Object.freeze({ id: 'P-INVITE-terms', assertion: 'R51J2-invite-terms-immutable-outcome-in-tx' }),
   Object.freeze({
     id: 'P-CMD-finalize-gate', assertion: 'R49-command-gate-at-write-boundary',

@@ -16,6 +16,101 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3011 — Az R55 hat lelete javítva: a pecsét minden írási úton, és a bizonyíték MÉRÉS
+
+**Kör:** CMD-VS-300-002-001 R55→R56 · sáv: Claude-AUX · a külső fél független ellenőrzése az
+R54-re, kilenc érdemi elvárással és egy diagnosztikával.
+
+**A bemenet.** Az R55 programja a saját gépünkön KARAKTERRE reprodukált: **3 teljesült, 6 nem**,
+plusz a D01 diagnosztika. Mind a hatot javítottuk. A külső fél elfogadta a G01/G02-t (az R54-es
+újrafogalmazott F03) és az F03 mérési hibájának feltárását.
+
+### R55-F01 — a pecsét sorcserével felülírható volt
+
+Az R54-es „append-only" két őrön állt: BEFORE UPDATE és BEFORE DELETE a pecsét-táblán. Két rendes
+DML-írás átment rajta, séma- vagy triggerletiltás nélkül:
+
+- **S01** — `INSERT OR REPLACE INTO invite_terms … SELECT … FROM invite`: a REPLACE a régi sort
+  TÖRLI és újat ír, a törlés BEFORE DELETE triggerét viszont az SQLite csak bekapcsolt
+  `recursive_triggers` mellett futtatja — a kapcsolat alapértéke KI.
+- **S02** — `INSERT OR REPLACE INTO invite` ugyanazzal a tokennel, `admin` szereppel.
+
+**Mindkét beváltás sikeres volt, és ADMIN tagságot adott a `user` ajánlatra.** → **KUKA-098**.
+
+**Javítás:** négy őr, mindegyik a BESZÚRÁS oldaláról is zár, tehát pragmától FÜGGETLENÜL —
+`invite_terms_no_reseal` · `invite_no_change_sealed` (a KIADOTT mezők nem módosulnak, a
+`redeemed_at` igen: az ÉLETCIKLUS külön tengely) · `invite_no_reissue` · `invite_no_delete_sealed`.
+Az `openStore` beállítja ÉS visszaolvassa a `recursive_triggers`-t, nevezett hibakóddal áll meg.
+A második réteg (beváltás-kori pecsét-összevetés) megmarad, és őrök NÉLKÜLI tárolón külön mérve.
+
+### R55-F02 — a múlt darabszáma megmaradt, a tartalma nem
+
+A Y4 ág `count(*)` értékeket hasonlított. Ha a megvonás ugyanazt a sort MÁS TARTALOMMAL hagyja ott
+(`resolved_json` → `{"tampered":true}`), a szám stimmel, az állítás igaz marad, a battéria zöld.
+→ **KUKA-099**.
+
+**Javítás:** `auditSnapshot` + `priorRowsSurvive` — a KORÁBBI sorok mindegyike változatlanul,
+EGÉSZBEN hasonlítva (így a törlés, a tartalom-átírás és az azonos darabszámú sor-csere egyszerre
+fogva), miközben az ÚJ, szabályos audit-bejegyzés hozzáfűzése MEGENGEDETT (pozitív kontroll a
+próbában). Három új visszabontási kontroll: **M47** törlés · **M48** tartalom-átírás · **M49**
+azonos darabszámú sor-csere.
+
+### R55-F03 — a mutáció NEVE nem a klauzula ellenbizonyítéka
+
+Két lelet egy helyen: **N01** — két, SOHA NEM FUTTATOTT `{id, catcher}` bejegyzés mellett a kapu
+mindhárom klauzulát `covered`-nek mondta; **N04** — az M32 KÉT klauzulához volt beírva, de a futása
+csak az `A-REV-N1a` állítást buktatja. → **KUKA-100**.
+
+**Javítás:** `falsificationQualifies` — egy mutációs eredmény csak akkor bizonyíték, ha az
+alkalmazás igazolt, az alap- és a mutált forrás MÉRT lenyomata megvan és KÜLÖNBÖZIK, van futás-jel,
+a NEVEZETT próbáról szól, és a HAMISRA fordult állítások között ott van ÉPP EZ. A referencia-futás
+— ami a battéria ELŐTT fut — `falsification_pending` állapotot ad, nem `covered`; a végleges
+minősítés a battéria után születik. Az ismétlődő állítás-azonosító integritási hiba (N02), akkor is,
+ha a két érték egyforma.
+
+**Mért eredmény:** a REV-N1b visszabontási bizonyítéka ma az **M47**, nem az M32.
+
+### R55-F04 — a szerződés lenyomata nem a szerződésből készült
+
+A `norm_contract.digest` a MI indexünk mezőiből képződött; a K01 címét átírva változatlan maradt
+(D01). → **KUKA-101**.
+
+**Javítás:** a kanonikus szerződés saját otthont kapott (`v3ref/normContract.mjs`, NCT-01),
+`contractDigest` a SAJÁT bájtjaiból; az index külön `indexDigest`-et kap és hivatkozik a szerződés
+verziójára és lenyomatára; `clauseDigest` + `contentReviewState` — a tartalmi jóváhagyás a KONKRÉT
+lenyomatokhoz kötődik, és bármelyik változása ELAVULTTÁ teszi (ma mind a 18 klauzula `none`).
+**Kimondott hiány:** a K01–K16 teljes szövege a külső félnél él, ezért a `source_document.
+text_digest` NULL, nevezett hiánnyal — nem pótoljuk egy hihető hash-sel.
+
+### A saját lelet: a próbához igazított határ
+
+Az R54-ben kiírtam az indokot, amiért az élő sor UPDATE-jét nem tiltom: „elbuktatná a külső fél
+saját próbáit". A külső fél ezt VISSZAVONTA, és igaza van. → **KUKA-102**. A szigorúbb határ
+bevezetésekor valóban elavult három korábbi eset (R49/C11 · R51/N10 · R53/F01) — mindhárom azért,
+mert a veszélyes írás ma már LÉTRE SEM JÖN. Egyiket sem kerültük meg: mindháromhoz átadható
+ÚJRAFOGALMAZÁS készült, ellenpárral, és mind a három **megfelel**.
+
+### §7 — a két fogalmi korrekció átvéve a regiszterbe
+
+- **REV-N3** újraszövegezve: a BEJELENTÉS és a JOG MEGVÁLTOZTATÁSA két külön művelet. Új klauzula
+  (**REV-N3c**): a bejelentés útja a még nem igazolt panaszosnak is nyitva áll — semleges válasszal
+  és visszaélés-korláttal; a jelzés nem művelet a jogon.
+- **REV-N5** újraszövegezve: a tiltás HATÓKÖRE az OKÁBÓL származik. A régi mondat feltétel nélkül
+  állította, hogy a független könyvet nem érinti — ez kompromittált HITELESÍTŐNÉL téves. Új
+  klauzulák: **REV-N5b** (hét nevezett tiltás-fajta, az ok választ) és **REV-N5c** (a könyv és a
+  többi jogosult joga nem törlődik).
+
+**Mérés a kör végén:** referencia **28/28 PASS** (két új próba: `P-INVITE-seal`, és a bővített
+`P-NORM-evidence` tizenkét támadással) · mutáció **46/46 elkapva**, 0 túlélő, 8/8
+hazugság-ellenpróba, falióra 2,8–4,9 mp · az ő programjaik: R49 **29/30**, R51 **13/14**, R53
+**3/4**, R55 **8/10** — a hiányzó öt eset MIND az elavult alak (lásd fent), újrafogalmazva **5/5** és
+**2/2** · `verify:kuka` **180/180** · söprés **6/6 zöld**.
+
+**Kimondva:** a `3/16` (ma 3/18) arány EBBEN a részindexben értelmezendő — NEM a teljes K01–K16 mag
+készültségi aránya. Az alap nincs lezárva; a mini üzleti modulok kapuja zárva marad.
+
+---
+
 ## D-VS-3010 — Az R53 négy lelete javítva: a kiadott meghívó pecsétje és a NORMA-BIZONYÍTÉK lánc
 
 **Kör:** CMD-VS-300-002-001 R53→R54 · sáv: Claude-AUX · a külső fél független ellenőrzése az

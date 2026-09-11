@@ -22,50 +22,49 @@
 // A JAVÍTÁS IRÁNYA MEGFORDUL — A NORMA NEM NEVEZ PRÓBÁT. A MANIFEST próbarekordja deklarálja,
 // MELYIK klauzulát MELYIK állítással váltja be (`discharges: [{clause, assertion}]`), a próba
 // pedig FUTÁSIDŐBEN kiadja az állítás-azonosítóit (`asserts`). A fedettség EBBŐL SZÁMOLÓDIK:
-// nincs `state` mező, amit be lehetne írni (KUKA-041). Egy klauzula CSAK akkor fedett, ha
+// nincs `state` mező, amit be lehetne írni (KUKA-041).
+//
+// AZ R55/F03 UTÁN ÖT FELTÉTEL, ÉS AZ ÖTÖDIK MÉRÉS, NEM SZÁNDÉK. Egy klauzula CSAK akkor fedett, ha
 //   (1) legalább egy manifest-próba deklarálja,        — a kötés kétirányú (KUKA-039)
 //   (2) MINDEN deklaráló próba rekordja PASS EBBEN a futásban,
-//   (3) a deklarált állítást a próba TÉNYLEG kiadta, és igaznak mérte, — a pin HÍV (KUKA-009)
-//   (4) és van olyan mutáció, ami épp azt a próbát nevezi elkapónak. — a próba is falszifikálható
+//   (3) a deklarált állítást a próba TÉNYLEG kiadta, egyszer, és igaznak mérte (KUKA-009),
+//   (4) van DEKLARÁLT visszabontási kontroll (mutáció) arra a próbára, ÉS
+//   (5) egy TÉNYLEGES mutációs FUTÁS eredménye megbuktatta ÉPP EZT az állítást — igazolt
+//       alkalmazással, az alap- és a mutált forrás mért lenyomatával és futás-jellel.
 //
-// KIMONDOTT MARADÉK-KOCKÁZAT (nem hallgatjuk el). Ez a gépezet az ÁTKÖTÉST teszi lehetetlenné, a
-// TARTALMI MEGFELELÉST nem tudja igazolni: aki a manifestben egy idegen próbához ÍRJA a klauzulát,
-// annak a próbába BELE IS KELL ÍRNIA egy azonos azonosítójú állítást — a gép azt már nem tudja
-// eldönteni, hogy az az állítás valóban a klauzuláról szól-e. A maradék tehát nem nulla, csak
-// sokkal szűkebb: emberi felülvizsgálat tárgya marad (lásd `OB-7`).
+// A NEGYEDIK ÖNMAGÁBAN NEM ELÉG, ÉS EZT MÉRVE TUDJUK. A külső fél N01 esete két, SOHA NEM
+// FUTTATOTT `{id, catcher}` bejegyzést adott a kapunak, és mindhárom klauzula `covered` lett — a
+// puszta SZÁNDÉK bizonyítéknak látszott. Az N04 pedig azt mutatta meg, hogy ugyanaz a mutáció (M32)
+// KÉT klauzulához volt beírva, miközben a futása csak az EGYIK állítást buktatja: egy
+// több-állításos próba összesített FAIL állapota nem igazolja mindegyik klauzulát.
+//
+// ÉS A REFERENCIA-FUTÁS NEM ÁLLÍTHAT TÖBBET, MINT AMIT MÉRT. A magpróba a mutációs battéria ELŐTT
+// fut, tehát ott az (5) fogalmilag nem eldönthető: az eredmény `falsification_pending`, nem
+// `covered`. A végleges minősítés a battéria után születik, a tényleges futások eredményéből.
+//
+// KIMONDOTT MARADÉK-KOCKÁZAT (nem hallgatjuk el). A gépezet nem ígér általános szemantikai
+// igazolást. Pontosan annyit mond: a DEKLARÁCIÓ PUSZTA ÁTHELYEZÉSE — a próbák változtatása nélkül —
+// MOST ÉSZLELHETŐ. Aki egy idegen próbába bele is írja a klauzula állítás-azonosítóját ÉS gondoskodik
+// róla, hogy egy mutáció épp azt buktassa, azt a gép nem leplezi le; hogy az az állítás valóban a
+// klauzuláról szól-e, emberi, klauzulánkénti tartalmi felülvizsgálat tárgya (lásd `OB-7`).
 //
 // PURE + INERT: nincs DB, nincs hálózat, nincs titok. Adat és tiszta feloldók.
 
 import { createHash } from 'node:crypto';
+import { NORM_CONTRACT, K_IDS, contractDigest, contractRef } from './normContract.mjs';
 
 export const NORMS_INDEX_ID = 'NRM-01';
 export const NORMS_INDEX_SCHEMA = 'nrm-2';
-export const NORM_CONTRACT_VERSION = 'R32/K01-K16';
+export const NORM_CONTRACT_VERSION = contractRef().version;
 
-// ═══ A KANONIKUS SZERZŐDÉS AZONOSÍTÓI ══════════════════════════════════════════════════════════
+// ═══ A KANONIKUS SZERZŐDÉS — MÁSIK OTTHONBAN (R55/F04) ═════════════════════════════════════════
 //
-// A SZÖVEG az R32-ben él, a külső félnél — ide a stabil azonosító és a cím kerül, hogy a
-// hivatkozás gépileg ellenőrizhető legyen, és hogy a két oldal ne tudjon némán elcsúszni. Kézi
-// KÉTIRÁNYÚ másolás nincs: a K-szabály MONDATÁT ez a fájl nem ismétli meg (R53 §5).
-export const K_CONTRACT = Object.freeze([
-  Object.freeze({ id: 'K01', title: 'Alany, azonosító és kötés' }),
-  Object.freeze({ id: 'K02', title: 'Saját indulás és a gazda nélküli állapot' }),
-  Object.freeze({ id: 'K03', title: 'Fiók, belépés, meghívás és tagság' }),
-  Object.freeze({ id: 'K04', title: 'Engedély, képviselet és frissesség' }),
-  Object.freeze({ id: 'K05', title: 'Adatkiadás, összesítés és megfigyelhetőség' }),
-  Object.freeze({ id: 'K06', title: 'Esemény, állítás, egyeztetés és elfogadott hatás' }),
-  Object.freeze({ id: 'K07', title: 'Parancs, egyszeri hatás és újrapróbálás' }),
-  Object.freeze({ id: 'K08', title: 'Üzleti idő, tudásállapot, történet és korrekció' }),
-  Object.freeze({ id: 'K09', title: 'Megvonás, másolat, helyreállítás és életciklus' }),
-  Object.freeze({ id: 'K10', title: 'Típus, normalizálás és számítási profil' }),
-  Object.freeze({ id: 'K11', title: 'Művelettípus-katalógus és teljes moduléletciklus' }),
-  Object.freeze({ id: 'K12', title: 'Kiesés, bizonyítékfrissesség és mentésből helyreállítás' }),
-  Object.freeze({ id: 'K13', title: 'Import, nyitás és idegen rendszer múltja' }),
-  Object.freeze({ id: 'K14', title: 'Felelősség, megállapodás és őrzési feladat' }),
-  Object.freeze({ id: 'K15', title: 'Visszaélési és erőforrás-korlátok' }),
-  Object.freeze({ id: 'K16', title: 'Hiányosan azonosított fél és fizikai valóság' }),
-]);
-const K_IDS = new Set(K_CONTRACT.map((k) => k.id));
+// A K01–K16 azonosítói, címei és a belőlük képzett SZERZŐDÉS-LENYOMAT a `normContract.mjs`-ben
+// élnek. Itt csak HIVATKOZUNK rá — mert a szerződés és a bizonyíték-index KÉT KÜLÖN dolog, két
+// külön verzióval és két külön lenyomattal (KUKA-002). Az R54-es alak a kettőt egy hash-be
+// keverte, és a külső fél D01 diagnosztikája mérve mutatta meg, hogy a szerződés címének
+// megváltozása NEM látszott a kiadott lenyomaton.
+export { NORM_CONTRACT, contractDigest, contractRef } from './normContract.mjs';
 
 // ═══ A MEGVONÁS PROTOKOLLJA (R51 §3 · R53 §6) ══════════════════════════════════════════════════
 //
@@ -150,8 +149,14 @@ export const REVOCATION_NORMS = Object.freeze([
   }),
   Object.freeze({
     id: 'REV-N3',
-    rule: 'A megvonás vagy utólagos kifogás FORRÁSA is ellenőrzött hatáskört igényel. A bejelentő '
-      + 'önmagában nem tud múltat érvényteleníteni, és nem kap hozzáférést a vitatott adatokhoz.',
+    // AZ R55 §7 KORREKCIÓJA ÁTVÉVE. A régi mondat úgy olvasható volt, hogy a bejelentés MAGA is
+    // hatáskört kíván — az pedig eleve lehetetlenné tenné a még nem igazolt panaszos jelzését, és
+    // épp a visszaélés-jelzést fojtaná el. A helyes szétválasztás: a BEJELENTÉS és a JOG
+    // MEGVÁLTOZTATÁSA két külön művelet, két külön feltétellel (KUKA-002 a megvonás-úton).
+    rule: 'A BEJELENTÉS és a JOG MEGVÁLTOZTATÁSA két külön művelet. Bárki jelezhet visszaélést — '
+      + 'visszaélés-korláttal és SEMLEGES válasszal —, de ettől nem lát belső ügyet és nem vonhat meg '
+      + 'jogot. A tényleges felfüggesztéshez, elbíráláshoz és felülvizsgálathoz ellenőrzött hatáskör '
+      + 'kell; a bejelentő önmagában nem tud múltat érvényteleníteni.',
     example: 'Aki azt állítja, hogy egy márciusi meghatalmazás hibás volt, ettől még nem láthatja '
       + 'a márciusi árakat.',
     clauses: Object.freeze([
@@ -172,6 +177,17 @@ export const REVOCATION_NORMS = Object.freeze([
         gap: 'Nincs kifogás-fogalom, tehát nincs mihez kötni az olvasási tilalmat. A veszély a '
           + 'KUKA-085 alakja: visszavonható ENGEDÉLYT lehet építeni, visszavonható MEGISMERÉST nem '
           + '— ezért ezt a klauzulát a bejelentés bevezetése ELŐTT kell megépíteni, nem utána.',
+      }),
+      Object.freeze({
+        id: 'REV-N3c',
+        covers: Object.freeze(['K05', 'K15']),
+        text: 'A BEJELENTÉS ÚTJA NYITVA ÁLL a még nem igazolt panaszosnak is: a jelzés fogadása '
+          + 'megengedett, a válasz SEMLEGES (nem árulja el, létezik-e az ügy), és visszaélés-korlát '
+          + 'védi. A jelzés nem művelet a jogon.',
+        gap: 'Nincs bejelentés-fogadó út a magban, tehát se a semleges válasz, se a visszaélés-korlát '
+          + 'nem mérhető. A klauzula az R55 §7 korrekciójából született, és a REV-N3a hatáskör-'
+          + 'modelljével EGYÜTT kell megépülnie — külön-külön mindkettő félrevezető: hatáskör nélkül '
+          + 'a bejelentés jogot mozdítana, bejelentés nélkül a hatáskör elfojtja a jelzést.',
       }),
     ]),
   }),
@@ -203,9 +219,16 @@ export const REVOCATION_NORMS = Object.freeze([
   }),
   Object.freeze({
     id: 'REV-N5',
-    rule: 'CÉLZOTT TILTÁS (lopott hitelesítő, incidens): az ÚJ használat azonnal tiltott, az '
-      + 'érintett időszak és a függőségek felderítendők — de a tiltás nem sújthat FÜGGETLEN '
-      + 'könyveket és nem bizonyítja a korábbi műveletek hamisságát.',
+    // AZ R55 §7 MÁSODIK KORREKCIÓJA ÁTVÉVE. A régi mondat feltétel nélkül állította, hogy a tiltás
+    // „nem sújthat FÜGGETLEN könyveket". Ez TÚL ERŐS: ha a HITELESÍTŐ kompromittálódott, akkor
+    // ugyanazzal a hitelesítővel a másik könyvbe SEM szabad bejutni — a könyv és a többi jogosult
+    // joga viszont ettől nem szűnik meg. A hatókör tehát az OKBÓL származik, nem egy általános
+    // tilalomból (KUKA-048 elve a tiltás hatókörére: a mércét az indok szabja meg).
+    rule: 'CÉLZOTT TILTÁS: az ÚJ használat azonnal tiltott, az érintett időszak és a függőségek '
+      + 'felderítendők — és A TILTÁS HATÓKÖRE AZ OKÁBÓL SZÁRMAZIK. Kilépés egy cégből a másik, '
+      + 'független könyvet nem érinti; kompromittált HITELESÍTŐ viszont mindenhol tilos, ahol azzal '
+      + 'lépnének be — a könyv és a többi jogosult joga ettől nem törlődik. A tiltás nem bizonyítja a '
+      + 'korábbi műveletek hamisságát.',
     example: 'A jelszó ellopása nem bizonyítja, hogy a felhasználó összes korábbi rendelése hamis.',
     clauses: Object.freeze([
       Object.freeze({
@@ -220,11 +243,22 @@ export const REVOCATION_NORMS = Object.freeze([
       Object.freeze({
         id: 'REV-N5b',
         covers: Object.freeze(['K09', 'K15']),
-        text: 'A célzott tiltás FÜGGETLEN könyveket nem sújt, és a korábbi műveletek '
-          + 'érvénytelenségét nem bizonyítja.',
-        gap: 'A REV-N5a tiltás-fogalma nélkül nincs mit hatókörre szűkíteni. Az ellenpár-mérés '
-          + '(a független könyv sértetlen marad) csak akkor futtatható, ha a tiltás létezik — '
-          + 'enélkül a klauzula méretlen, tehát KUKA-051 szerint zöldnek LÁTSZANA.',
+        text: 'A tiltás HATÓKÖRE az OKÁBÓL származik: a tiltás FAJTÁJA (hitelesítő · munkamenet · '
+          + 'alany · jogalap · könyv · művelet · adatkör) nevezett, és az ok választja ki. Egy cégből '
+          + 'kilépés a független könyvet nem érinti; kompromittált hitelesítő mindenhol tilos.',
+        gap: 'A magban egyetlen tiltás-fajta van (könyvenkénti tagság-megvonás), tehát a hét fajta '
+          + 'és az ok→hatókör leképezés fogalmilag sem jelenik meg. Az R55 §7 korrekciójából '
+          + 'született: a korábbi szövegünk feltétel nélkül mondta, hogy a független könyv sértetlen '
+          + '— ez kompromittált HITELESÍTŐNÉL téves.',
+      }),
+      Object.freeze({
+        id: 'REV-N5c',
+        covers: Object.freeze(['K09']),
+        text: 'A tiltás nem bizonyítja a korábbi műveletek érvénytelenségét, és nem törli a KÖNYV '
+          + 'vagy más, független jogosultak jogait.',
+        gap: 'A REV-N5a/b tiltás-fogalma nélkül nincs alanya. Az ellenpár-mérés (a többi jogosult '
+          + 'joga megmarad) csak akkor futtatható, ha a tiltás létezik — enélkül a klauzula méretlen, '
+          + 'tehát KUKA-051 szerint zöldnek LÁTSZANA.',
       }),
     ]),
   }),
@@ -356,29 +390,72 @@ export const OPEN_BLOCKERS = Object.freeze([
   }),
   Object.freeze({
     id: 'OB-7', title: 'A norma ↔ állítás TARTALMI megfelelése',
-    why: 'A bizonyíték-index az ÁTKÖTÉST teszi lehetetlenné (F03), a TARTALMI megfelelést nem '
-      + 'tudja igazolni: aki egy idegen próbába beleírja a klauzula állítás-azonosítóját, azt a '
-      + 'gép nem tudja leleplezni. Ezt a maradékot nem hallgatjuk el (KUKA-085: a megnevezett '
-      + 'kockázat nem kezelt kockázat — de a NEM nevezett még rosszabb).',
-    closes_when: 'Külső, független felülvizsgálat mondja ki klauzulánként, hogy a deklarált állítás '
-      + 'valóban azt méri; VAGY a klauzula szövegéből származtatott, gépileg ellenőrizhető alak.',
+    why: 'A bizonyíték-index PONTOSAN annyit mond: a deklaráció PUSZTA ÁTHELYEZÉSE — a próbák '
+      + 'változtatása nélkül — most észlelhető. Ez a támadási határ megnevezése; nem általános '
+      + 'lehetetlenségi ígéret (a külső fél R55 §6 pontosítása, átvéve). Azt, hogy a deklarált '
+      + 'állítás VALÓBAN a klauzuláról szól-e, gép nem dönti el — és ezt nem hallgatjuk el '
+      + '(KUKA-085: a megnevezett kockázat nem kezelt kockázat, de a nem nevezett még rosszabb).',
+    closes_when: 'KLAUZULÁNKÉNT rögzített, független TARTALMI felülvizsgálat, ebben a láncban: '
+      + 'pontos normaszöveg és lenyomat → élethelyzet → mérendő tulajdonság → pozitív és negatív '
+      + 'eset → megváltoztatott kód → ténylegesen megbukó állítás → maradék hatókör. A '
+      + 'felülvizsgálat a KONKRÉT verziókhoz kötődik (szerződés-lenyomat + klauzula-lenyomat), és '
+      + 'bármelyik változása ELAVULTTÁ teszi — a gépezet ezt már méri (content_review), a tartalom '
+      + 'még nincs meg: ma MIND a tizenhat klauzula `none` állapotú.',
   }),
 ]);
 
 // ═══ AZ ÖNELLENŐRZÉS — KAPU, NEM FELIRAT ═══════════════════════════════════════════════════════
 
 export const NORM_FLOORS = Object.freeze({
-  revocation: 5, orgBasis: 3, blockers: 7, clauses: 16, kClauses: 16,
+  revocation: 5, orgBasis: 3, blockers: 7, clauses: 18, kClauses: 16,
 });
 
-/** A KANONIKUS TARTALMI LENYOMAT (R53 §4/5 · §5). Csak a NORMA tartalmából — a bizonyíték nem. */
-export function normsDigest() {
+/** EGY KLAUZULA KANONIKUS ALAKJA — ehhez kötődik a tartalmi jóváhagyás (R55 §6 · OB-7). */
+export function clauseDigest(clause) {
+  const bytes = JSON.stringify({ id: clause.id, covers: [...clause.covers], text: clause.text });
+  return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+}
+
+/** AZ INDEX SAJÁT LENYOMATA (NRM-01) — csak a mi szabályaink és klauzuláink tartalmából. */
+export function indexDigest() {
   const bytes = JSON.stringify(ALL_NORMS.map((n) => ({
     id: n.id,
     rule: n.rule,
     clauses: n.clauses.map((c) => ({ id: c.id, covers: [...c.covers], text: c.text })),
   })));
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+}
+
+/**
+ * AZ EGÉSZ BIZONYÍTÉK-INDEX AZONOSSÁGA — a SZERZŐDÉS és az INDEX lenyomata EGYÜTT.
+ *
+ * Miért kell külön név: a `contractDigest` azt mondja meg, MELYIK szerződést indexeljük, az
+ * `indexDigest` azt, MIT tartalmaz az index. Ez a harmadik a KETTŐ EGYÜTTESE — ezért a szerződés
+ * bármely változása (például egy K-klauzula címéé) ITT IS látszik. Az R54-es alak pont ezt nem
+ * tudta: a külső fél D01 esete a K01 címét átírva változatlan hash-t mért.
+ */
+export function normsDigest() {
+  return `sha256:${createHash('sha256').update(contractDigest()).update('\0').update(indexDigest()).digest('hex')}`;
+}
+
+/**
+ * A KLAUZULÁNKÉNTI TARTALMI FELÜLVIZSGÁLAT ÁLLAPOTA (R55 §6 · OB-7).
+ *
+ * A külső fél kimondta, mi az OB-7 elfogadható lezárási alakja: klauzulánként rögzített, független
+ * tartalmi felülvizsgálat, a KONKRÉT verziókhoz kötve — és „változás esetén az érintett korábbi
+ * tartalmi jóváhagyás váljon elavulttá". A GÉPEZET ettől a körtől megvan; a TARTALOM még nem.
+ * A hiányt ÉRTÉKKÉNT mondjuk ki (`none`), nem hallgatással (KUKA-012).
+ */
+export function contentReviewState(clause) {
+  const r = clause && clause.content_review;
+  if (!r) return Object.freeze({ state: 'none', why: 'nincs rögzített tartalmi felülvizsgálat' });
+  if (r.contract_digest !== contractDigest()) {
+    return Object.freeze({ state: 'stale', why: 'a jóváhagyás MÁS szerződés-lenyomatra született' });
+  }
+  if (r.clause_digest !== clauseDigest(clause)) {
+    return Object.freeze({ state: 'stale', why: 'a klauzula SZÖVEGE a jóváhagyás óta megváltozott' });
+  }
+  return Object.freeze({ state: 'current', by: r.by || null, at: r.at || null, residual: r.residual || null });
 }
 
 /** A próbák MELYIK klauzulát MILYEN állítással váltják be — a manifestből, nem a normából. */
@@ -391,6 +468,34 @@ export function dischargeMap(probes) {
     }
   }
   return byClause;
+}
+
+/**
+ * EGY MUTÁCIÓS EREDMÉNY ELFOGADHATÓSÁGA VISSZABONTÁSI BIZONYÍTÉKKÉNT (R55/F03).
+ *
+ * MIÉRT SZÜLETETT. Az R54-es negyedik feltétel azt kérdezte, hogy egy mutáció DEFINÍCIÓJÁBAN
+ * szerepel-e a próba neve. A külső fél N01 esete ezt megdöntötte: két, SOHA NEM FUTTATOTT,
+ * `{id, catcher}` alakú bejegyzés mellett a kapu `ok:true`-t adott, és mindhárom klauzulát
+ * `covered`-nek mondta. A puszta SZÁNDÉK nem bizonyíték (KUKA-038 a mutációkon).
+ *
+ * ÉS AZ N04: az M32 mindkét REV-N1 klauzulához be volt írva, de a FUTÁSA csak az elsőt buktatja —
+ * a másodikat nem falszifikálja semmi. Egy több-állításos próba ÖSSZESÍTETT bukása nem igazolja
+ * mindegyik klauzulát: a bizonyítéknak a SAJÁT deklarált állítást kell megbuktatnia.
+ *
+ * Amit egy elfogadható eredménynek hoznia kell: az alkalmazás IGAZOLVA · az alap- és a mutált
+ * forrás MÉRT lenyomata (és a kettő különbözik) · futás-jel · a NEVEZETT próba · és a ténylegesen
+ * HAMISRA fordult állítás-azonosítók.
+ */
+export function falsificationQualifies(result, { probe, assertion }) {
+  if (!result || typeof result !== 'object') return 'nincs eredmény';
+  if (result.applied !== true) return 'a mutáció alkalmazása nincs igazolva';
+  if (!result.base_digest || !result.mutated_digest) return 'hiányzik az alap- vagy a mutált forrás lenyomata';
+  if (result.base_digest === result.mutated_digest) return 'a mutált forrás lenyomata AZONOS az alapéval — a szerkesztés nem történt meg';
+  if (!result.run_token) return 'hiányzik a futás-jel (nem eldönthető, MELYIK futás eredménye)';
+  if (result.probe_id !== probe) return `más próbáról szól (${result.probe_id} ≠ ${probe})`;
+  const failed = Array.isArray(result.failed_assertions) ? result.failed_assertions : [];
+  if (!failed.includes(assertion)) return `a futás NEM buktatta meg a deklarált állítást (${assertion})`;
+  return null;
 }
 
 const LEGACY_CALL_WHY =
@@ -426,6 +531,10 @@ export function checkNorms(evidence) {
   }
 
   const { probes, mutations, records } = evidence;
+  // A MUTÁCIÓS EREDMÉNYEK OPCIONÁLISAK, ÉS EZ SZÁNDÉKOS (R55/F03/1). A referencia-futás a battéria
+  // ELŐTT fut: ott az állítás teljesüléséről tudunk nyilatkozni, a falszifikációról nem. A hiányuk
+  // tehát nem HIBA, hanem ÁLLAPOT — de akkor a klauzula NEM fedett, csak `falsification_pending`.
+  const mutationResults = Array.isArray(evidence.mutationResults) ? evidence.mutationResults : null;
   const byClause = dischargeMap(probes);
   const recordOf = new Map(records.map((r) => [r.probe_id, r]));
   const knownProbe = new Set(probes.map((p) => p.id));
@@ -483,8 +592,9 @@ export function checkNorms(evidence) {
       }
       chain.push(Object.freeze({
         norm_id: norm.id, clause_id: clauseId, covers: [...clause.covers],
-        assertion_id: null, probe_id: null, mutation_ids: [], result: 'no_evidence',
-        why: clause.gap || null,
+        assertion_id: null, probe_id: null, mutation_candidates: [], falsified_by: null,
+        evidence_limit: null, content_review: contentReviewState(clause),
+        result: 'no_evidence', why: clause.gap || null,
       }));
       continue;
     }
@@ -501,6 +611,8 @@ export function checkNorms(evidence) {
       const rec = recordOf.get(d.probe);
       let result = 'covered';
       let why = null;
+      let falsifiedBy = null;
+      let weakEvidence = null;
 
       if (!knownProbe.has(d.probe)) {
         result = 'unknown_probe';
@@ -534,13 +646,44 @@ export function checkNorms(evidence) {
           result = 'assertion_failed';
           why = `a(z) ${d.probe} próba deklarált állítása megbukott: ${d.assertion}`;
           evid.push(`NORMA/${norm.id}/${clauseId}: ${why}`);
+        } else if (mutationResults === null) {
+          // AZ ÁLLÍTÁS TELJESÜLT, DE A FALSZIFIKÁCIÓ MÉG NEM FUTOTT (R55/F03/1). Ez nem hiba, és
+          // nem is fedettség — KÖZTES állapot, amit KI KELL MONDANI, nem elhallgatni.
+          result = 'falsification_pending';
+          why = 'az állítás teljesült; a visszabontási bizonyíték a mutációs battériából jön';
+        } else {
+          // A KLAUZULA SAJÁT ÁLLÍTÁSÁT KELL MEGBUKTATNI (R55/F03/3). Egy több-állításos próba
+          // összesített FAIL állapota nem igazolja mindegyik klauzulát.
+          const tried = mutationResults.filter((x) => x && x.probe_id === d.probe);
+          const good = tried.find((x) => falsificationQualifies(x, { probe: d.probe, assertion: d.assertion }) === null);
+          if (!good) {
+            result = 'not_falsified';
+            const reasons = tried.length
+              ? tried.map((x) => `${x.mutation_id}: ${falsificationQualifies(x, { probe: d.probe, assertion: d.assertion })}`).join(' · ')
+              : 'egyetlen mutációs eredmény sem érkezett erre a próbára';
+            why = `a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — ${reasons}`;
+            evid.push(`NORMA/${norm.id}/${clauseId}: ${why}`);
+          } else {
+            falsifiedBy = good.mutation_id;
+            weakEvidence = good.evidence_limit || null;
+          }
         }
       }
 
       if (result !== 'covered') allOk = false;
       chain.push(Object.freeze({
         norm_id: norm.id, clause_id: clauseId, covers: [...clause.covers],
-        assertion_id: d.assertion, probe_id: d.probe, mutation_ids: muts, result, why,
+        assertion_id: d.assertion, probe_id: d.probe,
+        // A DEKLARÁLT kontroll-jelöltek és a TÉNYLEGESEN bizonyító futás KÉT KÜLÖN dolog — az R55
+        // pont ezt mosta össze bennünk. Ezért két külön mező, két külön néven (KUKA-002).
+        mutation_candidates: muts,
+        falsified_by: falsifiedBy,
+        evidence_limit: weakEvidence,
+        // A TARTALMI MEGFELELÉS KÜLÖN TENGELY: a gépi lánc épsége és az emberi felülvizsgálat NEM
+        // ugyanaz a kérdés (KUKA-002). Ma minden klauzula `none` — kimondva, nem elhallgatva.
+        content_review: contentReviewState(clause),
+        result,
+        why,
       }));
     }
     if (allOk) coveredClauses.add(clauseId);
@@ -548,13 +691,30 @@ export function checkNorms(evidence) {
 
   // (4) A PRÓBA IS BESZÉLJEN: kiadott állítás-azonosító, amit egyetlen manifest-bejegyzés sem
   // deklarál — a másik irány (KUKA-039). Ilyenkor valaki írt egy állítást, és elfelejtette bekötni.
+  //
+  // ÉS AZ AZONOSÍTÓ EGYEDI (R55/F03/5 · az ő N02 esetük). Ha ugyanaz az állítás-azonosító KÉTSZER
+  // szerepel egy rekordon, a csomag KÉTÉRTELMŰ: a kapu az elsőt vette, és a második — akár
+  // ellentétes — értékét némán elnyelte. Ez akkor is hiba, ha a két érték történetesen egyforma:
+  // a kétértelműség maga a baj, nem a következménye (KUKA-002 az állítás-azonosítón).
   for (const rec of records) {
     const p = probes.find((x) => x.id === rec.probe_id);
     const declared = new Set((p ? p.discharges || [] : []).map((d) => d.assertion));
+    const seenAssertion = new Map();
     for (const a of Array.isArray(rec.assertions) ? rec.assertions : []) {
+      if (!a || typeof a.id !== 'string' || !a.id) {
+        integrity.push(`PRÓBA/${rec.probe_id}: állítás-azonosító nélküli bejegyzés a rekordon`);
+        continue;
+      }
+      seenAssertion.set(a.id, (seenAssertion.get(a.id) || 0) + 1);
       if (!declared.has(a.id)) {
         integrity.push(`PRÓBA/${rec.probe_id}: kiadott egy állítás-azonosítót, amit a manifest nem `
           + `deklarál: ${a.id} — a bizonyíték-kötés fél maradt (KUKA-039)`);
+      }
+    }
+    for (const [id, n] of seenAssertion) {
+      if (n > 1) {
+        integrity.push(`PRÓBA/${rec.probe_id}: ISMÉTLŐDŐ állítás-azonosító (${id} ×${n}) — a `
+          + 'bizonyíték-csomag kétértelmű, a kapu nem dönthet arról, melyik érték az igaz');
       }
     }
   }
@@ -564,7 +724,7 @@ export function checkNorms(evidence) {
   if (ORG_BASIS_NORMS.length < NORM_FLOORS.orgBasis) integrity.push(`a szervezeti-alap normák száma a padló alá esett (${ORG_BASIS_NORMS.length} < ${NORM_FLOORS.orgBasis})`);
   if (OPEN_BLOCKERS.length < NORM_FLOORS.blockers) integrity.push(`a nyitott blokkolók száma a padló alá esett (${OPEN_BLOCKERS.length} < ${NORM_FLOORS.blockers})`);
   if (clauseIds.size < NORM_FLOORS.clauses) integrity.push(`az atomi klauzulák száma a padló alá esett (${clauseIds.size} < ${NORM_FLOORS.clauses})`);
-  if (K_CONTRACT.length < NORM_FLOORS.kClauses) integrity.push(`a kanonikus szerződés szabályainak száma a padló alá esett (${K_CONTRACT.length} < ${NORM_FLOORS.kClauses})`);
+  if (NORM_CONTRACT.clauses.length < NORM_FLOORS.kClauses) integrity.push(`a kanonikus szerződés szabályainak száma a padló alá esett (${NORM_CONTRACT.clauses.length} < ${NORM_FLOORS.kClauses})`);
 
   for (const b of OPEN_BLOCKERS) {
     const at = `BLOKKOLÓ/${b.id || '(nincs azonosító)'}`;
@@ -573,16 +733,28 @@ export function checkNorms(evidence) {
     if (!b.closes_when || b.closes_when.length < 20) integrity.push(`${at}: nincs LEZÁRÁSI FELTÉTEL`);
   }
 
-  // (6) AZ ÁLLAPOT SZÁMOLÓDIK, NEM DEKLARÁLÓDIK (R53 §4/3).
+  // (6) AZ ÁLLAPOT SZÁMOLÓDIK, NEM DEKLARÁLÓDIK (R53 §4/3) — ÉS A FÜGGŐBEN LÉVŐ FALSZIFIKÁCIÓ NEM
+  // FEDETTSÉG (R55/F03/1). A `pending` szándékosan KÜLÖN szó: nem „majdnem kész", hanem az, hogy a
+  // bizonyíték egyik fele megvan, a másik még nem futott. Aki ezt „implemented"-nek olvassa, épp
+  // azt a hibát ismétli, amit az R55 megtalált.
+  const pendingClauses = new Set(chain.filter((c) => c.result === 'falsification_pending').map((c) => c.clause_id));
   const norms = ALL_NORMS.map((n) => {
     const ids = (n.clauses || []).map((c) => c.id);
     const cov = ids.filter((id) => coveredClauses.has(id));
+    const pend = ids.filter((id) => !coveredClauses.has(id) && pendingClauses.has(id));
+    let state;
+    if (cov.length === ids.length && ids.length > 0) state = 'implemented';
+    else if (cov.length === 0 && pend.length === 0) state = 'planned';
+    else if (cov.length === 0) state = 'pending';
+    else state = 'partial';
     return Object.freeze({
       id: n.id,
       clauses_total: ids.length,
       clauses_covered: cov.length,
+      clauses_pending: pend.length,
       covered_clause_ids: Object.freeze(cov),
-      state: cov.length === 0 ? 'planned' : (cov.length === ids.length ? 'implemented' : 'partial'),
+      pending_clause_ids: Object.freeze(pend),
+      state,
     });
   });
 
@@ -591,12 +763,16 @@ export function checkNorms(evidence) {
     ok: problems.length === 0,
     integrity_ok: integrity.length === 0,
     legacy_call: false,
+    // A FÁZIS KIMONDVA: a referencia-futás nem állíthatja, hogy a falszifikáció is kész.
+    falsification_stage: mutationResults === null ? 'pending' : 'measured',
     problems,
     integrity_problems: integrity,
     evidence_problems: evid,
     chain: Object.freeze(chain),
     norms: Object.freeze(norms),
-    digest: normsDigest(),
+    contract: contractRef(),
+    index_digest: indexDigest(),
+    digest: indexDigest(),
   });
 }
 

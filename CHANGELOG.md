@@ -25,6 +25,18 @@ jelent neki — nem azt, melyik függvény hogyan lett átnevezve.
 - A magpróba mérése **hétszer gyorsabb** lett (21,8 mp → 2,0 mp), változatlan eredménnyel, és az
   időkorlát mostantól őrzött: ha a mérés lassulni kezd, a futás pirosra vált, mielőtt a külső
   ellenőrzésünk eltörne rajta.
+- **A kiadott meghívó MINDEN írási úton változtathatatlan** (D-VS-3011): a korábbi védelem csak az
+  átírást és a törlést tiltotta, és egy „csere” alakú írás átment rajta — egy kiküldött „felhasználó”
+  meghívóból így még mindig lehetett adminisztrátort csinálni. Ma a csere, az újra-kiadás és a törlés
+  is elutasított; ami továbbra is megy: a meghívó FELHASZNÁLÁSA és ÚJ meghívó kiadása.
+- **A múlt sértetlensége a TARTALOMRA vonatkozik, nem a darabszámra** (D-VS-3011): eddig csak azt
+  néztük, megvan-e még a korábbi bizonylat. Ha valaki ugyanazt a sort más tartalommal hagyta ott, ez
+  nem tűnt fel. Ma a rendszer a teljes korábbi tartalmat hasonlítja — miközben az új, szabályos
+  naplóbejegyzés hozzáfűzése továbbra is megengedett.
+- **Egy szabály csak akkor számít bizonyítottnak, ha a rontás-próba TÉNYLEG lefutott rá** (D-VS-3011):
+  korábban elég volt, hogy a próba *tervben* szerepeljen. A magpróba mostantól külön kimondja, hogy
+  az ellenőrzés teljesült, de a rontás-próba még hátravan — és a végleges „bizonyított” minősítés
+  csak a rontás-próba után születik meg.
 
 ### Megjegyzés
 
