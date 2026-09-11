@@ -5061,7 +5061,11 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'az `app.listen()` ELŐTT futtatja a séma-lépéseket, tehát minden ott végzett munka az '
       + 'EGÉSZSÉG-ELLENŐRZÉS határidejét (100 s) fogyasztja — egy amúgy is lassú, mondatonként '
       + 'újrajátszott séma-indulás tetején. A Railway MINDKÉT kiadást eldobta „healthcheck failure" '
-      + 'okkal, és az élő board órákon át a javítás ELŐTTI kódon maradt.',
+      + 'okkal. HELYESBÍTÉS (ugyanaznap): a kiadások bukását NEM ez okozta — az igazi ok a KUKA-107 '
+      + '(a board el sem indult, mert egy fájl hiányzott a konténerből). Ez a bejegyzés attól '
+      + 'ÉRVÉNYES marad, hogy a karbantartás akkor sem való az indulási útra, ha éppen nem az öli '
+      + 'meg a kiadást; a téves diagnózist viszont KI KELL MONDANI, mert a „plauzibilis ok" a '
+      + 'legdrágább fajta tévedés (KUKA-030: visszatérő hibánál elmélet helyett REPRODUKÁLNI kell).',
     why_wrong: 'A KARBANTARTÁS NEM INDULÁSI FELTÉTEL. A normalizálás idempotens takarítás: ha egy '
       + 'perccel később fut, semmi nem sérül — ha viszont az indulási úton van, a saját költsége '
       + 'MEGÖLI a kiadást, és vele azt is, amit javítani akart. A hiba a legrosszabb fajta visszajelzést '
@@ -5072,8 +5076,8 @@ const RETIRED_PATTERNS = Object.freeze([
       + '(2) OSZLOPONKÉNT egy mondat (11), nem alias-páronként egy (55): a leképezés `CASE`-ben megy, '
       + 'egyetlen `WHERE … = ANY(…)` szűréssel.',
     decision: 'D-VS-678',
-    found_by: 'az OPERÁTOR — ő nyitotta meg a kiadás-listát, és abból derült ki, hogy az aktív verzió '
-      + 'órákkal RÉGEBBI, mint a pushom, a kettő közti kiadás pedig egészség-ellenőrzési hibával bukott.',
+    found_by: 'az OPERÁTOR — ő nyitotta meg a kiadás-listát. A TÜNETET ő hozta; az OKOT viszont '
+      + 'ELŐSZÖR ELTALÁLTAM ROSSZUL (lásd a helyesbítést fent), és csak a REPRODUKCIÓ mondta meg a valódit.',
     lesson: 'MINDEN INDULÁSKOR FUTÓ MUNKÁRA KÖTELEZŐ KÉRDÉS: ez INDULÁSI FELTÉTEL, vagy KARBANTARTÁS? '
       + 'Ami nem feltétel, az a `listen()` UTÁN megy, és a hibája nem állíthatja meg a szolgáltatást. '
       + 'És ha egy meglévő indulási lépést BŐVÍTEK, a kérdés nem az, hogy helyes-e, hanem hogy MENNYIVEL '
@@ -5084,6 +5088,40 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'a normalizálót egy FELVEVŐ ügyféllel és megszámolja a mondatokat (11, nem 55), méri, hogy az '
       + '`initSchema` TÖRZSE nem hívja, hogy a szerver a `listen()` UTÁN indítja, és hogy a hibája '
       + 'elnyelt. A visszacsúszásra (az `initSchema`-ba visszatéve) bizonyítottan PIROS.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-107',
+    date: '2026-09-11',
+    title: 'A KIADASI GYOKER SZUKEBB, MINT A REPO - a kozos regiszter a kontenerben nem letezett',
+    what: 'A sav-regisztert a repo GYOKEREBE tettem (`config/registries/lanes.json`), es a board '
+      + '`src/lanes.js`-e harom szintet lepve oda mutatott. A board viszont KULON Railway-szolgaltatas, '
+      + 'aminek a kiadasi gyokere `/tools/chatops-board`: a kontenerbe CSAK az a mappa kerul be. A fajl '
+      + 'ott nem letezett, a modul BETOLTESKOR dobott `ENOENT`-et (a `src/documents.js` huzza be, azt a '
+      + 'szerver), tehat a board EL SEM INDULT - a Railway HAROM kiadast dobott el healthcheck-hibaval, '
+      + 'es az elo board fel napig a javitas ELOTTI kodon maradt.',
+    why_wrong: 'A FEJLESZTO-GEPEN A REPO EGESZE OTT VAN, a kontenerben nem. Minden meresem - sopres, '
+      + 'egysegtesztek, a verifier - a TELJES repoban futott, ezert mind zold volt: a hiba pontosan ott '
+      + 'elt, ahol egyetlen meresem sem jart (KUKA-031 alakja a KIADASI EGYSEGRE: ott az abszolut ut volt '
+      + 'a beegetett elofeltevés, itt a repo-gyoker LETEZESE). Es a diagnozist is elrontottam: elobb a '
+      + 'lassu indulasra fogtam (55 UPDATE, KUKA-106), ami plauzibilis volt es teves - a REPRODUKCIO '
+      + 'mondta meg az igazat, nem az elmelet (KUKA-030).',
+    replaced_by: 'A REGISZTER A LEGSZUKEBB FOGYASZTO FAJABAN EL: `tools/chatops-board/config/lanes.json`. '
+      + 'EGY fajl, ket olvaso (a board es a repo-eszkozok) - nincs masolat, tehat nincs elcsuszas '
+      + '(KUKA-018). Melle gepi jel, ami a KIADASI VALOSAGOT allitja elo: a board fajat MAGABAN, a repo '
+      + 'nelkul, es betolti a modulokat.',
+    decision: 'D-VS-679',
+    found_by: 'a REPRODUKCIO, az OPERATOR altal hozott kiadasi logok utan - a board fajat egy ures szulo '
+      + 'ala masolva a `require("./server.js")` ugyanazzal az ENOENT-tel allt meg, mint elesben.',
+    lesson: 'AMIT KULON ADUNK KI, AZ KULON EGYSEG - es a meresnek is azt kell megmernie. Minden kozos '
+      + 'eroforrasnal (regiszter, sema, szotar) kotelezo kerdes: KI A LEGSZUKEBB FOGYASZTOJA, es mit lat '
+      + 'belole a sajat kiadasaban? Ha a fajl a fogyaszto kiadasi gyokeren KIVUL van, akkor a fogyaszto '
+      + 'szamara NEM LETEZIK - akkor sem, ha a repoban ott van es minden teszt zold. A zold sopres a '
+      + 'fejleszto-gep valosagat meri; a kiadaset csak az meri, ami a kiadas alakjat reprodukalja.',
+    guard_note: 'gepi jel: `npm run verify:board-deploy-root` (UJ, a sopres resze) - BDR01 a board 41 '
+      + 'moduljat betolti egy URES szulo alatt allo masolatban, BDR02 a szerver teljes modul-grafjat '
+      + 'ugyanott, BDR03 minta-illesztes a gyoker fole lepo utakra (101 fajl merve). Mindharom '
+      + 'bizonyitottan PIROS a visszacsuszasra, ugyanazzal az ENOENT-tel, amit az eles kiadas adott.',
   }),
 
 ]);
