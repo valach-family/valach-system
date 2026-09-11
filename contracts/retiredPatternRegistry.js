@@ -5052,6 +5052,40 @@ const RETIRED_PATTERNS = Object.freeze([
     ]),
   }),
 
+  Object.freeze({
+    id: 'KUKA-106',
+    date: '2026-09-11',
+    title: 'A KARBANTARTÓ MUNKA AZ INDULÁST BLOKKOLÓ ÚTON — a javítás soha nem ért ki élesbe',
+    what: 'A sáv-nevek normalizálását (régi név → mai név) a board `initSchema`-jába tettem, '
+      + 'alias-páronként EGY UPDATE-tel: 5 pár × 11 oszlop = **55 mondat** a korábbi 8 helyett. A board '
+      + 'az `app.listen()` ELŐTT futtatja a séma-lépéseket, tehát minden ott végzett munka az '
+      + 'EGÉSZSÉG-ELLENŐRZÉS határidejét (100 s) fogyasztja — egy amúgy is lassú, mondatonként '
+      + 'újrajátszott séma-indulás tetején. A Railway MINDKÉT kiadást eldobta „healthcheck failure" '
+      + 'okkal, és az élő board órákon át a javítás ELŐTTI kódon maradt.',
+    why_wrong: 'A KARBANTARTÁS NEM INDULÁSI FELTÉTEL. A normalizálás idempotens takarítás: ha egy '
+      + 'perccel később fut, semmi nem sérül — ha viszont az indulási úton van, a saját költsége '
+      + 'MEGÖLI a kiadást, és vele azt is, amit javítani akart. A hiba a legrosszabb fajta visszajelzést '
+      + 'adta: a repó zöld volt, a söprés zöld volt, a kód helyes volt — csak SOHA NEM FUTOTT, mert a '
+      + 'kiadás nem ért célba (KUKA-038 a kiadási úton: a létezés nem bizonyíték arra, hogy fut).',
+    replaced_by: 'KÉT VÁLTOZÁS EGYÜTT. (1) NEVEZETT függvény (`normalizeLaneNames`), amit a szerver a '
+      + '`listen()` UTÁN indít, és a hibája CSAK naplóba kerül — az indulást nem foghatja meg. '
+      + '(2) OSZLOPONKÉNT egy mondat (11), nem alias-páronként egy (55): a leképezés `CASE`-ben megy, '
+      + 'egyetlen `WHERE … = ANY(…)` szűréssel.',
+    decision: 'D-VS-678',
+    found_by: 'az OPERÁTOR — ő nyitotta meg a kiadás-listát, és abból derült ki, hogy az aktív verzió '
+      + 'órákkal RÉGEBBI, mint a pushom, a kettő közti kiadás pedig egészség-ellenőrzési hibával bukott.',
+    lesson: 'MINDEN INDULÁSKOR FUTÓ MUNKÁRA KÖTELEZŐ KÉRDÉS: ez INDULÁSI FELTÉTEL, vagy KARBANTARTÁS? '
+      + 'Ami nem feltétel, az a `listen()` UTÁN megy, és a hibája nem állíthatja meg a szolgáltatást. '
+      + 'És ha egy meglévő indulási lépést BŐVÍTEK, a kérdés nem az, hogy helyes-e, hanem hogy MENNYIVEL '
+      + 'NŐTT a költsége — itt 8 mondatról 55-re, egy 100 másodperces határ alatt. A zöld söprés a '
+      + 'KIADÁSRÓL semmit nem mond: a repó állapota és az ÉLŐ állapot két külön tény (KUKA-019 rokona), '
+      + 'ezért kiadás után VISSZA KELL MÉRNI, hogy az új kód tényleg fut-e.',
+    guard_note: 'gépi jel: `npm run verify:lanes` **LAN07** a V2 repóban (a board ott él) — a pin HÍVJA '
+      + 'a normalizálót egy FELVEVŐ ügyféllel és megszámolja a mondatokat (11, nem 55), méri, hogy az '
+      + '`initSchema` TÖRZSE nem hívja, hogy a szerver a `listen()` UTÁN indítja, és hogy a hibája '
+      + 'elnyelt. A visszacsúszásra (az `initSchema`-ba visszatéve) bizonyítottan PIROS.',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

@@ -23,9 +23,12 @@
 const GUARD_HOME_CONTRACT_ID = 'GHM-01';
 
 // A V2-ben honos jelek MAI száma. Ez a valóság rögzítése, nem cél — lásd fent.
-const VS_HOMED_CEILING = 83;
+// 2026-09-11 (D-VS-678): 83 → 84. NEM elmaradt átköltöztetés: a KUKA-106 a BOARD indulási útjáról
+// szól, a board pedig a V2 repóban él — a jele ott FUT (verify:lanes LAN07), tehát ide nem hozható.
+const VS_HOMED_CEILING = 84;
 
 const GUARD_HOME = Object.freeze({
+  'KUKA-106': Object.freeze({ home: 'vs', note: 'a board a V2 repóban él — a LAN07 jel OTT fut' }),
   'KUKA-105': Object.freeze({ home: 'v3', note: 'a jelek cél-fájljai ITT vannak — a jel FUT' }),
   'KUKA-104': Object.freeze({ home: 'v3', note: 'a jelek cél-fájljai ITT vannak — a jel FUT' }),
   'KUKA-103': Object.freeze({ home: 'v3', note: 'a jelek cél-fájljai ITT vannak — a jel FUT' }),

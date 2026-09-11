@@ -1,8 +1,8 @@
 {
-  "at": "2026-09-11T11:24:50.219Z",
+  "at": "2026-09-11T18:02:48.642Z",
   "node": "v22.22.2",
   "source": {
-    "commit": "20afac677a37d6e2afbdc67c6b3338eb50e566dd",
+    "commit": "09f92441ef7ea15c5a0d03bf1b720df9c3a2e7e9",
     "clean": true,
     "dirty_files": [],
     "note": "a lemásolt forrás a könyvelt állapoton áll"
@@ -14,13 +14,13 @@
       "by": "chatgpt-v3 — KÜLSŐ, független fél",
       "origin": "R57 (változatlanul, ahogy a boardon érkezett)",
       "exit": 0,
-      "ms": 7647,
+      "ms": 10413,
       "total": 9,
       "failed": [],
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r57_r56-challenge.json",
       "stderr": [
-        "(node:22506) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:7740) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null
@@ -31,13 +31,13 @@
       "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
       "origin": "R56",
       "exit": 0,
-      "ms": 4245,
+      "ms": 5597,
       "total": 5,
       "failed": [],
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r55_restated.json",
       "stderr": [
-        "(node:23332) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:8567) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null
@@ -48,7 +48,7 @@
       "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
       "origin": "R54",
       "exit": 0,
-      "ms": 495,
+      "ms": 661,
       "total": 2,
       "failed": [],
       "ok": true,
