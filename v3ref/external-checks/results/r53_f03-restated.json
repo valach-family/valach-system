@@ -1,7 +1,7 @@
 {
   "program": "f03-restated.mjs",
-  "pin": "b3b079d52ec7dc984999ca17ce1cee5d342ae298",
-  "at": "2026-09-12T16:28:40.098Z",
+  "pin": "55d1e7b6f02c347144257d2f03da86c7d883fa82+uncommitted",
+  "at": "2026-09-12T21:27:44.770Z",
   "node": "v22.22.2",
   "cases": [
     {
@@ -25,6 +25,9 @@
       "pending_clauses": [
         "REV-N1a",
         "REV-N1b",
+        "REV-N3a",
+        "REV-N3b",
+        "REV-N3c",
         "ORG-N2a"
       ],
       "norm_states": [
@@ -53,10 +56,14 @@
           "id": "REV-N3",
           "clauses_total": 3,
           "clauses_covered": 0,
-          "clauses_pending": 0,
+          "clauses_pending": 3,
           "covered_clause_ids": [],
-          "pending_clause_ids": [],
-          "state": "planned"
+          "pending_clause_ids": [
+            "REV-N3a",
+            "REV-N3b",
+            "REV-N3c"
+          ],
+          "state": "pending"
         },
         {
           "id": "REV-N4",

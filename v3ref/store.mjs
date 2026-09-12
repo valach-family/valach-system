@@ -62,6 +62,43 @@ CREATE TABLE membership_revocation (
   transition    TEXT NOT NULL
 );
 
+-- ═══ REV-N3 — A HATÁSKÖR ÉS A BEJELENTÉS (R60 req-2 · R65 §7) ═══════════════════════════════
+--
+-- A REV-N3 KÉT dolgot mond ki egyszerre, és a saját gap-szövegünk szerint EGYÜTT kell megépülniük:
+-- hatáskör nélkül a bejelentés jogot mozdítana, bejelentés nélkül a hatáskör elfojtja a jelzést.
+--
+-- A HATÁSKÖR MŰVELETENKÉNT áll ("operation"), nem egy általános „bíráló" jelölésként: a legszűkebb
+-- felhatalmazás nem adhat tágabb hatást. A megvonás KÜLÖN esemény marad (K09), a hatáskör pedig
+-- nem a tagságból jön — egy admin tagság nem tesz senkit elbírálóvá.
+CREATE TABLE adjudication_authority (
+  subject_id    TEXT NOT NULL REFERENCES subject(id),
+  book_id       TEXT NOT NULL REFERENCES book(id),
+  operation     TEXT NOT NULL CHECK (operation IN ('suspend','adjudicate','alter_right')),
+  granted_at    TEXT NOT NULL,
+  revoked_at    TEXT,
+  PRIMARY KEY (subject_id, book_id, operation)
+);
+
+-- A BEJELENTÉS. A panaszos NEM feltétlenül ismert alany (épp ez a lényeg: a még nem igazolt
+-- panaszos jelzése is befut), ezért a "claimant_ref" szabad hivatkozás, NEM "subject(id)" idegen
+-- kulcs. A bejelentés SOHA nem mozdít jogot — az állapota csak azt mondja, hol tart az ügy.
+CREATE TABLE claim (
+  id                TEXT PRIMARY KEY,
+  book_id           TEXT NOT NULL,
+  claimant_ref      TEXT NOT NULL,
+  submitted_at      TEXT NOT NULL,
+  statement_digest  TEXT NOT NULL,
+  state             TEXT NOT NULL CHECK (state IN ('received','under_review','resolved'))
+);
+
+-- A VISSZAÉLÉS-KORLÁT MÉRHETŐ ALAPJA. Külön tábla, mert a korlát a BEADÓ viselkedéséről szól, nem
+-- a bejelentés tartalmáról — és mert olyan beadást is számol, ami nem hozott létre ügyet.
+CREATE TABLE claim_intake (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  claimant_ref  TEXT NOT NULL,
+  submitted_at  TEXT NOT NULL
+);
+
 CREATE TABLE invite (
   token             TEXT PRIMARY KEY,
   book_id           TEXT NOT NULL REFERENCES book(id),

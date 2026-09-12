@@ -10,6 +10,7 @@
 // nem lehet (a mi KUKA-062-es tanulságunk: a jog-alapot nevezni kell).
 
 import { instantMs, withTransaction } from './store.mjs';
+import { adjudicationRightAt } from './adjudication.mjs';
 
 // ═══ JOG-OSZTÁLY: SAJÁT KULCS, NEM ÖRÖKÖLT (Q07) ════════════════════════════════════════════════
 //
@@ -251,7 +252,27 @@ export function revocationTransition(existingRevokedAt, nowIso) {
   return Object.freeze({ act: true, effective_at: nowIso, reason: 'revocation_pulled_forward', previous_effective_at: existingRevokedAt });
 }
 
-export function revokeMembership({ store, subjectId, bookId, clock }) {
+export function revokeMembership({ store, subjectId, bookId, clock, actorSubjectId }) {
+  // REV-N3a (R60 req-2 · R65 §7): A JOGVÁLTOZTATÁS HATÁSKÖRHÖZ KÖTÖTT — és MŰVELETENKÉNT.
+  //
+  // MI VOLT EDDIG. A megvonás a magreferencia szintjén BEMENET volt: a hívó megmondta, kit von meg,
+  // és a rendszer megtette. Ezt a saját gap-szövegünk ki is mondta: „a `revokeMembership` ma nem
+  // kérdez hatáskört a HÍVÓTÓL — tehát bárki »megvonhatna«".
+  //
+  // MIÉRT FAIL-CLOSED. Az eljáró alany hiánya nem „ismeretlen hívó", hanem NINCS IGAZOLT HATÁSKÖR:
+  // aki nem mondja meg, ki ő, az nem kap jogváltoztatást. A hiányzó mérés nem gyógyulás (KUKA-012),
+  // és a nemleges válasz NEVEZETT, a szabályos úttal együtt (KUKA-064).
+  //
+  // A `suspend` és az `adjudicate` hatáskör IDE NEM ELÉG: a legszűkebb felhatalmazás nem adhat
+  // tágabb hatást (a norma szövege ezt kifejezetten kimondja).
+  const authority = adjudicationRightAt({ store, subjectId: actorSubjectId, bookId, operation: 'alter_right', clock });
+  if (!authority.allowed) {
+    return Object.freeze({
+      ok: false, changed: false, reason: authority.reason,
+      message: `${authority.message} A jogváltoztatáshoz \`alter_right\` hatáskör kell; a jelzés `
+        + 'fogadása (submitClaim) és az érdemi elbírálás (adjudicateClaim) KÜLÖN művelet, külön hatáskörrel.',
+    });
+  }
   const nowIso = clock.now();
   const m = store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', subjectId, bookId);
   if (!m) return Object.freeze({ ok: false, changed: false, reason: 'no_membership' });

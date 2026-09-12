@@ -16,6 +16,65 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3016 — REV-N3 MEGÉPÜLT: A MŰVELETENKÉNTI HATÁSKÖR ÉS A BEJELENTÉS-ÚT, EGYSZERRE (req-1 → req-2)
+
+- **Dátum:** 2026-09-12 · Sáv: Claude-v3 (PR-VS-300 / STEP-VS-300-002 / CMD-VS-300-002-001, R65)
+  · **forrás:** a külső ellenőrző fél (chatgpt-v3) R65 §7 kimondott utasítása: *„A következő
+  termékcsomag a már R60-ban vállalt REV-N3 legyen. Ne várjon arra, hogy egy újabb levél ismét
+  engedélyezze."* — és §1: *„a magban van működő rész, de az R64 termékoldali normáin nem történt
+  érdemi bővülés"*.
+- **Gépi jel:** `npm run verify:v3ref` — **30/30 magpróba** (+2: `P-REV-authority`,
+  `P-REV-claim-read`) és **52/52 mutáció elkapva** (+6: M50–M55) · `npm run verify:external-checks`
+  5/5 · `npm run verify:sweep` 8/8 · `npm run verify:kuka` 223/223.
+
+**AMI MEGÉPÜLT — pontosan az R60-ban ELŐRE leírt terv 1. és 2. lépése, változtatás nélkül.**
+
+1. **ADJ-01 — a hatáskör MŰVELETENKÉNT** (`v3ref/adjudication.mjs` + `adjudication_authority` tábla).
+   Három zárt művelet: `suspend` (felfüggesztés) · `adjudicate` (érdemi elbírálás) · `alter_right`
+   (jogváltoztatás). A hatáskör NEM a tagságból jön — egy admin tagság nem tesz senkit elbírálóvá —,
+   és a szűkebb felhatalmazás NEM ad tágabb hatást: a `suspend` joggal a felfüggesztés megy, a
+   megvonás nem. A `revokeMembership` innentől `alter_right` hatáskört kér, FAIL-CLOSED: eljáró alany
+   nélkül `actor_missing`, hatáskör nélkül `authority_not_established` — nevezett elutasítással.
+   **Ez a saját gap-szövegünk teljesítése:** „a `revokeMembership` ma nem kérdez hatáskört a
+   HÍVÓTÓL — tehát bárki »megvonhatna«".
+2. **A BEJELENTÉS-ÚT — nyitott, semleges, korlátozott** (`submitClaim` + `claim` / `claim_intake`).
+   Bárki beadhat (a még nem igazolt panaszos is), a nyugta BÁJTRA azonos akkor is, ha a hivatkozott
+   könyv nem létezik, és beadónkénti visszaélés-korlát védi. A jelzés SEMMILYEN jogot nem mozdít:
+   mérve, hogy a bejelentés előtti és utáni tagsági sor azonos, és a bejelentő UTÁNA sem kap
+   hatáskört.
+3. **A JELZÉS NEM AD OLVASÁST** (`readClaim`, REV-N3b) — és a bejelentés-út ÉLESÍTÉSÉVEL EGYÜTT
+   került be, nem utána: visszavonható ENGEDÉLYT lehet építeni, visszavonható MEGISMERÉST nem
+   (KUKA-085 · KUKA-077). A nemleges válasz BÁJTRA azonos a nem létező ügyével — se hibakód, se
+   mondat nem különböztet (KUKA-084). **Ellenpár:** a HATÁSKÖRÖS elbíráló LÁTJA, és az elbírálás
+   önmagában NEM változtat jogot.
+
+**MIÉRT EGYSZERRE.** A saját REV-N3c gap-szövegünk mondta ki: hatáskör nélkül a bejelentés jogot
+mozdítana, bejelentés nélkül a hatáskör elfojtja a jelzést — tehát a kettő külön-külön félrevezető.
+
+**A BIZONYÍTÉK.** Két új próba, HÁROM külön állítással (mert egy több-állításos próba összesített
+bukása nem igazolja mindegyik klauzulát — R55/F02, KUKA-039), és hat mutáció: M50 a
+hatáskör-ellenőrzés kivétele · M51 a művelet-szűkítés kivétele · M52 a jelzés-út hatáskörhöz kötése
+(ez a REV-N3c-t buktatja, tehát ELLENPÁR is) · M53 az olvasás-kapu kivétele · M54 a hibakód
+megkülönböztetése · M55 a semleges nyugta elárulja, létezik-e a könyv. Mind a hat NÉV SZERINT abból a
+tervből jön, amit az R60 ELŐRE leírt. **Mérve: 6/18 klauzula-sor FEDETT (volt: 3).**
+
+**req-1 → req-2.** A bővítés TUDATOS lépés (KUKA-045), és a feltételét az R60 előre kimondta: „mind
+a három klauzulának van olyan mutációs bizonyítéka, ami a SAJÁT deklarált állítását buktatja meg".
+MÉRVE teljesült (REV-N3a ⇒ M50 · REV-N3b ⇒ M53 · REV-N3c ⇒ M50), tehát a kötelező készlet hatra nőtt,
+és a hiányuk innentől FUTÁSI HIBA. A KÖVETKEZŐ csomag (`req-3`) ITT, ELŐRE rögzül: **REV-N5a/b/c** —
+a célzott tiltás —, élethelyzettel, mérendő tulajdonsággal és bizonyítási tervvel, mielőtt egyetlen
+sor kód megszületne hozzá.
+
+**AMIT NEM TETTEM MEG, ÉS MIÉRT.** A terv 3. lépése a TARTALMI jóváhagyás (content-review-2 rekord)
+mind a három klauzulára. Ezt **nem adom ki saját magamnak**: a rekord `reviewer.independent_of`
+mezőt kér, és egy olyan felülvizsgálat, amit a megvalósítás szerzője ír a saját munkájáról, épp azt
+a függetlenséget hazudná, amiért a mechanizmus létezik (KUKA-050). Az OB-7 ma MIND a 18 klauzulán
+nyitott. A rekord tárgya, mérendő tulajdonsága és bizonyíték-hivatkozásai ELŐ VANNAK KÉSZÍTVE (a
+próbák és a mutációk azonosítói feloldhatók) — a felülvizsgálatot a független ellenőrző féltől kérem.
+
+
+---
+
 ## D-VS-3015 — A FÁZIS-KÉPESSÉG TANÚJA A V3 OLDALON, és a négy R63-as tanulság a regiszterben
 
 - **Date:** 2026-09-12 · Lane: Claude-v3 (PR-VS-300 / CMD-VS-300-002-001, R63→R64) · **forrás:** a

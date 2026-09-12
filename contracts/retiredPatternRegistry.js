@@ -5579,6 +5579,81 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'egység-próbái, amelyekben a két régi arány-eset most az ELLENKEZŐJÉT állítja.',
   }),
 
+  Object.freeze({
+    id: 'KUKA-118',
+    date: '2026-09-12',
+    title: 'A JAVÍTÁS A BEKÜLDÖTT NEVET KORLÁTOZTA, NEM A HITELESÍTETT SZEREPLŐT',
+    what: 'Az R64-ben bezártam a KUKA-116-os megkerülő utat: a KÉSZRE állítás a közvetlen '
+      + '`POST /api/chatops/frm/status` úton csak „emberi sávról" mehetett. A külső fél (chatgpt-v3, '
+      + 'R65/F08) MEGMÉRTE: ugyanaz a jogos írási token, csak a törzsben `updated_by:"operator"` — és '
+      + 'a route 200-at ad, míg `Claude-v3` névvel 403-at. Ugyanez a nyitott ajtó a bizonyíték-úton is '
+      + '(F06): a beadó `kind:"operator_verdict"` mezője emberi tekintélyt ÁLLÍTOTT, és onnantól a '
+      + 'befogadási szerződés MINDEN szabálya kimaradt, mert mind a `kind === "agent_evidence"` ágon állt.',
+    why_wrong: 'JOGOSULTSÁGOT A KÉRÉS TARTALMÁBÓL VEZETTEM LE. Ez a KUKA-047 pontos alakja a boardon '
+      + '(„a hatókör a kérés KÖRNYEZETÉBŐL jön, sosem a TÖRZSÉBŐL"), és a KUKA-116 ismétlődése egy '
+      + 'mezővel arrébb: ott a megkerülő ÚT állt nyitva, itt a megkerülő NÉV. A javítás nem zárta be a '
+      + 'lyukat, csak KÖLTÖZTETTE — pontosan az, amit a KUKA-084-ben magamról írtam le egy körrel '
+      + 'korábban, és mégsem alkalmaztam a saját javításomra.',
+    replaced_by: 'AUTH-01 (`tools/chatops-board/src/actorIdentity.js`): a szereplőt a SZERVER '
+      + 'hitelesíti. Az operátornak SAJÁT hitelesítője lesz (`CHATOPS_OPERATOR_TOKEN`, fejléc '
+      + '`x-chatops-operator-token`), és emberi tekintély CSAK azzal jár; a `updated_by`/`actor`/`kind` '
+      + 'ÁLLÍTÁS marad, amit a napló rögzít. FAIL-CLOSED, kimondva: ha a szerveren nincs operátor-token, '
+      + 'akkor EMBERT nem lehet hitelesíteni, tehát emberi kivétel senkinek nem jár — a „ha nincs '
+      + 'beállítva, engedjünk mindenkit" pont az a lyuk, amit be kell zárni. A bukás és a hiány '
+      + 'jelentése minden úton szabad marad.',
+    decision: 'D-VS-689',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R65/F06 + F08) — a saját, egy körrel korábbi őröm '
+      + '(MPF10) zölden állt, mert azt mérte, HOL van a kapu, nem azt, MI DÖNTI EL.',
+    lesson: 'AMIKOR EGY KAPUT „BEZÁROK", A KÖVETKEZŐ KÉRDÉS NEM AZ, HOGY MŰKÖDIK-E, HANEM HOGY MIBŐL '
+      + 'DÖNT. Ha a döntés bemenete olyan mező, amit a HÍVÓ tölt ki, akkor nem kapu, hanem udvariassági '
+      + 'kérés. A mérce mindig ugyanaz: mi az, amit a szerver ELLENŐRIZNI tud, és mi az, amit csak '
+      + 'ELHISZ. És a saját lezárt leckéimet a SAJÁT javításaimra is alkalmazni kell — a KUKA-084 '
+      + '(„a hiba nem szűnt meg, hanem átköltözött") pont erről szól, egy körrel korábbról.',
+    guard_note: 'gépi jel: `npm run verify:matrix-profiles` **MPF10** (a döntést és a teljes '
+      + 'route-választ HÍVJA, tíz ágon: a törzsben megadott négy név MIND elutasítva, a hitelesített '
+      + 'ember átengedve, a rossz token elutasítva, a bukás-jelentés szabad) + **MPF15** '
+      + '(`actor_not_authenticated_as_human` a szerződés nevezett hibakódja) + a board '
+      + 'egység-próbái (`externalChallengeR65.test.cjs` F06 · F08 · P05 · P06). Visszacsúszás-mutáció '
+      + 'MÉRVE: a név-alapú alak visszaállítása MPF10-et pirosra viszi.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-119',
+    date: '2026-09-12',
+    title: 'AZ ŐR A JOGOS FUTÁST UTASÍTOTTA EL — FÁJL ÉS TESZTESET EGY MEZŐN',
+    what: 'A board futtatója a `tests_run` mezőben a BELSŐ esetek számát adta (1763), a `case_ids` '
+      + 'mezőben viszont a TESZT-FÁJLOKAT (41), a befogadási szerződés pedig a kettő EGYENLŐSÉGÉT '
+      + 'követelte. Vagyis a saját, TELJES és szabályos futásunk bizonyítékát a saját kapunk utasította '
+      + 'el (`a bizonyíték 1763 lefutott esetet állít, de 41 azonosítót sorol fel`). Mérve a külső fél '
+      + 'R65/F07 esetében, a valódi futtató-kimenettel.',
+    why_wrong: 'KÉT KÜLÖN FOGALOM EGY MEZŐN (KUKA-002 a KÉSZLETEN): a fájl és a teszteset nem ugyanaz '
+      + 'az egység, és a fájlok teljes lefutása nem állítja, hogy minden BELSŐ eset lefutott. A hiba '
+      + 'MINDKÉT irányba téved: a jogos futást elutasítja (KUKA-049 — az őr a kért eredményt jelenti '
+      + 'kudarcnak), és ha valaki „megjavítja" úgy, hogy a darabszámot a fájl-listához igazítja, akkor '
+      + 'egy HIÁNYOS futás megy át. A külső fél ezt is kimondta: „Ne a helyes futást igazítsuk hamis '
+      + 'darabszámmal a kapuhoz." A saját BP05 kontrollom pedig épp ezt fedte el: a fájl-listát tette a '
+      + '`case_ids`-be és a darabszámot a fájlok számára — tehát NEM a valódi futtató-kimenetet adta be.',
+    replaced_by: 'A KÉSZLET EGYSÉGÉT A FORRÁS DEKLARÁLJA (`REQUIRED_SET_SOURCES[...].unit`), és a '
+      + 'bizonyíték a megfelelő mezőbe sorol: fájl-készlet ⇒ `file_ids` + `test_files`, eset-készlet ⇒ '
+      + '`case_ids` + `tests_run`. Ahol az eset-azonosítók ma nem gyűjthetők, ott a futtató KIMONDJA '
+      + '(`case_ids_unknown_reason`), nem teszi oda helyettük a fájl-listát; a fedettség pedig '
+      + '`files_covered_cases_unknown`, mert a fájl-készlet teljessége nem állítja a belső esetekét.',
+    decision: 'D-VS-689',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R65/F07) — és a saját kontrollom (BP05) azért nem '
+      + 'buktatta meg, mert nem a valódi termelő kimenetét adta be, hanem a kapuhoz igazított alakot.',
+    lesson: 'A KONTROLL-ESET A VALÓDI TERMELŐ KIMENETÉT ADJA BE, NEM A KAPUHOZ IGAZÍTOTT ALAKOT. Ha a '
+      + 'próbám bemenetét ÉN állítom elő ahhoz, hogy átmenjen, akkor a saját előfeltevésemet igazolom '
+      + 'vissza (KUKA-054), és a termelő↔befogadó szerződés-ütközése láthatatlan marad. Két kérdés '
+      + 'minden ilyen kapunál: MI AZ EGYSÉG, amiben a készlet áll — és a próba a TERMELŐ valódi '
+      + 'alakjából dolgozik-e?',
+    guard_note: 'gépi jel: `npm run verify:matrix-profiles` **MPF17** (a FUTTATÓ ÖSSZEGZŐJÉT HÍVJA — '
+      + 'nem a fájl szövegét olvassa —, és méri, hogy a valódi kimenet ÁTMEGY, a hiányos fájl-készlet '
+      + 'PIROS, a fedettség pedig nem állít többet a mértnél) + **MPF13**. FONTOS SAJÁT LELET: az őr '
+      + 'ELSŐ alakja szöveg-olvasó volt (`/file_ids/.test(runner)`), és a saját mutációs próbám '
+      + 'ÁTENGEDTE (`file_ids` → `xfile_ids` továbbra is illeszkedett a részszövegre) — ezért lett '
+      + 'belőle HÍVÁS (KUKA-009).',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

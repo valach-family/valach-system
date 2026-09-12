@@ -94,6 +94,24 @@ export const EXPECTED_PROBES = Object.freeze([
   // (idegen, létező próbára átkötés) és a KÖTELEZŐ ellenpárral (a helyes csomagon zöld), mert az
   // őr, ami mindent pirosra visz, ugyanolyan haszontalan, mint az, ami mindent átenged (KUKA-049).
   Object.freeze({ id: 'P-NORM-evidence', assertion: 'R53F03F04-norm-evidence-gate-cannot-lie' }),
+
+  // ── REV-N3 — A HATÁSKÖR ÉS A BEJELENTÉS (req-2, R60-ban ELŐRE vállalva · R65 §7) ─────────────
+  // A `discharges` itt HÁROM klauzulát vált be, KÜLÖN állításokkal. Miért külön: egy több-állításos
+  // próba ÖSSZESÍTETT bukása nem igazolja mindegyik klauzulát (R55/F02 lecke — a KUKA-039 alakja a
+  // bizonyítékon). Mindegyik állításhoz KÜLÖN mutáció tartozik (M50–M55).
+  Object.freeze({
+    id: 'P-REV-authority', assertion: 'REVN3-authority-and-intake-together',
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N3a', assertion: 'A-REV-N3a-authority-is-per-operation' }),
+      Object.freeze({ clause: 'REV-N3c', assertion: 'A-REV-N3c-claim-intake-open-and-inert' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'P-REV-claim-read', assertion: 'REVN3-claim-grants-no-read',
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N3b', assertion: 'A-REV-N3b-claim-grants-no-read' }),
+    ]),
+  }),
 ]);
 
 export const EXPECTED_IDS = Object.freeze(EXPECTED_PROBES.map((p) => p.id));

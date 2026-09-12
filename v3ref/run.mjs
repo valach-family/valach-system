@@ -16,6 +16,8 @@ import { dirname, join } from 'node:path';
 import { openStore, clockFrom, instantMs } from './store.mjs';
 import { observeInvite, redeemInvite, rememberIntent, resumeIntent, inviteGrantAt } from './invite.mjs';
 import { rightAt, revokeMembership, revocationTransition, roleGrants, KNOWN_ROLES } from './authz.mjs';
+import { ADJUDICATION_OPS, adjudicationRightAt, grantAdjudicationAuthority, submitClaim, readClaim,
+  adjudicateClaim, suspendMembership, NEUTRAL_CLAIM_ACK, CLAIM_NOT_AVAILABLE, CLAIM_RATE } from './adjudication.mjs';
 import { submitCommand, readCommandResult, commandRef, canonicalize, CanonError, recordCommandEvent, releasedFieldPaths } from './command.mjs';
 
 // A KANONIKUS NORMA-VERZIÓ EGYETLEN HELYRŐL JÖN (R53 §5). Korábban itt egy KÉZZEL ÍRT `'R32/K01-K16'`
@@ -53,7 +55,35 @@ function buildWorld({ inviteeHasAccount }) {
      VALUES (?,?,?,?,?,?,?,NULL)`,
     'tok_1', 'book_a', 'email', 'kovacs@pelda.hu', 'user', 'sub_issuer',
     '2026-09-30T00:00:00.000Z');
+
+  // REV-N3a: a JOGVÁLTOZTATÁS hatáskörhöz kötött, tehát a világnak van egy NEVEZETT eljáró alanya.
+  // SZÁNDÉKOSAN NEM a kibocsátó és nem a könyv admin tagja: a hatáskör nem a tagságból jön. A
+  // korábbi próbák a megvonást ELŐFELTÉTELKÉNT használják — azok innentől ezen az alanyon át
+  // vonnak meg (`revoke()` alább), tehát a mérésük tárgya változatlan.
+  seedAdjudicator(store, clock, ['book_a']);
   return { store, clock };
+}
+
+/**
+ * A NEVEZETT ELJÁRÓ ALANY egy tetszőleges próba-világban (REV-N3a).
+ *
+ * A megvonás innentől `alter_right` hatáskört kíván, tehát MINDEN világnak kell egy eljáró alany —
+ * a helyi `mk()` építőknek is. EGY otthon, hogy a hatáskör-adás ne szóródjon szét (KUKA-018).
+ */
+function seedAdjudicator(store, clock, books = ['book_a']) {
+  store.run('INSERT OR IGNORE INTO subject (id, kind) VALUES (?,?)', 'sub_adjudicator', 'person');
+  for (const b of books) {
+    for (const op of ADJUDICATION_OPS) {
+      grantAdjudicationAuthority({ store, subjectId: 'sub_adjudicator', bookId: b, operation: op, clock });
+    }
+  }
+}
+
+/** A megvonás HATÁSKÖRÖS alakja — a korábbi próbák előfeltételeihez (REV-N3a). */
+function revoke(w, subjectId, bookId = 'book_a') {
+  return revokeMembership({
+    store: w.store, subjectId, bookId, clock: w.clock, actorSubjectId: 'sub_adjudicator',
+  });
 }
 
 // ── A PRÓBÁK ────────────────────────────────────────────────────────────────────────────────────
@@ -170,7 +200,7 @@ probe('P-A08', 'R32/A08 · K07 · C08 (javított)',
       const conflict = submitCommand({ ...opts, declared: { qty: 99, sku: 'X' } });
       const readBefore = readCommandResult({ store: w.store, idemKey: 'idem_1', requester: 'sub_worker', clock: w.clock });
 
-      revokeMembership({ store: w.store, subjectId: 'sub_worker', bookId: 'book_a', clock: w.clock });
+      revoke(w, 'sub_worker', 'book_a');
       w.clock.advance(1000);
 
       // MEGVONÁS UTÁN az ÚJRAPRÓBÁLÁS sem árulhatja el, hogy a kulcshoz tartozik-e parancs:
@@ -262,6 +292,9 @@ function twoActorWorld() {
   store.run('INSERT INTO subject (id, kind) VALUES (?,?)', 'sub_bob', 'person');
   store.run('INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)',
     'sub_bob', 'book_b', 'admin', clock.now());
+  // REV-N3a: itt is kell NEVEZETT eljáró alany, mert a megvonás innentől hatáskörhöz kötött.
+  // SZÁNDÉKOSAN nem tagja egyik könyvnek sem: a hatáskör nem a tagságból jön.
+  seedAdjudicator(store, clock, ['book_a', 'book_b']);
   return { store, clock };
 }
 // ── A MÚLT PILLANATKÉPE — TARTALOMMAL, NEM DARABSZÁMMAL (R55/F02) ──────────────────────────────
@@ -350,7 +383,7 @@ probe('P-CMD-finalize', 'R32/K07 · Q04',
   () => {
     const w = twoActorWorld();
     try {
-      const out = CMD(w, { resolve: () => { revokeMembership({ store: w.store, subjectId: 'sub_alice', bookId: 'book_a', clock: w.clock }); return { price: 100 }; } });
+      const out = CMD(w, { resolve: () => { revoke(w, 'sub_alice', 'book_a'); return { price: 100 }; } });
       const rows = w.store.all("SELECT * FROM command WHERE idem_key = 'k1'");
       const ok = out.ok === false && out.error === 'not_available' && rows.length === 0;
       return {
@@ -485,7 +518,7 @@ probe('P-AUTHZ-evidence', 'R32/K12 · Q05 · Q06',
       // más tengely. Itt a TAGSÁGOT vonjuk vissza, és HIBÁTLAN, friss megbízással kérdezünk: a
       // képviseleti jogcím nem kerülhet a visszavont tagság ELÉ (KUKA-002 — két tengely, és a
       // sorrendjük dönt; ha az ág-sorrend megfordul, a visszavont tag képviselettel bejutna).
-      revokeMembership({ store: w.store, subjectId: 'sub_alice', bookId: 'book_a', clock: w.clock });
+      revoke(w, 'sub_alice', 'book_a');
       const revokedThenRepresent = ask({ obtained_at: T0, valid_until: FAR });
 
       const ok = !missing.allowed && missing.reason === 'evidence_obtained_at_instant_missing'
@@ -511,11 +544,11 @@ probe('P-AUTHZ-revoke-now', 'R32/K09',
       const ask = (s) => rightAt({ store: w.store, subjectId: s, bookId: 'book_a', opClass: 'own_book', clock: w.clock });
       // (a) jovore utemezett + azonnali megvonas => MOST hatalyos
       w.store.run('UPDATE membership SET revoked_at = ? WHERE subject_id = ?', '2099-01-01T00:00:00.000Z', 'sub_alice');
-      const pulled = revokeMembership({ store: w.store, subjectId: 'sub_alice', bookId: 'book_a', clock: w.clock });
+      const pulled = revoke(w, 'sub_alice', 'book_a');
       const aliceNow = ask('sub_alice');
       // (b) MAR hatalyos (multbeli) => NEM hosszabbit
       w.store.run('UPDATE membership SET revoked_at = ? WHERE subject_id = ?', '2026-09-01T00:00:00.000Z', 'sub_carol');
-      const already = revokeMembership({ store: w.store, subjectId: 'sub_carol', bookId: 'book_a', clock: w.clock });
+      const already = revoke(w, 'sub_carol', 'book_a');
       const carolDate = w.store.get('SELECT revoked_at FROM membership WHERE subject_id = ?', 'sub_carol').revoked_at;
       // (c) a tortenet megmarad
       const hist = w.store.get('SELECT * FROM membership_revocation WHERE subject_id = ?', 'sub_alice');
@@ -589,7 +622,7 @@ probe('P-INVITE-authority', 'R32/K03 · K09 · Q09 · Q10 · Q13',
       const revoked = redeemInvite({ store: w.store, token: 'tok_1', actingSubjectId: 'sub_invitee', clock: w.clock });
       const stillOpen = w.store.get('SELECT redeemed_at FROM invite WHERE token = ?', 'tok_1').redeemed_at;
       // (c) A KIBOCSÁTÓ joga visszavonva ⇒ a függő meghívó nem ad tagságot.
-      revokeMembership({ store: w.store, subjectId: 'sub_issuer', bookId: 'book_a', clock: w.clock });
+      revoke(w, 'sub_issuer', 'book_a');
       const noIssuer = redeemInvite({ store: w.store, token: 'tok_1', actingSubjectId: 'sub_invitee', clock: w.clock });
       // AZ ORG-N2a ÖNÁLLÓ ÁLLÍTÁS. A tiltó alapértelmezés (a kibocsátó jogának megvonása a függő
       // meghívót is érvényteleníti) az EGYETLEN szervezeti klauzula, aminek ma bizonyítéka van —
@@ -675,7 +708,7 @@ probe('P-INVITE-finalize-gate', 'R32/K03 · K09 · R49 C02 · C03',
     // (a) A LEJÁRAT a határon következik be — az ÓRA mozdul (C03).
     const expired = atBoundary((w) => w.clock.advance(31 * 86400000));
     // (b) A KIBOCSÁTÓ jogát a határon vonják vissza (C02).
-    const revoked = atBoundary((w) => revokeMembership({ store: w.store, subjectId: 'sub_issuer', bookId: 'book_a', clock: w.clock }));
+    const revoked = atBoundary((w) => revoke(w, 'sub_issuer', 'book_a'));
     // (c) A KIBOCSÁTÓT a határon LEFOKOZZÁK — a delegálás-ellenőrzés KÜLÖN ok, nem ugyanaz (KUKA-039).
     const demoted = atBoundary((w) => w.store.run(
       "UPDATE membership SET role = 'user' WHERE subject_id = 'sub_issuer' AND book_id = 'book_a'"));
@@ -729,6 +762,7 @@ probe('P-CMD-receipt', 'R32/K05 · K07 · R50 (a külső fél cáfolata a mi R47
       store.run('INSERT INTO book (id, name) VALUES (?,?)', 'book_a', 'A');
       store.run('INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)',
         'sub_alice', 'book_a', 'admin', clock.now());
+      seedAdjudicator(store, clock, ['book_a']);
       return { store, clock };
     };
     const events = (w) => w.store.all('SELECT * FROM command_event');
@@ -752,7 +786,7 @@ probe('P-CMD-receipt', 'R32/K05 · K07 · R50 (a külső fél cáfolata a mi R47
     // parancs elutasításra fut — ilyenkor NULLA parancs-sor ÉS NULLA nyugta-sor (KUKA-026 párja:
     // a siker nyugtája KÖTELEZŐEN a tranzakcióval utazik, különben meg nem történt hatásról szól).
     const c = mk(); const txc = c.store.tx;
-    c.store.tx = (fn) => { revokeMembership({ store: c.store, subjectId: 'sub_alice', bookId: 'book_a', clock: c.clock }); return txc(fn); };
+    c.store.tx = (fn) => { revoke(c, 'sub_alice', 'book_a'); return txc(fn); };
     const refused = CMD(c);
     const cmdRows = c.store.get('SELECT count(*) AS n FROM command').n;
     const atomic = refused.ok === false && cmdRows === 0 && events(c).length === 0;
@@ -782,9 +816,10 @@ probe('P-CMD-finalize-gate', 'R32/K04 · K07 · R49 (saját teljesség-lelet)',
       store.run('INSERT INTO book (id, name) VALUES (?,?)', 'book_a', 'A');
       store.run('INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)',
         'sub_alice', 'book_a', 'admin', clock.now());
+      seedAdjudicator(store, clock, ['book_a']);
       return { store, clock };
     };
-    const pull = (w) => revokeMembership({ store: w.store, subjectId: 'sub_alice', bookId: 'book_a', clock: w.clock });
+    const pull = (w) => revoke(w, 'sub_alice', 'book_a');
 
     // MIND A HÁROM ÁG A TRANZAKCIÓ BELÉPÉSÉNÉL KAPJA A MEGVONÁST (R51/J1 — javítva).
     //
@@ -1011,7 +1046,7 @@ probe('P-INVITE-terms', 'R32/K03 · R51 J2 (a külső fél N10 · N11)',
     w2.store.run('INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)',
       'sub_invitee', 'book_a', 'user', w2.clock.now());
     const orig2 = w2.store.tx;
-    w2.store.tx = (fn) => { revokeMembership({ store: w2.store, subjectId: 'sub_invitee', bookId: 'book_a', clock: w2.clock }); return orig2(fn); };
+    w2.store.tx = (fn) => { revoke(w2, 'sub_invitee', 'book_a'); return orig2(fn); };
     const r2 = redeemInvite({ store: w2.store, token: 'tok_1', actingSubjectId: 'sub_invitee', newCredential: 'c', clock: w2.clock });
     const used2 = w2.store.get("SELECT redeemed_at FROM invite WHERE token = 'tok_1'").redeemed_at;
     w2.store.close();
@@ -1713,6 +1748,160 @@ import { manifestDigest } from './manifest.mjs';
 import { REVIEWS, REVIEWS_FOR, staleFor, residualStandingFor, checkResolutions } from './reviews.mjs';
 import { MANIFEST_VERSION, EXPECTED_IDS, EXPECTED_PROBES, PROBE_STATUS, assertionOf } from './manifest.mjs';
 import { MUTATIONS } from './mutations.mjs';
+
+// ═══ REV-N3 — A HATÁSKÖR ÉS A BEJELENTÉS (req-2, 1. és 2. lépés) ══════════════════════════════
+//
+// AZ ÉLETHELYZET A NORMÁBÓL VAN ÁTVÉVE, nem utólag kitalálva (`NEXT_REQUIRED_EVIDENCE.order`,
+// R60-ban rögzítve): egy VOLT BESZÁLLÍTÓ azt állítja, hogy a márciusi meghatalmazás hibás volt, és
+// kéri a hozzáférése visszaállítását. Nincs igazolt jogviszonya a céggel.
+
+probe('P-REV-authority', 'R32/K04 · K05 · K09 · REV-N3a · REV-N3c',
+  'A JELZÉST fogadjuk hatáskör nélkül is — de a jelzés nem függeszt fel, nem bírál el, és nem változtat jogot',
+  () => {
+    const w = buildWorld({ inviteeHasAccount: true });
+    try {
+      // A VOLT BESZÁLLÍTÓ: alany a rendszerben, de a könyvhöz semmilyen jogviszonya nincs.
+      w.store.run('INSERT INTO subject (id, kind) VALUES (?,?)', 'sub_expartner', 'person');
+      // A CÉLPONT: egy élő tagság, amit a jelzés NEM mozdíthat meg.
+      w.store.run('INSERT INTO subject (id, kind) VALUES (?,?)', 'sub_target', 'person');
+      w.store.run(
+        'INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)',
+        'sub_target', 'book_a', 'user', w.clock.now());
+      // A SZŰK FELHATALMAZÁS: csak FELFÜGGESZTÉSRE szól — jogváltoztatásra NEM.
+      w.store.run('INSERT INTO subject (id, kind) VALUES (?,?)', 'sub_suspender', 'person');
+      grantAdjudicationAuthority({ store: w.store, subjectId: 'sub_suspender', bookId: 'book_a',
+        operation: 'suspend', clock: w.clock });
+
+      // (a) HATÁSKÖR NÉLKÜLI jogváltoztatás-kérés → NEVEZETT elutasítás.
+      const noAuthority = revokeMembership({
+        store: w.store, subjectId: 'sub_target', bookId: 'book_a', clock: w.clock,
+        actorSubjectId: 'sub_expartner' });
+      const aOk = noAuthority.ok === false && noAuthority.changed === false
+        && noAuthority.reason === 'authority_not_established';
+
+      // (a2) AZ ELJÁRÓ ALANY HIÁNYA sem „ismeretlen hívó", hanem nincs igazolt hatáskör (fail-closed).
+      const noActor = revokeMembership({
+        store: w.store, subjectId: 'sub_target', bookId: 'book_a', clock: w.clock });
+      const a2Ok = noActor.ok === false && noActor.reason === 'actor_missing';
+
+      // (b) EGY MÁSIK MŰVELETRE szóló hatáskör NEM elég — a legszűkebb felhatalmazás nem adhat
+      //     tágabb hatást. A `suspend` joggal a felfüggesztés MEGY, a megvonás NEM.
+      const suspendOk = suspendMembership({
+        store: w.store, actorSubjectId: 'sub_suspender', subjectId: 'sub_target',
+        bookId: 'book_a', clock: w.clock });
+      const wrongOp = revokeMembership({
+        store: w.store, subjectId: 'sub_target', bookId: 'book_a', clock: w.clock,
+        actorSubjectId: 'sub_suspender' });
+      const bOk = suspendOk.ok === true && wrongOp.ok === false
+        && wrongOp.reason === 'authority_not_established';
+
+      // (c) A JELZÉS FOGADÁSA hatáskör NÉLKÜL is sikeres — és SEMMIT nem mozdít.
+      const before = w.store.get(
+        'SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', 'sub_target', 'book_a');
+      const ack = submitClaim({ store: w.store, clock: w.clock, claimantRef: 'volt@beszallito.hu',
+        bookId: 'book_a', statement: 'A márciusi meghatalmazás hibás volt.' });
+      const after = w.store.get(
+        'SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', 'sub_target', 'book_a');
+      const claimRow = w.store.get('SELECT * FROM claim WHERE claimant_ref = ?', 'volt@beszallito.hu');
+      const cOk = ack.accepted === true
+        && JSON.stringify(ack) === JSON.stringify(NEUTRAL_CLAIM_ACK)
+        && JSON.stringify(before) === JSON.stringify(after)
+        && !!claimRow && claimRow.state === 'received';
+
+      // (c2) A JELZÉS UTÁN sem lett hatásköre — a bejelentés nem művelet a jogon.
+      const stillNo = revokeMembership({
+        store: w.store, subjectId: 'sub_target', bookId: 'book_a', clock: w.clock,
+        actorSubjectId: 'sub_expartner' });
+      const c2Ok = stillNo.ok === false && stillNo.reason === 'authority_not_established';
+
+      // (d) ELLENPÁR: a HATÁSKÖRÖS eljáró elvégzi a jogváltoztatást — a szabály nem mindenkit zár ki.
+      const done = revokeMembership({
+        store: w.store, subjectId: 'sub_target', bookId: 'book_a', clock: w.clock,
+        actorSubjectId: 'sub_adjudicator' });
+      const dOk = done.ok === true && done.changed === true;
+
+      const pass = aOk && a2Ok && bOk && cOk && c2Ok && dOk;
+      return {
+        expected: 'hatáskör nélkül NEVEZETT elutasítás · más műveletre szóló hatáskör NEM elég · '
+          + 'a jelzés fogadása hatáskör nélkül is sikeres és semmit nem mozdít · a hatáskörös elvégzi',
+        actual: `(a) ${noAuthority.reason} · (a2) ${noActor.reason} · (b) suspend=${suspendOk.ok}/`
+          + `revoke=${wrongOp.reason} · (c) jelzés=${ack.accepted} tagság változatlan=${JSON.stringify(before) === JSON.stringify(after)}`
+          + ` · (c2) ${stillNo.reason} · (d) megvonás=${done.ok}/${done.changed}`,
+        pass,
+        asserts: {
+          'A-REV-N3a-authority-is-per-operation': aOk && a2Ok && bOk && dOk,
+          'A-REV-N3c-claim-intake-open-and-inert': cOk && c2Ok,
+        },
+      };
+    } finally { w.store.close(); }
+  });
+
+probe('P-REV-claim-read', 'R32/K05 · K15 · REV-N3b · KUKA-084 · KUKA-085',
+  'A BEJELENTÉS NEM AD OLVASÁST: a jelzés előtti és utáni olvasási kör AZONOS, a nemleges válasz pedig a nem létező ügyével',
+  () => {
+    const w = buildWorld({ inviteeHasAccount: true });
+    try {
+      w.store.run('INSERT INTO subject (id, kind) VALUES (?,?)', 'sub_expartner', 'person');
+
+      // (a) A JELZÉS ELŐTT és UTÁN ugyanaz a nemleges válasz — a bejelentő nem lesz olvasó.
+      const beforeRead = readClaim({ store: w.store, viewerSubjectId: 'sub_expartner',
+        claimId: 'clm_barmi', clock: w.clock });
+      submitClaim({ store: w.store, clock: w.clock, claimantRef: 'volt@beszallito.hu',
+        bookId: 'book_a', statement: 'A márciusi árlista hibás.' });
+      const row = w.store.get('SELECT * FROM claim WHERE claimant_ref = ?', 'volt@beszallito.hu');
+      const afterRead = readClaim({ store: w.store, viewerSubjectId: 'sub_expartner',
+        claimId: row.id, clock: w.clock });
+      const aOk = JSON.stringify(beforeRead) === JSON.stringify(afterRead)
+        && afterRead.ok === false && afterRead.error === 'not_available';
+
+      // (b) A LÉTEZŐ és a NEM LÉTEZŐ ügy válasza BÁJTRA azonos — a csatorna nem hordozza a bitet
+      //     (KUKA-084: nem hely-lista, hanem CSATORNA-lista; a hibakód sem különböztet).
+      const missing = readClaim({ store: w.store, viewerSubjectId: 'sub_expartner',
+        claimId: 'clm_nemletezik', clock: w.clock });
+      const bOk = JSON.stringify(missing) === JSON.stringify(afterRead)
+        && JSON.stringify(missing) === JSON.stringify(CLAIM_NOT_AVAILABLE);
+
+      // (b2) A SEMLEGES NYUGTA sem árulja el, létezik-e a könyv: a nem létező könyvre adott
+      //      válasz BÁJTRA azonos a létezőére adottal.
+      const ackReal = submitClaim({ store: w.store, clock: w.clock, claimantRef: 'masik@pelda.hu',
+        bookId: 'book_a', statement: 'x' });
+      const ackGhost = submitClaim({ store: w.store, clock: w.clock, claimantRef: 'harmadik@pelda.hu',
+        bookId: 'book_NEM_LETEZIK', statement: 'x' });
+      const b2Ok = JSON.stringify(ackReal) === JSON.stringify(ackGhost);
+
+      // (c) ELLENPÁR: a HATÁSKÖRÖS elbíráló LÁTJA — a szabály nem „mindenkit kizár".
+      const seen = readClaim({ store: w.store, viewerSubjectId: 'sub_adjudicator',
+        claimId: row.id, clock: w.clock });
+      const cOk = seen.ok === true && seen.claim.id === row.id;
+
+      // (c2) …de az ELBÍRÁLÁS önmagában NEM változtat jogot (a REV-N3a másik fele, itt ellenpárként).
+      const decided = adjudicateClaim({ store: w.store, actorSubjectId: 'sub_adjudicator',
+        claimId: row.id, decision: 'review', clock: w.clock });
+      const c2Ok = decided.ok === true && decided.changed_rights === false;
+
+      // (d) VISSZAÉLÉS-KORLÁT: a beadó SAJÁT viselkedéséről szól, tehát nevesíthető — és él.
+      let limited = null;
+      for (let i = 0; i < CLAIM_RATE.max + 1; i += 1) {
+        limited = submitClaim({ store: w.store, clock: w.clock, claimantRef: 'spam@pelda.hu',
+          bookId: 'book_a', statement: `x${i}` });
+      }
+      const dOk = limited && limited.accepted === false && limited.reason === 'rate_limited';
+
+      const pass = aOk && bOk && b2Ok && cOk && c2Ok && dOk;
+      return {
+        expected: 'a jelzés előtti és utáni olvasás AZONOS · a nemleges válasz azonos a nem létező '
+          + 'ügyével és a nem létező könyvével · a hatáskörös elbíráló LÁTJA · a korlát él',
+        actual: `(a) előtte=${JSON.stringify(beforeRead)} utána=${JSON.stringify(afterRead)} · `
+          + `(b) nem létező=${JSON.stringify(missing)} · (b2) nyugta azonos=${b2Ok} · `
+          + `(c) elbíráló látja=${seen.ok} · (c2) jogot nem mozdít=${!decided.changed_rights} · `
+          + `(d) korlát=${limited && limited.reason}`,
+        pass,
+        asserts: {
+          'A-REV-N3b-claim-grants-no-read': aOk && bOk && b2Ok && cOk,
+        },
+      };
+    } finally { w.store.close(); }
+  });
 
 // A FELÜLVIZSGÁLAT A FORRÁS-ÁLLAPOTHOZ KÖTÖTT. Ha a mai commit más, mint amin a felülvizsgálat
 // készült, a rekord NEM a mai kódra vonatkozik. A futtató megmondhatja, min fut

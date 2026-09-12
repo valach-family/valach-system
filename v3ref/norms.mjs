@@ -172,20 +172,19 @@ export const REVOCATION_NORMS = Object.freeze([
         text: 'A jog felfüggesztését vagy megvonását, a kifogás érdemi elbírálását és az abból '
           + 'következő jogváltoztatást csak az adott műveletre ellenőrzött hatáskörű alany végezheti. '
           + 'A jelzés fogadása külön művelet; arra az N3b és N3c irányadó.',
-        gap: 'A `revokeMembership` ma nem kérdez hatáskört a HÍVÓTÓL — a magreferencia szintjén a '
-          + 'megvonás bemenetnek számít, tehát bárki „megvonhatna". A jogosulatlan kifogás elleni '
-          + 'kapu nincs megépítve. A hatáskör MŰVELETENKÉNT értendő (felfüggesztés ⇄ elbírálás ⇄ '
-          + 'jogváltoztatás): egy általános „bíráló" jelölés nem elég, mert akkor a legszűkebb '
-          + 'felhatalmazás a legtágabb hatást adná.',
+        // MEGÉPÜLVE (R65 §7 · req-2 1. lépés): `adjudication.mjs` (ADJ-01) — a hatáskör MŰVELETENKÉNT
+        // áll (`suspend` ⇄ `adjudicate` ⇄ `alter_right`), a `revokeMembership` fail-closed módon
+        // `alter_right`-ot kér, és a szűkebb felhatalmazás bizonyítottan NEM ad tágabb hatást.
+        gap: null,
       }),
       Object.freeze({
         id: 'REV-N3b',
         covers: Object.freeze(['K05', 'K09']),
         text: 'A kifogás BEJELENTÉSE nem ad hozzáférést a vitatott adatokhoz: a bejelentő attól, '
           + 'hogy állít valamit, nem lesz olvasó.',
-        gap: 'Nincs kifogás-fogalom, tehát nincs mihez kötni az olvasási tilalmat. A veszély a '
-          + 'KUKA-085 alakja: visszavonható ENGEDÉLYT lehet építeni, visszavonható MEGISMERÉST nem '
-          + '— ezért ezt a klauzulát a bejelentés bevezetése ELŐTT kell megépíteni, nem utána.',
+        // MEGÉPÜLVE (req-2 2. lépés), és a MENETREND szerint: a `readClaim` olvasás-kapuja a
+        // bejelentés-út élesítésével EGYÜTT került be, nem utána (KUKA-085 · KUKA-077).
+        gap: null,
       }),
       Object.freeze({
         id: 'REV-N3c',
@@ -193,10 +192,10 @@ export const REVOCATION_NORMS = Object.freeze([
         text: 'A BEJELENTÉS ÚTJA NYITVA ÁLL a még nem igazolt panaszosnak is: a jelzés fogadása '
           + 'megengedett, a válasz SEMLEGES (nem árulja el, létezik-e az ügy), és visszaélés-korlát '
           + 'védi. A jelzés nem művelet a jogon.',
-        gap: 'Nincs bejelentés-fogadó út a magban, tehát se a semleges válasz, se a visszaélés-korlát '
-          + 'nem mérhető. A klauzula az R55 §7 korrekciójából született, és a REV-N3a hatáskör-'
-          + 'modelljével EGYÜTT kell megépülnie — külön-külön mindkettő félrevezető: hatáskör nélkül '
-          + 'a bejelentés jogot mozdítana, bejelentés nélkül a hatáskör elfojtja a jelzést.',
+        // MEGÉPÜLVE (req-2 1. lépés), a REV-N3a-val EGYÜTT, ahogy ez a gap-szöveg előírta:
+        // `submitClaim` — nyitott út, BÁJTRA azonos semleges nyugta (a nem létező könyvre is),
+        // beadónkénti visszaélés-korlát, és a jelzés semmilyen jogot nem mozdít.
+        gap: null,
       }),
     ]),
   }),
@@ -436,11 +435,18 @@ export const NORM_FLOORS = Object.freeze({
  * nyitott, és a lánc kimondja. A készlet bővítése tudatos lépés, nem mellékhatás.
  */
 export const REQUIRED_EVIDENCE = Object.freeze({
-  version: 'req-1',
-  since: 'R58',
-  clauses: Object.freeze(['REV-N1a', 'REV-N1b', 'ORG-N2a']),
-  why: 'ez a három klauzula az, amire ma bizonyítékot VÁLLALUNK (a mutációs battéria megbuktatja a '
+  version: 'req-2',
+  since: 'R65',
+  clauses: Object.freeze(['REV-N1a', 'REV-N1b', 'ORG-N2a', 'REV-N3a', 'REV-N3b', 'REV-N3c']),
+  why: 'ez a HAT klauzula az, amire bizonyítékot VÁLLALUNK (a mutációs battéria megbuktatja a '
     + 'deklarált állításukat). A többi klauzula nyitott — a hiányuk nem futási hiba, de kimondott.',
+  // A BŐVÍTÉS TUDATOS LÉPÉS, nem mellékhatás (KUKA-045). A feltételt az R60 ELŐRE kimondta:
+  // „mind a három klauzulának van olyan mutációs bizonyítéka, ami a SAJÁT deklarált állítását
+  // buktatja meg" — MÉRVE (R65): REV-N3a és REV-N3c ⇒ M50 · REV-N3b ⇒ M53. Innentől a hiányuk
+  // FUTÁSI HIBA, nem nevesített nyitottság: aki visszabontja a hatáskör- vagy az olvasás-kaput,
+  // annak PIROS a futása, nem „eggyel kevesebb fedett klauzula".
+  promoted_in: 'R65',
+  promoted_because: 'a req-2 feltétele MÉRVE teljesült: REV-N3a ⇒ M50 · REV-N3b ⇒ M53 · REV-N3c ⇒ M50',
 });
 
 /**
@@ -460,60 +466,65 @@ export const REQUIRED_EVIDENCE = Object.freeze({
  * nem emlékeztető, hanem MENETREND).
  */
 export const NEXT_REQUIRED_EVIDENCE = Object.freeze({
-  version: 'req-2',
-  committed_in: 'R60',
-  clauses: Object.freeze(['REV-N3a', 'REV-N3b', 'REV-N3c']),
+  version: 'req-3',
+  committed_in: 'R65',
+  clauses: Object.freeze(['REV-N5a', 'REV-N5b', 'REV-N5c']),
   becomes_required_when: 'mind a három klauzulának van olyan mutációs bizonyítéka, ami a SAJÁT '
-    + 'deklarált állítását buktatja meg — addig a `req-1` a kötelező készlet, és ezek NYITOTTAK',
+    + 'deklarált állítását buktatja meg — addig a `req-2` a kötelező készlet, és ezek NYITOTTAK',
+  // A SORREND AZ R53 §7-BŐL JÖN, változatlanul: REV-N3 → REV-N5 → REV-N2 → ORG-N1 → ORG-N3 → REV-N4.
+  // A REV-N3 az R65-ben lezárult (req-2), tehát a soron következő a REV-N5 — a CÉLZOTT TILTÁS.
+  //
+  // MIÉRT A REV-N5 A KÖVETKEZŐ, ÉS NEM A REV-N2. A REV-N5c saját gap-szövege kimondja, hogy a
+  // klauzula a tiltás-fogalom nélkül MÉRETLEN, tehát KUKA-051 szerint ZÖLDNEK LÁTSZANA — egy
+  // méretlen klauzula pedig veszélyesebb, mint egy kimondottan nyitott. A REV-N2 idő-modellje
+  // ezen felül a tiltás fajtáira is épít (mikortól, mire), tehát utána jön.
   order: Object.freeze([
     Object.freeze({
       n: 1,
-      clauses: Object.freeze(['REV-N3a', 'REV-N3c']),
-      what: 'MŰVELETENKÉNTI hatáskör-fogalom ÉS a jelzés-fogadó út — EGYSZERRE',
-      situation: 'Egy volt beszállító azt állítja, hogy a márciusi meghatalmazás hibás volt, és '
-        + 'kéri a hozzáférése visszaállítását. Nincs igazolt jogviszonya a céggel.',
-      property: 'a jelzését FOGADJA a rendszer (semleges válasszal, visszaélés-korláttal), de a '
-        + 'jelzés önmagában NEM függeszt fel, NEM bírál el és NEM változtat jogot; a felfüggesztést '
-        + 'kérő hívónak az ADOTT MŰVELETRE kell hatáskört igazolnia',
-      proof: 'P-REV-authority: (a) hatáskör nélküli felfüggesztés-kérés NEVEZETT elutasítás · '
-        + '(b) egy másik műveletre szóló hatáskör NEM elég (a legszűkebb felhatalmazás nem adhat '
-        + 'tágabb hatást) · (c) a jelzés fogadása hatáskör NÉLKÜL is sikeres, és semmit nem mozdít. '
-        + 'Mutáció: a hatáskör-ellenőrzés kivétele · a művelet-szűkítés kivétele · a jelzés-út '
-        + 'hatáskörhöz kötése (ez utóbbi a REV-N3c-t buktatja, tehát ELLENPÁR is).',
+      clauses: Object.freeze(['REV-N5b']),
+      what: 'a tiltás FAJTÁI és az ok→hatókör leképezés — a fogalom ELŐBB, a hatás utána',
+      situation: 'Két, egymástól FÜGGETLEN cég könyve. (a) Egy munkatárs kilép az egyikből. '
+        + '(b) Ugyanannak a munkatársnak a HITELESÍTŐJE kompromittálódik.',
+      property: 'ugyanaz a szó („tiltás") KÉT KÜLÖNBÖZŐ hatókört kap, és a hatókört az OK választja '
+        + 'ki, nem egy általános szabály: a kilépés a másik könyvet NEM érinti, a kompromittált '
+        + 'hitelesítő viszont MINDENHOL tilos, ahol azzal lépnének be',
+      proof: 'P-REV-ban-scope: (a) kilépés ⇒ a másik könyv joga érintetlen · (b) kompromittált '
+        + 'hitelesítő ⇒ MINDKÉT könyvön tilos · (c) a fajta NEVEZETT, zárt halmazból (ismeretlen '
+        + 'fajta NEM „általános tiltás", hanem nem dönthető). Mutáció: a fajta→hatókör leképezés '
+        + 'kivétele (minden tiltás mindenhol hat — ez a KILÉPÉS esetét buktatja) · a hitelesítő-ág '
+        + 'könyvre szűkítése (ez a KOMPROMITTÁLÁS esetét buktatja).',
     }),
     Object.freeze({
       n: 2,
-      clauses: Object.freeze(['REV-N3b']),
-      what: 'a jelzés NEM ad olvasást a vitatott adatra — a bejelentés-út ÉLESÍTÉSE ELŐTT',
-      situation: 'Ugyanaz a volt beszállító a bejelentése után megnyitná a vitatott márciusi '
-        + 'árlistát, arra hivatkozva, hogy „az ügy róla szól".',
-      property: 'a bejelentő olvasási köre a jelzés ELŐTTI és UTÁNI állapotban AZONOS; a válasz nem '
-        + 'árulja el, létezik-e az ügy (a nemleges válasz azonos a nem létező ügyével — KUKA-084)',
-      proof: 'P-REV-claim-read: (a) a jelzés után ugyanaz a nemleges válasz · (b) a válasz-idő és a '
-        + 'hibakód sem függ a védett ténytől (csatorna-lista, nem hely-lista) · (c) ellenpár: a '
-        + 'HATÁSKÖRÖS elbíráló látja, tehát a szabály nem „mindenkit kizár". Mutáció: az olvasás-kapu '
-        + 'kivétele a jelzés utáni állapotban · a hibakód megkülönböztetése.',
+      clauses: Object.freeze(['REV-N5a']),
+      what: 'a tiltás MINDEN alkalmazható engedő úton hat — nem csak azon, amelyiken bevezették',
+      situation: 'A magban ma EGYETLEN engedő út van (tagság), ezért a klauzula nem is mérhető. '
+        + 'Előfeltétel: legalább KÉT engedő út (tagság ÉS a REV-N3-ban megépült hatáskör-út).',
+      property: 'egy alany-szintű tiltás a tagsági ÉS a hatásköri úton EGYSZERRE hat; a tiltás '
+        + 'bevezetésének HELYE nem szűkíti a hatását',
+      proof: 'P-REV-ban-paths: (a) a tagsági úton bevezetett tiltás a HATÁSKÖRI utat is zárja · '
+        + '(b) fordítva ugyanígy · (c) ellenpár: egy KÖNYV-hatókörű tiltás a másik könyv útjait NEM '
+        + 'zárja. Mutáció: a tiltás ellenőrzésének kivétele a MÁSODIK útról (a fél őr — KUKA-039).',
     }),
     Object.freeze({
       n: 3,
-      clauses: Object.freeze(['REV-N3a', 'REV-N3b', 'REV-N3c']),
-      what: 'TARTALMI jóváhagyás mind a háromra (content-review-2 rekord, feloldható hivatkozásokkal)',
-      situation: 'A fenti két élethelyzet a rekordba kerül — nem utólag kitalálva, hanem INNEN átvéve.',
-      property: 'a `content_review` állapota `current`, és a rekord a MOST rögzített élethelyzetet '
-        + 'nevezi meg; a hitelesség tengelye külön, ma nemlegesen áll',
-      proof: 'a jóváhagyás-rekord kötése a szerződés- és klauzula-lenyomathoz; a lenyomat változása '
-        + 'ELAVULTTÁ teszi (ezt a gépezet már méri) — a REV-N3a szövegének mostani javítása maga is '
-        + 'ELAVULTTÁ tenne minden korábbi rá szóló jóváhagyást, ha volna ilyen (ma nincs).',
+      clauses: Object.freeze(['REV-N5c']),
+      what: 'a tiltás nem érvényteleníti a múltat és nem törli MÁSOK jogát',
+      situation: 'A tiltott alany korábbi, szabályos műveletei és a KÖNYV többi jogosultjának joga.',
+      property: 'a tiltás után a korábbi parancs, nyugta és kiadás MINDEN mezője változatlan, és a '
+        + 'többi jogosult ugyanazt teheti, mint előtte (a REV-N1b tartalmi mércéjével mérve)',
+      proof: 'P-REV-ban-past: (a) tartalmi pillanatkép a tiltás előtt és után · (b) ellenpár: a '
+        + 'másik jogosult művelete ÁTMEGY. Mutáció: a tiltás TÖRLI a múltat · a tiltás a könyv '
+        + 'többi tagját is zárja.',
     }),
     Object.freeze({
       n: 4,
-      clauses: Object.freeze(['REV-N3a', 'REV-N3b', 'REV-N3c']),
-      what: 'a három klauzula BEEMELÉSE a kötelező készletbe (req-1 → req-2)',
+      clauses: Object.freeze(['REV-N5a', 'REV-N5b', 'REV-N5c']),
+      what: 'a három klauzula BEEMELÉSE a kötelező készletbe (req-2 → req-3)',
       situation: 'A következő kör futtatója zöldet mond — de csak akkor, ha ezek is állnak.',
-      property: 'a `REQUIRED_EVIDENCE.clauses` hatra nő, és a hiányuk innentől FUTÁSI HIBA, nem '
-        + 'nevesített nyitottság',
-      proof: 'a bővítés TUDATOS lépés (KUKA-045: a készlet nem kézzel léptetett szám, hanem kimondott '
-        + 'vállalás) — a `version` `req-2`-re vált, és a futás kiírja, mi került be.',
+      property: 'a `REQUIRED_EVIDENCE.clauses` kilencre nő, és a hiányuk innentől FUTÁSI HIBA',
+      proof: 'a bővítés TUDATOS lépés (KUKA-045) — a `version` `req-3`-ra vált, és a futás kiírja, '
+        + 'mi került be.',
     }),
   ]),
 });

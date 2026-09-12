@@ -399,4 +399,61 @@ export const MUTATIONS = [
       + "               WHERE actor = ? AND book_id = ?`, nowIso, subjectId, bookId);\n"
       + "    return Object.freeze({ ok: true, changed: true, reason: t.reason, effective_at: t.effective_at });" },
 
+
+  // ── REV-N3 — A HATÁSKÖR ÉS A BEJELENTÉS VISSZABONTÁSI KONTROLLJAI (req-2 · R65 §7) ─────────────
+  //
+  // A csomag terve (`NEXT_REQUIRED_EVIDENCE.order`, R60-ban ELŐRE rögzítve) NÉV SZERINT megmondta,
+  // mely mutációknak kell megbuktatniuk a három klauzulát: „a hatáskör-ellenőrzés kivétele · a
+  // művelet-szűkítés kivétele · a jelzés-út hatáskörhöz kötése (ez utóbbi a REV-N3c-t buktatja,
+  // tehát ELLENPÁR is)" és „az olvasás-kapu kivétele a jelzés utáni állapotban · a hibakód
+  // megkülönböztetése". Mind az öt itt áll — plusz egy hatodik, ami a SEMLEGES NYUGTÁT támadja.
+  //
+  // MIÉRT KÜLÖN MINDEGYIK. Egy több-állításos próba ÖSSZESÍTETT bukása nem igazolja mindegyik
+  // klauzulát (R55/F02 · KUKA-039): ha egyetlen mutáció mindhármat pirosra vinné, nem tudnánk, mit
+  // is mértünk. Ezért mutációnként MÁS ág törik el.
+
+  { id: 'M50', rule: 'K04/K09', catcher: 'P-REV-authority', expect: 'probe_fail',
+    what: 'REV-N3a — a HATÁSKÖR-ELLENŐRZÉS kivétele: a jogváltoztatás megint puszta bemenet',
+    file: 'authz.mjs',
+    from: "  if (!authority.allowed) {",
+    to: "  if (false) {" },
+
+  { id: 'M51', rule: 'K04/K09', catcher: 'P-REV-authority', expect: 'probe_fail',
+    what: 'REV-N3a — a MŰVELET-SZŰKÍTÉS kivétele: bármelyik hatáskör megteszi (a legszűkebb '
+      + 'felhatalmazás a legtágabb hatást adná)',
+    file: 'adjudication.mjs',
+    from: "    'SELECT * FROM adjudication_authority WHERE subject_id = ? AND book_id = ? AND operation = ?',\n    who, bookId, operation);",
+    to: "    'SELECT * FROM adjudication_authority WHERE subject_id = ? AND book_id = ?',\n    who, bookId);" },
+
+  { id: 'M52', rule: 'K05/K15', catcher: 'P-REV-authority', expect: 'probe_fail',
+    what: 'REV-N3c — a JELZÉS-ÚT HATÁSKÖRHÖZ KÖTÉSE: a még nem igazolt panaszos jelzése elakad '
+      + '(pont az a visszaélés-jelzés fojtódna el, amiért a klauzula van)',
+    file: 'adjudication.mjs',
+    from: "  const digest = digestOf(statement);",
+    to: "  const gate = adjudicationRightAt({ store, subjectId: ref, bookId, operation: 'adjudicate', clock });\n"
+      + "  if (!gate.allowed) return Object.freeze({ accepted: false, reason: gate.reason, message: gate.message });\n"
+      + "  const digest = digestOf(statement);" },
+
+  { id: 'M53', rule: 'K05/K09', catcher: 'P-REV-claim-read', expect: 'probe_fail',
+    what: 'REV-N3b — az OLVASÁS-KAPU kivétele a jelzés utáni állapotban: a bejelentő attól, hogy '
+      + 'állít valamit, olvasóvá válik',
+    file: 'adjudication.mjs',
+    from: "  if (!right.allowed) return CLAIM_NOT_AVAILABLE;",
+    to: "  if (!right.allowed && row.claimant_ref !== row.claimant_ref) return CLAIM_NOT_AVAILABLE;" },
+
+  { id: 'M54', rule: 'K05/K09', catcher: 'P-REV-claim-read', expect: 'probe_fail',
+    what: 'REV-N3b — a HIBAKÓD MEGKÜLÖNBÖZTETÉSE: a létező, de nem látható ügy MÁS választ ad, '
+      + 'mint a nem létező (a csatorna hordozza a védett bitet — KUKA-084)',
+    file: 'adjudication.mjs',
+    from: "  if (!row) return CLAIM_NOT_AVAILABLE;\n  const right = adjudicationRightAt({",
+    to: "  if (!row) return Object.freeze({ ok: false, error: 'no_such_claim' });\n  const right = adjudicationRightAt({" },
+
+  { id: 'M55', rule: 'K05/K15', catcher: 'P-REV-claim-read', expect: 'probe_fail',
+    what: 'REV-N3b — a SEMLEGES NYUGTA elárulja, létezik-e a könyv (a nem létező könyvre más '
+      + 'válasz megy)',
+    file: 'adjudication.mjs',
+    from: "  store.run('INSERT INTO claim_intake (claimant_ref, submitted_at) VALUES (?,?)', ref, nowIso);",
+    to: "  const bookRow = store.get('SELECT * FROM book WHERE id = ?', String(bookId == null ? '' : bookId));\n"
+      + "  if (!bookRow) return Object.freeze({ accepted: true, message: 'Nincs ilyen könyv.' });\n"
+      + "  store.run('INSERT INTO claim_intake (claimant_ref, submitted_at) VALUES (?,?)', ref, nowIso);" },
 ];

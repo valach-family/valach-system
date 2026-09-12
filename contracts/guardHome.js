@@ -35,7 +35,13 @@ const GUARD_HOME_CONTRACT_ID = 'GHM-01';
 // a megkerülő út · az arány mint teljesség-mérce), és mind a négy jele a V2 repóban FUT
 // (verify:matrix-profiles MPF03/08–13 + a board test:units). A V3-ban nincs board, tehát a
 // jelek ide nem hozhatók — a plafon emelése CSAK ilyenkor szabályos.
-const VS_HOMED_CEILING = 90;
+// 2026-09-12 (R65, D-VS-689): 90 → 92. UGYANAZ AZ INDOK, harmadszor kimondva, mert az ismétlődő
+// engedmény a legkönnyebben szokássá váló dolog: mindkét új tanulság a BOARD bizonyíték-útjáról
+// szól (a hitelesített szereplő · a fájl ≠ teszteset egység), és mindkettő jele a V2 repóban FUT
+// (verify:matrix-profiles MPF10/15/17 + a board test:units). A V3-nak nincs boardja, tehát a jelek
+// ide nem hozhatók. AMI VISZONT NEM ENGEDMÉNY: az e körben született MAG-munka (REV-N3a/b/c) jelei
+// ITT futnak — verify:v3ref, a P-REV-authority és P-REV-claim-read próbákkal, M50–M55 mutációval.
+const VS_HOMED_CEILING = 92;
 
 const GUARD_HOME = Object.freeze({
   'KUKA-113': Object.freeze({ home: 'v3', note: 'a jelek cél-fájljai ITT vannak — a jel FUT' }),
@@ -153,6 +159,8 @@ const GUARD_HOME = Object.freeze({
   'KUKA-112': Object.freeze({ home: 'vs', note: 'a BOARD bizonyíték-kapuja a V2 repóban él — a jel (verify:matrix-liveness MTX06 + board test:units) OTT fut' }),
   'KUKA-114': Object.freeze({ home: 'vs', note: 'a board BEFOGADÁSI SZERZŐDÉSE (EVC-01) a V2 repóban él — a jel (verify:matrix-profiles MPF12 + board egység-próbák) OTT fut' }),
   'KUKA-115': Object.freeze({ home: 'vs', note: 'az alkalmazhatóság-alap és a képesség-regiszter (CAP-01) a boardon él; a V3-oldali TANÚ-őr (verify:capability-witness) ehhez mér vissza' }),
+  'KUKA-119': Object.freeze({ home: 'vs', note: 'a futtató és a befogadási szerződés a boardon él — a jel (MPF17) OTT fut' }),
+  'KUKA-118': Object.freeze({ home: 'vs', note: 'a board hitelesítése és a közvetlen státusz-út a V2 repóban van — a jel (MPF10/MPF15) OTT fut' }),
   'KUKA-116': Object.freeze({ home: 'vs', note: 'a megkerülő HTTP-út és a kör-eszköz is a V2 repóban van — a jel (MPF10) OTT fut' }),
   'KUKA-117': Object.freeze({ home: 'vs', note: 'a darabszám-kapu és az eset-készlet a boardon él — a jel (MPF12/MPF13) OTT fut' }),
 });
