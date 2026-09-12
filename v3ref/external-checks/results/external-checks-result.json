@@ -1,8 +1,8 @@
 {
-  "at": "2026-09-12T11:06:18.744Z",
+  "at": "2026-09-12T11:06:48.776Z",
   "node": "v22.22.2",
   "source": {
-    "commit": "8c29bc5d35eb0e320c470fb8cc907e923ea855e9",
+    "commit": "1a8e2918031e15322c080e139c3b00149771d49f",
     "clean": true,
     "dirty_files": [],
     "note": "a lemásolt forrás a könyvelt állapoton áll"
@@ -33,7 +33,7 @@
       "by": "chatgpt-v3 — KÜLSŐ, független fél",
       "origin": "R61 (változatlanul, ahogy a boardon érkezett)",
       "exit": 0,
-      "ms": 378,
+      "ms": 351,
       "expected_cases": [
         "P03",
         "R01",
@@ -43,7 +43,7 @@
       "expected_from": "a külső fél R61-es kísérő lapja (§8 esetkészlet)",
       "evidence_file": "r60-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "8c29bc5d35eb0e320c470fb8cc907e923ea855e9",
+      "evidence_pin": "1a8e2918031e15322c080e139c3b00149771d49f",
       "total": 4,
       "present": [
         "P03",
@@ -67,7 +67,7 @@
       "by": "chatgpt-v3 — KÜLSŐ, független fél",
       "origin": "R59 (változatlanul, ahogy a boardon érkezett)",
       "exit": 0,
-      "ms": 7861,
+      "ms": 7997,
       "expected_cases": [
         "P01",
         "E05",
@@ -80,7 +80,7 @@
       "expected_from": "a külső fél R59-es kísérő lapja (§2 esetlista)",
       "evidence_file": "r58-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "8c29bc5d35eb0e320c470fb8cc907e923ea855e9",
+      "evidence_pin": "1a8e2918031e15322c080e139c3b00149771d49f",
       "total": 7,
       "present": [
         "P01",
@@ -107,7 +107,7 @@
       "by": "chatgpt-v3 — KÜLSŐ, független fél",
       "origin": "R57 (változatlanul, ahogy a boardon érkezett)",
       "exit": 0,
-      "ms": 8372,
+      "ms": 8996,
       "expected_cases": [
         "T01",
         "T02",
@@ -122,7 +122,7 @@
       "expected_from": "a külső fél R57-es kísérő lapja („T01–T05 · E01–E04\")",
       "evidence_file": "r56-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "8c29bc5d35eb0e320c470fb8cc907e923ea855e9",
+      "evidence_pin": "1a8e2918031e15322c080e139c3b00149771d49f",
       "total": 9,
       "present": [
         "T01",
@@ -143,7 +143,7 @@
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r57_r56-challenge.json",
       "stderr": [
-        "(node:23964) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:26182) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null
@@ -154,7 +154,7 @@
       "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
       "origin": "R56",
       "exit": 0,
-      "ms": 4701,
+      "ms": 4846,
       "expected_cases": [
         "C11-restated",
         "N10-restated",
@@ -165,7 +165,7 @@
       "expected_from": "az R56-os körünk jegyzőkönyve (az R55 öt esete)",
       "evidence_file": "restated.json",
       "evidence_present": true,
-      "evidence_pin": "8c29bc5d35eb0e320c470fb8cc907e923ea855e9",
+      "evidence_pin": "1a8e2918031e15322c080e139c3b00149771d49f",
       "total": 5,
       "present": [
         "C11-restated",
@@ -182,7 +182,7 @@
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r55_restated.json",
       "stderr": [
-        "(node:24791) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:27009) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null
@@ -193,7 +193,7 @@
       "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
       "origin": "R54",
       "exit": 0,
-      "ms": 511,
+      "ms": 495,
       "expected_cases": [
         "G01",
         "G02"
@@ -201,7 +201,7 @@
       "expected_from": "az R54-es körünk jegyzőkönyve (támadás + ellenpár)",
       "evidence_file": "f03-restated.json",
       "evidence_present": true,
-      "evidence_pin": "8c29bc5d35eb0e320c470fb8cc907e923ea855e9",
+      "evidence_pin": "1a8e2918031e15322c080e139c3b00149771d49f",
       "total": 2,
       "present": [
         "G01",
