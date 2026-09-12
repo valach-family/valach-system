@@ -21,7 +21,12 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 
-const out = { program: 'f03-restated.mjs', at: new Date().toISOString(), node: process.version, cases: [] };
+// A FUTÁS-KÖTÉS A RÉSZLETES EREDMÉNYBEN (R61/F02). A külső fél kimondta: „idegen forráshoz vagy
+// futáshoz kötött fájl ne adjon `complete_evidence: true` értéket". Ehhez a fájlnak MEG KELL NEVEZNIE,
+// melyik forrás-állapoton készült — ez a mi SAJÁT programunk, tehát a hiányt itt pótoljuk, nem
+// kivételt adunk rá a futtatóban (KUKA-048: a kivétel hatókörét a mérce dönti el, nem a fájl).
+const PIN = JSON.parse(readFileSync('./source-manifest.json', 'utf8')).commit;
+const out = { program: 'f03-restated.mjs', pin: PIN, at: new Date().toISOString(), node: process.version, cases: [] };
 
 function runCopy(patch) {
   const dir = mkdtempSync(join(tmpdir(), 'r53-f03r-'));

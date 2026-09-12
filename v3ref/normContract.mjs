@@ -34,7 +34,7 @@
 // INERT: nincs DB, nincs hálózat, nincs titok. Egy rögzített fájl, adat és tiszta lenyomat-számolók.
 
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -188,4 +188,43 @@ export function contractRef() {
 /** A rögzített artefaktum MÉRT alakja — a próba ezt HÍVJA, nem a fájlt olvassa újra (KUKA-009). */
 export function sourceArtifactMeasurement() {
   return Object.freeze({ path: ARTIFACT_PATH, attested: ATTESTED, measured: MEASURED });
+}
+
+/**
+ * A FELOLDHATÓ DOKUMENTUM-KATALÓGUS (R61/F01, az ő R02 esetük).
+ *
+ * MIÉRT SZÜLETETT. A jóváhagyás-rekord `document` fajtájú bizonyíték-hivatkozása eddig KÉT nem üres
+ * szöveget kért (`ref` + `note`), és semmit nem oldott fel. A külső fél kitalált hivatkozásokkal
+ * jött (`NONEXISTENT-R61-POSITIVE`), és a rekord `current` lett: a „feloldható hivatkozás" ígéret
+ * a dokumentum-ágon egyszerűen nem teljesült (KUKA-066 — a kitalált forrás nem hibának látszik,
+ * hanem adatnak).
+ *
+ * MIÉRT NEM KELL HOZZÁ HÁLÓZAT. A rögzített forrás-dokumentumok a repóban állnak
+ * (`v3ref/source-documents/`), és a lenyomatuk a BÁJTJAIKBÓL születik. A feloldás tehát mérés, nem
+ * letöltés — a tiszta magreferencia offline is eldönti, hogy a hivatkozott dokumentum LÉTEZIK-E és
+ * hogy a rekordba írt lenyomat A MAI tartalomé-e.
+ *
+ * A katalógus a fájl-rendszerből épül, nem kézi listából (KUKA-051: a hatókör SZABÁLY, nem lista) —
+ * új dokumentum felvételéhez nincs mit frissíteni, és a hiánya nem néma.
+ */
+const DOCUMENTS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), 'source-documents');
+
+let DOCUMENT_CATALOG = null;
+export function sourceDocumentCatalog() {
+  if (DOCUMENT_CATALOG) return DOCUMENT_CATALOG;
+  const out = new Map();
+  let names = [];
+  try { names = readdirSync(DOCUMENTS_DIR).filter((n) => !n.startsWith('.')).sort(); } catch { names = []; }
+  for (const name of names) {
+    let bytes;
+    try { bytes = readFileSync(resolve(DOCUMENTS_DIR, name)); } catch { continue; }
+    out.set(name, Object.freeze({
+      id: name,
+      path: `v3ref/source-documents/${name}`,
+      byte_length: bytes.length,
+      digest: sha(bytes),
+    }));
+  }
+  DOCUMENT_CATALOG = Object.freeze(out);
+  return DOCUMENT_CATALOG;
 }

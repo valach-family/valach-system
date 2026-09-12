@@ -16,6 +16,80 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3014 — A FELOLDÁS EXPLICIT ÁLLAPOT · a részletes eredmény a bizonyíték · és a kulcs EGY otthona
+
+- **Date:** 2026-09-12 · Lane: Claude-v3 (PR-VS-300 / STEP-002 / CMD-001, R61) · **forrás:** a KÜLSŐ
+  ELLENŐRZŐ FÉL (chatgpt-v3) R61-es programja és lapja, az operátor hozta át
+
+A kör **V2-repóban** végzett munkája (board-profil · figyelő-lefedettség · a `tests_run` kapu) a másik
+napló **D-VS-680** bejegyzésében áll. Itt a V3 magreferencia változásai.
+
+### 0. ELŐBB REPRODUKÁLÁS, UTÁNA JAVÍTÁS (KUKA-030)
+
+Az ő programjukat (`r61_chatgpt-v3.mjs`, 4005 bájt, 4 eset) VÁLTOZATLANUL a repóba tettem
+(`v3ref/external-checks/`), és lefuttattam, MIELŐTT bármihez nyúltam:
+
+| eset | reprodukált állapot |
+|---|---|
+| **P03** (pozitív ellenpár) | ✓ zöld — a helyes rekord `current` |
+| **R01** | ✗ a katalógus HIÁNYA némán átengedte a kitalált próba-nevet |
+| **R02** | ✗ a dokumentum-hivatkozás két szabad szöveg volt, semmit nem oldott fel |
+| **R03** | ✗ egyetlen végrehajtható bizonyíték nélkül is `current` lett |
+
+### 1. F01 — a feloldás EXPLICIT állapot (**KUKA-111**)
+
+**A hiba.** `if (catalog && catalog.assertions && …)` — aki nem adott feloldó-katalógust, annál a
+feloldás elmaradt. Ez **betűre ugyanaz a hiba-osztály, amit a KUKA-108-ban egy körrel korábban éppen
+én zártam le** — csak most a SAJÁT ÚJ ŐRÖMBE írtam bele.
+
+**A javítás első alakja a MÁSIK irányba bukott:** mind a három katalógus-részt feltétel nélkül
+megköveteltem, és ezzel az ő JOGOS P03 esetüket vittem pirosra (KUKA-049). A végleges alak:
+
+- `needs(part, name)` — a követelmény a hivatkozás FAJTÁJA szerint szól;
+- `resolutionCatalogShape(catalog, kindsUsed)` — csak a ténylegesen HASZNÁLT fajtákra mér;
+- `document` hivatkozás: `{document, digest, note}`, a MÉRT artefaktum-katalógushoz oldva
+  (`sourceDocumentCatalog()` a `normContract.mjs`-ben — `R32_board_v1.md`, 61040 bájt, visszamért
+  lenyomattal; hálózat nélkül);
+- `EXECUTABLE_REF_KINDS` — legalább EGY végrehajtható (próba vagy mutáció) hivatkozás kötelező;
+- **HATODIK állapot: `unresolved`** — a feloldhatatlanság nem néma zöld, és nem is a hibás alakkal
+  (`invalid`) összemosva.
+
+### 2. F02 — a stdout nem bizonyíték
+
+A külső futtató (EXT-01) eddig a folyó kimenetet is elfogadhatta végeredményként. Mostantól **a FÁJL
+az ítélet**: `auditEvidenceArtifact()` megköveteli, hogy a részletes eredmény-állomány létezzen,
+értelmezhető legyen, hordozza a deklarált kötés-mezőt a staged commithez, és ne mondjon ellent a
+stdoutnak — az utóbbi csak diagnosztika és elcsúszás-jelző.
+
+### 3. **KUKA-113** — a nyers vezérlő-karakter a forrásban
+
+A próba↔állítás összetett kulcsot KÉT hely építette, és az olvasó oldalon a szeparátor NYERS NUL
+bájtként állt a forrásban. Funkcionálisan minden működött; a `norms.mjs` viszont **bináris fájllá
+vált**: a kereső „binary file matches"-t mondott a tartalma helyett, és a saját, KUKA-hivatkozásokat
+kereső mérésem sem látott bele. Helyette EGY nevezett kulcs-építő — `assertionKey(probe, assertion)` —,
+amit az ÍRÓ (`run.mjs` katalógus) és az OLVASÓ (`norms.mjs` feloldó) egyaránt HÍV, menekülő alakkal.
+
+### Gépi jelek
+
+| jel | eredmény |
+|---|---|
+| `npm run verify:v3ref` | **28/28 PASS** · minden veszélyes mutáció a nevezett állítással észlelt · `P-NORM-evidence` 28 norma-kapu (n0–n28) |
+| `npm run verify:external-checks` | **5/5 program MEGFELEL · 27 eset · hatókör: full** — köztük az ő R61-es programjuk mind a négy esete |
+| `npm run verify:kuka` | **217/217 PASS** · 113 tanulság · őr-otthon: 25 `v3` · 86 `vs` (padló 86) · 2 nevezetten jel nélküli |
+
+**Visszacsúszás-próba, mind PIROS:** a nyers vezérlő-karakter visszatérése · a szeparátor kézi
+legépelése a katalógus-építőben · a feltételes katalógus-követelmény visszaállítása.
+
+### Tanulságok (a regiszterbe és a CLAUDE.md-be is bekerült)
+
+- **KUKA-111** — a feltételes követelmény nem követelmény; és a tükör-kérdés („ez a szigorítás
+  elutasítja-e a HELYES esetet?") ugyanolyan kötelező, ezért kell minden kapuhoz JOGOS POZITÍV eset,
+  lehetőleg a másik fél sajátja.
+- **KUKA-112** (a jele a V2 repóban fut, lásd D-VS-680) — a sikeres lefutás és a lefutás két külön tény.
+- **KUKA-113** — a forrás olvashatósága a helyesség része; az összetett kulcs szeparátora szerződés,
+  nem stílus.
+
+
 ## D-VS-3013 — Az R59 négy tétele javítva: a hiány nem felmentés
 
 **Kör:** CMD-VS-300-002-001 R59→R60 · sáv: **Claude-v3** · a külső fél (**chatgpt-v3**) független

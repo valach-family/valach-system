@@ -43,7 +43,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 // A PROGRAM-REGISZTER ÉS AZ ESET-SZEMLE KÜLÖN MODULBAN ÁLL (EXT-02, R59/F02), hogy a verifier
 // HÍVHASSA ugyanazt a döntést, amit a futtató használ — ne a forrás szövegét olvassa (KUKA-009).
-import { PROGRAMS, auditCases, runScope } from './case-manifest.mjs';
+import { PROGRAMS, auditCases, auditEvidenceArtifact, runScope } from './case-manifest.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));   // v3ref/external-checks
 const REF = resolve(HERE, '..');                        // v3ref
@@ -128,20 +128,17 @@ function stage(src) {
 // ── Az eredmény kiolvasása ──────────────────────────────────────────────────────────────────────
 // Mind a három program a szabvány kimenetre írja az esetek listáját, és a részleteset az
 // `evidence/` alá. A KETTŐ KÖZÜL a fájl az erősebb (teljes), a kimenet a gyors összegzés.
-function readCases(stdout, evidencePath) {
-  const parse = (text) => {
-    if (!text) return null;
-    const t = text.trim();
-    const at = Math.min(...['[', '{'].map((c) => (t.indexOf(c) < 0 ? Infinity : t.indexOf(c))));
-    if (!Number.isFinite(at)) return null;
-    try { return JSON.parse(t.slice(at)); } catch { return null; }
-  };
-  const fromFile = existsSync(evidencePath) ? parse(readFileSync(evidencePath, 'utf8')) : null;
-  const v = fromFile ?? parse(stdout);
-  if (!v) return null;
-  const cases = Array.isArray(v) ? v : (Array.isArray(v.cases) ? v.cases : null);
-  return cases;
+// A RÉSZLETES FÁJL AZ IGAZSÁG, A SZABVÁNY KIMENET DIAGNOSZTIKA (R61/F02). A régi alak a fájl
+// hiányában NÉMÁN visszaesett a kimenetre — így egy semmit nem futtató csonk „teljes bizonyítéknak"
+// látszott. Innentől a kettő KÜLÖN olvasódik, és az ítéletet a FÁJL hordozza.
+function parseJson(text) {
+  if (!text) return null;
+  const t = String(text).trim();
+  const at = Math.min(...['[', '{'].map((c) => (t.indexOf(c) < 0 ? Infinity : t.indexOf(c))));
+  if (!Number.isFinite(at)) return null;
+  try { return JSON.parse(t.slice(at)); } catch { return null; }
 }
+const casesOf = (v) => (Array.isArray(v) ? v : (v && Array.isArray(v.cases) ? v.cases : null));
 
 // ── Futtatás ────────────────────────────────────────────────────────────────────────────────────
 const src = measureSource();
@@ -167,19 +164,27 @@ for (const p of selected) {
   });
   const ms = Date.now() - t0;
   const evidencePath = join(dir, 'evidence', p.evidence);
-  const cases = readCases(q.stdout, evidencePath);
+  const exists = existsSync(evidencePath);
+  const parsed = exists ? parseJson(readFileSync(evidencePath, 'utf8')) : null;
+  const cases = casesOf(parsed);              // az ÍTÉLET a részletes fájlból
+  const stdoutCases = casesOf(parseJson(q.stdout)); // a kimenet csak diagnosztika és ellentmondás-szemle
 
   // A gépi eredmény a kimenő könyvtárba kerül — ezt kérte a külső fél („teljes, géppel olvasható").
   let saved = null;
-  if (existsSync(evidencePath)) {
+  if (exists) {
     saved = join(OUT, `${p.id}_${p.evidence}`);
     cpSync(evidencePath, saved);
   }
 
+  // AZ ARTEFAKTUM-SZEMLE (R61/F02). ELŐBB, mint az esetek: ha nincs részletes eredmény, nincs mit
+  // megítélni — a szabvány kimenet nem lép a helyébe.
+  const artifact = auditEvidenceArtifact(p, { exists, parsed, expectedCommit: src.commit, stdoutCases });
+
   // AZ ESET-SZEMLE (EXT-02). Nem az a kérdés, hogy amit KAPTUNK, az zöld-e, hanem hogy AZ ÉRKEZETT-E
   // MEG, aminek meg kellett — hiány · ismeretlen · duplikátum · rossz alak · bukás, mind külön szóval.
   const audit = auditCases(p, cases);
-  const ok = audit.ok && q.status === 0 && !q.error;
+  audit.problems.unshift(...artifact.problems);
+  const ok = artifact.ok && audit.ok && q.status === 0 && !q.error;
   if (q.status !== 0) audit.problems.push(`[${p.id}] a program NEM NULLÁVAL zárt (kilépés ${q.status})`);
   if (q.error) audit.problems.push(`[${p.id}] a futtatás elszállt: ${q.error.message || q.error}`);
 
@@ -187,6 +192,7 @@ for (const p of selected) {
     id: p.id, file: p.file, by: p.by, origin: p.origin,
     exit: q.status, ms,
     expected_cases: [...p.cases], expected_from: p.cases_source,
+    evidence_file: p.evidence, evidence_present: artifact.present, evidence_pin: artifact.pin,
     total: cases ? cases.length : null,
     present: audit.present, missing: audit.missing, unknown: audit.unknown,
     duplicate: audit.duplicate, failed: audit.failed,
@@ -201,7 +207,8 @@ for (const p of selected) {
   console.log(`            írta:      ${p.by} · ${p.origin}`);
   console.log(`            mit mér:   ${p.what}`);
   console.log(`            elvárt:    ${p.cases.length} eset (${p.cases.join(' · ')}) — forrás: ${p.cases_source}`);
-  console.log(`            eredmény:  ${cases ? `${audit.present.length - audit.failed.length}/${p.cases.length} eset zöld` : 'a kimenet nem értelmezhető'}`
+  console.log(`            eredmény:  ${cases ? `${audit.present.length - audit.failed.length}/${p.cases.length} eset zöld` : 'NINCS részletes eredmény'}`
+    + ` · részletes fájl: ${artifact.present ? `megvan (kötés: ${artifact.pin ? `${artifact.pin.slice(0, 12)}…` : 'NINCS'})` : 'HIÁNYZIK'}`
     + ` · kilépés ${q.status} · ${ms} ms`);
   for (const w of audit.problems) console.log(`            ELTÉRÉS:   ${w}`);
   for (const l of summary.at(-1).stderr) console.log(`            stderr:    ${l}`);

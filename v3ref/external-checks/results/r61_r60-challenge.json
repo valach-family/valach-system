@@ -1,0 +1,313 @@
+{
+  "pin": "8c29bc5d35eb0e320c470fb8cc907e923ea855e9",
+  "node": "v22.22.2",
+  "cases": [
+    {
+      "id": "P03",
+      "expected": "Known references pass structural/current binding check but remain unauthenticated.",
+      "pass": true,
+      "result": {
+        "state": "current",
+        "structural": "valid",
+        "binding": "matches",
+        "record_version": "content-review-2",
+        "by": "review-fixture",
+        "role": "independent-review",
+        "independent_of": "implementation-author",
+        "at": "2026-09-01T00:00:00.000Z",
+        "situation": "Fixture only: revoked permission.",
+        "property": "No new effect.",
+        "residual": "Fixture: identity and actual evidence execution are not authenticated.",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      }
+    },
+    {
+      "id": "R01",
+      "expected": "Unknown references must not become current merely by omitting the catalog.",
+      "pass": true,
+      "withCatalog": {
+        "state": "invalid",
+        "structural": "invalid",
+        "binding": "not_checked",
+        "why": "a jóváhagyás rekordja ROSSZ ALAKÚ — positive_evidence[0]: a manifest nem ismeri ezt a próba↔állítás párt (P-DOES-NOT-EXIST / A-DOES-NOT-EXIST) · negative_evidence[0]: a mutáció nincs a regiszterben (M-DOES-NOT-EXIST)",
+        "invalid": [
+          "positive_evidence[0]: a manifest nem ismeri ezt a próba↔állítás párt (P-DOES-NOT-EXIST / A-DOES-NOT-EXIST)",
+          "negative_evidence[0]: a mutáció nincs a regiszterben (M-DOES-NOT-EXIST)"
+        ],
+        "by": "review-fixture",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "withoutCatalog": {
+        "state": "unresolved",
+        "structural": "not_checked",
+        "binding": "not_checked",
+        "why": "a jóváhagyás bizonyíték-hivatkozásai NEM OLDHATÓK FEL — nincs feloldó-katalógus; a fel nem oldott hivatkozás nem kaphatja ugyanazt a minősítést, mint az ellenőrzött",
+        "by": "review-fixture",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      }
+    },
+    {
+      "id": "R02",
+      "expected": "Unresolved document strings cannot count as resolved evidence, even with a catalog.",
+      "pass": true,
+      "result": {
+        "state": "unresolved",
+        "structural": "not_checked",
+        "binding": "not_checked",
+        "why": "a jóváhagyás bizonyíték-hivatkozásai NEM OLDHATÓK FEL — a katalógusból hiányzik a dokumentum-katalógus; a fel nem oldott hivatkozás nem kaphatja ugyanazt a minősítést, mint az ellenőrzött",
+        "by": "review-fixture",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      }
+    },
+    {
+      "id": "R03",
+      "expected": "Without detailed evidence files, a full set of stdout-only pass summaries is not complete evidence.",
+      "pass": true,
+      "exit": 1,
+      "result": {
+        "at": "2026-09-12T11:05:57.279Z",
+        "node": "v22.22.2",
+        "source": {
+          "commit": "unknown",
+          "clean": null,
+          "dirty_files": [],
+          "note": "ez a könyvtár nem git-munkamásolat (vagy a git nem elérhető) — a commit BEMONDATLAN marad"
+        },
+        "scope": {
+          "complete": true,
+          "scope": "full",
+          "ran": [
+            "r61",
+            "r59",
+            "r57",
+            "r55",
+            "r53"
+          ],
+          "skipped": [],
+          "why": "MINDEN nyilvántartott program lefutott — ez a lánc teljes bizonyítéka"
+        },
+        "verdict": {
+          "ok": false,
+          "complete_evidence": false,
+          "green": 0,
+          "of": 5
+        },
+        "programs": [
+          {
+            "id": "r61",
+            "file": "r61_chatgpt-v3.mjs",
+            "by": "chatgpt-v3 — KÜLSŐ, független fél",
+            "origin": "R61 (változatlanul, ahogy a boardon érkezett)",
+            "exit": 0,
+            "ms": 45,
+            "expected_cases": [
+              "P03",
+              "R01",
+              "R02",
+              "R03"
+            ],
+            "expected_from": "a külső fél R61-es kísérő lapja (§8 esetkészlet)",
+            "evidence_file": "r60-challenge.json",
+            "evidence_present": false,
+            "evidence_pin": null,
+            "total": null,
+            "present": [],
+            "missing": [
+              "P03",
+              "R01",
+              "R02",
+              "R03"
+            ],
+            "unknown": [],
+            "duplicate": [],
+            "failed": [],
+            "problems": [
+              "[r61] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r60-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható",
+              "[r61] a program kimenete nem értelmezhető eset-listaként"
+            ],
+            "ok": false,
+            "saved": null,
+            "stderr": [],
+            "error": null
+          },
+          {
+            "id": "r59",
+            "file": "r59_chatgpt-v3.mjs",
+            "by": "chatgpt-v3 — KÜLSŐ, független fél",
+            "origin": "R59 (változatlanul, ahogy a boardon érkezett)",
+            "exit": 0,
+            "ms": 44,
+            "expected_cases": [
+              "P01",
+              "E05",
+              "E06",
+              "E07",
+              "E08",
+              "P02",
+              "E09"
+            ],
+            "expected_from": "a külső fél R59-es kísérő lapja (§2 esetlista)",
+            "evidence_file": "r58-challenge.json",
+            "evidence_present": false,
+            "evidence_pin": null,
+            "total": null,
+            "present": [],
+            "missing": [
+              "P01",
+              "E05",
+              "E06",
+              "E07",
+              "E08",
+              "P02",
+              "E09"
+            ],
+            "unknown": [],
+            "duplicate": [],
+            "failed": [],
+            "problems": [
+              "[r59] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r58-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható",
+              "[r59] a program kimenete nem értelmezhető eset-listaként"
+            ],
+            "ok": false,
+            "saved": null,
+            "stderr": [],
+            "error": null
+          },
+          {
+            "id": "r57",
+            "file": "r57_chatgpt-v3.mjs",
+            "by": "chatgpt-v3 — KÜLSŐ, független fél",
+            "origin": "R57 (változatlanul, ahogy a boardon érkezett)",
+            "exit": 0,
+            "ms": 46,
+            "expected_cases": [
+              "T01",
+              "T02",
+              "T03",
+              "T04",
+              "T05",
+              "E01",
+              "E02",
+              "E03",
+              "E04"
+            ],
+            "expected_from": "a külső fél R57-es kísérő lapja („T01–T05 · E01–E04\")",
+            "evidence_file": "r56-challenge.json",
+            "evidence_present": false,
+            "evidence_pin": null,
+            "total": null,
+            "present": [],
+            "missing": [
+              "T01",
+              "T02",
+              "T03",
+              "T04",
+              "T05",
+              "E01",
+              "E02",
+              "E03",
+              "E04"
+            ],
+            "unknown": [],
+            "duplicate": [],
+            "failed": [],
+            "problems": [
+              "[r57] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r56-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható",
+              "[r57] a program kimenete nem értelmezhető eset-listaként"
+            ],
+            "ok": false,
+            "saved": null,
+            "stderr": [],
+            "error": null
+          },
+          {
+            "id": "r55",
+            "file": "r55_restated.mjs",
+            "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
+            "origin": "R56",
+            "exit": 0,
+            "ms": 43,
+            "expected_cases": [
+              "C11-restated",
+              "N10-restated",
+              "F01-restated",
+              "N04-restated",
+              "D01-restated"
+            ],
+            "expected_from": "az R56-os körünk jegyzőkönyve (az R55 öt esete)",
+            "evidence_file": "restated.json",
+            "evidence_present": false,
+            "evidence_pin": null,
+            "total": null,
+            "present": [],
+            "missing": [
+              "C11-restated",
+              "N10-restated",
+              "F01-restated",
+              "N04-restated",
+              "D01-restated"
+            ],
+            "unknown": [],
+            "duplicate": [],
+            "failed": [],
+            "problems": [
+              "[r55] HIÁNYZIK a részletes eredmény-artefaktum (evidence/restated.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható",
+              "[r55] a program kimenete nem értelmezhető eset-listaként"
+            ],
+            "ok": false,
+            "saved": null,
+            "stderr": [],
+            "error": null
+          },
+          {
+            "id": "r53",
+            "file": "r53_f03_restated.mjs",
+            "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
+            "origin": "R54",
+            "exit": 0,
+            "ms": 48,
+            "expected_cases": [
+              "G01",
+              "G02"
+            ],
+            "expected_from": "az R54-es körünk jegyzőkönyve (támadás + ellenpár)",
+            "evidence_file": "f03-restated.json",
+            "evidence_present": false,
+            "evidence_pin": null,
+            "total": null,
+            "present": [],
+            "missing": [
+              "G01",
+              "G02"
+            ],
+            "unknown": [],
+            "duplicate": [],
+            "failed": [],
+            "problems": [
+              "[r53] HIÁNYZIK a részletes eredmény-artefaktum (evidence/f03-restated.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható",
+              "[r53] a program kimenete nem értelmezhető eset-listaként"
+            ],
+            "ok": false,
+            "saved": null,
+            "stderr": [],
+            "error": null
+          }
+        ]
+      },
+      "stdout": "\nV3 MAGREFERENCIA — KÜLSŐ ELLENŐRZŐ PROGRAMOK (EXT-01)\n========================================================================================\n  forrás commit:  unknown\n  forrás állapot: ez a könyvtár nem git-munkamásolat (vagy a git nem elérhető) — a commit BEMONDATLAN marad\n  munkakönyvtár:  /tmp/v3ref-ext-U3IknX\n  gépi eredmény:  /tmp/r61-G4IM4L/out\n  node:           v22.22.2\n\n  ELTÉRÉS   [r61] r61_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R61 (változatlanul, ahogy a boardon érkezett)\n            mit mér:   P03 pozitív ellenpár · R01–R03: a bizonyíték-hivatkozás tényleges FELOLDÁSA és a részletes eredmény-artefaktum kötelezősége\n            elvárt:    4 eset (P03 · R01 · R02 · R03) — forrás: a külső fél R61-es kísérő lapja (§8 esetkészlet)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 45 ms\n            ELTÉRÉS:   [r61] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r60-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r61] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r59] r59_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R59 (változatlanul, ahogy a boardon érkezett)\n            mit mér:   P01 · P02 pozitív ellenpár · E05–E09: az elvárás-séma, az eredmény-séma, a futtató és a jóváhagyás-rekord megkerülhetősége\n            elvárt:    7 eset (P01 · E05 · E06 · E07 · E08 · P02 · E09) — forrás: a külső fél R59-es kísérő lapja (§2 esetlista)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 44 ms\n            ELTÉRÉS:   [r59] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r58-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r59] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r57] r57_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R57 (változatlanul, ahogy a boardon érkezett)\n            mit mér:   T01–T05: az R56-ban tett pecsét-állítások · E01–E04: a bizonyíték-kapu megkerülhetősége\n            elvárt:    9 eset (T01 · T02 · T03 · T04 · T05 · E01 · E02 · E03 · E04) — forrás: a külső fél R57-es kísérő lapja („T01–T05 · E01–E04\")\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 46 ms\n            ELTÉRÉS:   [r57] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r56-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r57] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r55] r55_restated.mjs\n            írta:      Claude-v3 — a SAJÁT sávunk (önvizsgálat) · R56\n            mit mér:   az R55 öt esete újrafogalmazva a mai szerződésre, mindegyikhez ellenpárral\n            elvárt:    5 eset (C11-restated · N10-restated · F01-restated · N04-restated · D01-restated) — forrás: az R56-os körünk jegyzőkönyve (az R55 öt esete)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 43 ms\n            ELTÉRÉS:   [r55] HIÁNYZIK a részletes eredmény-artefaktum (evidence/restated.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r55] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r53] r53_f03_restated.mjs\n            írta:      Claude-v3 — a SAJÁT sávunk (önvizsgálat) · R54\n            mit mér:   az R53/F03 támadás egyenértékű alakja (G01) + érintetlen ellenpár (G02)\n            elvárt:    2 eset (G01 · G02) — forrás: az R54-es körünk jegyzőkönyve (támadás + ellenpár)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 48 ms\n            ELTÉRÉS:   [r53] HIÁNYZIK a részletes eredmény-artefaktum (evidence/f03-restated.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r53] a program kimenete nem értelmezhető eset-listaként\n\n========================================================================================\n  hatókör:        full — MINDEN nyilvántartott program lefutott — ez a lánc teljes bizonyítéka\n  összesítő fájl: /tmp/r61-G4IM4L/out/external-checks-result.json\nRESULT: 0/5 program MEGFELEL — ELTÉRÉS: r61 · r59 · r57 · r55 · r53\n\n",
+      "stderr": ""
+    }
+  ]
+}

@@ -5296,6 +5296,135 @@ const RETIRED_PATTERNS = Object.freeze([
     ]),
   }),
 
+  Object.freeze({
+    id: 'KUKA-111',
+    date: '2026-09-12',
+    title: 'A FELTÉTELES KÖVETELMÉNY — a saját, egy körrel korábbi javításomat írtam újra hibásan',
+    what: 'Az R59-ben megépített bizonyíték-hivatkozás feloldása `if (catalog && catalog.assertions && '
+      + '…)` alakban állt: aki NEM adott feloldó-katalógust, annál a feloldás egyszerűen ELMARADT, és '
+      + 'egy KITALÁLT próba-névre épülő tartalmi jóváhagyás `current` lett. A külső fél R61-es programja '
+      + 'ezt a három esetet (R01 · R02 · R03) pontosan itt nyitotta fel.',
+    why_wrong: 'Ez BETŰRE ugyanaz a hiba-osztály, amit a KUKA-108-ban éppen én zártam le egy körrel '
+      + 'korábban — csak akkor a MEGLÉVŐ kódban találtam meg, most a SAJÁT ÚJ ŐRÖMBE írtam bele. A '
+      + 'feltételes követelmény nem követelmény: a hiányzó bemenet nem gyengítheti a szabályt, mert a '
+      + 'gyengülés NÉMA (a zöld válasz semmivel nem mondja meg, hogy a feloldás elmaradt — KUKA-012 a '
+      + 'kapun). A javítás első alakja viszont a MÁSIK irányba bukott: mind a három katalógus-részt '
+      + 'FELTÉTEL NÉLKÜL megköveteltem, és ezzel a külső fél JOGOS pozitív ellenpárját (P03, ami csak '
+      + 'próba- és mutáció-hivatkozást használ) PIROSRA vittem — az őr, ami a kért eredményt jelenti '
+      + 'kudarcnak (KUKA-049).',
+    replaced_by: 'FAJTÁNKÉNTI, KIMONDOTT KÖVETELMÉNY: a `needs(part, name)` feloldó a hivatkozás FAJTÁJA '
+      + 'szerint kéri a katalógus-részt (próba ⇒ állítás-készlet · mutáció ⇒ mutáció-regiszter · '
+      + 'dokumentum ⇒ dokumentum-katalógus), a `resolutionCatalogShape(catalog, kindsUsed)` pedig CSAK a '
+      + 'ténylegesen HASZNÁLT fajtákra mér. A feloldhatatlanság HATODIK, nevezett állapot: `unresolved` '
+      + '— nem néma zöld, és nem is a hibás alakkal (`invalid`) összemosva.',
+    decision: 'D-VS-3014',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R61 — R01/R02/R03); a TÚLKÖVETELÉST viszont a SAJÁT '
+      + 'reprodukciónk fogta meg: az ő pozitív P03 esetük pirosra váltott a javításom első alakján.',
+    lesson: 'AMIT EGY KÖRREL EZELŐTT MEGTANULTAM, AZT AZ ÚJ KÓDOMBAN IS BE KELL TARTANI — a tanulság a '
+      + 'HIBA-OSZTÁLYRA szól, nem arra a fájlra, ahol először láttam (KUKA-051 a tanulságok hatókörére). '
+      + 'Új őr írásakor kötelező visszakérdezni: „ezt a szabályt kikapcsolja-e valamilyen hiányzó '
+      + 'bemenet?" — és ha igen, a hiány NEVEZETT ÁLLAPOT legyen, ne csend. A tükör-kérdés ugyanolyan '
+      + 'kötelező: „ez a szigorítás elutasítja-e a HELYES esetet?" — ezért kell a kapuhoz mindig egy '
+      + 'JOGOS POZITÍV ellenpár, lehetőleg a másik fél sajátja, nem az én kitalált példám (KUKA-033/054).',
+    guard_note: 'gépi jel: `npm run verify:v3ref` → `P-NORM-evidence` **n27** (a feltételes alak és a '
+      + 'túlkövetelés MINDKÉT irányban mérve, a hatodik állapottal együtt) + `npm run '
+      + 'verify:external-checks` **r61** — a külső fél NÉGY esete (P03 pozitív · R01 · R02 · R03) a '
+      + 'lánc része, tehát a visszacsúszás az ő SAJÁT programjukon lesz piros, nem a miénken.',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: 'if \\(catalog && catalog\\.assertions &&',
+        reason: 'a feltételes feloldás-követelmény nem térhet vissza — a hiányzó katalógus NEVEZETT állapot (KUKA-111)' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: 'function resolutionCatalogShape',
+        reason: 'a katalógus-követelmény a HASZNÁLT fajtákra szól, nevezett feloldóban' }),
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: "'unresolved'",
+        reason: 'a feloldhatatlanság külön, kimondott állapot — nem néma zöld' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-112',
+    date: '2026-09-12',
+    title: 'A NULLA ESET MINT BIZONYÍTÉK — a nulla kilépési kód zöldre vitte a mátrix-tételt',
+    what: 'A board bizonyíték-kapuja a gépi TESZT tételeken ennyit nézett: `exit_code === 0 → ok`. Egy '
+      + 'böngésző-próba, ami MINDEN esetet kihagyott (nincs böngésző, nincs szerver, nem illeszkedő '
+      + 'szűrő), NULLÁVAL zár — tehát a tétel zöldre ment. Ugyanez állt minden `verify:*` / `smoke:*` '
+      + 'tételre: a „lefutott és nem hibázott" meg az „el sem indult" UGYANAZT a kilépési kódot adja.',
+    why_wrong: 'A kilépési kód a FUTTATÓ épségéről szól, nem a MÉRÉSRŐL. A kettőt egy csatornára téve a '
+      + 'mátrix pont abban az esetben mond igent, amikor semmit nem tudunk — és a hazugság néma: nincs '
+      + 'hiba, nincs piros, csak egy pipa (KUKA-012 a mérőn). A rendszer-szintű kár, hogy a hiányzó '
+      + 'mérőkörnyezet így NEM jelenik meg hiányként, tehát senki nem pótolja (KUKA-089), a valódi '
+      + 'tesztelés terhe pedig csendben átcsúszik az operátorra — épp az ellenkezője annak, amit a '
+      + 'mátrix ígér (KUKA-041: a díszpipa sikert jelent arról, ami meg sem történt).',
+    replaced_by: 'NEVEZETT KAPU (`testRunProblem`) az ingest-úton: a gépi TESZT tétel csak akkor mehet '
+      + 'zöldre, ha a bizonyíték megmondja, HÁNY ESET FUTOTT LE (`tests_run`) — a hiányzó, a nulla, a '
+      + 'nem-szám és a mindent-kihagyó (`tests_skipped >= tests_run`) alak MIND elutasítva, MONDATTAL. A '
+      + 'valódi környezet-hiány útja NEVEZETT: `status: not_applicable` + indok, LÁTHATÓAN. A kapu csak '
+      + 'a GÉPI bizonyítékra szól — az operátori ítélet emberi tekintély, marad egy kattintás.',
+    decision: 'D-VS-680',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R61 §5): „Környezethiány, skip és el sem indult '
+      + 'böngésző ne legyen PASS."',
+    lesson: 'A SIKERES LEFUTÁS ÉS A LEFUTÁS KÉT KÜLÖN TÉNY — és amíg egy csatornán mennek, a rendszer a '
+      + 'semmit is sikernek olvassa. Minden gépi kapunál meg kell kérdezni: mi az a MÉRT MENNYISÉG, ami '
+      + 'nélkül a zöld tartalmatlan? És a kapu ott ér véget, ahol a HÍVÓ MEGTUDJA, mit küldjön: a '
+      + 'mezőnév bekerült a mátrix-tájékoztatóba MINDKÉT nyelven, és a felületen is van hova beírni — '
+      + 'különben a szigorítás zsákutca lenne (KUKA-064).',
+    guard_note: 'gépi jel: `npm run verify:matrix-liveness` **MTX06** a V2 repóban (a feloldót HÍVJA: '
+      + 'négy hamis-zöld alak elutasítva · öt jogos út átengedve · a kapu HÍVVA az ingest-útból · a '
+      + 'tájékoztató mindkét nyelven nevezi a mezőt) + a board `test:units` → `evidence.test.mjs` '
+      + '(24 eset). Mindhárom visszacsúszás — a kapu kivétele · a mezőnév eltávolítása a tájékoztatóból '
+      + '· a régi exit_code-alak — bizonyítottan PIROS.',
+    forbidden: Object.freeze([]),
+    positive: Object.freeze([]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-113',
+    date: '2026-09-12',
+    title: 'A NYERS VEZÉRLŐ-KARAKTER A FORRÁSBAN — a fájl binárissá vált, és a kereső megvakult rá',
+    what: 'A próba↔állítás összetett kulcsot KÉT hely építette: a katalógus ÍRÓJA a futásban és az '
+      + 'OLVASÓ a feloldóban — az utóbbiban a szeparátor NYERS NUL bájtként került a forrásba. A két '
+      + 'oldal funkcionálisan egyezett, tehát semmi nem hibázott; a `norms.mjs` viszont BINÁRIS fájllá '
+      + 'vált: a kereső „binary file matches"-t mondott a tartalma helyett, a diff használhatatlan lett, '
+      + 'és a KUKA-hivatkozásokat kereső saját mérésem sem látott bele.',
+    why_wrong: 'Két külön baj egy helyen. (1) EGY fogalomnak KÉT ábrázolása: a szeparátort mindkét oldal '
+      + 'a maga kezével írta, tehát némán elcsúszhattak volna — és az elcsúszás nem hibázik, csak '
+      + 'MINDIG „nem ismeri" választ ad (KUKA-018/024). (2) A nyers vezérlő-karakter a SZÁLLÍTÁST '
+      + 'sérti: bármely szöveg-normalizáló, sorvég-átalakító vagy szerkesztő némán eltörhette volna a '
+      + 'kulcs-egyezést, és a keresőeszközök elől eltakarta az EGÉSZ fájlt — a mérés hatóköréből '
+      + 'kiesett egy 1700 soros modul, anélkül hogy bárki jelezte volna (KUKA-051).',
+    replaced_by: 'EGY NEVEZETT KULCS-ÉPÍTŐ (`assertionKey(probe, assertion)`), amit az ÍRÓ és az OLVASÓ '
+      + 'egyaránt HÍV, és a szeparátor LÁTHATÓ menekülő alakban áll — ugyanaz a karakter, de olvasható, '
+      + 'kereshető és hordozható forrásban.',
+    decision: 'D-VS-3014',
+    found_by: 'a SAJÁT mérésem, közvetve: a KUKA-hivatkozásokat kereső keresés „binary file matches"-t '
+      + 'írt a norms.mjs helyett — a söprés végig zöld volt, mert funkcionálisan semmi nem romlott el.',
+    lesson: 'A FORRÁS OLVASHATÓSÁGA A HELYESSÉG RÉSZE. Egy „működik" jelző semmit nem mond arról, hogy a '
+      + 'kódot a KÖVETKEZŐ kör (vagy a saját mérőeszközöm) meg tudja-e nézni; a nyers vezérlő-karakter '
+      + 'némán kiveszi a fájlt minden szöveg-alapú mérés hatóköréből. És ahol két hely ugyanazt az '
+      + 'ÖSSZETETT KULCSOT építi, ott a szeparátor nem stílus-kérdés, hanem szerződés: nevezett '
+      + 'feloldóba tartozik, amit mindkét oldal hív.',
+    guard_note: 'gépi jel: `npm run verify:kuka` → a KUKA-113 tiltó-mintája a nyers vezérlő-karakterre a '
+      + 'v3ref forrásfájljaiban (a minta MENEKÜLŐ alakban áll a regiszterben, hogy maga a regiszter is '
+      + 'olvasható maradjon) + a pozitív minta az `assertionKey` hívására MINDKÉT oldalon.',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/norms.mjs', 'v3ref/run.mjs'],
+        pattern: '\\x00',
+        reason: 'nyers vezérlő-karakter a forrásban binárissá teszi a fájlt — menekülő alak kell (KUKA-113)' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: 'export function assertionKey',
+        reason: 'az összetett kulcs EGY nevezett otthonban épül' }),
+      Object.freeze({ paths: ['v3ref/run.mjs'],
+        pattern: 'assertionKey\\(p\\.id',
+        reason: 'a katalógus ÍRÓJA is a közös feloldót hívja, nem gépeli le a szeparátort' }),
+    ]),
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

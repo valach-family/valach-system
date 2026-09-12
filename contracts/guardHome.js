@@ -25,9 +25,16 @@ const GUARD_HOME_CONTRACT_ID = 'GHM-01';
 // A V2-ben honos jelek MAI száma. Ez a valóság rögzítése, nem cél — lásd fent.
 // 2026-09-11 (D-VS-678): 83 → 84. NEM elmaradt átköltöztetés: a KUKA-106 a BOARD indulási útjáról
 // szól, a board pedig a V2 repóban él — a jele ott FUT (verify:lanes LAN07), tehát ide nem hozható.
-const VS_HOMED_CEILING = 85;
+// 2026-09-12 (D-VS-680): 85 → 86. UGYANEZ AZ INDOK, nem új engedmény: a KUKA-112 a board
+// bizonyíték-kapujáról szól (a nulla eset nem bizonyíték), a kapu és a jele (verify:matrix-liveness
+// MTX06 + a board test:units) a V2 repóban FUT — ide nem hozható, mert a V3-nak nincs boardja.
+// A plafon emelése CSAK ilyenkor szabályos: ha az új jel HELYE valóban a V2, nem pedig elmaradt
+// átköltöztetés. Az e körben született másik két tanulság (KUKA-111 · KUKA-113) a V3-ban fut.
+const VS_HOMED_CEILING = 86;
 
 const GUARD_HOME = Object.freeze({
+  'KUKA-113': Object.freeze({ home: 'v3', note: 'a jelek cél-fájljai ITT vannak — a jel FUT' }),
+  'KUKA-111': Object.freeze({ home: 'v3', note: 'a jelek cél-fájljai ITT vannak — a jel FUT' }),
   'KUKA-110': Object.freeze({ home: 'v3', note: 'a jelek cél-fájljai ITT vannak — a jel FUT' }),
   'KUKA-109': Object.freeze({ home: 'v3', note: 'a jelek cél-fájljai ITT vannak — a jel FUT' }),
   'KUKA-108': Object.freeze({ home: 'v3', note: 'a jelek cél-fájljai ITT vannak — a jel FUT' }),
@@ -138,6 +145,7 @@ const GUARD_HOME = Object.freeze({
   'KUKA-040': Object.freeze({ home: 'vs', note: 'a jelek a V2 fájljaira mutatnak (vs repó) — itt NEM fut' }),
   'KUKA-052': Object.freeze({ home: 'vs', note: 'a jelek a V2 fájljaira mutatnak (vs repó) — itt NEM fut' }),
   'KUKA-056': Object.freeze({ home: 'vs', note: 'a jelek a V2 fájljaira mutatnak (vs repó) — itt NEM fut' }),
+  'KUKA-112': Object.freeze({ home: 'vs', note: 'a BOARD bizonyíték-kapuja a V2 repóban él — a jel (verify:matrix-liveness MTX06 + board test:units) OTT fut' }),
 });
 
 function homeOf(id) { return (GUARD_HOME[id] || null); }

@@ -1458,6 +1458,23 @@ probe('P-NORM-evidence', 'R32/K11 · R53 F03 · F04 · KUKA-038 · KUKA-095',
     // tudnánk, hogy a kapu egyáltalán ÁTENGEDHETŐ-e — egy soha nem teljesülő szabály ugyanolyan
     // haszontalan, mint egy mindent átengedő (KUKA-049: az őr ne a kért eredményt jelentse kudarcnak).
     // A próba SZINTETIKUS klauzulán fut: a valódi 18 klauzula `none` marad, ahogy van.
+    // A FELOLDÓ-KATALÓGUS A VALÓDI SZERZŐDÉSBŐL (R61/F01). A saját fixtúra NEM beszélhet olyan
+    // nyelvjárást, amit a fogyasztó nem ismer (KUKA-068): a próba- és mutáció-hivatkozás a MANIFESZT
+    // és a REGISZTER tényleges azonosítóit hordozza, a dokumentum-hivatkozás pedig a MÉRT lenyomatot.
+    const REVIEW_CATALOG = Object.freeze({
+      // A kulcsot az ÍRÓ és az OLVASÓ ugyanabból a feloldóból veszi (KUKA-018/024) — a szeparátor
+      // EGY helyen él, itt nem gépeljük le újra.
+      assertions: new Set(EXPECTED_PROBES.flatMap((p) => (p.discharges || []).map((d) => assertionKey(p.id, d.assertion)))),
+      mutations: new Set(MUTATIONS.map((m) => m.id)),
+      documents: sourceDocumentCatalog(),
+    });
+    const REAL_PROBE = EXPECTED_PROBES.find((p) => (p.discharges || []).length);
+    const REAL_MUT = MUTATIONS.find((m) => m.catcher === REAL_PROBE.id) || MUTATIONS[0];
+    const REAL_DOC = [...REVIEW_CATALOG.documents.values()][0];
+    const probeRef = (note) => ({ kind: 'probe', probe: REAL_PROBE.id, assertion: REAL_PROBE.discharges[0].assertion, note });
+    const mutRef = (note) => ({ kind: 'mutation', mutation: REAL_MUT.id, note });
+    const docRef = (note) => ({ kind: 'document', document: REAL_DOC.id, digest: REAL_DOC.digest, note });
+
     control('n23', 'a tartalmi jóváhagyás ÖT állapota (none · incomplete · invalid · stale · current)', () => {
       const bind = { source_digest: 'sha256:forras', manifest_digest: 'sha256:manifest' };
       const cl = { id: 'PROBA-X', covers: ['K00'], text: 'szintetikus klauzula a kapu méréséhez' };
@@ -1470,12 +1487,13 @@ probe('P-NORM-evidence', 'R32/K11 · R53 F03 · F04 · KUKA-038 · KUKA-095',
         source_digest: bind.source_digest,
         manifest_digest: bind.manifest_digest,
         situation: 'élethelyzet', property: 'mérendő tulajdonság',
-        // A BIZONYÍTÉK-HIVATKOZÁS TÍPUSOS ÉS FELOLDHATÓ (R59/F03) — a szabad szöveg helyett.
-        positive_evidence: [{ kind: 'document', ref: 'R32_board_v1.md#4.1', note: 'a pozitív eset helye' }],
-        negative_evidence: [{ kind: 'document', ref: 'R32_board_v1.md#4.2', note: 'az ellenpélda helye' }],
+        // A BIZONYÍTÉK-HIVATKOZÁS TÍPUSOS ÉS TÉNYLEGESEN FELOLDÓDIK (R59/F03 · R61/F01): VALÓDI
+        // próba-állítás pár + VALÓDI mutáció, mellé a dokumentum HÁTTÉR-hivatkozásként, mért lenyomattal.
+        positive_evidence: [probeRef('a pozitív eset'), docRef('a pozitív eset helye')],
+        negative_evidence: [mutRef('az ellenpélda'), docRef('az ellenpélda helye')],
         residual: 'mi maradt ki',
       });
-      const st = (over, b2 = bind) => contentReviewState({ ...cl, content_review: over }, b2).state;
+      const st = (over, b2 = bind, cat = REVIEW_CATALOG) => contentReviewState({ ...cl, content_review: over }, b2, cat).state;
       const cases = {
         none: st(undefined) === 'none',
         incomplete_ures: st({ contract_digest: contractRefDigest(), clause_digest: clauseDigestOf(cl) }) === 'incomplete',
@@ -1504,12 +1522,12 @@ probe('P-NORM-evidence', 'R32/K11 · R53 F03 · F04 · KUKA-038 · KUKA-095',
         contract_digest: contractRefDigest(), clause_digest: clauseDigestOf(cl),
         source_digest: bind.source_digest, manifest_digest: bind.manifest_digest,
         situation: 'élethelyzet', property: 'mérendő tulajdonság',
-        positive_evidence: [{ kind: 'document', ref: 'R32_board_v1.md#4.1', note: 'hely' }],
-        negative_evidence: [{ kind: 'document', ref: 'R32_board_v1.md#4.2', note: 'hely' }],
+        positive_evidence: [probeRef('a pozitív eset'), docRef('hely')],
+        negative_evidence: [mutRef('az ellenpélda'), docRef('hely')],
         residual: 'mi maradt ki',
       });
-      const res = (over, b2 = bind, cat) => contentReviewState({ ...cl, content_review: over }, b2, cat);
-      const bad4 = (over, cat) => res(over, bind, cat).state === 'invalid';
+      const res = (over, b2 = bind, cat = REVIEW_CATALOG) => contentReviewState({ ...cl, content_review: over }, b2, cat);
+      const bad4 = (over, cat = REVIEW_CATALOG) => res(over, bind, cat).state === 'invalid';
       const cases = {
         // A KÜLSŐ FÉL E09 CSOMAGJA, betűre.
         e09_teljes_alakhiba: bad4({
@@ -1528,12 +1546,38 @@ probe('P-NORM-evidence', 'R32/K11 · R53 F03 · F04 · KUKA-038 · KUKA-095',
         // FELOLDHATÓSÁG: kitalált próba-név, katalógussal a kézben.
         feloldhatatlan_proba: bad4(
           { ...full(), positive_evidence: [{ kind: 'probe', probe: 'P-NINCS-ILYEN', assertion: 'A-x' }] },
-          { assertions: new Set(), mutations: new Set(['M32']) },
         ),
         feloldhatatlan_mutacio: bad4(
           { ...full(), negative_evidence: [{ kind: 'mutation', mutation: 'M-NINCS' }] },
-          { assertions: new Set(), mutations: new Set(['M32']) },
         ),
+        // ── R61/F01 — A FELOLDÁS MINT ÖNÁLLÓ TENGELY ──────────────────────────────────────────
+        // KATALÓGUS NÉLKÜL a válasz `unresolved`, nem `current`: a hiányzó ellenőrzési kontextus
+        // többé nem felmentés (az ő R01 esetük).
+        // A hívás KÖZVETLEN, nem a `res` segéden át: annak alap-értéke a katalógus, tehát az
+        // `undefined` átadása épp a mérendő esetet tüntetné el (KUKA-068 a saját fixtúrán).
+        katalogus_nelkul_unresolved:
+          contentReviewState({ ...cl, content_review: full() }, bind).state === 'unresolved'
+          && res(full(), bind, { assertions: new Set(), mutations: new Set() }).state === 'unresolved',
+        // KITALÁLT DOKUMENTUM: a régi alak két szabad szöveget kért és semmit nem oldott fel
+        // (az ő R02 esetük). Mindkét régi alak elutasítva: a `ref`-es forma és a nem létező név is.
+        kitalalt_dokumentum_regi_alak: bad4({
+          ...full(),
+          positive_evidence: [probeRef('p'), { kind: 'document', ref: 'NINCS-ILYEN', note: 'kitalált' }],
+        }),
+        kitalalt_dokumentum_nev: bad4({
+          ...full(),
+          positive_evidence: [probeRef('p'), { kind: 'document', document: 'NINCS-ILYEN.md', digest: REAL_DOC.digest, note: 'kitalált' }],
+        }),
+        dokumentum_lenyomat_elcsuszott: bad4({
+          ...full(),
+          negative_evidence: [mutRef('m'), { kind: 'document', document: REAL_DOC.id, digest: 'sha256:' + '0'.repeat(64), note: 'régi' }],
+        }),
+        dokumentum_lenyomat_nelkul: bad4({
+          ...full(),
+          positive_evidence: [probeRef('p'), { kind: 'document', document: REAL_DOC.id, note: 'lenyomat nélkül' }],
+        }),
+        // CSAK DOKUMENTUM: megnevezi, hol az állítás — de nem bizonyítja, hogy bármi LEFUTOTT.
+        csak_dokumentum_nem_bizonyitek: bad4({ ...full(), positive_evidence: [docRef('csak hely')] }),
         hianyzo_verzio: res({ ...full(), record_version: undefined }).state === 'incomplete',
         ismeretlen_verzio: bad4({ ...full(), record_version: 'content-review-0' }),
         // A HITELESSÉG KÜLÖN TENGELY, és a `current` sem állítja.
@@ -1662,7 +1706,7 @@ const EXECUTED_BY = (() => {
   return env || 'unknown';
 })();
 
-import { checkNorms, normsSummary, OPEN_BLOCKERS, NORM_CONTRACT_VERSION, NORMS_INDEX_ID, NORMS_INDEX_SCHEMA, contractRef, indexDigest, contentReviewState, CONTENT_REVIEW_RECORD_VERSION, ALL_NORMS, REQUIRED_EVIDENCE, NEXT_REQUIRED_EVIDENCE, clauseDigest as clauseDigestOf } from './norms.mjs';
+import { checkNorms, normsSummary, OPEN_BLOCKERS, NORM_CONTRACT_VERSION, NORMS_INDEX_ID, NORMS_INDEX_SCHEMA, contractRef, indexDigest, contentReviewState, CONTENT_REVIEW_RECORD_VERSION, ALL_NORMS, REQUIRED_EVIDENCE, NEXT_REQUIRED_EVIDENCE, sourceDocumentCatalog, assertionKey, clauseDigest as clauseDigestOf } from './norms.mjs';
 const contractRefDigest = () => contractRef().digest;
 import { sourceArtifactMeasurement } from './normContract.mjs';
 import { manifestDigest } from './manifest.mjs';

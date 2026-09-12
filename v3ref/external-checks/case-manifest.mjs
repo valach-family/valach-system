@@ -31,6 +31,18 @@
 /** A programok — KI ÍRTA, MIT MÉR, és PONTOSAN MELY ESETEKET kell hoznia. */
 export const PROGRAMS = Object.freeze([
   Object.freeze({
+    id: 'r61',
+    file: 'r61_chatgpt-v3.mjs',
+    by: 'chatgpt-v3 — KÜLSŐ, független fél',
+    origin: 'R61 (változatlanul, ahogy a boardon érkezett)',
+    what: 'P03 pozitív ellenpár · R01–R03: a bizonyíték-hivatkozás tényleges FELOLDÁSA és a részletes '
+      + 'eredmény-artefaktum kötelezősége',
+    evidence: 'r60-challenge.json',
+    cases: Object.freeze(['P03', 'R01', 'R02', 'R03']),
+    cases_source: 'a külső fél R61-es kísérő lapja (§8 esetkészlet)',
+    evidence_pin_field: 'pin',
+  }),
+  Object.freeze({
     id: 'r59',
     file: 'r59_chatgpt-v3.mjs',
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
@@ -40,6 +52,7 @@ export const PROGRAMS = Object.freeze([
     evidence: 'r58-challenge.json',
     cases: Object.freeze(['P01', 'E05', 'E06', 'E07', 'E08', 'P02', 'E09']),
     cases_source: 'a külső fél R59-es kísérő lapja (§2 esetlista)',
+    evidence_pin_field: 'pin',
   }),
   Object.freeze({
     id: 'r57',
@@ -50,6 +63,7 @@ export const PROGRAMS = Object.freeze([
     evidence: 'r56-challenge.json',
     cases: Object.freeze(['T01', 'T02', 'T03', 'T04', 'T05', 'E01', 'E02', 'E03', 'E04']),
     cases_source: 'a külső fél R57-es kísérő lapja („T01–T05 · E01–E04")',
+    evidence_pin_field: 'pin',
   }),
   Object.freeze({
     id: 'r55',
@@ -60,6 +74,7 @@ export const PROGRAMS = Object.freeze([
     evidence: 'restated.json',
     cases: Object.freeze(['C11-restated', 'N10-restated', 'F01-restated', 'N04-restated', 'D01-restated']),
     cases_source: 'az R56-os körünk jegyzőkönyve (az R55 öt esete)',
+    evidence_pin_field: 'source_commit',
   }),
   Object.freeze({
     id: 'r53',
@@ -70,6 +85,7 @@ export const PROGRAMS = Object.freeze([
     evidence: 'f03-restated.json',
     cases: Object.freeze(['G01', 'G02']),
     cases_source: 'az R54-es körünk jegyzőkönyve (támadás + ellenpár)',
+    evidence_pin_field: 'pin',
   }),
 ]);
 
@@ -141,6 +157,82 @@ export function auditCases(program, cases) {
   if (failed.length) problems.push(`[${program.id}] ELBUKOTT eset: ${[...new Set(failed)].join(' · ')}`);
 
   return { ok: problems.length === 0, problems, present, missing, unknown, duplicate, failed };
+}
+
+/**
+ * A RÉSZLETES EREDMÉNY-ARTEFAKTUM KÖTELEZŐ (R61/F02, az ő R03 esetük).
+ *
+ * MIÉRT SZÜLETETT. Az R60-as futtató a részletes eredményfájlt csak AKKOR olvasta, ha létezett —
+ * különben visszaesett a szabvány kimenetre, és az `ok`/`complete_evidence` ezt nem bánta. A külső
+ * fél mind a négy gyermek-programot olyan csonkra cserélte, ami az ÖSSZES elvárt azonosítóra kiír
+ * egy `{id, pass:true}` sort, de nem futtat semmit és nem ír részletes fájlt. Az összesítő
+ * `{"ok":true,"complete_evidence":true,"green":4,"of":4}` eredménnyel, 0 kilépéssel zárt, miközben
+ * mind a négy program `saved` értéke `null` volt.
+ *
+ * A HIBA OSZTÁLYA. Ugyanaz, amit a KUKA-108-ban javítottam, harmadszor, egy ÚJ helyen: a szabály
+ * feltételes volt ahhoz képest, amit védeni kell („ha van fájl, azt olvasom"). A megkerülése egy
+ * NEM-ÍRÁS. És a szabvány kimenet mint tartalék épp a legerősebb bizonyítékot cserélte le a
+ * leggyengébbre — némán (KUKA-049 rokona: a tartalék mérce nem veheti fel a pontos tanú nevét).
+ *
+ * MIT NEM ÁLLÍT EZ A JAVÍTÁS. A fájl LÉTEZÉSE nem bizonyítja egy rosszindulatú gyermek-program
+ * őszinteségét — ezt a külső fél maga is kimondta, és mi sem állítjuk. Ez a javítás az ÁTADHATÓSÁGI
+ * szerződést zárja: a részletes eredmény kötelező, a futáshoz kötött, és a szabvány kimenet
+ * DIAGNOSZTIKA marad, nem bizonyíték.
+ *
+ * @returns {{ok: boolean, problems: string[], present: boolean, pin: string|null}}
+ */
+export function auditEvidenceArtifact(program, { exists, parsed, expectedCommit, stdoutCases }) {
+  const problems = [];
+  const id = (program && program.id) || '(névtelen)';
+  const wantFile = program && program.evidence;
+
+  if (!wantFile) {
+    problems.push(`[${id}] a manifeszt nem nevezi meg a kötelező eredmény-artefaktumot`);
+    return { ok: false, problems, present: false, pin: null };
+  }
+  if (!exists) {
+    problems.push(`[${id}] HIÁNYZIK a részletes eredmény-artefaktum (evidence/${wantFile}) — a szabvány `
+      + 'kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható');
+    return { ok: false, problems, present: false, pin: null };
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    problems.push(`[${id}] a részletes eredmény-artefaktum nem értelmezhető JSON-objektum (evidence/${wantFile})`);
+    return { ok: false, problems, present: true, pin: null };
+  }
+
+  // A FUTÁS-KÖTÉS: a fájl mondja meg, MELYIK forrás-állapoton készült. Az idegen vagy elavult
+  // kötés ugyanolyan baj, mint a hiányzó fájl — csak alattomosabb.
+  const field = program.evidence_pin_field;
+  let pin = null;
+  if (typeof field !== 'string' || !field.trim()) {
+    problems.push(`[${id}] a manifeszt nem nevezi meg, MELYIK mező hordozza a futás-kötést `
+      + '(evidence_pin_field) — kötés nélkül nem eldönthető, hogy a fájl EHHEZ a futáshoz tartozik');
+  } else if (!Object.prototype.hasOwnProperty.call(parsed, field)) {
+    problems.push(`[${id}] a részletes eredményből HIÁNYZIK a futás-kötés (${field})`);
+  } else if (typeof parsed[field] !== 'string' || !parsed[field].trim()) {
+    problems.push(`[${id}] a futás-kötés (${field}) nem nem-üres szöveg`);
+  } else {
+    pin = parsed[field];
+    if (expectedCommit && pin !== expectedCommit) {
+      problems.push(`[${id}] a részletes eredmény IDEGEN forrás-állapothoz kötött (${pin} ≠ ${expectedCommit}) `
+        + '— egy korábbi vagy másik futás fájlja nem bizonyítja a mostanit');
+    }
+  }
+
+  // A FÁJL AZ ERŐSEBB TANÚ: ha a szabvány kimenet MÁST mond, a csomag nem hiányos, hanem
+  // ELLENTMOND — és ezt külön kell kimondani (KUKA-020).
+  const fileCases = Array.isArray(parsed.cases) ? parsed.cases : (Array.isArray(parsed) ? parsed : null);
+  if (Array.isArray(stdoutCases) && Array.isArray(fileCases)) {
+    const onFile = new Map(fileCases.filter((c) => c && typeof c.id === 'string').map((c) => [c.id, c.pass === true]));
+    const drift = stdoutCases
+      .filter((c) => c && typeof c.id === 'string' && onFile.has(c.id) && onFile.get(c.id) !== (c.pass === true))
+      .map((c) => c.id);
+    if (drift.length) {
+      problems.push(`[${id}] a szabvány kimenet és a részletes eredmény ELLENTMOND egymásnak: ${drift.join(' · ')}`);
+    }
+  }
+
+  return { ok: problems.length === 0, problems, present: true, pin };
 }
 
 /**

@@ -51,7 +51,7 @@
 // PURE + INERT: nincs DB, nincs hálózat, nincs titok. Adat és tiszta feloldók.
 
 import { createHash } from 'node:crypto';
-import { NORM_CONTRACT, K_IDS, contractDigest, contractRef } from './normContract.mjs';
+import { NORM_CONTRACT, K_IDS, contractDigest, contractRef, sourceDocumentCatalog } from './normContract.mjs';
 
 export const NORMS_INDEX_ID = 'NRM-01';
 export const NORMS_INDEX_SCHEMA = 'nrm-2';
@@ -64,7 +64,7 @@ export const NORM_CONTRACT_VERSION = contractRef().version;
 // külön verzióval és két külön lenyomattal (KUKA-002). Az R54-es alak a kettőt egy hash-be
 // keverte, és a külső fél D01 diagnosztikája mérve mutatta meg, hogy a szerződés címének
 // megváltozása NEM látszott a kiadott lenyomaton.
-export { NORM_CONTRACT, contractDigest, contractRef } from './normContract.mjs';
+export { NORM_CONTRACT, contractDigest, contractRef, sourceDocumentCatalog } from './normContract.mjs';
 
 // ═══ A MEGVONÁS PROTOKOLLJA (R51 §3 · R53 §6) ══════════════════════════════════════════════════
 //
@@ -606,39 +606,104 @@ function timestampProblem(v, nowMs) {
  * ellenőrizhetetlen maradt (KUKA-066: a kitalált forrás nem hibának látszik, hanem adatnak).
  * A hivatkozás ezért TÍPUSOS, és ahol a futás átadja a katalógust, FEL IS OLDJUK.
  */
+/**
+ * A PRÓBA↔ÁLLÍTÁS KULCS EGYETLEN OTTHONA (R61 utómunka, D-VS-3014).
+ *
+ * MIÉRT KELL. Ugyanezt az összetett kulcsot KÉT hely építi: itt az OLVASÓ (a hivatkozás feloldása),
+ * a futásban pedig az ÍRÓ (a katalógus halmaza). Amíg a szeparátort mindkét oldal a maga kezével
+ * írta, két baj állt fenn: (1) egy fogalomnak KÉT ábrázolása volt, és a kettő némán elcsúszhatott
+ * (KUKA-018/024 — a lookup nem hibázik, csak MINDIG „nem ismeri" választ ad); (2) az olvasó oldalon
+ * a szeparátor NYERS vezérlő-karakterként állt a forrásban, amitől a fájl BINÁRISSÁ vált: a `grep`
+ * nem látta, a diff használhatatlan lett, és bármely szöveg-normalizáló némán eltörte volna a
+ * kulcs-egyezést. A `\u0000` menekülő alak ugyanaz a karakter, de LÁTHATÓ és hordozható.
+ *
+ * A szeparátor azért NUL, mert azonosítóban nem fordulhat elő — így két különböző (próba, állítás)
+ * pár soha nem eshet egybe.
+ */
+export function assertionKey(probe, assertion) {
+  return `${probe}\u0000${assertion}`;
+}
+
 function evidenceRefProblem(ref, at, catalog) {
   if (!ref || typeof ref !== 'object' || Array.isArray(ref)) return `${at}: a hivatkozás nem objektum`;
   const kind = ref.kind;
+
+  // A KATALÓGUS NEM OPCIONÁLIS (R61/F01) — de a követelmény FAJTÁNKÉNT szól. A régi alak
+  // `if (catalog && catalog.assertions && …)` volt: aki NEM adott katalógust, annál a feloldás
+  // elmaradt, és egy kitalált próba-névre épülő jóváhagyás `current` lett. Ez BETŰRE ugyanaz a
+  // hiba, amit a KUKA-108-ban épp javítottam — a saját új őrömbe írtam bele újra (KUKA-111).
+  // A fajtánkénti hatókör pedig azért kell, mert a mindenre kiterjedő követelmény a külső fél
+  // JOGOS pozitív ellenpárját is elutasította volna (KUKA-049).
+  const needs = (part, name) => (part ? null
+    : `${at}: NINCS feloldó-katalógus (${name}) — a hivatkozás nem ellenőrizhető, tehát nem bizonyíték`);
+
   if (kind === 'probe') {
+    const miss = needs(catalog && catalog.assertions instanceof Set, 'próba↔állítás készlet');
+    if (miss) return miss;
     if (!isText(ref.probe) || !isText(ref.assertion)) return `${at}: a próba-hivatkozáshoz próba ÉS állítás kell`;
-    if (catalog && catalog.assertions && !catalog.assertions.has(`${ref.probe} ${ref.assertion}`)) {
+    if (!catalog.assertions.has(assertionKey(ref.probe, ref.assertion))) {
       return `${at}: a manifest nem ismeri ezt a próba↔állítás párt (${ref.probe} / ${ref.assertion})`;
     }
     return null;
   }
   if (kind === 'mutation') {
+    const miss = needs(catalog && catalog.mutations instanceof Set, 'mutáció-regiszter');
+    if (miss) return miss;
     if (!isText(ref.mutation)) return `${at}: a mutáció-hivatkozásnak nincs azonosítója`;
-    if (catalog && catalog.mutations && !catalog.mutations.has(ref.mutation)) {
+    if (!catalog.mutations.has(ref.mutation)) {
       return `${at}: a mutáció nincs a regiszterben (${ref.mutation})`;
     }
     return null;
   }
   if (kind === 'document') {
-    if (!isText(ref.ref)) return `${at}: a dokumentum-hivatkozásnak nincs helye (ref)`;
+    // A DOKUMENTUM-HIVATKOZÁS IS FELOLDÓDIK (R61/F01, az ő R02 esetük). A régi alak két szabad
+    // szöveget kért és SEMMIT nem oldott fel. Mostantól a hivatkozás egy MÉRT artefaktumra mutat,
+    // és a rekordba írt lenyomatnak a MAI tartalommal kell egyeznie — enélkül a jóváhagyás olyan
+    // dokumentumra hivatkozhatna, ami nem létezik vagy azóta megváltozott.
+    const miss = needs(catalog && catalog.documents instanceof Map, 'dokumentum-katalógus');
+    if (miss) return miss;
+    if (!isText(ref.document)) {
+      return `${at}: a dokumentum-hivatkozásnak NEVEZETT artefaktumra kell mutatnia (document) `
+        + `— választható: ${[...catalog.documents.keys()].join(' · ') || '(a katalógus üres)'}`;
+    }
     if (!isText(ref.note)) return `${at}: a dokumentum-hivatkozás mellől hiányzik, MIT állít (note)`;
+    const doc = catalog.documents.get(ref.document);
+    if (!doc) {
+      return `${at}: a hivatkozott dokumentum NEM LÉTEZIK a rögzített artefaktumok között `
+        + `(${ref.document}) — választható: ${[...catalog.documents.keys()].join(' · ') || '(a katalógus üres)'}`;
+    }
+    if (!isText(ref.digest)) {
+      return `${at}: a dokumentum-hivatkozásból hiányzik a LENYOMAT (digest) — a mai mért érték: ${doc.digest}`;
+    }
+    if (ref.digest !== doc.digest) {
+      return `${at}: a hivatkozott dokumentum lenyomata ELCSÚSZOTT (a rekordban ${ref.digest}, `
+        + `a mai mért érték ${doc.digest}) — a jóváhagyást újra kell nézni`;
+    }
     return null;
   }
   return `${at}: ismeretlen hivatkozás-fajta (${kind === undefined ? 'HIÁNYZIK' : String(kind)}) `
     + '— választható: probe · mutation · document';
 }
 
-/** Nem üres LISTA feloldható hivatkozásokból. */
+/**
+ * A VÉGREHAJTOTT bizonyíték fajtái. Egy DOKUMENTUM megnevezi, hol áll az állítás — de nem bizonyítja,
+ * hogy bármi LEFUTOTT. A külső fél kimondta: „a név létezése továbbra sem igazolja a teszt eredményét
+ * vagy tartalmi relevanciáját". Ezért a dokumentum HÁTTÉR-hivatkozás: legalább egy futtatható
+ * hivatkozásnak (próba vagy mutáció) is ott kell lennie.
+ */
+const EXECUTABLE_REF_KINDS = Object.freeze(new Set(['probe', 'mutation']));
+
+/** Nem üres LISTA feloldható hivatkozásokból, legalább egy VÉGREHAJTOTT taggal. */
 function evidenceListProblem(v, field, catalog) {
   if (!Array.isArray(v)) return `${field}: nem lista (${v === undefined ? 'HIÁNYZIK' : typeof v})`;
   if (v.length === 0) return `${field}: ÜRES lista — hivatkozás nélkül a jóváhagyás nem ellenőrizhető`;
   for (const [i, ref] of v.entries()) {
     const bad = evidenceRefProblem(ref, `${field}[${i}]`, catalog);
     if (bad) return bad;
+  }
+  if (!v.some((r) => r && EXECUTABLE_REF_KINDS.has(r.kind))) {
+    return `${field}: csak DOKUMENTUM-hivatkozás áll benne — a dokumentum megnevezi, hol az állítás, `
+      + 'de nem bizonyítja, hogy bármi lefutott; legalább egy próba- vagy mutáció-hivatkozás kell';
   }
   return null;
 }
@@ -723,6 +788,47 @@ function acceptanceAxis(r) {
   });
 }
 
+/**
+ * A FELOLDÓ-KATALÓGUS ALAKJA (R61/F01). Null = használható; szöveg = MIÉRT nem.
+ *
+ * MIÉRT KÜLÖN ÁLLAPOT. A hiányzó katalógus nem a REKORD hibája, hanem a HÍVÁSÉ: a rekord lehet
+ * hibátlan, csak épp nem tudjuk ellenőrizni, amit állít. A kettőt nem szabad egy szóra tenni — a
+ * `invalid` azt mondja, „javítsd a rekordot", az `unresolved` azt, „add meg a katalógust". Amit
+ * SEMMIKÉPP nem jelenthet: `current` (R61/R01 — a hiányzó ellenőrzési kontextus felmentést adott).
+ */
+export function resolutionCatalogShape(catalog, kindsUsed) {
+  if (!catalog || typeof catalog !== 'object') return 'nincs feloldó-katalógus';
+  // A KÖVETELMÉNY A TÉNYLEGESEN HASZNÁLT HIVATKOZÁS-FAJTÁKRA SZÓL, nem mindenre.
+  //
+  // MIÉRT ÍGY. Az első alakom MINDHÁROM részt megkövetelte, és ezzel a külső fél SAJÁT pozitív
+  // ellenpárját (P03) vitte pirosra: az ő rekordjuk csak próba- és mutáció-hivatkozást használ,
+  // dokumentumot nem, tehát a dokumentum-katalógus hiánya ott semmit nem jelent. Egy őr, ami a
+  // KÉRT eredményt jelenti kudarcnak, ugyanolyan haszontalan, mint amelyik mindent átenged
+  // (KUKA-049) — a szigorítás hatóköre pontosan akkora legyen, amekkorára az indok igaz (KUKA-048).
+  const need = (kindsUsed instanceof Set) ? kindsUsed : new Set(['probe', 'mutation', 'document']);
+  if (need.has('probe') && !(catalog.assertions instanceof Set)) {
+    return 'a katalógusból hiányzik a próba↔állítás készlet';
+  }
+  if (need.has('mutation') && !(catalog.mutations instanceof Set)) {
+    return 'a katalógusból hiányzik a mutáció-regiszter';
+  }
+  if (need.has('document') && !(catalog.documents instanceof Map)) {
+    return 'a katalógusból hiányzik a dokumentum-katalógus';
+  }
+  return null;
+}
+
+/** MELY hivatkozás-fajtákat használja a rekord — a feloldás követelménye ehhez szabódik. */
+function evidenceKindsUsed(r) {
+  const out = new Set();
+  for (const field of ['positive_evidence', 'negative_evidence']) {
+    const v = r && r[field];
+    if (!Array.isArray(v)) continue;
+    for (const ref of v) if (ref && typeof ref === 'object' && typeof ref.kind === 'string') out.add(ref.kind);
+  }
+  return out;
+}
+
 export function contentReviewState(clause, bindings, catalog) {
   const r = clause && clause.content_review;
   const ctx = { nowMs: Date.now(), catalog: catalog || null };
@@ -731,6 +837,19 @@ export function contentReviewState(clause, bindings, catalog) {
 
   if (!r || typeof r !== 'object' || Array.isArray(r)) {
     return wrap({ state: 'none', structural: 'none', binding: 'none', why: 'nincs rögzített tartalmi felülvizsgálat' });
+  }
+
+  // (0) A FELOLDÁS LEHETŐSÉGE (R61/F01, az ő R01 esetük). Katalógus nélkül a bizonyíték-hivatkozások
+  // nem ellenőrizhetők — ilyenkor a válasz NEVEZETT tehetetlenség, nem jóváhagyás. A rekord
+  // szerkezetéről ez semmit nem mond, ezért a `structural` „nem mért", nem „érvénytelen".
+  const catBad = resolutionCatalogShape(catalog, evidenceKindsUsed(r));
+  if (catBad) {
+    return wrap({
+      state: 'unresolved', structural: 'not_checked', binding: 'not_checked',
+      why: `a jóváhagyás bizonyíték-hivatkozásai NEM OLDHATÓK FEL — ${catBad}; a fel nem oldott `
+        + 'hivatkozás nem kaphatja ugyanazt a minősítést, mint az ellenőrzött',
+      by: (r.reviewer && isText(r.reviewer.id)) ? r.reviewer.id : null,
+    });
   }
 
   // (1) TELJESSÉG. A hiányt NEVESÍTVE mondjuk ki — a néma hiány ugyanaz a hazugság, mint a néma
@@ -1053,6 +1172,9 @@ export function checkNorms(evidence) {
   const reviewCatalog = Object.freeze({
     assertions: allowedAssertions,
     mutations: new Set(mutations.map((m) => m && m.id).filter(Boolean)),
+    // A DOKUMENTUM-ÁG IS FELOLDÓDIK (R61/F01): a rögzített artefaktumok MÉRT lenyomatából, hálózat
+    // nélkül. A katalógus a fájl-rendszerből épül, nem kézi listából (KUKA-051).
+    documents: sourceDocumentCatalog(),
   });
   const byClause = dischargeMap(probes);
   const recordOf = new Map(records.map((r) => [r.probe_id, r]));
