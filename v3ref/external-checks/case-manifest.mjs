@@ -34,12 +34,13 @@ export const PROGRAMS = Object.freeze([
     id: 'r61',
     file: 'r61_chatgpt-v3.mjs',
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
-    origin: 'R61 (változatlanul, ahogy a boardon érkezett)',
+    origin: 'R63 (a bővített, 8 esetes alak — változatlanul, ahogy a boardon érkezett)',
     what: 'P03 pozitív ellenpár · R01–R03: a bizonyíték-hivatkozás tényleges FELOLDÁSA és a részletes '
-      + 'eredmény-artefaktum kötelezősége',
+      + 'eredmény-artefaktum kötelezősége · U01–U04: hiányzó teljes katalógus · hiányzó állítás-készlet · '
+      + 'hiányzó mutáció-készlet · ROSSZ TÍPUSÚ állítás-készlet — mind unresolved + unauthenticated',
     evidence: 'r60-challenge.json',
-    cases: Object.freeze(['P03', 'R01', 'R02', 'R03']),
-    cases_source: 'a külső fél R61-es kísérő lapja (§8 esetkészlet)',
+    cases: Object.freeze(['P03', 'R01', 'R02', 'R03', 'U01', 'U02', 'U03', 'U04']),
+    cases_source: 'a külső fél R63-as kísérő lapja (§8 esetkészlet) — az eredeti NÉGY változatlan, az U01–U04 kiegészítés',
     evidence_pin_field: 'pin',
   }),
   Object.freeze({

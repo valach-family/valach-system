@@ -1,7 +1,7 @@
 {
   "program": "f03-restated.mjs",
-  "pin": "1a8e2918031e15322c080e139c3b00149771d49f",
-  "at": "2026-09-12T11:06:48.324Z",
+  "pin": "9b1d36726f0713d6baf01c9d2b0e7242d9b33605+uncommitted",
+  "at": "2026-09-12T13:45:50.211Z",
   "node": "v22.22.2",
   "cases": [
     {
