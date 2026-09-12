@@ -5425,6 +5425,160 @@ const RETIRED_PATTERNS = Object.freeze([
     ]),
   }),
 
+  Object.freeze({
+    id: 'KUKA-114',
+    date: '2026-09-12',
+    title: 'A BEFOGADÓ A BEADÓ SZAVÁT FOGADTA EL A MÉRÉS HELYETT — hat alak, egy betegség',
+    what: 'A board bizonyíték-befogadója (`ingestEvidence`) hat különböző hamis beadást engedett át, '
+      + 'változatlan kódon mérve: V3-as parancshoz V2-es repó + V2-es parancs + idegen commit (a '
+      + 'profil-kötés SEMMILYEN szerepet nem játszott a döntésben) · `status:"ok"` egy `exit_code:1` '
+      + 'bukott futás mellé (a kimondott szó felülírta a futás tényét) · `tests_run:[1]` tömb, amiből '
+      + '`Number([1])` némán 1 lett · `tests_run:0.5` fél teszteset · `tests_skipped:"not-a-number"`, '
+      + 'amiből néma NULLA kihagyás lett · `tests_skipped:-1` negatív kihagyás.',
+    why_wrong: 'Hat tünet, EGY betegség: a befogadás nem MÉRT, hanem ELHITT. Három tengelyen. (1) Az '
+      + 'ADAT alakja: a HIÁNYZÓ és az ÉRVÉNYTELEN érték egy csatornán ment (mindkettő `null` lett), '
+      + 'ezért egy elgépelt vagy rossz típusú érték pontosan úgy nézett ki, mint a „nem adtam meg" — '
+      + 'a néma catch adat-alakja (KUKA-020). (2) Az EREDET: semmi nem kötötte a beadást ahhoz a '
+      + 'repóhoz és parancshoz, amit a profil előír, tehát egy MÁSIK egység zöldje ennek az egységnek '
+      + 'a bizonyítéka lehetett. (3) Az ELLENTMONDÁS: a kimondott státusz és a kilépési kód RANGSORT '
+      + 'alkotott, holott a kettő ellentmondása maga a lelet (KUKA-041: a díszpipa sikert jelent '
+      + 'arról, ami meg sem történt).',
+    replaced_by: 'EGY KÖZÖS BEFOGADÁSI SZERZŐDÉS (EVC-01, `tools/chatops-board/src/evidenceContract.js`) '
+      + 'rögzített sorrendben: ALAK → ELLENTMONDÁS → EREDET → ALKALMAZHATÓSÁG → MÉRÉS → TELJESSÉG. A '
+      + 'darabszám nemnegatív EGÉSZ (egész számot tartalmazó szöveg elfogadott, tömb nem), a hiányzó és '
+      + 'az érvénytelen KÜLÖN csatornán; a beadás a KISZÁMÍTOTT végrehajtáshoz (PROF-01) mérve; a '
+      + 'bukott kilépés nem írható zöldre. Minden elutasítás megmondja, mit kell küldeni helyette.',
+    decision: 'D-VS-686',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R63 §4) — hat esetet futtatott a VÁLTOZATLAN '
+      + 'befogadón, és mind a hat kielégítő státuszt írt; a saját söprésünk végig zöld volt, mert a '
+      + 'kapuink külön-külön mindegyike helyes volt, a beadás EGÉSZE viszont senkihez nem tartozott.',
+    lesson: 'AHOL EGY RENDSZER KÜLSŐ ÁLLÍTÁST FOGAD BE, OTT A SZERZŐDÉS EGY DARAB LEGYEN, NE KILENC '
+      + 'KIVÉTEL. Kilenc külön kapu kilenc külön vakfoltot hagy, és a következő hamis alak a résekben '
+      + 'megy át; egy nevezett, sorrendezett szerződés viszont a hiba OSZTÁLYÁT zárja (KUKA-051 a '
+      + 'befogadáson). És minden bemeneti mezőnél ki kell mondani: mi a HIÁNY, mi az ÉRVÉNYTELEN, és '
+      + 'mi a MÉRT érték — ha a három egy csatornán megy, a rendszer a saját vakságát fogja zöldnek '
+      + 'látni.',
+    guard_note: 'gépi jel: `npm run verify:matrix-profiles` **MPF12** (a szerződés HÍVVA: 10 tiltott '
+      + 'alak elutasítva, 5 jogos út átengedve — négy visszacsúszásra bizonyítottan piros) + a board '
+      + 'egység-próbái (`src/evidenceContract.test.mjs` 58 eset · `src/externalChallenge.test.cjs` 19 '
+      + 'eset, benne a külső fél mind a kilenc esete).',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-115',
+    date: '2026-09-12',
+    title: 'A „NEM RELEVÁNS" MINT KÖRNYEZETI KIFOGÁS — és a fázis-feltétel, ami mindig igaz volt',
+    what: 'KÉT alak, egy fogalom körül. (1) Egy SZÜKSÉGES gépi tesztre beadott '
+      + '`status:"not_applicable"` + `tests_run:0` + hosszú, valós KÖRNYEZET-HIÁNYT leíró indok '
+      + 'kielégítő státuszt írt, a CMD fölötti hatókörökön is: a lezárási feltétel teljesült MÉRÉS '
+      + 'NÉLKÜL. (2) A profil fázis-kizárásai SZABAD SZÖVEGES `not_applicable_until` mezőn álltak, és '
+      + 'a feloldó minden IGAZ ÉRTÉKŰ szövegre N/A-t adott — egy szöveg pedig mindig igaz, tehát a '
+      + '„majd ha elkészül az UI" feltétel soha nem billent volna vissza magától.',
+    why_wrong: 'A `not_applicable` szó HÁROM különböző dolgot jelentett egy csatornán (KUKA-002 a '
+      + 'státuszon): „a tárgy ebben a fázisban nem létezik" · „ezt a kört nem érinti" (a ház eredeti, '
+      + 'és a 28 tételből 11 ÍTÉLET-kötelmen az EGYETLEN értelmes jelentése) · „kellett volna mérni, de '
+      + 'nem futott". A harmadik nem alkalmazhatatlanság, hanem BLOKKOLT MÉRÉS — attól nem lesz kész a '
+      + 'tétel, csak láthatatlan (KUKA-012 a mátrixon). A második alak pedig a klasszikus dísz-feltétel: '
+      + 'a mérés hatóköréből kiesett maga a feltétel (KUKA-041 · KUKA-051).',
+    replaced_by: 'AZ ALAP DEKLARÁLÁSA, nem a szó eltiltása: `na_basis` ∈ {phase · scope · environment}. '
+      + 'Az `environment` SOHA nem kielégítő (a környezetet az ügynök teremti elő és lefuttatja a '
+      + 'mérést); a `phase` alapot a KISZÁMÍTOTT PROFIL igazolja vissza, nem a beadó szövege; a `scope` '
+      + 'marad a ház eredeti jelentése. A fázis-feltétel pedig NEVEZETT KÉPESSÉG lett (CAP-01) HÁROM '
+      + 'állapottal: `absent` ⇒ az N/A áll · `present` ⇒ a tétel MAGÁTÓL újra kötelező · `unknown` ⇒ '
+      + 'a tétel egyáltalán nem zárható le, se zölden, se N/A-val.',
+    decision: 'D-VS-686',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R63 §3 és §5). A §3-as alakot az R62-es válaszom '
+      + 'KIFEJEZETTEN AJÁNLOTTA a környezet-hiány útjaként — tehát a saját javításom nyitotta ki azt a '
+      + 'kaput, amit egy körrel korábban zártam be máshol (a hiba ÁTKÖLTÖZÖTT, KUKA-084 alakja).',
+    lesson: 'EGY SZÓ HÁROM JELENTÉSSEL NEM SZABÁLY, HANEM CSATORNA-ÜTKÖZÉS. Ahol egy státusz több, '
+      + 'egymással ellentétes dolgot jelenthet, nem a szót kell betiltani (az a legitim, többségi '
+      + 'használatot töri el — KUKA-049), hanem az ALAPOT kell strukturáltan bekérni, és alaponként '
+      + 'külön következményt adni. És egy FELTÉTEL, aminek nincs kiértékelhető állapota, nem feltétel: '
+      + 'a „majd ha elkészül" szöveg mindig igaz, tehát semmit nem mér — a feltételnek NÉV kell, a '
+      + 'névnek ÁLLAPOT, az ismeretlen állapotnak pedig LEZÁRÁST TILTÓ következmény.',
+    guard_note: 'gépi jel: `npm run verify:matrix-profiles` **MPF03** (minden kizárás nevezett '
+      + 'képességre mutat, és a képesség-bejegyzés teljes) · **MPF08** (a regiszter mindkét irányban '
+      + 'zárt, padlóval) · **MPF09** (a feloldó HÍVVA: absent ⇒ N/A · present ⇒ mérendő + parancs · '
+      + 'unknown ⇒ lezárás tiltva — visszacsúszásra bizonyítottan piros) · **MPF12** (a `phase` alap '
+      + 'profil-fedezet nélkül elutasítva, a `scope` alap ítélet-kötelmen átengedve). A V3 oldalon: '
+      + '`npm run verify:capability-witness` — a rögzített állapotot a repó VALÓSÁGÁHOZ méri, és amit '
+      + 'gépileg nem tud mérni, azt KIMONDJA.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-116',
+    date: '2026-09-12',
+    title: 'A KAPU, AMI MELLETT OTT ÁLLT A MEGKERÜLŐ ÚT — és a saját eszközöm azon járt',
+    what: 'A board `POST /api/chatops/frm/status` útja a bizonyíték-naplót MEGKERÜLI: közvetlenül írja '
+      + 'a mátrix-státuszt. A kód kommentje ezt eddig is kimondta („Agents must use POST '
+      + '/api/chatops/evidence instead"), de az PRÓZA volt, nem őr. MÉRVE: a kör-eszköz '
+      + '(`tools/vs_board_round.mjs` — ÜGYNÖK-eszköz, amit a dolgozó sáv minden kör zárásakor futtat) '
+      + 'pontosan ezen az úton pipálta ki a TELJES mátrixot, tételenként egyetlen általános mondattal. '
+      + 'Vagyis az R61 §5-ben és az R63-ban épített egész befogadási szerződés — darabszám, '
+      + 'profil-kötés, alkalmazhatóság, eset-készlet — egyetlen HTTP-hívással megkerülhető volt.',
+    why_wrong: 'Egy őr, ami mellett szabadon áll a megkerülő út, nem őr, hanem dísz (KUKA-041) — és '
+      + 'ez a KUKA-013 pontos ismétlődése: az őr csak az EGYIK írót nézte, a MÁSIK író pedig '
+      + 'visszatette az adatot. A legrosszabb fajta, mert a megkerülő utat nem egy idegen használta, '
+      + 'hanem a SAJÁT kör-záró eszközöm, minden körben, automatikusan: a mátrix zöldje így nem a '
+      + 'mérésről szólt, hanem arról, hogy lefutott egy szkript.',
+    replaced_by: 'A MÉRCE NEM AZ ÚT, HANEM A SZEREPLŐ: `catalogMeta.directStatusFlipProblem(actor, '
+      + 'status)` — a KÉSZRE állítás a közvetlen úton csak EMBERI sávról mehet (a `Manual-UI` az '
+      + '`operator` aliasa), minden más (ügynök, külső ellenőrző, ISMERETLEN név) 403-at kap, a helyes '
+      + 'út megnevezésével; a bukás/hiány jelentése továbbra is szabad. A kör-eszköz átállt a '
+      + 'bizonyíték-útra, és amihez nincs mérés, azt NEM állítja zöldre: kiírja, mi hiányzik '
+      + '(`--measured <fájl.json>` a futtatók `--json` kimenetéből).',
+    decision: 'D-VS-686',
+    found_by: 'a SAJÁT MUNKÁM közben, a szerződés bekötésekor — a külső fél NEM találta meg (ők a '
+      + '`ingestEvidence`-t mérték közvetlenül, nem a HTTP-felületet), és a söprés végig zöld volt.',
+    lesson: 'AMIKOR EGY KAPUT MEGÉPÍTEK, A KÖVETKEZŐ KÉRDÉS NEM AZ, HOGY JÓL MŰKÖDIK-E, HANEM HOGY '
+      + 'MEGKERÜLHETŐ-E — és az első helyen a SAJÁT eszközeimet kell megnézni, mert azok járnak arra a '
+      + 'legtöbbet. Egy „ezt az utat csak az operátor használja" alakú komment nem korlát, hanem '
+      + 'feltevés; amíg a kód nem mondja ki, addig a kényelmes út fog győzni. És ha egy kapu bevezetése '
+      + 'súrlódást okoz a saját munkamenetemben (itt: a kör-zárás nem megy többé egy paranccsal), az '
+      + 'nem a kapu hibája — a súrlódás pontosan az a munka, amit eddig kihagytunk.',
+    guard_note: 'gépi jel: `npm run verify:matrix-profiles` **MPF10** — a döntést HÍVJA hat ágon '
+      + '(operátor · kézi felület · két ügynök-sáv · ismeretlen név · bukás-jelentés), méri, hogy az '
+      + 'elutasítás megnevezi a helyes utat, és MINDKÉT HÍVÓT ellenőrzi: a szerver hívja a kaput, a '
+      + 'kör-eszköz pedig már nem a közvetlen státusz-utat HÍVJA (a hívást mérve, nem az említést — az '
+      + 'első alak a saját magyarázó kommentemen bukott el).',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-117',
+    date: '2026-09-12',
+    title: 'AZ ARÁNY MINT TELJESSÉG-MÉRCE — a saját, egy körrel korábbi szabályom',
+    what: 'Az R62-ben szállított darabszám-kapuba beírtam, hogy ha a KIHAGYOTT esetek száma eléri a '
+      + 'lefutottakét (`skipped >= ran`), a bizonyíték elutasítandó: „minden esetet kihagyott". A külső '
+      + 'fél megcáfolta: „Egy lefutott + kilenc kihagyott eset nem nulla lefutott eset; ugyanakkor '
+      + 'kötelező eset hiányában nem teljes bizonyíték. A szükséges esetkészlet döntse el a teljességet, '
+      + 'ne puszta számarány."',
+    why_wrong: 'A számarány NEM a teljesség mércéje, hanem a teljesség HELYETTESÍTŐJE — és rossz '
+      + 'irányban téved mindkét végén: egy szabályos, részleges futást elutasít (a kért eredményt '
+      + 'jelenti kudarcnak — KUKA-049), egy hiányos futást viszont átenged, ha történetesen kevés a '
+      + 'kihagyás. A gyökér a KUKA-045: SZÁMOT mértem ott, ahol a szabály megfogalmazható — a kérdés '
+      + 'nem az, „mennyi futott a kihagyotthoz képest", hanem az, hogy „lefutott-e MIND, aminek le '
+      + 'kellett".',
+    replaced_by: 'A SZÜKSÉGES ESET-KÉSZLET (`required_cases_from` a profilban + `case_ids` a '
+      + 'bizonyítékban). Ahol a készlet kimondható, ott a hiányzó eseteket a kapu NÉVVEL sorolja fel; '
+      + 'ahol nincs kimondott készlet, ott a teljességet NEM TUDJUK — és ezt a naplósor `coverage: '
+      + '"unknown"` értéke ki is mondja, nem tesszük úgy, mintha mértük volna. A készletet ugyanaz a '
+      + 'felderítő adja, amiből a futás is dolgozik (UTR-01), tehát a kapu és a futtató nem tud '
+      + 'elcsúszni. A `ran <= 0` tilalom VÁLTOZATLANUL áll: a nulla mérés továbbra sem bizonyíték.',
+    decision: 'D-VS-686',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R63 §4 zárása) — a szabály egy körig élt, zöld '
+      + 'söpréssel és saját egység-próbákkal, amelyek pontosan a téves szabályt igazolták vissza.',
+    lesson: 'HA EGY MÉRCÉT AZÉRT VÁLASZTOK, MERT KÖNNYŰ SZÁMOLNI, ELŐBB MEG KELL KÉRDEZNI, MIT MÉR '
+      + 'HELYETTE. A „hány / hányhoz" alakú szabályok különösen gyanúsak: a valódi kérdés majdnem '
+      + 'mindig egy HALMAZ-kérdés („megvan-e mind?"), és a szám csak addig hasonlít rá, amíg valaki ki '
+      + 'nem próbálja a szélét. És a saját egység-próbám nem véd ettől: ha a szabályt és a próbáját '
+      + 'ugyanaz írja, a próba a tévedést IGAZOLJA vissza (KUKA-068) — a cáfolat kívülről jön, ezért a '
+      + 'megcáfolt szabályt nem elég javítani, a próbáját is át kell írni az ELLENKEZŐJÉRE.',
+    guard_note: 'gépi jel: `npm run verify:matrix-profiles` **MPF12** (a részleges futás — 1 lefutott, '
+      + '9 kihagyott — bizonyítottan ÁTMEGY, a nulla mérés bizonyítottan piros) + **MPF13** (a készlet '
+      + 'és a futtató UGYANABBÓL a felderítőből dolgozik, karakterre egyezve, padlóval) + a board '
+      + 'egység-próbái, amelyekben a két régi arány-eset most az ELLENKEZŐJÉT állítja.',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

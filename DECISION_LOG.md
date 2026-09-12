@@ -16,6 +16,41 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3015 — A FÁZIS-KÉPESSÉG TANÚJA A V3 OLDALON, és a négy R63-as tanulság a regiszterben
+
+- **Date:** 2026-09-12 · Lane: Claude-v3 (PR-VS-300 / CMD-VS-300-002-001, R63→R64) · **forrás:** a
+  külső ellenőrző fél (chatgpt-v3) R63 §5: *„Legyen hitelesen vezetett fázis/képességállapot és géppel
+  értékelhető feltétel, ismeretlen állapotra lezárást tiltó eredménnyel. … A fázisváltást a módosító
+  agent feladata legyen rögzíteni és az őr feladata ellenőrizni; az operátor ne emlékeztesse rá."*
+- **Gépi jel:** `npm run verify:capability-witness` (**ÚJ**, a söprés része — a söprés 7 → 8 verifier).
+
+**A MUNKAMEGOSZTÁS KIMONDVA.** A board mátrixa fázis-KÉPESSÉGEKRE hivatkozik (CAP-01, a V2 repóban),
+és a képesség állapota dönti el, hogy egy tétel nem-releváns, mérendő, vagy egyáltalán nem zárható le.
+A képességek TANÚJA viszont ITT él: a board szolgáltatás a V3 lemezét nem látja. Ezt nem hallgatjuk el
+és nem is állítunk mérést oda, ahol nincs (KUKA-089) — a board regisztere kimondja, HOL mérhető a tanú
+(`witness_repo` + `witness_command`), a mérést pedig ez az őr végzi el: minden mérhető képességnél a
+tanút, és ha a board regisztere elérhető (`V2_REPO_ROOT`), a RÖGZÍTETT állapotot a MÉRTHEZ hasonlítja.
+Az elavult rögzítés PIROS.
+
+**A SAJÁT ŐRÖM AZ ELSŐ FUTÁSÁN A SAJÁT SZABÁLYOM HIBÁJÁT TALÁLTA MEG.** A `v3-ui-slice` tanúja között
+szerepelt „bármely HTML-lap", és az őr a `docs/_olvashato/` alatti SZÁRMAZTATOTT doksi-HTML-eket
+felületnek nézte: a képességet `present`-nek mérte, tehát egy szabályos állapotot jelentett hibának
+(KUKA-049). A javítás iránya nem a mappa-név betiltása volt: **megkérdezzük a gitet, mit tart számon**
+(`git ls-files`) — a származtatott kimenet definíció szerint ignorált, tehát a tanú-halmazba be sem
+kerül (KUKA-057: megengedő szabály, nem kizáró felsorolás). Ahol a git nem elérhető, a tartalék fa-járás
+fut, és a riport KIMONDJA, hogy a mérés ilyenkor gyengébb.
+
+**AMIT GÉPILEG NEM TUDUNK MÉRNI, AZT KIMONDJUK.** A tizenhárom V3-képességből tizenegynek van
+fájl-szintű tanúja; kettőnek (`v3-user-capability` · `v3-personal-data-path`) nincs, mert a „használható
+képesség" és a „valódi vs. fixtúra személyes adat" között fájl-szinten nincs különbség — ezt az azt
+megépítő sáv mondja ki, nem egy minta-illesztés (KUKA-035). A riport ezt NEVEZETT kihagyásként írja ki,
+nem hallgatja el.
+
+**A NÉGY R63-AS TANULSÁG** (KUKA-114 · KUKA-115 · KUKA-116 · KUKA-117) ebbe a regiszterbe került —
+a regiszter 113 → **117 bejegyzés** —, a `guardHome` plafon pedig 86 → **90**, mert mind a négy jel a
+BOARD-hoz tapad, és a V3-nak nincs boardja. A tanulságok tartalma és a hozzájuk tartozó V2-oldali
+gépi jelek a V2 repó `DECISION_LOG.md`-jében, **D-VS-686** alatt állnak.
+
 ## D-VS-3014 — A FELOLDÁS EXPLICIT ÁLLAPOT · a részletes eredmény a bizonyíték · és a kulcs EGY otthona
 
 - **Date:** 2026-09-12 · Lane: Claude-v3 (PR-VS-300 / STEP-002 / CMD-001, R61) · **forrás:** a KÜLSŐ
