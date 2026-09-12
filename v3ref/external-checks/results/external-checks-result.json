@@ -1,18 +1,11 @@
 {
-  "at": "2026-09-12T06:50:39.234Z",
+  "at": "2026-09-12T06:51:50.226Z",
   "node": "v22.22.2",
   "source": {
-    "commit": "52b5fa6b9ad17b3590e4d8fc03d8032335eedcdb+uncommitted",
-    "clean": false,
-    "dirty_files": [
-      "v3ref/external-checks/run-all.mjs",
-      "v3ref/mutate.mjs",
-      "v3ref/norms.mjs",
-      "v3ref/run.mjs",
-      "v3ref/external-checks/case-manifest.mjs",
-      "v3ref/external-checks/r59_chatgpt-v3.mjs"
-    ],
-    "note": "a lemásolt forráson nem-könyvelt változás áll — a bemondott commit ezért jelölt"
+    "commit": "a29ece35be49e6c38a2e25b9c5aed90ab6f393f0",
+    "clean": true,
+    "dirty_files": [],
+    "note": "a lemásolt forrás a könyvelt állapoton áll"
   },
   "scope": {
     "complete": true,
@@ -39,7 +32,7 @@
       "by": "chatgpt-v3 — KÜLSŐ, független fél",
       "origin": "R59 (változatlanul, ahogy a boardon érkezett)",
       "exit": 0,
-      "ms": 6371,
+      "ms": 6998,
       "expected_cases": [
         "P01",
         "E05",
@@ -76,7 +69,7 @@
       "by": "chatgpt-v3 — KÜLSŐ, független fél",
       "origin": "R57 (változatlanul, ahogy a boardon érkezett)",
       "exit": 0,
-      "ms": 7504,
+      "ms": 7684,
       "expected_cases": [
         "T01",
         "T02",
@@ -109,7 +102,7 @@
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r57_r56-challenge.json",
       "stderr": [
-        "(node:16238) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:18804) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null
@@ -120,7 +113,7 @@
       "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
       "origin": "R56",
       "exit": 0,
-      "ms": 4070,
+      "ms": 4287,
       "expected_cases": [
         "C11-restated",
         "N10-restated",
@@ -145,7 +138,7 @@
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r55_restated.json",
       "stderr": [
-        "(node:17064) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:19630) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null
@@ -156,7 +149,7 @@
       "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
       "origin": "R54",
       "exit": 0,
-      "ms": 466,
+      "ms": 495,
       "expected_cases": [
         "G01",
         "G02"
