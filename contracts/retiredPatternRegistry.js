@@ -5025,11 +5025,13 @@ const RETIRED_PATTERNS = Object.freeze([
       + '(„tartalmi felülvizsgálat") emberi munkát ígért, a TARTALMA gépi egybeesés volt: a felirat '
       + 'többet állított, mint amit a gép teljesített (KUKA-015), és a hiányzó tanú ugyanúgy „zöldnek" '
       + 'látszott, mint a meglévő (KUKA-012 a jóváhagyáson).',
-    replaced_by: 'NEVEZETT, KÖTELEZŐ MEZŐ-KÉSZLET (`CONTENT_REVIEW_REQUIRED`, 11 mező: felülvizsgáló '
+    replaced_by: 'NEVEZETT, KÖTELEZŐ MEZŐ-KÉSZLET (`CONTENT_REVIEW_FIELDS`: felülvizsgáló '
       + 'azonosító/szerep/függetlenség · időpont · a HÁROM lenyomat · manifest-lenyomat · a megvizsgált '
       + 'helyzet és tulajdonság · pozitív és negatív bizonyíték · maradék), és NÉGY állapot: `none` · '
       + '`incomplete` (a hiányzó mezők NEVÉVEL) · `stale` (az ELCSÚSZOTT lenyomatok nevével) · `current`. '
-      + 'A hiányos rekord soha nem lehet `current`.',
+      + 'A hiányos rekord soha nem lehet `current`. **BŐVÍTVE (R59/F03 — lásd KUKA-110):** a készlet '
+      + 'TÍPUSOS lett, verziót visz (`record_version`), az `invalid` ÖTÖDIK állapotként megjelent, és a '
+      + 'HITELESSÉG külön tengely — a `current` rá SOHA nem mond igent.',
     decision: 'D-VS-3012',
     found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R57 F03 / E04).',
     lesson: 'AMI EMBERI ÍTÉLETET ÁLLÍT, ANNAK MEG KELL NEVEZNIE AZ EMBERT, AZ IDŐT ÉS A BIZONYÍTÉKOT. Egy '
@@ -5047,7 +5049,7 @@ const RETIRED_PATTERNS = Object.freeze([
     ]),
     positive: Object.freeze([
       Object.freeze({ paths: ['v3ref/norms.mjs'],
-        pattern: 'CONTENT_REVIEW_REQUIRED',
+        pattern: 'CONTENT_REVIEW_FIELDS',
         reason: 'a jóváhagyás kötelező mező-készlete NEVEZETT, és minden olvasó ezt hívja' }),
     ]),
   }),
@@ -5122,6 +5124,176 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'moduljat betolti egy URES szulo alatt allo masolatban, BDR02 a szerver teljes modul-grafjat '
       + 'ugyanott, BDR03 minta-illesztes a gyoker fole lepo utakra (101 fajl merve). Mindharom '
       + 'bizonyitottan PIROS a visszacsuszasra, ugyanazzal az ENOENT-tel, amit az eles kiadas adott.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-108',
+    date: '2026-09-12',
+    title: 'A FELTÉTELES ÖSSZEHASONLÍTÁS — a hiányzó ELVÁRÁS felmentést adott a mérés alól',
+    what: 'A bizonyíték-kapu (`falsificationQualifies`) az R57-ben megkapta a szülő futásból az '
+      + 'ELVÁRT értékeket, és ehhez mérte a csomagot. Csakhogy MEZŐNKÉNT, FELTÉTELESEN: '
+      + '`if (expectation.base_digest && result.base_digest !== expectation.base_digest)`. Ha tehát az '
+      + 'elvárt MEZŐ hiányzott, az összehasonlítás egyszerűen ELMARADT — és mivel az üres `{}` is '
+      + 'objektum, a „van-e egyáltalán elvárás?" őr átengedte. A külső fél mind a négy változatot '
+      + 'megmérte (base_digest · run_tokens · mutated_digests · mind a három törölve, mellé IDEGEN '
+      + 'értékekkel a csomagban): MINDEGYIKNÉL `covered` lett a klauzula. Ugyanez állt a csomag '
+      + '`verdict` és `probe_status` mezőire is (`if (result.verdict && …)`): aki KIHAGYTA őket, annak '
+      + 'az ellentmondás-vizsgálat maradt el.',
+    why_wrong: 'A VÉDELEM NEM LEHET FELTÉTELES AHHOZ KÉPEST, AMIT VÉDENI KELL. Ha a szabály úgy szól, '
+      + 'hogy „ha megadtad az elvárást, ellenőrzöm", akkor a megkerülése egyetlen TÖRLÉS. A hiány nem '
+      + 'semleges állapot: ugyanaz a válasz jár neki, mint a hamis értéknek (KUKA-084 alakja a '
+      + 'bizonyíték-kapun, KUKA-020 az „elhallgatás = igen" oldalán). És a hiba OSZTÁLYA nagyobb, mint '
+      + 'a helye: a kapu ELEJÉN álló „van-e elvárás?" őr LÁTSZÓLAG lefedte, valójában csak a '
+      + 'legdurvább alakot (a teljes hiányt) fogta meg — egy őr, ami a hiba egy ALAKJÁT zárja, nem a '
+      + 'hiba OSZTÁLYÁT, hamis biztonságot ad (KUKA-051 a védelemre).',
+    replaced_by: 'AZ ELVÁRÁS TELJES SÉMÁJA ELŐFELTÉTEL (`expectationShape`, NEVEZETT feloldó): érvényes '
+      + '`sha256:` alaplenyomat · nem üres `run_tokens` és `mutated_digests` leképezés. A mutációnkénti '
+      + 'keresés SAJÁT kulcson megy (az örökölt név nem elvárás), és a hiánya NEVEZETT elutasítás. A '
+      + 'csomag `verdict`/`probe_status`/`failed_assertions` mezője KÖTELEZŐ és típusos; a hiány, a '
+      + 'null, az üres és az ellentmondás MEGKÜLÖNBÖZTETHETŐ hibát kap (`requiredText`). A manifest '
+      + 'megengedett állítás-készlete a kapu HATÁRÁN kötelező, nem a belsejében feltételes.',
+    decision: 'D-VS-3013',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R59 F01 / E05 · E06 · E07) — a saját, egy körrel '
+      + 'korábban írt kapunkon; a söprés és a 26 saját ellen-vezérlés végig ZÖLD volt.',
+    lesson: 'MINDEN ŐRNÉL KI KELL MONDANI, MI TÖRTÉNIK, HA A BEMENET HIÁNYZIK — és a válasz csak akkor '
+      + 'helyes, ha AZONOS a hamis értékére adott válasszal. Ahol a kód `if (x && x !== y)` alakban '
+      + 'hasonlít, ott nem összehasonlítás áll, hanem egy OPCIONÁLIS összehasonlítás, amit a támadó '
+      + 'kikapcsolhat. A séma-ellenőrzés ELŐFELTÉTEL, nem az összehasonlítás része: előbb áll meg a '
+      + 'lánc, mint hogy egyetlen mezőt megnéznénk.',
+    guard_note: 'gépi jel: `npm run verify:v3ref` → `P-NORM-evidence` **n24** (mind a négy hiányos '
+      + 'elvárás PIROS, IDEGEN értékkel a csomagban, hogy a zöld ne véletlen egyezésből jöjjön) · '
+      + '**n25** (hiányzó ítélet / próba-állapot PIROS) · **n26** (örökölt kulcs · NULL · üres szöveg · '
+      + 'nem-tömb bukott-lista). A külső fél SAJÁT programja (`v3ref/external-checks/r59_chatgpt-v3.mjs`, '
+      + 'változatlanul) E05 · E06 · E07 esetei a régi kódon bizonyítottan pirosak, a mai kódon zöldek.',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: 'if \\(expectation\\.\\w+ &&',
+        reason: 'az elvárás-mező meglétéhez kötött összehasonlítás nem térhet vissza (KUKA-108)' }),
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: 'if \\(result\\.verdict &&',
+        reason: 'az ítélet ellenőrzése nem lehet feltételes az ítélet meglétére (KUKA-108)' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: 'expectationShape',
+        reason: 'az elvárás teljes sémája NEVEZETT feloldó, és a kapu ELŐFELTÉTELKÉNT hívja' }),
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: 'requiredText\\(result, .verdict.\\)',
+        reason: 'az ítélet KÖTELEZŐ és típusos — a hallgatás nem igenlés' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-109',
+    date: '2026-09-12',
+    title: 'A FUTTATÓ A BEMENETÉBŐL VETTE A MÉRCÉT — csonka és duplikált eredmény is MEGFELELT',
+    what: 'A külső ellenőrző programok futtatója (EXT-01, `run-all.mjs`) azt kérdezte meg egy '
+      + 'programtól, hogy „amit visszaadtál, abban minden eset `pass`-e?". Azt NEM tudta, MIT kellett '
+      + 'volna visszaadnia. A külső fél kicserélte a programot egy csonkra, ami EGYETLEN '
+      + '`{id:"T01",pass:true}` sort ír ki a kilenc helyett — a futtató MEGFELEL-t mondott és 0-val '
+      + 'zárt. Kilenc DARAB ugyanolyan `T01` sorra ugyanígy. Mellé: a `--only` részleges futás '
+      + 'eredménye ugyanolyan „RESULT: 1/1 program MEGFELEL" mondattal zárt, mint a teljes lánc.',
+    why_wrong: 'A MÉRÉS HATÓKÖRE A BEMENETBŐL SZÁRMAZOTT, NEM SZABÁLYBÓL (KUKA-051 a futtatón, '
+      + 'KUKA-054 a mintavételen). Aki a bemenetből veszi az elvárást, azt a bemenet bármikor '
+      + 'átejtheti: a nyolc hiányzó eset nem hibaként jelent meg, hanem NEM LÉTEZŐKÉNT (KUKA-012 a '
+      + 'mérőn). És mert ez a futtató a lánc VÉGE — a söprés, a CI és a külső fél ezt olvassa —, a '
+      + 'hazugsága a legdrágább fajta. A részleges futás néma egyenrangúsága ugyanennek a családnak a '
+      + 'másik alakja: egy programnyi zöld a TELJES lánc zöldjének látszott.',
+    replaced_by: 'ESET-MANIFESZT ÉS SZEMLE KÜLÖN MODULBAN (`v3ref/external-checks/case-manifest.mjs`, '
+      + 'EXT-02): minden program mellett ott áll, MELY eseteket kell hoznia — pontos azonosítóval, és '
+      + 'a lista FORRÁSÁVAL (a külső fél kísérő lapja, illetve a saját körünk jegyzőkönyve, nem egy '
+      + 'lefutás). Az `auditCases` MINDKÉT IRÁNYT méri: HIÁNYZÓ · ISMERETLEN · DUPLIKÁLT · ROSSZ ALAKÚ '
+      + '(a `pass` szigorúan logikai) · ELBUKOTT eset. A `runScope` KIMONDJA a hatókört, és a gépi '
+      + 'kimenet `scope`/`verdict.complete_evidence` mezőt visz — a részleges futás soha nem a lánc '
+      + 'teljes bizonyítéka. A futtató és a programok a lemásolt forrás RÉSZEI, hogy a másolatban '
+      + 'futó futtató is mérhető legyen.',
+    decision: 'D-VS-3013',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R59 F02 / E08) — az EXT-01 futtató az R58-ban a MI '
+      + 'átadhatósági válaszunk volt, tehát a saját, egy körrel korábbi munkánkon.',
+    lesson: 'AKI ELLENŐRIZ, ANNAK ELŐBB KELL TUDNIA, MIT VÁR, MINT HOGY MEGKAPJA A VÁLASZT. Egy '
+      + 'ellenőrző, aki a bemenetből olvassa ki az elvárását, nem ellenőriz, hanem VISSZHANGZIK. A '
+      + 'mérce forrását NEVEZNI kell (honnan tudjuk, hogy kilenc esetnek kell lennie?) — különben a '
+      + 'következő körben egy lefutásból vesszük, és a kör bezárul. És: a részleges hatókör nem '
+      + 'hallgatható el a GÉPI kimenetben sem, nem csak a képernyőn (KUKA-104: két csatorna, két '
+      + 'igazság — a láncba kötött fogyasztó csak az egyiket látja).',
+    guard_note: 'gépi jel: a külső fél SAJÁT programjának **E08** esete (`r59_chatgpt-v3.mjs`, '
+      + 'változatlanul): csonka és duplikált eredménnyel futtatja a MI futtatónkat egy másolatban, és '
+      + 'nem-nulla kilépést vár — a régi alakon bizonyítottan átment, a mai alakon PIROSRA viszi a '
+      + 'futtatót. Futtatás: `node v3ref/external-checks/run-all.mjs` (mind a négy program).',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/external-checks/run-all.mjs'],
+        pattern: 'cases\\.filter\\(\\(c\\) => c\\.pass !== true \\|\\| c\\.test_error\\)',
+        reason: 'a „minden kapott eset zöld" ítélet manifeszt nélkül nem térhet vissza (KUKA-109)' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/external-checks/run-all.mjs'],
+        pattern: 'auditCases',
+        reason: 'a futtató a MANIFESZTHEZ méri a kapott eseteket, nem önmagához' }),
+      Object.freeze({ paths: ['v3ref/external-checks/run-all.mjs'],
+        pattern: 'runScope',
+        reason: 'a részleges futás hatóköre a GÉPI kimenetben is kimondva' }),
+      Object.freeze({ paths: ['v3ref/external-checks/case-manifest.mjs'],
+        pattern: 'cases_source',
+        reason: 'a várt eset-lista FORRÁSA nevezett — nem egy lefutásból származik' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-110',
+    date: '2026-09-12',
+    title: 'A `!!mező` MINT TÍPUS-ELLENŐRZÉS — üres tömb, üres objektum és „not-a-date" is jóváhagyás lett',
+    what: 'A tartalmi jóváhagyás kötelező mező-készlete (KUKA-105 javítása) `!!r.mező` alakban kérdezte '
+      + 'a teljességet. A külső fél E09 esete pontosan ebbe nyúlt bele: `reviewer: {id: [], role: {}, '
+      + 'independent_of: []}`, `at: "not-a-date"`, `situation: []`, `property: {}`, `positive_evidence: '
+      + '[]`, `residual: []` — MINDEN mező „truthy", tehát a rekord teljesnek számított, a lenyomatok '
+      + 'stimmeltek, és a kapu `current`-et adott egy olyan jóváhagyásra, amiben egyetlen értelmezhető '
+      + 'adat sem volt.',
+    why_wrong: 'A `truthy` NEM TÍPUS. Az üres tömb és az üres objektum a JavaScriptben igaz — vagyis a '
+      + '„van-e" kérdésre igennel felel az is, amiben semmi nincs. A KUKA-105 javítása így a HIÁNYT '
+      + 'zárta le, az ÜRESSÉGET nem: a rekord neve emberi ítéletet ígért, a tartalma egy üres tömb '
+      + 'lehetett (KUKA-015 a felirat ↔ teljesítés viszonyán). És a bizonyíték-mezők SZABAD SZÖVEGET '
+      + 'fogadtak, tehát a jóváhagyás nem létező próbára is hivatkozhatott — a kitalált forrás nem '
+      + 'hibának látszik, hanem adatnak (KUKA-066).',
+    replaced_by: 'TÍPUSOS, VERZIÓZOTT REKORD (`CONTENT_REVIEW_FIELDS` + `CONTENT_REVIEW_RECORD_VERSION` '
+      + '= `content-review-2`): mezőnként NEM ÜRES SZÖVEG (`isText`), SZIGORÚ időbélyeg '
+      + '(`timestampProblem`: kanonikus ISO-8601 UTC visszaírhatóság + nem lehet a jövőben), és a '
+      + 'bizonyíték FELOLDHATÓ HIVATKOZÁSOK LISTÁJA (`probe` + `assertion` a manifesthez · `mutation` a '
+      + 'regiszterhez · `document` hellyel és állítással). ÖTÖDIK állapot: `invalid` — a HIÁNY és a '
+      + 'ROSSZ ALAK két külön válasz, mert két külön teendő tartozik hozzájuk (pótolni ⇄ javítani). '
+      + 'És a HITELESSÉG KÜLÖN TENGELY (`authenticity`), ami MINDEN válaszban ott áll, ma nemlegesen: '
+      + 'a `current` a struktúrára és a kötésre mond igent, az elfogadás hitelességére SOHA.',
+    decision: 'D-VS-3013',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R59 F03 / E09) — a KUKA-105 SAJÁT javításán, egy körrel '
+      + 'a kiadása után.',
+    lesson: 'A KÖTELEZŐ MEZŐ AKKOR VAN MEG, HA AZ ÉRTÉKE IS AZ, AMINEK LENNIE KELL. A `!!` a „létezik" '
+      + 'kérdésre felel, a szerződés viszont a JELENTÉSRE kérdez — és a kettő között elfér egy üres '
+      + 'tömb. Minden kötelező-mező szabálynál külön ki kell mondani a TÍPUST és a NEM-ÜRESSÉGET, '
+      + 'időpontnál a KANONIKUS ALAKOT, hivatkozásnál pedig azt, hogy MIHEZ oldható fel. És ahol egy '
+      + 'szó három kérdésre felel egyszerre (ép-e · a mai szövegre szól-e · hiteles-e), ott a szót '
+      + 'SZÉT KELL SZEDNI: a `current` nem viselheti a hitelesség terhét, amit a rendszer nem tud '
+      + 'megadni (KUKA-002 a jóváhagyás állapotán).',
+    guard_note: 'gépi jel: `npm run verify:v3ref` → `P-NORM-evidence` **n27** (tizenöt alak mérve, köztük '
+      + 'a külső fél E09 csomagja BETŰRE: üres tömb · üres objektum · `not-a-date` · nem kanonikus dátum '
+      + '· jövőbeli dátum · üres bizonyíték-lista · szöveges bizonyíték · ismeretlen hivatkozás-fajta · '
+      + 'feloldhatatlan próba és mutáció · hiányzó és ismeretlen rekord-verzió · és a hitelesség külön '
+      + 'tengelye) + **n23** (az ÖT állapot). A külső fél SAJÁT E09 esete a régi kódon bizonyítottan '
+      + 'piros, a mai kódon zöld.',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: '\\(r\\) => !!r\\.situation',
+        reason: 'a truthy-ellenőrzés mint kötelező-mező szabály nem térhet vissza (KUKA-110)' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: 'CONTENT_REVIEW_RECORD_VERSION',
+        reason: 'a jóváhagyás-rekord KIMONDJA, melyik szerződést beszéli' }),
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: 'function timestampProblem',
+        reason: 'az időbélyeg szigorú és nevezett feloldóban áll' }),
+      Object.freeze({ paths: ['v3ref/norms.mjs'],
+        pattern: 'function acceptanceAxis',
+        reason: 'a hitelesség KÜLÖN tengely, és minden válaszban ott áll' }),
+    ]),
   }),
 
 ]);

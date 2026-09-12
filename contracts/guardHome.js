@@ -28,6 +28,9 @@ const GUARD_HOME_CONTRACT_ID = 'GHM-01';
 const VS_HOMED_CEILING = 85;
 
 const GUARD_HOME = Object.freeze({
+  'KUKA-110': Object.freeze({ home: 'v3', note: 'a jelek cél-fájljai ITT vannak — a jel FUT' }),
+  'KUKA-109': Object.freeze({ home: 'v3', note: 'a jelek cél-fájljai ITT vannak — a jel FUT' }),
+  'KUKA-108': Object.freeze({ home: 'v3', note: 'a jelek cél-fájljai ITT vannak — a jel FUT' }),
   'KUKA-107': Object.freeze({ home: 'vs', note: 'a board a V2 repoban el - a BDR jel OTT fut' }),
   'KUKA-106': Object.freeze({ home: 'vs', note: 'a board a V2 repóban él — a LAN07 jel OTT fut' }),
   'KUKA-105': Object.freeze({ home: 'v3', note: 'a jelek cél-fájljai ITT vannak — a jel FUT' }),

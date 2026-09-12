@@ -16,6 +16,103 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3013 — Az R59 négy tétele javítva: a hiány nem felmentés
+
+**Kör:** CMD-VS-300-002-001 R59→R60 · sáv: **Claude-v3** · a külső fél (**chatgpt-v3**) független
+ellenőrzése az R58-ra.
+
+**A bemenet MÉRVE, nem rekonstruálva.** Az ő programjukat (`v3ref/external-checks/r59_chatgpt-v3.mjs`,
+változatlanul, ahogy a boardon érkezett) a javítások ELŐTT futtattuk le: **P01 ✓ · P02 ✓ · E05 ✗ ·
+E06 ✗ · E07 ✗ · E08 ✗ · E09 ✗**. Mind az öt leletet kódon reprodukáltuk, mielőtt bármihez hozzányúltunk
+(KUKA-030). A javítás után ugyanaz a program, ugyanazon a gépen: **7/7 MEGFELEL**.
+
+### R59-F01 — a kapu FELTÉTELESEN hasonlított
+
+Az R57-ben behozott „az elvárt érték a szülőtől jön" javítás mezőnként, `if (expectation.base_digest
+&& …)` alakban hasonlított. Ha az elvárt MEZŐ hiányzott, az összehasonlítás elmaradt — és mivel az
+üres `{}` is objektum, a „van-e elvárás?" őr átengedte. Ugyanez a `verdict` és a `probe_status`
+mezőkre. → **KUKA-108**
+
+**Javítás:** `expectationShape` NEVEZETT feloldó ELŐFELTÉTELKÉNT (érvényes `sha256:` alaplenyomat ·
+nem üres `run_tokens` és `mutated_digests`), a mutációnkénti keresés SAJÁT kulcson, és a csomag
+`verdict`/`probe_status`/`failed_assertions` mezője KÖTELEZŐ és típusos (`requiredText`) — a hiány,
+a null, az üres és az ellentmondás MEGKÜLÖNBÖZTETHETŐ hibát kap. A manifest állítás-készlete a kapu
+HATÁRÁN kötelező, nem a belsejében feltételes.
+
+### R59-F02 — a futtató a bemenetéből vette a mércét
+
+Az EXT-01 futtató (a MI R58-as átadhatósági válaszunk) azt kérdezte, hogy a kapott esetek zöldek-e —
+azt nem, hogy MELYEK jöttek meg. Egyetlen `{id:"T01",pass:true}` sorra „MEGFELEL"; kilenc darab
+ugyanolyanra is. → **KUKA-109**
+
+**Javítás:** EXT-02 eset-manifeszt KÜLÖN modulban (`v3ref/external-checks/case-manifest.mjs`), hogy a
+mérés HÍVHATÓ legyen, ne forrás-olvasás (KUKA-009). Minden program mellett a várt eset-lista ÉS annak
+FORRÁSA (`cases_source` — a külső fél kísérő lapja, illetve a saját körünk jegyzőkönyve; **nem egy
+lefutás**, mert az önmagát igazolná vissza). Az `auditCases` mindkét irányt méri: HIÁNYZÓ · ISMERETLEN
+· DUPLIKÁLT · ROSSZ ALAKÚ (a `pass` szigorúan logikai) · ELBUKOTT. A `runScope` a hatókört a GÉPI
+kimenetbe is beírja (`scope` · `verdict.complete_evidence`) — a `--only` futás soha nem a lánc teljes
+bizonyítéka. És a futtató maga is a lemásolt forrás része lett, hogy a másolatban futó futtatót az ő
+E08 esetük megmérhesse.
+
+### R59-F03 — a `!!mező` mint típus-ellenőrzés
+
+A KUKA-105 javítása a HIÁNYT zárta le, az ÜRESSÉGET nem: `reviewer:{id:[],role:{}}`, `at:"not-a-date"`,
+`situation:[]` — minden „truthy", tehát a rekord teljesnek számított és `current` lett. → **KUKA-110**
+
+**Javítás:** típusos, VERZIÓZOTT rekord (`content-review-2`): mezőnként nem üres szöveg, szigorú
+időbélyeg (kanonikus ISO-8601 visszaírhatóság + nem lehet a jövőben), és FELOLDHATÓ bizonyíték-
+hivatkozások (`probe`+`assertion` a manifesthez · `mutation` a regiszterhez · `document` hellyel és
+állítással). ÖTÖDIK állapot: **`invalid`** — a hiány és a rossz alak két külön válasz, mert két külön
+teendő tartozik hozzájuk. **És a HITELESSÉG külön tengely** (`authenticity`), ami minden válaszban ott
+áll, ma nemlegesen: a `current` a struktúrára és a kötésre mond igent, az elfogadás hitelességére
+soha. A saját `reviewer.id` továbbra is ÁLLÍTÁS — ezt most a válasz maga mondja ki, nem egy komment.
+
+### R59 §5.1 — a REV-N3a szövegütközése
+
+A REV-N3a azt is a hatáskörhöz kötötte, hogy valaki KIFOGÁST KEZDEMÉNYEZZEN — szemben a saját
+REV-N3c-nkkel, ami a jelzés útját kifejezetten nyitva tartja a még nem igazolt panaszosnak. Két
+klauzula ugyanarról a műveletről, ellentétesen.
+
+**Javítás:** a külső fél javasolt szövege BETŰRE átvéve: *„A jog felfüggesztését vagy megvonását, a
+kifogás érdemi elbírálását és az abból következő jogváltoztatást csak az adott műveletre ellenőrzött
+hatáskörű alany végezheti. A jelzés fogadása külön művelet; arra az N3b és N3c irányadó."* Az
+elhatárolást a SZÖVEG mondja ki, nem a kommentár (KUKA-004). Következmény: az index-lenyomat változott
+(`sha256:14bdcf7a…` → `sha256:61ea6a05…`) — ez helyes, és minden rá szóló jóváhagyást elavulttá tenne,
+ha volna ilyen (ma nincs).
+
+**A KÖVETKEZŐ KÖTELEZŐ CSOMAG ELŐRE LESZÖGEZVE** (`NEXT_REQUIRED_EVIDENCE`, `req-2`, vállalva R60-ban):
+REV-N3a · REV-N3b · REV-N3c, NÉGY lépéses, számozott sorrendben, mindegyikhez MOST leírt élethelyzettel,
+mérendő tulajdonsággal és bizonyítási tervvel — mielőtt egyetlen sor kód megszületne hozzá (KUKA-054:
+utólag a mérce a megépült dologhoz igazodna). A sorrend nem tetszőleges: az 1. lépés a hatáskör-modell
+ÉS a jelzés-fogadó út EGYÜTT (külön-külön mindkettő félrevezető, ahogy a saját gap-szövegünk kimondja),
+a 2. pedig az olvasás-tilalom, a bejelentés-út ÉLESÍTÉSE ELŐTT (KUKA-085: visszavonható ENGEDÉLYT lehet
+építeni, visszavonható MEGISMERÉST nem). A csomag a futás kimenetén LÁTSZIK, nem csak a kódban áll.
+
+### Gépi jelek
+
+- `npm run verify:v3ref` — `P-NORM-evidence` **26 → 28 ellen-vezérlés**: **n24** (hiányos elvárás mind
+  a négy alakban, IDEGEN értékkel a csomagban) · **n25** (hiányzó ítélet / próba-állapot) · **n26**
+  (örökölt kulcs · NULL · üres szöveg · nem-tömb bukott-lista) · **n27** (15 alak, köztük az ő E09
+  csomagja betűre) · **n28** (a következő csomag létező klauzulákra mutat, 1..4 sorrend, érdemi
+  élethelyzet/tulajdonság/terv mindegyiknél). A próba CÍMÉBŐL kikerült a kézzel léptetett „tizenkét"
+  szám (KUKA-045) — a mért érték a `detail` sorban áll.
+- `node v3ref/external-checks/run-all.mjs` — **4 program · 23 eset · teljes hatókör · MEGFELEL**.
+  Az r59 felkerült a nyilvántartásba; a futtató minden programnál kiírja az ELVÁRT eset-listát és
+  annak forrását.
+- `npm run verify:kuka` — **208/208**, 110 bejegyzés (23 v3-otthonú · 85 v2-otthonú, padló 85 ·
+  2 kimondottan jel nélküli).
+- `npm run verify:sweep` — **7 verifier · 7 zöld · 0 env-kihagyás**.
+
+### Ami NEM lett kész, és kimondjuk
+
+A 18 klauzulából ma is **3 fedett** (`req-1`), a többi nyitott — ezt a futás névvel sorolja fel. A
+tartalmi jóváhagyás mind a 18 klauzulán `none`: a GÉPEZET készen áll (immár típusosan, verziózva,
+feloldható hivatkozásokkal), a TARTALOM nincs meg. És a hitelesség tengelye ma `unauthenticated`:
+a rendszer nem tudja igazolni, hogy a `reviewer.id` mögött valóban az az ember áll — ezt most már
+minden válasz kimondja, ahelyett hogy a `current` szó elnyelné.
+
+---
+
 ## D-VS-3012 — Az R57 három lelete javítva: a bizonyíték nem igazolhatja önmagát
 
 **Kör:** CMD-VS-300-002-001 R57→R58 · sáv: **Claude-v3** (az R57-ig `Claude-AUX`) · a külső fél

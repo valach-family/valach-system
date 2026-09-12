@@ -41,40 +41,13 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
+// A PROGRAM-REGISZTER ÉS AZ ESET-SZEMLE KÜLÖN MODULBAN ÁLL (EXT-02, R59/F02), hogy a verifier
+// HÍVHASSA ugyanazt a döntést, amit a futtató használ — ne a forrás szövegét olvassa (KUKA-009).
+import { PROGRAMS, auditCases, runScope } from './case-manifest.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));   // v3ref/external-checks
 const REF = resolve(HERE, '..');                        // v3ref
 const ROOT = resolve(REF, '..');                        // a repó gyökere (KUKA-031: nincs beégetett út)
-
-// ── A PROGRAMOK — és KI ÍRTA ŐKET ───────────────────────────────────────────────────────────────
-// A szerző nem díszítés: a külső fél programja FÜGGETLEN tanú, a mienk ÖNVIZSGÁLAT. Ha a kettőt
-// egy kalap alá vennénk, a saját programunk zöldje független bizonyítéknak látszana (KUKA-054).
-const PROGRAMS = [
-  {
-    id: 'r57',
-    file: 'r57_chatgpt-v3.mjs',
-    by: 'chatgpt-v3 — KÜLSŐ, független fél',
-    origin: 'R57 (változatlanul, ahogy a boardon érkezett)',
-    what: 'T01–T05: az R56-ban tett pecsét-állítások · E01–E04: a bizonyíték-kapu megkerülhetősége',
-    evidence: 'r56-challenge.json',
-  },
-  {
-    id: 'r55',
-    file: 'r55_restated.mjs',
-    by: 'Claude-v3 — a SAJÁT sávunk (önvizsgálat)',
-    origin: 'R56',
-    what: 'az R55 öt esete újrafogalmazva a mai szerződésre, mindegyikhez ellenpárral',
-    evidence: 'restated.json',
-  },
-  {
-    id: 'r53',
-    file: 'r53_f03_restated.mjs',
-    by: 'Claude-v3 — a SAJÁT sávunk (önvizsgálat)',
-    origin: 'R54',
-    what: 'az R53/F03 támadás egyenértékű alakja (G01) + érintetlen ellenpár (G02)',
-    evidence: 'f03-restated.json',
-  },
-];
 
 // ── Parancssor ──────────────────────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
@@ -129,9 +102,13 @@ function measureSource() {
 // ── A KÖRNYEZET ÖSSZERAKÁSA ─────────────────────────────────────────────────────────────────────
 // A programok mellett `source/v3ref/…`, `source-manifest.json` és `evidence/` kell — ezt eddig kézzel
 // raktuk össze, innentől a gép.
+// A FUTTATÓ IS A LEMÁSOLT FORRÁS RÉSZE (R59/F02). A külső fél E08 esete magát a FUTTATÓT támadja:
+// kicseréli az egyik programot egy csonkra, majd a másolatban futó `run-all.mjs`-től kérdezi meg,
+// észreveszi-e. Ehhez a másolatban ott kell lennie a futtatónak és a programoknak — csak a GENERÁLT
+// kimenet marad ki (a `results/` és a mutációs eredmény-fájl nem forrás).
 function stage(src) {
   const dir = mkdtempSync(join(tmpdir(), 'v3ref-ext-'));
-  const skip = [join(REF, 'external-checks'), join(REF, 'v3ref-mutation-result.json')];
+  const skip = [join(HERE, 'results'), join(REF, 'v3ref-mutation-result.json')];
   cpSync(REF, join(dir, 'source', 'v3ref'), {
     recursive: true,
     filter: (from) => !skip.some((s) => from === s || from.startsWith(`${s}/`)),
@@ -141,7 +118,7 @@ function stage(src) {
     measured_at: new Date().toISOString(),
     source_state: src.note,
     dirty_files: src.dirty_files,
-    staged_from: 'v3ref/ (a external-checks/ és a generált eredmény nélkül)',
+    staged_from: 'v3ref/ (a generált eredmény nélkül: external-checks/results/ és v3ref-mutation-result.json)',
   }, null, 2)}\n`);
   mkdirSync(join(dir, 'evidence'), { recursive: true });
   for (const p of PROGRAMS) cpSync(join(HERE, p.file), join(dir, p.file));
@@ -199,12 +176,21 @@ for (const p of selected) {
     cpSync(evidencePath, saved);
   }
 
-  const failed = cases ? cases.filter((c) => c.pass !== true || c.test_error) : null;
-  const ok = Array.isArray(cases) && cases.length > 0 && failed.length === 0 && q.status === 0 && !q.error;
+  // AZ ESET-SZEMLE (EXT-02). Nem az a kérdés, hogy amit KAPTUNK, az zöld-e, hanem hogy AZ ÉRKEZETT-E
+  // MEG, aminek meg kellett — hiány · ismeretlen · duplikátum · rossz alak · bukás, mind külön szóval.
+  const audit = auditCases(p, cases);
+  const ok = audit.ok && q.status === 0 && !q.error;
+  if (q.status !== 0) audit.problems.push(`[${p.id}] a program NEM NULLÁVAL zárt (kilépés ${q.status})`);
+  if (q.error) audit.problems.push(`[${p.id}] a futtatás elszállt: ${q.error.message || q.error}`);
+
   summary.push({
     id: p.id, file: p.file, by: p.by, origin: p.origin,
-    exit: q.status, ms, total: cases ? cases.length : null,
-    failed: failed ? failed.map((c) => c.id) : null,
+    exit: q.status, ms,
+    expected_cases: [...p.cases], expected_from: p.cases_source,
+    total: cases ? cases.length : null,
+    present: audit.present, missing: audit.missing, unknown: audit.unknown,
+    duplicate: audit.duplicate, failed: audit.failed,
+    problems: audit.problems,
     ok, saved,
     stderr: (q.stderr || '').trim().split('\n').filter(Boolean).slice(0, 4),
     error: q.error ? String(q.error.message || q.error) : null,
@@ -214,26 +200,45 @@ for (const p of selected) {
   console.log(`  ${head}  [${p.id}] ${p.file}`);
   console.log(`            írta:      ${p.by} · ${p.origin}`);
   console.log(`            mit mér:   ${p.what}`);
-  console.log(`            eredmény:  ${cases ? `${cases.length - (failed?.length ?? 0)}/${cases.length} eset` : 'a kimenet nem értelmezhető'}`
+  console.log(`            elvárt:    ${p.cases.length} eset (${p.cases.join(' · ')}) — forrás: ${p.cases_source}`);
+  console.log(`            eredmény:  ${cases ? `${audit.present.length - audit.failed.length}/${p.cases.length} eset zöld` : 'a kimenet nem értelmezhető'}`
     + ` · kilépés ${q.status} · ${ms} ms`);
-  if (failed && failed.length) console.log(`            ELBUKOTT:  ${failed.map((c) => c.id).join(' · ')}`);
-  if (q.error) console.log(`            HIBA:      ${q.error.message || q.error}`);
+  for (const w of audit.problems) console.log(`            ELTÉRÉS:   ${w}`);
   for (const l of summary.at(-1).stderr) console.log(`            stderr:    ${l}`);
   if (saved) console.log(`            fájl:      ${saved}`);
   console.log('');
 }
 
-const all = { at: new Date().toISOString(), node: process.version, source: src, programs: summary };
+// A HATÓKÖR KIMONDVA (R59/F02). A `--only` legitim, de a RÉSZLEGES futás soha nem a lánc teljes
+// bizonyítéka — és ezt a GÉPI kimenetnek is hordoznia kell, nem csak a képernyőnek (KUKA-104: két
+// csatorna, két igazság). Aki a JSON-t olvassa, a `scope`-ból tudja meg, mit ér a zöld.
+const scope = runScope(selected.map((p) => p.id), PROGRAMS.map((p) => p.id));
+const green = summary.filter((s) => s.ok).length;
+const all = {
+  at: new Date().toISOString(),
+  node: process.version,
+  source: src,
+  scope,
+  verdict: {
+    ok: green === summary.length,
+    complete_evidence: scope.complete && green === summary.length,
+    green,
+    of: summary.length,
+  },
+  programs: summary,
+};
 const indexPath = join(OUT, 'external-checks-result.json');
 writeFileSync(indexPath, `${JSON.stringify(all, null, 2)}\n`);
 
 if (keep) console.log(`  a munkakönyvtár MEGMARADT: ${dir}`);
 else rmSync(dir, { recursive: true, force: true });
 
-const green = summary.filter((s) => s.ok).length;
 console.log('='.repeat(88));
+console.log(`  hatókör:        ${scope.scope} — ${scope.why}`);
+if (scope.skipped.length) console.log(`  NEM futott:     ${scope.skipped.join(' · ')}`);
 console.log(`  összesítő fájl: ${indexPath}`);
 console.log(`RESULT: ${green}/${summary.length} program MEGFELEL`
-  + (green === summary.length ? '' : ` — ELTÉRÉS: ${summary.filter((s) => !s.ok).map((s) => s.id).join(' · ')}`));
+  + (green === summary.length ? '' : ` — ELTÉRÉS: ${summary.filter((s) => !s.ok).map((s) => s.id).join(' · ')}`)
+  + (scope.complete ? '' : ' · RÉSZLEGES FUTÁS — nem a lánc teljes bizonyítéka'));
 console.log('');
 process.exit(green === summary.length ? 0 : 1);

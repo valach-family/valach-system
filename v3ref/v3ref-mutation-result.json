@@ -1,10 +1,10 @@
 {
-  "at": "2026-09-11T18:19:28.647Z",
+  "at": "2026-09-12T06:50:20.742Z",
   "node": "v22.22.2",
-  "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
+  "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
   "clean": true,
   "why": [],
-  "wall_ms": 4544,
+  "wall_ms": 2872,
   "mutations": {
     "total": 46,
     "caught": 46,
@@ -44,7 +44,7 @@
         "note": "ez az R32 TÖRTÉNETI 1. verziójának kötése. A későbbi körökben elfogadott pontosításokat (pl. a megvonás és a bejelentés bontása) nem vonja vissza: azok a verziózott indexen és kifejezett módosítási kapcsolaton át követhetők, és a következő konszolidáció ÚJ verziót és ÚJ lenyomatot kap. Nem nevezzük változatlan R32-nek azt, amit közben módosítottunk."
       }
     },
-    "index_digest": "sha256:14bdcf7afa219506e4c253d84370e28594cb31f2409d6ed0de83e79b6aa1ed2d",
+    "index_digest": "sha256:61ea6a059de9b4f296edea5259e671df293e6eba158ef2c6a24c1cc7aa88f8e8",
     "falsification_stage": "measured",
     "required": {
       "version": "req-1",
@@ -86,7 +86,13 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "covered",
         "why": null
@@ -110,7 +116,13 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "covered",
         "why": null
@@ -128,7 +140,13 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "no_evidence",
         "why": "Nincs korrekciós esemény-fogalom és nincs „alkalmazandó profil\" a magban, tehát a joghatás felülvizsgálata nem modellezhető. A REV-N2 (hatály ⊥ tudomás) és a REV-N4 (kompenzáló folyamat) megépítése ELŐFELTÉTEL — enélkül csak azt tudjuk kimondani, hogy a régi sort nem írjuk át."
@@ -146,7 +164,13 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "no_evidence",
         "why": "A mai `membership.revoked_at` EGYETLEN időpont, tehát a két tengelyt nem tudja szétválasztani — ez a KUKA-002 alakja a megvonáson. Nincs esemény-fajta a múltbeli hatályú, mai rögzítésű helyesbítésre, és nincs nézet, ami a két alakot külön reprodukálná."
@@ -165,7 +189,13 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "no_evidence",
         "why": "Nincs „felülvizsgálati kör\" fogalom a magban: se állapota, se listája, se lezárása. A REV-N2a idő-modellje nélkül nem is számolható ki, MELY műveletek érintettek."
@@ -184,10 +214,16 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "no_evidence",
-        "why": "A `revokeMembership` ma nem kérdez hatáskört a HÍVÓTÓL — a magreferencia szintjén a megvonás bemenetnek számít, tehát bárki „megvonhatna\". A jogosulatlan kifogás elleni kapu nincs megépítve."
+        "why": "A `revokeMembership` ma nem kérdez hatáskört a HÍVÓTÓL — a magreferencia szintjén a megvonás bemenetnek számít, tehát bárki „megvonhatna\". A jogosulatlan kifogás elleni kapu nincs megépítve. A hatáskör MŰVELETENKÉNT értendő (felfüggesztés ⇄ elbírálás ⇄ jogváltoztatás): egy általános „bíráló\" jelölés nem elég, mert akkor a legszűkebb felhatalmazás a legtágabb hatást adná."
       },
       {
         "norm_id": "REV-N3",
@@ -203,7 +239,13 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "no_evidence",
         "why": "Nincs kifogás-fogalom, tehát nincs mihez kötni az olvasási tilalmat. A veszély a KUKA-085 alakja: visszavonható ENGEDÉLYT lehet építeni, visszavonható MEGISMERÉST nem — ezért ezt a klauzulát a bejelentés bevezetése ELŐTT kell megépíteni, nem utána."
@@ -222,7 +264,13 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "no_evidence",
         "why": "Nincs bejelentés-fogadó út a magban, tehát se a semleges válasz, se a visszaélés-korlát nem mérhető. A klauzula az R55 §7 korrekciójából született, és a REV-N3a hatáskör-modelljével EGYÜTT kell megépülnie — külön-külön mindkettő félrevezető: hatáskör nélkül a bejelentés jogot mozdítana, bejelentés nélkül a hatáskör elfojtja a jelzést."
@@ -241,7 +289,13 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "no_evidence",
         "why": "Nincs kompenzáló-esemény fogalom a magban. A V2-ben van (`reverse`), de a V3 magja ezt még nem modellezi, és a kettő összekötése nem történt meg."
@@ -260,7 +314,13 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "no_evidence",
         "why": "A REV-N4a esemény-fogalma nélkül nincs mit jóváhagyni; a jóváhagyói hatáskör pedig a REV-N3a hatáskör-modelljére épülne, ami szintén nincs meg."
@@ -279,7 +339,13 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "no_evidence",
         "why": "Nincs a tagságtól FÜGGETLEN, alany-szintű tiltás-fogalom; ma minden tiltás könyvenkénti tagság-megvonás. A „minden alkalmazható engedő útra érvényes\" követelmény (R51 §4) ezért nem is mérhető: egyetlen engedő út van."
@@ -298,7 +364,13 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "no_evidence",
         "why": "A magban egyetlen tiltás-fajta van (könyvenkénti tagság-megvonás), tehát a hét fajta és az ok→hatókör leképezés fogalmilag sem jelenik meg. Az R55 §7 korrekciójából született: a korábbi szövegünk feltétel nélkül mondta, hogy a független könyv sértetlen — ez kompromittált HITELESÍTŐNÉL téves."
@@ -316,7 +388,13 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "no_evidence",
         "why": "A REV-N5a/b tiltás-fogalma nélkül nincs alanya. Az ellenpár-mérés (a többi jogosult joga megmarad) csak akkor futtatható, ha a tiltás létezik — enélkül a klauzula méretlen, tehát KUKA-051 szerint zöldnek LÁTSZANA."
@@ -335,7 +413,13 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "no_evidence",
         "why": "A mai `invite.issuer_subject` EGYETLEN személyre mutat, és a jogalapot a `rightAt` MAI válasza adja. Se határozat-azonosító, se verzió, se hatály nincs tárolva, tehát a kiadott meghívó nem tudja megmondani, MI alapján adták ki."
@@ -354,7 +438,13 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "no_evidence",
         "why": "A mai meghívó egyetlen `offered_role` mezőt visz; művelet- és adatkör-korlát nincs. A korlát nélküli felhatalmazás a KUKA-041 alakja a jogon: a szűkítés látszik a papíron, de semmi nem kényszeríti ki."
@@ -377,7 +467,13 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "covered",
         "why": null
@@ -395,7 +491,13 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "no_evidence",
         "why": "A magban EGYETLEN jogalap-út van (tagság), tehát a VAGY/ÉS megkülönböztetés fogalmilag sem jelenik meg. A modell bővítése nélkül ez nem mérhető — és a méretlen klauzula zöldnek látszana (KUKA-051), ezért áll itt kimondva."
@@ -414,7 +516,13 @@
         "evidence_limit": null,
         "content_review": {
           "state": "none",
-          "why": "nincs rögzített tartalmi felülvizsgálat"
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
         },
         "result": "no_evidence",
         "why": "A REV-N5a alany-szintű tiltás-fogalma és az ORG-N3a vagylagos út egyszerre előfeltétel; egyik sincs meg, tehát az elsőbbségi szabálynak ma nincs alanya."
@@ -426,9 +534,9 @@
       "mutation_id": "M1",
       "catcher": "P-A04",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:74ce7f4e28ea6ea26f0fed71b85f303522bc69a739a23bd72bc42a0b05060857",
-      "run_token": "rt_50c4e0d5-753f-4193-80ad-ce5b2ab5bccd",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:6a3f801a942b97487aeaa95e3e939042cadce21db2229c5146079450197538b6",
+      "run_token": "rt_8c009809-e665-4b49-aa43-2f3a0a5edca9",
       "probe_id": "P-A04",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -439,9 +547,9 @@
       "mutation_id": "M2",
       "catcher": "P-K03-cred",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:9842a6a1e7ef5071f63ed388afb51f12faf9675944c54836c5cd8320b0f8b36e",
-      "run_token": "rt_b32384ef-bcb2-4168-826e-80b86530ac36",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:44a63a6b035136ff50b7d50cb88d49b4dba61fda9c03af026b0d7a5c43b6b0cd",
+      "run_token": "rt_7096323b-72e1-464d-a235-db1176897aaf",
       "probe_id": "P-K03-cred",
       "probe_status": "THREW",
       "failed_assertions": [],
@@ -452,9 +560,9 @@
       "mutation_id": "M3",
       "catcher": "P-K03-intent",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:ede426a33ac3fcddbb2d714ff070186ede2031a7f4e9e621a5e1c1c987091c1b",
-      "run_token": "rt_117889a2-8d6c-412c-83da-98a17279e621",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:b83b7189bc888607658a13d1f22fe7a5584006e3173fe02991166d059dc27499",
+      "run_token": "rt_63e44aad-00fe-4bda-9cf1-5b37bf70ff9d",
       "probe_id": "P-K03-intent",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -465,9 +573,9 @@
       "mutation_id": "M4",
       "catcher": "P-A08",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:d7a2483c8ac4fb2e925d80dbb3b8f3707961c7c9de6d177d895c77f7b87db7be",
-      "run_token": "rt_5cc63920-183a-4067-91a6-6f5c76dedd0b",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:2e59d60f4db1eadaab373286df2a6eb7ce195126aee4175a8b8d2aa3c79472da",
+      "run_token": "rt_161679c2-5841-4695-bb23-71f87363bee2",
       "probe_id": "P-A08",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -478,9 +586,9 @@
       "mutation_id": "M5",
       "catcher": "P-A08",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:4aa130e6f36bb30aef3503ccdde8692bb8f9f2f7e0c5c0ca659f0d91264f2450",
-      "run_token": "rt_6ef5c02d-5e87-4657-8cf8-f98ebbcc9592",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:4dfa185c1f43f2e5a17f3b51a2cdf87de597e94e95c84660c6382ed179560fb8",
+      "run_token": "rt_d525af00-d3bb-40ea-bb0d-14a06466bee2",
       "probe_id": "P-A08",
       "probe_status": "THREW",
       "failed_assertions": [],
@@ -491,9 +599,9 @@
       "mutation_id": "M6",
       "catcher": "P-A14",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:5ee0eb4c967040a88d5229da1c5b2ec09a63b3ddf16e1db352c75f3830fe097f",
-      "run_token": "rt_6ad41a31-169a-419b-81aa-ed2ea06fb1bb",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:812136bc4f6aafc7fb0da3abc48821d8328088d23a8df0352365b5549075dd88",
+      "run_token": "rt_63f8088c-6b8c-4b03-a981-d8112187c82b",
       "probe_id": "P-A14",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -504,9 +612,9 @@
       "mutation_id": "M7",
       "catcher": "P-A08",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:dc04f0fd189208be12070cc4b4e52cbe7d6218d01ab33e2cfbff9680fd420af1",
-      "run_token": "rt_db929d65-4a7b-4bb1-ad3e-2c64c8e404a6",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:f1e1caaabf312efca900916e3999c5c0e482bcf71bd14c7bb3f26b15cfd56ed7",
+      "run_token": "rt_e0f2c893-855c-40be-91f6-6c0bfa4fb709",
       "probe_id": "P-A08",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -517,9 +625,9 @@
       "mutation_id": "M8",
       "catcher": "P-A08",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:48736c4081a14576caf826bc9b2b6ee8d01c4376312c57ed9c78e26f2b366d91",
-      "run_token": "rt_bbb975af-3d9b-4e04-9fe5-1c02e1bdf2d1",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:939db89f9b1b2e6c2c7748710d450af10935dec016d288945b1d18fa9a08b3e3",
+      "run_token": "rt_9be3c022-f0a5-4463-8b35-0321a17dfbc3",
       "probe_id": "P-A08",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -530,9 +638,9 @@
       "mutation_id": "M9",
       "catcher": "P-A04b",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:c77e8d6c89a42e8f88711476f61bf6ecee4693d85381c8fac6511e72798fbd65",
-      "run_token": "rt_d2a4547a-a9eb-43f7-9912-c953dc9aef33",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:2631fa864fad09bf4926928473977ed2352fa4b942ede9bc7aca1d51a8c6df14",
+      "run_token": "rt_7ce45322-da20-4e67-a7f0-120f2d9403f3",
       "probe_id": "P-A04b",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -543,9 +651,9 @@
       "mutation_id": "M10",
       "catcher": "P-A08",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:08981c59f100fd5ea041e625ed292488f3fb677ec48082cb9335927b1634c614",
-      "run_token": "rt_c0df33c1-d15f-43c2-b83f-902cc37c0d6e",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:ffe3bdb2bd6fbdc8fda512167fd82dfe2faa294a1596593bc15895194255d858",
+      "run_token": "rt_53521e2f-9eba-42c8-b580-f1fc4f71fa38",
       "probe_id": "P-A08",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -556,9 +664,9 @@
       "mutation_id": "M11",
       "catcher": "P-CMD-namespace",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:379f1e7b48b4abbcfccf29ca293190b45ca5d61827768a5df28a21777a8436d5",
-      "run_token": "rt_7f717b4f-f49d-49c3-9d36-9e6878b8f0ed",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:7729eb23be604d57259079b09b0d9ccdeb6ac4ba0801ec211ce6397e9b16a66f",
+      "run_token": "rt_ed890f42-1d9a-4656-b375-49d5b58ffd8b",
       "probe_id": "P-CMD-namespace",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -569,9 +677,9 @@
       "mutation_id": "M12",
       "catcher": "P-CMD-namespace",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:94f9ba504aadba0a64587ededbd0ed018a7c12b215b409bf4ab9e2ab3244c300",
-      "run_token": "rt_d3aa17e2-c4b9-46f3-a2f5-075ba4f19b71",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:c69d3c20dc9253110c936828bf4657507a3627dfb60e10177d87a88d812cb3d3",
+      "run_token": "rt_d1b9b965-3c5e-43ad-a232-4f68146ea4c9",
       "probe_id": "P-CMD-namespace",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -582,9 +690,9 @@
       "mutation_id": "M13",
       "catcher": "P-CMD-identity",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:62a8fb51059c441dfe808b63ecb92a8f1ec9287126a4aa4a5e993ef940c0b156",
-      "run_token": "rt_0af2fd70-dc50-4f69-bbb2-f97e20d9aeb8",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:43cb103e7ce526df16a9005d7ef028f04fc30b66a04af18ae8369fdbe8b631e0",
+      "run_token": "rt_f29e98d7-8a72-4895-a506-eff96f94a15d",
       "probe_id": "P-CMD-identity",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -595,9 +703,9 @@
       "mutation_id": "M14",
       "catcher": "P-CMD-identity",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:ce57b47c4caa32471d25ee552630edc400814f09f2a0d4a1462afb8602d9081c",
-      "run_token": "rt_ecd9fc5c-3fdc-4d5b-897e-2969192ea460",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:f2a2d0dcb69827dccf2f9c7e584b2401f7a66b1fb89aaae2057eb870ff5bee32",
+      "run_token": "rt_c0e3ae9a-bdd9-42ca-b930-50f0a089539a",
       "probe_id": "P-CMD-identity",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -608,9 +716,9 @@
       "mutation_id": "M15",
       "catcher": "P-CMD-finalize",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:8fbd7c6f73502b268b60caaa24bec247d39bebed3ccb2a41f724247b777d639b",
-      "run_token": "rt_e771f3f5-6bd6-4af8-9ce2-94c278759e53",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:6c37373010304506906379edf78dd807c044ad2d33603cbc947d7f720dbb51c8",
+      "run_token": "rt_f0a6b6bd-7e77-4604-ab2f-dd51155f570c",
       "probe_id": "P-CMD-finalize",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -621,9 +729,9 @@
       "mutation_id": "M16",
       "catcher": "P-CMD-disclosure",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:0237a66d4d128574697a7919eb2d736360d79738fa81556e609e040186886d2c",
-      "run_token": "rt_2052d29a-12de-40c4-85b6-761bdf00a7c6",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:bf819cf2e1eacc082f36ef83a83a43fd751a70c4daf95a23d73f1e8a5e31ebb6",
+      "run_token": "rt_c2bebc86-c175-4ba8-9e60-9141c2889075",
       "probe_id": "P-CMD-disclosure",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -634,9 +742,9 @@
       "mutation_id": "M27",
       "catcher": "P-CMD-disclosure",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:ea34e48681ccef809b6daeedfb45233afe98f2962c61b95a2b5212ee62b75a77",
-      "run_token": "rt_b6ed1fd9-b69d-4568-8eec-9aa201a88892",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:e34cb0327afcabe360e60b2d728cc0714007706a9b2aca9ab2890c6104f6d730",
+      "run_token": "rt_1e625ed7-019c-4903-a31a-8170a0816ad2",
       "probe_id": "P-CMD-disclosure",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -647,9 +755,9 @@
       "mutation_id": "M17",
       "catcher": "P-AUTHZ-opclass",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:f252fb5336fdeb096cc7cbad773016728e29a6d9ee9c5a77c0c99ffafae45240",
-      "run_token": "rt_7e152d3c-102a-41e6-a911-7fdbb3e0902c",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:5fb66d867be34e0dccb479f8121b09d5949a7b69cdf9a9fa9f8bc9112017bb7c",
+      "run_token": "rt_e1884cf0-d9ed-4a87-982f-7300327e4ef1",
       "probe_id": "P-AUTHZ-opclass",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -660,9 +768,9 @@
       "mutation_id": "M18",
       "catcher": "P-AUTHZ-membership-time",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:70d30cc3a5b58a1c9b74a7882d1a2f99b248e0fe79445a06e1ef24e6450dcf86",
-      "run_token": "rt_2413c923-94e0-4789-82ac-39c1ddf5a4f8",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:f1483f8dc76568343432ec42bdd4c19f0901d1284d85a82f3c7b16e3be4a082c",
+      "run_token": "rt_9a758399-bdc2-431d-9747-6c0018efcd39",
       "probe_id": "P-AUTHZ-membership-time",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -673,9 +781,9 @@
       "mutation_id": "M19",
       "catcher": "P-AUTHZ-evidence",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:d226de8c5a4e99f58d938af86bf93894ff1f3833866c47a622a7f37d11395078",
-      "run_token": "rt_db3998ac-ebf2-43a9-92b1-6aed3c8b97a8",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:7072b253eda2623a8b548a1e75377d7a374f167fc26eaaa7c386b753105680fa",
+      "run_token": "rt_ceec0054-cfee-43e7-b28d-862f9aeaae6c",
       "probe_id": "P-AUTHZ-evidence",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -686,9 +794,9 @@
       "mutation_id": "M20",
       "catcher": "P-AUTHZ-evidence",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:327003f4def75a7fb85f89b02e8d9c45a79ffff58667c13ae8106d4c5d387cfe",
-      "run_token": "rt_179c9ba8-4b54-4be2-a9d1-3c9216adb819",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:c47c86c1c475029630c834f0c3db285d12e1c226ce144990bf8c4ad560ebf4c5",
+      "run_token": "rt_50c50060-0223-4472-a136-0390181ede9d",
       "probe_id": "P-AUTHZ-evidence",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -699,9 +807,9 @@
       "mutation_id": "M21",
       "catcher": "P-INVITE-window",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:89974b30970443c4e1361fe49e0ce049458fb4e283915b48cb9b2909ca125955",
-      "run_token": "rt_a5891a27-6a5d-487a-a264-0301d623721b",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:951436b23a5de29fa271e1a9429379ae2625336fb53742291804154df2a66288",
+      "run_token": "rt_55958a3e-c5f4-4d1a-b91e-45f00097b37c",
       "probe_id": "P-INVITE-window",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -712,9 +820,9 @@
       "mutation_id": "M22",
       "catcher": "P-INVITE-authority",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:7fd10148946dc528e670f53f96fd5d6c8248144caee83e954d02697e6be6f89b",
-      "run_token": "rt_2d6c33c7-708e-41c8-910f-3e2d5469df97",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:e9b896647e5eb8afaae7d9dd580a59073f23a9e9b065ca5c194e0e4ba1f8fd64",
+      "run_token": "rt_c771a3a1-b8cb-4bf5-a63d-eeda6c7a5231",
       "probe_id": "P-INVITE-authority",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -725,9 +833,9 @@
       "mutation_id": "M23",
       "catcher": "P-INVITE-authority",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:0877861b2e0c268481b6050318cdec52a65893a9c755b3e0faef27813c775541",
-      "run_token": "rt_cbaed132-a2e6-418f-ab4c-750c838b024b",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:9247f650fbcfd3dd72dfa90808d8706bbfd9fe9dcb1e8705d3125b73017eb928",
+      "run_token": "rt_cfe058e4-1194-4822-934b-12a1e0ff9b57",
       "probe_id": "P-INVITE-authority",
       "probe_status": "FAIL",
       "failed_assertions": [
@@ -740,9 +848,9 @@
       "mutation_id": "M24",
       "catcher": "P-INVITE-authority",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:471e5d1661ebf5df589fffbbfce5896acc3c81e120503e17a7326feece5a75aa",
-      "run_token": "rt_9be13422-1015-4f6b-a0be-287c21891a96",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:9cb67bd27bfc9244af3705adbd7584ab48f6705594cf5c7416049bace2587519",
+      "run_token": "rt_7823462a-2eb2-4850-9d02-273e5c2dc3a7",
       "probe_id": "P-INVITE-authority",
       "probe_status": "FAIL",
       "failed_assertions": [
@@ -755,9 +863,9 @@
       "mutation_id": "M25",
       "catcher": "P-INVITE-effect",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:7f76846a10ea7f6fcd37cf33ac4fb6bae147f479aabbcfae5e034626df0c7abe",
-      "run_token": "rt_453b672a-b5db-4832-a649-85b1a1ae4190",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:4a5cbba495ea9b08ea7629202d246e993d4713885a174d4d7a6cb471f62a07d7",
+      "run_token": "rt_45d0f19e-8fda-4563-bff3-149246f8bd12",
       "probe_id": "P-INVITE-effect",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -768,9 +876,9 @@
       "mutation_id": "M28",
       "catcher": "P-AUTHZ-revoke-now",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:214774795e24d1997e19946d7aa5c26464aedc92063fc14004f40b0d5fa7def4",
-      "run_token": "rt_eec72622-386c-4a39-b191-6be35c3e834b",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:6faf040197c1cc11306fa271b50b015db576856c49fea58b8f345aa88049a617",
+      "run_token": "rt_f3531933-b333-4fed-9cfd-453c32ceaf04",
       "probe_id": "P-AUTHZ-revoke-now",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -781,9 +889,9 @@
       "mutation_id": "M29",
       "catcher": "P-AUTHZ-revoke-now",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:f2587fc0403b23ee075a3746969386132206e6dd0757fb78ea6e69755066acae",
-      "run_token": "rt_27aa36d5-7a2a-429a-9e14-2c8dbc2bd4fc",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:b90c5e67904489103ecfadb2bd90aaa4a44ca082ac26f3523abe00f7fe339ed9",
+      "run_token": "rt_acb0db3e-4f3f-4c5e-a744-02194eb6d7a7",
       "probe_id": "P-AUTHZ-revoke-now",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -794,9 +902,9 @@
       "mutation_id": "M26",
       "catcher": "P-AUTHZ-evidence",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:bd7074329ebeb2ee087eb52306314ff32bb1ee3e23858fdaacf9cae23bf45844",
-      "run_token": "rt_bd935064-6774-4268-bb4d-adcde5698dd5",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:ee1e18248e2c5abe8c3c8a11adeb0de4007b7195aaabb575786fd6042101fd9d",
+      "run_token": "rt_a2ef425b-5e59-46dc-9e95-121255c58c39",
       "probe_id": "P-AUTHZ-evidence",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -807,9 +915,9 @@
       "mutation_id": "M31",
       "catcher": "P-INVITE-finalize-gate",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:b0d9f5f46e4ef162a510d267c8aef36a6a496255b4059c11e2723b3cd756c888",
-      "run_token": "rt_43c4754b-4b99-40be-8720-5977b5cc91b2",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:6348924a2ef64429c5245d9c0b17c075c92f515dc05d9fe47fc30a924abef11d",
+      "run_token": "rt_28382cf5-0267-46b5-a821-00b8e98d104b",
       "probe_id": "P-INVITE-finalize-gate",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -820,9 +928,9 @@
       "mutation_id": "M32",
       "catcher": "P-CMD-finalize-gate",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:5bbd1cb762932e49602752059a5bfda1d07bbbf85eb4abe4788b2181b25d8035",
-      "run_token": "rt_47f88808-269b-4546-b999-ece1cf18b645",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:78879712f0b3cd4d135cb37b5ae505819f63d1626135fdb5d8c0d2330a2fe3fb",
+      "run_token": "rt_286173ae-16da-43ee-94df-7542f9d3bcd9",
       "probe_id": "P-CMD-finalize-gate",
       "probe_status": "FAIL",
       "failed_assertions": [
@@ -835,9 +943,9 @@
       "mutation_id": "M33",
       "catcher": "P-AUTHZ-roles",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:a677fc48bf3a24cf6a33314a4b9ae3edfb38bf7bde507e68d3e0b23547fd0377",
-      "run_token": "rt_42879b04-9c06-46d9-9f06-cd1b25e9dcf0",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:940621acf822b9e0b0b639b274eb32b2fc2be132ad4521f0cf525de2ee93d4f5",
+      "run_token": "rt_bb933e88-5d2d-41f8-a758-ed666d6b445b",
       "probe_id": "P-AUTHZ-roles",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -848,9 +956,9 @@
       "mutation_id": "M34",
       "catcher": "P-CANON-shape",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:db4acb6c23cc831809251801f1682f8f2f8508983c4445c2995e59193c67742f",
-      "run_token": "rt_43fe0fb7-990e-4702-a4e5-a17b722d4731",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:75f47c8309d397681d8660200ee1711b3bada92ee839441aead049c230018605",
+      "run_token": "rt_235a8d54-90a9-4733-81f3-aef9a1014a65",
       "probe_id": "P-CANON-shape",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -861,9 +969,9 @@
       "mutation_id": "M35",
       "catcher": "P-TIME-calendar",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:846804dfef4ac85340038ddb673393be3411a75ba00e4b918a6d73fd77a54037",
-      "run_token": "rt_440b129c-7761-4969-a92c-55a4e326b1e3",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:e70251c78416579885a384ed2a5817362fcb96a11b7a7ca123ab4836957fa730",
+      "run_token": "rt_c3a1559d-2ab5-40cd-9c45-3ba37a9b9a95",
       "probe_id": "P-TIME-calendar",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -874,9 +982,9 @@
       "mutation_id": "M36",
       "catcher": "P-IDENTITY-address",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:5433daf0d4c27a304412f616bc5fccfa6e9acb2fd437cf165b7d833280ce73ed",
-      "run_token": "rt_3ff8a892-8d3e-4038-890d-07aade5d92da",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:364eb8a4091e23ce1488ee190edf09d50b41bb482250e383ed3d440af426cb91",
+      "run_token": "rt_cd9acccc-7ff4-4839-aaa7-0930bb0bdb61",
       "probe_id": "P-IDENTITY-address",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -887,9 +995,9 @@
       "mutation_id": "M37",
       "catcher": "P-CMD-receipt",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:d1e3a68708f781cb7ad4949e002e0c5a1e6dff202e2272cab35436cb669fb16e",
-      "run_token": "rt_6f041a70-bc34-467b-8a60-21c1f0aa29b0",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:7ecf2c97b6ce06c56750a02b449d4644cb6e57f3337a15a613a45deff14c8a0d",
+      "run_token": "rt_4615dbd6-dd72-4b40-a505-3db6b0408f56",
       "probe_id": "P-CMD-receipt",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -900,9 +1008,9 @@
       "mutation_id": "M38",
       "catcher": "P-CMD-receipt",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:29766bb4d81fc63166cc2a029e7bf67141199d93b919d6003bd773690123d39d",
-      "run_token": "rt_70f48407-6039-4302-8989-d87e970dbd56",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:f4f1f98ace55ef93cc3ce10f664c15513a8d33c8e09f01afa303586fa15c7284",
+      "run_token": "rt_d568df2f-f0f3-4188-a587-5a38795e7d3f",
       "probe_id": "P-CMD-receipt",
       "probe_status": "THREW",
       "failed_assertions": [],
@@ -913,9 +1021,9 @@
       "mutation_id": "M39",
       "catcher": "P-INVITE-terms",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:ca03517d1434f4ff41dc4dbd4d987305c711f39fd33c8517380bc975113a6e83",
-      "run_token": "rt_a28bfbff-3e27-4793-9534-140a0d1e151a",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:8ba9a0609833d76695ca148dfd767ae126214a06f4d6e411dba81bb79186c03c",
+      "run_token": "rt_03c8dfeb-d84f-420e-9727-80ff291fede0",
       "probe_id": "P-INVITE-terms",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -926,9 +1034,9 @@
       "mutation_id": "M40",
       "catcher": "P-INVITE-terms",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:73521a996b56c331b6b74c8a367c9bcda4db2b715ff213fd6b099ba91e0a0199",
-      "run_token": "rt_c2a3778f-27a5-4550-88de-aa88fcaffd58",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:3eb8bfe537b71f9b381fa24c5726773780773d15d5ae7528c637a5e0f4567b54",
+      "run_token": "rt_0a30f82f-a522-4dfb-9cb1-822a1f4171f0",
       "probe_id": "P-INVITE-terms",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -939,9 +1047,9 @@
       "mutation_id": "M41",
       "catcher": "P-CMD-receipt-integrity",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:bcc30fed6fe79f71348d5aa9dbb3f0d86b3f9256c5609a1526fdea84748363b9",
-      "run_token": "rt_0682791a-5b05-4ec6-930e-052d5573c8cb",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:d3aead5fb76226a5a81c653643df3536fa354adfac2d533e0e99e6717d61cd68",
+      "run_token": "rt_506cb2a5-58f1-4e33-8985-4c8b1247a9c8",
       "probe_id": "P-CMD-receipt-integrity",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -952,9 +1060,9 @@
       "mutation_id": "M42",
       "catcher": "P-CMD-receipt-integrity",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:34faef6538bd5245cc7a595580f763dc13416da9addbac79140c291c8f4c1504",
-      "run_token": "rt_4d18a488-bfa0-4200-aaec-df31c3386b04",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:44b96025b51a0c8f92fb0c4009a407ca1dad0ad2fc67a8c674b8cfb9d133faba",
+      "run_token": "rt_cbfa981a-16ee-4fc4-afaf-46359f2cb239",
       "probe_id": "P-CMD-receipt-integrity",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -965,9 +1073,9 @@
       "mutation_id": "M43",
       "catcher": "P-CMD-disclosure",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:00c0e972e1d54264084808fd033dc721ac55a27567b7f303bfcee27aec14bd87",
-      "run_token": "rt_d8ceb35c-ecf2-49ea-9ab1-212beaa897cd",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:76028f306763b11170c9b3b7f96c13fe24d99c0f728fb41d166e55c6b178321e",
+      "run_token": "rt_b35c021a-5d76-455c-8dfe-1b836024f740",
       "probe_id": "P-CMD-disclosure",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -978,9 +1086,9 @@
       "mutation_id": "M44",
       "catcher": "P-CMD-disclosure",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:12437e4a077929f94b522e234279e3ea298f988ded7928c8acc77da3b208b0a3",
-      "run_token": "rt_809dd720-d47d-4764-aa38-148fe711ebe1",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:79dcc06104a3b9b50919b1e7c6dfe79ecdc5a47cfa1e2f77af31b1101fe5b327",
+      "run_token": "rt_c97dd1b2-ffa3-406e-bec2-b6d6947a610c",
       "probe_id": "P-CMD-disclosure",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -991,9 +1099,9 @@
       "mutation_id": "M47",
       "catcher": "P-CMD-finalize-gate",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:491887232246afe7564f236364924fb61a43efc4f2bbc3a403f2d322ed0e6b61",
-      "run_token": "rt_51f7f1fe-c9d0-40ef-8183-7ca122e792e9",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:3080365160980899c5db767595520b399e05dd9f66d0d8e826ea9bf282e7c41b",
+      "run_token": "rt_4dad717e-68bb-4779-84b3-04a93e1abd14",
       "probe_id": "P-CMD-finalize-gate",
       "probe_status": "FAIL",
       "failed_assertions": [
@@ -1006,9 +1114,9 @@
       "mutation_id": "M48",
       "catcher": "P-CMD-finalize-gate",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:406e1c09d29f9ec30c248fb0917072415965c6d4e32dad7f963f0a917512c690",
-      "run_token": "rt_3eb30c2c-ce03-49ff-a4e0-5e7c84190ac3",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:76df1af048eb1cb7bb137b0778e37bf594fbf8e84e4450a08baa4b744bd18a21",
+      "run_token": "rt_db14ad2f-0b6b-42ed-a0e3-fa0023a6571e",
       "probe_id": "P-CMD-finalize-gate",
       "probe_status": "FAIL",
       "failed_assertions": [
@@ -1021,9 +1129,9 @@
       "mutation_id": "M49",
       "catcher": "P-CMD-finalize-gate",
       "applied": true,
-      "base_digest": "sha256:6a222e0413807d6a1dbc5d28cad795ab244192bf4bf8a21f1f1ba91906ebcb78",
-      "mutated_digest": "sha256:96f05abcd1e3a60c4e81cb92fb4ef89480a955f0c155a434f615ab929beeb2f1",
-      "run_token": "rt_c28c9359-df15-4500-ae4f-3a5a2a3ebfb3",
+      "base_digest": "sha256:e221a52851ef7c3be7efa3c75ed60fa0ec400419b6cf79f1074e7da1781a7100",
+      "mutated_digest": "sha256:e51e93b6040d38419b0a8c97ea56bf83dc6629b09e9b505aa7bebc1d06a3e93b",
+      "run_token": "rt_615bbebd-acf9-4b8d-b750-955b735c6175",
       "probe_id": "P-CMD-finalize-gate",
       "probe_status": "FAIL",
       "failed_assertions": [

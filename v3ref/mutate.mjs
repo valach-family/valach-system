@@ -73,7 +73,7 @@ import { MUTATIONS } from './mutations.mjs';
 // bizonyíték CSAK a nevezett próba nevezett ÁLLÍTÁSÁNAK bukása.
 
 import { MANIFEST_VERSION, EXPECTED_IDS, EXPECTED_PROBES, PROBE_STATUS, checkResultSet, assertionOf } from './manifest.mjs';
-import { checkNorms } from './norms.mjs';
+import { checkNorms, NEXT_REQUIRED_EVIDENCE } from './norms.mjs';
 
 // A `run.mjs` SZERZŐDÉSE: 0 = minden próba PASS · 1 = van nem-PASS. Minden más kód mérőhiba —
 // akkor is, ha közben értelmezhető JSON érkezett (H05).
@@ -184,9 +184,23 @@ export function digestOfBundle(dir) {
   return `sha256:${h.digest('hex')}`;
 }
 
-/** A szülő elvárása EGY gyermek-futásra: mit állítottunk elő, és melyik futás ez. */
-function expectationFor(dir) {
-  return { digest: digestOfBundle(dir), runToken: `rt_${randomUUID()}` };
+// ── A SZÜLŐI ELVÁRÁS-FŐKÖNYV (R59/F01) ──────────────────────────────────────────────────────────
+//
+// MIÉRT KÜLÖN. A végleges kapunak átadott `expectation` korábban a MINŐSÍTENDŐ csomagokból épült
+// (`r.falsification.run_token` / `.mutated_digest`) — vagyis ugyanabból az adatból, amit ellenőrizni
+// kellett volna. A gyermek-futás ellenőrzése ettől még valós volt, de a VÉGSŐ kapu így önmagához
+// mért (a KUKA-103 maradéka: a bizonyíték nem igazolhatja önmagát). Innentől a szülő itt, a
+// KELETKEZÉS pillanatában jegyzi fel, mit állított elő — és a végső elvárás EBBŐL épül, soha nem a
+// csomagokból. A főkönyv `Map`, tehát a mutáció-azonosító nem ütközhet örökölt kulccsal.
+const PARENT_EXPECTATIONS = new Map();   // mutation_id → { digest, runToken }
+
+/** A szülő elvárása EGY gyermek-futásra: mit állítottunk elő, és melyik futás ez.
+ *  @param {string} [mutationId] — ha meg van adva, a főkönyvbe is bekerül (a mutációs ágak adják).
+ */
+function expectationFor(dir, mutationId) {
+  const e = { digest: digestOfBundle(dir), runToken: `rt_${randomUUID()}` };
+  if (mutationId) PARENT_EXPECTATIONS.set(mutationId, e);
+  return e;
 }
 
 function runIn(dir, runToken) {
@@ -518,7 +532,7 @@ async function runMutationAsync(m, knownProbes) {
     const applied = applyEdits(readFileSync(target, 'utf8'), editsOf(m));
     if (!applied.ok) return { ...m, verdict: 'STALE_ANCHOR', why: staleAnchorWhy(applied) };
     writeFileSync(target, applied.src);
-    const e = expectationFor(dir);
+    const e = expectationFor(dir, m.id);
     const c = classifyRun(await runInAsync(dir, e.runToken), e);
     const v = verdictFor(m, c);
     return { ...m, ...v, falsification: falsificationEvidence(m, c, e, v) };
@@ -534,7 +548,7 @@ function runMutation(m, knownProbes) {
     const applied = applyEdits(readFileSync(target, 'utf8'), editsOf(m));
     if (!applied.ok) return { ...m, verdict: 'STALE_ANCHOR', why: staleAnchorWhy(applied) };
     writeFileSync(target, applied.src);
-    const e = expectationFor(dir);
+    const e = expectationFor(dir, m.id);
     const c = classifyRun(runIn(dir, e.runToken), e);
     const v = verdictFor(m, c);
     return { ...m, ...v, falsification: falsificationEvidence(m, c, e, v) };
@@ -621,13 +635,18 @@ if (base.ok && attacksOk && results.length === MUTATIONS.length) {
   // AZ ELVÁRT ÉRTÉKEK A SZÜLŐ MEGBÍZHATÓ KÖRNYEZETÉBŐL (R57/F02). Ezeket EZ a futtató mérte és
   // osztotta ki — a bizonyíték-csomag nem adhatja meg őket saját magának. Innentől az idegen vagy
   // elavult csomag nem tud `covered`-et előállítani, akkor sem, ha minden mezője ki van töltve.
-  const withEvidence = results.filter((r) => r.falsification && r.falsification.mutated_digest);
+  // AZ ELVÁRÁS A SZÜLŐI FŐKÖNYVBŐL ÉPÜL, NEM A CSOMAGOKBÓL (R59/F01, a külső fél §2 utolsó pontja).
+  // A régi alak a `r.falsification.run_token` / `.mutated_digest` mezőkből építette — vagyis abból az
+  // adatból, amit ellenőrizni kellett volna: a végső kapu önmagához mért. A `PARENT_EXPECTATIONS`
+  // a KELETKEZÉSKOR (az `expectationFor` hívásakor) rögzíti, mit állított elő a szülő; a csomag ehhez
+  // méretik. Ami nincs a főkönyvben, arra nincs elvárás — tehát nem lehet `covered`.
+  const withEvidence = results.filter((r) => r.falsification && PARENT_EXPECTATIONS.has(r.id));
   const expectation = {
     base_digest: BASE_DIGEST,
     // A FUTÁS-JEL MUTÁCIÓNKÉNT SZÜLETIK (`expectationFor` → `rt_<uuid>`), tehát az elvárás is
     // mutációnként tartja — ez szigorúbb, mint egy közös token: egy MÁSIK mutáció jele sem megy át.
-    run_tokens: Object.fromEntries(withEvidence.map((r) => [r.id, r.falsification.run_token])),
-    mutated_digests: Object.fromEntries(withEvidence.map((r) => [r.id, r.falsification.mutated_digest])),
+    run_tokens: Object.fromEntries(withEvidence.map((r) => [r.id, PARENT_EXPECTATIONS.get(r.id).runToken])),
+    mutated_digests: Object.fromEntries(withEvidence.map((r) => [r.id, PARENT_EXPECTATIONS.get(r.id).digest])),
   };
   normFinal = checkNorms({
     probes: EXPECTED_PROBES, mutations: MUTATIONS, records: base.records, mutationResults, expectation,
@@ -655,6 +674,14 @@ if (base.ok && attacksOk && results.length === MUTATIONS.length) {
   console.log(`    KÖTELEZŐ BIZONYÍTÉK (${req.version}, ${req.stage}): `
     + `${req.satisfied.length}/${req.clauses.length} teljesül — elvárt állapot: ${req.expected_state}`);
   for (const m of req.missing) console.log(`      HIÁNYZIK  ${m.clause_id} → ${m.result}`);
+  // A KÖVETKEZŐ CSOMAG IS LÁTSZIK (R59 §5.1). Amit nem jelenítünk meg, az nincs (KUKA-011): egy
+  // előre leszögezett vállalás, amit senki nem olvas, nem vállalás. A sorrend is itt áll, mert a
+  // kockázat-lista MENETREND, nem emlékeztető (KUKA-077).
+  console.log(`    KÖVETKEZŐ KÖTELEZŐ CSOMAG (${NEXT_REQUIRED_EVIDENCE.version}, `
+    + `vállalva: ${NEXT_REQUIRED_EVIDENCE.committed_in}): ${NEXT_REQUIRED_EVIDENCE.clauses.join(' · ')}`);
+  for (const s of NEXT_REQUIRED_EVIDENCE.order) {
+    console.log(`      ${s.n}. ${s.what}  [${s.clauses.join(' · ')}]`);
+  }
 } else {
   console.log('');
   console.log('  NORMA-BIZONYÍTÉK: a végleges minősítés NEM készült el (a battéria nem futott végig).');

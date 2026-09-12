@@ -1186,7 +1186,10 @@ probe('P-IDENTITY-address', 'R32/K03 · R49 C07',
   });
 
 probe('P-NORM-evidence', 'R32/K11 · R53 F03 · F04 · KUKA-038 · KUKA-095',
-  'A NORMA-BIZONYÍTÉK KAPU nem tud hazudni: tizenkét támadás piros, a helyes csomag zöld',
+  // A CÍM NEM HORDOZ KÉZZEL LÉPTETETT DARABSZÁMOT (KUKA-045). A korábbi „tizenkét támadás" felirat
+  // már 23 kontrollnál is tizenkettőt mondott — a felirat elcsúszott a mért értéktől, pont azon a
+  // próbán, aminek a hazugság-kiszűrés a tárgya. A MÉRT szám a `detail` sorban áll, futásból.
+  'A NORMA-BIZONYÍTÉK KAPU nem tud hazudni: MINDEN támadás piros, a helyes csomag zöld',
   () => {
     // MIT MÉR EZ A PRÓBA, ÉS MIT NEM. Az alanya maga a KAPU (`checkNorms`), nem a mag üzleti
     // viselkedése: azt kérdezi, hogy a kapu a SZÁNDÉKOSAN elrontott bizonyíték-csomagokat
@@ -1455,10 +1458,11 @@ probe('P-NORM-evidence', 'R32/K11 · R53 F03 · F04 · KUKA-038 · KUKA-095',
     // tudnánk, hogy a kapu egyáltalán ÁTENGEDHETŐ-e — egy soha nem teljesülő szabály ugyanolyan
     // haszontalan, mint egy mindent átengedő (KUKA-049: az őr ne a kért eredményt jelentse kudarcnak).
     // A próba SZINTETIKUS klauzulán fut: a valódi 18 klauzula `none` marad, ahogy van.
-    control('n23', 'a tartalmi jóváhagyás NÉGY állapota (none · incomplete · stale · current)', () => {
+    control('n23', 'a tartalmi jóváhagyás ÖT állapota (none · incomplete · invalid · stale · current)', () => {
       const bind = { source_digest: 'sha256:forras', manifest_digest: 'sha256:manifest' };
       const cl = { id: 'PROBA-X', covers: ['K00'], text: 'szintetikus klauzula a kapu méréséhez' };
       const full = () => ({
+        record_version: CONTENT_REVIEW_RECORD_VERSION,
         reviewer: { id: 'proba-ellenorzo', role: 'független szemle', independent_of: 'a szerző' },
         at: '2026-09-11T00:00:00.000Z',
         contract_digest: contractRefDigest(),
@@ -1466,14 +1470,17 @@ probe('P-NORM-evidence', 'R32/K11 · R53 F03 · F04 · KUKA-038 · KUKA-095',
         source_digest: bind.source_digest,
         manifest_digest: bind.manifest_digest,
         situation: 'élethelyzet', property: 'mérendő tulajdonság',
-        positive_evidence: 'pozitív eset', negative_evidence: 'ellenpélda', residual: 'mi maradt ki',
+        // A BIZONYÍTÉK-HIVATKOZÁS TÍPUSOS ÉS FELOLDHATÓ (R59/F03) — a szabad szöveg helyett.
+        positive_evidence: [{ kind: 'document', ref: 'R32_board_v1.md#4.1', note: 'a pozitív eset helye' }],
+        negative_evidence: [{ kind: 'document', ref: 'R32_board_v1.md#4.2', note: 'az ellenpélda helye' }],
+        residual: 'mi maradt ki',
       });
       const st = (over, b2 = bind) => contentReviewState({ ...cl, content_review: over }, b2).state;
       const cases = {
         none: st(undefined) === 'none',
         incomplete_ures: st({ contract_digest: contractRefDigest(), clause_digest: clauseDigestOf(cl) }) === 'incomplete',
-        incomplete_hianyos_ellenorzo: st({ ...full(), reviewer: { id: 'x' } }) === 'incomplete',
-        incomplete_nincs_maradek: st({ ...full(), residual: null }) === 'incomplete',
+        incomplete_hianyos_ellenorzo: st({ ...full(), reviewer: { id: 'x' } }) === 'invalid',
+        incomplete_nincs_maradek: st({ ...full(), residual: null }) === 'invalid',
         stale_forras_elcsuszott: st({ ...full(), source_digest: 'sha256:regi' }) === 'stale',
         stale_manifest_elcsuszott: st({ ...full(), manifest_digest: 'sha256:regi' }) === 'stale',
         stale_nincs_kotes: st(full(), null) === 'stale',
@@ -1483,12 +1490,153 @@ probe('P-NORM-evidence', 'R32/K11 · R53 F03 · F04 · KUKA-038 · KUKA-095',
       return { pass: bad2.length === 0, detail: bad2.length ? `NEM: ${bad2.join(', ')}` : '8/8 állapot helyes' };
     });
 
+    // ── R59/F03 — A TÍPUSOS, VERZIÓZOTT JÓVÁHAGYÁS-REKORD ──────────────────────────────────────
+    // A külső fél E09 esete a `!!mező` rést mérte: az ÜRES TÖMB, az ÜRES OBJEKTUM és a `'not-a-date'`
+    // mind „truthy", tehát a régi kapu `current`-et adott egy olyan rekordra, amiben SEMMI nem volt
+    // értelmezhető. Itt minden alakot külön mérünk — és a HITELESSÉG külön tengelyét is.
+    control('n27', 'ROSSZ ALAKÚ jóváhagyás-rekord soha nem `current` (típus · időbélyeg · hivatkozás · verzió)', () => {
+      const bind = { source_digest: 'sha256:forras', manifest_digest: 'sha256:manifest' };
+      const cl = { id: 'PROBA-Y', covers: ['K00'], text: 'szintetikus klauzula az alak-szemléhez' };
+      const full = () => ({
+        record_version: CONTENT_REVIEW_RECORD_VERSION,
+        reviewer: { id: 'proba-ellenorzo', role: 'független szemle', independent_of: 'a szerző' },
+        at: '2026-09-11T00:00:00.000Z',
+        contract_digest: contractRefDigest(), clause_digest: clauseDigestOf(cl),
+        source_digest: bind.source_digest, manifest_digest: bind.manifest_digest,
+        situation: 'élethelyzet', property: 'mérendő tulajdonság',
+        positive_evidence: [{ kind: 'document', ref: 'R32_board_v1.md#4.1', note: 'hely' }],
+        negative_evidence: [{ kind: 'document', ref: 'R32_board_v1.md#4.2', note: 'hely' }],
+        residual: 'mi maradt ki',
+      });
+      const res = (over, b2 = bind, cat) => contentReviewState({ ...cl, content_review: over }, b2, cat);
+      const bad4 = (over, cat) => res(over, bind, cat).state === 'invalid';
+      const cases = {
+        // A KÜLSŐ FÉL E09 CSOMAGJA, betűre.
+        e09_teljes_alakhiba: bad4({
+          ...full(),
+          reviewer: { id: [], role: {}, independent_of: [] }, at: 'not-a-date',
+          situation: [], property: {}, positive_evidence: [], negative_evidence: [], residual: [],
+        }),
+        ures_szoveg: bad4({ ...full(), situation: '   ' }),
+        ures_tomb_ellenorzo: bad4({ ...full(), reviewer: { id: [], role: 'r', independent_of: 'x' } }),
+        rossz_idobelyeg: bad4({ ...full(), at: 'not-a-date' }),
+        nem_kanonikus_ido: bad4({ ...full(), at: '2026-09-11' }),
+        jovobeli_ido: bad4({ ...full(), at: '2099-01-01T00:00:00.000Z' }),
+        ures_bizonyitek_lista: bad4({ ...full(), positive_evidence: [] }),
+        szoveg_bizonyitek: bad4({ ...full(), negative_evidence: 'ellenpélda' }),
+        ismeretlen_hivatkozas_fajta: bad4({ ...full(), positive_evidence: [{ kind: 'pletyka', ref: 'x' }] }),
+        // FELOLDHATÓSÁG: kitalált próba-név, katalógussal a kézben.
+        feloldhatatlan_proba: bad4(
+          { ...full(), positive_evidence: [{ kind: 'probe', probe: 'P-NINCS-ILYEN', assertion: 'A-x' }] },
+          { assertions: new Set(), mutations: new Set(['M32']) },
+        ),
+        feloldhatatlan_mutacio: bad4(
+          { ...full(), negative_evidence: [{ kind: 'mutation', mutation: 'M-NINCS' }] },
+          { assertions: new Set(), mutations: new Set(['M32']) },
+        ),
+        hianyzo_verzio: res({ ...full(), record_version: undefined }).state === 'incomplete',
+        ismeretlen_verzio: bad4({ ...full(), record_version: 'content-review-0' }),
+        // A HITELESSÉG KÜLÖN TENGELY, és a `current` sem állítja.
+        hitelesseg_kulon_es_nemleges: res(full()).state === 'current'
+          && res(full()).authenticity.state === 'unauthenticated',
+        allitott_elfogadas_sem_bizonyitek:
+          res({ ...full(), acceptance: { method: 'aláírás' } }).authenticity.state === 'unverified_claim',
+      };
+      const nem = Object.entries(cases).filter(([, v]) => !v).map(([k]) => k);
+      return { pass: nem.length === 0, detail: nem.length ? `NEM: ${nem.join(', ')}` : `${Object.keys(cases).length}/${Object.keys(cases).length} alak elutasítva` };
+    });
+
     control('n22', 'az R32 forráskötés MÉRT és egyezik a külső fél kiadott értékével', () => {
       const m = sourceArtifactMeasurement();
       const ok = m.measured.text_digest === m.attested.text_digest
         && m.measured.byte_length === m.attested.byte_length
         && m.measured.section_digest === m.attested.section.digest;
       return { pass: ok, detail: `${m.measured.byte_length} bájt · ${m.measured.text_digest.slice(0, 23)}…` };
+    });
+
+    // ── R59/F01 — A HIÁNY NEM FELMENTÉS ────────────────────────────────────────────────────────
+    // A külső fél E05/E06 esete azt mérte meg, hogy az R57-es kapu FELTÉTELESEN hasonlított:
+    // `if (expectation.base_digest && …)`. Ha tehát az elvárt MEZŐ hiányzott, az összehasonlítás
+    // egyszerűen elmaradt — a HIÁNY felmentést adott, nem elutasítást. Ugyanez állt a csomag
+    // `verdict`/`probe_status` mezőire. Mind a hat változatot MEGMÉRJÜK, külön-külön.
+    control('n24', 'HIÁNYOS ELVÁRÁS PIROS mind a négy alakban (base · tokens · digests · üres {})', () => {
+      const rows = ['base_digest', 'run_tokens', 'mutated_digests', 'MIND'].map((missing) => {
+        const exp = JSON.parse(JSON.stringify(EXPECT));
+        if (missing === 'MIND') for (const k of Object.keys(exp)) delete exp[k];
+        else delete exp[missing];
+        // ÉS A CSOMAG IDEGEN ÉRTÉKET VISZ azon a tengelyen, aminek az elvárása hiányzik — különben
+        // a kontroll akkor is zöld lenne, ha a kapu csak véletlenül egyezőt látott (KUKA-054).
+        const results = okResults().map((r) => ({
+          ...r,
+          ...(missing === 'base_digest' || missing === 'MIND' ? { base_digest: 'sha256:idegen-alap' } : {}),
+          ...(missing === 'run_tokens' || missing === 'MIND' ? { run_token: 'rt_egy_korabbi' } : {}),
+          ...(missing === 'mutated_digests' || missing === 'MIND' ? { mutated_digest: 'sha256:idegen-mutalt' } : {}),
+        }));
+        return { missing, ...noneCovered({ expectation: exp, mutationResults: results }) };
+      });
+      const bad3 = rows.filter((r) => !r.pass).map((r) => r.missing);
+      return { pass: bad3.length === 0, detail: bad3.length ? `ÁTMENT: ${bad3.join(', ')}` : '4/4 hiányos elvárás elutasítva' };
+    });
+    control('n25', 'HIÁNYZÓ ítélet / próba-állapot PIROS (a hallgatás nem igenlés)', () => {
+      const rows = ['verdict', 'probe_status'].map((key) => {
+        const results = okResults().map((r) => { const c = { ...r }; delete c[key]; return c; });
+        return { key, ...noneCovered({ mutationResults: results }) };
+      });
+      const bad3 = rows.filter((r) => !r.pass).map((r) => r.key);
+      return { pass: bad3.length === 0, detail: bad3.length ? `ÁTMENT: ${bad3.join(', ')}` : '2/2 hiányzó mező elutasítva' };
+    });
+    control('n26', 'az ÖRÖKÖLT kulcs nem elvárás (prototípus-lánc), és a NULL sem érték', () => {
+      // Az elvárás-táblák ÜRESEK, de a keresett mutáció-azonosító a prototípuson OTT VAN. Sima
+      // `expectation.run_tokens[id]` olvasással ez igaz értéket adna — saját kulcson nem.
+      const oroklott = (val) => Object.assign(Object.create({ M32: val, M47: val, M23: val }), { sajat: 'x' });
+      const cases = {
+        orokolt_token: noneCovered({
+          expectation: { ...EXPECT, run_tokens: oroklott('rt_M32') },
+        }).pass,
+        orokolt_lenyomat: noneCovered({
+          expectation: { ...EXPECT, mutated_digests: oroklott('sha256:mutalt_M32') },
+        }).pass,
+        null_ertek_a_csomagban: noneCovered({
+          mutationResults: okResults().map((r) => ({ ...r, verdict: null })),
+        }).pass,
+        ures_szoveg_a_csomagban: noneCovered({
+          mutationResults: okResults().map((r) => ({ ...r, run_token: '   ' })),
+        }).pass,
+        nem_tomb_bukott_lista: noneCovered({
+          mutationResults: okResults().map((r) => ({ ...r, failed_assertions: 'A-REV-N1a' })),
+        }).pass,
+      };
+      const bad3 = Object.entries(cases).filter(([, v]) => !v).map(([k]) => k);
+      return { pass: bad3.length === 0, detail: bad3.length ? `ÁTMENT: ${bad3.join(', ')}` : '5/5 elutasítva' };
+    });
+
+    // ── R59 §5.1 — A KÖVETKEZŐ KÖTELEZŐ CSOMAG ELŐRE LESZÖGEZVE ────────────────────────────────
+    // A vállalás akkor ér valamit, ha LÉTEZŐ klauzulákra mutat, és ha az élethelyzet/tulajdonság/
+    // bizonyítási terv MOST le van írva — nem utólag, a megépült kódhoz igazítva (KUKA-054). Aki a
+    // sorrenden vagy a tartalmon változtat, azt itt kell megtennie, láthatóan (KUKA-087: aki nem
+    // tudja leírni, MIÉRT tartozik ide, az valószínűleg nem is oda tartozik).
+    control('n28', 'a KÖVETKEZŐ kötelező csomag létező klauzulákra mutat, és a terve ELŐRE le van írva', () => {
+      const known = new Set();
+      for (const n of ALL_NORMS) for (const c of n.clauses || []) known.add(c.id);
+      const nx = NEXT_REQUIRED_EVIDENCE;
+      const nem = [];
+      if (!nx || nx.version === REQUIRED_EVIDENCE.version) nem.push('a következő csomag verziója nem különbözik a mostanitól');
+      for (const id of (nx.clauses || [])) if (!known.has(id)) nem.push(`nem létező klauzula: ${id}`);
+      // A MAI kötelező készlettel nem eshet egybe: az már teljesül, tehát nem vállalás.
+      for (const id of (nx.clauses || [])) if (REQUIRED_EVIDENCE.clauses.includes(id)) nem.push(`már kötelező: ${id}`);
+      const ns = (nx.order || []).map((s) => s.n);
+      if (ns.join(',') !== ns.map((_, i) => i + 1).join(',')) nem.push(`a sorrend nem 1..${ns.length}: ${ns.join(',')}`);
+      if (ns.length < 4) nem.push(`a terv ${ns.length} lépéses — a csomag négy lépésre van vállalva`);
+      for (const s of (nx.order || [])) {
+        for (const id of (s.clauses || [])) if (!known.has(id)) nem.push(`${s.n}. lépés: nem létező klauzula (${id})`);
+        if (!(s.situation || '').length || s.situation.length < 60) nem.push(`${s.n}. lépés: nincs érdemi ÉLETHELYZET`);
+        if (!(s.property || '').length || s.property.length < 60) nem.push(`${s.n}. lépés: nincs érdemi MÉRENDŐ TULAJDONSÁG`);
+        if (!(s.proof || '').length || s.proof.length < 60) nem.push(`${s.n}. lépés: nincs érdemi BIZONYÍTÁSI TERV`);
+      }
+      // MINDEN vállalt klauzula szerepeljen legalább egy lépésben (KUKA-039: mindkét irány).
+      const inPlan = new Set((nx.order || []).flatMap((s) => s.clauses || []));
+      for (const id of (nx.clauses || [])) if (!inPlan.has(id)) nem.push(`a tervben nem szerepel: ${id}`);
+      return { pass: nem.length === 0, detail: nem.length ? `NEM: ${nem.join(', ')}` : `${nx.version} · ${nx.clauses.join('+')} · ${ns.length} lépés` };
     });
 
     const bad = controls.filter((c) => !c.pass);
@@ -1514,7 +1662,7 @@ const EXECUTED_BY = (() => {
   return env || 'unknown';
 })();
 
-import { checkNorms, normsSummary, OPEN_BLOCKERS, NORM_CONTRACT_VERSION, NORMS_INDEX_ID, NORMS_INDEX_SCHEMA, contractRef, indexDigest, contentReviewState, clauseDigest as clauseDigestOf } from './norms.mjs';
+import { checkNorms, normsSummary, OPEN_BLOCKERS, NORM_CONTRACT_VERSION, NORMS_INDEX_ID, NORMS_INDEX_SCHEMA, contractRef, indexDigest, contentReviewState, CONTENT_REVIEW_RECORD_VERSION, ALL_NORMS, REQUIRED_EVIDENCE, NEXT_REQUIRED_EVIDENCE, clauseDigest as clauseDigestOf } from './norms.mjs';
 const contractRefDigest = () => contractRef().digest;
 import { sourceArtifactMeasurement } from './normContract.mjs';
 import { manifestDigest } from './manifest.mjs';
