@@ -194,10 +194,20 @@ export const REVOCATION_NORMS = Object.freeze([
         // szerver képezte kulcson áll, de a beadókat NEM különbözteti meg (lásd REV-N3d). A klauzula
         // ezért mostantól pontosan azt állítja, amit bizonyítunk is; a maradék KÜLÖN klauzulán, NYITVA
         // (KUKA-050: az állítás elévül · KUKA-048: a kivétel hatókörét a mérce dönti el).
+        //
+        // A BIZALMI ELŐFELTÉTEL KIMONDVA (R69 §3.3, a külső fél pontosítása). A régi szöveg úgy állt,
+        // hogy a kulcsot „a beadó nem tudja átírni" — ez a MAG szerződése szerint igaz, de csak akkor
+        // igaz a VALÓSÁGBAN is, ha a `intakeContext`-et kizárólag megbízható adapter töltheti. Ilyen
+        // adapter MA NINCS. A pontos állítás tehát: a mag a MEGBÍZHATÓNAK FELTÉTELEZETT adapter-
+        // kontextus szerint korlátoz; a kontextus EREDETÉNEK kikényszerítése a REV-N3d hiánya
+        // (KUKA-050: az állítás elévül · KUKA-033: méretlenül a helyes alak a JAVASLAT).
         text: 'A BEJELENTÉS ÚTJA NYITVA ÁLL a még nem igazolt panaszosnak is: a jelzés fogadása '
           + 'megengedett, a válasz SEMLEGES (nem árulja el, létezik-e az ügy), a befogadás ATOMI '
-          + '(félbemaradt beadás nem hagy részleges állapotot), és a visszaélés-korlát a SZERVER '
-          + 'képezte kulcson áll, amit a beadó nem tud átírni. A jelzés nem művelet a jogon.',
+          + '(félbemaradt beadás nem hagy részleges állapotot), és a visszaélés-korlát a MAGON BELÜL '
+          + 'a szerver képezte kulcson áll, amit a hívó a mag felületén nem tud átírni — a kulcsot '
+          + 'szállító kontextus MEGBÍZHATÓSÁGA az adapter felelőssége (REV-N3d), ezt a klauzula '
+          + 'FELTÉTELEZI, nem bizonyítja. A másodlagos, beadó által megadott hivatkozás CSAK a saját '
+          + 'szerver-kulcsán belül szűkít, más keretét nem veheti el. A jelzés nem művelet a jogon.',
         // MEGÉPÜLVE (req-2 1. lépés), a REV-N3a-val EGYÜTT, ahogy ez a gap-szöveg előírta:
         // `submitClaim` — nyitott út, BÁJTRA azonos semleges nyugta (a nem létező könyvre is),
         // szerver-kulcsos visszaélés-korlát tranzakcióban, és a jelzés semmilyen jogot nem mozdít.
@@ -223,8 +233,42 @@ export const REVOCATION_NORMS = Object.freeze([
           + 'REFERENCIA-HELYETTESÍTŐ, nem védelem: azt a tulajdonságot állítja helyre, hogy a kulcsot a '
           + 'hívó ne tudja átírni (ezt a REV-N3c bizonyítja is), de a jóhiszemű beadókat nem '
           + 'különbözteti meg egymástól — így egyetlen elárasztó a közös vödörrel a többiek keretét is '
-          + 'elveszi. A hiány zárásának feltétele: adapter-szintű beadó-kontextus + vödrönkénti keret, '
-          + 'és egy próba, amiben KÉT független beadó közül az egyik elárasztása a MÁSIKAT nem akadályozza.',
+          + 'elveszi. '
+          // A ZÁRÁSI FELTÉTEL SZIGORÍTVA (R69 §3.3): a külső fél hat pontja szó szerint beemelve. Az
+          // R68-as alak CSAK a jóhiszemű beadók szétválasztását kérte — kevesebbet, mint amennyi a
+          // hiány. A C-F03 mérés megmutatta, hogy a hiány MÁSIK fele a kulcs EREDETE.
+          + 'A hiány zárásának feltétele (mind a hat): '
+          + '(1) a publikus bemenetből NEM másolható át tetszőleges csatorna-kulcs a belső kontextusba; '
+          + '(2) a korlát kulcsának EREDETE és BIZALMI SZINTJE adapterenként kimondott — a hálózati cím '
+          + 'önmagában nem igazolt személyazonosság; '
+          + '(3) két külön beadó izolációját AZONOS, szabadon állított hivatkozás mellett is mérni kell '
+          + '(nem igazolt másik-fél-azonosító ne vehesse el a keretét); '
+          + '(4) pozitív ellenpár KÖZÖS hálózatról érkező jóhiszemű beadókra, és negatív pár EGY beadó '
+          + 'több hivatkozására; '
+          + '(5) a kvóta versenyhelyzete és a tárolási hiba utáni állapot a VALÓDI adapterrel is mérendő; '
+          + '(6) a vállalt terhelési tartomány NEVEZETT — a „senki sem akadályozhat mást" korlátlan '
+          + 'ígérete véges közös infrastruktúrán nem tartható, az izolációt a MÉRT tartományban kell '
+          + 'bizonyítani.',
+      }),
+      Object.freeze({
+        id: 'REV-N3e',
+        covers: Object.freeze(['K05']),
+        // R69/C-F01+C-F02 MARADÉKA, KIMONDVA. A javítás (CLM-01) helyes és teljes arra, amit a külső
+        // fél mért: sérült vagy hiányzó beadvány mellett nincs érdemi döntés. DE ezzel a sérült ügy
+        // SEMMILYEN úton nem zárható le — ez holtpont, és a holtpont is állapot, amiről a rendszernek
+        // beszélnie kell (KUKA-012). A feloldás NEM lehet az érdemi elbírálás fellazítása.
+        text: 'A SÉRÜLT VAGY ELVESZETT BEADVÁNY ÜGYE NEM MARAD ÖRÖKRE NYITVA: van nevezett, KÜLÖN '
+          + 'műveleti nevű technikai lezárás (karantén), saját hatáskörrel, kötelező okkal és '
+          + 'audit-nyommal, ami SOHA nem látszik érdemi elbírálásnak, és nem dönt a panasz tárgyáról.',
+        gap: 'MA NINCS MEGÉPÍTVE — szándékosan. A CLM-01 a sérült/hiányzó tartalmú ügyön minden érdemi '
+          + 'döntést elutasít (ez a helyes válasz: JELENTENI kell, nem üres kézzel dönteni), tehát az '
+          + 'ilyen ügy jelenleg nyitva marad. A karantén-műveletet azért nem építettük meg ebben a '
+          + 'körben, mert új hatáskört, új állapotot és új audit-utat igényel, félig megépítve pedig '
+          + 'pontosan az a kockázat, ami ellen a C-F01 szól: érdemi lezárásnak látszó technikai lépés. '
+          + 'A hiány zárásának feltétele: (1) saját műveleti név és saját hatáskör (az `adjudicate` NEM '
+          + 'elég); (2) kötelező, tárolt ok; (3) az ügy állapota megkülönböztethető az érdemben '
+          + 'lezárttól; (4) próba, amiben a karantén UTÁN sem lehet érdemi döntést hozni, és a panasz '
+          + 'tárgyáról semmilyen állítás nem keletkezik.',
       }),
     ]),
   }),

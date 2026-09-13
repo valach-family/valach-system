@@ -2009,12 +2009,20 @@ probe('P-REV-claim-read', 'R32/K05 · K15 · REV-N3b · KUKA-084 · KUKA-085',
         && tamperRead.claim === undefined
         && goneRead.ok === false && goneRead.error === 'claim_content_missing';
 
-      // (d) A BEADÓ HIVATKOZÁSÁRA álló, SZŰKEBB korlát: ugyanaz a hivatkozás NÉGY KÜLÖNBÖZŐ
-      //     csatornán is elfogy. (A csatorna-vödrök itt üresek, tehát ez tényleg a ref-korlát.)
+      // (d) A BEADÓ HIVATKOZÁSÁRA álló, SZŰKEBB korlát — a SAJÁT csatornán belül.
+      //
+      //     EZ A RÉSZ AZ R69-BEN ÁTÍRÓDOTT, ÉS A RÉGI ALAKJA MAGA VOLT A HIBA PINJE. Korábban azt
+      //     mérte, hogy ugyanaz a hivatkozás NÉGY KÜLÖNBÖZŐ csatornán is elfogy — vagyis pontosan
+      //     azt a csatornákon átnyúló hatást igazolta vissza zölden, amit a külső fél C-F03-ban
+      //     fegyverként mutatott meg: a beadó által SZABADON MEGADHATÓ szöveg globális kulcsként
+      //     elveheti más keretét. Aki a hibát javította volna, PIROSRA vitte volna a battériát
+      //     (KUKA-068: a pin ne a saját nyelvjárását mérje · KUKA-092 fordítottja: a rossz
+      //     viselkedés befagyasztása adósság). A helyes szabály: a másodlagos korlát a szerver
+      //     képezte kulcson BELÜL szűkít — a csatorna a saját keretét oszthatja fel, MÁSÉT nem.
       let limited = null;
       for (let i = 0; i < CLAIM_RATE.max + 1; i += 1) {
         limited = submitClaim({ store: w.store, clock: w.clock, claimantRef: 'sokat@pelda.hu',
-          bookId: 'book_a', statement: `x${i}`, intakeContext: ctx(`ch_d_${i}`) });
+          bookId: 'book_a', statement: `x${i}`, intakeContext: ctx('ch_d_kozos') });
       }
       const dOk = limited && limited.accepted === false && limited.reason === 'rate_limited';
 
@@ -2080,6 +2088,101 @@ probe('P-REV-claim-read', 'R32/K05 · K15 · REV-N3b · KUKA-084 · KUKA-085',
           'A-REV-N3b-claim-grants-no-read': aOk && bOk && b2Ok && cOk && c3Ok,
           'A-REV-N3b-claim-content-readable': cOk && c4Ok,
           'A-REV-N3c-intake-limit-server-keyed': dOk && d2Ok && eOk,
+        },
+      };
+    } finally { w.store.close(); }
+  });
+
+probe('P-REV-claim-decide', 'R69/C-F01 · C-F02 · C-F03 · K05 · K15 · KUKA-039 · KUKA-084',
+  'AMIRŐL DÖNTÜNK, AZT LÁTNI KELL — és egy csatorna nem veheti el a másik keretét',
+  () => {
+    const w = buildWorld({ inviteeHasAccount: true });
+    try {
+      w.store.run('INSERT INTO subject (id, kind) VALUES (?,?)', 'sub_kivulallo', 'person');
+      const ctx = (k) => ({ channel_key: k });
+      const submit = (ref, ch, text) => {
+        submitClaim({ store: w.store, clock: w.clock, claimantRef: ref, bookId: 'book_a',
+          statement: text, intakeContext: ctx(ch) });
+        return w.store.get('SELECT * FROM claim WHERE claimant_ref = ?', ref);
+      };
+      const stateOf = (id) => w.store.get('SELECT state FROM claim WHERE id = ?', id).state;
+
+      // (a) POZITÍV ELLENPÁR — ÉP tartalom + jogosult elbíráló: a döntés MEGY. A tiltás nem lehet
+      //     általános zár (KUKA-092: mérni kell, mi teljesíthetetlen és mi csak nincs megépítve).
+      const okClaim = submit('rendes@pelda.hu', 'ch_a', 'A márciusi árlista hibás.');
+      const okDecision = adjudicateClaim({ store: w.store, actorSubjectId: 'sub_adjudicator',
+        claimId: okClaim.id, decision: 'resolve', clock: w.clock });
+      const aOk = okDecision.ok === true && okDecision.state === 'resolved'
+        && stateOf(okClaim.id) === 'resolved';
+
+      // (b) C-F01 — SÉRÜLT tartalom: az érdemi döntés ELUTASÍT, és az ügy állapota VÁLTOZATLAN.
+      //     A régi alakban a `readClaim` nemet mondott, az `adjudicateClaim` viszont lezárta —
+      //     fél őr volt, MÁSODSZOR ugyanezen a fájlon (KUKA-039).
+      const bad = submit('atirt@pelda.hu', 'ch_b', 'eredeti szöveg');
+      w.store.run('UPDATE claim_content SET content = ? WHERE claim_id = ?', 'MÁS szöveg', bad.id);
+      const badRead = readClaim({ store: w.store, viewerSubjectId: 'sub_adjudicator',
+        claimId: bad.id, clock: w.clock });
+      const badDecision = adjudicateClaim({ store: w.store, actorSubjectId: 'sub_adjudicator',
+        claimId: bad.id, decision: 'resolve', clock: w.clock });
+      const bOk = badRead.ok === false && badDecision.ok === false
+        && badDecision.error === 'claim_content_integrity_failed'
+        && stateOf(bad.id) === 'received';
+
+      // (c) C-F02 — HIÁNYZÓ tartalom: ugyanaz, saját nevezett hibával.
+      const gone = submit('torolt@pelda.hu', 'ch_c', 'lesz-e tartalma?');
+      w.store.run('DELETE FROM claim_content WHERE claim_id = ?', gone.id);
+      const goneDecision = adjudicateClaim({ store: w.store, actorSubjectId: 'sub_adjudicator',
+        claimId: gone.id, decision: 'resolve', clock: w.clock });
+      const cOk = goneDecision.ok === false && goneDecision.error === 'claim_content_missing'
+        && stateOf(gone.id) === 'received';
+
+      // (d) A SORREND — a JOGOSULATLAN hívó válasza az ADATÁLLAPOTTÓL FÜGGETLENÜL semleges. Ha az
+      //     integritás-vizsgálat a hatáskör ELÉ kerülne, a „sérült" és a „nincs ilyen ügy"
+      //     különbsége maga mondaná meg, hogy az ügy létezik (KUKA-084). BÁJTRA hasonlítunk.
+      const outsiderBad = adjudicateClaim({ store: w.store, actorSubjectId: 'sub_kivulallo',
+        claimId: bad.id, decision: 'resolve', clock: w.clock });
+      const outsiderGone = adjudicateClaim({ store: w.store, actorSubjectId: 'sub_kivulallo',
+        claimId: gone.id, decision: 'resolve', clock: w.clock });
+      const outsiderMissing = adjudicateClaim({ store: w.store, actorSubjectId: 'sub_kivulallo',
+        claimId: 'clm_nemletezik', decision: 'resolve', clock: w.clock });
+      const dOk = JSON.stringify(outsiderBad) === JSON.stringify(CLAIM_NOT_AVAILABLE)
+        && JSON.stringify(outsiderGone) === JSON.stringify(CLAIM_NOT_AVAILABLE)
+        && JSON.stringify(outsiderMissing) === JSON.stringify(CLAIM_NOT_AVAILABLE);
+
+      // (e) C-F03 — A MÁSODLAGOS HIVATKOZÁS NEM VEHETI EL MÁS KERETÉT. A támadó a SAJÁT
+      //     csatornájáról a SÉRTETT szabadon megadható hivatkozásával teleírja a kvótát; a sértett
+      //     ezután a SAJÁT, független csatornájáról beadhat. A hivatkozás nem igazolt azonosság,
+      //     tehát fegyverré sem válhat.
+      for (let i = 0; i < CLAIM_RATE.max; i += 1) {
+        submitClaim({ store: w.store, clock: w.clock, claimantRef: 'sertett@pelda.hu',
+          bookId: 'book_a', statement: `tamado-${i}`, intakeContext: ctx('ch_tamado') });
+      }
+      const victim = submitClaim({ store: w.store, clock: w.clock, claimantRef: 'sertett@pelda.hu',
+        bookId: 'book_a', statement: 'jóhiszemű', intakeContext: ctx('ch_sertett') });
+      // ELLENPÁR: a korlát a SAJÁT csatornán belül TOVÁBBRA IS él — nem lazítottunk, csak szűkítettük.
+      let sameChannel = null;
+      for (let i = 0; i < CLAIM_RATE.max + 1; i += 1) {
+        sameChannel = submitClaim({ store: w.store, clock: w.clock, claimantRef: 'sokat@pelda.hu',
+          bookId: 'book_a', statement: `z${i}`, intakeContext: ctx('ch_sajat') });
+      }
+      const eOk = victim.accepted === true
+        && sameChannel && sameChannel.accepted === false && sameChannel.reason === 'rate_limited';
+
+      const pass = aOk && bOk && cOk && dOk && eOk;
+      return {
+        expected: 'ép tartalom + jogosult elbíráló ⇒ siker · sérült és hiányzó tartalom ⇒ elutasítás '
+          + 'VÁLTOZATLAN ügyállapottal · a jogosulatlan hívó válasza az adatállapottól függetlenül '
+          + 'semleges · a másik fél hivatkozásával nem lehet elvenni annak keretét, a SAJÁT csatornán '
+          + 'viszont a korlát megmarad',
+        actual: `(a) ép döntés=${okDecision.ok}/${stateOf(okClaim.id)} · `
+          + `(b) sérült=${badDecision.error} állapot=${stateOf(bad.id)} · `
+          + `(c) hiányzó=${goneDecision.error} állapot=${stateOf(gone.id)} · `
+          + `(d) kívülálló sérültre=${JSON.stringify(outsiderBad)} nem létezőre=${JSON.stringify(outsiderMissing)} · `
+          + `(e) sértett saját csatornán=${victim.accepted} saját csatorna korlátja=${sameChannel && sameChannel.reason}`,
+        pass,
+        asserts: {
+          'A-REV-N3a-decision-needs-intact-evidence': aOk && bOk && cOk && dOk,
+          'A-REV-N3c-secondary-ref-cannot-take-others-quota': eOk,
         },
       };
     } finally { w.store.close(); }

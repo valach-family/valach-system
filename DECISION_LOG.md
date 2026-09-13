@@ -16,6 +16,47 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3018 — AMIRŐL DÖNTÜNK, AZT LÁTNI KELL: a fél őr MÁSODSZOR, és a korlát hatóköre (R69/C-F01–C-F03)
+
+- **Dátum:** 2026-09-13 · Sáv: Claude-v3 (PR-VS-300 · STEP-VS-300-002 · CMD-VS-300-002-001 R69) ·
+  **KUKA-121** · **forrás:** a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3) R69 — ANALYSIS lapja.
+- **A reprodukció ELŐSZÖR.** A három programjukat bájtazonosan kinyertem és a VÁLTOZATLAN `6a74339`
+  forráson lefuttattam: a mag-próba **2 PASS / 3 FAIL**, karakterre az ő arányuk. Minden leletük valós.
+
+**C-F01 + C-F02 — az olvasás nemet mond, az érdemi döntés mégis lezár.** A `readClaim` helyesen
+`claim_content_integrity_failed`-et adott sérült tartalomra; ugyanannak az illetékes elbírálónak az
+`adjudicateClaim(decision:'resolve')` hívása mégis `ok:true, state:'resolved'`-ot adott, és átírta az
+ügyet. Hiányzó tartalomnál ugyanez. **Helyette CLM-01** (`claimEvidenceAt`): a beadvány állapotát EGY
+nevezett feloldó mondja ki, amit MINDKÉT út hív. A SORREND kötött — a hatáskör ELŐBB dől el, mint az
+adat állapota: a jogosulatlan hívó válasza az adatállapottól FÜGGETLENÜL a semleges nemleges, különben
+a különbség maga árulná el, hogy az ügy létezik (KUKA-084).
+
+**C-F03 — a másodlagos hivatkozás nem vehet el MÁS keretet.** A `claimant_ref` korlát MINDEN csatornán
+közösen számolt, tehát a támadó a SAJÁT csatornájáról a sértett szabadon megadható hivatkozásával
+elhasználhatta annak keretét — a jóhiszemű fél a saját, független csatornájáról `rate_limited`-et
+kapott. A szűkítés mostantól a SZERVER képezte kulcson BELÜL él (`intake_key` ÉS `ref`).
+
+**A KLAUZULÁK PONTOSÍTVA.** A **REV-N3c** szövege kimondja a BIZALMI ELŐFELTÉTELT: a mag a
+MEGBÍZHATÓNAK FELTÉTELEZETT adapter-kontextus szerint korlátoz — a kontextus EREDETÉNEK kikényszerítése
+a REV-N3d hiánya. A **REV-N3d** zárási feltétele a külső fél HAT pontjával szigorodott. Új: **REV-N3e**
+— a sérült beadvány ügye ma SEMMILYEN úton nem zárható le (holtpont); a feloldás (technikai karantén)
+KÜLÖN műveleti nevet, okot és auditot igényel, ezért NEM építettük meg, hanem nevezett hiányként áll.
+
+**A MÉRTÉKEGYSÉG, a külső fél §5 kérésére, EGYÜTT:** **11/25 bizonyítéklánc-SOR** · **6/20 EGYEDI
+klauzula** fedett. A REV-N3e felvétele 19-ről 20-ra emelte az egyedi készletet. Ez nem a mag
+készültségi százaléka.
+
+**Saját lelet a mérésről.** A `P-REV-claim-read` (d) része azt mérte, hogy ugyanaz a hivatkozás NÉGY
+KÜLÖNBÖZŐ csatornán is elfogy — vagyis **a saját pinem épp azt a csatornákon átnyúló hatást igazolta
+vissza zölden, amit a külső fél fegyverként mutatott meg**. Aki a hibát javította volna, PIROSRA vitte
+volna a battériát (KUKA-068). A (d) rész átírva: a korlát a saját csatornán belül él.
+
+**Gépi jel.** `npm run verify:v3ref` — az ÚJ **P-REV-claim-decide** (öt ág) + **M62 · M63 · M64**
+visszabontási kontroll, mind bizonyítottan piros. Mérve: **32/32 magpróba · 61/61 mutáció elkapva ·
+0 elavult horgony**; a külső fél mag-programja a javított kódon **5/5 PASS**.
+
+---
+
 ## D-VS-3017 — A SIKER-JELENTÉS NEM HATÁS: REV-N3 MÁSODIK MENET (R67/F01–F05)
 
 **Dátum:** 2026-09-13 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-001 R68 · **KUKA-120**

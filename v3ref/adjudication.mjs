@@ -178,8 +178,18 @@ export function submitClaim({ store, clock, claimantRef, bookId, statement, inta
   // saját hivatkozása MÁSODIK, szűkebb korlát marad — hasznos, de önmagában sosem védelem.
   const byChannel = store.get(
     'SELECT COUNT(*) AS n FROM claim_intake WHERE intake_key = ? AND submitted_at >= ?', intakeKey, since);
+  // R69/C-F03 (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL): a MÁSODLAGOS korlát NEM ÉRHET ÁT MÁS CSATORNÁRA.
+  // Korábban ez a számlálás az egész táblán ment, tehát a beadó által SZABADON MEGADHATÓ hivatkozás
+  // globális kulcs volt: aki a saját csatornájáról háromszor beadott a MÁSIK fél hivatkozásával,
+  // elhasználta annak a keretét — a jóhiszemű fél a SAJÁT, független csatornájáról `rate_limited`
+  // választ kapott. A nem igazolt azonosító így FEGYVER lett, nem szűkítés.
+  // A szabály: a másodlagos korlát a SZERVER képezte kulcson BELÜL szűkít (`intake_key` ÉS `ref`) —
+  // egy csatorna a saját keretét oszthatja fel a hivatkozásai között, de MÁSÉT nem veheti el.
+  // A tágabb, csatornákon átnyúló összefüggés-vizsgálat NEM ide tartozik: az igazolt azonossághoz
+  // kötött, és az adapter-szintű hiány (REV-N3d) része — nem pótoljuk nem igazolt szöveggel.
   const byRef = store.get(
-    'SELECT COUNT(*) AS n FROM claim_intake WHERE claimant_ref = ? AND submitted_at >= ?', ref, since);
+    'SELECT COUNT(*) AS n FROM claim_intake WHERE intake_key = ? AND claimant_ref = ? AND submitted_at >= ?',
+    intakeKey, ref, since);
   if ((byChannel && Number(byChannel.n) >= CLAIM_RATE.max) || (byRef && Number(byRef.n) >= CLAIM_RATE.max)) {
     // A korlát a BEADÁS viselkedéséről szól, nem az ügyről — erről tudni jogos, tehát ez a válasz
     // eltérhet a semlegestől, és NEM szivárogtat a könyvről vagy az ügyről semmit.
@@ -213,6 +223,48 @@ export function submitClaim({ store, clock, claimantRef, bookId, statement, inta
 export const CLAIM_NOT_AVAILABLE = Object.freeze({ ok: false, error: 'not_available' });
 
 /**
+ * CLM-01 — A BEADVÁNY ÁLLAPOTA EGY HELYEN (R69/C-F01 + C-F02).
+ *
+ * A LELET (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL, R69 §3.2). Az R67/F03 javításakor a tartalom-integritás
+ * ellenőrzését az OLVASÁSBA írtam. Az ÉRDEMI DÖNTÉS viszont nem tudott róla: sérült vagy hiányzó
+ * tartalom mellett a `readClaim` helyesen nemet mondott, az `adjudicateClaim(decision:'resolve')`
+ * pedig UGYANANNAK az elbírálónak `ok:true, state:'resolved'`-ot adott, és lezárta az ügyet. Az
+ * elbíráló tehát pontosan azt az iratot nem látta, amiről döntött.
+ *
+ * Ez a KUKA-039 („fél őr") pontos ismétlődése — MÁSODSZOR ugyanezen a fájlon: az R67/F02-nél a
+ * semleges nemleges válasz állt csak az egyik ágon, most az integritás-ellenőrzés. A tanulság ezért
+ * nem az, hogy „ezt is javítsuk", hanem hogy AHOL EGY TÉNYT TÖBB ÚT OLVAS, OTT NEVEZETT FELOLDÓ
+ * KELL, amit MINDEN út hív (KUKA-009 · KUKA-013).
+ *
+ * A SORREND KÖTÖTT, ÉS EZ A SZABÁLY LÉNYEGE: a HATÁSKÖRT előbb kell mérni, mint az adat állapotát.
+ * Aki nem illetékes, annak a válasza az adat állapotától FÜGGETLENÜL a semleges nemleges — különben
+ * a „sérült" és a „nincs ilyen ügy" különbsége maga mondaná meg, hogy az ügy létezik (KUKA-084).
+ * Integritási diagnózist tehát CSAK a jogosult kap.
+ *
+ * AMIT SZÁNDÉKOSAN NEM ÉPÍTÜNK MEG, KIMONDVA: a sérült beadvány így nem zárható le SEMMILYEN úton —
+ * ez holtpont, és a feloldása (technikai karantén) a külső fél szavával is KÜLÖN műveleti nevet,
+ * okot és auditot igényel, nem érdemi elbírálásnak álcázott lezárást. Amíg az nincs megépítve, a
+ * helyes válasz a JELENTÉS, nem az üres kézzel hozott döntés — a hiány a REV-N3e klauzulán áll,
+ * nevezett zárási feltétellel.
+ *
+ * @returns {{intact:true, statement:string}|{intact:false, error:string, message:string}}
+ */
+export function claimEvidenceAt({ store, claimRow }) {
+  const content = store.get('SELECT content FROM claim_content WHERE claim_id = ?', claimRow.id);
+  if (!content) {
+    return Object.freeze({ intact: false, error: 'claim_content_missing',
+      message: 'a beadvány metaadata megvan, a TARTALMA viszont nem — az ügy nem bírálható el '
+        + 'érdemben; ezt jelenteni kell, nem üres kézzel dönteni' });
+  }
+  if (digestOf(content.content) !== claimRow.statement_digest) {
+    return Object.freeze({ intact: false, error: 'claim_content_integrity_failed',
+      message: 'a tárolt beadvány nem egyezik a befogadáskor rögzített lenyomattal — a tartalom '
+        + 'megváltozott, ezért NEM adjuk vissza és érdemben NEM bírálható el' });
+  }
+  return Object.freeze({ intact: true, statement: content.content });
+}
+
+/**
  * EGY BEJELENTÉS MEGTEKINTÉSE — REV-N3b.
  *
  * A bejelentő attól, hogy állít valamit, NEM lesz olvasó: a jelzés ELŐTTI és UTÁNI olvasási köre
@@ -236,23 +288,16 @@ export function readClaim({ store, viewerSubjectId, claimId, clock }) {
   // panasz szövege nem áll vissza, tehát az „elbírálás" formaság maradt. A tartalom itt jön elő, és
   // a lenyomat MOST AZ, AMI: integritás-ellenőrzés. Eltérésnél NEM adunk vissza szöveget, hanem
   // nevezett hibát — a néma, csendben megváltozott beadvány rosszabb, mint a nemleges válasz.
-  const content = store.get('SELECT content FROM claim_content WHERE claim_id = ?', row.id);
-  if (!content) {
-    return Object.freeze({ ok: false, error: 'claim_content_missing',
-      message: 'a beadvány metaadata megvan, a TARTALMA viszont nem — az ügy nem bírálható el '
-        + 'érdemben; ezt jelenteni kell, nem üres kézzel dönteni' });
-  }
-  if (digestOf(content.content) !== row.statement_digest) {
-    return Object.freeze({ ok: false, error: 'claim_content_integrity_failed',
-      message: 'a tárolt beadvány nem egyezik a befogadáskor rögzített lenyomattal — a tartalom '
-        + 'megváltozott, ezért NEM adjuk vissza' });
+  const evidence = claimEvidenceAt({ store, claimRow: row });
+  if (!evidence.intact) {
+    return Object.freeze({ ok: false, error: evidence.error, message: evidence.message });
   }
   return Object.freeze({
     ok: true,
     claim: Object.freeze({
       id: row.id, book_id: row.book_id, claimant_ref: row.claimant_ref,
       submitted_at: row.submitted_at, statement_digest: row.statement_digest, state: row.state,
-      statement: content.content,
+      statement: evidence.statement,
     }),
   });
 }
@@ -273,6 +318,16 @@ export function adjudicateClaim({ store, actorSubjectId, claimId, decision, cloc
   const right = adjudicationRightAt({
     store, subjectId: actorSubjectId, bookId: row.book_id, operation: 'adjudicate', clock });
   if (!right.allowed) return CLAIM_NOT_AVAILABLE;
+
+  // R69/C-F01 + C-F02: AMIRŐL DÖNTÜNK, AZT LÁTNI KELL. A hatáskör UTÁN (és csak utána — a sorrend a
+  // CLM-01 szabálya) ugyanaz a nevezett feloldó mondja ki a beadvány állapotát, amit az olvasás hív.
+  // Sérült vagy hiányzó tartalom mellett NINCS érdemi döntés, és — mert a válasz előtt semmit nem
+  // írtunk — az ügy állapota VÁLTOZATLAN marad.
+  const evidence = claimEvidenceAt({ store, claimRow: row });
+  if (!evidence.intact) {
+    return Object.freeze({ ok: false, error: evidence.error, message: evidence.message });
+  }
+
   const state = decision === 'resolve' ? 'resolved' : 'under_review';
   store.run('UPDATE claim SET state = ? WHERE id = ?', state, claimId);
   return Object.freeze({ ok: true, state, changed_rights: false });

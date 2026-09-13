@@ -31,6 +31,31 @@
 /** A programok — KI ÍRTA, MIT MÉR, és PONTOSAN MELY ESETEKET kell hoznia. */
 export const PROGRAMS = Object.freeze([
   Object.freeze({
+    id: 'r69',
+    file: 'r69_chatgpt-v3.mjs',
+    companions: Object.freeze(['r69_chatgpt-v3.core.mjs']),
+    by: 'chatgpt-v3 — KÜLSŐ, független fél',
+    origin: 'R69 §8 (a MAG-próba: a `r69_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN; ez a bejegyzés '
+      + 'a burkolóra mutat, ami az artefaktumot írja — a próba szövegéhez nem nyúlunk). A csomagjuk '
+      + 'másik két programja (`board-r69.cjs` · `runner-challenge.mjs`) a V2 BOARDOT méri, ezért annak '
+      + 'a repónak a próba-rendszerébe tartozik — ide csak a MAG-próba jön (a hatókört kimondjuk, '
+      + 'nem hagyjuk némán hiányozni).',
+    what: 'C01–C02 kontroll (a felfüggesztés-feloldás megőrzi a történetet · a sérült tartalom nem megy '
+      + 'ki olvasásra) és F01–F03: sérült tartalmú ügy NEM zárható le érdemben · hiányzó tartalmú ügy '
+      + 'ugyanúgy · a másik fél szabadon megadott hivatkozása NEM veheti el annak keretét egy független '
+      + 'csatornán',
+    evidence: 'r69-core-challenge.json',
+    cases: Object.freeze([
+      'C01-suspension-lift-preserves-history',
+      'C02-corrupt-content-not-disclosed',
+      'F01-corrupt-content-cannot-be-resolved',
+      'F02-missing-content-cannot-be-resolved',
+      'F03-distinct-channel-cannot-be-blocked-by-spoofed-ref',
+    ]),
+    cases_source: 'a külső fél R69-es lapja (§8, teljes forrással)',
+    evidence_pin_field: 'source_commit',
+  }),
+  Object.freeze({
     id: 'r67',
     file: 'r67_chatgpt-v3.mjs',
     companions: Object.freeze(['r67_chatgpt-v3.core.mjs']),

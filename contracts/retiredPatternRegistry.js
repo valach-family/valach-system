@@ -5728,6 +5728,71 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'keretét is elveszi. Ez REFERENCIA-HELYETTESÍTŐ, nem védelem, és a norma-kapu így is jelenti.',
   }),
 
+  Object.freeze({
+    id: 'KUKA-121',
+    date: '2026-09-13',
+    title: 'A FÉL ŐR — MÁSODSZOR UGYANAZON A FÁJLON: az olvasás nemet mond, az érdemi döntés mégis lezár',
+    what: 'A beadvány-integritás ellenőrzése CSAK az olvasási úton állt, az érdemi döntésen nem — és a '
+      + 'másodlagos visszaélés-korlát a beadó által megadott hivatkozáson GLOBÁLISAN számolt.',
+    retired: 'Az R67/F03 javításakor a beadvány-tartalom INTEGRITÁS-ellenőrzését az OLVASÁSBA írtam '
+      + '(`readClaim`), és késznek jelentettem. Az ÉRDEMI DÖNTÉS (`adjudicateClaim`) nem tudott róla: '
+      + 'sérült vagy hiányzó tartalom mellett ugyanaz az illetékes elbíráló `ok:true, state:"resolved"` '
+      + 'választ kapott, és az ügy LEZÁRULT — az elbíráló pontosan azt az iratot nem látta, amiről '
+      + 'döntött. Ugyanebben a fájlban EGY KÖRREL KORÁBBAN már javítottam egy fél őrt (R67/F02: a '
+      + 'semleges nemleges válasz csak az egyik úton állt). Mellé a MÁSODLAGOS visszaélés-korlát: a '
+      + 'beadó által SZABADON MEGADHATÓ hivatkozás GLOBÁLIS kulcsként számolt, tehát a támadó a saját '
+      + 'csatornájáról a SÉRTETT hivatkozásával elhasználhatta annak keretét — a nem igazolt azonosító '
+      + 'FEGYVERRÉ vált, nem szűkítéssé.',
+    why_wrong: 'Egy tényt (a beadvány használható-e) KÉT út olvasott, és csak az EGYIK kérdezte meg. A '
+      + 'hiba nem is látszott hibának: mindkét függvény önmagában helyes volt, a próbák zöldek, és a '
+      + 'kár csak akkor jelenik meg, ha valaki KIPRÓBÁLJA (KUKA-038). A ref-korlátnál pedig a szűkítés '
+      + 'HATÓKÖRE volt rossz: egy globális kulcs nem szűkít, hanem KERESZTBE ÉR.',
+    replaced_by: 'CLM-01 (`claimEvidenceAt`) + a másodlagos korlát szerver-kulcson BELÜLI szűkítése',
+    replacement: '**CLM-01** — `claimEvidenceAt`: a beadvány állapotát EGY nevezett feloldó mondja ki, '
+      + 'és MINDKÉT út (olvasás ÉS érdemi döntés) azt hívja. A SORREND kötött: a hatáskör ELŐBB dől el, '
+      + 'mint az adat állapota — a jogosulatlan hívó válasza az adatállapottól FÜGGETLENÜL semleges, '
+      + 'különben a „sérült" és a „nincs ilyen ügy" különbsége maga árulná el, hogy az ügy létezik '
+      + '(KUKA-084). A másodlagos korlát a SZERVER képezte kulcson BELÜL szűkít (`intake_key` ÉS `ref`): '
+      + 'egy csatorna a SAJÁT keretét oszthatja fel, MÁSÉT nem.',
+    decision: 'D-VS-3018',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R69/C-F01 · C-F02 · C-F03), a saját, változatlan '
+      + 'kódunkon futtatott programjával — a 31/31 zöld magpróbánk és 58/58 elkapott mutációnk mellett.',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/adjudication.mjs'], pattern: 'export function claimEvidenceAt',
+        reason: 'CLM-01: a beadvány állapotának EGYETLEN otthona' }),
+      Object.freeze({ paths: ['v3ref/adjudication.mjs'], pattern: 'claimEvidenceAt\\(\\{ store, claimRow: row \\}\\)',
+        reason: 'MINDKÉT út HÍVJA — az olvasás és az érdemi döntés ugyanazt a tényt kérdezi (KUKA-039)' }),
+      Object.freeze({ paths: ['v3ref/adjudication.mjs'], pattern: 'WHERE intake_key = \\? AND claimant_ref = \\?',
+        reason: 'C-F03: a másodlagos korlát a szerver-kulcson BELÜL szűkít — nem ér át más csatornára' }),
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: "probe\\('P-REV-claim-decide'",
+        reason: 'a próba a DÖNTÉS következményét méri: az ügy állapota sérült tartalom mellett VÁLTOZATLAN' }),
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M62'",
+        reason: 'a „csak olvasáskor ellenőriz" alak bizonyítottan pirosra viszi a próbát' }),
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M63'",
+        reason: 'a globális ref-korlát visszatérése külön kontroll' }),
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M64'",
+        reason: 'a SORREND is mérve: az integritás a hatáskör elé kerülve szivárogtatna' }),
+      Object.freeze({ paths: ['v3ref/norms.mjs'], pattern: "id: 'REV-N3e'",
+        reason: 'a MEG NEM ÉPÍTETT karantén NEVEZETT klauzulán, nyitva — nem beleolvasztva' }),
+    ]),
+    lesson: 'HA EGY TÉNYT TÖBB ÚT OLVAS, NEVEZETT FELOLDÓ KELL, AMIT MINDEN ÚT HÍV — és ezt AKKOR is ki '
+      + 'kell mondani, ha a második utat ma senki nem használja. A „fél őr" azért ismétlődött ugyanazon '
+      + 'a fájlon, mert az első javításnál a KONKRÉT hívási helyet javítottam, nem a TÉNY otthonát '
+      + 'rendeztem el; a javítás alakja dönti el, lesz-e harmadik alkalom. **És a szűkítő korlát '
+      + 'HATÓKÖRE is szabály:** egy nem igazolt, hívó által megadott azonosítóra épített globális kulcs '
+      + 'nem védelem, hanem fegyver — a szűkítés csak azon a kulcson BELÜL érvényes, amit a szerver '
+      + 'képez. **Amit szándékosan NEM építettünk meg** (a sérült ügy technikai karanténja), az NEVEZETT '
+      + 'klauzulán áll nyitva, zárási feltétellel — mert a holtpont is állapot, amiről beszélni kell '
+      + '(KUKA-012), de a feloldása nem lehet az érdemi elbírálás fellazítása.',
+    guard_note: 'gépi jel: `npm run verify:v3ref` — az ÚJ `P-REV-claim-decide` próba öt ágon mér (ép '
+      + 'tartalom + jogosult ⇒ siker · sérült ⇒ elutasítás VÁLTOZATLAN ügyállapottal · hiányzó ⇒ '
+      + 'ugyanaz · a jogosulatlan hívó válasza az adatállapottól függetlenül BÁJTRA a semleges · a '
+      + 'másik fél hivatkozásával nem vehető el annak kerete, a SAJÁT csatornán viszont a korlát él). '
+      + 'Visszabontási kontroll: **M62** (a döntési út integritás-vaksága) · **M63** (a globális '
+      + 'ref-korlát) · **M64** (a sorrend megfordítása) — mind bizonyítottan PIROS. AMI NYITVA MARAD: '
+      + 'a **REV-N3e** (karantén) és a **REV-N3d** hat pontos, szigorított zárási feltétele.',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

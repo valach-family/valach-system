@@ -523,4 +523,44 @@ export const MUTATIONS = [
     file: 'adjudication.mjs',
     from: "  const byChannel = store.get(\n    'SELECT COUNT(*) AS n FROM claim_intake WHERE intake_key = ? AND submitted_at >= ?', intakeKey, since);",
     to: "  const byChannel = { n: 0 };" },
+
+  // ——— R69 (a külső fél C-leletei) ———————————————————————————————————————————————————————
+  { id: 'M62', rule: 'K05', catcher: 'P-REV-claim-decide', expect: 'probe_fail',
+    what: 'C-F01/C-F02 — A „CSAK OLVASÁSKOR ELLENŐRIZ INTEGRITÁST" ALAK: az érdemi döntés megint nem '
+      + 'kérdezi meg a beadvány állapotát, tehát sérült vagy hiányzó tartalom mellett is LEZÁRJA az '
+      + 'ügyet (a külső fél kifejezetten kérte, hogy ezt a mutánst a mérő fogja meg)',
+    file: 'adjudication.mjs',
+    from: "  const evidence = claimEvidenceAt({ store, claimRow: row });\n"
+      + "  if (!evidence.intact) {\n"
+      + "    return Object.freeze({ ok: false, error: evidence.error, message: evidence.message });\n"
+      + "  }\n"
+      + "\n"
+      + "  const state = decision === 'resolve' ? 'resolved' : 'under_review';",
+    to: "  const state = decision === 'resolve' ? 'resolved' : 'under_review';" },
+
+  { id: 'M63', rule: 'K05/K15', catcher: 'P-REV-claim-decide', expect: 'probe_fail',
+    what: 'C-F03 — A MÁSODLAGOS KORLÁT MEGINT ÁTÉR MÁS CSATORNÁRA: a beadó által szabadon megadott '
+      + 'hivatkozás újra GLOBÁLIS kulcs, tehát egy támadó a másik fél hivatkozásával elveheti annak '
+      + 'a keretét a MÁSIK, független csatornán is',
+    file: 'adjudication.mjs',
+    from: "    'SELECT COUNT(*) AS n FROM claim_intake WHERE intake_key = ? AND claimant_ref = ? AND submitted_at >= ?',\n"
+      + "    intakeKey, ref, since);",
+    to: "    'SELECT COUNT(*) AS n FROM claim_intake WHERE claimant_ref = ? AND submitted_at >= ?',\n"
+      + "    ref, since);" },
+
+  { id: 'M64', rule: 'K05', catcher: 'P-REV-claim-decide', expect: 'probe_fail',
+    what: 'C-F01 SORREND-ALAK: az integritás-vizsgálat a HATÁSKÖR ELÉ kerül, tehát az illetéktelen '
+      + 'hívó a sérült ügyre nevezett hibát kap a semleges nemleges helyett — a különbség maga mondja '
+      + 'meg, hogy az ügy létezik (KUKA-084)',
+    file: 'adjudication.mjs',
+    from: "  if (!row) return CLAIM_NOT_AVAILABLE;\n"
+      + "  const right = adjudicationRightAt({\n"
+      + "    store, subjectId: actorSubjectId, bookId: row.book_id, operation: 'adjudicate', clock });\n"
+      + "  if (!right.allowed) return CLAIM_NOT_AVAILABLE;",
+    to: "  if (!row) return CLAIM_NOT_AVAILABLE;\n"
+      + "  const early = claimEvidenceAt({ store, claimRow: row });\n"
+      + "  if (!early.intact) return Object.freeze({ ok: false, error: early.error, message: early.message });\n"
+      + "  const right = adjudicationRightAt({\n"
+      + "    store, subjectId: actorSubjectId, bookId: row.book_id, operation: 'adjudicate', clock });\n"
+      + "  if (!right.allowed) return CLAIM_NOT_AVAILABLE;" },
 ];

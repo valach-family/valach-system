@@ -1,0 +1,74 @@
+{
+  "program": "r69_chatgpt-v3.core.mjs",
+  "source_commit": "6a7433997810198978c9d7214d588efba11eb070+uncommitted",
+  "node": "v22.22.2",
+  "at": "2026-09-13T16:23:42.336Z",
+  "verbatim": true,
+  "results": [
+    {
+      "id": "C01-suspension-lift-preserves-history",
+      "result": "PASS"
+    },
+    {
+      "id": "C02-corrupt-content-not-disclosed",
+      "result": "PASS"
+    },
+    {
+      "id": "F01-corrupt-content-cannot-be-resolved",
+      "result": "PASS"
+    },
+    {
+      "id": "F02-missing-content-cannot-be-resolved",
+      "result": "PASS"
+    },
+    {
+      "id": "F03-distinct-channel-cannot-be-blocked-by-spoofed-ref",
+      "result": "PASS"
+    }
+  ],
+  "passed": 5,
+  "failed": 0,
+  "cases": [
+    {
+      "id": "C01-suspension-lift-preserves-history",
+      "pass": true,
+      "result": {
+        "id": "C01-suspension-lift-preserves-history",
+        "result": "PASS"
+      }
+    },
+    {
+      "id": "C02-corrupt-content-not-disclosed",
+      "pass": true,
+      "result": {
+        "id": "C02-corrupt-content-not-disclosed",
+        "result": "PASS"
+      }
+    },
+    {
+      "id": "F01-corrupt-content-cannot-be-resolved",
+      "pass": true,
+      "result": {
+        "id": "F01-corrupt-content-cannot-be-resolved",
+        "result": "PASS"
+      }
+    },
+    {
+      "id": "F02-missing-content-cannot-be-resolved",
+      "pass": true,
+      "result": {
+        "id": "F02-missing-content-cannot-be-resolved",
+        "result": "PASS"
+      }
+    },
+    {
+      "id": "F03-distinct-channel-cannot-be-blocked-by-spoofed-ref",
+      "pass": true,
+      "result": {
+        "id": "F03-distinct-channel-cannot-be-blocked-by-spoofed-ref",
+        "result": "PASS"
+      }
+    }
+  ],
+  "cases_mapped_from": "results (a burkoló képezte, a program szövege érintetlen)"
+}

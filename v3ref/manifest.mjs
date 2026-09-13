@@ -130,6 +130,16 @@ export const EXPECTED_PROBES = Object.freeze([
       Object.freeze({ clause: 'REV-N3c', assertion: 'A-REV-N3c-intake-limit-server-keyed' }),
     ]),
   }),
+  Object.freeze({
+    id: 'P-REV-claim-decide', assertion: 'REVN3-decision-needs-intact-evidence',
+    // R69/C-F01+C-F02+C-F03 (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL). Két külön klauzulát old ki: az
+    // ÉRDEMI DÖNTÉS csak ép beadványon születhet (REV-N3a — a hatáskör gyakorlása nem formaság),
+    // és a másodlagos hivatkozás nem vehet el MÁS keretét (REV-N3c).
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N3a', assertion: 'A-REV-N3a-decision-needs-intact-evidence' }),
+      Object.freeze({ clause: 'REV-N3c', assertion: 'A-REV-N3c-secondary-ref-cannot-take-others-quota' }),
+    ]),
+  }),
 ]);
 
 export const EXPECTED_IDS = Object.freeze(EXPECTED_PROBES.map((p) => p.id));
