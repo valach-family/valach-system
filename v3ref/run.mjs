@@ -20,6 +20,7 @@ import { ADJUDICATION_OPS, adjudicationRightAt, grantAdjudicationAuthority, subm
   adjudicateClaim, suspendMembership, liftSuspension, intakeKeyOf, UNATTRIBUTED_INTAKE_KEY,
   NEUTRAL_CLAIM_ACK, CLAIM_NOT_AVAILABLE, CLAIM_RATE } from './adjudication.mjs';
 import { suspensionEffectiveAt } from './suspension.mjs';
+import { imposeBan, banEffectiveAt, banReaches, kindForCause, KNOWN_BAN_KINDS, KNOWN_BAN_CAUSES } from './ban.mjs';
 import { submitCommand, readCommandResult, commandRef, canonicalize, CanonError, recordCommandEvent, releasedFieldPaths } from './command.mjs';
 
 // A KANONIKUS NORMA-VERZIÓ EGYETLEN HELYRŐL JÖN (R53 §5). Korábban itt egy KÉZZEL ÍRT `'R32/K01-K16'`
@@ -1707,7 +1708,20 @@ probe('P-NORM-evidence', 'R32/K11 · R53 F03 · F04 · KUKA-038 · KUKA-095',
       for (const id of (nx.clauses || [])) if (REQUIRED_EVIDENCE.clauses.includes(id)) nem.push(`már kötelező: ${id}`);
       const ns = (nx.order || []).map((s) => s.n);
       if (ns.join(',') !== ns.map((_, i) => i + 1).join(',')) nem.push(`a sorrend nem 1..${ns.length}: ${ns.join(',')}`);
-      if (ns.length < 4) nem.push(`a terv ${ns.length} lépéses — a csomag négy lépésre van vállalva`);
+      // A LÉPÉSSZÁM SZABÁLYBÓL JÖN, NEM KÉZZEL LÉPTETETT SZÁMBÓL (KUKA-045). A régi alak `< 4`-et
+      // követelt, mert az AKKORI csomag három klauzulából állt — a szám a csomaghoz volt szabva, nem
+      // a szabályhoz. Egy KÉTKLAUZULÁS csomag emiatt pirosra vitte volna a futást, és a „javítás" a
+      // terv PADDINGELÉSE lett volna: a mérce betanít a saját megkerülésére. A valódi követelmény:
+      // MINDEN vállalt klauzulának SAJÁT lépése van, és a végén ott a BEEMELÉS lépése.
+      const want = (nx.clauses || []).length + 1;
+      if (ns.length < want) {
+        nem.push(`a terv ${ns.length} lépéses — ${(nx.clauses || []).length} klauzulához legalább `
+          + `${want} lépés kell (klauzulánként egy + a beemelés)`);
+      }
+      const planned = new Set((nx.order || []).flatMap((s) => s.clauses || []));
+      for (const id of (nx.clauses || [])) {
+        if (!planned.has(id)) nem.push(`a vállalt ${id} klauzulához NINCS lépés a tervben`);
+      }
       for (const s of (nx.order || [])) {
         for (const id of (s.clauses || [])) if (!known.has(id)) nem.push(`${s.n}. lépés: nem létező klauzula (${id})`);
         if (!(s.situation || '').length || s.situation.length < 60) nem.push(`${s.n}. lépés: nincs érdemi ÉLETHELYZET`);
@@ -2183,6 +2197,228 @@ probe('P-REV-claim-decide', 'R69/C-F01 · C-F02 · C-F03 · K05 · K15 · KUKA-0
         asserts: {
           'A-REV-N3a-decision-needs-intact-evidence': aOk && bOk && cOk && dOk,
           'A-REV-N3c-secondary-ref-cannot-take-others-quota': eOk,
+        },
+      };
+    } finally { w.store.close(); }
+  });
+
+// ═══ REV-N5 — A CÉLZOTT TILTÁS (R71 §8/1 · req-3) ══════════════════════════════════════════════
+//
+// A KÉT FÜGGETLEN KÖNYV a mérés előfeltétele: enélkül a „másik könyv érintetlen" fél nem mérhető,
+// és a klauzula ZÖLDNEK LÁTSZANA (KUKA-051). A `buildWorld` egy könyvet ad, ezért a második könyvet
+// és a hozzá tartozó tagságot itt építjük — kimondottan FÜGGETLENNEK: más könyv, más admin.
+function buildTwoBookWorld() {
+  const w = buildWorld({ inviteeHasAccount: true });
+  w.store.run('INSERT INTO book (id, name) VALUES (?,?)', 'book_b', 'B cég könyve — FÜGGETLEN');
+  w.store.run('INSERT INTO subject (id, kind) VALUES (?,?)', 'sub_dolgozo', 'person');
+  w.store.run('INSERT INTO account (subject_id, credential) VALUES (?,?)', 'sub_dolgozo', 'cred_dolgozo');
+  // UGYANAZ a munkatárs MINDKÉT könyvben tag — ez a norma szituációja (a) és (b) esetéhez.
+  for (const b of ['book_a', 'book_b']) {
+    w.store.run('INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)',
+      'sub_dolgozo', b, 'user', w.clock.now());
+  }
+  // A MÁSIK JOGOSULT (REV-N5c ellenpárja): rajta mérjük, hogy a tiltás nem törli mások jogát.
+  w.store.run('INSERT INTO subject (id, kind) VALUES (?,?)', 'sub_kollega', 'person');
+  w.store.run('INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)',
+    'sub_kollega', 'book_a', 'user', w.clock.now());
+  return w;
+}
+
+probe('P-REV-ban-scope', 'R71 §8/1 · REV-N5b · K09 · K15 · KUKA-048 · KUKA-020',
+  'A TILTÁS HATÓKÖRE AZ OKÁBÓL SZÁRMAZIK — ugyanaz a szó két különböző hatókört kap',
+  () => {
+    const w = buildTwoBookWorld();
+    try {
+      const may = (book, extra) => rightAt({ store: w.store, subjectId: 'sub_dolgozo', bookId: book,
+        opClass: 'own_book', clock: w.clock, ...(extra || {}) });
+      const impose = (cause, targetRef) => imposeBan({ store: w.store, subjectId: 'sub_dolgozo',
+        cause, targetRef, actorSubjectId: 'sub_adjudicator', clock: w.clock, authorityOk: true });
+
+      // KONTROLL: tiltás előtt MINDKÉT könyv nyitva — különben a későbbi „zárva" semmit nem mondana.
+      const before = may('book_a').allowed && may('book_b').allowed;
+
+      // (a) KILÉPÉS EGY CÉGBŐL ⇒ `book` fajta ⇒ a MÁSIK, független könyv joga ÉRINTETLEN.
+      //     Ez a fél buktatja meg azt a mutációt, ami minden tiltást mindenhol hatályosnak vesz.
+      const outA = impose('left_company', 'book_a');
+      const aOk = outA.ok === true && outA.kind === 'book'
+        && may('book_a').allowed === false && may('book_b').allowed === true;
+
+      // (b) KOMPROMITTÁLT HITELESÍTŐ ⇒ `credential` fajta ⇒ MINDENHOL tilos, ahol azzal lépnének be.
+      //     Ez a fél buktatja meg azt a mutációt, ami a hitelesítő-ágat egy könyvre szűkíti.
+      const outC = impose('credential_compromised', 'cred_dolgozo');
+      const withCred = (book) => may(book, { credentials: { credentialId: 'cred_dolgozo' } });
+      const bOk = outC.ok === true && outC.kind === 'credential'
+        && withCred('book_a').allowed === false && withCred('book_b').allowed === false;
+
+      // (b2) ELLENPÁR A HITELESÍTŐRE: EGY MÁSIK hitelesítővel érkező kérés NEM ütközik ebbe a
+      //      tiltásba — a célzott tiltás célzott marad, nem válik alany-szintűvé.
+      const otherCred = may('book_b', { credentials: { credentialId: 'cred_masik' } });
+      const b2Ok = otherCred.allowed === true;
+
+      // (c) A FAJTA NEVEZETT, ZÁRT HALMAZBÓL. Ismeretlen OK ⇒ a tiltás LÉTRE SEM JÖN (nem
+      //     „általánosat" tételezünk fel); ismeretlen FAJTA a tárolóban ⇒ NEM DÖNTHETŐ, nevezett
+      //     okkal, és zár — de a neve nem „általános tiltás" (KUKA-020).
+      const badCause = impose('valami_amit_kitalaltam', 'book_b');
+      w.store.run(
+        `INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)
+         VALUES (?,?,?,?,?,?)`,
+        'sub_kollega', 'ismeretlen_fajta', 'left_company', 'book_a', 'sub_adjudicator', w.clock.now());
+      const unknownKind = rightAt({ store: w.store, subjectId: 'sub_kollega', bookId: 'book_a',
+        opClass: 'own_book', clock: w.clock });
+      const cOk = badCause.ok === false && badCause.reason === 'ban_cause_unknown'
+        && unknownKind.allowed === false && unknownKind.reason === 'ban_kind_unknown';
+
+      // (d) A MEGKÜLÖNBÖZTETŐ NÉLKÜLI KÉRÉS: nem dönthető ⇒ ZÁR, de NEVEZETTEN (nem néma, és nem
+      //     ugyanaz a szó, mint a valódi „nem" — a hívó megtudja, mit adjon meg).
+      const noDiscriminator = may('book_b');
+      const dOk = noDiscriminator.allowed === false
+        && noDiscriminator.reason === 'ban_target_undecidable'
+        && /credentialId/.test(noDiscriminator.message || '');
+
+      const pass = before && aOk && bOk && b2Ok && cOk && dOk;
+      return {
+        expected: 'a kilépés-ok KÖNYV-hatókörű tiltást szül (a másik könyv érintetlen) · a '
+          + 'kompromittált hitelesítő MINDKÉT könyvön tilt · más hitelesítő nem ütközik bele · '
+          + 'ismeretlen ok NEM hoz létre tiltást · ismeretlen fajta NEM DÖNTHETŐ (zár, nevezetten)',
+        actual: `kontroll a=${may('book_b').allowed} · (a) kilépés: A=${aOk} · (b) hitelesítő MINDKÉT `
+          + `könyvön=${bOk} · (b2) másik hitelesítő átmegy=${b2Ok} · (c) ismeretlen ok=${badCause.reason}, `
+          + `ismeretlen fajta=${unknownKind.reason} · (d) megkülönböztető nélkül=${noDiscriminator.reason}`,
+        pass,
+        asserts: {
+          'A-REV-N5b-ban-scope-comes-from-cause': aOk && bOk && b2Ok,
+          'A-REV-N5b-ban-kind-is-named-and-closed': cOk && dOk,
+        },
+      };
+    } finally { w.store.close(); }
+  });
+
+probe('P-REV-ban-paths', 'R71 §8/1 · REV-N5a · K09 · K15 · KUKA-039',
+  'A TILTÁS MINDEN ENGEDŐ ÚTON HAT — nem csak azon, amelyiken bevezették',
+  () => {
+    const w = buildTwoBookWorld();
+    try {
+      // A MÁSODIK ENGEDŐ ÚT: a hatásköri út (REV-N3). A munkatárs kap `suspend` hatáskört MINDKÉT
+      // könyvön — így a tiltás hatását MINDKÉT úton, MINDKÉT könyvön mérni tudjuk.
+      for (const b of ['book_a', 'book_b']) {
+        grantAdjudicationAuthority({ store: w.store, subjectId: 'sub_dolgozo', bookId: b,
+          operation: 'suspend', clock: w.clock });
+      }
+      const viaMembership = (book) => rightAt({ store: w.store, subjectId: 'sub_dolgozo',
+        bookId: book, opClass: 'own_book', clock: w.clock });
+      const viaAuthority = (book) => adjudicationRightAt({ store: w.store, subjectId: 'sub_dolgozo',
+        bookId: book, operation: 'suspend', clock: w.clock });
+
+      // KONTROLL: MINDKÉT út nyitva MINDKÉT könyvön.
+      const before = viaMembership('book_a').allowed && viaAuthority('book_a').allowed
+        && viaMembership('book_b').allowed && viaAuthority('book_b').allowed;
+
+      // (a) A TAGSÁGI ÚTON értelmezett tiltás a HATÁSKÖRI utat is zárja — ugyanazon a könyvön.
+      //     A tiltás rekordjában NINCS olyan mező, ami azt mondaná, „melyik úton vezették be":
+      //     épp ez a lényeg, és ezért nem tud féloldalas lenni.
+      imposeBan({ store: w.store, subjectId: 'sub_dolgozo', cause: 'left_company',
+        targetRef: 'book_a', actorSubjectId: 'sub_adjudicator', clock: w.clock, authorityOk: true });
+      const aOk = viaMembership('book_a').allowed === false && viaAuthority('book_a').allowed === false;
+
+      // (b) ELLENPÁR — A KÖNYV-HATÓKÖRŰ TILTÁS A MÁSIK KÖNYV ÚTJAIT NEM ZÁRJA, egyiket sem.
+      //     Enélkül az (a) fél „mindent zárok" alakkal is teljesülne (KUKA-092: a tiltás nem
+      //     lehet általános zár).
+      const bOk = viaMembership('book_b').allowed === true && viaAuthority('book_b').allowed === true;
+
+      // (c) A MÁSIK IRÁNY: egy MŰVELET-hatókörű tiltás a HATÁSKÖRI úton dől el pontosan, és a
+      //     tagsági utat NEM zárja — a két út ugyanazt a feloldót kérdezi, de a saját
+      //     megkülönböztetőjével (a hatásköri úton a művelet a `suspend`).
+      imposeBan({ store: w.store, subjectId: 'sub_dolgozo', cause: 'operation_misuse',
+        targetRef: 'suspend', actorSubjectId: 'sub_adjudicator', clock: w.clock, authorityOk: true });
+      const cOk = viaAuthority('book_b').allowed === false && viaMembership('book_b').allowed === true;
+
+      // (d) A HATÁSKÖR NÉLKÜLI TILTÁS-KIMONDÁS ELUTASÍT — a célzott tiltás JOGVÁLTOZTATÁS (REV-N3a).
+      const noAuth = imposeBan({ store: w.store, subjectId: 'sub_kollega', cause: 'left_company',
+        targetRef: 'book_a', actorSubjectId: 'sub_kollega', clock: w.clock, authorityOk: false });
+      const dOk = noAuth.ok === false && noAuth.reason === 'authority_not_established';
+
+      const pass = before && aOk && bOk && cOk && dOk;
+      return {
+        expected: 'egy könyv-hatókörű tiltás MINDKÉT engedő utat zárja azon a könyvön, a MÁSIK könyv '
+          + 'mindkét útját viszont nyitva hagyja · egy művelet-hatókörű tiltás a hatásköri úton zár, '
+          + 'a tagságin nem · hatáskör nélkül tiltás nem mondható ki',
+        actual: `kontroll=${before} · (a) A-könyv tagsági+hatásköri zárva=${aOk} · (b) B-könyv mindkét `
+          + `út nyitva=${bOk} · (c) művelet-tiltás: hatásköri zárva, tagsági nyitva=${cOk} · `
+          + `(d) hatáskör nélkül=${noAuth.reason}`,
+        pass,
+        asserts: {
+          'A-REV-N5a-ban-reaches-every-permitting-path': aOk && bOk && cOk,
+          'A-REV-N5a-ban-needs-authority': dOk,
+        },
+      };
+    } finally { w.store.close(); }
+  });
+
+probe('P-REV-ban-past', 'R71 §8/1 · REV-N5c · K09 · KUKA-085',
+  'A TILTÁS NEM TÖRLI A MÚLTAT ÉS NEM VESZI EL MÁSOK JOGÁT',
+  () => {
+    const w = buildTwoBookWorld();
+    try {
+      // A MÚLT: a tiltott alany egy SZABÁLYOS parancsa a tiltás ELŐTT. A pillanatképet TARTALMILAG
+      // vesszük (a REV-N1b mércéje), nem darabszámmal — az R55-F02 tanulsága: a szám ép maradhat
+      // úgy is, hogy a tartalom megváltozott.
+      const cmd = submitCommand({
+        store: w.store, idemKey: 'idem_ban_past', actor: 'sub_dolgozo', bookId: 'book_a',
+        type: 'stock.receipt', typeVersion: '1', declared: { qty: 3, sku: 'MARCIUS' },
+        resolve: () => ({ unit_price: 100, price_list: 'PL-2026-09' }), clock: w.clock,
+      });
+      const snapshot = () => JSON.stringify({
+        command: w.store.all('SELECT * FROM command ORDER BY book_id, actor, idem_key'),
+        events: w.store.all('SELECT * FROM command_event ORDER BY id'),
+        disclosure: w.store.all('SELECT * FROM disclosure ORDER BY id'),
+        membership: w.store.all('SELECT * FROM membership ORDER BY subject_id, book_id'),
+      });
+      // A TARTALMI PILLANATKÉPET EGY JOGOSULT OLVASÓ VESZI FEL, MÉG A TILTÁS ELŐTT. Azért ő és nem
+      // a tiltott alany, mert az olvasás joga a MAI állapoton dől el: a tiltott alany a saját
+      // korábbi eredményét már nem kapja meg, és akkor a mérés a JOG változását mérné, nem a HATÁS
+      // változatlanságát. A kettő két külön tény (KUKA-088), és a REV-N5c a HATÁSRÓL szól.
+      const peerRead = () => JSON.stringify(readCommandResult({ store: w.store, clock: w.clock,
+        idemKey: 'idem_ban_past', requester: 'sub_kollega' }));
+      const beforeRead = peerRead();
+      // A PILLANATKÉP AZ OLVASÁS UTÁN KÉSZÜL — SZÁNDÉKOSAN. Az olvasás maga is ír: a K05 kiadás-
+      // leltárba sort tesz. Ha a pillanatképet ELŐBB venném, a saját mérésem változtatná meg azt,
+      // amit mérni akarok, és a különbséget a TILTÁSNAK tulajdonítanám (KUKA-054 a mérőn).
+      const beforeSnap = snapshot();
+
+      imposeBan({ store: w.store, subjectId: 'sub_dolgozo', cause: 'court_order_subject',
+        targetRef: null, actorSubjectId: 'sub_adjudicator', clock: w.clock, authorityOk: true });
+
+      // (a) A TILTÁS UTÁN a múlt MINDEN mezője változatlan — a tiltás csak a SAJÁT tábláját írja.
+      //     A pillanatképet a MÁSODIK olvasás ELŐTT vesszük, ugyanazért, amiért az elsőt utána.
+      const afterSnap = snapshot();
+      const aOk = afterSnap === beforeSnap;
+
+      // (b) …és a korábbi művelet EREDMÉNYE is ugyanaz marad tartalmilag (nem csak a sor létezik).
+      // (b) …és a korábbi művelet EREDMÉNYE tartalmilag ugyanaz — ELŐTTE és UTÁNA, ugyanattól a
+      //     jogosult olvasótól kérdezve. Enélkül a mérés önmagát igazolná vissza (KUKA-054).
+      const afterRead = peerRead();
+      const bOk = afterRead === beforeRead && afterRead.length > 2;
+
+      // (c) ELLENPÁR — A MÁSIK JOGOSULT UGYANAZT TEHETI, mint előtte. Enélkül a tiltás „mindenkit
+      //     zárok" alakkal is teljesítené az (a)/(b) feleket.
+      const kollega = rightAt({ store: w.store, subjectId: 'sub_kollega', bookId: 'book_a',
+        opClass: 'own_book', clock: w.clock });
+      const cOk = kollega.allowed === true;
+
+      // (d) …a TILTOTT alany viszont MOSTANTÓL zárva van (alany-szintű fajta: mindenhol).
+      const tiltott = rightAt({ store: w.store, subjectId: 'sub_dolgozo', bookId: 'book_b',
+        opClass: 'own_book', clock: w.clock });
+      const dOk = tiltott.allowed === false && tiltott.reason === 'ban_subject_wide';
+
+      const pass = aOk && bOk && cOk && dOk;
+      return {
+        expected: 'a tiltás után a korábbi parancs és annak eredménye TARTALMILAG változatlan · a '
+          + 'könyv másik jogosultja ugyanazt teheti · a tiltott alany viszont zárva van',
+        actual: `(a) pillanatkép azonos=${aOk} · (b) korábbi eredmény azonos=${bOk} · `
+          + `(c) másik jogosult=${kollega.allowed} · (d) tiltott alany=${tiltott.reason}`,
+        pass,
+        asserts: {
+          'A-REV-N5c-ban-does-not-rewrite-the-past': aOk && bOk,
+          'A-REV-N5c-ban-does-not-remove-others-rights': cOk && dOk,
         },
       };
     } finally { w.store.close(); }

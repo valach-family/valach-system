@@ -23,6 +23,10 @@ import { instantMs } from './store.mjs';
 // A FELFÜGGESZTÉS HATÁLYÁT az a feloldó mondja ki, amit a `rightAt` is hív — egy fogalom, egy
 // otthon (KUKA-003 · KUKA-039). Az író itt van (hatáskör-kérdés), a TÉNY olvasása ott.
 import { suspensionEffectiveAt } from './suspension.mjs';
+// BAN-01 (R71 · REV-N5a): UGYANAZ a feloldó, amit a tagsági út hív. A tiltásnak MINDEN alkalmazható
+// engedő úton hatnia kell — ha ez a behúzás hiányozna, a hatásköri út csendben nyitva maradna, és a
+// tiltás bevezetésének HELYE szűkítené a hatását (a fél őr — KUKA-039).
+import { banEffectiveAt } from './ban.mjs';
 
 /** A hatáskör-igényes műveletek ZÁRT halmaza — ismeretlen művelet nem „általános", hanem NEM DÖNTHETŐ. */
 export const ADJUDICATION_OPS = Object.freeze(['suspend', 'adjudicate', 'alter_right']);
@@ -47,7 +51,7 @@ function allow(operation, detail) {
  *
  * @returns {{allowed:boolean, reason:string, message?:string, operation:string|null}}
  */
-export function adjudicationRightAt({ store, subjectId, bookId, operation, clock }) {
+export function adjudicationRightAt({ store, subjectId, bookId, operation, clock, credentials }) {
   if (!ADJUDICATION_OPS.includes(operation)) {
     return deny('unknown_adjudication_op',
       `ismeretlen hatáskör-igényes művelet ("${operation}") — a zárt halmaz: ${ADJUDICATION_OPS.join(', ')}`);
@@ -61,6 +65,22 @@ export function adjudicationRightAt({ store, subjectId, bookId, operation, clock
   const nowIso = clock.now();
   const now = instantMs(nowIso);
   if (!now.ok) return deny(`clock_${now.reason}`, 'az óra nem értelmezhető');
+
+  // REV-N5a — A CÉLZOTT TILTÁS A MÁSODIK ENGEDŐ ÚTON IS HAT.
+  //
+  // A norma mércéje: „az alany-szintű célzott tiltás MINDEN alkalmazható engedő úton azonnal hat —
+  // nem csak azon az egyen, amelyiken bevezették." A magban ma KÉT engedő út van: a TAGSÁGI
+  // (`rightAt`) és ez, a HATÁSKÖRI (a REV-N3-ban épült meg). Ugyanazt a feloldót hívja mindkettő,
+  // tehát a tiltás nem tud „féloldalas" lenni. A megkülönböztető itt a könyv és a MŰVELET — az
+  // `operation` a hatásköri út saját művelet-fogalma, ezért `opClass` néven adjuk át: egy
+  // művelet-hatókörű tiltás így ezen az úton is pontosan dől el, túlnyúlás nélkül.
+  const ban = banEffectiveAt({
+    store, subjectId: who, nowIso, request: { bookId, opClass: operation, ...(credentials || {}) },
+  });
+  if (ban.banned) {
+    return deny(ban.reason, ban.message
+      || `"${who}" ellen célzott tiltás van hatályban, ezért hatásköri művelet nem végezhető`);
+  }
 
   const row = store.get(
     'SELECT * FROM adjudication_authority WHERE subject_id = ? AND book_id = ? AND operation = ?',

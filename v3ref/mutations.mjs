@@ -563,4 +563,67 @@ export const MUTATIONS = [
       + "  const right = adjudicationRightAt({\n"
       + "    store, subjectId: actorSubjectId, bookId: row.book_id, operation: 'adjudicate', clock });\n"
       + "  if (!right.allowed) return CLAIM_NOT_AVAILABLE;" },
+
+  // ═══ REV-N5 — A CÉLZOTT TILTÁS (R71 §8/1) ══════════════════════════════════════════════════
+  //
+  // A norma MAGA nevezi meg, mely visszabontásokat kell elkapni (req-3, 1–3. lépés). A két
+  // hatókör-mutáció SZÁNDÉKOSAN ellentétes irányú: az egyik TÚL SOKAT tilt, a másik TÚL KEVESET —
+  // együtt zárják ki azt, hogy a próba egy „mindent zárok" vagy egy „semmit sem zárok" alakkal is
+  // teljesüljön (KUKA-092).
+  { id: 'M65', rule: 'K09', catcher: 'P-REV-ban-scope', expect: 'probe_fail',
+    what: 'REV-N5b — A FAJTA→HATÓKÖR LEKÉPEZÉS KIVÉTELE: minden tiltás mindenhol hat. Ez a KILÉPÉS '
+      + 'esetét buktatja: a másik, FÜGGETLEN könyv joga is megszűnne, holott az oka nem érinti '
+      + '(az R55 §7 korrekciója, amit épp ez a klauzula rögzít)',
+    file: 'ban.mjs',
+    from: "  if (kind.discriminator === null) {\n"
+      + "    return Object.freeze({ reaches: true, decidable: true, reason: 'ban_subject_wide' });\n"
+      + "  }",
+    to: "  if (kind.discriminator === null || true) {\n"
+      + "    return Object.freeze({ reaches: true, decidable: true, reason: 'ban_subject_wide' });\n"
+      + "  }" },
+  { id: 'M66', rule: 'K09', catcher: 'P-REV-ban-scope', expect: 'probe_fail',
+    what: 'REV-N5b — A HITELESÍTŐ-ÁG KÖNYVRE SZŰKÍTÉSE: a kompromittált hitelesítő csak azon a '
+      + 'könyvön tiltana, ahol bejelentették. Ez a KOMPROMITTÁLÁS esetét buktatja — pedig ugyanazzal '
+      + 'a hitelesítővel a másik könyvbe SEM szabad bejutni',
+    file: 'ban.mjs',
+    from: "  ['credential', Object.freeze({\n    discriminator: 'credentialId',",
+    to: "  ['credential', Object.freeze({\n    discriminator: 'bookId'," },
+  { id: 'M67', rule: 'K09', catcher: 'P-REV-ban-paths', expect: 'probe_fail',
+    what: 'REV-N5a — A FÉL ŐR: a tiltás-ellenőrzés kivétele a MÁSODIK (hatásköri) engedő útról. A '
+      + 'tagsági úton továbbra is hat, tehát a felületes mérés zöld maradna — pont ez a KUKA-039 '
+      + 'alakja, és pont ezt kéri a norma proof-szövege',
+    file: 'adjudication.mjs',
+    from: "  const ban = banEffectiveAt({\n"
+      + "    store, subjectId: who, nowIso, request: { bookId, opClass: operation, ...(credentials || {}) },\n"
+      + "  });\n"
+      + "  if (ban.banned) {",
+    to: "  const ban = Object.freeze({ banned: false, reason: 'not_banned' });\n"
+      + "  if (ban.banned) {" },
+  { id: 'M70', rule: 'K09', catcher: 'P-REV-ban-paths', expect: 'probe_fail',
+    what: 'REV-N5a — A TILTÁS HATÁSKÖR NÉLKÜL IS KIMONDHATÓ: az `imposeBan` hatáskör-kapuja kiesik, '
+      + 'tehát bárki tilthatna bárkit. A célzott tiltás JOGVÁLTOZTATÁS (REV-N3a) — ez a mutáció a '
+      + '„minden állításnak SAJÁT falszifikációja legyen" szabályt is szolgálja: az M67 a hatást '
+      + 'méri, ez a JOGALAPOT',
+    file: 'ban.mjs',
+    from: "  if (authorityOk !== true) {",
+    to: "  if (false) {" },
+  { id: 'M68', rule: 'K09', catcher: 'P-REV-ban-past', expect: 'probe_fail',
+    what: 'REV-N5c — A TILTÁS TÖRLI A MÚLTAT: a tiltás kimondása a korábbi parancs-eseményeket is '
+      + 'eltakarítja. A készlet/jog képe ettől „rendezettebb" lenne, a történet viszont hamis — a '
+      + 'tiltás nem bizonyítja a korábbi műveletek érvénytelenségét',
+    file: 'ban.mjs',
+    from: "    store.run(\n"
+      + "      `INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)\n"
+      + "       VALUES (?,?,?,?,?,?)`,",
+    to: "    store.run('DELETE FROM command_event WHERE actor = ?', subjectId);\n"
+      + "    store.run(\n"
+      + "      `INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)\n"
+      + "       VALUES (?,?,?,?,?,?)`," },
+  { id: 'M69', rule: 'K09', catcher: 'P-REV-ban-past', expect: 'probe_fail',
+    what: 'REV-N5c — A TILTÁS MÁSOK JOGÁT IS ELVESZI: a tiltás a KÖNYV minden tagjára hat. Ez az '
+      + 'ELLENPÁRT buktatja (a másik jogosult ugyanazt teheti) — a „biztonság kedvéért mindenkit '
+      + 'zárok" alak épp az, amit a norma kizár',
+    file: 'ban.mjs',
+    from: "  const rows = store.all('SELECT * FROM subject_ban WHERE subject_id = ? ORDER BY id', subjectId);",
+    to: "  const rows = store.all('SELECT * FROM subject_ban ORDER BY id');" },
 ];

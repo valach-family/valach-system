@@ -14,6 +14,8 @@ import { adjudicationRightAt } from './adjudication.mjs';
 // SUS-01 (R67/F01): a felfüggesztés TÉNYE saját otthonban él, mert az `adjudication.mjs` ÍRJA, ez a
 // modul pedig OLVASSA — a kettő közti közvetlen behúzás kört csinálna (KUKA-003).
 import { suspensionEffectiveAt } from './suspension.mjs';
+// BAN-01 (R71 · REV-N5a): a CÉLZOTT TILTÁS ugyanabból az EGY feloldóból, amit a hatásköri út is hív.
+import { banEffectiveAt } from './ban.mjs';
 
 // ═══ JOG-OSZTÁLY: SAJÁT KULCS, NEM ÖRÖKÖLT (Q07) ════════════════════════════════════════════════
 //
@@ -198,9 +200,25 @@ export function roleDelegates(role) {
   return r ? Object.freeze([...r.delegates]) : null;
 }
 
-export function rightAt({ store, subjectId, bookId, opClass, clock, externalEvidence }) {
+export function rightAt({ store, subjectId, bookId, opClass, clock, externalEvidence, credentials }) {
   const profile = profileFor(opClass);
   if (!profile) return deny('unknown_op_class', 'ehhez a művelethez nincs frissességi profil');
+
+  // REV-N5a — A CÉLZOTT TILTÁS AZ ELSŐ KAPU, ÉS A TAGSÁGTÓL FÜGGETLEN.
+  //
+  // MIÉRT ELÖL. A tiltás ALANY-szintű: nem a könyv-viszonyból ered, hanem az OKBÓL (REV-N5b). Ha a
+  // tagsági ág UTÁN állna, akkor egy tagság-oldali átalakítás némán megkerülhetné — a tiltás pedig
+  // pont az a szabály, aminek MINDEN engedő úton hatnia kell. Elöl állva a megkerüléshez ezt a sort
+  // KI KELL VENNI, ami mutációként mérhető (M65/M66), nem csúszik át véletlenül.
+  //
+  // A KÉRÉS MEGKÜLÖNBÖZTETŐI. A `bookId` és az `opClass` mindig ismert, ezért a KÖNYV- és a
+  // MŰVELET-hatókörű tiltás itt PONTOSAN eldől (nem nyúlik túl: a másik könyv érintetlen marad). A
+  // hitelesítő/munkamenet/jogalap/adatkör csak akkor dönthető el, ha a hívó átadja — enélkül a
+  // válasz NEVEZETT bizonytalanság, és zár (a kétség nem nyit hozzáférést).
+  const ban = banEffectiveAt({
+    store, subjectId, nowIso: clock.now(), request: { bookId, opClass, ...(credentials || {}) },
+  });
+  if (ban.banned) return deny(ban.reason, ban.message || 'célzott tiltás van hatályban');
 
   const m = store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', subjectId, bookId);
   // A tagság KÉT vége EGY feloldón (Q08 + Q13) — a `rightAt` és a meghívó-oldal nem tud elcsúszni.

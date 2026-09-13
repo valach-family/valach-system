@@ -82,6 +82,31 @@ CREATE TABLE membership_suspension (
   reason           TEXT
 );
 
+-- ═══ REV-N5 — A CÉLZOTT TILTÁS (BAN-01, R71 §8/1) ══════════════════════════════════════════
+--
+-- MIÉRT NEM A "membership" OSZLOPA. A tiltás ALANY-szintű, nem könyv-szintű: épp az a lényege, hogy
+-- a hatókörét az OK választja ki (REV-N5b), és lehet a tagságtól FÜGGETLEN is (kompromittált
+-- hitelesítő ⇒ minden könyvön). Tagsági oszlopként a fogalom sem férne el.
+--
+-- MIÉRT NINCS "CHECK (kind IN (...))". A norma kimondja: „ismeretlen fajta NEM »általános tiltás«,
+-- hanem nem dönthető". Ha az adatbázis zárná ki az ismeretlen fajtát, ez az ág BE SEM KERÜLHETNE a
+-- tárolóba, tehát MÉRHETETLEN volna — és a nem mért ág zöldnek látszik (KUKA-051). A zárt halmazt
+-- ezért a FELOLDÓ őrzi ("ban.mjs" → "BAN_KINDS"), és az ismeretlen fajta ott kap nevet.
+--
+-- A "target_ref" a fajtához tartozó MEGKÜLÖNBÖZTETŐ értéke (könyv-azonosító · művelet-osztály ·
+-- hitelesítő-azonosító …). Alany-szintű fajtánál ("subject") NULL: ott nincs mit egyeztetni.
+CREATE TABLE subject_ban (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject_id       TEXT NOT NULL,
+  kind             TEXT NOT NULL,
+  cause            TEXT NOT NULL,
+  target_ref       TEXT,
+  actor_subject_id TEXT NOT NULL,
+  banned_at        TEXT NOT NULL,
+  lifted_at        TEXT,
+  lifted_by        TEXT
+);
+
 -- ═══ REV-N3 — A HATÁSKÖR ÉS A BEJELENTÉS (R60 req-2 · R65 §7) ═══════════════════════════════
 --
 -- A REV-N3 KÉT dolgot mond ki egyszerre, és a saját gap-szövegünk szerint EGYÜTT kell megépülniük:

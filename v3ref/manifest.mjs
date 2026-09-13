@@ -140,6 +140,35 @@ export const EXPECTED_PROBES = Object.freeze([
       Object.freeze({ clause: 'REV-N3c', assertion: 'A-REV-N3c-secondary-ref-cannot-take-others-quota' }),
     ]),
   }),
+  Object.freeze({
+    id: 'P-REV-ban-scope', assertion: 'REVN5-ban-scope-comes-from-cause',
+    // R71 §8/1 (req-3, 1. lépés). A tiltás FAJTÁI és az ok→hatókör leképezés: ugyanaz a szó KÉT
+    // különböző hatókört kap, és a hatókört az OK választja ki, nem egy általános szabály.
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-ban-scope-comes-from-cause' }),
+      Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-ban-kind-is-named-and-closed' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'P-REV-ban-paths', assertion: 'REVN5-ban-reaches-every-path',
+    // R71 §8/1 (req-3, 2. lépés). A klauzula előfeltétele KÉT engedő út: a tagsági (`rightAt`) és a
+    // REV-N3-ban megépült hatásköri (`adjudicationRightAt`). A tiltás bevezetésének HELYE nem
+    // szűkíti a hatását — enélkül a fél őr (KUKA-039) csendben megszülethetne.
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N5a', assertion: 'A-REV-N5a-ban-reaches-every-permitting-path' }),
+      Object.freeze({ clause: 'REV-N5a', assertion: 'A-REV-N5a-ban-needs-authority' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'P-REV-ban-past', assertion: 'REVN5-ban-spares-past-and-others',
+    // R71 §8/1 (req-3, 3. lépés). A tiltás nem bizonyítja a korábbi műveletek érvénytelenségét, és
+    // nem törli a KÖNYV vagy más, független jogosultak jogait. TARTALMI pillanatkép (R55-F02: a
+    // darabszám ép maradhat úgy is, hogy a tartalom megváltozott) + ELLENPÁR a másik jogosulton.
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N5c', assertion: 'A-REV-N5c-ban-does-not-rewrite-the-past' }),
+      Object.freeze({ clause: 'REV-N5c', assertion: 'A-REV-N5c-ban-does-not-remove-others-rights' }),
+    ]),
+  }),
 ]);
 
 export const EXPECTED_IDS = Object.freeze(EXPECTED_PROBES.map((p) => p.id));

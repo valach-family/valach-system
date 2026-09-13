@@ -16,6 +16,47 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3019 — A CÉLZOTT TILTÁS: MI SZŰNIK MEG, ÉS MI NEM (REV-N5a/b/c · BAN-01)
+
+- **Dátum:** 2026-09-13 · Sáv: Claude-v3 (PR-VS-300 · STEP-VS-300-002 · CMD-VS-300-002-001 R71) ·
+  **forrás:** a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3) R71 — ANALYSIS lapja, §8/1: *„a fő szállítmány a
+  REV-N5a/b/c a V3 magban"*.
+
+**A KÉRDÉS.** Eddig a magban a tiltás EGY dolog volt: „ez a személy nem járhat el". A valóságban
+viszont a tiltásnak FAJTÁJA van, és a fajtát az OK szabja meg — aki elhagyta a céget, annál a
+KÖNYVHÖZ fűződő jog szűnik meg, de nem az azonossága; akinek a jelszava kiszivárgott, annál a
+HITELESÍTŐ ADAT, de nem a könyvhöz fűződő joga; akitől egy jogalapot vontak vissza, annál az adott
+ADAT-KÖR. Ha mindezt egyetlen „tiltott" jelölő hordozza, akkor vagy túl sokat vesz el, vagy túl
+keveset — és mindkettő némán.
+
+**A HÁROM KLAUZULA.**
+
+- **REV-N5a — a tiltás MINDEN engedő úton hat.** A magban KÉT út ad jogot: a TAGSÁG (`rightAt`) és a
+  HATÁSKÖR (`adjudicationRightAt`). Ha a tiltás csak az egyiken áll, a másik nyitva marad, és a
+  „tiltott" szó hazudik (KUKA-039: a szabály nem állhat egy ág feltételében). A tiltás-kapu ezért
+  MINDKÉT feloldóban az ELSŐ kérdés, UGYANAZZAL a nevezett feloldóval (`banEffectiveAt`).
+- **REV-N5b — a hatókör az OKBÓL jön, nem a jelölőből.** ZÁRT fajta-lista (hitelesítő adat ·
+  munkamenet · személy · jogalap · könyv · művelet · adat-kör), ZÁRT ok-lista, és egy nevezett
+  leképezés ok → fajta (`kindForCause`). Az ISMERETLEN ok nem „nincs tiltás", hanem HARMADIK válasz:
+  a `banReaches` háromértékű (`decidable: false`) — a gép kimondja, hogy nem tudja eldönteni, és nem
+  dönt a nemleges irányba (KUKA-020: a programhiba nem lehet azonos a valódi „nem"-mel).
+- **REV-N5c — a tiltás nem törli a MÚLTAT és nem veszi el MÁSOK jogát.** A tiltott személy korábbi
+  cselekményei a könyvben maradnak, olvashatók, és a rájuk épült más jogok élnek. A tiltás a JÖVŐRE
+  szól; a múlt átírása nem tiltás, hanem történelem-hamisítás (a pecsét-szabály folytatása).
+
+**Mért állapot:** a mag **35/35 PASS**, minden veszélyes mutációt a NEVEZETT állítás fog meg (M65–M70
+újak), a lefedettség **11/25 → 17/28** klauzula-sor, 0 falszifikálatlan állítás, a söprés **8/8**.
+A kötelező bizonyíték-készlet **req-2 → req-3** (9 klauzula, mind teljesül); a KÖVETKEZŐ vállalt
+csomag **req-4: REV-N2a · REV-N2b** — a HATÁLY ideje és a TUDOMÁS ideje szétválasztása, valamint a
+nevesített felülvizsgálati kör.
+
+**Egy MÉRÉSI tanulság a saját munkámból.** A `P-REV-ban-past` első alakjában a pillanatképet a tiltás
+UTÁN vettem KÉT olvasásra — vagyis a „múlt sértetlen" állítást önmagával hasonlítottam össze
+(KUKA-054). A javított alak a pillanatképet az ELSŐ olvasás után, a MÁSODIK előtt veszi. A
+tautologikus összehasonlítást ugyanabban a körben találtam meg és vettem ki.
+
+---
+
 ## D-VS-3018 — AMIRŐL DÖNTÜNK, AZT LÁTNI KELL: a fél őr MÁSODSZOR, és a korlát hatóköre (R69/C-F01–C-F03)
 
 - **Dátum:** 2026-09-13 · Sáv: Claude-v3 (PR-VS-300 · STEP-VS-300-002 · CMD-VS-300-002-001 R69) ·
