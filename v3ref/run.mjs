@@ -17,7 +17,9 @@ import { openStore, clockFrom, instantMs } from './store.mjs';
 import { observeInvite, redeemInvite, rememberIntent, resumeIntent, inviteGrantAt } from './invite.mjs';
 import { rightAt, revokeMembership, revocationTransition, roleGrants, KNOWN_ROLES } from './authz.mjs';
 import { ADJUDICATION_OPS, adjudicationRightAt, grantAdjudicationAuthority, submitClaim, readClaim,
-  adjudicateClaim, suspendMembership, NEUTRAL_CLAIM_ACK, CLAIM_NOT_AVAILABLE, CLAIM_RATE } from './adjudication.mjs';
+  adjudicateClaim, suspendMembership, liftSuspension, intakeKeyOf, UNATTRIBUTED_INTAKE_KEY,
+  NEUTRAL_CLAIM_ACK, CLAIM_NOT_AVAILABLE, CLAIM_RATE } from './adjudication.mjs';
+import { suspensionEffectiveAt } from './suspension.mjs';
 import { submitCommand, readCommandResult, commandRef, canonicalize, CanonError, recordCommandEvent, releasedFieldPaths } from './command.mjs';
 
 // A KANONIKUS NORMA-VERZIÓ EGYETLEN HELYRŐL JÖN (R53 §5). Korábban itt egy KÉZZEL ÍRT `'R32/K01-K16'`
@@ -1836,18 +1838,109 @@ probe('P-REV-authority', 'R32/K04 · K05 · K09 · REV-N3a · REV-N3c',
     } finally { w.store.close(); }
   });
 
+probe('P-REV-suspension', 'R32/K04 · K09 · REV-N3a · R67/F01',
+  'A FELFÜGGESZTÉS TÉNYLEG FELFÜGGESZT — a siker-jelentés nem hatás',
+  () => {
+    // R67/F01 (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL). A `suspendMembership` `ok:true, suspended:true`-t
+    // adott ÍRÁS NÉLKÜL, és az érintett továbbra is `allowed:true`-t kapott. A régi P-REV-authority
+    // azért maradt zöld, mert a VÁLASZ-MEZŐT nézte, nem a KÖVETKEZMÉNYT — ez a próba a
+    // következményt méri, végig a hívók útján (KUKA-038).
+    const w = twoActorWorld();
+    const w2 = twoActorWorld();
+    try {
+      const ask = (s, b = 'book_a') => rightAt({ store: w.store, subjectId: s, bookId: b, opClass: 'own_book', clock: w.clock });
+
+      // (a) ELŐTTE engedélyezett — enélkül a „tiltott utána" semmit nem bizonyítana.
+      const aOk = ask('sub_alice').allowed === true;
+
+      // (b) A HATÁSKÖRÖS FELFÜGGESZT ⇒ UTÁNA tiltott, NEVEZETT okkal (nem „nincs tagságod").
+      const susp = suspendMembership({ store: w.store, actorSubjectId: 'sub_adjudicator',
+        subjectId: 'sub_alice', bookId: 'book_a', clock: w.clock, reason: 'kifogás elbírálása' });
+      const after = ask('sub_alice');
+      const bOk = susp.ok === true && susp.suspended === true
+        && after.allowed === false && after.reason === 'membership_suspended';
+
+      // (b2) A TAGSÁGHOZ NEM NYÚLT: a felfüggesztés nem vált általános jogmódosítássá.
+      const mrow = w.store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', 'sub_alice', 'book_a');
+      const b2Ok = !!mrow && (mrow.revoked_at === null || mrow.revoked_at === undefined);
+
+      // (c) MÁS ALANY és MÁS KÖNYV VÁLTOZATLAN — a felfüggesztés célzott.
+      const cOk = ask('sub_carol').allowed === true && ask('sub_bob', 'book_b').allowed === true;
+
+      // (d) JOGOSULATLAN KÉRÉS HATÁSTALAN: `sub_carol` admin tag, de nincs `suspend` hatásköre.
+      const rogue = suspendMembership({ store: w.store, actorSubjectId: 'sub_carol',
+        subjectId: 'sub_bob', bookId: 'book_b', clock: w.clock });
+      const rogueRows = w.store.get('SELECT COUNT(*) AS n FROM membership_suspension WHERE subject_id = ?', 'sub_bob').n;
+      const dOk = rogue.ok === false && rogue.reason === 'authority_not_established'
+        && Number(rogueRows) === 0 && ask('sub_bob', 'book_b').allowed === true;
+
+      // (e) A MÁR MEGKEZDETT, MÉG NEM VÉGLEGESÍTETT MŰVELET ÚJRAELLENŐRZÉSE. A parancs a feloldás
+      //     KÖZBEN kap felfüggesztést: a véglegesítés ugyanazt a tényt olvassa, tehát NEM lesz kész,
+      //     és NEM ír sort. Ez az a pont, ahol a válasz-mezőt néző próba végképp nem elég.
+      const out = CMD(w2, { resolve: () => {
+        suspendMembership({ store: w2.store, actorSubjectId: 'sub_adjudicator',
+          subjectId: 'sub_alice', bookId: 'book_a', clock: w2.clock });
+        return { price: 100 };
+      } });
+      const cmdRows = w2.store.all("SELECT * FROM command WHERE idem_key = 'k1'");
+      const eOk = out.ok === false && out.error === 'not_available' && cmdRows.length === 0;
+
+      // (f) FELOLDÁS UTÁN a TOVÁBBRA IS FENNÁLLÓ eredeti jog éled fel — és a sor MEGMARAD (történet).
+      const lift = liftSuspension({ store: w.store, actorSubjectId: 'sub_adjudicator',
+        subjectId: 'sub_alice', bookId: 'book_a', clock: w.clock });
+      const histo = w.store.get('SELECT * FROM membership_suspension WHERE id = ?', susp.suspension_id);
+      const fOk = lift.ok === true && ask('sub_alice').allowed === true
+        && !!histo && histo.lifted_at !== null && histo.lifted_by === 'sub_adjudicator';
+
+      // (g) A FELOLDÁS NEM AD JOGOT: ha közben MEGVONTÁK a tagságot, a feloldás nem hozza vissza.
+      //     (A visszaállítás KÜLÖN hatáskör — `alter_right` —, ez a `suspend` határa.)
+      suspendMembership({ store: w.store, actorSubjectId: 'sub_adjudicator',
+        subjectId: 'sub_carol', bookId: 'book_a', clock: w.clock });
+      revoke(w, 'sub_carol', 'book_a');
+      const liftedAfterRevoke = liftSuspension({ store: w.store, actorSubjectId: 'sub_adjudicator',
+        subjectId: 'sub_carol', bookId: 'book_a', clock: w.clock });
+      const gOk = liftedAfterRevoke.ok === true && ask('sub_carol').allowed === false
+        && ask('sub_carol').reason === 'membership_revoked';
+
+      const pass = aOk && bOk && b2Ok && cOk && dOk && eOk && fOk && gOk;
+      return {
+        expected: 'előtte engedélyezett · utána tiltott (membership_suspended) · a tagsághoz nem nyúlt · '
+          + 'más alany/könyv változatlan · jogosulatlan kérés nem ír · a MEGKEZDETT művelet nem véglegesül · '
+          + 'feloldás után csak a fennálló jog éled',
+        actual: `(a) ${aOk} · (b) ${susp.ok}/${after.reason} · (b2) tagság érintetlen=${b2Ok} · (c) ${cOk} · `
+          + `(d) ${rogue.reason}/sorok=${rogueRows} · (e) ${out.error}/sorok=${cmdRows.length} · `
+          + `(f) feloldás=${lift.ok} történet=${!!histo && histo.lifted_at !== null} · (g) ${ask('sub_carol').reason}`,
+        pass,
+        asserts: { 'A-REV-N3a-suspension-has-effect': pass },
+      };
+    } finally { w.store.close(); w2.store.close(); }
+  });
+
 probe('P-REV-claim-read', 'R32/K05 · K15 · REV-N3b · KUKA-084 · KUKA-085',
   'A BEJELENTÉS NEM AD OLVASÁST: a jelzés előtti és utáni olvasási kör AZONOS, a nemleges válasz pedig a nem létező ügyével',
   () => {
     const w = buildWorld({ inviteeHasAccount: true });
     try {
       w.store.run('INSERT INTO subject (id, kind) VALUES (?,?)', 'sub_expartner', 'person');
+      // MÁSIK KÖNYV, MÁSIK ELBÍRÁLÓ — a (c3) ellenpárjához: van hatásköre, csak NEM ITT. A „más
+      // könyvre szól a felhatalmazásom" a legkönnyebben elfelejtett nemleges ág (KUKA-039).
+      w.store.run('INSERT INTO book (id, name) VALUES (?,?)', 'book_masik', 'Egy másik cég könyve');
+      w.store.run('INSERT INTO subject (id, kind) VALUES (?,?)', 'sub_adjudicator_b', 'person');
+      grantAdjudicationAuthority({ store: w.store, subjectId: 'sub_adjudicator_b',
+        bookId: 'book_masik', operation: 'adjudicate', clock: w.clock });
+
+      // A BEFOGADÁSI KONTEXTUS RÉSZENKÉNT KÜLÖN (R67 §7/3). A korábbi alak MINDEN beadást a
+      // `chan:unattributed` közös vödörbe tett, ezért a (d) korlát-próba a KORÁBBI részek
+      // beadásaitól lett piros — vagyis a saját mérésem előfeltevését igazolta vissza, nem a
+      // szabályt (KUKA-054). Innentől minden résznek SAJÁT csatornája van, és a korlát KÉT
+      // irányát külön mérjük: (d) a beadó hivatkozása · (d2) a SZERVER képezte csatorna-kulcs.
+      const ctx = (k) => ({ channel_key: k });
 
       // (a) A JELZÉS ELŐTT és UTÁN ugyanaz a nemleges válasz — a bejelentő nem lesz olvasó.
       const beforeRead = readClaim({ store: w.store, viewerSubjectId: 'sub_expartner',
         claimId: 'clm_barmi', clock: w.clock });
       submitClaim({ store: w.store, clock: w.clock, claimantRef: 'volt@beszallito.hu',
-        bookId: 'book_a', statement: 'A márciusi árlista hibás.' });
+        bookId: 'book_a', statement: 'A márciusi árlista hibás.', intakeContext: ctx('ch_a') });
       const row = w.store.get('SELECT * FROM claim WHERE claimant_ref = ?', 'volt@beszallito.hu');
       const afterRead = readClaim({ store: w.store, viewerSubjectId: 'sub_expartner',
         claimId: row.id, clock: w.clock });
@@ -1864,40 +1957,129 @@ probe('P-REV-claim-read', 'R32/K05 · K15 · REV-N3b · KUKA-084 · KUKA-085',
       // (b2) A SEMLEGES NYUGTA sem árulja el, létezik-e a könyv: a nem létező könyvre adott
       //      válasz BÁJTRA azonos a létezőére adottal.
       const ackReal = submitClaim({ store: w.store, clock: w.clock, claimantRef: 'masik@pelda.hu',
-        bookId: 'book_a', statement: 'x' });
+        bookId: 'book_a', statement: 'x', intakeContext: ctx('ch_b2a') });
       const ackGhost = submitClaim({ store: w.store, clock: w.clock, claimantRef: 'harmadik@pelda.hu',
-        bookId: 'book_NEM_LETEZIK', statement: 'x' });
+        bookId: 'book_NEM_LETEZIK', statement: 'x', intakeContext: ctx('ch_b2b') });
       const b2Ok = JSON.stringify(ackReal) === JSON.stringify(ackGhost);
 
       // (c) ELLENPÁR: a HATÁSKÖRÖS elbíráló LÁTJA — a szabály nem „mindenkit kizár".
+      //     R67/F03: és VAN MIT OLVASNIA. Korábban csak a lenyomat ment vissza; sha256-ból a
+      //     panasz szövege nem áll vissza, tehát az „elbírálás" formaság maradt.
       const seen = readClaim({ store: w.store, viewerSubjectId: 'sub_adjudicator',
         claimId: row.id, clock: w.clock });
-      const cOk = seen.ok === true && seen.claim.id === row.id;
+      const cOk = seen.ok === true && seen.claim.id === row.id
+        && seen.claim.statement === 'A márciusi árlista hibás.';
 
       // (c2) …de az ELBÍRÁLÁS önmagában NEM változtat jogot (a REV-N3a másik fele, itt ellenpárként).
       const decided = adjudicateClaim({ store: w.store, actorSubjectId: 'sub_adjudicator',
         claimId: row.id, decision: 'review', clock: w.clock });
       const c2Ok = decided.ok === true && decided.changed_rights === false;
 
-      // (d) VISSZAÉLÉS-KORLÁT: a beadó SAJÁT viselkedéséről szól, tehát nevesíthető — és él.
+      // (c3) R67/F02 — A DÖNTÉSI ÚT NEMLEGES VÁLASZA IS SEMLEGES. A `readClaim`-en ez már helyesen
+      //      állt, az `adjudicateClaim`-en nem: a hiányzó ügy `not_available`-t kapott, a hatáskör
+      //      nélküli hívó viszont a hatáskör-hiba NEVÉT — a különbség maga mondta meg, létezik-e az
+      //      ügy (KUKA-084: a kijárat nem HELY, hanem CSATORNA; KUKA-039: fél őr volt).
+      //      MIND A HÁROM nemleges ág BÁJTRA azonos, és azonos a `CLAIM_NOT_AVAILABLE`-lel.
+      const decNoClaim = adjudicateClaim({ store: w.store, actorSubjectId: 'sub_adjudicator',
+        claimId: 'clm_nemletezik', decision: 'review', clock: w.clock });
+      const decNoRight = adjudicateClaim({ store: w.store, actorSubjectId: 'sub_expartner',
+        claimId: row.id, decision: 'review', clock: w.clock });
+      const decOtherBook = adjudicateClaim({ store: w.store, actorSubjectId: 'sub_adjudicator_b',
+        claimId: row.id, decision: 'review', clock: w.clock });
+      const c3Ok = JSON.stringify(decNoClaim) === JSON.stringify(CLAIM_NOT_AVAILABLE)
+        && JSON.stringify(decNoRight) === JSON.stringify(CLAIM_NOT_AVAILABLE)
+        && JSON.stringify(decOtherBook) === JSON.stringify(CLAIM_NOT_AVAILABLE);
+
+      // (c4) R67/F03 MÁSIK FELE — A TARTALOM INTEGRITÁSA. Ha a tárolt szöveg megváltozott, NEM
+      //      adjuk vissza (a néma, csendben átírt beadvány rosszabb a nemleges válasznál); ha a
+      //      tartalom-sor egyáltalán nincs meg, azt is KIMONDJUK, nem üres kézzel döntetünk.
+      submitClaim({ store: w.store, clock: w.clock, claimantRef: 'atirt@pelda.hu',
+        bookId: 'book_a', statement: 'eredeti szöveg', intakeContext: ctx('ch_c4a') });
+      const tampered = w.store.get('SELECT * FROM claim WHERE claimant_ref = ?', 'atirt@pelda.hu');
+      w.store.run('UPDATE claim_content SET content = ? WHERE claim_id = ?', 'MÁS szöveg', tampered.id);
+      const tamperRead = readClaim({ store: w.store, viewerSubjectId: 'sub_adjudicator',
+        claimId: tampered.id, clock: w.clock });
+      submitClaim({ store: w.store, clock: w.clock, claimantRef: 'torolt@pelda.hu',
+        bookId: 'book_a', statement: 'lesz-e tartalma?', intakeContext: ctx('ch_c4b') });
+      const gone = w.store.get('SELECT * FROM claim WHERE claimant_ref = ?', 'torolt@pelda.hu');
+      w.store.run('DELETE FROM claim_content WHERE claim_id = ?', gone.id);
+      const goneRead = readClaim({ store: w.store, viewerSubjectId: 'sub_adjudicator',
+        claimId: gone.id, clock: w.clock });
+      const c4Ok = tamperRead.ok === false && tamperRead.error === 'claim_content_integrity_failed'
+        && tamperRead.claim === undefined
+        && goneRead.ok === false && goneRead.error === 'claim_content_missing';
+
+      // (d) A BEADÓ HIVATKOZÁSÁRA álló, SZŰKEBB korlát: ugyanaz a hivatkozás NÉGY KÜLÖNBÖZŐ
+      //     csatornán is elfogy. (A csatorna-vödrök itt üresek, tehát ez tényleg a ref-korlát.)
       let limited = null;
       for (let i = 0; i < CLAIM_RATE.max + 1; i += 1) {
-        limited = submitClaim({ store: w.store, clock: w.clock, claimantRef: 'spam@pelda.hu',
-          bookId: 'book_a', statement: `x${i}` });
+        limited = submitClaim({ store: w.store, clock: w.clock, claimantRef: 'sokat@pelda.hu',
+          bookId: 'book_a', statement: `x${i}`, intakeContext: ctx(`ch_d_${i}`) });
       }
       const dOk = limited && limited.accepted === false && limited.reason === 'rate_limited';
 
-      const pass = aOk && bOk && b2Ok && cOk && c2Ok && dOk;
+      // (d2) R67/F05 — AZ ELSŐDLEGES KORLÁT A SZERVER KÉPEZTE KULCSON ÁLL. A beadó a saját
+      //      hivatkozását szabadon átírja (négy szöveg = négy „másik ember"); ha a korlát CSAK
+      //      azon állna, egyetlen elárasztó tetszőlegesen megkerülné. Itt MINDEN beadás ÚJ
+      //      hivatkozással megy, UGYANAZON a csatornán — és a kvóta így is elfogy.
+      let limitedByChannel = null;
+      for (let i = 0; i < CLAIM_RATE.max + 1; i += 1) {
+        limitedByChannel = submitClaim({ store: w.store, clock: w.clock,
+          claimantRef: `alnev_${i}@pelda.hu`, bookId: 'book_a', statement: `y${i}`,
+          intakeContext: ctx('ch_kozos') });
+      }
+      const d2Ok = limitedByChannel && limitedByChannel.accepted === false
+        && limitedByChannel.reason === 'rate_limited';
+
+      // (e) R67/F04 — A BEFOGADÁS EGY TÉNY, TEHÁT EGY TRANZAKCIÓ. Korábban két külön autocommit-írás
+      //     ment: ha a második elhasalt, ügy nem jött létre, a KVÓTA-SOR viszont bent maradt — a
+      //     sikertelen beadás részlegesen megmaradt, és a beadó keretét elhasználta. Itt a MÁSODIK
+      //     írást buktatjuk el (a tároló elé tett burkolóval, a forrás érintése NÉLKÜL), és azt
+      //     mérjük, marad-e bármi utána (KUKA-026 a tranzakció-határon).
+      //
+      //     A BUKTATÁS A HÁNYADIK ÍRÁSHOZ KÖTŐDIK, NEM EGY SQL-SZÖVEGHEZ. Az első alakom a
+      //     `claim_content` beszúrásának SZÖVEGÉRE illesztett — csakhogy a battéria M59 mutációja
+      //     épp azt a beszúrást veszi ki, tehát ott nem lett volna mit elbuktatni, a próba pedig
+      //     EGY MÁSIK OK miatt bukott volna, és a kapu M59-et írta volna be az atomicitás
+      //     falszifikálójaként. Ez a KUKA-049 alakja a saját mérőmön (a jel a MECHANIZMUST mérje,
+      //     ne egy egybeesést) — a sorszám a tranzakció-határ mérésének helyes kulcsa.
+      let writes = 0;
+      const failing = Object.assign(Object.create(null), w.store, {
+        run(sql, ...params) {
+          writes += 1;
+          if (writes >= 2) throw new Error('SZÁNDÉKOS PRÓBA-HIBA a MÁSODIK íráson');
+          return w.store.run(sql, ...params);
+        },
+      });
+      let threw = false;
+      try {
+        submitClaim({ store: failing, clock: w.clock, claimantRef: 'atomi@pelda.hu',
+          bookId: 'book_a', statement: 'félbemaradt', intakeContext: ctx('ch_atom') });
+      } catch { threw = true; }
+      const leftIntake = Number(w.store.get(
+        'SELECT COUNT(*) AS n FROM claim_intake WHERE intake_key = ?', 'chan:ch_atom').n);
+      const leftClaim = Number(w.store.get(
+        'SELECT COUNT(*) AS n FROM claim WHERE claimant_ref = ?', 'atomi@pelda.hu').n);
+      const eOk = threw === true && leftIntake === 0 && leftClaim === 0;
+
+      const pass = aOk && bOk && b2Ok && cOk && c2Ok && c3Ok && c4Ok && dOk && d2Ok && eOk;
       return {
         expected: 'a jelzés előtti és utáni olvasás AZONOS · a nemleges válasz azonos a nem létező '
-          + 'ügyével és a nem létező könyvével · a hatáskörös elbíráló LÁTJA · a korlát él',
+          + 'ügyével, a nem létező könyvével ÉS a döntési út mindhárom nemleges ágával · a hatáskörös '
+          + 'elbíráló a SZÖVEGET is látja, sérült tartalomra viszont nevezett hibát · a korlát MINDKÉT '
+          + 'irányban él (hivatkozás ÉS szerver-kulcs) · a félbemaradt beadás nem hagy nyomot',
         actual: `(a) előtte=${JSON.stringify(beforeRead)} utána=${JSON.stringify(afterRead)} · `
           + `(b) nem létező=${JSON.stringify(missing)} · (b2) nyugta azonos=${b2Ok} · `
-          + `(c) elbíráló látja=${seen.ok} · (c2) jogot nem mozdít=${!decided.changed_rights} · `
-          + `(d) korlát=${limited && limited.reason}`,
+          + `(c) elbíráló látja a szöveget=${cOk} · (c2) jogot nem mozdít=${!decided.changed_rights} · `
+          + `(c3) döntési út: nincs ügy=${JSON.stringify(decNoClaim)} nincs jog=${JSON.stringify(decNoRight)} `
+          + `más könyv=${JSON.stringify(decOtherBook)} · (c4) átírt=${tamperRead.error} hiányzó=${goneRead.error} · `
+          + `(d) ref-korlát=${limited && limited.reason} · (d2) csatorna-korlát=${limitedByChannel && limitedByChannel.reason} · `
+          + `(e) dobott=${threw} maradt: kvóta=${leftIntake} ügy=${leftClaim}`,
         pass,
         asserts: {
-          'A-REV-N3b-claim-grants-no-read': aOk && bOk && b2Ok && cOk,
+          'A-REV-N3b-claim-grants-no-read': aOk && bOk && b2Ok && cOk && c3Ok,
+          'A-REV-N3b-claim-content-readable': cOk && c4Ok,
+          'A-REV-N3c-intake-limit-server-keyed': dOk && d2Ok && eOk,
         },
       };
     } finally { w.store.close(); }

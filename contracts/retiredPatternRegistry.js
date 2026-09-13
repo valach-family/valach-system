@@ -5654,6 +5654,80 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'belőle HÍVÁS (KUKA-009).',
   }),
 
+  Object.freeze({
+    id: 'KUKA-120',
+    date: '2026-09-13',
+    title: 'A SIKER-JELENTÉS NEM HATÁS — ÖT ÚT, AMI VÁLASZOLT, DE NEM CSINÁLT SEMMIT',
+    what: 'A REV-N3 első alakjában ÖT külön út adott helyes VÁLASZT rossz KÖVETKEZMÉNNYEL, és a saját '
+      + 'próba-battériám mind az ötöt zölden hagyta. (F01) A `suspendMembership` ellenőrizte a '
+      + 'hatáskört, majd ÍRÁS NÉLKÜL `ok:true, suspended:true`-t adott — az érintett a következő '
+      + 'másodpercben ugyanarra a műveletre `allowed:true`-t kapott. (F02) Az `adjudicateClaim` a '
+      + 'hiányzó ügyre semleges `not_available`-t, a hatáskör nélküli hívónak viszont a hatáskör-hiba '
+      + 'NEVÉT adta — a különbség maga mondta meg, hogy az ügy létezik. (F03) A beadvány TARTALMA '
+      + 'sehol nem tárolódott, csak a lenyomata: az „elbíráló" egy sha256-ot kapott, amiből a panasz '
+      + 'szövege nem áll vissza. (F04) A befogadás KÉT külön autocommit-írás volt: a második bukásakor '
+      + 'ügy nem jött létre, a KVÓTA-sor viszont bent maradt. (F05) A visszaélés-korlát a beadó SAJÁT, '
+      + 'szabadon átírható hivatkozásán állt — négy szöveg, négy „másik ember".',
+    why_wrong: 'A közös betegség EGY mondatban: **a próbáim a VISSZATÉRÉSI ÉRTÉKET nézték, nem a '
+      + 'KÖVETKEZMÉNYT.** Ez a KUKA-038 („a létezés nem bizonyíték arra, hogy FUT") alakja a '
+      + 'válasz-mezőn: a `suspended:true` mező LÉTEZÉSE nem bizonyítja, hogy a felfüggesztés hatályos, '
+      + 'ahogy a `check_id` mező létezése sem bizonyítja, hogy lefutott az ellenőrzés (ugyanez a hiba '
+      + 'a board-on: R67/B01). Öt út, öt réteg, egy vakfolt.',
+    replaced_by: 'A TÉNY TÁROLÓDIK, ÉS UGYANAZ A NEVEZETT FELOLDÓ MONDJA KI MINDEN OLVASÓNAK: SUS-01 '
+      + '(`v3ref/suspension.mjs` → `suspensionEffectiveAt`), amit az `authz.mjs` OLVAS és az '
+      + '`adjudication.mjs` ÍR (külön modul, mert a közvetlen behúzás KÖRT csinálna — KUKA-003). '
+      + 'Mellé: `liftSuspension` (a `suspend` hatáskör másik iránya, nem visszamenőleg, a sor '
+      + 'MEGMARAD történetnek) · az `adjudicateClaim` MIND A NÉGY nemleges ága BÁJTRA azonos · a '
+      + 'beadvány tartalma külön táblán (`claim_content`), a lenyomat INTEGRITÁS-ellenőrzéssé lép elő · '
+      + 'a befogadás EGY tranzakcióban (`store.tx`) · a korlát ELSŐDLEGES kulcsa a SZERVER képezte '
+      + 'befogadási kulcs (`intakeKeyOf`), a beadó hivatkozása másodlagos marad.',
+    decision: 'D-VS-3017',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R67/F01–F05), a saját, változatlan kódunkon futtatott '
+      + 'programjával — a mi 30/30-as próba-battériánk mellett.',
+    // A JEL NEM SZÖVEG: a pinek a KÖVETKEZMÉNYT hordozó darabokat mérik — a nevezett feloldót, a
+    // tényt tároló táblát, a próbát és a hozzá tartozó hat visszabontási kontrollt (KUKA-009).
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/suspension.mjs'], pattern: 'export function suspensionEffectiveAt',
+        reason: 'SUS-01: a felfüggesztés TÉNYÉNEK egyetlen otthona — az író és az olvasó ugyanezt hívja' }),
+      Object.freeze({ paths: ['v3ref/authz.mjs'], pattern: 'suspensionEffectiveAt\\(\\{ store, subjectId, bookId',
+        reason: 'a jogfeloldó MEGKÉRDEZI a tényt — a felfüggesztés következménye a `rightAt`-en dől el' }),
+      Object.freeze({ paths: ['v3ref/store.mjs'], pattern: 'CREATE TABLE membership_suspension',
+        reason: 'a tény TÁROLÓDIK: a siker-jelentés nem hatás' }),
+      Object.freeze({ paths: ['v3ref/store.mjs'], pattern: 'CREATE TABLE claim_content',
+        reason: 'R67/F03: az elbírálónak VAN MIT elolvasnia — a lenyomat integritás-ellenőrzés, nem tartalom' }),
+      Object.freeze({ paths: ['v3ref/adjudication.mjs'], pattern: 'store\\.tx\\(\\(\\) => \\{',
+        reason: 'R67/F04: a befogadás EGY tény, tehát EGY tranzakció — nincs részleges állapot' }),
+      Object.freeze({ paths: ['v3ref/adjudication.mjs'], pattern: 'export function intakeKeyOf',
+        reason: 'R67/F05: a korlát ELSŐDLEGES kulcsát a SZERVER képezi, nem a beadó írja' }),
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: "probe\\('P-REV-suspension'",
+        reason: 'a próba a KÖVETKEZMÉNYT méri, nem a válasz-mezőt' }),
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M56'",
+        reason: 'a felfüggesztési ÍRÁS elhagyása bizonyítottan pirosra viszi a próbát' }),
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M57'",
+        reason: 'a jogfeloldó felfüggesztés-VAKSÁGA külön kontroll (az írás és az olvasás két oldal)' }),
+      Object.freeze({ paths: ['v3ref/norms.mjs'], pattern: "id: 'REV-N3d'",
+        reason: 'a MEG NEM ÉPÜLT rész NEVEZETT klauzulán, nyitva — nem beleolvasztva a bizonyítottba' }),
+    ]),
+    lesson: 'A PRÓBA A KÖVETKEZMÉNYT MÉRJE, NE A VÁLASZT. Minden „sikerült" alakú válasznál KÉT külön '
+      + 'kérdés van, és a próbának a MÁSODIKAT kell feltennie: (1) mit MOND a függvény? (2) mi VÁLTOZOTT '
+      + 'meg attól, hogy lefutott — a rendszer MÁSIK olvasóján mérve? Ahol a kettő nem esik egybe, ott a '
+      + 'zöld próba a hibát ŐRZI, nem a helyességet igazolja (KUKA-068 fordítottja). És a mérés '
+      + 'ELLENPÁRRAL teljes: nem elég, hogy „utána tiltott" — előtte ENGEDÉLYEZETTNEK kell lennie, '
+      + 'különben a próba egy örökre zárt kaput dicsér.',
+    guard_note: 'gépi jel: `npm run verify:v3ref` — az ÚJ `P-REV-suspension` próba a KÖVETKEZMÉNYT méri '
+      + 'nyolc ágon (előtte engedélyezett · utána tiltott nevezett okkal · a tagsághoz nem nyúlt · más '
+      + 'alany/könyv változatlan · jogosulatlan kérés nem ír · a MEGKEZDETT parancs nem véglegesül · '
+      + 'feloldás után csak a fennálló jog éled · a megvont tagságot a feloldás nem hozza vissza), a '
+      + 'bővített `P-REV-claim-read` pedig az F02–F05-öt. Visszabontási kontroll MIND az öthöz: '
+      + '**M56** (a felfüggesztési írás elhagyása) · **M57** (a jogfeloldó felfüggesztés-vaksága) · '
+      + '**M58** (részletes létezési hiba a döntési úton) · **M59** (a beadványtartalom elvesztése) · '
+      + '**M60** (részleges állapot a második írás hibája után) · **M61** (a szerver-kulcsos korlát '
+      + 'kivétele) — mind a hat bizonyítottan PIROSRA viszi a nevezett állítást. AMI NYITVA MARAD, '
+      + 'KIMONDVA: a REV-N3d klauzula (a jóhiszemű beadók megkülönböztetése) — adapter-szintű '
+      + 'beadó-kontextus nélkül minden beadás EGY közös vödörbe esik, tehát egy elárasztó a többiek '
+      + 'keretét is elveszi. Ez REFERENCIA-HELYETTESÍTŐ, nem védelem, és a norma-kapu így is jelenti.',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

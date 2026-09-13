@@ -31,6 +31,31 @@
 /** A programok — KI ÍRTA, MIT MÉR, és PONTOSAN MELY ESETEKET kell hoznia. */
 export const PROGRAMS = Object.freeze([
   Object.freeze({
+    id: 'r67',
+    file: 'r67_chatgpt-v3.mjs',
+    companions: Object.freeze(['r67_chatgpt-v3.core.mjs']),
+    by: 'chatgpt-v3 — KÜLSŐ, független fél',
+    origin: 'R67 (a MAG-próba: a `r67_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN; ez a bejegyzés '
+      + 'a burkolóra mutat, ami az artefaktumot írja — a próba szövegéhez nem nyúlunk)',
+    what: 'C01–C03 kontroll (jogosulatlan felfüggesztés · olvasás-semlegesség · a jelzés nem ad tagságot) '
+      + 'és F01–F05: a felfüggesztés TÉNYLEGES hatása · a döntési út nemleges válaszának semlegessége · '
+      + 'az elbíráló visszakapja a beadvány SZÖVEGÉT · a bukott befogadás ATOMI · a beadó saját '
+      + 'hivatkozása NEM lehet a korlát azonossága',
+    evidence: 'r67-core-challenge.json',
+    cases: Object.freeze([
+      'C01-unauthorized-suspension-denied',
+      'C02-read-neutrality',
+      'C03-claim-does-not-grant-membership',
+      'F01-successful-suspension-removes-current-access',
+      'F02-adjudication-denial-neutrality',
+      'F03-authorized-reviewer-can-retrieve-submitted-content',
+      'F04-failed-intake-is-atomic',
+      'F05-caller-chosen-reference-is-not-a-rate-limit-identity',
+    ]),
+    cases_source: 'a külső fél R67-es lapja (§8, teljes forrással)',
+    evidence_pin_field: 'source_commit',
+  }),
+  Object.freeze({
     id: 'r61',
     file: 'r61_chatgpt-v3.mjs',
     by: 'chatgpt-v3 — KÜLSŐ, független fél',

@@ -16,6 +16,44 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3017 — A SIKER-JELENTÉS NEM HATÁS: REV-N3 MÁSODIK MENET (R67/F01–F05)
+
+**Dátum:** 2026-09-13 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-001 R68 · **KUKA-120**
+
+**A helyzet.** A külső ellenőrző fél (chatgpt-v3) az R67-ben a VÁLTOZATLAN kódunkon futtatta le a
+saját programját: **3 kontroll zöld, 5 elvárt feltétel piros.** A reprodukció a mi gépünkön
+karakterre ugyanezt adta. A leletek állnak, egyiket sem vitatjuk.
+
+| # | A lelet | A javítás |
+|---|---------|-----------|
+| F01 | a `suspendMembership` ÍRÁS NÉLKÜL mondta, hogy felfüggesztve — a `rightAt` továbbra is engedett | **SUS-01** (`v3ref/suspension.mjs`): a tény TÁROLÓDIK (`membership_suspension`), és EGY nevezett feloldó (`suspensionEffectiveAt`) mondja ki, amit az `authz.mjs` OLVAS és az `adjudication.mjs` ÍR. Külön modul, mert a közvetlen behúzás KÖRT csinálna (KUKA-003). Mellé `liftSuspension`: a `suspend` hatáskör másik iránya, nem visszamenőleg, a sor MEGMARAD történetnek |
+| F02 | az `adjudicateClaim` a hiányzó ügyre semlegeset, a hatáskör nélküli hívónak a hiba NEVÉT adta — a különbség maga mondta meg, hogy az ügy létezik | mind a NÉGY nemleges ág BÁJTRA azonos `CLAIM_NOT_AVAILABLE` (a `readClaim`-en ez már állt: FÉL ŐR volt — KUKA-039 · KUKA-084) |
+| F03 | a beadvány TARTALMA sehol nem tárolódott, csak a lenyomata | `claim_content` tábla; a lenyomat INTEGRITÁS-ellenőrzéssé lép elő, eltérésnél NEVEZETT hiba és NEM adunk vissza szöveget |
+| F04 | a befogadás KÉT autocommit-írás volt: a második bukása kvóta-sort hagyott ügy nélkül | EGY tranzakció (`store.tx`) — a befogadás egy tény |
+| F05 | a korlát a beadó SZABADON ÁTÍRHATÓ hivatkozásán állt | az ELSŐDLEGES kulcsot a SZERVER képezi (`intakeKeyOf`), a beadó hivatkozása MÁSODIK, szűkebb korlát marad |
+
+**A közös betegség, egy mondatban:** a próbáim a VISSZATÉRÉSI ÉRTÉKET nézték, nem a KÖVETKEZMÉNYT
+(KUKA-120). A `suspended:true` mező LÉTEZÉSE nem bizonyítja, hogy a felfüggesztés hatályos.
+
+**Gépi jel.** `npm run verify:v3ref`: ÚJ **P-REV-suspension** próba (nyolc ág, végig a
+következményen, ellenpárral) + a bővített **P-REV-claim-read** (F02–F05, saját befogadási
+kontextussal részenként — a régi alak a saját előfeltevését igazolta vissza, KUKA-054). Hat új
+visszabontási kontroll: **M56–M61**, mind bizonyítottan pirosra viszi a nevezett állítást. Az
+elavult **M55** horgonya újrakötve. Mérve: **31/31 próba · 58/58 mutáció elkapva · 0 elavult
+horgony · REV-N3a/b/c mind FEDVE**, nevezett falszifikálóval.
+
+**AMI NYITVA MARAD — KIMONDVA (a külső fél §7/4 kérése).** A visszaélés-korlát ma szerver-kulcson
+áll, de adapter-szintű beadó-kontextus híján MINDEN beadás EGY nevezett, közös vödörbe esik
+(`chan:unattributed`): egyetlen elárasztó a jóhiszemű beadók keretét is elveszi. Ez
+**referencia-helyettesítő, nem védelem**, ezért a klauzula KETTÉVÁLT: a bizonyított rész a
+**REV-N3c** (nyitott út · semleges nyugta · atomi befogadás · szerver-kulcsos korlát), a hiányzó
+rész pedig az ÚJ **REV-N3d**, nevezett hiánnyal és nevezett zárási feltétellel. A hatókört a MÉRCE
+szabja meg, nem a kényelem (KUKA-048).
+
+**A külső fél saját programja a javított kódon: 8/8 PASS** (változatlan forrással futtatva).
+
+---
+
 ## D-VS-3016 — REV-N3 MEGÉPÜLT: A MŰVELETENKÉNTI HATÁSKÖR ÉS A BEJELENTÉS-ÚT, EGYSZERRE (req-1 → req-2)
 
 - **Dátum:** 2026-09-12 · Sáv: Claude-v3 (PR-VS-300 / STEP-VS-300-002 / CMD-VS-300-002-001, R65)

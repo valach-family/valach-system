@@ -20,6 +20,9 @@
 // tiltja). Ugyanez a KUKA-002 a hatáskörön: három különböző tény nem ülhet egy jelölésen.
 import { createHash } from 'node:crypto';
 import { instantMs } from './store.mjs';
+// A FELFÜGGESZTÉS HATÁLYÁT az a feloldó mondja ki, amit a `rightAt` is hív — egy fogalom, egy
+// otthon (KUKA-003 · KUKA-039). Az író itt van (hatáskör-kérdés), a TÉNY olvasása ott.
+import { suspensionEffectiveAt } from './suspension.mjs';
 
 /** A hatáskör-igényes műveletek ZÁRT halmaza — ismeretlen művelet nem „általános", hanem NEM DÖNTHETŐ. */
 export const ADJUDICATION_OPS = Object.freeze(['suspend', 'adjudicate', 'alter_right']);
@@ -102,8 +105,33 @@ export function grantAdjudicationAuthority({ store, subjectId, bookId, operation
 // A JELZÉS NEM MŰVELET A JOGON: a bejelentés SEMMILYEN tagságot, hatáskört vagy olvasási kört nem
 // mozdít. Ezt a REV-N3b próbája ellenpárral is méri.
 
-/** A visszaélés-korlát: ennyi beadás fér bele ekkora ablakba, BEADÓNKÉNT. */
+/** A visszaélés-korlát: ennyi beadás fér bele ekkora ablakba, BEFOGADÁSI KONTEXTUSONKÉNT. */
 export const CLAIM_RATE = Object.freeze({ window_ms: 60 * 60 * 1000, max: 3 });
+
+// ── A KORLÁT KULCSA (R67/F05) ───────────────────────────────────────────────────────────────────
+//
+// A LELET. A számláló kulcsa a BEADÓ által szabadon írt `claimantRef` volt. Ugyanaz a hívó négy
+// különböző szöveggel négy beadást tudott elhelyezni: a „korlátozott beadó" követelmény nem
+// teljesült. Megtalálta: a KÜLSŐ TÁRGYALÓ FÉL (R67/F05).
+//
+// A JAVÍTÁS IRÁNYA, ÉS AMI BELŐLE MA HIÁNYZIK — KIMONDVA. A korlát ELSŐDLEGES kulcsa mostantól a
+// SZERVER által képzett befogadási kontextus, amit a hívó NEM tud átírni. Ez a magreferencia
+// viszont nem lát hálózatot: a kontextust az ADAPTER adja (`intakeContext.channel_key`), és amíg
+// nincs ilyen adapter, MINDEN kontextus nélküli beadás EGYETLEN, NEVEZETT közös vödörbe esik.
+//
+// EZ REFERENCIA-HELYETTESÍTŐ, NEM VÉDELEM, és így is nevezzük: a közös vödör azt a tulajdonságot
+// állítja helyre, hogy a kulcsot ne lehessen a kérésből átírni — de nem különbözteti meg a jóhiszemű
+// beadókat egymástól, tehát egyetlen elárasztó a többiek elől is elveszi a keretet. A klauzula
+// megfelelő része ezért NYITVA marad (`norms.mjs` REV-N3c gap), és a maradék kockázat kimondva:
+// valódi védelemhez az adapternek több szintű, szerver-oldali kontextust kell adnia.
+export const UNATTRIBUTED_INTAKE_KEY = 'chan:unattributed';
+
+/** A befogadási kontextus kulcsa — nevezett feloldó, hogy a próba UGYANAZT hívhassa (KUKA-009). */
+export function intakeKeyOf(intakeContext) {
+  const k = intakeContext && typeof intakeContext === 'object'
+    ? String(intakeContext.channel_key == null ? '' : intakeContext.channel_key).trim() : '';
+  return k ? `chan:${k}` : UNATTRIBUTED_INTAKE_KEY;
+}
 
 /** A SEMLEGES VÁLASZ — egyetlen, mindig azonos alak. Nem tartalmaz ügy-azonosítót és nem mond
  *  semmit arról, hogy a könyv vagy az ügy létezik-e. */
@@ -130,10 +158,11 @@ function claimIdFor(claimantRef, bookId, submittedAt, digest) {
  *
  * @returns {{accepted:boolean, message:string}|{accepted:false, reason:'rate_limited', message:string}}
  */
-export function submitClaim({ store, clock, claimantRef, bookId, statement }) {
+export function submitClaim({ store, clock, claimantRef, bookId, statement, intakeContext }) {
   const nowIso = clock.now();
   const now = instantMs(nowIso);
   const ref = String(claimantRef || '').trim();
+  const intakeKey = intakeKeyOf(intakeContext);
   if (!ref) {
     // A BEADÓ hivatkozása kell — nem azonosság, csak visszakereshetőség (a korláthoz). Ez nem a
     // védett tényről szól, tehát nevesíthető elutasítás (KUKA-064).
@@ -145,10 +174,15 @@ export function submitClaim({ store, clock, claimantRef, bookId, statement }) {
   }
 
   const since = new Date(now.ms - CLAIM_RATE.window_ms).toISOString();
-  const recent = store.get(
+  // R67/F05: az ELSŐDLEGES korlát a SZERVER képezte kulcson áll (a hívó nem tudja átírni). A beadó
+  // saját hivatkozása MÁSODIK, szűkebb korlát marad — hasznos, de önmagában sosem védelem.
+  const byChannel = store.get(
+    'SELECT COUNT(*) AS n FROM claim_intake WHERE intake_key = ? AND submitted_at >= ?', intakeKey, since);
+  const byRef = store.get(
     'SELECT COUNT(*) AS n FROM claim_intake WHERE claimant_ref = ? AND submitted_at >= ?', ref, since);
-  if (recent && Number(recent.n) >= CLAIM_RATE.max) {
-    // A korlát a SAJÁT viselkedésedről szól — erről tudni jogos, tehát ez a válasz eltérhet.
+  if ((byChannel && Number(byChannel.n) >= CLAIM_RATE.max) || (byRef && Number(byRef.n) >= CLAIM_RATE.max)) {
+    // A korlát a BEADÁS viselkedéséről szól, nem az ügyről — erről tudni jogos, tehát ez a válasz
+    // eltérhet a semlegestől, és NEM szivárogtat a könyvről vagy az ügyről semmit.
     return Object.freeze({ accepted: false, reason: 'rate_limited',
       message: `túl sok jelzés rövid idő alatt (legfeljebb ${CLAIM_RATE.max} / `
         + `${Math.round(CLAIM_RATE.window_ms / 60000)} perc) — próbáld később` });
@@ -156,11 +190,22 @@ export function submitClaim({ store, clock, claimantRef, bookId, statement }) {
 
   const digest = digestOf(statement);
   const id = claimIdFor(ref, bookId, nowIso, digest);
-  store.run('INSERT INTO claim_intake (claimant_ref, submitted_at) VALUES (?,?)', ref, nowIso);
-  store.run(
-    `INSERT OR IGNORE INTO claim (id, book_id, claimant_ref, submitted_at, statement_digest, state)
-     VALUES (?,?,?,?,?,'received')`,
-    id, String(bookId == null ? '' : bookId), ref, nowIso, digest);
+  // R67/F04: A BEFOGADÁS EGY TÉNY, TEHÁT EGY TRANZAKCIÓ. Korábban két külön autocommit-írás ment: ha
+  // a második elhasalt, az ügy nem jött létre, a kvóta-sor viszont bent maradt — a sikertelen beadás
+  // részlegesen megmaradt, és a beadó keretét elhasználta. A tranzakció a TÁROLÓ szolgáltatása
+  // (KUKA-003), a hívó nem ír BEGIN-t a kezével.
+  store.tx(() => {
+    store.run('INSERT INTO claim_intake (intake_key, claimant_ref, submitted_at) VALUES (?,?,?)',
+      intakeKey, ref, nowIso);
+    store.run(
+      `INSERT OR IGNORE INTO claim (id, book_id, claimant_ref, submitted_at, statement_digest, state)
+       VALUES (?,?,?,?,?,'received')`,
+      id, String(bookId == null ? '' : bookId), ref, nowIso, digest);
+    // R67/F03: A TARTALOM IS MEGMARAD — különben az elbírálónak nincs mit elolvasnia. A lenyomat
+    // innentől INTEGRITÁS-ellenőrzés, nem tartalom-helyettesítő.
+    store.run('INSERT OR IGNORE INTO claim_content (claim_id, content) VALUES (?,?)',
+      id, String(statement == null ? '' : statement));
+  });
   return NEUTRAL_CLAIM_ACK;
 }
 
@@ -186,11 +231,28 @@ export function readClaim({ store, viewerSubjectId, claimId, clock }) {
     store, subjectId: viewerSubjectId, bookId: row.book_id, operation: 'adjudicate', clock,
   });
   if (!right.allowed) return CLAIM_NOT_AVAILABLE;
+
+  // R67/F03: AZ ELBÍRÁLÓNAK VAN MIT ELOLVASNIA. Korábban csak a lenyomat ment vissza — abból a
+  // panasz szövege nem áll vissza, tehát az „elbírálás" formaság maradt. A tartalom itt jön elő, és
+  // a lenyomat MOST AZ, AMI: integritás-ellenőrzés. Eltérésnél NEM adunk vissza szöveget, hanem
+  // nevezett hibát — a néma, csendben megváltozott beadvány rosszabb, mint a nemleges válasz.
+  const content = store.get('SELECT content FROM claim_content WHERE claim_id = ?', row.id);
+  if (!content) {
+    return Object.freeze({ ok: false, error: 'claim_content_missing',
+      message: 'a beadvány metaadata megvan, a TARTALMA viszont nem — az ügy nem bírálható el '
+        + 'érdemben; ezt jelenteni kell, nem üres kézzel dönteni' });
+  }
+  if (digestOf(content.content) !== row.statement_digest) {
+    return Object.freeze({ ok: false, error: 'claim_content_integrity_failed',
+      message: 'a tárolt beadvány nem egyezik a befogadáskor rögzített lenyomattal — a tartalom '
+        + 'megváltozott, ezért NEM adjuk vissza' });
+  }
   return Object.freeze({
     ok: true,
     claim: Object.freeze({
       id: row.id, book_id: row.book_id, claimant_ref: row.claimant_ref,
       submitted_at: row.submitted_at, statement_digest: row.statement_digest, state: row.state,
+      statement: content.content,
     }),
   });
 }
@@ -201,10 +263,16 @@ export function readClaim({ store, viewerSubjectId, claimId, clock }) {
  */
 export function adjudicateClaim({ store, actorSubjectId, claimId, decision, clock }) {
   const row = store.get('SELECT * FROM claim WHERE id = ?', claimId);
-  if (!row) return Object.freeze({ ok: false, reason: 'not_available' });
+  // R67/F02: A NEMLEGES VÁLASZ ITT IS SEMLEGES. Korábban a hiányzó ügy `not_available`-t kapott, a
+  // hatáskör nélküli hívó viszont a hatáskör-hiba NEVÉT és MONDATÁT — a kettő különbsége maga
+  // mondta meg, hogy az ügy létezik-e. Ez a KUKA-084 („a kijárat nem HELY, hanem CSATORNA") pontos
+  // ismétlődése: a `readClaim`-en már helyesen állt, ezen az úton nem — fél őr volt (KUKA-039).
+  // MOSTANTÓL mind a négy eset UGYANAZT az objektumot kapja: nincs ügy · nincs hatáskör · MÁS könyvre
+  // van hatásköre · visszavont hatáskör. A pozitív ellenpár változatlan: az illetékes elbíráló dolgozhat.
+  if (!row) return CLAIM_NOT_AVAILABLE;
   const right = adjudicationRightAt({
     store, subjectId: actorSubjectId, bookId: row.book_id, operation: 'adjudicate', clock });
-  if (!right.allowed) return Object.freeze({ ok: false, reason: right.reason, message: right.message });
+  if (!right.allowed) return CLAIM_NOT_AVAILABLE;
   const state = decision === 'resolve' ? 'resolved' : 'under_review';
   store.run('UPDATE claim SET state = ? WHERE id = ?', state, claimId);
   return Object.freeze({ ok: true, state, changed_rights: false });
@@ -214,11 +282,51 @@ export function adjudicateClaim({ store, actorSubjectId, claimId, decision, cloc
  * A JOG FELFÜGGESZTÉSE — `suspend` hatáskör. Külön művelet, mert ideiglenes és szűkebb hatású, mint
  * a megvonás; a `suspend` hatáskör SOHA nem ad `alter_right`-ot.
  */
-export function suspendMembership({ store, actorSubjectId, subjectId, bookId, clock }) {
+export function suspendMembership({ store, actorSubjectId, subjectId, bookId, clock, reason }) {
   const right = adjudicationRightAt({
     store, subjectId: actorSubjectId, bookId, operation: 'suspend', clock });
   if (!right.allowed) return Object.freeze({ ok: false, reason: right.reason, message: right.message });
   const m = store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', subjectId, bookId);
   if (!m) return Object.freeze({ ok: false, reason: 'no_membership' });
-  return Object.freeze({ ok: true, suspended: true, at: clock.now() });
+
+  const at = clock.now();
+  // R67/F01: A SIKER-JELENTÉS NEM HATÁS. Korábban itt `ok:true, suspended:true` állt ÍRÁS NÉLKÜL:
+  // a válasz azt mondta, hogy felfüggesztve, a `rightAt` pedig továbbra is engedett. A tény ezért
+  // TARTÓSAN rögzül, és a hatályt ugyanaz a nevezett feloldó mondja ki, amit a `rightAt` hív.
+  const already = suspensionEffectiveAt({ store, subjectId, bookId, nowIso: at });
+  if (already.suspended) {
+    // Az idempotencia-őr csak az AZONOS tényt nyelheti el (KUKA-074): itt tényleg ugyanaz áll fenn.
+    return Object.freeze({ ok: true, suspended: true, at, already_suspended: true, since: already.since || null });
+  }
+  const res = store.run(
+    `INSERT INTO membership_suspension (subject_id, book_id, actor_subject_id, suspended_at, lifted_at, lifted_by, reason)
+     VALUES (?,?,?,?,NULL,NULL,?)`,
+    subjectId, bookId, actorSubjectId, at, reason == null ? null : String(reason));
+  return Object.freeze({
+    ok: true, suspended: true, at, already_suspended: false,
+    suspension_id: Number(res.lastInsertRowid),
+  });
+}
+
+/**
+ * A FELFÜGGESZTÉS FELOLDÁSA — a `suspend` hatáskör MÁSIK IRÁNYA, kimondott szabállyal (R67/F01).
+ *
+ * MIÉRT `suspend` ÉS NEM `alter_right`. A feloldás nem ad új jogot: az IDEIGLENES intézkedést
+ * zárja le, és utána pontosan az a jog éled fel, ami egyébként is fennállna (ha közben megvonták a
+ * tagságot, a feloldás nem hozza vissza — azt csak az `alter_right` teheti). Aki felfüggeszthet,
+ * az fel is oldhatja; a jog MEGVÁLTOZTATÁSA külön hatáskör marad.
+ *
+ * AZ IDŐ SZABÁLYA: a feloldás a MOSTANI pillanattól hat, visszamenőleg nem. A sor NEM tűnik el —
+ * `lifted_at`/`lifted_by` kap, tehát a felfüggesztés ideje a történetben megmarad (K09 elve).
+ */
+export function liftSuspension({ store, actorSubjectId, subjectId, bookId, clock }) {
+  const right = adjudicationRightAt({
+    store, subjectId: actorSubjectId, bookId, operation: 'suspend', clock });
+  if (!right.allowed) return Object.freeze({ ok: false, reason: right.reason, message: right.message });
+  const at = clock.now();
+  const eff = suspensionEffectiveAt({ store, subjectId, bookId, nowIso: at });
+  if (!eff.suspended) return Object.freeze({ ok: false, reason: 'not_suspended' });
+  store.run('UPDATE membership_suspension SET lifted_at = ?, lifted_by = ? WHERE id = ?',
+    at, actorSubjectId, eff.id);
+  return Object.freeze({ ok: true, lifted: true, at, suspension_id: eff.id });
 }

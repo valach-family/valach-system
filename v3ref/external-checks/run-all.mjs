@@ -121,7 +121,13 @@ function stage(src) {
     staged_from: 'v3ref/ (a generált eredmény nélkül: external-checks/results/ és v3ref-mutation-result.json)',
   }, null, 2)}\n`);
   mkdirSync(join(dir, 'evidence'), { recursive: true });
-  for (const p of PROGRAMS) cpSync(join(HERE, p.file), join(dir, p.file));
+  // A PROGRAM NEM FELTÉTLENÜL EGY FÁJL. Ahol a külső fél szövegét BÁJTAZONOSAN tartjuk meg, ott a
+  // bejegyzés egy BURKOLÓRA mutat, és a változatlan próba a `companions` listán áll — a másolat
+  // enélkül némán hiányos volna, és a program „nem futott végig" jelzéssel bukna el egy olyan
+  // okból, aminek semmi köze a méréshez (KUKA-049).
+  for (const p of PROGRAMS) {
+    for (const f of [p.file, ...(p.companions || [])]) cpSync(join(HERE, f), join(dir, f));
+  }
   return dir;
 }
 

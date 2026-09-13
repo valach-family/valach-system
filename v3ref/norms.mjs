@@ -189,13 +189,42 @@ export const REVOCATION_NORMS = Object.freeze([
       Object.freeze({
         id: 'REV-N3c',
         covers: Object.freeze(['K05', 'K15']),
+        // A SZÖVEG SZŰKÍTVE (R68, az R67 §7/4 kérésére). A régi mondat úgy állította, hogy a jelzés-utat
+        // „visszaélés-korlát védi" — ez TÖBBET mondott, mint amit a kód teljesít: a korlát LÉTEZIK és a
+        // szerver képezte kulcson áll, de a beadókat NEM különbözteti meg (lásd REV-N3d). A klauzula
+        // ezért mostantól pontosan azt állítja, amit bizonyítunk is; a maradék KÜLÖN klauzulán, NYITVA
+        // (KUKA-050: az állítás elévül · KUKA-048: a kivétel hatókörét a mérce dönti el).
         text: 'A BEJELENTÉS ÚTJA NYITVA ÁLL a még nem igazolt panaszosnak is: a jelzés fogadása '
-          + 'megengedett, a válasz SEMLEGES (nem árulja el, létezik-e az ügy), és visszaélés-korlát '
-          + 'védi. A jelzés nem művelet a jogon.',
+          + 'megengedett, a válasz SEMLEGES (nem árulja el, létezik-e az ügy), a befogadás ATOMI '
+          + '(félbemaradt beadás nem hagy részleges állapotot), és a visszaélés-korlát a SZERVER '
+          + 'képezte kulcson áll, amit a beadó nem tud átírni. A jelzés nem művelet a jogon.',
         // MEGÉPÜLVE (req-2 1. lépés), a REV-N3a-val EGYÜTT, ahogy ez a gap-szöveg előírta:
         // `submitClaim` — nyitott út, BÁJTRA azonos semleges nyugta (a nem létező könyvre is),
-        // beadónkénti visszaélés-korlát, és a jelzés semmilyen jogot nem mozdít.
+        // szerver-kulcsos visszaélés-korlát tranzakcióban, és a jelzés semmilyen jogot nem mozdít.
         gap: null,
+      }),
+      Object.freeze({
+        id: 'REV-N3d',
+        covers: Object.freeze(['K05', 'K15']),
+        // R67/F05 MARADÉKA, KIMONDVA (a külső fél §7/4 kérése: „Ha ez most csak referenciahelyettesítő,
+        // nevezd annak és hagyd nyitva a megfelelő klauzularészt").
+        //
+        // MIÉRT KÜLÖN KLAUZULA. Ebben a gépezetben a HIÁNY egysége a klauzula: a `gap` és a bizonyíték
+        // KIZÁRJÁK egymást, tehát egyetlen klauzulán nem lehet egyszerre azt mondani, hogy „a korlát
+        // szerver-kulcson áll" (bizonyított) és „a beadókat nem különbözteti meg" (hiány). A kettő
+        // szétvágása nem a mérce lazítása, hanem a hatókör pontos szabása: a bizonyíték arra a részre
+        // szól, ami tényleg megépült, a hiány pedig arra a részre, ami tényleg hiányzik (KUKA-048).
+        text: 'A visszaélés-korlát a JÓHISZEMŰ BEADÓKAT IS MEGKÜLÖNBÖZTETI: egyetlen elárasztó nem '
+          + 'veheti el a többiek keretét. A korlát kulcsa a beadó SZERVER-OLDALI, nem hamisítható '
+          + 'kontextusából származik.',
+        gap: 'A mai magban NINCS adapter, ami valódi, szerver-oldali beadó-kontextust adna (hálózati '
+          + 'eredet, csatorna-azonosság, igazolt hívó). Amíg nincs, MINDEN kontextus nélküli beadás '
+          + 'EGYETLEN nevezett, közös vödörbe esik (`UNATTRIBUTED_INTAKE_KEY = chan:unattributed`). Ez '
+          + 'REFERENCIA-HELYETTESÍTŐ, nem védelem: azt a tulajdonságot állítja helyre, hogy a kulcsot a '
+          + 'hívó ne tudja átírni (ezt a REV-N3c bizonyítja is), de a jóhiszemű beadókat nem '
+          + 'különbözteti meg egymástól — így egyetlen elárasztó a közös vödörrel a többiek keretét is '
+          + 'elveszi. A hiány zárásának feltétele: adapter-szintű beadó-kontextus + vödrönkénti keret, '
+          + 'és egy próba, amiben KÉT független beadó közül az egyik elárasztása a MÁSIKAT nem akadályozza.',
       }),
     ]),
   }),

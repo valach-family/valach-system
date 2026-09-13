@@ -452,8 +452,75 @@ export const MUTATIONS = [
     what: 'REV-N3b — a SEMLEGES NYUGTA elárulja, létezik-e a könyv (a nem létező könyvre más '
       + 'válasz megy)',
     file: 'adjudication.mjs',
-    from: "  store.run('INSERT INTO claim_intake (claimant_ref, submitted_at) VALUES (?,?)', ref, nowIso);",
+    // HORGONY ÚJRAKÖTVE (R68). A régi horgony az R67/F04 előtti, tranzakción KÍVÜLI, `intake_key`
+    // nélküli beszúrás szövege volt; a javítás után ilyen sor nincs, tehát a mutáció ELAVULT lett és
+    // a battéria STALE_ANCHOR-t jelentett. Ez maga a gépezet helyes működése: a forrás-szövegre kötött
+    // mutáció a javítással együtt jár le, és NEM némán — a horgony a tranzakció-nyitás, ami a
+    // beszúrások ELŐTT áll, tehát a beékelt korai `return` továbbra is elvágja az írást.
+    from: "  store.tx(() => {",
     to: "  const bookRow = store.get('SELECT * FROM book WHERE id = ?', String(bookId == null ? '' : bookId));\n"
       + "  if (!bookRow) return Object.freeze({ accepted: true, message: 'Nincs ilyen könyv.' });\n"
-      + "  store.run('INSERT INTO claim_intake (claimant_ref, submitted_at) VALUES (?,?)', ref, nowIso);" },
+      + "  store.tx(() => {" },
+
+
+  // ── R67/F01–F05 — AZ ÖT ÚJ VISSZABONTÁSI KONTROLL (a külső fél §7/3 kérése, betűre) ─────────────
+  //
+  // „Új mutációk: felfüggesztési írás elhagyása; jogfeloldó felfüggesztés-vaksága; döntési úton
+  // részletes létezési hiba; beadványtartalom elvesztése; második írás hibája utáni részleges
+  // állapot." — mind az öt PONTOSAN azt az alakot állítja vissza, amit ők a változatlan kódon
+  // mértek meg. Ez a különbség a javítás és a JAVÍTÁS BIZONYÍTÁSA között: a zöld próba csak akkor
+  // bizonyíték, ha tudjuk, hogy KÉPES bukni (KUKA-041 a mérőn).
+  //
+  // MIÉRT KÉT KÜLÖN MUTÁCIÓ A FELFÜGGESZTÉSRE. Az F01-nek két, egymástól FÜGGETLEN fele van: az ÍRÁS
+  // (a tény rögzül-e) és az OLVASÁS (a jogfeloldó megkérdezi-e). Egyetlen mutáció mindkettőt pirosra
+  // vinné, és nem tudnánk, melyik oldalt mértük (R55/F02 · KUKA-039).
+
+  { id: 'M56', rule: 'K04/K09', catcher: 'P-REV-suspension', expect: 'probe_fail',
+    what: 'REV-N3a — A FELFÜGGESZTÉSI ÍRÁS ELHAGYÁSA: a válasz `suspended:true`, a tároló üres — '
+      + 'pontosan az R67/F01 alakja (a siker-jelentés nem hatás)',
+    file: 'adjudication.mjs',
+    from: "  const res = store.run(\n"
+      + "    `INSERT INTO membership_suspension (subject_id, book_id, actor_subject_id, suspended_at, lifted_at, lifted_by, reason)\n"
+      + "     VALUES (?,?,?,?,NULL,NULL,?)`,\n"
+      + "    subjectId, bookId, actorSubjectId, at, reason == null ? null : String(reason));\n"
+      + "  return Object.freeze({\n"
+      + "    ok: true, suspended: true, at, already_suspended: false,\n"
+      + "    suspension_id: Number(res.lastInsertRowid),\n"
+      + "  });",
+    to: "  return Object.freeze({ ok: true, suspended: true, at, already_suspended: false, suspension_id: 0 });" },
+
+  { id: 'M57', rule: 'K04/K09', catcher: 'P-REV-suspension', expect: 'probe_fail',
+    what: 'REV-N3a — A JOGFELOLDÓ FELFÜGGESZTÉS-VAKSÁGA: a tény RÖGZÜL, de a `rightAt` nem kérdezi '
+      + 'meg — a felfüggesztett alany továbbra is `allowed:true`-t kap',
+    file: 'authz.mjs',
+    from: "  const susp = suspensionEffectiveAt({ store, subjectId, bookId, nowIso: clock.now() });\n  if (susp.suspended) {",
+    to: "  const susp = suspensionEffectiveAt({ store, subjectId, bookId, nowIso: clock.now() });\n  if (false) {" },
+
+  { id: 'M58', rule: 'K05/K09', catcher: 'P-REV-claim-read', expect: 'probe_fail',
+    what: 'REV-N3b — A DÖNTÉSI ÚTON RÉSZLETES LÉTEZÉSI HIBA: az `adjudicateClaim` a hatáskör-hiba '
+      + 'NEVÉT adja vissza, tehát a válasz megmondja, hogy az ÜGY LÉTEZIK (KUKA-084 a csatornán)',
+    file: 'adjudication.mjs',
+    from: "  if (!row) return CLAIM_NOT_AVAILABLE;\n  const right = adjudicationRightAt({\n    store, subjectId: actorSubjectId, bookId: row.book_id, operation: 'adjudicate', clock });\n  if (!right.allowed) return CLAIM_NOT_AVAILABLE;",
+    to: "  if (!row) return CLAIM_NOT_AVAILABLE;\n  const right = adjudicationRightAt({\n    store, subjectId: actorSubjectId, bookId: row.book_id, operation: 'adjudicate', clock });\n  if (!right.allowed) return Object.freeze({ ok: false, error: right.reason, message: right.message });" },
+
+  { id: 'M59', rule: 'K05/K09', catcher: 'P-REV-claim-read', expect: 'probe_fail',
+    what: 'REV-N3b — A BEADVÁNYTARTALOM ELVESZTÉSE: csak a lenyomat marad, az elbírálónak nincs mit '
+      + 'elolvasnia (sha256-ból a panasz szövege nem áll vissza) — az R67/F03 alakja',
+    file: 'adjudication.mjs',
+    from: "    store.run('INSERT OR IGNORE INTO claim_content (claim_id, content) VALUES (?,?)',\n      id, String(statement == null ? '' : statement));",
+    to: "    // a tartalom eldobva — csak a lenyomat marad" },
+
+  { id: 'M60', rule: 'K05/K15', catcher: 'P-REV-claim-read', expect: 'probe_fail',
+    what: 'REV-N3c — RÉSZLEGES ÁLLAPOT A MÁSODIK ÍRÁS HIBÁJA UTÁN: a tranzakció elhagyva, tehát a '
+      + 'bukott beadás KVÓTA-SORT hagy maga után (a beadó kerete elfogy egy meg nem történt jelzésre)',
+    file: 'adjudication.mjs',
+    from: "  store.tx(() => {",
+    to: "  ((fn) => fn())(() => {" },
+
+  { id: 'M61', rule: 'K05/K15', catcher: 'P-REV-claim-read', expect: 'probe_fail',
+    what: 'REV-N3c — AZ ELSŐDLEGES, SZERVER KÉPEZTE KULCS KIVÉTELE: a korlát megint CSAK a beadó '
+      + 'saját hivatkozásán áll, amit ő szabadon átír — négy szöveg, négy „másik ember" (R67/F05)',
+    file: 'adjudication.mjs',
+    from: "  const byChannel = store.get(\n    'SELECT COUNT(*) AS n FROM claim_intake WHERE intake_key = ? AND submitted_at >= ?', intakeKey, since);",
+    to: "  const byChannel = { n: 0 };" },
 ];

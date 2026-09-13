@@ -11,6 +11,9 @@
 
 import { instantMs, withTransaction } from './store.mjs';
 import { adjudicationRightAt } from './adjudication.mjs';
+// SUS-01 (R67/F01): a felfüggesztés TÉNYE saját otthonban él, mert az `adjudication.mjs` ÍRJA, ez a
+// modul pedig OLVASSA — a kettő közti közvetlen behúzás kört csinálna (KUKA-003).
+import { suspensionEffectiveAt } from './suspension.mjs';
 
 // ═══ JOG-OSZTÁLY: SAJÁT KULCS, NEM ÖRÖKÖLT (Q07) ════════════════════════════════════════════════
 //
@@ -98,6 +101,7 @@ export function membershipEffectiveAt(m, nowIso) {
   }
   return Object.freeze({ effective: true, reason: 'membership_effective' });
 }
+
 
 // ═══ A BIZONYÍTÉK ÁLLÁSA (Q05 + Q06) ════════════════════════════════════════════════════════════
 //
@@ -207,6 +211,18 @@ export function rightAt({ store, subjectId, bookId, opClass, clock, externalEvid
       : (eff.reason === 'membership_revoked'
         ? 'a tagságod ehhez a könyvhöz vissza lett vonva'
         : 'a tagságod ehhez a könyvhöz most nem hatályos'));
+  }
+
+  // R67/F01: A FELFÜGGESZTÉS ITT HAT. A tagság él, a szerep akár admin — a felfüggesztés akkor is
+  // tilt, mert épp az a dolga: az elbírálás idejére ideiglenesen elveszi a hozzáférést. A tagsági
+  // sorhoz NEM nyúlunk (az a megvonás dolga, KÜLÖN hatáskörrel), tehát a felfüggesztés nem válik
+  // általános jogmódosítássá. Mivel ez a `rightAt`-ben áll, a parancs-út KÉRÉSKOR és
+  // VÉGLEGESÍTÉSKOR is ugyanezt a tényt olvassa.
+  const susp = suspensionEffectiveAt({ store, subjectId, bookId, nowIso: clock.now() });
+  if (susp.suspended) {
+    return deny(susp.reason === 'membership_suspended' ? 'membership_suspended' : susp.reason,
+      'a hozzáférésed ehhez a könyvhöz FEL VAN FÜGGESZTVE az elbírálás idejére — a tagságod megvan, '
+      + 'a felfüggesztést a hatáskörrel rendelkező eljáró oldhatja fel');
   }
 
   // A SZEREP IS TÉNY, NEM CÍMKE (R49/C05). A tagsági sor LÉTEZÉSE nem jog: a szerepnek a zárt

@@ -1,17 +1,22 @@
 {
-  "at": "2026-09-12T21:27:45.296Z",
+  "at": "2026-09-13T10:29:46.047Z",
   "node": "v22.22.2",
   "source": {
-    "commit": "55d1e7b6f02c347144257d2f03da86c7d883fa82+uncommitted",
+    "commit": "4903b756434d38df52bbb93349b5f317e0d6f7c3+uncommitted",
     "clean": false,
     "dirty_files": [
+      "v3ref/adjudication.mjs",
       "v3ref/authz.mjs",
+      "v3ref/external-checks/case-manifest.mjs",
+      "v3ref/external-checks/run-all.mjs",
       "v3ref/manifest.mjs",
       "v3ref/mutations.mjs",
       "v3ref/norms.mjs",
       "v3ref/run.mjs",
       "v3ref/store.mjs",
-      "v3ref/adjudication.mjs"
+      "v3ref/external-checks/r67_chatgpt-v3.core.mjs",
+      "v3ref/external-checks/r67_chatgpt-v3.mjs",
+      "v3ref/suspension.mjs"
     ],
     "note": "a lemásolt forráson nem-könyvelt változás áll — a bemondott commit ezért jelölt"
   },
@@ -19,6 +24,7 @@
     "complete": true,
     "scope": "full",
     "ran": [
+      "r67",
       "r61",
       "r59",
       "r57",
@@ -31,17 +37,62 @@
   "verdict": {
     "ok": true,
     "complete_evidence": true,
-    "green": 5,
-    "of": 5
+    "green": 6,
+    "of": 6
   },
   "programs": [
+    {
+      "id": "r67",
+      "file": "r67_chatgpt-v3.mjs",
+      "by": "chatgpt-v3 — KÜLSŐ, független fél",
+      "origin": "R67 (a MAG-próba: a `r67_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN; ez a bejegyzés a burkolóra mutat, ami az artefaktumot írja — a próba szövegéhez nem nyúlunk)",
+      "exit": 0,
+      "ms": 125,
+      "expected_cases": [
+        "C01-unauthorized-suspension-denied",
+        "C02-read-neutrality",
+        "C03-claim-does-not-grant-membership",
+        "F01-successful-suspension-removes-current-access",
+        "F02-adjudication-denial-neutrality",
+        "F03-authorized-reviewer-can-retrieve-submitted-content",
+        "F04-failed-intake-is-atomic",
+        "F05-caller-chosen-reference-is-not-a-rate-limit-identity"
+      ],
+      "expected_from": "a külső fél R67-es lapja (§8, teljes forrással)",
+      "evidence_file": "r67-core-challenge.json",
+      "evidence_present": true,
+      "evidence_pin": "4903b756434d38df52bbb93349b5f317e0d6f7c3+uncommitted",
+      "total": 8,
+      "present": [
+        "C01-unauthorized-suspension-denied",
+        "C02-read-neutrality",
+        "C03-claim-does-not-grant-membership",
+        "F01-successful-suspension-removes-current-access",
+        "F02-adjudication-denial-neutrality",
+        "F03-authorized-reviewer-can-retrieve-submitted-content",
+        "F04-failed-intake-is-atomic",
+        "F05-caller-chosen-reference-is-not-a-rate-limit-identity"
+      ],
+      "missing": [],
+      "unknown": [],
+      "duplicate": [],
+      "failed": [],
+      "problems": [],
+      "ok": true,
+      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r67_r67-core-challenge.json",
+      "stderr": [
+        "(node:27383) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(Use `node --trace-warnings ...` to show where the warning was created)"
+      ],
+      "error": null
+    },
     {
       "id": "r61",
       "file": "r61_chatgpt-v3.mjs",
       "by": "chatgpt-v3 — KÜLSŐ, független fél",
       "origin": "R63 (a bővített, 8 esetes alak — változatlanul, ahogy a boardon érkezett)",
       "exit": 0,
-      "ms": 376,
+      "ms": 360,
       "expected_cases": [
         "P03",
         "R01",
@@ -55,7 +106,7 @@
       "expected_from": "a külső fél R63-as kísérő lapja (§8 esetkészlet) — az eredeti NÉGY változatlan, az U01–U04 kiegészítés",
       "evidence_file": "r60-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "55d1e7b6f02c347144257d2f03da86c7d883fa82+uncommitted",
+      "evidence_pin": "4903b756434d38df52bbb93349b5f317e0d6f7c3+uncommitted",
       "total": 8,
       "present": [
         "P03",
@@ -83,7 +134,7 @@
       "by": "chatgpt-v3 — KÜLSŐ, független fél",
       "origin": "R59 (változatlanul, ahogy a boardon érkezett)",
       "exit": 0,
-      "ms": 9539,
+      "ms": 9853,
       "expected_cases": [
         "P01",
         "E05",
@@ -96,7 +147,7 @@
       "expected_from": "a külső fél R59-es kísérő lapja (§2 esetlista)",
       "evidence_file": "r58-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "55d1e7b6f02c347144257d2f03da86c7d883fa82+uncommitted",
+      "evidence_pin": "4903b756434d38df52bbb93349b5f317e0d6f7c3+uncommitted",
       "total": 7,
       "present": [
         "P01",
@@ -123,7 +174,7 @@
       "by": "chatgpt-v3 — KÜLSŐ, független fél",
       "origin": "R57 (változatlanul, ahogy a boardon érkezett)",
       "exit": 0,
-      "ms": 10195,
+      "ms": 10900,
       "expected_cases": [
         "T01",
         "T02",
@@ -138,7 +189,7 @@
       "expected_from": "a külső fél R57-es kísérő lapja („T01–T05 · E01–E04\")",
       "evidence_file": "r56-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "55d1e7b6f02c347144257d2f03da86c7d883fa82+uncommitted",
+      "evidence_pin": "4903b756434d38df52bbb93349b5f317e0d6f7c3+uncommitted",
       "total": 9,
       "present": [
         "T01",
@@ -159,7 +210,7 @@
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r57_r56-challenge.json",
       "stderr": [
-        "(node:24105) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:28458) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null
@@ -170,7 +221,7 @@
       "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
       "origin": "R56",
       "exit": 0,
-      "ms": 5659,
+      "ms": 6044,
       "expected_cases": [
         "C11-restated",
         "N10-restated",
@@ -181,7 +232,7 @@
       "expected_from": "az R56-os körünk jegyzőkönyve (az R55 öt esete)",
       "evidence_file": "restated.json",
       "evidence_present": true,
-      "evidence_pin": "55d1e7b6f02c347144257d2f03da86c7d883fa82+uncommitted",
+      "evidence_pin": "4903b756434d38df52bbb93349b5f317e0d6f7c3+uncommitted",
       "total": 5,
       "present": [
         "C11-restated",
@@ -198,7 +249,7 @@
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r55_restated.json",
       "stderr": [
-        "(node:25015) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:29452) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null
@@ -209,7 +260,7 @@
       "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
       "origin": "R54",
       "exit": 0,
-      "ms": 568,
+      "ms": 532,
       "expected_cases": [
         "G01",
         "G02"
@@ -217,7 +268,7 @@
       "expected_from": "az R54-es körünk jegyzőkönyve (támadás + ellenpár)",
       "evidence_file": "f03-restated.json",
       "evidence_present": true,
-      "evidence_pin": "55d1e7b6f02c347144257d2f03da86c7d883fa82+uncommitted",
+      "evidence_pin": "4903b756434d38df52bbb93349b5f317e0d6f7c3+uncommitted",
       "total": 2,
       "present": [
         "G01",

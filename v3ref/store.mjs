@@ -62,6 +62,26 @@ CREATE TABLE membership_revocation (
   transition    TEXT NOT NULL
 );
 
+-- A FELFÜGGESZTÉS TÉNYE (R67/F01). A "suspendMembership" korábban sikert JELENTETT, de nem írt
+-- semmit — a felfüggesztett tag ugyanúgy jogosult maradt. A felfüggesztés ezért TARTÓS TÉNY, saját
+-- táblán, és ugyanezt a tényt olvassa az engedélyezés ÉS a véglegesítés (mindkettő a "rightAt"-en
+-- megy át, tehát nem tudnak elcsúszni — KUKA-039).
+--
+-- MIÉRT KÜLÖN TÁBLA, ÉS MIÉRT NEM A "membership" OSZLOPA. A felfüggesztés IDEIGLENES és
+-- MEGISMÉTELHETŐ; a tagsági soron egy oszlop csak a LEGUTÓBBIT tudná, a történet elveszne (K09
+-- elve: az esemény nem sor-átírás). Így a feloldás sem törli a múltat: a sor megmarad, "lifted_at"
+-- kap. A hatály MINDIG a kérés pillanatához mérve dől el — visszamenőleg nem ír át történetet.
+CREATE TABLE membership_suspension (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject_id       TEXT NOT NULL,
+  book_id          TEXT NOT NULL,
+  actor_subject_id TEXT NOT NULL,
+  suspended_at     TEXT NOT NULL,
+  lifted_at        TEXT,
+  lifted_by        TEXT,
+  reason           TEXT
+);
+
 -- ═══ REV-N3 — A HATÁSKÖR ÉS A BEJELENTÉS (R60 req-2 · R65 §7) ═══════════════════════════════
 --
 -- A REV-N3 KÉT dolgot mond ki egyszerre, és a saját gap-szövegünk szerint EGYÜTT kell megépülniük:
@@ -91,10 +111,31 @@ CREATE TABLE claim (
   state             TEXT NOT NULL CHECK (state IN ('received','under_review','resolved'))
 );
 
+-- A BEADVÁNY TARTALMA (R67/F03). Korábban CSAK a lenyomat maradt meg, tehát az elbírálónak nem
+-- volt MIT elolvasnia: egy sha256-ból a panasz szövege nem áll vissza. A tartalom ezért KÜLÖN
+-- táblán él — nem a "claim" soron —, mert a "claim" metaadatai és a beadvány SZÖVEGE két külön
+-- érzékenységű dolog: a metaadat az ügy nyilvántartása, a szöveg maga a panasz.
+--
+-- A LENYOMAT MEGMARAD, de már INTEGRITÁS-ellenőrzésként, nem tartalom-helyettesítőként: olvasáskor
+-- a tárolt szövegből újraszámoljuk, és eltérésnél a válasz NEM a szöveg, hanem nevezett hiba.
+-- A tartalom olvasása HATÁSKÖRHÖZ kötött ("adjudicate"), és NEM szélesíti a vitatott üzleti
+-- adathoz (árlista, könyv) való jogot — csak azt adja vissza, amit a panaszos maga beadott.
+CREATE TABLE claim_content (
+  claim_id  TEXT PRIMARY KEY REFERENCES claim(id),
+  content   TEXT NOT NULL
+);
+
 -- A VISSZAÉLÉS-KORLÁT MÉRHETŐ ALAPJA. Külön tábla, mert a korlát a BEADÓ viselkedéséről szól, nem
 -- a bejelentés tartalmáról — és mert olyan beadást is számol, ami nem hozott létre ügyet.
+--
+-- R67/F05: a korlát ELSŐDLEGES kulcsa NEM a beadó által szabadon írt hivatkozás lehet (azt négy
+-- különböző szöveggel négyszer meg lehet kerülni), hanem a SZERVER által képzett befogadási
+-- kontextus ("intake_key"). A "claimant_ref" marad MÁSODIK, szűkebb korlátnak — de már nem ez az
+-- alap. Amíg nincs adapter, ami valódi szerver-oldali kontextust ad, MINDEN beadás EGY nevezett,
+-- közös vödörbe esik ("chan:unattributed") — ez kimondott referencia-helyettesítő, nem védelem.
 CREATE TABLE claim_intake (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  intake_key    TEXT NOT NULL,
   claimant_ref  TEXT NOT NULL,
   submitted_at  TEXT NOT NULL
 );

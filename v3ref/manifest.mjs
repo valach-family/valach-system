@@ -106,10 +106,28 @@ export const EXPECTED_PROBES = Object.freeze([
       Object.freeze({ clause: 'REV-N3c', assertion: 'A-REV-N3c-claim-intake-open-and-inert' }),
     ]),
   }),
+  // R67/F01: a felfüggesztés KÖVETKEZMÉNYE külön állítás, külön próbával. Miért nem a
+  // P-REV-authority-ba tettük: az a próba a HATÁSKÖR műveletenkéntiségét méri, ez pedig a HATÁST —
+  // és épp az volt a lelet, hogy a kettőt egy zöld pipa alá vontuk (R55/F02 lecke).
+  Object.freeze({
+    id: 'P-REV-suspension', assertion: 'REVN3-suspension-has-effect',
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N3a', assertion: 'A-REV-N3a-suspension-has-effect' }),
+    ]),
+  }),
+  // R67/F02–F05: a bejelentés-út HÁROM külön tulajdonsága, HÁROM külön állításon. A régi alak
+  // egyetlen állítás alá vonta volna őket, és az összesített bukásból nem derülne ki, MELYIK
+  // tulajdonság veszett el (R55/F02 · KUKA-039).
   Object.freeze({
     id: 'P-REV-claim-read', assertion: 'REVN3-claim-grants-no-read',
     discharges: Object.freeze([
       Object.freeze({ clause: 'REV-N3b', assertion: 'A-REV-N3b-claim-grants-no-read' }),
+      // F03: az elbírálónak VAN MIT elolvasnia, és a sérült tartalom NEVEZETT hibát ad — az
+      // olvasás-kapunak csak akkor van tárgya, ha a beadvány egyáltalán megmaradt.
+      Object.freeze({ clause: 'REV-N3b', assertion: 'A-REV-N3b-claim-content-readable' }),
+      // F04+F05: a korlát a SZERVER képezte kulcson áll (a hívó nem tudja átírni), és a
+      // félbemaradt beadás nem hagy részleges állapotot.
+      Object.freeze({ clause: 'REV-N3c', assertion: 'A-REV-N3c-intake-limit-server-keyed' }),
     ]),
   }),
 ]);

@@ -1,0 +1,111 @@
+{
+  "program": "r67_chatgpt-v3.core.mjs",
+  "source_commit": "4903b756434d38df52bbb93349b5f317e0d6f7c3+uncommitted",
+  "node": "v22.22.2",
+  "at": "2026-09-13T10:29:18.348Z",
+  "verbatim": true,
+  "scope": "isolated reference functions and SQLite, no HTTP or production claim",
+  "results": [
+    {
+      "id": "C01-unauthorized-suspension-denied",
+      "result": "PASS"
+    },
+    {
+      "id": "C02-read-neutrality",
+      "result": "PASS"
+    },
+    {
+      "id": "C03-claim-does-not-grant-membership",
+      "result": "PASS"
+    },
+    {
+      "id": "F01-successful-suspension-removes-current-access",
+      "result": "PASS"
+    },
+    {
+      "id": "F02-adjudication-denial-neutrality",
+      "result": "PASS"
+    },
+    {
+      "id": "F03-authorized-reviewer-can-retrieve-submitted-content",
+      "result": "PASS"
+    },
+    {
+      "id": "F04-failed-intake-is-atomic",
+      "result": "PASS"
+    },
+    {
+      "id": "F05-caller-chosen-reference-is-not-a-rate-limit-identity",
+      "result": "PASS"
+    }
+  ],
+  "passed": 8,
+  "failed": 0,
+  "cases": [
+    {
+      "id": "C01-unauthorized-suspension-denied",
+      "pass": true,
+      "result": {
+        "id": "C01-unauthorized-suspension-denied",
+        "result": "PASS"
+      }
+    },
+    {
+      "id": "C02-read-neutrality",
+      "pass": true,
+      "result": {
+        "id": "C02-read-neutrality",
+        "result": "PASS"
+      }
+    },
+    {
+      "id": "C03-claim-does-not-grant-membership",
+      "pass": true,
+      "result": {
+        "id": "C03-claim-does-not-grant-membership",
+        "result": "PASS"
+      }
+    },
+    {
+      "id": "F01-successful-suspension-removes-current-access",
+      "pass": true,
+      "result": {
+        "id": "F01-successful-suspension-removes-current-access",
+        "result": "PASS"
+      }
+    },
+    {
+      "id": "F02-adjudication-denial-neutrality",
+      "pass": true,
+      "result": {
+        "id": "F02-adjudication-denial-neutrality",
+        "result": "PASS"
+      }
+    },
+    {
+      "id": "F03-authorized-reviewer-can-retrieve-submitted-content",
+      "pass": true,
+      "result": {
+        "id": "F03-authorized-reviewer-can-retrieve-submitted-content",
+        "result": "PASS"
+      }
+    },
+    {
+      "id": "F04-failed-intake-is-atomic",
+      "pass": true,
+      "result": {
+        "id": "F04-failed-intake-is-atomic",
+        "result": "PASS"
+      }
+    },
+    {
+      "id": "F05-caller-chosen-reference-is-not-a-rate-limit-identity",
+      "pass": true,
+      "result": {
+        "id": "F05-caller-chosen-reference-is-not-a-rate-limit-identity",
+        "result": "PASS"
+      }
+    }
+  ],
+  "cases_mapped_from": "results (a burkoló képezte, a program szövege érintetlen)"
+}

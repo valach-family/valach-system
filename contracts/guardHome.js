@@ -163,6 +163,7 @@ const GUARD_HOME = Object.freeze({
   'KUKA-118': Object.freeze({ home: 'vs', note: 'a board hitelesítése és a közvetlen státusz-út a V2 repóban van — a jel (MPF10/MPF15) OTT fut' }),
   'KUKA-116': Object.freeze({ home: 'vs', note: 'a megkerülő HTTP-út és a kör-eszköz is a V2 repóban van — a jel (MPF10) OTT fut' }),
   'KUKA-117': Object.freeze({ home: 'vs', note: 'a darabszám-kapu és az eset-készlet a boardon él — a jel (MPF12/MPF13) OTT fut' }),
+  'KUKA-120': Object.freeze({ home: 'v3', note: 'a felfüggesztés, az elbírálás és a jelzés-út a V3 MAGBAN él — a jel (verify:v3ref: P-REV-suspension + P-REV-claim-read, M56–M61) ITT fut' }),
 });
 
 function homeOf(id) { return (GUARD_HOME[id] || null); }
