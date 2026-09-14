@@ -55,7 +55,7 @@ const resultOf = (dir) => JSON.parse(readFileSync(join(dir, 'v3ref', 'v3ref-muta
 // U04 — POZITÍV ELLENPÁR ELŐSZÖR: az érintetlen darabolt futás TELJES és TISZTA, és MINDEN egység
 // belefér a külső korlátba. Ez a program alapja: ha ez nem áll, a többi eset semmit nem mond.
 add('U04', 'Untouched chunked run: every unit fits the external cap and the merge is complete and clean.', () => copy((dir) => {
-  const us = [1, 2, 3].map((k) => run(dir, [`--unit=${k}/3`]));
+  const us = [1, 2, 3, 4].map((k) => run(dir, [`--unit=${k}/4`]));
   const m = run(dir, ['--merge']);
   const result = resultOf(dir);
   return {
@@ -77,7 +77,7 @@ add('U01', 'Forged evidence is rejected in unit mode too (the R57/E03 and R59/E0
     'const mutationResults = results.map((r) => r.falsification).filter(Boolean);',
     "const mutationResults = results.map((r) => r.falsification).filter(Boolean)"
     + ".map(x => ({...x, base_digest: 'sha256:foreign-base', run_token: 'old-run', mutated_digest: 'sha256:foreign-mutated'}));");
-  const u1 = run(dir, ['--unit=1/3']);
+  const u1 = run(dir, ['--unit=1/4']);
   return { pass: u1.exit !== 0 && !u1.timed_out, unit_exit: u1.exit, timed_out: u1.timed_out,
     note: 'az egység a SAJÁT szülői főkönyvéhez méri a bizonyítékot (R57/F02 · R59/F01) — az idegen csomag ott sem megy át' };
 }));
@@ -86,7 +86,7 @@ add('U01', 'Forged evidence is rejected in unit mode too (the R57/E03 and R59/E0
 // szerepeljen. A hiány NEVEZETT, és `run_state: 'incomplete'` — nem „majdnem kész", és nem is a
 // kód hibája (KUKA-124/2: a hiánynak saját válasza jár).
 add('U02', 'The merge refuses to produce a complete summary when a unit is missing.', () => copy((dir) => {
-  run(dir, ['--unit=1/3']);
+  run(dir, ['--unit=1/4']);
   const m = run(dir, ['--merge']);
   const result = resultOf(dir);
   return {
@@ -100,8 +100,8 @@ add('U02', 'The merge refuses to produce a complete summary when a unit is missi
 // U03 — MÁS FORRÁSON KÉSZÜLT EGYSÉG. Két egység csak akkor fűzhető össze, ha UGYANARRA a forrásra
 // hivatkoznak, és az a MA mért lenyomat — különben egy tegnapi (vagy idegen) mérés olvadna be.
 add('U03', 'The merge refuses a unit that points at a different source digest.', () => copy((dir) => {
-  for (const k of [1, 2, 3]) run(dir, [`--unit=${k}/3`]);
-  const f = join(dir, 'v3ref', 'units', 'unit-2-of-3.json');
+  for (const k of [1, 2, 3, 4]) run(dir, [`--unit=${k}/4`]);
+  const f = join(dir, 'v3ref', 'units', 'unit-2-of-4.json');
   const u = JSON.parse(readFileSync(f, 'utf8'));
   const original = u.base_digest;
   u.base_digest = 'sha256:idegen-forras';

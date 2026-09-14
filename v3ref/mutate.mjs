@@ -73,7 +73,11 @@ import { MUTATIONS } from './mutations.mjs';
 // bizonyíték CSAK a nevezett próba nevezett ÁLLÍTÁSÁNAK bukása.
 
 import { MANIFEST_VERSION, EXPECTED_IDS, EXPECTED_PROBES, PROBE_STATUS, checkResultSet, assertionOf } from './manifest.mjs';
-import { checkNorms, NEXT_REQUIRED_EVIDENCE } from './norms.mjs';
+import { checkNorms, NEXT_REQUIRED_EVIDENCE, REQUIRED_EVIDENCE, indexDigest } from './norms.mjs';
+import { contractRef } from './normContract.mjs';
+// MRG-01 (R81/F01–F03) — az ÖSSZEFŰZÉS BEADVÁNY-KAPUJA. Külön modulban áll, hogy a pin HÍVHASSA
+// ugyanazt a döntést, amit a futtató használ (KUKA-009), ne a forrás szövegét olvassa.
+import { admitUnits, chainBacking, SUPPORTED_RUN_CONTRACTS } from './unitAdmission.mjs';
 
 // A `run.mjs` SZERZŐDÉSE: 0 = minden próba PASS · 1 = van nem-PASS. Minden más kód mérőhiba —
 // akkor is, ha közben értelmezhető JSON érkezett (H05).
@@ -224,19 +228,38 @@ function editsOf(m) {
 }
 
 /** @returns {{ok:true, src:string}|{ok:false, at:number, count:number}} */
+// A HORGONY LEGYEN EGYEDI, NE CSAK LÉTEZŐ (R81 — a SAJÁT söprésem lelete).
+//
+// A LELET. A régi alak `includes`-szal kérdezte meg, hogy a horgony MEGVAN-E, majd `replace`-szel
+// az ELSŐ előfordulást cserélte ki. Mérve: az R81-es kiadási javítás után az M93 horgonya
+// (`  return out.authorized ? out.value : refused;`) KÉT helyen állt a `command.mjs`-ben — a
+// parancsírásban és a kiadásban —, és a mutáció némán az elsőre esett. Itt VÉLETLENÜL az volt a
+// megnevezett hely, de ez szerencse, nem szerkezet: egy sorrend-csere vagy egy új, azonos alakú
+// sor átvinné a mérést egy MÁSIK kódrészletre, és a battéria ettől zöld maradna (KUKA-038: a
+// LÉTEZÉS nem bizonyíték arra, hogy AZT mérjük, amit megnevezünk — KUKA-128 a normalizálásról:
+// ami két különböző dolgot azonosnak lát, az nem azonosít, hanem összemos).
+//
+// A VERDIKT UGYANAZ, AZ OK NEVEZETT. Mindkét eset ugyanazt jelenti a battéria számára: ez a
+// mutáció NEM érvényes mérés, a regisztert javítani kell — ezért `STALE_ANCHOR` marad. A `why`
+// viszont KIMONDJA, melyik (hiányzó vagy TÖBBSZÖRÖS horgony), mert a javítás más: az egyiket
+// újra kell horgonyozni, a másikat SZŰKÍTENI (KUKA-124/2 · KUKA-064: a nemleges válasz mondja meg,
+// mi a teendő).
 function applyEdits(src, edits) {
   let out = src;
   for (let i = 0; i < edits.length; i++) {
-    if (!out.includes(edits[i].from)) return { ok: false, at: i + 1, count: edits.length };
+    const hits = out.split(edits[i].from).length - 1;
+    if (hits !== 1) return { ok: false, at: i + 1, count: edits.length, hits };
     out = out.replace(edits[i].from, edits[i].to);
   }
   return { ok: true, src: out };
 }
 
 function staleAnchorWhy(bad) {
-  return bad.count > 1
-    ? `a mutáció ${bad.at}./${bad.count} horgonya NEM TALÁLHATÓ a forrásban — a mutáció elavult`
-    : 'a mutáció horgonya NEM TALÁLHATÓ a forrásban — a mutáció elavult';
+  const which = bad.count > 1 ? `a mutáció ${bad.at}./${bad.count} horgonya` : 'a mutáció horgonya';
+  return bad.hits > 1
+    ? `${which} ${bad.hits} HELYEN illeszkedik a forrásban — nem eldönthető, MELYIKET mérnénk; `
+      + 'a horgonyt SZŰKÍTENI kell (több sort felvéve), nem újrahorgonyozni'
+    : `${which} NEM TALÁLHATÓ a forrásban — a mutáció elavult`;
 }
 
 function withCopy(fn) {
@@ -598,7 +621,7 @@ function runMutation(m, knownProbes) {
 // nem őr. A 20% tartalék a LASSABB gépé. KIMONDOTT KORLÁT: ez a MI gépünkön mért idő.
 const EXTERNAL_WALL_LIMIT_MS = 15000;
 const WALL_BUDGET_MS = Math.round(EXTERNAL_WALL_LIMIT_MS * 0.8);
-const UNIT_SIZE = 32;
+const UNIT_SIZE = 24;
 const UNIT_ARG = process.argv.find((a) => a.startsWith('--unit='));
 const MERGE_ONLY = process.argv.includes('--merge');
 const UNITS_DIR = join(REF, 'units');
@@ -628,16 +651,31 @@ if (MERGE_ONLY) {
     try { units.push({ file: f, ...JSON.parse(readFileSync(join(UNITS_DIR, f), 'utf8')) }); }
     catch (e) { problems.push(`olvashatatlan egység-fájl: ${f} — ${e.message}`); }
   }
-  // (1) LEFEDETTSÉG: minden mutáció PONTOSAN EGYSZER. A hiány és a duplikátum KÉT KÜLÖN válasz —
-  //     ugyanaz a szabály, amit az R59/F02-ben a KÜLSŐ futtatóra írtunk elő, most magunkra.
-  const seen = new Map();
-  for (const u of units) for (const id of (u.mutation_ids || [])) seen.set(id, (seen.get(id) || 0) + 1);
-  const missing = MUTATIONS.map((m) => m.id).filter((id) => !seen.has(id));
-  const duplicated = [...seen.entries()].filter(([, c]) => c > 1).map(([id, c]) => `${id}×${c}`);
-  const unknown = [...seen.keys()].filter((id) => !MUTATIONS.some((m) => m.id === id));
-  if (missing.length) problems.push(`HIÁNYZÓ mutáció (${missing.length}): ${missing.join(', ')}`);
-  if (duplicated.length) problems.push(`DUPLIKÁLT mutáció: ${duplicated.join(', ')}`);
-  if (unknown.length) problems.push(`ISMERETLEN mutáció az egységekben: ${unknown.join(', ')}`);
+  // ── A BEADVÁNY-KAPU (MRG-01, R81/F01–F03) ────────────────────────────────────────────────────
+  //
+  // MI VÁLTOZOTT ÉS MIÉRT. A régi alak az egység SAJÁT ÖSSZEFOGLALÓIT vette mérésnek: a
+  // lefedettséget a `mutation_ids`, a darabszámot a `counts`, a tisztaságot a `slice_clean`, a
+  // kötelező klauzula-készletet pedig az EGYIK BEADOTT EGYSÉG mondta meg — a RÉSZLETES eredményhez
+  // (`mutation_results`) egyik sem volt mérve, a `run_contract` mezőt senki nem olvasta el. A külső
+  // fél a saját, VALÓDI egységeink másolatain négy alakban mutatta meg, mi következik ebből: üres
+  // részletes eredmény · önellentmondó verdikt · kiürített kötelező készlet · idegen futási
+  // szerződés — MIND `exit 0` · `complete` · `clean: true` lett.
+  //
+  // Innentől a mérce a MAI, RÖGZÍTETT forrás (`REQUIRED_EVIDENCE` · `contractRef()` ·
+  // `indexDigest()`), az adat pedig a RÉSZLETES eredmény — a bejelentett összesítő ehhez MÉRVE
+  // lesz, és az ELLENTMONDÁS maga a nevezett akadály (KUKA-121 az összefűzésen).
+  const admission = admitUnits(units, {
+    today,
+    mutationIds: MUTATIONS.map((m) => m.id),
+    pinned: {
+      required: { version: REQUIRED_EVIDENCE.version, clauses: REQUIRED_EVIDENCE.clauses, expected_state: 'covered' },
+      contract: { version: contractRef().version, digest: contractRef().digest },
+      index_digest: indexDigest(),
+    },
+  });
+  problems.push(...admission.problems);
+  const { missing, duplicated, unknown } = admission.coverage;
+  const seen = admission.detailsById;
   // (2) AZONOS FORRÁS, ÉS AZ A MAI. Egy tegnapi egység nem fűzhető a maihoz — a futás-tanú
   //     leckéje a saját futtatónkon (KUKA-127: a hovatartozást elő kell ÁLLÍTANI, nem megfigyelni).
   const wrongDigest = units.filter((u) => u.base_digest !== today);
@@ -649,10 +687,11 @@ if (MERGE_ONLY) {
   if (gateBad.length) problems.push(`KAPU-hiba egységben: ${gateBad.map((u) => u.file).join(', ')}`);
   // (5) MINDEN EGYSÉG BIZONYÍTÉKA A SAJÁT SZÜLŐI FŐKÖNYVÉHEZ KÖTÖTT. Az egység ezt maga mérte
   //     (ott van a főkönyv); az összefűzés a KIMONDOTT eredményt kéri számon — a hiánya (régi,
-  //     még mező nélküli egység-fájl) NEM „rendben", hanem külön válasz (KUKA-124/2).
+  //     még mező nélküli egység-fájl) NEM „rendben", hanem külön válasz (KUKA-124/2). A beadott
+  //     `true` MAGA viszont nem bizonyíték: a kapu a részletes eredmények alap-lenyomatát a MA
+  //     mérthez hasonlítja, és az önmagának ellentmondó kötés-állítást is megfogja (MRG-01).
   const unbound = units.filter((u) => u.evidence_bound !== true);
   if (unbound.length) problems.push(`a bizonyíték NINCS a főkönyvhöz kötve: ${unbound.map((u) => `${u.file}${Array.isArray(u.evidence_unbound) && u.evidence_unbound.length ? ` (${u.evidence_unbound.join(', ')})` : ' (mező hiányzik)'}`).join(', ')}`);
-  if (!units.length) problems.push('NINCS egység-fájl — a `--merge` nem tud mit összefűzni');
 
   let complete = true;   // véglegesítve a lánc kiértékelése UTÁN (a `problems` még bővülhet)
   // A LÁNC UNIÓJA: egy klauzula-sor akkor FEDETT, ha BÁRMELYIK egység annak mérte. Az egységek a
@@ -664,36 +703,75 @@ if (MERGE_ONLY) {
     const prev = rows.get(key);
     if (!prev || (prev.result !== 'covered' && c.result === 'covered')) rows.set(key, c);
   }
-  const chain = [...rows.values()];
+  // A FEDETTSÉG VISSZAVEZETVE A RÉSZLETES EREDMÉNYRE (MRG-01 · R81/F01b). Egy sor nem attól fedett,
+  // hogy a beadvány így nevezi: a `falsified_by` mutációnak lennie kell a részletes eredmények
+  // között, `CAUGHT` verdikttel, ugyanazon a próbán, a sor állítás-azonosítóját buktatva. A külső
+  // fél épp ezt a kötést vágta el (minden verdikt `SURVIVED`, üres `failed_assertions` — a lánc
+  // mégis 36 FEDETT sort mondott).
+  const backing = chainBacking([...rows.values()], admission.detailsById);
+  for (const x of backing.problems) problems.push(`FEDEZETLEN lánc-sor: ${x}`);
+  const backedKeys = new Set(backing.backed.map((c) => `${c.clause_id}|${c.assertion_id}|${c.probe_id}`));
+  const chain = [...rows.values()].map((c) => (c.result === 'covered' && !backedKeys.has(`${c.clause_id}|${c.assertion_id}|${c.probe_id}`)
+    ? { ...c, result: 'not_falsified', why: 'a beadott FEDETT minősítés mögött nincs megfelelő részletes eredmény (MRG-01)' }
+    : c));
   const covered = chain.filter((c) => c.result === 'covered');
-  const allResults = units.flatMap((u) => u.mutation_results || []);
-  const sum = (k) => units.reduce((a, u) => a + (u.counts?.[k] || 0), 0);
+  const allResults = admission.details;
+  // AZ ÖSSZESÍTŐ A RÉSZLETESBŐL (MRG-01 · R81/F01a). A régi alak a beadott `counts` mezőket adta
+  // össze — azokat a beadó gépelte be. Az `stale` az egyetlen, ami fogalmilag nem hordoz részletes
+  // eredményt (az elavult horgony verdiktet ad, falszifikációt nem), ezért az marad bejelentett —
+  // és a kapu külön méri, hogy a hiányt PONTOSAN ez magyarázza-e.
+  const sum = (k) => (k === 'stale' ? units.reduce((a, u) => a + (u.counts?.stale || 0), 0) : (admission.counts[k] || 0));
   const worst = units.reduce((a, u) => Math.max(a, u.wall?.ms || 0), 0);
   const allPortable = units.every((u) => u.portable);
-  // A KÖTELEZŐ KÉSZLET AZ UNIÓBÓL (R57/F01). A klauzula-lista és az elvárt állapot az egységek
-  // AZONOS definíciójából jön (ugyanaz a forrás, ugyanaz a szerződés); a TELJESÜLÉST viszont az
-  // egyesített lánc dönti el — egy klauzulát falszifikálhat egy MÁSIK egység mutációja.
-  const reqDef = units.find((u) => u.norm_required)?.norm_required || null;
-  const reqDefsAgree = units.filter((u) => u.norm_required)
-    .every((u) => JSON.stringify(u.norm_required.clauses) === JSON.stringify(reqDef?.clauses));
-  if (reqDef && !reqDefsAgree) problems.push('az egységek KÜLÖNBÖZŐ kötelező készletet hordoznak — nem ugyanarról a szerződésről szólnak');
-  const mergedRequired = reqDef ? (() => {
-    const ok = (id) => chain.some((c) => c.clause_id === id && c.result === reqDef.expected_state);
-    const satisfied = reqDef.clauses.filter(ok);
-    const missingReq = reqDef.clauses.filter((id) => !ok(id))
-      .map((id) => ({ clause_id: id, result: chain.find((c) => c.clause_id === id)?.result ?? 'no_row' }));
-    return { version: reqDef.version, stage: reqDef.stage, expected_state: reqDef.expected_state,
-      clauses: reqDef.clauses, satisfied, missing: missingReq, ok: missingReq.length === 0 };
-  })() : null;
-  if (mergedRequired && !mergedRequired.ok) {
+  // A KÖTELEZŐ KÉSZLET A MAI, RÖGZÍTETT SZERZŐDÉSBŐL (R81/F02). A régi alak az EGYIK BEADOTT
+  // EGYSÉG `norm_required` mezőjét vette definíciónak — így aki kiürítette a listát, „teljesítette"
+  // a készletet. A mérce nem jöhet attól, akit mérünk (KUKA-054): a lista, a verzió és az elvárt
+  // állapot innentől a `REQUIRED_EVIDENCE`-ből jön, a beadott értéket a kapu ehhez méri. A
+  // TELJESÜLÉST továbbra is az egyesített lánc dönti el — egy klauzulát falszifikálhat egy MÁSIK
+  // egység mutációja.
+  //
+  // A KLAUZULA MÉRCÉJE: A LEGGYENGÉBB SOR DÖNT — UGYANÚGY, MINT A `checkNorms`-BAN (R81 — a SAJÁT
+  // söprésem lelete, a külső fél adaptált R59-es programja hozta elő). Az R79-es alakom
+  // `chain.some(... === 'covered')`-öt írt, tehát a LEGERŐSEBB sor döntött: ha egy klauzulának négy
+  // állítás-sora volt és EGY fedett, az egész klauzula „teljesült". A kánon az ellenkezője — a
+  // `checkNorms` kimondja: *„Egy klauzulának több sora is lehet; a leggyengébb dönt (ha bármelyik
+  // szem szakad, nincs kész)."* Mérve: a REV-N3a kilenc sorából nyolc fedett volt, egy
+  // (`A-REV-N3a-release-refusal-is-neutral-and-inert`) nem — a `checkNorms` HIÁNYT mondott, az
+  // összefűzésem TELJESÜLÉST. Ugyanarra a kérdésre két szabály (KUKA-003 · KUKA-018), és a
+  // permisszívebb épp a záró kapunál állt.
+  const mergedRequired = (() => {
+    const clauses = REQUIRED_EVIDENCE.clauses;
+    const rowsOf = (id) => chain.filter((c) => c.clause_id === id);
+    const weakest = (id) => {
+      const rs = rowsOf(id);
+      if (!rs.length) return 'no_row';
+      const rank = { covered: 3, falsification_pending: 2 };
+      return rs.reduce((w, c) => ((rank[c.result] || 0) < (rank[w] || 0) ? c.result : w), rs[0].result);
+    };
+    const satisfied = clauses.filter((id) => weakest(id) === 'covered');
+    const missingReq = clauses.filter((id) => weakest(id) !== 'covered')
+      .map((id) => ({ clause_id: id, result: weakest(id),
+        rows: rowsOf(id).filter((c) => c.result !== 'covered').map((c) => `${c.assertion_id} @ ${c.probe_id}: ${c.result}`) }));
+    return { version: REQUIRED_EVIDENCE.version, stage: 'measured', expected_state: 'covered',
+      source: 'a MAI rögzített szerződés (REQUIRED_EVIDENCE), nem a beadvány',
+      rule: 'klauzulánként a LEGGYENGÉBB állítás-sor dönt — azonos a `checkNorms` kánonjával',
+      clauses, satisfied, missing: missingReq, ok: missingReq.length === 0 };
+  })();
+  if (!mergedRequired.ok) {
     problems.push(`hiányzó kötelező bizonyíték (${mergedRequired.missing.map((m) => m.clause_id).join(', ')})`);
   }
-  const cleanAll = units.every((u) => u.slice_clean) && units.every((u) => u.norm_integrity_ok !== false)
-    && !!mergedRequired && mergedRequired.ok;
+  // A TISZTASÁG IS MÉRT ADAT: az egység `slice_clean` mezője ÁLLÍTÁS, a kapu pedig a részletes
+  // eredményből számolta vissza — ha a kettő ütközik, az már fent nevezett akadály lett.
+  const cleanAll = admission.units.every((u) => u.admitted && u.clean)
+    && units.every((u) => u.norm_integrity_ok !== false)
+    && mergedRequired.ok;
 
   complete = problems.filter((x) => !x.startsWith('hiányzó kötelező bizonyíték')).length === 0;
   console.log(`  egységek: ${units.length} (${units.map((u) => `${u.unit?.k}/${u.unit?.n}`).join(', ')})`);
-  console.log(`  lefedettség: ${seen.size}/${MUTATIONS.length} mutáció · hiány=${missing.length} · duplikátum=${duplicated.length}`);
+  console.log(`  beadvány-kapu (MRG-01): ${admission.ok ? 'BEFOGADVA' : `${admission.problems.length} akadály`}`
+    + ` · támogatott futási szerződés: ${SUPPORTED_RUN_CONTRACTS.join(' · ')}`);
+  console.log(`  lefedettség a RÉSZLETES eredményből: ${seen.size}/${MUTATIONS.length} mutáció · hiány=${missing.length} · duplikátum=${duplicated.length}`);
+  console.log(`  kötelező készlet FORRÁSA: ${mergedRequired.source} (${mergedRequired.version}, ${mergedRequired.clauses.length} klauzula)`);
   console.log(`  forrás-lenyomat (ma mérve): ${today}`);
   console.log(`  legrosszabb egység falióra: ${worst} ms · külső korlát: ${EXTERNAL_WALL_LIMIT_MS} ms · minden egység belefér: ${allPortable ? 'igen' : 'NEM'}`);
   console.log(`  ${sum('measured')} mutáció · ${sum('caught')} elkapva · ${sum('survived')} túlélte · ${sum('wrong')} rossz próba · ${sum('harness')} mérőhiba · ${sum('stale')} elavult horgony`);
@@ -725,8 +803,11 @@ if (MERGE_ONLY) {
       execution: 'merged_units',
       units: units.map((u) => ({ unit: u.unit, file: u.file, wall_ms: u.wall?.ms ?? null, portable: u.portable,
         run_state: u.run_state, slice_clean: u.slice_clean, mutation_ids: u.mutation_ids })),
-      coverage: { expected: MUTATIONS.length, seen: seen.size, missing, duplicated, unknown },
-      evidence_bound: units.length > 0 && units.every((u) => u.evidence_bound === true),
+      coverage: { expected: MUTATIONS.length, seen: seen.size, missing, duplicated, unknown,
+        measured_from: 'a RÉSZLETES eredmények (mutation_results), NEM a beadott mutation_ids lista (MRG-01)' },
+      admission: { contract: 'MRG-01', ok: admission.ok, supported_run_contracts: [...SUPPORTED_RUN_CONTRACTS],
+        problems: admission.problems, units: admission.units.map((u) => ({ file: u.file, admitted: u.admitted, clean: u.clean ?? null })) },
+      evidence_bound: admission.ok && units.length > 0 && units.every((u) => u.evidence_bound === true),
       portable: allPortable,
       portable_remedy: allPortable ? null : 'növeld az egységek számát (--unit=k/n)',
       wall_detail: { worst_unit_ms: worst, budget_ms: WALL_BUDGET_MS, external_cap_ms: EXTERNAL_WALL_LIMIT_MS, within_budget: allPortable },
@@ -952,6 +1033,26 @@ if (UNIT) {
   const unitFile = join(UNITS_DIR, `unit-${UNIT.k}-of-${UNIT.n}.json`);
   try {
     mkdirSync(UNITS_DIR, { recursive: true });
+    // MÁS FELOSZTÁSBÓL SZÁRMAZÓ EGYSÉG-FÁJL NEM EZ A FUTÁS (a SAJÁT söprésem lelete, R81).
+    //
+    // A fájlnév a felosztást hordozza (`unit-k-of-n.json`), tehát az `n` megváltoztatása után a RÉGI
+    // készlet OTT MARAD, és az összefűzés MINDKETTŐT beolvassa: mérve 192 „mutáció" 96 helyett, 96
+    // duplikátummal. Az összefűzés kapuja ezt helyesen elkapta — de a helyes válasz nem az, hogy a
+    // felhasználó takarítson: a MÁS `n`-ű fájl fogalmilag egy MÁSIK futás része, tehát ennek a
+    // futásnak a megkezdésekor megy (KUKA-127: a hovatartozást elő kell ÁLLÍTANI, nem megfigyelni;
+    // KUKA-064: a nemleges válasz ne legyen zsákutca — itt még jobb, ha a helyzet meg sem születik).
+    const foreign = (() => {
+      try {
+        return readdirSync(UNITS_DIR)
+          .filter((f) => /^unit-\d+-of-(\d+)\.json$/.test(f))
+          .filter((f) => Number(/^unit-\d+-of-(\d+)\.json$/.exec(f)[1]) !== UNIT.n);
+      } catch { return []; }
+    })();
+    for (const f of foreign) rmSync(join(UNITS_DIR, f), { force: true });
+    if (foreign.length) {
+      console.log(`  MÁS FELOSZTÁSÚ egység-fájl eltávolítva (${foreign.length}): ${foreign.join(', ')}`
+        + ` — ezek nem ehhez a(z) ${UNIT.n} részes futáshoz tartoznak`);
+    }
     writeFileSync(unitFile, `${JSON.stringify({
       run_contract: 'RUN-02',
       unit: { k: UNIT.k, n: UNIT.n },

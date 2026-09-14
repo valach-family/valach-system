@@ -1,0 +1,862 @@
+{
+  "program": "r81_chatgpt-v3.core.mjs + r81_merge_chatgpt-v3.core.mjs",
+  "source_commit": "eb4d83bc1265e5a535309f9b8717cd6576483bc0+uncommitted",
+  "node": "v22.22.2",
+  "at": "2026-09-14T16:23:41.773Z",
+  "verbatim": true,
+  "genuine_units": {
+    "requested": 4,
+    "problems": []
+  },
+  "core": {
+    "cases": [
+      {
+        "id": "P01-pure-lines",
+        "pass": true
+      },
+      {
+        "id": "P02-second-line-price",
+        "pass": true
+      },
+      {
+        "id": "P03-deep-unknown",
+        "pass": true
+      },
+      {
+        "id": "P04-nonfinite",
+        "pass": true
+      },
+      {
+        "id": "F04-release-time-before",
+        "pass": true
+      },
+      {
+        "id": "F04-release-time-after",
+        "pass": true
+      },
+      {
+        "id": "F04-release-time-cross",
+        "pass": true
+      }
+    ],
+    "passed": 7,
+    "failed": 0
+  },
+  "merge": {
+    "cases": [
+      {
+        "id": "P01-genuine",
+        "pass": true,
+        "exit": 0,
+        "run_state": "complete",
+        "clean": true,
+        "counts": {
+          "total": 96,
+          "measured": 96,
+          "caught": 96,
+          "survived": 0,
+          "wrong": 0,
+          "harness": 0,
+          "stale": 0
+        },
+        "result_count": 96,
+        "required": {
+          "version": "req-3",
+          "stage": "measured",
+          "expected_state": "covered",
+          "source": "a MAI rögzített szerződés (REQUIRED_EVIDENCE), nem a beadvány",
+          "rule": "klauzulánként a LEGGYENGÉBB állítás-sor dönt — azonos a `checkNorms` kánonjával",
+          "clauses": [
+            "REV-N1a",
+            "REV-N1b",
+            "ORG-N2a",
+            "REV-N3a",
+            "REV-N3b",
+            "REV-N3c",
+            "REV-N5a",
+            "REV-N5b",
+            "REV-N5c"
+          ],
+          "satisfied": [
+            "REV-N1a",
+            "REV-N1b",
+            "ORG-N2a",
+            "REV-N3a",
+            "REV-N3b",
+            "REV-N3c",
+            "REV-N5a",
+            "REV-N5b",
+            "REV-N5c"
+          ],
+          "missing": [],
+          "ok": true
+        },
+        "why": []
+      },
+      {
+        "id": "P02-missing-unit",
+        "pass": true,
+        "exit": 2,
+        "run_state": "incomplete",
+        "clean": null,
+        "counts": {
+          "total": 96,
+          "measured": 72,
+          "caught": 72,
+          "survived": 0,
+          "wrong": 0,
+          "harness": 0,
+          "stale": 0
+        },
+        "result_count": 72,
+        "why": [
+          "HIÁNYZÓ mutáció — nincs RÉSZLETES eredménye (24): M1, M5, M9, M13, M27, M20, M24, M26, M34, M38, M42, M48, M52, M56, M60, M64, M70, M69, M76, M80, M84, M88, M92, M96",
+          "hiányzó kötelező bizonyíték (REV-N3c, REV-N5a, REV-N5b, REV-N5c)"
+        ]
+      },
+      {
+        "id": "P03-foreign-digest",
+        "pass": true,
+        "exit": 2,
+        "run_state": "incomplete",
+        "clean": null,
+        "counts": {
+          "total": 96,
+          "measured": 96,
+          "caught": 96,
+          "survived": 0,
+          "wrong": 0,
+          "harness": 0,
+          "stale": 0
+        },
+        "result_count": 96,
+        "why": [
+          "MÁS FORRÁSRA hivatkozó egység (unit-1-of-4.json) — mai lenyomat: sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4"
+        ]
+      },
+      {
+        "id": "P04-duplicate-unit",
+        "pass": true,
+        "exit": 2,
+        "run_state": "incomplete",
+        "clean": null,
+        "counts": {
+          "total": 96,
+          "measured": 120,
+          "caught": 120,
+          "survived": 0,
+          "wrong": 0,
+          "harness": 0,
+          "stale": 0
+        },
+        "result_count": 120,
+        "why": [
+          "[unit-99-of-99.json] a fájlnév és a benne álló egység-jelölés KÜLÖNBÖZIK (1/4)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M1 és unit-99-of-99.json/M1 (rt_56dc67bd-9ea7-40e8-b168-866777e368cb)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M5 és unit-99-of-99.json/M5 (rt_a22d5410-b6e7-401b-8e2b-4412a9e180fd)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M9 és unit-99-of-99.json/M9 (rt_1b6bbb5c-f2a0-4f68-b235-120cebb963ee)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M13 és unit-99-of-99.json/M13 (rt_43e782e4-91ca-41b8-ba59-a2663ed231da)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M27 és unit-99-of-99.json/M27 (rt_864ad652-f045-4f6d-8286-86ad28284ac9)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M20 és unit-99-of-99.json/M20 (rt_f4530936-8ea1-4e55-be36-ab1040898424)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M24 és unit-99-of-99.json/M24 (rt_37a4811f-5bb4-4b6e-9411-6c81d42218b6)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M26 és unit-99-of-99.json/M26 (rt_9b7d6d21-4503-455b-9c6b-9245e688bdbd)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M34 és unit-99-of-99.json/M34 (rt_99236e0f-f78a-4ac8-8153-b2af0ac8ed89)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M38 és unit-99-of-99.json/M38 (rt_7a4d7d17-13f7-4c40-8df1-101fcaf4bd7c)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M42 és unit-99-of-99.json/M42 (rt_221065a5-b20d-4d0a-8f71-d489bf0d5861)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M48 és unit-99-of-99.json/M48 (rt_7c34ea83-f2db-4fbc-bbae-fdc7113942a1)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M52 és unit-99-of-99.json/M52 (rt_0f24c1a7-75fe-4a90-aafa-0b2d856cacb1)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M56 és unit-99-of-99.json/M56 (rt_3cb9b954-24bb-4575-be2d-9bbdd220aead)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M60 és unit-99-of-99.json/M60 (rt_3b649806-00fa-41b3-8da4-731e6d2b0ac6)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M64 és unit-99-of-99.json/M64 (rt_2dd79c64-e032-44c9-a3b8-9cf2f013c34d)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M70 és unit-99-of-99.json/M70 (rt_189dbe45-d703-414f-8afa-2be76f7bd5c2)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M69 és unit-99-of-99.json/M69 (rt_67092482-06a9-4aa9-8a08-4bc95eaef3db)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M76 és unit-99-of-99.json/M76 (rt_8ba106c8-665d-41a3-add3-239fc6ab7d2f)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M80 és unit-99-of-99.json/M80 (rt_bff93af1-397f-4495-a934-eda6072b15ad)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M84 és unit-99-of-99.json/M84 (rt_8506387d-ed44-414e-9216-1fbc09aa5f59)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M88 és unit-99-of-99.json/M88 (rt_2cefad4b-f490-4770-82a3-55a76a8a1d20)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M92 és unit-99-of-99.json/M92 (rt_d683d56a-e22b-4a86-bee2-680006320157)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M96 és unit-99-of-99.json/M96 (rt_57003630-d862-4206-8b52-884b8a3cf724)",
+          "DUPLIKÁLT mutáció-eredmény: M1, M5, M9, M13, M27, M20, M24, M26, M34, M38, M42, M48, M52, M56, M60, M64, M70, M69, M76, M80, M84, M88, M92, M96"
+        ]
+      },
+      {
+        "id": "F01-empty-results",
+        "pass": true,
+        "exit": 2,
+        "run_state": "incomplete",
+        "clean": null,
+        "counts": {
+          "total": 96,
+          "measured": 0,
+          "caught": 0,
+          "survived": 0,
+          "wrong": 0,
+          "harness": 0,
+          "stale": 0
+        },
+        "result_count": 0,
+        "why": [
+          "[unit-1-of-4.json] BEJELENTETT, de nem mért mutáció (24): M1, M5, M9, M13, M27, M20, M24, M26 … — a beadott elavult-horgony szám 0, tehát a hiányt nem magyarázza",
+          "[unit-1-of-4.json] ELLENTMONDÁS a bejelentett és a részletesből mért számok között — measured: bejelentve 24, a részletesből 0 · caught: bejelentve 24, mérve 0",
+          "[unit-1-of-4.json] ELLENTMONDÁS: az egység VÉGIGFUTOTTNAK mondja magát, de 24 bejelentett mutációról nincs eredménye",
+          "[unit-2-of-4.json] BEJELENTETT, de nem mért mutáció (24): M2, M6, M10, M14, M17, M21, M25, M31 … — a beadott elavult-horgony szám 0, tehát a hiányt nem magyarázza",
+          "[unit-2-of-4.json] ELLENTMONDÁS a bejelentett és a részletesből mért számok között — measured: bejelentve 24, a részletesből 0 · caught: bejelentve 24, mérve 0",
+          "[unit-2-of-4.json] ELLENTMONDÁS: az egység VÉGIGFUTOTTNAK mondja magát, de 24 bejelentett mutációról nincs eredménye",
+          "[unit-3-of-4.json] BEJELENTETT, de nem mért mutáció (24): M3, M7, M11, M15, M18, M22, M28, M32 … — a beadott elavult-horgony szám 0, tehát a hiányt nem magyarázza",
+          "[unit-3-of-4.json] ELLENTMONDÁS a bejelentett és a részletesből mért számok között — measured: bejelentve 24, a részletesből 0 · caught: bejelentve 24, mérve 0",
+          "[unit-3-of-4.json] ELLENTMONDÁS: az egység VÉGIGFUTOTTNAK mondja magát, de 24 bejelentett mutációról nincs eredménye",
+          "[unit-4-of-4.json] BEJELENTETT, de nem mért mutáció (24): M4, M8, M12, M16, M19, M23, M29, M33 … — a beadott elavult-horgony szám 0, tehát a hiányt nem magyarázza",
+          "[unit-4-of-4.json] ELLENTMONDÁS a bejelentett és a részletesből mért számok között — measured: bejelentve 24, a részletesből 0 · caught: bejelentve 24, mérve 0",
+          "[unit-4-of-4.json] ELLENTMONDÁS: az egység VÉGIGFUTOTTNAK mondja magát, de 24 bejelentett mutációról nincs eredménye",
+          "HIÁNYZÓ mutáció — nincs RÉSZLETES eredménye (96): M1, M2, M3, M4, M5, M6, M7, M8, M9, M10, M11, M12, M13, M14, M15, M16, M27, M17, M18, M19, M20, M21, M22, M23, M24, M25, M28, M29, M26, M31, M32, M33, M34, M35, M36, M37, M38, M39, M40, M41, M42, M43, M44, M47, M48, M49, M50, M51, M52, M53, M54, M55, M56, M57, M58, M59, M60, M61, M62, M63, M64, M65, M66, M67, M70, M71, M72, M68, M69, M73, M74, M75, M76, M77, M78, M79, M80, M81, M82, M83, M84, M85, M86, M87, M88, M89, M90, M91, M92, M93, M94, M95, M96, M97, M98, M99",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N1a → A-REV-N1a-dependent-new-op-and-release-blocked sort a(z) M32 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N1b → A-REV-N1b-earlier-record-and-decision-survive sort a(z) M48 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-authority-is-per-operation sort a(z) M50 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-suspension-has-effect sort a(z) M56 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-decision-needs-intact-evidence sort a(z) M64 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-effect-time-is-the-decision-time sort a(z) M80 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-denied-write-has-no-side-effect sort a(z) M80 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-command-effect-time-is-the-decision-time sort a(z) M92 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-command-refusal-is-neutral-and-inert sort a(z) M93 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-release-time-is-the-decision-time sort a(z) M96 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-release-refusal-is-neutral-and-inert sort a(z) M99 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3b → A-REV-N3b-claim-grants-no-read sort a(z) M53 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3b → A-REV-N3b-claim-content-readable sort a(z) M59 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-claim-intake-open-and-inert sort a(z) M52 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-intake-limit-server-keyed sort a(z) M60 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-secondary-ref-cannot-take-others-quota sort a(z) M63 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-ban-reaches-every-permitting-path sort a(z) M74 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-ban-needs-authority sort a(z) M88 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-issuing-path-is-a-permitting-path sort a(z) M70 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-no-weaker-writer sort a(z) M70 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-credentials-reach-adjudication sort a(z) M77 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-every-path-measured-for-every-kind sort a(z) M78 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-every-writer-entry-point-carries-context sort a(z) M94 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-neutral-entry-point-answers-are-indistinguishable sort a(z) M95 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-ban-scope-comes-from-cause sort a(z) M65 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-ban-kind-is-named-and-closed sort a(z) M65 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-request-axis-not-overridable sort a(z) M71 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-contradicting-record-is-not-a-measurement sort a(z) M72 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-unknown-stored-cause-is-not-swallowed sort a(z) M76 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-scope-matrix-matches-the-norm sort a(z) M79 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-malformed-stored-scope-is-fail-closed sort a(z) M84 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-result-scope-comes-from-declaration sort a(z) M85 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-undeclared-result-scope-is-fail-closed sort a(z) M85 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-nested-result-scope-is-measured sort a(z) M89 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-result-shape-is-declared-and-typed sort a(z) M89 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5c → A-REV-N5c-ban-does-not-rewrite-the-past sort a(z) M69 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5c → A-REV-N5c-ban-does-not-remove-others-rights sort a(z) M69 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT ORG-N2a → A-ORG-N2a-issuer-basis-withdrawn-is-fail-closed sort a(z) M24 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "hiányzó kötelező bizonyíték (REV-N1a, REV-N1b, ORG-N2a, REV-N3a, REV-N3b, REV-N3c, REV-N5a, REV-N5b, REV-N5c)"
+        ]
+      },
+      {
+        "id": "F01-contradictory-verdict",
+        "pass": true,
+        "exit": 2,
+        "run_state": "incomplete",
+        "clean": null,
+        "counts": {
+          "total": 96,
+          "measured": 96,
+          "caught": 0,
+          "survived": 96,
+          "wrong": 0,
+          "harness": 0,
+          "stale": 0
+        },
+        "result_count": 96,
+        "why": [
+          "[unit-1-of-4.json] ELLENTMONDÁS a bejelentett és a részletesből mért számok között — caught: bejelentve 24, mérve 0 · survived: bejelentve 0, mérve 24",
+          "[unit-1-of-4.json] ELLENTMONDÁS: az egység TISZTÁNAK mondja magát, de a részletes eredményben 24 túlélő · 0 rossz próba · 0 mérőhiba · 0 elavult horgony áll",
+          "[unit-2-of-4.json] ELLENTMONDÁS a bejelentett és a részletesből mért számok között — caught: bejelentve 24, mérve 0 · survived: bejelentve 0, mérve 24",
+          "[unit-2-of-4.json] ELLENTMONDÁS: az egység TISZTÁNAK mondja magát, de a részletes eredményben 24 túlélő · 0 rossz próba · 0 mérőhiba · 0 elavult horgony áll",
+          "[unit-3-of-4.json] ELLENTMONDÁS a bejelentett és a részletesből mért számok között — caught: bejelentve 24, mérve 0 · survived: bejelentve 0, mérve 24",
+          "[unit-3-of-4.json] ELLENTMONDÁS: az egység TISZTÁNAK mondja magát, de a részletes eredményben 24 túlélő · 0 rossz próba · 0 mérőhiba · 0 elavult horgony áll",
+          "[unit-4-of-4.json] ELLENTMONDÁS a bejelentett és a részletesből mért számok között — caught: bejelentve 24, mérve 0 · survived: bejelentve 0, mérve 24",
+          "[unit-4-of-4.json] ELLENTMONDÁS: az egység TISZTÁNAK mondja magát, de a részletes eredményben 24 túlélő · 0 rossz próba · 0 mérőhiba · 0 elavult horgony áll",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N1a → A-REV-N1a-dependent-new-op-and-release-blocked sor mögött a(z) M32 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N1b → A-REV-N1b-earlier-record-and-decision-survive sor mögött a(z) M48 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-authority-is-per-operation sor mögött a(z) M50 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-suspension-has-effect sor mögött a(z) M56 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-decision-needs-intact-evidence sor mögött a(z) M64 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-effect-time-is-the-decision-time sor mögött a(z) M80 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-denied-write-has-no-side-effect sor mögött a(z) M80 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-command-effect-time-is-the-decision-time sor mögött a(z) M92 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-command-refusal-is-neutral-and-inert sor mögött a(z) M93 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-release-time-is-the-decision-time sor mögött a(z) M96 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-release-refusal-is-neutral-and-inert sor mögött a(z) M99 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3b → A-REV-N3b-claim-grants-no-read sor mögött a(z) M53 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3b → A-REV-N3b-claim-content-readable sor mögött a(z) M59 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-claim-intake-open-and-inert sor mögött a(z) M52 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-intake-limit-server-keyed sor mögött a(z) M60 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-secondary-ref-cannot-take-others-quota sor mögött a(z) M63 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-ban-reaches-every-permitting-path sor mögött a(z) M74 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-ban-needs-authority sor mögött a(z) M88 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-issuing-path-is-a-permitting-path sor mögött a(z) M70 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-no-weaker-writer sor mögött a(z) M70 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-credentials-reach-adjudication sor mögött a(z) M77 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-every-path-measured-for-every-kind sor mögött a(z) M78 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-every-writer-entry-point-carries-context sor mögött a(z) M94 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-neutral-entry-point-answers-are-indistinguishable sor mögött a(z) M95 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-ban-scope-comes-from-cause sor mögött a(z) M65 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-ban-kind-is-named-and-closed sor mögött a(z) M65 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-request-axis-not-overridable sor mögött a(z) M71 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-contradicting-record-is-not-a-measurement sor mögött a(z) M72 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-unknown-stored-cause-is-not-swallowed sor mögött a(z) M76 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-scope-matrix-matches-the-norm sor mögött a(z) M79 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-malformed-stored-scope-is-fail-closed sor mögött a(z) M84 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-result-scope-comes-from-declaration sor mögött a(z) M85 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-undeclared-result-scope-is-fail-closed sor mögött a(z) M85 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-nested-result-scope-is-measured sor mögött a(z) M89 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-result-shape-is-declared-and-typed sor mögött a(z) M89 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5c → A-REV-N5c-ban-does-not-rewrite-the-past sor mögött a(z) M69 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5c → A-REV-N5c-ban-does-not-remove-others-rights sor mögött a(z) M69 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT ORG-N2a → A-ORG-N2a-issuer-basis-withdrawn-is-fail-closed sor mögött a(z) M24 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "hiányzó kötelező bizonyíték (REV-N1a, REV-N1b, ORG-N2a, REV-N3a, REV-N3b, REV-N3c, REV-N5a, REV-N5b, REV-N5c)"
+        ]
+      },
+      {
+        "id": "F02-empty-required",
+        "pass": true,
+        "exit": 2,
+        "run_state": "incomplete",
+        "clean": null,
+        "counts": {
+          "total": 96,
+          "measured": 96,
+          "caught": 96,
+          "survived": 0,
+          "wrong": 0,
+          "harness": 0,
+          "stale": 0
+        },
+        "result_count": 96,
+        "why": [
+          "[unit-1-of-4.json] a beadott KÖTELEZŐ KÉSZLET eltér a mai szerződéstől — beadva: [(üres)] · a mai (req-3): [REV-N1a, REV-N1b, ORG-N2a, REV-N3a, REV-N3b, REV-N3c, REV-N5a, REV-N5b, REV-N5c]",
+          "[unit-2-of-4.json] a beadott KÖTELEZŐ KÉSZLET eltér a mai szerződéstől — beadva: [(üres)] · a mai (req-3): [REV-N1a, REV-N1b, ORG-N2a, REV-N3a, REV-N3b, REV-N3c, REV-N5a, REV-N5b, REV-N5c]",
+          "[unit-3-of-4.json] a beadott KÖTELEZŐ KÉSZLET eltér a mai szerződéstől — beadva: [(üres)] · a mai (req-3): [REV-N1a, REV-N1b, ORG-N2a, REV-N3a, REV-N3b, REV-N3c, REV-N5a, REV-N5b, REV-N5c]",
+          "[unit-4-of-4.json] a beadott KÖTELEZŐ KÉSZLET eltér a mai szerződéstől — beadva: [(üres)] · a mai (req-3): [REV-N1a, REV-N1b, ORG-N2a, REV-N3a, REV-N3b, REV-N3c, REV-N5a, REV-N5b, REV-N5c]",
+          "hiányzó kötelező bizonyíték (REV-N1a, REV-N1b, ORG-N2a, REV-N3a, REV-N3b, REV-N3c, REV-N5a, REV-N5b, REV-N5c)"
+        ]
+      },
+      {
+        "id": "F03-wrong-contract",
+        "pass": true,
+        "exit": 2,
+        "run_state": "incomplete",
+        "clean": null,
+        "counts": {
+          "total": 96,
+          "measured": 0,
+          "caught": 0,
+          "survived": 0,
+          "wrong": 0,
+          "harness": 0,
+          "stale": 0
+        },
+        "result_count": 0,
+        "why": [
+          "[unit-1-of-4.json] ISMERETLEN futási szerződés: `RUN-FOREIGN` — támogatott: RUN-02",
+          "[unit-2-of-4.json] ISMERETLEN futási szerződés: `RUN-FOREIGN` — támogatott: RUN-02",
+          "[unit-3-of-4.json] ISMERETLEN futási szerződés: `RUN-FOREIGN` — támogatott: RUN-02",
+          "[unit-4-of-4.json] ISMERETLEN futási szerződés: `RUN-FOREIGN` — támogatott: RUN-02",
+          "HIÁNYZÓ mutáció — nincs RÉSZLETES eredménye (96): M1, M2, M3, M4, M5, M6, M7, M8, M9, M10, M11, M12, M13, M14, M15, M16, M27, M17, M18, M19, M20, M21, M22, M23, M24, M25, M28, M29, M26, M31, M32, M33, M34, M35, M36, M37, M38, M39, M40, M41, M42, M43, M44, M47, M48, M49, M50, M51, M52, M53, M54, M55, M56, M57, M58, M59, M60, M61, M62, M63, M64, M65, M66, M67, M70, M71, M72, M68, M69, M73, M74, M75, M76, M77, M78, M79, M80, M81, M82, M83, M84, M85, M86, M87, M88, M89, M90, M91, M92, M93, M94, M95, M96, M97, M98, M99",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N1a → A-REV-N1a-dependent-new-op-and-release-blocked sort a(z) M32 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N1b → A-REV-N1b-earlier-record-and-decision-survive sort a(z) M48 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-authority-is-per-operation sort a(z) M50 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-suspension-has-effect sort a(z) M56 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-decision-needs-intact-evidence sort a(z) M64 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-effect-time-is-the-decision-time sort a(z) M80 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-denied-write-has-no-side-effect sort a(z) M80 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-command-effect-time-is-the-decision-time sort a(z) M92 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-command-refusal-is-neutral-and-inert sort a(z) M93 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-release-time-is-the-decision-time sort a(z) M96 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-release-refusal-is-neutral-and-inert sort a(z) M99 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3b → A-REV-N3b-claim-grants-no-read sort a(z) M53 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3b → A-REV-N3b-claim-content-readable sort a(z) M59 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-claim-intake-open-and-inert sort a(z) M52 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-intake-limit-server-keyed sort a(z) M60 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-secondary-ref-cannot-take-others-quota sort a(z) M63 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-ban-reaches-every-permitting-path sort a(z) M74 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-ban-needs-authority sort a(z) M88 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-issuing-path-is-a-permitting-path sort a(z) M70 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-no-weaker-writer sort a(z) M70 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-credentials-reach-adjudication sort a(z) M77 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-every-path-measured-for-every-kind sort a(z) M78 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-every-writer-entry-point-carries-context sort a(z) M94 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-neutral-entry-point-answers-are-indistinguishable sort a(z) M95 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-ban-scope-comes-from-cause sort a(z) M65 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-ban-kind-is-named-and-closed sort a(z) M65 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-request-axis-not-overridable sort a(z) M71 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-contradicting-record-is-not-a-measurement sort a(z) M72 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-unknown-stored-cause-is-not-swallowed sort a(z) M76 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-scope-matrix-matches-the-norm sort a(z) M79 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-malformed-stored-scope-is-fail-closed sort a(z) M84 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-result-scope-comes-from-declaration sort a(z) M85 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-undeclared-result-scope-is-fail-closed sort a(z) M85 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-nested-result-scope-is-measured sort a(z) M89 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-result-shape-is-declared-and-typed sort a(z) M89 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5c → A-REV-N5c-ban-does-not-rewrite-the-past sort a(z) M69 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5c → A-REV-N5c-ban-does-not-remove-others-rights sort a(z) M69 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT ORG-N2a → A-ORG-N2a-issuer-basis-withdrawn-is-fail-closed sort a(z) M24 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "hiányzó kötelező bizonyíték (REV-N1a, REV-N1b, ORG-N2a, REV-N3a, REV-N3b, REV-N3c, REV-N5a, REV-N5b, REV-N5c)"
+        ]
+      }
+    ],
+    "passed": 8,
+    "failed": 0
+  },
+  "cases": [
+    {
+      "id": "core/P01-pure-lines",
+      "pass": true,
+      "result": {
+        "id": "P01-pure-lines",
+        "pass": true
+      }
+    },
+    {
+      "id": "core/P02-second-line-price",
+      "pass": true,
+      "result": {
+        "id": "P02-second-line-price",
+        "pass": true
+      }
+    },
+    {
+      "id": "core/P03-deep-unknown",
+      "pass": true,
+      "result": {
+        "id": "P03-deep-unknown",
+        "pass": true
+      }
+    },
+    {
+      "id": "core/P04-nonfinite",
+      "pass": true,
+      "result": {
+        "id": "P04-nonfinite",
+        "pass": true
+      }
+    },
+    {
+      "id": "core/F04-release-time-before",
+      "pass": true,
+      "result": {
+        "id": "F04-release-time-before",
+        "pass": true
+      }
+    },
+    {
+      "id": "core/F04-release-time-after",
+      "pass": true,
+      "result": {
+        "id": "F04-release-time-after",
+        "pass": true
+      }
+    },
+    {
+      "id": "core/F04-release-time-cross",
+      "pass": true,
+      "result": {
+        "id": "F04-release-time-cross",
+        "pass": true
+      }
+    },
+    {
+      "id": "merge/P01-genuine",
+      "pass": true,
+      "result": {
+        "id": "P01-genuine",
+        "pass": true,
+        "exit": 0,
+        "run_state": "complete",
+        "clean": true,
+        "counts": {
+          "total": 96,
+          "measured": 96,
+          "caught": 96,
+          "survived": 0,
+          "wrong": 0,
+          "harness": 0,
+          "stale": 0
+        },
+        "result_count": 96,
+        "required": {
+          "version": "req-3",
+          "stage": "measured",
+          "expected_state": "covered",
+          "source": "a MAI rögzített szerződés (REQUIRED_EVIDENCE), nem a beadvány",
+          "rule": "klauzulánként a LEGGYENGÉBB állítás-sor dönt — azonos a `checkNorms` kánonjával",
+          "clauses": [
+            "REV-N1a",
+            "REV-N1b",
+            "ORG-N2a",
+            "REV-N3a",
+            "REV-N3b",
+            "REV-N3c",
+            "REV-N5a",
+            "REV-N5b",
+            "REV-N5c"
+          ],
+          "satisfied": [
+            "REV-N1a",
+            "REV-N1b",
+            "ORG-N2a",
+            "REV-N3a",
+            "REV-N3b",
+            "REV-N3c",
+            "REV-N5a",
+            "REV-N5b",
+            "REV-N5c"
+          ],
+          "missing": [],
+          "ok": true
+        },
+        "why": []
+      }
+    },
+    {
+      "id": "merge/P02-missing-unit",
+      "pass": true,
+      "result": {
+        "id": "P02-missing-unit",
+        "pass": true,
+        "exit": 2,
+        "run_state": "incomplete",
+        "clean": null,
+        "counts": {
+          "total": 96,
+          "measured": 72,
+          "caught": 72,
+          "survived": 0,
+          "wrong": 0,
+          "harness": 0,
+          "stale": 0
+        },
+        "result_count": 72,
+        "why": [
+          "HIÁNYZÓ mutáció — nincs RÉSZLETES eredménye (24): M1, M5, M9, M13, M27, M20, M24, M26, M34, M38, M42, M48, M52, M56, M60, M64, M70, M69, M76, M80, M84, M88, M92, M96",
+          "hiányzó kötelező bizonyíték (REV-N3c, REV-N5a, REV-N5b, REV-N5c)"
+        ]
+      }
+    },
+    {
+      "id": "merge/P03-foreign-digest",
+      "pass": true,
+      "result": {
+        "id": "P03-foreign-digest",
+        "pass": true,
+        "exit": 2,
+        "run_state": "incomplete",
+        "clean": null,
+        "counts": {
+          "total": 96,
+          "measured": 96,
+          "caught": 96,
+          "survived": 0,
+          "wrong": 0,
+          "harness": 0,
+          "stale": 0
+        },
+        "result_count": 96,
+        "why": [
+          "MÁS FORRÁSRA hivatkozó egység (unit-1-of-4.json) — mai lenyomat: sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4"
+        ]
+      }
+    },
+    {
+      "id": "merge/P04-duplicate-unit",
+      "pass": true,
+      "result": {
+        "id": "P04-duplicate-unit",
+        "pass": true,
+        "exit": 2,
+        "run_state": "incomplete",
+        "clean": null,
+        "counts": {
+          "total": 96,
+          "measured": 120,
+          "caught": 120,
+          "survived": 0,
+          "wrong": 0,
+          "harness": 0,
+          "stale": 0
+        },
+        "result_count": 120,
+        "why": [
+          "[unit-99-of-99.json] a fájlnév és a benne álló egység-jelölés KÜLÖNBÖZIK (1/4)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M1 és unit-99-of-99.json/M1 (rt_56dc67bd-9ea7-40e8-b168-866777e368cb)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M5 és unit-99-of-99.json/M5 (rt_a22d5410-b6e7-401b-8e2b-4412a9e180fd)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M9 és unit-99-of-99.json/M9 (rt_1b6bbb5c-f2a0-4f68-b235-120cebb963ee)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M13 és unit-99-of-99.json/M13 (rt_43e782e4-91ca-41b8-ba59-a2663ed231da)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M27 és unit-99-of-99.json/M27 (rt_864ad652-f045-4f6d-8286-86ad28284ac9)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M20 és unit-99-of-99.json/M20 (rt_f4530936-8ea1-4e55-be36-ab1040898424)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M24 és unit-99-of-99.json/M24 (rt_37a4811f-5bb4-4b6e-9411-6c81d42218b6)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M26 és unit-99-of-99.json/M26 (rt_9b7d6d21-4503-455b-9c6b-9245e688bdbd)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M34 és unit-99-of-99.json/M34 (rt_99236e0f-f78a-4ac8-8153-b2af0ac8ed89)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M38 és unit-99-of-99.json/M38 (rt_7a4d7d17-13f7-4c40-8df1-101fcaf4bd7c)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M42 és unit-99-of-99.json/M42 (rt_221065a5-b20d-4d0a-8f71-d489bf0d5861)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M48 és unit-99-of-99.json/M48 (rt_7c34ea83-f2db-4fbc-bbae-fdc7113942a1)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M52 és unit-99-of-99.json/M52 (rt_0f24c1a7-75fe-4a90-aafa-0b2d856cacb1)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M56 és unit-99-of-99.json/M56 (rt_3cb9b954-24bb-4575-be2d-9bbdd220aead)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M60 és unit-99-of-99.json/M60 (rt_3b649806-00fa-41b3-8da4-731e6d2b0ac6)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M64 és unit-99-of-99.json/M64 (rt_2dd79c64-e032-44c9-a3b8-9cf2f013c34d)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M70 és unit-99-of-99.json/M70 (rt_189dbe45-d703-414f-8afa-2be76f7bd5c2)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M69 és unit-99-of-99.json/M69 (rt_67092482-06a9-4aa9-8a08-4bc95eaef3db)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M76 és unit-99-of-99.json/M76 (rt_8ba106c8-665d-41a3-add3-239fc6ab7d2f)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M80 és unit-99-of-99.json/M80 (rt_bff93af1-397f-4495-a934-eda6072b15ad)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M84 és unit-99-of-99.json/M84 (rt_8506387d-ed44-414e-9216-1fbc09aa5f59)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M88 és unit-99-of-99.json/M88 (rt_2cefad4b-f490-4770-82a3-55a76a8a1d20)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M92 és unit-99-of-99.json/M92 (rt_d683d56a-e22b-4a86-bee2-680006320157)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-4.json/M96 és unit-99-of-99.json/M96 (rt_57003630-d862-4206-8b52-884b8a3cf724)",
+          "DUPLIKÁLT mutáció-eredmény: M1, M5, M9, M13, M27, M20, M24, M26, M34, M38, M42, M48, M52, M56, M60, M64, M70, M69, M76, M80, M84, M88, M92, M96"
+        ]
+      }
+    },
+    {
+      "id": "merge/F01-empty-results",
+      "pass": true,
+      "result": {
+        "id": "F01-empty-results",
+        "pass": true,
+        "exit": 2,
+        "run_state": "incomplete",
+        "clean": null,
+        "counts": {
+          "total": 96,
+          "measured": 0,
+          "caught": 0,
+          "survived": 0,
+          "wrong": 0,
+          "harness": 0,
+          "stale": 0
+        },
+        "result_count": 0,
+        "why": [
+          "[unit-1-of-4.json] BEJELENTETT, de nem mért mutáció (24): M1, M5, M9, M13, M27, M20, M24, M26 … — a beadott elavult-horgony szám 0, tehát a hiányt nem magyarázza",
+          "[unit-1-of-4.json] ELLENTMONDÁS a bejelentett és a részletesből mért számok között — measured: bejelentve 24, a részletesből 0 · caught: bejelentve 24, mérve 0",
+          "[unit-1-of-4.json] ELLENTMONDÁS: az egység VÉGIGFUTOTTNAK mondja magát, de 24 bejelentett mutációról nincs eredménye",
+          "[unit-2-of-4.json] BEJELENTETT, de nem mért mutáció (24): M2, M6, M10, M14, M17, M21, M25, M31 … — a beadott elavult-horgony szám 0, tehát a hiányt nem magyarázza",
+          "[unit-2-of-4.json] ELLENTMONDÁS a bejelentett és a részletesből mért számok között — measured: bejelentve 24, a részletesből 0 · caught: bejelentve 24, mérve 0",
+          "[unit-2-of-4.json] ELLENTMONDÁS: az egység VÉGIGFUTOTTNAK mondja magát, de 24 bejelentett mutációról nincs eredménye",
+          "[unit-3-of-4.json] BEJELENTETT, de nem mért mutáció (24): M3, M7, M11, M15, M18, M22, M28, M32 … — a beadott elavult-horgony szám 0, tehát a hiányt nem magyarázza",
+          "[unit-3-of-4.json] ELLENTMONDÁS a bejelentett és a részletesből mért számok között — measured: bejelentve 24, a részletesből 0 · caught: bejelentve 24, mérve 0",
+          "[unit-3-of-4.json] ELLENTMONDÁS: az egység VÉGIGFUTOTTNAK mondja magát, de 24 bejelentett mutációról nincs eredménye",
+          "[unit-4-of-4.json] BEJELENTETT, de nem mért mutáció (24): M4, M8, M12, M16, M19, M23, M29, M33 … — a beadott elavult-horgony szám 0, tehát a hiányt nem magyarázza",
+          "[unit-4-of-4.json] ELLENTMONDÁS a bejelentett és a részletesből mért számok között — measured: bejelentve 24, a részletesből 0 · caught: bejelentve 24, mérve 0",
+          "[unit-4-of-4.json] ELLENTMONDÁS: az egység VÉGIGFUTOTTNAK mondja magát, de 24 bejelentett mutációról nincs eredménye",
+          "HIÁNYZÓ mutáció — nincs RÉSZLETES eredménye (96): M1, M2, M3, M4, M5, M6, M7, M8, M9, M10, M11, M12, M13, M14, M15, M16, M27, M17, M18, M19, M20, M21, M22, M23, M24, M25, M28, M29, M26, M31, M32, M33, M34, M35, M36, M37, M38, M39, M40, M41, M42, M43, M44, M47, M48, M49, M50, M51, M52, M53, M54, M55, M56, M57, M58, M59, M60, M61, M62, M63, M64, M65, M66, M67, M70, M71, M72, M68, M69, M73, M74, M75, M76, M77, M78, M79, M80, M81, M82, M83, M84, M85, M86, M87, M88, M89, M90, M91, M92, M93, M94, M95, M96, M97, M98, M99",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N1a → A-REV-N1a-dependent-new-op-and-release-blocked sort a(z) M32 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N1b → A-REV-N1b-earlier-record-and-decision-survive sort a(z) M48 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-authority-is-per-operation sort a(z) M50 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-suspension-has-effect sort a(z) M56 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-decision-needs-intact-evidence sort a(z) M64 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-effect-time-is-the-decision-time sort a(z) M80 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-denied-write-has-no-side-effect sort a(z) M80 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-command-effect-time-is-the-decision-time sort a(z) M92 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-command-refusal-is-neutral-and-inert sort a(z) M93 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-release-time-is-the-decision-time sort a(z) M96 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-release-refusal-is-neutral-and-inert sort a(z) M99 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3b → A-REV-N3b-claim-grants-no-read sort a(z) M53 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3b → A-REV-N3b-claim-content-readable sort a(z) M59 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-claim-intake-open-and-inert sort a(z) M52 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-intake-limit-server-keyed sort a(z) M60 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-secondary-ref-cannot-take-others-quota sort a(z) M63 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-ban-reaches-every-permitting-path sort a(z) M74 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-ban-needs-authority sort a(z) M88 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-issuing-path-is-a-permitting-path sort a(z) M70 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-no-weaker-writer sort a(z) M70 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-credentials-reach-adjudication sort a(z) M77 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-every-path-measured-for-every-kind sort a(z) M78 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-every-writer-entry-point-carries-context sort a(z) M94 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-neutral-entry-point-answers-are-indistinguishable sort a(z) M95 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-ban-scope-comes-from-cause sort a(z) M65 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-ban-kind-is-named-and-closed sort a(z) M65 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-request-axis-not-overridable sort a(z) M71 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-contradicting-record-is-not-a-measurement sort a(z) M72 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-unknown-stored-cause-is-not-swallowed sort a(z) M76 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-scope-matrix-matches-the-norm sort a(z) M79 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-malformed-stored-scope-is-fail-closed sort a(z) M84 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-result-scope-comes-from-declaration sort a(z) M85 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-undeclared-result-scope-is-fail-closed sort a(z) M85 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-nested-result-scope-is-measured sort a(z) M89 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-result-shape-is-declared-and-typed sort a(z) M89 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5c → A-REV-N5c-ban-does-not-rewrite-the-past sort a(z) M69 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5c → A-REV-N5c-ban-does-not-remove-others-rights sort a(z) M69 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT ORG-N2a → A-ORG-N2a-issuer-basis-withdrawn-is-fail-closed sort a(z) M24 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "hiányzó kötelező bizonyíték (REV-N1a, REV-N1b, ORG-N2a, REV-N3a, REV-N3b, REV-N3c, REV-N5a, REV-N5b, REV-N5c)"
+        ]
+      }
+    },
+    {
+      "id": "merge/F01-contradictory-verdict",
+      "pass": true,
+      "result": {
+        "id": "F01-contradictory-verdict",
+        "pass": true,
+        "exit": 2,
+        "run_state": "incomplete",
+        "clean": null,
+        "counts": {
+          "total": 96,
+          "measured": 96,
+          "caught": 0,
+          "survived": 96,
+          "wrong": 0,
+          "harness": 0,
+          "stale": 0
+        },
+        "result_count": 96,
+        "why": [
+          "[unit-1-of-4.json] ELLENTMONDÁS a bejelentett és a részletesből mért számok között — caught: bejelentve 24, mérve 0 · survived: bejelentve 0, mérve 24",
+          "[unit-1-of-4.json] ELLENTMONDÁS: az egység TISZTÁNAK mondja magát, de a részletes eredményben 24 túlélő · 0 rossz próba · 0 mérőhiba · 0 elavult horgony áll",
+          "[unit-2-of-4.json] ELLENTMONDÁS a bejelentett és a részletesből mért számok között — caught: bejelentve 24, mérve 0 · survived: bejelentve 0, mérve 24",
+          "[unit-2-of-4.json] ELLENTMONDÁS: az egység TISZTÁNAK mondja magát, de a részletes eredményben 24 túlélő · 0 rossz próba · 0 mérőhiba · 0 elavult horgony áll",
+          "[unit-3-of-4.json] ELLENTMONDÁS a bejelentett és a részletesből mért számok között — caught: bejelentve 24, mérve 0 · survived: bejelentve 0, mérve 24",
+          "[unit-3-of-4.json] ELLENTMONDÁS: az egység TISZTÁNAK mondja magát, de a részletes eredményben 24 túlélő · 0 rossz próba · 0 mérőhiba · 0 elavult horgony áll",
+          "[unit-4-of-4.json] ELLENTMONDÁS a bejelentett és a részletesből mért számok között — caught: bejelentve 24, mérve 0 · survived: bejelentve 0, mérve 24",
+          "[unit-4-of-4.json] ELLENTMONDÁS: az egység TISZTÁNAK mondja magát, de a részletes eredményben 24 túlélő · 0 rossz próba · 0 mérőhiba · 0 elavult horgony áll",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N1a → A-REV-N1a-dependent-new-op-and-release-blocked sor mögött a(z) M32 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N1b → A-REV-N1b-earlier-record-and-decision-survive sor mögött a(z) M48 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-authority-is-per-operation sor mögött a(z) M50 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-suspension-has-effect sor mögött a(z) M56 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-decision-needs-intact-evidence sor mögött a(z) M64 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-effect-time-is-the-decision-time sor mögött a(z) M80 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-denied-write-has-no-side-effect sor mögött a(z) M80 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-command-effect-time-is-the-decision-time sor mögött a(z) M92 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-command-refusal-is-neutral-and-inert sor mögött a(z) M93 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-release-time-is-the-decision-time sor mögött a(z) M96 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-release-refusal-is-neutral-and-inert sor mögött a(z) M99 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3b → A-REV-N3b-claim-grants-no-read sor mögött a(z) M53 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3b → A-REV-N3b-claim-content-readable sor mögött a(z) M59 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-claim-intake-open-and-inert sor mögött a(z) M52 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-intake-limit-server-keyed sor mögött a(z) M60 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-secondary-ref-cannot-take-others-quota sor mögött a(z) M63 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-ban-reaches-every-permitting-path sor mögött a(z) M74 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-ban-needs-authority sor mögött a(z) M88 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-issuing-path-is-a-permitting-path sor mögött a(z) M70 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-no-weaker-writer sor mögött a(z) M70 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-credentials-reach-adjudication sor mögött a(z) M77 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-every-path-measured-for-every-kind sor mögött a(z) M78 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-every-writer-entry-point-carries-context sor mögött a(z) M94 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-neutral-entry-point-answers-are-indistinguishable sor mögött a(z) M95 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-ban-scope-comes-from-cause sor mögött a(z) M65 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-ban-kind-is-named-and-closed sor mögött a(z) M65 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-request-axis-not-overridable sor mögött a(z) M71 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-contradicting-record-is-not-a-measurement sor mögött a(z) M72 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-unknown-stored-cause-is-not-swallowed sor mögött a(z) M76 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-scope-matrix-matches-the-norm sor mögött a(z) M79 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-malformed-stored-scope-is-fail-closed sor mögött a(z) M84 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-result-scope-comes-from-declaration sor mögött a(z) M85 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-undeclared-result-scope-is-fail-closed sor mögött a(z) M85 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-nested-result-scope-is-measured sor mögött a(z) M89 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-result-shape-is-declared-and-typed sor mögött a(z) M89 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5c → A-REV-N5c-ban-does-not-rewrite-the-past sor mögött a(z) M69 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5c → A-REV-N5c-ban-does-not-remove-others-rights sor mögött a(z) M69 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "FEDEZETLEN lánc-sor: a FEDETT ORG-N2a → A-ORG-N2a-issuer-basis-withdrawn-is-fail-closed sor mögött a(z) M24 verdiktje `SURVIVED`, nem `CAUGHT`",
+          "hiányzó kötelező bizonyíték (REV-N1a, REV-N1b, ORG-N2a, REV-N3a, REV-N3b, REV-N3c, REV-N5a, REV-N5b, REV-N5c)"
+        ]
+      }
+    },
+    {
+      "id": "merge/F02-empty-required",
+      "pass": true,
+      "result": {
+        "id": "F02-empty-required",
+        "pass": true,
+        "exit": 2,
+        "run_state": "incomplete",
+        "clean": null,
+        "counts": {
+          "total": 96,
+          "measured": 96,
+          "caught": 96,
+          "survived": 0,
+          "wrong": 0,
+          "harness": 0,
+          "stale": 0
+        },
+        "result_count": 96,
+        "why": [
+          "[unit-1-of-4.json] a beadott KÖTELEZŐ KÉSZLET eltér a mai szerződéstől — beadva: [(üres)] · a mai (req-3): [REV-N1a, REV-N1b, ORG-N2a, REV-N3a, REV-N3b, REV-N3c, REV-N5a, REV-N5b, REV-N5c]",
+          "[unit-2-of-4.json] a beadott KÖTELEZŐ KÉSZLET eltér a mai szerződéstől — beadva: [(üres)] · a mai (req-3): [REV-N1a, REV-N1b, ORG-N2a, REV-N3a, REV-N3b, REV-N3c, REV-N5a, REV-N5b, REV-N5c]",
+          "[unit-3-of-4.json] a beadott KÖTELEZŐ KÉSZLET eltér a mai szerződéstől — beadva: [(üres)] · a mai (req-3): [REV-N1a, REV-N1b, ORG-N2a, REV-N3a, REV-N3b, REV-N3c, REV-N5a, REV-N5b, REV-N5c]",
+          "[unit-4-of-4.json] a beadott KÖTELEZŐ KÉSZLET eltér a mai szerződéstől — beadva: [(üres)] · a mai (req-3): [REV-N1a, REV-N1b, ORG-N2a, REV-N3a, REV-N3b, REV-N3c, REV-N5a, REV-N5b, REV-N5c]",
+          "hiányzó kötelező bizonyíték (REV-N1a, REV-N1b, ORG-N2a, REV-N3a, REV-N3b, REV-N3c, REV-N5a, REV-N5b, REV-N5c)"
+        ]
+      }
+    },
+    {
+      "id": "merge/F03-wrong-contract",
+      "pass": true,
+      "result": {
+        "id": "F03-wrong-contract",
+        "pass": true,
+        "exit": 2,
+        "run_state": "incomplete",
+        "clean": null,
+        "counts": {
+          "total": 96,
+          "measured": 0,
+          "caught": 0,
+          "survived": 0,
+          "wrong": 0,
+          "harness": 0,
+          "stale": 0
+        },
+        "result_count": 0,
+        "why": [
+          "[unit-1-of-4.json] ISMERETLEN futási szerződés: `RUN-FOREIGN` — támogatott: RUN-02",
+          "[unit-2-of-4.json] ISMERETLEN futási szerződés: `RUN-FOREIGN` — támogatott: RUN-02",
+          "[unit-3-of-4.json] ISMERETLEN futási szerződés: `RUN-FOREIGN` — támogatott: RUN-02",
+          "[unit-4-of-4.json] ISMERETLEN futási szerződés: `RUN-FOREIGN` — támogatott: RUN-02",
+          "HIÁNYZÓ mutáció — nincs RÉSZLETES eredménye (96): M1, M2, M3, M4, M5, M6, M7, M8, M9, M10, M11, M12, M13, M14, M15, M16, M27, M17, M18, M19, M20, M21, M22, M23, M24, M25, M28, M29, M26, M31, M32, M33, M34, M35, M36, M37, M38, M39, M40, M41, M42, M43, M44, M47, M48, M49, M50, M51, M52, M53, M54, M55, M56, M57, M58, M59, M60, M61, M62, M63, M64, M65, M66, M67, M70, M71, M72, M68, M69, M73, M74, M75, M76, M77, M78, M79, M80, M81, M82, M83, M84, M85, M86, M87, M88, M89, M90, M91, M92, M93, M94, M95, M96, M97, M98, M99",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N1a → A-REV-N1a-dependent-new-op-and-release-blocked sort a(z) M32 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N1b → A-REV-N1b-earlier-record-and-decision-survive sort a(z) M48 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-authority-is-per-operation sort a(z) M50 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-suspension-has-effect sort a(z) M56 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-decision-needs-intact-evidence sort a(z) M64 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-effect-time-is-the-decision-time sort a(z) M80 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-denied-write-has-no-side-effect sort a(z) M80 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-command-effect-time-is-the-decision-time sort a(z) M92 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-command-refusal-is-neutral-and-inert sort a(z) M93 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-release-time-is-the-decision-time sort a(z) M96 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3a → A-REV-N3a-release-refusal-is-neutral-and-inert sort a(z) M99 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3b → A-REV-N3b-claim-grants-no-read sort a(z) M53 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3b → A-REV-N3b-claim-content-readable sort a(z) M59 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-claim-intake-open-and-inert sort a(z) M52 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-intake-limit-server-keyed sort a(z) M60 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N3c → A-REV-N3c-secondary-ref-cannot-take-others-quota sort a(z) M63 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-ban-reaches-every-permitting-path sort a(z) M74 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-ban-needs-authority sort a(z) M88 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-issuing-path-is-a-permitting-path sort a(z) M70 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-no-weaker-writer sort a(z) M70 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-credentials-reach-adjudication sort a(z) M77 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-every-path-measured-for-every-kind sort a(z) M78 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-every-writer-entry-point-carries-context sort a(z) M94 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5a → A-REV-N5a-neutral-entry-point-answers-are-indistinguishable sort a(z) M95 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-ban-scope-comes-from-cause sort a(z) M65 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-ban-kind-is-named-and-closed sort a(z) M65 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-request-axis-not-overridable sort a(z) M71 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-contradicting-record-is-not-a-measurement sort a(z) M72 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-unknown-stored-cause-is-not-swallowed sort a(z) M76 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-scope-matrix-matches-the-norm sort a(z) M79 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-malformed-stored-scope-is-fail-closed sort a(z) M84 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-result-scope-comes-from-declaration sort a(z) M85 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-undeclared-result-scope-is-fail-closed sort a(z) M85 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-nested-result-scope-is-measured sort a(z) M89 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5b → A-REV-N5b-result-shape-is-declared-and-typed sort a(z) M89 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5c → A-REV-N5c-ban-does-not-rewrite-the-past sort a(z) M69 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT REV-N5c → A-REV-N5c-ban-does-not-remove-others-rights sort a(z) M69 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "FEDEZETLEN lánc-sor: a FEDETT ORG-N2a → A-ORG-N2a-issuer-basis-withdrawn-is-fail-closed sort a(z) M24 mutációra hivatkozva állítja, de arról NINCS részletes eredmény a beadványban",
+          "hiányzó kötelező bizonyíték (REV-N1a, REV-N1b, ORG-N2a, REV-N3a, REV-N3b, REV-N3c, REV-N5a, REV-N5b, REV-N5c)"
+        ]
+      }
+    }
+  ],
+  "passed": 15,
+  "failed": 0,
+  "cases_mapped_from": "a két program SAJÁT `cases` listája, `core/` és `merge/` előtaggal — a programok szövege érintetlen, az előtagot a burkoló teszi rá (két próba, egy eset-lista)"
+}

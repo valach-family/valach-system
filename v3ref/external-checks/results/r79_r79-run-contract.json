@@ -1,36 +1,43 @@
 {
-  "source_commit": "8dced6f444aff777d5842a050101eedefdcdeec1+uncommitted",
+  "source_commit": "eb4d83bc1265e5a535309f9b8717cd6576483bc0+uncommitted",
   "node": "v22.22.2",
-  "at": "2026-09-14T13:47:53.935Z",
+  "at": "2026-09-14T16:24:30.781Z",
   "cap_ms": 15000,
   "cases": [
     {
       "id": "U04",
       "expected": "Untouched chunked run: every unit fits the external cap and the merge is complete and clean.",
-      "pass": false,
+      "pass": true,
       "units": [
-        "unit-1-of-2.json",
-        "unit-2-of-2.json"
+        "unit-1-of-4.json",
+        "unit-2-of-4.json",
+        "unit-3-of-4.json",
+        "unit-4-of-4.json"
       ],
       "unit_exits": [
-        1,
+        0,
+        0,
+        0,
         0
       ],
-      "merge_exit": 1,
+      "merge_exit": 0,
       "unit_walls": [
-        12141,
-        10407
+        4067,
+        4363,
+        4223,
+        4629
       ],
       "cap_ms": 15000,
       "run_state": "complete",
       "clean": true,
-      "portable": false,
+      "portable": true,
       "coverage": {
-        "expected": 92,
-        "seen": 92,
+        "expected": 96,
+        "seen": 96,
         "missing": [],
         "duplicated": [],
-        "unknown": []
+        "unknown": [],
+        "measured_from": "a RÉSZLETES eredmények (mutation_results), NEM a beadott mutation_ids lista (MRG-01)"
       }
     },
     {
@@ -48,9 +55,10 @@
       "merge_exit": 2,
       "run_state": "incomplete",
       "clean": null,
-      "missing_count": 46,
+      "missing_count": 72,
       "why": [
-        "HIÁNYZÓ mutáció (46): M2, M4, M6, M8, M10, M12, M14, M16, M17, M19, M21, M23, M25, M29, M31, M33, M35, M37, M39, M41, M43, M47, M49, M51, M53, M55, M57, M59, M61, M63, M65, M67, M71, M68, M73, M75, M77, M79, M81, M83, M85, M87, M89, M91, M93, M95"
+        "HIÁNYZÓ mutáció — nincs RÉSZLETES eredménye (72): M2, M3, M4, M6, M7, M8, M10, M11, M12, M14, M15, M16, M17, M18, M19, M21, M22, M23, M25, M28, M29, M31, M32, M33, M35, M36, M37, M39, M40, M41, M43, M44, M47, M49, M50, M51, M53, M54, M55, M57, M58, M59, M61, M62, M63, M65, M66, M67, M71, M72, M68, M73, M74, M75, M77, M78, M79, M81, M82, M83, M85, M86, M87, M89, M90, M91, M93, M94, M95, M97, M98, M99",
+        "hiányzó kötelező bizonyíték (REV-N1a, REV-N3a, REV-N3b, REV-N3c, REV-N5a, REV-N5b)"
       ]
     },
     {
@@ -60,9 +68,9 @@
       "merge_exit": 2,
       "run_state": "incomplete",
       "clean": null,
-      "original_digest": "sha256:896b2bab141281f3fdb2295ab2cc4a5e66344d774f6a83bef956b2b3672fda0b",
+      "original_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
       "why": [
-        "MÁS FORRÁSRA hivatkozó egység (unit-2-of-2.json) — mai lenyomat: sha256:896b2bab141281f3fdb2295ab2cc4a5e66344d774f6a83bef956b2b3672fda0b"
+        "MÁS FORRÁSRA hivatkozó egység (unit-2-of-4.json) — mai lenyomat: sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4"
       ]
     }
   ]

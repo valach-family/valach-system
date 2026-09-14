@@ -3278,6 +3278,227 @@ probe('P-CMD-effectuation', 'R79/F02 · REV-N3a · K04 · K07 · KUKA-003 · KUK
     };
   });
 
+probe('P-CMD-release-effectuation', 'R81/F04 · REV-N3a · K05 · K07 · KUKA-002 · KUKA-024 · KUKA-124',
+  'AZ ADATKIADÁS IS EGY HATÁLYOSULÁSI PONTON — a jog, az adatkör és a leltár-sor UGYANAZON az órán',
+  () => {
+    // A LELET (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL, R81/F04). Az R79-ben a PARANCSÍRÁST kötöttük
+    // egyetlen hatályosulási ponthoz, az ADATKIADÁST nem: a `readCommandResult` úton a jelölt-szűrés,
+    // a bebocsátás, a tranzakción belüli jog-kapu, az ADATKÖR-kapu és a leltár-sor MIND külön
+    // `clock.now()`-t olvasott. Az ő mérésük: a tagság 08:00:01-kor megszűnik, az első három olvasás
+    // 08:00:00, a negyedik 08:00:02 ⇒ az eredmény KIMEGY, a leltár-sor pedig `08:00:02`-t visel,
+    // olyan időpontot, amelyen a `rightAt` MÁR MEGTAGADNÁ a jogot. A kiadott adatot nem lehet
+    // visszavenni (KUKA-085), tehát ez nem könyvelési szépséghiba.
+    //
+    // A JAVÍTÁS ugyanaz a szerkezet, mint az írás-oldalon: `effectuateWith` `basis: 'membership'`
+    // alappal, és a tranzakción belül olvasott `at` vezetve végig a HÁROM fogyasztón — tagság+tiltás
+    // (`decide`) · az eredmény ADATKÖRE (`resultReleasable`) · a KIADÁSI LELTÁR sora (`disclose`).
+    // Nem új ellenőrzés született, hanem a meglévő időpont ment végig (KUKA-124: amit egy korábbi
+    // kapu eldöntött, azt nem mérjük újra egy MÁSIK órán).
+    const T0 = '2026-09-14T08:00:00.000Z';
+    const CUT = '2026-09-14T08:00:01.000Z';
+    const T2 = '2026-09-14T08:00:02.000Z';
+
+    function bench(revokedAt) {
+      const store = openStore();
+      store.run('INSERT INTO subject VALUES (?,?)', 'sub_olvaso', 'person');
+      store.run('INSERT INTO book VALUES (?,?)', 'book_a', 'A könyv');
+      store.run('INSERT INTO membership VALUES (?,?,?,?,?)', 'sub_olvaso', 'book_a', 'user', T0, revokedAt);
+      // A parancs MINDIG élő tagsággal, T0-n születik: a mérés a KIADÁSRÓL szól, nem az írásról.
+      submitCommand({
+        store, clock: { now: () => T0 }, idemKey: 'k', actor: 'sub_olvaso', bookId: 'book_a',
+        type: 'stock.receipt', typeVersion: '1', declared: { sku: 'X' }, resolve: () => ({ qty: 1 }),
+        credentials: { dataScope: 'keszlet' },
+      });
+      return store;
+    }
+    const still = (iso) => ({ now: () => iso });
+    const ticking = () => { let n = 0; return { now: () => `2026-09-14T08:00:${String(n++).padStart(2, '0')}.000Z` }; };
+    // A HATÁRHOZ KÖTÖTT óra (a P-CMD-effectuation mintája): a `store.tx` ELSŐ átlépéséig T0, utána
+    // T2. Minden korábbi kapu ÁTENGED, tehát ami elbukik, az CSAK a hatályosuláson bukhat el —
+    // különben a próba egy MÁSIK kapu munkáját jelentené sajátjának (KUKA-049 · KUKA-149).
+    function boundaryClock(store) {
+      let inside = false;
+      const orig = store.tx.bind(store);
+      store.tx = (fn) => { inside = true; return orig(fn); };
+      return { now: () => (inside ? T2 : T0) };
+    }
+    const read = (store, clock) => readCommandResult({
+      store, clock, idemKey: 'k', requester: 'sub_olvaso', credentials: { dataScope: 'keszlet' },
+    });
+    const discl = (s) => s.all("SELECT * FROM disclosure WHERE view = 'command_result'");
+    // A KIADÁS TAGSÁGI/TILTÁS-KAPUJA KÜLÖN MÉRVE — hogy el tudjuk dönteni, ELÉRTÜK-E az adatkör-kaput.
+    const releaseAllowedProbe = (s, nowIso) => rightAt({
+      store: s, subjectId: 'sub_olvaso', bookId: 'book_a', opClass: 'own_book', nowIso,
+      credentials: { dataScope: 'keszlet' },
+    }).allowed;
+
+    const notes = [];
+
+    // (a) POZITÍV KONTROLL — élő tagsággal az eredmény kimegy, EGY leltár-sorral. A KETYEGŐ óra
+    //     teszi mérhetővé a lényeget: a sor IDEJE az az időpont, amin a jog is állt (nem egy
+    //     későbbi „friss" olvasás). KUKA-122: a kapunak teljesíthetőnek is kell lennie.
+    let aOk = false; let stampOk = false;
+    {
+      const s = bench(null);
+      const before = ticking();
+      const r = read(s, before);
+      const rows = discl(s);
+      aOk = r.ok === true && rows.length === 1;
+      // A bélyeg NEM az utolsó óraolvasás: a kiadás UTÁN következő olvasás már későbbi értéket ad.
+      stampOk = aOk && rows[0].at !== before.now();
+      if (!aOk) notes.push(`kontroll=${JSON.stringify(r)} sorok=${rows.length}`);
+      if (aOk && !stampOk) notes.push(`bélyeg: leltár=${rows[0].at}`);
+      s.close();
+    }
+
+    // (b) A LELET: a tagság a TRANZAKCIÓ HATÁRÁN szűnik meg. A szerződés: elutasítás, és NULLA
+    //     leltár-sor — a régi alakban itt EGY sor született, `08:00:02` idővel.
+    let bOk = false; let reachedOk = false;
+    {
+      const s = bench(CUT);
+      const clock = boundaryClock(s);
+      const r = read(s, clock);
+      reachedOk = clock.now() === T2;   // elértük-e egyáltalán a mért pontot?
+      const rows = discl(s);
+      bOk = reachedOk && r.ok === false && rows.length === 0;
+      if (!bOk) notes.push(`határ=${JSON.stringify(r)} elért=${reachedOk} sorok=${rows.length}`);
+      s.close();
+    }
+
+    // (c) A VISSZAMÉRT INVARIÁNS: MINDEN kiadási leltár-sorra igaz, hogy a SAJÁT bélyegén a
+    //     címzettnek volt joga. A tárolóból mérve, ugyanazzal a feloldóval, amit a döntés használ
+    //     (KUKA-038: a létezés nem bizonyíték — a lánc VÉGÉT mérjük).
+    let cOk = false;
+    {
+      const s = bench(CUT);
+      read(s, boundaryClock(s));
+      const s2 = bench(null);
+      read(s2, ticking());
+      cOk = [s, s2].every((st) => discl(st).every((row) => rightAt({
+        store: st, subjectId: row.recipient, bookId: row.scope, opClass: 'own_book', nowIso: row.at,
+      }).allowed === true));
+      if (!cOk) notes.push(`visszamérve=${[s, s2].flatMap((st) => discl(st).map((r) => `${r.recipient}@${r.at}`)).join(',')}`);
+      s.close(); s2.close();
+    }
+
+    // (d) AZ ELUTASÍTÁS SEMLEGES (KUKA-084): a határon elbukó kérő válasza BÁJTRA ugyanaz, mint
+    //     azé, akinek már a hívás pillanatában sincs joga. A szakasz maga is csatorna lenne.
+    let dOk = false;
+    {
+      const s1 = bench(T0);
+      const s2 = bench(CUT);
+      const r1 = read(s1, still(T2));
+      const r2 = read(s2, boundaryClock(s2));
+      dOk = JSON.stringify(r1) === JSON.stringify(r2) && r1.ok === false;
+      if (!dOk) notes.push(`semleges: belépő=${JSON.stringify(r1)} vs határ=${JSON.stringify(r2)}`);
+      s1.close(); s2.close();
+    }
+
+    // (e) AZ ADATKÖR-KAPU IS AZON AZ `at`-on ÁLL. Egy adatkör-tiltás, ami PONT a tranzakció határán
+    //     válik hatályossá: a korábbi kapuk átengednek (T0), a kiadás mégsem mehet ki, mert a
+    //     `resultReleasable` a hatályosuláskori `at`-ot kapja. A régi alakban ez a kapu SAJÁT,
+    //     KÉSŐBBI `clock.now()`-t olvasott — vagyis épp fordítva is elcsúszhatott.
+    // (e) AZ ADATKÖR-ELUTASÍTÁS IS BÁJTRA UGYANAZ (KUKA-084 · DSC-01): a „nincs jogod EHHEZ AZ
+    //     ADATKÖRHÖZ" nem különböztethető meg a „nincs ilyen eredmény"-től. Ha megszólalna, a válasz
+    //     maga mondaná meg, hogy a parancs LÉTEZIK — csak épp az ára nem jár.
+    //
+    //     A MÉRÉSI PONT KIMONDVA (a SAJÁT első alakom hibája — KUKA-149). Először KÉSZLET-adatkörre
+    //     szóló tiltással mértem, csakhogy a kérő KONTEXTUSA is `keszlet`: azt a tiltást MÁR a
+    //     tagsági/tiltás-kapu (`decide`) elkapja, tehát a próba egy KORÁBBI kapu munkáját jelentette
+    //     volna sajátjának, és az adatkör-kaput soha nem érte el. Ezért itt a tiltás az ÁR
+    //     adatkörére szól, a kérés pedig KÉSZLET-címkével jön: a `decide` átenged (más tengely), és
+    //     a kiadást KIZÁRÓLAG a TARTALOM adatköre állíthatja meg.
+    let eOk = false; let eReached = false;
+    {
+      const s = openStore();
+      s.run('INSERT INTO subject VALUES (?,?)', 'sub_olvaso', 'person');
+      s.run('INSERT INTO book VALUES (?,?)', 'book_a', 'A könyv');
+      s.run('INSERT INTO membership VALUES (?,?,?,?,NULL)', 'sub_olvaso', 'book_a', 'user', T0);
+      submitCommand({
+        store: s, clock: still(T0), idemKey: 'k', actor: 'sub_olvaso', bookId: 'book_a',
+        type: 'stock.receipt', typeVersion: '1', declared: { sku: 'X' },
+        resolve: () => ({ lines: [{ qty: 1, unit_price: 5 }] }), credentials: { dataScope: 'keszlet' },
+      });
+      s.run('INSERT INTO subject_ban(subject_id,kind,cause,target_ref,actor_subject_id,banned_at) VALUES(?,?,?,?,?,?)',
+        'sub_olvaso', 'data_scope', 'data_scope_withdrawn', 'arak', 'sub_olvaso', T0);
+      // ELÉRJÜK-E A MÉRT KAPUT? A tagsági/tiltás-kapu ugyanezen a kéréshez ENGEDJEN — ha nem, a
+      // próba nem az adatkör-kaput mérné (KUKA-149).
+      eReached = releaseAllowedProbe(s, T0);
+      const r = read(s, still(T0));
+      const empty = bench(null);
+      const nothing = readCommandResult({
+        store: empty, clock: still(T0), idemKey: 'nincs-ilyen', requester: 'sub_olvaso',
+        credentials: { dataScope: 'keszlet' },
+      });
+      eOk = eReached && r.ok === false && discl(s).length === 0 && JSON.stringify(r) === JSON.stringify(nothing);
+      if (!eOk) notes.push(`adatkör: elért=${eReached} ${JSON.stringify(r)} vs nem létező: ${JSON.stringify(nothing)} sorok=${discl(s).length}`);
+      s.close(); empty.close();
+    }
+
+    // ── (f)–(g) A DÖNTÉSI PILLANAT VÉGIGVEZETÉSE — KÜLÖN-KÜLÖN MÉRVE ────────────────────────────
+    //
+    // MIÉRT KELL EZ A KÉT ÁG. A (b)/(e) ág a HATÁRHOZ kötött órát használja, ahol a határ után
+    // MINDEN olvasás T2 — ott a „végigvezetett `at`" és a „mindenki olvassa a saját óráját" alak
+    // UGYANAZT adja, tehát a különbséget nem méri (KUKA-139: az egyenértékű mutáció túlélése semmit
+    // nem bizonyít). Ezért itt egy LÉPCSŐS óra áll: a határt átlépő olvasás MÉG T0, minden későbbi
+    // MÁR T2. Így a helyes alak (egy `at` = T0 végig) ENGED, a visszacsúszott alak (ki-ki a saját,
+    // KÉSŐBBI óraolvasásán) ZÁR vagy rossz bélyeget ír — a két alak elválik.
+    function stagedClock(store) {
+      let crossed = false; let after = 0;
+      const orig = store.tx.bind(store);
+      store.tx = (fn) => { crossed = true; return orig(fn); };
+      return { now: () => (!crossed ? T0 : (after++ === 0 ? T0 : T2)) };
+    }
+
+    // (f) ADATKÖR-TILTÁS, AMI CSAK KÉSŐBB VÁLIK HATÁLYOSSÁ. A döntési pillanat T0 — akkor még nincs
+    //     tiltás —, tehát az eredménynek KI KELL MENNIE. Ha az adatkör-kapu SAJÁT, későbbi órát
+    //     olvasna (a régi alak), itt tévesen zárna: a kérő jogos kiadást veszítene el.
+    let fOk = false;
+    {
+      const s = bench(null);
+      s.run('INSERT INTO subject_ban(subject_id,kind,cause,target_ref,actor_subject_id,banned_at) VALUES(?,?,?,?,?,?)',
+        'sub_olvaso', 'data_scope', 'data_scope_withdrawn', 'keszlet', 'sub_olvaso', CUT);
+      const r = read(s, stagedClock(s));
+      const rows = discl(s);
+      fOk = r.ok === true && rows.length === 1 && rows[0].at === T0;
+      if (!fOk) notes.push(`lépcsős/adatkör: ${JSON.stringify(r)} sorok=${rows.length} bélyeg=${rows[0]?.at}`);
+      s.close();
+    }
+
+    // (g) A TAGSÁG CSAK KÉSŐBB SZŰNIK MEG. A döntés T0-n áll, tehát a kiadás jogos — ÉS a leltár-sor
+    //     IS T0-t visel. Ha a leltár a SAJÁT, későbbi óráját olvasná (a külső fél R81/F04 alakja),
+    //     a sor T2-t kapna: olyan időpontot, amelyen a `rightAt` már megtagadná a jogot.
+    let gOk = false;
+    {
+      const s = bench(CUT);
+      const r = read(s, stagedClock(s));
+      const rows = discl(s);
+      gOk = r.ok === true && rows.length === 1 && rows[0].at === T0
+        && rightAt({ store: s, subjectId: 'sub_olvaso', bookId: 'book_a', opClass: 'own_book', nowIso: rows[0].at }).allowed === true;
+      if (!gOk) notes.push(`lépcsős/tagság: ${JSON.stringify(r)} sorok=${rows.length} bélyeg=${rows[0]?.at}`);
+      s.close();
+    }
+
+    const pass = aOk && stampOk && bOk && cOk && dOk && eOk && fOk && gOk;
+    return {
+      expected: 'élő tagsággal az eredmény kimegy EGY leltár-sorral, és a sor IDEJE a döntés '
+        + 'időpontja (nem egy későbbi óraolvasás) · a TRANZAKCIÓ HATÁRÁN megszűnt tagság mellett NINCS '
+        + 'kiadás és NINCS leltár-sor · minden leltár-sor SAJÁT bélyegén a címzettnek joga volt · az '
+        + 'elutasítás bájtra ugyanaz · az ADATKÖR-kapu is a hatályosuláskori időponton áll · és LÉPCSŐS '
+        + 'órán a döntési pillanat (T0) megy végig MINDHÁROM fogyasztón: a később hatályossá váló '
+        + 'tiltás nem zárhat, a leltár-sor pedig T0-t visel, nem egy későbbi olvasást',
+      actual: `kontroll=${aOk} · bélyeg=${stampOk} · határon zár=${bOk} (mért pont elérve=${reachedOk}) · `
+        + `visszamérve=${cOk} · semleges elutasítás=${dOk} · adatkör ugyanazon az órán=${eOk} · `
+        + `lépcsős/adatkör=${fOk} · lépcsős/tagság+bélyeg=${gOk}`
+        + (notes.length ? ` · eltérések: ${notes.join(' | ')}` : ''),
+      pass,
+      asserts: {
+        'A-REV-N3a-release-time-is-the-decision-time': aOk && stampOk && bOk && cOk && fOk && gOk,
+        'A-REV-N3a-release-refusal-is-neutral-and-inert': dOk && eOk,
+      },
+    };
+  });
+
 probe('P-REV-entry-points', 'R79/F03 · REV-N5a · K09 · K15 · KUKA-039 · KUKA-051 · KUKA-084',
   'MINDEN ÍRÓ BELÉPÉSI PONT VIGYE A HITELES KONTEXTUST — belépési pont × tengely × mód, mérve',
   () => {

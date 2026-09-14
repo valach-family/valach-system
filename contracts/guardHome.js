@@ -197,6 +197,10 @@ const GUARD_HOME = Object.freeze({
   'KUKA-147': Object.freeze({ home: 'v3', note: 'az ÍRÓ BELÉPÉSI PONTOK regisztere (ENT-01) a V3 magreferenciában él — a jel a `P-REV-entry-points` próba (60 cella, padlóval) + az M94/M95 mutációk ITT futnak' }),
   'KUKA-148': Object.freeze({ home: 'v3', note: 'az EGY AJTÓ (`store.tx`) a V3 magreferencia tárolójában él — a jel a `P-CMD-effectuation` (e) ága és a tároló kapuját hurkoló próbák ITT futnak' }),
   'KUKA-149': Object.freeze({ home: 'v3', note: 'a PRÓBA-TERVEZÉS tanulsága a V3 mérőben él — a jel a `P-CMD-effectuation` (b) ágának `mért pont elérve` mezője + az M93 mutáció verdiktje ITT fut' }),
+  'KUKA-151': Object.freeze({ home: 'v3', note: 'az összefűzés beadvány-kapuja (MRG-01) a V3 mutációs battériájában él — a jel a `verify:unit-admission` ITT fut' }),
+  'KUKA-152': Object.freeze({ home: 'v3', note: 'az adatkiadás hatályosulási pontja a V3 magreferencia `readCommandResult` útján él — a jel a `P-CMD-release-effectuation` próba ITT fut' }),
+  'KUKA-153': Object.freeze({ home: 'v3', note: 'a mutációs horgony egyedisége a V3 battéria alkalmazójában él (`applyEdits`)' }),
+  'KUKA-154': Object.freeze({ home: 'v3', note: 'a kötelező készlet rangsora a V3 norma-regiszterében és az összefűzésben él' }),
   'KUKA-150': Object.freeze({ home: 'v3', note: 'a RUN-02 futás-szerződés (darabolt futás) a V3 mutációs battériájában él — a jel az r79/U01 külső-ellenőrzés + az egység-fájl `evidence_bound` mezője ITT fut' }),
 });
 

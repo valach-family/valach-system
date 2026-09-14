@@ -1,10 +1,10 @@
 {
-  "at": "2026-09-14T13:52:30.584Z",
+  "at": "2026-09-14T16:27:26.111Z",
   "node": "v22.22.2",
-  "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
+  "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
   "clean": true,
   "why": [],
-  "wall_ms": 20572,
+  "wall_ms": 18022,
   "run_contract": "RUN-02",
   "run_state": "complete",
   "execution": "merged_units",
@@ -12,156 +12,204 @@
     {
       "unit": {
         "k": 1,
-        "n": 3
+        "n": 4
       },
-      "file": "unit-1-of-3.json",
-      "wall_ms": 6729,
+      "file": "unit-1-of-4.json",
+      "wall_ms": 4229,
       "portable": true,
       "run_state": "complete",
       "slice_clean": true,
       "mutation_ids": [
         "M1",
-        "M4",
-        "M7",
-        "M10",
+        "M5",
+        "M9",
         "M13",
-        "M16",
-        "M18",
-        "M21",
+        "M27",
+        "M20",
         "M24",
-        "M29",
-        "M32",
-        "M35",
+        "M26",
+        "M34",
         "M38",
-        "M41",
-        "M44",
-        "M49",
+        "M42",
+        "M48",
         "M52",
-        "M55",
-        "M58",
-        "M61",
+        "M56",
+        "M60",
         "M64",
-        "M67",
-        "M72",
-        "M73",
+        "M70",
+        "M69",
         "M76",
-        "M79",
-        "M82",
-        "M85",
+        "M80",
+        "M84",
         "M88",
-        "M91",
-        "M94"
+        "M92",
+        "M96"
       ]
     },
     {
       "unit": {
         "k": 2,
-        "n": 3
+        "n": 4
       },
-      "file": "unit-2-of-3.json",
-      "wall_ms": 6836,
+      "file": "unit-2-of-4.json",
+      "wall_ms": 4320,
       "portable": true,
       "run_state": "complete",
       "slice_clean": true,
       "mutation_ids": [
         "M2",
-        "M5",
-        "M8",
-        "M11",
+        "M6",
+        "M10",
         "M14",
-        "M27",
-        "M19",
-        "M22",
+        "M17",
+        "M21",
         "M25",
-        "M26",
-        "M33",
-        "M36",
+        "M31",
+        "M35",
         "M39",
-        "M42",
-        "M47",
-        "M50",
+        "M43",
+        "M49",
         "M53",
-        "M56",
-        "M59",
-        "M62",
+        "M57",
+        "M61",
         "M65",
-        "M70",
-        "M68",
-        "M74",
+        "M71",
+        "M73",
         "M77",
-        "M80",
-        "M83",
-        "M86",
+        "M81",
+        "M85",
         "M89",
-        "M92",
-        "M95"
+        "M93",
+        "M97"
       ]
     },
     {
       "unit": {
         "k": 3,
-        "n": 3
+        "n": 4
       },
-      "file": "unit-3-of-3.json",
-      "wall_ms": 7007,
+      "file": "unit-3-of-4.json",
+      "wall_ms": 4499,
       "portable": true,
       "run_state": "complete",
       "slice_clean": true,
       "mutation_ids": [
         "M3",
-        "M6",
-        "M9",
-        "M12",
+        "M7",
+        "M11",
         "M15",
-        "M17",
-        "M20",
-        "M23",
+        "M18",
+        "M22",
         "M28",
-        "M31",
-        "M34",
-        "M37",
+        "M32",
+        "M36",
         "M40",
-        "M43",
-        "M48",
-        "M51",
+        "M44",
+        "M50",
         "M54",
-        "M57",
-        "M60",
-        "M63",
+        "M58",
+        "M62",
         "M66",
-        "M71",
-        "M69",
-        "M75",
+        "M72",
+        "M74",
         "M78",
-        "M81",
-        "M84",
-        "M87",
+        "M82",
+        "M86",
         "M90",
-        "M93"
+        "M94",
+        "M98"
+      ]
+    },
+    {
+      "unit": {
+        "k": 4,
+        "n": 4
+      },
+      "file": "unit-4-of-4.json",
+      "wall_ms": 4974,
+      "portable": true,
+      "run_state": "complete",
+      "slice_clean": true,
+      "mutation_ids": [
+        "M4",
+        "M8",
+        "M12",
+        "M16",
+        "M19",
+        "M23",
+        "M29",
+        "M33",
+        "M37",
+        "M41",
+        "M47",
+        "M51",
+        "M55",
+        "M59",
+        "M63",
+        "M67",
+        "M68",
+        "M75",
+        "M79",
+        "M83",
+        "M87",
+        "M91",
+        "M95",
+        "M99"
       ]
     }
   ],
   "coverage": {
-    "expected": 92,
-    "seen": 92,
+    "expected": 96,
+    "seen": 96,
     "missing": [],
     "duplicated": [],
-    "unknown": []
+    "unknown": [],
+    "measured_from": "a RÉSZLETES eredmények (mutation_results), NEM a beadott mutation_ids lista (MRG-01)"
+  },
+  "admission": {
+    "contract": "MRG-01",
+    "ok": true,
+    "supported_run_contracts": [
+      "RUN-02"
+    ],
+    "problems": [],
+    "units": [
+      {
+        "file": "unit-1-of-4.json",
+        "admitted": true,
+        "clean": true
+      },
+      {
+        "file": "unit-2-of-4.json",
+        "admitted": true,
+        "clean": true
+      },
+      {
+        "file": "unit-3-of-4.json",
+        "admitted": true,
+        "clean": true
+      },
+      {
+        "file": "unit-4-of-4.json",
+        "admitted": true,
+        "clean": true
+      }
+    ]
   },
   "evidence_bound": true,
   "portable": true,
   "portable_remedy": null,
   "wall_detail": {
-    "worst_unit_ms": 7007,
+    "worst_unit_ms": 4974,
     "budget_ms": 12000,
     "external_cap_ms": 15000,
     "within_budget": true
   },
   "evidence_limit": "az egység-fájl nincs kriptográfiailag a futásához kötve — kézzel írt egység-fájl is beolvadna; a forrás-lenyomat egyezése szűkít, de nem bizonyít (nevezett függő: aláírt egység-tanú)",
   "mutations": {
-    "total": 92,
-    "measured": 92,
-    "caught": 92,
+    "total": 96,
+    "measured": 96,
+    "caught": 96,
     "survived": 0,
     "wrong": 0,
     "harness": 0,
@@ -203,6 +251,8 @@
       "version": "req-3",
       "stage": "measured",
       "expected_state": "covered",
+      "source": "a MAI rögzített szerződés (REQUIRED_EVIDENCE), nem a beadvány",
+      "rule": "klauzulánként a LEGGYENGÉBB állítás-sor dönt — azonos a `checkNorms` kánonjával",
       "clauses": [
         "REV-N1a",
         "REV-N1b",
@@ -276,7 +326,7 @@
           "M48",
           "M49"
         ],
-        "falsified_by": "M49",
+        "falsified_by": "M48",
         "evidence_limit": null,
         "content_review": {
           "state": "none",
@@ -464,7 +514,7 @@
           "M81",
           "M82"
         ],
-        "falsified_by": "M82",
+        "falsified_by": "M80",
         "evidence_limit": null,
         "content_review": {
           "state": "none",
@@ -493,7 +543,7 @@
           "M81",
           "M82"
         ],
-        "falsified_by": "M82",
+        "falsified_by": "M80",
         "evidence_limit": null,
         "content_review": {
           "state": "none",
@@ -522,7 +572,7 @@
           "M92",
           "M93"
         ],
-        "falsified_by": "M91",
+        "falsified_by": "M92",
         "evidence_limit": null,
         "content_review": {
           "state": "none",
@@ -568,6 +618,66 @@
       },
       {
         "norm_id": "REV-N3",
+        "clause_id": "REV-N3a",
+        "covers": [
+          "K04",
+          "K09"
+        ],
+        "assertion_id": "A-REV-N3a-release-time-is-the-decision-time",
+        "probe_id": "P-CMD-release-effectuation",
+        "mutation_candidates": [
+          "M96",
+          "M97",
+          "M98",
+          "M99"
+        ],
+        "falsified_by": "M96",
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
+        },
+        "result": "covered",
+        "why": null
+      },
+      {
+        "norm_id": "REV-N3",
+        "clause_id": "REV-N3a",
+        "covers": [
+          "K04",
+          "K09"
+        ],
+        "assertion_id": "A-REV-N3a-release-refusal-is-neutral-and-inert",
+        "probe_id": "P-CMD-release-effectuation",
+        "mutation_candidates": [
+          "M96",
+          "M97",
+          "M98",
+          "M99"
+        ],
+        "falsified_by": "M99",
+        "evidence_limit": null,
+        "content_review": {
+          "state": "none",
+          "structural": "none",
+          "binding": "none",
+          "why": "nincs rögzített tartalmi felülvizsgálat",
+          "authenticity": {
+            "state": "unauthenticated",
+            "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+          }
+        },
+        "result": "covered",
+        "why": null
+      },
+      {
+        "norm_id": "REV-N3",
         "clause_id": "REV-N3b",
         "covers": [
           "K05",
@@ -584,7 +694,7 @@
           "M60",
           "M61"
         ],
-        "falsified_by": "M55",
+        "falsified_by": "M53",
         "evidence_limit": null,
         "content_review": {
           "state": "none",
@@ -679,7 +789,7 @@
           "M60",
           "M61"
         ],
-        "falsified_by": "M61",
+        "falsified_by": "M60",
         "evidence_limit": null,
         "content_review": {
           "state": "none",
@@ -840,7 +950,7 @@
           "M77",
           "M88"
         ],
-        "falsified_by": "M67",
+        "falsified_by": "M74",
         "evidence_limit": null,
         "content_review": {
           "state": "none",
@@ -906,7 +1016,7 @@
           "M77",
           "M88"
         ],
-        "falsified_by": "M67",
+        "falsified_by": "M70",
         "evidence_limit": null,
         "content_review": {
           "state": "none",
@@ -972,7 +1082,7 @@
           "M77",
           "M88"
         ],
-        "falsified_by": "M67",
+        "falsified_by": "M77",
         "evidence_limit": null,
         "content_review": {
           "state": "none",
@@ -1267,7 +1377,7 @@
           "M83",
           "M84"
         ],
-        "falsified_by": "M83",
+        "falsified_by": "M84",
         "evidence_limit": null,
         "content_review": {
           "state": "none",
@@ -1408,7 +1518,7 @@
           "M68",
           "M69"
         ],
-        "falsified_by": "M68",
+        "falsified_by": "M69",
         "evidence_limit": null,
         "content_review": {
           "state": "none",
@@ -1585,9 +1695,9 @@
       "mutation_id": "M1",
       "catcher": "P-A04",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:e6c30bc130c220a5462fec52ce26d809bd4044624e989e05bc6d611bdde4b677",
-      "run_token": "rt_1dcce184-5386-4f70-97ba-fa5fad9e34d8",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:a0971cddcea6ad0d0e9374afe3032d8bacfd5e3ce884e79734f9bebd99f639f2",
+      "run_token": "rt_10530313-8d6a-4374-bc78-495241606f62",
       "probe_id": "P-A04",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -1595,39 +1705,26 @@
       "evidence_limit": null
     },
     {
-      "mutation_id": "M4",
+      "mutation_id": "M5",
       "catcher": "P-A08",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:239d0d23020b79c11b6aa65cb0c7a2535fb39bc8cc80a114f15aae4402395b91",
-      "run_token": "rt_59ec5b62-b906-4eed-8c2b-5cb1a70740c3",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:03f7f7b22b20994e0b11e46db399f5533377831e8a9d9995707a5fea2a59971a",
+      "run_token": "rt_4daec4b6-9baa-4905-a8fc-50e623cae2be",
       "probe_id": "P-A08",
-      "probe_status": "FAIL",
+      "probe_status": "THREW",
       "failed_assertions": [],
       "verdict": "CAUGHT",
-      "evidence_limit": null
+      "evidence_limit": "a mai kódon egyedi kulcs-ütközést vált ki — ez a VISELKEDÉS-VÁLTOZÁS észlelése, NEM két sikeresen lekönyvelt hatás bizonyítéka (R42 §2.3)"
     },
     {
-      "mutation_id": "M7",
-      "catcher": "P-A08",
+      "mutation_id": "M9",
+      "catcher": "P-A04b",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:62dc07641f1a21403b2de2a5548cd24b5947d0fbedfe2bb97445c27293c5960e",
-      "run_token": "rt_ba8a9d6b-666d-46f0-8d79-083c80712316",
-      "probe_id": "P-A08",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M10",
-      "catcher": "P-A08",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:1f844af10c170a59a1432e24451b8bd1fbdd54c93f14e8c33e992d67c9bab10b",
-      "run_token": "rt_89f92847-512e-467c-975d-d8e17ec8b75c",
-      "probe_id": "P-A08",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:54d5a8dc4c07693522fd63d80a263fec8b9dd8485a48e3f2beaa62d6d3d03408",
+      "run_token": "rt_845d0362-bb4f-47e8-8525-4ce043af2daa",
+      "probe_id": "P-A04b",
       "probe_status": "FAIL",
       "failed_assertions": [],
       "verdict": "CAUGHT",
@@ -1637,9 +1734,9 @@
       "mutation_id": "M13",
       "catcher": "P-CMD-identity",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:368bf06d491556154ef223f5b19d30ebf72408ff964f3d8118af598b7a46b48c",
-      "run_token": "rt_c217198f-cb20-4eea-b80e-c8454a185795",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:ad349a303884989db2467cda2a49e6c432392b2bbd359f023c7fe77777f33719",
+      "run_token": "rt_b1561ed2-705e-4379-95a5-c4bb742c4196",
       "probe_id": "P-CMD-identity",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -1647,12 +1744,12 @@
       "evidence_limit": null
     },
     {
-      "mutation_id": "M16",
+      "mutation_id": "M27",
       "catcher": "P-CMD-disclosure",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:a1110588a2185f317179f9d3df259da3c4baac3b4713195527e4f56384d5284b",
-      "run_token": "rt_8c3fd943-c9c5-4295-8937-d905126c6f33",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:a999c983a7b7f4ab5d472f72ff5ac1478d3e974b6c6c412ed81d4f8fed0cbd3b",
+      "run_token": "rt_f8a2655a-d1a3-410e-b4dc-8ea6ad8459a9",
       "probe_id": "P-CMD-disclosure",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -1660,26 +1757,13 @@
       "evidence_limit": null
     },
     {
-      "mutation_id": "M18",
-      "catcher": "P-AUTHZ-membership-time",
+      "mutation_id": "M20",
+      "catcher": "P-AUTHZ-evidence",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:8e0544711b4ff77d460b2595c892bcfe9afe40e19846bdb6a11ee8e00913331e",
-      "run_token": "rt_9dbd946e-ccfe-472e-9057-0f415294621d",
-      "probe_id": "P-AUTHZ-membership-time",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M21",
-      "catcher": "P-INVITE-window",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:81021002ee49854a1137148c072343f640c2822fd15b8eab05735ec261d2f6e0",
-      "run_token": "rt_a3b63c7f-ee33-42a9-8035-f9d2a1ef5506",
-      "probe_id": "P-INVITE-window",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:29745358ae6624c4e62c0c99e23f0a83d2444cfabc39b7ac6decbf407b405738",
+      "run_token": "rt_13b1f4a8-67fd-4e0a-9d90-36260b3005f2",
+      "probe_id": "P-AUTHZ-evidence",
       "probe_status": "FAIL",
       "failed_assertions": [],
       "verdict": "CAUGHT",
@@ -1689,9 +1773,9 @@
       "mutation_id": "M24",
       "catcher": "P-INVITE-authority",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:39082a968b6d3795594b1532542e5660d73cf50e426abbf4c1cae7f3f1883957",
-      "run_token": "rt_abaf6c6c-d2a7-4047-a492-03334781974e",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:fa15c37ff44b93f0bb4a784a7cac35f0b1123322f71a4e8ba2c21fd0025d6b2e",
+      "run_token": "rt_be6a120e-ccc8-47a2-996b-f52cbb3944f2",
       "probe_id": "P-INVITE-authority",
       "probe_status": "FAIL",
       "failed_assertions": [
@@ -1701,41 +1785,26 @@
       "evidence_limit": null
     },
     {
-      "mutation_id": "M29",
-      "catcher": "P-AUTHZ-revoke-now",
+      "mutation_id": "M26",
+      "catcher": "P-AUTHZ-evidence",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:2f5feacd305df5a4cdf5dfa1ef93fe3bed0516bf2239fcdde5800b9e0efab015",
-      "run_token": "rt_1a6ba885-8478-4c3f-852a-cfd76da263c9",
-      "probe_id": "P-AUTHZ-revoke-now",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:66cb69efa042d21f22157160a2fcba42e8d8b6d7e08efefbd6a23880bdce7fd0",
+      "run_token": "rt_e69444ea-1b72-4ea4-ab6d-e1ce89a597ce",
+      "probe_id": "P-AUTHZ-evidence",
       "probe_status": "FAIL",
       "failed_assertions": [],
       "verdict": "CAUGHT",
       "evidence_limit": null
     },
     {
-      "mutation_id": "M32",
-      "catcher": "P-CMD-finalize-gate",
+      "mutation_id": "M34",
+      "catcher": "P-CANON-shape",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:258490f8b04ea9c9effff03324d29637df14cb241e9c4897695feae46422f306",
-      "run_token": "rt_303534a0-e0a0-4748-9ecb-759eaf545610",
-      "probe_id": "P-CMD-finalize-gate",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N1a-dependent-new-op-and-release-blocked"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M35",
-      "catcher": "P-TIME-calendar",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:b4716cc1eba07bb2baa9e825cb034d5e6f178f50f5354e1e04142192fbce2d70",
-      "run_token": "rt_a1556c56-9c7c-4748-af51-c3c8e4e80823",
-      "probe_id": "P-TIME-calendar",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:a34ea1fc5d460dc908130cb9e5b5ae9554ad4aeb4995b7c5ac502e3b8e4b03c6",
+      "run_token": "rt_1631489c-4aee-44bc-9183-ade1297d7c4f",
+      "probe_id": "P-CANON-shape",
       "probe_status": "FAIL",
       "failed_assertions": [],
       "verdict": "CAUGHT",
@@ -1745,9 +1814,9 @@
       "mutation_id": "M38",
       "catcher": "P-CMD-receipt",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:106a31acff2c527041d66109527ef10482648f912133561e834eb8313e36adf0",
-      "run_token": "rt_2273ffad-548d-4a53-9fb9-c93a79990b3f",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:4c2e9a1a2a8c766feb9dedef01ed6472046bc98cda0180edd7219fd0592e0e2f",
+      "run_token": "rt_3b770e3f-a147-4974-af5f-ba8566eba4f8",
       "probe_id": "P-CMD-receipt",
       "probe_status": "THREW",
       "failed_assertions": [],
@@ -1755,12 +1824,12 @@
       "evidence_limit": "a J3 óta a nyugtázó felület a tranzakción kívüli hívást NEVEZETT hibakóddal állítja meg, ezért ez a VÉDELEM TÜZELÉSÉNEK bizonyítéka, nem néma árva soré"
     },
     {
-      "mutation_id": "M41",
+      "mutation_id": "M42",
       "catcher": "P-CMD-receipt-integrity",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:1e695accec1b07bab4d2098d38c09fe2147544990aa3445c3f9864f798b07c9f",
-      "run_token": "rt_b93d27f3-d941-4ae6-9f89-1523cf617efc",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:93f17bcf4e60a1ee7b872d4ff62c9277b0c380f74e8a24fed107bad2eb105058",
+      "run_token": "rt_72aeb061-e5bb-4953-a113-dd20665eb08b",
       "probe_id": "P-CMD-receipt-integrity",
       "probe_status": "FAIL",
       "failed_assertions": [],
@@ -1768,25 +1837,12 @@
       "evidence_limit": null
     },
     {
-      "mutation_id": "M44",
-      "catcher": "P-CMD-disclosure",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:76f15d1e5a6341a23eeece84dc4b9ca1c46c55c8461b0a79fba38f63c6e25cae",
-      "run_token": "rt_9bccc077-3506-48dc-8808-09cefe1abdba",
-      "probe_id": "P-CMD-disclosure",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M49",
+      "mutation_id": "M48",
       "catcher": "P-CMD-finalize-gate",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:56fb1a1a11716ec3a2b14e0c2ebf42454f357d87714b26aa6c4beea0c1e7f0d3",
-      "run_token": "rt_abdfa735-99ce-4a4b-972e-2fbd6a85d396",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:fe9a872dd5806ce2e7001643011baf843d603b51bf94a06d24c5c35d59bcb6fd",
+      "run_token": "rt_d13ac7b1-1e60-4f1b-a13c-626e52972e8b",
       "probe_id": "P-CMD-finalize-gate",
       "probe_status": "FAIL",
       "failed_assertions": [
@@ -1799,9 +1855,9 @@
       "mutation_id": "M52",
       "catcher": "P-REV-authority",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:fbe58e0492c59af99c415e68dba41fb5101b2a192f1f77e7b5d5d62934bbad4b",
-      "run_token": "rt_19090f18-892c-43a6-8035-8badc8f9b5e9",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:e1e3d21a30bf0cb77cdeb94060843aeee82f911ef593cc8ee3985cbf968db7a9",
+      "run_token": "rt_6065259a-087a-4ad4-81ec-b58cb4527c02",
       "probe_id": "P-REV-authority",
       "probe_status": "FAIL",
       "failed_assertions": [
@@ -1811,898 +1867,12 @@
       "evidence_limit": null
     },
     {
-      "mutation_id": "M55",
-      "catcher": "P-REV-claim-read",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:3c2213e0741dc63c7083794db75cd2aee6a035b1373eeab248fc743e6117ccd7",
-      "run_token": "rt_e1b7eb9d-4903-44ad-9bb4-02af5b445d44",
-      "probe_id": "P-REV-claim-read",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N3b-claim-grants-no-read"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M58",
-      "catcher": "P-REV-claim-read",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:3295a0bbc4325c706fdc00f08af634959377a7e5234fc7581ba01543aac8ca95",
-      "run_token": "rt_a42a1b73-a7be-4e32-be08-f57a0e4366ff",
-      "probe_id": "P-REV-claim-read",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N3b-claim-grants-no-read"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M61",
-      "catcher": "P-REV-claim-read",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:a462b0c25b917b0c5295a5548d57ada55eb27d3f38453b9ae0fa61315feedd55",
-      "run_token": "rt_5ac9d949-c801-4dd9-b4e1-feb099b812bc",
-      "probe_id": "P-REV-claim-read",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N3c-intake-limit-server-keyed"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M64",
-      "catcher": "P-REV-claim-decide",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:4abcaee5914c84c460b5eb8e1b9a3c46d577654d2da7ece28d00d0ba235d69c7",
-      "run_token": "rt_9bffa8a2-35c9-4968-96f5-ecf4bd040ce2",
-      "probe_id": "P-REV-claim-decide",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N3a-decision-needs-intact-evidence"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M67",
-      "catcher": "P-REV-ban-paths",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:3928a250767aa89519031ebcb6137df93aeb53272aa79b50748e27c537fdc26d",
-      "run_token": "rt_0ba4b152-ccfb-4f97-868a-6174b9ba50af",
-      "probe_id": "P-REV-ban-paths",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5a-ban-reaches-every-permitting-path",
-        "A-REV-N5a-issuing-path-is-a-permitting-path",
-        "A-REV-N5a-credentials-reach-adjudication"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M72",
-      "catcher": "P-REV-ban-scope",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:0747c39dc36c10a686cf82960531172d0c59efea5fe5e9e97e78fd7ee064c1a3",
-      "run_token": "rt_13c0ecbc-0f83-4e71-92ca-e8fe80cbaebe",
-      "probe_id": "P-REV-ban-scope",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5b-contradicting-record-is-not-a-measurement"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M73",
-      "catcher": "P-REV-ban-paths",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:77380146cf8094a924797f576017be3871f11ec1391d1446ecbee1b6df95f571",
-      "run_token": "rt_fda4a0eb-f2cf-4c6b-805f-2ace795c7cfe",
-      "probe_id": "P-REV-ban-paths",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5a-issuing-path-is-a-permitting-path"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M76",
-      "catcher": "P-REV-ban-scope",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:49b89b910e57b7cfe799577105278451220ac1fcc29fe554e04a0cb53684b360",
-      "run_token": "rt_8cc296d7-15ff-4f47-8193-4ba9fe5a6bd7",
-      "probe_id": "P-REV-ban-scope",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5b-unknown-stored-cause-is-not-swallowed"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M79",
-      "catcher": "P-REV-ban-matrix",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:df1ad3882313b2473a8bd0992522a29a6aab5e806f3d295b81f174254f3415d8",
-      "run_token": "rt_d597aa88-0622-47e6-94fa-abb0b27f5caa",
-      "probe_id": "P-REV-ban-matrix",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5b-scope-matrix-matches-the-norm"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M82",
-      "catcher": "P-REV-effectuation",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:2753c340a13b2f3b9362ec1accd1ff59192befef38311ee9c7df02fbd9ad0d3b",
-      "run_token": "rt_7324c37e-9f0e-48a0-b432-93c6a05bc32f",
-      "probe_id": "P-REV-effectuation",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N3a-effect-time-is-the-decision-time",
-        "A-REV-N3a-denied-write-has-no-side-effect"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M85",
-      "catcher": "P-REV-result-scope",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:f1ea1ac71f0492fa72d9de98a6cbf946d21bd966d3967bc141e8f6fdc703d412",
-      "run_token": "rt_6f7bd8a9-f615-4c2a-ae39-755777f9f4d8",
-      "probe_id": "P-REV-result-scope",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5b-result-scope-comes-from-declaration",
-        "A-REV-N5b-undeclared-result-scope-is-fail-closed"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M88",
-      "catcher": "P-REV-ban-paths",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:9312d055b8248ee1ecadc4ff6065ce81be11f742460c63da61c5d2e5eb0b2f68",
-      "run_token": "rt_85f9bab7-29a3-42c7-84f6-80214839cddd",
-      "probe_id": "P-REV-ban-paths",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5a-ban-needs-authority",
-        "A-REV-N5a-issuing-path-is-a-permitting-path"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M91",
-      "catcher": "P-CMD-effectuation",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:68af936797ec007dcbe70651b74bc16abe6747749f29c342f38fd3ddc8c7dd50",
-      "run_token": "rt_1b67d3bc-c34c-45f7-973d-57e8a74a1ac1",
-      "probe_id": "P-CMD-effectuation",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N3a-command-effect-time-is-the-decision-time"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M94",
-      "catcher": "P-REV-entry-points",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:b5555724a380877aaeeb8cfa36321ef87fe97d36ec815bb4830d89a5877cb45b",
-      "run_token": "rt_b7a85eb6-8268-4681-a7ce-15b51d67c44d",
-      "probe_id": "P-REV-entry-points",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5a-every-writer-entry-point-carries-context"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M2",
-      "catcher": "P-K03-cred",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:15c093dac98e0becd81b1860eb8f91f22d1ff5519b2f8ab5ba769acfb8e9060f",
-      "run_token": "rt_b06c65ab-00af-49e6-b440-29805a47c157",
-      "probe_id": "P-K03-cred",
-      "probe_status": "THREW",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": "a védelem KÉT helyen áll (alak-feloldó + SQL WHERE), ezért egyetlen szerkesztés nem tud néma felülírást csinálni — ez a VÉDELEM TÜZELÉSÉNEK bizonyítéka"
-    },
-    {
-      "mutation_id": "M5",
-      "catcher": "P-A08",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:b44647863737da776d296c12de5daec6ee3e4b20fb8daa8638340a880544f0e8",
-      "run_token": "rt_2d48134b-4f0f-4be4-806f-cbea53e9999d",
-      "probe_id": "P-A08",
-      "probe_status": "THREW",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": "a mai kódon egyedi kulcs-ütközést vált ki — ez a VISELKEDÉS-VÁLTOZÁS észlelése, NEM két sikeresen lekönyvelt hatás bizonyítéka (R42 §2.3)"
-    },
-    {
-      "mutation_id": "M8",
-      "catcher": "P-A08",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:6e06df91afdd22a36add937a3205d70af31a7347de36aa9070695dab9d1b138d",
-      "run_token": "rt_6aa73724-2075-4c59-82e1-668576962e8d",
-      "probe_id": "P-A08",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M11",
-      "catcher": "P-CMD-namespace",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:c52a71bff45c882d7a2ec7d7cc4e65c82571e4ced12d099aeaa4add13e4b487a",
-      "run_token": "rt_2b2d9715-f0f1-4e26-99d1-a741053c9524",
-      "probe_id": "P-CMD-namespace",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M14",
-      "catcher": "P-CMD-identity",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:b4257f114c37c1f2a1c2237cee778eab34088f61c929d24b1fc240dd33b170d4",
-      "run_token": "rt_33c79116-b84a-48ef-bdf9-9793d7401c57",
-      "probe_id": "P-CMD-identity",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M27",
-      "catcher": "P-CMD-disclosure",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:ef2535b8eec40120e3e46b979a91adeeaad5e3ed59993f7041ad6432a5d2164f",
-      "run_token": "rt_6935a0ad-3e97-40cc-b291-f8154247131c",
-      "probe_id": "P-CMD-disclosure",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M19",
-      "catcher": "P-AUTHZ-evidence",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:55892539038d285f6330ddb584e7c50cd6a570d29a35cfd459827c4e4ebc3686",
-      "run_token": "rt_21c3354a-1ea7-4e94-bcee-f40bea1800fa",
-      "probe_id": "P-AUTHZ-evidence",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M22",
-      "catcher": "P-INVITE-authority",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:620f5d7b7bb9cc320aeb5db598483b4e23be6336cac1f0702ac3483ae8868336",
-      "run_token": "rt_e25a079a-a9d0-4488-97e1-6e7e4d2eba55",
-      "probe_id": "P-INVITE-authority",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M25",
-      "catcher": "P-INVITE-effect",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:cd520ed9f7fdaffb44458a0a37a4b0e28b370a51536479b8805a6482b8207c63",
-      "run_token": "rt_9a499245-14cf-4b73-a969-d9747fd0bb83",
-      "probe_id": "P-INVITE-effect",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M26",
-      "catcher": "P-AUTHZ-evidence",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:5c37ecde48294150a49113612758e2e130bc952c2b64bc81c4cf001dc7194c78",
-      "run_token": "rt_3989e65b-f5c5-4cbc-9d4a-5d6afa834cf3",
-      "probe_id": "P-AUTHZ-evidence",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M33",
-      "catcher": "P-AUTHZ-roles",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:a418f97fc8a92d62c5963d346f360a390f744a5c8488b093baede21eba9ea884",
-      "run_token": "rt_5fc74f8e-d9c8-4748-8f71-67a650406bdb",
-      "probe_id": "P-AUTHZ-roles",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M36",
-      "catcher": "P-IDENTITY-address",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:4f6680c5a5e615a8c32652debe90f20473949ff9d5198830a01976e43c61f264",
-      "run_token": "rt_2b62fddd-ed39-4bb2-bc70-b60ebf52d81c",
-      "probe_id": "P-IDENTITY-address",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M39",
-      "catcher": "P-INVITE-terms",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:7e91269ceea24e91814ac140449e806ffa8071064e33433f23c4856f8e4445c0",
-      "run_token": "rt_0ba75c9a-4afd-44d9-a113-b6e01e09b2b3",
-      "probe_id": "P-INVITE-terms",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M42",
-      "catcher": "P-CMD-receipt-integrity",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:a2ec15e8a87bbd155bf84e9f9bcadb4d6f11618a306ea5f5f287d289c3a07a82",
-      "run_token": "rt_cb698d1e-f2f4-4ecf-9787-b4594a3bffb2",
-      "probe_id": "P-CMD-receipt-integrity",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M47",
-      "catcher": "P-CMD-finalize-gate",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:b9b3f81ca0ef54b6f11dd90938888a433c5a8c6e801c94fad962357f8b86abc9",
-      "run_token": "rt_c425a459-82d7-4c51-8658-4bd66b8b2c91",
-      "probe_id": "P-CMD-finalize-gate",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N1b-earlier-record-and-decision-survive"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M50",
-      "catcher": "P-REV-authority",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:3a16200b8359636a377a203ebd346a515e1d0ad58d70e28e1d793a273c26eba5",
-      "run_token": "rt_4451f02a-c86f-4082-9fa7-62e7e4764491",
-      "probe_id": "P-REV-authority",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N3a-authority-is-per-operation"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M53",
-      "catcher": "P-REV-claim-read",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:e9c839e755ab59eb90bac60b52352a3d9ae98d358a973bcdd903df02977f54ef",
-      "run_token": "rt_c112d3f5-649a-4c7f-ab5b-cc875444ec78",
-      "probe_id": "P-REV-claim-read",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N3b-claim-grants-no-read"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
       "mutation_id": "M56",
       "catcher": "P-REV-suspension",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:ffc2411f6fe7ca4be482c5cb0d3e4ede0ccb3e19de2714b0e584d34c15f19e04",
-      "run_token": "rt_8ea18069-1c8c-46ca-ad7f-1a4ab658c903",
-      "probe_id": "P-REV-suspension",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N3a-suspension-has-effect"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M59",
-      "catcher": "P-REV-claim-read",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:1bff0e7ad51d3e0b932146aa56a6a729b70bec615e34d7e946f7c9421bb8c947",
-      "run_token": "rt_c4388fdf-1e4c-4290-b9a2-100b36a4cfd9",
-      "probe_id": "P-REV-claim-read",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N3b-claim-grants-no-read",
-        "A-REV-N3b-claim-content-readable"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M62",
-      "catcher": "P-REV-claim-decide",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:8216aa3c2b32db641f0fd737a8f5bc22b2096b5bbcb0e1a00fa60c94df381000",
-      "run_token": "rt_d4f5791b-5374-4248-99a3-ca524d169294",
-      "probe_id": "P-REV-claim-decide",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N3a-decision-needs-intact-evidence"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M65",
-      "catcher": "P-REV-ban-scope",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:b054913a32eff6acf60fab39b8f4c0eca26ee36e632cd477ebd95941db592154",
-      "run_token": "rt_c439ef21-eda8-4f41-a5c8-46edcf677a73",
-      "probe_id": "P-REV-ban-scope",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5b-ban-scope-comes-from-cause",
-        "A-REV-N5b-ban-kind-is-named-and-closed"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M70",
-      "catcher": "P-REV-ban-paths",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:42d0b43a9993e64efd26451543b895169c082fb67529d4a05a5f5551d04e4ae8",
-      "run_token": "rt_74c4237c-13f0-4c00-9f6d-850330714c77",
-      "probe_id": "P-REV-ban-paths",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5a-issuing-path-is-a-permitting-path",
-        "A-REV-N5a-no-weaker-writer"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M68",
-      "catcher": "P-REV-ban-past",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:ff61254c0e789cd1dba5015cf82b93667b8771e16f59c853c8522ef76577fb73",
-      "run_token": "rt_584f6252-5988-449d-b430-7dca3c3510a2",
-      "probe_id": "P-REV-ban-past",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5c-ban-does-not-rewrite-the-past"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M74",
-      "catcher": "P-REV-ban-paths",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:3939691098bf37e96f6231e13f5531266d020906cb8284e98e09dddca442850b",
-      "run_token": "rt_fc19f60c-01d8-4c1c-bce4-348006e8baf8",
-      "probe_id": "P-REV-ban-paths",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5a-ban-reaches-every-permitting-path"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M77",
-      "catcher": "P-REV-ban-paths",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:4d5c7c3983865bab047e2a6e45c18919a3c1a1c642b09c940b7273b1a5364f51",
-      "run_token": "rt_b42c2d54-0eca-4dd7-9c81-1a25a10d13b9",
-      "probe_id": "P-REV-ban-paths",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5a-credentials-reach-adjudication"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M80",
-      "catcher": "P-REV-effectuation",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:4655d4bdafd475d612f713cf6927d9e7b0f5ae5365b7566301a87c054a0bb0a2",
-      "run_token": "rt_8cff8e7e-bbc1-4fcd-afa6-973319a7137f",
-      "probe_id": "P-REV-effectuation",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N3a-effect-time-is-the-decision-time",
-        "A-REV-N3a-denied-write-has-no-side-effect"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M83",
-      "catcher": "P-REV-ban-record-shape",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:eb6791fe1e214d535b456161540826b1d6bf49a11600717c9ec61aa34ff5e551",
-      "run_token": "rt_224baa8c-5e23-457c-a09d-ca95a9dfceaa",
-      "probe_id": "P-REV-ban-record-shape",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5b-malformed-stored-scope-is-fail-closed"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M86",
-      "catcher": "P-REV-result-scope",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:498624bcbeeed4a6249bf651b631756fa930f8c053b7361234a9d60b0d644ca4",
-      "run_token": "rt_f10d717e-59fd-4321-84e4-1339a24d8015",
-      "probe_id": "P-REV-result-scope",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5b-undeclared-result-scope-is-fail-closed"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M89",
-      "catcher": "P-REV-result-shape",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:5a47eebf18d80299e3cb6001118954685643d625e1226942b8d42c9d7589e3f4",
-      "run_token": "rt_2d18b201-28aa-4329-8b74-bd748d5a74a7",
-      "probe_id": "P-REV-result-shape",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5b-nested-result-scope-is-measured",
-        "A-REV-N5b-result-shape-is-declared-and-typed"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M92",
-      "catcher": "P-CMD-effectuation",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:966dd74c0ed177fa96eeba4fedf5052c39c7fe0ab42bf8c74567604979b30ba2",
-      "run_token": "rt_b0bcfc2d-2006-463c-9927-e8fbc4111e36",
-      "probe_id": "P-CMD-effectuation",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N3a-command-effect-time-is-the-decision-time"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M95",
-      "catcher": "P-REV-entry-points",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:a20359bbfc8206ad1e0edef730d11d9c96f37c7c5777274bd970010b444dffc8",
-      "run_token": "rt_11137313-dc30-43c7-9cf5-fab424d2194e",
-      "probe_id": "P-REV-entry-points",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5a-neutral-entry-point-answers-are-indistinguishable"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M3",
-      "catcher": "P-K03-intent",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:170c6ca517d724cba90e8c2edc545a9e5afd5e7501d45a6aa9c5623c6c79d765",
-      "run_token": "rt_19dce976-b0e8-4149-a74c-99ce63d3f8b4",
-      "probe_id": "P-K03-intent",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M6",
-      "catcher": "P-A14",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:4ae45d6345d6d8eba4cbaef24a0592c0fec81ec66a66744faa597c76f8930fd4",
-      "run_token": "rt_83920eaf-07fd-40a5-8e25-92242086d55f",
-      "probe_id": "P-A14",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M9",
-      "catcher": "P-A04b",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:12006d9f203e8bdf241c3def49e087f9a77243616ece4287c37b8902eefd58d7",
-      "run_token": "rt_7bdc81fe-052c-473f-b88a-7fad99d47bc5",
-      "probe_id": "P-A04b",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M12",
-      "catcher": "P-CMD-namespace",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:969b49a4728babedaadb76c9d79ab3893f466aae32da426008b1f67e815b3bc9",
-      "run_token": "rt_22fdf314-23da-4777-94fc-e23c5e0d530d",
-      "probe_id": "P-CMD-namespace",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M15",
-      "catcher": "P-CMD-finalize",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:112db72b9653a33a63b5f7e61b0d377f3525b7bc409af381c1bdcc8dd9fb6b44",
-      "run_token": "rt_7460b017-e882-494b-9b82-433660d66153",
-      "probe_id": "P-CMD-finalize",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M17",
-      "catcher": "P-AUTHZ-opclass",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:6e90b11175d7642e3bb9c9d20544a02633591becb14df015e52d5058a658f931",
-      "run_token": "rt_a9b6e302-02dd-401d-945a-e51fe52143e4",
-      "probe_id": "P-AUTHZ-opclass",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M20",
-      "catcher": "P-AUTHZ-evidence",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:dd1ccb6df809bc5aa82a451c7e2d679b32d212fb02f9c05996b58a402dd3fa47",
-      "run_token": "rt_67a3ce54-bb9a-423c-8adb-c8492336d29d",
-      "probe_id": "P-AUTHZ-evidence",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M23",
-      "catcher": "P-INVITE-authority",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:132324360d59ea5250656b9d03d631edee8075c9af5b13669e2b1dff94302294",
-      "run_token": "rt_a4f2cadc-93b3-42c8-bc04-187fa31ac693",
-      "probe_id": "P-INVITE-authority",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-ORG-N2a-issuer-basis-withdrawn-is-fail-closed"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M28",
-      "catcher": "P-AUTHZ-revoke-now",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:97a134aa0226902538df6f8c374dad96fa7602cbf44d34a3606b712cbcf88ed6",
-      "run_token": "rt_29419b29-7a65-4283-96ce-c1b23209f7dd",
-      "probe_id": "P-AUTHZ-revoke-now",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M31",
-      "catcher": "P-INVITE-finalize-gate",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:efb05aec9adda528065d7f44146e4a0675b620f9b66b804907fc56835752dbd6",
-      "run_token": "rt_77471b02-afe9-43a2-97ee-44fefb88ab45",
-      "probe_id": "P-INVITE-finalize-gate",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M34",
-      "catcher": "P-CANON-shape",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:9f28c13445547bd35af1b6e0639ca35fe64293d5b403b3fa306bec13ac90f535",
-      "run_token": "rt_213a97be-79d4-4ba6-b1bb-8fc385de00a5",
-      "probe_id": "P-CANON-shape",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M37",
-      "catcher": "P-CMD-receipt",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:787982931064ae4112c830dbcadfb0f0ea4dcd8c35741b3a5f15bdeb02d3dfae",
-      "run_token": "rt_bfcac2a3-ba86-423b-afb4-0e10529903c6",
-      "probe_id": "P-CMD-receipt",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M40",
-      "catcher": "P-INVITE-terms",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:286eedf3679a16b5bb02c6f964b83e1fb0c39f0eca36497bf13bb579a246197c",
-      "run_token": "rt_f62c64ca-1320-4087-bd79-ec072d832582",
-      "probe_id": "P-INVITE-terms",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M43",
-      "catcher": "P-CMD-disclosure",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:bc4452cecd5670cf44b9d94a4c90c9750dd3891ebd1bc27d3901586cb668ea56",
-      "run_token": "rt_5d2f5b19-f2c8-418a-840f-f8f4ba6d2539",
-      "probe_id": "P-CMD-disclosure",
-      "probe_status": "FAIL",
-      "failed_assertions": [],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M48",
-      "catcher": "P-CMD-finalize-gate",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:21d0037c3a352cfddf6b081de93fff14920c6de2fe2474824f9cee53159d34af",
-      "run_token": "rt_aff8dc16-23cc-4eea-ba13-f1d2b61704a6",
-      "probe_id": "P-CMD-finalize-gate",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N1b-earlier-record-and-decision-survive"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M51",
-      "catcher": "P-REV-authority",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:74ad56d134d9e2324d94e1dce74480ea141fef914007061c651aafb795a9d68d",
-      "run_token": "rt_f2840f8f-f1b5-4e2a-8d8c-149962a87aaa",
-      "probe_id": "P-REV-authority",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N3a-authority-is-per-operation"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M54",
-      "catcher": "P-REV-claim-read",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:3dcd53dc7346ef0e96be412d14664eb84d9033646554308aad1fde32112fc145",
-      "run_token": "rt_1455e3d5-4dfa-4de6-bf77-6c7cebb53af5",
-      "probe_id": "P-REV-claim-read",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N3b-claim-grants-no-read"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M57",
-      "catcher": "P-REV-suspension",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:0f3b23411765a725869e871efa3b149b92dab8033411aec55ac1ed6f9e5007f4",
-      "run_token": "rt_2ecb1897-f8cd-4e49-89cc-f5f65e3b7257",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:ed651f97ed7944a53be8f63205e691e0add8d0c9870a219db3ff64b9d6d4b5e6",
+      "run_token": "rt_7720b396-b6a9-40b3-969d-4a270bcfd546",
       "probe_id": "P-REV-suspension",
       "probe_status": "FAIL",
       "failed_assertions": [
@@ -2715,9 +1885,9 @@
       "mutation_id": "M60",
       "catcher": "P-REV-claim-read",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:2243d1e2907cf3cf54ad9e62e862140a0d911248c9697e4de768996cb51cc513",
-      "run_token": "rt_8c49a49f-7c2d-433f-8016-c6795f7921a9",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:9fbbd9c4b0ec21f1455764f183f81cd62e684e3d8300b8d0f26b6801c4efa2ef",
+      "run_token": "rt_56b5e871-fd1c-4860-8a6f-436c77023337",
       "probe_id": "P-REV-claim-read",
       "probe_status": "FAIL",
       "failed_assertions": [
@@ -2727,27 +1897,354 @@
       "evidence_limit": null
     },
     {
-      "mutation_id": "M63",
+      "mutation_id": "M64",
       "catcher": "P-REV-claim-decide",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:a224cc6c427699e6652a4e85aeb08b772c0f2cd31a1e027469ef93bfb0f282fb",
-      "run_token": "rt_15e658eb-fef2-4948-9b69-8dbc0a158b20",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:f96f3b39d7f69441c28e84c5df8e02d12da4a219f701e6d2bd0a0c4ad20be50c",
+      "run_token": "rt_2a4100a3-afbc-466e-bdf7-37a252455599",
       "probe_id": "P-REV-claim-decide",
       "probe_status": "FAIL",
       "failed_assertions": [
-        "A-REV-N3c-secondary-ref-cannot-take-others-quota"
+        "A-REV-N3a-decision-needs-intact-evidence"
       ],
       "verdict": "CAUGHT",
       "evidence_limit": null
     },
     {
-      "mutation_id": "M66",
+      "mutation_id": "M70",
+      "catcher": "P-REV-ban-paths",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:725aa382d67b71aa553efecf0611b790aba3836cdc50fdaf5b98541f8cf344c0",
+      "run_token": "rt_fc378a1f-d81d-435c-afdc-a44b2caad809",
+      "probe_id": "P-REV-ban-paths",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5a-issuing-path-is-a-permitting-path",
+        "A-REV-N5a-no-weaker-writer"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M69",
+      "catcher": "P-REV-ban-past",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:063e439e1c3bf297124e75065617c9f547d89b2a26dc81178339349fe3590aca",
+      "run_token": "rt_cb64137a-b2e8-4886-9372-d9d7d1d1b5ae",
+      "probe_id": "P-REV-ban-past",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5c-ban-does-not-rewrite-the-past",
+        "A-REV-N5c-ban-does-not-remove-others-rights"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M76",
       "catcher": "P-REV-ban-scope",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:68ccebb773e67ab8397f6d20b5e6db86d18fd91bcba1f83bbf7d7bef13e049c4",
-      "run_token": "rt_0d70798f-a8d8-41ba-9bf4-2ad1eb87eada",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:cf82b6ef42d7d77c92fa619fc7d36102cd4367d08295bcdf25da6a40a2a8fb28",
+      "run_token": "rt_a27e2d92-acff-4087-9380-794b18d5a5ad",
+      "probe_id": "P-REV-ban-scope",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5b-unknown-stored-cause-is-not-swallowed"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M80",
+      "catcher": "P-REV-effectuation",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:8d56c6f918e5976c81948d2eeb7c367f3ae1c14a4de7b63b7d492f86b37f2726",
+      "run_token": "rt_3d5a1ec8-5e87-4aff-ae06-2d2d266bae48",
+      "probe_id": "P-REV-effectuation",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3a-effect-time-is-the-decision-time",
+        "A-REV-N3a-denied-write-has-no-side-effect"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M84",
+      "catcher": "P-REV-ban-record-shape",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:978446e1466fcbc1e9850ec332bedb6d76630b2e1f9f42f0189d4ddc371142da",
+      "run_token": "rt_da17efd4-957b-467a-aa77-045ce7898f4f",
+      "probe_id": "P-REV-ban-record-shape",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5b-malformed-stored-scope-is-fail-closed"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M88",
+      "catcher": "P-REV-ban-paths",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:843062cc802cff3840c10bfca0082a386fcbd0605ff8f098a5dc67a553097437",
+      "run_token": "rt_02a0727f-7484-4fe6-b625-6c26e7732fbc",
+      "probe_id": "P-REV-ban-paths",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5a-ban-needs-authority",
+        "A-REV-N5a-issuing-path-is-a-permitting-path"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M92",
+      "catcher": "P-CMD-effectuation",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:fdab47e9a4b24950547ac8f7100c0d65d5b27b87cc54ddb074552805b696173b",
+      "run_token": "rt_110dd693-032c-4914-9d2f-ad491fef3299",
+      "probe_id": "P-CMD-effectuation",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3a-command-effect-time-is-the-decision-time"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M96",
+      "catcher": "P-CMD-release-effectuation",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:cd255f87b3a31e0ede7461b5bf863acdc6e9b7309f48990adf6d8318ec43ec5a",
+      "run_token": "rt_ce6d5dd3-7f69-4263-bb7a-a6574aa5544e",
+      "probe_id": "P-CMD-release-effectuation",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3a-release-time-is-the-decision-time"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M2",
+      "catcher": "P-K03-cred",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:6ba15ebe8a0fbd5e54e1c4525f4bcedbdfc6311079e065af92f082af079f23d0",
+      "run_token": "rt_84df47b5-bb01-4c91-97ca-c594f4275402",
+      "probe_id": "P-K03-cred",
+      "probe_status": "THREW",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": "a védelem KÉT helyen áll (alak-feloldó + SQL WHERE), ezért egyetlen szerkesztés nem tud néma felülírást csinálni — ez a VÉDELEM TÜZELÉSÉNEK bizonyítéka"
+    },
+    {
+      "mutation_id": "M6",
+      "catcher": "P-A14",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:f6bcfcd25399ee30e068c110b46c1204a73832498776a5f7895d4988c72a5195",
+      "run_token": "rt_48719edc-9be2-4993-b5a0-3dc1c360e110",
+      "probe_id": "P-A14",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M10",
+      "catcher": "P-A08",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:3bc73335f02685b8dd81f85b073a051c1b4f57134e7f4a8d1948392011261cfb",
+      "run_token": "rt_2bba3a9d-b35d-4f0c-a50f-74a28b157995",
+      "probe_id": "P-A08",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M14",
+      "catcher": "P-CMD-identity",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:0529d7e47a1dd700440d446a72ae106cedb2caa670d56245e0ba6e007e8511b8",
+      "run_token": "rt_ad4c23e9-ea2f-4afb-ade0-f4499d80b5b0",
+      "probe_id": "P-CMD-identity",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M17",
+      "catcher": "P-AUTHZ-opclass",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:917e58d3c3fce3e337e8fd6537de7c5ffbdd9dd693f972767da9ea74b0754b55",
+      "run_token": "rt_cd1e0723-e6e2-49d2-9b87-73b9a36ada04",
+      "probe_id": "P-AUTHZ-opclass",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M21",
+      "catcher": "P-INVITE-window",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:656255e14ff699d49b3494156a7d3861c0e1185b876d9df64f1084c93f9351ce",
+      "run_token": "rt_899421f2-cb2f-4a3c-828e-e24082bbaf6c",
+      "probe_id": "P-INVITE-window",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M25",
+      "catcher": "P-INVITE-effect",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:d8651ed5e014f5a066c5513948d7b76ad618b1984d601efe101cec5a9ccc25db",
+      "run_token": "rt_80547e3f-5914-490c-b0e6-3fe746150050",
+      "probe_id": "P-INVITE-effect",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M31",
+      "catcher": "P-INVITE-finalize-gate",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:0e362560b8ed31be7e7ae7153729b19040c2dd89b6b8735b8b52460a34018074",
+      "run_token": "rt_d3a67747-1a8c-40e2-9a94-da52aebc5f05",
+      "probe_id": "P-INVITE-finalize-gate",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M35",
+      "catcher": "P-TIME-calendar",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:f4e7e8e2aecccaa5f2b5dbf2542afe8496a85e980234b5cbf3bc19cd679e4a14",
+      "run_token": "rt_be4e8ab8-844e-4ef4-a57b-b578afa9d2c2",
+      "probe_id": "P-TIME-calendar",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M39",
+      "catcher": "P-INVITE-terms",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:aa7d2c15ba0d4401718e1869fe54850325be02a5e3d7f910561898228eed1e31",
+      "run_token": "rt_50cb2060-6c13-4c22-bc2f-55d7a7b2f010",
+      "probe_id": "P-INVITE-terms",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M43",
+      "catcher": "P-CMD-disclosure",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:ea7d1138291dbd1e4afb81e7803af6ca581379add5cfe0fc36899e2c79168979",
+      "run_token": "rt_59f16d52-d9e0-4d48-a269-7ce038dfe640",
+      "probe_id": "P-CMD-disclosure",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M49",
+      "catcher": "P-CMD-finalize-gate",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:008de4e460e2c7e3df37fde2065e61d1a20b2bf1cd750b9f911bd9baecea525d",
+      "run_token": "rt_6ddcc7d2-797b-42b8-b045-63639357e415",
+      "probe_id": "P-CMD-finalize-gate",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N1b-earlier-record-and-decision-survive"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M53",
+      "catcher": "P-REV-claim-read",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:6a1277df00d345e463bef2a13caec23e132aa22427d8400e6593c23ab27783c8",
+      "run_token": "rt_5337b21f-2733-4ce0-b32c-bfead8ba1988",
+      "probe_id": "P-REV-claim-read",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3b-claim-grants-no-read"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M57",
+      "catcher": "P-REV-suspension",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:2c59d6744fcafa4cfddc22d3f0499ede179302fed63f48c8f629511f8b13f3fb",
+      "run_token": "rt_70f1ba55-6a5f-44e2-a990-1d982e0a9211",
+      "probe_id": "P-REV-suspension",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3a-suspension-has-effect"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M61",
+      "catcher": "P-REV-claim-read",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:6225bb3b6273a8a2524ed188f72ea14042250df3bc816ad28eb37a6a1e027428",
+      "run_token": "rt_e59c7dd1-ce34-4832-8b23-452187f14ad4",
+      "probe_id": "P-REV-claim-read",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3c-intake-limit-server-keyed"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M65",
+      "catcher": "P-REV-ban-scope",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:510f6ae3f412f553151effa9825db7a6b830c3343033df8088994965e6d3a36a",
+      "run_token": "rt_a0ec7b1a-1f44-49ae-a3ba-953c75b38d08",
       "probe_id": "P-REV-ban-scope",
       "probe_status": "FAIL",
       "failed_assertions": [
@@ -2761,9 +2258,9 @@
       "mutation_id": "M71",
       "catcher": "P-REV-ban-scope",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:df384e0dfb61175a9c918c3d4573a3e25975d07e2db0fed70a17916b5a7caa43",
-      "run_token": "rt_59cc55c2-9abb-434a-996d-b1c7f72cc577",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:627174eb416299d8aabaddb5b57d471495e9ee805bc328447e718268ce0748c3",
+      "run_token": "rt_c8d36451-6285-41f9-86eb-7390d5f49466",
       "probe_id": "P-REV-ban-scope",
       "probe_status": "FAIL",
       "failed_assertions": [
@@ -2773,47 +2270,31 @@
       "evidence_limit": null
     },
     {
-      "mutation_id": "M69",
-      "catcher": "P-REV-ban-past",
-      "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:c97b7b1f5da8fe5f2e8a56a91f75e35304eb3477595af0eef147a4b58855d8da",
-      "run_token": "rt_b9a96124-0b98-4c44-9257-a07dc4ce4e7f",
-      "probe_id": "P-REV-ban-past",
-      "probe_status": "FAIL",
-      "failed_assertions": [
-        "A-REV-N5c-ban-does-not-rewrite-the-past",
-        "A-REV-N5c-ban-does-not-remove-others-rights"
-      ],
-      "verdict": "CAUGHT",
-      "evidence_limit": null
-    },
-    {
-      "mutation_id": "M75",
+      "mutation_id": "M73",
       "catcher": "P-REV-ban-paths",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:6134c748f91a45d4daba6cc8308825f789ece1747fa6aa8f14c800e259569786",
-      "run_token": "rt_61c86ff8-863e-4da4-8a6b-a745d352dccb",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:766f42d245edd80dfcaa24219ffe1f91dfef5c0e2b292e8dcd26615677b99035",
+      "run_token": "rt_71ee2d96-a199-465c-9ad6-c44530e33cd2",
       "probe_id": "P-REV-ban-paths",
       "probe_status": "FAIL",
       "failed_assertions": [
-        "A-REV-N5a-no-weaker-writer"
+        "A-REV-N5a-issuing-path-is-a-permitting-path"
       ],
       "verdict": "CAUGHT",
       "evidence_limit": null
     },
     {
-      "mutation_id": "M78",
-      "catcher": "P-REV-ban-matrix",
+      "mutation_id": "M77",
+      "catcher": "P-REV-ban-paths",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:4f2453d8e932b3ee90a281a0c8f8cd47ab5005bb9e694a4ebe9b032ed7ec3857",
-      "run_token": "rt_54681e30-1e04-49b4-ae9b-ce32c599f9e9",
-      "probe_id": "P-REV-ban-matrix",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:982a0462c0a5782d350bcb41babe533ec0086c8483731e0b64760110d9279f7d",
+      "run_token": "rt_dc64b408-e846-4176-9b87-7408ad58420e",
+      "probe_id": "P-REV-ban-paths",
       "probe_status": "FAIL",
       "failed_assertions": [
-        "A-REV-N5a-every-path-measured-for-every-kind"
+        "A-REV-N5a-credentials-reach-adjudication"
       ],
       "verdict": "CAUGHT",
       "evidence_limit": null
@@ -2822,9 +2303,9 @@
       "mutation_id": "M81",
       "catcher": "P-REV-effectuation",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:5fce65828ff6148dde962610f104f7941fe8192aeded8a240bd3f67ebe99e3ae",
-      "run_token": "rt_88e65d99-512f-4034-b537-1f27c36caaa7",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:411135abc168806db65ebf57a5ad4c64c871eea75fe935de62427d47a35c1bf5",
+      "run_token": "rt_7a2e6b70-0a0b-4628-8f73-05354b39c382",
       "probe_id": "P-REV-effectuation",
       "probe_status": "FAIL",
       "failed_assertions": [
@@ -2834,27 +2315,356 @@
       "evidence_limit": null
     },
     {
-      "mutation_id": "M84",
-      "catcher": "P-REV-ban-record-shape",
+      "mutation_id": "M85",
+      "catcher": "P-REV-result-scope",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:b5464172b1094113a35b4c80df1efdd73438aa837e23c8d9eef549098562ff76",
-      "run_token": "rt_81ea5dcf-297b-4413-855e-2e40d1c31928",
-      "probe_id": "P-REV-ban-record-shape",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:98fe0b5b124ec7e7306de87e1f2ced2d67b812340016165b1014ba3bc0c8de0a",
+      "run_token": "rt_1ff3784f-38e9-47bb-a26f-a99a96ee2cfa",
+      "probe_id": "P-REV-result-scope",
       "probe_status": "FAIL",
       "failed_assertions": [
-        "A-REV-N5b-malformed-stored-scope-is-fail-closed"
+        "A-REV-N5b-result-scope-comes-from-declaration",
+        "A-REV-N5b-undeclared-result-scope-is-fail-closed"
       ],
       "verdict": "CAUGHT",
       "evidence_limit": null
     },
     {
-      "mutation_id": "M87",
+      "mutation_id": "M89",
+      "catcher": "P-REV-result-shape",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:88cfddd8f8d1e745cfedacfdd5004c264f4dd70541ef10694cb7d041f9580663",
+      "run_token": "rt_6679d52d-3c9a-4c22-b117-b2f12707e46c",
+      "probe_id": "P-REV-result-shape",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5b-nested-result-scope-is-measured",
+        "A-REV-N5b-result-shape-is-declared-and-typed"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M93",
+      "catcher": "P-CMD-effectuation",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:56d6c41bdb439f7a48115aad645acfae6677aa3d0bc3c966bcac49bc0e647446",
+      "run_token": "rt_80960412-c2a1-4ad4-9a7a-3a520af1543b",
+      "probe_id": "P-CMD-effectuation",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3a-command-refusal-is-neutral-and-inert"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M97",
+      "catcher": "P-CMD-release-effectuation",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:09a9e61cc6eaed6646875e08174f4d6bcaeae859d52f294146bf5ea9dcadba37",
+      "run_token": "rt_b986b2ea-8bc7-42c7-a65d-c46b60a11d97",
+      "probe_id": "P-CMD-release-effectuation",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3a-release-time-is-the-decision-time"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M3",
+      "catcher": "P-K03-intent",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:bd187ba45f31d20d8a959576a5ad469da0c838f6af05e3a893d71e3d4018725c",
+      "run_token": "rt_fe22ec96-57eb-4ec4-b959-4d2edd5c98aa",
+      "probe_id": "P-K03-intent",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M7",
+      "catcher": "P-A08",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:120f8aa996e341e546b43263f2208752c240e91736ea476a24931363600e632f",
+      "run_token": "rt_c5de8c80-f244-4c23-9467-4e055d20c67f",
+      "probe_id": "P-A08",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M11",
+      "catcher": "P-CMD-namespace",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:efa60bdfbf53ee166c8849239f67e841549fd074510d08719213ce89966c5386",
+      "run_token": "rt_4a2b0750-e47d-463f-a73d-884d053362e2",
+      "probe_id": "P-CMD-namespace",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M15",
+      "catcher": "P-CMD-finalize",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:5a984e41cada99db0c705964412c50b385fc0be5a33595392899d190fe372717",
+      "run_token": "rt_f7ca3a5b-80b5-45df-98dd-6632650be035",
+      "probe_id": "P-CMD-finalize",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M18",
+      "catcher": "P-AUTHZ-membership-time",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:cc2854280322eae8ef960b058dda0a078bf40f6f1522e4adac558f646e5b7c14",
+      "run_token": "rt_b4e6fe67-87c0-4f9b-a41b-cd1a8dae9d89",
+      "probe_id": "P-AUTHZ-membership-time",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M22",
+      "catcher": "P-INVITE-authority",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:5ce8e5d02fed8c3af2bcb9ee751ba6ac3927bb5a5cb76bb441b6fd9360c2ead4",
+      "run_token": "rt_a1544048-dd38-4856-b2d9-c259a68cb505",
+      "probe_id": "P-INVITE-authority",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M28",
+      "catcher": "P-AUTHZ-revoke-now",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:3bcdacb69ca96c81fbbea043cf35e6d79cebbe29d77bf20ea1c533ea6cfbe6b7",
+      "run_token": "rt_c5ffb793-ded6-4e1a-93be-e9d1c0cefc69",
+      "probe_id": "P-AUTHZ-revoke-now",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M32",
+      "catcher": "P-CMD-finalize-gate",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:cce8d09be8ac6b68b8a34d1b178e831ce4408e9dcf8f85f7efa61497b03224fa",
+      "run_token": "rt_648f7ea7-a328-4595-8684-ff3ed9ecf5f5",
+      "probe_id": "P-CMD-finalize-gate",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N1a-dependent-new-op-and-release-blocked"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M36",
+      "catcher": "P-IDENTITY-address",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:236564b40ed840885cc10e1b0efa30214cd2583ecdcb640ddefee4f4bac9a02e",
+      "run_token": "rt_3e612818-75ce-47bb-b020-1163f37218ae",
+      "probe_id": "P-IDENTITY-address",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M40",
+      "catcher": "P-INVITE-terms",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:a31ea22d44d8a2b50c1ce82eff2ee86069102369cec518d7215c141d8967ec4b",
+      "run_token": "rt_aebd59f8-9a3a-4c94-bd4d-e1efa0cbd297",
+      "probe_id": "P-INVITE-terms",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M44",
+      "catcher": "P-CMD-disclosure",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:c650bed19e004feb278a1206a0dacfa3a1d52f07b76e6c23e3faeaeaf49fef93",
+      "run_token": "rt_04c6fa5b-5ce6-4cb0-a676-c996da914c85",
+      "probe_id": "P-CMD-disclosure",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M50",
+      "catcher": "P-REV-authority",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:a2d407c8de83e9ce010c95ec347102d627f7b65c860a4765d279fc8ccdba62dc",
+      "run_token": "rt_93fcc03f-c53c-459c-8f4d-fbc12212f67c",
+      "probe_id": "P-REV-authority",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3a-authority-is-per-operation"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M54",
+      "catcher": "P-REV-claim-read",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:3c26d194b24a1af6cb40fd7925e7c8ced05e903346dcb48c6afea1735444a946",
+      "run_token": "rt_7fcaa9e6-b9cd-468e-a30f-7ad2905b687e",
+      "probe_id": "P-REV-claim-read",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3b-claim-grants-no-read"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M58",
+      "catcher": "P-REV-claim-read",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:ba4a9abcf0cc695a81d9a1d4bfe32173d33ebb3f273deb7b146c678f744f8072",
+      "run_token": "rt_ec7fa18c-c5f3-4030-93c5-df37cc3f8474",
+      "probe_id": "P-REV-claim-read",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3b-claim-grants-no-read"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M62",
+      "catcher": "P-REV-claim-decide",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:3d15b230c2cf49d6b47f949d92b9409518b362ed5a288d516ea7278a06b68490",
+      "run_token": "rt_65d2d10e-ee2b-414b-95e5-61abbad9ce23",
+      "probe_id": "P-REV-claim-decide",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3a-decision-needs-intact-evidence"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M66",
+      "catcher": "P-REV-ban-scope",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:f3ce2b1b4cff9b0300654b8fd4d54d5023593260f3acae55babe0ccce137a62f",
+      "run_token": "rt_6e3d3da8-8b9a-415e-956f-1c51d92692f7",
+      "probe_id": "P-REV-ban-scope",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5b-ban-scope-comes-from-cause",
+        "A-REV-N5b-ban-kind-is-named-and-closed"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M72",
+      "catcher": "P-REV-ban-scope",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:c9953cf1b7af65755229ea9a0d9064136dafd56e6771745bf9a9232a1ab52b05",
+      "run_token": "rt_79abda70-cbda-440c-8ca4-233927baa99a",
+      "probe_id": "P-REV-ban-scope",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5b-contradicting-record-is-not-a-measurement"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M74",
+      "catcher": "P-REV-ban-paths",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:9869171695cfcca2a4dbf93a98905b73ddaa8c4ee383ceec0603749f5b2a5b79",
+      "run_token": "rt_67b2c256-1d16-417e-9ce0-c4da096cc537",
+      "probe_id": "P-REV-ban-paths",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5a-ban-reaches-every-permitting-path"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M78",
+      "catcher": "P-REV-ban-matrix",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:d122a04dc1af09029aaa29df5c7dbc1cd766712cb186e07b33ba8bd86b350b6b",
+      "run_token": "rt_4de58ca1-5277-486c-b592-112da4824b11",
+      "probe_id": "P-REV-ban-matrix",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5a-every-path-measured-for-every-kind"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M82",
+      "catcher": "P-REV-effectuation",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:ae3c9c79fbdfe8c98bc65f69b2d663252eeb8511be17d5db3ce7550447754c6d",
+      "run_token": "rt_e61bd052-fa20-4d6b-8ff8-af33c2160a6c",
+      "probe_id": "P-REV-effectuation",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3a-effect-time-is-the-decision-time",
+        "A-REV-N3a-denied-write-has-no-side-effect"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M86",
       "catcher": "P-REV-result-scope",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:f447a8ce078bc3784df5e234847d53e34e45556ec06eaf8e181f9dd823fe2fa0",
-      "run_token": "rt_6af41718-dcf5-443c-90a3-7d0429bdd382",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:621e4d7cde3f77649357f791162a9363c02dedbf6a1fc93278955ec779aa840f",
+      "run_token": "rt_0aad0872-17eb-43b1-81e3-ed4eda8b026b",
       "probe_id": "P-REV-result-scope",
       "probe_status": "FAIL",
       "failed_assertions": [
@@ -2867,9 +2677,9 @@
       "mutation_id": "M90",
       "catcher": "P-REV-result-shape",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:f2832f252bad589ccfb5c9f8feb8cc7e5a9cf4b79927ca87a5d4483e2a56572d",
-      "run_token": "rt_e682215b-e509-4ea2-82df-3f0697bcb61f",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:663f48df94ed61ddfecfbaa70775e33948d35580bd52ff8036d92e9faa6f2936",
+      "run_token": "rt_fc75760c-9fd3-444e-932b-11bb4f1803f7",
       "probe_id": "P-REV-result-shape",
       "probe_status": "FAIL",
       "failed_assertions": [
@@ -2879,16 +2689,376 @@
       "evidence_limit": null
     },
     {
-      "mutation_id": "M93",
+      "mutation_id": "M94",
+      "catcher": "P-REV-entry-points",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:1d7d08d930238093d05ade777342f1eaad0f624564b2373148978fb280481c40",
+      "run_token": "rt_094922c2-d0c5-4225-b1e6-c26b309f715f",
+      "probe_id": "P-REV-entry-points",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5a-every-writer-entry-point-carries-context"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M98",
+      "catcher": "P-CMD-release-effectuation",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:421d219b460071707b454ccd9a2c3d948025cc5a8c6b463ec929e6bd6b799ae4",
+      "run_token": "rt_c81e8e10-f042-4132-b246-151ff8eff3c8",
+      "probe_id": "P-CMD-release-effectuation",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3a-release-time-is-the-decision-time"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M4",
+      "catcher": "P-A08",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:0c3ff112c23a5ececbe7067c1062c2830f78ab9fc87dc2bc88d786e24126d1a5",
+      "run_token": "rt_8050fb21-78f7-4a93-949a-63bef5f8d3b0",
+      "probe_id": "P-A08",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M8",
+      "catcher": "P-A08",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:1e06b80ce4c1312207906246555e09ba23d18b71b9ca0793eca0942742d86204",
+      "run_token": "rt_9f0a1a18-5bf5-407b-9cb6-434a2e300bca",
+      "probe_id": "P-A08",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M12",
+      "catcher": "P-CMD-namespace",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:0d523fa15cbf7596a20343aa9426fc2aa6051b567a017234f1120aa9781c6b5a",
+      "run_token": "rt_8434bf9f-de93-450a-9926-5b6086116243",
+      "probe_id": "P-CMD-namespace",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M16",
+      "catcher": "P-CMD-disclosure",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:127166f7f44aba0bb400760d8f539f66c68c1285f6a108d4bebb8b8f81875bf8",
+      "run_token": "rt_70fa6dd6-3793-4e51-ab26-f54537e9525e",
+      "probe_id": "P-CMD-disclosure",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M19",
+      "catcher": "P-AUTHZ-evidence",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:4db7adf93252532f6945d04641b905f2fa775ecacc99c58f721813538f0f4c95",
+      "run_token": "rt_d1eea994-6394-42be-ac8d-3e4a4c974bfb",
+      "probe_id": "P-AUTHZ-evidence",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M23",
+      "catcher": "P-INVITE-authority",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:b35c682ec9b0d777d908435c4c9854d05b8059453843724ef1f241b33cd23e48",
+      "run_token": "rt_6fb44d3c-581b-4a74-9d80-8342cf9ee22b",
+      "probe_id": "P-INVITE-authority",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-ORG-N2a-issuer-basis-withdrawn-is-fail-closed"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M29",
+      "catcher": "P-AUTHZ-revoke-now",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:9982a154bbb8a352deef9230db2ef3434c72e1cbe14588de2b98e7c359517240",
+      "run_token": "rt_ed73d6a1-b938-4fe1-801d-b11add5dbb2c",
+      "probe_id": "P-AUTHZ-revoke-now",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M33",
+      "catcher": "P-AUTHZ-roles",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:e3b444661e25a58f35b6457cbba20bc9b1db9fb6c5843592986f3378802ba4fd",
+      "run_token": "rt_eab89da2-e650-421b-b1e8-bf60c5492537",
+      "probe_id": "P-AUTHZ-roles",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M37",
+      "catcher": "P-CMD-receipt",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:b368fb196d829a0ba075107607b7d5e6586c37dfae15b999df98cefa313ae842",
+      "run_token": "rt_94b07166-8489-4007-802c-b9f687fa1100",
+      "probe_id": "P-CMD-receipt",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M41",
+      "catcher": "P-CMD-receipt-integrity",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:af22d4becc20b2f976faedf504f79fb84935ed8d5ce3f93e27d611efad72fbea",
+      "run_token": "rt_30ba4e39-d5cd-41c8-979e-d73f6e70dfa7",
+      "probe_id": "P-CMD-receipt-integrity",
+      "probe_status": "FAIL",
+      "failed_assertions": [],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M47",
+      "catcher": "P-CMD-finalize-gate",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:7af9de26f20cd9955ab33945e1880926be1367c3a4623d91977d5031e753ec42",
+      "run_token": "rt_90186295-be26-40e5-b8bf-d3ac3985771f",
+      "probe_id": "P-CMD-finalize-gate",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N1b-earlier-record-and-decision-survive"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M51",
+      "catcher": "P-REV-authority",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:643cb043d7bf72bbf647996abe8e86090cc19f113bf8885beb97621ba307ea03",
+      "run_token": "rt_13c1e249-dbbc-4c3b-8eef-c179316fe461",
+      "probe_id": "P-REV-authority",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3a-authority-is-per-operation"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M55",
+      "catcher": "P-REV-claim-read",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:fb5a09284e2a17238ef45ba8e58e92aa790ac9fea10a5056a0b9b80773882f7a",
+      "run_token": "rt_92b33b57-a06c-45ba-b91a-f908b12c6148",
+      "probe_id": "P-REV-claim-read",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3b-claim-grants-no-read"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M59",
+      "catcher": "P-REV-claim-read",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:afda27913e2259ae4d6d7d02607fe2f1392f68895963d8b711b4ffc8e410eaaf",
+      "run_token": "rt_ec7eb2bb-73fb-4f57-8f49-64731d09d984",
+      "probe_id": "P-REV-claim-read",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3b-claim-grants-no-read",
+        "A-REV-N3b-claim-content-readable"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M63",
+      "catcher": "P-REV-claim-decide",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:aebc0a12a823191d2641054e5eebae038f5dd766af69d9f9a5b10907c8e508a7",
+      "run_token": "rt_3d69e162-efe5-4d6a-86dc-d901c36f4dd7",
+      "probe_id": "P-REV-claim-decide",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3c-secondary-ref-cannot-take-others-quota"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M67",
+      "catcher": "P-REV-ban-paths",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:7db1f993b3c26524ef0b0e0f058c9c8da78d93a2b8677357576c3084a9dc52a2",
+      "run_token": "rt_735c6885-9946-4961-ae9b-fffa90cfd658",
+      "probe_id": "P-REV-ban-paths",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5a-ban-reaches-every-permitting-path",
+        "A-REV-N5a-issuing-path-is-a-permitting-path",
+        "A-REV-N5a-credentials-reach-adjudication"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M68",
+      "catcher": "P-REV-ban-past",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:0b5b8a7fd2f2fa9d9d0e61b85fcadd7c7046b83ab4d7e83c845611318185cc5a",
+      "run_token": "rt_b5e21c75-e2aa-4e68-87bb-729d9aa06892",
+      "probe_id": "P-REV-ban-past",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5c-ban-does-not-rewrite-the-past"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M75",
+      "catcher": "P-REV-ban-paths",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:b3e0d8a56a6f43b43b6e79e8a5f26a6243f5da97a9d74e3d1ac628419a51812b",
+      "run_token": "rt_ef3ed4c9-8c2a-4cd8-a071-ee3a3b8e8037",
+      "probe_id": "P-REV-ban-paths",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5a-no-weaker-writer"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M79",
+      "catcher": "P-REV-ban-matrix",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:9cd8f9fc760c038a61efea4e3eb87b5382162b6cadbd99ecf81d0fe5480b324a",
+      "run_token": "rt_240b1a58-d822-4886-9de7-d2ac443e1598",
+      "probe_id": "P-REV-ban-matrix",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5b-scope-matrix-matches-the-norm"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M83",
+      "catcher": "P-REV-ban-record-shape",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:bb6080c15331630f33d1b9248f603e9c6561a542886a73a6c039f85b1fd6366d",
+      "run_token": "rt_07a674df-4b1f-4536-872e-c9b58f8d87ce",
+      "probe_id": "P-REV-ban-record-shape",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5b-malformed-stored-scope-is-fail-closed"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M87",
+      "catcher": "P-REV-result-scope",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:cd30ce830d79b8a773cfb7fef913743d1773aa451d667263236898c49d33270b",
+      "run_token": "rt_4dfe1bcc-fb96-4c8f-9d01-6ef976e6aa3f",
+      "probe_id": "P-REV-result-scope",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5b-undeclared-result-scope-is-fail-closed"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M91",
       "catcher": "P-CMD-effectuation",
       "applied": true,
-      "base_digest": "sha256:525592b1891e2afc06bb48dd2f9d1da7d0a5d7d86df55081149db0433f74c0cf",
-      "mutated_digest": "sha256:0a14a7fe8c1c94445895ee930028aebcdad33daf0c308cb427b03d63c8fc07c1",
-      "run_token": "rt_e03bccf1-9ccb-4df4-99a4-366d21d968ba",
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:76ccb7325217f90132f5881d0a83af7c7e626c3a2b9b7c4539010685e765393e",
+      "run_token": "rt_701b400d-93d4-464a-b100-20dfc0677ecf",
       "probe_id": "P-CMD-effectuation",
       "probe_status": "FAIL",
       "failed_assertions": [
-        "A-REV-N3a-command-refusal-is-neutral-and-inert"
+        "A-REV-N3a-command-effect-time-is-the-decision-time"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M95",
+      "catcher": "P-REV-entry-points",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:ef9188594e3c8736657ef4fd16fa0224e14fd33e8de5eb36f2f259e82535b9e7",
+      "run_token": "rt_bef17e1f-96cb-4251-80b8-6958be03d64d",
+      "probe_id": "P-REV-entry-points",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N5a-neutral-entry-point-answers-are-indistinguishable"
+      ],
+      "verdict": "CAUGHT",
+      "evidence_limit": null
+    },
+    {
+      "mutation_id": "M99",
+      "catcher": "P-CMD-release-effectuation",
+      "applied": true,
+      "base_digest": "sha256:67038c9c658ea261e84f6eee48e15b340c1e4afe0059f7d3d97c4d6d858ec1d4",
+      "mutated_digest": "sha256:562b897c259735b10c56c766969f3ef63f027af87f0e87b005f7177e20b13e13",
+      "run_token": "rt_99778dfd-1113-40c4-b532-2a9d05dfca3b",
+      "probe_id": "P-CMD-release-effectuation",
+      "probe_status": "FAIL",
+      "failed_assertions": [
+        "A-REV-N3a-release-refusal-is-neutral-and-inert"
       ],
       "verdict": "CAUGHT",
       "evidence_limit": null

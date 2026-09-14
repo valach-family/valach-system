@@ -266,6 +266,20 @@ export const EXPECTED_PROBES = Object.freeze([
     ]),
   }),
   Object.freeze({
+    id: 'P-CMD-release-effectuation', assertion: 'REVN3-data-release-uses-the-effectuation-point',
+    // R81/F04. Az R79-ben a PARANCSÍRÁST kötöttük egyetlen hatályosulási ponthoz, az ADATKIADÁST
+    // nem: a `readCommandResult` úton a jelölt-szűrés, a bebocsátás, a tranzakción belüli jog-kapu,
+    // az ADATKÖR-kapu és a leltár-sor MIND külön `clock.now()`-t olvasott. Mérve (a külső fél):
+    // a tagság 08:00:01-kor megszűnik, az első három olvasás 08:00:00, a negyedik 08:00:02 ⇒ az
+    // eredmény KIMEGY, és a leltár-sor olyan időpontot visel, amelyen a jog már nem állt fenn.
+    // A javítás ugyanaz az `effectuateWith` szerkezet, `basis: 'membership'` alappal — és a
+    // tranzakción belül olvasott `at` vezetve végig MINDHÁROM fogyasztón (jog · adatkör · leltár).
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N3a', assertion: 'A-REV-N3a-release-time-is-the-decision-time' }),
+      Object.freeze({ clause: 'REV-N3a', assertion: 'A-REV-N3a-release-refusal-is-neutral-and-inert' }),
+    ]),
+  }),
+  Object.freeze({
     id: 'P-REV-entry-points', assertion: 'REVN5-every-writer-entry-point-is-measured',
     // R79/F03. A `revokeMembership` hívta a hatáskör-ellenőrzést, de a hiteles kontextust nem vitte
     // át: a hitelesítő-alapú tiltás ezen az ÍRÓ úton nem hatott. A javítás mellé a mérés hatóköre

@@ -23,6 +23,23 @@
 // Ezért ez a modul MÁS tengelyen mér: az EXPORTÁLT ÍRÓ BELÉPÉSI PONTOKAT hívja végig, azzal a
 // kontextussal, amit egy valódi hívó adna át.
 //
+// ═══ A HATÓKÖR PONTOSÍTVA (R81 §7, a külső fél helyesbítése) ════════════════════════════════════
+//
+// Az R80-as jelentésünkben „minden író belépési pontnak" neveztük ezt az ÖT utat. Ez PONTATLAN, és
+// a mérés hatóköréről szól, tehát számít: ez az öt út a HATÁSKÖRI/TILTÁSI családba tartozik (jog
+// megvonása · felfüggesztés · feloldás · beadvány-elbírálás · beadvány-olvasás). A rendszer TÖBB
+// írót ismer, és azok MÁS családok, MÁS jogalappal:
+//
+//   · a PARANCSÍRÁS (`submitCommand`) TAGSÁGI jogon áll, nem hatáskörin — a saját hatályosulási
+//     pontja van, saját próbával (`P-CMD-effectuation`);
+//   · a MEGHÍVÓ-ÍRÁS (`redeemInvite`) a kiadott feltételekhez kötött, megint más szerződés;
+//   · az ADATKIADÁS (`readCommandResult`) pedig nem is író: ENGEDŐ út, saját hatályosulási ponttal
+//     (`P-CMD-release-effectuation`, R81/F04).
+//
+// A mondat helyes alakja tehát: „minden HATÁSKÖRI/TILTÁSI belépési pont". A pontatlan összevonás
+// azért veszélyes, mert TÖBBET ígér, mint amit mér (KUKA-041 a saját jelentésünkön) — a padló
+// (`ENT_FLOOR`) ettől nem változik, csak a szavunk lesz igaz.
+//
 // ═══ MIT MÉR EGY SOR ════════════════════════════════════════════════════════════════════════════
 //
 // belépési pont × kontextus-tengely × (matching | other | absent)

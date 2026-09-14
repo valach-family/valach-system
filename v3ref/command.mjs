@@ -472,6 +472,15 @@ export function readCommandResult({ store, idemKey, requester, bookId, actor, cl
     throw new Error('readCommandResult: részleges hatókör-cím — bookId és actor együtt kell');
   }
 
+  // A KIADÁSI JOG EGY FELOLDÓN (R81/F04). Minden olvasó ugyanezt hívja — a jelölt-szűrés, a
+  // bebocsátás és a hatályosulás is —, és MINDEGYIK MEGKAPJA AZ IDŐPONTOT, amin döntenie kell.
+  // A régi alak három ága három KÜLÖN `clock.now()`-t olvasott, a negyediket (a leltár-sorét) meg
+  // a `disclose` olvasta: a külső fél mérése szerint a kiadás 08:00:00-s jogon ment ki, a leltárba
+  // viszont 08:00:02 került — olyan időpont, amelyen a `rightAt` MÁR MEGTAGADTA volna.
+  const mayRelease = (book, nowIso) => releaseAllowed({
+    store, subjectId: requester, bookId: book, nowIso, externalEvidence, credentials,
+  });
+
   let cmd;
   if (addressed) {
     cmd = findCommandInScope(store, commandScope({ bookId, actor, idemKey }));
@@ -479,46 +488,58 @@ export function readCommandResult({ store, idemKey, requester, bookId, actor, cl
     // A JELÖLTEKET ELŐBB A MAI JOG SZŰRI, és csak a LÁTHATÓK között követelünk egyértelműséget.
     // Enélkül egy IDEGEN könyvben megjelenő azonos kulcs átbillenthetné a kérő korábban sikeres
     // olvasását `refused`-ra — vagyis egy hatókörén KÍVÜL keletkezett tény üzenne neki.
+    const pickAt = clock.now();
     const rows = store.all('SELECT * FROM command WHERE idem_key = ?', idemKey);
-    const visible = rows.filter((r) => rightAt({
-      store, subjectId: requester, bookId: r.book_id, opClass: 'own_book', clock, externalEvidence, credentials,
-    }).allowed);
+    const visible = rows.filter((r) => mayRelease(r.book_id, pickAt));
     if (visible.length !== 1) return refused;
     cmd = visible[0];
   }
   if (!cmd) return refused;
 
-  if (!rightAt({ store, subjectId: requester, bookId: cmd.book_id, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {
-    return refused;
-  }
-
   // A HATÁS változatlan; a VETÜLET most készül, mai jogon. A HATÓKÖR A KIADOTT REKORDBÓL jön,
   // nem a kérésből — különben a leltár a ROSSZ könyvre könyvelne (KUKA-002).
   const resolved = JSON.parse(cmd.resolved_json);
-  return store.tx(() => {
-    // R51/J1 (N08): a KIADÁS engedélyezési pontja a tranzakción BELÜL van. A fenti ellenőrzés a
-    // jelölt-szűréshez kell; a kiadás pillanatában érvényes jogot ez a hívás méri.
-    if (!releaseAllowed({ store, subjectId: requester, bookId: cmd.book_id, clock, externalEvidence, credentials })) {
-      return refused;
-    }
+
+  // ── A KIADÁS HATÁLYOSULÁSI PONTJA (EFF-01, R81/F04) ───────────────────────────────────────────
+  //
+  // MIÉRT ITT. Az R79-ben a PARANCSÍRÁST kötöttük egyetlen hatályosulási ponthoz, az ADATKIADÁST
+  // nem — pedig a kiadás ugyanúgy „döntés + rögzített hatás" (a hatás itt a kiadási leltár sora és
+  // maga a kiadott tartalom). A külső fél (R81 §4) ezt mérte ki: *„a jogellenőrzés, adatkör-
+  // ellenőrzés és disclosure időpontja még külön óraolvasás"*.
+  //
+  // INNENTŐL EGY IDŐPONT: a tranzakción belül olvasott `at` dönt a TAGSÁGRÓL és a TILTÁSRÓL
+  // (`decide`), az EREDMÉNY ADATKÖRÉRŐL (`resultReleasable`), és ez kerül a LELTÁR-SORBA is. Nem
+  // újabb egymás utáni ellenőrzés született, hanem a MEGLÉVŐ `at` végigvezetve (KUKA-124: amit egy
+  // korábbi kapu eldöntött, azt nem mérjük újra egy MÁSIK órán).
+  //
+  // A jogalap `membership`, nem `authority`: a kiadás a KÖNYVHÖZ való tagságon áll, nem hatáskörön.
+  const out = effectuateWith({
+    store,
+    clock,
+    basis: 'membership',
+    decide: (nowIso) => (mayRelease(cmd.book_id, nowIso)
+      ? { ok: true }
+      : { ok: false, reason: 'not_available', message: refused.message }),
+  }, ({ at }) => {
     // DSC-01 (R77/F02) — AZ EREDMÉNY SAJÁT ADATKÖRE. A fenti kapu a KÖNYVHÖZ való jogot méri, és a
     // tiltás-kapun a `dataScope` tengelyt a KÉRŐ kontextusa írja. Ez a két tény nem ugyanaz: a kérő
     // `dataScope: 'keszlet'` címkével is kaphatna ÁRAT, ha az eredmény ármezőt hordoz. Ezért a
     // kiadás itt a KIADANDÓ TARTALOM adatköreit méri — a típus deklarációjából, a kérő szavától
-    // függetlenül —, és MINDEGYIKRE külön megkérdezi, tiltott-e az olvasónak.
+    // függetlenül —, és MINDEGYIKRE külön megkérdezi, tiltott-e az olvasónak. UGYANAZON az `at`-on,
+    // amin a tagsági jog is állt (R81/F04).
     //
     // A NEMLEGES VÁLASZ UGYANAZ A `refused` OBJEKTUM, mint minden más akadálynál (KUKA-084): a
     // „nincs jogod ehhez az adatkörhöz" és a „nincs ilyen eredmény" kívülről megkülönböztethetetlen,
     // különben a válasz maga mondaná meg, hogy a parancs létezik. A besorolás HIÁNYA is ide esik —
     // a pontos mondatot a BEADÓ kapja meg, a beadáskor.
     const releasableScope = resultReleasable({
-      store, subjectId: requester, nowIso: clock.now(),
+      store, subjectId: requester, nowIso: at,
       type: cmd.type, typeVersion: cmd.type_version, result: resolved,
       request: banRequestFor({ bookId: cmd.book_id, opClass: 'own_book' }, credentials),
     });
     if (!releasableScope.releasable) return refused;
     return Object.freeze(disclose({
-      store, kind: 'command_result', scope: cmd.book_id, ref: commandRef(cmd), recipient: requester, clock,
+      store, kind: 'command_result', scope: cmd.book_id, ref: commandRef(cmd), recipient: requester, clock, at,
       body: {
         ok: true,
         error: null,
@@ -528,4 +549,5 @@ export function readCommandResult({ store, idemKey, requester, bookId, actor, cl
       },
     }));
   });
+  return out.authorized ? out.value : refused;
 }

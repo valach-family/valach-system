@@ -48,14 +48,15 @@ export const MUTATIONS = [
   // szűrés MELLETT a `store.tx`-en BELÜL is fut egy jog-ellenőrzés. Az egyrétegű rontás ezért
   // TÚLÉLTE — jó hír a kódnak, rossz hír a mutációnak (KUKA-041). Mindkét réteget elveszi.
   { id: 'M4', rule: 'K07', catcher: 'P-A08', expect: 'probe_fail',
-    what: 'az eredmény kiadása MINDKÉT rétegen kihagyja a MAI jog ellenőrzését (a mi hibás C08-as javaslatunk)',
+    what: 'az eredmény kiadása MINDEN rétegen kihagyja a MAI jog ellenőrzését (a mi hibás C08-as javaslatunk)',
+    // R81/F04 ÚJRAHORGONYZÁS. A régi alak KÉT szerkesztésből állt, mert a jog-ellenőrzés két
+    // helyen, KÉT KÜLÖN hívásként állt (a jelölt-szűrésen és a tranzakción belül). A javítás
+    // EGY nevezett feloldóba vonta össze (`mayRelease`), amit MINDEN ág hív — ezért a mutáció is
+    // EGY szerkesztés lett. Ez nem gyengülés: a feloldó megkerülése ugyanazt a két réteget nyitja
+    // ki egyszerre, és a megkerülés ÚJ hívó nélkül nem lehetséges (KUKA-039 · KUKA-003).
     file: 'command.mjs',
-    edits: [
-      { from: "  if (!rightAt({ store, subjectId: requester, bookId: cmd.book_id, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {\n    return refused;\n  }",
-        to: "  if (false) {\n    return refused;\n  }" },
-      { from: "    if (!releaseAllowed({ store, subjectId: requester, bookId: cmd.book_id, clock, externalEvidence, credentials })) {\n      return refused;\n    }",
-        to: "    if (false) {\n      return refused;\n    }" },
-    ] },
+    from: "  const mayRelease = (book, nowIso) => releaseAllowed({\n    store, subjectId: requester, bookId: book, nowIso, externalEvidence, credentials,\n  });",
+    to: "  const mayRelease = () => true;" },
 
   { id: 'M5', rule: 'K07', catcher: 'P-A08', expect: 'runtime_error',
     error_code: 'ERR_SQLITE_ERROR', phase: 'probe_body',
@@ -884,8 +885,13 @@ export const MUTATIONS = [
       + 'bebocsátáson vagy a hatályosuláson bukott el. A szakasz maga is csatorna: a kérő abból tudja '
       + 'meg, MIKOR szűnt meg a joga (KUKA-084 — a kijárat nem HELY, hanem CSATORNA)',
     file: 'command.mjs',
-    from: "  return out.authorized ? out.value : refused;",
-    to: "  return out.authorized ? out.value : Object.freeze({ ok: false, error: 'not_authorized', stage: out.stage });" },
+    // R81 ÚJRAHORGONYZÁS (a SAJÁT söprésem lelete). A kiadási út is `effectuateWith`-re állt
+    // (R81/F04), tehát ez a sor KÉT helyen áll a fájlban — a puszta sor mint horgony nem mondja
+    // meg, MELYIKET mérjük. A horgony ezért a fölötte álló, EGYEDI megjegyzés-sorral együtt megy.
+    from: "  // meg, MELYIK szakaszon állt meg — a szakasz maga is csatorna lenne (KUKA-084).\n"
+      + "  return out.authorized ? out.value : refused;",
+    to: "  // meg, MELYIK szakaszon állt meg — a szakasz maga is csatorna lenne (KUKA-084).\n"
+      + "  return out.authorized ? out.value : Object.freeze({ ok: false, error: 'not_authorized', stage: out.stage });" },
 
   { id: 'M94', rule: 'K09/K15', catcher: 'P-REV-entry-points', expect: 'probe_fail',
     what: 'R79/F03 — A MEGVONÁS ÚTJA MEGINT ELDOBJA A HITELES KONTEXTUST: a hatáskör-ellenőrzés fut, '
@@ -903,4 +909,47 @@ export const MUTATIONS = [
     file: 'adjudication.mjs',
     from: "  if (!out.authorized) return CLAIM_NOT_AVAILABLE;",
     to: "  if (!out.authorized) return Object.freeze({ ok: false, error: 'not_available', reason: out.right?.reason ?? null });" },
+
+  // ── R81/F04 — A KIADÁSI ÚT HÁROM FOGYASZTÓJA, EGYENKÉNT VISSZACSÚSZTATVA ─────────────────────
+  //
+  // MIÉRT HÁROM. A lelet egyetlen mondatban áll („a jogellenőrzés, az adatkör-ellenőrzés és a
+  // disclosure időpontja külön óraolvasás"), de a javítás HÁROM fogyasztót köt egy `at`-hoz. Ha egy
+  // közös mutációval mérnénk, két darab néma kivétele nem látszana (KUKA-039: a fél őr). Ezért
+  // mindegyikhez SAJÁT visszacsúszás tartozik, és a próba LÉPCSŐS órás ágai (f)/(g) választják el
+  // őket — a HATÁRHOZ kötött órán ugyanis mindhárom alak ugyanazt adná (KUKA-139).
+  { id: 'M96', rule: 'K05/K07', catcher: 'P-CMD-release-effectuation', expect: 'probe_fail',
+    what: 'R81/F04 — AZ ADATKÖR-KAPU MEGINT SAJÁT ÓRÁT OLVAS: a kiadandó tartalom adatköreit egy '
+      + 'KÉSŐBBI pillanaton méri, mint amelyen a jog állt. Így egy KÉSŐBB hatályossá váló adatkör-'
+      + 'tiltás visszamenőleg elzár egy olyan kiadást, amely a döntés pillanatában jogos volt — és '
+      + 'fordítva is elcsúszhat (KUKA-024: a VISZONYT kell mérni, nem az oldalakat)',
+    file: 'command.mjs',
+    from: "      store, subjectId: requester, nowIso: at,\n      type: cmd.type, typeVersion: cmd.type_version, result: resolved,",
+    to: "      store, subjectId: requester, nowIso: clock.now(),\n      type: cmd.type, typeVersion: cmd.type_version, result: resolved," },
+
+  { id: 'M97', rule: 'K05/K07', catcher: 'P-CMD-release-effectuation', expect: 'probe_fail',
+    what: 'R81/F04 — A KIADÁSI LELTÁR MEGINT KÉSŐBBI ÓRÁT VISEL: a `disclose` nem kapja meg a döntési '
+      + 'pillanatot, ezért a saját `clock.now()`-jára esik vissza. A sor olyan időpontot hordoz, '
+      + 'amelyen a `rightAt` már megtagadná a jogot — pontosan az az alak, amit a külső fél mért '
+      + '(`disclosure.at = 08:00:02`, a jog 08:00:01-kor szűnt meg)',
+    file: 'command.mjs',
+    from: "      store, kind: 'command_result', scope: cmd.book_id, ref: commandRef(cmd), recipient: requester, clock, at,",
+    to: "      store, kind: 'command_result', scope: cmd.book_id, ref: commandRef(cmd), recipient: requester, clock," },
+
+  { id: 'M98', rule: 'K05/K07', catcher: 'P-CMD-release-effectuation', expect: 'probe_fail',
+    what: 'R81/F04 — A HATÁLYOSULÁSI PONT DÖNTÉSE ELDOBJA A KAPOTT PILLANATOT, és a saját óráját '
+      + 'olvassa. A `decide` így MÁS időponton felel, mint amit a hatás (a leltár-sor) visel: a '
+      + 'kettő között megszűnő tagság vagy tiltás mellett a két válasz ellentmond egymásnak',
+    file: 'command.mjs',
+    from: "    decide: (nowIso) => (mayRelease(cmd.book_id, nowIso)",
+    to: "    decide: () => (mayRelease(cmd.book_id, clock.now())" },
+
+  { id: 'M99', rule: 'K05/K07', catcher: 'P-CMD-release-effectuation', expect: 'probe_fail',
+    what: 'R81/F04 ELLENPÁRJA — A KIADÁS ELUTASÍTÁSA MEGSZÓLAL: a válasz megmondja, MELYIK '
+      + 'szakaszon állt meg (bebocsátás vagy hatályosulás). Ettől a HATÁRON elbukó kérő válasza '
+      + 'megkülönböztethető lesz attól, akinek már a hívás pillanatában sincs joga — és a különbség '
+      + 'maga hordozza a védett tényt: hogy a parancs LÉTEZIK, és hogy a jog KÖZBEN szűnt meg '
+      + '(KUKA-084: a kijárat nem HELY, hanem CSATORNA)',
+    file: 'command.mjs',
+    from: "    if (!releasableScope.releasable) return refused;\n    return Object.freeze(disclose({",
+    to: "    if (!releasableScope.releasable) return Object.freeze({ ...refused, error: 'data_scope_denied' });\n    return Object.freeze(disclose({" },
 ];

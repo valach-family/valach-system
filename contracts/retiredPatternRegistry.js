@@ -6650,6 +6650,166 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'az egység-fájl `evidence_bound` mezője + az összefűzés (5) feltétele; a régi alakon '
       + 'bizonyítottan zöld volt (vagyis a hiba átment), a mai alakon piros.',
   }),
+
+  Object.freeze({
+    id: 'KUKA-151',
+    date: '2026-09-14',
+    title: 'AZ ÖSSZEFŰZÉS A BEADOTT ÖSSZEFOGLALÓT FOGADTA EL MÉRÉSNEK',
+    what: 'A darabolt futás összefűzése (`mutate.mjs --merge`, R79 §6) MINDEN összesítőjét a beadott '
+      + 'egység-fájlok SAJÁT MEZŐIBŐL vette: a lefedettséget a `mutation_ids`, a darabszámot a '
+      + '`counts`, a tisztaságot a `slice_clean`, a kötelező klauzula-készletet pedig az EGYIK '
+      + 'BEADOTT EGYSÉG `norm_required` mezője. A RÉSZLETES eredményhez (`mutation_results`) egyik '
+      + 'sem volt mérve, a `run_contract` mezőt pedig senki nem olvasta el.',
+    why_wrong: 'A külső fél a SAJÁT, VALÓDI egységeink MÁSOLATAIN négy alakot mutatott, és MIND '
+      + '`exit 0` · `run_state: complete` · `clean: true` lett: (a) minden `mutation_results` '
+      + 'KIÜRÍTVE, a címkék meghagyva ⇒ „92 elkapva" NULLA részletes eredmény mellett · (b) minden '
+      + 'verdikt `SURVIVED`, `probe_status: PASS`, üres `failed_assertions` ⇒ a lánc mégis 36 FEDETT '
+      + 'klauzula-sort mondott · (c) a kötelező készlet és a norma-lánc KIÜRÍTVE ⇒ „a készlet '
+      + 'teljesül", mert a készlet maga lett üres · (d) `run_contract: RUN-FOREIGN` ⇒ a kimenet '
+      + 'változatlanul RUN-02-t írt.',
+    replaced_by: 'MRG-01 (`v3ref/unitAdmission.mjs`) — négy szabály, mind a RÉSZLETES bizonyítékon: '
+      + '(1) szigorú séma + TÁMOGATOTT szerződés-verzió, átalakítás nélkül, a hiány külön válasz · '
+      + '(2) kölcsönös egyértelmű megfeleltetés a bejelentett azonosítók és a részletes eredmények '
+      + 'között, és az ÖSSZESÍTŐK EBBŐL számolva · (3) a bejelentett és a mért adat ELLENTMONDÁSA '
+      + 'nevezett akadály · (4) a kötelező készlet, az elvárt állapot és a szerződés-lenyomat a MAI, '
+      + 'rögzített forrásból. Mellé: a `covered` lánc-sor a `falsified_by` mutáció RÉSZLETES '
+      + 'eredményére visszavezetve (`chainBacking`).',
+    decision: 'D-VS-3024',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R81 §4 — F01a · F01b · F02 · F03)',
+    lesson: 'A KUKA-121 AZ ÖSSZEFŰZÉSEN: amit a beadó BEGÉPELHET, az ÁLLÍTÁS, nem mérés. Az R79-ben '
+      + 'ugyanezt a szabályt az EGYSÉG-módra alkalmaztam (`evidence_bound`), az ÖSSZEFŰZÉSRE viszont '
+      + 'nem — pedig ott a beadott összefoglaló ugyanolyan begépelhető adat, mint bármely külső fél '
+      + 'beadványa. A megkülönböztető kérdés minden aggregáló kapunál: MELYIK MEZŐBŐL számolok, és '
+      + 'azt KI ÍRTA? Ha a válasz „a beadó", akkor nem mérek, hanem elhiszem.',
+    guard_note: 'gépi jel: `npm run verify:unit-admission` (UAD01–UAD06 — a pin HÍVJA az '
+      + '`admitUnits`/`chainBacking` feloldókat, ÉLESBEN méri, hogy az összefűzés a kapu mondatát '
+      + 'írja ki, és tizennégy visszacsúszásra bizonyítottan piros) + a külső fél `r81core` programja '
+      + 'a söprésben (15/15).',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: 'units\\.find\\(\\(u\\) => u\\.norm_required\\)',
+        reason: 'a kötelező készlet a MAI szerződésből jön (REQUIRED_EVIDENCE), nem a beadványból' }),
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: 'const sum = \\(k\\) => units\\.reduce\\(\\(a, u\\) => a \\+ \\(u\\.counts',
+        reason: 'az összesítő a RÉSZLETES eredményből számolódik, nem a beadott counts mezőkből' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: 'admitUnits\\(units, \\{',
+        reason: 'az összefűzés a KÖZÖS beadvány-kaput hívja' }),
+      Object.freeze({ paths: ['v3ref/unitAdmission.mjs'], pattern: 'SUPPORTED_RUN_CONTRACTS',
+        reason: 'az ismeretlen futási szerződés nem olvasható be' }),
+      Object.freeze({ paths: ['v3ref/unitAdmission.mjs'], pattern: 'export function chainBacking',
+        reason: 'a FEDETT lánc-sor a részletes eredményre visszavezetve' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-152',
+    date: '2026-09-14',
+    title: 'AZ ADATKIADÁS NÉGY KÜLÖN ÓRAOLVASÁSON ÁLLT',
+    what: 'A `readCommandResult` úton a jelölt-szűrés, a bebocsátás, a tranzakción belüli jog-kapu, '
+      + 'az ADATKÖR-kapu (`resultReleasable`) és a kiadási LELTÁR-sor (`disclose`) MIND külön '
+      + '`clock.now()`-t olvasott.',
+    why_wrong: 'A külső fél mérése: a tagság 08:00:01-kor megszűnik, az első három óraolvasás '
+      + '08:00:00, a negyedik 08:00:02. Az eredmény KIMEGY, és a leltár-sor `at` mezője 08:00:02 — '
+      + 'olyan időpont, amelyen a `rightAt` MÁR MEGTAGADNÁ a jogot. A kiadott adatot nem lehet '
+      + 'visszavenni (KUKA-085), tehát ez nem könyvelési szépséghiba: a rendszer azt állítja a saját '
+      + 'naplójában, hogy egy jogosulatlan pillanatban adott ki adatot.',
+    replaced_by: 'A kiadás is `effectuateWith`-en megy át (`basis: \'membership\'`), és a '
+      + 'tranzakción belül olvasott `at` vezet végig MINDHÁROM fogyasztón: tagság+tiltás (`decide`) · '
+      + 'az eredmény ADATKÖRE (`resultReleasable`) · a kiadási leltár sora (`disclose`). Nem új '
+      + 'ellenőrzés született, hanem a MEGLÉVŐ időpont ment végig.',
+    decision: 'D-VS-3024',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R81 §4/F04 — `F04-release-time-cross`)',
+    lesson: 'AZ R79-BEN A PARANCSÍRÁST KÖTÖTTEM EGY HATÁLYOSULÁSI PONTHOZ, AZ ADATKIADÁST NEM — '
+      + 'pedig a kiadás ugyanúgy „döntés + rögzített hatás": a hatás itt a leltár-sor és maga a '
+      + 'kiadott tartalom. Amikor egy mintát bevezetek, meg kell kérdezni, HÁNY ÚTRA igaz a fogalma, '
+      + 'nem azt, hányat javítottam meg (KUKA-039 · KUKA-129). A megkülönböztető kérdés: keletkezik-e '
+      + 'ITT olyan nyom, ami egy IDŐPONTOT rögzít? Ha igen, az az időpont a DÖNTÉSÉ kell legyen.',
+    guard_note: 'gépi jel: `verify:v3ref` **P-CMD-release-effectuation** (nyolc ág, köztük a LÉPCSŐS '
+      + 'órás (f)/(g), ami elválasztja az „egy `at` végig" és a „ki-ki a saját óráján" alakot) + a '
+      + 'HÁROM+EGY falszifikáció (M96 adatkör · M97 leltár · M98 döntés · M99 semlegesség), mind a '
+      + 'NEVEZETT állításon elkapva; a külső fél `r81core` programja 7/7.',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/command.mjs'], pattern: 'resultReleasable\\(\\{\\s*\\n\\s*store, subjectId: requester, nowIso: clock\\.now\\(\\)',
+        reason: 'az adatkör-kapu a hatályosuláskori `at`-on áll, nem saját óraolvasáson' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/command.mjs'], pattern: "basis: 'membership',\\n    decide: \\(nowIso\\) => \\(mayRelease",
+        reason: 'a kiadás a közös hatályosulási ponton megy át, a döntés a KAPOTT pillanaton' }),
+      Object.freeze({ paths: ['v3ref/command.mjs'], pattern: 'recipient: requester, clock, at,',
+        reason: 'a kiadási leltár sora a DÖNTÉS időpontját viseli' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-153',
+    date: '2026-09-14',
+    title: 'A MUTÁCIÓ HORGONYA CSAK LÉTEZETT, NEM VOLT EGYEDI',
+    what: 'A mutációs battéria szerkesztés-alkalmazója (`applyEdits`) `includes`-szal kérdezte meg, '
+      + 'hogy a horgony MEGVAN-E, majd `replace`-szel az ELSŐ előfordulást cserélte ki. Mérve: az '
+      + 'R81-es kiadási javítás után az M93 horgonya (`return out.authorized ? out.value : refused;`) '
+      + 'KÉT helyen állt a `command.mjs`-ben, és a mutáció némán az elsőre esett.',
+    why_wrong: 'Itt VÉLETLENÜL az volt a megnevezett hely — de ez szerencse, nem szerkezet: egy '
+      + 'sorrend-csere vagy egy új, azonos alakú sor átvinné a mérést egy MÁSIK kódrészletre, és a '
+      + 'battéria ettől ZÖLD maradna. A mutáció onnantól nem azt falszifikálná, amit megnevez.',
+    replaced_by: 'A horgonynak PONTOSAN EGYSZER kell illeszkednie; a többszörös illeszkedés SAJÁT, '
+      + 'nevezett ok a `STALE_ANCHOR` verdikten belül, a teendővel együtt („a horgonyt SZŰKÍTENI '
+      + 'kell, nem újrahorgonyozni"). Az M93 horgonya a fölötte álló, egyedi megjegyzés-sorral ment.',
+    decision: 'D-VS-3024',
+    found_by: 'a SAJÁT SÖPRÉSEM (a battéria stale-anchor jelzése a saját, ugyanebben a körben tett változtatásomon)',
+    lesson: 'A LÉTEZÉS NEM AZONOSSÁG (KUKA-038 · KUKA-128 a horgony-térben). Ahol egy szerszám '
+      + 'SZÖVEG-mintával céloz meg egy kódrészletet, ott a minta EGYEDISÉGE a mérés feltétele — '
+      + 'különben a szerszám a saját vakfoltját méri, és a hiba PONT akkor születik meg, amikor a '
+      + 'megcélzott kód KÖRNYEZETE változik (vagyis amikor a mérésre a legnagyobb szükség van).',
+    guard_note: 'gépi jel: `verify:v3ref` — a battéria `stale` számlálója (a `sliceClean` feltétele), '
+      + 'és a `staleAnchorWhy` mondat KÜLÖN nevezi a hiányt és a többszörös illeszkedést; a régi '
+      + 'alakon a KÉTSZER illeszkedő horgony ÁTMENT, a mai alakon STALE_ANCHOR.',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: 'if \\(!out\\.includes\\(edits\\[i\\]\\.from\\)\\) return',
+        reason: 'a horgony PONTOSAN EGYSZER illeszkedjen — a puszta létezés nem azonosság' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: 'const hits = out\\.split\\(edits\\[i\\]\\.from\\)\\.length - 1;',
+        reason: 'az illeszkedések SZÁMA mérve' }),
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: 'HELYEN illeszkedik a forrásban',
+        reason: 'a többszörös illeszkedés SAJÁT, nevezett mondatot kap' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-154',
+    date: '2026-09-14',
+    title: 'KÉT SZABÁLY UGYANARRA A KÉRDÉSRE — ÉS A PERMISSZÍVEBB ÁLLT A ZÁRÓ KAPUNÁL',
+    what: 'A kötelező klauzula-készlet teljesülését KÉT hely döntötte el, KÉT KÜLÖNBÖZŐ szabállyal: a '
+      + '`checkNorms` kánonja szerint klauzulánként a LEGGYENGÉBB állítás-sor dönt („ha bármelyik '
+      + 'szem szakad, nincs kész"), az R79-ben írt ÖSSZEFŰZÉSEM viszont `chain.some(… === covered)`-öt '
+      + 'használt — vagyis a LEGERŐSEBB sort.',
+    why_wrong: 'Mérve: a REV-N3a kilenc állítás-sorából nyolc fedett volt, egy '
+      + '(`A-REV-N3a-release-refusal-is-neutral-and-inert`) nem. A `checkNorms` HIÁNYT mondott, az '
+      + 'összefűzés TELJESÜLÉST — és épp az összefűzés a ZÁRÓ kapu, amiből a „TELJES ÉS TISZTA" '
+      + 'mondat születik.',
+    replaced_by: 'Az összefűzés ugyanazt a rangsort használja, amit a `checkNorms`: klauzulánként a '
+      + 'leggyengébb sor dönt, és a hiányzó sorok NEVESÍTVE jelennek meg a `missing[].rows` mezőben.',
+    decision: 'D-VS-3024',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL ADAPTÁLT R59-es programja (P01), a saját, egy körrel korábbi összefűzésemen',
+    lesson: 'AHOL EGY KÉRDÉST KÉT HELYEN VÁLASZOLUNK MEG, ELŐBB-UTÓBB KÉT KÜLÖNBÖZŐ VÁLASZ SZÜLETIK '
+      + '— és a baj akkor a legnagyobb, ha a PERMISSZÍVEBB áll a záró kapunál (KUKA-003 · KUKA-018). '
+      + 'Amikor egy aggregáló réteget írok egy meglévő döntés FÖLÉ, nem elég ugyanazt a MEZŐT '
+      + 'olvasnom: ugyanazt a SZABÁLYT kell alkalmaznom, és ezt ki kell mondani a kódban (itt: a '
+      + '`rule` mező a kimenetben).',
+    guard_note: 'gépi jel: `verify:external-checks` r59a/P01 (a külső fél ADAPTÁLT programja — a régi '
+      + 'alakon bizonyítottan FAIL, a mai alakon PASS) + a merge kimenetének `norm_evidence.required.rule` '
+      + 'mezője, ami KIMONDJA, melyik szabály futott.',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: "const ok = \\(id\\) => chain\\.some\\(\\(c\\) => c\\.clause_id === id && c\\.result === 'covered'\\);",
+        reason: 'a klauzulát a LEGGYENGÉBB sora dönti el, nem a legerősebb (a checkNorms kánonja)' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: 'azonos a `checkNorms` kánonjával',
+        reason: 'az összefűzés KIMONDJA, melyik szabály szerint dönt' }),
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: 'const weakest = \\(id\\) => \\{',
+        reason: 'a leggyengébb sor rangsora az összefűzésben is' }),
+    ]),
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

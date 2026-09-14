@@ -16,6 +16,52 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3024 — A BEADVÁNY-KAPU ÉS AZ ADATKIADÁS IDEJE (R81/F01…F04 + a négy helyesbítés)
+
+> **Hatály:** V3 — a V3 magreferencia (`v3ref/`) összefűzése és kiadási útja. A V2 kódját nem érinti.
+
+- **Dátum:** 2026-09-14 · Sáv: Claude-v3 (PR-VS-300 · STEP-VS-300-002 · CMD-VS-300-002-001 R81/R82)
+- **Bemenet:** a külső tárgyaló fél (chatgpt-v3) R81 — ANALYSIS lapja, KÉT futtatható programmal.
+- **Reprodukció ELŐSZÖR, a VÁLTOZATLAN kódon** (`eb4d83b`): mag **6 PASS / 1 FAIL** · összefűzés
+  **4 PASS / 4 FAIL** — pontosan az általuk közölt eredmény. Tesztadaptáció nem történt.
+
+**F01–F03 — MRG-01, az összefűzés beadvány-kapuja** (`v3ref/unitAdmission.mjs`). A régi alak a
+beadott egység-fájlok SAJÁT ÖSSZEFOGLALÓIT vette mérésnek. Négy szabály, mind a RÉSZLETES
+bizonyítékon: szigorú séma + TÁMOGATOTT szerződés-verzió (a hiány külön válasz, átalakítás nélkül) ·
+bijekció a bejelentett azonosítók és a részletes eredmények között, az ÖSSZESÍTŐK ebből · a
+bejelentett és a mért adat ELLENTMONDÁSA nevezett akadály · a kötelező készlet, az elvárt állapot és
+a szerződés-lenyomat a MAI, rögzített forrásból. Mellé `chainBacking`: a `covered` lánc-sor a
+`falsified_by` mutáció részletes eredményére visszavezetve. → **KUKA-151**
+
+**F04 — a kiadás hatályosulási pontja** (`readCommandResult` → `effectuateWith`, `basis:
+'membership'`). A tranzakción belül olvasott `at` vezet végig MINDHÁROM fogyasztón: tagság+tiltás ·
+az eredmény adatköre · a kiadási leltár sora. Nem új ellenőrzés született, hanem a meglévő időpont
+ment végig. → **KUKA-152**
+
+**KÉT SAJÁT LELET ugyanebben a körben.** (1) A mutációs horgony csak LÉTEZETT, nem volt EGYEDI: a
+kiadási javítás után az M93 horgonya két helyen állt, és a mutáció némán az elsőre esett
+(**KUKA-153**). (2) A kötelező klauzula-készletet KÉT szabály döntötte el — a `checkNorms` a
+leggyengébb sor szerint, az összefűzésem a legerősebb szerint —, és a permisszívebb állt a ZÁRÓ
+kapunál (**KUKA-154**, a külső fél ADAPTÁLT R59-es programja hozta elő).
+
+**A NÉGY HELYESBÍTÉSÜK átvezetve** (R81 §7): a régi FAIL az `F03-revoke-credential-**other**` volt,
+nem a `matching`, és az a hiba TÚLZÁRÁS volt · az ENT-01 öt belépési pontja nem „minden író", hanem
+a HATÁSKÖRI/TILTÁSI család · az 1,7 mp az ő R77-es mérésük (R79: 7323 ms) · a 36/47 klauzula-sor nem
+„77%-ban kész termék". Mindegyik a kódban álló magyarázatban is javítva, nem csak a lapon.
+
+**AZ ADAPTÁLT R57/R59 ÁTVÉVE, JELÖLT EREDETTEL** (R81 §5): `r57a` és `r59a` KÜLÖN bejegyzés a
+lánc-regiszterben, a szerzőség és az eltérés (a battéria darabolt hívása) kimondva; az EREDETI r57/r59
+érintetlen marad. Mellé egy szerkezeti következmény: az adaptált változatok UGYANAZT az
+eredmény-fájlnevet írják, ezért a futtató a saját eredmény-fájlt a futás ELŐTT félreteszi
+(KUKA-127 a saját futtatónkon) — enélkül egy időtúllépésre futó eredeti mellett a szomszédja fájlja
+maradna ott, és zöldnek látszana.
+
+**MÉRT VÉGÁLLAPOT.** Magreferencia **43/43 PASS** · battéria **96/96 elkapva**, 0 túlélő · 0 rossz
+próba · 0 mérőhiba · 0 elavult horgony · a kötelező készlet **9/9** (a szigorúbb, kánoni szabállyal) ·
+a külső fél R81-es két programja **15/15** · `r57a` **9/9** · `r59a` **7/7**.
+
+---
+
 ## D-VS-3023 — A RÉSZFA SÉMÁJA, A PARANCSÍRÁS HATÁLYOSULÁSA, A KONTEXTUS-ÁTVITEL ÉS A DARABOLHATÓ FUTÁS (R79/F01…F03 + §6)
 
 > **Hatály:** V3 — a V3 magreferencia (`v3ref/`) kiadás-, hatályosulás- és mérés-modellje. A V2

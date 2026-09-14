@@ -183,6 +183,37 @@ export const PROGRAMS = Object.freeze([
     evidence_pin_field: 'pin',
   }),
   Object.freeze({
+    id: 'r81core',
+    file: 'r81_chatgpt-v3.mjs',
+    companions: Object.freeze(['r81_chatgpt-v3.core.mjs', 'r81_merge_chatgpt-v3.core.mjs']),
+    by: 'chatgpt-v3 — KÜLSŐ, független fél',
+    origin: 'R81 (KÉT mag-próba: a `r81_chatgpt-v3.core.mjs` és a `r81_merge_chatgpt-v3.core.mjs` '
+      + 'az ő szövegük BÁJTAZONOSAN — egyetlen karaktert sem írtunk át bennük). TESZTADAPTÁCIÓ NEM '
+      + 'TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson (eb4d83b) MAG 6 PASS / 1 FAIL '
+      + 'és ÖSSZEFŰZÉS 4 PASS / 4 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson '
+      + 'MAG 7/0 és ÖSSZEFŰZÉS 8/0.',
+    what: 'MAG (7 eset): P01–P04 a kiadott eredmény RÉSZFÁJÁNAK adatköre (az R79-es javítás '
+      + 'visszamérése) · F04 három alakban — a kiadás jogának és a kiadási LELTÁR-SORÁNAK időpontja: '
+      + 'négy külön óraolvasás mellett az eredmény 08:00:00-s jogon ment ki, a leltárba viszont '
+      + '08:00:02 került. ÖSSZEFŰZÉS (8 eset): P01–P04 a négy meglévő kontroll (valódi · hiányzó '
+      + 'egység · idegen lenyomat · duplikált egység) · F01a/F01b/F02/F03 — az összefűzés a beadott '
+      + 'ÖSSZEFOGLALÓT fogadta el a RÉSZLETES bizonyíték mérése helyett (üres eredmény-lista · '
+      + 'önellentmondó verdikt · kiürített kötelező készlet · idegen futási szerződés). Az '
+      + 'összefűzés-próba a SAJÁT, VALÓDI egységeinken dolgozik: a burkoló ELŐÁLLÍTJA őket a '
+      + 'lemásolt forráson futtatott darabolt battériával.',
+    evidence: 'r81-core-challenge.json',
+    cases: Object.freeze([
+      'core/P01-pure-lines', 'core/P02-second-line-price', 'core/P03-deep-unknown', 'core/P04-nonfinite',
+      'core/F04-release-time-before', 'core/F04-release-time-after', 'core/F04-release-time-cross',
+      'merge/P01-genuine', 'merge/P02-missing-unit', 'merge/P03-foreign-digest', 'merge/P04-duplicate-unit',
+      'merge/F01-empty-results', 'merge/F01-contradictory-verdict', 'merge/F02-empty-required',
+      'merge/F03-wrong-contract',
+    ]),
+    cases_source: 'a külső fél R81-es lapja (a két program `cases`/`plans` listája, ahogy megérkezett; '
+      + 'a `core/` és `merge/` előtagot a burkoló teszi rá, mert KÉT próba ad EGY eset-listát)',
+    evidence_pin_field: 'source_commit',
+  }),
+  Object.freeze({
     id: 'r79core',
     file: 'r79_chatgpt-v3.mjs',
     companions: Object.freeze(['r79_chatgpt-v3.core.mjs']),
@@ -204,6 +235,9 @@ export const PROGRAMS = Object.freeze([
       'P04-revoke-after', 'P04-revoke-cross', 'P06-adjudicate-before',
       'P06-adjudicate-after', 'P06-adjudicate-cross', 'P07-command-before',
       'P07-command-after', 'P05-nested-effect-rolls-back', 'F02-command-time-splits-at-finalization',
+      // HELYESBÍTVE (R81 §7, a külső fél): az R79-es futáson a `-other` eset volt a FAIL, nem a
+      // `-matching` — a `matching` már a javítás ELŐTT is zárt. A hiba tehát TÚLZÁRÁS volt: a
+      // hitelesítő-alapú tiltás a MÁSIK (érvényes) hitelesítővel érkezőt is elakasztotta.
       'F03-revoke-credential-matching', 'F03-revoke-credential-other', 'F03-revoke-credential-absent',
     ]),
     cases_source: 'a külső fél R79-es lapja (a program `cases` tömbje, ahogy megérkezett)',
@@ -224,9 +258,59 @@ export const PROGRAMS = Object.freeze([
     cases_source: 'az R80-as körünk jegyzőkönyve (R79 §6 — RUN-02), a pozitív ellenpárral EGYÜTT',
     evidence_pin_field: 'source_commit',
   }),
+  // ── AZ ADAPTÁLT VÁLTOZATOK — KÜLÖN BEJEGYZÉS, JELÖLT EREDETTEL (R81 §5) ───────────────────────
+  //
+  // MIÉRT KÜLÖN. A külső fél az R81-ben KÉT ADAPTÁLT programot küldött, és kimondta: *„ezek ÚJ,
+  // adaptált változatok, nem bájtazonos másolatok — az eredeti és az adaptált eredményt tartsátok
+  // KÜLÖN, az eredetet pedig jelöljétek a lánc-regiszterben."* Ez nem formaság: ha a kettő egy
+  // bejegyzésbe olvadna, az „r57 zöld" mondat két KÜLÖNBÖZŐ dolgot jelenthetne, és a különbség
+  // némán eltűnne (KUKA-018 — ahol egy fogalomnak két ábrázolása van, látszania kell, melyik
+  // melyik). Az EGYETLEN eltérés az eredetihez képest a battéria HÍVÁSA: egy hívás helyett
+  // `--unit=1/3` · `2/3` · `3/3` · `--merge`, egyenként ugyanazzal a 15 000 ms-os korláttal.
+  //
+  // KIMONDOTT KÖVETKEZMÉNY: az adaptált változat ugyanazokat az ESETEKET hozza, mint az eredeti, és
+  // UGYANAZT az eredmény-fájlnevet írja. Ezért a futtató a saját eredmény-fájlt a futás ELŐTT
+  // félreteszi (R81 §5 · KUKA-127) — különben egy időtúllépésre futó eredeti mellett a szomszédja
+  // fájlja maradna ott, és ZÖLDNEK látszana.
+  Object.freeze({
+    id: 'r59a',
+    file: 'r59_chatgpt-v3.adapted.mjs',
+    by: 'chatgpt-v3 — KÜLSŐ, független fél (ADAPTÁLT változat, az ő szerzőségükkel)',
+    origin: 'R81 §5 — az R59-es programjuk ADAPTÁLT alakja, ahogy a lapjukon megérkezett. NEM '
+      + 'bájtazonos az R59-essel: az EGYETLEN eltérés a battéria hívása (`--unit=1/3` · `2/3` · '
+      + '`3/3` · `--merge`, egyenként 15 000 ms korláttal) a korábbi EGY hívás helyett. A '
+      + 'teszt-elvárásokhoz NEM nyúltunk, és mi magunk egyetlen karaktert sem írtunk át benne.',
+    what: 'ugyanaz a hét eset, mint az r59-nél (P01 · P02 pozitív ellenpár · E05–E09), de a '
+      + 'DARABOLT battériával — így a mérés a mi 4 vCPU-s futtató-gépünkön is végigmegy, '
+      + 'a 15 000 ms-os korlát megsértése nélkül (KUKA-089: a pontos technikai akadály mérve)',
+    evidence: 'r58-challenge.json',
+    cases: Object.freeze(['P01', 'E05', 'E06', 'E07', 'E08', 'P02', 'E09']),
+    cases_source: 'a külső fél R59-es kísérő lapja (§2 esetlista) — az adaptálás az eseteket nem érinti',
+    evidence_pin_field: 'pin',
+  }),
+  Object.freeze({
+    id: 'r57a',
+    file: 'r57_chatgpt-v3.adapted.mjs',
+    by: 'chatgpt-v3 — KÜLSŐ, független fél (ADAPTÁLT változat, az ő szerzőségükkel)',
+    origin: 'R81 §5 — az R57-es programjuk ADAPTÁLT alakja, ahogy a lapjukon megérkezett. NEM '
+      + 'bájtazonos az R57-essel: az EGYETLEN eltérés a battéria hívása (darabolt futás). A '
+      + 'teszt-elvárásokhoz NEM nyúltunk, és mi magunk egyetlen karaktert sem írtunk át benne.',
+    what: 'ugyanaz a kilenc eset, mint az r57-nél (T01–T05 · E01–E04), de a DARABOLT battériával',
+    evidence: 'r56-challenge.json',
+    cases: Object.freeze(['T01', 'T02', 'T03', 'T04', 'T05', 'E01', 'E02', 'E03', 'E04']),
+    cases_source: 'a külső fél R57-es kísérő lapja („T01–T05 · E01–E04") — az adaptálás az eseteket nem érinti',
+    evidence_pin_field: 'pin',
+  }),
   Object.freeze({
     id: 'r59',
     file: 'r59_chatgpt-v3.mjs',
+    superseded_by: 'r59a',
+    env_limit: 'ez a program a mutációs battériát EGY hívásban futtatja, 15 000 ms korláttal. A MAI '
+      + 'futtató-gépünkön (4 vCPU) a teljes battéria legjobb mért alakja 17,1 mp, tehát itt a MÉRÉS '
+      + 'akad el, nem a kód bukik — és ez MÉRVE van, nem feltételezve (KUKA-089). Ugyanezt a kilenc '
+      + 'esetet az ADAPTÁLT változat (`r59a`, szintén az Ő szerzőségük) futtatja végig, darabolt '
+      + 'battériával. A kihagyás CSAK addig áll, amíg a helyettes ZÖLD: ha az is elbukik, MINDKETTŐ '
+      + 'piros (a helyettesítés nem felmentés — KUKA-041).',
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
     origin: 'R59 (változatlanul, ahogy a boardon érkezett)',
     what: 'P01 · P02 pozitív ellenpár · E05–E09: az elvárás-séma, az eredmény-séma, a futtató és a '
@@ -239,6 +323,10 @@ export const PROGRAMS = Object.freeze([
   Object.freeze({
     id: 'r57',
     file: 'r57_chatgpt-v3.mjs',
+    superseded_by: 'r57a',
+    env_limit: 'ugyanaz a technikai akadály, mint az `r59`-nél: a battéria EGY hívásban, 15 000 ms '
+      + 'korláttal. A kilenc esetet az ADAPTÁLT változat (`r57a`) futtatja végig. A kihagyás CSAK '
+      + 'addig áll, amíg a helyettes ZÖLD.',
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
     origin: 'R57 (változatlanul, ahogy a boardon érkezett)',
     what: 'T01–T05: az R56-ban tett pecsét-állítások · E01–E04: a bizonyíték-kapu megkerülhetősége',

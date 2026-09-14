@@ -164,12 +164,36 @@ console.log('');
 
 const summary = [];
 for (const p of selected) {
+  const evidencePath = join(dir, 'evidence', p.evidence);
+  // A RÉGI EREDMÉNY-FÁJL FÉLRETÉTELE A FUTÁS ELŐTT (R81 §5 · KUKA-127).
+  //
+  // MIÉRT LETT EBBŐL KÖTELEZŐ LÉPÉS. Eddig minden programnak SAJÁT eredmény-fájlneve volt, tehát a
+  // „megvan a fájl" egyben azt is jelentette, hogy EZ a program írta. Az R81-ben a külső fél KÉT
+  // ADAPTÁLT programot küldött (r57a · r59a), amelyek — szándékosan, hiszen az eredetiek változatai
+  // — UGYANAZT az eredmény-fájlnevet írják, mint az eredetik. Ettől a „fájl megléte" MÁSIK kérdésre
+  // felel, mint amit a szemle kérdez: egy időtúllépésre futó program mellett a SZOMSZÉDJA fájlja
+  // maradna ott, azonos eset-listával és azonos commit-kötéssel — tehát ZÖLDNEK látszana.
+  //
+  // A bizonyítást ezért ELŐ KELL ÁLLÍTANI, nem megfigyelni: a régi fájl megy, és az újnak MEG KELL
+  // SZÜLETNIE. Ez pontosan a KUKA-127 szabálya (a külső fél R71 §5 lelete) a saját futtatónkon.
+  rmSync(evidencePath, { force: true });
+  // A LEMÁSOLT FORRÁS MINDEN PROGRAMNAK UGYANAZ — a generált kimenete NEM (a SAJÁT söprésem lelete,
+  // R81). Az R81-es burkoló a mérése előtt lefuttatja a darabolt battériát a lemásolt forráson, és
+  // az EGYSÉG-FÁJLOKAT odaírja (`source/v3ref/units/`). A `stage()` ezt a könyvtárat szándékosan
+  // kihagyja a másolásból — de attól még KELETKEZHET futás közben, és a KÖVETKEZŐ program már azt
+  // találja ott. Mérve: a `r79` önmagában 4/4, a teljes láncban U02 BUKOTT, mert a „hiányzó egység"
+  // esetéhez másolt forrás MÁR HORDOZTA az előző program három egység-fájlját — vagyis a mérés nem
+  // azt mérte, amit megnevezett (KUKA-127 · KUKA-054). A generált állapotot ezért minden program
+  // ELŐTT töröljük: a lemásolt forrás legyen ugyanaz mindenkinek.
+  for (const leftover of [join(dir, 'source', 'v3ref', 'units'),
+    join(dir, 'source', 'v3ref', 'v3ref-mutation-result.json')]) {
+    rmSync(leftover, { recursive: true, force: true });
+  }
   const t0 = Date.now();
   const q = spawnSync(process.execPath, [join(dir, p.file)], {
     cwd: dir, encoding: 'utf8', timeout: 600_000, maxBuffer: 64 * 1024 * 1024,
   });
   const ms = Date.now() - t0;
-  const evidencePath = join(dir, 'evidence', p.evidence);
   const exists = existsSync(evidencePath);
   const parsed = exists ? parseJson(readFileSync(evidencePath, 'utf8')) : null;
   const cases = casesOf(parsed);              // az ÍTÉLET a részletes fájlból
@@ -226,6 +250,34 @@ for (const p of selected) {
 // bizonyítéka — és ezt a GÉPI kimenetnek is hordoznia kell, nem csak a képernyőnek (KUKA-104: két
 // csatorna, két igazság). Aki a JSON-t olvassa, a `scope`-ból tudja meg, mit ér a zöld.
 const scope = runScope(selected.map((p) => p.id), PROGRAMS.map((p) => p.id));
+
+// ── A KÖRNYEZETI KIHAGYÁS — NEVEZETTEN, ÉS CSAK ÉLŐ HELYETTESSEL (R81 §5) ───────────────────────
+//
+// KÉT PROGRAM (az EREDETI `r57` · `r59`) a mutációs battériát EGY hívásban futtatja, 15 000 ms
+// korláttal — ez a mai, 4 vCPU-s futtató-gépünkön MÉRVE nem fér bele (KUKA-089: a „nincs hozzá
+// környezetem" MÉRÉS, nem következtetés). Az R81-ben a külső fél ADAPTÁLT változatot küldött, ami
+// UGYANAZOKAT az eseteket futtatja darabolt battériával — és az ZÖLD.
+//
+// A KIHAGYÁS EZÉRT FELTÉTELES, NEM MENTESSÉG (KUKA-041 · KUKA-122). Három feltétel EGYÜTT:
+//   (1) a bejegyzés KIMONDJA a technikai akadályt (`env_limit`) és MEGNEVEZI a helyettest;
+//   (2) a helyettes ebben a futásban BENNE VOLT;
+//   (3) a helyettes ZÖLD.
+// Bármelyik hiánya ⇒ a program ÚGY piros, mintha nem is volna helyettese.
+const byId = new Map(summary.map((s) => [s.id, s]));
+for (const s of summary) {
+  const p = selected.find((x) => x.id === s.id);
+  if (s.ok || !p || !p.superseded_by || !p.env_limit) continue;
+  const sub = byId.get(p.superseded_by);
+  if (sub && sub.ok) {
+    s.env_skipped = true;
+    s.env_limit = p.env_limit;
+    s.superseded_by = p.superseded_by;
+  } else {
+    s.problems.push(`[${s.id}] a megnevezett helyettes (${p.superseded_by}) `
+      + `${sub ? 'NEM zöld' : 'ebben a futásban NEM futott'} — a környezeti kihagyás ezért NEM áll`);
+  }
+}
+const envSkipped = summary.filter((s) => s.env_skipped);
 const green = summary.filter((s) => s.ok).length;
 const all = {
   at: new Date().toISOString(),
@@ -233,10 +285,13 @@ const all = {
   source: src,
   scope,
   verdict: {
-    ok: green === summary.length,
+    ok: green + envSkipped.length === summary.length,
     complete_evidence: scope.complete && green === summary.length,
     green,
+    env_skipped: envSkipped.length,
     of: summary.length,
+    // A ZÖLD ÉS A KIHAGYÁS KÉT KÜLÖN SZÁM, és a `complete_evidence` CSAK a valódi zöldre igaz —
+    // a környezeti kihagyás nem lesz bizonyítékká attól, hogy nem piros (KUKA-089 · KUKA-122).
   },
   programs: summary,
 };
@@ -250,8 +305,15 @@ console.log('='.repeat(88));
 console.log(`  hatókör:        ${scope.scope} — ${scope.why}`);
 if (scope.skipped.length) console.log(`  NEM futott:     ${scope.skipped.join(' · ')}`);
 console.log(`  összesítő fájl: ${indexPath}`);
+for (const s of envSkipped) {
+  console.log(`  ENV-KIHAGYÁS:   ${s.id} — ez a program EBBEN A KÖRNYEZETBEN nem futtatható végig.`);
+  console.log(`                  ${s.env_limit}`);
+  console.log(`                  helyette MÉRVE: ${s.superseded_by} (zöld)`);
+}
+const bad = summary.filter((s) => !s.ok && !s.env_skipped);
 console.log(`RESULT: ${green}/${summary.length} program MEGFELEL`
-  + (green === summary.length ? '' : ` — ELTÉRÉS: ${summary.filter((s) => !s.ok).map((s) => s.id).join(' · ')}`)
+  + (envSkipped.length ? ` · ${envSkipped.length} ENV-KIHAGYÁS (nevezett helyettessel)` : '')
+  + (bad.length ? ` — ELTÉRÉS: ${bad.map((s) => s.id).join(' · ')}` : '')
   + (scope.complete ? '' : ' · RÉSZLEGES FUTÁS — nem a lánc teljes bizonyítéka'));
 console.log('');
-process.exit(green === summary.length ? 0 : 1);
+process.exit(bad.length === 0 ? 0 : 1);
