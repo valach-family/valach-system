@@ -134,8 +134,11 @@ export const MUTATIONS = [
     edits: [
       { from: "  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {\n    // A feloldás alatt elveszett a jog ⇒ a parancs NEM lesz kész. Semmit nem írunk.\n    return refused;\n  }",
         to: "  if (false) {\n    return refused;\n  }" },
-      { from: "    if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {\n      return refused;\n    }\n    store.run(",
-        to: "    store.run(" },
+      // R79/F02 ÓTA A MÁSODIK RÉTEG A HATÁLYOSULÁSI PONT `decide` VISSZAHÍVÁSA (EFF-01). A
+      // visszacsúszás OSZTÁLYA ugyanaz — „a tranzakción belül már senki nem kérdez jogot" —, csak a
+      // helye költözött; a horgony ezért a `decide` TESTÉRE mutat, nem egy külön `rightAt` hívásra.
+      { from: "      const r = rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', nowIso, externalEvidence, credentials });\n      return r.allowed ? { ok: true } : { ok: false, reason: r.reason, message: r.message };",
+        to: "      return { ok: true };" },
     ] },
 
   // R47: az M16 ÚJRA-HORGONYOZVA. A régi alakja azt rontotta el, hogy a BEFOGADÁS leltározzon —
@@ -231,8 +234,8 @@ export const MUTATIONS = [
   { id: 'M26', rule: 'K04/K12', catcher: 'P-AUTHZ-evidence', expect: 'probe_fail',
     what: 'a képviseleti jogcím a TAGSÁG-vizsgálat elé kerül: visszavont tag megbízással újra bejut',
     file: 'authz.mjs',
-    from: "  const eff = membershipEffectiveAt(m, clock.now());\n  if (!eff.effective) {",
-    to: "  const eff = membershipEffectiveAt(m, clock.now());\n  if (!eff.effective && !needsExternalEvidence(profile)) {" },
+    from: "  const eff = membershipEffectiveAt(m, at);\n  if (!eff.effective) {",
+    to: "  const eff = membershipEffectiveAt(m, at);\n  if (!eff.effective && !needsExternalEvidence(profile)) {" },
 
   // ═══ A HAT ÚJ ŐR MUTÁCIÓI (R49 · D-VS-3008) ═══════════════════════════════════════════════════
   //
@@ -251,11 +254,14 @@ export const MUTATIONS = [
     from: "    const freshAuth = authoritativeInvite(store, token);",
     to: "    const freshAuth = Object.freeze({ ok: true, invite: inv });" },
 
+  // R79/F02 UTÁN ÚJRA-HORGONYOZVA. A parancs-oldali véglegesítési kapu nem külön `rightAt` hívás
+  // többé, hanem a KÖZÖS hatályosulási pont (`effectuateWith`) `decide` visszahívása. A rontás
+  // szándéka változatlan: a tranzakció HATÁRÁN visszavont jog mellett is könyveljen.
   { id: 'M32', rule: 'K04/K07', catcher: 'P-CMD-finalize-gate', expect: 'probe_fail',
     what: 'a PARANCS-oldali véglegesítési kapu eltűnik: a tx-határon visszavont jog mellett is könyvel',
     file: 'command.mjs',
-    from: "    if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {\n      return refused;\n    }\n    store.run(",
-    to: "    store.run(" },
+    from: "      const r = rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', nowIso, externalEvidence, credentials });\n      return r.allowed ? { ok: true } : { ok: false, reason: r.reason, message: r.message };",
+    to: "      return { ok: true };" },
 
   { id: 'M33', rule: 'K04', catcher: 'P-AUTHZ-roles', expect: 'probe_fail',
     what: 'C05 — az ISMERETLEN szerep megint jogot kap: a zárt regiszter kiiktatva',
@@ -288,7 +294,7 @@ export const MUTATIONS = [
   { id: 'M37', rule: 'K05', catcher: 'P-CMD-receipt', expect: 'probe_fail',
     what: 'R50 — a VÉGLEGESÍTÉS megint nyomtalan: a nyugta-sor elmarad, a válasz mégis „kész"-t mond',
     file: 'command.mjs',
-    from: "    recordCommandEvent({ store, event: 'command_finalized', scope, effectId, state: 'finalized', clock });\n    return commandReceipt(",
+    from: "    recordCommandEvent({ store, event: 'command_finalized', scope, effectId, state: 'finalized', clock, at });\n    return commandReceipt(",
     to: "    return commandReceipt(" },
 
   // A MÁSODIK a veszélyesebb: a nyugta MEGVAN, csak nem a hatással EGY tranzakcióban. A `store.tx`
@@ -307,8 +313,8 @@ export const MUTATIONS = [
     evidence_limit: 'a J3 óta a nyugtázó felület a tranzakción kívüli hívást NEVEZETT hibakóddal '
       + 'állítja meg, ezért ez a VÉDELEM TÜZELÉSÉNEK bizonyítéka, nem néma árva soré',
     file: 'command.mjs',
-    from: "  const effectId = effectIdFor(scope);\n  return store.tx(() => {",
-    to: "  const effectId = effectIdFor(scope);\n  recordCommandEvent({ store, event: 'command_finalized', scope, effectId, state: 'finalized', clock });\n  return store.tx(() => {" },
+    from: "  const effectId = effectIdFor(scope);\n  // R79/F02 — A PARANCSÍRÁS IS A KÖZÖS HATÁLYOSULÁSI PONTON MEGY ÁT",
+    to: "  const effectId = effectIdFor(scope);\n  recordCommandEvent({ store, event: 'command_finalized', scope, effectId, state: 'finalized', clock });\n  // R79/F02 — A PARANCSÍRÁS IS A KÖZÖS HATÁLYOSULÁSI PONTON MEGY ÁT" },
 
   // R51 — AZ ÚJ ŐRÖK VISSZACSÚSZÁSAI (J1–J4). Minden javítás mellé elrontás-próba, ugyanabban a
   // körben: a javítás akkor kész, ha a HIÁNYA bizonyítottan pirosra vált (KUKA-092).
@@ -415,7 +421,7 @@ export const MUTATIONS = [
   { id: 'M50', rule: 'K04/K09', catcher: 'P-REV-authority', expect: 'probe_fail',
     what: 'REV-N3a — a HATÁSKÖR-ELLENŐRZÉS kivétele: a jogváltoztatás megint puszta bemenet',
     file: 'authz.mjs',
-    from: "    { store, clock, subjectId: actorSubjectId, bookId, operation: 'alter_right' },",
+    from: "    { store, clock, subjectId: actorSubjectId, bookId, operation: 'alter_right', credentials },",
     to: "    { store, clock, subjectId: actorSubjectId, bookId, operation: 'suspend' }," },
 
   { id: 'M51', rule: 'K04/K09', catcher: 'P-REV-authority', expect: 'probe_fail',
@@ -493,8 +499,8 @@ export const MUTATIONS = [
     what: 'REV-N3a — A JOGFELOLDÓ FELFÜGGESZTÉS-VAKSÁGA: a tény RÖGZÜL, de a `rightAt` nem kérdezi '
       + 'meg — a felfüggesztett alany továbbra is `allowed:true`-t kap',
     file: 'authz.mjs',
-    from: "  const susp = suspensionEffectiveAt({ store, subjectId, bookId, nowIso: clock.now() });\n  if (susp.suspended) {",
-    to: "  const susp = suspensionEffectiveAt({ store, subjectId, bookId, nowIso: clock.now() });\n  if (false) {" },
+    from: "  const susp = suspensionEffectiveAt({ store, subjectId, bookId, nowIso: at });\n  if (susp.suspended) {",
+    to: "  const susp = suspensionEffectiveAt({ store, subjectId, bookId, nowIso: at });\n  if (false) {" },
 
   { id: 'M58', rule: 'K05/K09', catcher: 'P-REV-claim-read', expect: 'probe_fail',
     what: 'REV-N3b — A DÖNTÉSI ÚTON RÉSZLETES LÉTEZÉSI HIBA: az `adjudicateClaim` a hatáskör-hiba '
@@ -740,29 +746,29 @@ export const MUTATIONS = [
       + 'rögzített hatás viszont egy KÉSŐBBI órán — így lejárt felhatalmazással is születik hatás',
     file: 'authority.mjs',
     from: "    const at = clock.now();\n"
-      + "    const right = executableRightAt({ store, subjectId, bookId, operation, nowIso: at, credentials });\n"
-      + "    if (!right.ok) return Object.freeze({ authorized: false, at: null, right, stage: 'effectuation' });\n"
-      + "    return Object.freeze({ authorized: true, at, right, value: effect({ at, right }) });",
+      + "    const right = decide(at);\n"
+      + "    if (!right.ok) return Object.freeze({ authorized: false, at: null, right, basis, stage: 'effectuation' });\n"
+      + "    return Object.freeze({ authorized: true, at, right, basis, value: effect({ at, right }) });",
     to: "    const at = clock.now();\n"
-      + "    return Object.freeze({ authorized: true, at, right: admission, value: effect({ at, right: admission }) });" },
+      + "    return Object.freeze({ authorized: true, at, right: admission, basis, value: effect({ at, right: admission }) });" },
 
   { id: 'M81', rule: 'K04', catcher: 'P-REV-effectuation', expect: 'probe_fail',
     what: 'R77/F01 A FINOMABB ALAK: a hatályosulási döntés MEGMARAD, de a rögzített hatás ideje egy '
       + 'ÚJABB óraolvasásból jön. A döntés így ép, a BÉLYEG mégis olyan pillanatot visel, amit senki '
       + 'nem mért — pontosan a KUKA-002 az idő tengelyén, csak eggyel odébb tolva',
     file: 'authority.mjs',
-    from: "    return Object.freeze({ authorized: true, at, right, value: effect({ at, right }) });",
-    to: "    return Object.freeze({ authorized: true, at, right, value: effect({ at: clock.now(), right }) });" },
+    from: "    return Object.freeze({ authorized: true, at, right, basis, value: effect({ at, right }) });",
+    to: "    return Object.freeze({ authorized: true, at, right, basis, value: effect({ at: clock.now(), right }) });" },
 
   { id: 'M82', rule: 'K04', catcher: 'P-REV-effectuation', expect: 'probe_fail',
     what: 'R77/F01 — A HATÁLYOSULÁS A BEBOCSÁTÁS ÍTÉLETÉT ÚJRAHASZNÁLJA. A kód alakja megmarad (van '
       + '„tranzakción belüli döntés"), csak épp a KORÁBBI pillanat jogát viszi tovább: a látszat ép, '
       + 'a tény nem — ez a KUKA-088 („melyik ellenőrzést fagyasztottam be?") alakja a hatáskörön',
     file: 'authority.mjs',
-    from: "    const right = executableRightAt({ store, subjectId, bookId, operation, nowIso: at, credentials });\n"
-      + "    if (!right.ok) return Object.freeze({ authorized: false, at: null, right, stage: 'effectuation' });",
+    from: "    const right = decide(at);\n"
+      + "    if (!right.ok) return Object.freeze({ authorized: false, at: null, right, basis, stage: 'effectuation' });",
     to: "    const right = admission;\n"
-      + "    if (!right.ok) return Object.freeze({ authorized: false, at: null, right, stage: 'effectuation' });" },
+      + "    if (!right.ok) return Object.freeze({ authorized: false, at: null, right, basis, stage: 'effectuation' });" },
 
   { id: 'M83', rule: 'K09', catcher: 'P-REV-ban-record-shape', expect: 'probe_fail',
     what: 'R77/F03 — AZ ÜRES KÖNYV-TENGELY ÚJRA SZABÁLYOS ALAK. A feloldó nem jelöli hibásnak, ezért '
@@ -796,16 +802,25 @@ export const MUTATIONS = [
       + 'némán átcsúszik, tehát egy új, ismeretlen jelentésű eredmény-mező mindenkinek kimegy: a '
       + 'HIÁNY nem lehet ugyanaz a válasz, mint az „engedélyezett" (KUKA-124/2)',
     file: 'resultScope.mjs',
-    from: "  const undeclared = fields.filter((f) => !decl.has(f)).sort();",
-    to: "  const undeclared = [];" },
+    from: "      const sub = spec.fields.get(key);\n"
+      + "      if (!sub) {\n"
+      + "        return {\n"
+      + "          ok: false,\n"
+      + "          reason: 'result_scope_field_undeclared',",
+    to: "      const sub = spec.fields.get(key);\n"
+      + "      if (!sub) continue;\n"
+      + "      if (false) {\n"
+      + "        return {\n"
+      + "          ok: false,\n"
+      + "          reason: 'result_scope_field_undeclared'," },
 
   { id: 'M87', rule: 'K05', catcher: 'P-REV-result-scope', expect: 'probe_fail',
     what: 'R77/F02 — AZ ISMERETLEN TÍPUS ELNYELVE A MEZŐ-HIÁNYBA. A két diagnózis összemosódik: a '
       + '„nincs deklarálva ez a típus" a „van egy be nem sorolt mező" nevét kapja, és a beadó a rossz '
       + 'dolgot javítja. A rossz nevű hibaüzenet elfedi az igazit (KUKA-124 · KUKA-028)',
     file: 'resultScope.mjs',
-    from: "  const decl = RESULT_FIELD_SCOPES.get(declKey(type, typeVersion));\n  if (!decl) {",
-    to: "  const decl = RESULT_FIELD_SCOPES.get(declKey(type, typeVersion)) || new Map();\n  if (!decl) {" },
+    from: "  const shape = RESULT_SHAPES.get(declKey(type, typeVersion));\n  if (!shape) {",
+    to: "  const shape = RESULT_SHAPES.get(declKey(type, typeVersion)) || objectOf({});\n  if (!shape) {" },
 
   { id: 'M88', rule: 'K09', catcher: 'P-REV-ban-paths', expect: 'probe_fail',
     what: 'REV-N5a — A HATÁSKÖR TELJES KIVÉTELE: a hatályosulási pont MINDKÉT döntése elesik '
@@ -815,13 +830,77 @@ export const MUTATIONS = [
       + 'réteg elvétele még nem viszi pirosra a próbát (KUKA-039)',
     file: 'authority.mjs',
     edits: [
-      { from: "  const admission = executableRightAt({\n"
-          + "    store, subjectId, bookId, operation, nowIso: clock.now(), credentials,\n"
-          + "  });\n"
-          + "  if (!admission.ok) return Object.freeze({ authorized: false, at: null, right: admission, stage: 'admission' });",
+      { from: "  const admission = decide(clock.now());\n"
+          + "  if (!admission.ok) {\n"
+          + "    return Object.freeze({ authorized: false, at: null, right: admission, basis, stage: 'admission' });\n"
+          + "  }",
         to: "  const admission = { ok: true, granted_at: clock.now() };" },
-      { from: "    const right = executableRightAt({ store, subjectId, bookId, operation, nowIso: at, credentials });\n"
-          + "    if (!right.ok) return Object.freeze({ authorized: false, at: null, right, stage: 'effectuation' });",
+      { from: "    const right = decide(at);\n"
+          + "    if (!right.ok) return Object.freeze({ authorized: false, at: null, right, basis, stage: 'effectuation' });",
         to: "    const right = { ok: true, granted_at: at };" },
     ] },
+
+  // ── R79 — A KÜLSŐ TÁRGYALÓ FÉL HÁROM ÚJ HATÁRA, MINDEGYIK SAJÁT FALSZIFIKÁLÓVAL ────────────────
+  //
+  // A javítás akkor kész, ha a HIÁNYA bizonyítottan pirosra vált (KUKA-092). Mindegyik alább egyetlen
+  // szerkesztés, ami PONTOSAN azt a viselkedést állítja vissza, amit a külső fél mért.
+
+  { id: 'M89', rule: 'K05', catcher: 'P-REV-result-shape', expect: 'probe_fail',
+    what: 'R79/F01 — A BESOROLÁS MEGÁLL A GYÖKÉRNÉL: a tömb ELEMEIT senki nem járja be, tehát a '
+      + '`lines` mező saját címkéje fedi az EGÉSZ részfát, és a beágyazott ár besorolás nélkül megy ki. '
+      + 'Ez a JAVÍTÁS ELŐTTI alak: a mezőnév-lista lapos volt, a mélység nem számított',
+    file: 'resultScope.mjs',
+    from: "      const r = walk(spec.of, value[i], `${path}[${i}]`, scopes);\n      if (!r.ok) return r;",
+    to: "" },
+
+  { id: 'M90', rule: 'K05', catcher: 'P-REV-result-shape', expect: 'probe_fail',
+    what: 'R79/F01 MÁSIK FELE — A LEVÉL TÍPUSA NEM SZÁMÍT: a `qty` helyére csomagolt objektum '
+      + 'mennyiségnek minősül, és a benne rejtett ár a `keszlet` címkét viszi magával. A deklaráció '
+      + 'LÉTEZÉSE nem bizonyítja, hogy a tartalmat mértük is (KUKA-038)',
+    file: 'resultScope.mjs',
+    from: "  if (spec.kind === 'number' && (t !== 'number' || !Number.isFinite(value))) {\n"
+      + "    return { ok: false, reason: 'result_shape_type_mismatch', at: path, detail: 'véges számot vártunk' };\n"
+      + "  }",
+    to: "  if (false) {\n    return { ok: false, reason: 'result_shape_type_mismatch', at: path, detail: 'véges számot vártunk' };\n  }" },
+
+  { id: 'M91', rule: 'K04/K07', catcher: 'P-CMD-effectuation', expect: 'probe_fail',
+    what: 'R79/F02 — A PARANCS IDŐBÉLYEGE ÚJABB ÓRAOLVASÁSBÓL: a hatályosulási döntés ép marad, de a '
+      + 'rögzített `finalized_at` olyan pillanatot visel, amit senki nem mért. Pontosan a KUKA-002 az '
+      + 'idő tengelyén — és ez a JAVÍTÁS ELŐTTI alak a parancs-oldalon',
+    file: 'command.mjs',
+    from: "      resolvedJson, effectId, 'finalized', at);",
+    to: "      resolvedJson, effectId, 'finalized', clock.now());" },
+
+  { id: 'M92', rule: 'K05/K07', catcher: 'P-CMD-effectuation', expect: 'probe_fail',
+    what: 'R79/F02 — A NYUGTA SAJÁT ÓRÁT OLVAS: a hatás és a nyugta KÉT KÜLÖNBÖZŐ pillanatot visel, '
+      + 'holott egyetlen hatályosulási pont van. A nyugta megvan, csak nem ugyanarról az eseményről '
+      + 'beszél — a két sor némán szétcsúszik (KUKA-002)',
+    file: 'command.mjs',
+    from: "    recordCommandEvent({ store, event: 'command_finalized', scope, effectId, state: 'finalized', clock, at });",
+    to: "    recordCommandEvent({ store, event: 'command_finalized', scope, effectId, state: 'finalized', clock });" },
+
+  { id: 'M93', rule: 'K07/K15', catcher: 'P-CMD-effectuation', expect: 'probe_fail',
+    what: 'R79/F02 — AZ ELUTASÍTÁS ELÁRULJA A SZAKASZT: a válasz megmondja, hogy a kérés a '
+      + 'bebocsátáson vagy a hatályosuláson bukott el. A szakasz maga is csatorna: a kérő abból tudja '
+      + 'meg, MIKOR szűnt meg a joga (KUKA-084 — a kijárat nem HELY, hanem CSATORNA)',
+    file: 'command.mjs',
+    from: "  return out.authorized ? out.value : refused;",
+    to: "  return out.authorized ? out.value : Object.freeze({ ok: false, error: 'not_authorized', stage: out.stage });" },
+
+  { id: 'M94', rule: 'K09/K15', catcher: 'P-REV-entry-points', expect: 'probe_fail',
+    what: 'R79/F03 — A MEGVONÁS ÚTJA MEGINT ELDOBJA A HITELES KONTEXTUST: a hatáskör-ellenőrzés fut, '
+      + 'de a hitelesítő nélkül — tehát a tiltott hitelesítővel belépő eljáró megvonhat egy tagságot. '
+      + 'Ez a FÉL ŐR (KUKA-039): a többi négy író út zárva marad, ezért összesítve minden zöldnek '
+      + 'látszana — pont ezért kell belépési pontonként mérni',
+    file: 'authz.mjs',
+    from: "    { store, clock, subjectId: actorSubjectId, bookId, operation: 'alter_right', credentials },",
+    to: "    { store, clock, subjectId: actorSubjectId, bookId, operation: 'alter_right' }," },
+
+  { id: 'M95', rule: 'K09/K15', catcher: 'P-REV-entry-points', expect: 'probe_fail',
+    what: 'R79/F03 ELLENPÁRJA — A SEMLEGES ÚT MEGSZÓLAL: a bejelentés-elbírálás elutasítása megmondja, '
+      + 'MIÉRT nem járható. Ettől a válasz megkülönböztethető lesz attól, amikor egyszerűen nincs mit '
+      + 'elbírálni — és a különbség maga hordozza a védett tényt (KUKA-084 · R67/F02)',
+    file: 'adjudication.mjs',
+    from: "  if (!out.authorized) return CLAIM_NOT_AVAILABLE;",
+    to: "  if (!out.authorized) return Object.freeze({ ok: false, error: 'not_available', reason: out.right?.reason ?? null });" },
 ];

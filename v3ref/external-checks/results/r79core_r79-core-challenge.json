@@ -1,0 +1,84 @@
+{
+  "program": "r79_chatgpt-v3.core.mjs",
+  "source_commit": "8dced6f444aff777d5842a050101eedefdcdeec1+uncommitted",
+  "node": "v22.22.2",
+  "at": "2026-09-14T13:53:39.701Z",
+  "verbatim": true,
+  "commit": "8dced6f444aff777d5842a050101eedefdcdeec1",
+  "cases": [
+    {
+      "id": "P01-flat-quantity",
+      "pass": true
+    },
+    {
+      "id": "P02-flat-price",
+      "pass": true
+    },
+    {
+      "id": "F01-nested-price",
+      "pass": true
+    },
+    {
+      "id": "F01-object-in-qty",
+      "pass": true
+    },
+    {
+      "id": "P03-unknown-top-field",
+      "pass": true
+    },
+    {
+      "id": "P04-revoke-before",
+      "pass": true
+    },
+    {
+      "id": "P04-revoke-after",
+      "pass": true
+    },
+    {
+      "id": "P04-revoke-cross",
+      "pass": true
+    },
+    {
+      "id": "P06-adjudicate-before",
+      "pass": true
+    },
+    {
+      "id": "P06-adjudicate-after",
+      "pass": true
+    },
+    {
+      "id": "P06-adjudicate-cross",
+      "pass": true
+    },
+    {
+      "id": "P07-command-before",
+      "pass": true
+    },
+    {
+      "id": "P07-command-after",
+      "pass": true
+    },
+    {
+      "id": "P05-nested-effect-rolls-back",
+      "pass": true
+    },
+    {
+      "id": "F02-command-time-splits-at-finalization",
+      "pass": true
+    },
+    {
+      "id": "F03-revoke-credential-matching",
+      "pass": true
+    },
+    {
+      "id": "F03-revoke-credential-other",
+      "pass": true
+    },
+    {
+      "id": "F03-revoke-credential-absent",
+      "pass": true
+    }
+  ],
+  "passed": 18,
+  "failed": 0
+}

@@ -20,6 +20,9 @@
 // otthon (KUKA-003); és ahol két fogalom egy oszlopon ült, ott mindkettő hazudott (KUKA-002).
 import { createHash } from 'node:crypto';
 import { rightAt } from './authz.mjs';
+// R79/F02 — a HATÁLYOSULÁS mechanikája közös (EFF-01); a JOG-FELOLDÓT mi adjuk át, mert a
+// tagsági jog az `authz.mjs`-ben él, amit az `authority.mjs` nem húzhat be (kör — KUKA-003).
+import { effectuateWith } from './authority.mjs';
 // DSC-01 (R77/F02): a KIADOTT EREDMÉNY adatköre a TÍPUS deklarációjából, nem a kérő címkéjéből.
 import { resultScopesOf, resultReleasable } from './resultScope.mjs';
 import { banRequestFor } from './banScope.mjs';
@@ -203,7 +206,7 @@ export function commandReceipt({ effectId, state, replayed }) {
  * visszagördül, a nyugta sem állhat meg (KUKA-026 ellenpárja — a kudarc nyoma nem utazhat a
  * visszagördülő tranzakcióval, a siker nyugtája viszont KÖTELEZŐEN azzal utazik).
  */
-export function recordCommandEvent({ store, event, scope, effectId, state, clock }) {
+export function recordCommandEvent({ store, event, scope, effectId, state, clock, at }) {
   const fail = (code, msg) => { const e = new Error(`recordCommandEvent: ${msg}`); e.code = code; throw e; };
 
   // (1) A ZÁRT NÉVLISTA CSAK AZ EGYIK FELTÉTEL (R51/J3). Az R50-ben ezt önmagában elégnek
@@ -227,7 +230,7 @@ export function recordCommandEvent({ store, event, scope, effectId, state, clock
 
   const res = store.run(
     'INSERT INTO command_event (book_id, actor, idem_key, event, state, effect_id, at) VALUES (?,?,?,?,?,?,?)',
-    scope.bookId, scope.actor, scope.idemKey, event, state, effectId, clock.now());
+    scope.bookId, scope.actor, scope.idemKey, event, state, effectId, at ?? clock.now());
 
   // (4) A SZÜKSÉGES ÍRÁS TÉNYLEG EGY SORT HOZZON LÉTRE (N02). A régi alak a visszatérési értéket
   // nem nézte: nulla soros beszúrás mellett a parancs véglegesült, a válasz sikert mondott, és
@@ -273,15 +276,20 @@ export function releasedFieldPaths(body, prefix = []) {
  * kérdezi meg a mai jogot, ugyanezzel a feloldóval (KUKA-039). A hívó a saját `refused` alakját
  * adja vissza — a nemleges válasz nem árulhatja el, hogy a parancs létezik-e (KUKA-084).
  */
-export function releaseAllowed({ store, subjectId, bookId, clock, externalEvidence, credentials }) {
-  return rightAt({ store, subjectId, bookId, opClass: 'own_book', clock, externalEvidence, credentials }).allowed;
+export function releaseAllowed({ store, subjectId, bookId, clock, nowIso, externalEvidence, credentials }) {
+  return rightAt({ store, subjectId, bookId, opClass: 'own_book', clock, nowIso, externalEvidence, credentials }).allowed;
 }
 
-export function disclose({ store, kind, scope, ref, recipient, body, clock }) {
+/**
+ * @param at  R79/F02 — ha a hívó HATÁLYOSULÁSI pontból hív, a leltár-sor IDEJE ugyanaz a pillanat,
+ *            amelyen a döntés állt. Enélkül a nyugta egy KÉSŐBBI órán születne, mint a jog, amin
+ *            kiadható volt — ugyanaz a rés, csak a leltáron (KUKA-024).
+ */
+export function disclose({ store, kind, scope, ref, recipient, body, clock, at }) {
   if (!DISCLOSURE_VIEW.includes(kind)) throw new Error(`disclose: ismeretlen kiadás-fajta: ${kind}`);
   const res = store.run(
     'INSERT INTO disclosure (recipient, view, scope, ref, fields, at) VALUES (?,?,?,?,?,?)',
-    recipient, kind, scope, ref, JSON.stringify(releasedFieldPaths(body)), clock.now());
+    recipient, kind, scope, ref, JSON.stringify(releasedFieldPaths(body)), at ?? clock.now());
   // A SIKERES AUDIT-ÍRÁS A KIADÁS FELTÉTELE (R51/J4 · N12). A régi alak a visszatérési értéket nem
   // nézte: nulla soros beszúrás mellett a védett tartalom KIMENT, a leltár pedig üres maradt —
   // pontosan az a néma hazugság, ami ellen a leltár épült (KUKA-012). A hiányzó sor PROGRAMHIBA,
@@ -372,7 +380,25 @@ export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion
   }
 
   const effectId = effectIdFor(scope);
-  return store.tx(() => {
+  // R79/F02 — A PARANCSÍRÁS IS A KÖZÖS HATÁLYOSULÁSI PONTON MEGY ÁT (megtalálta: a KÜLSŐ TÁRGYALÓ
+  // FÉL). Eddig ez az író SAJÁT tranzakciót nyitott, és HÁROM külön óraolvasáson állt: a jog, a
+  // `finalized_at` és a nyugta. Mérve: a tagság 08:00:01-kor megszűnik, az első kilenc óraolvasás
+  // 08:00:00, a többi 08:00:02 — a parancs `finalized` lett `finalized_at = 08:00:02` idővel, amely
+  // időpontra a `rightAt` MÁR tiltja az eljárót.
+  //
+  // A JOGOSULTSÁG FAJTÁJA MÁS, A HATÁLYOSULÁS SZABÁLYA UGYANAZ. Ez TAGSÁGI jog (`rightAt`), nem
+  // hatásköri — a kettőt nem mossuk össze (a `basis: 'membership'` ezt ki is írja). A `decide`
+  // INJEKTÁLT: az `authority.mjs` nem húzhatja be az `authz.mjs`-t (kör lenne), tehát a
+  // tagsági feloldót MI adjuk át. A visszahívás soha nem olvas órát: az `at`-ot kapja.
+  const out = effectuateWith({
+    store,
+    clock,
+    basis: 'membership',
+    decide: (nowIso) => {
+      const r = rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', nowIso, externalEvidence, credentials });
+      return r.allowed ? { ok: true } : { ok: false, reason: r.reason, message: r.message };
+    },
+  }, ({ at }) => {
     // ── VÉGLEGESÍTÉSI KAPU A PARANCS-OLDALON (R49 · a mi teljesség-vizsgálatunk lelete) ─────────
     //
     // A fenti jog-ellenőrzés a TRANZAKCIÓN KÍVÜL áll, tehát csak azt zárja le, ami a `resolve()`
@@ -389,15 +415,17 @@ export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion
     // AUTOMATIKUSAN NORMA — ugyanúgy elévül, mint bármely leíró szöveg (KUKA-050). A mai,
     // érvényes magyarázat a `releaseAllowed` fejlécében áll, EGY helyen: minden kiadás a saját
     // írás-tranzakcióján BELÜL kérdezi meg a mai jogot.
-    if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {
-      return refused;
-    }
+    //
+    // R79/F02 ÓTA EZT A KAPUT A HATÁLYOSULÁSI PONT TARTJA (`effectuateWith`): a tranzakción belüli
+    // döntés UGYANAZON az `at`-on áll, amit a rekord visel. Külön `rightAt` hívás itt már NEM
+    // állhat — az egy MÁSODIK „most" lenne, és pont ezt a rést mérte ki a külső fél (KUKA-124: amit
+    // egy korábbi kapu már eldöntött, azt újra mérni nem véd, csak hamis biztonságot ad).
     store.run(
       `INSERT INTO command (idem_key, actor, book_id, type, type_version, identity_hash,
                             resolved_json, effect_id, state, finalized_at)
        VALUES (?,?,?,?,?,?,?,?,?,?)`,
       idemKey, actor, bookId, type, typeVersion, identity,
-      resolvedJson, effectId, 'finalized', clock.now());
+      resolvedJson, effectId, 'finalized', at);
     // A BEFOGADÁS NEM SZOLGÁLTAT KI TARTALMAT — DE NYUGTÁT AD (R47 · Q14 × Q15 · R50-ben javítva).
     //
     // Az első alakunk itt visszaadta a feloldott tartalmat (`resolved: snapshot`) ÉS leltárba is
@@ -414,9 +442,12 @@ export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion
     //
     // Ezért a nyugta a `command_event` könyvbe kerül, UGYANEBBEN a tranzakcióban: nyugtát csak
     // megtörtént hatásról adunk, és megtörtént hatás nem maradhat nyugta nélkül.
-    recordCommandEvent({ store, event: 'command_finalized', scope, effectId, state: 'finalized', clock });
+    recordCommandEvent({ store, event: 'command_finalized', scope, effectId, state: 'finalized', clock, at });
     return commandReceipt({ effectId, state: 'finalized', replayed: false });
   });
+  // A HATÁLYOSULÁS ELUTASÍTÁSA UGYANAZ A SEMLEGES VÁLASZ, amit a bebocsátás ad: a kérő nem tudhatja
+  // meg, MELYIK szakaszon állt meg — a szakasz maga is csatorna lenne (KUKA-084).
+  return out.authorized ? out.value : refused;
 }
 
 // ── A VÁLASZ KIADÁSA (K07 + K05) ────────────────────────────────────────────────────────────────

@@ -192,6 +192,12 @@ const GUARD_HOME = Object.freeze({
   'KUKA-142': Object.freeze({ home: 'v3', note: 'a KIADOTT EREDMÉNY ADATKÖRE (DSC-01) a V3 magreferenciában él — a jel a `P-REV-result-scope` próba (pozitív kontroll + ellenpár + besorolás-hiány) + az M85/M86/M87 mutációk ITT futnak' }),
   'KUKA-143': Object.freeze({ home: 'v3', note: 'a tárolt műveleti hatókör szerkezeti épsége (OPS-01) a V3 magreferenciában él — a jel a `P-REV-ban-record-shape` próba (négy hibás alak + két jogos ellenpár) + az M83/M84 mutációk ITT futnak' }),
   'KUKA-144': Object.freeze({ home: 'v3', note: 'a mérő-eszköz kimenet-csonkulása a V3 futtatójában élt — a jel a `verify:kuka` KUKA-144 tiltó-mintája (process.exit a magreferencia futtatójában) + a `v3ref:mutate` mérőhiba-számlálója ITT fut' }),
+  'KUKA-145': Object.freeze({ home: 'v3', note: 'a KIADOTT EREDMÉNY SÉMÁJA (DSC-01 v2) a V3 magreferenciában él — a jel a `P-REV-result-shape` próba (mélységi besorolás + levél-típus + nevezett hiány ÚTTAL) + az M89/M90 mutációk ITT futnak' }),
+  'KUKA-146': Object.freeze({ home: 'v3', note: 'a KÖZÖS HATÁLYOSULÁSI PONT (EFF-01 v2, `effectuateWith`) a V3 magreferenciában él — a jel a `P-CMD-effectuation` próba + az M91/M92/M93 mutációk ITT futnak' }),
+  'KUKA-147': Object.freeze({ home: 'v3', note: 'az ÍRÓ BELÉPÉSI PONTOK regisztere (ENT-01) a V3 magreferenciában él — a jel a `P-REV-entry-points` próba (60 cella, padlóval) + az M94/M95 mutációk ITT futnak' }),
+  'KUKA-148': Object.freeze({ home: 'v3', note: 'az EGY AJTÓ (`store.tx`) a V3 magreferencia tárolójában él — a jel a `P-CMD-effectuation` (e) ága és a tároló kapuját hurkoló próbák ITT futnak' }),
+  'KUKA-149': Object.freeze({ home: 'v3', note: 'a PRÓBA-TERVEZÉS tanulsága a V3 mérőben él — a jel a `P-CMD-effectuation` (b) ágának `mért pont elérve` mezője + az M93 mutáció verdiktje ITT fut' }),
+  'KUKA-150': Object.freeze({ home: 'v3', note: 'a RUN-02 futás-szerződés (darabolt futás) a V3 mutációs battériájában él — a jel az r79/U01 külső-ellenőrzés + az egység-fájl `evidence_bound` mezője ITT fut' }),
 });
 
 function homeOf(id) { return (GUARD_HOME[id] || null); }

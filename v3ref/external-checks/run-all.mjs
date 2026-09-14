@@ -84,7 +84,7 @@ function measureSource() {
   const st = git('status', '--porcelain', '--', 'v3ref');
   // A generált kimenetek nem tartoznak a MÉRT forráshoz: a results/ és a mutációs eredmény-fájl
   // piszkossága nem teszi mássá a lemásolt kódot.
-  const ignore = ['v3ref/external-checks/results/', 'v3ref/v3ref-mutation-result.json'];
+  const ignore = ['v3ref/external-checks/results/', 'v3ref/v3ref-mutation-result.json', 'v3ref/units/'];
   const dirty = (st.status === 0 ? st.stdout.split('\n') : [])
     .map((l) => l.trim()).filter(Boolean)
     .map((l) => l.replace(/^\S+\s+/, ''))
@@ -108,7 +108,7 @@ function measureSource() {
 // kimenet marad ki (a `results/` és a mutációs eredmény-fájl nem forrás).
 function stage(src) {
   const dir = mkdtempSync(join(tmpdir(), 'v3ref-ext-'));
-  const skip = [join(HERE, 'results'), join(REF, 'v3ref-mutation-result.json')];
+  const skip = [join(HERE, 'results'), join(REF, 'v3ref-mutation-result.json'), join(REF, 'units')];
   cpSync(REF, join(dir, 'source', 'v3ref'), {
     recursive: true,
     filter: (from) => !skip.some((s) => from === s || from.startsWith(`${s}/`)),
@@ -118,7 +118,7 @@ function stage(src) {
     measured_at: new Date().toISOString(),
     source_state: src.note,
     dirty_files: src.dirty_files,
-    staged_from: 'v3ref/ (a generált eredmény nélkül: external-checks/results/ és v3ref-mutation-result.json)',
+    staged_from: 'v3ref/ (a generált eredmény nélkül: external-checks/results/, v3ref-mutation-result.json és units/)',
   }, null, 2)}\n`);
   mkdirSync(join(dir, 'evidence'), { recursive: true });
   // A PROGRAM NEM FELTÉTLENÜL EGY FÁJL. Ahol a külső fél szövegét BÁJTAZONOSAN tartjuk meg, ott a

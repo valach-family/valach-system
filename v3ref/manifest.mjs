@@ -241,6 +241,42 @@ export const EXPECTED_PROBES = Object.freeze([
       Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-undeclared-result-scope-is-fail-closed' }),
     ]),
   }),
+  Object.freeze({
+    id: 'P-REV-result-shape', assertion: 'REVN5-nested-result-shape-is-declared',
+    // R79/F01. Az R77-es javításom LAPOS mezőnév-listát deklarált, ezért a `{lines:[{qty,unit_price}]}`
+    // eredményben a `lines` mező SAJÁT címkéje (`keszlet`) fedte az EGÉSZ részfát: a beágyazott ár
+    // kiment az `arak`-ra tiltott olvasónak. A javítás (DSC-01 v2) SÉMÁT deklarál — a levelek
+    // hordozzák a típust ÉS az adatkört —, és a besorolás a VALIDÁLT alakból gyűlik, mélységben.
+    // A mérce nem a mezőnév: ugyanaz a név más típus más pozícióján mást jelenthet (KUKA-002).
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-nested-result-scope-is-measured' }),
+      Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-result-shape-is-declared-and-typed' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'P-CMD-effectuation', assertion: 'REVN3-command-write-uses-the-effectuation-point',
+    // R79/F02. Az R77-es EFF-01 a HATÁSKÖRI írókat kötötte be; a parancs-író kimaradt, és HÁROM
+    // külön óraolvasáson állt (jog · `finalized_at` · nyugta). A javítás az `effectuateWith`: a
+    // hatályosulás mechanikája KÖZÖS, a jog-feloldó INJEKTÁLT (az `authority.mjs` nem húzhatja be
+    // az `authz.mjs`-t — kör lenne), és a `basis: 'membership'` KIMONDJA, hogy ez TAGSÁGI jog, nem
+    // hatásköri (KUKA-062: a jog-alapot nevezni kell).
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N3a', assertion: 'A-REV-N3a-command-effect-time-is-the-decision-time' }),
+      Object.freeze({ clause: 'REV-N3a', assertion: 'A-REV-N3a-command-refusal-is-neutral-and-inert' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'P-REV-entry-points', assertion: 'REVN5-every-writer-entry-point-is-measured',
+    // R79/F03. A `revokeMembership` hívta a hatáskör-ellenőrzést, de a hiteles kontextust nem vitte
+    // át: a hitelesítő-alapú tiltás ezen az ÍRÓ úton nem hatott. A javítás mellé a mérés hatóköre
+    // SZABÁLY lett, nem lista (KUKA-051): az ENT-01 regiszter MINDEN író belépési pontot felsorol,
+    // a tengelyeket a tiltás-fajták ZÁRT halmazából SZÁRMAZTATJUK, és minden cella VALÓDI futás,
+    // padlóval. A semleges utak (R67/F02) válaszát BÁJTRA hasonlítjuk (KUKA-084).
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N5a', assertion: 'A-REV-N5a-every-writer-entry-point-carries-context' }),
+      Object.freeze({ clause: 'REV-N5a', assertion: 'A-REV-N5a-neutral-entry-point-answers-are-indistinguishable' }),
+    ]),
+  }),
 ]);
 
 export const EXPECTED_IDS = Object.freeze(EXPECTED_PROBES.map((p) => p.id));

@@ -202,7 +202,17 @@ export function roleDelegates(role) {
   return r ? Object.freeze([...r.delegates]) : null;
 }
 
-export function rightAt({ store, subjectId, bookId, opClass, clock, externalEvidence, credentials }) {
+/**
+ * @param nowIso  R79/F02 — EGY DÖNTÉS, EGY „MOST". A külső fél mérése kimutatta, hogy ez a függvény
+ *                HÁROM óraolvasáson állt egyetlen döntésen belül (tiltás · tagság-hatály ·
+ *                felfüggesztés). Külön-külön mind a három helyes volt; a hiba a KÖZTÜK lévő résben
+ *                élt (KUKA-024). Innentől EGY időpont hordozza az egész döntést: ha a hívó megadja
+ *                (`nowIso`), azt használjuk — a hatályosulási pont (EFF-01/`effectuateWith`) pont
+ *                ezen az úton adja át a tranzakción belüli pillanatot. Ha nem adja meg, EGYSZER
+ *                olvassuk az órát, itt, a belépésnél.
+ */
+export function rightAt({ store, subjectId, bookId, opClass, clock, nowIso, externalEvidence, credentials }) {
+  const at = nowIso ?? clock.now();
   const profile = profileFor(opClass);
   if (!profile) return deny('unknown_op_class', 'ehhez a művelethez nincs frissességi profil');
 
@@ -218,13 +228,13 @@ export function rightAt({ store, subjectId, bookId, opClass, clock, externalEvid
   // hitelesítő/munkamenet/jogalap/adatkör csak akkor dönthető el, ha a hívó átadja — enélkül a
   // válasz NEVEZETT bizonytalanság, és zár (a kétség nem nyit hozzáférést).
   const ban = banEffectiveAt({
-    store, subjectId, nowIso: clock.now(), request: banRequestFor({ bookId, opClass }, credentials),
+    store, subjectId, nowIso: at, request: banRequestFor({ bookId, opClass }, credentials),
   });
   if (ban.banned) return deny(ban.reason, ban.message || 'célzott tiltás van hatályban');
 
   const m = store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', subjectId, bookId);
   // A tagság KÉT vége EGY feloldón (Q08 + Q13) — a `rightAt` és a meghívó-oldal nem tud elcsúszni.
-  const eff = membershipEffectiveAt(m, clock.now());
+  const eff = membershipEffectiveAt(m, at);
   if (!eff.effective) {
     return deny(eff.reason, eff.reason === 'no_membership'
       ? 'ehhez a könyvhöz nincs tagságod'
@@ -238,7 +248,7 @@ export function rightAt({ store, subjectId, bookId, opClass, clock, externalEvid
   // sorhoz NEM nyúlunk (az a megvonás dolga, KÜLÖN hatáskörrel), tehát a felfüggesztés nem válik
   // általános jogmódosítássá. Mivel ez a `rightAt`-ben áll, a parancs-út KÉRÉSKOR és
   // VÉGLEGESÍTÉSKOR is ugyanezt a tényt olvassa.
-  const susp = suspensionEffectiveAt({ store, subjectId, bookId, nowIso: clock.now() });
+  const susp = suspensionEffectiveAt({ store, subjectId, bookId, nowIso: at });
   if (susp.suspended) {
     return deny(susp.reason === 'membership_suspended' ? 'membership_suspended' : susp.reason,
       'a hozzáférésed ehhez a könyvhöz FEL VAN FÜGGESZTVE az elbírálás idejére — a tagságod megvan, '
@@ -263,7 +273,7 @@ export function rightAt({ store, subjectId, bookId, opClass, clock, externalEvid
   if (needsExternalEvidence(profile)) {
     const ev = evidenceFor(externalEvidence, profile.external_dependency);
     if (!ev) return deny('evidence_missing', 'a képviselethez szükséges megbízás-bizonyíték nincs meg');
-    const standing = evidenceStandingAt(ev, clock.now(), profile);
+    const standing = evidenceStandingAt(ev, at, profile);
     if (!standing.ok) return deny(standing.reason, 'a megbízás-bizonyíték most nem fogadható el');
     // A SZOLGÁLTATÓI KIESÉS önmagában NEM zár: érvényes, friss bizonyíték a határig él.
     return allow('representation_mandate', { evidence_age_ms: standing.age_ms, source_down: standing.source_down });
@@ -288,7 +298,7 @@ export function revocationTransition(existingRevokedAt, nowIso) {
   return Object.freeze({ act: true, effective_at: nowIso, reason: 'revocation_pulled_forward', previous_effective_at: existingRevokedAt });
 }
 
-export function revokeMembership({ store, subjectId, bookId, clock, actorSubjectId }) {
+export function revokeMembership({ store, subjectId, bookId, clock, actorSubjectId, credentials }) {
   // REV-N3a (R60 req-2 · R65 §7): A JOGVÁLTOZTATÁS HATÁSKÖRHÖZ KÖTÖTT — és MŰVELETENKÉNT.
   //
   // MI VOLT EDDIG. A megvonás a magreferencia szintjén BEMENET volt: a hívó megmondta, kit von meg,
@@ -307,8 +317,16 @@ export function revokeMembership({ store, subjectId, bookId, clock, actorSubject
   // szintén azon a második időponton. Így a megvonás-napló sora olyan pillanatot visel, amelyen az
   // eljáró joga már megszűnhetett — pontosan a KÜLSŐ FÉL R77/F01 alakja, csak MÁSIK MODULBAN
   // (KUKA-129: ha a szabály több helyen kell, a közös otthon a javítás, nem a helyi folt).
+  // R79/F03 — A HÍVÓ EJTETTE EL A KONTEXTUST, NEM A FELOLDÓ (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL).
+  // A négy elbírálási író (`readClaim` · `adjudicateClaim` · `suspendMembership` · `liftSuspension`)
+  // az R75/F05 óta átveszi és továbbadja a `credentials`-t; ez az ÖTÖDIK út — amit én magam kötöttem
+  // be az R77/F01-ben — kimaradt. A hatása TÚLZÁRÁS, nem szivárgás: a judge RÉGI hitelesítőjére szóló
+  // tiltás mellett a HELYES, másik hitelesítővel kezdeményezett megvonás is `ban_target_undecidable`-re
+  // futott, mert a kérés nem hordozta a megkülönböztetőt. A tiltás-feloldó helyesen jelezte a hiányt.
+  // KUKA-039 a saját, egy körrel korábbi javításomon: a közös feloldó helyessége NEM bizonyítja, hogy
+  // minden HÍVÓ átadja a paramétert — ezért a jel is a BELÉPÉSI PONTOKAT méri, nem a helpert (ENT-01).
   const out = effectuate(
-    { store, clock, subjectId: actorSubjectId, bookId, operation: 'alter_right' },
+    { store, clock, subjectId: actorSubjectId, bookId, operation: 'alter_right', credentials },
     ({ at }) => {
       const m = store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', subjectId, bookId);
       if (!m) return Object.freeze({ ok: false, changed: false, reason: 'no_membership' });

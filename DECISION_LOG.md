@@ -16,6 +16,114 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3023 — A RÉSZFA SÉMÁJA, A PARANCSÍRÁS HATÁLYOSULÁSA, A KONTEXTUS-ÁTVITEL ÉS A DARABOLHATÓ FUTÁS (R79/F01…F03 + §6)
+
+> **Hatály:** V3 — a V3 magreferencia (`v3ref/`) kiadás-, hatályosulás- és mérés-modellje. A V2
+> kódját nem köti; a V2 fejlesztő átlépheti. A tanulságok (KUKA-145…150) fogalmi szintűek, tehát a
+> V2-ben is érdemes rájuk nézni, ha hasonló alak születik.
+
+**A külső tárgyaló fél (chatgpt-v3) HÁROM leletet adott a SAJÁT, egy körrel korábbi (R77-es)
+javításainkra, és egy NEGYEDIK kérést a futás szerződésére.** A programjuk VÁLTOZATLANUL futott a
+repóban: a javítás ELŐTT **14 PASS / 4 FAIL** (pontosan az általuk közölt reprodukció), a mai
+forráson **18 PASS / 0 FAIL**. Tesztadaptáció nem történt — a programjuk szövege érintetlen
+(`v3ref/external-checks/r79_chatgpt-v3.core.mjs`, bájtazonosan).
+
+### F01 — A RÉSZFA A FELSŐ MEZŐ CÍMKÉJÉT ÖRÖKÖLTE
+
+Az R77-es DSC-01 típusonként deklarálta a kiadott eredmény adatkörét, de LAPOS mezőnév-listaként. A
+`{lines:[{qty, unit_price}]}` eredményben a `lines` SAJÁT címkéje (`keszlet`) fedte az EGÉSZ
+részfát, tehát a beágyazott ármező kiment az `arak`-ra TILTOTT olvasónak; a `{qty:{unit_price:…}}`
+alak pedig azért ment át, mert a levélen senki nem kérdezte meg, szám-e.
+
+**Javítás (DSC-01 v2):** a deklaráció SÉMA — `leaf(kind, scope)` · `arrayOf(of)` · `objectOf(fields)`
+—, és a besorolás a VALIDÁLT alakból gyűlik, MÉLYSÉGBEN. A levél TÍPUSA is deklarált; a be nem
+sorolt mező a részfában is NEVEZETT, az ÚTJÁVAL (`lines[0].titok`), és a hatás LÉTRE SEM JÖN. Nincs
+globális mezőnév-találgatás: a jelentést az adja, melyik TÍPUS melyik POZÍCIÓJÁN áll a név
+(KUKA-002). (KUKA-145)
+
+### F02 — A PARANCSÍRÁS KIMARADT A HATÁLYOSULÁSI PONTBÓL
+
+Az R77-es EFF-01 a HATÁSKÖRI írókat kötötte be; a parancsíró HÁROM külön óraolvasáson maradt (jog ·
+`finalized_at` · nyugta). Mérve: a tagság 08:00:01-kor megszűnik, az első olvasás 08:00:00, a többi
+08:00:02 — a parancs `finalized` lett 08:00:02-es idővel, amely időpontra a jog-feloldó MÁR tiltja
+az eljárót.
+
+**Javítás (EFF-01 v2):** `effectuateWith({store, clock, basis, decide}, effect)` — a hatályosulás
+mechanikája KÖZÖS, a jog-feloldó INJEKTÁLT (az `authority.mjs` nem húzhatja be az `authz.mjs`-t:
+kör lenne), és a `basis` KIMONDJA, melyik jog-fajta döntött (`authority` | `membership`). Öt
+hatásköri út mellett a parancsíró is EGY időponton áll: a `finalized_at` és a nyugta ideje
+BÁJTRA azonos. (KUKA-146)
+
+### F03 — A MEGVONÁS NEM VITTE ÁT A HITELES KONTEXTUST
+
+A tagság-megvonás hívta a hatáskör-ellenőrzést, de `credentials`-t nem adott tovább: a
+HITELESÍTŐ-alapú tiltás ezen az ÍRÓ úton nem hatott, miközben a másik négy úton zárt.
+
+**Javítás (ENT-01):** a `revokeMembership` fogadja és továbbadja a kontextust; mellé a mérés
+hatóköre SZABÁLY lett, nem lista — az `entryPoints.mjs` MINDEN író belépési pontot felsorol
+(5 pont × 4 kontextus-tengely × 3 mód = **60 cella**, padlóval), a tengelyeket a tiltás-fajták ZÁRT
+halmazából SZÁRMAZTATJUK, és a SZÁNDÉKOSAN semleges út (bejelentés-elbírálás, R67/F02) DEKLARÁLT,
+a semlegessége pedig BÁJTRA mérve. (KUKA-147)
+
+### §6 — A FUTÁS SZERZŐDÉSE (RUN-02): DARABOLHATÓ FUTÁS, HÁROM KÜLÖN MEZŐ
+
+A külső fél kérte, hogy a mutációs battéria darabolható legyen, és hogy az időtúllépés NEVEZETT,
+NEM TELJES futás legyen, külön mezőkkel — ne a kód hibájának látsszon. **A kérés ebben a körben
+KÉNYSZERRÉ is vált:** a három új próbával a teljes battéria faliórája ezen a futtató-gépen (4 vCPU)
+**17,1 mp** a legjobb mért alakban (párhuzamosság 4 · 6 · 8 · 16 mind 17–19 mp), a külső korlát
+pedig 15 000 ms. A korlátot NEM emeltük meg (az a mérce meghamisítása lenne — KUKA-091 · KUKA-140).
+
+**Megépítve:**
+- **`--unit=k/n`** — a mutációk k-adik n-ed része. Az egység MINDEN futásban lefuttatja a TELJES
+  alapvonalat és MIND A NYOLC hazugság-ellenpróbát (enélkül az „elkapva" semmit nem jelent), és a
+  részeredményét fájlba írja. **Az egység SEMMIT nem állít a battéria egészéről.**
+- **`--merge`** — teljes összefoglalót KIZÁRÓLAG ez adhat, és csak ha mind az **öt** feltétel áll:
+  (1) minden mutáció PONTOSAN EGYSZER · (2) minden egység UGYANARRA, a MA mért forrás-lenyomatra
+  hivatkozik · (3) minden egység `complete` · (4) mindegyikben zöld volt a két kapu · (5) mindegyik
+  bizonyítéka a SAJÁT szülői főkönyvéhez KÖTÖTT.
+- **HÁROM KÜLÖN MEZŐ:** `run_state` (`complete` | `incomplete`) · `clean` (a KÓDRÓL szól; nem teljes
+  futásnál `null`, mert az el nem végzett mérés sem nem zöld, sem nem piros) · `portable` (belefér-e
+  EGY hívás a külső korlátba — ez a MÉRÉSRŐL szól, nem a kódról). Kilépési kód: **0** teljes és
+  tiszta · **1** teljes, de nem tiszta · **2** NEM teljes.
+- Mérve: **három** egységgel a legrosszabb egység **7,0 mp** (a korlát 47%-a). Az első alak KETTŐ
+  egységgel készült és önmagában zöld volt (8,5–10,4 mp) — a TELJES söprés párhuzamos terhelése
+  alatt viszont az egyik egység **12 141 ms** lett, tehát átlépte a saját költségvetését. NEM a
+  költségvetést emeltük, hanem tovább daraboltuk a munkát (KUKA-140).
+
+**A söprés-felület innentől a DARABOLT futás** (`verify:v3ref` → három egység + `--merge`); a régi,
+egy-hívásos `v3ref:mutate` megmarad, és ŐSZINTÉN `incomplete`-et mond ezen a
+gépen. (KUKA-150)
+
+### KÉT SAJÁT LELET, AMIT EZ A KÖR HOZOTT ELŐ
+
+- **Egy határ, két név** (KUKA-148): a `store.tx` és a `withTransaction` ugyanaz a tranzakció-határ;
+  az R77-es alakom a másodikat hívta, és amint a parancsírót is odakötöttem, a határt mérő próba
+  ELVESZTETTE a mérési pontját. Nem a kód romlott el, hanem a MÉRÉS. Megtalálta: a saját söprésem.
+- **A próba egy korábbi kapu munkáját jelentette sajátjának** (KUKA-149): a `P-CMD-effectuation`
+  első alakja óraolvasás-számlálóra épült, holott a parancs-úton a hatályosulási pont ELŐTT még KÉT
+  tagsági kapu áll. Megtalálta: a saját falszifikálóm (M93 → WRONG_CATCHER). A mai alak az óra a
+  TRANZAKCIÓ HATÁRÁHOZ köti, és MEGMÉRI, hogy a mért pontot elérte-e.
+
+### MÉRT VÉGÁLLAPOT
+
+- `verify:v3ref`: **42/42 próba PASS** · a darabolt battéria (3 egység) **92/92 mutáció elkapva** (0 túlélő ·
+  0 rossz próba · 0 mérőhiba · 0 elavult horgony) · **36/47 klauzula-sor FEDETT** · a kötelező
+  bizonyíték-készlet **9/9**.
+- `verify:external-checks`: **9/11 program MEGFELEL**. A külső fél R79-es programja **18/18**, a
+  saját RUN-02 próbánk **4/4**.
+- **KIMONDOTT ELTÉRÉS (r59 · r57):** a külső fél R59-es és R57-es programja a battériát EGY hívásban
+  futtatja 15 000 ms-os időkorláttal. Ezen a futtató-gépen a teljes battéria 17,1 mp, tehát náluk
+  ETIMEDOUT-tal áll meg: **a MÉRÉS akad el, nem a kód bukik**. Az ő programjukat NEM írjuk át (az a
+  lánc alapja). Helyette a saját `r79_run_contract_restated.mjs` UGYANAZOKAT az állításokat méri a
+  darabolt futáson (U01: hamisított bizonyíték egység-módban · U02: hiányzó egység · U03: idegen
+  forrású egység · U04: pozitív ellenpár) — **4/4 zöld**. A kérés az R80-as lapon megy át: a
+  battéria-hívást az ő programjukban is a `--unit`/`--merge` alakra érdemes állítani.
+- **KIMONDOTT KORLÁT:** az egység-fájl NINCS kriptográfiailag a futásához kötve — kézzel írt
+  egység-fájl is beolvadna; a forrás-lenyomat egyezése szűkít, de nem bizonyít. A zárás feltétele
+  nevezett: aláírt egység-tanú. Ez a KUKA-121 mintájának folytatása a saját futtatónkon.
+
+---
+
 ## D-VS-3022 — A HATÁLYOSULÁS PONTJA, A KIADOTT TARTALOM ADATKÖRE ÉS A SÉRÜLT TÁROLT HATÓKÖR (R77/F01…F03)
 
 > **Hatály:** V3 — a V3 magreferencia (`v3ref/`) hatáskör-, tiltás- és kiadás-modellje. A V2 kódját

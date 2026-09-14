@@ -22,6 +22,13 @@
 // meg, a tiltott adatkört ÉRINTŐ eredmény nem megy ki részlegesen sem. Ezt a korlátot kimondjuk,
 // nem elhallgatjuk (KUKA-015).
 //
+// R79 — EGY SAJÁT ÁLLÍTÁS HELYESBÍTVE. Az R78-as alakban ide azt írtam, hogy „vegyes adatkörű
+// RÉSZFA ma nem ábrázolható, mert ahhoz mezővetítés kellene". A külső fél ezt megcáfolta, és igaza
+// van: a BESOROLÁS és a RÉSZLEGES KIADÁS két külön képesség. A vegyes tartalmat akkor is meg lehet
+// tagadni EGÉSZBEN, ha a rendszer PONTOSAN felismeri, melyik mező mennyiségi és melyik ár — sőt
+// éppen az a helyes sorrend: előbb ismerjük fel, aztán döntsünk a kiadásról. A téves összekapcsolás
+// egy KÉPESSÉG hiányát tette egy MÁSIK képesség feltételévé (KUKA-050: a kódba írt próza is elévül).
+//
 // A HIÁNYZÓ BESOROLÁS KÜLÖN VÁLASZ, ÉS ZÁR (KUKA-124/2). Ha a típus nincs deklarálva, vagy az
 // eredmény olyan mezőt hoz, amit a deklaráció nem sorol be, az NEM „nincs korlátozás", hanem
 // NEM TUDJUK — tehát nem adható ki. A kettőt nem mossuk össze a „nincs jogod" válasszal sem: a
@@ -40,55 +47,133 @@ const SCOPE_MEANING = new Map([
   ['arak', 'ár-adat: egységár, listaár, árlista-hivatkozás'],
 ]);
 
-// ═══ A TÍPUS DEKLARÁCIÓJA — MIT HORDOZHAT AZ EREDMÉNYE ═════════════════════════════════════════
+// ═══ A TÍPUS DEKLARÁCIÓJA — AZ EREDMÉNY ALAKJA ÉS A LEVELEK ADATKÖRE (R79/F01) ══════════════════
 //
 // A kulcs a TÍPUS és a VERZIÓ együtt: egy típus új verziója új mezőket hozhat, és a besorolást
 // akkor ÚJRA ki kell mondani — a régi deklaráció nem öröklődik hallgatólagosan.
 //
-// A besorolás a LEGFELSŐ SZINTŰ mezőn dől el, és a mező teljes részfája vele megy: egy
-// `lines: [...]` alatt álló mennyiség ugyanabba az adatkörbe tartozik, mint maga a `lines`. Ez
-// szándékos egyszerűsítés, és kimondott korlát: vegyes adatkörű RÉSZFA ma nem ábrázolható, mert
-// ahhoz mezővetítés kellene, ami nincs megépítve.
+// AZ R78-AS ALAK CSAK A LEGFELSŐ SZINTET NÉZTE, és a mező teljes részfáját a felső címkéjével
+// azonosnak vette. A külső fél FUTÁSSAL mutatta meg, mit jelent ez (R79/F01):
+//
+//     {"lines":[{"qty":1,"unit_price":12345}]}      → a `lines` „keszlet", tehát az ÁR IS kiment
+//     {"qty":{"unit_price":12345}}                  → a `qty` „keszlet", tehát az ÁR IS kiment
+//
+// Mindkettő az `arak`-ra TILTOTT olvasónak, `keszlet` kontextussal. A felső mező CÍMKÉJE tehát nem
+// helyettesíti a részfa SÉMÁJÁT — és még a mennyiségnek szánt `qty` is tetszőleges objektumot
+// fogadott (KUKA-038: a deklaráció LÉTEZÉSE nem bizonyítja, hogy a tartalmat MÉRTÜK is).
+//
+// A MAI ALAK: a deklaráció SÉMA, a levelek hordozzák az adatkört.
+//
+//   `{ kind:'number'|'string', scope:'keszlet'|'arak' }`   LEVÉL — típus ÉS adatkör
+//   `{ kind:'array', of:<spec> }`                          TÖMB — az elemek alakja is deklarált
+//   `{ kind:'object', fields:{ név:<spec> } }`             OBJEKTUM — zárt mező-lista
+//
+// A KIADÁS ADATKÖREI A VALIDÁLT ALAKBÓL jönnek: annyi adatkör, ahány LEVÉL ténylegesen ott van.
+// Ezért a `{lines:[{qty:1}]}` TISZTA mennyiségi eredmény (kiadható a készlet-olvasónak), a
+// `{lines:[{qty:1,unit_price:1}]}` viszont VEGYES — és egészben megtagadva.
+//
+// NINCS GLOBÁLIS MEZŐNÉV-TALÁLGATÁS (a külső fél kimondott kérése): a `unit_price` NÉV önmagában
+// semmit nem jelent — a jelentését az adja, hogy melyik TÍPUS melyik POZÍCIÓJÁN áll. Ugyanaz a név
+// egy másik típusban mást jelenthet, ezért a séma típusonként zárt (KUKA-002).
 const SEP = '';
 const declKey = (type, typeVersion) => `${String(type ?? '')}${SEP}${String(typeVersion ?? '')}`;
 
-const RESULT_FIELD_SCOPES = new Map([
-  [declKey('stock.receipt', '1'), new Map([
-    ['qty', 'keszlet'],
-    ['sku', 'keszlet'],
-    ['lines', 'keszlet'],
-    ['price', 'arak'],
-    ['unit_price', 'arak'],
-    ['price_list', 'arak'],
-  ])],
-  [declKey('stock.issue', '1'), new Map([
-    ['qty', 'keszlet'],
-    ['sku', 'keszlet'],
-    ['lines', 'keszlet'],
-    ['price', 'arak'],
-    ['unit_price', 'arak'],
-    ['price_list', 'arak'],
-  ])],
+const leaf = (kind, scope) => Object.freeze({ kind, scope });
+const arrayOf = (of) => Object.freeze({ kind: 'array', of });
+const objectOf = (fields) => Object.freeze({ kind: 'object', fields: Object.freeze(new Map(Object.entries(fields))) });
+
+// A TÉTELSOR alakja — EGY helyen, mert a bevét és a kiadás ugyanazt a sort hordozza (KUKA-003).
+const LINE_SHAPE = objectOf({
+  qty: leaf('number', 'keszlet'),
+  sku: leaf('string', 'keszlet'),
+  unit_price: leaf('number', 'arak'),
+});
+
+const STOCK_RESULT_SHAPE = objectOf({
+  qty: leaf('number', 'keszlet'),
+  sku: leaf('string', 'keszlet'),
+  lines: arrayOf(LINE_SHAPE),
+  price: leaf('number', 'arak'),
+  unit_price: leaf('number', 'arak'),
+  price_list: leaf('string', 'arak'),
+});
+
+const RESULT_SHAPES = new Map([
+  [declKey('stock.receipt', '1'), STOCK_RESULT_SHAPE],
+  [declKey('stock.issue', '1'), STOCK_RESULT_SHAPE],
 ]);
 
 /** A deklarált típusok listája — a nemleges válasz megnevezheti, mi közül lehet választani (KUKA-064). */
 export const DECLARED_RESULT_TYPES = Object.freeze(
-  [...RESULT_FIELD_SCOPES.keys()].map((k) => k.split(SEP).join('/')).sort());
+  [...RESULT_SHAPES.keys()].map((k) => k.split(SEP).join('/')).sort());
 
 /**
- * MELY ADATKÖRÖKET ÉRINTI EZ AZ EREDMÉNY — a TÍPUS deklarációjából, nem a kérésből.
+ * A SÉMA BEJÁRÁSA — a VALIDÁLT alakból gyűjtjük az adatköröket, mélységben is.
+ *
+ * A hiba NEM kivétel: nevezett válasz, mert a bemenet a beadó sajátja, és meg kell tudnia, MIT
+ * javítson (KUKA-064). A három hiba-fajta KÜLÖN nevet visel — az ismeretlen mező, a rossz típus és
+ * a be nem sorolt levél három különböző teendő (KUKA-020).
+ *
+ * @returns {{ok:true, scopes:Set<string>} | {ok:false, reason:string, at:string, detail?:string}}
+ */
+function walk(spec, value, path, scopes) {
+  if (spec.kind === 'array') {
+    if (!Array.isArray(value)) return { ok: false, reason: 'result_shape_type_mismatch', at: path, detail: 'tömböt vártunk' };
+    for (let i = 0; i < value.length; i += 1) {
+      if (!(i in value)) return { ok: false, reason: 'result_shape_sparse_array', at: `${path}[${i}]` };
+      const r = walk(spec.of, value[i], `${path}[${i}]`, scopes);
+      if (!r.ok) return r;
+    }
+    return { ok: true };
+  }
+  if (spec.kind === 'object') {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      return { ok: false, reason: 'result_shape_type_mismatch', at: path, detail: 'objektumot vártunk' };
+    }
+    for (const key of Object.keys(value)) {
+      const sub = spec.fields.get(key);
+      if (!sub) {
+        return {
+          ok: false,
+          reason: 'result_scope_field_undeclared',
+          at: path ? `${path}.${key}` : key,
+          detail: `a deklaráció ezen a helyen ezeket a mezőket ismeri: ${[...spec.fields.keys()].sort().join(', ')}`,
+        };
+      }
+      const r = walk(sub, value[key], path ? `${path}.${key}` : key, scopes);
+      if (!r.ok) return r;
+    }
+    return { ok: true };
+  }
+  // LEVÉL: a típus ÉS az adatkör is itt dől el. A típus-ellenőrzés NEM formaság: a `qty` objektumba
+  // csomagolt ár pontosan azért ment ki, mert a levélen senki nem kérdezte meg, szám-e (R79/F01).
+  const t = typeof value;
+  if (spec.kind === 'number' && (t !== 'number' || !Number.isFinite(value))) {
+    return { ok: false, reason: 'result_shape_type_mismatch', at: path, detail: 'véges számot vártunk' };
+  }
+  if (spec.kind === 'string' && t !== 'string') {
+    return { ok: false, reason: 'result_shape_type_mismatch', at: path, detail: 'szöveget vártunk' };
+  }
+  if (!KNOWN_DATA_SCOPES.includes(spec.scope)) {
+    return { ok: false, reason: 'result_scope_leaf_unclassified', at: path };
+  }
+  scopes.add(spec.scope);
+  return { ok: true };
+}
+
+/**
+ * MELY ADATKÖRÖKET ÉRINTI EZ AZ EREDMÉNY — a TÍPUS SÉMÁJÁBÓL, a VALIDÁLT alakon mérve.
  *
  * @returns {{ok:true, scopes:string[]}
- *          | {ok:false, reason:'result_scope_type_undeclared'|'result_scope_field_undeclared'|'result_not_an_object',
- *             message:string, fields?:string[]}}
+ *          | {ok:false, reason:string, message:string, at?:string}}
  */
 export function resultScopesOf({ type, typeVersion, result }) {
-  const decl = RESULT_FIELD_SCOPES.get(declKey(type, typeVersion));
-  if (!decl) {
+  const shape = RESULT_SHAPES.get(declKey(type, typeVersion));
+  if (!shape) {
     return Object.freeze({
       ok: false,
       reason: 'result_scope_type_undeclared',
-      message: `a(z) "${type}" / "${typeVersion}" parancstípus eredményének ADATKÖRE nincs deklarálva. `
+      message: `a(z) "${type}" / "${typeVersion}" parancstípus eredményének SÉMÁJA nincs deklarálva. `
         + 'A kiadás nem tudja eldönteni, milyen adatot adna ki, ezért nem ad ki semmit. A ma deklarált '
         + `típusok: ${DECLARED_RESULT_TYPES.join(', ')}. Új típusnál a deklaráció a megépítés része `
         + '(DSC-01), nem utólagos ráadás.',
@@ -102,21 +187,20 @@ export function resultScopesOf({ type, typeVersion, result }) {
         + 'A kiadás zárva marad; ez nem „üres eredmény", hanem el nem dönthető besorolás.',
     });
   }
-  const fields = Object.keys(result);
-  const undeclared = fields.filter((f) => !decl.has(f)).sort();
-  if (undeclared.length) {
-    return Object.freeze({
-      ok: false,
-      reason: 'result_scope_field_undeclared',
-      fields: Object.freeze(undeclared),
-      message: `a(z) "${type}" / "${typeVersion}" eredményében olyan mező áll, amit a deklaráció nem sorol `
-        + `be adatkörbe: ${undeclared.join(', ')}. A be nem sorolt mező NEM „korlátozás nélküli": nem `
-        + 'tudjuk, mi ez, ezért nem adjuk ki. A mezőt be kell sorolni a típus deklarációjába '
-        + `(a zárt halmaz: ${KNOWN_DATA_SCOPES.join(', ')}).`,
-    });
+  const scopes = new Set();
+  const r = walk(shape, result, '', scopes);
+  if (!r.ok) {
+    const where = r.at ? `"${r.at}"` : '(gyökér)';
+    const msg = r.reason === 'result_scope_field_undeclared'
+      ? `a(z) "${type}" / "${typeVersion}" eredményében a ${where} helyen olyan mező áll, amit a séma nem `
+        + `ismer. A be nem sorolt mező NEM „korlátozás nélküli": nem tudjuk, mi ez, ezért nem adjuk ki. `
+        + `${r.detail || ''} A zárt adatkör-halmaz: ${KNOWN_DATA_SCOPES.join(', ')}.`
+      : `a(z) "${type}" / "${typeVersion}" eredménye a ${where} helyen nem felel meg a deklarált sémának`
+        + `${r.detail ? ` (${r.detail})` : ''}. A séma a BEÁGYAZOTT alakra és a tömb ELEMEIRE is szól: a `
+        + 'felső mező címkéje nem helyettesíti a részfa sémáját (R79/F01).';
+    return Object.freeze({ ok: false, reason: r.reason, at: r.at ?? null, message: msg.trim() });
   }
-  const scopes = [...new Set(fields.map((f) => decl.get(f)))].sort();
-  return Object.freeze({ ok: true, scopes: Object.freeze(scopes) });
+  return Object.freeze({ ok: true, scopes: Object.freeze([...scopes].sort()) });
 }
 
 /**

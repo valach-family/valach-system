@@ -173,17 +173,70 @@ export function executableRightAt({ store, subjectId, bookId, operation, nowIso,
  *          | {authorized:false, at:null, right:{ok:false, reason:string, message:string}, stage:'admission'|'effectuation'}}
  */
 export function effectuate({ store, clock, subjectId, bookId, operation, credentials }, effect) {
+  return effectuateWith({
+    store,
+    clock,
+    basis: 'authority',
+    decide: (nowIso) => executableRightAt({ store, subjectId, bookId, operation, nowIso, credentials }),
+  }, effect);
+}
+
+// ═══ R79/F02 — A HATÁLYOSULÁS MECHANIKÁJA KÖZÖS, A JOGOSULTSÁG-FAJTA NEM ═══════════════════════
+//
+// A LELET (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL, R79/F02). Az EFF-01 az öt HATÁSKÖRI írót védte. A
+// `submitCommand` viszont TAGSÁGI jogon működő, külön író maradt: a jogértékelés, a `finalized_at`
+// és a nyugta három külön óraolvasáson állt. Mérve: a tagság 08:00:01-kor megszűnik, az első kilenc
+// óraolvasás 08:00:00, a többi 08:00:02 — a parancs `finalized` lesz, `finalized_at = 08:00:02`,
+// amely időpontra a `rightAt` MÁR TILTJA az eljárót.
+//
+// AMIT NEM SZABAD: összemosni a két jogosultság-fajtát. A tagsági jog (ki tagja ennek a könyvnek) és
+// a hatásköri jog (ki járhat el ebben a műveletben) KÉT külön tény, két külön feloldóval — ha egy
+// névre kerülnének, az pont a KUKA-002 lenne, csak nagyban.
+//
+// EZÉRT A SZÉTVÁLASZTÁS KIMONDOTT, ÉS A KÉRDÉSÜKRE („melyik réteg birtokolja az atomi határt?") EZ
+// A VÁLASZ:
+//
+//   · AZ ATOMI HATÁRT EZ A RÉTEG BIRTOKOLJA (`effectuateWith`): ő nyitja a tranzakciót, ő olvassa
+//     az órát EGYSZER, és ő adja tovább ugyanazt az `at`-ot a döntésnek ÉS a hatásnak;
+//   · A JOG-FELOLDÓ (`decide`) UGYANANNAK A DÖNTÉSI IDŐNEK A FOGYASZTÓJA: `nowIso`-t KAP, nem
+//     olvas órát — tehát a fajtája szabadon más lehet (hatásköri vagy tagsági), a hatályosulás
+//     szabálya mégis EGY.
+//
+// A `decide` INJEKTÁLT, nem behúzott: a tagsági feloldó az `authz.mjs`-ben él, ami EZT a modult
+// húzza be — a fordított irányú behúzás kört csinálna (KUKA-003). A hívó adja át; a bekötést a
+// mérés kéri számon, nem a jóindulat.
+/**
+ * @param basis   a jogosultság FAJTÁJA, NÉVVEL (`authority` | `membership`) — a válaszban is ott áll,
+ *                hogy a hívó és a próba is meg tudja különböztetni, MI döntött (KUKA-062: a jog-alapot
+ *                nevezni kell, nem igennel-nemmel felelni).
+ * @param decide  (nowIso) => {ok:boolean, reason?:string, message?:string} — TISZTA döntés egy ADOTT
+ *                időpontra. SOHA nem olvashat órát.
+ */
+export function effectuateWith({ store, clock, basis, decide }, effect) {
   // (1) BEBOCSÁTÁS — a mai jog a hívás pillanatában.
-  const admission = executableRightAt({
-    store, subjectId, bookId, operation, nowIso: clock.now(), credentials,
-  });
-  if (!admission.ok) return Object.freeze({ authorized: false, at: null, right: admission, stage: 'admission' });
+  const admission = decide(clock.now());
+  if (!admission.ok) {
+    return Object.freeze({ authorized: false, at: null, right: admission, basis, stage: 'admission' });
+  }
 
   // (2) HATÁLYOSULÁS — a tranzakción BELÜL, EGYETLEN óraolvasásból.
-  return withTransaction(store.db, () => {
+  //
+  // A TRANZAKCIÓT A TÁROLÓ SAJÁT KAPUJÁN NYITJUK (`store.tx`), NEM a `withTransaction` közvetlen
+  // hívásával. Ez a SAJÁT SÖPRÉSEM lelete az R79-ben, és fogalmi, nem stiláris:
+  //
+  //   `store.tx(fn)` ≡ `withTransaction(store.db, fn)` — UGYANAZ a határ, KÉT néven. Az R77-es
+  //   alakom a másodikat hívta, tehát az öt hatásköri író tranzakció-HATÁRA kikerült a tároló
+  //   kapuja mögül. A `P-CMD-finalize-gate` próba épp ezen a kapun méri a „megvonás a tranzakció
+  //   BELÉPÉSÉNÉL" esetet — és amint a parancs-írót is ide kötöttem, a próba ELVESZTETTE a mérési
+  //   pontját: nem a kód romlott el, hanem a MÉRÉS VAKULT MEG (KUKA-018: ahol egy fogalomnak két
+  //   ábrázolása van, a kérdés az, MELYIKET olvassa a fogyasztó — itt: melyiket látja a mérő).
+  //
+  // Egy fogalom, EGY ajtó (KUKA-003). Így a hatályosulási pont minden fogyasztója ugyanazon a
+  // határon megy át, és aki a határt méri, MINDET látja.
+  return store.tx(() => {
     const at = clock.now();
-    const right = executableRightAt({ store, subjectId, bookId, operation, nowIso: at, credentials });
-    if (!right.ok) return Object.freeze({ authorized: false, at: null, right, stage: 'effectuation' });
-    return Object.freeze({ authorized: true, at, right, value: effect({ at, right }) });
+    const right = decide(at);
+    if (!right.ok) return Object.freeze({ authorized: false, at: null, right, basis, stage: 'effectuation' });
+    return Object.freeze({ authorized: true, at, right, basis, value: effect({ at, right }) });
   });
 }

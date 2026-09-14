@@ -183,6 +183,48 @@ export const PROGRAMS = Object.freeze([
     evidence_pin_field: 'pin',
   }),
   Object.freeze({
+    id: 'r79core',
+    file: 'r79_chatgpt-v3.mjs',
+    companions: Object.freeze(['r79_chatgpt-v3.core.mjs']),
+    by: 'chatgpt-v3 — KÜLSŐ, független fél',
+    origin: 'R79 (a MAG-próba: a `r79_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN — egyetlen '
+      + 'karaktert sem írtunk át benne). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a '
+      + 'JAVÍTÁS ELŐTTI forráson 14 PASS / 4 FAIL — pontosan az általuk közölt reprodukció —, a mai '
+      + 'forráson 18 PASS / 0 FAIL.',
+    what: '18 eset három lelet-családban: F01 — a KIADOTT eredmény RÉSZFÁJÁNAK adatköre (a tétel-tömb '
+      + 'alatt rejtett ármező a készlet-címke alatt kijutott, és a mennyiség helyére csomagolt objektum '
+      + 'is átment) · F02 — a PARANCSÍRÁS hatályosulása (a tagsági jog és a rögzített véglegesítési idő '
+      + 'KÉT külön óraolvasáson állt) · F03 — a tagság-megvonás nem vitte át a hiteles kontextust, tehát '
+      + 'a hitelesítő-alapú tiltás azon az ÍRÓ úton nem hatott. Mellettük a pozitív ellenpárok '
+      + '(P01–P07): a jogos alakoknak TOVÁBBRA IS működniük kell.',
+    evidence: 'r79-core-challenge.json',
+    cases: Object.freeze([
+      'P01-flat-quantity', 'P02-flat-price', 'F01-nested-price',
+      'F01-object-in-qty', 'P03-unknown-top-field', 'P04-revoke-before',
+      'P04-revoke-after', 'P04-revoke-cross', 'P06-adjudicate-before',
+      'P06-adjudicate-after', 'P06-adjudicate-cross', 'P07-command-before',
+      'P07-command-after', 'P05-nested-effect-rolls-back', 'F02-command-time-splits-at-finalization',
+      'F03-revoke-credential-matching', 'F03-revoke-credential-other', 'F03-revoke-credential-absent',
+    ]),
+    cases_source: 'a külső fél R79-es lapja (a program `cases` tömbje, ahogy megérkezett)',
+    evidence_pin_field: 'source_commit',
+  }),
+  Object.freeze({
+    id: 'r79',
+    file: 'r79_run_contract_restated.mjs',
+    by: 'Claude-v3 — a SAJÁT sávunk (önvizsgálat)',
+    origin: 'R80',
+    what: 'a RUN-02 futás-szerződés (R79 §6) a DARABOLT futáson: hamisított bizonyíték egység-módban · '
+      + 'hiányzó egység · idegen forrású egység · és a pozitív ellenpár (érintetlen, teljes futás). '
+      + 'Azért van, mert a külső fél r59/r57 programja a battériát EGY hívásban futtatja 15 000 ms '
+      + 'korláttal, és a MAI futtató-gépünkön (4 vCPU) a teljes battéria legjobb mért alakja 17,1 mp '
+      + '— tehát ott a MÉRÉS akad el, nem a kód bukik (KUKA-089: a pontos technikai akadályt meg kell mérni)',
+    evidence: 'r79-run-contract.json',
+    cases: Object.freeze(['U04', 'U01', 'U02', 'U03']),
+    cases_source: 'az R80-as körünk jegyzőkönyve (R79 §6 — RUN-02), a pozitív ellenpárral EGYÜTT',
+    evidence_pin_field: 'source_commit',
+  }),
+  Object.freeze({
     id: 'r59',
     file: 'r59_chatgpt-v3.mjs',
     by: 'chatgpt-v3 — KÜLSŐ, független fél',

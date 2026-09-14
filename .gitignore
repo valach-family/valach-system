@@ -18,3 +18,7 @@ backups/
 # ezért a leíró lap kivétel — enélkül egy új kör nem tudná, hova írjon (KUKA-011).
 var/*
 !var/README.md
+
+# SZÁRMAZTATOTT — a mutációs battéria EGYSÉG-részeredményei (RUN-02, R79 §6). A teljes
+# összefoglalót a `--merge` állítja elő; a rész-fájlok futásonként újraszületnek.
+v3ref/units/

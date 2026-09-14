@@ -126,8 +126,12 @@ const RETIRED_PATTERNS = Object.freeze([
     positive: Object.freeze([
       Object.freeze({ paths: ['v3ref/command.mjs'], pattern: 'export function releaseAllowed',
         reason: 'a kiadás engedélyezési pontja EGY feloldó, a tranzakción belül' }),
-      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'const atBoundary = \\(w\\) => \\{ const orig = w\\.store\\.tx;',
-        reason: 'mind a három ág UGYANAZT a beavatkozást kapja' }),
+      // R79-ben ÚJRA-HORGONYOZVA: a hurok EGYSZERI lett (`atBoundaryOnce`), mert a forgatókönyv EGY
+      // határ-eseményről szól — az ismétlődő tüzelés a hatályosulási pont egy-ajtós alakja után
+      // végtelen rekurzióba vitte a megvonást hívó hurkot. A SZABÁLY változatlan: mind a három ág
+      // UGYANAZT a beavatkozást kapja, EGY nevezett helyről (KUKA-039).
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'function atBoundaryOnce\\(w, act\\)',
+        reason: 'mind a három ág UGYANAZT a beavatkozást kapja (egyszeri határ-hurok)' }),
       Object.freeze({ paths: ['v3ref/norms.mjs'], pattern: 'export function checkNorms',
         reason: 'minden „megépült" állítás mellé nevezett próba kell — a regiszter nem tud hazudni' }),
     ]),
@@ -6424,6 +6428,227 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'módon kell megoldani, mert a „ma még belefér" holnap nem igaz.',
     guard_note: 'gépi jel: `verify:kuka` KUKA-144 tiltó-minta (`process.exit(` a magreferencia '
       + 'futtatójában) + a `v3ref:mutate` mérőhiba-számlálója (0 mérőhiba a zöld feltétele).',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-145',
+    date: '2026-09-14',
+    title: 'A LAPOS MEZŐNÉV-LISTA: a részfa a FELSŐ mező címkéjét örökölte',
+    what: 'Az R77-es javításom (DSC-01) a kiadott eredmény adatkörét TÍPUSONKÉNT deklarálta — de '
+      + 'LAPOS mezőnév-listaként, és a besorolás a GYÖKÉR mezőneveit nézte. Ezért a '
+      + '`{lines:[{qty, unit_price}]}` eredményben a `lines` mező SAJÁT címkéje (`keszlet`) fedte az '
+      + 'EGÉSZ részfát: a beágyazott ármező besorolás nélkül utazott benne, és kiment az `arak` '
+      + 'adatkörre TILTOTT olvasónak. Ugyanez a `{qty: {unit_price: …}}` alakra: a `qty` NEVE '
+      + '„mennyiség", a TARTALMA bármi lehetett — a levélen senki nem kérdezte meg, szám-e.',
+    why_wrong: 'A DEKLARÁCIÓ LÉTEZÉSE NEM BIZONYÍTJA, HOGY A TARTALMAT MÉRTÜK IS (KUKA-038 az '
+      + 'adatkörön). A mezőnév-lista egy LAPOS világ szótára; amint az eredmény fát alkot, a lista '
+      + 'a fa GYÖKERÉRŐL mond valamit, és a többiről hallgat — a hallgatás pedig itt „szabad út". '
+      + 'A mérce ráadásul nem a NÉV: ugyanaz a név egy másik típus másik pozícióján mást jelenthet '
+      + '(KUKA-002 — két jelentés egy szón).',
+    replaced_by: 'DSC-01 v2 — a deklaráció SÉMA, nem névsor',
+    replacement: 'a `RESULT_SHAPES` rekurzív alakot deklarál (`leaf(kind, scope)` · `arrayOf(of)` · '
+      + '`objectOf(fields)`); a `walk()` a VALIDÁLT alakot járja be MÉLYSÉGBEN, és annyi adatkört '
+      + 'gyűjt, ahány LEVÉL ténylegesen ott van. A levél TÍPUSA is deklarált, tehát az objektumba '
+      + 'csomagolt ár NEVEZETT alak-hibát kap, az ÚTJÁVAL együtt; a be nem sorolt mező a részfában '
+      + 'is nevezett (`lines[0].titok`), és a hatás LÉTRE SEM JÖN.',
+    decision: 'D-VS-3023',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (R79/F01) — a SAJÁT, egy körrel korábbi javításomon.',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/resultScope.mjs'], pattern: 'RESULT_FIELD_SCOPES',
+        reason: 'a LAPOS mezőnév-lista nem jöhet vissza — a deklaráció séma' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/resultScope.mjs'], pattern: 'function walk\\(spec, value, path, scopes\\)',
+        reason: 'a besorolás a VALIDÁLT alakot járja be, mélységben' }),
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: "probe\\('P-REV-result-shape'",
+        reason: 'a mélységi besorolásnak SAJÁT próbája van' }),
+    ]),
+    lesson: 'AMIT EGY DEKLARÁCIÓ NEM JÁR BE, ARRÓL NEM MOND SEMMIT — és a „nem mond semmit" '
+      + 'fail-open alakban SZABAD UTAT jelent. Ahol az adat FA, ott a szabálynak is fának kell '
+      + 'lennie; a lapos lista nem szigorúbb vagy lazább változata a fának, hanem MÁS KÉRDÉSRE felel. '
+      + 'Új deklarációnál a kérdés: mi a legmélyebb alak, amit a valóság előállíthat — és a '
+      + 'deklaráció ODÁIG ér-e el?',
+    guard_note: 'gépi jel: `verify:v3ref` `P-REV-result-shape` (mélységi besorolás · pozitív '
+      + 'kontroll · tiszta részfa ellenpár · levél-típus · nevezett hiány ÚTTAL · a tömb MINDEN eleme) '
+      + '+ M89 · M90 mutáció, mindkettő bizonyítottan piros.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-146',
+    date: '2026-09-14',
+    title: 'A HATÁLYOSULÁSI PONT FÉL BEVEZETÉSE — a parancsíró kimaradt',
+    what: 'Az R77-es EFF-01 (egy döntés, egy óraolvasás, egy tranzakció) a HATÁSKÖRI írókat kötötte '
+      + 'be: tiltás-kiadás · felfüggesztés · feloldás · elbírálás · megvonás. A PARANCSÍRÓ '
+      + '(`submitCommand` véglegesítése) kimaradt, és HÁROM külön óraolvasáson állt: a tagsági jog · '
+      + 'a `finalized_at` · a nyugta ideje. Mérve: a tagság 08:00:01-kor megszűnik, az első '
+      + 'óraolvasás 08:00:00, a többi 08:00:02 — a parancs `finalized` lett `finalized_at = 08:00:02` '
+      + 'idővel, amely időpontra a `rightAt` MÁR tiltja az eljárót.',
+    why_wrong: 'A FÉL ŐR (KUKA-039) a HATÁLYOSULÁSI PONTON. A javításkor a „mely írók érintettek?" '
+      + 'kérdésre a HATÁSKÖRI írók listájával feleltem — mert a lelet ONNAN jött —, holott a szabály '
+      + 'a hiba OSZTÁLYÁRÓL szól: MINDEN író, ami döntés után rögzít (KUKA-051). A parancsíró jogának '
+      + 'FAJTÁJA más (tagsági, nem hatásköri), és ez elfedte, hogy a MECHANIKA ugyanaz.',
+    replaced_by: 'EFF-01 v2 — `effectuateWith({store, clock, basis, decide}, effect)`',
+    replacement: 'a hatályosulás mechanikája KÖZÖS, a jog-feloldó INJEKTÁLT (az `authority.mjs` nem '
+      + 'húzhatja be az `authz.mjs`-t — kör lenne), és a `basis` KIMONDJA, melyik jog-fajta döntött '
+      + '(`authority` | `membership`) — a jog-alapot nevezni kell, nem igennel-nemmel felelni '
+      + '(KUKA-062). Az `effectuate` innentől ennek burkolója.',
+    decision: 'D-VS-3023',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (R79/F02) — a SAJÁT, egy körrel korábbi javításomon.',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/authority.mjs'], pattern: 'export function effectuateWith',
+        reason: 'a hatályosulás mechanikája KÖZÖS, a jog-feloldó injektált' }),
+      Object.freeze({ paths: ['v3ref/command.mjs'], pattern: 'effectuateWith\\(\\{',
+        reason: 'a PARANCSÍRÓ is a közös hatályosulási ponton megy át' }),
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: "probe\\('P-CMD-effectuation'",
+        reason: 'a parancs-oldali hatályosulásnak SAJÁT próbája van' }),
+    ]),
+    lesson: 'AMIKOR EGY MECHANIKÁT KÖZÖS OTTHONBA TESZEK, A KÖLTÖZÉS LISTÁJÁT NEM A LELET ADJA, '
+      + 'HANEM A SZABÁLY: „mely hívók végeznek döntés után írást?" — és ezt MÉRNI kell, nem '
+      + 'emlékezetből felsorolni. A jog FAJTÁJÁNAK különbsége (tagsági vs. hatásköri) nem mentesít: '
+      + 'a mechanika attól még ugyanaz, és épp a fajta-különbség az, ami elrejti.',
+    guard_note: 'gépi jel: `verify:v3ref` `P-CMD-effectuation` (pozitív kontroll · bélyeg-azonosság · '
+      + 'a tranzakció HATÁRÁN megszűnt tagság · visszamért invariáns · semleges elutasítás · EGY ajtó) '
+      + '+ M91 · M92 · M93 mutáció, mind bizonyítottan piros.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-147',
+    date: '2026-09-14',
+    title: 'AZ ÍRÓ, AMI HÍVTA A KAPUT, DE NEM VITTE A KONTEXTUST',
+    what: 'A `revokeMembership` meghívta a hatáskör-ellenőrzést, de `credentials` paramétert nem '
+      + 'fogadott és nem adott tovább. Ezért a HITELESÍTŐ-alapú tiltás (`credential` fajta) ezen az '
+      + 'ÍRÓ úton nem hatott: a tiltott hitelesítővel belépő eljáró megvonhatott egy tagságot — '
+      + 'miközben a másik négy író úton ugyanez a tiltás zárt.',
+    why_wrong: 'A FÉL ŐR MÁSIK ALAKJA (KUKA-039): a védelem MEGVOLT, csak EGY belépési ponton nem '
+      + 'ért el a döntésig. Összesítve minden zöldnek látszott — épp ezért nem elég a hibaosztályt '
+      + 'egy PÉLDÁN mérni: belépési PONTONKÉNT kell.',
+    replaced_by: 'ENT-01 — a belépési pontok NEVEZETT regisztere + mátrix-mérés',
+    replacement: 'a `revokeMembership` fogadja és továbbadja a `credentials`-t; mellé az `ENT-01` '
+      + 'regiszter MINDEN író belépési pontot felsorol, és a próba MINDET végigméri MINDEN '
+      + 'kontextus-tengelyen, HÁROM módban (egyező · másik · hiányzó). A tengelyeket a tiltás-fajták '
+      + 'ZÁRT halmazából SZÁRMAZTATJUK (`contextCarriedKinds`), nem kézzel gépeljük (KUKA-036); a '
+      + 'SZÁNDÉKOSAN semleges út (bejelentés-elbírálás, R67/F02) DEKLARÁLT, és a semlegességét '
+      + 'BÁJTRA mérjük (KUKA-084).',
+    decision: 'D-VS-3023',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (R79/F03).',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/entryPoints.mjs'], pattern: 'export function measureEntryPointBinding',
+        reason: 'a mérés hatóköre SZABÁLY: minden ÍRÓ belépési pont nevezett regiszterben' }),
+      Object.freeze({ paths: ['v3ref/entryPoints.mjs'], pattern: 'export function contextCarriedKinds',
+        reason: 'a tengelyek a tiltás-fajták ZÁRT halmazából származnak, nem kézi listából' }),
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: "probe\\('P-REV-entry-points'",
+        reason: 'a belépési pontok mátrixának SAJÁT próbája van' }),
+    ]),
+    lesson: 'A MÉRÉS HATÓKÖRE NE LISTA LEGYEN, HANEM SZABÁLY (KUKA-051) — és a „nevezett utak '
+      + 'MINDEGYIKÉN van ZÁRT cella" feltétel nem ugyanaz, mint hogy „összesítve van tiltás". A '
+      + 'második egy fél őrrel is teljesül; az elsőt pont az bukatja meg, ami átcsúszott.',
+    guard_note: 'gépi jel: `verify:v3ref` `P-REV-entry-points` (5 belépési pont × 4 tengely × 3 mód '
+      + '= 60 cella, padlóval; a semleges utak válasza BÁJTRA hasonlítva; minden nevezett úton van '
+      + 'ténylegesen ZÁRT cella) + M94 · M95 mutáció, mindkettő bizonyítottan piros.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-148',
+    date: '2026-09-14',
+    title: 'EGY HATÁR, KÉT NÉV — és a MÉRÉS vakult meg tőle',
+    what: 'A `store.tx(fn)` és a `withTransaction(store.db, fn)` UGYANAZ a tranzakció-határ, KÉT '
+      + 'néven. Az R77-es hatályosulási pontom a MÁSODIKAT hívta közvetlenül. Amíg csak a hatásköri '
+      + 'írók mentek rajta, ez nem látszott; amint a PARANCS-írót is odakötöttem (R79/F02), a '
+      + '`P-CMD-finalize-gate` próba — ami a `store.tx` kapuját hurkolva méri a „megvonás a '
+      + 'tranzakció BELÉPÉSÉNÉL" esetet — ELVESZTETTE a mérési pontját: a kód nem romlott el, a '
+      + 'MÉRÉS vakult meg.',
+    why_wrong: 'AHOL EGY FOGALOMNAK KÉT ÁBRÁZOLÁSA VAN, A KÉRDÉS AZ, MELYIKET OLVASSA A FOGYASZTÓ '
+      + '(KUKA-018) — itt: melyiket LÁTJA a mérő. A két név nem stílus-kérdés volt: a mérő a '
+      + 'tárolóra hurkol, tehát a tároló kapuját MEGKERÜLŐ hívás láthatatlan neki.',
+    replaced_by: 'EGY AJTÓ — `store.tx`',
+    replacement: 'az `effectuateWith` a tároló SAJÁT kapuján nyit tranzakciót; a próbák hurokja '
+      + 'EGYSZERI (`atBoundaryOnce`), mert a forgatókönyv EGY határ-eseményről szól — az ismétlődő '
+      + 'tüzelés végtelen rekurzióba vitte a megvonást hívó hurkot.',
+    decision: 'D-VS-3023',
+    found_by: 'a SAJÁT SÖPRÉSEM — két próba (P-CMD-receipt · P-CMD-finalize-gate) esett ki a '
+      + 'javítás után, és a diagnózis nem a kódra, hanem a MÉRÉSRE mutatott.',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/authority.mjs'], pattern: 'store\\.tx\\(',
+        reason: 'a hatályosulás a tároló SAJÁT kapuján megy át, tehát a határt mérő próba látja' }),
+    ]),
+    lesson: 'JÓ HÍR, KIMONDVA: a mérés megvakulása NEM zöldnek látszott, hanem két NEVEZETT próba '
+      + 'esett ki — a mérési szerződés itt tartott. A tanulság: minden ALIAS-párnál (ugyanaz a '
+      + 'művelet két néven) meg kell kérdezni, MELYIKRE hurkol a mérő — és a választ nem a szebb '
+      + 'kód, hanem a MÉRHETŐSÉG dönti el.',
+    guard_note: 'gépi jel: `verify:v3ref` `P-CMD-effectuation` (e) ág (a próba MÉRI a `store.tx` '
+      + 'átlépését) + `P-CMD-finalize-gate` + `P-CMD-receipt`, amelyek a tároló kapuját hurkolják.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-149',
+    date: '2026-09-14',
+    title: 'A PRÓBÁM EGY KORÁBBI KAPU MUNKÁJÁT JELENTETTE SAJÁTJÁNAK',
+    what: 'A `P-CMD-effectuation` próba első alakja ÓRAOLVASÁS-SZÁMLÁLÓRA épült („az első olvasás '
+      + 'T0, a többi T2"), hogy a jogvesztés a döntés és az írás KÖZÉ essen. Csakhogy a parancs-úton '
+      + 'a hatályosulási pont ELŐTT MÉG KÉT tagsági kapu áll (a belépő és a feloldás utáni): az '
+      + 'előrehaladó órán MÁR AZOK elutasítottak, tehát a próba ZÖLD volt anélkül, hogy a mért '
+      + 'mechanizmust valaha elérte volna. A saját falszifikálóm (M93) leplezte le: WRONG_CATCHER-t '
+      + 'adott, mert a rontás egy MÁSIK próbát vitt pirosra, ezt nem.',
+    why_wrong: 'A JEL A MECHANIZMUST MÉRJE, NE A TÜNETET (KUKA-049). A „elutasítás történt" tünet '
+      + 'több mechanizmusból is előállhat; ha a próba nem mondja meg, MELYIK zárt, akkor a legkorábbi '
+      + 'kapu munkáját jelenti a sajátjának — és a mért kapu kivehető marad, észrevétlenül.',
+    replaced_by: 'HATÁRHOZ KÖTÖTT ÓRA + ELÉRÉS-ELLENŐRZÉS',
+    replacement: 'az óra a `store.tx` ELSŐ átlépéséig T0-t ad, utána T2-t — így minden korábbi kapu '
+      + 'ÁTENGED, és a döntés CSAK a hatályosuláson dőlhet el; mellé a próba MEGMÉRI, hogy a '
+      + 'tranzakció tényleg megnyílt-e (`clock.now() === T2`), különben a saját ága érvénytelen.',
+    decision: 'D-VS-3023',
+    found_by: 'a SAJÁT FALSZIFIKÁLÓM (M93) — a próba önmagában végig zöld volt.',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'reachedOk = clock\\.now\\(\\) === T2',
+        reason: 'a próba MEGMÉRI, hogy elérte-e a mért pontot' }),
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'function boundaryClock\\(store\\)',
+        reason: 'az óra a TRANZAKCIÓ HATÁRÁHOZ kötött, nem óraolvasás-számlálóhoz' }),
+    ]),
+    lesson: 'MINDEN ÚJ PRÓBÁNÁL KÖTELEZŐ MEGKÉRDEZNI: elérte-e egyáltalán a mért pontot? Ha a '
+      + 'válasz nem MÉRT tény, hanem feltételezés, a próba egy korábbi kapu mögött ül, és a saját '
+      + 'tárgyát nem védi. A falszifikáló itt nem ráadás volt, hanem ez leplezte le a próbát — '
+      + 'ezért kell a javítással EGY KÖRBEN megírni (KUKA-092).',
+    guard_note: 'gépi jel: `verify:v3ref` `P-CMD-effectuation` (b) ág `mért pont elérve` mezője + '
+      + 'M91 · M92 · M93 mutáció; a régi, óraolvasás-számlálós alakon az M93 bizonyítottan '
+      + 'WRONG_CATCHER volt, a mai alakon CAUGHT.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-150',
+    date: '2026-09-14',
+    title: 'A KAPU ÁTHELYEZÉSE EGYSÉG-MÓDBAN KINYITOTTA A HAMISÍTÁS ÚTJÁT',
+    what: 'A RUN-02 daraboló futásban (R79 §6) kivettem a KÖTELEZŐ BIZONYÍTÉK-KÉSZLET feltételét az '
+      + 'egység „tiszta" ítéletéből — joggal: az globális tulajdonság, egy klauzulát falszifikálhat '
+      + 'egy MÁSIK egység mutációja. Csakhogy EDDIG ÉPP EZ a feltétel fogta meg a HAMISÍTOTT '
+      + 'bizonyítékot is: idegen lenyomatú csomagnál minden klauzula `not_falsified` lett, és a kapu '
+      + 'emiatt tüzelt. Egység-módban tehát a hamisítás ÁTMENT — a kaput ÁTHELYEZTEM, és azt hittem, '
+      + 'lezártam.',
+    why_wrong: 'A KUKA-084 A SAJÁT VÁLTOZTATÁSOMON: a kapu áthelyezése nem lezárás — az új helyen '
+      + 'újra fel kell tenni a kérdést, hogy MIT fogott meg a régi, és azt MI fogja meg ezentúl. '
+      + 'Itt a régi kapu KÉT különböző tényt döntött el egyszerre (lefedettség ÉS bizonyíték-kötés), '
+      + 'és a szétválasztáskor a másodikat ejtettem el.',
+    replaced_by: 'KÉT KÉRDÉS, KÉT NÉV',
+    replacement: '`required.ok` — FEDVE VAN-E a kötelező készlet (globális, az összefűzés dönti el) · '
+      + '`evidence_bound` — a SAJÁT csomagom a SAJÁT szülői főkönyvemhez van-e kötve (szelet-helyi, '
+      + 'MINDKÉT módban mérve). A második csak hamisításra bukik, az első legitim okból is — ezért '
+      + 'nem helyettesítik egymást (KUKA-124/1: más kérdés, más név).',
+    decision: 'D-VS-3023',
+    found_by: 'a SAJÁT, UGYANEBBEN A KÖRBEN ÍRT r79-es próbám (U01) — az egység végig 0-val zárt.',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: 'evidenceBound = evidenceUnbound\\.length === 0',
+        reason: 'a bizonyíték-kötés KÜLÖN, szelet-helyi kérdés — nem a lefedettségé' }),
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: "run_state: runComplete \\? 'complete' : 'incomplete'",
+        reason: 'a NEM TELJES futás nevezett állapot, nem a kód hibája' }),
+      Object.freeze({ paths: ['v3ref/external-checks/r79_run_contract_restated.mjs'], pattern: "add\\('U01'",
+        reason: 'a hamisítás elutasítását EGYSÉG-módban is mérjük' }),
+    ]),
+    lesson: 'AMIKOR EGY KAPUT SZÉTVÁLASZTOK VAGY ÁTHELYEZEK, LELTÁRT KELL CSINÁLNI ARRÓL, HOGY A '
+      + 'RÉGI HÁNY TÉNYT DÖNTÖTT EL. Egy kapu ritkán egy dolgot véd; a szétválasztás után minden '
+      + 'védett tényhez tartoznia kell egy NEVEZETT új kapunak — és a leltárt nem elég elgondolni, '
+      + 'a régi támadást le kell futtatni az ÚJ alakon (itt: pont ez volt az U01).',
+    guard_note: 'gépi jel: `verify:external-checks` r79/U01 (hamisított bizonyíték EGYSÉG-módban) + '
+      + 'az egység-fájl `evidence_bound` mezője + az összefűzés (5) feltétele; a régi alakon '
+      + 'bizonyítottan zöld volt (vagyis a hiba átment), a mai alakon piros.',
   }),
 ]);
 

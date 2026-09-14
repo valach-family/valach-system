@@ -37,7 +37,7 @@
 //
 // A (b) az egyetlen dolog, ami miatt a többi számnak van értéke. Ezért fut mindig, nem kapcsolóra.
 
-import { cpSync, readFileSync, writeFileSync, mkdtempSync, rmSync, readdirSync } from 'node:fs';
+import { cpSync, readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, readdirSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -502,7 +502,7 @@ function verdictFor(m, c) {
 // KIMONDOTT KORLÁT: a falóra a MI gépünkön mért szám. A külső fél a saját, gyorsabb gépén 1,7 mp-et
 // mért ugyanerre - tehát ott bőven van tartalék -, de LASSABB gépen a korlát közelebb kerülhet.
 // Ezért a futás KIÍRJA a mért időt ÉS a korlátot: a különbség sosem néma (KUKA-012).
-const POOL = Math.max(1, Math.min(16, availableParallelism() * 4));
+const POOL = Math.max(1, Number(process.env.V3REF_POOL) || Math.min(16, availableParallelism() * 4));
 function runInAsync(dir, runToken) {
   return new Promise((res) => {
     const c = spawn(process.execPath, [join(dir, 'v3ref', 'run.mjs'), '--json'],
@@ -555,11 +555,208 @@ function runMutation(m, knownProbes) {
   });
 }
 
+// ═══ RUN-02 — A FUTÁS SZERZŐDÉSE (R79 §6, a KÜLSŐ TÁRGYALÓ FÉL kérése) ══════════════════════════
+//
+// A LELET, AMI EZT KIKÉNYSZERÍTETTE — ÉS A SAJÁT FUTÁSOMON: az R79 három új próbájával a battéria
+// faliórája 17 254 ms lett, a külső fél korlátja 15 000 ms. Eddig ilyenkor EGYETLEN válaszunk volt
+// („HIÁNYOS"), ami ÖSSZEMOSTA a két teljesen különböző esetet:
+//
+//   · a battéria LEFUTOTT, és TALÁLT valamit (túlélő mutáció, rossz próba, elavult horgony)
+//   · a battéria EL SEM JUTOTT a végéig (időkorlát)
+//
+// A kettő NEM ugyanaz a válasz, és az összemosásuk pontosan a KUKA-124/2 alakja: a HIÁNYNAK saját,
+// nevezett válasza jár. Ráadásul az időtúllépés a RÉGI alakban a KÓD hibájának látszott, holott a
+// mérésről szól. Ezért innentől HÁROM állapot van, KÜLÖN mezőkön:
+//
+//   run_state: 'complete'   + clean: true/false   — a battéria végigfutott, és tiszta/nem tiszta
+//   run_state: 'incomplete' + clean: null         — NEM futott végig; `incomplete_reason` megmondja, miért
+//
+// A `clean: null` szándékos: az el nem végzett mérés SEM nem zöld, SEM nem piros — a hiányzó mérés
+// nem zöld (KUKA-051), de hazugság lenne a kódra fogni (KUKA-049). A kilépési kód is HÁROM értékű:
+// 0 = teljes és tiszta · 1 = teljes és NEM tiszta · 2 = NEM teljes. Így egy automatizált fogyasztó
+// sem tudja véletlenül sikernek olvasni a félbemaradt futást.
+//
+// ── AZ EGYSÉG (`--unit=k/n`) ────────────────────────────────────────────────────────────────────
+//
+// A battéria DARABOLHATÓ: `--unit=k/n` a mutációk k-adik n-ed részét futtatja. Az egység
+// MINDEN futásban lefuttatja a TELJES alapvonalat és MINDEN hazugság-ellenpróbát — ez nem
+// takarékossági kérdés: az alapvonal nélkül egy egység eredménye értelmezhetetlen (a mutáció
+// „elkapva" volta csak ahhoz képest jelent valamit, hogy MUTÁLATLANUL minden zöld volt). Az egység
+// a saját részeredményét fájlba írja (`v3ref/units/`), és NEM állít semmit a battéria egészéről.
+//
+// ── AZ ÖSSZEFŰZÉS (`--merge`) ───────────────────────────────────────────────────────────────────
+//
+// Teljes összefoglalót KIZÁRÓLAG az összefűzés adhat, és CSAK akkor, ha mind a négy feltétel áll:
+//   (1) minden mutáció PONTOSAN EGYSZER szerepel (se hiány, se duplikátum — R59/F02 szabálya a
+//       külső futtató eset-manifesztjéről, most a SAJÁT futtatónkra fordítva)
+//   (2) minden egység UGYANARRA a forrás-lenyomatra hivatkozik, és az a MA mért lenyomat
+//   (3) minden egység `complete` (egyik sem lépte túl a saját költségvetését)
+//   (4) minden egységben ZÖLD volt az alapvonal és mind a nyolc hazugság-ellenpróba
+// Bármelyik hiánya ⇒ `run_state: 'incomplete'` NEVEZETT okkal — nem „majdnem kész".
+// A KÜLSŐ KORLÁT ÉS A SAJÁT KÖLTSÉGVETÉS — a definíció ITT áll, mert az összefűzés is ehhez mér.
+// A kapu a korlát ELŐTT áll, nem rajta: egy őr, ami pont akkor tüzel, amikor a baj bekövetkezik,
+// nem őr. A 20% tartalék a LASSABB gépé. KIMONDOTT KORLÁT: ez a MI gépünkön mért idő.
+const EXTERNAL_WALL_LIMIT_MS = 15000;
+const WALL_BUDGET_MS = Math.round(EXTERNAL_WALL_LIMIT_MS * 0.8);
+const UNIT_SIZE = 32;
+const UNIT_ARG = process.argv.find((a) => a.startsWith('--unit='));
+const MERGE_ONLY = process.argv.includes('--merge');
+const UNITS_DIR = join(REF, 'units');
+const UNIT = (() => {
+  if (!UNIT_ARG) return null;
+  const m = /^--unit=(\d+)\/(\d+)$/.exec(UNIT_ARG);
+  if (!m) { console.error(`--unit alakja: k/n (kapott: ${UNIT_ARG})`); process.exit(2); }
+  const k = Number(m[1]); const n = Number(m[2]);
+  if (!(n >= 1 && k >= 1 && k <= n)) { console.error(`--unit=${k}/${n}: érvénytelen egység`); process.exit(2); }
+  return { k, n };
+})();
+/** A felosztás DETERMINISZTIKUS és körbeforgó: az egységek költsége így hasonló marad. */
+const sliceFor = (k, n) => MUTATIONS.filter((_, i) => i % n === k - 1);
+const AUTO_UNITS = Math.max(1, Math.ceil(MUTATIONS.length / UNIT_SIZE));
+
+// ── AZ ÖSSZEFŰZÉS (`--merge`) — CSAK EZ ADHAT TELJES ÖSSZEFOGLALÓT ──────────────────────────────
+if (MERGE_ONLY) {
+  console.log('');
+  console.log('V3 MAGREFERENCIA — MUTÁCIÓS PRÓBA · EGYSÉGEK ÖSSZEFŰZÉSE (RUN-02)');
+  console.log('='.repeat(78));
+  const today = digestOfBundle(REF.replace(/\/v3ref$/, ''));
+  let files = [];
+  try { files = readdirSync(UNITS_DIR).filter((f) => /^unit-\d+-of-\d+\.json$/.test(f)).sort(); } catch { files = []; }
+  const units = [];
+  const problems = [];
+  for (const f of files) {
+    try { units.push({ file: f, ...JSON.parse(readFileSync(join(UNITS_DIR, f), 'utf8')) }); }
+    catch (e) { problems.push(`olvashatatlan egység-fájl: ${f} — ${e.message}`); }
+  }
+  // (1) LEFEDETTSÉG: minden mutáció PONTOSAN EGYSZER. A hiány és a duplikátum KÉT KÜLÖN válasz —
+  //     ugyanaz a szabály, amit az R59/F02-ben a KÜLSŐ futtatóra írtunk elő, most magunkra.
+  const seen = new Map();
+  for (const u of units) for (const id of (u.mutation_ids || [])) seen.set(id, (seen.get(id) || 0) + 1);
+  const missing = MUTATIONS.map((m) => m.id).filter((id) => !seen.has(id));
+  const duplicated = [...seen.entries()].filter(([, c]) => c > 1).map(([id, c]) => `${id}×${c}`);
+  const unknown = [...seen.keys()].filter((id) => !MUTATIONS.some((m) => m.id === id));
+  if (missing.length) problems.push(`HIÁNYZÓ mutáció (${missing.length}): ${missing.join(', ')}`);
+  if (duplicated.length) problems.push(`DUPLIKÁLT mutáció: ${duplicated.join(', ')}`);
+  if (unknown.length) problems.push(`ISMERETLEN mutáció az egységekben: ${unknown.join(', ')}`);
+  // (2) AZONOS FORRÁS, ÉS AZ A MAI. Egy tegnapi egység nem fűzhető a maihoz — a futás-tanú
+  //     leckéje a saját futtatónkon (KUKA-127: a hovatartozást elő kell ÁLLÍTANI, nem megfigyelni).
+  const wrongDigest = units.filter((u) => u.base_digest !== today);
+  if (wrongDigest.length) problems.push(`MÁS FORRÁSRA hivatkozó egység (${wrongDigest.map((u) => u.file).join(', ')}) — mai lenyomat: ${today}`);
+  // (3) MINDEN EGYSÉG VÉGIGFUTOTT, és (4) mindegyikben zöld volt a két kapu.
+  const incomplete = units.filter((u) => u.run_state !== 'complete');
+  if (incomplete.length) problems.push(`NEM TELJES egység: ${incomplete.map((u) => `${u.file} (${(u.why || []).join('; ') || 'ok nélkül'})`).join(', ')}`);
+  const gateBad = units.filter((u) => !u.base_gate_ok || !u.attacks_ok);
+  if (gateBad.length) problems.push(`KAPU-hiba egységben: ${gateBad.map((u) => u.file).join(', ')}`);
+  // (5) MINDEN EGYSÉG BIZONYÍTÉKA A SAJÁT SZÜLŐI FŐKÖNYVÉHEZ KÖTÖTT. Az egység ezt maga mérte
+  //     (ott van a főkönyv); az összefűzés a KIMONDOTT eredményt kéri számon — a hiánya (régi,
+  //     még mező nélküli egység-fájl) NEM „rendben", hanem külön válasz (KUKA-124/2).
+  const unbound = units.filter((u) => u.evidence_bound !== true);
+  if (unbound.length) problems.push(`a bizonyíték NINCS a főkönyvhöz kötve: ${unbound.map((u) => `${u.file}${Array.isArray(u.evidence_unbound) && u.evidence_unbound.length ? ` (${u.evidence_unbound.join(', ')})` : ' (mező hiányzik)'}`).join(', ')}`);
+  if (!units.length) problems.push('NINCS egység-fájl — a `--merge` nem tud mit összefűzni');
+
+  let complete = true;   // véglegesítve a lánc kiértékelése UTÁN (a `problems` még bővülhet)
+  // A LÁNC UNIÓJA: egy klauzula-sor akkor FEDETT, ha BÁRMELYIK egység annak mérte. Az egységek a
+  // SAJÁT szülői főkönyvükhöz mérték a bizonyítékot, tehát itt már kész verdikteket egyesítünk —
+  // az összefűzés nem minősít újra semmit.
+  const rows = new Map();
+  for (const u of units) for (const c of (u.norm_chain || [])) {
+    const key = `${c.clause_id}|${c.assertion_id}|${c.probe_id}`;
+    const prev = rows.get(key);
+    if (!prev || (prev.result !== 'covered' && c.result === 'covered')) rows.set(key, c);
+  }
+  const chain = [...rows.values()];
+  const covered = chain.filter((c) => c.result === 'covered');
+  const allResults = units.flatMap((u) => u.mutation_results || []);
+  const sum = (k) => units.reduce((a, u) => a + (u.counts?.[k] || 0), 0);
+  const worst = units.reduce((a, u) => Math.max(a, u.wall?.ms || 0), 0);
+  const allPortable = units.every((u) => u.portable);
+  // A KÖTELEZŐ KÉSZLET AZ UNIÓBÓL (R57/F01). A klauzula-lista és az elvárt állapot az egységek
+  // AZONOS definíciójából jön (ugyanaz a forrás, ugyanaz a szerződés); a TELJESÜLÉST viszont az
+  // egyesített lánc dönti el — egy klauzulát falszifikálhat egy MÁSIK egység mutációja.
+  const reqDef = units.find((u) => u.norm_required)?.norm_required || null;
+  const reqDefsAgree = units.filter((u) => u.norm_required)
+    .every((u) => JSON.stringify(u.norm_required.clauses) === JSON.stringify(reqDef?.clauses));
+  if (reqDef && !reqDefsAgree) problems.push('az egységek KÜLÖNBÖZŐ kötelező készletet hordoznak — nem ugyanarról a szerződésről szólnak');
+  const mergedRequired = reqDef ? (() => {
+    const ok = (id) => chain.some((c) => c.clause_id === id && c.result === reqDef.expected_state);
+    const satisfied = reqDef.clauses.filter(ok);
+    const missingReq = reqDef.clauses.filter((id) => !ok(id))
+      .map((id) => ({ clause_id: id, result: chain.find((c) => c.clause_id === id)?.result ?? 'no_row' }));
+    return { version: reqDef.version, stage: reqDef.stage, expected_state: reqDef.expected_state,
+      clauses: reqDef.clauses, satisfied, missing: missingReq, ok: missingReq.length === 0 };
+  })() : null;
+  if (mergedRequired && !mergedRequired.ok) {
+    problems.push(`hiányzó kötelező bizonyíték (${mergedRequired.missing.map((m) => m.clause_id).join(', ')})`);
+  }
+  const cleanAll = units.every((u) => u.slice_clean) && units.every((u) => u.norm_integrity_ok !== false)
+    && !!mergedRequired && mergedRequired.ok;
+
+  complete = problems.filter((x) => !x.startsWith('hiányzó kötelező bizonyíték')).length === 0;
+  console.log(`  egységek: ${units.length} (${units.map((u) => `${u.unit?.k}/${u.unit?.n}`).join(', ')})`);
+  console.log(`  lefedettség: ${seen.size}/${MUTATIONS.length} mutáció · hiány=${missing.length} · duplikátum=${duplicated.length}`);
+  console.log(`  forrás-lenyomat (ma mérve): ${today}`);
+  console.log(`  legrosszabb egység falióra: ${worst} ms · külső korlát: ${EXTERNAL_WALL_LIMIT_MS} ms · minden egység belefér: ${allPortable ? 'igen' : 'NEM'}`);
+  console.log(`  ${sum('measured')} mutáció · ${sum('caught')} elkapva · ${sum('survived')} túlélte · ${sum('wrong')} rossz próba · ${sum('harness')} mérőhiba · ${sum('stale')} elavult horgony`);
+  console.log(`  norma-lánc: ${covered.length}/${chain.length} klauzula-sor FEDETT (az egységek uniója)`);
+  for (const x of problems) console.log(`  ÖSSZEFŰZÉSI AKADÁLY: ${x}`);
+  console.log(`RESULT: ${complete
+    ? (cleanAll ? (allPortable ? 'TELJES ÉS TISZTA — minden mutáció pontosan egyszer, minden egység belefér a korlátba'
+      : 'TELJES ÉS TISZTA, DE VAN KORLÁTON KÍVÜLI EGYSÉG — több egységre kell bontani')
+      : 'TELJES, DE NEM TISZTA')
+    : 'NEM TELJES — a fenti akadályok miatt az összefűzés nem ad teljes összefoglalót'}`);
+  // KIMONDOTT KORLÁT (KUKA-121 · a R71 §4 tanulsága a saját futtatónkon): az egység-fájl NEM
+  // kriptográfiailag kötött az őt előállító folyamathoz. Aki a fájlrendszerhez hozzáfér, KÉZZEL is
+  // írhat egység-fájlt. A forrás-lenyomat egyezése szűkít, de nem bizonyít; a zárás feltétele
+  // nevezett (aláírt egység-tanú), és amíg nincs, ez a sor kimondja, hol tartunk.
+  const evidenceLimit = 'az egység-fájl nincs kriptográfiailag a futásához kötve — kézzel írt '
+    + 'egység-fájl is beolvadna; a forrás-lenyomat egyezése szűkít, de nem bizonyít (nevezett függő: aláírt egység-tanú)';
+  console.log(`  KIMONDOTT KORLÁT: ${evidenceLimit}`);
+  try {
+    const outPath = join(REF, 'v3ref-mutation-result.json');
+    writeFileSync(outPath, `${JSON.stringify({
+      at: new Date().toISOString(),
+      node: process.version,
+      base_digest: today,
+      clean: complete ? cleanAll : null,
+      why: problems,
+      wall_ms: units.reduce((a, u) => a + (u.wall?.ms || 0), 0),
+      run_contract: 'RUN-02',
+      run_state: complete ? 'complete' : 'incomplete',
+      execution: 'merged_units',
+      units: units.map((u) => ({ unit: u.unit, file: u.file, wall_ms: u.wall?.ms ?? null, portable: u.portable,
+        run_state: u.run_state, slice_clean: u.slice_clean, mutation_ids: u.mutation_ids })),
+      coverage: { expected: MUTATIONS.length, seen: seen.size, missing, duplicated, unknown },
+      evidence_bound: units.length > 0 && units.every((u) => u.evidence_bound === true),
+      portable: allPortable,
+      portable_remedy: allPortable ? null : 'növeld az egységek számát (--unit=k/n)',
+      wall_detail: { worst_unit_ms: worst, budget_ms: WALL_BUDGET_MS, external_cap_ms: EXTERNAL_WALL_LIMIT_MS, within_budget: allPortable },
+      evidence_limit: evidenceLimit,
+      mutations: { total: MUTATIONS.length, measured: sum('measured'), caught: sum('caught'),
+        survived: sum('survived'), wrong: sum('wrong'), harness: sum('harness'), stale: sum('stale') },
+      lie_probes: { total: ATTACKS.length, defended: units.every((u) => u.attacks_ok) ? ATTACKS.length : null },
+      norm_evidence: complete ? {
+        contract: units[0]?.norm_contract ?? null,
+        index_digest: units[0]?.norm_index_digest ?? null,
+        required: mergedRequired,
+        integrity_ok: units.every((u) => u.norm_integrity_ok),
+        integrity_problems: units.flatMap((u) => u.norm_integrity_problems || []),
+        chain,
+      } : null,
+      mutation_results: allResults,
+    }, null, 2)}\n`);
+    console.log(`  gépi végeredmény: ${outPath}`);
+  } catch (e) {
+    console.log(`  gépi végeredmény NEM íródott ki: ${e.message}`);
+  }
+  process.exit(complete ? (cleanAll && allPortable ? 0 : 1) : 2);
+}
+
 // ── Futtatás ─────────────────────────────────────────────────────────────────────────────────────
 console.log('');
 const WALL_T0 = Date.now();
 console.log('V3 MAGREFERENCIA — MUTÁCIÓS PRÓBA (G6)');
 console.log('='.repeat(78));
+if (UNIT) console.log(`  EGYSÉG: ${UNIT.k}/${UNIT.n} — a mutációk ${Math.ceil(MUTATIONS.length / UNIT.n)} darabos szelete (RUN-02)`);
 
 const base = baselineGate();
 // AZ ALAP FORRÁS LENYOMATA — ehhez méri a norma-kapu, hogy a mutált csomag TÉNYLEG más (R55/F03).
@@ -575,9 +772,10 @@ for (const a of attacks) {
 const attacksOk = attacks.every((a) => a.ok);
 console.log('');
 
+const SLICE = UNIT ? sliceFor(UNIT.k, UNIT.n) : MUTATIONS;
 let results = [];
 if (base.ok && attacksOk) {
-  results = await pool(MUTATIONS, POOL, (m) => runMutationAsync(m, base.probes));
+  results = await pool(SLICE, POOL, (m) => runMutationAsync(m, base.probes));
   console.log('  Minden sor EGY elrontott őr. A NEVEZETT próba NEVEZETT ÁLLÍTÁSÁNAK kell buknia.');
   console.log('');
   for (const r of results) {
@@ -597,7 +795,7 @@ const weak = results.filter((r) => r.weak).length;
 
 console.log('');
 console.log(`  Manifest: ${MANIFEST_VERSION} · tervezett próbák: ${EXPECTED_IDS.length} (${EXPECTED_IDS.join(', ')})`);
-console.log(`  ${MUTATIONS.length} mutáció · ${caught} elkapva (ebből ${weak} korlátozott erejű)`
+console.log(`  ${SLICE.length}${UNIT ? `/${MUTATIONS.length}` : ''} mutáció · ${caught} elkapva (ebből ${weak} korlátozott erejű)`
   + ` · ${survived} túlélte · ${wrong} rossz próba · ${harness} mérőhiba · ${stale} elavult horgony`);
 // AZ IDŐKORLÁT IS SZERZŐDÉS, ÉS EDDIG NEM VOLT ŐRE (R53 után mérve). A külső fél a battériát
 // 15 000 ms-os korláttal futtatja; ha túllépjük, náluk a folyamatot JEL állítja le, és a mérés
@@ -610,8 +808,6 @@ console.log(`  ${MUTATIONS.length} mutáció · ${caught} elkapva (ebből ${weak
 // LASSABB gép tartaléka. KIMONDOTT KORLÁT: ez a MI gépünkön mért idő — egy nálunk 25%-kal lassabb
 // gépen a külső korlát akkor is elérhető, ha itt zöld. A tartalék tehát csökkenti, de nem szünteti
 // meg a kockázatot; a kiírt százalék miatt viszont a sodródás sosem néma (KUKA-012).
-const EXTERNAL_WALL_LIMIT_MS = 15000;
-const WALL_BUDGET_MS = Math.round(EXTERNAL_WALL_LIMIT_MS * 0.8);
 const wall = Date.now() - WALL_T0;
 const wallOk = wall <= WALL_BUDGET_MS;
 console.log(`  falióra: ${wall} ms · párhuzamosság: ${POOL} · külső korlát: ${EXTERNAL_WALL_LIMIT_MS} ms`
@@ -630,7 +826,22 @@ console.log(`  ${attacks.length} hazugság-ellenpróba · ${attacks.filter((a) =
 // klauzulák `falsification_pending` állapotúak. A VÉGLEGES minősítés ITT születik, a TÉNYLEGES
 // mutációs futások eredményéből — nem a definícióikból (a külső fél N01 esete).
 let normFinal = null;
-if (base.ok && attacksOk && results.length === MUTATIONS.length) {
+// A BIZONYÍTÉK KÖTÉSE KÜLÖN KÉRDÉS A LEFEDETTSÉGTŐL — ÉS EZT A SAJÁT R79-ES PRÓBÁM MUTATTA MEG.
+//
+// A RUN-02 egység-módban kivettem a KÖTELEZŐ KÉSZLET feltételét a `sliceClean`-ből (joggal: az
+// globális — egy klauzulát falszifikálhat egy MÁSIK egység mutációja). Csakhogy eddig ÉPP EZ a
+// feltétel fogta meg a HAMISÍTOTT bizonyítékot is: idegen lenyomatú csomagnál minden klauzula
+// `not_falsified` lesz, és a kapu emiatt tüzelt. Az egység-módban tehát a hamisítás ÁTMENT —
+// a kaput ÁTHELYEZTEM, és azt hittem, lezártam (KUKA-084, a saját változtatásomon).
+//
+// Megtalálta: a SAJÁT, ugyanebben a körben írt r79-es próbám (U01). A javítás nem a régi kapu
+// visszatétele, hanem a KÉT KÉRDÉS SZÉTVÁLASZTÁSA (KUKA-124/1 — más kérdés, más név):
+//   `required.ok`     — FEDVE VAN-E a kötelező készlet? (globális, az összefűzés dönti el)
+//   `evidence_bound`  — a SAJÁT csomagom a SAJÁT szülői főkönyvemhez van-e kötve? (szelet-helyi)
+// A második csak hamisításra bukik, a első legitim okból is — ezért nem helyettesítik egymást.
+let evidenceBound = true;
+let evidenceUnbound = [];
+if (base.ok && attacksOk && results.length === SLICE.length) {
   const mutationResults = results.map((r) => r.falsification).filter(Boolean);
   // AZ ELVÁRT ÉRTÉKEK A SZÜLŐ MEGBÍZHATÓ KÖRNYEZETÉBŐL (R57/F02). Ezeket EZ a futtató mérte és
   // osztotta ki — a bizonyíték-csomag nem adhatja meg őket saját magának. Innentől az idegen vagy
@@ -648,6 +859,15 @@ if (base.ok && attacksOk && results.length === MUTATIONS.length) {
     run_tokens: Object.fromEntries(withEvidence.map((r) => [r.id, PARENT_EXPECTATIONS.get(r.id).runToken])),
     mutated_digests: Object.fromEntries(withEvidence.map((r) => [r.id, PARENT_EXPECTATIONS.get(r.id).digest])),
   };
+  // A KÖTÉS AZON MÉRVE, AMIT A KAPU KAPOTT (R57/F02 · R59/F01). Nem a `results`-on: a hamisítás a
+  // `checkNorms`-nak ÁTADOTT csomagon történik, tehát a mérésnek is ott kell állnia (KUKA-024: a
+  // VISZONYT kell mérni, nem az oldalakat).
+  evidenceUnbound = mutationResults.filter((x) => {
+    const exp = PARENT_EXPECTATIONS.get(x.mutation_id);
+    return !exp || x.base_digest !== BASE_DIGEST || x.run_token !== exp.runToken
+      || x.mutated_digest !== exp.digest;
+  }).map((x) => x.mutation_id);
+  evidenceBound = evidenceUnbound.length === 0;
   normFinal = checkNorms({
     probes: EXPECTED_PROBES, mutations: MUTATIONS, records: base.records, mutationResults, expectation,
   });
@@ -687,25 +907,106 @@ if (base.ok && attacksOk && results.length === MUTATIONS.length) {
   console.log('  NORMA-BIZONYÍTÉK: a végleges minősítés NEM készült el (a battéria nem futott végig).');
   console.log('  A hiányzó mérés nem zöld (KUKA-051).');
 }
-const clean = base.ok && attacksOk && results.length === MUTATIONS.length
-  && survived === 0 && wrong === 0 && harness === 0 && stale === 0 && wallOk
+const sliceClean = base.ok && attacksOk && results.length === SLICE.length
+  && survived === 0 && wrong === 0 && harness === 0 && stale === 0
   // A NORMA-KAPU SZERKEZETI ÉPSÉGE a zöld feltétele: a hazug regiszter nem enyhébb eset.
   && !!normFinal && normFinal.integrity_ok
   // ÉS A KÖTELEZŐ BIZONYÍTÉK IS (R57/F01). Enélkül a futás sikert jelentett arról, amit a saját
   // naplója már hibásnak nevezett — és egy automatizált következő lépés a sikert hitte volna el.
-  && !!normFinal.required && normFinal.required.ok;
+  //
+  // EGYSÉG-MÓDBAN EZ A FELTÉTEL NEM ÉRTELMES, ÉS EZT KI KELL MONDANI (RUN-02): a kötelező készlet
+  // GLOBÁLIS tulajdonság — egy klauzulát falszifikálhat egy MÁSIK egység mutációja. Ha az egység
+  // ezt magára kérné számon, MINDIG pirosat adna, és a piros semmit nem jelentene (KUKA-049: az őr
+  // ne a kért eredményt jelentse hibának). A készletet ezért az ÖSSZEFŰZÉS dönti el, az UNIÓBÓL.
+  && (UNIT ? true : (!!normFinal.required && normFinal.required.ok))
+  // …ÉS A SAJÁT CSOMAG KÖTÉSE, MINDKÉT MÓDBAN. Ez az, ami egység-módban is megfogja a hamisítást.
+  && evidenceBound;
+// ── RUN-02: A HÁROM KÜLÖN MEZŐ (R79 §6) ─────────────────────────────────────────────────────────
+//
+// `run_state` — VÉGIGFUTOTT-E. A tervezett szelet minden mutációja adott verdiktet, és a két kapu
+//               (alapvonal · hazugság-ellenpróbák) zöld volt. Ha nem, `clean` NEM értelmezhető.
+// `clean`      — TISZTA-E. Nulla túlélő · nulla rossz próba · nulla mérőhiba · nulla elavult
+//               horgony, ép norma-regiszter, teljes kötelező készlet. EZ A KÓDRÓL SZÓL.
+// `portable`   — BELEFÉR-E EGY HÍVÁSBA. A külső fél 15 000 ms-os korlátja alá fér-e ez az
+//               invokáció ezen a gépen. EZ A MÉRÉSRŐL SZÓL, NEM A KÓDRÓL — és ezért külön mező:
+//               a régi alak a faliórát a `clean`-be olvasztotta, tehát egy lassú gép a KÓDOT
+//               mondta hibásnak (KUKA-002 · KUKA-124/2).
+const runComplete = base.ok && attacksOk && results.length === SLICE.length;
+const clean = runComplete && sliceClean;
+const portable = wallOk;
 const why = [];
-if (normFinal && !normFinal.integrity_ok) why.push('a norma-regiszter szerkezeti hibát jelez');
-if (normFinal && normFinal.required && !normFinal.required.ok) {
+if (!base.ok) why.push('az alapvonal-kapu piros');
+if (!attacksOk) why.push('hazugság-ellenpróba bukott');
+if (runComplete && normFinal && !normFinal.integrity_ok) why.push('a norma-regiszter szerkezeti hibát jelez');
+if (runComplete && normFinal && normFinal.required && !normFinal.required.ok && !UNIT) {
   why.push(`hiányzó kötelező bizonyíték (${normFinal.required.missing.map((m) => m.clause_id).join(', ')})`);
 }
-if (!wallOk) why.push('a falióra a saját költségvetés fölé ment');
 if (survived || wrong || harness || stale) why.push('a mutációs battéria nem tiszta');
-console.log(`RESULT: ${clean ? 'MINDEN VESZÉLYES MUTÁCIÓ A NEVEZETT ÁLLÍTÁSSAL ÉSZLELT' : `HIÁNYOS — ${why.join(' · ') || 'lásd a fenti sorokat'}`}`);
+if (!evidenceBound) why.push(`a bizonyíték-csomag NINCS a szülői főkönyvhöz kötve (${evidenceUnbound.join(', ')})`);
+const portableWhy = portable ? null
+  : `a falióra (${wall} ms) a saját költségvetés (${WALL_BUDGET_MS} ms) fölé ment — `
+    + `darabold: ${AUTO_UNITS > 1 ? Array.from({ length: AUTO_UNITS }, (_, i) => `--unit=${i + 1}/${AUTO_UNITS}`).join(' · ') : '--unit=1/2 · --unit=2/2'} · --merge`;
+
+// ── EGYSÉG-MÓD: a részeredmény fájlba megy, és SEMMIT nem állít a battéria egészéről ─────────────
+if (UNIT) {
+  const unitFile = join(UNITS_DIR, `unit-${UNIT.k}-of-${UNIT.n}.json`);
+  try {
+    mkdirSync(UNITS_DIR, { recursive: true });
+    writeFileSync(unitFile, `${JSON.stringify({
+      run_contract: 'RUN-02',
+      unit: { k: UNIT.k, n: UNIT.n },
+      at: new Date().toISOString(),
+      node: process.version,
+      base_digest: BASE_DIGEST,
+      base_gate_ok: base.ok,
+      attacks_ok: attacksOk,
+      run_state: runComplete ? 'complete' : 'incomplete',
+      slice_clean: clean,
+      portable,
+      wall: { ms: wall, budget_ms: WALL_BUDGET_MS, external_cap_ms: EXTERNAL_WALL_LIMIT_MS },
+      mutation_ids: SLICE.map((m) => m.id),
+      counts: { measured: results.length, caught, survived, wrong, harness, stale, weak },
+      // A NORMA-LÁNC A SAJÁT SZELETRE, A SAJÁT SZÜLŐI FŐKÖNYVÉHEZ MÉRVE (R57/F02 · R59/F01). Az
+      // egység a saját gyerek-futásait maga indította, tehát az elvárást JOGGAL ő tartja; az
+      // összefűzés már csak a KÉSZ verdikteket egyesíti, bizonyítékot nem minősít újra.
+      norm_chain: normFinal ? normFinal.chain : null,
+      evidence_bound: evidenceBound,
+      evidence_unbound: evidenceUnbound,
+      norm_required: normFinal ? normFinal.required : null,
+      norm_integrity_ok: normFinal ? normFinal.integrity_ok : null,
+      norm_integrity_problems: normFinal ? normFinal.integrity_problems : null,
+      norm_contract: normFinal ? normFinal.contract : null,
+      norm_index_digest: normFinal ? normFinal.index_digest : null,
+      mutation_results: results.map((r) => r.falsification).filter(Boolean),
+      why,
+    }, null, 2)}\n`);
+    console.log(`  egység-eredmény: ${unitFile}`);
+  } catch (e) {
+    console.log(`  egység-eredmény NEM íródott ki: ${e.message}`);
+    process.exit(2);
+  }
+  console.log(`RESULT (EGYSÉG ${UNIT.k}/${UNIT.n}): ${runComplete ? (clean ? 'a szelet TISZTA' : `a szelet NEM tiszta — ${why.join(' · ')}`) : `NEM FUTOTT VÉGIG — ${why.join(' · ') || 'ismeretlen ok'}`}`
+    + ` · belefér a korlátba: ${portable ? 'igen' : 'NEM'}`);
+  if (!portable) console.log(`  ${portableWhy}`);
+  console.log('  AZ EGYSÉG NEM TELJES ÖSSZEFOGLALÓ. Teljeset csak a `--merge` adhat (RUN-02).');
+  process.exit(runComplete ? (clean && portable ? 0 : 1) : 2);
+}
+
+console.log(`RESULT: ${runComplete
+  ? (clean ? (portable ? 'MINDEN VESZÉLYES MUTÁCIÓ A NEVEZETT ÁLLÍTÁSSAL ÉSZLELT'
+    : 'TISZTA, DE EGY HÍVÁSBA NEM FÉR BELE — daraboló futás kell (RUN-02)')
+    : `NEM TISZTA — ${why.join(' · ') || 'lásd a fenti sorokat'}`)
+  : `NEM FUTOTT VÉGIG — ${why.join(' · ') || 'lásd a fenti sorokat'}`}`);
+if (!portable) console.log(`  ${portableWhy}`);
 
 // GÉPPEL OLVASHATÓ VÉGEREDMÉNY (R57 §7 — „a teljes lánc géppel olvasható végeredményét is adjátok
 // át; a terminál három FEDVE sora kevés a későbbi újraellenőrzéshez"). A fájl a futás mellé kerül,
 // és a KÜLSŐ FÉL ebből dolgozik, nem a képernyő-kivonatból (KUKA-072: a terv nem üzenet, hanem fájl).
+//
+// A MEZŐK VISSZAFELÉ KOMPATIBILISEK (R59 eredeti alakja megmarad): a `clean`, `why`, `wall_ms`,
+// `mutations`, `lie_probes`, `norm_evidence`, `mutation_results` mind a régi helyén és jelentésében
+// áll. Az R79 §6 mezői HOZZÁJÖNNEK, nem lépnek a helyükbe (KUKA-013: az új író nem teheti vissza a
+// régi hibát — itt fordítva: az új mező nem veheti el a régi olvasó bemenetét).
 try {
   const outPath = join(REF, 'v3ref-mutation-result.json');
   writeFileSync(outPath, `${JSON.stringify({
@@ -715,7 +1016,13 @@ try {
     clean,
     why,
     wall_ms: wall,
-    mutations: { total: MUTATIONS.length, caught: results.length - survived - wrong - harness - stale, survived, wrong, harness, stale },
+    run_contract: 'RUN-02',
+    run_state: runComplete ? 'complete' : 'incomplete',
+    execution: 'single_invocation',
+    portable,
+    portable_remedy: portableWhy,
+    wall_detail: { ms: wall, budget_ms: WALL_BUDGET_MS, external_cap_ms: EXTERNAL_WALL_LIMIT_MS, within_budget: portable },
+    mutations: { total: MUTATIONS.length, measured: SLICE.length, caught: results.length - survived - wrong - harness - stale, survived, wrong, harness, stale },
     lie_probes: { total: ATTACKS.length, defended: attacksOk ? ATTACKS.length : null },
     norm_evidence: normFinal ? {
       contract: normFinal.contract,
@@ -734,4 +1041,4 @@ try {
   console.log(`  gépi végeredmény NEM íródott ki: ${e.message}`);
 }
 
-process.exit(clean ? 0 : 1);
+process.exit(runComplete ? (clean && portable ? 0 : 1) : 2);
