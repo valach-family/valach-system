@@ -20,6 +20,9 @@
 // otthon (KUKA-003); és ahol két fogalom egy oszlopon ült, ott mindkettő hazudott (KUKA-002).
 import { createHash } from 'node:crypto';
 import { rightAt } from './authz.mjs';
+// DSC-01 (R77/F02): a KIADOTT EREDMÉNY adatköre a TÍPUS deklarációjából, nem a kérő címkéjéből.
+import { resultScopesOf, resultReleasable } from './resultScope.mjs';
+import { banRequestFor } from './banScope.mjs';
 
 // ═══ KANONIZÁLÁS (Q02) ══════════════════════════════════════════════════════════════════════════
 //
@@ -346,7 +349,22 @@ export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion
   //
   // KUKA-088 — MELYIK ELLENŐRZÉST FAGYASZTOTTUK BE? A PILLANATKÉPET fagyasztjuk (a feloldott
   // bemenet nem változhat utólag), a JOGOT nem: az minden kiadásnál újra fut.
-  const resolvedJson = JSON.stringify(resolve ? resolve() : {});
+  const resolved = resolve ? resolve() : {};
+  const resolvedJson = JSON.stringify(resolved);
+
+  // DSC-01 (R77/F02) — A BESOROLÁS OTT SZÜLETIK, AHOL AZ ÉRTÉK (KUKA-129). Ha az eredmény adatköre
+  // nem sorolható be, a hatás LÉTRE SEM JÖN: különben egy olyan hatást könyvelnénk, amit soha nem
+  // lehet kiadni — csendes, örökre olvashatatlan sor (KUKA-012). A BEADÓNAK itt nevezett üzenet jár,
+  // mert a saját típusáról és a saját `resolve()`-járól van szó: ez a SAJÁT bemenete, tehát a
+  // pontos mondat nem mond semmit idegen tényről (KUKA-084), és megmondja, mit kell javítani
+  // (KUKA-064). A KIADÁS oldalán ugyanez a hiány NÉMA marad — ott a mondat már létezést árulna el.
+  const classified = resultScopesOf({ type, typeVersion, result: resolved });
+  if (!classified.ok) {
+    return Object.freeze({
+      ok: false, error: 'result_scope_undeclared', reason: classified.reason,
+      message: classified.message, effect_id: null, state: null,
+    });
+  }
 
   if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {
     // A feloldás alatt elveszett a jog ⇒ a parancs NEM lesz kész. Semmit nem írunk.
@@ -452,6 +470,22 @@ export function readCommandResult({ store, idemKey, requester, bookId, actor, cl
     if (!releaseAllowed({ store, subjectId: requester, bookId: cmd.book_id, clock, externalEvidence, credentials })) {
       return refused;
     }
+    // DSC-01 (R77/F02) — AZ EREDMÉNY SAJÁT ADATKÖRE. A fenti kapu a KÖNYVHÖZ való jogot méri, és a
+    // tiltás-kapun a `dataScope` tengelyt a KÉRŐ kontextusa írja. Ez a két tény nem ugyanaz: a kérő
+    // `dataScope: 'keszlet'` címkével is kaphatna ÁRAT, ha az eredmény ármezőt hordoz. Ezért a
+    // kiadás itt a KIADANDÓ TARTALOM adatköreit méri — a típus deklarációjából, a kérő szavától
+    // függetlenül —, és MINDEGYIKRE külön megkérdezi, tiltott-e az olvasónak.
+    //
+    // A NEMLEGES VÁLASZ UGYANAZ A `refused` OBJEKTUM, mint minden más akadálynál (KUKA-084): a
+    // „nincs jogod ehhez az adatkörhöz" és a „nincs ilyen eredmény" kívülről megkülönböztethetetlen,
+    // különben a válasz maga mondaná meg, hogy a parancs létezik. A besorolás HIÁNYA is ide esik —
+    // a pontos mondatot a BEADÓ kapja meg, a beadáskor.
+    const releasableScope = resultReleasable({
+      store, subjectId: requester, nowIso: clock.now(),
+      type: cmd.type, typeVersion: cmd.type_version, result: resolved,
+      request: banRequestFor({ bookId: cmd.book_id, opClass: 'own_book' }, credentials),
+    });
+    if (!releasableScope.releasable) return refused;
     return Object.freeze(disclose({
       store, kind: 'command_result', scope: cmd.book_id, ref: commandRef(cmd), recipient: requester, clock,
       body: {

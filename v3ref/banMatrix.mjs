@@ -205,10 +205,18 @@ function measureCell(plan, pathName, targetName, contextName, shared) {
     ? (contextName === 'matching' ? plan.affected : plan.independent)
     : undefined;
   const bookId = req.bookId || 'book_a';
-  // AZ ÍRÓ CELLÁNAK SAJÁT VILÁG JÁR (lásd a `worldWithBan` fölötti indoklást): a kiadás sort tesz a
-  // tiltás-táblába, tehát a megosztott világban elmozdítaná a következő cellák alapját.
-  const own = pathName === 'issuing' ? worldWithBan(plan) : null;
-  const { store, clock } = own || shared;
+  // AZ ÍRÓ CELLA A MEGOSZTOTT VILÁGON FUT, ÉS UTÁNA PONTOSAN A SAJÁT NYOMÁT TÖRLI (R77).
+  //
+  // Korábban minden kiadási cella ÚJ világot kapott, mert a kiadás sort tesz a tiltás-táblába, és
+  // az elmozdítaná a következő cellák alapját. Ez igaz — de a megoldás nem kell, hogy egy egész
+  // világ legyen: a kiadás nyoma AZONOSÍTHATÓ (az eljáró `sub_alany`, a fixtúráé `sub_biro`),
+  // tehát a cella után PONTOSAN az törölhető, amit ő írt. A mérés így ugyanaz marad (egy világ =
+  // egy tiltás a mérés pillanatában), a költség viszont ~27 világról 7-re esik.
+  //
+  // A MÉRŐ KÖLTSÉGÉT A SAJÁT KÖLTSÉGVETÉSE KÖTI (KUKA-140), és a takarékosság itt nem gyengít:
+  // a takarítás NEVEZETT és SZŰK, nem „ürítsük ki a táblát" — ha egyszer többet törölne, a mátrix
+  // eltérés-száma azonnal pirosra menne, mert a következő cellák alapja hiányozna.
+  const { store, clock } = shared;
   try {
     if (pathName === 'membership') {
       return classify(rightAt({ store, subjectId: 'sub_alany', bookId, opClass: 'own_book', clock, credentials }));
@@ -227,7 +235,9 @@ function measureCell(plan, pathName, targetName, contextName, shared) {
     if (out.ok) return 'open';
     if (out.reason === 'ban_target_undecidable') return 'undecidable';
     return 'blocked';
-  } finally { if (own) own.store.close(); }
+  } finally {
+    if (pathName === 'issuing') store.run('DELETE FROM subject_ban WHERE actor_subject_id = ?', 'sub_alany');
+  }
 }
 
 /**
@@ -276,6 +286,17 @@ export function banMatrix() {
   const missing = KNOWN_BAN_KINDS.filter((k) => !planned.has(k));
   const unknownCause = PLAN.filter((p) => !KNOWN_BAN_CAUSES.includes(p.cause)
     || kindForCause(p.cause) !== p.kind || !banKind(p.kind));
+  // A SOR NEM UGYANAZ, MINT AZ EGYEDI BEMENET (R77 §3, a KÜLSŐ TÁRGYALÓ FÉL pontosítása). A tábla
+  // 66 SORT rajzol, de ebből 3 fogalmilag nem értelmezhető cella (`n/a`), a maradék 63 pedig 51
+  // KÜLÖNBÖZŐ végrehajtott bemenetre esik: a négy kontextusos fajtánál a HIÁNYZÓ kontextus mellett
+  // az „érintett" és a „független" címke UGYANAZT a kérést jelenti (nincs mihez mérni), tehát a
+  // három úton 12 sor ISMÉTLŐDIK. Az ismétlés önmagában nem hiba — a tábla a fajtánként×utanként
+  // teljes lefedést mutatja —, de a JELENTÉS nem nevezheti 66 független forgatókönyvnek.
+  //
+  // EZÉRT A SZÁM IS MÉRÉS, NEM A LAP SZÁMOLJA (KUKA-082): ugyanaz a függvény adja, ami a cellákat,
+  // így az ember-olvasható tábla és a gépi leltár nem tud elcsúszni.
+  const executed = cells.filter((c) => c.actual !== 'n/a');
+  const uniqueInputs = new Set(executed.map((c) => JSON.stringify([c.kind, c.path, c.book_id, c.op_class, c.context])));
   return Object.freeze({
     cells: Object.freeze(cells),
     kinds: KNOWN_BAN_KINDS,
@@ -284,6 +305,14 @@ export function banMatrix() {
     missing_kinds: Object.freeze(missing),
     inconsistent_plan: Object.freeze(unknownCause.map((p) => p.kind)),
     complete: missing.length === 0 && unknownCause.length === 0,
+    rows: cells.length,
+    executed_rows: executed.length,
+    not_applicable_rows: cells.length - executed.length,
+    unique_executed_inputs: uniqueInputs.size,
+    repeated_rows: executed.length - uniqueInputs.size,
+    counting_note: 'a SOR nem egyedi bemenet: a kontextusos fajtáknál a HIÁNYZÓ kontextus mellett az '
+      + '„érintett" és a „független" címke ugyanazt a kérést jelenti, ezért a végrehajtott sorok egy '
+      + 'része ismétlődik. A jelentésben a SOR-számot és az EGYEDI BEMENET-számot külön kell nevezni.',
   });
 }
 

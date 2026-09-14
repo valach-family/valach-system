@@ -396,7 +396,7 @@ export const MUTATIONS = [
     to: "    store.run('DELETE FROM command_event WHERE actor = ? AND book_id = ?', subjectId, bookId);\n"
       + "    store.run(`INSERT INTO command_event (book_id, actor, idem_key, event, state, effect_id, at)\n"
       + "               SELECT book_id, actor, idem_key, 'command_finalized', 'finalized', 'eff_HAMIS', ? FROM command\n"
-      + "               WHERE actor = ? AND book_id = ?`, nowIso, subjectId, bookId);\n"
+      + "               WHERE actor = ? AND book_id = ?`, at, subjectId, bookId);\n"
       + "    return Object.freeze({ ok: true, changed: true, reason: t.reason, effective_at: t.effective_at });" },
 
 
@@ -415,8 +415,8 @@ export const MUTATIONS = [
   { id: 'M50', rule: 'K04/K09', catcher: 'P-REV-authority', expect: 'probe_fail',
     what: 'REV-N3a — a HATÁSKÖR-ELLENŐRZÉS kivétele: a jogváltoztatás megint puszta bemenet',
     file: 'authz.mjs',
-    from: "  if (!authority.allowed) {",
-    to: "  if (false) {" },
+    from: "    { store, clock, subjectId: actorSubjectId, bookId, operation: 'alter_right' },",
+    to: "    { store, clock, subjectId: actorSubjectId, bookId, operation: 'suspend' }," },
 
   { id: 'M51', rule: 'K04/K09', catcher: 'P-REV-authority', expect: 'probe_fail',
     what: 'REV-N3a — a MŰVELET-SZŰKÍTÉS kivétele: bármelyik hatáskör megteszi (a legszűkebb '
@@ -479,15 +479,15 @@ export const MUTATIONS = [
     what: 'REV-N3a — A FELFÜGGESZTÉSI ÍRÁS ELHAGYÁSA: a válasz `suspended:true`, a tároló üres — '
       + 'pontosan az R67/F01 alakja (a siker-jelentés nem hatás)',
     file: 'adjudication.mjs',
-    from: "  const res = store.run(\n"
-      + "    `INSERT INTO membership_suspension (subject_id, book_id, actor_subject_id, suspended_at, lifted_at, lifted_by, reason)\n"
-      + "     VALUES (?,?,?,?,NULL,NULL,?)`,\n"
-      + "    subjectId, bookId, actorSubjectId, at, reason == null ? null : String(reason));\n"
-      + "  return Object.freeze({\n"
-      + "    ok: true, suspended: true, at, already_suspended: false,\n"
-      + "    suspension_id: Number(res.lastInsertRowid),\n"
-      + "  });",
-    to: "  return Object.freeze({ ok: true, suspended: true, at, already_suspended: false, suspension_id: 0 });" },
+    from: "      const res = store.run(\n"
+      + "        `INSERT INTO membership_suspension (subject_id, book_id, actor_subject_id, suspended_at, lifted_at, lifted_by, reason)\n"
+      + "         VALUES (?,?,?,?,NULL,NULL,?)`,\n"
+      + "        subjectId, bookId, actorSubjectId, at, reason == null ? null : String(reason));\n"
+      + "      return Object.freeze({\n"
+      + "        ok: true, suspended: true, at, already_suspended: false,\n"
+      + "        suspension_id: Number(res.lastInsertRowid),\n"
+      + "      });",
+    to: "      return Object.freeze({ ok: true, suspended: true, at, already_suspended: false, suspension_id: 0 });" },
 
   { id: 'M57', rule: 'K04/K09', catcher: 'P-REV-suspension', expect: 'probe_fail',
     what: 'REV-N3a — A JOGFELOLDÓ FELFÜGGESZTÉS-VAKSÁGA: a tény RÖGZÜL, de a `rightAt` nem kérdezi '
@@ -500,8 +500,8 @@ export const MUTATIONS = [
     what: 'REV-N3b — A DÖNTÉSI ÚTON RÉSZLETES LÉTEZÉSI HIBA: az `adjudicateClaim` a hatáskör-hiba '
       + 'NEVÉT adja vissza, tehát a válasz megmondja, hogy az ÜGY LÉTEZIK (KUKA-084 a csatornán)',
     file: 'adjudication.mjs',
-    from: "  if (!row) return CLAIM_NOT_AVAILABLE;\n  const right = adjudicationRightAt({\n    store, subjectId: actorSubjectId, bookId: row.book_id, operation: 'adjudicate', clock, credentials });\n  if (!right.allowed) return CLAIM_NOT_AVAILABLE;",
-    to: "  if (!row) return CLAIM_NOT_AVAILABLE;\n  const right = adjudicationRightAt({\n    store, subjectId: actorSubjectId, bookId: row.book_id, operation: 'adjudicate', clock, credentials });\n  if (!right.allowed) return Object.freeze({ ok: false, error: right.reason, message: right.message });" },
+    from: "  if (!out.authorized) return CLAIM_NOT_AVAILABLE;\n  return out.value;",
+    to: "  if (!out.authorized) return Object.freeze({ ok: false, error: out.right.reason, message: out.right.message });\n  return out.value;" },
 
   { id: 'M59', rule: 'K05/K09', catcher: 'P-REV-claim-read', expect: 'probe_fail',
     what: 'REV-N3b — A BEADVÁNYTARTALOM ELVESZTÉSE: csak a lenyomat marad, az elbírálónak nincs mit '
@@ -530,13 +530,13 @@ export const MUTATIONS = [
       + 'kérdezi meg a beadvány állapotát, tehát sérült vagy hiányzó tartalom mellett is LEZÁRJA az '
       + 'ügyet (a külső fél kifejezetten kérte, hogy ezt a mutánst a mérő fogja meg)',
     file: 'adjudication.mjs',
-    from: "  const evidence = claimEvidenceAt({ store, claimRow: row });\n"
-      + "  if (!evidence.intact) {\n"
-      + "    return Object.freeze({ ok: false, error: evidence.error, message: evidence.message });\n"
-      + "  }\n"
+    from: "      const evidence = claimEvidenceAt({ store, claimRow: row });\n"
+      + "      if (!evidence.intact) {\n"
+      + "        return Object.freeze({ ok: false, error: evidence.error, message: evidence.message });\n"
+      + "      }\n"
       + "\n"
-      + "  const state = decision === 'resolve' ? 'resolved' : 'under_review';",
-    to: "  const state = decision === 'resolve' ? 'resolved' : 'under_review';" },
+      + "      const state = decision === 'resolve' ? 'resolved' : 'under_review';",
+    to: "      const state = decision === 'resolve' ? 'resolved' : 'under_review';" },
 
   { id: 'M63', rule: 'K05/K15', catcher: 'P-REV-claim-decide', expect: 'probe_fail',
     what: 'C-F03 — A MÁSODLAGOS KORLÁT MEGINT ÁTÉR MÁS CSATORNÁRA: a beadó által szabadon megadott '
@@ -553,16 +553,11 @@ export const MUTATIONS = [
       + 'hívó a sérült ügyre nevezett hibát kap a semleges nemleges helyett — a különbség maga mondja '
       + 'meg, hogy az ügy létezik (KUKA-084)',
     file: 'adjudication.mjs',
-    from: "  if (!row) return CLAIM_NOT_AVAILABLE;\n"
-      + "  const right = adjudicationRightAt({\n"
-      + "    store, subjectId: actorSubjectId, bookId: row.book_id, operation: 'adjudicate', clock, credentials });\n"
-      + "  if (!right.allowed) return CLAIM_NOT_AVAILABLE;",
+    from: "  if (!row) return CLAIM_NOT_AVAILABLE;\n  // R77/F01 (SAJÁT KITERJESZTÉS",
     to: "  if (!row) return CLAIM_NOT_AVAILABLE;\n"
       + "  const early = claimEvidenceAt({ store, claimRow: row });\n"
       + "  if (!early.intact) return Object.freeze({ ok: false, error: early.error, message: early.message });\n"
-      + "  const right = adjudicationRightAt({\n"
-      + "    store, subjectId: actorSubjectId, bookId: row.book_id, operation: 'adjudicate', clock, credentials });\n"
-      + "  if (!right.allowed) return CLAIM_NOT_AVAILABLE;" },
+      + "  // R77/F01 (SAJÁT KITERJESZTÉS" },
 
   // ═══ REV-N5 — A CÉLZOTT TILTÁS (R71 §8/1) ══════════════════════════════════════════════════
   //
@@ -601,16 +596,13 @@ export const MUTATIONS = [
     to: "  const ban = Object.freeze({ banned: false, reason: 'not_banned' });\n"
       + "  if (ban.banned) {" },
   { id: 'M70', rule: 'K09', catcher: 'P-REV-ban-paths', expect: 'probe_fail',
-    what: 'REV-N5a — A TILTÁS HATÁSKÖR NÉLKÜL IS KIMONDHATÓ: az `imposeBan` hatáskör-kapuja kiesik, '
-      + 'tehát bárki tilthatna bárkit. A célzott tiltás JOGVÁLTOZTATÁS (REV-N3a) — ez a mutáció a '
-      + '„minden állításnak SAJÁT falszifikációja legyen" szabályt is szolgálja: az M67 a hatást '
-      + 'méri, ez a JOGALAPOT',
+    what: 'REV-N5a — A KIADÁS ROSSZ HATÁSKÖRT KÉR: a tiltás kiadása `suspend` felhatalmazásra '
+      + 'hivatkozik, holott a célzott tiltás JOGVÁLTOZTATÁS (`alter_right`, REV-N3a). Az M67 a HATÁST '
+      + 'méri, ez a JOGALAPOT. (R77 óta a kapu-kivétel a hívó oldalán nem fejezhető ki: a döntés EGY '
+      + 'közös hatályosulási ponton áll — ott az M80/M82 méri.)',
     file: 'ban.mjs',
-    from: "  const right = executableRightAt({\n"
-      + "    store, subjectId: actor, bookId: book, operation: 'alter_right', nowIso: clock.now(), credentials,\n"
-      + "  });\n"
-      + "  if (!right.ok) return Object.freeze({ ok: false, reason: right.reason, message: right.message });",
-    to: "  const right = { ok: true };" },
+    from: "    { store, clock, subjectId: actor, bookId: book, operation: 'alter_right', credentials },",
+    to: "    { store, clock, subjectId: actor, bookId: book, operation: 'suspend', credentials }," },
   { id: 'M71', rule: 'K09', catcher: 'P-REV-ban-scope', expect: 'probe_fail',
     what: 'REV-N5b — A BELÉPÉSI KONTEXTUS ÁTÍRJA A KÉRÉS TENGELYÉT: a `banRequestFor` visszatér az '
       + 'R73 előtti összefésülésre (`{...operation, ...credentials}`), ahol a KÉSŐBB szórt kontextus '
@@ -636,13 +628,13 @@ export const MUTATIONS = [
       + 'eltakarítja. A készlet/jog képe ettől „rendezettebb" lenne, a történet viszont hamis — a '
       + 'tiltás nem bizonyítja a korábbi műveletek érvénytelenségét',
     file: 'ban.mjs',
-    from: "    store.run(\n"
-      + "      `INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)\n"
-      + "       VALUES (?,?,?,?,?,?)`,",
-    to: "    store.run('DELETE FROM command_event WHERE actor = ?', subjectId);\n"
-      + "    store.run(\n"
-      + "      `INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)\n"
-      + "       VALUES (?,?,?,?,?,?)`," },
+    from: "      store.run(\n"
+      + "        `INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)\n"
+      + "         VALUES (?,?,?,?,?,?)`,",
+    to: "      store.run('DELETE FROM command_event WHERE actor = ?', subjectId);\n"
+      + "      store.run(\n"
+      + "        `INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)\n"
+      + "         VALUES (?,?,?,?,?,?)`," },
   { id: 'M69', rule: 'K09', catcher: 'P-REV-ban-past', expect: 'probe_fail',
     what: 'REV-N5c — A TILTÁS MÁSOK JOGÁT IS ELVESZI: a tiltás a KÖNYV minden tagjára hat. Ez az '
       + 'ELLENPÁRT buktatja (a másik jogosult ugyanazt teheti) — a „biztonság kedvéért mindenkit '
@@ -680,10 +672,10 @@ export const MUTATIONS = [
       + '`BOOK_SCOPED_KINDS` lista NEVE változatlanul azt ígéri, hogy könyv-hatókörű — a rekord '
       + 'viszont nem hordozza (KUKA-015: a név nem korlátoz)',
     file: 'ban.mjs',
-    from: "  const storedTarget = kind === 'operation'\n"
-      + "    ? operationScopeRef(book, said(targetRef))\n"
-      + "    : (shape.discriminator === null ? null : said(targetRef));",
-    to: "  const storedTarget = shape.discriminator === null ? null : said(targetRef);" },
+    from: "      const storedTarget = kind === 'operation'\n"
+      + "        ? operationScopeRef(book, said(targetRef))\n"
+      + "        : (shape.discriminator === null ? null : said(targetRef));",
+    to: "      const storedTarget = shape.discriminator === null ? null : said(targetRef);" },
 
   { id: 'M75', rule: 'K09', catcher: 'P-REV-ban-paths', expect: 'probe_fail',
     what: 'R75/F03 — A GYENGÉBB SZERZŐDÉSŰ ÍRÓ VISSZATÉR: az `imposeBan` megint saját, alacsony '
@@ -692,23 +684,7 @@ export const MUTATIONS = [
       + 'válasz nem lehet komment (KUKA-015: „a komment nem hozzáférésvédelem")',
     file: 'ban.mjs',
     from: "export const imposeBan = issueBan;",
-    to: "export function imposeBan({ store, clock, subjectId, cause, targetRef, actorSubjectId, bookId, credentials }) {\n"
-      + "  const actor = said(actorSubjectId);\n"
-      + "  const right = executableRightAt({\n"
-      + "    store, subjectId: actor, bookId: said(bookId), operation: 'alter_right', nowIso: clock.now(), credentials,\n"
-      + "  });\n"
-      + "  if (!right.ok) return Object.freeze({ ok: false, reason: right.reason, message: right.message });\n"
-      + "  const kind = kindForCause(cause);\n"
-      + "  if (!kind) return Object.freeze({ ok: false, reason: 'ban_cause_unknown', message: 'ismeretlen ok' });\n"
-      + "  const nowIso = clock.now();\n"
-      + "  return withTransaction(store.db, () => {\n"
-      + "    store.run(\n"
-      + "      `INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)\n"
-      + "       VALUES (?,?,?,?,?,?)`,\n"
-      + "      subjectId, kind, cause, said(targetRef) || null, actor, nowIso);\n"
-      + "    return Object.freeze({ ok: true, kind, cause, target_ref: said(targetRef) || null, banned_at: nowIso });\n"
-      + "  });\n"
-      + "}" },
+    to: "export function imposeBan({ store, clock, subjectId, cause, targetRef, actorSubjectId, bookId, credentials }) {\n  const actor = said(actorSubjectId);\n  const out = effectuate(\n    { store, clock, subjectId: actor, bookId: said(bookId), operation: 'alter_right', credentials },\n    ({ at }) => {\n      const kind = kindForCause(cause);\n      if (!kind) return Object.freeze({ ok: false, reason: 'ban_cause_unknown', message: 'ismeretlen ok' });\n      store.run(\n        `INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)\n         VALUES (?,?,?,?,?,?)`,\n        subjectId, kind, cause, said(targetRef) || null, actor, at);\n      return Object.freeze({ ok: true, kind, cause, target_ref: said(targetRef) || null, banned_at: at });\n    });\n  if (!out.authorized) return Object.freeze({ ok: false, reason: out.right.reason, message: out.right.message });\n  return out.value;\n}" },
 
   { id: 'M76', rule: 'K09', catcher: 'P-REV-ban-scope', expect: 'probe_fail',
     what: 'R75/F04 — AZ ISMERETLEN TÁROLT OK ÚJRA ELNYELŐDIK: a hiányzó leképezést a rekord SAJÁT '
@@ -748,14 +724,104 @@ export const MUTATIONS = [
       + 'elvész, és a független könyvben is zár. Az M74 a KIADÁST méri, ez az ÉRTELMEZÉST: egy '
       + 'szabályt ott is meg kell fogni, ahol az érték SZÜLETIK, és ott is, ahol BEFOGADJÁK',
     file: 'banScope.mjs',
-    from: "  return Object.freeze({\n"
-      + "    bookId: raw.slice(0, at).trim(),\n"
-      + "    opClass: raw.slice(at + 1).trim(),\n"
-      + "    global: false,\n"
-      + "  });",
-    to: "  return Object.freeze({\n"
-      + "    bookId: raw.slice(0, at).trim(),\n"
-      + "    opClass: raw.slice(at + 1).trim(),\n"
-      + "    global: true,\n"
-      + "  });" },
+    from: "  return Object.freeze({ bookId, opClass, global: false, malformed: null });",
+    to: "  return Object.freeze({ bookId, opClass, global: true, malformed: null });" },
+
+  // R77 — A KÜLSŐ FÉL HÁROM ÚJ HATÁRA, MINDEGYIK SAJÁT FALSZIFIKÁLÓVAL.
+  //
+  // A KUKA-139 SZŰKÍTVE (a külső fél R77 §7 kérése): a TÚLÉLŐ mutáció nem bizonyítja, hogy a sor
+  // végre sem hajtódott — okozhatja GYENGE ÁLLÍTÁS vagy EGYENÉRTÉKŰ mutáció is. Ezért az alábbiakat
+  // egyenként MÉRTEM a javított kódon, és ahol a szándékolt visszacsúszás egyenértékűnek bizonyult
+  // (a másik oldal ugyanazt a választ adta), ott NEM írtam mutációt, hanem a PRÓBÁT élesítettem.
+
+  { id: 'M80', rule: 'K04', catcher: 'P-REV-effectuation', expect: 'probe_fail',
+    what: 'R77/F01 — A HATÁLYOSULÁSI DÖNTÉS KIVÉVE: marad a bebocsátás, és a tranzakción belül már '
+      + 'senki nem kérdez jogot. Ez a JAVÍTÁS ELŐTTI alak: a döntés a kérés pillanatában dől el, a '
+      + 'rögzített hatás viszont egy KÉSŐBBI órán — így lejárt felhatalmazással is születik hatás',
+    file: 'authority.mjs',
+    from: "    const at = clock.now();\n"
+      + "    const right = executableRightAt({ store, subjectId, bookId, operation, nowIso: at, credentials });\n"
+      + "    if (!right.ok) return Object.freeze({ authorized: false, at: null, right, stage: 'effectuation' });\n"
+      + "    return Object.freeze({ authorized: true, at, right, value: effect({ at, right }) });",
+    to: "    const at = clock.now();\n"
+      + "    return Object.freeze({ authorized: true, at, right: admission, value: effect({ at, right: admission }) });" },
+
+  { id: 'M81', rule: 'K04', catcher: 'P-REV-effectuation', expect: 'probe_fail',
+    what: 'R77/F01 A FINOMABB ALAK: a hatályosulási döntés MEGMARAD, de a rögzített hatás ideje egy '
+      + 'ÚJABB óraolvasásból jön. A döntés így ép, a BÉLYEG mégis olyan pillanatot visel, amit senki '
+      + 'nem mért — pontosan a KUKA-002 az idő tengelyén, csak eggyel odébb tolva',
+    file: 'authority.mjs',
+    from: "    return Object.freeze({ authorized: true, at, right, value: effect({ at, right }) });",
+    to: "    return Object.freeze({ authorized: true, at, right, value: effect({ at: clock.now(), right }) });" },
+
+  { id: 'M82', rule: 'K04', catcher: 'P-REV-effectuation', expect: 'probe_fail',
+    what: 'R77/F01 — A HATÁLYOSULÁS A BEBOCSÁTÁS ÍTÉLETÉT ÚJRAHASZNÁLJA. A kód alakja megmarad (van '
+      + '„tranzakción belüli döntés"), csak épp a KORÁBBI pillanat jogát viszi tovább: a látszat ép, '
+      + 'a tény nem — ez a KUKA-088 („melyik ellenőrzést fagyasztottam be?") alakja a hatáskörön',
+    file: 'authority.mjs',
+    from: "    const right = executableRightAt({ store, subjectId, bookId, operation, nowIso: at, credentials });\n"
+      + "    if (!right.ok) return Object.freeze({ authorized: false, at: null, right, stage: 'effectuation' });",
+    to: "    const right = admission;\n"
+      + "    if (!right.ok) return Object.freeze({ authorized: false, at: null, right, stage: 'effectuation' });" },
+
+  { id: 'M83', rule: 'K09', catcher: 'P-REV-ban-record-shape', expect: 'probe_fail',
+    what: 'R77/F03 — AZ ÜRES KÖNYV-TENGELY ÚJRA SZABÁLYOS ALAK. A feloldó nem jelöli hibásnak, ezért '
+      + 'a hatókör-értékelés a kérés könyvéhez hasonlítja, nem egyezik, és „másik könyv" címen '
+      + 'TOVÁBBENGEDI a kérést: az érvénytelen tiltás úgy viselkedik, mint egy érvényes',
+    file: 'banScope.mjs',
+    from: "  if (!bookId) return Object.freeze({ bookId: null, opClass, global: false, malformed: 'book_axis_empty' });",
+    to: "  if (!bookId) return Object.freeze({ bookId: null, opClass, global: false, malformed: null });" },
+
+  { id: 'M84', rule: 'K09', catcher: 'P-REV-ban-record-shape', expect: 'probe_fail',
+    what: 'R77/F03 A FÉL ŐR (KUKA-039): az integritás-kapu megmarad, de a KÖZVETLEN hívó '
+      + '(`banReaches`) már nem kérdezi meg a cél szerkezetét. A `banEffectiveAt` úton semmi nem '
+      + 'változik — épp ezért veszélyes: a próba/szerszám MÁS valóságot mérne, mint a felhasználó',
+    file: 'banScope.mjs',
+    from: "    const malformed = operationScopeProblem(target);\n"
+      + "    if (malformed) {\n"
+      + "      return Object.freeze({ reaches: true, decidable: false, reason: malformed.reason, message: malformed.message });\n"
+      + "    }\n",
+    to: "" },
+
+  { id: 'M85', rule: 'K05', catcher: 'P-REV-result-scope', expect: 'probe_fail',
+    what: 'R77/F02 — A KIADÁS ÚJRA A KÉRŐ CÍMKÉJÉT MÉRI. A mért adatkör nem írja felül a kérés '
+      + '`dataScope` tengelyét, tehát az `arak`-ra tiltott olvasó `keszlet` címkével megint megkapja '
+      + 'az ármezőt. Amit a kérő begépelhet, az ÁLLÍTÁS, nem mérés (KUKA-121)',
+    file: 'resultScope.mjs',
+    from: "      store, subjectId, nowIso, request: { ...base, dataScope: scope },",
+    to: "      store, subjectId, nowIso, request: { ...base }," },
+
+  { id: 'M86', rule: 'K05', catcher: 'P-REV-result-scope', expect: 'probe_fail',
+    what: 'R77/F02 — A BE NEM SOROLT MEZŐ „KORLÁTOZÁS NÉLKÜLI" LESZ. A deklarációból hiányzó mező '
+      + 'némán átcsúszik, tehát egy új, ismeretlen jelentésű eredmény-mező mindenkinek kimegy: a '
+      + 'HIÁNY nem lehet ugyanaz a válasz, mint az „engedélyezett" (KUKA-124/2)',
+    file: 'resultScope.mjs',
+    from: "  const undeclared = fields.filter((f) => !decl.has(f)).sort();",
+    to: "  const undeclared = [];" },
+
+  { id: 'M87', rule: 'K05', catcher: 'P-REV-result-scope', expect: 'probe_fail',
+    what: 'R77/F02 — AZ ISMERETLEN TÍPUS ELNYELVE A MEZŐ-HIÁNYBA. A két diagnózis összemosódik: a '
+      + '„nincs deklarálva ez a típus" a „van egy be nem sorolt mező" nevét kapja, és a beadó a rossz '
+      + 'dolgot javítja. A rossz nevű hibaüzenet elfedi az igazit (KUKA-124 · KUKA-028)',
+    file: 'resultScope.mjs',
+    from: "  const decl = RESULT_FIELD_SCOPES.get(declKey(type, typeVersion));\n  if (!decl) {",
+    to: "  const decl = RESULT_FIELD_SCOPES.get(declKey(type, typeVersion)) || new Map();\n  if (!decl) {" },
+
+  { id: 'M88', rule: 'K09', catcher: 'P-REV-ban-paths', expect: 'probe_fail',
+    what: 'REV-N5a — A HATÁSKÖR TELJES KIVÉTELE: a hatályosulási pont MINDKÉT döntése elesik '
+      + '(bebocsátás ÉS hatályosulás), tehát bárki tilthatna bárkit. Ez NEM az M80/M82 ismétlése: '
+      + 'azok a bebocsátást MEGHAGYJÁK, és csak az idő-rést nyitják ki — a hatáskör NÉLKÜLI eljárót '
+      + 'továbbra is elutasítják. Két szerkesztés kell hozzá, mert a védelem KÉT rétegű, és egyetlen '
+      + 'réteg elvétele még nem viszi pirosra a próbát (KUKA-039)',
+    file: 'authority.mjs',
+    edits: [
+      { from: "  const admission = executableRightAt({\n"
+          + "    store, subjectId, bookId, operation, nowIso: clock.now(), credentials,\n"
+          + "  });\n"
+          + "  if (!admission.ok) return Object.freeze({ authorized: false, at: null, right: admission, stage: 'admission' });",
+        to: "  const admission = { ok: true, granted_at: clock.now() };" },
+      { from: "    const right = executableRightAt({ store, subjectId, bookId, operation, nowIso: at, credentials });\n"
+          + "    if (!right.ok) return Object.freeze({ authorized: false, at: null, right, stage: 'effectuation' });",
+        to: "    const right = { ok: true, granted_at: at };" },
+    ] },
 ];

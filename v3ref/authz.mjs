@@ -9,8 +9,10 @@
 // A döntés NEVEZETT alakot ad vissza (nem igent/nemet), hogy a képernyő meg tudja mondani, MIÉRT
 // nem lehet (a mi KUKA-062-es tanulságunk: a jog-alapot nevezni kell).
 
-import { instantMs, withTransaction } from './store.mjs';
-import { adjudicationRightAt } from './adjudication.mjs';
+import { instantMs } from './store.mjs';
+// EFF-01 (R77/F01): a hatáskör-igényes ÍRÁS hatályosulási pontja — a döntés és a rögzített hatás
+// EGY időponton, a tranzakción belül. A `revokeMembership` ezt hívja; a modul többi útja OLVAS.
+import { effectuate } from './authority.mjs';
 // SUS-01 (R67/F01): a felfüggesztés TÉNYE saját otthonban él, mert az `adjudication.mjs` ÍRJA, ez a
 // modul pedig OLVASSA — a kettő közti közvetlen behúzás kört csinálna (KUKA-003).
 import { suspensionEffectiveAt } from './suspension.mjs';
@@ -299,28 +301,35 @@ export function revokeMembership({ store, subjectId, bookId, clock, actorSubject
   //
   // A `suspend` és az `adjudicate` hatáskör IDE NEM ELÉG: a legszűkebb felhatalmazás nem adhat
   // tágabb hatást (a norma szövege ezt kifejezetten kimondja).
-  const authority = adjudicationRightAt({ store, subjectId: actorSubjectId, bookId, operation: 'alter_right', clock });
-  if (!authority.allowed) {
+  // R77/F01 (SAJÁT KITERJESZTÉS — EFF-01). Ez volt az ÖTÖDIK tagja ugyanannak a hibaosztálynak, és a
+  // külső fél nem nevezte meg: a hatáskör a hívás pillanatában dőlt el, a megvonás könyvelt ideje
+  // (`recorded_at`) viszont egy KÉSŐBBI óraolvasásból jött, a `revocationTransition` döntése pedig
+  // szintén azon a második időponton. Így a megvonás-napló sora olyan pillanatot visel, amelyen az
+  // eljáró joga már megszűnhetett — pontosan a KÜLSŐ FÉL R77/F01 alakja, csak MÁSIK MODULBAN
+  // (KUKA-129: ha a szabály több helyen kell, a közös otthon a javítás, nem a helyi folt).
+  const out = effectuate(
+    { store, clock, subjectId: actorSubjectId, bookId, operation: 'alter_right' },
+    ({ at }) => {
+      const m = store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', subjectId, bookId);
+      if (!m) return Object.freeze({ ok: false, changed: false, reason: 'no_membership' });
+      const t = revocationTransition(m.revoked_at, at);
+      if (!t.act) return Object.freeze({ ok: true, changed: false, reason: t.reason, effective_at: m.revoked_at ?? null });
+      const res = store.run(
+        'UPDATE membership SET revoked_at = ? WHERE subject_id = ? AND book_id = ?',
+        t.effective_at, subjectId, bookId);
+      if (res.changes !== 1) throw new Error('revokeMembership: a megvonás NULLA sort írt — bekötési hiba');
+      store.run(
+        `INSERT INTO membership_revocation (subject_id, book_id, recorded_at, effective_at, previous_effective_at, transition)
+         VALUES (?,?,?,?,?,?)`,
+        subjectId, bookId, at, t.effective_at, t.previous_effective_at ?? null, t.reason);
+      return Object.freeze({ ok: true, changed: true, reason: t.reason, effective_at: t.effective_at });
+    });
+  if (!out.authorized) {
     return Object.freeze({
-      ok: false, changed: false, reason: authority.reason,
-      message: `${authority.message} A jogváltoztatáshoz \`alter_right\` hatáskör kell; a jelzés `
+      ok: false, changed: false, reason: out.right.reason,
+      message: `${out.right.message} A jogváltoztatáshoz \`alter_right\` hatáskör kell; a jelzés `
         + 'fogadása (submitClaim) és az érdemi elbírálás (adjudicateClaim) KÜLÖN művelet, külön hatáskörrel.',
     });
   }
-  const nowIso = clock.now();
-  const m = store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', subjectId, bookId);
-  if (!m) return Object.freeze({ ok: false, changed: false, reason: 'no_membership' });
-  const t = revocationTransition(m.revoked_at, nowIso);
-  if (!t.act) return Object.freeze({ ok: true, changed: false, reason: t.reason, effective_at: m.revoked_at ?? null });
-  return withTransaction(store.db, () => {
-    const res = store.run(
-      'UPDATE membership SET revoked_at = ? WHERE subject_id = ? AND book_id = ?',
-      t.effective_at, subjectId, bookId);
-    if (res.changes !== 1) throw new Error('revokeMembership: a megvonás NULLA sort írt — bekötési hiba');
-    store.run(
-      `INSERT INTO membership_revocation (subject_id, book_id, recorded_at, effective_at, previous_effective_at, transition)
-       VALUES (?,?,?,?,?,?)`,
-      subjectId, bookId, nowIso, t.effective_at, t.previous_effective_at ?? null, t.reason);
-    return Object.freeze({ ok: true, changed: true, reason: t.reason, effective_at: t.effective_at });
-  });
+  return out.value;
 }

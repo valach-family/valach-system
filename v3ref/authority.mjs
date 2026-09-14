@@ -20,7 +20,7 @@
 // egy olyan modulból hívjuk (`banScope.mjs`), ami semmit nem importál vissza — a kör megszűnt,
 // nem megkerülve, hanem a függőség IRÁNYÁNAK megfordításával.
 
-import { instantMs } from './store.mjs';
+import { instantMs, withTransaction } from './store.mjs';
 import { banEffectiveAt, banRequestFor } from './banScope.mjs';
 
 export const ADJUDICATION_OPS = Object.freeze(['suspend', 'adjudicate', 'alter_right']);
@@ -127,4 +127,63 @@ export function executableRightAt({ store, subjectId, bookId, operation, nowIso,
     };
   }
   return authorityRowAt({ store, subjectId: who, bookId, operation, nowIso });
+}
+
+// ═══ EFF-01 — A HATÁLYOSULÁS PONTJA: A DÖNTÉS ÉS A RÖGZÍTETT HATÁS EGY IDŐPONTON (R77/F01) ══════
+//
+// A LELET (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL, R77/F01). Mind a három hatáskör-igényes író KÉTSZER
+// olvasta az órát: egyszer a DÖNTÉSHEZ, egyszer a rögzített hatás IDŐBÉLYEGÉHEZ. Mérve: a
+// felhatalmazás 08:00:01-kor megszűnik, az első óraolvasás 08:00:00, a második 08:00:02 — a művelet
+// SIKERES, és az új hatást 08:00:02-es idővel rögzíti. A tárolóban ezután olyan hatás áll, amit a
+// SAJÁT könyvünk szerint a rögzítés pillanatában már senki nem volt jogosult létrehozni.
+//
+// A HIBA OSZTÁLYA: KÉT KÜLÖN TÉNY EGY NÉVEN (KUKA-002 az IDŐ tengelyén). A „mikor döntöttünk" és a
+// „mikor lett a hatás" két külön pillanat volt, és a rekord a MÁSODIKAT viseli, miközben az ELSŐ
+// igazolta. A jog viszont nem áll meg a döntésnél: aki visszavonta, azt a rögzítés ELŐTT vonta
+// vissza. Ez a KUKA-024 (a viszonyt kell mérni, nem az oldalakat): mindkét óraolvasás helyes volt
+// önmagában, a hiba a KETTŐ KÖZTI résben élt, amit forrás-olvasó pin sosem lát.
+//
+// A SZERZŐDÉS, KIMONDVA — KÉT PONT, NEM VÉGTELEN ÚJRAOLVASÁS:
+//   1. BEBOCSÁTÁS (tranzakción kívül): akinek most sincs joga, az be sem lép. Ez nem ugyanaz a tény,
+//      mint a 2. pont (KUKA-124 kérdése: eldöntötte-e már egy korábbi kapu?) — a jog a kettő közt
+//      MEGVÁLTOZHAT, tehát a bebocsátás nem helyettesíti a hatályosulást, és fordítva sem.
+//   2. HATÁLYOSULÁS (a tranzakción BELÜL): EGYETLEN óraolvasás, és UGYANAZ az időpont hordozza a
+//      döntést ÉS a rögzített hatást. Ez a codebase saját, R51/J1-ben megtanult fegyelme
+//      („minden KIADÁS a saját írás-tranzakcióján BELÜL kérdezi meg a mai jogot") — most az ÍRÓ
+//      oldalra is kiterjesztve, mert a szabály a hiba OSZTÁLYÁRA szól, nem arra a rétegre, ahol
+//      először láttuk (KUKA-051).
+//
+// A VISSZAMÉRHETŐ INVARIÁNS (ez a próba mércéje, nem az óra alakja): minden rögzített hatásra igaz,
+// hogy a SAJÁT időbélyegén újraértékelve az eljáró joga fennállt. Ha a hatályosulás tilt, NULLA
+// üzleti mellékhatás marad — a hatás-visszahívás meg sem hívódik.
+//
+// MIÉRT ITT LAKIK. Mind az öt hatáskör-igényes író (`issueBan` · `suspendMembership` ·
+// `liftSuspension` · `adjudicateClaim` · `revokeMembership`) ezt hívja. Ha a szabály öt helyen
+// KELL, akkor nem ötször megírni kell, hanem KÖZÖS OTTHONBA tenni (KUKA-129); a pin pedig ezt a
+// belépési pontot HÍVJA, nem a forrás szövegét olvassa (KUKA-009).
+/**
+ * @param effect  visszahívás — a hatást ÍRÓ rész; megkapja a hatályosulás időpontját (`at`).
+ *                SOHA nem olvashat órát: amit kap, az a hatályosulás pillanata.
+ *
+ * A mező neve `authorized`, nem „megtörtént": ez a feloldó a HATÁSKÖRI döntésről felel, arról nem,
+ * hogy a hatás üzletileg létrejött-e. A `value`-ban a visszahívás saját (akár elutasító) válasza áll
+ * — így a bemeneti hiba nem álcázódik hatásköri hibának, és fordítva sem (KUKA-020).
+ *
+ * @returns {{authorized:true, at:string, right:object, value:*}
+ *          | {authorized:false, at:null, right:{ok:false, reason:string, message:string}, stage:'admission'|'effectuation'}}
+ */
+export function effectuate({ store, clock, subjectId, bookId, operation, credentials }, effect) {
+  // (1) BEBOCSÁTÁS — a mai jog a hívás pillanatában.
+  const admission = executableRightAt({
+    store, subjectId, bookId, operation, nowIso: clock.now(), credentials,
+  });
+  if (!admission.ok) return Object.freeze({ authorized: false, at: null, right: admission, stage: 'admission' });
+
+  // (2) HATÁLYOSULÁS — a tranzakción BELÜL, EGYETLEN óraolvasásból.
+  return withTransaction(store.db, () => {
+    const at = clock.now();
+    const right = executableRightAt({ store, subjectId, bookId, operation, nowIso: at, credentials });
+    if (!right.ok) return Object.freeze({ authorized: false, at: null, right, stage: 'effectuation' });
+    return Object.freeze({ authorized: true, at, right, value: effect({ at, right }) });
+  });
 }

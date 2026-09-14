@@ -198,6 +198,49 @@ export const EXPECTED_PROBES = Object.freeze([
       Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-scope-matrix-matches-the-norm' }),
     ]),
   }),
+  Object.freeze({
+    id: 'P-REV-effectuation', assertion: 'REVN2-effectuation-point-is-explicit',
+    // R77/F01. A külső tárgyaló fél mérte meg, hogy a három hatáskör-igényes író KÉTSZER olvas órát:
+    // a döntés az elsőn, a rögzített hatás időbélyege a másodikon. A javítás EGY nevezett
+    // hatályosulási pont (EFF-01, `authority.mjs` → `effectuate`), és a próba a VISSZAMÉRHETŐ
+    // invariánst méri, nem az óraolvasások számát: minden rögzített hatásra igaz, hogy a SAJÁT
+    // időbélyegén újraértékelve az eljáró joga fennállt. A negyedik út (`revokeMembership`) a saját
+    // kiterjesztésem — a szabály a hiba OSZTÁLYÁRA szól (KUKA-051).
+    //
+    // MELYIK KLAUZULÁT TELJESÍTI — ÉS MELYIKET NEM (KUKA-041 · KUKA-087). A külső fél a javítást „a
+    // REV-N2a/b részeként" kérte, és a SORREND szerint az a KÖVETKEZŐ nagy csomag. A REV-N2a saját
+    // szövege viszont a HATÁLY és a TUDOMÁS KÉT IDŐTENGELYÉRŐL szól, és a `gap`-je nyitva áll: azt
+    // ez a javítás NEM zárja le, és nem is állítjuk, hogy lezárja — a saját söprésem pontosan ezen
+    // bukott ki („egyszerre nevez meg HIÁNYT és van rá bizonyítéka"), és igaza volt.
+    // Amit ez a próba TÉNYLEGESEN bizonyít, az a REV-N3a: a felfüggesztést, a megvonást, az érdemi
+    // elbírálást és a jogváltoztatást CSAK ellenőrzött hatáskörű alany végezheti — a rögzített hatás
+    // pillanatában is, nem csak a kérés beérkezésekor.
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N3a', assertion: 'A-REV-N3a-effect-time-is-the-decision-time' }),
+      Object.freeze({ clause: 'REV-N3a', assertion: 'A-REV-N3a-denied-write-has-no-side-effect' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'P-REV-ban-record-shape', assertion: 'REVN5-malformed-stored-scope-fails-closed',
+    // R77/F03. A tárolt `"own_book"` cél ÜRES könyv-tengelyét a feloldó „másik könyvnek" vette,
+    // és TOVÁBBENGEDTE a kérést: egy érvénytelen tiltás úgy viselkedett, mint egy érvényes, de más
+    // könyvre szóló. A javítás a rekord-integritás NEGYEDIK, nevezett ága, EGY feloldóból
+    // (`operationScopeProblem`), amit a `banRecordIntegrity` és a `banReaches` is hív (KUKA-039).
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-malformed-stored-scope-is-fail-closed' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'P-REV-result-scope', assertion: 'REVN5-result-scope-is-declared-not-claimed',
+    // R77/F02. A `data_scope` tiltás egy CÍMKÉRE hatott, amit a kérés hozott magával: az `arak`-ra
+    // tiltott olvasó `dataScope: 'keszlet'` kontextussal EGÉSZBEN megkapta a `{qty, unit_price}`
+    // eredményt. A javítás (DSC-01) a KIADANDÓ TARTALOM adatköreit méri a TÍPUS deklarációjából, és
+    // a vegyes eredményt egészben tagadja meg; a hiányzó besorolás KÜLÖN, fail-closed válasz.
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-result-scope-comes-from-declaration' }),
+      Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-undeclared-result-scope-is-fail-closed' }),
+    ]),
+  }),
 ]);
 
 export const EXPECTED_IDS = Object.freeze(EXPECTED_PROBES.map((p) => p.id));

@@ -31,6 +31,67 @@
 /** A programok — KI ÍRTA, MIT MÉR, és PONTOSAN MELY ESETEKET kell hoznia. */
 export const PROGRAMS = Object.freeze([
   Object.freeze({
+    id: 'r77',
+    file: 'r77_chatgpt-v3.mjs',
+    companions: Object.freeze(['r77_chatgpt-v3.core.mjs']),
+    by: 'chatgpt-v3 — KÜLSŐ, független fél',
+    origin: 'R77 §8 (a MAG-próba: a `r77_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN — egyetlen '
+      + 'karaktert sem írtunk át benne, a behúzási útvonalakat sem: a futtató ugyanazt a '
+      + '`source/v3ref/` elrendezést állítja elő, amit az ő csomagjuk feltételez). '
+      + 'TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI (R76-os) forráson '
+      + '34 PASS / 5 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson 39 PASS / 0 FAIL.',
+    what: '34 útvonal-eset a TÉNYLEGES felfüggesztő/feloldó belépési pontokon (hét tiltás-fajta × '
+      + 'érintett/másik cél × egyező/másik/hiányzó kontextus) + három lelet-család öt esettel: '
+      + 'F01 — lejárt felhatalmazással rögzített hatás a kiadás · felfüggesztés · feloldás úton · '
+      + 'F02 — a készlet-adatkör címkéjével az ármező is kijön · F03 — a szerkezetileg hibás tárolt '
+      + 'műveleti hatókör „másik könyvként" továbbengedi a kérést. A program a tiltás-mátrixot is '
+      + 'lefuttatja (66 sor · 51 egyedi végrehajtott bemenet · 0 eltérés).',
+    evidence: 'r77-core-challenge.json',
+    cases: Object.freeze([
+      'M-suspend-book-matching',
+      'M-suspend-book-other',
+      'M-suspend-operation-matching',
+      'M-suspend-operation-other',
+      'M-suspend-subject-matching',
+      'M-suspend-credential-matching',
+      'M-suspend-credential-other',
+      'M-suspend-credential-absent',
+      'M-suspend-session-matching',
+      'M-suspend-session-other',
+      'M-suspend-session-absent',
+      'M-suspend-legal_basis-matching',
+      'M-suspend-legal_basis-other',
+      'M-suspend-legal_basis-absent',
+      'M-suspend-data_scope-matching',
+      'M-suspend-data_scope-other',
+      'M-suspend-data_scope-absent',
+      'M-lift-book-matching',
+      'M-lift-book-other',
+      'M-lift-operation-matching',
+      'M-lift-operation-other',
+      'M-lift-subject-matching',
+      'M-lift-credential-matching',
+      'M-lift-credential-other',
+      'M-lift-credential-absent',
+      'M-lift-session-matching',
+      'M-lift-session-other',
+      'M-lift-session-absent',
+      'M-lift-legal_basis-matching',
+      'M-lift-legal_basis-other',
+      'M-lift-legal_basis-absent',
+      'M-lift-data_scope-matching',
+      'M-lift-data_scope-other',
+      'M-lift-data_scope-absent',
+      'F01-issue-authority-expired-at-write',
+      'F01-suspend-authority-expired-at-write',
+      'F01-lift-authority-expired-at-write',
+      'F02-data-scope-context-does-not-filter-price-result',
+      'F03-malformed-operation-scope-is-undecidable',
+    ]),
+    cases_source: 'a külső fél R77-es lapja (§8, teljes forrással)',
+    evidence_pin_field: 'source_commit',
+  }),
+  Object.freeze({
     id: 'r75',
     file: 'r75_chatgpt-v3.mjs',
     companions: Object.freeze(['r75_chatgpt-v3.core.mjs']),

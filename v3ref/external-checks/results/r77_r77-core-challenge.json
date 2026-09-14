@@ -1,0 +1,533 @@
+{
+  "program": "r77_chatgpt-v3.core.mjs",
+  "source_commit": "103e994c0b2464960081a02b3a7ca4983bcda640+uncommitted",
+  "node": "v22.22.2",
+  "at": "2026-09-14T11:41:10.630Z",
+  "verbatim": true,
+  "scope": "actual reference entry points, real isolated SQLite; contextual kinds assume supplied trusted context; disclosure and expiry probes expose integration limits",
+  "results": [
+    {
+      "id": "M-suspend-book-matching",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-book-other",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-operation-matching",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-operation-other",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-subject-matching",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-credential-matching",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-credential-other",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-credential-absent",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-session-matching",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-session-other",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-session-absent",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-legal_basis-matching",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-legal_basis-other",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-legal_basis-absent",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-data_scope-matching",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-data_scope-other",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-data_scope-absent",
+      "pass": true
+    },
+    {
+      "id": "M-lift-book-matching",
+      "pass": true
+    },
+    {
+      "id": "M-lift-book-other",
+      "pass": true
+    },
+    {
+      "id": "M-lift-operation-matching",
+      "pass": true
+    },
+    {
+      "id": "M-lift-operation-other",
+      "pass": true
+    },
+    {
+      "id": "M-lift-subject-matching",
+      "pass": true
+    },
+    {
+      "id": "M-lift-credential-matching",
+      "pass": true
+    },
+    {
+      "id": "M-lift-credential-other",
+      "pass": true
+    },
+    {
+      "id": "M-lift-credential-absent",
+      "pass": true
+    },
+    {
+      "id": "M-lift-session-matching",
+      "pass": true
+    },
+    {
+      "id": "M-lift-session-other",
+      "pass": true
+    },
+    {
+      "id": "M-lift-session-absent",
+      "pass": true
+    },
+    {
+      "id": "M-lift-legal_basis-matching",
+      "pass": true
+    },
+    {
+      "id": "M-lift-legal_basis-other",
+      "pass": true
+    },
+    {
+      "id": "M-lift-legal_basis-absent",
+      "pass": true
+    },
+    {
+      "id": "M-lift-data_scope-matching",
+      "pass": true
+    },
+    {
+      "id": "M-lift-data_scope-other",
+      "pass": true
+    },
+    {
+      "id": "M-lift-data_scope-absent",
+      "pass": true
+    },
+    {
+      "id": "F01-issue-authority-expired-at-write",
+      "pass": true
+    },
+    {
+      "id": "F01-suspend-authority-expired-at-write",
+      "pass": true
+    },
+    {
+      "id": "F01-lift-authority-expired-at-write",
+      "pass": true
+    },
+    {
+      "id": "F02-data-scope-context-does-not-filter-price-result",
+      "pass": true
+    },
+    {
+      "id": "F03-malformed-operation-scope-is-undecidable",
+      "pass": true
+    }
+  ],
+  "passed": 39,
+  "failed": 0,
+  "matrix": {
+    "rows": 66,
+    "counts": {
+      "blocked": 19,
+      "open": 20,
+      "n/a": 3,
+      "undecidable": 24
+    },
+    "uniqueExecutedInputs": 51,
+    "mismatches": 0
+  },
+  "cases": [
+    {
+      "id": "M-suspend-book-matching",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-suspend-book-matching",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-suspend-book-other",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-suspend-book-other",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-suspend-operation-matching",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-suspend-operation-matching",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-suspend-operation-other",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-suspend-operation-other",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-suspend-subject-matching",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-suspend-subject-matching",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-suspend-credential-matching",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-suspend-credential-matching",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-suspend-credential-other",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-suspend-credential-other",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-suspend-credential-absent",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-suspend-credential-absent",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-suspend-session-matching",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-suspend-session-matching",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-suspend-session-other",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-suspend-session-other",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-suspend-session-absent",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-suspend-session-absent",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-suspend-legal_basis-matching",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-suspend-legal_basis-matching",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-suspend-legal_basis-other",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-suspend-legal_basis-other",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-suspend-legal_basis-absent",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-suspend-legal_basis-absent",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-suspend-data_scope-matching",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-suspend-data_scope-matching",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-suspend-data_scope-other",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-suspend-data_scope-other",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-suspend-data_scope-absent",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-suspend-data_scope-absent",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-lift-book-matching",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-lift-book-matching",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-lift-book-other",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-lift-book-other",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-lift-operation-matching",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-lift-operation-matching",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-lift-operation-other",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-lift-operation-other",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-lift-subject-matching",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-lift-subject-matching",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-lift-credential-matching",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-lift-credential-matching",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-lift-credential-other",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-lift-credential-other",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-lift-credential-absent",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-lift-credential-absent",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-lift-session-matching",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-lift-session-matching",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-lift-session-other",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-lift-session-other",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-lift-session-absent",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-lift-session-absent",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-lift-legal_basis-matching",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-lift-legal_basis-matching",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-lift-legal_basis-other",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-lift-legal_basis-other",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-lift-legal_basis-absent",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-lift-legal_basis-absent",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-lift-data_scope-matching",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-lift-data_scope-matching",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-lift-data_scope-other",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-lift-data_scope-other",
+        "pass": true
+      }
+    },
+    {
+      "id": "M-lift-data_scope-absent",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "M-lift-data_scope-absent",
+        "pass": true
+      }
+    },
+    {
+      "id": "F01-issue-authority-expired-at-write",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "F01-issue-authority-expired-at-write",
+        "pass": true
+      }
+    },
+    {
+      "id": "F01-suspend-authority-expired-at-write",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "F01-suspend-authority-expired-at-write",
+        "pass": true
+      }
+    },
+    {
+      "id": "F01-lift-authority-expired-at-write",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "F01-lift-authority-expired-at-write",
+        "pass": true
+      }
+    },
+    {
+      "id": "F02-data-scope-context-does-not-filter-price-result",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "F02-data-scope-context-does-not-filter-price-result",
+        "pass": true
+      }
+    },
+    {
+      "id": "F03-malformed-operation-scope-is-undecidable",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "F03-malformed-operation-scope-is-undecidable",
+        "pass": true
+      }
+    }
+  ],
+  "cases_mapped_from": "results (a burkoló képezte, a program szövege érintetlen)"
+}

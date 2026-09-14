@@ -27,7 +27,7 @@ import { suspensionEffectiveAt } from './suspension.mjs';
 // engedő úton hatnia kell — ha ez a behúzás hiányozna, a hatásköri út csendben nyitva maradna, és a
 // tiltás bevezetésének HELYE szűkítené a hatását (a fél őr — KUKA-039).
 import { banEffectiveAt, banRequestFor } from './ban.mjs';
-import { executableRightAt } from './authority.mjs';
+import { executableRightAt, effectuate } from './authority.mjs';
 
 // R75/F05 (D-VS-3021) — A HITELESÍTETT KONTEXTUS MIND A NÉGY HATÁSKÖRI BELÉPÉSI PONTON VÉGIGMEGY.
 // A LELET: a `credentials` a `readClaim` · `adjudicateClaim` · `suspendMembership` ·
@@ -304,22 +304,29 @@ export function adjudicateClaim({ store, actorSubjectId, claimId, decision, cloc
   // MOSTANTÓL mind a négy eset UGYANAZT az objektumot kapja: nincs ügy · nincs hatáskör · MÁS könyvre
   // van hatásköre · visszavont hatáskör. A pozitív ellenpár változatlan: az illetékes elbíráló dolgozhat.
   if (!row) return CLAIM_NOT_AVAILABLE;
-  const right = adjudicationRightAt({
-    store, subjectId: actorSubjectId, bookId: row.book_id, operation: 'adjudicate', clock, credentials });
-  if (!right.allowed) return CLAIM_NOT_AVAILABLE;
+  // R77/F01 (SAJÁT KITERJESZTÉS — a külső fél a három idő-rögzítő utat nevezte meg; ez a NEGYEDIK
+  // hatáskör-igényes ÍRÓ, ugyanabban a hibaosztályban: a döntés a saját írásának atomi határán
+  // KÍVÜL állt. Időbélyeget nem rögzít, ezért a „lejárt joggal bélyegzett hatás" alakja itt nem
+  // jelenik meg — de a szabály a hiba OSZTÁLYÁRA szól, nem arra a rétegre, ahol először láttuk,
+  // és egy ÚJ időbélyeg felvétele holnap némán visszahozná a rést (KUKA-051 · KUKA-013).
+  const out = effectuate(
+    { store, clock, subjectId: actorSubjectId, bookId: row.book_id, operation: 'adjudicate', credentials },
+    () => {
+      // R69/C-F01 + C-F02: AMIRŐL DÖNTÜNK, AZT LÁTNI KELL. A hatáskör UTÁN (és csak utána — a sorrend a
+      // CLM-01 szabálya) ugyanaz a nevezett feloldó mondja ki a beadvány állapotát, amit az olvasás hív.
+      // Sérült vagy hiányzó tartalom mellett NINCS érdemi döntés, és — mert a válasz előtt semmit nem
+      // írtunk — az ügy állapota VÁLTOZATLAN marad.
+      const evidence = claimEvidenceAt({ store, claimRow: row });
+      if (!evidence.intact) {
+        return Object.freeze({ ok: false, error: evidence.error, message: evidence.message });
+      }
 
-  // R69/C-F01 + C-F02: AMIRŐL DÖNTÜNK, AZT LÁTNI KELL. A hatáskör UTÁN (és csak utána — a sorrend a
-  // CLM-01 szabálya) ugyanaz a nevezett feloldó mondja ki a beadvány állapotát, amit az olvasás hív.
-  // Sérült vagy hiányzó tartalom mellett NINCS érdemi döntés, és — mert a válasz előtt semmit nem
-  // írtunk — az ügy állapota VÁLTOZATLAN marad.
-  const evidence = claimEvidenceAt({ store, claimRow: row });
-  if (!evidence.intact) {
-    return Object.freeze({ ok: false, error: evidence.error, message: evidence.message });
-  }
-
-  const state = decision === 'resolve' ? 'resolved' : 'under_review';
-  store.run('UPDATE claim SET state = ? WHERE id = ?', state, claimId);
-  return Object.freeze({ ok: true, state, changed_rights: false });
+      const state = decision === 'resolve' ? 'resolved' : 'under_review';
+      store.run('UPDATE claim SET state = ? WHERE id = ?', state, claimId);
+      return Object.freeze({ ok: true, state, changed_rights: false });
+    });
+  if (!out.authorized) return CLAIM_NOT_AVAILABLE;
+  return out.value;
 }
 
 /**
@@ -327,29 +334,34 @@ export function adjudicateClaim({ store, actorSubjectId, claimId, decision, cloc
  * a megvonás; a `suspend` hatáskör SOHA nem ad `alter_right`-ot.
  */
 export function suspendMembership({ store, actorSubjectId, subjectId, bookId, clock, reason, credentials }) {
-  const right = adjudicationRightAt({
-    store, subjectId: actorSubjectId, bookId, operation: 'suspend', clock, credentials });
-  if (!right.allowed) return Object.freeze({ ok: false, reason: right.reason, message: right.message });
-  const m = store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', subjectId, bookId);
-  if (!m) return Object.freeze({ ok: false, reason: 'no_membership' });
+  // R77/F01 — A DÖNTÉS ÉS A RÖGZÍTETT HATÁS EGY IDŐPONTON (EFF-01). Korábban a hatáskör a hívás
+  // pillanatában dőlt el, a `suspended_at` viszont egy KÉSŐBBI óraolvasásból jött: lejárt
+  // felhatalmazással is született felfüggesztés-sor.
+  const out = effectuate(
+    { store, clock, subjectId: actorSubjectId, bookId, operation: 'suspend', credentials },
+    ({ at }) => {
+      const m = store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', subjectId, bookId);
+      if (!m) return Object.freeze({ ok: false, reason: 'no_membership' });
 
-  const at = clock.now();
-  // R67/F01: A SIKER-JELENTÉS NEM HATÁS. Korábban itt `ok:true, suspended:true` állt ÍRÁS NÉLKÜL:
-  // a válasz azt mondta, hogy felfüggesztve, a `rightAt` pedig továbbra is engedett. A tény ezért
-  // TARTÓSAN rögzül, és a hatályt ugyanaz a nevezett feloldó mondja ki, amit a `rightAt` hív.
-  const already = suspensionEffectiveAt({ store, subjectId, bookId, nowIso: at });
-  if (already.suspended) {
-    // Az idempotencia-őr csak az AZONOS tényt nyelheti el (KUKA-074): itt tényleg ugyanaz áll fenn.
-    return Object.freeze({ ok: true, suspended: true, at, already_suspended: true, since: already.since || null });
-  }
-  const res = store.run(
-    `INSERT INTO membership_suspension (subject_id, book_id, actor_subject_id, suspended_at, lifted_at, lifted_by, reason)
-     VALUES (?,?,?,?,NULL,NULL,?)`,
-    subjectId, bookId, actorSubjectId, at, reason == null ? null : String(reason));
-  return Object.freeze({
-    ok: true, suspended: true, at, already_suspended: false,
-    suspension_id: Number(res.lastInsertRowid),
-  });
+      // R67/F01: A SIKER-JELENTÉS NEM HATÁS. Korábban itt `ok:true, suspended:true` állt ÍRÁS NÉLKÜL:
+      // a válasz azt mondta, hogy felfüggesztve, a `rightAt` pedig továbbra is engedett. A tény ezért
+      // TARTÓSAN rögzül, és a hatályt ugyanaz a nevezett feloldó mondja ki, amit a `rightAt` hív.
+      const already = suspensionEffectiveAt({ store, subjectId, bookId, nowIso: at });
+      if (already.suspended) {
+        // Az idempotencia-őr csak az AZONOS tényt nyelheti el (KUKA-074): itt tényleg ugyanaz áll fenn.
+        return Object.freeze({ ok: true, suspended: true, at, already_suspended: true, since: already.since || null });
+      }
+      const res = store.run(
+        `INSERT INTO membership_suspension (subject_id, book_id, actor_subject_id, suspended_at, lifted_at, lifted_by, reason)
+         VALUES (?,?,?,?,NULL,NULL,?)`,
+        subjectId, bookId, actorSubjectId, at, reason == null ? null : String(reason));
+      return Object.freeze({
+        ok: true, suspended: true, at, already_suspended: false,
+        suspension_id: Number(res.lastInsertRowid),
+      });
+    });
+  if (!out.authorized) return Object.freeze({ ok: false, reason: out.right.reason, message: out.right.message });
+  return out.value;
 }
 
 /**
@@ -364,13 +376,16 @@ export function suspendMembership({ store, actorSubjectId, subjectId, bookId, cl
  * `lifted_at`/`lifted_by` kap, tehát a felfüggesztés ideje a történetben megmarad (K09 elve).
  */
 export function liftSuspension({ store, actorSubjectId, subjectId, bookId, clock, credentials }) {
-  const right = adjudicationRightAt({
-    store, subjectId: actorSubjectId, bookId, operation: 'suspend', clock, credentials });
-  if (!right.allowed) return Object.freeze({ ok: false, reason: right.reason, message: right.message });
-  const at = clock.now();
-  const eff = suspensionEffectiveAt({ store, subjectId, bookId, nowIso: at });
-  if (!eff.suspended) return Object.freeze({ ok: false, reason: 'not_suspended' });
-  store.run('UPDATE membership_suspension SET lifted_at = ?, lifted_by = ? WHERE id = ?',
-    at, actorSubjectId, eff.id);
-  return Object.freeze({ ok: true, lifted: true, at, suspension_id: eff.id });
+  // R77/F01 — EFF-01: a `lifted_at` az az időpont, amelyen a hatáskört MÉRTÜK, a tranzakción belül.
+  const out = effectuate(
+    { store, clock, subjectId: actorSubjectId, bookId, operation: 'suspend', credentials },
+    ({ at }) => {
+      const eff = suspensionEffectiveAt({ store, subjectId, bookId, nowIso: at });
+      if (!eff.suspended) return Object.freeze({ ok: false, reason: 'not_suspended' });
+      store.run('UPDATE membership_suspension SET lifted_at = ?, lifted_by = ? WHERE id = ?',
+        at, actorSubjectId, eff.id);
+      return Object.freeze({ ok: true, lifted: true, at, suspension_id: eff.id });
+    });
+  if (!out.authorized) return Object.freeze({ ok: false, reason: out.right.reason, message: out.right.message });
+  return out.value;
 }

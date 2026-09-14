@@ -16,6 +16,93 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3022 — A HATÁLYOSULÁS PONTJA, A KIADOTT TARTALOM ADATKÖRE ÉS A SÉRÜLT TÁROLT HATÓKÖR (R77/F01…F03)
+
+> **Hatály:** V3 — a V3 magreferencia (`v3ref/`) hatáskör-, tiltás- és kiadás-modellje. A V2 kódját
+> nem köti; a V2 fejlesztő átlépheti. A tanulságok (KUKA-141…144) viszont fogalmi szintűek, tehát a
+> V2-ben is érdemes rájuk nézni, ha hasonló alak születik.
+
+**A külső tárgyaló fél (chatgpt-v3) HÁROM leletet adott a SAJÁT, egy körrel korábbi (R75-ös)
+javításomon**, futtatható programmal. Reprodukció a VÁLTOZATLAN kódon: az ő `r77` programja
+**34 PASS / 5 FAIL** — pontosan az általuk közölt kép. A javított kódon **39 PASS / 0 FAIL**, és
+**TESZTADAPTÁCIÓ NEM TÖRTÉNT**: a programjuk szövegéből egyetlen karaktert sem írtunk át, a
+behúzási útvonalait sem — a fájl a repóban bájtazonos azzal, ami a lapjukon megérkezett
+(`v3ref/external-checks/r77_chatgpt-v3.core.mjs`).
+
+· **F01 — A DÖNTÉS ÉS A RÖGZÍTETT HATÁS KÉT KÜLÖN IDŐPONTON ÁLLT.** Mind a három hatáskör-igényes
+író KÉTSZER olvasott órát: egyszer a DÖNTÉSHEZ, egyszer a rögzített hatás időbélyegéhez. Mérve: a
+felhatalmazás 08:00:01-kor megszűnik, az első olvasás 08:00:00, a második 08:00:02 — a művelet
+SIKERES, és a hatást 08:00:02-es idővel rögzíti. A tárolóban onnantól olyan hatás áll, amit a SAJÁT
+könyvünk szerint a rögzítés pillanatában már senki nem volt jogosult létrehozni. Javítás:
+**EFF-01 / `effectuate`** (`v3ref/authority.mjs`) — BEBOCSÁTÁS a hívás pillanatában (a mai jog),
+**HATÁLYOSULÁS a tranzakción BELÜL, EGYETLEN óraolvasásból**: ugyanaz az időpont hordozza a döntést
+ÉS a hatást, a hatás-visszahívás pedig soha nem olvas órát; tiltáskor NULLA mellékhatás.
+**A SAJÁT, OSZTÁLY-SZINTŰ ÁTVIZSGÁLÁSOM KÉT TOVÁBBI UTAT TALÁLT** ugyanebben, amit ők nem neveztek
+meg: a **megvonás-napló** (`authz.mjs` → `revokeMembership`) és az **elbírálás**
+(`adjudication.mjs` → `adjudicateClaim`). Öt út áll ma egy hatályosulási ponton. (KUKA-141)
+
+· **F02 — A TILTÁS EGY CÍMKÉRE HATOTT, NEM AZ ADATRA.** A `{qty, unit_price}` parancs-eredményt az
+`arak` adatkörre TILTOTT olvasó `dataScope: 'arak'` kontextussal helyesen nem kapta meg,
+`dataScope: 'keszlet'` kontextussal viszont EGÉSZBEN megkapta, az ármezővel együtt: a kimenő
+TARTALOMHOZ semmi nem volt kötve, a kérő SAJÁT CÍMKÉJE döntött. Javítás: **DSC-01 /
+`resultScope.mjs`** — a parancs TÍPUSA (+verziója) deklarálja, melyik mező melyik adatkörbe esik; a
+kiadás a KIADANDÓ TARTALOM adatköreit MÉRI ebből, és mindegyikre KÜLÖN kérdez; a kérés `dataScope`
+tengelyét a MÉRT érték írja felül. Vegyes eredmény alapból EGÉSZBEN megtagadva (mezővetítés ma
+nincs — **kimondva**, nem elfelejtve); a hiányzó besorolás KÜLÖN, fail-closed válasz: a BEADÁSNÁL
+nevezett mondattal (saját bemenet), a KIADÁSNÁL némán, a nem létező eredmény válaszával
+(KUKA-084). (KUKA-142)
+
+· **F03 — A SZERKEZETILEG HIBÁS TÁROLT HATÓKÖR „MÁSIK KÖNYVNEK" MINŐSÜLT.** A tárolt művelet-cél
+ÜRES könyv-tengelyét (elválasztó, előtte semmi) a feloldó szabályos alaknak vette, a kérés
+könyvéhez hasonlította, nem egyezett — és `ban_other_bookId` címen TOVÁBBENGEDTE a kérést: az
+érvénytelen tiltás úgy viselkedett, mint egy érvényes, de más könyvre szóló. Javítás: **OPS-01 /
+`operationScopeProblem`** — a normalizáló HÁROM választ adhat, nem kettőt („érintett" ·
+„bizonyítottan MÁS" · „ez a rekord nem értelmezhető"), és a harmadik a rekord-integritás kapujában
+dől el, a hatókör-értékelés ELŐTT (R75/F04 helye). MINDKÉT fogyasztó ugyanazt a feloldót hívja
+(`banRecordIntegrity` · `banReaches` — KUKA-039); a hiányzó cél megtartja a saját, pontosabb nevét
+(`ban_target_missing`), a két JOGOS alak érintetlen marad (KUKA-049). (KUKA-143)
+
+**A NEGYEDIK LELET A SAJÁT MÉRŐMŰSZEREMBEN VOLT — és a saját battériám találta meg.** A magreferencia
+futtatója `--json` módban `process.exit(1)`-gyel zárt, a mutációs battéria viszont `spawnSync`-kel
+hívja, tehát a kimenet CSŐRE megy: a `process.exit()` a még ki nem írt bájtokat ELVÁGJA. Amíg a
+jelentés elfért egy írás-adagban, semmi nem látszott; a három új próbával a JSON ~141 kB fölé nőtt, és
+**76-ból 57 mutáció „értelmezhetetlen JSON" címen MÉRŐHIBÁRA futott** — miközben a próba-futás végig
+zöld volt. A mérő-eszköz a SAJÁT NÖVEKEDÉSÉTŐL romlott el. Javítás: `process.exitCode` + természetes
+kifutás, korai megálláshoz címkézett blokk. **Jó hír, kimondva:** a csonka kimenet NEM zöldnek
+látszott, hanem nevezett MÉRŐHIBÁNAK — a bizonyíték-szerződés (R59/F01) itt tartott. (KUKA-144)
+
+**KÉT PONTOSÍTÁS, AMIT ŐK KÉRTEK — elfogadva.**
+
+1. **A mátrix SOR ≠ EGYEDI BEMENET.** Az R76-os lapom „66 cellát" mondott, ami sort jelent, nem
+   egyedi mérési pontot. A mérés most maga írja ki a bontást, nem a szerző kezével számolva
+   (KUKA-082): **66 sor · 3 nem értelmezhető · 63 végrehajtott = 51 EGYEDI bemenet + 12 ismétlődő ·
+   0 eltérés · lefedetlen fajta: nincs**. Az ismétlődés nem hiba (ugyanaz a bemenet két úton is
+   megjelenik), de attól még nem 66 független mérés — ezt a lap innentől kimondja.
+2. **A KUKA-139 tanulsága SZŰKÍTVE.** Az eredeti szöveg általánosabbat állított, mint amit a lelet
+   igazol: nem minden fixtúrás próba gyanús, hanem az, amelyik a MUTÁLT KÓDSORT nem futtatja le. A
+   bejegyzés mostantól ezt mondja, és a nevezett ellenpárt (fixtúra a hatásra + VALÓDI kiadás a
+   viselkedésre) is.
+
+**AZ IDŐ-TARTALÉK — a javítás nem a költségvetés megemelése volt.** A három új próbával a battéria
+falióra-ideje a saját költségvetés fölé ment (12,3–13,0 s a 12 000 ms-os kereten). A költségvetést
+NEM emeltük meg (az a mérce meghamisítása lenne — KUKA-091 · KUKA-140): a próba-tárolók száma
+16 → 8, a mátrix-világok ~27 → 7. **Mért falióra ma: 11 870 ms** — a külső fél 15 000 ms-os
+korlátjának **79%-a**, a saját 12 000 ms-os keretünkön belül.
+
+**MÉRT VÉGÁLLAPOT (ebben a körben, ebben a repóban):** próbák **39/39 PASS** · mutációk
+**85/85 ÉSZLELT** (0 túlélő · 0 rossz elkapó · 0 mérőhiba · 0 elavult horgony) · hazugság-próbák
+**8/8 védve** · kötelező bizonyíték **9/9** · külső programok **9/9 MEGFELEL** · `verify:kuka`
+**307/307** · söprés **8 zöld / 0 env-kihagyás / 0 piros**.
+
+**AMI NYITVA MARAD, KIMONDVA.** A REV-N2a klauzula (a HATÁLY ideje és a TUDOMÁS ideje mint két külön
+tengely) továbbra is NYITOTT, bizonyíték nélkül — a hatályosulási pont (EFF-01) ezt **nem** oldja
+meg, csak a döntés és a hatás EGYIDEJŰSÉGÉT. Ezért a P-REV-effectuation próba a REV-N3a klauzulához
+van kötve, nem a REV-N2a-hoz: egy klauzula nem mondhatja egyszerre, hogy hiányos, és hogy van rá
+bizonyítéka. A mezőnkénti kiadás (részleges eredmény-vetítés) sincs megépítve — ma a vegyes eredmény
+EGÉSZBEN tagadva.
+
+---
+
 ## D-VS-3021 — A KIADÁS IS ENGEDŐ ÚT: a tiltás teljes döntése, a tárolt hatókör és a mátrix (R75/F01…F05)
 
 > **Hatály:** V3 — a V3 magreferencia (`v3ref/`) tiltás-modellje. A V2 kódját nem köti; a V2 fejlesztő

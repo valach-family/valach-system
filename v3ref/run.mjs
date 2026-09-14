@@ -20,7 +20,9 @@ import { ADJUDICATION_OPS, adjudicationRightAt, grantAdjudicationAuthority, subm
   adjudicateClaim, suspendMembership, liftSuspension, intakeKeyOf, UNATTRIBUTED_INTAKE_KEY,
   NEUTRAL_CLAIM_ACK, CLAIM_NOT_AVAILABLE, CLAIM_RATE } from './adjudication.mjs';
 import { suspensionEffectiveAt } from './suspension.mjs';
-import { issueBan, imposeBan, banEffectiveAt, banReaches, kindForCause, KNOWN_BAN_KINDS, KNOWN_BAN_CAUSES, operationScopeRef } from './ban.mjs';
+import { issueBan, imposeBan, banEffectiveAt, banReaches, kindForCause, KNOWN_BAN_KINDS, KNOWN_BAN_CAUSES, operationScopeRef, operationScopeProblem } from './ban.mjs';
+import { executableRightAt } from './authority.mjs';
+import { resultScopesOf, KNOWN_DATA_SCOPES } from './resultScope.mjs';
 import { banMatrix } from './banMatrix.mjs';
 import { submitCommand, readCommandResult, commandRef, canonicalize, CanonError, recordCommandEvent, releasedFieldPaths } from './command.mjs';
 
@@ -2697,7 +2699,11 @@ probe('P-REV-ban-matrix', 'R73 · R75 §8 · REV-N5a · REV-N5b · K09 · K15 ·
       expected: 'a mátrix MINDEN cellája a normát adja · MINDEN ismert tiltás-fajtának van cellája · '
         + 'mind a három engedő út szerepel (a KIADÁS is) · és minden fajtánál van ZÁRÓ és NYITOTT '
         + 'cella is (az alany-szintű a nevezett kivétel)',
-      actual: `${m.cells.length} cella · eltérés=${m.mismatches.length} · lefedetlen fajta=`
+      // A SOR ÉS AZ EGYEDI BEMENET KÜLÖN NEVEZVE (R77 §3) — a számokat a MÉRÉS adja, nem a lap
+      // számolja (KUKA-082), és a jelentés így nem nevezheti 66 független forgatókönyvnek.
+      actual: `${m.rows} SOR (ebből ${m.not_applicable_rows} nem értelmezhető, `
+        + `${m.executed_rows} végrehajtott = ${m.unique_executed_inputs} EGYEDI bemenet + `
+        + `${m.repeated_rows} ismétlődő) · eltérés=${m.mismatches.length} · lefedetlen fajta=`
         + `${m.missing_kinds.length ? m.missing_kinds.join(',') : 'nincs'} · utak=${[...paths].join(',')} · `
         + `ZÁR=${blocked} · NYITVA=${open} · NEM DÖNTHETŐ=${undec} · kétirányú minden fajtán=${dOk}`,
       pass,
@@ -2706,6 +2712,297 @@ probe('P-REV-ban-matrix', 'R73 · R75 §8 · REV-N5a · REV-N5b · K09 · K15 ·
         'A-REV-N5b-scope-matrix-matches-the-norm': aOk && dOk,
       },
     };
+  });
+
+probe('P-REV-effectuation', 'R77/F01 · REV-N3a · REV-N2a(NEM zárva) · K04 · K09 · KUKA-002 · KUKA-024 · KUKA-051',
+  'A HATÁLYOSULÁS PONTJA: a döntés és a RÖGZÍTETT HATÁS ugyanazon az időponton áll (EFF-01)',
+  () => {
+    // A LELET (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL, R77/F01). Mind a három megnevezett író KÉTSZER
+    // olvasott órát; a második (későbbi) érték került a rekordba, miközben a jog az ELSŐN dőlt el.
+    //
+    // AMIT EZ A PRÓBA MÉR, ÉS AMIT SZÁNDÉKOSAN NEM. Nem az óraolvasások SZÁMÁT méri — az a
+    // megvalósítás alakja, nem a szerződés (KUKA-009). A mérce a VISSZAMÉRHETŐ INVARIÁNS: ha egy
+    // hatás rögzült, akkor a SAJÁT időbélyegén újraértékelve az eljáró joga fennállt. Ez az óra
+    // alakjától független, és pontosan azt a kárt fogja meg, amit a külső fél leírt: a tárolóban
+    // ne állhasson olyan hatás, amit a rögzítése pillanatában senki nem volt jogosult létrehozni.
+    const T0 = '2026-09-14T08:00:00.000Z';
+    const CUT = '2026-09-14T08:00:01.000Z';
+    const T2 = '2026-09-14T08:00:02.000Z';
+    const DRIFT_CUT = '2026-09-14T08:00:03.000Z';
+    const T4 = '2026-09-14T08:00:04.000Z';
+
+    // Az ELŐREHALADÓ óra a külső fél alakja: az első olvasás a határ ELŐTT, a többi UTÁNA. Ez az
+    // egyetlen olyan alak, amiben a „döntés" és az „írás" ideje el TUD térni (KUKA-046 az idő
+    // tengelyén: két helyes hívás rossz sorrendben is hiba).
+    const advancing = () => { let n = 0; return { now: () => (++n === 1 ? T0 : T2) }; };
+    const still = () => ({ now: () => T0 });
+    // A SODRÓDÓ óra HÁROM KÜLÖNBÖZŐ értéket ad: bebocsátás · hatályosulás · „bármi, ami utána jön".
+    // Erre azért van szükség, mert a kétértékű órán a „friss óraolvasás a bélyeghez" alak
+    // EGYENÉRTÉKŰ a helyessel — és az egyenértékű mutáció túlélése semmit nem bizonyít (KUKA-139,
+    // a külső fél R77 §7 szűkítése). A megvonást a 2. és a 3. olvasás KÖZÉ tesszük: így a helyes
+    // bélyeg (2. olvasás) jogos, egy KÉSŐBBI olvasásból származó bélyeg viszont már nem.
+    const drifting = () => { let n = 0; return { now: () => { n += 1; return n === 1 ? T0 : (n === 2 ? T2 : T4); } }; };
+
+    // EGY TÁROLÓ, TÖBB MÉRÉS — ahol a mérések NEM ÍRNAK. A tiltó ágak (b) és (c) definíció szerint
+    // nulla üzleti mellékhatással zárulnak, tehát nyugodtan osztozhatnak a világon: a megvonás
+    // idejét közben átállítjuk. A mérő költségét a SAJÁT költségvetése köti (KUKA-140) — a
+    // takarékosság itt nem gyengíti az állítást, mert a megosztott ág épp az, amelyik nem ír.
+    function bench({ revoke, path }) {
+      const store = openStore();
+      const fixed = clockFrom(T0);
+      for (const s of ['judge', 'member']) store.run('INSERT INTO subject VALUES (?,?)', s, 'person');
+      store.run('INSERT INTO book VALUES (?,?)', 'a', 'A könyv');
+      store.run('INSERT INTO membership VALUES (?,?,?,?,NULL)', 'member', 'a', 'user', T0);
+      for (const op of ['suspend', 'alter_right', 'adjudicate']) {
+        grantAdjudicationAuthority({ store, clock: fixed, subjectId: 'judge', bookId: 'a', operation: op });
+      }
+      // A FELOLDÁS-ÚT ELŐFELTÉTELE FIXTÚRA, NEM TERMÉK-HÍVÁS — és ezt kimondjuk (R75/F03 fegyelme).
+      // Ha a felfüggesztést a termék-úton tennénk be, a MEGVONT hatáskörű világban az a lépés is
+      // elbukna, és a `liftSuspension` `not_suspended`-et adna: a próba ZÖLD maradna, de MÁS okból,
+      // mint amit állít (KUKA-049 — a jel a mechanizmust mérje, ne a tünetet).
+      if (path === 'lift') {
+        store.run(`INSERT INTO membership_suspension (subject_id, book_id, actor_subject_id, suspended_at, lifted_at, lifted_by, reason)
+                   VALUES (?,?,?,?,NULL,NULL,NULL)`, 'member', 'a', 'judge', T0);
+      }
+      if (revoke) store.run('UPDATE adjudication_authority SET revoked_at = ? WHERE subject_id = ?', revoke, 'judge');
+      return { store };
+    }
+    const at = (b, clock) => ({ store: b.store, clock: clock() });
+
+    // A HÁROM MEGNEVEZETT ÚT + a SAJÁT KITERJESZTÉSEM ÖTÖDIK TAGJA (`revokeMembership`), mert a
+    // szabály a hiba OSZTÁLYÁRA szól, nem arra a rétegre, ahol először láttuk (KUKA-051).
+    const paths = {
+      issue: (b) => issueBan({ store: b.store, clock: b.clock, actorSubjectId: 'judge', subjectId: 'member',
+        bookId: 'a', cause: 'left_company', targetRef: 'a' }),
+      suspend: (b) => suspendMembership({ store: b.store, clock: b.clock, actorSubjectId: 'judge',
+        subjectId: 'member', bookId: 'a' }),
+      lift: (b) => liftSuspension({ store: b.store, clock: b.clock, actorSubjectId: 'judge',
+        subjectId: 'member', bookId: 'a' }),
+      revoke: (b) => revokeMembership({ store: b.store, clock: b.clock, actorSubjectId: 'judge',
+        subjectId: 'member', bookId: 'a' }),
+    };
+    // Minden útnál: MIT ír, és MELYIK oszlopban áll a hatás ideje.
+    const effectRows = {
+      issue: (s) => s.all('SELECT banned_at AS at FROM subject_ban'),
+      suspend: (s) => s.all('SELECT suspended_at AS at FROM membership_suspension WHERE lifted_at IS NULL'),
+      lift: (s) => s.all('SELECT lifted_at AS at FROM membership_suspension WHERE lifted_at IS NOT NULL'),
+      revoke: (s) => s.all('SELECT recorded_at AS at FROM membership_revocation'),
+    };
+    const OP = { issue: 'alter_right', suspend: 'suspend', lift: 'suspend', revoke: 'alter_right' };
+
+    const notes = [];
+    let beforeOk = true; let afterOk = true; let crossOk = true; let noSideEffect = true; let backOk = true;
+
+    for (const name of Object.keys(paths)) {
+      // (a) A HATÁR ELŐTT a hatás LÉTREJÖN — enélkül egy „mindent tiltok" alak is teljesítené a
+      //     többi ágat (KUKA-092). EZT NEM KÜLÖN VILÁGBAN MÉRJÜK: a (d) ág sodródó órája a
+      //     megvonást a 2. és 3. olvasás KÖZÉ teszi, tehát ott a művelet SIKERES — ugyanez a
+      //     tény, egy tárolóval kevesebbért. A mérő költségét a saját költségvetése köti
+      //     (KUKA-140): ami két helyen ugyanazt bizonyítja, azt egyszer mérjük.
+      // (b) A HATÁR UTÁN: a jog már megszűnt a hívás pillanatában is ⇒ elutasítás, NULLA mellékhatás.
+      // (c) AZ ÁTLÉPŐ ESET — EZ A LELET. A jog a KÉT óraolvasás KÖZÖTT szűnik meg. A szerződés:
+      //     a hatályosulás pontján mért jog dönt, és a rögzített idő UGYANAZ a pont.
+      // A KETTŐ EGY VILÁGON OSZTOZIK: egyik sem írhat, tehát a megosztás nem mos el semmit.
+      {
+        const b = bench({ revoke: T0, path: name });
+        const after = paths[name](at(b, still));
+        if (after.ok !== false) { afterOk = false; notes.push(`${name}:határ-után=${JSON.stringify(after)}`); }
+        if (effectRows[name](b.store).length !== 0) { noSideEffect = false; notes.push(`${name}:határ-után-sorok`); }
+
+        b.store.run('UPDATE adjudication_authority SET revoked_at = ? WHERE subject_id = ?', CUT, 'judge');
+        const cross = paths[name](at(b, advancing));
+        if (cross.ok !== false) { crossOk = false; notes.push(`${name}:átlépő=${JSON.stringify(cross)}`); }
+        if (effectRows[name](b.store).length !== 0) { noSideEffect = false; notes.push(`${name}:átlépő-sorok`); }
+        b.store.close();
+      }
+      // (d) A VISSZAMÉRT INVARIÁNS: a rögzített idő olyan pillanat, amelyen a jog FENNÁLLT. Ezt a
+      //     TÁROLÓBÓL mérjük vissza, ugyanazzal a feloldóval, amit a döntés használ — nem a
+      //     visszatérési értékből (KUKA-038: a létezés nem bizonyíték, a lánc végét kell nézni).
+      //     A SODRÓDÓ óra + a 2. és 3. olvasás KÖZÉ tett megvonás teszi ezt az ágat élessé, és
+      //     EGYBEN ez az (a) ág is: itt a művelet SIKERES, tehát a „határ előtt létrejön" is mérve.
+      {
+        const b = bench({ revoke: DRIFT_CUT, path: name });
+        const r = paths[name](at(b, drifting));
+        const rows = effectRows[name](b.store);
+        if (r.ok === true && rows.length === 1) {
+          const stamp = rows[0].at;
+          const right = executableRightAt({ store: b.store, subjectId: 'judge', bookId: 'a',
+            operation: OP[name], nowIso: stamp });
+          if (!right.ok) { backOk = false; notes.push(`${name}:visszamérve=${right.reason}@${stamp}`); }
+        } else { backOk = false; beforeOk = false; notes.push(`${name}:visszamérés-alap=${JSON.stringify(r)}`); }
+        b.store.close();
+      }
+    }
+
+    const pass = beforeOk && afterOk && crossOk && noSideEffect && backOk;
+    return {
+      expected: 'mind a NÉGY hatáskör-igényes írónál (kiadás · felfüggesztés · feloldás · megvonás): '
+        + 'a határ ELŐTT siker · a határ UTÁN elutasítás · az ÁTLÉPŐ esetben elutasítás · elutasításkor '
+        + 'NULLA üzleti mellékhatás · és minden rögzített hatás SAJÁT időbélyegén visszamérve a jog fennállt',
+      actual: `utak=${Object.keys(paths).join(',')} · határ-előtt=${beforeOk} · határ-után=${afterOk} · `
+        + `átlépő=${crossOk} · nulla-mellékhatás=${noSideEffect} · visszamérve=${backOk}`
+        + (notes.length ? ` · eltérések: ${notes.join(' | ')}` : ''),
+      pass,
+      asserts: {
+        'A-REV-N3a-effect-time-is-the-decision-time': backOk && crossOk,
+        'A-REV-N3a-denied-write-has-no-side-effect': afterOk && noSideEffect && beforeOk,
+      },
+    };
+  });
+
+probe('P-REV-ban-record-shape', 'R77/F03 · REV-N5b · K09 · K15 · KUKA-020 · KUKA-124 · KUKA-039',
+  'A SZERKEZETILEG HIBÁS TÁROLT HATÓKÖR NEM „MÁSIK KÖNYV" — nevezett, fail-closed válasz',
+  () => {
+    // A LELET (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL, R77/F03). A tárolt `"own_book"` cél ÜRES
+    // könyv-tengelyét a feloldó szabályos, könyvre korlátozott alaknak vette, majd a kérés `a`
+    // könyvéhez hasonlította, nem egyezett — és `ban_other_bookId` címen TOVÁBBENGEDTE a kérést.
+    const w = buildTwoBookWorld();
+    try {
+      const may = (book) => rightAt({ store: w.store, subjectId: 'sub_dolgozo', bookId: book,
+        opClass: 'own_book', clock: w.clock });
+      const plant = (target) => w.store.run(
+        `INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)
+         VALUES (?,?,?,?,?,?)`,
+        'sub_dolgozo', 'operation', 'operation_misuse', target, 'sub_adjudicator', w.clock.now());
+      const wipe = () => w.store.run('DELETE FROM subject_ban');
+
+      // KONTROLL: tiltás nélkül mindkét könyv nyitva.
+      const before = may('book_a').allowed && may('book_b').allowed;
+
+      // (a) A NÉGY HIBÁS ALAK mind ZÁR, és mind a SAJÁT, nevezett választ adja — nem a „másik könyv"
+      //     felmentését. A lista SZABÁLY, nem a lelet egyetlen példánya (KUKA-051).
+      const malformed = ['own_book', 'book_a', '', 'book_aown_bookx'];
+      const aOk = malformed.every((t) => {
+        wipe(); plant(t);
+        const v = rightAt({ store: w.store, subjectId: 'sub_dolgozo', bookId: 'book_a', opClass: 'own_book', clock: w.clock });
+        return v.allowed === false && v.reason === 'ban_operation_scope_malformed';
+      });
+
+      // (b) ELLENPÁR — A KÉT JOGOS ALAK ÉRINTETLEN (KUKA-049: az őr ne a kért eredményt jelentse
+      //     hibának). A könyvre korlátozott pár zárja A-t és NYITVA hagyja B-t; a csupasz (globális)
+      //     alak MINDKETTŐT zárja — ez a REV-N5b két, kimondottan megkülönböztetett alakja.
+      wipe(); plant(operationScopeRef('book_a', 'own_book'));
+      const scopedOk = may('book_a').allowed === false && may('book_b').allowed === true;
+      wipe(); plant('own_book');
+      const globalOk = may('book_a').allowed === false && may('book_b').allowed === false;
+      const bOk = scopedOk && globalOk;
+
+      // (c) A HIÁNYZÓ CÉL MEGTARTJA A SAJÁT, PONTOSABB NEVÉT (KUKA-124: az új kapu ne fedje el az
+      //     igazit). Az üres `target_ref` NEM „szerkezetileg hibás", hanem `ban_target_missing`.
+      wipe(); plant('');
+      const cOk = rightAt({ store: w.store, subjectId: 'sub_dolgozo', bookId: 'book_a',
+        opClass: 'own_book', clock: w.clock }).reason === 'ban_target_missing';
+
+      // (d) A FELOLDÓT A KÖZVETLEN HÍVÓ IS UGYANÚGY KAPJA (KUKA-039: a kivétel nem állhat EGY ág
+      //     feltételében). A `banReaches` ugyanazt a nevezett, NEM DÖNTHETŐ választ adja.
+      const direct = banReaches({ kind: 'operation', cause: 'operation_misuse', target_ref: 'own_book' },
+        { bookId: 'book_a', opClass: 'own_book' });
+      const dOk = direct.decidable === false && direct.reason === 'ban_operation_scope_malformed'
+        && operationScopeProblem('own_book') !== null
+        && operationScopeProblem(operationScopeRef('book_a', 'own_book')) === null
+        && operationScopeProblem('own_book') === null;
+
+      wipe();
+      const pass = before && aOk && bOk && cOk && dOk;
+      return {
+        expected: 'a szerkezetileg hibás tárolt művelet-cél NEVEZETT, fail-closed választ ad '
+          + '(`ban_operation_scope_malformed`) MINDEN alakján · a két JOGOS alak érintetlen · a hiányzó '
+          + 'cél megtartja a saját nevét · és a közvetlen hívó ugyanazt kapja',
+        actual: `kontroll=${before} · hibás alakok zárnak=${aOk} (${malformed.length} alak) · `
+          + `ellenpár (könyv-hatókörű + globális)=${bOk} · hiányzó cél külön név=${cOk} · közvetlen hívó=${dOk}`,
+        pass,
+        asserts: { 'A-REV-N5b-malformed-stored-scope-is-fail-closed': aOk && bOk && cOk && dOk },
+      };
+    } finally { w.store.close(); }
+  });
+
+probe('P-REV-result-scope', 'R77/F02 · REV-N5b · K05 · K09 · K15 · KUKA-002 · KUKA-121 · KUKA-084',
+  'A KIADOTT EREDMÉNY ADATKÖRE — a típus deklarálja, nem a kérő címkéje (DSC-01)',
+  () => {
+    // A LELET (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL, R77/F02). Az `arak` adatkörre tiltott olvasó
+    // `dataScope: 'keszlet'` kontextussal EGÉSZBEN megkapta a `{qty, unit_price}` eredményt.
+    // A tiltás egy CÍMKÉRE hatott, amit a kérés hozott — a kimenő TARTALOMHOZ semmi nem volt kötve.
+    const w = buildTwoBookWorld();
+    try {
+      // A BEADÁS MINDIG VISZI A SAJÁT KONTEXTUSÁT. Ez nem kényelmi fogás: `data_scope` tiltás
+      // mellett a megkülönböztető NÉLKÜL érkező kérés NEM DÖNTHETŐ, tehát fail-closed zárul
+      // (REV-N5b) — és akkor a próba a rossz dolgot mérné (a hiányzó címkét, nem a besorolást).
+      const put = (idemKey, result, type = 'stock.receipt', typeVersion = '1') => submitCommand({
+        store: w.store, clock: w.clock, idemKey, actor: 'sub_dolgozo', bookId: 'book_a',
+        type, typeVersion, declared: { sku: 'X' }, resolve: () => result,
+        credentials: { dataScope: 'keszlet' },
+      });
+      const read = (idemKey, credentials, requester = 'sub_dolgozo') => readCommandResult({
+        store: w.store, clock: w.clock, idemKey, requester, bookId: 'book_a', actor: 'sub_dolgozo', credentials,
+      });
+      const banScope = (subjectId, scope) => w.store.run(
+        `INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)
+         VALUES (?,?,?,?,?,?)`,
+        subjectId, 'data_scope', 'data_scope_withdrawn', scope, 'sub_adjudicator', w.clock.now());
+
+      // (a) POZITÍV KONTROLL — tiltás NÉLKÜL a vegyes eredmény TELJESEN kijön. Enélkül a többi ág
+      //     egy „soha semmit nem adok ki" alakkal is teljesülne (KUKA-092 · KUKA-049).
+      const mixed = { qty: 1, unit_price: 12345 };
+      const okPut = put('r-mixed', mixed).ok === true;
+      const free = read('r-mixed', { dataScope: 'keszlet' });
+      const aOk = okPut && free.ok === true && free.result.qty === 1 && free.result.unit_price === 12345;
+
+      // (b) A LELET MAGA: az `arak`-ra tiltott olvasónak MÁSIK kontextus-címkével SEM jön ki az
+      //     ármező — se egészben, se részlegesen (a vegyes eredmény alapból egészben tagadva).
+      banScope('sub_dolgozo', 'arak');
+      const asArak = read('r-mixed', { dataScope: 'arak' });
+      const asKeszlet = read('r-mixed', { dataScope: 'keszlet' });
+      const noLabel = read('r-mixed', undefined);   // címke NÉLKÜL is — a hiány nem nyithat (REV-N5b)
+      const leaked = [asArak, asKeszlet, noLabel].filter((r) => r.ok === true
+        && Object.prototype.hasOwnProperty.call(r.result || {}, 'unit_price'));
+      const bOk = leaked.length === 0 && asKeszlet.ok === false;
+
+      // (c) A NEMLEGES VÁLASZ NEM SZIVÁROG: bájtra ugyanaz, mint a nem létező kulcsé (KUKA-084) —
+      //     különben a válasz maga mondaná meg, hogy a parancs létezik.
+      const ghost = read('r-nincs-ilyen', { dataScope: 'keszlet' });
+      const cOk = JSON.stringify(asKeszlet) === JSON.stringify(ghost);
+
+      // (d) A TISZTÁN KÉSZLET-ADAT UGYANANNAK AZ OLVASÓNAK KIJÖN. Ez az ELLENPÁR: az `arak` tiltás
+      //     nem válhat általános zárrá — a „11 darabot láthatja" követelmény fele.
+      const okQty = put('r-qty', { qty: 11 }).ok === true;
+      const qtyRead = read('r-qty', { dataScope: 'keszlet' });
+      const dOk = okQty && qtyRead.ok === true && qtyRead.result.qty === 11;
+
+      // (e) A HIÁNYZÓ/ISMERETLEN BESOROLÁS KÜLÖN VÁLASZ, ÉS ZÁR (KUKA-124/2). A BEADÁS nevezett
+      //     mondatot ad (a saját bemenetéről van szó), a KIADÁS néma marad — a két hely két külön
+      //     kérdésre felel. Az ismeretlen TÍPUS és a be nem sorolt MEZŐ is külön nevet kap.
+      const unknownType = put('r-ismeretlen-tipus', { qty: 1 }, 'invoice.issue', '1');
+      const unknownField = put('r-ismeretlen-mezo', { qty: 1, margin_pct: 17 });
+      const eOk = unknownType.ok === false && unknownType.error === 'result_scope_undeclared'
+        && unknownType.reason === 'result_scope_type_undeclared'
+        && unknownField.ok === false && unknownField.reason === 'result_scope_field_undeclared'
+        && unknownField.message.includes('margin_pct')
+        // …és a hatás SEM jött létre: olvashatatlan sort nem könyvelünk (KUKA-012).
+        && w.store.all("SELECT * FROM command WHERE idem_key IN ('r-ismeretlen-tipus','r-ismeretlen-mezo')").length === 0;
+
+      // (f) A FELOLDÓT A PRÓBA HÍVJA, nem a forrás szövegét olvassa (KUKA-009), és a zárt halmaz
+      //     MINDKÉT iránya mérve: a besorolás a deklarált adatkörök közül kerül ki.
+      const cls = resultScopesOf({ type: 'stock.receipt', typeVersion: '1', result: mixed });
+      const fOk = cls.ok === true && JSON.stringify(cls.scopes) === JSON.stringify(['arak', 'keszlet'])
+        && cls.scopes.every((s) => KNOWN_DATA_SCOPES.includes(s))
+        && resultScopesOf({ type: 'stock.receipt', typeVersion: '2', result: mixed }).ok === false;
+
+      const pass = aOk && bOk && cOk && dOk && eOk && fOk;
+      return {
+        expected: 'az ármező NEM adható ki az árra tiltott olvasónak pusztán másik kontextus-címkével · '
+          + 'a tiltás nélküli olvasó MINDENT megkap (pozitív kontroll) · a tisztán készlet-adat a tiltott '
+          + 'olvasónak is kijön (ellenpár) · a nemleges válasz bájtra azonos a nem létezőével · a hiányzó '
+          + 'besorolás NEVEZETT, fail-closed válasz a beadáskor, és a hatás sem jön létre',
+        actual: `pozitív kontroll=${aOk} · ár-szivárgás=${leaked.length} eset · vegyes megtagadva=${bOk} · `
+          + `nemleges bájtra azonos=${cOk} · készlet-adat kijön=${dOk} · besorolás-hiány zár=${eOk} · `
+          + `feloldó HÍVVA (adatkörök=${cls.ok ? cls.scopes.join('+') : cls.reason})=${fOk}`,
+        pass,
+        asserts: {
+          'A-REV-N5b-result-scope-comes-from-declaration': aOk && bOk && dOk && fOk,
+          'A-REV-N5b-undeclared-result-scope-is-fail-closed': eOk && cOk,
+        },
+      };
+    } finally { w.store.close(); }
   });
 
 // A FELÜLVIZSGÁLAT A FORRÁS-ÁLLAPOTHOZ KÖTÖTT. Ha a mai commit más, mint amin a felülvizsgálat
@@ -2800,7 +3097,7 @@ export function runAll() {
   return records;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === `file://${process.argv[1]}`) main: {
   const records = runAll();
   const src = sourceDigest();
 
@@ -2811,7 +3108,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (!res.ok) {
     console.error('\nA MARADÉK-TÁBLA HIBÁS — a lezárt maradékok nem hitelesek:');
     for (const p of res.problems) console.error(`  · ${p}`);
-    process.exit(2);
+    // `exitCode`, NEM `exit()` — lásd a fájl végén álló SAJÁT LELETET (R77): a `process.exit()` a
+    // CSŐRE még ki nem írt kimenetet ELVÁGJA, és a mérő ettől néma adatvesztésbe fut.
+    process.exitCode = 2; break main;
   }
 
   // A NORMA-BIZONYÍTÉK KAPU (R53 §4) — a BIZONYÍTÉK-CSOMAGON, nem próbanév-listán.
@@ -2951,7 +3250,23 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (!nrm.integrity_ok) {
     console.error('\nA NORMA-BIZONYÍTÉK INDEX HIBÁS — a regiszter magáról állít valótlant:');
     for (const p of nrm.integrity_problems) console.error(`  · ${p}`);
-    process.exit(2);
+    process.exitCode = 2; break main;
   }
-  if (records.some((r) => r.status !== PROBE_STATUS.PASS)) process.exit(1);
+  // ── SAJÁT LELET (R77, a mutációs battéria futtatásakor) ──────────────────────────────────────
+  //
+  // ITT KORÁBBAN `process.exit(1)` ÁLLT, és ez NÉMA ADATVESZTÉS volt a MÉRŐ-eszközön. A `--json`
+  // kimenet CSŐRE megy (a mutációs futtató `spawnSync`-kel hívja), a `process.exit()` viszont
+  // AZONNAL leállítja a folyamatot: a csőbe még ki nem írt bájtok ELVESZNEK. Amíg a jelentés
+  // elfért egy írás-adagban, semmi nem látszott; az R77-es három új próbával a JSON ~141 kB fölé
+  // nőtt, és onnantól a gyermek-futások KIMENETE CSONKÁN érkezett — a szülő pedig
+  // „értelmezhetetlen JSON" címen HARNESS_ERROR-t adott 76-ból 57 mutációra.
+  //
+  // A TANULSÁG (KUKA-051 · KUKA-089 a MÉRŐN): a hiba nem a kilépési kódban volt, hanem abban, hogy
+  // a mérő-eszköz a SAJÁT NÖVEKEDÉSÉTŐL romlott el — a jelentés mérete a rendszerrel együtt nő, a
+  // kiírás módja viszont nem nőtt vele. Jó hír, és ezt is kimondjuk: a csonka kimenet NEM zöldnek
+  // látszott, hanem nevezett MÉRŐHIBÁNAK — a szerződés itt tartott (R59/F01).
+  //
+  // A HELYES ALAK: `process.exitCode`, és hagyjuk a futásidőt természetesen kifutni — így a
+  // kiírás befejeződik, a kilépési kód pedig ugyanaz marad.
+  if (records.some((r) => r.status !== PROBE_STATUS.PASS)) process.exitCode = 1;
 }

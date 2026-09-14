@@ -196,6 +196,13 @@ export function banRecordIntegrity(row) {
         + 'dől el, a kérés NEM engedhető — az ellentmondás nem a tiltás megszűnése.',
     });
   }
+  // 4. A MŰVELET-TILTÁS TÁROLT CÉLJÁNAK SZERKEZETE (R77/F03). A hiányzó cél NEM ide tartozik: annak
+  //    SAJÁT, pontosabb neve van (`ban_target_missing`), és azt nem szabad ezzel elfedni (KUKA-124).
+  //    Itt csak a MEGLÉVŐ, de szerkezetileg hibás cél kap nevet.
+  if (row.kind === 'operation' && String(row.target_ref ?? '').trim() !== '') {
+    const problem = operationScopeProblem(row.target_ref);
+    if (problem) return problem;
+  }
   return null;
 }
 
@@ -226,12 +233,64 @@ export function operationScopeRef(bookId, opClass) {
  */
 export function parseOperationScope(targetRef) {
   const raw = targetRef === null || targetRef === undefined ? '' : String(targetRef);
-  const at = raw.indexOf(OPERATION_SCOPE_SEP);
-  if (at < 0) return Object.freeze({ bookId: null, opClass: raw.trim(), global: true });
+  const parts = raw.split(OPERATION_SCOPE_SEP);
+  if (parts.length === 1) {
+    return Object.freeze({ bookId: null, opClass: raw.trim(), global: true, malformed: null });
+  }
+  if (parts.length > 2) {
+    return Object.freeze({ bookId: null, opClass: null, global: false, malformed: 'separator_repeated' });
+  }
+  const bookId = parts[0].trim();
+  const opClass = parts[1].trim();
+  if (!bookId) return Object.freeze({ bookId: null, opClass, global: false, malformed: 'book_axis_empty' });
+  if (!opClass) return Object.freeze({ bookId, opClass: null, global: false, malformed: 'operation_axis_empty' });
+  return Object.freeze({ bookId, opClass, global: false, malformed: null });
+}
+
+// ═══ A HIBÁS TÁROLT MŰVELETI HATÓKÖR NEM „MÁSIK KÖNYV" (R77/F03) ═══════════════════════════════
+//
+// A LELET (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL, R77/F03). Egy tárolt `operation` tiltás célja
+// `"own_book"` volt — az elválasztó ELŐTT ÜRES könyvazonosító. A régi feloldó ezt szabályos,
+// könyvre korlátozott alaknak vette, `bookId: ''` értékkel; a `banReaches` ezután a kérés `a`
+// könyvéhez hasonlította, NEM EGYEZETT, és `ban_other_bookId` címen TOVÁBBENGEDTE a kérést. Vagyis
+// egy ÉRVÉNYTELEN tiltás úgy viselkedett, mint egy érvényes, de más könyvre szóló tiltás.
+//
+// A HIBA OSZTÁLYA a KUKA-124/2 ismétlődése MÁSIK TENGELYEN: az összehasonlítás a ROSSZ ÉRTÉKRE
+// készült, és a HIÁNYT némán ugyanoda sorolta — csakhogy itt a hiány az ELLENKEZŐ oldalra esett:
+// nem zárt, hanem NYITOTT. Az üres könyv-tengely nem azt jelenti, hogy „ez a tiltás egy másik
+// könyvre szól", hanem azt, hogy NEM TUDJUK, mire szól (KUKA-020: a programhiba/sérült adat nem
+// adhatja ugyanazt a választ, mint a valódi „nem").
+//
+// A HATÓKÖR A REKORD INTEGRITÁSA, NEM A HATÓKÖR-ÉRTÉKELÉS. Ezért a válasz a `banRecordIntegrity`
+// NEGYEDIK, nevezett ága — ugyanaz a kapu, ami az ismeretlen fajtát, az ismeretlen okot és az
+// önellentmondást kimondja, és ami a hatókör-értékelés ELŐTT áll (R75/F04). Egy feloldó, két hívó
+// (`banRecordIntegrity` és `banReaches`), hogy a közvetlen hívó is ugyanazt kapja (KUKA-039).
+//
+// A JAVÍTÁSI ÚT MEGMARAD: a sor nem tűnik el és nem válik érinthetetlenné — a válasz megnevezi,
+// MELYIK tengely hibás, tehát a helyreállítás elvégezhető (KUKA-064: a nemleges válasz ne legyen
+// zsákutca). A KÉT JOGOS ALAK pedig érintetlen: a `<könyv><művelet>` pár és a csupasz
+// (globális) művelet-név egyaránt ép marad (KUKA-049: az őr ne a kért eredményt jelentse hibának).
+const OPERATION_SCOPE_PROBLEM = Object.freeze({
+  book_axis_empty: 'az elválasztó előtti KÖNYV-tengely üres',
+  operation_axis_empty: 'a MŰVELET-tengely üres',
+  separator_repeated: 'a cél egynél több elválasztót tartalmaz, ezért a két tengely nem határolható el',
+});
+
+/**
+ * A TÁROLT MŰVELETI CÉL SZERKEZETI ÉPSÉGE — nevezett feloldó, egy otthonban.
+ * @returns {null | {reason:string, message:string}} `null`, ha a cél alakja ép
+ */
+export function operationScopeProblem(targetRef) {
+  const scope = parseOperationScope(targetRef);
+  if (!scope.malformed) return null;
   return Object.freeze({
-    bookId: raw.slice(0, at).trim(),
-    opClass: raw.slice(at + 1).trim(),
-    global: false,
+    reason: 'ban_operation_scope_malformed',
+    message: `a művelet-tiltás tárolt célja szerkezetileg hibás (${OPERATION_SCOPE_PROBLEM[scope.malformed]}): `
+      + `\`${JSON.stringify(targetRef === undefined ? null : targetRef)}\`. A két érvényes alak a `
+      + '`<könyv>\\u0001<művelet>` pár (könyvre korlátozott) és a csupasz művelet-név (globális). '
+      + 'Az üres vagy elhatárolhatatlan tengely NEM azt jelenti, hogy a tiltás MÁS könyvre szól — azt '
+      + 'jelenti, hogy a valódi hatóköre nem dönthető el, ezért a hozzáférés zárva marad. A sort '
+      + 'helyre kell állítani (a tengelyek kitöltésével) vagy fel kell oldani.',
   });
 }
 
@@ -267,6 +326,14 @@ export function banReaches(ban, request) {
   // külön szabály a `book` mellett: ugyanaz az elv — a tiltás pontosan addig ér, ameddig a kiadó
   // hatásköre ért. A csupasz (globális) alak csak akkor éri el a kérést, ha a művelet egyezik.
   if (ban.kind === 'operation') {
+    // R77/F03 — A SZERKEZETILEG HIBÁS CÉL NEM „MÁSIK KÖNYV". A `banEffectiveAt` ezt már a
+    // rekord-integritás kapujában eldönti, de ez a feloldó KÖZVETLENÜL is hívható (próba, szerszám),
+    // ezért UGYANAZT a nevezett választ adja — nem kerülhet vissza az, hogy csak az egyik hívó
+    // védett (KUKA-039: a kivétel nem állhat EGY ág feltételében).
+    const malformed = operationScopeProblem(target);
+    if (malformed) {
+      return Object.freeze({ reaches: true, decidable: false, reason: malformed.reason, message: malformed.message });
+    }
     const scope = parseOperationScope(target);
     const opHit = scope.opClass === String(asked).trim();
     if (!opHit) return Object.freeze({ reaches: false, decidable: true, reason: 'ban_other_opClass' });

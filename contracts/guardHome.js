@@ -188,6 +188,10 @@ const GUARD_HOME = Object.freeze({
   'KUKA-138': Object.freeze({ home: 'v3', note: 'a belépési kontextus az elbírálási úton a V3 magban megy végig — a jel (verify:v3ref: P-REV-ban-paths (g) + M77) ITT fut' }),
   'KUKA-139': Object.freeze({ home: 'v3', note: 'a fixtúra ↔ termék-út megkülönböztetés a V3 próba-készletben él — a jel (v3ref:mutate M68 verdiktje + P-REV-ban-past (e)) ITT fut' }),
   'KUKA-140': Object.freeze({ home: 'v3', note: 'a mutációs battéria falióra-költségvetése a V3 mérőben él — a jel (v3ref:mutate falióra-sora + a TELJES V3 söprés) ITT fut' }),
+  'KUKA-141': Object.freeze({ home: 'v3', note: 'a HATÁLYOSULÁSI PONT (EFF-01) a V3 magreferenciában él — a jel a `P-REV-effectuation` próba (négy idő-rögzítő út, visszamért invariánssal) + az M80/M81/M82/M88 mutációk ITT futnak' }),
+  'KUKA-142': Object.freeze({ home: 'v3', note: 'a KIADOTT EREDMÉNY ADATKÖRE (DSC-01) a V3 magreferenciában él — a jel a `P-REV-result-scope` próba (pozitív kontroll + ellenpár + besorolás-hiány) + az M85/M86/M87 mutációk ITT futnak' }),
+  'KUKA-143': Object.freeze({ home: 'v3', note: 'a tárolt műveleti hatókör szerkezeti épsége (OPS-01) a V3 magreferenciában él — a jel a `P-REV-ban-record-shape` próba (négy hibás alak + két jogos ellenpár) + az M83/M84 mutációk ITT futnak' }),
+  'KUKA-144': Object.freeze({ home: 'v3', note: 'a mérő-eszköz kimenet-csonkulása a V3 futtatójában élt — a jel a `verify:kuka` KUKA-144 tiltó-mintája (process.exit a magreferencia futtatójában) + a `v3ref:mutate` mérőhiba-számlálója ITT fut' }),
 });
 
 function homeOf(id) { return (GUARD_HOME[id] || null); }

@@ -15,13 +15,12 @@
 // hívók (és a külső fél rögzített programjai) innen kérik. Ez nem második otthon: definíció csak
 // egy helyen van, és az irány egyirányú (KUKA-018).
 
-import { withTransaction } from './store.mjs';
-import { executableRightAt } from './authority.mjs';
+import { effectuate } from './authority.mjs';
 import { kindForCause, banKind, KNOWN_BAN_CAUSES, operationScopeRef } from './banScope.mjs';
 
 export {
   KNOWN_BAN_KINDS, KNOWN_BAN_CAUSES, banKind, kindForCause, banRequestFor, banReaches,
-  banEffectiveAt, banRecordIntegrity, operationScopeRef, parseOperationScope,
+  banEffectiveAt, banRecordIntegrity, operationScopeRef, parseOperationScope, operationScopeProblem,
 } from './banScope.mjs';
 
 // ═══ A KIADHATÓ HATÓKÖR A KIADÓ HATÁSKÖRÉBŐL — ÉS CSAK ABBÓL (REV-N5b, R75/F02) ════════════════
@@ -59,62 +58,65 @@ export function issueBan({ store, clock, subjectId, cause, targetRef, actorSubje
 
   // (1) A TELJES DÖNTÉS — tiltás ÉS hatáskör, egy rétegből (R75/F01). A nyers hatásköri sor
   //     olvasása itt TILOS: az a döntésnek csak a fele, és épp a kiadó SAJÁT tiltása maradna ki.
-  const right = executableRightAt({
-    store, subjectId: actor, bookId: book, operation: 'alter_right', nowIso: clock.now(), credentials,
-  });
-  if (!right.ok) return Object.freeze({ ok: false, reason: right.reason, message: right.message });
+  //     R77/F01: a döntés HATÁLYOSULÁSI PONTJA az `effectuate` — a rögzített `banned_at` pontosan
+  //     az az időpont, amelyen a jogot MÉRTÜK, és a mérés a tranzakción BELÜL történt.
+  const out = effectuate(
+    { store, clock, subjectId: actor, bookId: book, operation: 'alter_right', credentials },
+    ({ at }) => {
+      // (2) AZ OK ISMERT-E — az OK választja a FAJTÁT, a fajta a hatókört (REV-N5b).
+      //     A bemenet-ellenőrzés a hatásköri döntés UTÁN áll (KUKA-084: a hatáskör nélküli kérdező
+      //     ne tudjon meg többet a rendszerről, mint hogy nincs joga), és NEM ír semmit — ezért az
+      //     üres tranzakció nulla mellékhatással zárul.
+      const kind = kindForCause(cause);
+      if (!kind) {
+        return Object.freeze({
+          ok: false, reason: 'ban_cause_unknown',
+          message: `ismeretlen tiltás-ok ("${cause}") — a zárt halmaz: ${KNOWN_BAN_CAUSES.join(', ')}. `
+            + 'Az OK választja ki a tiltás FAJTÁJÁT és ezzel a hatókörét (REV-N5b); ok nélkül a hatókör '
+            + 'nem vezethető le, és „általánosat" nem tételezünk fel.',
+        });
+      }
 
-  // (2) AZ OK ISMERT-E — az OK választja a FAJTÁT, a fajta a hatókört (REV-N5b).
-  const kind = kindForCause(cause);
-  if (!kind) {
-    return Object.freeze({
-      ok: false, reason: 'ban_cause_unknown',
-      message: `ismeretlen tiltás-ok ("${cause}") — a zárt halmaz: ${KNOWN_BAN_CAUSES.join(', ')}. `
-        + 'Az OK választja ki a tiltás FAJTÁJÁT és ezzel a hatókörét (REV-N5b); ok nélkül a hatókör '
-        + 'nem vezethető le, és „általánosat" nem tételezünk fel.',
-    });
-  }
+      // (3) A KÉRT HATÓKÖR BELEFÉR-E A KIADÓ HATÁSKÖRÉBE.
+      if (!BOOK_SCOPED_KINDS.includes(kind)) {
+        return Object.freeze({
+          ok: false, reason: 'ban_wider_than_authority',
+          message: `a(z) "${cause}" ok "${kind}" fajtájú tiltást jelent, ami TÚLMUTAT a(z) "${book}" `
+            + 'könyvre szóló hatáskörön: a személy, a hitelesítő, a jogalap és az adatkör tiltása nem '
+            + 'következik egy könyv gazdálkodási jogából. Ehhez külön, nevesített hatáskör kell — a '
+            + 'könyvgazda más, független könyvek felett nem kap hallgatólagos hatalmat (R73/C-F03).',
+        });
+      }
+      if (kind === 'book' && said(targetRef) !== book) {
+        return Object.freeze({
+          ok: false, reason: 'ban_target_outside_authority',
+          message: `a hatáskör a(z) "${book}" könyvre szól, a tiltás viszont "${said(targetRef)}"-t `
+            + 'nevez meg. Idegen könyvre nem adható ki tiltás ezzel a jogcímmel.',
+        });
+      }
 
-  // (3) A KÉRT HATÓKÖR BELEFÉR-E A KIADÓ HATÁSKÖRÉBE.
-  if (!BOOK_SCOPED_KINDS.includes(kind)) {
-    return Object.freeze({
-      ok: false, reason: 'ban_wider_than_authority',
-      message: `a(z) "${cause}" ok "${kind}" fajtájú tiltást jelent, ami TÚLMUTAT a(z) "${book}" `
-        + 'könyvre szóló hatáskörön: a személy, a hitelesítő, a jogalap és az adatkör tiltása nem '
-        + 'következik egy könyv gazdálkodási jogából. Ehhez külön, nevesített hatáskör kell — a '
-        + 'könyvgazda más, független könyvek felett nem kap hallgatólagos hatalmat (R73/C-F03).',
-    });
-  }
-  if (kind === 'book' && said(targetRef) !== book) {
-    return Object.freeze({
-      ok: false, reason: 'ban_target_outside_authority',
-      message: `a hatáskör a(z) "${book}" könyvre szól, a tiltás viszont "${said(targetRef)}"-t `
-        + 'nevez meg. Idegen könyvre nem adható ki tiltás ezzel a jogcímmel.',
-    });
-  }
+      // (4) A TÁROLT CÉL MAGA HORDOZZA A HATÓKÖRT (R75/F02). A művelet-tiltás célja a KÖNYV és a
+      //     MŰVELET együtt — így a független könyvben ugyanaz a művelet érintetlen marad.
+      const shape = banKind(kind);
+      if (shape.discriminator !== null && said(targetRef) === '') {
+        return Object.freeze({
+          ok: false, reason: 'ban_target_required',
+          message: `a(z) "${cause}" ok "${kind}" fajtájú tiltást jelent (${shape.meaning}), ezért meg kell `
+            + `nevezni, MIRE szól (\`targetRef\` = a kérés \`${shape.discriminator}\` értéke).`,
+        });
+      }
+      const storedTarget = kind === 'operation'
+        ? operationScopeRef(book, said(targetRef))
+        : (shape.discriminator === null ? null : said(targetRef));
 
-  // (4) A TÁROLT CÉL MAGA HORDOZZA A HATÓKÖRT (R75/F02). A művelet-tiltás célja a KÖNYV és a
-  //     MŰVELET együtt — így a független könyvben ugyanaz a művelet érintetlen marad.
-  const shape = banKind(kind);
-  if (shape.discriminator !== null && said(targetRef) === '') {
-    return Object.freeze({
-      ok: false, reason: 'ban_target_required',
-      message: `a(z) "${cause}" ok "${kind}" fajtájú tiltást jelent (${shape.meaning}), ezért meg kell `
-        + `nevezni, MIRE szól (\`targetRef\` = a kérés \`${shape.discriminator}\` értéke).`,
+      store.run(
+        `INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)
+         VALUES (?,?,?,?,?,?)`,
+        subjectId, kind, cause, storedTarget, actor, at);
+      return Object.freeze({ ok: true, kind, cause, target_ref: storedTarget, banned_at: at });
     });
-  }
-  const storedTarget = kind === 'operation'
-    ? operationScopeRef(book, said(targetRef))
-    : (shape.discriminator === null ? null : said(targetRef));
-
-  const nowIso = clock.now();
-  return withTransaction(store.db, () => {
-    store.run(
-      `INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)
-       VALUES (?,?,?,?,?,?)`,
-      subjectId, kind, cause, storedTarget, actor, nowIso);
-    return Object.freeze({ ok: true, kind, cause, target_ref: storedTarget, banned_at: nowIso });
-  });
+  if (!out.authorized) return Object.freeze({ ok: false, reason: out.right.reason, message: out.right.message });
+  return out.value;
 }
 
 /**
