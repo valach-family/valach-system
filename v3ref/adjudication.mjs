@@ -86,7 +86,8 @@ export function grantAdjudicationAuthority({ store, subjectId, bookId, operation
   // alapra hivatkoztunk, de az nem élt" eset pont az, amit az ORG-N1a ki akar zárni (KUKA-020).
   let basisVersion = null;
   if (basisId !== null && basisId !== undefined) {
-    const basis = basisAsOf({ store, basisId, validAt: at, knownAt: at });
+    // A KÖNYVET IS ÁTADJUK — az alap azonossága a (basis_id, book_id) PÁR (R88/F01).
+    const basis = basisAsOf({ store, basisId, bookId, validAt: at, knownAt: at });
     if (!basis.in_effect) {
       throw new Error(`grantAdjudicationAuthority: a hivatkozott alap nem hatályos (${basis.reason})`);
     }

@@ -7020,6 +7020,91 @@ const RETIRED_PATTERNS = Object.freeze([
         reason: 'a bukó gyermekfutás teljes nyoma megmarad' }),
     ]),
   }),
+  // ── KUKA-161 (R88/F01) — AZ AZONOSÍTÓ, AMI CSAK A SAJÁT TERÉBEN EGYEDI ──────────────────────
+  Object.freeze({
+    id: 'KUKA-161',
+    date: '2026-09-14',
+    title: 'a felhatalmazási ALAP azonossága csak az azonosítón állt, a KÖNYVET egyik olvasó sem kérdezte meg',
+    what: 'A `basisAsOf` a `basis_id`-re keresett, és a kiadó út (`grantAdjudicationAuthority`) csak '
+      + 'az IDŐBELI hatályt mérte rajta. Egy „A" könyvre szóló határozatra hivatkozva ezért „B" '
+      + 'könyvben is ki lehetett adni az `adjudicate` hatáskört — a sor létrejött, és onnantól a '
+      + 'jog-feloldó engedett.',
+    why_wrong: 'Egy azonosító csak a SAJÁT terében egyedi (KUKA-027 a bizonyíték-térben). A hiány '
+      + 'ráadásul NÉMA volt: a kiadás sikerrel tért vissza, tehát semmi nem jelezte, hogy a '
+      + 'hivatkozott alap egy MÁSIK könyvhöz tartozik — a felhatalmazás nyilvántartása így pont azt '
+      + 'nem védte, amiért megépült.',
+    replaced_by: 'az alap azonossága a (basis_id, book_id) PÁR — kötelező könyv, nevezett idegen-könyv '
+      + 'válasz, és zárt verzió-átugrás',
+    replacement: 'HÁROM rész, és mind a három kell (KUKA-084: a lezárás nem HELY, hanem CSATORNA): '
+      + '(1) a könyv KÖTELEZŐ bemenet, a hiánya SAJÁT, fail-closed válasz (`book_id_required`); '
+      + '(2) az IDEGEN könyv KÜLÖN nevezett válasz (`basis_belongs_to_other_book`), nem „nincs ilyen '
+      + 'alap"; (3) ugyanaz az azonosító nem költözhet NÉMÁN másik könyvbe egy új verzióval '
+      + '(`basis_id_belongs_to_other_book`). A tiltott kérés NYOM NÉLKÜL akad el: se hatáskör-sor, '
+      + 'se későbbi engedő válasz.',
+    decision: 'D-VS-3027',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R88/F01), futtatható programmal — a saját '
+      + 'P-ORG-basis próbám minden hívása EGY könyvvel dolgozott, tehát a saját előfeltevését '
+      + 'igazolta vissza (KUKA-054)',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/authorityBasis.mjs'], pattern: 'basis_belongs_to_other_book',
+        reason: 'az idegen könyv NEVEZETT, fail-closed válasz' }),
+      Object.freeze({ paths: ['v3ref/authorityBasis.mjs'], pattern: 'basis_id_belongs_to_other_book',
+        reason: 'a verzió-átugrás zárva' }),
+      Object.freeze({ paths: ['v3ref/adjudication.mjs'], pattern: 'basisId, bookId, validAt: at, knownAt: at',
+        reason: 'a kiadó út ÁTADJA a könyvet — a kötés a hívásban él, nem a szándékban' }),
+    ]),
+    lesson: 'MINDEN HIVATKOZOTT AZONOSÍTÓNÁL KI KELL MONDANI, MELYIK TÉRBEN EGYEDI — és a feloldónak '
+      + 'a TELJES azonosságot kell kérnie, nem a felét. A megkülönböztető kérdés: „mi történik, ha '
+      + 'ugyanezt az azonosítót egy MÁSIK könyvben is kiadják?" Ha a válasz „ugyanazt kapja", akkor '
+      + 'a feloldó nem azonosít, hanem ÖSSZEMOS (KUKA-128). És a hiányzó bemenet SAJÁT válasz: a '
+      + '„ha megadják, ellenőrizzük" alak néma kiskaput hagy annak, aki elfelejti átadni (KUKA-041 · '
+      + 'KUKA-124/2). A saját próbám azért nem fogta meg, mert EGYETLEN könyvvel dolgozott — a '
+      + 'kereszt-eset hiánya nem „ismeretlen állapot", hanem ZÖLDNEK LÁTSZIK (KUKA-051).',
+    guard_note: 'gépi jel: `npm run verify:v3ref` — P-ORG-basis (e) állítás + **M121** (idegen könyv '
+      + 'átmegy) · **M122** (a hiányzó könyv nem kap saját választ) · **M123** (a verzió-átugrás '
+      + 'kinyílik), mind elkapva; és az ő programjuk `r88core` néven a `verify:external-checks`-ben.',
+  }),
+
+  // ── KUKA-162 (R88/F02) — A SIKERTELEN HÍVÁS, AMI ÁTÍRTA A TÖRTÉNELMET ───────────────────────
+  Object.freeze({
+    id: 'KUKA-162',
+    date: '2026-09-14',
+    title: 'a tagságadás KÉT írása szétesett: bukásnál az ESEMÉNY bent maradt, a vetület nem jött létre',
+    what: 'A `grantMembership` előbb a `membership_grant` ESEMÉNYT szúrta be, majd a `membership` '
+      + 'vetületet. Ha a vetület egyediségre bukott, az esemény BENT MARADT: a hívó hibát kapott, a '
+      + 'rendszer mégis megváltozott — a márciusi kérdésre előtte „nincs tagság", utána „van".',
+    why_wrong: 'Egy SIKERTELEN művelet nem írhatja át a történetet (K08 · REV-N2a). A hiba a két '
+      + 'írás VISZONYÁBAN élt, nem egyikükben sem (KUKA-024), és a saját próbáim mind a SIKERES ágat '
+      + 'mérték, ezért zölden álltak. A KUKA-026 fordítottja: ott a KUDARC nyoma tűnt el a siker '
+      + 'tranzakciójában, itt a kudarc HATÁSA maradt bent.',
+    replaced_by: 'a tároló közös ATOMI EGYSÉGE, beágyazva mentési ponttal (`store.atomic` → `atomically`)',
+    replacement: 'A `grantMembership` mindkét írása EGY atomi egységben fut. Az egység BEÁGYAZVA is '
+      + 'működik: külső tranzakción kívül `BEGIN`, azon belül SAVEPOINT — mert a meghívó-beváltás MÁR '
+      + 'tranzakcióból hív minket, és egy külső `BEGIN` a JOGOS utat állította volna meg. Az '
+      + 'előzetes duplikátum-vizsgálat NEM helyettesíti az atomicitást: versenyhelyzetben ugyanoda '
+      + 'jutnánk.',
+    decision: 'D-VS-3027',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R88/F02), futtatható programmal',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/bitemporal.mjs'], pattern: 'return store[.]atomic[(]',
+        reason: 'az esemény és a vetület EGY írás' }),
+      Object.freeze({ paths: ['v3ref/store.mjs'], pattern: 'export function atomically',
+        reason: 'az atomi egység beágyazva mentési pontot használ — a jogos hívó nem akad el' }),
+      Object.freeze({ paths: ['v3ref/store.mjs'], pattern: 'SAVEPOINT [$][{]name[}]',
+        reason: 'a beágyazott egység nem véglegesít a hívója helyett' }),
+    ]),
+    lesson: 'AHOL EGY TÉNYNEK KÉT ÍRÁSA VAN, OTT A BUKÓ ÁG IS TÉNY — és a próbának a BUKÓ ágat kell '
+      + 'mérnie, nem csak a sikereset. A kérdés minden több-írásos műveletnél: „mi marad a rendszerben, '
+      + 'ha a MÁSODIK írás elhasal?" Ha erre a válasz „valami", akkor nincs atomi határ. **És a '
+      + 'javítás nem zárhatja ki a jogos munkát:** az atomi egységnek BEÁGYAZVA is működnie kell, '
+      + 'különben a tranzakcióból hívó (beváltási) út áll meg — a kapu csak akkor kapu, ha '
+      + 'teljesíthető (KUKA-122). Az előzetes ellenőrzés nem atomicitás.',
+    guard_note: 'gépi jel: `npm run verify:v3ref` — az ÚJ `P-ORG-grant-atomic` próba (siker · bukás '
+      + 'nyom nélkül · beágyazott hívó + külső visszagördülés) + **M124** (a két írás szétesik) · '
+      + '**M125** (a beágyazott hívó elakad) · **M126** (az esemény elmarad), mind elkapva. A lánc '
+      + '123 mutáció · 123 elkapva · `TELJES ÉS TISZTA`.',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

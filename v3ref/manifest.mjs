@@ -260,6 +260,25 @@ export const EXPECTED_PROBES = Object.freeze([
       Object.freeze({ clause: 'ORG-N1a', assertion: 'A-ORG-N1a-grant-records-the-version-it-was-issued-under' }),
       Object.freeze({ clause: 'ORG-N1a', assertion: 'A-ORG-N1a-expired-or-unknown-basis-is-named-and-closed' }),
       Object.freeze({ clause: 'ORG-N1a', assertion: 'A-ORG-N1a-limit-is-data-not-enforcement-and-says-so' }),
+      // R88/F01 (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL). Az alap azonossága a (basis_id, book_id) PÁR:
+      // a feloldó CSAK az azonosítóra keresett, a kiadó út a könyvet meg sem kérdezte — egy „A"
+      // könyvre szóló határozat „B" könyvben is adott hatáskört (KUKA-027 a bizonyíték-térben).
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-ORG-N1a-basis-identity-is-the-book-pair-and-crossing-leaves-no-trace' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'P-ORG-grant-atomic', assertion: 'REVN2-grant-write-is-one-atomic-fact',
+    // R88/F02 (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL). A `grantMembership` előbb az ESEMÉNYT írta, majd a
+    // vetületet; egyediségi bukásnál az esemény BENT MARADT, tehát egy SIKERTELEN hívás átírta a
+    // történetet. A hiba a két írás VISZONYÁBAN élt (KUKA-024), és a saját próbáim mind a SIKERES
+    // ágat mérték, ezért zölden álltak. A javítás a TÁROLÓ közös atomi egysége (`store.atomic`),
+    // beágyazva mentési ponttal — hogy a jogos, tranzakcióból hívó beváltás NE akadjon el
+    // (KUKA-122: a kapu csak akkor kapu, ha teljesíthető).
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N2a', assertion: 'A-ORG-grant-success-writes-event-and-projection' }),
+      Object.freeze({ clause: 'REV-N2a', assertion: 'A-ORG-failed-grant-leaves-no-event-and-no-history-change' }),
+      Object.freeze({ clause: 'REV-N2a', assertion: 'A-ORG-nested-caller-stays-legal-and-follows-the-outer-transaction' }),
     ]),
   }),
   Object.freeze({

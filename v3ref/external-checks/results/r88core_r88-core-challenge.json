@@ -1,0 +1,108 @@
+{
+  "program": "r88_chatgpt-v3.core.mjs",
+  "source_commit": "00130890713945470eaedec97cfe31a6a85ccf6f+uncommitted",
+  "node": "v22.22.2",
+  "at": "2026-09-14T22:58:51.280Z",
+  "verbatim": true,
+  "cases": [
+    {
+      "id": "P01-same-book-basis",
+      "pass": true,
+      "result": {
+        "id": "P01-same-book-basis",
+        "pass": true,
+        "result": {
+          "allowed": true,
+          "reason": "authority_on_operation",
+          "operation": "adjudicate",
+          "detail": {
+            "granted_at": "2026-03-01T00:00:00.000Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "F01-foreign-book-basis",
+      "pass": true,
+      "result": {
+        "id": "F01-foreign-book-basis",
+        "pass": true,
+        "error": "grantAdjudicationAuthority: a hivatkozott alap nem hatályos (basis_belongs_to_other_book)",
+        "rows": [],
+        "result": {
+          "allowed": false,
+          "reason": "authority_not_established",
+          "message": "\"member\" nem rendelkezik adjudicate hatáskörrel ezen a könyvön (beadvány elbírálása). A tagság — akár admin — ehhez nem elég: a hatáskör MŰVELETENKÉNT adott.",
+          "operation": null
+        }
+      }
+    },
+    {
+      "id": "P02-successful-grant-is-paired",
+      "pass": true,
+      "result": {
+        "id": "P02-successful-grant-is-paired",
+        "pass": true,
+        "result": {
+          "ok": true,
+          "grant_event_id": 1,
+          "granted_at": "2026-06-01T00:00:00.000Z",
+          "granted_recorded_at": "2026-06-01T00:00:00.000Z",
+          "role": "user"
+        }
+      }
+    },
+    {
+      "id": "F02-rejected-grant-leaves-no-event",
+      "pass": true,
+      "result": {
+        "id": "F02-rejected-grant-leaves-no-event",
+        "pass": true,
+        "error": "UNIQUE constraint failed: membership.subject_id, membership.book_id",
+        "result": null,
+        "before": {
+          "valid_at": "2026-03-01T00:00:00.000Z",
+          "known_at": "2026-03-01T00:00:00.000Z",
+          "effective_at": null,
+          "recorded_at": null,
+          "applied": [],
+          "grant_axis": "event",
+          "effective": false,
+          "reason": "membership_grant_not_yet_recorded"
+        },
+        "after": {
+          "valid_at": "2026-03-01T00:00:00.000Z",
+          "known_at": "2026-03-01T00:00:00.000Z",
+          "effective_at": null,
+          "recorded_at": null,
+          "applied": [],
+          "grant_axis": "event",
+          "effective": false,
+          "reason": "membership_grant_not_yet_recorded"
+        },
+        "event_count": 1
+      }
+    },
+    {
+      "id": "P03-outer-transaction-rolls-back",
+      "pass": true,
+      "result": {
+        "id": "P03-outer-transaction-rolls-back",
+        "pass": true,
+        "event_count": 1,
+        "result": {
+          "valid_at": "2026-03-01T00:00:00.000Z",
+          "known_at": "2026-03-01T00:00:00.000Z",
+          "effective_at": null,
+          "recorded_at": null,
+          "applied": [],
+          "grant_axis": "event",
+          "effective": false,
+          "reason": "membership_grant_not_yet_recorded"
+        }
+      }
+    }
+  ],
+  "passed": 5,
+  "failed": 0
+}

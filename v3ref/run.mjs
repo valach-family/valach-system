@@ -3927,8 +3927,8 @@ probe('P-ORG-basis', 'R85 §1 · §5 · ORG-N1a · K04 · K14 · KUKA-003 · KUK
 
       // (a) A MÚLT KÉPE MEGMARAD: a MÁRCIUSI tudás az 1. verziót látja, a JÚNIUSI a 2.-at. A
       //     júniusi csere NEM írja át, mi volt az alap márciusban (REV-N1b).
-      const then = basisAsOf({ store, basisId: 'HAT-2026-01', validAt: BIT.MARCH_LATER, knownAt: BIT.MARCH_LATER });
-      const now = basisAsOf({ store, basisId: 'HAT-2026-01', validAt: BIT.AUGUST, knownAt: BIT.AUGUST });
+      const then = basisAsOf({ store, basisId: 'HAT-2026-01', bookId: 'a', validAt: BIT.MARCH_LATER, knownAt: BIT.MARCH_LATER });
+      const now = basisAsOf({ store, basisId: 'HAT-2026-01', bookId: 'a', validAt: BIT.AUGUST, knownAt: BIT.AUGUST });
       // A KÉT TENGELY CSAK AKKOR VÁLIK SZÉT MÉRHETŐEN, ha van UTÓLAG RÖGZÍTETT verzió: hatálya a
       // MÚLTBAN, a rögzítése a JELENBEN. Az M116 (a tudás-tengely kivétele) a próba első alakját
       // TÚLÉLTE, mert ott minden későbbi verzió későbbi hatályú is volt — a hatály-szűrő akkor is
@@ -3940,15 +3940,15 @@ probe('P-ORG-basis', 'R85 §1 · §5 · ORG-N1a · K04 · K14 · KUKA-003 · KUK
       recordAuthorityBasis({ store, basisId: 'HAT-UTOLAG', bookId: 'a', issuerSubject: 'vezeto',
         effectiveAt: BIT.MARCH, recordedAt: BIT.AUGUST, allowedOperations: ['suspend', 'adjudicate'],
         allowedRoles: ['user'], allowedScopes: ['stock'], evidenceRef: 'doc:utolag-v2' });
-      const retroThen = basisAsOf({ store, basisId: 'HAT-UTOLAG', validAt: BIT.MARCH_LATER, knownAt: BIT.MARCH_LATER });
-      const retroNow = basisAsOf({ store, basisId: 'HAT-UTOLAG', validAt: BIT.MARCH_LATER, knownAt: BIT.AUGUST });
+      const retroThen = basisAsOf({ store, basisId: 'HAT-UTOLAG', bookId: 'a', validAt: BIT.MARCH_LATER, knownAt: BIT.MARCH_LATER });
+      const retroNow = basisAsOf({ store, basisId: 'HAT-UTOLAG', bookId: 'a', validAt: BIT.MARCH_LATER, knownAt: BIT.AUGUST });
 
       // ÉS A TÜKÖR-ESET, AMIT CSAK A HATÁLY DÖNT EL: a 2. verziót AUGUSZTUSI tudással MÁR ISMERJÜK
       // (júniusban rögzült), de a MÁRCIUSI napra MÉG NEM hatályos — tehát az 1. verziónak kell
       // nyernie. Az M117 (a hatály-tengely kivétele) a próba előző alakját TÚLÉLTE, mert ott a
       // TUDÁS-szűrő is kizárta ugyanazt a verziót: KÉT szűrő mögött az egyik kivétele nem látszik.
       // Egy állítást csak akkor lehet falszifikálni, ha PONTOSAN EGY tengely dönti el (KUKA-124).
-      const knownButNotYetEffective = basisAsOf({ store, basisId: 'HAT-2026-01', validAt: BIT.MARCH_LATER, knownAt: BIT.AUGUST });
+      const knownButNotYetEffective = basisAsOf({ store, basisId: 'HAT-2026-01', bookId: 'a', validAt: BIT.MARCH_LATER, knownAt: BIT.AUGUST });
 
       const aOk = v1.ok && v2.ok && v1.version === 1 && v2.version === 2
         && then.in_effect === true && then.version === 1 && then.evidence_ref === 'doc:hatarozat-v1'
@@ -3970,9 +3970,9 @@ probe('P-ORG-basis', 'R85 §1 · §5 · ORG-N1a · K04 · K14 · KUKA-003 · KUK
         effectiveAt: BIT.MARCH, recordedAt: BIT.MARCH, expiresAt: BIT.JUNE,
         allowedOperations: ['suspend'], allowedRoles: ['user'], allowedScopes: ['stock'],
         evidenceRef: 'doc:lejart' });
-      const expired = basisAsOf({ store, basisId: 'HAT-LEJART', validAt: BIT.AUGUST, knownAt: BIT.AUGUST });
-      const unknown = basisAsOf({ store, basisId: 'NINCS-ILYEN', validAt: BIT.AUGUST, knownAt: BIT.AUGUST });
-      const notYet = basisAsOf({ store, basisId: 'HAT-2026-01', validAt: BIT.FEBRUARY, knownAt: BIT.FEBRUARY });
+      const expired = basisAsOf({ store, basisId: 'HAT-LEJART', bookId: 'a', validAt: BIT.AUGUST, knownAt: BIT.AUGUST });
+      const unknown = basisAsOf({ store, basisId: 'NINCS-ILYEN', bookId: 'a', validAt: BIT.AUGUST, knownAt: BIT.AUGUST });
+      const notYet = basisAsOf({ store, basisId: 'HAT-2026-01', bookId: 'a', validAt: BIT.FEBRUARY, knownAt: BIT.FEBRUARY });
       let refused = null;
       try {
         grantAdjudicationAuthority({ store, clock: clockFrom(BIT.AUGUST), subjectId: 'munkatars',
@@ -3991,23 +3991,158 @@ probe('P-ORG-basis', 'R85 §1 · §5 · ORG-N1a · K04 · K14 · KUKA-003 · KUK
       const dOk = st.limit_enforced === false && inside.ok === true
         && outside.ok === false && outside.reason === 'outside_basis_operations';
 
-      const pass = aOk && bOk && cOk && dOk;
+      // (e) AZ ALAP AZONOSSÁGA A (basis_id, book_id) PÁR — R88/F01.
+      //
+      // A LELET (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL). A `basisAsOf` CSAK az azonosítóra keresett, a
+      // `grantAdjudicationAuthority` pedig csak az IDŐBELI hatályt mérte — a KÖNYVET egyik sem. Egy
+      // „A" könyvre szóló határozatra hivatkozva tehát „B" könyvben is ki lehetett adni a
+      // felhatalmazást. Ez a KUKA-027 alakja a bizonyíték-térben: egy azonosító csak a SAJÁT terében
+      // egyedi, és a kiadó út a hiányzó tanút némán elnyelte.
+      //
+      // A HÁROM KÖVETELMÉNY EGYÜTT (KUKA-084: a lezárás nem HELY, hanem CSATORNA):
+      //   · az IDEGEN könyv NEVEZETT, fail-closed választ kap (nem „nincs ilyen alap");
+      //   · a tiltott kiadás SEMMILYEN sort nem hagy maga után, és később sem enged;
+      //   · a SAJÁT könyvön minden változatlanul működik (ELLENPÁR — KUKA-049).
+      store.run('INSERT INTO book VALUES (?,?)', 'b', 'B könyv');
+      const foreign = basisAsOf({ store, basisId: 'HAT-2026-01', bookId: 'b', validAt: BIT.AUGUST, knownAt: BIT.AUGUST });
+      const noBook = basisAsOf({ store, basisId: 'HAT-2026-01', bookId: '', validAt: BIT.AUGUST, knownAt: BIT.AUGUST });
+      let crossRefused = null;
+      try {
+        grantAdjudicationAuthority({ store, clock: clockFrom(BIT.AUGUST), subjectId: 'munkatars',
+          bookId: 'b', operation: 'adjudicate', basisId: 'HAT-2026-01' });
+      } catch (e) { crossRefused = e.message; }
+      // NYOM NÉLKÜL: se sor, se későbbi engedő válasz a MÁSIK könyvben.
+      const crossRow = store.get(
+        'SELECT COUNT(*) AS n FROM adjudication_authority WHERE subject_id = ? AND book_id = ?', 'munkatars', 'b');
+      const crossRight = adjudicationRightAt({ store, subjectId: 'munkatars', bookId: 'b',
+        operation: 'adjudicate', clock: clockFrom(BIT.AUGUST) });
+      // A VERZIÓ-ÁTUGRÁS IS ZÁRVA: ugyanaz az azonosító nem költözhet át NÉMÁN másik könyvbe.
+      const hop = recordAuthorityBasis({ store, basisId: 'HAT-2026-01', bookId: 'b', issuerSubject: 'vezeto',
+        effectiveAt: BIT.AUGUST, recordedAt: BIT.AUGUST, allowedOperations: ['adjudicate'],
+        allowedRoles: ['user'], allowedScopes: ['stock'], evidenceRef: 'doc:atugras' });
+      // ELLENPÁR: a SAJÁT könyvén a kiadás változatlanul MEGY.
+      let sameBookOk = true;
+      try {
+        grantAdjudicationAuthority({ store, clock: clockFrom(BIT.AUGUST), subjectId: 'munkatars',
+          bookId: 'a', operation: 'adjudicate', basisId: 'HAT-2026-01' });
+      } catch { sameBookOk = false; }
+      const eOk = foreign.in_effect === false && foreign.reason === 'basis_belongs_to_other_book'
+        && noBook.in_effect === false && noBook.reason === 'book_id_required'
+        && crossRefused !== null && crossRefused.includes('basis_belongs_to_other_book')
+        && Number(crossRow.n) === 0 && crossRight.allowed === false
+        && hop.ok === false && hop.reason === 'basis_id_belongs_to_other_book'
+        && sameBookOk === true;
+
+      const pass = aOk && bOk && cOk && dOk && eOk;
       return {
         expected: 'a verzió-történet a két tengelyen olvasható · a hatáskör-sor a KIADÁSKORI verziót '
           + 'rögzíti · a lejárt/ismeretlen/még nem hatályos alap KÜLÖN nevezett válasz és ZÁR · a '
-          + 'korlát ma ADAT, és ezt a válasz kimondja',
+          + 'korlát ma ADAT, és ezt a válasz kimondja · az alap azonossága a (basis_id, book_id) PÁR: '
+          + 'idegen könyvre nevezetten ZÁR, nyom nélkül, a saját könyvén változatlanul MEGY',
         actual: `(a) akkor=v${then.version} ma=v${now.version} · utólag rögzített: akkor=v${retroThen.version} `
           + `ma=v${retroNow.version} · ismert de még nem hatályos=v${knownButNotYetEffective.version} · `
           + `(b) kiadáskor=v${st.granted_under_version} `
           + `ma=v${st.version_now} · (c) lejárt=${expired.reason} ismeretlen=${unknown.reason} `
           + `még nem=${notYet.reason} kiadás=${refused ? 'ZÁRT' : 'ÁTMENT'} · `
-          + `(d) korlát kikényszerítve=${st.limit_enforced} belül=${inside.ok} kívül=${outside.reason}`,
+          + `(d) korlát kikényszerítve=${st.limit_enforced} belül=${inside.ok} kívül=${outside.reason} · `
+          + `(e) idegen könyv=${foreign.reason} könyv nélkül=${noBook.reason} kiadás=${crossRefused ? 'ZÁRT' : 'ÁTMENT'} `
+          + `sor=${crossRow.n} későbbi jog=${crossRight.allowed} átugrás=${hop.reason || 'ÁTMENT'} saját könyv=${sameBookOk ? 'MEGY' : 'ELAKADT'}`,
         pass,
         asserts: {
           'A-ORG-N1a-basis-version-history-on-two-axes': aOk,
           'A-ORG-N1a-grant-records-the-version-it-was-issued-under': bOk,
           'A-ORG-N1a-expired-or-unknown-basis-is-named-and-closed': cOk,
           'A-ORG-N1a-limit-is-data-not-enforcement-and-says-so': dOk,
+          'A-ORG-N1a-basis-identity-is-the-book-pair-and-crossing-leaves-no-trace': eOk,
+        },
+      };
+    } finally { store.close(); }
+  });
+
+probe('P-ORG-grant-atomic', 'R88 §3 · REV-N2a · ORG-N1a · K08 · KUKA-024 · KUKA-026 · KUKA-122',
+  'A TAGSÁGADÁS EGY ÍRÁS: a bukott kísérlet NEM hagy nyomot a történetben',
+  () => {
+    const store = openStore();
+    try {
+      store.run('INSERT INTO book VALUES (?,?)', 'a', 'A könyv');
+      store.run('INSERT INTO subject VALUES (?,?)', 'member', 'person');
+      const events = () => Number(store.get('SELECT COUNT(*) AS n FROM membership_grant').n);
+      const rows = () => Number(store.get('SELECT COUNT(*) AS n FROM membership').n);
+
+      // (a) A SIKERES ÁG VÁLTOZATLAN: esemény ÉS vetület, egyszerre.
+      const first = grantMembership({ store, subjectId: 'member', bookId: 'a', role: 'user',
+        effectiveAt: BIT.MARCH, recordedAt: BIT.MARCH });
+      const afterFirst = { e: events(), r: rows() };
+
+      // (b) A BUKOTT ÁG NEM ÍR TÖRTÉNELMET — R88/F02.
+      //
+      // A LELET (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL). Az esemény ÖNÁLLÓAN ment be, a vetület utána; ha
+      // a vetület egyediségre bukott, az ESEMÉNY bent maradt. A hívó hibát kapott, a rendszer mégis
+      // megváltozott: a márciusi kérdésre előtte „nincs tagság", utána „van". Ez a KUKA-026 alakja
+      // — csak fordítva: ott a KUDARC nyoma tűnt el a siker tranzakciójában, itt a kudarc HATÁSA
+      // maradt bent. A puszta előzetes duplikátum-vizsgálat NEM helyettesíti az atomicitást
+      // (versenyhelyzetben ugyanoda jutunk), ezért a próba a TÁROLÓ határát méri, nem egy őrt.
+      const before = membershipAsOf({ store, subjectId: 'member', bookId: 'a',
+        validAt: BIT.AUGUST, knownAt: BIT.AUGUST });
+      let threw = null;
+      try {
+        grantMembership({ store, subjectId: 'member', bookId: 'a', role: 'admin',
+          effectiveAt: BIT.JUNE, recordedAt: BIT.JUNE });
+      } catch (e) { threw = (e && e.message) || String(e); }
+      const afterFail = { e: events(), r: rows() };
+      const after = membershipAsOf({ store, subjectId: 'member', bookId: 'a',
+        validAt: BIT.AUGUST, knownAt: BIT.AUGUST });
+      const bOk = threw !== null
+        && afterFail.e === afterFirst.e && afterFail.r === afterFirst.r
+        && after.role === before.role && after.granted_at === before.granted_at;
+
+      // (c) A BEÁGYAZOTT HÍVÓ JOGOS ÚT MARAD — KUKA-122: a kapu csak akkor kapu, ha TELJESÍTHETŐ.
+      //
+      // A meghívó-beváltás MÁR tranzakcióban hív minket. Ha a javítás egy KÜLSŐ `BEGIN`-t írt volna
+      // ide, a jogos beváltás állt volna meg — a javítás a hazugság helyett a munkát zárta volna ki.
+      // Ezért `atomic` (beágyazva mentési pont), és a KÜLSŐ tranzakció sorsa dönt: ha az visszagördül,
+      // a tagságadás is eltűnik — a beágyazott egység nem véglegesít a hívója helyett.
+      store.run('INSERT INTO subject VALUES (?,?)', 'invitee', 'person');
+      let nested = null;
+      let nestedErr = null;
+      // A KIVÉTELT ITT FOGJUK EL, hogy a visszacsúszás NEVEZETT ÁLLÍTÁS-BUKÁS legyen, ne nyers
+      // programhiba: a mérés akkor mér, ha a bukás alakja is a miénk (KUKA-020).
+      try {
+        store.tx(() => { nested = grantMembership({ store, subjectId: 'invitee', bookId: 'a', role: 'user', at: BIT.MARCH }); });
+      } catch (e) { nestedErr = (e && e.message) || String(e); }
+      const nestedCommitted = { e: events(), r: rows() };
+
+      store.run('INSERT INTO subject VALUES (?,?)', 'rolled', 'person');
+      let outerThrew = null;
+      try {
+        store.tx(() => {
+          grantMembership({ store, subjectId: 'rolled', bookId: 'a', role: 'user', at: BIT.MARCH });
+          throw new Error('a KÜLSŐ tranzakció bukik el — a tagságadásnak vele kell mennie');
+        });
+      } catch (e) { outerThrew = (e && e.message) || String(e); }
+      const afterRollback = { e: events(), r: rows() };
+      const rolledRight = rightAt({ store, subjectId: 'rolled', bookId: 'a', nowIso: BIT.AUGUST });
+      const cOk = nestedErr === null && nested !== null && nested.ok === true
+        && nestedCommitted.e === afterFail.e + 1 && nestedCommitted.r === afterFail.r + 1
+        && outerThrew !== null
+        && afterRollback.e === nestedCommitted.e && afterRollback.r === nestedCommitted.r
+        && rolledRight.allowed === false;
+
+      const aOk = first.ok === true && afterFirst.e === 1 && afterFirst.r === 1;
+      const pass = aOk && bOk && cOk;
+      return {
+        expected: 'a tagságadás esemény és vetület EGYÜTT sikerül vagy EGYÜTT bukik · a bukott kísérlet '
+          + 'után a történet VÁLTOZATLAN · a beágyazott (beváltási) hívó jogos út marad, és a KÜLSŐ '
+          + 'tranzakció visszagördülése a tagságadást is elviszi',
+        actual: `(a) első: esemény=${afterFirst.e} sor=${afterFirst.r} · (b) bukás=${threw ? 'IGEN' : 'NEM'} `
+          + `esemény=${afterFail.e} sor=${afterFail.r} szerep előtte=${before.role} utána=${after.role} · `
+          + `(c) beágyazott=${nestedErr ? `ELAKADT (${nestedErr})` : nested && nested.ok} véglegesítve esemény=${nestedCommitted.e} · `
+          + `külső visszagördülés után esemény=${afterRollback.e} sor=${afterRollback.r} jog=${rolledRight.allowed}`,
+        pass,
+        asserts: {
+          'A-ORG-grant-success-writes-event-and-projection': aOk,
+          'A-ORG-failed-grant-leaves-no-event-and-no-history-change': bOk,
+          'A-ORG-nested-caller-stays-legal-and-follows-the-outer-transaction': cOk,
         },
       };
     } finally { store.close(); }

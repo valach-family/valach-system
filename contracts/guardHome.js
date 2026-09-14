@@ -207,6 +207,11 @@ const GUARD_HOME = Object.freeze({
   'KUKA-158': Object.freeze({ home: 'v3', note: 'a felülvizsgálati kör ellenpárja a V3 magreferencia fixtúrájában él (BIT.GRANT · feb-0)' }),
   'KUKA-159': Object.freeze({ home: 'v3', note: 'a tükör-esetek a V3 magreferencia próbáiban élnek (P-REV-grant-axis · P-ORG-basis) — a mutációs battéria méri' }),
   'KUKA-160': Object.freeze({ home: 'v3', note: 'a bukó gyermekfutás teljes nyoma a V3 külső-lánc futtatójában él (`child_trace`)' }),
+  // R88 (D-VS-3027) — MINDKETTŐ a V3 MAGRÓL szól, tehát a jelük ITT fut: az egyik a felhatalmazási
+  // alap azonosságáról (`authorityBasis.mjs`), a másik a tagságadás atomi határáról
+  // (`bitemporal.mjs` + `store.mjs`). Mindkettőt a KÜLSŐ TÁRGYALÓ FÉL találta meg.
+  'KUKA-161': Object.freeze({ home: 'v3', note: 'az alap azonossága a (basis_id, book_id) pár — a jel a P-ORG-basis (e) állítása + M121/M122/M123' }),
+  'KUKA-162': Object.freeze({ home: 'v3', note: 'a tagságadás atomi határa — a jel az ÚJ P-ORG-grant-atomic próba + M124/M125/M126' }),
   'KUKA-150': Object.freeze({ home: 'v3', note: 'a RUN-02 futás-szerződés (darabolt futás) a V3 mutációs battériájában él — a jel az r79/U01 külső-ellenőrzés + az egység-fájl `evidence_bound` mezője ITT fut' }),
 });
 

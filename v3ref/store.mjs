@@ -529,6 +529,9 @@ export function openStore() {
     run(sql, ...params) { return db.prepare(sql).run(...params); },
     // A tranzakció a TÁROLÓ szolgáltatása — a hívó nem ír BEGIN-t a kezével (KUKA-003).
     tx(fn) { return withTransaction(db, fn); },
+    // ATOMI EGYSÉG, BEÁGYAZVA IS (R88/F02): a `tx` a KÜLSŐ határ, az `atomic` a BELSŐ — egy writer
+    // ezzel akkor is oszthatatlan, ha a hívója már tranzakcióban van.
+    atomic(fn) { return atomically(db, fn); },
     all(sql, ...params) { return db.prepare(sql).all(...params); },
     get(sql, ...params) { return db.prepare(sql).get(...params); },
   };
@@ -609,6 +612,39 @@ export function compareInstants(a, b) {
 //
 // A COMMIT a `try`-on BELÜL van, a ROLLBACK pedig CSAK futó tranzakcióra megy: egy bukott COMMIT
 // után a vak ROLLBACK MÁSODIK kivétele elnyelné az elsőt — a valódi ok eltűnne (KUKA-026).
+/**
+ * ATOMI EGYSÉG, AMI BEÁGYAZVA IS MŰKÖDIK (R88/F02 — a külső fél lelete).
+ *
+ * MI VOLT A HIBA. A `grantMembership` KÉT írást végez (esemény + vetület). Ha a második elbukik
+ * (egyediség), az ELSŐ bent marad: egy SIKERTELEN művelet így MEGVÁLTOZTATJA a történetet — a
+ * márciusi kérdésre a hívás előtt „nincs tagság", utána „van". A hiba a két írás VISZONYÁBAN élt,
+ * nem egyikükben sem (KUKA-024).
+ *
+ * MIÉRT NEM ELÉG A `withTransaction`. Az DOB, ha a hívó már tranzakcióban van — a meghívó-beváltás
+ * pedig pontosan onnan hívja a writert. Egy `store.tx` beletétele tehát a JOGOS utat törte volna el
+ * (KUKA-122: a kapu nem lehet fal). Ezért SAVEPOINT a beágyazott ágon, BEGIN a szabadon.
+ *
+ * MIÉRT NEM ELŐZETES DUPLIKÁTUM-ELLENŐRZÉS. A külső fél kimondta: *„Puszta előzetes
+ * duplikátum-ellenőrzés nem helyettesíti az atomiságot."* — igazuk van: az csak EZT az egy ütközést
+ * fedné le, és két párhuzamos hívás között úgyis elcsúszna. A követelmény a VISELKEDÉS: együtt
+ * sikerül, vagy együtt bukik.
+ */
+let savepointSeq = 0;
+export function atomically(db, fn) {
+  if (!db.isTransaction) return withTransaction(db, fn);
+  const name = `sp_${++savepointSeq}`;
+  db.exec(`SAVEPOINT ${name}`);
+  try {
+    const out = fn();
+    db.exec(`RELEASE ${name}`);
+    return out;
+  } catch (e) {
+    // A MENTÉSPONTIG görgetünk vissza, majd ELENGEDJÜK — a KÜLSŐ tranzakció sorsáról a hívó dönt.
+    try { db.exec(`ROLLBACK TO ${name}`); db.exec(`RELEASE ${name}`); } catch { /* az EREDETI hiba megy tovább */ }
+    throw e;
+  }
+}
+
 export function withTransaction(db, fn) {
   if (db.isTransaction) throw new Error('withTransaction: beágyazott tranzakció — a hívó már tranzakcióban van');
   db.exec('BEGIN IMMEDIATE');

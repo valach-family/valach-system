@@ -59,6 +59,18 @@ export function recordAuthorityBasis({
   if (typeof evidenceRef !== 'string' || !evidenceRef.trim()) return frozen({ ok: false, reason: 'evidence_ref_required' });
   if (expiresAt !== null && !instantMs(expiresAt).ok) return frozen({ ok: false, reason: 'expires_at_unparseable' });
 
+  if (typeof bookId !== 'string' || !bookId.trim()) return frozen({ ok: false, reason: 'book_id_required' });
+
+  // A VERZIÓ NEM VÁLTHAT KÖNYVET (R88/F01 második fele — a külső fél kimondott kérése: „a verziók
+  // közötti cégtérváltást se lehessen ugyanazon alapazonosító csendes újrahasználatával megtenni").
+  //
+  // Enélkül a fenti olvasó-oldali kötés MEGKERÜLHETŐ volna: elég volna az `A`-ra szóló alapra egy
+  // `B` könyvű 2. verziót írni, és a `basisAsOf` onnantól `B`-ben is hatályosat találna. A javítás
+  // ott áll, ahol az érték SZÜLETIK (KUKA-070), nem csak ott, ahol olvassuk (KUKA-129).
+  const existing = store.all('SELECT DISTINCT book_id FROM authority_basis WHERE basis_id = ?', basisId);
+  const other = existing.filter((r) => String(r.book_id) !== String(bookId));
+  if (other.length) return frozen({ ok: false, reason: 'basis_id_belongs_to_other_book' });
+
   const prev = store.get('SELECT MAX(version) AS v FROM authority_basis WHERE basis_id = ?', basisId);
   const version = Number(prev && prev.v ? prev.v : 0) + 1;
   store.run(
@@ -80,15 +92,40 @@ export function recordAuthorityBasis({
  * A LEGKÉSŐBBI ILYEN VERZIÓ dönt: az újabb verzió a régit VÁLTJA, nem törli. A lejárat és a
  * visszavonás KÜLÖN nevezett válasz — a KUKA-124/2 elve: a hiány és a rossz érték nem ugyanaz.
  */
-export function basisAsOf({ store, basisId, validAt, knownAt }) {
+export function basisAsOf({ store, basisId, bookId, validAt, knownAt }) {
   const valid = instantMs(validAt);
   const known = instantMs(knownAt);
-  const base = { basis_id: basisId ?? null, valid_at: validAt ?? null, known_at: knownAt ?? null, version: null, limit_enforced: false };
+  const base = {
+    basis_id: basisId ?? null, book_id: bookId ?? null,
+    valid_at: validAt ?? null, known_at: knownAt ?? null, version: null, limit_enforced: false,
+  };
   if (!valid.ok) return frozen({ ...base, in_effect: false, reason: `valid_at_${valid.reason}` });
   if (!known.ok) return frozen({ ...base, in_effect: false, reason: `known_at_${known.reason}` });
+  // A KÖNYV KÖTELEZŐ, ÉS A HIÁNYA ZÁR (R88/F01 — a külső fél lelete).
+  //
+  // MI VOLT A HIBA. Az alap TÁROLTA a könyvet, de a feloldás CSAK az azonosítóra szűrt, a
+  // hatáskör-adás pedig az IDŐBELI érvényességet nézte, a könyv egyezését nem: az `A` könyvre
+  // szóló határozatra hivatkozva létre lehetett hozni `B`-ben egy élő `adjudicate` hatáskört. A
+  // mező tehát KI VOLT ÍRVA, de senki nem KÉRDEZTE meg (KUKA-126) — és mivel a döntést egyetlen
+  // tengely (az idő) hozta, a hiányzó második tengely nem látszott (KUKA-159).
+  //
+  // MIÉRT KÖTELEZŐ, NEM OPCIONÁLIS. Egy „ha megadják, ellenőrizzük" alak néma kiskaput hagyna: aki
+  // elfelejti átadni, ugyanazt a korlátlan választ kapná, mint ma (KUKA-041). A hiány ezért SAJÁT,
+  // nevezett válasz, és ZÁR — a fail-closed itt nem választás (KUKA-020).
+  if (typeof bookId !== 'string' || !bookId.trim()) {
+    return frozen({ ...base, in_effect: false, reason: 'book_id_required' });
+  }
 
   const rows = store.all('SELECT * FROM authority_basis WHERE basis_id = ? ORDER BY version', basisId);
   if (!rows.length) return frozen({ ...base, in_effect: false, reason: 'no_recorded_basis' });
+  // AZ IDEGEN KÖNYV KÜLÖN, NEVEZETT VÁLASZ — nem ugyanaz, mint a „nincs ilyen alap" (KUKA-124/2).
+  // A LEGSZŰKEBB SZŰRŐ a lekérdezésben is állhatna, de akkor az idegen könyv „nincs ilyen alap"-nak
+  // látszana, és a befogadó nem tudná megkülönböztetni a két esetet (KUKA-064: a nemleges válasz
+  // mondja meg, MIÉRT).
+  const foreign = rows.filter((r) => String(r.book_id) !== String(bookId));
+  if (foreign.length) {
+    return frozen({ ...base, in_effect: false, reason: 'basis_belongs_to_other_book' });
+  }
 
   let best = null;
   for (const r of rows) {
@@ -167,7 +204,7 @@ export function basisState({ store, subjectId, bookId, operation, validAt, known
     // hallgatható el (KUKA-012 · KUKA-127: a gyengébb tanút meg kell nevezni).
     return frozen({ recorded: false, reason: 'authority_without_recorded_basis', limit_enforced: false });
   }
-  const basis = basisAsOf({ store, basisId: row.basis_id, validAt, knownAt });
+  const basis = basisAsOf({ store, basisId: row.basis_id, bookId, validAt, knownAt });
   return frozen({
     recorded: true,
     basis_id: row.basis_id,

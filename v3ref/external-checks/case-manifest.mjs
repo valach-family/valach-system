@@ -31,6 +31,55 @@
 /** A programok — KI ÍRTA, MIT MÉR, és PONTOSAN MELY ESETEKET kell hoznia. */
 export const PROGRAMS = Object.freeze([
   Object.freeze({
+    id: 'r88core',
+    file: 'r88_chatgpt-v3.mjs',
+    companions: Object.freeze(['r88_chatgpt-v3.core.mjs']),
+    by: 'chatgpt-v3 — KÜLSŐ, független fél',
+    origin: 'R88 §3 (a MAG-próba: az `r88_chatgpt-v3.core.mjs` az ő szövegük, karakterre — '
+      + 'md5 d12336ec7dc26febcfcb222b9627f562, ahogy a lapjukról kinyertük; „bájtazonost" az ő saját '
+      + 'példányukhoz képest NEM állítunk, mert azt nem mértük meg — R83 §6 tanulsága). '
+      + 'TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson '
+      + '3 PASS / 2 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson 5 PASS / 0 FAIL.',
+    what: 'F01 — a felhatalmazási ALAP azonossága a (basis_id, book_id) PÁR: idegen könyvre hivatkozva '
+      + 'nem adható hatáskör, és a tiltott kérés NYOM NÉLKÜL akad el (se sor, se későbbi engedő '
+      + 'válasz); pozitív kontroll: a SAJÁT könyvén változatlanul megy. F02 — a tagságadás EGY ÍRÁS: '
+      + 'a bukott kísérlet nem hagy esemény-sort és nem írja át a történetet; a KÜLSŐ tranzakció '
+      + 'visszagördülése a tagságadást is elviszi.',
+    evidence: 'r88-core-challenge.json',
+    cases: Object.freeze([
+      'P01-same-book-basis', 'F01-foreign-book-basis',
+      'P02-successful-grant-is-paired', 'F02-rejected-grant-leaves-no-event',
+      'P03-outer-transaction-rolls-back',
+    ]),
+    cases_source: 'a külső fél R88-as lapja (a program `test(...)` hívásainak azonosítói, ahogy megérkezett)',
+    evidence_pin_field: 'source_commit',
+  }),
+  Object.freeze({
+    id: 'r85core',
+    file: 'r85_chatgpt-v3.mjs',
+    companions: Object.freeze(['r85_chatgpt-v3.core.mjs']),
+    by: 'chatgpt-v3 — KÜLSŐ, független fél',
+    // HELYESBÍTÉS (R88 §7 — megtalálta: a KÜLSŐ TÁRGYALÓ FÉL). Az R86 §10-ben azt állítottam, hogy
+    // ez a program „be van kötve" ide. MÉRVE nem volt igaz: sem a fájl-fában, sem ebben a
+    // regiszterben nem szerepelt. A „megkaptam" és a „a söprés futtatja" KÉT KÜLÖNBÖZŐ ÁLLÍTÁS
+    // (KUKA-038), és a másodikat állítottam a első helyett. A helyesbítés maga ez a bejegyzés.
+    origin: 'R85 §3–§4 (a MAG-próba: az `r85_chatgpt-v3.core.mjs` az ő szövegük, karakterre — '
+      + 'md5 854892614413c6d8fbd0afe8c785e765). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: '
+      + 'a JAVÍTÁS ELŐTTI forráson 2 PASS / 2 FAIL — pontosan az általuk közölt reprodukció —, a mai '
+      + 'forráson 4 PASS / 0 FAIL.',
+    what: 'F01 — a tagságadás KÉT IDŐ-TENGELYE: a júniusi beváltás nem írhatja át, mit tudtunk '
+      + 'márciusban (a megvonással azonos szerkezet). F02 — a jogváltozási esemény SAJÁT, tartós '
+      + 'bizonyíték-hivatkozása: a visszamenőleges ÉS a jövőbeli hatályú ágon is megmarad (korábban '
+      + 'csak a felülvizsgálati körbe került, ami kizárólag a visszamenőleges ágon születik).',
+    evidence: 'r85-core-challenge.json',
+    cases: Object.freeze([
+      'P01-known-grant', 'F01-grant-not-known-at-query',
+      'P02-retro-evidence-persists', 'F02-future-evidence-persists',
+    ]),
+    cases_source: 'a külső fél R85-ös lapja (a program `test(...)` hívásainak azonosítói, ahogy megérkezett)',
+    evidence_pin_field: 'source_commit',
+  }),
+  Object.freeze({
     id: 'r77',
     file: 'r77_chatgpt-v3.mjs',
     companions: Object.freeze(['r77_chatgpt-v3.core.mjs']),

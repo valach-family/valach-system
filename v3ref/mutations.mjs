@@ -1136,4 +1136,54 @@ export const MUTATIONS = [
     file: 'authorityBasis.mjs',
     from: '    // ORG-N1b — KIMONDOTT ADÓSSÁG: a korlátot ma SENKI nem kényszeríti ki.\n    limit_enforced: false,',
     to: '    limit_enforced: true,' },
+
+  // ── R88/F01 — AZ ALAP AZONOSSÁGA A (basis_id, book_id) PÁR ────────────────────────────────
+
+  { id: 'M121', rule: 'K04', catcher: 'P-ORG-basis', expect: 'probe_fail',
+    what: 'ORG-N1a — AZ IDEGEN KÖNYV ÁTMEGY: a feloldó megint CSAK az azonosítóra keres. Ettől egy '
+      + '„A" könyvre szóló határozatra hivatkozva „B" könyvben is lehet hatáskört adni — egy '
+      + 'azonosító csak a SAJÁT terében egyedi (KUKA-027)',
+    file: 'authorityBasis.mjs',
+    from: '  const foreign = rows.filter((r) => String(r.book_id) !== String(bookId));',
+    to: '  const foreign = [];' },
+
+  { id: 'M122', rule: 'K04', catcher: 'P-ORG-basis', expect: 'probe_fail',
+    what: 'ORG-N1a — A HIÁNYZÓ KÖNYV NEM KAP SAJÁT VÁLASZT: a fail-closed kimarad, és a hiány némán '
+      + 'ugyanoda sorolódik, mint a rossz érték. A hiánynak SAJÁT, nevezett kapuja van (KUKA-124/2)',
+    file: 'authorityBasis.mjs',
+    from: "  if (typeof bookId !== 'string' || !bookId.trim()) {\n    return frozen({ ...base, in_effect: false, reason: 'book_id_required' });\n  }",
+    to: '  if (false) {\n    return frozen({ ...base, in_effect: false });\n  }' },
+
+  { id: 'M123', rule: 'K04', catcher: 'P-ORG-basis', expect: 'probe_fail',
+    what: 'ORG-N1a — A VERZIÓ-ÁTUGRÁS KINYÍLIK: ugyanaz az azonosító NÉMÁN átköltözhet másik könyvbe '
+      + 'egy új verzióval. Ettől az azonosság a kiadás és az olvasás között elcsúszna (KUKA-128)',
+    file: 'authorityBasis.mjs',
+    from: "  if (other.length) return frozen({ ok: false, reason: 'basis_id_belongs_to_other_book' });",
+    to: '  if (false) return frozen({ ok: false });' },
+
+  // ── R88/F02 — A TAGSÁGADÁS EGY ÍRÁS ───────────────────────────────────────────────────────
+
+  { id: 'M124', rule: 'K08', catcher: 'P-ORG-grant-atomic', expect: 'probe_fail',
+    what: 'REV-N2a — A KÉT ÍRÁS SZÉTESIK: az esemény önállóan megy be, és egyediségi bukásnál BENT '
+      + 'MARAD. Ettől egy SIKERTELEN hívás is átírja a történetet — a márciusi kérdésre előtte '
+      + '„nincs tagság", utána „van" (KUKA-024: a hiba a két írás VISZONYÁBAN él)',
+    file: 'bitemporal.mjs',
+    from: '  return store.atomic(() => {',
+    to: '  return ((f) => f())(() => {' },
+
+  { id: 'M125', rule: 'K08', catcher: 'P-ORG-grant-atomic', expect: 'probe_fail',
+    what: 'REV-N2a — A BEÁGYAZOTT HÍVÓ ELAKAD: az atomi egység KÜLSŐ tranzakciót nyit mentési pont '
+      + 'helyett, ezért a tranzakcióból hívó (meghívó-beváltási) JOGOS út megáll. A javítás így a '
+      + 'hazugság helyett a munkát zárná ki (KUKA-122: a kapu csak akkor kapu, ha teljesíthető)',
+    file: 'store.mjs',
+    from: '    atomic(fn) { return atomically(db, fn); },',
+    to: '    atomic(fn) { return withTransaction(db, fn); },' },
+
+  { id: 'M126', rule: 'K08', catcher: 'P-ORG-grant-atomic', expect: 'probe_fail',
+    what: 'REV-N2a — AZ ESEMÉNY ELMARAD, CSAK A VETÜLET SZÜLETIK: a sikeres tagságadás nem hagy '
+      + 'napló-eseményt. A feloldó ilyenkor a GYENGÉBB tanúra esik vissza (`projected_row`), tehát a '
+      + 'két idő-tengely összeolvad — némán (KUKA-127: a gyengébb jel nem veheti fel az erősebb nevét)',
+    file: 'bitemporal.mjs',
+    from: "      'INSERT INTO membership_grant (subject_id, book_id, role, recorded_at, effective_at) VALUES (?,?,?,?,?)',",
+    to: "      'INSERT INTO membership_grant (subject_id, book_id, role, recorded_at, effective_at) SELECT ?,?,?,?,? WHERE 0'," },
 ];

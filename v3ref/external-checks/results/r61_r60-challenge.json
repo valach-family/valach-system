@@ -1,5 +1,5 @@
 {
-  "pin": "09ea3831d444c660e0b2ecba4ff4ee22435435f8+uncommitted",
+  "pin": "00130890713945470eaedec97cfe31a6a85ccf6f+uncommitted",
   "node": "v22.22.2",
   "cases": [
     {
@@ -77,7 +77,7 @@
       "pass": true,
       "exit": 1,
       "result": {
-        "at": "2026-09-14T20:52:22.319Z",
+        "at": "2026-09-14T22:58:53.374Z",
         "node": "v22.22.2",
         "source": {
           "commit": "unknown",
@@ -89,6 +89,8 @@
           "complete": true,
           "scope": "full",
           "ran": [
+            "r88core",
+            "r85core",
             "r77",
             "r75",
             "r69",
@@ -113,16 +115,130 @@
           "complete_evidence": false,
           "green": 0,
           "env_skipped": 0,
-          "of": 15
+          "of": 17
         },
         "programs": [
+          {
+            "id": "r88core",
+            "file": "r88_chatgpt-v3.mjs",
+            "by": "chatgpt-v3 — KÜLSŐ, független fél",
+            "origin": "R88 §3 (a MAG-próba: az `r88_chatgpt-v3.core.mjs` az ő szövegük, karakterre — md5 d12336ec7dc26febcfcb222b9627f562, ahogy a lapjukról kinyertük; „bájtazonost\" az ő saját példányukhoz képest NEM állítunk, mert azt nem mértük meg — R83 §6 tanulsága). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson 3 PASS / 2 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson 5 PASS / 0 FAIL.",
+            "exit": 0,
+            "ms": 70,
+            "failure_kind": "unknown",
+            "failure_why": "nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető",
+            "failure_rows": [],
+            "failure_witness_limit": null,
+            "failure_witness_basis": null,
+            "expected_cases": [
+              "P01-same-book-basis",
+              "F01-foreign-book-basis",
+              "P02-successful-grant-is-paired",
+              "F02-rejected-grant-leaves-no-event",
+              "P03-outer-transaction-rolls-back"
+            ],
+            "expected_from": "a külső fél R88-as lapja (a program `test(...)` hívásainak azonosítói, ahogy megérkezett)",
+            "evidence_file": "r88-core-challenge.json",
+            "evidence_present": false,
+            "evidence_pin": null,
+            "total": null,
+            "present": [],
+            "missing": [
+              "P01-same-book-basis",
+              "F01-foreign-book-basis",
+              "P02-successful-grant-is-paired",
+              "F02-rejected-grant-leaves-no-event",
+              "P03-outer-transaction-rolls-back"
+            ],
+            "unknown": [],
+            "duplicate": [],
+            "failed": [],
+            "problems": [
+              "[r88core] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r88-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható",
+              "[r88core] a program kimenete nem értelmezhető eset-listaként"
+            ],
+            "ok": false,
+            "saved": null,
+            "stderr": [],
+            "error": null,
+            "child_trace": {
+              "status": 0,
+              "signal": null,
+              "spawn_error_code": null,
+              "elapsed_ms": 70,
+              "stderr_tail": [],
+              "stdout_tail": [
+                "[{\"id\":\"P01-same-book-basis\",\"pass\":true},{\"id\":\"F01-foreign-book-basis\",\"pass\":true},{\"id\":\"P02-successful-grant-is-paired\",\"pass\":true},{\"id\":\"F02-rejected-grant-leaves-no-event\",\"pass\":true},{\"id\":\"P03-outer-transaction-rolls-back\",\"pass\":true}]"
+              ],
+              "truncated": {
+                "stderr_lines": 0,
+                "stdout_lines": 1
+              }
+            }
+          },
+          {
+            "id": "r85core",
+            "file": "r85_chatgpt-v3.mjs",
+            "by": "chatgpt-v3 — KÜLSŐ, független fél",
+            "origin": "R85 §3–§4 (a MAG-próba: az `r85_chatgpt-v3.core.mjs` az ő szövegük, karakterre — md5 854892614413c6d8fbd0afe8c785e765). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson 2 PASS / 2 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson 4 PASS / 0 FAIL.",
+            "exit": 0,
+            "ms": 80,
+            "failure_kind": "unknown",
+            "failure_why": "nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető",
+            "failure_rows": [],
+            "failure_witness_limit": null,
+            "failure_witness_basis": null,
+            "expected_cases": [
+              "P01-known-grant",
+              "F01-grant-not-known-at-query",
+              "P02-retro-evidence-persists",
+              "F02-future-evidence-persists"
+            ],
+            "expected_from": "a külső fél R85-ös lapja (a program `test(...)` hívásainak azonosítói, ahogy megérkezett)",
+            "evidence_file": "r85-core-challenge.json",
+            "evidence_present": false,
+            "evidence_pin": null,
+            "total": null,
+            "present": [],
+            "missing": [
+              "P01-known-grant",
+              "F01-grant-not-known-at-query",
+              "P02-retro-evidence-persists",
+              "F02-future-evidence-persists"
+            ],
+            "unknown": [],
+            "duplicate": [],
+            "failed": [],
+            "problems": [
+              "[r85core] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r85-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható",
+              "[r85core] a program kimenete nem értelmezhető eset-listaként"
+            ],
+            "ok": false,
+            "saved": null,
+            "stderr": [],
+            "error": null,
+            "child_trace": {
+              "status": 0,
+              "signal": null,
+              "spawn_error_code": null,
+              "elapsed_ms": 80,
+              "stderr_tail": [],
+              "stdout_tail": [
+                "[{\"id\":\"P01-known-grant\",\"pass\":true},{\"id\":\"F01-grant-not-known-at-query\",\"pass\":true},{\"id\":\"P02-retro-evidence-persists\",\"pass\":true},{\"id\":\"F02-future-evidence-persists\",\"pass\":true}]"
+              ],
+              "truncated": {
+                "stderr_lines": 0,
+                "stdout_lines": 1
+              }
+            }
+          },
           {
             "id": "r77",
             "file": "r77_chatgpt-v3.mjs",
             "by": "chatgpt-v3 — KÜLSŐ, független fél",
             "origin": "R77 §8 (a MAG-próba: a `r77_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN — egyetlen karaktert sem írtunk át benne, a behúzási útvonalakat sem: a futtató ugyanazt a `source/v3ref/` elrendezést állítja elő, amit az ő csomagjuk feltételez). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI (R76-os) forráson 34 PASS / 5 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson 39 PASS / 0 FAIL.",
             "exit": 0,
-            "ms": 38,
+            "ms": 92,
             "failure_kind": "unknown",
             "failure_why": "nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető",
             "failure_rows": [],
@@ -231,7 +347,7 @@
               "status": 0,
               "signal": null,
               "spawn_error_code": null,
-              "elapsed_ms": 38,
+              "elapsed_ms": 92,
               "stderr_tail": [],
               "stdout_tail": [
                 "[{\"id\":\"M-suspend-book-matching\",\"pass\":true},{\"id\":\"M-suspend-book-other\",\"pass\":true},{\"id\":\"M-suspend-operation-matching\",\"pass\":true},{\"id\":\"M-suspend-operation-other\",\"pass\":true},{\"id\":\"M-suspend-subject-matching\",\"pass\":true},{\"id\":\"M-suspend-credential-matching\",\"pass\":true},{\"id\":\"M-suspend-credential-other\",\"pass\":true},{\"id\":\"M-suspend-credential-absent\",\"pass\":true},{\"id\":\"M-suspend-session-matching\",\"pass\":true},{\"id\":\"M-suspend-session-other\",\"pass\":true},{\"id\":\"M-suspend-session-absent\",\"pass\":true},{\"id\":\"M-suspend-legal_basis-matching\",\"pass\":true},{\"id\":\"M-suspend-legal_basis-other\",\"pass\":true},{\"id\":\"M-suspend-legal_basis-absent\",\"pass\":true},{\"id\":\"M-suspend-data_scope-matching\",\"pass\":true},{\"id\":\"M-suspend-data_scope-other\",\"pass\":true},{\"id\":\"M-suspend-data_scope-absent\",\"pass\":true},{\"id\":\"M-lift-book-matching\",\"pass\":true},{\"id\":\"M-lift-book-other\",\"pass\":true},{\"id\":\"M-lift-operation-matching\",\"pass\":true},{\"id\":\"M-lift-operation-other\",\"pass\":true},{\"id\":\"M-lift-subject-matching\",\"pass\":true},{\"id\":\"M-lift-credential-matching\",\"pass\":true},{\"id\":\"M-lift-credential-other\",\"pass\":true},{\"id\":\"M-lift-credential-absent\",\"pass\":true},{\"id\":\"M-lift-session-matching\",\"pass\":true},{\"id\":\"M-lift-session-other\",\"pass\":true},{\"id\":\"M-lift-session-absent\",\"pass\":true},{\"id\":\"M-lift-legal_basis-matching\",\"pass\":true},{\"id\":\"M-lift-legal_basis-other\",\"pass\":true},{\"id\":\"M-lift-legal_basis-absent\",\"pass\":true},{\"id\":\"M-lift-data_scope-matching\",\"pass\":true},{\"id\":\"M-lift-data_scope-other\",\"pass\":true},{\"id\":\"M-lift-data_scope-absent\",\"pass\":true},{\"id\":\"F01-issue-authority-expired-at-write\",\"pass\":true},{\"id\":\"F01-suspend-authority-expired-at-write\",\"pass\":true},{\"id\":\"F01-lift-authority-expired-at-write\",\"pass\":true},{\"id\":\"F02-data-scope-context-does-not-filter-price-result\",\"pass\":true},{\"id\":\"F03-malformed-operation-scope-is-undecidable\",\"pass\":true}]"
@@ -248,7 +364,7 @@
             "by": "chatgpt-v3 — KÜLSŐ, független fél",
             "origin": "R75 §7 (a MAG-próba: a `r75_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN; ez a bejegyzés a burkolóra mutat, ami az artefaktumot írja — a próba szövegéhez nem nyúlunk). Ebben a körben az R73-nál még szükséges kétlépéses adaptáció ELMARADT: a program a mai forráson VÁLTOZTATÁS NÉLKÜL fut. A két futás külön nevezve: a JAVÍTÁS ELŐTTI (R74-es) forráson 2/7, a mai forráson 7/7.",
             "exit": 0,
-            "ms": 37,
+            "ms": 67,
             "failure_kind": "unknown",
             "failure_why": "nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető",
             "failure_rows": [],
@@ -293,7 +409,7 @@
               "status": 0,
               "signal": null,
               "spawn_error_code": null,
-              "elapsed_ms": 37,
+              "elapsed_ms": 67,
               "stderr_tail": [],
               "stdout_tail": [
                 "[{\"id\":\"C01-authorized-book-ban-and-independent-book\",\"pass\":true},{\"id\":\"C02-no-authority-and-outside-book-refused\",\"pass\":true},{\"id\":\"F01-banned-issuer-cannot-issue-ban\",\"pass\":true},{\"id\":\"F02-book-authority-does-not-ban-independent-book-operation\",\"pass\":true},{\"id\":\"F03-exported-writer-cannot-bypass-scope\",\"pass\":true},{\"id\":\"F04-unknown-stored-cause-not-a-permit\",\"pass\":true},{\"id\":\"F05-good-credential-reaches-claim-read\",\"pass\":true}]"
@@ -310,7 +426,7 @@
             "by": "chatgpt-v3 — KÜLSŐ, független fél",
             "origin": "R69 §8 (a MAG-próba: a `r69_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN; ez a bejegyzés a burkolóra mutat, ami az artefaktumot írja — a próba szövegéhez nem nyúlunk). A csomagjuk másik két programja (`board-r69.cjs` · `runner-challenge.mjs`) a V2 BOARDOT méri, ezért annak a repónak a próba-rendszerébe tartozik — ide csak a MAG-próba jön (a hatókört kimondjuk, nem hagyjuk némán hiányozni).",
             "exit": 0,
-            "ms": 37,
+            "ms": 66,
             "failure_kind": "unknown",
             "failure_why": "nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető",
             "failure_rows": [],
@@ -351,7 +467,7 @@
               "status": 0,
               "signal": null,
               "spawn_error_code": null,
-              "elapsed_ms": 37,
+              "elapsed_ms": 66,
               "stderr_tail": [],
               "stdout_tail": [
                 "[{\"id\":\"C01-suspension-lift-preserves-history\",\"pass\":true},{\"id\":\"C02-corrupt-content-not-disclosed\",\"pass\":true},{\"id\":\"F01-corrupt-content-cannot-be-resolved\",\"pass\":true},{\"id\":\"F02-missing-content-cannot-be-resolved\",\"pass\":true},{\"id\":\"F03-distinct-channel-cannot-be-blocked-by-spoofed-ref\",\"pass\":true}]"
@@ -368,7 +484,7 @@
             "by": "chatgpt-v3 — KÜLSŐ, független fél",
             "origin": "R67 (a MAG-próba: a `r67_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN; ez a bejegyzés a burkolóra mutat, ami az artefaktumot írja — a próba szövegéhez nem nyúlunk)",
             "exit": 0,
-            "ms": 37,
+            "ms": 41,
             "failure_kind": "unknown",
             "failure_why": "nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető",
             "failure_rows": [],
@@ -415,7 +531,7 @@
               "status": 0,
               "signal": null,
               "spawn_error_code": null,
-              "elapsed_ms": 37,
+              "elapsed_ms": 41,
               "stderr_tail": [],
               "stdout_tail": [
                 "[{\"id\":\"C01-unauthorized-suspension-denied\",\"pass\":true},{\"id\":\"C02-read-neutrality\",\"pass\":true},{\"id\":\"C03-claim-does-not-grant-membership\",\"pass\":true},{\"id\":\"F01-successful-suspension-removes-current-access\",\"pass\":true},{\"id\":\"F02-adjudication-denial-neutrality\",\"pass\":true},{\"id\":\"F03-authorized-reviewer-can-retrieve-submitted-content\",\"pass\":true},{\"id\":\"F04-failed-intake-is-atomic\",\"pass\":true},{\"id\":\"F05-caller-chosen-reference-is-not-a-rate-limit-identity\",\"pass\":true}]"
@@ -432,7 +548,7 @@
             "by": "chatgpt-v3 — KÜLSŐ, független fél",
             "origin": "R63 (a bővített, 8 esetes alak — változatlanul, ahogy a boardon érkezett)",
             "exit": 0,
-            "ms": 37,
+            "ms": 47,
             "failure_kind": "unknown",
             "failure_why": "nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető",
             "failure_rows": [],
@@ -479,7 +595,7 @@
               "status": 0,
               "signal": null,
               "spawn_error_code": null,
-              "elapsed_ms": 37,
+              "elapsed_ms": 47,
               "stderr_tail": [],
               "stdout_tail": [
                 "[{\"id\":\"P03\",\"pass\":true},{\"id\":\"R01\",\"pass\":true},{\"id\":\"R02\",\"pass\":true},{\"id\":\"R03\",\"pass\":true},{\"id\":\"U01\",\"pass\":true},{\"id\":\"U02\",\"pass\":true},{\"id\":\"U03\",\"pass\":true},{\"id\":\"U04\",\"pass\":true}]"
@@ -496,7 +612,7 @@
             "by": "chatgpt-v3 — KÜLSŐ, független fél",
             "origin": "R83 (KÉT próba: a `r83_merge_chatgpt-v3.core.mjs` és a `r83_runner_chatgpt-v3.core.mjs` az ő szövegük — a program TESTE karakterre azonos, a ZÁRÓ SORTÖRÉS eltérhet, mert a markdown-kódblokkból nyertük ki; „bájtazonost\" ezért nem állítunk, az R83 §6 helyesbítése után). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson (594f49f) ÖSSZEFŰZÉS 1 PASS / 3 FAIL és FUTTATÓ 2 PASS / 1 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson ÖSSZEFŰZÉS 4/0 és FUTTATÓ 3/0.",
             "exit": 0,
-            "ms": 40,
+            "ms": 59,
             "failure_kind": "unknown",
             "failure_why": "nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető",
             "failure_rows": [],
@@ -541,7 +657,7 @@
               "status": 0,
               "signal": null,
               "spawn_error_code": null,
-              "elapsed_ms": 40,
+              "elapsed_ms": 59,
               "stderr_tail": [],
               "stdout_tail": [
                 "[{\"id\":\"merge/P01-genuine\",\"pass\":true},{\"id\":\"merge/F01-missing-probe-status\",\"pass\":true},{\"id\":\"merge/F01-unknown-probe-status\",\"pass\":true},{\"id\":\"merge/F02-remove-required-row\",\"pass\":true},{\"id\":\"runner/all-green\",\"pass\":true},{\"id\":\"runner/original-real-failure\",\"pass\":true},{\"id\":\"runner/original-and-sub-failure\",\"pass\":true}]"
@@ -558,7 +674,7 @@
             "by": "chatgpt-v3 — KÜLSŐ, független fél",
             "origin": "R81 (KÉT mag-próba: a `r81_chatgpt-v3.core.mjs` és a `r81_merge_chatgpt-v3.core.mjs` az ő szövegük — a program TESTE karakterre azonos, a ZÁRÓ SORTÖRÉS eltér az ő saját példányuktól, ahogy ők az R83 §6-ban megmérték). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson (eb4d83b) MAG 6 PASS / 1 FAIL és ÖSSZEFŰZÉS 4 PASS / 4 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson MAG 7/0 és ÖSSZEFŰZÉS 8/0.",
             "exit": 0,
-            "ms": 40,
+            "ms": 50,
             "failure_kind": "unknown",
             "failure_why": "nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető",
             "failure_rows": [],
@@ -619,7 +735,7 @@
               "status": 0,
               "signal": null,
               "spawn_error_code": null,
-              "elapsed_ms": 40,
+              "elapsed_ms": 50,
               "stderr_tail": [],
               "stdout_tail": [
                 "[{\"id\":\"core/P01-pure-lines\",\"pass\":true},{\"id\":\"core/P02-second-line-price\",\"pass\":true},{\"id\":\"core/P03-deep-unknown\",\"pass\":true},{\"id\":\"core/P04-nonfinite\",\"pass\":true},{\"id\":\"core/F04-release-time-before\",\"pass\":true},{\"id\":\"core/F04-release-time-after\",\"pass\":true},{\"id\":\"core/F04-release-time-cross\",\"pass\":true},{\"id\":\"merge/P01-genuine\",\"pass\":true},{\"id\":\"merge/P02-missing-unit\",\"pass\":true},{\"id\":\"merge/P03-foreign-digest\",\"pass\":true},{\"id\":\"merge/P04-duplicate-unit\",\"pass\":true},{\"id\":\"merge/F01-empty-results\",\"pass\":true},{\"id\":\"merge/F01-contradictory-verdict\",\"pass\":true},{\"id\":\"merge/F02-empty-required\",\"pass\":true},{\"id\":\"merge/F03-wrong-contract\",\"pass\":true}]"
@@ -636,7 +752,7 @@
             "by": "chatgpt-v3 — KÜLSŐ, független fél",
             "origin": "R79 (a MAG-próba: a `r79_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN — egyetlen karaktert sem írtunk át benne). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson 14 PASS / 4 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson 18 PASS / 0 FAIL.",
             "exit": 0,
-            "ms": 40,
+            "ms": 52,
             "failure_kind": "unknown",
             "failure_why": "nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető",
             "failure_rows": [],
@@ -703,7 +819,7 @@
               "status": 0,
               "signal": null,
               "spawn_error_code": null,
-              "elapsed_ms": 40,
+              "elapsed_ms": 52,
               "stderr_tail": [],
               "stdout_tail": [
                 "[{\"id\":\"P01-flat-quantity\",\"pass\":true},{\"id\":\"P02-flat-price\",\"pass\":true},{\"id\":\"F01-nested-price\",\"pass\":true},{\"id\":\"F01-object-in-qty\",\"pass\":true},{\"id\":\"P03-unknown-top-field\",\"pass\":true},{\"id\":\"P04-revoke-before\",\"pass\":true},{\"id\":\"P04-revoke-after\",\"pass\":true},{\"id\":\"P04-revoke-cross\",\"pass\":true},{\"id\":\"P06-adjudicate-before\",\"pass\":true},{\"id\":\"P06-adjudicate-after\",\"pass\":true},{\"id\":\"P06-adjudicate-cross\",\"pass\":true},{\"id\":\"P07-command-before\",\"pass\":true},{\"id\":\"P07-command-after\",\"pass\":true},{\"id\":\"P05-nested-effect-rolls-back\",\"pass\":true},{\"id\":\"F02-command-time-splits-at-finalization\",\"pass\":true},{\"id\":\"F03-revoke-credential-matching\",\"pass\":true},{\"id\":\"F03-revoke-credential-other\",\"pass\":true},{\"id\":\"F03-revoke-credential-absent\",\"pass\":true}]"
@@ -720,7 +836,7 @@
             "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
             "origin": "R80",
             "exit": 0,
-            "ms": 39,
+            "ms": 52,
             "failure_kind": "unknown",
             "failure_why": "nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető",
             "failure_rows": [],
@@ -759,7 +875,7 @@
               "status": 0,
               "signal": null,
               "spawn_error_code": null,
-              "elapsed_ms": 39,
+              "elapsed_ms": 52,
               "stderr_tail": [],
               "stdout_tail": [
                 "[{\"id\":\"U04\",\"pass\":true},{\"id\":\"U01\",\"pass\":true},{\"id\":\"U02\",\"pass\":true},{\"id\":\"U03\",\"pass\":true}]"
@@ -776,7 +892,7 @@
             "by": "chatgpt-v3 — KÜLSŐ, független fél (ADAPTÁLT változat, az ő szerzőségükkel)",
             "origin": "R81 §5 — az R59-es programjuk ADAPTÁLT alakja, ahogy a lapjukon megérkezett. NEM bájtazonos az R59-essel: az EGYETLEN eltérés a battéria hívása (`--unit=1/3` · `2/3` · `3/3` · `--merge`, egyenként 15 000 ms korláttal) a korábbi EGY hívás helyett. A teszt-elvárásokhoz NEM nyúltunk, és mi magunk egyetlen karaktert sem írtunk át benne.",
             "exit": 0,
-            "ms": 39,
+            "ms": 52,
             "failure_kind": "unknown",
             "failure_why": "nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető",
             "failure_rows": [],
@@ -821,7 +937,7 @@
               "status": 0,
               "signal": null,
               "spawn_error_code": null,
-              "elapsed_ms": 39,
+              "elapsed_ms": 52,
               "stderr_tail": [],
               "stdout_tail": [
                 "[{\"id\":\"P01\",\"pass\":true},{\"id\":\"E05\",\"pass\":true},{\"id\":\"E06\",\"pass\":true},{\"id\":\"E07\",\"pass\":true},{\"id\":\"E08\",\"pass\":true},{\"id\":\"P02\",\"pass\":true},{\"id\":\"E09\",\"pass\":true}]"
@@ -838,7 +954,7 @@
             "by": "chatgpt-v3 — KÜLSŐ, független fél (ADAPTÁLT változat, az ő szerzőségükkel)",
             "origin": "R81 §5 — az R57-es programjuk ADAPTÁLT alakja, ahogy a lapjukon megérkezett. NEM bájtazonos az R57-essel: az EGYETLEN eltérés a battéria hívása (darabolt futás). A teszt-elvárásokhoz NEM nyúltunk, és mi magunk egyetlen karaktert sem írtunk át benne.",
             "exit": 0,
-            "ms": 33,
+            "ms": 54,
             "failure_kind": "unknown",
             "failure_why": "nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető",
             "failure_rows": [],
@@ -887,7 +1003,7 @@
               "status": 0,
               "signal": null,
               "spawn_error_code": null,
-              "elapsed_ms": 33,
+              "elapsed_ms": 54,
               "stderr_tail": [],
               "stdout_tail": [
                 "[{\"id\":\"T01\",\"pass\":true},{\"id\":\"T02\",\"pass\":true},{\"id\":\"T03\",\"pass\":true},{\"id\":\"T04\",\"pass\":true},{\"id\":\"T05\",\"pass\":true},{\"id\":\"E01\",\"pass\":true},{\"id\":\"E02\",\"pass\":true},{\"id\":\"E03\",\"pass\":true},{\"id\":\"E04\",\"pass\":true}]"
@@ -904,7 +1020,7 @@
             "by": "chatgpt-v3 — KÜLSŐ, független fél",
             "origin": "R59 (változatlanul, ahogy a boardon érkezett)",
             "exit": 0,
-            "ms": 37,
+            "ms": 46,
             "failure_kind": "unknown",
             "failure_why": "nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető",
             "failure_rows": [],
@@ -950,7 +1066,7 @@
               "status": 0,
               "signal": null,
               "spawn_error_code": null,
-              "elapsed_ms": 37,
+              "elapsed_ms": 46,
               "stderr_tail": [],
               "stdout_tail": [
                 "[{\"id\":\"P01\",\"pass\":true},{\"id\":\"E05\",\"pass\":true},{\"id\":\"E06\",\"pass\":true},{\"id\":\"E07\",\"pass\":true},{\"id\":\"E08\",\"pass\":true},{\"id\":\"P02\",\"pass\":true},{\"id\":\"E09\",\"pass\":true}]"
@@ -973,7 +1089,7 @@
             "by": "chatgpt-v3 — KÜLSŐ, független fél",
             "origin": "R57 (változatlanul, ahogy a boardon érkezett)",
             "exit": 0,
-            "ms": 36,
+            "ms": 43,
             "failure_kind": "unknown",
             "failure_why": "nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető",
             "failure_rows": [],
@@ -1023,7 +1139,7 @@
               "status": 0,
               "signal": null,
               "spawn_error_code": null,
-              "elapsed_ms": 36,
+              "elapsed_ms": 43,
               "stderr_tail": [],
               "stdout_tail": [
                 "[{\"id\":\"T01\",\"pass\":true},{\"id\":\"T02\",\"pass\":true},{\"id\":\"T03\",\"pass\":true},{\"id\":\"T04\",\"pass\":true},{\"id\":\"T05\",\"pass\":true},{\"id\":\"E01\",\"pass\":true},{\"id\":\"E02\",\"pass\":true},{\"id\":\"E03\",\"pass\":true},{\"id\":\"E04\",\"pass\":true}]"
@@ -1046,7 +1162,7 @@
             "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
             "origin": "R56",
             "exit": 0,
-            "ms": 42,
+            "ms": 72,
             "failure_kind": "unknown",
             "failure_why": "nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető",
             "failure_rows": [],
@@ -1087,7 +1203,7 @@
               "status": 0,
               "signal": null,
               "spawn_error_code": null,
-              "elapsed_ms": 42,
+              "elapsed_ms": 72,
               "stderr_tail": [],
               "stdout_tail": [
                 "[{\"id\":\"C11-restated\",\"pass\":true},{\"id\":\"N10-restated\",\"pass\":true},{\"id\":\"F01-restated\",\"pass\":true},{\"id\":\"N04-restated\",\"pass\":true},{\"id\":\"D01-restated\",\"pass\":true}]"
@@ -1104,7 +1220,7 @@
             "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
             "origin": "R54",
             "exit": 0,
-            "ms": 38,
+            "ms": 47,
             "failure_kind": "unknown",
             "failure_why": "nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető",
             "failure_rows": [],
@@ -1139,7 +1255,7 @@
               "status": 0,
               "signal": null,
               "spawn_error_code": null,
-              "elapsed_ms": 38,
+              "elapsed_ms": 47,
               "stderr_tail": [],
               "stdout_tail": [
                 "[{\"id\":\"G01\",\"pass\":true},{\"id\":\"G02\",\"pass\":true}]"
@@ -1152,7 +1268,7 @@
           }
         ]
       },
-      "stdout": "\nV3 MAGREFERENCIA — KÜLSŐ ELLENŐRZŐ PROGRAMOK (EXT-01)\n========================================================================================\n  forrás commit:  unknown\n  forrás állapot: ez a könyvtár nem git-munkamásolat (vagy a git nem elérhető) — a commit BEMONDATLAN marad\n  munkakönyvtár:  /tmp/v3ref-ext-ytwTWs\n  gépi eredmény:  /tmp/r61-Tl0wyg/out\n  node:           v22.22.2\n\n  ELTÉRÉS   [r77] r77_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R77 §8 (a MAG-próba: a `r77_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN — egyetlen karaktert sem írtunk át benne, a behúzási útvonalakat sem: a futtató ugyanazt a `source/v3ref/` elrendezést állítja elő, amit az ő csomagjuk feltételez). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI (R76-os) forráson 34 PASS / 5 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson 39 PASS / 0 FAIL.\n            mit mér:   34 útvonal-eset a TÉNYLEGES felfüggesztő/feloldó belépési pontokon (hét tiltás-fajta × érintett/másik cél × egyező/másik/hiányzó kontextus) + három lelet-család öt esettel: F01 — lejárt felhatalmazással rögzített hatás a kiadás · felfüggesztés · feloldás úton · F02 — a készlet-adatkör címkéjével az ármező is kijön · F03 — a szerkezetileg hibás tárolt műveleti hatókör „másik könyvként\" továbbengedi a kérést. A program a tiltás-mátrixot is lefuttatja (66 sor · 51 egyedi végrehajtott bemenet · 0 eltérés).\n            elvárt:    39 eset (M-suspend-book-matching · M-suspend-book-other · M-suspend-operation-matching · M-suspend-operation-other · M-suspend-subject-matching · M-suspend-credential-matching · M-suspend-credential-other · M-suspend-credential-absent · M-suspend-session-matching · M-suspend-session-other · M-suspend-session-absent · M-suspend-legal_basis-matching · M-suspend-legal_basis-other · M-suspend-legal_basis-absent · M-suspend-data_scope-matching · M-suspend-data_scope-other · M-suspend-data_scope-absent · M-lift-book-matching · M-lift-book-other · M-lift-operation-matching · M-lift-operation-other · M-lift-subject-matching · M-lift-credential-matching · M-lift-credential-other · M-lift-credential-absent · M-lift-session-matching · M-lift-session-other · M-lift-session-absent · M-lift-legal_basis-matching · M-lift-legal_basis-other · M-lift-legal_basis-absent · M-lift-data_scope-matching · M-lift-data_scope-other · M-lift-data_scope-absent · F01-issue-authority-expired-at-write · F01-suspend-authority-expired-at-write · F01-lift-authority-expired-at-write · F02-data-scope-context-does-not-filter-price-result · F03-malformed-operation-scope-is-undecidable) — forrás: a külső fél R77-es lapja (§8, teljes forrással)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 38 ms\n            ELTÉRÉS:   [r77] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r77-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r77] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r75] r75_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R75 §7 (a MAG-próba: a `r75_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN; ez a bejegyzés a burkolóra mutat, ami az artefaktumot írja — a próba szövegéhez nem nyúlunk). Ebben a körben az R73-nál még szükséges kétlépéses adaptáció ELMARADT: a program a mai forráson VÁLTOZTATÁS NÉLKÜL fut. A két futás külön nevezve: a JAVÍTÁS ELŐTTI (R74-es) forráson 2/7, a mai forráson 7/7.\n            mit mér:   C01–C02 kontroll (a jogos könyv-tiltás hat, a független könyvet nem érinti · hatáskör nélkül és idegen könyvre nem adható ki) és F01–F05: a TILTOTT eljáró NEM tilthat (a kiadás is engedő út) · a könyv-hatáskörből kiadott művelet-tiltás nem ér át a független könyvbe · az exportált író nem kerülheti meg a hatókör-kaput · az ismeretlen TÁROLT ok nem engedély · az ÉRVÉNYES MÁSIK hitelesítő eléri az ügy olvasását\n            elvárt:    7 eset (C01-authorized-book-ban-and-independent-book · C02-no-authority-and-outside-book-refused · F01-banned-issuer-cannot-issue-ban · F02-book-authority-does-not-ban-independent-book-operation · F03-exported-writer-cannot-bypass-scope · F04-unknown-stored-cause-not-a-permit · F05-good-credential-reaches-claim-read) — forrás: a külső fél R75-ös lapja (§7, teljes forrással)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 37 ms\n            ELTÉRÉS:   [r75] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r75-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r75] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r69] r69_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R69 §8 (a MAG-próba: a `r69_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN; ez a bejegyzés a burkolóra mutat, ami az artefaktumot írja — a próba szövegéhez nem nyúlunk). A csomagjuk másik két programja (`board-r69.cjs` · `runner-challenge.mjs`) a V2 BOARDOT méri, ezért annak a repónak a próba-rendszerébe tartozik — ide csak a MAG-próba jön (a hatókört kimondjuk, nem hagyjuk némán hiányozni).\n            mit mér:   C01–C02 kontroll (a felfüggesztés-feloldás megőrzi a történetet · a sérült tartalom nem megy ki olvasásra) és F01–F03: sérült tartalmú ügy NEM zárható le érdemben · hiányzó tartalmú ügy ugyanúgy · a másik fél szabadon megadott hivatkozása NEM veheti el annak keretét egy független csatornán\n            elvárt:    5 eset (C01-suspension-lift-preserves-history · C02-corrupt-content-not-disclosed · F01-corrupt-content-cannot-be-resolved · F02-missing-content-cannot-be-resolved · F03-distinct-channel-cannot-be-blocked-by-spoofed-ref) — forrás: a külső fél R69-es lapja (§8, teljes forrással)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 37 ms\n            ELTÉRÉS:   [r69] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r69-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r69] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r67] r67_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R67 (a MAG-próba: a `r67_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN; ez a bejegyzés a burkolóra mutat, ami az artefaktumot írja — a próba szövegéhez nem nyúlunk)\n            mit mér:   C01–C03 kontroll (jogosulatlan felfüggesztés · olvasás-semlegesség · a jelzés nem ad tagságot) és F01–F05: a felfüggesztés TÉNYLEGES hatása · a döntési út nemleges válaszának semlegessége · az elbíráló visszakapja a beadvány SZÖVEGÉT · a bukott befogadás ATOMI · a beadó saját hivatkozása NEM lehet a korlát azonossága\n            elvárt:    8 eset (C01-unauthorized-suspension-denied · C02-read-neutrality · C03-claim-does-not-grant-membership · F01-successful-suspension-removes-current-access · F02-adjudication-denial-neutrality · F03-authorized-reviewer-can-retrieve-submitted-content · F04-failed-intake-is-atomic · F05-caller-chosen-reference-is-not-a-rate-limit-identity) — forrás: a külső fél R67-es lapja (§8, teljes forrással)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 37 ms\n            ELTÉRÉS:   [r67] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r67-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r67] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r61] r61_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R63 (a bővített, 8 esetes alak — változatlanul, ahogy a boardon érkezett)\n            mit mér:   P03 pozitív ellenpár · R01–R03: a bizonyíték-hivatkozás tényleges FELOLDÁSA és a részletes eredmény-artefaktum kötelezősége · U01–U04: hiányzó teljes katalógus · hiányzó állítás-készlet · hiányzó mutáció-készlet · ROSSZ TÍPUSÚ állítás-készlet — mind unresolved + unauthenticated\n            elvárt:    8 eset (P03 · R01 · R02 · R03 · U01 · U02 · U03 · U04) — forrás: a külső fél R63-as kísérő lapja (§8 esetkészlet) — az eredeti NÉGY változatlan, az U01–U04 kiegészítés\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 37 ms\n            ELTÉRÉS:   [r61] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r60-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r61] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r83core] r83_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R83 (KÉT próba: a `r83_merge_chatgpt-v3.core.mjs` és a `r83_runner_chatgpt-v3.core.mjs` az ő szövegük — a program TESTE karakterre azonos, a ZÁRÓ SORTÖRÉS eltérhet, mert a markdown-kódblokkból nyertük ki; „bájtazonost\" ezért nem állítunk, az R83 §6 helyesbítése után). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson (594f49f) ÖSSZEFŰZÉS 1 PASS / 3 FAIL és FUTTATÓ 2 PASS / 1 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson ÖSSZEFŰZÉS 4/0 és FUTTATÓ 3/0.\n            mit mér:   ÖSSZEFŰZÉS (4 eset): a `P01-genuine` pozitív kontroll mellett a próba-állapot TÖRLÉSE és ISMERETLENRE állítása (R83/F01), valamint UGYANANNAK az egy REV-N3a állítás-sornak a kivétele MINDEN egységből (R83/F02 — a hiányzó sor nem lesz gyenge sorrá, hanem eltűnik). FUTTATÓ (3 eset): a VALÓDI `run-all.mjs` besorolása SZINTETIKUS program-kimenetekkel — egy valódi, NEM időtúllépéses eset-hiba nem kaphat környezeti felmentést (R83/F03). A külső fél kimondott hatóköre: ez a besorolás mérése, nem termék-működési állítás.\n            elvárt:    7 eset (merge/P01-genuine · merge/F01-missing-probe-status · merge/F01-unknown-probe-status · merge/F02-remove-required-row · runner/all-green · runner/original-real-failure · runner/original-and-sub-failure) — forrás: a külső fél R83-as lapja (a két program `plans`/`mode` listája, ahogy megérkezett; a `merge/` és `runner/` előtagot a burkoló teszi rá, mert KÉT próba ad EGY eset-listát)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 40 ms\n            ELTÉRÉS:   [r83core] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r83-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r83core] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r81core] r81_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R81 (KÉT mag-próba: a `r81_chatgpt-v3.core.mjs` és a `r81_merge_chatgpt-v3.core.mjs` az ő szövegük — a program TESTE karakterre azonos, a ZÁRÓ SORTÖRÉS eltér az ő saját példányuktól, ahogy ők az R83 §6-ban megmérték). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson (eb4d83b) MAG 6 PASS / 1 FAIL és ÖSSZEFŰZÉS 4 PASS / 4 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson MAG 7/0 és ÖSSZEFŰZÉS 8/0.\n            mit mér:   MAG (7 eset): P01–P04 a kiadott eredmény RÉSZFÁJÁNAK adatköre (az R79-es javítás visszamérése) · F04 három alakban — a kiadás jogának és a kiadási LELTÁR-SORÁNAK időpontja: négy külön óraolvasás mellett az eredmény 08:00:00-s jogon ment ki, a leltárba viszont 08:00:02 került. ÖSSZEFŰZÉS (8 eset): P01–P04 a négy meglévő kontroll (valódi · hiányzó egység · idegen lenyomat · duplikált egység) · F01a/F01b/F02/F03 — az összefűzés a beadott ÖSSZEFOGLALÓT fogadta el a RÉSZLETES bizonyíték mérése helyett (üres eredmény-lista · önellentmondó verdikt · kiürített kötelező készlet · idegen futási szerződés). Az összefűzés-próba a SAJÁT, VALÓDI egységeinken dolgozik: a burkoló ELŐÁLLÍTJA őket a lemásolt forráson futtatott darabolt battériával.\n            elvárt:    15 eset (core/P01-pure-lines · core/P02-second-line-price · core/P03-deep-unknown · core/P04-nonfinite · core/F04-release-time-before · core/F04-release-time-after · core/F04-release-time-cross · merge/P01-genuine · merge/P02-missing-unit · merge/P03-foreign-digest · merge/P04-duplicate-unit · merge/F01-empty-results · merge/F01-contradictory-verdict · merge/F02-empty-required · merge/F03-wrong-contract) — forrás: a külső fél R81-es lapja (a két program `cases`/`plans` listája, ahogy megérkezett; a `core/` és `merge/` előtagot a burkoló teszi rá, mert KÉT próba ad EGY eset-listát)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 40 ms\n            ELTÉRÉS:   [r81core] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r81-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r81core] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r79core] r79_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R79 (a MAG-próba: a `r79_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN — egyetlen karaktert sem írtunk át benne). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson 14 PASS / 4 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson 18 PASS / 0 FAIL.\n            mit mér:   18 eset három lelet-családban: F01 — a KIADOTT eredmény RÉSZFÁJÁNAK adatköre (a tétel-tömb alatt rejtett ármező a készlet-címke alatt kijutott, és a mennyiség helyére csomagolt objektum is átment) · F02 — a PARANCSÍRÁS hatályosulása (a tagsági jog és a rögzített véglegesítési idő KÉT külön óraolvasáson állt) · F03 — a tagság-megvonás nem vitte át a hiteles kontextust, tehát a hitelesítő-alapú tiltás azon az ÍRÓ úton nem hatott. Mellettük a pozitív ellenpárok (P01–P07): a jogos alakoknak TOVÁBBRA IS működniük kell.\n            elvárt:    18 eset (P01-flat-quantity · P02-flat-price · F01-nested-price · F01-object-in-qty · P03-unknown-top-field · P04-revoke-before · P04-revoke-after · P04-revoke-cross · P06-adjudicate-before · P06-adjudicate-after · P06-adjudicate-cross · P07-command-before · P07-command-after · P05-nested-effect-rolls-back · F02-command-time-splits-at-finalization · F03-revoke-credential-matching · F03-revoke-credential-other · F03-revoke-credential-absent) — forrás: a külső fél R79-es lapja (a program `cases` tömbje, ahogy megérkezett)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 40 ms\n            ELTÉRÉS:   [r79core] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r79-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r79core] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r79] r79_run_contract_restated.mjs\n            írta:      Claude-v3 — a SAJÁT sávunk (önvizsgálat) · R80\n            mit mér:   a RUN-02 futás-szerződés (R79 §6) a DARABOLT futáson: hamisított bizonyíték egység-módban · hiányzó egység · idegen forrású egység · és a pozitív ellenpár (érintetlen, teljes futás). Azért van, mert a külső fél r59/r57 programja a battériát EGY hívásban futtatja 15 000 ms korláttal, és a MAI futtató-gépünkön (4 vCPU) a teljes battéria legjobb mért alakja 17,1 mp — tehát ott a MÉRÉS akad el, nem a kód bukik (KUKA-089: a pontos technikai akadályt meg kell mérni)\n            elvárt:    4 eset (U04 · U01 · U02 · U03) — forrás: az R80-as körünk jegyzőkönyve (R79 §6 — RUN-02), a pozitív ellenpárral EGYÜTT\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 39 ms\n            ELTÉRÉS:   [r79] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r79-run-contract.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r79] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r59a] r59_chatgpt-v3.adapted.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél (ADAPTÁLT változat, az ő szerzőségükkel) · R81 §5 — az R59-es programjuk ADAPTÁLT alakja, ahogy a lapjukon megérkezett. NEM bájtazonos az R59-essel: az EGYETLEN eltérés a battéria hívása (`--unit=1/3` · `2/3` · `3/3` · `--merge`, egyenként 15 000 ms korláttal) a korábbi EGY hívás helyett. A teszt-elvárásokhoz NEM nyúltunk, és mi magunk egyetlen karaktert sem írtunk át benne.\n            mit mér:   ugyanaz a hét eset, mint az r59-nél (P01 · P02 pozitív ellenpár · E05–E09), de a DARABOLT battériával — így a mérés a mi 4 vCPU-s futtató-gépünkön is végigmegy, a 15 000 ms-os korlát megsértése nélkül (KUKA-089: a pontos technikai akadály mérve)\n            elvárt:    7 eset (P01 · E05 · E06 · E07 · E08 · P02 · E09) — forrás: a külső fél R59-es kísérő lapja (§2 esetlista) — az adaptálás az eseteket nem érinti\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 39 ms\n            ELTÉRÉS:   [r59a] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r58-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r59a] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r57a] r57_chatgpt-v3.adapted.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél (ADAPTÁLT változat, az ő szerzőségükkel) · R81 §5 — az R57-es programjuk ADAPTÁLT alakja, ahogy a lapjukon megérkezett. NEM bájtazonos az R57-essel: az EGYETLEN eltérés a battéria hívása (darabolt futás). A teszt-elvárásokhoz NEM nyúltunk, és mi magunk egyetlen karaktert sem írtunk át benne.\n            mit mér:   ugyanaz a kilenc eset, mint az r57-nél (T01–T05 · E01–E04), de a DARABOLT battériával\n            elvárt:    9 eset (T01 · T02 · T03 · T04 · T05 · E01 · E02 · E03 · E04) — forrás: a külső fél R57-es kísérő lapja („T01–T05 · E01–E04\") — az adaptálás az eseteket nem érinti\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 33 ms\n            ELTÉRÉS:   [r57a] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r56-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r57a] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r59] r59_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R59 (változatlanul, ahogy a boardon érkezett)\n            mit mér:   P01 · P02 pozitív ellenpár · E05–E09: az elvárás-séma, az eredmény-séma, a futtató és a jóváhagyás-rekord megkerülhetősége\n            elvárt:    7 eset (P01 · E05 · E06 · E07 · E08 · P02 · E09) — forrás: a külső fél R59-es kísérő lapja (§2 esetlista)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 37 ms\n            ELTÉRÉS:   [r59] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r58-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r59] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r57] r57_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R57 (változatlanul, ahogy a boardon érkezett)\n            mit mér:   T01–T05: az R56-ban tett pecsét-állítások · E01–E04: a bizonyíték-kapu megkerülhetősége\n            elvárt:    9 eset (T01 · T02 · T03 · T04 · T05 · E01 · E02 · E03 · E04) — forrás: a külső fél R57-es kísérő lapja („T01–T05 · E01–E04\")\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 36 ms\n            ELTÉRÉS:   [r57] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r56-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r57] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r55] r55_restated.mjs\n            írta:      Claude-v3 — a SAJÁT sávunk (önvizsgálat) · R56\n            mit mér:   az R55 öt esete újrafogalmazva a mai szerződésre, mindegyikhez ellenpárral\n            elvárt:    5 eset (C11-restated · N10-restated · F01-restated · N04-restated · D01-restated) — forrás: az R56-os körünk jegyzőkönyve (az R55 öt esete)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 42 ms\n            ELTÉRÉS:   [r55] HIÁNYZIK a részletes eredmény-artefaktum (evidence/restated.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r55] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r53] r53_f03_restated.mjs\n            írta:      Claude-v3 — a SAJÁT sávunk (önvizsgálat) · R54\n            mit mér:   az R53/F03 támadás egyenértékű alakja (G01) + érintetlen ellenpár (G02)\n            elvárt:    2 eset (G01 · G02) — forrás: az R54-es körünk jegyzőkönyve (támadás + ellenpár)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 38 ms\n            ELTÉRÉS:   [r53] HIÁNYZIK a részletes eredmény-artefaktum (evidence/f03-restated.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r53] a program kimenete nem értelmezhető eset-listaként\n\n========================================================================================\n  hatókör:        full — MINDEN nyilvántartott program lefutott — ez a lánc teljes bizonyítéka\n  összesítő fájl: /tmp/r61-Tl0wyg/out/external-checks-result.json\nRESULT: 0/15 program MEGFELEL — ELTÉRÉS: r77 · r75 · r69 · r67 · r61 · r83core · r81core · r79core · r79 · r59a · r57a · r59 · r57 · r55 · r53\n\n",
+      "stdout": "\nV3 MAGREFERENCIA — KÜLSŐ ELLENŐRZŐ PROGRAMOK (EXT-01)\n========================================================================================\n  forrás commit:  unknown\n  forrás állapot: ez a könyvtár nem git-munkamásolat (vagy a git nem elérhető) — a commit BEMONDATLAN marad\n  munkakönyvtár:  /tmp/v3ref-ext-XSTWAX\n  gépi eredmény:  /tmp/r61-W707Bp/out\n  node:           v22.22.2\n\n  ELTÉRÉS   [r88core] r88_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R88 §3 (a MAG-próba: az `r88_chatgpt-v3.core.mjs` az ő szövegük, karakterre — md5 d12336ec7dc26febcfcb222b9627f562, ahogy a lapjukról kinyertük; „bájtazonost\" az ő saját példányukhoz képest NEM állítunk, mert azt nem mértük meg — R83 §6 tanulsága). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson 3 PASS / 2 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson 5 PASS / 0 FAIL.\n            mit mér:   F01 — a felhatalmazási ALAP azonossága a (basis_id, book_id) PÁR: idegen könyvre hivatkozva nem adható hatáskör, és a tiltott kérés NYOM NÉLKÜL akad el (se sor, se későbbi engedő válasz); pozitív kontroll: a SAJÁT könyvén változatlanul megy. F02 — a tagságadás EGY ÍRÁS: a bukott kísérlet nem hagy esemény-sort és nem írja át a történetet; a KÜLSŐ tranzakció visszagördülése a tagságadást is elviszi.\n            elvárt:    5 eset (P01-same-book-basis · F01-foreign-book-basis · P02-successful-grant-is-paired · F02-rejected-grant-leaves-no-event · P03-outer-transaction-rolls-back) — forrás: a külső fél R88-as lapja (a program `test(...)` hívásainak azonosítói, ahogy megérkezett)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 70 ms\n            ELTÉRÉS:   [r88core] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r88-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r88core] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r85core] r85_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R85 §3–§4 (a MAG-próba: az `r85_chatgpt-v3.core.mjs` az ő szövegük, karakterre — md5 854892614413c6d8fbd0afe8c785e765). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson 2 PASS / 2 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson 4 PASS / 0 FAIL.\n            mit mér:   F01 — a tagságadás KÉT IDŐ-TENGELYE: a júniusi beváltás nem írhatja át, mit tudtunk márciusban (a megvonással azonos szerkezet). F02 — a jogváltozási esemény SAJÁT, tartós bizonyíték-hivatkozása: a visszamenőleges ÉS a jövőbeli hatályú ágon is megmarad (korábban csak a felülvizsgálati körbe került, ami kizárólag a visszamenőleges ágon születik).\n            elvárt:    4 eset (P01-known-grant · F01-grant-not-known-at-query · P02-retro-evidence-persists · F02-future-evidence-persists) — forrás: a külső fél R85-ös lapja (a program `test(...)` hívásainak azonosítói, ahogy megérkezett)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 80 ms\n            ELTÉRÉS:   [r85core] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r85-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r85core] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r77] r77_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R77 §8 (a MAG-próba: a `r77_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN — egyetlen karaktert sem írtunk át benne, a behúzási útvonalakat sem: a futtató ugyanazt a `source/v3ref/` elrendezést állítja elő, amit az ő csomagjuk feltételez). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI (R76-os) forráson 34 PASS / 5 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson 39 PASS / 0 FAIL.\n            mit mér:   34 útvonal-eset a TÉNYLEGES felfüggesztő/feloldó belépési pontokon (hét tiltás-fajta × érintett/másik cél × egyező/másik/hiányzó kontextus) + három lelet-család öt esettel: F01 — lejárt felhatalmazással rögzített hatás a kiadás · felfüggesztés · feloldás úton · F02 — a készlet-adatkör címkéjével az ármező is kijön · F03 — a szerkezetileg hibás tárolt műveleti hatókör „másik könyvként\" továbbengedi a kérést. A program a tiltás-mátrixot is lefuttatja (66 sor · 51 egyedi végrehajtott bemenet · 0 eltérés).\n            elvárt:    39 eset (M-suspend-book-matching · M-suspend-book-other · M-suspend-operation-matching · M-suspend-operation-other · M-suspend-subject-matching · M-suspend-credential-matching · M-suspend-credential-other · M-suspend-credential-absent · M-suspend-session-matching · M-suspend-session-other · M-suspend-session-absent · M-suspend-legal_basis-matching · M-suspend-legal_basis-other · M-suspend-legal_basis-absent · M-suspend-data_scope-matching · M-suspend-data_scope-other · M-suspend-data_scope-absent · M-lift-book-matching · M-lift-book-other · M-lift-operation-matching · M-lift-operation-other · M-lift-subject-matching · M-lift-credential-matching · M-lift-credential-other · M-lift-credential-absent · M-lift-session-matching · M-lift-session-other · M-lift-session-absent · M-lift-legal_basis-matching · M-lift-legal_basis-other · M-lift-legal_basis-absent · M-lift-data_scope-matching · M-lift-data_scope-other · M-lift-data_scope-absent · F01-issue-authority-expired-at-write · F01-suspend-authority-expired-at-write · F01-lift-authority-expired-at-write · F02-data-scope-context-does-not-filter-price-result · F03-malformed-operation-scope-is-undecidable) — forrás: a külső fél R77-es lapja (§8, teljes forrással)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 92 ms\n            ELTÉRÉS:   [r77] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r77-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r77] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r75] r75_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R75 §7 (a MAG-próba: a `r75_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN; ez a bejegyzés a burkolóra mutat, ami az artefaktumot írja — a próba szövegéhez nem nyúlunk). Ebben a körben az R73-nál még szükséges kétlépéses adaptáció ELMARADT: a program a mai forráson VÁLTOZTATÁS NÉLKÜL fut. A két futás külön nevezve: a JAVÍTÁS ELŐTTI (R74-es) forráson 2/7, a mai forráson 7/7.\n            mit mér:   C01–C02 kontroll (a jogos könyv-tiltás hat, a független könyvet nem érinti · hatáskör nélkül és idegen könyvre nem adható ki) és F01–F05: a TILTOTT eljáró NEM tilthat (a kiadás is engedő út) · a könyv-hatáskörből kiadott művelet-tiltás nem ér át a független könyvbe · az exportált író nem kerülheti meg a hatókör-kaput · az ismeretlen TÁROLT ok nem engedély · az ÉRVÉNYES MÁSIK hitelesítő eléri az ügy olvasását\n            elvárt:    7 eset (C01-authorized-book-ban-and-independent-book · C02-no-authority-and-outside-book-refused · F01-banned-issuer-cannot-issue-ban · F02-book-authority-does-not-ban-independent-book-operation · F03-exported-writer-cannot-bypass-scope · F04-unknown-stored-cause-not-a-permit · F05-good-credential-reaches-claim-read) — forrás: a külső fél R75-ös lapja (§7, teljes forrással)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 67 ms\n            ELTÉRÉS:   [r75] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r75-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r75] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r69] r69_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R69 §8 (a MAG-próba: a `r69_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN; ez a bejegyzés a burkolóra mutat, ami az artefaktumot írja — a próba szövegéhez nem nyúlunk). A csomagjuk másik két programja (`board-r69.cjs` · `runner-challenge.mjs`) a V2 BOARDOT méri, ezért annak a repónak a próba-rendszerébe tartozik — ide csak a MAG-próba jön (a hatókört kimondjuk, nem hagyjuk némán hiányozni).\n            mit mér:   C01–C02 kontroll (a felfüggesztés-feloldás megőrzi a történetet · a sérült tartalom nem megy ki olvasásra) és F01–F03: sérült tartalmú ügy NEM zárható le érdemben · hiányzó tartalmú ügy ugyanúgy · a másik fél szabadon megadott hivatkozása NEM veheti el annak keretét egy független csatornán\n            elvárt:    5 eset (C01-suspension-lift-preserves-history · C02-corrupt-content-not-disclosed · F01-corrupt-content-cannot-be-resolved · F02-missing-content-cannot-be-resolved · F03-distinct-channel-cannot-be-blocked-by-spoofed-ref) — forrás: a külső fél R69-es lapja (§8, teljes forrással)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 66 ms\n            ELTÉRÉS:   [r69] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r69-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r69] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r67] r67_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R67 (a MAG-próba: a `r67_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN; ez a bejegyzés a burkolóra mutat, ami az artefaktumot írja — a próba szövegéhez nem nyúlunk)\n            mit mér:   C01–C03 kontroll (jogosulatlan felfüggesztés · olvasás-semlegesség · a jelzés nem ad tagságot) és F01–F05: a felfüggesztés TÉNYLEGES hatása · a döntési út nemleges válaszának semlegessége · az elbíráló visszakapja a beadvány SZÖVEGÉT · a bukott befogadás ATOMI · a beadó saját hivatkozása NEM lehet a korlát azonossága\n            elvárt:    8 eset (C01-unauthorized-suspension-denied · C02-read-neutrality · C03-claim-does-not-grant-membership · F01-successful-suspension-removes-current-access · F02-adjudication-denial-neutrality · F03-authorized-reviewer-can-retrieve-submitted-content · F04-failed-intake-is-atomic · F05-caller-chosen-reference-is-not-a-rate-limit-identity) — forrás: a külső fél R67-es lapja (§8, teljes forrással)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 41 ms\n            ELTÉRÉS:   [r67] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r67-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r67] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r61] r61_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R63 (a bővített, 8 esetes alak — változatlanul, ahogy a boardon érkezett)\n            mit mér:   P03 pozitív ellenpár · R01–R03: a bizonyíték-hivatkozás tényleges FELOLDÁSA és a részletes eredmény-artefaktum kötelezősége · U01–U04: hiányzó teljes katalógus · hiányzó állítás-készlet · hiányzó mutáció-készlet · ROSSZ TÍPUSÚ állítás-készlet — mind unresolved + unauthenticated\n            elvárt:    8 eset (P03 · R01 · R02 · R03 · U01 · U02 · U03 · U04) — forrás: a külső fél R63-as kísérő lapja (§8 esetkészlet) — az eredeti NÉGY változatlan, az U01–U04 kiegészítés\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 47 ms\n            ELTÉRÉS:   [r61] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r60-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r61] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r83core] r83_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R83 (KÉT próba: a `r83_merge_chatgpt-v3.core.mjs` és a `r83_runner_chatgpt-v3.core.mjs` az ő szövegük — a program TESTE karakterre azonos, a ZÁRÓ SORTÖRÉS eltérhet, mert a markdown-kódblokkból nyertük ki; „bájtazonost\" ezért nem állítunk, az R83 §6 helyesbítése után). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson (594f49f) ÖSSZEFŰZÉS 1 PASS / 3 FAIL és FUTTATÓ 2 PASS / 1 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson ÖSSZEFŰZÉS 4/0 és FUTTATÓ 3/0.\n            mit mér:   ÖSSZEFŰZÉS (4 eset): a `P01-genuine` pozitív kontroll mellett a próba-állapot TÖRLÉSE és ISMERETLENRE állítása (R83/F01), valamint UGYANANNAK az egy REV-N3a állítás-sornak a kivétele MINDEN egységből (R83/F02 — a hiányzó sor nem lesz gyenge sorrá, hanem eltűnik). FUTTATÓ (3 eset): a VALÓDI `run-all.mjs` besorolása SZINTETIKUS program-kimenetekkel — egy valódi, NEM időtúllépéses eset-hiba nem kaphat környezeti felmentést (R83/F03). A külső fél kimondott hatóköre: ez a besorolás mérése, nem termék-működési állítás.\n            elvárt:    7 eset (merge/P01-genuine · merge/F01-missing-probe-status · merge/F01-unknown-probe-status · merge/F02-remove-required-row · runner/all-green · runner/original-real-failure · runner/original-and-sub-failure) — forrás: a külső fél R83-as lapja (a két program `plans`/`mode` listája, ahogy megérkezett; a `merge/` és `runner/` előtagot a burkoló teszi rá, mert KÉT próba ad EGY eset-listát)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 59 ms\n            ELTÉRÉS:   [r83core] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r83-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r83core] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r81core] r81_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R81 (KÉT mag-próba: a `r81_chatgpt-v3.core.mjs` és a `r81_merge_chatgpt-v3.core.mjs` az ő szövegük — a program TESTE karakterre azonos, a ZÁRÓ SORTÖRÉS eltér az ő saját példányuktól, ahogy ők az R83 §6-ban megmérték). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson (eb4d83b) MAG 6 PASS / 1 FAIL és ÖSSZEFŰZÉS 4 PASS / 4 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson MAG 7/0 és ÖSSZEFŰZÉS 8/0.\n            mit mér:   MAG (7 eset): P01–P04 a kiadott eredmény RÉSZFÁJÁNAK adatköre (az R79-es javítás visszamérése) · F04 három alakban — a kiadás jogának és a kiadási LELTÁR-SORÁNAK időpontja: négy külön óraolvasás mellett az eredmény 08:00:00-s jogon ment ki, a leltárba viszont 08:00:02 került. ÖSSZEFŰZÉS (8 eset): P01–P04 a négy meglévő kontroll (valódi · hiányzó egység · idegen lenyomat · duplikált egység) · F01a/F01b/F02/F03 — az összefűzés a beadott ÖSSZEFOGLALÓT fogadta el a RÉSZLETES bizonyíték mérése helyett (üres eredmény-lista · önellentmondó verdikt · kiürített kötelező készlet · idegen futási szerződés). Az összefűzés-próba a SAJÁT, VALÓDI egységeinken dolgozik: a burkoló ELŐÁLLÍTJA őket a lemásolt forráson futtatott darabolt battériával.\n            elvárt:    15 eset (core/P01-pure-lines · core/P02-second-line-price · core/P03-deep-unknown · core/P04-nonfinite · core/F04-release-time-before · core/F04-release-time-after · core/F04-release-time-cross · merge/P01-genuine · merge/P02-missing-unit · merge/P03-foreign-digest · merge/P04-duplicate-unit · merge/F01-empty-results · merge/F01-contradictory-verdict · merge/F02-empty-required · merge/F03-wrong-contract) — forrás: a külső fél R81-es lapja (a két program `cases`/`plans` listája, ahogy megérkezett; a `core/` és `merge/` előtagot a burkoló teszi rá, mert KÉT próba ad EGY eset-listát)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 50 ms\n            ELTÉRÉS:   [r81core] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r81-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r81core] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r79core] r79_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R79 (a MAG-próba: a `r79_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN — egyetlen karaktert sem írtunk át benne). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson 14 PASS / 4 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson 18 PASS / 0 FAIL.\n            mit mér:   18 eset három lelet-családban: F01 — a KIADOTT eredmény RÉSZFÁJÁNAK adatköre (a tétel-tömb alatt rejtett ármező a készlet-címke alatt kijutott, és a mennyiség helyére csomagolt objektum is átment) · F02 — a PARANCSÍRÁS hatályosulása (a tagsági jog és a rögzített véglegesítési idő KÉT külön óraolvasáson állt) · F03 — a tagság-megvonás nem vitte át a hiteles kontextust, tehát a hitelesítő-alapú tiltás azon az ÍRÓ úton nem hatott. Mellettük a pozitív ellenpárok (P01–P07): a jogos alakoknak TOVÁBBRA IS működniük kell.\n            elvárt:    18 eset (P01-flat-quantity · P02-flat-price · F01-nested-price · F01-object-in-qty · P03-unknown-top-field · P04-revoke-before · P04-revoke-after · P04-revoke-cross · P06-adjudicate-before · P06-adjudicate-after · P06-adjudicate-cross · P07-command-before · P07-command-after · P05-nested-effect-rolls-back · F02-command-time-splits-at-finalization · F03-revoke-credential-matching · F03-revoke-credential-other · F03-revoke-credential-absent) — forrás: a külső fél R79-es lapja (a program `cases` tömbje, ahogy megérkezett)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 52 ms\n            ELTÉRÉS:   [r79core] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r79-core-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r79core] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r79] r79_run_contract_restated.mjs\n            írta:      Claude-v3 — a SAJÁT sávunk (önvizsgálat) · R80\n            mit mér:   a RUN-02 futás-szerződés (R79 §6) a DARABOLT futáson: hamisított bizonyíték egység-módban · hiányzó egység · idegen forrású egység · és a pozitív ellenpár (érintetlen, teljes futás). Azért van, mert a külső fél r59/r57 programja a battériát EGY hívásban futtatja 15 000 ms korláttal, és a MAI futtató-gépünkön (4 vCPU) a teljes battéria legjobb mért alakja 17,1 mp — tehát ott a MÉRÉS akad el, nem a kód bukik (KUKA-089: a pontos technikai akadályt meg kell mérni)\n            elvárt:    4 eset (U04 · U01 · U02 · U03) — forrás: az R80-as körünk jegyzőkönyve (R79 §6 — RUN-02), a pozitív ellenpárral EGYÜTT\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 52 ms\n            ELTÉRÉS:   [r79] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r79-run-contract.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r79] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r59a] r59_chatgpt-v3.adapted.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél (ADAPTÁLT változat, az ő szerzőségükkel) · R81 §5 — az R59-es programjuk ADAPTÁLT alakja, ahogy a lapjukon megérkezett. NEM bájtazonos az R59-essel: az EGYETLEN eltérés a battéria hívása (`--unit=1/3` · `2/3` · `3/3` · `--merge`, egyenként 15 000 ms korláttal) a korábbi EGY hívás helyett. A teszt-elvárásokhoz NEM nyúltunk, és mi magunk egyetlen karaktert sem írtunk át benne.\n            mit mér:   ugyanaz a hét eset, mint az r59-nél (P01 · P02 pozitív ellenpár · E05–E09), de a DARABOLT battériával — így a mérés a mi 4 vCPU-s futtató-gépünkön is végigmegy, a 15 000 ms-os korlát megsértése nélkül (KUKA-089: a pontos technikai akadály mérve)\n            elvárt:    7 eset (P01 · E05 · E06 · E07 · E08 · P02 · E09) — forrás: a külső fél R59-es kísérő lapja (§2 esetlista) — az adaptálás az eseteket nem érinti\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 52 ms\n            ELTÉRÉS:   [r59a] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r58-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r59a] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r57a] r57_chatgpt-v3.adapted.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél (ADAPTÁLT változat, az ő szerzőségükkel) · R81 §5 — az R57-es programjuk ADAPTÁLT alakja, ahogy a lapjukon megérkezett. NEM bájtazonos az R57-essel: az EGYETLEN eltérés a battéria hívása (darabolt futás). A teszt-elvárásokhoz NEM nyúltunk, és mi magunk egyetlen karaktert sem írtunk át benne.\n            mit mér:   ugyanaz a kilenc eset, mint az r57-nél (T01–T05 · E01–E04), de a DARABOLT battériával\n            elvárt:    9 eset (T01 · T02 · T03 · T04 · T05 · E01 · E02 · E03 · E04) — forrás: a külső fél R57-es kísérő lapja („T01–T05 · E01–E04\") — az adaptálás az eseteket nem érinti\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 54 ms\n            ELTÉRÉS:   [r57a] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r56-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r57a] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r59] r59_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R59 (változatlanul, ahogy a boardon érkezett)\n            mit mér:   P01 · P02 pozitív ellenpár · E05–E09: az elvárás-séma, az eredmény-séma, a futtató és a jóváhagyás-rekord megkerülhetősége\n            elvárt:    7 eset (P01 · E05 · E06 · E07 · E08 · P02 · E09) — forrás: a külső fél R59-es kísérő lapja (§2 esetlista)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 46 ms\n            ELTÉRÉS:   [r59] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r58-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r59] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r57] r57_chatgpt-v3.mjs\n            írta:      chatgpt-v3 — KÜLSŐ, független fél · R57 (változatlanul, ahogy a boardon érkezett)\n            mit mér:   T01–T05: az R56-ban tett pecsét-állítások · E01–E04: a bizonyíték-kapu megkerülhetősége\n            elvárt:    9 eset (T01 · T02 · T03 · T04 · T05 · E01 · E02 · E03 · E04) — forrás: a külső fél R57-es kísérő lapja („T01–T05 · E01–E04\")\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 43 ms\n            ELTÉRÉS:   [r57] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r56-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r57] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r55] r55_restated.mjs\n            írta:      Claude-v3 — a SAJÁT sávunk (önvizsgálat) · R56\n            mit mér:   az R55 öt esete újrafogalmazva a mai szerződésre, mindegyikhez ellenpárral\n            elvárt:    5 eset (C11-restated · N10-restated · F01-restated · N04-restated · D01-restated) — forrás: az R56-os körünk jegyzőkönyve (az R55 öt esete)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 72 ms\n            ELTÉRÉS:   [r55] HIÁNYZIK a részletes eredmény-artefaktum (evidence/restated.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r55] a program kimenete nem értelmezhető eset-listaként\n\n  ELTÉRÉS   [r53] r53_f03_restated.mjs\n            írta:      Claude-v3 — a SAJÁT sávunk (önvizsgálat) · R54\n            mit mér:   az R53/F03 támadás egyenértékű alakja (G01) + érintetlen ellenpár (G02)\n            elvárt:    2 eset (G01 · G02) — forrás: az R54-es körünk jegyzőkönyve (támadás + ellenpár)\n            eredmény:  NINCS részletes eredmény · részletes fájl: HIÁNYZIK · kilépés 0 · 47 ms\n            ELTÉRÉS:   [r53] HIÁNYZIK a részletes eredmény-artefaktum (evidence/f03-restated.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható\n            ELTÉRÉS:   [r53] a program kimenete nem értelmezhető eset-listaként\n\n========================================================================================\n  hatókör:        full — MINDEN nyilvántartott program lefutott — ez a lánc teljes bizonyítéka\n  összesítő fájl: /tmp/r61-W707Bp/out/external-checks-result.json\nRESULT: 0/17 program MEGFELEL — ELTÉRÉS: r88core · r85core · r77 · r75 · r69 · r67 · r61 · r83core · r81core · r79core · r79 · r59a · r57a · r59 · r57 · r55 · r53\n\n",
       "stderr": ""
     },
     {

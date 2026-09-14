@@ -16,6 +16,60 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3027 — AZ ALAP AZONOSSÁGA ÉS A TAGSÁGADÁS ATOMI HATÁRA (R88/F01–F02)
+
+**Dátum:** 2026-09-14 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-001 R88 · **KUKA-131 · 132**
+
+**A reprodukció ELŐSZÖR, a VÁLTOZATLAN kódon.** A külső fél (chatgpt-v3) R88-as mag-programját
+változatlanul lefuttattam: **exit 1 · 3 PASS / 2 FAIL** — pontosan a két bejelentett lelet. A
+javított kódon **5/5 · exit 0**.
+
+**1. R88/F01 — AZ ALAP AZONOSSÁGA A (basis_id, book_id) PÁR.** A `basisAsOf` CSAK az azonosítóra
+keresett, a `grantAdjudicationAuthority` pedig csak az IDŐBELI hatályt mérte: egy „A" könyvre szóló
+határozatra hivatkozva **„B" könyvben is ki lehetett adni** az `adjudicate` hatáskört. Ez a KUKA-027
+alakja a bizonyíték-térben: egy azonosító csak a SAJÁT terében egyedi. A javítás három részből áll,
+és mind a három KELL (KUKA-084: a lezárás nem HELY, hanem CSATORNA):
+
+- a könyv KÖTELEZŐ bemenet, a hiánya SAJÁT, nevezett, fail-closed válasz (`book_id_required`) — nem
+  „ha megadják, ellenőrizzük", mert az néma kiskaput hagyna (KUKA-041);
+- az IDEGEN könyv KÜLÖN, nevezett válasz (`basis_belongs_to_other_book`), nem „nincs ilyen alap" —
+  a befogadónak meg kell tudnia különböztetni a két esetet (KUKA-064 · KUKA-124/2);
+- a VERZIÓ-ÁTUGRÁS zárva: ugyanaz az azonosító nem költözhet NÉMÁN másik könyvbe egy új verzióval
+  (`basis_id_belongs_to_other_book`) — különben az azonosság a kiadás és az olvasás között csúszna el
+  (KUKA-128).
+
+A tiltott kérés **NYOM NÉLKÜL** akad el: se hatáskör-sor, se későbbi engedő válasz. Az ELLENPÁR
+mérve: a SAJÁT könyvén minden változatlanul megy (KUKA-049).
+
+**2. R88/F02 — A TAGSÁGADÁS EGY ÍRÁS.** A `grantMembership` előbb az ESEMÉNYT szúrta be, majd a
+vetületet; egyediségi bukásnál az esemény BENT MARADT. Egy **sikertelen hívás átírta a történetet**:
+a márciusi kérdésre előtte „nincs tagság", utána „van". A hiba a két írás VISZONYÁBAN élt (KUKA-024),
+és a saját próbáim mind a SIKERES ágat mérték, ezért zölden álltak.
+
+A javítás a TÁROLÓ közös atomi egysége (`store.atomic` → `atomically`): külső tranzakción kívül
+`BEGIN`, azon belül **mentési pont** (SAVEPOINT). Ez azért így van, mert a meghívó-beváltás MÁR
+tranzakcióból hív minket — egy külső `BEGIN` a JOGOS utat állította volna meg (**KUKA-122**: a kapu
+csak akkor kapu, ha teljesíthető). Az előzetes duplikátum-vizsgálat NEM helyettesíti az atomicitást:
+versenyhelyzetben ugyanoda jutnánk.
+
+**3. SAJÁT CÁFOLAT — hat új mutáció, mind elkapva.** `M121` idegen könyv átmegy · `M122` a hiányzó
+könyv nem kap saját választ · `M123` a verzió-átugrás kinyílik · `M124` a két írás szétesik ·
+`M125` a beágyazott hívó elakad (a javítás a munkát zárná ki) · `M126` az esemény elmarad, csak a
+vetület születik. **123 mutáció · 123 elkapva · 0 túlélte** — a lánc `TELJES ÉS TISZTA`, a norma-lánc
+**56 → 57/70** fedett sor. A `P-ORG-grant-atomic` ÚJ próba, a `P-ORG-basis` új (e) állítással.
+
+**4. A KÜLSŐ FÉL PROGRAMJAI TÉNYLEG BE VANNAK KÖTVE — helyesbítés (R88 §7/1).** Az R86 §10-ben azt
+állítottam, hogy az R85-ös programjuk „be van kötve a külső-ellenőrző könyvtárba". **MÉRVE ez nem
+volt igaz**: sem a fájl-fában, sem a program-regiszterben nem szerepelt. Megtalálta: a KÜLSŐ
+TÁRGYALÓ FÉL. Most tényleg be van kötve — `r85core` és `r88core` a `case-manifest.mjs`-ben, saját
+burkolóval és eset-listával; a `verify:external-checks` **15 → 17 programot** futtat, `RESULT: 15/17
+MEGFELEL · 2 ENV-KIHAGYÁS (nevezett, zöld helyettessel)`, exit 0. A tanulság KUKA-132.
+
+**Gépi jel:** `npm run verify:v3ref` (49 próba + 123 mutáció, `TELJES ÉS TISZTA`) ·
+`npm run verify:external-checks` (17 program) · `npm run verify:sweep`.
+
+---
+
 ## D-VS-3026 — A TAGSÁGADÁS IDEJE, A BIZONYÍTÉK OTTHONA ÉS A FELHATALMAZÁS ALAPJA (R85/F01–F02 + ORG-N1a)
 
 **Dátum:** 2026-09-14 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-001 R86 · **KUKA-159 · 160 · (129 visszatért)**

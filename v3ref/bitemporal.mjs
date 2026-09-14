@@ -154,15 +154,26 @@ export function grantMembership({ store, subjectId, bookId, role, at, effectiveA
   if (typeof role !== 'string' || !role.trim()) return frozen({ ok: false, reason: 'role_required' });
 
   // A NAPLÓ AZ IGAZSÁG, A SOR A VETÜLET — ugyanaz a szerkezet, mint a megvonásnál.
-  const res = store.run(
-    'INSERT INTO membership_grant (subject_id, book_id, role, recorded_at, effective_at) VALUES (?,?,?,?,?)',
-    subjectId, bookId, role, rec, eff);
-  store.run(
-    'INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)',
-    subjectId, bookId, role, eff);
-  return frozen({
-    ok: true, grant_event_id: Number(res.lastInsertRowid),
-    granted_at: eff, granted_recorded_at: rec, role,
+  //
+  // A KETTŐ EGY ÍRÁS (R88/F02 — a külső fél lelete). A régi alak az eseményt ÖNÁLLÓAN szúrta be, és
+  // ha a vetület elbukott (egyediség), az esemény BENT MARADT: egy SIKERTELEN hívás így
+  // megváltoztatta a történetet — a márciusi kérdésre előtte „nincs tagság", utána „van". A hiba a
+  // két írás VISZONYÁBAN élt, nem egyikükben sem (KUKA-024), és a saját próbáim mind a SIKERES ágat
+  // mérték, ezért zölden állt (KUKA-159 rokona: a bukó ág nem volt fixtúrában).
+  //
+  // A BEÁGYAZOTT HÍVÓ IS JOGOS: a meghívó-beváltás tranzakcióból hív minket, ezért `atomic` és nem
+  // `tx` — különben a javítás a jogos utat törné el (KUKA-122).
+  return store.atomic(() => {
+    const res = store.run(
+      'INSERT INTO membership_grant (subject_id, book_id, role, recorded_at, effective_at) VALUES (?,?,?,?,?)',
+      subjectId, bookId, role, rec, eff);
+    store.run(
+      'INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)',
+      subjectId, bookId, role, eff);
+    return frozen({
+      ok: true, grant_event_id: Number(res.lastInsertRowid),
+      granted_at: eff, granted_recorded_at: rec, role,
+    });
   });
 }
 

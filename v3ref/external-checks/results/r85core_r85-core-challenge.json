@@ -1,0 +1,116 @@
+{
+  "program": "r85_chatgpt-v3.core.mjs",
+  "source_commit": "00130890713945470eaedec97cfe31a6a85ccf6f+uncommitted",
+  "node": "v22.22.2",
+  "at": "2026-09-14T22:58:51.440Z",
+  "verbatim": true,
+  "cases": [
+    {
+      "id": "P01-known-grant",
+      "pass": true,
+      "result": {
+        "id": "P01-known-grant",
+        "pass": true,
+        "result": {
+          "valid_at": "2026-03-01T00:00:00.000Z",
+          "known_at": "2026-03-01T00:00:00.000Z",
+          "effective_at": null,
+          "recorded_at": null,
+          "applied": [],
+          "grant_axis": "projected_row",
+          "effective": true,
+          "reason": "membership_effective"
+        }
+      }
+    },
+    {
+      "id": "F01-grant-not-known-at-query",
+      "pass": true,
+      "result": {
+        "id": "F01-grant-not-known-at-query",
+        "pass": true,
+        "before": {
+          "valid_at": "2026-08-01T00:00:00.000Z",
+          "known_at": "2026-03-01T00:00:00.000Z",
+          "effective_at": null,
+          "recorded_at": null,
+          "applied": [],
+          "effective": false,
+          "reason": "no_membership"
+        },
+        "after": {
+          "valid_at": "2026-08-01T00:00:00.000Z",
+          "known_at": "2026-03-01T00:00:00.000Z",
+          "effective_at": null,
+          "recorded_at": null,
+          "applied": [],
+          "grant_axis": "event",
+          "effective": false,
+          "reason": "membership_grant_not_yet_recorded"
+        },
+        "today": {
+          "valid_at": "2026-08-01T00:00:00.000Z",
+          "known_at": "2026-06-01T00:00:00.000Z",
+          "effective_at": null,
+          "recorded_at": null,
+          "applied": [],
+          "grant_axis": "event",
+          "effective": true,
+          "reason": "membership_effective"
+        },
+        "grant": {
+          "ok": true,
+          "shape": "membership_only",
+          "outcome": "granted",
+          "subject_id": "member",
+          "book_id": "a"
+        }
+      }
+    },
+    {
+      "id": "P02-retro-evidence-persists",
+      "pass": true,
+      "result": {
+        "id": "P02-retro-evidence-persists",
+        "pass": true,
+        "result": {
+          "ok": true,
+          "changed": true,
+          "reason": "retroactive_invalidity_recorded",
+          "effective_at": "2026-03-01T00:00:00.000Z",
+          "recorded_at": "2026-06-01T00:00:00.000Z",
+          "projected_revoked_at": "2026-03-01T00:00:00.000Z",
+          "revocation_event_id": 1,
+          "evidence_ref": "doc:retro-proof",
+          "review_circle_id": 1,
+          "review_circle_members": 0
+        }
+      }
+    },
+    {
+      "id": "F02-future-evidence-persists",
+      "pass": true,
+      "result": {
+        "id": "F02-future-evidence-persists",
+        "pass": true,
+        "result": {
+          "ok": true,
+          "changed": true,
+          "reason": "future_dated_invalidity_recorded",
+          "effective_at": "2026-08-01T00:00:00.000Z",
+          "recorded_at": "2026-06-01T00:00:00.000Z",
+          "projected_revoked_at": "2026-08-01T00:00:00.000Z",
+          "revocation_event_id": 1,
+          "evidence_ref": "doc:future-proof",
+          "review_circle_id": null,
+          "review_circle_members": 0
+        },
+        "evidence_locations": [
+          "membership_revocation"
+        ]
+      }
+    }
+  ],
+  "passed": 4,
+  "failed": 0
+}
