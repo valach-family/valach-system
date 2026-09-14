@@ -270,8 +270,8 @@ export function releasedFieldPaths(body, prefix = []) {
  * kérdezi meg a mai jogot, ugyanezzel a feloldóval (KUKA-039). A hívó a saját `refused` alakját
  * adja vissza — a nemleges válasz nem árulhatja el, hogy a parancs létezik-e (KUKA-084).
  */
-export function releaseAllowed({ store, subjectId, bookId, clock, externalEvidence }) {
-  return rightAt({ store, subjectId, bookId, opClass: 'own_book', clock, externalEvidence }).allowed;
+export function releaseAllowed({ store, subjectId, bookId, clock, externalEvidence, credentials }) {
+  return rightAt({ store, subjectId, bookId, opClass: 'own_book', clock, externalEvidence, credentials }).allowed;
 }
 
 export function disclose({ store, kind, scope, ref, recipient, body, clock }) {
@@ -293,7 +293,7 @@ export function disclose({ store, kind, scope, ref, recipient, body, clock }) {
 }
 
 // ── A PARANCS BEFOGADÁSA ────────────────────────────────────────────────────────────────────────
-export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion, declared, resolve, clock, externalEvidence }) {
+export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion, declared, resolve, clock, externalEvidence, credentials }) {
   const scope = commandScope({ bookId, actor, idemKey });
   // A KANONIZÁLÁS TISZTA FELOLDÓ: DOB, ha a bemenet nem eldönthető. A HATÁR viszont nem dobhat
   // ki nyers kivételt a hívóra — az ugyanabba a csatornába kerülne, mint a programhiba
@@ -315,7 +315,7 @@ export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion
     message: 'ehhez a művelethez most nincs jogod ebben a könyvben',
     effect_id: null, state: null,
   });
-  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {
+  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {
     return refused;
   }
 
@@ -331,7 +331,7 @@ export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion
     return store.tx(() => {
       // R51/J1 (N09): a jogot a KIADÁS tranzakcióján BELÜL kérdezzük meg. A fenti, tranzakción
       // kívüli ellenőrzés csak azt zárja, ami a hívás ELŐTT történt.
-      if (!releaseAllowed({ store, subjectId: actor, bookId, clock, externalEvidence })) return refused;
+      if (!releaseAllowed({ store, subjectId: actor, bookId, clock, externalEvidence, credentials })) return refused;
       return Object.freeze(disclose({
         store, kind: 'command_replay', scope: scope.bookId, ref: commandRef(scope), recipient: actor, clock,
         body: commandReceipt({ effectId: prior.effect_id, state: prior.state, replayed: true }),
@@ -348,7 +348,7 @@ export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion
   // bemenet nem változhat utólag), a JOGOT nem: az minden kiadásnál újra fut.
   const resolvedJson = JSON.stringify(resolve ? resolve() : {});
 
-  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {
+  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {
     // A feloldás alatt elveszett a jog ⇒ a parancs NEM lesz kész. Semmit nem írunk.
     return refused;
   }
@@ -371,7 +371,7 @@ export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion
     // AUTOMATIKUSAN NORMA — ugyanúgy elévül, mint bármely leíró szöveg (KUKA-050). A mai,
     // érvényes magyarázat a `releaseAllowed` fejlécében áll, EGY helyen: minden kiadás a saját
     // írás-tranzakcióján BELÜL kérdezi meg a mai jogot.
-    if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {
+    if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {
       return refused;
     }
     store.run(
@@ -408,7 +408,7 @@ export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion
 // A CÍM OPCIONÁLIS. Ha kötelezővé tennénk, a cím nélkül hívó ellenpróbák NEVEZETT DOBÁSRA
 // futnának, és egy valódi lelet FAIL helyett MÉRŐHIBÁVÁ maszkolódna — épp az az alak, amit a
 // saját mérőnk tilt. Nulla mező ⇒ puszta kulcs, de CSAK egyértelmű, MA IS LÁTHATÓ sorra.
-export function readCommandResult({ store, idemKey, requester, bookId, actor, clock, externalEvidence }) {
+export function readCommandResult({ store, idemKey, requester, bookId, actor, clock, externalEvidence, credentials }) {
   const refused = Object.freeze({
     ok: false,
     error: 'not_available',
@@ -432,14 +432,14 @@ export function readCommandResult({ store, idemKey, requester, bookId, actor, cl
     // olvasását `refused`-ra — vagyis egy hatókörén KÍVÜL keletkezett tény üzenne neki.
     const rows = store.all('SELECT * FROM command WHERE idem_key = ?', idemKey);
     const visible = rows.filter((r) => rightAt({
-      store, subjectId: requester, bookId: r.book_id, opClass: 'own_book', clock, externalEvidence,
+      store, subjectId: requester, bookId: r.book_id, opClass: 'own_book', clock, externalEvidence, credentials,
     }).allowed);
     if (visible.length !== 1) return refused;
     cmd = visible[0];
   }
   if (!cmd) return refused;
 
-  if (!rightAt({ store, subjectId: requester, bookId: cmd.book_id, opClass: 'own_book', clock, externalEvidence }).allowed) {
+  if (!rightAt({ store, subjectId: requester, bookId: cmd.book_id, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {
     return refused;
   }
 
@@ -449,7 +449,7 @@ export function readCommandResult({ store, idemKey, requester, bookId, actor, cl
   return store.tx(() => {
     // R51/J1 (N08): a KIADÁS engedélyezési pontja a tranzakción BELÜL van. A fenti ellenőrzés a
     // jelölt-szűréshez kell; a kiadás pillanatában érvényes jogot ez a hívás méri.
-    if (!releaseAllowed({ store, subjectId: requester, bookId: cmd.book_id, clock, externalEvidence })) {
+    if (!releaseAllowed({ store, subjectId: requester, bookId: cmd.book_id, clock, externalEvidence, credentials })) {
       return refused;
     }
     return Object.freeze(disclose({

@@ -144,9 +144,14 @@ export const EXPECTED_PROBES = Object.freeze([
     id: 'P-REV-ban-scope', assertion: 'REVN5-ban-scope-comes-from-cause',
     // R71 §8/1 (req-3, 1. lépés). A tiltás FAJTÁI és az ok→hatókör leképezés: ugyanaz a szó KÉT
     // különböző hatókört kap, és a hatókört az OK választja ki, nem egy általános szabály.
+    // R73/C-F01–C-F02 + C-F05 (a külső fél leletei): a hatókör akkor ér valamit, ha a TÁRGYÁT nem
+    // lehet elmozdítani (a belépési kontextus nem írhat a kérés tengelyeire), és ha az önmagának
+    // ellentmondó tárolt rekord NEM válik „nincs tiltás"-sá.
     discharges: Object.freeze([
       Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-ban-scope-comes-from-cause' }),
       Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-ban-kind-is-named-and-closed' }),
+      Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-request-axis-not-overridable' }),
+      Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-contradicting-record-is-not-a-measurement' }),
     ]),
   }),
   Object.freeze({

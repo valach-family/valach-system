@@ -15,7 +15,7 @@ import { adjudicationRightAt } from './adjudication.mjs';
 // modul pedig OLVASSA — a kettő közti közvetlen behúzás kört csinálna (KUKA-003).
 import { suspensionEffectiveAt } from './suspension.mjs';
 // BAN-01 (R71 · REV-N5a): a CÉLZOTT TILTÁS ugyanabból az EGY feloldóból, amit a hatásköri út is hív.
-import { banEffectiveAt } from './ban.mjs';
+import { banEffectiveAt, banRequestFor } from './ban.mjs';
 
 // ═══ JOG-OSZTÁLY: SAJÁT KULCS, NEM ÖRÖKÖLT (Q07) ════════════════════════════════════════════════
 //
@@ -216,7 +216,7 @@ export function rightAt({ store, subjectId, bookId, opClass, clock, externalEvid
   // hitelesítő/munkamenet/jogalap/adatkör csak akkor dönthető el, ha a hívó átadja — enélkül a
   // válasz NEVEZETT bizonytalanság, és zár (a kétség nem nyit hozzáférést).
   const ban = banEffectiveAt({
-    store, subjectId, nowIso: clock.now(), request: { bookId, opClass, ...(credentials || {}) },
+    store, subjectId, nowIso: clock.now(), request: banRequestFor({ bookId, opClass }, credentials),
   });
   if (ban.banned) return deny(ban.reason, ban.message || 'célzott tiltás van hatályban');
 

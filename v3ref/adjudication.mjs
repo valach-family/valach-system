@@ -26,7 +26,8 @@ import { suspensionEffectiveAt } from './suspension.mjs';
 // BAN-01 (R71 · REV-N5a): UGYANAZ a feloldó, amit a tagsági út hív. A tiltásnak MINDEN alkalmazható
 // engedő úton hatnia kell — ha ez a behúzás hiányozna, a hatásköri út csendben nyitva maradna, és a
 // tiltás bevezetésének HELYE szűkítené a hatását (a fél őr — KUKA-039).
-import { banEffectiveAt } from './ban.mjs';
+import { banEffectiveAt, banRequestFor } from './ban.mjs';
+import { authorityRowAt } from './authority.mjs';
 
 /** A hatáskör-igényes műveletek ZÁRT halmaza — ismeretlen művelet nem „általános", hanem NEM DÖNTHETŐ. */
 export const ADJUDICATION_OPS = Object.freeze(['suspend', 'adjudicate', 'alter_right']);
@@ -75,33 +76,19 @@ export function adjudicationRightAt({ store, subjectId, bookId, operation, clock
   // `operation` a hatásköri út saját művelet-fogalma, ezért `opClass` néven adjuk át: egy
   // művelet-hatókörű tiltás így ezen az úton is pontosan dől el, túlnyúlás nélkül.
   const ban = banEffectiveAt({
-    store, subjectId: who, nowIso, request: { bookId, opClass: operation, ...(credentials || {}) },
+    store, subjectId: who, nowIso, request: banRequestFor({ bookId, opClass: operation }, credentials),
   });
   if (ban.banned) {
     return deny(ban.reason, ban.message
       || `"${who}" ellen célzott tiltás van hatályban, ezért hatásköri művelet nem végezhető`);
   }
 
-  const row = store.get(
-    'SELECT * FROM adjudication_authority WHERE subject_id = ? AND book_id = ? AND operation = ?',
-    who, bookId, operation);
-  if (!row) {
-    return deny('authority_not_established',
-      `"${who}" nem rendelkezik ${operation} hatáskörrel ezen a könyvön (${OP_MEANING[operation]}). `
-      + 'A tagság — akár admin — ehhez nem elég: a hatáskör MŰVELETENKÉNT adott.');
-  }
-  if (row.revoked_at !== null && row.revoked_at !== undefined) {
-    const rev = instantMs(row.revoked_at);
-    if (!rev.ok) return deny('authority_revocation_undecidable', 'a hatáskör megvonásának ideje nem értelmezhető');
-    if (rev.ms <= now.ms) {
-      return deny('authority_revoked', `"${who}" ${operation} hatásköre vissza lett vonva`);
-    }
-  }
-  const from = instantMs(row.granted_at);
-  if (!from.ok) return deny('authority_grant_undecidable', 'a hatáskör keletkezésének ideje nem értelmezhető');
-  if (from.ms > now.ms) return deny('authority_not_yet_effective', 'a hatáskör még nem hatályos');
-
-  return allow(operation, { granted_at: row.granted_at });
+  // AUT-01 (R73/C-F03): a hatáskör-sor értékelése KÖZÖS otthonban él, mert a tiltás KIADÁSA is
+  // ugyanezt kérdezi — a szabály nem lehet két másolat (KUKA-003), és a `ban.mjs` nem importálhatja
+  // ezt a modult (kör lenne), ezért mindkettő a semleges `authority.mjs`-t hívja.
+  const verdict = authorityRowAt({ store, subjectId: who, bookId, operation, nowIso });
+  if (!verdict.ok) return deny(verdict.reason, verdict.message);
+  return allow(operation, { granted_at: verdict.granted_at });
 }
 
 export function grantAdjudicationAuthority({ store, subjectId, bookId, operation, clock }) {

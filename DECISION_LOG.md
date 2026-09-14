@@ -16,6 +16,61 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3020 — A TILTÁS TÁRGYA, A HATÁSKÖR FELOLDÁSA ÉS AZ ELLENTMONDÓ REKORD (R73/C-F01…C-F05)
+
+**Dátum:** 2026-09-14 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-001 R73 · **KUKA-131…134**
+
+**A reprodukció ELŐSZÖR, a VÁLTOZATLAN kódon — és a programjuk NEM futott le teljesen.** A külső fél
+(chatgpt-v3) `core-r73.mjs` programját bájtazonosan kinyertem és futtattam: **2/7**. Az eredmény oka
+MÉRVE, nem feltételezve — a programjukban a C01 kontroll és az F03 ellenpélda EGYSZERRE nem
+teljesíthető: mindkét szereplőnek (`judge` · `outsider`) **NULLA** `adjudication_authority` sora van
+a fixtúrájukban, tehát ugyanaz a hiányzó hatáskör az egyik ágon elvárt siker, a másikon elvárt
+kudarc. Ezért készült egy ADAPTÁLT másolat (`core-r73.adapted.mjs`) KÉT, kimondott változtatással:
+(1) a `judge` `alter_right` hatáskört kap mindkét könyvön, (2) a tiltás kiadása `bookId`-t kap.
+Az adaptált menet: **7/7**. A két futást KÜLÖN nevezzük meg, ahogy kérték.
+
+**A NÉGY LELET — mind valós, mind javítva:**
+
+· **C-F01 + C-F02** — a tiltás-kérdés tárgyát `{ ...operation, ...credentials }` állította elő, tehát
+a hitelesített belépési kontextus FELÜLÍRHATTA a kérés tengelyeit: `bookId: "book_b"`-vel a
+`book_a`-ra szóló kérés elkerülte a `book_a`-ra kimondott tiltást. Javítás: `banRequestFor` nevezett
+tengely-listákkal (`REQUEST_AXES` a hívótól, `CREDENTIAL_AXES` a kontextusból) — a kontextus többet
+is hozhat, de a kérés tárgyát nem mozdíthatja el.
+
+· **C-F03** — az `imposeBan` a hatáskör helyén a hívó `authorityOk === true` szavát nézte: NULLA
+hatásköri rekordú `outsider` is tilthatott. A feloldás az `adjudication.mjs`-ben élt, a fordított
+import KÖRT csinált volna — a külső fél szavával: *„a függőségi kör szerkezeti feladat, nem indok az
+ellenőrzés elhagyására."* Javítás: **AUT-01** (`v3ref/authority.mjs`, `authorityRowAt`) semleges
+modulban, amit MINDKÉT oldal importál; a kör megszűnt, másolat nem született.
+
+· **C-F04** — a `credentials` el sem jutott a parancs-úton a jog-feloldóig, tehát a
+hitelesítő-hatókörű tiltás a leggyakrabban használt úton nem hatott. Javítás: a kontextus végigmegy
+(`submitCommand` · `readCommandResult` · `releaseAllowed` + mind az öt `rightAt` hívás).
+
+· **C-F05** — a tárolt sor OKA és FAJTÁJA ellentmondhatott egymásnak, és a rendszer a fajtát hitte
+el. Javítás: `ban_cause_kind_contradiction` — nevezett, ZÁRÓ válasz; a sorrend megtartva, hogy az
+ismeretlen fajta pontosabb diagnózisát ne fedje el (KUKA-124).
+
+**AMI A SAJÁT MUNKÁM HIÁNYA VOLT — kimondva.** A C-F01/C-F02 és a C-F05 javítása után a magpróba
+zölden állt, de EGYIK fixet sem mérte SAJÁT állítás: a „javítva" ezen a két ponton nem volt
+bizonyíték, csak állítás. Ezért a `P-REV-ban-scope` KÉT új ágat kapott — (e) a hamisított
+kontextus-könyv, (f) az ellentmondó rekord —, nevezett állításokkal, a manifestben deklarálva, és
+mellé KÉT új falszifikáció: **M71** (a régi összefésülés) és **M72** (az ellentmondás-ellenőrzés
+kivétele). Mindkettő bizonyítottan PIROS.
+
+**A SZÁMOZÁSRÓL, MÉRVE.** A két repó KUKA-regisztere közös fogalmi névtér, de külön fájl: **89**
+azonosító mindkettőben AZONOS tartalommal áll, **NÉGY** viszont (KUKA-090 · 091 · 092 · 121) KÉT
+KÜLÖNBÖZŐ leckét nevez meg aszerint, melyik repót olvassa valaki. A múltat nem írjuk át (D-VS-682),
+de nem is tetézzük: az R73 bejegyzései MINDKÉT regiszterben szabad számot kaptak (131–134; a V2 ma
+130-ig áll). **Gépi jel erre ma NINCS** — kimondva, mert egyik repó sem látja a másikat; a zárás
+feltétele nevezett: közös azonosító-tér vagy repó-előtag.
+
+**Gépi jel:** `npm run verify:v3ref` **35/35** (a `P-REV-ban-scope` két új ágával) · `npm run
+v3ref:mutate` **69/69 elkapva · 0 túlélő · 0 elavult horgony** · `npm run verify:kuka` 259/259 ·
+V3 söprés **8/8**.
+
+---
+
 ## D-VS-3019 — A CÉLZOTT TILTÁS: MI SZŰNIK MEG, ÉS MI NEM (REV-N5a/b/c · BAN-01)
 
 - **Dátum:** 2026-09-13 · Sáv: Claude-v3 (PR-VS-300 · STEP-VS-300-002 · CMD-VS-300-002-001 R71) ·

@@ -51,9 +51,9 @@ export const MUTATIONS = [
     what: 'az eredmény kiadása MINDKÉT rétegen kihagyja a MAI jog ellenőrzését (a mi hibás C08-as javaslatunk)',
     file: 'command.mjs',
     edits: [
-      { from: "  if (!rightAt({ store, subjectId: requester, bookId: cmd.book_id, opClass: 'own_book', clock, externalEvidence }).allowed) {\n    return refused;\n  }",
+      { from: "  if (!rightAt({ store, subjectId: requester, bookId: cmd.book_id, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {\n    return refused;\n  }",
         to: "  if (false) {\n    return refused;\n  }" },
-      { from: "    if (!releaseAllowed({ store, subjectId: requester, bookId: cmd.book_id, clock, externalEvidence })) {\n      return refused;\n    }",
+      { from: "    if (!releaseAllowed({ store, subjectId: requester, bookId: cmd.book_id, clock, externalEvidence, credentials })) {\n      return refused;\n    }",
         to: "    if (false) {\n      return refused;\n    }" },
     ] },
 
@@ -94,8 +94,8 @@ export const MUTATIONS = [
   { id: 'M10', rule: 'K07', catcher: 'P-A08', expect: 'probe_fail',
     what: 'az ÚJRAPRÓBÁLÁS a jog-ellenőrzés ELŐTT felel a kulcsra — a kulcs létezés-csatornává válik',
     file: 'command.mjs',
-    from: "  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {\n    return refused;\n  }\n\n  const prior = findCommandInScope(store, scope);",
-    to: "  const prior = findCommandInScope(store, scope);\n  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {\n    return prior ? Object.freeze({ ...refused, error: 'exists_but_not_available' }) : refused;\n  }" },
+    from: "  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {\n    return refused;\n  }\n\n  const prior = findCommandInScope(store, scope);",
+    to: "  const prior = findCommandInScope(store, scope);\n  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {\n    return prior ? Object.freeze({ ...refused, error: 'exists_but_not_available' }) : refused;\n  }" },
 
   // ── A Q01–Q15 KÖR ŐREI ──────────────────────────────────────────────────────────────────────
   { id: 'M11', rule: 'K07', catcher: 'P-CMD-namespace', expect: 'probe_fail',
@@ -132,9 +132,9 @@ export const MUTATIONS = [
     what: 'Q04 — a feloldás UTÁNI jog-ellenőrzés MINDKÉT rétege elmarad: az elvesztett jog mellett is véglegesül',
     file: 'command.mjs',
     edits: [
-      { from: "  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {\n    // A feloldás alatt elveszett a jog ⇒ a parancs NEM lesz kész. Semmit nem írunk.\n    return refused;\n  }",
+      { from: "  if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {\n    // A feloldás alatt elveszett a jog ⇒ a parancs NEM lesz kész. Semmit nem írunk.\n    return refused;\n  }",
         to: "  if (false) {\n    return refused;\n  }" },
-      { from: "    if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {\n      return refused;\n    }\n    store.run(",
+      { from: "    if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {\n      return refused;\n    }\n    store.run(",
         to: "    store.run(" },
     ] },
 
@@ -254,7 +254,7 @@ export const MUTATIONS = [
   { id: 'M32', rule: 'K04/K07', catcher: 'P-CMD-finalize-gate', expect: 'probe_fail',
     what: 'a PARANCS-oldali véglegesítési kapu eltűnik: a tx-határon visszavont jog mellett is könyvel',
     file: 'command.mjs',
-    from: "    if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence }).allowed) {\n      return refused;\n    }\n    store.run(",
+    from: "    if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {\n      return refused;\n    }\n    store.run(",
     to: "    store.run(" },
 
   { id: 'M33', rule: 'K04', catcher: 'P-AUTHZ-roles', expect: 'probe_fail',
@@ -421,7 +421,7 @@ export const MUTATIONS = [
   { id: 'M51', rule: 'K04/K09', catcher: 'P-REV-authority', expect: 'probe_fail',
     what: 'REV-N3a — a MŰVELET-SZŰKÍTÉS kivétele: bármelyik hatáskör megteszi (a legszűkebb '
       + 'felhatalmazás a legtágabb hatást adná)',
-    file: 'adjudication.mjs',
+    file: 'authority.mjs',
     from: "    'SELECT * FROM adjudication_authority WHERE subject_id = ? AND book_id = ? AND operation = ?',\n    who, bookId, operation);",
     to: "    'SELECT * FROM adjudication_authority WHERE subject_id = ? AND book_id = ?',\n    who, bookId);" },
 
@@ -594,7 +594,7 @@ export const MUTATIONS = [
       + 'alakja, és pont ezt kéri a norma proof-szövege',
     file: 'adjudication.mjs',
     from: "  const ban = banEffectiveAt({\n"
-      + "    store, subjectId: who, nowIso, request: { bookId, opClass: operation, ...(credentials || {}) },\n"
+      + "    store, subjectId: who, nowIso, request: banRequestFor({ bookId, opClass: operation }, credentials),\n"
       + "  });\n"
       + "  if (ban.banned) {",
     to: "  const ban = Object.freeze({ banned: false, reason: 'not_banned' });\n"
@@ -605,8 +605,28 @@ export const MUTATIONS = [
       + '„minden állításnak SAJÁT falszifikációja legyen" szabályt is szolgálja: az M67 a hatást '
       + 'méri, ez a JOGALAPOT',
     file: 'ban.mjs',
-    from: "  if (authorityOk !== true) {",
-    to: "  if (false) {" },
+    from: "  const authority = authorityRowAt({ store, subjectId: actor, bookId: book, operation: 'alter_right', nowIso: clock.now() });\n  if (!authority.ok) return Object.freeze({ ok: false, reason: authority.reason, message: authority.message });",
+    to: "  const authority = { ok: true };" },
+  { id: 'M71', rule: 'K09', catcher: 'P-REV-ban-scope', expect: 'probe_fail',
+    what: 'REV-N5b — A BELÉPÉSI KONTEXTUS ÁTÍRJA A KÉRÉS TENGELYÉT: a `banRequestFor` visszatér az '
+      + 'R73 előtti összefésülésre (`{...operation, ...credentials}`), ahol a KÉSŐBB szórt kontextus '
+      + 'nyer. Ekkor egy `bookId: "book_b"`-t hozó hitelesített kontextus elmozdítja a tiltás '
+      + 'TÁRGYÁT, és a `book_a`-ra szóló kérés átmegy a `book_a`-ra kimondott tiltás mellett. Ez az '
+      + 'R73/C-F01–C-F02 lelete: a hatókör-szabály ép marad, csak a tárgya csúszik el',
+    file: 'ban.mjs',
+    from: "export function banRequestFor(operation, credentials) {\n  const req = {};",
+    to: "export function banRequestFor(operation, credentials) {\n"
+      + "  return Object.freeze({ ...(operation || {}), ...(credentials || {}) });\n"
+      + "  /* eslint-disable-next-line no-unreachable */\n"
+      + "  const req = {};" },
+  { id: 'M72', rule: 'K09', catcher: 'P-REV-ban-scope', expect: 'probe_fail',
+    what: 'REV-N5b — AZ ÖNMAGÁNAK ELLENTMONDÓ REKORD „NINCS TILTÁS"-SÁ VÁLIK: az ok↔fajta '
+      + 'ellentmondás ellenőrzése kiesik, tehát egy `left_company` okú (⇒ `book` fajtájú) sor '
+      + '`credential` fajtával elkerüli a könyv-hatókört, és a kérés átmegy. Az ellentmondás nem a '
+      + 'tiltás megszűnése — ez az R73/C-F05 lelete',
+    file: 'ban.mjs',
+    from: "    const expectedKind = kindForCause(row.cause);\n    if (expectedKind && banKind(row.kind) && expectedKind !== row.kind) {",
+    to: "    const expectedKind = kindForCause(row.cause);\n    if (false) {" },
   { id: 'M68', rule: 'K09', catcher: 'P-REV-ban-past', expect: 'probe_fail',
     what: 'REV-N5c — A TILTÁS TÖRLI A MÚLTAT: a tiltás kimondása a korábbi parancs-eseményeket is '
       + 'eltakarítja. A készlet/jog képe ettől „rendezettebb" lenne, a történet viszont hamis — a '

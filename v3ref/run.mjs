@@ -2232,7 +2232,7 @@ probe('P-REV-ban-scope', 'R71 §8/1 · REV-N5b · K09 · K15 · KUKA-048 · KUKA
       const may = (book, extra) => rightAt({ store: w.store, subjectId: 'sub_dolgozo', bookId: book,
         opClass: 'own_book', clock: w.clock, ...(extra || {}) });
       const impose = (cause, targetRef) => imposeBan({ store: w.store, subjectId: 'sub_dolgozo',
-        cause, targetRef, actorSubjectId: 'sub_adjudicator', clock: w.clock, authorityOk: true });
+        cause, targetRef, actorSubjectId: 'sub_adjudicator', clock: w.clock, bookId: 'book_a' });
 
       // KONTROLL: tiltás előtt MINDKÉT könyv nyitva — különben a későbbi „zárva" semmit nem mondana.
       const before = may('book_a').allowed && may('book_b').allowed;
@@ -2275,18 +2275,49 @@ probe('P-REV-ban-scope', 'R71 §8/1 · REV-N5b · K09 · K15 · KUKA-048 · KUKA
         && noDiscriminator.reason === 'ban_target_undecidable'
         && /credentialId/.test(noDiscriminator.message || '');
 
-      const pass = before && aOk && bOk && b2Ok && cOk && dOk;
+      // (e) A KÉRÉS TENGELYÉT A BELÉPÉSI KONTEXTUS NEM ÍRHATJA ÁT (R73/C-F01–C-F02).
+      //     A tiltás a `book_a`-n áll (az (a) ágból). A támadás: a kérés TOVÁBBRA IS `book_a`-ra
+      //     szól, de a hitelesített kontextus `bookId: 'book_b'`-t hoz. A régi alak a két objektumot
+      //     egyszerűen összefésülte (`{...operation, ...credentials}`), tehát a kontextus NYERT, a
+      //     tiltás tárgya elmozdult, és a kérés átment. Az azonosság hordozóját (a kérés tengelyét)
+      //     semmilyen hívó-oldali adat nem mozdíthatja el (KUKA-047: a hatókör a kérés
+      //     KÖRNYEZETÉBŐL jön, nem a TÖRZSÉBŐL).
+      const spoofed = may('book_a', { credentials: { bookId: 'book_b', credentialId: 'cred_masik' } });
+      const eOk = spoofed.allowed === false;
+
+      // (f) AZ ÖNMAGÁNAK ELLENTMONDÓ REKORD NEM MÉRÉS (R73/C-F05). A sor oka `left_company`, amiből
+      //     `book` fajta KÖVETKEZIK — a `kind` viszont `credential`. Ilyenkor nem választunk a kettő
+      //     közül: NEVEZETT okkal zárunk, mert az ellentmondás nem a tiltás megszűnése (KUKA-020).
+      //     A (c) ágtól ez KÜLÖN válasz: ott a fajta ISMERETLEN, itt MINDKÉT oldal ismert, de ütközik.
+      w.store.run('INSERT INTO subject (id, kind) VALUES (?,?)', 'sub_ellentmondas', 'person');
+      w.store.run('INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)',
+        'sub_ellentmondas', 'book_a', 'user', w.clock.now());
+      w.store.run(
+        `INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)
+         VALUES (?,?,?,?,?,?)`,
+        'sub_ellentmondas', 'credential', 'left_company', 'book_a', 'sub_adjudicator', w.clock.now());
+      const contradicting = rightAt({ store: w.store, subjectId: 'sub_ellentmondas', bookId: 'book_a',
+        opClass: 'own_book', clock: w.clock });
+      const fOk = contradicting.allowed === false
+        && contradicting.reason === 'ban_cause_kind_contradiction';
+
+      const pass = before && aOk && bOk && b2Ok && cOk && dOk && eOk && fOk;
       return {
         expected: 'a kilépés-ok KÖNYV-hatókörű tiltást szül (a másik könyv érintetlen) · a '
           + 'kompromittált hitelesítő MINDKÉT könyvön tilt · más hitelesítő nem ütközik bele · '
-          + 'ismeretlen ok NEM hoz létre tiltást · ismeretlen fajta NEM DÖNTHETŐ (zár, nevezetten)',
-        actual: `kontroll a=${may('book_b').allowed} · (a) kilépés: A=${aOk} · (b) hitelesítő MINDKÉT `
+          + 'ismeretlen ok NEM hoz létre tiltást · ismeretlen fajta NEM DÖNTHETŐ (zár, nevezetten) · '
+          + 'a belépési kontextus NEM írhatja át a kérés könyvét · az önmagának ellentmondó rekord ZÁR',
+        actual: `kontroll (tiltás ELŐTT, mindkét könyv)=${before} · (a) kilépés: A=${aOk} · (b) hitelesítő MINDKÉT `
           + `könyvön=${bOk} · (b2) másik hitelesítő átmegy=${b2Ok} · (c) ismeretlen ok=${badCause.reason}, `
-          + `ismeretlen fajta=${unknownKind.reason} · (d) megkülönböztető nélkül=${noDiscriminator.reason}`,
+          + `ismeretlen fajta=${unknownKind.reason} · (d) megkülönböztető nélkül=${noDiscriminator.reason} · `
+          + `(e) hamisított kontextus-könyv=${spoofed.allowed ? 'ÁTMENT' : spoofed.reason} · `
+          + `(f) ellentmondó rekord=${contradicting.reason}`,
         pass,
         asserts: {
           'A-REV-N5b-ban-scope-comes-from-cause': aOk && bOk && b2Ok,
           'A-REV-N5b-ban-kind-is-named-and-closed': cOk && dOk,
+          'A-REV-N5b-request-axis-not-overridable': eOk,
+          'A-REV-N5b-contradicting-record-is-not-a-measurement': fOk,
         },
       };
     } finally { w.store.close(); }
@@ -2316,7 +2347,7 @@ probe('P-REV-ban-paths', 'R71 §8/1 · REV-N5a · K09 · K15 · KUKA-039',
       //     A tiltás rekordjában NINCS olyan mező, ami azt mondaná, „melyik úton vezették be":
       //     épp ez a lényeg, és ezért nem tud féloldalas lenni.
       imposeBan({ store: w.store, subjectId: 'sub_dolgozo', cause: 'left_company',
-        targetRef: 'book_a', actorSubjectId: 'sub_adjudicator', clock: w.clock, authorityOk: true });
+        targetRef: 'book_a', actorSubjectId: 'sub_adjudicator', clock: w.clock, bookId: 'book_a' });
       const aOk = viaMembership('book_a').allowed === false && viaAuthority('book_a').allowed === false;
 
       // (b) ELLENPÁR — A KÖNYV-HATÓKÖRŰ TILTÁS A MÁSIK KÖNYV ÚTJAIT NEM ZÁRJA, egyiket sem.
@@ -2328,12 +2359,12 @@ probe('P-REV-ban-paths', 'R71 §8/1 · REV-N5a · K09 · K15 · KUKA-039',
       //     tagsági utat NEM zárja — a két út ugyanazt a feloldót kérdezi, de a saját
       //     megkülönböztetőjével (a hatásköri úton a művelet a `suspend`).
       imposeBan({ store: w.store, subjectId: 'sub_dolgozo', cause: 'operation_misuse',
-        targetRef: 'suspend', actorSubjectId: 'sub_adjudicator', clock: w.clock, authorityOk: true });
+        targetRef: 'suspend', actorSubjectId: 'sub_adjudicator', clock: w.clock, bookId: 'book_a' });
       const cOk = viaAuthority('book_b').allowed === false && viaMembership('book_b').allowed === true;
 
       // (d) A HATÁSKÖR NÉLKÜLI TILTÁS-KIMONDÁS ELUTASÍT — a célzott tiltás JOGVÁLTOZTATÁS (REV-N3a).
       const noAuth = imposeBan({ store: w.store, subjectId: 'sub_kollega', cause: 'left_company',
-        targetRef: 'book_a', actorSubjectId: 'sub_kollega', clock: w.clock, authorityOk: false });
+        targetRef: 'book_a', actorSubjectId: 'sub_kollega', clock: w.clock, bookId: 'book_a' });
       const dOk = noAuth.ok === false && noAuth.reason === 'authority_not_established';
 
       const pass = before && aOk && bOk && cOk && dOk;
@@ -2385,7 +2416,7 @@ probe('P-REV-ban-past', 'R71 §8/1 · REV-N5c · K09 · KUKA-085',
       const beforeSnap = snapshot();
 
       imposeBan({ store: w.store, subjectId: 'sub_dolgozo', cause: 'court_order_subject',
-        targetRef: null, actorSubjectId: 'sub_adjudicator', clock: w.clock, authorityOk: true });
+        targetRef: null, actorSubjectId: 'sub_adjudicator', clock: w.clock, bookId: 'book_a' });
 
       // (a) A TILTÁS UTÁN a múlt MINDEN mezője változatlan — a tiltás csak a SAJÁT tábláját írja.
       //     A pillanatképet a MÁSODIK olvasás ELŐTT vesszük, ugyanazért, amiért az elsőt utána.

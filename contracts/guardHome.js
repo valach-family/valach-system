@@ -164,6 +164,13 @@ const GUARD_HOME = Object.freeze({
   'KUKA-116': Object.freeze({ home: 'vs', note: 'a megkerülő HTTP-út és a kör-eszköz is a V2 repóban van — a jel (MPF10) OTT fut' }),
   'KUKA-117': Object.freeze({ home: 'vs', note: 'a darabszám-kapu és az eset-készlet a boardon él — a jel (MPF12/MPF13) OTT fut' }),
   'KUKA-121': Object.freeze({ home: 'v3', note: 'a beadvány-integritás és a befogadási korlát a V3 MAGBAN él — a jel (verify:v3ref: P-REV-claim-decide, M62–M64) ITT fut' }),
+  // R73 (D-VS-3020) — mind a NÉGY a V3 MAGRÓL szól (tiltás-kérdés tárgya · hatáskör-feloldás ·
+  // a parancs-út kontextusa · az ellentmondó rekord), tehát a jelük ITT fut: a `P-REV-ban-scope`
+  // két ÚJ ága (e)(f) + a `P-REV-ban-paths`, falszifikálva M70 · M71 · M72 által.
+  'KUKA-131': Object.freeze({ home: 'v3', note: 'a kérés-tengely védelme a `banRequestFor`-ban él — a jel (verify:v3ref: P-REV-ban-scope (e), M71) ITT fut' }),
+  'KUKA-132': Object.freeze({ home: 'v3', note: 'a hatáskör-feloldás az AUT-01 modulban él — a jel (verify:v3ref: P-REV-ban-paths, M70) ITT fut' }),
+  'KUKA-133': Object.freeze({ home: 'v3', note: 'a parancs-út kontextus-átadása a V3 magban él — a jel (verify:v3ref: P-REV-ban-paths, M67) ITT fut' }),
+  'KUKA-134': Object.freeze({ home: 'v3', note: 'az ok↔fajta ellentmondás feloldója a `ban.mjs`-ben él — a jel (verify:v3ref: P-REV-ban-scope (f), M72) ITT fut' }),
   'KUKA-120': Object.freeze({ home: 'v3', note: 'a felfüggesztés, az elbírálás és a jelzés-út a V3 MAGBAN él — a jel (verify:v3ref: P-REV-suspension + P-REV-claim-read, M56–M61) ITT fut' }),
 });
 
