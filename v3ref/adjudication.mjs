@@ -28,6 +28,7 @@ import { suspensionEffectiveAt } from './suspension.mjs';
 // tiltás bevezetésének HELYE szűkítené a hatását (a fél őr — KUKA-039).
 import { banEffectiveAt, banRequestFor } from './ban.mjs';
 import { executableRightAt, effectuate } from './authority.mjs';
+import { basisAsOf } from './authorityBasis.mjs';
 
 // R75/F05 (D-VS-3021) — A HITELESÍTETT KONTEXTUS MIND A NÉGY HATÁSKÖRI BELÉPÉSI PONTON VÉGIGMEGY.
 // A LELET: a `credentials` a `readClaim` · `adjudicateClaim` · `suspendMembership` ·
@@ -73,12 +74,29 @@ export function adjudicationRightAt({ store, subjectId, bookId, operation, clock
   return allow(operation, { granted_at: verdict.granted_at });
 }
 
-export function grantAdjudicationAuthority({ store, subjectId, bookId, operation, clock }) {
+export function grantAdjudicationAuthority({ store, subjectId, bookId, operation, clock, basisId = null }) {
   if (!ADJUDICATION_OPS.includes(operation)) throw new Error(`grantAdjudicationAuthority: ismeretlen művelet (${operation})`);
+  const at = clock.now();
+
+  // MI ALAPJÁN ADJUK (ORG-N1a). Az alap MEGADÁSA ma nem kötelező — de ha megadják, akkor a KÉT
+  // TENGELYEN feloldjuk, és a hatáskör-sor a KIADÁSKOR hatályos VERZIÓT rögzíti. Egy későbbi
+  // verzió ettől kezdve nem írja át, mi alapján adták (REV-N1b: a múlt tartalma sértetlen).
+  //
+  // A NEM HATÁLYOS ALAP ZÁR, NEVEZETTEN: a fail-closed itt nem választás, mert a „valamilyen
+  // alapra hivatkoztunk, de az nem élt" eset pont az, amit az ORG-N1a ki akar zárni (KUKA-020).
+  let basisVersion = null;
+  if (basisId !== null && basisId !== undefined) {
+    const basis = basisAsOf({ store, basisId, validAt: at, knownAt: at });
+    if (!basis.in_effect) {
+      throw new Error(`grantAdjudicationAuthority: a hivatkozott alap nem hatályos (${basis.reason})`);
+    }
+    basisVersion = basis.version;
+  }
+
   store.run(
-    `INSERT INTO adjudication_authority (subject_id, book_id, operation, granted_at, revoked_at)
-     VALUES (?,?,?,?,NULL)`,
-    subjectId, bookId, operation, clock.now());
+    `INSERT INTO adjudication_authority (subject_id, book_id, operation, granted_at, revoked_at, basis_id, basis_version)
+     VALUES (?,?,?,?,NULL,?,?)`,
+    subjectId, bookId, operation, at, basisId, basisVersion);
 }
 
 // ═══ A BEJELENTÉS — NYITOTT ÚT, SEMLEGES VÁLASZ, VISSZAÉLÉS-KORLÁT (REV-N3c) ═══════════════════

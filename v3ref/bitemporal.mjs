@@ -76,9 +76,21 @@ export function membershipAsOf({ store, subjectId, bookId, validAt, knownAt }) {
   const m = store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', subjectId, bookId);
   const base = { valid_at: validAt, known_at: knownAt, effective_at: null, recorded_at: null, applied: [] };
   if (!m) return frozen({ ...base, effective: false, reason: 'no_membership' });
-  const granted = instantMs(m.granted_at);
-  if (!granted.ok) return frozen({ ...base, effective: false, reason: `membership_granted_at_${granted.reason}` });
-  if (granted.ms > valid.ms) return frozen({ ...base, effective: false, reason: 'membership_not_yet_effective' });
+
+  // A TAGSÁGADÁS IS KÉT TENGELYEN ÁLL (R85/F01 — a külső fél ellenpéldája).
+  //
+  // A régi alak a megvonás-eseményekre KIÉPÍTETTE a két tengelyt, a tagságadásra NEM: csak a
+  // hatályt mérte (`granted_at > validAt`). Következmény, adaton mérve: egy JÚNIUSI meghívó-
+  // beváltás megváltoztatta a MÁRCIUSI tudás szerinti augusztusi képet — ugyanaz a történeti
+  // kérdés két különböző választ adott aszerint, hogy mikor tettük fel. Ez a KUKA-039 „fél őr"
+  // alakja: a szabály EGY ág feltételében állt, a testvér-ág nem tudott róla.
+  //
+  // A KÉT KÉRDÉS ITT IS KÜLÖN, ÉS A TUDÁS KAPUZ ELŐBB:
+  //   `granted_recorded_at <= knownAt` — EKKOR MÁR TUDTUNK erről az alapról?
+  //   `granted_at <= validAt`          — a KÉRDEZETT NAPRA hatályos-e már?
+  const grant = grantAsOf({ store, subjectId, bookId, membershipRow: m, valid, known });
+  if (!grant.effective) return frozen({ ...base, grant_axis: grant.axis, effective: false, reason: grant.reason });
+  base.grant_axis = grant.axis;
 
   // A KÉT SZŰRŐ KÉT KÜLÖN KÉRDÉSRE FELEL, ÉS EGYIK SEM HELYETTESÍTI A MÁSIKAT:
   //   `recorded_at <= knownAt`   — ezt az eseményt EKKOR MÁR ISMERTÜK?
@@ -114,6 +126,87 @@ export function membershipAsOf({ store, subjectId, bookId, validAt, knownAt }) {
     recorded_at: first.recorded_at,
     applied: applied.map((e) => frozen({ id: e.id, recorded_at: e.recorded_at, effective_at: e.effective_at, transition: e.transition })),
   });
+}
+
+/**
+ * A TAGSÁGADÁS EGYETLEN ÍRÓJA (GRT-01) — R85/F01.
+ *
+ * MIÉRT KÖZÖS OTTHON. A két időt (hatály + rögzítés) EGYÜTT kell leírni, különben a következő
+ * író az egyiket elhagyja, és a hiba némán visszajön (KUKA-129: a szabály ott teljesüljön, ahol
+ * az érték SZÜLETIK). A mai tagságadásnál a két idő AZONOS — ezt az `at` alak biztosítja, és a
+ * writer MEGŐRZI mindkettőt, nem vezeti le egyiket a másikból.
+ *
+ * A KÉT ÁLTALÁNOS ALAK, amit a séma megenged és a feloldó helyesen kezel:
+ *   ELŐRE ISMERT, KÉSŐBB HATÁLYOS  — `recordedAt` március, `effectiveAt` augusztus
+ *   UTÓLAG RÖGZÍTETT               — `effectiveAt` március, `recordedAt` június
+ * A külső fél kimondta (R85 §3), hogy ezeket KÜLÖN kell tesztelni, amikor a writer támogatja
+ * őket — ez a writer támogatja, és a próbák mindkét alakot viszik.
+ *
+ * A HIÁNY KÜLÖN VÁLASZ, ÉS ZÁR: idő nélkül nem írunk tagságot (KUKA-124/2).
+ */
+export function grantMembership({ store, subjectId, bookId, role, at, effectiveAt, recordedAt }) {
+  const eff = effectiveAt ?? at;
+  const rec = recordedAt ?? at;
+  const e = instantMs(eff);
+  const r = instantMs(rec);
+  if (!e.ok) return frozen({ ok: false, reason: `granted_effective_at_${e.reason}` });
+  if (!r.ok) return frozen({ ok: false, reason: `granted_recorded_at_${r.reason}` });
+  if (typeof role !== 'string' || !role.trim()) return frozen({ ok: false, reason: 'role_required' });
+
+  // A NAPLÓ AZ IGAZSÁG, A SOR A VETÜLET — ugyanaz a szerkezet, mint a megvonásnál.
+  const res = store.run(
+    'INSERT INTO membership_grant (subject_id, book_id, role, recorded_at, effective_at) VALUES (?,?,?,?,?)',
+    subjectId, bookId, role, rec, eff);
+  store.run(
+    'INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)',
+    subjectId, bookId, role, eff);
+  return frozen({
+    ok: true, grant_event_id: Number(res.lastInsertRowid),
+    granted_at: eff, granted_recorded_at: rec, role,
+  });
+}
+
+/**
+ * A TAGSÁGADÁS FELOLDÁSA A KÉT TENGELYEN (R85/F01) — a `membershipAsOf` belső lépése.
+ *
+ * A KÉT SZŰRŐ UGYANAZ, MINT A MEGVONÁSNÁL, és pontosan ez a lényeg: a szabály nem állhat EGY ág
+ * feltételében (KUKA-039). A régi alak csak a hatályt mérte, ezért egy JÚNIUSI beváltás
+ * megváltoztatta a MÁRCIUSI tudás szerinti augusztusi képet.
+ *
+ * A GYENGÉBB TANÚ KIMONDVA. Ha egy tagsághoz nincs napló-esemény (közvetlenül írt sor), a
+ * feloldó a sor `granted_at` értékét KÉNYTELEN mindkét tengelyen használni. Ez NEM az általános
+ * szerződés — ezért jelöli az `axis` mező (`event` vagy `projected_row`), hogy az olvasó lássa,
+ * milyen erős tanún áll a válasz (KUKA-127: ha a jel gyengébb, a kötés erősségét ki kell írni).
+ */
+function grantAsOf({ store, subjectId, bookId, membershipRow, valid, known }) {
+  const events = store.all(
+    'SELECT * FROM membership_grant WHERE subject_id = ? AND book_id = ? ORDER BY id',
+    subjectId, bookId);
+
+  if (!events.length) {
+    const g = instantMs(membershipRow.granted_at);
+    if (!g.ok) return { effective: false, axis: 'projected_row', reason: `membership_granted_at_${g.reason}` };
+    if (g.ms > known.ms) return { effective: false, axis: 'projected_row', reason: 'membership_grant_not_yet_recorded' };
+    if (g.ms > valid.ms) return { effective: false, axis: 'projected_row', reason: 'membership_not_yet_effective' };
+    return { effective: true, axis: 'projected_row', reason: 'membership_effective' };
+  }
+
+  let knownAny = false;
+  for (const ev of events) {
+    const rec = instantMs(ev.recorded_at);
+    const eff = instantMs(ev.effective_at);
+    // Az OLVASHATATLAN naplósor ZÁR — nem néma kihagyás (KUKA-020).
+    if (!rec.ok || !eff.ok) return { effective: false, axis: 'event', reason: 'grant_event_undecidable' };
+    if (rec.ms > known.ms) continue;           // ezt akkor még nem tudtuk
+    knownAny = true;
+    if (eff.ms > valid.ms) continue;           // erre a napra még nem hatályos
+    return { effective: true, axis: 'event', reason: 'membership_effective' };
+  }
+  return {
+    effective: false,
+    axis: 'event',
+    reason: knownAny ? 'membership_not_yet_effective' : 'membership_grant_not_yet_recorded',
+  };
 }
 
 /** A MAI VETÜLET a naplóból — a `membership.revoked_at` oszlop ebből születik, nem fordítva.
@@ -171,12 +264,21 @@ export function reviewCircleState({ store, circleId }) {
   if (!c) return frozen({ ok: false, reason: 'no_such_circle' });
   const members = store.all(
     'SELECT * FROM review_circle_member WHERE circle_id = ? ORDER BY finalized_at, idem_key', circleId);
+  // A BIZONYÍTÉK AZ ESEMÉNYBŐL JÖN, nem a kör másolatából (R85/F02): egy fogalom, egy otthon —
+  // két példány előbb-utóbb elcsúszik (KUKA-018).
+  const ev = store.get('SELECT * FROM membership_revocation WHERE id = ?', c.revocation_event_id);
   return frozen({
     ok: true,
     id: c.id,
     subject_id: c.subject_id,
     book_id: c.book_id,
-    basis: frozen({ effective_at: c.basis_effective_at, recorded_at: c.basis_recorded_at, evidence_ref: c.evidence_ref }),
+    basis: frozen({
+      effective_at: c.basis_effective_at,
+      recorded_at: c.basis_recorded_at,
+      evidence_ref: ev ? ev.evidence_ref : null,
+      revocation_event_id: c.revocation_event_id,
+      actor_subject_id: ev ? ev.actor_subject_id : null,
+    }),
     state: c.closed_at ? 'closed' : 'open',
     opened_at: c.opened_at,
     opened_by: c.opened_by,
@@ -188,13 +290,13 @@ export function reviewCircleState({ store, circleId }) {
 
 /** A kör MEGNYITÁSA — a helyesbítés KÖVETKEZMÉNYE, ugyanabban a tranzakcióban.
  *  Nem külön hívás: a nyugta a hatással EGYÜTT születik (a KUKA-026 ellenpárja). */
-function openReviewCircle({ store, subjectId, bookId, effectiveAt, recordedAt, evidenceRef, openedBy }) {
+function openReviewCircle({ store, subjectId, bookId, effectiveAt, recordedAt, revocationEventId, openedBy }) {
   const circle = reviewCircleFor({ store, subjectId, bookId, effectiveAt, recordedAt });
   if (!circle.ok) return frozen({ ok: false, reason: circle.reason });
   const res = store.run(
-    `INSERT INTO review_circle (subject_id, book_id, basis_effective_at, basis_recorded_at,
-       evidence_ref, opened_at, opened_by) VALUES (?,?,?,?,?,?,?)`,
-    subjectId, bookId, effectiveAt, recordedAt, evidenceRef, recordedAt, openedBy);
+    `INSERT INTO review_circle (subject_id, book_id, revocation_event_id, basis_effective_at,
+       basis_recorded_at, opened_at, opened_by) VALUES (?,?,?,?,?,?,?)`,
+    subjectId, bookId, revocationEventId, effectiveAt, recordedAt, recordedAt, openedBy);
   const id = Number(res.lastInsertRowid);
   for (const m of circle.members) {
     store.run(
@@ -226,10 +328,19 @@ export function recordRetroactiveInvalidity({
       const m = store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', subjectId, bookId);
       if (!m) return frozen({ ok: false, changed: false, reason: 'no_membership' });
 
-      store.run(
-        `INSERT INTO membership_revocation (subject_id, book_id, recorded_at, effective_at, previous_effective_at, transition)
-         VALUES (?,?,?,?,?,?)`,
-        subjectId, bookId, at, effectiveAt, m.revoked_at ?? null, RETROACTIVE_TRANSITION);
+      // A BIZONYÍTÉK AZ ESEMÉNY SAJÁT, TARTÓS ADATA (R85/F02) — az eljáróval együtt. A régi alak
+      // csak a felülvizsgálati körbe tette, a kör viszont KIZÁRÓLAG a visszamenőleges ágon
+      // születik: jövőbeli hatálynál a kötelezően bekért hivatkozás nyomtalanul elveszett (a
+      // külső fél mérve: a szintetikus hivatkozás EGYETLEN felhasználói táblában sem maradt meg).
+      // MIND A HÁROM ÁG — azonnali · jövőbeli · visszamenőleges — ugyanazt a megőrzési
+      // szerződést teljesíti, mert az írás a KÖR ELŐTT és tőle FÜGGETLENÜL történik.
+      const evRes = store.run(
+        `INSERT INTO membership_revocation (subject_id, book_id, recorded_at, effective_at,
+           previous_effective_at, transition, actor_subject_id, evidence_ref)
+         VALUES (?,?,?,?,?,?,?,?)`,
+        subjectId, bookId, at, effectiveAt, m.revoked_at ?? null, RETROACTIVE_TRANSITION,
+        actorSubjectId, evidenceRef);
+      const revocationEventId = Number(evRes.lastInsertRowid);
 
       // A MAI VETÜLET ÚJRASZÁMOLVA (nem „beírva"): a `revoked_at` oszlop az, amit MA tudunk — a
       // márciusi kép ettől nem változik, mert azt a NAPLÓ adja, nem az oszlop.
@@ -242,7 +353,7 @@ export function recordRetroactiveInvalidity({
       // teljesíthetetlen, azt nem tiltjuk — de ami fogalmilag üres, azt nem gyártjuk le).
       const retro = eff.ms < instantMs(at).ms;
       const circle = retro
-        ? openReviewCircle({ store, subjectId, bookId, effectiveAt, recordedAt: at, evidenceRef, openedBy: actorSubjectId })
+        ? openReviewCircle({ store, subjectId, bookId, effectiveAt, recordedAt: at, revocationEventId, openedBy: actorSubjectId })
         : frozen({ ok: true, id: null, members: 0 });
 
       return frozen({
@@ -252,6 +363,8 @@ export function recordRetroactiveInvalidity({
         effective_at: effectiveAt,
         recorded_at: at,
         projected_revoked_at: projected,
+        revocation_event_id: revocationEventId,
+        evidence_ref: evidenceRef,
         review_circle_id: circle.id ?? null,
         review_circle_members: circle.members ?? 0,
       });

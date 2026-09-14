@@ -240,6 +240,11 @@ for (const p of selected) {
     // A NYERS EREDMÉNY MEGMARAD (a külső fél kimondott kérése): a kudarc fajtája és esetenkénti
     // indoka akkor is a gépi kimenetben áll, ha a program végül környezeti kihagyást kap.
     failure_kind: failure.kind, failure_why: failure.why, failure_rows: failure.rows,
+    // A JEL EREJE A GÉPI KIMENETBEN IS (R85 §5): a `witness_limit` kimondja, hol NEM független a két
+    // tanú, a `witness_basis` pedig azt, mi tartja a döntést ott, ahol erős. A hiány külön válasz:
+    // `null` = nincs kimondott korlát ezen az ágon (KUKA-124/2).
+    failure_witness_limit: failure.witness_limit ?? null,
+    failure_witness_basis: failure.witness_basis ?? null,
     expected_cases: [...p.cases], expected_from: p.cases_source,
     evidence_file: p.evidence, evidence_present: artifact.present, evidence_pin: artifact.pin,
     total: cases ? cases.length : null,
@@ -249,6 +254,27 @@ for (const p of selected) {
     ok, saved,
     stderr: (q.stderr || '').trim().split('\n').filter(Boolean).slice(0, 4),
     error: q.error ? String(q.error.message || q.error) : null,
+    // A BUKÓ GYERMEKFUTÁS NYOMA TELJES EGÉSZÉBEN MEGMARAD (R85 §2 — a külső fél kimondott kérése).
+    //
+    // MIÉRT KELLETT. Az R85-ben az ő futásuk r59/P01-et és r55/N04-et jelentett eltérésnek, a mienk
+    // nem — és EGYIKÜNK SEM tudta eldönteni, mi volt a kiváltó ok, mert a gyermekfolyamat hibaszövege
+    // NÉGY SORRA volt csonkolva, a jelzés (signal) és a szabvány kimenet pedig sehol nem maradt meg.
+    // A csonkolt nyom ugyanaz a némaság, mint a hiányzó nyom: az ELTÉRÉS látszik, az OKA nem
+    // (KUKA-012 · KUKA-026 — a kudarc nyoma nem veszhet el a futás sorsával együtt).
+    //
+    // A NYOM CSAK A KUDARCNÁL TELJES: zöld futásnál fölösleges zaj lenne, és a fájl is hízna.
+    child_trace: ok ? null : Object.freeze({
+      status: q.status ?? null,
+      signal: q.signal ?? null,
+      spawn_error_code: q.error ? String(q.error.code || '') || null : null,
+      elapsed_ms: ms,
+      stderr_tail: (q.stderr || '').trim().split('\n').filter(Boolean).slice(-60),
+      stdout_tail: (q.stdout || '').trim().split('\n').filter(Boolean).slice(-20),
+      truncated: {
+        stderr_lines: (q.stderr || '').trim().split('\n').filter(Boolean).length,
+        stdout_lines: (q.stdout || '').trim().split('\n').filter(Boolean).length,
+      },
+    }),
   });
 
   const head = ok ? 'MEGFELEL' : 'ELTÉRÉS ';
@@ -338,6 +364,11 @@ for (const s of envSkipped) {
   console.log(`                  bejelentett akadály: ${s.env_limit_kind} · MÉRVE: ${s.env_obstacle.measured_kind}`);
   console.log(`                  ${s.failure_why}`);
   console.log(`                  ${s.env_limit}`);
+  // A BIZONYÍTÉK EREJE, KIMONDVA (R85 §5). Ahol a jelek KÖZÖS OKBÓL származnak, ott a kihagyást nem
+  // ők tartják, hanem a ZÖLD HELYETTES — és ezt ki kell írni, különben a két ág ereje egyformának
+  // látszik (KUKA-127: a gyengébb kötést meg kell nevezni).
+  if (s.failure_witness_limit) console.log(`                  KIMONDOTT KORLÁT: ${s.failure_witness_limit}`);
+  else if (s.failure_witness_basis) console.log(`                  a kihagyás alapja: ${s.failure_witness_basis}`);
   console.log(`                  helyette MÉRVE: ${s.superseded_by} (zöld)`);
 }
 const bad = summary.filter((s) => !s.ok && !s.env_skipped);

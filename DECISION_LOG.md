@@ -16,6 +16,85 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3026 — A TAGSÁGADÁS IDEJE, A BIZONYÍTÉK OTTHONA ÉS A FELHATALMAZÁS ALAPJA (R85/F01–F02 + ORG-N1a)
+
+**Dátum:** 2026-09-14 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-001 R86 · **KUKA-159 · 160 · (129 visszatért)**
+
+**A reprodukció ELŐSZÖR, a VÁLTOZATLAN kódon.** A külső fél (chatgpt-v3) `challenge-core-r85.mjs`
+programját bájtazonosan lefuttattam: **exit 1 · 2 PASS / 2 FAIL** — pontosan a két bejelentett lelet.
+A javított kódon **4/4 · exit 0**.
+
+**F01 — GRT-01: a tagságadás ESEMÉNY, saját két tengellyel.** A `membershipAsOf` a MEGVONÁSRA két
+tengelyt alkalmazott (hatály · tudás), a GRANT-ra csak egyet, ezért egy ma rögzített,
+visszamenőleges hatályú tagság a TEGNAPI tudás-képet is átírta. A `membership` tábla ALAKJA
+változatlan (a külső fél fixtúrája pozicionális `INSERT`-tel ír rá — az első tervem ezt eltörte
+volna, ezért elvetettem); mellé `membership_grant` esemény-napló került (`recorded_at` ·
+`effective_at`), és a `grantAsOf` ugyanazt a két szűrőt futtatja, mint a megvonás. Esemény hiányában
+a sor `granted_at`-je a TARTALÉK, `axis: 'projected_row'` jelöléssel — a gyengébb tanút megnevezzük
+(KUKA-127). **Kimondottan NEM** tettünk általános `granted_at <= knownAt` szabályt, és NEM tiltottuk
+meg a `validAt > knownAt` kérdéseket (KUKA-092: a tiltás nem megépítés).
+
+**F02 — a bizonyíték az ESEMÉNY saját tartós adata.** Az `evidence_ref` a `review_circle`-ben élt, a
+kör viszont CSAK visszamenőleges érvénytelenítésnél születik: a jogváltozások kétharmadán (azonnali
+és jövőbeli hatályú megvonás) a kötelező bizonyíték NYOMTALANUL elveszett. Javítva: a
+`membership_revocation` esemény kapott `actor_subject_id` + `evidence_ref` oszlopot, a `review_circle`
+pedig `revocation_event_id NOT NULL` hivatkozással mutat rá (a saját `evidence_ref` oszlopa megszűnt).
+Mindhárom ág UGYANAZT a megőrzési szerződést teljesíti; bizonyíték nélkül nincs jogváltozás.
+
+**ORG-N1a — BAS-01: a felhatalmazás alapja, két idő-tengelyen.** Új `authority_basis` tábla
+(`basis_id` + `version` kulccsal): hatály · rögzítési idő · lejárat · visszavonás · korlát-mezők ·
+KÖTELEZŐ bizonyíték. Új verzió = új sor, a régit nem írjuk át (REV-N1b). A `basisAsOf` pontosan a
+`membershipAsOf` szerkezete; a `grantAdjudicationAuthority` rögzíti, MELYIK verzió alapján adták.
+A lejárt · ismeretlen · még nem hatályos alap HÁROM külön nevezett válasz, és a kiadás ZÁR.
+
+**A KLAUZULA MÉGSEM ZÁRULT LE — és ezt a norma-mátrix MONDJA KI (R85 §5).** Az első alakban azt
+írtam, hogy „a hiány megszűnt". Ez túlzás volt: a nyilvántartás megépült és EGY útra (hatáskör-adás)
+be van kötve, de a MEGHÍVÓ-KIADÁS és a BEVÁLTÁS nem hordozza és nem méri az alapot. A regiszternek
+eddig csak KÉT állapota volt (`no_evidence` · `covered`), és egyik sem igaz erre — ezért **harmadik,
+nevezett állapotot** kapott: **`partially_covered`**, kötelezően megnevezett két féllel (mi épült meg ·
+mi maradt, egyenként min. 40 karakter). **Ez nem kiskapu:** a `partially_covered` SEHOL nem egyenlő a
+`covered`-del, tehát az ORG-N1a nem kerülhet a kötelező készletbe — a **req-4 marad**, a **req-5 nem
+lép életbe**. Az ORG-N1b megtartja a teljes hiányát, és a `basisState.limit_enforced: false` a
+rendszer válaszában is kimondja, hogy a korlát ma ADAT, nem védelem (KUKA-041).
+
+**SAJÁT ELLENPÉLDÁK — és HÁROM saját állítás, ami nem tudott bukni.** 13 új mutáció (M108–M120). Az
+M110 · M116 · M117 TÚLÉLTE a próbám első alakját, mert olyan eseteket használtam, amelyeket MINDKÉT
+tengely-szűrő kizárt: az egyik szűrő kivétele mérhetetlen maradt. **KUKA-159:** egy állítás csak
+akkor falszifikálható, ha PONTOSAN EGY tengely dönti el — két-tengelyes szabálynál a fixtúra vigye
+MINDKÉT tükör-esetet (utólag rögzített ⇒ csak a tudás dönt · ismert, de még nem hatályos ⇒ csak a
+hatály). Megtalálta: a SAJÁT mutációs battériám.
+
+**A LÁNC-ELTÉRÉS (§2) — visszavonom az R84-es állításomat.** Ők 12/15 + 2 FAIL-t mértek, én 13/15 +
+exit 0-t állítottam, a mai friss futás pedig **13/15 MEGFELEL + 2 BIZONYÍTOTT ENV-KIHAGYÁS**-t ad,
+más bukó esetekkel. Három futás, három kép: a lánc **gép- és időzítés-függő**, és a mai
+diagnosztikánkkal nem eldönthető, kié a „helyes". **KUKA-160.** A gyökér-okot javítottuk: minden
+nem-zöld program mellé `child_trace` kerül (állapot · jelzés · spawn-hibakód · mért idő · stderr
+utolsó 60 sora · stdout utolsó 20 sora · csonkolás-jelzés) — eddig NÉGY SORRA volt csonkolva a nyom,
+ezért az eltérést egyikünk sem tudta megvizsgálni.
+
+**A „KÉT FÜGGETLEN TANÚ" MEGFOGALMAZÁS VISSZAVONVA (§5).** A program hibaszövege és a mi mért időnk
+UGYANANNAK az eseménynek a következménye, a `cap_ms`-t ráadásul mi olvastuk ki az ő programjukból —
+tehát nem független tanúk. A kód mostantól két külön mezőt visz és ki is írja: `witness_basis` (erős
+ág: esetenkénti bizonyíték dönt) · `witness_limit` (gyenge ág: nincs eredmény-fájl, a kihagyást a
+ZÖLD HELYETTES tartja, nem a két jel).
+
+**KUKA-129 VISSZATÉRT — KÉTSZER, EGY KÖRÖN BELÜL, a saját javításomban.** A `partially_covered`
+bevezetése után előbb az egységek ÖSSZEFŰZÉSE (`result === 'covered'` betűre), majd — a
+visszaminősítés kiterjesztése után — a fedezet-SZÁMÍTÁS (`chainBacking`) sem tudott az új állapotról.
+Az első alakban a sorok sorsát az EGYSÉGEK SORRENDJE döntötte el, a másodikban mind a négy, valóban
+falszifikált sor `not_falsified`-re romlott. **Megtalálta: a SAJÁT MÉRÉSEM, mindkétszer** — a
+battéria végig `exit 0` volt. Javítva KÖZÖS feloldókkal: `chainResultRank` + `claimsFalsification`,
+amiket mindhárom olvasó HÍV. **Élesebb tanulság:** egy ÚJ ÉRTÉK bevezetése ugyanaz a lánc-kérdés,
+mint egy szabály javítása — meg kell keresni MINDEN olvasót, aki a régi értékkészletet betűre
+egyezteti.
+
+**Gépi végeredmény:** `v3ref/run.mjs` **48/48 PASS** · mutációs battéria **117/117 elkapva · 0 túlélő ·
+0 elavult horgony · TELJES ÉS TISZTA · exit 0** · norma-lánc **54 fedett · 4 részben fedett · 8
+nevezett hiány**, kötelező készlet **req-4, hiány nélkül** · a külső lánc **13/15 + 2 env-kihagyás
+(zöld helyettessel)**. A kör lapja a V2 repóban: `docs/70_PLANNING/V3_R86_…md` (**D-VS-715**).
+
+---
+
 ## D-VS-3025 — A BIZONYÍTÉK-ELFOGADÁS HÁROM RÉSE ÉS A KÉT IDŐ-TENGELY (R83/F01…F03 + REV-N2a/b)
 
 > **Hatály:** V3 — a V3 magreferencia (`v3ref/`) beadvány-kapuja, külső-lánc futtatója és

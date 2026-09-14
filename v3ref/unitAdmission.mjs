@@ -68,6 +68,7 @@
 // a `manifest.mjs` mondja ki (`PROBE_STATUS` · `KNOWN_STATUSES`), és a mérő ugyanonnan olvassa. Egy
 // második, ide gépelt lista előbb-utóbb elcsúszna attól, amit a futás ténylegesen kiad.
 import { KNOWN_STATUSES, PROBE_STATUS } from './manifest.mjs';
+import { claimsFalsification } from './norms.mjs';
 
 /** A TÁMOGATOTT FUTÁSI SZERZŐDÉSEK. Ismeretlen verziójú beadványt NEM olvasunk be: nem tudjuk,
  *  mit jelentenek a mezői (R81/F03 — a `RUN-FOREIGN` eddig némán átment). */
@@ -372,7 +373,8 @@ export function chainBacking(rows, detailsById) {
   const problems = [];
   const backed = [];
   for (const c of rows) {
-    if (c.result !== 'covered') continue;
+    // MINDEN olyan sor, ami FALSZIFIKÁCIÓT ÁLLÍT — nem csak a `covered` (KUKA-129, közös feloldó).
+    if (!claimsFalsification(c.result)) continue;
     const r = detailsById.get(c.falsified_by);
     if (!r) {
       problems.push(`a FEDETT ${c.clause_id} → ${c.assertion_id} sort a(z) ${c.falsified_by || '(megnevezetlen)'} mutációra hivatkozva állítja, `

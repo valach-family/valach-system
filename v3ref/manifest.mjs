@@ -221,6 +221,47 @@ export const EXPECTED_PROBES = Object.freeze([
       Object.freeze({ clause: 'REV-N2b', assertion: 'A-REV-N2b-closing-is-a-separate-authorised-event' }),
     ]),
   }),
+
+  Object.freeze({
+    id: 'P-REV-grant-axis', assertion: 'REVN2-grant-has-two-time-axes',
+    // R85 §3. A külső fél ellenpéldája: a JÚNIUSI jogszerzés megváltoztatta a MÁRCIUSI tudás
+    // szerinti augusztusi képet. A két tengely a MEGVONÁSON már ki volt építve, a TAGSÁGADÁSON
+    // nem — ez a KUKA-039 „fél őr" alakja. A gyengébb tanú (napló nélküli sor) MEGNEVEZVE.
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N2a', assertion: 'A-REV-N2a-grant-has-its-own-knowledge-axis' }),
+      Object.freeze({ clause: 'REV-N2a', assertion: 'A-REV-N2a-pre-known-later-effective-grant' }),
+      Object.freeze({ clause: 'REV-N2a', assertion: 'A-REV-N2a-retroactively-recorded-grant' }),
+      Object.freeze({ clause: 'REV-N2a', assertion: 'A-REV-N2a-weaker-grant-witness-is-declared' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'P-REV-evidence-home', assertion: 'REVN2-evidence-lives-on-the-event',
+    // R85 §4. A kötelezően bekért bizonyíték-hivatkozás CSAK a felülvizsgálati körbe került, a kör
+    // viszont kizárólag a visszamenőleges ágon születik — jövőbeli hatálynál nyomtalanul elveszett.
+    // A hivatkozás otthona innentől az ESEMÉNY; a kör ehhez kapcsolódik (KUKA-018 · KUKA-126).
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N2a', assertion: 'A-REV-N2a-evidence-survives-without-circle' }),
+      Object.freeze({ clause: 'REV-N2a', assertion: 'A-REV-N2a-circle-points-at-the-event' }),
+      Object.freeze({ clause: 'REV-N2a', assertion: 'A-REV-N2a-all-three-branches-same-contract' }),
+      Object.freeze({ clause: 'REV-N2a', assertion: 'A-REV-N2a-no-evidence-no-right-change' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'P-ORG-basis', assertion: 'ORGN1-authority-basis-is-recorded-in-time',
+    // R85 §1 + §5. A felhatalmazás alapja: azonosító, verzió, hatály, rögzítési idő és
+    // eseményhez kötött bizonyíték. A KÉT TENGELY ugyanaz, amit a megvonás és a tagságadás
+    // használ — három azonos alakú tényt nem tartunk három szerkezetben (KUKA-003).
+    // KIMONDOTT HATÁR: az ORG-N1b (a korlát KIKÉNYSZERÍTÉSE) NEM épült meg; a (d) állítás
+    // épp azt méri, hogy ezt a rendszer ki is mondja magáról.
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-ORG-N1a-basis-version-history-on-two-axes' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-ORG-N1a-grant-records-the-version-it-was-issued-under' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-ORG-N1a-expired-or-unknown-basis-is-named-and-closed' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-ORG-N1a-limit-is-data-not-enforcement-and-says-so' }),
+    ]),
+  }),
   Object.freeze({
     id: 'P-REV-effectuation', assertion: 'REVN2-effectuation-point-is-explicit',
     // R77/F01. A külső tárgyaló fél mérte meg, hogy a három hatáskör-igényes író KÉTSZER olvas órát:

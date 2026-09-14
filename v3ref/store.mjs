@@ -43,6 +43,17 @@ CREATE TABLE book (
   name          TEXT NOT NULL
 );
 
+-- A TAGSÁGADÁS IS KÉT TENGELYEN ÁLL (R85/F01). A "granted_at" a HATÁLY ("melyik naptól jár a
+-- jog"), a "granted_recorded_at" a TUDÁS ("mikor került a rendszerbe"). A kettő a mai
+-- tagságadásnál AZONOS, és ezt az író biztosítja — de a modell nem köti össze őket, mert az
+-- előre ismert, később hatályos alap (rögzítés márciusban, hatály augusztustól) és az utólag
+-- rögzített alap (hatály márciusban, rögzítés júniusban) EGYARÁNT értelmes.
+--
+-- MIÉRT KÉT OSZLOP, ÉS MIÉRT NEM EGY FELTÉTEL. A külső fél R85/F01 ellenpéldája pontosan azt
+-- mutatta meg, hogy a megvonás-eseményekre kiépített két tengely a TAGSÁGADÁSRA nem volt
+-- kiépítve: a júniusi beváltás megváltoztatta a MÁRCIUSI tudás szerinti augusztusi képet. Egy
+-- puszta "granted_at <= knownAt" feltétel ezt nem oldja meg, mert a HATÁLY idejét használná a
+-- TUDÁS idejeként — ez a KUKA-002 alakja a tagságadáson (két független tény egy oszlopon).
 CREATE TABLE membership (
   subject_id    TEXT NOT NULL REFERENCES subject(id),
   book_id       TEXT NOT NULL REFERENCES book(id),
@@ -52,6 +63,32 @@ CREATE TABLE membership (
   PRIMARY KEY (subject_id, book_id)
 );
 
+-- A TAGSÁGADÁS ESEMÉNY-NAPLÓJA — pontosan úgy, ahogy a megvonásé. A "membership" sor ettől
+-- kezdve a MAI VETÜLET (mint a "revoked_at" oszlop), az igazság a napló.
+--
+-- MIÉRT NEM EGY ÚJ OSZLOP A "membership"-EN. Két okból. (1) FOGALMI: egy tagságadás ESEMÉNY,
+-- aminek saját hatálya és rögzítési ideje van; a sor csak az összegzése — ugyanaz a szerkezet,
+-- amit a megvonásnál már kimondtunk, és két azonos alakú tényt nem szabad két különböző
+-- szerkezetben tartani (KUKA-003). (2) MÉRHETŐ: a külső fél programja a "membership" sort
+-- POZICIONÁLISAN írja; egy új oszlop az ő VÁLTOZATLANUL futtatandó ellenpéldájukat törte volna
+-- el — a mérce nem igazodhat a megvalósításhoz (KUKA-054).
+--
+-- A NAPLÓ NÉLKÜLI SOR NEM HIBA, HANEM GYENGÉBB TANÚ: a feloldó ilyenkor a sor "granted_at"
+-- értékét KÉNYTELEN mindkét tengelyen használni, és ezt a válaszában KIMONDJA
+-- ("grant_axis: projected_row") — a gyengeséget nem hallgatjuk el (KUKA-049 · KUKA-127).
+CREATE TABLE membership_grant (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject_id    TEXT NOT NULL,
+  book_id       TEXT NOT NULL,
+  role          TEXT NOT NULL,
+  recorded_at   TEXT NOT NULL,
+  effective_at  TEXT NOT NULL
+);
+
+-- A JOGVÁLTOZÁS ESEMÉNYE HORDOZZA A SAJÁT BIZONYÍTÉKÁT (R85/F02). Az "evidence_ref" korábban
+-- CSAK a felülvizsgálati körbe került, a kör viszont kizárólag a VISSZAMENŐLEGES ágon születik —
+-- jövőbeli hatálynál tehát a kötelezően bekért bizonyíték nyomtalanul elveszett. A hivatkozás
+-- ezért az ESEMÉNY tartós adata, az eljáróval együtt; a kör ehhez az eseményhez kapcsolódik.
 CREATE TABLE membership_revocation (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   subject_id    TEXT NOT NULL,
@@ -59,7 +96,9 @@ CREATE TABLE membership_revocation (
   recorded_at   TEXT NOT NULL,
   effective_at  TEXT NOT NULL,
   previous_effective_at TEXT,
-  transition    TEXT NOT NULL
+  transition    TEXT NOT NULL,
+  actor_subject_id TEXT,
+  evidence_ref  TEXT
 );
 
 -- A FELFÜGGESZTÉS TÉNYE (R67/F01). A "suspendMembership" korábban sikert JELENTETT, de nem írt
@@ -115,12 +154,40 @@ CREATE TABLE subject_ban (
 -- A HATÁSKÖR MŰVELETENKÉNT áll ("operation"), nem egy általános „bíráló" jelölésként: a legszűkebb
 -- felhatalmazás nem adhat tágabb hatást. A megvonás KÜLÖN esemény marad (K09), a hatáskör pedig
 -- nem a tagságból jön — egy admin tagság nem tesz senkit elbírálóvá.
+-- A FELHATALMAZÁS ALAPJA (ORG-N1a). A régi alak CSAK azt tárolta, KI kapta a hatáskört és MIKORTÓL;
+-- azt nem, hogy MI ALAPJÁN. A határozatnak SAJÁT azonosítója, VERZIÓJA és HATÁLYA van, és a róla
+-- szerzett tudomás KÉSŐBB is érkezhet — ezért itt is a KÉT TENGELY áll (effective_at × recorded_at),
+-- ugyanaz a szerkezet, amit a tagságadás és a megvonás már használ (KUKA-003: azonos alakú tényt
+-- nem tartunk két különböző szerkezetben).
+--
+-- A VERZIÓ NEM ÍRJA ÁT A MÚLTAT: egy új verzió ÚJ SOR, a régi érintetlen marad (REV-N1b). A
+-- bizonyíték-hivatkozás itt is az ESEMÉNY saját adata (R85/F02 tanulsága átvíve).
+CREATE TABLE authority_basis (
+  basis_id       TEXT NOT NULL,
+  version        INTEGER NOT NULL,
+  book_id        TEXT NOT NULL REFERENCES book(id),
+  issuer_subject TEXT NOT NULL,
+  effective_at   TEXT NOT NULL,
+  recorded_at    TEXT NOT NULL,
+  expires_at     TEXT,
+  revoked_at     TEXT,
+  allowed_operations TEXT NOT NULL,
+  allowed_roles      TEXT NOT NULL,
+  allowed_scopes     TEXT NOT NULL,
+  evidence_ref   TEXT NOT NULL,
+  PRIMARY KEY (basis_id, version)
+);
+
 CREATE TABLE adjudication_authority (
   subject_id    TEXT NOT NULL REFERENCES subject(id),
   book_id       TEXT NOT NULL REFERENCES book(id),
   operation     TEXT NOT NULL CHECK (operation IN ('suspend','adjudicate','alter_right')),
   granted_at    TEXT NOT NULL,
   revoked_at    TEXT,
+  -- MI ALAPJÁN adták (ORG-N1a). Üresen hagyható — de akkor a feloldó KIMONDJA, hogy nincs
+  -- rögzített alap; a néma hiány ugyanaz a hazugság, mint a néma üres lista (KUKA-012).
+  basis_id      TEXT,
+  basis_version INTEGER,
   PRIMARY KEY (subject_id, book_id, operation)
 );
 
@@ -379,13 +446,16 @@ CREATE TABLE disclosure (
 --
 -- IDEGEN KULCS a parancs elsődleges kulcsára ⇒ árva kör-tag lehetetlen; EGYEDISÉG a
 -- (kör × parancs) páron ⇒ egy művelet egy körben egyszer szerepel.
+-- A KÖR AZ ESEMÉNYHEZ KAPCSOLÓDIK (R85/F02). A bizonyíték-hivatkozás otthona a jogváltozási
+-- ESEMÉNY; a kör csak MUTAT rá. Így a kör nélküli ágakon (azonnali, jövőbeli hatály) is megmarad
+-- a hivatkozás, és nem kell fölösleges kört gyártani pusztán a megőrzés kedvéért.
 CREATE TABLE review_circle (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
   subject_id         TEXT NOT NULL,
   book_id            TEXT NOT NULL,
+  revocation_event_id INTEGER NOT NULL REFERENCES membership_revocation(id),
   basis_effective_at TEXT NOT NULL,
   basis_recorded_at  TEXT NOT NULL,
-  evidence_ref       TEXT NOT NULL,
   opened_at          TEXT NOT NULL,
   opened_by          TEXT NOT NULL,
   closed_at          TEXT,

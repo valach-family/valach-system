@@ -12,6 +12,7 @@
 
 import { instantMs } from './store.mjs';
 import { rightAt, membershipEffectiveAt, KNOWN_ROLES, roleDelegates } from './authz.mjs';
+import { grantMembership } from './bitemporal.mjs';
 import { canonicalize } from './command.mjs';
 
 const norm = (s) => String(s == null ? '' : s).trim().toLowerCase();
@@ -509,10 +510,15 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
 
     // MINDEN ÍRÁS A FRISS SORBÓL DOLGOZIK. A régi alak itt `inv.offered_role`-t írt — az ELAVULT
     // példány szerepét —, tehát a friss ellenőrzés és az írás két külön igazságot hordozott (N10).
+    // A TAGSÁGADÁS A KÖZÖS OTTHONON MEGY (GRT-01 — R85/F01). A mai beváltásnál a HATÁLY és a
+    // RÖGZÍTÉS ideje azonos, és ezt az `at` alak biztosítja: a writer MINDKETTŐT megőrzi, nem
+    // vezeti le egyiket a másikból. Enélkül a júniusi beváltás megváltoztatta a MÁRCIUSI tudás
+    // szerinti képet (KUKA-129: a szabály ott teljesüljön, ahol az érték SZÜLETIK).
     if (outcome2.outcome === 'granted') {
-      store.run(
-        `INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)`,
-        subjectId, fresh.book_id, fresh.offered_role, clock.now());
+      const g = grantMembership({
+        store, subjectId, bookId: fresh.book_id, role: fresh.offered_role, at: clock.now(),
+      });
+      if (!g.ok) throw new Error(`redeemInvite: a tagságadás nem írható — ${g.reason}`);
     }
 
     // A FOGYASZTÁS ÖN-ŐRZŐ: `WHERE redeemed_at IS NULL`. Ez tartja meg a TOCTOU-védelmet

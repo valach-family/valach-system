@@ -372,9 +372,33 @@ export const ORG_BASIS_NORMS = Object.freeze([
         covers: Object.freeze(['K04', 'K14']),
         text: 'A felhatalmazási döntés tárolja a határozat/grant AZONOSÍTÓJÁT, VERZIÓJÁT és '
           + 'HATÁLYÁT — nem csak a kibocsátó személyét.',
-        gap: 'A mai `invite.issuer_subject` EGYETLEN személyre mutat, és a jogalapot a `rightAt` '
-          + 'MAI válasza adja. Se határozat-azonosító, se verzió, se hatály nincs tárolva, tehát a '
-          + 'kiadott meghívó nem tudja megmondani, MI alapján adták ki.',
+        // AZ R85-BEN MEGÉPÜLT A NYILVÁNTARTÁS (BAS-01), DE A KLAUZULA NEM ZÁRULT LE.
+        //
+        // AMI MEGVAN: a felhatalmazási alap saját táblát kapott (`authority_basis`) — azonosító,
+        // VERZIÓ, hatály, rögzítési idő és KÖTELEZŐ bizonyíték-hivatkozás —, a KÉT TENGELYEN
+        // feloldva (`basisAsOf`), és a HATÁSKÖR-SOR rögzíti, melyik verzió alapján adták
+        // (`adjudication_authority.basis_version`). Falszifikálva: M116–M120.
+        //
+        // AMI NINCS MEG — ÉS EZT A GAP MONDJA KI, NEM EGY BEKEZDÉS (R85 §5, a külső fél
+        // helyesbítése): a klauzula szövege MINDEN felhatalmazási döntésre szól, a bekötés viszont
+        // EGYETLEN úton él. A „megépült a hivatkozás" és a „teljes a képviseleti alap" KÉT
+        // KÜLÖNBÖZŐ ÁLLÍTÁS, és a másodikat nem tettük meg (KUKA-038: a létezés nem bizonyíték
+        // arra, hogy MINDENHOL fut; KUKA-039: a fél őr).
+        partial: Object.freeze({
+          built: 'a felhatalmazási alap NYILVÁNTARTÁSA (BAS-01 `authority_basis`: azonosító · VERZIÓ · '
+            + 'hatály · rögzítési idő · KÖTELEZŐ bizonyíték-hivatkozás), a KÉT IDŐ-TENGELYEN feloldva '
+            + '(`basisAsOf`), és BEKÖTVE a hatáskör-adás útjára: a `grantAdjudicationAuthority` '
+            + 'rögzíti, MELYIK verzió alapján adták (`basis_id`/`basis_version`), lejárt vagy még nem '
+            + 'hatályos alapra pedig NEVEZETTEN elutasít. Falszifikálva: M116–M120.',
+          remaining: 'az ÁLTALÁNOS képviseleti alap: a MEGHÍVÓ-KIADÁS és a BEVÁLTÁS ma nem hordozza és '
+            + 'nem méri az alapot, tehát a KIADOTT MEGHÍVÓ továbbra sem tudja megmondani, mi alapján '
+            + 'adták ki, és a beváltás sem a KIADÁSKOR hatályos alaphoz mér (az `order` n:1 '
+            + '„property" mezője pontosan ezt kéri). Amíg ez nincs meg, a klauzula NYITOTT, és a '
+            + 'req-5 NEM léphet életbe rá.',
+        }),
+        // AMI MÉG NEM ÉPÜLT MEG A KORLÁTON: az az ORG-N1b-é, és az a klauzula MEGTARTJA a saját
+        // gap-jét. A `basisState.limit_enforced: false` mező ezt a rendszer válaszában is kimondja
+        // (KUKA-041), és a P-ORG-basis (d) állítása méri.
       }),
       Object.freeze({
         id: 'ORG-N1b',
@@ -623,6 +647,56 @@ export const NEXT_REQUIRED_EVIDENCE = Object.freeze({
     }),
   ]),
 });
+
+/**
+ * A LÁNC-SOR EREDMÉNYEINEK RANGSORA — EGY OTTHONBAN (MCT-01 mintája · KUKA-129).
+ *
+ * MIÉRT ITT. Ez a rangsor KÉT fogyasztót szolgál ki: a `checkNorms` a klauzula ítéletét a LEGGYENGÉBB
+ * sorból képezi, az egységek összefűzése (`mutate.mjs`) pedig a LEGERŐSEBB sort választja, amikor
+ * ugyanaz a sor több egységből is megérkezik. Eddig MINDKETTŐ a saját, bemásolt tábláját hordozta —
+ * és az R86-ban pontosan ez ütött vissza: a `partially_covered` állapot bekerült a `checkNorms`-ba,
+ * az összefűzés viszont nem tudott róla, ezért nem a bizonyíték döntött, hanem az EGYSÉGEK SORRENDJE
+ * (KUKA-129: a lánc egyik végén megjavítva, a másikon változatlanul).
+ *
+ * A RANGSOR OLVASATA: nagyobb szám = ERŐSEBB bizonyíték.
+ *   4 `covered`               — falszifikált állítás, teljes klauzulára
+ *   3 `partially_covered`     — falszifikált állítás, de a klauzula NEVEZETT része még nyitott
+ *   2 `falsification_pending` — a battéria még nem futott (referencia-futás helyes végállapota)
+ *   0 minden más              — `not_falsified` · `no_evidence` · `row_missing` · `unknown_probe` …
+ *
+ * KIMONDVA, HOGY EZ NEM ENGEDÉLY: a rangsor CSAK sorok összehasonlítására való. A kötelező készlet
+ * teljesülése külön kérdés, és ott SZIGORÚ egyenlőség dönt (`=== 'covered'`) — a `partially_covered`
+ * tehát erősebb a `not_falsified`-nál, de SOHA nem teljesít kötelező klauzulát.
+ */
+export const CHAIN_RESULT_RANK = Object.freeze({
+  covered: 4,
+  partially_covered: 3,
+  falsification_pending: 2,
+});
+
+/** @param {string} result @returns {number} */
+export function chainResultRank(result) {
+  return CHAIN_RESULT_RANK[result] || 0;
+}
+
+/**
+ * EZ A SOR AZT ÁLLÍTJA, HOGY EGY MUTÁCIÓ MEGBUKTATTA AZ ÁLLÍTÁST? — EGY OTTHON (KUKA-129).
+ *
+ * MIÉRT KELL KÜLÖN NÉV. A fedezet-visszamérés (`chainBacking`) és az összefűzés visszaminősítése
+ * UGYANARRA a kérdésre felel, de eddig mindkettő `result === 'covered'`-et írt betűre. Az R86-ban
+ * ez KÉTSZER ütött vissza egy körön belül: a `partially_covered` bevezetése után előbb a rangsor
+ * nem tudott róla, majd — miután a visszaminősítést kiterjesztettem rá — a fedezet-SZÁMÍTÁS nem.
+ * Az eredmény mindkétszer ugyanaz: a sor sorsa nem a bizonyítéktól függött. Ezért a kérdés innentől
+ * EGY nevezett feloldó, amit MINDKÉT oldal hív — a szabály ott él, ahol az állapotok születnek.
+ *
+ * A `falsification_pending` NEM tartozik ide: az épp azt mondja, hogy a battéria még nem futott.
+ */
+export const FALSIFICATION_CLAIMING_RESULTS = Object.freeze(['covered', 'partially_covered']);
+
+/** @param {string} result @returns {boolean} */
+export function claimsFalsification(result) {
+  return FALSIFICATION_CLAIMING_RESULTS.includes(result);
+}
 
 /** EGY KLAUZULA KANONIKUS ALAKJA — ehhez kötődik a tartalmi jóváhagyás (R55 §6 · OB-7). */
 export function clauseDigest(clause) {
@@ -1397,6 +1471,31 @@ export function checkNorms(evidence) {
       integrity.push(`NORMA/${norm.id}/${clauseId}: egyszerre nevez meg HIÁNYT és van rá bizonyítéka `
         + `(${decls.map((d) => d.probe).join(', ')}) — a kettő nem állhat egyszerre`);
     }
+    // A HARMADIK ÁLLAPOT: RÉSZBEN MEGÉPÜLT (R85 §5 — a külső fél kimondott kérése).
+    //
+    // MIÉRT KELLETT. Az R85-ben a felhatalmazási alap NYILVÁNTARTÁSA megépült és be is van kötve a
+    // hatáskör-adás útjára, DE a meghívó-kiadás és a beváltás nem hordozza. Két állapotunk volt —
+    // „nincs bizonyíték" és „fedett" —, és EGYIK SEM igaz erre: a „nincs" letagadná a megépült
+    // felét, a „fedett" pedig LEZÁRTNAK mondaná a klauzulát. Ilyenkor a válasz nem az, hogy a
+    // szomszédos ágra soroljuk (KUKA-124/2), hanem hogy SAJÁT, NEVEZETT állapotot kap.
+    //
+    // ÉS EZ NEM KISKAPU: a `partially_covered` sehol NEM egyenlő a `covered`-del, tehát a klauzula
+    // NEM kerülhet be a kötelező készletbe (`REQUIRED_EVIDENCE`), és `coveredClauses`-be sem. Az
+    // állapot tehát KIZÁRÓLAG őszinteségi eszköz: pontosít, de nem enged (KUKA-121 fordítottja).
+    if (clause.partial) {
+      if (clause.gap) {
+        integrity.push(`NORMA/${norm.id}/${clauseId}: egyszerre mond RÉSZLEGESET és teljes HIÁNYT — `
+          + 'a kettő nem állhat egyszerre (vagy semmi nincs meg, vagy egy megnevezett rész)');
+      }
+      // Aki nem tudja leírni, MI épült meg és MI maradt, az valószínűleg nem is mérte fel (KUKA-087).
+      const built = String(clause.partial.built || '');
+      const rest = String(clause.partial.remaining || '');
+      if (built.length < 40 || rest.length < 40) {
+        integrity.push(`NORMA/${norm.id}/${clauseId}: a RÉSZLEGESSÉG két felét MEG KELL NEVEZNI `
+          + '(mi épült meg · mi maradt, egyenként min. 40 karakter) — különben a „részben" szó '
+          + 'ugyanaz a némaság, mint a hiányzó indoklás (KUKA-012)');
+      }
+    }
 
     let allOk = decls.length > 0;
     for (const d of decls) {
@@ -1464,6 +1563,14 @@ export function checkNorms(evidence) {
         }
       }
 
+      // A RÉSZLEGESSÉG A LEGERŐSEBB SORT IS VISSZAFOGJA. A sor bizonyítéka lehet hibátlan — a
+      // klauzula ATTÓL még nem teljesült egészében, mert a bekötés nem ér el minden útra. A gyengébb
+      // eredményt (`not_falsified`, `unknown_probe`, …) viszont NEM írjuk felül: azok SÚLYOSABB
+      // bajok, és a saját nevükön kell maradniuk.
+      if (clause.partial && result === 'covered') {
+        result = 'partially_covered';
+        why = `RÉSZBEN MEGÉPÜLT — megvan: ${clause.partial.built} · HIÁNYZIK: ${clause.partial.remaining}`;
+      }
       if (result !== 'covered') allOk = false;
       chain.push(Object.freeze({
         norm_id: norm.id, clause_id: clauseId, covers: [...clause.covers],
@@ -1561,8 +1668,7 @@ export function checkNorms(evidence) {
   for (const c of chain) {
     const prev = resultOf.get(c.clause_id);
     // Egy klauzulának több sora is lehet; a leggyengébb dönt (ha bármelyik szem szakad, nincs kész).
-    const rank = { covered: 3, falsification_pending: 2 };
-    if (!prev || (rank[c.result] || 0) < (rank[prev] || 0)) resultOf.set(c.clause_id, c.result);
+    if (!prev || chainResultRank(c.result) < chainResultRank(prev)) resultOf.set(c.clause_id, c.result);
   }
   const acceptable = stage === 'measured' ? new Set(['covered']) : new Set(['covered', 'falsification_pending']);
   const requiredSatisfied = [];

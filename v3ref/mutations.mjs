@@ -340,8 +340,11 @@ export const MUTATIONS = [
       { from: "  const s = sealedTerms(store, token);\n  if (!s.ok) return Object.freeze({ ok: false, reason: s.reason });\n  if (inviteTerms(live) !== inviteTerms(s.sealed)) {\n    return Object.freeze({ ok: false, reason: 'invite_terms_changed' });\n  }",
         to: "  const s = { ok: true, sealed: live };" },
       { from: "    if (inviteTerms(fresh) !== inviteTerms(inv)) {", to: "    if (false) {" },
-      { from: "        subjectId, fresh.book_id, fresh.offered_role, clock.now());",
-        to: "        subjectId, inv.book_id, inv.offered_role, clock.now());" },
+      // ÚJRAHORGONYZVA (R85): a tagság-írás a KÖZÖS otthonra váltott (GRT-01, grantMembership),
+      // ezért a régi INSERT-sor megszűnt. A mutáció SZÁNDÉKA változatlan: az ELAVULT példány
+      // szerepét írja a friss helyett. A STALE_ANCHOR őr fogta meg, hogy a horgony elévült.
+      { from: "        store, subjectId, bookId: fresh.book_id, role: fresh.offered_role, at: clock.now(),",
+        to: "        store, subjectId, bookId: inv.book_id, role: inv.offered_role, at: clock.now()," },
     ] },
 
   { id: 'M41', rule: 'K05', catcher: 'P-CMD-receipt-integrity', expect: 'probe_fail',
@@ -974,8 +977,11 @@ export const MUTATIONS = [
       + 'hatályként is, tehát a visszamenőleges érvénytelenség csak „mától" szól. A mai kép így '
       + 'NEM tükrözi a helyesbítést a múltra nézve — a két tengely egyetlen pillanatba olvad',
     file: 'bitemporal.mjs',
-    from: '        subjectId, bookId, at, effectiveAt, m.revoked_at ?? null, RETROACTIVE_TRANSITION);',
-    to: '        subjectId, bookId, at, at, m.revoked_at ?? null, RETROACTIVE_TRANSITION);' },
+    // ÚJRAHORGONYZVA (R85): az R85/F02 javítás a bizonyítékot és az eljárót is az ESEMÉNYRE teszi,
+    // ezért ez a sor megváltozott. A mutáció SZÁNDÉKA változatlan (a hatály helyére a mai időpont
+    // kerül); a STALE_ANCHOR őr fogta meg, hogy a régi horgony már nem létezik.
+    from: '        subjectId, bookId, at, effectiveAt, m.revoked_at ?? null, RETROACTIVE_TRANSITION,',
+    to: '        subjectId, bookId, at, at, m.revoked_at ?? null, RETROACTIVE_TRANSITION,' },
 
   { id: 'M102', rule: 'K08', catcher: 'P-REV-bitemporal', expect: 'probe_fail',
     what: 'REV-N2a — A HATÁLY TENGELYE ELTŰNIK AZ OLVASÁSNÁL: a lekérdezés minden ismert eseményt '
@@ -1024,4 +1030,110 @@ export const MUTATIONS = [
     file: 'bitemporal.mjs',
     from: "    { store, clock, subjectId: actorSubjectId, bookId: c.book_id, operation: 'adjudicate', credentials },",
     to: "    { store, clock, subjectId: c.opened_by, bookId: c.book_id, operation: 'adjudicate', credentials }," },
+
+  // ── R85 — A KÜLSŐ FÉL KÉT ELLENPÉLDÁJÁRA ADOTT SAJÁT FALSZIFIKÁCIÓ ─────────────────────────
+  // A javítás önmagában nem bizonyíték: azt kell megmutatni, hogy a VISSZACSÚSZÁS PIROSRA viszi a
+  // próbát. Nyolc mutáció — négy a tagságadás két tengelyére, négy a bizonyíték otthonára.
+
+  { id: 'M108', rule: 'K08', catcher: 'P-REV-grant-axis', expect: 'probe_fail',
+    what: 'REV-N2a — A TAGSÁGADÁS TUDÁS-TENGELYE ELTŰNIK: a feloldó a KÉSŐBB rögzített jogszerzést '
+      + 'is figyelembe veszi a MÚLTBELI tudás-állapot kérdezésekor. Pontosan a külső fél R85/F01 '
+      + 'lelete: a júniusi beváltás visszamenőleg átírja a márciusi képet',
+    file: 'bitemporal.mjs',
+    from: '    if (rec.ms > known.ms) continue;           // ezt akkor még nem tudtuk',
+    to: '    if (false) continue;           // ezt akkor meg nem tudtuk' },
+
+  { id: 'M109', rule: 'K08', catcher: 'P-REV-grant-axis', expect: 'probe_fail',
+    what: 'REV-N2a — A TAGSÁGADÁS HATÁLY-TENGELYE ELTŰNIK: egy JÖVŐBELI hatályú jogszerzés már a '
+      + 'rögzítés napján jogot adna. Ellenpár nélkül a szabály nem a két tengelyt mérné, csak azt, '
+      + 'hogy van-e esemény (KUKA-049)',
+    file: 'bitemporal.mjs',
+    from: '    if (eff.ms > valid.ms) continue;           // erre a napra még nem hatályos',
+    to: '    if (false) continue;           // erre a napra meg nem hatalyos' },
+
+  { id: 'M110', rule: 'K08', catcher: 'P-REV-grant-axis', expect: 'probe_fail',
+    what: 'REV-N2a — A NAPLÓ NÉLKÜLI SOR TUDÁS-TENGELYE ELTŰNIK: a gyengébb tanús ágon a feloldó '
+      + 'csak a hatályt méri. Ez a RÉGI hiba a tartalék-ágba visszabújtatva — a javítás fél őr '
+      + 'lenne (KUKA-039)',
+    file: 'bitemporal.mjs',
+    from: "    if (g.ms > known.ms) return { effective: false, axis: 'projected_row', reason: 'membership_grant_not_yet_recorded' };",
+    to: "    if (false) return { effective: false, axis: 'projected_row', reason: 'membership_grant_not_yet_recorded' };" },
+
+  { id: 'M111', rule: 'K08', catcher: 'P-REV-grant-axis', expect: 'probe_fail',
+    what: 'REV-N2a — A GYENGÉBB TANÚ ELHALLGATVA: a napló nélküli sor ugyanazt a tengely-jelölést '
+      + 'kapja, mint a valódi esemény. Az olvasó ettől erősebbnek hinné a választ, mint amilyen — a '
+      + 'néma degradáció ugyanaz a hazugság, mint a néma üres lista (KUKA-127 · KUKA-012)',
+    file: 'bitemporal.mjs',
+    from: "    return { effective: true, axis: 'projected_row', reason: 'membership_effective' };",
+    to: "    return { effective: true, axis: 'event', reason: 'membership_effective' };" },
+
+  { id: 'M112', rule: 'K08', catcher: 'P-REV-evidence-home', expect: 'probe_fail',
+    what: 'REV-N2a — A BIZONYÍTÉK NEM KERÜL AZ ESEMÉNYRE: a hivatkozás csak a felülvizsgálati körbe '
+      + 'jut, tehát a kör nélküli ágakon (azonnali, jövőbeli) nyomtalanul elvész. Ez a külső fél '
+      + 'R85/F02 lelete változatlanul',
+    file: 'bitemporal.mjs',
+    from: '        actorSubjectId, evidenceRef);',
+    to: '        actorSubjectId, null);' },
+
+  { id: 'M113', rule: 'K08', catcher: 'P-REV-evidence-home', expect: 'probe_fail',
+    what: 'REV-N2a — AZ ELJÁRÓ NEM KERÜL AZ ESEMÉNYRE: a jogváltozás mellől hiányzik, KI rendelte '
+      + 'el. Bizonyíték eljáró nélkül nem elszámoltatható — a kiírt mező csak akkor kötés, ha a '
+      + 'fogadó is kérdezi (KUKA-126)',
+    file: 'bitemporal.mjs',
+    from: '        actorSubjectId, evidenceRef);',
+    to: '        null, evidenceRef);' },
+
+  { id: 'M114', rule: 'K08', catcher: 'P-REV-evidence-home', expect: 'probe_fail',
+    what: 'REV-N2a — A KÖR NEM AZ ESEMÉNYRŐL OLVAS: a felülvizsgálati kör bizonyíték-mezője üres '
+      + 'marad, mert a feloldó nem az eseményhez nyúl. Két példány egy fogalomról előbb-utóbb '
+      + 'elcsúszik (KUKA-018)',
+    file: 'bitemporal.mjs',
+    from: '      evidence_ref: ev ? ev.evidence_ref : null,',
+    to: '      evidence_ref: null,' },
+
+  { id: 'M115', rule: 'K08', catcher: 'P-REV-evidence-home', expect: 'probe_fail',
+    what: 'REV-N2a — BIZONYÍTÉK NÉLKÜL IS LEHET JOGVÁLTOZÁS: a kötelező hivatkozás kapuja kinyílik. '
+      + 'Ez nem helyesbítés többé, hanem a múlt átírása (K08)',
+    file: 'bitemporal.mjs',
+    from: "      if (typeof evidenceRef !== 'string' || !evidenceRef.trim()) {",
+    to: '      if (false) {' },
+
+  // ── ORG-N1a — A FELHATALMAZÁS ALAPJA (R85) ────────────────────────────────────────────────
+
+  { id: 'M116', rule: 'K04', catcher: 'P-ORG-basis', expect: 'probe_fail',
+    what: 'ORG-N1a — AZ ALAP TUDÁS-TENGELYE ELTŰNIK: a feloldó a KÉSŐBB rögzített verziót is '
+      + 'figyelembe veszi a múltbeli tudás kérdezésekor. Ettől a júniusi határozat-csere '
+      + 'visszamenőleg átírná, MI VOLT az alap márciusban (REV-N1b sérül)',
+    file: 'authorityBasis.mjs',
+    from: '    if (rec.ms > known.ms) continue;    // ezt a verziót akkor még nem ismertük',
+    to: '    if (false) continue;    // ezt a verziot akkor meg nem ismertuk' },
+
+  { id: 'M117', rule: 'K04', catcher: 'P-ORG-basis', expect: 'probe_fail',
+    what: 'ORG-N1a — AZ ALAP HATÁLY-TENGELYE ELTŰNIK: egy még nem hatályos határozat már jogot '
+      + 'adna a rögzítése napján',
+    file: 'authorityBasis.mjs',
+    from: '    if (eff.ms > valid.ms) continue;    // erre a napra még nem hatályos',
+    to: '    if (false) continue;    // erre a napra meg nem hatalyos' },
+
+  { id: 'M118', rule: 'K04', catcher: 'P-ORG-basis', expect: 'probe_fail',
+    what: 'ORG-N1a — A VERZIÓ-SORREND ELVÉSZ: nem a LEGKÉSŐBBI hatályos verzió dönt, hanem az '
+      + 'első találat. Ettől a mai kérdés a RÉGI határozatot adná vissza — a csere némán hatástalan',
+    file: 'authorityBasis.mjs',
+    from: '    if (best === null || r.version > best.version) best = r;',
+    to: '    if (best === null) best = r;' },
+
+  { id: 'M119', rule: 'K04', catcher: 'P-ORG-basis', expect: 'probe_fail',
+    what: 'ORG-N1a — A LEJÁRT ALAP ELFOGADVA: a lejárat nem zár. Ettől egy lejárt határozatra '
+      + 'hivatkozva is lehetne hatáskört adni (KUKA-020: a fail-closed nem választás)',
+    file: 'authorityBasis.mjs',
+    from: "    if (ex.ms <= valid.ms) return frozen({ ...shape, in_effect: false, reason: 'basis_expired' });",
+    to: "    if (false) return frozen({ ...shape, in_effect: false, reason: 'basis_expired' });" },
+
+  { id: 'M120', rule: 'K04', catcher: 'P-ORG-basis', expect: 'probe_fail',
+    what: 'ORG-N1a — A KORLÁT MEGÉPÜLTNEK VALLJA MAGÁT: a válasz azt állítja, hogy a korlátot '
+      + 'kikényszerítik, holott EGYETLEN kiadó út sem hívja. Ez a DÍSZ-VEZÉRLŐ (KUKA-041): '
+      + 'sikert jelentene arról, ami meg sem történt',
+    file: 'authorityBasis.mjs',
+    from: '    // ORG-N1b — KIMONDOTT ADÓSSÁG: a korlátot ma SENKI nem kényszeríti ki.\n    limit_enforced: false,',
+    to: '    limit_enforced: true,' },
 ];

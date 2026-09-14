@@ -74,7 +74,7 @@ import { MUTATIONS } from './mutations.mjs';
 
 import { MANIFEST_VERSION, EXPECTED_IDS, EXPECTED_PROBES, PROBE_STATUS, checkResultSet, assertionOf } from './manifest.mjs';
 import {
-  checkNorms, NEXT_REQUIRED_EVIDENCE, REQUIRED_EVIDENCE, indexDigest,
+  checkNorms, NEXT_REQUIRED_EVIDENCE, REQUIRED_EVIDENCE, indexDigest, chainResultRank,
   // A KANONIKUS ELVÁRT LÁNC (R83/F02): az összefűzés nem a beadott sorokból tudja meg, MELY
   // soroknak kell ott lenniük — a listát a rögzített norma- és próba-szerződés adja.
   expectedChainRows, chainRowKey,
@@ -727,7 +727,10 @@ if (MERGE_ONLY) {
       }
       inUnit.add(key);
       const prev = rows.get(key);
-      if (!prev || (prev.result !== 'covered' && c.result === 'covered')) rows.set(key, c);
+      // A LEGERŐSEBB SOR NYER — a KÖZÖS rangsorból (KUKA-129). A régi alak `covered`-et keresett
+      // betűre, ezért egy ÚJ, erős állapot (`partially_covered`) sosem győzött volna: a sor sorsát
+      // az EGYSÉGEK SORRENDJE döntötte volna el, nem a bizonyíték — mérés helyett műtermék.
+      if (!prev || chainResultRank(c.result) > chainResultRank(prev.result)) rows.set(key, c);
     }
   }
   const foreignRows = [...rows.keys()].filter((k) => !expectedKeys.has(k));
@@ -759,7 +762,12 @@ if (MERGE_ONLY) {
   const backing = chainBacking([...rows.values()], admission.detailsById);
   for (const x of backing.problems) problems.push(`FEDEZETLEN lánc-sor: ${x}`);
   const backedKeys = new Set(backing.backed.map((c) => `${c.clause_id}|${c.assertion_id}|${c.probe_id}`));
-  const chain = [...rows.values()].map((c) => (c.result === 'covered' && !backedKeys.has(`${c.clause_id}|${c.assertion_id}|${c.probe_id}`)
+  // A FEDEZET-KÖVETELMÉNY A RÉSZLEGESRE IS ÁLL. Mindkét állapot azt állítja, hogy az állítást egy
+  // mutáció MEGBUKTATTA — a kettő csak a KLAUZULA teljességében tér el. Ha csak a `covered`-et
+  // mérnénk vissza, a `partially_covered` néma kiskaput nyitna ugyanazon a csatornán (KUKA-084: a
+  // javítás a hibát KÖLTÖZTETNÉ).
+  const claimsFalsification = new Set(['covered', 'partially_covered']);
+  const chain = [...rows.values()].map((c) => (claimsFalsification.has(c.result) && !backedKeys.has(`${c.clause_id}|${c.assertion_id}|${c.probe_id}`)
     ? { ...c, result: 'not_falsified', why: 'a beadott FEDETT minősítés mögött nincs megfelelő részletes eredmény (MRG-01)' }
     : c));
   const covered = chain.filter((c) => c.result === 'covered');
@@ -793,8 +801,7 @@ if (MERGE_ONLY) {
     const weakest = (id) => {
       const rs = rowsOf(id);
       if (!rs.length) return 'no_row';
-      const rank = { covered: 3, falsification_pending: 2 };
-      return rs.reduce((w, c) => ((rank[c.result] || 0) < (rank[w] || 0) ? c.result : w), rs[0].result);
+      return rs.reduce((w, c) => (chainResultRank(c.result) < chainResultRank(w) ? c.result : w), rs[0].result);
     };
     const satisfied = clauses.filter((id) => weakest(id) === 'covered');
     const missingReq = clauses.filter((id) => weakest(id) !== 'covered')

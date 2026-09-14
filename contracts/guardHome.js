@@ -205,6 +205,8 @@ const GUARD_HOME = Object.freeze({
   'KUKA-156': Object.freeze({ home: 'v3', note: 'az elvárt lánc-sorok a V3 norma-regiszteréből származnak (`expectedChainRows`)' }),
   'KUKA-157': Object.freeze({ home: 'v3', note: 'a környezeti felmentés mércéje a V3 külső-lánc futtatójában él (`environmentalObstacle`)' }),
   'KUKA-158': Object.freeze({ home: 'v3', note: 'a felülvizsgálati kör ellenpárja a V3 magreferencia fixtúrájában él (BIT.GRANT · feb-0)' }),
+  'KUKA-159': Object.freeze({ home: 'v3', note: 'a tükör-esetek a V3 magreferencia próbáiban élnek (P-REV-grant-axis · P-ORG-basis) — a mutációs battéria méri' }),
+  'KUKA-160': Object.freeze({ home: 'v3', note: 'a bukó gyermekfutás teljes nyoma a V3 külső-lánc futtatójában él (`child_trace`)' }),
   'KUKA-150': Object.freeze({ home: 'v3', note: 'a RUN-02 futás-szerződés (darabolt futás) a V3 mutációs battériájában él — a jel az r79/U01 külső-ellenőrzés + az egység-fájl `evidence_bound` mezője ITT fut' }),
 });
 

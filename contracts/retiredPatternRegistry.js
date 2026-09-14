@@ -6953,6 +6953,73 @@ const RETIRED_PATTERNS = Object.freeze([
         reason: 'az időablakon KÍVÜLI művelet valóban létrejön — az ellenpár tud tüzelni' }),
     ]),
   }),
+
+  Object.freeze({
+    id: 'KUKA-159',
+    date: '2026-09-14',
+    title: 'A MASZKOLÓ MÁSODIK SZŰRŐ — KÉT TENGELY MÖGÖTT AZ EGYIK KIVÉTELE NEM LÁTSZIK',
+    what: 'A két idő-tengelyre írt állításaimban (tagságadás, felhatalmazási alap) olyan eseteket '
+      + 'használtam, amelyeket MINDKÉT szűrő kizárt: a vizsgált verzió a tudás-tengelyen is és a '
+      + 'hatály-tengelyen is kiesett. Az állítás ettől zöld volt — de az egyik szűrő KIVÉTELE sem '
+      + 'változtatott rajta semmit.',
+    why_wrong: 'HÁROM saját cáfoló mutációm TÚLÉLT egy körön belül (M110 · M116 · M117): a '
+      + 'tudás-tengely, a tartalék-ág tudás-tengelye és a hatály-tengely elvétele mind hatástalan '
+      + 'maradt, mert a másik, ÉP szűrő ugyanazt az esetet továbbra is kizárta. A próba tehát nem '
+      + 'a két tengelyt mérte, csak azt, hogy „valamelyik szűrő működik".',
+    replaced_by: 'MINDEN tengelyhez KÜLÖN eset, ahol PONTOSAN AZ a tengely dönt: a tudás-tengelyhez '
+      + 'UTÓLAG RÖGZÍTETT alak (hatály a múltban, rögzítés a jelenben), a hatály-tengelyhez ISMERT, '
+      + 'DE MÉG NEM HATÁLYOS alak (rögzítés a múltban, hatály a jövőben). A két eset egymás tükre.',
+    decision: 'D-VS-3026',
+    found_by: 'a SAJÁT MUTÁCIÓS BATTÉRIÁM (M110, M116, M117 túlélése) — a söprés és a külső fél '
+      + 'programja végig zöld volt rá',
+    lesson: 'EGY ÁLLÍTÁST CSAK AKKOR LEHET FALSZIFIKÁLNI, HA PONTOSAN EGY TENGELY DÖNTI EL. Ahol '
+      + 'két független szűrő ugyanazt az esetet zárja ki, ott az egyik elvétele MÉRHETETLEN — a '
+      + 'zöld próba a másik szűrőt igazolja, nem azt, amit állít (KUKA-124 élesebb alakja). '
+      + 'Két-tengelyes szabálynál a fixtúra KÖTELEZŐEN tartalmazza mindkét TÜKÖR-esetet; a '
+      + 'túlélő mutáció nem a kód dicsérete, hanem a MÉRÉS hibája.',
+    guard_note: 'gépi jel: `v3ref:mutate:units` M108–M120 (117/117 elkapva, 0 túlélő) — a három '
+      + 'korábbi alakon bizonyítottan SURVIVED, a maiakon CAUGHT.',
+    forbidden: Object.freeze([]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'const knownButNotYetEffective = basisAsOf',
+        reason: 'a HATÁLY-tengelyt egyedül eldöntő eset (ismert, de még nem hatályos verzió)' }),
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'const retroNow = basisAsOf',
+        reason: 'a TUDÁS-tengelyt egyedül eldöntő eset (utólag rögzített verzió)' }),
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'const lateRow = membershipAsOf',
+        reason: 'a tartalék-ág tudás-tengelyét egyedül eldöntő eset' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-160',
+    date: '2026-09-14',
+    title: 'A GÉP-SPECIFIKUS MÉRÉS TERMÉK-TULAJDONSÁGKÉNT JELENTVE',
+    what: 'Az R84-ben a külső ellenőrző lánc eredményét így adtam ki: „13/15 program megfelel, 2 '
+      + 'bizonyított környezeti kihagyás, kilépés 0". Ez a MI gépünkön igaz volt — az ÖVÉKÉN '
+      + '12/15 + 1 kihagyás + 2 BUKÁS jött ki ugyanazon a forráson (r59/P01 és r55/N04).',
+    why_wrong: 'A mondat úgy szólt, mintha a KÓD tulajdonsága volna, holott a besorolás időzítés-'
+      + 'függő: a battéria egy hívásban 14–17 mp, a belső keret 12 mp, a külső korlát 15 mp — '
+      + 'a gép sebessége dönti el, hogy időtúllépés vagy állítás-bukás lesz belőle. És a lánc túl '
+      + 'keveset őrzött meg ahhoz, hogy EGYIKÜNK is eldönthesse: a gyermekfolyamat hibaszövege '
+      + 'NÉGY SORRA volt csonkolva, a jelzés és a szabvány kimenet sehol.',
+    replaced_by: 'A bukó gyermekfutás TELJES nyoma megmarad (`child_trace`: állapot · jelzés · '
+      + 'spawn-hibakód · mért idő · stderr és stdout vége · a csonkolás ténye), és minden '
+      + 'lánc-állítás mellé oda kerül, MELYIK GÉPEN mértük.',
+    decision: 'D-VS-3026',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (R85 §2) — a saját futásuk nem erősítette meg az állításomat',
+    lesson: 'AMIT EGY GÉPEN MÉRTEM, AZ NEM A KÓD TULAJDONSÁGA, amíg ki nem mondom a mérés '
+      + 'HATÓKÖRÉT. Időzítés-függő besorolásnál ez kétszeresen igaz: ott a bizonyítékot MEG KELL '
+      + 'ŐRIZNI, különben az eltérést senki nem tudja eldönteni — se én, se az ellenőrző fél '
+      + '(KUKA-033 a jelentés hatókörére · KUKA-012 a csonkolt nyomra).',
+    guard_note: 'gépi jel: `v3ref/external-checks/run-all.mjs` → `child_trace` (a bukó futásnál '
+      + 'teljes nyom); KIMONDOTT KORLÁT: a „két független tanú" megfogalmazás továbbra is erősebb '
+      + 'a bizonyítéknál — gyermekfolyamat-szintű időmérés nélkül nem nevezzük erős eredetigazolásnak.',
+    forbidden: Object.freeze([]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/external-checks/run-all.mjs'], pattern: 'child_trace: ok \\? null :',
+        reason: 'a bukó gyermekfutás teljes nyoma megmarad' }),
+    ]),
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

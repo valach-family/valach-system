@@ -639,10 +639,24 @@ export function measuredFailureKind(program, {
     // nevezni, különben a hiányt némán a rossz érték ágára sorolnánk (KUKA-124/2).
     //
     // ÉS CSAK KÉT TANÚVAL: a program hibaszövege ÉS a futtató mért ideje. Egyik sem elég magában.
+    //
+    // KIMONDOTT KORLÁT (R85 §5 — a külső fél helyesbítése, KUKA-160). A két tanú NEM FÜGGETLEN:
+    // mindkettő UGYANANNAK az eseménynek a következménye (a futás elérte a korlátot), és a `cap_ms`
+    // értéket MI olvastuk ki az ő programjukból, nem külön mértük. Ezért a kettő EGYÜTT sem zárja ki,
+    // hogy egy VALÓDI állítás-hiba esett egybe egy hosszú futással — csak azt teszi nagyon
+    // valószínűtlenné. A valódi megkülönböztetőt nem ez a két jel adja, hanem az ESETENKÉNTI
+    // bizonyíték (`otherBad` · `unexplained`): ott bármelyik nem-időtúllépéses kudarc `assertion_
+    // failure`-re visz. EZEN AZ ÁGON viszont épp az esetenkénti bizonyíték HIÁNYZIK (nincs
+    // eredmény-fájl), tehát ez a leggyengébb kihagyás-alak a láncban — a `witness_limit` ezt a
+    // gyengeséget VISZI MAGÁVAL, hogy a befogadó tudja, mit tart a kezében (KUKA-127 · KUKA-015).
     if (!Array.isArray(cases) && TIMEOUT_MARK.test(String(stderr)) && capReached) {
       return { kind: 'wall_clock_timeout', rows,
+        witness_limit: 'a két jel (a program hibaszövege és a mért futásidő) UGYANANNAK az eseménynek '
+          + 'a következménye, tehát NEM független tanú; és ezen az ágon nincs esetenkénti bizonyíték, '
+          + 'mert a program eredmény-fájl nélkül állt meg — a kihagyást a ZÖLD HELYETTES tartja, nem ez a két jel',
         why: `a program EREDMÉNY NÉLKÜL állt meg, időtúllépésre utaló hibával, és a mért futásidő `
-          + `(${elapsedMs} ms) elérte a bejelentett belső korlátot (${cap} ms) — két független tanú` };
+          + `(${elapsedMs} ms) elérte a bejelentett belső korlátot (${cap} ms) — két jel, KÖZÖS OKBÓL `
+          + `(nem független tanúk; lásd a kimondott korlátot)` };
     }
     return { kind: 'unknown', rows,
       why: 'nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető'
@@ -664,7 +678,14 @@ export function measuredFailureKind(program, {
   }
   if (!timedOut.length) return { kind: 'unknown', rows, why: 'nincs mért környezeti akadály a nyers eredményben' };
   if (!capReached) return { kind: 'unknown', rows, why: `a bukott esetek időtúllépést mondanak, de ${capWhy}` };
+  // EZ AZ ERŐS ÁG: van esetenkénti bizonyíték, és a fentebbi `otherBad`/`unexplained` kapukon MINDEN
+  // nem-időtúllépéses kudarc `assertion_failure`-re vitte volna a programot. A megkülönböztető tehát
+  // NEM a futásidő, hanem az, hogy a bukott esetek MAGUKRÓL mondják meg, mi akadt el — ezt írjuk ki,
+  // hogy a két ág ereje ne látsszon egyformának (R85 §5).
   return { kind: 'wall_clock_timeout', rows,
+    witness_limit: null,
+    witness_basis: 'esetenkénti bizonyíték: minden bukott eset időtúllépést mond, és bármely más '
+      + 'kudarc-fajta VALÓDI eset-hibára vitte volna (otherBad · unexplained)',
     why: `MÉRT időtúllépés (${timedOut.length} eset: ${timedOut.map((r) => r.id).join(' · ')}) — minden más eset zöld, `
       + `és a mért futásidő (${elapsedMs} ms) elérte a bejelentett belső korlátot (${cap} ms)` };
 }
