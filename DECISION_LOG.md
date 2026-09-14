@@ -86,15 +86,37 @@ látszott, hanem nevezett MÉRŐHIBÁNAK — a bizonyíték-szerződés (R59/F01
 **AZ IDŐ-TARTALÉK — a javítás nem a költségvetés megemelése volt.** A három új próbával a battéria
 falióra-ideje a saját költségvetés fölé ment (12,3–13,0 s a 12 000 ms-os kereten). A költségvetést
 NEM emeltük meg (az a mérce meghamisítása lenne — KUKA-091 · KUKA-140): a próba-tárolók száma
-16 → 8, a mátrix-világok ~27 → 7. **Mért falióra: 11 504 ms** a commitolt bizonyíték-artefaktumban
-(`v3ref/v3ref-mutation-result.json`, forrás-kötés `0a2821e`) — a futások 11,2–11,9 s között szórnak,
-tehát a külső fél 15 000 ms-os korlátjának **75–79%-a**, mindvégig a saját 12 000 ms-os keretünkön
-belül. A számot a lap NEM a saját kezével írja: az artefaktumból olvasható vissza (KUKA-082).
+16 → 8, a mátrix-világok ~27 → 7.
+
+**ÉS EZ NEM VOLT ELÉG — A KÖR EGY NYITOTT TÉTELLEL ZÁR.** Háromszor, közvetlen futással mérve:
+**11 323 · 12 593 · 12 461 ms** a 12 000 ms-os kereten — kettő a háromból FÖLÖTTE. A battéria ilyenkor
+`HIÁNYOS — a falióra a saját költségvetés fölé ment` üzenettel, NEM NULLA kilépéssel áll meg, és ennek
+KÉT fogyasztója bukik el vele: a `verify:v3ref` (tehát a V3 söprés), **és a külső fél R59-es
+programjának P01 POZITÍV KONTROLLJA** (feltétele `batt.exit === 0`), tehát a `verify:external-checks`
+is (`8/9 — ELTÉRÉS: r59`). **A V3 söprés mért állapota: három futás = 1 piros · 2 piros · 0 piros —
+tehát NEM megbízhatóan zöld, és nem is írjuk annak.**
+
+**Mérve, hogy ne tippeljünk (KUKA-054):** forrásfa-másolás mutációnként **4 ms** · Node indulás +
+modul-betöltés **~70 ms/futás** · EGY próba-futás **410 ms**, ebből **309 ms a 39 próba teste**
+(legdrágább: `P-NORM-evidence` 56 ms · `P-INVITE-seal` 33 ms · `P-REV-ban-matrix` 21 ms) ·
+párhuzamosság 20/24/32 → 10,9/11,1/11,7 s, tehát a hangolás **nem segít** (a 16 már hangolt, R53).
+**Nincs olcsó nyereség:** 86 gyerek-futás × 39 próba — a költség a mérés MÉRETÉBŐL jön, és a mérés a
+rendszerrel együtt nőtt (a KUKA-144 testvére: ott a KIMENET, itt a KÖLTSÉG).
+
+**Amit NEM teszünk: nem emeljük a költségvetést** (az a tartalék eltörlése lenne, amiért a kapu
+készült — R53), és nem jelentünk zöld söprést. **A következő kör iránya kimondva:** egy mutációhoz ne
+kelljen MIND a 39 próbát lefuttatni, csak az, amelyik elkaphatja, plusz minta a „rossz elkapó"
+felismerésére — ez viszont a mérés JELENTÉSÉT módosítja, tehát tervezni kell, nem a kör végén
+összeütni. **Gépi jel: maga a kapu**, ami helyesen tüzel; a commitolt artefaktum egy ÁTMENT futást
+rögzít (11 504 ms) — ez tehát nem a tipikus állapot, és a lap ezt kimondja (KUKA-082).
 
 **MÉRT VÉGÁLLAPOT (ebben a körben, ebben a repóban):** próbák **39/39 PASS** · mutációk
 **85/85 ÉSZLELT** (0 túlélő · 0 rossz elkapó · 0 mérőhiba · 0 elavult horgony) · hazugság-próbák
-**8/8 védve** · kötelező bizonyíték **9/9** · külső programok **9/9 MEGFELEL** · `verify:kuka`
-**307/307** · söprés **8 zöld / 0 env-kihagyás / 0 piros**.
+**8/8 védve** · kötelező bizonyíték **9/9** · `verify:kuka` **307/307** · külső programok
+**9/9 MEGFELEL** — de CSAK akkor, ha a battéria a keretén belül fut (különben `8/9`, az r59/P01
+kontrollal) · **V3 söprés: NEM megbízhatóan zöld**, három futás = 1 piros · 2 piros · 0 piros, az
+egyetlen ok a fenti falióra-keret. **V2 söprés: zöld** — 291 verifier, 290 zöld, 1 nevezett
+env-kihagyás (`verify:schema`, adatbázis nélkül), 0 piros.
 
 **AMI NYITVA MARAD, KIMONDVA.** A REV-N2a klauzula (a HATÁLY ideje és a TUDOMÁS ideje mint két külön
 tengely) továbbra is NYITOTT, bizonyíték nélkül — a hatályosulási pont (EFF-01) ezt **nem** oldja
