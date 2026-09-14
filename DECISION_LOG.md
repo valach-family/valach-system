@@ -86,8 +86,10 @@ látszott, hanem nevezett MÉRŐHIBÁNAK — a bizonyíték-szerződés (R59/F01
 **AZ IDŐ-TARTALÉK — a javítás nem a költségvetés megemelése volt.** A három új próbával a battéria
 falióra-ideje a saját költségvetés fölé ment (12,3–13,0 s a 12 000 ms-os kereten). A költségvetést
 NEM emeltük meg (az a mérce meghamisítása lenne — KUKA-091 · KUKA-140): a próba-tárolók száma
-16 → 8, a mátrix-világok ~27 → 7. **Mért falióra ma: 11 870 ms** — a külső fél 15 000 ms-os
-korlátjának **79%-a**, a saját 12 000 ms-os keretünkön belül.
+16 → 8, a mátrix-világok ~27 → 7. **Mért falióra: 11 504 ms** a commitolt bizonyíték-artefaktumban
+(`v3ref/v3ref-mutation-result.json`, forrás-kötés `0a2821e`) — a futások 11,2–11,9 s között szórnak,
+tehát a külső fél 15 000 ms-os korlátjának **75–79%-a**, mindvégig a saját 12 000 ms-os keretünkön
+belül. A számot a lap NEM a saját kezével írja: az artefaktumból olvasható vissza (KUKA-082).
 
 **MÉRT VÉGÁLLAPOT (ebben a körben, ebben a repóban):** próbák **39/39 PASS** · mutációk
 **85/85 ÉSZLELT** (0 túlélő · 0 rossz elkapó · 0 mérőhiba · 0 elavult horgony) · hazugság-próbák
