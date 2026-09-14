@@ -19,7 +19,8 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { admitUnits, chainBacking, SUPPORTED_RUN_CONTRACTS } from '../v3ref/unitAdmission.mjs';
-import { REQUIRED_EVIDENCE, indexDigest } from '../v3ref/norms.mjs';
+import { REQUIRED_EVIDENCE, indexDigest, expectedChainRows, chainRowKey } from '../v3ref/norms.mjs';
+import { EXPECTED_PROBES } from '../v3ref/manifest.mjs';
 import { contractRef } from '../v3ref/normContract.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -100,7 +101,10 @@ const unit = (k, ids) => ({
 const IDS = [['MA1', 'MA2'], ['MB1', 'MB2'], ['MC1', 'MC2']];
 const ALL_IDS = IDS.flat();
 const fresh = () => { tok = 0; return JSON.parse(JSON.stringify(IDS.map((ids, i) => unit(i + 1, ids)))); };
-const admit = (units) => admitUnits(units, { today: TODAY, mutationIds: ALL_IDS, pinned: PINNED });
+// A MAI REGISZTER ALAKJA (R83/F01): a kapu innen tudja meg a mutáció SZERZŐDÉSÉT és NEVEZETT
+// elkapóját — a fixtúra ezért teljes regiszter-bejegyzéseket ad, nem puszta azonosítókat.
+const registryOf = (kinds = {}) => ALL_IDS.map((id) => ({ id, catcher: `P-${id}`, expect: kinds[id] || 'probe_fail' }));
+const admit = (units, kinds) => admitUnits(units, { today: TODAY, mutations: registryOf(kinds), pinned: PINNED });
 
 // ── UAD05 — A FIXTÚRA ALAKJA AZ ÍRÓTÓL ──────────────────────────────────────────────────────────
 // Ha az egység-író új mezőt kap, a fixtúra NE maradjon némán elavult: a pin az író mező-listáját
@@ -158,6 +162,25 @@ const CASES = [
   { id: 'S05 — hiányzó kötelező mező (nem „öröklött igen")',
     apply: (us) => { delete us[0].evidence_bound; },
     want: /`evidence_bound`: a mező HIÁNYZIK/ },
+  // ── R83/F01 — a külső fél KÉT új ellenpéldája, és a saját, ugyanebből a családból valók ────────
+  { id: 'R83a — TÖRÖLT próba-állapot minden eredményben',
+    apply: (us) => us.forEach((u) => u.mutation_results.forEach((r) => { delete r.probe_status; })),
+    want: /a `probe_status` mező HIÁNYZIK/ },
+  { id: 'R83b — ISMERETLEN próba-állapot minden eredményben',
+    apply: (us) => us.forEach((u) => u.mutation_results.forEach((r) => { r.probe_status = 'UNKNOWN'; })),
+    want: /ISMERETLEN próba-állapot: "UNKNOWN"/ },
+  { id: 'R83c — a verdikt és az állapot ELLENTMOND (CAUGHT + THREW egy probe_fail mutáción)',
+    apply: (us) => { us[0].mutation_results[0].probe_status = 'THREW'; },
+    want: /ELLENTMONDÁS: a verdikt `CAUGHT` \(a mutáció szerződése: probe_fail\)/ },
+  { id: 'R83d — NULL próba-állapot elkapott mutáción',
+    apply: (us) => { us[0].mutation_results[0].probe_status = null; },
+    want: /a `probe_status` NULL, a verdikt viszont `CAUGHT`/ },
+  { id: 'R83e — az elkapó ELTÉR a mai regisztertől',
+    apply: (us) => { us[0].mutation_results[0].catcher = 'P-IDEGEN'; us[0].mutation_results[0].probe_id = 'P-IDEGEN'; },
+    want: /a beadott elkapó ELTÉR a mai regiszterétől/ },
+  { id: 'R83f — ELAVULT HORGONY részletes eredményként',
+    apply: (us) => { us[0].mutation_results[0].verdict = 'STALE_ANCHOR'; },
+    want: /ELAVULT HORGONY verdikt RÉSZLETES eredményként/ },
 ];
 for (const c of CASES) {
   const us = fresh();
@@ -166,6 +189,27 @@ for (const c of CASES) {
   say('UAD04', !got.ok, `[${c.id}] a kapu BEFOGADTA — pedig el kellett volna utasítania`);
   say('UAD04', got.problems.some((p) => c.want.test(p)),
     `[${c.id}] elutasította, de NEM a nevezett akadállyal — kapott: ${got.problems.slice(0, 2).join(' · ') || '(egy sem)'}`);
+}
+
+// ── A MUTÁCIÓ FAJTÁJA SZÁMÍT — ELLENPÁRRAL MÉRVE (R83/F01 · KUKA-049 · KUKA-122) ────────────────
+//
+// A külső fél kimondta: „A legitim runtime_error esetet ne törje el egy túl egyszerű »minden CAUGHT
+// csak FAIL lehet« szabály." Ezt nem elég ÁLLÍTANI: a KÉT ág UGYANAZON a beadványon, csak MÁS
+// szerződés-fajtával mérve — az egyik zöld, a másik piros. Enélkül nem tudnánk, hogy a fajta
+// tényleg számít-e, vagy csak a verdikt (KUKA-068: a pin ne a saját nyelvjárását mérje).
+{
+  const shape = (us) => {
+    const r = us[0].mutation_results[0];
+    r.probe_status = 'THREW'; r.failed_assertions = [];     // a próbán BELÜLI, szerződött kivétel
+  };
+  const green = fresh(); shape(green);
+  const okRuntime = admit(green, { MA1: 'runtime_error' });
+  say('UAD04', okRuntime.ok,
+    `[R83/pozitív] a LEGITIM runtime_error alak (CAUGHT + THREW) sem megy át: ${okRuntime.problems.join(' · ')}`);
+  const red = fresh(); shape(red);
+  const badFail = admit(red);                                // ugyanaz az alak, probe_fail szerződéssel
+  say('UAD04', !badFail.ok && badFail.problems.some((p) => /a mutáció szerződése: probe_fail/.test(p)),
+    '[R83/ellenpár] a probe_fail szerződésű mutáció THREW állapottal is átment — a fajta nem számít');
 }
 
 // A LÁNC-FEDEZET KÜLÖN MÉRVE (R81/F01b a saját feloldóján) — ÉS A NÉGY FELTÉTEL KÜLÖN-KÜLÖN.
@@ -205,7 +249,87 @@ noContract.forEach((u) => { delete u.run_contract; });
 say('UAD06', admit(noContract).problems.some((p) => /`run_contract`: a mező HIÁNYZIK/.test(p)),
   'a HIÁNYZÓ futási szerződés nem külön válasz (KUKA-124/2: a hiány némán ugyanoda sorolódik)');
 
-console.log(`MRG-01 BEADVÁNY-KAPU (UAD01–UAD06): ${CASES.length + 1} ellenpélda · 1 pozitív kontroll · `
+// ── UAD07 — A LÁNC-SOROK HALMAZA A RÖGZÍTETT SZERZŐDÉSBŐL (R83/F02) ─────────────────────────────
+//
+// MIÉRT ÉLES FUTÁSSAL. A hiányzó sort a forrás SZÖVEGE nem árulja el: a szabály attól él, hogy az
+// összefűzés MIT CSINÁL vele. Ezért a pin megépít egy egység-fájlt a TELJES elvárt lánccal, majd
+// négy alakban rontja el, és minden alkalommal a VALÓDI `mutate.mjs --merge` gépi kimenetét olvassa.
+// A kontroll ELLENPÁR: ugyanaz a lánc KÉT egységben (a darabolás jogos ismétlése) NEM lehet hiba.
+{
+  const expected = expectedChainRows(EXPECTED_PROBES);
+  say('UAD07', expected.length >= 40, `az elvárt lánc-sorok száma padló alatt (${expected.length} < 40)`);
+  const keys = new Set(expected.map(chainRowKey));
+  say('UAD07', keys.size === expected.length, 'az elvárt lánc-sorok között ISMÉTLŐDŐ hármas van');
+  say('UAD07', expected.some((r) => r.clause_id === REQUIRED_EVIDENCE.clauses[0]),
+    'az elvárt sorok között nincs egyetlen KÖTELEZŐ klauzula sem — a mérce nem a mai szerződésből jön');
+
+  const dir = mkdtempSync(join(tmpdir(), 'uad-f02-'));
+  try {
+    cpSync(join(ROOT, 'v3ref'), join(dir, 'v3ref'), { recursive: true,
+      filter: (f) => !f.startsWith(join(ROOT, 'v3ref/units')) && !f.startsWith(join(ROOT, 'v3ref/external-checks/results')) });
+    const chainRow = (r) => ({ norm_id: r.norm_id, clause_id: r.clause_id, covers: [],
+      assertion_id: r.assertion_id, probe_id: r.probe_id, mutation_candidates: [], falsified_by: null,
+      evidence_limit: null, content_review: null, result: 'falsification_pending', why: null });
+    const unitWith = (k, n, chain) => ({ run_contract: 'RUN-02', unit: { k, n }, base_digest: 'sha256:x',
+      base_gate_ok: true, attacks_ok: true, run_state: 'complete', slice_clean: true, portable: true,
+      wall: { ms: 1 }, mutation_ids: [], counts: { measured: 0, caught: 0, survived: 0, wrong: 0, harness: 0, stale: 0 },
+      norm_chain: chain, evidence_bound: true, evidence_unbound: [], norm_index_digest: 'sha256:x',
+      norm_required: { version: 'x', stage: 'measured', expected_state: 'covered', clauses: [] },
+      norm_contract: { version: 'x', digest: 'sha256:x' }, norm_integrity_ok: true, mutation_results: [] });
+    const mergeWith = (units) => {
+      rmSync(join(dir, 'v3ref/units'), { recursive: true, force: true });
+      mkdirSync(join(dir, 'v3ref/units'), { recursive: true });
+      for (const [i, u] of units.entries()) {
+        writeFileSync(join(dir, `v3ref/units/unit-${i + 1}-of-${units.length}.json`), JSON.stringify(u));
+      }
+      spawnSync(process.execPath, [join(dir, 'v3ref/mutate.mjs'), '--merge'],
+        { cwd: dir, encoding: 'utf8', timeout: 60000, maxBuffer: 16 * 1024 * 1024 });
+      return (JSON.parse(readFileSync(join(dir, 'v3ref/v3ref-mutation-result.json'), 'utf8')).why || []);
+    };
+    const full = expected.map(chainRow);
+    const has = (why, re) => why.some((w) => re.test(w));
+
+    // (a) KONTROLL: a teljes lánc — se hiányzó, se idegen, se ismétlődő sor.
+    const whyFull = mergeWith([unitWith(1, 1, full)]);
+    say('UAD07', !has(whyFull, /HIÁNYZÓ lánc-sor/), 'a TELJES lánc mellett is hiányzó sort jelent a kapu');
+    say('UAD07', !has(whyFull, /IDEGEN lánc-sor/), 'a TELJES lánc mellett idegen sort jelent a kapu');
+    say('UAD07', !has(whyFull, /ISMÉTLŐDŐ lánc-sor/), 'a TELJES lánc mellett ismétlődést jelent a kapu');
+
+    // (b) ELLENPÁR: UGYANAZ a lánc KÉT egységben — a darabolás jogos ismétlése, nem hiba.
+    const whyTwo = mergeWith([unitWith(1, 2, full), unitWith(2, 2, full)]);
+    say('UAD07', !has(whyTwo, /ISMÉTLŐDŐ lánc-sor/),
+      'a KÉT egységben megjelenő AZONOS sort hibának mondja a kapu — a darabolás így lehetetlen volna');
+
+    // (c) A KÜLSŐ FÉL ALAKJA: egy kötelező sor kivéve MINDEN egységből.
+    const reqRow = expected.find((r) => REQUIRED_EVIDENCE.clauses.includes(r.clause_id) && r.assertion_id);
+    const minusOne = full.filter((r) => chainRowKey(r) !== chainRowKey(reqRow));
+    const whyMinus = mergeWith([unitWith(1, 2, minusOne), unitWith(2, 2, minusOne)]);
+    say('UAD07', has(whyMinus, /HIÁNYZÓ lánc-sor/),
+      'a MINDEN egységből kivett kötelező lánc-sor NEM lett nevezett akadály (R83/F02)');
+    // ÉS A RANG IS MÉRVE, NEM CSAK A HIBALISTA. A hiányzó sornak a KLAUZULA ítéletét kell vinnie:
+    // ha csak a hibalistára kerül, de a láncba nem, a klauzula a MEGMARADT sorok alapján ítélődik —
+    // pontosan az a rés, amit a külső fél talált. (A SAJÁT első alakom itt bukott meg: a
+    // `hiányzó kötelező bizonyíték` mondat a fixtúrában amúgy is mindig ott állt, tehát a
+    // visszacsúszást nem fogta meg — KUKA-124/1: a már eldöntött tényt mérő ellenőrzés nem véd.)
+    say('UAD07', has(whyMinus, new RegExp(`${reqRow.clause_id}: row_missing`)),
+      'a kivett sor klauzulája NEM `row_missing` ítéletet kapott — a hiányzó sor nem viszi a leggyengébb rangot');
+
+    // (d) A CSERE: a kivett sor helyére IDEGEN sor — a darabszám stimmel, az azonosság nem.
+    const swapped = [...minusOne, chainRow({ norm_id: 'X', clause_id: reqRow.clause_id,
+      assertion_id: 'A-NEM-LETEZIK', probe_id: 'P-NEM-LETEZIK' })];
+    const whySwap = mergeWith([unitWith(1, 1, swapped)]);
+    say('UAD07', has(whySwap, /IDEGEN lánc-sor/) && has(whySwap, /HIÁNYZÓ lánc-sor/),
+      'a KICSERÉLT sor (azonos darabszám) nem lett nevezett akadály — a szám mögé bújt volna');
+
+    // (e) EGY egységen belüli ismétlés.
+    const dup = [...full, chainRow(reqRow)];
+    const whyDup = mergeWith([unitWith(1, 1, dup)]);
+    say('UAD07', has(whyDup, /ISMÉTLŐDŐ lánc-sor EGY egységen belül/),
+      'az EGY egységen belüli ismétlődő lánc-sor nem lett nevezett akadály');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
+console.log(`MRG-01 BEADVÁNY-KAPU (UAD01–UAD07): ${CASES.length + 1} ellenpélda · 1 pozitív kontroll · `
   + `${writerKeys.length} író-mező · kötelező készlet: ${REQUIRED_EVIDENCE.version} (${REQUIRED_EVIDENCE.clauses.length} klauzula)`);
 if (problems.length) {
   console.error(`\nPIROS (${problems.length}):`);

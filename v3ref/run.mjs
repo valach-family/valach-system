@@ -26,6 +26,9 @@ import { resultScopesOf, KNOWN_DATA_SCOPES } from './resultScope.mjs';
 import { measureEntryPointBinding, CONTEXT_AXES, CONTEXT_MODES, ENT_FLOOR } from './entryPoints.mjs';
 import { banMatrix } from './banMatrix.mjs';
 import { submitCommand, readCommandResult, commandRef, canonicalize, CanonError, recordCommandEvent, releasedFieldPaths } from './command.mjs';
+// REV-N2a/b (BIT-01): a két idő-tengely és a felülvizsgálati kör — a próbák a TERMÉK feloldóit
+// hívják, nem a másolatukat (KUKA-009).
+import { membershipAsOf, recordRetroactiveInvalidity, reviewCircleFor, reviewCircleState, closeReviewCircle } from './bitemporal.mjs';
 
 // A KANONIKUS NORMA-VERZIÓ EGYETLEN HELYRŐL JÖN (R53 §5). Korábban itt egy KÉZZEL ÍRT `'R32/K01-K16'`
 // állt, miközben a norma-index ugyanezt külön tárolta — két, részben átfedő igazságforrás, ami
@@ -3557,6 +3560,192 @@ probe('P-REV-entry-points', 'R79/F03 · REV-N5a · K09 · K15 · KUKA-039 · KUK
         'A-REV-N5a-neutral-entry-point-answers-are-indistinguishable': bOk,
       },
     };
+  });
+
+// ═══ REV-N2 — A KÉT IDŐ-TENGELY ÉS A FELÜLVIZSGÁLATI KÖR (BIT-01 · req-4) ══════════════════════
+//
+// AZ ÉLETHELYZET A NORMÁBÓL VAN ÁTVÉVE (`NEXT_REQUIRED_EVIDENCE.order`, R71-ben rögzítve, MIELŐTT
+// egyetlen sor kód megszületett volna — KUKA-054): márciusban elfogadunk egy képviseleti alapot, a
+// rá épülő művelet lefut; júniusban bizonyíték érkezik, hogy az alap MÁR MÁRCIUSBAN érvénytelen
+// volt. A rendszernek KÉT kérdésre KÉT KÜLÖNBÖZŐ, egyaránt igaz választ kell adnia.
+
+const BIT = Object.freeze({
+  // A TAGSÁG KORÁBBAN KEZDŐDIK, MINT A HELYESBÍTÉS HATÁLYA — és ez nem kozmetika. A SAJÁT
+  // BATTÉRIÁM lelete: az első alakban a tagság MÁRCIUSBAN kezdődött, ezért a „hatály ELŐTTI
+  // művelet" (feb-0) LÉTRE SEM JÖHETETT — a `submitCommand` jogosan utasította el. Az ellenpár
+  // így üres halmazon állt, és az M106 mutáció (az időablak-szűrő elvétele) TÚLÉLT: a szűrő
+  // elvétele semmit nem változtatott. A kontroll, ami nem tud tüzelni, nem kontroll (KUKA-041).
+  GRANT: '2026-01-15T09:00:00.000Z',        // a tagság kezdete — a hatály ELŐTTI művelet feltétele
+  FEBRUARY: '2026-02-01T09:00:00.000Z',     // művelet a helyesbítés hatálya ELŐTT — NEM érintett
+  MARCH: '2026-03-10T09:00:00.000Z',        // a képviseleti alap elfogadása + a művelet
+  MARCH_LATER: '2026-03-20T09:00:00.000Z',  // „ahogy márciusban tudtuk" — a kérdezés napja
+  JUNE: '2026-06-01T09:00:00.000Z',         // a bizonyíték megérkezése (a RÖGZÍTÉS ideje)
+  AUGUST: '2026-08-01T09:00:00.000Z',       // egy JÖVŐBELI hatályú helyesbítés dátuma
+});
+
+/** A KÖZÖS VILÁG a két REV-N2 próbához: egy könyv, egy tag, egy eljáró, és MÁRCIUSI parancsok. */
+function bitemporalWorld({ withCommands = true } = {}) {
+  const store = openStore();
+  const clock = clockFrom(BIT.MARCH);
+  for (const s of ['judge', 'member', 'other']) store.run('INSERT INTO subject VALUES (?,?)', s, 'person');
+  store.run('INSERT INTO book VALUES (?,?)', 'a', 'A könyv');
+  store.run('INSERT INTO book VALUES (?,?)', 'b', 'B könyv');
+  store.run('INSERT INTO membership VALUES (?,?,?,?,NULL)', 'member', 'a', 'user', BIT.GRANT);
+  store.run('INSERT INTO membership VALUES (?,?,?,?,NULL)', 'other', 'a', 'user', BIT.GRANT);
+  for (const op of ['suspend', 'alter_right', 'adjudicate']) {
+    grantAdjudicationAuthority({ store, clock: clockFrom(BIT.GRANT), subjectId: 'judge', bookId: 'a', operation: op });
+  }
+  if (withCommands) {
+    // A MŰVELETEK A TERMÉK ÚTJÁN SZÜLETNEK (nem kézi INSERT-tel): a kör tagsága így VALÓDI
+    // parancs-sorokból számolódik, nem a próba által odakészített fixtúrából (R75/F03 fegyelme).
+    const cmd = (idemKey, actor, at, bookId = 'a') => submitCommand({
+      store, clock: clockFrom(at), idemKey, actor, bookId,
+      type: 'stock.receipt', typeVersion: '1', declared: { sku: 'X', lines: [{ sku: 'X', qty: 1 }] },
+      resolve: () => ({ price: 100 }),
+    });
+    cmd('mar-1', 'member', BIT.MARCH);        // az ablakon BELÜL
+    cmd('mar-2', 'member', BIT.MARCH_LATER);  // az ablakon BELÜL
+    cmd('feb-0', 'member', BIT.FEBRUARY);     // a hatály ELŐTT — nem érintett (az M106 kontrollja)
+    cmd('mar-3', 'other', BIT.MARCH_LATER);   // MÁS alany — nem érintett
+  }
+  return { store, clock };
+}
+
+probe('P-REV-bitemporal', 'R83 §7 · REV-N2a · K08 · KUKA-002 · KUKA-018 · KUKA-126',
+  'A KÉT IDŐ-TENGELY: „március, ahogy márciusban tudtuk" ⊥ „március, ahogy ma tudjuk"',
+  () => {
+    const w = bitemporalWorld({ withCommands: false });
+    try {
+      // (a) A MÚLT KÉPE MEGMARAD. A júniusi rögzítés UTÁN is igaz, hogy márciusban jogos volt.
+      const before = membershipAsOf({ store: w.store, subjectId: 'member', bookId: 'a',
+        validAt: BIT.MARCH_LATER, knownAt: BIT.MARCH_LATER });
+      const rec = recordRetroactiveInvalidity({
+        store: w.store, clock: clockFrom(BIT.JUNE), subjectId: 'member', bookId: 'a',
+        actorSubjectId: 'judge', effectiveAt: BIT.MARCH, evidenceRef: 'doc:visszavont-meghatalmazas',
+      });
+      const asThen = membershipAsOf({ store: w.store, subjectId: 'member', bookId: 'a',
+        validAt: BIT.MARCH_LATER, knownAt: BIT.MARCH_LATER });
+      const aOk = before.effective === true && rec.ok === true && asThen.effective === true;
+
+      // (b) A MAI KÉP A HELYESBÍTETT. Ugyanaz a nap, MAI tudással: már nem volt jogos.
+      const asNow = membershipAsOf({ store: w.store, subjectId: 'member', bookId: 'a',
+        validAt: BIT.MARCH_LATER, knownAt: BIT.JUNE });
+      const bOk = asNow.effective === false && asNow.reason === 'membership_retroactively_invalid'
+        && asNow.effective_at === BIT.MARCH && asNow.recorded_at === BIT.JUNE;
+
+      // (c) ELLENPÁR — A JÖVŐBELI HATÁLYÚ HELYESBÍTÉS A MAI KÉPET NEM VÁLTOZTATJA MEG. Enélkül a
+      //     szabály nem a két tengelyt mérné, hanem csak azt, hogy „van-e esemény" (KUKA-049).
+      const w2 = bitemporalWorld({ withCommands: false });
+      let cOk = false; let cRec = null;
+      try {
+        cRec = recordRetroactiveInvalidity({
+          store: w2.store, clock: clockFrom(BIT.JUNE), subjectId: 'member', bookId: 'a',
+          actorSubjectId: 'judge', effectiveAt: BIT.AUGUST, evidenceRef: 'doc:jovobeli',
+        });
+        const todayView = membershipAsOf({ store: w2.store, subjectId: 'member', bookId: 'a',
+          validAt: BIT.JUNE, knownAt: BIT.JUNE });
+        const laterView = membershipAsOf({ store: w2.store, subjectId: 'member', bookId: 'a',
+          validAt: '2026-09-01T09:00:00.000Z', knownAt: '2026-09-01T09:00:00.000Z' });
+        cOk = cRec.ok === true && todayView.effective === true && laterView.effective === false
+          && cRec.review_circle_id === null;   // jövőbeli hatálynál nincs mit felülvizsgálni
+      } finally { w2.store.close(); }
+
+      // (d) A RÖGZÍTÉS JOGVÁLTOZTATÁS: hatáskör nélkül NEVEZETT elutasítás (fail-closed).
+      const w3 = bitemporalWorld({ withCommands: false });
+      let dOk = false;
+      try {
+        const noAuth = recordRetroactiveInvalidity({
+          store: w3.store, clock: clockFrom(BIT.JUNE), subjectId: 'member', bookId: 'a',
+          actorSubjectId: 'other', effectiveAt: BIT.MARCH, evidenceRef: 'doc:x',
+        });
+        const noEvidence = recordRetroactiveInvalidity({
+          store: w3.store, clock: clockFrom(BIT.JUNE), subjectId: 'member', bookId: 'a',
+          actorSubjectId: 'judge', effectiveAt: BIT.MARCH, evidenceRef: '   ',
+        });
+        dOk = noAuth.ok === false && noAuth.changed === false
+          && noEvidence.ok === false && noEvidence.reason === 'evidence_ref_required';
+      } finally { w3.store.close(); }
+
+      const pass = aOk && bOk && cOk && dOk;
+      return {
+        expected: 'a márciusi kép a júniusi rögzítés után is a MÁRCIUSI · a mai kép a HELYESBÍTETT · '
+          + 'a jövőbeli hatályú helyesbítés a mait nem mozdítja · a rögzítés hatáskörhöz és bizonyítékhoz kötött',
+        actual: `(a) márciusi kép a rögzítés után=${asThen.effective} · (b) mai kép=${asNow.effective}/${asNow.reason}`
+          + ` (hatály=${asNow.effective_at} rögzítés=${asNow.recorded_at}) · (c) jövőbeli hatály: ma=${cOk}`
+          + ` · (d) hatáskör/bizonyíték kapu=${dOk}`,
+        pass,
+        asserts: {
+          'A-REV-N2a-past-view-survives-later-recording': aOk,
+          'A-REV-N2a-present-view-reflects-the-correction': bOk,
+          'A-REV-N2a-future-dated-correction-does-not-move-today': cOk,
+          'A-REV-N2a-recording-needs-authority-and-evidence': dOk,
+        },
+      };
+    } finally { w.store.close(); }
+  });
+
+probe('P-REV-review-circle', 'R83 §7 · REV-N2b · K08 · K09 · KUKA-051 · KUKA-092 · KUKA-041',
+  'A FELÜLVIZSGÁLATI KÖR: számított tagság, érintetlen eredeti történet, külön lezárás',
+  () => {
+    const w = bitemporalWorld();
+    try {
+      // A MÚLT TARTALMI PILLANATKÉPE a helyesbítés ELŐTT (R55/F02: a darabszám ép maradhat úgy is,
+      // hogy a tartalom megváltozott — ezért a TARTALMAT hasonlítjuk, nem a sorok számát).
+      const snapshot = () => JSON.stringify(w.store.all('SELECT * FROM command ORDER BY book_id, actor, idem_key'));
+      const before = snapshot();
+
+      const rec = recordRetroactiveInvalidity({
+        store: w.store, clock: clockFrom(BIT.JUNE), subjectId: 'member', bookId: 'a',
+        actorSubjectId: 'judge', effectiveAt: BIT.MARCH, evidenceRef: 'doc:visszavont-meghatalmazas',
+      });
+      const circle = rec.review_circle_id ? reviewCircleState({ store: w.store, circleId: rec.review_circle_id }) : null;
+      const ids = circle ? circle.members.map((m) => m.idem_key).sort() : [];
+
+      // (a) A TAGSÁG SZÁMÍTOTT: a két tengely különbségében véglegesült műveletek — és a feloldó
+      //     UGYANAZT adja, mint ami a körbe került (nem két külön igazság, KUKA-018).
+      const computed = reviewCircleFor({ store: w.store, subjectId: 'member', bookId: 'a',
+        effectiveAt: BIT.MARCH, recordedAt: rec.recorded_at });
+      const aOk = rec.ok === true && circle !== null && circle.state === 'open'
+        && JSON.stringify(ids) === JSON.stringify(['mar-1', 'mar-2'])
+        && JSON.stringify(computed.members.map((m) => m.idem_key).sort()) === JSON.stringify(ids)
+        && computed.reason === 'computed_from_time_model';
+
+      // (b) AZ EREDETI TÖRTÉNET ÉRINTETLEN — tartalmilag, nem csak darabszámra.
+      const bOk = snapshot() === before;
+
+      // (c) ELLENPÁR: a NEM érintett műveletek nem kerülnek a körbe (a hatály ELŐTTI és a MÁS
+      //     alanyé). A „biztonság kedvéért mindent" alak itt bukna el (KUKA-092 rokona).
+      const cOk = !ids.includes('feb-0') && !ids.includes('mar-3') && ids.length === 2;
+
+      // (d) A LEZÁRÁS KÜLÖN, HATÁSKÖRHÖZ KÖTÖTT ESEMÉNY — és a tagságot nem bántja.
+      const denied = closeReviewCircle({ store: w.store, clock: clockFrom(BIT.JUNE),
+        circleId: rec.review_circle_id, actorSubjectId: 'member', outcomeRef: 'doc:dontes' });
+      const noOutcome = closeReviewCircle({ store: w.store, clock: clockFrom(BIT.JUNE),
+        circleId: rec.review_circle_id, actorSubjectId: 'judge', outcomeRef: '' });
+      const closed = closeReviewCircle({ store: w.store, clock: clockFrom(BIT.JUNE),
+        circleId: rec.review_circle_id, actorSubjectId: 'judge', outcomeRef: 'doc:dontes' });
+      const after = reviewCircleState({ store: w.store, circleId: rec.review_circle_id });
+      const dOk = denied.ok === false && denied.changed === false
+        && noOutcome.ok === false && noOutcome.reason === 'outcome_ref_required'
+        && closed.ok === true && after.state === 'closed' && after.closed_by === 'judge'
+        && after.members.length === 2 && snapshot() === before;
+
+      const pass = aOk && bOk && cOk && dOk;
+      return {
+        expected: 'a kör tagsága a két tengely különbségéből SZÁMÍTOTT · az eredeti műveletek tartalma '
+          + 'változatlan · a nem érintettek kimaradnak · a lezárás külön, hatáskörhöz kötött esemény',
+        actual: `(a) kör=${ids.join(', ') || '(üres)'} állapot=${circle ? circle.state : 'nincs'} · `
+          + `(b) eredeti történet változatlan=${bOk} · (c) kimaradt: feb-0=${!ids.includes('feb-0')} `
+          + `mar-3=${!ids.includes('mar-3')} · (d) tag lezárása=${denied.reason} · eljáró lezárása=${closed.ok}/${after.state}`,
+        pass,
+        asserts: {
+          'A-REV-N2b-circle-membership-is-computed': aOk,
+          'A-REV-N2b-original-history-is-untouched': bOk,
+          'A-REV-N2b-unaffected-operations-stay-out': cOk,
+          'A-REV-N2b-closing-is-a-separate-authorised-event': dOk,
+        },
+      };
+    } finally { w.store.close(); }
   });
 
 // A FELÜLVIZSGÁLAT A FORRÁS-ÁLLAPOTHOZ KÖTÖTT. Ha a mai commit más, mint amin a felülvizsgálat

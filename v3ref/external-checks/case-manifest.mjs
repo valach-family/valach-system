@@ -183,12 +183,45 @@ export const PROGRAMS = Object.freeze([
     evidence_pin_field: 'pin',
   }),
   Object.freeze({
+    id: 'r83core',
+    file: 'r83_chatgpt-v3.mjs',
+    companions: Object.freeze(['r83_merge_chatgpt-v3.core.mjs', 'r83_runner_chatgpt-v3.core.mjs']),
+    by: 'chatgpt-v3 — KÜLSŐ, független fél',
+    origin: 'R83 (KÉT próba: a `r83_merge_chatgpt-v3.core.mjs` és a `r83_runner_chatgpt-v3.core.mjs` '
+      + 'az ő szövegük — a program TESTE karakterre azonos, a ZÁRÓ SORTÖRÉS eltérhet, mert a '
+      + 'markdown-kódblokkból nyertük ki; „bájtazonost" ezért nem állítunk, az R83 §6 '
+      + 'helyesbítése után). TESZTADAPTÁCIÓ NEM '
+      + 'TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson (594f49f) ÖSSZEFŰZÉS '
+      + '1 PASS / 3 FAIL és FUTTATÓ 2 PASS / 1 FAIL — pontosan az általuk közölt reprodukció —, '
+      + 'a mai forráson ÖSSZEFŰZÉS 4/0 és FUTTATÓ 3/0.',
+    what: 'ÖSSZEFŰZÉS (4 eset): a `P01-genuine` pozitív kontroll mellett a próba-állapot TÖRLÉSE és '
+      + 'ISMERETLENRE állítása (R83/F01), valamint UGYANANNAK az egy REV-N3a állítás-sornak a '
+      + 'kivétele MINDEN egységből (R83/F02 — a hiányzó sor nem lesz gyenge sorrá, hanem eltűnik). '
+      + 'FUTTATÓ (3 eset): a VALÓDI `run-all.mjs` besorolása SZINTETIKUS program-kimenetekkel — egy '
+      + 'valódi, NEM időtúllépéses eset-hiba nem kaphat környezeti felmentést (R83/F03). A külső fél '
+      + 'kimondott hatóköre: ez a besorolás mérése, nem termék-működési állítás.',
+    evidence: 'r83-core-challenge.json',
+    cases: Object.freeze([
+      'merge/P01-genuine', 'merge/F01-missing-probe-status', 'merge/F01-unknown-probe-status',
+      'merge/F02-remove-required-row',
+      'runner/all-green', 'runner/original-real-failure', 'runner/original-and-sub-failure',
+    ]),
+    cases_source: 'a külső fél R83-as lapja (a két program `plans`/`mode` listája, ahogy megérkezett; '
+      + 'a `merge/` és `runner/` előtagot a burkoló teszi rá, mert KÉT próba ad EGY eset-listát)',
+    evidence_pin_field: 'source_commit',
+  }),
+  Object.freeze({
     id: 'r81core',
     file: 'r81_chatgpt-v3.mjs',
     companions: Object.freeze(['r81_chatgpt-v3.core.mjs', 'r81_merge_chatgpt-v3.core.mjs']),
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
+    // HELYESBÍTVE (R83 §6): az R81-es bejegyzés „BÁJTAZONOS"-t írt; a külső fél MEGMÉRTE, és a
+    // saját példányukhoz képest EGY ZÁRÓ ÜRES SOR az eltérés (a markdown-kódblokkból való kinyerés
+    // következménye). Teszt-logikai eltérés nincs — de a „bájtazonos" ellenőrizhető állítás, tehát
+    // vagy mérjük, vagy nem mondjuk ki (KUKA-033).
     origin: 'R81 (KÉT mag-próba: a `r81_chatgpt-v3.core.mjs` és a `r81_merge_chatgpt-v3.core.mjs` '
-      + 'az ő szövegük BÁJTAZONOSAN — egyetlen karaktert sem írtunk át bennük). TESZTADAPTÁCIÓ NEM '
+      + 'az ő szövegük — a program TESTE karakterre azonos, a ZÁRÓ SORTÖRÉS eltér az ő saját '
+      + 'példányuktól, ahogy ők az R83 §6-ban megmérték). TESZTADAPTÁCIÓ NEM '
       + 'TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson (eb4d83b) MAG 6 PASS / 1 FAIL '
       + 'és ÖSSZEFŰZÉS 4 PASS / 4 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson '
       + 'MAG 7/0 és ÖSSZEFŰZÉS 8/0.',
@@ -305,12 +338,18 @@ export const PROGRAMS = Object.freeze([
     id: 'r59',
     file: 'r59_chatgpt-v3.mjs',
     superseded_by: 'r59a',
-    env_limit: 'ez a program a mutációs battériát EGY hívásban futtatja, 15 000 ms korláttal. A MAI '
-      + 'futtató-gépünkön (4 vCPU) a teljes battéria legjobb mért alakja 17,1 mp, tehát itt a MÉRÉS '
-      + 'akad el, nem a kód bukik — és ez MÉRVE van, nem feltételezve (KUKA-089). Ugyanezt a kilenc '
-      + 'esetet az ADAPTÁLT változat (`r59a`, szintén az Ő szerzőségük) futtatja végig, darabolt '
-      + 'battériával. A kihagyás CSAK addig áll, amíg a helyettes ZÖLD: ha az is elbukik, MINDKETTŐ '
-      + 'piros (a helyettesítés nem felmentés — KUKA-041).',
+    // A DEKLARÁCIÓ MEGMONDJA A FAJTÁT IS (R83/F03): a puszta próza nem mérhető vissza, ezért a
+    // `kind` a zárt készletből való, és a futtató a MÉRT kudarc fajtáját ehhez hasonlítja.
+    env_limit: Object.freeze({
+      kind: 'wall_clock_timeout',
+      cap_ms: 15000,   // a program SAJÁT gyermek-korlátja (spawnSync timeout) — a MÁSODIK tanú mércéje
+      why: 'ez a program a mutációs battériát EGY hívásban futtatja, 15 000 ms korláttal. A MAI '
+        + 'futtató-gépünkön (4 vCPU) a teljes battéria legjobb mért alakja 17,1 mp, tehát itt a MÉRÉS '
+        + 'akad el, nem a kód bukik — és ez MÉRVE van, nem feltételezve (KUKA-089). Ugyanezt a kilenc '
+        + 'esetet az ADAPTÁLT változat (`r59a`, szintén az Ő szerzőségük) futtatja végig, darabolt '
+        + 'battériával. A kihagyás CSAK addig áll, amíg a helyettes ZÖLD, ÉS amíg a program MINDEN '
+        + 'kudarcos esete bizonyítottan időtúllépés (a helyettesítés nem felmentés — KUKA-041).',
+    }),
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
     origin: 'R59 (változatlanul, ahogy a boardon érkezett)',
     what: 'P01 · P02 pozitív ellenpár · E05–E09: az elvárás-séma, az eredmény-séma, a futtató és a '
@@ -324,9 +363,14 @@ export const PROGRAMS = Object.freeze([
     id: 'r57',
     file: 'r57_chatgpt-v3.mjs',
     superseded_by: 'r57a',
-    env_limit: 'ugyanaz a technikai akadály, mint az `r59`-nél: a battéria EGY hívásban, 15 000 ms '
-      + 'korláttal. A kilenc esetet az ADAPTÁLT változat (`r57a`) futtatja végig. A kihagyás CSAK '
-      + 'addig áll, amíg a helyettes ZÖLD.',
+    env_limit: Object.freeze({
+      kind: 'wall_clock_timeout',
+      cap_ms: 15000,   // a program SAJÁT gyermek-korlátja (spawnSync timeout) — a MÁSODIK tanú mércéje
+      why: 'ugyanaz a technikai akadály, mint az `r59`-nél: a battéria EGY hívásban, 15 000 ms '
+        + 'korláttal. MÉRVE: az E02 és az E03 eset `spawnSync … ETIMEDOUT` hibával áll meg, a másik '
+        + 'hét eset zöld. A kilenc esetet az ADAPTÁLT változat (`r57a`) futtatja végig. A kihagyás '
+        + 'CSAK addig áll, amíg a helyettes ZÖLD, ÉS amíg minden kudarc bizonyítottan időtúllépés.',
+    }),
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
     origin: 'R57 (változatlanul, ahogy a boardon érkezett)',
     what: 'T01–T05: az R56-ban tett pecsét-állítások · E01–E04: a bizonyíték-kapu megkerülhetősége',
@@ -503,6 +547,155 @@ export function auditEvidenceArtifact(program, { exists, parsed, expectedCommit,
   }
 
   return { ok: problems.length === 0, problems, present: true, pin };
+}
+
+// ── A KÖRNYEZETI AKADÁLY — BIZONYÍTVA, NEM BEJELENTVE (R83/F03) ─────────────────────────────────
+//
+// MI TÖRTÉNT. Az R81-ben bevezetett környezeti kihagyás három feltételt kért: a bejegyzés MONDJA KI
+// az akadályt (`env_limit`), NEVEZZE MEG a helyettest (`superseded_by`), és a helyettes legyen ZÖLD.
+// A külső fél (chatgpt-v3, R83 §5) megmutatta, mi hiányzik ebből: a program TÉNYLEGES kudarcának a
+// FAJTÁJÁT senki nem nézte meg. Szintetikus futtatásukban az eredeti `r57` első esete `pass:false`
+// lett, „synthetic assertion failure; NOT a timeout" indokkal, minden más program zöld — a futtató
+// mégis `exit 0` · `verdict.ok: true` · `env_skipped: 1` eredményt adott. Vagyis egy VALÓDI
+// teszthibát mentett fel egy statikus regiszter-mező.
+//
+// A HIBA OSZTÁLYA. KUKA-122 fordítottja: ott a kapu olyan tényt kért, amit senki nem állított elő
+// (teljesíthetetlen); itt a kapu olyan tényt fogadott el, amit senki nem mért (bizonyítatlan). És
+// KUKA-073: a `superseded_by` + `env_limit` MÁSIK kérdésre felel („van-e helyettese?"), mint amit a
+// felmentés kérdez („tényleg a KÖRNYEZET akadt el?").
+//
+// A MÉRCE EZÉRT MÉRT ADAT. A deklaráció megmondja a VÁRT akadály FAJTÁJÁT, és a futtató a NYERS
+// eredményből megállapítja a TÉNYLEGES kudarc fajtáját; a felmentés csak akkor áll, ha a kettő
+// ugyanaz. A mai, VALÓDI akadályunk mérve ilyen: az `r57` E02/E03 esete
+// `test_error: "Error: spawnSync … ETIMEDOUT"` alakban bukik (a program SAJÁT, 15 000 ms-os
+// gyermek-korlátja lép életbe), minden más esete zöld — tehát a szigorítás a jogos utat NYITVA
+// hagyja (KUKA-122/2: a kapunak teljesíthetőnek kell lennie).
+
+/** A KÖRNYEZETI AKADÁLY ZÁRT FAJTA-KÉSZLETE. Ismeretlen fajta nem kaphat felmentést. */
+export const ENV_LIMIT_KINDS = Object.freeze(['wall_clock_timeout']);
+
+/** Az IDŐTÚLLÉPÉS gépi nyoma a program saját hibaszövegében (a gyermek-folyamat korlátja). */
+const TIMEOUT_MARK = /ETIMEDOUT|ERR_CHILD_PROCESS_STDIO_MAXBUFFER|\btimed?[ _-]?out\b/i;
+
+/**
+ * EGY ESET KUDARCÁNAK FAJTÁJA — a NYERS eredményből, fordítás nélkül (KUKA-028).
+ * @returns {'ok'|'wall_clock_timeout'|'assertion_failure'|'malformed'}
+ */
+export function caseFailureKind(c) {
+  if (!c || typeof c !== 'object' || Array.isArray(c)) return 'malformed';
+  if (c.test_error) return TIMEOUT_MARK.test(String(c.test_error)) ? 'wall_clock_timeout' : 'assertion_failure';
+  if (c.pass === true) return 'ok';
+  if (typeof c.pass !== 'boolean') return 'malformed';
+  return 'assertion_failure';
+}
+
+/**
+ * A PROGRAM KUDARCÁNAK FAJTÁJA — MINDEN eset és a szemle együtt.
+ *
+ * A szabály szigorú és szándékosan az: a program kudarca CSAK akkor környezeti, ha MINDEN kudarcos
+ * esete bizonyítottan időtúllépés, és semmilyen MÁS baj nincs (hiányzó · ismeretlen · duplikált
+ * eset, hiányzó eredmény-artefaktum, rendellenes kilépés). Egyetlen más fajtájú kudarc ⇒ a program
+ * kudarca NEM környezeti. A hiányzó esetet az időtúllépés magyarázhatja — de csak akkor, ha ugyanaz
+ * az azonosító időtúllépéses hibával meg is érkezett.
+ *
+ * @param {object} program  a manifeszt bejegyzése
+ * @param {object} ctx      { cases, audit, artifactOk, exitCode, spawnError }
+ * @returns {{kind: string, why: string, rows: Array}}
+ */
+export function measuredFailureKind(program, {
+  cases, audit, artifactOk = true, exitCode = 0, spawnError = null, stderr = '', elapsedMs = null,
+}) {
+  const rows = (Array.isArray(cases) ? cases : []).map((c) => ({
+    id: (c && c.id) || '(azonosító nélkül)', kind: caseFailureKind(c),
+    why: c && c.test_error ? String(c.test_error).split('\n')[0] : null,
+  }));
+  const timedOut = rows.filter((r) => r.kind === 'wall_clock_timeout');
+  const otherBad = rows.filter((r) => r.kind !== 'ok' && r.kind !== 'wall_clock_timeout');
+  const explained = new Set(timedOut.map((r) => r.id));
+  // A MÁSODIK, FÜGGETLEN TANÚ: a FUTTATÓ SAJÁT ÓRÁJA. A program hibaszövege a program SAJÁT szava
+  // (KUKA-121: amit a beadó begépelhet, az állítás) — a futtató mért ideje viszont a miénk. Ha a
+  // bejegyzés kimondja a program belső korlátját (`cap_ms`), akkor időtúllépést CSAK akkor
+  // ismerünk el, ha a mért futásidő EL IS ÉRTE azt a korlátot.
+  const cap = program && program.env_limit && typeof program.env_limit === 'object'
+    ? program.env_limit.cap_ms : null;
+  const capReached = typeof cap === 'number' && typeof elapsedMs === 'number' && elapsedMs >= cap;
+  const capWhy = typeof cap !== 'number'
+    ? 'a bejegyzés nem mondja ki a program belső korlátját (`cap_ms`)'
+    : `a mért futásidő (${elapsedMs} ms) NEM érte el a bejelentett belső korlátot (${cap} ms)`;
+
+  if (spawnError) {
+    // A FUTTATÓ SAJÁT korlátja MÁS kérdés: ilyenkor a program eredményt sem hagyott hátra, tehát
+    // semmit nem tudunk bizonyítani róla (KUKA-089: a „nincs hozzá környezetem" MÉRÉS legyen).
+    return { kind: 'unknown', rows, why: `a programot a FUTTATÓ állította le (${spawnError}) — így nem maradt `
+      + 'mérhető nyoma annak, MI akadt el; bizonyíték nélkül nincs környezeti felmentés' };
+  }
+  if (!artifactOk) {
+    // A PROGRAM BELEHALT AZ AKADÁLYBA, MIELŐTT BÁRMIT ÍRHATOTT VOLNA — SAJÁT, NEVEZETT ALAK.
+    //
+    // MÉRVE (R83): az `r59` a mutációs battériát MODUL-SZINTEN futtatja, ezért a 15 000 ms-os
+    // gyermek-korlát elérésekor KIVÉTELLEL áll meg — eredmény-fájl nélkül, `exit 1`-gyel. Ez NEM
+    // ugyanaz, mint az `r57` alakja (ott a kivétel egy eseten belül keletkezik, tehát a fájl
+    // megszületik, és a bukott esetek MAGUKRÓL mondják meg, hogy időtúllépés). A kettőt külön kell
+    // nevezni, különben a hiányt némán a rossz érték ágára sorolnánk (KUKA-124/2).
+    //
+    // ÉS CSAK KÉT TANÚVAL: a program hibaszövege ÉS a futtató mért ideje. Egyik sem elég magában.
+    if (!Array.isArray(cases) && TIMEOUT_MARK.test(String(stderr)) && capReached) {
+      return { kind: 'wall_clock_timeout', rows,
+        why: `a program EREDMÉNY NÉLKÜL állt meg, időtúllépésre utaló hibával, és a mért futásidő `
+          + `(${elapsedMs} ms) elérte a bejelentett belső korlátot (${cap} ms) — két független tanú` };
+    }
+    return { kind: 'unknown', rows,
+      why: 'nincs (vagy nem értelmezhető) részletes eredmény — a kudarc fajtája nem mérhető'
+        + `${TIMEOUT_MARK.test(String(stderr)) ? ` (a hibaszöveg időtúllépést említ, de ${capWhy})` : ''}` };
+  }
+  if (!Array.isArray(cases)) return { kind: 'unknown', rows, why: 'a program nem adott értelmezhető eset-listát' };
+  if (otherBad.length) {
+    return { kind: 'assertion_failure', rows,
+      why: `VALÓDI eset-hiba (nem időtúllépés): ${otherBad.map((r) => `${r.id} (${r.kind})`).join(' · ')}` };
+  }
+  const unexplained = [...(audit?.missing || []), ...(audit?.unknown || []), ...(audit?.duplicate || [])]
+    .filter((id) => !explained.has(String(id).replace(/×\d+$/, '')));
+  if (unexplained.length) {
+    return { kind: 'assertion_failure', rows,
+      why: `a hiba nem az időtúllépésből következik: ${unexplained.join(' · ')}` };
+  }
+  if (exitCode !== 0) {
+    return { kind: 'assertion_failure', rows, why: `a program nem nullával zárt (kilépés ${exitCode})` };
+  }
+  if (!timedOut.length) return { kind: 'unknown', rows, why: 'nincs mért környezeti akadály a nyers eredményben' };
+  if (!capReached) return { kind: 'unknown', rows, why: `a bukott esetek időtúllépést mondanak, de ${capWhy}` };
+  return { kind: 'wall_clock_timeout', rows,
+    why: `MÉRT időtúllépés (${timedOut.length} eset: ${timedOut.map((r) => r.id).join(' · ')}) — minden más eset zöld, `
+      + `és a mért futásidő (${elapsedMs} ms) elérte a bejelentett belső korlátot (${cap} ms)` };
+}
+
+/**
+ * ÁLL-E A KÖRNYEZETI KIHAGYÁS? — NÉGY feltétel, EGY helyen, hogy a pin is ezt hívhassa (KUKA-009).
+ *
+ * @param {object} program     a manifeszt bejegyzése (`env_limit` · `superseded_by`)
+ * @param {object} measured    a `measuredFailureKind` eredménye
+ * @param {object|null} substitute  a helyettes program összefoglaló sora ({id, ok}) vagy null
+ * @returns {{excusable: boolean, why: string, declared_kind: string|null, measured_kind: string}}
+ */
+export function environmentalObstacle(program, measured, substitute) {
+  const declared = program && program.env_limit && typeof program.env_limit === 'object'
+    ? program.env_limit : null;
+  const kind = declared && typeof declared.kind === 'string' ? declared.kind : null;
+  const out = (excusable, why) => ({ excusable, why, declared_kind: kind, measured_kind: measured.kind });
+
+  if (!declared) return out(false, 'a bejegyzés nem mond ki környezeti akadályt (`env_limit`)');
+  if (!ENV_LIMIT_KINDS.includes(kind)) {
+    return out(false, `a bejelentett akadály-fajta ismeretlen: ${JSON.stringify(kind)} — `
+      + `a zárt készlet: ${ENV_LIMIT_KINDS.join(' · ')}`);
+  }
+  if (!program.superseded_by) return out(false, 'a bejegyzés nem nevez meg helyettest (`superseded_by`)');
+  if (!substitute) return out(false, `a megnevezett helyettes (${program.superseded_by}) ebben a futásban NEM futott`);
+  if (!substitute.ok) return out(false, `a megnevezett helyettes (${program.superseded_by}) NEM zöld`);
+  if (measured.kind !== kind) {
+    return out(false, `a MÉRT kudarc nem a bejelentett környezeti akadály: ${measured.why} `
+      + `(bejelentve: ${kind}, mérve: ${measured.kind}) — statikus regiszter-mező nem menthet fel valódi teszthibát`);
+  }
+  return out(true, `${measured.why} — és a megnevezett helyettes (${program.superseded_by}) ZÖLD`);
 }
 
 /**

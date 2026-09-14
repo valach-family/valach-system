@@ -3,8 +3,15 @@
  * R81 — A KÜLSŐ FÉL KÉT PRÓBÁJA, BURKOLÓVAL (EXT-01).
  *
  * MI EZ. A külső fél (chatgpt-v3) R81-es programjai a `r81_chatgpt-v3.core.mjs` (mag-próba) és a
- * `r81_merge_chatgpt-v3.core.mjs` (összefűzés-próba) fájlokban állnak, **BÁJTAZONOSAN, ahogy a
- * lapjukon megérkeztek** — egyetlen karaktert sem írtunk át bennük, a behúzási útvonalakat sem.
+ * `r81_merge_chatgpt-v3.core.mjs` (összefűzés-próba) fájlokban állnak, **ahogy a lapjukon
+ * megérkeztek** — egyetlen karaktert sem írtunk át bennük, a behúzási útvonalakat sem.
+ *
+ * HELYESBÍTÉS (R83 §6, a külső fél pontosítása). Az R81-es fejléc azt írta ide, hogy a két program
+ * „BÁJTAZONOS". Ez SZÓ SZERINT NEM IGAZ, és ők mérték meg: a saját példányukhoz képest EGY ZÁRÓ
+ * ÜRES SOR az eltérés — a markdown-kódblokkból való kinyerés következménye. Teszt-logikai eltérés
+ * nincs. A pontos állítás ezért: a program TESTE karakterre azonos, a záró sortörés eltérhet. Ez
+ * apróságnak látszik, de pont az a fajta állítás, amit mérés nélkül mondtunk ki (KUKA-033): a
+ * „bájtazonos" ELLENŐRIZHETŐ tény, tehát vagy mérjük, vagy nem állítjuk.
  *
  * MIT MÉRNEK.
  *   MAG (7 eset)      · P01–P04: a kiadott eredmény RÉSZFÁJÁNAK adatköre (az R79-es javítás

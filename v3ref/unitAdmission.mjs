@@ -48,12 +48,26 @@
  * verdikttel, ugyanazon a próbán, és a sor állítás-azonosítóját a `failed_assertions` között
  * hordozva. Enélkül a sor NEM fedett — az F01b pontosan ezt a kötést vágta el.
  *
- * KIMONDOTT KORLÁT (változatlanul, KUKA-121 zárómondata). Ez a kapu a SZINTET emeli, nem
- * kriptográfiai bizonyíték: aki a fájlrendszerhez fér, elvileg gyárthat olyan egység-fájlt, ami
- * minden itteni szabálynak megfelel — ehhez viszont már VALÓDI, egymással összefüggő részletes
- * eredményeket kell előállítania, ami gyakorlatilag a battéria lefuttatása. A zárás feltétele
- * nevezett: aláírt egység-tanú.
+ * BŐVÍTVE (R83/F01 — a külső fél két további ellenpéldája). A kapu a `probe_status` mezőt EGYETLEN
+ * páros (`CAUGHT` + `PASS`) erejéig nézte, tehát a mező TÖRLÉSE és `UNKNOWN`-ra állítása egyaránt
+ * teljes zöldet adott a VALÓDI egységeink másolatain. Innentől a mező jelenléte KÖTELEZŐ, az
+ * értéke ZÁRT szókészletből való (a `manifest.mjs` mondja ki), és a verdikthez ÉS a mutáció
+ * szerződés-fajtájához is illeszkednie kell (`VERDICT_STATUS_RULE` · `probeStatusProblem`).
+ *
+ * KIMONDOTT KORLÁT — ÉS ITT PONTOSÍTVA (R83 §6, a külső fél helyesbítése). Ez a kapu a SZINTET
+ * emeli, nem kriptográfiai bizonyíték. Az R81-es változat azt írta ide, hogy a megfeleléshez
+ * „gyakorlatilag a battéria lefuttatása" kell — ezt a külső fél megcáfolta, és igaza van: a séma,
+ * a bijekció és a belső ellentmondás-mentesség ellenőrzése NEM bizonyítja, hogy a futás megtörtént.
+ * Következetesen hamisított részletes adat előállításához nem kell lefuttatni a battériát, csak
+ * ismerni a szerződést — ami nyílt forrás. Amit ez a kapu ténylegesen ad: az ELLENTMONDÁSOS és a
+ * HIÁNYOS beadvány nem mehet át, és a mérce nem a beadványból jön. Amit NEM ad: a futás
+ * megtörténtének bizonyítékát. A zárás feltétele nevezett: aláírt egység-tanú.
  */
+
+// A PRÓBA-ÁLLAPOT SZÓKÉSZLETE A MANIFESTBŐL JÖN, NEM MÁSOLATBÓL (KUKA-129 · KUKA-009): az állapotokat
+// a `manifest.mjs` mondja ki (`PROBE_STATUS` · `KNOWN_STATUSES`), és a mérő ugyanonnan olvassa. Egy
+// második, ide gépelt lista előbb-utóbb elcsúszna attól, amit a futás ténylegesen kiad.
+import { KNOWN_STATUSES, PROBE_STATUS } from './manifest.mjs';
 
 /** A TÁMOGATOTT FUTÁSI SZERZŐDÉSEK. Ismeretlen verziójú beadványt NEM olvasunk be: nem tudjuk,
  *  mit jelentenek a mezői (R81/F03 — a `RUN-FOREIGN` eddig némán átment). */
@@ -61,6 +75,92 @@ export const SUPPORTED_RUN_CONTRACTS = Object.freeze(['RUN-02']);
 
 /** A VERDIKT-SZÓKÉSZLET. Ismeretlen verdikt nem „valami más", hanem olvashatatlan (KUKA-020). */
 export const VERDICTS = Object.freeze(['CAUGHT', 'SURVIVED', 'WRONG_CATCHER', 'HARNESS_ERROR', 'STALE_ANCHOR']);
+
+/**
+ * A VERDIKT ↔ PRÓBA-ÁLLAPOT ZÁRT TÁBLÁJA (R83/F01) — MUTÁCIÓ-FAJTÁVAL EGYÜTT.
+ *
+ * MIÉRT SZÜLETETT. Az MRG-01 első alakja a `probe_status` mezőből EGYETLEN dolgot nézett: a
+ * `CAUGHT` + `PASS` ellentmondást. A külső fél (chatgpt-v3, R83 §3) a saját, VALÓDI egységeink
+ * másolatain megmutatta, mi következik ebből: a mezőt TÖRÖLVE és `UNKNOWN`-ra állítva egyaránt
+ * `exit 0` · `clean: true` · 9/9 kötelező készlet lett. A hiányzó mező tehát némán ugyanoda
+ * sorolódott, mint a rendben lévő (KUKA-124/2), az ismeretlen érték pedig „valami másnak"
+ * számított (KUKA-020) — holott mindkettő azt jelenti, hogy a beadvány nem mondja meg, mit mért.
+ *
+ * A TÁBLA NEM KITALÁLT SZABÁLY, HANEM A MÉRŐ SAJÁT SZERZŐDÉSE (`verdictFor` a `mutate.mjs`-ben),
+ * visszaolvasva — és MÉRVE a 96 valódi eredményen, MIELŐTT kapuvá vált (KUKA-033):
+ *
+ *   probe_fail     · CAUGHT          ⇒ FAIL                (mérve: 93/93 így áll)
+ *   runtime_error  · CAUGHT          ⇒ THREW vagy FAIL     (mérve: 3/3 THREW; a FAIL-ág a
+ *                                                           szerződés szerint jogos — `mutate.mjs`
+ *                                                           „a szerződés kivételt is megengedett volna")
+ *   SURVIVED                         ⇒ PASS                (a nevezett próba nem bukott)
+ *   WRONG_CATCHER                    ⇒ PASS · FAIL · THREW (mindhárom jogos alak)
+ *   HARNESS_ERROR                    ⇒ bármelyik ismert állapot VAGY `null` (nincs rekord)
+ *   STALE_ANCHOR                     ⇒ fogalmilag NINCS részletes eredménye
+ *
+ * AMI KIMARADT, ÉS MIÉRT. A „`CAUGHT` ⇒ a bukott állítások listája nem üres" szabályt MÉRTEM, és
+ * MEGBUKOTT: a 96 valódi eredményből 37 `probe_fail · CAUGHT · FAIL` üres `failed_assertions`
+ * listával áll (a próba bukott, de nevezett állítást nem adott ki). Ez pontosan a KUKA-049 esete —
+ * az őr a KÉRT eredményt jelentette volna hibának —, ezért a szabály nincs a táblában. A lánc-sor
+ * fedezetét továbbra is a `chainBacking` méri, ott a nem üres lista KÖVETELMÉNY (R81/F01b).
+ *
+ * A `SKIP`/`NOT_STARTED` egyik verdiktnél sem megengedett: a `classifyRun` az ilyen futást
+ * MÉRŐHIBÁNAK minősíti, tehát részletes eredmény nem is születhet belőle.
+ */
+export const VERDICT_STATUS_RULE = Object.freeze({
+  CAUGHT: Object.freeze({
+    probe_fail: Object.freeze([PROBE_STATUS.FAIL]),
+    runtime_error: Object.freeze([PROBE_STATUS.THREW, PROBE_STATUS.FAIL]),
+    any: Object.freeze([PROBE_STATUS.FAIL, PROBE_STATUS.THREW]),
+  }),
+  SURVIVED: Object.freeze({ any: Object.freeze([PROBE_STATUS.PASS]) }),
+  WRONG_CATCHER: Object.freeze({ any: Object.freeze([PROBE_STATUS.PASS, PROBE_STATUS.FAIL, PROBE_STATUS.THREW]) }),
+  HARNESS_ERROR: Object.freeze({
+    any: Object.freeze([PROBE_STATUS.PASS, PROBE_STATUS.FAIL, PROBE_STATUS.THREW]),
+    allow_null: true,   // a nevezett próbának nincs rekordja — ez a MÉRŐHIBA őszinte alakja
+  }),
+});
+
+/**
+ * EGY RÉSZLETES EREDMÉNY PRÓBA-ÁLLAPOTA — jelen van? ismert? illik a verdikthez és a fajtához?
+ *
+ * Külön, nevezett feloldó, hogy a pin UGYANEZT hívja, ne a másolatát (KUKA-009), és hogy a négy
+ * válasz (HIÁNYZIK · NULL · ISMERETLEN · ELLENTMONDÁS) KÜLÖN szóval jöjjön (KUKA-124/2 · KUKA-064).
+ *
+ * @param {object} r    egy `mutation_results` elem
+ * @param {object} ctx  { kind } — a mutáció szerződése a MAI regiszterből (`probe_fail` |
+ *                      `runtime_error`), vagy `null`, ha a mutáció nincs a regiszterben (azt az
+ *                      ISMERETLEN mutáció külön, nevezett akadálya mondja ki)
+ * @returns {string|null} null = rendben; szöveg = a NEVEZETT akadály
+ */
+export function probeStatusProblem(r, { kind = null } = {}) {
+  if (!r || typeof r !== 'object') return null;           // a nem-objektum saját, korábbi akadály
+  if (r.verdict === 'STALE_ANCHOR') {
+    return 'ELAVULT HORGONY verdikt RÉSZLETES eredményként — a mutáció szerkesztése meg sem történt, '
+      + 'tehát falszifikációs bizonyítéka fogalmilag nem lehet (a mérő ilyen sort nem állít elő)';
+  }
+  const rule = VERDICT_STATUS_RULE[r.verdict];
+  if (!rule) return null;                                  // ismeretlen verdikt: saját akadály
+  if (!Object.prototype.hasOwnProperty.call(r, 'probe_status')) {
+    return 'a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba '
+      + `(kötelező, zárt szókészlet: ${KNOWN_STATUSES.join(' · ')})`;
+  }
+  if (r.probe_status === null) {
+    return rule.allow_null ? null
+      : `a \`probe_status\` NULL, a verdikt viszont \`${r.verdict}\` — csak MÉRŐHIBÁNÁL lehet üres `
+        + '(ott a nevezett próbának nincs rekordja)';
+  }
+  if (typeof r.probe_status !== 'string' || !KNOWN_STATUSES.includes(r.probe_status)) {
+    return `ISMERETLEN próba-állapot: ${JSON.stringify(r.probe_status)} — a zárt szókészlet: ${KNOWN_STATUSES.join(' · ')}`;
+  }
+  const allowed = (kind && rule[kind]) || rule.any;
+  if (!allowed.includes(r.probe_status)) {
+    return `ELLENTMONDÁS: a verdikt \`${r.verdict}\`${kind ? ` (a mutáció szerződése: ${kind})` : ''}, `
+      + `a nevezett próba állapota viszont \`${r.probe_status}\` — a mérő ilyen párost nem állít elő `
+      + `(megengedett: ${allowed.join(' · ')})`;
+  }
+  return null;
+}
 
 const isPlainObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const isText = (v) => typeof v === 'string' && v.length > 0;
@@ -125,8 +225,10 @@ export function unitSchemaProblems(u, { file = '(névtelen)' } = {}) {
   return p;
 }
 
-/** A RÉSZLETES EREDMÉNY SÉMÁJA ÉS ÖNELLENTMONDÁS-SZEMLÉJE. */
-function resultProblems(r, i, { file, today }) {
+/** A RÉSZLETES EREDMÉNY SÉMÁJA ÉS ÖNELLENTMONDÁS-SZEMLÉJE.
+ *  @param {object|null} mutation  a MAI regiszter bejegyzése erre a mutációra (ha van) — tőle jön a
+ *         szerződés fajtája ÉS a nevezett elkapó; egyik sem a beadványból (KUKA-054). */
+function resultProblems(r, i, { file, today, mutation = null }) {
   const p = [];
   const at = (m) => `[${file}] a ${i + 1}. részletes eredmény: ${m}`;
   if (!isPlainObject(r)) return [at('nem objektum')];
@@ -144,23 +246,31 @@ function resultProblems(r, i, { file, today }) {
   else if (isText(r.probe_id) && r.catcher !== r.probe_id) {
     p.push(on(`a nevezett elkapó és a mért próba KÜLÖNBÖZIK (${r.catcher} ≠ ${r.probe_id})`));
   }
+  // AZ ELKAPÓ A MAI REGISZTERBŐL (R83/F01 — „a mutáció/catcher fajtájához illeszkedő összefüggések").
+  // A beadvány megnevezhet egy elkapót; hogy AZ-E a nevezett elkapó, azt a regiszter mondja meg, nem
+  // a beadvány. Enélkül a `probe_id`↔`catcher` egyezés önmagával való egyezés (KUKA-121).
+  if (mutation && isText(mutation.catcher) && isText(r.catcher) && r.catcher !== mutation.catcher) {
+    p.push(on(`a beadott elkapó ELTÉR a mai regiszterétől (${r.catcher} ≠ ${mutation.catcher})`));
+  }
   if (!Array.isArray(r.failed_assertions)) p.push(on(`\`failed_assertions\`: ${fieldWhy(r, 'failed_assertions')}`));
   if (!isText(r.verdict)) p.push(on(`\`verdict\`: ${fieldWhy(r, 'verdict')}`));
   else if (!VERDICTS.includes(r.verdict)) p.push(on(`ISMERETLEN verdikt: \`${r.verdict}\` — a szókészlet: ${VERDICTS.join(' · ')}`));
-  // ÖNELLENTMONDÁS. A nevezett próba ÁTMENT — akkor nem kapott el semmit. (A megfordítottja NEM
-  // szabály: a `runtime_error` szerződésű mutáció CAUGHT verdikttel, de ÜRES `failed_assertions`
-  // listával jogos — a valódi adatunkon mérve. KUKA-049: az őr ne a kért eredményt jelentse hibának.)
-  if (r.verdict === 'CAUGHT' && r.probe_status === 'PASS') {
-    p.push(on('ELLENTMONDÁS: a verdikt `CAUGHT`, de a nevezett próba `PASS` — átment próba nem kap el semmit'));
-  }
+  // A PRÓBA-ÁLLAPOT: JELEN VAN? ISMERT? ILLIK A VERDIKTHEZ ÉS A MUTÁCIÓ FAJTÁJÁHOZ? (R83/F01)
+  // A régi alak EGYETLEN párost tiltott (`CAUGHT` + `PASS`), tehát a HIÁNYZÓ és az ISMERETLEN
+  // állapot némán átment. A döntést nevezett feloldó hozza, hogy a pin ugyanazt hívhassa (KUKA-009).
+  const st = probeStatusProblem(r, { kind: mutation ? (mutation.expect || 'probe_fail') : null });
+  if (st) p.push(on(st));
   return p;
 }
 
 /** (2)+(3) A BIJEKCIÓ ÉS AZ ÖSSZESÍTŐK — A RÉSZLETES EREDMÉNYBŐL. */
-function measureUnit(u, { file, today }) {
+function measureUnit(u, { file, today, registry }) {
   const problems = [];
   const details = Array.isArray(u.mutation_results) ? u.mutation_results : [];
-  for (const [i, r] of details.entries()) problems.push(...resultProblems(r, i, { file, today }));
+  for (const [i, r] of details.entries()) {
+    const mutation = (isPlainObject(r) && isText(r.mutation_id) && registry.get(r.mutation_id)) || null;
+    problems.push(...resultProblems(r, i, { file, today, mutation }));
+  }
 
   const declared = Array.isArray(u.mutation_ids) ? u.mutation_ids : [];
   const declaredSet = new Set(declared);
@@ -293,14 +403,17 @@ export function chainBacking(rows, detailsById) {
  * @param {Array<{file:string}>} units  a beolvasott egység-fájlok (mindegyiken `file` a fájlnév)
  * @param {object} ctx
  *   - today        a MA mért forrás-lenyomat (az összefűzés maga méri, nem a beadványból veszi)
- *   - mutationIds  a mai regiszter MINDEN mutáció-azonosítója
+ *   - mutations    a MAI mutáció-regiszter (`{id, catcher, expect}` elemek) — innen jön a lefedettség
+ *                  elvárt halmaza ÉS a szerződés fajtája is; EGY forrás, nem kettő (KUKA-003)
  *   - pinned       { required: {version, clauses, expected_state}, contract: {version, digest}, index_digest }
  */
-export function admitUnits(units, { today, mutationIds, pinned }) {
+export function admitUnits(units, { today, mutations, pinned }) {
   const problems = [];
   const perUnit = [];
   const allDetails = [];
   const tokenOwner = new Map();
+  const registry = new Map((mutations || []).filter((m) => m && isText(m.id)).map((m) => [m.id, m]));
+  const mutationIds = [...registry.keys()];
 
   for (const u of units) {
     const file = u.file || '(névtelen)';
@@ -316,7 +429,7 @@ export function admitUnits(units, { today, mutationIds, pinned }) {
       problems.push(`[${file}] a fájlnév és a benne álló egység-jelölés KÜLÖNBÖZIK (${u.unit.k}/${u.unit.n})`);
     }
     problems.push(...pinnedProblems(u, { file, pinned }));
-    const measured = measureUnit(u, { file, today });
+    const measured = measureUnit(u, { file, today, registry });
     problems.push(...measured.problems);
     for (const r of measured.details) {
       if (!isPlainObject(r) || !isText(r.run_token)) continue;

@@ -43,7 +43,12 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 // A PROGRAM-REGISZTER ÉS AZ ESET-SZEMLE KÜLÖN MODULBAN ÁLL (EXT-02, R59/F02), hogy a verifier
 // HÍVHASSA ugyanazt a döntést, amit a futtató használ — ne a forrás szövegét olvassa (KUKA-009).
-import { PROGRAMS, auditCases, auditEvidenceArtifact, runScope } from './case-manifest.mjs';
+import {
+  PROGRAMS, auditCases, auditEvidenceArtifact, runScope,
+  // A KÖRNYEZETI KIHAGYÁS FELTÉTELEI (R83/F03): a MÉRT kudarc-fajta és a felmentés döntése is
+  // nevezett feloldóban áll, hogy a pin ugyanazt hívhassa, amit a futtató használ (KUKA-009).
+  measuredFailureKind, environmentalObstacle,
+} from './case-manifest.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));   // v3ref/external-checks
 const REF = resolve(HERE, '..');                        // v3ref
@@ -218,9 +223,23 @@ for (const p of selected) {
   if (q.status !== 0) audit.problems.push(`[${p.id}] a program NEM NULLÁVAL zárt (kilépés ${q.status})`);
   if (q.error) audit.problems.push(`[${p.id}] a futtatás elszállt: ${q.error.message || q.error}`);
 
+  // A KUDARC FAJTÁJA A NYERS EREDMÉNYBŐL (R83/F03) — itt, ahol az esetek és a folyamat állapota még
+  // kéznél van. A környezeti kihagyás DÖNTÉSE lentebb születik, de az ADAT itt keletkezik: a
+  // felmentés csak bizonyított akadályra állhat, tehát mérni kell, MI akadt el.
+  const failure = measuredFailureKind(p, {
+    cases, audit, artifactOk: artifact.ok, exitCode: q.status,
+    spawnError: q.error ? String(q.error.code || q.error.message || q.error) : null,
+    // A KÉT TANÚ: a program SAJÁT hibaszövege és a FUTTATÓ mért ideje. Az elsőt a program írja
+    // (tehát állítás), a másodikat mi mérjük — környezeti akadályt csak a kettő EGYÜTT igazol.
+    stderr: q.stderr || '', elapsedMs: ms,
+  });
+
   summary.push({
     id: p.id, file: p.file, by: p.by, origin: p.origin,
     exit: q.status, ms,
+    // A NYERS EREDMÉNY MEGMARAD (a külső fél kimondott kérése): a kudarc fajtája és esetenkénti
+    // indoka akkor is a gépi kimenetben áll, ha a program végül környezeti kihagyást kap.
+    failure_kind: failure.kind, failure_why: failure.why, failure_rows: failure.rows,
     expected_cases: [...p.cases], expected_from: p.cases_source,
     evidence_file: p.evidence, evidence_present: artifact.present, evidence_pin: artifact.pin,
     total: cases ? cases.length : null,
@@ -258,23 +277,32 @@ const scope = runScope(selected.map((p) => p.id), PROGRAMS.map((p) => p.id));
 // környezetem" MÉRÉS, nem következtetés). Az R81-ben a külső fél ADAPTÁLT változatot küldött, ami
 // UGYANAZOKAT az eseteket futtatja darabolt battériával — és az ZÖLD.
 //
-// A KIHAGYÁS EZÉRT FELTÉTELES, NEM MENTESSÉG (KUKA-041 · KUKA-122). Három feltétel EGYÜTT:
-//   (1) a bejegyzés KIMONDJA a technikai akadályt (`env_limit`) és MEGNEVEZI a helyettest;
-//   (2) a helyettes ebben a futásban BENNE VOLT;
-//   (3) a helyettes ZÖLD.
+// A KIHAGYÁS EZÉRT FELTÉTELES, NEM MENTESSÉG (KUKA-041 · KUKA-122). NÉGY feltétel EGYÜTT:
+//   (1) a bejegyzés KIMONDJA a technikai akadályt (`env_limit`) — FAJTÁVAL, a zárt készletből;
+//   (2) MEGNEVEZI a helyettest, és az ebben a futásban BENNE VOLT;
+//   (3) a helyettes ZÖLD;
+//   (4) és a program TÉNYLEGES kudarca MÉRVE ugyanaz a fajta, mint amit a bejegyzés bejelentett.
 // Bármelyik hiánya ⇒ a program ÚGY piros, mintha nem is volna helyettese.
+//
+// A (4) AZ R83/F03 JAVÍTÁSA. Nélküle a felmentés a `superseded_by` + `env_limit` MEGLÉTÉN állt,
+// tehát egy VALÓDI assertion-hibát is felmentett — a külső fél ezt szintetikus futtatással
+// bizonyította (`exit 0` · `verdict.ok: true` · `env_skipped: 1` egy „NOT a timeout" indokú
+// bukásra). A döntést innentől nevezett feloldó hozza, a MÉRT kudarc-fajtából.
 const byId = new Map(summary.map((s) => [s.id, s]));
 for (const s of summary) {
   const p = selected.find((x) => x.id === s.id);
-  if (s.ok || !p || !p.superseded_by || !p.env_limit) continue;
-  const sub = byId.get(p.superseded_by);
-  if (sub && sub.ok) {
+  if (s.ok || !p) continue;
+  if (!p.superseded_by && !p.env_limit) continue;      // nincs bejelentett akadály — nincs mit mérni
+  const sub = byId.get(p.superseded_by) || null;
+  const obstacle = environmentalObstacle(p, { kind: s.failure_kind, why: s.failure_why }, sub);
+  s.env_obstacle = obstacle;
+  if (obstacle.excusable) {
     s.env_skipped = true;
-    s.env_limit = p.env_limit;
+    s.env_limit = p.env_limit.why;
+    s.env_limit_kind = obstacle.declared_kind;
     s.superseded_by = p.superseded_by;
   } else {
-    s.problems.push(`[${s.id}] a megnevezett helyettes (${p.superseded_by}) `
-      + `${sub ? 'NEM zöld' : 'ebben a futásban NEM futott'} — a környezeti kihagyás ezért NEM áll`);
+    s.problems.push(`[${s.id}] a környezeti kihagyás NEM áll: ${obstacle.why}`);
   }
 }
 const envSkipped = summary.filter((s) => s.env_skipped);
@@ -307,6 +335,8 @@ if (scope.skipped.length) console.log(`  NEM futott:     ${scope.skipped.join(' 
 console.log(`  összesítő fájl: ${indexPath}`);
 for (const s of envSkipped) {
   console.log(`  ENV-KIHAGYÁS:   ${s.id} — ez a program EBBEN A KÖRNYEZETBEN nem futtatható végig.`);
+  console.log(`                  bejelentett akadály: ${s.env_limit_kind} · MÉRVE: ${s.env_obstacle.measured_kind}`);
+  console.log(`                  ${s.failure_why}`);
   console.log(`                  ${s.env_limit}`);
   console.log(`                  helyette MÉRVE: ${s.superseded_by} (zöld)`);
 }

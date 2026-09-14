@@ -132,18 +132,23 @@ export const REVOCATION_NORMS = Object.freeze([
         covers: Object.freeze(['K08']),
         text: 'A HATÁLY ideje és a TUDOMÁS (rögzítés) ideje két külön tengely, és külön-külön '
           + 'lekérdezhető: „március, ahogy márciusban tudtuk" ⊥ „március, ahogy ma tudjuk".',
-        gap: 'A mai `membership.revoked_at` EGYETLEN időpont, tehát a két tengelyt nem tudja '
-          + 'szétválasztani — ez a KUKA-002 alakja a megvonáson. Nincs esemény-fajta a múltbeli '
-          + 'hatályú, mai rögzítésű helyesbítésre, és nincs nézet, ami a két alakot külön '
-          + 'reprodukálná.',
+        // A GAP AZ R83-BAN ZÁRULT (BIT-01). A régi szöveg — „a mai `membership.revoked_at` EGYETLEN
+        // időpont, tehát a két tengelyt nem tudja szétválasztani; nincs esemény-fajta a múltbeli
+        // hatályú, mai rögzítésű helyesbítésre, és nincs nézet, ami a két alakot külön
+        // reprodukálná" — MINDHÁROM pontján megszűnt: a `membershipAsOf({validAt, knownAt})` a
+        // naplóból számol, a `recordRetroactiveInvalidity` az ÚJ esemény-fajta, a `revoked_at`
+        // oszlop pedig a MAI tudás vetülete lett, nem az igazság otthona. A gap és a bizonyíték
+        // KIZÁRJÁK egymást (a norma-kapu ezt méri) — ezért nem „kiegészítettük", hanem TÖRÖLTÜK.
       }),
       Object.freeze({
         id: 'REV-N2b',
         covers: Object.freeze(['K08', 'K09']),
         text: 'A visszamenőleges érvénytelenség nem írja át a régi rekordot: az érintett műveletek '
           + 'NEVESÍTETT felülvizsgálati körbe kerülnek, az eredeti történet érintetlenül marad.',
-        gap: 'Nincs „felülvizsgálati kör" fogalom a magban: se állapota, se listája, se lezárása. '
-          + 'A REV-N2a idő-modellje nélkül nem is számolható ki, MELY műveletek érintettek.',
+        // A GAP AZ R83-BAN ZÁRULT (BIT-01). A régi szöveg azt mondta, hogy „nincs »felülvizsgálati
+        // kör« fogalom a magban: se állapota, se listája, se lezárása" — ma mind a három van
+        // (`review_circle` + `review_circle_member`, `open`/`closed` állapot, `closeReviewCircle`
+        // külön hatáskörrel), és a tagság a REV-N2a idő-modelljéből SZÁMÍTOTT, nem kézzel sorolt.
       }),
     ]),
   }),
@@ -512,18 +517,26 @@ export const NORM_FLOORS = Object.freeze({
  * nyitott, és a lánc kimondja. A készlet bővítése tudatos lépés, nem mellékhatás.
  */
 export const REQUIRED_EVIDENCE = Object.freeze({
-  version: 'req-3',
-  since: 'R71',
+  version: 'req-4',
+  since: 'R83',
   clauses: Object.freeze(['REV-N1a', 'REV-N1b', 'ORG-N2a', 'REV-N3a', 'REV-N3b', 'REV-N3c',
-    'REV-N5a', 'REV-N5b', 'REV-N5c']),
-  why: 'ez a KILENC klauzula az, amire bizonyítékot VÁLLALUNK (a mutációs battéria megbuktatja a '
+    'REV-N5a', 'REV-N5b', 'REV-N5c', 'REV-N2a', 'REV-N2b']),
+  why: 'ez a TIZENEGY klauzula az, amire bizonyítékot VÁLLALUNK (a mutációs battéria megbuktatja a '
     + 'deklarált állításukat). A többi klauzula nyitott — a hiányuk nem futási hiba, de kimondott.',
   // A BŐVÍTÉS TUDATOS LÉPÉS, nem mellékhatás (KUKA-045). A feltételt az R60 ELŐRE kimondta:
   // „mind a három klauzulának van olyan mutációs bizonyítéka, ami a SAJÁT deklarált állítását
   // buktatja meg" — MÉRVE (R65): REV-N3a és REV-N3c ⇒ M50 · REV-N3b ⇒ M53. Innentől a hiányuk
   // FUTÁSI HIBA, nem nevesített nyitottság: aki visszabontja a hatáskör- vagy az olvasás-kaput,
   // annak PIROS a futása, nem „eggyel kevesebb fedett klauzula".
-  promoted_in: 'R71',
+  promoted_in: 'R83',
+  // A req-4 BŐVÍTÉSE — MÉRVE, NEM ÍGÉRVE (R83 §7). A feltételt az R71 ELŐRE kimondta: „mindkét
+  // klauzulának van olyan mutációs bizonyítéka, ami a SAJÁT deklarált állítását buktatja meg".
+  // MÉRVE a 104 mutációs futáson: REV-N2a mind a NÉGY deklarált állítása fedett (M100 · M101 ·
+  // M103 — az M102 és az M101 ugyanazt a jövőbeli-hatály ágat is buktatja), REV-N2b mind a NÉGY
+  // szintén (M104 · M105 — az M106 és az M107 ugyanazokat az ágakat erősíti meg). A bővítés
+  // TUDATOS lépés: innentől e két klauzula hiánya FUTÁSI HIBA, nem nevesített nyitottság.
+  promoted_r4_because: 'R83: a REV-N2a/b MIND A NYOLC deklarált állítására van nevezett '
+    + 'falszifikáló mutáció (M100–M107), és a battéria 104/104 elkapással zárt.',
   promoted_because: 'a req-2 feltétele MÉRVE teljesült (R65): REV-N3a ⇒ M50 · REV-N3b ⇒ M53 · '
     + 'REV-N3c ⇒ M50. A req-3 feltétele MÉRVE teljesült (R71): a REV-N5 MINDHÁROM klauzulájának '
     + 'MINDEN deklarált állítását megbuktatja egy-egy NEVEZETT mutáció — REV-N5a ⇒ M67 (a hatás: '
@@ -550,60 +563,62 @@ export const REQUIRED_EVIDENCE = Object.freeze({
  * nem emlékeztető, hanem MENETREND).
  */
 export const NEXT_REQUIRED_EVIDENCE = Object.freeze({
-  version: 'req-4',
-  committed_in: 'R71',
-  clauses: Object.freeze(['REV-N2a', 'REV-N2b']),
+  version: 'req-5',
+  committed_in: 'R83',
+  clauses: Object.freeze(['ORG-N1a', 'ORG-N1b']),
   becomes_required_when: 'mindkét klauzulának van olyan mutációs bizonyítéka, ami a SAJÁT '
-    + 'deklarált állítását buktatja meg — addig a `req-3` a kötelező készlet, és ezek NYITOTTAK',
+    + 'deklarált állítását buktatja meg — addig a `req-4` a kötelező készlet, és ezek NYITOTTAK',
   // A SORREND AZ R53 §7-BŐL JÖN, változatlanul: REV-N3 → REV-N5 → REV-N2 → ORG-N1 → ORG-N3 → REV-N4.
-  // A REV-N3 az R65-ben (req-2), a REV-N5 az R71-ben (req-3) lezárult — a soron következő a REV-N2:
-  // a VISSZAMENŐLEGES ÉRVÉNYTELENSÉG két idő-tengelye.
+  // A REV-N3 az R65-ben (req-2), a REV-N5 az R71-ben (req-3), a REV-N2 az R83-ban (req-4) lezárult —
+  // a soron következő az ORG-N1: A FELHATALMAZÁS ALAPJA, azonosítóval, verzióval és korláttal.
   //
-  // MIÉRT ÉPP MOST LEHET. A REV-N2a saját gap-szövege szerint a mai `revoked_at` EGYETLEN időpont,
-  // tehát a HATÁLY és a TUDOMÁS tengelyét nem tudja szétválasztani (KUKA-002 a megvonáson). A REV-N5
-  // most épült tiltás-modellje ugyanezt a hibát NEM ismétli meg — a `subject_ban` már eseményként
-  // él —, de a két tengely szétválasztása külön munka, és a REV-N2b felülvizsgálati köre RÁÉPÜL.
+  // MIÉRT ÉPP MOST LEHET. Az ORG-N1a saját gap-szövege szerint a mai `invite.issuer_subject`
+  // EGYETLEN SZEMÉLYRE mutat, és a jogalapot a `rightAt` MAI válasza adja: se határozat-azonosító,
+  // se verzió, se hatály nincs tárolva — a kiadott meghívó tehát nem tudja megmondani, MI ALAPJÁN
+  // adták ki. A REV-N2-ben most megépült KÉT IDŐ-TENGELY ennek az előfeltétele volt: egy
+  // határozatnak SAJÁT hatálya van, és a róla szerzett tudomás KÉSŐBB érkezhet — enélkül az
+  // „érvényes volt-e a határozat, amikor a meghívót kiadták?" kérdés nem is fogalmazható meg.
   //
   // A TERV ELŐRE ÁLL, MIELŐTT EGYETLEN SOR KÓD MEGSZÜLETNE — különben a mérce a megépült dologhoz
   // igazodna, és a próba a saját előfeltevését igazolná vissza (KUKA-054).
   order: Object.freeze([
     Object.freeze({
       n: 1,
-      clauses: Object.freeze(['REV-N2a']),
-      what: 'a KÉT IDŐ-TENGELY szétválasztása — a HATÁLY ideje és a TUDOMÁS (rögzítés) ideje',
-      situation: 'Márciusban elfogadunk egy képviseleti alapot, és a rá épülő művelet lefut. '
-        + 'Júniusban bizonyíték érkezik, hogy az alap MÁR MÁRCIUSBAN érvénytelen volt.',
-      property: 'a rendszer KÉT KÜLÖN kérdésre két KÜLÖNBÖZŐ, egyaránt igaz választ ad: „március, '
-        + 'ahogy MÁRCIUSBAN tudtuk" (a művelet jogos volt) ⊥ „március, ahogy MA tudjuk" (az alap '
-        + 'érvénytelen volt) — és egyik válasz sem írja felül a másikat',
-      proof: 'P-REV-bitemporal: (a) a márciusi lekérdezés a júniusi rögzítés UTÁN is a márciusi '
-        + 'képet adja · (b) a mai lekérdezés a helyesbített képet adja · (c) ELLENPÁR: egy '
-        + 'JÖVŐBELI hatályú helyesbítés a mai képet NEM változtatja meg. Mutáció: a két tengely '
-        + 'összevonása egyetlen időpontba (ez az (a) felet buktatja — a márciusi kép visszamenőleg '
-        + 'átíródna) · a rögzítés idejének figyelmen kívül hagyása (ez a (b) felet).',
+      clauses: Object.freeze(['ORG-N1a']),
+      what: 'a FELHATALMAZÁS ALAPJA: határozat-azonosító, VERZIÓ és HATÁLY — nem csak a kibocsátó személye',
+      situation: 'A cégvezető márciusi határozata felhatalmaz egy munkatársat meghívók kiadására. '
+        + 'A határozatot júniusban ÚJ VERZIÓRA cserélik. Egy márciusban kiadott meghívót ma váltanak be.',
+      property: 'a kiadott meghívó megmondja, MELYIK határozat MELYIK VERZIÓJA alapján és MILYEN '
+        + 'HATÁLLYAL adták ki; a beváltás a KIADÁSKOR hatályos alaphoz mér, nem a mai szöveghez — '
+        + 'és a lejárt vagy visszavont alapra épülő meghívó NEVEZETT elutasítást kap',
+      proof: 'P-ORG-basis: (a) a kiadott meghívó hordozza az alap azonosítóját, verzióját és '
+        + 'hatályát · (b) a határozat ÚJ VERZIÓJA nem írja át a már kiadott meghívó alapját '
+        + '(REV-N1b tartalmi mércéjével mérve) · (c) ELLENPÁR: a HATÁLYOS alapra épülő meghívó '
+        + 'változatlanul beváltható. Mutáció: az alap-azonosító elhagyása (az (a)-t buktatja) · a '
+        + 'verzió figyelmen kívül hagyása a beváltásnál (a (b)-t) · a lejárt alap elfogadása (a (c) '
+        + 'ellenpárját fordítja meg).',
     }),
     Object.freeze({
       n: 2,
-      clauses: Object.freeze(['REV-N2b']),
-      what: 'a NEVESÍTETT felülvizsgálati kör — az eredeti történet érintetlen marad',
-      situation: 'A júniusi helyesbítés után: mely márciusi műveletek érintettek, és mi történik '
-        + 'velük?',
-      property: 'az érintett műveletek NEVESÍTETT, állapottal és lezárással bíró felülvizsgálati '
-        + 'körbe kerülnek; az eredeti rekordjuk MINDEN mezője változatlan (a REV-N1b tartalmi '
-        + 'mércéjével mérve), és a kör LEZÁRÁSA külön, hatáskörhöz kötött esemény',
-      proof: 'P-REV-review-circle: (a) a kör tagsága a REV-N2a idő-modelljéből SZÁMÍTOTT, nem '
-        + 'kézzel felsorolt · (b) tartalmi pillanatkép: az eredeti műveletek változatlanok · '
-        + '(c) ELLENPÁR: a NEM érintett műveletek nem kerülnek a körbe. Mutáció: a helyesbítés '
-        + 'ÁTÍRJA az eredeti rekordot · a kör MINDEN műveletet bevesz (a „biztonság kedvéért '
-        + 'mindent" alak — a KUKA-092 rokona).',
+      clauses: Object.freeze(['ORG-N1b']),
+      what: 'a KORLÁT: a felhatalmazás nem lehet tágabb, mint az alapja (szerep · művelet · adatkör)',
+      situation: 'A határozat CSAK „user" szerepre és CSAK a készlet-adatkörre hatalmaz fel. A '
+        + 'meghívó kiadója „admin" szerepet és árlista-hozzáférést próbál adni.',
+      property: 'a kiadás NEVEZETTEN elakad a korláton; a korlát a KIADOTT meghívón is látszik, és '
+        + 'a beváltás sem tud tágabb jogot adni, mint amit az alap megenged',
+      proof: 'P-ORG-basis-limit: (a) a korláton túli szerep/művelet/adatkör kiadása elutasítás · '
+        + '(b) a korláton BELÜLI kiadás változatlanul megy (ELLENPÁR — a kapu nem fal, KUKA-122) · '
+        + '(c) a beváltás a korlátot is átviszi, nem csak a szerepet. Mutáció: a korlát-ellenőrzés '
+        + 'elvétele a kiadásnál · a korlát elvesztése a beváltásnál (a papíron látszó szűkítés, '
+        + 'amit semmi nem kényszerít ki — KUKA-041).',
     }),
     Object.freeze({
       n: 3,
-      clauses: Object.freeze(['REV-N2a', 'REV-N2b']),
-      what: 'a két klauzula BEEMELÉSE a kötelező készletbe (req-3 → req-4)',
+      clauses: Object.freeze(['ORG-N1a', 'ORG-N1b']),
+      what: 'a két klauzula BEEMELÉSE a kötelező készletbe (req-4 → req-5)',
       situation: 'A következő kör futtatója zöldet mond — de csak akkor, ha ezek is állnak.',
-      property: 'a `REQUIRED_EVIDENCE.clauses` tizenegyre nő, és a hiányuk innentől FUTÁSI HIBA',
-      proof: 'a bővítés TUDATOS lépés (KUKA-045) — a `version` `req-4`-re vált, és a futás kiírja, '
+      property: 'a `REQUIRED_EVIDENCE.clauses` tizenháromra nő, és a hiányuk innentől FUTÁSI HIBA',
+      proof: 'a bővítés TUDATOS lépés (KUKA-045) — a `version` `req-5`-re vált, és a futás kiírja, '
         + 'mi került be.',
     }),
   ]),
@@ -1022,6 +1037,52 @@ export function dischargeMap(probes) {
     }
   }
   return byClause;
+}
+
+/**
+ * A KANONIKUS ELVÁRT LÁNC-SOROK (R83/F02) — a RÖGZÍTETT szerződésből, nem a beadványból.
+ *
+ * MIÉRT SZÜLETETT. Az összefűzés a klauzulánkénti ítéletet a LEGGYENGÉBB állítás-sorra bízza
+ * (R81) — ez helyes irány, de csak a JELEN LÉVŐ sorok között működik. A külső fél (chatgpt-v3,
+ * R83 §4) a valódi egységeink MINDEGYIKÉBŐL kivette UGYANAZT az egy REV-N3a állítás-sort: a lánc
+ * 49 helyett 48 sorból állt, és az eredmény változatlanul `clean: true` · 9/9 kötelező készlet
+ * lett. A hiányzó sor ugyanis nem lesz GYENGE sorrá — egyszerűen eltűnik a számításból.
+ *
+ * MIT AD EZ A FÜGGVÉNY. Ugyanazt a (klauzula, állítás, próba) hármas-halmazt, amit a `checkNorms`
+ * bejár: a klauzulákat a normaregiszter (`ALL_NORMS`) adja, a beváltó állítás/próba párokat a
+ * MANIFEST (`dischargeMap`). Egy klauzula, amit egyetlen próba sem vált be, EGY sort ad
+ * `assertion_id: null` · `probe_id: null` alakkal — pontosan úgy, ahogy a `checkNorms` is teszi.
+ *
+ * MIÉRT NEM A DARABSZÁM. A „49 sornak kell lennie" alakú őr ELLENPÉLDÁVAL megkerülhető: egy sort
+ * elvéve és egy idegent betéve a szám stimmel (a külső fél maga mondta ki, hogy a szám beégetése
+ * nem elegendő). Ezért AZONOSSÁGOT mérünk, nem mennyiséget — hiányzó · idegen · a darabolás miatt
+ * legitim ismétlés mind KÜLÖN válasz (KUKA-045 · KUKA-124/2).
+ *
+ * @param {Array} probes  a manifest próba-listája (`EXPECTED_PROBES`)
+ * @returns {Array<{norm_id:string, clause_id:string, assertion_id:string|null, probe_id:string|null}>}
+ */
+export function expectedChainRows(probes) {
+  const byClause = dischargeMap(probes);
+  const rows = [];
+  for (const n of ALL_NORMS) {
+    for (const c of (Array.isArray(n.clauses) ? n.clauses : [])) {
+      if (!c || !c.id) continue;
+      const decls = byClause.get(c.id) || [];
+      if (!decls.length) {
+        rows.push(Object.freeze({ norm_id: n.id, clause_id: c.id, assertion_id: null, probe_id: null }));
+        continue;
+      }
+      for (const d of decls) {
+        rows.push(Object.freeze({ norm_id: n.id, clause_id: c.id, assertion_id: d.assertion, probe_id: d.probe }));
+      }
+    }
+  }
+  return Object.freeze(rows);
+}
+
+/** A LÁNC-SOR KULCSA — EGY helyen képezve, hogy az író és az olvasó ne tudjon elcsúszni (KUKA-018). */
+export function chainRowKey(row) {
+  return `${row && row.clause_id}|${row && row.assertion_id}|${row && row.probe_id}`;
 }
 
 /** SAJÁT kulcson áll-e — az ÖRÖKÖLT (prototípus-láncbeli) név nem válasz a kérdésre. */

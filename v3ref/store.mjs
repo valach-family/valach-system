@@ -365,6 +365,45 @@ CREATE TABLE disclosure (
 --   · EGYEDISÉG a (parancs × esemény) páron ⇒ egy véglegesítéshez EGY nyugta.
 -- Amit a séma nem tud (a nyugta ÁLLAPOTA és HATÁSAZONOSÍTÓJA egyezzen a parancséval, és a hívás
 -- a véglegesítés tranzakciójából jöjjön), azt az író recordCommandEvent kényszeríti ki.
+-- ═══ REV-N2 — A KÉT IDŐ-TENGELY FELÜLVIZSGÁLATI KÖRE (BIT-01, R83 §7) ═══════════════════════
+--
+-- MIÉRT SAJÁT TÁBLA. A visszamenőleges érvénytelenség nem írja át a múltat: az érintett műveletek
+-- NEVESÍTETT körbe kerülnek, és a kör SAJÁT állapottal, saját lezárással él. Ha ez a tény a
+-- parancs sorára kerülne (pl. egy "under_review" állapot), akkor a helyesbítés ÁTÍRNÁ az eredeti
+-- rekordot — pontosan az, amit a REV-N2b tilt (REV-N1b: a múlt TARTALMA is sértetlen).
+--
+-- A TAGSÁG SZÁMÍTOTT, DE RÖGZÍTETT. A kör tagjait a két tengely különbsége adja (BIT-01
+-- reviewCircleFor), és a számítás eredménye BELEÍRÓDIK — mert a kör egy adott TUDÁS-állapot
+-- pillanatképe; ha később újraszámolnánk, a kör tartalma némán változna a naplóval együtt
+-- (KUKA-090: amit a másolás/újraszámolás felülír, arra nem szabad döntést építeni).
+--
+-- IDEGEN KULCS a parancs elsődleges kulcsára ⇒ árva kör-tag lehetetlen; EGYEDISÉG a
+-- (kör × parancs) páron ⇒ egy művelet egy körben egyszer szerepel.
+CREATE TABLE review_circle (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject_id         TEXT NOT NULL,
+  book_id            TEXT NOT NULL,
+  basis_effective_at TEXT NOT NULL,
+  basis_recorded_at  TEXT NOT NULL,
+  evidence_ref       TEXT NOT NULL,
+  opened_at          TEXT NOT NULL,
+  opened_by          TEXT NOT NULL,
+  closed_at          TEXT,
+  closed_by          TEXT,
+  outcome_ref        TEXT,
+  UNIQUE (subject_id, book_id, basis_effective_at, basis_recorded_at)
+);
+
+CREATE TABLE review_circle_member (
+  circle_id     INTEGER NOT NULL REFERENCES review_circle(id),
+  book_id       TEXT NOT NULL,
+  actor         TEXT NOT NULL,
+  idem_key      TEXT NOT NULL,
+  finalized_at  TEXT NOT NULL,
+  UNIQUE (circle_id, book_id, actor, idem_key),
+  FOREIGN KEY (book_id, actor, idem_key) REFERENCES command (book_id, actor, idem_key)
+);
+
 CREATE TABLE command_event (
   id        INTEGER PRIMARY KEY AUTOINCREMENT,
   book_id   TEXT NOT NULL,

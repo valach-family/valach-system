@@ -199,6 +199,29 @@ export const EXPECTED_PROBES = Object.freeze([
     ]),
   }),
   Object.freeze({
+    id: 'P-REV-bitemporal', assertion: 'REVN2-two-time-axes-are-separate',
+    // R83 §7 (req-4, 1. lépés). A külső fél KÉTSZER kérte a REV-N2a/b érdemi feldolgozását; a terv
+    // a `NEXT_REQUIRED_EVIDENCE.order`-ben állt, MIELŐTT a kód megszületett (KUKA-054). A klauzula
+    // `gap`-je ezzel a körrel szűnik meg — a kettő nem állhat egyszerre (a norma-kapu ezt méri).
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N2a', assertion: 'A-REV-N2a-past-view-survives-later-recording' }),
+      Object.freeze({ clause: 'REV-N2a', assertion: 'A-REV-N2a-present-view-reflects-the-correction' }),
+      Object.freeze({ clause: 'REV-N2a', assertion: 'A-REV-N2a-future-dated-correction-does-not-move-today' }),
+      Object.freeze({ clause: 'REV-N2a', assertion: 'A-REV-N2a-recording-needs-authority-and-evidence' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'P-REV-review-circle', assertion: 'REVN2-review-circle-is-computed-and-closed',
+    // R83 §7 (req-4, 2. lépés). A kör tagsága SZÁMÍTOTT (a két tengely különbsége), az eredeti
+    // történet tartalmilag érintetlen, és a LEZÁRÁS külön, hatáskörhöz kötött esemény.
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N2b', assertion: 'A-REV-N2b-circle-membership-is-computed' }),
+      Object.freeze({ clause: 'REV-N2b', assertion: 'A-REV-N2b-original-history-is-untouched' }),
+      Object.freeze({ clause: 'REV-N2b', assertion: 'A-REV-N2b-unaffected-operations-stay-out' }),
+      Object.freeze({ clause: 'REV-N2b', assertion: 'A-REV-N2b-closing-is-a-separate-authorised-event' }),
+    ]),
+  }),
+  Object.freeze({
     id: 'P-REV-effectuation', assertion: 'REVN2-effectuation-point-is-explicit',
     // R77/F01. A külső tárgyaló fél mérte meg, hogy a három hatáskör-igényes író KÉTSZER olvas órát:
     // a döntés az elsőn, a rögzített hatás időbélyege a másodikon. A javítás EGY nevezett

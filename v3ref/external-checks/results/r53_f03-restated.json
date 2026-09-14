@@ -1,7 +1,7 @@
 {
   "program": "f03-restated.mjs",
-  "pin": "eb4d83bc1265e5a535309f9b8717cd6576483bc0+uncommitted",
-  "at": "2026-09-14T16:27:05.172Z",
+  "pin": "594f49f7eb8d1b74d3dbd577aeabdffea09dcb7e+uncommitted",
+  "at": "2026-09-14T18:48:36.013Z",
   "node": "v22.22.2",
   "cases": [
     {
@@ -14,7 +14,7 @@
         "NORMA/REV-N1/REV-N1a: a(z) P-A04 próba NEM adta ki a deklarált állítást: A-REV-N1a-dependent-new-op-and-release-blocked",
         "PRÓBA/P-CMD-finalize-gate: kiadott egy állítás-azonosítót, amit a manifest nem deklarál: A-REV-N1a-dependent-new-op-and-release-blocked — a bizonyíték-kötés fél maradt (KUKA-039)"
       ],
-      "stderr": "A NORMA-BIZONYÍTÉK INDEX HIBÁS — a regiszter magáról állít valótlant: |   · NORMA/REV-N1/REV-N1a: a(z) P-A04 próba NEM adta ki a deklarált állítást: A-REV-N1a-dependent-new-op-and-release-blocked |   · PRÓBA/P-CMD-finalize-gate: kiadott egy állítás-azonosítót, amit a manifest nem deklarál: A-REV-N1a-dependent-new-op-and-release-blocked — a bizonyíték-kötés fél maradt (KUKA-039) | (node:4385) ExperimentalWarning: SQLite is an experimental feature and might change at any time"
+      "stderr": "A NORMA-BIZONYÍTÉK INDEX HIBÁS — a regiszter magáról állít valótlant: |   · NORMA/REV-N1/REV-N1a: a(z) P-A04 próba NEM adta ki a deklarált állítást: A-REV-N1a-dependent-new-op-and-release-blocked |   · PRÓBA/P-CMD-finalize-gate: kiadott egy állítás-azonosítót, amit a manifest nem deklarál: A-REV-N1a-dependent-new-op-and-release-blocked — a bizonyíték-kötés fél maradt (KUKA-039) | (node:13569) ExperimentalWarning: SQLite is an experimental feature and might change at any time"
     },
     {
       "id": "G02",
@@ -25,6 +25,14 @@
       "pending_clauses": [
         "REV-N1a",
         "REV-N1b",
+        "REV-N2a",
+        "REV-N2a",
+        "REV-N2a",
+        "REV-N2a",
+        "REV-N2b",
+        "REV-N2b",
+        "REV-N2b",
+        "REV-N2b",
         "REV-N3a",
         "REV-N3a",
         "REV-N3a",
@@ -79,10 +87,13 @@
           "id": "REV-N2",
           "clauses_total": 2,
           "clauses_covered": 0,
-          "clauses_pending": 0,
+          "clauses_pending": 2,
           "covered_clause_ids": [],
-          "pending_clause_ids": [],
-          "state": "planned"
+          "pending_clause_ids": [
+            "REV-N2a",
+            "REV-N2b"
+          ],
+          "state": "pending"
         },
         {
           "id": "REV-N3",

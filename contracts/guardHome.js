@@ -201,6 +201,10 @@ const GUARD_HOME = Object.freeze({
   'KUKA-152': Object.freeze({ home: 'v3', note: 'az adatkiadás hatályosulási pontja a V3 magreferencia `readCommandResult` útján él — a jel a `P-CMD-release-effectuation` próba ITT fut' }),
   'KUKA-153': Object.freeze({ home: 'v3', note: 'a mutációs horgony egyedisége a V3 battéria alkalmazójában él (`applyEdits`)' }),
   'KUKA-154': Object.freeze({ home: 'v3', note: 'a kötelező készlet rangsora a V3 norma-regiszterében és az összefűzésben él' }),
+  'KUKA-155': Object.freeze({ home: 'v3', note: 'a próba-állapot zárt sémája a V3 beadvány-kapujában él (`probeStatusProblem`)' }),
+  'KUKA-156': Object.freeze({ home: 'v3', note: 'az elvárt lánc-sorok a V3 norma-regiszteréből származnak (`expectedChainRows`)' }),
+  'KUKA-157': Object.freeze({ home: 'v3', note: 'a környezeti felmentés mércéje a V3 külső-lánc futtatójában él (`environmentalObstacle`)' }),
+  'KUKA-158': Object.freeze({ home: 'v3', note: 'a felülvizsgálati kör ellenpárja a V3 magreferencia fixtúrájában él (BIT.GRANT · feb-0)' }),
   'KUKA-150': Object.freeze({ home: 'v3', note: 'a RUN-02 futás-szerződés (darabolt futás) a V3 mutációs battériájában él — a jel az r79/U01 külső-ellenőrzés + az egység-fájl `evidence_bound` mezője ITT fut' }),
 });
 

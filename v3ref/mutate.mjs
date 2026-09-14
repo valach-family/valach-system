@@ -73,7 +73,12 @@ import { MUTATIONS } from './mutations.mjs';
 // bizonyíték CSAK a nevezett próba nevezett ÁLLÍTÁSÁNAK bukása.
 
 import { MANIFEST_VERSION, EXPECTED_IDS, EXPECTED_PROBES, PROBE_STATUS, checkResultSet, assertionOf } from './manifest.mjs';
-import { checkNorms, NEXT_REQUIRED_EVIDENCE, REQUIRED_EVIDENCE, indexDigest } from './norms.mjs';
+import {
+  checkNorms, NEXT_REQUIRED_EVIDENCE, REQUIRED_EVIDENCE, indexDigest,
+  // A KANONIKUS ELVÁRT LÁNC (R83/F02): az összefűzés nem a beadott sorokból tudja meg, MELY
+  // soroknak kell ott lenniük — a listát a rögzített norma- és próba-szerződés adja.
+  expectedChainRows, chainRowKey,
+} from './norms.mjs';
 import { contractRef } from './normContract.mjs';
 // MRG-01 (R81/F01–F03) — az ÖSSZEFŰZÉS BEADVÁNY-KAPUJA. Külön modulban áll, hogy a pin HÍVHASSA
 // ugyanazt a döntést, amit a futtató használ (KUKA-009), ne a forrás szövegét olvassa.
@@ -666,7 +671,10 @@ if (MERGE_ONLY) {
   // lesz, és az ELLENTMONDÁS maga a nevezett akadály (KUKA-121 az összefűzésen).
   const admission = admitUnits(units, {
     today,
-    mutationIds: MUTATIONS.map((m) => m.id),
+    // A MAI REGISZTER EGÉSZE megy át, nem csak az azonosítói (R83/F01): a kapu innen tudja meg, mi
+    // az EGYES mutációk szerződése (`probe_fail` · `runtime_error`) és ki a NEVEZETT elkapója —
+    // enélkül a beadott `probe_status` csak önmagával lenne összevethető (KUKA-121).
+    mutations: MUTATIONS,
     pinned: {
       required: { version: REQUIRED_EVIDENCE.version, clauses: REQUIRED_EVIDENCE.clauses, expected_state: 'covered' },
       contract: { version: contractRef().version, digest: contractRef().digest },
@@ -697,11 +705,51 @@ if (MERGE_ONLY) {
   // A LÁNC UNIÓJA: egy klauzula-sor akkor FEDETT, ha BÁRMELYIK egység annak mérte. Az egységek a
   // SAJÁT szülői főkönyvükhöz mérték a bizonyítékot, tehát itt már kész verdikteket egyesítünk —
   // az összefűzés nem minősít újra semmit.
+  //
+  // A SOROK AZONOSSÁGA A RÖGZÍTETT SZERZŐDÉSHEZ MÉRVE (R83/F02). Az egyesítés önmagában csak azt
+  // tudja, ami MEGÉRKEZETT — a külső fél épp ezt használta ki: minden egységből kivette UGYANAZT az
+  // egy REV-N3a állítás-sort, és a lánc 48 sorral is „teljes" maradt, mert a hiányzó sor nem lesz
+  // gyenge sorrá, hanem eltűnik. Innentől az ELVÁRT hármasokat (klauzula · állítás · próba) a mai
+  // norma- és próba-szerződés adja, és a beadott lánc EHHEZ mérődik:
+  //   · HIÁNYZÓ sor  → a lánc `row_missing` sort kap (a leggyengébb rang), és nevezett akadály;
+  //   · IDEGEN sor   → nevezett akadály (a csere így nem fér el a darabszám mögé);
+  //   · ISMÉTLŐDÉS   → EGY egységen belül hiba, TÖBB egység között JOGOS (mindegyik ugyanazt a
+  //                    láncot számolja a saját szeletén — a darabolás következménye, nem hiba).
+  const expectedRows = expectedChainRows(EXPECTED_PROBES);
+  const expectedKeys = new Map(expectedRows.map((r) => [chainRowKey(r), r]));
   const rows = new Map();
-  for (const u of units) for (const c of (u.norm_chain || [])) {
-    const key = `${c.clause_id}|${c.assertion_id}|${c.probe_id}`;
-    const prev = rows.get(key);
-    if (!prev || (prev.result !== 'covered' && c.result === 'covered')) rows.set(key, c);
+  for (const u of units) {
+    const inUnit = new Set();
+    for (const c of (u.norm_chain || [])) {
+      const key = chainRowKey(c);
+      if (inUnit.has(key)) {
+        problems.push(`ISMÉTLŐDŐ lánc-sor EGY egységen belül (${u.file}): ${c.clause_id} → ${c.assertion_id} @ ${c.probe_id}`);
+      }
+      inUnit.add(key);
+      const prev = rows.get(key);
+      if (!prev || (prev.result !== 'covered' && c.result === 'covered')) rows.set(key, c);
+    }
+  }
+  const foreignRows = [...rows.keys()].filter((k) => !expectedKeys.has(k));
+  if (foreignRows.length) {
+    problems.push(`IDEGEN lánc-sor — a mai szerződésben nincs ilyen (klauzula · állítás · próba) hármas `
+      + `(${foreignRows.length}): ${foreignRows.slice(0, 5).join(' · ')}${foreignRows.length > 5 ? ' …' : ''}`);
+  }
+  const missingRows = [...expectedKeys.entries()].filter(([k]) => !rows.has(k));
+  if (missingRows.length) {
+    problems.push(`HIÁNYZÓ lánc-sor — a mai szerződés szerint kötelező, de egyetlen egység sem hozta `
+      + `(${missingRows.length}): ${missingRows.slice(0, 5).map(([k]) => k).join(' · ')}${missingRows.length > 5 ? ' …' : ''}`);
+  }
+  // A HIÁNY A LÁNCBAN IS LÁTSZIK, nem csak a hibalistán: enélkül a klauzula-ítélet ugyanúgy a
+  // megmaradt sorokból születne, és a hiányzó sor megint néma maradna (KUKA-012).
+  for (const [key, want] of missingRows) {
+    rows.set(key, {
+      norm_id: want.norm_id, clause_id: want.clause_id, covers: [],
+      assertion_id: want.assertion_id, probe_id: want.probe_id,
+      mutation_candidates: [], falsified_by: null, evidence_limit: null, content_review: null,
+      result: 'row_missing',
+      why: 'a mai szerződés szerint kötelező lánc-sor, de EGYETLEN beadott egység sem hozta (MRG-01 · R83/F02)',
+    });
   }
   // A FEDETTSÉG VISSZAVEZETVE A RÉSZLETES EREDMÉNYRE (MRG-01 · R81/F01b). Egy sor nem attól fedett,
   // hogy a beadvány így nevezi: a `falsified_by` mutációnak lennie kell a részletes eredmények
@@ -754,11 +802,18 @@ if (MERGE_ONLY) {
         rows: rowsOf(id).filter((c) => c.result !== 'covered').map((c) => `${c.assertion_id} @ ${c.probe_id}: ${c.result}`) }));
     return { version: REQUIRED_EVIDENCE.version, stage: 'measured', expected_state: 'covered',
       source: 'a MAI rögzített szerződés (REQUIRED_EVIDENCE), nem a beadvány',
-      rule: 'klauzulánként a LEGGYENGÉBB állítás-sor dönt — azonos a `checkNorms` kánonjával',
+      rule: 'klauzulánként a LEGGYENGÉBB állítás-sor dönt — azonos a `checkNorms` kánonjával; és a '
+        + 'SOROK HALMAZA is a mai szerződésből jön (R83/F02), tehát a hiányzó sor `row_missing`-ként '
+        + 'a leggyengébb rangot viszi, nem tűnik el a számításból',
+      rows: { expected: expectedRows.length, seen: rows.size, foreign: foreignRows.length, missing: missingRows.length,
+        source: 'ALL_NORMS × a manifest beváltás-deklarációi (expectedChainRows)' },
       clauses, satisfied, missing: missingReq, ok: missingReq.length === 0 };
   })();
   if (!mergedRequired.ok) {
-    problems.push(`hiányzó kötelező bizonyíték (${mergedRequired.missing.map((m) => m.clause_id).join(', ')})`);
+    // A NEMLEGES VÁLASZ MONDJA MEG, MI A BAJ (KUKA-064): a klauzula neve mellé az ÁLLAPOTA is kell —
+    // a `row_missing` (a sor meg sem érkezett) MÁS teendő, mint a `falsification_pending` (megvan,
+    // de nincs mögötte falszifikáció). A kettő összemosása épp az R83/F02 leletét rejtené el.
+    problems.push(`hiányzó kötelező bizonyíték (${mergedRequired.missing.map((m) => `${m.clause_id}: ${m.result}`).join(', ')})`);
   }
   // A TISZTASÁG IS MÉRT ADAT: az egység `slice_clean` mezője ÁLLÍTÁS, a kapu pedig a részletes
   // eredményből számolta vissza — ha a kettő ütközik, az már fent nevezett akadály lett.
@@ -775,7 +830,8 @@ if (MERGE_ONLY) {
   console.log(`  forrás-lenyomat (ma mérve): ${today}`);
   console.log(`  legrosszabb egység falióra: ${worst} ms · külső korlát: ${EXTERNAL_WALL_LIMIT_MS} ms · minden egység belefér: ${allPortable ? 'igen' : 'NEM'}`);
   console.log(`  ${sum('measured')} mutáció · ${sum('caught')} elkapva · ${sum('survived')} túlélte · ${sum('wrong')} rossz próba · ${sum('harness')} mérőhiba · ${sum('stale')} elavult horgony`);
-  console.log(`  norma-lánc: ${covered.length}/${chain.length} klauzula-sor FEDETT (az egységek uniója)`);
+  console.log(`  norma-lánc: ${covered.length}/${chain.length} klauzula-sor FEDETT (az egységek uniója)`
+    + ` · elvárt sorok a mai szerződésből: ${expectedRows.length} · hiányzó: ${missingRows.length} · idegen: ${foreignRows.length}`);
   for (const x of problems) console.log(`  ÖSSZEFŰZÉSI AKADÁLY: ${x}`);
   console.log(`RESULT: ${complete
     ? (cleanAll ? (allPortable ? 'TELJES ÉS TISZTA — minden mutáció pontosan egyszer, minden egység belefér a korlátba'

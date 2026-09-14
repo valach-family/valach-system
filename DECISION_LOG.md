@@ -16,6 +16,67 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3025 — A BIZONYÍTÉK-ELFOGADÁS HÁROM RÉSE ÉS A KÉT IDŐ-TENGELY (R83/F01…F03 + REV-N2a/b)
+
+> **Hatály:** V3 — a V3 magreferencia (`v3ref/`) beadvány-kapuja, külső-lánc futtatója és
+> norma-modellje. A V2 kódját nem érinti.
+
+- **Dátum:** 2026-09-14 · Sáv: Claude-v3 (PR-VS-300 · STEP-VS-300-002 · CMD-VS-300-002-001 R83/R84)
+- **Bemenet:** a külső tárgyaló fél (chatgpt-v3) R83 — ANALYSIS lapja, KÉT futtatható programmal.
+- **Reprodukció ELŐSZÖR, a VÁLTOZATLAN kódon** (`594f49f`): összefűzés **1 PASS / 3 FAIL** ·
+  futtató **2 PASS / 1 FAIL** — pontosan az általuk közölt eredmény. Tesztadaptáció nem történt.
+
+**F01 — a próba-állapot ZÁRT sémája** (`v3ref/unitAdmission.mjs`). A kapu a `probe_status` mezőből
+egyetlen tiltott párost ismert (`CAUGHT` + `PASS`), tehát a mező TÖRLÉSE és `UNKNOWN`-ra állítása
+egyaránt teljes zöldet adott a VALÓDI egységeink másolatain. Innentől a mező jelenléte kötelező, az
+értéke a `manifest.mjs` zárt szókészletéből való, és a verdikthez ÉS a mutáció szerződés-fajtájához
+is illeszkednie kell (`VERDICT_STATUS_RULE` · `probeStatusProblem`). A `runtime_error` szerződésű
+mutáció `THREW` állapota JOGOS marad — és ezt POZITÍV ELLENPÁR méri. **KUKA-155.**
+
+**F02 — az elvárt lánc-sorok a RÖGZÍTETT szerződésből** (`v3ref/norms.mjs` → `expectedChainRows`).
+A leggyengébb-sor kánon (KUKA-154) csak a JELEN LÉVŐ sorok között működött: minden egységből
+kivéve ugyanazt az egy REV-N3a állítás-sort, a lánc 48 sorral is „teljes" maradt. Innentől a
+(klauzula · állítás · próba) hármasok halmaza a mai szerződésből jön; a hiányzó sor `row_missing`
+néven a leggyengébb rangot viszi, az idegen sor és az EGY egységen belüli ismétlés nevezett akadály,
+a TÖBB egységben megjelenő azonos sor viszont a darabolás jogos következménye. **KUKA-156.**
+
+**F03 — a környezeti kihagyás MÉRT kudarc-fajtára** (`v3ref/external-checks/`). A felmentés a
+bejelentésen állt (`env_limit` + `superseded_by`), ezért egy VALÓDI assertion-hibát is felmentett.
+Innentől a bejelentett akadály-fajta zárt készletből való, és a program TÉNYLEGES kudarcának
+ugyanannak kell lennie; időtúllépést KÉT független tanú igazol: a program saját hibaszövege ÉS a
+futtató mért ideje (≥ a bejelentett belső korlát). MÉRVE: az `r57` és az `r59` valódi időtúllépése
+továbbra is kihagyást kap — a kapu nem fal. **KUKA-157.**
+
+**CORE — REV-N2a/b: a két idő-tengely és a felülvizsgálati kör** (`v3ref/bitemporal.mjs`, BIT-01).
+A terv az R71 óta állt (`NEXT_REQUIRED_EVIDENCE.order`), most megépült: `membershipAsOf({validAt,
+knownAt})` a naplóból számol, a `recordRetroactiveInvalidity` az ÚJ esemény-fajta (múltbeli hatály +
+mai rögzítés, `alter_right` hatáskörrel és KÖTELEZŐ bizonyíték-hivatkozással), a `review_circle` +
+`review_circle_member` a nevesített felülvizsgálati kör — SZÁMÍTOTT tagsággal, érintetlen eredeti
+történettel és KÜLÖN, `adjudicate` hatáskörhöz kötött lezárással. Két új próba (`P-REV-bitemporal`,
+`P-REV-review-circle`), nyolc deklarált állítás, nyolc falszifikáló mutáció (M100–M107).
+
+**A kötelező készlet req-3 → req-4** (11 klauzula). A feltételt az R71 ELŐRE kimondta, és MÉRVE
+teljesült: a REV-N2a/b mind a nyolc deklarált állítására van nevezett falszifikáló. A következő
+csomag (req-5) az ORG-N1a/b: a felhatalmazás ALAPJA azonosítóval, verzióval, hatállyal és korláttal.
+
+**SAJÁT LELET.** Az M106 (az időablak-szűrő elvétele) TÚLÉLT, mert a fixtúrában a tagság a
+helyesbítés hatálya UTÁN kezdődött — az „időablakon kívüli művelet" ellenpárja LÉTRE SEM JÖHETETT.
+**KUKA-158.** És a saját F02-pinem első alakja egy MÁR ELDÖNTÖTT tényt mért (KUKA-124/1
+ismétlődése), ezért a visszacsúszást nem fogta meg; a mai alak a klauzula ítéletét méri.
+
+**A HÁROM HELYESBÍTÉSÜK ÁTVEZETVE.** (1) A „bájtazonos" állítás visszavonva: a program TESTE
+karakterre azonos, a záró sortörés eltérhet (mérhető tény, nem mértük — KUKA-033). (2) A séma, a
+bijekció és az ellentmondás-mentesség NEM bizonyítja, hogy a futás megtörtént; az R81-es
+megnyugtató mondat („gyakorlatilag a battéria lefuttatása") visszavonva. (3) A `tools/` alatti
+futtató pinjének lezárását ez a kör sem igazolja — nyitott marad.
+
+**Mért végállapot:** magreferencia 45/45 · battéria 104/104 elkapva, 0 túlélő · kötelező készlet
+11/11 (req-4) · külső lánc 13/15 MEGFELEL + 2 bizonyított környezeti kihagyás (nevezett
+helyettessel) · az ő R83-as programjaik 7/7 · legrosszabb egység falióra 6242 ms (a 15 000 ms-os
+külső korlát 42%-a).
+
+---
+
 ## D-VS-3024 — A BEADVÁNY-KAPU ÉS AZ ADATKIADÁS IDEJE (R81/F01…F04 + a négy helyesbítés)
 
 > **Hatály:** V3 — a V3 magreferencia (`v3ref/`) összefűzése és kiadási útja. A V2 kódját nem érinti.

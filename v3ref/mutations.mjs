@@ -952,4 +952,76 @@ export const MUTATIONS = [
     file: 'command.mjs',
     from: "    if (!releasableScope.releasable) return refused;\n    return Object.freeze(disclose({",
     to: "    if (!releasableScope.releasable) return Object.freeze({ ...refused, error: 'data_scope_denied' });\n    return Object.freeze(disclose({" },
+
+  // ── R83 §7 — REV-N2a/b: A KÉT IDŐ-TENGELY ÉS A FELÜLVIZSGÁLATI KÖR (BIT-01) ──────────────────
+  //
+  // MINDEN DEKLARÁLT ÁLLÍTÁSNAK SAJÁT FALSZIFIKÁLÓJA VAN. A `req-4` feltétele nem az, hogy a
+  // klauzulának „van mutációja", hanem hogy a SAJÁT deklarált állítását buktassa meg egy-egy
+  // nevezett visszacsúszás (R60 óta ez a bővítés kimondott feltétele — KUKA-045). Nyolc állítás,
+  // nyolc mutáció; a fedést a `failed_assertions` lista dönti el, nem a mutáció neve (R55/F03).
+
+  { id: 'M100', rule: 'K08', catcher: 'P-REV-bitemporal', expect: 'probe_fail',
+    what: 'REV-N2a — A TUDÁS TENGELYE ELTŰNIK: a lekérdezés a KÉSŐBB rögzített eseményt is '
+      + 'figyelembe veszi, amikor a MÚLTBELI tudás-állapotot kérdezik. Ettől a márciusi kép '
+      + 'visszamenőleg átíródik: a rendszer azt állítaná, hogy márciusban is tudtuk, amit csak '
+      + 'júniusban tudtunk meg (KUKA-002: a két tengely egy oszlopra csúszik vissza)',
+    file: 'bitemporal.mjs',
+    from: '    if (rec.ms > known.ms) continue;     // ezt akkor még nem tudtuk',
+    to: '    if (false) continue;     // ezt akkor még nem tudtuk' },
+
+  { id: 'M101', rule: 'K08', catcher: 'P-REV-bitemporal', expect: 'probe_fail',
+    what: 'REV-N2a — A HATÁLY TENGELYE ELTŰNIK AZ ÍRÁSNÁL: a helyesbítés a MAI időpontot rögzíti '
+      + 'hatályként is, tehát a visszamenőleges érvénytelenség csak „mától" szól. A mai kép így '
+      + 'NEM tükrözi a helyesbítést a múltra nézve — a két tengely egyetlen pillanatba olvad',
+    file: 'bitemporal.mjs',
+    from: '        subjectId, bookId, at, effectiveAt, m.revoked_at ?? null, RETROACTIVE_TRANSITION);',
+    to: '        subjectId, bookId, at, at, m.revoked_at ?? null, RETROACTIVE_TRANSITION);' },
+
+  { id: 'M102', rule: 'K08', catcher: 'P-REV-bitemporal', expect: 'probe_fail',
+    what: 'REV-N2a — A HATÁLY TENGELYE ELTŰNIK AZ OLVASÁSNÁL: a lekérdezés minden ismert eseményt '
+      + 'alkalmaz, akkor is, ha a hatálya a kérdezett nap UTÁN kezdődik. Ettől egy JÖVŐBELI hatályú '
+      + 'helyesbítés visszamenőleg elvenné a mai jogot (KUKA-049: az ellenpár nélkül a szabály nem '
+      + 'a két tengelyt mérné, csak azt, hogy „van-e esemény")',
+    file: 'bitemporal.mjs',
+    from: '    if (eff.ms > valid.ms) continue;     // erre a napra még nem hatályos',
+    to: '    if (false) continue;     // erre a napra még nem hatályos' },
+
+  { id: 'M103', rule: 'K08', catcher: 'P-REV-bitemporal', expect: 'probe_fail',
+    what: 'REV-N2a — A BIZONYÍTÉK-KÖVETELMÉNY ELTŰNIK: a visszamenőleges érvénytelenség '
+      + 'megnevezett bizonyíték NÉLKÜL is rögzíthető. Ettől a helyesbítés nem helyesbítés, hanem a '
+      + 'múlt szabad átírása — a K08 pont ezt tiltja',
+    file: 'bitemporal.mjs',
+    from: "      if (typeof evidenceRef !== 'string' || !evidenceRef.trim()) {",
+    to: '      if (false) {' },
+
+  { id: 'M104', rule: 'K08/K09', catcher: 'P-REV-review-circle', expect: 'probe_fail',
+    what: 'REV-N2b — A KÖR ÜRESEN SZÜLETIK: a számított tagságot senki nem írja be, tehát a kör '
+      + 'LÉTEZIK, de nem mond meg semmit. A díszpipa alakja a felülvizsgálaton (KUKA-041)',
+    file: 'bitemporal.mjs',
+    from: '  for (const m of circle.members) {',
+    to: '  for (const m of []) {' },
+
+  { id: 'M105', rule: 'K08/K09', catcher: 'P-REV-review-circle', expect: 'probe_fail',
+    what: 'REV-N2b — A HELYESBÍTÉS ÁTÍRJA AZ EREDETI TÖRTÉNETET: a kör megnyitása a parancs sorát '
+      + 'is átállítja („felülvizsgálat alatt"). Ettől a múlt rekordja megváltozik — a REV-N1b '
+      + 'tartalmi mércéje szerint ez a történet átírása, nem a felülvizsgálat',
+    file: 'bitemporal.mjs',
+    from: "      'INSERT INTO review_circle_member (circle_id, book_id, actor, idem_key, finalized_at) VALUES (?,?,?,?,?)',\n      id, m.book_id, m.actor, m.idem_key, m.finalized_at);",
+    to: "      'INSERT INTO review_circle_member (circle_id, book_id, actor, idem_key, finalized_at) VALUES (?,?,?,?,?)',\n      id, m.book_id, m.actor, m.idem_key, m.finalized_at);\n    store.run('UPDATE command SET state = ? WHERE book_id = ? AND actor = ? AND idem_key = ?',\n      'under_review', m.book_id, m.actor, m.idem_key);" },
+
+  { id: 'M106', rule: 'K08/K09', catcher: 'P-REV-review-circle', expect: 'probe_fail',
+    what: 'REV-N2b — A KÖR MINDENT BEVESZ: az időablak-szűrő elmarad, tehát a hatály ELŐTTI '
+      + 'műveletek is felülvizsgálat alá kerülnek. A „biztonság kedvéért mindent" alak: a valódi '
+      + 'érintetteket elrejti a zajban (KUKA-092 rokona)',
+    file: 'bitemporal.mjs',
+    from: '    return f.ok && f.ms >= from.ms && f.ms < to.ms;',
+    to: '    return f.ok;' },
+
+  { id: 'M107', rule: 'K08/K09', catcher: 'P-REV-review-circle', expect: 'probe_fail',
+    what: 'REV-N2b — A LEZÁRÁS ÖNMAGÁVAL EGYEZIK: a hatáskör-kapu nem a HÍVÓT kérdezi, hanem a kört '
+      + 'megnyitó eljárót — akinek a joga értelemszerűen megvolt. Ettől bárki lezárhatja a kört, és '
+      + 'a kapu mégis „ellenőrzöttnek" látszik (KUKA-121: az önmagával való egyezés nem mérés)',
+    file: 'bitemporal.mjs',
+    from: "    { store, clock, subjectId: actorSubjectId, bookId: c.book_id, operation: 'adjudicate', credentials },",
+    to: "    { store, clock, subjectId: c.opened_by, bookId: c.book_id, operation: 'adjudicate', credentials }," },
 ];

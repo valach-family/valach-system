@@ -6810,6 +6810,149 @@ const RETIRED_PATTERNS = Object.freeze([
         reason: 'a leggyengébb sor rangsora az összefűzésben is' }),
     ]),
   }),
+
+  // ── R83 (chatgpt-v3 · 2026-09-14) ─────────────────────────────────────────────────────────────
+  Object.freeze({
+    id: 'KUKA-155',
+    date: '2026-09-14',
+    title: 'EGYETLEN TILTOTT PÁROS ŐRIZTE A MEZŐT — A HIÁNYZÓ ÉS AZ ISMERETLEN ÉRTÉK NÉMÁN ÁTMENT',
+    what: 'A beadvány-kapu (MRG-01) a részletes eredmény `probe_status` mezőjéből EGYETLEN dolgot '
+      + 'nézett: a `CAUGHT` + `PASS` ellentmondást. A mező JELENLÉTÉT és a megengedett ÉRTÉKKÉSZLETÉT '
+      + 'senki nem ellenőrizte, a mutáció szerződés-FAJTÁJÁHOZ pedig egyáltalán nem mérte.',
+    why_wrong: 'A külső fél a SAJÁT, VALÓDI egységeink másolatain megmutatta: a mezőt törölve és '
+      + '`UNKNOWN`-ra állítva egyaránt `exit 0` · `clean: true` · 9/9 kötelező készlet lett. Vagyis '
+      + 'a beadvány elmondhatta, hogy „elkaptuk", ANÉLKÜL hogy megmondta volna, mit felelt a próba.',
+    replaced_by: 'A mező jelenléte KÖTELEZŐ, az értéke a `manifest.mjs` ZÁRT szókészletéből való, és '
+      + 'a verdikthez ÉS a mutáció szerződés-fajtájához is illeszkednie kell (`VERDICT_STATUS_RULE` '
+      + '+ `probeStatusProblem`). A `runtime_error` szerződésű mutáció `THREW` állapota JOGOS marad.',
+    decision: 'D-VS-3025',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R83 §3)',
+    lesson: 'EGY TILTOTT PÁROS NEM SÉMA. Ahol egy mező ÉRTÉKE hordozza a bizonyíték erejét, ott a '
+      + 'hiány · az ismeretlen érték · az ellentmondás HÁROM külön válasz (KUKA-020 · KUKA-124/2) — '
+      + 'és a szókészletet onnan kell venni, ahol az érték SZÜLETIK, nem ide gépelni (KUKA-129). '
+      + 'A szigorítás mércéjét pedig MÉRNI kell a valódi adaton, MIELŐTT kapuvá válik: a „minden '
+      + 'CAUGHT csak FAIL lehet" szabályom a 96 valódi eredményből 37-et hibásnak mondott volna '
+      + '(KUKA-049 · KUKA-033).',
+    guard_note: 'gépi jel: `verify:unit-admission` UAD04 (hat új ellenpélda + POZITÍV ELLENPÁR: '
+      + 'ugyanaz az alak `runtime_error` fajtával ZÖLD, `probe_fail` fajtával PIROS) — a régi alakon '
+      + 'bizonyítottan piros (10 tétel) · `verify:external-checks` r83core (az ő két programjuk).',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/unitAdmission.mjs'], pattern: "if \\(r\\.verdict === 'CAUGHT' && r\\.probe_status === 'PASS'\\) \\{",
+        reason: 'az EGYETLEN tiltott páros visszatérése — a hiányzó és az ismeretlen állapot megint némán átmenne' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/unitAdmission.mjs'], pattern: 'export function probeStatusProblem',
+        reason: 'a próba-állapot döntése NEVEZETT feloldóban áll, hogy a pin ugyanazt hívhassa' }),
+      Object.freeze({ paths: ['v3ref/unitAdmission.mjs'], pattern: "import \\{ KNOWN_STATUSES, PROBE_STATUS \\} from './manifest.mjs'",
+        reason: 'a szókészlet onnan jön, ahol az érték születik — nincs második lista' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'KUKA-156',
+    date: '2026-09-14',
+    title: 'A LEGGYENGÉBB SOR SZABÁLYA CSAK A JELEN LÉVŐ SOROK KÖZÖTT MŰKÖDÖTT',
+    what: 'Az összefűzés klauzulánként a LEGGYENGÉBB állítás-sor alapján ítélt (ez a helyes kánon, '
+      + 'KUKA-154) — de a sorok HALMAZÁT a BEADVÁNY adta: ami nem érkezett meg, az nem lett gyenge '
+      + 'sor, hanem eltűnt a számításból.',
+    why_wrong: 'A külső fél MINDEN egységből kivette UGYANAZT az egy REV-N3a állítás-sort: a lánc 49 '
+      + 'helyett 48 sorból állt, és az eredmény változatlanul `clean: true` · 9/9 kötelező készlet '
+      + 'lett. A hiányzó bizonyíték így nem hiányként, hanem NEM LÉTEZŐKÉNT jelent meg (KUKA-012).',
+    replaced_by: 'Az ELVÁRT (klauzula · állítás · próba) hármasokat a rögzített szerződés adja '
+      + '(`expectedChainRows` — `ALL_NORMS` × a manifest beváltás-deklarációi). A hiányzó sor '
+      + '`row_missing` néven BEKERÜL a láncba (a leggyengébb rang), az idegen sor nevezett akadály, '
+      + 'az EGY egységen belüli ismétlés hiba, a TÖBB egységben megjelenő azonos sor viszont jogos.',
+    decision: 'D-VS-3025',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R83 §4)',
+    lesson: 'AZONOSSÁGOT KELL MÉRNI, NEM MENNYISÉGET. A „49 sornak kell lennie" alakú őr ELLENPÉLDÁVAL '
+      + 'megkerülhető (egy sort kivéve, egy idegent betéve a szám stimmel) — ezt a külső fél előre '
+      + 'kimondta (KUKA-045). ÉS A SAJÁT PINEM ELSŐ ALAKJA IS ELBUKOTT: a „hiányzó kötelező '
+      + 'bizonyíték" mondatot mértem, ami a fixtúrában MINDIG ott állt, tehát a visszacsúszást nem '
+      + 'fogta meg — a KUKA-124/1 ismétlődése a saját őrömön (egy MÁR ELDÖNTÖTT tényt mérő '
+      + 'ellenőrzés nem véd).',
+    guard_note: 'gépi jel: `verify:unit-admission` UAD07 — a pin ÉLESBEN futtatja az összefűzést öt '
+      + 'alakban (teljes lánc · KÉT egység azonos lánccal mint ELLENPÁR · egy kötelező sor kivéve · '
+      + 'a kivett sor helyén IDEGEN sor · egy egységen belüli ismétlés); a hiányzó sor a KLAUZULA '
+      + 'ítéletét is viszi (`REV-N3a: row_missing`), nem csak a hibalistát. Két visszacsúszásra '
+      + 'bizonyítottan piros.',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: 'for \\(const u of units\\) for \\(const c of \\(u\\.norm_chain \\|\\| \\[\\]\\)\\) \\{',
+        reason: 'a régi alak: a lánc sorai KIZÁRÓLAG a beadványból jöttek, a hiányzó sor eltűnt' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/norms.mjs'], pattern: 'export function expectedChainRows',
+        reason: 'az elvárt lánc-sorok a rögzített szerződésből származnak' }),
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: "result: 'row_missing'",
+        reason: 'a hiányzó sor a láncban is látszik, tehát a klauzula ítéletét viszi' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'KUKA-157',
+    date: '2026-09-14',
+    title: 'A KÖRNYEZETI FELMENTÉS A BEJELENTÉSEN ÁLLT, NEM A MÉRT KUDARCON',
+    what: 'A külső programok láncában a „környezeti kihagyás" három feltételen állt: a bejegyzés '
+      + 'kimondja az akadályt (`env_limit`), megnevezi a helyettest (`superseded_by`), és a '
+      + 'helyettes zöld. Azt viszont SENKI nem nézte meg, hogy a program TÉNYLEGES kudarca '
+      + 'ugyanaz a fajta-e, mint amit a bejegyzés bejelentett.',
+    why_wrong: 'A külső fél szintetikus futtatásában az eredeti `r57` első esete `pass:false` lett, '
+      + '„synthetic assertion failure; NOT a timeout" indokkal — a futtató mégis `exit 0` · '
+      + '`verdict.ok: true` · `env_skipped: 1` eredményt adott. Egy VALÓDI teszthibát mentett fel '
+      + 'egy statikus regiszter-mező.',
+    replaced_by: 'A felmentés NEGYEDIK feltétele a MÉRT kudarc-fajta (`measuredFailureKind` + '
+      + '`environmentalObstacle`): a bejelentett `kind` zárt készletből való, és a program tényleges '
+      + 'kudarcának ugyanannak kell lennie. Időtúllépést KÉT független tanú igazol: a program saját '
+      + 'hibaszövege ÉS a futtató mért ideje (≥ a bejelentett belső korlát).',
+    decision: 'D-VS-3025',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R83 §5)',
+    lesson: 'A KUKA-122 FORDÍTOTTJA: ott a kapu olyan tényt kért, amit senki nem állított elő '
+      + '(teljesíthetetlen); itt olyan tényt fogadott el, amit senki nem mért (bizonyítatlan). A '
+      + '`superseded_by` + `env_limit` MÁSIK kérdésre felel („van-e helyettese?"), mint amit a '
+      + 'felmentés kérdez („tényleg a KÖRNYEZET akadt el?") — KUKA-073. És a program SAJÁT szava '
+      + 'nem elég: a második tanú a mi óránk (KUKA-121).',
+    guard_note: 'gépi jel: `verify:external-checks` r83core/runner (az ő három esetük: `all-green` '
+      + 'exit 0 · `original-real-failure` exit 1 · `original-and-sub-failure` exit 1) — a régi alakon '
+      + 'bizonyítottan 2/1, a mai alakon 3/0. MÉRVE az ÉLES láncon is: az `r57` és az `r59` valódi, '
+      + 'bizonyított időtúllépése továbbra is kihagyást kap (a kapu nem fal — KUKA-122).',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/external-checks/run-all.mjs'], pattern: 'if \\(s\\.ok \\|\\| !p \\|\\| !p\\.superseded_by \\|\\| !p\\.env_limit\\) continue;',
+        reason: 'a régi alak: a felmentés a bejelentés MEGLÉTÉN állt, a mért kudarc-fajtát nem nézte' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/external-checks/case-manifest.mjs'], pattern: 'export function measuredFailureKind',
+        reason: 'a kudarc fajtája a NYERS eredményből mérve' }),
+      Object.freeze({ paths: ['v3ref/external-checks/case-manifest.mjs'], pattern: 'export function environmentalObstacle',
+        reason: 'a felmentés NÉGY feltétele EGY nevezett feloldóban' }),
+      Object.freeze({ paths: ['v3ref/external-checks/run-all.mjs'], pattern: 'elapsedMs: ms,',
+        reason: 'a MÁSODIK tanú (a futtató mért ideje) tényleg átmegy a döntésre' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'KUKA-158',
+    date: '2026-09-14',
+    title: 'A KONTROLL, AMI NEM TUDOTT TÜZELNI — A FIXTÚRA KIZÁRTA A SAJÁT ELLENPÉLDÁJÁT',
+    what: 'A REV-N2b felülvizsgálati kör próbájában az „időablakon KÍVÜLI művelet" ellenpárját egy '
+      + 'FEBRUÁRI parancs adta volna — de a fixtúrában a tagság MÁRCIUSBAN kezdődött, ezért a '
+      + 'februári parancs LÉTRE SEM JÖHETETT (a `submitCommand` jogosan utasította el).',
+    why_wrong: 'Az ellenpár így ÜRES halmazon állt: az M106 mutáció (az időablak-szűrő elvétele) '
+      + 'semmit nem változtatott, tehát TÚLÉLT. A próba zöld volt, az állítása („a nem érintett '
+      + 'műveletek kimaradnak") viszont bizonyítatlan.',
+    replaced_by: 'A tagság a helyesbítés hatálya ELŐTT kezdődik (`BIT.GRANT`), így a februári '
+      + 'művelet valóban létrejön — és az időablak-szűrő elvétele MÉRHETŐEN behúzza a körbe.',
+    decision: 'D-VS-3025',
+    found_by: 'a SAJÁT MUTÁCIÓS BATTÉRIÁM (az M106 túlélése)',
+    lesson: 'A KONTROLL, AMI NEM TUD TÜZELNI, NEM KONTROLL (KUKA-041 a fixtúrán). Minden ELLENPÁRNÁL '
+      + 'meg kell kérdezni: LÉTEZIK-E egyáltalán az az eset, amit kizárni akarok? A mutációs '
+      + 'battéria erre való — a túlélő mutáció nem a kód dicsérete, hanem a MÉRÉS hibája.',
+    guard_note: 'gépi jel: `v3ref:mutate:units` M106 (a régi fixtúrán SURVIVED, a mai fixtúrán '
+      + 'CAUGHT) — a battéria 104/104 elkapással zár.',
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: "store\\.run\\('INSERT INTO membership VALUES \\(\\?,\\?,\\?,\\?,NULL\\)', 'member', 'a', 'user', BIT\\.MARCH\\);",
+        reason: 'a tagság a hatály UTÁN kezdődne — az időablakon kívüli művelet nem jöhetne létre' }),
+    ]),
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: "cmd\\('feb-0', 'member', BIT\\.FEBRUARY\\);",
+        reason: 'az időablakon KÍVÜLI művelet valóban létrejön — az ellenpár tud tüzelni' }),
+    ]),
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({
