@@ -16,6 +16,82 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3021 — A KIADÁS IS ENGEDŐ ÚT: a tiltás teljes döntése, a tárolt hatókör és a mátrix (R75/F01…F05)
+
+> **Hatály:** V3 — a V3 magreferencia (`v3ref/`) tiltás-modellje. A V2 kódját nem köti; a V2 fejlesztő
+> átlépheti.
+
+**A külső tárgyaló fél ÖT leletet adott a SAJÁT, egy körrel korábbi (R73-as) javításomon**,
+futtatható programmal. Reprodukció a VÁLTOZATLAN kódon: az ő `core-r75.mjs` programja **2/7 PASS**
+(2 kontroll teljesült, mind az öt lelet piros). A javított kódon **7/7**.
+
+· **F01 — a kiadás harmadik, őrizetlen úttá vált.** A tiltás OLVASÁSA és KIADÁSA egy modulban élt,
+ezért az `authority.mjs` nem hívhatta a tiltás-feloldót (kör), és a kiadási út csak a NYERS hatásköri
+sort nézte: egy MÁR LETILTOTT bíró sikeresen tiltott. Javítás: a függőség iránya MEGFORDULT
+(`store ← banScope ← authority ← ban`), és **AUT-01/`executableRightAt`** adja a TELJES döntést —
+művelet · eljáró · óra · TILTÁS · hatásköri sor —, amit MINDEN út hív, a kiadás is. (KUKA-135)
+
+· **F02 — a konstans NEVE könyv-hatókört ígért, a TÁROLT rekord nem hordozta.** Egy csak az A könyvön
+jogosult bíró `operation_misuse` tiltása a dolgozót a FÜGGETLEN B könyvben is megfosztotta a
+hozzáféréstől. Javítás: `operationScopeRef(bookId, opClass)` — a tárolt cél a KÖNYVET is hordozza, és
+a `parseOperationScope` MINDKÉT tengelyt megköveteli. (KUKA-136)
+
+· **F03 — gyengébb szerződésű író.** Az `imposeBan` „alacsony szintű íróként” megkerülte az `issueBan`
+hatókör-kapuját; a modul KOMMENTJE állította, hogy belső. A külső fél szava: *„a komment nem
+hozzáférésvédelem."* Javítás: `export const imposeBan = issueBan` — egy szerződés. (KUKA-135)
+
+· **F04 — az ismeretlen TÁROLT ok engedélyt adott.** Az ellentmondás-vizsgálat `expectedKind && …`
+alakban állt, tehát ismeretlen oknál az EGÉSZ ellenőrzés kimaradt. Javítás: `banRecordIntegrity` —
+HÁROM külön, nevezett válasz (`ban_kind_unknown` · `ban_cause_unknown_stored` ·
+`ban_cause_kind_contradiction`), mindegyik ZÁR, és a kapu a hatókör-értékelés ELŐTT áll. (KUKA-137)
+
+· **F05 — a kontextus egy hívón elveszett.** A `credentials` a parancs-úton végigment, az ELBÍRÁLÁSI
+úton nem (`readClaim` · `adjudicateClaim` · `suspendMembership` · `liftSuspension`). (KUKA-138)
+
+**KÉT HELYESBÍTÉS A SAJÁT R74-ES JELENTÉSEMHEZ — elfogadva.** (1) A C-F04 hibájának IRÁNYA fordítva
+állt nálam: nem az volt a baj, hogy a tiltott hitelesítővel átment a parancs, hanem hogy **az
+ÉRVÉNYES MÁSIK hitelesítővel is blokkolta a jogos munkát** — fail-closed kapunál a hiányzó bemenet
+sosem szivárgás, mindig TÚLZÁRÁS, és ez mást kíván MÉRNI. (2) Az M71-hivatkozás nem bizonyít
+íróút-ellenőrzést (M71 a kontextus-összefésülést méri); a hiányzó jelet MEGÉPÍTETTÜK: **M75**.
+**És a „mind a hét javítva és mindegyik falszifikálva” mondat csak a pontosan megnevezett
+ellenpéldákra használható** — ezt elfogadjuk, a jelentés nyelve ehhez igazodik.
+
+**A KÉTSZER KÉRT MÁTRIX — MÉRVE, nem rajzolva.** `v3ref/banMatrix.mjs`: **7 tiltás-fajta × 3 engedő út
+(tagsági · hatásköri · KIADÁS) × érintett/független cél × hiteles kontextus (tiltott értékkel · MÁSIK
+jogos értékkel · nem hozza)** = **66 cella**, mindegyik valódi tárolóval és valódi feloldóval mérve, a
+VÁRT értéket a cella DEKLARÁLJA. Mérés: **eltérés 0 · lefedetlen fajta nincs** (ZÁR 19 · NYITVA 20 ·
+NEM DÖNTHETŐ 24). Az ember-olvasható tábla UGYANEBBŐL a függvényből származik (KUKA-082), a
+`P-REV-ban-matrix` próba pedig cellánként állítja — tehát a mátrix maga is falszifikálható (**M78**:
+új fajta cella nélkül · **M79**: az olvasó mindent globálisnak ért).
+
+**AMIT A MÁTRIX ELSŐ FUTÁSA TANÍTOTT.** Két cellán „eltérést” mutatott az `operation` fajtánál — és a
+KÓD volt a helyes, az ELVÁRÁSOM a hibás: a művelet-tiltásnál az „érintett cél” nem a tiltás
+tulajdonsága, hanem a tiltás célja ÉS az adott út SAJÁT művelete közötti VISZONY (KUKA-024). Ha az
+elvárást a mért értékre „javítom”, a mátrix önmagát igazolja vissza (KUKA-054); ha a kódot igazítom
+az elváráshoz, a tiltás túlnyúlik (KUKA-092). Ezért a művelet NEVEZETT lett, és minden cella KIÍRJA,
+mit kérdezett.
+
+**AMIT A SAJÁT SÖPRÉSEM FOGOTT MEG.** A modul-szétválasztás után KILENC mutáció horgonya elavult
+(jelentve), egy pedig **TÚLÉLT (M68)** — mert a `P-REV-ban-past` fixtúrára váltott, és a mutáció az
+`issueBan` törzsét támadja: a próba onnantól nem futtatta a mutált sort, miközben ZÖLDEN állt. A
+próba most MINDKETTŐT viszi: fixtúra a hatásra, VALÓDI kiadás a viselkedésre. (KUKA-139)
+
+**ÉS EGY MÁSODIK SAJÁT LELET — AZ IDŐ-TARTALÉK.** A mátrix első alakja cellánként épített tárolót
+(66 világ), és mivel a mutációs battéria a próba-készletet 77-szer futtatja, a falióra **11 260 ms**
+lett a saját **12 000 ms**-os költségvetésnél (a KÜLSŐ fél 15 000 ms-os korlátjának 80%-a). Önmagában
+zöld — a TELJES söprés párhuzamos terhelése alatt viszont átlépte, és **két egymást követő futáson KÉT
+KÜLÖNBÖZŐ verifier** bukott el. A javítás NEM a költségvetés emelése volt (a korlát a külső félé):
+olvasó világ plánonként megosztva, ÍRÓ cellának saját — 66 → ~27 világ, **11 260 → 9 888 ms** (66%).
+(KUKA-140)
+
+**Gépi jel:** `npm run verify:v3ref` **36/36** (új: `P-REV-ban-matrix`; a `P-REV-ban-paths` három új
+ágával és a `P-REV-ban-scope` egy új ágával) · `npm run v3ref:mutate` **76/76 elkapva · 0 túlélő ·
+0 elavult horgony**, kötelező bizonyíték **9/9** · `npm run verify:kuka` **290/290** · `npm run verify:external-checks` **8/8 program** (az ő
+`core-r75.mjs`-ük bájtazonosan a repóban) · a külső fél
+`core-r75.mjs` programja a javított kódon **7/7**.
+
+---
+
 ## D-VS-3020 — A TILTÁS TÁRGYA, A HATÁSKÖR FELOLDÁSA ÉS AZ ELLENTMONDÓ REKORD (R73/C-F01…C-F05)
 
 **Dátum:** 2026-09-14 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-001 R73 · **KUKA-131…134**

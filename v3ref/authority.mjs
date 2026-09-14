@@ -12,10 +12,16 @@
 // az `adjudication.mjs` (a saját jog-feloldójában) és a `ban.mjs` (a kiadáskor). A szabály így nem
 // két másolatban él (KUKA-003), és a kör megszűnt.
 //
-// AMIT EZ A MODUL NEM CSINÁL: nem néz tiltást. A tiltás-kapu az engedő utak SAJÁT első kérdése
-// (REV-N5a) — ide húzva épp azt a kört építenénk vissza, amit megszüntettünk.
+// 2026-09-14 (R75/F01, D-VS-3021) — EZ A MODUL MOST MÁR TILTÁST IS NÉZ, ÉS EZ A LÉNYEG.
+// Az R73-as alak szándékosan NEM nézett tiltást („a tiltás-kapu az engedő utak saját első
+// kérdése") — és pont ez volt a hiba: a tiltás KIADÁSA is engedő út, csak nem ismertük el annak.
+// Aki a nyers hatásköri sort olvassa, az a döntésnek CSAK A FELÉT kapja meg; a másik fele (a
+// kiadó SAJÁT tiltásai) némán kimarad. Ezért a TELJES döntés ide költözött, és a tiltás-feloldót
+// egy olyan modulból hívjuk (`banScope.mjs`), ami semmit nem importál vissza — a kör megszűnt,
+// nem megkerülve, hanem a függőség IRÁNYÁNAK megfordításával.
 
 import { instantMs } from './store.mjs';
+import { banEffectiveAt, banRequestFor } from './banScope.mjs';
 
 export const ADJUDICATION_OPS = Object.freeze(['suspend', 'adjudicate', 'alter_right']);
 
@@ -65,4 +71,60 @@ export function authorityRowAt({ store, subjectId, bookId, operation, nowIso }) 
     return { ok: false, reason: 'authority_not_yet_effective', message: 'a hatáskör még nem hatályos' };
   }
   return { ok: true, granted_at: row.granted_at };
+}
+
+// ═══ A TELJES VÉGREHAJTHATÓSÁGI DÖNTÉS — EGY RÉTEG, AMIBŐL A KIADÁS SEM MARAD KI (R75/F01) ═════
+//
+// A LELET (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL, R75/F01). A `judge` A könyvön `alter_right` hatáskörrel
+// rendelkezett, de UGYANARRA a könyvre hatályos tiltása volt. Az `adjudicationRightAt` helyesen
+// `allowed:false, ban_scope_book` választ adott — ugyanő viszont az `issueBan`-nal SIKERESEN
+// letiltotta a dolgozót, mert a kiadási út csak az `authorityRowAt`-et hívta.
+//
+// A HIBA OSZTÁLYA: nem az AUT-01 volt hibás, hanem az, hogy a HÍVÓ tette hozzá (vagy nem tette
+// hozzá) a hiányzó felét. Ez a KUKA-039 („fél őr") és a KUKA-132 együtt: a döntést két darabra
+// vágtam, és a második darab összerakását a hívóra bíztam — ami pontosan ugyanaz a szerkezet, mint
+// a `authorityOk` bemondás, csak eggyel följebb.
+//
+// EZÉRT A DÖNTÉS EGÉSZBEN ÁLL ITT, és minden hatáskör-igényes út EZT hívja: a művelet neve · az
+// eljáró megléte · az óra · a TILTÁS · a hatásköri sor. Aki ezt megkerüli és a `authorityRowAt`-et
+// hívja közvetlenül, az fél döntést kap — ezt gépi jel méri (`verify:v3ref`, M73).
+//
+// A SORREND KIMONDOTT: a tiltás ELŐBB dől el, mint a hatáskör. Így a tiltott eljáró ugyanazt a
+// választ kapja, akár van hatásköre, akár nincs — a különbség nem szivárog ki (KUKA-084).
+/**
+ * @returns {{ok:true, granted_at:string} | {ok:false, reason:string, message:string}}
+ */
+export function executableRightAt({ store, subjectId, bookId, operation, nowIso, credentials }) {
+  if (!ADJUDICATION_OPS.includes(operation)) {
+    return {
+      ok: false,
+      reason: 'unknown_adjudication_op',
+      message: `ismeretlen hatáskör-igényes művelet ("${operation}") — a zárt halmaz: ${ADJUDICATION_OPS.join(', ')}`,
+    };
+  }
+  const who = String(subjectId || '').trim();
+  if (!who) {
+    return {
+      ok: false,
+      reason: 'actor_missing',
+      message: 'a művelet ELJÁRÓ ALANYT igényel: meg kell mondani, KI végzi. A hatáskör nem a hívás '
+        + 'tényéből jön (REV-N3a).',
+    };
+  }
+  const now = instantMs(nowIso);
+  if (!now.ok) return { ok: false, reason: `clock_${now.reason}`, message: 'az óra nem értelmezhető' };
+
+  // REV-N5a — A TILTÁS MINDEN ENGEDŐ ÚTON HAT, A KIADÁSI ÚTON IS.
+  const ban = banEffectiveAt({
+    store, subjectId: who, nowIso, request: banRequestFor({ bookId, opClass: operation }, credentials),
+  });
+  if (ban.banned) {
+    return {
+      ok: false,
+      reason: ban.reason,
+      message: ban.message
+        || `"${who}" ellen célzott tiltás van hatályban, ezért hatásköri művelet nem végezhető`,
+    };
+  }
+  return authorityRowAt({ store, subjectId: who, bookId, operation, nowIso });
 }

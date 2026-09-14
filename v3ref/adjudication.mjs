@@ -27,7 +27,14 @@ import { suspensionEffectiveAt } from './suspension.mjs';
 // engedő úton hatnia kell — ha ez a behúzás hiányozna, a hatásköri út csendben nyitva maradna, és a
 // tiltás bevezetésének HELYE szűkítené a hatását (a fél őr — KUKA-039).
 import { banEffectiveAt, banRequestFor } from './ban.mjs';
-import { authorityRowAt } from './authority.mjs';
+import { executableRightAt } from './authority.mjs';
+
+// R75/F05 (D-VS-3021) — A HITELESÍTETT KONTEXTUS MIND A NÉGY HATÁSKÖRI BELÉPÉSI PONTON VÉGIGMEGY.
+// A LELET: a `credentials` a `readClaim` · `adjudicateClaim` · `suspendMembership` ·
+// `liftSuspension` szignatúrájából hiányzott, ezért a tiltott RÉGI hitelesítő mellett az ÉRVÉNYES
+// ÚJ hitelesítővel érkező JOGOS kérés is elakadt (`not_available`) — a hiányzó bizonyíték zárást
+// okozott ott, ahol a jog megvolt. A javítás iránya kimondott: a zárást NEM lazítjuk fel, hanem a
+// jogos kéréshez ELJUTTATJUK a szükséges bizonyítékot (KUKA-133 · a külső fél R75 §8).
 
 /** A hatáskör-igényes műveletek ZÁRT halmaza — ismeretlen művelet nem „általános", hanem NEM DÖNTHETŐ. */
 export const ADJUDICATION_OPS = Object.freeze(['suspend', 'adjudicate', 'alter_right']);
@@ -52,41 +59,16 @@ function allow(operation, detail) {
  *
  * @returns {{allowed:boolean, reason:string, message?:string, operation:string|null}}
  */
+// R75/F01 (D-VS-3021) — EZ AZ ÚT MÁR NEM SAJÁT DÖNTÉS, HANEM A KÖZÖS DÖNTÉS ALAKJA.
+//
+// Korábban itt állt a teljes lánc (művelet · eljáró · óra · tiltás · hatáskör), a KIADÁSI út pedig
+// külön, szűkebb ellenőrzést futtatott — és emiatt egy már letiltott eljáró is tilthatott. A döntés
+// most EGY helyen él (`authority.mjs` → `executableRightAt`), és mindkét út azt hívja; itt csak a
+// válasz ALAKJA marad (allow/deny), mert ennek az útnak ez a szerződése.
 export function adjudicationRightAt({ store, subjectId, bookId, operation, clock, credentials }) {
-  if (!ADJUDICATION_OPS.includes(operation)) {
-    return deny('unknown_adjudication_op',
-      `ismeretlen hatáskör-igényes művelet ("${operation}") — a zárt halmaz: ${ADJUDICATION_OPS.join(', ')}`);
-  }
-  const who = String(subjectId || '').trim();
-  if (!who) {
-    return deny('actor_missing',
-      'a művelet ELJÁRÓ ALANYT igényel: meg kell mondani, KI végzi. A hatáskör nem a hívás '
-      + 'tényéből jön (REV-N3a).');
-  }
-  const nowIso = clock.now();
-  const now = instantMs(nowIso);
-  if (!now.ok) return deny(`clock_${now.reason}`, 'az óra nem értelmezhető');
-
-  // REV-N5a — A CÉLZOTT TILTÁS A MÁSODIK ENGEDŐ ÚTON IS HAT.
-  //
-  // A norma mércéje: „az alany-szintű célzott tiltás MINDEN alkalmazható engedő úton azonnal hat —
-  // nem csak azon az egyen, amelyiken bevezették." A magban ma KÉT engedő út van: a TAGSÁGI
-  // (`rightAt`) és ez, a HATÁSKÖRI (a REV-N3-ban épült meg). Ugyanazt a feloldót hívja mindkettő,
-  // tehát a tiltás nem tud „féloldalas" lenni. A megkülönböztető itt a könyv és a MŰVELET — az
-  // `operation` a hatásköri út saját művelet-fogalma, ezért `opClass` néven adjuk át: egy
-  // művelet-hatókörű tiltás így ezen az úton is pontosan dől el, túlnyúlás nélkül.
-  const ban = banEffectiveAt({
-    store, subjectId: who, nowIso, request: banRequestFor({ bookId, opClass: operation }, credentials),
+  const verdict = executableRightAt({
+    store, subjectId, bookId, operation, nowIso: clock.now(), credentials,
   });
-  if (ban.banned) {
-    return deny(ban.reason, ban.message
-      || `"${who}" ellen célzott tiltás van hatályban, ezért hatásköri művelet nem végezhető`);
-  }
-
-  // AUT-01 (R73/C-F03): a hatáskör-sor értékelése KÖZÖS otthonban él, mert a tiltás KIADÁSA is
-  // ugyanezt kérdezi — a szabály nem lehet két másolat (KUKA-003), és a `ban.mjs` nem importálhatja
-  // ezt a modult (kör lenne), ezért mindkettő a semleges `authority.mjs`-t hívja.
-  const verdict = authorityRowAt({ store, subjectId: who, bookId, operation, nowIso });
   if (!verdict.ok) return deny(verdict.reason, verdict.message);
   return allow(operation, { granted_at: verdict.granted_at });
 }
@@ -280,14 +262,14 @@ export function claimEvidenceAt({ store, claimRow }) {
  *
  * ELLENPÁR: a HATÁSKÖRÖS elbíráló látja. A szabály nem „mindenkit kizár", hanem a hatáskörhöz köt.
  */
-export function readClaim({ store, viewerSubjectId, claimId, clock }) {
+export function readClaim({ store, viewerSubjectId, claimId, clock, credentials }) {
   const row = store.get('SELECT * FROM claim WHERE id = ?', claimId);
   // A HATÁSKÖRT a SOR ISMERETE NÉLKÜL nem lehet megkérdezni (könyv kell hozzá) — ezért ha a sor
   // nincs meg, a válasz azonnal a semleges nemleges. Ha megvan, a hatáskört a sor könyvén mérjük,
   // és a nemleges válasz UGYANAZ az objektum. A kettő megkülönböztethetetlen kívülről.
   if (!row) return CLAIM_NOT_AVAILABLE;
   const right = adjudicationRightAt({
-    store, subjectId: viewerSubjectId, bookId: row.book_id, operation: 'adjudicate', clock,
+    store, subjectId: viewerSubjectId, bookId: row.book_id, operation: 'adjudicate', clock, credentials,
   });
   if (!right.allowed) return CLAIM_NOT_AVAILABLE;
 
@@ -313,7 +295,7 @@ export function readClaim({ store, viewerSubjectId, claimId, clock }) {
  * A KIFOGÁS ÉRDEMI ELBÍRÁLÁSA — `adjudicate` hatáskör kell hozzá, és ÖNMAGÁBAN nem változtat jogot.
  * A jogváltoztatás KÜLÖN művelet, KÜLÖN hatáskörrel (`alter_right`) — ez a REV-N3a lényege.
  */
-export function adjudicateClaim({ store, actorSubjectId, claimId, decision, clock }) {
+export function adjudicateClaim({ store, actorSubjectId, claimId, decision, clock, credentials }) {
   const row = store.get('SELECT * FROM claim WHERE id = ?', claimId);
   // R67/F02: A NEMLEGES VÁLASZ ITT IS SEMLEGES. Korábban a hiányzó ügy `not_available`-t kapott, a
   // hatáskör nélküli hívó viszont a hatáskör-hiba NEVÉT és MONDATÁT — a kettő különbsége maga
@@ -323,7 +305,7 @@ export function adjudicateClaim({ store, actorSubjectId, claimId, decision, cloc
   // van hatásköre · visszavont hatáskör. A pozitív ellenpár változatlan: az illetékes elbíráló dolgozhat.
   if (!row) return CLAIM_NOT_AVAILABLE;
   const right = adjudicationRightAt({
-    store, subjectId: actorSubjectId, bookId: row.book_id, operation: 'adjudicate', clock });
+    store, subjectId: actorSubjectId, bookId: row.book_id, operation: 'adjudicate', clock, credentials });
   if (!right.allowed) return CLAIM_NOT_AVAILABLE;
 
   // R69/C-F01 + C-F02: AMIRŐL DÖNTÜNK, AZT LÁTNI KELL. A hatáskör UTÁN (és csak utána — a sorrend a
@@ -344,9 +326,9 @@ export function adjudicateClaim({ store, actorSubjectId, claimId, decision, cloc
  * A JOG FELFÜGGESZTÉSE — `suspend` hatáskör. Külön művelet, mert ideiglenes és szűkebb hatású, mint
  * a megvonás; a `suspend` hatáskör SOHA nem ad `alter_right`-ot.
  */
-export function suspendMembership({ store, actorSubjectId, subjectId, bookId, clock, reason }) {
+export function suspendMembership({ store, actorSubjectId, subjectId, bookId, clock, reason, credentials }) {
   const right = adjudicationRightAt({
-    store, subjectId: actorSubjectId, bookId, operation: 'suspend', clock });
+    store, subjectId: actorSubjectId, bookId, operation: 'suspend', clock, credentials });
   if (!right.allowed) return Object.freeze({ ok: false, reason: right.reason, message: right.message });
   const m = store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', subjectId, bookId);
   if (!m) return Object.freeze({ ok: false, reason: 'no_membership' });
@@ -381,9 +363,9 @@ export function suspendMembership({ store, actorSubjectId, subjectId, bookId, cl
  * AZ IDŐ SZABÁLYA: a feloldás a MOSTANI pillanattól hat, visszamenőleg nem. A sor NEM tűnik el —
  * `lifted_at`/`lifted_by` kap, tehát a felfüggesztés ideje a történetben megmarad (K09 elve).
  */
-export function liftSuspension({ store, actorSubjectId, subjectId, bookId, clock }) {
+export function liftSuspension({ store, actorSubjectId, subjectId, bookId, clock, credentials }) {
   const right = adjudicationRightAt({
-    store, subjectId: actorSubjectId, bookId, operation: 'suspend', clock });
+    store, subjectId: actorSubjectId, bookId, operation: 'suspend', clock, credentials });
   if (!right.allowed) return Object.freeze({ ok: false, reason: right.reason, message: right.message });
   const at = clock.now();
   const eff = suspensionEffectiveAt({ store, subjectId, bookId, nowIso: at });

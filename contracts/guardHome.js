@@ -165,13 +165,29 @@ const GUARD_HOME = Object.freeze({
   'KUKA-117': Object.freeze({ home: 'vs', note: 'a darabszám-kapu és az eset-készlet a boardon él — a jel (MPF12/MPF13) OTT fut' }),
   'KUKA-121': Object.freeze({ home: 'v3', note: 'a beadvány-integritás és a befogadási korlát a V3 MAGBAN él — a jel (verify:v3ref: P-REV-claim-decide, M62–M64) ITT fut' }),
   // R73 (D-VS-3020) — mind a NÉGY a V3 MAGRÓL szól (tiltás-kérdés tárgya · hatáskör-feloldás ·
-  // a parancs-út kontextusa · az ellentmondó rekord), tehát a jelük ITT fut: a `P-REV-ban-scope`
-  // két ÚJ ága (e)(f) + a `P-REV-ban-paths`, falszifikálva M70 · M71 · M72 által.
-  'KUKA-131': Object.freeze({ home: 'v3', note: 'a kérés-tengely védelme a `banRequestFor`-ban él — a jel (verify:v3ref: P-REV-ban-scope (e), M71) ITT fut' }),
-  'KUKA-132': Object.freeze({ home: 'v3', note: 'a hatáskör-feloldás az AUT-01 modulban él — a jel (verify:v3ref: P-REV-ban-paths, M70) ITT fut' }),
-  'KUKA-133': Object.freeze({ home: 'v3', note: 'a parancs-út kontextus-átadása a V3 magban él — a jel (verify:v3ref: P-REV-ban-paths, M67) ITT fut' }),
-  'KUKA-134': Object.freeze({ home: 'v3', note: 'az ok↔fajta ellentmondás feloldója a `ban.mjs`-ben él — a jel (verify:v3ref: P-REV-ban-scope (f), M72) ITT fut' }),
+  // a parancs-út kontextusa · az ellentmondó rekord), tehát a jelük ITT fut.
+  //
+  // HELYESBÍTÉS (R75 §6, a KÜLSŐ TÁRGYALÓ FÉL): ez a blokk korábban EGY sorban sorolta fel a
+  // `P-REV-ban-scope` és a `P-REV-ban-paths` próbákat „M70 · M71 · M72" falszifikációval — holott
+  // az M71 a `P-REV-ban-scope`-ot buktatja, nem a `P-REV-ban-paths`-t. A külső fél ugyanezt a
+  // csúszást találta meg máshol is: *„a hivatkozás nem bizonyít íróút-ellenőrzést; javítsuk a
+  // kommentet a tényleges gépi jelre vagy ÉPÍTSÜK MEG a hiányzó jelet."* Mindkettőt megtettük: a
+  // hivatkozások lentebb próbánként pontosak, a hiányzó íróút-jel pedig MEGSZÜLETETT (M75).
+  // A tanulság a KUKA-126 alakja a SAJÁT jegyzeteinkre: egy hivatkozás, amit senki nem mér vissza,
+  // DÍSZ — és rosszabb a hiányzónál, mert meglévő bizonyítéknak látszik.
+  'KUKA-131': Object.freeze({ home: 'v3', note: 'a kérés-tengely védelme a `banScope.mjs` `banRequestFor`-jában él — a jel (verify:v3ref: P-REV-ban-scope (e) + M71) ITT fut' }),
+  'KUKA-132': Object.freeze({ home: 'v3', note: 'a hatáskör-feloldás az AUT-01 modulban él — a jel (verify:v3ref: P-REV-ban-paths (d) + M70) ITT fut' }),
+  'KUKA-133': Object.freeze({ home: 'v3', note: 'a belépési kontextus átadása a parancs- ÉS az elbírálási úton él — a jel (verify:v3ref: P-REV-ban-paths (g) + M67 + M77) ITT fut' }),
+  'KUKA-134': Object.freeze({ home: 'v3', note: 'az ok↔fajta ellentmondás feloldója a `banScope.mjs` `banRecordIntegrity`-jében él — a jel (verify:v3ref: P-REV-ban-scope (f) + M72) ITT fut' }),
   'KUKA-120': Object.freeze({ home: 'v3', note: 'a felfüggesztés, az elbírálás és a jelzés-út a V3 MAGBAN él — a jel (verify:v3ref: P-REV-suspension + P-REV-claim-read, M56–M61) ITT fut' }),
+  // R75 (D-VS-3021) — mind az ÖT a V3 MAGRÓL szól, tehát a jelük ITT fut. Négyet a KÜLSŐ TÁRGYALÓ
+  // FÉL talált meg a saját, egy körrel korábbi javításomon; a KUKA-139-et a SAJÁT mutációs próbám.
+  'KUKA-135': Object.freeze({ home: 'v3', note: 'a TELJES döntés (AUT-01 `executableRightAt`) és az egyetlen író a V3 magban él — a jel (verify:v3ref: P-REV-ban-paths (e)(f) + M73 + M75) ITT fut' }),
+  'KUKA-136': Object.freeze({ home: 'v3', note: 'a művelet-tiltás tárolt hatóköre a `banScope.mjs`-ben él — a jel (verify:v3ref: P-REV-ban-paths (c) + P-REV-ban-matrix + M74 + M79) ITT fut' }),
+  'KUKA-137': Object.freeze({ home: 'v3', note: 'a tárolt rekord integritás-feloldója a `banScope.mjs`-ben él — a jel (verify:v3ref: P-REV-ban-scope (g) + M76) ITT fut' }),
+  'KUKA-138': Object.freeze({ home: 'v3', note: 'a belépési kontextus az elbírálási úton a V3 magban megy végig — a jel (verify:v3ref: P-REV-ban-paths (g) + M77) ITT fut' }),
+  'KUKA-139': Object.freeze({ home: 'v3', note: 'a fixtúra ↔ termék-út megkülönböztetés a V3 próba-készletben él — a jel (v3ref:mutate M68 verdiktje + P-REV-ban-past (e)) ITT fut' }),
+  'KUKA-140': Object.freeze({ home: 'v3', note: 'a mutációs battéria falióra-költségvetése a V3 mérőben él — a jel (v3ref:mutate falióra-sora + a TELJES V3 söprés) ITT fut' }),
 });
 
 function homeOf(id) { return (GUARD_HOME[id] || null); }

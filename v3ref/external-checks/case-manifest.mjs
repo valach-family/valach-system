@@ -31,6 +31,34 @@
 /** A programok — KI ÍRTA, MIT MÉR, és PONTOSAN MELY ESETEKET kell hoznia. */
 export const PROGRAMS = Object.freeze([
   Object.freeze({
+    id: 'r75',
+    file: 'r75_chatgpt-v3.mjs',
+    companions: Object.freeze(['r75_chatgpt-v3.core.mjs']),
+    by: 'chatgpt-v3 — KÜLSŐ, független fél',
+    origin: 'R75 §7 (a MAG-próba: a `r75_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN; ez a '
+      + 'bejegyzés a burkolóra mutat, ami az artefaktumot írja — a próba szövegéhez nem nyúlunk). '
+      + 'Ebben a körben az R73-nál még szükséges kétlépéses adaptáció ELMARADT: a program a mai '
+      + 'forráson VÁLTOZTATÁS NÉLKÜL fut. A két futás külön nevezve: a JAVÍTÁS ELŐTTI (R74-es) '
+      + 'forráson 2/7, a mai forráson 7/7.',
+    what: 'C01–C02 kontroll (a jogos könyv-tiltás hat, a független könyvet nem érinti · hatáskör '
+      + 'nélkül és idegen könyvre nem adható ki) és F01–F05: a TILTOTT eljáró NEM tilthat (a kiadás '
+      + 'is engedő út) · a könyv-hatáskörből kiadott művelet-tiltás nem ér át a független könyvbe · '
+      + 'az exportált író nem kerülheti meg a hatókör-kaput · az ismeretlen TÁROLT ok nem engedély · '
+      + 'az ÉRVÉNYES MÁSIK hitelesítő eléri az ügy olvasását',
+    evidence: 'r75-core-challenge.json',
+    cases: Object.freeze([
+      'C01-authorized-book-ban-and-independent-book',
+      'C02-no-authority-and-outside-book-refused',
+      'F01-banned-issuer-cannot-issue-ban',
+      'F02-book-authority-does-not-ban-independent-book-operation',
+      'F03-exported-writer-cannot-bypass-scope',
+      'F04-unknown-stored-cause-not-a-permit',
+      'F05-good-credential-reaches-claim-read',
+    ]),
+    cases_source: 'a külső fél R75-ös lapja (§7, teljes forrással)',
+    evidence_pin_field: 'source_commit',
+  }),
+  Object.freeze({
     id: 'r69',
     file: 'r69_chatgpt-v3.mjs',
     companions: Object.freeze(['r69_chatgpt-v3.core.mjs']),

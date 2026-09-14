@@ -152,6 +152,10 @@ export const EXPECTED_PROBES = Object.freeze([
       Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-ban-kind-is-named-and-closed' }),
       Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-request-axis-not-overridable' }),
       Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-contradicting-record-is-not-a-measurement' }),
+      // R75/F04 — az ISMERETLEN TÁROLT OK saját, nevezett válasza. A régi alak a hiányt NÉMÁN
+      // átengedte (a feltétel `expectedKind && …` volt), tehát egy importált sor mellett a kérés
+      // ENGEDÉLYT kapott. A hiány KÜLÖN válasz, nem a rossz érték ága (KUKA-124/2).
+      Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-unknown-stored-cause-is-not-swallowed' }),
     ]),
   }),
   Object.freeze({
@@ -159,9 +163,17 @@ export const EXPECTED_PROBES = Object.freeze([
     // R71 §8/1 (req-3, 2. lépés). A klauzula előfeltétele KÉT engedő út: a tagsági (`rightAt`) és a
     // REV-N3-ban megépült hatásköri (`adjudicationRightAt`). A tiltás bevezetésének HELYE nem
     // szűkíti a hatását — enélkül a fél őr (KUKA-039) csendben megszülethetne.
+    //
+    // R75 — A HARMADIK ÚT: A KIADÁS. A külső fél kimondta, hogy a KIADÁSI művelet is szerepeljen a
+    // fogyasztók között: egy már letiltott eljáró NEM tilthat. Mellé a két maradék: nincs gyengébb
+    // szerződésű író (`imposeBan`), és a belépési kontextus VÉGIGMEGY az elbírálási úton is — úgy,
+    // hogy az ÉRVÉNYES MÁSIK hitelesítő nem akad el (ez a C-F04 pontos iránya).
     discharges: Object.freeze([
       Object.freeze({ clause: 'REV-N5a', assertion: 'A-REV-N5a-ban-reaches-every-permitting-path' }),
       Object.freeze({ clause: 'REV-N5a', assertion: 'A-REV-N5a-ban-needs-authority' }),
+      Object.freeze({ clause: 'REV-N5a', assertion: 'A-REV-N5a-issuing-path-is-a-permitting-path' }),
+      Object.freeze({ clause: 'REV-N5a', assertion: 'A-REV-N5a-no-weaker-writer' }),
+      Object.freeze({ clause: 'REV-N5a', assertion: 'A-REV-N5a-credentials-reach-adjudication' }),
     ]),
   }),
   Object.freeze({
@@ -172,6 +184,18 @@ export const EXPECTED_PROBES = Object.freeze([
     discharges: Object.freeze([
       Object.freeze({ clause: 'REV-N5c', assertion: 'A-REV-N5c-ban-does-not-rewrite-the-past' }),
       Object.freeze({ clause: 'REV-N5c', assertion: 'A-REV-N5c-ban-does-not-remove-others-rights' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'P-REV-ban-matrix', assertion: 'REVN5-ban-matrix-is-measured',
+    // R73 · R75 §8. A külső tárgyaló fél KÉTSZER kérte a „tiltásfajta × engedő út ×
+    // érintett/független cél × hiteles kontextus" mátrixot BIZONYÍTOTT alakban, és kimondta, hogy a
+    // KIADÁSI művelet is szerepeljen a fogyasztók között. A mátrix itt MÉRÉS: minden cella valódi
+    // futás, a VÁRT értéket a cella deklarálja (KUKA-054), a fajtákat a ZÁRT HALMAZ adja (KUKA-051),
+    // és az ember-olvasható tábla UGYANEBBŐL a függvényből származik (KUKA-082).
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'REV-N5a', assertion: 'A-REV-N5a-every-path-measured-for-every-kind' }),
+      Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-scope-matrix-matches-the-norm' }),
     ]),
   }),
 ]);

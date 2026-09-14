@@ -5821,10 +5821,13 @@ const RETIRED_PATTERNS = Object.freeze([
     decision: 'D-VS-3020',
     found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (R73/C-F01–C-F02) — a saját, R71-es BAN-01 javításomon.',
     positive: Object.freeze([
-      Object.freeze({ paths: ['v3ref/ban.mjs'], pattern: 'REQUEST_AXES',
-        reason: 'a kérés tengelyei NEVEZETTEK, és csak a művelet tölti őket' }),
-      Object.freeze({ paths: ['v3ref/authz.mjs', 'v3ref/adjudication.mjs'], pattern: 'banRequestFor\\(',
-        reason: 'MINDKÉT engedő út a közös feloldót hívja — nem saját összefésülést (KUKA-039)' }),
+      Object.freeze({ paths: ['v3ref/banScope.mjs'], pattern: 'REQUEST_AXES',
+        reason: 'a kérés tengelyei NEVEZETTEK, és csak a művelet tölti őket (R75: a szabály a '
+          + 'banScope.mjs-be költözött, a pin VELE ment — a régi helyre mutató pin ZÖLDEN őrizte '
+          + 'volna a hiányt, KUKA-125)' }),
+      Object.freeze({ paths: ['v3ref/authz.mjs', 'v3ref/authority.mjs'], pattern: 'banRequestFor\\(',
+        reason: 'MINDKÉT engedő út a közös feloldót hívja — nem saját összefésülést (KUKA-039); az '
+          + 'elbírálási és a KIADÁSI út ma az `authority.mjs` teljes döntésén megy át' }),
       Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M71'",
         reason: 'a régi összefésülés bizonyítottan PIROSRA viszi a próbát' }),
       Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'A-REV-N5b-request-axis-not-overridable',
@@ -5867,10 +5870,13 @@ const RETIRED_PATTERNS = Object.freeze([
     positive: Object.freeze([
       Object.freeze({ paths: ['v3ref/authority.mjs'], pattern: 'export function authorityRowAt',
         reason: 'a hatáskör-sor értékelésének EGY, semleges otthona van' }),
-      Object.freeze({ paths: ['v3ref/ban.mjs'], pattern: 'authorityRowAt\\(',
-        reason: 'a tiltás KIADÁSA feloldja a hatáskört — nem a hívó szavát olvassa' }),
-      Object.freeze({ paths: ['v3ref/adjudication.mjs'], pattern: 'authorityRowAt\\(',
+      Object.freeze({ paths: ['v3ref/ban.mjs'], pattern: 'executableRightAt\\(',
+        reason: 'a tiltás KIADÁSA feloldja a hatáskört — nem a hívó szavát olvassa; R75 óta a '
+          + 'TELJES döntést kéri, nem a nyers sort (KUKA-135)' }),
+      Object.freeze({ paths: ['v3ref/adjudication.mjs'], pattern: 'executableRightAt\\(',
         reason: 'a másik oldal UGYANAZT hívja (a kör megszűnt, a másolat nem született meg)' }),
+      Object.freeze({ paths: ['v3ref/authority.mjs'], pattern: 'authorityRowAt\\(',
+        reason: 'a nyers hatásköri sor értékelése EGY, semleges otthonban maradt' }),
       Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M70'",
         reason: 'a hatáskör-kapu kivétele bizonyítottan PIROSRA viszi a próbát' }),
     ]),
@@ -5892,11 +5898,27 @@ const RETIRED_PATTERNS = Object.freeze([
     what: 'A tiltás-kapu a belépési kontextusból dolgozik (hitelesítő · munkamenet · jogalap), a '
       + 'PARANCS-úton viszont a `credentials` egyszerűen nem jutott el a jog-feloldóig: a '
       + '`submitCommand`, a `readCommandResult` és a `releaseAllowed` a `rightAt`-et kontextus '
-      + 'NÉLKÜL hívta. A hitelesítő-hatókörű tiltás (`credential` fajta) tehát a parancs-úton nem '
-      + 'hatott — pont azon az úton, amit a leggyakrabban használnak.',
+      + 'NÉLKÜL hívta.',
+    // ═══ HELYESBÍTÉS (R75 §3, a KÜLSŐ TÁRGYALÓ FÉL) — A HIBA IRÁNYA FORDÍTVA ÁLLT ITT ═══════════
+    //
+    // Az R74-es jelentésemben és e bejegyzés első alakjában úgy írtam le a C-F04-et, hogy „a
+    // hitelesítő-hatókörű tiltás a parancs-úton NEM HATOTT". Ez NEM IGAZ, és a külső fél kimondta:
+    //     *„az R73 hibája nem az volt, hogy a tiltott régi hitelesítővel átengedett a parancs,
+    //     hanem az, hogy AZ ÉRVÉNYES MÁSIK HITELESÍTŐVEL IS BLOKKOLTA A JOGOS MUNKÁT, mert a
+    //     kontextus elveszett."*
+    // Kódon mérve ez a helyes olvasat: kontextus nélkül a kérés nem hordozza a `credentialId`
+    // megkülönböztetőt, tehát a `banReaches` NEM DÖNTHETŐ-t ad, és a kapu — helyesen fail-closed —
+    // ZÁR. A kár tehát nem szivárgás, hanem TÚLZÁRÁS: a jogos felhasználó akadt el.
+    //
+    // MIÉRT ÍRTAM MÉGIS FORDÍTVA. A javítás ugyanaz maradt volna (a kontextust végig kell vinni),
+    // ezért a diagnózis pontossága „mindegynek" tűnt — pedig a hiba IRÁNYA mondja meg, mit kell
+    // MÉRNI: szivárgásnál a tiltott értéket, túlzárásnál az ÉRVÉNYES MÁSIKAT. A rossz irány rossz
+    // próbát szül (KUKA-049: a jel a mechanizmust mérje, ne a tünetet).
     why_wrong: 'A kapu ÉP volt és a fajta-leképezés is; csak az egyik hívó nem adta át, amiből a '
       + 'kapu dolgozik. Ez a KUKA-058 alakja a V3 magban (a hívó nem adta meg, amit a szolgáltatás '
-      + 'kér) — és NÉMA: nincs hiba, nincs kivétel, csak egy tiltás, ami az egyik úton nem ér el.',
+      + 'kér) — és NÉMA abban az értelemben, hogy nincs hiba és nincs kivétel: a tiltás egyszerűen '
+      + 'NEM DÖNTHETŐVÉ vált azon az úton, és a fail-closed kapu MINDENKIT zárt, a jogos '
+      + 'hitelesítővel érkezőt is.',
     replaced_by: 'a belépési kontextus VÉGIGMEGY a parancs-úton, minden jog-feloldó hívásig',
     replacement: 'a `credentials` a `submitCommand` · `readCommandResult` · `releaseAllowed` '
       + 'aláírásának része, és MIND AZ ÖT `rightAt` hívási hely továbbadja.',
@@ -5909,9 +5931,14 @@ const RETIRED_PATTERNS = Object.freeze([
     lesson: 'AMIKOR EGY KAPU ÚJ BEMENETET KAP, VÉGIG KELL MENNI MINDEN HÍVÓN, AKI AZT A KAPUT '
       + 'HASZNÁLJA — a kapu bővítése FÉLKÉSZ, amíg egyetlen hívó is a régi, szűkebb alakkal hív. '
       + 'A „ki olvassa?" (KUKA-015) és a „mi viszi ki?" (KUKA-025) kérdéspár harmadik alakja ez: '
-      + '**ki adja át?** — és a hiánya nem hibázik, csak csendben nem véd.',
-    guard_note: 'gépi jel: `npm run verify:v3ref` — a `P-REV-ban-paths` a PARANCS-úton is méri a '
-      + 'hitelesítő-hatókörű tiltást; `npm run v3ref:mutate` M67 (a fél őr) PIROS.',
+      + '**ki adja át?** — és a hiánya nem hibázik, csak csendben nem véd. **És a hiba IRÁNYÁT is '
+      + 'meg kell nevezni:** a hiányzó kontextus mellett a fail-closed kapu TÚLZÁR, nem szivárog — '
+      + 'a próbának ezért az ÉRVÉNYES MÁSIK hitelesítőt kell mérnie, nem csak a tiltottat.',
+    guard_note: 'gépi jel: `npm run verify:v3ref` — a `P-REV-ban-paths` (g) ága a PARANCS- ÉS az '
+      + 'ELBÍRÁLÁSI úton is méri a hitelesítő-hatókörű tiltást, MINDKÉT irányban (a tiltott '
+      + 'hitelesítő zárva · az ÉRVÉNYES MÁSIK DOLGOZIK); `npm run v3ref:mutate` **M67** (a fél őr, '
+      + 'a közös döntésből kivett tiltás-kapu) és **M77** (a `credentials` kiesik a `readClaim` '
+      + 'hívásából — ez a C-F04 pontos alakja) egyaránt PIROS.',
   }),
 
   Object.freeze({
@@ -5934,8 +5961,9 @@ const RETIRED_PATTERNS = Object.freeze([
     decision: 'D-VS-3020',
     found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (R73/C-F05).',
     positive: Object.freeze([
-      Object.freeze({ paths: ['v3ref/ban.mjs'], pattern: 'ban_cause_kind_contradiction',
-        reason: 'az ellentmondás NEVEZETT, záró válasz — nem néma engedély' }),
+      Object.freeze({ paths: ['v3ref/banScope.mjs'], pattern: 'ban_cause_kind_contradiction',
+        reason: 'az ellentmondás NEVEZETT, záró válasz — nem néma engedély (R75: a szabály a '
+          + '`banRecordIntegrity` feloldóba került, a pin VELE ment)' }),
       Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M72'",
         reason: 'az ellenőrzés kivétele bizonyítottan PIROSRA viszi a próbát' }),
       Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'A-REV-N5b-contradicting-record-is-not-a-measurement',
@@ -5949,6 +5977,268 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'v3ref:mutate` **M72** bizonyítottan PIROS.',
   }),
 
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  // R75 (D-VS-3021) — ÖT LELET A SAJÁT, EGY KÖRREL KORÁBBI R73-AS JAVÍTÁSOMON
+  //
+  // Mind az ötöt a KÜLSŐ TÁRGYALÓ FÉL találta meg, futtatható programmal, a JAVÍTOTT kódon. A
+  // söprés végig zöld volt: a próbáim a régi viselkedést egyeztették, tehát a visszacsúszás nem
+  // lett volna piros. Ez a kör legfontosabb tanulsága: **„javítva" csak az, aminek SAJÁT
+  // falszifikációja van** — enélkül a szó ígéret, nem mérés (R75 §8).
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+
+  Object.freeze({
+    id: 'KUKA-135',
+    date: '2026-09-14',
+    title: 'A DÖNTÉST KETTÉVÁGTAM, ÉS AZ ÍRÓ A GYENGÉBB FELÉT KAPTA — a kiadás mint harmadik, őrizetlen út',
+    what: 'A tiltás OLVASÁSA és KIADÁSA egy modulban élt, ezért az `authority.mjs` nem hívhatta a '
+      + 'tiltás-feloldót (kör lett volna). A kiadási út így CSAK a nyers hatásköri sort nézte. '
+      + 'Mérve: egy `judge`, akinek UGYANARRA a könyvre hatályos tiltása volt, sikeresen tiltott '
+      + '(F01). Mellette az `imposeBan` „alacsony szintű íróként" volt exportálva, és megkerülte az '
+      + '`issueBan` hatókör-kapuját: az A könyvre jogosult eljáró vele a B könyvre is kiadhatott '
+      + 'tiltást, és a dolgozó ott TÉNYLEGESEN elvesztette a hozzáférését (F03).',
+    why_wrong: 'MINDEN ÚT, AMI JOGOT VÁLTOZTAT, MAGA IS ENGEDŐ ÚT — és ugyanazt a TELJES kérdést '
+      + 'kell feltennie. A kiadást „írásnak" gondoltam, nem „engedélynek", ezért kimaradt a '
+      + 'fogyasztók listájából (KUKA-051: a hatókör SZABÁLY, nem lista). A második fele a '
+      + 'KUKA-039 „fél őr": a döntést két darabra vágtam, és a második darab összerakását a HÍVÓRA '
+      + 'bíztam. **És a komment nem hozzáférésvédelem** (KUKA-015): az `imposeBan` fölött ott állt, '
+      + 'hogy „belső" — a külső fél egyszerűen meghívta.',
+    replaced_by: 'AUT-01 — EGY teljes döntés (`executableRightAt`), amit MINDEN út hív, a kiadás is',
+    replacement: 'A függőség iránya MEGFORDULT: `store ← banScope ← authority ← ban`. A '
+      + '`banScope.mjs` CSAK olvas (fajták · okok · hatókör · hatályosság · integritás), az '
+      + '`authority.mjs` ebből építi a TELJES döntést (művelet · eljáró · óra · TILTÁS · hatásköri '
+      + 'sor), és a `ban.mjs` — az ÍRÓ — ezt a teljes döntést kéri. Az `imposeBan` ugyanaz a '
+      + 'függvény (`export const imposeBan = issueBan`), tehát nincs két szerződés.',
+    decision: 'D-VS-3021',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (R75/F01 + F03), futtatható ellenpéldával a JAVÍTOTT kódon.',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/authority.mjs'], pattern: 'export function executableRightAt',
+        reason: 'a TELJES döntés egy helyen él — a tiltás és a hatáskör együtt' }),
+      Object.freeze({ paths: ['v3ref/ban.mjs'], pattern: 'executableRightAt\\(',
+        reason: 'a KIADÁS is a teljes döntést kéri, nem a nyers hatásköri sort' }),
+      Object.freeze({ paths: ['v3ref/ban.mjs'], pattern: 'export const imposeBan = issueBan',
+        reason: 'nincs gyengébb szerződésű író — a korábbi név UGYANAZ a művelet' }),
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M73'",
+        reason: 'a kiadási út tiltás-kapujának kiesése bizonyítottan PIROS' }),
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M75'",
+        reason: 'a gyengébb szerződésű `imposeBan` visszatérése bizonyítottan PIROS' }),
+    ]),
+    lesson: 'AMIKOR EGY DÖNTÉST RÉTEGEKRE BONTOK, MEG KELL KÉRDEZNI, HOGY MINDEN FOGYASZTÓ A TELJES '
+      + 'DÖNTÉST KAPJA-E — és a fogyasztók között ott van MINDEN ÍRÓ is, aki jogot változtat. '
+      + 'A körkörös import SZERKEZETI feladat (KUKA-132), és a helyes válasz a függőség IRÁNYÁNAK '
+      + 'megfordítása: az OLVASÓ réteg ne tudjon a döntésről, a DÖNTÉS réteg hívja az olvasót, és az '
+      + 'ÍRÓ a döntést. **Gyanújel:** ha egy exportált függvény mellé azt kell írni, hogy „belső" '
+      + 'vagy „csak tesztadathoz", akkor vagy nem kell exportálni, vagy ugyanazt a szerződést kell '
+      + 'teljesítenie — a dokumentáció nem kapu.',
+    guard_note: 'gépi jel: `npm run verify:v3ref` — a `P-REV-ban-paths` (e) ága (a tiltott eljáró '
+      + 'KONTROLLAL: előtte TUD tiltani, utána nem) és (f) ága (`imposeBan` ↔ `issueBan` UGYANAZ a '
+      + 'hibakód) · `npm run v3ref:mutate` **M73** és **M75** bizonyítottan PIROS.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-136',
+    date: '2026-09-14',
+    title: 'A KONSTANS NEVE KÖNYV-HATÓKÖRT ÍGÉRT — a TÁROLT REKORD nem hordozta',
+    what: 'A művelet-tiltást a `BOOK_SCOPED_KINDS` nevű listából engedtem kiadni, a tárolt cél '
+      + 'viszont a CSUPASZ művelet-név volt. A feloldó ezért könyveken ÁT értékelte: egy `judge`, '
+      + 'aki CSAK az A könyvön volt jogosult, `operation_misuse` okú tiltással a dolgozót a '
+      + 'FÜGGETLEN B könyvben is megfosztotta a hozzáféréstől.',
+    why_wrong: 'A KONSTANS NEVE NEM KORLÁTOZZA A REKORD HATÁSÁT (KUKA-015: amit a név állít, azt a '
+      + 'GÉPNEK kell teljesítenie). A hatókör a TÁROLT ADATBAN él, nem a kód szókincsében — és a '
+      + 'név épp azt az illúziót keltette, hogy a korlát meg van fogva. Ez a KUKA-121 alakja a '
+      + 'tárolt rekordon: amit a kód „kimond", az állítás, nem mérés.',
+    replaced_by: 'a TÁROLT CÉL maga hordozza a hatókört — a könyv ÉS a művelet együtt',
+    replacement: '`operationScopeRef(bookId, opClass)` → `<könyv>\\u0001<művelet>`, és a '
+      + '`parseOperationScope` MINDKÉT tengelyt megköveteli. A csupasz (globális) alak fogalmilag '
+      + 'létezik, de a mai kiadási út NEVEZETTEN elutasítja — ahhoz külön, globális hatáskör kellene.',
+    decision: 'D-VS-3021',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (R75/F02).',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/banScope.mjs'], pattern: 'export function operationScopeRef',
+        reason: 'a művelet-tiltás célja a könyvet IS hordozza' }),
+      Object.freeze({ paths: ['v3ref/banScope.mjs'], pattern: 'export function parseOperationScope',
+        reason: 'az olvasó MINDKÉT tengelyt megköveteli — a könyv-fél nem veszhet el' }),
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M74'",
+        reason: 'az ÍRÓ oldalán (a csupasz cél visszatérése) bizonyítottan PIROS' }),
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M79'",
+        reason: 'az OLVASÓ oldalán (minden cél globálisnak értelmezve) bizonyítottan PIROS' }),
+    ]),
+    lesson: 'A HATÓKÖRT A TÁROLT ADAT HORDOZZA, NEM A VÁLTOZÓ NEVE. Minden olyan helyen, ahol egy '
+      + 'rekord „X-re szól", meg kell kérdezni: **benne van-e X a SORBAN?** — ha csak a kiadás '
+      + 'pillanatában ismert kontextusban él, akkor a rekord holnap szélesebben fog hatni, mint '
+      + 'ahogy kiadták. **És a szabályt MINDKÉT végén mérni kell** (KUKA-129): az ÍRÓ tárolja, az '
+      + 'OLVASÓ értelmezze — külön mutációval mindkettőre, mert az egyik vége némán visszateheti a '
+      + 'hibát a másikon.',
+    guard_note: 'gépi jel: `npm run verify:v3ref` — a `P-REV-ban-paths` (c) ága a TÁROLT célt is '
+      + 'méri (`opBan.target_ref === operationScopeRef(...)`), és a FÜGGETLEN könyvet NYITVA várja · '
+      + '`npm run v3ref:mutate` **M74** (író) + **M79** (olvasó) bizonyítottan PIROS · a teljes kép '
+      + 'a `P-REV-ban-matrix` `operation` sorain.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-137',
+    date: '2026-09-14',
+    title: 'A HIÁNYZÓ LEKÉPEZÉS A MEGENGEDŐ OLDALRA ESETT — az ismeretlen tárolt ok engedélyt adott',
+    what: 'Az ok↔fajta ellentmondás vizsgálatát `expectedKind && banKind(row.kind) && expectedKind '
+      + '!== row.kind` alakban írtam. ISMERETLEN OKNÁL az `expectedKind` NULL, tehát az EGÉSZ '
+      + 'ellenőrzés kimaradt: egy importált vagy sérült `cause` mellett a hatókör-értékelés lefutott '
+      + 'és a kérés ENGEDÉLYT kapott. Az ÍRÓ ismeretlen-ok ellenőrzése erre nem véd — az a KIADÁST '
+      + 'köti, a tárolóból OLVASOTT sort nem.',
+    why_wrong: 'A KUKA-124/2 pontos ismétlődése, csak FORDÍTOTT IRÁNYBAN: ott a hiányt a szigorúbb '
+      + 'ágra soroltam, itt némán a megengedőre. A legtöbb összehasonlítás a ROSSZ ÉRTÉKRE készül, '
+      + 'és a HIÁNY külön válasz — de ha a hiány a rövidzár-feltételbe kerül, nem csak rossz nevet '
+      + 'kap: ELTŰNIK. Egy védelemnél ez a legrosszabb irány.',
+    replaced_by: 'egy NEVEZETT integritás-feloldó HÁROM külön válasszal, kimondott sorrendben',
+    replacement: '`banRecordIntegrity(row)`: (1) ismeretlen FAJTA → `ban_kind_unknown` · '
+      + '(2) ismeretlen OK → `ban_cause_unknown_stored` · (3) ok↔fajta ELLENTMOND → '
+      + '`ban_cause_kind_contradiction`. Mindhárom NEM DÖNTHETŐ és ZÁR, és a kapu a hatókör-'
+      + 'értékelés ELŐTT áll: az eldönthetetlen sorról a „más könyvre szól" következtetés sem tehető meg.',
+    decision: 'D-VS-3021',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (R75/F04).',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/banScope.mjs'], pattern: 'ban_cause_unknown_stored',
+        reason: 'az ismeretlen TÁROLT ok SAJÁT, nevezett, ZÁRÓ válasz' }),
+      Object.freeze({ paths: ['v3ref/banScope.mjs'], pattern: 'export function banRecordIntegrity',
+        reason: 'a három válasz EGY feloldóban él, kimondott sorrendben (KUKA-003)' }),
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M76'",
+        reason: 'a hiány elnyelése (a fajtára visszaesés) bizonyítottan PIROS' }),
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'A-REV-N5b-unknown-stored-cause-is-not-swallowed',
+        reason: 'a próba NEVEZETT állítást ad ki rá, ELLENPÁRRAL (a független könyvön is zár)' }),
+    ]),
+    lesson: 'MINDEN RÖVIDZÁR-FELTÉTELNÉL MEG KELL KÉRDEZNI, MELYIK IRÁNYBA DŐL A HIÁNY. Az '
+      + '`A && B && C` alak nem semleges: ha `A` a „van-e leképezésem?" kérdés, akkor a hiánya az '
+      + 'EGÉSZ ellenőrzést kihagyja — védelemnél ez néma engedély. **Gyanújel:** ha egy '
+      + 'igazság-értéket azért teszek a feltétel ELEJÉRE, hogy „ne szálljon el", akkor valójában egy '
+      + 'HIÁNYT kezelek — és annak saját, nevezett válasza jár (KUKA-020 · KUKA-124/2).',
+    guard_note: 'gépi jel: `npm run verify:v3ref` — a `P-REV-ban-scope` (g) ága · `npm run '
+      + 'v3ref:mutate` **M76** bizonyítottan PIROS.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-138',
+    date: '2026-09-14',
+    title: 'A HIBA IRÁNYÁT FORDÍTVA ÍRTAM LE — és ettől a javítás FÉL maradt',
+    what: 'Az R73/C-F04-et úgy jelentettem, hogy „a hitelesítő-hatókörű tiltás a parancs-úton NEM '
+      + 'HATOTT". A valóság a FORDÍTOTTJA: kontextus nélkül a kérés nem hordozza a `credentialId` '
+      + 'megkülönböztetőt, tehát a feloldó NEM DÖNTHETŐ-t ad, és a fail-closed kapu MINDENKIT zár — '
+      + 'az ÉRVÉNYES MÁSIK hitelesítővel érkező jogos munkát is. A rossz irány mellé fél javítás '
+      + 'járt: a `credentials` a parancs-úton végigment, az ELBÍRÁLÁSI úton (`readClaim` · '
+      + '`adjudicateClaim` · `suspendMembership` · `liftSuspension`) viszont nem.',
+    why_wrong: 'A DIAGNÓZIS IRÁNYA HATÁROZZA MEG, MIT KELL MÉRNI: szivárgásnál a TILTOTT értéket, '
+      + 'túlzárásnál az ÉRVÉNYES MÁSIKAT. Mivel a javítás ugyanaz lett volna, a pontosság '
+      + '„mindegynek" tűnt — és épp ezért maradt ki a próbából az az ág, ami a hibát megfogta volna '
+      + '(KUKA-049: a jel a MECHANIZMUST mérje, ne a tünetet).',
+    replaced_by: 'a belépési kontextus MINDEN jog-feloldó hívásig eljut, és a próba MINDKÉT irányt méri',
+    replacement: 'a `credentials` a `readClaim` · `adjudicateClaim` · `suspendMembership` · '
+      + '`liftSuspension` aláírásának része, és mind a négy `adjudicationRightAt` hívás továbbadja. '
+      + 'A próba (g) ága KÉT felet mér: a tiltott hitelesítővel az ügy nem olvasható · az ÉRVÉNYES '
+      + 'MÁSIKKAL ugyanaz az elbíráló DOLGOZIK.',
+    decision: 'D-VS-3021',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (R75/F05 + §3 helyesbítés a SAJÁT R74-es jelentésem szövegére).',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/adjudication.mjs'], pattern: 'credentials',
+        reason: 'az elbírálási út ismeri a belépési kontextust, és továbbadja' }),
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M77'",
+        reason: 'a kontextus kiesése EGY hívón bizonyítottan PIROS' }),
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'A-REV-N5a-credentials-reach-adjudication',
+        reason: 'a próba MINDKÉT irányt méri — a túlzárás ellenpárja is állítás' }),
+    ]),
+    lesson: 'EGY HIBA LEÍRÁSÁBAN AZ IRÁNY NEM STÍLUS-KÉRDÉS: a „átengedett" és a „túlzárt" KÉT '
+      + 'KÜLÖNBÖZŐ mérést kíván, és rossz irány mellé rossz próba születik. Fail-closed kapunál a '
+      + 'hiányzó bemenet SOHA nem szivárgás — mindig TÚLZÁRÁS, tehát az ELLENPÁRT (a jogos '
+      + 'felhasználót) kell mérni. **És a javítás hatóköre a HIBA OSZTÁLYA, nem az az út, ahol '
+      + 'először láttuk** (KUKA-051): ha a kapu új bemenetet kap, MINDEN hívóján végig kell menni.',
+    guard_note: 'gépi jel: `npm run verify:v3ref` — a `P-REV-ban-paths` (g) ága · `npm run '
+      + 'v3ref:mutate` **M77** bizonyítottan PIROS. A `P-REV-ban-matrix` a „nem hozza a kontextust" '
+      + 'oszlopot MINDEN kontextus-tengelyű fajtára kiírja, tehát a túlzárás LÁTSZIK, nem rejtőzik.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-139',
+    date: '2026-09-14',
+    title: 'A PRÓBA ÁTÁLLT FIXTÚRÁRA — és a TERMÉK-ÚTRA célzott mutáció némán elnémult',
+    what: 'A modul-szétválasztáskor a `P-REV-ban-past` próba a tiltás-rekordot már nem az '
+      + '`issueBan`-nal hozta létre, hanem közvetlenül a tárolóba írta (fixtúra) — helyesen, mert a '
+      + 'személy-szintű tiltás a mai jogcímmel nem kiadható. Csakhogy az M68 mutáció (a kiadás mellé '
+      + 'tett `DELETE FROM command_event`) pont az `issueBan` törzsét támadja: a próba onnantól nem '
+      + 'futtatta a mutált kódot, tehát a mutáció TÚLÉLTE — miközben a próba ZÖLDEN állt.',
+    why_wrong: 'A PRÓBA ZÖLDJE ÉS A MUTÁCIÓ TÚLÉLÉSE EGYÜTT azt jelenti, hogy az állítás igaz, de '
+      + 'NEM A TERMÉK ÚTJÁRA. A fixtúra a HATÁST méri, a termék-út a VISELKEDÉST — a kettő két külön '
+      + 'kérdés (KUKA-038: a létezés nem bizonyíték arra, hogy FUT). A csúszás néma: semmi nem lett '
+      + 'piros, csak a bizonyíték ereje csökkent.',
+    replaced_by: 'a próba MINDKETTŐT futtatja — fixtúra a hatásra, VALÓDI kiadás a viselkedésre',
+    replacement: 'a `P-REV-ban-past` a személy-szintű tiltást fixtúraként teszi be (és ezt '
+      + 'KIMONDJA), mellé viszont egy JOGSZERŰEN kiadható, könyv-hatókörű tiltást ad ki az '
+      + '`issueBan`-nal — ugyanazon a könyvön, ahol a korábbi parancs született, tehát a törlés, ha '
+      + 'megtörténne, LÁTSZANA. Az (e) ág ezt külön állításként méri.',
+    decision: 'D-VS-3021',
+    found_by: 'a SAJÁT MUTÁCIÓS PRÓBÁM (`v3ref:mutate` → M68 SURVIVED) — a próba-futás végig zöld volt.',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'function plantBanFixture',
+        reason: 'a tesztadat-írás NEVEZETT és elkülönített — nem téveszthető össze a termék-úttal' }),
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'a kiadási út lefutott',
+        reason: 'a próba KIMONDJA, hogy a VALÓDI kiadás is lefutott — nem csak a fixtúra' }),
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M68'",
+        reason: 'a múlt-törlés a kiadás mellett bizonyítottan PIROS (nem SURVIVED)' }),
+    ]),
+    lesson: 'AMIKOR EGY PRÓBA TESZTADAT-ÍRÁSRA VÁLT (fixtúra), MEG KELL KÉRDEZNI: **MELYIK MUTÁCIÓ '
+      + 'VESZTI EL EZZEL A CÉLPONTJÁT?** — a termék-útra célzott falszifikáció némán elnémul, és a '
+      + 'zöld próba mellett senki nem veszi észre. A fixtúra jogos eszköz (olyan állapotot is elő '
+      + 'tud állítani, amit a termék-út joggal elutasít), de nem HELYETTESÍTI a termék-út mérését: '
+      + 'a kettő két külön állítás, és mindkettőnek külön ága jár. **Gyanújel:** ha egy mutáció '
+      + 'TÚLÉL úgy, hogy a próbája zöld, a hiba nem a kódban van, hanem abban, hogy a próba nem '
+      + 'futtatja a mutált sort.',
+    guard_note: 'gépi jel: `npm run v3ref:mutate` — az **M68** verdiktje CAUGHT (a SURVIVED '
+      + 'bizonyítottan a régi próba-alakon állt elő); a `P-REV-ban-past` (e) ága a kiadás lefutását '
+      + 'NEVEZETT állításként méri. **Kimondott korlát:** arra ma NINCS általános gépi jel, hogy egy '
+      + 'próba fixtúrára váltásakor melyik mutáció veszti el a célpontját — ezt a mutációs futás '
+      + 'SURVIVED/STALE sora mondja meg, és ezért kötelező elolvasni, nem csak a próba-számot.',
+  }),
+
+
+  Object.freeze({
+    id: 'KUKA-140',
+    date: '2026-09-14',
+    title: 'AZ ÚJ MÉRÉS MEGETTE A MÉRŐ IDŐ-TARTALÉKÁT — és a költségvetés emelése lett volna a kézenfekvő „javítás"',
+    what: 'A tiltás-mátrix első alakja CELLÁNKÉNT épített friss tárolót (66 világ), és a mutációs '
+      + 'battéria a próba-készletet 77-szer futtatja le. A falióra 11 260 ms lett a saját, 12 000 '
+      + 'ms-os költségvetésnél — önmagában zöld, de a 20% tartalék elfogyott: a TELJES söprés '
+      + 'párhuzamos terhelése alatt a futás átlépte a korlátot, és PIROS lett. Két egymást követő '
+      + 'söprésen KÉT KÜLÖNBÖZŐ verifier bukott el (`verify:v3ref`, majd `verify:external-checks`) — '
+      + 'a tünet vándorolt, tehát elsőre „flakynek" látszott.',
+    why_wrong: 'A 15 000 ms NEM a mi korlátunk: a KÜLSŐ FÉL futtatja ezzel a battériát, és nála a '
+      + 'túllépés MÉRŐHIBÁVÁ változtatja a mérést — onnantól nem a kódról szól. A saját 80%-os '
+      + 'költségvetés épp azért van, hogy egy lassabb gépen se boruljon; aki a tartalékot felhasználja, '
+      + 'az a kockázatot adja át. **A kézenfekvő „javítás" — a költségvetés emelése — ezért a '
+      + 'legrosszabb irány** (KUKA-091: az őr engedékenysége sosem a javítás iránya), és a vándorló '
+      + 'tünet miatt könnyű „flakynek" minősíteni, ami ugyanaz, csak lustábban.',
+    replaced_by: 'a MÉRÉS lett olcsóbb, nem a korlát nagyobb — olvasó világ megosztva, ÍRÓ cellának saját',
+    replacement: 'a `banMatrix.mjs` plánonként EGY olvasó világot épít (a cellák többsége csak OLVAS, '
+      + 'és az olvasás nem mozdítja a világot), a KIADÁSI (író) cella viszont saját, friss világot kap '
+      + '— így az „egy világ = egy tiltás" követelmény sértetlen marad (KUKA-054), a világok száma '
+      + 'pedig 66-ról ~27-re esik. Mérve: 11 260 ms → 9 888 ms (a külső korlát 66%-a).',
+    decision: 'D-VS-3021',
+    found_by: 'a SAJÁT TELJES SÖPRÉSEM — a cél-verifier önmagában ZÖLD volt (D-VS-406 elve: a '
+      + 'cél-battéria zöldje a szomszédokról semmit nem mond).',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/banMatrix.mjs'], pattern: 'const shared = worldWithBan\\(plan\\)',
+        reason: 'az OLVASÓ cellák plánonként EGY világon mérnek' }),
+      Object.freeze({ paths: ['v3ref/banMatrix.mjs'], pattern: "pathName === 'issuing' \\? worldWithBan\\(plan\\)",
+        reason: 'az ÍRÓ cella SAJÁT világot kap — a követelmény nem sérül' }),
+      Object.freeze({ paths: ['v3ref/mutate.mjs'], pattern: 'EXTERNAL_WALL_LIMIT_MS = 15000',
+        reason: 'a KÜLSŐ korlát változatlan — a javítás nem a költségvetés emelése volt' }),
+    ]),
+    lesson: 'ÚJ MÉRÉS FELVÉTELEKOR MEG KELL NÉZNI, MENNYIT VESZ EL A MÉRŐ SAJÁT TARTALÉKÁBÓL — és a '
+      + 'tartalék nem szabad hely, hanem a LASSABB GÉP biztosítéka. **Ha egy korlát KÜLSŐ, akkor nem '
+      + 'a korlátot hangoljuk, hanem a munkát** — az emelés a kockázatot adja tovább, nem szünteti '
+      + 'meg. **És a VÁNDORLÓ TÜNET nem „flaky":** ha két futáson KÉT KÜLÖNBÖZŐ verifier bukik, az '
+      + 'majdnem biztosan KÖZÖS erőforrás (idő · processzor · lemez), nem véletlen — a „majd újra '
+      + 'lefuttatom" ilyenkor a mérés feladása. A cél-verifier önmagában mért zöldje nem elég: a '
+      + 'terhelés a TELJES söprésben jelenik meg (D-VS-406).',
+    guard_note: 'gépi jel: `npm run v3ref:mutate` KIÍRJA a faliórát, a költségvetést és a KIHASZNÁLT '
+      + 'SZÁZALÉKOT minden futáskor, és a költségvetés fölött PIROS — tehát a sodródás sosem néma '
+      + '(a jel MEGVOLT, ezt a leletet ő maga adta). **Kimondott korlát:** ez a MI gépünkön mért idő; '
+      + 'egy nálunk 25%-kal lassabb gépen a külső korlát akkor is elérhető, ha itt zöld.',
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

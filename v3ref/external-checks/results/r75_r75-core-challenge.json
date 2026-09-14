@@ -1,0 +1,106 @@
+{
+  "program": "r75_chatgpt-v3.core.mjs",
+  "source_commit": "c93a0a1caef6db1cc69c2fc996e3dde86d861f45+uncommitted",
+  "node": "v22.22.2",
+  "at": "2026-09-14T08:47:03.210Z",
+  "verbatim": true,
+  "scope": "pinned reference; real isolated SQLite; issueBan public entry and exported writer, no live endpoints",
+  "results": [
+    {
+      "id": "C01-authorized-book-ban-and-independent-book",
+      "pass": true
+    },
+    {
+      "id": "C02-no-authority-and-outside-book-refused",
+      "pass": true
+    },
+    {
+      "id": "F01-banned-issuer-cannot-issue-ban",
+      "pass": true
+    },
+    {
+      "id": "F02-book-authority-does-not-ban-independent-book-operation",
+      "pass": true
+    },
+    {
+      "id": "F03-exported-writer-cannot-bypass-scope",
+      "pass": true
+    },
+    {
+      "id": "F04-unknown-stored-cause-not-a-permit",
+      "pass": true
+    },
+    {
+      "id": "F05-good-credential-reaches-claim-read",
+      "pass": true
+    }
+  ],
+  "passed": 7,
+  "failed": 0,
+  "cases": [
+    {
+      "id": "C01-authorized-book-ban-and-independent-book",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "C01-authorized-book-ban-and-independent-book",
+        "pass": true
+      }
+    },
+    {
+      "id": "C02-no-authority-and-outside-book-refused",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "C02-no-authority-and-outside-book-refused",
+        "pass": true
+      }
+    },
+    {
+      "id": "F01-banned-issuer-cannot-issue-ban",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "F01-banned-issuer-cannot-issue-ban",
+        "pass": true
+      }
+    },
+    {
+      "id": "F02-book-authority-does-not-ban-independent-book-operation",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "F02-book-authority-does-not-ban-independent-book-operation",
+        "pass": true
+      }
+    },
+    {
+      "id": "F03-exported-writer-cannot-bypass-scope",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "F03-exported-writer-cannot-bypass-scope",
+        "pass": true
+      }
+    },
+    {
+      "id": "F04-unknown-stored-cause-not-a-permit",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "F04-unknown-stored-cause-not-a-permit",
+        "pass": true
+      }
+    },
+    {
+      "id": "F05-good-credential-reaches-claim-read",
+      "pass": true,
+      "verdict_shape": "pass:boolean",
+      "result": {
+        "id": "F05-good-credential-reaches-claim-read",
+        "pass": true
+      }
+    }
+  ],
+  "cases_mapped_from": "results (a burkoló képezte, a program szövege érintetlen)"
+}
