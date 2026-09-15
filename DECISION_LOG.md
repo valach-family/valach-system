@@ -16,6 +16,45 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3030 — RENDSZERKÉP: A MINDIG BETÖLTÖTT LAP, ÉS A MÉRT ÍRÓ-HALMAZ (MCS-1)
+
+**Dátum:** 2026-09-15 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R5
+
+**1. ÚJ LAP: `docs/RENDSZERKEP.md` (5 844 bájt).** Ez az EGYETLEN kötelező olvasmány egy V3-feladat
+előtt: mi ez a rendszer · a modulok és mit döntenek el · a három mérő-parancs · a feladathoz kötött
+**elővétel-tábla** · a **tíz kritikus szabály** · és hogy hol él a többi tudás (nem olvasmány).
+Ha nő, valamit rossz helyre tettünk.
+
+**2. AZ MK-2 KORÁBBI ALAKJÁT VISSZAVONOM.** A „a tanulság-táblát az ügynök nem olvassa; a gép
+futtatja" alak azt sugallta, hogy a gépi őr megőrzi a szabály JELENTÉSÉT — magam mondtam ki korábban,
+hogy nem így van (a külső fél R4 §4 helyesen kifogásolta). Helyette négy tétel: **MK-2a** rövid,
+mindig betöltött kritikus szabályok · **MK-2b** feladathoz kötött KÖTELEZŐ részletes elővétel ·
+**MK-2c** a döntési napló és az archívum MEGMARAD (méretcél miatt nem törölhető) · **MK-2d** gépi őr
+CSAK a géppel ellenőrizhető tulajdonságokra. **MK-4 bővítve:** a térkép megnevezi a módosítás által
+érintett FOGYASZTÓKAT és a KÖZÖS ALAPOKAT is.
+
+**3. MÉRT LELET — a BEM-01 nem akaszkodhat a regiszterre.** Az `entryPoints.mjs`
+`WRITER_ENTRY_POINTS` regisztere **5** írót nevez meg (`ENT_FLOOR = 5`), a magban viszont
+**19 exportált író függvény** van, ebből **18 termék-író** (a 19. mérési segéd). Ha a bemeneti
+séma-ellenőrzés a REGISZTERRE épül, **13 író némán megkerüli**. Ezért a BEM-01 oda kerül, ahol az
+írás SZÜLETIK, és a regiszter **mért szabállyá** válik: a söprés hasonlítja a regisztert a forrásban
+ténylegesen író exportok halmazához, MINDKÉT irányban (KUKA-051). **A mérés ma egyszeri**
+(zárójel-mélységgel hatókört követő pásztázás), söprésbe kötése az MCS-2 része — ezt kimondom.
+
+**4. A KIPRÓBÁLT BETÖLTÉSI CSOMAG (BETOLTES-01) — mérve.** Mintafeladat: *„hol kell a BEM-01-nek
+állnia, hogy egyik írás se kerülhesse meg?"*. A csomag: `docs/RENDSZERKEP.md` + amit az elővétel
+megnevez (`v3ref/entryPoints.mjs`) = **23 579 bájt**, a teljes háttér-állomány (`CLAUDE.md` 208 342 +
+`DECISION_LOG.md` 159 566 + tanulság-regiszter 610 760 + `docs/70_PLANNING/` 81 507 = 1 060 175)
+**2,2%-a**. A lap 3. kritikus szabálya („a mérés hatóköre SZABÁLY, nem lista") kényszerítette ki a
+§3 mérését — **a csomag nemcsak elég volt, ez találta meg a hiányt.** **Kimondott korlát:** a próbát
+ugyanaz az ügynök futtatta, aki a csomagot írta, tehát ELÉGSÉGESSÉGI próba, nem függetlenségi
+bizonyíték (KUKA-054).
+
+**5. A TELJES CSOMAG:** `docs/70_PLANNING/V3_MCS1_SZERZODESCSOMAG.md` a V2 repóban (ott él a board- és
+dokumentum-lánc). A V2-oldali szám: **D-VS-720**.
+
+---
+
 ## D-VS-3029 — A MŰVELET AZONOSSÁGA A BELÉPÉSI PONTÉ (MOP-01) — R92-F01 · F02 + a véges zárólista
 
 **Dátum:** 2026-09-15 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R1 · **KUKA-164 · 165**
