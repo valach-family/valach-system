@@ -7143,6 +7143,97 @@ const RETIRED_PATTERNS = Object.freeze([
       + '0 elavult horgony).',
   }),
 
+  Object.freeze({
+    id: 'KUKA-164',
+    date: '2026-09-15',
+    title: 'a HÍVÓ NEVEZTE MEG, MIT ELLENŐRIZZÜNK — és a HIÁNYZÓ TENGELY kikapcsolta az ellenőrzést',
+    what: 'Az ORG-N1b korlát KÉT úton volt megkerülhető, a TELJES kiadás→beváltás láncon mérve. '
+      + '(1) Az `issueInviteUnderBasis` a `operation` paraméterét a HÍVÓTÓL vette: csak `suspend`-re '
+      + 'felhatalmazó alappal is kiadható volt MEGHÍVÓ, mert a kapu a hívó által mondott nevet '
+      + 'mérte, a végrehajtott hatás viszont meghívókiadás maradt — és a beváltás UGYANAZT a hamis '
+      + 'nevet olvasta vissza a PECSÉTBŐL, tehát a közös feloldó két helyen hívása sem zárta a rést. '
+      + '(2) A `scope` alapértéke `null` volt, és a közös ellenőrző a null/undefined tengelyt '
+      + 'ÁTUGROTTA: `allowedScopes: []` (üres = semmi nem szabad) mellett az adatkör ELHAGYÁSA '
+      + 'átengedte a kiadást. Mindkét esetben megszületett a user-TAGSÁG.',
+    why_wrong: 'A védett tény a VÉGREHAJTOTT hatás azonossága, nem az, aminek a hívó nevezi '
+      + '(KUKA-121: amit a beadó begépelhet, az ÁLLÍTÁS, nem mérés). És a hiányzó bemenet nem '
+      + 'jelentheti az ellenőrzés kikapcsolását: a legtöbb összehasonlítás a ROSSZ ÉRTÉKRE készül, '
+      + 'a HIÁNYT pedig némán ugyanoda sorolja — pedig a kettő két külön válasz (KUKA-124/2).',
+    replaced_by: 'MOP-01 — a művelet azonossága a BELÉPÉSI PONTÉ, a kötelező tengelyek MŰVELETENKÉNT '
+      + 'deklaráltak',
+    replacement: 'Az `OPERATION_LIMIT_CONTRACT` műveletenként kimondja, mely tengelyek KÖTELEZŐEK; a '
+      + '`requiredAxesFor` ismeretlen műveletre `null`-t ad, és a hívó ZÁR (fail-closed). Az '
+      + '`issueInviteUnderBasis` eltérő deklarált műveletre `operation_not_overridable`-lel utasít '
+      + 'el, és MINDIG a meghívókiadást pecsételi; a `redemptionLimitGate` a pecsét műveletét nem '
+      + 'hiszi el (`sealed_operation_mismatch`). A `withinBasis` a kötelező tengely hiányzó értékére '
+      + '`axis_value_required_<tengely>` választ ad — nem ugorja át.',
+    decision: 'D-VS-3029',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R92 §2–§4), futtatható programmal',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/basisLimit.mjs'], pattern: 'operation_not_overridable',
+        why: 'a belépési pont nem engedi át a hívó műveletnevét' }),
+      Object.freeze({ paths: ['v3ref/basisLimit.mjs'], pattern: 'sealed_operation_mismatch',
+        why: 'a beváltás sem a pecsétből veszi az ellenőrzendő műveletet' }),
+      Object.freeze({ paths: ['v3ref/authorityBasis.mjs'], pattern: 'axis_value_required_',
+        why: 'a kötelező tengely hiányzó értéke NEVEZETT elutasítás, nem átugrás' }),
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M134'",
+        why: 'a visszacsúszás falszifikálva (M134–M137)' }),
+    ]),
+    lesson: 'MINDEN KAPUNÁL KÉT KÉRDÉS: (1) a védett tényt KI MONDJA MEG — a hívó, vagy az a hely, '
+      + 'ahol a hatás ténylegesen születik? Ha a hívó, akkor a kapu önmagával egyezik. (2) Mit csinál '
+      + 'a HIÁNNYAL? Ha a hiányzó bemenet átugrást jelent, akkor nem kapu, hanem opció. A javítás '
+      + 'iránya mindkettőnél ugyanaz: a döntést a BELÉPÉSI PONT és egy kimondott, műveletenkénti '
+      + 'SZERZŐDÉS adja — és a szerződés hiánya ZÁR, nem enged.',
+    guard_note: 'gépi jel: `npm run verify:external-checks` → `r92authz` (a külső fél programja '
+      + 'VÁLTOZATLANUL, a teljes kiadás→beváltás úton: a bizonyíték a keletkezett TAGSÁG, nem a '
+      + 'hívás válasza) + `node v3ref/run.mjs` P-ORG-basis-limit (f)(g) ág + `npm run '
+      + 'v3ref:mutate:units` M134–M137. A javítás ELŐTTI forráson mindkét eset `ok:true` + '
+      + '`outcome:"granted"` + user-tagság — bizonyítottan piros.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-165',
+    date: '2026-09-15',
+    title: 'a BURKOLÓ A REPÓ LAYOUTJÁT TIPPELTE — és a söprésben halott volt, miközben önmagában zöld',
+    what: 'A KUKA-164 javításához megírtam a külső fél programjának burkolóját, önmagában '
+      + 'lefuttattam (2/2 zöld), és bekötöttnek jelentettem. A söprés viszont ELTÉRÉST adott: a '
+      + 'burkoló a mag gyökerét `resolve(HERE, "..", "..")`-tal képezte, tehát a REPÓ LAYOUTJÁT '
+      + 'feltételezte — a futtató viszont ideiglenes HOMOKOZÓBA másolja a programokat '
+      + '(`<dir>/<burkoló>` + `<dir>/source/v3ref/`), ahol két szinttel feljebb `/` áll. '
+      + 'Eredmény: `ERR_MODULE_NOT_FOUND`, 0/2 eset, 1-es kilépés. Mellé a futás FORRÁS-KÖTÉSE '
+      + '(`source_commit`) is hiányzott a részletes eredményből.',
+    why_wrong: 'A KUKA-031 („szállított kódba abszolút környezet-út SOHA") és a KUKA-130 („a közös '
+      + 'lakó helyét a LEGSZŰKEBB KIADÁSI FA dönti el") ugyanaz a hiba-osztály: a kód a KÖRNYEZETÉT '
+      + 'tippelte ahelyett, hogy megkérdezte volna. És a KUKA-132 pontosan itt ismétlődött: a '
+      + '„be van kötve" állítás MÉRHETŐ állítás — a program LÉTEZETT és FUTOTT, a KÖTÉSE nem.',
+    replaced_by: 'nevezett gyökér-feloldó (`coreRootFor`) + kimondott erejű forrás-kötés '
+      + '(`sourcePinFor`)',
+    replacement: 'A `coreRootFor` a BIZONYÍTÉKOT keresi (`v3ref/store.mjs` megléte) a homokozó- és a '
+      + 'repó-jelöltön, ebben a sorrendben; ha egyik sem áll, NEVEZETT hibával áll meg — nem nulla '
+      + 'esettel (KUKA-012 · KUKA-020). A `sourcePinFor` a homokozó `source-manifest.json`-jából '
+      + 'veszi a pint, közvetlen futtatásnál a git HEAD-ből, és a `source_commit_from` mező '
+      + 'KIMONDJA, melyiket tartja a befogadó (KUKA-127: a gyengébb kötést meg kell nevezni).',
+    decision: 'D-VS-3029',
+    found_by: 'a SAJÁT SÖPRÉSEM (`verify:external-checks` ELTÉRÉS), a kiadás előtt — az önálló futás '
+      + 'végig 2/2 zöld volt',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/external-checks/r92_chatgpt-v3.mjs'], pattern: 'coreRootFor',
+        why: 'a gyökér MEGKERESVE, nem tippelve' }),
+      Object.freeze({ paths: ['v3ref/external-checks/r92_chatgpt-v3.mjs'], pattern: 'source_commit_from',
+        why: 'a futás-kötés ereje kimondva' }),
+    ]),
+    lesson: 'AMIT ÖNMAGÁBAN FUTTATSZ, AZ NEM A SÖPRÉS. Ha egy szerszám más KÖRNYEZETBEN fut a '
+      + 'kapuban, mint a kezed alatt, akkor a „lefuttattam, zöld" NEM a kapu állapotáról szól. '
+      + 'Minden bekötésnél a kérdés: MELYIK KAPU BUKNA EL, ha ez a fájl holnap eltűnne — és futott-e '
+      + 'már le AZ A KAPU, nem a fájl. És a környezetet soha ne a layoutból vezesd le: keresd meg a '
+      + 'bizonyítékát, vagy állj meg nevezett hibával.',
+    guard_note: 'gépi jel: `npm run verify:external-checks` — a burkoló a homokozóban is 2/2 zöld, a '
+      + 'pin `staged_manifest`; a régi alakon az ELTÉRÉS bizonyítottan piros volt (0/2 eset · '
+      + 'hiányzó `source_commit` · 1-es kilépés). KIMONDOTT KORLÁT: egy JÖVŐBELI burkoló hasonló '
+      + 'hibáját ez nem méri előre — a védelem az, hogy a söprés minden programot a homokozóban '
+      + 'futtat.',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

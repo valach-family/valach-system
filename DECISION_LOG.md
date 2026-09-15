@@ -16,6 +16,91 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3029 — A MŰVELET AZONOSSÁGA A BELÉPÉSI PONTÉ (MOP-01) — R92-F01 · F02 + a véges zárólista
+
+**Dátum:** 2026-09-15 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R1 · **KUKA-164 · 165**
+
+**1. A REPRODUKCIÓ ELŐSZÖR.** A külső fél (chatgpt-v3) R92-es programját VÁLTOZATLANUL lefuttattam a
+VÁLTOZATLAN forráson: **F01 és F02 egyaránt `ok:true` + `outcome:'granted'` + `role:'user'`** — a két
+bejelentett megkerülés pontosan úgy áll, ahogy leírták, és **mindkettő TAGSÁGOT szült**. A javított
+forráson **2/2 elakad, tagság nem keletkezik**.
+
+**2. R92-F01 — a hívó átnevezhette az ellenőrzött műveletet.** Az `issueInviteUnderBasis` a hívótól
+kapott `operation` értéket mérte, a végrehajtott hatás viszont meghívókiadás maradt; a beváltás
+UGYANAZT a hamis nevet olvasta vissza a pecsétből, tehát a közös feloldó két helyen hívása sem zárta
+a rést. **MOP-01:** a művelet azonosságát a BELÉPÉSI PONT adja. Eltérő deklarált művelet →
+`operation_not_overridable`; a pecsét mindig `invite_issue`; a `redemptionLimitGate` a pecsét
+műveletét nem hiszi el → `sealed_operation_mismatch`.
+
+**3. R92-F02 — az adatkör elhagyása kikapcsolta a tengelyt.** A `scope` alapértéke `null` volt, és a
+`withinBasis` a null/undefined tengelyt átugrotta: `allowedScopes: []` mellett is átment a kiadás.
+Helyette **műveletenkénti, kimondott szerződés** (`OPERATION_LIMIT_CONTRACT` + `requiredAxesFor`): a
+kötelező tengely hiányzó értéke `axis_value_required_<tengely>`, az ISMERETLEN művelet fail-closed
+(`operation_has_no_limit_contract`). A jogos ellenpárok megmaradtak: alapon belüli kiadás és beváltás
+változatlan.
+
+**4. A SAJÁT FALSZIFIKÁCIÓ.** A `P-ORG-basis-limit` próba **hét** állításra bővült — az új kettő az
+`…-operation-identity-is-the-entry-point-not-the-caller` és az `…-omitting-an-axis-does-not-disable-it`.
+Négy új mutáció (**M134–M137**): a művelet-felülírás visszaengedése · a pecsét műveletének
+visszaolvasása · a kötelező tengely átugrása · az ismeretlen művelet fail-open. Mérve:
+**50 próba PASS · 134 mutáció · 134 elkapva · 0 túlélte · 0 elavult horgony · norma-lánc 57/76**.
+
+**5. A SAJÁT LELETEM — a burkoló a söprésben halott volt (KUKA-165).** A külső fél programjához írt
+burkolóm a repó gyökerét TIPPELTE (`resolve(HERE,'..','..')`), a futtató viszont ideiglenes
+homokozóba másol: `ERR_MODULE_NOT_FOUND`, **0/2 eset, 1-es kilépés** — miközben önmagában futtatva
+2/2 zöld volt, és a részletes eredményből a `source_commit` futás-kötés is hiányzott. Javítva:
+nevezett gyökér-feloldó (`coreRootFor` — a BIZONYÍTÉKOT keresi, nem a layoutot tippeli; ha egyik
+jelölt sem áll, NEVEZETT hibával áll meg) + `sourcePinFor`, ami a kötés EREJÉT is kiírja
+(`staged_manifest` vagy `git_worktree`). **Megtalálta: a saját söprésem, a kiadás előtt.**
+
+**6. A VÉGES CORE-ZÁRÓLISTA — a hét blokkolóból HÁROM kell az első folyamat előtt.** Kell: **OB-3**
+(bemeneti séma-regiszter — a magban ma a KIMENET alakja deklarált, a BEMENETÉ nem), **OB-4** (a
+kiadási osztályozó nem üres korpuszon — és az első folyamat MAGA a korpusz), **OB-7** (a tartalmi
+norma-megfelelés, de **hatókör-szűkítve** az érintett klauzula-sorokra, és a jóváhagyó a külső fél,
+nem az operátor). Nem kell — megnevezett későbbi funkcióhoz tartozik: **OB-1** (több-írós
+véglegesítési határ → az első VALÓDI adat előtt), **OB-5** (megvonás visszamenőleges hatálya → több
+felhasználó + jogmegvonás; a 16 nyitott klauzula-sorból mind a 16 ide esik), **OB-6** (önálló
+szervezeti alap → meghívás/jogadás), **OB-2** (eljárási adósság, nem termék-blokkoló). **Új blokkolót
+nem vettem fel.**
+
+**7. A „CORE KÉSZ" ÁLLÍTÁS HATÓKÖRE, KIMONDVA.** Csak a mérésbe bekötött belépési pontokra · **egyetlen**
+tároló-adapterre (`node:sqlite`, ideiglenes állományon) · egyetlen író, szintetikus adat. **A később
+épülő modulok (készlet · ár · irat) védelmét a referencia próbái NEM igazolják** — a `grant_basis` sor
+létezése önmagában nem bizonyítja a későbbi hozzáférés korlátozását (a külső fél R92 §6, elfogadva).
+
+**8. SZAKMAI JAVASLAT a deklarálás kötelezővé tételéről (R92 §6).** Nem hagyom „az operátor döntése"
+jelöléssel: (a) védett céges jogot adó művelethez **kötelező** a deklarált, alkalmazható
+felhatalmazási alap — a deklarálatlan alap ott **elutasítás**; (b) a régi, alap nélküli
+referencia-fixtúrák kompatibilitása **nem termékengedély** (a mai `limit_enforced: false` a
+REFERENCIA saját próbáira szól, és ezt a `basisState` ki is mondja); (c) az átmeneti kivétel
+kifejezett, lejáratos, nevezett művelet-listás és auditálható; (d) a végfelhasználó SAJÁT
+nyilvántartása nem esik ide — a kötelező alap a MÁS könyvére ható műveletekre szól. Ez javaslat a
+következő tervezési munkához; termékdöntést az operátor nevében nem rögzítek.
+
+**9. AZ ELSŐ LÁTHATÓ FOLYAMAT — mérve, mi hiányzik.** A magban **NINCS termék, NINCS készlet, NINCS
+mennyiség, NINCS raktár, és NINCS képernyő**. A `stock.receipt/1` és `stock.issue/1` ma KIZÁRÓLAG
+eredmény-alak deklaráció a `resultScope.mjs`-ben — mögötte sem törzs, sem főkönyv (KUKA-038: a név
+kész funkciónak látszik). Négy mini modul kell (KAT-01 cikk-azonosság · KSZ-01 készlet-főkönyv ·
+BEM-01 bemeneti séma · NEZ-01 készlet-nézet) plusz BEJ-01 HTTP belépési pont és EGY lap. **A
+szerződésüket előbb megtárgyaljuk és challengeljük, kód csak utána.** Két nehezen visszafordítható
+alapdöntés most dől el: a **mértékegység a mennyiség JELENTÉSE** (KUKA-021) és az **egyenleg
+SZÁMÍTOTT, nem tárolt**.
+
+**10. A SÖPRÉS ÁLLAPOTA — KIMONDVA.** A V3 söprés **PIROS**: `verify:external-checks` → 14/18
+MEGFELEL, ELTÉRÉS `r57 · r57a · r59 · r59a`. Az **`r92authz` ELTÉRÉS-ből MEGFELEL lett** (ez a §5
+javítása), a maradék négy pedig nem ebből a körből ered: HEAD-en is ott állt az `r59`, `r59a` és
+`r57`. Ami elmozdult: az **`r57a`** (a `r57` nevezett HELYETTESE) E02 esete most `ETIMEDOUT`-tal
+akadt el (HEAD-en 79 515 ms-nál zöld, most 74 850 ms-nál piros) — és mivel a helyettes is elbukott, a
+futtató **jogosan nem adott környezeti kihagyást** (a külső fél R83-F03 szabálya). Ez az őr HELYES
+működése; nem lazítjuk (KUKA-091). **Nevezett adósság:** az `r57a` belső 15 000 ms-os korlátjának
+feloldása darabolással — nem ebbe a körbe tartozik (a levél kikötése: a futtató-munka ne lépjen a
+termékmunka helyébe). A V2 söprés zöld: 291-ből 290, 1 env-kihagyás (`verify:schema`).
+
+**11. A LAP.** A teljes csomag: `docs/70_PLANNING/V3_CORE_ZAROLISTA_ELSO_FOLYAMAT_ES_MUNKAREND.md`
+(a V2 repóban, mert a board- és dokumentum-lánc ott él). A V2-oldali szám: **D-VS-719**.
+
+---
+
 ## D-VS-3028 — ORG-N1b: A FELHATALMAZÁS NEM LEHET TÁGABB, MINT AZ ALAPJA (R90 §6)
 
 > **Hatály:** V3 — a V3 magreferencia normaterve (req-5, 2. lépés). A V2 kódját nem érinti; a V2

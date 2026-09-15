@@ -1248,4 +1248,37 @@ export const MUTATIONS = [
     file: 'basisLimit.mjs',
     from: "    return frozen({ ok: true, basis_declared: false, reason: 'no_declared_basis', limit: null, seal: null });",
     to: "    return frozen({ ok: true, basis_declared: true, reason: 'within_basis', limit: null, seal: null });" },
+
+  // ── R92/F01–F02 — A MŰVELETI SZERZŐDÉS (MOP-01) ───────────────────────────────────────────
+
+  { id: 'M134', rule: 'K04', catcher: 'P-ORG-basis-limit', expect: 'probe_fail',
+    what: 'ORG-N1b — A HÍVÓ ÚJRA ÁTNEVEZHETI AZ ELLENŐRZÖTT MŰVELETET: a belépési pont elfogadja a '
+      + 'kapott nevet. Ettől egy CSAK felfüggesztésre szóló alappal is lehet meghívót adni — a kapu '
+      + 'azt méri, amit a hívó MOND, nem amit a rendszer TESZ (KUKA-121)',
+    file: 'basisLimit.mjs',
+    from: "  if (operation !== INVITE_ISSUE_OPERATION) {\n    return frozen({ ok: false, reason: 'operation_not_overridable', basis_version: null });\n  }",
+    to: '  if (false) {\n    return frozen({ ok: false });\n  }' },
+
+  { id: 'M135', rule: 'K04', catcher: 'P-ORG-basis-limit', expect: 'probe_fail',
+    what: 'ORG-N1b — A PECSÉT ÚJRA MEGMONDHATJA, MIT MÉRJÜNK: a beváltás a pecséten álló művelet-nevet '
+      + 'veszi irányadónak. Egy NYERS INSERT-tel írt pecsét így megkerüli a kaput (KUKA-013)',
+    file: 'basisLimit.mjs',
+    from: "  if (String(s.operation) !== INVITE_ISSUE_OPERATION) {\n    return frozen({ ok: false, basis_declared: true, reason: 'sealed_operation_mismatch', limit: null, seal: s });\n  }",
+    to: '  if (false) {\n    return frozen({ ok: false, basis_declared: true, seal: s });\n  }' },
+
+  { id: 'M136', rule: 'K04', catcher: 'P-ORG-basis-limit', expect: 'probe_fail',
+    what: 'ORG-N1b — A KÖTELEZŐ TENGELY HIÁNYA ÚJRA NÉMA ÁTUGRÁS: a feloldó a null értékű tengelyt '
+      + 'kihagyja. Ettől az ÜRES megengedett adatkör egy puszta ELHAGYÁSSAL megkerülhető — a hiány '
+      + 'nem „nem kérdezem", hanem KIKAPCSOLÁS (KUKA-020 · KUKA-124/2)',
+    file: 'authorityBasis.mjs',
+    from: "    if (v === null || v === undefined || v === '') {\n      return frozen({ ok: false, reason: `axis_value_required_${axis}`, basis_version: basis.version });\n    }",
+    to: '    if (false) {\n      return frozen({ ok: false, basis_version: basis.version });\n    }' },
+
+  { id: 'M137', rule: 'K04', catcher: 'P-ORG-basis-limit', expect: 'probe_fail',
+    what: 'ORG-N1b — A SZERZŐDÉS NÉLKÜLI MŰVELET FAIL-OPEN: az ismeretlen művelet üres kötelező-listát '
+      + 'kap a ZÁRÁS helyett. Ettől egy új belépési pont NÉMÁN kikerülné a tengely-kötelezettséget '
+      + '(KUKA-041: a nem-kapuzó mező kapunak látszana)',
+    file: 'basisLimit.mjs',
+    from: '  if (!c) return null;',
+    to: '  if (!c) return Object.freeze([]);' },
 ];

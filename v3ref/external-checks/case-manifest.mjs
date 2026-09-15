@@ -31,6 +31,25 @@
 /** A programok — KI ÍRTA, MIT MÉR, és PONTOSAN MELY ESETEKET kell hoznia. */
 export const PROGRAMS = Object.freeze([
   Object.freeze({
+    id: 'r92authz',
+    file: 'r92_chatgpt-v3.mjs',
+    companions: Object.freeze(['r92_chatgpt-v3.core.mjs']),
+    by: 'chatgpt-v3 — KÜLSŐ, független fél',
+    origin: 'R92 §4 (a két jogosultsági ellenpélda: az `r92_chatgpt-v3.core.mjs` az ő szövegük, '
+      + 'karakterre — md5 1a65be2a8b3b43fc28f3cd93b3ea2874, ahogy a lapjukról kinyertük; '
+      + '„bájtazonost" az ő saját példányukhoz képest NEM állítunk. TESZTADAPTÁCIÓ NEM TÖRTÉNT. '
+      + 'A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson MINDKÉT eset `ok:true` + '
+      + '`outcome:"granted"` + user-TAGSÁG — pontosan az általuk közölt reprodukció —, a mai '
+      + 'forráson 2/2 elakad, tagság nélkül.',
+    what: 'F01 — a HÍVÓ átnevezheti-e az ellenőrzött MŰVELETET (csak `suspend`-re felhatalmazó alappal '
+      + 'kiadható-e meghívó). F02 — az ADATKÖR elhagyása megkerüli-e az ÜRES korlátot. Mindkettő a '
+      + 'TELJES kiadás→beváltás úton mér: a bizonyíték a keletkezett TAGSÁG, nem a hívás válasza.',
+    evidence: 'r92-authz-challenge.json',
+    cases: Object.freeze(['F01', 'F02']),
+    cases_source: 'a külső fél R92-es lapja (a program ciklusának `id` értékei, ahogy megérkezett)',
+    evidence_pin_field: 'source_commit',
+  }),
+  Object.freeze({
     id: 'r88core',
     file: 'r88_chatgpt-v3.mjs',
     companions: Object.freeze(['r88_chatgpt-v3.core.mjs']),

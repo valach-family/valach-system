@@ -41,6 +41,44 @@ const frozen = (o) => Object.freeze(o);
 /** A KIADÁS MŰVELETE — nevezett állandó, hogy a tengely ne elgépelt szövegen álljon (KUKA-036). */
 export const INVITE_ISSUE_OPERATION = 'invite_issue';
 
+/**
+ * MOP-01 — A MŰVELETI SZERZŐDÉS (R92/F01 + R92/F02, a külső fél két bizonyított megkerülése).
+ *
+ * MI VOLT A KÉT LELET, MÉRVE (az ő programjuk a változatlan kódon, teljes kiadás→beváltás úton):
+ *   · **F01** — a `operation` paraméter a HÍVÓÉ volt. Egy CSAK `suspend`-re felhatalmazó alappal az
+ *     `operation:'suspend'` átírással a meghívó KIADÁSA és BEVÁLTÁSA is sikerült, és valódi
+ *     user-TAGSÁG keletkezett. A kapu tehát azt a nevet mérte, amit a hívó MONDOTT, nem azt a
+ *     hatást, amit a belépési pont VÉGREHAJT (KUKA-121: amit a beadó begépelhet, az állítás).
+ *     Ráadásul a beváltás UGYANAZT a hamis nevet olvasta vissza a pecsétből — a közös feloldó két
+ *     helyen hívása ezért nem zárta a rést (KUKA-129 határa: a közös otthon nem véd, ha a BEMENET
+ *     hamis).
+ *   · **F02** — a `scope` alapértéke `null`, a feloldó pedig a null tengelyt ÁTUGROTTA. Így az
+ *     `allowedScopes: []` alap (ahol fogalmilag SEMMI nincs megengedve) egy ELHAGYÁSSAL
+ *     megkerülhető volt: scope-pal elakadt, scope nélkül átment.
+ *
+ * A SZERZŐDÉS EZÉRT MŰVELETHEZ KÖTÖTT, NEM HÍVÓHOZ:
+ *   · `operation` — a belépési pont RÖGZÍTI. Eltérő deklarált művelet NEVEZETT elutasítás, és a
+ *     nyers pecsétből érkező eltérő művelet is (a pecsét sem hívó-állítás többé);
+ *   · `axes` — mely tengelyek KÖTELEZŐEK. A hiány saját, nevezett válasz (`axis_value_required_*`),
+ *     nem az ellenőrzés kikapcsolása. Ahol egy tengely fogalmilag nem alkalmazható, azt a
+ *     SZERZŐDÉS mondja ki (`not_applicable`) — a hívó soha.
+ *
+ * Az általános feloldó (`withinBasis`) paraméterezett marad; a KÖTELEZŐSÉGET innen kapja.
+ */
+export const OPERATION_LIMIT_CONTRACT = Object.freeze({
+  [INVITE_ISSUE_OPERATION]: Object.freeze({
+    operation: INVITE_ISSUE_OPERATION,
+    axes: Object.freeze({ operations: 'required', roles: 'required', scopes: 'required' }),
+  }),
+});
+
+/** A szerződés KÖTELEZŐ tengelyei — egy nevezett feloldó, hogy a lista ne másolódjon szét. */
+export function requiredAxesFor(operation) {
+  const c = OPERATION_LIMIT_CONTRACT[operation];
+  if (!c) return null;                                    // ismeretlen művelet ⇒ a hívó ZÁR (fail-closed)
+  return Object.freeze(Object.entries(c.axes).filter(([, v]) => v === 'required').map(([k]) => k));
+}
+
 /** A KORLÁT KANONIKUS ALAKJA — a pecséthez és az összehasonlításhoz EGY alak (KUKA-018). */
 export function canonicalLimit(limit) {
   const picked = {};
@@ -61,11 +99,17 @@ export function limitVerdict({ store, basisId, bookId, role, operation, scope, v
   if (typeof basisId !== 'string' || !basisId.trim()) {
     return frozen({ ok: false, reason: 'basis_id_required', basis_version: null, limit: null });
   }
+  // A MŰVELET A SZERZŐDÉSBŐL KAPJA A KÖTELEZŐ TENGELYEIT (MOP-01). Ismeretlen művelet ⇒ ZÁR: nem
+  // azért, mert „biztos baj van", hanem mert nem tudjuk, mit kellene mérni rajta (KUKA-020).
+  const required = requiredAxesFor(operation);
+  if (required === null) {
+    return frozen({ ok: false, reason: 'operation_has_no_limit_contract', basis_version: null, limit: null });
+  }
   const basis = basisAsOf({ store, basisId, bookId, validAt, knownAt });
   if (basis.in_effect !== true) {
     return frozen({ ok: false, reason: basis.reason, basis_version: basis.version ?? null, limit: null });
   }
-  const within = withinBasis(basis, { operation, role, scope });
+  const within = withinBasis(basis, { operation, role, scope, required });
   if (!within.ok) {
     return frozen({ ok: false, reason: within.reason, basis_version: basis.version, limit: basis.limit });
   }
@@ -81,8 +125,15 @@ export function issueInviteUnderBasis({
   store, token, bookId, inviteeNamespace, inviteeValue, offeredRole, issuerSubject, expiresAt,
   basisId, operation = INVITE_ISSUE_OPERATION, scope = null, issuedAt,
 }) {
+  // A MŰVELET AZONOSSÁGÁT EZ A BELÉPÉSI PONT ADJA, NEM A HÍVÓ (R92/F01). A paraméter megmarad,
+  // de CSAK a saját műveletét veheti fel — az eltérés NEVEZETT elutasítás, nem néma felülírás:
+  // a néma javítás ugyanúgy elrejtené, hogy a hívó mást hitt (KUKA-012 · KUKA-064).
+  if (operation !== INVITE_ISSUE_OPERATION) {
+    return frozen({ ok: false, reason: 'operation_not_overridable', basis_version: null });
+  }
   const verdict = limitVerdict({
-    store, basisId, bookId, role: offeredRole, operation, scope, validAt: issuedAt, knownAt: issuedAt,
+    store, basisId, bookId, role: offeredRole, operation: INVITE_ISSUE_OPERATION, scope,
+    validAt: issuedAt, knownAt: issuedAt,
   });
   if (!verdict.ok) return frozen({ ok: false, reason: verdict.reason, basis_version: verdict.basis_version });
 
@@ -96,7 +147,7 @@ export function issueInviteUnderBasis({
     store.run(
       `INSERT INTO invite_basis (token, basis_id, basis_version, book_id, issued_at, operation, scope, sealed_limit)
        VALUES (?,?,?,?,?,?,?,?)`,
-      token, basisId, verdict.basis_version, bookId, issuedAt, operation, scope,
+      token, basisId, verdict.basis_version, bookId, issuedAt, INVITE_ISSUE_OPERATION, scope,
       canonicalLimit(verdict.limit));
     return frozen({ ok: true, token, basis_id: basisId, basis_version: verdict.basis_version });
   });
@@ -126,9 +177,16 @@ export function redemptionLimitGate({ store, invite, knownAt }) {
   if (String(s.book_id) !== String(invite.book_id)) {
     return frozen({ ok: false, basis_declared: true, reason: 'basis_book_differs', limit: null, seal: s });
   }
+  // A PECSÉT SEM MONDHATJA MEG, MIT MÉRJÜNK (R92/F01 második fele). A beváltás hatása MEGHÍVÓ-
+  // BEVÁLTÁS, tehát a mérendő művelet a meghívó-kiadásé — akármi áll a pecséten. Egy NYERS
+  // `INSERT`-tel írt pecsét eltérő művelet-neve ezért NEVEZETT elutasítás, nem irányadó adat
+  // (KUKA-013: az őr, ami csak az egyik írót ismeri, nem őr).
+  if (String(s.operation) !== INVITE_ISSUE_OPERATION) {
+    return frozen({ ok: false, basis_declared: true, reason: 'sealed_operation_mismatch', limit: null, seal: s });
+  }
   const verdict = limitVerdict({
     store, basisId: s.basis_id, bookId: invite.book_id, role: invite.offered_role,
-    operation: s.operation, scope: s.scope, validAt: s.issued_at, knownAt,
+    operation: INVITE_ISSUE_OPERATION, scope: s.scope, validAt: s.issued_at, knownAt,
   });
   if (!verdict.ok) {
     return frozen({ ok: false, basis_declared: true, reason: verdict.reason, limit: verdict.limit, seal: s });

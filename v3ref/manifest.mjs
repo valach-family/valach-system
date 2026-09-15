@@ -283,6 +283,12 @@ export const EXPECTED_PROBES = Object.freeze([
       Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-redemption-carries-the-limit-not-only-the-role' }),
       Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-raw-written-invite-cannot-escape-the-issued-limit' }),
       Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-undeclared-basis-is-named-not-silent' }),
+      // R92/F01–F02 (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL, a teljes kiadás→beváltás úton mérve). A
+      // korlát KÉT módon volt megkerülhető: a hívó átnevezhette az ellenőrzött MŰVELETET, és az
+      // adatkör ELHAGYÁSA kikapcsolta a tengelyt. A javítás a MŰVELETI SZERZŐDÉS (MOP-01): a
+      // művelet azonosságát a belépési pont adja, a kötelező tengelyeket a szerződés.
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-operation-identity-is-the-entry-point-not-the-caller' }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-omitting-an-axis-does-not-disable-it' }),
     ]),
   }),
 

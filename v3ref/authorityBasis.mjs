@@ -178,9 +178,28 @@ export function basisAsOf({ store, basisId, bookId, validAt, knownAt }) {
  *
  * ÜRES LISTA = NINCS MEGENGEDVE, nem „minden": a hiány nem lehet néma engedély (fail-closed).
  */
-export function withinBasis(basis, { operation = null, role = null, scope = null } = {}) {
+export function withinBasis(basis, { operation = null, role = null, scope = null, required = [] } = {}) {
   if (!basis || basis.in_effect !== true) {
     return frozen({ ok: false, reason: basis && basis.reason ? basis.reason : 'no_basis' });
+  }
+  // A KÖTELEZŐ TENGELY HIÁNYA SAJÁT, NEVEZETT VÁLASZ — R92/F02 (a külső fél lelete).
+  //
+  // A LELET. A `scope` alapértéke `null` volt, a feloldó pedig a null értékű tengelyt ÁTUGROTTA.
+  // Ettől az `allowedScopes: []` alap (ahol fogalmilag SEMMI nincs megengedve) egy egyszerű
+  // ELHAGYÁSSAL megkerülhető volt: scope-pal `outside_basis_scopes`, scope nélkül `ok:true` — és
+  // a beváltás valódi tagságot adott. A hiány tehát nem „nem kérdezem", hanem KIKAPCSOLÁS volt
+  // (KUKA-020 · KUKA-124/2: a hiánynak saját, nevezett kapuja van).
+  //
+  // A FELOLDÓ PARAMÉTEREZETT MARAD (az ő kikötésük), de a kötelezőséget nem a HÍVÓ szabja meg
+  // esetről esetre: a `required` listát a MŰVELETI SZERZŐDÉS adja (MOP-01, `basisLimit.mjs`).
+  const want = new Set(Array.isArray(required) ? required : []);
+  const values = { operations: operation, roles: role, scopes: scope };
+  for (const axis of BASIS_LIMIT_AXES) {
+    if (!want.has(axis)) continue;
+    const v = values[axis];
+    if (v === null || v === undefined || v === '') {
+      return frozen({ ok: false, reason: `axis_value_required_${axis}`, basis_version: basis.version });
+    }
   }
   const check = (axis, value) => {
     if (value === null || value === undefined) return null;

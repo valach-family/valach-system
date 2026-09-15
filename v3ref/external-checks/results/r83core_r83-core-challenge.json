@@ -1,8 +1,8 @@
 {
   "program": "r83_merge_chatgpt-v3.core.mjs + r83_runner_chatgpt-v3.core.mjs",
-  "source_commit": "d160c12cfc6f4cd746475b3e6c838092954d571e+uncommitted",
+  "source_commit": "8a215a49afdfe81d644a9001a565944f01c5e450+uncommitted",
   "node": "v22.22.2",
-  "at": "2026-09-15T06:08:31.897Z",
+  "at": "2026-09-15T07:51:18.101Z",
   "verbatim": true,
   "genuine_units": {
     "requested": 4,
@@ -23,8 +23,8 @@
           "source": "a MAI rögzített szerződés (REQUIRED_EVIDENCE), nem a beadvány",
           "rule": "klauzulánként a LEGGYENGÉBB állítás-sor dönt — azonos a `checkNorms` kánonjával; és a SOROK HALMAZA is a mai szerződésből jön (R83/F02), tehát a hiányzó sor `row_missing`-ként a leggyengébb rangot viszi, nem tűnik el a számításból",
           "rows": {
-            "expected": 74,
-            "seen": 74,
+            "expected": 76,
+            "seen": 76,
             "foreign": 0,
             "missing": 0,
             "source": "ALL_NORMS × a manifest beváltás-deklarációi (expectedChainRows)"
@@ -58,7 +58,7 @@
           "missing": [],
           "ok": true
         },
-        "chain_count": 74,
+        "chain_count": 76,
         "why": []
       },
       {
@@ -101,6 +101,7 @@
           "[unit-1-of-4.json] M124: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-1-of-4.json] M128: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-1-of-4.json] M132: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
+          "[unit-1-of-4.json] M136: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-2-of-4.json] M2: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-2-of-4.json] M6: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-2-of-4.json] M10: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
@@ -134,6 +135,7 @@
           "[unit-2-of-4.json] M125: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-2-of-4.json] M129: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-2-of-4.json] M133: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
+          "[unit-2-of-4.json] M137: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-3-of-4.json] M3: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-3-of-4.json] M7: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-3-of-4.json] M11: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
@@ -166,6 +168,7 @@
           "[unit-3-of-4.json] M122: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-3-of-4.json] M126: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-3-of-4.json] M130: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
+          "[unit-3-of-4.json] M134: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-4-of-4.json] M4: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-4-of-4.json] M8: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-4-of-4.json] M12: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
@@ -197,7 +200,8 @@
           "[unit-4-of-4.json] M119: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-4-of-4.json] M123: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-4-of-4.json] M127: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
-          "[unit-4-of-4.json] M131: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)"
+          "[unit-4-of-4.json] M131: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
+          "[unit-4-of-4.json] M135: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)"
         ]
       },
       {
@@ -240,6 +244,7 @@
           "[unit-1-of-4.json] M124: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-1-of-4.json] M128: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-1-of-4.json] M132: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
+          "[unit-1-of-4.json] M136: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-2-of-4.json] M2: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-2-of-4.json] M6: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-2-of-4.json] M10: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
@@ -273,6 +278,7 @@
           "[unit-2-of-4.json] M125: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-2-of-4.json] M129: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-2-of-4.json] M133: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
+          "[unit-2-of-4.json] M137: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-3-of-4.json] M3: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-3-of-4.json] M7: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-3-of-4.json] M11: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
@@ -305,6 +311,7 @@
           "[unit-3-of-4.json] M122: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-3-of-4.json] M126: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-3-of-4.json] M130: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
+          "[unit-3-of-4.json] M134: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-4-of-4.json] M4: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-4-of-4.json] M8: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-4-of-4.json] M12: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
@@ -336,7 +343,8 @@
           "[unit-4-of-4.json] M119: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-4-of-4.json] M123: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-4-of-4.json] M127: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
-          "[unit-4-of-4.json] M131: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED"
+          "[unit-4-of-4.json] M131: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
+          "[unit-4-of-4.json] M135: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED"
         ]
       },
       {
@@ -362,9 +370,9 @@
         "verdict": {
           "ok": true,
           "complete_evidence": true,
-          "green": 17,
+          "green": 18,
           "env_skipped": 0,
-          "of": 17
+          "of": 18
         },
         "original": {
           "ok": true,
@@ -380,9 +388,9 @@
         "verdict": {
           "ok": false,
           "complete_evidence": false,
-          "green": 16,
+          "green": 17,
           "env_skipped": 0,
-          "of": 17
+          "of": 18
         },
         "original": {
           "ok": false,
@@ -403,9 +411,9 @@
         "verdict": {
           "ok": false,
           "complete_evidence": false,
-          "green": 15,
+          "green": 16,
           "env_skipped": 0,
-          "of": 17
+          "of": 18
         },
         "original": {
           "ok": false,
@@ -439,8 +447,8 @@
           "source": "a MAI rögzített szerződés (REQUIRED_EVIDENCE), nem a beadvány",
           "rule": "klauzulánként a LEGGYENGÉBB állítás-sor dönt — azonos a `checkNorms` kánonjával; és a SOROK HALMAZA is a mai szerződésből jön (R83/F02), tehát a hiányzó sor `row_missing`-ként a leggyengébb rangot viszi, nem tűnik el a számításból",
           "rows": {
-            "expected": 74,
-            "seen": 74,
+            "expected": 76,
+            "seen": 76,
             "foreign": 0,
             "missing": 0,
             "source": "ALL_NORMS × a manifest beváltás-deklarációi (expectedChainRows)"
@@ -474,7 +482,7 @@
           "missing": [],
           "ok": true
         },
-        "chain_count": 74,
+        "chain_count": 76,
         "why": []
       }
     },
@@ -521,6 +529,7 @@
           "[unit-1-of-4.json] M124: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-1-of-4.json] M128: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-1-of-4.json] M132: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
+          "[unit-1-of-4.json] M136: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-2-of-4.json] M2: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-2-of-4.json] M6: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-2-of-4.json] M10: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
@@ -554,6 +563,7 @@
           "[unit-2-of-4.json] M125: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-2-of-4.json] M129: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-2-of-4.json] M133: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
+          "[unit-2-of-4.json] M137: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-3-of-4.json] M3: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-3-of-4.json] M7: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-3-of-4.json] M11: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
@@ -586,6 +596,7 @@
           "[unit-3-of-4.json] M122: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-3-of-4.json] M126: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-3-of-4.json] M130: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
+          "[unit-3-of-4.json] M134: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-4-of-4.json] M4: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-4-of-4.json] M8: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-4-of-4.json] M12: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
@@ -617,7 +628,8 @@
           "[unit-4-of-4.json] M119: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-4-of-4.json] M123: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
           "[unit-4-of-4.json] M127: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
-          "[unit-4-of-4.json] M131: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)"
+          "[unit-4-of-4.json] M131: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)",
+          "[unit-4-of-4.json] M135: a `probe_status` mező HIÁNYZIK — nem eldönthető, mit mondott a nevezett próba (kötelező, zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED)"
         ]
       }
     },
@@ -664,6 +676,7 @@
           "[unit-1-of-4.json] M124: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-1-of-4.json] M128: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-1-of-4.json] M132: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
+          "[unit-1-of-4.json] M136: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-2-of-4.json] M2: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-2-of-4.json] M6: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-2-of-4.json] M10: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
@@ -697,6 +710,7 @@
           "[unit-2-of-4.json] M125: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-2-of-4.json] M129: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-2-of-4.json] M133: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
+          "[unit-2-of-4.json] M137: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-3-of-4.json] M3: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-3-of-4.json] M7: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-3-of-4.json] M11: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
@@ -729,6 +743,7 @@
           "[unit-3-of-4.json] M122: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-3-of-4.json] M126: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-3-of-4.json] M130: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
+          "[unit-3-of-4.json] M134: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-4-of-4.json] M4: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-4-of-4.json] M8: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-4-of-4.json] M12: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
@@ -760,7 +775,8 @@
           "[unit-4-of-4.json] M119: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-4-of-4.json] M123: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
           "[unit-4-of-4.json] M127: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
-          "[unit-4-of-4.json] M131: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED"
+          "[unit-4-of-4.json] M131: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED",
+          "[unit-4-of-4.json] M135: ISMERETLEN próba-állapot: \"UNKNOWN\" — a zárt szókészlet: PASS · FAIL · THREW · SKIP · NOT_STARTED"
         ]
       }
     },
@@ -789,9 +805,9 @@
         "verdict": {
           "ok": true,
           "complete_evidence": true,
-          "green": 17,
+          "green": 18,
           "env_skipped": 0,
-          "of": 17
+          "of": 18
         },
         "original": {
           "ok": true,
@@ -811,9 +827,9 @@
         "verdict": {
           "ok": false,
           "complete_evidence": false,
-          "green": 16,
+          "green": 17,
           "env_skipped": 0,
-          "of": 17
+          "of": 18
         },
         "original": {
           "ok": false,
@@ -838,9 +854,9 @@
         "verdict": {
           "ok": false,
           "complete_evidence": false,
-          "green": 15,
+          "green": 16,
           "env_skipped": 0,
-          "of": 17
+          "of": 18
         },
         "original": {
           "ok": false,
