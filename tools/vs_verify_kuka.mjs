@@ -9,9 +9,24 @@
 //   KUK01  a regiszter alakja (kötelező mezők, egyedi azonosítók, guard_note ha nincs jel)
 //   KUK02  a kivezetett minták NEM jöttek vissza — CSAK az ITT honos jelekre (forbidden)
 //   KUK03  ami a helyükre lépett, az OTT van — CSAK az ITT honos jelekre (positive)
-//   KUK04  a regiszter és az AUTO-BETÖLTÖTT memória (CLAUDE.md) EGYÜTT él
+//   KUK04  a regiszter és a MEGŐRZÖTT MEMÓRIA együtt él: MINDEN azonosító feloldható, a szöveg
+//          nem csonkolt, az archívum megvan, és a CLAUDE.md megnevezi (R8 §4 — lásd lentebb)
 //   KUK05  a kanonikus terminál-blokk (az operátor VALÓDI, idézőjeles útjával) + az állandók
-//   KUK06  a memória a CLAUDE.md-ben ÜL (nem külső .md mögött), és a gépi őrre mutat
+//   KUK06  a RÖVID KÖTELEZŐ ALAP a CLAUDE.md-ben ÜL, mutat a gépi őrre ÉS az archívumra, és
+//          kimondja a FELADATHOZ KÖTÖTT ELŐVÉTEL szabályát
+//
+// KUK04/KUK06 MÓDOSÍTVA (D-VS-3031, a külső fél R8 §4 kimondott hozzájárulásával). A régi alak
+// azt követelte, hogy a TELJES tanulság-tábla MAGÁBAN a CLAUDE.md-ben álljon. Mérve: a tábla a
+// fájl 92,5%-át tette ki (176 819 / 191 097 bájt), tehát MINDEN feladathoz betöltődött, akkor is,
+// ha egyetlen sora sem volt releváns. A tábla a `docs/KUKA_ARCHIVUM.md` lapra költözött; a
+// védelem NEM gyengült, hanem ÁTHELYEZŐDÖTT — az őr innentől a KÖLTÖZTETÉS ÉPSÉGÉT méri:
+//   (a) MINDEN regiszter-azonosító feloldható az archívumban — egyetlen elveszett bejegyzés PIROS;
+//   (b) az archívum LÉTEZIK és a CLAUDE.md MEGNEVEZI — törött hivatkozás PIROS (KUKA-132);
+//   (c) a szöveg NEM CSONKOLT: sor-hossz padló + összméret padló (KUKA-045: padló, nem egyenlőség);
+//   (d) a rövid alap TÉNYLEG rövid (plafon) — különben visszaszivárog, amit kiköltöztettünk;
+//   (e) a CLAUDE.md kimondja a FELADATHOZ KÖTÖTT ELŐVÉTEL szabályát, és az általa NEVEZETT
+//       azonosítók LÉTEZNEK a regiszterben (kitalált hivatkozás PIROS — KUKA-066);
+//   (f) az állandó biztonsági szabályok és az őr-otthon térkép MARADNAK (KUK05 + KUK07 érintetlen).
 //   KUK07  AZ ŐR-OTTHON KIMONDVA — minden bejegyzésnek van deklarált otthona, a deklaráció
 //          VISSZAMÉRVE, és a V2-ben maradt jelek száma PADLÓ (csökkenhet, nőni nem szabad)
 //
@@ -33,6 +48,18 @@ const read = (rel) => readFileSync(join(ROOT, rel), 'utf8');
 const { RETIRED_PATTERNS, RETIRED_PATTERN_CONTRACT } = require(join(ROOT, 'contracts', 'retiredPatternRegistry.js'));
 const { GUARD_HOME, VS_HOMED_CEILING } = require(join(ROOT, 'contracts', 'guardHome.js'));
 const CLAUDE_MD = read('CLAUDE.md');
+// A MEGŐRZÖTT TANULSÁG-TÁBLA otthona (D-VS-3031). A HIÁNY külön válasz, nem üres szöveg
+// (KUKA-124/2): ha az archívum nincs meg, azt a KUK04 NEVEZETTEN mondja ki, nem néma nullát mér.
+const ARCHIVE_PATH = 'docs/KUKA_ARCHIVUM.md';
+const ARCHIVE_PRESENT = existsSync(join(ROOT, ARCHIVE_PATH));
+const ARCHIVE_MD = ARCHIVE_PRESENT ? read(ARCHIVE_PATH) : '';
+// PADLÓK — a mért MAI értékek alatt, hogy a NÉMA ZSUGORODÁS piros legyen, a szabályos bővülés ne.
+// (Mért 2026-09-15: 157 sor · összméret 176 819 bájt · legrövidebb sor 121 karakter.)
+const ARCHIVE_BYTES_FLOOR = 170000;
+const ARCHIVE_ROW_CHARS_FLOOR = 100;
+// A RÖVID ALAP PLAFONJA: a mért 15 402 bájtra van szabva, kényelmes ráhagyással. Ha valaki
+// visszamásolja ide a táblát, ez pirosra megy — ez a szabály ÉRTELME, nem esztétika.
+const BASE_BYTES_CEILING = 40000;
 
 const categories = new Map(); const failureLines = [];
 function bump(c, ok) { const x = categories.get(c) || { pass: 0, fail: 0 }; if (ok) x.pass++; else x.fail++; categories.set(c, x); }
@@ -127,10 +154,29 @@ async function main() {
     }
   }
 
-  // ── KUK04: a regiszter és az AUTO-BETÖLTÖTT memória együtt él ────────────────────────────────
-  for (const e of RETIRED_PATTERNS) {
-    check('KUK04', `${e.id} szerepel az auto-betöltött memóriában (CLAUDE.md)`, CLAUDE_MD.includes(e.id));
-  }
+  // ── KUK04: a MEGŐRZÖTT memória hiánytalan és nem csonkolt ────────────────────────────────────
+  // (a) az archívum LÉTEZIK — ez az ELSŐ kérdés, mert nélküle minden alábbi mérés némán nulla
+  check('KUK04', `a tanulság-archívum megvan (${ARCHIVE_PATH})`, ARCHIVE_PRESENT,
+    ARCHIVE_PRESENT ? '' : 'a fájl nincs meg — a megőrzött tábla ELVESZETT, nem „üres"');
+  // (b) a CLAUDE.md MEGNEVEZI (törött/hiányzó hivatkozás = a memória elérhetetlen — KUKA-132)
+  check('KUK04', 'a CLAUDE.md MEGNEVEZI az archívumot (nem lóg a levegőben)',
+    CLAUDE_MD.includes(ARCHIVE_PATH));
+  // (c) MINDEN azonosító feloldható — egyetlen elveszett bejegyzés is PIROS
+  const unresolved = RETIRED_PATTERNS
+    .filter((e) => !CLAUDE_MD.includes(e.id) && !ARCHIVE_MD.includes(e.id))
+    .map((e) => e.id);
+  check('KUK04', `MINDEN regiszter-azonosító feloldható (rövid alap VAGY archívum) — ${RETIRED_PATTERNS.length} db`,
+    unresolved.length === 0, unresolved.join(', '));
+  // (d) a SZÖVEG nem csonkolt: sor-hossz padló + összméret padló (KUKA-045 — padló, nem egyenlőség)
+  const archiveRows = ARCHIVE_MD.split('\n').filter((l) => /^\|\s*\*\*KUKA-/.test(l));
+  const shortest = archiveRows.length ? Math.min(...archiveRows.map((l) => l.length)) : 0;
+  check('KUK04', `az archívum táblája nem csonkolt — legrövidebb sor ${shortest} karakter (padló ${ARCHIVE_ROW_CHARS_FLOOR})`,
+    archiveRows.length > 0 && shortest >= ARCHIVE_ROW_CHARS_FLOOR);
+  check('KUK04', `az archívum összmérete ${ARCHIVE_MD.length} bájt (padló ${ARCHIVE_BYTES_FLOOR}) — a néma zsugorodás PIROS`,
+    ARCHIVE_MD.length >= ARCHIVE_BYTES_FLOOR);
+  check('KUK04', `a táblának minden bejegyzéshez van SORA — ${archiveRows.length} sor, ${RETIRED_PATTERNS.length} bejegyzés`,
+    archiveRows.length >= RETIRED_PATTERNS.length);
+  // (e) a forrás-megnevezések MARADNAK — a kód a kanonikus, a lap az emberi olvasat (KUKA-018)
   check('KUK04', 'a CLAUDE.md megnevezi az adat-forrást (a kettő nem csúszhat szét)',
     /contracts\/retiredPatternRegistry\.js/.test(CLAUDE_MD));
   check('KUK04', 'a CLAUDE.md megnevezi az ŐR-OTTHON térképet is', /contracts\/guardHome\.js/.test(CLAUDE_MD));
@@ -158,8 +204,22 @@ async function main() {
     /npm run verify:kuka/.test(CLAUDE_MD) && /retiredPatternRegistry\.js/.test(CLAUDE_MD));
   check('KUK06', 'a memória-szakasz a CLAUDE.md-ben van (nem külső hivatkozás mögött)',
     /## AKTÍV MEMÓRIA/.test(CLAUDE_MD));
-  check('KUK06', 'a KUKA-tábla MAGÁBAN a CLAUDE.md-ben áll (nem csak hivatkozásként)',
-    /KUKA-001/.test(CLAUDE_MD) && /KUKA-089/.test(CLAUDE_MD));
+  // A RÖVID ALAP TÉNYLEG RÖVID — különben visszaszivárog, amit kiköltöztettünk (D-VS-3031).
+  check('KUK06', `a rövid kötelező alap mérete ${CLAUDE_MD.length} bájt (plafon ${BASE_BYTES_CEILING})`,
+    CLAUDE_MD.length <= BASE_BYTES_CEILING);
+  // A FELADATHOZ KÖTÖTT ELŐVÉTEL SZABÁLYA — az archívum önmagában nem memória, ha senki nem
+  // nyitja meg; a CLAUDE.md-nek meg kell mondania, MIKOR kötelező elővenni (KUKA-015).
+  check('KUK06', 'a CLAUDE.md kimondja a FELADATHOZ KÖTÖTT ELŐVÉTEL szabályát',
+    /FELADATHOZ KÖTÖTT ELŐVÉTEL/.test(CLAUDE_MD));
+  const preFetchIds = [...new Set((CLAUDE_MD.match(/KUKA-\d{3}/g) || []))];
+  check('KUK06', `az elővétel-tábla legalább 8 hiba-osztályt nevez meg (mért: ${preFetchIds.length} azonosító)`,
+    preFetchIds.length >= 8);
+  // A NEVEZETT AZONOSÍTÓ LÉTEZZEN — kitalált hivatkozás ugyanaz a néma hazugság, mint a hiányzó
+  // forrás (KUKA-066): a sor „megvan"-nak látszik, és semmire nem mutat.
+  const known = new Set(RETIRED_PATTERNS.map((e) => e.id));
+  const ghosts = preFetchIds.filter((id) => !known.has(id));
+  check('KUK06', 'a rövid alap MINDEN hivatkozott azonosítója létezik a regiszterben',
+    ghosts.length === 0, ghosts.join(', '));
 
   const fail = summary('KUKA + ÁLLANDÓ OPERÁTORI SZABÁLYOK (V3 nyitó csomag)');
 

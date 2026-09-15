@@ -377,10 +377,30 @@ export const PROGRAMS = Object.freeze([
     id: 'r59a',
     file: 'r59_chatgpt-v3.adapted.mjs',
     by: 'chatgpt-v3 — KÜLSŐ, független fél (ADAPTÁLT változat, az ő szerzőségükkel)',
-    origin: 'R81 §5 — az R59-es programjuk ADAPTÁLT alakja, ahogy a lapjukon megérkezett. NEM '
-      + 'bájtazonos az R59-essel: az EGYETLEN eltérés a battéria hívása (`--unit=1/3` · `2/3` · '
-      + '`3/3` · `--merge`, egyenként 15 000 ms korláttal) a korábbi EGY hívás helyett. A '
-      + 'teszt-elvárásokhoz NEM nyúltunk, és mi magunk egyetlen karaktert sem írtunk át benne.',
+    origin: 'R81 §5 — az R59-es programjuk ADAPTÁLT alakja. NEM bájtazonos az R59-essel, és '
+      + 'AZ R8 ÓTA MI IS ÍRTUNK BELE (lásd `adapted`) — a korábbi „egyetlen karaktert sem írtunk '
+      + 'át benne" mondat innentől NEM állítható.',
+    // AZ ADAPTÁCIÓ KIMONDVA — ÉS A LENYOMAT MÉRVE, NEM BEGÉPELVE (R8 §3).
+    //
+    // A külső fél kérése szó szerint: „az adaptált változat ÚJ LENYOMATOT és az eredetihez KÖVETHETŐ
+    // KAPCSOLATOT kapjon. Nem állítható tovább róla, hogy változatlan." A kapcsolat itt áll (melyik
+    // programból származik), a lenyomatot viszont a futtató MÉRI a fájlból (`programIdentity`) —
+    // kézzel ide írt sha256 az első szerkesztéskor elavulna, és zölden hazudna (KUKA-045 · KUKA-121:
+    // amit be lehet gépelni, az állítás, nem mérés).
+    adapted: Object.freeze({
+      from: 'r59',
+      from_file: 'r59_chatgpt-v3.mjs',
+      by: Object.freeze(['chatgpt-v3 (R81 §5) — a battéria darabolt hívása',
+        'Claude-v3 (R8 §3, az ő kimondott hozzájárulásukkal) — a darabszám konfigurálható paraméter, alapértéke 6']),
+      changed: 'KIZÁRÓLAG a battéria HÍVÁSÁNAK ALAKJA: egy hívás helyett N egység + `--merge`, '
+        + 'N alapértéke 6 (felülírható: VS_BATTERY_UNITS). MIÉRT: a battéria 134 mutációra nőtt, és '
+        + 'a rögzített HÁRMAS darabolásnál minden egység ~12,0–12,4 s — a `v3ref/mutate.mjs` SAJÁT '
+        + 'költségvetése (12 000 ms = a külső 15 000 ms-os korlát 80%-a) fölött —, ezért a battéria '
+        + '1-gyel lépett ki, miközben a MÉRT TARTALOM tiszta volt (134/134 elkapva).',
+      unchanged: 'egyetlen eset · mutáció · elvárás · forráskötés és az időkeret-ÉRVÉNYESÍTÉS sem '
+        + '(a 15 000 ms-os külső és a 12 000 ms-os belső korlát áll) — a merge továbbra is a '
+        + 'pontosan egyszeres, azonos forrású egység-készletet fogadja el.',
+    }),
     what: 'ugyanaz a hét eset, mint az r59-nél (P01 · P02 pozitív ellenpár · E05–E09), de a '
       + 'DARABOLT battériával — így a mérés a mi 4 vCPU-s futtató-gépünkön is végigmegy, '
       + 'a 15 000 ms-os korlát megsértése nélkül (KUKA-089: a pontos technikai akadály mérve)',
@@ -393,9 +413,18 @@ export const PROGRAMS = Object.freeze([
     id: 'r57a',
     file: 'r57_chatgpt-v3.adapted.mjs',
     by: 'chatgpt-v3 — KÜLSŐ, független fél (ADAPTÁLT változat, az ő szerzőségükkel)',
-    origin: 'R81 §5 — az R57-es programjuk ADAPTÁLT alakja, ahogy a lapjukon megérkezett. NEM '
-      + 'bájtazonos az R57-essel: az EGYETLEN eltérés a battéria hívása (darabolt futás). A '
-      + 'teszt-elvárásokhoz NEM nyúltunk, és mi magunk egyetlen karaktert sem írtunk át benne.',
+    origin: 'R81 §5 — az R57-es programjuk ADAPTÁLT alakja. NEM bájtazonos az R57-essel, és '
+      + 'AZ R8 ÓTA MI IS ÍRTUNK BELE (lásd `adapted`) — a korábbi „egyetlen karaktert sem írtunk '
+      + 'át benne" mondat innentől NEM állítható.',
+    adapted: Object.freeze({
+      from: 'r57',
+      from_file: 'r57_chatgpt-v3.mjs',
+      by: Object.freeze(['chatgpt-v3 (R81 §5) — a battéria darabolt hívása',
+        'Claude-v3 (R8 §3, az ő kimondott hozzájárulásukkal) — a darabszám konfigurálható paraméter, alapértéke 6']),
+      changed: 'KIZÁRÓLAG a battéria HÍVÁSÁNAK ALAKJA: egy hívás helyett N egység + `--merge`, '
+        + 'N alapértéke 6 (felülírható: VS_BATTERY_UNITS) — ugyanaz a bővítés, mint az `r59a`-n.',
+      unchanged: 'egyetlen eset · mutáció · elvárás · forráskötés és az időkeret-ÉRVÉNYESÍTÉS sem.',
+    }),
     what: 'ugyanaz a kilenc eset, mint az r57-nél (T01–T05 · E01–E04), de a DARABOLT battériával',
     evidence: 'r56-challenge.json',
     cases: Object.freeze(['T01', 'T02', 'T03', 'T04', 'T05', 'E01', 'E02', 'E03', 'E04']),
@@ -759,14 +788,21 @@ export function measuredFailureKind(program, {
 }
 
 /**
- * ÁLL-E A KÖRNYEZETI KIHAGYÁS? — NÉGY feltétel, EGY helyen, hogy a pin is ezt hívhassa (KUKA-009).
+ * ÁLL-E A KÖRNYEZETI KIHAGYÁS? — ÖT feltétel, EGY helyen, hogy a pin is ezt hívhassa (KUKA-009).
+ *
+ * AZ ÖTÖDIK FELTÉTEL (R8 §3). A felmentés azon áll, hogy a megnevezett helyettes UGYANAZOKAT az
+ * eseteket MÁS ALAKBAN futtatja végig. Ha a helyettes fájlja BÁJTAZONOS az eredetivel, akkor a
+ * zöldje nem bizonyít semmit az eredeti helyett: ugyanaz a program felelt kétszer (KUKA-054). Ezért
+ * ahol a helyettes bejegyzése ÉPP EBBŐL a programból adaptáltnak vallja magát, ott a különbséget
+ * MÉRNI kell — és a MÉRÉS HIÁNYA nem felmentés, hanem külön, nevezett elutasítás (KUKA-124/2).
  *
  * @param {object} program     a manifeszt bejegyzése (`env_limit` · `superseded_by`)
  * @param {object} measured    a `measuredFailureKind` eredménye
  * @param {object|null} substitute  a helyettes program összefoglaló sora ({id, ok}) vagy null
+ * @param {object|null} substituteIdentity  a helyettes `programIdentity` eredménye vagy null
  * @returns {{excusable: boolean, why: string, declared_kind: string|null, measured_kind: string}}
  */
-export function environmentalObstacle(program, measured, substitute) {
+export function environmentalObstacle(program, measured, substitute, substituteIdentity = null) {
   const declared = program && program.env_limit && typeof program.env_limit === 'object'
     ? program.env_limit : null;
   const kind = declared && typeof declared.kind === 'string' ? declared.kind : null;
@@ -780,11 +816,29 @@ export function environmentalObstacle(program, measured, substitute) {
   if (!program.superseded_by) return out(false, 'a bejegyzés nem nevez meg helyettest (`superseded_by`)');
   if (!substitute) return out(false, `a megnevezett helyettes (${program.superseded_by}) ebben a futásban NEM futott`);
   if (!substitute.ok) return out(false, `a megnevezett helyettes (${program.superseded_by}) NEM zöld`);
+  // ÖTÖDIK FELTÉTEL: a helyettes tényleg MÁS ALAK legyen. A követelmény a MANIFESZTBŐL derül ki
+  // (a helyettes bejegyzése EBBŐL a programból vallja magát adaptáltnak), a válasz a MÉRÉSBŐL —
+  // és ha a mérés hiányzik, az elutasítás, nem néma átengedés (KUKA-124/2 · KUKA-126).
+  const subEntry = PROGRAMS.find((x) => x.id === program.superseded_by) || null;
+  const claimsThisOrigin = !!(subEntry && subEntry.adapted && subEntry.adapted.from === program.id);
+  if (claimsThisOrigin) {
+    if (!substituteIdentity) {
+      return out(false, `a megnevezett helyettes (${program.superseded_by}) EBBŐL a programból `
+        + 'adaptáltnak vallja magát, de az azonossága ebben a futásban MÉRETLEN — a felmentés '
+        + 'mérés nélkül nem áll');
+    }
+    if (substituteIdentity.distinct_from_origin !== true) {
+      return out(false, `a megnevezett helyettes (${program.superseded_by}) EBBŐL a programból `
+        + `adaptáltnak vallja magát, de ${substituteIdentity.distinct_why} — ilyenkor ugyanaz a `
+        + 'program felelt kétszer, tehát a zöldje nem menti fel az eredetit');
+    }
+  }
   if (measured.kind !== kind) {
     return out(false, `a MÉRT kudarc nem a bejelentett környezeti akadály: ${measured.why} `
       + `(bejelentve: ${kind}, mérve: ${measured.kind}) — statikus regiszter-mező nem menthet fel valódi teszthibát`);
   }
-  return out(true, `${measured.why} — és a megnevezett helyettes (${program.superseded_by}) ZÖLD`);
+  return out(true, `${measured.why} — és a megnevezett helyettes (${program.superseded_by}) ZÖLD`
+    + (claimsThisOrigin ? `, és MÁS ALAK: ${substituteIdentity.distinct_why}` : ''));
 }
 
 /**
@@ -800,5 +854,73 @@ export function runScope(selectedIds, allIds) {
     why: complete
       ? 'MINDEN nyilvántartott program lefutott — ez a lánc teljes bizonyítéka'
       : 'RÉSZLEGES futás (--only): ez NEM a lánc teljes bizonyítéka, csak a megnevezett programé',
+  });
+}
+
+/**
+ * EXT-03 — A PROGRAM AZONOSSÁGA: MÉRT LENYOMAT ÉS AZ EREDETHEZ VEZETŐ KAPCSOLAT (R8 §3).
+ *
+ * MIÉRT SZÜLETETT. A külső fél az R8 §3-ban hozzájárult, hogy a battéria egység-darabszáma
+ * konfigurálható futtatási paraméter legyen (első értéke 6), és KIMONDTA a feltételét: *„Az eredeti
+ * külső tesztek maradjanak meg; az adaptált változat ÚJ LENYOMATOT és az eredetihez KÖVETHETŐ
+ * KAPCSOLATOT kapjon. Nem állítható tovább róla, hogy változatlan."*
+ *
+ * MIÉRT MÉRT, ÉS MIÉRT NEM DEKLARÁLT. Egy manifesztbe BEGÉPELT sha256 az első szerkesztéskor
+ * elavul, és utána ZÖLDEN hazudik: a javítás a szám átírása lenne, tehát a pin a saját megkerülésére
+ * tanít (KUKA-045). Ráadásul amit a szerző begépelhet, az ÁLLÍTÁS, nem mérés (KUKA-121). Ezért a
+ * manifeszt a KAPCSOLATOT deklarálja (melyik programból származik, mi változott, mi nem), a
+ * LENYOMATOT pedig a futtató méri — minden futásban, a tényleges fájlból.
+ *
+ * MIT MÉR EZEN FELÜL — ÉS HOL SZÁMÍT. Ha egy bejegyzés adaptáltnak vallja magát, de a fájlja
+ * BÁJTAZONOS az eredetivel, akkor az „adaptált" felirat DÍSZ (KUKA-041). EZ A TÉNY VISZONT NEM
+ * MINDENÜTT SZÁMÍT: az első alakomban az általános `ok`-ba tettem, és a külső fél R83-as
+ * futtató-próbája azonnal kibuktatta — az a program MINDEN fájlt ugyanarra a csonkra cserél, tehát
+ * a bájtazonosság ott a PRÓBA műterméke, nem szabálysértés, és egy hibátlan `all-green` kontrollt
+ * állított meg (KUKA-049: az őr a KÉRT EREDMÉNYT jelentette kudarcnak; KUKA-124/1: a tényt ott kell
+ * mérni, ahol eldől). A helye ezért az `environmentalObstacle` ÖTÖDIK feltétele: a felmentés azon
+ * áll, hogy a helyettes MÁS ALAKBAN futtatja ugyanazokat az eseteket — ha a helyettes az eredeti
+ * másolata, a zöldje önmagát igazolja vissza (KUKA-054). Itt tehát csak MÉRÜNK és KIMONDUNK.
+ *
+ * @param program   a PROGRAMS egy bejegyzése
+ * @param digestOf  (fájlnév) => sha256 hex VAGY null, ha a fájl nem olvasható — a hívó adja,
+ *                  hogy ez a modul fájlrendszer-független maradjon (a verifier is hívhatja)
+ */
+export function programIdentity(program, digestOf) {
+  const digest = digestOf(program.file) || null;
+  const a = program.adapted || null;
+  // A MÉRÉS HIÁNYA minden programon valódi mérési hiba: lenyomat nélkül az azonosság nem állítható.
+  const problems = digest ? [] : [`[${program.id}] a program fájlja nem olvasható — nincs lenyomat`];
+  if (!a) {
+    return Object.freeze({
+      id: program.id, file: program.file, digest, adapted: false, origin: null,
+      distinct_from_origin: null,
+      distinct_why: 'ez a bejegyzés nem vallja magát adaptáltnak — nincs mihez mérni',
+      problems: Object.freeze(problems),
+    });
+  }
+  const originDigest = digestOf(a.from_file) || null;
+  // HÁROM KÜLÖN VÁLASZ, nem kettő (KUKA-124/2): MÁS · AZONOS · MÉRETLEN.
+  let distinct = null;
+  let why;
+  if (!digest || !originDigest) {
+    why = !digest
+      ? `az ADAPTÁLT fájl (${program.file}) nem olvasható — a kapcsolat MÉRETLEN`
+      : `az eredeti (${a.from_file}) nincs meg — a kapcsolat MÉRETLEN`;
+  } else if (digest === originDigest) {
+    distinct = false;
+    why = `a fájlja BÁJTAZONOS az eredetivel (${a.from_file}) — az „adaptált" jelölés ilyenkor dísz, nem tény`;
+  } else {
+    distinct = true;
+    why = `MÁS alak, mint az eredeti (${a.from_file}): ${digest.slice(0, 12)}… ≠ ${originDigest.slice(0, 12)}…`;
+  }
+  return Object.freeze({
+    id: program.id, file: program.file, digest, adapted: true,
+    origin: Object.freeze({
+      id: a.from, file: a.from_file, digest: originDigest,
+      by: [...(a.by || [])], changed: a.changed || null, unchanged: a.unchanged || null,
+    }),
+    distinct_from_origin: distinct,
+    distinct_why: why,
+    problems: Object.freeze(problems),
   });
 }

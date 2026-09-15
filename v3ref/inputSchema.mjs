@@ -1,0 +1,147 @@
+/** MCS-2 / BEM-01 — BEMENETI SÉMA.
+ *
+ * BIRTOKOL: műveletenként a bemenet DEKLARÁLT alakja.
+ * ÍGÉR: ismeretlen mező · rossz típus · hiányzó kötelező mező · nem véges szám → NEVEZETT
+ *       elutasítás, ÍRÁS NÉLKÜL; ismeretlen műveletre FAIL-CLOSED.
+ * TILT: `Number()` / `String()` konverzió a TÍPUS-ELLENŐRZÉS ELŐTT · néma alapértelmezés.
+ *
+ * MIÉRT TILOS A KONVERZIÓ ELŐBB (KUKA-125 — a külső fél R71-es lelete a saját javításomon).
+ * A `Number(true)`, a `Number([1])` és a `Number("1")` MIND 1-et ad. Ha a konverzió a típus-
+ * ellenőrzés ELŐTT fut, akkor a legszigorúbb utána következő ellenőrzés is a saját vakfoltját méri
+ * — és ami rosszabb: a jelenléte AZT SUGALLJA, hogy a típus meg van fogva. Ezért ebben a modulban
+ * a típus a NYERS értéken dől el, és a konverzió csak utána jöhet.
+ *
+ * MIÉRT FAIL-CLOSED AZ ISMERETLEN MŰVELET (KUKA-122/2). Ha egy ismeretlen művelet „nincs rá séma,
+ * tehát mindent elfogadunk" ágra fut, akkor a séma nem kapu, hanem OPCIÓ: aki meg akarja kerülni,
+ * elnevezi másnak a műveletét. A szerződés HIÁNYA ZÁR.
+ *
+ * MIT NEM CSINÁL — KIMONDVA (az MCS-1 §3/BEM-01 mért függősége, az R6 §4 szűkítésével).
+ * Ma a magban **19 exportált író függvény** van: 5 deklarált belépési pont · 13 belső író · 1 mérési
+ * segéd. **Egyik sem érhető el kívülről — HTTP-réteg és bizalmi határ NINCS**, tehát jelenlegi
+ * megkerülésről nincs szó; ez TERVEZÉSI kockázat. Amikor a BEJ-01 megépül, a BEM-01 a KÜLSŐ HATÁRON
+ * ellenőriz sémát, a belső írók pedig a SAJÁT invariánsaikat tartják — két külön felelősség.
+ */
+import { parseQuantity, DEFAULT_PROFILE_ID } from './quantity.mjs';
+
+const fail = (error, detail, at) => Object.freeze({ ok: false, error, detail: detail ?? null, at: at ?? null });
+
+// ── A MEZŐ-TÍPUSOK — a NYERS értéken mérve ──────────────────────────────────────────────────────
+//
+// Mindegyik a KONVERZIÓ NÉLKÜLI kérdést teszi fel. A `quantity` külön fajta, mert a mennyiség
+// szerződése SAJÁT hibakód-sorrendet visz (MNY-01), és azt nem szabad `invalid_type`-ra lapítani.
+const TYPES = Object.freeze({
+  string: (v) => (typeof v === 'string' ? null : `szöveg kell, kapott: ${describe(v)}`),
+  nonempty_string: (v) => {
+    if (typeof v !== 'string') return `szöveg kell, kapott: ${describe(v)}`;
+    return v.trim() ? null : 'nem lehet üres';
+  },
+  // A SZÁM ITT VALÓDI SZÁM, és NEM VÉGES érték fail-closed: a NaN és a ±Infinity átcsúszik minden
+  // összehasonlításon (NaN < x hamis, NaN > x is hamis), tehát a határ-ellenőrzés némán elenged.
+  finite_number: (v) => {
+    if (typeof v !== 'number') return `szám kell, kapott: ${describe(v)}`;
+    return Number.isFinite(v) ? null : 'nem véges szám (NaN vagy ±Infinity)';
+  },
+  boolean: (v) => (typeof v === 'boolean' ? null : `logikai érték kell, kapott: ${describe(v)}`),
+  iso_instant: (v) => {
+    if (typeof v !== 'string') return `ISO időbélyeg kell (szöveg), kapott: ${describe(v)}`;
+    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(v) ? null : 'alak: YYYY-MM-DDTHH:MM:SSZ';
+  },
+});
+
+/** A TÍPUS LEÍRÁSA — hogy a hibaüzenet megmondja, MIT kapott (KUKA-064: ne legyen zsákutca). */
+function describe(v) {
+  if (v === null) return 'null';
+  if (Array.isArray(v)) return 'tömb';
+  return typeof v;
+}
+
+// ── A MŰVELETEK DEKLARÁLT ALAKJA ────────────────────────────────────────────────────────────────
+//
+// Az ELSŐ D-folyamat egyetlen írás-művelete. Minden mező NEVESÍTVE, kötelezőség kimondva —
+// „opcionális, alapértelmezéssel" ág NINCS: a néma alapértelmezés tiltott (BEM-01).
+export const OPERATION_SCHEMAS = Object.freeze({
+  'stock.receipt': Object.freeze({
+    version: '1',
+    fields: Object.freeze({
+      item_id: Object.freeze({ type: 'nonempty_string', required: true }),
+      owner_id: Object.freeze({ type: 'nonempty_string', required: true }),
+      warehouse_id: Object.freeze({ type: 'nonempty_string', required: true }),
+      // A MENNYISÉG SZÖVEG, és a saját szerződése dönt róla (MNY-01) — a `positive` a MŰVELET
+      // tulajdonsága, nem a mezőé: bevétnél a nulla nem mennyiség, hanem „nincs mozgás".
+      qty: Object.freeze({ type: 'quantity', required: true, positive: true }),
+      effective_at: Object.freeze({ type: 'iso_instant', required: true }),
+    }),
+  }),
+});
+
+/**
+ * A BEMENET ELLENŐRZÉSE — nevezett elutasítás vagy tisztított érték. SOHA nem ír.
+ *
+ * A SORREND itt is szerződés: ismeretlen művelet → ismeretlen MEZŐ → hiányzó kötelező → típus.
+ * Az ismeretlen mező ELŐBB dől el, mint a hiányzó: egy elgépelt mezőnév különben „hiányzó
+ * kötelezőnek" látszana, és a beadó a rossz dolgot javítaná (KUKA-064).
+ */
+export function validateInput({ operation, input, profileId = DEFAULT_PROFILE_ID }) {
+  // 1. ISMERETLEN MŰVELET — FAIL-CLOSED, a választhatók felsorolásával (KUKA-064).
+  const schema = OPERATION_SCHEMAS[operation];
+  if (!schema) {
+    return fail('unknown_operation',
+      `nincs deklarált bemeneti séma erre: ${JSON.stringify(operation)} — `
+      + `választható: ${Object.keys(OPERATION_SCHEMAS).join(' · ')}`);
+  }
+  // A BURKOLÓ MAGA IS TÍPUS: a tömb és a null is „object" a `typeof`-nak (KUKA-125 rokona).
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    return fail('invalid_body', `a bemenet objektum kell legyen, kapott: ${describe(input)}`);
+  }
+
+  // 2. ISMERETLEN MEZŐ.
+  const declared = Object.keys(schema.fields);
+  const unknown = Object.keys(input).filter((k) => !declared.includes(k));
+  if (unknown.length) {
+    return fail('unknown_field', `nem deklarált mező: ${unknown.join(', ')} — `
+      + `a séma mezői: ${declared.join(' · ')}`, unknown[0]);
+  }
+
+  // 3. HIÁNYZÓ KÖTELEZŐ — a HIÁNY külön válasz, nem „rossz típus" (KUKA-124/2).
+  const clean = {};
+  for (const [name, spec] of Object.entries(schema.fields)) {
+    const present = Object.prototype.hasOwnProperty.call(input, name);
+    if (!present) {
+      if (spec.required) return fail('missing_field', `kötelező mező: ${name}`, name);
+      continue;
+    }
+    const value = input[name];
+
+    // 4. TÍPUS — a NYERS értéken, konverzió NÉLKÜL.
+    if (spec.type === 'quantity') {
+      const q = parseQuantity(value, { profileId, positive: Boolean(spec.positive) });
+      // A MENNYISÉG SAJÁT HIBAKÓDJA MEGMARAD (R8 §2): nem lapítjuk `invalid_type`-ra, különben a
+      // beadó `precision` helyett `invalid_type`-ot kapna, és mást javítana.
+      if (!q.ok) return fail(q.error, q.detail, name);
+      clean[name] = q.text;          // a KANONIKUS decimális szöveg megy tovább, nem a nyers alak
+      continue;
+    }
+    const checker = TYPES[spec.type];
+    if (!checker) return fail('schema_error', `ismeretlen mező-típus a sémában: ${spec.type}`, name);
+    const problem = checker(value);
+    if (problem) return fail('invalid_type', problem, name);
+    clean[name] = value;
+  }
+
+  return Object.freeze({ ok: true, operation, version: schema.version, value: Object.freeze(clean) });
+}
+
+export const BEM_CONTRACT = Object.freeze({
+  id: 'BEM-01',
+  owns: 'műveletenként a bemenet deklarált alakja',
+  operations: Object.freeze(Object.keys(OPERATION_SCHEMAS)),
+  error_order: Object.freeze(['unknown_operation', 'invalid_body', 'unknown_field', 'missing_field', 'invalid_type']),
+  forbids: Object.freeze([
+    'Number()/String() konverzió a típus-ellenőrzés ELŐTT',
+    'néma alapértelmezés hiányzó mezőre',
+    'ismeretlen műveletre megengedő ág',
+  ]),
+  stated_limit: 'ma NINCS külső határ (HTTP-réteg): 5 deklarált belépési pont · 13 belső író · '
+    + '1 mérési segéd. A BEM-01 a BEJ-01 megépülésekor áll a KÜLSŐ határra; a belső írók a SAJÁT '
+    + 'invariánsaikat tartják — két külön felelősség (az R6 §4 szűkítése).',
+});

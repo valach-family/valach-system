@@ -7234,6 +7234,62 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'futtat.',
   }),
 
+  Object.freeze({
+    id: 'KUKA-166',
+    date: '2026-09-15',
+    title: 'a BIZONYÍTÉK A SZOMSZÉD KLAUZULÁRA KÖTVE — a szabály szövegét nem olvastam vissza',
+    what: 'A NEZ-01/T4/OB-4 eredmény-ADATKÖR követelményéhez négy állítást (`result-scope-comes-from-'
+      + 'declaration` · `undeclared-result-scope-is-fail-closed` · `nested-result-scope-is-measured` · '
+      + '`result-shape-is-declared-and-typed`) a **REV-N5b** klauzulára kötöttem. A rögzített '
+      + 'szerződésben viszont a REV-N5b szövege MÁSRÓL szól: „a TILTÁS HATÓKÖRE az OKÁBÓL '
+      + 'származik" (`covers: K09 · K15`). Az eredmény-mezők osztályozása a K05 („Adatkiadás, '
+      + 'összesítés és megfigyelhetőség") alá tartozik, amit a REV/ORG rész-indexben az ORG-N1b fed '
+      + '(`covers: K04 · K05`). A négy állítás tehát ZÖLDEN futott — csak nem azt bizonyította, '
+      + 'amit a lánc-táblázatban melléírtam.',
+    why_wrong: 'Ez a KUKA-087 ismétlődése egy szinttel beljebb: ott a lencse SORSZÁMÁBÓL '
+      + 'párosítottam szabályhoz, itt a klauzula TÉMA-KÖZELSÉGÉBŐL („a REV-N5-ös család a '
+      + 'jogosultságról szól, az eredmény-adatkör is jogosultsági kérdés"). Mindkettő ugyanaz: a '
+      + 'megfeleltetés nem a FORRÁS SZÖVEGÉBŐL jött. És a kár alakja is ugyanaz — a rossz '
+      + 'párosítás ugyanúgy „fedve"-t ír ki, mint a jó (KUKA-041 a megfeleltetésen), tehát a '
+      + 'lánc-táblázat 57/76-os száma helyes maradt, miközben NÉGY sor rossz szabály alatt állt. A '
+      + 'gyökér a KUKA-005 alakja a szerződés-térben: klauzula-azonosítót sem szabad emlékezetből.',
+    replaced_by: 'a négy állítás ÁTKÖTVE az ORG-N1b-re (`A-ORG-N1b-*`), a REV-N5b az EREDETI, '
+      + 'tiltás-hatóköri jelentésében marad (7 állítással)',
+    replacement: 'A `manifest.mjs` négy `clause` mezője és a `run.mjs` négy állítás-kulcsa is '
+      + 'ORG-N1b-re mutat; a REV-N5b nem veszít állítást, mert a sajátjai a tiltás-hatókört mérik. '
+      + 'A KIMONDOTT MARADÉK (nem javítva, nevezve): a **K10** („Típus, normalizálás és számítási '
+      + 'profil") szabályt a REV/ORG rész-index EGYETLEN klauzulája sem fedi — ez nevezett hiány, '
+      + 'nem hallgatás (KUKA-124/2), és az MCS-2 mennyiség-szerződésével születik meg.',
+    decision: 'D-VS-3031',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (R8 §1 / R8-F01) — a saját, egy körrel korábbi lapomon; a '
+      + 'söprés és a magreferencia végig ZÖLD volt (50/50 próba), mert a mérés a kötés '
+      + 'MEGLÉTÉT nézte, nem a klauzula SZÖVEGÉT',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/manifest.mjs'], pattern: 'A-ORG-N1b-result-scope-comes-from-declaration',
+        why: 'az eredmény-adatkör állítása a K05-öt fedő klauzulán ül' }),
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'A-ORG-N1b-result-shape-is-declared-and-typed',
+        why: 'a futtató ugyanazt a kötést írja ki' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3ref/manifest.mjs', 'v3ref/run.mjs'],
+        pattern: 'A-REV-N5b-result-scope-comes-from-declaration',
+        why: 'a REV-N5b a TILTÁS hatóköréről szól (K09 · K15) — eredmény-adatkör nem köthető rá' }),
+      Object.freeze({ paths: ['v3ref/manifest.mjs', 'v3ref/run.mjs'],
+        pattern: 'A-REV-N5b-result-shape-is-declared-and-typed',
+        why: 'ugyanaz: a bizonyíték a K05-öt fedő klauzulára tartozik' }),
+    ]),
+    lesson: 'KLAUZULA-AZONOSÍTÓT SOHA NE EMLÉKEZETBŐL VAGY TÉMA-KÖZELSÉGBŐL — a kötés a klauzula '
+      + 'SZÖVEGÉBŐL és a `covers` listájából jöjjön, visszaolvasva. A megkülönböztető kérdés '
+      + 'konkrét: **melyik K-szabályt teljesíti ez az állítás, és FEDI-E azt a klauzula, amire '
+      + 'kötöttem?** Ha a válasz nem olvasható ki a forrásból, a kötés tipp — és a tipp ugyanúgy '
+      + 'ZÖLD, mint a bizonyíték, mert a próba a kötés MEGLÉTÉT méri, nem a helyességét.',
+    guard_note: 'gépi jel: `verify:kuka` KUKA-166 (a négy állítás MAI otthona mérve, a régi alak '
+      + 'tiltva, két irányban) + `node v3ref/run.mjs` 50/50. KIMONDOTT KORLÁT: ez a jel a MA ISMERT '
+      + 'négy állítást védi — azt NEM méri, hogy egy JÖVŐBELI állítás a helyes klauzulára kerül-e; '
+      + 'a hatókör itt LISTA, nem szabály (KUKA-051), mert a „helyes klauzula" a szöveg '
+      + 'JELENTÉSÉTŐL függ, amit gép nem dönt el.',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

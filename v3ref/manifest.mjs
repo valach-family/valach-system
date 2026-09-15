@@ -345,8 +345,8 @@ export const EXPECTED_PROBES = Object.freeze([
     // eredményt. A javítás (DSC-01) a KIADANDÓ TARTALOM adatköreit méri a TÍPUS deklarációjából, és
     // a vegyes eredményt egészben tagadja meg; a hiányzó besorolás KÜLÖN, fail-closed válasz.
     discharges: Object.freeze([
-      Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-result-scope-comes-from-declaration' }),
-      Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-undeclared-result-scope-is-fail-closed' }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-result-scope-comes-from-declaration' }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-undeclared-result-scope-is-fail-closed' }),
     ]),
   }),
   Object.freeze({
@@ -357,8 +357,8 @@ export const EXPECTED_PROBES = Object.freeze([
     // hordozzák a típust ÉS az adatkört —, és a besorolás a VALIDÁLT alakból gyűlik, mélységben.
     // A mérce nem a mezőnév: ugyanaz a név más típus más pozícióján mást jelenthet (KUKA-002).
     discharges: Object.freeze([
-      Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-nested-result-scope-is-measured' }),
-      Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-result-shape-is-declared-and-typed' }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-nested-result-scope-is-measured' }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-result-shape-is-declared-and-typed' }),
     ]),
   }),
   Object.freeze({
@@ -397,6 +397,48 @@ export const EXPECTED_PROBES = Object.freeze([
     discharges: Object.freeze([
       Object.freeze({ clause: 'REV-N5a', assertion: 'A-REV-N5a-every-writer-entry-point-carries-context' }),
       Object.freeze({ clause: 'REV-N5a', assertion: 'A-REV-N5a-neutral-entry-point-answers-are-indistinguishable' }),
+    ]),
+  }),
+
+  // ═══ MCS-2 — AZ ELSŐ D-FOLYAMAT (KAT-01 · KSZ-01 · BEM-01 · MNY-01) ══════════════════════════
+  //
+  // A HÁROM PRÓBA a MEGÉPÍTETT modulok szerződését méri, nem a szándékot. A K10 („Típus,
+  // normalizálás és számítási profil") eddig egyetlen klauzula alatt sem állt — az R8-F01-ben ezt
+  // NEVEZETT HIÁNYKÉNT mondtuk ki; az MCS-2 mennyiség-szerződése az, ami betölti. A klauzula-kötés
+  // ezért ITT MÉG NEM születik meg: a norma-lánc klauzulái a REV/ORG rész-indexhez tartoznak, és a
+  // MCS-2 saját klauzulái az MCS-3-mal jönnek. Ezt KIMONDJUK, nem hallgatjuk el (KUKA-124/2):
+  // a `discharges` SZÁNDÉKOSAN ÜRES — a próba a modul-szerződést bizonyítja, nem norma-sort old.
+  Object.freeze({
+    id: 'P-KAT-item-identity', assertion: 'KAT01-item-identity-is-internal-and-book-scoped',
+    discharges: Object.freeze([]),
+    module_asserts: Object.freeze([
+      'A-KAT-sku-is-unique-within-the-book',
+      'A-KAT-same-sku-in-another-book-is-a-different-item',
+      'A-KAT-sku-lookup-requires-the-book',
+      'A-KAT-unit-change-is-free-on-zero-footprint',
+    ]),
+  }),
+  Object.freeze({
+    id: 'P-KSZ-ledger-truth', assertion: 'KSZ01-ledger-is-the-truth-and-writes-are-atomic',
+    discharges: Object.freeze([]),
+    module_asserts: Object.freeze([
+      'A-KSZ-movement-requires-a-finalized-command',
+      'A-KSZ-missing-receipt-is-its-own-answer',
+      'A-KSZ-receipt-writes-the-ledger',
+      'A-KSZ-two-time-views-are-named-and-differ',
+      'A-KSZ-sum-limit-rejects-receipt-movement-and-receipt-together',
+    ]),
+  }),
+  Object.freeze({
+    id: 'P-BEM-input-schema', assertion: 'BEM01-input-shape-is-declared-and-fail-closed',
+    discharges: Object.freeze([]),
+    module_asserts: Object.freeze([
+      'A-BEM-unknown-operation-is-fail-closed',
+      'A-BEM-unknown-field-decides-before-missing-field',
+      'A-BEM-missing-required-field-is-its-own-answer',
+      'A-BEM-type-is-checked-on-the-raw-value',
+      'A-BEM-quantity-error-order-survives-the-boundary',
+      'A-BEM-valid-input-normalizes-to-canonical-decimal-text',
     ]),
   }),
 ]);

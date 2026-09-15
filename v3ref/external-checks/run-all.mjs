@@ -48,7 +48,10 @@ import {
   // A KÖRNYEZETI KIHAGYÁS FELTÉTELEI (R83/F03): a MÉRT kudarc-fajta és a felmentés döntése is
   // nevezett feloldóban áll, hogy a pin ugyanazt hívhassa, amit a futtató használ (KUKA-009).
   measuredFailureKind, environmentalObstacle,
+  // A PROGRAM AZONOSSÁGA (EXT-03, R8 §3): mért lenyomat + az eredethez vezető kapcsolat.
+  programIdentity,
 } from './case-manifest.mjs';
+import { createHash } from 'node:crypto';
 
 const HERE = dirname(fileURLToPath(import.meta.url));   // v3ref/external-checks
 const REF = resolve(HERE, '..');                        // v3ref
@@ -167,8 +170,17 @@ console.log(`  gépi eredmény:  ${OUT}`);
 console.log(`  node:           ${process.version}`);
 console.log('');
 
+// A LENYOMAT A TÉNYLEGES FÁJLBÓL (EXT-03). A manifeszt a KAPCSOLATOT deklarálja, a SZÁMOT itt
+// mérjük — begépelt sha256 az első szerkesztéskor elavulna és zölden hazudna (KUKA-045 · KUKA-121).
+const digestOf = (file) => {
+  const path = join(HERE, file);
+  if (!existsSync(path)) return null;
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
+};
+
 const summary = [];
 for (const p of selected) {
+  const identity = programIdentity(p, digestOf);
   const evidencePath = join(dir, 'evidence', p.evidence);
   // A RÉGI EREDMÉNY-FÁJL FÉLRETÉTELE A FUTÁS ELŐTT (R81 §5 · KUKA-127).
   //
@@ -218,8 +230,11 @@ for (const p of selected) {
   // AZ ESET-SZEMLE (EXT-02). Nem az a kérdés, hogy amit KAPTUNK, az zöld-e, hanem hogy AZ ÉRKEZETT-E
   // MEG, aminek meg kellett — hiány · ismeretlen · duplikátum · rossz alak · bukás, mind külön szóval.
   const audit = auditCases(p, cases);
-  audit.problems.unshift(...artifact.problems);
-  const ok = artifact.ok && audit.ok && q.status === 0 && !q.error;
+  // AZ AZONOSSÁG-MÉRÉS HIÁNYA valódi hiba (nem olvasható fájl); a helyettesíthetőség VISZONT nem
+  // itt dől el, hanem a felmentés-kapunál — lásd `programIdentity` fejléc (KUKA-124/1 · KUKA-049).
+  audit.problems.unshift(...artifact.problems, ...identity.problems);
+  const ok = artifact.ok && audit.ok && identity.problems.length === 0
+    && q.status === 0 && !q.error;
   if (q.status !== 0) audit.problems.push(`[${p.id}] a program NEM NULLÁVAL zárt (kilépés ${q.status})`);
   if (q.error) audit.problems.push(`[${p.id}] a futtatás elszállt: ${q.error.message || q.error}`);
 
@@ -236,6 +251,11 @@ for (const p of selected) {
 
   summary.push({
     id: p.id, file: p.file, by: p.by, origin: p.origin,
+    // AZ AZONOSSÁG A GÉPI KIMENETBEN IS (EXT-03, R8 §3): a lenyomat MÉRT, az eredet KÖVETHETŐ.
+    // `adapted_from: null` = nem adaptált program — a hiány itt is külön válasz (KUKA-124/2).
+    program_digest: identity.digest,
+    adapted: identity.adapted,
+    adapted_from: identity.origin,
     exit: q.status, ms,
     // A NYERS EREDMÉNY MEGMARAD (a külső fél kimondott kérése): a kudarc fajtája és esetenkénti
     // indoka akkor is a gépi kimenetben áll, ha a program végül környezeti kihagyást kap.
@@ -280,6 +300,15 @@ for (const p of selected) {
   const head = ok ? 'MEGFELEL' : 'ELTÉRÉS ';
   console.log(`  ${head}  [${p.id}] ${p.file}`);
   console.log(`            írta:      ${p.by} · ${p.origin}`);
+  console.log(`            lenyomat:  ${identity.digest ? `${identity.digest.slice(0, 16)}…` : 'NINCS (a fájl nem olvasható)'}`
+    + (identity.origin
+      ? ` · ADAPTÁLT — eredeti [${identity.origin.id}] ${identity.origin.file}: `
+        + `${identity.origin.digest ? `${identity.origin.digest.slice(0, 16)}…` : 'NINCS MEG'}`
+      : ''));
+  if (identity.origin) {
+    console.log(`            adaptálta: ${identity.origin.by.join(' · ')}`);
+    console.log(`            változott: ${identity.origin.changed}`);
+  }
   console.log(`            mit mér:   ${p.what}`);
   console.log(`            elvárt:    ${p.cases.length} eset (${p.cases.join(' · ')}) — forrás: ${p.cases_source}`);
   console.log(`            eredmény:  ${cases ? `${audit.present.length - audit.failed.length}/${p.cases.length} eset zöld` : 'NINCS részletes eredmény'}`
@@ -315,12 +344,15 @@ const scope = runScope(selected.map((p) => p.id), PROGRAMS.map((p) => p.id));
 // bizonyította (`exit 0` · `verdict.ok: true` · `env_skipped: 1` egy „NOT a timeout" indokú
 // bukásra). A döntést innentől nevezett feloldó hozza, a MÉRT kudarc-fajtából.
 const byId = new Map(summary.map((s) => [s.id, s]));
+// A HELYETTES AZONOSSÁGA a felmentés ÖTÖDIK feltétele (R8 §3) — mérve, nem feltételezve.
+const identityById = new Map(selected.map((p) => [p.id, programIdentity(p, digestOf)]));
 for (const s of summary) {
   const p = selected.find((x) => x.id === s.id);
   if (s.ok || !p) continue;
   if (!p.superseded_by && !p.env_limit) continue;      // nincs bejelentett akadály — nincs mit mérni
   const sub = byId.get(p.superseded_by) || null;
-  const obstacle = environmentalObstacle(p, { kind: s.failure_kind, why: s.failure_why }, sub);
+  const obstacle = environmentalObstacle(p, { kind: s.failure_kind, why: s.failure_why }, sub,
+    sub ? identityById.get(sub.id) || null : null);
   s.env_obstacle = obstacle;
   if (obstacle.excusable) {
     s.env_skipped = true;

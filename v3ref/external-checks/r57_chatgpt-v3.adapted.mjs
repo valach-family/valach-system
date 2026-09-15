@@ -1,7 +1,16 @@
+// ADAPTÁCIÓ (chatgpt-v3 R8 §3 hozzájárulásával): a battéria egység-DARABSZÁMA konfigurálható
+// futtatási paraméter, alapértéke 6. MIÉRT: a mutációs battéria 134 mutációra nőtt, és a korábban
+// rögzített HÁRMAS darabolásnál minden egység ~12,0–12,4 s — a `v3ref/mutate.mjs` SAJÁT
+// költségvetése (12 000 ms = a külső 15 000 ms-os korlát 80%-a) fölött —, ezért a battéria
+// 1-gyel lépett ki, miközben a MÉRT TARTALOM tiszta volt
+// (134/134 elkapva). A darabszám a hívás alakja, nem az elvárás: egyetlen eset, mutáció, elvárás,
+// forráskötés és az időkeret-érvényesítés sem változik. Felülírható: VS_BATTERY_UNITS.
+const BATTERY_UNITS=(()=>{const v=Number(process.env.VS_BATTERY_UNITS);return Number.isInteger(v)&&v>=1&&v<=64?v:6;})();
+function batteryArgs(n){const a=[];for(let i=1;i<=n;i++)a.push(`--unit=${i}/${n}`);a.push('--merge');return a;}
 function runBatteryUnits(dir){
   const unitsDir=join(dir,'v3ref','units');rmSync(unitsDir,{recursive:true,force:true});
   const runs=[];
-  for(const arg of ['--unit=1/3','--unit=2/3','--unit=3/3','--merge']){
+  for(const arg of batteryArgs(BATTERY_UNITS)){
     const r=spawnSync(process.execPath,[join(dir,'v3ref','mutate.mjs'),arg],{cwd:dir,encoding:'utf8',timeout:15000,maxBuffer:32*1024*1024});
     if(r.error)throw r.error;runs.push({arg,exit:r.status,stdout:r.stdout,stderr:r.stderr});
   }

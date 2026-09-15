@@ -216,6 +216,7 @@ const GUARD_HOME = Object.freeze({
   'KUKA-164': Object.freeze({ home: 'v3', note: 'a művelet-azonosság és a kötelező tengely a V3 magban él — a jel a külső fél r92authz programja (a TELJES kiadás→beváltás úton, a keletkezett tagságra mérve) + a P-ORG-basis-limit (f)(g) állítása + M134–M137' }),
   'KUKA-165': Object.freeze({ home: 'v3', note: 'a külső-ellenőrző burkolók a V3 repóban élnek — a jel a `verify:external-checks` HOMOKOZÓS futása: a gyökér-feloldó és a forrás-kötés ott mérhető, ahol a kapu ténylegesen fut' }),
   'KUKA-150': Object.freeze({ home: 'v3', note: 'a RUN-02 futás-szerződés (darabolt futás) a V3 mutációs battériájában él — a jel az r79/U01 külső-ellenőrzés + az egység-fájl `evidence_bound` mezője ITT fut' }),
+  'KUKA-166': Object.freeze({ home: 'v3', note: 'a norma-lánc klauzula↔állítás kötése a V3 magreferenciában él (`manifest.mjs` + `run.mjs`) — a jel ott mérhető, ahol a kötés SZÜLETIK' }),
 });
 
 function homeOf(id) { return (GUARD_HOME[id] || null); }

@@ -546,6 +546,57 @@ CREATE TABLE command_event (
   FOREIGN KEY (book_id, actor, idem_key) REFERENCES command (book_id, actor, idem_key),
   UNIQUE (book_id, actor, idem_key, event)
 );
+
+-- ═══ MCS-2 — A KÉSZLET ALAPJA ═══════════════════════════════════════════════════════════════════
+--
+-- KAT-01 — CIKK-AZONOSSÁG. A "item_id" a STABIL BELSŐ azonosító, az "sku" az EMBER-KULCS: az SKU
+-- változhat (átnevezés, szabvány-váltás), tehát hivatkozni SOHA nem rá kell. Az SKU a KÖNYVÖN BELÜL
+-- egyedi — kereszt-könyves SKU-egyezésből azonosságot levonni tilos (KUKA-027: közös csatornán
+-- minden azonosító csak a SAJÁT terében egyedi).
+--
+-- A "unit" NEM CÍMKE, hanem a mennyiség JELENTÉSE (KUKA-021), a "qty_profile" pedig a SKÁLÁJA.
+-- A kettő együtt mondja meg, mit jelent egy tárolt szám — enélkül a "1500" csak számjegy-sor.
+CREATE TABLE item (
+  item_id     TEXT PRIMARY KEY,
+  book_id     TEXT NOT NULL,
+  sku         TEXT NOT NULL,
+  unit        TEXT NOT NULL,
+  qty_profile TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  FOREIGN KEY (book_id) REFERENCES book (id),
+  UNIQUE (book_id, sku)
+);
+
+-- KSZ-01 — KÉSZLET-FŐKÖNYV. HOZZÁFŰZÉSES: mozgás-sort MÓDOSÍTANI és TÖRÖLNI tilos, a helyesbítés
+-- ÚJ sor (KUKA-023 · a V2 doktrínája: a főkönyv az igazság, a vetület származtatott).
+--
+-- MINDEN SOR EGY VÉGLEGESÍTETT PARANCSHOZ ÉS ANNAK NYUGTÁJÁHOZ KÖTVE ("effect_id") — árva
+-- mozgás-sor nem születhet, és az atomiság így MÉRHETŐ, nem ígéret.
+--
+-- KÉT IDŐ (a KSZ-01 két nézete):
+--   · "recorded_at" MIKOR TUDTUK MEG          → NÉZET-A: "tegnap mit tudtunk a tegnapi készletről"
+--   · "effective_at" MIKORRA VONATKOZIK       → NÉZET-B: "mai tudásunk szerint mennyi volt tegnap"
+-- A MAI egyenlegre a HATÁLYOS idő hat. A tagság kétidős modulja ("bitemporal.mjs") ezt NEM
+-- bizonyítja — saját próbája van (P4), mert más a tárgya (KUKA-038).
+--
+-- A MENNYISÉG ELŐJELES SKÁLÁZOTT EGÉSZ, SZÖVEGKÉNT tárolva: a SQLite INTEGER 64 bites, de a
+-- JS-oldali "Number" 2^53 fölött NÉMÁN kerekít — a szöveg + BigInt lánc sehol nem veszít (KUKA-125:
+-- ahol az érték típusa a védett tény, ott a konverzió a hiba).
+CREATE TABLE stock_movement (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  book_id      TEXT NOT NULL,
+  item_id      TEXT NOT NULL,
+  owner_id     TEXT NOT NULL,
+  warehouse_id TEXT NOT NULL,
+  qty_scaled   TEXT NOT NULL,
+  qty_profile  TEXT NOT NULL,
+  effect_id    TEXT NOT NULL,
+  recorded_at  TEXT NOT NULL,
+  effective_at TEXT NOT NULL,
+  FOREIGN KEY (book_id) REFERENCES book (id),
+  FOREIGN KEY (item_id) REFERENCES item (item_id)
+);
+CREATE INDEX stock_movement_key ON stock_movement (book_id, item_id, owner_id, warehouse_id);
 `;
 
 export function openStore() {

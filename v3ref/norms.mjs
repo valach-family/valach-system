@@ -1610,9 +1610,20 @@ export function checkNorms(evidence) {
   // szerepel egy rekordon, a csomag KÉTÉRTELMŰ: a kapu az elsőt vette, és a második — akár
   // ellentétes — értékét némán elnyelte. Ez akkor is hiba, ha a két érték történetesen egyforma:
   // a kétértelműség maga a baj, nem a következménye (KUKA-002 az állítás-azonosítón).
+  //
+  // KÉT FAJTA KÖTÉS, EGY KÖVETELMÉNY (MCS-2). Egy állítás KÉTFÉLEKÉPPEN lehet bekötve:
+  //   · `discharges`      — NORMA-SORT old (klauzula + állítás párja): a lánc-táblázat ebből él;
+  //   · `module_asserts`  — MODUL-SZERZŐDÉST bizonyít (KAT-01 · KSZ-01 · BEM-01): nem norma-sor.
+  // A KÖVETELMÉNY UGYANAZ: minden KIADOTT állítás legyen DEKLARÁLVA valamelyikben — a fél kötés
+  // ugyanúgy tilos (KUKA-039). A szétválasztás nem engedmény: e nélkül vagy hamis norma-kötést
+  // írnánk (a rossz klauzulára kötött bizonyíték: pontosan a KUKA-166), vagy a modul-szerződés
+  // állításai bekötetlenül maradnának.
   for (const rec of records) {
     const p = probes.find((x) => x.id === rec.probe_id);
-    const declared = new Set((p ? p.discharges || [] : []).map((d) => d.assertion));
+    const declared = new Set([
+      ...(p ? p.discharges || [] : []).map((d) => d.assertion),
+      ...(p ? p.module_asserts || [] : []),
+    ]);
     const seenAssertion = new Map();
     for (const a of Array.isArray(rec.assertions) ? rec.assertions : []) {
       if (!a || typeof a.id !== 'string' || !a.id) {

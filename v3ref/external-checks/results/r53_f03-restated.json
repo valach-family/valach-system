@@ -1,7 +1,7 @@
 {
   "program": "f03-restated.mjs",
-  "pin": "8a215a49afdfe81d644a9001a565944f01c5e450+uncommitted",
-  "at": "2026-09-15T07:56:34.242Z",
+  "pin": "948193de8166eec4e027c52a0e212e3797b1583f+uncommitted",
+  "at": "2026-09-15T11:11:48.981Z",
   "node": "v22.22.2",
   "cases": [
     {
@@ -14,7 +14,7 @@
         "NORMA/REV-N1/REV-N1a: a(z) P-A04 próba NEM adta ki a deklarált állítást: A-REV-N1a-dependent-new-op-and-release-blocked",
         "PRÓBA/P-CMD-finalize-gate: kiadott egy állítás-azonosítót, amit a manifest nem deklarál: A-REV-N1a-dependent-new-op-and-release-blocked — a bizonyíték-kötés fél maradt (KUKA-039)"
       ],
-      "stderr": "A NORMA-BIZONYÍTÉK INDEX HIBÁS — a regiszter magáról állít valótlant: |   · NORMA/REV-N1/REV-N1a: a(z) P-A04 próba NEM adta ki a deklarált állítást: A-REV-N1a-dependent-new-op-and-release-blocked |   · PRÓBA/P-CMD-finalize-gate: kiadott egy állítás-azonosítót, amit a manifest nem deklarál: A-REV-N1a-dependent-new-op-and-release-blocked — a bizonyíték-kötés fél maradt (KUKA-039) | (node:16987) ExperimentalWarning: SQLite is an experimental feature and might change at any time"
+      "stderr": "A NORMA-BIZONYÍTÉK INDEX HIBÁS — a regiszter magáról állít valótlant: |   · NORMA/REV-N1/REV-N1a: a(z) P-A04 próba NEM adta ki a deklarált állítást: A-REV-N1a-dependent-new-op-and-release-blocked |   · PRÓBA/P-CMD-finalize-gate: kiadott egy állítás-azonosítót, amit a manifest nem deklarál: A-REV-N1a-dependent-new-op-and-release-blocked — a bizonyíték-kötés fél maradt (KUKA-039) | (node:23176) ExperimentalWarning: SQLite is an experimental feature and might change at any time"
     },
     {
       "id": "G02",
@@ -73,10 +73,6 @@
         "REV-N5b",
         "REV-N5b",
         "REV-N5b",
-        "REV-N5b",
-        "REV-N5b",
-        "REV-N5b",
-        "REV-N5b",
         "REV-N5c",
         "REV-N5c",
         "ORG-N1a",
@@ -84,6 +80,10 @@
         "ORG-N1a",
         "ORG-N1a",
         "ORG-N1a",
+        "ORG-N1b",
+        "ORG-N1b",
+        "ORG-N1b",
+        "ORG-N1b",
         "ORG-N1b",
         "ORG-N1b",
         "ORG-N1b",

@@ -16,6 +16,54 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3031 — A BIZONYÍTÉK A HELYES KLAUZULÁN (R8-F01), ÉS AZ ADAPTÁLT PROGRAM AZONOSSÁGA (R8 §3)
+
+**Dátum:** 2026-09-15 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R8
+
+**1. R8-F01 — NÉGY ÁLLÍTÁS ÁTKÖTVE.** A külső fél leletje megáll: a NEZ-01/T4/OB-4 eredmény-ADATKÖR
+követelményéhez tartozó négy állítást a **REV-N5b** klauzulára kötöttem, de annak a szövege a TILTÁS
+HATÓKÖRÉRŐL szól (`covers: K09 · K15`). Az eredmény-mezők osztályozása a **K05** alá tartozik, amit a
+REV/ORG rész-indexben az **ORG-N1b** fed (`covers: K04 · K05`). Átkötve `A-ORG-N1b-*` névre a
+`manifest.mjs`-ben (két próba: `P-REV-result-scope` · `P-REV-result-shape`) és a `run.mjs`-ben; a
+REV-N5b **nem veszít állítást** (marad 7, mind a tiltás hatóköréről). Mérve: `node v3ref/run.mjs`
+**50/50 PASS**, 76 klauzula-sor változatlan. KUKA-166.
+
+**2. HÁROM KIMONDOTT SZŰKÍTÉS, az ő §1-ük szerint.** (a) A **REV-N5a** nem általános bemeneti
+séma-ellenőrzés, hanem minden alkalmazható ENGEDŐ útra kiterjedő célzott tiltás — a BEM-01 önmagában
+nem bizonyítja. (b) A **9/11-es bontás** az OB-7-nél a **REV/ORG rész-index** hatóköre, NEM a teljes
+első folyamat lefedettségének állítása: a `normContract` külön **K01–K16** szerződést azonosít.
+(c) **A K10 („Típus, normalizálás és számítási profil") szabályt a rész-index EGYETLEN klauzulája
+sem fedi** — ez NEVEZETT hiány, nem hallgatás; az MCS-2 mennyiség-szerződésével születik meg.
+**Amit NEM rögzítek:** a kilenc klauzula tartalmi jóváhagyását az ő nevükben — kimondottan
+visszatartották.
+
+**3. R8 §3 — A DARABSZÁM KONFIGURÁLHATÓ FUTTATÁSI PARAMÉTER.** Az ő hozzájárulásukkal a két adaptált
+külső program battéria-hívása `VS_BATTERY_UNITS` (alapérték **6**) szerint darabol; **egyetlen eset,
+mutáció, elvárás, forráskötés és időkeret-érvényesítés sem változik**. Az eredeti `r57`/`r59` a
+repóban marad. A manifeszt `origin` szövege javítva: az „egyetlen karaktert sem írtunk át benne"
+mondat innentől **nem állítható** — helyette nevezett `adapted` blokk (mi változott · mi nem · ki
+adaptálta).
+
+**4. AZ AZONOSSÁG MÉRT, NEM DEKLARÁLT (EXT-03).** Új feloldó: `programIdentity` — a lenyomat a
+TÉNYLEGES fájlból jön (sha256), a manifeszt csak a KAPCSOLATOT deklarálja. Kézzel beírt sha256 az
+első szerkesztéskor elavulna és zölden hazudna (KUKA-045 · KUKA-121). A gépi kimenet és a képernyő is
+viszi: `program_digest` · `adapted` · `adapted_from` (a hiány `null`, külön válasz — KUKA-124/2).
+
+**5. A SAJÁT ELSŐ ALAKOM HIBÁS VOLT — a kapu rossz helyen állt.** A bájtazonosság-ellenőrzést az
+általános `ok`-ba tettem, és a külső fél **R83-as futtató-próbája azonnal kibuktatta**: az a program
+MINDEN fájlt ugyanarra a csonkra cserél, tehát ott a bájtazonosság a PRÓBA műterméke — egy hibátlan
+`all-green` kontroll állt meg (**16/18**, exit 1). Ez a KUKA-049 (az őr a kért eredményt jelentette
+kudarcnak) és a KUKA-124/1 (a tényt ott kell mérni, ahol eldől). A kapu ezért az
+`environmentalObstacle` **ötödik feltétele** lett: a felmentés azon áll, hogy a helyettes MÁS ALAKBAN
+futtatja ugyanazokat az eseteket — ha a helyettes az eredeti másolata, a zöldje önmagát igazolja
+vissza (KUKA-054). **A mérés HIÁNYA sem felmentés**, hanem nevezett elutasítás. Ez a javítás
+**erősebb** a réginél: eddig a felmentés semmit nem mondott a helyettes MÁSSÁGÁRÓL.
+
+> **Hatály:** V3 — a V3 magreferencia norma-lánca és a külső-ellenőrző program-regisztere; a V2
+> kódját és termékét nem érinti.
+
+---
+
 ## D-VS-3030 — RENDSZERKÉP: A MINDIG BETÖLTÖTT LAP, ÉS A MÉRT ÍRÓ-HALMAZ (MCS-1)
 
 **Dátum:** 2026-09-15 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R5
