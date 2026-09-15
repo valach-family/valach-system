@@ -16,6 +16,86 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3032 — AZ R10 ÖT LELETE JAVÍTVA, ÉS NÉGY SAJÁT LELET A BEKÖTÉS KÖZBEN
+
+> **Hatály:** V3 — a V3 magreferencia (`v3ref/`) és a V3 memória-őre; a V2 kódját nem érinti.
+
+**Dátum:** 2026-09-15 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R13
+
+Mind az öt lelet REPRODUKÁLVA a VÁLTOZATLAN kódon, utána javítva és falszifikálva.
+
+**1. R10-F01 — nem volt közös, egyszeri és atomikus bevét.** A régi `receiveStock` SAJÁT tranzakciót
+nyitott, és egy MÁR véglegesített parancsot kért. Mérve: ugyanaz a hatásazonosító kétszer könyvelt ·
+az összeg-elutasítás után a parancs `finalized` maradt a nyugtájával · MÁSIK művelet azonosítójával
+is lehetett készletet írni. **Javítás:** `submitStockReceipt` az EGYETLEN belépési pont, a mozgás a
+parancs tranzakciójában születik (`submitCommandWithEffect`), a nyers író **nincs exportálva**. A
+sorrend a tranzakción belül: parancs-sor → nyugta → hatás; nem a hívási sorrend jó szándéka tartja,
+hanem a TÁROLÓ (lásd 6. pont).
+
+**2. R10-F02 — idegen könyv cikke elfogadható volt.** EGY feloldó (`itemForKey`), NEVEZETT válasz
+(`item_belongs_to_another_book`), az ÍRÓ és az OLVASÓ oldalán is (KUKA-039).
+
+**3. R10-F03 — az idő és a két plafon.** Új modul: **`instant.mjs`** (IDO-01) — valódi naptár
+visszaírásos összehasonlítással (a `2026-02-30` NEM csúszik át némán), KANONIKUS UTC alak, és a két
+idő-tengely EGY helyen deklarálva. Az „A" nézet TENGELY-PÁR (rögzítés ÉS hatály). A mennyiség-profil
+KÉT plafont visel (`maxPerMovement` ≠ `maxTotal`), és az összeg-kapu a visszadátumozás által érintett
+**KÉSŐBBI** állapotot is méri.
+
+**4. R10-F04 — a memória-őr ígérete nem teljesült.** A KUK04 PADLÓKKAL mérte a „nem csonkolt"
+állítást; a külső fél megmérte: az ELSŐ sort 238 → 120 karakterre vágva a battéria **244/244 PASS**
+maradt. **Javítás:** verziózott, SORONKÉNTI lenyomat-alapvonal
+(`contracts/kukaArchiveBaseline.json` + `tools/vs_kuka_baseline.mjs`). A kulcs a sor ELSŐ
+CELLÁJÁBÓL jön, nem a szövegből: 157 sorból **128** hivatkozik MÁSIK KUKA-azonosítóra (KUKA-134).
+Falszifikálva HÁROM alakon — csonkolás · AZONOS HOSSZÚ töltelék · sor-törlés —, mindhárom nevezetten
+piros, az ellenpár zöld. **Kimondott korlát:** ez nem megváltoztathatatlanság, hanem LÁTHATÓSÁG.
+
+**5. R10-F05 — a négy eredmény-adatkör állítás ROSSZ klauzulán ült.** Az R8-ban REV-N5b → ORG-N1b
+átkötést csináltam; a külső fél szerint ez nem érdemi megfelelés. **Igaza van, és mérve is:** az
+ORG-N1b a FELHATALMAZÁS korlátjáról szól, ezek az állítások a KIADOTT EREDMÉNY besorolásáról — közös
+szó, két külön tárgy. A mai regiszter ÖT K05-öt fedő klauzulája közül EGYIK SEM mondja ki a kiadási
+osztályozó tényét. **A kötés VISSZAVONVA**; az állítások MODUL-SZERZŐDÉSKÉNT (DSC-01) állnak tovább,
+a hiány NEVEZETT: **OB-8**. Klauzulát ide kitalálni nem szabad — a normaregiszter tárgyalt, közös
+alap. Mellé **OB-9** (K10: típus · normalizálás · profil). A KUKA-166 ezzel SZŰKÍTVE.
+**KIMONDVA:** a lánc-sorok száma **76 → 72**-re csökkent (a négy visszavont kötés miatt), a FEDETT
+sorok száma **változatlan (53)** — tehát ez hamis állítás visszavonása, nem fedettség-vesztés.
+
+**6–9. NÉGY SAJÁT LELET, mind a bekötés közben** (KUKA-167…170). (6) A kiadási osztályozó a
+mennyiséget `number` levélként deklarálta, az MNY-01 viszont tiltja a JSON-számot — két saját
+szerződés mondott ellent, és a söprés zöld volt, mert egyik sem HÍVTA a másikat. (7) A bemeneti séma
+az ALAPÉRTELMEZETT profillal kanonizált, holott a profil a CIKKÉ: a darabos cikk `"1000"` értékéből
+`"1000.000"` lett, és a főkönyv `precision`-re futott — a mennyiség innentől KÉT SZAKASZ. (8) A séma
+kötelezőként kérte a tulajdonost és a raktárat, amit a rendszer NÉMÁN eldobott (a hatókör a
+kontextusé) — a mezők kikerültek, a FELOLDOTT hatókör viszont bekerült a parancs AZONOSSÁGÁBA.
+(9) A `stock_movement` fejléce ŐRNEK mondta magát, miközben az őr a JS-íróban ült — és a nyers író
+kivezetésével eltűnt volna: **négy tárolói őr** lépett a helyére.
+
+**Ráadás, mérve:** megszületett a MÁSODIK mennyiség-profil (`qty-2`, darabos, 0 tizedes) — enélkül a
+„profil" fogalma fogalmilag mérhetetlen volt (KUKA-051: az egyelemű lista nem méri a szabályt).
+
+**10. A KÜLSŐ-ELLENŐRZŐ LÁNC PIROS — ÉS EZT NEM TAKAROM EL.** A söprés a `verify:external-checks`-et
+env-kihagyásnak jelölte; ezt NEM fogadtam el következtetésként, hanem MEGMÉRTEM (KUKA-089): a lánc
+LEFUT. Lefuttatva **öt program mutat eltérést**, KÉT független okból.
+**„A" ok — az ÉN szerződés-változtatásom (öt eset):** `r77/F02-…` · `r79core/P01-flat-quantity` ·
+`r79core/P07-command-before` · `r81core/core/P01-pure-lines` · `r81core/core/F04-release-time-*`.
+Mind ugyanaz: a programjaik a mennyiséget JSON-SZÁMKÉNT adják át, az MNY-01 óta viszont KANONIKUS
+DECIMÁLIS SZÖVEG kell. **A programjaikat NEM adaptáltam** (a „tesztadaptáció nem történt" a lánc
+egyetlen értelme — KUKA-054), és **nem is verzióztam ki a szerződést**: az MNY-01 indoka a régi
+verzióra ugyanúgy igaz, tehát a megengedő verzió egy ISMERTEN HIBÁS viselkedést konzerválna egy
+teszt kedvéért. **A döntés ezért a TÁRGYALÁSÉ**, két úttal: az MNY-01 áll és a fixtúráik új verziót
+kapnak, VAGY az MNY-01 szűkül és kimondjuk, mely mezőkre nem vonatkozik.
+**„B" ok — a mérő időkorlátja, NEM az enyém.** A 4-egységes bontás a külső 15 000 ms fölött fut;
+MÉRVE a MAI forráson (145 mutáció: 19 005 · 19 180 · 20 126 · 19 044 ms) **és az R9 ELŐTTIN is**
+(134 mutáció: 19 677 · 19 393 ms) — tehát ez a „battéria kinőtte a darabolást" állapot, nem
+regresszió. A 7-egységes bontás mindkét forráson befér.
+
+**GÉPI VÉGEREDMÉNY.** `node v3ref/run.mjs` **53 PASS / 0 FAIL**, exit 0 · `verify:kuka`
+**262/262 PASS** (a csonkolt archívumon 249/250, NEVEZETT hibával) · mutációs battéria 7 egységben:
+**145 mutáció · 145 elkapva · 0 túlélte · 0 rossz próba · 0 mérőhiba · 0 elavult horgony**,
+legrosszabb egység **8260 ms** (külső korlát 15 000 ms). Új mutációk: **M138–M148**; az **M37**
+újrahorgonyozva, az **M90** lefedettsége visszaállítva a szám-levélre (mérve: e nélkül TÚLÉLT).
+
+---
+
 ## D-VS-3031 — A BIZONYÍTÉK A HELYES KLAUZULÁN (R8-F01), ÉS AZ ADAPTÁLT PROGRAM AZONOSSÁGA (R8 §3)
 
 **Dátum:** 2026-09-15 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R8

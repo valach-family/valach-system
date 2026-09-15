@@ -217,6 +217,10 @@ const GUARD_HOME = Object.freeze({
   'KUKA-165': Object.freeze({ home: 'v3', note: 'a külső-ellenőrző burkolók a V3 repóban élnek — a jel a `verify:external-checks` HOMOKOZÓS futása: a gyökér-feloldó és a forrás-kötés ott mérhető, ahol a kapu ténylegesen fut' }),
   'KUKA-150': Object.freeze({ home: 'v3', note: 'a RUN-02 futás-szerződés (darabolt futás) a V3 mutációs battériájában él — a jel az r79/U01 külső-ellenőrzés + az egység-fájl `evidence_bound` mezője ITT fut' }),
   'KUKA-166': Object.freeze({ home: 'v3', note: 'a norma-lánc klauzula↔állítás kötése a V3 magreferenciában él (`manifest.mjs` + `run.mjs`) — a jel ott mérhető, ahol a kötés SZÜLETIK' }),
+  'KUKA-167': Object.freeze({ home: 'v3', note: 'a kiadási osztályozó és a mennyiség-szerződés VISZONYA a V3 magban él — a jel az M144 mutáció és a P-REV-result-shape (d) ága, ahol a VALÓDI eredmény megy át az osztályozón' }),
+  'KUKA-168': Object.freeze({ home: 'v3', note: 'a mennyiség két szakasza (határ ↔ profil-kötés) a V3 magban él — a jel a P-BEM (i) ága (ugyanaz a szöveg MÁS profillal MÁS válasz) és a P-KSZ (g) darabos kanonikus alakja' }),
+  'KUKA-169': Object.freeze({ home: 'v3', note: 'a kontextus ↔ tartalom szétválasztása a V3 bemeneti sémájában él — a jel a P-BEM (h) `unknown_field@warehouse_id` és a P-KSZ (d) `idempotency_conflict`' }),
+  'KUKA-170': Object.freeze({ home: 'v3', note: 'a főkönyv tárolói őrei a V3 sémájában élnek — a jel a P-KSZ (i) NYERS tárolási próbája + az M146/M147 mutáció' }),
 });
 
 function homeOf(id) { return (GUARD_HOME[id] || null); }

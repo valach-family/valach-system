@@ -7288,6 +7288,192 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'négy állítást védi — azt NEM méri, hogy egy JÖVŐBELI állítás a helyes klauzulára kerül-e; '
       + 'a hatókör itt LISTA, nem szabály (KUKA-051), mert a „helyes klauzula" a szöveg '
       + 'JELENTÉSÉTŐL függ, amit gép nem dönt el.',
+    narrowed: 'SZŰKÍTVE (R10-F05, D-VS-3032): az ORG-N1b-re átkötés SEM volt érdemi megfelelés. Az '
+      + 'ORG-N1b valóban fedi a K05-öt, de a SZÖVEGE a FELHATALMAZÁS korlátjáról szól („a '
+      + 'felhatalmazás nem lehet tágabb, mint az alapja"), nem a KIADOTT EREDMÉNY besorolásáról — '
+      + 'közös szó („adatkör"), két külön tárgy. Mérve: a mai regiszter ÖT K05-öt fedő klauzulája '
+      + 'közül EGYIK SEM mondja ki a kiadási osztályozó tényét. A négy állítás ezért ma NEM '
+      + 'klauzulát old, hanem MODUL-SZERZŐDÉST bizonyít (DSC-01), a hiány pedig NEVEZETT: OB-8. '
+      + 'A saját tanulságom tehát fél volt: nem elég a `covers` listát megnézni, a klauzula '
+      + 'SZÖVEGÉNEK a TÁRGYÁT is el kell olvasni — és ha nincs hozzá klauzula, akkor a helyes '
+      + 'válasz a NEVEZETT HIÁNY, nem a legközelebbi klauzula.',
+  }),
+
+  // ═══ AZ R10-ES KÖR SAJÁT LELETEI (D-VS-3032) ══════════════════════════════════════════════════
+
+  Object.freeze({
+    id: 'KUKA-167',
+    date: '2026-09-15',
+    title: 'KÉT SAJÁT SZERZŐDÉS MONDOTT ELLENT — és a söprés zöld volt, mert egyik sem HÍVTA a másikat',
+    what: 'A kiadási osztályozó (`resultScope.mjs`, R77/R79) a `stock.receipt` eredményében a `qty` '
+      + 'mezőt **`number` levélként** deklarálta. A mennyiség szerződése (MNY-01, R8) viszont '
+      + 'KIMONDJA, hogy a mennyiség SOHA nem hagyhatja el a rendszert JSON-számként, mert a '
+      + 'lebegőpontos alak a 0,1-et sem ábrázolja pontosan. Két SAJÁT szerződésem, két körből, '
+      + 'egymásnak ellentmondva — és mindkettő próbái ZÖLDEN futottak.',
+    why_wrong: 'Azért nem látszott, mert EGYIK SEM HÍVTA A MÁSIKAT: az osztályozó próbái KÉZZEL írt '
+      + 'eredmény-objektumokon futottak (számmal), a mennyiség próbái pedig a saját modulján. A '
+      + 'hiba abban a pillanatban bukott ki, amikor a bevétet a VALÓDI parancs-útra kötöttem, és '
+      + 'egy tényleges eredmény átment az osztályozón: `result_scope_undeclared`. Ez a KUKA-038 '
+      + 'alakja a SZERZŐDÉSEK KÖZÖTT: a deklaráció LÉTEZÉSE nem bizonyítja, hogy a lánc végigmegy '
+      + 'rajta — a bizonyíték az, hogy a valódi út ÁTÉR.',
+    replaced_by: 'saját `decimal` levél-fajta a kiadási osztályozóban, a KANONIKUS decimális '
+      + 'szöveget követelve, PROFIL-SZABÁLLYAL (nem beégetett profillal)',
+    replacement: 'A `resultScope.mjs` levél-fajtái közé bekerült a `decimal`: a JSON-szám NEVEZETT '
+      + 'alak-hibát kap, a nem kanonikus szöveg is, a kanonikus átmegy. A döntést nem másolja le: a '
+      + '`parseQuantity`/`formatQuantity` párost HÍVJA vissza (KUKA-009), és MINDEN deklarált '
+      + 'profilt végigpróbál — mert ez a réteg a CIKKET nem ismeri, tehát a profilt nem kötheti meg '
+      + '(a kötés a főkönyvben történik, és ez a korlát KI VAN MONDVA).',
+    decision: 'D-VS-3032',
+    found_by: 'a SAJÁT MÉRÉSEM, az R10-F01 bekötése közben — pontosan azért, mert az R10 megkövetelte, '
+      + 'hogy a próba a TELJES utat hívja, ne kész sikerállapotot szúrjon be',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/resultScope.mjs']), pattern: "kind === 'decimal'",
+        why: 'a mennyiség levele SAJÁT fajta, a kanonikus decimális alakot követeli' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/resultScope.mjs']), pattern: 'parseQuantity',
+        why: 'a döntést az MNY-01 tulajdonosától kérdezi vissza, nem másolja le' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/resultScope.mjs']), pattern: "qty: leaf\\('number'",
+        why: 'a mennyiség JSON-számként nem adható ki (MNY-01)' }),
+    ]),
+    lesson: 'AHOL EGY ÉRTÉKRŐL KÉT SZERZŐDÉS IS RENDELKEZIK, OTT A BIZONYÍTÉK NEM A KÉT PRÓBA ZÖLDJE, '
+      + 'HANEM AZ, HOGY A VALÓDI ÚT MINDKETTŐN ÁTMEGY. Két kézzel írt fixtúra két modulban '
+      + 'egymástól függetlenül is lehet zöld, miközben együtt már ellentmondanak — a kérdés ezért '
+      + 'nem az, hogy „megvan-e mindkét deklaráció", hanem hogy **melyik FUTÁS köti össze őket**. '
+      + 'Ha egy sincs, a két szerződés két külön világban él.',
+    guard_note: 'gépi jel: `v3ref/mutate.mjs` **M144** (a `decimal` ág kivétele bizonyítottan '
+      + 'pirosra viszi a P-REV-result-shape próbát) + a P-REV-result-shape (d) ága, ami a '
+      + 'JSON-számot, a nem kanonikus szöveget ÉS az ellenpárt is méri.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-168',
+    date: '2026-09-15',
+    title: 'A HATÁR KANONIZÁLT EGY OLYAN SZABÁLY SZERINT, AMIT NEM ISMERHETETT',
+    what: 'A bemeneti séma (BEM-01) a mennyiséget az ALAPÉRTELMEZETT profillal dolgozta fel, és a '
+      + 'KANONIKUS alakját adta tovább. A profil viszont a CIKK tulajdonsága: a darabos cikk '
+      + '(0 tizedes) `"1000"` értékéből a határon `"1000.000"` lett, a főkönyv pedig a SAJÁT '
+      + 'profiljával olvasta vissza — `precision` hibára futott. Mérve: a darabos bevét EGYETLEN '
+      + 'tétele sem ment át.',
+    why_wrong: 'A séma a HATÁRON áll, ahol a cikk még nem ismert — ott tehát a mennyiségnek CSAK az '
+      + 'alakja dönthető el, a JELENTÉSE nem. Az alapértelmezés NEM óvatosság volt, hanem néma '
+      + 'ÁTÍRÁS egy olyan szabály szerint, ami arra az értékre nem igaz (KUKA-029 fordítottja: nem '
+      + 'a gyógyított alakot olvasta valaki rosszul, hanem a GYÓGYÍTÁST végezte az, aki nem ismerte '
+      + 'a szabályt). A hibát ráadásul a MÁSODIK profil megszületése hozta elő — amíg egyetlen '
+      + 'profil volt, a „profil" fogalma fogalmilag mérhetetlen volt (KUKA-051: az egyelemű lista '
+      + 'nem méri a szabályt).',
+    replaced_by: 'KÉT SZAKASZ: a határon profil-FÜGGETLEN alak-ellenőrzés, a jelentés ott dől el, '
+      + 'ahol a cikk ismert (`bindQuantityProfile`)',
+    replacement: 'A `validateInput` a mennyiségre csak a `quantitySyntaxProblem` kérdését teszi fel '
+      + '(szöveg-e · decimális alakú-e), a NYERS alakot viszi tovább, és a válaszában KIMONDJA, '
+      + 'hogy még nincs profilhoz kötve (`profile_bound: false`). A B. szakasz a főkönyvben fut, a '
+      + 'cikk profiljával; a HIÁNYZÓ profil nem alapértelmezés, hanem NEVEZETT zár '
+      + '(`profile_required`). Mellé megszületett a második profil (`qty-2`, darabos), hogy a '
+      + 'profil-kötés egyáltalán mérhető legyen.',
+    decision: 'D-VS-3032',
+    found_by: 'a SAJÁT MÉRÉSEM — a P-KSZ próba a darabos cikken azonnal `precision`-re futott, pont '
+      + 'azon az úton, amit az R10-F01 miatt kanonikussá tettem',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/inputSchema.mjs']), pattern: 'quantitySyntaxProblem',
+        why: 'a határ csak az ALAKOT kérdezi, a jelentést nem' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/inputSchema.mjs']), pattern: 'profile_required',
+        why: 'a hiányzó profil NEVEZETT zár, nem néma alapértelmezés' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/ledger.mjs']), pattern: 'bindQuantityProfile',
+        why: 'a jelentés ott dől el, ahol a cikk — és vele a profil — ismert' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/inputSchema.mjs']), pattern: 'profileId = DEFAULT_PROFILE_ID',
+        why: 'a határ nem kanonizálhat alapértelmezett profillal — a profil a CIKKÉ' }),
+    ]),
+    lesson: 'AMIT EGY RÉTEG NEM TUD MEGKÉRDEZNI, AZT NEM IS SZABAD ELDÖNTENIE. Ha egy érték '
+      + 'jelentése egy olyan tényen múlik, amit az adott réteg nem ismer (itt: a cikk profilja), '
+      + 'akkor ott az alapértelmezés nem óvatosság, hanem HALLGATÓLAGOS ÁTÍRÁS — és a hiba nem ott '
+      + 'jelentkezik, ahol keletkezett. A helyes alak KÉT SZAKASZ, mindkettő kimondva, és a válasz '
+      + 'megmondja, MI MARADT NYITVA (KUKA-015 a saját válasz-alakunkra).',
+    guard_note: 'gépi jel: `v3ref/run.mjs` P-BEM (i) ág — ugyanaz a szöveg MÁS profillal MÁS választ '
+      + 'kap, a profil nélküli kötés `profile_required`, és a P-KSZ (g) ág a darabos cikk '
+      + 'KANONIKUS alakját (`10000`, tizedes nélkül) méri. KIMONDOTT KORLÁT: ma KÉT profil van; a '
+      + 'profil-kötés SZABÁLYKÉNT mérve van, de a készlet valós profil-választéka még nem.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-169',
+    date: '2026-09-15',
+    title: 'A SÉMA KÉRT KÉT MEZŐT, AMIT A RENDSZER NÉMÁN ELDOBOTT',
+    what: 'A `stock.receipt` bemeneti sémája KÖTELEZŐ mezőként kérte az `owner_id`-t és a '
+      + '`warehouse_id`-t, a készletkulcsot viszont a hívó MEGBÍZHATÓ KÖRNYEZETE adta (KUKA-047). '
+      + 'A beadó tehát kitölthetett két mezőt, amit a rendszer elolvasott, validált — és eldobott.',
+    why_wrong: 'Ez a KUKA-041 dísz-vezérlője a BEMENETI SÉMÁN: a mező látszik, kötelező, és semmit '
+      + 'nem billent. Két tény ült egy ábrázoláson (KUKA-002): a HATÓKÖR a kontextusé, a TARTALOM a '
+      + 'beadóé. A néma eldobás ráadásul rosszabb a hibaüzenetnél: a beadó azt hiszi, ő választotta '
+      + 'a raktárt.',
+    replaced_by: 'a kontextus-mező KIKERÜLT a sémából (aki küldi, NEVEZETT `unknown_field` választ '
+      + 'kap), a FELOLDOTT kontextus viszont bekerült a parancs AZONOSSÁGÁBA',
+    replacement: 'A séma mezői: `item_id` · `qty` · `effective_at`. A `submitStockReceipt` a '
+      + 'tulajdonost és a raktárat a hívó környezetéből veszi, és az azonosság-törzsbe beleteszi — '
+      + 'így ugyanaz az ismétlés-kulcs MÁS raktárra `idempotency_conflict`, nem „ismétlés" '
+      + '(KUKA-074: az idempotencia-őr csak az AZONOS kérést nyelheti el).',
+    decision: 'D-VS-3032',
+    found_by: 'a SAJÁT MÉRÉSEM, a kanonikus bevét-út megírása közben — a kulcs a kontextusból épült, '
+      + 'a séma mégis kérte ugyanazt',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/ledger.mjs']), pattern: 'identityBody',
+        why: 'a feloldott hatókör a parancs AZONOSSÁGÁNAK része' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/inputSchema.mjs']), pattern: "owner_id: Object.freeze",
+        why: 'a tulajdonos a kontextusból jön, nem a kérés törzséből' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/inputSchema.mjs']), pattern: "warehouse_id: Object.freeze",
+        why: 'a raktár a kontextusból jön, nem a kérés törzséből' }),
+    ]),
+    lesson: 'MINDEN BEMENETI MEZŐRE FEL KELL TENNI A KUKA-015 KÉRDÉSÉT IS: **ki OLVASSA, és mihez '
+      + 'méri?** Ha a válasz „senki, mert ezt a tényt máshonnan vesszük", akkor a mezőnek nincs '
+      + 'helye a sémában — és a néma eldobás helyett NEVEZETT elutasítás jár, a séma mezőivel '
+      + 'együtt (KUKA-064). A kontextus és a tartalom két külön dolog, de az AZONOSSÁGHOZ mindkettő '
+      + 'kell.',
+    guard_note: 'gépi jel: `v3ref/run.mjs` P-BEM (h) ág (`unknown_field@warehouse_id`) + P-KSZ (d) '
+      + 'ág (ugyanaz a kulcs MÁS raktárral `idempotency_conflict`).',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-170',
+    date: '2026-09-15',
+    title: 'A SÉMA FEJLÉCE ŐRNEK MONDTA MAGÁT — az őr viszont a JS-ÍRÓBAN ült, és vele költözött',
+    what: 'A `stock_movement` tábla fejléce azt ÁLLÍTOTTA: „árva mozgás-sor nem születhet, és az '
+      + 'atomiság így MÉRHETŐ, nem ígéret". MÉRVE viszont sem idegenkulcs, sem őr nem állt az '
+      + '`effect_id` mögött: a kötést KIZÁRÓLAG a JS-oldali író tartotta (`unknown_effect` / '
+      + '`receipt_missing`). Amíg az az író volt az egyetlen út, ez „működött"; amikor az R10-F01 '
+      + 'miatt kivezettem a nyilvános felületről, a JS-ellenőrzés helye elmozdult — és a TÁROLÓBAN '
+      + 'nem maradt semmi.',
+    why_wrong: 'Ez a KUKA-004 („a magyarázó szöveg nem őr") és a KUKA-050 („a leíró szöveg ÁLLÍTÁS, '
+      + 'és az állítás elévül") együtt, a SÉMÁN. A fejléc mondata a megírásakor IGAZ volt abban az '
+      + 'értelemben, hogy az egyetlen út ellenőrzött — de a mondat ERŐSEBBET állított („mérhető"), '
+      + 'mint amennyit a szerkezet tartott, és egy szerkezet-változtatás némán kiürítette.',
+    replaced_by: 'NÉGY tárolói őr a `stock_movement`-en: véglegesített parancs · nyugta · nincs '
+      + 'UPDATE · nincs DELETE',
+    replacement: 'A kötést a TÁROLÓ tartja, nem az író, tehát egy jövőbeli MÁSODIK író sem kerülheti '
+      + 'meg (KUKA-013). A két hiány KÉT KÜLÖN válasz, és a megkülönböztetés nem múlhat a '
+      + 'végrehajtási sorrenden: a második őr feltétele KIZÁRJA az elsőét (az SQLite a BEFORE '
+      + 'INSERT őrök sorrendjét nem garantálja — ezt is MÉRVE találtam meg). Az őr üzenetét az író '
+      + 'NEVEZETT válaszra fordítja, a forrás mondatát megtartva (KUKA-028).',
+    decision: 'D-VS-3032',
+    found_by: 'a SAJÁT MÉRÉSEM — az R10-F01 javítása közben kerestem meg, mi tartja a kötést, ha a '
+      + 'nyers író már nem belépési pont',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/store.mjs']), pattern: 'stock_movement_requires_finalized_command',
+        why: 'a véglegesített parancs megléte a TÁROLÓ szabálya' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/store.mjs']), pattern: 'stock_movement_no_delete',
+        why: 'a főkönyv hozzáfűzéses — a törlés a tárolóban tilos' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'HA EGY MEGJEGYZÉS AZT ÁLLÍTJA, HOGY VALAMI „MÉRHETŐ, NEM ÍGÉRET", AKKOR MEG KELL '
+      + 'KERESNI, MI MÉRI — és ha a válasz egyetlen hívási út jó szándéka, akkor a mondat hamis. '
+      + 'A megkülönböztető kérdés: **melyik kapu bukna el, ha ezt a kódot holnap átrendeznénk?** '
+      + 'Az invariánst a LEGKEVÉSBÉ MOZGÓ rétegbe kell tenni (itt: a tároló), különben a védelem a '
+      + 'refaktorral együtt költözik el.',
+    guard_note: 'gépi jel: `v3ref/run.mjs` P-KSZ (i) ág (NYERS tárolási út próbálva: árva hatás · '
+      + 'nyugta nélkül · UPDATE · DELETE) + `v3ref/mutate.mjs` **M146** és **M147** (mindkét őr '
+      + 'kivétele bizonyítottan pirosra viszi a próbát).',
   }),
 
 ]);

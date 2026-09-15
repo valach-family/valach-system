@@ -1,14 +1,15 @@
 {
   "program": "r79_chatgpt-v3.core.mjs",
-  "source_commit": "948193de8166eec4e027c52a0e212e3797b1583f+uncommitted",
+  "source_commit": "75eaea5d51412dfc8b3d034c01414aeef7da8e36",
   "node": "v22.22.2",
-  "at": "2026-09-15T11:25:35.736Z",
+  "at": "2026-09-15T20:44:12.419Z",
   "verbatim": true,
   "commit": "8dced6f444aff777d5842a050101eedefdcdeec1",
   "cases": [
     {
       "id": "P01-flat-quantity",
-      "pass": true
+      "pass": false,
+      "error": "{\"submit\":{\"ok\":false,\"error\":\"result_scope_undeclared\",\"reason\":\"result_shape_type_mismatch\",\"message\":\"a(z) \\\"stock.receipt\\\" / \\\"1\\\" eredménye a \\\"qty\\\" helyen nem felel meg a deklarált sémának (a mennyiség KANONIKUS DECIMÁLIS SZÖVEG, nem JSON-szám (MNY-01) — a lebegőpontos alak a 0,1-et sem ábrázolja pontosan, tehát a kiadott szám hamis lenne). A séma a BEÁGYAZOTT alakra és a tömb ELEMEIRE is szól: a felső mező címkéje nem helyettesíti a részfa sémáját (R79/F01).\",\"effect_id\":null,\"state\":null},\"read\":{\"ok\":false,\"error\":\"result_scope_undeclared\",\"reason\":\"result_shape_type_mismatch\",\"message\":\"a(z) \\\"stock.receipt\\\" / \\\"1\\\" eredménye a \\\"qty\\\" helyen nem felel meg a deklarált sémának (a mennyiség KANONIKUS DECIMÁLIS SZÖVEG, nem JSON-szám (MNY-01) — a lebegőpontos alak a 0,1-et sem ábrázolja pontosan, tehát a kiadott szám hamis lenne). A séma a BEÁGYAZOTT alakra és a tömb ELEMEIRE is szól: a felső mező címkéje nem helyettesíti a részfa sémáját (R79/F01).\",\"effect_id\":null,\"state\":null}}\n\nfalse !== true\n"
     },
     {
       "id": "P02-flat-price",
@@ -52,7 +53,8 @@
     },
     {
       "id": "P07-command-before",
-      "pass": true
+      "pass": false,
+      "error": "Expected values to be strictly equal:\n\nfalse !== true\n"
     },
     {
       "id": "P07-command-after",
@@ -79,6 +81,6 @@
       "pass": true
     }
   ],
-  "passed": 18,
-  "failed": 0
+  "passed": 16,
+  "failed": 2
 }
