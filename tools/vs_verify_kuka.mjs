@@ -39,6 +39,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
+import { compare as compareArchiveBaseline, BASELINE_REL } from './vs_kuka_baseline.mjs';
 
 const require = createRequire(import.meta.url);
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -167,7 +168,18 @@ async function main() {
     .map((e) => e.id);
   check('KUK04', `MINDEN regiszter-azonosító feloldható (rövid alap VAGY archívum) — ${RETIRED_PATTERNS.length} db`,
     unresolved.length === 0, unresolved.join(', '));
-  // (d) a SZÖVEG nem csonkolt: sor-hossz padló + összméret padló (KUKA-045 — padló, nem egyenlőség)
+  // (d) A SZÖVEG NEM CSONKOLT — SORONKÉNTI LENYOMAT, NEM PADLÓ (R10-F04).
+  //
+  // AMI ELŐTTE VOLT, ÉS MIÉRT VOLT ROSSZ. Itt PADLÓK álltak: „a legrövidebb sor legalább 100
+  // karakter" és „az összméret legalább 170 000 bájt". A külső fél MÉRTE, hogy ez nem teljesíti az
+  // ígéretet: az ELSŐ sort 238 karakterről 120-ra vágva a battéria 244/244 PASS maradt — a 120 a
+  // padló FÖLÖTT van, és egy sor az összméretben eltűnik. A padló egy MÁSIK kérdésre felel („van-e
+  // egyáltalán tartalom?"), mint az ígéret („megvan-e MINDEN sor, VÁLTOZATLANUL?") — KUKA-045.
+  //
+  // A MAI ALAK: verziózott, soronkénti lenyomat-alapvonal (`contracts/kukaArchiveBaseline.json`).
+  // A kulcs a sor ELSŐ CELLÁJÁBÓL jön, nem a szövegből: 157 sorból 128 hivatkozik MÁSIK
+  // KUKA-azonosítóra, tehát egy szöveg-keresés a sorok többségét rossz kulcs alá tenné (KUKA-134).
+  // A padlók MEGMARADNAK olcsó másodlagos jelként, de a bizonyíték a lenyomat.
   const archiveRows = ARCHIVE_MD.split('\n').filter((l) => /^\|\s*\*\*KUKA-/.test(l));
   const shortest = archiveRows.length ? Math.min(...archiveRows.map((l) => l.length)) : 0;
   check('KUK04', `az archívum táblája nem csonkolt — legrövidebb sor ${shortest} karakter (padló ${ARCHIVE_ROW_CHARS_FLOOR})`,
@@ -176,6 +188,32 @@ async function main() {
     ARCHIVE_MD.length >= ARCHIVE_BYTES_FLOOR);
   check('KUK04', `a táblának minden bejegyzéshez van SORA — ${archiveRows.length} sor, ${RETIRED_PATTERNS.length} bejegyzés`,
     archiveRows.length >= RETIRED_PATTERNS.length);
+
+  const baselinePath = join(ROOT, BASELINE_REL);
+  const baselinePresent = existsSync(baselinePath);
+  check('KUK04', `a soronkénti alapvonal megvan (${BASELINE_REL})`, baselinePresent,
+    baselinePresent ? '' : 'nincs alapvonal — futtasd: node tools/vs_kuka_baseline.mjs --write');
+  if (baselinePresent && ARCHIVE_PRESENT) {
+    const baseline = JSON.parse(readFileSync(baselinePath, 'utf8'));
+    const diff = compareArchiveBaseline(ARCHIVE_MD, baseline);
+    const baselineRows = Object.keys(baseline.rows || {}).length;
+    check('KUK04', `MINDEN alapvonalbeli sor BÁJTRA VÁLTOZATLAN — alapvonal v${baseline.baseline_version}, ${baselineRows} sor`,
+      diff.changed.length === 0,
+      diff.changed.map((c) => `${c.id}: ${c.was_chars}→${c.now_chars} karakter`).join(' · '));
+    check('KUK04', 'egyetlen alapvonalbeli sor sem TŰNT EL', diff.missing.length === 0, diff.missing.join(', '));
+    check('KUK04', 'egy azonosító egyszer szerepel (a duplikátum egyik sora némán kimaradna)',
+      diff.duplicates.length === 0, diff.duplicates.join(', '));
+    // AZ ÚJ SOR NEM HIBA — de NEM IS NÉMA: az alapvonal ilyenkor RÉGEBBI, és frissíteni kell.
+    // A hiány és a bővülés két külön válasz (KUKA-124/2).
+    check('KUK04', `az alapvonal naprakész — ${diff.added.length} új sor, amiről még nem tud`,
+      diff.added.length === 0,
+      diff.added.length ? `${diff.added.join(', ')} — futtasd: node tools/vs_kuka_baseline.mjs --write` : '');
+    // A KORLÁT KIMONDVA (KUKA-127): ez NEM megváltoztathatatlanság. Az alapvonal újragenerálható,
+    // tehát egy SZÁNDÉKOS átírás „legalizálható" — amit az őr ad, az LÁTHATÓSÁG: a változás nem
+    // történhet véletlenül, és a verziókövetésben el kell számolni vele.
+    check('KUK04', 'az alapvonal KIMONDJA a saját erejének korlátját (nem ad hamis biztonságot)',
+      /LÁTHATÓSÁG/.test(readFileSync(join(ROOT, 'tools/vs_kuka_baseline.mjs'), 'utf8')));
+  }
   // (e) a forrás-megnevezések MARADNAK — a kód a kanonikus, a lap az emberi olvasat (KUKA-018)
   check('KUK04', 'a CLAUDE.md megnevezi az adat-forrást (a kettő nem csúszhat szét)',
     /contracts\/retiredPatternRegistry\.js/.test(CLAUDE_MD));

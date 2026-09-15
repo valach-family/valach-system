@@ -344,9 +344,24 @@ export const EXPECTED_PROBES = Object.freeze([
     // tiltott olvasó `dataScope: 'keszlet'` kontextussal EGÉSZBEN megkapta a `{qty, unit_price}`
     // eredményt. A javítás (DSC-01) a KIADANDÓ TARTALOM adatköreit méri a TÍPUS deklarációjából, és
     // a vegyes eredményt egészben tagadja meg; a hiányzó besorolás KÜLÖN, fail-closed válasz.
-    discharges: Object.freeze([
-      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-result-scope-comes-from-declaration' }),
-      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-undeclared-result-scope-is-fail-closed' }),
+    //
+    // R10-F05 — A KLAUZULA-KÖTÉS VISSZAVONVA, MERT ROSSZ VOLT (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL).
+    // Ez a két állítás az ORG-N1b-n ült. Az ORG-N1b szövege viszont a FELHATALMAZÁS korlátjáról szól
+    // („a felhatalmazás nem lehet tágabb, mint az alapja"), ez a két állítás pedig a KIADOTT EREDMÉNY
+    // besorolásáról — két különböző tárgy, közös szóval („adatkör"). A REV-N5b → ORG-N1b átnevezés
+    // ezért nem volt érdemi megfelelés, csak a szám cseréje (KUKA-087: a megfeleltetés a TARTALOMBÓL
+    // jöjjön, ne a sorszámból).
+    //
+    // MÉRVE: a mai regiszterben ÖT klauzula érinti a K05-öt (REV-N3b/c/d/e · ORG-N1b), és EGYIK SEM
+    // mondja ki a kiadási osztályozó tényét. A helyes válasz tehát nem egy másik klauzulára tenni
+    // őket, és nem is egy klauzulát KITALÁLNI ide — a normaregiszter TÁRGYALT, közös alap —, hanem
+    // NEVEZETT HIÁNYKÉNT kimondani (OB-8), az állításokat pedig MODUL-SZERZŐDÉSként megtartani:
+    // a DSC-01-et továbbra is bizonyítják, csak nem állítanak valótlant egy normáról (KUKA-124/2).
+    discharges: Object.freeze([]),
+    module_contract: Object.freeze({ id: 'DSC-01', gap: 'OB-8' }),
+    module_asserts: Object.freeze([
+      'A-ORG-N1b-result-scope-comes-from-declaration',
+      'A-ORG-N1b-undeclared-result-scope-is-fail-closed',
     ]),
   }),
   Object.freeze({
@@ -356,9 +371,12 @@ export const EXPECTED_PROBES = Object.freeze([
     // kiment az `arak`-ra tiltott olvasónak. A javítás (DSC-01 v2) SÉMÁT deklarál — a levelek
     // hordozzák a típust ÉS az adatkört —, és a besorolás a VALIDÁLT alakból gyűlik, mélységben.
     // A mérce nem a mezőnév: ugyanaz a név más típus más pozícióján mást jelenthet (KUKA-002).
-    discharges: Object.freeze([
-      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-nested-result-scope-is-measured' }),
-      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-result-shape-is-declared-and-typed' }),
+    // R10-F05 — ugyanaz a visszavonás, ugyanabból az okból (lásd a P-REV-result-scope bejegyzését).
+    discharges: Object.freeze([]),
+    module_contract: Object.freeze({ id: 'DSC-01', gap: 'OB-8' }),
+    module_asserts: Object.freeze([
+      'A-ORG-N1b-nested-result-scope-is-measured',
+      'A-ORG-N1b-result-shape-is-declared-and-typed',
     ]),
   }),
   Object.freeze({
@@ -411,6 +429,7 @@ export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({
     id: 'P-KAT-item-identity', assertion: 'KAT01-item-identity-is-internal-and-book-scoped',
     discharges: Object.freeze([]),
+    module_contract: Object.freeze({ id: 'KAT-01', rule: 'K10', gap: 'OB-9' }),
     module_asserts: Object.freeze([
       'A-KAT-sku-is-unique-within-the-book',
       'A-KAT-same-sku-in-another-book-is-a-different-item',
@@ -421,6 +440,7 @@ export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({
     id: 'P-KSZ-ledger-truth', assertion: 'KSZ01-ledger-is-the-truth-and-writes-are-atomic',
     discharges: Object.freeze([]),
+    module_contract: Object.freeze({ id: 'KSZ-01', rule: 'K10', gap: 'OB-9' }),
     // Az R10 HÁROM lelete után a KSZ-01 állítás-listája ÚJRA ÍRÓDOTT, nem bővült. A régi nevek egy
     // olyan világot írtak le, amiben a nyers mozgás-író NYILVÁNOS belépési pont volt: az „árva
     // mozgás" és a „hiányzó nyugta" a HÍVÓ hibája lehetett. Ma ezt a két tényt a TÁROLÓ ŐRZI, a
@@ -442,6 +462,7 @@ export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({
     id: 'P-BEM-input-schema', assertion: 'BEM01-input-shape-is-declared-and-fail-closed',
     discharges: Object.freeze([]),
+    module_contract: Object.freeze({ id: 'BEM-01', rule: 'K10', gap: 'OB-9' }),
     module_asserts: Object.freeze([
       'A-BEM-unknown-operation-is-fail-closed',
       'A-BEM-unknown-field-decides-before-missing-field',

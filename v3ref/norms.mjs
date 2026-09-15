@@ -489,11 +489,15 @@ export const OPEN_BLOCKERS = Object.freeze([
     closes_when: 'Nevezett ütközés-szabály + próba.',
   }),
   Object.freeze({
-    id: 'OB-3', title: 'Bemeneti séma-regiszter',
-    why: 'A parancs `declared` tartalmának alakját ma semmi nem írja elő; a típus és a verzió '
-      + 'szerepel az azonosságban, de a MEZŐK nem. Az R53/F02 megmutatta, hogy ez nem elméleti: a '
-      + 'kizáratlan elválasztó-karakterek ütköző lenyomatot tudtak előállítani.',
-    closes_when: 'Típusonként deklarált bemeneti séma + a beadás azt validálja.',
+    id: 'OB-3', title: 'Bemeneti séma-regiszter — RÉSZBEN MEGÉPÜLT, a HATÁR hiányzik',
+    why: 'A BLOKKOLÓ SZÖVEGE ELÉVÜLT, ezért ÚJRAÍRVA (KUKA-050: a leíró szöveg ÁLLÍTÁS a '
+      + 'rendszerről, és az állítás elévül). MÉRVE: a mezőnkénti séma MEGVAN (BEM-01), a kanonikus '
+      + 'bevét-út VALIDÁLJA, a mennyiség két szakaszban (profil-független alak, majd a CIKK '
+      + 'profiljához kötött jelentés) és az időpont valódi naptárral dől el. AMI NEM ÁLL: nincs '
+      + 'külső HATÁR (HTTP-réteg, bizalmi határ), ahol a sémának kapuznia kellene — ma minden hívó '
+      + 'a magon BELÜL van, tehát a séma védelme MÉRHETŐ, de nem PRÓBÁRA TÉVE idegen beadóval.',
+    closes_when: 'A BEJ-01 külső határ megépül, és a séma AZON a határon kapuz — a belső írók '
+      + 'pedig a saját invariánsaikat tartják (két külön felelősség, az R6 §4 szűkítése).',
   }),
   Object.freeze({
     id: 'OB-4', title: 'A kiadási osztályozó ellenőrzése NEM ÜRES korpuszon',
@@ -528,6 +532,33 @@ export const OPEN_BLOCKERS = Object.freeze([
       + 'felülvizsgálat a KONKRÉT verziókhoz kötődik (szerződés-lenyomat + klauzula-lenyomat), és '
       + 'bármelyik változása ELAVULTTÁ teszi — a gépezet ezt már méri (content_review), a tartalom '
       + 'még nincs meg: ma MIND a tizenhat klauzula `none` állapotú.',
+  }),
+  Object.freeze({
+    id: 'OB-8', title: 'K05 — a KIADÁSI OSZTÁLYOZÓNAK nincs klauzulája',
+    why: 'A DSC-01 (a kiadott eredmény adatköre a TÍPUS deklarációjából, mélységben, a vegyes '
+      + 'eredmény egészben megtagadva) MEGÉPÜLT és négy állítással mérve van — de a mai '
+      + 'normaregiszterben EGYETLEN klauzula sem mondja ki ezt a tényt. Öt klauzula érinti a K05-öt '
+      + '(REV-N3b/c/d/e · ORG-N1b); az ORG-N1b a FELHATALMAZÁS korlátjáról szól, nem a KIADOTT '
+      + 'tartalom besorolásáról — a négy állítás ezért ült rossz klauzulán (a külső fél R10-F05 '
+      + 'lelete). Klauzulát ide KITALÁLNI nem szabad: a normaregiszter TÁRGYALT, közös alap, nem a '
+      + 'dolgozó sáv egyoldalú bővítménye. Az állítások addig MODUL-SZERZŐDÉSként állnak (DSC-01), '
+      + 'és nem állítanak valótlant egy normáról (KUKA-124/2 · KUKA-087).',
+    closes_when: 'A tárgyalás kimond egy K05-höz kötött, atomi klauzulát a kiadási osztályozóról '
+      + '(mit jelent a „deklarált adatkör", mi a vegyes eredmény sorsa, és mi a be nem sorolt mező '
+      + 'válasza), és a négy meglévő állítás ARRA kerül vissza — ugyanazokkal a próbákkal és a már '
+      + 'meglévő falszifikáló mutációkkal.',
+  }),
+  Object.freeze({
+    id: 'OB-9', title: 'K10 — a TÍPUS, NORMALIZÁLÁS ÉS SZÁMÍTÁSI PROFIL klauzulája',
+    why: 'Az MCS-2 négy modul-szerződése (KAT-01 azonosság · KSZ-01 főkönyv · BEM-01 bemeneti séma '
+      + '· MNY-01 mennyiség, mellettük az IDO-01 idő) a K10 szabályt tölti be, és MÉRVE van: '
+      + 'próbákkal és falszifikáló mutációkkal (M138–M148). A K10 alatt viszont a mai regiszterben '
+      + 'EGYETLEN atomi klauzula sem áll — ezt már az R8-F01 nevezett hiányként kimondta, és a '
+      + 'helyzet ITT SEM változott. A bizonyíték tehát létezik, de nincs mihez KÖTNI.',
+    closes_when: 'A tárgyalás K10 alatt atomi klauzulá(ka)t mond ki (azonosság · kanonikus alak · '
+      + 'profil-kötés · idő-tengelyek), és az MCS-2 modul-állításai `discharges` kötést kapnak — a '
+      + 'szerződés-azonosítóval ÉS a szerződés verziójával együtt, hogy a kötés a KONKRÉT alakhoz '
+      + 'szóljon, ne a névhez (R55/F04 elve).',
   }),
 ]);
 
