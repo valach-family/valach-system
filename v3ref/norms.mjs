@@ -405,9 +405,22 @@ export const ORG_BASIS_NORMS = Object.freeze([
         covers: Object.freeze(['K04', 'K05']),
         text: 'A döntés kimondja az adható SZEREP, MŰVELET és ADATKÖR korlátját — a felhatalmazás '
           + 'nem lehet tágabb, mint az alapja.',
-        gap: 'A mai meghívó egyetlen `offered_role` mezőt visz; művelet- és adatkör-korlát nincs. '
-          + 'A korlát nélküli felhatalmazás a KUKA-041 alakja a jogon: a szűkítés látszik a '
-          + 'papíron, de semmi nem kényszeríti ki.',
+        gap: null,
+        // R90 §6 — RÉSZBEN MEGÉPÜLT. A korábbi gap-szöveg („a mai meghívó egyetlen `offered_role`
+        // mezőt visz; művelet- és adatkör-korlát nincs") MÉRVE már nem igaz: a korlát a meghívó
+        // útján KAPU lett. Ami maradt, az NEM kód-hiány, hanem SZERVEZETI döntés — és ezt nem
+        // szabad kód-hiánynak álcázni (KUKA-050: a szöveg a valóságot követi).
+        partial: Object.freeze({
+          built: 'A korlát a MEGHÍVÓ útján KAPU (BLI-01): a kiadás nevezetten elakad a határozaton '
+            + 'túli szerepen/műveleten/adatkörön és nyom nélkül, a korláton belüli kiadás '
+            + 'változatlanul megy, a beváltás a KIADÁSKORI alaphoz mér és a korlátot is átviszi a '
+            + 'tagságadó eseményre, és a nyers INSERT-tel írt meghívó sem bújhat ki alóla.',
+          remaining: 'A korlát DEKLARÁLÁSÁNAK kötelezővé tétele nyitva: ma a deklarálatlan meghívó '
+            + 'a régi szabály szerint megy (a válasz ezt KIMONDJA). Ez SZERVEZETI döntés — ki '
+            + 'hatalmaz fel kit, és mi történik a meglévő, alap nélküli meghívókkal —, tehát az '
+            + 'operátoré, nem a kódé. Ugyanígy nyitva a BÍRÁLATI hatáskör útja, ahol a korlát ma '
+            + 'is csak adat (`basisState.limit_enforced: false`).',
+        }),
       }),
     ]),
   }),

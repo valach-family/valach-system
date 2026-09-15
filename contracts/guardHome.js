@@ -212,6 +212,7 @@ const GUARD_HOME = Object.freeze({
   // (`bitemporal.mjs` + `store.mjs`). Mindkettőt a KÜLSŐ TÁRGYALÓ FÉL találta meg.
   'KUKA-161': Object.freeze({ home: 'v3', note: 'az alap azonossága a (basis_id, book_id) pár — a jel a P-ORG-basis (e) állítása + M121/M122/M123' }),
   'KUKA-162': Object.freeze({ home: 'v3', note: 'a tagságadás atomi határa — a jel az ÚJ P-ORG-grant-atomic próba + M124/M125/M126' }),
+  'KUKA-163': Object.freeze({ home: 'v3', note: 'a mutáció-kontroll és a horgony élessége a V3 mutációs battériájában mérhető — a jel az M131/M120 elkapottsága és a `0 elavult horgony` rovat' }),
   'KUKA-150': Object.freeze({ home: 'v3', note: 'a RUN-02 futás-szerződés (darabolt futás) a V3 mutációs battériájában él — a jel az r79/U01 külső-ellenőrzés + az egység-fájl `evidence_bound` mezője ITT fut' }),
 });
 

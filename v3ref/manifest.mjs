@@ -253,8 +253,9 @@ export const EXPECTED_PROBES = Object.freeze([
     // R85 §1 + §5. A felhatalmazás alapja: azonosító, verzió, hatály, rögzítési idő és
     // eseményhez kötött bizonyíték. A KÉT TENGELY ugyanaz, amit a megvonás és a tagságadás
     // használ — három azonos alakú tényt nem tartunk három szerkezetben (KUKA-003).
-    // KIMONDOTT HATÁR: az ORG-N1b (a korlát KIKÉNYSZERÍTÉSE) NEM épült meg; a (d) állítás
-    // épp azt méri, hogy ezt a rendszer ki is mondja magáról.
+    // KIMONDOTT HATÁR: az ORG-N1b (a korlát KIKÉNYSZERÍTÉSE) a MEGHÍVÓ útján az R90 §6-ban
+    // megépült (P-ORG-basis-limit); a BÍRÁLATI hatáskör útján továbbra is csak adat, és a (d)
+    // állítás épp azt méri, hogy ezt a rendszer ki is mondja magáról.
     discharges: Object.freeze([
       Object.freeze({ clause: 'ORG-N1a', assertion: 'A-ORG-N1a-basis-version-history-on-two-axes' }),
       Object.freeze({ clause: 'ORG-N1a', assertion: 'A-ORG-N1a-grant-records-the-version-it-was-issued-under' }),
@@ -264,6 +265,24 @@ export const EXPECTED_PROBES = Object.freeze([
       // a feloldó CSAK az azonosítóra keresett, a kiadó út a könyvet meg sem kérdezte — egy „A"
       // könyvre szóló határozat „B" könyvben is adott hatáskört (KUKA-027 a bizonyíték-térben).
       Object.freeze({ clause: 'ORG-N1a', assertion: 'A-ORG-N1a-basis-identity-is-the-book-pair-and-crossing-leaves-no-trace' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'P-ORG-basis-limit', assertion: 'ORGN1-authority-may-not-exceed-its-basis',
+    // R90 §6 — a req-5 terv 2. lépése, ELŐRE leírva (norms.mjs), utólag megépítve. A korlát
+    // ITT lesz KAPU: a kiadás és a beváltás UGYANAZT a feloldót hívja (BLI-01 · KUKA-129), a
+    // nyers `INSERT`-tel írt meghívó sem bújhat ki alóla (KUKA-013), a korláton BELÜLI kiadás
+    // pedig változatlanul megy (ELLENPÁR — KUKA-122).
+    // KIMONDOTT MARADÉK: a korlát DEKLARÁLÁSÁNAK kötelezővé tétele SZERVEZETI döntés, nem
+    // kód-tulajdonság — ezért az ORG-N1b ebben a körben `partially_covered`, és a deklarálatlan
+    // meghívó válasza NEVEZI, hogy a korlát nem hatott (KUKA-041).
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-issuing-beyond-the-basis-is-named-and-leaves-no-trace' }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-issuing-within-the-basis-is-unchanged' }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-redemption-carries-the-limit-not-only-the-role' }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-raw-written-invite-cannot-escape-the-issued-limit' }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-undeclared-basis-is-named-not-silent' }),
     ]),
   }),
 

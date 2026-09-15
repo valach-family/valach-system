@@ -29,7 +29,11 @@ import { submitCommand, readCommandResult, commandRef, canonicalize, CanonError,
 // REV-N2a/b (BIT-01): a két idő-tengely és a felülvizsgálati kör — a próbák a TERMÉK feloldóit
 // hívják, nem a másolatukat (KUKA-009).
 import { membershipAsOf, recordRetroactiveInvalidity, reviewCircleFor, reviewCircleState, closeReviewCircle, grantMembership } from './bitemporal.mjs';
-import { recordAuthorityBasis, basisAsOf, withinBasis, basisState } from './authorityBasis.mjs';
+import { recordAuthorityBasis, basisAsOf, withinBasis, basisState, LIMIT_ENFORCED_PATHS } from './authorityBasis.mjs';
+import {
+  issueInviteUnderBasis, redemptionLimitGate, inviteBasisSeal, grantBasisFor, limitVerdict,
+  INVITE_ISSUE_OPERATION,
+} from './basisLimit.mjs';
 
 // A KANONIKUS NORMA-VERZIÓ EGYETLEN HELYRŐL JÖN (R53 §5). Korábban itt egy KÉZZEL ÍRT `'R32/K01-K16'`
 // állt, miközben a norma-index ugyanezt külön tárolta — két, részben átfedő igazságforrás, ami
@@ -4054,6 +4058,147 @@ probe('P-ORG-basis', 'R85 §1 · §5 · ORG-N1a · K04 · K14 · KUKA-003 · KUK
           'A-ORG-N1a-expired-or-unknown-basis-is-named-and-closed': cOk,
           'A-ORG-N1a-limit-is-data-not-enforcement-and-says-so': dOk,
           'A-ORG-N1a-basis-identity-is-the-book-pair-and-crossing-leaves-no-trace': eOk,
+        },
+      };
+    } finally { store.close(); }
+  });
+
+// ── ORG-N1b — A KORLÁT: A FELHATALMAZÁS NEM LEHET TÁGABB, MINT AZ ALAPJA (R90 §6) ──────────────
+//
+// A TERV ELŐRE ÁLLT (norms.mjs · REQUIRED_EVIDENCE req-5 · n:2), és a próba PONTOSAN azt méri,
+// amit a terv kimondott — nem a megépült dologhoz igazítva (KUKA-054).
+probe('P-ORG-basis-limit', 'R90 §6 · ORG-N1b · K04 · K05 · KUKA-041 · KUKA-122 · KUKA-129',
+  'A KORLÁT: a kiadás elakad a határozaton túl, a határon belül változatlanul megy, és a beváltás a korlátot is átviszi',
+  () => {
+    const store = openStore();
+    try {
+      store.run('INSERT INTO book VALUES (?,?)', 'a', 'A könyv');
+      for (const id of ['vezeto', 'kiado', 'cimzett']) store.run('INSERT INTO subject VALUES (?,?)', id, 'person');
+      // A KIADÓ tagsága: admin, hogy a `user` szerep delegálható legyen — a korlát NEM ezen bukik.
+      grantMembership({ store, subjectId: 'kiado', bookId: 'a', role: 'admin', at: BIT.MARCH });
+      store.run('INSERT INTO external_id VALUES (?,?,?,?,?,?,?,?,NULL)',
+        'cimzett', 'email', 'self_asserted', 'n/a', 'cimzett@pelda.invalid', 'cimzett@pelda.invalid',
+        'one_to_one', BIT.MARCH);
+      store.run('INSERT INTO account VALUES (?,?)', 'cimzett', 'jelszo');
+      store.run('INSERT INTO channel_proof VALUES (?,?,?,?)', 'cimzett', 'email', 'cimzett@pelda.invalid', BIT.MARCH);
+
+      // A HATÁROZAT: CSAK `user` szerep, CSAK készlet-adatkör, CSAK meghívó-kiadás.
+      recordAuthorityBasis({
+        store, basisId: 'HAT-KORLAT', bookId: 'a', issuerSubject: 'vezeto',
+        effectiveAt: BIT.MARCH, recordedAt: BIT.MARCH,
+        allowedOperations: [INVITE_ISSUE_OPERATION], allowedRoles: ['user'], allowedScopes: ['stock'],
+        evidenceRef: 'doc:hatarozat-korlat',
+      });
+      const expires = '2026-12-31T00:00:00.000Z';
+
+      // (a) A KORLÁTON TÚLI KIADÁS NEVEZETTEN ELAKAD — és NYOM NÉLKÜL (KUKA-084: ha a meghívó
+      //     megszületne és csak a pecsét maradna el, a beváltás a „nincs deklarált alap" ágra
+      //     esne vissza, vagyis a védelem a saját kiskapuját hordozná).
+      const tooWideRole = issueInviteUnderBasis({
+        store, token: 'tok_admin', bookId: 'a', inviteeNamespace: 'email',
+        inviteeValue: 'cimzett@pelda.invalid', offeredRole: 'admin', issuerSubject: 'kiado',
+        expiresAt: expires, basisId: 'HAT-KORLAT', scope: 'stock', issuedAt: BIT.MARCH,
+      });
+      const tooWideScope = issueInviteUnderBasis({
+        store, token: 'tok_price', bookId: 'a', inviteeNamespace: 'email',
+        inviteeValue: 'cimzett@pelda.invalid', offeredRole: 'user', issuerSubject: 'kiado',
+        expiresAt: expires, basisId: 'HAT-KORLAT', scope: 'price', issuedAt: BIT.MARCH,
+      });
+      // AZ ÜRES TENGELY = NINCS MEGENGEDVE, nem „minden" (fail-closed). A hiányzó felsorolás nem
+      // felhatalmazás — ez az az ág, amit egy „legyen megengedőbb" egyszerűsítés kinyitna (KUKA-020).
+      recordAuthorityBasis({
+        store, basisId: 'HAT-URES', bookId: 'a', issuerSubject: 'vezeto',
+        effectiveAt: BIT.MARCH, recordedAt: BIT.MARCH,
+        allowedOperations: [INVITE_ISSUE_OPERATION], allowedRoles: ['user'], allowedScopes: [],
+        evidenceRef: 'doc:hatarozat-ures',
+      });
+      const emptyAxis = issueInviteUnderBasis({
+        store, token: 'tok_ures', bookId: 'a', inviteeNamespace: 'email',
+        inviteeValue: 'cimzett@pelda.invalid', offeredRole: 'user', issuerSubject: 'kiado',
+        expiresAt: expires, basisId: 'HAT-URES', scope: 'stock', issuedAt: BIT.MARCH,
+      });
+      const noTrace = Number(store.get(
+        "SELECT COUNT(*) AS n FROM invite WHERE token IN ('tok_admin','tok_price','tok_ures')").n);
+      const aOk = tooWideRole.ok === false && tooWideRole.reason === 'outside_basis_roles'
+        && tooWideScope.ok === false && tooWideScope.reason === 'outside_basis_scopes'
+        && emptyAxis.ok === false && emptyAxis.reason === 'outside_basis_scopes'
+        && noTrace === 0;
+
+      // (b) ELLENPÁR — A KORLÁTON BELÜL VÁLTOZATLANUL MEGY (KUKA-122: a kapu nem fal).
+      const inside = issueInviteUnderBasis({
+        store, token: 'tok_user', bookId: 'a', inviteeNamespace: 'email',
+        inviteeValue: 'cimzett@pelda.invalid', offeredRole: 'user', issuerSubject: 'kiado',
+        expiresAt: expires, basisId: 'HAT-KORLAT', scope: 'stock', issuedAt: BIT.MARCH,
+      });
+      const seal = inviteBasisSeal(store, 'tok_user');
+      const bOk = inside.ok === true && inside.basis_version === 1
+        && seal.declared === true && String(seal.seal.basis_id) === 'HAT-KORLAT';
+
+      // (c) A BEVÁLTÁS A KORLÁTOT IS ÁTVISZI — nem csak a szerepet.
+      const redeemed = redeemInvite({
+        store, token: 'tok_user', actingSubjectId: 'cimzett', clock: clockFrom(BIT.MARCH_LATER),
+      });
+      const grantRow = store.get(
+        'SELECT id FROM membership_grant WHERE subject_id = ? AND book_id = ? ORDER BY id DESC', 'cimzett', 'a');
+      const carried = grantBasisFor(store, grantRow ? grantRow.id : -1);
+      const cOk = redeemed.ok === true && carried.declared === true
+        && carried.basis_id === 'HAT-KORLAT' && carried.basis_version === 1
+        && Array.isArray(carried.limit.roles) && carried.limit.roles.includes('user')
+        && !carried.limit.roles.includes('admin');
+
+      // (d) A BEVÁLTÁS OLDALÁN IS HAT — a NYERS `INSERT`-tel írt meghívó sem bújhat ki, ha van
+      //     kiadott korlát; és a KIADOTT korlát nem törölhető (KUKA-013: az őr, ami csak az egyik
+      //     írót ismeri, nem őr).
+      store.run(`INSERT INTO invite (token, book_id, invitee_namespace, invitee_value, offered_role,
+                   issuer_subject, expires_at, redeemed_at) VALUES (?,?,?,?,?,?,?,NULL)`,
+        'tok_nyers', 'a', 'email', 'cimzett@pelda.invalid', 'admin', 'kiado', expires);
+      store.run(`INSERT INTO invite_basis (token, basis_id, basis_version, book_id, issued_at, operation, scope, sealed_limit)
+                 VALUES (?,?,?,?,?,?,?,?)`,
+        'tok_nyers', 'HAT-KORLAT', 1, 'a', BIT.MARCH, INVITE_ISSUE_OPERATION, 'stock',
+        JSON.stringify({ operations: [INVITE_ISSUE_OPERATION], roles: ['user'], scopes: ['stock'] }));
+      const rawGate = redemptionLimitGate({ store, invite: store.get('SELECT * FROM invite WHERE token = ?', 'tok_nyers'), knownAt: BIT.MARCH_LATER });
+      const rawRedeem = redeemInvite({
+        store, token: 'tok_nyers', actingSubjectId: 'cimzett', clock: clockFrom(BIT.MARCH_LATER),
+      });
+      let sealDeleteRefused = null;
+      try { store.run("DELETE FROM invite_basis WHERE token = 'tok_nyers'"); } catch (e) { sealDeleteRefused = e.message; }
+      const dOk = rawGate.ok === false && rawGate.reason === 'outside_basis_roles'
+        && rawRedeem.ok === false && rawRedeem.error === 'invite_outside_basis'
+        && sealDeleteRefused !== null;
+
+      // (e) A DEKLARÁLATLAN MEGHÍVÓ NEM AKAD EL, DE A VÁLASZ KIMONDJA (KUKA-041 · KUKA-122), és a
+      //     kikényszerítés HELYE nevezve van — a bírálati úton a korlát MA IS csak adat (KUKA-050).
+      store.run(`INSERT INTO invite (token, book_id, invitee_namespace, invitee_value, offered_role,
+                   issuer_subject, expires_at, redeemed_at) VALUES (?,?,?,?,?,?,?,NULL)`,
+        'tok_nincs', 'a', 'email', 'cimzett@pelda.invalid', 'user', 'kiado', expires);
+      const undeclared = redemptionLimitGate({ store, invite: store.get('SELECT * FROM invite WHERE token = ?', 'tok_nincs'), knownAt: BIT.MARCH_LATER });
+      const st = basisState({ store, subjectId: 'munkatars', bookId: 'a', operation: 'adjudicate', validAt: BIT.MARCH_LATER, knownAt: BIT.MARCH_LATER });
+      const verdictHome = limitVerdict({ store, basisId: 'HAT-KORLAT', bookId: 'a', role: 'admin',
+        operation: INVITE_ISSUE_OPERATION, scope: 'stock', validAt: BIT.MARCH, knownAt: BIT.MARCH });
+      const eOk = undeclared.ok === true && undeclared.basis_declared === false
+        && undeclared.reason === 'no_declared_basis'
+        && st.limit_enforced === false
+        && Array.isArray(LIMIT_ENFORCED_PATHS) && LIMIT_ENFORCED_PATHS.includes('invite_issue')
+        && LIMIT_ENFORCED_PATHS.includes('invite_redeem')
+        && verdictHome.ok === false && verdictHome.reason === 'outside_basis_roles';
+
+      const pass = aOk && bOk && cOk && dOk && eOk;
+      return {
+        expected: 'a korláton TÚLI kiadás nevezetten elakad és nyom nélkül · a korláton BELÜLI '
+          + 'változatlanul megy · a beváltás a KORLÁTOT is átviszi · a nyers meghívó sem bújhat ki, '
+          + 'és a kiadott korlát nem törölhető · a deklarálatlan meghívó megy, de a válasz kimondja',
+        actual: `(a) szerep=${tooWideRole.reason} adatkör=${tooWideScope.reason} üres tengely=${emptyAxis.reason} nyom=${noTrace} · `
+          + `(b) belül=${inside.ok} v${inside.basis_version} pecsét=${seal.declared} · `
+          + `(c) beváltás=${redeemed.ok} átvitt korlát=${carried.reason} szerepek=${carried.limit ? carried.limit.roles.join('/') : '—'} · `
+          + `(d) nyers kapu=${rawGate.reason} beváltás=${rawRedeem.error || 'ÁTMENT'} pecsét-törlés=${sealDeleteRefused ? 'ZÁRT' : 'ÁTMENT'} · `
+          + `(e) deklarálatlan=${undeclared.reason} bírálati kikényszerítés=${st.limit_enforced} kapus utak=${LIMIT_ENFORCED_PATHS.join('+')}`,
+        pass,
+        asserts: {
+          'A-ORG-N1b-issuing-beyond-the-basis-is-named-and-leaves-no-trace': aOk,
+          'A-ORG-N1b-issuing-within-the-basis-is-unchanged': bOk,
+          'A-ORG-N1b-redemption-carries-the-limit-not-only-the-role': cOk,
+          'A-ORG-N1b-raw-written-invite-cannot-escape-the-issued-limit': dOk,
+          'A-ORG-N1b-undeclared-basis-is-named-not-silent': eOk,
         },
       };
     } finally { store.close(); }

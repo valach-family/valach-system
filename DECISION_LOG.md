@@ -16,6 +16,48 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3028 — ORG-N1b: A FELHATALMAZÁS NEM LEHET TÁGABB, MINT AZ ALAPJA (R90 §6)
+
+> **Hatály:** V3 — a V3 magreferencia normaterve (req-5, 2. lépés). A V2 kódját nem érinti; a V2
+> fejlesztőnek nincs vele dolga.
+
+**Dátum:** 2026-09-15 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-001 R90 · **KUKA-163**
+
+**1. MIÉRT ÉPP EZ.** A külső ellenőrző fél (chatgpt-v3) az R90 §6-ban kimondta: *„Folytasd a meglévő
+normaterv következő kötelező core-bizonyítékát; a mérő javítása ne legyen a core teljes munkájának
+előfeltétele."* A `REQUIRED_EVIDENCE` req-5 terve ELŐRE leírta, mi a következő lépés (ORG-N1a után a
+KORLÁT), tehát a mérce nem a megépült dologhoz igazodott (KUKA-054).
+
+**2. A HELYZET.** A határozat CSAK „user" szerepre és CSAK a készlet-adatkörre hatalmaz fel; a
+meghívó kiadója „admin" szerepet és árlista-hozzáférést próbál adni. Eddig a korlát MEZŐI tárolva
+voltak, az ítélet-feloldó (`withinBasis`) helyesen felelt — de EGYETLEN kiadó út sem hívta.
+
+**3. A MEGOLDÁS (BLI-01, `v3ref/basisLimit.mjs`).** EGY otthon, amit MINDKÉT oldal hív (KUKA-129):
+a KIADÁS (`issueInviteUnderBasis`) és a BEVÁLTÁS (`redemptionLimitGate`). A kiadott korlát a
+`invite_basis` pecséten áll (immutábilis, mint a `invite_terms`), a beváltás a KIADÁSKORI alaphoz
+mér, és a korlátot ÁTVISZI a tagságadó eseményre (`grant_basis`).
+
+**4. MIÉRT KÜLÖN TÁBLA.** A meghívók egy része NYERS, POZICIONÁLIS `INSERT`-tel születik — a külső
+fél MINDEN programjában. Egy új `invite`-oszlop az ő VÁLTOZATLANUL futtatandó ellenpéldáikat törte
+volna el (KUKA-122: a kapu nem lehet fal).
+
+**5. AMIT NEM ÁLLÍTOK — az ORG-N1b `partially_covered`, nem `covered`.** A korlát DEKLARÁLÁSÁNAK
+kötelezővé tétele SZERVEZETI döntés (ki hatalmaz fel kit, és mi lesz a meglévő, alap nélküli
+meghívókkal) — az operátoré, nem a kódé. A deklarálatlan meghívó ezért ma a régi szabály szerint
+megy, és a válasz ezt KIMONDJA (`basis_declared: false`). A BÍRÁLATI hatáskör útján a korlát
+továbbra is csak adat: a `basisState.limit_enforced` marad hamis, és a `limit_enforced_paths`
+felsorolja, hol VAN ma kapu (KUKA-041 · KUKA-050).
+
+**6. GÉPI JEL.** ÚJ próba: `P-ORG-basis-limit`, öt nevezett állítással (a korláton túli kiadás
+nevezetten elakad ÉS nyom nélkül · az üres tengely fail-closed · a korláton belüli kiadás
+változatlanul megy · a beváltás a korlátot is átviszi · a nyers meghívó sem bújhat ki, és a kiadott
+korlát nem törölhető · a deklarálatlan meghívó NEVEZETT, nem néma). Hét új mutáció (**M127–M133**),
+mindegyik egy-egy nevezett állítást buktat. Battéria: **130 mutáció · 130 elkapva · 0 túlélte ·
+0 elavult horgony** — `TELJES ÉS TISZTA`. Norma-lánc: **57/74 fedett**, az öt ORG-N1b sor
+`partially_covered`, mindegyik nevezett mutációval falszifikálva.
+
+---
+
 ## D-VS-3027 — AZ ALAP AZONOSSÁGA ÉS A TAGSÁGADÁS ATOMI HATÁRA (R88/F01–F02)
 
 **Dátum:** 2026-09-14 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-001 R88 · **KUKA-131 · 132**

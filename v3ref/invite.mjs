@@ -13,6 +13,7 @@
 import { instantMs } from './store.mjs';
 import { rightAt, membershipEffectiveAt, KNOWN_ROLES, roleDelegates } from './authz.mjs';
 import { grantMembership } from './bitemporal.mjs';
+import { redemptionLimitGate, recordGrantBasis } from './basisLimit.mjs';
 import { canonicalize } from './command.mjs';
 
 const norm = (s) => String(s == null ? '' : s).trim().toLowerCase();
@@ -376,6 +377,17 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
   const grant = inviteGrantAt({ store, invite: inv, clock });
   if (!grant.ok) return Object.freeze({ ok: false, error: 'invite_not_actionable', reason: grant.reason });
 
+  // (3/b) A KORLÁT — ORG-N1b (BLI-01, R90 §6). A KIADÁSKORI alaphoz mérve: a felhatalmazás nem
+  // lehet tágabb, mint az alapja. A kapu a KIADÁSSAL KÖZÖS feloldót hívja (KUKA-129), ezért egy
+  // nyers `INSERT INTO invite` sem tud kibújni alóla: ha van kiadott korlát, az itt is hat.
+  //
+  // A DEKLARÁLATLAN MEGHÍVÓ NEM AKAD EL (KUKA-122: a kapu nem fal) — de a válasz KIMONDJA, hogy a
+  // korlát nem volt kikényszerítve, tehát a hiány nem néma engedély (KUKA-041).
+  const limitGate = redemptionLimitGate({ store, invite: inv, knownAt: clock.now() });
+  if (!limitGate.ok) {
+    return Object.freeze({ ok: false, error: 'invite_outside_basis', reason: limitGate.reason });
+  }
+
   // (4) A CÍM MÖGÖTTI EMBER — a lezárt sorokat is számon tartva (K09-söprés).
   const holders = addressHolders(store, inv.invitee_namespace, inv.invitee_value, clock.now());
   if (holders.live.length > 1) {
@@ -519,6 +531,14 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
         store, subjectId, bookId: fresh.book_id, role: fresh.offered_role, at: clock.now(),
       });
       if (!g.ok) throw new Error(`redeemInvite: a tagságadás nem írható — ${g.reason}`);
+      // (c) A KORLÁT ÁTVITELE — ORG-N1b. A beváltás nem csak a SZEREPET viszi át: a tagságadó
+      // esemény mellé kerül az az alap és korlát, ami alatt keletkezett. UGYANEBBEN a
+      // tranzakcióban, mert egy korlát nélkül maradt tagságadás pontosan az, amitől a norma véd
+      // (KUKA-026: a kudarc/nyom nem szakadhat el a hatástól).
+      if (limitGate.basis_declared === true) {
+        const rb = recordGrantBasis({ store, grantEventId: g.grant_event_id, gate: limitGate });
+        if (!rb.ok) throw new Error(`redeemInvite: az átvitt korlát nem írható — ${rb.reason}`);
+      }
     }
 
     // A FOGYASZTÁS ÖN-ŐRZŐ: `WHERE redeemed_at IS NULL`. Ez tartja meg a TOCTOU-védelmet

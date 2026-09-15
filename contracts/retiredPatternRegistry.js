@@ -7105,6 +7105,44 @@ const RETIRED_PATTERNS = Object.freeze([
       + '123 mutáció · 123 elkapva · `TELJES ÉS TISZTA`.',
   }),
 
+  Object.freeze({
+    id: 'KUKA-163',
+    date: '2026-09-15',
+    title: 'a MUTÁCIÓ, AMI SOHA NEM ÉRTE EL A SAJÁT ÁGÁT — és a HORGONY, ami egy komment átírásától elavult',
+    what: 'Az ORG-N1b kontrolljaihoz írtam egy mutációt (M131), ami az ÜRES korlát-listát „mindent '
+      + 'szabad"-ra fordítja (fail-open). A battéria TÚLÉLŐNEK jelentette: a próbám EGYETLEN '
+      + 'alapja sem hordozott üres tengelyt, tehát a mutált ág LE SEM FUTOTT. Ugyanebben a körben '
+      + 'egy másik mutáció (M120) horgonya is elavult, mert átírtam azt a MAGYARÁZÓ KOMMENTET, '
+      + 'amire illeszkedett.',
+    why_wrong: 'Egy mutáció csak akkor KONTROLL, ha a próba BEJÁRJA azt az ágat, amit elront — '
+      + 'különben nem véd, csak kontrollnak látszik (KUKA-123: az új őrt le kell futtatni a MÁR '
+      + 'ISMERT hibán; ha nem pirosodik ki tőle, nem azt méri, amit hiszek). A horgony-elavulás '
+      + 'ugyanennek a másik fele: a mutáció a FORRÁS SZÖVEGÉN áll, tehát egy ártalmatlannak látszó '
+      + 'komment-javítás NÉMÁN kivezethet egy kontrollt.',
+    replaced_by: 'a próba BEJÁRJA az ágat + a futtató MÉRI a horgony élességét',
+    replacement: 'A P-ORG-basis-limit (a) ága kapott egy ÜRES adatkör-tengelyű határozatot, és méri, '
+      + 'hogy a kiadás `outside_basis_scopes`-szal elakad — ettől az M131 elkapottá vált. A '
+      + 'horgony-elavulást a futtató MÁR mérte (`0 elavult horgony`), és ez fogta meg az M120-at: '
+      + 'a horgonyt a mai forráshoz igazítottam.',
+    decision: 'D-VS-3028',
+    found_by: 'a SAJÁT mutációs battériám (M131 SURVIVED) és a saját futtató horgony-mérése (M120)',
+    positive: Object.freeze([
+      Object.freeze({ paths: ['v3ref/run.mjs'], pattern: 'HAT-URES',
+        why: 'a próba BEJÁRJA az üres korlát-tengely ágát — enélkül az M131 nem kontroll' }),
+      Object.freeze({ paths: ['v3ref/mutations.mjs'], pattern: "id: 'M131'",
+        why: 'a mutáció ott van, és a battéria elkapottként jelenti' }),
+    ]),
+    lesson: 'MUTÁCIÓT ÍRNI KÖNNYŰ, KONTROLLT NEHÉZ. Minden új mutációnál KÉT kérdés: (1) a próba '
+      + 'BEJÁRJA-e azt az ágat, amit elrontok — ha nem, a mutáció nem kontroll, hanem díszlet; '
+      + '(2) mire HORGONYOZ — ha egy magyarázó szövegre, akkor a következő fogalmazás-javítás '
+      + 'kivezeti. A helyes horgony a VISELKEDÉST hordozó sor, nem a mellette álló mondat '
+      + '(KUKA-009 a mutációkra fordítva).',
+    guard_note: 'gépi jel: `npm run verify:v3ref` — a battéria SURVIVED állapotot ad a nem elkapott '
+      + 'mutációra, és külön rovatban méri az elavult horgonyt; a merge RESULT sora csak akkor '
+      + '„TELJES ÉS TISZTA", ha mindkettő nulla (ma: 130 mutáció · 130 elkapva · 0 túlélte · '
+      + '0 elavult horgony).',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

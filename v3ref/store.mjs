@@ -305,6 +305,66 @@ CREATE TRIGGER invite_terms_seal AFTER INSERT ON invite BEGIN
           NEW.issuer_subject, NEW.expires_at);
 END;
 
+-- ═══ ORG-N1b — A KORLÁT A KIADOTT PAPÍRON (BLI-01, R90 §6) ═══════════════════════════════════
+--
+-- MIÉRT KÜLÖN TÁBLA, ÉS NEM OSZLOP AZ "invite"-ON. Két okból, és mindkettő mért tény.
+--   (1) A meghivok egy resze NYERS, POZICIONALIS INSERT-tel szuletik (a kulso fel MINDEN
+--       programjaban: "INSERT INTO invite VALUES (?,?,?,?,?,?,?,NULL)"). Egy uj oszlop ezeket
+--       AZONNAL eltorne - a javitas a jogos utat zarna ki (KUKA-122: a kapu nem lehet fal).
+--   (2) FOGALMI: a korlat a KIADAS aktusahoz tartozik, nem a meghivo allapotahoz. Ket kulon
+--       alaku tenyt nem teszunk egy sorra (KUKA-002).
+--
+-- A HIANY NEM NEMA ENGEDELY, DE NEM IS FAL: ha egy meghivohoz nincs ilyen sor, a beváltás a MAI
+-- szabály szerint megy (tagsagi delegalas), es a valasz KIMONDJA, hogy a korlat nem volt
+-- kikenyszeritve ("basis_declared: false") - KUKA-041: a nem-kapuzo tenyt latni kell.
+CREATE TABLE invite_basis (
+  token          TEXT PRIMARY KEY REFERENCES invite(token),
+  basis_id       TEXT NOT NULL,
+  basis_version  INTEGER NOT NULL,
+  book_id        TEXT NOT NULL,
+  issued_at      TEXT NOT NULL,
+  operation      TEXT NOT NULL,
+  scope          TEXT,
+  sealed_limit   TEXT NOT NULL
+);
+
+-- A KIADOTT KORLAT UGYANUGY VALTOZTATHATATLAN, MINT A KIADOTT FELTETEL (R53/F01 mintaja).
+-- Enelkul a szukites megkerulheto volna EGY DELETE-tel: a korlat eltunne, es a bevaltas a
+-- "nincs deklarált alap" agra esne vissza - vagyis a vedelem a sajat kiskapujat hordozna
+-- (KUKA-013: ha az or csak az egyik irot ismeri, egy masik iro visszateszi az adatot).
+CREATE TRIGGER invite_basis_no_update BEFORE UPDATE ON invite_basis BEGIN
+  SELECT RAISE(ABORT, 'invite_basis: a KIADOTT korlat nem irhato at - visszavonas + uj meghivo kell');
+END;
+
+CREATE TRIGGER invite_basis_no_delete BEFORE DELETE ON invite_basis BEGIN
+  SELECT RAISE(ABORT, 'invite_basis: a KIADOTT korlat nem torolheto');
+END;
+
+CREATE TRIGGER invite_basis_no_reseal BEFORE INSERT ON invite_basis
+WHEN EXISTS (SELECT 1 FROM invite_basis WHERE token = NEW.token) BEGIN
+  SELECT RAISE(ABORT, 'invite_basis: erre a tokenre MAR van kiadott korlat - masodik pecset nem szulethet');
+END;
+
+-- A BEVALTASSAL ATVITT KORLAT (ORG-N1b (c)). A norma szerint "a bevaltas a korlatot is atviszi,
+-- nem csak a szerepet": a tagsagado esemenyhez tartozik a korlat, amely alatt keletkezett.
+-- Kulon tabla, mert a "membership_grant" sorait mas utak is irjak - es a korlat NEM minden
+-- tagsagadasnak a tulajdonsaga, csak annak, amelyik deklaralt alapon szuletett (KUKA-124/2).
+CREATE TABLE grant_basis (
+  grant_event_id INTEGER PRIMARY KEY REFERENCES membership_grant(id),
+  token          TEXT NOT NULL,
+  basis_id       TEXT NOT NULL,
+  basis_version  INTEGER NOT NULL,
+  granted_limit  TEXT NOT NULL
+);
+
+CREATE TRIGGER grant_basis_no_update BEFORE UPDATE ON grant_basis BEGIN
+  SELECT RAISE(ABORT, 'grant_basis: az ATVITT korlat nem irhato at');
+END;
+
+CREATE TRIGGER grant_basis_no_delete BEFORE DELETE ON grant_basis BEGIN
+  SELECT RAISE(ABORT, 'grant_basis: az ATVITT korlat nem torolheto');
+END;
+
 CREATE TRIGGER invite_terms_no_update BEFORE UPDATE ON invite_terms BEGIN
   SELECT RAISE(ABORT, 'invite_terms: a KIADOTT feltetel nem irhato at - visszavonas + uj meghivo kell');
 END;

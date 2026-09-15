@@ -19,12 +19,16 @@
  *   „mi az alap MA"                     → a 2. verzió
  *
  * AMIT EZ A MODUL MA NEM ÁLLÍT — KIMONDVA (KUKA-015 · KUKA-033).
- *   · Az ORG-N1b (a KORLÁT kikényszerítése a kiadásnál és a beváltásnál) NEM ÉPÜLT MEG. A korlát
- *     MEZŐI itt tárolva vannak, és a `withinBasis` feloldó ki is mondja az ítéletet — de a
- *     meghívó-kiadás és a beváltás MÉG NEM HÍVJA. Amíg nem hívja, a korlát NEM VÉDELEM, csak
- *     adat: ezt a `basisState` `limit_enforced: false` mezője kimondja, hogy senki ne higgye
- *     megépültnek (KUKA-041: a nem-kapuzó mező LÁTSSZON, és mondja meg magáról).
- *   · Ezért az ORG-N1a/b NEM kerül be a kötelező készletbe ebben a körben (a req-4 marad).
+ *   · Az ORG-N1b (a KORLÁT kikényszerítése) az R90 §6-ban RÉSZBEN megépült — de NEM ITT: a kapu a
+ *     `basisLimit.mjs` (BLI-01), és a MEGHÍVÓ útján hat (kiadás + beváltás). Ez a modul továbbra is
+ *     a NYILVÁNTARTÁS és az ÍTÉLET otthona: a `withinBasis` megmondja, belefér-e valami az alapba,
+ *     a kikényszerítés a hívóké.
+ *   · A BÍRÁLATI hatáskör (`adjudication_authority`) útján a korlát TOVÁBBRA IS csak adat — ezért
+ *     marad a `basisState.limit_enforced: false`, és ezért sorolja fel a `limit_enforced_paths`,
+ *     hol VAN ma kapu. Egyetlen igen/nem mező itt hazudna: `true` többet állítana, `false`
+ *     kevesebbet (KUKA-041 · KUKA-050).
+ *   · A req-5 harmadik lépése (a két klauzula BEEMELÉSE a kötelező készletbe) TUDATOS lépés, és
+ *     az ORG-N1b teljes lezárásához kötött — addig a req-4 marad.
  */
 import { instantMs } from './store.mjs';
 
@@ -194,15 +198,33 @@ export function withinBasis(basis, { operation = null, role = null, scope = null
  * adták, és az az alap a kérdezett időben/tudásban állt-e. A KETTŐ KÜLÖN: az ORG-N1a a
  * NYILVÁNTARTÁST írja elő, a kikényszerítés az ORG-N1b-é.
  */
+/**
+ * HOL VAN A KORLÁT MA KIKÉNYSZERÍTVE — NEVEZETT LISTA, nem egy igen/nem mező (R90 §6 · KUKA-050).
+ *
+ * MIÉRT LISTA. Az ORG-N1b megépítése után a korlát a MEGHÍVÓ-úton VALÓDI kapu (BLI-01: a kiadás és
+ * a beváltás is a közös feloldót hívja), a BÍRÁLATI hatáskör útján viszont továbbra is csak adat.
+ * Egyetlen boolean ezek közül az egyiket elhallgatná — és az elhallgatás mindkét irányban rossz:
+ * `true` többet állítana, `false` kevesebbet. A mező ezért felsorolja, MELYIK úton áll kapu.
+ */
+export const LIMIT_ENFORCED_PATHS = Object.freeze(['invite_issue', 'invite_redeem']);
+
 export function basisState({ store, subjectId, bookId, operation, validAt, knownAt }) {
   const row = store.get(
     'SELECT * FROM adjudication_authority WHERE subject_id = ? AND book_id = ? AND operation = ?',
     subjectId, bookId, operation);
-  if (!row) return frozen({ recorded: false, reason: 'no_authority_row', limit_enforced: false });
+  if (!row) {
+    return frozen({
+      recorded: false, reason: 'no_authority_row',
+      limit_enforced: false, limit_enforced_paths: LIMIT_ENFORCED_PATHS,
+    });
+  }
   if (row.basis_id === null || row.basis_id === undefined) {
     // A HIÁNY KIMONDVA: a hatáskör él, de nem tudjuk, mi alapján adták. Ez NEM hiba ma — de nem is
     // hallgatható el (KUKA-012 · KUKA-127: a gyengébb tanút meg kell nevezni).
-    return frozen({ recorded: false, reason: 'authority_without_recorded_basis', limit_enforced: false });
+    return frozen({
+      recorded: false, reason: 'authority_without_recorded_basis',
+      limit_enforced: false, limit_enforced_paths: LIMIT_ENFORCED_PATHS,
+    });
   }
   const basis = basisAsOf({ store, basisId: row.basis_id, bookId, validAt, knownAt });
   return frozen({
@@ -214,7 +236,10 @@ export function basisState({ store, subjectId, bookId, operation, validAt, known
     version_now: basis.version,
     evidence_ref: basis.evidence_ref ?? null,
     limit: basis.limit ?? null,
-    // ORG-N1b — KIMONDOTT ADÓSSÁG: a korlátot ma SENKI nem kényszeríti ki.
+    // ORG-N1b — RÉSZBEN MEGÉPÜLT (R90 §6). EZEN az úton (bírálati hatáskör) a korlát TOVÁBBRA IS
+    // csak adat: a `limit_enforced` ezért marad hamis. Ahol viszont KAPU lett belőle, azt a lista
+    // megnevezi — a mező nem állít többet és nem is kevesebbet a valóságnál (KUKA-050).
     limit_enforced: false,
+    limit_enforced_paths: LIMIT_ENFORCED_PATHS,
   });
 }

@@ -1134,8 +1134,8 @@ export const MUTATIONS = [
       + 'kikényszerítik, holott EGYETLEN kiadó út sem hívja. Ez a DÍSZ-VEZÉRLŐ (KUKA-041): '
       + 'sikert jelentene arról, ami meg sem történt',
     file: 'authorityBasis.mjs',
-    from: '    // ORG-N1b — KIMONDOTT ADÓSSÁG: a korlátot ma SENKI nem kényszeríti ki.\n    limit_enforced: false,',
-    to: '    limit_enforced: true,' },
+    from: '    limit_enforced: false,\n    limit_enforced_paths: LIMIT_ENFORCED_PATHS,\n  });',
+    to: '    limit_enforced: true,\n    limit_enforced_paths: LIMIT_ENFORCED_PATHS,\n  });' },
 
   // ── R88/F01 — AZ ALAP AZONOSSÁGA A (basis_id, book_id) PÁR ────────────────────────────────
 
@@ -1186,4 +1186,66 @@ export const MUTATIONS = [
     file: 'bitemporal.mjs',
     from: "      'INSERT INTO membership_grant (subject_id, book_id, role, recorded_at, effective_at) VALUES (?,?,?,?,?)',",
     to: "      'INSERT INTO membership_grant (subject_id, book_id, role, recorded_at, effective_at) SELECT ?,?,?,?,? WHERE 0'," },
+
+  // ── R90 §6 — ORG-N1b: A KORLÁT KIKÉNYSZERÍTÉSE (BLI-01) ───────────────────────────────────
+  //
+  // MINDEGYIK MUTÁCIÓ EGY-EGY NEVEZETT ÁLLÍTÁST buktat meg, és MINDEGYIK a valóságban elkövethető
+  // visszalépés: nem kitalált rontás, hanem az az alak, ami a javítás ELŐTT állt vagy amit egy
+  // „egyszerűsítés" visszahozna.
+
+  { id: 'M127', rule: 'K04', catcher: 'P-ORG-basis-limit', expect: 'probe_fail',
+    what: 'ORG-N1b — A KIADÁS NEM MÉRI A KORLÁTOT: a nevezett kiadó út átengedi a határozaton túli '
+      + 'szerepet/adatkört. Ez a KUKA-041 alakja a jogon: a szűkítés LÁTSZIK a papíron, és semmi '
+      + 'nem kényszeríti ki',
+    file: 'basisLimit.mjs',
+    from: '  if (!verdict.ok) return frozen({ ok: false, reason: verdict.reason, basis_version: verdict.basis_version });',
+    to: '  if (false) return frozen({ ok: false, reason: verdict.reason, basis_version: verdict.basis_version });' },
+
+  { id: 'M128', rule: 'K04', catcher: 'P-ORG-basis-limit', expect: 'probe_fail',
+    what: 'ORG-N1b — A BEVÁLTÁS OLDALÁN NINCS KAPU: csak a kiadás ellenőriz. Ettől egy NYERS '
+      + 'INSERT-tel írt meghívó megkerüli a korlátot — az őr, ami csak az egyik írót ismeri, nem őr '
+      + '(KUKA-013)',
+    file: 'invite.mjs',
+    from: "  if (!limitGate.ok) {\n    return Object.freeze({ ok: false, error: 'invite_outside_basis', reason: limitGate.reason });\n  }",
+    to: '  if (false) {\n    return Object.freeze({ ok: false });\n  }' },
+
+  { id: 'M129', rule: 'K04', catcher: 'P-ORG-basis-limit', expect: 'probe_fail',
+    what: 'ORG-N1b — A KIADOTT KORLÁT NEM KERÜL A PAPÍRRA: a meghívó megszületik, a pecsét elmarad. '
+      + 'Ettől a beváltás a „nincs deklarált alap" ágra esik vissza, vagyis a védelem a SAJÁT '
+      + 'kiskapuját hordozná (KUKA-084: a lezárás nem hely, hanem csatorna)',
+    file: 'basisLimit.mjs',
+    from: '    store.run(\n      `INSERT INTO invite_basis (token, basis_id, basis_version, book_id, issued_at, operation, scope, sealed_limit)',
+    to: '    if (false) store.run(\n      `INSERT INTO invite_basis (token, basis_id, basis_version, book_id, issued_at, operation, scope, sealed_limit)' },
+
+  { id: 'M130', rule: 'K04', catcher: 'P-ORG-basis-limit', expect: 'probe_fail',
+    what: 'ORG-N1b — A BEVÁLTÁS CSAK A SZEREPET VISZI ÁT: a tagságadó esemény mellől elmarad az '
+      + 'alap és a korlát. A tagság onnantól korlát nélkülinek LÁTSZIK, és a papíron álló szűkítés '
+      + 'nyomtalanul elvész (R85/F02 alakja a korláton)',
+    file: 'invite.mjs',
+    from: '      if (limitGate.basis_declared === true) {',
+    to: '      if (false) {' },
+
+  { id: 'M131', rule: 'K04', catcher: 'P-ORG-basis-limit', expect: 'probe_fail',
+    what: 'ORG-N1b — AZ ÜRES KORLÁT-LISTA „MINDENT SZABAD"-RA FORDUL: a hiány néma engedéllyé válik. '
+      + 'Pontosan ez a fail-open, amit a norma tilt — a hiányzó felsorolás nem felhatalmazás '
+      + '(KUKA-020)',
+    file: 'authorityBasis.mjs',
+    from: "    return basis.limit[axis].includes(value) ? null : `outside_basis_${axis}`;",
+    to: "    if (!basis.limit[axis].length) return null;\n    return basis.limit[axis].includes(value) ? null : `outside_basis_${axis}`;" },
+
+  { id: 'M132', rule: 'K04', catcher: 'P-ORG-basis-limit', expect: 'probe_fail',
+    what: 'ORG-N1b — A KIADOTT KORLÁT TÖRÖLHETŐVÉ VÁLIK: az immutabilitási őr eltűnik a tárolóból. '
+      + 'Ettől a szűkítés EGY DELETE-tel megkerülhető, és a beváltás a deklarálatlan ágra esik '
+      + 'vissza (KUKA-013 · R53/F01 mintája)',
+    file: 'store.mjs',
+    from: "CREATE TRIGGER invite_basis_no_delete BEFORE DELETE ON invite_basis BEGIN\n  SELECT RAISE(ABORT, 'invite_basis: a KIADOTT korlat nem torolheto');\nEND;",
+    to: '-- (a mutacio eltavolitotta az immutabilitasi ort)' },
+
+  { id: 'M133', rule: 'K04', catcher: 'P-ORG-basis-limit', expect: 'probe_fail',
+    what: 'ORG-N1b — A DEKLARÁLATLAN MEGHÍVÓ KAPUZOTTNAK VALLJA MAGÁT: a válasz azt állítja, hogy a '
+      + 'korlát hatott, holott nincs kiadott korlát. Ez a DÍSZ-PIPA (KUKA-041): sikert jelentene '
+      + 'arról, ami meg sem történt — és a KUKA-012 alakja a válaszon (a hiány nem lehet néma)',
+    file: 'basisLimit.mjs',
+    from: "    return frozen({ ok: true, basis_declared: false, reason: 'no_declared_basis', limit: null, seal: null });",
+    to: "    return frozen({ ok: true, basis_declared: true, reason: 'within_basis', limit: null, seal: null });" },
 ];
