@@ -597,6 +597,49 @@ CREATE TABLE stock_movement (
   FOREIGN KEY (item_id) REFERENCES item (item_id)
 );
 CREATE INDEX stock_movement_key ON stock_movement (book_id, item_id, owner_id, warehouse_id);
+
+-- ── A FENTI HÁROM ÁLLÍTÁS MOSTANTÓL ŐR, NEM MONDAT (a SAJÁT leletem az R10-F01 bekötése közben) ──
+--
+-- A tábla fejléce azt állította, hogy „árva mozgás-sor nem születhet, és az atomiság MÉRHETŐ, nem
+-- ígéret" — MÉRVE viszont sem idegenkulcs, sem őr nem állt az "effect_id" mögött: a kötést KIZÁRÓLAG
+-- a JS-oldali író tartotta. Amíg az író volt az egyetlen út, ez „működött"; amint az R10-F01 miatt
+-- a nyers írót kivezettem a nyilvános felületről, a JS-ellenőrzés helye is elmozdult — és a tárolóban
+-- SEMMI nem maradt. Ez a KUKA-050 alakja a sémán: a leíró szöveg ÁLLÍTÁS a rendszerről, és az
+-- állítás elévül; a javítás nem a mondat átírása, hanem az ŐR megépítése (KUKA-004: a magyarázó
+-- szöveg nem őr).
+--
+-- HÁROM KÜLÖN TÉNY, HÁROM KÜLÖN ŐR (KUKA-124/2: a hiány külön válasz):
+--   1. a hivatkozott hatás VÉGLEGESÍTETT parancsé   → "unknown_effect"
+--   2. ahhoz a hatáshoz NYUGTA is tartozik          → "receipt_missing"
+--   3. a főkönyv HOZZÁFŰZÉSES: se módosítás, se törlés
+CREATE TRIGGER stock_movement_requires_finalized_command BEFORE INSERT ON stock_movement
+WHEN (SELECT COUNT(*) FROM command WHERE effect_id = NEW.effect_id AND state = 'finalized') = 0
+BEGIN
+  SELECT RAISE(ABORT, 'unknown_effect');
+END;
+
+-- A MÁSODIK ŐR FELTÉTELE KIZÁRJA AZ ELSŐÉT — és ez nem stílus (a saját mérésem lelete).
+--
+-- Az első alakban mindkét őr feltétele önállóan igaz volt a HIÁNYZÓ PARANCS esetére, és az SQLite a
+-- BEFORE INSERT őrök sorrendjét NEM garantálja: a mérés ezért a „nincs ilyen hatás" esetre a
+-- "receipt_missing" mondatot kapta. A két tény KÉT KÜLÖN válasz (KUKA-124/2), tehát a
+-- megkülönböztetés nem múlhat a végrehajtási sorrenden (KUKA-046 a tároló-őrökön: két HELYES
+-- ellenőrzés rossz sorrendben is hibás eredményt ad).
+CREATE TRIGGER stock_movement_requires_receipt BEFORE INSERT ON stock_movement
+WHEN (SELECT COUNT(*) FROM command WHERE effect_id = NEW.effect_id AND state = 'finalized') > 0
+ AND (SELECT COUNT(*) FROM command_event
+        WHERE effect_id = NEW.effect_id AND event = 'command_finalized') = 0
+BEGIN
+  SELECT RAISE(ABORT, 'receipt_missing');
+END;
+
+CREATE TRIGGER stock_movement_no_update BEFORE UPDATE ON stock_movement BEGIN
+  SELECT RAISE(ABORT, 'a mozgás-sor hozzáfűzéses: a helyesbítés ÚJ sor, nem átírás (KSZ-01)');
+END;
+
+CREATE TRIGGER stock_movement_no_delete BEFORE DELETE ON stock_movement BEGIN
+  SELECT RAISE(ABORT, 'a mozgás-sor hozzáfűzéses: törölni tilos, a helyesbítés ÚJ sor (KSZ-01)');
+END;
 `;
 
 export function openStore() {

@@ -295,8 +295,12 @@ export const MUTATIONS = [
   { id: 'M37', rule: 'K05', catcher: 'P-CMD-receipt', expect: 'probe_fail',
     what: 'R50 — a VÉGLEGESÍTÉS megint nyomtalan: a nyugta-sor elmarad, a válasz mégis „kész"-t mond',
     file: 'command.mjs',
-    from: "    recordCommandEvent({ store, event: 'command_finalized', scope, effectId, state: 'finalized', clock, at });\n    return commandReceipt(",
-    to: "    return commandReceipt(" },
+    // A HORGONY ÚJRAKÖTVE (R10-F01). A nyugta-írás a hatás ELÉ került, mert a mozgás-sor tárolói őre
+    // megköveteli a nyugtát; a régi horgony (nyugta + közvetlenül utána a `return`) így nem
+    // létezett többé, és a battéria helyesen ELAVULT HORGONY-t jelentett. A horgonyt a szabály
+    // VÁLTOZÁSAKOR kell újrakötni, nem a jelzést kikapcsolni (R55/F03 · KUKA-045).
+    from: "    recordCommandEvent({ store, event: 'command_finalized', scope, effectId, state: 'finalized', clock, at });",
+    to: "    // a nyugta-írás eltávolítva (M37)" },
 
   // A MÁSODIK a veszélyesebb: a nyugta MEGVAN, csak nem a hatással EGY tranzakcióban. A `store.tx`
   // a visszautasító ágon is COMMITÁL (nem dob), tehát a tx ELÉ tett írás akkor is megmarad, ha a
@@ -1281,4 +1285,105 @@ export const MUTATIONS = [
     file: 'basisLimit.mjs',
     from: '  if (!c) return null;',
     to: '  if (!c) return Object.freeze([]);' },
+
+  // ═══ MCS-2 — AZ ELSŐ D-FOLYAMAT FALSZIFIKÁCIÓJA (R10-F05) ═══════════════════════════════════
+  //
+  // A külső fél R10-F05 lelete SZÓ SZERINT ez volt: a katalógus, a főkönyv, a bemeneti séma és a
+  // mennyiség modulokra NINCS falszifikáló mutáció. Igaza volt: a négy modul PRÓBÁJA zölden állt,
+  // de senki nem mérte meg, hogy a próba EL IS BUKNA-E, ha a védelem eltűnik. A zöld próba önmagában
+  // csak annyit mond, hogy MA átmegy — nem azt, hogy ŐRIZ (KUKA-038).
+  //
+  // Mindegyik mutáció EGY nevezett védelmet vesz ki, és NÉV SZERINT megmondja, melyik próbának kell
+  // tőle pirosra váltania (KUKA-055: az elkapó nem lehet „valamelyik").
+
+  { id: 'M138', rule: 'K10', catcher: 'P-KSZ-ledger-truth', expect: 'probe_fail',
+    what: 'KSZ-01 / R10-F02 — IDEGEN KÖNYV CIKKE ÚJRA ELFOGADHATÓ: a készletkulcs és a cikk könyve '
+      + 'nem kerül összevetésre. „A" könyv parancsával „B" könyv cikkére lehetne készletet írni '
+      + '(KUKA-027: közös csatornán minden azonosító csak a SAJÁT terében egyedi)',
+    file: 'ledger.mjs',
+    from: '  if (item.book_id !== key.bookId) {',
+    to: '  if (false) {' },
+
+  { id: 'M139', rule: 'K10', catcher: 'P-KSZ-ledger-truth', expect: 'probe_fail',
+    what: 'KSZ-01 / R10-F03 — A VISSZADÁTUMOZÁS ÚJRA MEGKERÜLI AZ ÖSSZEG-KORLÁTOT: a kapu csak a bevét '
+      + 'SAJÁT hatályára vett egyenleget nézi, a főkönyv későbbi állapotát nem. Egy MÁRCIUSRA '
+      + 'visszadátumozott tétel így a JÚNIUSI képet számíthatatlanná tenné (KUKA-021 az IDŐN)',
+    file: 'ledger.mjs',
+    from: '  const horizonIso = latest && latest.t && latest.t > effectiveAt ? latest.t : effectiveAt;',
+    to: '  const horizonIso = effectiveAt;' },
+
+  { id: 'M140', rule: 'K10', catcher: 'P-KSZ-ledger-truth', expect: 'probe_fail',
+    what: 'KSZ-01 / R10-F03 — AZ „A" NÉZET ÚJRA EGYTENGELYŰ: csak a RÖGZÍTÉS idejét szűri. Ettől egy '
+      + 'márciusban rögzített, JÚNIUSRA hatályos bevét a MÁRCIUSI „akkor mit tudtunk" képen is '
+      + 'megjelenne (KUKA-002 az IDŐN: két független tény, egy kérdés)',
+    file: 'instant.mjs',
+    from: "    axes: Object.freeze(['recorded_at', 'effective_at']),",
+    to: "    axes: Object.freeze(['recorded_at'])," },
+
+  { id: 'M141', rule: 'K10', catcher: 'P-BEM-input-schema', expect: 'probe_fail',
+    what: 'IDO-01 / R10-F03 — A NAPTÁR-VISSZAÍRÁS ELTŰNIK: a nem létező nap (2026-02-30) némán '
+      + 'átcsúszik a következő hónapra. A néma csúsztatás HAMIS ADAT, nem elnézés (KUKA-022)',
+    file: 'instant.mjs',
+    from: '  if (!same) {',
+    to: '  if (false) {' },
+
+  { id: 'M142', rule: 'K10', catcher: 'P-KSZ-ledger-truth', expect: 'probe_fail',
+    what: 'MNY-01 / R10-F03 — A KÉT PLAFON ÚJRA EGY: az ÖSSZEG korlátja az EGY MOZGÁSRA szabott '
+      + 'értékre esik vissza. Ettől a rendszer kimondatlan TERMÉKKORLÁTOT vezetne be („egy cikkből '
+      + 'soha nem állhat ennyinél több"), amit senki nem mondott ki (KUKA-002)',
+    file: 'quantity.mjs',
+    from: '  const cap = BigInt(profile.maxTotal) * 10n ** BigInt(profile.decimals);',
+    to: '  const cap = BigInt(profile.maxPerMovement) * 10n ** BigInt(profile.decimals);' },
+
+  { id: 'M143', rule: 'K10', catcher: 'P-BEM-input-schema', expect: 'probe_fail',
+    what: 'BEM-01 / R10-F03 — AZ IDŐPONT ÚJRA NYERS SZÖVEGKÉNT MEGY TOVÁBB: se naptár-ellenőrzés, se '
+      + 'kanonizálás. Ugyanaz a pillanat több alakban kerülne a főkönyvbe, és a SZÖVEG szerinti '
+      + 'rendezés hamis egyenleget adna (KUKA-029)',
+    file: 'inputSchema.mjs',
+    from: "      const t = parseInstant(value);\n      if (!t.ok) return fail(t.error, t.detail, name);\n      clean[name] = t.canonical;",
+    to: '      clean[name] = value;' },
+
+  { id: 'M144', rule: 'K05', catcher: 'P-REV-result-shape', expect: 'probe_fail',
+    what: 'DSC-01 / MNY-01 — A MENNYISÉG LEVELE ÚJRA BÁRMI LEHET: a kiadási osztályozó nem méri a '
+      + 'kanonikus decimális alakot, tehát a mennyiség JSON-SZÁMKÉNT is kimehetne. A lebegőpontos '
+      + 'alak a 0,1-et sem ábrázolja pontosan — a kiadott szám már nem az, amit könyveltünk',
+    file: 'resultScope.mjs',
+    from: "  if (spec.kind === 'decimal') {",
+    to: '  if (false) {' },
+
+  { id: 'M145', rule: 'K10', catcher: 'P-KSZ-ledger-truth', expect: 'probe_fail',
+    what: 'KSZ-01 / R10-F01 — A HATÁS NEM FUT LE A PARANCS TRANZAKCIÓJÁBAN: a parancs és a nyugta '
+      + 'megszületik, a készlet nem mozdul. Ez a SIKER nyoma megtörtént hatás nélkül — pontosan a '
+      + 'KUKA-026 fordítottja',
+    file: 'command.mjs',
+    from: '    if (effect) {\n      const e = effect({ store, at, resolved, effectId, scope, type, typeVersion });',
+    to: '    if (false) {\n      const e = effect({ store, at, resolved, effectId, scope, type, typeVersion });' },
+
+  { id: 'M146', rule: 'K10', catcher: 'P-KSZ-ledger-truth', expect: 'probe_fail',
+    what: 'KSZ-01 — A TÁROLÓ ŐRE ELTŰNIK: mozgás-sor véglegesített parancs NÉLKÜL is beszúrható. A '
+      + 'séma fejléce ettől ÁLLÍTÁS lenne őr helyett (KUKA-004: a magyarázó szöveg nem őr)',
+    file: 'store.mjs',
+    from: "WHEN (SELECT COUNT(*) FROM command WHERE effect_id = NEW.effect_id AND state = 'finalized') = 0\nBEGIN\n  SELECT RAISE(ABORT, 'unknown_effect');",
+    to: "WHEN 0 = 1\nBEGIN\n  SELECT RAISE(ABORT, 'unknown_effect');" },
+
+  { id: 'M147', rule: 'K10', catcher: 'P-KSZ-ledger-truth', expect: 'probe_fail',
+    what: 'KSZ-01 — A HOZZÁFŰZÉSES FŐKÖNYV ÚJRA ÁTÍRHATÓ: a mozgás-sor MÓDOSÍTHATÓ lesz. A helyesbítés '
+      + 'ÚJ sor, nem átírás — különben a múlt nyom nélkül változik (KUKA-023)',
+    file: 'store.mjs',
+    from: "CREATE TRIGGER stock_movement_no_update BEFORE UPDATE ON stock_movement BEGIN\n  SELECT RAISE(ABORT,",
+    to: "CREATE TRIGGER stock_movement_no_update BEFORE UPDATE ON stock_movement WHEN 0 = 1 BEGIN\n  SELECT RAISE(ABORT," },
+
+  // MIÉRT NEM A GUARD PUSZTA KIVÉTELE (a SAJÁT mérésem lelete). Az első alakom a duplikátum-őrt
+  // vette ki — és a próba NEM az állításán bukott, hanem NYERS SQLite-kivételt dobott (az UNIQUE
+  // index fogta meg). A battéria ezt helyesen NEM fogadta el szerződés szerinti bizonyítéknak
+  // (R45/H06 · KUKA-049): a kivétel nem mondja meg, hogy a SZABÁLYT mértük volna. A mai alak az
+  // egyediség HATÓKÖRÉT rontja el — pontosan azt a tényt, amit a KAT-01 állít —, és tiszta,
+  // állítás-szintű bukást ad.
+  { id: 'M148', rule: 'K10', catcher: 'P-KAT-item-identity', expect: 'probe_fail',
+    what: 'KAT-01 — AZ SKU EGYEDISÉGE ELVESZTI A KÖNYV-HATÓKÖRT: a felvételi őr az ÖSSZES könyvben '
+      + 'keres. Ettől két FÜGGETLEN cég ugyanazt a cikkszámot nem használhatná, holott az SKU csak a '
+      + 'SAJÁT könyvén belül azonosít (KUKA-027 tükre: a túl tág egyediség ugyanúgy hiba)',
+    file: 'catalog.mjs',
+    from: "  if (store.get('SELECT item_id FROM item WHERE book_id = ? AND sku = ?', bookId, sku)) {",
+    to: "  if (store.get('SELECT item_id FROM item WHERE sku = ?', sku)) {" },
 ];

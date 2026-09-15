@@ -34,10 +34,41 @@ export const QUANTITY_PROFILES = Object.freeze({
   'qty-1': Object.freeze({
     id: 'qty-1',
     decimals: 3,
-    maxUnits: 1_000_000,       // a legnagyobb megengedett érték: 1 000 000,000
+    // ── KÉT KÜLÖN KORLÁT, KÉT KÜLÖN KÉRDÉS (R10-F03, a külső fél lelete) ──────────────────────
+    //
+    // Az első alakomban EGYETLEN `maxUnits` állt, és ugyanaz az 1 000 000 kapuzta az EGY MOZGÁS
+    // méretét ÉS az ÖSSZEGZETT egyenleget. A megállapodott D-profil viszont a kettőt külön kezelte:
+    // az egy bevétre eső korlát ÜZLETI szabály („ekkora tétel nem érkezhet egyszerre"), az összeg
+    // korlátja pedig SZÁMÍTÁSI biztonság (a skálázott egész maradjon kezelhető tartományban).
+    // Egy értékre húzva a kettőt HALLGATÓLAGOS TERMÉKKORLÁTOT vezettem volna be: „egy könyvben egy
+    // cikkből soha nem állhat 1 000 000-nál több" — ezt senki nem mondta ki (KUKA-002: két
+    // független tény nem ülhet egy oszlopon).
+    maxPerMovement: 1_000_000,          // EGY mozgás legnagyobb megengedett értéke
+    maxTotal: 1_000_000_000,            // az ÖSSZEGZETT egyenleg biztonságos tartománya
     why: 'az ELSŐ D-folyamat profilja: élelmiszer-készlet literben/kilogrammban, három tizedes '
       + '(ml/g pontosság). NEM a rendszer korlátja — új profil új azonosítóval születik, a régi '
       + 'tárolt mennyiségek pedig a SAJÁT profiljukkal olvasódnak vissza.',
+  }),
+
+  // ── A MÁSODIK PROFIL: DARABOS KÉSZLET (a SAJÁT leletem az R10-F03 mérése közben) ──────────────
+  //
+  // MIÉRT SZÜLETETT MEG MOST. Amíg a regiszterben EGYETLEN profil állt, a „profil" fogalma
+  // MÉRHETETLEN volt: a tizedesjegy-szám, a két plafon és a `profile_mismatch` ág mind egyetlen
+  // értékkel futott, tehát egyetlen próba sem tudta megmutatni, hogy a rendszer TÉNYLEG a CIKK
+  // profilját használja, és nem egy beégetett alapértelmezést. Az egyelemű lista nem méri a
+  // szabályt (KUKA-051) — és a hiányzó mérés zöldnek látszik.
+  //
+  // MIÉRT PONT EZ. A darabos készlet VALÓDI fajta, nem próba-kellék: egész darab (0 tizedes), és a
+  // tétel- meg összeg-mérete nagyságrendekkel kisebb, mint a folyadékoké. Ez egyben azt is
+  // megmutatja, hogy a KÉT plafon két külön kérdés (R10-F03): itt az arányuk is más.
+  'qty-2': Object.freeze({
+    id: 'qty-2',
+    decimals: 0,
+    maxPerMovement: 1_000,
+    maxTotal: 10_000,
+    why: 'darabos készlet: EGÉSZ darab, kis tételméret. A profil a CIKK tulajdonsága, nem a hívóé és '
+      + 'nem a rendszeré — két profil azonos számjegyei NEM ugyanaz a mennyiség, ezért összeadni sem '
+      + 'lehet őket (`profile_mismatch`).',
   }),
 });
 export const DEFAULT_PROFILE_ID = 'qty-1';
@@ -57,7 +88,8 @@ export const QUANTITY_ERRORS = Object.freeze([
   'not_a_string',      // 1. TÍPUS — a bemenet nem szöveg (szám, logikai, tömb, null, objektum)
   'invalid_format',    // 1. ALAPSZINTAXIS — nem opcionális előjel + számjegyek + opcionális tizedes
   'precision',         // 2. TIZEDESJEGYSZÁM — több tizedes, mint amit a profil megenged
-  'out_of_range',      // 3. TARTOMÁNY — a profil felső határa fölött
+  'out_of_range',      // 3. TARTOMÁNY — EGY MOZGÁS korlátja fölött
+  'total_out_of_range', // (nem a parse ága) — az ÖSSZEGZETT egyenleg korlátja fölött
   'must_be_positive',  // 4. POZITIVITÁS — nulla vagy negatív ott, ahol pozitív kell
 ]);
 
@@ -77,6 +109,25 @@ const SYNTAX = /^-?(0|[1-9][0-9]*)(\.[0-9]+)?$/;
  * @param {string}  opts.profileId  melyik profil szerint olvassuk
  * @param {boolean} opts.positive   kötelező-e a szigorúan pozitív érték (bevét: igen)
  */
+/**
+ * A PROFIL-FÜGGETLEN ELŐSZŰRŐ (a SAJÁT leletem az R10 mérése közben).
+ *
+ * MIÉRT KELL. A mennyiség szerződésének EGY része nem függ a profiltól (szöveg-e · decimális
+ * alakú-e), a többi IGEN (tizedesjegyek · plafonok · kanonikus írásmód). A bemeneti séma a HATÁRON
+ * áll, ahol a CIKK — és vele a profil — még nem ismert. Amíg ezt nem választottuk szét, a séma az
+ * ALAPÉRTELMEZETT profillal kanonizált, és a darabos cikk `"1000"` értékéből `"1000.000"` lett:
+ * a főkönyv ezt a SAJÁT profiljával újraolvasva `precision` hibára futott. A határ tehát NÉMÁN
+ * átírta az értéket egy olyan szabály szerint, ami arra a cikkre nem volt igaz (KUKA-029: ahol egy
+ * értéknek tárolt és gyógyított alakja is él, a gyógyítást AZ VÉGEZZE, aki ismeri a szabályt).
+ *
+ * @returns {null | {error:string, detail:string}} — null, ha az alak rendben van
+ */
+export function quantitySyntaxProblem(input) {
+  if (typeof input !== 'string') return { error: 'not_a_string', detail: `a mennyiség szöveg, kapott: ${typeof input}` };
+  if (!SYNTAX.test(input)) return { error: 'invalid_format', detail: 'alak: [-]egész[.tizedesek], kitevő és elválasztó nélkül' };
+  return null;
+}
+
 export function parseQuantity(input, { profileId = DEFAULT_PROFILE_ID, positive = false } = {}) {
   const profile = quantityProfile(profileId);
 
@@ -99,10 +150,11 @@ export function parseQuantity(input, { profileId = DEFAULT_PROFILE_ID, positive 
   // (0.1 + 0.2 ≠ 0.3), és a készlet-főkönyvben a néma kerekítés pénz.
   const scaled = BigInt(intPart + fracPart.padEnd(profile.decimals, '0')) * (neg ? -1n : 1n);
 
-  // 3. TARTOMÁNY.
-  const cap = BigInt(profile.maxUnits) * 10n ** BigInt(profile.decimals);
+  // 3. TARTOMÁNY — EGY MOZGÁS korlátja (R10-F03: ez NEM az összeg korlátja).
+  const cap = BigInt(profile.maxPerMovement) * 10n ** BigInt(profile.decimals);
   if (scaled > cap || scaled < -cap) {
-    return fail('out_of_range', `a profil (${profile.id}) felső határa ${profile.maxUnits}`);
+    return fail('out_of_range', `egy mozgás legfeljebb ${profile.maxPerMovement} lehet `
+      + `(profil: ${profile.id}) — az ÖSSZEG korlátja ettől külön áll`);
   }
 
   // 4. POZITIVITÁS — UTOLSÓ. A `"0.000"` alakilag ép, a pontossága ép, a tartománya ép; ami baj
@@ -163,9 +215,11 @@ export function addQuantities(parts, { profileId = DEFAULT_PROFILE_ID } = {}) {
     }
     sum += p.scaled;
   }
-  const cap = BigInt(profile.maxUnits) * 10n ** BigInt(profile.decimals);
+  // AZ ÖSSZEG SAJÁT KORLÁTJA (R10-F03) — számítási biztonság, nem üzleti tételméret.
+  const cap = BigInt(profile.maxTotal) * 10n ** BigInt(profile.decimals);
   if (sum > cap || sum < -cap) {
-    return fail('out_of_range', `az ÖSSZEG a profil (${profile.id}) felső határa fölé megy: ${profile.maxUnits}`);
+    return fail('total_out_of_range', `az ÖSSZEG a profil (${profile.id}) összeg-korlátja fölé megy: `
+      + `${profile.maxTotal} — ez a SZÁMÍTÁSI tartomány, nem az egy mozgásra eső ${profile.maxPerMovement}`);
   }
   return Object.freeze({ ok: true, scaled: sum, profileId: profile.id, text: formatQuantity(sum, profile.id) });
 }

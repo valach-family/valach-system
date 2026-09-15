@@ -421,12 +421,22 @@ export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({
     id: 'P-KSZ-ledger-truth', assertion: 'KSZ01-ledger-is-the-truth-and-writes-are-atomic',
     discharges: Object.freeze([]),
+    // Az R10 HÁROM lelete után a KSZ-01 állítás-listája ÚJRA ÍRÓDOTT, nem bővült. A régi nevek egy
+    // olyan világot írtak le, amiben a nyers mozgás-író NYILVÁNOS belépési pont volt: az „árva
+    // mozgás" és a „hiányzó nyugta" a HÍVÓ hibája lehetett. Ma ezt a két tényt a TÁROLÓ ŐRZI, a
+    // megkerülő út pedig nem létezik — tehát a mérésnek is mást kell állítania, nem ugyanazt más
+    // szavakkal (KUKA-045: a szabályt mérjük, ne a régi darabszámot).
     module_asserts: Object.freeze([
-      'A-KSZ-movement-requires-a-finalized-command',
-      'A-KSZ-missing-receipt-is-its-own-answer',
-      'A-KSZ-receipt-writes-the-ledger',
-      'A-KSZ-two-time-views-are-named-and-differ',
-      'A-KSZ-sum-limit-rejects-receipt-movement-and-receipt-together',
+      'A-KSZ-no-raw-writer-bypasses-the-command-path',
+      'A-KSZ-receipt-writes-command-receipt-and-movement-together',
+      'A-KSZ-replay-does-not-book-twice',
+      'A-KSZ-same-key-other-scope-is-a-conflict',
+      'A-KSZ-item-of-another-book-is-refused-without-writing',
+      'A-KSZ-two-time-views-filter-on-their-declared-axes',
+      'A-KSZ-sum-limit-rolls-back-command-receipt-and-movement',
+      'A-KSZ-backdating-cannot-bypass-the-sum-limit',
+      // A séma fejlécének ÁLLÍTÁSA mostantól MÉRVE van, nem csak leírva (KUKA-050 · KUKA-004).
+      'A-KSZ-the-store-itself-enforces-append-only-and-the-command-binding',
     ]),
   }),
   Object.freeze({
@@ -439,6 +449,11 @@ export const EXPECTED_PROBES = Object.freeze([
       'A-BEM-type-is-checked-on-the-raw-value',
       'A-BEM-quantity-error-order-survives-the-boundary',
       'A-BEM-valid-input-normalizes-to-canonical-decimal-text',
+      // R10-F03: az időpont VALÓDISÁGA és kanonikus alakja · a kontextus-mező nevezett elutasítása.
+      'A-BEM-nonexistent-calendar-instant-is-refused-and-canonicalized',
+      'A-BEM-context-field-in-the-body-is-a-named-refusal',
+      // A mennyiség KÉT SZAKASZA: a határ profil-független, a jelentés a CIKK profiljáé.
+      'A-BEM-quantity-profile-is-bound-where-the-item-is-known',
     ]),
   }),
 ]);

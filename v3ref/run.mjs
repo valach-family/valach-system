@@ -28,8 +28,11 @@ import { banMatrix } from './banMatrix.mjs';
 // MCS-2 (KAT-01 · KSZ-01 · BEM-01 · MNY-01) — az ELSŐ D-folyamat tárolási és parancs-rétege.
 import { parseQuantity, canonicalQuantity, formatQuantity, QUANTITY_ERRORS } from './quantity.mjs';
 import { registerItem, changeItemUnit, itemBySku } from './catalog.mjs';
-import { balanceAt, receiveStock, appendMovement } from './ledger.mjs';
-import { validateInput } from './inputSchema.mjs';
+import { balanceAt, submitStockReceipt } from './ledger.mjs';
+// A NÉVTÉR-BEHÚZÁS SZÁNDÉKOS: az R10-F01 azt is követeli, hogy a nyers mozgás-írón NE lehessen
+// megkerülni a parancs-utat — ezt csak úgy lehet MÉRNI, ha megkérdezzük, mit exportál a modul.
+import * as LEDGER_MODULE from './ledger.mjs';
+import { validateInput, bindQuantityProfile } from './inputSchema.mjs';
 import { submitCommand, readCommandResult, commandRef, canonicalize, CanonError, recordCommandEvent, releasedFieldPaths } from './command.mjs';
 // REV-N2a/b (BIT-01): a két idő-tengely és a felülvizsgálati kör — a próbák a TERMÉK feloldóit
 // hívják, nem a másolatukat (KUKA-009).
@@ -2974,10 +2977,10 @@ probe('P-REV-result-scope', 'R77/F02 · REV-N5b · K05 · K09 · K15 · KUKA-002
 
       // (a) POZITÍV KONTROLL — tiltás NÉLKÜL a vegyes eredmény TELJESEN kijön. Enélkül a többi ág
       //     egy „soha semmit nem adok ki" alakkal is teljesülne (KUKA-092 · KUKA-049).
-      const mixed = { qty: 1, unit_price: 12345 };
+      const mixed = { qty: '1.000', unit_price: 12345 };
       const okPut = put('r-mixed', mixed).ok === true;
       const free = read('r-mixed', { dataScope: 'keszlet' });
-      const aOk = okPut && free.ok === true && free.result.qty === 1 && free.result.unit_price === 12345;
+      const aOk = okPut && free.ok === true && free.result.qty === '1.000' && free.result.unit_price === 12345;
 
       // (b) A LELET MAGA: az `arak`-ra tiltott olvasónak MÁSIK kontextus-címkével SEM jön ki az
       //     ármező — se egészben, se részlegesen (a vegyes eredmény alapból egészben tagadva).
@@ -2996,15 +2999,15 @@ probe('P-REV-result-scope', 'R77/F02 · REV-N5b · K05 · K09 · K15 · KUKA-002
 
       // (d) A TISZTÁN KÉSZLET-ADAT UGYANANNAK AZ OLVASÓNAK KIJÖN. Ez az ELLENPÁR: az `arak` tiltás
       //     nem válhat általános zárrá — a „11 darabot láthatja" követelmény fele.
-      const okQty = put('r-qty', { qty: 11 }).ok === true;
+      const okQty = put('r-qty', { qty: '11.000' }).ok === true;
       const qtyRead = read('r-qty', { dataScope: 'keszlet' });
-      const dOk = okQty && qtyRead.ok === true && qtyRead.result.qty === 11;
+      const dOk = okQty && qtyRead.ok === true && qtyRead.result.qty === '11.000';
 
       // (e) A HIÁNYZÓ/ISMERETLEN BESOROLÁS KÜLÖN VÁLASZ, ÉS ZÁR (KUKA-124/2). A BEADÁS nevezett
       //     mondatot ad (a saját bemenetéről van szó), a KIADÁS néma marad — a két hely két külön
       //     kérdésre felel. Az ismeretlen TÍPUS és a be nem sorolt MEZŐ is külön nevet kap.
-      const unknownType = put('r-ismeretlen-tipus', { qty: 1 }, 'invoice.issue', '1');
-      const unknownField = put('r-ismeretlen-mezo', { qty: 1, margin_pct: 17 });
+      const unknownType = put('r-ismeretlen-tipus', { qty: '1.000' }, 'invoice.issue', '1');
+      const unknownField = put('r-ismeretlen-mezo', { qty: '1.000', margin_pct: 17 });
       const eOk = unknownType.ok === false && unknownType.error === 'result_scope_undeclared'
         && unknownType.reason === 'result_scope_type_undeclared'
         && unknownField.ok === false && unknownField.reason === 'result_scope_field_undeclared'
@@ -3069,9 +3072,9 @@ probe('P-REV-result-shape', 'R79/F01 · REV-N5b · K05 · K09 · K15 · KUKA-002
       // (a) A BESOROLÁS MÉLYSÉGBEN GYŰLIK — a feloldót a próba HÍVJA (KUKA-009), és MINDKÉT irányt
       //     méri: a beágyazott ár BEHOZZA az `arak` kört, a beágyazott készlet-adat NEM.
       const sc = (result) => resultScopesOf({ type: 'stock.receipt', typeVersion: '1', result });
-      const deepMixed = sc({ lines: [{ qty: 1, unit_price: 990 }] });
-      const deepClean = sc({ lines: [{ qty: 1, sku: 'A' }] });
-      const flatClean = sc({ qty: 1 });
+      const deepMixed = sc({ lines: [{ qty: '1.000', unit_price: 990 }] });
+      const deepClean = sc({ lines: [{ qty: '1.000', sku: 'A' }] });
+      const flatClean = sc({ qty: '1.000' });
       const aOk = deepMixed.ok === true && JSON.stringify(deepMixed.scopes) === JSON.stringify(['arak', 'keszlet'])
         && deepClean.ok === true && JSON.stringify(deepClean.scopes) === JSON.stringify(['keszlet'])
         && flatClean.ok === true && JSON.stringify(flatClean.scopes) === JSON.stringify(['keszlet']);
@@ -3079,7 +3082,7 @@ probe('P-REV-result-shape', 'R79/F01 · REV-N5b · K05 · K09 · K15 · KUKA-002
       // (b) A LELET MAGA, VÉGIG A TERMÉK-ÚTON: az `arak`-ra tiltott olvasónak a BEÁGYAZOTT ár sem
       //     jön ki — se egészben, se a részfában. A tiltás ELŐTT viszont kijön (pozitív kontroll,
       //     KUKA-092): különben egy „soha semmit nem adok ki" alak is teljesítené ezt az ágat.
-      const okDeep = put('r-deep', { lines: [{ qty: 1, unit_price: 990 }] }).ok === true;
+      const okDeep = put('r-deep', { lines: [{ qty: '1.000', unit_price: 990 }] }).ok === true;
       const beforeBan = read('r-deep', 'keszlet');
       const controlOk = okDeep && beforeBan.ok === true
         && beforeBan.result.lines[0].unit_price === 990;
@@ -3097,22 +3100,39 @@ probe('P-REV-result-shape', 'R79/F01 · REV-N5b · K05 · K09 · K15 · KUKA-002
 
       // (c) ELLENPÁR: a TISZTÁN készlet-adatú részfa UGYANANNAK az olvasónak KIJÖN. A mélységi
       //     szigor nem válhat általános zárrá (KUKA-049: az őr ne a kért eredményt jelentse hibának).
-      const okClean = put('r-clean', { lines: [{ qty: 7, sku: 'A' }] }).ok === true;
+      const okClean = put('r-clean', { lines: [{ qty: '7.000', sku: 'A' }] }).ok === true;
       const cleanRead = read('r-clean', 'keszlet');
-      const cOk = okClean && cleanRead.ok === true && cleanRead.result.lines[0].qty === 7
+      const cOk = okClean && cleanRead.ok === true && cleanRead.result.lines[0].qty === '7.000'
         && cleanRead.result.lines[0].sku === 'A';
 
       // (d) A TÍPUS IS A SÉMÁBÓL DŐL EL, NEM A NÉVBŐL. Az objektumba csomagolt ár a `qty` helyén
       //     NEVEZETT alak-hibát kap, az ÚTJÁVAL együtt — és a hatás LÉTRE SEM JÖN (KUKA-012).
       const wrapped = put('r-becsomagolt', { qty: { unit_price: 990 } });
+      // …és a MENNYISÉG SAJÁT FAJTA: JSON-számként NEM adható ki (MNY-01 · a saját leletem). A
+      // lebegőpontos alak a 0,1-et sem ábrázolja pontosan, tehát a kiadott szám már nem az, amit
+      // könyveltünk; a nem kanonikus szöveg ugyanígy zár, a kanonikus viszont ÁTMEGY (ELLENPÁR,
+      // KUKA-049 — az őr, ami mindent pirosra visz, ugyanolyan haszontalan, mint ami mindent átenged).
+      // …és UGYANEZ a SZÁM-levélre: az ármezőbe csomagolt objektum sem mennyiség. Ez KÜLÖN eset,
+      // mert a `qty` mostantól DECIMÁLIS levél — a `number` levél típus-őre tehát MÁSIK mezőn él, és
+      // ha csak a `qty`-t mérnénk, a szám-levél védelme ŐRIZETLENÜL maradna (KUKA-051: a hatókör
+      // szabály, nem az a mező, amin először láttuk). MÉRVE: e nélkül az M90 mutáció TÚLÉLT.
+      const wrappedPrice = put('r-becsomagolt-ar', { unit_price: { qty: 1 } });
+      const numericQty = put('r-szam-mennyiseg', { qty: 1 });
+      const looseQty = put('r-laza-mennyiseg', { qty: '1.0' });
+      const canonQty = put('r-kanonikus-mennyiseg', { qty: '1.000' });
       const dOk = wrapped.ok === false && wrapped.reason === 'result_shape_type_mismatch'
         && wrapped.message.includes('"qty"')
-        && w.store.all("SELECT * FROM command WHERE idem_key = 'r-becsomagolt'").length === 0;
+        && w.store.all("SELECT * FROM command WHERE idem_key = 'r-becsomagolt'").length === 0
+        && wrappedPrice.ok === false && wrappedPrice.reason === 'result_shape_type_mismatch'
+        && wrappedPrice.message.includes('"unit_price"')
+        && numericQty.ok === false && numericQty.reason === 'result_shape_type_mismatch'
+        && looseQty.ok === false && looseQty.reason === 'result_shape_type_mismatch'
+        && canonQty.ok === true;
 
       // (e) A BE NEM SOROLT MEZŐ A RÉSZFÁBAN IS NEVEZETT — és az ÚTJÁT is megmondja, különben a
       //     beadó nem tudja, MIT javítson (KUKA-064). Az ismeretlen TÍPUS külön válasz (KUKA-124/2).
-      const deepUnknown = put('r-melyen-ismeretlen', { lines: [{ qty: 1, titok: 'x' }] });
-      const unknownType = put('r-ismeretlen-tipus', { qty: 1 }, 'invoice.issue', '1');
+      const deepUnknown = put('r-melyen-ismeretlen', { lines: [{ qty: '1.000', titok: 'x' }] });
+      const unknownType = put('r-ismeretlen-tipus', { qty: '1.000' }, 'invoice.issue', '1');
       const eOk = deepUnknown.ok === false && deepUnknown.reason === 'result_scope_field_undeclared'
         && deepUnknown.message.includes('lines[0].titok')
         && unknownType.ok === false && unknownType.reason === 'result_scope_type_undeclared'
@@ -3120,7 +3140,7 @@ probe('P-REV-result-shape', 'R79/F01 · REV-N5b · K05 · K09 · K15 · KUKA-002
 
       // (f) A TÖMB ELEMEI KÜLÖN-KÜLÖN SZÁMÍTANAK: ha a MÁSODIK sorban áll az ár, az is behozza az
       //     `arak` kört. Az első elem alapján ítélő rövidzár pontosan itt bukna el.
-      const secondLine = sc({ lines: [{ qty: 1 }, { qty: 2, unit_price: 5 }] });
+      const secondLine = sc({ lines: [{ qty: '1.000' }, { qty: '2.000', unit_price: 5 }] });
       const fOk = secondLine.ok === true
         && JSON.stringify(secondLine.scopes) === JSON.stringify(['arak', 'keszlet']);
 
@@ -3187,7 +3207,7 @@ probe('P-CMD-effectuation', 'R79/F02 · REV-N3a · K04 · K07 · KUKA-003 · KUK
     }
     const put = (store, clock, idemKey) => submitCommand({
       store, clock, idemKey, actor: 'sub_dolgozo', bookId: 'book_a',
-      type: 'stock.receipt', typeVersion: '1', declared: { sku: 'X' }, resolve: () => ({ qty: 1 }),
+      type: 'stock.receipt', typeVersion: '1', declared: { sku: 'X' }, resolve: () => ({ qty: '1.000' }),
       credentials: { dataScope: 'keszlet' },
     });
 
@@ -3319,7 +3339,7 @@ probe('P-CMD-release-effectuation', 'R81/F04 · REV-N3a · K05 · K07 · KUKA-00
       // A parancs MINDIG élő tagsággal, T0-n születik: a mérés a KIADÁSRÓL szól, nem az írásról.
       submitCommand({
         store, clock: { now: () => T0 }, idemKey: 'k', actor: 'sub_olvaso', bookId: 'book_a',
-        type: 'stock.receipt', typeVersion: '1', declared: { sku: 'X' }, resolve: () => ({ qty: 1 }),
+        type: 'stock.receipt', typeVersion: '1', declared: { sku: 'X' }, resolve: () => ({ qty: '1.000' }),
         credentials: { dataScope: 'keszlet' },
       });
       return store;
@@ -3430,7 +3450,7 @@ probe('P-CMD-release-effectuation', 'R81/F04 · REV-N3a · K05 · K07 · KUKA-00
       submitCommand({
         store: s, clock: still(T0), idemKey: 'k', actor: 'sub_olvaso', bookId: 'book_a',
         type: 'stock.receipt', typeVersion: '1', declared: { sku: 'X' },
-        resolve: () => ({ lines: [{ qty: 1, unit_price: 5 }] }), credentials: { dataScope: 'keszlet' },
+        resolve: () => ({ lines: [{ qty: '1.000', unit_price: 5 }] }), credentials: { dataScope: 'keszlet' },
       });
       s.run('INSERT INTO subject_ban(subject_id,kind,cause,target_ref,actor_subject_id,banned_at) VALUES(?,?,?,?,?,?)',
         'sub_olvaso', 'data_scope', 'data_scope_withdrawn', 'arak', 'sub_olvaso', T0);
@@ -4427,76 +4447,175 @@ probe('P-KAT-item-identity', 'MCS-2 · KAT-01 · K10 · KUKA-021 · KUKA-027',
     } finally { store.close(); }
   });
 
-probe('P-KSZ-ledger-truth', 'MCS-2 · KSZ-01 · K10 · KUKA-021 · KUKA-023 · KUKA-026',
-  'A készlet-főkönyv: parancshoz ÉS nyugtához kötött mozgás · KÉT idő-nézet · az összegkorlát a bevétet, a mozgást és a nyugtát EGYÜTT utasítja el',
+probe('P-KSZ-ledger-truth', 'MCS-2 · KSZ-01 · K10 · R10-F01 · R10-F02 · R10-F03 · KUKA-021 · KUKA-026 · KUKA-054',
+  'A készlet-főkönyv a KANONIKUS parancs-úton: atomiság · nincs megkerülő író · idegen könyv cikke tilos · KÉT idő-nézet TENGELY-PÁRRAL · a visszadátumozás nem kerüli meg az összegkorlátot',
   () => {
     const store = openStore();
     try {
+      // ── A VILÁG: két könyv, egy tag, könyvenként egy cikk ─────────────────────────────────────
       store.run('INSERT INTO book VALUES (?,?)', 'a', 'A könyv');
+      store.run('INSERT INTO book VALUES (?,?)', 'b', 'B könyv');
       store.run('INSERT INTO subject VALUES (?,?)', 'gazda', 'person');
+      store.run('INSERT INTO membership VALUES (?,?,?,?,NULL)', 'gazda', 'a', 'user', BIT.GRANT);
       const item = registerItem({ store, bookId: 'a', sku: 'OLAJ-1L', unit: 'l', at: BIT.MARCH });
+      const foreign = registerItem({ store, bookId: 'b', sku: 'IDEGEN', unit: 'l', at: BIT.MARCH });
+      // A DARABOS cikk a MÁSIK profillal — az összeg-korlát ezen mérhető meg értelmes darabszámmal,
+      // és egyben bizonyítja, hogy a mennyiség szerződése a CIKK profiljával érvényesül, nem a hívóéval.
+      const piece = registerItem({ store, bookId: 'a', sku: 'DOBOZ', unit: 'db', qtyProfile: 'qty-2', at: BIT.MARCH });
+      const pieceKey = { bookId: 'a', itemId: piece.itemId, ownerId: 'gazda', warehouseId: 'FO' };
       const key = { bookId: 'a', itemId: item.itemId, ownerId: 'gazda', warehouseId: 'FO' };
 
-      // Egy VÉGLEGESÍTETT parancs + NYUGTA — a mozgás CSAK ehhez köthető.
-      const mkCommand = (idem, effect) => {
-        store.run('INSERT INTO command VALUES (?,?,?,?,?,?,?,?,?,?)',
-          idem, 'gazda', 'a', 'stock.receipt', '1', 'h_' + idem, '{}', effect, 'finalized', BIT.MARCH);
-        store.run('INSERT INTO command_event (book_id, actor, idem_key, event, state, effect_id, at) VALUES (?,?,?,?,?,?,?)',
-          'a', 'gazda', idem, 'command_finalized', 'finalized', effect, BIT.MARCH);
-      };
-      mkCommand('k1', 'eff_1');
+      // A TELJES UTAT HÍVJUK (R10: „ne szúrj be kész sikerállapotot a bizonyítandó szakasz helyére").
+      // Ez a próba EGYETLEN belépési pontot ismer — ugyanazt, amit egy valódi hívó.
+      const receipt = ({ idemKey, qty, effectiveAt, at = BIT.MARCH, itemId = item.itemId, warehouseId = 'FO' }) =>
+        submitStockReceipt({
+          store, idemKey, actor: 'gazda', bookId: 'a', ownerId: 'gazda', warehouseId,
+          input: { item_id: itemId, qty, effective_at: effectiveAt },
+          clock: clockFrom(at),
+        });
 
-      // (a) ÁRVA MOZGÁS — nincs ilyen hatás: a sor NEM születhet meg.
-      const orphan = appendMovement({ store, key, qty: '5.000', effectId: 'eff_NINCS',
-        recordedAt: BIT.MARCH, effectiveAt: BIT.MARCH, positive: true });
+      // (a) NINCS MEGKERÜLŐ ÍRÓ. A nyers mozgás-író nem exportált — ha visszakerülne, a parancs-út
+      //     MINDEN garanciája megkerülhető lenne, és ezt a próba a többi ágon már nem venné észre.
+      const exported = Object.keys(LEDGER_MODULE).sort();
+      const aOk = !exported.includes('appendMovement') && !exported.includes('receiveStock')
+        && exported.includes('submitStockReceipt');
 
-      // (b) NYUGTA NÉLKÜLI parancs — KÜLÖN válasz, nem ugyanaz, mint a hiányzó parancs.
-      store.run('INSERT INTO command VALUES (?,?,?,?,?,?,?,?,?,?)',
-        'k_nyugta_nelkul', 'gazda', 'a', 'stock.receipt', '1', 'h_x', '{}', 'eff_nyugta_nelkul', 'finalized', BIT.MARCH);
-      const noReceipt = appendMovement({ store, key, qty: '5.000', effectId: 'eff_nyugta_nelkul',
-        recordedAt: BIT.MARCH, effectiveAt: BIT.MARCH, positive: true });
+      // (b) JOGOS BEVÉT a teljes láncon: parancs + nyugta + mozgás EGYÜTT születik.
+      const ok1 = receipt({ idemKey: 'k1', qty: '10', effectiveAt: BIT.MARCH });
+      const cmdRow = store.get('SELECT state, effect_id FROM command WHERE idem_key = ?', 'k1');
+      const evRow = store.get("SELECT COUNT(*) AS n FROM command_event WHERE idem_key = ? AND event = 'command_finalized'", 'k1');
+      const movRow = store.get('SELECT COUNT(*) AS n FROM stock_movement WHERE effect_id = ?', cmdRow ? cmdRow.effect_id : '');
+      const bOk = ok1.ok === true && cmdRow && cmdRow.state === 'finalized'
+        && evRow.n === 1 && movRow.n === 1;
 
-      // (c) JOGOS BEVÉT — MA rögzítve, MA hatályos.
-      const ok1 = receiveStock({ store, key, qty: '10', effectId: 'eff_1',
-        recordedAt: BIT.MARCH, effectiveAt: BIT.MARCH });
+      // (c) UGYANAZ A KULCS ÚJRA: ISMÉTLÉS, nem MÁSODIK könyvelés. A régi alakban ugyanaz a
+      //     hatásazonosító kétszer könyvelt (R10-F01), és 10.000-ből 20.000 lett.
+      const again = receipt({ idemKey: 'k1', qty: '10', effectiveAt: BIT.MARCH });
+      const movAfterReplay = store.get('SELECT COUNT(*) AS n FROM stock_movement');
+      const cOk = again.ok === true && again.replayed === true && movAfterReplay.n === 1;
 
-      // (d) A KÉT IDŐ-NÉZET. MA rögzítünk egy MÁRCIUSRA hatályos bevétet; a MÁRCIUSI állapotot
-      //     a NÉZET-A (rögzítés szerint) NEM módosítja, a NÉZET-B (hatály szerint) IGEN.
-      mkCommand('k2', 'eff_2');
-      store.run('UPDATE command SET finalized_at = ? WHERE idem_key = ?', BIT.JUNE, 'k2');
-      appendMovement({ store, key, qty: '7.000', effectId: 'eff_2',
-        recordedAt: BIT.JUNE, effectiveAt: BIT.MARCH, positive: true });
+      // (d) UGYANAZ A KULCS, MÁS RAKTÁR: ez NEM ismétlés, hanem ÜTKÖZÉS — a feloldott hatókör a
+      //     parancs azonosságának része (KUKA-074).
+      const otherWh = receipt({ idemKey: 'k1', qty: '10', effectiveAt: BIT.MARCH, warehouseId: 'MASIK' });
+      const dOk = otherWh.ok === false && otherWh.error === 'idempotency_conflict';
+
+      // (e) IDEGEN KÖNYV CIKKE — NEVEZETT elutasítás, és SEMMI nem íródik (R10-F02).
+      const cmdBefore = store.get('SELECT COUNT(*) AS n FROM command').n;
+      const cross = receipt({ idemKey: 'k_cross', qty: '1', effectiveAt: BIT.MARCH, itemId: foreign.itemId });
+      const eOk = cross.ok === false && cross.error === 'item_belongs_to_another_book'
+        && store.get('SELECT COUNT(*) AS n FROM command').n === cmdBefore;
+
+      // (f) A KÉT IDŐ-NÉZET TENGELY-PÁRRAL (R10-F03). JÚNIUSBAN rögzítünk egy JÚNIUSRA hatályos
+      //     bevétet; a MÁRCIUSI „akkor mit tudtunk" kép NEM változhat tőle — se a rögzítés, se a
+      //     hatály tengelyén. A régi, egytengelyű „A" nézet itt 10.000 helyett 17.000-et mondott.
+      const later = receipt({ idemKey: 'k2', qty: '7', effectiveAt: BIT.JUNE, at: BIT.JUNE });
       const viewA = balanceAt({ store, key, view: 'A', asOf: BIT.MARCH_LATER });
       const viewB = balanceAt({ store, key, view: 'B', asOf: BIT.MARCH_LATER });
+      const viewJune = balanceAt({ store, key, view: 'B', asOf: BIT.JUNE });
       const viewX = balanceAt({ store, key, view: 'C', asOf: BIT.MARCH_LATER });
-
-      // (e) ÖSSZEGKORLÁT: a bevét ÖNMAGÁBAN érvényes, az ÖSSZEG viszont túlcsordul —
-      //     és a visszautasítás TELJES: sem mozgás, sem egyenleg-változás.
-      const before = balanceAt({ store, key, view: 'B', asOf: BIT.JUNE });
-      mkCommand('k3', 'eff_3');
-      const over = receiveStock({ store, key, qty: '999999', effectId: 'eff_3',
-        recordedAt: BIT.JUNE, effectiveAt: BIT.JUNE });
-      const after = balanceAt({ store, key, view: 'B', asOf: BIT.JUNE });
-
-      const aOk = orphan.ok === false && orphan.error === 'unknown_effect';
-      const bOk = noReceipt.ok === false && noReceipt.error === 'receipt_missing';
-      const cOk = ok1.ok === true && ok1.added === '10.000';
-      const dOk = viewA.ok && viewB.ok && viewA.text === '10.000' && viewB.text === '17.000'
+      const fOk = later.ok === true && viewA.ok && viewB.ok && viewJune.ok
+        && viewA.text === '10.000' && viewB.text === '10.000' && viewJune.text === '17.000'
+        && viewA.view_axes.length === 2 && viewB.view_axes.length === 1
         && viewX.ok === false && viewX.error === 'unknown_view';
-      const eOk = over.ok === false && over.error === 'sum_out_of_range' && after.text === before.text;
+
+      // ── A KÉT KORLÁT KÉT KÜLÖN KÉRDÉS (R10-F03) ─────────────────────────────────────────────
+      //
+      // A profil KÉT plafont visel: "maxPerMovement" (egy tétel mérete — ÜZLETI szabály) és
+      // "maxTotal" (az összegzett egyenleg — SZÁMÍTÁSI biztonság). Ezért az ÖSSZEG-kaput NEM lehet
+      // egyetlen óriási tétellel megszólítani: az már az ELSŐ kapun elakadna ("out_of_range"), és a
+      // próba a MÁSIK kaput mérné, mint amit állít (KUKA-124/1). A mérés a DARABOS profilon megy,
+      // ahol a két plafon aránya kicsi — így a kapu VALÓDI úton, tíz bevéttel elérhető.
+      const pieceReceipt = ({ idemKey, qty, effectiveAt, at = BIT.JUNE }) => submitStockReceipt({
+        store, idemKey, actor: 'gazda', bookId: 'a', ownerId: 'gazda', warehouseId: 'FO',
+        input: { item_id: piece.itemId, qty, effective_at: effectiveAt }, clock: clockFrom(at),
+      });
+      let fillOk = true;
+      for (let i = 0; i < 10; i += 1) {                // 10 × 1000 = 10 000 = PONTOSAN a plafon
+        const r = pieceReceipt({ idemKey: 'fill-' + i, qty: '1000', effectiveAt: BIT.JUNE });
+        if (!r.ok) { fillOk = false; break; }
+      }
+      const filled = balanceAt({ store, key: pieceKey, view: 'B', asOf: BIT.JUNE });
+
+      // (g) ÖSSZEGKORLÁT — a tétel ÖNMAGÁBAN megengedett méretű (1000 = a tétel-plafon), az ÖSSZEG
+      //     viszont túlcsordul. A visszautasítás TELJES: nincs mozgás, NINCS parancs-sor és NINCS
+      //     nyugta (R10-F01: a régi alakban a parancs "finalized" maradt a nyugtájával, miközben a
+      //     készlet nem mozdult). A mennyiség KANONIKUS alakja itt tizedes NÉLKÜLI — a cikk profilja
+      //     dönt, nem az alapértelmezés.
+      const cmdCountBefore = store.get('SELECT COUNT(*) AS n FROM command').n;
+      const evCountBefore = store.get('SELECT COUNT(*) AS n FROM command_event').n;
+      const over = pieceReceipt({ idemKey: 'k3', qty: '1001', effectiveAt: BIT.JUNE });      // tétel-plafon
+      const overSum = pieceReceipt({ idemKey: 'k3b', qty: '1', effectiveAt: BIT.JUNE });     // ÖSSZEG-plafon
+      const afterSum = balanceAt({ store, key: pieceKey, view: 'B', asOf: BIT.JUNE }).text;
+      const gOk = fillOk && filled.ok === true && filled.text === '10000' && filled.profileId === 'qty-2'
+        && over.ok === false && over.error === 'out_of_range'
+        && overSum.ok === false && overSum.error === 'sum_out_of_range'
+        && afterSum === filled.text
+        && store.get('SELECT COUNT(*) AS n FROM command').n === cmdCountBefore
+        && store.get('SELECT COUNT(*) AS n FROM command_event').n === evCountBefore
+        && !store.get('SELECT 1 AS x FROM command WHERE idem_key = ?', 'k3b');
+
+      // (h) A VISSZADÁTUMOZÁS NEM KERÜLI MEG A KORLÁTOT (R10-F03). A MÁRCIUSI kép ÜRES, tehát a régi,
+      //     csak-a-hatályra-néző kapu ezt a tételt ÁTENGEDTE volna — a JÚNIUSI képet viszont a plafon
+      //     fölé vitte volna, és onnantól az egyenleg SEMMILYEN nézetben nem lett volna számítható.
+      //     A kapu ezért a LEGKÉSŐBBI ismert pontot méri, nem a bevét hatályát.
+      const marchLocal = balanceAt({ store, key: pieceKey, view: 'B', asOf: BIT.MARCH_LATER });
+      const wouldFitInMarch = marchLocal.ok === true && marchLocal.text === '0';
+      const backdated = pieceReceipt({ idemKey: 'k5', qty: '1', effectiveAt: BIT.MARCH });
+      const hOk = wouldFitInMarch && backdated.ok === false && backdated.error === 'sum_out_of_range'
+        && backdated.detail.includes(BIT.JUNE);        // a mondat KIMONDJA, melyik pontra mért
+
+      // (i) A TÁROLÓ ŐRZI A KÖTÉST, NEM A JS-ÍRÓ (a SAJÁT leletem). A séma fejléce azt ÁLLÍTOTTA,
+      //     hogy „árva mozgás-sor nem születhet, és az atomiság MÉRHETŐ, nem ígéret" — mérve viszont
+      //     semmilyen őr nem állt az "effect_id" mögött, a kötést kizárólag a JS-oldali író tartotta.
+      //     Ez a KUKA-050 a sémán: a leíró mondat ÁLLÍTÁS, és az állítást mérni kell. Itt a NYERS
+      //     tárolási utat próbáljuk, amit egy jövőbeli MÁSODIK író is használna (KUKA-013).
+      const rawInsert = (effect) => {
+        try {
+          store.run('INSERT INTO stock_movement (book_id, item_id, owner_id, warehouse_id, qty_scaled, qty_profile, effect_id, recorded_at, effective_at) '
+            + 'VALUES (?,?,?,?,?,?,?,?,?)',
+            'a', item.itemId, 'gazda', 'FO', '5000', 'qty-1', effect, BIT.MARCH, BIT.MARCH);
+          return 'ÁTMENT';
+        } catch (e) { return String(e && e.message || e); }
+      };
+      const orphan = rawInsert('eff_NINCS_ILYEN');
+      // Nyugta NÉLKÜLI, de véglegesített parancs: KÜLÖN válasz, nem ugyanaz, mint a hiányzó parancs.
+      store.run('INSERT INTO command VALUES (?,?,?,?,?,?,?,?,?,?)',
+        'k_nyugta_nelkul', 'gazda', 'a', 'stock.receipt', '1', 'h_x', '{}', 'eff_nyugta_nelkul', 'finalized', BIT.MARCH);
+      const noReceipt = rawInsert('eff_nyugta_nelkul');
+      const tryWrite = (sql) => { try { store.run(sql); return 'ÁTMENT'; } catch (e) { return 'ELUTASÍTVA'; } };
+      const upd = tryWrite("UPDATE stock_movement SET qty_scaled = '1' WHERE id = 1");
+      const del = tryWrite('DELETE FROM stock_movement WHERE id = 1');
+      const iOk = orphan.includes('unknown_effect') && noReceipt.includes('receipt_missing')
+        && upd === 'ELUTASÍTVA' && del === 'ELUTASÍTVA';
+
       return {
-        expected: 'árva mozgás NEM születik · a hiányzó NYUGTA külön válasz · a két idő-nézet KÜLÖNBÖZIK '
-          + 'és a nézetet NEVEZNI kell · az összegkorlát a bevétet, a mozgást és a nyugtát EGYÜTT utasítja el',
-        actual: 'árva=' + orphan.error + ' · nyugta nélkül=' + noReceipt.error + ' · bevét=' + ok1.added
-          + ' · A=' + viewA.text + ' B=' + viewB.text + ' ismeretlen nézet=' + viewX.error
-          + ' · túlcsordulás=' + over.error + ' egyenleg előtte/utána=' + before.text + '/' + after.text,
-        pass: aOk && bOk && cOk && dOk && eOk,
+        expected: 'a nyers író NINCS exportálva · a bevét parancsot+nyugtát+mozgást EGYÜTT szül · az '
+          + 'ismétlés nem könyvel újra, a más hatókörű kulcs ÜTKÖZIK · idegen könyv cikke nevezett '
+          + 'elutasítás írás nélkül · az „A" nézet MINDKÉT tengelyen szűr · a túllépés TELJESEN '
+          + 'visszagördül · a visszadátumozás a KÉSŐBBI állapotra is mérve van',
+        actual: 'exportok=' + exported.join(',') + ' · bevét=' + (ok1.ok ? 'ok' : ok1.error)
+          + ' · ismétlés=' + (again.replayed ? 'replay' : again.error) + ' mozgások=' + movAfterReplay.n
+          + ' · más raktár=' + otherWh.error + ' · idegen könyv=' + cross.error
+          + ' · A=' + viewA.text + '(' + viewA.view_axes.join('+') + ') B=' + viewB.text
+          + '(' + viewB.view_axes.join('+') + ') június-B=' + viewJune.text + ' ismeretlen=' + viewX.error
+          + ' · feltöltve=' + filled.text + '(' + filled.profileId + ')'
+          + ' · tétel-plafon=' + over.error + ' összeg-plafon=' + overSum.error
+          + ' parancs-sor=' + (store.get('SELECT 1 AS x FROM command WHERE idem_key = ?', 'k3b') ? 'MARADT' : 'nincs')
+          + ' egyenleg=' + filled.text + '/' + afterSum
+          + ' · márciusi kép=' + marchLocal.text + ' visszadátumozás=' + backdated.error
+          + ' · tároló-őr: árva=' + orphan.slice(0, 40) + ' nyugta nélkül=' + noReceipt.slice(0, 40)
+          + ' módosítás=' + upd + ' törlés=' + del,
+        pass: aOk && bOk && cOk && dOk && eOk && fOk && gOk && hOk && iOk,
         asserts: {
-          'A-KSZ-movement-requires-a-finalized-command': aOk,
-          'A-KSZ-missing-receipt-is-its-own-answer': bOk,
-          'A-KSZ-receipt-writes-the-ledger': cOk,
-          'A-KSZ-two-time-views-are-named-and-differ': dOk,
-          'A-KSZ-sum-limit-rejects-receipt-movement-and-receipt-together': eOk,
+          'A-KSZ-no-raw-writer-bypasses-the-command-path': aOk,
+          'A-KSZ-receipt-writes-command-receipt-and-movement-together': bOk,
+          'A-KSZ-replay-does-not-book-twice': cOk,
+          'A-KSZ-same-key-other-scope-is-a-conflict': dOk,
+          'A-KSZ-item-of-another-book-is-refused-without-writing': eOk,
+          'A-KSZ-two-time-views-filter-on-their-declared-axes': fOk,
+          'A-KSZ-sum-limit-rolls-back-command-receipt-and-movement': gOk,
+          'A-KSZ-backdating-cannot-bypass-the-sum-limit': hOk,
+          'A-KSZ-the-store-itself-enforces-append-only-and-the-command-binding': iOk,
         },
       };
     } finally { store.close(); }
@@ -4505,7 +4624,9 @@ probe('P-KSZ-ledger-truth', 'MCS-2 · KSZ-01 · K10 · KUKA-021 · KUKA-023 · K
 probe('P-BEM-input-schema', 'MCS-2 · BEM-01 · MNY-01 · K10 · KUKA-122 · KUKA-124 · KUKA-125',
   'A bemeneti séma: ismeretlen művelet fail-closed · nevezett elutasítás mezőnként · a mennyiség hibakód-SORRENDJE megmarad · a konverzió nem előzi meg a típust',
   () => {
-    const base = { item_id: 'itm_1', owner_id: 'gazda', warehouse_id: 'FO', qty: '1.000', effective_at: BIT.MARCH };
+    // A TULAJDONOS ÉS A RAKTÁR NINCS A SÉMÁBAN: azok a hívó MEGBÍZHATÓ KÖRNYEZETÉBŐL jönnek
+    // (KUKA-047), tehát a kérés törzsében küldve NEVEZETT `unknown_field` a válasz — lásd (g).
+    const base = { item_id: 'itm_1', qty: '1.000', effective_at: BIT.MARCH };
     const V = (patch, op = 'stock.receipt') => validateInput({ operation: op, input: patch === null ? null : { ...base, ...patch } });
 
     // (a) ISMERETLEN MŰVELET — fail-closed, a választhatók felsorolásával.
@@ -4513,35 +4634,74 @@ probe('P-BEM-input-schema', 'MCS-2 · BEM-01 · MNY-01 · K10 · KUKA-122 · KUK
     // (b) ISMERETLEN MEZŐ előbb dől el, mint a hiányzó.
     const unknownField = V({ szinezes: 'kek' });
     // (c) HIÁNYZÓ KÖTELEZŐ — külön válasz.
-    const missing = validateInput({ operation: 'stock.receipt', input: { item_id: 'itm_1', owner_id: 'g', warehouse_id: 'FO', qty: '1' } });
+    const missing = validateInput({ operation: 'stock.receipt', input: { item_id: 'itm_1', qty: '1' } });
     // (d) A TÍPUS A NYERS ÉRTÉKEN — a "true" és a "[1]" NEM 1 (KUKA-125).
     const boolQty = V({ qty: true });
     const arrQty = V({ qty: ['1'] });
     const numQty = V({ qty: 1 });
-    // (e) A MENNYISÉG SAJÁT HIBAKÓDJA MEGMARAD — nem lapul "invalid_type"-ra (R8 §2).
-    const precision = V({ qty: '1.0000' });
-    const range = V({ qty: '10000000' });
-    const positive = V({ qty: '0.000' });
+    // (e) A MENNYISÉG KÉT SZAKASZA. Az A. szakasz (ez a réteg) PROFIL-FÜGGETLEN: csak azt kérdezi,
+    //     szöveg-e és decimális alakú-e. Ami a PROFILTÓL függ — tizedesjegy · plafonok · pozitivitás
+    //     · kanonikus alak —, az a B. szakasz, és ott dől el, ahol a CIKK ismert. A hibakódok az
+    //     MNY-01-éi maradnak, nem lapulnak "invalid_type"-ra (R8 §2).
+    const B = (patch, profileId) => bindQuantityProfile(V(patch), { profileId });
+    const precision = B({ qty: '1.0000' }, 'qty-1');
+    const range = B({ qty: '10000000' }, 'qty-1');
+    const positive = B({ qty: '0.000' }, 'qty-1');
+    // …és UGYANAZ a szöveg MÁS profillal MÁS választ kap: a darabos cikknél a tizedes hiba.
+    const pieceDecimals = B({ qty: '1.000' }, 'qty-2');
+    const pieceOk = B({ qty: '1000' }, 'qty-2');
+    const profileMissing = bindQuantityProfile(V({ qty: '1' }), {});
     // (f) A JOGOS ALAK ÁTMEGY, és a mennyiség KANONIKUS szövegre normalizálódik.
-    const good = V({ qty: '1' });
-    const good2 = V({ qty: '1.000' });
+    const good = B({ qty: '1' }, 'qty-1');
+    const good2 = B({ qty: '1.000' }, 'qty-1');
+    // A. szakasz UTÁN a mennyiség még NYERS, és a válasz ezt KI IS MONDJA (KUKA-015).
+    const stageA = V({ qty: '1' });
+    // (g) A NEM LÉTEZŐ NAPTÁRI IDŐPONT NEVEZETT elutasítás, nem alaki hiba (R10-F03) — és a jogos
+    //     időpont KANONIKUS alakra normalizálódik, mert a főkönyv SZÖVEG szerint rendez (KUKA-029).
+    const fakeDay = V({ effective_at: '2026-99-99T99:99:99Z' });
+    const fakeFeb = V({ effective_at: '2026-02-30T10:00:00Z' });
+    const badShape = V({ effective_at: '2026-03-10 09:00:00' });
+    const canonTime = V({ effective_at: '2026-03-10T09:00:00Z' });
+    // (h) A KONTEXTUS-MEZŐ A TÖRZSBEN: nem néma eldobás, hanem nevezett válasz (KUKA-041).
+    const contextInBody = V({ warehouse_id: 'FO' });
 
     const aOk = unknownOp.ok === false && unknownOp.error === 'unknown_operation';
     const bOk = unknownField.ok === false && unknownField.error === 'unknown_field' && unknownField.at === 'szinezes';
     const cOk = missing.ok === false && missing.error === 'missing_field' && missing.at === 'effective_at';
     const dOk = boolQty.error === 'not_a_string' && arrQty.error === 'not_a_string' && numQty.error === 'not_a_string';
     const eOk = precision.error === 'precision' && range.error === 'out_of_range' && positive.error === 'must_be_positive';
+    // A PROFIL-KÖTÉS ÖNÁLLÓ ÁLLÍTÁS, nem a hibakód-sorrend része: az egyik a SORRENDET méri, a másik
+    // azt, hogy a mennyiség JELENTÉSE a cikké. Egy összevont pipa bukása nem igazolná mindkettőt
+    // (R55/F02 lecke — KUKA-039 a bizonyítékon).
+    const iOk = pieceDecimals.ok === false && pieceDecimals.error === 'precision'
+      && pieceOk.ok === true && pieceOk.value.qty === '1000' && pieceOk.qty_profile === 'qty-2'
+      && profileMissing.ok === false && profileMissing.error === 'profile_required';
     const fOk = good.ok === true && good.value.qty === '1.000' && good2.ok === true && good2.value.qty === '1.000'
-      && canonicalQuantity('1', { positive: true }) === canonicalQuantity('1.000', { positive: true });
+      && canonicalQuantity('1', { positive: true }) === canonicalQuantity('1.000', { positive: true })
+      && stageA.ok === true && stageA.value.qty === '1' && stageA.profile_bound === false
+      && stageA.quantity_fields.includes('qty');
+    const gOk = fakeDay.ok === false && fakeDay.error === 'invalid_calendar' && fakeDay.at === 'effective_at'
+      && fakeFeb.ok === false && fakeFeb.error === 'invalid_calendar'
+      && badShape.ok === false && badShape.error === 'invalid_format'
+      && canonTime.ok === true && canonTime.value.effective_at === '2026-03-10T09:00:00.000Z';
+    const hOk = contextInBody.ok === false && contextInBody.error === 'unknown_field'
+      && contextInBody.at === 'warehouse_id';
     return {
       expected: 'ismeretlen művelet fail-closed · ismeretlen mező ELŐBB, mint a hiányzó · a típus a NYERS '
-        + 'értéken (true és [1] NEM 1) · a mennyiség hibakód-sorrendje megmarad · a jogos alak kanonizálódik',
+        + 'értéken (true és [1] NEM 1) · a mennyiség hibakód-sorrendje megmarad · a jogos alak kanonizálódik · '
+        + 'a nem létező naptári nap NEVEZETT elutasítás és az időpont kanonizálódik · a kontextus-mező a '
+        + 'törzsben nevezett elutasítás, nem néma eldobás',
       actual: 'művelet=' + unknownOp.error + ' · ismeretlen mező=' + unknownField.error + '@' + unknownField.at
         + ' · hiányzó=' + missing.error + '@' + missing.at
         + ' · típus: true=' + boolQty.error + ' [1]=' + arrQty.error + ' 1=' + numQty.error
         + ' · sorrend: ' + precision.error + '/' + range.error + '/' + positive.error
-        + ' · kanonikus: "1"→' + good.value?.qty + ' "1.000"→' + good2.value?.qty,
-      pass: aOk && bOk && cOk && dOk && eOk && fOk,
+        + ' · profil: qty-2 tizedes=' + pieceDecimals.error + ' qty-2 jó=' + pieceOk.value?.qty
+        + ' profil nélkül=' + profileMissing.error + ' A-szakasz nyers=' + stageA.value?.qty
+        + ' · kanonikus: "1"→' + good.value?.qty + ' "1.000"→' + good2.value?.qty
+        + ' · naptár: 99-99=' + fakeDay.error + ' febr.30=' + fakeFeb.error + ' alak=' + badShape.error
+        + ' idő-kanonizálás=' + canonTime.value?.effective_at
+        + ' · kontextus a törzsben=' + contextInBody.error + '@' + contextInBody.at,
+      pass: aOk && bOk && cOk && dOk && eOk && fOk && gOk && hOk && iOk,
       asserts: {
         'A-BEM-unknown-operation-is-fail-closed': aOk,
         'A-BEM-unknown-field-decides-before-missing-field': bOk,
@@ -4549,6 +4709,9 @@ probe('P-BEM-input-schema', 'MCS-2 · BEM-01 · MNY-01 · K10 · KUKA-122 · KUK
         'A-BEM-type-is-checked-on-the-raw-value': dOk,
         'A-BEM-quantity-error-order-survives-the-boundary': eOk,
         'A-BEM-valid-input-normalizes-to-canonical-decimal-text': fOk,
+        'A-BEM-nonexistent-calendar-instant-is-refused-and-canonicalized': gOk,
+        'A-BEM-context-field-in-the-body-is-a-named-refusal': hOk,
+        'A-BEM-quantity-profile-is-bound-where-the-item-is-known': iOk,
       },
     };
   });

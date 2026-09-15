@@ -35,6 +35,7 @@
 // helye dönti el, melyik alakban jelenik meg (lásd a `command.mjs` két bekötését).
 
 import { banEffectiveAt } from './banScope.mjs';
+import { parseQuantity, formatQuantity, QUANTITY_PROFILES, DEFAULT_PROFILE_ID } from './quantity.mjs';
 
 // ═══ A ZÁRT HALMAZ ══════════════════════════════════════════════════════════════════════════════
 //
@@ -78,19 +79,35 @@ const SCOPE_MEANING = new Map([
 const SEP = '';
 const declKey = (type, typeVersion) => `${String(type ?? '')}${SEP}${String(typeVersion ?? '')}`;
 
+// ── A MENNYISÉG LEVELE: `decimal`, NEM `number` (a SAJÁT leletem, R10-F01 bekötése közben) ───────
+//
+// AMI KIBUKOTT. Amikor a bevétet a VALÓDI parancs-útra kötöttem, a `stock.receipt` eredménye ezen az
+// osztályozón ment át — és ELBUKOTT: a séma itt `qty: number`-t követel, az MNY-01 viszont kimondja,
+// hogy a mennyiség SOHA nem hagyhatja el a rendszert JSON-számként (a 0,1 nem ábrázolható pontosan).
+// Két SAJÁT szerződésem mondott ellent egymásnak, két különböző körből — és a söprés végig zöld
+// volt, mert egyikük sem HÍVTA a másikat: az osztályozó próbái kézzel írt eredmény-objektumokon
+// futottak, számmal. Pontosan ez a KUKA-038: a deklaráció LÉTEZÉSE nem bizonyítja, hogy a lánc
+// végigmegy rajta — a bizonyíték az, hogy a VALÓDI út átér.
+//
+// MIÉRT NEM „a `number` fogadjon el szöveget is". Az a KUKA-125 hibája lenne fordítva: a levél
+// típus-ellenőrzése pont azért van itt, mert egy objektumba csomagolt ár egyszer már kiment egy
+// `qty` néven (R79/F01). Ha a `number` mostantól szöveget is elfogad, akkor a `qty: "akármi"` is
+// átmegy, és a védelem NÉVLEG megmarad, TARTALMILAG eltűnik. Ezért a mennyiségnek SAJÁT levél-fajtája
+// van, ami a KANONIKUS decimális alakot követeli — azt, amit az MNY-01 tulajdonosa állít elő —, és a
+// döntést NEM másolja le, hanem a `formatQuantity`/`parseQuantity` párossal MÉRI vissza (KUKA-009).
 const leaf = (kind, scope) => Object.freeze({ kind, scope });
 const arrayOf = (of) => Object.freeze({ kind: 'array', of });
 const objectOf = (fields) => Object.freeze({ kind: 'object', fields: Object.freeze(new Map(Object.entries(fields))) });
 
 // A TÉTELSOR alakja — EGY helyen, mert a bevét és a kiadás ugyanazt a sort hordozza (KUKA-003).
 const LINE_SHAPE = objectOf({
-  qty: leaf('number', 'keszlet'),
+  qty: leaf('decimal', 'keszlet'),
   sku: leaf('string', 'keszlet'),
   unit_price: leaf('number', 'arak'),
 });
 
 const STOCK_RESULT_SHAPE = objectOf({
-  qty: leaf('number', 'keszlet'),
+  qty: leaf('decimal', 'keszlet'),
   sku: leaf('string', 'keszlet'),
   lines: arrayOf(LINE_SHAPE),
   price: leaf('number', 'arak'),
@@ -153,6 +170,41 @@ function walk(spec, value, path, scopes) {
   }
   if (spec.kind === 'string' && t !== 'string') {
     return { ok: false, reason: 'result_shape_type_mismatch', at: path, detail: 'szöveget vártunk' };
+  }
+  // A MENNYISÉG: KANONIKUS DECIMÁLIS SZÖVEG, az MNY-01 tulajdonosától visszamérve (KUKA-009).
+  //
+  // A JSON-szám itt NEM engedmény-kérdés: a 0,1 lebegőpontos alakja nem pontos, tehát egy `number`
+  // mennyiség a kiadás pillanatában HAMIS adattá válhat. És a szöveg önmagában sem elég: a
+  // `qty: "akármi"` ugyanúgy szöveg. Ezért a levél a KANONIKUS alakot követeli — azt, amit a
+  // `formatQuantity` állít elő —, és a mérés a két feloldó ODA-VISSZA futtatása, nem egy ide másolt
+  // reguláris kifejezés (KUKA-018: ahol két ábrázolás él, a fogyasztó a tulajdonosét kérdezze).
+  if (spec.kind === 'decimal') {
+    if (t === 'number') {
+      return { ok: false, reason: 'result_shape_type_mismatch', at: path,
+        detail: 'a mennyiség KANONIKUS DECIMÁLIS SZÖVEG, nem JSON-szám (MNY-01) — a lebegőpontos '
+          + 'alak a 0,1-et sem ábrázolja pontosan, tehát a kiadott szám hamis lenne' };
+    }
+    if (t !== 'string') {
+      return { ok: false, reason: 'result_shape_type_mismatch', at: path, detail: 'decimális szöveget vártunk' };
+    }
+    // A PROFIL-KÉRDÉS, KIMONDVA (KUKA-045 · KUKA-051). Ez a réteg a TÍPUST és az ADATKÖRT sorolja
+    // be — a CIKKET nem ismeri, tehát a mennyiség profilját sem tudja megkötni. Ha egyetlen,
+    // beégetett profilhoz mérnék, akkor egy MÁSIK tizedes-számú profil születése (amit az MNY-01
+    // kifejezetten megenged) ezt a kaput NÉMÁN pirosra vinné jogos eredményen. Ezért a kérdés
+    // SZABÁLY, nem lista: kanonikus-e VALAMELYIK deklarált profil szerint. A profil KÖTÉSE ott
+    // történik, ahol a cikk ismert — a főkönyvben (KSZ-01) —, és ezt a korlátot a szerződés kiírja.
+    const canonicalUnder = Object.keys(QUANTITY_PROFILES).find((pid) => {
+      const q = parseQuantity(value, { profileId: pid });
+      return q.ok && formatQuantity(q.scaled, pid) === value;
+    });
+    if (!canonicalUnder) {
+      const probe = parseQuantity(value);
+      return { ok: false, reason: 'result_shape_type_mismatch', at: path,
+        detail: probe.ok
+          ? `a mennyiség nem KANONIKUS alakban áll: "${value}" — egyik deklarált profil szerint sem `
+            + `(a ${DEFAULT_PROFILE_ID} szerinti kanonikus alak "${probe.text}")`
+          : `a mennyiség nem érvényes (${probe.error}): ${probe.detail ?? ''}`.trim() };
+    }
   }
   if (!KNOWN_DATA_SCOPES.includes(spec.scope)) {
     return { ok: false, reason: 'result_scope_leaf_unclassified', at: path };

@@ -21,7 +21,8 @@
  * megkerülésről nincs szó; ez TERVEZÉSI kockázat. Amikor a BEJ-01 megépül, a BEM-01 a KÜLSŐ HATÁRON
  * ellenőriz sémát, a belső írók pedig a SAJÁT invariánsaikat tartják — két külön felelősség.
  */
-import { parseQuantity, DEFAULT_PROFILE_ID } from './quantity.mjs';
+import { parseQuantity, quantitySyntaxProblem } from './quantity.mjs';
+import { parseInstant } from './instant.mjs';
 
 const fail = (error, detail, at) => Object.freeze({ ok: false, error, detail: detail ?? null, at: at ?? null });
 
@@ -42,11 +43,20 @@ const TYPES = Object.freeze({
     return Number.isFinite(v) ? null : 'nem véges szám (NaN vagy ±Infinity)';
   },
   boolean: (v) => (typeof v === 'boolean' ? null : `logikai érték kell, kapott: ${describe(v)}`),
-  iso_instant: (v) => {
-    if (typeof v !== 'string') return `ISO időbélyeg kell (szöveg), kapott: ${describe(v)}`;
-    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(v) ? null : 'alak: YYYY-MM-DDTHH:MM:SSZ';
-  },
 });
+
+// Az IDŐPONT — ez is SAJÁT SZERZŐDÉSŰ fajta (IDO-01), mint a mennyiség, nem egyszerű típus-próba.
+//
+// MIÉRT KERÜLT KI A `TYPES`-BÓL (R10-F03). Amíg reguláris kifejezés állt itt, a séma az ALAKOT
+// mérte és a JELENTÉST nem: a `2026-99-99T99:99:99Z` átment. A minta-illesztés fogalmilag nem tud
+// naptárt nézni, tehát nem szigorítani kellett, hanem a kérdést AHHOZ tenni, aki tudja rá a választ
+// (KUKA-039: a szabály EGY otthonban él, és minden olvasó azt hívja). Két következménye van:
+//   · a HIBAKÓD az IDO-01-é marad (`invalid_calendar` · `invalid_format` · `not_a_string`), nem
+//     lapul `invalid_type`-ra — különben a beadó azt hinné, rossz TÍPUST küldött, holott a típus jó
+//     volt, csak a nap nem létezik (KUKA-124/2 · KUKA-064);
+//   · a KANONIKUS alak megy tovább, nem a nyers szöveg (KUKA-029).
+const INSTANT_FIELD = 'iso_instant';
+
 
 /** A TÍPUS LEÍRÁSA — hogy a hibaüzenet megmondja, MIT kapott (KUKA-064: ne legyen zsákutca). */
 function describe(v) {
@@ -60,12 +70,22 @@ function describe(v) {
 // Az ELSŐ D-folyamat egyetlen írás-művelete. Minden mező NEVESÍTVE, kötelezőség kimondva —
 // „opcionális, alapértelmezéssel" ág NINCS: a néma alapértelmezés tiltott (BEM-01).
 export const OPERATION_SCHEMAS = Object.freeze({
+  // A TULAJDONOS ÉS A RAKTÁR NEM A KÉRÉS TÖRZSÉBŐL JÖN — ezért NINCS is a sémában.
+  //
+  // AMI ELŐTTE VOLT, ÉS MIÉRT VOLT ROSSZ (a SAJÁT leletem a KSZ-01 bekötése közben). A séma kérte
+  // az `owner_id`-t és a `warehouse_id`-t, a készletkulcsot viszont a HÍVÓ MEGBÍZHATÓ KÖRNYEZETE
+  // adta (KUKA-047) — tehát a beadó kitölthetett két mezőt, amit a rendszer NÉMÁN eldobott. Ez a
+  // KUKA-041 dísz-vezérlője a bemeneti sémán: a mező látszik, kitölthető, és semmit nem billent.
+  // Két tény ült egy ábrázoláson (KUKA-002): a hatókör a kontextusé, a tartalom a beadóé.
+  //
+  // A MAI ALAK: a kontextus-mező a sémában NINCS — aki mégis küldi, NEVEZETT `unknown_field`
+  // választ kap a séma mezőivel együtt (KUKA-064), nem néma eldobást. A parancs AZONOSSÁGÁBA
+  // viszont a FELOLDOTT kontextus kerül (KSZ-01), különben ugyanaz az ismétlés-kulcs MÁS raktárra
+  // némán „ismétlésnek" látszana.
   'stock.receipt': Object.freeze({
     version: '1',
     fields: Object.freeze({
       item_id: Object.freeze({ type: 'nonempty_string', required: true }),
-      owner_id: Object.freeze({ type: 'nonempty_string', required: true }),
-      warehouse_id: Object.freeze({ type: 'nonempty_string', required: true }),
       // A MENNYISÉG SZÖVEG, és a saját szerződése dönt róla (MNY-01) — a `positive` a MŰVELET
       // tulajdonsága, nem a mezőé: bevétnél a nulla nem mennyiség, hanem „nincs mozgás".
       qty: Object.freeze({ type: 'quantity', required: true, positive: true }),
@@ -81,7 +101,7 @@ export const OPERATION_SCHEMAS = Object.freeze({
  * Az ismeretlen mező ELŐBB dől el, mint a hiányzó: egy elgépelt mezőnév különben „hiányzó
  * kötelezőnek" látszana, és a beadó a rossz dolgot javítaná (KUKA-064).
  */
-export function validateInput({ operation, input, profileId = DEFAULT_PROFILE_ID }) {
+export function validateInput({ operation, input }) {
   // 1. ISMERETLEN MŰVELET — FAIL-CLOSED, a választhatók felsorolásával (KUKA-064).
   const schema = OPERATION_SCHEMAS[operation];
   if (!schema) {
@@ -104,6 +124,7 @@ export function validateInput({ operation, input, profileId = DEFAULT_PROFILE_ID
 
   // 3. HIÁNYZÓ KÖTELEZŐ — a HIÁNY külön válasz, nem „rossz típus" (KUKA-124/2).
   const clean = {};
+  const pendingQuantities = [];
   for (const [name, spec] of Object.entries(schema.fields)) {
     const present = Object.prototype.hasOwnProperty.call(input, name);
     if (!present) {
@@ -114,11 +135,21 @@ export function validateInput({ operation, input, profileId = DEFAULT_PROFILE_ID
 
     // 4. TÍPUS — a NYERS értéken, konverzió NÉLKÜL.
     if (spec.type === 'quantity') {
-      const q = parseQuantity(value, { profileId, positive: Boolean(spec.positive) });
+      // A. SZAKASZ — PROFIL-FÜGGETLEN. Ez a réteg a HATÁRON áll: a CIKKET, és vele a mennyiség
+      // PROFILJÁT még nem ismeri. Ami a profiltól függ (tizedesjegy · plafonok · kanonikus alak), az
+      // a B. SZAKASZ, és ott dől el, ahol a cikk ismert — a főkönyvben (`bindQuantityProfile`).
       // A MENNYISÉG SAJÁT HIBAKÓDJA MEGMARAD (R8 §2): nem lapítjuk `invalid_type`-ra, különben a
       // beadó `precision` helyett `invalid_type`-ot kapna, és mást javítana.
-      if (!q.ok) return fail(q.error, q.detail, name);
-      clean[name] = q.text;          // a KANONIKUS decimális szöveg megy tovább, nem a nyers alak
+      const syn = quantitySyntaxProblem(value);
+      if (syn) return fail(syn.error, syn.detail, name);
+      clean[name] = value;           // a NYERS alak megy tovább — a gyógyítás a profil dolga
+      pendingQuantities.push(name);
+      continue;
+    }
+    if (spec.type === INSTANT_FIELD) {
+      const t = parseInstant(value);
+      if (!t.ok) return fail(t.error, t.detail, name);
+      clean[name] = t.canonical;     // a KANONIKUS UTC-szöveg megy tovább — a főkönyv ezen rendez
       continue;
     }
     const checker = TYPES[spec.type];
@@ -128,7 +159,46 @@ export function validateInput({ operation, input, profileId = DEFAULT_PROFILE_ID
     clean[name] = value;
   }
 
-  return Object.freeze({ ok: true, operation, version: schema.version, value: Object.freeze(clean) });
+  // A VÁLASZ KIMONDJA, MI MARADT NYITVA. Ha a hívó elfelejtené a B. szakaszt, a `profile_bound`
+  // hamis marad, és a főkönyv NEVEZETTEN utasít el — a fél lánc nem csúszhat át némán (KUKA-069).
+  return Object.freeze({
+    ok: true, operation, version: schema.version, value: Object.freeze(clean),
+    quantity_fields: Object.freeze(pendingQuantities), profile_bound: pendingQuantities.length === 0,
+  });
+}
+
+/**
+ * B. SZAKASZ — A MENNYISÉG A CIKK PROFILJÁVAL (a SAJÁT leletem az R10 mérése közben).
+ *
+ * A HÍVÓ akkor hívja, amikor a cikk — és vele a profil — MÁR ismert. Innentől a mennyiség
+ * KANONIKUS alakja a PROFILÉ: a darabos cikknél `"1000"`, a három tizedesesnél `"1000.000"`, és a
+ * kettő NEM ugyanaz a szöveg. Ezért kerül a parancs AZONOSSÁGÁBA is ez az alak, nem a nyers bemenet.
+ *
+ * A HIÁNYZÓ PROFIL NEM ALAPÉRTELMEZÉS, HANEM ZÁR (KUKA-122/2 · BEM-01): ha a hívó nem tudja
+ * megmondani, melyik profil szerint kell érteni a számot, akkor a szám JELENTÉSE ismeretlen — és az
+ * ismeretlen jelentésű mennyiséget nem könyveljük.
+ */
+export function bindQuantityProfile(checked, { profileId } = {}) {
+  if (!checked || checked.ok !== true) return checked;
+  if (!checked.quantity_fields || checked.quantity_fields.length === 0) {
+    return Object.freeze({ ...checked, profile_bound: true });
+  }
+  if (typeof profileId !== 'string' || !profileId) {
+    return fail('profile_required',
+      `a(z) ${checked.quantity_fields.join(', ')} mező mennyiség, a jelentését a CIKK profilja adja — `
+      + 'profil nélkül a szám nem értelmezhető, ezért nem könyveljük');
+  }
+  const schema = OPERATION_SCHEMAS[checked.operation];
+  const bound = { ...checked.value };
+  for (const name of checked.quantity_fields) {
+    const spec = schema.fields[name];
+    const q = parseQuantity(bound[name], { profileId, positive: Boolean(spec && spec.positive) });
+    if (!q.ok) return fail(q.error, q.detail, name);      // a HIBAKÓD az MNY-01-é marad (R8 §2)
+    bound[name] = q.text;                                  // a PROFIL szerinti KANONIKUS alak
+  }
+  return Object.freeze({
+    ...checked, value: Object.freeze(bound), profile_bound: true, qty_profile: profileId,
+  });
 }
 
 export const BEM_CONTRACT = Object.freeze({
@@ -136,10 +206,24 @@ export const BEM_CONTRACT = Object.freeze({
   owns: 'műveletenként a bemenet deklarált alakja',
   operations: Object.freeze(Object.keys(OPERATION_SCHEMAS)),
   error_order: Object.freeze(['unknown_operation', 'invalid_body', 'unknown_field', 'missing_field', 'invalid_type']),
+  // A SAJÁT SZERZŐDÉSŰ MEZŐ-FAJTÁK hibakódja NEM lapul `invalid_type`-ra — kimondva, hogy a
+  // sorrend-lista fölötti kivétel ne legyen néma (R8 §2 · R10-F03).
+  delegates: Object.freeze([
+    Object.freeze({ field_type: 'quantity', contract: 'MNY-01', keeps_error_codes: true, two_stage: true }),
+    Object.freeze({ field_type: 'iso_instant', contract: 'IDO-01', keeps_error_codes: true, two_stage: false }),
+  ]),
+  // A MENNYISÉG KÉT SZAKASZBAN dől el, mert a szerződése FÜGG a cikk profiljától, a cikket pedig ez
+  // a réteg nem ismeri. Az `iso_instant` NEM ilyen: a naptár mindenkinek ugyanaz.
+  quantity_stages: Object.freeze([
+    'A — profil-független: szöveg-e (not_a_string) · decimális alakú-e (invalid_format)',
+    'B — profil-bound, a főkönyvben: precision · out_of_range · must_be_positive · KANONIKUS alak',
+  ]),
   forbids: Object.freeze([
     'Number()/String() konverzió a típus-ellenőrzés ELŐTT',
     'néma alapértelmezés hiányzó mezőre',
     'ismeretlen műveletre megengedő ág',
+    'reguláris kifejezéssel „validált" időpont (R10-F03)',
+    'a mennyiség kanonizálása ALAPÉRTELMEZETT profillal, a cikk profilja helyett',
   ]),
   stated_limit: 'ma NINCS külső határ (HTTP-réteg): 5 deklarált belépési pont · 13 belső író · '
     + '1 mérési segéd. A BEM-01 a BEJ-01 megépülésekor áll a KÜLSŐ határra; a belső írók a SAJÁT '

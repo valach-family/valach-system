@@ -304,7 +304,24 @@ export function disclose({ store, kind, scope, ref, recipient, body, clock, at }
 }
 
 // ── A PARANCS BEFOGADÁSA ────────────────────────────────────────────────────────────────────────
-export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion, declared, resolve, clock, externalEvidence, credentials }) {
+/**
+ * A HATÁS ÜZLETI ELUTASÍTÁSA — NEVEZETT, ÉS A TRANZAKCIÓT VISSZAGÖRDÍTI (R10-F01).
+ *
+ * Miért dobás, és miért nem visszatérési érték: a hatás a `store.tx` BELSEJÉBEN fut, és ha ott
+ * elutasítunk, a MÁR BEÍRT parancs-sornak és nyugtának EL KELL TŰNNIE. A `return` nem görgeti
+ * vissza a tranzakciót — a dobás igen. A hívó oldalon viszont ez NEM programhiba, ezért NEM
+ * szivároghat ki nyers kivételként (KUKA-020): a `submitCommand` elkapja, és nevezett választ ad.
+ */
+export class EffectRejected extends Error {
+  constructor(error, detail) {
+    super(`a hatás elutasítva: ${error}`);
+    this.name = 'EffectRejected';
+    this.error = error;
+    this.detail = detail ?? null;
+  }
+}
+
+export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion, declared, resolve, effect, clock, externalEvidence, credentials }) {
   const scope = commandScope({ bookId, actor, idemKey });
   // A KANONIZÁLÁS TISZTA FELOLDÓ: DOB, ha a bemenet nem eldönthető. A HATÁR viszont nem dobhat
   // ki nyers kivételt a hívóra — az ugyanabba a csatornába kerülne, mint a programhiba
@@ -442,12 +459,68 @@ export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion
     //
     // Ezért a nyugta a `command_event` könyvbe kerül, UGYANEBBEN a tranzakcióban: nyugtát csak
     // megtörtént hatásról adunk, és megtörtént hatás nem maradhat nyugta nélkül.
+    // ── A HATÁS UGYANEBBEN A TRANZAKCIÓBAN (R10-F01 — megtalálta: a KÜLSŐ TÁRGYALÓ FÉL) ────────
+    //
+    // AMI ELŐTTE VOLT, ÉS MIÉRT VOLT ROSSZ. A készlet-bevét (`receiveStock`) SAJÁT tranzakciót
+    // nyitott, és egy MÁR véglegesített parancsot + nyugtát KÉRT. Három mérhető következménye
+    // lett, mind a külső fél programjával kimutatva:
+    //   (1) ugyanaz a hatásazonosító KÉTSZER könyvelt (készlet 20,000 a 10,000 helyett) — az
+    //       ismétlés-védelem a parancs-úton ül, a nyers hívás megkerülte;
+    //   (2) az összegkorlát miatti elutasítás után a parancs `finalized` MARADT, a nyugtájával
+    //       együtt — a kudarc a SIKER nyomát hagyta ott (a KUKA-026 fordítottja);
+    //   (3) egy MÁSIK művelethez véglegesített parancs azonosítójával is lehetett készletet írni.
+    //
+    // A JAVÍTÁS ALAKJA: a hatás nem kap saját tranzakciót, hanem ITT fut — a parancs beírása és a
+    // nyugta UTÁN, ugyanazon az `at` időponton. Így az „egyszer hat" és az „együtt születik vagy
+    // együtt gördül vissza" NEM ígéret, hanem a vezérlés szerkezete (KUKA-024: a viszonyt kell
+    // megépíteni, nem a két oldalt külön).
+    //
+    // A SORREND A TRANZAKCIÓN BELÜL: parancs-sor → NYUGTA → hatás. Ez NEM azt jelenti, hogy „nyugtát
+    // adunk meg nem történt hatásról": a három írás EGY tranzakcióban áll, tehát vagy MIND látszik,
+    // vagy EGYIK SEM — a nyugta csak akkor válik láthatóvá, ha a hatás is átment. A sorrendet a
+    // TÁROLÓ ŐRE kényszeríti ki: a mozgás-sor beszúrása megköveteli a véglegesített parancsot ÉS a
+    // nyugtáját (`stock_movement_requires_receipt`), tehát a hatásnak utolsónak kell futnia. Így az
+    // invariáns nem a hívási sorrend jó szándékán áll, hanem az adatbázison (KUKA-004).
     recordCommandEvent({ store, event: 'command_finalized', scope, effectId, state: 'finalized', clock, at });
+    if (effect) {
+      const e = effect({ store, at, resolved, effectId, scope, type, typeVersion });
+      // A HIÁNY KÜLÖN VÁLASZ a rossz értéktől (KUKA-124/2): ha a hatás nem mond semmit, az
+      // PROGRAMHIBA a hívóban, nem üzleti elutasítás — nem nyeljük el.
+      if (!e || typeof e.ok !== 'boolean') {
+        throw new Error('submitCommand: a hatás nem adott {ok} alakú választ — a bekötés hibás');
+      }
+      if (!e.ok) throw new EffectRejected(e.error || 'effect_rejected', e.detail ?? null);
+    }
     return commandReceipt({ effectId, state: 'finalized', replayed: false });
   });
   // A HATÁLYOSULÁS ELUTASÍTÁSA UGYANAZ A SEMLEGES VÁLASZ, amit a bebocsátás ad: a kérő nem tudhatja
   // meg, MELYIK szakaszon állt meg — a szakasz maga is csatorna lenne (KUKA-084).
   return out.authorized ? out.value : refused;
+}
+
+/**
+ * A PARANCS-ÚT BURKOLÓJA — a hatás elutasítása NEVEZETT válasz, nem kivétel (R10-F01).
+ *
+ * Ez KÜLÖN függvény, mert a `submitCommand` belsejében a dobásnak ÁT KELL MENNIE a `store.tx`-en
+ * (különben nincs visszagörgetés). A `try` tehát csak a tranzakció HATÁRÁN KÍVÜL állhat.
+ *
+ * A KÜLÖNBSÉG, AMIT MEGŐRZÜNK: a jogosultsági elutasítás SEMLEGES (`not_available` — nem árul el
+ * létezést, KUKA-084), az ÜZLETI elutasítás viszont a BEADÓ SAJÁT bemenetéről szól, tehát nevezett
+ * és megmondja, mit kell javítani (KUKA-064). A kettőt nem mossuk egy csatornára (KUKA-070).
+ */
+export function submitCommandWithEffect(args) {
+  try {
+    return submitCommand(args);
+  } catch (e) {
+    if (e instanceof EffectRejected) {
+      return Object.freeze({
+        ok: false, error: e.error, detail: e.detail,
+        effect_id: null, state: null,
+        message: 'a parancs NEM jött létre: sem hatás, sem nyugta nem maradt utána',
+      });
+    }
+    throw e;
+  }
 }
 
 // ── A VÁLASZ KIADÁSA (K07 + K05) ────────────────────────────────────────────────────────────────
