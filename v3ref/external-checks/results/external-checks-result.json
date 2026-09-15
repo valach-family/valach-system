@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-15T11:11:50.669Z",
+  "at": "2026-09-15T11:32:48.828Z",
   "node": "v22.22.2",
   "source": {
     "commit": "948193de8166eec4e027c52a0e212e3797b1583f+uncommitted",
@@ -10,7 +10,13 @@
       "v3ref/external-checks/r59_chatgpt-v3.adapted.mjs",
       "v3ref/external-checks/run-all.mjs",
       "v3ref/manifest.mjs",
-      "v3ref/run.mjs"
+      "v3ref/norms.mjs",
+      "v3ref/run.mjs",
+      "v3ref/store.mjs",
+      "v3ref/catalog.mjs",
+      "v3ref/inputSchema.mjs",
+      "v3ref/ledger.mjs",
+      "v3ref/quantity.mjs"
     ],
     "note": "a lemásolt forráson nem-könyvelt változás áll — a bemondott commit ezért jelölt"
   },
@@ -57,7 +63,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 146,
+      "ms": 138,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -107,7 +113,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 144,
+      "ms": 145,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -166,7 +172,7 @@
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r88core_r88-core-challenge.json",
       "stderr": [
-        "(node:8575) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:23803) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -181,7 +187,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 154,
+      "ms": 146,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -233,7 +239,7 @@
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r85core_r85-core-challenge.json",
       "stderr": [
-        "(node:8589) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:23817) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -248,7 +254,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 272,
+      "ms": 305,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -545,7 +551,7 @@
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r77_r77-core-challenge.json",
       "stderr": [
-        "(node:8603) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:23831) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -560,7 +566,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 145,
+      "ms": 164,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -633,7 +639,7 @@
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r75_r75-core-challenge.json",
       "stderr": [
-        "(node:8617) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:23845) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -648,7 +654,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 147,
+      "ms": 159,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -707,7 +713,7 @@
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r69_r69-core-challenge.json",
       "stderr": [
-        "(node:8631) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:23859) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -722,7 +728,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 150,
+      "ms": 163,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -802,7 +808,7 @@
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r67_r67-core-challenge.json",
       "stderr": [
-        "(node:8645) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:23873) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -817,7 +823,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 1045,
+      "ms": 1086,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -909,7 +915,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 42197,
+      "ms": 44404,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -994,7 +1000,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 40177,
+      "ms": 45602,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -1123,7 +1129,7 @@
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r81core_r81-core-challenge.json",
       "stderr": [
-        "(node:10485) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:25762) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -1138,7 +1144,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 202,
+      "ms": 201,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -1288,7 +1294,7 @@
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r79core_r79-core-challenge.json",
       "stderr": [
-        "(node:11788) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:27061) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -1303,7 +1309,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 104902,
+      "ms": 115675,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -1377,7 +1383,7 @@
         "unchanged": "egyetlen eset · mutáció · elvárás · forráskötés és az időkeret-ÉRVÉNYESÍTÉS sem (a 15 000 ms-os külső és a 12 000 ms-os belső korlát áll) — a merge továbbra is a pontosan egyszeres, azonos forrású egység-készletet fogadja el."
       },
       "exit": 0,
-      "ms": 94128,
+      "ms": 109406,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -1472,7 +1478,7 @@
         "unchanged": "egyetlen eset · mutáció · elvárás · forráskötés és az időkeret-ÉRVÉNYESÍTÉS sem."
       },
       "exit": 0,
-      "ms": 95688,
+      "ms": 114537,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -1559,7 +1565,7 @@
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r57a_r56-challenge.json",
       "stderr": [
-        "(node:17758) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:4164) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -1574,9 +1580,9 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 1,
-      "ms": 15967,
+      "ms": 16013,
       "failure_kind": "wall_clock_timeout",
-      "failure_why": "a program EREDMÉNY NÉLKÜL állt meg, időtúllépésre utaló hibával, és a mért futásidő (15967 ms) elérte a bejelentett belső korlátot (15000 ms) — két jel, KÖZÖS OKBÓL (nem független tanúk; lásd a kimondott korlátot)",
+      "failure_why": "a program EREDMÉNY NÉLKÜL állt meg, időtúllépésre utaló hibával, és a mért futásidő (16013 ms) elérte a bejelentett belső korlátot (15000 ms) — két jel, KÖZÖS OKBÓL (nem független tanúk; lásd a kimondott korlátot)",
       "failure_rows": [],
       "failure_witness_limit": "a két jel (a program hibaszövege és a mért futásidő) UGYANANNAK az eseménynek a következménye, tehát NEM független tanú; és ezen az ágon nincs esetenkénti bizonyíték, mert a program eredmény-fájl nélkül állt meg — a kihagyást a ZÖLD HELYETTES tartja, nem ez a két jel",
       "failure_witness_basis": null,
@@ -1625,7 +1631,7 @@
         "status": 1,
         "signal": null,
         "spawn_error_code": null,
-        "elapsed_ms": 15967,
+        "elapsed_ms": 16013,
         "stderr_tail": [
           "node:internal/child_process:1120",
           "    result.error = new ErrnoException(result.error, 'spawnSync ' + options.file);",
@@ -1633,8 +1639,8 @@
           "Error: spawnSync /opt/node22/bin/node ETIMEDOUT",
           "    at Object.spawnSync (node:internal/child_process:1120:20)",
           "    at spawnSync (node:child_process:902:24)",
-          "    at run (file:///tmp/v3ref-ext-v4YB6V/r59_chatgpt-v3.mjs:11:41)",
-          "    at file:///tmp/v3ref-ext-v4YB6V/r59_chatgpt-v3.mjs:17:12",
+          "    at run (file:///tmp/v3ref-ext-Do48Hx/r59_chatgpt-v3.mjs:11:41)",
+          "    at file:///tmp/v3ref-ext-Do48Hx/r59_chatgpt-v3.mjs:17:12",
           "    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)",
           "    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)",
           "    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5) {",
@@ -1642,7 +1648,7 @@
           "  code: 'ETIMEDOUT',",
           "  syscall: 'spawnSync /opt/node22/bin/node',",
           "  path: '/opt/node22/bin/node',",
-          "  spawnargs: [ '/tmp/v3ref-ext-v4YB6V/source/v3ref/mutate.mjs' ]",
+          "  spawnargs: [ '/tmp/v3ref-ext-Do48Hx/source/v3ref/mutate.mjs' ]",
           "}",
           "Node.js v22.22.2"
         ],
@@ -1654,7 +1660,7 @@
       },
       "env_obstacle": {
         "excusable": true,
-        "why": "a program EREDMÉNY NÉLKÜL állt meg, időtúllépésre utaló hibával, és a mért futásidő (15967 ms) elérte a bejelentett belső korlátot (15000 ms) — két jel, KÖZÖS OKBÓL (nem független tanúk; lásd a kimondott korlátot) — és a megnevezett helyettes (r59a) ZÖLD, és MÁS ALAK: MÁS alak, mint az eredeti (r59_chatgpt-v3.mjs): 29f037fbf034… ≠ 80adb50a6986…",
+        "why": "a program EREDMÉNY NÉLKÜL állt meg, időtúllépésre utaló hibával, és a mért futásidő (16013 ms) elérte a bejelentett belső korlátot (15000 ms) — két jel, KÖZÖS OKBÓL (nem független tanúk; lásd a kimondott korlátot) — és a megnevezett helyettes (r59a) ZÖLD, és MÁS ALAK: MÁS alak, mint az eredeti (r59_chatgpt-v3.mjs): 29f037fbf034… ≠ 80adb50a6986…",
         "declared_kind": "wall_clock_timeout",
         "measured_kind": "wall_clock_timeout"
       },
@@ -1672,9 +1678,9 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 35755,
+      "ms": 36159,
       "failure_kind": "wall_clock_timeout",
-      "failure_why": "MÉRT időtúllépés (2 eset: E02 · E03) — minden más eset zöld, és a mért futásidő (35755 ms) elérte a bejelentett belső korlátot (15000 ms)",
+      "failure_why": "MÉRT időtúllépés (2 eset: E02 · E03) — minden más eset zöld, és a mért futásidő (36159 ms) elérte a bejelentett belső korlátot (15000 ms)",
       "failure_rows": [
         {
           "id": "T01",
@@ -1768,7 +1774,7 @@
       "ok": false,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r57_r56-challenge.json",
       "stderr": [
-        "(node:21012) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:11184) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -1776,9 +1782,9 @@
         "status": 0,
         "signal": null,
         "spawn_error_code": null,
-        "elapsed_ms": 35755,
+        "elapsed_ms": 36159,
         "stderr_tail": [
-          "(node:21012) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+          "(node:11184) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
           "(Use `node --trace-warnings ...` to show where the warning was created)"
         ],
         "stdout_tail": [
@@ -1791,11 +1797,11 @@
           "  },",
           "  {",
           "    \"id\": \"E02\",",
-          "    \"test_error\": \"Error: spawnSync /opt/node22/bin/node ETIMEDOUT\\n    at Object.spawnSync (node:internal/child_process:1120:20)\\n    at spawnSync (node:child_process:902:24)\\n    at run (file:///tmp/v3ref-ext-v4YB6V/r57_chatgpt-v3.mjs:17:43)\\n    at file:///tmp/v3ref-ext-v4YB6V/r57_chatgpt-v3.mjs:43:504\\n    at copy (file:///tmp/v3ref-ext-v4YB6V/r57_chatgpt-v3.mjs:15:136)\\n    at file:///tmp/v3ref-ext-v4YB6V/r57_chatgpt-v3.mjs:43:272\\n    at add (file:///tmp/v3ref-ext-v4YB6V/r57_chatgpt-v3.mjs:14:73)\\n    at file:///tmp/v3ref-ext-v4YB6V/r57_chatgpt-v3.mjs:43:252\"",
+          "    \"test_error\": \"Error: spawnSync /opt/node22/bin/node ETIMEDOUT\\n    at Object.spawnSync (node:internal/child_process:1120:20)\\n    at spawnSync (node:child_process:902:24)\\n    at run (file:///tmp/v3ref-ext-Do48Hx/r57_chatgpt-v3.mjs:17:43)\\n    at file:///tmp/v3ref-ext-Do48Hx/r57_chatgpt-v3.mjs:43:504\\n    at copy (file:///tmp/v3ref-ext-Do48Hx/r57_chatgpt-v3.mjs:15:136)\\n    at file:///tmp/v3ref-ext-Do48Hx/r57_chatgpt-v3.mjs:43:272\\n    at add (file:///tmp/v3ref-ext-Do48Hx/r57_chatgpt-v3.mjs:14:73)\\n    at file:///tmp/v3ref-ext-Do48Hx/r57_chatgpt-v3.mjs:43:252\"",
           "  },",
           "  {",
           "    \"id\": \"E03\",",
-          "    \"test_error\": \"Error: spawnSync /opt/node22/bin/node ETIMEDOUT\\n    at Object.spawnSync (node:internal/child_process:1120:20)\\n    at spawnSync (node:child_process:902:24)\\n    at run (file:///tmp/v3ref-ext-v4YB6V/r57_chatgpt-v3.mjs:17:43)\\n    at file:///tmp/v3ref-ext-v4YB6V/r57_chatgpt-v3.mjs:43:504\\n    at copy (file:///tmp/v3ref-ext-v4YB6V/r57_chatgpt-v3.mjs:15:136)\\n    at file:///tmp/v3ref-ext-v4YB6V/r57_chatgpt-v3.mjs:43:272\\n    at add (file:///tmp/v3ref-ext-v4YB6V/r57_chatgpt-v3.mjs:14:73)\\n    at file:///tmp/v3ref-ext-v4YB6V/r57_chatgpt-v3.mjs:43:252\"",
+          "    \"test_error\": \"Error: spawnSync /opt/node22/bin/node ETIMEDOUT\\n    at Object.spawnSync (node:internal/child_process:1120:20)\\n    at spawnSync (node:child_process:902:24)\\n    at run (file:///tmp/v3ref-ext-Do48Hx/r57_chatgpt-v3.mjs:17:43)\\n    at file:///tmp/v3ref-ext-Do48Hx/r57_chatgpt-v3.mjs:43:504\\n    at copy (file:///tmp/v3ref-ext-Do48Hx/r57_chatgpt-v3.mjs:15:136)\\n    at file:///tmp/v3ref-ext-Do48Hx/r57_chatgpt-v3.mjs:43:272\\n    at add (file:///tmp/v3ref-ext-Do48Hx/r57_chatgpt-v3.mjs:14:73)\\n    at file:///tmp/v3ref-ext-Do48Hx/r57_chatgpt-v3.mjs:43:252\"",
           "  },",
           "  {",
           "    \"id\": \"E04\",",
@@ -1810,7 +1816,7 @@
       },
       "env_obstacle": {
         "excusable": true,
-        "why": "MÉRT időtúllépés (2 eset: E02 · E03) — minden más eset zöld, és a mért futásidő (35755 ms) elérte a bejelentett belső korlátot (15000 ms) — és a megnevezett helyettes (r57a) ZÖLD, és MÁS ALAK: MÁS alak, mint az eredeti (r57_chatgpt-v3.mjs): 7d1b8731b2e7… ≠ 5ce2ad7bafd1…",
+        "why": "MÉRT időtúllépés (2 eset: E02 · E03) — minden más eset zöld, és a mért futásidő (36159 ms) elérte a bejelentett belső korlátot (15000 ms) — és a megnevezett helyettes (r57a) ZÖLD, és MÁS ALAK: MÁS alak, mint az eredeti (r57_chatgpt-v3.mjs): 7d1b8731b2e7… ≠ 5ce2ad7bafd1…",
         "declared_kind": "wall_clock_timeout",
         "measured_kind": "wall_clock_timeout"
       },
@@ -1828,7 +1834,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 40667,
+      "ms": 39562,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -1887,7 +1893,7 @@
       "ok": true,
       "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r55_restated.json",
       "stderr": [
-        "(node:22085) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:12179) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -1902,7 +1908,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 1735,
+      "ms": 1707,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
