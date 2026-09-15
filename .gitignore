@@ -22,3 +22,9 @@ var/*
 # SZÁRMAZTATOTT — a mutációs battéria EGYSÉG-részeredményei (RUN-02, R79 §6). A teljes
 # összefoglalót a `--merge` állítja elő; a rész-fájlok futásonként újraszületnek.
 v3ref/units/
+
+# A külső-ellenőrző programok ÁTMENETI kimenete. A megőrzött, KÖVETETT otthon a
+# `v3ref/external-checks/results/` — oda másolja a futtató a részletes eredményt, azt méri a
+# söprés, és az kerül a repóba. Ami itt keletkezik, az a futás közbeni munkapéldány (KUKA-018:
+# egy fogalomnak EGY otthona).
+v3ref/external-checks/evidence/
