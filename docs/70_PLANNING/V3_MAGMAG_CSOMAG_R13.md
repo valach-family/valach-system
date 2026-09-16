@@ -250,9 +250,13 @@ eltérések jönnek ki, és **HÁROM, egymástól független okra** bomlanak. Az
 tartom, mert három külön teendő (KUKA-124/2).
 
 > **HELYESBÍTÉS — ennek a szakasznak az ELSŐ alakja „öt esetet, két okot" mondott.** A lezárt
-> állapoton az összesítő SAJÁT verdikt-listáját tételesen felolvasva a kép ez:
+> állapoton az összesítő SAJÁT verdikt-listáját tételesen felolvasva a kép ez volt:
 > **12 zöld · 2 nevezett env-kihagyás (`r57` · `r59`) · NÉGY PIROS.** A negyedik piros a MI SAJÁT
 > önvizsgálati programunk (`r79`), és az első alak nem nevezte meg — lásd **§9/e**.
+>
+> **A JAVÍTÁS UTÁNI, MAI MÉRÉS:** `13 zöld · 2 env-kihagyás · HÁROM piros` (`r77` · `r79core` ·
+> `r81core`) — a saját programunk (`r79`) zöld. A maradék három a TÁRGYALÁS tárgya (§9/a · §9/b),
+> nem a mi mulasztásunk: a mennyiség-szerződés, illetve az ő programjuk saját darabolása.
 
 ### 9/a. „A" OK — AZ ÉN SZERZŐDÉS-VÁLTOZTATÁSOM (öt eset)
 
@@ -369,6 +373,9 @@ KÍSÉRŐ fájlokat viszi magával — a fölé nyúló behúzás ott nem oldód
 ELŐTT halt meg (`ERR_MODULE_NOT_FOUND`, **57 ms**), miközben a forrás-olvasó ellenőrzésem ZÖLD volt
 (KUKA-038 · KUKA-130). A modul ezért a program MELLÉ került, kísérőként deklarálva, és az UAD08 ezt a
 deklarációt is méri. **Élő próba:** `run-all.mjs --only r79` → **4/4 eset zöld**.
+
+**A MAI ÁLLAPOT:** a lánc `13/18 MEGFELEL · 2 env-kihagyás · 3 eltérés` — a három a §9/a és §9/b
+okaira bomlik, a mi saját programunk zöld.
 
 **A TANULSÁG, amit magamról mondok ki:** a 10. pont „öt eset, két okból" mondata nem mérés volt,
 hanem a VÁRAKOZÁSOM. Az összesítőnek SAJÁT verdikt-listája van; azt tételesen kell felolvasni.

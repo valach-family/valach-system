@@ -1,36 +1,45 @@
 {
-  "source_commit": "75eaea5d51412dfc8b3d034c01414aeef7da8e36",
+  "source_commit": "0285bfa101adc734687ac3d4369f5f437f93a187",
   "node": "v22.22.2",
-  "at": "2026-09-15T20:46:18.011Z",
+  "at": "2026-09-16T01:01:46.400Z",
   "cap_ms": 15000,
   "cases": [
     {
       "id": "U04",
       "expected": "Untouched chunked run: every unit fits the external cap and the merge is complete and clean.",
-      "pass": false,
+      "pass": true,
       "units": [
-        "unit-1-of-4.json",
-        "unit-2-of-4.json",
-        "unit-3-of-4.json",
-        "unit-4-of-4.json"
+        "unit-1-of-7.json",
+        "unit-2-of-7.json",
+        "unit-3-of-7.json",
+        "unit-4-of-7.json",
+        "unit-5-of-7.json",
+        "unit-6-of-7.json",
+        "unit-7-of-7.json"
       ],
       "unit_exits": [
-        1,
         0,
-        1,
-        1
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
       ],
-      "merge_exit": 1,
+      "merge_exit": 0,
       "unit_walls": [
-        12261,
-        11807,
-        12257,
-        12011
+        8653,
+        7837,
+        8330,
+        7909,
+        8673,
+        7777,
+        7833
       ],
       "cap_ms": 15000,
       "run_state": "complete",
       "clean": true,
-      "portable": false,
+      "portable": true,
       "coverage": {
         "expected": 145,
         "seen": 145,
@@ -55,10 +64,10 @@
       "merge_exit": 2,
       "run_state": "incomplete",
       "clean": null,
-      "missing_count": 108,
+      "missing_count": 124,
       "why": [
-        "HIÁNYZÓ mutáció — nincs RÉSZLETES eredménye (108): M2, M3, M4, M6, M7, M8, M10, M11, M12, M14, M15, M16, M17, M18, M19, M21, M22, M23, M25, M28, M29, M31, M32, M33, M35, M36, M37, M39, M40, M41, M43, M44, M47, M49, M50, M51, M53, M54, M55, M57, M58, M59, M61, M62, M63, M65, M66, M67, M71, M72, M68, M73, M74, M75, M77, M78, M79, M81, M82, M83, M85, M86, M87, M89, M90, M91, M93, M94, M95, M97, M98, M99, M101, M102, M103, M105, M106, M107, M109, M110, M111, M113, M114, M115, M117, M118, M119, M121, M122, M123, M125, M126, M127, M129, M130, M131, M133, M134, M135, M137, M138, M139, M141, M142, M143, M145, M146, M147",
-        "hiányzó kötelező bizonyíték (REV-N1a: not_falsified, REV-N3a: not_falsified, REV-N3b: not_falsified, REV-N3c: not_falsified, REV-N5a: not_falsified, REV-N5b: not_falsified, REV-N2a: not_falsified, REV-N2b: not_falsified)"
+        "HIÁNYZÓ mutáció — nincs RÉSZLETES eredménye (124): M2, M3, M4, M5, M6, M7, M9, M10, M11, M12, M13, M14, M16, M27, M17, M18, M19, M20, M22, M23, M24, M25, M28, M29, M31, M32, M33, M34, M35, M36, M38, M39, M40, M41, M42, M43, M47, M48, M49, M50, M51, M52, M54, M55, M56, M57, M58, M59, M61, M62, M63, M64, M65, M66, M70, M71, M72, M68, M69, M73, M75, M76, M77, M78, M79, M80, M82, M83, M84, M85, M86, M87, M89, M90, M91, M92, M93, M94, M96, M97, M98, M99, M100, M101, M103, M104, M105, M106, M107, M108, M110, M111, M112, M113, M114, M115, M117, M118, M119, M120, M121, M122, M124, M125, M126, M127, M128, M129, M131, M132, M133, M134, M135, M136, M138, M139, M140, M141, M142, M143, M145, M146, M147, M148",
+        "hiányzó kötelező bizonyíték (REV-N1a: not_falsified, REV-N1b: not_falsified, ORG-N2a: not_falsified, REV-N3a: not_falsified, REV-N3b: not_falsified, REV-N3c: not_falsified, REV-N5a: not_falsified, REV-N5b: not_falsified, REV-N5c: not_falsified, REV-N2a: not_falsified, REV-N2b: not_falsified)"
       ]
     },
     {
@@ -68,9 +77,9 @@
       "merge_exit": 2,
       "run_state": "incomplete",
       "clean": null,
-      "original_digest": "sha256:6ff64bd8ac30e88a1855d1980d27a9bce12e13948dea3e9cb31fef4a25f35392",
+      "original_digest": "sha256:878c28cb98f72e95e3bf43621259a0bdeddf8edf098996466890548323221362",
       "why": [
-        "MÁS FORRÁSRA hivatkozó egység (unit-2-of-4.json) — mai lenyomat: sha256:6ff64bd8ac30e88a1855d1980d27a9bce12e13948dea3e9cb31fef4a25f35392"
+        "MÁS FORRÁSRA hivatkozó egység (unit-2-of-7.json) — mai lenyomat: sha256:878c28cb98f72e95e3bf43621259a0bdeddf8edf098996466890548323221362"
       ]
     }
   ]
