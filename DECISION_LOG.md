@@ -69,10 +69,16 @@ deklarálva" leletnek látszott volna. **A mérő hibáját nem jelentem a rends
 tizenhat klauzulát" mondott, miközben a regiszter HÚSZAT hordoz és a lánc 72 sort. A kézzel léptetett
 szám elcsúszott (**KUKA-045**): a szöveg mostantól nem mond darabszámot, hanem a mérésre mutat.
 
-**6. KÖRNYEZETI VESZTESÉG — KIMONDVA.** Az OB-7 leképezést KÉTSZER állítottam elő: az első,
-22 ügynökös menet eredménye a **futtatókörnyezet konténerének újraindulásával elveszett** (a
-munkaterület és a futás naplója egyaránt), a K0 ága és négy ellenőrző ügynök pedig **kvóta-korlátba**
-ütközött. A mai leképezés NEM visszaemlékezés: GENERÁTORBÓL jön, ami a repóban áll — ez erősebb, mint
+**6. KÖRNYEZETI VESZTESÉG — KIMONDVA, ÉS EGY SAJÁT OK-HELYESBÍTÉS.** Az OB-7 leképezést KÉTSZER
+állítottam elő: az első, 22 ügynökös menet eredménye a **futtatókörnyezet konténerének
+újraindulásával elveszett** (a munkaterület és az ügynök-naplók — mérve: 0 alügynök-napló maradt), a
+K0 ága és négy ellenőrző ügynök pedig **kvóta-korlátba** ütközött (a munkamenet leírója: a hét napos
+keret `rejected`, az extra használat szervezeti szinten letiltva). **A kör KÖLTSÉGÉRE viszont ELŐSZÖR
+TÉVES OKOT ÍRTAM:** azt mondtam, a kör-jelölőt hordozó napló is elveszett. Mérve NEM igaz — egyetlen
+napló van, egyetlen munkamenet-azonosítóval, 14:21:23-tól folyamatosan, az újrainduláson ÁT. A valódi
+ok: a napló a BESZÉLGETÉS-ÖSSZEFOGLALÓ határánál kezdődik, a kört NYITÓ üzenet nincs benne, a jelölő
+pedig nyolcszor előfordul, de MIND EMLÍTÉSKÉNT (összefoglaló · eszköz-eredmény) — a mérő ezért nem
+nyitott csomagot, és ez a KUKA-134 / R90 §3 szabály HELYES tüzelése, nem hiba. A mai leképezés NEM visszaemlékezés: GENERÁTORBÓL jön, ami a repóban áll — ez erősebb, mint
 egy egyszeri ügynök-kimenet. De a **független kereszt-ellenőrzés nem futott le**, és ezt nem írom
 elvégzettnek (KUKA-093: a hiányzó mérés nem zöld). Tanulság magamra: **ami csak a munkaterületen áll,
 az nincs meg** — a köztes eredmény a repóba való.

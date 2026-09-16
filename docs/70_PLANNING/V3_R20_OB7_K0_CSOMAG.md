@@ -358,8 +358,12 @@ a mérésben. **A saját mérőm hibáját nem jelentem a rendszer hibájaként*
 Ebben a körben az OB-7 leképezést **kétszer** állítottam elő. Az első menet 22 ügynökös, párhuzamos
 feldolgozás volt (nyolc norma leképezése + nyolc független ellenőrzés + a K0 négy ága + cáfolás), és
 **a futtatókörnyezet konténere újraindult**, mielőtt az eredményt a repóba mentettem volna: a
-munkaterület és a futás naplója egyaránt elveszett. Ugyanebben a menetben a K0 ága és négy
-ellenőrző ügynök **kvóta-korlátba** ütközött, tehát le sem futott.
+munkaterület (`scratchpad`) és az ügynök-naplók elvesztek — **mérve: 0 alügynök-napló** van a gépen.
+A fő beszélgetés naplója viszont MEGMARADT (lásd a §7/c helyesbítését). Ugyanebben a menetben a K0
+ága és négy ellenőrző ügynök **kvóta-korlátba** ütközött, tehát le sem futott: a munkamenet leírója
+szerint a **hét napos keret KIMERÜLT** (`status: rejected` · `rateLimitType: seven_day`), és az extra
+használat ezen a szervezeten **le van tiltva** (`isUsingOverage: false` ·
+`overageDisabledReason: org_level_disabled_until`).
 
 **Amit ebből jelenteni kell, és amit nem:**
 
@@ -455,9 +459,16 @@ FIGYELEM: NULLA kérés — a kör-jelölő nem talált egyetlen turnt sem. Ez M
 hiba, nem nulla költség (KUKA-012: az üres és az elérhetetlen nem ugyanaz).
 ```
 
-**Az ok mérve:** a futtatókörnyezet konténere a kör közben újraindult (§5/c), és az a napló, amelyik
-a kör jelölőjét hordozta, elveszett. A mai napló a jelölést nem tartalmazza, ezért egyetlen kérése
-sem számítható ehhez a csomaghoz — *a kapcsolat HIÁNYA nem hozzászámítás* (az Önök R90-M01 szabálya).
+**AZ OKOT ELŐSZÖR TÉVESEN ÍRTAM LE, ÉS JAVÍTOM.** Az első alak azt mondta, hogy a naplót a konténer
+újraindulása vitte el. **Mérve ez NEM igaz:** egyetlen naplófájl van, egyetlen munkamenet-azonosítóval,
+és az **14:21:23-tól folyamatosan fut** a 15:12-es újrainduláson ÁT — tehát a napló túlélte.
+
+**A valódi ok, mérve:** ez a napló a **beszélgetés-összefoglaló határánál kezdődik**, és a kört NYITÓ
+operátori üzenet már nem ebben a fájlban áll. A `CMD-VS-300-002-002 R18` jelölő **nyolcszor** előfordul
+benne — de MIND a nyolc puszta EMLÍTÉS: az összefoglalóban és eszköz-eredményekben (beolvasott fájlok
+szövegében), **egyszer sem elsődleges, deklaráló üzenetként**. A mérő ezért nem nyitott csomagot — és
+**ez pontosan az Önök R90 §3 szabálya, helyesen tüzelve** (KUKA-134: ami csak ELŐFORDUL, az idézet; ami
+DEKLARÁL, az szerkezeti helyen áll). A kapcsolat hiánya nem hozzászámítás (R90-M01).
 
 **És a mérő HELYESEN viselkedett:** nulla kérésre **megtagadta** a v3-progress boríték kiírását —
 nem írt ki egy hihető nullát. Az alábbi blokk ezért **DEKLARÁCIÓ a kör megtörténtéről**, minden
