@@ -560,6 +560,24 @@ export const OPEN_BLOCKERS = Object.freeze([
       + 'szerződés-azonosítóval ÉS a szerződés verziójával együtt, hogy a kötés a KONKRÉT alakhoz '
       + 'szóljon, ne a névhez (R55/F04 elve).',
   }),
+  Object.freeze({
+    id: 'OB-10', title: 'A SÖPRÉS A SZÖVEGET OLVASSA, NEM A VERDIKTET — a piros lánc kihagyásnak látszik',
+    why: 'MÉRVE (az R13 lezárása UTÁN): a verify:external-checks a söprésen BELÜL LEFUTOTT — mind a '
+      + '18 program eredmény-fájlját kiírta, és az összesítőbe ok:false verdiktet rögzített '
+      + '(12 zöld a 18-ból, hat eltérő programmal) —, a söprés mégis env-kihagyásnak sorolta. Az ok '
+      + 'a tools/vs_verify_sweep.mjs osztályozása: env-kihagyásnak minősít minden bukott ellenőrzőt, '
+      + 'amelynek KIMENETÉBEN BÁRHOL szerepel az ENV-KIHAGYAS szó. A lánc jelentése viszont JOGOSAN '
+      + 'tartalmazza ezt, mert a 18 programjából kettőt ő maga hagy ki: a verifier SAJÁT, szabályos '
+      + 'jelentése nyelte el a SAJÁT piros verdiktjét. Ez a KUKA-009 alakja a söprésen — a jel a '
+      + 'SZÖVEGET olvassa, nem a VISELKEDÉST méri. A kár konkrét: a kör riportja emiatt mondott '
+      + '0 pirosat egy piros lánc mellett.',
+    closes_when: 'A söprés a verifier SAJÁT, gépi VERDIKTJÉBŐL dönt (nem a kimenet részszövegéből), '
+      + 'és az env-kihagyás csak TELJES futás-kihagyásra áll — MINDKÉT irányban falszifikálva: egy '
+      + 'valóban környezet-hiányos verifier maradjon kihagyás, egy lefutott és bukott verifier legyen '
+      + 'PIROS. Azért NEM ebben a körben javítva, mert ebben a repóban ma NINCS valódi '
+      + 'környezet-hiányos verifier, amivel az ELLENPÁR mérhető volna (KUKA-049: ellenpár nélkül a '
+      + 'szigorítás jogos futásokat zárhat ki), és a szabály a V2 söprésével KÖZÖS.',
+  }),
 ]);
 
 // ═══ AZ ÖNELLENŐRZÉS — KAPU, NEM FELIRAT ═══════════════════════════════════════════════════════

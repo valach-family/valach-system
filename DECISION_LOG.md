@@ -94,6 +94,34 @@ regresszió. A 7-egységes bontás mindkét forráson befér.
 legrosszabb egység **8260 ms** (külső korlát 15 000 ms). Új mutációk: **M138–M148**; az **M37**
 újrahorgonyozva, az **M90** lefedettsége visszaállítva a szám-levélre (mérve: e nélkül TÚLÉLT).
 
+**11. HELYESBÍTÉS — a kör jelentése „0 pirosat" mondott egy PIROS söprésre.** A kör riportja
+`8 zöld · 1 env-kihagyás · 0 piros` söprést jelentett. A LEZÁRT állapoton újrafuttatva **ez nem
+igaz**, két külön okból, és mindkettőt kiírom:
+
+*(a) A „env-kihagyás" TÉVES MINŐSÍTÉS, nem gyengébb állítás.* A fenti 10. pont azt rögzítette, hogy a
+söprés kihagyásnak jelölte a külső láncot, „amit én megmértem". Az viszont elmaradt, hogy a kihagyás
+MAGA is hibás: a bizonyíték-fájlok időbélyege megmutatta, hogy a `verify:external-checks`
+**a söprésen BELÜL LEFUTOTT** — mind a 18 program eredmény-fájlját kiírta, és az összesítőbe
+`ok:false` verdiktet rögzített (12 zöld a 18-ból). A söprés osztályozása
+(`tools/vs_verify_sweep.mjs`) minden bukott ellenőrzőt kihagyásnak minősít, amelynek KIMENETÉBEN
+BÁRHOL szerepel az „ENV-KIHAGYÁS" szó — a lánc SAJÁT, szabályos jelentése pedig jogosan tartalmazza
+ezt (két programot ő maga hagy ki). **A verifier saját jelentése nyelte el a saját piros
+verdiktjét** (KUKA-009 a söprésen: a jel a SZÖVEGET olvassa, nem a VISELKEDÉST méri). Nevesített
+blokkoló: **OB-10**. **NEM javítottam**, mert a szigorításhoz ELLENPÁR kell (egy valóban
+környezet-hiányos verifier, ami a szigorítás után is kihagyás marad); ilyen ebben a repóban ma nincs,
+a szabály pedig a V2 söprésével KÖZÖS (KUKA-049).
+
+*(b) A söprés PIROSAT is adott, és azt a kör riportja nem tartalmazta.* A `verify:v3ref` a mutációs
+battériát még **4 részben** futtatta, és a 2/4 szelet **12 071 ms** lett a saját **12 000 ms**-os
+költségvetésével szemben — ugyanaz az állapot, amit a 10/„B" pont a KÜLSŐ korlátra mér, csak a
+futásonkénti zajon billegve (az előző söprés ugyanezzel a bontással még zöld volt, ezért mondott a
+riport 0 pirosat). **Javítva a szerszám saját előírása szerint:** a bontás **7 részre**
+(`package.json` → `v3ref:mutate:units`). Mérve utána: legrosszabb szelet **7569 ms** (a költségvetés
+50%-a), `145/145 elkapva`, `RESULT: TELJES ÉS TISZTA`, exit 0. A költségvetést NEM nyújtottam meg.
+
+**A lezárt állapot söprése tehát: 7 zöld · 1 TÉVES „env-kihagyás" (valójában piros lánc) · 1 piros,
+amit ez a pont javít.** A boardra NOTE megy, ami az eredeti „0 piros" mondatot visszavonja.
+
 ---
 
 ## D-VS-3031 — A BIZONYÍTÉK A HELYES KLAUZULÁN (R8-F01), ÉS AZ ADAPTÁLT PROGRAM AZONOSSÁGA (R8 §3)

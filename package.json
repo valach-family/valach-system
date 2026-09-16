@@ -22,6 +22,6 @@
     "verify:v3ref": "node v3ref/run.mjs && npm run --silent v3ref:mutate:units",
     "verify:external-checks": "node v3ref/external-checks/run-all.mjs",
     "verify:capability-witness": "node tools/vs_verify_capability_witness.mjs",
-    "v3ref:mutate:units": "node v3ref/mutate.mjs --unit=1/4 && node v3ref/mutate.mjs --unit=2/4 && node v3ref/mutate.mjs --unit=3/4 && node v3ref/mutate.mjs --unit=4/4 && node v3ref/mutate.mjs --merge"
+    "v3ref:mutate:units": "node v3ref/mutate.mjs --unit=1/7 && node v3ref/mutate.mjs --unit=2/7 && node v3ref/mutate.mjs --unit=3/7 && node v3ref/mutate.mjs --unit=4/7 && node v3ref/mutate.mjs --unit=5/7 && node v3ref/mutate.mjs --unit=6/7 && node v3ref/mutate.mjs --unit=7/7 && node v3ref/mutate.mjs --merge"
   }
 }

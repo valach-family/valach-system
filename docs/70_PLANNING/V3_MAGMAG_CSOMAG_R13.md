@@ -24,7 +24,7 @@ mérés, az ki van mondva.
 | memória-őr | **262/262 PASS** | `node tools/vs_verify_kuka.mjs` |
 | tanulság-archívum | **161 bejegyzés**, soronkénti lenyomat-alapvonal v2 | `contracts/kukaArchiveBaseline.json` |
 | döntés-napló | **33 bejegyzés** (D-VS-3000…3032) | `DECISION_LOG.md` |
-| söprés | **9 verifier, 631 s: 8 zöld · 1 env-kihagyás · 0 piros** | `npm run verify:sweep` |
+| söprés | **HELYESBÍTVE — lásd §9/c és §9/d**: a lezárt állapoton 7 zöld · 1 TÉVES „env-kihagyás” · 1 piros | `npm run verify:sweep` |
 
 ### 1/b. A tervlapok — MEGVANNAK, és MIT KÖTNEK
 
@@ -287,9 +287,37 @@ A külső korlát **15 000 ms**, tehát a 4-egységes bontás **már az R9 előt
 befér (ma: legrosszabb 8 260 ms). A teendő tehát a DARABOLÁS száma, és ez a mérő szerződésének
 kérdése, nem a magé.
 
-### 9/c. Amit ebből kimondok magamról
+### 9/c. HELYESBÍTÉS — a söprés „env-kihagyása” TÉVES MINŐSÍTÉS, nem gyengébb állítás
 
-A söprés „env-kihagyás" sora **elfedett egy piros láncot**. A kihagyás nem hazudott (a söprés
-környezetet hibáztatott), de GYENGÉBB állítás volt a valóságnál, és a gyengébb állítás zöldnek
-látszik. Ez a KUKA-089 a saját söprésemen — és azért írom ide, mert e nélkül a lap azt sugallná,
-hogy a kör tisztán zárult.
+**Ennek a szakasznak az ELSŐ alakja is tévedett, és ezt kijavítom.** Azt írtam, hogy a söprés
+env-kihagyása „nem hazudott, csak gyengébb állítás volt a valóságnál”. **Mérve ez nem igaz.**
+
+A kör lezárása után a söprést újra lefuttattam a lezárt állapoton, és a bizonyíték-fájlok
+időbélyege megmutatta: a `verify:external-checks` **a söprésen BELÜL LEFUTOTT** — mind a 18 program
+eredmény-fájlját kiírta, és az összesítőbe `ok:false` verdiktet rögzített (12 zöld a 18-ból, hat
+eltérő programmal). A söprés ennek ellenére „env-kihagyásnak” sorolta.
+
+**Az ok a söprés osztályozása** (`tools/vs_verify_sweep.mjs`): env-kihagyásnak minősít minden bukott
+ellenőrzőt, amelynek kimenetében BÁRHOL szerepel az „ENV-KIHAGYÁS” szó. A lánc jelentése viszont
+JOGOSAN tartalmazza ezt — a 18 programjából kettőt ő maga hagy ki. **A verifier saját, szabályos
+jelentése nyelte el a saját piros verdiktjét.** Ez a KUKA-009 a söprésen: a jel a SZÖVEGET olvassa,
+nem a VISELKEDÉST méri.
+
+**A kár konkrét:** a kör riportja emiatt mondott „8 zöld · 1 env-kihagyás · **0 piros**”-t,
+miközben a lánc piros volt. **Nevesített blokkoló: OB-10.**
+
+**Amit NEM javítottam, és miért:** a szabály szigorításához ELLENPÁR kell — egy valóban
+környezet-hiányos verifier, ami a szigorítás után is kihagyás marad. Ebben a repóban ma ilyen
+NINCS (a söprés egyetlen kihagyása épp ez a téves eset), a szabály pedig a V2 söprésével KÖZÖS.
+Ellenpár nélkül szigorítani annyi, mint jogos futásokat kizárni (KUKA-049).
+
+### 9/d. A `verify:v3ref` időkorlátja — MEGMÉRVE ÉS JAVÍTVA
+
+A lezárt állapoton a söprés PIROSAT is adott: a `verify:v3ref` a mutációs battériát **4 részben**
+futtatta, és a 2/4 szelet **12 071 ms** lett a saját **12 000 ms**-os költségvetésével szemben. Ez
+ugyanaz az állapot, amit a §9/b a KÜLSŐ korlátra mér — a gát a futásonkénti zajon billegett (az
+előző söprés ugyanezzel a bontással zöld volt, ezért mondott a kör riportja 0 pirosat).
+
+**A javítás a szerszám saját előírása:** a bontás **7 részre**. Mérve utána: legrosszabb szelet
+**7 569 ms** (a költségvetés 50%-a), `145/145 elkapva`, `RESULT: TELJES ÉS TISZTA`. A költségvetést
+nem nyújtottam meg — csak a darabolást igazítottam ahhoz, amit a szerszám maga javasol.
