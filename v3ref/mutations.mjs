@@ -1386,4 +1386,42 @@ export const MUTATIONS = [
     file: 'catalog.mjs',
     from: "  if (store.get('SELECT item_id FROM item WHERE book_id = ? AND sku = ?', bookId, sku)) {",
     to: "  if (store.get('SELECT item_id FROM item WHERE sku = ?', sku)) {" },
+
+  // ── AUT-01 (R16/F16-01) — A HOZZÁFÉRÉSI KAPU NÉGY VISSZACSÚSZÁSA ────────────────────────────
+  //
+  // MIND A NÉGY KÜLÖN TÉNYT TÁMAD, mert a javításnak négy különböző kijárata van: a kapu HELYE, a
+  // válasz EGYFORMASÁGA, a belső nyom MEGLÉTE és a sorrend a séma-ellenőrzéshez képest. Ha egyetlen
+  // mutációval mérnénk, egy részleges visszacsúszás átcsúszhatna (KUKA-124/2).
+  { id: 'M149', rule: 'K05', catcher: 'P-AUT-object-neutral', expect: 'probe_fail',
+    what: 'AUT-01 — A KAPU ELTŰNIK A BEVÉT-ÚTRÓL: a cikk feloldása megint a jogosultsági döntés ELŐTT '
+      + 'fut, tehát a tiltott hívó a hibakód KÜLÖNBSÉGÉBŐL megtudja, létezik-e az objektum és melyik '
+      + 'könyvben (pontosan az R16/F16-01 lelet)',
+    file: 'ledger.mjs',
+    from: '  if (!gate.ok) return gate;',
+    to: '  if (!gate.ok && false) return gate;' },
+
+  { id: 'M150', rule: 'K05', catcher: 'P-AUT-object-neutral', expect: 'probe_fail',
+    what: 'AUT-01 — AZ EGYFORMA ELUTASÍTÁS MEGINT BESZÉL: a tiltó válasz a jogosultsági OKOT is viszi, '
+      + 'tehát a hívó megkülönböztetheti, miért nem kapott hozzáférést. A részlet törlése nem volt '
+      + 'javítás, és a részlet visszatétele sem ártatlan (KUKA-084: a szivárgás CSATORNA, nem hely)',
+    file: 'accessGate.mjs',
+    from: '  return ACCESS_REFUSED;\n}',
+    to: '  return Object.freeze({ ...ACCESS_REFUSED, reason: right.reason });\n}' },
+
+  { id: 'M151', rule: 'K05', catcher: 'P-AUT-object-neutral', expect: 'probe_fail',
+    what: 'AUT-01 — A BELSŐ NYOM ELMARAD: a tiltás kifelé egyforma, befelé viszont NÉMA. Ez a '
+      + 'KUKA-058 alakja: ahol a válasz szándékosan egyforma, ott a naplónak kell beszélnie — enélkül '
+      + 'a funkció halála sehol nem látszik',
+    file: 'accessGate.mjs',
+    from: '  recordRefusal(store, {\n    at, subjectId: actor, bookId, opClass, operation,',
+    to: '  if (false) recordRefusal(store, {\n    at, subjectId: actor, bookId, opClass, operation,' },
+
+  { id: 'M152', rule: 'K05', catcher: 'P-AUT-object-neutral', expect: 'probe_fail',
+    what: 'AUT-01 — A SORREND MEGFORDUL: a bemeneti séma előbb dől el, mint a jog. Ettől a tiltott '
+      + 'hívó a válasz FAJTÁJÁBÓL (validation vs. not_available) megtudja, megfelel-e a beadott alak a '
+      + 'művelet szerződésének — gyengébb szivárgás, de ugyanaz az osztály',
+    file: 'ledger.mjs',
+    from: '  const gate = authorizeBookAction({',
+    to: '  const _preSchema = validateInput({ operation: "stock.receipt", input });\n'
+      + '  if (!_preSchema.ok) return _preSchema;\n  const gate = authorizeBookAction({' },
 ];

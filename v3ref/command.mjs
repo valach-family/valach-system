@@ -26,6 +26,7 @@ import { effectuateWith } from './authority.mjs';
 // DSC-01 (R77/F02): a KIADOTT EREDMÉNY adatköre a TÍPUS deklarációjából, nem a kérő címkéjéből.
 import { resultScopesOf, resultReleasable } from './resultScope.mjs';
 import { banRequestFor } from './banScope.mjs';
+import { ACCESS_REFUSED } from './accessGate.mjs';
 
 // ═══ KANONIZÁLÁS (Q02) ══════════════════════════════════════════════════════════════════════════
 //
@@ -338,11 +339,10 @@ export function submitCommand({ store, idemKey, actor, bookId, type, typeVersion
   // A JOGOT ELŐBB kérdezzük meg, mint hogy a kulcsról bármit mondanánk. Enélkül a puszta
   // ÚJRAPRÓBÁLÁS elárulná, hogy a kulcshoz tartozik-e parancs — a kulcs próbálgatható
   // létezés-csatorna lenne (KUKA-084).
-  const refused = Object.freeze({
-    ok: false, error: 'not_available',
-    message: 'ehhez a művelethez most nincs jogod ebben a könyvben',
-    effect_id: null, state: null,
-  });
+  // AZ ELUTASÍTÁS ALAKJA KÖZÖS (AUT-01, R16/F16-01). Eddig ez az érték ITT, helyben született, és a
+  // bevét-út nem is jutott el idáig. Ha a két út MÁS mondattal tiltana, a különbség maga volna
+  // csatorna: a hívó abból is megtudná, meddig jutott a kérése (KUKA-039 — egy fogalom, egy otthon).
+  const refused = ACCESS_REFUSED;
   if (!rightAt({ store, subjectId: actor, bookId, opClass: 'own_book', clock, externalEvidence, credentials }).allowed) {
     return refused;
   }

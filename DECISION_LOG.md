@@ -16,6 +16,99 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3033 — F16-01 (A SORREND VOLT A SZIVÁRGÁS) ÉS OB-10 LEZÁRVA
+
+> **Hatály:** V2+V3 — az F16-01 és a normaregiszter a V3 magja; a söprés VERDIKT-SZERZŐDÉSE viszont
+> KÖZÖS szerszám-kérdés (a V2 söprése ugyanazt az osztályozót viseli), ezért a V2 fejlesztőnek is
+> tudnia kell róla. **V2-módosítás NEM történt, és nincs rá engedély.**
+
+**Dátum:** 2026-09-16 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R17 (az ő R16-jukra)
+
+**1. REPRODUKCIÓ ELŐSZÖR.** Az `r16_challenge.mjs` programjukat a VÁLTOZATLAN kódon futtattam:
+**6/7**, egyedül az `unauthorized-object-neutral` bukott — karakterre az, amit írtak.
+
+**1/b. ÉS BE IS KÖTÖTTEM — mert a „lefuttattam" nem ugyanaz, mint a „be van kötve" (KUKA-132).** Az
+R88 §7-ben pont ezt a hibát találták meg nálam. A programjuk ezért nem maradt a repó gyökerén:
+`v3ref/external-checks/r16_chatgpt-v3.core.mjs` (az ő szövegük, KARAKTERRE változatlanul, md5
+`22ef819859a563fbba3b7e6f306da4e2` — tesztadaptáció NEM történt) + burkoló + `case-manifest.mjs`
+`r16core` bejegyzés a HÉT eset nevével, a forrás-szövegükből olvasva (nem egy lefutásból — KUKA-054).
+A futtató mindkét irányban mér: hiányzó · ismeretlen · duplikált · rossz alakú eset. **Melyik kapu
+bukna el, ha a fájl holnap eltűnne? `npm run verify:external-checks`.** KIMONDOTT KORLÁT: ez a
+KÖTÉST méri, nem azt, hogy egy jövőbeli programot eszembe jut-e bekötni — a programregiszter LISTA,
+nem szabály (KUKA-051), és a V3 láncban a darabszámra ma nincs padló.
+
+**2. F16-01 — A SORREND VOLT A SZIVÁRGÁS.** A `submitStockReceipt` a CIKKET a jogosultsági döntés
+ELŐTT oldotta fel. A kapu MEGVOLT (a parancs-úton), csak a bevét-út soha nem jutott el odáig. Két
+csatorna: a HIBAKÓD különbsége (`unknown_item` ⊥ `item_belongs_to_another_book`) ÉS a RÉSZLET
+tartalma (a másik könyv neve + a cikk azonosítója). **A részlet törlése ezért nem lett volna
+javítás.**
+
+**A javítás — AUT-01 (`v3ref/accessGate.mjs`):** `authorizeBookAction` a lánc ELSŐ lépése, a
+bemeneti séma ELŐTT is (különben a válasz FAJTÁJA is csatorna volna) · `ACCESS_REFUSED` EGY
+fagyasztott, egyforma válasz, amit MOSTANTÓL a parancs-út is ad (KUKA-039) · a valódi ok BEFELÉ, az
+új `access_refusal` táblába, a tranzakción KÍVÜL (KUKA-026 · KUKA-058), olvasóval együtt
+(`recentRefusals` — az írás-csak mező dísz volna, KUKA-069/126). **Ez NEM helyettesíti a tranzakción
+belüli újra-kérdezést:** az másik időpontra szól (KUKA-124/1).
+
+**MÉRVE:** négy hívó (tagság nélküli · másik könyv tagja · visszavont jogú · jogos) × három
+objektum-osztály (hiányzó · idegen könyvbeli · saját könyvbeli). A kilenc tiltott hívás válasza
+**BÁJTRA azonos**, mellékhatás **parancs=0 · nyugta=0 · mozgás=0**, a belső napló **9 sor**, és ott a
+két ok MEG IS KÜLÖNBÖZTET. A jogos hívó részletes diagnosztikát kap (KUKA-092/122: a kapu nem fal).
+Gépi jel: **`P-AUT-object-neutral`** + **M149–M152**, mind a négy elkapva. Az ő programjuk: **7/7**.
+
+**A kapcsolódó belépési pontok MÉRVE:** 152 exportált függvényből 27 kér hitelesített hívót, és
+azok többsége maga a jogosultsági gépezet. A `balanceAt` · `registerItem` · `itemById` · `itemBySku`
+· `changeItemUnit` **egyáltalán nem vesz át hívót** — belső segédek, nem védett belépési pontok.
+Ezt NEVESÍTETT feltételként mondom ki: amint bármelyikük a külső határon (OB-3) megjelenik, ugyanez
+a kapu kell elé.
+
+**3. OB-10 LEZÁRVA — SWV-01.** A söprés mostantól a gyermek GÉPI verdiktjéből dönt
+(`tools/lib/vs_sweep_verdict.mjs`): négy állapot (`green` · `env_skipped` · `failed` · `unfinished`),
+és a kihagyást a gyermeknek a kimenete UTOLSÓ, önálló sorában, gépi alakban DEKLARÁLNIA kell. Hiba és
+kihagyás együtt nem lehet tiszta kihagyás; a hibás alakú deklaráció és az ellentmondás (`exit 0` +
+kihagyás) KÜLÖN, nevezett válasz. Gépi jel: **`npm run verify:sweep-verdict`** — SWV01–SWV06, benne
+a **VALÓDI ALFOLYAMAT-PRÓBA** négy szintetikus gyermek-ellenőrzővel, és a **POZITÍV ELLENPÁR** (a
+szabályosan deklarált kihagyás kihagyás MARAD). A blokkoló nem tűnt el, hanem átköltözött a
+`CLOSED_BLOCKERS` listába, és a futtató KIÍRJA (KUKA-012).
+
+**A V2-KOMPATIBILITÁS MÉRVE, NEM MÓDOSÍTVA:** a V2 söprése ugyanezt a részszöveges osztályozót
+viseli, és NÉGY V2-verifier (`challenge-inventory` · `doc-order` · `mcp-bridge` · `repo-root`) ma
+PRÓZÁBAN mondja ki a kihagyását. A szerződés átvitele ott CSAK akkor szabályos, ha az a négy előbb
+megkapja a gépi deklaráció-sort. **V2-t nem módosítottam, üzenetet nem küldtem.**
+
+**4. AMI EBBŐL KÖVETKEZIK, ÉS KIMONDOM: A SÖPRÉS MOSTANTÓL PIROS.** MÉRVE a lezárt állapoton:
+**10 verifier, 619 s: 9 zöld · 0 env-kihagyás · 1 PIROS** (`verify:external-checks`), a söprés
+**1-es kilépési kóddal** zárt. A régi osztályozó ugyanezt a gyermeket KIHAGYÁSNAK mondta volna, mert
+a kimenetében ott áll az „ENV-KIHAGYÁS" szó (az `r57`/`r59` szabályos kihagyása miatt) — pontosan ezt
+zárja ki az SWV-01.
+
+**5. ÚJ LELET A KÖR VÉGÉN: A LÁNC VERDIKTJE GÉPTERHELÉSTŐL FÜGG (KUKA-175).** A láncot kétszer
+futtattam: üresjáratban **14/19 · 3 eltérés** (`r77` · `r79core` · `r81core`), a söprés gyermekeként
+**13/19 · 4 eltérés** (+`r83core`). MÉRVE az ok: az `r83core` burkolója a battériát NÉGYES bontásban
+futtatja 15 000 ms-os korláttal, és terhelés alatt az 1/4 + 4/4 egység nem nullával zárt
+(`genuine_units.problems`), ezért a négy várt `merge/*` eset helyére két `merge/KORNYEZET-*` sor
+került. **Nem a kedvezőbb számot választottam**; a helyes válasz „három tartós + egy terhelésfüggő".
+Ezzel a §7/b darabolási javaslat nem szépészeti kérdés: amíg a darabolás nem közös deklarációból megy,
+a lánc ezen a két programon nem tud regressziót őrizni.
+
+**6. HELYESBÍTÉS A SAJÁT LAPOMBAN.** Az eltérések valódi eset-hibáit tételesen megmértem: **hét**
+valódi eset-hiba, MIND az MNY-01-ből (a próbák `qty: 1`-et adnak JSON-számként, a mag kanonikus
+decimális szöveget vár), három programban — nem „öt", ahogy a lapon először írtam. Mellettük **négy**
+`merge/KORNYEZET-*` sor, két programban, a darabolásból.
+
+**7. HÁROM ÚJ TANULSÁG.** **KUKA-173** (a sorrend volt a szivárgás — a meglévő kapu a lánc végén állt;
+megtalálta a KÜLSŐ FÉL) · **KUKA-174** (az ellenpélda, ami üres halmazon állt: a „visszavont jogú"
+ágat hatáskörhöz kötött hívással állítottam elő, a hívás némán nem hatott — megtalálta a SAJÁT
+mérésem, a próba első futásán) · **KUKA-175** (a mérés verdiktje a gép TERHELÉSÉTŐL függött, és az
+első, kedvezőbb futás önmagában hihetőnek látszott — megtalálta a SAJÁT második futtatásom).
+
+**GÉPI VÉGEREDMÉNY.** `node v3ref/run.mjs` **54/54 PASS** · mutációs battéria **149 mutáció · 149
+elkapva · 0 túlélte · 0 rossz próba · 0 mérőhiba · 0 elavult horgony**, legrosszabb egység
+**9592 ms** · `verify:kuka` **269/269 PASS** · `verify:sweep-verdict` ZÖLD ·
+`verify:unit-admission` ZÖLD · az ő challenge-ük **7/7**.
+
+---
+
 ## D-VS-3032 — AZ R10 ÖT LELETE JAVÍTVA, ÉS NÉGY SAJÁT LELET A BEKÖTÉS KÖZBEN
 
 > **Hatály:** V3 — a V3 magreferencia (`v3ref/`) és a V3 memória-őre; a V2 kódját nem érinti.

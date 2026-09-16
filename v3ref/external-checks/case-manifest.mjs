@@ -31,6 +31,30 @@
 /** A programok — KI ÍRTA, MIT MÉR, és PONTOSAN MELY ESETEKET kell hoznia. */
 export const PROGRAMS = Object.freeze([
   Object.freeze({
+    id: 'r16core',
+    file: 'r16_chatgpt-v3.mjs',
+    companions: Object.freeze(['r16_chatgpt-v3.core.mjs']),
+    by: 'chatgpt-v3 — KÜLSŐ, független fél',
+    origin: 'R16 §1 (a hét MAG-ellenpélda: az `r16_chatgpt-v3.core.mjs` az ő szövegük, karakterre — '
+      + 'md5 22ef819859a563fbba3b7e6f306da4e2, ahogy a boardról megkaptuk; „bájtazonost" az ő saját '
+      + 'példányukhoz képest NEM állítunk. TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a '
+      + 'JAVÍTÁS ELŐTTI forráson **6/7** — egyedül az `unauthorized-object-neutral` bukott, mert a '
+      + 'nem létező cikkre `unknown_item`, a MÁSIK könyvben létezőre `item_belongs_to_another_book` '
+      + 'jött vissza (F16-01 · KUKA-173); a mai forráson 7/7.',
+    what: 'A bevét-út hét MAG-állítása egy programban: ismétlés-visszajátszás EGY mozgással · '
+      + 'adatkör-ütközés · idegen könyv cikkére írás · jövőbeli hatály a múltbeli nézetben · nem '
+      + 'létező naptári nap · a túlcsorduló visszadátumozás NYOMTALANSÁGA (parancs/esemény/mozgás) · '
+      + 'és a tiltott hívó válaszának OBJEKTUM-SEMLEGESSÉGE.',
+    evidence: 'r16-core-challenge.json',
+    cases: Object.freeze([
+      'repeat-canonical', 'scope-conflict', 'cross-book-write-rejected', 'future-not-in-past',
+      'calendar-invalid', 'backdate-overflow-atomic', 'unauthorized-object-neutral',
+    ]),
+    cases_source: 'a külső fél R16-os programja (a `rec(...)` hívások első argumentumai, ahogy '
+      + 'megérkezett) — NEM egy lefutásból, hanem a forrás-szövegből olvasva',
+    evidence_pin_field: 'source_commit',
+  }),
+  Object.freeze({
     id: 'r92authz',
     file: 'r92_chatgpt-v3.mjs',
     companions: Object.freeze(['r92_chatgpt-v3.core.mjs']),

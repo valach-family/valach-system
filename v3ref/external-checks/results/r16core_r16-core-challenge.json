@@ -1,0 +1,58 @@
+{
+  "program": "r16_chatgpt-v3.core.mjs",
+  "node": "v22.22.2",
+  "exit_code": 0,
+  "source_commit": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+  "source_commit_from": "staged_manifest",
+  "core_root_from": "staged_sandbox",
+  "readable": true,
+  "unreadable_why": null,
+  "cases": [
+    {
+      "id": "repeat-canonical",
+      "pass": true,
+      "well_formed": true
+    },
+    {
+      "id": "scope-conflict",
+      "pass": true,
+      "well_formed": true
+    },
+    {
+      "id": "cross-book-write-rejected",
+      "pass": true,
+      "well_formed": true
+    },
+    {
+      "id": "future-not-in-past",
+      "pass": true,
+      "well_formed": true
+    },
+    {
+      "id": "calendar-invalid",
+      "pass": true,
+      "well_formed": true
+    },
+    {
+      "id": "backdate-overflow-atomic",
+      "pass": true,
+      "well_formed": true
+    },
+    {
+      "id": "unauthorized-object-neutral",
+      "pass": true,
+      "well_formed": true
+    }
+  ],
+  "passed": 7,
+  "failed": 0,
+  "missing": [],
+  "unknown": [],
+  "duplicates": [],
+  "malformed": 0,
+  "ok": true,
+  "stderr": "(node:19971) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n",
+  "source_md5": "22ef819859a563fbba3b7e6f306da4e2",
+  "verbatim": true,
+  "at": "2026-09-16T10:35:22.482Z"
+}

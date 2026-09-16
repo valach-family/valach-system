@@ -12,6 +12,8 @@ import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
+// SWV-01 (OB-10, R16 §2): a verdikt a gyermek GÉPI deklarációjából dől el, nem részszövegből.
+import { sweepVerdict } from './lib/vs_sweep_verdict.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
@@ -34,25 +36,25 @@ const timedOut = [];
 const fails = [];
 for (const s of scripts) {
   const started = Date.now();
+  let exitCode = 0; let out = ''; let killed = false;
   try {
-    execSync(`npm run -s ${s}`, { stdio: ['ignore', 'pipe', 'pipe'], cwd: ROOT, timeout: PATIENCE_MS });
-    pass += 1;
+    out = String(execSync(`npm run -s ${s}`, { stdio: ['ignore', 'pipe', 'pipe'], cwd: ROOT, timeout: PATIENCE_MS }) || '');
   } catch (e) {
-    if (e.code === 'ETIMEDOUT' || e.signal === 'SIGTERM') {
-      timedOut.push({ s, ms: Date.now() - started });
-      continue;
-    }
-    const out = `${e.stdout || ''}\n${e.stderr || ''}`;
-    // NEVESÍTETT KIHAGYÁS: a környezet hiánya (adatbázis · külön települő csomagfa) nem piros, de
-    // nem is néma zöld — a összefoglaló FELSOROLJA. A jelet a verifier mondja ki magáról.
-    if (/DATABASE_URL is not set|db_not_configured|ENV-KIHAGYÁS/.test(out)) {
-      envSkips.push(s);
-    } else {
-      fails.push(s);
-      console.error(`\n=== PIROS: ${s} ===`);
-      console.error(String(out).trim().split('\n').slice(-12).join('\n'));
-    }
+    killed = e.code === 'ETIMEDOUT' || e.signal === 'SIGTERM';
+    exitCode = typeof e.status === 'number' ? e.status : 1;
+    out = `${e.stdout || ''}\n${e.stderr || ''}`;
   }
+  // A DÖNTÉST A KÖZÖS FELOLDÓ HOZZA (SWV-01). A régi alak itt, helyben keresett részszöveget: ha a
+  // bukott gyermek kimenetében BÁRHOL szerepelt az „ENV-KIHAGYÁS", az EGÉSZ ellenőrző kihagyássá
+  // vált — és a `verify:external-checks` SAJÁT, szabályos jelentése épp ezt a szót tartalmazza.
+  // Hiba és kihagyás együtt nem lehet tiszta kihagyás (OB-10).
+  const v = sweepVerdict({ exitCode, timedOut: killed, stdout: out });
+  if (v.verdict === 'green') { pass += 1; continue; }
+  if (v.verdict === 'unfinished') { timedOut.push({ s, ms: Date.now() - started }); continue; }
+  if (v.verdict === 'env_skipped') { envSkips.push({ s, reason: v.reason }); continue; }
+  fails.push(s);
+  console.error(`\n=== PIROS: ${s} === (${v.why})`);
+  console.error(String(out).trim().split('\n').slice(-12).join('\n'));
 }
 
 const secs = Math.round((Date.now() - t0) / 1000);
@@ -63,6 +65,9 @@ if (timedOut.length) {
     + timedOut.map((t) => `${t.s} (${Math.round(t.ms / 1000)}s)`).join(', '));
   console.error('  Ez NEM azt jelenti, hogy a verifier elbukott — futtasd külön, és nézd meg a saját eredményét.');
 }
-if (envSkips.length) console.log(`ENV-KIHAGYÁS (hiányzó környezet — adatbázis vagy külön települő csomagfa; élesen ezek is futnak): ${envSkips.join(', ')}`);
+if (envSkips.length) {
+  console.log('ENV-KIHAGYÁS (a gyermek MAGA deklarálta, gépi alakban — a söprés nem szövegből következtet):');
+  for (const e of envSkips) console.log(`  · ${e.s} — ${e.reason}`);
+}
 if (fails.length) console.error(`PIROS: ${fails.join(', ')}`);
 if (fails.length || timedOut.length) process.exit(1);

@@ -7578,6 +7578,126 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'deklaráció kivéve) — mind piros. ÉLŐ PRÓBA: `run-all.mjs --only r79` → 4/4 eset zöld.',
   }),
 
+
+  Object.freeze({
+    id: 'KUKA-173',
+    date: '2026-09-16',
+    title: 'A SORREND VOLT A SZIVÁRGÁS — a cikk feloldása a jogosultsági döntés ELŐTT futott',
+    what: 'A `submitStockReceipt` a CIKKET a jog megkérdezése ELŐTT oldotta fel. A jogosultsági kapu '
+      + 'a parancs-úton helyesen állt — csak a bevét-út SOHA nem jutott el odáig. Ezért a tagság '
+      + 'nélküli hívó a nem létező cikkre `unknown_item`, a MÁSIK könyvben létezőre '
+      + '`item_belongs_to_another_book` választ kapott, a részlet pedig megnevezte a másik könyvet és '
+      + 'a cikk belső azonosítóját. MÉRVE (az ő programjukkal, a változatlan kódon): 6/7 — egyedül ez '
+      + 'az eset bukott.',
+    why_wrong: 'A KUKA-083/084 alakja a főkönyvön: ahol egy elutasítás INDOKA idegen tény, ott maga az '
+      + 'ELUTASÍTÁS a szivárgás. És itt KÉT csatorna volt, nem egy: a RÉSZLET tartalma ÉS a HIBAKÓD '
+      + 'különbsége. A részlet törlése ezért nem lett volna javítás — a kód-különbség önmagában '
+      + 'hordozza a védett bitet. A hiba nem egyik ellenőrzés hiánya volt, hanem a SORRENDJÜK: a '
+      + 'meglévő kapu a lánc végén állt.',
+    replaced_by: 'AUT-01 — `v3ref/accessGate.mjs`: `authorizeBookAction` a lánc ELSŐ lépése, '
+      + '`ACCESS_REFUSED` EGY fagyasztott, egyforma válasz, `access_refusal` a belső nyomnak',
+    replacement: 'A jog a bemeneti séma ELŐTT dönt (különben a válasz FAJTÁJA is csatorna volna), a '
+      + 'tiltott válasz BÁJTRA azonos minden objektum-osztályra, és a valódi ok BEFELÉ, tartós sorba '
+      + 'kerül, a tranzakción KÍVÜL (KUKA-026 · KUKA-058). A parancs-út UGYANAZT a fagyasztott '
+      + 'elutasítást adja, mert két különböző mondat maga is csatorna (KUKA-039). Ez NEM helyettesíti '
+      + 'a tranzakción belüli újra-kérdezést: az másik időpontra szól (KUKA-124/1).',
+    decision: 'D-VS-3033',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3, R16/F16-01) — futtatható programmal, amit a '
+      + 'változatlan kódon reprodukáltam',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/ledger.mjs']), pattern: 'authorizeBookAction\\(\\{',
+        why: 'a bevét-út a kaput HÍVJA, a lánc elején' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/command.mjs']), pattern: 'ACCESS_REFUSED',
+        why: 'a parancs-út ugyanazt a fagyasztott elutasítást adja — a két út nem tud elcsúszni' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'AHOL EGY KAPU MÁR LÉTEZIK, A KÉRDÉS NEM AZ, HOGY MEGVAN-E, HANEM HOGY HOL ÁLL A LÁNCBAN. '
+      + 'Minden objektum-feloldás előtt fel kell tenni: EHHEZ A HÍVÓHOZ egyáltalán szólhat-e ez az '
+      + 'objektum? És a tiltott válasz EGYFORMASÁGÁT a VÁLASZ-OBJEKTUMON kell mérni, nem a szövegén: '
+      + 'a hibakód különbsége ugyanúgy csatorna, mint a részlet.',
+    guard_note: 'gépi jel: `node v3ref/run.mjs` **P-AUT-object-neutral** (négy hívó × három '
+      + 'objektum-osztály bájtra azonos válasza · nulla parancs/nyugta/mozgás · a jogos hívó részletes '
+      + 'diagnosztikája · a belső napló megkülönböztet · a séma-hiba sem szivárog · a parancs-út '
+      + 'azonos tiltása) + `v3ref/mutate.mjs` **M149–M152** (a kapu kivétele · az ok visszatétele a '
+      + 'válaszba · a belső nyom elhagyása · a sorrend megfordítása) — mind a négy elkapva.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-174',
+    date: '2026-09-16',
+    title: 'AZ ELLENPÉLDA, AMI ÜRES HALMAZON ÁLLT — a fixtúra nem állította be az állapotot',
+    what: 'A KUKA-173 ellenpróbájában a „visszavont jogú hívó" ágat a `revokeMembership` hívásával '
+      + 'állítottam elő. Az a függvény viszont HATÁSKÖRHÖZ kötött (REV-N3a): eljáró alany és '
+      + '`alter_right` felhatalmazás kell hozzá, amit nem adtam át. A hívás NÉMÁN nem hatott, a tagság '
+      + 'élő maradt, és az a hívó ÁTMENT a kapun — a próba mért kimenete „4 különböző alak" lett.',
+    why_wrong: 'Ez a KUKA-041 alakja a FIXTÚRÁN: a kontroll, ami nem tud tüzelni, nem kontroll. Az ág '
+      + 'ott volt, a neve is ott volt a jelentésben — de üres halmazon állt, tehát bármilyen '
+      + 'visszacsúszásra ZÖLD maradt volna, ha a többi ág épp átmegy. A veszélye az, hogy a MEGLÉVŐ '
+      + 'ellenpélda-lista hitelesebbnek látszik, mint a hiányzó.',
+    replaced_by: 'a megvont tagság TÉNYE közvetlenül a fixtúra sorába (`membership.revoked_at`); a '
+      + 'megvonás ÚTJÁT külön próbák mérik',
+    replacement: 'A fixtúra azt az ÁLLAPOTOT állítja elő, amit a próba tárgya igényel — nem azt az '
+      + 'ÚTVONALAT, ami oda vezet, hacsak nem az az útvonal a próba tárgya. A két dolog külön: az '
+      + 'egyik előfeltétel, a másik állítás (KUKA-002 a próbán).',
+    decision: 'D-VS-3033',
+    found_by: 'a SAJÁT MÉRÉSEM — a próba első futása a „4 különböző alak" számmal azonnal kibuktatta',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/run.mjs']),
+        pattern: "'visszavont', 'a', 'user', BIT.GRANT, BIT.FEBRUARY",
+        why: 'a megvont tagság TÉNYE a fixtúrában áll, nem egy hatáskörhöz kötött hívás jóindulatán' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'AZ ELLENPÉLDA CSAK AKKOR ELLENPÉLDA, HA AZ ELŐFELTÉTELE TÉNYLEG BEÁLLT. Ha egy próba-ág '
+      + 'egy MÁSIK, hatáskörhöz kötött művelettel állítja elő az állapotát, akkor az a művelet maga is '
+      + 'elbukhat — némán —, és az ág üres halmazon fut. A mérés mondja meg, nem a szándék: ha az ág '
+      + 'MINDIG átmegy, az gyanú, nem siker.',
+    guard_note: 'gépi jel: `node v3ref/run.mjs` **P-AUT-object-neutral** (a) ága — a kilenc tiltott '
+      + 'hívás közül HÁROM a visszavont jogú hívóé, és a belső napló `membership_revoked` okot mutat; '
+      + 'ha a tagság élő maradna, a válasz-alakok száma nőne, és az (a) állítás piros lenne. '
+      + 'KIMONDOTT KORLÁT: ez EZT az ágat méri, nem általában a „fixtúra beállt-e" kérdést.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-175',
+    date: '2026-09-16',
+    title: 'A MÉRÉS VERDIKTJE A GÉP TERHELÉSÉTŐL FÜGGÖTT — és az első futás hihetőnek látszott',
+    what: 'A külső ellenőrző láncot ugyanabban a körben KÉTSZER futtattam le, ugyanazon a forráson: '
+      + 'üresjáratban 14/19 MEGFELEL és HÁROM eltérés, a teljes söprés gyermekeként 13/19 és NÉGY '
+      + '(+`r83core`). MÉRVE az ok: az `r83core` burkolója a mutációs battériát NÉGYES bontásban '
+      + 'futtatja, 15 000 ms-os belső korláttal; terhelés alatt az 1/4 és a 4/4 egység nem nullával '
+      + 'zárt, ezért a NÉGY várt `merge/*` eset helyére két `merge/KORNYEZET-*` sor került.',
+    why_wrong: 'Egy mérés, aminek az eredménye a gép pillanatnyi terhelésétől függ, NEM tud '
+      + 'regressziót őrizni — egyik irányban sem: a valódi hiba elbújhat a „ez csak a darabolás" '
+      + 'magyarázat mögé, a jogos zöld pedig pirosnak látszik (KUKA-049 a mérőn). És a veszély nem a '
+      + 'piros, hanem az ELSŐ, kedvezőbb futás: az önmagában teljesen hihető, mert a lánc a saját '
+      + 'szabályai szerint TELJES hatókörrel futott le, és a hatókör-mező `full`-t mondott.',
+    replaced_by: 'a darabolás KÖZÖS DEKLARÁCIÓBÓL (`v3ref/external-checks/batteryUnits.mjs`, ma 7 '
+      + 'egység), amit a `verify:unit-admission` UAD08 a `package.json` parancs-sorához mér',
+    replacement: 'A közös deklaráció a V3 oldalán megvan; a KÜLSŐ programok burkolói még a saját, '
+      + 'rögzített négyesüket viselik — az az Ő döntésük, de amíg nem közös, a lánc verdiktje ezen a '
+      + 'két programon nem hiteles. Addig a JELENTÉS mondja ki, hogy a szám „három tartós + egy '
+      + 'terhelésfüggő", és NEM egyetlen szám.',
+    decision: 'D-VS-3033',
+    found_by: 'a SAJÁT MÁSODIK FUTTATÁSOM — a lánc önmagában és a söprés gyermekeként MÁS eredményt '
+      + 'adott ugyanazon a forráson',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/external-checks/batteryUnits.mjs']),
+        pattern: 'DECLARED_UNITS',
+        why: 'a darabolás DEKLARÁLT otthona — a saját oldalunkon egy helyen áll, nem szerzőnként' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'AMIKOR EGY MÉRÉS EREDMÉNYÉT JELENTEM, MEG KELL KÉRDEZNEM, HOGY UGYANAZT ADNÁ-E EGY '
+      + 'MÁSIK FUTÁSON — és ha a mérés futásidő-korlátot visel, a válasz addig NEM tudható, amíg '
+      + 'legalább kétszer, ELTÉRŐ terhelés mellett le nem futott. Egyetlen futás eredménye nem '
+      + '„a mért állapot", hanem EGY MINTA (KUKA-054 az időtengelyen). És ha két futás mást mond, a '
+      + 'helyes válasz nem a kedvezőbb szám, nem is az átlag, hanem a KÜLÖNBSÉG MEGMAGYARÁZÁSA — '
+      + 'utána pedig a jelentésben a bizonytalanság KIMONDÁSA (KUKA-131: a deduplikálás nem elszámolás).',
+    guard_note: 'gépi jel: `npm run verify:unit-admission` **UAD08** — a darabolás a SAJÁT oldalunkon '
+      + 'közös deklarációból megy, és a pin a `package.json` parancs-sorát a modulhoz méri, '
+      + 'ellenpárral. **KIMONDOTT KORLÁT: a KÜLSŐ programok burkolóinak bontását ez NEM méri** — az az '
+      + 'ő szövegük, amit nem írunk át (tesztadaptáció nem történik); a terhelésfüggés tényét ma a '
+      + 'JELENTÉS hordozza, nem őr. Ez nevesített hiány, nem elhallgatott.',
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

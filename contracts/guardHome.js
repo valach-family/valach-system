@@ -227,6 +227,9 @@ const GUARD_HOME = Object.freeze({
   // `guard_note`-ja is kimondja (KUKA-127: a gyengébb jel ERŐSSÉGÉT is ki kell írni).
   'KUKA-171': Object.freeze({ home: 'v3', note: 'a jel a `v3ref/norms.mjs` OB-10 blokkolója — a BLOKKOLÓ létét méri, NEM a söprés osztályozóját' }),
   'KUKA-172': Object.freeze({ home: 'v3', note: 'a darabszám deklarált otthona és a package.json parancs-sora ITT él — a jel a verify:unit-admission UAD08' }),
+  'KUKA-173': Object.freeze({ home: 'v3', note: 'a hozzáférési kapu a V3 magban él — a jel a P-AUT-object-neutral próba + M149–M152' }),
+  'KUKA-174': Object.freeze({ home: 'v3', note: 'a fixtúra a V3 próba-fájljában él — a jel ugyanannak a próbának az (a) ága' }),
+  'KUKA-175': Object.freeze({ home: 'v3', note: 'a darabolás közös deklarációja a V3 külső-ellenőrző könyvtárában él — a jel a verify:unit-admission UAD08; a KÜLSŐ burkolók bontása kimondottan MÉRETLEN' }),
 });
 
 function homeOf(id) { return (GUARD_HOME[id] || null); }

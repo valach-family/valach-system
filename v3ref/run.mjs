@@ -29,6 +29,7 @@ import { banMatrix } from './banMatrix.mjs';
 import { parseQuantity, canonicalQuantity, formatQuantity, QUANTITY_ERRORS } from './quantity.mjs';
 import { registerItem, changeItemUnit, itemBySku } from './catalog.mjs';
 import { balanceAt, submitStockReceipt } from './ledger.mjs';
+import { ACCESS_REFUSED, recentRefusals, authorizeBookAction } from './accessGate.mjs';
 // A NÉVTÉR-BEHÚZÁS SZÁNDÉKOS: az R10-F01 azt is követeli, hogy a nyers mozgás-írón NE lehessen
 // megkerülni a parancs-utat — ezt csak úgy lehet MÉRNI, ha megkérdezzük, mit exportál a modul.
 import * as LEDGER_MODULE from './ledger.mjs';
@@ -1795,7 +1796,7 @@ const EXECUTED_BY = (() => {
   return env || 'unknown';
 })();
 
-import { checkNorms, normsSummary, OPEN_BLOCKERS, NORM_CONTRACT_VERSION, NORMS_INDEX_ID, NORMS_INDEX_SCHEMA, contractRef, indexDigest, contentReviewState, CONTENT_REVIEW_RECORD_VERSION, ALL_NORMS, REQUIRED_EVIDENCE, NEXT_REQUIRED_EVIDENCE, sourceDocumentCatalog, assertionKey, clauseDigest as clauseDigestOf } from './norms.mjs';
+import { checkNorms, normsSummary, OPEN_BLOCKERS, CLOSED_BLOCKERS, NORM_CONTRACT_VERSION, NORMS_INDEX_ID, NORMS_INDEX_SCHEMA, contractRef, indexDigest, contentReviewState, CONTENT_REVIEW_RECORD_VERSION, ALL_NORMS, REQUIRED_EVIDENCE, NEXT_REQUIRED_EVIDENCE, sourceDocumentCatalog, assertionKey, clauseDigest as clauseDigestOf } from './norms.mjs';
 const contractRefDigest = () => contractRef().digest;
 import { sourceArtifactMeasurement } from './normContract.mjs';
 import { manifestDigest } from './manifest.mjs';
@@ -4621,6 +4622,141 @@ probe('P-KSZ-ledger-truth', 'MCS-2 · KSZ-01 · K10 · R10-F01 · R10-F02 · R10
     } finally { store.close(); }
   });
 
+probe('P-AUT-object-neutral', 'MCS-2 · AUT-01 · R16/F16-01 · KUKA-083 · KUKA-084 · KUKA-058 · KUKA-124',
+  'A JOG ELŐBB DÖNT: a jogosulatlan hívó UGYANAZT a választ kapja a hiányzó és az idegen objektumra, nulla mellékhatással — a valódi ok BEFELÉ, tartós naplóba megy',
+  () => {
+    const store = openStore();
+    try {
+      // ── A VILÁG: két könyv, négy szereplő ────────────────────────────────────────────────────
+      //   gazda     — tagja az "a" könyvnek                     (JOGOS)
+      //   idegen    — létező alany, SEHOL nincs tagsága         (kívülálló)
+      //   bkonyves  — tagja a MÁSIK könyvnek ("b")              (más könyv tagja)
+      //   visszavont— volt tagsága "a"-ban, VISSZAVONVA         (visszavont jog)
+      store.run('INSERT INTO book VALUES (?,?)', 'a', 'A könyv');
+      store.run('INSERT INTO book VALUES (?,?)', 'b', 'B könyv');
+      for (const s2 of ['gazda', 'idegen', 'bkonyves', 'visszavont']) {
+        store.run('INSERT INTO subject VALUES (?,?)', s2, 'person');
+      }
+      store.run('INSERT INTO membership VALUES (?,?,?,?,NULL)', 'gazda', 'a', 'user', BIT.GRANT);
+      store.run('INSERT INTO membership VALUES (?,?,?,?,NULL)', 'bkonyves', 'b', 'user', BIT.GRANT);
+      // A MEGVONÁS A FIXTÚRÁBAN KÖZVETLEN. A `revokeMembership` HATÁSKÖRHÖZ kötött (REV-N3a): eljáró
+      // alany és `alter_right` felhatalmazás kell hozzá. Az ELSŐ alakom ezt elfelejtette, a hívás
+      // némán nem hatott, és a „visszavont" hívó ÁTMENT a kapun — a saját mérésem buktatta ki
+      // (KUKA-049: a fixtúra, ami nem állítja be az állapotot, nem ellenpélda). A megvont tagság
+      // TÉNYÉT ezért a sorba írjuk; a megvonás ÚTJÁT külön próbák mérik.
+      store.run('INSERT INTO membership VALUES (?,?,?,?,?)', 'visszavont', 'a', 'user', BIT.GRANT, BIT.FEBRUARY);
+
+      const own = registerItem({ store, bookId: 'a', sku: 'SAJAT', unit: 'db', qtyProfile: 'qty-2', at: BIT.MARCH });
+      const foreign = registerItem({ store, bookId: 'b', sku: 'IDEGEN', unit: 'db', qtyProfile: 'qty-2', at: BIT.MARCH });
+
+      const call = (actor, itemId, idemKey, qty = '1') => submitStockReceipt({
+        store, idemKey, actor, bookId: 'a', ownerId: 'gazda', warehouseId: 'FO',
+        input: { item_id: itemId, qty, effective_at: BIT.MARCH }, clock: clockFrom(BIT.MARCH),
+      });
+      const counts = () => ({
+        cmd: store.get('SELECT COUNT(*) AS n FROM command').n,
+        ev: store.get('SELECT COUNT(*) AS n FROM command_event').n,
+        mov: store.get('SELECT COUNT(*) AS n FROM stock_movement').n,
+      });
+
+      // ── (a) A NÉGY TILTOTT HÍVÓ × HÁROM OBJEKTUM-OSZTÁLY ─────────────────────────────────────
+      //
+      // A három osztály SZÁNDÉKOSAN fedi le a teljes kérdést: a hivatkozott azonosító (1) sehol nem
+      // létezik, (2) a MÁSIK könyvben létezik, (3) ÉPPEN EBBEN a könyvben létezik. Ha bármelyik
+      // kettő válasza eltér, a hívó megkülönböztette őket — és épp ez volt a lelet (R16/F16-01).
+      const BEFORE = counts();
+      const blocked = ['idegen', 'bkonyves', 'visszavont'];
+      const answers = [];
+      let n = 0;
+      for (const actor of blocked) {
+        for (const itemId of ['nincs-ilyen', foreign.itemId, own.itemId]) {
+          n += 1;
+          answers.push({ actor, itemId, res: call(actor, itemId, `t${n}`) });
+        }
+      }
+      const AFTER = counts();
+      const texts = answers.map((x) => JSON.stringify(x.res));
+      const uniform = new Set(texts).size === 1;
+      const sameShape = answers.every((x) => x.res === ACCESS_REFUSED);
+      const noSideEffect = JSON.stringify(BEFORE) === JSON.stringify(AFTER)
+        && BEFORE.cmd === 0 && BEFORE.ev === 0 && BEFORE.mov === 0;
+      // A VÁLASZ NEM NEVEZI MEG AZ OBJEKTUMOT SEM KÓDDAL, SEM SZÖVEGGEL.
+      const noObjectWords = !/unknown_item|item_belongs_to_another_book|IDEGEN|SAJAT/.test(texts[0])
+        && !texts[0].includes(foreign.itemId) && !texts[0].includes(own.itemId) && !texts[0].includes('"b"');
+      const aOk = uniform && sameShape && noSideEffect && noObjectWords && answers.length === 9;
+
+      // ── (b) A JOGOS HÍVÓ RÉSZLETES DIAGNOSZTIKÁT KAP (a kapu nem FAL — KUKA-122) ──────────────
+      //
+      // Enélkül a javítás egy „mindent elutasítok" alakkal is teljesülne, és az ilyen kapu nem véd,
+      // hanem ZÁR: a jogos munkát lehetetlenné teszi (KUKA-092).
+      const okOwn = call('gazda', own.itemId, 'jo1');
+      const okMissing = call('gazda', 'nincs-ilyen', 'jo2');
+      const okForeign = call('gazda', foreign.itemId, 'jo3');
+      const bOk = okOwn.ok === true
+        && okMissing.ok === false && okMissing.error === 'unknown_item'
+        && okForeign.ok === false && okForeign.error === 'item_belongs_to_another_book'
+        && typeof okForeign.detail === 'string' && okForeign.detail.length > 0;
+
+      // ── (c) A VALÓDI OK BEFELÉ MEGVAN, ÉS MEG IS KÜLÖNBÖZTET (KUKA-058) ──────────────────────
+      //
+      // A kifelé menő válasz szándékosan egyforma; ettől az üzemeltető nem lehet vak. A belső sor
+      // megnevezi a jogosultsági okot, alanyonként — és NEM a kiadási úton él (nincs olvasója ott).
+      const log = recentRefusals(store, { bookId: 'a', limit: 100 });
+      const byActor = (who) => log.filter((r) => r.subject_id === who);
+      const cOk = log.length === 9
+        && byActor('idegen').length === 3 && byActor('bkonyves').length === 3 && byActor('visszavont').length === 3
+        && byActor('idegen')[0].reason === 'no_membership'
+        && byActor('visszavont')[0].reason === 'membership_revoked'
+        && log.every((r) => r.operation === 'stock.receipt' && r.op_class === 'own_book' && r.at === BIT.MARCH);
+
+      // ── (d) A KAPU A LÁNC ELEJÉN ÁLL — a SÉMA-hiba sem szivárog ki a jogosulatlannak ──────────
+      //
+      // Ha a séma előbb futna, a válasz FAJTÁJA (`validation` vs. `not_available`) elárulná, hogy a
+      // beadott alak megfelel-e a művelet szerződésének. A jogos hívó ugyanezt a hibás alakot
+      // NEVEZETTEN kapja vissza — tehát a szigorítás nem vesz el semmit tőle.
+      const badOutsider = submitStockReceipt({
+        store, idemKey: 'rossz1', actor: 'idegen', bookId: 'a', ownerId: 'gazda', warehouseId: 'FO',
+        input: { item_id: own.itemId, qty: true, szinezes: 'kek' }, clock: clockFrom(BIT.MARCH),
+      });
+      const badMember = submitStockReceipt({
+        store, idemKey: 'rossz2', actor: 'gazda', bookId: 'a', ownerId: 'gazda', warehouseId: 'FO',
+        input: { item_id: own.itemId, qty: true, szinezes: 'kek' }, clock: clockFrom(BIT.MARCH),
+      });
+      const dOk = badOutsider === ACCESS_REFUSED && badMember.ok === false && badMember.error === 'unknown_field';
+
+      // ── (e) A PARANCS-ÚT ÉS A BEVÉT-ÚT UGYANAZT A TILTÁST ADJA (KUKA-039) ────────────────────
+      //
+      // Két külön mondat maga is csatorna volna: a hívó abból is megtudná, meddig jutott a kérése.
+      const viaCommand = submitCommand({
+        store, idemKey: 'parancs1', actor: 'idegen', bookId: 'a', type: 'proba', typeVersion: '1',
+        declared: { x: 1 }, resolve: () => ({}), clock: clockFrom(BIT.MARCH),
+      });
+      const eOk = JSON.stringify(viaCommand) === JSON.stringify(ACCESS_REFUSED);
+
+      return {
+        expected: 'a jogosulatlan hívó HÁROM objektum-osztályra (hiányzó · idegen könyvbeli · saját könyvbeli) '
+          + 'BÁJTRA azonos választ kap, nulla parancs/nyugta/mozgás mellett · a jogos hívó NEVEZETT, részletes '
+          + 'diagnosztikát kap · a valódi ok a BELSŐ naplóban megvan és ott meg is különböztet · a séma-hiba sem '
+          + 'szivárog ki a jogosulatlannak · a parancs-út ugyanazt a tiltást adja',
+        actual: 'tiltott válaszok: ' + new Set(texts).size + ' különböző alak ' + (uniform ? '(egyforma)' : '(ELTÉR)')
+          + ' · mellékhatás: parancs=' + AFTER.cmd + ' nyugta=' + AFTER.ev + ' mozgás=' + AFTER.mov
+          + ' · jogos: saját=' + okOwn.ok + ' hiányzó=' + okMissing.error + ' idegen=' + okForeign.error
+          + ' · belső napló: ' + log.length + ' sor (' + [...new Set(log.map((r) => r.reason))].sort().join('/') + ')'
+          + ' · séma-hiba: kívülálló=' + (badOutsider.error) + ' tag=' + badMember.error
+          + ' · parancs-út tiltás azonos=' + eOk,
+        pass: aOk && bOk && cOk && dOk && eOk,
+        asserts: {
+          'A-AUT-unauthorized-cannot-distinguish-object-classes': aOk,
+          'A-AUT-refusal-leaves-no-command-receipt-or-movement': noSideEffect,
+          'A-AUT-authorized-caller-keeps-detailed-diagnostics': bOk,
+          'A-AUT-true-reason-is-kept-inside-and-named': cOk,
+          'A-AUT-schema-outcome-does-not-leak-to-the-unauthorized': dOk,
+          'A-AUT-command-path-and-receipt-path-refuse-alike': eOk,
+        },
+      };
+    } finally { store.close(); }
+  });
+
 probe('P-BEM-input-schema', 'MCS-2 · BEM-01 · MNY-01 · K10 · KUKA-122 · KUKA-124 · KUKA-125',
   'A bemeneti séma: ismeretlen művelet fail-closed · nevezett elutasítás mezőnként · a mennyiség hibakód-SORRENDJE megmarad · a konverzió nem előzi meg a típust',
   () => {
@@ -4952,6 +5088,12 @@ if (import.meta.url === `file://${process.argv[1]}`) main: {
     console.log('');
     console.log('  NYITOTT BLOKKOLÓK:');
     for (const b of OPEN_BLOCKERS) console.log(`    ${b.id} — ${b.title}`);
+    // A LEZÁRÁS IS TÉNY: enélkül a megoldott blokkoló megkülönböztethetetlen volna az
+    // elfelejtettől (KUKA-012). A gépi jel a sorban áll, nem a jóindulatban.
+    if (CLOSED_BLOCKERS.length) {
+      console.log('\n  LEZÁRT BLOKKOLÓK (a lezárás gépi jelével):');
+      for (const b of CLOSED_BLOCKERS) console.log(`    ${b.id} — ${b.title}\n      lezárta: ${b.closed_in} · jel: ${b.guard.split(' — ')[0]}`);
+    }
   }
 
   if (!nrm.integrity_ok) {

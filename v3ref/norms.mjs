@@ -560,23 +560,33 @@ export const OPEN_BLOCKERS = Object.freeze([
       + 'szerződés-azonosítóval ÉS a szerződés verziójával együtt, hogy a kötés a KONKRÉT alakhoz '
       + 'szóljon, ne a névhez (R55/F04 elve).',
   }),
+]);
+
+// ═══ LEZÁRT BLOKKOLÓK — a lezárás is TÉNY, nem eltűnés ═════════════════════════════════════════
+//
+// MIÉRT VAN EZ A LISTA. Ha egy nyitott blokkoló egyszerűen KIKERÜLNE a fenti tömbből, a lezárása
+// néma volna: a következő kör nem tudná megkülönböztetni a „megoldottuk"-at az „elfelejtettük"-től
+// (KUKA-012). A blokkoló tehát nem eltűnik, hanem ÁTKÖLTÖZIK — a lezárás FELTÉTELÉVEL és a GÉPI
+// JELLEL együtt, amire a lezárás áll.
+export const CLOSED_BLOCKERS = Object.freeze([
   Object.freeze({
     id: 'OB-10', title: 'A SÖPRÉS A SZÖVEGET OLVASSA, NEM A VERDIKTET — a piros lánc kihagyásnak látszik',
-    why: 'MÉRVE (az R13 lezárása UTÁN): a verify:external-checks a söprésen BELÜL LEFUTOTT — mind a '
-      + '18 program eredmény-fájlját kiírta, és az összesítőbe ok:false verdiktet rögzített '
-      + '(12 zöld a 18-ból, hat eltérő programmal) —, a söprés mégis env-kihagyásnak sorolta. Az ok '
-      + 'a tools/vs_verify_sweep.mjs osztályozása: env-kihagyásnak minősít minden bukott ellenőrzőt, '
-      + 'amelynek KIMENETÉBEN BÁRHOL szerepel az ENV-KIHAGYAS szó. A lánc jelentése viszont JOGOSAN '
-      + 'tartalmazza ezt, mert a 18 programjából kettőt ő maga hagy ki: a verifier SAJÁT, szabályos '
-      + 'jelentése nyelte el a SAJÁT piros verdiktjét. Ez a KUKA-009 alakja a söprésen — a jel a '
-      + 'SZÖVEGET olvassa, nem a VISELKEDÉST méri. A kár konkrét: a kör riportja emiatt mondott '
-      + '0 pirosat egy piros lánc mellett.',
-    closes_when: 'A söprés a verifier SAJÁT, gépi VERDIKTJÉBŐL dönt (nem a kimenet részszövegéből), '
-      + 'és az env-kihagyás csak TELJES futás-kihagyásra áll — MINDKÉT irányban falszifikálva: egy '
-      + 'valóban környezet-hiányos verifier maradjon kihagyás, egy lefutott és bukott verifier legyen '
-      + 'PIROS. Azért NEM ebben a körben javítva, mert ebben a repóban ma NINCS valódi '
-      + 'környezet-hiányos verifier, amivel az ELLENPÁR mérhető volna (KUKA-049: ellenpár nélkül a '
-      + 'szigorítás jogos futásokat zárhat ki), és a szabály a V2 söprésével KÖZÖS.',
+    closed_in: 'R16 (chatgpt-v3 §2 kérésére)',
+    closed_by: 'SWV-01 — a söprés a gyermek GÉPI verdiktjéből dönt (`tools/lib/vs_sweep_verdict.mjs`), '
+      + 'a kihagyást a gyermeknek a kimenete UTOLSÓ sorában, gépi alakban DEKLARÁLNIA kell',
+    guard: 'npm run verify:sweep-verdict — SWV01 négy állapot · SWV02 a LELET (exit 1 + FAIL + '
+      + 'beágyazott ENV-KIHAGYÁS ⇒ PIROS) · SWV03 POZITÍV ELLENPÁR szintetikus gyermekkel · SWV04 a '
+      + 'hiány és az ellentmondás külön válasz · SWV05 VALÓDI alfolyamat-próba négy gyermekkel · '
+      + 'SWV06 a söprés a közös feloldót hívja és a részszöveges alak nem jött vissza',
+    both_directions: 'IGEN — a piros irány az SWV02/SWV05 „piros" gyermekén, a kihagyás-irány az '
+      + 'SWV03/SWV05 „kihagy" gyermekén mérve; mindkettő a RÉGI alakon bizonyítottan ellentétes.',
+    stated_limit: 'Nem méri, hogy a gyermek IGAZAT mond-e a kihagyásról — a deklaráció a gyermek '
+      + 'felelőssége. Amit kizár: hogy egy SZÓ döntsön egy VERDIKT helyett.',
+    v2_compatibility: 'MÉRVE, NEM MÓDOSÍTVA: a V2 söprése ugyanezt a részszöveges osztályozót viseli, '
+      + 'és NÉGY V2-verifier (challenge-inventory · doc-order · mcp-bridge · repo-root) a saját '
+      + 'kihagyását ma PRÓZÁBAN mondja ki. A szerződés átvitele ezért a V2-ben CSAK akkor szabályos, '
+      + 'ha az a négy verifier előbb megkapja a gépi deklaráció-sort — különben jogos kihagyásból '
+      + 'lenne piros. Ez NEM jelen kör hatóköre, és V2-módosításra nincs engedély.',
   }),
 ]);
 

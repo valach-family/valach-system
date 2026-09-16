@@ -640,6 +640,40 @@ END;
 CREATE TRIGGER stock_movement_no_delete BEFORE DELETE ON stock_movement BEGIN
   SELECT RAISE(ABORT, 'a mozgás-sor hozzáfűzéses: törölni tilos, a helyesbítés ÚJ sor (KSZ-01)');
 END;
+
+-- ═══ AUT-01 — A HOZZÁFÉRÉS-MEGTAGADÁS BELSŐ NAPLÓJA (R16/F16-01) ════════════════════════════
+--
+-- MIÉRT SAJÁT TÁBLA. A külső fél mérése (R16 §2) kimutatta, hogy a bevét-út a CIKKET a jogosultsági
+-- döntés ELŐTT oldotta fel: a tagság nélküli hívó a nem létező cikkre "unknown_item", a MÁSIK
+-- könyvben létezőre "item_belongs_to_another_book" választ kapott, a részlet pedig megnevezte a
+-- másik könyvet. Két szivárgás egyszerre: a hibakód KÜLÖNBSÉGE és a részlet TARTALMA.
+--
+-- A javítás EGYFORMÁVÁ teszi a kifelé menő választ. Ettől viszont az üzemeltető is vak lenne, ha
+-- nem írnánk le sehol, MI történt valójában — és a néma tiltás ugyanaz a hazugság, mint a néma üres
+-- lista (KUKA-058: ahol a válasz SZÁNDÉKOSAN egyforma, ott a NAPLÓNAK kell beszélnie).
+--
+-- KÉT KÜLÖN SZERZŐDÉS, KÉT KÜLÖN OTTHON (KUKA-002):
+--   · a KIADHATÓ válasz nem mond semmit a védett objektumról — se kóddal, se részlettel;
+--   · ez a sor BEFELÉ nevezi meg a valódi okot (a jogosultsági döntés indokát), és SOHA nem kerül
+--     kiadásra — nincs olvasója a kiadási úton.
+--
+-- A SOR A TRANZAKCIÓN KÍVÜL SZÜLETIK (KUKA-026): a tiltás könyvelése nem utazhat egy visszagörgetett
+-- tranzakcióban, különben épp a kudarc nyoma tűnne el. A kapu a parancs-tranzakció ELŐTT fut, tehát
+-- ez a sor akkor is megmarad, ha a hívás után semmi más nem történik.
+--
+-- AMIT EZ A TÁBLA NEM CSINÁL — KIMONDVA: nem korlátoz (nincs rá épített sebesség-kapu), és nem
+-- bizonyítja, hogy a hívó KI volt — az azonosságot a hívó oldala hitelesíti (AUTH-01).
+CREATE TABLE access_refusal (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  at         TEXT NOT NULL,
+  subject_id TEXT NOT NULL,
+  book_id    TEXT NOT NULL,
+  op_class   TEXT NOT NULL,
+  operation  TEXT NOT NULL,
+  reason     TEXT NOT NULL,
+  detail     TEXT
+);
+CREATE INDEX access_refusal_subject ON access_refusal (subject_id, book_id, at);
 `;
 
 export function openStore() {

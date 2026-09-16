@@ -477,6 +477,28 @@ export const EXPECTED_PROBES = Object.freeze([
       'A-BEM-quantity-profile-is-bound-where-the-item-is-known',
     ]),
   }),
+  Object.freeze({
+    // AUT-01 (R16/F16-01) — A HOZZÁFÉRÉSI KAPU. A külső fél mérése szerint a bevét-út a CIKKET a
+    // jogosultsági döntés ELŐTT oldotta fel, ezért a tiltott hívó a HIBAKÓD különbségéből megtudta,
+    // létezik-e az objektum és melyik könyvben. A javítás a kaput a lánc elejére tette, a kifelé
+    // menő választ EGYFORMÁVÁ, a valódi okot pedig BELSŐ, tartós sorrá.
+    //
+    // A NORMA-KÖTÉS UGYANARRA A HIÁNYRA MUTAT, MINT A KIADÁSI OSZTÁLYOZÓ (OB-8). Az elutasítás
+    // ugyanis KIADÁS: azt dönti el, mit tudhat meg a kérő a védett tényről. A K05-nek ma NINCS
+    // klauzulája a rész-indexben, tehát ezek az állítások MODUL-SZERZŐDÉSKÉNT állnak — klauzulát
+    // ide kitalálni nem szabad (R10-F05 lecke).
+    id: 'P-AUT-object-neutral', assertion: 'AUT01-authorization-decides-before-object-resolution',
+    discharges: Object.freeze([]),
+    module_contract: Object.freeze({ id: 'AUT-01', rule: 'K05', gap: 'OB-8' }),
+    module_asserts: Object.freeze([
+      'A-AUT-unauthorized-cannot-distinguish-object-classes',
+      'A-AUT-refusal-leaves-no-command-receipt-or-movement',
+      'A-AUT-authorized-caller-keeps-detailed-diagnostics',
+      'A-AUT-true-reason-is-kept-inside-and-named',
+      'A-AUT-schema-outcome-does-not-leak-to-the-unauthorized',
+      'A-AUT-command-path-and-receipt-path-refuse-alike',
+    ]),
+  }),
 ]);
 
 export const EXPECTED_IDS = Object.freeze(EXPECTED_PROBES.map((p) => p.id));

@@ -32,6 +32,7 @@ import { parseInstant, LEDGER_VIEW_AXES, LEDGER_VIEWS } from './instant.mjs';
 import { itemById } from './catalog.mjs';
 import { validateInput, bindQuantityProfile } from './inputSchema.mjs';
 import { submitCommandWithEffect } from './command.mjs';
+import { authorizeBookAction } from './accessGate.mjs';
 
 export { LEDGER_VIEWS };
 const fail = (error, detail) => Object.freeze({ ok: false, error, detail: detail ?? null });
@@ -209,6 +210,22 @@ function stockReceiptEffect({ store, at, effectId, key, qtyText, effectiveAt }) 
  * bizonyította; a bizonyíték az, hogy a VALÓDI út ezen megy át.
  */
 export function submitStockReceipt({ store, idemKey, actor, bookId, ownerId, warehouseId, input, clock, externalEvidence, credentials }) {
+  // 0. A JOG ELŐBB DÖNT, MINT BÁRMI MÁS (AUT-01 · R16/F16-01 — a külső fél lelete).
+  //
+  // A RÉGI SORREND SZIVÁRGOTT. A cikk feloldása (3. lépés) a jogosultsági döntés ELŐTT futott, ezért
+  // a tagság nélküli hívó KÜLÖNBÖZŐ választ kapott a nem létező (`unknown_item`) és a MÁSIK könyvben
+  // létező (`item_belongs_to_another_book`) cikkre — a részlet ráadásul megnevezte a másik könyvet.
+  // A hibakód különbsége ÖNMAGÁBAN hordozza a védett bitet, tehát a részlet törlése nem javítás
+  // (KUKA-084: a szivárgás nem HELY, hanem CSATORNA).
+  //
+  // EZ NEM HELYETTESÍTI a tranzakción belüli ellenőrzést: a `submitCommand` a véglegesítés előtt
+  // ÚJRA kérdez, mert a kettő közt a jog megszűnhet (KUKA-124/1 — más időpont, más tény).
+  const gate = authorizeBookAction({
+    store, actor, bookId, opClass: 'own_book', operation: 'stock.receipt',
+    clock, externalEvidence, credentials,
+  });
+  if (!gate.ok) return gate;
+
   // 1. BEMENETI SÉMA — a nyers bemenet ITT dől el, konverzió nélkül (BEM-01 · KUKA-125).
   const checked = validateInput({ operation: 'stock.receipt', input });
   if (!checked.ok) return checked;
