@@ -122,6 +122,40 @@ riport 0 pirosat). **Javítva a szerszám saját előírása szerint:** a bontá
 **A lezárt állapot söprése tehát: 7 zöld · 1 TÉVES „env-kihagyás" (valójában piros lánc) · 1 piros,
 amit ez a pont javít.** A boardra NOTE megy, ami az eredeti „0 piros" mondatot visszavonja.
 
+**12. A NEGYEDIK PIROS PROGRAM A LÁNCBAN A MIÉNK VOLT — és a 10. pont nem nevezte meg.** A 10. pont
+„öt eset, két okból" eltérést mondott. A lezárt állapoton az összesítő SAJÁT verdikt-listáját
+TÉTELESEN felolvasva: **12 zöld · 2 nevezett env-kihagyás (`r57` · `r59`, mindkettőnek ZÖLD és MÁS
+ALAKÚ helyettese van) · NÉGY PIROS** — `r77` · `r79core` · `r81core` (ezek a 10/„A" ok, a
+mennyiség-szerződés) **és `r79`**, ami a mi SAJÁT önvizsgálati programunk
+(`r79_run_contract_restated.mjs`). Ezt a negyediket a 10. pont nem nevezte meg.
+
+*Mi a hiba.* A program U04-es esete a POZITÍV ELLENPÁR („az érintetlen darabolt futás ELFOGADOTT"),
+és `--unit=k/4` alakban BEÉGETETT darabolással dolgozott. A battéria 134 → 145 mutációra nőtt, a
+négyes bontás egységei átlépték a `mutate.mjs` saját 12 000 ms-os költségvetését — tehát a mi
+pozitív ellenpárunk pirosra ment egy ép rendszeren. **Mérve a git-történetből:** a változásom ELŐTTI
+commiton `U04.pass: true` (egységek 11 304–11 767 ms), az R13-as commiton `false` (11 807–12 261 ms),
+ma `false` (12 058–12 527 ms). **Tehát ez az én munkám következménye, nem örökölt állapot.**
+
+*A javítás.* A darabszámnak EGY deklarált otthona lett (**`v3ref/batteryUnits.mjs`**), a program
+onnan veszi (`unitArgs`), és a `package.json` parancs-sorát a GÉP veti össze vele
+(`verify:unit-admission` **UAD08**) — enélkül az „egy otthon" csak dísz volna. A SZABÁLY nem az,
+hogy „N = 7": a szabály az, hogy minden egység beleférjen a költségvetésébe, és ezt a `mutate.mjs`
+nem-nulla kilépése őrzi, nem egy előre beírt szám. **Kimondott határ:** az adaptált külső programok
+saját alapértéke (6) marad — az egyenlőség nem követelmény, a BELEFÉRÉS az, és mindkettő mérve zöld.
+
+*Az UAD08 első két alakja is hibás volt, és ezt MÉRVE derítettem ki:* beégetett NEVEZŐ-mintákat
+kerestem, és a valódi régi alak (`` `--unit=${k}/4` ``), majd az összefűzött alak
+(`"--unit=" + k + "/4"`) is ÁTCSÚSZOTT rajta. A mai alak MEGENGEDŐ szabály: az egység-argumentumnak
+EGYETLEN forrása van, ezért a program kódjában a `--unit` szó nem állhat. **Falszifikálva öt
+visszacsúszáson, mind piros** (package.json elcsúsztatva · az import kivéve · beégetett darabolás
+sablon-alakban · összefűzéssel · beégetett egység-fájlnév); a kontroll zöld.
+
+**Két új tanulság:** **KUKA-171** (a söprés a szöveget olvasta, nem a verdiktet) · **KUKA-172** (a
+darabszám három otthonban, és a saját piros programom névtelen maradt — mert az összesítő
+verdikt-listáját nem tételesen olvastam). Mellé egy apró, MÉRT javítás a saját őrömön: a `verify:kuka`
+KUK03 hibaüzenete minden pozitív jelnél „(undefined)" indokot írt (a regiszter `why` mezőjét
+`reason` néven olvasta) — most a valódi indokot írja ki.
+
 ---
 
 ## D-VS-3031 — A BIZONYÍTÉK A HELYES KLAUZULÁN (R8-F01), ÉS AZ ADAPTÁLT PROGRAM AZONOSSÁGA (R8 §3)

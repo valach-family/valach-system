@@ -12,6 +12,7 @@
  * UAD04  a négy R81-es ellenpélda, mind a SAJÁT nevezett akadályával
  * UAD05  a fixtúra ALAKJA az ÍRÓTÓL származik, nem az emlékezetből (padlóval — KUKA-016/068)
  * UAD06  a támogatott futási szerződés SZABÁLY, és az ismeretlen verzió nem olvasható be
+ * UAD08  a darabszámnak EGY deklarált otthona van, és az otthon tényleg hat (KUKA-129 · KUKA-126)
  */
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, cpSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -22,6 +23,7 @@ import { admitUnits, chainBacking, SUPPORTED_RUN_CONTRACTS } from '../v3ref/unit
 import { REQUIRED_EVIDENCE, indexDigest, expectedChainRows, chainRowKey } from '../v3ref/norms.mjs';
 import { EXPECTED_PROBES } from '../v3ref/manifest.mjs';
 import { contractRef } from '../v3ref/normContract.mjs';
+import { DECLARED_UNITS, unitsScriptLine } from '../v3ref/batteryUnits.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = readFileSync(join(ROOT, 'v3ref/mutate.mjs'), 'utf8');
@@ -329,7 +331,48 @@ say('UAD06', admit(noContract).problems.some((p) => /`run_contract`: a mező HI�
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 
-console.log(`MRG-01 BEADVÁNY-KAPU (UAD01–UAD07): ${CASES.length + 1} ellenpélda · 1 pozitív kontroll · `
+// ── UAD08 — A DARABSZÁMNAK EGY DEKLARÁLT OTTHONA VAN, ÉS AZ OTTHON TÉNYLEG HAT ─────────────────
+//
+// MIÉRT. A darabszám HÁROM helyen élt, HÁROM értékkel (`package.json` · adaptált külső programok ·
+// a saját futás-szerződés próbánk `--unit=k/4` alakban BEÉGETVE). A battéria 134 → 145 mutációra
+// nőtt, és a négyes bontás átlépte a `mutate.mjs` saját költségvetését: a SAJÁT U04-es pozitív
+// ellenpárunk pirosra ment egy ép rendszeren (KUKA-129 — a szabály egyik végén javítva, a másikon
+// változatlanul). A `package.json` nem tud modult behúzni, ezért az „egy otthon" csak akkor kötés
+// és nem dísz, ha a GÉP veti össze a kettőt (KUKA-126).
+//
+// AMIT EZ NEM MÉR — KIMONDVA: hogy a deklarált darabszám BELEFÉR-e a költségvetésbe. Azt nem
+// jóslat őrzi, hanem maga a `mutate.mjs`: túllépésnél nem nullával lép ki (KUKA-045 — ahol a
+// szabály megfogalmazható, ott ne előre beírt számot mérjünk).
+{
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+  const line = pkg.scripts['v3ref:mutate:units'];
+  say('UAD08', line === unitsScriptLine(DECLARED_UNITS),
+    `a package.json \`v3ref:mutate:units\` sora eltér a deklarált otthontól (${DECLARED_UNITS} egység):\n`
+    + `      van : ${line}\n      kell: ${unitsScriptLine(DECLARED_UNITS)}`);
+
+  const R79 = readFileSync(join(ROOT, 'v3ref/external-checks/r79_run_contract_restated.mjs'), 'utf8');
+  const code = R79.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
+  say('UAD08', /from '\.\.\/batteryUnits\.mjs'/.test(code),
+    'a futás-szerződés próba nem a közös `batteryUnits.mjs` otthonból veszi a darabszámot');
+  // MEGENGEDŐ SZABÁLY, NEM TILTÓ FELSOROLÁS (KUKA-057). Az első két alakom a beégetett NEVEZŐ
+  // írásmódjait sorolta; mérve mindkettő rést hagyott — `` `--unit=${k}/4` `` az elsőn, a
+  // `"--unit=" + k + "/4"` összefűzés a másodikon csúszott át (KUKA-068: a pin a saját kitalált
+  // nyelvjárását mérte). A helyes mérce nem az, hogy MELYIK írásmód tilos, hanem hogy az egység-
+  // argumentumnak EGYETLEN forrása van: a közös `unitArgs`. Ezért a program KÓDJÁBAN a `--unit`
+  // szó egyáltalán nem állhat, az egység-fájlnév `-of-` része pedig csak változóval folytatódhat.
+  say('UAD08', !code.includes('--unit'),
+    'a futás-szerződés próba MAGA állítja elő az egység-argumentumot (`--unit`) — az egyetlen '
+    + 'megengedett forrás a közös `unitArgs`');
+  const burnedName = (code.match(/-of-(?!\$\{)./g) || []);
+  say('UAD08', burnedName.length === 0,
+    `az egység-fájlnévben BEÉGETETT nevező maradt: ${burnedName.join(', ')}`);
+
+  // POZITÍV ELLENPÁR a saját generátorunkra (KUKA-122: a kapu legyen teljesíthető, és mérve az).
+  say('UAD08', unitsScriptLine(2) === 'node v3ref/mutate.mjs --unit=1/2 && node v3ref/mutate.mjs --unit=2/2 && node v3ref/mutate.mjs --merge',
+    'a parancs-sor generátor maga hibás — az UAD08 összevetése így önmagát igazolná vissza');
+}
+
+console.log(`MRG-01 BEADVÁNY-KAPU (UAD01–UAD08): ${CASES.length + 1} ellenpélda · 1 pozitív kontroll · `
   + `${writerKeys.length} író-mező · kötelező készlet: ${REQUIRED_EVIDENCE.version} (${REQUIRED_EVIDENCE.clauses.length} klauzula)`);
 if (problems.length) {
   console.error(`\nPIROS (${problems.length}):`);

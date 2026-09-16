@@ -151,7 +151,9 @@ async function main() {
     for (const f of (e.positive || [])) {
       const re = new RegExp(f.pattern, f.flags || '');
       const misses = f.paths.filter((p) => !filesUnder(p).some((file) => re.test(read(file))));
-      check('KUK03', `${e.id}: a helyére lépett megoldás ÉL (${f.reason})`, misses.length === 0, misses.join(', '));
+      // A pozitív jelek indoka a regiszterben `why` néven áll (a tiltóké `reason`); az első alak
+      // csak a `reason`-t olvasta, ezért MINDEN pozitív bukás „(undefined)" indokkal jelent meg.
+      check('KUK03', `${e.id}: a helyére lépett megoldás ÉL (${f.reason || f.why})`, misses.length === 0, misses.join(', '));
     }
   }
 

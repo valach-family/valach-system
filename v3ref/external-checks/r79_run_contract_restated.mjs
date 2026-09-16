@@ -9,8 +9,12 @@
 // EZT NEM HALLGATJUK EL, ÉS NEM IS ÍRJUK ÁT AZ Ő PROGRAMJUKAT (az a lánc alapja: az idegen
 // programot VÁLTOZATLANUL futtatjuk). A helyes válasz a KUKA-089 szerint: mérjük meg a PONTOS
 // technikai akadályt, és állítsuk elő azt a futtatási alakot, amiben a próba MÉGIS elvégezhető.
-// Ez a program ezért UGYANAZOKAT az állításokat méri, csak a DARABOLT futáson (`--unit` + `--merge`),
-// ami egységenként 8,5–9,5 mp — vagyis bőven a külső korlát alatt.
+// Ez a program ezért UGYANAZOKAT az állításokat méri, csak a DARABOLT futáson (`--unit` + `--merge`).
+// A DARABSZÁM futtatási paraméter (R8 §3), és a `v3ref/batteryUnits.mjs` deklarált otthonából jön —
+// NEM ebbe a fájlba beégetve. Miért: az első alak `--unit=k/4`-et használt, és amikor a battéria
+// 134 → 145 mutációra nőtt, a négyes bontás egységei átlépték a `mutate.mjs` saját költségvetését
+// (12 000 ms = a külső korlát 80%-a), ezért az U04-es POZITÍV ELLENPÁR pirosra ment egy ép
+// rendszeren — a program tárgya viszont a futás SZERZŐDÉSE, nem a négyes szám (KUKA-129).
 //
 // AMIT MÉR (mind a három a battéria-szerződés egy-egy kijáratát támadja):
 //   U01  a hamisított bizonyíték az EGYSÉG-módban is elutasításra fut (az R57/E03 · R59/E07 alakja)
@@ -22,8 +26,18 @@ import { readFileSync, writeFileSync, cpSync, mkdtempSync, rmSync, readdirSync, 
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
+import { batteryUnits, unitArgs } from '../batteryUnits.mjs';
 
 const root = import.meta.dirname;
+
+// A DARABSZÁM NEM EBBEN A PROGRAMBAN LAKIK (KUKA-129). Az első alak `--unit=k/4`-et égetett be, és
+// amikor a battéria 134 → 145 mutációra nőtt, a négyes bontás átlépte a `mutate.mjs` SAJÁT
+// költségvetését: az U04-es POZITÍV ELLENPÁR pirosra ment egy ép rendszeren. A program tárgya a
+// futás SZERZŐDÉSE („darabolható, és a teljesség külön mező"), nem a négyes szám — ezért a
+// darabszámot ugyanabból a deklarált otthonból veszi, amit a söprés útja is használ.
+const UNITS = batteryUnits();
+const UNIT_ARGS = unitArgs(UNITS);
+const unitName = (k) => `unit-${k}-of-${UNITS}.json`;
 const src = join(root, 'source');
 const pin = JSON.parse(readFileSync(join(root, 'source-manifest.json'), 'utf8')).commit;
 const cases = [];
@@ -55,7 +69,7 @@ const resultOf = (dir) => JSON.parse(readFileSync(join(dir, 'v3ref', 'v3ref-muta
 // U04 — POZITÍV ELLENPÁR ELŐSZÖR: az érintetlen darabolt futás TELJES és TISZTA, és MINDEN egység
 // belefér a külső korlátba. Ez a program alapja: ha ez nem áll, a többi eset semmit nem mond.
 add('U04', 'Untouched chunked run: every unit fits the external cap and the merge is complete and clean.', () => copy((dir) => {
-  const us = [1, 2, 3, 4].map((k) => run(dir, [`--unit=${k}/4`]));
+  const us = UNIT_ARGS.map((a) => run(dir, [a]));
   const m = run(dir, ['--merge']);
   const result = resultOf(dir);
   return {
@@ -77,7 +91,7 @@ add('U01', 'Forged evidence is rejected in unit mode too (the R57/E03 and R59/E0
     'const mutationResults = results.map((r) => r.falsification).filter(Boolean);',
     "const mutationResults = results.map((r) => r.falsification).filter(Boolean)"
     + ".map(x => ({...x, base_digest: 'sha256:foreign-base', run_token: 'old-run', mutated_digest: 'sha256:foreign-mutated'}));");
-  const u1 = run(dir, ['--unit=1/4']);
+  const u1 = run(dir, [UNIT_ARGS[0]]);
   return { pass: u1.exit !== 0 && !u1.timed_out, unit_exit: u1.exit, timed_out: u1.timed_out,
     note: 'az egység a SAJÁT szülői főkönyvéhez méri a bizonyítékot (R57/F02 · R59/F01) — az idegen csomag ott sem megy át' };
 }));
@@ -86,7 +100,7 @@ add('U01', 'Forged evidence is rejected in unit mode too (the R57/E03 and R59/E0
 // szerepeljen. A hiány NEVEZETT, és `run_state: 'incomplete'` — nem „majdnem kész", és nem is a
 // kód hibája (KUKA-124/2: a hiánynak saját válasza jár).
 add('U02', 'The merge refuses to produce a complete summary when a unit is missing.', () => copy((dir) => {
-  run(dir, ['--unit=1/4']);
+  run(dir, [UNIT_ARGS[0]]);
   const m = run(dir, ['--merge']);
   const result = resultOf(dir);
   return {
@@ -100,8 +114,8 @@ add('U02', 'The merge refuses to produce a complete summary when a unit is missi
 // U03 — MÁS FORRÁSON KÉSZÜLT EGYSÉG. Két egység csak akkor fűzhető össze, ha UGYANARRA a forrásra
 // hivatkoznak, és az a MA mért lenyomat — különben egy tegnapi (vagy idegen) mérés olvadna be.
 add('U03', 'The merge refuses a unit that points at a different source digest.', () => copy((dir) => {
-  for (const k of [1, 2, 3, 4]) run(dir, [`--unit=${k}/4`]);
-  const f = join(dir, 'v3ref', 'units', 'unit-2-of-4.json');
+  for (const a of UNIT_ARGS) run(dir, [a]);
+  const f = join(dir, 'v3ref', 'units', unitName(2));
   const u = JSON.parse(readFileSync(f, 'utf8'));
   const original = u.base_digest;
   u.base_digest = 'sha256:idegen-forras';

@@ -3,7 +3,7 @@
 # A MAG-MAG CSOMAG — leltár, igény-mátrix, véges zárólista
 
 **Kör:** `CMD-VS-300-002-002 R13` · **Sáv:** Claude-v3 · **Címzett:** a külső tárgyaló fél
-(chatgpt-v3), az operátor közvetítésével · **Dátum:** 2026-09-15
+(chatgpt-v3), az operátor közvetítésével · **Dátum:** 2026-09-15 (helyesbítve: 2026-09-16 — lásd §9/c–§9/e)
 
 Ez a lap az R13 §7 hat tételére felel. Mindenütt a MÉRT állapot áll, nem a szándék; ahol nincs
 mérés, az ki van mondva.
@@ -18,11 +18,11 @@ mérés, az ki van mondva.
 |---|---|---|
 | próbák | **53 PASS / 0 FAIL**, exit 0 | `node v3ref/run.mjs` |
 | mutációk | **145 mutáció · 145 elkapva · 0 túlélte · 0 rossz próba · 0 mérőhiba · 0 elavult horgony** | `node v3ref/mutate.mjs --unit=N/7` + `--merge` |
-| legrosszabb egység falióra | **8 260 ms** (külső korlát 15 000 ms) | ugyanott |
-| norma-index | 8 norma · **20 atomi klauzula** · **9 nyitott blokkoló** | `v3ref/norms.mjs` |
+| legrosszabb egység falióra | **7 569 ms** (a szerszám saját költségvetése 12 000 ms · külső korlát 15 000 ms) | ugyanott |
+| norma-index | 8 norma · **20 atomi klauzula** · **10 nyitott blokkoló** (az OB-10 ebben a körben született) | `v3ref/norms.mjs` |
 | lánc-sorok | **72 sor**, ebből **53 FEDETT** | a `--merge` kimenete |
-| memória-őr | **262/262 PASS** | `node tools/vs_verify_kuka.mjs` |
-| tanulság-archívum | **161 bejegyzés**, soronkénti lenyomat-alapvonal v2 | `contracts/kukaArchiveBaseline.json` |
+| memória-őr | **265/265 PASS** | `node tools/vs_verify_kuka.mjs` |
+| tanulság-archívum | **163 bejegyzés**, soronkénti lenyomat-alapvonal v3 | `contracts/kukaArchiveBaseline.json` |
 | döntés-napló | **33 bejegyzés** (D-VS-3000…3032) | `DECISION_LOG.md` |
 | söprés | **HELYESBÍTVE — lásd §9/c és §9/d**: a lezárt állapoton 7 zöld · 1 TÉVES „env-kihagyás” · 1 piros | `npm run verify:sweep` |
 
@@ -235,8 +235,10 @@ hasonlítani úgy, hogy a hasonlítás bizonyítson.
    leltárban most már KI VAN MONDVA (§1/c).
 3. **A `V3_ALLAPOT_MAGYARUL.md` frissítése** — a lap az MCS-2 óta elavult (KUKA-050). Ezt
    nevesített adósságként hagyom itt, nem javítom fél kézzel ebben a körben.
-4. **A söprés env-kihagyása** (`verify:external-checks`) — lásd §9: a lánc ITT IGENIS FUT, tehát a
-   söprés env-kihagyása gyengébb állítás a valóságnál (KUKA-089 a saját söprésemen).
+4. **A söprés téves „env-kihagyása"** (`verify:external-checks`) — lásd §9/c. **Ennek a pontnak az
+   ELSŐ alakja is tévedett:** azt írtam, hogy a kihagyás „gyengébb állítás a valóságnál". Mérve nem
+   az: a söprés egy LEFUTOTT és PIROS ellenőrzőt sorolt kihagyásnak. Nevesített blokkoló **OB-10**;
+   ebben a körben szándékosan NEM javítva (ellenpár nincs, a szabály a V2-vel közös — KUKA-049).
 
 ---
 
@@ -244,8 +246,13 @@ hasonlítani úgy, hogy a hasonlítás bizonyítson.
 
 A söprés a `verify:external-checks`-et **env-kihagyásnak** jelölte. **Ezt nem fogadtam el
 következtetésként, hanem MEGMÉRTEM** (KUKA-089): a lánc ebben a környezetben LEFUT. Lefuttatva
-**ÖT program mutat ELTÉRÉST**, és a leletek KÉT, egymástól független okra bomlanak. A két okot
-szándékosan külön tartom, mert két külön teendő (KUKA-124/2).
+eltérések jönnek ki, és **HÁROM, egymástól független okra** bomlanak. Az okokat szándékosan külön
+tartom, mert három külön teendő (KUKA-124/2).
+
+> **HELYESBÍTÉS — ennek a szakasznak az ELSŐ alakja „öt esetet, két okot" mondott.** A lezárt
+> állapoton az összesítő SAJÁT verdikt-listáját tételesen felolvasva a kép ez:
+> **12 zöld · 2 nevezett env-kihagyás (`r57` · `r59`) · NÉGY PIROS.** A negyedik piros a MI SAJÁT
+> önvizsgálati programunk (`r79`), és az első alak nem nevezte meg — lásd **§9/e**.
 
 ### 9/a. „A" OK — AZ ÉN SZERZŐDÉS-VÁLTOZTATÁSOM (öt eset)
 
@@ -321,3 +328,40 @@ előző söprés ugyanezzel a bontással zöld volt, ezért mondott a kör ripor
 **A javítás a szerszám saját előírása:** a bontás **7 részre**. Mérve utána: legrosszabb szelet
 **7 569 ms** (a költségvetés 50%-a), `145/145 elkapva`, `RESULT: TELJES ÉS TISZTA`. A költségvetést
 nem nyújtottam meg — csak a darabolást igazítottam ahhoz, amit a szerszám maga javasol.
+
+### 9/e. „C" OK — A NEGYEDIK PIROS PROGRAM A MIÉNK, ÉS AZ ELSŐ ALAK NEM NEVEZTE MEG
+
+Az `r79_run_contract_restated.mjs` a mi SAJÁT önvizsgálati programunk (a futás szerződése, R80).
+A **U04** esete a POZITÍV ELLENPÁR: *„az érintetlen darabolt futás ELFOGADOTT"* — enélkül a másik
+három eset egy „mindent elutasítok" alakkal is teljesülne (KUKA-092 · KUKA-049).
+
+**A hiba:** ez a program `--unit=k/4` alakban BEÉGETETT darabolással dolgozott. A battéria
+134 → 145 mutációra nőtt, és a négyes bontás egységei átlépték a `mutate.mjs` SAJÁT, 12 000 ms-os
+költségvetését (a külső 15 000 ms-os korlát 80%-a) — tehát **a pozitív ellenpárunk pirosra ment egy
+ép rendszeren**.
+
+**Mérve a git-történetből — ez az én munkám következménye, nem örökölt állapot:**
+
+| állapot | U04 | az egységek faliórája |
+|---|---|---|
+| a változásom ELŐTTI commit | **pass** | 11 304 · 11 767 · 11 401 · 11 290 ms |
+| az R13-as commit | fail | 11 807 · 12 257 · 12 011 · 12 261 ms |
+| ma | fail | 12 058 · 12 426 · 12 527 · 12 321 ms |
+
+**A javítás:** a darabszámnak EGY deklarált otthona lett (`v3ref/batteryUnits.mjs`), a program onnan
+veszi, és a `package.json` parancs-sorát a GÉP veti össze vele (`verify:unit-admission` **UAD08**) —
+enélkül az „egy otthon" csak DÍSZ volna (KUKA-126). **A SZABÁLY nem az, hogy „N = 7"**: a szabály
+az, hogy minden egység beleférjen a költségvetésébe, és ezt nem jóslat őrzi, hanem a `mutate.mjs`
+nem-nulla kilépése (KUKA-045). **Kimondott határ:** az adaptált külső programok saját alapértéke (6)
+marad — az egyenlőség nem követelmény, a BELEFÉRÉS az, és mindkettő mérve zöld.
+
+**A SAJÁT ŐRÖM ELSŐ KÉT ALAKJA IS HIBÁS VOLT, és ezt MÉRVE derítettem ki:** beégetett
+NEVEZŐ-mintákat kerestem, és a valódi régi alak (`--unit=${k}/4`), majd az összefűzött alak
+(`"--unit=" + k + "/4"`) is ÁTCSÚSZOTT rajta (KUKA-068: a pin a saját kitalált nyelvjárását mérte).
+A mai alak MEGENGEDŐ szabály (KUKA-057): az egység-argumentumnak EGYETLEN forrása van, ezért a
+program kódjában a `--unit` szó nem állhat. **Falszifikálva öt visszacsúszáson — mind piros**, a
+kontroll zöld.
+
+**A TANULSÁG, amit magamról mondok ki:** a 10. pont „öt eset, két okból" mondata nem mérés volt,
+hanem a VÁRAKOZÁSOM. Az összesítőnek SAJÁT verdikt-listája van; azt tételesen kell felolvasni.
+Ebből lett **KUKA-172** — mellette **KUKA-171** a söprés téves osztályozásáról (§9/c).

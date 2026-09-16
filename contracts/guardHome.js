@@ -221,6 +221,12 @@ const GUARD_HOME = Object.freeze({
   'KUKA-168': Object.freeze({ home: 'v3', note: 'a mennyiség két szakasza (határ ↔ profil-kötés) a V3 magban él — a jel a P-BEM (i) ága (ugyanaz a szöveg MÁS profillal MÁS válasz) és a P-KSZ (g) darabos kanonikus alakja' }),
   'KUKA-169': Object.freeze({ home: 'v3', note: 'a kontextus ↔ tartalom szétválasztása a V3 bemeneti sémájában él — a jel a P-BEM (h) `unknown_field@warehouse_id` és a P-KSZ (d) `idempotency_conflict`' }),
   'KUKA-170': Object.freeze({ home: 'v3', note: 'a főkönyv tárolói őrei a V3 sémájában élnek — a jel a P-KSZ (i) NYERS tárolási próbája + az M146/M147 mutáció' }),
+  // FIGYELEM, KIMONDVA: a KUKA-171 otthona azért 'v3', mert a jele ITT fut — de a jel NEM a hibát
+  // (a söprés téves osztályozását) méri, hanem azt, hogy a nevesített blokkoló (OB-10) létezik és
+  // megjelenik a nyitott blokkoló-listán. A hibára magára NINCS gépi jel, és ezt a bejegyzés
+  // `guard_note`-ja is kimondja (KUKA-127: a gyengébb jel ERŐSSÉGÉT is ki kell írni).
+  'KUKA-171': Object.freeze({ home: 'v3', note: 'a jel a `v3ref/norms.mjs` OB-10 blokkolója — a BLOKKOLÓ létét méri, NEM a söprés osztályozóját' }),
+  'KUKA-172': Object.freeze({ home: 'v3', note: 'a darabszám deklarált otthona és a package.json parancs-sora ITT él — a jel a verify:unit-admission UAD08' }),
 });
 
 function homeOf(id) { return (GUARD_HOME[id] || null); }

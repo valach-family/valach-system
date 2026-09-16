@@ -7476,6 +7476,99 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'kivétele bizonyítottan pirosra viszi a próbát).',
   }),
 
+  Object.freeze({
+    id: 'KUKA-171',
+    date: '2026-09-16',
+    title: 'A SÖPRÉS A SZÖVEGET OLVASTA, NEM A VERDIKTET — a PIROS lánc kihagyásnak látszott',
+    what: 'A kör riportja „8 zöld · 1 env-kihagyás · 0 piros" söprést jelentett. MÉRVE a lezárt '
+      + 'állapoton: a `verify:external-checks` a söprésen BELÜL LEFUTOTT — mind a 18 program '
+      + 'eredmény-fájlját kiírta, és az összesítőbe `ok:false` verdiktet rögzített (12 zöld a '
+      + '18-ból, NÉGY valóban piros programmal) —, a söprés mégis env-kihagyásnak sorolta.',
+    why_wrong: 'A `tools/vs_verify_sweep.mjs` osztályozója env-kihagyásnak minősít MINDEN bukott '
+      + 'ellenőrzőt, amelynek KIMENETÉBEN bárhol szerepel az „ENV-KIHAGYÁS" szó. A lánc saját, '
+      + 'szabályos jelentése viszont JOGOSAN tartalmazza ezt (a 18 programjából kettőt ő maga hagy '
+      + 'ki, nevezett akadállyal). A verifier SAJÁT jelentése nyelte el a SAJÁT piros verdiktjét — '
+      + 'ez a KUKA-009 alakja a söprésen: a jel a SZÖVEGET olvassa, nem a VISELKEDÉST méri. A kár '
+      + 'konkrét és mért: a kör riportja emiatt mondott 0 pirosat egy piros lánc mellett, és '
+      + 'emiatt maradt névtelen egy SAJÁT, valóban piros programunk is (lásd KUKA-172).',
+    replaced_by: 'NEVESÍTETT BLOKKOLÓ: OB-10 a normaregiszterben — a javítás NEM ebben a körben',
+    replacement: 'A zárás feltétele KIMONDVA: a söprés a verifier SAJÁT, gépi VERDIKTJÉBŐL '
+      + 'döntsön (ne a kimenet részszövegéből), és az env-kihagyás csak TELJES futás-kihagyásra '
+      + 'álljon — MINDKÉT irányban falszifikálva. Azért nem most: ebben a repóban ma NINCS valódi '
+      + 'környezet-hiányos verifier, amivel az ELLENPÁR mérhető volna (KUKA-049: ellenpár nélkül a '
+      + 'szigorítás jogos futásokat zárhat ki), és a szabály a V2 söprésével KÖZÖS.',
+    decision: 'D-VS-3032',
+    found_by: 'a SAJÁT MÉRÉSEM — a kör lezárása UTÁN, a bizonyíték-fájlok időbélyegéből (a söprés '
+      + 'saját összefoglalója végig „0 pirosat" mondott)',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/norms.mjs']), pattern: "id: 'OB-10'",
+        why: 'a nevesített blokkoló a normaregiszterben él, tehát a nyitott blokkoló-listán megjelenik' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'AMIT EGY ELLENŐRZŐ A SAJÁT JELENTÉSÉBEN LEÍR, AZ NEM A VERDIKTJE — a befogadó a gépi '
+      + 'ÍTÉLETET olvassa, ne a kimenet szavait. És egy TÉVES KIHAGYÁS rosszabb a hiányzó '
+      + 'mérésnél: a hiányzó mérés hiánynak látszik, a téves kihagyás ZÖLDNEK. Ha egy őr '
+      + 'szigorítása ELLENPÁR nélkül maradna, azt ki kell mondani és blokkolóként nevesíteni — de '
+      + 'a RÁÉPÜLT ÁLLÍTÁST („0 piros") ugyanabban a körben vissza kell vonni.',
+    guard_note: 'A HIBÁRA MAGÁRA NINCS GÉPI JEL — kimondottan: a söprés osztályozója változatlan. '
+      + 'A jel az, hogy az **OB-10** nevesített blokkolóként megjelenik a `node v3ref/run.mjs` '
+      + 'NYITOTT BLOKKOLÓK listáján, és a zárási feltétele (mindkét irányú falszifikáció) írásban '
+      + 'áll. A visszamérés kézi: a lánc `results/external-checks-result.json` `verdict.ok` mezője.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-172',
+    date: '2026-09-16',
+    title: 'A DARABSZÁM HÁROM OTTHONBAN — és a SAJÁT pozitív ellenpárom pirosra ment névtelenül',
+    what: 'A mutációs battéria darabolása HÁROM helyen élt, HÁROM értékkel: `package.json` (7) · '
+      + 'az ADAPTÁLT külső programok (`VS_BATTERY_UNITS`, alapérték 6) · és a SAJÁT futás-szerződés '
+      + 'próbánk, ahol `--unit=k/4` alakban BE VOLT ÉGETVE. Amikor a battéria 134 → 145 mutációra '
+      + 'nőtt, a négyes bontás egységei átlépték a `mutate.mjs` saját költségvetését (12 000 ms), '
+      + 'ezért az `r79_run_contract_restated.mjs` U04-es POZITÍV ELLENPÁRJA pirosra ment egy ép '
+      + 'rendszeren. MÉRVE a git-történetből: a változásom ELŐTTI commiton `U04.pass: true` '
+      + '(egységek 11,3–11,8 s), a sajátomon `false` (12,0–12,5 s).',
+    why_wrong: 'KÉT hiba egymásra rakva. (1) KUKA-129: egy szabályt az egyik végén javítottam (a '
+      + '`package.json` 4 → 7), a másik végén változatlanul maradt — mert a darabszámnak nem volt '
+      + 'EGY otthona. (2) A kör jelentése „öt eset, két okból" eltérést mondott a külső láncra, '
+      + 'holott NÉGY program volt piros, és a negyedik a MIÉNK: az összesítő SAJÁT verdikt-listáját '
+      + 'nem tételesen olvastam el, hanem a saját várakozásomat (KUKA-054 a jelentésen). A KUKA-171 '
+      + 'téves kihagyása pedig elfedte az egészet.',
+    replaced_by: 'EGY deklarált otthon: `v3ref/batteryUnits.mjs` (`DECLARED_UNITS` · `batteryUnits` '
+      + '· `unitArgs` · `unitsScriptLine`), és a próba onnan veszi a darabszámot',
+    replacement: 'A SZABÁLY nem az, hogy „N = 7" — a szabály az, hogy minden egység beleférjen a '
+      + 'saját költségvetésébe, és ezt nem jóslat őrzi, hanem a `mutate.mjs` nem-nulla kilépése '
+      + '(KUKA-045). Ez a modul azt tartja egy helyen, ami darabszám MARAD; a `package.json` nem '
+      + 'tud modult behúzni, ezért a kötést GÉP méri (UAD08), különben a fájl csak DÍSZ volna '
+      + '(KUKA-126). KIMONDOTT HATÁR: az adaptált külső programok saját alapértéke (6) marad — az '
+      + 'egyenlőség nem követelmény, a BELEFÉRÉS az, és mindkettő MÉRVE zöld.',
+    decision: 'D-VS-3032',
+    found_by: 'a SAJÁT MÉRÉSEM — a lezárt állapoton újrafuttatott söprés bizonyíték-fájljainak '
+      + 'TÉTELES átolvasásából (a söprés összefoglalója itt is „0 pirosat" mondott — KUKA-171)',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/external-checks/r79_run_contract_restated.mjs']),
+        pattern: "from '../batteryUnits.mjs'",
+        why: 'a futás-szerződés próba a KÖZÖS otthonból veszi a darabszámot, nem beégetve' }),
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_unit_admission.mjs']),
+        pattern: 'unitsScriptLine\\(DECLARED_UNITS\\)',
+        why: 'a package.json parancs-sora a deklarált otthonhoz MÉRVE van (nem dísz)' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'AMIKOR EGY SZABÁLYT MEGJAVÍTOK, MEG KELL KÉRDEZNI, HÁNY HELYEN KELL IGAZNAK LENNIE — '
+      + 'és ha egynél többön, akkor nem javítani kell, hanem KÖZÖS OTTHONBA tenni (KUKA-129). '
+      + 'Mellé egy MÁSODIK, a jelentésre szóló lecke: ha egy összesítőre hivatkozom, a SAJÁT '
+      + 'verdikt-listáját kell tételesen felolvasni — a „mit várok benne" nem mérés, és egy saját, '
+      + 'piros programot hagy névtelenül. A tiltás pedig MEGENGEDŐ szabály legyen, ne írásmód-lista: '
+      + 'az UAD08 első két alakja beégetett NEVEZŐ-mintákat keresett, és MÉRVE mindkettő rést '
+      + 'hagyott (`--unit=${k}/4`, majd a `"--unit=" + k + "/4"` összefűzés) — a helyes mérce az, '
+      + 'hogy az egység-argumentumnak EGYETLEN forrása van (KUKA-057 · KUKA-068).',
+    guard_note: 'gépi jel: `npm run verify:unit-admission` **UAD08** — (a) a `package.json` '
+      + '`v3ref:mutate:units` sora a deklarált otthonhoz mérve · (b) a próba a közös modulból húz · '
+      + '(c) a próba KÓDJÁBAN (megjegyzés nélkül) nem állhat `--unit`, és az egység-fájlnév `-of-` '
+      + 'része csak változóval folytatódhat · (d) POZITÍV ELLENPÁR a parancs-sor generátorra. '
+      + 'Falszifikálva ÖT visszacsúszáson (package.json elcsúsztatva · az import kivéve · '
+      + 'beégetett darabolás sablon-alakban · összefűzéssel · beégetett egység-fájlnév) — mind piros.',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({
