@@ -225,6 +225,30 @@ kifejezett csomag-mezőt), tehát elvben lehet túlszámolás is — a mérő ez
 és én nem írom felül. **És nem állítok megtakarítást sem:** ez EGY kör elszámolása, nincs mihez
 hasonlítani úgy, hogy a hasonlítás bizonyítson.
 
+### 7/b. ÉS MAGÁNAK AZ R13-NAK A KÖLTSÉGE — MOZGÓ CÉLPONT, KIMONDVA
+
+A fenti tábla az **R8**-as csomagra készült. Magára az **R13**-ra is lefuttattam a mérőt, de ennek
+a számnak van egy KIMONDOTT korlátja, amit a mérő maga is nevesít: **a napló a kör FUTÁSA KÖZBEN
+nő**, tehát a futó kör saját száma mozgó célpont — a lenti érték a helyesbítő szakasz (§9/c–§9/e)
+megírásáig terjed.
+
+| rovat | mért érték (`CMD-VS-300-002-002 R13`) |
+|---|---|
+| kérések (végleges rekordból) | **322** |
+| ebből ismételt rekord (nem növeli a fogyasztást) | 230 |
+| hiányzó elszámolás | **0** |
+| friss bemenet | 644 token |
+| gyorstár-ÍRÁS | 2 750 558 token |
+| gyorstár-OLVASÁS | 138 787 602 token |
+| **KIÍRT** | **307 212 token** (ebből gondolkodás: 86 953) |
+| eltelt idő (első→utolsó kérés) | 332 perc |
+| eszköz-hívás | 342 |
+
+**Jelölt bizonytalanság: nincs** — minden rekord a támogatott sémára illeszkedett. **Az
+alügynök-naplók (665 fájl) NINCSENEK benne**, ezért ez RÉSZLEGES elszámolás, nem „alsó korlát" (a
+csomag-határ szöveg-alapú, tehát elvben túlszámolás is lehet). **És megtakarítást most sem
+állítok:** ez egy kör elszámolása, nincs mihez hasonlítani úgy, hogy a hasonlítás bizonyítson.
+
 ---
 
 ## 8. AMI KIMARADT — nevesítve
