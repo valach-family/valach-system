@@ -58,6 +58,17 @@ export function sweepVerdict({ exitCode, timedOut = false, stdout = '' }) {
       why: 'a söprés türelmén belül nem ért véget — ez NEM bukás, külön kell lefuttatni' });
   }
   const declared = declaredVerdict(stdout);
+
+  // A HIBÁS ALAK A KILÉPÉSI KÓDTÓL FÜGGETLENÜL HIBA (R18/F18-01, a külső fél lelete — KUKA-176).
+  // Az első alak ezt az ágat CSAK a nem-nulla kilépés alá tette, ezért a `VS-SWEEP-VERDICT: nonsense`
+  // sor nullával zárt gyermeknél ZÖLD lett: a szerződés szövege („a hibás alakú deklaráció hiba")
+  // egy ágon igaz volt, a másikon nem — a KUKA-039 fél-őre a saját, egy körrel korábbi szerződésemen.
+  // A jelölő megjelenése ÖNMAGÁBAN azt állítja, hogy a gyermek verdiktet deklarál; ha az alak rossz,
+  // nem tudjuk, MIT akart mondani, és a nem tudást nem oldhatjuk fel a kedvezőbb irányba (KUKA-020).
+  if (declared && declared.kind === 'malformed') {
+    return Object.freeze({ verdict: 'failed', reason: null,
+      why: `HIBÁS ALAKÚ deklaráció (${declared.line}) — a hibás alak nem kihagyás, hanem hiba, a kilépési kódtól függetlenül` });
+  }
   if (exitCode === 0) {
     // ELLENTMONDÁS: nullával zárt, mégis kihagyást deklarál. Az önmagának ellentmondó rekord nem
     // mérés (KUKA-122) — és a feloldás NEM mehet a megengedő irányba, mert akkor a ellentmondás
@@ -71,10 +82,6 @@ export function sweepVerdict({ exitCode, timedOut = false, stdout = '' }) {
   if (declared && declared.kind === 'env_skipped') {
     return Object.freeze({ verdict: 'env_skipped', reason: declared.reason,
       why: 'a gyermek a kimenete UTOLSÓ sorában, gépi alakban deklarálta a környezeti akadályt' });
-  }
-  if (declared && declared.kind === 'malformed') {
-    return Object.freeze({ verdict: 'failed', reason: null,
-      why: `HIBÁS ALAKÚ deklaráció (${declared.line}) — a hibás alak nem kihagyás, hanem hiba` });
   }
   return Object.freeze({ verdict: 'failed', reason: null,
     why: 'nem nullával zárt, és NEM deklarált környezeti akadályt — a kimenetben szereplő szó nem verdikt' });

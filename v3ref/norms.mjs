@@ -530,8 +530,15 @@ export const OPEN_BLOCKERS = Object.freeze([
       + 'pontos normaszöveg és lenyomat → élethelyzet → mérendő tulajdonság → pozitív és negatív '
       + 'eset → megváltoztatott kód → ténylegesen megbukó állítás → maradék hatókör. A '
       + 'felülvizsgálat a KONKRÉT verziókhoz kötődik (szerződés-lenyomat + klauzula-lenyomat), és '
-      + 'bármelyik változása ELAVULTTÁ teszi — a gépezet ezt már méri (content_review), a tartalom '
-      + 'még nincs meg: ma MIND a tizenhat klauzula `none` állapotú.',
+      + 'bármelyik változása ELAVULTTÁ teszi — a gépezet ezt már méri (content_review), az ELBÍRÁLÁS '
+      + 'még nincs meg: ma MINDEN klauzula `none` állapotú. (A DARABSZÁMOT ez a szöveg szándékosan '
+      + 'nem mondja ki: az első alak „tizenhat"-ot írt, miközben a regiszter már húszat hordozott — a '
+      + 'kézzel léptetett szám elcsúszik, a kérdés nem „hány van", hanem hogy MEGVAN-E MIND, KUKA-045; '
+      + 'a számot a lánc-tábla méri: `node v3ref/run.mjs`.) A LEKÉPEZÉS (klauzula → forrás → '
+      + 'bizonyíték) az R20-ban ELKÉSZÜLT és a `docs/70_PLANNING/OB7_LEKEPEZES.json` állományban áll, '
+      + 'a `tools/vs_ob7_map.cjs` generálja a mai forrásból. A leképezés a dolgozó sáv munkája; az '
+      + 'ELBÍRÁLÁS a független félé, és CSAK az írhat `content_review` rekordot — ezért a leképezés '
+      + 'minden klauzuláján az a mező `null`.',
   }),
   Object.freeze({
     id: 'OB-8', title: 'K05 — a KIADÁSI OSZTÁLYOZÓNAK nincs klauzulája',

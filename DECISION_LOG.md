@@ -16,6 +16,83 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3034 — F18-01 JAVÍTVA, AZ OB-7 LEKÉPEZÉS ELKÉSZÜLT, ÉS A K0 MÉRVE
+
+> **Hatály:** V2+V3 — az F18-01, az OB-7 leképezés és a K0 a V3 magja; a **körmérő v3-progress/1
+> vetítése** viszont a KÖZÖS szerszámot érinti, ami fizikailag a V2 repóban lakik
+> (`tools/vs_round_cost.mjs`), ezért a V2 fejlesztőnek is tudnia kell róla. **V2 TERMÉK-kód nem
+> változott; PR nem született.**
+
+**Dátum:** 2026-09-16 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R20 (az ő R18 + R19 lapjukra)
+
+**1. F18-01 — A HIBÁS ALAK CSAK AZ EGYIK ÁGON VOLT HIBA.** A külső fél lelete:
+`sweepVerdict({exitCode:0, stdout:'VS-SWEEP-VERDICT: nonsense'})` **ZÖLD** volt, ugyanaz a sor
+`exit 1`-gyel piros. A szerződés SZÖVEGE (R17 §3/a) kimondta, hogy a hibás alak `failed` — a KÓD
+viszont ezt CSAK a nem-nulla kilépés alá tette (**KUKA-039** fél-őre a saját, egy körrel korábbi
+szerződésemen). **A saját pinem sem foghatta meg:** az SWV04 a hibás alakot KIZÁRÓLAG `exit 1`-gyel
+mérte — tükröt mért, nem ellenpárt. Javítás: a hibás-alak vizsgálat a SIKERÁG ELŐTT fut, NEVEZETT
+indokkal. Gépi jel: **`verify:sweep-verdict` SWV07** — a lelet mindkét kóddal, négy további hibás
+alak nullával zárva, HÁROM ellenpár (jelölő nélküli zöld · érvényes kihagyás · türelem-túllépés), és
+az ÖTÖDIK VALÓDI gyermek-folyamat. A régi sorrendre bizonyítottan piros: **7 SWV07 állítás + SWV05**.
+Tanulság: **KUKA-176**.
+
+**2. OB-7 — A LEKÉPEZÉS ELKÉSZÜLT, AZ ELBÍRÁLÁS NEM (és nem is az enyém).** Az R18 §1 kérte; kész:
+`docs/70_PLANNING/OB7_LEKEPEZES.json`, amit a **`tools/vs_ob7_map.cjs`** generál a MAI forrásból.
+A hét lépésből ÖT gépi (normaszöveg + lenyomat · pozitív/negatív eset · mutációk · a ténylegesen
+megbukó állítás · a lánc-számok), KETTŐ próza, külön állományban (`OB7_PROZA.json`) — hogy látsszon,
+mi az enyém (KUKA-082: a kézzel írt kivonat elcsúszik a gépi leltártól). **MÉRVE: 20 klauzula · 72
+lánc-sor (53 fedett · 12 részben · 7 bizonyíték nélkül) · 22 próba · 56 falszifikáló mutáció · 0 fel
+nem oldott azonosító.** A `content_review` MINDEN soron `null` — azt CSAK a független fél írhatja
+(R57/F03). **KIMONDOTT KORLÁT:** a próza-oldalra ebben a körben NEM futott független
+kereszt-ellenőrzés.
+
+**3. K0 — A BIZONYTALAN MENNYISÉG ÉS A NÉGY ALAPKAPCSOLAT, FUTTATVA.** Az R19 §9.1 feltétele
+(„konkrét támogatási mód ÉS ellenpélda") nem forrás-olvasással teljesíthető, ezért **futtattam**:
+`node tools/vs_k0_qnt_probe.mjs` — **9 mérés: 2 rendben · 5 hiányzik · 2 hibás.**
+· **A LEGSÚLYOSABB (C2):** a magban EGYETLEN mennyiségi művelet van (`stock.receipt`), és az MOZGÁST
+ír — a „pontosabban megmértük ugyanazt" csak új áruként fejezhető ki: **100 + 90 = 190**, holott egy
+90 kg-os tétel van. Nem hibás funkció, hanem **hiányzó fogalom: a MEGFIGYELÉS** (QNT-07 · QNT-18).
+· **E1:** egy „mérlegjegy" és egy „receptből becsült" bevét sora az azonosítón kívül **BÁJTRA
+AZONOS** — a QNT-03 hét eredetéből egy sem tárolható.
+· **D1:** a mag KÉT időt tárol, az R19 §5.2 HÁRMAT kér — a MEGFIGYELÉS ideje sehol.
+· **B1:** a kiadott eredmény adatköre a TÁRGYAT osztályozza, az EREDETET nem; mért és becsült 100 kg
+azonos választ kap.
+· **AMIT MEG KELL TARTANI (R19 §9.1):** az azonosság MÁR MA elválik a mennyiségtől (A1 — a cikk-törzs
+nem hordoz mennyiséget), az ismétlés-kulcs nem dupláz (C1), és az audit-lánc kötött (`effect_id`).
+
+**4. SAJÁT LELET A SAJÁT MÉRŐMBEN.** A K0 B1 első alakja `Object.keys()`-t hívott a deklarált
+eredmény-típusok LISTÁJÁRA, tehát a tömb INDEXEIT mérte típusnak — a mag jogos válasza így „nincs
+deklarálva" leletnek látszott volna. **A mérő hibáját nem jelentem a rendszer hibájaként**
+(KUKA-094 a mérőn); javítva, a valódi típusok (`stock.issue/1` · `stock.receipt/1`) állnak a mérésben.
+
+**5. HELYESBÍTÉS A SAJÁT KÓDOMBAN: az OB-7 darabszáma.** A `norms.mjs` OB-7 feltétele „MIND a
+tizenhat klauzulát" mondott, miközben a regiszter HÚSZAT hordoz és a lánc 72 sort. A kézzel léptetett
+szám elcsúszott (**KUKA-045**): a szöveg mostantól nem mond darabszámot, hanem a mérésre mutat.
+
+**6. KÖRNYEZETI VESZTESÉG — KIMONDVA.** Az OB-7 leképezést KÉTSZER állítottam elő: az első,
+22 ügynökös menet eredménye a **futtatókörnyezet konténerének újraindulásával elveszett** (a
+munkaterület és a futás naplója egyaránt), a K0 ága és négy ellenőrző ügynök pedig **kvóta-korlátba**
+ütközött. A mai leképezés NEM visszaemlékezés: GENERÁTORBÓL jön, ami a repóban áll — ez erősebb, mint
+egy egyszeri ügynök-kimenet. De a **független kereszt-ellenőrzés nem futott le**, és ezt nem írom
+elvégzettnek (KUKA-093: a hiányzó mérés nem zöld). Tanulság magamra: **ami csak a munkaterületen áll,
+az nincs meg** — a köztes eredmény a repóba való.
+
+**7. v3-progress/1 — A KÖRMÉRŐ VETÍTÉSE (nem párhuzamos mérő).** Az R18 utasítására a meglévő
+körmérő két új feloldót kapott (`v3ProgressLimitations` · `toV3Progress`): a 13 metrikából HATOT +
+az eltelt időt tud, a többi **null, nem nulla**; a fázis-bontás és az attribúció szerkezeti korlátként
+MINDIG a borítékban áll. Gépi jel: **`vs_verify_round_cost` RCC27–RCC31 (31/31)**. **KOMPATIBILITÁSI
+PRÓBA az Ő validátorukkal, verbatim** (PR #155 `4ae6a91f`, 171-es katalógus — a sajátommal azonos
+halmaz és sorrend): **7/7**. Hely: a V2 kijelölt ága, commit `4677e54e`, **PR nélkül**; a V2
+lint-őrök a friss klónon zöldek (`no-undef` 1155 fájl · `tdz` 1142 · `module-symbol-wiring` 9/9 ·
+`kuka` 512/512).
+
+**GÉPI VÉGEREDMÉNY.** `node v3ref/run.mjs` **54/54 PASS** · mutációs battéria **149 mutáció · 149
+elkapva · 0 túlélte · 0 rossz próba · 0 mérőhiba · 0 elavult horgony**, legrosszabb egység **6588 ms**
+(korlát 15 000) · norma-lánc **53/72 fedett**, hiányzó 0 · idegen 0 · `verify:kuka` **271/271** ·
+`verify:sweep-verdict` **ZÖLD** · a V2 körmérő pinjei **31/31**.
+
+---
+
 ## D-VS-3033 — F16-01 (A SORREND VOLT A SZIVÁRGÁS) ÉS OB-10 LEZÁRVA
 
 > **Hatály:** V2+V3 — az F16-01 és a normaregiszter a V3 magja; a söprés VERDIKT-SZERZŐDÉSE viszont

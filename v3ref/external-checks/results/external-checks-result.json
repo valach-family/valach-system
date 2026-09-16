@@ -1,21 +1,11 @@
 {
-  "at": "2026-09-16T10:44:39.149Z",
+  "at": "2026-09-16T15:42:08.172Z",
   "node": "v22.22.2",
   "source": {
-    "commit": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+    "commit": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
     "clean": false,
     "dirty_files": [
-      "v3ref/accessGate.mjs",
-      "v3ref/command.mjs",
-      "v3ref/external-checks/case-manifest.mjs",
-      "v3ref/external-checks/r16_chatgpt-v3.core.mjs",
-      "v3ref/external-checks/r16_chatgpt-v3.mjs",
-      "v3ref/ledger.mjs",
-      "v3ref/manifest.mjs",
-      "v3ref/mutations.mjs",
-      "v3ref/norms.mjs",
-      "v3ref/run.mjs",
-      "v3ref/store.mjs"
+      "v3ref/norms.mjs"
     ],
     "note": "a lemásolt forráson nem-könyvelt változás áll — a bemondott commit ezért jelölt"
   },
@@ -49,7 +39,7 @@
   "verdict": {
     "ok": false,
     "complete_evidence": false,
-    "green": 13,
+    "green": 14,
     "env_skipped": 2,
     "of": 19
   },
@@ -63,7 +53,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 248,
+      "ms": 159,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -117,7 +107,7 @@
       "expected_from": "a külső fél R16-os programja (a `rec(...)` hívások első argumentumai, ahogy megérkezett) — NEM egy lefutásból, hanem a forrás-szövegből olvasva",
       "evidence_file": "r16-core-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
       "total": 7,
       "present": [
         "repeat-canonical",
@@ -134,7 +124,7 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r16core_r16-core-challenge.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r16core_r16-core-challenge.json",
       "stderr": [],
       "error": null,
       "child_trace": null
@@ -148,7 +138,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 149,
+      "ms": 153,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -172,7 +162,7 @@
       "expected_from": "a külső fél R92-es lapja (a program ciklusának `id` értékei, ahogy megérkezett)",
       "evidence_file": "r92-authz-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
       "total": 2,
       "present": [
         "F01",
@@ -184,7 +174,7 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r92authz_r92-authz-challenge.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r92authz_r92-authz-challenge.json",
       "stderr": [],
       "error": null,
       "child_trace": null
@@ -198,7 +188,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 152,
+      "ms": 176,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -240,7 +230,7 @@
       "expected_from": "a külső fél R88-as lapja (a program `test(...)` hívásainak azonosítói, ahogy megérkezett)",
       "evidence_file": "r88-core-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
       "total": 5,
       "present": [
         "P01-same-book-basis",
@@ -255,9 +245,9 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r88core_r88-core-challenge.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r88core_r88-core-challenge.json",
       "stderr": [
-        "(node:19999) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:4201) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -272,7 +262,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 189,
+      "ms": 135,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -308,7 +298,7 @@
       "expected_from": "a külső fél R85-ös lapja (a program `test(...)` hívásainak azonosítói, ahogy megérkezett)",
       "evidence_file": "r85-core-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
       "total": 4,
       "present": [
         "P01-known-grant",
@@ -322,9 +312,9 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r85core_r85-core-challenge.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r85core_r85-core-challenge.json",
       "stderr": [
-        "(node:20013) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:4215) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -339,7 +329,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 1,
-      "ms": 322,
+      "ms": 266,
       "failure_kind": "assertion_failure",
       "failure_why": "VALÓDI eset-hiba (nem időtúllépés): F02-data-scope-context-does-not-filter-price-result (assertion_failure)",
       "failure_rows": [
@@ -585,7 +575,7 @@
       "expected_from": "a külső fél R77-es lapja (§8, teljes forrással)",
       "evidence_file": "r77-core-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
       "total": 39,
       "present": [
         "M-suspend-book-matching",
@@ -639,9 +629,9 @@
         "[r77] a program NEM NULLÁVAL zárt (kilépés 1)"
       ],
       "ok": false,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r77_r77-core-challenge.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r77_r77-core-challenge.json",
       "stderr": [
-        "(node:20027) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:4229) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -649,9 +639,9 @@
         "status": 1,
         "signal": null,
         "spawn_error_code": null,
-        "elapsed_ms": 322,
+        "elapsed_ms": 266,
         "stderr_tail": [
-          "(node:20027) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+          "(node:4229) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
           "(Use `node --trace-warnings ...` to show where the warning was created)"
         ],
         "stdout_tail": [
@@ -691,7 +681,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 205,
+      "ms": 142,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -745,7 +735,7 @@
       "expected_from": "a külső fél R75-ös lapja (§7, teljes forrással)",
       "evidence_file": "r75-core-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
       "total": 7,
       "present": [
         "C01-authorized-book-ban-and-independent-book",
@@ -762,9 +752,9 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r75_r75-core-challenge.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r75_r75-core-challenge.json",
       "stderr": [
-        "(node:20041) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:4243) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -779,7 +769,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 148,
+      "ms": 141,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -821,7 +811,7 @@
       "expected_from": "a külső fél R69-es lapja (§8, teljes forrással)",
       "evidence_file": "r69-core-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
       "total": 5,
       "present": [
         "C01-suspension-lift-preserves-history",
@@ -836,9 +826,9 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r69_r69-core-challenge.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r69_r69-core-challenge.json",
       "stderr": [
-        "(node:20055) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:4257) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -853,7 +843,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 157,
+      "ms": 122,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -913,7 +903,7 @@
       "expected_from": "a külső fél R67-es lapja (§8, teljes forrással)",
       "evidence_file": "r67-core-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
       "total": 8,
       "present": [
         "C01-unauthorized-suspension-denied",
@@ -931,9 +921,9 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r67_r67-core-challenge.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r67_r67-core-challenge.json",
       "stderr": [
-        "(node:20069) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:4271) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -948,7 +938,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 1284,
+      "ms": 973,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -1008,7 +998,7 @@
       "expected_from": "a külső fél R63-as kísérő lapja (§8 esetkészlet) — az eredeti NÉGY változatlan, az U01–U04 kiegészítés",
       "evidence_file": "r60-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
       "total": 8,
       "present": [
         "P03",
@@ -1026,7 +1016,7 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r61_r60-challenge.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r61_r60-challenge.json",
       "stderr": [],
       "error": null,
       "child_trace": null
@@ -1039,11 +1029,31 @@
       "program_digest": "875d5753ce8596dc7f929910ee404ca8c3986e1ffdeddf314f9db09ba3331c52",
       "adapted": false,
       "adapted_from": null,
-      "exit": 1,
-      "ms": 51997,
-      "failure_kind": "assertion_failure",
-      "failure_why": "VALÓDI eset-hiba (nem időtúllépés): merge/KORNYEZET-3 (assertion_failure) · merge/KORNYEZET-4 (assertion_failure)",
+      "exit": 0,
+      "ms": 40676,
+      "failure_kind": "unknown",
+      "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
+        {
+          "id": "merge/P01-genuine",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "merge/F01-missing-probe-status",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "merge/F01-unknown-probe-status",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "merge/F02-remove-required-row",
+          "kind": "ok",
+          "why": null
+        },
         {
           "id": "runner/all-green",
           "kind": "ok",
@@ -1057,16 +1067,6 @@
         {
           "id": "runner/original-and-sub-failure",
           "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "merge/KORNYEZET-3",
-          "kind": "assertion_failure",
-          "why": null
-        },
-        {
-          "id": "merge/KORNYEZET-4",
-          "kind": "assertion_failure",
           "why": null
         }
       ],
@@ -1084,73 +1084,27 @@
       "expected_from": "a külső fél R83-as lapja (a két program `plans`/`mode` listája, ahogy megérkezett; a `merge/` és `runner/` előtagot a burkoló teszi rá, mert KÉT próba ad EGY eset-listát)",
       "evidence_file": "r83-core-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
-      "total": 5,
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
+      "total": 7,
       "present": [
-        "runner/all-green",
-        "runner/original-real-failure",
-        "runner/original-and-sub-failure",
-        "merge/KORNYEZET-3",
-        "merge/KORNYEZET-4"
-      ],
-      "missing": [
         "merge/P01-genuine",
         "merge/F01-missing-probe-status",
         "merge/F01-unknown-probe-status",
-        "merge/F02-remove-required-row"
+        "merge/F02-remove-required-row",
+        "runner/all-green",
+        "runner/original-real-failure",
+        "runner/original-and-sub-failure"
       ],
-      "unknown": [
-        "merge/KORNYEZET-3",
-        "merge/KORNYEZET-4"
-      ],
+      "missing": [],
+      "unknown": [],
       "duplicate": [],
-      "failed": [
-        "merge/KORNYEZET-3",
-        "merge/KORNYEZET-4"
-      ],
-      "problems": [
-        "[r83core] HIÁNYZÓ eset: merge/P01-genuine · merge/F01-missing-probe-status · merge/F01-unknown-probe-status · merge/F02-remove-required-row — a program nem futott végig, vagy nem az futott, amit hívtunk",
-        "[r83core] a manifesztben NEM SZEREPLŐ eset: merge/KORNYEZET-3 · merge/KORNYEZET-4",
-        "[r83core] ELBUKOTT eset: merge/KORNYEZET-3 · merge/KORNYEZET-4",
-        "[r83core] a program NEM NULLÁVAL zárt (kilépés 1)"
-      ],
-      "ok": false,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r83core_r83-core-challenge.json",
+      "failed": [],
+      "problems": [],
+      "ok": true,
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r83core_r83-core-challenge.json",
       "stderr": [],
       "error": null,
-      "child_trace": {
-        "status": 1,
-        "signal": null,
-        "spawn_error_code": null,
-        "elapsed_ms": 51997,
-        "stderr_tail": [],
-        "stdout_tail": [
-          "  {",
-          "    mode: 'original-and-sub-failure',",
-          "    pass: true,",
-          "    exit: 1,",
-          "    verdict: {",
-          "      ok: false,",
-          "      complete_evidence: false,",
-          "      green: 17,",
-          "      env_skipped: 0,",
-          "      of: 19",
-          "    },",
-          "    original: {",
-          "      ok: false,",
-          "      failed: [Array],",
-          "      error: null,",
-          "      env_skipped: undefined,",
-          "      problems: [Array]",
-          "    }",
-          "  }",
-          "]"
-        ],
-        "truncated": {
-          "stderr_lines": 0,
-          "stdout_lines": 59
-        }
-      }
+      "child_trace": null
     },
     {
       "id": "r81core",
@@ -1161,9 +1115,9 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 1,
-      "ms": 47890,
+      "ms": 41766,
       "failure_kind": "assertion_failure",
-      "failure_why": "VALÓDI eset-hiba (nem időtúllépés): core/P01-pure-lines (assertion_failure) · core/F04-release-time-before (assertion_failure) · core/F04-release-time-after (assertion_failure) · core/F04-release-time-cross (assertion_failure) · merge/KORNYEZET-7 (assertion_failure) · merge/KORNYEZET-8 (assertion_failure)",
+      "failure_why": "VALÓDI eset-hiba (nem időtúllépés): core/P01-pure-lines (assertion_failure) · core/F04-release-time-before (assertion_failure) · core/F04-release-time-after (assertion_failure) · core/F04-release-time-cross (assertion_failure)",
       "failure_rows": [
         {
           "id": "core/P01-pure-lines",
@@ -1201,13 +1155,43 @@
           "why": null
         },
         {
-          "id": "merge/KORNYEZET-7",
-          "kind": "assertion_failure",
+          "id": "merge/P01-genuine",
+          "kind": "ok",
           "why": null
         },
         {
-          "id": "merge/KORNYEZET-8",
-          "kind": "assertion_failure",
+          "id": "merge/P02-missing-unit",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "merge/P03-foreign-digest",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "merge/P04-duplicate-unit",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "merge/F01-empty-results",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "merge/F01-contradictory-verdict",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "merge/F02-empty-required",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "merge/F03-wrong-contract",
+          "kind": "ok",
           "why": null
         }
       ],
@@ -1233,8 +1217,8 @@
       "expected_from": "a külső fél R81-es lapja (a két program `cases`/`plans` listája, ahogy megérkezett; a `core/` és `merge/` előtagot a burkoló teszi rá, mert KÉT próba ad EGY eset-listát)",
       "evidence_file": "r81-core-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
-      "total": 9,
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
+      "total": 15,
       "present": [
         "core/P01-pure-lines",
         "core/P02-second-line-price",
@@ -1243,10 +1227,6 @@
         "core/F04-release-time-before",
         "core/F04-release-time-after",
         "core/F04-release-time-cross",
-        "merge/KORNYEZET-7",
-        "merge/KORNYEZET-8"
-      ],
-      "missing": [
         "merge/P01-genuine",
         "merge/P02-missing-unit",
         "merge/P03-foreign-digest",
@@ -1256,29 +1236,23 @@
         "merge/F02-empty-required",
         "merge/F03-wrong-contract"
       ],
-      "unknown": [
-        "merge/KORNYEZET-7",
-        "merge/KORNYEZET-8"
-      ],
+      "missing": [],
+      "unknown": [],
       "duplicate": [],
       "failed": [
         "core/P01-pure-lines",
         "core/F04-release-time-before",
         "core/F04-release-time-after",
-        "core/F04-release-time-cross",
-        "merge/KORNYEZET-7",
-        "merge/KORNYEZET-8"
+        "core/F04-release-time-cross"
       ],
       "problems": [
-        "[r81core] HIÁNYZÓ eset: merge/P01-genuine · merge/P02-missing-unit · merge/P03-foreign-digest · merge/P04-duplicate-unit · merge/F01-empty-results · merge/F01-contradictory-verdict · merge/F02-empty-required · merge/F03-wrong-contract — a program nem futott végig, vagy nem az futott, amit hívtunk",
-        "[r81core] a manifesztben NEM SZEREPLŐ eset: merge/KORNYEZET-7 · merge/KORNYEZET-8",
-        "[r81core] ELBUKOTT eset: core/P01-pure-lines · core/F04-release-time-before · core/F04-release-time-after · core/F04-release-time-cross · merge/KORNYEZET-7 · merge/KORNYEZET-8",
+        "[r81core] ELBUKOTT eset: core/P01-pure-lines · core/F04-release-time-before · core/F04-release-time-after · core/F04-release-time-cross",
         "[r81core] a program NEM NULLÁVAL zárt (kilépés 1)"
       ],
       "ok": false,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r81core_r81-core-challenge.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r81core_r81-core-challenge.json",
       "stderr": [
-        "(node:22020) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:6230) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -1286,36 +1260,36 @@
         "status": 1,
         "signal": null,
         "spawn_error_code": null,
-        "elapsed_ms": 47890,
+        "elapsed_ms": 41766,
         "stderr_tail": [
-          "(node:22020) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+          "(node:6230) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
           "(Use `node --trace-warnings ...` to show where the warning was created)"
         ],
         "stdout_tail": [
-          "    pass: false,",
-          "    error: 'The expression evaluated to a falsy value:\\n' +",
-          "      '\\n' +",
-          "      \"  assert(submitCommand({store,clock,actor:'member',bookId:'a',idemKey:'x',type:'stock.receipt',typeVersion:'1',declared:{qty:1},resolve:()=>({qty:1})}).ok)\\n\"",
-          "  },",
-          "  {",
-          "    id: 'F04-release-time-after',",
-          "    pass: false,",
-          "    error: 'The expression evaluated to a falsy value:\\n' +",
-          "      '\\n' +",
-          "      \"  assert(submitCommand({store,clock,actor:'member',bookId:'a',idemKey:'x',type:'stock.receipt',typeVersion:'1',declared:{qty:1},resolve:()=>({qty:1})}).ok)\\n\"",
-          "  },",
-          "  {",
-          "    id: 'F04-release-time-cross',",
-          "    pass: false,",
           "    error: 'The expression evaluated to a falsy value:\\n' +",
           "      '\\n' +",
           "      \"  assert(submitCommand({store,clock,actor:'member',bookId:'a',idemKey:'x',type:'stock.receipt',typeVersion:'1',declared:{qty:1},resolve:()=>({qty:1})}).ok)\\n\"",
           "  }",
+          "]",
+          "[",
+          "  { id: 'P01-genuine', pass: true, exit: 0, result_count: 149 },",
+          "  { id: 'P02-missing-unit', pass: true, exit: 2, result_count: 111 },",
+          "  { id: 'P03-foreign-digest', pass: true, exit: 2, result_count: 149 },",
+          "  { id: 'P04-duplicate-unit', pass: true, exit: 2, result_count: 187 },",
+          "  { id: 'F01-empty-results', pass: true, exit: 2, result_count: 0 },",
+          "  {",
+          "    id: 'F01-contradictory-verdict',",
+          "    pass: true,",
+          "    exit: 2,",
+          "    result_count: 149",
+          "  },",
+          "  { id: 'F02-empty-required', pass: true, exit: 2, result_count: 149 },",
+          "  { id: 'F03-wrong-contract', pass: true, exit: 2, result_count: 0 }",
           "]"
         ],
         "truncated": {
           "stderr_lines": 2,
-          "stdout_lines": 33
+          "stdout_lines": 48
         }
       }
     },
@@ -1328,7 +1302,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 1,
-      "ms": 183,
+      "ms": 143,
       "failure_kind": "assertion_failure",
       "failure_why": "VALÓDI eset-hiba (nem időtúllépés): P01-flat-quantity (assertion_failure) · P07-command-before (assertion_failure)",
       "failure_rows": [
@@ -1448,7 +1422,7 @@
       "expected_from": "a külső fél R79-es lapja (a program `cases` tömbje, ahogy megérkezett)",
       "evidence_file": "r79-core-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
       "total": 18,
       "present": [
         "P01-flat-quantity",
@@ -1482,9 +1456,9 @@
         "[r79core] a program NEM NULLÁVAL zárt (kilépés 1)"
       ],
       "ok": false,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r79core_r79-core-challenge.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r79core_r79-core-challenge.json",
       "stderr": [
-        "(node:23373) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:7739) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -1492,9 +1466,9 @@
         "status": 1,
         "signal": null,
         "spawn_error_code": null,
-        "elapsed_ms": 183,
+        "elapsed_ms": 143,
         "stderr_tail": [
-          "(node:23373) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+          "(node:7739) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
           "(Use `node --trace-warnings ...` to show where the warning was created)"
         ],
         "stdout_tail": [
@@ -1534,7 +1508,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 130038,
+      "ms": 108712,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -1570,7 +1544,7 @@
       "expected_from": "az R80-as körünk jegyzőkönyve (R79 §6 — RUN-02), a pozitív ellenpárral EGYÜTT",
       "evidence_file": "r79-run-contract.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
       "total": 4,
       "present": [
         "U04",
@@ -1584,7 +1558,7 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r79_r79-run-contract.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r79_r79-run-contract.json",
       "stderr": [],
       "error": null,
       "child_trace": null
@@ -1608,7 +1582,7 @@
         "unchanged": "egyetlen eset · mutáció · elvárás · forráskötés és az időkeret-ÉRVÉNYESÍTÉS sem (a 15 000 ms-os külső és a 12 000 ms-os belső korlát áll) — a merge továbbra is a pontosan egyszeres, azonos forrású egység-készletet fogadja el."
       },
       "exit": 0,
-      "ms": 111116,
+      "ms": 91846,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -1662,7 +1636,7 @@
       "expected_from": "a külső fél R59-es kísérő lapja (§2 esetlista) — az adaptálás az eseteket nem érinti",
       "evidence_file": "r58-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
       "total": 7,
       "present": [
         "P01",
@@ -1679,7 +1653,7 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r59a_r58-challenge.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r59a_r58-challenge.json",
       "stderr": [],
       "error": null,
       "child_trace": null
@@ -1703,7 +1677,7 @@
         "unchanged": "egyetlen eset · mutáció · elvárás · forráskötés és az időkeret-ÉRVÉNYESÍTÉS sem."
       },
       "exit": 0,
-      "ms": 113493,
+      "ms": 98458,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -1769,7 +1743,7 @@
       "expected_from": "a külső fél R57-es kísérő lapja („T01–T05 · E01–E04\") — az adaptálás az eseteket nem érinti",
       "evidence_file": "r56-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
       "total": 9,
       "present": [
         "T01",
@@ -1788,9 +1762,9 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r57a_r56-challenge.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r57a_r56-challenge.json",
       "stderr": [
-        "(node:30010) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:14479) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -1805,9 +1779,9 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 1,
-      "ms": 16054,
+      "ms": 15824,
       "failure_kind": "wall_clock_timeout",
-      "failure_why": "a program EREDMÉNY NÉLKÜL állt meg, időtúllépésre utaló hibával, és a mért futásidő (16054 ms) elérte a bejelentett belső korlátot (15000 ms) — két jel, KÖZÖS OKBÓL (nem független tanúk; lásd a kimondott korlátot)",
+      "failure_why": "a program EREDMÉNY NÉLKÜL állt meg, időtúllépésre utaló hibával, és a mért futásidő (15824 ms) elérte a bejelentett belső korlátot (15000 ms) — két jel, KÖZÖS OKBÓL (nem független tanúk; lásd a kimondott korlátot)",
       "failure_rows": [],
       "failure_witness_limit": "a két jel (a program hibaszövege és a mért futásidő) UGYANANNAK az eseménynek a következménye, tehát NEM független tanú; és ezen az ágon nincs esetenkénti bizonyíték, mert a program eredmény-fájl nélkül állt meg — a kihagyást a ZÖLD HELYETTES tartja, nem ez a két jel",
       "failure_witness_basis": null,
@@ -1856,7 +1830,7 @@
         "status": 1,
         "signal": null,
         "spawn_error_code": null,
-        "elapsed_ms": 16054,
+        "elapsed_ms": 15824,
         "stderr_tail": [
           "node:internal/child_process:1120",
           "    result.error = new ErrnoException(result.error, 'spawnSync ' + options.file);",
@@ -1864,8 +1838,8 @@
           "Error: spawnSync /opt/node22/bin/node ETIMEDOUT",
           "    at Object.spawnSync (node:internal/child_process:1120:20)",
           "    at spawnSync (node:child_process:902:24)",
-          "    at run (file:///tmp/v3ref-ext-PE15kK/r59_chatgpt-v3.mjs:11:41)",
-          "    at file:///tmp/v3ref-ext-PE15kK/r59_chatgpt-v3.mjs:17:12",
+          "    at run (file:///tmp/v3ref-ext-QTgzLu/r59_chatgpt-v3.mjs:11:41)",
+          "    at file:///tmp/v3ref-ext-QTgzLu/r59_chatgpt-v3.mjs:17:12",
           "    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)",
           "    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)",
           "    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5) {",
@@ -1873,7 +1847,7 @@
           "  code: 'ETIMEDOUT',",
           "  syscall: 'spawnSync /opt/node22/bin/node',",
           "  path: '/opt/node22/bin/node',",
-          "  spawnargs: [ '/tmp/v3ref-ext-PE15kK/source/v3ref/mutate.mjs' ]",
+          "  spawnargs: [ '/tmp/v3ref-ext-QTgzLu/source/v3ref/mutate.mjs' ]",
           "}",
           "Node.js v22.22.2"
         ],
@@ -1885,7 +1859,7 @@
       },
       "env_obstacle": {
         "excusable": true,
-        "why": "a program EREDMÉNY NÉLKÜL állt meg, időtúllépésre utaló hibával, és a mért futásidő (16054 ms) elérte a bejelentett belső korlátot (15000 ms) — két jel, KÖZÖS OKBÓL (nem független tanúk; lásd a kimondott korlátot) — és a megnevezett helyettes (r59a) ZÖLD, és MÁS ALAK: MÁS alak, mint az eredeti (r59_chatgpt-v3.mjs): 29f037fbf034… ≠ 80adb50a6986…",
+        "why": "a program EREDMÉNY NÉLKÜL állt meg, időtúllépésre utaló hibával, és a mért futásidő (15824 ms) elérte a bejelentett belső korlátot (15000 ms) — két jel, KÖZÖS OKBÓL (nem független tanúk; lásd a kimondott korlátot) — és a megnevezett helyettes (r59a) ZÖLD, és MÁS ALAK: MÁS alak, mint az eredeti (r59_chatgpt-v3.mjs): 29f037fbf034… ≠ 80adb50a6986…",
         "declared_kind": "wall_clock_timeout",
         "measured_kind": "wall_clock_timeout"
       },
@@ -1903,9 +1877,9 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 36024,
+      "ms": 34863,
       "failure_kind": "wall_clock_timeout",
-      "failure_why": "MÉRT időtúllépés (2 eset: E02 · E03) — minden más eset zöld, és a mért futásidő (36024 ms) elérte a bejelentett belső korlátot (15000 ms)",
+      "failure_why": "MÉRT időtúllépés (2 eset: E02 · E03) — minden más eset zöld, és a mért futásidő (34863 ms) elérte a bejelentett belső korlátot (15000 ms)",
       "failure_rows": [
         {
           "id": "T01",
@@ -1969,7 +1943,7 @@
       "expected_from": "a külső fél R57-es kísérő lapja („T01–T05 · E01–E04\")",
       "evidence_file": "r56-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
       "total": 9,
       "present": [
         "T01",
@@ -1997,9 +1971,9 @@
         "[r57] ELBUKOTT eset: E02 · E03"
       ],
       "ok": false,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r57_r56-challenge.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r57_r56-challenge.json",
       "stderr": [
-        "(node:1015) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:18255) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -2007,9 +1981,9 @@
         "status": 0,
         "signal": null,
         "spawn_error_code": null,
-        "elapsed_ms": 36024,
+        "elapsed_ms": 34863,
         "stderr_tail": [
-          "(node:1015) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+          "(node:18255) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
           "(Use `node --trace-warnings ...` to show where the warning was created)"
         ],
         "stdout_tail": [
@@ -2022,11 +1996,11 @@
           "  },",
           "  {",
           "    \"id\": \"E02\",",
-          "    \"test_error\": \"Error: spawnSync /opt/node22/bin/node ETIMEDOUT\\n    at Object.spawnSync (node:internal/child_process:1120:20)\\n    at spawnSync (node:child_process:902:24)\\n    at run (file:///tmp/v3ref-ext-PE15kK/r57_chatgpt-v3.mjs:17:43)\\n    at file:///tmp/v3ref-ext-PE15kK/r57_chatgpt-v3.mjs:43:504\\n    at copy (file:///tmp/v3ref-ext-PE15kK/r57_chatgpt-v3.mjs:15:136)\\n    at file:///tmp/v3ref-ext-PE15kK/r57_chatgpt-v3.mjs:43:272\\n    at add (file:///tmp/v3ref-ext-PE15kK/r57_chatgpt-v3.mjs:14:73)\\n    at file:///tmp/v3ref-ext-PE15kK/r57_chatgpt-v3.mjs:43:252\"",
+          "    \"test_error\": \"Error: spawnSync /opt/node22/bin/node ETIMEDOUT\\n    at Object.spawnSync (node:internal/child_process:1120:20)\\n    at spawnSync (node:child_process:902:24)\\n    at run (file:///tmp/v3ref-ext-QTgzLu/r57_chatgpt-v3.mjs:17:43)\\n    at file:///tmp/v3ref-ext-QTgzLu/r57_chatgpt-v3.mjs:43:504\\n    at copy (file:///tmp/v3ref-ext-QTgzLu/r57_chatgpt-v3.mjs:15:136)\\n    at file:///tmp/v3ref-ext-QTgzLu/r57_chatgpt-v3.mjs:43:272\\n    at add (file:///tmp/v3ref-ext-QTgzLu/r57_chatgpt-v3.mjs:14:73)\\n    at file:///tmp/v3ref-ext-QTgzLu/r57_chatgpt-v3.mjs:43:252\"",
           "  },",
           "  {",
           "    \"id\": \"E03\",",
-          "    \"test_error\": \"Error: spawnSync /opt/node22/bin/node ETIMEDOUT\\n    at Object.spawnSync (node:internal/child_process:1120:20)\\n    at spawnSync (node:child_process:902:24)\\n    at run (file:///tmp/v3ref-ext-PE15kK/r57_chatgpt-v3.mjs:17:43)\\n    at file:///tmp/v3ref-ext-PE15kK/r57_chatgpt-v3.mjs:43:504\\n    at copy (file:///tmp/v3ref-ext-PE15kK/r57_chatgpt-v3.mjs:15:136)\\n    at file:///tmp/v3ref-ext-PE15kK/r57_chatgpt-v3.mjs:43:272\\n    at add (file:///tmp/v3ref-ext-PE15kK/r57_chatgpt-v3.mjs:14:73)\\n    at file:///tmp/v3ref-ext-PE15kK/r57_chatgpt-v3.mjs:43:252\"",
+          "    \"test_error\": \"Error: spawnSync /opt/node22/bin/node ETIMEDOUT\\n    at Object.spawnSync (node:internal/child_process:1120:20)\\n    at spawnSync (node:child_process:902:24)\\n    at run (file:///tmp/v3ref-ext-QTgzLu/r57_chatgpt-v3.mjs:17:43)\\n    at file:///tmp/v3ref-ext-QTgzLu/r57_chatgpt-v3.mjs:43:504\\n    at copy (file:///tmp/v3ref-ext-QTgzLu/r57_chatgpt-v3.mjs:15:136)\\n    at file:///tmp/v3ref-ext-QTgzLu/r57_chatgpt-v3.mjs:43:272\\n    at add (file:///tmp/v3ref-ext-QTgzLu/r57_chatgpt-v3.mjs:14:73)\\n    at file:///tmp/v3ref-ext-QTgzLu/r57_chatgpt-v3.mjs:43:252\"",
           "  },",
           "  {",
           "    \"id\": \"E04\",",
@@ -2041,7 +2015,7 @@
       },
       "env_obstacle": {
         "excusable": true,
-        "why": "MÉRT időtúllépés (2 eset: E02 · E03) — minden más eset zöld, és a mért futásidő (36024 ms) elérte a bejelentett belső korlátot (15000 ms) — és a megnevezett helyettes (r57a) ZÖLD, és MÁS ALAK: MÁS alak, mint az eredeti (r57_chatgpt-v3.mjs): 7d1b8731b2e7… ≠ 5ce2ad7bafd1…",
+        "why": "MÉRT időtúllépés (2 eset: E02 · E03) — minden más eset zöld, és a mért futásidő (34863 ms) elérte a bejelentett belső korlátot (15000 ms) — és a megnevezett helyettes (r57a) ZÖLD, és MÁS ALAK: MÁS alak, mint az eredeti (r57_chatgpt-v3.mjs): 7d1b8731b2e7… ≠ 5ce2ad7bafd1…",
         "declared_kind": "wall_clock_timeout",
         "measured_kind": "wall_clock_timeout"
       },
@@ -2059,7 +2033,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 45447,
+      "ms": 35737,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -2101,7 +2075,7 @@
       "expected_from": "az R56-os körünk jegyzőkönyve (az R55 öt esete)",
       "evidence_file": "restated.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
       "total": 5,
       "present": [
         "C11-restated",
@@ -2116,9 +2090,9 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r55_restated.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r55_restated.json",
       "stderr": [
-        "(node:1978) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:19532) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
@@ -2133,7 +2107,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 1753,
+      "ms": 1437,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -2157,7 +2131,7 @@
       "expected_from": "az R54-es körünk jegyzőkönyve (támadás + ellenpár)",
       "evidence_file": "f03-restated.json",
       "evidence_present": true,
-      "evidence_pin": "7613289ed9c046d502b1d0a14211823dd0661b20+uncommitted",
+      "evidence_pin": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
       "total": 2,
       "present": [
         "G01",
@@ -2169,7 +2143,7 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/tmp/claude-0/-home-user/e15afcda-5e24-586d-a731-c3695d44af97/scratchpad/valach-system/v3ref/external-checks/results/r53_f03-restated.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r53_f03-restated.json",
       "stderr": [],
       "error": null,
       "child_trace": null

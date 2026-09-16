@@ -230,6 +230,7 @@ const GUARD_HOME = Object.freeze({
   'KUKA-173': Object.freeze({ home: 'v3', note: 'a hozzáférési kapu a V3 magban él — a jel a P-AUT-object-neutral próba + M149–M152' }),
   'KUKA-174': Object.freeze({ home: 'v3', note: 'a fixtúra a V3 próba-fájljában él — a jel ugyanannak a próbának az (a) ága' }),
   'KUKA-175': Object.freeze({ home: 'v3', note: 'a darabolás közös deklarációja a V3 külső-ellenőrző könyvtárában él — a jel a verify:unit-admission UAD08; a KÜLSŐ burkolók bontása kimondottan MÉRETLEN' }),
+  'KUKA-176': Object.freeze({ home: 'v3', note: 'a verdikt-szerződés és a hibás-alak ág a V3 szerszám-könyvtárában él — a jel a verify:sweep-verdict SWV07, ellenpárokkal és VALÓDI gyermek-folyamattal' }),
 });
 
 function homeOf(id) { return (GUARD_HOME[id] || null); }

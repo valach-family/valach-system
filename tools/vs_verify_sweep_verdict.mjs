@@ -85,6 +85,8 @@ say('SWV04', V(1, `${VERDICT_MARKER} env_skipped reason=x\nFAIL: és mégis elbu
       ['piros', 'console.log("ENV-KIHAGYÁS: egy belső rész kimaradt");\nconsole.log("RESULT: 1/2 PASS — 1 FAIL");\nprocess.exit(1);', 'failed'],
       ['kihagy', `console.log("nem tudom elvégezni");\nconsole.log("${VERDICT_MARKER} env_skipped reason=nincs adatbázis");\nprocess.exit(1);`, 'env_skipped'],
       ['ellentmond', `console.log("${VERDICT_MARKER} env_skipped reason=x");\nprocess.exit(0);`, 'failed'],
+      // Az ÖTÖDIK gyermek az R18/F18-01 lelete: a hibás alakot NULLÁVAL zárva adja ki.
+      ['hibas-alak-nullaval', `console.log("${VERDICT_MARKER} nonsense");\nprocess.exit(0);`, 'failed'],
     ];
     for (const [name, body, want] of kids) {
       const f = child(name, body);
@@ -111,9 +113,31 @@ say('SWV04', V(1, `${VERDICT_MARKER} env_skipped reason=x\nFAIL: és mégis elbu
     'VISSZACSÚSZÁS: a söprés megint részszövegből osztályoz');
 }
 
-const total = 6;
+// ── SWV07 — A HIBÁS ALAK A KILÉPÉSI KÓDTÓL FÜGGETLENÜL HIBA (R18/F18-01 · KUKA-176) ─────────────
+//
+// A külső fél lelete: `sweepVerdict({exitCode:0, stdout:'VS-SWEEP-VERDICT: nonsense'})` ZÖLD volt,
+// mert a hibás-alak ág CSAK a nem-nulla kilépés alatt állt. Az SWV04 ezt nem foghatta meg: ott a
+// hibás alakot KIZÁRÓLAG `exit 1`-gyel mértem — tükröt mértem, nem ELLENPÁRT (KUKA-039 · KUKA-068).
+//
+// A szigorítás nem nyúlhat túl: a jelölő NÉLKÜLI nulla kilépés zöld MARAD, az érvényes kihagyás
+// kihagyás marad, a türelem-túllépés pedig külön állapot (KUKA-049).
+const NONSENSE = `${VERDICT_MARKER} nonsense`;
+say('SWV07', V(0, NONSENSE) === 'failed', 'A LELET: hibás alakú deklaráció NULLA kilépéssel ZÖLD lett');
+say('SWV07', V(1, NONSENSE) === 'failed', 'hibás alakú deklaráció nem-nulla kilépéssel nem piros');
+say('SWV07', /HIBÁS ALAKÚ/.test(sweepVerdict({ exitCode: 0, stdout: NONSENSE }).why),
+  'a nullával zárt hibás alak nem kap NEVEZETT választ — a puszta „failed" nem mondja meg, miért');
+say('SWV07', V(0, 'RESULT: 5/5 PASS') === 'green', 'ELLENPÁR: jelölő nélküli nulla kilépés nem zöld — a szigorítás túlnyúlt');
+say('SWV07', V(1, DECLARED) === 'env_skipped', 'ELLENPÁR: érvényes kihagyás nem-nulla kóddal nem kihagyás');
+say('SWV07', V(1, 'x', true) === 'unfinished', 'ELLENPÁR: a türelem-túllépés nem külön állapot');
+for (const bad of [`${VERDICT_MARKER} env_skipped`, `${VERDICT_MARKER} env_skipped reason=`,
+  `${VERDICT_MARKER} envskipped reason=x`, `${VERDICT_MARKER}`]) {
+  say('SWV07', V(0, bad) === 'failed', `hibás alak nullával zárva ZÖLD: ${JSON.stringify(bad)}`);
+}
+
+const total = 7;
 console.log(`SWV-01 VERDIKT-SZERZŐDÉS (SWV01–SWV0${total}): ${SWEEP_VERDICTS.length} állapot · `
-  + `${LEAKY.length} beágyazott-szó ellenpélda · 4 VALÓDI alfolyamat · pozitív ellenpár deklarált kihagyásra`);
+  + `${LEAKY.length} beágyazott-szó ellenpélda · 5 VALÓDI alfolyamat · pozitív ellenpár deklarált kihagyásra · `
+  + 'a hibás alak MINDKÉT kilépési kóddal hiba (F18-01)');
 if (problems.length) {
   console.error(`\nPIROS (${problems.length}):`);
   for (const p of problems) console.error(`  · ${p}`);

@@ -1,0 +1,106 @@
+{
+  "_what": "OB-7 LEKÉPEZÉS — a PRÓZA-oldal (élethelyzet · mérendő tulajdonság · maradék hatókör). A gépi oldalt a tools/vs_ob7_map.cjs generálja a normaregiszterből, a lánc-sorokból és a mutációs eredményből; ez a fájl CSAK azt a kettő-három mezőt hordozza, amit gép nem tud kiszámolni.",
+  "_not": "Ez NEM elbírálás. Egyetlen mondat sem állítja, hogy a klauzula teljesül — a `measured_property` azt mondja meg, MIT mér a lánc, a `residual_scope` pedig azt, MIT NEM. Az elbírálás a független félé (chatgpt-v3), és CSAK ő írhat content_review rekordot (R18 §1 · R57/F03).",
+  "_scope_note": "A `residual_scope` a dolgozó sáv (Claude-v3) ÉRTÉKELÉSE, nem gépi mérés — ezt a leképezés is így jelöli. A `life_situation` a norma SAJÁT példájából és a klauzula szövegéből származik; ahol a próba fixtúrája szűkebb, mint az élethelyzet, az a maradék hatókörben áll.",
+
+  "REV-N1a": {
+    "life_situation": "A raktáros ma kilép, és a tagságát visszavonják. Attól a pillanattól nem rögzíthet új bevételezést, nem ismételheti meg a tegnapi parancsát ugyanazzal a kulccsal, és a tegnapi eredményt sem kérheti le. A nehéz eset nem az, amikor a megvonás egy órája megtörtént, hanem amikor pont a véglegesítés közben: a kérés még a régi joggal indul, a könyvelés viszont már az új világban zárna.",
+    "measured_property": "A jogot a rendszer a VÉGLEGESÍTÉS pillanatában is újra megkérdezi, nem csak a kérés elején — tehát a tranzakció határán visszavont jog mellett a parancs nem könyvel.",
+    "residual_scope": "A sor EGY állítást mér a parancs-úton (`submitCommand`), a versenyhelyzetet pedig SZINTETIKUSAN állítja elő: a megvonás determinisztikusan, a tranzakció belépésekor tüzel. Ez a legélesebb pont, de nem valódi párhuzamos írás — a több-írós véglegesítési határ külön nyitott tétel (OB-1). Az „adatkiadás tiltott” felét a REV-N1b és a REV-N3b sorai hordozzák; ez a sor magáról a kiadás-útról nem mond semmit."
+  },
+  "REV-N1b": {
+    "life_situation": "Ugyanaz a raktáros tegnap szabályosan bevételezett: a rendszer nyugtát adott, és ki is adta neki az eredményt. Ma megvonják a jogát. A tegnapi bevételezésnek a történetből NEM szabad eltűnnie — sem a parancsnak, sem a nyugtának, sem annak a nyomnak, hogy annak idején jogosan kapta meg az adatot.",
+    "measured_property": "A megvonás UTÁN a korábbi parancs-, nyugta- és kiadás-sorok változatlanul megvannak — a mérés a megvonás előtti és utáni pillanatképet EGÉSZBEN hasonlítja, nem csak a darabszámot.",
+    "residual_scope": "A tartalmi sértetlenséget a próba a saját fixtúrájának soraira méri; egy olyan író, ami a magon KÍVÜL nyúlna a tárolóhoz, ezen a soron nem jelenne meg. A klauzula másik fele — hogy a megvonás a JOGHATÁST sem dönti el — a REV-N1c-ben áll, és arra ma nincs bizonyíték."
+  },
+  "REV-N1c": {
+    "life_situation": "Kiderül, hogy a raktárosnak már tegnap sem volt érvényes felhatalmazása. Ettől a tegnapi bevételezés nem lesz „meg nem történt”: az esemény marad, de a JOGHATÁSÁT felül kell vizsgálni — bizonyítékhoz és az alkalmazandó házirendhez kötve, ÚJ, korrekciós eseménnyel, nem a régi sor átírásával.",
+    "measured_property": "Ma semmit: a klauzulának nincs próbája, mert a magban nincs korrekciós esemény és nincs „alkalmazandó profil” fogalom.",
+    "residual_scope": "TELJES EGÉSZÉBEN nyitott (`no_evidence`), és ezt a lánc ki is mondja. A ma bizonyított rész-igazság ennyi: a régi sort nem írjuk át (REV-N1b). Az előfeltétel nevesített: REV-N2 (hatály ⊥ tudomás — ez MEGVAN) és REV-N4 (kompenzáló esemény — ez NINCS). Amíg a REV-N4a nem épül meg, ez a klauzula mérhetetlen."
+  },
+  "REV-N2a": {
+    "life_situation": "Júniusban kiderül, hogy egy márciusi meghatalmazás hibás volt. A könyvelőnek KÉT kérdést kell tudnia feltenni ugyanarról a márciusi napról: „mit fogadott el a rendszer AKKOR?” és „mit tudunk erről MA?” — és a kettőnek más a válasza. Ugyanez a kettősség áll a jogadásra is: egy hatáskör-adásnak van HATÁLYA (mikortól él) és van RÖGZÍTÉSI ideje (mikor tudtuk meg), és a kettő szétcsúszhat.",
+    "measured_property": "A HATÁLY és a TUDOMÁS két külön tengely, külön-külön lekérdezhető: a múltbeli nézet egy későbbi rögzítéstől NEM változik meg, a mai nézet viszont igen; a jövőre dátumozott korrekció a mait nem mozdítja; és a rögzítéshez hatáskör ÉS bizonyíték-hivatkozás kell.",
+    "residual_scope": "Ez a klauzula a leggazdagabban mért (15 sor, négy próba) — de a mérés a magban ÉLŐ jogváltozás-fajtákra szorítkozik (tagság, hatáskör-adás, visszamenőleges érvénytelenség). Üzleti adat (ár, készlet, számla) kétidejű nézetére a mag ma nem ad fogalmat, tehát a norma példájában szereplő „márciusi árak” esete NINCS mérve. A bizonyíték-hivatkozás MEGLÉTÉT méri a lánc, a bizonyíték IGAZSÁGÁT nem — azt gép nem is döntheti el."
+  },
+  "REV-N2b": {
+    "life_situation": "A júniusi felülvizsgálat kimondja, hogy a márciusi felhatalmazás március 10-től érvénytelen volt. Ettől a március 20-i műveletek nem tűnnek el és nem is íródnak át: NEVESÍTETT felülvizsgálati körbe kerülnek — egy listára, amin dolgozni lehet. A február 1-jei és a más alany nevében tett művelet nem kerül rá.",
+    "measured_property": "A felülvizsgálati kör tagsága SZÁMÍTOTT (nem kézzel kipipált lista), az eredeti történet érintetlen marad, az érintetlen műveletek kívül maradnak, és a kör LEZÁRÁSA külön, hatáskörhöz kötött esemény.",
+    "residual_scope": "A kör a magban ma OLVASÓ fogalom: megmondja, kit érint — de arról, hogy a körbe került művelettel mi TÖRTÉNJEN, nem szól (az a REV-N4, ami nincs meg). A „nem írja át a régi rekordot” felét a próba a saját fixtúrájának soraira méri."
+  },
+  "REV-N3a": {
+    "life_situation": "Valaki felfüggeszti egy kolléga jogát, elbírál egy kifogást, vagy visszavon egy tagságot. Ezt nem teheti meg akárki, és nem is elég „általában vezetőnek lenni”: az ADOTT műveletre kell hatáskörének lennie. És amikor a döntés hatályosul, a rendszernek EGY időpontot kell használnia — nem lehet, hogy a jogot a döntés pillanatában nézi, az írást pedig egy másodperccel későbbi világban végzi.",
+    "measured_property": "A hatáskör MŰVELETENKÉNT dől el; a felfüggesztésnek tényleges hatása van; érdemi döntés csak sértetlen bizonyítékon születhet; és a hatályosulás ideje a DÖNTÉS ideje — az elutasított írás pedig semleges és nyomtalan.",
+    "residual_scope": "Kilenc sor, öt próba — de mind a magban ÉLŐ műveletekre (`suspend`, `adjudicate`, `revoke`, parancs-írás, kiadás). Egy jövőbeli művelet automatikusan NEM kerül a mérés alá: a hatókör itt LISTA, nem szabály (KUKA-051), és ezt ki kell mondani. A belépési pontok teljességét a REV-N5a `P-REV-entry-points` sora méri, az is a mai exportokra."
+  },
+  "REV-N3b": {
+    "life_situation": "Valaki bejelenti, hogy a márciusi meghatalmazás hibás volt. Ettől még nem láthatja a márciusi árakat: az ÁLLÍTÁS nem ad olvasási jogot. A saját beadványának a tartalmát viszont láthatja — azt ő írta.",
+    "measured_property": "A kifogás bejelentése SEMMILYEN új olvasási jogot nem nyit a vitatott adatra, miközben a beadó a SAJÁT beadványát olvashatja — tehát a tiltás nem fal, hanem határ.",
+    "residual_scope": "A próba a mag kiadási útját méri; ha egy jövőbeli adapter külön olvasó-utat nyitna a panaszosnak, azt ez a sor nem látná. A pozitív ellenpár (a saját beadvány olvasható) itt kötelező és megvan — enélkül a szabály egy „mindent tiltok” alakkal is teljesülne."
+  },
+  "REV-N3c": {
+    "life_situation": "Aki még nem igazolta magát, annak is be kell tudnia jelenteni egy kifogást — különben a rendszer pont azt zárja ki, akinek panasza van. A válasz viszont SEMLEGES: nem árulja el, létezik-e egyáltalán az ügy, amire hivatkozik. A félbemaradt beadás nem hagy félkész állapotot, és a visszaélés-korlát kulcsát a beadó nem tudja átírni.",
+    "measured_property": "A bejelentés útja nyitva áll és tehetetlen (jogot nem mozdít), a visszaélés-korlát kulcsát a MAG képezi (nem a hívó adja), és a beadó által megadott másodlagos hivatkozás csak a saját keretén belül szűkít — más keretét nem veheti el.",
+    "residual_scope": "A klauzula maga mondja ki a saját előfeltevését: a kulcsot szállító kontextus MEGBÍZHATÓSÁGA az adapter felelőssége (REV-N3d), és azt ez a klauzula FELTÉTELEZI, nem bizonyítja. Mivel a REV-N3d ma `no_evidence`, a lánc ezen a ponton egy nem bizonyított előfeltevésre épül — ezt a leképezés kimondja, nem takarja el."
+  },
+  "REV-N3d": {
+    "life_situation": "Száz jóhiszemű panaszos mellett egyetlen elárasztó nem veheti el a többiek keretét. Ehhez a rendszernek meg kell tudnia különböztetni a beadókat — olyan jelből, amit a beadó nem tud magáról állítani, hanem a szerver oldalán keletkezik.",
+    "measured_property": "Ma semmit: a magban nincs adapter, ami valódi, szerver-oldali beadó-kontextust adna, ezért minden kontextus nélküli beadás EGY nevezett, közös vödörbe esik.",
+    "residual_scope": "TELJESEN nyitott (`no_evidence`), és a hiány pontosan meg van nevezve: a mai `chan:unattributed` vödör REFERENCIA-HELYETTESÍTŐ, nem védelem — azt a tulajdonságot tartja fenn, hogy a kulcsot a hívó ne tudja átírni (ezt a REV-N3c méri), de a jóhiszemű beadókat nem választja szét. A zárás hat nevezett feltétele a klauzula `gap` mezőjében áll. KIMONDVA: ez a leggyengébb pont a REV-N3 családban, mert a REV-N3c bizonyítéka RÁÉPÜL."
+  },
+  "REV-N3e": {
+    "life_situation": "Egy beadvány tartalma megsérül vagy elvész. Az ügy így nem bírálható el érdemben — de örökre nyitva sem maradhat. Kell egy külön nevű, technikai lezárás (karantén), amiről mindenki látja, hogy NEM döntés a panasz tárgyáról.",
+    "measured_property": "Ma semmit: a karantén-művelet szándékosan nincs megépítve. Ami MEGVAN és mérve van: a sérült ügyön minden érdemi döntés elakad — tehát a rendszer inkább jelent, mint hogy üres kézzel döntsön.",
+    "residual_scope": "Nyitott (`no_evidence`), a hiány NEVESÍTETT és a halasztás indoka kimondott: félig megépítve a karantén pont az a kockázat volna, ami ellen a szabály szól (érdemi lezárásnak látszó technikai lépés). A zárás négy feltétele a `gap` mezőben áll. A maradék kockázat ma: az ilyen ügy nyitva marad — ez ismert és vállalt, nem elfedett."
+  },
+  "REV-N4a": {
+    "life_situation": "Már kiszállított árut nem lehet azzal visszacsinálni, hogy törlünk egy jogosultsági sort. Ha egy művelet hatását vissza kell fordítani, ahhoz ÚJ esemény kell, ami az eredetire hivatkozik — a mögötte álló mozgás-sor automatikus visszagörgetése tilos.",
+    "measured_property": "Ma semmit: a magban nincs kompenzáló-esemény fogalom.",
+    "residual_scope": "Nyitott (`no_evidence`). A V2-ben van visszafordítás-gépezet (`reverse`), a V3 magja viszont ezt nem modellezi, és a kettő összekötése nem történt meg — tehát a V2 megléte NEM bizonyíték a V3-ra. Ez a klauzula két másikat is blokkol: a REV-N1c-t és a REV-N4b-t."
+  },
+  "REV-N4b": {
+    "life_situation": "A korrekciót nem az hagyja jóvá, aki a felülvizsgálatot lefolytatta: a vizsgálat ténye önmagában nem hatalmaz fel a végrehajtásra. A jóváhagyásnak külön jogosultja van, és nyoma marad.",
+    "measured_property": "Ma semmit: a REV-N4a esemény-fogalma nélkül nincs mit jóváhagyni.",
+    "residual_scope": "Nyitott (`no_evidence`), KÉT előfeltétellel: a REV-N4a (korrekciós esemény) és a REV-N3a hatáskör-modellje. Utóbbi MEGVAN és mérve van, tehát ha a REV-N4a megépül, ez a klauzula a meglévő hatáskör-gépezetre köthető."
+  },
+  "REV-N5a": {
+    "life_situation": "Ellopják valakinek a jelszavát, és letiltják. A tiltásnak AZONNAL hatnia kell minden úton, ami egyébként beengedné — nem csak azon az egyen, amelyiken a letiltást bevezették. Ha az egyik kaput lezárjuk, a másikon nem sétálhat be.",
+    "measured_property": "A tiltás MINDEN engedő úton hat (a kiadás útját is beleértve), a tiltás kiadásához magához is hatáskör kell, nincs gyengébb író-út, a hiteles kontextus eljut az elbírálásig, minden író belépési pont viszi a kontextust, és a semleges válaszok megkülönböztethetetlenek.",
+    "residual_scope": "Nyolc sor, három próba — köztük a `P-REV-entry-points`, ami a MAI exportált író-belépéseket járja be. A hatókör tehát a mai kód: egy holnap írt belépési pont nem kerül automatikusan a mérés alá, csak ha a próba padlója erre kényszerít. A „minden alkalmazható engedő út” szó szerinti teljessége így NEM bizonyított, csak a ma ismert utakon."
+  },
+  "REV-N5b": {
+    "life_situation": "Nem minden tiltás ugyanaz. Ha valaki kilép egy cégből, az a MÁSIK, független cég könyvét nem érinti. Ha viszont a hitelesítőjét lopták el, az mindenhol tilos. A tiltás hatókörét tehát az OKA választja ki, nem a bevezetője kedve.",
+    "measured_property": "A tiltás FAJTÁJA nevezett és zárt halmaz, az ok választja ki a hatókört, a kérés-tengelyt a hívó nem írhatja felül, az önmagának ellentmondó tárolt rekord nem mérés, az ismeretlen tárolt ok nem nyelődik el, és a hibás alakú tárolt hatókör fail-closed.",
+    "residual_scope": "Hét sor, három próba; a fajta↔hatókör mátrixot a `P-REV-ban-matrix` a norma szövegéhez méri. Maradék: a mátrix a MA nevezett hét fajtára teljes — ha a valóság új tiltás-okot hoz (pl. hatósági intézkedés), annak a hatókörét a norma szövegébe kell felvenni, és addig a rendszer a fail-closed ágra esik. Ez helyes viselkedés, de nem ugyanaz, mint a lefedettség."
+  },
+  "REV-N5c": {
+    "life_situation": "A jelszó ellopása nem bizonyítja, hogy a felhasználó összes korábbi rendelése hamis. A tiltás előre hat: a múltat nem minősíti érvénytelenné, és nem veszi el a könyv vagy más, független jogosultak jogait sem.",
+    "measured_property": "A tiltás nem írja át a múltat, és nem szünteti meg mások jogát — a mérés a tiltás előtti és utáni állapotot hasonlítja, két külön állításon.",
+    "residual_scope": "Két sor, egy próba, a fixtúra saját szereplőire. A klauzula ELSŐ fele („nem bizonyítja a korábbi műveletek érvénytelenségét”) a magban tagadó alakban mérhető csak: azt látjuk, hogy semmi nem változik — azt, hogy egy KÜLÖN felülvizsgálat mit mondana, a REV-N2/N4 kérdése."
+  },
+  "ORG-N1a": {
+    "life_situation": "Egy ügyvezető felhatalmaz valakit, hogy a cég nevében eljárjon. A rendszernek nem elég azt megjegyeznie, KI adta a jogot: a felhatalmazás ALAPJÁT is tárolnia kell — melyik határozat, annak melyik VERZIÓJA, és mettől meddig hatályos. Különben egy évvel később nem lehet megmondani, hogy az akkori döntés fedezve volt-e.",
+    "measured_property": "A felhatalmazási alap azonosítóval, verzióval, hatállyal és KÖTELEZŐ bizonyíték-hivatkozással áll nyilván, két idő-tengelyen feloldva; a hatáskör-adás rögzíti, MELYIK verzió alatt született; a lejárt vagy ismeretlen alap nevezetten elakad; és az alap azonossága a KÖNYV-párhoz kötött, tehát átnyúlni nem lehet.",
+    "residual_scope": "A lánc mind az öt sort `partially_covered`-nek minősíti, és ez SZÁNDÉKOS: a nyilvántartás és a bekötés megvan, de a klauzula teljes alakja (minden felhatalmazási útra, minden szervezeti formára) nem. A részleges fedezet itt nem gyengébb zöld, hanem KIMONDOTT rész-teljesítés — a `why` mező nevezi meg, mi van meg és mi nincs."
+  },
+  "ORG-N1b": {
+    "life_situation": "A határozat azt mondja: „X felvehet könyvelőt, de csak olvasási joggal, és csak a bérszámfejtési adatkörre.” Akkor a meghívó, amit X kiad, ennél TÁGABB nem lehet — se szerepben, se műveletben, se adatkörben. És ha valaki a meghívót nyersen, a kapu megkerülésével írná be, az sem szökhet ki a korlát alól.",
+    "measured_property": "Az alapon túli kiadás nevezetten elakad és nyomot sem hagy, a korláton belüli változatlanul megy, a beváltás a KIADÁSKORI alaphoz mér és a korlátot is átviszi, a nyersen írt meghívó sem szökik ki, a nem deklarált alap nevezett (nem néma), a művelet azonosságát a BELÉPÉSI PONT adja (nem a hívó neve), és egy tengely elhagyása nem kapcsolja ki azt a tengelyt.",
+    "residual_scope": "Mind a hét sor `partially_covered`: a korlát a MEGHÍVÓ útján kapu, de nem minden felhatalmazási úton. A klauzula „a felhatalmazás nem lehet tágabb, mint az alapja” általános alakja tehát nincs bizonyítva — egy jövőbeli, nem meghívó-alapú jogadás ma kívül esne. A `why` mező ezt tételesen kimondja."
+  },
+  "ORG-N2a": {
+    "life_situation": "Kiadnak egy meghívót, aztán a kibocsátó jogát visszavonják, mielőtt a címzett beváltaná. A függő meghívó ekkor NEM adhat tagságot — és a válasz nem lehet néma: nevesítve kell megmondani, hogy a kibocsátó joga megszűnt.",
+    "measured_property": "A kibocsátói alap megvonása után a függő meghívó beváltása fail-closed módon, NEVEZETT okkal (`issuer_right_withdrawn`) elakad.",
+    "residual_scope": "Egy sor, egy próba. A norma maga mondja ki, hogy ez ALAPÉRTELMEZÉS, amíg az explicit szervezeti alap nincs megépítve és mérve — tehát a fail-closed viselkedés itt a hiányzó modell HELYES kezelése, nem a teljes szabály megvalósítása. Ha az ORG-N1a/b teljesen megépül, ezt a klauzulát újra kell mérni."
+  },
+  "ORG-N3a": {
+    "life_situation": "Vannak jogalapok, amikből EGY is elég (vagylagos: vagy a tagság, vagy a meghatalmazás), és vannak, amikből MIND kell (együttes: két aláíró). Ha egy vagylagos út kiesik, a másik él tovább; ha egy együttes jóváhagyás kiesik, a jog megszűnik. A kettőt nem szabad összemosni.",
+    "measured_property": "Ma semmit: a magban EGYETLEN jogalap-út van (tagság), tehát a VAGY/ÉS megkülönböztetés fogalmilag sem jelenik meg.",
+    "residual_scope": "Nyitott (`no_evidence`), és a lánc kimondja, hogy a méretlen klauzula ZÖLDNEK látszana, ha nem állna itt (KUKA-051). Az előfeltétel a jogalap-modell bővítése — ez tárgyalási kérdés, nem megvalósítási."
+  },
+  "ORG-N3b": {
+    "life_situation": "Ha valakit célzottan letiltottak, az a tiltás akkor is hat, ha egyébként volna egy MÁSIK, vagylagos jogalapja. A tiltás elsőbbséget élvez a megmaradó engedő úttal szemben.",
+    "measured_property": "Ma semmit: az elsőbbségi szabálynak nincs alanya, mert a vagylagos út fogalma hiányzik.",
+    "residual_scope": "Nyitott (`no_evidence`), KÉT előfeltétellel — és az egyik (REV-N5a: alany-szintű tiltás MINDEN engedő úton) MA MEGVAN és nyolc sorral mérve van. Tehát ha az ORG-N3a vagylagos útja megépül, ez a klauzula a meglévő tiltás-gépezetre köthető: a hiányzó darab az ORG-N3a, nem a tiltás."
+  }
+}

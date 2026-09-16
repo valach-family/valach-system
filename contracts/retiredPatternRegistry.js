@@ -7698,6 +7698,47 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'ő szövegük, amit nem írunk át (tesztadaptáció nem történik); a terhelésfüggés tényét ma a '
       + 'JELENTÉS hordozza, nem őr. Ez nevesített hiány, nem elhallgatott.',
   }),
+
+  Object.freeze({
+    id: 'KUKA-176',
+    date: '2026-09-16',
+    title: 'A HIBÁS ALAK CSAK AZ EGYIK ÁGON VOLT HIBA — a saját, egy körrel korábbi szerződésemen',
+    what: 'Az SWV-01 verdikt-szerződés (OB-10, R17) kimondja, hogy a HIBÁS ALAKÚ kihagyás-deklaráció '
+      + '`failed`, nem kihagyás. A kód viszont ezt az ágat CSAK a nem-nulla kilépés alá tette, ezért '
+      + '`sweepVerdict({exitCode:0, stdout:"VS-SWEEP-VERDICT: nonsense"})` **ZÖLD** volt — ugyanaz a sor '
+      + '`exitCode:1`-gyel `failed`. Egy gyermek-ellenőrző tehát elronthatta a deklarációját, és amíg '
+      + 'nullával zárt, a söprés a hibás alakot ÉSZRE SEM VETTE.',
+    why_wrong: 'A KUKA-039 fél-őre: a szabály EGY ág feltételében állt, a testvér-ág nem tudott róla. '
+      + 'A szerződés SZÖVEGE igaz volt, a KÓD csak félig teljesítette. És a saját pinem nem foghatta '
+      + 'meg: az SWV04 a hibás alakot KIZÁRÓLAG `exit 1`-gyel mérte — tükröt mért, nem ELLENPÁRT '
+      + '(KUKA-068 rokona: az ellenőrző ugyanazt az előfeltevést hordozta, mint a kód). A jelölő '
+      + 'megjelenése ÖNMAGÁBAN azt állítja, hogy a gyermek verdiktet deklarál; ha az alak rossz, nem '
+      + 'tudjuk, MIT akart mondani — és a nem tudást nem oldhatjuk fel a kedvezőbb irányba (KUKA-020).',
+    replaced_by: 'a hibás-alak vizsgálat a SIKERÁG ELŐTT fut (`tools/lib/vs_sweep_verdict.mjs`), tehát '
+      + 'a kilépési kódtól függetlenül `failed`, NEVEZETT indokkal',
+    replacement: 'A szigorítás ELLENPÁRRAL született (KUKA-049): a jelölő NÉLKÜLI nulla kilépés zöld '
+      + 'MARAD, az érvényes kihagyás nem-nulla kóddal kihagyás MARAD, a türelem-túllépés külön állapot.',
+    decision: 'D-VS-3034',
+    found_by: 'a KÜLSŐ TÁRGYALÓ FÉL (chatgpt-v3), R18/F18-01 — izolált ellenpárral, a két kilépési '
+      + 'kódot egymás mellé téve',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_sweep_verdict.mjs']),
+        pattern: "kind === 'malformed'[\\s\\S]{0,400}exitCode === 0",
+        why: 'a hibás-alak ág a sikerág ELŐTT áll — ha valaki visszateszi mögé, ez a minta nem talál' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'AMIKOR EGY SZABÁLYT KÓDBA ÍROK, MEG KELL KÉRDEZNI, HÁNY ÁGON KELL IGAZNAK LENNIE — és a '
+      + 'PINNEK MINDEN ÁGON MÉRNIE KELL. Egy feltétel-ágba írt szabályról a testvér-ág soha nem tud '
+      + '(KUKA-039), és ha az ellenőrző ugyanazt az EGY ágat méri, amit a kód teljesít, akkor a mérés a '
+      + 'saját vakfoltját igazolja vissza. A megkülönböztető kérdés konkrét: **melyik BEMENET-osztályt '
+      + 'nem próbáltam ki?** — itt a „hibás alak × nulla kilépés" pár, amit a szerződés szövege lefedett, '
+      + 'a próba nem. Egy szerződés kimondott állítása nem bizonyíték arra, hogy a kód teljesíti is '
+      + '(KUKA-038 a saját szerződésemen).',
+    guard_note: 'gépi jel: `npm run verify:sweep-verdict` **SWV07** — a lelet mindkét kilépési kóddal, '
+      + 'NÉGY további hibás alak nullával zárva, HÁROM ellenpár (jelölő nélküli zöld · érvényes kihagyás · '
+      + 'türelem-túllépés), és az ÖTÖDIK VALÓDI gyermek-folyamat, ami a hibás alakot `exit 0`-val adja ki. '
+      + 'A régi sorrendre bizonyítottan piros: 7 SWV07 állítás + a valódi gyermek (SWV05).',
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({
