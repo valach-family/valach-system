@@ -150,11 +150,22 @@ EGYETLEN forrása van, ezért a program kódjában a `--unit` szó nem állhat. 
 visszacsúszáson, mind piros** (package.json elcsúsztatva · az import kivéve · beégetett darabolás
 sablon-alakban · összefűzéssel · beégetett egység-fájlnév); a kontroll zöld.
 
+*És a javításom ELSŐ alakja is hibás volt — az ÉLŐ lánc buktatta ki.* A közös modult a
+`v3ref/batteryUnits.mjs` útra tettem, és a program `../batteryUnits.mjs` alakban húzta be. A
+külső-ellenőrző futtató viszont a programot EGY IDEIGLENES MAPPÁBA másolja, és csak a `file` +
+`companions` fájlokat viszi magával — a fölé nyúló behúzás ott nem oldódik fel. MÉRVE: a program a
+MÉRÉS ELŐTT halt meg (`ERR_MODULE_NOT_FOUND`, 57 ms), miközben a `verify:unit-admission` zölden állt
+(KUKA-038: a létezés nem bizonyíték arra, hogy FUT; KUKA-130: a közös lakó helyét a LEGSZŰKEBB
+másolt fa dönti el). A modul ezért a program MELLÉ került
+(`v3ref/external-checks/batteryUnits.mjs`), a `case-manifest.mjs` KÍSÉRŐKÉNT deklarálja, és az
+UAD08 ezt a deklarációt is méri. **Élő próba:** `node v3ref/external-checks/run-all.mjs --only r79`
+→ **4/4 eset zöld**, kilépés 0.
+
 **Két új tanulság:** **KUKA-171** (a söprés a szöveget olvasta, nem a verdiktet) · **KUKA-172** (a
 darabszám három otthonban, és a saját piros programom névtelen maradt — mert az összesítő
-verdikt-listáját nem tételesen olvastam). Mellé egy apró, MÉRT javítás a saját őrömön: a `verify:kuka`
-KUK03 hibaüzenete minden pozitív jelnél „(undefined)" indokot írt (a regiszter `why` mezőjét
-`reason` néven olvasta) — most a valódi indokot írja ki.
+verdikt-listáját nem tételesen olvastam; benne a KUKA-130 alakja is). Mellé egy apró, MÉRT javítás a
+saját őrömön: a `verify:kuka` KUK03 hibaüzenete minden pozitív jelnél „(undefined)" indokot írt (a
+regiszter `why` mezőjét `reason` néven olvasta) — most a valódi indokot írja ki.
 
 ---
 

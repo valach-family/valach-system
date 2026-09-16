@@ -21,8 +21,8 @@ mérés, az ki van mondva.
 | legrosszabb egység falióra | **7 569 ms** (a szerszám saját költségvetése 12 000 ms · külső korlát 15 000 ms) | ugyanott |
 | norma-index | 8 norma · **20 atomi klauzula** · **10 nyitott blokkoló** (az OB-10 ebben a körben született) | `v3ref/norms.mjs` |
 | lánc-sorok | **72 sor**, ebből **53 FEDETT** | a `--merge` kimenete |
-| memória-őr | **265/265 PASS** | `node tools/vs_verify_kuka.mjs` |
-| tanulság-archívum | **163 bejegyzés**, soronkénti lenyomat-alapvonal v3 | `contracts/kukaArchiveBaseline.json` |
+| memória-őr | **266/266 PASS** | `node tools/vs_verify_kuka.mjs` |
+| tanulság-archívum | **163 bejegyzés**, soronkénti lenyomat-alapvonal v4 | `contracts/kukaArchiveBaseline.json` |
 | döntés-napló | **33 bejegyzés** (D-VS-3000…3032) | `DECISION_LOG.md` |
 | söprés | **HELYESBÍTVE — lásd §9/c és §9/d**: a lezárt állapoton 7 zöld · 1 TÉVES „env-kihagyás” · 1 piros | `npm run verify:sweep` |
 
@@ -361,6 +361,14 @@ NEVEZŐ-mintákat kerestem, és a valódi régi alak (`--unit=${k}/4`), majd az 
 A mai alak MEGENGEDŐ szabály (KUKA-057): az egység-argumentumnak EGYETLEN forrása van, ezért a
 program kódjában a `--unit` szó nem állhat. **Falszifikálva öt visszacsúszáson — mind piros**, a
 kontroll zöld.
+
+**ÉS A JAVÍTÁSOM ELSŐ ALAKJA IS HIBÁS VOLT — az ÉLŐ lánc buktatta ki, nem a pin.** A közös modult a
+`v3ref/` alá tettem, a program pedig `../batteryUnits.mjs` alakban húzta be. A külső-ellenőrző
+futtató viszont a programot EGY IDEIGLENES MAPPÁBA másolja, és csak a programot + a deklarált
+KÍSÉRŐ fájlokat viszi magával — a fölé nyúló behúzás ott nem oldódik fel. Mérve: a program a MÉRÉS
+ELŐTT halt meg (`ERR_MODULE_NOT_FOUND`, **57 ms**), miközben a forrás-olvasó ellenőrzésem ZÖLD volt
+(KUKA-038 · KUKA-130). A modul ezért a program MELLÉ került, kísérőként deklarálva, és az UAD08 ezt a
+deklarációt is méri. **Élő próba:** `run-all.mjs --only r79` → **4/4 eset zöld**.
 
 **A TANULSÁG, amit magamról mondok ki:** a 10. pont „öt eset, két okból" mondata nem mérés volt,
 hanem a VÁRAKOZÁSOM. Az összesítőnek SAJÁT verdikt-listája van; azt tételesen kell felolvasni.

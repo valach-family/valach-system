@@ -26,7 +26,7 @@ import { readFileSync, writeFileSync, cpSync, mkdtempSync, rmSync, readdirSync, 
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
-import { batteryUnits, unitArgs } from '../batteryUnits.mjs';
+import { batteryUnits, unitArgs } from './batteryUnits.mjs';
 
 const root = import.meta.dirname;
 

@@ -14,7 +14,7 @@
  * UAD06  a támogatott futási szerződés SZABÁLY, és az ismeretlen verzió nem olvasható be
  * UAD08  a darabszámnak EGY deklarált otthona van, és az otthon tényleg hat (KUKA-129 · KUKA-126)
  */
-import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, cpSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, cpSync, rmSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -23,7 +23,8 @@ import { admitUnits, chainBacking, SUPPORTED_RUN_CONTRACTS } from '../v3ref/unit
 import { REQUIRED_EVIDENCE, indexDigest, expectedChainRows, chainRowKey } from '../v3ref/norms.mjs';
 import { EXPECTED_PROBES } from '../v3ref/manifest.mjs';
 import { contractRef } from '../v3ref/normContract.mjs';
-import { DECLARED_UNITS, unitsScriptLine } from '../v3ref/batteryUnits.mjs';
+import { DECLARED_UNITS, unitsScriptLine } from '../v3ref/external-checks/batteryUnits.mjs';
+import { PROGRAMS } from '../v3ref/external-checks/case-manifest.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = readFileSync(join(ROOT, 'v3ref/mutate.mjs'), 'utf8');
@@ -352,8 +353,18 @@ say('UAD06', admit(noContract).problems.some((p) => /`run_contract`: a mező HI�
 
   const R79 = readFileSync(join(ROOT, 'v3ref/external-checks/r79_run_contract_restated.mjs'), 'utf8');
   const code = R79.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
-  say('UAD08', /from '\.\.\/batteryUnits\.mjs'/.test(code),
+  say('UAD08', /from '\.\/batteryUnits\.mjs'/.test(code),
     'a futás-szerződés próba nem a közös `batteryUnits.mjs` otthonból veszi a darabszámot');
+  // A BEHÚZÁS LÉTEZÉSE NEM BIZONYÍTÉK ARRA, HOGY FUT (KUKA-038 · KUKA-130). A futtató a programot
+  // EGY IDEIGLENES MAPPÁBA másolja, és csak a `file` + `companions` fájlokat viszi magával: az első
+  // alakom a közös modult a `v3ref/` alá tette, `../batteryUnits.mjs` behúzással, és a program a
+  // MÉRÉS ELŐTT halt meg (ERR_MODULE_NOT_FOUND, 57 ms) — a forrás-olvasó ellenőrzés zölden állt.
+  // Ezért a KÍSÉRŐ-DEKLARÁCIÓT is mérni kell, és a modulnak a másolt fában kell lennie.
+  const entry = PROGRAMS.find((x) => x.id === 'r79');
+  say('UAD08', entry && (entry.companions || []).includes('batteryUnits.mjs'),
+    'a darabszám közös modulja NINCS kísérőként deklarálva — a másolt futtatásban nem lenne ott');
+  say('UAD08', existsSync(join(ROOT, 'v3ref/external-checks/batteryUnits.mjs')),
+    'a darabszám közös modulja nincs a programmal AZONOS mappában (a kísérő onnan másolódik)');
   // MEGENGEDŐ SZABÁLY, NEM TILTÓ FELSOROLÁS (KUKA-057). Az első két alakom a beégetett NEVEZŐ
   // írásmódjait sorolta; mérve mindkettő rést hagyott — `` `--unit=${k}/4` `` az elsőn, a
   // `"--unit=" + k + "/4"` összefűzés a másodikon csúszott át (KUKA-068: a pin a saját kitalált

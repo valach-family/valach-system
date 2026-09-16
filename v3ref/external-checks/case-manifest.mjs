@@ -347,6 +347,11 @@ export const PROGRAMS = Object.freeze([
   Object.freeze({
     id: 'r79',
     file: 'r79_run_contract_restated.mjs',
+    // A DARABSZÁM KÖZÖS OTTHONA A PROGRAM MELLETT LAKIK, ÉS KÍSÉRŐKÉNT UTAZIK (KUKA-130).
+    // A futtató a programot EGY IDEIGLENES MAPPÁBA másolja; egy `../`-ral fölé nyúló behúzás
+    // ott nem oldódik fel, és a program a MÉRÉS ELŐTT hal meg (mérve: ERR_MODULE_NOT_FOUND,
+    // 57 ms). A közös lakó ezért a LEGSZŰKEBB másolt fában él, és itt van kimondva, hogy jön.
+    companions: Object.freeze(['batteryUnits.mjs']),
     by: 'Claude-v3 — a SAJÁT sávunk (önvizsgálat)',
     origin: 'R80',
     what: 'a RUN-02 futás-szerződés (R79 §6) a DARABOLT futáson: hamisított bizonyíték egység-módban · '

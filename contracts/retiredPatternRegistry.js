@@ -7533,8 +7533,8 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'holott NÉGY program volt piros, és a negyedik a MIÉNK: az összesítő SAJÁT verdikt-listáját '
       + 'nem tételesen olvastam el, hanem a saját várakozásomat (KUKA-054 a jelentésen). A KUKA-171 '
       + 'téves kihagyása pedig elfedte az egészet.',
-    replaced_by: 'EGY deklarált otthon: `v3ref/batteryUnits.mjs` (`DECLARED_UNITS` · `batteryUnits` '
-      + '· `unitArgs` · `unitsScriptLine`), és a próba onnan veszi a darabszámot',
+    replaced_by: 'EGY deklarált otthon: `v3ref/external-checks/batteryUnits.mjs` (`DECLARED_UNITS` '
+      + '· `batteryUnits` · `unitArgs` · `unitsScriptLine`), és a próba onnan veszi a darabszámot',
     replacement: 'A SZABÁLY nem az, hogy „N = 7" — a szabály az, hogy minden egység beleférjen a '
       + 'saját költségvetésébe, és ezt nem jóslat őrzi, hanem a `mutate.mjs` nem-nulla kilépése '
       + '(KUKA-045). Ez a modul azt tartja egy helyen, ami darabszám MARAD; a `package.json` nem '
@@ -7546,8 +7546,11 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'TÉTELES átolvasásából (a söprés összefoglalója itt is „0 pirosat" mondott — KUKA-171)',
     positive: Object.freeze([
       Object.freeze({ paths: Object.freeze(['v3ref/external-checks/r79_run_contract_restated.mjs']),
-        pattern: "from '../batteryUnits.mjs'",
+        pattern: "from './batteryUnits.mjs'",
         why: 'a futás-szerződés próba a KÖZÖS otthonból veszi a darabszámot, nem beégetve' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/external-checks/case-manifest.mjs']),
+        pattern: "companions: Object.freeze\\(\\['batteryUnits.mjs'\\]\\)",
+        why: 'a közös modul KÍSÉRŐKÉNT utazik a másolt futtatásba (KUKA-130) — enélkül a program a mérés ELŐTT hal meg' }),
       Object.freeze({ paths: Object.freeze(['tools/vs_verify_unit_admission.mjs']),
         pattern: 'unitsScriptLine\\(DECLARED_UNITS\\)',
         why: 'a package.json parancs-sora a deklarált otthonhoz MÉRVE van (nem dísz)' }),
@@ -7560,13 +7563,19 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'piros programot hagy névtelenül. A tiltás pedig MEGENGEDŐ szabály legyen, ne írásmód-lista: '
       + 'az UAD08 első két alakja beégetett NEVEZŐ-mintákat keresett, és MÉRVE mindkettő rést '
       + 'hagyott (`--unit=${k}/4`, majd a `"--unit=" + k + "/4"` összefűzés) — a helyes mérce az, '
-      + 'hogy az egység-argumentumnak EGYETLEN forrása van (KUKA-057 · KUKA-068).',
+      + 'hogy az egység-argumentumnak EGYETLEN forrása van (KUKA-057 · KUKA-068). ÉS A KÖZÖS OTTHON '
+      + 'HELYÉT A LEGSZŰKEBB MÁSOLT FA DÖNTI EL (KUKA-130): az első alakot a `v3ref/` alá tettem, a '
+      + 'futtató viszont ideiglenes mappába másolja a programot, tehát a fölé nyúló behúzás ott nem '
+      + 'oldódik fel — a program a MÉRÉS ELŐTT halt meg, miközben a forrás-olvasó ellenőrzés zöld '
+      + 'volt (KUKA-038). Ezt az ÉLŐ lánc-futás találta meg, nem a pin.',
     guard_note: 'gépi jel: `npm run verify:unit-admission` **UAD08** — (a) a `package.json` '
       + '`v3ref:mutate:units` sora a deklarált otthonhoz mérve · (b) a próba a közös modulból húz · '
       + '(c) a próba KÓDJÁBAN (megjegyzés nélkül) nem állhat `--unit`, és az egység-fájlnév `-of-` '
       + 'része csak változóval folytatódhat · (d) POZITÍV ELLENPÁR a parancs-sor generátorra. '
-      + 'Falszifikálva ÖT visszacsúszáson (package.json elcsúsztatva · az import kivéve · '
-      + 'beégetett darabolás sablon-alakban · összefűzéssel · beégetett egység-fájlnév) — mind piros.',
+      + '(e) a közös modul KÍSÉRŐ-deklarációja és a HELYE (a programmal azonos mappa). '
+      + 'Falszifikálva HAT visszacsúszáson (package.json elcsúsztatva · az import kivéve · '
+      + 'beégetett darabolás sablon-alakban · összefűzéssel · beégetett egység-fájlnév · a kísérő-'
+      + 'deklaráció kivéve) — mind piros. ÉLŐ PRÓBA: `run-all.mjs --only r79` → 4/4 eset zöld.',
   }),
 
 ]);

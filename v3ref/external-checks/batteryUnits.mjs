@@ -18,6 +18,15 @@
  *     `package.json` nem tud modult behúzni, ezért a kötést GÉP méri: `verify:unit-admission`
  *     **UAD08** összeveti a deklarált értéket a tényleges parancs-sorral — enélkül ez a fájl csak
  *     DÍSZ volna (KUKA-126: amit senki nem olvas vissza, az nem kötés).
+ *
+ * MIÉRT ITT LAKIK, ÉS NEM A `v3ref/` ALATT (KUKA-130). Az első alakját a `v3ref/batteryUnits.mjs`
+ * útra tettem, és a futás-szerződés próba `../batteryUnits.mjs` alakban húzta be. A külső-ellenőrző
+ * futtató viszont a programot EGY IDEIGLENES MAPPÁBA másolja, és csak a `file` + `companions`
+ * fájlokat viszi magával — a fölé nyúló behúzás ott nem oldódik fel. MÉRVE: a program a MÉRÉS
+ * ELŐTT halt meg (`ERR_MODULE_NOT_FOUND`, 57 ms), miközben a forrás-olvasó ellenőrzés zölden állt
+ * (KUKA-038: a létezés nem bizonyíték arra, hogy FUT). A közös lakó ezért a LEGSZŰKEBB másolt
+ * fában él — a program mellett —, és a `case-manifest.mjs` KÍSÉRŐKÉNT deklarálja; a tágabb oldal
+ * (`tools/vs_verify_unit_admission.mjs`) nyúl be érte.
  *   · KIMONDOTT HATÁRA: az ADAPTÁLT külső programok (`r57a` · `r59a`) SAJÁT alapértéket visznek (6),
  *     mert azok a KÜLSŐ fél szövegének jelölt adaptációi — a `VS_BATTERY_UNITS` környezeti értéket
  *     ott is olvassák, tehát igazíthatók, de a fájljukat ez a modul NEM írja felül. Ez nem baj: a
