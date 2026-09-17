@@ -1,8 +1,8 @@
 {
   "program": "r75_chatgpt-v3.core.mjs",
-  "source_commit": "f66d2155ce1368e609989f6c6015228838e613d0+uncommitted",
+  "source_commit": "d95039249b2fe4c7b5bbd06fac7f38923daf91c2",
   "node": "v22.22.2",
-  "at": "2026-09-16T15:34:17.445Z",
+  "at": "2026-09-17T15:25:43.893Z",
   "verbatim": true,
   "scope": "pinned reference; real isolated SQLite; issueBan public entry and exported writer, no live endpoints",
   "results": [

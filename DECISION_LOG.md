@@ -16,6 +16,60 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3035 — A V3 HALADÁS-FÜL BEFEJEZÉSE ÉS AZ R20 GÉPI BLOKK HELYESBÍTÉSE
+
+> **Hatály:** V2+V3 — a fül KÓDJA a V2 repóban lakik (`tools/chatops-board/`), a rajta megjelenő
+> ADAT viszont a V3 köreié. **V2 TERMÉK-kód nem változott; merge, telepítés, migráció nem történt.**
+
+**Dátum:** 2026-09-17 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R24 (az ő R23 LETTER-ükre,
+azon belül az operátori CMD-VS-200-011-003 R7-re) · **Lap:**
+`docs/70_PLANNING/V3_R24_HALADAS_FUL_BEFEJEZES.md`
+
+**1. HÁROM TENGELY EGY OSZLOP HELYETT (KUKA-002).** A megfigyelés `status` mezője a MUNKAFÁZIST és a
+BLOKKOLTSÁGOT is hordozta, ezért egy blokkolt sorról nem lehetett megtudni, hol tartott. Mostantól
+`phase` (hol tart) · `blocked` (mi állítja meg, MEGNEVEZETT okkal) · `delivery` (megírt · tesztelt ·
+külsőleg elfogadott · telepített, mind `true`/`false`/`null`). A két bizonyíték-igényű állapot
+bizonyítékot kér: külső elfogadás ⇒ független `review`, telepítés ⇒ `deployment.reference`. **A régi
+alak olvasható marad, és nem találunk ki helyette semmit:** egy régi `blocked` sor fázisa `unknown`,
+és a képernyő ezt KI IS ÍRJA.
+
+**2. A HÁROM MINŐSÍTÉS KÜLÖN MARAD** (az R23 §4 kikötése): `token_coverage` · `settlement` ·
+`attribution`. Nem igazolt elszámolás mellett fogyasztási szám nem állhat a soron; az `unavailable`
+és az `unknown` SOHA nem válik nullává; a részösszeg mellett a lefedettség ÉS a forrás-pillanatkép
+dátuma is látszik; a fázis-idők és a külön attribuált token-mezők saját mérési bizonyítékot kérnek.
+
+**3. ADAPTER, NEM MÁSODIK MÉRŐ.** `vs-usage/1` → `v3-progress/1` (`v3UsageAdapter.js`), a V2 R5
+REPORT + a PR157 rögzített revíziója (`c03603ae`) szemantikájával, a PR158 azonosság-ellenpéldáival.
+A két PR nincs mainen: az adapter nem másolja a kódjukat és nem dönt közöttük — a HATÁRON újra
+ellenőrzi, amire támaszkodik. A futás-azonosító a MÉRÉSBŐL képződik, ezért ugyanaz a mérés kétszer
+átalakítva EGY sor marad (a `vs-usage` és a `v3-progress` eredmény nem adódik össze).
+
+**4. AZ R20 GÉPI BLOKK HELYESBÍTVE, SZÁM NÉLKÜL.** A lap §7/c szövege már az R21 szerinti okot
+mondta, a gépi blokk `limitation` mezője viszont még az elveszett fő naplót állította. A helyesbítés
+UGYANAZON a run-azonosítón és UGYANAZON a megfigyelési időn áll, minden metrika `null` maradt, és a
+`correction` mező kimondja, hogy ez nem új mérés. A §7/b „a lefedettség `partial`" állítása is
+javítva: a kör költsége nem részleges, hanem EGYÁLTALÁN NEM MÉRT.
+
+**5. HÁROM SAJÁT LELET.** (a) A PR155 böngésző-globálisa nem a testvérek `ChatOps…` alakját vitte,
+ezért a V2 `verify:no-undef` őre **7 találattal PIROS** volt — a PR155 sosem ment át ezen a kapun
+(KUKA-016 · KUKA-036). (b) A sor-szintű minősítés az „ismeretlen"-t „részlegessé"/„nem igazolttá"
+LÉPTETTE ELŐ: a VALÓDI R20 soron a méretlen kör „Részleges / Nem igazolt"-ként jelent meg — a nem
+tudás és a tudjuk-hogy-nem két külön válasz (KUKA-093); megtalálta a saját böngésző-próbám. (c) A
+deduplikáció próbája gyenge volt (két azonos ezredmásodpercű átalakítást hasonlított), ezért egy
+óra-alapú azonosító is átment volna — megtalálta a rontás-battéria (KUKA-054).
+
+**6. GÉPI JELEK.** `npm run test:v3progress` (18) · `test:v3usage` (10) ·
+`test:v3progress:mutations` (**14/14 rontás PIROS**, a kilépési kódon) · `proof:v3progress-ui`
+(**20/20**, VALÓDI R20 blokk SZINTETIKUS kiszolgálón) · a board teljes egység-sora 44/44 fájl ·
+1825 eset · `verify:kuka` 470/470 · `verify:no-undef` PASS (a kör elején PIROS).
+
+**7. AMI NEM TÖRTÉNT MEG — KIMONDVA.** Nincs merge, telepítés és migráció; a PR155 ágára nem írtam
+(a munka a saját ágon áll, a PR155 fejére ráépítve); a PR157/158 összefésülése nem az enyém; a fül
+SAJÁT ráfordításának nincs katalógus-sora, és egyoldalúan nem nyitok ilyet — nyitott kérdés a
+katalógus gazdájának. A böngésző-próba nem éles bizonyíték: szintetikus kiszolgálón fut.
+
+---
+
 ## D-VS-3034 — F18-01 JAVÍTVA, AZ OB-7 LEKÉPEZÉS ELKÉSZÜLT, ÉS A K0 MÉRVE
 
 > **Hatály:** V2+V3 — az F18-01, az OB-7 leképezés és a K0 a V3 magja; a **körmérő v3-progress/1

@@ -440,8 +440,9 @@ ezen a programon nem tud regressziót őrizni.
 
 A kör költsége a lap **v3-progress** blokkjában áll, a szerződésük szerinti alakban. Amit a szám
 mellé ki kell mondani: **a mérés a kör FUTÁSA KÖZBEN készül**, tehát mozgó célpont (KUKA-134); az
-alügynök-naplók összerendelése ismeretlen, ezért a lefedettség `partial`; és a fázis-bontás null,
-mert **mért időszakasz nélkül nem osztok fel**.
+alügynök-naplók összerendelése ismeretlen. **A kör költsége viszont nem „részleges", hanem
+EGYÁLTALÁN NEM MÉRT** (lásd 7/c): a boríték `coverage` mezője ezért `unknown`, a token-lefedettség
+`unavailable` — nem `partial`. A fázis-bontás null, mert **mért időszakasz nélkül nem osztok fel**.
 
 **Ebben a körben a ráfordítás egy részét egy elveszett munkamenet vitte el** (§5/c) — ezt nem
 mosom bele a „fejlesztés" költségébe: a mérő a NYERS fogyasztást méri, és a magyarázat itt áll.
@@ -506,7 +507,16 @@ kivéve — md5 `ca8d1cdcedf2c74f9252b63bcd1863c6`), `validate()` és `fromDocum
       "model": "a költségmérésben nem azonosított",
       "source": "tools/vs_round_cost.mjs (RCM-01) — a mérő a kör jelölőjére NULLA kérést talált, és ezt MÉRÉSI HIBÁNAK nevezte, nem nulla költségnek; a v3-progress boríték kiírását ezért MEGTAGADTA. Ez a sor ezért DEKLARÁCIÓ a kör megtörténtéről, nem mérés.",
       "coverage": "unknown",
-      "limitation": "A KÖR KÖLTSÉGE EBBEN A KÖRNYEZETBEN NEM MÉRHETŐ. A futtatókörnyezet konténere a kör közben újraindult, és az a napló, amelyik a kör jelölőjét hordozta, elveszett; a jelenlegi napló a kör-jelölést nem tartalmazza, ezért egyetlen kérése sem számítható ehhez a csomaghoz (R90-M01: a kapcsolat hiánya nem hozzászámítás). MINDEN metrika null — nem nulla. A fázis-időszakaszok (tervezés/fejlesztés/ellenőrzés/utómunka) mérés hiányában amúgy is null lennének, és a fájlkategóriánkénti tokenattribúció sem mérhető. Az alügynök-naplók összerendelése szintén ismeretlen.",
+      "token_coverage": "unavailable",
+      "settlement": "unknown",
+      "attribution": "unknown",
+      "correction": {
+        "round": "CMD-VS-300-002-002 R21",
+        "what": "A mérési hiba OKÁNAK leírása javítva (a fő napló megmaradt; a deklaráló kör-nyitás hiányzik). A run azonosítója, a megfigyelés ideje és minden metrika VÁLTOZATLAN — a helyesbítés nem új mérés.",
+        "observation_time_unchanged": true,
+        "metrics_unchanged": true
+      },
+      "limitation": "A KÖR KÖLTSÉGE EBBEN A KÖRNYEZETBEN NEM MÉRHETŐ. HELYESBÍTVE (R21): az első alak azt mondta, hogy a kör jelölőjét hordozó naplót a konténer újraindulása vitte el — MÉRVE EZ NEM IGAZ, a fő napló egyetlen munkamenet-azonosítóval, 14:21:23-tól folyamatosan fut az újraindításon át. A VALÓDI ok: ez a napló a beszélgetés-összefoglaló határánál kezdődik, a kört NYITÓ üzenet már nincs benne, ezért a mérő nem nyitott csomagot (a jelölő nyolc előfordulása mind puszta EMLÍTÉS) — a kapcsolat hiánya nem hozzászámítás (R90-M01). Ami a konténer újraindulásához tartozik és mérve igaz: a munkaterület és az ALÜGYNÖK-naplók vesztek el (0 alügynök-napló maradt). MINDEN metrika null — nem nulla, és a helyesbítés egyetlen számot sem változtatott. A fázis-időszakaszok (tervezés/fejlesztés/ellenőrzés/utómunka) mérés hiányában amúgy is null lennének, és a fájlkategóriánkénti tokenattribúció sem mérhető. Az alügynök-naplók összerendelése szintén ismeretlen.",
       "metrics": {
         "requests": null,
         "input": null,
