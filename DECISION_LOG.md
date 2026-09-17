@@ -16,6 +16,67 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3036 — AZ R26 ÖT LELETE JAVÍTVA: A BEFOGADÁSI SZABÁLY, AZ ESZKÖZ-SOR ÉS A PR155-FOLYTATÁS
+
+> **Hatály:** V2+V3 — a javítás a V2 repó board-eszközében (`tools/chatops-board/`), a rajta megjelenő
+> ADAT a V3 köreié. **A V3 magban egyetlen fájl sem változott; merge, telepítés, migráció nem történt.**
+
+**Dátum:** 2026-09-17 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R27 (az ő **R26 ANALYSIS**
+lapjukra, verdikt: `needs_fix`) · **Lap:** `docs/70_PLANNING/V3_R27_R26_OT_LELET_JAVITAS.md`
+
+**1. MIND AZ ÖT LELET REPRODUKÁLVA ÉS JAVÍTVA** — a külső fél futtatható programjával, előtte-utána:
+**F26-01** egy R20-as mérés R24-es „kizárólagos" fogyasztásként ⇒ a mérés SAJÁT köre és a kötés köre
+egyezzen (`roundsAgree`), különben a kizárólagosság esik el, nem a mérés · **F26-02** a KÖZVETLEN
+dokumentum-blokk megkerülte az „ismeretlen adat nem szám" védelmet ⇒ a szabály a VALIDÁTORBAN áll,
+mindkét bejáratra, és az ellentmondás LÁTHATÓ hiba · **F26-03** a nem felosztott intervallum a funkció
+összegébe olvadt ⇒ HÁROM befogadási rekesz · **F26-04** a sor-átírásból kimaradtak a teszt- és
+hibaszámok (a számlálók átírása karakterre azonos HTML-t adott) ⇒ visszakerültek a SORRA, dátummal és
+forrással, „—"-lel a hiányra · **F26-05** a csupa szóköz `review` is elfogadás volt ⇒ `namedReview`,
+trim után sem üres, mindkét kapun.
+
+**2. A BEFOGADÁS HÁROM REKESZE (`admissionOf`).** Egy futás száma CSAK akkor adódik a funkció igazolt
+összegéhez, ha mind a három minősítés megvan (elszámolt számláló · van token-kép · kizárólagosan ehhez
+a körhöz rendelt). Egyébként a szám MEGMARAD és látszik — **nem felosztott** (△) vagy **örökölt** (◇)
+rekeszben —, de SOHA nem adódik az igazolthoz: hiányzó minősítésből nem következik bizonyítottság.
+
+**3. TOOLING-V3-PROGRESS (a külső fél R26 §1 döntése).** A katalógus három osztálya kimondott:
+**170 termék + 1 közös (CORE-SHARED) + 1 eszköz**. A termék-készültség nevezőjébe az eszköz- és a közös
+sor nem kerül, az eszköz ráfordítása nem másolódik a CORE-SHARED-be, és a próbák ezt SZABÁLYKÉNT mérik
+(osztályonként), nem vak darabszámmal.
+
+**4. A KIHAGYÁS NEM SIKER.** A böngésző-próba hiányzó Playwright mellett eddig `exit 0`-val „KIHAGYVA"-t
+mondott — a kapuban PASS. Most **3-as kilépési kód** („NEM FUTOTT"); a `--allow-skip` kimondottan
+vállalható, és a kimenet is kimondja, hogy az nem bizonyíték.
+
+**5. TERMELŐ → DOKUMENTUM → FELÜLET, mérve.** A böngésző-próba (O)–(Q) lépése a VALÓDI láncot járja
+végig: `tools/vs_usage_snapshot.mjs` → `v3UsageAdapter` → `v3_progress_append` ÍR egy riport-fájlt → a
+fájl szövege dokumentum-sorként → a fül sora a képernyőn (teszt `45/0/0`, hiba `5/0`, és a fogyasztás
+NEM igazolt, mert a főágon szállított mérő nem ad elszámolási tanút).
+
+**6. EGY MÉRT MELLÉK-LELET, JAVÍTVA.** A board egység-futtatója nem ismerte a Node teszt-összegzőjét
+(`# pass`/`# fail`), ezért a két új próba **35 esete NÉMÁN kimaradt** az összesítésből; a futtató
+megtanulta az ötödik alakot (1825 → **1860**).
+
+**7. GÉPI JELEK.** `test:v3progress` 24 · `test:v3usage` 11 · `test:v3progress:mutations` **22/22 rontás
+PIROS** · `proof:v3progress-ui` **25/25** · board teljes egység-sor 44/44 fájl · 1860 eset ·
+`verify:kuka` **479/479** · `verify:no-undef` PASS.
+
+**8. KUKA-102 · KUKA-103.** A védelem a TERMELŐNÉL állt, nem a SZABÁLYNÁL (két bejárat, a próbám a
+sajátomat mérte) · az ÁTÍRÁS némán elvett egy működő oszlopot (a MÍNUSZT is át kell nézni). Mindkettő
+tiltó-mintát kapott, és bizonyítottan tüzel: a visszalépéseket visszatéve a `verify:kuka` 477/479.
+
+**9. A PR155 FOLYTATÁSA: DRAFT INTEGRÁCIÓS PR** — valach-family/vs **#160**, a saját ágamról a
+`codex/v3-progress-dashboard` cél-ágra, draft, a repó PR-sablonjával, „NOT READY" merge-ajánlással.
+Azonos tárgyú PR nem volt nyitva. **A merge, a zárás és a telepítés továbbra sem része a csomagnak.**
+
+**10. AMI NYITVA MARAD — KIMONDVA.** A független elfogadás a chatgpt-v3 dolga (a saját tesztem nem az) ·
+a V3 külső ellenőrző lánc piros eredményeinek oka továbbra sem igazolt (külön alap-ellenőrzési kérdés) ·
+a V3 kör-eszköz `frmCatalog`-hiánya regisztrált korlát marad · a `verify:registries` /
+`verify:vertical-slices` / `verify:screen-texts` NEM futott, mert a VS TERMÉK regisztereit méri, ez a
+csomag pedig board-eszközt módosít — ez kihagyás, nem zöld.
+
+---
+
 ## D-VS-3035 — A V3 HALADÁS-FÜL BEFEJEZÉSE ÉS AZ R20 GÉPI BLOKK HELYESBÍTÉSE
 
 > **Hatály:** V2+V3 — a fül KÓDJA a V2 repóban lakik (`tools/chatops-board/`), a rajta megjelenő
