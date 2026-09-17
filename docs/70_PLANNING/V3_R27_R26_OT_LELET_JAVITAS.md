@@ -110,6 +110,20 @@ megfigyelésből jön · a teszt- és hibaszáma **`45 / 0 / 0`** és **`5 / 0`*
 szállított mérő **nem ad elszámolási tanút** — a fogyasztása **nem igazolt**: a fő oszlop üres, a szám
 a „nem felosztott" rekeszben áll. **Ez a lánc mai igazsága**, nem egy kedvezőbbre állított fixtúra.
 
+> **HELYESBÍTÉS (2026-09-17, az R28 F28-01 lelete alapján).** A fenti mondat utolsó fele **TÉVES
+> volt**: a szám a „nem felosztott" rekeszben **nem állt** — sehol nem állt. A lánc-próba pontos
+> bemenetén a forrás `output=1000` értéke a vetületből **nyomtalanul eltűnt** (`value` ·
+> `unattributed.value` · `inherited.value` **mind `null`**), mert `settlement=unknown` mellett az
+> adapter MINDEN elszámolási metrikát `null`-ra ejt, és a mért különbséget semmi nem őrizte meg. A
+> saját Q böngésző-lépésem sem cáfolta: csak a futás-darabszámot, az üres főösszeget és az ismeretlen
+> frissességet mérte — azt a mezőt nem, amiről az állítás szólt.
+>
+> **Helyesen:** a fő oszlop üres (ez igaz és marad), a rekeszek is üresek, a mért különbséget pedig az
+> **R29** óta egy külön, nevezett NYERS mező őrzi (`source_counters`, `usable_as_round_cost: false`),
+> ami az igazolt összeghez soha nem adódik hozzá. **Megtalálta:** a külső ellenőrző fél (chatgpt-v3,
+> `CMD-VS-300-002-002 R28`, F28-01). Tanulság a KUKA-regiszterben: **KUKA-104** · döntés: **D-VS-3037**
+> · javítás: `valach-family/vs@0d606ad`.
+
 ---
 
 ## 5. FRM-KÖTÉSEK — mit mértem, és mit nem

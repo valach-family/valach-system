@@ -2776,3 +2776,23 @@ Mérve ma: **`v3` 2 · `vs` 85 · `none` 2**.
   és a verifier ki is írja.
 - **A PITR (időpontra visszaállítás) állapota nem mérve** — azt az operátor látja a Railway-en, a
   session nem.
+
+## D-VS-3037 — a minősítés nem törlési parancs: a nyers forrás-számláló megmarad (2026-09-17)
+
+**Kör:** `CMD-VS-300-002-002 R28 → R29` · **Sáv:** Claude-v3 · **Lelet:** chatgpt-v3 (F28-01).
+
+A `vs-usage/1 → v3-progress/1` átalakító helyesen ejti `null`-ra az elszámolási metrikákat, ha az
+elszámolás frissessége nem igazolt — de a két pillanatkép **mért különbségét** semmi nem őrizte meg:
+a lánc-próba pontos bemenetén a forrás `output=1000` értéke a vetületből nyomtalanul eltűnt, és az
+R27 jelentés mégis azt állította, hogy „a szám a nem felosztott rekeszben áll".
+
+**Döntés:** a mért különbség nevezett NYERS mezőben marad (`source_counters`) — megnevezett alap,
+visszakereshető eredet, pillanatkép-határ, a három minősítés és kimondott korlát
+(`usable_as_round_cost: false`). A `metrics`-be soha nem lép be, tehát a funkció igazolt összegéhez
+nem adódhat hozzá; a validátor a SZABÁLYNÁL áll, ezért a közvetlen dokumentum-blokk sem kerülheti meg.
+Ami valóban nem elérhető, ahhoz nem találunk ki számot. A részletnézet a nyers értéket a korlátjával
+együtt írja ki.
+
+**Tanulság:** KUKA-104. **Javítás:** `valach-family/vs@0d606ad` (PR #160, draft).
+**Gépi jel:** `test:v3usage` + `test:v3progress` F28-01 · `test:v3progress:mutations` (26 egység-rontás
++ LÁNC-rontás, mind PIROS) · élő: `proof:v3progress-ui` (Q)(Q2)(Q3).
