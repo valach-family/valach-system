@@ -2796,3 +2796,20 @@ együtt írja ki.
 **Tanulság:** KUKA-104. **Javítás:** `valach-family/vs@0d606ad` (PR #160, draft).
 **Gépi jel:** `test:v3usage` + `test:v3progress` F28-01 · `test:v3progress:mutations` (26 egység-rontás
 + LÁNC-rontás, mind PIROS) · élő: `proof:v3progress-ui` (Q)(Q2)(Q3).
+
+## D-VS-3038 — a két minősítési szint összhangja: a `||` nem öröklés (2026-09-17)
+
+**Kör:** `CMD-VS-300-002-002 R30 → R31` · **Sáv:** Claude-v3 · **Lelet:** chatgpt-v3 (F30-01).
+
+A nyers forrás-mező (D-VS-3037) saját minősítéseit a „nem elérhető" kapu
+`(sc.token_coverage || r.token_coverage)` alakban mérte. A `||` a GYERMEKNEK ad elsőbbséget, ezért egy
+`complete`-re írt beágyazott minősítés némán elfedte a futás kimondott `unavailable` állítását.
+
+**Döntés:** a `source_counters` ugyanannak a futásnak ugyanazt a forrását minősíti, tehát legfeljebb
+HALLGATHAT. Egy öröklési szabály: hallgató gyermek ⇒ a futásét örökli · kimondott gyermek ⇒
+megengedett érték ÉS egyezés a futás kimondott értékével, különben nevezett elutasítás · a kapu az
+ÉRVÉNYES értéken mér. A régi, `source_counters` nélküli boríték olvasható marad.
+
+**Tanulság:** KUKA-105. **Javítás:** `valach-family/vs@98a4270` (PR #160, draft).
+**Gépi jel:** `test:v3progress` F30-01 (hét ellenpár) · `test:v3progress:mutations` (három rontás,
+mind PIROS a kilépési kódon).
