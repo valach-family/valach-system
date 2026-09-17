@@ -63,6 +63,15 @@ deduplikáció próbája gyenge volt (két azonos ezredmásodpercű átalakítá
 (**20/20**, VALÓDI R20 blokk SZINTETIKUS kiszolgálón) · a board teljes egység-sora 44/44 fájl ·
 1825 eset · `verify:kuka` 470/470 · `verify:no-undef` PASS (a kör elején PIROS).
 
+**6/b. A HIBÁS ALAK KUKA-BEJEGYZÉST KAPOTT — KUKA-101** (a V2 aktív memóriájában, három tiltó-mintával;
+bizonyítottan tüzel: a régi összevonást visszatéve a `verify:kuka` 473/474-re esik). Tanulság: *az
+összevonás soha ne adjon határozottabb választ, mint amit a részei tartalmaznak.*
+
+**6/c. MÉRT, NEM JAVÍTOTT LELET:** a `tools/vs_board_round.mjs` MÁSOLATA ebben a repóban nem fut —
+`MODULE_NOT_FOUND`, mert a `tools/chatops-board/src/frmCatalog.js` a V2 repóban lakik (KUKA-031/040
+rokona). A kört a V2 példányával tettem fel; a javítás a következő körre marad, mert az R23 kikötötte,
+hogy e csomag mellett más munka ne induljon.
+
 **7. AMI NEM TÖRTÉNT MEG — KIMONDVA.** Nincs merge, telepítés és migráció; a PR155 ágára nem írtam
 (a munka a saját ágon áll, a PR155 fejére ráépítve); a PR157/158 összefésülése nem az enyém; a fül
 SAJÁT ráfordításának nincs katalógus-sora, és egyoldalúan nem nyitok ilyet — nyitott kérdés a

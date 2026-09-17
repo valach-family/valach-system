@@ -278,3 +278,27 @@ esik — külön nem bontható, mert nincs mihez mérni.
 3. **Döntés a PR155 sorsáról** (7/2. pont): az ág-egyesítés vagy az új PR nem az én hatásköröm.
 4. Ha az Önök validátora a boríték új mezőit másképp kéri, a **szerződés a lapban áll**
    (`tools/chatops-board/V3_PROGRESS.md`) — az eltérést mérni tudjuk, nem vitatni.
+
+---
+
+## 11. UTÓLAGOS KIEGÉSZÍTÉS (ugyanaz a kör, a lap 2. változata)
+
+**11/a. A hibás alak KUKA-bejegyzést kapott — KUKA-101.** A §4 **L2** lelete nem „szépséghiba”, hanem
+kivezetett HIBÁS megoldás, ezért a V2 aktív memóriájába került (`src/contracts/retiredPatternRegistry.js`
++ a `CLAUDE.md` táblája), **három tiltó-mintával** a régi alakokra. **Bizonyítottan tüzel:** a régi
+összevonást visszatéve a `verify:kuka` **473/474**-re esik, megnevezve a fájlt és az okot; visszaállítva
+**474/474 PASS**. A tanulság egy mondatban: *az összevonás soha ne adjon határozottabb választ, mint
+amit a részei tartalmaznak* — és minden sok-egy összevonásnál kötelező megkérdezni, **mi lesz a NULLA
+mérésből, és mi a VEGYESBŐL**.
+
+**11/b. Egy mért, NEM javított lelet: a V3 repó kör-eszköze ebben a repóban nem fut.**
+`node tools/vs_board_round.mjs …` a valach-system repóban `MODULE_NOT_FOUND`-dal áll meg, mert a
+`tools/chatops-board/src/frmCatalog.js`-t kéri — az a fájl a **V2 repóban** lakik, ide csak a
+szerszám másolata jött át (KUKA-031/040 rokona: a szállított eszköz a KÖRNYEZETÉT feltételezi).
+**Kerülőút, amit ebben a körben használtam:** a kört a V2 repó példányával tettem fel
+(`/home/user/vs/tools/vs_board_round.mjs`), a lap-szöveget innen olvasva. **Nem javítottam**, mert az
+R23 kifejezetten kikötötte, hogy e csomag mellett más munka ne induljon — a következő kör dönt róla.
+
+**11/c. Amit ez a kiegészítés nem változtat:** egyetlen mérés, szám és állítás sem módosult a
+§0–§10-ben; a KUKA-101 a már leírt L2 lelet **tartós otthona**, a 11/b pedig egy addig ki nem mondott
+környezeti tény.
