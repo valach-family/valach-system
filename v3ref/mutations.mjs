@@ -801,9 +801,12 @@ export const MUTATIONS = [
     what: 'R77/F02 — A KIADÁS ÚJRA A KÉRŐ CÍMKÉJÉT MÉRI. A mért adatkör nem írja felül a kérés '
       + '`dataScope` tengelyét, tehát az `arak`-ra tiltott olvasó `keszlet` címkével megint megkapja '
       + 'az ármezőt. Amit a kérő begépelhet, az ÁLLÍTÁS, nem mérés (KUKA-121)',
-    file: 'resultScope.mjs',
-    from: "      store, subjectId, nowIso, request: { ...base, dataScope: scope },",
-    to: "      store, subjectId, nowIso, request: { ...base }," },
+    // A KÓDHELY KÖLTÖZÖTT (R47/RSB-01): a tiltás-kérdés a KÖZÖS döntés-feloldóba került. A mutáció
+    // TÁRGYA változatlan — ugyanaz a kár, ugyanaz az elkapó —, csak a horgony követi a kódot. A régi
+    // horgony `STALE_ANCHOR`-ként PIROSRA vitte a battériát: a mérés megmondta, hogy elmozdult alattunk.
+    file: 'releaseScope.mjs',
+    from: "    request: { ...(request && typeof request === 'object' ? request : {}), dataScope: scope },",
+    to: "    request: { ...(request && typeof request === 'object' ? request : {}) }," },
 
   { id: 'M86', rule: 'K05', catcher: 'P-REV-result-scope', expect: 'probe_fail',
     what: 'R77/F02 — A BE NEM SOROLT MEZŐ „KORLÁTOZÁS NÉLKÜLI" LESZ. A deklarációból hiányzó mező '
@@ -929,9 +932,11 @@ export const MUTATIONS = [
       + 'KÉSŐBBI pillanaton méri, mint amelyen a jog állt. Így egy KÉSŐBB hatályossá váló adatkör-'
       + 'tiltás visszamenőleg elzár egy olyan kiadást, amely a döntés pillanatában jogos volt — és '
       + 'fordítva is elcsúszhat (KUKA-024: a VISZONYT kell mérni, nem az oldalakat)',
+    // A HORGONY KÖVETI A KÓDOT (R47): a kapu mostantól a KÖNYVET és a TUDÁS-pontot is megkapja
+    // (RSB-01). A mutáció TÁRGYA változatlan — a kapu MÁSIK órán mér, mint amelyen a jog állt.
     file: 'command.mjs',
-    from: "      store, subjectId: requester, nowIso: at,\n      type: cmd.type, typeVersion: cmd.type_version, result: resolved,",
-    to: "      store, subjectId: requester, nowIso: clock.now(),\n      type: cmd.type, typeVersion: cmd.type_version, result: resolved," },
+    from: "      store, subjectId: requester, bookId: cmd.book_id, nowIso: at, knownAt: at,\n      type: cmd.type, typeVersion: cmd.type_version, result: resolved,",
+    to: "      store, subjectId: requester, bookId: cmd.book_id, nowIso: clock.now(), knownAt: clock.now(),\n      type: cmd.type, typeVersion: cmd.type_version, result: resolved," },
 
   { id: 'M97', rule: 'K05/K07', catcher: 'P-CMD-release-effectuation', expect: 'probe_fail',
     what: 'R81/F04 — A KIADÁSI LELTÁR MEGINT KÉSŐBBI ÓRÁT VISEL: a `disclose` nem kapja meg a döntési '
@@ -1604,6 +1609,66 @@ export const MUTATIONS = [
   //
   // Az M173 a KÜLSŐ ELLENŐRZŐ FÉL saját ellenpéldája (chatgpt-v3, R45/F45-01), karakterre az általuk
   // leírt alakban: az R44-es, darabszámot néző próbám mellett ez a rontás 58/58 PASS-t adott.
+  // ── R47 — A K05-DSC-c ENGEDŐ ÁGÁNAK VISSZABONTÁSAI ──────────────────────────────────────────
+  //
+  // Mindegyik a KÉT valódi kárt mutatja, amit az R47 kért: a JOGOSULATLAN ADATKIADÁST (M177 · M178 ·
+  // M179 · M180 · M182) és a JOGOS KIADÁS TÉVES TILTÁSÁT (M181).
+  { id: 'M177', rule: 'K05', catcher: 'P-DSC-scope-basis', expect: 'probe_fail',
+    what: 'RSB-01 / R47 — A KIADÁS NEM KÉRDEZI MEG A RÖGZÍTETT ALAPOT: a tiltás-ellenőrzés után a '
+      + 'kapu azonnal enged, tehát a `scopes: [keszlet]`-re korlátozott alap alatt született tagság '
+      + 'megint MEGKAPJA az ármezőt. Pontosan az a mért lelet, amiért ez a csomag született: a '
+      + 'tiltás HIÁNYA engedéllyé válik (K05-DSC-c)',
+    file: 'releaseScope.mjs',
+    from: "  const limit = recordedScopeLimit({ store, subjectId, bookId, validAt: nowIso, knownAt });",
+    to: "  return frozen({ ...base, allowed: true, basis: 'membership_only', reason: 'no_declared_basis' });\n"
+      + "  const limit = recordedScopeLimit({ store, subjectId, bookId, validAt: nowIso, knownAt });" },
+
+  { id: 'M178', rule: 'K05', catcher: 'P-DSC-scope-basis', expect: 'probe_fail',
+    what: 'RSB-01 / R47 — A KÉRŐ CÍMKÉJE DÖNT A TARTALOM HELYETT: a kiadás a kérés `dataScope` '
+      + 'címkéjére kérdez, nem az eredmény TÉNYLEGES adatköreire. Egy „készlet" címkével beadott '
+      + 'olvasás így ármezőt is kivinne — a R77/F02 lelet visszatérése az engedő ágon (KUKA-073)',
+    file: 'resultScope.mjs',
+    from: "    const d = scopeReleaseDecision({ store, subjectId, bookId, scope, nowIso, knownAt, request: base });",
+    to: "    const d = scopeReleaseDecision({ store, subjectId, bookId, scope: base.dataScope || scope, nowIso, knownAt, request: base });" },
+
+  { id: 'M179', rule: 'K05', catcher: 'P-DSC-scope-basis', expect: 'probe_fail',
+    what: 'RSB-01 / R47 — A MEGVONT ALAP TOVÁBB NYIT: a kapu nem nézi meg a határozat MAI állapotát, '
+      + 'tehát a lepecsételt korlát TÚLÉLI a saját alapját. Visszavont (vagy lejárt, vagy idegen '
+      + 'könyvre szóló) határozat mellett is kiadna (R47/3)',
+    file: 'releaseScope.mjs',
+    from: "  if (state.in_effect !== true) {\n    return frozen({ ...shape, allowed: false, reason: state.reason });\n  }",
+    to: "  if (false) {\n    return frozen({ ...shape, allowed: false, reason: state.reason });\n  }" },
+
+  { id: 'M180', rule: 'K05', catcher: 'P-DSC-scope-basis', expect: 'probe_fail',
+    what: 'RSB-01 / R47 — A KIMONDOTT TILTÁS ÁGA SOSEM FUT: a kapu az engedő alapot megnézi, a '
+      + 'TILTÁST nem — tehát egy adatkörre kimondottan tiltott olvasó az engedélye mellett '
+      + 'visszakapja azt, amit épp megvontak tőle. MÉRT HATÁS: a tiltás-ág teljes kiiktatása (nem '
+      + 'csak az engedő eset alatt), ezért a tiltás-mérésre épülő testvér-próba is bukik — a '
+      + 'NEVEZETT elkapó viszont a mienk (REV-N5b: a kimondott tiltás az engedély mellett is áll)',
+    file: 'releaseScope.mjs',
+    from: "  if (ban.banned) {\n    return frozen({ ...base, allowed: false, basis: 'explicit_ban', reason: ban.reason, message: ban.message ?? null });\n  }",
+    to: "  if (ban.banned && false) {\n    return frozen({ ...base, allowed: false, basis: 'explicit_ban', reason: ban.reason, message: ban.message ?? null });\n  }" },
+
+  { id: 'M181', rule: 'K05', catcher: 'P-DSC-scope-basis', expect: 'probe_fail',
+    what: 'RSB-01 / R47 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon üresre számolódik, tehát MINDEN '
+      + 'érintett adatkörre jogosult olvasó sem kapja meg az eredményt. A kapu nem lehet fal '
+      + '(KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá',
+    file: 'releaseScope.mjs',
+    from: "  const ceiling = limit.scopes.filter((s) => live.includes(s));",
+    to: "  const ceiling = [];" },
+
+  { id: 'M182', rule: 'K05', catcher: 'P-DSC-scope-basis', expect: 'probe_fail',
+    what: 'RSB-01 / R47 — AZ ELUTASÍTÁS SIKERES KIADÁST KÖNYVEL: a megtagadott olvasás is ír a '
+      + 'kiadási leltárba, tehát a leltár olyan kiadásról tanúskodik, ami meg sem történt — a '
+      + 'KUKA-026 tükre a leltáron (R47/4)',
+    file: 'command.mjs',
+    from: "    if (!releasableScope.releasable) return refused;",
+    to: "    if (!releasableScope.releasable) {\n"
+      + "      disclose({ store, kind: 'command_result', scope: cmd.book_id, ref: commandRef(cmd),\n"
+      + "        recipient: requester, clock, at, body: { ok: true, error: null, message: 'x', effect_id: cmd.effect_id, result: resolved } });\n"
+      + "      return refused;\n"
+      + "    }" },
+
   { id: 'M176', rule: 'K10', catcher: 'P-KSZ-repeat-and-error-boundary', expect: 'probe_fail',
     what: 'K07 / R45 — AZ ISMÉTLÉS-ŐR ELNYELI A MEGVÁLTOZOTT TARTALMAT: az azonos kulcs melletti '
       + 'ELTÉRŐ deklarált tartalom (más cikk, más profil, más verzió) nem NEVEZETT ütközés, hanem '

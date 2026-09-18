@@ -606,7 +606,7 @@ export function readCommandResult({ store, idemKey, requester, bookId, actor, cl
     // különben a válasz maga mondaná meg, hogy a parancs létezik. A besorolás HIÁNYA is ide esik —
     // a pontos mondatot a BEADÓ kapja meg, a beadáskor.
     const releasableScope = resultReleasable({
-      store, subjectId: requester, nowIso: at,
+      store, subjectId: requester, bookId: cmd.book_id, nowIso: at, knownAt: at,
       type: cmd.type, typeVersion: cmd.type_version, result: resolved,
       request: banRequestFor({ bookId: cmd.book_id, opClass: 'own_book' }, credentials),
     });

@@ -36,6 +36,8 @@ export const MANIFEST_VERSION = 'v3ref-manifest-3';
 const VERSION_R43 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d';
 // R45 — a teljes tartalmi történet-megőrzés és a HATÁS-KÖZBENI hibahatár bekötése (F45-01/02).
 const VERSION_R45 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history';
+// R47 — a K05-DSC-c ENGEDŐ ága: az adatkörönkénti olvasási döntés rögzített alapja (RSB-01).
+const VERSION_R47 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis';
 
 export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({ id: 'P-A04', assertion: 'A04-two-worlds-byte-identical' }),
@@ -355,6 +357,29 @@ export const EXPECTED_PROBES = Object.freeze([
     // (`operationScopeProblem`), amit a `banRecordIntegrity` és a `banReaches` is hív (KUKA-039).
     discharges: Object.freeze([
       Object.freeze({ clause: 'REV-N5b', assertion: 'A-REV-N5b-malformed-stored-scope-is-fail-closed' }),
+    ]),
+  }),
+  Object.freeze({
+    // RSB-01 (R47) — A K05-DSC-c ENGEDŐ ÁGA. A `P-REV-result-scope` a TILTÓ felet bizonyítja (a
+    // vegyes eredmény egészben megtagadva); ez a próba a másik felét: hogy MINDEN érintett
+    // adatkörre ÉRVÉNYES OLVASÁSI DÖNTÉS áll — a tiltás HIÁNYA nem engedély. A döntés forrása a
+    // MEGLÉVŐ jogalap-lánc (ORG-N1a határozat → ORG-N1b beváltás → a tagságra átvitt korlát).
+    id: 'P-DSC-scope-basis', assertion: 'K05c-release-scope-decision-has-a-recorded-basis',
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-K05-c-release-scope-decision-comes-from-the-recorded-basis-not-the-caller-label',
+        contract: 'RSB-01', contract_version: VERSION_R47 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-K05-c-reader-entitled-to-every-affected-scope-still-gets-the-result',
+        contract: 'RSB-01', contract_version: VERSION_R47 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-K05-c-explicit-ban-holds-alongside-a-permitting-basis',
+        contract: 'RSB-01', contract_version: VERSION_R47 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-K05-c-revoked-or-expired-basis-does-not-open',
+        contract: 'RSB-01', contract_version: VERSION_R47 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-K05-c-undeclared-limit-is-named-as-membership-only-not-a-scope-permission',
+        contract: 'RSB-01', contract_version: VERSION_R47 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-K05-c-refusal-keeps-the-existence-boundary',
+        contract: 'RSB-01', contract_version: VERSION_R47 }),
+      Object.freeze({ clause: 'K05-DSC-d', assertion: 'A-K05-c-one-effectuation-point-for-decision-and-ledger',
+        contract: 'RSB-01', contract_version: VERSION_R47 }),
     ]),
   }),
   Object.freeze({

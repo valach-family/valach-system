@@ -6337,7 +6337,10 @@ const RETIRED_PATTERNS = Object.freeze([
     positive: Object.freeze([
       Object.freeze({ paths: ['v3ref/resultScope.mjs'], pattern: 'export function resultReleasable',
         reason: 'a kiadás-kapu NEVEZETT feloldóban él' }),
-      Object.freeze({ paths: ['v3ref/resultScope.mjs'], pattern: 'dataScope: scope',
+      // A KÓDHELY KÖLTÖZÖTT (R47/RSB-01): a tiltás-kérdés a KÖZÖS döntés-kapuba került, ahol a
+      // kimondott tiltás és a rögzített ENGEDŐ alap EGYÜTT dől el. A védelem NEM gyengült — a
+      // MÉRT adatkör továbbra is felülírja a kérés tengelyét —, csak egy otthonban él (KUKA-003).
+      Object.freeze({ paths: ['v3ref/releaseScope.mjs'], pattern: 'dataScope: scope',
         reason: 'a MÉRT adatkör írja felül a kérés tengelyét — nem a kérő címkéje' }),
       Object.freeze({ paths: ['v3ref/command.mjs'], pattern: 'resultReleasable\\(',
         reason: 'a KIADÁS hívja, a tranzakción belül' }),
@@ -8161,6 +8164,55 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'tényleges forráshoz kell mérni — különben a részek egymáshoz képest konzisztensek '
       + 'maradhatnak, miközben EGYIK SEM a mai kódról szól. A „forráshoz kötve" felirat addig '
       + 'hazugság, amíg nem mondjuk meg, MELYIK hivatkozást kötöttük.',
+  }),
+  Object.freeze({
+    id: 'KUKA-190',
+    date: '2026-09-18',
+    title: 'A TILTÁS HIÁNYÁBÓL LETT ENGEDÉLY — a kiadás sosem kérdezte meg a RÖGZÍTETT jogalapot',
+    what: 'A kiadási út KÉT tényt kérdezett meg: tag-e a kérő a KÖNYVBEN, és van-e rá kimondott '
+      + 'TILTÁS az eredmény adatköreire. Egy adatkörre szóló ENGEDŐ alapot SOHA nem kérdezett. '
+      + 'MÉRVE (a teljes meghívó-láncon, a saját fánkon): egy olyan tag, akinek a TAGSÁGA '
+      + '`scopes: [keszlet]`-re korlátozott határozat alatt született — tehát a rendszer maga '
+      + 'rögzítette, hogy a felhatalmazása készlet-adatkörre szól —, a vegyes eredményt '
+      + 'ÁREGYÜTT megkapta (`unit_price: 12345`). A korlát ott állt az adatbázisban, olvasható '
+      + 'alakban (`grant_basis.granted_limit`), és a kiadási úton egyetlen sor sem olvasta.',
+    why_wrong: 'A „nincs rá tiltás" és a „van rá joga" KÉT KÜLÖN ÁLLÍTÁS, és a kiadás a másodikat '
+      + 'követeli meg (K05-DSC-c: *minden érintett adatkörre ÉRVÉNYES OLVASÁSI DÖNTÉS kell*). A '
+      + 'tiltás-lista természeténél fogva HIÁNYOS: ami nincs rajta, arról semmit nem tudunk — a '
+      + 'hiányból levont engedély ezért a KUKA-073 alakja a jogosultságon: a HELYETTESÍTŐ válasz '
+      + 'nem látszik rossz válasznak. És a kár néma: nincs hibakód, nincs üres lista, csak egy '
+      + 'ármező egy olyan olvasónál, akinek a felhatalmazása készletre szólt.',
+    replaced_by: 'EGY nevezett kapu a kiadás közös határán (RSB-01, `scopeReleaseDecision`): a '
+      + 'kimondott TILTÁS előbb dönt (az engedély mellett is), utána a MEGLÉVŐ jogalap-lánc — a '
+      + 'tagságra átvitt adatkör-korlát (ORG-N1b) a MAI határozat-állapothoz mérve (ORG-N1a). A '
+      + 'kiadás nem lehet tágabb a rögzített alapnál; megvont, lejárt vagy idegen könyvre szóló '
+      + 'alap NEM nyit.',
+    replacement: 'Minden ENGEDŐ döntésnél ki kell mondani, MIBŐL származik — és ha a rendszer erre '
+      + 'nem tud felelni, azt NEVEZETT, gyengébb alapként kell kiírni, nem engedélynek tekinteni.',
+    decision: 'D-VS-3057',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL mondta ki a követelményt (chatgpt-v3, R37 tartalmi döntés → '
+      + 'R47 feladat: „a tiltás hiánya önmagában nem bizonyítja az engedélyt"); a KÁRT a SAJÁT '
+      + 'mérésem állította elő, a meglévő meghívó-láncon, adaton.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/resultScope.mjs']),
+        pattern: 'scopeReleaseDecision\\(\\{ store, subjectId, bookId, scope',
+        why: 'a kiadás a KÖZÖS döntés-kaput hívja, nem csak a tiltást' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/releaseScope.mjs']),
+        pattern: 'basis_scope_vocabulary_unknown',
+        why: 'az ismeretlen szótárú korlát ZÁR és megnevezi magát — a gép nem fordít' }),
+    ]),
+    forbidden: Object.freeze([]),
+    guard_note: 'gépi jel: `npm run verify:v3ref` — **M177** (a kapu nem kérdezi meg a rögzített '
+      + 'alapot ⇒ az ármező kimegy), **M178** (a kérő címkéje dönt a tartalom helyett), **M179** (a '
+      + 'megvont alap tovább nyit), **M180** (a tiltás ága sosem fut), **M181** (a jogos kiadás téves '
+      + 'tiltása), **M182** (az elutasítás sikeres kiadást könyvel). AMIRE NINCS GÉPI JEL, KIMONDVA: '
+      + 'hogy egy rögzített korlát NÉLKÜLI tagság mit LÁTHAT — ez üzleti döntés, a kapu csak '
+      + 'megnevezi (`membership_only`), és a kérdés a jelentésben áll.',
+    lesson: 'A TILTÁS HIÁNYA NEM ENGEDÉLY. Egy tiltás-lista arról szól, mit vettek el — arról nem, '
+      + 'mit adtak. Ha egy kapu CSAK tiltást kérdez, akkor a hallgatás engedéllyé válik, és a '
+      + 'rendszer pont azt nem tudja megmondani, MIRE volt joga az olvasónak. Minden engedő '
+      + 'döntésnek NEVEZETT FORRÁSA legyen; ahol nincs, ott a válasz mondja ki, hogy gyengébb '
+      + 'alapon áll — és a különbséget üzleti döntés zárja le, nem egy kényelmes alapértelmezés.',
   }),
   Object.freeze({
     id: 'KUKA-189',

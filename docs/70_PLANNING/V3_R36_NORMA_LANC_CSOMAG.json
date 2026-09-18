@@ -1,11 +1,11 @@
 {
   "schema": "v3-norm-chain-package/2",
   "id": "NCP-01",
-  "at": "2026-09-18T21:11:45.991Z",
+  "at": "2026-09-18T22:14:07.010Z",
   "measured_from": {
     "file": "v3ref/v3ref-mutation-result.json",
-    "base_digest": "sha256:c4b7c5ac689d476fc01f125d1a8b0ff34ad80f1b419c53157d43a3e75ff11b20",
-    "source_digest_today": "sha256:c4b7c5ac689d476fc01f125d1a8b0ff34ad80f1b419c53157d43a3e75ff11b20",
+    "base_digest": "sha256:dc6cc2d0d4c65a61e36f9d4a8d916c77fc680dd5b932d9e4996a5f3b8b8322d0",
+    "source_digest_today": "sha256:dc6cc2d0d4c65a61e36f9d4a8d916c77fc680dd5b932d9e4996a5f3b8b8322d0",
     "source_bound": true,
     "execution": "merged_units"
   },
@@ -36,14 +36,14 @@
   "totals": {
     "norms": 10,
     "clauses": 29,
-    "chain_rows": 106,
-    "covered": 76,
-    "partially_covered": 20,
+    "chain_rows": 113,
+    "covered": 77,
+    "partially_covered": 26,
     "not_falsified": 2,
     "no_evidence": 8,
     "content_review_current": 0,
     "external_decision_clauses": 29,
-    "external_decision_rows": 33,
+    "external_decision_rows": 36,
     "external_decisions": 29
   },
   "open_blockers": [
@@ -3705,6 +3705,438 @@
       ],
       "clause_text": "Minden érintett adatkörre érvényes olvasási döntés kell. Amíg nincs külön bizonyított mezővetítés, egy tiltott adatot tartalmazó vegyes eredményt egészben meg kell tagadni; a készletjog nem jogosít ármező kiadására.",
       "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K05-c-release-scope-decision-comes-from-the-recorded-basis-not-the-caller-label",
+      "probe_id": "P-DSC-scope-basis",
+      "behaviour": "AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély",
+      "positive_evidence": "P-DSC-scope-basis — „AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M181 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M177, M178, M179, M180, M181, M182",
+      "mutations": [
+        {
+          "id": "M177",
+          "what": "RSB-01 / R47 — A KIADÁS NEM KÉRDEZI MEG A RÖGZÍTETT ALAPOT: a tiltás-ellenőrzés után a kapu azonnal enged, tehát a `scopes: [keszlet]`-re korlátozott alap alatt született tagság megint MEGKAPJA az ármezőt. Pontosan az a mért lelet, amiért ez a csomag született: a tiltás HIÁNYA engedéllyé válik (K05-DSC-c)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M178",
+          "what": "RSB-01 / R47 — A KÉRŐ CÍMKÉJE DÖNT A TARTALOM HELYETT: a kiadás a kérés `dataScope` címkéjére kérdez, nem az eredmény TÉNYLEGES adatköreire. Egy „készlet\" címkével beadott olvasás így ármezőt is kivinne — a R77/F02 lelet visszatérése az engedő ágon (KUKA-073)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M179",
+          "what": "RSB-01 / R47 — A MEGVONT ALAP TOVÁBB NYIT: a kapu nem nézi meg a határozat MAI állapotát, tehát a lepecsételt korlát TÚLÉLI a saját alapját. Visszavont (vagy lejárt, vagy idegen könyvre szóló) határozat mellett is kiadna (R47/3)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M180",
+          "what": "RSB-01 / R47 — A KIMONDOTT TILTÁS ÁGA SOSEM FUT: a kapu az engedő alapot megnézi, a TILTÁST nem — tehát egy adatkörre kimondottan tiltott olvasó az engedélye mellett visszakapja azt, amit épp megvontak tőle. MÉRT HATÁS: a tiltás-ág teljes kiiktatása (nem csak az engedő eset alatt), ezért a tiltás-mérésre épülő testvér-próba is bukik — a NEVEZETT elkapó viszont a mienk (REV-N5b: a kimondott tiltás az engedély mellett is áll)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M181",
+          "what": "RSB-01 / R47 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon üresre számolódik, tehát MINDEN érintett adatkörre jogosult olvasó sem kapja meg az eredményt. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        },
+        {
+          "id": "M182",
+          "what": "RSB-01 / R47 — AZ ELUTASÍTÁS SIKERES KIADÁST KÖNYVEL: a megtagadott olvasás is ír a kiadási leltárba, tehát a leltár olyan kiadásról tanúskodik, ami meg sem történt — a KUKA-026 tükre a leltáron (R47/4)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "partially_covered",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: KÉT, kimondottan ÜZLETI döntésre váró pont marad. (1) Ha a tagsághoz NINCS rögzített adatkör-korlát, a kiadás ma a KÖNYV-tagságon áll — a kapu ezt `membership_only` néven kiírja, de hogy egy ilyen tag MIT láthat, arra a normákból nem vezethető le válasz: nem találunk ki hallgatólagos „mindenhez jogot\". (2) A felhatalmazás adatkör-tengelye ma SZABAD SZÖVEG (a meglévő világok `stock`/`price` szavakat használnak), a tartalom-besorolás viszont ZÁRT halmaz (`keszlet` · `arak`); az ismeretlen szótárú korlát ZÁR (`basis_scope_vocabulary_unknown`), a két szótár megfeleltetése üzleti döntés, gép nem tippelheti meg. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "source": "R37",
+        "clause": "K05-DSC-c",
+        "verdict": "partial",
+        "reason": "a tiltott mezőt tartalmazó vegyes eredmény egészbeni megtagadása bizonyított. A „minden adatkörre érvényes olvasási döntés” erősebb az explicit tiltás hiányánál; az adatkörre korlátozott engedő alap és a tényleges kiadás közötti bizonyíték nincs megadva. Ezt a különbséget ne zöldítsd át."
+      }
+    },
+    {
+      "norm_id": "DSC-N1",
+      "clause_id": "K05-DSC-c",
+      "covers": [
+        "K05"
+      ],
+      "clause_text": "Minden érintett adatkörre érvényes olvasási döntés kell. Amíg nincs külön bizonyított mezővetítés, egy tiltott adatot tartalmazó vegyes eredményt egészben meg kell tagadni; a készletjog nem jogosít ármező kiadására.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K05-c-reader-entitled-to-every-affected-scope-still-gets-the-result",
+      "probe_id": "P-DSC-scope-basis",
+      "behaviour": "AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély",
+      "positive_evidence": "P-DSC-scope-basis — „AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M181 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M177, M178, M179, M180, M181, M182",
+      "mutations": [
+        {
+          "id": "M177",
+          "what": "RSB-01 / R47 — A KIADÁS NEM KÉRDEZI MEG A RÖGZÍTETT ALAPOT: a tiltás-ellenőrzés után a kapu azonnal enged, tehát a `scopes: [keszlet]`-re korlátozott alap alatt született tagság megint MEGKAPJA az ármezőt. Pontosan az a mért lelet, amiért ez a csomag született: a tiltás HIÁNYA engedéllyé válik (K05-DSC-c)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M178",
+          "what": "RSB-01 / R47 — A KÉRŐ CÍMKÉJE DÖNT A TARTALOM HELYETT: a kiadás a kérés `dataScope` címkéjére kérdez, nem az eredmény TÉNYLEGES adatköreire. Egy „készlet\" címkével beadott olvasás így ármezőt is kivinne — a R77/F02 lelet visszatérése az engedő ágon (KUKA-073)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M179",
+          "what": "RSB-01 / R47 — A MEGVONT ALAP TOVÁBB NYIT: a kapu nem nézi meg a határozat MAI állapotát, tehát a lepecsételt korlát TÚLÉLI a saját alapját. Visszavont (vagy lejárt, vagy idegen könyvre szóló) határozat mellett is kiadna (R47/3)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M180",
+          "what": "RSB-01 / R47 — A KIMONDOTT TILTÁS ÁGA SOSEM FUT: a kapu az engedő alapot megnézi, a TILTÁST nem — tehát egy adatkörre kimondottan tiltott olvasó az engedélye mellett visszakapja azt, amit épp megvontak tőle. MÉRT HATÁS: a tiltás-ág teljes kiiktatása (nem csak az engedő eset alatt), ezért a tiltás-mérésre épülő testvér-próba is bukik — a NEVEZETT elkapó viszont a mienk (REV-N5b: a kimondott tiltás az engedély mellett is áll)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M181",
+          "what": "RSB-01 / R47 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon üresre számolódik, tehát MINDEN érintett adatkörre jogosult olvasó sem kapja meg az eredményt. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        },
+        {
+          "id": "M182",
+          "what": "RSB-01 / R47 — AZ ELUTASÍTÁS SIKERES KIADÁST KÖNYVEL: a megtagadott olvasás is ír a kiadási leltárba, tehát a leltár olyan kiadásról tanúskodik, ami meg sem történt — a KUKA-026 tükre a leltáron (R47/4)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "partially_covered",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: KÉT, kimondottan ÜZLETI döntésre váró pont marad. (1) Ha a tagsághoz NINCS rögzített adatkör-korlát, a kiadás ma a KÖNYV-tagságon áll — a kapu ezt `membership_only` néven kiírja, de hogy egy ilyen tag MIT láthat, arra a normákból nem vezethető le válasz: nem találunk ki hallgatólagos „mindenhez jogot\". (2) A felhatalmazás adatkör-tengelye ma SZABAD SZÖVEG (a meglévő világok `stock`/`price` szavakat használnak), a tartalom-besorolás viszont ZÁRT halmaz (`keszlet` · `arak`); az ismeretlen szótárú korlát ZÁR (`basis_scope_vocabulary_unknown`), a két szótár megfeleltetése üzleti döntés, gép nem tippelheti meg. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "source": "R37",
+        "clause": "K05-DSC-c",
+        "verdict": "partial",
+        "reason": "a tiltott mezőt tartalmazó vegyes eredmény egészbeni megtagadása bizonyított. A „minden adatkörre érvényes olvasási döntés” erősebb az explicit tiltás hiányánál; az adatkörre korlátozott engedő alap és a tényleges kiadás közötti bizonyíték nincs megadva. Ezt a különbséget ne zöldítsd át."
+      }
+    },
+    {
+      "norm_id": "DSC-N1",
+      "clause_id": "K05-DSC-c",
+      "covers": [
+        "K05"
+      ],
+      "clause_text": "Minden érintett adatkörre érvényes olvasási döntés kell. Amíg nincs külön bizonyított mezővetítés, egy tiltott adatot tartalmazó vegyes eredményt egészben meg kell tagadni; a készletjog nem jogosít ármező kiadására.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K05-c-explicit-ban-holds-alongside-a-permitting-basis",
+      "probe_id": "P-DSC-scope-basis",
+      "behaviour": "AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély",
+      "positive_evidence": "P-DSC-scope-basis — „AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M180 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M177, M178, M179, M180, M181, M182",
+      "mutations": [
+        {
+          "id": "M177",
+          "what": "RSB-01 / R47 — A KIADÁS NEM KÉRDEZI MEG A RÖGZÍTETT ALAPOT: a tiltás-ellenőrzés után a kapu azonnal enged, tehát a `scopes: [keszlet]`-re korlátozott alap alatt született tagság megint MEGKAPJA az ármezőt. Pontosan az a mért lelet, amiért ez a csomag született: a tiltás HIÁNYA engedéllyé válik (K05-DSC-c)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M178",
+          "what": "RSB-01 / R47 — A KÉRŐ CÍMKÉJE DÖNT A TARTALOM HELYETT: a kiadás a kérés `dataScope` címkéjére kérdez, nem az eredmény TÉNYLEGES adatköreire. Egy „készlet\" címkével beadott olvasás így ármezőt is kivinne — a R77/F02 lelet visszatérése az engedő ágon (KUKA-073)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M179",
+          "what": "RSB-01 / R47 — A MEGVONT ALAP TOVÁBB NYIT: a kapu nem nézi meg a határozat MAI állapotát, tehát a lepecsételt korlát TÚLÉLI a saját alapját. Visszavont (vagy lejárt, vagy idegen könyvre szóló) határozat mellett is kiadna (R47/3)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M180",
+          "what": "RSB-01 / R47 — A KIMONDOTT TILTÁS ÁGA SOSEM FUT: a kapu az engedő alapot megnézi, a TILTÁST nem — tehát egy adatkörre kimondottan tiltott olvasó az engedélye mellett visszakapja azt, amit épp megvontak tőle. MÉRT HATÁS: a tiltás-ág teljes kiiktatása (nem csak az engedő eset alatt), ezért a tiltás-mérésre épülő testvér-próba is bukik — a NEVEZETT elkapó viszont a mienk (REV-N5b: a kimondott tiltás az engedély mellett is áll)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        },
+        {
+          "id": "M181",
+          "what": "RSB-01 / R47 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon üresre számolódik, tehát MINDEN érintett adatkörre jogosult olvasó sem kapja meg az eredményt. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M182",
+          "what": "RSB-01 / R47 — AZ ELUTASÍTÁS SIKERES KIADÁST KÖNYVEL: a megtagadott olvasás is ír a kiadási leltárba, tehát a leltár olyan kiadásról tanúskodik, ami meg sem történt — a KUKA-026 tükre a leltáron (R47/4)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "partially_covered",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: KÉT, kimondottan ÜZLETI döntésre váró pont marad. (1) Ha a tagsághoz NINCS rögzített adatkör-korlát, a kiadás ma a KÖNYV-tagságon áll — a kapu ezt `membership_only` néven kiírja, de hogy egy ilyen tag MIT láthat, arra a normákból nem vezethető le válasz: nem találunk ki hallgatólagos „mindenhez jogot\". (2) A felhatalmazás adatkör-tengelye ma SZABAD SZÖVEG (a meglévő világok `stock`/`price` szavakat használnak), a tartalom-besorolás viszont ZÁRT halmaz (`keszlet` · `arak`); az ismeretlen szótárú korlát ZÁR (`basis_scope_vocabulary_unknown`), a két szótár megfeleltetése üzleti döntés, gép nem tippelheti meg. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "source": "R37",
+        "clause": "K05-DSC-c",
+        "verdict": "partial",
+        "reason": "a tiltott mezőt tartalmazó vegyes eredmény egészbeni megtagadása bizonyított. A „minden adatkörre érvényes olvasási döntés” erősebb az explicit tiltás hiányánál; az adatkörre korlátozott engedő alap és a tényleges kiadás közötti bizonyíték nincs megadva. Ezt a különbséget ne zöldítsd át."
+      }
+    },
+    {
+      "norm_id": "DSC-N1",
+      "clause_id": "K05-DSC-c",
+      "covers": [
+        "K05"
+      ],
+      "clause_text": "Minden érintett adatkörre érvényes olvasási döntés kell. Amíg nincs külön bizonyított mezővetítés, egy tiltott adatot tartalmazó vegyes eredményt egészben meg kell tagadni; a készletjog nem jogosít ármező kiadására.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K05-c-revoked-or-expired-basis-does-not-open",
+      "probe_id": "P-DSC-scope-basis",
+      "behaviour": "AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély",
+      "positive_evidence": "P-DSC-scope-basis — „AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M179 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M177, M178, M179, M180, M181, M182",
+      "mutations": [
+        {
+          "id": "M177",
+          "what": "RSB-01 / R47 — A KIADÁS NEM KÉRDEZI MEG A RÖGZÍTETT ALAPOT: a tiltás-ellenőrzés után a kapu azonnal enged, tehát a `scopes: [keszlet]`-re korlátozott alap alatt született tagság megint MEGKAPJA az ármezőt. Pontosan az a mért lelet, amiért ez a csomag született: a tiltás HIÁNYA engedéllyé válik (K05-DSC-c)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M178",
+          "what": "RSB-01 / R47 — A KÉRŐ CÍMKÉJE DÖNT A TARTALOM HELYETT: a kiadás a kérés `dataScope` címkéjére kérdez, nem az eredmény TÉNYLEGES adatköreire. Egy „készlet\" címkével beadott olvasás így ármezőt is kivinne — a R77/F02 lelet visszatérése az engedő ágon (KUKA-073)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M179",
+          "what": "RSB-01 / R47 — A MEGVONT ALAP TOVÁBB NYIT: a kapu nem nézi meg a határozat MAI állapotát, tehát a lepecsételt korlát TÚLÉLI a saját alapját. Visszavont (vagy lejárt, vagy idegen könyvre szóló) határozat mellett is kiadna (R47/3)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        },
+        {
+          "id": "M180",
+          "what": "RSB-01 / R47 — A KIMONDOTT TILTÁS ÁGA SOSEM FUT: a kapu az engedő alapot megnézi, a TILTÁST nem — tehát egy adatkörre kimondottan tiltott olvasó az engedélye mellett visszakapja azt, amit épp megvontak tőle. MÉRT HATÁS: a tiltás-ág teljes kiiktatása (nem csak az engedő eset alatt), ezért a tiltás-mérésre épülő testvér-próba is bukik — a NEVEZETT elkapó viszont a mienk (REV-N5b: a kimondott tiltás az engedély mellett is áll)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M181",
+          "what": "RSB-01 / R47 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon üresre számolódik, tehát MINDEN érintett adatkörre jogosult olvasó sem kapja meg az eredményt. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M182",
+          "what": "RSB-01 / R47 — AZ ELUTASÍTÁS SIKERES KIADÁST KÖNYVEL: a megtagadott olvasás is ír a kiadási leltárba, tehát a leltár olyan kiadásról tanúskodik, ami meg sem történt — a KUKA-026 tükre a leltáron (R47/4)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "partially_covered",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: KÉT, kimondottan ÜZLETI döntésre váró pont marad. (1) Ha a tagsághoz NINCS rögzített adatkör-korlát, a kiadás ma a KÖNYV-tagságon áll — a kapu ezt `membership_only` néven kiírja, de hogy egy ilyen tag MIT láthat, arra a normákból nem vezethető le válasz: nem találunk ki hallgatólagos „mindenhez jogot\". (2) A felhatalmazás adatkör-tengelye ma SZABAD SZÖVEG (a meglévő világok `stock`/`price` szavakat használnak), a tartalom-besorolás viszont ZÁRT halmaz (`keszlet` · `arak`); az ismeretlen szótárú korlát ZÁR (`basis_scope_vocabulary_unknown`), a két szótár megfeleltetése üzleti döntés, gép nem tippelheti meg. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "source": "R37",
+        "clause": "K05-DSC-c",
+        "verdict": "partial",
+        "reason": "a tiltott mezőt tartalmazó vegyes eredmény egészbeni megtagadása bizonyított. A „minden adatkörre érvényes olvasási döntés” erősebb az explicit tiltás hiányánál; az adatkörre korlátozott engedő alap és a tényleges kiadás közötti bizonyíték nincs megadva. Ezt a különbséget ne zöldítsd át."
+      }
+    },
+    {
+      "norm_id": "DSC-N1",
+      "clause_id": "K05-DSC-c",
+      "covers": [
+        "K05"
+      ],
+      "clause_text": "Minden érintett adatkörre érvényes olvasási döntés kell. Amíg nincs külön bizonyított mezővetítés, egy tiltott adatot tartalmazó vegyes eredményt egészben meg kell tagadni; a készletjog nem jogosít ármező kiadására.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K05-c-undeclared-limit-is-named-as-membership-only-not-a-scope-permission",
+      "probe_id": "P-DSC-scope-basis",
+      "behaviour": "AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély",
+      "positive_evidence": "P-DSC-scope-basis — „AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M177 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M177, M178, M179, M180, M181, M182",
+      "mutations": [
+        {
+          "id": "M177",
+          "what": "RSB-01 / R47 — A KIADÁS NEM KÉRDEZI MEG A RÖGZÍTETT ALAPOT: a tiltás-ellenőrzés után a kapu azonnal enged, tehát a `scopes: [keszlet]`-re korlátozott alap alatt született tagság megint MEGKAPJA az ármezőt. Pontosan az a mért lelet, amiért ez a csomag született: a tiltás HIÁNYA engedéllyé válik (K05-DSC-c)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        },
+        {
+          "id": "M178",
+          "what": "RSB-01 / R47 — A KÉRŐ CÍMKÉJE DÖNT A TARTALOM HELYETT: a kiadás a kérés `dataScope` címkéjére kérdez, nem az eredmény TÉNYLEGES adatköreire. Egy „készlet\" címkével beadott olvasás így ármezőt is kivinne — a R77/F02 lelet visszatérése az engedő ágon (KUKA-073)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M179",
+          "what": "RSB-01 / R47 — A MEGVONT ALAP TOVÁBB NYIT: a kapu nem nézi meg a határozat MAI állapotát, tehát a lepecsételt korlát TÚLÉLI a saját alapját. Visszavont (vagy lejárt, vagy idegen könyvre szóló) határozat mellett is kiadna (R47/3)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M180",
+          "what": "RSB-01 / R47 — A KIMONDOTT TILTÁS ÁGA SOSEM FUT: a kapu az engedő alapot megnézi, a TILTÁST nem — tehát egy adatkörre kimondottan tiltott olvasó az engedélye mellett visszakapja azt, amit épp megvontak tőle. MÉRT HATÁS: a tiltás-ág teljes kiiktatása (nem csak az engedő eset alatt), ezért a tiltás-mérésre épülő testvér-próba is bukik — a NEVEZETT elkapó viszont a mienk (REV-N5b: a kimondott tiltás az engedély mellett is áll)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M181",
+          "what": "RSB-01 / R47 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon üresre számolódik, tehát MINDEN érintett adatkörre jogosult olvasó sem kapja meg az eredményt. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M182",
+          "what": "RSB-01 / R47 — AZ ELUTASÍTÁS SIKERES KIADÁST KÖNYVEL: a megtagadott olvasás is ír a kiadási leltárba, tehát a leltár olyan kiadásról tanúskodik, ami meg sem történt — a KUKA-026 tükre a leltáron (R47/4)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "partially_covered",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: KÉT, kimondottan ÜZLETI döntésre váró pont marad. (1) Ha a tagsághoz NINCS rögzített adatkör-korlát, a kiadás ma a KÖNYV-tagságon áll — a kapu ezt `membership_only` néven kiírja, de hogy egy ilyen tag MIT láthat, arra a normákból nem vezethető le válasz: nem találunk ki hallgatólagos „mindenhez jogot\". (2) A felhatalmazás adatkör-tengelye ma SZABAD SZÖVEG (a meglévő világok `stock`/`price` szavakat használnak), a tartalom-besorolás viszont ZÁRT halmaz (`keszlet` · `arak`); az ismeretlen szótárú korlát ZÁR (`basis_scope_vocabulary_unknown`), a két szótár megfeleltetése üzleti döntés, gép nem tippelheti meg. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "source": "R37",
+        "clause": "K05-DSC-c",
+        "verdict": "partial",
+        "reason": "a tiltott mezőt tartalmazó vegyes eredmény egészbeni megtagadása bizonyított. A „minden adatkörre érvényes olvasási döntés” erősebb az explicit tiltás hiányánál; az adatkörre korlátozott engedő alap és a tényleges kiadás közötti bizonyíték nincs megadva. Ezt a különbséget ne zöldítsd át."
+      }
+    },
+    {
+      "norm_id": "DSC-N1",
+      "clause_id": "K05-DSC-c",
+      "covers": [
+        "K05"
+      ],
+      "clause_text": "Minden érintett adatkörre érvényes olvasási döntés kell. Amíg nincs külön bizonyított mezővetítés, egy tiltott adatot tartalmazó vegyes eredményt egészben meg kell tagadni; a készletjog nem jogosít ármező kiadására.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K05-c-refusal-keeps-the-existence-boundary",
+      "probe_id": "P-DSC-scope-basis",
+      "behaviour": "AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély",
+      "positive_evidence": "P-DSC-scope-basis — „AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M177 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M177, M178, M179, M180, M181, M182",
+      "mutations": [
+        {
+          "id": "M177",
+          "what": "RSB-01 / R47 — A KIADÁS NEM KÉRDEZI MEG A RÖGZÍTETT ALAPOT: a tiltás-ellenőrzés után a kapu azonnal enged, tehát a `scopes: [keszlet]`-re korlátozott alap alatt született tagság megint MEGKAPJA az ármezőt. Pontosan az a mért lelet, amiért ez a csomag született: a tiltás HIÁNYA engedéllyé válik (K05-DSC-c)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        },
+        {
+          "id": "M178",
+          "what": "RSB-01 / R47 — A KÉRŐ CÍMKÉJE DÖNT A TARTALOM HELYETT: a kiadás a kérés `dataScope` címkéjére kérdez, nem az eredmény TÉNYLEGES adatköreire. Egy „készlet\" címkével beadott olvasás így ármezőt is kivinne — a R77/F02 lelet visszatérése az engedő ágon (KUKA-073)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M179",
+          "what": "RSB-01 / R47 — A MEGVONT ALAP TOVÁBB NYIT: a kapu nem nézi meg a határozat MAI állapotát, tehát a lepecsételt korlát TÚLÉLI a saját alapját. Visszavont (vagy lejárt, vagy idegen könyvre szóló) határozat mellett is kiadna (R47/3)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M180",
+          "what": "RSB-01 / R47 — A KIMONDOTT TILTÁS ÁGA SOSEM FUT: a kapu az engedő alapot megnézi, a TILTÁST nem — tehát egy adatkörre kimondottan tiltott olvasó az engedélye mellett visszakapja azt, amit épp megvontak tőle. MÉRT HATÁS: a tiltás-ág teljes kiiktatása (nem csak az engedő eset alatt), ezért a tiltás-mérésre épülő testvér-próba is bukik — a NEVEZETT elkapó viszont a mienk (REV-N5b: a kimondott tiltás az engedély mellett is áll)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M181",
+          "what": "RSB-01 / R47 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon üresre számolódik, tehát MINDEN érintett adatkörre jogosult olvasó sem kapja meg az eredményt. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M182",
+          "what": "RSB-01 / R47 — AZ ELUTASÍTÁS SIKERES KIADÁST KÖNYVEL: a megtagadott olvasás is ír a kiadási leltárba, tehát a leltár olyan kiadásról tanúskodik, ami meg sem történt — a KUKA-026 tükre a leltáron (R47/4)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "partially_covered",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: KÉT, kimondottan ÜZLETI döntésre váró pont marad. (1) Ha a tagsághoz NINCS rögzített adatkör-korlát, a kiadás ma a KÖNYV-tagságon áll — a kapu ezt `membership_only` néven kiírja, de hogy egy ilyen tag MIT láthat, arra a normákból nem vezethető le válasz: nem találunk ki hallgatólagos „mindenhez jogot\". (2) A felhatalmazás adatkör-tengelye ma SZABAD SZÖVEG (a meglévő világok `stock`/`price` szavakat használnak), a tartalom-besorolás viszont ZÁRT halmaz (`keszlet` · `arak`); az ismeretlen szótárú korlát ZÁR (`basis_scope_vocabulary_unknown`), a két szótár megfeleltetése üzleti döntés, gép nem tippelheti meg. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "source": "R37",
+        "clause": "K05-DSC-c",
+        "verdict": "partial",
+        "reason": "a tiltott mezőt tartalmazó vegyes eredmény egészbeni megtagadása bizonyított. A „minden adatkörre érvényes olvasási döntés” erősebb az explicit tiltás hiányánál; az adatkörre korlátozott engedő alap és a tényleges kiadás közötti bizonyíték nincs megadva. Ezt a különbséget ne zöldítsd át."
+      }
+    },
+    {
+      "norm_id": "DSC-N1",
+      "clause_id": "K05-DSC-c",
+      "covers": [
+        "K05"
+      ],
+      "clause_text": "Minden érintett adatkörre érvényes olvasási döntés kell. Amíg nincs külön bizonyított mezővetítés, egy tiltott adatot tartalmazó vegyes eredményt egészben meg kell tagadni; a készletjog nem jogosít ármező kiadására.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
       "assertion_id": "A-ORG-N1b-mixed-result-is-refused-as-a-whole",
       "probe_id": "P-REV-result-scope",
       "behaviour": "A KIADOTT EREDMÉNY ADATKÖRE — a típus deklarálja, nem a kérő címkéje (DSC-01)",
@@ -3732,7 +4164,7 @@
       ],
       "residual_scope": null,
       "result": "partially_covered",
-      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: az ENGEDŐ ág: hogy MINDEN érintett adatkörre ÉRVÉNYES olvasási döntés áll-e, az explicit tiltás HIÁNYÁNÁL erősebb követelmény. Az adatkörre korlátozott engedő alap és a tényleges kiadás közötti bizonyíték ma NINCS megadva — ez NEM a mezővetítés hiánya (az a klauzula saját feltétele), hanem külön, meg nem tett bizonyítás.",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: KÉT, kimondottan ÜZLETI döntésre váró pont marad. (1) Ha a tagsághoz NINCS rögzített adatkör-korlát, a kiadás ma a KÖNYV-tagságon áll — a kapu ezt `membership_only` néven kiírja, de hogy egy ilyen tag MIT láthat, arra a normákból nem vezethető le válasz: nem találunk ki hallgatólagos „mindenhez jogot\". (2) A felhatalmazás adatkör-tengelye ma SZABAD SZÖVEG (a meglévő világok `stock`/`price` szavakat használnak), a tartalom-besorolás viszont ZÁRT halmaz (`keszlet` · `arak`); az ismeretlen szótárú korlát ZÁR (`basis_scope_vocabulary_unknown`), a két szótár megfeleltetése üzleti döntés, gép nem tippelheti meg. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -3885,6 +4317,78 @@
       ],
       "clause_text": "Az engedélyezett eredmény is csak a kiadás alkalmazható hatályosulási pontján ellenőrzött jog alapján adható ki; a megvonás, ismétlés és korábbi eredmény újraolvasása nem kerülheti meg ezt.",
       "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K05-c-one-effectuation-point-for-decision-and-ledger",
+      "probe_id": "P-DSC-scope-basis",
+      "behaviour": "AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély",
+      "positive_evidence": "P-DSC-scope-basis — „AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M180 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M177, M178, M179, M180, M181, M182",
+      "mutations": [
+        {
+          "id": "M177",
+          "what": "RSB-01 / R47 — A KIADÁS NEM KÉRDEZI MEG A RÖGZÍTETT ALAPOT: a tiltás-ellenőrzés után a kapu azonnal enged, tehát a `scopes: [keszlet]`-re korlátozott alap alatt született tagság megint MEGKAPJA az ármezőt. Pontosan az a mért lelet, amiért ez a csomag született: a tiltás HIÁNYA engedéllyé válik (K05-DSC-c)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M178",
+          "what": "RSB-01 / R47 — A KÉRŐ CÍMKÉJE DÖNT A TARTALOM HELYETT: a kiadás a kérés `dataScope` címkéjére kérdez, nem az eredmény TÉNYLEGES adatköreire. Egy „készlet\" címkével beadott olvasás így ármezőt is kivinne — a R77/F02 lelet visszatérése az engedő ágon (KUKA-073)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M179",
+          "what": "RSB-01 / R47 — A MEGVONT ALAP TOVÁBB NYIT: a kapu nem nézi meg a határozat MAI állapotát, tehát a lepecsételt korlát TÚLÉLI a saját alapját. Visszavont (vagy lejárt, vagy idegen könyvre szóló) határozat mellett is kiadna (R47/3)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M180",
+          "what": "RSB-01 / R47 — A KIMONDOTT TILTÁS ÁGA SOSEM FUT: a kapu az engedő alapot megnézi, a TILTÁST nem — tehát egy adatkörre kimondottan tiltott olvasó az engedélye mellett visszakapja azt, amit épp megvontak tőle. MÉRT HATÁS: a tiltás-ág teljes kiiktatása (nem csak az engedő eset alatt), ezért a tiltás-mérésre épülő testvér-próba is bukik — a NEVEZETT elkapó viszont a mienk (REV-N5b: a kimondott tiltás az engedély mellett is áll)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        },
+        {
+          "id": "M181",
+          "what": "RSB-01 / R47 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon üresre számolódik, tehát MINDEN érintett adatkörre jogosult olvasó sem kapja meg az eredményt. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M182",
+          "what": "RSB-01 / R47 — AZ ELUTASÍTÁS SIKERES KIADÁST KÖNYVEL: a megtagadott olvasás is ír a kiadási leltárba, tehát a leltár olyan kiadásról tanúskodik, ami meg sem történt — a KUKA-026 tükre a leltáron (R47/4)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "covered",
+      "why": null,
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "source": "R37",
+        "clause": "K05-DSC-d",
+        "verdict": "accepted_in_reference",
+        "reason": "EGYÜTT: P-A08 + P-CMD-finalize-gate + P-CMD-release-effectuation. P-A08 önmagában a hatályosulási versenyt nem fedi; a kiegészítő bizonyíték-kötést rögzíteni kell."
+      }
+    },
+    {
+      "norm_id": "DSC-N1",
+      "clause_id": "K05-DSC-d",
+      "covers": [
+        "K05"
+      ],
+      "clause_text": "Az engedélyezett eredmény is csak a kiadás alkalmazható hatályosulási pontján ellenőrzött jog alapján adható ki; a megvonás, ismétlés és korábbi eredmény újraolvasása nem kerülheti meg ezt.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
       "assertion_id": "A-K05-DSC-d-release-stands-on-one-effectuation-point",
       "probe_id": "P-CMD-release-effectuation",
       "behaviour": "AZ ADATKIADÁS IS EGY HATÁLYOSULÁSI PONTON — a jog, az adatkör és a leltár-sor UGYANAZON az órán",
@@ -3987,14 +4491,20 @@
       "external_decision": {
         "clause": "K10-TYP-a",
         "verdict": "partial",
-        "source": "R45",
-        "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+        "source": "R47",
+        "reason": "**K10-TYP-a és K10-TYP-c részleges marad.** Átnevezési funkció és támogatott profilváltás továbbra sincs, a nyers profil-fixtúra nem ezek megvalósítása.",
         "superseded": {
-          "source": "R37",
           "clause": "K10-TYP-a",
           "verdict": "partial",
-          "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
-          "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+          "source": "R45",
+          "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+          "superseded": {
+            "source": "R37",
+            "clause": "K10-TYP-a",
+            "verdict": "partial",
+            "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+            "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+          }
         }
       }
     },
@@ -4048,14 +4558,20 @@
       "external_decision": {
         "clause": "K10-TYP-a",
         "verdict": "partial",
-        "source": "R45",
-        "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+        "source": "R47",
+        "reason": "**K10-TYP-a és K10-TYP-c részleges marad.** Átnevezési funkció és támogatott profilváltás továbbra sincs, a nyers profil-fixtúra nem ezek megvalósítása.",
         "superseded": {
-          "source": "R37",
           "clause": "K10-TYP-a",
           "verdict": "partial",
-          "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
-          "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+          "source": "R45",
+          "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+          "superseded": {
+            "source": "R37",
+            "clause": "K10-TYP-a",
+            "verdict": "partial",
+            "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+            "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+          }
         }
       }
     },
@@ -4109,14 +4625,20 @@
       "external_decision": {
         "clause": "K10-TYP-a",
         "verdict": "partial",
-        "source": "R45",
-        "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+        "source": "R47",
+        "reason": "**K10-TYP-a és K10-TYP-c részleges marad.** Átnevezési funkció és támogatott profilváltás továbbra sincs, a nyers profil-fixtúra nem ezek megvalósítása.",
         "superseded": {
-          "source": "R37",
           "clause": "K10-TYP-a",
           "verdict": "partial",
-          "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
-          "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+          "source": "R45",
+          "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+          "superseded": {
+            "source": "R37",
+            "clause": "K10-TYP-a",
+            "verdict": "partial",
+            "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+            "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+          }
         }
       }
     },
@@ -4161,7 +4683,7 @@
       ],
       "residual_scope": null,
       "result": "not_falsified",
-      "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — M164: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity) · M165: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity) · M166: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity) · M171: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity)",
+      "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — M164: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity) · M165: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity) · M171: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity) · M166: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity)",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -4176,14 +4698,20 @@
       "external_decision": {
         "clause": "K10-TYP-a",
         "verdict": "partial",
-        "source": "R45",
-        "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+        "source": "R47",
+        "reason": "**K10-TYP-a és K10-TYP-c részleges marad.** Átnevezési funkció és támogatott profilváltás továbbra sincs, a nyers profil-fixtúra nem ezek megvalósítása.",
         "superseded": {
-          "source": "R37",
           "clause": "K10-TYP-a",
           "verdict": "partial",
-          "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
-          "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+          "source": "R45",
+          "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+          "superseded": {
+            "source": "R37",
+            "clause": "K10-TYP-a",
+            "verdict": "partial",
+            "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+            "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+          }
         }
       }
     },
@@ -4243,14 +4771,20 @@
       "external_decision": {
         "clause": "K10-TYP-a",
         "verdict": "partial",
-        "source": "R45",
-        "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+        "source": "R47",
+        "reason": "**K10-TYP-a és K10-TYP-c részleges marad.** Átnevezési funkció és támogatott profilváltás továbbra sincs, a nyers profil-fixtúra nem ezek megvalósítása.",
         "superseded": {
-          "source": "R37",
           "clause": "K10-TYP-a",
           "verdict": "partial",
-          "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
-          "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+          "source": "R45",
+          "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+          "superseded": {
+            "source": "R37",
+            "clause": "K10-TYP-a",
+            "verdict": "partial",
+            "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+            "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+          }
         }
       }
     },
@@ -4310,14 +4844,20 @@
       "external_decision": {
         "clause": "K10-TYP-a",
         "verdict": "partial",
-        "source": "R45",
-        "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+        "source": "R47",
+        "reason": "**K10-TYP-a és K10-TYP-c részleges marad.** Átnevezési funkció és támogatott profilváltás továbbra sincs, a nyers profil-fixtúra nem ezek megvalósítása.",
         "superseded": {
-          "source": "R37",
           "clause": "K10-TYP-a",
           "verdict": "partial",
-          "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
-          "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+          "source": "R45",
+          "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+          "superseded": {
+            "source": "R37",
+            "clause": "K10-TYP-a",
+            "verdict": "partial",
+            "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+            "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+          }
         }
       }
     },
@@ -4377,14 +4917,20 @@
       "external_decision": {
         "clause": "K10-TYP-a",
         "verdict": "partial",
-        "source": "R45",
-        "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+        "source": "R47",
+        "reason": "**K10-TYP-a és K10-TYP-c részleges marad.** Átnevezési funkció és támogatott profilváltás továbbra sincs, a nyers profil-fixtúra nem ezek megvalósítása.",
         "superseded": {
-          "source": "R37",
           "clause": "K10-TYP-a",
           "verdict": "partial",
-          "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
-          "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+          "source": "R45",
+          "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+          "superseded": {
+            "source": "R37",
+            "clause": "K10-TYP-a",
+            "verdict": "partial",
+            "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+            "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+          }
         }
       }
     },
@@ -5212,19 +5758,19 @@
       "probe_id": "P-KSZ-canonical-input-boundary",
       "behaviour": "A bemeneti elutasítás a VALÓDI bevét-úton dől el, és a MEGLÉVŐ történetet sem írja át",
       "positive_evidence": "P-KSZ-canonical-input-boundary — „A bemeneti elutasítás a VALÓDI bevét-úton dől el, és a MEGLÉVŐ történetet sem írja át\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M174 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M167, M174",
+      "negative_evidence": "MINŐSÜLŐ tanú: M167 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M167, M174",
       "mutations": [
         {
           "id": "M167",
           "what": "BEM-01 / R43 — A KANONIKUS ÚT CSENDBEN MEGTISZTÍTJA A TÖRZSET: a bevét-út csak a három ismert mezőt adja tovább, tehát az IDEGEN és a KONTEXTUS-mező nem nevezett elutasítást kap, hanem NÉMÁN eltűnik — a beadó azt hiszi, kitöltött valamit, a rendszer eldobja (KUKA-041 a bemeneten). AMIT MÉRVE MEGTUDTUNK: a mutáció ELSŐ alakja a hibás csomagot engedte tovább, és a próba nyers TypeError-ral állt meg — az nem szerződés szerinti bizonyíték",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         },
         {
           "id": "M174",
           "what": "BEM-01 / R45 — A BEMENETI ELUTASÍTÁS ÁTÍRJA A TÁROLT NYUGTA TARTALMÁT: a hibás bemenet ágán a bevét-út kiüríti a MÁR LEZÁRT parancsok eredmény-tartalmát (`resolved_json`). Sor nem születik és nem tűnik el, tehát „nem írt semmit\" darabszámon mérve IGAZ marad — a MEGLÉVŐ történet tartalma viszont sérül (R45/F45-01 közös hiánya a bemeneti ágon)",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         }
       ],
       "residual_scope": null,
@@ -5267,19 +5813,19 @@
       "probe_id": "P-KSZ-canonical-input-boundary",
       "behaviour": "A bemeneti elutasítás a VALÓDI bevét-úton dől el, és a MEGLÉVŐ történetet sem írja át",
       "positive_evidence": "P-KSZ-canonical-input-boundary — „A bemeneti elutasítás a VALÓDI bevét-úton dől el, és a MEGLÉVŐ történetet sem írja át\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M174 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M167, M174",
+      "negative_evidence": "MINŐSÜLŐ tanú: M167 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M167, M174",
       "mutations": [
         {
           "id": "M167",
           "what": "BEM-01 / R43 — A KANONIKUS ÚT CSENDBEN MEGTISZTÍTJA A TÖRZSET: a bevét-út csak a három ismert mezőt adja tovább, tehát az IDEGEN és a KONTEXTUS-mező nem nevezett elutasítást kap, hanem NÉMÁN eltűnik — a beadó azt hiszi, kitöltött valamit, a rendszer eldobja (KUKA-041 a bemeneten). AMIT MÉRVE MEGTUDTUNK: a mutáció ELSŐ alakja a hibás csomagot engedte tovább, és a próba nyers TypeError-ral állt meg — az nem szerződés szerinti bizonyíték",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         },
         {
           "id": "M174",
           "what": "BEM-01 / R45 — A BEMENETI ELUTASÍTÁS ÁTÍRJA A TÁROLT NYUGTA TARTALMÁT: a hibás bemenet ágán a bevét-út kiüríti a MÁR LEZÁRT parancsok eredmény-tartalmát (`resolved_json`). Sor nem születik és nem tűnik el, tehát „nem írt semmit\" darabszámon mérve IGAZ marad — a MEGLÉVŐ történet tartalma viszont sérül (R45/F45-01 közös hiánya a bemeneti ágon)",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         }
       ],
       "residual_scope": null,
@@ -5354,13 +5900,19 @@
       "external_decision": {
         "clause": "K10-TYP-c",
         "verdict": "partial",
-        "source": "R45",
-        "reason": "**K10-TYP-c részleges marad.** A saját profil tárolása és az olvasó eltérés-ellenőrzése elfogadható részeredmény. Támogatott profilváltás nincs; a nyers fixtúra nem annak bizonyítéka.",
+        "source": "R47",
+        "reason": "**K10-TYP-a és K10-TYP-c részleges marad.** Átnevezési funkció és támogatott profilváltás továbbra sincs, a nyers profil-fixtúra nem ezek megvalósítása.",
         "superseded": {
-          "source": "R37",
           "clause": "K10-TYP-c",
           "verdict": "partial",
-          "reason": "két profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok hamis. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell."
+          "source": "R45",
+          "reason": "**K10-TYP-c részleges marad.** A saját profil tárolása és az olvasó eltérés-ellenőrzése elfogadható részeredmény. Támogatott profilváltás nincs; a nyers fixtúra nem annak bizonyítéka.",
+          "superseded": {
+            "source": "R37",
+            "clause": "K10-TYP-c",
+            "verdict": "partial",
+            "reason": "két profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok hamis. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell."
+          }
         }
       }
     },
@@ -5408,13 +5960,19 @@
       "external_decision": {
         "clause": "K10-TYP-c",
         "verdict": "partial",
-        "source": "R45",
-        "reason": "**K10-TYP-c részleges marad.** A saját profil tárolása és az olvasó eltérés-ellenőrzése elfogadható részeredmény. Támogatott profilváltás nincs; a nyers fixtúra nem annak bizonyítéka.",
+        "source": "R47",
+        "reason": "**K10-TYP-a és K10-TYP-c részleges marad.** Átnevezési funkció és támogatott profilváltás továbbra sincs, a nyers profil-fixtúra nem ezek megvalósítása.",
         "superseded": {
-          "source": "R37",
           "clause": "K10-TYP-c",
           "verdict": "partial",
-          "reason": "két profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok hamis. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell."
+          "source": "R45",
+          "reason": "**K10-TYP-c részleges marad.** A saját profil tárolása és az olvasó eltérés-ellenőrzése elfogadható részeredmény. Támogatott profilváltás nincs; a nyers fixtúra nem annak bizonyítéka.",
+          "superseded": {
+            "source": "R37",
+            "clause": "K10-TYP-c",
+            "verdict": "partial",
+            "reason": "két profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok hamis. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell."
+          }
         }
       }
     },
@@ -5462,13 +6020,19 @@
       "external_decision": {
         "clause": "K10-TYP-c",
         "verdict": "partial",
-        "source": "R45",
-        "reason": "**K10-TYP-c részleges marad.** A saját profil tárolása és az olvasó eltérés-ellenőrzése elfogadható részeredmény. Támogatott profilváltás nincs; a nyers fixtúra nem annak bizonyítéka.",
+        "source": "R47",
+        "reason": "**K10-TYP-a és K10-TYP-c részleges marad.** Átnevezési funkció és támogatott profilváltás továbbra sincs, a nyers profil-fixtúra nem ezek megvalósítása.",
         "superseded": {
-          "source": "R37",
           "clause": "K10-TYP-c",
           "verdict": "partial",
-          "reason": "két profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok hamis. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell."
+          "source": "R45",
+          "reason": "**K10-TYP-c részleges marad.** A saját profil tárolása és az olvasó eltérés-ellenőrzése elfogadható részeredmény. Támogatott profilváltás nincs; a nyers fixtúra nem annak bizonyítéka.",
+          "superseded": {
+            "source": "R37",
+            "clause": "K10-TYP-c",
+            "verdict": "partial",
+            "reason": "két profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok hamis. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell."
+          }
         }
       }
     },
@@ -5534,13 +6098,19 @@
       "external_decision": {
         "clause": "K10-TYP-d",
         "verdict": "partial",
-        "source": "R45",
-        "reason": "**K10-TYP-d részleges marad; az R43 teljes történetmegőrzési bizonyítása nincs lezárva.** A jogos bevét és ismétlés működése igazolt, a teljes tartalom változatlanságára a lent reprodukált rés fennáll.",
+        "source": "R47",
+        "reason": "**K10-TYP-d részleges marad a teljes normaszövegre**, de a történetmegőrzési és tranzakciós hibahatárra vonatkozó R45-lelet már lezárt. A fennmaradó határ: ugyanazon cikk támogatott profilváltása nincs; a próbák a három nevezett táblát és a disclosure előzményeit fedik, nem a teljes séma összes történetét.",
         "superseded": {
-          "source": "R37",
           "clause": "K10-TYP-d",
           "verdict": "partial",
-          "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+          "source": "R45",
+          "reason": "**K10-TYP-d részleges marad; az R43 teljes történetmegőrzési bizonyítása nincs lezárva.** A jogos bevét és ismétlés működése igazolt, a teljes tartalom változatlanságára a lent reprodukált rés fennáll.",
+          "superseded": {
+            "source": "R37",
+            "clause": "K10-TYP-d",
+            "verdict": "partial",
+            "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+          }
         }
       }
     },
@@ -5606,13 +6176,19 @@
       "external_decision": {
         "clause": "K10-TYP-d",
         "verdict": "partial",
-        "source": "R45",
-        "reason": "**K10-TYP-d részleges marad; az R43 teljes történetmegőrzési bizonyítása nincs lezárva.** A jogos bevét és ismétlés működése igazolt, a teljes tartalom változatlanságára a lent reprodukált rés fennáll.",
+        "source": "R47",
+        "reason": "**K10-TYP-d részleges marad a teljes normaszövegre**, de a történetmegőrzési és tranzakciós hibahatárra vonatkozó R45-lelet már lezárt. A fennmaradó határ: ugyanazon cikk támogatott profilváltása nincs; a próbák a három nevezett táblát és a disclosure előzményeit fedik, nem a teljes séma összes történetét.",
         "superseded": {
-          "source": "R37",
           "clause": "K10-TYP-d",
           "verdict": "partial",
-          "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+          "source": "R45",
+          "reason": "**K10-TYP-d részleges marad; az R43 teljes történetmegőrzési bizonyítása nincs lezárva.** A jogos bevét és ismétlés működése igazolt, a teljes tartalom változatlanságára a lent reprodukált rés fennáll.",
+          "superseded": {
+            "source": "R37",
+            "clause": "K10-TYP-d",
+            "verdict": "partial",
+            "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+          }
         }
       }
     },
@@ -5678,13 +6254,19 @@
       "external_decision": {
         "clause": "K10-TYP-d",
         "verdict": "partial",
-        "source": "R45",
-        "reason": "**K10-TYP-d részleges marad; az R43 teljes történetmegőrzési bizonyítása nincs lezárva.** A jogos bevét és ismétlés működése igazolt, a teljes tartalom változatlanságára a lent reprodukált rés fennáll.",
+        "source": "R47",
+        "reason": "**K10-TYP-d részleges marad a teljes normaszövegre**, de a történetmegőrzési és tranzakciós hibahatárra vonatkozó R45-lelet már lezárt. A fennmaradó határ: ugyanazon cikk támogatott profilváltása nincs; a próbák a három nevezett táblát és a disclosure előzményeit fedik, nem a teljes séma összes történetét.",
         "superseded": {
-          "source": "R37",
           "clause": "K10-TYP-d",
           "verdict": "partial",
-          "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+          "source": "R45",
+          "reason": "**K10-TYP-d részleges marad; az R43 teljes történetmegőrzési bizonyítása nincs lezárva.** A jogos bevét és ismétlés működése igazolt, a teljes tartalom változatlanságára a lent reprodukált rés fennáll.",
+          "superseded": {
+            "source": "R37",
+            "clause": "K10-TYP-d",
+            "verdict": "partial",
+            "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+          }
         }
       }
     },
@@ -5750,13 +6332,19 @@
       "external_decision": {
         "clause": "K10-TYP-d",
         "verdict": "partial",
-        "source": "R45",
-        "reason": "**K10-TYP-d részleges marad; az R43 teljes történetmegőrzési bizonyítása nincs lezárva.** A jogos bevét és ismétlés működése igazolt, a teljes tartalom változatlanságára a lent reprodukált rés fennáll.",
+        "source": "R47",
+        "reason": "**K10-TYP-d részleges marad a teljes normaszövegre**, de a történetmegőrzési és tranzakciós hibahatárra vonatkozó R45-lelet már lezárt. A fennmaradó határ: ugyanazon cikk támogatott profilváltása nincs; a próbák a három nevezett táblát és a disclosure előzményeit fedik, nem a teljes séma összes történetét.",
         "superseded": {
-          "source": "R37",
           "clause": "K10-TYP-d",
           "verdict": "partial",
-          "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+          "source": "R45",
+          "reason": "**K10-TYP-d részleges marad; az R43 teljes történetmegőrzési bizonyítása nincs lezárva.** A jogos bevét és ismétlés működése igazolt, a teljes tartalom változatlanságára a lent reprodukált rés fennáll.",
+          "superseded": {
+            "source": "R37",
+            "clause": "K10-TYP-d",
+            "verdict": "partial",
+            "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+          }
         }
       }
     },
@@ -5772,7 +6360,7 @@
       "probe_id": "P-KSZ-repeat-and-error-boundary",
       "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: a TELJES történet-tartalom változatlan, nincs második hatás és nincs részleges írás",
       "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: a TELJES történet-tartalom változatlan, nincs második hatás és nincs részleges írás\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M175 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M176, M173, M175, M172, M170",
+      "negative_evidence": "MINŐSÜLŐ tanú: M172 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M176, M173, M175, M172, M170",
       "mutations": [
         {
           "id": "M176",
@@ -5790,13 +6378,13 @@
           "id": "M175",
           "what": "KSZ-01 / R45 — A HATÁS ELUTASÍTÁSA NEM GÖRGET VISSZA: a parancs-út a hatás nemleges válaszára nem dob, tehát a MÁR BEÍRT parancs-sor és NYUGTA véglegesül, miközben a főkönyvi hatás elmaradt — RÉSZLEGES ÍRÁS, nyugtával igazolva. Ez az az alak, amit a bemeneti plafon sosem ér el, mert oda be sem lép (R45/F45-02)",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         },
         {
           "id": "M172",
           "what": "KSZ-01 / R43 — EGY BEADÁS, KÉT KÖNYVELÉS: a bevét hatása KÉTSZER fűzi hozzá ugyanazt a mozgás-sort, tehát EGYETLEN jogos beadásból kettős készletmozgás lesz. Ez a `d` klauzula legdrágább alakja: nem elutasítás és nem hibaüzenet, hanem NÉMÁN kétszer akkora készlet (KUKA-026 · KUKA-097).",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         },
         {
           "id": "M170",
@@ -5822,13 +6410,19 @@
       "external_decision": {
         "clause": "K10-TYP-d",
         "verdict": "partial",
-        "source": "R45",
-        "reason": "**K10-TYP-d részleges marad; az R43 teljes történetmegőrzési bizonyítása nincs lezárva.** A jogos bevét és ismétlés működése igazolt, a teljes tartalom változatlanságára a lent reprodukált rés fennáll.",
+        "source": "R47",
+        "reason": "**K10-TYP-d részleges marad a teljes normaszövegre**, de a történetmegőrzési és tranzakciós hibahatárra vonatkozó R45-lelet már lezárt. A fennmaradó határ: ugyanazon cikk támogatott profilváltása nincs; a próbák a három nevezett táblát és a disclosure előzményeit fedik, nem a teljes séma összes történetét.",
         "superseded": {
-          "source": "R37",
           "clause": "K10-TYP-d",
           "verdict": "partial",
-          "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+          "source": "R45",
+          "reason": "**K10-TYP-d részleges marad; az R43 teljes történetmegőrzési bizonyítása nincs lezárva.** A jogos bevét és ismétlés működése igazolt, a teljes tartalom változatlanságára a lent reprodukált rés fennáll.",
+          "superseded": {
+            "source": "R37",
+            "clause": "K10-TYP-d",
+            "verdict": "partial",
+            "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+          }
         }
       }
     },

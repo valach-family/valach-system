@@ -44,6 +44,8 @@ import {
   issueInviteUnderBasis, redemptionLimitGate, inviteBasisSeal, grantBasisFor, limitVerdict,
   INVITE_ISSUE_OPERATION, requiredAxesFor,
 } from './basisLimit.mjs';
+// RSB-01 (K05-DSC-c engedő ága, R47) — az adatkörönkénti olvasási döntés közös kapuja.
+import { scopeReleaseDecision, recordedScopeLimit, RSB_CONTRACT } from './releaseScope.mjs';
 
 // A KANONIKUS NORMA-VERZIÓ EGYETLEN HELYRŐL JÖN (R53 §5). Korábban itt egy KÉZZEL ÍRT `'R32/K01-K16'`
 // állt, miközben a norma-index ugyanezt külön tárolta — két, részben átfedő igazságforrás, ami
@@ -2988,6 +2990,164 @@ probe('P-REV-ban-record-shape', 'R77/F03 · REV-N5b · K09 · K15 · KUKA-020 ·
           + `ellenpár (könyv-hatókörű + globális)=${bOk} · hiányzó cél külön név=${cOk} · közvetlen hívó=${dOk}`,
         pass,
         asserts: { 'A-REV-N5b-malformed-stored-scope-is-fail-closed': aOk && bOk && cOk && dOk },
+      };
+    } finally { w.store.close(); }
+  });
+
+// ── A JOGALAP-VILÁG (R47) — a MEGLÉVŐ meghívó-lánccal, nem kézzel írt sorokkal ─────────────────
+//
+// MIÉRT a teljes lánc: a tagságra átvitt adatkör-korlát (`grant_basis`) CSAK a beváltásból
+// születik meg. Ha a próba kézzel írna `grant_basis` sort, a saját előfeltevését igazolná vissza
+// (KUKA-054) — itt a rendszer SAJÁT útján keletkezik a korlát.
+function basisWorld() {
+  const T0 = BIT.MARCH;
+  const T1 = BIT.MARCH_LATER;
+  const store = openStore();
+  store.run('INSERT INTO book (id, name) VALUES (?,?)', 'a', 'A könyv');
+  for (const id of ['vezeto', 'kiado', 'biro']) store.run('INSERT INTO subject VALUES (?,?)', id, 'person');
+  grantMembership({ store, subjectId: 'kiado', bookId: 'a', role: 'admin', at: T0 });
+  let n = 0;
+  const readerWithScopes = (scopes) => {
+    n += 1;
+    const sub = `olv${n}`;
+    const basisId = `HAT-${n}`;
+    store.run('INSERT INTO subject VALUES (?,?)', sub, 'person');
+    store.run('INSERT INTO external_id VALUES (?,?,?,?,?,?,?,?,NULL)',
+      sub, 'email', 'self_asserted', 'n/a', `${sub}@p.invalid`, `${sub}@p.invalid`, 'one_to_one', T0);
+    store.run('INSERT INTO account VALUES (?,?)', sub, 'jelszo');
+    store.run('INSERT INTO channel_proof VALUES (?,?,?,?)', sub, 'email', `${sub}@p.invalid`, T0);
+    recordAuthorityBasis({ store, basisId, bookId: 'a', issuerSubject: 'vezeto',
+      effectiveAt: T0, recordedAt: T0, allowedOperations: [INVITE_ISSUE_OPERATION],
+      allowedRoles: ['user'], allowedScopes: scopes, evidenceRef: `doc:${basisId}` });
+    const iv = issueInviteUnderBasis({ store, token: `tok${n}`, bookId: 'a', inviteeNamespace: 'email',
+      inviteeValue: `${sub}@p.invalid`, offeredRole: 'user', issuerSubject: 'kiado',
+      expiresAt: '2026-12-31T00:00:00.000Z', basisId, scope: scopes[0], issuedAt: T0 });
+    const rd = redeemInvite({ store, token: `tok${n}`, actingSubjectId: sub, clock: clockFrom(T1) });
+    return { sub, basisId, built: iv.ok === true && rd.ok === true };
+  };
+  const put = (key, result) => submitCommand({ store, clock: clockFrom(T1), idemKey: key, actor: 'kiado',
+    bookId: 'a', type: 'stock.receipt', typeVersion: '1', declared: { sku: key },
+    resolve: () => result, credentials: { dataScope: 'keszlet' } });
+  const read = (key, sub, credentials) => readCommandResult({ store, clock: clockFrom(T1), idemKey: key,
+    requester: sub, bookId: 'a', actor: 'kiado', credentials });
+  const priced = (r) => r.ok === true && r.result && Object.prototype.hasOwnProperty.call(r.result, 'unit_price');
+  return { store, T0, T1, readerWithScopes, put, read, priced };
+}
+
+probe('P-DSC-scope-basis', 'R47 · K05-DSC-c · ORG-N1a · ORG-N1b · REV-N5b · KUKA-073 · KUKA-022',
+  'AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély',
+  () => {
+    const w = basisWorld();
+    try {
+      // A LELET, ADATON (R47 — előbb mérés, azután kód): a `scopes: ['keszlet']`-re korlátozott
+      // alap alatt született tagság a VEGYES eredményt ÁREGYÜTT kapta meg, mert a kiadási úton
+      // semmi nem kérdezte meg a rögzített korlátot.
+      w.put('vegyes', { qty: '1.000', unit_price: 12345 });
+      w.put('tiszta', { qty: '11.000' });
+      const A = w.readerWithScopes(['keszlet']);            // CSAK készlet
+      const B = w.readerWithScopes(['keszlet', 'arak']);    // MINDKÉT adatkör
+
+      // (a) A DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN, NEM A KÉRŐ CÍMKÉJÉBŐL. A készlet-alapú olvasó a
+      //     tiszta készlet-eredményt MEGKAPJA (ellenpár: a kapu nem általános zár — KUKA-092),
+      //     a vegyeset viszont NEM — sem hamis címkével, sem címke nélkül (KUKA-073).
+      const aClean = w.read('tiszta', A.sub, { dataScope: 'keszlet' });
+      const aMixed = w.read('vegyes', A.sub, { dataScope: 'keszlet' });
+      const aLied = w.read('vegyes', A.sub, { dataScope: 'arak' });
+      const aNoLabel = w.read('vegyes', A.sub, undefined);
+      const aDecision = scopeReleaseDecision({ store: w.store, subjectId: A.sub, bookId: 'a', scope: 'arak', nowIso: w.T1 });
+      const aOk = A.built && aClean.ok === true && aClean.result.qty === '11.000'
+        && [aMixed, aLied, aNoLabel].every((r) => r.ok === false)
+        && ![aMixed, aLied, aNoLabel].some(w.priced)
+        && aDecision.allowed === false && aDecision.reason === 'outside_basis_scopes'
+        && aDecision.basis === 'authority_basis';
+
+      // (b) ELLENPÁR: MINDEN érintett adatkörre jogosult olvasónak a VEGYES eredmény KIJÖN.
+      //     Enélkül a kapu egy „soha semmit" alakkal is teljesülne (KUKA-049 · KUKA-122).
+      const bMixed = w.read('vegyes', B.sub, { dataScope: 'keszlet' });
+      const bOk = B.built && bMixed.ok === true && bMixed.result.unit_price === 12345
+        && bMixed.result.qty === '1.000';
+
+      // (c) A KIMONDOTT TILTÁS AZ ENGEDÉLY MELLETT IS ÉRVÉNYESÜL — és nem válik általános zárrá.
+      w.store.run(`INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)
+                   VALUES (?,?,?,?,?,?)`, B.sub, 'data_scope', 'data_scope_withdrawn', 'arak', 'biro', w.T0);
+      const bBanned = w.read('vegyes', B.sub, { dataScope: 'keszlet' });
+      const bStillStock = w.read('tiszta', B.sub, { dataScope: 'keszlet' });
+      const banDecision = scopeReleaseDecision({ store: w.store, subjectId: B.sub, bookId: 'a', scope: 'arak', nowIso: w.T1 });
+      const cOk = bBanned.ok === false && !w.priced(bBanned)
+        && bStillStock.ok === true && bStillStock.result.qty === '11.000'
+        && banDecision.allowed === false && banDecision.basis === 'explicit_ban';
+
+      // (d) A MEGVONT ALAP NEM NYIT. A lepecsételt korlát nem élheti túl a határozatát: a
+      //     visszavonás után ugyanaz az olvasó ugyanazt a tiszta eredményt SEM kapja meg.
+      w.store.run('UPDATE authority_basis SET revoked_at = ? WHERE basis_id = ?', w.T0, A.basisId);
+      const afterRevoke = w.read('tiszta', A.sub, { dataScope: 'keszlet' });
+      const revokedDecision = scopeReleaseDecision({ store: w.store, subjectId: A.sub, bookId: 'a', scope: 'keszlet', nowIso: w.T1 });
+      // A LEJÁRT ALAP UGYANÍGY NEM NYIT (a második, független kivezetési ág).
+      w.store.run('UPDATE authority_basis SET revoked_at = NULL, expires_at = ? WHERE basis_id = ?', w.T0, A.basisId);
+      const afterExpiry = w.read('tiszta', A.sub, { dataScope: 'keszlet' });
+      const expiredDecision = scopeReleaseDecision({ store: w.store, subjectId: A.sub, bookId: 'a', scope: 'keszlet', nowIso: w.T1 });
+      // KIMONDOTT HATÁROK: (1) az IDEGEN KÖNYVRE szóló határozatot a `basisAsOf` zárja
+      // (`basis_belongs_to_other_book`) — azt a P-ORG-basis méri, nem duplikáljuk ide; (2) a
+      // TAGSÁGOT nem ez a kapu dönti el, hanem a könyv-szintű jog, ami ELŐBB fut.
+      const dOk = afterRevoke.ok === false && revokedDecision.allowed === false
+        && revokedDecision.reason === 'basis_revoked'
+        && afterExpiry.ok === false && expiredDecision.allowed === false
+        && expiredDecision.reason === 'basis_expired';
+
+      // (e) A RÖGZÍTETT KORLÁT HIÁNYA NEVEZETT, ÉS NEM ADATKÖRI ENGEDÉLY. A mai mag minden
+      //     tagsága ilyen (nyers sor, napló nélkül): a kiadás megtörténik, de a döntés KIMONDJA,
+      //     hogy a KÖNYV-tagságon áll — a tiltás hiánya nem engedély (K05-DSC-c nyitott ága).
+      w.store.run('INSERT INTO subject VALUES (?,?)', 'olv_nyers', 'person');
+      w.store.run('INSERT INTO membership VALUES (?,?,?,?,NULL)', 'olv_nyers', 'a', 'user', w.T0);
+      const rawRead = w.read('vegyes', 'olv_nyers', { dataScope: 'keszlet' });
+      const rawDecision = scopeReleaseDecision({ store: w.store, subjectId: 'olv_nyers', bookId: 'a', scope: 'arak', nowIso: w.T1 });
+      const rawLimit = recordedScopeLimit({ store: w.store, subjectId: 'olv_nyers', bookId: 'a', validAt: w.T1 });
+      const eOk = rawRead.ok === true && rawDecision.allowed === true
+        && rawDecision.basis === 'membership_only' && rawDecision.weaker === true
+        && rawDecision.reason === 'no_declared_basis'
+        && rawLimit.declared === false
+        && RSB_CONTRACT.stated_limits.some((t) => t.includes('membership_only'));
+
+      // (f) A LÉTEZÉSI HATÁR MEGMARAD (KUKA-084): az adatkör-elutasítás BÁJTRA ugyanaz, mint a
+      //     nem létező hivatkozásé — a válasz nem mondhatja meg, hogy a parancs létezik.
+      const ghost = w.read('nincs-ilyen-kulcs', A.sub, { dataScope: 'keszlet' });
+      const fOk = JSON.stringify(afterRevoke) === JSON.stringify(ghost);
+
+      // (g) HATÁLYOSULÁS ÉS LELTÁR EGY PONTON, ÉS AZ ELUTASÍTÁS NEM ÍR LELTÁRT (R47/4).
+      const rows = w.store.all('SELECT * FROM disclosure ORDER BY id');
+      const forB = rows.filter((r) => r.recipient === B.sub && r.view === 'command_result');
+      const forA = rows.filter((r) => r.recipient === A.sub && r.view === 'command_result');
+      const gOk = rows.every((r) => r.at === w.T1)              // EGY hatályosulási pont
+        && forB.length === 2                                    // B kétszer olvasott sikerrel
+        && forA.length === 1                                    // A-nak CSAK a tiszta eredmény ment ki
+        // A LELTÁR A TÉNYLEGESEN KIADOTT MEZŐ-UTAKAT hordozza: A sorában ÁRMEZŐ nincs, B vegyes
+        // olvasásában VAN — a kettő különbsége maga a bizonyíték (nem a darabszám).
+        && JSON.parse(forA[0].fields).some((f) => f.endsWith('k:qty'))
+        && !JSON.parse(forA[0].fields).some((f) => f.includes('unit_price'))
+        && forB.some((r) => JSON.parse(r.fields).some((f) => f.includes('unit_price')))
+        && rows.filter((r) => r.recipient === 'olv_nyers').length === 1;
+
+      return {
+        expected: 'az adatköri döntés a RÖGZÍTETT alapból jön (nem a kérő címkéjéből) · a kimondott '
+          + 'tiltás az engedély mellett is zár, de nem általános zár · megvont és idegen könyvre '
+          + 'szóló alap nem nyit · a rögzített korlát HIÁNYA nevezett és NEM adatköri engedély · a '
+          + 'létezési határ megmarad · a leltár EGY hatályosulási ponton áll, elutasításra nem ír',
+        actual: `A(csak készlet): tiszta=${aClean.ok ? 'kiadva' : 'zárva'} vegyes=${aMixed.ok ? 'KIADVA(!)' : 'zárva'}`
+          + ` (${aDecision.reason}) · B(mindkettő): vegyes=${bMixed.ok ? 'kiadva' : 'ZÁRVA(!)'}`
+          + ` · tiltás után: vegyes=${bBanned.ok ? 'KIADVA(!)' : 'zárva'} tiszta=${bStillStock.ok ? 'kiadva' : 'ZÁRVA(!)'}`
+          + ` · megvont alap: ${revokedDecision.reason} · lejárt alap: ${expiredDecision.reason}`
+          + ` · rögzített korlát nélkül: ${rawDecision.basis}/${rawDecision.reason} (kiadva=${rawRead.ok})`
+          + ` · létezési határ azonos=${fOk} · leltár-sorok=${rows.length}`,
+        pass: aOk && bOk && cOk && dOk && eOk && fOk && gOk,
+        asserts: {
+          'A-K05-c-release-scope-decision-comes-from-the-recorded-basis-not-the-caller-label': aOk,
+          'A-K05-c-reader-entitled-to-every-affected-scope-still-gets-the-result': bOk,
+          'A-K05-c-explicit-ban-holds-alongside-a-permitting-basis': cOk,
+          'A-K05-c-revoked-or-expired-basis-does-not-open': dOk,
+          'A-K05-c-undeclared-limit-is-named-as-membership-only-not-a-scope-permission': eOk,
+          'A-K05-c-refusal-keeps-the-existence-boundary': fOk,
+          'A-K05-c-one-effectuation-point-for-decision-and-ledger': gOk,
+        },
       };
     } finally { w.store.close(); }
   });

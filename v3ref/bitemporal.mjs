@@ -91,6 +91,9 @@ export function membershipAsOf({ store, subjectId, bookId, validAt, knownAt }) {
   const grant = grantAsOf({ store, subjectId, bookId, membershipRow: m, valid, known });
   if (!grant.effective) return frozen({ ...base, grant_axis: grant.axis, effective: false, reason: grant.reason });
   base.grant_axis = grant.axis;
+  // A NAPLÓ NÉLKÜLI (vetített) soron NINCS esemény-azonosító — és ezt nem pótoljuk kitalált
+  // értékkel: a hiány NEVEZETT marad (`null`), az olvasó pedig a `grant_axis`-ból tudja, miért.
+  base.grant_event_id = grant.grant_event_id ?? null;
 
   // A KÉT SZŰRŐ KÉT KÜLÖN KÉRDÉSRE FELEL, ÉS EGYIK SEM HELYETTESÍTI A MÁSIKAT:
   //   `recorded_at <= knownAt`   — ezt az eseményt EKKOR MÁR ISMERTÜK?
@@ -211,7 +214,10 @@ function grantAsOf({ store, subjectId, bookId, membershipRow, valid, known }) {
     if (rec.ms > known.ms) continue;           // ezt akkor még nem tudtuk
     knownAny = true;
     if (eff.ms > valid.ms) continue;           // erre a napra még nem hatályos
-    return { effective: true, axis: 'event', reason: 'membership_effective' };
+    // AZ ESEMÉNY AZONOSÍTÓJA IS TÉNY (R47/RSB-01). A tagsághoz átvitt adatkör-korlát
+    // (`grant_basis`) ehhez az ESEMÉNYHEZ kötött; enélkül a kiadási kapu egy MÁSODIK,
+    // saját eseményválasztást írna, és a két út elcsúszhatna (KUKA-018 · KUKA-039).
+    return { effective: true, axis: 'event', reason: 'membership_effective', grant_event_id: ev.id };
   }
   return {
     effective: false,

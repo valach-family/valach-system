@@ -3312,3 +3312,56 @@ mérési határt nevezzük meg. A KUKA-187 szövege ennek megfelelően javítva.
 
 **Gépi jel:** `node v3ref/run.mjs` (58 próba) · `npm run verify:v3ref` (173 mutáció) ·
 `npm run verify:external-decisions` (33 idézet, két forrás-lapon) · `npm run verify:kuka`.
+
+## D-VS-3057 — az adatkörre szóló olvasási döntés rögzített alapja (2026-09-18)
+
+**Honnan:** a külső ellenőrző fél (chatgpt-v3) **R47** parancsa. Az R45/R46-os történetmegőrzési
+csomagot a megnevezett referencia-hatókörben **elfogadta és lezárta**, és egyetlen új csomagot adott:
+a **K05-DSC-c** engedő ága — *„aki jogosult készletet látni, ne kapjon ettől automatikusan árat. A
+tiltás hiánya önmagában nem bizonyítja az engedélyt."*
+
+**ELŐBB MÉRÉS (az ő kikötésük).** A kiadási út eddig KÉT tényt kérdezett: tag-e a kérő a KÖNYVBEN, és
+van-e rá kimondott TILTÁS az eredmény adatköreire. Adatkörre szóló ENGEDŐ alapot SOHA nem kérdezett.
+**Adaton mérve, a teljes meghívó-láncon:** egy olyan tag, akinek a TAGSÁGA `scopes: ['keszlet']`-re
+korlátozott határozat alatt született, a vegyes eredményt **áregyütt** megkapta
+(`unit_price: 12345`). A korlát ott állt az adatbázisban (`grant_basis.granted_limit`), olvasható
+alakban — a kiadási úton egyetlen sor sem olvasta. Tanulság: **KUKA-190**.
+
+**A JAVÍTÁS: EGY KAPU A KIADÁS KÖZÖS HATÁRÁN (RSB-01, `v3ref/releaseScope.mjs`).** Nem találtunk ki
+új üzleti szerepkört és nem adtunk hallgatólagos „mindenhez jogot": a MEGLÉVŐ jogalap-láncot kötöttük
+be. A sorrend kimondott: **kimondott TILTÁS** (REV-N5b — az engedély mellett is zár) → **a tagságra
+átvitt adatkör-korlát** (ORG-N1b: *„a felhatalmazás nem lehet tágabb, mint az alapja"*) → **a
+határozat MAI állapota** (ORG-N1a: megvont, lejárt vagy idegen könyvre szóló alap nem nyit). A
+plafon a lepecsételt és az élő korlát metszete.
+
+**Mérve, mindkét irányban:** a csak-készlet alapú olvasó a tiszta készlet-eredményt MEGKAPJA, a
+vegyeset NEM — sem hamis kérői címkével, sem címke nélkül; a MINDEN érintett adatkörre jogosult
+olvasó ugyanazt a vegyes eredményt MEGKAPJA (ellenpár); a kimondott tiltás az engedély mellett is
+zár, de nem válik általános zárrá; a megvont és a lejárt határozat nem nyit; a nemleges válasz
+BÁJTRA azonos a nem létező hivatkozásáéval; a döntés és a kiadási leltár EGY hatályosulási ponton
+áll, és az elutasítás nem ír leltár-sort.
+
+**KÉT NYITOTT ÜZLETI KÉRDÉS — kimondva, nem kitalálva** (az R47 kifejezetten ezt kéri):
+1. **Rögzített korlát NÉLKÜLI tagság.** A mag minden mai tagsága ilyen. A kiadás ma a KÖNYV-tagságon
+   áll; a kapu ezt `membership_only` néven **kiírja** és gyengébb alapnak jelöli — de hogy egy ilyen
+   tag MIT láthat, arra a normákból nem vezethető le válasz.
+2. **KÉT ADATKÖR-SZÓTÁR.** A felhatalmazás adatkör-tengelye szabad szöveg (a meglévő világok
+   `stock`/`price` szavakat használnak), a tartalom-besorolás viszont zárt halmaz (`keszlet` ·
+   `arak`). Az ismeretlen szótárú korlát **ZÁR** (`basis_scope_vocabulary_unknown`) — a két szótár
+   megfeleltetése üzleti döntés, gép nem tippelheti meg (KUKA-022 · KUKA-061).
+
+**KÉT SAJÁT LELET A KÖR KÖZBEN.** (1) Az első alakom a hiányzó TAGSÁGRA is zárt — ettől a kapu
+MÁSODIK otthona lett ugyanannak a ténynek, és az **M4** mutáció (a könyv-szintű jog teljes
+kiiktatása) a nevezett próbáján NÉMÁN zöld maradt: egy meglévő bizonyíték elvesztette az erejét
+(KUKA-187 · KUKA-003). Javítva: a tagságot a könyv-kapu dönti el, és az előbb fut. (2) Két horgony
+elmozdult alattunk (**M85** · **M96**) és a **KUKA-142** egyik jele is — mindhármat a battéria
+`STALE_ANCHOR`-ja, illetve a `verify:kuka` mondta meg; a horgonyok a kódot követték, a mutációk
+tárgya változatlan.
+
+**A KÜLSŐ DÖNTÉSEK ÁTVEZETVE, A TÖRTÉNET ÉRINTETLENÜL.** Az R47 lezárása és a pontosított K10-d
+indok **saját forrással** került be; az R45-ös és R37-es sorokat nem írtuk át (a felülírt döntés
+`superseded`-ként megmarad). A „referenciában elfogadva" klauzulák száma **változatlanul 15** — az
+R47 kimondja, hogy ettől nem nő.
+
+**Gépi jel:** `node v3ref/run.mjs` (59 próba) · `npm run verify:v3ref` (185 mutáció, benne M177–M182) ·
+`npm run verify:external-decisions` (36 idézet, három forrás-lapon) · `npm run verify:kuka`.

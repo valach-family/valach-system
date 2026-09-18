@@ -34,7 +34,9 @@
 // NEM TUDJUK — tehát nem adható ki. A kettőt nem mossuk össze a „nincs jogod" válasszal sem: a
 // helye dönti el, melyik alakban jelenik meg (lásd a `command.mjs` két bekötését).
 
-import { banEffectiveAt } from './banScope.mjs';
+// A TILTÁS-KAPU innentől a KÖZÖS döntés-feloldón át fut (RSB-01, R47) — egy fogalomnak egy
+// otthona: ez a modul a TARTALOM adatköreit sorolja be, a JOGOT nem maga dönti el (KUKA-003).
+import { scopeReleaseDecision } from './releaseScope.mjs';
 import { parseQuantity, formatQuantity, QUANTITY_PROFILES, DEFAULT_PROFILE_ID } from './quantity.mjs';
 
 // ═══ A ZÁRT HALMAZ ══════════════════════════════════════════════════════════════════════════════
@@ -265,27 +267,40 @@ export function resultScopesOf({ type, typeVersion, result }) {
  * @returns {{releasable:true, scopes:string[]}
  *          | {releasable:false, reason:string, message:string, scope?:string, scopes?:string[]}}
  */
-export function resultReleasable({ store, subjectId, nowIso, type, typeVersion, result, request }) {
+export function resultReleasable({ store, subjectId, bookId, nowIso, knownAt, type, typeVersion, result, request }) {
   const cls = resultScopesOf({ type, typeVersion, result });
   if (!cls.ok) return Object.freeze({ releasable: false, reason: cls.reason, message: cls.message });
 
   const base = request && typeof request === 'object' ? request : {};
+  const decisions = [];
   for (const scope of cls.scopes) {
-    const ban = banEffectiveAt({
-      store, subjectId, nowIso, request: { ...base, dataScope: scope },
-    });
-    if (ban.banned) {
+    // A DÖNTÉS EGY KAPUN MEGY ÁT (RSB-01 · R47). A régi alak CSAK a tiltást kérdezte meg, tehát a
+    // „tiltás hiánya = engedély" hallgatólagos szabályon állt — a K05-DSC-c épp ezt tiltja. A kapu
+    // mostantól a MEGLÉVŐ jogalap-láncot is megnézi (a tagságra átvitt adatkör-korlátot), és a
+    // döntés MEGNEVEZI az alapját. A tiltás továbbra is ELŐBB dönt, az engedély mellett is.
+    const d = scopeReleaseDecision({ store, subjectId, bookId, scope, nowIso, knownAt, request: base });
+    decisions.push(d);
+    if (!d.allowed) {
       return Object.freeze({
         releasable: false,
-        reason: ban.reason,
+        reason: d.reason,
+        basis: d.basis,
         scope,
         scopes: cls.scopes,
+        decisions: Object.freeze(decisions),
         message: `az eredmény a(z) "${scope}" adatkört is érinti (${SCOPE_MEANING.get(scope) || scope}), `
-          + 'az olvasó pedig arra tiltott. A VEGYES eredményt egészben tagadjuk meg: szabályos '
-          + 'mezővetítés ma nincs megépítve, félkész válasz pedig nem mehet ki. '
-          + `${ban.message || ''}`.trim(),
+          + 'az olvasónak pedig erre nincs érvényes olvasási döntése. A VEGYES eredményt egészben '
+          + 'tagadjuk meg: szabályos mezővetítés ma nincs megépítve, félkész válasz pedig nem mehet ki. '
+          + `${d.message || ''}`.trim(),
       });
     }
   }
-  return Object.freeze({ releasable: true, scopes: cls.scopes });
+  return Object.freeze({
+    releasable: true,
+    scopes: cls.scopes,
+    decisions: Object.freeze(decisions),
+    // A GYENGÉBB ALAP LÁTSZIK (KUKA-049 · KUKA-127): ha a kiadás a puszta KÖNYV-tagságon állt —
+    // mert a tagsághoz nincs rögzített adatkör-korlát —, azt a válasz KIMONDJA, nem hallgatja el.
+    weakest_basis: decisions.some((d) => d.basis === 'membership_only') ? 'membership_only' : 'authority_basis',
+  });
 }

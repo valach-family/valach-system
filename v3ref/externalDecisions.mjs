@@ -51,10 +51,27 @@ export const EXTERNAL_DECISION_SOURCE_R45 = Object.freeze({
   revalidate_on: 'forrás- vagy követelményváltozás az érintett klauzulán',
 });
 
+/**
+ * R47 — AZ R45-ÖS TÖRTÉNETMEGŐRZÉSI CSOMAG LEZÁRÁSA, saját forrással. Az R45-ös döntéseket NEM
+ * írjuk felül: *„Az R45 történeti döntést ne írd át; az R47 lezárást és pontosított K10-d indokot
+ * saját forrással vezesd át."*
+ */
+export const EXTERNAL_DECISION_SOURCE_R47 = Object.freeze({
+  round: 'CMD-VS-300-002-002 R47 — ANALYSIS',
+  decided_by: 'chatgpt-v3 (külső ellenőrző fél)',
+  at: '2026-09-18',
+  examined_revision: 'valach-family/valach-system@0c32ec602589b62fce09fd861abcb1288823612f',
+  scope: 'a vizsgált belső referencia és a megnevezett adattáblák bizonyítása — NEM éles üzem, NEM '
+    + 'több író, és NEM összeomlás utáni tartósság elfogadása',
+  not_a_machine_attestation: true,
+  revalidate_on: 'forrás- vagy követelményváltozás az érintett klauzulán',
+});
+
 /** A regiszter FORRÁSAI, időrendben — a `source` mező ezekre hivatkozik. */
 export const EXTERNAL_DECISION_SOURCES = Object.freeze([
   Object.freeze({ id: 'R37', document: 'v3ref/source-documents/R37_board_v1.md', ...EXTERNAL_DECISION_SOURCE }),
   Object.freeze({ id: 'R45', document: 'v3ref/source-documents/R45_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R45 }),
+  Object.freeze({ id: 'R47', document: 'v3ref/source-documents/R47_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R47 }),
 ]);
 
 /** A HÁROM DÖNTÉS-SZÓ ZÁRT HALMAZ — ismeretlen szó nem csúszhat át „valaminek" (KUKA-101). */
@@ -154,10 +171,27 @@ export const EXTERNAL_CLAUSE_DECISIONS_R45 = Object.freeze([
     reason: '**K10-TYP-d részleges marad; az R43 teljes történetmegőrzési bizonyítása nincs lezárva.** A jogos bevét és ismétlés működése igazolt, a teljes tartalom változatlanságára a lent reprodukált rés fennáll.' }),
 ]);
 
+/**
+ * AZ R47 DÖNTÉSEI — az R45-ös csomag LEZÁRÁSA és a pontosított K10-d indok. Az R45-ös sorokat NEM
+ * írjuk át. A K10-TYP-b R45-beli elfogadása VÁLTOZATLAN (az R47 kimondja), ezért itt nem szerepel.
+ *
+ * KIMONDVA, az ő szavukkal: *„Ez nem új egész-klauzulás K10-d elfogadás. A 15 referencia-hatókörben
+ * elfogadott klauzula száma ettől nem nő."*
+ */
+export const EXTERNAL_CLAUSE_DECISIONS_R47 = Object.freeze([
+  Object.freeze({ clause: 'K10-TYP-d', verdict: 'partial', source: 'R47',
+    reason: '**K10-TYP-d részleges marad a teljes normaszövegre**, de a történetmegőrzési és tranzakciós hibahatárra vonatkozó R45-lelet már lezárt. A fennmaradó határ: ugyanazon cikk támogatott profilváltása nincs; a próbák a három nevezett táblát és a disclosure előzményeit fedik, nem a teljes séma összes történetét.' }),
+  Object.freeze({ clause: 'K10-TYP-a', verdict: 'partial', source: 'R47',
+    reason: '**K10-TYP-a és K10-TYP-c részleges marad.** Átnevezési funkció és támogatott profilváltás továbbra sincs, a nyers profil-fixtúra nem ezek megvalósítása.' }),
+  Object.freeze({ clause: 'K10-TYP-c', verdict: 'partial', source: 'R47',
+    reason: '**K10-TYP-a és K10-TYP-c részleges marad.** Átnevezési funkció és támogatott profilváltás továbbra sincs, a nyers profil-fixtúra nem ezek megvalósítása.' }),
+]);
+
 /** A REGISZTER MINDEN DÖNTÉSE, forrással — a történeti sor `source: 'R37'`-et kap. */
 export const ALL_EXTERNAL_DECISIONS = Object.freeze([
   ...EXTERNAL_CLAUSE_DECISIONS.map((d) => Object.freeze({ source: 'R37', ...d })),
   ...EXTERNAL_CLAUSE_DECISIONS_R45,
+  ...EXTERNAL_CLAUSE_DECISIONS_R47,
 ]);
 
 // A LEGÚJABB DÖNTÉS NYER, DE A RÉGI NEM TŰNIK EL. A sorrend a `EXTERNAL_DECISION_SOURCES` szerinti:

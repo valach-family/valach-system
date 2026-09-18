@@ -436,10 +436,28 @@ export const MODULE_CONTRACT_NORMS = Object.freeze([
           built: 'a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN '
             + 'megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope '
             + '(aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással.',
-          remaining: 'az ENGEDŐ ág: hogy MINDEN érintett adatkörre ÉRVÉNYES olvasási döntés áll-e, az '
-            + 'explicit tiltás HIÁNYÁNÁL erősebb követelmény. Az adatkörre korlátozott engedő alap és '
-            + 'a tényleges kiadás közötti bizonyíték ma NINCS megadva — ez NEM a mezővetítés hiánya '
-            + '(az a klauzula saját feltétele), hanem külön, meg nem tett bizonyítás.',
+          // R47 — AZ ENGEDŐ ÁG MEGÉPÜLT ÉS MÉRVE VAN (RSB-01). A kiadás közös határán EGY nevezett
+          // kapu dönt adatkörönként, a MEGLÉVŐ jogalap-láncból: kimondott TILTÁS (REV-N5b) → a
+          // tagságra átvitt adatkör-korlát (ORG-N1b) → a határozat MAI állapota (ORG-N1a). A
+          // kiadás nem lehet tágabb a rögzített alapnál; a korlát HIÁNYA pedig NEVEZETT, gyengébb
+          // alap (`membership_only`), nem hallgatólagos engedély.
+          built_r47: 'az ENGEDŐ ág mérve, adaton: a `scopes: [keszlet]`-re korlátozott alap alatt '
+            + 'született tagság a tiszta készlet-eredményt MEGKAPJA, a vegyeset (ár is) NEM — sem '
+            + 'hamis kérői címkével, sem címke nélkül; a MINDEN érintett adatkörre jogosult olvasó '
+            + 'ugyanazt a vegyes eredményt MEGKAPJA (ellenpár); a kimondott TILTÁS az engedély '
+            + 'mellett is zár, de nem válik általános zárrá; a MEGVONT és a LEJÁRT határozat nem '
+            + 'nyit; a nemleges válasz BÁJTRA azonos a nem létező hivatkozásáéval; a döntés és a '
+            + 'kiadási leltár EGY hatályosulási ponton áll. Falszifikálva: M177 · M178 · M179 · '
+            + 'M180 · M181 · M182.',
+          remaining: 'KÉT, kimondottan ÜZLETI döntésre váró pont marad. (1) Ha a tagsághoz NINCS '
+            + 'rögzített adatkör-korlát, a kiadás ma a KÖNYV-tagságon áll — a kapu ezt `membership_only` '
+            + 'néven kiírja, de hogy egy ilyen tag MIT láthat, arra a normákból nem vezethető le '
+            + 'válasz: nem találunk ki hallgatólagos „mindenhez jogot". (2) A felhatalmazás '
+            + 'adatkör-tengelye ma SZABAD SZÖVEG (a meglévő világok `stock`/`price` szavakat '
+            + 'használnak), a tartalom-besorolás viszont ZÁRT halmaz (`keszlet` · `arak`); az '
+            + 'ismeretlen szótárú korlát ZÁR (`basis_scope_vocabulary_unknown`), a két szótár '
+            + 'megfeleltetése üzleti döntés, gép nem tippelheti meg. A MEZŐVETÍTÉS hiánya továbbra '
+            + 'is a klauzula SAJÁT feltétele, nem adósság.',
         }),
       }),
       Object.freeze({
