@@ -1,7 +1,7 @@
 {
-  "pin": "4b411f73102f4fdbd2bbcc6858176304cc8f425c",
+  "pin": "29bf7762d25ea6bf7463e361be2ed9209098e1d7",
   "node": "v22.22.2",
-  "at": "2026-09-18T19:39:01.547Z",
+  "at": "2026-09-18T19:53:16.451Z",
   "cases": [
     {
       "id": "T01",
@@ -4383,6 +4383,7 @@
             "assertion_id": "A-K10-d-first-submission-creates-exactly-one-effect",
             "probe_id": "P-KSZ-repeat-and-error-boundary",
             "mutation_candidates": [
+              "M172",
               "M170"
             ],
             "falsified_by": null,
@@ -4409,6 +4410,7 @@
             "assertion_id": "A-K10-d-identical-and-reformatted-repeat-replay-the-same-effect",
             "probe_id": "P-KSZ-repeat-and-error-boundary",
             "mutation_candidates": [
+              "M172",
               "M170"
             ],
             "falsified_by": null,
@@ -4435,6 +4437,7 @@
             "assertion_id": "A-K10-d-old-version-other-profile-and-error-point-are-named-refusals",
             "probe_id": "P-KSZ-repeat-and-error-boundary",
             "mutation_candidates": [
+              "M172",
               "M170"
             ],
             "falsified_by": null,
@@ -4461,6 +4464,7 @@
             "assertion_id": "A-K10-d-refusals-leave-the-snapshot-and-the-earlier-success-intact",
             "probe_id": "P-KSZ-repeat-and-error-boundary",
             "mutation_candidates": [
+              "M172",
               "M170"
             ],
             "falsified_by": null,
@@ -5135,12 +5139,12 @@
     {
       "id": "E02",
       "expected": "Final CLI must fail when all required clauses are not_falsified.",
-      "test_error": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT\n    at Object.spawnSync (node:internal/child_process:1120:20)\n    at spawnSync (node:child_process:902:24)\n    at run (file:///tmp/v3ref-ext-7G5HA1/r57_chatgpt-v3.mjs:17:43)\n    at file:///tmp/v3ref-ext-7G5HA1/r57_chatgpt-v3.mjs:43:504\n    at copy (file:///tmp/v3ref-ext-7G5HA1/r57_chatgpt-v3.mjs:15:136)\n    at file:///tmp/v3ref-ext-7G5HA1/r57_chatgpt-v3.mjs:43:272\n    at add (file:///tmp/v3ref-ext-7G5HA1/r57_chatgpt-v3.mjs:14:73)\n    at file:///tmp/v3ref-ext-7G5HA1/r57_chatgpt-v3.mjs:43:252"
+      "test_error": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT\n    at Object.spawnSync (node:internal/child_process:1120:20)\n    at spawnSync (node:child_process:902:24)\n    at run (file:///tmp/v3ref-ext-Jjw6MF/r57_chatgpt-v3.mjs:17:43)\n    at file:///tmp/v3ref-ext-Jjw6MF/r57_chatgpt-v3.mjs:43:504\n    at copy (file:///tmp/v3ref-ext-Jjw6MF/r57_chatgpt-v3.mjs:15:136)\n    at file:///tmp/v3ref-ext-Jjw6MF/r57_chatgpt-v3.mjs:43:272\n    at add (file:///tmp/v3ref-ext-Jjw6MF/r57_chatgpt-v3.mjs:14:73)\n    at file:///tmp/v3ref-ext-Jjw6MF/r57_chatgpt-v3.mjs:43:252"
     },
     {
       "id": "E03",
       "expected": "Final CLI must reject foreign or contradictory results even after actual runs.",
-      "test_error": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT\n    at Object.spawnSync (node:internal/child_process:1120:20)\n    at spawnSync (node:child_process:902:24)\n    at run (file:///tmp/v3ref-ext-7G5HA1/r57_chatgpt-v3.mjs:17:43)\n    at file:///tmp/v3ref-ext-7G5HA1/r57_chatgpt-v3.mjs:43:504\n    at copy (file:///tmp/v3ref-ext-7G5HA1/r57_chatgpt-v3.mjs:15:136)\n    at file:///tmp/v3ref-ext-7G5HA1/r57_chatgpt-v3.mjs:43:272\n    at add (file:///tmp/v3ref-ext-7G5HA1/r57_chatgpt-v3.mjs:14:73)\n    at file:///tmp/v3ref-ext-7G5HA1/r57_chatgpt-v3.mjs:43:252"
+      "test_error": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT\n    at Object.spawnSync (node:internal/child_process:1120:20)\n    at spawnSync (node:child_process:902:24)\n    at run (file:///tmp/v3ref-ext-Jjw6MF/r57_chatgpt-v3.mjs:17:43)\n    at file:///tmp/v3ref-ext-Jjw6MF/r57_chatgpt-v3.mjs:43:504\n    at copy (file:///tmp/v3ref-ext-Jjw6MF/r57_chatgpt-v3.mjs:15:136)\n    at file:///tmp/v3ref-ext-Jjw6MF/r57_chatgpt-v3.mjs:43:272\n    at add (file:///tmp/v3ref-ext-Jjw6MF/r57_chatgpt-v3.mjs:14:73)\n    at file:///tmp/v3ref-ext-Jjw6MF/r57_chatgpt-v3.mjs:43:252"
     },
     {
       "id": "E04",

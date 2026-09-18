@@ -118,9 +118,26 @@ Hat helyzet a valódi úton, **parancs + esemény + mozgás + egyenleg** pillana
 hallgatólagosan.** **Kimondott határ:** a „más profilú bemenet" ága **ugyanarra a cikkre** nem
 szólítható meg (nincs profilváltó művelet), ezért a mérés **másik, más profilú cikkel** történt — ez
 a reálisan elérhető alak, és a nem elérhető változatot nem nevezzük bizonyítottnak.
-**Visszabontások:** **M170** — a parancs-azonosság a NYERS mennyiség-szöveget viszi, tehát ugyanaz a
-jelentés más írásmódban MÁSODSZOR is könyvelne (kettős készletmozgás egyetlen valódi beadásból) ·
-**M163** — a sémaverzió némán eltűnik a kanonikus úton.
+**Visszabontások:** **M172** — a bevét hatása KÉTSZER fűzi hozzá ugyanazt a mozgást, tehát egyetlen
+jogos beadásból **némán kétszer akkora készlet** lesz (nem hibaüzenet: ez a klauzula legdrágább
+alakja) · **M170** — a parancs-azonosság a NYERS mennyiség-szöveget viszi, tehát ugyanaz a jelentés
+más írásmódban másodszor is könyvelne · **M163** — a sémaverzió némán eltűnik a kanonikus úton.
+
+## 4/b. A bizonyíték állapota követelménypontonként — a maradékkal együtt
+
+A rendszer **viselkedése** mind a négy ponton helyes (58/58 próba zöld). A lenti tábla nem ezt
+mondja, hanem azt, hogy **melyik állítás mögött áll saját visszabontás** — vagyis melyiket
+bizonyítottuk úgy, hogy egy szándékos rontás **pontosan azt** döntötte meg.
+
+| követelmény | állítás-sorok | ebből saját ellenpárral bizonyítva | maradék, kimondva |
+|---|---|---|---|
+| **K10-TYP-a** azonosság | 7 | 6 | a „mennyiség nem mozdítja az azonosságot" sornak **nincs** saját ellenpárja: a mai felépítésben az azonosító a felvételkor egyszer születik és tárolva marad, tehát egyetlen egysoros rontás sem tudja elmozdítani anélkül, hogy előbb az adatbázis idegenkulcsa állítaná meg |
+| **K10-TYP-b** valódi bemeneti út | 10 | 10 | — (a klauzula **nem** zárja az OB-3 külső HTTP-/bizalmi határát: az nincs megépítve) |
+| **K10-TYP-c** a múlt megőrzése | 3 | 2 | a „nincs publikus profilváltó művelet" sor **nem** falszifikálható: egy nem létező művelet hiányát rontással nem lehet megdönteni — ezt **forrás-méréssel** állítjuk (a katalógus egyetlen `UPDATE item` írása az egység-váltás), nem visszabontással |
+| **K10-TYP-d** ismétlés és hibahatár | 4 | 2 | a „nevezett elutasítások" és „a pillanatkép változatlan" sorok mögött **más rétegek** ellenpárjai állnak (verzió-kapu · parancs-azonosság · atomiság), ezen a próbán saját ellenpár nincs — nem gyártunk duplikált rontást csak azért, hogy a sor zöld legyen |
+
+**Ezért áll a `K10-TYP-c` és a `-d` a láncban RÉSZLEGESEN, nem „fedetten".** A norma szövegét nem
+lazítottuk fel azért, hogy minden sor zöld legyen — a maradékot a lánc **kiírja**, sorról sorra.
 
 ## 5. Amit ez a kör NEM tett meg
 
@@ -162,22 +179,22 @@ Mindkettőről **tanulság-bejegyzés** készült (KUKA-187 · KUKA-188), gépi 
 ## 6. Mérések — mit futtattunk, mi jött ki, milyen forráson
 
 **A mért forrás, pontosan.** Minden alábbi szám ugyanarra az állapotra vonatkozik:
-commit **`4b411f73102f4fdbd2bbcc6858176304cc8f425c`**, a magreferencia könyvtára **nem-könyvelt
+commit **`29bf7762d25ea6bf7463e361be2ed9209098e1d7`**, a magreferencia könyvtára **nem-könyvelt
 változás nélkül** (`clean: true`), tartalmi lenyomat
-**`sha256:0d59319cc5751e3465cb3caa1aff859a9eeaeb9ff6269a5c9d3287aecc6f39ef`** — és ez a lenyomat a
+**`sha256:de296784b3b5d84e9fc16cd0e76532af829bbdf1d6809f3629877556c12f4fd5`** — és ez a lenyomat a
 bizonyíték-csomagban is ott áll, tehát a mérés és a kiadott lap **ugyanarról a kódról** beszél.
 
 | mit futtattunk | eredmény |
 |---|---|
 | `node v3ref/run.mjs` — a viselkedés próbái | **58/58 PASS** (ebből **4 új** ebben a körben) |
-| `npm run verify:v3ref` — mutációs battéria (hét részletben) | **168 mutáció · 168 elkapva · 0 túlélte · 0 rossz próba · 0 mérőhiba · 0 elavult horgony** |
-| a battéria összefűzése | **TELJES ÉS TISZTA** · minden részlet belefér az időkorlátba (legrosszabb 9040 ms / 15000 ms) |
-| norma-lánc (a kanonikus ítélő a teljes bizonyítékon) | **105 sor** — 76 fedett · 16 részben · 5 nem falszifikált · 8 bizonyíték nélkül |
+| `npm run verify:v3ref` — mutációs battéria (nyolc részletben) | **169 mutáció · 169 elkapva · 0 túlélte · 0 rossz próba · 0 mérőhiba · 0 elavult horgony** |
+| a battéria összefűzése | **TELJES ÉS TISZTA** · minden részlet belefér az időkorlátba (legrosszabb 8202 ms / 15000 ms) |
+| norma-lánc (a kanonikus ítélő a teljes bizonyítékon) | **105 sor** — 76 fedett · 17 részben · 4 nem falszifikált · 8 bizonyíték nélkül |
 | `node tools/v3_norm_chain_package.mjs` — a bizonyíték-csomag | **kiadva** (a forrás-kötés minden ága átment) |
 | `npm run proof:norm-chain-package` — a csomag hazugság-próbái | **25/25 RENDBEN** (a hamis csomag minden ágon elakad, az ép átmegy) |
 | `npm run verify:kuka` — tanulság-regiszter és archívum | **296/296 PASS** |
 | `npm run verify:decision-numbers` | **4/4 PASS** · a következő szabad szám: D-VS-3056 |
-| `npm run verify:sweep` — a TELJES söprés | **11 verifier · 11 zöld · 0 kihagyás · 0 piros** (664 mp) |
+| `npm run verify:sweep` — a TELJES söprés | **11 verifier · 11 zöld · 0 kihagyás · 0 piros** (670 mp) |
 | `npm run verify:external-checks` — az ÖNÖK programjai a mi kódunkon | **17/19 MEGFELEL · 2 nevezett környezeti kihagyás**, mindkettőnek ZÖLD helyettese van (`r59a` · `r57a`) |
 
 **A két környezeti kihagyás kimondva** (nem söpörjük a szám mögé): az `r59` és az `r57` a battériát
