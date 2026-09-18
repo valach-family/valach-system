@@ -7742,7 +7742,7 @@ const RETIRED_PATTERNS = Object.freeze([
       // — 16/19 helyett 17/19. A javítás ezért nem egy fájl javítása volt, hanem a SZABÁLY kiterjesztése
       // MINDEN egység-hívóra, és a tiltó-minta most a burkolókra is szól.
       Object.freeze({
-        pattern: 'const UNITS = \\d+;',
+        pattern: 'const UNITS(_START)? = \\d+;',
         paths: ['v3ref/external-checks/r81_chatgpt-v3.mjs', 'v3ref/external-checks/r83_chatgpt-v3.mjs'],
         reason: 'a külső burkolók egység-darabszáma sem állhat kézzel — a KUKA-177 javítása a '
           + 'TESTVÉR-ÁGON (r83) egy körig kimaradt, és a lánc emiatt bukott',

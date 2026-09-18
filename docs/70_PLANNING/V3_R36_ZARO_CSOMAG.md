@@ -97,6 +97,15 @@ származzon (`unitsScriptLineIsHomed`): a származtatott `--units-auto` **vagy**
 felsorolása. Mellé **mindkét irányú ellenpár**: a két otthonos alak zöld, a kézzel gépelt nevező
 (`--unit=1/9 && …`) és az üres sor piros.
 
+
+### 2/d. És a KIINDULÓ darabszám is a közös otthonból jön
+
+A javítás első alakjában a két burkoló **kézzel írt négyessel** indult, és onnan finomított. Ez
+működött, de két bajjal: a 149 mutációnál a négyes **soha** nem fér bele, tehát minden futás egy
+teljes, eldobott menettel kezdődött (~40 mp burkolónként) — és a szám ugyanúgy elcsúszott volna, mint
+a KUKA-177-ben. Mostantól a kiinduló érték a közös otthonból jön (`batteryUnits()`), a modul
+kísérőként deklarálva mindkét programnál, és a tiltó-minta a `UNITS_START` alakra is szól.
+
 ---
 
 ## 3. A normatív kiegészítések verziózott bekötése — EGY csomag

@@ -277,7 +277,7 @@ export const PROGRAMS = Object.freeze([
   Object.freeze({
     id: 'r83core',
     file: 'r83_chatgpt-v3.mjs',
-    companions: Object.freeze(['r83_merge_chatgpt-v3.core.mjs', 'r83_runner_chatgpt-v3.core.mjs']),
+    companions: Object.freeze(['r83_merge_chatgpt-v3.core.mjs', 'r83_runner_chatgpt-v3.core.mjs', 'batteryUnits.mjs']),
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
     origin: 'R83 (KÉT próba: a `r83_merge_chatgpt-v3.core.mjs` és a `r83_runner_chatgpt-v3.core.mjs` '
       + 'az ő szövegük — a program TESTE karakterre azonos, a ZÁRÓ SORTÖRÉS eltérhet, mert a '
@@ -305,7 +305,7 @@ export const PROGRAMS = Object.freeze([
   Object.freeze({
     id: 'r81core',
     file: 'r81_chatgpt-v3.mjs',
-    companions: Object.freeze(['r81_chatgpt-v3.core.mjs', 'r81_chatgpt-v3.core.adapted.mjs', 'activeCoreProgram.mjs', 'r81_merge_chatgpt-v3.core.mjs']),
+    companions: Object.freeze(['r81_chatgpt-v3.core.mjs', 'r81_chatgpt-v3.core.adapted.mjs', 'activeCoreProgram.mjs', 'r81_merge_chatgpt-v3.core.mjs', 'batteryUnits.mjs']),
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
     // HELYESBÍTVE (R83 §6): az R81-es bejegyzés „BÁJTAZONOS"-t írt; a külső fél MEGMÉRTE, és a
     // saját példányukhoz képest EGY ZÁRÓ ÜRES SOR az eltérés (a markdown-kódblokkból való kinyerés

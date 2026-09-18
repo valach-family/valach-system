@@ -1,7 +1,7 @@
 {
   "source_commit": "377573158df00ba4cd2bbe21ff2111d26063b0aa+uncommitted",
   "node": "v22.22.2",
-  "at": "2026-09-18T09:51:21.873Z",
+  "at": "2026-09-18T10:03:55.620Z",
   "cap_ms": 15000,
   "cases": [
     {
@@ -28,13 +28,13 @@
       ],
       "merge_exit": 0,
       "unit_walls": [
-        7498,
-        7571,
-        7470,
-        7467,
-        7751,
-        7080,
-        7383
+        7713,
+        7891,
+        7169,
+        7143,
+        7009,
+        7102,
+        6641
       ],
       "cap_ms": 15000,
       "run_state": "complete",
@@ -77,9 +77,9 @@
       "merge_exit": 2,
       "run_state": "incomplete",
       "clean": null,
-      "original_digest": "sha256:78b34ba9f6003473e5f87d195c8aaaa54fd6f3e1b892801f1c17e1864d5a4ed7",
+      "original_digest": "sha256:8be794b0ea0cbc909ca919c3ba3ec28da51cca5a312ad51b3293472040086d31",
       "why": [
-        "MÁS FORRÁSRA hivatkozó egység (unit-2-of-7.json) — mai lenyomat: sha256:78b34ba9f6003473e5f87d195c8aaaa54fd6f3e1b892801f1c17e1864d5a4ed7"
+        "MÁS FORRÁSRA hivatkozó egység (unit-2-of-7.json) — mai lenyomat: sha256:8be794b0ea0cbc909ca919c3ba3ec28da51cca5a312ad51b3293472040086d31"
       ]
     }
   ]

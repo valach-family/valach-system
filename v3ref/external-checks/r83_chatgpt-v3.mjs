@@ -43,10 +43,14 @@ import { fileURLToPath } from 'node:url';
 // A javítás nem egy fájl javítása, hanem a SZABÁLY: a darabszám származik, a bukás okát nevezett
 // feloldó dönti el, és a tanút hitelesítjük.
 import { unitFailureKind, freshUnitWitness } from './source/v3ref/unitFailureKind.mjs';
+import { batteryUnits } from './batteryUnits.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PIN = JSON.parse(readFileSync(join(HERE, 'source-manifest.json'), 'utf8')).commit;
-const UNITS_START = 4;
+// A KIINDULÓ DARABSZÁM IS A KÖZÖS OTTHONBÓL JÖN (KUKA-003 · KUKA-018 · R36). A kézzel írt
+// négyes a battéria 149 mutációjánál SOHA nem fér bele, tehát minden futás egy teljes,
+// eldobott menettel kezdődött — és a szám ugyanúgy elcsúszott volna, mint a KUKA-177-ben.
+const UNITS_START = batteryUnits();
 const UNITS_MAX_ATTEMPTS = 4;
 
 const runNode = (file, opts = {}) => spawnSync(process.execPath, [file], {

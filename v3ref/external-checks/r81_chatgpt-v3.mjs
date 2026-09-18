@@ -41,6 +41,7 @@ import { activeCoreProgram, coreVariant } from './activeCoreProgram.mjs';
 // UGYANAZ A DÖNTÉS, UGYANABBÓL A FELOLDÓBÓL (UFK-01/02): a burkolónak is meg kell különböztetnie
 // az IDŐ és a TARTALOM miatti bukást — különben itt is elfedné a darabolás a valódi hibát (KUKA-009).
 import { unitFailureKind, freshUnitWitness } from './source/v3ref/unitFailureKind.mjs';
+import { batteryUnits } from './batteryUnits.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PIN = JSON.parse(readFileSync(join(HERE, 'source-manifest.json'), 'utf8')).commit;
@@ -48,7 +49,10 @@ const PIN = JSON.parse(readFileSync(join(HERE, 'source-manifest.json'), 'utf8'))
 // mutációra növekedésével már NEM fért a 12 000 ms-os egység-költségvetésbe, ezért az ÖSSZEFŰZÉS-fél
 // `merge/KORNYEZET-*` néven bukott — nem tartalmi okból, hanem mert a szám elavult. A darabszám
 // mostantól SZÁRMAZIK: ha egy egység nem fér bele, finomabbra osztunk; a költségvetés nem tágul.
-const UNITS_START = 4;
+// A KIINDULÓ DARABSZÁM IS A KÖZÖS OTTHONBÓL JÖN (KUKA-003 · KUKA-018 · R36). A kézzel írt
+// négyes a battéria 149 mutációjánál SOHA nem fér bele, tehát minden futás egy teljes,
+// eldobott menettel kezdődött — és a szám ugyanúgy elcsúszott volna, mint a KUKA-177-ben.
+const UNITS_START = batteryUnits();
 const UNITS_MAX_ATTEMPTS = 4;
 
 const runNode = (file, opts = {}) => spawnSync(process.execPath, [file], {
