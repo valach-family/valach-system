@@ -141,4 +141,43 @@ bizonyítva.
 
 ## 6. Mérések ezen a revízión
 
-_(a záró számok a lap végén)_
+| mérés | parancs | eredmény |
+|---|---|---|
+| mag-próbák | `node v3ref/run.mjs` | **54/54 PASS** |
+| mutációs battéria | `npm run verify:v3ref` | **160 mutáció · 160 elkapva · 0 túlélte · 0 rossz próba · 0 mérőhiba · 0 elavult horgony** · kilépés 0 |
+| **a csomag-generátor ellenpárjai** | `npm run proof:norm-chain-package` | **20/20 RENDBEN** — 18 visszalépés PIROS a kilépési kódon (köztük a külső fél mind a 8 esete), 2 pozitív ellenpár |
+| a bukás-ok feloldója + tanú-hitelesítő | `node --test v3ref/unitFailureKind.test.mjs` | **10/10** |
+| beadvány-kapu | `npm run verify:unit-admission` | **ZÖLD** (16 ellenpélda · 22 író-mező) |
+| a mért norma-lánc | `npm run docs:norm-chain` | **94 láncsor — 71 fedett · 13 részben fedett · 0 nem falszifikált · 10 bizonyíték nélkül** |
+| tanulság-regiszter | `npm run verify:kuka` | **288/288 PASS** |
+| **külső lánc** | `node v3ref/external-checks/run-all.mjs` | **17/19 program MEGFELEL · 2 ENV-KIHAGYÁS (nevezett helyettessel) · 0 ELTÉRÉS · kilépés 0** |
+
+**A lánc mozgása, kimondva.** 93 → **94** sor: egy ÚJ sor (a sémaverzió a kanonikus úton,
+`K10-TYP-b`), és ezzel 70 → **71** fedett. A 13 részleges és a 10 bizonyíték nélküli **változatlan**
+— ezekhez ez a kör nem adott bizonyítékot, és nem is állítunk mást.
+
+**Egy saját mellékhatás, kimondva.** A `checkNorms` hívás sorát többsorosra tördeltem, és ezzel
+megszűnt az a **horgony**, amire a külső fél `r59a` programja foltoz (E07 eset): a lánc `r59a · r59`
+eltérést mutatott. **Nem a rendszer romlott el, hanem a MÉRŐJÜK vesztette el a fogást.** A
+programjukhoz nem nyúltunk (a mérőt nem igazítjuk a mérthez) — a sor alakját állítottuk vissza
+karakterre, és a lánc újra 0 eltéréssel zárt. Tanulság a következő körre: **külső mérő a mi
+forrásunk ALAKJÁRA is támaszkodhat**, tehát átrendezés után a láncot le kell futtatni.
+
+**Két piros a söprésben, mindkettő a saját változtatásom nyoma, mindkettő javítva:** a
+`verify:unit-admission` `UAD05` tétele helyesen mondta ki, hogy a fixtúra nem hordozza az író új
+mezőjét (`norm_inputs`) — „az őr elavult alakot mérne"; és a fenti `r59a`. A söprés utolsó,
+teljes menete ezek után áll.
+
+---
+
+## 7. Végső revíziók
+
+- **Mérési revízió (EZEN futott minden fenti szám):** `MERES_SHA`
+- **Dokumentálási ágfej:** a lap még kap sorokat, ezért újabb. **Mért FORRÁS-kód a lap commitjaiban
+  nem változik**, és ez visszamérhető: `git diff --name-only MERES_SHA..HEAD` nulla `.mjs`/`.js`
+  fájlt ad a `v3ref/` alatt — a forrás-lenyomat (`base_digest`) pedig magában a csomagban áll,
+  a mai forráshoz **mérten kötve** (`source_bound: true`).
+- **V2 (`valach-family/vs`):** ebben a körben **nem változott**. A PR155/160 a külön repóé.
+
+**Szállított lapok:** ez a lap · a mért `V3_R36_NORMA_LANC_CSOMAG.md` + `.json` (a függelékben is) ·
+a helyesbített `V3_R37_JAVITAS_ES_MERT_CSOMAG.md`.
