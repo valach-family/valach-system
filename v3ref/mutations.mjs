@@ -1532,4 +1532,63 @@ export const MUTATIONS = [
     file: 'ledger.mjs',
     from: "  const checked = validateInput({ operation: 'stock.receipt', input, version });",
     to: "  const checked = validateInput({ operation: 'stock.receipt', input });" },
+
+  // ── R43 — A K10 KÖVETELMÉNYEK VISSZABONTÁSAI ─────────────────────────────────────────────────
+  // Minden ÚJ állításhoz saját kontroll: a mérés nem lehet erősebb, mint a hozzá tartozó ellenpár.
+
+  { id: 'M164', rule: 'K10', catcher: 'P-KAT-identity-history', expect: 'probe_fail',
+    what: 'KAT-01 / R43 — AZ AZONOSÍTÓ A MENNYISÉGTŐL FÜGG: a cikk-azonosító a felvétel IDEJE '
+      + 'helyett a mindenkori mozgás-számból is képződik, tehát minden bevét UTÁN MÁS azonosító '
+      + 'jönne ki ugyanarra a cikkre — a történeti hivatkozások elszakadnának (KUKA-021)',
+    file: 'catalog.mjs',
+    from: "const itemIdFor = (bookId, sku, at) =>",
+    to: "const itemIdFor = (bookId, sku, at, salt = Date.now()) =>" },
+
+  { id: 'M165', rule: 'K10', catcher: 'P-KAT-identity-history', expect: 'probe_fail',
+    what: 'KAT-01 / R43 — A KÖNYV KIESIK AZ AZONOSSÁGBÓL: két FÜGGETLEN könyv azonos cikkszáma '
+      + 'ugyanazt a belső azonosítót kapja. Közös csatornán ez a KUKA-027 hibája: az azonosító csak '
+      + 'a SAJÁT terében egyedi',
+    file: 'catalog.mjs',
+    from: "  `itm_${createHash('sha256').update(`kat-1|${bookId}|${sku}|${at}`).digest('hex').slice(0, 24)}`;",
+    to: "  `itm_${createHash('sha256').update(`kat-1|${sku}|${at}`).digest('hex').slice(0, 24)}`;" },
+
+  { id: 'M166', rule: 'K10', catcher: 'P-KAT-identity-history', expect: 'probe_fail',
+    what: 'KAT-01 / R43 — A KIÍRT TULAJDONSÁG ÁTÍRÁSA LÁBNYOM FÖLÖTT IS SZABAD: az egység-váltás '
+      + 'őre eltűnik, tehát a mozgás-sorok mögött álló cikk egysége némán átíródik — a TÁROLT '
+      + 'mennyiség visszamenőleg MÁS jelentést kapna (KUKA-021)',
+    file: 'catalog.mjs',
+    from: "  if (footprint > 0) {",
+    to: "  if (false) {" },
+
+  { id: 'M167', rule: 'K10', catcher: 'P-KSZ-canonical-input-boundary', expect: 'probe_fail',
+    what: 'BEM-01 / R43 — A BEMENETI ELLENŐRZÉS KIESIK A KANONIKUS ÚTBÓL: a bevét-út a nyers '
+      + 'törzset adja tovább, tehát a hiányzó, idegen és hibás típusú mező NEVEZETT elutasítás '
+      + 'nélkül jutna a főkönyv határáig (KUKA-097: a néma kihagyás az írás útján a legdrágább)',
+    file: 'ledger.mjs',
+    from: "  const checked = validateInput({ operation: 'stock.receipt', input, version });\n  if (!checked.ok) return checked;",
+    to: "  const checked = validateInput({ operation: 'stock.receipt', input, version });\n  if (!checked.ok && checked.error !== 'missing_field' && checked.error !== 'unknown_field') return checked;" },
+
+  { id: 'M168', rule: 'K10', catcher: 'P-MNY-stored-profile-history', expect: 'probe_fail',
+    what: 'MNY-01 / R43 — A VISSZAOLVASÁS A CIKK MAI PROFILJÁT ERŐLTETI A RÉGI SORRA: az összeadás '
+      + 'nem veti össze a sor SAJÁT profilját a kérttel, tehát egy elcsúszott profil mellett a '
+      + 'tárolt szám NÉMÁN más jelentést kapna — pontosan az, amit a klauzula tilt (KUKA-021)',
+    file: 'quantity.mjs',
+    from: "    if (p.profileId !== profile.id) {",
+    to: "    if (false) {" },
+
+  { id: 'M169', rule: 'K10', catcher: 'P-MNY-stored-profile-history', expect: 'probe_fail',
+    what: 'MNY-01 / R43 — A MOZGÁS-SOR A KÉRÉS PROFILJÁT ÍRJA, NEM A CIKKÉT: a tárolt sor így nem '
+      + 'a SAJÁT jelentését viszi, és a történeti visszaolvasás a mai kéréstől függene',
+    file: 'ledger.mjs',
+    from: "      key.bookId, key.itemId, key.ownerId, key.warehouseId, q.scaled.toString(), item.qty_profile,",
+    to: "      key.bookId, key.itemId, key.ownerId, key.warehouseId, q.scaled.toString(), 'qty-1'," },
+
+  { id: 'M170', rule: 'K10', catcher: 'P-KSZ-repeat-and-error-boundary', expect: 'probe_fail',
+    what: 'KSZ-01 / R43 — AZ ISMÉTLÉS ÚJ HATÁST SZÜL: a parancs-azonosság a NYERS mennyiség-szöveget '
+      + 'viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS formázásban MÁSODSZOR is '
+      + 'könyvelne — kettős készletmozgás egyetlen valódi beadásból (KUKA-026)',
+    file: 'ledger.mjs',
+    from: "  const checked = validateInput({ operation: 'stock.receipt', input, version });",
+    to: "  const checked = validateInput({ operation: 'stock.receipt', input, version });\n"
+      + "  if (checked.ok) checked.value.qty = String(input.qty);" },
 ];

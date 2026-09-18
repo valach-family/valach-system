@@ -28,7 +28,7 @@ import { banMatrix } from './banMatrix.mjs';
 // MCS-2 (KAT-01 · KSZ-01 · BEM-01 · MNY-01) — az ELSŐ D-folyamat tárolási és parancs-rétege.
 import { parseQuantity, canonicalQuantity, formatQuantity, QUANTITY_ERRORS } from './quantity.mjs';
 import { quantityProfile } from './quantity.mjs';
-import { registerItem, changeItemUnit, itemBySku } from './catalog.mjs';
+import { registerItem, changeItemUnit, itemBySku, itemById } from './catalog.mjs';
 import { balanceAt, submitStockReceipt } from './ledger.mjs';
 import { ACCESS_REFUSED, recentRefusals, authorizeBookAction } from './accessGate.mjs';
 // A NÉVTÉR-BEHÚZÁS SZÁNDÉKOS: az R10-F01 azt is követeli, hogy a nyers mozgás-írón NE lehessen
@@ -5011,6 +5011,253 @@ probe('P-BEM-input-schema', 'MCS-2 · BEM-01 · MNY-01 · K10 · KUKA-122 · KUK
     };
   });
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// A FORRÁS KÖNYVTÁRA — a K10-TYP-c próba a KATALÓGUS forrását olvassa vissza, hogy a „nincs
+// publikus profilváltó művelet” állítás MÉRVE legyen, ne feltételezve (KUKA-038).
+const REF_DIR = dirname(fileURLToPath(import.meta.url));
+
+// R43 — A K10 KÖVETELMÉNYEK BIZONYÍTÁSA A MEGLÉVŐ REFERENCIÁN
+//
+// A külső ellenőrző fél (chatgpt-v3, R43) az összesítő javítását lezárta, és a MŰKÖDÉS mérését
+// kérte: a termék azonossága ne függjön a megjelenítéstől vagy a mennyiségtől; egy régi tárolt
+// mennyiség ne kapjon utólag más jelentést; az ismételt kérés ne könyveljen kétszer.
+//
+// A MUNKA SORRENDJE AZ Ő KIKÖTÉSÜK SZERINT: előbb MÉRTÜK a meglévő működést, és csak a mért
+// hiányra írtunk kódot. Mérve: mind a négy klauzula viselkedése HELYES volt — a hiány a
+// BIZONYÍTÉKBAN volt, nem a rendszerben. Ezért ez a négy próba nem javít, hanem BEKÖT.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+const k10World = () => {
+  const store = openStore();
+  store.run('INSERT INTO book VALUES (?,?)', 'a', 'A könyv');
+  store.run('INSERT INTO book VALUES (?,?)', 'b', 'B könyv');
+  store.run('INSERT INTO subject VALUES (?,?)', 'gazda', 'person');
+  store.run('INSERT INTO membership VALUES (?,?,?,?,NULL)', 'gazda', 'a', 'user', BIT.GRANT);
+  const send = (idemKey, input, version, itemBook = 'a') => submitStockReceipt({
+    store, idemKey, actor: 'gazda', bookId: itemBook, ownerId: 'gazda', warehouseId: 'FO',
+    input, version, clock: clockFrom(BIT.MARCH),
+  });
+  const counts = () => ({
+    cmd: store.get('SELECT COUNT(*) AS n FROM command').n,
+    ev: store.get('SELECT COUNT(*) AS n FROM command_event').n,
+    mov: store.get('SELECT COUNT(*) AS n FROM stock_movement').n,
+  });
+  return { store, send, counts };
+};
+
+probe('P-KAT-identity-history', 'R32/K10 · K10-TYP-a · KUKA-027 · KUKA-021',
+  'A cikk AZONOSSÁGA nem a megjelenítésé és nem a mennyiségé: a történeti hivatkozások megmaradnak',
+  () => {
+    const { store, send } = k10World();
+    const it = registerItem({ store, bookId: 'a', sku: '050', unit: 'l', at: BIT.MARCH });
+    const other = registerItem({ store, bookId: 'b', sku: '050', unit: 'kg', at: BIT.MARCH });
+
+    // (a) A MENNYISÉG VÁLTOZÁSA nem mozdítja az azonosságot, és a történeti sorok végig EGY cikkre
+    //     mutatnak — ez a klauzula lényege: az azonosító a tanú, nem a mennyiség.
+    const r1 = send('i1', { item_id: it.itemId, qty: '10', effective_at: BIT.MARCH });
+    const r2 = send('i2', { item_id: it.itemId, qty: '2.500', effective_at: BIT.MARCH });
+    const stillSame = itemById(store, it.itemId);
+    const refs = store.all('SELECT DISTINCT item_id FROM stock_movement');
+    const aOk = r1.ok === true && r2.ok === true && stillSame && stillSame.item_id === it.itemId
+      && refs.length === 1 && refs[0].item_id === it.itemId;
+
+    // (b) UGYANAZ AZ SKU MÁSIK KÖNYVBEN MÁS CIKK — és a feloldás könyv nélkül fogalmi hiba.
+    let bookless = null;
+    try { itemBySku(store, null, '050'); } catch { bookless = 'DOBOTT'; }
+    const bOk = other.itemId !== it.itemId && bookless === 'DOBOTT'
+      && itemBySku(store, 'b', '050').item_id === other.itemId;
+
+    // (c) A FORMÁZÁS nem azonosság: ugyanaz a jelentés MÁS alakban ugyanarra a cikkre és ugyanarra
+    //     a PARANCS-azonosságra megy (a mennyiség kanonikus alakja dönt, nem a leírt szöveg).
+    const fmt = send('i1', { item_id: it.itemId, qty: '10.000', effective_at: BIT.MARCH });
+    const cOk = fmt.ok === true && fmt.replayed === true && fmt.effect_id === r1.effect_id;
+
+    // (d) A MEGJELENÍTÉS MEGVÁLTOZTATÁSA NEM VÁLTOZTATJA AZ AZONOSÍTÓT — a mérhető alak az EGYSÉG,
+    //     mert az a cikk kiírt tulajdonsága. Nulla lábnyomon szabad, és az azonosító ÁLL; a lábnyom
+    //     fölött NEVEZETTEN tilos, mert az egység a mennyiség JELENTÉSE (KUKA-021).
+    const fresh = registerItem({ store, bookId: 'a', sku: 'URES', unit: 'l', at: BIT.MARCH });
+    const freeChange = changeItemUnit({ store, itemId: fresh.itemId, unit: 'ml' });
+    const blocked = changeItemUnit({ store, itemId: it.itemId, unit: 'ml' });
+    const dOk = freeChange.ok === true && freeChange.changed === true
+      && itemById(store, fresh.itemId).item_id === fresh.itemId
+      && blocked.ok === false && blocked.error === 'unit_change_needs_conversion';
+
+    return {
+      expected: 'a mennyiség változása és a formázás NEM mozdítja az azonosságot · a történeti sorok '
+        + 'egy cikkre mutatnak · azonos SKU másik könyvben MÁS cikk · a kiírt tulajdonság változása '
+        + 'nem írja át az azonosítót, lábnyom fölött pedig NEVEZETTEN tilos',
+      actual: `történeti hivatkozás: ${refs.length} cikk · másik könyv: ${other.itemId !== it.itemId}`
+        + ` · könyv nélkül: ${bookless} · formázás: replayed=${fmt.replayed} azonos hatás=${fmt.effect_id === r1.effect_id}`
+        + ` · egység nulla lábnyomon: ${freeChange.reason} · lábnyom fölött: ${blocked.error}`,
+      pass: aOk && bOk && cOk && dOk,
+      asserts: {
+        'A-K10-a-quantity-change-does-not-move-identity': aOk,
+        'A-K10-a-same-sku-in-another-book-stays-a-different-item': bOk,
+        'A-K10-a-formatting-is-not-identity': cOk,
+        'A-K10-a-printed-property-change-does-not-rewrite-the-identifier': dOk,
+      },
+      // KIMONDOTT HATÁR (R43): a referenciában NINCS megjelenítési-név mező és NINCS átnevező
+      // publikus művelet — mérve: az `item` táblán `item_id · book_id · sku · unit · qty_profile ·
+      // created_at` áll, és az EGYETLEN `UPDATE item` az egység-váltás. A klauzula „megjelenítési
+      // név" fordulatát ezért NEM állítjuk bizonyítottnak: nyers adatbázis-átírás nem igazolja egy
+      // HIÁNYZÓ publikus művelet működését (KUKA-038).
+    };
+  });
+
+probe('P-KSZ-canonical-input-boundary', 'R32/K10 · K10-TYP-b · KUKA-097 · KUKA-124',
+  'A bemeneti elutasítás a VALÓDI bevét-úton dől el, és SEMMIT nem ír',
+  () => {
+    const { store, send, counts } = k10World();
+    const it = registerItem({ store, bookId: 'a', sku: 'X', unit: 'l', at: BIT.MARCH });
+    const base = { item_id: it.itemId, qty: '1', effective_at: BIT.MARCH };
+    const before = JSON.stringify(counts());
+
+    // MINDEN normatív rész a KANONIKUS úton (R43/2): a korábbi bizonyíték a `validateInput`
+    // közvetlen hívásán állt — az a SAJÁT rétegünk, nem a felhasználó útja (KUKA-184 tanulsága).
+    const cases = [
+      ['missing_field', { item_id: it.itemId, effective_at: BIT.MARCH }],
+      ['unknown_field', { ...base, szinezes: 'kek' }],
+      ['unknown_field', { ...base, warehouse_id: 'FO' }],      // a KONTEXTUS-mező sem jöhet a törzsből
+      ['not_a_string', { ...base, qty: 1 }],
+      ['not_a_string', { ...base, qty: ['1'] }],
+      ['not_a_string', { ...base, qty: true }],
+      ['invalid_calendar', { ...base, effective_at: '2026-02-30T09:00:00Z' }],
+      ['unknown_item', { ...base, item_id: 'itm_nincs' }],
+    ];
+    const got = cases.map(([want, input], i) => {
+      const r = send(`c${i}`, input);
+      return { want, error: r.ok ? '(ÁTMENT)' : r.error, ok: r.ok === false && r.error === want };
+    });
+    const aOk = got.every((g) => g.ok) && JSON.stringify(counts()) === before;
+
+    // A SÉMAVERZIÓ HATÁRA ugyanezen az úton (SVR-01) — és a JOGOS bevét működik.
+    const ver = send('cv', base, '0');
+    const good = send('cg', base);
+    const bOk = ver.ok === false && ver.error === 'unsupported_schema_version'
+      && good.ok === true && counts().mov === 1;
+
+    return {
+      expected: 'mind a nyolc bemeneti hiba NEVEZETTEN elakad a VALÓDI bevét-úton, írás nélkül · a '
+        + 'nem támogatott sémaverzió ugyanitt elakad · a jogos bevét működik és EGY mozgást ír',
+      actual: got.map((g) => `${g.want}→${g.error}`).join(' · ')
+        + ` · verzió: ${ver.error} · jogos: ${good.ok ? 'ok' : good.error} · mozgás=${counts().mov}`,
+      pass: aOk && bOk,
+      asserts: {
+        'A-K10-b-input-errors-are-named-on-the-canonical-path-without-writing': aOk,
+        'A-K10-b-version-boundary-and-the-legitimate-receipt-coexist': bOk,
+      },
+      // KIMONDOTT HATÁR: ezen az úton a MŰVELET neve fix („stock.receipt"), tehát az „ismeretlen
+      // művelet" ága itt fogalmilag nem szólítható meg — azt a `P-BEM-input-schema` méri a séma
+      // határán. És ez a próba NEM zárja az OB-3 külső HTTP-/bizalmi határát: az nincs megépítve.
+    };
+  });
+
+probe('P-MNY-stored-profile-history', 'R32/K10 · K10-TYP-c · KUKA-021 · KUKA-038',
+  'A TÁROLT mennyiség a SAJÁT profilját viszi — profilváltás nem értelmezheti át a múltat',
+  () => {
+    const { store, send } = k10World();
+    const L = registerItem({ store, bookId: 'a', sku: 'LITER', unit: 'l', at: BIT.MARCH });
+    const key = { bookId: 'a', itemId: L.itemId, ownerId: 'gazda', warehouseId: 'FO' };
+    send('p1', { item_id: L.itemId, qty: '10', effective_at: BIT.MARCH });
+    send('p2', { item_id: L.itemId, qty: '2.500', effective_at: BIT.MARCH });
+
+    // (a) A SOR SAJÁT PROFILT HORDOZ — nem a cikk MAI profilját olvassuk vissza rá.
+    const rows = store.all('SELECT qty_scaled, qty_profile FROM stock_movement WHERE item_id = ?', L.itemId);
+    const before = balanceAt({ store, key, view: 'B', asOf: BIT.MARCH });
+    const aOk = rows.length === 2 && rows.every((r) => r.qty_profile === 'qty-1')
+      && before.ok === true && before.text === '12.500' && before.profileId === 'qty-1';
+
+    // (b) NINCS PUBLIKUS PROFILVÁLTÓ MŰVELET — mérve, nem feltételezve: a katalógus egyetlen
+    //     `UPDATE item` írása az EGYSÉG-váltás, és az a `qty_profile`-hoz nem nyúl.
+    const kat = readFileSync(join(REF_DIR, 'catalog.mjs'), 'utf8');
+    const itemUpdates = (kat.match(/UPDATE item SET [a-z_]+/g) || []);
+    const bOk = itemUpdates.length === 1 && itemUpdates[0] === 'UPDATE item SET unit'
+      && !/qty_profile\s*=/.test(kat);
+
+    // (c) A HATÁR, HA MÉGIS ELCSÚSZNA: nyers adatbázis-írással a cikk profilját átírva a
+    //     visszaolvasás NEVEZETTEN elakad (`profile_mismatch`) — NEM ad más jelentést ugyanannak a
+    //     tárolt számnak. KIMONDVA: ez az OLVASÓ határát bizonyítja, nem egy publikus profilváltást
+    //     (R43: nyers fixtúra nem igazol hiányzó műveletet).
+    store.run('UPDATE item SET qty_profile = ? WHERE item_id = ?', 'qty-2', L.itemId);
+    const after = balanceAt({ store, key, view: 'B', asOf: BIT.MARCH });
+    const rowsAfter = store.all('SELECT qty_scaled, qty_profile FROM stock_movement WHERE item_id = ?', L.itemId);
+    store.run('UPDATE item SET qty_profile = ? WHERE item_id = ?', 'qty-1', L.itemId);
+    const back = balanceAt({ store, key, view: 'B', asOf: BIT.MARCH });
+    const cOk = after.ok === false && after.error === 'profile_mismatch'
+      && rowsAfter.every((r) => r.qty_profile === 'qty-1')           // a NYERS sorok érintetlenek
+      && back.ok === true && back.text === '12.500';                  // és a jelentés visszatér
+
+    return {
+      expected: 'a tárolt sor a SAJÁT profilját viszi · a magban NINCS publikus profilváltó művelet '
+        + '· elcsúszott profil mellett a visszaolvasás NEVEZETTEN elakad, a nyers sorok érintetlenek, '
+        + 'és a helyes profilon a jelentés VÁLTOZATLANUL tér vissza',
+      actual: `sor-profilok: ${rows.map((r) => r.qty_profile).join(',')} · előtte=${before.text}`
+        + ` · item-írók: ${itemUpdates.join('|') || '(egy sem)'}`
+        + ` · elcsúszva=${after.ok ? after.text : after.error} · visszaállítva=${back.text}`,
+      pass: aOk && bOk && cOk,
+      asserts: {
+        'A-K10-c-stored-row-carries-its-own-profile': aOk,
+        'A-K10-c-no-public-profile-change-operation-exists': bOk,
+        'A-K10-c-mismatched-profile-is-a-named-refusal-not-a-reinterpretation': cOk,
+      },
+    };
+  });
+
+probe('P-KSZ-repeat-and-error-boundary', 'R32/K10 · K10-TYP-d · KUKA-097 · KUKA-026',
+  'ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad',
+  () => {
+    const { store, send, counts } = k10World();
+    const L = registerItem({ store, bookId: 'a', sku: 'LITER', unit: 'l', at: BIT.MARCH });
+    const D = registerItem({ store, bookId: 'a', sku: 'DARAB', unit: 'db', qtyProfile: 'qty-2', at: BIT.MARCH });
+    const keyL = { bookId: 'a', itemId: L.itemId, ownerId: 'gazda', warehouseId: 'FO' };
+    const snap = () => JSON.stringify({
+      ...counts(), bal: balanceAt({ store, key: keyL, view: 'B', asOf: BIT.MARCH }).text,
+    });
+
+    // (1) JOGOS ELSŐ BEADÁS
+    const first = send('k1', { item_id: L.itemId, qty: '10', effective_at: BIT.MARCH });
+    const s1 = snap();
+    // (2) AZONOS ISMÉTLÉS — ugyanaz a hatás, nem új
+    const repeat = send('k1', { item_id: L.itemId, qty: '10', effective_at: BIT.MARCH });
+    // (3) AZONOS JELENTÉS, MÁS FORMÁZÁS — a kanonikus alak dönt, nem a leírt szöveg
+    const reformat = send('k1', { item_id: L.itemId, qty: '10.000', effective_at: BIT.MARCH });
+    // (4) KORÁBBI SÉMAVERZIÓ ugyanazzal a kulccsal — a nyugta NEM értelmeződik át hallgatólagosan
+    const oldVer = send('k1', { item_id: L.itemId, qty: '10', effective_at: BIT.MARCH }, '0');
+    // (5) MÁS SZÁMÍTÁSI PROFIL ugyanazzal a kulccsal — nevezett ütközés, nem néma visszajátszás
+    const otherProfile = send('k1', { item_id: D.itemId, qty: '10', effective_at: BIT.MARCH });
+    // (6) HIBAPONT ugyanazzal a kulccsal — a plafon fölötti tétel
+    const overflow = send('k1', { item_id: L.itemId, qty: '99999999', effective_at: BIT.MARCH });
+    // (7) A KORÁBBI SIKER MEGMARADT
+    const stillThere = send('k1', { item_id: L.itemId, qty: '10', effective_at: BIT.MARCH });
+
+    const aOk = first.ok === true && first.replayed !== true && counts().mov === 1;
+    const bOk = repeat.ok === true && repeat.replayed === true && repeat.effect_id === first.effect_id
+      && reformat.ok === true && reformat.replayed === true && reformat.effect_id === first.effect_id;
+    const cOk = oldVer.ok === false && oldVer.error === 'unsupported_schema_version'
+      && otherProfile.ok === false && otherProfile.error === 'idempotency_conflict'
+      && overflow.ok === false && overflow.error === 'out_of_range';
+    // A HÁROM ELUTASÍTÁS UTÁN a pillanatkép VÁLTOZATLAN, és a korábbi siker ugyanazt a hatást adja.
+    const dOk = snap() === s1 && stillThere.ok === true && stillThere.replayed === true
+      && stillThere.effect_id === first.effect_id;
+
+    return {
+      expected: 'első beadás EGY hatás · azonos és MÁS FORMÁZÁSÚ ismétlés ugyanazt a hatást adja · '
+        + 'korábbi sémaverzió, más profil és a hibapont NEVEZETTEN elakad · a pillanatkép '
+        + 'változatlan, és a korábbi siker megmarad',
+      actual: `első: mozgás=${counts().mov} · ismétlés: replayed=${repeat.replayed} azonos=${repeat.effect_id === first.effect_id}`
+        + ` · formázás: replayed=${reformat.replayed} azonos=${reformat.effect_id === first.effect_id}`
+        + ` · régi verzió=${oldVer.error} · más profil=${otherProfile.error} · plafon=${overflow.error}`
+        + ` · pillanatkép változatlan=${snap() === s1} · a korábbi siker=${stillThere.replayed ? 'megvan' : 'ELVESZETT(!)'}`,
+      pass: aOk && bOk && cOk && dOk,
+      asserts: {
+        'A-K10-d-first-submission-creates-exactly-one-effect': aOk,
+        'A-K10-d-identical-and-reformatted-repeat-replay-the-same-effect': bOk,
+        'A-K10-d-old-version-other-profile-and-error-point-are-named-refusals': cOk,
+        'A-K10-d-refusals-leave-the-snapshot-and-the-earlier-success-intact': dOk,
+      },
+    };
+  });
+
 const SOURCE_COMMIT = (() => {
   const arg = process.argv.find((a) => a.startsWith('--source-commit='));
   if (arg) return arg.slice('--source-commit='.length).trim() || null;
@@ -5024,7 +5271,7 @@ const SOURCE_COMMIT = (() => {
 // tehát nem forrás-azonosság, hanem PUSZTA ÁLLÍTÁS (a KUKA-056 alakja a forráson: az aláíró nem egy
 // beírt szöveg). Innentől a futtató KISZÁMOLJA a saját forrás-csomagja tartalmi lenyomatát; a
 // bemondott commit külön mezőben, KÜLÖN NÉVEN marad, és soha nem lép a mérés helyébe.
-const REF_DIR = dirname(fileURLToPath(import.meta.url));
+
 export function sourceDigest() {
   const files = readdirSync(REF_DIR).filter((f) => f.endsWith('.mjs')).sort();
   const h = createHash('sha256');

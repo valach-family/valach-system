@@ -32,6 +32,9 @@ export const MANIFEST_VERSION = 'v3ref-manifest-3';
  * egyáltalán nem tárol próbanevet. A próbának FUTÁSIDŐBEN ki is kell adnia ezeket az
  * állítás-azonosítókat (`asserts`), különben a deklaráció üres ígéret (KUKA-016).
  */
+// A SZERZŐDÉS VERZIÓJA AZ R43-AS BEKÖTÉSSEL — EGY helyen, hogy a 13 új sor ne tudjon elcsúszni.
+const VERSION_R43 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d';
+
 export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({ id: 'P-A04', assertion: 'A04-two-worlds-byte-identical' }),
   Object.freeze({ id: 'P-A04b', assertion: 'A04b-mailbox-holder-gets-actionable-answer' }),
@@ -563,6 +566,57 @@ export const EXPECTED_PROBES = Object.freeze([
       'A-BEM-context-field-in-the-body-is-a-named-refusal',
       // A mennyiség KÉT SZAKASZA: a határ profil-független, a jelentés a CIKK profiljáé.
       'A-BEM-quantity-profile-is-bound-where-the-item-is-known',
+    ]),
+  }),
+  // ── R43 — A K10 KÖVETELMÉNYEK BIZONYÍTÁSA A MEGLÉVŐ REFERENCIÁN ──────────────────────────────
+  // A külső ellenőrző fél (chatgpt-v3, R43) az összesítő javítását lezárta, és a MŰKÖDÉS mérését
+  // kérte. MÉRVE: mind a négy klauzula viselkedése HELYES volt — a hiány a BIZONYÍTÉKBAN állt, nem
+  // a rendszerben. Ez a négy próba ezért nem javít, hanem BEKÖT: minden normatív részhez saját
+  // nevű állítás és saját mutáció tartozik.
+  Object.freeze({
+    id: 'P-KAT-identity-history', assertion: 'K10a-identity-is-not-display-or-quantity',
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'K10-TYP-a', assertion: 'A-K10-a-quantity-change-does-not-move-identity',
+        contract_version: VERSION_R43 }),
+      Object.freeze({ clause: 'K10-TYP-a', assertion: 'A-K10-a-same-sku-in-another-book-stays-a-different-item',
+        contract_version: VERSION_R43 }),
+      Object.freeze({ clause: 'K10-TYP-a', assertion: 'A-K10-a-formatting-is-not-identity',
+        contract_version: VERSION_R43 }),
+      Object.freeze({ clause: 'K10-TYP-a', assertion: 'A-K10-a-printed-property-change-does-not-rewrite-the-identifier',
+        contract_version: VERSION_R43 }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'P-KSZ-canonical-input-boundary', assertion: 'K10b-input-errors-on-the-canonical-path',
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'K10-TYP-b', assertion: 'A-K10-b-input-errors-are-named-on-the-canonical-path-without-writing',
+        contract_version: VERSION_R43 }),
+      Object.freeze({ clause: 'K10-TYP-b', assertion: 'A-K10-b-version-boundary-and-the-legitimate-receipt-coexist',
+        contract_version: VERSION_R43 }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'P-MNY-stored-profile-history', assertion: 'K10c-stored-quantity-keeps-its-own-profile',
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'K10-TYP-c', assertion: 'A-K10-c-stored-row-carries-its-own-profile',
+        contract_version: VERSION_R43 }),
+      Object.freeze({ clause: 'K10-TYP-c', assertion: 'A-K10-c-no-public-profile-change-operation-exists',
+        contract_version: VERSION_R43 }),
+      Object.freeze({ clause: 'K10-TYP-c', assertion: 'A-K10-c-mismatched-profile-is-a-named-refusal-not-a-reinterpretation',
+        contract_version: VERSION_R43 }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'P-KSZ-repeat-and-error-boundary', assertion: 'K10d-repeat-and-error-boundary',
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'K10-TYP-d', assertion: 'A-K10-d-first-submission-creates-exactly-one-effect',
+        contract_version: VERSION_R43 }),
+      Object.freeze({ clause: 'K10-TYP-d', assertion: 'A-K10-d-identical-and-reformatted-repeat-replay-the-same-effect',
+        contract_version: VERSION_R43 }),
+      Object.freeze({ clause: 'K10-TYP-d', assertion: 'A-K10-d-old-version-other-profile-and-error-point-are-named-refusals',
+        contract_version: VERSION_R43 }),
+      Object.freeze({ clause: 'K10-TYP-d', assertion: 'A-K10-d-refusals-leave-the-snapshot-and-the-earlier-success-intact',
+        contract_version: VERSION_R43 }),
     ]),
   }),
   Object.freeze({

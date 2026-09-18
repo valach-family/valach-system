@@ -506,10 +506,23 @@ export const MODULE_CONTRACT_NORMS = Object.freeze([
         // `qty-2` is él (`QUANTITY_PROFILES`), és a `P-BEM-input-schema` (i) ága MINDKETTŐT méri. A
         // HIÁNY megmarad — de a LEHETETLENSÉGI indok törlendő: a bizonyítás nem lehetetlen, csak nem
         // tettük meg (KUKA-033: méretlen állítás nem indok, és a saját kifogásom is mérendő).
-        gap: 'A kanonikus alak és a profil-kötés mérve van MINDKÉT élő profilon (`qty-1` · `qty-2`), de '
-          + 'a PROFILVÁLTÁS hatása a KORÁBBAN TÁROLT értékre nincs mérve: a mag nem végez '
-          + 'profil-verzióváltást, és ilyen ellenpéldát nem építettünk. A bizonyítás LEHETSÉGES (két '
-          + 'profil áll rendelkezésre) — csak nem történt meg.',
+        // R43 — A MÉRÉS MEGTÖRTÉNT, a klauzula RÉSZLEGESEN fedett. Amit a mérés hozott: a tárolt sor
+        // SAJÁT profilt visel, a magban NINCS publikus profilváltó művelet (mérve: egyetlen
+        // `UPDATE item SET unit` él, a `qty_profile`-hoz senki nem nyúl), és elcsúszott profil mellett
+        // a visszaolvasás NEVEZETTEN elakad — nem ad más jelentést ugyanannak a számnak.
+        partial: Object.freeze({
+          built: 'a kanonikus alak és a profil-kötés MINDKÉT élő profilon (`qty-1` · `qty-2`); a TÁROLT '
+            + 'mozgás-sor a SAJÁT profilját viszi (`stock_movement.qty_profile`); a magban NINCS '
+            + 'publikus profilváltó művelet (a katalógus forrásából MÉRVE); és ha a cikk profilja '
+            + 'mégis elcsúszna, a visszaolvasás NEVEZETT `profile_mismatch`-csel áll meg, a nyers '
+            + 'sorok érintetlenek, a helyes profilon pedig a jelentés VÁLTOZATLANUL tér vissza. '
+            + 'Falszifikálva: M168 · M169.',
+          remaining: 'a klauzula „profilváltozás nem értelmezheti át a korábbi tárolt értéket" mondata '
+            + 'az OLVASÓ oldalán bizonyított, egy KIMONDOTTAN nyers adatbázis-írású határ-fixtúrával. '
+            + 'Egy VALÓDI, támogatott profilváltás — és annak hatása a tárolt értékekre — a magban '
+            + 'nincs megépítve, tehát nem is bizonyított: nyers fixtúra nem igazolja egy HIÁNYZÓ '
+            + 'publikus művelet működését (KUKA-038). Teljes profil-migrációs keret nem e kör tárgya.',
+        }),
       }),
       Object.freeze({
         id: 'K10-TYP-d',
@@ -527,11 +540,20 @@ export const MODULE_CONTRACT_NORMS = Object.freeze([
         // a HATÁR (SVR-01): a verziót a regiszter választja, eltérő megnevezett verzió NEVEZETT
         // elutasítás. Ami ettől is NYITOTT: az ISMÉTLÉSI és HIBAHATÁR viselkedése, ha a beadvány
         // KORÁBBI verziójú vagy MÁS profilú — ezt nem mértük.
-        gap: 'Az atomiság és az ismétlés-védelem mérve van (KSZ-01), és a két mennyiség-profil szerinti '
-          + 'működés is. A sémaverzió HATÁRA az R37-ben kimondva és mérve (SVR-01: a regiszter '
-          + 'választ, eltérőre `unsupported_schema_version`). NYITOTT: a „korábbi verziójú vagy más '
-          + 'PROFILÚ bemenet" ISMÉTLÉSI és HIBAHATÁR-viselkedése — ez nem lehetetlen bizonyítani, csak '
-          + 'nem tettük meg.',
+        // R43 — A MÉRÉS MEGTÖRTÉNT: hat helyzet a VALÓDI bevét-úton, tartalmi pillanatképekkel.
+        partial: Object.freeze({
+          built: 'hat helyzet a KANONIKUS úton, parancs + esemény + mozgás + egyenleg pillanatképével: '
+            + 'jogos ELSŐ beadás (pontosan EGY hatás) · AZONOS ismétlés (ugyanaz a hatás, nem új) · '
+            + 'AZONOS jelentés MÁS FORMÁZÁSBAN (a kanonikus alak dönt, nem a leírt szöveg) · KORÁBBI '
+            + 'sémaverzió ugyanazzal a kulccsal (`unsupported_schema_version`) · MÁS számítási profil '
+            + 'ugyanazzal a kulccsal (`idempotency_conflict`, nem néma visszajátszás) · HIBAPONT '
+            + '(`out_of_range`). Mindhárom elutasítás után a pillanatkép VÁLTOZATLAN, és a korábbi '
+            + 'siker ugyanazt a hatást adja vissza. Falszifikálva: M170.',
+          remaining: 'a „más PROFILÚ bemenet" ága UGYANARRA A CIKKRE nem szólítható meg, mert a magban '
+            + 'nincs profilváltó művelet (K10-TYP-c maradéka); a mérés ezért MÁSIK, más profilú cikkel '
+            + 'történt. Ez a reálisan elérhető alak — de a klauzula szó szerinti olvasatában marad egy '
+            + 'nem elérhető változat, és ezt nem nevezzük bizonyítottnak.',
+        }),
       }),
       Object.freeze({
         id: 'K10-TYP-e',
