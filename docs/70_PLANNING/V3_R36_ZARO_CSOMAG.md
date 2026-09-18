@@ -214,7 +214,7 @@ telepítés nem része a körnek.
 | tanulság-regiszter | `npm run verify:kuka` | **277/277 PASS** |
 | döntés-számok | `npm run verify:decision-numbers` | **4/4 PASS** · a következő szabad: D-VS-3044 |
 | olvasható változat | `npm run verify:doc-html` | **9/9 PASS** |
-| **külső lánc (terheletlen gépen)** | `node v3ref/external-checks/run-all.mjs` | **LÁNC_EREDMÉNY** |
+| **külső lánc (terheletlen gépen)** | `node v3ref/external-checks/run-all.mjs` | **17/19 program MEGFELEL · 2 ENV-KIHAGYÁS (nevezett helyettessel) · 0 ELTÉRÉS · kilépés 0** |
 
 **A három korábban piros program a mai revízión:** `r77` **39/39** · `r79core` **18/18** ·
 `r81core` **15/15** — mindhárom `variant: adapted` jelöléssel az eredmény-fájljában.
@@ -223,6 +223,12 @@ telepítés nem része a körnek.
 hívásban futtatják 15 000 ms-os korláttal, tehát a MÉRÉS akad el, nem a kód bukik; mindkettőt a
 saját, darabolt helyettesük (`r59a`, `r57a`) futtatja végig **zölden**. A kihagyás csak addig áll,
 amíg a helyettes zöld.
+
+**A lánc ELŐSZÖR teljesen eltérés-mentes.** A menet előtt 14/19 állt (három piros: `r77`,
+`r79core`, `r81core`), a formai átállítás után 16/19 — és ekkor bukott ki az `r83core`, a testvér-ág
+(2/b). A javítás után **17/19, nulla eltéréssel**; a kiinduló darabszám közös otthonba tétele után a
+**megismételt** menet ugyanezt adta, és a két burkoló már **finomítás nélkül** fér bele
+(`requested: 7`, `problems: []`).
 
 **Terhelési fegyelem:** a láncot **terheletlen gépen** futtattuk, ahogy az R35 kérte — párhuzamos
 munka mellett korábban öt program esett ki pusztán időzítés miatt (11/19 a valódi érték helyett), és
