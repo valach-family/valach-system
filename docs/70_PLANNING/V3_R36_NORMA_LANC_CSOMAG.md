@@ -7,7 +7,7 @@ rajzolja — és a minősítéseket **a MÉRT lánc-vetületből** veszi, nem k�
 `V3_R36_NORMA_LANC_CSOMAG.json`; **a következő kör azt olvassa.**
 
 **Szerződés:** NCT-01 · verzió: `R32/K01-K16 + R35/K05-DSC+K10-TYP` · lenyomat: `sha256:d6ef5ed707b83e3da85…`
-**A mérés forrása:** `v3ref/v3ref-mutation-result.json` · base: `sha256:1b6501dd3e60ee946cd…`
+**A mérés forrása:** `v3ref/v3ref-mutation-result.json` · base: `sha256:87dd7a3a6f2a945481c…`
 
 **Ellenőrzött kötések** (bármelyik bukása esetén a csomag MEG SEM SZÜLETIK):
 
@@ -142,7 +142,7 @@ rajzolja — és a minősítéseket **a MÉRT lánc-vetületből** veszi, nem k�
 | **REV-N2b** | accepted_in_reference | a review-circle a megnevezett időablak és alany/könyv szerint számított, a nem érintettek kimaradnak, az eredeti parancstörténet változatlan. Ez nem korrekció végrehajtása. |
 | **REV-N3a** | accepted_in_reference | műveletenkénti hatáskör, felfüggesztés, ép bizonyíték és hatályosulási pont vizsgált; jogosulatlan hatás nem keletkezik. |
 | **REV-N3b** | accepted_in_reference | bejelentésből nem keletkezik olvasási jog; semleges válasz és jogos elbírálói olvasás ellenpárja megvan. |
-| **REV-N3c** | accepted_in_reference | a szöveg saját adapter-feltételezésével: semleges, atomi befogadás és belső kvóta. A valódi beadók izolációját NEM fogadja bele. |
+| **REV-N3c** | accepted_in_reference | a szöveg saját adapter-feltételezésével: semleges, atomi befogadás és belső kvóta. A valódi beadók izolációját nem fogadom bele. |
 | **REV-N3d** | open | valódi szerveroldali beadókontextus és mérhető izoláció nincs; a közös unattributed vödör nem helyettesíti. |
 | **REV-N3e** | open | a technikai karantén saját művelete, hatásköre, oka és auditja nincs meg. |
 | **REV-N4a** | open | az eredetire hivatkozó kompenzáló esemény nincs. |
@@ -152,11 +152,11 @@ rajzolja — és a minősítéseket **a MÉRT lánc-vetületből** veszi, nem k�
 | **REV-N5c** | accepted_in_reference | a korábbi történet és független jogosultak joga megmarad; tiltásból nem keletkezik múltbeli érvénytelenség. |
 | **K05-DSC-a** | accepted_in_reference | típus/verzió szerinti eredményséma, a kérő címkéjétől független besorolás, ismeretlen verzió ellenpár. |
 | **K05-DSC-b** | accepted_in_reference | beágyazás, második tömbelem, hibás levéltípus és ismeretlen mező ellenőrzött, semleges olvasási elutasítással. |
-| **K05-DSC-c** | partial | a tiltott mezőt tartalmazó vegyes eredmény egészbeni megtagadása bizonyított. A „minden adatkörre érvényes olvasási döntés” erősebb az explicit tiltás hiányánál; az adatkörre korlátozott engedő alap és a tényleges kiadás közötti bizonyíték nincs megadva. Ezt a különbséget NEM szabad átzöldíteni. |
+| **K05-DSC-c** | partial | a tiltott mezőt tartalmazó vegyes eredmény egészbeni megtagadása bizonyított. A „minden adatkörre érvényes olvasási döntés” erősebb az explicit tiltás hiányánál; az adatkörre korlátozott engedő alap és a tényleges kiadás közötti bizonyíték nincs megadva. Ezt a különbséget ne zöldítsd át. |
 | **K05-DSC-d** | accepted_in_reference | EGYÜTT: P-A08 + P-CMD-finalize-gate + P-CMD-release-effectuation. P-A08 önmagában a hatályosulási versenyt nem fedi; a kiegészítő bizonyíték-kötést rögzíteni kell. |
 | **K10-TYP-a** | partial | a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva. |
 | **K10-TYP-b** | not_accepted_as_whole | F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány. |
-| **K10-TYP-c** | partial | KÉT profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok HAMIS. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell. |
+| **K10-TYP-c** | partial | két profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok hamis. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell. |
 | **K10-TYP-d** | partial | KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem. |
 | **K10-TYP-e** | partial | a két időtengely bizonyított. A szöveg nem követeli most a teljes QNT megépítését; a megfigyelés saját idejének szerződéses helye és a hatásmentes művelet határa továbbra is külön QNT-előfeltétel. |
 | **ORG-N1a** | partial | BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell. |
@@ -182,7 +182,7 @@ rajzolja — és a minősítéseket **a MÉRT lánc-vetületből** veszi, nem k�
   - **maradék:** A K05-DSC-c MEZŐVETÍTÉS-ága NYITOTT ÚT, nem adósság: a klauzula maga mondja ki, hogy „amíg nincs külön bizonyított mezővetítés", a vegyes eredmény egészben megtagadandó — a mai rendszer pontosan ezt teszi. Ha valaha mezővetítés épül, annak SAJÁT bizonyítéka kell.
 - **OB-9** — K10 — a TÍPUS, NORMALIZÁLÁS ÉS SZÁMÍTÁSI PROFIL klauzulája
   - lezárta: CMD-VS-300-002-002 R35 (a szöveg) → R36 (a bekötés) · jel: npm run verify:v3ref
-  - **maradék:** HÁROM klauzula NYITOTT, nevezett hiánnyal: K10-TYP-c (a PROFILVÁLTÁS hatása a korábbi tárolt értékre nincs mérve — egyetlen élő profil) · K10-TYP-d (a „korábbi verziójú vagy más PROFILÚ bemenet" ága) · K10-TYP-e (a MEGFIGYELÉSI idő fogalma nincs a magban — a QNT-munka előfeltétele). Ezek NEM a blokkoló maradékai, hanem a klauzulák saját, kimondott hiányai.
+  - **maradék:** HÁROM klauzula NYITOTT, nevezett hiánnyal: K10-TYP-c (a PROFILVÁLTÁS hatása a korábbi tárolt értékre nincs mérve — KÉT élő profil áll, tehát a bizonyítás LEHETSÉGES, csak nem történt meg) · K10-TYP-d (a „korábbi verziójú vagy más PROFILÚ bemenet" ISMÉTLÉSI és HIBAHATÁR-viselkedése; a sémaverzió HATÁRA az R37/R39-ben kimondva és a kanonikus úton is mérve) · K10-TYP-e (a MEGFIGYELÉSI idő fogalma nincs a magban — a QNT-munka előfeltétele). Ezek NEM a blokkoló maradékai, hanem a klauzulák saját, kimondott hiányai.
 - **OB-10** — A SÖPRÉS A SZÖVEGET OLVASSA, NEM A VERDIKTET — a piros lánc kihagyásnak látszik
   - lezárta: R16 (chatgpt-v3 §2 kérésére) · jel: npm run verify:sweep-verdict
   - **maradék:** A V2 söprése ugyanezt a részszöveges osztályozót viseli, tehát ott a szerződés NEM áll. A maradék átvitele NEVESÍTETT függő: előbb a négy V2-verifier (challenge-inventory · doc-order · mcp-bridge · repo-root) kapja meg a gépi kihagyás-deklarációt, és csak utána vihető át a verdikt-olvasó söprés — V2-módosításra ebben a körben nincs engedély.

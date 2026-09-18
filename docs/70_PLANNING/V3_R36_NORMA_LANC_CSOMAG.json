@@ -1,11 +1,11 @@
 {
   "schema": "v3-norm-chain-package/2",
   "id": "NCP-01",
-  "at": "2026-09-18T17:25:03.803Z",
+  "at": "2026-09-18T17:31:20.391Z",
   "measured_from": {
     "file": "v3ref/v3ref-mutation-result.json",
-    "base_digest": "sha256:1b6501dd3e60ee946cda0169bfd1dd32e2284334932d2eb53e37647eda83f0c5",
-    "source_digest_today": "sha256:1b6501dd3e60ee946cda0169bfd1dd32e2284334932d2eb53e37647eda83f0c5",
+    "base_digest": "sha256:87dd7a3a6f2a945481cb1cbfbfa005fd2bc7c76dcc0abf5cfc4796cc54a24b33",
+    "source_digest_today": "sha256:87dd7a3a6f2a945481cb1cbfbfa005fd2bc7c76dcc0abf5cfc4796cc54a24b33",
     "source_bound": true,
     "execution": "merged_units"
   },
@@ -87,7 +87,7 @@
       "title": "K10 — a TÍPUS, NORMALIZÁLÁS ÉS SZÁMÍTÁSI PROFIL klauzulája",
       "closed_in": "CMD-VS-300-002-002 R35 (a szöveg) → R36 (a bekötés)",
       "guard": "npm run verify:v3ref — a K10-TYP-a és a K10-TYP-b fedett, a maradék három NEVEZETT hiánnyal nyitott; a kapu nem enged „félig fedett\" állapotot.",
-      "residual": "HÁROM klauzula NYITOTT, nevezett hiánnyal: K10-TYP-c (a PROFILVÁLTÁS hatása a korábbi tárolt értékre nincs mérve — egyetlen élő profil) · K10-TYP-d (a „korábbi verziójú vagy más PROFILÚ bemenet\" ága) · K10-TYP-e (a MEGFIGYELÉSI idő fogalma nincs a magban — a QNT-munka előfeltétele). Ezek NEM a blokkoló maradékai, hanem a klauzulák saját, kimondott hiányai."
+      "residual": "HÁROM klauzula NYITOTT, nevezett hiánnyal: K10-TYP-c (a PROFILVÁLTÁS hatása a korábbi tárolt értékre nincs mérve — KÉT élő profil áll, tehát a bizonyítás LEHETSÉGES, csak nem történt meg) · K10-TYP-d (a „korábbi verziójú vagy más PROFILÚ bemenet\" ISMÉTLÉSI és HIBAHATÁR-viselkedése; a sémaverzió HATÁRA az R37/R39-ben kimondva és a kanonikus úton is mérve) · K10-TYP-e (a MEGFIGYELÉSI idő fogalma nincs a magban — a QNT-munka előfeltétele). Ezek NEM a blokkoló maradékai, hanem a klauzulák saját, kimondott hiányai."
     },
     {
       "id": "OB-10",
@@ -2094,7 +2094,7 @@
       "external_decision": {
         "clause": "REV-N3c",
         "verdict": "accepted_in_reference",
-        "reason": "a szöveg saját adapter-feltételezésével: semleges, atomi befogadás és belső kvóta. A valódi beadók izolációját NEM fogadja bele."
+        "reason": "a szöveg saját adapter-feltételezésével: semleges, atomi befogadás és belső kvóta. A valódi beadók izolációját nem fogadom bele."
       }
     },
     {
@@ -2172,7 +2172,7 @@
       "external_decision": {
         "clause": "REV-N3c",
         "verdict": "accepted_in_reference",
-        "reason": "a szöveg saját adapter-feltételezésével: semleges, atomi befogadás és belső kvóta. A valódi beadók izolációját NEM fogadja bele."
+        "reason": "a szöveg saját adapter-feltételezésével: semleges, atomi befogadás és belső kvóta. A valódi beadók izolációját nem fogadom bele."
       }
     },
     {
@@ -2226,7 +2226,7 @@
       "external_decision": {
         "clause": "REV-N3c",
         "verdict": "accepted_in_reference",
-        "reason": "a szöveg saját adapter-feltételezésével: semleges, atomi befogadás és belső kvóta. A valódi beadók izolációját NEM fogadja bele."
+        "reason": "a szöveg saját adapter-feltételezésével: semleges, atomi befogadás és belső kvóta. A valódi beadók izolációját nem fogadom bele."
       }
     },
     {
@@ -3684,7 +3684,7 @@
       "external_decision": {
         "clause": "K05-DSC-c",
         "verdict": "partial",
-        "reason": "a tiltott mezőt tartalmazó vegyes eredmény egészbeni megtagadása bizonyított. A „minden adatkörre érvényes olvasási döntés” erősebb az explicit tiltás hiányánál; az adatkörre korlátozott engedő alap és a tényleges kiadás közötti bizonyíték nincs megadva. Ezt a különbséget NEM szabad átzöldíteni."
+        "reason": "a tiltott mezőt tartalmazó vegyes eredmény egészbeni megtagadása bizonyított. A „minden adatkörre érvényes olvasási döntés” erősebb az explicit tiltás hiányánál; az adatkörre korlátozott engedő alap és a tényleges kiadás közötti bizonyíték nincs megadva. Ezt a különbséget ne zöldítsd át."
       }
     },
     {
@@ -4819,7 +4819,7 @@
       "external_decision": {
         "clause": "K10-TYP-c",
         "verdict": "partial",
-        "reason": "KÉT profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok HAMIS. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell."
+        "reason": "két profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok hamis. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell."
       }
     },
     {
