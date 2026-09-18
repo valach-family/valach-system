@@ -8076,6 +8076,93 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'bemeneti oldalon.)',
   }),
   Object.freeze({
+    id: 'KUKA-185',
+    date: '2026-09-18',
+    title: 'AZ ÚJRASZÁMOLÁS CSAK KÉT MEZŐT VÉDETT — a többit ellenőrizetlenül vettük át',
+    what: 'Az R39-es csomag-generátor már ÚJRASZÁMOLTA a norma-láncot a kanonikus ítélővel, de a '
+      + 'beadott vetületnek csak a `result` és a `falsified_by` mezőjét vetette össze a sajátjával. '
+      + 'A többi jelentéssel bíró mező (`why` · `evidence_limit` · `covers` · `norm_id` · '
+      + '`content_review`) ELLENŐRZÉS NÉLKÜL került a kimenetbe. A külső ellenőrző fél (chatgpt-v3, '
+      + 'R41) három alakban mutatta meg: minden sorra `content_review: {state:"current", '
+      + 'reviewer:"invented"}` ⇒ a csomag **94 repóbeli tartalmi jóváhagyást** jelentett a valódi 0 '
+      + 'helyett · a részleges sorok hiány-szövege „Minden kész, nincs hiány."-ra írva ⇒ a HAMIS '
+      + 'mondat bekerült a gépi csomagba · `covers: ["K99"]` ⇒ idegen követelmény-hivatkozás. Mind '
+      + 'kilépés 0. Mellé: a NEGATÍV bizonyíték mondata puszta NÉV-EGYEZÉSBŐL számolt, nem a '
+      + 'szerződés szerint MINŐSÜLŐ tanúból.',
+    why_wrong: 'A „újraszámoljuk" mondat többet ígért, mint amit tett: a védelem HATÓKÖRE két mező '
+      + 'volt, a jelentés viszont az EGÉSZ sorról szólt. Egy részlegesen ellenőrzött átvétel '
+      + 'rosszabb a nyílt átvételnél, mert azt a látszatot kelti, hogy minden mező hitelesített '
+      + '(KUKA-093 a mérőn: a nulla lelet nem bizonyíték, ha nem volt min mérni).',
+    replaced_by: 'ROW_CONTRACT — a TELJES kimeneti szerződés EGY helyen, mezőnként megnevezett '
+      + 'otthonnal (kanonikus · helyi regiszter · futtató-cím · külső regiszter · származtatott).',
+    replacement: 'A sorok a KANONIKUS eredményből épülnek; a beadott vetület CSAK összevetésre '
+      + 'szolgál, és az összevetés a szerződés listájából jön — tehát új mezőre MAGÁTÓL kiterjed '
+      + '(KUKA-051). Ami nincs a szerződésben, az nem kerülhet a kimenetbe. A negatív bizonyíték a '
+      + 'MINŐSÜLŐ tanúra (`falsified_by`) és a szerződés szerinti jelöltekre támaszkodik.',
+    decision: 'D-VS-3052',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R41), három futtatható ellenpéldával — a saját, '
+      + 'R39-ben épített 20 esetes battériám mind a hármat átengedte.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_norm_chain_package.mjs']),
+        pattern: 'const ROW_CONTRACT = Object\\.freeze',
+        why: 'a teljes kimeneti szerződés EGY helyen áll, mezőnként' }),
+      Object.freeze({ paths: Object.freeze(['tools/v3_norm_chain_package.mjs']),
+        pattern: 'again\\.chain\\.map',
+        why: 'a sorok a KANONIKUS eredményből épülnek, nem a beadott vetületből' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({
+        pattern: 'const rows = ev\\.chain\\.map',
+        paths: ['tools/v3_norm_chain_package.mjs'],
+        reason: 'a beadott vetületből épített sor visszahozná az ellenőrizetlen átvételt',
+      }),
+    ]),
+    guard_note: 'gépi jel: `npm run proof:norm-chain-package` — NCP-02 mostantól 25 eset: a három '
+      + 'új mező-ellenpélda PIROS, a BELSŐ forrás-kötés esete PIROS, és a HŰ GYENGÍTÉS (egy tanú nem '
+      + 'minősül, a lánc ehhez újraszámolva) helyesen ZÖLD marad. A kilépési kódon mérve.',
+    lesson: 'A RÉSZLEGESEN ELLENŐRZÖTT ÁTVÉTEL ROSSZABB A NYÍLTNÁL. Ha egy összesítő azt mondja, '
+      + '„újraszámoltam", akkor a védelem HATÓKÖRÉT is ki kell mondani — különben az olvasó az EGÉSZ '
+      + 'sort hiszi hitelesítettnek. A helyes alak nem mezőnkénti toldozás, hanem EGY helyen '
+      + 'rögzített kimeneti szerződés, amiből a verifikáció SZÁRMAZIK: így az új mező védelme nem '
+      + 'külön munka, hanem következmény. **És egy származtatott mondat csak olyan tényből épülhet, '
+      + 'amit a kanonikus ítélő MÁR minősített** — a puszta név-egyezés nem bizonyíték (KUKA-038).',
+  }),
+  Object.freeze({
+    id: 'KUKA-186',
+    date: '2026-09-18',
+    title: 'A FELSŐ FORRÁS-LENYOMAT HELYES VOLT, A BELSŐK CSUPA NULLA — és ezt semmi nem vetette össze',
+    what: 'Az R39-ben bekötöttük, hogy a mérés `base_digest` mezője a MAI forrás-lenyomathoz '
+      + 'mérődjön. A külső ellenőrző fél (chatgpt-v3, R41) megmutatta, hogy ez CSAK a legfelső mezőt '
+      + 'kötötte: ha a `norm_inputs.expectation.base_digest` és MINDEN `mutation_results[i].'
+      + 'base_digest` csupa nullára van írva, miközben a felső helyes marad, a csomag kilépés 0-val '
+      + 'lefut — `source_bound: true` mellett —, mert az újraszámolás „egyező IDEGEN" elvárást és '
+      + 'tanúkat lát: önmagukhoz képest konzisztensek.',
+    why_wrong: 'A forrás-kötés így nem kötés, hanem FELIRAT: egyetlen mezőt igazol, és a rá épülő '
+      + 'egész bizonyíték-láncról hallgat. Két ép oldal (helyes felső lenyomat + magában '
+      + 'konzisztens elvárás) között pont a VISZONY hiányzott (KUKA-024).',
+    replaced_by: 'A kanonikus ítélőnek átadott ELVÁRÁS és MINDEN mutációs tanú forrás-hivatkozása is '
+      + 'a mai forrás-lenyomathoz mérve — nevezett megállással.',
+    replacement: 'Két új kötés a csomag átvételi útján: `expectation.base_digest === mai forrás`, és '
+      + 'egyetlen `mutation_results[i].base_digest` sem térhet el tőle (az első eltérő tanú nevesítve).',
+    decision: 'D-VS-3053',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R41/F41-02).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_norm_chain_package.mjs']),
+        pattern: 'inputs\\.expectation\\.base_digest !== sourceToday',
+        why: 'az ELVÁRÁS forrás-hivatkozása is a mai forráshoz kötve' }),
+    ]),
+    forbidden: Object.freeze([]),
+    guard_note: 'gépi jel: `npm run proof:norm-chain-package` NCP02-25 (a belső lenyomatok csupa '
+      + 'nulla ⇒ PIROS), a kilépési kódon. **Kimondva:** ez EGYMÁSNAK ELLENTMONDÓ mezők felismerése '
+      + '— attól egy helyi JSON nem válik kriptográfiailag hiteles futási tanúvá (a külső fél '
+      + 'kikötése), és az `evidence_limit` ezt továbbra is kimondja.',
+    lesson: 'EGY LENYOMAT-ELLENŐRZÉS CSAK AZT KÖTI, AMIT MEGNÉZ. Ahol egy bizonyíték-csomag TÖBB '
+      + 'helyen hivatkozik a forrásra (felső mező · az ítélő elvárása · tanúnként), ott MINDET a '
+      + 'tényleges forráshoz kell mérni — különben a részek egymáshoz képest konzisztensek '
+      + 'maradhatnak, miközben EGYIK SEM a mai kódról szól. A „forráshoz kötve" felirat addig '
+      + 'hazugság, amíg nem mondjuk meg, MELYIK hivatkozást kötöttük.',
+  }),
+  Object.freeze({
     id: 'KUKA-176',
     date: '2026-09-16',
     title: 'A HIBÁS ALAK CSAK AZ EGYIK ÁGON VOLT HIBA — a saját, egy körrel korábbi szerződésemen',

@@ -3119,3 +3119,72 @@ mondata szűkítve (a kompenzáló esemény saját jóváhagyási és audit-útj
 
 **Gépi jel:** `npm run docs:norm-chain` — a lap és a JSON a két mezőt külön hozza; `verify:kuka` a
 zárt döntés-szó halmazra. **Amire nincs gépi jel:** hogy egy ÚJ külső indok szó szerint került-e be.
+
+---
+
+## D-VS-3052 — a teljes kimeneti szerződés EGY helyen, és a sorok a kanonikus eredményből (2026-09-18)
+
+**Honnan:** a külső ellenőrző fél (chatgpt-v3) **F41-01** lelete a CMD-VS-300-002-002 **R41** lapon.
+
+**A lelet, mind a három reprodukálva.** Az R39-es generátor újraszámolta a láncot, de a beadott
+vetületnek csak **két** mezőjét (`result` · `falsified_by`) vetette össze a sajátjával; a többi
+jelentéssel bíró mező ellenőrzés nélkül került a kimenetbe. Mérve: kitalált `content_review` ⇒ a
+csomag **94 repóbeli jóváhagyást** jelentett a valódi **0** helyett · átírt hiány-szöveg ⇒ bekerült ·
+`covers: ['K99']` ⇒ bekerült. Mind kilépés 0.
+
+**Döntés — nem mezőnkénti toldozás (az ő kikötésük).** `ROW_CONTRACT`: a **teljes** kimeneti
+szerződés egy helyen, mezőnként megnevezett otthonnal — *kanonikus* (és a beadott vetületnek
+egyeznie kell vele) · *helyi regiszter* · *futtató-cím* · *külső regiszter* · *származtatott*. A
+sorok a **kanonikus eredményből** épülnek; a beadott vetület csak összevetésre szolgál, és az
+összevetés **a szerződés listájából** jön — tehát új mezőre magától kiterjed. Ami nincs a
+szerződésben, az nem kerülhet a kimenetbe.
+
+**A negatív bizonyíték is javítva:** a mondat a **minősülő** tanúra (`falsified_by`) és a szerződés
+szerinti jelöltekre támaszkodik, nem puszta név-egyezésre.
+
+**Gépi jel:** `npm run proof:norm-chain-package` → **25/25**, a kilépési kódon. A három új
+ellenpélda PIROS, és a **hű gyengítés** (egy tanú nem minősül, a lánc ehhez újraszámolva)
+helyesen **ZÖLD** marad — az őr, ami ezt is pirosra vinné, a másik irányba hazudna. KUKA-185.
+
+---
+
+## D-VS-3053 — minden forrás-hivatkozás a tényleges forráshoz kötve (2026-09-18)
+
+**Honnan:** a külső ellenőrző fél (chatgpt-v3) **F41-02** lelete az **R41** lapon.
+
+**A lelet.** Az R39-es forrás-kötés **csak a legfelső** mezőt nézte. Ha a
+`norm_inputs.expectation.base_digest` és **minden** `mutation_results[i].base_digest` csupa nullára
+van írva, miközben a felső helyes marad, a csomag kilépés 0-val lefut — `source_bound: true`
+mellett —, mert az újraszámolás „egyező **idegen**" elvárást és tanúkat lát.
+
+**Döntés.** A kanonikus ítélőnek átadott **elvárás** és **minden** mutációs tanú forrás-hivatkozása
+is a mai forrás-lenyomathoz mérve, nevezett megállással (az első eltérő tanú megnevezve).
+
+**Kimondva, az ő szavukkal:** ez **egymásnak ellentmondó mezők felismeréséről** szól; attól egy
+helyi JSON **nem** válik kriptográfiailag hiteles futási tanúvá. Az `evidence_limit` ezt továbbra is
+kimondja. **Gépi jel:** NCP02-25, a kilépési kódon. KUKA-186.
+
+---
+
+## D-VS-3054 — a „szó szerinti" külső indok MÉRÉS, nem ígéret (2026-09-18)
+
+**Honnan:** a külső ellenőrző fél (chatgpt-v3) **F41-03** lelete az **R41** lapon.
+
+**A lelet, és amit a saját mérésem hozzátett.** Az R37 óta azt állítottuk, hogy a 29 külső tartalmi
+döntés **szó szerinti** indokkal áll a repóban. Ők egy átfogalmazást találtak (`K05-DSC-c` utolsó
+mondata); a saját, ugyanebben a körben írt mérésem **még kettőt** (`REV-N3c` — „nem fogadom bele" →
+„nem fogadja bele"; `K10-TYP-c` — kiemelt nagybetűk). Tartalmi torzítás egyikben sem volt, de
+**idézetként pontatlan**.
+
+**Döntés.** Mind a három visszaállítva szó szerint, és az állítás **mérhetővé** téve: a rögzített
+forrás-lap (`v3ref/source-documents/R37_board_v1.md`) bekerült a repóba, és az **EXD-02**
+(`npm run verify:external-decisions`) minden tárolt indokot **szó szerint** keres benne,
+szóköz-normalizálás mellett — **mindkét irányban**: a forrás-lap minden klauzulájának meg kell lennie
+a regiszterben is. A saját megjegyzés az indokba nem keveredhet (tiltó minta).
+
+**Amit ez NEM mér, kimondva:** hogy a tárolt **verdikt** megfelel-e a külső döntés értelmének — az a
+szöveg értelmezése, nem az idézet pontossága.
+
+**Ugyanebben a körben javítva:** az **OB-9** maradék-szövegéből törölve a hamis „egyetlen élő
+profil" indok (két profil áll), és az **R38 board-lap** frissítve a repóbeli helyesbítéssel
+(3. változat) — a történeti eredményt a board verziózása őrzi.

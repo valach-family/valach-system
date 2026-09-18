@@ -230,6 +230,8 @@ const GUARD_HOME = Object.freeze({
   'KUKA-173': Object.freeze({ home: 'v3', note: 'a hozzáférési kapu a V3 magban él — a jel a P-AUT-object-neutral próba + M149–M152' }),
   'KUKA-174': Object.freeze({ home: 'v3', note: 'a fixtúra a V3 próba-fájljában él — a jel ugyanannak a próbának az (a) ága' }),
   'KUKA-175': Object.freeze({ home: 'v3', note: 'a darabolás közös deklarációja a V3 külső-ellenőrző könyvtárában él — a jel a verify:unit-admission UAD08; a KÜLSŐ burkolók bontása kimondottan MÉRETLEN' }),
+  'KUKA-186': Object.freeze({ home: 'v3', note: 'a belső forrás-kötések ellenőrzése a csomag-generátorban él — a jel az NCP02-25 eset, a kilépési kódon' }),
+  'KUKA-185': Object.freeze({ home: 'v3', note: 'a kimeneti szerződés (ROW_CONTRACT) és a teljes mező-összevetés itt fut — a jel a proof:norm-chain-package 25 esete' }),
   'KUKA-184': Object.freeze({ home: 'v3', note: 'a sémaverzió a KANONIKUS bevét-úton mérve — a jel a P-KSZ-ledger-truth új állítása és az M163 mutáció' }),
   'KUKA-183': Object.freeze({ home: 'v3', note: 'a soha nem dobó diagnosztikai megjelenítő (showValue) itt él — a jel a P-BEM-input-schema nyolc alakja és a verify:kuka tiltó-mintája' }),
   'KUKA-182': Object.freeze({ home: 'v3', note: 'a forrás-kötés és a kanonikus ítélő újrafuttatása a csomag-generátorban él — a jel a proof:norm-chain-package húsz esete, a kilépési kódon' }),
