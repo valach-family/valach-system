@@ -1,8 +1,8 @@
 {
   "program": "r85_chatgpt-v3.core.mjs",
-  "source_commit": "29bebb70bcee365a6e325d0128ca54aee7b4bc4b",
+  "source_commit": "dc6550087557ae9deef147e40cd3f28577c0bfb4",
   "node": "v22.22.2",
-  "at": "2026-09-18T21:00:26.887Z",
+  "at": "2026-09-18T22:15:20.905Z",
   "verbatim": true,
   "cases": [
     {
@@ -18,6 +18,7 @@
           "recorded_at": null,
           "applied": [],
           "grant_axis": "projected_row",
+          "grant_event_id": null,
           "effective": true,
           "reason": "membership_effective"
         }
@@ -55,6 +56,7 @@
           "recorded_at": null,
           "applied": [],
           "grant_axis": "event",
+          "grant_event_id": 1,
           "effective": true,
           "reason": "membership_effective"
         },
