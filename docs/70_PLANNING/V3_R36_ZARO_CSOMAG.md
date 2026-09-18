@@ -214,6 +214,8 @@ telepítés nem része a körnek.
 | tanulság-regiszter | `npm run verify:kuka` | **277/277 PASS** |
 | döntés-számok | `npm run verify:decision-numbers` | **4/4 PASS** · a következő szabad: D-VS-3044 |
 | olvasható változat | `npm run verify:doc-html` | **9/9 PASS** |
+| MNY-01 formai ellenpélda | `npm run proof:mny01-form` | **7/7** (0 bukott) |
+| **TELJES SÖPRÉS** | `npm run verify:sweep` | **10 verifier · 10 zöld · 0 env-kihagyás · 0 piros** (606 mp) |
 | **külső lánc (terheletlen gépen)** | `node v3ref/external-checks/run-all.mjs` | **17/19 program MEGFELEL · 2 ENV-KIHAGYÁS (nevezett helyettessel) · 0 ELTÉRÉS · kilépés 0** |
 
 **A három korábban piros program a mai revízión:** `r77` **39/39** · `r79core` **18/18** ·
