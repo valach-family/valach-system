@@ -8163,6 +8163,54 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'hazugság, amíg nem mondjuk meg, MELYIK hivatkozást kötöttük.',
   }),
   Object.freeze({
+    id: 'KUKA-189',
+    date: '2026-09-18',
+    title: 'A DARABSZÁM NEM A TARTALOM — a történet-megőrzést SZÁMLÁLÓ pillanatkép „védte"',
+    what: 'Az R44-es ismétlés- és hibahatár-próbám a `command` · `command_event` · `stock_movement` '
+      + 'DARABSZÁMÁT és EGYETLEN egyenleg-szöveget hasonlított — ráadásul csak a sorozat VÉGÉN. A '
+      + 'külső ellenőrző fél a bevét-út ELUTASÍTÓ ágán átírt egy KORÁBBI, már lezárt esemény '
+      + 'időpontját (`UPDATE command_event SET at = \'1999-…\'`), és a battéria mind az 58 próbája '
+      + 'ZÖLD maradt. A saját fámon megismételve a mérés `changes: 1` volt — tehát VALÓBAN átírt egy '
+      + 'régi sort —, az eredmény mégis 58/58 PASS. Ugyanez a hiány állt a bemeneti próbán: ott az '
+      + '„nem írt semmit" állítás ÜRES tárolón mért darabszámon állt.',
+    why_wrong: '„Ugyanannyi sor" és „ugyanaz a sor" KÉT KÜLÖN ÁLLÍTÁS — a történet-megőrzés az '
+      + 'utóbbiról szól. A darabszám HELYETTESÍTŐ (KUKA-073), és pontosan azt a kárt nem látja, '
+      + 'amelyik a leggyakoribb: a NÉMA átírást. Két további rés ugyanebben: csak a VÉGÉN mérve egy '
+      + 'köztes eltérés visszaállítása is rejtve marad; és ÜRES tárolón a „nem írt" állítás '
+      + 'alapsokaság nélküli (KUKA-093) — a meglévő történet érintetlenségéről semmit nem mond.',
+    replaced_by: 'TELJES TARTALMI pillanatkép: a három nevezett tábla MINDEN oszlopa, '
+      + 'determinisztikus rendezésben, a tárolt nyugta/eredmény tartalmával együtt — és MINDEN EGYES '
+      + 'lépés után, nem csak a végén. A JOGOS audit-bejegyzés külön mérce: a kiadás-leltár '
+      + 'HOZZÁFŰZHET, de a KORÁBBI sorait nem írhatja át. A bemeneti próba pedig ELŐZMÉNNYEL indul '
+      + '(egy jogos bevét), és az elutasításokat ARRA méri.',
+    replacement: 'Ahol egy állítás azt mondja, hogy „a múlt érintetlen", ott a mérce a TARTALOM, nem '
+      + 'a darabszám — és a mérés alanya a MÁR MEGLÉVŐ történet, nem egy üres tároló. Mezőt (időpont, '
+      + 'azonosító, eredmény-szöveg) azért, hogy zöld maradjon, nem szűrünk ki.',
+    decision: 'D-VS-3056',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, CMD-VS-300-002-002 R45/F45-01), futtatható '
+      + 'ellenpéldával; a saját fámon reprodukálva (a rontás `changes: 1`-et mért, a battéria mégis '
+      + '58/58 PASS-t adott).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/run.mjs']),
+        pattern: 'const historySnapshot = \\(store\\) =>',
+        why: 'a teljes tartalmi pillanatkép EGY nevezett feloldóban, a próbák onnan hívják' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/run.mjs']),
+        pattern: 'appendedOnly',
+        why: 'a jogos napló-hozzáfűzés és az előzmény-átírás KÜLÖN mérce' }),
+    ]),
+    forbidden: Object.freeze([]),
+    guard_note: 'gépi jel: `npm run verify:v3ref` — az **M173** (a külső fél saját ellenpéldája: egy '
+      + 'korábbi esemény időpontjának átírása az elutasító ágon) és az **M174** (a tárolt '
+      + 'eredmény-tartalom kiürítése a bemeneti elutasító ágon) a NEVEZETT állítást buktatja. '
+      + 'AMIRE NINCS GÉPI JEL, KIMONDVA: a pillanatkép a HÁROM nevezett táblára és a kiadás-leltárra '
+      + 'áll — a séma többi táblájának megőrzését ez a próba nem méri.',
+    lesson: 'A DARABSZÁM NEM A TARTALOM, ÉS A SOROZAT VÉGE NEM A SOROZAT. Ha egy állítás a MÚLT '
+      + 'ÉRINTETLENSÉGÉRŐL szól, akkor a mérce a teljes, rendezett TARTALOM, minden lépés után — és '
+      + 'kell hozzá MEGLÉVŐ múlt, különben a mérés üres alapon zöldell (KUKA-093). A jogos új '
+      + 'bejegyzést és a régi sor átírását pedig KÜLÖN kell kezelni, különben vagy a naplózást '
+      + 'tiltjuk le, vagy a hamisítást engedjük át.',
+  }),
+  Object.freeze({
     id: 'KUKA-188',
     date: '2026-09-18',
     title: 'A SZELETELT MÉRÉS INDOKA A SZELET VÉLETLENJE LETT — az unió azonos rangnál az ELSŐT vette',
@@ -8268,7 +8316,10 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'ahhoz, hogy a kárt észrevegye (M169) — utóbbi a KUKA-054 alakja a mutáción: ha a próba '
       + 'világában csak az alapértelmezett érték él, a beégetett alapértelmezés megkülönböztethetetlen '
       + 'a helyes viselkedéstől. Negyedszer előjövő osztály (M159 · M165 · M167 · M169) — ezért kap '
-      + 'saját bejegyzést.',
+      + 'saját bejegyzést. **ÉS EGY MONDAT-FEGYELEM (R45, a külső fél kikötése):** a TÚLÉLŐ mutációból '
+      + 'nem következik, hogy „egyetlen egysoros rontás sem tudja megdönteni" — az általános '
+      + 'lehetetlenségi állítás mérésen túli. Kimondani azt szabad, MELYIK alakot próbáltuk ki, és '
+      + 'hol áll ma a mérés határa.',
   }),
   Object.freeze({
     id: 'KUKA-176',

@@ -1,11 +1,11 @@
 {
   "schema": "v3-norm-chain-package/2",
   "id": "NCP-01",
-  "at": "2026-09-18T19:55:11.439Z",
+  "at": "2026-09-18T20:59:35.777Z",
   "measured_from": {
     "file": "v3ref/v3ref-mutation-result.json",
-    "base_digest": "sha256:de296784b3b5d84e9fc16cd0e76532af829bbdf1d6809f3629877556c12f4fd5",
-    "source_digest_today": "sha256:de296784b3b5d84e9fc16cd0e76532af829bbdf1d6809f3629877556c12f4fd5",
+    "base_digest": "sha256:c4b7c5ac689d476fc01f125d1a8b0ff34ad80f1b419c53157d43a3e75ff11b20",
+    "source_digest_today": "sha256:c4b7c5ac689d476fc01f125d1a8b0ff34ad80f1b419c53157d43a3e75ff11b20",
     "source_bound": true,
     "execution": "merged_units"
   },
@@ -36,12 +36,14 @@
   "totals": {
     "norms": 10,
     "clauses": 29,
-    "chain_rows": 105,
+    "chain_rows": 106,
     "covered": 76,
-    "partially_covered": 17,
-    "not_falsified": 4,
+    "partially_covered": 20,
+    "not_falsified": 2,
     "no_evidence": 8,
     "content_review_current": 0,
+    "external_decision_clauses": 29,
+    "external_decision_rows": 33,
     "external_decisions": 29
   },
   "open_blockers": [
@@ -189,6 +191,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N1a",
         "verdict": "accepted_in_reference",
         "reason": "P-CMD-finalize-gate a befogadást, ismétlést és olvasást ugyanazon tranzakciós határon megvonással méri. Több író külön kapu."
@@ -249,6 +252,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N1b",
         "verdict": "accepted_in_reference",
         "reason": "korábbi parancs/nyugta/kiadás tartalmi pillanatképe megmarad; jogos új audit-sor hozzáfűzhető. Nem puszta darabszám."
@@ -283,6 +287,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N1c",
         "verdict": "open",
         "reason": "a joghatás korrekciós eseménye és alkalmazandó profilja hiányzik."
@@ -342,6 +347,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2a",
         "verdict": "accepted_in_reference",
         "reason": "bitemporális, grant-axis, evidence-home és grant-atomic próbák elkülönítik a két tengelyt, a jövőbeli és utólagos rögzítést. A projected_row gyengébb történeti tanú marad, nem teljes eseménynapló."
@@ -401,6 +407,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2a",
         "verdict": "accepted_in_reference",
         "reason": "bitemporális, grant-axis, evidence-home és grant-atomic próbák elkülönítik a két tengelyt, a jövőbeli és utólagos rögzítést. A projected_row gyengébb történeti tanú marad, nem teljes eseménynapló."
@@ -460,6 +467,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2a",
         "verdict": "accepted_in_reference",
         "reason": "bitemporális, grant-axis, evidence-home és grant-atomic próbák elkülönítik a két tengelyt, a jövőbeli és utólagos rögzítést. A projected_row gyengébb történeti tanú marad, nem teljes eseménynapló."
@@ -519,6 +527,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2a",
         "verdict": "accepted_in_reference",
         "reason": "bitemporális, grant-axis, evidence-home és grant-atomic próbák elkülönítik a két tengelyt, a jövőbeli és utólagos rögzítést. A projected_row gyengébb történeti tanú marad, nem teljes eseménynapló."
@@ -578,6 +587,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2a",
         "verdict": "accepted_in_reference",
         "reason": "bitemporális, grant-axis, evidence-home és grant-atomic próbák elkülönítik a két tengelyt, a jövőbeli és utólagos rögzítést. A projected_row gyengébb történeti tanú marad, nem teljes eseménynapló."
@@ -637,6 +647,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2a",
         "verdict": "accepted_in_reference",
         "reason": "bitemporális, grant-axis, evidence-home és grant-atomic próbák elkülönítik a két tengelyt, a jövőbeli és utólagos rögzítést. A projected_row gyengébb történeti tanú marad, nem teljes eseménynapló."
@@ -696,6 +707,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2a",
         "verdict": "accepted_in_reference",
         "reason": "bitemporális, grant-axis, evidence-home és grant-atomic próbák elkülönítik a két tengelyt, a jövőbeli és utólagos rögzítést. A projected_row gyengébb történeti tanú marad, nem teljes eseménynapló."
@@ -755,6 +767,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2a",
         "verdict": "accepted_in_reference",
         "reason": "bitemporális, grant-axis, evidence-home és grant-atomic próbák elkülönítik a két tengelyt, a jövőbeli és utólagos rögzítést. A projected_row gyengébb történeti tanú marad, nem teljes eseménynapló."
@@ -814,6 +827,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2a",
         "verdict": "accepted_in_reference",
         "reason": "bitemporális, grant-axis, evidence-home és grant-atomic próbák elkülönítik a két tengelyt, a jövőbeli és utólagos rögzítést. A projected_row gyengébb történeti tanú marad, nem teljes eseménynapló."
@@ -873,6 +887,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2a",
         "verdict": "accepted_in_reference",
         "reason": "bitemporális, grant-axis, evidence-home és grant-atomic próbák elkülönítik a két tengelyt, a jövőbeli és utólagos rögzítést. A projected_row gyengébb történeti tanú marad, nem teljes eseménynapló."
@@ -932,6 +947,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2a",
         "verdict": "accepted_in_reference",
         "reason": "bitemporális, grant-axis, evidence-home és grant-atomic próbák elkülönítik a két tengelyt, a jövőbeli és utólagos rögzítést. A projected_row gyengébb történeti tanú marad, nem teljes eseménynapló."
@@ -991,6 +1007,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2a",
         "verdict": "accepted_in_reference",
         "reason": "bitemporális, grant-axis, evidence-home és grant-atomic próbák elkülönítik a két tengelyt, a jövőbeli és utólagos rögzítést. A projected_row gyengébb történeti tanú marad, nem teljes eseménynapló."
@@ -1044,6 +1061,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2a",
         "verdict": "accepted_in_reference",
         "reason": "bitemporális, grant-axis, evidence-home és grant-atomic próbák elkülönítik a két tengelyt, a jövőbeli és utólagos rögzítést. A projected_row gyengébb történeti tanú marad, nem teljes eseménynapló."
@@ -1097,6 +1115,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2a",
         "verdict": "accepted_in_reference",
         "reason": "bitemporális, grant-axis, evidence-home és grant-atomic próbák elkülönítik a két tengelyt, a jövőbeli és utólagos rögzítést. A projected_row gyengébb történeti tanú marad, nem teljes eseménynapló."
@@ -1150,6 +1169,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2a",
         "verdict": "accepted_in_reference",
         "reason": "bitemporális, grant-axis, evidence-home és grant-atomic próbák elkülönítik a két tengelyt, a jövőbeli és utólagos rögzítést. A projected_row gyengébb történeti tanú marad, nem teljes eseménynapló."
@@ -1210,6 +1230,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2b",
         "verdict": "accepted_in_reference",
         "reason": "a review-circle a megnevezett időablak és alany/könyv szerint számított, a nem érintettek kimaradnak, az eredeti parancstörténet változatlan. Ez nem korrekció végrehajtása."
@@ -1270,6 +1291,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2b",
         "verdict": "accepted_in_reference",
         "reason": "a review-circle a megnevezett időablak és alany/könyv szerint számított, a nem érintettek kimaradnak, az eredeti parancstörténet változatlan. Ez nem korrekció végrehajtása."
@@ -1330,6 +1352,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2b",
         "verdict": "accepted_in_reference",
         "reason": "a review-circle a megnevezett időablak és alany/könyv szerint számított, a nem érintettek kimaradnak, az eredeti parancstörténet változatlan. Ez nem korrekció végrehajtása."
@@ -1390,6 +1413,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N2b",
         "verdict": "accepted_in_reference",
         "reason": "a review-circle a megnevezett időablak és alany/könyv szerint számított, a nem érintettek kimaradnak, az eredeti parancstörténet változatlan. Ez nem korrekció végrehajtása."
@@ -1444,6 +1468,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N3a",
         "verdict": "accepted_in_reference",
         "reason": "műveletenkénti hatáskör, felfüggesztés, ép bizonyíték és hatályosulási pont vizsgált; jogosulatlan hatás nem keletkezik."
@@ -1492,6 +1517,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N3a",
         "verdict": "accepted_in_reference",
         "reason": "műveletenkénti hatáskör, felfüggesztés, ép bizonyíték és hatályosulási pont vizsgált; jogosulatlan hatás nem keletkezik."
@@ -1546,6 +1572,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N3a",
         "verdict": "accepted_in_reference",
         "reason": "műveletenkénti hatáskör, felfüggesztés, ép bizonyíték és hatályosulási pont vizsgált; jogosulatlan hatás nem keletkezik."
@@ -1600,6 +1627,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N3a",
         "verdict": "accepted_in_reference",
         "reason": "műveletenkénti hatáskör, felfüggesztés, ép bizonyíték és hatályosulási pont vizsgált; jogosulatlan hatás nem keletkezik."
@@ -1654,6 +1682,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N3a",
         "verdict": "accepted_in_reference",
         "reason": "műveletenkénti hatáskör, felfüggesztés, ép bizonyíték és hatályosulási pont vizsgált; jogosulatlan hatás nem keletkezik."
@@ -1708,6 +1737,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N3a",
         "verdict": "accepted_in_reference",
         "reason": "műveletenkénti hatáskör, felfüggesztés, ép bizonyíték és hatályosulási pont vizsgált; jogosulatlan hatás nem keletkezik."
@@ -1762,6 +1792,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N3a",
         "verdict": "accepted_in_reference",
         "reason": "műveletenkénti hatáskör, felfüggesztés, ép bizonyíték és hatályosulási pont vizsgált; jogosulatlan hatás nem keletkezik."
@@ -1822,6 +1853,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N3a",
         "verdict": "accepted_in_reference",
         "reason": "műveletenkénti hatáskör, felfüggesztés, ép bizonyíték és hatályosulási pont vizsgált; jogosulatlan hatás nem keletkezik."
@@ -1882,6 +1914,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N3a",
         "verdict": "accepted_in_reference",
         "reason": "műveletenkénti hatáskör, felfüggesztés, ép bizonyíték és hatályosulási pont vizsgált; jogosulatlan hatás nem keletkezik."
@@ -1960,6 +1993,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N3b",
         "verdict": "accepted_in_reference",
         "reason": "bejelentésből nem keletkezik olvasási jog; semleges válasz és jogos elbírálói olvasás ellenpárja megvan."
@@ -2038,6 +2072,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N3b",
         "verdict": "accepted_in_reference",
         "reason": "bejelentésből nem keletkezik olvasási jog; semleges válasz és jogos elbírálói olvasás ellenpárja megvan."
@@ -2092,6 +2127,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N3c",
         "verdict": "accepted_in_reference",
         "reason": "a szöveg saját adapter-feltételezésével: semleges, atomi befogadás és belső kvóta. A valódi beadók izolációját nem fogadom bele."
@@ -2170,6 +2206,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N3c",
         "verdict": "accepted_in_reference",
         "reason": "a szöveg saját adapter-feltételezésével: semleges, atomi befogadás és belső kvóta. A valódi beadók izolációját nem fogadom bele."
@@ -2224,6 +2261,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N3c",
         "verdict": "accepted_in_reference",
         "reason": "a szöveg saját adapter-feltételezésével: semleges, atomi befogadás és belső kvóta. A valódi beadók izolációját nem fogadom bele."
@@ -2259,6 +2297,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N3d",
         "verdict": "open",
         "reason": "valódi szerveroldali beadókontextus és mérhető izoláció nincs; a közös unattributed vödör nem helyettesíti."
@@ -2293,6 +2332,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N3e",
         "verdict": "open",
         "reason": "a technikai karantén saját művelete, hatásköre, oka és auditja nincs meg."
@@ -2328,6 +2368,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N4a",
         "verdict": "open",
         "reason": "az eredetire hivatkozó kompenzáló esemény nincs."
@@ -2363,6 +2404,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N4b",
         "verdict": "open",
         "reason": "a meglévő hatáskörmodell használható alap, de a kompenzáló esemény saját jóváhagyási és auditútját még bizonyítani kell. Az „egyetlen előfeltétel” nem jelenti, hogy a bekötés automatikusan kész."
@@ -2441,6 +2483,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N5a",
         "verdict": "accepted_in_reference",
         "reason": "a megnevezett belépési és engedő utakra: ban-paths, ban-matrix, entry-points, pozitív és negatív cellák. Jövőbeli adapterekre nem terjed ki automatikusan."
@@ -2519,6 +2562,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N5a",
         "verdict": "accepted_in_reference",
         "reason": "a megnevezett belépési és engedő utakra: ban-paths, ban-matrix, entry-points, pozitív és negatív cellák. Jövőbeli adapterekre nem terjed ki automatikusan."
@@ -2597,6 +2641,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N5a",
         "verdict": "accepted_in_reference",
         "reason": "a megnevezett belépési és engedő utakra: ban-paths, ban-matrix, entry-points, pozitív és negatív cellák. Jövőbeli adapterekre nem terjed ki automatikusan."
@@ -2675,6 +2720,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N5a",
         "verdict": "accepted_in_reference",
         "reason": "a megnevezett belépési és engedő utakra: ban-paths, ban-matrix, entry-points, pozitív és negatív cellák. Jövőbeli adapterekre nem terjed ki automatikusan."
@@ -2753,6 +2799,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N5a",
         "verdict": "accepted_in_reference",
         "reason": "a megnevezett belépési és engedő utakra: ban-paths, ban-matrix, entry-points, pozitív és negatív cellák. Jövőbeli adapterekre nem terjed ki automatikusan."
@@ -2801,6 +2848,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N5a",
         "verdict": "accepted_in_reference",
         "reason": "a megnevezett belépési és engedő utakra: ban-paths, ban-matrix, entry-points, pozitív és negatív cellák. Jövőbeli adapterekre nem terjed ki automatikusan."
@@ -2849,6 +2897,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N5a",
         "verdict": "accepted_in_reference",
         "reason": "a megnevezett belépési és engedő utakra: ban-paths, ban-matrix, entry-points, pozitív és negatív cellák. Jövőbeli adapterekre nem terjed ki automatikusan."
@@ -2897,6 +2946,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N5a",
         "verdict": "accepted_in_reference",
         "reason": "a megnevezett belépési és engedő utakra: ban-paths, ban-matrix, entry-points, pozitív és negatív cellák. Jövőbeli adapterekre nem terjed ki automatikusan."
@@ -2963,6 +3013,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N5b",
         "verdict": "accepted_in_reference",
         "reason": "ok→fajta→hatókör, független könyv/hitelesítő ellenpár, hiányos és ellentmondó tárolt rekord elutasítása."
@@ -3029,6 +3080,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N5b",
         "verdict": "accepted_in_reference",
         "reason": "ok→fajta→hatókör, független könyv/hitelesítő ellenpár, hiányos és ellentmondó tárolt rekord elutasítása."
@@ -3095,6 +3147,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N5b",
         "verdict": "accepted_in_reference",
         "reason": "ok→fajta→hatókör, független könyv/hitelesítő ellenpár, hiányos és ellentmondó tárolt rekord elutasítása."
@@ -3161,6 +3214,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N5b",
         "verdict": "accepted_in_reference",
         "reason": "ok→fajta→hatókör, független könyv/hitelesítő ellenpár, hiányos és ellentmondó tárolt rekord elutasítása."
@@ -3227,6 +3281,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N5b",
         "verdict": "accepted_in_reference",
         "reason": "ok→fajta→hatókör, független könyv/hitelesítő ellenpár, hiányos és ellentmondó tárolt rekord elutasítása."
@@ -3275,6 +3330,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N5b",
         "verdict": "accepted_in_reference",
         "reason": "ok→fajta→hatókör, független könyv/hitelesítő ellenpár, hiányos és ellentmondó tárolt rekord elutasítása."
@@ -3323,6 +3379,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N5b",
         "verdict": "accepted_in_reference",
         "reason": "ok→fajta→hatókör, független könyv/hitelesítő ellenpár, hiányos és ellentmondó tárolt rekord elutasítása."
@@ -3370,6 +3427,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N5c",
         "verdict": "accepted_in_reference",
         "reason": "a korábbi történet és független jogosultak joga megmarad; tiltásból nem keletkezik múltbeli érvénytelenség."
@@ -3417,6 +3475,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "REV-N5c",
         "verdict": "accepted_in_reference",
         "reason": "a korábbi történet és független jogosultak joga megmarad; tiltásból nem keletkezik múltbeli érvénytelenség."
@@ -3470,6 +3529,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "K05-DSC-a",
         "verdict": "accepted_in_reference",
         "reason": "típus/verzió szerinti eredményséma, a kérő címkéjétől független besorolás, ismeretlen verzió ellenpár."
@@ -3523,6 +3583,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "K05-DSC-b",
         "verdict": "accepted_in_reference",
         "reason": "beágyazás, második tömbelem, hibás levéltípus és ismeretlen mező ellenőrzött, semleges olvasási elutasítással."
@@ -3576,6 +3637,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "K05-DSC-b",
         "verdict": "accepted_in_reference",
         "reason": "beágyazás, második tömbelem, hibás levéltípus és ismeretlen mező ellenőrzött, semleges olvasási elutasítással."
@@ -3629,6 +3691,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "K05-DSC-b",
         "verdict": "accepted_in_reference",
         "reason": "beágyazás, második tömbelem, hibás levéltípus és ismeretlen mező ellenőrzött, semleges olvasási elutasítással."
@@ -3682,6 +3745,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "K05-DSC-c",
         "verdict": "partial",
         "reason": "a tiltott mezőt tartalmazó vegyes eredmény egészbeni megtagadása bizonyított. A „minden adatkörre érvényes olvasási döntés” erősebb az explicit tiltás hiányánál; az adatkörre korlátozott engedő alap és a tényleges kiadás közötti bizonyíték nincs megadva. Ezt a különbséget ne zöldítsd át."
@@ -3747,6 +3811,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "K05-DSC-d",
         "verdict": "accepted_in_reference",
         "reason": "EGYÜTT: P-A08 + P-CMD-finalize-gate + P-CMD-release-effectuation. P-A08 önmagában a hatályosulási versenyt nem fedi; a kiegészítő bizonyíték-kötést rögzíteni kell."
@@ -3806,6 +3871,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "K05-DSC-d",
         "verdict": "accepted_in_reference",
         "reason": "EGYÜTT: P-A08 + P-CMD-finalize-gate + P-CMD-release-effectuation. P-A08 önmagában a hatályosulási versenyt nem fedi; a kiegészítő bizonyíték-kötést rögzíteni kell."
@@ -3865,6 +3931,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "K05-DSC-d",
         "verdict": "accepted_in_reference",
         "reason": "EGYÜTT: P-A08 + P-CMD-finalize-gate + P-CMD-release-effectuation. P-A08 önmagában a hatályosulási versenyt nem fedi; a kiegészítő bizonyíték-kötést rögzíteni kell."
@@ -3920,8 +3987,15 @@
       "external_decision": {
         "clause": "K10-TYP-a",
         "verdict": "partial",
-        "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
-        "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+        "source": "R45",
+        "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-a",
+          "verdict": "partial",
+          "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+          "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+        }
       }
     },
     {
@@ -3974,8 +4048,15 @@
       "external_decision": {
         "clause": "K10-TYP-a",
         "verdict": "partial",
-        "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
-        "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+        "source": "R45",
+        "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-a",
+          "verdict": "partial",
+          "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+          "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+        }
       }
     },
     {
@@ -4028,8 +4109,15 @@
       "external_decision": {
         "clause": "K10-TYP-a",
         "verdict": "partial",
-        "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
-        "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+        "source": "R45",
+        "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-a",
+          "verdict": "partial",
+          "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+          "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+        }
       }
     },
     {
@@ -4066,7 +4154,7 @@
         },
         {
           "id": "M171",
-          "what": "BEM-01 / KAT-01 / R43 — A KANONIZÁLÁS NEM ÍRÓDIK VISSZA: a profil-kötés a NYERS mennyiség-szöveget hagyja a tartalomban, tehát a `\"10\"` és a `\"10.000\"` KÜLÖNBÖZŐ parancs-azonosságot kapna — ugyanaz a jelentés MÁS írásmódban másodszor is könyvelne. Ez a KANONIZÁLÁS oldala; az M170 ugyanennek a garanciának a MÁSIK helyszíne (maga az azonosság-összeállítás) — két külön kódhely, két külön ellenpár.",
+          "what": "BEM-01 / KAT-01 / R43 — A KANONIZÁLÁS NEM ÍRÓDIK VISSZA: a profil-kötés a NYERS mennyiség-szöveget hagyja a tartalomban, tehát a `\"10\"` és a `\"10.000\"` KÜLÖNBÖZŐ parancs-azonosságot kap — a formázás azonossággá válik. MÉRT HATÁS (R45): a második, másként írt beadás nem visszajátszás; a KETTŐS könyvelést az azonosság-őr fogja meg, tehát a kár itt a JOGOS ismétlés elakadása, nem a dupla mozgás. Ez a KANONIZÁLÁS oldala; az M170 ugyanennek a garanciának a MÁSIK helyszíne (az azonosság-összeállítás).",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         }
@@ -4088,8 +4176,15 @@
       "external_decision": {
         "clause": "K10-TYP-a",
         "verdict": "partial",
-        "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
-        "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+        "source": "R45",
+        "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-a",
+          "verdict": "partial",
+          "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+          "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+        }
       }
     },
     {
@@ -4126,7 +4221,7 @@
         },
         {
           "id": "M171",
-          "what": "BEM-01 / KAT-01 / R43 — A KANONIZÁLÁS NEM ÍRÓDIK VISSZA: a profil-kötés a NYERS mennyiség-szöveget hagyja a tartalomban, tehát a `\"10\"` és a `\"10.000\"` KÜLÖNBÖZŐ parancs-azonosságot kapna — ugyanaz a jelentés MÁS írásmódban másodszor is könyvelne. Ez a KANONIZÁLÁS oldala; az M170 ugyanennek a garanciának a MÁSIK helyszíne (maga az azonosság-összeállítás) — két külön kódhely, két külön ellenpár.",
+          "what": "BEM-01 / KAT-01 / R43 — A KANONIZÁLÁS NEM ÍRÓDIK VISSZA: a profil-kötés a NYERS mennyiség-szöveget hagyja a tartalomban, tehát a `\"10\"` és a `\"10.000\"` KÜLÖNBÖZŐ parancs-azonosságot kap — a formázás azonossággá válik. MÉRT HATÁS (R45): a második, másként írt beadás nem visszajátszás; a KETTŐS könyvelést az azonosság-őr fogja meg, tehát a kár itt a JOGOS ismétlés elakadása, nem a dupla mozgás. Ez a KANONIZÁLÁS oldala; az M170 ugyanennek a garanciának a MÁSIK helyszíne (az azonosság-összeállítás).",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         }
@@ -4148,8 +4243,15 @@
       "external_decision": {
         "clause": "K10-TYP-a",
         "verdict": "partial",
-        "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
-        "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+        "source": "R45",
+        "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-a",
+          "verdict": "partial",
+          "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+          "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+        }
       }
     },
     {
@@ -4186,7 +4288,7 @@
         },
         {
           "id": "M171",
-          "what": "BEM-01 / KAT-01 / R43 — A KANONIZÁLÁS NEM ÍRÓDIK VISSZA: a profil-kötés a NYERS mennyiség-szöveget hagyja a tartalomban, tehát a `\"10\"` és a `\"10.000\"` KÜLÖNBÖZŐ parancs-azonosságot kapna — ugyanaz a jelentés MÁS írásmódban másodszor is könyvelne. Ez a KANONIZÁLÁS oldala; az M170 ugyanennek a garanciának a MÁSIK helyszíne (maga az azonosság-összeállítás) — két külön kódhely, két külön ellenpár.",
+          "what": "BEM-01 / KAT-01 / R43 — A KANONIZÁLÁS NEM ÍRÓDIK VISSZA: a profil-kötés a NYERS mennyiség-szöveget hagyja a tartalomban, tehát a `\"10\"` és a `\"10.000\"` KÜLÖNBÖZŐ parancs-azonosságot kap — a formázás azonossággá válik. MÉRT HATÁS (R45): a második, másként írt beadás nem visszajátszás; a KETTŐS könyvelést az azonosság-őr fogja meg, tehát a kár itt a JOGOS ismétlés elakadása, nem a dupla mozgás. Ez a KANONIZÁLÁS oldala; az M170 ugyanennek a garanciának a MÁSIK helyszíne (az azonosság-összeállítás).",
           "verdict": "CAUGHT",
           "qualifying_witness": true
         }
@@ -4208,8 +4310,15 @@
       "external_decision": {
         "clause": "K10-TYP-a",
         "verdict": "partial",
-        "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
-        "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+        "source": "R45",
+        "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-a",
+          "verdict": "partial",
+          "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+          "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+        }
       }
     },
     {
@@ -4246,7 +4355,7 @@
         },
         {
           "id": "M171",
-          "what": "BEM-01 / KAT-01 / R43 — A KANONIZÁLÁS NEM ÍRÓDIK VISSZA: a profil-kötés a NYERS mennyiség-szöveget hagyja a tartalomban, tehát a `\"10\"` és a `\"10.000\"` KÜLÖNBÖZŐ parancs-azonosságot kapna — ugyanaz a jelentés MÁS írásmódban másodszor is könyvelne. Ez a KANONIZÁLÁS oldala; az M170 ugyanennek a garanciának a MÁSIK helyszíne (maga az azonosság-összeállítás) — két külön kódhely, két külön ellenpár.",
+          "what": "BEM-01 / KAT-01 / R43 — A KANONIZÁLÁS NEM ÍRÓDIK VISSZA: a profil-kötés a NYERS mennyiség-szöveget hagyja a tartalomban, tehát a `\"10\"` és a `\"10.000\"` KÜLÖNBÖZŐ parancs-azonosságot kap — a formázás azonossággá válik. MÉRT HATÁS (R45): a második, másként írt beadás nem visszajátszás; a KETTŐS könyvelést az azonosság-őr fogja meg, tehát a kár itt a JOGOS ismétlés elakadása, nem a dupla mozgás. Ez a KANONIZÁLÁS oldala; az M170 ugyanennek a garanciának a MÁSIK helyszíne (az azonosság-összeállítás).",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         }
@@ -4268,8 +4377,15 @@
       "external_decision": {
         "clause": "K10-TYP-a",
         "verdict": "partial",
-        "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
-        "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+        "source": "R45",
+        "reason": "**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-a",
+          "verdict": "partial",
+          "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+          "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+        }
       }
     },
     {
@@ -4351,9 +4467,16 @@
       },
       "external_decision": {
         "clause": "K10-TYP-b",
-        "verdict": "not_accepted_as_whole",
-        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
-        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        "verdict": "accepted_in_reference",
+        "source": "R45",
+        "reason": "**K10-TYP-b elfogadva a jelenlegi egyírós, szintetikus referencia belső séma- és kanonikus bevétútjára.** A megnevezett művelet/sémaverzió, hiányzó és ismeretlen mező, hibás típus nevezett válasza ellenőrzött. A korábbi bemeneti javítást nem nyitom újra. Ez nem fogadja el az OB-3 külső HTTP-/bizalmi határát, és nem igazolja önmagában minden korábbi tárolt adat változatlanságát.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-b",
+          "verdict": "not_accepted_as_whole",
+          "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+          "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        }
       }
     },
     {
@@ -4447,9 +4570,16 @@
       },
       "external_decision": {
         "clause": "K10-TYP-b",
-        "verdict": "not_accepted_as_whole",
-        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
-        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        "verdict": "accepted_in_reference",
+        "source": "R45",
+        "reason": "**K10-TYP-b elfogadva a jelenlegi egyírós, szintetikus referencia belső séma- és kanonikus bevétútjára.** A megnevezett művelet/sémaverzió, hiányzó és ismeretlen mező, hibás típus nevezett válasza ellenőrzött. A korábbi bemeneti javítást nem nyitom újra. Ez nem fogadja el az OB-3 külső HTTP-/bizalmi határát, és nem igazolja önmagában minden korábbi tárolt adat változatlanságát.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-b",
+          "verdict": "not_accepted_as_whole",
+          "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+          "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        }
       }
     },
     {
@@ -4543,9 +4673,16 @@
       },
       "external_decision": {
         "clause": "K10-TYP-b",
-        "verdict": "not_accepted_as_whole",
-        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
-        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        "verdict": "accepted_in_reference",
+        "source": "R45",
+        "reason": "**K10-TYP-b elfogadva a jelenlegi egyírós, szintetikus referencia belső séma- és kanonikus bevétútjára.** A megnevezett művelet/sémaverzió, hiányzó és ismeretlen mező, hibás típus nevezett válasza ellenőrzött. A korábbi bemeneti javítást nem nyitom újra. Ez nem fogadja el az OB-3 külső HTTP-/bizalmi határát, és nem igazolja önmagában minden korábbi tárolt adat változatlanságát.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-b",
+          "verdict": "not_accepted_as_whole",
+          "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+          "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        }
       }
     },
     {
@@ -4639,9 +4776,16 @@
       },
       "external_decision": {
         "clause": "K10-TYP-b",
-        "verdict": "not_accepted_as_whole",
-        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
-        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        "verdict": "accepted_in_reference",
+        "source": "R45",
+        "reason": "**K10-TYP-b elfogadva a jelenlegi egyírós, szintetikus referencia belső séma- és kanonikus bevétútjára.** A megnevezett művelet/sémaverzió, hiányzó és ismeretlen mező, hibás típus nevezett válasza ellenőrzött. A korábbi bemeneti javítást nem nyitom újra. Ez nem fogadja el az OB-3 külső HTTP-/bizalmi határát, és nem igazolja önmagában minden korábbi tárolt adat változatlanságát.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-b",
+          "verdict": "not_accepted_as_whole",
+          "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+          "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        }
       }
     },
     {
@@ -4735,9 +4879,16 @@
       },
       "external_decision": {
         "clause": "K10-TYP-b",
-        "verdict": "not_accepted_as_whole",
-        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
-        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        "verdict": "accepted_in_reference",
+        "source": "R45",
+        "reason": "**K10-TYP-b elfogadva a jelenlegi egyírós, szintetikus referencia belső séma- és kanonikus bevétútjára.** A megnevezett művelet/sémaverzió, hiányzó és ismeretlen mező, hibás típus nevezett válasza ellenőrzött. A korábbi bemeneti javítást nem nyitom újra. Ez nem fogadja el az OB-3 külső HTTP-/bizalmi határát, és nem igazolja önmagában minden korábbi tárolt adat változatlanságát.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-b",
+          "verdict": "not_accepted_as_whole",
+          "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+          "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        }
       }
     },
     {
@@ -4831,9 +4982,16 @@
       },
       "external_decision": {
         "clause": "K10-TYP-b",
-        "verdict": "not_accepted_as_whole",
-        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
-        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        "verdict": "accepted_in_reference",
+        "source": "R45",
+        "reason": "**K10-TYP-b elfogadva a jelenlegi egyírós, szintetikus referencia belső séma- és kanonikus bevétútjára.** A megnevezett művelet/sémaverzió, hiányzó és ismeretlen mező, hibás típus nevezett válasza ellenőrzött. A korábbi bemeneti javítást nem nyitom újra. Ez nem fogadja el az OB-3 külső HTTP-/bizalmi határát, és nem igazolja önmagában minden korábbi tárolt adat változatlanságát.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-b",
+          "verdict": "not_accepted_as_whole",
+          "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+          "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        }
       }
     },
     {
@@ -4927,9 +5085,16 @@
       },
       "external_decision": {
         "clause": "K10-TYP-b",
-        "verdict": "not_accepted_as_whole",
-        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
-        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        "verdict": "accepted_in_reference",
+        "source": "R45",
+        "reason": "**K10-TYP-b elfogadva a jelenlegi egyírós, szintetikus referencia belső séma- és kanonikus bevétútjára.** A megnevezett művelet/sémaverzió, hiányzó és ismeretlen mező, hibás típus nevezett válasza ellenőrzött. A korábbi bemeneti javítást nem nyitom újra. Ez nem fogadja el az OB-3 külső HTTP-/bizalmi határát, és nem igazolja önmagában minden korábbi tárolt adat változatlanságát.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-b",
+          "verdict": "not_accepted_as_whole",
+          "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+          "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        }
       }
     },
     {
@@ -5023,9 +5188,16 @@
       },
       "external_decision": {
         "clause": "K10-TYP-b",
-        "verdict": "not_accepted_as_whole",
-        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
-        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        "verdict": "accepted_in_reference",
+        "source": "R45",
+        "reason": "**K10-TYP-b elfogadva a jelenlegi egyírós, szintetikus referencia belső séma- és kanonikus bevétútjára.** A megnevezett művelet/sémaverzió, hiányzó és ismeretlen mező, hibás típus nevezett válasza ellenőrzött. A korábbi bemeneti javítást nem nyitom újra. Ez nem fogadja el az OB-3 külső HTTP-/bizalmi határát, és nem igazolja önmagában minden korábbi tárolt adat változatlanságát.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-b",
+          "verdict": "not_accepted_as_whole",
+          "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+          "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        }
       }
     },
     {
@@ -5038,13 +5210,19 @@
       "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
       "assertion_id": "A-K10-b-input-errors-are-named-on-the-canonical-path-without-writing",
       "probe_id": "P-KSZ-canonical-input-boundary",
-      "behaviour": "A bemeneti elutasítás a VALÓDI bevét-úton dől el, és SEMMIT nem ír",
-      "positive_evidence": "P-KSZ-canonical-input-boundary — „A bemeneti elutasítás a VALÓDI bevét-úton dől el, és SEMMIT nem ír\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M167 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M167",
+      "behaviour": "A bemeneti elutasítás a VALÓDI bevét-úton dől el, és a MEGLÉVŐ történetet sem írja át",
+      "positive_evidence": "P-KSZ-canonical-input-boundary — „A bemeneti elutasítás a VALÓDI bevét-úton dől el, és a MEGLÉVŐ történetet sem írja át\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M174 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M167, M174",
       "mutations": [
         {
           "id": "M167",
           "what": "BEM-01 / R43 — A KANONIKUS ÚT CSENDBEN MEGTISZTÍTJA A TÖRZSET: a bevét-út csak a három ismert mezőt adja tovább, tehát az IDEGEN és a KONTEXTUS-mező nem nevezett elutasítást kap, hanem NÉMÁN eltűnik — a beadó azt hiszi, kitöltött valamit, a rendszer eldobja (KUKA-041 a bemeneten). AMIT MÉRVE MEGTUDTUNK: a mutáció ELSŐ alakja a hibás csomagot engedte tovább, és a próba nyers TypeError-ral állt meg — az nem szerződés szerinti bizonyíték",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M174",
+          "what": "BEM-01 / R45 — A BEMENETI ELUTASÍTÁS ÁTÍRJA A TÁROLT NYUGTA TARTALMÁT: a hibás bemenet ágán a bevét-út kiüríti a MÁR LEZÁRT parancsok eredmény-tartalmát (`resolved_json`). Sor nem születik és nem tűnik el, tehát „nem írt semmit\" darabszámon mérve IGAZ marad — a MEGLÉVŐ történet tartalma viszont sérül (R45/F45-01 közös hiánya a bemeneti ágon)",
           "verdict": "CAUGHT",
           "qualifying_witness": true
         }
@@ -5065,9 +5243,16 @@
       },
       "external_decision": {
         "clause": "K10-TYP-b",
-        "verdict": "not_accepted_as_whole",
-        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
-        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        "verdict": "accepted_in_reference",
+        "source": "R45",
+        "reason": "**K10-TYP-b elfogadva a jelenlegi egyírós, szintetikus referencia belső séma- és kanonikus bevétútjára.** A megnevezett művelet/sémaverzió, hiányzó és ismeretlen mező, hibás típus nevezett válasza ellenőrzött. A korábbi bemeneti javítást nem nyitom újra. Ez nem fogadja el az OB-3 külső HTTP-/bizalmi határát, és nem igazolja önmagában minden korábbi tárolt adat változatlanságát.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-b",
+          "verdict": "not_accepted_as_whole",
+          "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+          "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        }
       }
     },
     {
@@ -5080,13 +5265,19 @@
       "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
       "assertion_id": "A-K10-b-version-boundary-and-the-legitimate-receipt-coexist",
       "probe_id": "P-KSZ-canonical-input-boundary",
-      "behaviour": "A bemeneti elutasítás a VALÓDI bevét-úton dől el, és SEMMIT nem ír",
-      "positive_evidence": "P-KSZ-canonical-input-boundary — „A bemeneti elutasítás a VALÓDI bevét-úton dől el, és SEMMIT nem ír\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M167 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M167",
+      "behaviour": "A bemeneti elutasítás a VALÓDI bevét-úton dől el, és a MEGLÉVŐ történetet sem írja át",
+      "positive_evidence": "P-KSZ-canonical-input-boundary — „A bemeneti elutasítás a VALÓDI bevét-úton dől el, és a MEGLÉVŐ történetet sem írja át\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M174 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M167, M174",
       "mutations": [
         {
           "id": "M167",
           "what": "BEM-01 / R43 — A KANONIKUS ÚT CSENDBEN MEGTISZTÍTJA A TÖRZSET: a bevét-út csak a három ismert mezőt adja tovább, tehát az IDEGEN és a KONTEXTUS-mező nem nevezett elutasítást kap, hanem NÉMÁN eltűnik — a beadó azt hiszi, kitöltött valamit, a rendszer eldobja (KUKA-041 a bemeneten). AMIT MÉRVE MEGTUDTUNK: a mutáció ELSŐ alakja a hibás csomagot engedte tovább, és a próba nyers TypeError-ral állt meg — az nem szerződés szerinti bizonyíték",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M174",
+          "what": "BEM-01 / R45 — A BEMENETI ELUTASÍTÁS ÁTÍRJA A TÁROLT NYUGTA TARTALMÁT: a hibás bemenet ágán a bevét-út kiüríti a MÁR LEZÁRT parancsok eredmény-tartalmát (`resolved_json`). Sor nem születik és nem tűnik el, tehát „nem írt semmit\" darabszámon mérve IGAZ marad — a MEGLÉVŐ történet tartalma viszont sérül (R45/F45-01 közös hiánya a bemeneti ágon)",
           "verdict": "CAUGHT",
           "qualifying_witness": true
         }
@@ -5107,9 +5298,16 @@
       },
       "external_decision": {
         "clause": "K10-TYP-b",
-        "verdict": "not_accepted_as_whole",
-        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
-        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        "verdict": "accepted_in_reference",
+        "source": "R45",
+        "reason": "**K10-TYP-b elfogadva a jelenlegi egyírós, szintetikus referencia belső séma- és kanonikus bevétútjára.** A megnevezett művelet/sémaverzió, hiányzó és ismeretlen mező, hibás típus nevezett válasza ellenőrzött. A korábbi bemeneti javítást nem nyitom újra. Ez nem fogadja el az OB-3 külső HTTP-/bizalmi határát, és nem igazolja önmagában minden korábbi tárolt adat változatlanságát.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-b",
+          "verdict": "not_accepted_as_whole",
+          "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+          "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+        }
       }
     },
     {
@@ -5128,7 +5326,7 @@
       "mutations": [
         {
           "id": "M168",
-          "what": "MNY-01 / R43 — A VISSZAOLVASÁS A CIKK MAI PROFILJÁT ERŐLTETI A RÉGI SORRA: az összeadás nem veti össze a sor SAJÁT profilját a kérttel, tehát egy elcsúszott profil mellett a tárolt szám NÉMÁN más jelentést kapna — pontosan az, amit a klauzula tilt (KUKA-021)",
+          "what": "MNY-01 / R43 — A VISSZAOLVASÁS A CIKK MAI PROFILJÁT ERŐLTETI A RÉGI SORRA: az összeadás nem veti össze a sor SAJÁT profilját a kérttel, tehát egy elcsúszott profil mellett a tárolt szám NÉMÁN más jelentést kap — pontosan az, amit a klauzula tilt (KUKA-021). R45/F45-02 HELYESBÍTÉS (a külső fél lelete): a RÉGI, 12.500-as fixtúrán ez a mutáció nem a néma átértelmezést mutatta, hanem `total_out_of_range`-et — az IDEGEN profil MÁSIK korlátja takarta el a kárt. A próba ezért egy KIS mennyiségű (7.500) cikket is visz, ahol az átértelmezés egyik korlátba sem ütközik: ott a visszaolvasás CSENDBEN „7500\"-at ad „7.500\" helyett — ez a kár a saját alakjában.",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         },
@@ -5156,7 +5354,14 @@
       "external_decision": {
         "clause": "K10-TYP-c",
         "verdict": "partial",
-        "reason": "két profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok hamis. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell."
+        "source": "R45",
+        "reason": "**K10-TYP-c részleges marad.** A saját profil tárolása és az olvasó eltérés-ellenőrzése elfogadható részeredmény. Támogatott profilváltás nincs; a nyers fixtúra nem annak bizonyítéka.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-c",
+          "verdict": "partial",
+          "reason": "két profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok hamis. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell."
+        }
       }
     },
     {
@@ -5175,7 +5380,7 @@
       "mutations": [
         {
           "id": "M168",
-          "what": "MNY-01 / R43 — A VISSZAOLVASÁS A CIKK MAI PROFILJÁT ERŐLTETI A RÉGI SORRA: az összeadás nem veti össze a sor SAJÁT profilját a kérttel, tehát egy elcsúszott profil mellett a tárolt szám NÉMÁN más jelentést kapna — pontosan az, amit a klauzula tilt (KUKA-021)",
+          "what": "MNY-01 / R43 — A VISSZAOLVASÁS A CIKK MAI PROFILJÁT ERŐLTETI A RÉGI SORRA: az összeadás nem veti össze a sor SAJÁT profilját a kérttel, tehát egy elcsúszott profil mellett a tárolt szám NÉMÁN más jelentést kap — pontosan az, amit a klauzula tilt (KUKA-021). R45/F45-02 HELYESBÍTÉS (a külső fél lelete): a RÉGI, 12.500-as fixtúrán ez a mutáció nem a néma átértelmezést mutatta, hanem `total_out_of_range`-et — az IDEGEN profil MÁSIK korlátja takarta el a kárt. A próba ezért egy KIS mennyiségű (7.500) cikket is visz, ahol az átértelmezés egyik korlátba sem ütközik: ott a visszaolvasás CSENDBEN „7500\"-at ad „7.500\" helyett — ez a kár a saját alakjában.",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         },
@@ -5203,7 +5408,14 @@
       "external_decision": {
         "clause": "K10-TYP-c",
         "verdict": "partial",
-        "reason": "két profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok hamis. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell."
+        "source": "R45",
+        "reason": "**K10-TYP-c részleges marad.** A saját profil tárolása és az olvasó eltérés-ellenőrzése elfogadható részeredmény. Támogatott profilváltás nincs; a nyers fixtúra nem annak bizonyítéka.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-c",
+          "verdict": "partial",
+          "reason": "két profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok hamis. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell."
+        }
       }
     },
     {
@@ -5222,7 +5434,7 @@
       "mutations": [
         {
           "id": "M168",
-          "what": "MNY-01 / R43 — A VISSZAOLVASÁS A CIKK MAI PROFILJÁT ERŐLTETI A RÉGI SORRA: az összeadás nem veti össze a sor SAJÁT profilját a kérttel, tehát egy elcsúszott profil mellett a tárolt szám NÉMÁN más jelentést kapna — pontosan az, amit a klauzula tilt (KUKA-021)",
+          "what": "MNY-01 / R43 — A VISSZAOLVASÁS A CIKK MAI PROFILJÁT ERŐLTETI A RÉGI SORRA: az összeadás nem veti össze a sor SAJÁT profilját a kérttel, tehát egy elcsúszott profil mellett a tárolt szám NÉMÁN más jelentést kap — pontosan az, amit a klauzula tilt (KUKA-021). R45/F45-02 HELYESBÍTÉS (a külső fél lelete): a RÉGI, 12.500-as fixtúrán ez a mutáció nem a néma átértelmezést mutatta, hanem `total_out_of_range`-et — az IDEGEN profil MÁSIK korlátja takarta el a kárt. A próba ezért egy KIS mennyiségű (7.500) cikket is visz, ahol az átértelmezés egyik korlátba sem ütközik: ott a visszaolvasás CSENDBEN „7500\"-at ad „7.500\" helyett — ez a kár a saját alakjában.",
           "verdict": "CAUGHT",
           "qualifying_witness": true
         },
@@ -5250,7 +5462,14 @@
       "external_decision": {
         "clause": "K10-TYP-c",
         "verdict": "partial",
-        "reason": "két profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok hamis. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell."
+        "source": "R45",
+        "reason": "**K10-TYP-c részleges marad.** A saját profil tárolása és az olvasó eltérés-ellenőrzése elfogadható részeredmény. Támogatott profilváltás nincs; a nyers fixtúra nem annak bizonyítéka.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-c",
+          "verdict": "partial",
+          "reason": "két profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok hamis. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell."
+        }
       }
     },
     {
@@ -5263,10 +5482,28 @@
       "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
       "assertion_id": "A-K10-d-first-submission-creates-exactly-one-effect",
       "probe_id": "P-KSZ-repeat-and-error-boundary",
-      "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad",
-      "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M172 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M172, M170",
+      "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: a TELJES történet-tartalom változatlan, nincs második hatás és nincs részleges írás",
+      "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: a TELJES történet-tartalom változatlan, nincs második hatás és nincs részleges írás\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M172 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M176, M173, M175, M172, M170",
       "mutations": [
+        {
+          "id": "M176",
+          "what": "K07 / R45 — AZ ISMÉTLÉS-ŐR ELNYELI A MEGVÁLTOZOTT TARTALMAT: az azonos kulcs melletti ELTÉRŐ deklarált tartalom (más cikk, más profil, más verzió) nem NEVEZETT ütközés, hanem NÉMA visszajátszás — a beadó azt hiszi, a MOSTANI kérése teljesült, holott a RÉGI hatást kapta vissza (KUKA-074: az idempotencia-őr csak az AZONOS kérést nyelheti el)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M173",
+          "what": "KSZ-01 / R45 — AZ ELUTASÍTÁS ÁTÍRJA A MÚLTAT: a nem támogatott sémaverzió ágán a bevét-út egy KORÁBBI, már lezárt esemény IDŐPONTJÁT írja át. A darabszám nem változik (ugyanannyi parancs, esemény és mozgás marad), tehát egy szám-alapú pillanatkép ezt NEM veszi észre — a történet tartalma viszont megváltozott (KUKA-045 · R45/F45-01)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M175",
+          "what": "KSZ-01 / R45 — A HATÁS ELUTASÍTÁSA NEM GÖRGET VISSZA: a parancs-út a hatás nemleges válaszára nem dob, tehát a MÁR BEÍRT parancs-sor és NYUGTA véglegesül, miközben a főkönyvi hatás elmaradt — RÉSZLEGES ÍRÁS, nyugtával igazolva. Ez az az alak, amit a bemeneti plafon sosem ér el, mert oda be sem lép (R45/F45-02)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
         {
           "id": "M172",
           "what": "KSZ-01 / R43 — EGY BEADÁS, KÉT KÖNYVELÉS: a bevét hatása KÉTSZER fűzi hozzá ugyanazt a mozgás-sort, tehát EGYETLEN jogos beadásból kettős készletmozgás lesz. Ez a `d` klauzula legdrágább alakja: nem elutasítás és nem hibaüzenet, hanem NÉMÁN kétszer akkora készlet (KUKA-026 · KUKA-097).",
@@ -5275,14 +5512,14 @@
         },
         {
           "id": "M170",
-          "what": "KSZ-01 / R43 — AZ ISMÉTLÉS ÚJ HATÁST SZÜL: a parancs-azonosság a NYERS mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS formázásban MÁSODSZOR is könyvelne — kettős készletmozgás egyetlen valódi beadásból (KUKA-026)",
+          "what": "KSZ-01 / R43 — A FORMÁZÁS-FÜGGETLEN ISMÉTLÉS MEGSZŰNIK: a parancs-azonosság a NYERS mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS írásmódban NEM visszajátszás. MÉRT HATÁS (R45/F45-02 helyesbítése, a külső fél lelete): a második beadás NEVEZETT `idempotency_conflict`-re fut, a mozgások száma 1 MARAD — tehát ez a mutáció NEM kettős könyvelést okoz, hanem a jogos hálózati újrapróbálkozást akasztja el. A tényleges KETTŐS HATÁST az M172 mutatja (2 mozgás). A kettő KÉT KÜLÖN garancia, nem felcserélhető példa.",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         }
       ],
       "residual_scope": null,
       "result": "partially_covered",
-      "why": "RÉSZBEN MEGÉPÜLT — megvan: hat helyzet a KANONIKUS úton, parancs + esemény + mozgás + egyenleg pillanatképével: jogos ELSŐ beadás (pontosan EGY hatás) · AZONOS ismétlés (ugyanaz a hatás, nem új) · AZONOS jelentés MÁS FORMÁZÁSBAN (a kanonikus alak dönt, nem a leírt szöveg) · KORÁBBI sémaverzió ugyanazzal a kulccsal (`unsupported_schema_version`) · MÁS számítási profil ugyanazzal a kulccsal (`idempotency_conflict`, nem néma visszajátszás) · HIBAPONT (`out_of_range`). Mindhárom elutasítás után a pillanatkép VÁLTOZATLAN, és a korábbi siker ugyanazt a hatást adja vissza. Falszifikálva: M170. · HIÁNYZIK: a „más PROFILÚ bemenet\" ága UGYANARRA A CIKKRE nem szólítható meg, mert a magban nincs profilváltó művelet (K10-TYP-c maradéka); a mérés ezért MÁSIK, más profilú cikkel történt. Ez a reálisan elérhető alak — de a klauzula szó szerinti olvasatában marad egy nem elérhető változat, és ezt nem nevezzük bizonyítottnak.",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: hat helyzet a KANONIKUS úton, parancs + esemény + mozgás + egyenleg pillanatképével: jogos ELSŐ beadás (pontosan EGY hatás) · AZONOS ismétlés (ugyanaz a hatás, nem új) · AZONOS jelentés MÁS FORMÁZÁSBAN (a kanonikus alak dönt, nem a leírt szöveg) · KORÁBBI sémaverzió ugyanazzal a kulccsal (`unsupported_schema_version`) · MÁS számítási profil ugyanazzal a kulccsal (`idempotency_conflict`, nem néma visszajátszás) · HIBAPONT (`out_of_range`). R45/F45-01 UTÁN a mérce a TELJES TARTALOM: a `command`, a `command_event` és a `stock_movement` MINDEN oszlopa, determinisztikus rendezésben — a tárolt nyugta/eredmény tartalmával együtt —, és MINDEN EGYES lépés után, nem csak a sorozat végén; a kiadás-leltár külön mérce (HOZZÁFŰZÉS jogos, ELŐZMÉNY-ÁTÍRÁS nem). R45/F45-02: a HATÁS VÉGREHAJTÁSA KÖZBEN fellépő hiba (az összeg-korlát a darabos cikken, szabályos tétel-mérettel) sem hagy részleges írást — ez a bemeneti plafonnal szemben ténylegesen belép a parancs tranzakciójába, a parancs-sor és a nyugta MÁR beírt állapota mellett. Falszifikálva: M170 · M172 · M173 · M175. · HIÁNYZIK: a „más PROFILÚ bemenet\" ága UGYANARRA A CIKKRE nem szólítható meg, mert a magban nincs profilváltó művelet (K10-TYP-c maradéka); a mérés ezért MÁSIK, más profilú cikkel történt. Ez a reálisan elérhető alak — de a klauzula szó szerinti olvasatában marad egy nem elérhető változat, és ezt nem nevezzük bizonyítottnak. A tartalmi megőrzés mérce a HÁROM nevezett táblára és a kiadás-leltárra áll — a séma többi táblájára (pl. tagsági és jogosultsági könyvek) ez a próba NEM terjed ki.",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -5297,7 +5534,14 @@
       "external_decision": {
         "clause": "K10-TYP-d",
         "verdict": "partial",
-        "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+        "source": "R45",
+        "reason": "**K10-TYP-d részleges marad; az R43 teljes történetmegőrzési bizonyítása nincs lezárva.** A jogos bevét és ismétlés működése igazolt, a teljes tartalom változatlanságára a lent reprodukált rés fennáll.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-d",
+          "verdict": "partial",
+          "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+        }
       }
     },
     {
@@ -5310,10 +5554,28 @@
       "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
       "assertion_id": "A-K10-d-identical-and-reformatted-repeat-replay-the-same-effect",
       "probe_id": "P-KSZ-repeat-and-error-boundary",
-      "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad",
-      "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M170 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M172, M170",
+      "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: a TELJES történet-tartalom változatlan, nincs második hatás és nincs részleges írás",
+      "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: a TELJES történet-tartalom változatlan, nincs második hatás és nincs részleges írás\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M170 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M176, M173, M175, M172, M170",
       "mutations": [
+        {
+          "id": "M176",
+          "what": "K07 / R45 — AZ ISMÉTLÉS-ŐR ELNYELI A MEGVÁLTOZOTT TARTALMAT: az azonos kulcs melletti ELTÉRŐ deklarált tartalom (más cikk, más profil, más verzió) nem NEVEZETT ütközés, hanem NÉMA visszajátszás — a beadó azt hiszi, a MOSTANI kérése teljesült, holott a RÉGI hatást kapta vissza (KUKA-074: az idempotencia-őr csak az AZONOS kérést nyelheti el)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M173",
+          "what": "KSZ-01 / R45 — AZ ELUTASÍTÁS ÁTÍRJA A MÚLTAT: a nem támogatott sémaverzió ágán a bevét-út egy KORÁBBI, már lezárt esemény IDŐPONTJÁT írja át. A darabszám nem változik (ugyanannyi parancs, esemény és mozgás marad), tehát egy szám-alapú pillanatkép ezt NEM veszi észre — a történet tartalma viszont megváltozott (KUKA-045 · R45/F45-01)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M175",
+          "what": "KSZ-01 / R45 — A HATÁS ELUTASÍTÁSA NEM GÖRGET VISSZA: a parancs-út a hatás nemleges válaszára nem dob, tehát a MÁR BEÍRT parancs-sor és NYUGTA véglegesül, miközben a főkönyvi hatás elmaradt — RÉSZLEGES ÍRÁS, nyugtával igazolva. Ez az az alak, amit a bemeneti plafon sosem ér el, mert oda be sem lép (R45/F45-02)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
         {
           "id": "M172",
           "what": "KSZ-01 / R43 — EGY BEADÁS, KÉT KÖNYVELÉS: a bevét hatása KÉTSZER fűzi hozzá ugyanazt a mozgás-sort, tehát EGYETLEN jogos beadásból kettős készletmozgás lesz. Ez a `d` klauzula legdrágább alakja: nem elutasítás és nem hibaüzenet, hanem NÉMÁN kétszer akkora készlet (KUKA-026 · KUKA-097).",
@@ -5322,14 +5584,14 @@
         },
         {
           "id": "M170",
-          "what": "KSZ-01 / R43 — AZ ISMÉTLÉS ÚJ HATÁST SZÜL: a parancs-azonosság a NYERS mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS formázásban MÁSODSZOR is könyvelne — kettős készletmozgás egyetlen valódi beadásból (KUKA-026)",
+          "what": "KSZ-01 / R43 — A FORMÁZÁS-FÜGGETLEN ISMÉTLÉS MEGSZŰNIK: a parancs-azonosság a NYERS mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS írásmódban NEM visszajátszás. MÉRT HATÁS (R45/F45-02 helyesbítése, a külső fél lelete): a második beadás NEVEZETT `idempotency_conflict`-re fut, a mozgások száma 1 MARAD — tehát ez a mutáció NEM kettős könyvelést okoz, hanem a jogos hálózati újrapróbálkozást akasztja el. A tényleges KETTŐS HATÁST az M172 mutatja (2 mozgás). A kettő KÉT KÜLÖN garancia, nem felcserélhető példa.",
           "verdict": "CAUGHT",
           "qualifying_witness": true
         }
       ],
       "residual_scope": null,
       "result": "partially_covered",
-      "why": "RÉSZBEN MEGÉPÜLT — megvan: hat helyzet a KANONIKUS úton, parancs + esemény + mozgás + egyenleg pillanatképével: jogos ELSŐ beadás (pontosan EGY hatás) · AZONOS ismétlés (ugyanaz a hatás, nem új) · AZONOS jelentés MÁS FORMÁZÁSBAN (a kanonikus alak dönt, nem a leírt szöveg) · KORÁBBI sémaverzió ugyanazzal a kulccsal (`unsupported_schema_version`) · MÁS számítási profil ugyanazzal a kulccsal (`idempotency_conflict`, nem néma visszajátszás) · HIBAPONT (`out_of_range`). Mindhárom elutasítás után a pillanatkép VÁLTOZATLAN, és a korábbi siker ugyanazt a hatást adja vissza. Falszifikálva: M170. · HIÁNYZIK: a „más PROFILÚ bemenet\" ága UGYANARRA A CIKKRE nem szólítható meg, mert a magban nincs profilváltó művelet (K10-TYP-c maradéka); a mérés ezért MÁSIK, más profilú cikkel történt. Ez a reálisan elérhető alak — de a klauzula szó szerinti olvasatában marad egy nem elérhető változat, és ezt nem nevezzük bizonyítottnak.",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: hat helyzet a KANONIKUS úton, parancs + esemény + mozgás + egyenleg pillanatképével: jogos ELSŐ beadás (pontosan EGY hatás) · AZONOS ismétlés (ugyanaz a hatás, nem új) · AZONOS jelentés MÁS FORMÁZÁSBAN (a kanonikus alak dönt, nem a leírt szöveg) · KORÁBBI sémaverzió ugyanazzal a kulccsal (`unsupported_schema_version`) · MÁS számítási profil ugyanazzal a kulccsal (`idempotency_conflict`, nem néma visszajátszás) · HIBAPONT (`out_of_range`). R45/F45-01 UTÁN a mérce a TELJES TARTALOM: a `command`, a `command_event` és a `stock_movement` MINDEN oszlopa, determinisztikus rendezésben — a tárolt nyugta/eredmény tartalmával együtt —, és MINDEN EGYES lépés után, nem csak a sorozat végén; a kiadás-leltár külön mérce (HOZZÁFŰZÉS jogos, ELŐZMÉNY-ÁTÍRÁS nem). R45/F45-02: a HATÁS VÉGREHAJTÁSA KÖZBEN fellépő hiba (az összeg-korlát a darabos cikken, szabályos tétel-mérettel) sem hagy részleges írást — ez a bemeneti plafonnal szemben ténylegesen belép a parancs tranzakciójába, a parancs-sor és a nyugta MÁR beírt állapota mellett. Falszifikálva: M170 · M172 · M173 · M175. · HIÁNYZIK: a „más PROFILÚ bemenet\" ága UGYANARRA A CIKKRE nem szólítható meg, mert a magban nincs profilváltó művelet (K10-TYP-c maradéka); a mérés ezért MÁSIK, más profilú cikkel történt. Ez a reálisan elérhető alak — de a klauzula szó szerinti olvasatában marad egy nem elérhető változat, és ezt nem nevezzük bizonyítottnak. A tartalmi megőrzés mérce a HÁROM nevezett táblára és a kiadás-leltárra áll — a séma többi táblájára (pl. tagsági és jogosultsági könyvek) ez a próba NEM terjed ki.",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -5344,7 +5606,14 @@
       "external_decision": {
         "clause": "K10-TYP-d",
         "verdict": "partial",
-        "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+        "source": "R45",
+        "reason": "**K10-TYP-d részleges marad; az R43 teljes történetmegőrzési bizonyítása nincs lezárva.** A jogos bevét és ismétlés működése igazolt, a teljes tartalom változatlanságára a lent reprodukált rés fennáll.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-d",
+          "verdict": "partial",
+          "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+        }
       }
     },
     {
@@ -5357,10 +5626,28 @@
       "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
       "assertion_id": "A-K10-d-old-version-other-profile-and-error-point-are-named-refusals",
       "probe_id": "P-KSZ-repeat-and-error-boundary",
-      "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad",
-      "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad\" · node v3ref/run.mjs",
-      "negative_evidence": "2 szerződés szerinti jelölt áll a soron (M172, M170), de a kanonikus ítélő EGYIKET SEM minősítette falszifikálónak — ezért a sor NEM „fedett\"",
+      "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: a TELJES történet-tartalom változatlan, nincs második hatás és nincs részleges írás",
+      "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: a TELJES történet-tartalom változatlan, nincs második hatás és nincs részleges írás\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M176 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M176, M173, M175, M172, M170",
       "mutations": [
+        {
+          "id": "M176",
+          "what": "K07 / R45 — AZ ISMÉTLÉS-ŐR ELNYELI A MEGVÁLTOZOTT TARTALMAT: az azonos kulcs melletti ELTÉRŐ deklarált tartalom (más cikk, más profil, más verzió) nem NEVEZETT ütközés, hanem NÉMA visszajátszás — a beadó azt hiszi, a MOSTANI kérése teljesült, holott a RÉGI hatást kapta vissza (KUKA-074: az idempotencia-őr csak az AZONOS kérést nyelheti el)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        },
+        {
+          "id": "M173",
+          "what": "KSZ-01 / R45 — AZ ELUTASÍTÁS ÁTÍRJA A MÚLTAT: a nem támogatott sémaverzió ágán a bevét-út egy KORÁBBI, már lezárt esemény IDŐPONTJÁT írja át. A darabszám nem változik (ugyanannyi parancs, esemény és mozgás marad), tehát egy szám-alapú pillanatkép ezt NEM veszi észre — a történet tartalma viszont megváltozott (KUKA-045 · R45/F45-01)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M175",
+          "what": "KSZ-01 / R45 — A HATÁS ELUTASÍTÁSA NEM GÖRGET VISSZA: a parancs-út a hatás nemleges válaszára nem dob, tehát a MÁR BEÍRT parancs-sor és NYUGTA véglegesül, miközben a főkönyvi hatás elmaradt — RÉSZLEGES ÍRÁS, nyugtával igazolva. Ez az az alak, amit a bemeneti plafon sosem ér el, mert oda be sem lép (R45/F45-02)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
         {
           "id": "M172",
           "what": "KSZ-01 / R43 — EGY BEADÁS, KÉT KÖNYVELÉS: a bevét hatása KÉTSZER fűzi hozzá ugyanazt a mozgás-sort, tehát EGYETLEN jogos beadásból kettős készletmozgás lesz. Ez a `d` klauzula legdrágább alakja: nem elutasítás és nem hibaüzenet, hanem NÉMÁN kétszer akkora készlet (KUKA-026 · KUKA-097).",
@@ -5369,14 +5656,14 @@
         },
         {
           "id": "M170",
-          "what": "KSZ-01 / R43 — AZ ISMÉTLÉS ÚJ HATÁST SZÜL: a parancs-azonosság a NYERS mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS formázásban MÁSODSZOR is könyvelne — kettős készletmozgás egyetlen valódi beadásból (KUKA-026)",
+          "what": "KSZ-01 / R43 — A FORMÁZÁS-FÜGGETLEN ISMÉTLÉS MEGSZŰNIK: a parancs-azonosság a NYERS mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS írásmódban NEM visszajátszás. MÉRT HATÁS (R45/F45-02 helyesbítése, a külső fél lelete): a második beadás NEVEZETT `idempotency_conflict`-re fut, a mozgások száma 1 MARAD — tehát ez a mutáció NEM kettős könyvelést okoz, hanem a jogos hálózati újrapróbálkozást akasztja el. A tényleges KETTŐS HATÁST az M172 mutatja (2 mozgás). A kettő KÉT KÜLÖN garancia, nem felcserélhető példa.",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         }
       ],
       "residual_scope": null,
-      "result": "not_falsified",
-      "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — M170: a futás NEM buktatta meg a deklarált állítást (A-K10-d-old-version-other-profile-and-error-point-are-named-refusals) · M172: a futás NEM buktatta meg a deklarált állítást (A-K10-d-old-version-other-profile-and-error-point-are-named-refusals)",
+      "result": "partially_covered",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: hat helyzet a KANONIKUS úton, parancs + esemény + mozgás + egyenleg pillanatképével: jogos ELSŐ beadás (pontosan EGY hatás) · AZONOS ismétlés (ugyanaz a hatás, nem új) · AZONOS jelentés MÁS FORMÁZÁSBAN (a kanonikus alak dönt, nem a leírt szöveg) · KORÁBBI sémaverzió ugyanazzal a kulccsal (`unsupported_schema_version`) · MÁS számítási profil ugyanazzal a kulccsal (`idempotency_conflict`, nem néma visszajátszás) · HIBAPONT (`out_of_range`). R45/F45-01 UTÁN a mérce a TELJES TARTALOM: a `command`, a `command_event` és a `stock_movement` MINDEN oszlopa, determinisztikus rendezésben — a tárolt nyugta/eredmény tartalmával együtt —, és MINDEN EGYES lépés után, nem csak a sorozat végén; a kiadás-leltár külön mérce (HOZZÁFŰZÉS jogos, ELŐZMÉNY-ÁTÍRÁS nem). R45/F45-02: a HATÁS VÉGREHAJTÁSA KÖZBEN fellépő hiba (az összeg-korlát a darabos cikken, szabályos tétel-mérettel) sem hagy részleges írást — ez a bemeneti plafonnal szemben ténylegesen belép a parancs tranzakciójába, a parancs-sor és a nyugta MÁR beírt állapota mellett. Falszifikálva: M170 · M172 · M173 · M175. · HIÁNYZIK: a „más PROFILÚ bemenet\" ága UGYANARRA A CIKKRE nem szólítható meg, mert a magban nincs profilváltó művelet (K10-TYP-c maradéka); a mérés ezért MÁSIK, más profilú cikkel történt. Ez a reálisan elérhető alak — de a klauzula szó szerinti olvasatában marad egy nem elérhető változat, és ezt nem nevezzük bizonyítottnak. A tartalmi megőrzés mérce a HÁROM nevezett táblára és a kiadás-leltárra áll — a séma többi táblájára (pl. tagsági és jogosultsági könyvek) ez a próba NEM terjed ki.",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -5391,7 +5678,14 @@
       "external_decision": {
         "clause": "K10-TYP-d",
         "verdict": "partial",
-        "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+        "source": "R45",
+        "reason": "**K10-TYP-d részleges marad; az R43 teljes történetmegőrzési bizonyítása nincs lezárva.** A jogos bevét és ismétlés működése igazolt, a teljes tartalom változatlanságára a lent reprodukált rés fennáll.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-d",
+          "verdict": "partial",
+          "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+        }
       }
     },
     {
@@ -5404,10 +5698,28 @@
       "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
       "assertion_id": "A-K10-d-refusals-leave-the-snapshot-and-the-earlier-success-intact",
       "probe_id": "P-KSZ-repeat-and-error-boundary",
-      "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad",
-      "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad\" · node v3ref/run.mjs",
-      "negative_evidence": "2 szerződés szerinti jelölt áll a soron (M172, M170), de a kanonikus ítélő EGYIKET SEM minősítette falszifikálónak — ezért a sor NEM „fedett\"",
+      "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: a TELJES történet-tartalom változatlan, nincs második hatás és nincs részleges írás",
+      "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: a TELJES történet-tartalom változatlan, nincs második hatás és nincs részleges írás\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M173 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M176, M173, M175, M172, M170",
       "mutations": [
+        {
+          "id": "M176",
+          "what": "K07 / R45 — AZ ISMÉTLÉS-ŐR ELNYELI A MEGVÁLTOZOTT TARTALMAT: az azonos kulcs melletti ELTÉRŐ deklarált tartalom (más cikk, más profil, más verzió) nem NEVEZETT ütközés, hanem NÉMA visszajátszás — a beadó azt hiszi, a MOSTANI kérése teljesült, holott a RÉGI hatást kapta vissza (KUKA-074: az idempotencia-őr csak az AZONOS kérést nyelheti el)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M173",
+          "what": "KSZ-01 / R45 — AZ ELUTASÍTÁS ÁTÍRJA A MÚLTAT: a nem támogatott sémaverzió ágán a bevét-út egy KORÁBBI, már lezárt esemény IDŐPONTJÁT írja át. A darabszám nem változik (ugyanannyi parancs, esemény és mozgás marad), tehát egy szám-alapú pillanatkép ezt NEM veszi észre — a történet tartalma viszont megváltozott (KUKA-045 · R45/F45-01)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        },
+        {
+          "id": "M175",
+          "what": "KSZ-01 / R45 — A HATÁS ELUTASÍTÁSA NEM GÖRGET VISSZA: a parancs-út a hatás nemleges válaszára nem dob, tehát a MÁR BEÍRT parancs-sor és NYUGTA véglegesül, miközben a főkönyvi hatás elmaradt — RÉSZLEGES ÍRÁS, nyugtával igazolva. Ez az az alak, amit a bemeneti plafon sosem ér el, mert oda be sem lép (R45/F45-02)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
         {
           "id": "M172",
           "what": "KSZ-01 / R43 — EGY BEADÁS, KÉT KÖNYVELÉS: a bevét hatása KÉTSZER fűzi hozzá ugyanazt a mozgás-sort, tehát EGYETLEN jogos beadásból kettős készletmozgás lesz. Ez a `d` klauzula legdrágább alakja: nem elutasítás és nem hibaüzenet, hanem NÉMÁN kétszer akkora készlet (KUKA-026 · KUKA-097).",
@@ -5416,14 +5728,14 @@
         },
         {
           "id": "M170",
-          "what": "KSZ-01 / R43 — AZ ISMÉTLÉS ÚJ HATÁST SZÜL: a parancs-azonosság a NYERS mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS formázásban MÁSODSZOR is könyvelne — kettős készletmozgás egyetlen valódi beadásból (KUKA-026)",
+          "what": "KSZ-01 / R43 — A FORMÁZÁS-FÜGGETLEN ISMÉTLÉS MEGSZŰNIK: a parancs-azonosság a NYERS mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS írásmódban NEM visszajátszás. MÉRT HATÁS (R45/F45-02 helyesbítése, a külső fél lelete): a második beadás NEVEZETT `idempotency_conflict`-re fut, a mozgások száma 1 MARAD — tehát ez a mutáció NEM kettős könyvelést okoz, hanem a jogos hálózati újrapróbálkozást akasztja el. A tényleges KETTŐS HATÁST az M172 mutatja (2 mozgás). A kettő KÉT KÜLÖN garancia, nem felcserélhető példa.",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         }
       ],
       "residual_scope": null,
-      "result": "not_falsified",
-      "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — M170: a futás NEM buktatta meg a deklarált állítást (A-K10-d-refusals-leave-the-snapshot-and-the-earlier-success-intact) · M172: a futás NEM buktatta meg a deklarált állítást (A-K10-d-refusals-leave-the-snapshot-and-the-earlier-success-intact)",
+      "result": "partially_covered",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: hat helyzet a KANONIKUS úton, parancs + esemény + mozgás + egyenleg pillanatképével: jogos ELSŐ beadás (pontosan EGY hatás) · AZONOS ismétlés (ugyanaz a hatás, nem új) · AZONOS jelentés MÁS FORMÁZÁSBAN (a kanonikus alak dönt, nem a leírt szöveg) · KORÁBBI sémaverzió ugyanazzal a kulccsal (`unsupported_schema_version`) · MÁS számítási profil ugyanazzal a kulccsal (`idempotency_conflict`, nem néma visszajátszás) · HIBAPONT (`out_of_range`). R45/F45-01 UTÁN a mérce a TELJES TARTALOM: a `command`, a `command_event` és a `stock_movement` MINDEN oszlopa, determinisztikus rendezésben — a tárolt nyugta/eredmény tartalmával együtt —, és MINDEN EGYES lépés után, nem csak a sorozat végén; a kiadás-leltár külön mérce (HOZZÁFŰZÉS jogos, ELŐZMÉNY-ÁTÍRÁS nem). R45/F45-02: a HATÁS VÉGREHAJTÁSA KÖZBEN fellépő hiba (az összeg-korlát a darabos cikken, szabályos tétel-mérettel) sem hagy részleges írást — ez a bemeneti plafonnal szemben ténylegesen belép a parancs tranzakciójába, a parancs-sor és a nyugta MÁR beírt állapota mellett. Falszifikálva: M170 · M172 · M173 · M175. · HIÁNYZIK: a „más PROFILÚ bemenet\" ága UGYANARRA A CIKKRE nem szólítható meg, mert a magban nincs profilváltó művelet (K10-TYP-c maradéka); a mérés ezért MÁSIK, más profilú cikkel történt. Ez a reálisan elérhető alak — de a klauzula szó szerinti olvasatában marad egy nem elérhető változat, és ezt nem nevezzük bizonyítottnak. A tartalmi megőrzés mérce a HÁROM nevezett táblára és a kiadás-leltárra áll — a séma többi táblájára (pl. tagsági és jogosultsági könyvek) ez a próba NEM terjed ki.",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -5438,7 +5750,86 @@
       "external_decision": {
         "clause": "K10-TYP-d",
         "verdict": "partial",
-        "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+        "source": "R45",
+        "reason": "**K10-TYP-d részleges marad; az R43 teljes történetmegőrzési bizonyítása nincs lezárva.** A jogos bevét és ismétlés működése igazolt, a teljes tartalom változatlanságára a lent reprodukált rés fennáll.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-d",
+          "verdict": "partial",
+          "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+        }
+      }
+    },
+    {
+      "norm_id": "TYP-N1",
+      "clause_id": "K10-TYP-d",
+      "covers": [
+        "K10"
+      ],
+      "clause_text": "A kapcsolódó parancs, nyugta és főkönyvi hatás a megnevezett tranzakciós határon atomi; részleges sikert és ismételt hatást a korábbi verziójú vagy más profilú bemenet sem hozhat létre.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K10-d-effect-time-failure-leaves-no-partial-write",
+      "probe_id": "P-KSZ-repeat-and-error-boundary",
+      "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: a TELJES történet-tartalom változatlan, nincs második hatás és nincs részleges írás",
+      "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: a TELJES történet-tartalom változatlan, nincs második hatás és nincs részleges írás\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M175 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M176, M173, M175, M172, M170",
+      "mutations": [
+        {
+          "id": "M176",
+          "what": "K07 / R45 — AZ ISMÉTLÉS-ŐR ELNYELI A MEGVÁLTOZOTT TARTALMAT: az azonos kulcs melletti ELTÉRŐ deklarált tartalom (más cikk, más profil, más verzió) nem NEVEZETT ütközés, hanem NÉMA visszajátszás — a beadó azt hiszi, a MOSTANI kérése teljesült, holott a RÉGI hatást kapta vissza (KUKA-074: az idempotencia-őr csak az AZONOS kérést nyelheti el)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M173",
+          "what": "KSZ-01 / R45 — AZ ELUTASÍTÁS ÁTÍRJA A MÚLTAT: a nem támogatott sémaverzió ágán a bevét-út egy KORÁBBI, már lezárt esemény IDŐPONTJÁT írja át. A darabszám nem változik (ugyanannyi parancs, esemény és mozgás marad), tehát egy szám-alapú pillanatkép ezt NEM veszi észre — a történet tartalma viszont megváltozott (KUKA-045 · R45/F45-01)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M175",
+          "what": "KSZ-01 / R45 — A HATÁS ELUTASÍTÁSA NEM GÖRGET VISSZA: a parancs-út a hatás nemleges válaszára nem dob, tehát a MÁR BEÍRT parancs-sor és NYUGTA véglegesül, miközben a főkönyvi hatás elmaradt — RÉSZLEGES ÍRÁS, nyugtával igazolva. Ez az az alak, amit a bemeneti plafon sosem ér el, mert oda be sem lép (R45/F45-02)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        },
+        {
+          "id": "M172",
+          "what": "KSZ-01 / R43 — EGY BEADÁS, KÉT KÖNYVELÉS: a bevét hatása KÉTSZER fűzi hozzá ugyanazt a mozgás-sort, tehát EGYETLEN jogos beadásból kettős készletmozgás lesz. Ez a `d` klauzula legdrágább alakja: nem elutasítás és nem hibaüzenet, hanem NÉMÁN kétszer akkora készlet (KUKA-026 · KUKA-097).",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M170",
+          "what": "KSZ-01 / R43 — A FORMÁZÁS-FÜGGETLEN ISMÉTLÉS MEGSZŰNIK: a parancs-azonosság a NYERS mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS írásmódban NEM visszajátszás. MÉRT HATÁS (R45/F45-02 helyesbítése, a külső fél lelete): a második beadás NEVEZETT `idempotency_conflict`-re fut, a mozgások száma 1 MARAD — tehát ez a mutáció NEM kettős könyvelést okoz, hanem a jogos hálózati újrapróbálkozást akasztja el. A tényleges KETTŐS HATÁST az M172 mutatja (2 mozgás). A kettő KÉT KÜLÖN garancia, nem felcserélhető példa.",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "partially_covered",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: hat helyzet a KANONIKUS úton, parancs + esemény + mozgás + egyenleg pillanatképével: jogos ELSŐ beadás (pontosan EGY hatás) · AZONOS ismétlés (ugyanaz a hatás, nem új) · AZONOS jelentés MÁS FORMÁZÁSBAN (a kanonikus alak dönt, nem a leírt szöveg) · KORÁBBI sémaverzió ugyanazzal a kulccsal (`unsupported_schema_version`) · MÁS számítási profil ugyanazzal a kulccsal (`idempotency_conflict`, nem néma visszajátszás) · HIBAPONT (`out_of_range`). R45/F45-01 UTÁN a mérce a TELJES TARTALOM: a `command`, a `command_event` és a `stock_movement` MINDEN oszlopa, determinisztikus rendezésben — a tárolt nyugta/eredmény tartalmával együtt —, és MINDEN EGYES lépés után, nem csak a sorozat végén; a kiadás-leltár külön mérce (HOZZÁFŰZÉS jogos, ELŐZMÉNY-ÁTÍRÁS nem). R45/F45-02: a HATÁS VÉGREHAJTÁSA KÖZBEN fellépő hiba (az összeg-korlát a darabos cikken, szabályos tétel-mérettel) sem hagy részleges írást — ez a bemeneti plafonnal szemben ténylegesen belép a parancs tranzakciójába, a parancs-sor és a nyugta MÁR beírt állapota mellett. Falszifikálva: M170 · M172 · M173 · M175. · HIÁNYZIK: a „más PROFILÚ bemenet\" ága UGYANARRA A CIKKRE nem szólítható meg, mert a magban nincs profilváltó művelet (K10-TYP-c maradéka); a mérés ezért MÁSIK, más profilú cikkel történt. Ez a reálisan elérhető alak — de a klauzula szó szerinti olvasatában marad egy nem elérhető változat, és ezt nem nevezzük bizonyítottnak. A tartalmi megőrzés mérce a HÁROM nevezett táblára és a kiadás-leltárra áll — a séma többi táblájára (pl. tagsági és jogosultsági könyvek) ez a próba NEM terjed ki.",
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "clause": "K10-TYP-d",
+        "verdict": "partial",
+        "source": "R45",
+        "reason": "**K10-TYP-d részleges marad; az R43 teljes történetmegőrzési bizonyítása nincs lezárva.** A jogos bevét és ismétlés működése igazolt, a teljes tartalom változatlanságára a lent reprodukált rés fennáll.",
+        "superseded": {
+          "source": "R37",
+          "clause": "K10-TYP-d",
+          "verdict": "partial",
+          "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+        }
       }
     },
     {
@@ -5470,6 +5861,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "K10-TYP-e",
         "verdict": "partial",
         "reason": "a két időtengely bizonyított. A szöveg nem követeli most a teljes QNT megépítését; a megfigyelés saját idejének szerződéses helye és a hatásmentes művelet határa továbbra is külön QNT-előfeltétel."
@@ -5554,6 +5946,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "ORG-N1a",
         "verdict": "partial",
         "reason": "BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell."
@@ -5638,6 +6031,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "ORG-N1a",
         "verdict": "partial",
         "reason": "BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell."
@@ -5722,6 +6116,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "ORG-N1a",
         "verdict": "partial",
         "reason": "BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell."
@@ -5806,6 +6201,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "ORG-N1a",
         "verdict": "partial",
         "reason": "BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell."
@@ -5890,6 +6286,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "ORG-N1a",
         "verdict": "partial",
         "reason": "BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell."
@@ -5992,6 +6389,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "ORG-N1b",
         "verdict": "partial",
         "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
@@ -6094,6 +6492,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "ORG-N1b",
         "verdict": "partial",
         "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
@@ -6196,6 +6595,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "ORG-N1b",
         "verdict": "partial",
         "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
@@ -6298,6 +6698,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "ORG-N1b",
         "verdict": "partial",
         "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
@@ -6400,6 +6801,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "ORG-N1b",
         "verdict": "partial",
         "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
@@ -6502,6 +6904,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "ORG-N1b",
         "verdict": "partial",
         "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
@@ -6604,6 +7007,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "ORG-N1b",
         "verdict": "partial",
         "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
@@ -6658,6 +7062,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "ORG-N2a",
         "verdict": "accepted_in_reference",
         "reason": "a kibocsátó megvont jogán a függő meghívó nevezetten elakad."
@@ -6692,6 +7097,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "ORG-N3a",
         "verdict": "open",
         "reason": "a vagylagos és együttes jogalapút külön modellje hiányzik."
@@ -6727,6 +7133,7 @@
         }
       },
       "external_decision": {
+        "source": "R37",
         "clause": "ORG-N3b",
         "verdict": "open",
         "reason": "a tiltás meglévő; a második engedő út feletti elsőbbség még nem mérhető."

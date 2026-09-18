@@ -1583,7 +1583,12 @@ export const MUTATIONS = [
   { id: 'M168', rule: 'K10', catcher: 'P-MNY-stored-profile-history', expect: 'probe_fail',
     what: 'MNY-01 / R43 — A VISSZAOLVASÁS A CIKK MAI PROFILJÁT ERŐLTETI A RÉGI SORRA: az összeadás '
       + 'nem veti össze a sor SAJÁT profilját a kérttel, tehát egy elcsúszott profil mellett a '
-      + 'tárolt szám NÉMÁN más jelentést kapna — pontosan az, amit a klauzula tilt (KUKA-021)',
+      + 'tárolt szám NÉMÁN más jelentést kap — pontosan az, amit a klauzula tilt (KUKA-021). '
+      + 'R45/F45-02 HELYESBÍTÉS (a külső fél lelete): a RÉGI, 12.500-as fixtúrán ez a mutáció nem a '
+      + 'néma átértelmezést mutatta, hanem `total_out_of_range`-et — az IDEGEN profil MÁSIK korlátja '
+      + 'takarta el a kárt. A próba ezért egy KIS mennyiségű (7.500) cikket is visz, ahol az '
+      + 'átértelmezés egyik korlátba sem ütközik: ott a visszaolvasás CSENDBEN „7500"-at ad „7.500" '
+      + 'helyett — ez a kár a saját alakjában.',
     file: 'quantity.mjs',
     from: "    if (p.profileId !== profile.id) {",
     to: "    if (false) {" },
@@ -1594,6 +1599,52 @@ export const MUTATIONS = [
     file: 'ledger.mjs',
     from: "      key.bookId, key.itemId, key.ownerId, key.warehouseId, q.scaled.toString(), item.qty_profile,",
     to: "      key.bookId, key.itemId, key.ownerId, key.warehouseId, q.scaled.toString(), 'qty-1'," },
+
+  // ── R45 — A TÖRTÉNET-MEGŐRZÉS ÉS A HATÁS-KÖZBENI HIBAHATÁR VISSZABONTÁSAI ────────────────────
+  //
+  // Az M173 a KÜLSŐ ELLENŐRZŐ FÉL saját ellenpéldája (chatgpt-v3, R45/F45-01), karakterre az általuk
+  // leírt alakban: az R44-es, darabszámot néző próbám mellett ez a rontás 58/58 PASS-t adott.
+  { id: 'M176', rule: 'K10', catcher: 'P-KSZ-repeat-and-error-boundary', expect: 'probe_fail',
+    what: 'K07 / R45 — AZ ISMÉTLÉS-ŐR ELNYELI A MEGVÁLTOZOTT TARTALMAT: az azonos kulcs melletti '
+      + 'ELTÉRŐ deklarált tartalom (más cikk, más profil, más verzió) nem NEVEZETT ütközés, hanem '
+      + 'NÉMA visszajátszás — a beadó azt hiszi, a MOSTANI kérése teljesült, holott a RÉGI hatást '
+      + 'kapta vissza (KUKA-074: az idempotencia-őr csak az AZONOS kérést nyelheti el)',
+    file: 'command.mjs',
+    from: "    if (prior.identity_hash !== identity) {",
+    to: "    if (false) {" },
+
+  { id: 'M173', rule: 'K10', catcher: 'P-KSZ-repeat-and-error-boundary', expect: 'probe_fail',
+    what: 'KSZ-01 / R45 — AZ ELUTASÍTÁS ÁTÍRJA A MÚLTAT: a nem támogatott sémaverzió ágán a bevét-út '
+      + 'egy KORÁBBI, már lezárt esemény IDŐPONTJÁT írja át. A darabszám nem változik (ugyanannyi '
+      + 'parancs, esemény és mozgás marad), tehát egy szám-alapú pillanatkép ezt NEM veszi észre — a '
+      + 'történet tartalma viszont megváltozott (KUKA-045 · R45/F45-01)',
+    file: 'ledger.mjs',
+    from: "  if (!checked.ok) return checked;",
+    to: "  if (!checked.ok) {\n"
+      + "    if (checked.error === 'unsupported_schema_version') {\n"
+      + "      store.run(\"UPDATE command_event SET at = '1999-01-01T00:00:00.000Z' WHERE idem_key = ?\", idemKey);\n"
+      + "    }\n"
+      + "    return checked;\n"
+      + "  }" },
+
+  { id: 'M174', rule: 'K10', catcher: 'P-KSZ-canonical-input-boundary', expect: 'probe_fail',
+    what: 'BEM-01 / R45 — A BEMENETI ELUTASÍTÁS ÁTÍRJA A TÁROLT NYUGTA TARTALMÁT: a hibás bemenet '
+      + 'ágán a bevét-út kiüríti a MÁR LEZÁRT parancsok eredmény-tartalmát (`resolved_json`). Sor '
+      + 'nem születik és nem tűnik el, tehát „nem írt semmit" darabszámon mérve IGAZ marad — a '
+      + 'MEGLÉVŐ történet tartalma viszont sérül (R45/F45-01 közös hiánya a bemeneti ágon)',
+    file: 'ledger.mjs',
+    from: "  const checked = validateInput({ operation: 'stock.receipt', input, version });\n  if (!checked.ok) return checked;",
+    to: "  const checked = validateInput({ operation: 'stock.receipt', input, version });\n"
+      + "  if (!checked.ok) { store.run('UPDATE command SET resolved_json = ? WHERE actor = ?', '{}', actor); return checked; }" },
+
+  { id: 'M175', rule: 'K10', catcher: 'P-KSZ-repeat-and-error-boundary', expect: 'probe_fail',
+    what: 'KSZ-01 / R45 — A HATÁS ELUTASÍTÁSA NEM GÖRGET VISSZA: a parancs-út a hatás nemleges '
+      + 'válaszára nem dob, tehát a MÁR BEÍRT parancs-sor és NYUGTA véglegesül, miközben a főkönyvi '
+      + 'hatás elmaradt — RÉSZLEGES ÍRÁS, nyugtával igazolva. Ez az az alak, amit a bemeneti plafon '
+      + 'sosem ér el, mert oda be sem lép (R45/F45-02)',
+    file: 'command.mjs',
+    from: "      if (!e.ok) throw new EffectRejected(e.error || 'effect_rejected', e.detail ?? null);",
+    to: "      if (!e.ok) { void e; }" },
 
   { id: 'M172', rule: 'K10', catcher: 'P-KSZ-repeat-and-error-boundary', expect: 'probe_fail',
     what: 'KSZ-01 / R43 — EGY BEADÁS, KÉT KÖNYVELÉS: a bevét hatása KÉTSZER fűzi hozzá ugyanazt a '
@@ -1609,17 +1660,22 @@ export const MUTATIONS = [
   { id: 'M171', rule: 'K10', catcher: 'P-KAT-identity-history', expect: 'probe_fail',
     what: 'BEM-01 / KAT-01 / R43 — A KANONIZÁLÁS NEM ÍRÓDIK VISSZA: a profil-kötés a NYERS '
       + 'mennyiség-szöveget hagyja a tartalomban, tehát a `"10"` és a `"10.000"` KÜLÖNBÖZŐ '
-      + 'parancs-azonosságot kapna — ugyanaz a jelentés MÁS írásmódban másodszor is könyvelne. Ez a '
-      + 'KANONIZÁLÁS oldala; az M170 ugyanennek a garanciának a MÁSIK helyszíne (maga az '
-      + 'azonosság-összeállítás) — két külön kódhely, két külön ellenpár.',
+      + 'parancs-azonosságot kap — a formázás azonossággá válik. MÉRT HATÁS (R45): a második, '
+      + 'másként írt beadás nem visszajátszás; a KETTŐS könyvelést az azonosság-őr fogja meg, tehát '
+      + 'a kár itt a JOGOS ismétlés elakadása, nem a dupla mozgás. Ez a KANONIZÁLÁS oldala; az M170 '
+      + 'ugyanennek a garanciának a MÁSIK helyszíne (az azonosság-összeállítás).',
     file: 'inputSchema.mjs',
     from: "    bound[name] = q.text;                                  // a PROFIL szerinti KANONIKUS alak",
     to: "    bound[name] = String(bound[name]);" },
 
   { id: 'M170', rule: 'K10', catcher: 'P-KSZ-repeat-and-error-boundary', expect: 'probe_fail',
-    what: 'KSZ-01 / R43 — AZ ISMÉTLÉS ÚJ HATÁST SZÜL: a parancs-azonosság a NYERS mennyiség-szöveget '
-      + 'viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS formázásban MÁSODSZOR is '
-      + 'könyvelne — kettős készletmozgás egyetlen valódi beadásból (KUKA-026)',
+    what: 'KSZ-01 / R43 — A FORMÁZÁS-FÜGGETLEN ISMÉTLÉS MEGSZŰNIK: a parancs-azonosság a NYERS '
+      + 'mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS '
+      + 'írásmódban NEM visszajátszás. MÉRT HATÁS (R45/F45-02 helyesbítése, a külső fél lelete): a '
+      + 'második beadás NEVEZETT `idempotency_conflict`-re fut, a mozgások száma 1 MARAD — tehát '
+      + 'ez a mutáció NEM kettős könyvelést okoz, hanem a jogos hálózati újrapróbálkozást akasztja '
+      + 'el. A tényleges KETTŐS HATÁST az M172 mutatja (2 mozgás). A kettő KÉT KÜLÖN garancia, nem '
+      + 'felcserélhető példa.',
     file: 'ledger.mjs',
     // A KÁR A PARANCS-AZONOSSÁGBAN keletkezik, nem a bemenet átírásában: az első alakom a FAGYASZTOTT
     // `checked.value`-ra írt, és a próba nyers `TypeError`-ral állt meg — más réteg (a fagyasztás)

@@ -5027,6 +5027,57 @@ const REF_DIR = dirname(fileURLToPath(import.meta.url));
 // BIZONYÍTÉKBAN volt, nem a rendszerben. Ezért ez a négy próba nem javít, hanem BEKÖT.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
+// ── R45/F45-01 — TELJES TARTALMI PILLANATKÉP, NEM DARABSZÁM ─────────────────────────────────────
+//
+// MI VOLT A BAJ (a KÜLSŐ ELLENŐRZŐ FÉL lelete, chatgpt-v3, R45/F45-01, a SAJÁT tárgyunkon
+// reprodukálva). Az R44-es próbám a `command` · `command_event` · `stock_movement` DARABSZÁMÁT és
+// EGYETLEN egyenleg-szöveget hasonlított — ráadásul csak a sorozat VÉGÉN. Ők a bevét-út elutasító
+// ágán átírtak egy KORÁBBI esemény időpontját (`UPDATE command_event SET at = '1999-…'`), és a
+// battéria mind az 58 próbája ZÖLD maradt. Én ezt a saját fámon megismételtem: a mérés `changes: 1`
+// volt (tehát VALÓBAN átírt egy régi sort), az eredmény mégis 58/58 PASS.
+//
+// Ugyanaz a hiba-osztály, amit a KUKA-045 mond: a DARABSZÁM nem a tartalom. „Ugyanannyi sor" és
+// „ugyanaz a sor" két különböző állítás, és a történet-megőrzés az utóbbiról szól.
+//
+// A JAVÍTÁS ALAKJA. A pillanatkép a három tábla MINDEN oszlopa, determinisztikus rendezésben — a
+// tárolt nyugta/eredmény tartalmával (`command.resolved_json`) együtt —, és MINDEN egyes lépés után
+// mérünk, nem csak a végén. Mezőt azért, hogy zöld maradjon, NEM szűrünk ki.
+const HISTORY_TABLES = Object.freeze([
+  Object.freeze({ table: 'command', order: 'book_id, actor, idem_key' }),
+  Object.freeze({ table: 'command_event', order: 'book_id, actor, idem_key, event' }),
+  Object.freeze({ table: 'stock_movement', order: 'book_id, item_id, owner_id, warehouse_id, effect_id, id' }),
+]);
+const historySnapshot = (store) => JSON.stringify(
+  HISTORY_TABLES.map(({ table, order }) => [table, store.all(`SELECT * FROM ${table} ORDER BY ${order}`)]));
+
+// A JOGOS ÚJ NAPLÓ-SOR ÉS A RÉGI SOR ÁTÍRÁSA KÉT KÜLÖN DOLOG (R45 kikötése). A kiadás-leltár
+// (`disclosure`) az ISMÉTLÉSRE is ír — az Q15 szerint a visszajátszás IS kiadás —, tehát a napló
+// JOGOSAN NŐ. Amit tilt a szerződés: a KORÁBBI sorok megváltozása. Ezért a napló mérce külön:
+// HOZZÁFŰZÉS megengedett, ELŐZMÉNY-ÁTÍRÁS nem.
+const auditTrail = (store) => store.all('SELECT * FROM disclosure ORDER BY id');
+const appendedOnly = (before, after) => after.length >= before.length
+  && JSON.stringify(after.slice(0, before.length)) === JSON.stringify(before);
+
+// A FIGYELŐ: alapot vesz, és MINDEN lépés után visszamér. A `rebase` CSAK ott hívható, ahol a
+// változás JOGOS (egy tényleges, sikeres új bevét) — az elutasítások és az ismétlések után soha.
+const historyWatch = (store) => {
+  let hist = historySnapshot(store);
+  let audit = auditTrail(store);
+  const drift = [];
+  return {
+    rebase: () => { hist = historySnapshot(store); audit = auditTrail(store); },
+    check: (label) => {
+      const h = historySnapshot(store); const a = auditTrail(store);
+      if (h !== hist) drift.push(`${label}: a TÖRTÉNET TARTALMA megváltozott`);
+      if (!appendedOnly(audit, a)) drift.push(`${label}: a napló KORÁBBI sora megváltozott`);
+      audit = a;                       // a jogos ÚJ napló-sor megengedett, a régi átírása nem
+      return h === hist;
+    },
+    clean: () => drift.length === 0,
+    drift,
+  };
+};
+
 const k10World = () => {
   const store = openStore();
   store.run('INSERT INTO book VALUES (?,?)', 'a', 'A könyv');
@@ -5107,13 +5158,18 @@ probe('P-KAT-identity-history', 'R32/K10 · K10-TYP-a · KUKA-027 · KUKA-021',
     };
   });
 
-probe('P-KSZ-canonical-input-boundary', 'R32/K10 · K10-TYP-b · KUKA-097 · KUKA-124',
-  'A bemeneti elutasítás a VALÓDI bevét-úton dől el, és SEMMIT nem ír',
+probe('P-KSZ-canonical-input-boundary', 'R32/K10 · K10-TYP-b · KUKA-097 · KUKA-124 · R45/F45-01',
+  'A bemeneti elutasítás a VALÓDI bevét-úton dől el, és a MEGLÉVŐ történetet sem írja át',
   () => {
     const { store, send, counts } = k10World();
     const it = registerItem({ store, bookId: 'a', sku: 'X', unit: 'l', at: BIT.MARCH });
     const base = { item_id: it.itemId, qty: '1', effective_at: BIT.MARCH };
-    const before = JSON.stringify(counts());
+
+    // ELŐZMÉNY KELL, KÜLÖNBEN A MÉRÉS ÜRES (R45/F45-01 · KUKA-093). Az „üres tárolón nem született
+    // sor" állítás NEM bizonyítja, hogy a MEGLÉVŐ történet érintetlen marad: ahhoz előbb LENNIE
+    // kell történetnek. Ezért a próba egy JOGOS bevéttel kezd, és az elutasításokat ARRA méri.
+    const seed = send('seed', { item_id: it.itemId, qty: '4', effective_at: BIT.MARCH });
+    const w = historyWatch(store);
 
     // MINDEN normatív rész a KANONIKUS úton (R43/2): a korábbi bizonyíték a `validateInput`
     // közvetlen hívásán állt — az a SAJÁT rétegünk, nem a felhasználó útja (KUKA-184 tanulsága).
@@ -5129,21 +5185,27 @@ probe('P-KSZ-canonical-input-boundary', 'R32/K10 · K10-TYP-b · KUKA-097 · KUK
     ];
     const got = cases.map(([want, input], i) => {
       const r = send(`c${i}`, input);
+      // A TELJES TARTALOM MINDEN EGYES ELUTASÍTÁS UTÁN — nem a sorozat végén, és nem darabszámon.
+      w.check(`${want} (${i}.)`);
       return { want, error: r.ok ? '(ÁTMENT)' : r.error, ok: r.ok === false && r.error === want };
     });
-    const aOk = got.every((g) => g.ok) && JSON.stringify(counts()) === before;
+    const aOk = seed.ok === true && got.every((g) => g.ok) && w.clean();
 
     // A SÉMAVERZIÓ HATÁRA ugyanezen az úton (SVR-01) — és a JOGOS bevét működik.
     const ver = send('cv', base, '0');
+    const verClean = w.check('nem támogatott sémaverzió');
+    const movBeforeGood = counts().mov;
     const good = send('cg', base);
-    const bOk = ver.ok === false && ver.error === 'unsupported_schema_version'
-      && good.ok === true && counts().mov === 1;
+    const bOk = ver.ok === false && ver.error === 'unsupported_schema_version' && verClean
+      && good.ok === true && counts().mov === movBeforeGood + 1;
 
     return {
-      expected: 'mind a nyolc bemeneti hiba NEVEZETTEN elakad a VALÓDI bevét-úton, írás nélkül · a '
-        + 'nem támogatott sémaverzió ugyanitt elakad · a jogos bevét működik és EGY mozgást ír',
+      expected: 'mind a nyolc bemeneti hiba NEVEZETTEN elakad a VALÓDI bevét-úton, és a MEGLÉVŐ '
+        + 'történet TELJES tartalma minden egyes elutasítás után változatlan · a nem támogatott '
+        + 'sémaverzió ugyanitt elakad · a jogos bevét működik és EGY mozgást ír',
       actual: got.map((g) => `${g.want}→${g.error}`).join(' · ')
-        + ` · verzió: ${ver.error} · jogos: ${good.ok ? 'ok' : good.error} · mozgás=${counts().mov}`,
+        + ` · verzió: ${ver.error} · jogos: ${good.ok ? 'ok' : good.error} · mozgás=${counts().mov}`
+        + ` · tartalmi eltérés: ${w.drift.join(' | ') || 'nincs'}`,
       pass: aOk && bOk,
       asserts: {
         'A-K10-b-input-errors-are-named-on-the-canonical-path-without-writing': aOk,
@@ -5197,9 +5259,31 @@ probe('P-MNY-stored-profile-history', 'R32/K10 · K10-TYP-c · KUKA-021 · KUKA-
     const rowsAfter = store.all('SELECT qty_scaled, qty_profile FROM stock_movement WHERE item_id = ?', L.itemId);
     store.run('UPDATE item SET qty_profile = ? WHERE item_id = ?', 'qty-1', L.itemId);
     const back = balanceAt({ store, key, view: 'B', asOf: BIT.MARCH });
+
+    // A MÉRET SZÁMÍT, ÉS EZ A KÜLSŐ FÉL LELETE (R45/F45-02). A fenti, 12.500-as tételen az idegen
+    // profilra olvasás a MÁSIK korlátba (`total_out_of_range`) ütközik — tehát a próba zöld marad
+    // attól is, hogy az őr NEM a profil-eltérést fogta meg: az elutasítás oka MÁS. Ezért kell egy
+    // KIS mennyiségű tétel is, ahol az átértelmezés EGYIK korlátot sem sérti: `7.500` (scaled 7500)
+    // idegen, tizedes nélküli profilon „7500"-nak olvasódna — ez a CSENDES átértelmezés a saját
+    // alakjában, és csak itt látszik, hogy a nevezett `profile_mismatch` az, ami megállítja.
+    const S = registerItem({ store, bookId: 'a', sku: 'KICSI', unit: 'l', at: BIT.MARCH });
+    const keyS = { bookId: 'a', itemId: S.itemId, ownerId: 'gazda', warehouseId: 'FO' };
+    send('s1', { item_id: S.itemId, qty: '5', effective_at: BIT.MARCH });
+    send('s2', { item_id: S.itemId, qty: '2.500', effective_at: BIT.MARCH });
+    const smallBefore = balanceAt({ store, key: keyS, view: 'B', asOf: BIT.MARCH });
+    store.run('UPDATE item SET qty_profile = ? WHERE item_id = ?', 'qty-2', S.itemId);
+    const smallDrift = balanceAt({ store, key: keyS, view: 'B', asOf: BIT.MARCH });
+    store.run('UPDATE item SET qty_profile = ? WHERE item_id = ?', 'qty-1', S.itemId);
+    const smallBack = balanceAt({ store, key: keyS, view: 'B', asOf: BIT.MARCH });
+
     const cOk = after.ok === false && after.error === 'profile_mismatch'
       && rowsAfter.every((r) => r.qty_profile === 'qty-1')           // a NYERS sorok érintetlenek
-      && back.ok === true && back.text === '12.500';                  // és a jelentés visszatér
+      && back.ok === true && back.text === '12.500'                   // és a jelentés visszatér
+      && smallBefore.ok === true && smallBefore.text === '7.500'
+      // A DÖNTŐ SOR: itt a néma „7500" fogalmilag lehetséges volna (egyik korlátba sem ütközik),
+      // mégis NEVEZETT elutasítás jön — tehát a profil-eltérés őre az, ami megállítja.
+      && smallDrift.ok === false && smallDrift.error === 'profile_mismatch'
+      && smallBack.ok === true && smallBack.text === '7.500'
 
     return {
       expected: 'a tárolt sor a SAJÁT profilját viszi (KÉT profilon mérve: liter és darab) '
@@ -5209,7 +5293,9 @@ probe('P-MNY-stored-profile-history', 'R32/K10 · K10-TYP-c · KUKA-021 · KUKA-
       actual: `L sor-profilok: ${rows.map((r) => r.qty_profile).join(',')} · előtte=${before.text}`
         + ` · D sor-profilok: ${rowsD.map((r) => r.qty_profile).join(',')} · D=${beforeD.ok ? beforeD.text : beforeD.error}`
         + ` · item-írók: ${itemUpdates.join('|') || '(egy sem)'}`
-        + ` · elcsúszva=${after.ok ? after.text : after.error} · visszaállítva=${back.text}`,
+        + ` · elcsúszva=${after.ok ? after.text : after.error} · visszaállítva=${back.text}`
+        + ` · KIS tétel (7.500): elcsúszva=${smallDrift.ok ? `„${smallDrift.text}" (NÉMA ÁTÉRTELMEZÉS!)` : smallDrift.error}`
+        + ` · visszaállítva=${smallBack.ok ? smallBack.text : smallBack.error}`,
       pass: aOk && bOk && cOk,
       asserts: {
         'A-K10-c-stored-row-carries-its-own-profile': aOk,
@@ -5219,57 +5305,94 @@ probe('P-MNY-stored-profile-history', 'R32/K10 · K10-TYP-c · KUKA-021 · KUKA-
     };
   });
 
-probe('P-KSZ-repeat-and-error-boundary', 'R32/K10 · K10-TYP-d · KUKA-097 · KUKA-026',
-  'ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad',
+probe('P-KSZ-repeat-and-error-boundary', 'R32/K10 · K10-TYP-d · KUKA-097 · KUKA-026 · R45/F45-01 · R45/F45-02',
+  'ISMÉTLÉS ÉS HIBAHATÁR: a TELJES történet-tartalom változatlan, nincs második hatás és nincs részleges írás',
   () => {
     const { store, send, counts } = k10World();
     const L = registerItem({ store, bookId: 'a', sku: 'LITER', unit: 'l', at: BIT.MARCH });
     const D = registerItem({ store, bookId: 'a', sku: 'DARAB', unit: 'db', qtyProfile: 'qty-2', at: BIT.MARCH });
     const keyL = { bookId: 'a', itemId: L.itemId, ownerId: 'gazda', warehouseId: 'FO' };
-    const snap = () => JSON.stringify({
-      ...counts(), bal: balanceAt({ store, key: keyL, view: 'B', asOf: BIT.MARCH }).text,
-    });
 
-    // (1) JOGOS ELSŐ BEADÁS
+    // (1) JOGOS ELSŐ BEADÁS — ez az EGYETLEN pont, ahol a történet JOGOSAN nő.
     const first = send('k1', { item_id: L.itemId, qty: '10', effective_at: BIT.MARCH });
-    const s1 = snap();
-    // (2) AZONOS ISMÉTLÉS — ugyanaz a hatás, nem új
-    const repeat = send('k1', { item_id: L.itemId, qty: '10', effective_at: BIT.MARCH });
-    // (3) AZONOS JELENTÉS, MÁS FORMÁZÁS — a kanonikus alak dönt, nem a leírt szöveg
-    const reformat = send('k1', { item_id: L.itemId, qty: '10.000', effective_at: BIT.MARCH });
-    // (4) KORÁBBI SÉMAVERZIÓ ugyanazzal a kulccsal — a nyugta NEM értelmeződik át hallgatólagosan
-    const oldVer = send('k1', { item_id: L.itemId, qty: '10', effective_at: BIT.MARCH }, '0');
-    // (5) MÁS SZÁMÍTÁSI PROFIL ugyanazzal a kulccsal — nevezett ütközés, nem néma visszajátszás
-    const otherProfile = send('k1', { item_id: D.itemId, qty: '10', effective_at: BIT.MARCH });
-    // (6) HIBAPONT ugyanazzal a kulccsal — a plafon fölötti tétel
-    const overflow = send('k1', { item_id: L.itemId, qty: '99999999', effective_at: BIT.MARCH });
-    // (7) A KORÁBBI SIKER MEGMARADT
-    const stillThere = send('k1', { item_id: L.itemId, qty: '10', effective_at: BIT.MARCH });
+    const movAfterFirst = counts().mov;
+    const w = historyWatch(store);                    // az alap: a MÁR MEGLÉVŐ történet tartalma
 
-    const aOk = first.ok === true && first.replayed !== true && counts().mov === 1;
+    // (2)–(6) ISMÉTLÉS ÉS ELUTASÍTÁSOK — MINDEGYIK UTÁN teljes tartalmi visszamérés (R45/F45-01):
+    //        a köztes eltérés visszaállítása is lelet, ezért nem csak a sorozat végén nézünk.
+    const repeat = send('k1', { item_id: L.itemId, qty: '10', effective_at: BIT.MARCH });
+    w.check('azonos ismétlés');
+    const reformat = send('k1', { item_id: L.itemId, qty: '10.000', effective_at: BIT.MARCH });
+    w.check('azonos jelentés, MÁS formázás');
+    const oldVer = send('k1', { item_id: L.itemId, qty: '10', effective_at: BIT.MARCH }, '0');
+    w.check('korábbi sémaverzió');
+    const otherProfile = send('k1', { item_id: D.itemId, qty: '10', effective_at: BIT.MARCH });
+    w.check('más számítási profil, azonos kulcs');
+    const overflow = send('k1', { item_id: L.itemId, qty: '99999999', effective_at: BIT.MARCH });
+    w.check('bemeneti hibapont (tétel-plafon)');
+
+    // (7) A KORÁBBI SIKER MEGMARADT — és ez sem ír át semmit.
+    const stillThere = send('k1', { item_id: L.itemId, qty: '10', effective_at: BIT.MARCH });
+    w.check('a korábbi siker visszajátszása');
+
+    const aOk = first.ok === true && first.replayed !== true && movAfterFirst === 1;
     const bOk = repeat.ok === true && repeat.replayed === true && repeat.effect_id === first.effect_id
       && reformat.ok === true && reformat.replayed === true && reformat.effect_id === first.effect_id;
     const cOk = oldVer.ok === false && oldVer.error === 'unsupported_schema_version'
       && otherProfile.ok === false && otherProfile.error === 'idempotency_conflict'
       && overflow.ok === false && overflow.error === 'out_of_range';
-    // A HÁROM ELUTASÍTÁS UTÁN a pillanatkép VÁLTOZATLAN, és a korábbi siker ugyanazt a hatást adja.
-    const dOk = snap() === s1 && stillThere.ok === true && stillThere.replayed === true
+    const dOk = w.clean() && stillThere.ok === true && stillThere.replayed === true
       && stillThere.effect_id === first.effect_id;
+
+    // ── (8) A HATÁS VÉGREHAJTÁSA KÖZBEN FELLÉPŐ HIBA (R45/F45-02) ───────────────────────────────
+    //
+    // MI VOLT A BAJ. A fenti (6) hibapont a `bindQuantityProfile` ELŐZETES ellenőrzésén akad el,
+    // tehát a parancs tranzakciójába BE SEM LÉP: érvényes bemeneti ellenpélda, de a RÉSZLEGES ÍRÁS
+    // visszagörgetéséről semmit nem mond (a külső fél lelete).
+    //
+    // AMIT HELYETTE MÉRÜNK. A darabos cikk ÖSSZEG-korlátja (10 000) a MEGLÉVŐ atomi úton belül üt:
+    // a tétel ÖNMAGÁBAN szabályos (1 000 = a tétel-plafon), az elakadás a `stockReceiptEffect`-ben
+    // történik — MIUTÁN a parancs-sor és a NYUGTA már beíródott ugyanabban a tranzakcióban. Tehát
+    // itt derül ki, hogy a visszagörgetés TELJES-e: a teljes tartalmi pillanatkép változatlan,
+    // és a KORÁBBI siker megmarad. Új tranzakciós keretet nem építünk (R45 kikötése).
+    const keyD = { bookId: 'a', itemId: D.itemId, ownerId: 'gazda', warehouseId: 'FO' };
+    const fills = [];
+    for (let i = 0; i < 10; i += 1) {
+      fills.push(send(`fill${i}`, { item_id: D.itemId, qty: '1000', effective_at: BIT.MARCH }));
+    }
+    const filled = balanceAt({ store, key: keyD, view: 'B', asOf: BIT.MARCH });
+    const w2 = historyWatch(store);                   // alap a TELJESEN feltöltött állapoton
+    const inEffect = send('sum1', { item_id: D.itemId, qty: '1', effective_at: BIT.MARCH });
+    const effectClean = w2.check('a HATÁS közben fellépő összeg-hiba');
+    const afterEffect = balanceAt({ store, key: keyD, view: 'B', asOf: BIT.MARCH });
+    const stillThere2 = send('k1', { item_id: L.itemId, qty: '10', effective_at: BIT.MARCH });
+    w2.check('a korábbi siker a hatás-hiba UTÁN');
+    const eOk = fills.every((r) => r.ok === true) && filled.ok === true && filled.text === '10000'
+      && inEffect.ok === false && inEffect.error === 'sum_out_of_range'
+      && effectClean && w2.clean()
+      && !store.get('SELECT 1 AS x FROM command WHERE idem_key = ?', 'sum1')
+      && afterEffect.ok === true && afterEffect.text === '10000'
+      && stillThere2.ok === true && stillThere2.replayed === true
+      && stillThere2.effect_id === first.effect_id;
 
     return {
       expected: 'első beadás EGY hatás · azonos és MÁS FORMÁZÁSÚ ismétlés ugyanazt a hatást adja · '
-        + 'korábbi sémaverzió, más profil és a hibapont NEVEZETTEN elakad · a pillanatkép '
-        + 'változatlan, és a korábbi siker megmarad',
-      actual: `első: mozgás=${counts().mov} · ismétlés: replayed=${repeat.replayed} azonos=${repeat.effect_id === first.effect_id}`
+        + 'korábbi sémaverzió, más profil és a bemeneti hibapont NEVEZETTEN elakad · a TELJES '
+        + 'történet-tartalom MINDEN lépés után változatlan (a napló csak HOZZÁFŰZ) · és a HATÁS '
+        + 'közben fellépő hiba sem hagy részleges írást, a korábbi siker megmarad',
+      actual: `első: mozgás=${movAfterFirst} · ismétlés: replayed=${repeat.replayed} azonos=${repeat.effect_id === first.effect_id}`
         + ` · formázás: replayed=${reformat.replayed} azonos=${reformat.effect_id === first.effect_id}`
-        + ` · régi verzió=${oldVer.error} · más profil=${otherProfile.error} · plafon=${overflow.error}`
-        + ` · pillanatkép változatlan=${snap() === s1} · a korábbi siker=${stillThere.replayed ? 'megvan' : 'ELVESZETT(!)'}`,
-      pass: aOk && bOk && cOk && dOk,
+        + ` · régi verzió=${oldVer.error} · más profil=${otherProfile.error} · bemeneti plafon=${overflow.error}`
+        + ` · hatás-közbeni hiba=${inEffect.ok ? 'ÁTMENT(!)' : inEffect.error} · egyenleg=${afterEffect.ok ? afterEffect.text : afterEffect.error}`
+        + ` · tartalmi eltérés: ${w.drift.concat(w2.drift).join(' | ') || 'nincs'}`
+        + ` · a korábbi siker=${stillThere.replayed ? 'megvan' : 'ELVESZETT(!)'}`,
+      pass: aOk && bOk && cOk && dOk && eOk,
       asserts: {
         'A-K10-d-first-submission-creates-exactly-one-effect': aOk,
         'A-K10-d-identical-and-reformatted-repeat-replay-the-same-effect': bOk,
         'A-K10-d-old-version-other-profile-and-error-point-are-named-refusals': cOk,
         'A-K10-d-refusals-leave-the-snapshot-and-the-earlier-success-intact': dOk,
+        'A-K10-d-effect-time-failure-leaves-no-partial-write': eOk,
       },
     };
   });

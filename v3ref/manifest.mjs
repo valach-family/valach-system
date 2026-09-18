@@ -34,6 +34,8 @@ export const MANIFEST_VERSION = 'v3ref-manifest-3';
  */
 // A SZERZŐDÉS VERZIÓJA AZ R43-AS BEKÖTÉSSEL — EGY helyen, hogy a 13 új sor ne tudjon elcsúszni.
 const VERSION_R43 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d';
+// R45 — a teljes tartalmi történet-megőrzés és a HATÁS-KÖZBENI hibahatár bekötése (F45-01/02).
+const VERSION_R45 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history';
 
 export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({ id: 'P-A04', assertion: 'A04-two-worlds-byte-identical' }),
@@ -617,6 +619,10 @@ export const EXPECTED_PROBES = Object.freeze([
         contract_version: VERSION_R43 }),
       Object.freeze({ clause: 'K10-TYP-d', assertion: 'A-K10-d-refusals-leave-the-snapshot-and-the-earlier-success-intact',
         contract_version: VERSION_R43 }),
+      // R45/F45-02 — A HATÁS VÉGREHAJTÁSA KÖZBEN fellépő hiba: a bemeneti plafon a tranzakcióba be
+      // sem lép, tehát a részleges írás visszagörgetéséről nem mond semmit (a külső fél lelete).
+      Object.freeze({ clause: 'K10-TYP-d', assertion: 'A-K10-d-effect-time-failure-leaves-no-partial-write',
+        contract_version: VERSION_R45 }),
     ]),
   }),
   Object.freeze({

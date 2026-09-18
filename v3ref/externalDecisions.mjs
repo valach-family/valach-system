@@ -29,6 +29,34 @@ export const EXTERNAL_DECISION_SOURCE = Object.freeze({
   revalidate_on: 'forrás- vagy követelményváltozás az érintett klauzulán',
 });
 
+/**
+ * R45 — AZ ÚJ, HATÓKÖRÖS DÖNTÉS SAJÁT FORRÁSSAL (a külső fél kikötése az R45-ben):
+ * *„Az R37 14 elfogadott / 15 részleges vagy nyitott döntése történeti állapot. Ezt ne írd át
+ * visszamenőleg: az új, hatókörös K10-b döntés forrása R45. A döntéseket forrásukkal és
+ * hatókörükkel vezesd át; a történeti idézetet őrizd meg."*
+ *
+ * EZÉRT NEM ÍRTUK FELÜL A FENTI SORT. A regiszter mostantól KÉT rétegű: a történeti (R37) döntés
+ * ÉRINTETLENÜL megmarad, az R45-ös pedig MELLÉ kerül, saját forrással — és a MAI állapotot a
+ * `externalDecisionFor` a LEGÚJABB döntésből adja, a történetit pedig `superseded` alatt viszi
+ * magával (KUKA-105: két minősítési szintet soha nem mosunk össze; itt két IDŐÁLLAPOTOT nem).
+ */
+export const EXTERNAL_DECISION_SOURCE_R45 = Object.freeze({
+  round: 'CMD-VS-300-002-002 R45 — ANALYSIS',
+  decided_by: 'chatgpt-v3 (külső ellenőrző fél)',
+  at: '2026-09-18',
+  examined_revision: 'valach-family/valach-system@a0d41d9062a6ae2ce214a199c63903b3d11ebdac',
+  scope: 'a jelenlegi egyírós, szintetikus referencia belső séma- és kanonikus bevétútja — NEM az '
+    + 'OB-3 külső HTTP-/bizalmi határa, és nem minden korábbi tárolt adat változatlansága',
+  not_a_machine_attestation: true,
+  revalidate_on: 'forrás- vagy követelményváltozás az érintett klauzulán',
+});
+
+/** A regiszter FORRÁSAI, időrendben — a `source` mező ezekre hivatkozik. */
+export const EXTERNAL_DECISION_SOURCES = Object.freeze([
+  Object.freeze({ id: 'R37', document: 'v3ref/source-documents/R37_board_v1.md', ...EXTERNAL_DECISION_SOURCE }),
+  Object.freeze({ id: 'R45', document: 'v3ref/source-documents/R45_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R45 }),
+]);
+
 /** A HÁROM DÖNTÉS-SZÓ ZÁRT HALMAZ — ismeretlen szó nem csúszhat át „valaminek" (KUKA-101). */
 export const EXTERNAL_VERDICTS = Object.freeze(['accepted_in_reference', 'partial', 'open', 'not_accepted_as_whole']);
 
@@ -110,14 +138,48 @@ export const EXTERNAL_CLAUSE_DECISIONS = Object.freeze([
     reason: 'a tiltás meglévő; a második engedő út feletti elsőbbség még nem mérhető.' }),
 ]);
 
-const BY_CLAUSE = new Map(EXTERNAL_CLAUSE_DECISIONS.map((d) => [d.clause, d]));
+/**
+ * AZ R45 DÖNTÉSEI — a K10-csoport négy klauzulájára, SZÓ SZERINTI indokkal az R45-ös lapról.
+ * A K10-TYP-b itt lép `not_accepted_as_whole`-ról `accepted_in_reference`-re, KIMONDOTT, SZŰKEBB
+ * hatókörrel: ez NEM általános elfogadás, és a döntés az ÖVÉK — Claude magának nem ad elfogadást.
+ */
+export const EXTERNAL_CLAUSE_DECISIONS_R45 = Object.freeze([
+  Object.freeze({ clause: 'K10-TYP-b', verdict: 'accepted_in_reference', source: 'R45',
+    reason: '**K10-TYP-b elfogadva a jelenlegi egyírós, szintetikus referencia belső séma- és kanonikus bevétútjára.** A megnevezett művelet/sémaverzió, hiányzó és ismeretlen mező, hibás típus nevezett válasza ellenőrzött. A korábbi bemeneti javítást nem nyitom újra. Ez nem fogadja el az OB-3 külső HTTP-/bizalmi határát, és nem igazolja önmagában minden korábbi tárolt adat változatlanságát.' }),
+  Object.freeze({ clause: 'K10-TYP-a', verdict: 'partial', source: 'R45',
+    reason: '**K10-TYP-a részleges marad.** Könyv szerinti azonosság, mennyiségi mozgások alatti stabil hivatkozás és formázási ismétlés mérve. Nincs megjelenítési név/átnevezési művelet; ennek határa megmarad. A jelentés helyesen nem állítja ezt megépítettnek.' }),
+  Object.freeze({ clause: 'K10-TYP-c', verdict: 'partial', source: 'R45',
+    reason: '**K10-TYP-c részleges marad.** A saját profil tárolása és az olvasó eltérés-ellenőrzése elfogadható részeredmény. Támogatott profilváltás nincs; a nyers fixtúra nem annak bizonyítéka.' }),
+  Object.freeze({ clause: 'K10-TYP-d', verdict: 'partial', source: 'R45',
+    reason: '**K10-TYP-d részleges marad; az R43 teljes történetmegőrzési bizonyítása nincs lezárva.** A jogos bevét és ismétlés működése igazolt, a teljes tartalom változatlanságára a lent reprodukált rés fennáll.' }),
+]);
 
-/** Egy klauzula KÜLSŐ döntése, vagy `null`. A hiány NEM „elfogadva" (KUKA-093). */
+/** A REGISZTER MINDEN DÖNTÉSE, forrással — a történeti sor `source: 'R37'`-et kap. */
+export const ALL_EXTERNAL_DECISIONS = Object.freeze([
+  ...EXTERNAL_CLAUSE_DECISIONS.map((d) => Object.freeze({ source: 'R37', ...d })),
+  ...EXTERNAL_CLAUSE_DECISIONS_R45,
+]);
+
+// A LEGÚJABB DÖNTÉS NYER, DE A RÉGI NEM TŰNIK EL. A sorrend a `EXTERNAL_DECISION_SOURCES` szerinti:
+// egy későbbi kör döntése felülírja a korábbit, és a korábbi `superseded`-ként UTAZIK vele (KUKA-103:
+// az átírás is kivezetés — a mínuszt is át kell nézni).
+const SOURCE_ORDER = new Map(EXTERNAL_DECISION_SOURCES.map((x, i) => [x.id, i]));
+const BY_CLAUSE = new Map();
+for (const d of ALL_EXTERNAL_DECISIONS) {
+  const prev = BY_CLAUSE.get(d.clause);
+  if (!prev || SOURCE_ORDER.get(d.source) > SOURCE_ORDER.get(prev.source)) {
+    BY_CLAUSE.set(d.clause, prev ? Object.freeze({ ...d, superseded: prev }) : d);
+  }
+}
+
+/** Egy klauzula MAI külső döntése, vagy `null`. A hiány NEM „elfogadva" (KUKA-093). */
 export function externalDecisionFor(clauseId) {
   return BY_CLAUSE.get(clauseId) || null;
 }
 
 /** Hány klauzulán áll ma „referenciában elfogadva" — MÉRVE, nem beírva (KUKA-045). */
 export function acceptedInReference() {
-  return EXTERNAL_CLAUSE_DECISIONS.filter((d) => d.verdict === 'accepted_in_reference').map((d) => d.clause);
+  // A MAI állapotot mérjük, nem a történetit: a felülírt R37-es döntés `superseded`-ként megmarad,
+  // de a számba a MOSTANI verdikt megy (KUKA-050: a szöveg a valóságot követi).
+  return [...BY_CLAUSE.values()].filter((d) => d.verdict === 'accepted_in_reference').map((d) => d.clause);
 }

@@ -38,7 +38,8 @@ import { digestOfBundle } from '../v3ref/bundleDigest.mjs';
 import { EXPECTED_PROBES } from '../v3ref/manifest.mjs';
 import { MUTATIONS } from '../v3ref/mutations.mjs';
 import { contractRef, NORM_CONTRACT } from '../v3ref/normContract.mjs';
-import { EXTERNAL_CLAUSE_DECISIONS, externalDecisionFor } from '../v3ref/externalDecisions.mjs';
+import { ALL_EXTERNAL_DECISIONS, EXTERNAL_DECISION_SOURCES, externalDecisionFor }
+  from '../v3ref/externalDecisions.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MEASURED = join(ROOT, 'v3ref/v3ref-mutation-result.json');
@@ -343,7 +344,11 @@ const pkg = {
     not_falsified: count('not_falsified'),
     no_evidence: count('no_evidence'),
     content_review_current: contentReviewed,
-    external_decisions: EXTERNAL_CLAUSE_DECISIONS.length,
+    // A KLAUZULÁK száma és a DÖNTÉS-SOROK száma két külön tény (R45): egy klauzulán több kör
+    // döntése is állhat, a MAI a legutolsó, a korábbi `superseded`-ként megmarad.
+    external_decision_clauses: new Set(ALL_EXTERNAL_DECISIONS.map((d) => d.clause)).size,
+    external_decision_rows: ALL_EXTERNAL_DECISIONS.length,
+    external_decisions: new Set(ALL_EXTERNAL_DECISIONS.map((d) => d.clause)).size,
   },
   open_blockers: OPEN_BLOCKERS.map((b) => ({ id: b.id, title: b.title })),
   closed_blockers: CLOSED_BLOCKERS.map((b) => ({ id: b.id, title: b.title, closed_in: b.closed_in, guard: b.guard, residual: b.residual })),
@@ -410,9 +415,17 @@ md.push('## A külső fél tartalmi döntései (OB-7, boardon rögzítve)');
 md.push('');
 md.push('> Ez **nem** gépi hitelesítés és **nem** a repó `content_review` rekordja — külön tengely.');
 md.push('');
-md.push('| klauzula | döntés | indok |');
-md.push('|---|---|---|');
-for (const d of EXTERNAL_CLAUSE_DECISIONS) md.push(`| **${d.clause}** | ${d.verdict} | ${esc(d.reason)} |`);
+md.push(`> Források: ${EXTERNAL_DECISION_SOURCES.map((x) => `**${x.id}** — ${x.round}`).join(' · ')}. `
+  + 'Ahol egy későbbi kör döntött, a MAI verdikt az övé, és a korábbi döntés SORKÉNT megmarad — a '
+  + 'történeti idézetet nem írjuk át (R45).');
+md.push('');
+md.push('| klauzula | forrás | döntés | indok |');
+md.push('|---|---|---|---|');
+for (const d of ALL_EXTERNAL_DECISIONS) {
+  const today = externalDecisionFor(d.clause);
+  const live = today && today.source === d.source ? '' : ' _(felülírva)_';
+  md.push(`| **${d.clause}** | ${d.source}${live} | ${d.verdict} | ${esc(d.reason)} |`);
+}
 md.push('');
 md.push('## Nyitott blokkolók');
 md.push('');

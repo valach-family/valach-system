@@ -547,12 +547,20 @@ export const MODULE_CONTRACT_NORMS = Object.freeze([
             + 'AZONOS jelentés MÁS FORMÁZÁSBAN (a kanonikus alak dönt, nem a leírt szöveg) · KORÁBBI '
             + 'sémaverzió ugyanazzal a kulccsal (`unsupported_schema_version`) · MÁS számítási profil '
             + 'ugyanazzal a kulccsal (`idempotency_conflict`, nem néma visszajátszás) · HIBAPONT '
-            + '(`out_of_range`). Mindhárom elutasítás után a pillanatkép VÁLTOZATLAN, és a korábbi '
-            + 'siker ugyanazt a hatást adja vissza. Falszifikálva: M170.',
+            + '(`out_of_range`). R45/F45-01 UTÁN a mérce a TELJES TARTALOM: a `command`, a '
+            + '`command_event` és a `stock_movement` MINDEN oszlopa, determinisztikus rendezésben — a '
+            + 'tárolt nyugta/eredmény tartalmával együtt —, és MINDEN EGYES lépés után, nem csak a '
+            + 'sorozat végén; a kiadás-leltár külön mérce (HOZZÁFŰZÉS jogos, ELŐZMÉNY-ÁTÍRÁS nem). '
+            + 'R45/F45-02: a HATÁS VÉGREHAJTÁSA KÖZBEN fellépő hiba (az összeg-korlát a darabos '
+            + 'cikken, szabályos tétel-mérettel) sem hagy részleges írást — ez a bemeneti plafonnal '
+            + 'szemben ténylegesen belép a parancs tranzakciójába, a parancs-sor és a nyugta MÁR '
+            + 'beírt állapota mellett. Falszifikálva: M170 · M172 · M173 · M175.',
           remaining: 'a „más PROFILÚ bemenet" ága UGYANARRA A CIKKRE nem szólítható meg, mert a magban '
             + 'nincs profilváltó művelet (K10-TYP-c maradéka); a mérés ezért MÁSIK, más profilú cikkel '
             + 'történt. Ez a reálisan elérhető alak — de a klauzula szó szerinti olvasatában marad egy '
-            + 'nem elérhető változat, és ezt nem nevezzük bizonyítottnak.',
+            + 'nem elérhető változat, és ezt nem nevezzük bizonyítottnak. A tartalmi megőrzés mérce a '
+            + 'HÁROM nevezett táblára és a kiadás-leltárra áll — a séma többi táblájára (pl. tagsági '
+            + 'és jogosultsági könyvek) ez a próba NEM terjed ki.',
         }),
       }),
       Object.freeze({
