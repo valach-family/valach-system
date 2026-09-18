@@ -240,7 +240,7 @@ azt a mérést nem engedtük a jelentésbe (KUKA-177).
 
 ## 7. Végső revíziók
 
-- **V3 (`valach-family/valach-system`), ág `claude/cmd-vs-300-002-002-r23-9gxbee`:** `V3_SHA`
+- **V3 (`valach-family/valach-system`), ág `claude/cmd-vs-300-002-002-r23-9gxbee`:** `c891961` (a lap feltöltésekor érvényes fej; a lap maga még egy commitot kap)
 - **V2 (`valach-family/vs`), ág `claude/cmd-vs-300-002-002-r23-9gxbee`:** `98a4270` — **ebben a
   körben nem változott** (a board-munka az R31-gyel lezárult; a visszaállítási terv javítása a V3
   lapján áll).
