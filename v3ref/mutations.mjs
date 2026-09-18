@@ -1595,6 +1595,17 @@ export const MUTATIONS = [
     from: "      key.bookId, key.itemId, key.ownerId, key.warehouseId, q.scaled.toString(), item.qty_profile,",
     to: "      key.bookId, key.itemId, key.ownerId, key.warehouseId, q.scaled.toString(), 'qty-1'," },
 
+  { id: 'M172', rule: 'K10', catcher: 'P-KSZ-repeat-and-error-boundary', expect: 'probe_fail',
+    what: 'KSZ-01 / R43 — EGY BEADÁS, KÉT KÖNYVELÉS: a bevét hatása KÉTSZER fűzi hozzá ugyanazt a '
+      + 'mozgás-sort, tehát EGYETLEN jogos beadásból kettős készletmozgás lesz. Ez a `d` klauzula '
+      + 'legdrágább alakja: nem elutasítás és nem hibaüzenet, hanem NÉMÁN kétszer akkora készlet '
+      + '(KUKA-026 · KUKA-097).',
+    file: 'ledger.mjs',
+    from: "  return Object.freeze({ ok: true, added: q.text, horizon: horizonIso });",
+    to: "  appendMovement({ store, key: k, item, qty: q.text, effectId, recordedAt: at, "
+      + "effectiveAt, positive: true });\n"
+      + "  return Object.freeze({ ok: true, added: q.text, horizon: horizonIso });" },
+
   { id: 'M171', rule: 'K10', catcher: 'P-KAT-identity-history', expect: 'probe_fail',
     what: 'BEM-01 / KAT-01 / R43 — A KANONIZÁLÁS NEM ÍRÓDIK VISSZA: a profil-kötés a NYERS '
       + 'mennyiség-szöveget hagyja a tartalomban, tehát a `"10"` és a `"10.000"` KÜLÖNBÖZŐ '

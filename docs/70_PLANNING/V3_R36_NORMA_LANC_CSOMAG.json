@@ -1,11 +1,11 @@
 {
   "schema": "v3-norm-chain-package/2",
   "id": "NCP-01",
-  "at": "2026-09-18T19:18:20.990Z",
+  "at": "2026-09-18T19:43:29.036Z",
   "measured_from": {
     "file": "v3ref/v3ref-mutation-result.json",
-    "base_digest": "sha256:0d59319cc5751e3465cb3caa1aff859a9eeaeb9ff6269a5c9d3287aecc6f39ef",
-    "source_digest_today": "sha256:0d59319cc5751e3465cb3caa1aff859a9eeaeb9ff6269a5c9d3287aecc6f39ef",
+    "base_digest": "sha256:de296784b3b5d84e9fc16cd0e76532af829bbdf1d6809f3629877556c12f4fd5",
+    "source_digest_today": "sha256:de296784b3b5d84e9fc16cd0e76532af829bbdf1d6809f3629877556c12f4fd5",
     "source_bound": true,
     "execution": "merged_units"
   },
@@ -38,8 +38,8 @@
     "clauses": 29,
     "chain_rows": 105,
     "covered": 76,
-    "partially_covered": 16,
-    "not_falsified": 5,
+    "partially_covered": 17,
+    "not_falsified": 4,
     "no_evidence": 8,
     "content_review_current": 0,
     "external_decisions": 29
@@ -418,7 +418,7 @@
       "probe_id": "P-REV-bitemporal",
       "behaviour": "A KÉT IDŐ-TENGELY: „március, ahogy márciusban tudtuk\" ⊥ „március, ahogy ma tudjuk\"",
       "positive_evidence": "P-REV-bitemporal — „A KÉT IDŐ-TENGELY: „március, ahogy márciusban tudtuk\" ⊥ „március, ahogy ma tudjuk\"\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M102 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M100, M101, M102, M103",
+      "negative_evidence": "MINŐSÜLŐ tanú: M101 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M100, M101, M102, M103",
       "mutations": [
         {
           "id": "M100",
@@ -430,13 +430,13 @@
           "id": "M101",
           "what": "REV-N2a — A HATÁLY TENGELYE ELTŰNIK AZ ÍRÁSNÁL: a helyesbítés a MAI időpontot rögzíti hatályként is, tehát a visszamenőleges érvénytelenség csak „mától\" szól. A mai kép így NEM tükrözi a helyesbítést a múltra nézve — a két tengely egyetlen pillanatba olvad",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         },
         {
           "id": "M102",
           "what": "REV-N2a — A HATÁLY TENGELYE ELTŰNIK AZ OLVASÁSNÁL: a lekérdezés minden ismert eseményt alkalmaz, akkor is, ha a hatálya a kérdezett nap UTÁN kezdődik. Ettől egy JÖVŐBELI hatályú helyesbítés visszamenőleg elvenné a mai jogot (KUKA-049: az ellenpár nélkül a szabály nem a két tengelyt mérné, csak azt, hogy „van-e esemény\")",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         },
         {
           "id": "M103",
@@ -1564,19 +1564,19 @@
       "probe_id": "P-REV-effectuation",
       "behaviour": "A HATÁLYOSULÁS PONTJA: a döntés és a RÖGZÍTETT HATÁS ugyanazon az időponton áll (EFF-01)",
       "positive_evidence": "P-REV-effectuation — „A HATÁLYOSULÁS PONTJA: a döntés és a RÖGZÍTETT HATÁS ugyanazon az időponton áll (EFF-01)\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M81 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M80, M81, M82",
+      "negative_evidence": "MINŐSÜLŐ tanú: M80 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M80, M81, M82",
       "mutations": [
         {
           "id": "M80",
           "what": "R77/F01 — A HATÁLYOSULÁSI DÖNTÉS KIVÉVE: marad a bebocsátás, és a tranzakción belül már senki nem kérdez jogot. Ez a JAVÍTÁS ELŐTTI alak: a döntés a kérés pillanatában dől el, a rögzített hatás viszont egy KÉSŐBBI órán — így lejárt felhatalmazással is születik hatás",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         },
         {
           "id": "M81",
           "what": "R77/F01 A FINOMABB ALAK: a hatályosulási döntés MEGMARAD, de a rögzített hatás ideje egy ÚJABB óraolvasásból jön. A döntés így ép, a BÉLYEG mégis olyan pillanatot visel, amit senki nem mért — pontosan a KUKA-002 az idő tengelyén, csak eggyel odébb tolva",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         },
         {
           "id": "M82",
@@ -1618,13 +1618,13 @@
       "probe_id": "P-REV-effectuation",
       "behaviour": "A HATÁLYOSULÁS PONTJA: a döntés és a RÖGZÍTETT HATÁS ugyanazon az időponton áll (EFF-01)",
       "positive_evidence": "P-REV-effectuation — „A HATÁLYOSULÁS PONTJA: a döntés és a RÖGZÍTETT HATÁS ugyanazon az időponton áll (EFF-01)\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M82 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M80, M81, M82",
+      "negative_evidence": "MINŐSÜLŐ tanú: M80 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M80, M81, M82",
       "mutations": [
         {
           "id": "M80",
           "what": "R77/F01 — A HATÁLYOSULÁSI DÖNTÉS KIVÉVE: marad a bebocsátás, és a tranzakción belül már senki nem kérdez jogot. Ez a JAVÍTÁS ELŐTTI alak: a döntés a kérés pillanatában dől el, a rögzített hatás viszont egy KÉSŐBBI órán — így lejárt felhatalmazással is születik hatás",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         },
         {
           "id": "M81",
@@ -1636,7 +1636,7 @@
           "id": "M82",
           "what": "R77/F01 — A HATÁLYOSULÁS A BEBOCSÁTÁS ÍTÉLETÉT ÚJRAHASZNÁLJA. A kód alakja megmarad (van „tranzakción belüli döntés\"), csak épp a KORÁBBI pillanat jogát viszi tovább: a látszat ép, a tény nem — ez a KUKA-088 („melyik ellenőrzést fagyasztottam be?\") alakja a hatáskörön",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         }
       ],
       "residual_scope": null,
@@ -1672,19 +1672,19 @@
       "probe_id": "P-CMD-effectuation",
       "behaviour": "A PARANCSÍRÁS IS A KÖZÖS HATÁLYOSULÁSI PONTON MEGY ÁT — egy óraolvasás a tagsági jogra is",
       "positive_evidence": "P-CMD-effectuation — „A PARANCSÍRÁS IS A KÖZÖS HATÁLYOSULÁSI PONTON MEGY ÁT — egy óraolvasás a tagsági jogra is\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M91 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M91, M92, M93",
+      "negative_evidence": "MINŐSÜLŐ tanú: M92 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M91, M92, M93",
       "mutations": [
         {
           "id": "M91",
           "what": "R79/F02 — A PARANCS IDŐBÉLYEGE ÚJABB ÓRAOLVASÁSBÓL: a hatályosulási döntés ép marad, de a rögzített `finalized_at` olyan pillanatot visel, amit senki nem mért. Pontosan a KUKA-002 az idő tengelyén — és ez a JAVÍTÁS ELŐTTI alak a parancs-oldalon",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         },
         {
           "id": "M92",
           "what": "R79/F02 — A NYUGTA SAJÁT ÓRÁT OLVAS: a hatás és a nyugta KÉT KÜLÖNBÖZŐ pillanatot visel, holott egyetlen hatályosulási pont van. A nyugta megvan, csak nem ugyanarról az eseményről beszél — a két sor némán szétcsúszik (KUKA-002)",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         },
         {
           "id": "M93",
@@ -2381,13 +2381,13 @@
       "probe_id": "P-REV-ban-paths",
       "behaviour": "A TILTÁS MINDEN ENGEDŐ ÚTON HAT — nem csak azon, amelyiken bevezették",
       "positive_evidence": "P-REV-ban-paths — „A TILTÁS MINDEN ENGEDŐ ÚTON HAT — nem csak azon, amelyiken bevezették\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M67 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M67, M70, M73, M74, M75, M77, M88",
+      "negative_evidence": "MINŐSÜLŐ tanú: M74 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M67, M70, M73, M74, M75, M77, M88",
       "mutations": [
         {
           "id": "M67",
           "what": "REV-N5a — A FÉL ŐR: a tiltás-ellenőrzés kivétele a KÖZÖS döntésből (AUT-01). Ettől a hatásköri ÉS a kiadási út is tiltás nélkül marad, a tagsági úton viszont továbbra is hat — tehát a felületes mérés zöld maradna (KUKA-039). R75/F01 óta a horgony az `authority.mjs`, mert a döntés OTT él, nem az elbírálási útban",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         },
         {
           "id": "M70",
@@ -2405,7 +2405,7 @@
           "id": "M74",
           "what": "R75/F02 — A MŰVELET-TILTÁS ELVESZTI A KÖNYVÉT: a tárolt cél újra a CSUPASZ művelet-név, tehát egy A könyvre szóló hatáskörből kiadott tiltás a FÜGGETLEN B könyvben is zár. A `BOOK_SCOPED_KINDS` lista NEVE változatlanul azt ígéri, hogy könyv-hatókörű — a rekord viszont nem hordozza (KUKA-015: a név nem korlátoz)",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         },
         {
           "id": "M75",
@@ -2537,19 +2537,19 @@
       "probe_id": "P-REV-ban-paths",
       "behaviour": "A TILTÁS MINDEN ENGEDŐ ÚTON HAT — nem csak azon, amelyiken bevezették",
       "positive_evidence": "P-REV-ban-paths — „A TILTÁS MINDEN ENGEDŐ ÚTON HAT — nem csak azon, amelyiken bevezették\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M67 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M67, M70, M73, M74, M75, M77, M88",
+      "negative_evidence": "MINŐSÜLŐ tanú: M70 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M67, M70, M73, M74, M75, M77, M88",
       "mutations": [
         {
           "id": "M67",
           "what": "REV-N5a — A FÉL ŐR: a tiltás-ellenőrzés kivétele a KÖZÖS döntésből (AUT-01). Ettől a hatásköri ÉS a kiadási út is tiltás nélkül marad, a tagsági úton viszont továbbra is hat — tehát a felületes mérés zöld maradna (KUKA-039). R75/F01 óta a horgony az `authority.mjs`, mert a döntés OTT él, nem az elbírálási útban",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         },
         {
           "id": "M70",
           "what": "REV-N5a — A KIADÁS ROSSZ HATÁSKÖRT KÉR: a tiltás kiadása `suspend` felhatalmazásra hivatkozik, holott a célzott tiltás JOGVÁLTOZTATÁS (`alter_right`, REV-N3a). Az M67 a HATÁST méri, ez a JOGALAPOT. (R77 óta a kapu-kivétel a hívó oldalán nem fejezhető ki: a döntés EGY közös hatályosulási ponton áll — ott az M80/M82 méri.)",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         },
         {
           "id": "M73",
@@ -2693,13 +2693,13 @@
       "probe_id": "P-REV-ban-paths",
       "behaviour": "A TILTÁS MINDEN ENGEDŐ ÚTON HAT — nem csak azon, amelyiken bevezették",
       "positive_evidence": "P-REV-ban-paths — „A TILTÁS MINDEN ENGEDŐ ÚTON HAT — nem csak azon, amelyiken bevezették\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M67 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M67, M70, M73, M74, M75, M77, M88",
+      "negative_evidence": "MINŐSÜLŐ tanú: M77 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M67, M70, M73, M74, M75, M77, M88",
       "mutations": [
         {
           "id": "M67",
           "what": "REV-N5a — A FÉL ŐR: a tiltás-ellenőrzés kivétele a KÖZÖS döntésből (AUT-01). Ettől a hatásköri ÉS a kiadási út is tiltás nélkül marad, a tagsági úton viszont továbbra is hat — tehát a felületes mérés zöld maradna (KUKA-039). R75/F01 óta a horgony az `authority.mjs`, mert a döntés OTT él, nem az elbírálási útban",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         },
         {
           "id": "M70",
@@ -2729,7 +2729,7 @@
           "id": "M77",
           "what": "R75/F05 — A KONTEXTUS MEGINT ELVÉSZ EGY HÍVÓN: a `readClaim` a belépési kontextus NÉLKÜL kérdezi a jogot. Ettől a hitelesítő-hatókörű tiltás ezen az úton NEM DÖNTHETŐ, és a kapu ZÁR — vagyis az ÉRVÉNYES MÁSIK hitelesítővel érkező jogos munka is elakad. (Ez a C-F04 pontos iránya: a hiba nem az volt, hogy a tiltott hitelesítő átment, hanem hogy a jogos sem jutott át.) A javítás fél marad, amíg egyetlen hívó is a régi alakkal hív (KUKA-039)",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         },
         {
           "id": "M88",
@@ -3293,19 +3293,19 @@
       "probe_id": "P-REV-ban-record-shape",
       "behaviour": "A SZERKEZETILEG HIBÁS TÁROLT HATÓKÖR NEM „MÁSIK KÖNYV\" — nevezett, fail-closed válasz",
       "positive_evidence": "P-REV-ban-record-shape — „A SZERKEZETILEG HIBÁS TÁROLT HATÓKÖR NEM „MÁSIK KÖNYV\" — nevezett, fail-closed válasz\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M83 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M83, M84",
+      "negative_evidence": "MINŐSÜLŐ tanú: M84 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M83, M84",
       "mutations": [
         {
           "id": "M83",
           "what": "R77/F03 — AZ ÜRES KÖNYV-TENGELY ÚJRA SZABÁLYOS ALAK. A feloldó nem jelöli hibásnak, ezért a hatókör-értékelés a kérés könyvéhez hasonlítja, nem egyezik, és „másik könyv\" címen TOVÁBBENGEDI a kérést: az érvénytelen tiltás úgy viselkedik, mint egy érvényes",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         },
         {
           "id": "M84",
           "what": "R77/F03 A FÉL ŐR (KUKA-039): az integritás-kapu megmarad, de a KÖZVETLEN hívó (`banReaches`) már nem kérdezi meg a cél szerkezetét. A `banEffectiveAt` úton semmi nem változik — épp ezért veszélyes: a próba/szerszám MÁS valóságot mérne, mint a felhasználó",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         }
       ],
       "residual_scope": null,
@@ -4073,7 +4073,7 @@
       ],
       "residual_scope": null,
       "result": "not_falsified",
-      "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — M165: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity) · M166: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity) · M171: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity) · M164: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity)",
+      "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — M164: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity) · M165: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity) · M166: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity) · M171: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity)",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -4224,13 +4224,13 @@
       "probe_id": "P-KAT-identity-history",
       "behaviour": "A cikk AZONOSSÁGA nem a megjelenítésé és nem a mennyiségé: a történeti hivatkozások megmaradnak",
       "positive_evidence": "P-KAT-identity-history — „A cikk AZONOSSÁGA nem a megjelenítésé és nem a mennyiségé: a történeti hivatkozások megmaradnak\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M166 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M164, M165, M166, M171",
+      "negative_evidence": "MINŐSÜLŐ tanú: M164 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M164, M165, M166, M171",
       "mutations": [
         {
           "id": "M164",
           "what": "KAT-01 / R43 — A MEGJELENÍTÉS ÁTÍRÁSA ELMOZDÍTJA AZ AZONOSÍTÓT: az egység-váltás a cikk BELSŐ azonosítóját is újraképzi, tehát minden korábbi hivatkozás (nyugta, mozgás, riport) egy megszűnt azonosítóra mutatna — a megjelenítés némán azonosságot cserélne (KUKA-021 · KUKA-061). AMIT MÉRVE MEGTUDTUNK: az ELSŐ alakom a `Date.now()` sóval az AZONOSÍTÓ-KÉPZŐT rontotta el, de az azonosító a felvételkor EGYSZER születik és TÁROLVA marad — a mutáció ezért `SURVIVED` lett: nem volt olyan olvasó, ami újraszámolta volna. Ez a rendszerről jó hír, bizonyítéknak viszont semmi (KUKA-187).",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         },
         {
           "id": "M165",
@@ -4242,7 +4242,7 @@
           "id": "M166",
           "what": "KAT-01 / R43 — A KIÍRT TULAJDONSÁG ÁTÍRÁSA LÁBNYOM FÖLÖTT IS SZABAD: az egység-váltás őre eltűnik, tehát a mozgás-sorok mögött álló cikk egysége némán átíródik — a TÁROLT mennyiség visszamenőleg MÁS jelentést kapna (KUKA-021)",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         },
         {
           "id": "M171",
@@ -4944,7 +4944,7 @@
       "probe_id": "P-BEM-input-schema",
       "behaviour": "A bemeneti séma: ismeretlen művelet fail-closed · nevezett elutasítás mezőnként · a mennyiség hibakód-SORRENDJE megmarad · a konverzió nem előzi meg a típust",
       "positive_evidence": "P-BEM-input-schema — „A bemeneti séma: ismeretlen művelet fail-closed · nevezett elutasítás mezőnként · a mennyiség hibakód-SORRENDJE megmarad · a konverzió nem előzi meg a típust\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M154 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M141, M143, M153, M154, M155, M156, M157, M158, M161, M162",
+      "negative_evidence": "MINŐSÜLŐ tanú: M161 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M141, M143, M153, M154, M155, M156, M157, M158, M161, M162",
       "mutations": [
         {
           "id": "M141",
@@ -4968,7 +4968,7 @@
           "id": "M154",
           "what": "BEM-01 / R37/F37-02 — A ZÁRT REGISZTER ÚJRA NYITOTT: a feloldó visszatér a nyers kulcs-olvasásra, tehát az ÖRÖKÖLT tulajdonság-nevek (`toString` · `constructor` · `__proto__`) megint „megtalált\" sémának látszanak, és a hívás nyers kivétellel áll meg nevezett elutasítás helyett — pontosan az R37-ben jelentett alak",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         },
         {
           "id": "M155",
@@ -4998,7 +4998,7 @@
           "id": "M161",
           "what": "CLR-01 / R37 — A TESTVÉR-REGISZTER ÚJRA NYITOTT: a mennyiség-profil feloldója visszatér a nyers kulcs-olvasásra, tehát az ÖRÖKÖLT nevek (`toString` · `constructor` · `__proto__`) megint „találatnak\" számítanak, és a hívás nyers BigInt-kivétellel áll meg a nevezett „ismeretlen mennyiség-profil\" helyett. Ez a KUKA-180 TESTVÉR-ÁGA: a külső fél a bemeneti sémán találta meg, a mérés a profilon is",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         },
         {
           "id": "M162",
@@ -5265,8 +5265,14 @@
       "probe_id": "P-KSZ-repeat-and-error-boundary",
       "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad",
       "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad\" · node v3ref/run.mjs",
-      "negative_evidence": "1 szerződés szerinti jelölt áll a soron (M170), de a kanonikus ítélő EGYIKET SEM minősítette falszifikálónak — ezért a sor NEM „fedett\"",
+      "negative_evidence": "MINŐSÜLŐ tanú: M172 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M172, M170",
       "mutations": [
+        {
+          "id": "M172",
+          "what": "KSZ-01 / R43 — EGY BEADÁS, KÉT KÖNYVELÉS: a bevét hatása KÉTSZER fűzi hozzá ugyanazt a mozgás-sort, tehát EGYETLEN jogos beadásból kettős készletmozgás lesz. Ez a `d` klauzula legdrágább alakja: nem elutasítás és nem hibaüzenet, hanem NÉMÁN kétszer akkora készlet (KUKA-026 · KUKA-097).",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        },
         {
           "id": "M170",
           "what": "KSZ-01 / R43 — AZ ISMÉTLÉS ÚJ HATÁST SZÜL: a parancs-azonosság a NYERS mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS formázásban MÁSODSZOR is könyvelne — kettős készletmozgás egyetlen valódi beadásból (KUKA-026)",
@@ -5275,8 +5281,8 @@
         }
       ],
       "residual_scope": null,
-      "result": "not_falsified",
-      "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — M170: a futás NEM buktatta meg a deklarált állítást (A-K10-d-first-submission-creates-exactly-one-effect)",
+      "result": "partially_covered",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: hat helyzet a KANONIKUS úton, parancs + esemény + mozgás + egyenleg pillanatképével: jogos ELSŐ beadás (pontosan EGY hatás) · AZONOS ismétlés (ugyanaz a hatás, nem új) · AZONOS jelentés MÁS FORMÁZÁSBAN (a kanonikus alak dönt, nem a leírt szöveg) · KORÁBBI sémaverzió ugyanazzal a kulccsal (`unsupported_schema_version`) · MÁS számítási profil ugyanazzal a kulccsal (`idempotency_conflict`, nem néma visszajátszás) · HIBAPONT (`out_of_range`). Mindhárom elutasítás után a pillanatkép VÁLTOZATLAN, és a korábbi siker ugyanazt a hatást adja vissza. Falszifikálva: M170. · HIÁNYZIK: a „más PROFILÚ bemenet\" ága UGYANARRA A CIKKRE nem szólítható meg, mert a magban nincs profilváltó művelet (K10-TYP-c maradéka); a mérés ezért MÁSIK, más profilú cikkel történt. Ez a reálisan elérhető alak — de a klauzula szó szerinti olvasatában marad egy nem elérhető változat, és ezt nem nevezzük bizonyítottnak.",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -5306,8 +5312,14 @@
       "probe_id": "P-KSZ-repeat-and-error-boundary",
       "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad",
       "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M170 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M170",
+      "negative_evidence": "MINŐSÜLŐ tanú: M170 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M172, M170",
       "mutations": [
+        {
+          "id": "M172",
+          "what": "KSZ-01 / R43 — EGY BEADÁS, KÉT KÖNYVELÉS: a bevét hatása KÉTSZER fűzi hozzá ugyanazt a mozgás-sort, tehát EGYETLEN jogos beadásból kettős készletmozgás lesz. Ez a `d` klauzula legdrágább alakja: nem elutasítás és nem hibaüzenet, hanem NÉMÁN kétszer akkora készlet (KUKA-026 · KUKA-097).",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
         {
           "id": "M170",
           "what": "KSZ-01 / R43 — AZ ISMÉTLÉS ÚJ HATÁST SZÜL: a parancs-azonosság a NYERS mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS formázásban MÁSODSZOR is könyvelne — kettős készletmozgás egyetlen valódi beadásból (KUKA-026)",
@@ -5347,8 +5359,14 @@
       "probe_id": "P-KSZ-repeat-and-error-boundary",
       "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad",
       "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad\" · node v3ref/run.mjs",
-      "negative_evidence": "1 szerződés szerinti jelölt áll a soron (M170), de a kanonikus ítélő EGYIKET SEM minősítette falszifikálónak — ezért a sor NEM „fedett\"",
+      "negative_evidence": "2 szerződés szerinti jelölt áll a soron (M172, M170), de a kanonikus ítélő EGYIKET SEM minősítette falszifikálónak — ezért a sor NEM „fedett\"",
       "mutations": [
+        {
+          "id": "M172",
+          "what": "KSZ-01 / R43 — EGY BEADÁS, KÉT KÖNYVELÉS: a bevét hatása KÉTSZER fűzi hozzá ugyanazt a mozgás-sort, tehát EGYETLEN jogos beadásból kettős készletmozgás lesz. Ez a `d` klauzula legdrágább alakja: nem elutasítás és nem hibaüzenet, hanem NÉMÁN kétszer akkora készlet (KUKA-026 · KUKA-097).",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
         {
           "id": "M170",
           "what": "KSZ-01 / R43 — AZ ISMÉTLÉS ÚJ HATÁST SZÜL: a parancs-azonosság a NYERS mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS formázásban MÁSODSZOR is könyvelne — kettős készletmozgás egyetlen valódi beadásból (KUKA-026)",
@@ -5358,7 +5376,7 @@
       ],
       "residual_scope": null,
       "result": "not_falsified",
-      "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — M170: a futás NEM buktatta meg a deklarált állítást (A-K10-d-old-version-other-profile-and-error-point-are-named-refusals)",
+      "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — M170: a futás NEM buktatta meg a deklarált állítást (A-K10-d-old-version-other-profile-and-error-point-are-named-refusals) · M172: a futás NEM buktatta meg a deklarált állítást (A-K10-d-old-version-other-profile-and-error-point-are-named-refusals)",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -5388,8 +5406,14 @@
       "probe_id": "P-KSZ-repeat-and-error-boundary",
       "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad",
       "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad\" · node v3ref/run.mjs",
-      "negative_evidence": "1 szerződés szerinti jelölt áll a soron (M170), de a kanonikus ítélő EGYIKET SEM minősítette falszifikálónak — ezért a sor NEM „fedett\"",
+      "negative_evidence": "2 szerződés szerinti jelölt áll a soron (M172, M170), de a kanonikus ítélő EGYIKET SEM minősítette falszifikálónak — ezért a sor NEM „fedett\"",
       "mutations": [
+        {
+          "id": "M172",
+          "what": "KSZ-01 / R43 — EGY BEADÁS, KÉT KÖNYVELÉS: a bevét hatása KÉTSZER fűzi hozzá ugyanazt a mozgás-sort, tehát EGYETLEN jogos beadásból kettős készletmozgás lesz. Ez a `d` klauzula legdrágább alakja: nem elutasítás és nem hibaüzenet, hanem NÉMÁN kétszer akkora készlet (KUKA-026 · KUKA-097).",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
         {
           "id": "M170",
           "what": "KSZ-01 / R43 — AZ ISMÉTLÉS ÚJ HATÁST SZÜL: a parancs-azonosság a NYERS mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS formázásban MÁSODSZOR is könyvelne — kettős készletmozgás egyetlen valódi beadásból (KUKA-026)",
@@ -5399,7 +5423,7 @@
       ],
       "residual_scope": null,
       "result": "not_falsified",
-      "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — M170: a futás NEM buktatta meg a deklarált állítást (A-K10-d-refusals-leave-the-snapshot-and-the-earlier-success-intact)",
+      "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — M170: a futás NEM buktatta meg a deklarált állítást (A-K10-d-refusals-leave-the-snapshot-and-the-earlier-success-intact) · M172: a futás NEM buktatta meg a deklarált állítást (A-K10-d-refusals-leave-the-snapshot-and-the-earlier-success-intact)",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -5800,7 +5824,7 @@
       "probe_id": "P-ORG-basis",
       "behaviour": "A FELHATALMAZÁS ALAPJA: azonosító, VERZIÓ, HATÁLY és rögzítési idő — a két tengelyen",
       "positive_evidence": "P-ORG-basis — „A FELHATALMAZÁS ALAPJA: azonosító, VERZIÓ, HATÁLY és rögzítési idő — a két tengelyen\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M123 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M116, M117, M118, M119, M120, M121, M122, M123",
+      "negative_evidence": "MINŐSÜLŐ tanú: M119 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M116, M117, M118, M119, M120, M121, M122, M123",
       "mutations": [
         {
           "id": "M116",
@@ -5824,7 +5848,7 @@
           "id": "M119",
           "what": "ORG-N1a — A LEJÁRT ALAP ELFOGADVA: a lejárat nem zár. Ettől egy lejárt határozatra hivatkozva is lehetne hatáskört adni (KUKA-020: a fail-closed nem választás)",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         },
         {
           "id": "M120",
@@ -5848,7 +5872,7 @@
           "id": "M123",
           "what": "ORG-N1a — A VERZIÓ-ÁTUGRÁS KINYÍLIK: ugyanaz az azonosító NÉMÁN átköltözhet másik könyvbe egy új verzióval. Ettől az azonosság a kiadás és az olvasás között elcsúszna (KUKA-128)",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         }
       ],
       "residual_scope": null,
@@ -5884,13 +5908,13 @@
       "probe_id": "P-ORG-basis-limit",
       "behaviour": "A KORLÁT: a kiadás elakad a határozaton túl, a határon belül változatlanul megy, és a beváltás a korlátot is átviszi",
       "positive_evidence": "P-ORG-basis-limit — „A KORLÁT: a kiadás elakad a határozaton túl, a határon belül változatlanul megy, és a beváltás a korlátot is átviszi\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M131 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M127, M128, M129, M130, M131, M132, M133, M134, M135, M136, M137",
+      "negative_evidence": "MINŐSÜLŐ tanú: M127 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M127, M128, M129, M130, M131, M132, M133, M134, M135, M136, M137",
       "mutations": [
         {
           "id": "M127",
           "what": "ORG-N1b — A KIADÁS NEM MÉRI A KORLÁTOT: a nevezett kiadó út átengedi a határozaton túli szerepet/adatkört. Ez a KUKA-041 alakja a jogon: a szűkítés LÁTSZIK a papíron, és semmi nem kényszeríti ki",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         },
         {
           "id": "M128",
@@ -5914,7 +5938,7 @@
           "id": "M131",
           "what": "ORG-N1b — AZ ÜRES KORLÁT-LISTA „MINDENT SZABAD\"-RA FORDUL: a hiány néma engedéllyé válik. Pontosan ez a fail-open, amit a norma tilt — a hiányzó felsorolás nem felhatalmazás (KUKA-020)",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         },
         {
           "id": "M132",
@@ -6088,7 +6112,7 @@
       "probe_id": "P-ORG-basis-limit",
       "behaviour": "A KORLÁT: a kiadás elakad a határozaton túl, a határon belül változatlanul megy, és a beváltás a korlátot is átviszi",
       "positive_evidence": "P-ORG-basis-limit — „A KORLÁT: a kiadás elakad a határozaton túl, a határon belül változatlanul megy, és a beváltás a korlátot is átviszi\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M130 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M127, M128, M129, M130, M131, M132, M133, M134, M135, M136, M137",
+      "negative_evidence": "MINŐSÜLŐ tanú: M129 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M127, M128, M129, M130, M131, M132, M133, M134, M135, M136, M137",
       "mutations": [
         {
           "id": "M127",
@@ -6106,13 +6130,13 @@
           "id": "M129",
           "what": "ORG-N1b — A KIADOTT KORLÁT NEM KERÜL A PAPÍRRA: a meghívó megszületik, a pecsét elmarad. Ettől a beváltás a „nincs deklarált alap\" ágra esik vissza, vagyis a védelem a SAJÁT kiskapuját hordozná (KUKA-084: a lezárás nem hely, hanem csatorna)",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         },
         {
           "id": "M130",
           "what": "ORG-N1b — A BEVÁLTÁS CSAK A SZEREPET VISZI ÁT: a tagságadó esemény mellől elmarad az alap és a korlát. A tagság onnantól korlát nélkülinek LÁTSZIK, és a papíron álló szűkítés nyomtalanul elvész (R85/F02 alakja a korláton)",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         },
         {
           "id": "M131",
@@ -6394,6 +6418,108 @@
       "probe_id": "P-ORG-basis-limit",
       "behaviour": "A KORLÁT: a kiadás elakad a határozaton túl, a határon belül változatlanul megy, és a beváltás a korlátot is átviszi",
       "positive_evidence": "P-ORG-basis-limit — „A KORLÁT: a kiadás elakad a határozaton túl, a határon belül változatlanul megy, és a beváltás a korlátot is átviszi\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M134 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M127, M128, M129, M130, M131, M132, M133, M134, M135, M136, M137",
+      "mutations": [
+        {
+          "id": "M127",
+          "what": "ORG-N1b — A KIADÁS NEM MÉRI A KORLÁTOT: a nevezett kiadó út átengedi a határozaton túli szerepet/adatkört. Ez a KUKA-041 alakja a jogon: a szűkítés LÁTSZIK a papíron, és semmi nem kényszeríti ki",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M128",
+          "what": "ORG-N1b — A BEVÁLTÁS OLDALÁN NINCS KAPU: csak a kiadás ellenőriz. Ettől egy NYERS INSERT-tel írt meghívó megkerüli a korlátot — az őr, ami csak az egyik írót ismeri, nem őr (KUKA-013)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M129",
+          "what": "ORG-N1b — A KIADOTT KORLÁT NEM KERÜL A PAPÍRRA: a meghívó megszületik, a pecsét elmarad. Ettől a beváltás a „nincs deklarált alap\" ágra esik vissza, vagyis a védelem a SAJÁT kiskapuját hordozná (KUKA-084: a lezárás nem hely, hanem csatorna)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M130",
+          "what": "ORG-N1b — A BEVÁLTÁS CSAK A SZEREPET VISZI ÁT: a tagságadó esemény mellől elmarad az alap és a korlát. A tagság onnantól korlát nélkülinek LÁTSZIK, és a papíron álló szűkítés nyomtalanul elvész (R85/F02 alakja a korláton)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M131",
+          "what": "ORG-N1b — AZ ÜRES KORLÁT-LISTA „MINDENT SZABAD\"-RA FORDUL: a hiány néma engedéllyé válik. Pontosan ez a fail-open, amit a norma tilt — a hiányzó felsorolás nem felhatalmazás (KUKA-020)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M132",
+          "what": "ORG-N1b — A KIADOTT KORLÁT TÖRÖLHETŐVÉ VÁLIK: az immutabilitási őr eltűnik a tárolóból. Ettől a szűkítés EGY DELETE-tel megkerülhető, és a beváltás a deklarálatlan ágra esik vissza (KUKA-013 · R53/F01 mintája)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M133",
+          "what": "ORG-N1b — A DEKLARÁLATLAN MEGHÍVÓ KAPUZOTTNAK VALLJA MAGÁT: a válasz azt állítja, hogy a korlát hatott, holott nincs kiadott korlát. Ez a DÍSZ-PIPA (KUKA-041): sikert jelentene arról, ami meg sem történt — és a KUKA-012 alakja a válaszon (a hiány nem lehet néma)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M134",
+          "what": "ORG-N1b — A HÍVÓ ÚJRA ÁTNEVEZHETI AZ ELLENŐRZÖTT MŰVELETET: a belépési pont elfogadja a kapott nevet. Ettől egy CSAK felfüggesztésre szóló alappal is lehet meghívót adni — a kapu azt méri, amit a hívó MOND, nem amit a rendszer TESZ (KUKA-121)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        },
+        {
+          "id": "M135",
+          "what": "ORG-N1b — A PECSÉT ÚJRA MEGMONDHATJA, MIT MÉRJÜNK: a beváltás a pecséten álló művelet-nevet veszi irányadónak. Egy NYERS INSERT-tel írt pecsét így megkerüli a kaput (KUKA-013)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M136",
+          "what": "ORG-N1b — A KÖTELEZŐ TENGELY HIÁNYA ÚJRA NÉMA ÁTUGRÁS: a feloldó a null értékű tengelyt kihagyja. Ettől az ÜRES megengedett adatkör egy puszta ELHAGYÁSSAL megkerülhető — a hiány nem „nem kérdezem\", hanem KIKAPCSOLÁS (KUKA-020 · KUKA-124/2)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M137",
+          "what": "ORG-N1b — A SZERZŐDÉS NÉLKÜLI MŰVELET FAIL-OPEN: az ismeretlen művelet üres kötelező-listát kap a ZÁRÁS helyett. Ettől egy új belépési pont NÉMÁN kikerülné a tengely-kötelezettséget (KUKA-041: a nem-kapuzó mező kapunak látszana)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "partially_covered",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: A korlát a MEGHÍVÓ útján KAPU (BLI-01): a kiadás nevezetten elakad a határozaton túli szerepen/műveleten/adatkörön és nyom nélkül, a korláton belüli kiadás változatlanul megy, a beváltás a KIADÁSKORI alaphoz mér és a korlátot is átviszi a tagságadó eseményre, és a nyers INSERT-tel írt meghívó sem bújhat ki alóla. · HIÁNYZIK: A korlát DEKLARÁLÁSÁNAK kötelezővé tétele nyitva: ma a deklarálatlan meghívó a régi szabály szerint megy (a válasz ezt KIMONDJA). Ez SZERVEZETI döntés — ki hatalmaz fel kit, és mi történik a meglévő, alap nélküli meghívókkal —, tehát az operátoré, nem a kódé. Ugyanígy nyitva a BÍRÁLATI hatáskör útja, ahol a korlát ma is csak adat (`basisState.limit_enforced: false`).",
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "clause": "ORG-N1b",
+        "verdict": "partial",
+        "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+      }
+    },
+    {
+      "norm_id": "ORG-N1",
+      "clause_id": "ORG-N1b",
+      "covers": [
+        "K04",
+        "K05"
+      ],
+      "clause_text": "A döntés kimondja az adható SZEREP, MŰVELET és ADATKÖR korlátját — a felhatalmazás nem lehet tágabb, mint az alapja.",
+      "source": "R32",
+      "assertion_id": "A-ORG-N1b-omitting-an-axis-does-not-disable-it",
+      "probe_id": "P-ORG-basis-limit",
+      "behaviour": "A KORLÁT: a kiadás elakad a határozaton túl, a határon belül változatlanul megy, és a beváltás a korlátot is átviszi",
+      "positive_evidence": "P-ORG-basis-limit — „A KORLÁT: a kiadás elakad a határozaton túl, a határon belül változatlanul megy, és a beváltás a korlátot is átviszi\" · node v3ref/run.mjs",
       "negative_evidence": "MINŐSÜLŐ tanú: M127 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M127, M128, M129, M130, M131, M132, M133, M134, M135, M136, M137",
       "mutations": [
         {
@@ -6484,108 +6610,6 @@
       }
     },
     {
-      "norm_id": "ORG-N1",
-      "clause_id": "ORG-N1b",
-      "covers": [
-        "K04",
-        "K05"
-      ],
-      "clause_text": "A döntés kimondja az adható SZEREP, MŰVELET és ADATKÖR korlátját — a felhatalmazás nem lehet tágabb, mint az alapja.",
-      "source": "R32",
-      "assertion_id": "A-ORG-N1b-omitting-an-axis-does-not-disable-it",
-      "probe_id": "P-ORG-basis-limit",
-      "behaviour": "A KORLÁT: a kiadás elakad a határozaton túl, a határon belül változatlanul megy, és a beváltás a korlátot is átviszi",
-      "positive_evidence": "P-ORG-basis-limit — „A KORLÁT: a kiadás elakad a határozaton túl, a határon belül változatlanul megy, és a beváltás a korlátot is átviszi\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M137 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M127, M128, M129, M130, M131, M132, M133, M134, M135, M136, M137",
-      "mutations": [
-        {
-          "id": "M127",
-          "what": "ORG-N1b — A KIADÁS NEM MÉRI A KORLÁTOT: a nevezett kiadó út átengedi a határozaton túli szerepet/adatkört. Ez a KUKA-041 alakja a jogon: a szűkítés LÁTSZIK a papíron, és semmi nem kényszeríti ki",
-          "verdict": "CAUGHT",
-          "qualifying_witness": false
-        },
-        {
-          "id": "M128",
-          "what": "ORG-N1b — A BEVÁLTÁS OLDALÁN NINCS KAPU: csak a kiadás ellenőriz. Ettől egy NYERS INSERT-tel írt meghívó megkerüli a korlátot — az őr, ami csak az egyik írót ismeri, nem őr (KUKA-013)",
-          "verdict": "CAUGHT",
-          "qualifying_witness": false
-        },
-        {
-          "id": "M129",
-          "what": "ORG-N1b — A KIADOTT KORLÁT NEM KERÜL A PAPÍRRA: a meghívó megszületik, a pecsét elmarad. Ettől a beváltás a „nincs deklarált alap\" ágra esik vissza, vagyis a védelem a SAJÁT kiskapuját hordozná (KUKA-084: a lezárás nem hely, hanem csatorna)",
-          "verdict": "CAUGHT",
-          "qualifying_witness": false
-        },
-        {
-          "id": "M130",
-          "what": "ORG-N1b — A BEVÁLTÁS CSAK A SZEREPET VISZI ÁT: a tagságadó esemény mellől elmarad az alap és a korlát. A tagság onnantól korlát nélkülinek LÁTSZIK, és a papíron álló szűkítés nyomtalanul elvész (R85/F02 alakja a korláton)",
-          "verdict": "CAUGHT",
-          "qualifying_witness": false
-        },
-        {
-          "id": "M131",
-          "what": "ORG-N1b — AZ ÜRES KORLÁT-LISTA „MINDENT SZABAD\"-RA FORDUL: a hiány néma engedéllyé válik. Pontosan ez a fail-open, amit a norma tilt — a hiányzó felsorolás nem felhatalmazás (KUKA-020)",
-          "verdict": "CAUGHT",
-          "qualifying_witness": false
-        },
-        {
-          "id": "M132",
-          "what": "ORG-N1b — A KIADOTT KORLÁT TÖRÖLHETŐVÉ VÁLIK: az immutabilitási őr eltűnik a tárolóból. Ettől a szűkítés EGY DELETE-tel megkerülhető, és a beváltás a deklarálatlan ágra esik vissza (KUKA-013 · R53/F01 mintája)",
-          "verdict": "CAUGHT",
-          "qualifying_witness": false
-        },
-        {
-          "id": "M133",
-          "what": "ORG-N1b — A DEKLARÁLATLAN MEGHÍVÓ KAPUZOTTNAK VALLJA MAGÁT: a válasz azt állítja, hogy a korlát hatott, holott nincs kiadott korlát. Ez a DÍSZ-PIPA (KUKA-041): sikert jelentene arról, ami meg sem történt — és a KUKA-012 alakja a válaszon (a hiány nem lehet néma)",
-          "verdict": "CAUGHT",
-          "qualifying_witness": false
-        },
-        {
-          "id": "M134",
-          "what": "ORG-N1b — A HÍVÓ ÚJRA ÁTNEVEZHETI AZ ELLENŐRZÖTT MŰVELETET: a belépési pont elfogadja a kapott nevet. Ettől egy CSAK felfüggesztésre szóló alappal is lehet meghívót adni — a kapu azt méri, amit a hívó MOND, nem amit a rendszer TESZ (KUKA-121)",
-          "verdict": "CAUGHT",
-          "qualifying_witness": false
-        },
-        {
-          "id": "M135",
-          "what": "ORG-N1b — A PECSÉT ÚJRA MEGMONDHATJA, MIT MÉRJÜNK: a beváltás a pecséten álló művelet-nevet veszi irányadónak. Egy NYERS INSERT-tel írt pecsét így megkerüli a kaput (KUKA-013)",
-          "verdict": "CAUGHT",
-          "qualifying_witness": false
-        },
-        {
-          "id": "M136",
-          "what": "ORG-N1b — A KÖTELEZŐ TENGELY HIÁNYA ÚJRA NÉMA ÁTUGRÁS: a feloldó a null értékű tengelyt kihagyja. Ettől az ÜRES megengedett adatkör egy puszta ELHAGYÁSSAL megkerülhető — a hiány nem „nem kérdezem\", hanem KIKAPCSOLÁS (KUKA-020 · KUKA-124/2)",
-          "verdict": "CAUGHT",
-          "qualifying_witness": false
-        },
-        {
-          "id": "M137",
-          "what": "ORG-N1b — A SZERZŐDÉS NÉLKÜLI MŰVELET FAIL-OPEN: az ismeretlen művelet üres kötelező-listát kap a ZÁRÁS helyett. Ettől egy új belépési pont NÉMÁN kikerülné a tengely-kötelezettséget (KUKA-041: a nem-kapuzó mező kapunak látszana)",
-          "verdict": "CAUGHT",
-          "qualifying_witness": true
-        }
-      ],
-      "residual_scope": null,
-      "result": "partially_covered",
-      "why": "RÉSZBEN MEGÉPÜLT — megvan: A korlát a MEGHÍVÓ útján KAPU (BLI-01): a kiadás nevezetten elakad a határozaton túli szerepen/műveleten/adatkörön és nyom nélkül, a korláton belüli kiadás változatlanul megy, a beváltás a KIADÁSKORI alaphoz mér és a korlátot is átviszi a tagságadó eseményre, és a nyers INSERT-tel írt meghívó sem bújhat ki alóla. · HIÁNYZIK: A korlát DEKLARÁLÁSÁNAK kötelezővé tétele nyitva: ma a deklarálatlan meghívó a régi szabály szerint megy (a válasz ezt KIMONDJA). Ez SZERVEZETI döntés — ki hatalmaz fel kit, és mi történik a meglévő, alap nélküli meghívókkal —, tehát az operátoré, nem a kódé. Ugyanígy nyitva a BÍRÁLATI hatáskör útja, ahol a korlát ma is csak adat (`basisState.limit_enforced: false`).",
-      "evidence_limit": null,
-      "content_review": {
-        "state": "none",
-        "structural": "none",
-        "binding": "none",
-        "why": "nincs rögzített tartalmi felülvizsgálat",
-        "authenticity": {
-          "state": "unauthenticated",
-          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
-        }
-      },
-      "external_decision": {
-        "clause": "ORG-N1b",
-        "verdict": "partial",
-        "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
-      }
-    },
-    {
       "norm_id": "ORG-N2",
       "clause_id": "ORG-N2a",
       "covers": [
@@ -6598,7 +6622,7 @@
       "probe_id": "P-INVITE-authority",
       "behaviour": "A beváltás kapui: a kibocsátó MAI joga · IDEGEN alany · VISSZAVONT tagság — és a meghívó nem fogy el",
       "positive_evidence": "P-INVITE-authority — „A beváltás kapui: a kibocsátó MAI joga · IDEGEN alany · VISSZAVONT tagság — és a meghívó nem fogy el\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M23 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M22, M23, M24",
+      "negative_evidence": "MINŐSÜLŐ tanú: M24 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M22, M23, M24",
       "mutations": [
         {
           "id": "M22",
@@ -6610,13 +6634,13 @@
           "id": "M23",
           "what": "Q09 — a kibocsátó MAI joga nincs megkérdezve: visszavont jogú kibocsátó meghívója is ad tagságot",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         },
         {
           "id": "M24",
           "what": "Q13 — a VISSZAVONT tagság némán elnyelődik: a meghívó elfogy, hozzáférés nélkül",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         }
       ],
       "residual_scope": null,

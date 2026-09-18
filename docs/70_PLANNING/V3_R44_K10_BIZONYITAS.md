@@ -159,6 +159,45 @@ akadály**.
 
 Mindkettőről **tanulság-bejegyzés** készült (KUKA-187 · KUKA-188), gépi jellel.
 
-## 6. Mérések
+## 6. Mérések — mit futtattunk, mi jött ki, milyen forráson
 
-_(a záró számok a lap végén)_
+**A mért forrás, pontosan.** Minden alábbi szám ugyanarra az állapotra vonatkozik:
+commit **`4b411f73102f4fdbd2bbcc6858176304cc8f425c`**, a magreferencia könyvtára **nem-könyvelt
+változás nélkül** (`clean: true`), tartalmi lenyomat
+**`sha256:0d59319cc5751e3465cb3caa1aff859a9eeaeb9ff6269a5c9d3287aecc6f39ef`** — és ez a lenyomat a
+bizonyíték-csomagban is ott áll, tehát a mérés és a kiadott lap **ugyanarról a kódról** beszél.
+
+| mit futtattunk | eredmény |
+|---|---|
+| `node v3ref/run.mjs` — a viselkedés próbái | **58/58 PASS** (ebből **4 új** ebben a körben) |
+| `npm run verify:v3ref` — mutációs battéria (hét részletben) | **168 mutáció · 168 elkapva · 0 túlélte · 0 rossz próba · 0 mérőhiba · 0 elavult horgony** |
+| a battéria összefűzése | **TELJES ÉS TISZTA** · minden részlet belefér az időkorlátba (legrosszabb 9040 ms / 15000 ms) |
+| norma-lánc (a kanonikus ítélő a teljes bizonyítékon) | **105 sor** — 76 fedett · 16 részben · 5 nem falszifikált · 8 bizonyíték nélkül |
+| `node tools/v3_norm_chain_package.mjs` — a bizonyíték-csomag | **kiadva** (a forrás-kötés minden ága átment) |
+| `npm run proof:norm-chain-package` — a csomag hazugság-próbái | **25/25 RENDBEN** (a hamis csomag minden ágon elakad, az ép átmegy) |
+| `npm run verify:kuka` — tanulság-regiszter és archívum | **296/296 PASS** |
+| `npm run verify:decision-numbers` | **4/4 PASS** · a következő szabad szám: D-VS-3056 |
+| `npm run verify:sweep` — a TELJES söprés | **11 verifier · 11 zöld · 0 kihagyás · 0 piros** (664 mp) |
+| `npm run verify:external-checks` — az ÖNÖK programjai a mi kódunkon | **17/19 MEGFELEL · 2 nevezett környezeti kihagyás**, mindkettőnek ZÖLD helyettese van (`r59a` · `r57a`) |
+
+**A két környezeti kihagyás kimondva** (nem söpörjük a szám mögé): az `r59` és az `r57` a battériát
+**egy hívásban** futtatja 15 000 ms korláttal, a mi négymagos futtató-gépünkön viszont a teljes
+battéria ennél tovább tart — tehát **a mérés akad el, nem a kód bukik**, és ez mérve van, nem
+feltételezve. Mindkettőt az Önök **adaptált** változata (`r59a` · `r57a`) futtatja végig, darabolt
+battériával, **zölden**. A kihagyás csak addig áll, amíg a helyettes zöld.
+
+**Amit a lánc-csomag ezen felül kimond.** A `covered` minősítés annyit jelent, hogy a klauzula
+**deklarált állítását** egy lefutott visszabontás **név szerint** hamisra fordította — **nem** azt,
+hogy a klauzula normatív tartalma maradéktalanul teljesül. A tartalmi elfogadás külön tengely, és azt
+**nem adjuk meg magunknak**: a repóban rögzített tartalmi felülvizsgálat ma **0/105**, a boardon
+rögzített **külső** tartalmi döntés **29 klauzulán** áll.
+
+---
+
+## 7. A csomag, amit a következő kör olvas
+
+A gépi alak: **`docs/70_PLANNING/V3_R36_NORMA_LANC_CSOMAG.json`** (105 sor, soronként klauzula ·
+állítás · próba · minősítés · tanú · maradék · külső döntés), az ember-olvasható alak ugyanabból
+rajzolva: **`V3_R36_NORMA_LANC_CSOMAG.md`**. **Ez a lap élő**: minden körben újrarajzolódik a friss
+mérésből, ezért kör-számot nem visel (ebben a körben ezt is javítottuk — eddig egy beégetett `R37`
+állt a fejlécében).
