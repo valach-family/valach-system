@@ -206,7 +206,7 @@ repóban rögzített rekordok szerint.
 
 ## 8. Végső revíziók
 
-- **V3 (`valach-family/valach-system`), ág `claude/cmd-vs-300-002-002-r23-9gxbee`:** `c01af27` — EZEN a revízión futott minden mérés, amit ez a lap állít. Az ág feje ennél újabb lehet, mert maga a lap még kapott sorokat; **mért kód a lap commitjaiban nem változik**, és ez visszamérhető: `git diff --name-only c01af27..HEAD` csak `docs/…` alatti fájlokat ad.
+- **V3 (`valach-family/valach-system`), ág `claude/cmd-vs-300-002-002-r23-9gxbee`:** `c01af27` — EZEN a revízión futott minden mérés, amit ez a lap állít. Az ág feje ennél újabb, mert a lap még kapott sorokat, és a lánc lefutása **saját eredmény-fájlokat** írt. **Mért FORRÁS-kód azóta nem változott**, és ez visszamérhető: `git diff --name-only c01af27..HEAD` **nulla** `.mjs`/`.js` fájlt ad — egy lap a `docs/70_PLANNING` alatt, és tíz eredmény-fájl a `v3ref/external-checks/results` alatt, amiket maga a mérés írt. *(Az első alakom itt azt írta, hogy „csak `docs/…`" — az MÉRVE nem volt igaz; javítva.)*
 - **V2 (`valach-family/vs`):** `98a4270` — **ebben a körben nem változott**.
 
 **Szállított lapok:** ez a lap · a javított `V3_R36_NORMA_LANC_CSOMAG.md` + `.json` (a gépi csomag,
