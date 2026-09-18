@@ -100,6 +100,10 @@ const unit = (k, ids) => ({
     clauses: [...PINNED.required.clauses], satisfied: [], missing: [], ok: true },
   norm_integrity_ok: true, norm_integrity_problems: [], norm_contract: { ...PINNED.contract },
   norm_index_digest: PINNED.index_digest, mutation_results: ids.map((id) => result(id)), why: [],
+  // A KANONIKUS ÍTÉLŐ BEMENETE (R39). Az író ezt a mezőt is kiírja, hogy a norma-lánc csomag
+  // ÚJRA tudja futtatni a `checkNorms`-ot; a fixtúrának ezért hordoznia kell — különben az UAD05
+  // helyesen mondja ki, hogy „az őr elavult alakot mérne" (KUKA-051: a mérés nőjön az íróval).
+  norm_inputs: { records: [], expectation: { base_digest: 'sha256:x', run_tokens: {}, mutated_digests: {} } },
 });
 const IDS = [['MA1', 'MA2'], ['MB1', 'MB2'], ['MC1', 'MC2']];
 const ALL_IDS = IDS.flat();

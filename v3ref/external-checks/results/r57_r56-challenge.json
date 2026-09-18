@@ -1,7 +1,7 @@
 {
-  "pin": "a661b78242eabb6b80febd66c075e912e23cedeb",
+  "pin": "cc29ec8db5b35be6aef2ec29b316c41e41e9a3b5+uncommitted",
   "node": "v22.22.2",
-  "at": "2026-09-18T14:23:32.452Z",
+  "at": "2026-09-18T16:37:43.004Z",
   "cases": [
     {
       "id": "T01",
@@ -1326,6 +1326,19 @@
           "base_digest": "sha256:foreign-base",
           "mutated_digest": "sha256:foreign-mutated",
           "run_token": "old-run",
+          "probe_id": "P-KSZ-ledger-truth",
+          "probe_status": "PASS",
+          "failed_assertions": [
+            "A-KSZ-schema-version-is-checked-on-the-canonical-path-without-writing"
+          ],
+          "verdict": "SURVIVED"
+        },
+        {
+          "mutation_id": "NOT_IN_REGISTRY",
+          "applied": true,
+          "base_digest": "sha256:foreign-base",
+          "mutated_digest": "sha256:foreign-mutated",
+          "run_token": "old-run",
           "probe_id": "P-BEM-input-schema",
           "probe_status": "PASS",
           "failed_assertions": [
@@ -1547,6 +1560,7 @@
           "NORMA/TYP-N1/K10-TYP-a: a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát",
           "NORMA/TYP-N1/K10-TYP-a: a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát",
           "NORMA/TYP-N1/K10-TYP-a: a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát",
+          "NORMA/TYP-N1/K10-TYP-b: a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát",
           "NORMA/TYP-N1/K10-TYP-b: a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát",
           "NORMA/TYP-N1/K10-TYP-b: a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát",
           "NORMA/TYP-N1/K10-TYP-b: a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát",
@@ -1634,6 +1648,7 @@
           "NORMA/TYP-N1/K10-TYP-a: a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát",
           "NORMA/TYP-N1/K10-TYP-a: a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát",
           "NORMA/TYP-N1/K10-TYP-a: a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát",
+          "NORMA/TYP-N1/K10-TYP-b: a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát",
           "NORMA/TYP-N1/K10-TYP-b: a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát",
           "NORMA/TYP-N1/K10-TYP-b: a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát",
           "NORMA/TYP-N1/K10-TYP-b: a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát",
@@ -2809,7 +2824,7 @@
               }
             },
             "result": "no_evidence",
-            "why": "EGYETLEN előfeltétel hiányzik: a REV-N4a KOMPENZÁLÓ-ESEMÉNY fogalma — enélkül nincs mit jóváhagyni. A jóváhagyói HATÁSKÖR modellje MEGVAN (REV-N3a, fedett), tehát ha a korrekciós esemény megszületik, ez a klauzula a meglévő hatáskör-kapura épülhet."
+            "why": "KÉT dolog hiányzik, nem egy. (1) a REV-N4a KOMPENZÁLÓ-ESEMÉNY fogalma — enélkül nincs mit jóváhagyni; (2) a korrekciós esemény SAJÁT jóváhagyási és AUDIT-útjának bizonyítása. A jóváhagyói HATÁSKÖR modellje MEGVAN (REV-N3a, fedett), és HASZNÁLHATÓ ALAP — de a bekötés ettől NEM lesz automatikusan kész."
           },
           {
             "norm_id": "REV-N5",
@@ -3636,6 +3651,39 @@
             },
             "result": "not_falsified",
             "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát"
+          },
+          {
+            "norm_id": "TYP-N1",
+            "clause_id": "K10-TYP-b",
+            "covers": [
+              "K10"
+            ],
+            "assertion_id": "A-KSZ-schema-version-is-checked-on-the-canonical-path-without-writing",
+            "probe_id": "P-KSZ-ledger-truth",
+            "mutation_candidates": [
+              "M138",
+              "M139",
+              "M140",
+              "M142",
+              "M145",
+              "M146",
+              "M147",
+              "M163"
+            ],
+            "falsified_by": null,
+            "evidence_limit": null,
+            "content_review": {
+              "state": "none",
+              "structural": "none",
+              "binding": "none",
+              "why": "nincs rögzített tartalmi felülvizsgálat",
+              "authenticity": {
+                "state": "unauthenticated",
+                "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+              }
+            },
+            "result": "not_falsified",
+            "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát"
           },
           {
             "norm_id": "TYP-N1",
@@ -4587,12 +4635,12 @@
     {
       "id": "E02",
       "expected": "Final CLI must fail when all required clauses are not_falsified.",
-      "test_error": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT\n    at Object.spawnSync (node:internal/child_process:1120:20)\n    at spawnSync (node:child_process:902:24)\n    at run (file:///tmp/v3ref-ext-LzWJ4E/r57_chatgpt-v3.mjs:17:43)\n    at file:///tmp/v3ref-ext-LzWJ4E/r57_chatgpt-v3.mjs:43:504\n    at copy (file:///tmp/v3ref-ext-LzWJ4E/r57_chatgpt-v3.mjs:15:136)\n    at file:///tmp/v3ref-ext-LzWJ4E/r57_chatgpt-v3.mjs:43:272\n    at add (file:///tmp/v3ref-ext-LzWJ4E/r57_chatgpt-v3.mjs:14:73)\n    at file:///tmp/v3ref-ext-LzWJ4E/r57_chatgpt-v3.mjs:43:252"
+      "test_error": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT\n    at Object.spawnSync (node:internal/child_process:1120:20)\n    at spawnSync (node:child_process:902:24)\n    at run (file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:17:43)\n    at file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:43:504\n    at copy (file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:15:136)\n    at file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:43:272\n    at add (file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:14:73)\n    at file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:43:252"
     },
     {
       "id": "E03",
       "expected": "Final CLI must reject foreign or contradictory results even after actual runs.",
-      "test_error": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT\n    at Object.spawnSync (node:internal/child_process:1120:20)\n    at spawnSync (node:child_process:902:24)\n    at run (file:///tmp/v3ref-ext-LzWJ4E/r57_chatgpt-v3.mjs:17:43)\n    at file:///tmp/v3ref-ext-LzWJ4E/r57_chatgpt-v3.mjs:43:504\n    at copy (file:///tmp/v3ref-ext-LzWJ4E/r57_chatgpt-v3.mjs:15:136)\n    at file:///tmp/v3ref-ext-LzWJ4E/r57_chatgpt-v3.mjs:43:272\n    at add (file:///tmp/v3ref-ext-LzWJ4E/r57_chatgpt-v3.mjs:14:73)\n    at file:///tmp/v3ref-ext-LzWJ4E/r57_chatgpt-v3.mjs:43:252"
+      "test_error": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT\n    at Object.spawnSync (node:internal/child_process:1120:20)\n    at spawnSync (node:child_process:902:24)\n    at run (file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:17:43)\n    at file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:43:504\n    at copy (file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:15:136)\n    at file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:43:272\n    at add (file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:14:73)\n    at file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:43:252"
     },
     {
       "id": "E04",
