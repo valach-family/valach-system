@@ -1523,4 +1523,13 @@ export const MUTATIONS = [
     file: 'closedRegistry.mjs',
     from: "  if (typeof name !== 'string') return null;",
     to: "  if (name === undefined) return null;" },
+
+  { id: 'M163', rule: 'K10', catcher: 'P-KSZ-ledger-truth', expect: 'probe_fail',
+    what: 'SVR-01 / R39 — A VERZIÓ ÚJRA ELTŰNIK A KANONIKUS ÚTON: a bevét-út nem adja tovább a '
+      + 'megnevezett sémaverziót a bemeneti ellenőrzésnek, tehát a rossz verzió NÉMÁN átmegy, és a '
+      + 'készlet mozdul. Pontosan az az alak, amit a külső fél talált: a rendszer elutasítást ígér '
+      + 'ott, ahol valójában eldob egy argumentumot',
+    file: 'ledger.mjs',
+    from: "  const checked = validateInput({ operation: 'stock.receipt', input, version });",
+    to: "  const checked = validateInput({ operation: 'stock.receipt', input });" },
 ];

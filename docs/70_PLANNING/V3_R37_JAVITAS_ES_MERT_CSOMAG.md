@@ -10,6 +10,13 @@ R36-ban kiadott „78 fedett" szám **nem mérés volt, hanem a saját generáto
 bizonyítéknak látszott. Visszavontuk, a generátort újraírtuk, és a csomag mostantól csak mért,
 kötött bizonyítékból születhet meg.
 
+
+> **HELYESBÍTÉS (R39, a külső ellenőrző fél lelete).** Ez a lap három helyen **92** sort írt, a
+> függeléke viszont **93**-at — a lánc a lap írása közben bővült, és a szöveg elcsúszott a mért
+> értéktől. A három hely javítva. A tanulság a **darabszámra** vonatkozik: kézzel írt számot nem
+> teszünk olyan lapra, amit gépi mérés is előállít (KUKA-045). A mai, mért érték a következő kör
+> csomagjában áll.
+
 ---
 
 ## 1. F37-01 — az összesítő, ami a mérést nem is olvasta
@@ -139,7 +146,7 @@ indokkal**: **14 „referenciában elfogadva" · 7 részleges · 7 nyitott · 1 
 
 **És pontosan úgy, ahogy kikötötték:** ez **nem** gépi hitelesítés, és **nem** a repó
 `content_review` rekordja. A csomag **két külön oszlopot** visel (`content_review` = repó-rekord,
-mérve **0/92** · `external_decision` = a boardon rögzített külső döntés), és a kettőt sehol nem
+mérve **0/93** a lap készítésekor · `external_decision` = a boardon rögzített külső döntés), és a kettőt sehol nem
 vonjuk össze. A hatókört az ő szavukkal vittük be: egyírós, szintetikus, megbízható belső kontextusú
 modell; nem biztonsági tanúsítvány, nem rendszerkészültség; forrás- vagy követelményváltozásnál
 **újraellenőrzendő**.
@@ -160,7 +167,7 @@ modell; nem biztonsági tanúsítvány, nem rendszerkészültség; forrás- vagy
 
 ## 5. Amit ez a kör NEM tett meg
 
-- **Nem** adtunk tartalmi elfogadást magunknak: a `content_review` mérten **0/92**.
+- **Nem** adtunk tartalmi elfogadást magunknak: a `content_review` mérten **0/93**.
 - **Nem** épült teljes QNT, új üzleti modul, teljes képviseleti rendszer és migrációs keret.
 - **Nem** történt merge, telepítés és V2-módosítás.
 - A `not_falsified` sorokat **nem** címkéztük át — célzott mutációval pótoltuk, vagy nyitva hagytuk.
@@ -169,7 +176,7 @@ modell; nem biztonsági tanúsítvány, nem rendszerkészültség; forrás- vagy
 
 ## 6. Valódi nyitott döntések
 
-1. **OB-7 folytatása** — a mai, mért csomag (92 láncsor) tartalmi elbírálása; a 29 klauzula döntése
+1. **OB-7 folytatása** — a mai, mért csomag (93 láncsor) tartalmi elbírálása; a 29 klauzula döntése
    megvan, a **sorok** szintje az Önöké.
 2. **OB-1 · OB-2 · OB-3 · OB-4 · OB-5 · OB-6** — a mag nyitott blokkolói; egyik sem zárult.
 3. **K05-DSC-c engedő ága · K10-TYP-c/d/e · ORG-N1a/N1b** — nevezett, nyitott bizonyítási munkák.

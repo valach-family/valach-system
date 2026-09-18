@@ -492,10 +492,17 @@ export const EXPECTED_PROBES = Object.freeze([
   }),
   Object.freeze({
     id: 'P-KSZ-ledger-truth', assertion: 'KSZ01-ledger-is-the-truth-and-writes-are-atomic',
-    discharges: Object.freeze([]),
     discharges: Object.freeze([
       // A KÉT IDŐ-TENGELY nézetei a saját deklarált tengelyükön szűrnek (K10-TYP-e első fele). A
       // MEGFIGYELÉSI idő NINCS a magban — az a klauzula kimondott maradéka (K0/D1).
+      //
+      // A SÉMAVERZIÓ A KANONIKUS ÚTON (SVR-01 · R39). A külső fél lelete: a `validateInput` külön
+      // hívva elutasította a rossz verziót, a BEVÉT-út viszont át sem vette az argumentumot — tehát
+      // a jelentés elutasítást ígért ott, ahol a rendszer NÉMÁN eldobott egy értéket (KUKA-080: egy
+      // tény nem élhet két vezérlőn, ellentmondó válasszal). A sor a VALÓDI úton mér, és a HATÁST
+      // is visszaolvassa: az elutasítás írás nélkül áll meg.
+      Object.freeze({ clause: 'K10-TYP-b', assertion: 'A-KSZ-schema-version-is-checked-on-the-canonical-path-without-writing',
+        contract: 'KSZ-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01' }),
     ]),
     module_contract: Object.freeze({ id: 'KSZ-01', rule: 'K10', closes: 'OB-9' }),
     // Az R10 HÁROM lelete után a KSZ-01 állítás-listája ÚJRA ÍRÓDOTT, nem bővült. A régi nevek egy

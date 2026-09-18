@@ -4578,6 +4578,34 @@ probe('P-KSZ-ledger-truth', 'MCS-2 · KSZ-01 · K10 · R10-F01 · R10-F02 · R10
         store, idemKey, actor: 'gazda', bookId: 'a', ownerId: 'gazda', warehouseId: 'FO',
         input: { item_id: piece.itemId, qty, effective_at: effectiveAt }, clock: clockFrom(at),
       });
+      // (m) A SÉMAVERZIÓ A KANONIKUS ÚTON (SVR-01 · R39). A külső fél lelete: a `submitStockReceipt`
+      //     NEM vett át `version` argumentumot, tehát a felső szinten megnevezett verzió NÉMÁN
+      //     eltűnt, és a bevét lefutott — miközben a `validateInput` külön hívva ugyanazt nevezett
+      //     hibával utasította el. A mérés ezért a VALÓDI úton megy, és a HATÁST is visszaolvassa:
+      //     az elutasításnak írás nélkül kell megállnia (KUKA-012 az íráson).
+      const verCmdBefore = store.get('SELECT COUNT(*) AS n FROM command').n;
+      const verMovBefore = store.get('SELECT COUNT(*) AS n FROM stock_movement').n;
+      // SAJÁT CIKK a verzió-méréshez: a darabos cikk plafonját a lenti töltés PONTOSAN kimeríti,
+      // tehát ha itt bevételeznénk rá, a SZOMSZÉD szakasz bukna el — nem a mért dolog miatt.
+      const verItem = registerItem({ store, bookId: 'a', sku: 'VERZIO', unit: 'db', qtyProfile: 'qty-2', at: BIT.MARCH });
+      const verKey = { bookId: 'a', itemId: verItem.itemId, ownerId: 'gazda', warehouseId: 'FO' };
+      const verBalBefore = balanceAt({ store, key: verKey, view: 'B', asOf: BIT.JUNE }).text;
+      const verBad = ['0', '2', {}].map((v, i) => submitStockReceipt({
+        store, idemKey: `ver-bad-${i}`, actor: 'gazda', bookId: 'a', ownerId: 'gazda', warehouseId: 'FO',
+        input: { item_id: verItem.itemId, qty: '1', effective_at: BIT.JUNE }, version: v, clock: clockFrom(BIT.JUNE),
+      }));
+      // A SZÁMLÁLÓT A ROSSZ HÍVÁSOK UTÁN, a JÓK ELŐTT olvassuk — a saját első alakom a jó hívások
+      // UTÁN mért, és ezért „írást" látott ott, ahol az írás JOGOS volt (KUKA-054 a mérőn).
+      const verCmdAfterBad = store.get('SELECT COUNT(*) AS n FROM command').n;
+      const verMovAfterBad = store.get('SELECT COUNT(*) AS n FROM stock_movement').n;
+      const verGoodPath = submitStockReceipt({
+        store, idemKey: 'ver-ok-1', actor: 'gazda', bookId: 'a', ownerId: 'gazda', warehouseId: 'FO',
+        input: { item_id: verItem.itemId, qty: '1', effective_at: BIT.JUNE }, version: '1', clock: clockFrom(BIT.JUNE),
+      });
+      const verSilentPath = submitStockReceipt({
+        store, idemKey: 'ver-ok-2', actor: 'gazda', bookId: 'a', ownerId: 'gazda', warehouseId: 'FO',
+        input: { item_id: verItem.itemId, qty: '1', effective_at: BIT.JUNE }, clock: clockFrom(BIT.JUNE),
+      });
       let fillOk = true;
       for (let i = 0; i < 10; i += 1) {                // 10 × 1000 = 10 000 = PONTOSAN a plafon
         const r = pieceReceipt({ idemKey: 'fill-' + i, qty: '1000', effectiveAt: BIT.JUNE });
@@ -4602,6 +4630,14 @@ probe('P-KSZ-ledger-truth', 'MCS-2 · KSZ-01 · K10 · R10-F01 · R10-F02 · R10
         && store.get('SELECT COUNT(*) AS n FROM command').n === cmdCountBefore
         && store.get('SELECT COUNT(*) AS n FROM command_event').n === evCountBefore
         && !store.get('SELECT 1 AS x FROM command WHERE idem_key = ?', 'k3b');
+
+      // A VERZIÓ-HATÁR ÍTÉLETE (SVR-01 · R39): a három érvénytelen verzió NEVEZETTEN elakad, és
+      // SEMMIT nem ír (se parancs, se mozgás, se egyenleg-változás); a megnevezett JÓ verzió és a
+      // verziót NEM nevező hívás egyaránt átmegy, a regiszter/megerősítés megkülönböztetésével.
+      const mOk = verBad.every((r) => r.ok === false && r.error === 'unsupported_schema_version')
+        && verCmdAfterBad === verCmdBefore && verMovAfterBad === verMovBefore
+        && verGoodPath.ok === true && verSilentPath.ok === true
+        && balanceAt({ store, key: verKey, view: 'B', asOf: BIT.JUNE }).text === '2';
 
       // (h) A VISSZADÁTUMOZÁS NEM KERÜLI MEG A KORLÁTOT (R10-F03). A MÁRCIUSI kép ÜRES, tehát a régi,
       //     csak-a-hatályra-néző kapu ezt a tételt ÁTENGEDTE volna — a JÚNIUSI képet viszont a plafon
@@ -4654,7 +4690,7 @@ probe('P-KSZ-ledger-truth', 'MCS-2 · KSZ-01 · K10 · R10-F01 · R10-F02 · R10
           + ' · márciusi kép=' + marchLocal.text + ' visszadátumozás=' + backdated.error
           + ' · tároló-őr: árva=' + orphan.slice(0, 40) + ' nyugta nélkül=' + noReceipt.slice(0, 40)
           + ' módosítás=' + upd + ' törlés=' + del,
-        pass: aOk && bOk && cOk && dOk && eOk && fOk && gOk && hOk && iOk,
+        pass: aOk && bOk && cOk && dOk && eOk && fOk && gOk && hOk && iOk && mOk,
         asserts: {
           'A-KSZ-no-raw-writer-bypasses-the-command-path': aOk,
           'A-KSZ-receipt-writes-command-receipt-and-movement-together': bOk,
@@ -4665,6 +4701,7 @@ probe('P-KSZ-ledger-truth', 'MCS-2 · KSZ-01 · K10 · R10-F01 · R10-F02 · R10
           'A-KSZ-sum-limit-rolls-back-command-receipt-and-movement': gOk,
           'A-KSZ-backdating-cannot-bypass-the-sum-limit': hOk,
           'A-KSZ-the-store-itself-enforces-append-only-and-the-command-binding': iOk,
+          'A-KSZ-schema-version-is-checked-on-the-canonical-path-without-writing': mOk,
         },
       };
     } finally { store.close(); }

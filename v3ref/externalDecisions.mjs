@@ -32,6 +32,15 @@ export const EXTERNAL_DECISION_SOURCE = Object.freeze({
 /** A HÁROM DÖNTÉS-SZÓ ZÁRT HALMAZ — ismeretlen szó nem csúszhat át „valaminek" (KUKA-101). */
 export const EXTERNAL_VERDICTS = Object.freeze(['accepted_in_reference', 'partial', 'open', 'not_accepted_as_whole']);
 
+/**
+ * A KÉT MEZŐ VISZONYA, KIMONDVA (R39, a külső fél helyesbítése). A `reason` a KÜLSŐ döntés szövege,
+ * SZÓ SZERINT, változatlanul — a fejlesztői előrehaladás oda NEM keveredhet bele. Az R37-es alakban
+ * két indokba („R37-ben javítva/pótolva") belekerült a mi megjegyzésünk, és ettől a lap azt
+ * állította, hogy a külső fél SZÓ SZERINT ezt mondta. Nem ezt mondta. A saját előrehaladás
+ * mostantól KÜLÖN mezőben áll (`our_progress_note`), és az SOHA nem módosítja a döntést:
+ * **új elfogadást Claude nem adhat magának** (KUKA-105: két minősítési szint összemosása néma
+ * elsőbbséget ad az egyiknek).
+ */
 export const EXTERNAL_CLAUSE_DECISIONS = Object.freeze([
   Object.freeze({ clause: 'REV-N1a', verdict: 'accepted_in_reference',
     reason: 'P-CMD-finalize-gate a befogadást, ismétlést és olvasást ugyanazon tranzakciós határon megvonással méri. Több író külön kapu.' }),
@@ -72,9 +81,17 @@ export const EXTERNAL_CLAUSE_DECISIONS = Object.freeze([
   Object.freeze({ clause: 'K05-DSC-d', verdict: 'accepted_in_reference',
     reason: 'EGYÜTT: P-A08 + P-CMD-finalize-gate + P-CMD-release-effectuation. P-A08 önmagában a hatályosulási versenyt nem fedi; a kiegészítő bizonyíték-kötést rögzíteni kell.' }),
   Object.freeze({ clause: 'K10-TYP-a', verdict: 'partial',
-    reason: 'a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált (R37-ben pótolva). A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.' }),
+    reason: 'a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.',
+    our_progress_note: 'R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), '
+      + 'mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil '
+      + 'típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll.' }),
   Object.freeze({ clause: 'K10-TYP-b', verdict: 'not_accepted_as_whole',
-    reason: 'F37-02 és négy not_falsified sor (R37-ben javítva és pótolva); a sémaverzió kezelése külön hiány volt — a verzió tulajdonosa és határa az R37-ben kimondva (SVR-01).' }),
+    reason: 'F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.',
+    our_progress_note: 'R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra '
+      + 'célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa '
+      + 'kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a '
+      + 'felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem '
+      + 'elfogadott — az a külső fél döntése, és nem a miénk.' }),
   Object.freeze({ clause: 'K10-TYP-c', verdict: 'partial',
     reason: 'KÉT profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok HAMIS. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell.' }),
   Object.freeze({ clause: 'K10-TYP-d', verdict: 'partial',

@@ -7954,6 +7954,128 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'akárcsak a készenlété.',
   }),
   Object.freeze({
+    id: 'KUKA-182',
+    date: '2026-09-18',
+    title: 'AZ ÖSSZESÍTŐ NEM KÉRDEZTE MEG, HOGY A MÉRÉS A MAI KÓDON KÉSZÜLT-E',
+    what: 'Az R37-ben újraírt norma-lánc csomag már a MÉRT vetületet vette át — de a mérés és a '
+      + 'MAI FORRÁS viszonyát semmi nem ellenőrizte. A külső ellenőrző fél (chatgpt-v3, R39) nyolc '
+      + 'alakban mutatta meg, mit enged át: idegen felső `base_digest`, minden mutáción idegen '
+      + '`base_digest`, `applied:false`, PASS-ra írt próba-állapot, nem létező tanú (M999) a '
+      + 'RÉSZLEGES sorokon, SURVIVED-ra írt szervezeti mutációk, és egy részleges sor CÍMKÉJÉNEK '
+      + '„covered"-re írása. MIND ÁTMENT, kilépés 0-val. A legsúlyosabb a nyolcadik: a KUKA-180 '
+      + 'hibás forrás-alakját visszaállítva, a RÉGI mérési fájllal együtt, az összesítő '
+      + 'VÁLTOZATLANUL „70 fedett"-et írt ki — tehát elavult bizonyítékot adott a mai kód alá.',
+    why_wrong: 'Egy jelentés, ami nem kérdezi meg, MIN mértek, tetszőleges régi bizonyítékkal '
+      + 'igazolhat egy mai állapotot. A szabályok ráadásul MEGVOLTAK: a kanonikus ítélő '
+      + '(`checkNorms`) már ellenőrizte az `applied` jelzést, az alap- és mutált lenyomatot és a '
+      + 'futás-jelet — csak a csomag SOHA nem futtatta le őket (KUKA-102: a védelem nem ott állt, '
+      + 'ahol a tény BELÉP).',
+    replaced_by: 'Két kötés: (1) a mérés `base_digest` mezője a MAI forrás-lenyomathoz mérve '
+      + '(BND-01, `bundleDigest.mjs`); (2) a KANONIKUS ítélő ÚJRAFUTTATVA a battéria által eltett '
+      + 'bemenettel (`norm_inputs`), és a beadott vetület EHHEZ hasonlítva soronként.',
+    replacement: 'A battéria mostantól elteszi a `checkNorms` BEMENETÉT is (`records` + '
+      + '`expectation`), nem csak az eredményét — ettől a vetület VISSZASZÁMOLHATÓ. A csomag nem '
+      + 'épít MÁSODIK szabálykészletet (a külső fél kikötése): ugyanazt az ítélőt hívja, és minden '
+      + 'eltérés NEVEZETT megállás. A lenyomat-számoló saját otthonba költözött, mert a battéria '
+      + 'modulja nem húzható be anélkül, hogy le is futna (KUKA-003).',
+    decision: 'D-VS-3048',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R39), nyolc futtatható ellenpéldával — a saját, '
+      + 'R37-ben épített 12 esetes battériám mind a nyolcat átengedte.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_norm_chain_package.mjs']),
+        pattern: 'digestOfBundle\\(ROOT\\)',
+        why: 'a csomag megkérdezi, hogy a mérés a MAI forráson készült-e' }),
+      Object.freeze({ paths: Object.freeze(['tools/v3_norm_chain_package.mjs']),
+        pattern: 'checkNorms\\(\\{',
+        why: 'a kanonikus ítélő ÚJRAFUT — a csomag nem hiszi el a beadott vetületet' }),
+    ]),
+    forbidden: Object.freeze([]),
+    guard_note: 'gépi jel: `npm run proof:norm-chain-package` — NCP-02 mostantól 21 eset: a külső '
+      + 'fél mind a NYOLC ellenpéldája PIROS (köztük az ELAVULT KÓD esete, ami a forrás-fájlt is '
+      + 'rontja és visszaállítja), plusz a korábbi tíz, és KÉT pozitív ellenpár. A kilépési kódon mérve.',
+    lesson: 'AZ ÖSSZESÍTŐNEK MEG KELL KÉRDEZNIE, MIN MÉRTEK. Egy jelentés, ami a bizonyítékot nem '
+      + 'köti a MAI forráshoz, tetszőleges régi mérést ad a mai kód alá — és ez pontosan úgy néz ki, '
+      + 'mint a valódi bizonyíték. **És ha egy szabály MÁR LÉTEZIK egy kanonikus ítélőben, nem elég '
+      + 'tudni róla: LE KELL FUTTATNI.** A második, saját szabálykészlet írása itt rosszabb lett '
+      + 'volna, mint a semmi: két ítélő két igazságot szül (KUKA-018). A helyes alak az, hogy a '
+      + 'termelő elteszi az ítélő BEMENETÉT, és az olvasó ugyanazt az ítéletet számolja vissza.',
+  }),
+  Object.freeze({
+    id: 'KUKA-183',
+    date: '2026-09-18',
+    title: 'A DIAGNOSZTIKA VITTE EL A VÁLASZT — a `JSON.stringify` maga is dob',
+    what: 'A nevezett elutasítások a kapott értéket `JSON.stringify(ertek)` alakban mutatták meg '
+      + '(KUKA-064: a nemleges válasz ne legyen zsákutca). A `JSON.stringify` viszont DOB `BigInt`-re '
+      + '(„Do not know how to serialize a BigInt") és KÖRKÖRÖS objektumra („Converting circular '
+      + 'structure to JSON"). Így a `validateInput({operation: 1n})` és a körkörös objektumot vivő '
+      + 'hívás nyers `TypeError`-t kapott a nevezett `unknown_operation` helyett.',
+    why_wrong: 'Ez a KUKA-180 hibája EGY RÉTEGGEL BELJEBB: a javítás után a KAPU már helyesen '
+      + 'döntött, de a MONDAT, amivel ki akarta mondani a döntést, elszállt. A hívó számára a kettő '
+      + 'megkülönböztethetetlen — mindkettő nyers kivétel (KUKA-020).',
+    replaced_by: 'SAFE-01 (`showValue`): a megjelenítés MINDIG sikerül, és a fajtát is megmondja '
+      + '(BigInt · Symbol · függvény · körkörös hivatkozás · tömb).',
+    replacement: 'Négy hívási hely áll át a közös feloldóra (bemeneti séma ×3 · mennyiség-profil), '
+      + 'és a diagnosztika soha nem dobhat.',
+    decision: 'D-VS-3049',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R39) — a saját F37-02 próbám nyolc alakot mért, de '
+      + 'egyik sem volt olyan érték, amit a MEGJELENÍTŐ nem tud kezelni (KUKA-054).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/closedRegistry.mjs']),
+        pattern: 'export function showValue',
+        why: 'a diagnosztikai megjelenítés közös, és soha nem dob' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({
+        pattern: 'JSON\\.stringify\\((operation|profileId|requested)\\)',
+        paths: ['v3ref/inputSchema.mjs', 'v3ref/quantity.mjs'],
+        reason: 'a nyers megjelenítés BigInt-re és körkörös objektumra dob — a diagnosztika nem '
+          + 'viheti el a választ, amit ki akarunk mondani',
+      }),
+    ]),
+    guard_note: 'gépi jel: `node v3ref/run.mjs` — `P-BEM-input-schema` (j) ága nyolc alakot mér, és '
+      + 'a `verify:kuka` tiltó-mintája a nyers megjelenítést fogja. AMIRE NINCS GÉPI JEL: hogy egy '
+      + 'ÚJ diagnosztikai mondat ne hívjon más dobó függvényt — az a szabály kimondásán múlik.',
+    lesson: 'AHOL EGY KAPU KIMONDJA A DÖNTÉSÉT, A KIMONDÁS MAGA IS HIBÁZHAT. A nevezett elutasítás '
+      + 'értéke azon múlik, hogy EL IS JUT a hívóhoz — ezért a diagnosztikai megjelenítés soha nem '
+      + 'dobhat. Ez a KUKA-064 („ne legyen zsákutca") párja: a zsákutcánál csak egy rosszabb van, ha '
+      + 'a kiírt válasz helyett nyers kivételt kap a hívó.',
+  }),
+  Object.freeze({
+    id: 'KUKA-184',
+    date: '2026-09-18',
+    title: 'A KANONIKUS ÚT ELDOBOTT EGY ARGUMENTUMOT, MIKÖZBEN A JELENTÉS ELUTASÍTÁST ÍGÉRT',
+    what: 'Az R37-ben kimondott sémaverzió-határ (SVR-01) a `validateInput` KÜLÖN hívásán működött: '
+      + "a '0', '2' és `{}` verzió nevezett `unsupported_schema_version` hibát kapott. A KANONIKUS "
+      + 'bevét-út (`submitStockReceipt`) viszont **nem vett át `version` argumentumot**: aki felső '
+      + 'szinten megnevezett egyet, annak az értéke NÉMÁN eltűnt, a bevét lefutott, és készlet is '
+      + 'mozdult. A jelentés általános állítása ezért többet mondott, mint a tényleges belépési határ.',
+    why_wrong: 'Ugyanarról a tényről KÉT válasz élt, ellentmondva egymásnak (KUKA-080): a '
+      + 'közvetlen hívás elutasított, a valódi út átengedett. És a rosszabbik a NÉMA — a hívó azt '
+      + 'hitte, megnevezte a verziót, a rendszer pedig eldobta (KUKA-041 a paraméteren).',
+    replaced_by: 'A `submitStockReceipt` átveszi és TOVÁBBADJA a `version` argumentumot; a határ a '
+      + 'VALÓDI úton is mérve, a HATÁS visszaolvasásával.',
+    replacement: 'A három érvénytelen verzió a kanonikus úton is nevezett elutasítást kap, és '
+      + 'SEMMIT nem ír (se parancs, se mozgás); a megnevezett jó verzió és a verziót NEM nevező '
+      + 'hívás egyaránt átmegy, a `register`/`request_confirmed` megkülönböztetéssel.',
+    decision: 'D-VS-3050',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R39) — a saját R37-es próbám a `validateInput`-ot '
+      + 'hívta közvetlenül, tehát a saját rétegemet mértem, nem a felhasználó útját (KUKA-054).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/ledger.mjs']),
+        pattern: "validateInput\\(\\{ operation: 'stock\\.receipt', input, version \\}\\)",
+        why: 'a megnevezett sémaverzió a KANONIKUS úton is átmegy a határon' }),
+    ]),
+    forbidden: Object.freeze([]),
+    guard_note: 'gépi jel: `P-KSZ-ledger-truth` új állítása '
+      + '(`A-KSZ-schema-version-is-checked-on-the-canonical-path-without-writing`) + az **M163** '
+      + 'mutáció (a verzió továbbadásának kivétele) — elkapva, és NÉV SZERINT ezt az állítást döntve.',
+    lesson: 'EGY HATÁRT AZON AZ ÚTON KELL MÉRNI, AMIN A HASZNÁLÓ JÁR. Ha a szabályt a belső feloldó '
+      + 'közvetlen hívásán mérem, a saját rétegemet igazolom vissza — a kanonikus út közben eldobhat '
+      + 'egy argumentumot, és a rendszer NÉMÁN mást csinál, mint amit a jelentés ígér. Új '
+      + 'paraméternél a kérdés: **ki adja át, és végigmegy-e a láncon?** (KUKA-025 „mi viszi ki?" a '
+      + 'bemeneti oldalon.)',
+  }),
+  Object.freeze({
     id: 'KUKA-176',
     date: '2026-09-16',
     title: 'A HIBÁS ALAK CSAK AZ EGYIK ÁGON VOLT HIBA — a saját, egy körrel korábbi szerződésemen',

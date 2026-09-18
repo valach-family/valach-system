@@ -303,9 +303,14 @@ export const REVOCATION_NORMS = Object.freeze([
         // ez MA MÁR NEM IGAZ: a REV-N3a fedett, implementációval és próbával. A maradék-szöveg
         // tehát a rendszer egy korábbi állapotát állította (KUKA-050: a szöveg elévül), és ez a
         // hiányt NAGYOBBNAK mutatta a valóságosnál — ami ugyanolyan hazugság, mint a kisebbítés.
-        gap: 'EGYETLEN előfeltétel hiányzik: a REV-N4a KOMPENZÁLÓ-ESEMÉNY fogalma — enélkül nincs '
-          + 'mit jóváhagyni. A jóváhagyói HATÁSKÖR modellje MEGVAN (REV-N3a, fedett), tehát ha a '
-          + 'korrekciós esemény megszületik, ez a klauzula a meglévő hatáskör-kapura épülhet.',
+        // SZŰKÍTVE (R39, a külső fél helyesbítése). Az „EGYETLEN előfeltétel" alak TÚL ERŐS volt: azt
+        // sugallta, hogy a kompenzáló esemény megszületésével a klauzula automatikusan kész. Nem az:
+        // a korrekciós eseménynek SAJÁT jóváhagyási és audit-útját is bizonyítani kell. A meglévő
+        // hatáskör-modell ehhez HASZNÁLHATÓ ALAP, nem kész bekötés (KUKA-038).
+        gap: 'KÉT dolog hiányzik, nem egy. (1) a REV-N4a KOMPENZÁLÓ-ESEMÉNY fogalma — enélkül nincs '
+          + 'mit jóváhagyni; (2) a korrekciós esemény SAJÁT jóváhagyási és AUDIT-útjának bizonyítása. '
+          + 'A jóváhagyói HATÁSKÖR modellje MEGVAN (REV-N3a, fedett), és HASZNÁLHATÓ ALAP — de a '
+          + 'bekötés ettől NEM lesz automatikusan kész.',
       }),
     ]),
   }),
@@ -491,8 +496,11 @@ export const MODULE_CONTRACT_NORMS = Object.freeze([
         // van: a kanonikus decimális alak a határon (`A-BEM-valid-input-normalizes-to-canonical-decimal-text`)
         // és a hibakód-sorrend megőrzése (`A-BEM-quantity-error-order-survives-the-boundary`); a
         // mennyiség PROFILJA verziózva a soron áll (`qty_profile=qty-1`). Ami NINCS mérve: a
-        // PROFILVÁLTÁS és a korábbi tárolt érték viszonya — a magban egyetlen profil él, verzióváltás
-        // sosem történt, tehát ellenpélda sem állítható elő. A klauzula ezért NEM fedett (KUKA-033).
+        // PROFILVÁLTÁS és a korábbi tárolt érték viszonya. HELYESBÍTVE (R39): a korábbi szöveg itt is
+        // azt írta, hogy „egyetlen profil él, tehát ellenpélda sem állítható elő" — ez MÉRVE HAMIS
+        // (két élő profil: qty-1 és qty-2), és a KUKA-181 pont erről szól. A hiány megmarad:
+        // profil-VERZIÓVÁLTÁS nem történt, ilyen ellenpéldát nem építettünk — de a bizonyítás
+        // LEHETSÉGES, csak nem tettük meg. A klauzula ezért NEM fedett (KUKA-033).
         // HELYESBÍTVE (R37, a külső fél lelete). A régi indok azt állította, hogy „a magban EGYETLEN
         // mennyiség-profil él", tehát ellenpélda nem is állítható elő. Ez MÉRVE HAMIS: `qty-1` ÉS
         // `qty-2` is él (`QUANTITY_PROFILES`), és a `P-BEM-input-schema` (i) ága MINDKETTŐT méri. A
@@ -512,7 +520,8 @@ export const MODULE_CONTRACT_NORMS = Object.freeze([
           + 'sem hozhat létre.',
         // MÉRVE: a parancs+nyugta+mozgás EGYÜTT íródik, az ismétlés nem könyvel kétszer, és az
         // összeg-korlát MINDHÁRMAT visszagörgeti (KSZ-01 három állítása). NINCS MÉRVE: a „korábbi
-        // verziójú vagy MÁS PROFILÚ bemenet" ága — egyetlen élő profil mellett nincs ellenpélda.
+        // verziójú vagy MÁS PROFILÚ bemenet" ága — ezt nem mértük (a „nincs ellenpélda" indok HAMIS
+        // volt: két élő profil áll; lásd a lenti, javított hiány-szöveget).
         // HELYESBÍTVE (R37): a „egyetlen élő profil mellett ellenpélda nem állítható elő" indok
         // MÉRVE HAMIS — két mennyiség-profil él. A SÉMAVERZIÓ oldalán viszont az R37-ben megszületett
         // a HATÁR (SVR-01): a verziót a regiszter választja, eltérő megnevezett verzió NEVEZETT
@@ -2115,7 +2124,11 @@ export const USE_GATES = Object.freeze([
     id: 'USE-G4',
     title: 'A „core kész" állítás hatóköre',
     closed_until: 'OB-7 — a folyamat által érintett klauzula-sorok TARTALMI elbírálása a külső '
-      + 'ellenőrző fél részéről (ma 0/88 soron van érvényes emberi jóváhagyás)',
+      + 'ellenőrző fél részéről. A DARABSZÁMOT SZÁNDÉKOSAN NEM ÍRJUK IDE (R39 · KUKA-045): a '
+      + 'korábbi felirat 88 sort mondott, miközben a lánc már 93 sor volt — a kézzel léptetett '
+      + 'szám elcsúszik a mért értéktől. A MÉRT állapotot a norma-lánc csomag írja ki '
+      + '(`content_review_current` / `chain_rows`), és a KÜLSŐ tartalmi döntések ettől KÜLÖN '
+      + 'tengelyen állnak (EXD-01): a repó-rekord hiánya NEM azonos a külső döntés hiányával',
     what_the_green_reference_does_not_authorize:
       'A gépi lánc azt méri, hogy a kód teljesíti-e az ÁLLÍTÁST — nem azt, hogy az állítás a NORMÁT '
       + 'fedi-e. A tartalmi elbírálás a tárgyaló félé, és Claude által írt elfogadás NEM helyettesíti '

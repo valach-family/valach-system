@@ -51,7 +51,41 @@ const CASES = [
     break: () => { const j = read(); j.norm_evidence.integrity_ok = false; write(j); } },
   { id: 'NCP02-11', want: 'piros', what: 'NOT_FALSIFIED sort „covered"-nek átírva, tanú nélkül',
     break: () => { const j = read(); const r = j.norm_evidence.chain.find((x) => x.result === 'partially_covered'); r.result = 'covered'; delete r.falsified_by; write(j); } },
-  { id: 'NCP02-12', want: 'zöld', what: 'a VISSZAÁLLÍTOTT ép csomag ISMÉT zöld (a battéria nem hagy nyomot)', break: null },
+  // ── R39 — A KÜLSŐ ELLENŐRZŐ FÉL NYOLC ELLENPÉLDÁJA ──────────────────────────────────────────
+  // Mind a nyolc ÁTMENT a korábbi alakon, VÁLTOZATLAN összesítővel (70/13/0/10, kilépés 0). A
+  // javítás két része: (a) a mérés a MAI forrás lenyomatához kötve; (b) a KANONIKUS ítélő
+  // (`checkNorms`) ÚJRAFUTTATVA a battéria eltett bemenetével, és a beadott vetület EHHEZ mérve.
+  { id: 'NCP02-13', want: 'piros', what: 'a felső base_digest idegen — a mérés nem a mai forráson készült',
+    break: () => { const j = read(); j.base_digest = `sha256:${'0'.repeat(64)}`; write(j); } },
+  { id: 'NCP02-14', want: 'piros', what: 'MINDEN mutáció base_digest mezője idegen',
+    break: () => { const j = read(); for (const r of j.mutation_results) r.base_digest = `sha256:${'0'.repeat(64)}`; write(j); } },
+  { id: 'NCP02-15', want: 'piros', what: 'MINDEN mutáció `applied:false` — a próba el sem végződött',
+    break: () => { const j = read(); for (const r of j.mutation_results) r.applied = false; write(j); } },
+  { id: 'NCP02-16', want: 'piros', what: 'a próba-állapot PASS-ra írva, miközben CAUGHT marad',
+    break: () => { const j = read(); for (const r of j.mutation_results) r.probe_status = 'PASS'; write(j); } },
+  { id: 'NCP02-17', want: 'piros', what: 'a RÉSZLEGES sorok tanúja nem létező mutáció (M999)',
+    break: () => { const j = read(); for (const r of j.norm_evidence.chain) if (r.result === 'partially_covered') r.falsified_by = 'M999'; write(j); } },
+  { id: 'NCP02-18', want: 'piros', what: 'a szervezeti mutációk SURVIVED-ra írva, a részleges sorok mégis megmaradnak',
+    break: () => {
+      const j = read();
+      const ids = new Set(['M116', 'M117', 'M118', 'M119', 'M120', 'M121', 'M122', 'M123',
+        'M127', 'M128', 'M129', 'M130', 'M131', 'M132', 'M133', 'M134', 'M135', 'M136', 'M137']);
+      for (const r of j.mutation_results) if (ids.has(r.mutation_id)) { r.verdict = 'SURVIVED'; r.probe_status = 'PASS'; r.failed_assertions = []; }
+      write(j);
+    } },
+  { id: 'NCP02-19', want: 'piros', what: 'egy RÉSZLEGES sor CÍMKÉJE „covered"-re írva (a kanonikus részlegesség felülírása)',
+    break: () => { const j = read(); for (const r of j.norm_evidence.chain) if (r.clause_id === 'K05-DSC-c') r.result = 'covered'; write(j); } },
+  { id: 'NCP02-20', want: 'piros', what: 'ELAVULT KÓD, régi méréssel: az F37-02 hibás alakja visszaáll',
+    // EZ A LEGSÚLYOSABB ESET, és forrás-fájlt ront — ezért a saját helyreállítása is itt áll.
+    breakSource: {
+      file: 'v3ref/inputSchema.mjs',
+      from: "  if (typeof operation !== 'string') return null;\n"
+        + "  if (!Object.prototype.hasOwnProperty.call(OPERATION_SCHEMAS, operation)) return null;\n"
+        + "  const found = OPERATION_SCHEMAS[operation];\n"
+        + "  return found && typeof found === 'object' && found.fields ? found : null;",
+      to: '  return OPERATION_SCHEMAS[operation] || null;',
+    } },
+  { id: 'NCP02-21', want: 'zöld', what: 'a VISSZAÁLLÍTOTT ép csomag ISMÉT zöld (a battéria nem hagy nyomot)', break: null },
 ];
 
 let fail = 0;
@@ -63,7 +97,19 @@ try {
   for (const c of CASES) {
     restore();
     if (c.break) c.break();
+    let srcPath = null; let srcBefore = null;
+    if (c.breakSource) {
+      srcPath = join(ROOT, c.breakSource.file);
+      srcBefore = readFileSync(srcPath, 'utf8');
+      if (!srcBefore.includes(c.breakSource.from)) {
+        console.log(`  BUKOTT   [${c.id}] a forrás-horgony NEM található — a rontás nem hajtható végre`);
+        fail += 1;
+        continue;
+      }
+      writeFileSync(srcPath, srcBefore.replace(c.breakSource.from, c.breakSource.to));
+    }
     const r = run();
+    if (srcPath) writeFileSync(srcPath, srcBefore);   // a forrás AZONNAL visszaáll
     const got = r.status === 0 ? 'zöld' : 'piros';
     const ok = got === c.want;
     if (!ok) fail += 1;

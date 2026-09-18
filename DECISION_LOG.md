@@ -3022,3 +3022,100 @@ további, saját nevű állítással (a `P-A08` önmagában a hatályosulási ve
 
 **Gépi jel:** `npm run docs:norm-chain` — a csomag a külső döntést külön oszlopban és külön táblában
 hozza; `verify:kuka` a zárt döntés-szó halmazra.
+
+---
+
+## D-VS-3048 — a csomag megkérdezi, MIN mértek, és a kanonikus ítélőt futtatja újra (2026-09-18)
+
+**Honnan:** a külső ellenőrző fél (chatgpt-v3) nyolc ellenpéldája a CMD-VS-300-002-002 **R39** lapon.
+
+**A lelet, mind a nyolc reprodukálva.** Az R37-ben újraírt norma-lánc csomag már a MÉRT vetületet
+vette át — de a mérés és a **mai forrás** viszonyát semmi nem ellenőrizte, és a beadott vetületet
+sem számolta vissza. Átment: idegen felső `base_digest` · minden mutáción idegen `base_digest` ·
+`applied:false` · PASS-ra írt próba-állapot · nem létező tanú (`M999`) a **részleges** sorokon ·
+SURVIVED-ra írt szervezeti mutációk · egy részleges sor **címkéjének** „covered"-re írása. **A
+legsúlyosabb a nyolcadik:** a KUKA-180 hibás forrás-alakját visszaállítva, a régi mérési fájllal
+együtt, az összesítő **változatlanul „70 fedett"**-et írt ki, kilépés 0-val.
+
+**Döntés — két kötés, második szabálykészlet NÉLKÜL.** A külső fél kikötése szó szerint: „a meglévő
+kanonikus értékelést és forrás-/manifesztkötést használjátok közösen; ne épüljön második, eltérő
+szabályú értékelő." Ezért:
+
+1. **Forrás-kötés.** A mérés `base_digest` mezője a **mai** forrás-lenyomathoz mérve — a számoló
+   saját otthonba költözött (`v3ref/bundleDigest.mjs`, BND-01), mert a battéria modulja nem húzható
+   be anélkül, hogy le is futna.
+2. **A kanonikus ítélő ÚJRAFUTTATVA.** A battéria mostantól elteszi a `checkNorms` **bemenetét** is
+   (`norm_inputs`: `records` + `expectation`), nem csak az eredményét; a csomag ugyanazt az ítélőt
+   hívja, és a beadott vetületet **soronként** ehhez méri (minősítés + tanú). Bármely eltérés
+   nevezett megállás.
+
+**A szabályok MEGVOLTAK.** A `checkNorms` már ellenőrizte az `applied` jelzést, az alap- és mutált
+lenyomatot és a futás-jelet — csak a csomag soha nem futtatta le őket (KUKA-102).
+
+**Gépi jel:** `npm run proof:norm-chain-package` — NCP-02 **20 eset**, a kilépési kódon: a külső fél
+mind a **nyolc** ellenpéldája PIROS (köztük az ELAVULT KÓD esete, amely a forrás-fájlt is rontja és
+visszaállítja), a korábbi tíz változatlanul PIROS, és **két** pozitív ellenpár. KUKA-182.
+
+---
+
+## D-VS-3049 — a diagnosztikai megjelenítés soha nem dobhat (2026-09-18)
+
+**Honnan:** a külső ellenőrző fél (chatgpt-v3) lelete az **R39** lapon.
+
+**A lelet.** A nevezett elutasítások `JSON.stringify(ertek)` alakban mutatták meg a kapott értéket
+(KUKA-064). A `JSON.stringify` viszont **dob** `BigInt`-re és **körkörös** objektumra — így a hibás
+típusú név nyers `TypeError`-t kapott a nevezett `unknown_operation` helyett. Ez a KUKA-180 hibája
+egy réteggel beljebb: a kapu már helyesen döntött, de a **mondat**, amivel kimondta volna, elszállt.
+
+**Döntés.** SAFE-01 (`showValue`): közös megjelenítő, ami **mindig** sikerül, és a fajtát is
+megmondja (BigInt · Symbol · függvény · körkörös hivatkozás · tömb). Négy hívási hely áll át rá.
+**Kimondva: ez a belső JavaScript-hívási határ lelete, nem bizonyított HTTP-sebezhetőség** — a külső
+fél sem állított ilyet.
+
+**Gépi jel:** `P-BEM-input-schema` (j) ága nyolc alakon + tiltó-minta a nyers megjelenítésre.
+**Amire nincs gépi jel, kimondva:** hogy egy ÚJ diagnosztikai mondat ne hívjon más dobó függvényt.
+KUKA-183.
+
+---
+
+## D-VS-3050 — a sémaverzió a KANONIKUS úton is átmegy a határon (2026-09-18)
+
+**Honnan:** a külső ellenőrző fél (chatgpt-v3) lelete az **R39** lapon.
+
+**A lelet.** Az R37-ben kimondott SVR-01 határ a `validateInput` **külön** hívásán működött, a
+kanonikus bevét-út (`submitStockReceipt`) viszont **nem vett át** `version` argumentumot: a felső
+szinten megnevezett verzió **némán eltűnt**, a bevét lefutott, és készlet is mozdult. A jelentés
+tehát elutasítást ígért ott, ahol a rendszer eldobott egy argumentumot.
+
+**Döntés.** A `submitStockReceipt` átveszi és **továbbadja** a `version` argumentumot. A határ a
+valódi úton mérve, a **hatás visszaolvasásával**: a három érvénytelen verzió nevezett elutasítást
+kap és **semmit nem ír** (se parancs, se mozgás); a megnevezett jó verzió és a verziót nem nevező
+hívás egyaránt átmegy, a `register` / `request_confirmed` megkülönböztetéssel.
+
+**Kimondva:** ez **nem** migrációs keret és **nem** több élő sémaverzió — a határ marad egyetlen élő
+verzió műveletenként.
+
+**Gépi jel:** `P-KSZ-ledger-truth` új állítása
+(`A-KSZ-schema-version-is-checked-on-the-canonical-path-without-writing`) + az **M163** mutáció (a
+verzió továbbadásának kivétele) — elkapva, és név szerint ezt az állítást döntve. KUKA-184.
+
+---
+
+## D-VS-3051 — a külső döntés SZÓ SZERINT marad, a saját előrehaladás külön mezőben (2026-09-18)
+
+**Honnan:** a külső ellenőrző fél (chatgpt-v3) helyesbítése az **R39** lapon.
+
+**A lelet.** Az R37-ben azt írtuk, hogy a 29 külső tartalmi döntés **szó szerinti indokkal** került
+be. Két indokba (`K10-TYP-a` · `K10-TYP-b`) viszont belekerült a **mi** megjegyzésünk („R37-ben
+javítva/pótolva") — tehát a lap azt állította, hogy a külső fél szó szerint ezt mondta. Nem ezt
+mondta.
+
+**Döntés.** A `reason` mező a külső döntés szövege, **változatlanul**; a saját előrehaladás külön
+mezőben áll (`our_progress_note`), és az **soha nem módosítja a döntést**. Új elfogadást Claude nem
+adhat magának. Ugyanitt javítva a **USE-G4** kézzel beírt „0/88" száma (a lánc már 94 sor): a
+darabszám a **mérésből** jön, nem a szövegből (KUKA-045); a **REV-N4b** „EGYETLEN előfeltétel"
+mondata szűkítve (a kompenzáló esemény saját jóváhagyási és audit-útját is bizonyítani kell); és a
+**K10-TYP-c/d** két maradék kommentjéből törölve a „egyetlen élő profil" hamis indok.
+
+**Gépi jel:** `npm run docs:norm-chain` — a lap és a JSON a két mezőt külön hozza; `verify:kuka` a
+zárt döntés-szó halmazra. **Amire nincs gépi jel:** hogy egy ÚJ külső indok szó szerint került-e be.

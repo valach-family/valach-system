@@ -44,6 +44,7 @@ import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { spawnSync, spawn } from 'node:child_process';
 import { availableParallelism } from 'node:os';
+import { digestOfBundle } from './bundleDigest.mjs';
 
 const REF = dirname(fileURLToPath(import.meta.url));
 let BASE_DIGEST = null;   // az ALAP (mutálatlan) forrás lenyomata — az alapvonal-kapu tölti fel
@@ -188,13 +189,10 @@ export function classifyRun(spawnResult, expected) {
 // a MUTÁCIÓ UTÁNI könyvtáron. Így az elvárt érték nem a gyermek szava, hanem a szülő mérése.
 // Ha a két algoritmus elcsúszna, minden futás MÉRŐHIBÁRA menne — vagyis a csúszás nem néma
 // (KUKA-018: ahol egy fogalomnak két ábrázolása van, a különbségnek látszania kell).
-export function digestOfBundle(dir) {
-  const refDir = join(dir, 'v3ref');
-  const files = readdirSync(refDir).filter((f) => f.endsWith('.mjs')).sort();
-  const h = createHash('sha256');
-  for (const f of files) { h.update(f); h.update('\0'); h.update(readFileSync(join(refDir, f))); h.update('\0'); }
-  return `sha256:${h.digest('hex')}`;
-}
+// A LENYOMAT OTTHONA A `bundleDigest.mjs` (BND-01, R39) — ez a modul behúzható anélkül, hogy a
+// battéria lefutna, tehát a norma-lánc csomag generátora is meg tudja KÉRDEZNI a mai forrás
+// lenyomatát. Itt csak TOVÁBBADJUK, hogy a régi hívók ne törjenek el.
+export { digestOfBundle };
 
 // ── A SZÜLŐI ELVÁRÁS-FŐKÖNYV (R59/F01) ──────────────────────────────────────────────────────────
 //
@@ -959,6 +957,23 @@ if (MERGE_ONLY) {
         integrity_problems: units.flatMap((u) => u.norm_integrity_problems || []),
         chain,
       } : null,
+      // A KANONIKUS ÍTÉLŐ EGYESÍTETT BEMENETE (R39). A `records` a TISZTA alapfutásé (minden
+      // egységben ugyanaz a próba-készlet), az `expectation` pedig a szülői főkönyvek UNIÓJA —
+      // mutációnként egy futás-jel és egy mutált lenyomat. Ebből a csomag-generátor újra tudja
+      // futtatni a `checkNorms`-ot, és a beadott vetületet ÖSSZE tudja vetni a sajátjával.
+      norm_inputs: (() => {
+        const withInputs = units.filter((u) => u.norm_inputs);
+        if (!withInputs.length) return null;
+        const run_tokens = {}; const mutated_digests = {};
+        for (const u of withInputs) {
+          Object.assign(run_tokens, u.norm_inputs.expectation?.run_tokens || {});
+          Object.assign(mutated_digests, u.norm_inputs.expectation?.mutated_digests || {});
+        }
+        return {
+          records: withInputs[0].norm_inputs.records,
+          expectation: { base_digest: withInputs[0].base_digest, run_tokens, mutated_digests },
+        };
+      })(),
       mutation_results: allResults,
     }, null, 2)}\n`);
     console.log(`  gépi végeredmény: ${outPath}`);
@@ -1043,6 +1058,9 @@ console.log(`  ${attacks.length} hazugság-ellenpróba · ${attacks.filter((a) =
 // klauzulák `falsification_pending` állapotúak. A VÉGLEGES minősítés ITT születik, a TÉNYLEGES
 // mutációs futások eredményéből — nem a definícióikból (a külső fél N01 esete).
 let normFinal = null;
+// A KANONIKUS ÍTÉLŐ BEMENETE a blokkon KÍVÜL él, mert az EGYSÉG-fájl írásakor is kell (R39):
+// a csomag-generátor ebből futtatja újra ugyanazt az ítéletet, ahelyett hogy elhinné a vetületet.
+let normExpectation = null;
 // A BIZONYÍTÉK KÖTÉSE KÜLÖN KÉRDÉS A LEFEDETTSÉGTŐL — ÉS EZT A SAJÁT R79-ES PRÓBÁM MUTATTA MEG.
 //
 // A RUN-02 egység-módban kivettem a KÖTELEZŐ KÉSZLET feltételét a `sliceClean`-ből (joggal: az
@@ -1069,7 +1087,7 @@ if (base.ok && attacksOk && results.length === SLICE.length) {
   // a KELETKEZÉSKOR (az `expectationFor` hívásakor) rögzíti, mit állított elő a szülő; a csomag ehhez
   // méretik. Ami nincs a főkönyvben, arra nincs elvárás — tehát nem lehet `covered`.
   const withEvidence = results.filter((r) => r.falsification && PARENT_EXPECTATIONS.has(r.id));
-  const expectation = {
+  normExpectation = {
     base_digest: BASE_DIGEST,
     // A FUTÁS-JEL MUTÁCIÓNKÉNT SZÜLETIK (`expectationFor` → `rt_<uuid>`), tehát az elvárás is
     // mutációnként tartja — ez szigorúbb, mint egy közös token: egy MÁSIK mutáció jele sem megy át.
@@ -1086,7 +1104,8 @@ if (base.ok && attacksOk && results.length === SLICE.length) {
   }).map((x) => x.mutation_id);
   evidenceBound = evidenceUnbound.length === 0;
   normFinal = checkNorms({
-    probes: EXPECTED_PROBES, mutations: MUTATIONS, records: base.records, mutationResults, expectation,
+    probes: EXPECTED_PROBES, mutations: MUTATIONS, records: base.records,
+    mutationResults, expectation: normExpectation,
   });
   const cov = normFinal.chain.filter((c) => c.result === 'covered');
   const notFals = normFinal.chain.filter((c) => c.result === 'not_falsified');
@@ -1214,6 +1233,14 @@ if (UNIT) {
       norm_integrity_problems: normFinal ? normFinal.integrity_problems : null,
       norm_contract: normFinal ? normFinal.contract : null,
       norm_index_digest: normFinal ? normFinal.index_digest : null,
+      // A KANONIKUS ÍTÉLŐ BEMENETE (R39). Eddig csak az EREDMÉNYT tettük el, a bemenetét nem —
+      // ezért a csomag-generátor nem tudta ÚJRAFUTTATNI a `checkNorms`-ot, és kénytelen volt a
+      // beadott vetületet elhinni. A külső ellenőrző fél (chatgpt-v3, R39) nyolc alakban mutatta
+      // meg, mire jó ez: idegen forrás-lenyomat, `applied:false`, PASS-ra írt próba-állapot, nem
+      // létező tanú a RÉSZLEGES sorokon, SURVIVED-ra írt mutációk és a sor CÍMKÉJÉNEK átírása —
+      // mind átment, változatlan összesítővel. Innentől a bemenet is itt van, tehát a vetület
+      // VISSZASZÁMOLHATÓ (KUKA-102: a védelem a tény BELÉPÉSÉNÉL álljon, ne a termelőnél).
+      norm_inputs: normExpectation ? { records: base.records, expectation: normExpectation } : null,
       mutation_results: results.map((r) => r.falsification).filter(Boolean),
       why,
     }, null, 2)}\n`);

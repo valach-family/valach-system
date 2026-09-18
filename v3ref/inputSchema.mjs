@@ -23,6 +23,7 @@
  */
 import { parseQuantity, quantitySyntaxProblem } from './quantity.mjs';
 import { parseInstant } from './instant.mjs';
+import { showValue } from './closedRegistry.mjs';
 
 const fail = (error, detail, at) => Object.freeze({ ok: false, error, detail: detail ?? null, at: at ?? null });
 
@@ -145,8 +146,8 @@ export function checkSchemaVersion(schema, requested) {
     return {
       ok: false,
       error: 'unsupported_schema_version',
-      detail: `a beadvány ${JSON.stringify(requested)} sémaverziót nevez meg; ezen a műveleten `
-        + `EGYETLEN támogatott verzió van: ${JSON.stringify(schema.version)} — a verziót a `
+      detail: `a beadvány ${showValue(requested)} sémaverziót nevez meg; ezen a műveleten `
+        + `EGYETLEN támogatott verzió van: ${showValue(schema.version)} — a verziót a `
         + 'REGISZTER választja, nem a beadó, és korábbi verziójú beadványt nem értelmezünk át',
     };
   }
@@ -158,7 +159,7 @@ export function validateInput({ operation, input, version }) {
   const schema = schemaForOperation(operation);
   if (!schema) {
     return fail('unknown_operation',
-      `nincs deklarált bemeneti séma erre: ${JSON.stringify(operation)} — `
+      `nincs deklarált bemeneti séma erre: ${showValue(operation)} — `
       + `választható: ${Object.keys(OPERATION_SCHEMAS).join(' · ')}`);
   }
   // A BURKOLÓ MAGA IS TÍPUS: a tömb és a null is „object" a `typeof`-nak (KUKA-125 rokona).

@@ -1,10 +1,10 @@
 {
   "schema": "v3-norm-chain-package/2",
   "id": "NCP-01",
-  "at": "2026-09-18T14:02:17.937Z",
+  "at": "2026-09-18T16:27:18.147Z",
   "measured_from": {
     "file": "v3ref/v3ref-mutation-result.json",
-    "base_digest": "sha256:9234034b00ffaf8ba94c87b1df82b530b33e97d0db2bbcacc90c86bd6ac658ac",
+    "base_digest": "sha256:45720eb74110edd26cdb561d5370ec1cd20f2950bc68ab0884048ebd6902349a",
     "execution": "merged_units"
   },
   "contract": {
@@ -32,8 +32,8 @@
   "totals": {
     "norms": 10,
     "clauses": 29,
-    "chain_rows": 93,
-    "covered": 70,
+    "chain_rows": 94,
+    "covered": 71,
     "partially_covered": 13,
     "not_falsified": 0,
     "no_evidence": 10,
@@ -118,7 +118,7 @@
     {
       "id": "USE-G4",
       "title": "A „core kész\" állítás hatóköre",
-      "closed_until": "OB-7 — a folyamat által érintett klauzula-sorok TARTALMI elbírálása a külső ellenőrző fél részéről (ma 0/88 soron van érvényes emberi jóváhagyás)",
+      "closed_until": "OB-7 — a folyamat által érintett klauzula-sorok TARTALMI elbírálása a külső ellenőrző fél részéről. A DARABSZÁMOT SZÁNDÉKOSAN NEM ÍRJUK IDE (R39 · KUKA-045): a korábbi felirat 88 sort mondott, miközben a lánc már 93 sor volt — a kézzel léptetett szám elcsúszik a mért értéktől. A MÉRT állapotot a norma-lánc csomag írja ki (`content_review_current` / `chain_rows`), és a KÜLSŐ tartalmi döntések ettől KÜLÖN tengelyen állnak (EXD-01): a repó-rekord hiánya NEM azonos a külső döntés hiányával",
       "not_authorized": "A gépi lánc azt méri, hogy a kód teljesíti-e az ÁLLÍTÁST — nem azt, hogy az állítás a NORMÁT fedi-e. A tartalmi elbírálás a tárgyaló félé, és Claude által írt elfogadás NEM helyettesíti (R35 §„OB-7\" szó szerint).",
       "source": "R35 §„OB-7 — saját tartalmi ellenőrzés állapota\""
     }
@@ -2344,9 +2344,9 @@
       "positive_evidence": null,
       "negative_evidence": null,
       "mutations": [],
-      "residual_scope": "EGYETLEN előfeltétel hiányzik: a REV-N4a KOMPENZÁLÓ-ESEMÉNY fogalma — enélkül nincs mit jóváhagyni. A jóváhagyói HATÁSKÖR modellje MEGVAN (REV-N3a, fedett), tehát ha a korrekciós esemény megszületik, ez a klauzula a meglévő hatáskör-kapura épülhet.",
+      "residual_scope": "KÉT dolog hiányzik, nem egy. (1) a REV-N4a KOMPENZÁLÓ-ESEMÉNY fogalma — enélkül nincs mit jóváhagyni; (2) a korrekciós esemény SAJÁT jóváhagyási és AUDIT-útjának bizonyítása. A jóváhagyói HATÁSKÖR modellje MEGVAN (REV-N3a, fedett), és HASZNÁLHATÓ ALAP — de a bekötés ettől NEM lesz automatikusan kész.",
       "result": "no_evidence",
-      "why": "EGYETLEN előfeltétel hiányzik: a REV-N4a KOMPENZÁLÓ-ESEMÉNY fogalma — enélkül nincs mit jóváhagyni. A jóváhagyói HATÁSKÖR modellje MEGVAN (REV-N3a, fedett), tehát ha a korrekciós esemény megszületik, ez a klauzula a meglévő hatáskör-kapura épülhet.",
+      "why": "KÉT dolog hiányzik, nem egy. (1) a REV-N4a KOMPENZÁLÓ-ESEMÉNY fogalma — enélkül nincs mit jóváhagyni; (2) a korrekciós esemény SAJÁT jóváhagyási és AUDIT-útjának bizonyítása. A jóváhagyói HATÁSKÖR modellje MEGVAN (REV-N3a, fedett), és HASZNÁLHATÓ ALAP — de a bekötés ettől NEM lesz automatikusan kész.",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -3916,7 +3916,8 @@
       "external_decision": {
         "clause": "K10-TYP-a",
         "verdict": "partial",
-        "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált (R37-ben pótolva). A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva."
+        "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+        "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
       }
     },
     {
@@ -3969,7 +3970,8 @@
       "external_decision": {
         "clause": "K10-TYP-a",
         "verdict": "partial",
-        "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált (R37-ben pótolva). A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva."
+        "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+        "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
       }
     },
     {
@@ -4022,7 +4024,92 @@
       "external_decision": {
         "clause": "K10-TYP-a",
         "verdict": "partial",
-        "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált (R37-ben pótolva). A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva."
+        "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+        "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+      }
+    },
+    {
+      "norm_id": "TYP-N1",
+      "clause_id": "K10-TYP-b",
+      "covers": [
+        "K10"
+      ],
+      "clause_text": "A bemenetet a megnevezett művelet- és sémaverzió szerint kell ellenőrizni; hiányzó kötelező, ismeretlen vagy hibás típusú mező nevezett elutasítás, nem hallgatólagos alapérték.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-KSZ-schema-version-is-checked-on-the-canonical-path-without-writing",
+      "probe_id": "P-KSZ-ledger-truth",
+      "behaviour": "A készlet-főkönyv a KANONIKUS parancs-úton: atomiság · nincs megkerülő író · idegen könyv cikke tilos · KÉT idő-nézet TENGELY-PÁRRAL · a visszadátumozás nem kerüli meg az összegkorlátot",
+      "positive_evidence": "P-KSZ-ledger-truth — „A készlet-főkönyv a KANONIKUS parancs-úton: atomiság · nincs megkerülő író · idegen könyv cikke tilos · KÉT idő-nézet TENGELY-PÁRRAL · a visszadátumozás nem kerüli meg az összegkorlátot\" · node v3ref/run.mjs",
+      "negative_evidence": "2 mutáció NÉV SZERINT dönti hamisra ezt az állítást: M145, M163",
+      "mutations": [
+        {
+          "id": "M138",
+          "what": "KSZ-01 / R10-F02 — IDEGEN KÖNYV CIKKE ÚJRA ELFOGADHATÓ: a készletkulcs és a cikk könyve nem kerül összevetésre. „A\" könyv parancsával „B\" könyv cikkére lehetne készletet írni (KUKA-027: közös csatornán minden azonosító csak a SAJÁT terében egyedi)",
+          "verdict": "CAUGHT",
+          "names_this_assertion": false
+        },
+        {
+          "id": "M139",
+          "what": "KSZ-01 / R10-F03 — A VISSZADÁTUMOZÁS ÚJRA MEGKERÜLI AZ ÖSSZEG-KORLÁTOT: a kapu csak a bevét SAJÁT hatályára vett egyenleget nézi, a főkönyv későbbi állapotát nem. Egy MÁRCIUSRA visszadátumozott tétel így a JÚNIUSI képet számíthatatlanná tenné (KUKA-021 az IDŐN)",
+          "verdict": "CAUGHT",
+          "names_this_assertion": false
+        },
+        {
+          "id": "M140",
+          "what": "KSZ-01 / R10-F03 — AZ „A\" NÉZET ÚJRA EGYTENGELYŰ: csak a RÖGZÍTÉS idejét szűri. Ettől egy márciusban rögzített, JÚNIUSRA hatályos bevét a MÁRCIUSI „akkor mit tudtunk\" képen is megjelenne (KUKA-002 az IDŐN: két független tény, egy kérdés)",
+          "verdict": "CAUGHT",
+          "names_this_assertion": false
+        },
+        {
+          "id": "M142",
+          "what": "MNY-01 / R10-F03 — A KÉT PLAFON ÚJRA EGY: az ÖSSZEG korlátja az EGY MOZGÁSRA szabott értékre esik vissza. Ettől a rendszer kimondatlan TERMÉKKORLÁTOT vezetne be („egy cikkből soha nem állhat ennyinél több\"), amit senki nem mondott ki (KUKA-002)",
+          "verdict": "CAUGHT",
+          "names_this_assertion": false
+        },
+        {
+          "id": "M145",
+          "what": "KSZ-01 / R10-F01 — A HATÁS NEM FUT LE A PARANCS TRANZAKCIÓJÁBAN: a parancs és a nyugta megszületik, a készlet nem mozdul. Ez a SIKER nyoma megtörtént hatás nélkül — pontosan a KUKA-026 fordítottja",
+          "verdict": "CAUGHT",
+          "names_this_assertion": true
+        },
+        {
+          "id": "M146",
+          "what": "KSZ-01 — A TÁROLÓ ŐRE ELTŰNIK: mozgás-sor véglegesített parancs NÉLKÜL is beszúrható. A séma fejléce ettől ÁLLÍTÁS lenne őr helyett (KUKA-004: a magyarázó szöveg nem őr)",
+          "verdict": "CAUGHT",
+          "names_this_assertion": false
+        },
+        {
+          "id": "M147",
+          "what": "KSZ-01 — A HOZZÁFŰZÉSES FŐKÖNYV ÚJRA ÁTÍRHATÓ: a mozgás-sor MÓDOSÍTHATÓ lesz. A helyesbítés ÚJ sor, nem átírás — különben a múlt nyom nélkül változik (KUKA-023)",
+          "verdict": "CAUGHT",
+          "names_this_assertion": false
+        },
+        {
+          "id": "M163",
+          "what": "SVR-01 / R39 — A VERZIÓ ÚJRA ELTŰNIK A KANONIKUS ÚTON: a bevét-út nem adja tovább a megnevezett sémaverziót a bemeneti ellenőrzésnek, tehát a rossz verzió NÉMÁN átmegy, és a készlet mozdul. Pontosan az az alak, amit a külső fél talált: a rendszer elutasítást ígér ott, ahol valójában eldob egy argumentumot",
+          "verdict": "CAUGHT",
+          "names_this_assertion": true
+        }
+      ],
+      "residual_scope": null,
+      "result": "covered",
+      "why": null,
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "clause": "K10-TYP-b",
+        "verdict": "not_accepted_as_whole",
+        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
       }
     },
     {
@@ -4117,7 +4204,8 @@
       "external_decision": {
         "clause": "K10-TYP-b",
         "verdict": "not_accepted_as_whole",
-        "reason": "F37-02 és négy not_falsified sor (R37-ben javítva és pótolva); a sémaverzió kezelése külön hiány volt — a verzió tulajdonosa és határa az R37-ben kimondva (SVR-01)."
+        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
       }
     },
     {
@@ -4212,7 +4300,8 @@
       "external_decision": {
         "clause": "K10-TYP-b",
         "verdict": "not_accepted_as_whole",
-        "reason": "F37-02 és négy not_falsified sor (R37-ben javítva és pótolva); a sémaverzió kezelése külön hiány volt — a verzió tulajdonosa és határa az R37-ben kimondva (SVR-01)."
+        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
       }
     },
     {
@@ -4307,7 +4396,8 @@
       "external_decision": {
         "clause": "K10-TYP-b",
         "verdict": "not_accepted_as_whole",
-        "reason": "F37-02 és négy not_falsified sor (R37-ben javítva és pótolva); a sémaverzió kezelése külön hiány volt — a verzió tulajdonosa és határa az R37-ben kimondva (SVR-01)."
+        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
       }
     },
     {
@@ -4402,7 +4492,8 @@
       "external_decision": {
         "clause": "K10-TYP-b",
         "verdict": "not_accepted_as_whole",
-        "reason": "F37-02 és négy not_falsified sor (R37-ben javítva és pótolva); a sémaverzió kezelése külön hiány volt — a verzió tulajdonosa és határa az R37-ben kimondva (SVR-01)."
+        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
       }
     },
     {
@@ -4497,7 +4588,8 @@
       "external_decision": {
         "clause": "K10-TYP-b",
         "verdict": "not_accepted_as_whole",
-        "reason": "F37-02 és négy not_falsified sor (R37-ben javítva és pótolva); a sémaverzió kezelése külön hiány volt — a verzió tulajdonosa és határa az R37-ben kimondva (SVR-01)."
+        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
       }
     },
     {
@@ -4592,7 +4684,8 @@
       "external_decision": {
         "clause": "K10-TYP-b",
         "verdict": "not_accepted_as_whole",
-        "reason": "F37-02 és négy not_falsified sor (R37-ben javítva és pótolva); a sémaverzió kezelése külön hiány volt — a verzió tulajdonosa és határa az R37-ben kimondva (SVR-01)."
+        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
       }
     },
     {
@@ -4687,7 +4780,8 @@
       "external_decision": {
         "clause": "K10-TYP-b",
         "verdict": "not_accepted_as_whole",
-        "reason": "F37-02 és négy not_falsified sor (R37-ben javítva és pótolva); a sémaverzió kezelése külön hiány volt — a verzió tulajdonosa és határa az R37-ben kimondva (SVR-01)."
+        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
       }
     },
     {

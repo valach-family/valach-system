@@ -1,9 +1,9 @@
 {
   "program": "r77_chatgpt-v3.core.adapted.mjs",
   "variant": "adapted",
-  "source_commit": "a661b78242eabb6b80febd66c075e912e23cedeb",
+  "source_commit": "cc29ec8db5b35be6aef2ec29b316c41e41e9a3b5+uncommitted",
   "node": "v22.22.2",
-  "at": "2026-09-18T14:14:22.332Z",
+  "at": "2026-09-18T16:29:55.663Z",
   "verbatim": true,
   "scope": "actual reference entry points, real isolated SQLite; contextual kinds assume supplied trusted context; disclosure and expiry probes expose integration limits",
   "results": [

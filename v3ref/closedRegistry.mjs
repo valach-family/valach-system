@@ -33,3 +33,41 @@ export function lookupClosed(registry, name, { shape } = {}) {
 export function closedNames(registry) {
   return registry && typeof registry === 'object' ? Object.keys(registry).sort() : [];
 }
+
+/**
+ * SAFE-01 — A DIAGNOSZTIKAI MEGJELENÍTÉS, AMI SOHA NEM DOB (R39, chatgpt-v3 lelete).
+ *
+ * MIÉRT. A nevezett elutasítások a `JSON.stringify(nev)` alakot használták, hogy megmutassák, MIT
+ * kaptak (KUKA-064: a nemleges válasz ne legyen zsákutca). Csakhogy a `JSON.stringify` maga is
+ * DOBHAT: `BigInt`-re („Do not know how to serialize a BigInt") és KÖRKÖRÖS objektumra
+ * („Converting circular structure to JSON"). Így a hibás típusú NÉV nem nevezett elutasítást, hanem
+ * nyers kivételt kapott — pont az a hiba-osztály, amit a KUKA-180-ban javítottunk, egy réteggel
+ * beljebb: a diagnosztika vitte el a választ, amit ki akartunk mondani (KUKA-020).
+ *
+ * A megjelenítés MINDIG sikerül, és a fajtát is megmondja; ha semmi nem megy, a típus nevét adja.
+ */
+export function showValue(v) {
+  const t = typeof v;
+  if (v === null) return 'null';
+  if (v === undefined) return 'undefined';
+  if (t === 'bigint') return `${v}n (BigInt)`;
+  if (t === 'symbol') { try { return `${String(v)} (Symbol)`; } catch { return '(Symbol)'; } }
+  if (t === 'function') return `(függvény: ${v.name || 'névtelen'})`;
+  if (t === 'string' || t === 'number' || t === 'boolean') {
+    try { return JSON.stringify(v); } catch { return String(v); }
+  }
+  try {
+    const seen = new WeakSet();
+    const out = JSON.stringify(v, (_k, val) => {
+      if (typeof val === 'bigint') return `${val}n`;
+      if (val && typeof val === 'object') {
+        if (seen.has(val)) return '(körkörös hivatkozás)';
+        seen.add(val);
+      }
+      return val;
+    });
+    return out === undefined ? `(${Array.isArray(v) ? 'tömb' : t})` : out.slice(0, 200);
+  } catch {
+    return `(${Array.isArray(v) ? 'tömb' : t} — nem megjeleníthető)`;
+  }
+}

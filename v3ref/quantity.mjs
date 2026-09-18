@@ -1,4 +1,4 @@
-import { lookupClosed, closedNames } from './closedRegistry.mjs';
+import { lookupClosed, closedNames, showValue } from './closedRegistry.mjs';
 
 /** MCS-2 / MNY-01 — A MENNYISÉG SZERZŐDÉSE, VERZIÓZOTT SZÁMÍTÁSI PROFILLAL.
  *
@@ -83,7 +83,7 @@ export function quantityProfile(profileId = DEFAULT_PROFILE_ID) {
   // külső fél a bemeneti sémán talált (KUKA-039 · KUKA-180).
   const p = lookupClosed(QUANTITY_PROFILES, profileId, { shape: (v) => typeof v === 'object' && v.id });
   if (!p) {
-    throw new Error(`ismeretlen mennyiség-profil: ${JSON.stringify(profileId)} — `
+    throw new Error(`ismeretlen mennyiség-profil: ${showValue(profileId)} — `
       + `választható: ${closedNames(QUANTITY_PROFILES).join(' · ')}`);
   }
   return p;

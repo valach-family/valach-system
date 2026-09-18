@@ -212,7 +212,7 @@ function stockReceiptEffect({ store, at, effectId, key, qtyText, effectiveAt }) 
  * újrapróbálkozás más írásmóddal sem könyvel kétszer. A `canonicalQuantity` segéd LÉTEZÉSE ezt nem
  * bizonyította; a bizonyíték az, hogy a VALÓDI út ezen megy át.
  */
-export function submitStockReceipt({ store, idemKey, actor, bookId, ownerId, warehouseId, input, clock, externalEvidence, credentials }) {
+export function submitStockReceipt({ store, idemKey, actor, bookId, ownerId, warehouseId, input, version, clock, externalEvidence, credentials }) {
   // 0. A JOG ELŐBB DÖNT, MINT BÁRMI MÁS (AUT-01 · R16/F16-01 — a külső fél lelete).
   //
   // A RÉGI SORREND SZIVÁRGOTT. A cikk feloldása (3. lépés) a jogosultsági döntés ELŐTT futott, ezért
@@ -230,7 +230,14 @@ export function submitStockReceipt({ store, idemKey, actor, bookId, ownerId, war
   if (!gate.ok) return gate;
 
   // 1. BEMENETI SÉMA — a nyers bemenet ITT dől el, konverzió nélkül (BEM-01 · KUKA-125).
-  const checked = validateInput({ operation: 'stock.receipt', input });
+  // A SÉMAVERZIÓ A KANONIKUS ÚTON IS ÁTMEGY (SVR-01 · R39, a külső fél lelete). A bevét-út eddig
+  // NEM vett át `version` argumentumot: aki felső szinten megnevezett egyet, annak az értéke NÉMÁN
+  // ELTŰNT, és a bevét lefutott — miközben a `validateInput` külön hívva ugyanazt az értéket
+  // nevezett `unsupported_schema_version` hibával utasította el. Két igazság ugyanarról a tényről
+  // (KUKA-080), és a rosszabbik a NÉMA: a jelentés elutasítást ígért ott, ahol a rendszer valójában
+  // eldobott egy argumentumot. A verzió mostantól VÉGIGMEGY a határon; ha nincs megnevezve, a
+  // REGISZTER választ — ez a szerződés, nem mellékhatás.
+  const checked = validateInput({ operation: 'stock.receipt', input, version });
   if (!checked.ok) return checked;
 
   // 2. A KÉSZLETKULCS a MEGBÍZHATÓ KONTEXTUSBÓL + a deklarált cikkből. A tulajdonost és a raktárat

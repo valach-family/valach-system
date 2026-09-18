@@ -33,7 +33,8 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ALL_NORMS, OPEN_BLOCKERS, CLOSED_BLOCKERS, USE_GATES, expectedChainRows, chainRowKey, NORM_CONTRACT_VERSION, indexDigest } from '../v3ref/norms.mjs';
+import { ALL_NORMS, OPEN_BLOCKERS, CLOSED_BLOCKERS, USE_GATES, expectedChainRows, chainRowKey, NORM_CONTRACT_VERSION, indexDigest, checkNorms } from '../v3ref/norms.mjs';
+import { digestOfBundle } from '../v3ref/bundleDigest.mjs';
 import { EXPECTED_PROBES } from '../v3ref/manifest.mjs';
 import { MUTATIONS } from '../v3ref/mutations.mjs';
 import { contractRef, NORM_CONTRACT } from '../v3ref/normContract.mjs';
@@ -63,6 +64,18 @@ if (!Array.isArray(measured.mutation_results) || measured.mutation_results.lengt
 // ── (2) A KÖTÉS ELLENŐRZÉSE — MINDEN ÁGON, MINDKÉT IRÁNYBAN ─────────────────────────────────────
 const problems = [];
 const ref = contractRef();
+
+// (2/a) A MÉRÉS A MAI FORRÁSON KÉSZÜLT-E (R39, a legsúlyosabb lelet). Az első alak a
+// `base_digest` mezőt EL SEM OLVASTA: a külső ellenőrző fél visszaállította az F37-02 hibás
+// forrás-alakját, a RÉGI mérési fájllal együtt, és a csomag VÁLTOZATLANUL „70 fedett"-et írt ki,
+// kilépés 0-val. Egy összesítő, ami nem kérdezi meg, MIN mértek, tetszőleges régi bizonyítékot
+// ad a mai kód alá (KUKA-038: a létezés nem bizonyíték arra, hogy a MAI kód fut).
+const sourceToday = digestOfBundle(ROOT);
+if (measured.base_digest !== sourceToday) {
+  problems.push(`a mérés NEM a mai forráson készült: mért=${measured.base_digest} · mai=${sourceToday} `
+    + '— futtasd újra a battériát (`npm run verify:v3ref`), mert a régi bizonyíték a mai kódról '
+    + 'semmit nem mond');
+}
 if (!ev.contract || ev.contract.digest !== ref.digest) {
   problems.push(`a mérés MÁS szerződés-lenyomaton készült: mért=${ev.contract && ev.contract.digest} · mai=${ref.digest}`);
 }
@@ -132,6 +145,49 @@ const unresolved = [...probeIds].filter((id) => !titles.has(id));
 const strayTitles = [...titles.keys()].filter((id) => !probeIds.has(id));
 if (unresolved.length) problems.push(`${unresolved.length} próba CÍME nem oldható fel a futtatóból (első: ${unresolved[0]})`);
 if (strayTitles.length) problems.push(`${strayTitles.length} futtatóbeli próba NINCS a manifesztben (első: ${strayTitles[0]})`);
+
+// ── (3/b) A KANONIKUS ÍTÉLŐ ÚJRAFUTTATÁSA — NEM MÁSODIK SZABÁLYKÉSZLET (R39) ────────────────────
+//
+// A külső fél kikötése szó szerint: „a meglévő kanonikus értékelést és forrás-/manifesztkötést
+// használjátok közösen; ne épüljön második, eltérő szabályú értékelő". Ezért a csomag NEM a saját
+// szabályai szerint minősít újra, hanem UGYANAZT a `checkNorms`-ot hívja, amit a battéria — a
+// battéria által ELTETT bemenettel (`norm_inputs`) —, és a beadott vetületet ehhez méri.
+//
+// A `checkNorms` MÁR ellenőrzi az `applied` jelzést, az ALAP- és MUTÁLT lenyomatot és a
+// mutációnkénti futás-jelet. Ezek a szabályok eddig is megvoltak — csak a csomag nem futtatta le
+// őket (KUKA-102: a védelem nem ott állt, ahol a tény BELÉP).
+if (!problems.length) {
+  const inputs = measured.norm_inputs;
+  if (!inputs || !Array.isArray(inputs.records) || !inputs.expectation) {
+    problems.push('a mérésből hiányzik a kanonikus ítélő BEMENETE (`norm_inputs`) — a vetület nem '
+      + 'számolható vissza; futtasd újra a battériát');
+  } else {
+    const again = checkNorms({
+      probes: EXPECTED_PROBES, mutations: MUTATIONS, records: inputs.records,
+      mutationResults: measured.mutation_results, expectation: inputs.expectation,
+    });
+    if (again.integrity_ok !== true) {
+      problems.push(`az újraszámolt norma-kapu integritása NEM áll: ${(again.integrity_problems || [])[0]}`);
+    }
+    const mine = new Map(again.chain.map((r) => [chainRowKey(r), r]));
+    for (const r of ev.chain) {
+      const k = chainRowKey(r);
+      const m = mine.get(k);
+      if (!m) { problems.push(`a beadott lánc-sor az ÚJRASZÁMOLÁSBAN nem létezik: ${k}`); continue; }
+      if (m.result !== r.result) {
+        problems.push(`a beadott MINŐSÍTÉS eltér az újraszámolttól (${r.clause_id} → ${r.assertion_id}): `
+          + `beadott=${r.result} · újraszámolt=${m.result}`);
+      }
+      if ((m.falsified_by || null) !== (r.falsified_by || null)) {
+        problems.push(`a beadott TANÚ eltér az újraszámolttól (${r.clause_id}): `
+          + `beadott=${r.falsified_by || '(nincs)'} · újraszámolt=${m.falsified_by || '(nincs)'}`);
+      }
+    }
+    if (again.chain.length !== ev.chain.length) {
+      problems.push(`az újraszámolt lánc ${again.chain.length} sor, a beadott ${ev.chain.length}`);
+    }
+  }
+}
 
 if (problems.length) stop(3, ...problems);
 
