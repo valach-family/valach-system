@@ -151,11 +151,16 @@ futott a mutációs battéria), és ott **11/19** lett, nyolc eltéréssel — a
 értelmezhető**; a két szám közül a **14/19** az érvényes, és ezt nem azért mondom, mert szebb, hanem
 mert a másikat magam szennyeztem.
 
-**Egy HARMADIK, megerősítő futást is indítottam, és ez a lap NEM használja bizonyítékként**, mert a
-jelentés írásakor még nem ért véget: a futtató ekkorra érezhetően lelassult (az `r59a` egymaga
-**103 090 ms**). Ez tovább erősíti ugyanazt: ennek a láncnak az eredménye a futtató-gép állapotától
-függ, tehát a mérést terheletlen gépen, egyszerre egyet kell futtatni — és csak a befejezett futás
-szám, nem a félúton lévő.
+**HARMADIK, MEGERŐSÍTŐ FUTÁS — és ugyanazt adta.** A lap első alakja azt írta, hogy ezt a futást nem
+használom bizonyítékként, mert a jelentés írásakor még nem ért véget. **Azóta befejeződött, és
+karakterre ugyanazt a végeredményt hozta:** `14/19 MEGFELEL · 2 ENV-KIHAGYÁS · ELTÉRÉS: r77 ·
+r81core · r79core`, **kilépési kód 1**. A `14/19` tehát nem egyetlen futás szerencséje, hanem
+**kétszer, egymástól függetlenül mért** eredmény.
+
+Ettől függetlenül áll a figyelmeztetés: ez a futás közben érezhetően lelassult (az `r59a` egymaga
+**103 090 ms**), és terhelés alatt korábban `11/19`-et adott. **A lánc eredménye a futtató-gép
+állapotától függ** — terheletlen gépen, egyszerre egyet kell futtatni, és csak a BEFEJEZETT futás
+szám.
 
 ## B3. Amit ebben a csomagban JAVÍTOTTAM
 

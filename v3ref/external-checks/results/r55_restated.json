@@ -2,7 +2,7 @@
   "program": "restated.mjs",
   "source_commit": "d76f30d3ce71093227830ebe08c70fb34e38e8cc+uncommitted",
   "node": "v22.22.2",
-  "at": "2026-09-18T05:31:02.646Z",
+  "at": "2026-09-18T05:48:38.981Z",
   "cases": [
     {
       "id": "C11-restated",
@@ -93,7 +93,7 @@
     {
       "id": "N04-restated",
       "expectation": "Az M32 futása nem buktatja az A-REV-N1b állítást; az M47/M48/M49 futása igen.",
-      "pass": false,
+      "pass": true,
       "m32": {
         "id": "M32",
         "probe_status": "FAIL",
@@ -116,7 +116,7 @@
           "target_assertion": false
         }
       ],
-      "final_credit_line": "(nem találtam a sort)"
+      "final_credit_line": "FEDVE  REV-N1b → A-REV-N1b-earlier-record-and-decision-survive @ P-CMD-finalize-gate · falszifikálta: M47"
     },
     {
       "id": "D01-restated",
