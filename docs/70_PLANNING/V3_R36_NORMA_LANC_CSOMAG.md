@@ -7,7 +7,7 @@ rajzolja — és a minősítéseket **a MÉRT lánc-vetületből** veszi, nem k�
 `V3_R36_NORMA_LANC_CSOMAG.json`; **a következő kör azt olvassa.**
 
 **Szerződés:** NCT-01 · verzió: `R32/K01-K16 + R35/K05-DSC+K10-TYP` · lenyomat: `sha256:d6ef5ed707b83e3da85…`
-**A mérés forrása:** `v3ref/v3ref-mutation-result.json` · base: `sha256:45720eb74110edd26cd…`
+**A mérés forrása:** `v3ref/v3ref-mutation-result.json` · base: `sha256:1b6501dd3e60ee946cd…`
 
 **Ellenőrzött kötések** (bármelyik bukása esetén a csomag MEG SEM SZÜLETIK):
 

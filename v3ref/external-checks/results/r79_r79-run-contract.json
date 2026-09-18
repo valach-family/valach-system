@@ -1,7 +1,7 @@
 {
-  "source_commit": "cc29ec8db5b35be6aef2ec29b316c41e41e9a3b5+uncommitted",
+  "source_commit": "b48f8a5bf4e0228586f99cdfe5c477d425f1418d",
   "node": "v22.22.2",
-  "at": "2026-09-18T16:33:56.173Z",
+  "at": "2026-09-18T16:43:56.754Z",
   "cap_ms": 15000,
   "cases": [
     {
@@ -28,13 +28,13 @@
       ],
       "merge_exit": 0,
       "unit_walls": [
-        7428,
-        7238,
-        7356,
-        7227,
-        7652,
-        7690,
-        7562
+        8396,
+        7191,
+        7702,
+        7665,
+        7338,
+        7473,
+        7778
       ],
       "cap_ms": 15000,
       "run_state": "complete",

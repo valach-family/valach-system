@@ -1,7 +1,7 @@
 {
-  "pin": "cc29ec8db5b35be6aef2ec29b316c41e41e9a3b5+uncommitted",
+  "pin": "b48f8a5bf4e0228586f99cdfe5c477d425f1418d",
   "node": "v22.22.2",
-  "at": "2026-09-18T16:37:43.004Z",
+  "at": "2026-09-18T16:47:44.168Z",
   "cases": [
     {
       "id": "T01",
@@ -4635,12 +4635,12 @@
     {
       "id": "E02",
       "expected": "Final CLI must fail when all required clauses are not_falsified.",
-      "test_error": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT\n    at Object.spawnSync (node:internal/child_process:1120:20)\n    at spawnSync (node:child_process:902:24)\n    at run (file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:17:43)\n    at file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:43:504\n    at copy (file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:15:136)\n    at file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:43:272\n    at add (file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:14:73)\n    at file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:43:252"
+      "test_error": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT\n    at Object.spawnSync (node:internal/child_process:1120:20)\n    at spawnSync (node:child_process:902:24)\n    at run (file:///tmp/v3ref-ext-bkWHiE/r57_chatgpt-v3.mjs:17:43)\n    at file:///tmp/v3ref-ext-bkWHiE/r57_chatgpt-v3.mjs:43:504\n    at copy (file:///tmp/v3ref-ext-bkWHiE/r57_chatgpt-v3.mjs:15:136)\n    at file:///tmp/v3ref-ext-bkWHiE/r57_chatgpt-v3.mjs:43:272\n    at add (file:///tmp/v3ref-ext-bkWHiE/r57_chatgpt-v3.mjs:14:73)\n    at file:///tmp/v3ref-ext-bkWHiE/r57_chatgpt-v3.mjs:43:252"
     },
     {
       "id": "E03",
       "expected": "Final CLI must reject foreign or contradictory results even after actual runs.",
-      "test_error": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT\n    at Object.spawnSync (node:internal/child_process:1120:20)\n    at spawnSync (node:child_process:902:24)\n    at run (file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:17:43)\n    at file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:43:504\n    at copy (file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:15:136)\n    at file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:43:272\n    at add (file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:14:73)\n    at file:///tmp/v3ref-ext-7s6mh6/r57_chatgpt-v3.mjs:43:252"
+      "test_error": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT\n    at Object.spawnSync (node:internal/child_process:1120:20)\n    at spawnSync (node:child_process:902:24)\n    at run (file:///tmp/v3ref-ext-bkWHiE/r57_chatgpt-v3.mjs:17:43)\n    at file:///tmp/v3ref-ext-bkWHiE/r57_chatgpt-v3.mjs:43:504\n    at copy (file:///tmp/v3ref-ext-bkWHiE/r57_chatgpt-v3.mjs:15:136)\n    at file:///tmp/v3ref-ext-bkWHiE/r57_chatgpt-v3.mjs:43:272\n    at add (file:///tmp/v3ref-ext-bkWHiE/r57_chatgpt-v3.mjs:14:73)\n    at file:///tmp/v3ref-ext-bkWHiE/r57_chatgpt-v3.mjs:43:252"
     },
     {
       "id": "E04",

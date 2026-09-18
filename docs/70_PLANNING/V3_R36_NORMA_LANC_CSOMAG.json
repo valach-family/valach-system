@@ -1,11 +1,11 @@
 {
   "schema": "v3-norm-chain-package/2",
   "id": "NCP-01",
-  "at": "2026-09-18T16:33:09.544Z",
+  "at": "2026-09-18T16:50:38.466Z",
   "measured_from": {
     "file": "v3ref/v3ref-mutation-result.json",
-    "base_digest": "sha256:45720eb74110edd26cdb561d5370ec1cd20f2950bc68ab0884048ebd6902349a",
-    "source_digest_today": "sha256:45720eb74110edd26cdb561d5370ec1cd20f2950bc68ab0884048ebd6902349a",
+    "base_digest": "sha256:1b6501dd3e60ee946cda0169bfd1dd32e2284334932d2eb53e37647eda83f0c5",
+    "source_digest_today": "sha256:1b6501dd3e60ee946cda0169bfd1dd32e2284334932d2eb53e37647eda83f0c5",
     "source_bound": true,
     "execution": "merged_units"
   },

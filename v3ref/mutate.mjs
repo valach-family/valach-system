@@ -1061,6 +1061,11 @@ let normFinal = null;
 // A KANONIKUS ÍTÉLŐ BEMENETE a blokkon KÍVÜL él, mert az EGYSÉG-fájl írásakor is kell (R39):
 // a csomag-generátor ebből futtatja újra ugyanazt az ítéletet, ahelyett hogy elhinné a vetületet.
 let normExpectation = null;
+// A LENTI `checkNorms(...)` HÍVÁS SORA KARAKTERRE RÖGZÍTETT (R39). A külső fél `r59a` programja
+// EBBE a sorba foltoz be egy rontást (a saját E07 esete), fix horgonnyal. Amikor az R39-ben
+// többsorosra tördeltem, a horgony megszűnt, és az ELLENŐRZŐ program hibával állt meg — nem a
+// rendszer romlott el, hanem a MÉRŐJÜK vesztette el a fogást. A programjukhoz nem nyúlunk
+// (KUKA-054: a mérőt nem igazítjuk a mérthez), ezért a sor alakját állítottuk vissza.
 // A BIZONYÍTÉK KÖTÉSE KÜLÖN KÉRDÉS A LEFEDETTSÉGTŐL — ÉS EZT A SAJÁT R79-ES PRÓBÁM MUTATTA MEG.
 //
 // A RUN-02 egység-módban kivettem a KÖTELEZŐ KÉSZLET feltételét a `sliceClean`-ből (joggal: az
@@ -1103,9 +1108,9 @@ if (base.ok && attacksOk && results.length === SLICE.length) {
       || x.mutated_digest !== exp.digest;
   }).map((x) => x.mutation_id);
   evidenceBound = evidenceUnbound.length === 0;
+  const expectation = normExpectation;
   normFinal = checkNorms({
-    probes: EXPECTED_PROBES, mutations: MUTATIONS, records: base.records,
-    mutationResults, expectation: normExpectation,
+    probes: EXPECTED_PROBES, mutations: MUTATIONS, records: base.records, mutationResults, expectation,
   });
   const cov = normFinal.chain.filter((c) => c.result === 'covered');
   const notFals = normFinal.chain.filter((c) => c.result === 'not_falsified');
