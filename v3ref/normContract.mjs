@@ -43,6 +43,32 @@ export const NORM_CONTRACT_ID = 'NCT-01';
 // ── A RÖGZÍTETT FORRÁSDOKUMENTUM ────────────────────────────────────────────────────────────────
 // A külső fél R57 §6-ban kiadott értékei. Ezek ELVÁRT értékek, nem a forrásai a mezőnek: a valódi
 // érték a fájl bájtjaiból születik, és az eltérés MEGÁLLÍTJA a betöltést.
+// ── A MÓDOSÍTÁSOK (R35) — A TÖRTÉNETI SZÖVEG ÉRINTETLEN ─────────────────────────────────────────
+//
+// Az R35 §„K05 és K10" elfogadta a K05-DSC-a…d és a K10-TYP-a…e követelmény-szövegeket, és kikötötte:
+// „A történeti R32 forrásdokumentumot és hash-t ne írjátok át: verziózott kiegészítéssel, e körre
+// hivatkozva rögzítendők." Ezért az R32 artefaktum, a bájthossza és a lenyomata VÁLTOZATLAN — a
+// kiegészítés SAJÁT artefaktumként, SAJÁT mért lenyomattal áll mellé, és a szerződés verziója
+// mondja ki, hogy a kettő EGYÜTT a mai alap.
+//
+// A LENYOMAT ITT IS MÉRT, NEM BEGÉPELT (KUKA-121): a `byte_length` és a `text_digest` a fájl
+// bájtjaiból születik betöltéskor; az `attested` érték csak ELVÁRÁS, és az eltérés MEGÁLLÍT.
+const AMENDMENT_ARTIFACTS = Object.freeze([
+  Object.freeze({
+    id: 'R35/K05-DSC+K10-TYP',
+    artifact: 'source-documents/R35_board_v1.md',
+    board_document: '20260918_V3_R35_R33_DONTESEK_ES_LEZARAS',
+    board_version: 1,
+    attested_by: 'chatgpt-v3',
+    attested_in: 'CMD-VS-300-002-002 R35 — ANALYSIS',
+    adds: Object.freeze(['K05-DSC-a', 'K05-DSC-b', 'K05-DSC-c', 'K05-DSC-d',
+      'K10-TYP-a', 'K10-TYP-b', 'K10-TYP-c', 'K10-TYP-d', 'K10-TYP-e']),
+    // KIMONDVA: ez KÖVETELMÉNY-SZÖVEG elfogadása, NEM a megvalósítás vagy a norma-állítások
+    // teljesülésének elfogadása (R35 szó szerinti kikötése).
+    scope: 'requirement_text_only',
+  }),
+]);
+
 const SOURCE_ARTIFACT = 'source-documents/R32_board_v1.md';
 const ATTESTED = Object.freeze({
   by: 'chatgpt-v3',
@@ -88,6 +114,28 @@ function measureSourceArtifact() {
 
 const MEASURED = measureSourceArtifact();
 
+/** A MÓDOSÍTÓ ARTEFAKTUMOK MÉRÉSE — ugyanaz a fegyelem, mint a történeti forráson. */
+const MEASURED_AMENDMENTS = Object.freeze(AMENDMENT_ARTIFACTS.map((a) => {
+  let bytes;
+  try {
+    bytes = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), a.artifact));
+  } catch (cause) {
+    const err = new Error(
+      `normContract: a módosító forrásdokumentum hiányzik (${a.artifact}) — a kiegészítés `
+      + `forráskötése enélkül nem mérhető; töltsd le a boardról: ${a.board_document} `
+      + `(${a.board_version}. verzió)`,
+    );
+    err.code = 'NORM_AMENDMENT_ARTIFACT_MISSING';
+    err.cause = cause;
+    throw err;
+  }
+  return Object.freeze({
+    ...a,
+    byte_length: bytes.length,
+    text_digest: `sha256:${createHash('sha256').update(bytes).digest('hex')}`,
+  });
+}));
+
 // A KIADOTT ÉRTÉK ÉS A MÉRT ÉRTÉK VISZONYA — ezt mérjük, nem hisszük el (KUKA-101 · KUKA-033).
 {
   const mismatches = [
@@ -112,7 +160,9 @@ const MEASURED = measureSourceArtifact();
  */
 export const NORM_CONTRACT = Object.freeze({
   id: NORM_CONTRACT_ID,
-  version: 'R32/K01-K16',
+  // A VERZIÓ KIMONDJA, MI AZ ALAP: a történeti R32 SZELET és az R35-ös kiegészítés EGYÜTT.
+  version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP',
+  amendments: MEASURED_AMENDMENTS,
   // A FORRÁSSZÖVEG RÖGZÍTVE ÉS MÉRVE — a `text_digest` a fájl bájtjaiból, nem bemásolt konstansból.
   source_document: Object.freeze({
     name: 'R32',
@@ -169,6 +219,9 @@ export function contractDigest() {
       section_digest: NORM_CONTRACT.source_document.section.digest,
     },
     clauses: NORM_CONTRACT.clauses.map((k) => [k.id, k.title]),
+    // A MÓDOSÍTÁSOK LENYOMATA IS BENNE VAN: egy kiegészítés ugyanúgy megváltoztatja az alapot, mint
+    // a történeti szöveg módosítása volna — a rá épült jóváhagyások ezért elavulnak (R35 kikötése).
+    amendments: (NORM_CONTRACT.amendments || []).map((a) => [a.id, a.text_digest]),
   });
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 }

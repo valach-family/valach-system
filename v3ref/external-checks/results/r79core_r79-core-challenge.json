@@ -1,15 +1,15 @@
 {
-  "program": "r79_chatgpt-v3.core.mjs",
-  "source_commit": "d76f30d3ce71093227830ebe08c70fb34e38e8cc+uncommitted",
+  "program": "r79_chatgpt-v3.core.adapted.mjs",
+  "variant": "adapted",
+  "source_commit": "377573158df00ba4cd2bbe21ff2111d26063b0aa+uncommitted",
   "node": "v22.22.2",
-  "at": "2026-09-18T05:42:20.961Z",
+  "at": "2026-09-18T10:01:53.293Z",
   "verbatim": true,
   "commit": "8dced6f444aff777d5842a050101eedefdcdeec1",
   "cases": [
     {
       "id": "P01-flat-quantity",
-      "pass": false,
-      "error": "{\"submit\":{\"ok\":false,\"error\":\"result_scope_undeclared\",\"reason\":\"result_shape_type_mismatch\",\"message\":\"a(z) \\\"stock.receipt\\\" / \\\"1\\\" eredménye a \\\"qty\\\" helyen nem felel meg a deklarált sémának (a mennyiség KANONIKUS DECIMÁLIS SZÖVEG, nem JSON-szám (MNY-01) — a lebegőpontos alak a 0,1-et sem ábrázolja pontosan, tehát a kiadott szám hamis lenne). A séma a BEÁGYAZOTT alakra és a tömb ELEMEIRE is szól: a felső mező címkéje nem helyettesíti a részfa sémáját (R79/F01).\",\"effect_id\":null,\"state\":null},\"read\":{\"ok\":false,\"error\":\"result_scope_undeclared\",\"reason\":\"result_shape_type_mismatch\",\"message\":\"a(z) \\\"stock.receipt\\\" / \\\"1\\\" eredménye a \\\"qty\\\" helyen nem felel meg a deklarált sémának (a mennyiség KANONIKUS DECIMÁLIS SZÖVEG, nem JSON-szám (MNY-01) — a lebegőpontos alak a 0,1-et sem ábrázolja pontosan, tehát a kiadott szám hamis lenne). A séma a BEÁGYAZOTT alakra és a tömb ELEMEIRE is szól: a felső mező címkéje nem helyettesíti a részfa sémáját (R79/F01).\",\"effect_id\":null,\"state\":null}}\n\nfalse !== true\n"
+      "pass": true
     },
     {
       "id": "P02-flat-price",
@@ -53,8 +53,7 @@
     },
     {
       "id": "P07-command-before",
-      "pass": false,
-      "error": "Expected values to be strictly equal:\n\nfalse !== true\n"
+      "pass": true
     },
     {
       "id": "P07-command-after",
@@ -81,6 +80,6 @@
       "pass": true
     }
   ],
-  "passed": 16,
-  "failed": 2
+  "passed": 18,
+  "failed": 0
 }

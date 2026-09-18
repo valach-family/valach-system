@@ -281,6 +281,15 @@ probe('P-A08', 'R32/A08 · K07 · C08 (javított)',
           + `olvasás ${JSON.stringify(readAfter) === JSON.stringify(unknownKey) ? 'azonos az ismeretlen kulcséval' : 'ELTÉR'} · `
           + `címzett olvasás visszavont joggal=${addressedAfter.ok ? 'KIADTA' : 'elutasítva'}`,
         pass: ok,
+        // R35 — A MÁR MÉRT VISELKEDÉS MEGKAPJA A NEVÉT (nem új teszt, hanem a meglévő bizonyíték
+        // megnevezése, hogy KÖTHETŐ legyen a K05-DSC-d klauzulához). Az állítás pontosan az, amit ez
+        // a próba eddig is mért: a VISSZAVONT olvasójog után sem az ISMÉTLÉS, sem a korábbi eredmény
+        // ÚJRAOLVASÁSA nem ad ki adatot — és a hatás sem születik újra (KUKA-088).
+        asserts: {
+          'A-A08-revoked-right-blocks-replay-and-reread': !retry.ok && !readAfter.ok
+            && !addressedAfter.ok && readAfter.result === null && addressedAfter.result === null
+            && effects.length === 1 && resolveCalls === 1,
+        },
       };
     } finally { w.store.close(); }
   });
@@ -1773,6 +1782,30 @@ probe('P-NORM-evidence', 'R32/K11 · R53 F03 · F04 · KUKA-038 · KUKA-095',
       return { pass: nem.length === 0, detail: nem.length ? `NEM: ${nem.join(', ')}` : `${nx.version} · ${nx.clauses.join('+')} · ${ns.length} lépés` };
     });
 
+    // (blk0–blk2) BLK-01 — A BLOKKOLÓ-BEJEGYZÉS ALAKJA (R36). SAJÁT HIBA HOZTA IDE: a két új
+    // lezárt blokkolót `signal` mezővel írtam meg a testvérei `guard` mezője helyett, és ezt semmi
+    // nem mérte — a futtató a TELJES, zöld mérés UTÁN szállt el a jelentés kiírásakor. A pin ezért
+    // a feloldót HÍVJA (KUKA-009), és MINDKÉT irányban mér: a valódi lista tiszta, az elrontott
+    // másolat PIROS, és a hiány NEVEZVE jelenik meg, nem futásidejű hibaként (KUKA-020).
+    control('blk0', 'a VALÓDI blokkoló-listák alakja hibátlan (ellenpár)', () => {
+      const gaps = [...blockerShapeProblems(OPEN_BLOCKERS, 'open'), ...blockerShapeProblems(CLOSED_BLOCKERS, 'closed')];
+      return { pass: gaps.length === 0, detail: gaps.length ? gaps.join(' · ') : `${OPEN_BLOCKERS.length} nyitott · ${CLOSED_BLOCKERS.length} lezárt, alak rendben` };
+    });
+    control('blk1', 'a KITALÁLT mezőnév (`signal` a `guard` helyett) PIROS', () => {
+      const broken = CLOSED_BLOCKERS.map((b) => { const c = { ...b }; delete c.guard; c.signal = 'npm run valami'; return c; });
+      const gaps = blockerShapeProblems(broken, 'closed');
+      const onGuard = gaps.filter((g) => g.includes('guard'));
+      return { pass: onGuard.length === CLOSED_BLOCKERS.length, detail: onGuard.length ? `${onGuard.length}/${CLOSED_BLOCKERS.length} bejegyzésen nevezve: ${onGuard[0]}` : 'ÁTENGEDTE a hiányzó `guard` mezőt' };
+    });
+    control('blk2', 'a NÉMA LEZÁRÁS (üres maradék-mondat vagy ismétlődő azonosító) PIROS', () => {
+      const emptyResidual = blockerShapeProblems([{ ...CLOSED_BLOCKERS[0], residual: '   ' }], 'closed');
+      const dup = blockerShapeProblems([CLOSED_BLOCKERS[0], CLOSED_BLOCKERS[0]], 'closed');
+      return {
+        pass: emptyResidual.some((g) => g.includes('residual')) && dup.some((g) => g.includes('ismétlődő')),
+        detail: `üres maradék: ${emptyResidual.length} lelet · ismétlődő azonosító: ${dup.length} lelet`,
+      };
+    });
+
     const bad = controls.filter((c) => !c.pass);
     const attacks = controls.length - 1;
     return {
@@ -1796,7 +1829,7 @@ const EXECUTED_BY = (() => {
   return env || 'unknown';
 })();
 
-import { checkNorms, normsSummary, OPEN_BLOCKERS, CLOSED_BLOCKERS, NORM_CONTRACT_VERSION, NORMS_INDEX_ID, NORMS_INDEX_SCHEMA, contractRef, indexDigest, contentReviewState, CONTENT_REVIEW_RECORD_VERSION, ALL_NORMS, REQUIRED_EVIDENCE, NEXT_REQUIRED_EVIDENCE, sourceDocumentCatalog, assertionKey, clauseDigest as clauseDigestOf } from './norms.mjs';
+import { checkNorms, normsSummary, OPEN_BLOCKERS, CLOSED_BLOCKERS, blockerShapeProblems, NORM_CONTRACT_VERSION, NORMS_INDEX_ID, NORMS_INDEX_SCHEMA, contractRef, indexDigest, contentReviewState, CONTENT_REVIEW_RECORD_VERSION, ALL_NORMS, REQUIRED_EVIDENCE, NEXT_REQUIRED_EVIDENCE, sourceDocumentCatalog, assertionKey, clauseDigest as clauseDigestOf } from './norms.mjs';
 const contractRefDigest = () => contractRef().digest;
 import { sourceArtifactMeasurement } from './normContract.mjs';
 import { manifestDigest } from './manifest.mjs';
@@ -3036,6 +3069,11 @@ probe('P-REV-result-scope', 'R77/F02 · REV-N5b · K05 · K09 · K15 · KUKA-002
         asserts: {
           'A-ORG-N1b-result-scope-comes-from-declaration': aOk && bOk && dOk && fOk,
           'A-ORG-N1b-undeclared-result-scope-is-fail-closed': eOk && cOk,
+          // R35 — A VEGYES EREDMÉNY SORSA KÜLÖN ÁLLÍTÁS (K05-DSC-c). Nem új mérés: az `aOk` és a
+          // `bOk` eddig is futott — csak nem volt SAJÁT neve, ezért nem lehetett önállóan klauzulához
+          // kötni. Egy állítás nem fedhet két klauzulát (a bizonyíték-csomag akkor kétértelmű), és a
+          // két klauzula MÁST mond: az egyik a besorolás FORRÁSÁRÓL, ez a VEGYES eredmény sorsáról.
+          'A-ORG-N1b-mixed-result-is-refused-as-a-whole': aOk && bOk,
         },
       };
     } finally { w.store.close(); }
@@ -5092,7 +5130,11 @@ if (import.meta.url === `file://${process.argv[1]}`) main: {
     // elfelejtettől (KUKA-012). A gépi jel a sorban áll, nem a jóindulatban.
     if (CLOSED_BLOCKERS.length) {
       console.log('\n  LEZÁRT BLOKKOLÓK (a lezárás gépi jelével):');
-      for (const b of CLOSED_BLOCKERS) console.log(`    ${b.id} — ${b.title}\n      lezárta: ${b.closed_in} · jel: ${b.guard.split(' — ')[0]}`);
+      // A KIÍRÓ NEM FELTÉTELEZI AZ ALAKOT (BLK-01): ha egy bejegyzésből hiányzik egy kötelező mező,
+      // azt MONDATBAN mondja ki, nem futásidejű hibával a jelentés közepén (KUKA-020 · KUKA-064).
+      const shapeGaps = [...blockerShapeProblems(OPEN_BLOCKERS, 'open'), ...blockerShapeProblems(CLOSED_BLOCKERS, 'closed')];
+      for (const b of CLOSED_BLOCKERS) console.log(`    ${b.id} — ${b.title}\n      lezárta: ${b.closed_in || '(hiányzik)'} · jel: ${String(b.guard || '(hiányzik)').split(' — ')[0]}`);
+      if (shapeGaps.length) { console.log('    BLOKKOLÓ-ALAK HIBA:'); for (const g of shapeGaps) console.log(`      ${g}`); }
     }
   }
 

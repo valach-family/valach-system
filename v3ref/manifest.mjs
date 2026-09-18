@@ -37,7 +37,16 @@ export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({ id: 'P-A04b', assertion: 'A04b-mailbox-holder-gets-actionable-answer' }),
   Object.freeze({ id: 'P-K03-cred', assertion: 'K03-existing-credential-unchanged' }),
   Object.freeze({ id: 'P-K03-intent', assertion: 'K03-pending-intent-resumable' }),
-  Object.freeze({ id: 'P-A08', assertion: 'A08-single-effect-and-today-right' }),
+  Object.freeze({
+    id: 'P-A08', assertion: 'A08-single-effect-and-today-right',
+    // R35 — K05-DSC-d: a kiadás a HATÁLYOSULÁSI PONTON ellenőrzött jogon áll, és sem a megvonás, sem
+    // az ismétlés, sem a korábbi eredmény újraolvasása nem kerüli meg. A három fél három NEVEZETT
+    // állításból áll össze; egyik sem új teszt, mindhárom MÁR FUTÓ próba megnevezett része.
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'K05-DSC-d', assertion: 'A-A08-revoked-right-blocks-replay-and-reread',
+        contract: 'DSC-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP' }),
+    ]),
+  }),
   Object.freeze({ id: 'P-A14', assertion: 'A14-evidence-freshness-profile' }),
 
   // ── A Q01–Q15 KÖR (D-VS-3007) ────────────────────────────────────────────────────────────────
@@ -357,11 +366,29 @@ export const EXPECTED_PROBES = Object.freeze([
     // őket, és nem is egy klauzulát KITALÁLNI ide — a normaregiszter TÁRGYALT, közös alap —, hanem
     // NEVEZETT HIÁNYKÉNT kimondani (OB-8), az állításokat pedig MODUL-SZERZŐDÉSként megtartani:
     // a DSC-01-et továbbra is bizonyítják, csak nem állítanak valótlant egy normáról (KUKA-124/2).
-    discharges: Object.freeze([]),
-    module_contract: Object.freeze({ id: 'DSC-01', gap: 'OB-8' }),
+    // R35 — A KÖTÉS A HELYÉRE KERÜLT. Az OB-8 pontosan azt kérte, hogy a K05 alá kimondott, atomi
+    // klauzula szülessen, és a NÉGY meglévő állítás ARRA kerüljön vissza — ugyanazokkal a próbákkal
+    // és mutációkkal. A klauzula-szövegeket az R35 fogadta el; a kötés a szerződés VERZIÓJÁHOZ szól,
+    // nem a névhez (R55/F04). Új tesztet a klauzulák SZÁMÁHOZ nem gyártottunk (R35 kikötése): a
+    // meglévő bizonyítékot TARTALMILAG vetettük össze.
+    discharges: Object.freeze([
+      // aOk (ár nem megy ki más címkével) · bOk (vegyes EGÉSZBEN megtagadva) · dOk (ellenpár) ·
+      // fOk (a feloldó HÍVVA, zárt halmaz mindkét irányban) — a deklarációból, nem a kérő címkéjéből.
+      Object.freeze({ clause: 'K05-DSC-a', assertion: 'A-ORG-N1b-result-scope-comes-from-declaration',
+        contract: 'DSC-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP' }),
+      // ugyanaz az állítás a „vegyes eredmény egészben megtagadva · készletjog nem ad ármezőt" felére
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-ORG-N1b-mixed-result-is-refused-as-a-whole',
+        contract: 'DSC-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP' }),
+      // eOk (nevezett, fail-closed elutasítás, és a hatás sem jön létre) · cOk (a nemleges válasz
+      // BÁJTRA azonos a nem létezőével — a létezés-határ nem sérül)
+      Object.freeze({ clause: 'K05-DSC-b', assertion: 'A-ORG-N1b-undeclared-result-scope-is-fail-closed',
+        contract: 'DSC-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP' }),
+    ]),
+    module_contract: Object.freeze({ id: 'DSC-01', rule: 'K05', closes: 'OB-8' }),
     module_asserts: Object.freeze([
       'A-ORG-N1b-result-scope-comes-from-declaration',
       'A-ORG-N1b-undeclared-result-scope-is-fail-closed',
+      'A-ORG-N1b-mixed-result-is-refused-as-a-whole',
     ]),
   }),
   Object.freeze({
@@ -372,8 +399,14 @@ export const EXPECTED_PROBES = Object.freeze([
     // hordozzák a típust ÉS az adatkört —, és a besorolás a VALIDÁLT alakból gyűlik, mélységben.
     // A mérce nem a mezőnév: ugyanaz a név más típus más pozícióján mást jelenthet (KUKA-002).
     // R10-F05 — ugyanaz a visszavonás, ugyanabból az okból (lásd a P-REV-result-scope bejegyzését).
-    discharges: Object.freeze([]),
-    module_contract: Object.freeze({ id: 'DSC-01', gap: 'OB-8' }),
+    // R35 — a K05-DSC-b MÉLYSÉG-fele: a besorolás a beágyazott alakra és a tömb ELEMEIRE is szól.
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'K05-DSC-b', assertion: 'A-ORG-N1b-nested-result-scope-is-measured',
+        contract: 'DSC-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP' }),
+      Object.freeze({ clause: 'K05-DSC-b', assertion: 'A-ORG-N1b-result-shape-is-declared-and-typed',
+        contract: 'DSC-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP' }),
+    ]),
+    module_contract: Object.freeze({ id: 'DSC-01', rule: 'K05', closes: 'OB-8' }),
     module_asserts: Object.freeze([
       'A-ORG-N1b-nested-result-scope-is-measured',
       'A-ORG-N1b-result-shape-is-declared-and-typed',
@@ -429,7 +462,15 @@ export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({
     id: 'P-KAT-item-identity', assertion: 'KAT01-item-identity-is-internal-and-book-scoped',
     discharges: Object.freeze([]),
-    module_contract: Object.freeze({ id: 'KAT-01', rule: 'K10', gap: 'OB-9' }),
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'K10-TYP-a', assertion: 'A-KAT-sku-is-unique-within-the-book',
+        contract: 'KAT-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP' }),
+      Object.freeze({ clause: 'K10-TYP-a', assertion: 'A-KAT-same-sku-in-another-book-is-a-different-item',
+        contract: 'KAT-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP' }),
+      Object.freeze({ clause: 'K10-TYP-a', assertion: 'A-KAT-sku-lookup-requires-the-book',
+        contract: 'KAT-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP' }),
+    ]),
+    module_contract: Object.freeze({ id: 'KAT-01', rule: 'K10', closes: 'OB-9' }),
     module_asserts: Object.freeze([
       'A-KAT-sku-is-unique-within-the-book',
       'A-KAT-same-sku-in-another-book-is-a-different-item',
@@ -440,7 +481,11 @@ export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({
     id: 'P-KSZ-ledger-truth', assertion: 'KSZ01-ledger-is-the-truth-and-writes-are-atomic',
     discharges: Object.freeze([]),
-    module_contract: Object.freeze({ id: 'KSZ-01', rule: 'K10', gap: 'OB-9' }),
+    discharges: Object.freeze([
+      // A KÉT IDŐ-TENGELY nézetei a saját deklarált tengelyükön szűrnek (K10-TYP-e első fele). A
+      // MEGFIGYELÉSI idő NINCS a magban — az a klauzula kimondott maradéka (K0/D1).
+    ]),
+    module_contract: Object.freeze({ id: 'KSZ-01', rule: 'K10', closes: 'OB-9' }),
     // Az R10 HÁROM lelete után a KSZ-01 állítás-listája ÚJRA ÍRÓDOTT, nem bővült. A régi nevek egy
     // olyan világot írtak le, amiben a nyers mozgás-író NYILVÁNOS belépési pont volt: az „árva
     // mozgás" és a „hiányzó nyugta" a HÍVÓ hibája lehetett. Ma ezt a két tényt a TÁROLÓ ŐRZI, a
@@ -462,7 +507,20 @@ export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({
     id: 'P-BEM-input-schema', assertion: 'BEM01-input-shape-is-declared-and-fail-closed',
     discharges: Object.freeze([]),
-    module_contract: Object.freeze({ id: 'BEM-01', rule: 'K10', gap: 'OB-9' }),
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'K10-TYP-b', assertion: 'A-BEM-unknown-operation-is-fail-closed',
+        contract: 'BEM-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP' }),
+      Object.freeze({ clause: 'K10-TYP-b', assertion: 'A-BEM-unknown-field-decides-before-missing-field',
+        contract: 'BEM-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP' }),
+      Object.freeze({ clause: 'K10-TYP-b', assertion: 'A-BEM-missing-required-field-is-its-own-answer',
+        contract: 'BEM-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP' }),
+      Object.freeze({ clause: 'K10-TYP-b', assertion: 'A-BEM-type-is-checked-on-the-raw-value',
+        contract: 'BEM-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP' }),
+      // A MENNYISÉG KANONIKUS ALAKJA (MNY-01) a BEM-01 határán mérve — a K10-TYP-c ELSŐ fele. A
+      // profilváltás és a korábbi tárolt érték viszonya NINCS mérve: az a klauzula kimondott maradéka.
+      // A NAPTÁRI PILLANAT érvényessége az idő-fogalom része (K10-TYP-e első fele).
+    ]),
+    module_contract: Object.freeze({ id: 'BEM-01', rule: 'K10', closes: 'OB-9' }),
     module_asserts: Object.freeze([
       'A-BEM-unknown-operation-is-fail-closed',
       'A-BEM-unknown-field-decides-before-missing-field',

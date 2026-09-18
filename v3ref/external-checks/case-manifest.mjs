@@ -125,7 +125,7 @@ export const PROGRAMS = Object.freeze([
   Object.freeze({
     id: 'r77',
     file: 'r77_chatgpt-v3.mjs',
-    companions: Object.freeze(['r77_chatgpt-v3.core.mjs']),
+    companions: Object.freeze(['r77_chatgpt-v3.core.mjs', 'r77_chatgpt-v3.core.adapted.mjs', 'activeCoreProgram.mjs']),
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
     origin: 'R77 §8 (a MAG-próba: a `r77_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN — egyetlen '
       + 'karaktert sem írtunk át benne, a behúzási útvonalakat sem: a futtató ugyanazt a '
@@ -305,7 +305,7 @@ export const PROGRAMS = Object.freeze([
   Object.freeze({
     id: 'r81core',
     file: 'r81_chatgpt-v3.mjs',
-    companions: Object.freeze(['r81_chatgpt-v3.core.mjs', 'r81_merge_chatgpt-v3.core.mjs']),
+    companions: Object.freeze(['r81_chatgpt-v3.core.mjs', 'r81_chatgpt-v3.core.adapted.mjs', 'activeCoreProgram.mjs', 'r81_merge_chatgpt-v3.core.mjs']),
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
     // HELYESBÍTVE (R83 §6): az R81-es bejegyzés „BÁJTAZONOS"-t írt; a külső fél MEGMÉRTE, és a
     // saját példányukhoz képest EGY ZÁRÓ ÜRES SOR az eltérés (a markdown-kódblokkból való kinyerés
@@ -341,7 +341,7 @@ export const PROGRAMS = Object.freeze([
   Object.freeze({
     id: 'r79core',
     file: 'r79_chatgpt-v3.mjs',
-    companions: Object.freeze(['r79_chatgpt-v3.core.mjs']),
+    companions: Object.freeze(['r79_chatgpt-v3.core.mjs', 'r79_chatgpt-v3.core.adapted.mjs', 'activeCoreProgram.mjs']),
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
     origin: 'R79 (a MAG-próba: a `r79_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN — egyetlen '
       + 'karaktert sem írtunk át benne). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a '

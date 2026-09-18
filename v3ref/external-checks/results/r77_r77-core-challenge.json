@@ -1,8 +1,9 @@
 {
-  "program": "r77_chatgpt-v3.core.mjs",
-  "source_commit": "d76f30d3ce71093227830ebe08c70fb34e38e8cc+uncommitted",
+  "program": "r77_chatgpt-v3.core.adapted.mjs",
+  "variant": "adapted",
+  "source_commit": "377573158df00ba4cd2bbe21ff2111d26063b0aa+uncommitted",
   "node": "v22.22.2",
-  "at": "2026-09-18T05:40:40.870Z",
+  "at": "2026-09-18T09:59:04.404Z",
   "verbatim": true,
   "scope": "actual reference entry points, real isolated SQLite; contextual kinds assume supplied trusted context; disclosure and expiry probes expose integration limits",
   "results": [
@@ -156,16 +157,15 @@
     },
     {
       "id": "F02-data-scope-context-does-not-filter-price-result",
-      "pass": false,
-      "error": "The expression evaluated to a falsy value:\n\n  assert(submitCommand({store,clock,actor:'member',bookId:'a',idemKey:'price',type:'stock.receipt',typeVersion:'1',declared:{qty:1},resolve:()=>({qty:1,unit_price:12345})}).ok)\n"
+      "pass": true
     },
     {
       "id": "F03-malformed-operation-scope-is-undecidable",
       "pass": true
     }
   ],
-  "passed": 38,
-  "failed": 1,
+  "passed": 39,
+  "failed": 0,
   "matrix": {
     "rows": 66,
     "counts": {
@@ -513,12 +513,11 @@
     },
     {
       "id": "F02-data-scope-context-does-not-filter-price-result",
-      "pass": false,
+      "pass": true,
       "verdict_shape": "pass:boolean",
       "result": {
         "id": "F02-data-scope-context-does-not-filter-price-result",
-        "pass": false,
-        "error": "The expression evaluated to a falsy value:\n\n  assert(submitCommand({store,clock,actor:'member',bookId:'a',idemKey:'price',type:'stock.receipt',typeVersion:'1',declared:{qty:1},resolve:()=>({qty:1,unit_price:12345})}).ok)\n"
+        "pass": true
       }
     },
     {

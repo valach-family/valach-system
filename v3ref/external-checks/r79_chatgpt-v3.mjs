@@ -22,11 +22,12 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { activeCoreProgram, coreVariant } from './activeCoreProgram.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PIN = JSON.parse(readFileSync(join(HERE, 'source-manifest.json'), 'utf8')).commit;
 
-const run = spawnSync(process.execPath, [join(HERE, 'r79_chatgpt-v3.core.mjs')], {
+const run = spawnSync(process.execPath, [join(HERE, activeCoreProgram('r79_chatgpt-v3'))], {
   cwd: HERE, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024,
 });
 const raw = String(run.stdout || '');
@@ -61,10 +62,10 @@ const mapped = parsed && Array.isArray(parsed.results)
   ? parsed.results.map((r) => { const v = caseVerdict(r); return { id: r && r.id, pass: v.pass, verdict_shape: v.shape, result: r }; })
   : null;
 const out = parsed
-  ? { program: 'r79_chatgpt-v3.core.mjs', source_commit: PIN, node: process.version,
+  ? { program: activeCoreProgram('r79_chatgpt-v3'), variant: coreVariant().id, source_commit: PIN, node: process.version,
       at: new Date().toISOString(), verbatim: true, ...parsed,
       ...(mapped ? { cases: mapped, cases_mapped_from: 'results (a burkoló képezte, a program szövege érintetlen)' } : {}) }
-  : { program: 'r79_chatgpt-v3.core.mjs', source_commit: PIN, node: process.version,
+  : { program: activeCoreProgram('r79_chatgpt-v3'), variant: coreVariant().id, source_commit: PIN, node: process.version,
       at: new Date().toISOString(), verbatim: true, error: 'a program kimenete nem értelmezhető JSON',
       cases: [], passed: 0, failed: 0 };
 writeFileSync(join(HERE, 'evidence/r79-core-challenge.json'), `${JSON.stringify(out, null, 2)}\n`);

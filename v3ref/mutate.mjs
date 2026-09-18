@@ -52,7 +52,7 @@ const RUN_TIMEOUT_MS = 60000;
 import { MUTATIONS } from './mutations.mjs';
 // A NEM-NULLA EGYSÉG OKÁNAK FELOLDÓJA KÜLÖN MODULBAN (UFK-01): ezt a fájlt a próba is
 // IMPORTÁLHATJA anélkül, hogy a teljes battériát elindítaná (a `mutate.mjs` maga futtató, nem könyvtár).
-import { unitFailureKind } from './unitFailureKind.mjs';
+import { unitFailureKind, freshUnitWitness } from './unitFailureKind.mjs';
 
 
 // ═══ A MÁSODIK KÖR: ÖT TOVÁBBI HAZUGSÁG-ALAK (R45 H02–H06) ══════════════════════════════════════
@@ -670,15 +670,28 @@ if (process.argv.includes('--units-auto')) {
     attempt += 1;
     let tooSlow = null;
     for (let k = 1; k <= n; k += 1) {
+      // A TANÚ FRISSESSÉGE A GYERMEK INDULÁSÁHOZ MÉRVE (UFK-02, R35/F35-01): egy KORÁBBI futás
+      // egység-fájlja nem indokolhatja az ÚJ, sikertelen futás újradarabolását.
+      const startedAt = Date.now();
       const r = runNode([`--unit=${k}/${n}`]);
       if (r.status !== 0) {
         // A NEM-NULLA kilépés KÉT dolgot jelenthet: tartalmi bukás vagy idő-túllépés. A kettőt a
         // MÉRT egység-fájl különbözteti meg — nem a kilépési kód (KUKA-049).
-        let unit = null;
-        try { unit = JSON.parse(readFileSync(join(UNITS_DIR, `unit-${k}-of-${n}.json`), 'utf8')); }
+        let raw = null;
+        try { raw = JSON.parse(readFileSync(join(UNITS_DIR, `unit-${k}-of-${n}.json`), 'utf8')); }
         catch { /* nincs egység-fájl: nem tudjuk, tehát nem mentegetünk */ }
-        if (unitFailureKind(unit) === 'too_slow') { tooSlow = { k, n }; break; }
-        console.error(`  AZ EGYSÉG ${k}/${n} TARTALMI OKBÓL bukott — a darabolás ezen nem segít.`);
+        const w = freshUnitWitness(raw, { k, n, startedAt });
+        const kind = w.ok ? unitFailureKind(w.unit) : 'unknown';
+        if (kind === 'too_slow') { tooSlow = { k, n }; break; }
+        if (kind === 'content') {
+          console.error(`  AZ EGYSÉG ${k}/${n} TARTALMI OKBÓL bukott — a darabolás ezen nem segít.`);
+        } else {
+          // AZ ISMERETLEN NEM FINOMÍTHATÓ. Ha nem tudjuk, miért bukott, a darabolás vakon menne
+          // tovább, és a mérés csendben zölddé minősülne (KUKA-093: a kihagyás nem zöld).
+          console.error(`  AZ EGYSÉG ${k}/${n} nem nullával zárt, és az OKA NEM ÁLLAPÍTHATÓ MEG`
+            + `${w.ok ? '' : ` — a tanú nem hitelesíthető: ${w.why}`}.`);
+          console.error('  EZ NEM IDŐ-BUKÁS: darabolással nem kerüljük meg. A mérés HIÁNYOS.');
+        }
         process.exit(r.status || 1);
       }
     }

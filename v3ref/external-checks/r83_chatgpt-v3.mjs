@@ -37,10 +37,17 @@ import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+// UGYANAZ A DÖNTÉS, UGYANABBÓL A FELOLDÓBÓL (UFK-01/02 · KUKA-039 — a TESTVÉR-ÁG). Az R81 burkolót
+// az R35 §2-ben már átállítottuk származtatott darabszámra; ez a burkoló ugyanazt a kézi négyest
+// hordozta, és a következő lánc-futáson EMIATT bukott el (`merge/KORNYEZET-3`) — tartalmi ok nélkül.
+// A javítás nem egy fájl javítása, hanem a SZABÁLY: a darabszám származik, a bukás okát nevezett
+// feloldó dönti el, és a tanút hitelesítjük.
+import { unitFailureKind, freshUnitWitness } from './source/v3ref/unitFailureKind.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PIN = JSON.parse(readFileSync(join(HERE, 'source-manifest.json'), 'utf8')).commit;
-const UNITS = 4;
+const UNITS_START = 4;
+const UNITS_MAX_ATTEMPTS = 4;
 
 const runNode = (file, opts = {}) => spawnSync(process.execPath, [file], {
   cwd: HERE, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, ...opts,
@@ -49,18 +56,34 @@ const runNode = (file, opts = {}) => spawnSync(process.execPath, [file], {
 // ── (1) A VALÓDI EGYSÉGEK ELŐÁLLÍTÁSA az összefűzés-próbához ────────────────────────────────────
 const MUTATE = join(HERE, 'source', 'v3ref', 'mutate.mjs');
 const GENUINE = join(HERE, 'evidence', 'genuine-units');
+let UNITS = UNITS_START;
 const unitProblems = [];
 if (existsSync(MUTATE)) {
   rmSync(join(HERE, 'source', 'v3ref', 'units'), { recursive: true, force: true });
   rmSync(GENUINE, { recursive: true, force: true });
   mkdirSync(GENUINE, { recursive: true });
-  for (let k = 1; k <= UNITS; k += 1) {
-    const r = spawnSync(process.execPath, [MUTATE, `--unit=${k}/${UNITS}`], {
-      cwd: join(HERE, 'source'), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 300_000,
-    });
-    if (r.status !== 0) unitProblems.push(`a ${k}/${UNITS} egység NEM nullával zárt (${r.status})`);
+  const unitsDir = join(HERE, 'source', 'v3ref', 'units');
+  for (let attempt = 1; ; attempt += 1) {
+    rmSync(unitsDir, { recursive: true, force: true });
+    let tooSlow = null;
+    for (let k = 1; k <= UNITS; k += 1) {
+      const startedAt = Date.now();
+      const r = spawnSync(process.execPath, [MUTATE, `--unit=${k}/${UNITS}`], {
+        cwd: join(HERE, 'source'), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 300_000,
+      });
+      if (r.status === 0) continue;
+      let raw = null;
+      try { raw = JSON.parse(readFileSync(join(unitsDir, `unit-${k}-of-${UNITS}.json`), 'utf8')); } catch { /* nincs tanú */ }
+      const w = freshUnitWitness(raw, { k, n: UNITS, startedAt });
+      const kind = w.ok ? unitFailureKind(w.unit) : 'unknown';
+      if (kind === 'too_slow' && attempt < UNITS_MAX_ATTEMPTS) { tooSlow = k; break; }
+      unitProblems.push(`a ${k}/${UNITS} egység NEM nullával zárt (${r.status})`
+        + ` — a bukás oka: ${kind}${w.ok ? '' : ` (a tanú nem hitelesíthető: ${w.why})`}`);
+    }
+    if (!tooSlow) break;
+    UNITS *= 2;                       // IDŐ miatti bukáson finomítunk — a költségvetés NEM tágul
   }
-  const src = join(HERE, 'source', 'v3ref', 'units');
+  const src = unitsDir;
   const files = existsSync(src) ? readdirSync(src).filter((f) => f.endsWith('.json')) : [];
   for (const f of files) cpSync(join(src, f), join(GENUINE, f));
   if (files.length !== UNITS) unitProblems.push(`${files.length} egység-fájl született a várt ${UNITS} helyett`);
@@ -104,7 +127,7 @@ const out = {
   node: process.version,
   at: new Date().toISOString(),
   verbatim: true,
-  genuine_units: { requested: UNITS, problems: unitProblems },
+  genuine_units: { requested: UNITS, started_from: UNITS_START, problems: unitProblems },
   merge: mergeOut,
   runner: runnerOut,
   runner_scope: 'a VALÓDI run-all.mjs, SZINTETIKUS program-kimenetekkel — a külső fél kimondott '

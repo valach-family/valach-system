@@ -1,8 +1,8 @@
 {
   "program": "restated.mjs",
-  "source_commit": "d76f30d3ce71093227830ebe08c70fb34e38e8cc+uncommitted",
+  "source_commit": "377573158df00ba4cd2bbe21ff2111d26063b0aa+uncommitted",
   "node": "v22.22.2",
-  "at": "2026-09-18T05:48:38.981Z",
+  "at": "2026-09-18T09:55:57.070Z",
   "cases": [
     {
       "id": "C11-restated",
@@ -123,14 +123,14 @@
       "expectation": "A K01 címének változása MEGVÁLTOZTATJA a szerződés- és az együttes lenyomatot; az INDEX lenyomatát nem.",
       "pass": true,
       "before": {
-        "contract": "sha256:a1e3a59dc0aeb5d695513d7e3a1e1e4998e1d337572101f90ec9a97eae7570f0",
-        "index": "sha256:45db283d37d7c1d704064943d221afd0491a66222c0c180deed82866b268201e",
-        "combined": "sha256:3c269c5f6e9dc8cd3cab7b6cde83421ef0f5ce4fed846ac3802cfa02994fd67a"
+        "contract": "sha256:d6ef5ed707b83e3da8502819c7f6bf294c46c1985afefc2716b29aff20c0bdb5",
+        "index": "sha256:d74ffffba22b917e822aa3073aeb00f7795d1639455617f2291226213e5f7bf4",
+        "combined": "sha256:85c06d96476fa4d900b12c0ddffc5729302b7c1af2dfbf202ef8df0b685ee419"
       },
       "after": {
-        "contract": "sha256:8449a8ebb0f62cd251874df6088d391e44cde87c09d21f1ba3a43f4573c95184",
-        "index": "sha256:45db283d37d7c1d704064943d221afd0491a66222c0c180deed82866b268201e",
-        "combined": "sha256:184b9d31415b334a39b981ab482be9440df684335d588c91d1488b84822c01a8"
+        "contract": "sha256:6f69c810203ba0df51a06614c15266a4639b5821c7b49b0f2e88cc06a132256d",
+        "index": "sha256:d74ffffba22b917e822aa3073aeb00f7795d1639455617f2291226213e5f7bf4",
+        "combined": "sha256:7da59ed76a0aa505d058ebd21cc6acffea0875f3fb8728eee66f25d519273ba3"
       },
       "note": "a szerződés és az index KÜLÖN artefaktum: a címjegyzék változása az elsőt érinti, a másodikat nem — és az együttes lenyomat mindkettőt hordozza"
     }

@@ -7736,6 +7736,17 @@ const RETIRED_PATTERNS = Object.freeze([
         paths: ['package.json'],
         reason: 'a darabszám nem kerülhet vissza kézzel a parancsba — a szabály származtatja',
       }),
+      // VISSZATÉRT (R36, a TESTVÉR-ÁGON — KUKA-039). Az R35 §2-ben az `r81` burkolót átállítottam
+      // származtatott darabszámra, az `r83`-at NEM néztem meg: ugyanaz a kézi négyes állt benne, és
+      // a következő teljes lánc-futáson EMIATT bukott el (`merge/KORNYEZET-3`), tartalmi ok nélkül
+      // — 16/19 helyett 17/19. A javítás ezért nem egy fájl javítása volt, hanem a SZABÁLY kiterjesztése
+      // MINDEN egység-hívóra, és a tiltó-minta most a burkolókra is szól.
+      Object.freeze({
+        pattern: 'const UNITS = \\d+;',
+        paths: ['v3ref/external-checks/r81_chatgpt-v3.mjs', 'v3ref/external-checks/r83_chatgpt-v3.mjs'],
+        reason: 'a külső burkolók egység-darabszáma sem állhat kézzel — a KUKA-177 javítása a '
+          + 'TESTVÉR-ÁGON (r83) egy körig kimaradt, és a lánc emiatt bukott',
+      }),
     ]),
     guard_note: 'gépi jel: `node --test v3ref/unitFailureKind.test.mjs` (4 eset: túllépő de tiszta ⇒ '
       + 'too_slow · TARTALMILAG bukott ⇒ content, akkor is ha túllépett · befért mégis bukott ⇒ unknown · '
@@ -7748,6 +7759,63 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'TERHELETLEN gépen kell mérni — ugyanezt a külső láncot párhuzamos munka mellett futtatva öt '
       + 'további program esett ki pusztán időzítés miatt (11/19 a valódi 14/19 helyett). A szennyezett '
       + 'mérést nem szabad a jelentésbe engedni, akkor sem, ha épp a kedvezőbb (KUKA-054).',
+  }),
+  Object.freeze({
+    id: 'KUKA-178',
+    date: '2026-09-18',
+    title: 'A HIÁNYZÓ TANÚ IDŐ-BUKÁSNAK MINŐSÜLT — a saját, egy körrel korábbi feloldómban',
+    what: 'A KUKA-177-ben épített `unitFailureKind` feloldó a TISZTASÁG-tanút (`slice_clean`) csak '
+      + 'annyiban nézte, hogy hamis-e; ha a mező HIÁNYZOTT, `null` volt, szöveges `"false"`, `0`, `1`, '
+      + 'objektum vagy tömb, a döntés az IDŐ-ágra esett. Tehát egy tanú NÉLKÜLI, vagy alakilag hibás '
+      + 'egység-fájl mellett a futtató `too_slow`-ot mondott, és ÚJRADARABOLT — miközben a gyermek '
+      + 'futás valójában TARTALMILAG bukhatott. Ugyanez a rés élt a tanú FRISSESSÉGÉN: a futtató a '
+      + 'megelőző menet egység-fájlját is elfogadta volna az ÚJ menet tanújaként, tehát egy elavult '
+      + 'fájl igazolhatta volna egy friss, bukott gyermek újradarabolását.',
+    why_wrong: 'A darabolás célja pont az, hogy az IDŐ miatti bukást elválassza a TARTALMI bukástól. '
+      + 'Ha a hiányzó bizonyíték az idő javára dől el, a mechanizmus a saját feladatát fordítja '
+      + 'visszájára: a valódi mag-hibát elfedi egy „még finomabbra osztunk" körrel, és a végén ZÖLDET '
+      + 'ad. A hiányzó tanú NEM bizonyíték semmire (KUKA-094: a hiányzó bizonyíték nem fordítható '
+      + 'nullává) — a helyes válasz a harmadik szó: `unknown`.',
+    replaced_by: 'UFK-01 szigorított alakja + UFK-02 (`freshUnitWitness`): `too_slow` CSAK '
+      + 'alaki-helyes `slice_clean === true` ÉS érvényes idő-tanú mellett; `false` ⇒ `content`; '
+      + 'minden más ⇒ `unknown`. A tanú azonossága (k/n) és frissessége (a gyermek indulása UTÁNI '
+      + 'időbélyeg) a feloldóban mérve — elavult vagy idegen tanú ⇒ `unknown`.',
+    replacement: 'A feloldó három szava ELVÁLASZTVA: TARTALOM (`slice_clean === false`) · IDŐ '
+      + '(típushelyes `true` + véges, nemnegatív `wall.ms` és pozitív `wall.budget_ms`, és tényleges '
+      + 'túllépés) · MINDEN MÁS `unknown` — a nem-objektum, a tömb, a hiányzó és a szöveges alak is. '
+      + 'A hívó (a battéria gyermek-hurka és az r81 burkoló) a tanút ELŐBB hitelesíti '
+      + '(`freshUnitWitness`), és csak `too_slow` esetén darabol újra; `content` és `unknown` esetén '
+      + 'AZONNAL megáll.',
+    decision: 'D-VS-3041',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R35/F35-01) — a saját battériám és a saját '
+      + 'egység-próbám végig zöld volt, mert MINDEN fixtúrám tartalmazott tisztaság-tanút '
+      + '(KUKA-054: a saját példám a saját előfeltevésemet igazolta vissza).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/unitFailureKind.mjs']),
+        pattern: "slice_clean !== true[\\s\\S]{0,120}return 'unknown'",
+        why: 'a hiányzó vagy alakilag hibás tisztaság-tanú NEM eshet az idő-ágra — a harmadik szó jár neki' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/unitFailureKind.mjs']),
+        pattern: 'export function freshUnitWitness',
+        why: 'a tanú AZONOSSÁGÁT és FRISSESSÉGÉT is mérni kell — elavult fájl nem igazolhat friss bukást' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({
+        pattern: "slice_clean\\s*!==\\s*false",
+        paths: ['v3ref/unitFailureKind.mjs'],
+        reason: 'a tagadó alak visszahozná a rést: minden nem-hamis érték (hiányzó, null, 0, "false") '
+          + 'újra az IDŐ-ágra esne',
+      }),
+    ]),
+    guard_note: 'gépi jel: `node --test v3ref/unitFailureKind.test.mjs` (10 eset — az F35-01 hat '
+      + 'negatív ellenpárja: hiányzó · null · `"false"` · 0 · 1 · `{}` · `[]` ⇒ mind `unknown`; és a '
+      + 'TARTALMI bukás IDŐTÚLLÉPÉSSEL együtt is `content`; UFK-02: friss · elavult · idegen egység · '
+      + 'hiányzó tanú) + `npm run verify:v3ref` a `--units-auto` úton, kilépési kódon mérve.',
+    lesson: 'AHOL EGY DÖNTÉS KÉT OKOT VÁLASZT SZÉT, A HIÁNYZÓ BIZONYÍTÉK NEM ESHET AZ EGYIK OLDALRA — '
+      + 'kell egy harmadik szó („nem tudom"), különben a feloldó a saját feladatát fordítja '
+      + 'visszájára. És a tanú MEGLÉTE nem elég: az AZONOSSÁGÁT és a FRISSESSÉGÉT is mérni kell, '
+      + 'különben egy korábbi menet fájlja igazol egy mai bukást (KUKA-038 · KUKA-094). A saját, egy '
+      + 'körrel korábban épített feloldóm bukott el ezen — tehát az „ezt most építettem, tehát friss" '
+      + 'érzés nem védelem.',
   }),
   Object.freeze({
     id: 'KUKA-176',

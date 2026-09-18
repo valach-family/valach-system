@@ -2844,3 +2844,82 @@ dolog különbözik — a mennyiség ALAKJA. Eredmény **7/7**: JSON-szám ⇒ n
 **Döntés:** a minősítés **elavult elvárás**, nem termékhiba. A külső fél programjaihoz NEM nyúlunk
 (KUKA-054); az orvoslás (`qty: 1` → `qty: '1'` a bukó eseteknél) vagy az MNY-01 szűkítése **az ő
 döntésük**. Addig a lánc pirosa áll, és nem takarjuk el.
+
+---
+
+## D-VS-3041 — a hiányzó tanú nem idő-bukás: a harmadik szó („nem tudom") (2026-09-18)
+
+**Honnan:** a külső ellenőrző fél (chatgpt-v3) **F35-01** lelete a CMD-VS-300-002-002 **R35** lapon.
+
+**A lelet, reprodukálva a saját gépünkön.** Az egy körrel korábban (D-VS-3039 / KUKA-177) épített
+`unitFailureKind` feloldó a darabolt mutációs battéria nem-nulla egységeiről mondta meg, MIÉRT
+bukott: IDŐ miatt (⇒ finomabbra osztunk) vagy TARTALOM miatt (⇒ azonnal megállunk). A tisztaság-tanút
+viszont csak annyiban nézte, hogy hamis-e — így **hiányzó mező, `null`, szöveges `"false"`, `0`, `1`,
+`{}` és `[]` mellett mind az IDŐ-ágra esett**. Tehát tanú nélkül a futtató „lassú volt" magyarázatot
+adott, és újradarabolt, miközben a gyermek TARTALMILAG is bukhatott — pontosan az a hiba, aminek a
+megelőzésére a feloldó született.
+
+**Döntés.** A feloldó három szava elválik, és a hiány a saját nevén áll:
+`too_slow` **kizárólag** típushelyes `slice_clean === true` **és** érvényes idő-tanú mellett (véges,
+nemnegatív `wall.ms`, pozitív `wall.budget_ms`, tényleges túllépés) · `slice_clean === false` ⇒
+`content` (akkor is, ha közben túllépett) · **minden más ⇒ `unknown`**, és az `unknown` nem
+mentegetés: megállít.
+
+**Mellé a TANÚ-HATÁR (UFK-02, ugyanebben a munkában, az R35 kifejezett kérésére):** a futtató a
+tanút a döntés ELŐTT hitelesíti (`freshUnitWitness`) — az egység azonossága (`k/n`) és a frissessége
+(a gyermek indulása utáni időbélyeg) mérve. **Egy elavult egység-fájl nem igazolhatja egy friss,
+bukott gyermek újradarabolását.** Ugyanez a szabály a battéria gyermek-hurkában és az `r81` külső
+burkolóban is — egy feloldó, két hívó (KUKA-039).
+
+**Gépi jel:** `node --test v3ref/unitFailureKind.test.mjs` (10 eset: hat F35-01 ellenpár · a
+tartalmi bukás időtúllépéssel együtt is `content` · négy tanú-frissesség) · `npm run verify:v3ref` a
+`--units-auto` úton, **kilépési kódon** mérve. KUKA-178.
+
+**Amit ez NEM old meg, kimondva:** az egység-fájl továbbra sincs kriptográfiailag a futásához kötve
+— kézzel írt egység-fájl beolvadna. A forrás-lenyomat egyezése szűkít, de nem bizonyít; az aláírt
+egység-tanú NEVESÍTETT függő.
+
+---
+
+## D-VS-3042 — a mennyiség-állítás és a készletmozgás KÉT dolog (a QNT alapdöntés) (2026-09-18)
+
+**Honnan:** operátori/tárgyalói döntés a CMD-VS-300-002-002 **R35** lapon (3. pont).
+
+**A döntés.** Egy korábban 100-ra becsült mennyiség 90-re pontosítása **nem új, 90-es mozgás**, és
+**nem 190 készlet**: ugyanannak a tételnek egy ÚJABB MEGFIGYELÉSE. Minden ilyen állítás megőrzi a
+megfigyelés FORRÁSÁT, a MINŐSÉGÉT (mért vagy becsült), az IDEJÉT, az ELŐZŐ verziót és a
+JOGALAPOT. **Egy későbbi mérés visszamenőleg nem tesz méréssé egy korábbi becslést.**
+
+**A hatókör kimondva.** A teljes QNT (mennyiségi modell, recept, önköltség) **most nem épül**. Amit
+viszont az „magon kívül" **nem törölhet**: az R19-ben magra jelölt alap-követelmények. Ezért a
+mag-határ szerződésének **kimondott helye van** a megfigyelésnek és a HATÁS NÉLKÜLI rögzítésének — a
+mai bevételezés-művelet ezt **nem** helyettesíti. Ilyen folyamat VALÓDI használata **kapuval zárva**
+marad a QNT megvalósításáig és ellenőrzéséig (`USE-G3`).
+
+**Gépi jel:** `npm run verify:v3ref` — a `K10-TYP-e` klauzula **NYITOTT**, nevezett hiánnyal (a
+MEGFIGYELÉSI idő fogalma nincs a magban), és a `USE_GATES` `USE-G3` sora kimondja a használati
+kaput. Tehát a halasztás **nem tűnik el**: a lánc minden futáskor kiírja.
+
+---
+
+## D-VS-3043 — a visszaállítási terv a KIADÁS ALAKJÁHOZ igazodik (board) (2026-09-18)
+
+**Honnan:** a külső ellenőrző fél helyesbítése a CMD-VS-300-002-002 **R35** lapon (5. pont), az
+R33-as board-átadó lapunk visszaállítási tervére.
+
+**Amit az R33 tévesen mondott.** A terv `git revert -m 1`-et adott általános visszaállításként. Ez
+**csak VALÓDI merge-commitra helyes**: a `-m 1` az első szülőt jelöli meg megtartandó vonalként, és
+merge-commit hiányában a parancs hibára fut.
+
+**A javított terv — a kiadás alakja dönt:** valódi merge-commit ⇒ `git revert -m 1 <merge-sha>` ·
+**squash** vagy **fast-forward** ⇒ a squash-commit sima `git revert <sha>`-ja, illetve az előző
+kiadás újratelepítése; a parancs kiadása előtt **meg kell nézni a HEAD alakját**
+(`git log --merges -1` / `git cat-file -p <sha>` szülő-száma), nem emlékezetből.
+
+**A második helyesbítés.** Az R33 „adatvesztés nincs" alakú általános állítást tett. Ez **mérés
+nélküli**: a board kiadásának adat-hatását ebben a körben nem mértük. A helyes alak: a visszaállítás
+a KÓD-változást fordítja vissza; hogy a menet közben KELETKEZETT adat mit visel el, az **külön,
+mérendő kérdés** — és amíg nincs mérve, nem állítjuk (KUKA-033).
+
+**Gépi jel: NINCS — kimondva.** Ez a szöveg a board átadó lapján áll, nem kódban; a védelem a lap
+alakjában van (a visszaállítási lépés a kiadás alakját KÉRDEZI, nem feltételezi).

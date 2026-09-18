@@ -23,7 +23,7 @@ import { admitUnits, chainBacking, SUPPORTED_RUN_CONTRACTS } from '../v3ref/unit
 import { REQUIRED_EVIDENCE, indexDigest, expectedChainRows, chainRowKey } from '../v3ref/norms.mjs';
 import { EXPECTED_PROBES } from '../v3ref/manifest.mjs';
 import { contractRef } from '../v3ref/normContract.mjs';
-import { DECLARED_UNITS, unitsScriptLine } from '../v3ref/external-checks/batteryUnits.mjs';
+import { DECLARED_UNITS, unitsScriptLine, unitsScriptLineAuto, unitsScriptLineIsHomed } from '../v3ref/external-checks/batteryUnits.mjs';
 import { PROGRAMS } from '../v3ref/external-checks/case-manifest.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -347,9 +347,21 @@ say('UAD06', admit(noContract).problems.some((p) => /`run_contract`: a mező HI�
 {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
   const line = pkg.scripts['v3ref:mutate:units'];
-  say('UAD08', line === unitsScriptLine(DECLARED_UNITS),
-    `a package.json \`v3ref:mutate:units\` sora eltér a deklarált otthontól (${DECLARED_UNITS} egység):\n`
-    + `      van : ${line}\n      kell: ${unitsScriptLine(DECLARED_UNITS)}`);
+  // HELYESBÍTVE (R36). A régi alak a KÉZZEL KIÍRT felsorolással EGYEZÉST követelt — és amikor a
+  // darabszám a KUKA-177 nyomán SZÁRMAZTATOTTÁ vált (`--units-auto`), ez az őr pirosra ment egy ÉP
+  // rendszeren: nem elmulasztotta a hibát, hanem VÉDTE a régi, elavult alakot (KUKA-057 fordítottja
+  // · KUKA-068). A mérce ezért nem egy szöveg, hanem a SZABÁLY: a sor darabolása a közös otthonból
+  // származzon — akár a származtatott `--units-auto`, akár a generátor teljes felsorolása.
+  const homed = unitsScriptLineIsHomed(line);
+  say('UAD08', homed.ok,
+    `a package.json \`v3ref:mutate:units\` sora nem a deklarált otthonból származik:\n`
+    + `      van : ${line}\n      ${homed.why || ''}`);
+  // ELLENPÁR MINDKÉT IRÁNYBAN (KUKA-039): a két otthonos alak ZÖLD, a kézzel gépelt nevező PIROS.
+  say('UAD08', unitsScriptLineIsHomed(unitsScriptLineAuto()).form === 'derived'
+    && unitsScriptLineIsHomed(unitsScriptLine(DECLARED_UNITS)).form === 'enumerated'
+    && !unitsScriptLineIsHomed('node v3ref/mutate.mjs --unit=1/9 && node v3ref/mutate.mjs --merge').ok
+    && !unitsScriptLineIsHomed('').ok,
+    'az otthon-felismerő nem mér mindkét irányban (a két otthonos alak zöld, a kézzel gépelt nevező piros)');
 
   const R79 = readFileSync(join(ROOT, 'v3ref/external-checks/r79_run_contract_restated.mjs'), 'utf8');
   const code = R79.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');

@@ -298,8 +298,14 @@ export const REVOCATION_NORMS = Object.freeze([
         covers: Object.freeze(['K04', 'K06']),
         text: 'A korrekciót külön jogosult hagyja jóvá, és a jóváhagyás naplózott — a felülvizsgálat '
           + 'ténye önmagában nem hatalmaz fel a végrehajtásra.',
-        gap: 'A REV-N4a esemény-fogalma nélkül nincs mit jóváhagyni; a jóváhagyói hatáskör pedig a '
-          + 'REV-N3a hatáskör-modelljére épülne, ami szintén nincs meg.',
+        // HELYESBÍTVE (R35/OB-7, a külső fél lelete · R36). A régi szöveg azt írta, hogy a
+        // jóváhagyói hatáskör a „REV-N3a hatáskör-modelljére épülne, ami szintén nincs meg" —
+        // ez MA MÁR NEM IGAZ: a REV-N3a fedett, implementációval és próbával. A maradék-szöveg
+        // tehát a rendszer egy korábbi állapotát állította (KUKA-050: a szöveg elévül), és ez a
+        // hiányt NAGYOBBNAK mutatta a valóságosnál — ami ugyanolyan hazugság, mint a kisebbítés.
+        gap: 'EGYETLEN előfeltétel hiányzik: a REV-N4a KOMPENZÁLÓ-ESEMÉNY fogalma — enélkül nincs '
+          + 'mit jóváhagyni. A jóváhagyói HATÁSKÖR modellje MEGVAN (REV-N3a, fedett), tehát ha a '
+          + 'korrekciós esemény megszületik, ez a klauzula a meglévő hatáskör-kapura épülhet.',
       }),
     ]),
   }),
@@ -359,6 +365,159 @@ export const REVOCATION_NORMS = Object.freeze([
 // A válasz lényege, amit átveszünk: a megmaradó alap a SZERVEZET tényleges, továbbra is érvényes
 // felhatalmazása — NEM egy `organization` felirat, amit a kérő beír. A személyes továbbdelegálás
 // és a tartós szervezeti döntés KÉT KÜLÖNBÖZŐ függőség.
+// ═══ MODUL-SZERZŐDÉS NORMÁK — a K05 és a K10 atomi klauzulái (R35 kiegészítés) ═══════════════
+//
+// KÜLÖN TÖMB, MERT KÜLÖN TÁRGY. Ezek nem megvonási és nem szervezeti-alap normák: a KIADOTT
+// TARTALOM besorolásáról (K05) és a TÍPUS/NORMALIZÁLÁS/PROFIL rendjéről (K10) szólnak. Az
+// R35 §„K05 és K10" fogadta el a szövegüket — KÖVETELMÉNY-SZÖVEGKÉNT, nem a megvalósítás
+// elfogadásaként; a forráskötés a NCT-01 verziózott `amendments` mezőjében, MÉRT lenyomattal.
+export const MODULE_CONTRACT_NORMS = Object.freeze([
+  Object.freeze({
+    id: 'DSC-N1',
+    // AZ R35 §„K05 és K10" FOGADTA EL EZEKET A SZÖVEGEKET, és kimondta, hogy ez KÖVETELMÉNY-SZÖVEG
+    // elfogadása, NEM a megvalósításé. A klauzulák ezért a történeti R32 szöveg ÉRINTETLENÜL hagyása
+    // mellett, verziózott KIEGÉSZÍTÉSKÉNT állnak (NCT-01 `amendments`, mért lenyomattal).
+    //
+    // MIÉRT ITT, ÉS MIÉRT NEM KITALÁLVA: az OB-8 pontosan azt mondta ki, hogy a DSC-01 négy állítása
+    // MODUL-SZERZŐDÉSEN ül, mert a K05 alatt egyetlen klauzula sem mondta ki a kiadási osztályozó
+    // tényét — és klauzulát ide a dolgozó sáv egyoldalúan nem írhat (KUKA-124/2). Most a tárgyaló fél
+    // kimondta őket, tehát az állítások a HELYÜKRE kerülnek, ugyanazokkal a próbákkal.
+    rule: 'A kiadandó eredmény adatköre a rendszer megbízható, verziózott TÍPUSDEKLARÁCIÓJÁBÓL '
+      + 'következik — mélységben, minden tömbelemre —, és a kiadás a hatályosulási ponton ellenőrzött '
+      + 'jogon áll. A vegyes eredmény egészben megtagadva; a be nem sorolt mező nevezett elutasítás.',
+    example: 'Az árra tiltott olvasó `dataScope: \'keszlet\'` címkével kéri a bevét eredményét. A '
+      + 'címke nem dönt: a `{qty, unit_price}` EGÉSZBEN megtagadva, mert az `arak` adatkör benne van. '
+      + 'A tisztán készlet-adat viszont kimegy — a tiltás nem általános némaság.',
+    clauses: Object.freeze([
+      Object.freeze({
+        id: 'K05-DSC-a',
+        covers: Object.freeze(['K05']),
+        source: 'R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10"',
+        text: 'A kiadandó eredmény minden mezőjének szükséges adatköre a rendszer megbízható, '
+          + 'verziózott típusdeklarációjából következik; a kérő címkéje nem helyettesíti ezt.',
+        gap: null,
+      }),
+      Object.freeze({
+        id: 'K05-DSC-b',
+        covers: Object.freeze(['K05']),
+        source: 'R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10"',
+        text: 'A besorolás a beágyazott objektumokra és minden tömbelemre is kiterjed. Ismeretlen '
+          + 'típus, ismeretlen mező vagy hibás alak esetén az eredmény nem adható ki; az elutasítás '
+          + 'nevezett, és a külső válasz nem sértheti a létezésre vonatkozó jogosultsági határt.',
+        gap: null,
+      }),
+      Object.freeze({
+        id: 'K05-DSC-c',
+        covers: Object.freeze(['K05']),
+        source: 'R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10"',
+        text: 'Minden érintett adatkörre érvényes olvasási döntés kell. Amíg nincs külön bizonyított '
+          + 'mezővetítés, egy tiltott adatot tartalmazó vegyes eredményt egészben meg kell tagadni; a '
+          + 'készletjog nem jogosít ármező kiadására.',
+        // ELŐSZÖR `gap`-ként írtam ide, hogy „a mezővetítés nincs megépítve" — és a norma-bizonyíték
+        // KAPU jogosan pirosra vitte: egy klauzula nem mondhat egyszerre HIÁNYT és nem lehet rá
+        // bizonyíték. Újraolvasva a saját szövegét: a mezővetítés hiánya a klauzula SAJÁT FELTÉTELE
+        // („amíg nincs külön bizonyított mezővetítés"), nem teljesítetlen rész. A mai rendszer pont
+        // azt teszi, amit a klauzula ilyenkor előír: a vegyes eredményt EGÉSZBEN megtagadja, és a
+        // készletjog nem ad ármezőt — mindkettő mérve (P-REV-result-scope aOk/bOk).
+        //
+        // NYITOTT ÚT, NEM HIÁNY: ha valaha mezővetítés épül, annak SAJÁT bizonyítéka kell, és a
+        // klauzula akkor a másik ágára fordul — de az ÚJ munka lesz, nem ennek a sornak az adóssága.
+        gap: null,
+      }),
+      Object.freeze({
+        id: 'K05-DSC-d',
+        covers: Object.freeze(['K05']),
+        source: 'R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10"',
+        text: 'Az engedélyezett eredmény is csak a kiadás alkalmazható hatályosulási pontján '
+          + 'ellenőrzött jog alapján adható ki; a megvonás, ismétlés és korábbi eredmény '
+          + 'újraolvasása nem kerülheti meg ezt.',
+        gap: null,
+      }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'TYP-N1',
+    // AZ R35 §„K05 és K10" — a K10 öt atomi klauzulája. Az OB-9 pontosan ezt kérte: a K10 alatt
+    // atomi klauzulák álljanak, és az MCS-2 modul-állításai `discharges` kötést kapjanak a
+    // szerződés-azonosítóval ÉS a verzióval együtt (R55/F04 elve).
+    rule: 'Az azonosságot a típus szerinti azonosító és névtere adja; a bemenet a megnevezett '
+      + 'művelet- és sémaverzió szerint ellenőrzött; a mennyiség kanonikus alakja verziózott '
+      + 'számítási profilhoz kötött; a parancs, nyugta és főkönyvi hatás atomi; a hatály és a '
+      + 'rögzítés ideje két külön fogalom.',
+    example: 'Ugyanaz a cikkszám két könyvben KÉT különböző tétel. Egy „1" mennyiség JSON-számként '
+      + 'nem hagyhatja el a rendszert, mert a lebegőpontos alak a 0,1-et sem ábrázolja pontosan. Egy '
+      + 'ismételt beküldés nem könyvel kétszer — és egy visszadátumozott sem kerüli meg az összeg-korlátot.',
+    clauses: Object.freeze([
+      Object.freeze({
+        id: 'K10-TYP-a',
+        covers: Object.freeze(['K10']),
+        source: 'R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10"',
+        text: 'Az azonosságot a típus szerinti azonosító és annak névtere határozza meg; '
+          + 'megjelenítési név, formázás vagy változó mennyiség nem helyettesíti és nem változtatja meg.',
+        gap: null,
+      }),
+      Object.freeze({
+        id: 'K10-TYP-b',
+        covers: Object.freeze(['K10']),
+        source: 'R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10"',
+        text: 'A bemenetet a megnevezett művelet- és sémaverzió szerint kell ellenőrizni; hiányzó '
+          + 'kötelező, ismeretlen vagy hibás típusú mező nevezett elutasítás, nem hallgatólagos alapérték.',
+        gap: null,
+      }),
+      Object.freeze({
+        id: 'K10-TYP-c',
+        covers: Object.freeze(['K10']),
+        source: 'R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10"',
+        text: 'A mennyiség kanonikus decimális alakja és értelmezése megnevezett, verziózott '
+          + 'számítási profilhoz kötött. A skála, tartomány és kerekítés profilszabály, nem minden '
+          + 'iparágra bebetonozott magkorlát; profilváltozás nem értelmezheti át a korábbi tárolt értéket.',
+        // MARADÉK, KIMONDVA: a kanonikus alak és a profil-kötés mérve van (BEM-01/MNY-01), de a
+        // PROFILVÁLTÁS hatása a KORÁBBI tárolt értékre NINCS mérve — profil-verzióváltás a magban ma
+        // nem történik, tehát erről a mondatról nincs bizonyítékunk (KUKA-033: méretlenül nem állítjuk).
+        // AZ R35 SZABÁLYA SZERINT NYITOTT MARAD, MERT A SZÖVEG EGY RÉSZE NINCS BIZONYÍTVA. Ami MÉRVE
+        // van: a kanonikus decimális alak a határon (`A-BEM-valid-input-normalizes-to-canonical-decimal-text`)
+        // és a hibakód-sorrend megőrzése (`A-BEM-quantity-error-order-survives-the-boundary`); a
+        // mennyiség PROFILJA verziózva a soron áll (`qty_profile=qty-1`). Ami NINCS mérve: a
+        // PROFILVÁLTÁS és a korábbi tárolt érték viszonya — a magban egyetlen profil él, verzióváltás
+        // sosem történt, tehát ellenpélda sem állítható elő. A klauzula ezért NEM fedett (KUKA-033).
+        gap: 'A kanonikus alak és a profil-kötés mérve van, de a PROFILVÁLTÁS hatása a korábbi tárolt '
+          + 'értékre nincs: a magban egyetlen mennyiség-profil él (`qty-1`), verzióváltás nem történt, '
+          + 'ezért erre a mondatra ma nincs bizonyíték.',
+      }),
+      Object.freeze({
+        id: 'K10-TYP-d',
+        covers: Object.freeze(['K10']),
+        source: 'R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10"',
+        text: 'A kapcsolódó parancs, nyugta és főkönyvi hatás a megnevezett tranzakciós határon '
+          + 'atomi; részleges sikert és ismételt hatást a korábbi verziójú vagy más profilú bemenet '
+          + 'sem hozhat létre.',
+        // MÉRVE: a parancs+nyugta+mozgás EGYÜTT íródik, az ismétlés nem könyvel kétszer, és az
+        // összeg-korlát MINDHÁRMAT visszagörgeti (KSZ-01 három állítása). NINCS MÉRVE: a „korábbi
+        // verziójú vagy MÁS PROFILÚ bemenet" ága — egyetlen élő profil mellett nincs ellenpélda.
+        gap: 'Az atomiság és az ismétlés-védelem mérve van (KSZ-01), de a „korábbi verziójú vagy más '
+          + 'PROFILÚ bemenet" ága nincs: egyetlen élő séma- és mennyiség-profil mellett ellenpélda '
+          + 'nem állítható elő, tehát a mondat erre a felére nincs bizonyíték.',
+      }),
+      Object.freeze({
+        id: 'K10-TYP-e',
+        covers: Object.freeze(['K10']),
+        source: 'R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10"',
+        text: 'A hatály és a rögzítés/tudomás ideje külön fogalom; a két időtengely nézetei nem '
+          + 'cserélhetők fel. A későbbi megfigyelési idő külön hozzáadható fogalom, nem a kettő '
+          + 'egyikének átnevezése.',
+        // MARADÉK: a MEGFIGYELÉSI idő a magban NINCS — ezt a K0/D1 mérés mondta ki (R20), és az R35
+        // §3 döntése is elismeri. A klauzula első fele mérve van, a második NYITOTT.
+        // MÉRVE: a két idő-tengely nézetei a SAJÁT deklarált tengelyükön szűrnek
+        // (`A-KSZ-two-time-views-filter-on-their-declared-axes`), és a nem létező naptári pillanat
+        // nevezett elutasítás. NINCS MÉRVE: a MEGFIGYELÉSI idő — a magban ilyen fogalom nincs.
+        gap: 'A két idő-tengely elválasztása mérve van (KSZ-01 · BEM-01), de a MEGFIGYELÉSI idő '
+          + 'fogalma nincs a magban (K0/D1 mérés: a tárolt sor `recorded_at` és `effective_at` '
+          + 'tengelyt hordoz, a MÉRÉS ideje sehol) — ez a QNT-munka előfeltétele, nem e kör tárgya.',
+      }),
+    ]),
+  }),
+]);
+
 export const ORG_BASIS_NORMS = Object.freeze([
   Object.freeze({
     id: 'ORG-N1',
@@ -462,14 +621,17 @@ export const ORG_BASIS_NORMS = Object.freeze([
         covers: Object.freeze(['K04', 'K15']),
         text: 'A célzott tiltás (REV-N5) ELSŐBBSÉGET élvez: a megmaradó vagylagos engedő utat is '
           + 'kizárhatja.',
-        gap: 'A REV-N5a alany-szintű tiltás-fogalma és az ORG-N3a vagylagos út egyszerre '
-          + 'előfeltétel; egyik sincs meg, tehát az elsőbbségi szabálynak ma nincs alanya.',
+        // HELYESBÍTVE (R35/OB-7, a külső fél lelete · R36). A régi szöveg SZINTÉN két hiányt
+        // állított, holott a REV-N5a alany-szintű tiltás-fogalma MEGVAN (fedett, próbával).
+        gap: 'EGYETLEN előfeltétel hiányzik: az ORG-N3a VAGYLAGOS jogalap-út — a magban ma egyetlen '
+          + 'út van (tagság), tehát nincs mit kizárni. A célzott tiltás alany-szintű fogalma '
+          + 'MEGVAN (REV-N5a, fedett); az elsőbbségi szabálynak a MÁSODIK út hiányzik, nem a tiltás.',
       }),
     ]),
   }),
 ]);
 
-export const ALL_NORMS = Object.freeze([...REVOCATION_NORMS, ...ORG_BASIS_NORMS]);
+export const ALL_NORMS = Object.freeze([...REVOCATION_NORMS, ...MODULE_CONTRACT_NORMS, ...ORG_BASIS_NORMS]);
 
 // ═══ NYITOTT BLOKKOLÓK — a lezárási lista (R51 §5.3) ═══════════════════════════════════════════
 //
@@ -540,33 +702,6 @@ export const OPEN_BLOCKERS = Object.freeze([
       + 'ELBÍRÁLÁS a független félé, és CSAK az írhat `content_review` rekordot — ezért a leképezés '
       + 'minden klauzuláján az a mező `null`.',
   }),
-  Object.freeze({
-    id: 'OB-8', title: 'K05 — a KIADÁSI OSZTÁLYOZÓNAK nincs klauzulája',
-    why: 'A DSC-01 (a kiadott eredmény adatköre a TÍPUS deklarációjából, mélységben, a vegyes '
-      + 'eredmény egészben megtagadva) MEGÉPÜLT és négy állítással mérve van — de a mai '
-      + 'normaregiszterben EGYETLEN klauzula sem mondja ki ezt a tényt. Öt klauzula érinti a K05-öt '
-      + '(REV-N3b/c/d/e · ORG-N1b); az ORG-N1b a FELHATALMAZÁS korlátjáról szól, nem a KIADOTT '
-      + 'tartalom besorolásáról — a négy állítás ezért ült rossz klauzulán (a külső fél R10-F05 '
-      + 'lelete). Klauzulát ide KITALÁLNI nem szabad: a normaregiszter TÁRGYALT, közös alap, nem a '
-      + 'dolgozó sáv egyoldalú bővítménye. Az állítások addig MODUL-SZERZŐDÉSként állnak (DSC-01), '
-      + 'és nem állítanak valótlant egy normáról (KUKA-124/2 · KUKA-087).',
-    closes_when: 'A tárgyalás kimond egy K05-höz kötött, atomi klauzulát a kiadási osztályozóról '
-      + '(mit jelent a „deklarált adatkör", mi a vegyes eredmény sorsa, és mi a be nem sorolt mező '
-      + 'válasza), és a négy meglévő állítás ARRA kerül vissza — ugyanazokkal a próbákkal és a már '
-      + 'meglévő falszifikáló mutációkkal.',
-  }),
-  Object.freeze({
-    id: 'OB-9', title: 'K10 — a TÍPUS, NORMALIZÁLÁS ÉS SZÁMÍTÁSI PROFIL klauzulája',
-    why: 'Az MCS-2 négy modul-szerződése (KAT-01 azonosság · KSZ-01 főkönyv · BEM-01 bemeneti séma '
-      + '· MNY-01 mennyiség, mellettük az IDO-01 idő) a K10 szabályt tölti be, és MÉRVE van: '
-      + 'próbákkal és falszifikáló mutációkkal (M138–M148). A K10 alatt viszont a mai regiszterben '
-      + 'EGYETLEN atomi klauzula sem áll — ezt már az R8-F01 nevezett hiányként kimondta, és a '
-      + 'helyzet ITT SEM változott. A bizonyíték tehát létezik, de nincs mihez KÖTNI.',
-    closes_when: 'A tárgyalás K10 alatt atomi klauzulá(ka)t mond ki (azonosság · kanonikus alak · '
-      + 'profil-kötés · idő-tengelyek), és az MCS-2 modul-állításai `discharges` kötést kapnak — a '
-      + 'szerződés-azonosítóval ÉS a szerződés verziójával együtt, hogy a kötés a KONKRÉT alakhoz '
-      + 'szóljon, ne a névhez (R55/F04 elve).',
-  }),
 ]);
 
 // ═══ LEZÁRT BLOKKOLÓK — a lezárás is TÉNY, nem eltűnés ═════════════════════════════════════════
@@ -577,6 +712,37 @@ export const OPEN_BLOCKERS = Object.freeze([
 // JELLEL együtt, amire a lezárás áll.
 export const CLOSED_BLOCKERS = Object.freeze([
   Object.freeze({
+    id: 'OB-8', title: 'K05 — a KIADÁSI OSZTÁLYOZÓNAK nincs klauzulája',
+    closed_in: 'CMD-VS-300-002-002 R35 (a szöveg) → R36 (a bekötés)',
+    closed_by: 'A tárgyaló fél (chatgpt-v3) az R35 §„K05 és K10" szakaszban KIMONDTA a négy atomi '
+      + 'klauzulát (K05-DSC-a…d), és a DSC-01 négy állítása A HELYÉRE került: `discharges` kötéssel, '
+      + 'a szerződés AZONOSÍTÓJÁVAL és VERZIÓJÁVAL együtt. Új tesztet a klauzulák SZÁMÁHOZ nem '
+      + 'gyártottunk (az R35 kifejezetten tiltotta): a meglévő, MÁR FUTÓ bizonyítékot vetettük össze '
+      + 'tartalmilag, és ahol egy már mért viselkedésnek nem volt SAJÁT neve, ott az állítás kapott '
+      + 'nevet (`A-ORG-N1b-mixed-result-is-refused-as-a-whole`) — mérés nem változott.',
+    guard: 'npm run verify:v3ref — a norma-lánc a négy klauzulát FEDETTNEK mutatja, és a '
+      + '`P-NORM-evidence` kapu 28 támadása közül egyik sem enged át hamis kötést.',
+    residual: 'A K05-DSC-c MEZŐVETÍTÉS-ága NYITOTT ÚT, nem adósság: a klauzula maga mondja ki, hogy '
+      + '„amíg nincs külön bizonyított mezővetítés", a vegyes eredmény egészben megtagadandó — a mai '
+      + 'rendszer pontosan ezt teszi. Ha valaha mezővetítés épül, annak SAJÁT bizonyítéka kell.',
+  }),
+  Object.freeze({
+    id: 'OB-9', title: 'K10 — a TÍPUS, NORMALIZÁLÁS ÉS SZÁMÍTÁSI PROFIL klauzulája',
+    closed_in: 'CMD-VS-300-002-002 R35 (a szöveg) → R36 (a bekötés)',
+    closed_by: 'Az R35 kimondta a K10 öt atomi klauzuláját (K10-TYP-a…e). A KAT-01 és a BEM-01 '
+      + 'állításai `discharges` kötést kaptak a szerződés verziójával együtt (K10-TYP-a · K10-TYP-b).',
+    guard: 'npm run verify:v3ref — a K10-TYP-a és a K10-TYP-b fedett, a maradék három NEVEZETT '
+      + 'hiánnyal nyitott; a kapu nem enged „félig fedett" állapotot.',
+    // A LEZÁRÁS HATÓKÖRE KIMONDVA. Az OB-9 arról szólt, hogy a K10 alatt NINCS mihez kötni a
+    // bizonyítékot — ez megszűnt. Az viszont NEM szűnt meg, hogy a klauzulák egy része MÉG NINCS
+    // teljesen bizonyítva; a három nyitott sor ezért a saját nevén áll, nem a blokkoló alatt
+    // (KUKA-093: a kihagyás nem zöld, de a nyitott sor sem tűnhet el a lezárásban).
+    residual: 'HÁROM klauzula NYITOTT, nevezett hiánnyal: K10-TYP-c (a PROFILVÁLTÁS hatása a korábbi '
+      + 'tárolt értékre nincs mérve — egyetlen élő profil) · K10-TYP-d (a „korábbi verziójú vagy más '
+      + 'PROFILÚ bemenet" ága) · K10-TYP-e (a MEGFIGYELÉSI idő fogalma nincs a magban — a QNT-munka '
+      + 'előfeltétele). Ezek NEM a blokkoló maradékai, hanem a klauzulák saját, kimondott hiányai.',
+  }),
+  Object.freeze({
     id: 'OB-10', title: 'A SÖPRÉS A SZÖVEGET OLVASSA, NEM A VERDIKTET — a piros lánc kihagyásnak látszik',
     closed_in: 'R16 (chatgpt-v3 §2 kérésére)',
     closed_by: 'SWV-01 — a söprés a gyermek GÉPI verdiktjéből dönt (`tools/lib/vs_sweep_verdict.mjs`), '
@@ -585,6 +751,13 @@ export const CLOSED_BLOCKERS = Object.freeze([
       + 'beágyazott ENV-KIHAGYÁS ⇒ PIROS) · SWV03 POZITÍV ELLENPÁR szintetikus gyermekkel · SWV04 a '
       + 'hiány és az ellentmondás külön válasz · SWV05 VALÓDI alfolyamat-próba négy gyermekkel · '
       + 'SWV06 a söprés a közös feloldót hívja és a részszöveges alak nem jött vissza',
+    // MARADÉK (BLK-01, R36). A lezárás hatóköre a V3 söprése; a V2-é NEM zárult le ezzel, és ezt a
+    // saját blokkoló-alak őröm hozta elő: a bejegyzésnek volt `stated_limit`-je (mit nem mér a jel),
+    // de nem volt kimondott MARADÉKA (mi maradt nyitva a lezárás UTÁN) — két külön kérdés (KUKA-002).
+    residual: 'A V2 söprése ugyanezt a részszöveges osztályozót viseli, tehát ott a szerződés NEM '
+      + 'áll. A maradék átvitele NEVESÍTETT függő: előbb a négy V2-verifier (challenge-inventory · '
+      + 'doc-order · mcp-bridge · repo-root) kapja meg a gépi kihagyás-deklarációt, és csak utána '
+      + 'vihető át a verdikt-olvasó söprés — V2-módosításra ebben a körben nincs engedély.',
     both_directions: 'IGEN — a piros irány az SWV02/SWV05 „piros" gyermekén, a kihagyás-irány az '
       + 'SWV03/SWV05 „kihagy" gyermekén mérve; mindkettő a RÉGI alakon bizonyítottan ellentétes.',
     stated_limit: 'Nem méri, hogy a gyermek IGAZAT mond-e a kihagyásról — a deklaráció a gyermek '
@@ -596,6 +769,41 @@ export const CLOSED_BLOCKERS = Object.freeze([
       + 'lenne piros. Ez NEM jelen kör hatóköre, és V2-módosításra nincs engedély.',
   }),
 ]);
+
+// BLK-01 — A BLOKKOLÓ-BEJEGYZÉS ALAKJA MÉRVE, NEM FELTÉTELEZVE (R36 · KUKA-016 · KUKA-094).
+// SAJÁT HIBÁBÓL SZÜLETETT: az R36-ban a két ÚJ lezárt blokkolót `signal` nevű mezővel írtam meg,
+// miközben a testvérei `guard`-ot használnak és a KIÍRÓ is azt olvassa. A kitalált mezőnevet SEMMI
+// nem mérte: a próbák 54/54 zölden lefutottak, és a futtató a TELJES mérés UTÁN, a jelentés
+// kiírásakor szállt el `Cannot read properties of undefined` hibával — tehát a hiba a mérés
+// eredményéről semmit nem mondott, csak a jelentést vitte el. Ezért a mezőnevet mostantól NEM a
+// kiíró feltételezi: ez a feloldó mondja meg, mi a kötelező alak, és a KIÍRÓ meg a PRÓBA UGYANEZT
+// hívja (KUKA-009 — a pin ne a szöveget olvassa, hanem a döntést hívja).
+const BLOCKER_REQUIRED = Object.freeze({
+  open: Object.freeze(['id', 'title']),
+  closed: Object.freeze(['id', 'title', 'closed_in', 'closed_by', 'guard', 'residual']),
+});
+
+export function blockerShapeProblems(list, kind) {
+  const required = BLOCKER_REQUIRED[kind];
+  if (!required) return [`ismeretlen blokkoló-fajta: ${String(kind)}`];
+  if (!Array.isArray(list)) return [`a ${kind} blokkoló-lista nem tömb`];
+  const problems = [];
+  const seen = new Set();
+  for (const b of list) {
+    if (!b || typeof b !== 'object') { problems.push(`a ${kind} listában nem objektum áll`); continue; }
+    for (const f of required) {
+      const v = b[f];
+      if (typeof v !== 'string' || v.trim() === '') {
+        problems.push(`${b.id || '(névtelen)'} [${kind}]: hiányzó vagy üres mező — ${f}`);
+      }
+    }
+    if (typeof b.id === 'string') {
+      if (seen.has(b.id)) problems.push(`${b.id} [${kind}]: ismétlődő azonosító`);
+      seen.add(b.id);
+    }
+  }
+  return problems;
+}
 
 // ═══ AZ ÖNELLENŐRZÉS — KAPU, NEM FELIRAT ═══════════════════════════════════════════════════════
 
@@ -1823,3 +2031,63 @@ export function normsSummary() {
     open_blockers: Object.freeze(OPEN_BLOCKERS.map((b) => b.id)),
   });
 }
+
+// ═══ A VALÓDI HASZNÁLAT KAPUI — KÜLÖN A REFERENCIA ZÁRÓLISTÁJÁTÓL (USE-01, R35 §4) ═════════════
+//
+// MIÉRT KÜLÖN. Az R35 §4 kimondta: „A referencia-zárólista és a későbbi valódi használat kapui
+// legyenek külön: az elhalasztott követelmény nem eltűnt követelmény." A kettő összemosása a
+// legdrágább félreértés, amit ez a projekt termelhet: a referencia ZÖLD állapota azt jelenti, hogy a
+// megnevezett határokon belül a mag azt teszi, amit állít — és SEMMI TÖBBET. Nem engedély éles
+// adatra, nem engedély több felhasználóra, és nem engedély olyan folyamatra, aminek a fogalma még
+// nincs megépítve (KUKA-093: a nem mért nem zöld · KUKA-033: a méretlen állítás nem bizonyíték).
+//
+// EZ A LISTA EZÉRT NEM BLOKKOLÓ-LISTA. A blokkolók a REFERENCIA zárásáról szólnak; ezek a kapuk a
+// VALÓDI HASZNÁLATRÓL. Egy blokkoló lezárása SOHA nem nyit ki egy itteni kaput.
+export const USE_GATES = Object.freeze([
+  Object.freeze({
+    id: 'USE-G1',
+    title: 'Több-írós vagy valódi üzleti használat',
+    closed_until: 'OB-1 — valódi, több-írós véglegesítési határ bizonyítva, nem egyírós SQLite-on',
+    what_the_green_reference_does_not_authorize:
+      'A referencia egyetlen folyamaton, egyetlen írón, szintetikus adaton mérve zöld. Ebből NEM '
+      + 'következik, hogy két párhuzamos író alatt a véglegesítési határ tart. Az R35 §4 szó szerint: '
+      + '„csak a megnevezett egyírós referencia határain belüli technikai továbblépés engedhető."',
+    source: 'R35 §„Meghozott döntések" 4.',
+  }),
+  Object.freeze({
+    id: 'USE-G2',
+    title: 'Valódi (nem szintetikus) migrációs korpusz a kiadási osztályozón',
+    closed_until: 'OB-4 — az ELSŐ valódi import, valódi adaton mérve',
+    what_the_green_reference_does_not_authorize:
+      'A szintetikus pozitív/negatív korpusz a referencia-osztályozó TECHNIKAI kapujára elfogadható, '
+      + 'de NEM teljesíti az OB-4 „valódi, nem üres migrációs korpusz" feltételét — ez KÉT KÜLÖN '
+      + 'vállalás (R35 §„Meghozott döntések" 2.). A migrációs kapu az első valódi importig zárva.',
+    source: 'R35 §„Meghozott döntések" 2.',
+  }),
+  Object.freeze({
+    id: 'USE-G3',
+    title: 'Bizonytalan mennyiséggel dolgozó valódi folyamat (QNT)',
+    closed_until: 'a QNT megvalósítás és ellenőrzés — a MEGFIGYELÉS mint hatásmentes, nem '
+      + 'készletmozgató művelet, saját ismétlés-kulccsal',
+    what_the_green_reference_does_not_authorize:
+      'A mennyiségi ÁLLÍTÁS és a KÉSZLETMOZGÁS elválik (R35 §„Meghozott döntések" 3.): egy 100-ról '
+      + '90-re pontosított megfigyelés önmagában NEM új 90-es mozgás és NEM 190-es készlet. A mai '
+      + 'magban a `stock.receipt` az egyetlen mennyiségi művelet, és az MOZGÁST ír — a megfigyelés '
+      + 'fogalma hiányzik (K0/C2 · E1 · D1 mérés). A „magon kívül" megfogalmazás NEM törli az R19-ben '
+      + 'magra kijelölt alapkövetelményeket: a core-határ szerződésében a megfigyelésnek és '
+      + 'hatásmentes rögzítésének EXPLICIT helye van (K10-TYP-e nyitott sora), a jelenlegi receipt '
+      + 'művelet NEM helyettesíti. Az ilyen folyamat valódi használatának kapuja ZÁRT.',
+    source: 'R35 §„Meghozott döntések" 3.',
+  }),
+  Object.freeze({
+    id: 'USE-G4',
+    title: 'A „core kész" állítás hatóköre',
+    closed_until: 'OB-7 — a folyamat által érintett klauzula-sorok TARTALMI elbírálása a külső '
+      + 'ellenőrző fél részéről (ma 0/88 soron van érvényes emberi jóváhagyás)',
+    what_the_green_reference_does_not_authorize:
+      'A gépi lánc azt méri, hogy a kód teljesíti-e az ÁLLÍTÁST — nem azt, hogy az állítás a NORMÁT '
+      + 'fedi-e. A tartalmi elbírálás a tárgyaló félé, és Claude által írt elfogadás NEM helyettesíti '
+      + '(R35 §„OB-7" szó szerint).',
+    source: 'R35 §„OB-7 — saját tartalmi ellenőrzés állapota"',
+  }),
+]);

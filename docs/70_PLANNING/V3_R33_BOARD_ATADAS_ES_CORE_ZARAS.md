@@ -31,8 +31,13 @@ történt.** A kör két döntést hagy a naplóban: **D-VS-3039** (a darabszám
 - `codex/v3-progress-dashboard` (`4ae6a91`) **őse** a PR160 fejének ⇒ a PR160 **előrecsúsztatható**.
 - `main` (`e336d99`) szintén **őse** a PR160 fejének ⇒ a PR160 beolvasztása után a **PR155 is
   előrecsúsztatható** a `main`-be.
-- **Integrációs sorrend tehát kötött:** **1) PR160 → `codex`**, majd **2) PR155 → `main`**.
-  Fordítva nem megy: a PR160 bázisa maga a `codex`. **Új párhuzamos PR nem készült.**
+- **Integrációs sorrend — AJÁNLOTT, nem az egyetlen lehetséges (HELYESBÍTVE: R35 §5).**
+  Az ajánlott út: **1) PR160 → `codex`**, majd **2) PR155 → `main`**, mert a PR160 bázisa maga a
+  `codex`, tehát ez a sorrend az, ami előrecsúsztatással, ütközés nélkül megy végig. **Az eredeti
+  „kötött / fordítva nem megy" alakom TÚL ERŐS volt:** Git-szinten a PR155 önmagában is
+  beolvasztható a `main`-be (a `codex` a `main` leszármazottja), csak akkor a PR160 bázisát utána
+  újra kell mérni. A mondat tehát AJÁNLÁS a kockázat alapján, nem Git-kényszer. **Új párhuzamos PR
+  nem készült.**
 
 ## A2. Miért nagyobb a PR160 diffje, mint a fül munkája — szétválasztva
 
@@ -65,10 +70,24 @@ nem éles** — ezt kimondom, mert a feltolt ág nem éles (KUKA-011).
 | 4 | egy kör-lap feltöltése, majd a fül frissítése | az új sor **megjelenik** a fülön (30 mp-es frissítés) | a dokumentum→felület lánc nem él élesben |
 | 5 | egy mérés nélküli funkció sora | a fogyasztás-cellák **„nincs adat"**, nem `0` | a hiány nullává vált — a fül épp erre épült |
 
-**Visszaállítás:** a board-ban **nincs séma-változás és nincs migráció**, ezért a visszaút tisztán
-kód: a `main`-en a beolvasztó commit visszagörgetése (`git revert -m 1 <merge>`) és újrakiadás. Adat
-nem vész el, mert a fül **csak olvas** (GET, a board olvasó jogosultságán) — a dokumentum-tár
-érintetlen.
+**Visszaállítás (HELYESBÍTVE — R35 §5, a külső ellenőrző fél lelete · D-VS-3043).** A board-ban
+**nincs séma-változás és nincs migráció**, ezért a visszaút tisztán kód. **A parancs viszont a
+kiadás ALAKJÁTÓL függ, és ezt meg kell NÉZNI, nem emlékezetből tudni:**
+
+| a beolvasztás alakja | hogyan állapítom meg | a visszaút |
+|---|---|---|
+| **valódi merge-commit** | `git cat-file -p <sha>` → KÉT `parent` sor | `git revert -m 1 <merge-sha>` — a `-m 1` az első szülőt jelöli meg megtartandó vonalként |
+| **squash** (egy commit a `main`-en) | `git cat-file -p <sha>` → EGY `parent` sor | `git revert <sha>` — a `-m` itt HIBÁRA fut |
+| **fast-forward** (a `main` előreugrott) | `git log --merges -1` nem a beolvasztást adja | nincs mit „revertálni" egyben: vagy a commitok fordított sorrendű revertje, vagy az ELŐZŐ kiadás újratelepítése |
+
+**Az eredeti alakom (`git revert -m 1` általános receptként) HIBÁS volt**: az `-m 1` csak valódi
+merge-commitra helyes, máshol a parancs elhasal — tehát pont a baj pillanatában.
+
+**Amit itt NEM állítunk (az eredeti lap túl erős mondata visszavonva).** Azt írtam, hogy „adat nem
+vész el". Ez **mérés nélküli állítás** volt: a kiadás adat-hatását ebben a körben nem mértük. Amit
+MÉRTÜNK és amit állítani lehet: a fül olvasó úton dolgozik (GET), és a változás nem hoz sémát vagy
+migrációt. Hogy a kiadás óta KELETKEZETT adat mit visel el egy visszagörgetésnél, az **külön,
+mérendő kérdés** — amíg nincs mérve, nem mondjuk ki (KUKA-033).
 
 ## A4. Műszakilag kész-e a merge-döntésre?
 
@@ -140,7 +159,7 @@ egy piros halmazt kollektíven „elavultnak" minősíteni ugyanaz a hiba, mint 
 
 **KONKRÉT ORVOSLÁS, ha az MNY-01 marad (ajánlásom):** a három programban a bukó eseteknél
 `qty:1` → `qty:'1'` (`declared` és `resolve` eredménye, a `lines[]` elemeiben is). Érintett
-előfordulás: `r77` 2 · `r79core` 8 · `r81core` 6. **Alternatíva:** az MNY-01 szűkítése — akkor ki kell
+előfordulás (ÚJRAMÉRVE, R36): `r77` **2** · `r79core` **8** · `r81core` **8** — az R33-ban itt `r81core` 6 állt, ez **elírás volt**; a mért érték a három eredeti mag-program `qty:` szám-literáljainak száma (`grep -o "qty: *[0-9]"`). **Alternatíva:** az MNY-01 szűkítése — akkor ki kell
 mondani, MELY eredmény-mezőkre nem vonatkozik. **Ajánlásom az első**, mert a 0,1 pontatlan
 ábrázolhatósága a régi verzióra ugyanúgy igaz, tehát a megengedő hagyás ismerten hibás viselkedést
 konzerválna.

@@ -37,17 +37,26 @@ import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { activeCoreProgram, coreVariant } from './activeCoreProgram.mjs';
+// UGYANAZ A DÖNTÉS, UGYANABBÓL A FELOLDÓBÓL (UFK-01/02): a burkolónak is meg kell különböztetnie
+// az IDŐ és a TARTALOM miatti bukást — különben itt is elfedné a darabolás a valódi hibát (KUKA-009).
+import { unitFailureKind, freshUnitWitness } from './source/v3ref/unitFailureKind.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PIN = JSON.parse(readFileSync(join(HERE, 'source-manifest.json'), 'utf8')).commit;
-const UNITS = 4;
+// A DARABSZÁM ITT SEM KÉZZEL ÁLL (R35 §2 · KUKA-177). A korábbi `const UNITS = 4` a battéria 149
+// mutációra növekedésével már NEM fért a 12 000 ms-os egység-költségvetésbe, ezért az ÖSSZEFŰZÉS-fél
+// `merge/KORNYEZET-*` néven bukott — nem tartalmi okból, hanem mert a szám elavult. A darabszám
+// mostantól SZÁRMAZIK: ha egy egység nem fér bele, finomabbra osztunk; a költségvetés nem tágul.
+const UNITS_START = 4;
+const UNITS_MAX_ATTEMPTS = 4;
 
 const runNode = (file, opts = {}) => spawnSync(process.execPath, [file], {
   cwd: HERE, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, ...opts,
 });
 
 // ── (1) A MAG-PRÓBA, VÁLTOZATLANUL ──────────────────────────────────────────────────────────────
-const core = runNode(join(HERE, 'r81_chatgpt-v3.core.mjs'));
+const core = runNode(join(HERE, activeCoreProgram('r81_chatgpt-v3')));
 process.stdout.write(String(core.stdout || ''));
 if (core.stderr) process.stderr.write(core.stderr);
 
@@ -58,18 +67,34 @@ if (core.stderr) process.stderr.write(core.stderr);
 // fixtúrából (KUKA-033: a levezetett szabály nem bizonyíték, amíg a mérése le nem futott).
 const MUTATE = join(HERE, 'source', 'v3ref', 'mutate.mjs');
 const GENUINE = join(HERE, 'evidence', 'genuine-units');
+let UNITS = UNITS_START;
 const unitProblems = [];
 if (existsSync(MUTATE)) {
   rmSync(join(HERE, 'source', 'v3ref', 'units'), { recursive: true, force: true });
   rmSync(GENUINE, { recursive: true, force: true });
   mkdirSync(GENUINE, { recursive: true });
-  for (let k = 1; k <= UNITS; k += 1) {
-    const r = spawnSync(process.execPath, [MUTATE, `--unit=${k}/${UNITS}`], {
-      cwd: join(HERE, 'source'), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 300_000,
-    });
-    if (r.status !== 0) unitProblems.push(`a ${k}/${UNITS} egység NEM nullával zárt (${r.status})`);
+  const unitsDir = join(HERE, 'source', 'v3ref', 'units');
+  for (let attempt = 1; ; attempt += 1) {
+    rmSync(unitsDir, { recursive: true, force: true });
+    let tooSlow = null;
+    for (let k = 1; k <= UNITS; k += 1) {
+      const startedAt = Date.now();
+      const r = spawnSync(process.execPath, [MUTATE, `--unit=${k}/${UNITS}`], {
+        cwd: join(HERE, 'source'), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 300_000,
+      });
+      if (r.status === 0) continue;
+      let raw = null;
+      try { raw = JSON.parse(readFileSync(join(unitsDir, `unit-${k}-of-${UNITS}.json`), 'utf8')); } catch { /* nincs tanú */ }
+      const w = freshUnitWitness(raw, { k, n: UNITS, startedAt });
+      const kind = w.ok ? unitFailureKind(w.unit) : 'unknown';
+      if (kind === 'too_slow' && attempt < UNITS_MAX_ATTEMPTS) { tooSlow = k; break; }
+      unitProblems.push(`a ${k}/${UNITS} egység NEM nullával zárt (${r.status})`
+        + ` — a bukás oka: ${kind}${w.ok ? '' : ` (a tanú nem hitelesíthető: ${w.why})`}`);
+    }
+    if (!tooSlow) break;
+    UNITS *= 2;                       // az IDŐ miatti bukáson a darabolás segít — a költségvetés nem tágul
   }
-  const src = join(HERE, 'source', 'v3ref', 'units');
+  const src = unitsDir;
   const files = existsSync(src) ? readdirSync(src).filter((f) => f.endsWith('.json')) : [];
   for (const f of files) cpSync(join(src, f), join(GENUINE, f));
   if (files.length !== UNITS) unitProblems.push(`${files.length} egység-fájl született a várt ${UNITS} helyett`);
@@ -98,12 +123,12 @@ const cases = [...prefixed('core', coreOut && coreOut.cases), ...prefixed('merge
 for (const p of unitProblems) cases.push({ id: `merge/KORNYEZET-${cases.length}`, pass: false, result: { error: p } });
 
 const out = {
-  program: 'r81_chatgpt-v3.core.mjs + r81_merge_chatgpt-v3.core.mjs',
+  program: `${activeCoreProgram('r81_chatgpt-v3')} + r81_merge_chatgpt-v3.core.mjs`, variant: coreVariant().id,
   source_commit: PIN,
   node: process.version,
   at: new Date().toISOString(),
   verbatim: true,
-  genuine_units: { requested: UNITS, problems: unitProblems },
+  genuine_units: { requested: UNITS, started_from: UNITS_START, problems: unitProblems },
   core: coreOut,
   merge: mergeOut,
   cases,

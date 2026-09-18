@@ -61,3 +61,31 @@ export function unitArgs(n = batteryUnits()) {
 export function unitsScriptLine(n = DECLARED_UNITS) {
   return [...unitArgs(n), '--merge'].map((a) => `node v3ref/mutate.mjs ${a}`).join(' && ');
 }
+
+/**
+ * A SZÁRMAZTATOTT ALAK (R35 §2 · KUKA-177). A `--units-auto` a deklarált darabszámról INDUL, és ha
+ * egy egység nem fér a költségvetésébe, finomabbra oszt — a költségvetés nem tágul. Ez ma a
+ * KANONIKUS alak, mert a fix felsorolás a battéria növekedésével elavul (és pont a növekedéskor
+ * bukik, ahol a legkevésbé kellene).
+ */
+export function unitsScriptLineAuto() {
+  return 'node v3ref/mutate.mjs --units-auto';
+}
+
+/**
+ * A KÉT MEGENGEDETT ALAK — MEGENGEDŐ SZABÁLY, NEM FELSOROLÁS (KUKA-057). A kérdés nem az, hogy a
+ * sor melyik szöveggel EGYEZIK, hanem hogy a darabolása EBBŐL az otthonból származik-e: vagy a
+ * származtatott `--units-auto`, vagy a generátor által kiírt teljes felsorolás. Kézzel gépelt
+ * nevező egyik alakban sem élhet — azt a `verify:kuka` KUKA-177 tiltó-mintája is fogja.
+ */
+export function unitsScriptLineIsHomed(line) {
+  const t = String(line || '').trim();
+  if (t === unitsScriptLineAuto()) return { ok: true, form: 'derived' };
+  if (t === unitsScriptLine(DECLARED_UNITS)) return { ok: true, form: 'enumerated' };
+  return {
+    ok: false,
+    form: null,
+    why: `a sor egyik OTTHONOS alakkal sem egyezik — vagy \`${unitsScriptLineAuto()}\` (származtatott), `
+      + `vagy a ${DECLARED_UNITS} egységre kiírt teljes felsorolás`,
+  };
+}
