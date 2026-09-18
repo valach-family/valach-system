@@ -240,7 +240,7 @@ azt a mérést nem engedtük a jelentésbe (KUKA-177).
 
 ## 7. Végső revíziók
 
-- **V3 (`valach-family/valach-system`), ág `claude/cmd-vs-300-002-002-r23-9gxbee`:** **`6a83f35`** — ez a lap feje. A MÉRÉSEK a **`c891961`** revízión futottak; a kettő között **mérve** egyetlen fájl változott, és az EZ A LAP (`git diff --name-only c891961..6a83f35` → `docs/70_PLANNING/V3_R36_ZARO_CSOMAG.md`), tehát mért kód nem mozdult
+- **V3 (`valach-family/valach-system`), ág `claude/cmd-vs-300-002-002-r23-9gxbee`:** **`c891961`** — EZEN a revízión futott minden mérés, amit ez a lap állít. Az ág feje ennél újabb, mert maga a lap még kapott javításokat; **mért kód a lap commitjaiban nem változik** — ezt bárki visszaméri: `git diff --name-only c891961..HEAD` csak `docs/…` alatti fájlokat ad
 - **V2 (`valach-family/vs`), ág `claude/cmd-vs-300-002-002-r23-9gxbee`:** `98a4270` — **ebben a
   körben nem változott** (a board-munka az R31-gyel lezárult; a visszaállítási terv javítása a V3
   lapján áll).
