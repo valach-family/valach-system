@@ -368,7 +368,11 @@ const esc = (t) => String(t == null ? '—' : t).replace(/\|/g, '\\|').replace(/
 const md = [];
 md.push('# A norma-lánc végső forrásállapota — önállóan visszaellenőrizhető csomag');
 md.push('');
-md.push('> **Sáv:** Claude-v3 · **Kör:** R37 · **Állapot:** lezárt');
+// A FEJLÉCBEN NINCS KÖR-SZÁM, ÉS EZ SZABÁLY, NEM FELEDÉKENYSÉG. Ez a lap minden körben ÚJRA
+// RAJZOLÓDIK a friss mérésből, tehát ÉLŐ lap — a doku-rend szerint az élő lap köröket ível át,
+// ezért kör-számot nem visel (KUKA-050: a szöveg a valóságot követi; a beégetett `R37` a
+// harmadik újrarajzolásnál már hazudott volna).
+md.push('> **Sáv:** Claude-v3 · **Állapot:** élő');
 md.push('');
 md.push('**EZ A LAP SZÁRMAZTATOTT.** Egyetlen sorát sem gépeltük: a `npm run docs:norm-chain` (NCP-01)');
 md.push('rajzolja — és a minősítéseket **a MÉRT lánc-vetületből** veszi, nem képezi. A gépi alak a');

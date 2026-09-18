@@ -838,11 +838,65 @@ if (MERGE_ONLY) {
   // mérnénk vissza, a `partially_covered` néma kiskaput nyitna ugyanazon a csatornán (KUKA-084: a
   // javítás a hibát KÖLTÖZTETNÉ).
   const claimsFalsification = new Set(['covered', 'partially_covered']);
-  const chain = [...rows.values()].map((c) => (claimsFalsification.has(c.result) && !backedKeys.has(`${c.clause_id}|${c.assertion_id}|${c.probe_id}`)
+  const unionChain = [...rows.values()].map((c) => (claimsFalsification.has(c.result) && !backedKeys.has(`${c.clause_id}|${c.assertion_id}|${c.probe_id}`)
     ? { ...c, result: 'not_falsified', why: 'a beadott FEDETT minősítés mögött nincs megfelelő részletes eredmény (MRG-01)' }
     : c));
-  const covered = chain.filter((c) => c.result === 'covered');
   const allResults = admission.details;
+
+  // ── EGY ÍTÉLŐ, A TELJES BIZONYÍTÉKON (R44 — a SAJÁT leletem, a csomag-generátor fogta meg) ─────
+  //
+  // MI VOLT A BAJ. A fenti UNIÓ szeletenként kész sorokat egyesít, és azonos rangnál az ELSŐ
+  // beérkező nyer. A `result` ettől még helyes (a rangsor dönt), a sor INDOKA viszont a SZELET
+  // véletlenje lett: ugyanarra a `not_falsified` sorra az egyik egység azt írta, hogy „egyetlen
+  // mutációs eredmény sem érkezett erre a próbára" (mert az a mutáció MÁSIK szeletben futott), a
+  // teljes bizonyítékon viszont a helyes indok az, hogy „M170: a futás NEM buktatta meg". Két
+  // igazság ugyanarról a tényről (KUKA-080), és a gyengébbik ment ki a gépi végeredménybe.
+  //
+  // MIÉRT ÍGY JAVÍTJUK. A kánon EGY ítélő (R41/F41-01 · KUKA-185): a `checkNorms` a battériáé, a
+  // csomagé és mostantól az összefűzésé is — a TELJES, egyesített bizonyítékon futtatva. Az unió
+  // NEM tűnik el: KERESZT-ELLENŐRZÉS marad, és ha a két út VERDIKTBEN eltér, az NEVEZETT akadály
+  // (az indok-szöveg eltérése viszont épp a szelet-műtermék, amit kijavítunk).
+  const mergedNormInputs = (() => {
+    const withInputs = units.filter((u) => u.norm_inputs);
+    if (!withInputs.length) return null;
+    const run_tokens = {}; const mutated_digests = {};
+    for (const u of withInputs) {
+      Object.assign(run_tokens, u.norm_inputs.expectation?.run_tokens || {});
+      Object.assign(mutated_digests, u.norm_inputs.expectation?.mutated_digests || {});
+    }
+    return {
+      records: withInputs[0].norm_inputs.records,
+      expectation: { base_digest: withInputs[0].base_digest, run_tokens, mutated_digests },
+    };
+  })();
+  let chain = unionChain;
+  if (!mergedNormInputs) {
+    problems.push('a KANONIKUS ítélő bemenete hiányzik az egység-fájlokból (`norm_inputs`) — a lánc '
+      + 'csak az unióból áll, tehát a sorok INDOKA szelet-függő; futtasd újra a battériát');
+  } else {
+    const canon = checkNorms({
+      probes: EXPECTED_PROBES, mutations: MUTATIONS, records: mergedNormInputs.records,
+      mutationResults: allResults, expectation: mergedNormInputs.expectation,
+    });
+    const mine = new Map(canon.chain.map((r) => [chainRowKey(r), r]));
+    const clash = [];
+    for (const c of unionChain) {
+      const k = chainRowKey(c);
+      const m = mine.get(k);
+      if (m && m.result !== c.result) clash.push(`${k}: unió=${c.result} · kanonikus=${m.result}`);
+    }
+    if (clash.length) {
+      problems.push(`az UNIÓ és a KANONIKUS ítélő VERDIKTBEN eltér (${clash.length}): `
+        + `${clash.slice(0, 3).join(' · ')}${clash.length > 3 ? ' …' : ''}`);
+    }
+    // A KIADOTT LÁNC A KANONIKUS — de a hiányzó/idegen sorok kezelése az UNIÓÉ marad, mert azt a
+    // BEADVÁNYON kell mérni (MRG-01 · R83/F02): amit egyetlen egység sem hozott, az `row_missing`.
+    chain = unionChain.map((c) => {
+      const m = mine.get(chainRowKey(c));
+      return (m && c.result === m.result) ? m : c;
+    });
+  }
+  const covered = chain.filter((c) => c.result === 'covered');
   // AZ ÖSSZESÍTŐ A RÉSZLETESBŐL (MRG-01 · R81/F01a). A régi alak a beadott `counts` mezőket adta
   // össze — azokat a beadó gépelte be. Az `stale` az egyetlen, ami fogalmilag nem hordoz részletes
   // eredményt (az elavult horgony verdiktet ad, falszifikációt nem), ezért az marad bejelentett —
@@ -908,7 +962,8 @@ if (MERGE_ONLY) {
   console.log(`  forrás-lenyomat (ma mérve): ${today}`);
   console.log(`  legrosszabb egység falióra: ${worst} ms · külső korlát: ${EXTERNAL_WALL_LIMIT_MS} ms · minden egység belefér: ${allPortable ? 'igen' : 'NEM'}`);
   console.log(`  ${sum('measured')} mutáció · ${sum('caught')} elkapva · ${sum('survived')} túlélte · ${sum('wrong')} rossz próba · ${sum('harness')} mérőhiba · ${sum('stale')} elavult horgony`);
-  console.log(`  norma-lánc: ${covered.length}/${chain.length} klauzula-sor FEDETT (az egységek uniója)`
+  console.log(`  norma-lánc: ${covered.length}/${chain.length} klauzula-sor FEDETT`
+    + ` (${mergedNormInputs ? 'a KANONIKUS ítélő a teljes, egyesített bizonyítékon' : 'CSAK az egységek uniója — a kanonikus bemenet hiányzik'})`
     + ` · elvárt sorok a mai szerződésből: ${expectedRows.length} · hiányzó: ${missingRows.length} · idegen: ${foreignRows.length}`);
   for (const x of problems) console.log(`  ÖSSZEFŰZÉSI AKADÁLY: ${x}`);
   console.log(`RESULT: ${complete
@@ -961,19 +1016,7 @@ if (MERGE_ONLY) {
       // egységben ugyanaz a próba-készlet), az `expectation` pedig a szülői főkönyvek UNIÓJA —
       // mutációnként egy futás-jel és egy mutált lenyomat. Ebből a csomag-generátor újra tudja
       // futtatni a `checkNorms`-ot, és a beadott vetületet ÖSSZE tudja vetni a sajátjával.
-      norm_inputs: (() => {
-        const withInputs = units.filter((u) => u.norm_inputs);
-        if (!withInputs.length) return null;
-        const run_tokens = {}; const mutated_digests = {};
-        for (const u of withInputs) {
-          Object.assign(run_tokens, u.norm_inputs.expectation?.run_tokens || {});
-          Object.assign(mutated_digests, u.norm_inputs.expectation?.mutated_digests || {});
-        }
-        return {
-          records: withInputs[0].norm_inputs.records,
-          expectation: { base_digest: withInputs[0].base_digest, run_tokens, mutated_digests },
-        };
-      })(),
+      norm_inputs: mergedNormInputs,
       mutation_results: allResults,
     }, null, 2)}\n`);
     console.log(`  gépi végeredmény: ${outPath}`);

@@ -8163,6 +8163,114 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'hazugság, amíg nem mondjuk meg, MELYIK hivatkozást kötöttük.',
   }),
   Object.freeze({
+    id: 'KUKA-188',
+    date: '2026-09-18',
+    title: 'A SZELETELT MÉRÉS INDOKA A SZELET VÉLETLENJE LETT — az unió azonos rangnál az ELSŐT vette',
+    what: 'A mutációs battéria hét SZELETBEN fut, és az összefűzés klauzula-soronként a LEGERŐSEBB '
+      + 'eredményt veszi. A `result` ettől helyes, a sor INDOKA (`why`) viszont az első beérkező '
+      + 'szeleté lett: ugyanarra a `not_falsified` sorra az egyik egység azt írta, hogy „egyetlen '
+      + 'mutációs eredmény sem érkezett erre a próbára" (mert az a mutáció MÁSIK szeletben futott), '
+      + 'miközben a TELJES bizonyítékon a helyes indok az, hogy „M170: a futás NEM buktatta meg a '
+      + 'deklarált állítást". Öt soron mérve tért el a kiadott indok az újraszámolttól.',
+    why_wrong: 'Az indok nem díszítés: az olvasó EBBŐL tudja meg, hogy a klauzula azért nincs '
+      + 'fedve, mert NEM FUTOTT rá mutáció, vagy mert futott és NEM BUKTATTA MEG az állítást — a '
+      + 'kettő KÉT KÜLÖN teendő (KUKA-093: a hiányzó eset és a mért nemleges nem ugyanaz). A '
+      + 'szelet-műtermék ráadásul a gyengébb, „nem is mértük" olvasatot vitte ki, tehát a rendszerről '
+      + 'KEVESEBBET állított, mint amennyit tudtunk — és a két úton (unió · kanonikus ítélő) '
+      + 'kétféle igazság állt ugyanarról a tényről (KUKA-080).',
+    replaced_by: 'Az összefűzés a KANONIKUS ítélőt (`checkNorms`) futtatja a TELJES, egyesített '
+      + 'bizonyítékon, és AZT adja ki. Az unió nem tűnik el: kereszt-ellenőrzés marad, és ha a két '
+      + 'út VERDIKTBEN eltér, az nevezett összefűzési akadály; a hiányzó és az idegen sor kezelése '
+      + 'továbbra is a BEADVÁNYON mérve marad (MRG-01 · R83/F02).',
+    replacement: 'Ahol egy mérés DARABOKBAN fut, a végeredményt a darabok egyesített ADATÁN kell '
+      + 'újraszámolni, nem a darabok KÉSZ ÍTÉLETEIT egyesíteni — különben a rangsor melletti minden '
+      + 'mező (indok, jelölt-lista, korlát) a darabolás műterméke lesz.',
+    decision: 'D-VS-3055',
+    found_by: 'a SAJÁT csomag-generátorom teljes mező-összevetése (ROW_CONTRACT, R41/F41-01) — a '
+      + 'battéria végig ZÖLD volt (168/168 elkapva), a csomag mégis megtagadta a kiadást, mert a '
+      + 'beadott `why` eltért az újraszámolttól. A kikötést, hogy MINDEN kanonikus mezőt össze kell '
+      + 'vetni, a KÜLSŐ ELLENŐRZŐ FÉL adta (chatgpt-v3, R41).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/mutate.mjs']),
+        pattern: 'mutationResults: allResults, expectation: mergedNormInputs\\.expectation',
+        why: 'az összefűzés a KANONIKUS ítélőt futtatja a teljes bizonyítékon' }),
+    ]),
+    forbidden: Object.freeze([]),
+    guard_note: 'gépi jel: `npm run verify:v3ref` UTÁN a `node tools/v3_norm_chain_package.mjs` — a '
+      + 'generátor MINDEN kanonikus mezőt összevet, tehát a szelet-műtermék visszatérése a csomag '
+      + 'kiadását MEGTAGADJA (kilépési kód 3). AMIRE NINCS GÉPI JEL, KIMONDVA: hogy egy ÚJ, nem '
+      + 'kanonikus otthonú mező (pl. felirat) darabolás-függő-e — a szerződés csak a kanonikus '
+      + 'mezőket méri vissza.',
+    lesson: 'A DARABOLT MÉRÉS VÉGEREDMÉNYE AZ EGYESÍTETT ADATBÓL SZÜLETIK, NEM A DARABOK ÍTÉLETEIBŐL. '
+      + 'Ha egy szelet csak a saját adatát látja, minden mondata a szeletről szól — a rangsor ezt '
+      + 'egy mezőn (a verdikten) elrejti, a többin nem. És ahol két út számolja ugyanazt, ott a '
+      + 'kettő EGYEZÉSÉT kell mérni, nem az egyiket elhinni (KUKA-024).',
+  }),
+  Object.freeze({
+    id: 'KUKA-187',
+    date: '2026-09-18',
+    title: 'A VISSZALÉPÉS, AMI ÖSSZEOMLÁST OKOZOTT A HELYETT, HOGY A VALÓDI KÁRT ÁLLÍTOTTA VOLNA ELŐ',
+    what: 'Az R43-as K10-bekötésnél két mutációm nem a szerződés szerinti bizonyítékot adta: az '
+      + '**M165** magát az azonosító-KÉPZÉST rontotta el (két könyv azonos cikkszáma ugyanazt a '
+      + 'belső azonosítót kapta volna), és a próba nyers `ERR_SQLITE_ERROR`-ral állt meg, mert a '
+      + 'tábla elsődleges kulcsa önállóan is megfogja; az **M167** a bukott validáció-csomagot '
+      + 'engedte tovább, és a próba `TypeError`-ral halt el. Mindkettő `WRONG_CATCHER` — formailag '
+      + 'érvényes mérés, de nem az állítás bukása. Ugyanez az osztály már az R37-ben is előjött '
+      + '(M159, az SKU-egyediség őrének puszta kivezetése). **A HARMADIK ALAK ugyanebben a körben, '
+      + 'és ez a legtanulságosabb:** az **M169** (a mozgás-sor a kérés profilját írja a cikké '
+      + 'helyett) nem omlott össze és nem is volt ártalmatlan — a `P-KSZ-ledger-truth` bukott tőle, '
+      + 'a NEVEZETT `P-MNY-stored-profile-history` viszont NEM, mert annak a világában CSAK '
+      + 'liter-profilú (`qty-1`) cikk állt: a beégetett `\'qty-1\'` ott megkülönböztethetetlen volt '
+      + 'attól, hogy a sor a cikk profilját viszi.',
+    why_wrong: 'A mutáció célja nem az, hogy a rendszer ELSZÁLLJON, hanem hogy a VÉDETT ÁLLÍTÁS '
+      + 'HAMISRA forduljon. Az összeomlás más kérdésre felel: azt mutatja, hogy egy MÁSIK réteg '
+      + '(itt az adatbázis kényszere, illetve a hívási lánc) is véd — ami jó hír a rendszerről, de a '
+      + 'bizonyítékot NEM helyettesíti (KUKA-038). És ha a battéria elfogadná, a klauzula „fedett" '
+      + 'lenne egy olyan kontrollal, ami sosem az állítást mérte.',
+    replaced_by: 'Két mutáció a VALÓDI KÁRT állítja elő: az M165 a NÉMA ÖSSZEOLVADÁST a '
+      + 'cikkszám-feloldásban (a keresés az összes könyvben néz), az M167 a CSENDES '
+      + 'TÖRZS-MEGTISZTÍTÁST (a kanonikus út csak a három ismert mezőt adja tovább). A harmadiknál '
+      + 'NEM a mutáció volt rossz, hanem a PRÓBA: a `P-MNY-stored-profile-history` világa DARABOS '
+      + '(`qty-2`) cikket is kapott, és a sorának `qty-2` profilt kell hordoznia — így az M169 a '
+      + 'nevezett állítást dönti meg.',
+    replacement: 'Új mutáció írásakor a kérdés nem az, hogy „mitől romlik el", hanem hogy MELYIK '
+      + 'ÁLLÍTÁS fordul hamisra — és a visszalépésnek a rendszer ÉPSÉGÉT kell megtartania odáig, '
+      + 'ameddig az állítás mérhető. A `WRONG_CATCHER` ítélet nem zaj: azt mondja meg, hogy a '
+      + 'kontroll nem a szerződés szerinti bizonyíték.',
+    decision: 'D-VS-3055',
+    found_by: 'a SAJÁT mutációs battériám, három külön futáson (M165 · M167 · M169) — a '
+      + '`WRONG_CATCHER` ítéleten; a próbák maguk végig zöldek voltak.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/run.mjs']),
+        pattern: "sku: 'DARAB', unit: 'db', qtyProfile: 'qty-2'",
+        why: 'a tárolt-profil próba világában KÉT profil él — egyetlen profillal a beégetett '
+          + 'alapértelmezés megkülönböztethetetlen a helyes viselkedéstől (az M169 lelete)' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/mutations.mjs']),
+        pattern: "qty: String\\(input\\.qty\\), owner_id: ownerId",
+        why: 'az M170 a PARANCS-AZONOSSÁGOT rontja el (valódi kár), nem a fagyasztott bemenetre ír' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/mutations.mjs']),
+        pattern: 'checked\\.value\\.qty = String',
+        why: 'a FAGYASZTOTT bemenet-értékre írás nyers TypeError-t ad — más réteg fogja meg, '
+          + 'tehát nem az állítás bukása (WRONG_CATCHER)' }),
+    ]),
+    guard_note: 'gépi jel: maga a battéria `WRONG_CATCHER` ítélete (`npm run verify:v3ref`, a '
+      + 'kilépési kódon) — ez az osztály tehát MÁR mérve van, a tanulság a MEGÍRÁS oldalán áll. '
+      + 'AMIRE NINCS GÉPI JEL, KIMONDVA: hogy egy ÚJ mutáció a valódi kárt állítja-e elő — azt a '
+      + 'szerző dönti el, és a battéria csak utólag mondja meg, hogy rossz elkapót talált.',
+    lesson: 'A MUTÁCIÓ CÉLJA NEM AZ ÖSSZEOMLÁS, HANEM AZ ÁLLÍTÁS MEGDÖNTÉSE. Ha a visszalépés '
+      + 'nyers kivételbe fut, az általában azt jelenti, hogy EGY MÁSIK RÉTEG is véd — ezt jó tudni, '
+      + 'de bizonyítéknak nem elég. **Írás előtt ki kell mondani, melyik állítás fordul hamisra**, '
+      + 'és a rontásnak pontosan addig kell épen tartania a rendszert, hogy ez mérhető legyen. '
+      + '**A `WRONG_CATCHER` KÉT KÜLÖN HIBÁT JELENTHET, és meg kell nézni, MELYIKET:** vagy a '
+      + 'mutáció nem a védett állítást támadja (M165 · M167), vagy a PRÓBA fixtúrája túl gyenge '
+      + 'ahhoz, hogy a kárt észrevegye (M169) — utóbbi a KUKA-054 alakja a mutáción: ha a próba '
+      + 'világában csak az alapértelmezett érték él, a beégetett alapértelmezés megkülönböztethetetlen '
+      + 'a helyes viselkedéstől. Negyedszer előjövő osztály (M159 · M165 · M167 · M169) — ezért kap '
+      + 'saját bejegyzést.',
+  }),
+  Object.freeze({
     id: 'KUKA-176',
     date: '2026-09-16',
     title: 'A HIBÁS ALAK CSAK AZ EGYIK ÁGON VOLT HIBA — a saját, egy körrel korábbi szerződésemen',

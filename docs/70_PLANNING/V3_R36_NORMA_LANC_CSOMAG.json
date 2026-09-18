@@ -1,11 +1,11 @@
 {
   "schema": "v3-norm-chain-package/2",
   "id": "NCP-01",
-  "at": "2026-09-18T17:31:20.391Z",
+  "at": "2026-09-18T19:18:20.990Z",
   "measured_from": {
     "file": "v3ref/v3ref-mutation-result.json",
-    "base_digest": "sha256:87dd7a3a6f2a945481cb1cbfbfa005fd2bc7c76dcc0abf5cfc4796cc54a24b33",
-    "source_digest_today": "sha256:87dd7a3a6f2a945481cb1cbfbfa005fd2bc7c76dcc0abf5cfc4796cc54a24b33",
+    "base_digest": "sha256:0d59319cc5751e3465cb3caa1aff859a9eeaeb9ff6269a5c9d3287aecc6f39ef",
+    "source_digest_today": "sha256:0d59319cc5751e3465cb3caa1aff859a9eeaeb9ff6269a5c9d3287aecc6f39ef",
     "source_bound": true,
     "execution": "merged_units"
   },
@@ -36,11 +36,11 @@
   "totals": {
     "norms": 10,
     "clauses": 29,
-    "chain_rows": 94,
-    "covered": 71,
-    "partially_covered": 13,
-    "not_falsified": 0,
-    "no_evidence": 10,
+    "chain_rows": 105,
+    "covered": 76,
+    "partially_covered": 16,
+    "not_falsified": 5,
+    "no_evidence": 8,
     "content_review_current": 0,
     "external_decisions": 29
   },
@@ -4034,6 +4034,246 @@
     },
     {
       "norm_id": "TYP-N1",
+      "clause_id": "K10-TYP-a",
+      "covers": [
+        "K10"
+      ],
+      "clause_text": "Az azonosságot a típus szerinti azonosító és annak névtere határozza meg; megjelenítési név, formázás vagy változó mennyiség nem helyettesíti és nem változtatja meg.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K10-a-quantity-change-does-not-move-identity",
+      "probe_id": "P-KAT-identity-history",
+      "behaviour": "A cikk AZONOSSÁGA nem a megjelenítésé és nem a mennyiségé: a történeti hivatkozások megmaradnak",
+      "positive_evidence": "P-KAT-identity-history — „A cikk AZONOSSÁGA nem a megjelenítésé és nem a mennyiségé: a történeti hivatkozások megmaradnak\" · node v3ref/run.mjs",
+      "negative_evidence": "4 szerződés szerinti jelölt áll a soron (M164, M165, M166, M171), de a kanonikus ítélő EGYIKET SEM minősítette falszifikálónak — ezért a sor NEM „fedett\"",
+      "mutations": [
+        {
+          "id": "M164",
+          "what": "KAT-01 / R43 — A MEGJELENÍTÉS ÁTÍRÁSA ELMOZDÍTJA AZ AZONOSÍTÓT: az egység-váltás a cikk BELSŐ azonosítóját is újraképzi, tehát minden korábbi hivatkozás (nyugta, mozgás, riport) egy megszűnt azonosítóra mutatna — a megjelenítés némán azonosságot cserélne (KUKA-021 · KUKA-061). AMIT MÉRVE MEGTUDTUNK: az ELSŐ alakom a `Date.now()` sóval az AZONOSÍTÓ-KÉPZŐT rontotta el, de az azonosító a felvételkor EGYSZER születik és TÁROLVA marad — a mutáció ezért `SURVIVED` lett: nem volt olyan olvasó, ami újraszámolta volna. Ez a rendszerről jó hír, bizonyítéknak viszont semmi (KUKA-187).",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M165",
+          "what": "KAT-01 / R43 — A KÖNYV KIESIK A FELOLDÁSBÓL: a cikkszám-keresés az ÖSSZES könyvben néz, tehát a B könyv `050`-es cikkére kérdezve az A könyv cikke jön vissza — két FÜGGETLEN termék NÉMÁN eggyé olvad (KUKA-027: az azonosító csak a SAJÁT terében egyedi). AMIT MÉRVE MEGTUDTUNK: a mutáció ELSŐ alakja magát az AZONOSÍTÓ-KÉPZÉST rontotta el, de az nem szerződés szerinti bizonyíték — a tábla elsődleges kulcsa önállóan is megfogja, és a próba nyers SQLITE-kivétellel áll meg. A visszalépésnek a NÉMA ÖSSZEOLVADÁST kell előállítania, mert az a valódi kár",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M166",
+          "what": "KAT-01 / R43 — A KIÍRT TULAJDONSÁG ÁTÍRÁSA LÁBNYOM FÖLÖTT IS SZABAD: az egység-váltás őre eltűnik, tehát a mozgás-sorok mögött álló cikk egysége némán átíródik — a TÁROLT mennyiség visszamenőleg MÁS jelentést kapna (KUKA-021)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M171",
+          "what": "BEM-01 / KAT-01 / R43 — A KANONIZÁLÁS NEM ÍRÓDIK VISSZA: a profil-kötés a NYERS mennyiség-szöveget hagyja a tartalomban, tehát a `\"10\"` és a `\"10.000\"` KÜLÖNBÖZŐ parancs-azonosságot kapna — ugyanaz a jelentés MÁS írásmódban másodszor is könyvelne. Ez a KANONIZÁLÁS oldala; az M170 ugyanennek a garanciának a MÁSIK helyszíne (maga az azonosság-összeállítás) — két külön kódhely, két külön ellenpár.",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "not_falsified",
+      "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — M165: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity) · M166: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity) · M171: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity) · M164: a futás NEM buktatta meg a deklarált állítást (A-K10-a-quantity-change-does-not-move-identity)",
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "clause": "K10-TYP-a",
+        "verdict": "partial",
+        "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+        "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+      }
+    },
+    {
+      "norm_id": "TYP-N1",
+      "clause_id": "K10-TYP-a",
+      "covers": [
+        "K10"
+      ],
+      "clause_text": "Az azonosságot a típus szerinti azonosító és annak névtere határozza meg; megjelenítési név, formázás vagy változó mennyiség nem helyettesíti és nem változtatja meg.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K10-a-same-sku-in-another-book-stays-a-different-item",
+      "probe_id": "P-KAT-identity-history",
+      "behaviour": "A cikk AZONOSSÁGA nem a megjelenítésé és nem a mennyiségé: a történeti hivatkozások megmaradnak",
+      "positive_evidence": "P-KAT-identity-history — „A cikk AZONOSSÁGA nem a megjelenítésé és nem a mennyiségé: a történeti hivatkozások megmaradnak\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M165 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M164, M165, M166, M171",
+      "mutations": [
+        {
+          "id": "M164",
+          "what": "KAT-01 / R43 — A MEGJELENÍTÉS ÁTÍRÁSA ELMOZDÍTJA AZ AZONOSÍTÓT: az egység-váltás a cikk BELSŐ azonosítóját is újraképzi, tehát minden korábbi hivatkozás (nyugta, mozgás, riport) egy megszűnt azonosítóra mutatna — a megjelenítés némán azonosságot cserélne (KUKA-021 · KUKA-061). AMIT MÉRVE MEGTUDTUNK: az ELSŐ alakom a `Date.now()` sóval az AZONOSÍTÓ-KÉPZŐT rontotta el, de az azonosító a felvételkor EGYSZER születik és TÁROLVA marad — a mutáció ezért `SURVIVED` lett: nem volt olyan olvasó, ami újraszámolta volna. Ez a rendszerről jó hír, bizonyítéknak viszont semmi (KUKA-187).",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M165",
+          "what": "KAT-01 / R43 — A KÖNYV KIESIK A FELOLDÁSBÓL: a cikkszám-keresés az ÖSSZES könyvben néz, tehát a B könyv `050`-es cikkére kérdezve az A könyv cikke jön vissza — két FÜGGETLEN termék NÉMÁN eggyé olvad (KUKA-027: az azonosító csak a SAJÁT terében egyedi). AMIT MÉRVE MEGTUDTUNK: a mutáció ELSŐ alakja magát az AZONOSÍTÓ-KÉPZÉST rontotta el, de az nem szerződés szerinti bizonyíték — a tábla elsődleges kulcsa önállóan is megfogja, és a próba nyers SQLITE-kivétellel áll meg. A visszalépésnek a NÉMA ÖSSZEOLVADÁST kell előállítania, mert az a valódi kár",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        },
+        {
+          "id": "M166",
+          "what": "KAT-01 / R43 — A KIÍRT TULAJDONSÁG ÁTÍRÁSA LÁBNYOM FÖLÖTT IS SZABAD: az egység-váltás őre eltűnik, tehát a mozgás-sorok mögött álló cikk egysége némán átíródik — a TÁROLT mennyiség visszamenőleg MÁS jelentést kapna (KUKA-021)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M171",
+          "what": "BEM-01 / KAT-01 / R43 — A KANONIZÁLÁS NEM ÍRÓDIK VISSZA: a profil-kötés a NYERS mennyiség-szöveget hagyja a tartalomban, tehát a `\"10\"` és a `\"10.000\"` KÜLÖNBÖZŐ parancs-azonosságot kapna — ugyanaz a jelentés MÁS írásmódban másodszor is könyvelne. Ez a KANONIZÁLÁS oldala; az M170 ugyanennek a garanciának a MÁSIK helyszíne (maga az azonosság-összeállítás) — két külön kódhely, két külön ellenpár.",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "covered",
+      "why": null,
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "clause": "K10-TYP-a",
+        "verdict": "partial",
+        "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+        "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+      }
+    },
+    {
+      "norm_id": "TYP-N1",
+      "clause_id": "K10-TYP-a",
+      "covers": [
+        "K10"
+      ],
+      "clause_text": "Az azonosságot a típus szerinti azonosító és annak névtere határozza meg; megjelenítési név, formázás vagy változó mennyiség nem helyettesíti és nem változtatja meg.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K10-a-formatting-is-not-identity",
+      "probe_id": "P-KAT-identity-history",
+      "behaviour": "A cikk AZONOSSÁGA nem a megjelenítésé és nem a mennyiségé: a történeti hivatkozások megmaradnak",
+      "positive_evidence": "P-KAT-identity-history — „A cikk AZONOSSÁGA nem a megjelenítésé és nem a mennyiségé: a történeti hivatkozások megmaradnak\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M171 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M164, M165, M166, M171",
+      "mutations": [
+        {
+          "id": "M164",
+          "what": "KAT-01 / R43 — A MEGJELENÍTÉS ÁTÍRÁSA ELMOZDÍTJA AZ AZONOSÍTÓT: az egység-váltás a cikk BELSŐ azonosítóját is újraképzi, tehát minden korábbi hivatkozás (nyugta, mozgás, riport) egy megszűnt azonosítóra mutatna — a megjelenítés némán azonosságot cserélne (KUKA-021 · KUKA-061). AMIT MÉRVE MEGTUDTUNK: az ELSŐ alakom a `Date.now()` sóval az AZONOSÍTÓ-KÉPZŐT rontotta el, de az azonosító a felvételkor EGYSZER születik és TÁROLVA marad — a mutáció ezért `SURVIVED` lett: nem volt olyan olvasó, ami újraszámolta volna. Ez a rendszerről jó hír, bizonyítéknak viszont semmi (KUKA-187).",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M165",
+          "what": "KAT-01 / R43 — A KÖNYV KIESIK A FELOLDÁSBÓL: a cikkszám-keresés az ÖSSZES könyvben néz, tehát a B könyv `050`-es cikkére kérdezve az A könyv cikke jön vissza — két FÜGGETLEN termék NÉMÁN eggyé olvad (KUKA-027: az azonosító csak a SAJÁT terében egyedi). AMIT MÉRVE MEGTUDTUNK: a mutáció ELSŐ alakja magát az AZONOSÍTÓ-KÉPZÉST rontotta el, de az nem szerződés szerinti bizonyíték — a tábla elsődleges kulcsa önállóan is megfogja, és a próba nyers SQLITE-kivétellel áll meg. A visszalépésnek a NÉMA ÖSSZEOLVADÁST kell előállítania, mert az a valódi kár",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M166",
+          "what": "KAT-01 / R43 — A KIÍRT TULAJDONSÁG ÁTÍRÁSA LÁBNYOM FÖLÖTT IS SZABAD: az egység-váltás őre eltűnik, tehát a mozgás-sorok mögött álló cikk egysége némán átíródik — a TÁROLT mennyiség visszamenőleg MÁS jelentést kapna (KUKA-021)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M171",
+          "what": "BEM-01 / KAT-01 / R43 — A KANONIZÁLÁS NEM ÍRÓDIK VISSZA: a profil-kötés a NYERS mennyiség-szöveget hagyja a tartalomban, tehát a `\"10\"` és a `\"10.000\"` KÜLÖNBÖZŐ parancs-azonosságot kapna — ugyanaz a jelentés MÁS írásmódban másodszor is könyvelne. Ez a KANONIZÁLÁS oldala; az M170 ugyanennek a garanciának a MÁSIK helyszíne (maga az azonosság-összeállítás) — két külön kódhely, két külön ellenpár.",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        }
+      ],
+      "residual_scope": null,
+      "result": "covered",
+      "why": null,
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "clause": "K10-TYP-a",
+        "verdict": "partial",
+        "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+        "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+      }
+    },
+    {
+      "norm_id": "TYP-N1",
+      "clause_id": "K10-TYP-a",
+      "covers": [
+        "K10"
+      ],
+      "clause_text": "Az azonosságot a típus szerinti azonosító és annak névtere határozza meg; megjelenítési név, formázás vagy változó mennyiség nem helyettesíti és nem változtatja meg.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K10-a-printed-property-change-does-not-rewrite-the-identifier",
+      "probe_id": "P-KAT-identity-history",
+      "behaviour": "A cikk AZONOSSÁGA nem a megjelenítésé és nem a mennyiségé: a történeti hivatkozások megmaradnak",
+      "positive_evidence": "P-KAT-identity-history — „A cikk AZONOSSÁGA nem a megjelenítésé és nem a mennyiségé: a történeti hivatkozások megmaradnak\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M166 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M164, M165, M166, M171",
+      "mutations": [
+        {
+          "id": "M164",
+          "what": "KAT-01 / R43 — A MEGJELENÍTÉS ÁTÍRÁSA ELMOZDÍTJA AZ AZONOSÍTÓT: az egység-váltás a cikk BELSŐ azonosítóját is újraképzi, tehát minden korábbi hivatkozás (nyugta, mozgás, riport) egy megszűnt azonosítóra mutatna — a megjelenítés némán azonosságot cserélne (KUKA-021 · KUKA-061). AMIT MÉRVE MEGTUDTUNK: az ELSŐ alakom a `Date.now()` sóval az AZONOSÍTÓ-KÉPZŐT rontotta el, de az azonosító a felvételkor EGYSZER születik és TÁROLVA marad — a mutáció ezért `SURVIVED` lett: nem volt olyan olvasó, ami újraszámolta volna. Ez a rendszerről jó hír, bizonyítéknak viszont semmi (KUKA-187).",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M165",
+          "what": "KAT-01 / R43 — A KÖNYV KIESIK A FELOLDÁSBÓL: a cikkszám-keresés az ÖSSZES könyvben néz, tehát a B könyv `050`-es cikkére kérdezve az A könyv cikke jön vissza — két FÜGGETLEN termék NÉMÁN eggyé olvad (KUKA-027: az azonosító csak a SAJÁT terében egyedi). AMIT MÉRVE MEGTUDTUNK: a mutáció ELSŐ alakja magát az AZONOSÍTÓ-KÉPZÉST rontotta el, de az nem szerződés szerinti bizonyíték — a tábla elsődleges kulcsa önállóan is megfogja, és a próba nyers SQLITE-kivétellel áll meg. A visszalépésnek a NÉMA ÖSSZEOLVADÁST kell előállítania, mert az a valódi kár",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M166",
+          "what": "KAT-01 / R43 — A KIÍRT TULAJDONSÁG ÁTÍRÁSA LÁBNYOM FÖLÖTT IS SZABAD: az egység-váltás őre eltűnik, tehát a mozgás-sorok mögött álló cikk egysége némán átíródik — a TÁROLT mennyiség visszamenőleg MÁS jelentést kapna (KUKA-021)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        },
+        {
+          "id": "M171",
+          "what": "BEM-01 / KAT-01 / R43 — A KANONIZÁLÁS NEM ÍRÓDIK VISSZA: a profil-kötés a NYERS mennyiség-szöveget hagyja a tartalomban, tehát a `\"10\"` és a `\"10.000\"` KÜLÖNBÖZŐ parancs-azonosságot kapna — ugyanaz a jelentés MÁS írásmódban másodszor is könyvelne. Ez a KANONIZÁLÁS oldala; az M170 ugyanennek a garanciának a MÁSIK helyszíne (maga az azonosság-összeállítás) — két külön kódhely, két külön ellenpár.",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "covered",
+      "why": null,
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "clause": "K10-TYP-a",
+        "verdict": "partial",
+        "reason": "a könyvön belüli SKU és keresztkönyves azonosság bizonyított; két sor nem falszifikált. A név/formázás/mennyiség változásától független stabil típusazonosság teljes állítása nincs e három sorral bizonyítva.",
+        "our_progress_note": "R37: a két nem falszifikált sorra célzott mutáció készült (M159 · M160), mindkettő elkapva és NÉV SZERINT a saját állítását döntve. A klauzula MARADÉKA (a stabil típusazonosság teljes állítása) ettől NEM szűnt meg — a külső döntés változatlanul áll."
+      }
+    },
+    {
+      "norm_id": "TYP-N1",
       "clause_id": "K10-TYP-b",
       "covers": [
         "K10"
@@ -4790,21 +5030,212 @@
     },
     {
       "norm_id": "TYP-N1",
+      "clause_id": "K10-TYP-b",
+      "covers": [
+        "K10"
+      ],
+      "clause_text": "A bemenetet a megnevezett művelet- és sémaverzió szerint kell ellenőrizni; hiányzó kötelező, ismeretlen vagy hibás típusú mező nevezett elutasítás, nem hallgatólagos alapérték.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K10-b-input-errors-are-named-on-the-canonical-path-without-writing",
+      "probe_id": "P-KSZ-canonical-input-boundary",
+      "behaviour": "A bemeneti elutasítás a VALÓDI bevét-úton dől el, és SEMMIT nem ír",
+      "positive_evidence": "P-KSZ-canonical-input-boundary — „A bemeneti elutasítás a VALÓDI bevét-úton dől el, és SEMMIT nem ír\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M167 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M167",
+      "mutations": [
+        {
+          "id": "M167",
+          "what": "BEM-01 / R43 — A KANONIKUS ÚT CSENDBEN MEGTISZTÍTJA A TÖRZSET: a bevét-út csak a három ismert mezőt adja tovább, tehát az IDEGEN és a KONTEXTUS-mező nem nevezett elutasítást kap, hanem NÉMÁN eltűnik — a beadó azt hiszi, kitöltött valamit, a rendszer eldobja (KUKA-041 a bemeneten). AMIT MÉRVE MEGTUDTUNK: a mutáció ELSŐ alakja a hibás csomagot engedte tovább, és a próba nyers TypeError-ral állt meg — az nem szerződés szerinti bizonyíték",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        }
+      ],
+      "residual_scope": null,
+      "result": "covered",
+      "why": null,
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "clause": "K10-TYP-b",
+        "verdict": "not_accepted_as_whole",
+        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+      }
+    },
+    {
+      "norm_id": "TYP-N1",
+      "clause_id": "K10-TYP-b",
+      "covers": [
+        "K10"
+      ],
+      "clause_text": "A bemenetet a megnevezett művelet- és sémaverzió szerint kell ellenőrizni; hiányzó kötelező, ismeretlen vagy hibás típusú mező nevezett elutasítás, nem hallgatólagos alapérték.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K10-b-version-boundary-and-the-legitimate-receipt-coexist",
+      "probe_id": "P-KSZ-canonical-input-boundary",
+      "behaviour": "A bemeneti elutasítás a VALÓDI bevét-úton dől el, és SEMMIT nem ír",
+      "positive_evidence": "P-KSZ-canonical-input-boundary — „A bemeneti elutasítás a VALÓDI bevét-úton dől el, és SEMMIT nem ír\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M167 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M167",
+      "mutations": [
+        {
+          "id": "M167",
+          "what": "BEM-01 / R43 — A KANONIKUS ÚT CSENDBEN MEGTISZTÍTJA A TÖRZSET: a bevét-út csak a három ismert mezőt adja tovább, tehát az IDEGEN és a KONTEXTUS-mező nem nevezett elutasítást kap, hanem NÉMÁN eltűnik — a beadó azt hiszi, kitöltött valamit, a rendszer eldobja (KUKA-041 a bemeneten). AMIT MÉRVE MEGTUDTUNK: a mutáció ELSŐ alakja a hibás csomagot engedte tovább, és a próba nyers TypeError-ral állt meg — az nem szerződés szerinti bizonyíték",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        }
+      ],
+      "residual_scope": null,
+      "result": "covered",
+      "why": null,
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "clause": "K10-TYP-b",
+        "verdict": "not_accepted_as_whole",
+        "reason": "F37-02 és négy not_falsified sor; a sémaverzió kezelése külön hiány.",
+        "our_progress_note": "R37: az F37-02 javítva (SOP-01, saját kulcsos feloldás), a négy sorra célzott mutáció készült (M153 · M155 · M156 · M157), és a sémaverzió tulajdonosa/határa kimondva (SVR-01). R39: a határ a KANONIKUS bevét-úton is végigmegy (M163), mert addig a felső szintű `version` argumentum némán eltűnt. A klauzula EGÉSZKÉNT azonban továbbra sem elfogadott — az a külső fél döntése, és nem a miénk."
+      }
+    },
+    {
+      "norm_id": "TYP-N1",
       "clause_id": "K10-TYP-c",
       "covers": [
         "K10"
       ],
       "clause_text": "A mennyiség kanonikus decimális alakja és értelmezése megnevezett, verziózott számítási profilhoz kötött. A skála, tartomány és kerekítés profilszabály, nem minden iparágra bebetonozott magkorlát; profilváltozás nem értelmezheti át a korábbi tárolt értéket.",
       "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
-      "assertion_id": null,
-      "probe_id": null,
-      "behaviour": null,
-      "positive_evidence": null,
-      "negative_evidence": null,
-      "mutations": [],
-      "residual_scope": "A kanonikus alak és a profil-kötés mérve van MINDKÉT élő profilon (`qty-1` · `qty-2`), de a PROFILVÁLTÁS hatása a KORÁBBAN TÁROLT értékre nincs mérve: a mag nem végez profil-verzióváltást, és ilyen ellenpéldát nem építettünk. A bizonyítás LEHETSÉGES (két profil áll rendelkezésre) — csak nem történt meg.",
-      "result": "no_evidence",
-      "why": "A kanonikus alak és a profil-kötés mérve van MINDKÉT élő profilon (`qty-1` · `qty-2`), de a PROFILVÁLTÁS hatása a KORÁBBAN TÁROLT értékre nincs mérve: a mag nem végez profil-verzióváltást, és ilyen ellenpéldát nem építettünk. A bizonyítás LEHETSÉGES (két profil áll rendelkezésre) — csak nem történt meg.",
+      "assertion_id": "A-K10-c-stored-row-carries-its-own-profile",
+      "probe_id": "P-MNY-stored-profile-history",
+      "behaviour": "A TÁROLT mennyiség a SAJÁT profilját viszi — profilváltás nem értelmezheti át a múltat",
+      "positive_evidence": "P-MNY-stored-profile-history — „A TÁROLT mennyiség a SAJÁT profilját viszi — profilváltás nem értelmezheti át a múltat\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M169 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M168, M169",
+      "mutations": [
+        {
+          "id": "M168",
+          "what": "MNY-01 / R43 — A VISSZAOLVASÁS A CIKK MAI PROFILJÁT ERŐLTETI A RÉGI SORRA: az összeadás nem veti össze a sor SAJÁT profilját a kérttel, tehát egy elcsúszott profil mellett a tárolt szám NÉMÁN más jelentést kapna — pontosan az, amit a klauzula tilt (KUKA-021)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M169",
+          "what": "MNY-01 / R43 — A MOZGÁS-SOR A KÉRÉS PROFILJÁT ÍRJA, NEM A CIKKÉT: a tárolt sor így nem a SAJÁT jelentését viszi, és a történeti visszaolvasás a mai kéréstől függene",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        }
+      ],
+      "residual_scope": null,
+      "result": "partially_covered",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: a kanonikus alak és a profil-kötés MINDKÉT élő profilon (`qty-1` · `qty-2`); a TÁROLT mozgás-sor a SAJÁT profilját viszi (`stock_movement.qty_profile`); a magban NINCS publikus profilváltó művelet (a katalógus forrásából MÉRVE); és ha a cikk profilja mégis elcsúszna, a visszaolvasás NEVEZETT `profile_mismatch`-csel áll meg, a nyers sorok érintetlenek, a helyes profilon pedig a jelentés VÁLTOZATLANUL tér vissza. Falszifikálva: M168 · M169. · HIÁNYZIK: a klauzula „profilváltozás nem értelmezheti át a korábbi tárolt értéket\" mondata az OLVASÓ oldalán bizonyított, egy KIMONDOTTAN nyers adatbázis-írású határ-fixtúrával. Egy VALÓDI, támogatott profilváltás — és annak hatása a tárolt értékekre — a magban nincs megépítve, tehát nem is bizonyított: nyers fixtúra nem igazolja egy HIÁNYZÓ publikus művelet működését (KUKA-038). Teljes profil-migrációs keret nem e kör tárgya.",
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "clause": "K10-TYP-c",
+        "verdict": "partial",
+        "reason": "két profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok hamis. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell."
+      }
+    },
+    {
+      "norm_id": "TYP-N1",
+      "clause_id": "K10-TYP-c",
+      "covers": [
+        "K10"
+      ],
+      "clause_text": "A mennyiség kanonikus decimális alakja és értelmezése megnevezett, verziózott számítási profilhoz kötött. A skála, tartomány és kerekítés profilszabály, nem minden iparágra bebetonozott magkorlát; profilváltozás nem értelmezheti át a korábbi tárolt értéket.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K10-c-no-public-profile-change-operation-exists",
+      "probe_id": "P-MNY-stored-profile-history",
+      "behaviour": "A TÁROLT mennyiség a SAJÁT profilját viszi — profilváltás nem értelmezheti át a múltat",
+      "positive_evidence": "P-MNY-stored-profile-history — „A TÁROLT mennyiség a SAJÁT profilját viszi — profilváltás nem értelmezheti át a múltat\" · node v3ref/run.mjs",
+      "negative_evidence": "2 szerződés szerinti jelölt áll a soron (M168, M169), de a kanonikus ítélő EGYIKET SEM minősítette falszifikálónak — ezért a sor NEM „fedett\"",
+      "mutations": [
+        {
+          "id": "M168",
+          "what": "MNY-01 / R43 — A VISSZAOLVASÁS A CIKK MAI PROFILJÁT ERŐLTETI A RÉGI SORRA: az összeadás nem veti össze a sor SAJÁT profilját a kérttel, tehát egy elcsúszott profil mellett a tárolt szám NÉMÁN más jelentést kapna — pontosan az, amit a klauzula tilt (KUKA-021)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M169",
+          "what": "MNY-01 / R43 — A MOZGÁS-SOR A KÉRÉS PROFILJÁT ÍRJA, NEM A CIKKÉT: a tárolt sor így nem a SAJÁT jelentését viszi, és a történeti visszaolvasás a mai kéréstől függene",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "not_falsified",
+      "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — M168: a futás NEM buktatta meg a deklarált állítást (A-K10-c-no-public-profile-change-operation-exists) · M169: a futás NEM buktatta meg a deklarált állítást (A-K10-c-no-public-profile-change-operation-exists)",
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "clause": "K10-TYP-c",
+        "verdict": "partial",
+        "reason": "két profil létezik (qty-1, qty-2), ezért az „egyetlen profil” indok hamis. Profilváltás utáni történeti értelmezéshez továbbra is külön bizonyíték kell."
+      }
+    },
+    {
+      "norm_id": "TYP-N1",
+      "clause_id": "K10-TYP-c",
+      "covers": [
+        "K10"
+      ],
+      "clause_text": "A mennyiség kanonikus decimális alakja és értelmezése megnevezett, verziózott számítási profilhoz kötött. A skála, tartomány és kerekítés profilszabály, nem minden iparágra bebetonozott magkorlát; profilváltozás nem értelmezheti át a korábbi tárolt értéket.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K10-c-mismatched-profile-is-a-named-refusal-not-a-reinterpretation",
+      "probe_id": "P-MNY-stored-profile-history",
+      "behaviour": "A TÁROLT mennyiség a SAJÁT profilját viszi — profilváltás nem értelmezheti át a múltat",
+      "positive_evidence": "P-MNY-stored-profile-history — „A TÁROLT mennyiség a SAJÁT profilját viszi — profilváltás nem értelmezheti át a múltat\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M168 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M168, M169",
+      "mutations": [
+        {
+          "id": "M168",
+          "what": "MNY-01 / R43 — A VISSZAOLVASÁS A CIKK MAI PROFILJÁT ERŐLTETI A RÉGI SORRA: az összeadás nem veti össze a sor SAJÁT profilját a kérttel, tehát egy elcsúszott profil mellett a tárolt szám NÉMÁN más jelentést kapna — pontosan az, amit a klauzula tilt (KUKA-021)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        },
+        {
+          "id": "M169",
+          "what": "MNY-01 / R43 — A MOZGÁS-SOR A KÉRÉS PROFILJÁT ÍRJA, NEM A CIKKÉT: a tárolt sor így nem a SAJÁT jelentését viszi, és a történeti visszaolvasás a mai kéréstől függene",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "partially_covered",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: a kanonikus alak és a profil-kötés MINDKÉT élő profilon (`qty-1` · `qty-2`); a TÁROLT mozgás-sor a SAJÁT profilját viszi (`stock_movement.qty_profile`); a magban NINCS publikus profilváltó művelet (a katalógus forrásából MÉRVE); és ha a cikk profilja mégis elcsúszna, a visszaolvasás NEVEZETT `profile_mismatch`-csel áll meg, a nyers sorok érintetlenek, a helyes profilon pedig a jelentés VÁLTOZATLANUL tér vissza. Falszifikálva: M168 · M169. · HIÁNYZIK: a klauzula „profilváltozás nem értelmezheti át a korábbi tárolt értéket\" mondata az OLVASÓ oldalán bizonyított, egy KIMONDOTTAN nyers adatbázis-írású határ-fixtúrával. Egy VALÓDI, támogatott profilváltás — és annak hatása a tárolt értékekre — a magban nincs megépítve, tehát nem is bizonyított: nyers fixtúra nem igazolja egy HIÁNYZÓ publikus művelet működését (KUKA-038). Teljes profil-migrációs keret nem e kör tárgya.",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -4830,15 +5261,145 @@
       ],
       "clause_text": "A kapcsolódó parancs, nyugta és főkönyvi hatás a megnevezett tranzakciós határon atomi; részleges sikert és ismételt hatást a korábbi verziójú vagy más profilú bemenet sem hozhat létre.",
       "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
-      "assertion_id": null,
-      "probe_id": null,
-      "behaviour": null,
-      "positive_evidence": null,
-      "negative_evidence": null,
-      "mutations": [],
-      "residual_scope": "Az atomiság és az ismétlés-védelem mérve van (KSZ-01), és a két mennyiség-profil szerinti működés is. A sémaverzió HATÁRA az R37-ben kimondva és mérve (SVR-01: a regiszter választ, eltérőre `unsupported_schema_version`). NYITOTT: a „korábbi verziójú vagy más PROFILÚ bemenet\" ISMÉTLÉSI és HIBAHATÁR-viselkedése — ez nem lehetetlen bizonyítani, csak nem tettük meg.",
-      "result": "no_evidence",
-      "why": "Az atomiság és az ismétlés-védelem mérve van (KSZ-01), és a két mennyiség-profil szerinti működés is. A sémaverzió HATÁRA az R37-ben kimondva és mérve (SVR-01: a regiszter választ, eltérőre `unsupported_schema_version`). NYITOTT: a „korábbi verziójú vagy más PROFILÚ bemenet\" ISMÉTLÉSI és HIBAHATÁR-viselkedése — ez nem lehetetlen bizonyítani, csak nem tettük meg.",
+      "assertion_id": "A-K10-d-first-submission-creates-exactly-one-effect",
+      "probe_id": "P-KSZ-repeat-and-error-boundary",
+      "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad",
+      "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad\" · node v3ref/run.mjs",
+      "negative_evidence": "1 szerződés szerinti jelölt áll a soron (M170), de a kanonikus ítélő EGYIKET SEM minősítette falszifikálónak — ezért a sor NEM „fedett\"",
+      "mutations": [
+        {
+          "id": "M170",
+          "what": "KSZ-01 / R43 — AZ ISMÉTLÉS ÚJ HATÁST SZÜL: a parancs-azonosság a NYERS mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS formázásban MÁSODSZOR is könyvelne — kettős készletmozgás egyetlen valódi beadásból (KUKA-026)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "not_falsified",
+      "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — M170: a futás NEM buktatta meg a deklarált állítást (A-K10-d-first-submission-creates-exactly-one-effect)",
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "clause": "K10-TYP-d",
+        "verdict": "partial",
+        "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+      }
+    },
+    {
+      "norm_id": "TYP-N1",
+      "clause_id": "K10-TYP-d",
+      "covers": [
+        "K10"
+      ],
+      "clause_text": "A kapcsolódó parancs, nyugta és főkönyvi hatás a megnevezett tranzakciós határon atomi; részleges sikert és ismételt hatást a korábbi verziójú vagy más profilú bemenet sem hozhat létre.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K10-d-identical-and-reformatted-repeat-replay-the-same-effect",
+      "probe_id": "P-KSZ-repeat-and-error-boundary",
+      "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad",
+      "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M170 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M170",
+      "mutations": [
+        {
+          "id": "M170",
+          "what": "KSZ-01 / R43 — AZ ISMÉTLÉS ÚJ HATÁST SZÜL: a parancs-azonosság a NYERS mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS formázásban MÁSODSZOR is könyvelne — kettős készletmozgás egyetlen valódi beadásból (KUKA-026)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": true
+        }
+      ],
+      "residual_scope": null,
+      "result": "partially_covered",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: hat helyzet a KANONIKUS úton, parancs + esemény + mozgás + egyenleg pillanatképével: jogos ELSŐ beadás (pontosan EGY hatás) · AZONOS ismétlés (ugyanaz a hatás, nem új) · AZONOS jelentés MÁS FORMÁZÁSBAN (a kanonikus alak dönt, nem a leírt szöveg) · KORÁBBI sémaverzió ugyanazzal a kulccsal (`unsupported_schema_version`) · MÁS számítási profil ugyanazzal a kulccsal (`idempotency_conflict`, nem néma visszajátszás) · HIBAPONT (`out_of_range`). Mindhárom elutasítás után a pillanatkép VÁLTOZATLAN, és a korábbi siker ugyanazt a hatást adja vissza. Falszifikálva: M170. · HIÁNYZIK: a „más PROFILÚ bemenet\" ága UGYANARRA A CIKKRE nem szólítható meg, mert a magban nincs profilváltó művelet (K10-TYP-c maradéka); a mérés ezért MÁSIK, más profilú cikkel történt. Ez a reálisan elérhető alak — de a klauzula szó szerinti olvasatában marad egy nem elérhető változat, és ezt nem nevezzük bizonyítottnak.",
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "clause": "K10-TYP-d",
+        "verdict": "partial",
+        "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+      }
+    },
+    {
+      "norm_id": "TYP-N1",
+      "clause_id": "K10-TYP-d",
+      "covers": [
+        "K10"
+      ],
+      "clause_text": "A kapcsolódó parancs, nyugta és főkönyvi hatás a megnevezett tranzakciós határon atomi; részleges sikert és ismételt hatást a korábbi verziójú vagy más profilú bemenet sem hozhat létre.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K10-d-old-version-other-profile-and-error-point-are-named-refusals",
+      "probe_id": "P-KSZ-repeat-and-error-boundary",
+      "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad",
+      "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad\" · node v3ref/run.mjs",
+      "negative_evidence": "1 szerződés szerinti jelölt áll a soron (M170), de a kanonikus ítélő EGYIKET SEM minősítette falszifikálónak — ezért a sor NEM „fedett\"",
+      "mutations": [
+        {
+          "id": "M170",
+          "what": "KSZ-01 / R43 — AZ ISMÉTLÉS ÚJ HATÁST SZÜL: a parancs-azonosság a NYERS mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS formázásban MÁSODSZOR is könyvelne — kettős készletmozgás egyetlen valódi beadásból (KUKA-026)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "not_falsified",
+      "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — M170: a futás NEM buktatta meg a deklarált állítást (A-K10-d-old-version-other-profile-and-error-point-are-named-refusals)",
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "clause": "K10-TYP-d",
+        "verdict": "partial",
+        "reason": "KSZ atomiság/ismétlés és két profil szerinti működés vizsgált; a korábbi verzió/más profil miatti ismétlési és hibahatár teljes bizonyítása hiányzik. A lehetetlenségi indokot törölni kell, a hiányt nem."
+      }
+    },
+    {
+      "norm_id": "TYP-N1",
+      "clause_id": "K10-TYP-d",
+      "covers": [
+        "K10"
+      ],
+      "clause_text": "A kapcsolódó parancs, nyugta és főkönyvi hatás a megnevezett tranzakciós határon atomi; részleges sikert és ismételt hatást a korábbi verziójú vagy más profilú bemenet sem hozhat létre.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K10-d-refusals-leave-the-snapshot-and-the-earlier-success-intact",
+      "probe_id": "P-KSZ-repeat-and-error-boundary",
+      "behaviour": "ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad",
+      "positive_evidence": "P-KSZ-repeat-and-error-boundary — „ISMÉTLÉS ÉS HIBAHATÁR: nincs második hatás, nincs részleges írás, és a korábbi siker megmarad\" · node v3ref/run.mjs",
+      "negative_evidence": "1 szerződés szerinti jelölt áll a soron (M170), de a kanonikus ítélő EGYIKET SEM minősítette falszifikálónak — ezért a sor NEM „fedett\"",
+      "mutations": [
+        {
+          "id": "M170",
+          "what": "KSZ-01 / R43 — AZ ISMÉTLÉS ÚJ HATÁST SZÜL: a parancs-azonosság a NYERS mennyiség-szöveget viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS formázásban MÁSODSZOR is könyvelne — kettős készletmozgás egyetlen valódi beadásból (KUKA-026)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "not_falsified",
+      "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — M170: a futás NEM buktatta meg a deklarált állítást (A-K10-d-refusals-leave-the-snapshot-and-the-earlier-success-intact)",
       "evidence_limit": null,
       "content_review": {
         "state": "none",

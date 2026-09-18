@@ -3188,3 +3188,84 @@ szöveg értelmezése, nem az idézet pontossága.
 **Ugyanebben a körben javítva:** az **OB-9** maradék-szövegéből törölve a hamis „egyetlen élő
 profil" indok (két profil áll), és az **R38 board-lap** frissítve a repóbeli helyesbítéssel
 (3. változat) — a történeti eredményt a board verziózása őrzi.
+
+---
+
+## D-VS-3055 — a K10 követelmények bizonyítva a meglévő referencián (2026-09-18)
+
+**Honnan:** a külső ellenőrző fél (chatgpt-v3) **R43** parancsa — az R41-es összesítő-javítást a
+vizsgált referencia-hatókörben **elfogadta és lezárta**, és a *működés* mérését kérte.
+
+**A munka sorrendje az ő kikötésük szerint: előbb MÉRÉS, csak utána kód.** A felmérés eredménye
+kimondva: **mind a négy klauzula viselkedése helyes volt** — a hiány a **bizonyítékban** állt, nem a
+rendszerben. A csomag ezért nem javít, hanem **beköt**: négy új próba, **13 új állítás**, **hét új
+mutáció**, és a `K10-TYP-c` · `-d` `gap`-je **részlegesre** vált, kimondott maradékkal.
+
+**K10-TYP-a — stabil azonosság.** Mérve: a mennyiség változása és a formázás nem mozdítja az
+azonosítót; a történeti mozgás-sorok egy cikkre mutatnak; azonos cikkszám másik könyvben más cikk;
+a kiírt tulajdonság (egység) változása nulla lábnyomon szabad, lábnyom fölött **nevezetten tilos**.
+**Kimondott határ:** a referenciában **nincs megjelenítési-név mező és nincs átnevező művelet** —
+a klauzula e fordulatát ezért nem állítjuk bizonyítottnak (nyers fixtúra nem igazol hiányzó
+műveletet). Visszabontás: M164 · M165 · M166.
+
+**K10-TYP-b — a valódi úton.** Az elfogadott bemeneti javítást **nem építettük újra**; a nyolc
+bemeneti hiba eredményét a **kanonikus bevét-úthoz** kötöttük, mert a korábbi bizonyíték a belső
+feloldó közvetlen hívásán állt (KUKA-184). Mind a nyolc nevezetten elakad, **írás nélkül**; a jogos
+bevét egy mozgást ír. **Kimondott határ:** ezen az úton a művelet neve fix, és ez **nem zárja az
+OB-3** külső határát. Visszabontás: M167.
+
+**K10-TYP-c — a múlt megőrzése.** Mérve: a tárolt sor a **saját** profilját viszi; a magban **nincs
+publikus profilváltó művelet** (a katalógus forrásából mérve); elcsúszott profil mellett a
+visszaolvasás **nevezett `profile_mismatch`** — nem ad más jelentést ugyanannak a számnak —, a nyers
+sorok érintetlenek, és a helyes profilon a jelentés változatlanul tér vissza. **Kimondott maradék:**
+ez az **olvasó** oldalát bizonyítja, nyers határ-fixtúrával; valódi, támogatott profilváltás nincs
+megépítve, tehát nem is bizonyított. Visszabontás: M168 · M169.
+
+**K10-TYP-d — ismétlés és hibahatár.** Hat helyzet a valódi úton, parancs + esemény + mozgás +
+egyenleg pillanatképével: jogos első beadás (egy hatás) · azonos ismétlés · azonos jelentés más
+formázásban (a kanonikus alak dönt) · korábbi sémaverzió · más profil · hibapont. **Mindhárom
+elutasítás után a pillanatkép változatlan, és a korábbi siker ugyanazt a hatást adja vissza.**
+**Kimondott maradék:** a „más profilú bemenet" ága **ugyanarra a cikkre** nem szólítható meg
+(nincs profilváltás), a mérés másik cikkel történt. Visszabontás: M170.
+
+**Gépi jel:** `node v3ref/run.mjs` (58 próba) + `npm run verify:v3ref` (167 mutáció) — minden új
+állításhoz saját, név szerint döntő visszabontás.
+
+**Egy mérés közbeni saját lelet, kimondva.** Az **M165** első alakja magát az azonosító-képzést
+rontotta el — az viszont **nem szerződés szerinti bizonyíték**: a tábla elsődleges kulcsa önállóan
+is megfogja, és a próba nyers SQLITE-kivétellel áll meg. A visszalépést át kellett írni arra, ami a
+**valódi kár**: a néma összeolvadás a cikkszám-feloldásban. (Ugyanez az osztály, mint az R37-es
+M159 — a rendszer két szinten védett, de a bizonyítékot ez nem helyettesíti.)
+**A KÖR KÖZBEN A SAJÁT MÉRÉSEM KÉT TOVÁBBI HIBÁT TALÁLT A SAJÁT MUNKÁMBAN — mindkettő kimondva.**
+
+**(1) Két visszabontásom nem az állítást döntötte meg (KUKA-187, negyedszer előjövő osztály).** Az
+**M169** (a mozgás-sor a KÉRÉS profilját írja a cikké helyett) nem omlott össze, de a NEVEZETT
+próbát sem buktatta el: annak a világában CSAK liter-profilú (`qty-1`) cikk állt, tehát a beégetett
+`'qty-1'` megkülönböztethetetlen volt a helyes viselkedéstől — a fixtúra a saját előfeltevésemet
+igazolta vissza (KUKA-054). A próba világa mostantól **darabos (`qty-2`) cikket is** visz, és a
+sorának `qty-2` profilt kell hordoznia. Az **M170** első alakja a **fagyasztott** bemenet-értékre
+írt (nyers `TypeError` — más réteg fogta meg); a valódi kár a **parancs-azonosságban** van, oda
+került át. És az **M164** első alakja (só az azonosító-képzőben) **túlélte**: az azonosító a
+felvételkor EGYSZER születik és tárolva marad, tehát nincs olyan olvasó, ami újraszámolná — a
+visszabontás ezért a megjelenítés-váltásra került, ahol valódi kár keletkezhet. Ebből
+következik a **kimondott maradék**: a „mennyiség nem mozdítja az azonosságot" állításnak **nincs
+saját visszabontása**, mert a mai felépítésben egyetlen egysoros rontás sem tudja megdönteni
+anélkül, hogy előbb az adatbázis idegenkulcsa állítaná meg.
+
+**(2) A darabolt mérés indoka a szelet véletlenje volt (KUKA-188).** A battéria hét szeletben fut,
+és az összefűzés eddig a szeletek KÉSZ ítéleteit egyesítette: a verdikt helyes maradt (a rangsor
+dönt), a sor **indoka** viszont az első beérkező szeleté lett — öt soron mérve azt írta, hogy
+„egyetlen mutációs eredmény sem érkezett erre a próbára", holott a teljes bizonyítékon a helyes
+indok az, hogy a mutáció **futott és nem buktatta meg** az állítást. A kettő KÉT KÜLÖN teendő
+(KUKA-093), és a gyengébbik ment ki a gépi végeredménybe. **Megtalálta a saját csomag-generátorom
+teljes mező-összevetése** (a külső fél R41-es kikötése), miközben a battéria 168/168-cal zöld volt.
+Javítva: az összefűzés a **kanonikus ítélőt** (`checkNorms`) futtatja a TELJES, egyesített
+bizonyítékon és AZT adja ki; az unió kereszt-ellenőrzés marad, verdikt-eltérésnél nevezett akadály.
+
+**Új visszabontás:** **M171** — a kanonizálás nem íródik vissza a tartalomba, tehát a `10` és a
+`10.000` külön parancs-azonosságot kapna (ugyanaz a jelentés másodszor is könyvelne). Ez a garancia
+MÁSIK kódhelye, mint az M170 — két külön helyszín, két külön ellenpár.
+
+**Zárszám:** `node v3ref/run.mjs` **58/58 PASS** · `npm run verify:v3ref` **168 mutáció · 168
+elkapva · 0 túlélte · 0 rossz próba · 0 mérőhiba** · norma-lánc **105 sor**.
+

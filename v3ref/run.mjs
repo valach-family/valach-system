@@ -5078,8 +5078,11 @@ probe('P-KAT-identity-history', 'R32/K10 · K10-TYP-a · KUKA-027 · KUKA-021',
     const fresh = registerItem({ store, bookId: 'a', sku: 'URES', unit: 'l', at: BIT.MARCH });
     const freeChange = changeItemUnit({ store, itemId: fresh.itemId, unit: 'ml' });
     const blocked = changeItemUnit({ store, itemId: it.itemId, unit: 'ml' });
+    // A VISSZAOLVASÁS VÉDETTEN: ha a megjelenítés-váltás ELMOZDÍTANÁ az azonosítót, itt `null` jön —
+    // és akkor az ÁLLÍTÁSNAK kell hamisra fordulnia, nem a próbának elszállnia (KUKA-187).
+    const afterFree = itemById(store, fresh.itemId);
     const dOk = freeChange.ok === true && freeChange.changed === true
-      && itemById(store, fresh.itemId).item_id === fresh.itemId
+      && afterFree !== null && afterFree.item_id === fresh.itemId && afterFree.unit === 'ml'
       && blocked.ok === false && blocked.error === 'unit_change_needs_conversion';
 
     return {
@@ -5157,15 +5160,26 @@ probe('P-MNY-stored-profile-history', 'R32/K10 · K10-TYP-c · KUKA-021 · KUKA-
   () => {
     const { store, send } = k10World();
     const L = registerItem({ store, bookId: 'a', sku: 'LITER', unit: 'l', at: BIT.MARCH });
+    // A DARABOS CIKK NEM DÍSZ: egyetlen profillal a „a sor a SAJÁT profilját viszi" állítás
+    // MÉRHETETLEN — egy beégetett `'qty-1'` ugyanúgy zöld lenne (KUKA-054: a fixtúra menjen SZEMBE
+    // az előfeltevéssel). A saját M169 mutációm pontosan ezt találta meg.
+    const D = registerItem({ store, bookId: 'a', sku: 'DARAB', unit: 'db', qtyProfile: 'qty-2', at: BIT.MARCH });
     const key = { bookId: 'a', itemId: L.itemId, ownerId: 'gazda', warehouseId: 'FO' };
+    const keyD = { bookId: 'a', itemId: D.itemId, ownerId: 'gazda', warehouseId: 'FO' };
     send('p1', { item_id: L.itemId, qty: '10', effective_at: BIT.MARCH });
     send('p2', { item_id: L.itemId, qty: '2.500', effective_at: BIT.MARCH });
+    send('p3', { item_id: D.itemId, qty: '7', effective_at: BIT.MARCH });
 
-    // (a) A SOR SAJÁT PROFILT HORDOZ — nem a cikk MAI profilját olvassuk vissza rá.
+    // (a) A SOR SAJÁT PROFILT HORDOZ — nem a cikk MAI profilját olvassuk vissza rá, és nem is egy
+    //     rendszer-alapértelmezést: a KÉT cikk sorai KÜLÖNBÖZŐ profilt hordoznak.
     const rows = store.all('SELECT qty_scaled, qty_profile FROM stock_movement WHERE item_id = ?', L.itemId);
+    const rowsD = store.all('SELECT qty_scaled, qty_profile FROM stock_movement WHERE item_id = ?', D.itemId);
     const before = balanceAt({ store, key, view: 'B', asOf: BIT.MARCH });
+    const beforeD = balanceAt({ store, key: keyD, view: 'B', asOf: BIT.MARCH });
     const aOk = rows.length === 2 && rows.every((r) => r.qty_profile === 'qty-1')
-      && before.ok === true && before.text === '12.500' && before.profileId === 'qty-1';
+      && rowsD.length === 1 && rowsD[0].qty_profile === 'qty-2'
+      && before.ok === true && before.text === '12.500' && before.profileId === 'qty-1'
+      && beforeD.ok === true && beforeD.text === '7' && beforeD.profileId === 'qty-2';
 
     // (b) NINCS PUBLIKUS PROFILVÁLTÓ MŰVELET — mérve, nem feltételezve: a katalógus egyetlen
     //     `UPDATE item` írása az EGYSÉG-váltás, és az a `qty_profile`-hoz nem nyúl.
@@ -5188,10 +5202,12 @@ probe('P-MNY-stored-profile-history', 'R32/K10 · K10-TYP-c · KUKA-021 · KUKA-
       && back.ok === true && back.text === '12.500';                  // és a jelentés visszatér
 
     return {
-      expected: 'a tárolt sor a SAJÁT profilját viszi · a magban NINCS publikus profilváltó művelet '
+      expected: 'a tárolt sor a SAJÁT profilját viszi (KÉT profilon mérve: liter és darab) '
+        + '· a magban NINCS publikus profilváltó művelet '
         + '· elcsúszott profil mellett a visszaolvasás NEVEZETTEN elakad, a nyers sorok érintetlenek, '
         + 'és a helyes profilon a jelentés VÁLTOZATLANUL tér vissza',
-      actual: `sor-profilok: ${rows.map((r) => r.qty_profile).join(',')} · előtte=${before.text}`
+      actual: `L sor-profilok: ${rows.map((r) => r.qty_profile).join(',')} · előtte=${before.text}`
+        + ` · D sor-profilok: ${rowsD.map((r) => r.qty_profile).join(',')} · D=${beforeD.ok ? beforeD.text : beforeD.error}`
         + ` · item-írók: ${itemUpdates.join('|') || '(egy sem)'}`
         + ` · elcsúszva=${after.ok ? after.text : after.error} · visszaállítva=${back.text}`,
       pass: aOk && bOk && cOk,

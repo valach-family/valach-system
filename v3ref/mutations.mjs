@@ -1537,20 +1537,29 @@ export const MUTATIONS = [
   // Minden ÚJ állításhoz saját kontroll: a mérés nem lehet erősebb, mint a hozzá tartozó ellenpár.
 
   { id: 'M164', rule: 'K10', catcher: 'P-KAT-identity-history', expect: 'probe_fail',
-    what: 'KAT-01 / R43 — AZ AZONOSÍTÓ A MENNYISÉGTŐL FÜGG: a cikk-azonosító a felvétel IDEJE '
-      + 'helyett a mindenkori mozgás-számból is képződik, tehát minden bevét UTÁN MÁS azonosító '
-      + 'jönne ki ugyanarra a cikkre — a történeti hivatkozások elszakadnának (KUKA-021)',
+    what: 'KAT-01 / R43 — A MEGJELENÍTÉS ÁTÍRÁSA ELMOZDÍTJA AZ AZONOSÍTÓT: az egység-váltás a cikk '
+      + 'BELSŐ azonosítóját is újraképzi, tehát minden korábbi hivatkozás (nyugta, mozgás, riport) '
+      + 'egy megszűnt azonosítóra mutatna — a megjelenítés némán azonosságot cserélne (KUKA-021 · '
+      + 'KUKA-061). AMIT MÉRVE MEGTUDTUNK: az ELSŐ alakom a `Date.now()` sóval az AZONOSÍTÓ-KÉPZŐT '
+      + 'rontotta el, de az azonosító a felvételkor EGYSZER születik és TÁROLVA marad — a mutáció '
+      + 'ezért `SURVIVED` lett: nem volt olyan olvasó, ami újraszámolta volna. Ez a rendszerről jó '
+      + 'hír, bizonyítéknak viszont semmi (KUKA-187).',
     file: 'catalog.mjs',
-    from: "const itemIdFor = (bookId, sku, at) =>",
-    to: "const itemIdFor = (bookId, sku, at, salt = Date.now()) =>" },
+    from: "  store.run('UPDATE item SET unit = ? WHERE item_id = ?', unit, itemId);",
+    to: "  store.run('UPDATE item SET unit = ?, item_id = ? WHERE item_id = ?', unit, "
+      + "itemIdFor(item.book_id, item.sku, unit), itemId);" },
 
   { id: 'M165', rule: 'K10', catcher: 'P-KAT-identity-history', expect: 'probe_fail',
-    what: 'KAT-01 / R43 — A KÖNYV KIESIK AZ AZONOSSÁGBÓL: két FÜGGETLEN könyv azonos cikkszáma '
-      + 'ugyanazt a belső azonosítót kapja. Közös csatornán ez a KUKA-027 hibája: az azonosító csak '
-      + 'a SAJÁT terében egyedi',
+    what: 'KAT-01 / R43 — A KÖNYV KIESIK A FELOLDÁSBÓL: a cikkszám-keresés az ÖSSZES könyvben néz, '
+      + 'tehát a B könyv `050`-es cikkére kérdezve az A könyv cikke jön vissza — két FÜGGETLEN '
+      + 'termék NÉMÁN eggyé olvad (KUKA-027: az azonosító csak a SAJÁT terében egyedi). '
+      + 'AMIT MÉRVE MEGTUDTUNK: a mutáció ELSŐ alakja magát az AZONOSÍTÓ-KÉPZÉST rontotta el, de az '
+      + 'nem szerződés szerinti bizonyíték — a tábla elsődleges kulcsa önállóan is megfogja, és a '
+      + 'próba nyers SQLITE-kivétellel áll meg. A visszalépésnek a NÉMA ÖSSZEOLVADÁST kell '
+      + 'előállítania, mert az a valódi kár',
     file: 'catalog.mjs',
-    from: "  `itm_${createHash('sha256').update(`kat-1|${bookId}|${sku}|${at}`).digest('hex').slice(0, 24)}`;",
-    to: "  `itm_${createHash('sha256').update(`kat-1|${sku}|${at}`).digest('hex').slice(0, 24)}`;" },
+    from: "  return store.get('SELECT * FROM item WHERE book_id = ? AND sku = ?', bookId, sku) || null;",
+    to: "  return store.get('SELECT * FROM item WHERE sku = ?', sku) || null;" },
 
   { id: 'M166', rule: 'K10', catcher: 'P-KAT-identity-history', expect: 'probe_fail',
     what: 'KAT-01 / R43 — A KIÍRT TULAJDONSÁG ÁTÍRÁSA LÁBNYOM FÖLÖTT IS SZABAD: az egység-váltás '
@@ -1561,12 +1570,15 @@ export const MUTATIONS = [
     to: "  if (false) {" },
 
   { id: 'M167', rule: 'K10', catcher: 'P-KSZ-canonical-input-boundary', expect: 'probe_fail',
-    what: 'BEM-01 / R43 — A BEMENETI ELLENŐRZÉS KIESIK A KANONIKUS ÚTBÓL: a bevét-út a nyers '
-      + 'törzset adja tovább, tehát a hiányzó, idegen és hibás típusú mező NEVEZETT elutasítás '
-      + 'nélkül jutna a főkönyv határáig (KUKA-097: a néma kihagyás az írás útján a legdrágább)',
+    what: 'BEM-01 / R43 — A KANONIKUS ÚT CSENDBEN MEGTISZTÍTJA A TÖRZSET: a bevét-út csak a három '
+      + 'ismert mezőt adja tovább, tehát az IDEGEN és a KONTEXTUS-mező nem nevezett elutasítást kap, '
+      + 'hanem NÉMÁN eltűnik — a beadó azt hiszi, kitöltött valamit, a rendszer eldobja (KUKA-041 a '
+      + 'bemeneten). AMIT MÉRVE MEGTUDTUNK: a mutáció ELSŐ alakja a hibás csomagot engedte tovább, '
+      + 'és a próba nyers TypeError-ral állt meg — az nem szerződés szerinti bizonyíték',
     file: 'ledger.mjs',
     from: "  const checked = validateInput({ operation: 'stock.receipt', input, version });\n  if (!checked.ok) return checked;",
-    to: "  const checked = validateInput({ operation: 'stock.receipt', input, version });\n  if (!checked.ok && checked.error !== 'missing_field' && checked.error !== 'unknown_field') return checked;" },
+    to: "  const _clean = { item_id: input && input.item_id, qty: input && input.qty, effective_at: input && input.effective_at };\n"
+      + "  const checked = validateInput({ operation: 'stock.receipt', input: _clean, version });\n  if (!checked.ok) return checked;" },
 
   { id: 'M168', rule: 'K10', catcher: 'P-MNY-stored-profile-history', expect: 'probe_fail',
     what: 'MNY-01 / R43 — A VISSZAOLVASÁS A CIKK MAI PROFILJÁT ERŐLTETI A RÉGI SORRA: az összeadás '
@@ -1583,12 +1595,24 @@ export const MUTATIONS = [
     from: "      key.bookId, key.itemId, key.ownerId, key.warehouseId, q.scaled.toString(), item.qty_profile,",
     to: "      key.bookId, key.itemId, key.ownerId, key.warehouseId, q.scaled.toString(), 'qty-1'," },
 
+  { id: 'M171', rule: 'K10', catcher: 'P-KAT-identity-history', expect: 'probe_fail',
+    what: 'BEM-01 / KAT-01 / R43 — A KANONIZÁLÁS NEM ÍRÓDIK VISSZA: a profil-kötés a NYERS '
+      + 'mennyiség-szöveget hagyja a tartalomban, tehát a `"10"` és a `"10.000"` KÜLÖNBÖZŐ '
+      + 'parancs-azonosságot kapna — ugyanaz a jelentés MÁS írásmódban másodszor is könyvelne. Ez a '
+      + 'KANONIZÁLÁS oldala; az M170 ugyanennek a garanciának a MÁSIK helyszíne (maga az '
+      + 'azonosság-összeállítás) — két külön kódhely, két külön ellenpár.',
+    file: 'inputSchema.mjs',
+    from: "    bound[name] = q.text;                                  // a PROFIL szerinti KANONIKUS alak",
+    to: "    bound[name] = String(bound[name]);" },
+
   { id: 'M170', rule: 'K10', catcher: 'P-KSZ-repeat-and-error-boundary', expect: 'probe_fail',
     what: 'KSZ-01 / R43 — AZ ISMÉTLÉS ÚJ HATÁST SZÜL: a parancs-azonosság a NYERS mennyiség-szöveget '
       + 'viszi a kanonikus alak helyett, tehát ugyanaz a jelentés MÁS formázásban MÁSODSZOR is '
       + 'könyvelne — kettős készletmozgás egyetlen valódi beadásból (KUKA-026)',
     file: 'ledger.mjs',
-    from: "  const checked = validateInput({ operation: 'stock.receipt', input, version });",
-    to: "  const checked = validateInput({ operation: 'stock.receipt', input, version });\n"
-      + "  if (checked.ok) checked.value.qty = String(input.qty);" },
+    // A KÁR A PARANCS-AZONOSSÁGBAN keletkezik, nem a bemenet átírásában: az első alakom a FAGYASZTOTT
+    // `checked.value`-ra írt, és a próba nyers `TypeError`-ral állt meg — más réteg (a fagyasztás)
+    // fogta meg, tehát nem az állítás bukott (KUKA-187 · WRONG_CATCHER).
+    from: "  const identityBody = Object.freeze({ ...bound.value, owner_id: ownerId, warehouse_id: warehouseId,",
+    to: "  const identityBody = Object.freeze({ ...bound.value, qty: String(input.qty), owner_id: ownerId, warehouse_id: warehouseId," },
 ];
