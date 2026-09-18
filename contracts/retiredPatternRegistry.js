@@ -7700,6 +7700,56 @@ const RETIRED_PATTERNS = Object.freeze([
   }),
 
   Object.freeze({
+    id: 'KUKA-177',
+    date: '2026-09-18',
+    title: 'A KAPU, AMI A GÉP PILLANATNYI TERHELÉSÉN MÚLT — kézzel beírt darabszám a mutációs battérián',
+    what: 'A `v3ref:mutate:units` parancs KÉZZEL BEÍRT hetes darabszámot hordozott '
+      + '(`--unit=1/7 … --unit=7/7`). A battéria közben 149 mutációra nőtt, és a 4 vCPU-s futtatónkon '
+      + 'a 2/7 szelet 12 406 ms-ot kért — a saját költségvetés (12 000 ms) fölött —, ezért a '
+      + '`verify:v3ref` PIROSRA váltott, miközben a TARTALOM tiszta volt: finomabb darabolással '
+      + '149/149 mutáció elkapva, 0 túlélő. Utólag megmérve a hetes darabolás ÜRES gépen belefér — '
+      + 'tehát a kapu eredménye a gép PILLANATNYI TERHELÉSÉN múlt.',
+    why_wrong: 'Egy kapu, ami terhelés alatt pirosat ad ép tartalomra, kétszeresen rossz: a valódi '
+      + 'hibát elfedi a zaj, és arra tanít, hogy a pirosat át kell írni (a javítás = a szám '
+      + 'átírása, KUKA-045). A darabszám ráadásul KÉT helyen élt — a tool AJÁNLÁSAKÉNT és a parancs '
+      + 'szövegében —, tehát a battéria növekedésével a kettő némán elcsúszik (KUKA-018).',
+    replaced_by: 'UFK-01 + `--units-auto`: a darabszám a KÖLTSÉGVETÉSBŐL származik, a nem-nulla '
+      + 'egység okát pedig nevezett feloldó dönti el (idő ⇒ finomítás · tartalom ⇒ azonnali megállás).',
+    replacement: 'A szám helyére SZABÁLY került: `--units-auto` — az ajánlott darabszámról indul, és '
+      + 'ha egy egység nem fér a költségvetésébe, FINOMABBRA oszt; a költségvetés NEM tágul '
+      + '(KUKA-091). A finomítás nem néma (kiírja), plafonja van, és a plafonon a válasz NEM zöld, '
+      + 'hanem HIÁNYOS MÉRÉS (KUKA-093). A nem-nulla egység OKÁT nevezett feloldó dönti el '
+      + '(UFK-01, `v3ref/unitFailureKind.mjs`): IDŐ ⇒ finomítható · TARTALOM ⇒ azonnal megáll · '
+      + 'nincs tanú ⇒ `unknown`, tehát nem mentegetünk.',
+    decision: 'D-VS-3039',
+    found_by: 'a SAJÁT mérésem az R32 §B csomag közben — és a helyesbítést is a saját mérésem hozta: '
+      + 'az első állításom („a kézzel beírt szám elrontotta a söprést") TÚL ERŐS volt, mert a piros '
+      + 'mérés akkor született, amikor párhuzamosan futott a külső lánc: részben ÉN szennyeztem.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/unitFailureKind.mjs']),
+        pattern: "slice_clean === false[\\s\\S]{0,200}return 'content'",
+        why: 'a TARTALMI bukás a lassúság-ág ELŐTT dől el — ha valaki mögé teszi, a darabolás elfedne egy valódi mag-hibát' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({
+        pattern: '--unit=1/\\d+ && ',
+        paths: ['package.json'],
+        reason: 'a darabszám nem kerülhet vissza kézzel a parancsba — a szabály származtatja',
+      }),
+    ]),
+    guard_note: 'gépi jel: `node --test v3ref/unitFailureKind.test.mjs` (4 eset: túllépő de tiszta ⇒ '
+      + 'too_slow · TARTALMILAG bukott ⇒ content, akkor is ha túllépett · befért mégis bukott ⇒ unknown · '
+      + 'nincs tanú ⇒ unknown) + `npm run verify:v3ref` (a `--units-auto` úton, kilépési kódon mérve).',
+    lesson: 'EGY KAPU EREDMÉNYE NEM MÚLHAT A GÉP PILLANATNYI TERHELÉSÉN. Ahol egy mérésnek '
+      + 'idő-költségvetése van, a DARABOLÁS legyen származtatva (a költségvetésből), ne kézzel beírva '
+      + '— a kézi szám a battéria növekedésével elcsúszik, és a piros nem hibát jelez, hanem zajt. '
+      + 'És a finomítás soha ne legyen néma vagy határtalan: ami a plafonon sem fér bele, az HIÁNYOS '
+      + 'MÉRÉS, nem zöld. **Mellé egy tanulság a SAJÁT MÉRÉSEMRŐL:** időzítés-érzékeny láncot '
+      + 'TERHELETLEN gépen kell mérni — ugyanezt a külső láncot párhuzamos munka mellett futtatva öt '
+      + 'további program esett ki pusztán időzítés miatt (11/19 a valódi 14/19 helyett). A szennyezett '
+      + 'mérést nem szabad a jelentésbe engedni, akkor sem, ha épp a kedvezőbb (KUKA-054).',
+  }),
+  Object.freeze({
     id: 'KUKA-176',
     date: '2026-09-16',
     title: 'A HIBÁS ALAK CSAK AZ EGYIK ÁGON VOLT HIBA — a saját, egy körrel korábbi szerződésemen',

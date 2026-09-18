@@ -50,6 +50,9 @@ let BASE_DIGEST = null;   // az ALAP (mutálatlan) forrás lenyomata — az alap
 const RUN_TIMEOUT_MS = 60000;
 
 import { MUTATIONS } from './mutations.mjs';
+// A NEM-NULLA EGYSÉG OKÁNAK FELOLDÓJA KÜLÖN MODULBAN (UFK-01): ezt a fájlt a próba is
+// IMPORTÁLHATJA anélkül, hogy a teljes battériát elindítaná (a `mutate.mjs` maga futtató, nem könyvtár).
+import { unitFailureKind } from './unitFailureKind.mjs';
 
 
 // ═══ A MÁSODIK KÖR: ÖT TOVÁBBI HAZUGSÁG-ALAK (R45 H02–H06) ══════════════════════════════════════
@@ -641,6 +644,63 @@ const UNIT = (() => {
 /** A felosztás DETERMINISZTIKUS és körbeforgó: az egységek költsége így hasonló marad. */
 const sliceFor = (k, n) => MUTATIONS.filter((_, i) => i % n === k - 1);
 const AUTO_UNITS = Math.max(1, Math.ceil(MUTATIONS.length / UNIT_SIZE));
+
+// ── A DARABSZÁM SZÁRMAZTATVA, NEM KÉZZEL (`--units-auto`, R32/§B3) ──────────────────────────────
+//
+// MIÉRT SZÜLETETT. A söprés a `v3ref:mutate:units` úton futott, és az a parancs KÉZZEL BEÍRT HETES
+// darabszámot hordozott (`--unit=1/7 … --unit=7/7`). A battéria közben 149 mutációra nőtt, és a mi
+// 4 vCPU-s futtató-gépünkön a 2/7 szelet 12 406 ms-ot kért — a SAJÁT költségvetés (12 000 ms) fölött.
+// Ettől a `verify:v3ref` PIROS lett, miközben a TARTALOM tiszta: tíz egységgel mérve 149/149 mutáció
+// elkapva, 0 túlélő. Egy kézzel léptetett szám pontosan így hazudtat meg egy ép mérést, és arra
+// tanít, hogy a pirosat át kell írni (KUKA-045).
+//
+// A SZABÁLY, AMI A SZÁM HELYÉRE LÉP: minden egység férjen bele a saját költségvetésébe. A darabszám
+// ebből SZÁRMAZIK: az ajánlott értékről indulunk, és ha egy egység nem fér bele, FINOMABBRA
+// osztunk — a KÖLTSÉGVETÉS SOHA nem tágul (KUKA-091: a javítás iránya nem az őr lazítása).
+//
+// ÉS A FINOMÍTÁS NEM LEHET NÉMA. A végtelen darabolás elfedne egy valódi lassulást, ezért: legfeljebb
+// `AUTO_MAX_ATTEMPTS` próbálkozás, és ha a tool SAJÁT ajánlásánál finomabbra kellett menni, a futtató
+// KIMONDJA. Ha a plafonon sem fér bele, a kilépés NEM 0 — a mérés akkor hiányos, nem zöld (KUKA-093).
+if (process.argv.includes('--units-auto')) {
+  const AUTO_MAX_ATTEMPTS = 4;
+  const self = fileURLToPath(import.meta.url);
+  const runNode = (args) => spawnSync(process.execPath, [self, ...args], { stdio: 'inherit' });
+  let n = AUTO_UNITS; let attempt = 0; let lastTooSlow = null;
+  for (;;) {
+    attempt += 1;
+    let tooSlow = null;
+    for (let k = 1; k <= n; k += 1) {
+      const r = runNode([`--unit=${k}/${n}`]);
+      if (r.status !== 0) {
+        // A NEM-NULLA kilépés KÉT dolgot jelenthet: tartalmi bukás vagy idő-túllépés. A kettőt a
+        // MÉRT egység-fájl különbözteti meg — nem a kilépési kód (KUKA-049).
+        let unit = null;
+        try { unit = JSON.parse(readFileSync(join(UNITS_DIR, `unit-${k}-of-${n}.json`), 'utf8')); }
+        catch { /* nincs egység-fájl: nem tudjuk, tehát nem mentegetünk */ }
+        if (unitFailureKind(unit) === 'too_slow') { tooSlow = { k, n }; break; }
+        console.error(`  AZ EGYSÉG ${k}/${n} TARTALMI OKBÓL bukott — a darabolás ezen nem segít.`);
+        process.exit(r.status || 1);
+      }
+    }
+    if (!tooSlow) break;
+    lastTooSlow = tooSlow;
+    if (attempt >= AUTO_MAX_ATTEMPTS) {
+      console.error(`  A ${n} egységre osztott battéria ${AUTO_MAX_ATTEMPTS} próbálkozás után SEM fér bele a `
+        + `${WALL_BUDGET_MS} ms-os egység-költségvetésbe (utoljára a ${lastTooSlow.k}/${lastTooSlow.n} szeleten).`);
+      console.error('  EZ NEM ZÖLD ÉS NEM PIROS TARTALOM: a MÉRÉS hiányos — a futtató-gép lassabb, mint amire a '
+        + 'darabolás méretezve van. A költségvetést nem tágítjuk; a teendő a gép vagy a battéria felülvizsgálata.');
+      process.exit(1);
+    }
+    n *= 2;
+    console.error(`  A ${lastTooSlow.k}/${lastTooSlow.n} szelet nem fért a költségvetésbe — FINOMABBRA osztok: ${n} egység.`);
+  }
+  if (n !== AUTO_UNITS) {
+    console.log(`  MEGJEGYZÉS: a tool ajánlása ${AUTO_UNITS} egység volt, de ezen a gépen ${n} kellett `
+      + '— a költségvetés változatlan, a darabolás finomabb.');
+  }
+  const m = runNode(['--merge']);
+  process.exit(m.status === null ? 1 : m.status);
+}
 
 // ── AZ ÖSSZEFŰZÉS (`--merge`) — CSAK EZ ADHAT TELJES ÖSSZEFOGLALÓT ──────────────────────────────
 if (MERGE_ONLY) {

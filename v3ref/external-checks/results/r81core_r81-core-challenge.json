@@ -1,15 +1,14 @@
 {
   "program": "r81_chatgpt-v3.core.mjs + r81_merge_chatgpt-v3.core.mjs",
-  "source_commit": "d95039249b2fe4c7b5bbd06fac7f38923daf91c2",
+  "source_commit": "d76f30d3ce71093227830ebe08c70fb34e38e8cc+uncommitted",
   "node": "v22.22.2",
-  "at": "2026-09-17T15:27:54.462Z",
+  "at": "2026-09-18T05:42:20.781Z",
   "verbatim": true,
   "genuine_units": {
     "requested": 4,
     "problems": [
       "a 1/4 egység NEM nullával zárt (1)",
       "a 2/4 egység NEM nullával zárt (1)",
-      "a 3/4 egység NEM nullával zárt (1)",
       "a 4/4 egység NEM nullával zárt (1)"
     ]
   },
@@ -131,18 +130,11 @@
       "id": "merge/KORNYEZET-9",
       "pass": false,
       "result": {
-        "error": "a 3/4 egység NEM nullával zárt (1)"
-      }
-    },
-    {
-      "id": "merge/KORNYEZET-10",
-      "pass": false,
-      "result": {
         "error": "a 4/4 egység NEM nullával zárt (1)"
       }
     }
   ],
   "passed": 3,
-  "failed": 8,
+  "failed": 7,
   "cases_mapped_from": "a két program SAJÁT `cases` listája, `core/` és `merge/` előtaggal — a programok szövege érintetlen, az előtagot a burkoló teszi rá (két próba, egy eset-lista)"
 }

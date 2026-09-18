@@ -2813,3 +2813,34 @@ megengedett érték ÉS egyezés a futás kimondott értékével, különben nev
 **Tanulság:** KUKA-105. **Javítás:** `valach-family/vs@98a4270` (PR #160, draft).
 **Gépi jel:** `test:v3progress` F30-01 (hét ellenpár) · `test:v3progress:mutations` (három rontás,
 mind PIROS a kilépési kódon).
+
+## D-VS-3039 — a mutációs battéria darabszáma származtatva, nem kézzel (2026-09-18)
+
+**Kör:** `CMD-VS-300-002-002 R32 → R33` · **Sáv:** Claude-v3.
+
+A `v3ref:mutate:units` kézzel beírt hetes darabszámot hordozott. A battéria 149 mutációra nőtt, és a
+4 vCPU-s futtatón a 2/7 szelet 12 406 ms-ot kért a 12 000 ms-os saját költségvetés fölött — a
+`verify:v3ref` PIROSRA váltott ép tartalom mellett. Utólag mérve a hetes darabolás ÜRES gépen
+belefér: a kapu eredménye tehát a gép pillanatnyi terhelésén múlt.
+
+**Döntés:** a darabszám a KÖLTSÉGVETÉSBŐL származik (`--units-auto`): az ajánlott értékről indul, és
+ha egy egység nem fér bele, finomabbra oszt — a költségvetés nem tágul, a finomítás nem néma, van
+plafonja, és a plafonon a válasz hiányos mérés, nem zöld. A nem-nulla egység OKÁT nevezett feloldó
+dönti el (UFK-01, `v3ref/unitFailureKind.mjs`): IDŐ ⇒ finomítható · TARTALOM ⇒ azonnal megáll ·
+nincs tanú ⇒ `unknown`.
+
+**Tanulság:** KUKA-177. **Gépi jel:** `node --test v3ref/unitFailureKind.test.mjs` (4 ellenpár) +
+`npm run verify:v3ref`.
+
+## D-VS-3040 — a három piros külső lánc oka MÉRVE: elavult elvárás (2026-09-18)
+
+**Kör:** `CMD-VS-300-002-002 R32 → R33` · **Sáv:** Claude-v3 · **Kérés:** az R32 §B2.
+
+Az `r77` · `r79core` · `r81core` hét bukó esetének okát eddig próza mondta ki. Mostantól MÉRÉS:
+`npm run proof:mny01-form` (MNY-FORM-01) minden esetet kétszer futtat, és a kettő között egyetlen
+dolog különbözik — a mennyiség ALAKJA. Eredmény **7/7**: JSON-szám ⇒ nevezett elutasítás
+(`result_shape_type_mismatch`) · kanonikus decimális szöveg ⇒ elfogadva.
+
+**Döntés:** a minősítés **elavult elvárás**, nem termékhiba. A külső fél programjaihoz NEM nyúlunk
+(KUKA-054); az orvoslás (`qty: 1` → `qty: '1'` a bukó eseteknél) vagy az MNY-01 szűkítése **az ő
+döntésük**. Addig a lánc pirosa áll, és nem takarjuk el.
