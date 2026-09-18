@@ -3269,3 +3269,46 @@ MÁSIK kódhelye, mint az M170 — két külön helyszín, két külön ellenpá
 **Zárszám:** `node v3ref/run.mjs` **58/58 PASS** · `npm run verify:v3ref` **168 mutáció · 168
 elkapva · 0 túlélte · 0 rossz próba · 0 mérőhiba** · norma-lánc **105 sor**.
 
+## D-VS-3056 — a teljes tartalmi történet-megőrzés és a hatás-közbeni hibahatár (2026-09-18)
+
+**Honnan:** a külső ellenőrző fél (chatgpt-v3) **R45** parancsa. Az R44-es csomagot két ponton
+cáfolta, mindkettőt **futtatható ellenpéldával**, és mindkettőt a SAJÁT fánkon reprodukáltam.
+
+**F45-01 — a darabszám nem a tartalom.** Az R44-es ismétlés-próbám három tábla DARABSZÁMÁT és egy
+egyenleg-szöveget hasonlított, csak a sorozat végén. A külső fél a bevét-út ELUTASÍTÓ ágán átírt egy
+korábbi, lezárt esemény időpontját — a battéria mind az 58 próbája ZÖLD maradt. Reprodukálva: a
+rontás `changes: 1`-et mért (valóban átírt egy régi sort), az eredmény mégis 58/58 PASS. Ugyanez a
+hiány állt a bemeneti próbán, ahol a „nem írt semmit" állítás ÜRES tárolón mért darabszámon állt.
+**Javítva:** TELJES tartalmi pillanatkép (a három nevezett tábla MINDEN oszlopa, determinisztikus
+rendezésben, a tárolt eredmény-tartalommal), **minden egyes lépés után**; a jogos audit-bejegyzés
+KÜLÖN mérce (a kiadás-leltár hozzáfűzhet, a korábbi sorait nem írhatja át); a bemeneti próba
+ELŐZMÉNNYEL indul. Visszabontás: **M173** (a külső fél saját ellenpéldája) · **M174**. Tanulság:
+**KUKA-189**.
+
+**F45-02 — a ténylegesen elért hibahatár.** Az R44-es „hibapont" (99999999) a bemeneti ellenőrzésen
+akad el, tehát a parancs tranzakciójába BE SEM LÉP: érvényes bemeneti ellenpélda, de a részleges
+írás visszagörgetéséről semmit nem mond. **Javítva:** a darabos cikk ÖSSZEG-korlátja a MEGLÉVŐ atomi
+úton belül üt (a tétel önmagában szabályos), tehát a hiba ott keletkezik, ahol a parancs-sor és a
+nyugta MÁR beíródott — új állítás: `A-K10-d-effect-time-failure-leaves-no-partial-write`.
+Visszabontás: **M175** (a hatás elutasítása nem görget vissza) · **M176** (az ismétlés-őr elnyeli a
+megváltozott tartalmat). Új tranzakciós keretet nem építettünk.
+
+**Három túl erős mutáció-leírás javítva — a MÉRT hatásra.** Az **M170** nem kettős könyvelést okoz,
+hanem a formázás-független ismétlést akasztja el (a mozgás-szám 1 marad; a kettős hatást az **M172**
+mutatja). Az **M171** ugyanez a másik kódhelyen. Az **M168** a régi, 12.500-as fixtúrán
+`total_out_of_range`-et adott — az IDEGEN profil MÁSIK korlátja takarta el a kárt; a próba ezért egy
+KIS (7.500) tételt is visz, ahol az átértelmezés egyik korlátba sem ütközik, és ott mérve a
+visszaolvasás CSENDBEN **„7500"**-at ad „7.500" helyett.
+
+**A döntés-regiszter mostantól FORRÁS-TUDATOS.** Az R45 a **K10-TYP-b**-t elfogadta — kimondottan
+SZŰKEBB hatókörre (a jelenlegi egyírós, szintetikus referencia belső séma- és kanonikus bevétútja;
+**nem** az OB-3 külső határa, és nem minden korábbi tárolt adat változatlansága). Az R37-es
+történeti sorokat NEM írtuk át: a felülírt döntés `superseded`-ként megmarad, és az őr mindkét
+forrás-lapon méri a szó szerinti idézetet (33/33).
+
+**Egy mondat-fegyelem, kimondva.** Az R44-es lapom „egyetlen egysoros rontás sem tudja megdönteni"
+alakja általános lehetetlenségi állítás volt — mérésen túli. Helyette a KIPRÓBÁLT alakot és a mai
+mérési határt nevezzük meg. A KUKA-187 szövege ennek megfelelően javítva.
+
+**Gépi jel:** `node v3ref/run.mjs` (58 próba) · `npm run verify:v3ref` (173 mutáció) ·
+`npm run verify:external-decisions` (33 idézet, két forrás-lapon) · `npm run verify:kuka`.
