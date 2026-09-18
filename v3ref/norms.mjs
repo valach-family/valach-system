@@ -778,10 +778,14 @@ export const CLOSED_BLOCKERS = Object.freeze([
     // bizonyítékot — ez megszűnt. Az viszont NEM szűnt meg, hogy a klauzulák egy része MÉG NINCS
     // teljesen bizonyítva; a három nyitott sor ezért a saját nevén áll, nem a blokkoló alatt
     // (KUKA-093: a kihagyás nem zöld, de a nyitott sor sem tűnhet el a lezárásban).
+    // HELYESBÍTVE (R41, a külső fél lelete). A régi szöveg itt is „egyetlen élő profil"-t mondott —
+    // MÉRVE HAMIS: két profil él (`qty-1` · `qty-2`). A hiány megmarad, az INDOK javítva (KUKA-181).
     residual: 'HÁROM klauzula NYITOTT, nevezett hiánnyal: K10-TYP-c (a PROFILVÁLTÁS hatása a korábbi '
-      + 'tárolt értékre nincs mérve — egyetlen élő profil) · K10-TYP-d (a „korábbi verziójú vagy más '
-      + 'PROFILÚ bemenet" ága) · K10-TYP-e (a MEGFIGYELÉSI idő fogalma nincs a magban — a QNT-munka '
-      + 'előfeltétele). Ezek NEM a blokkoló maradékai, hanem a klauzulák saját, kimondott hiányai.',
+      + 'tárolt értékre nincs mérve — KÉT élő profil áll, tehát a bizonyítás LEHETSÉGES, csak nem '
+      + 'történt meg) · K10-TYP-d (a „korábbi verziójú vagy más PROFILÚ bemenet" ISMÉTLÉSI és '
+      + 'HIBAHATÁR-viselkedése; a sémaverzió HATÁRA az R37/R39-ben kimondva és a kanonikus úton is '
+      + 'mérve) · K10-TYP-e (a MEGFIGYELÉSI idő fogalma nincs a magban — a QNT-munka előfeltétele). '
+      + 'Ezek NEM a blokkoló maradékai, hanem a klauzulák saját, kimondott hiányai.',
   }),
   Object.freeze({
     id: 'OB-10', title: 'A SÖPRÉS A SZÖVEGET OLVASSA, NEM A VERDIKTET — a piros lánc kihagyásnak látszik',

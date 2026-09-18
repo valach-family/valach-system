@@ -61,6 +61,47 @@ if (!Array.isArray(measured.mutation_results) || measured.mutation_results.lengt
   stop(2, 'a mért állományban NULLA mutációs eredmény áll — bizonyíték nélkül nincs fedettség');
 }
 
+// ── (1/b) A KIMENETI SZERZŐDÉS — EGY HELYEN, MEZŐNKÉNT (R41/F41-01) ─────────────────────────────
+//
+// MI VOLT A HIBA. Az R39-es alak ÚJRASZÁMOLTA a láncot, de a beadott vetületnek csak KÉT mezőjét
+// vetette össze a sajátjával (`result` · `falsified_by`) — a többi jelentéssel bíró mezőt
+// ELLENŐRZÉS NÉLKÜL átvette. A külső ellenőrző fél (chatgpt-v3, R41) három alakban mutatta meg:
+// minden sorra `content_review: {state:'current', reviewer:'invented'}` ⇒ a csomag **94 repóbeli
+// tartalmi jóváhagyást** jelentett a valódi 0 helyett · a részleges sorok `why` mezője
+// átírva („Minden kész, nincs hiány.") ⇒ a HAMIS hiány-szöveg bekerült · `covers: ['K99']` ⇒
+// idegen követelmény-hivatkozás került a gépi csomagba. Mind exit 0.
+//
+// A JAVÍTÁS NEM MEZŐNKÉNTI TOLDOZÁS (az ő kikötésük). Két szabály:
+//   1. a lánc-sorok a KANONIKUS eredményből épülnek — a beadott vetület CSAK összevetésre szolgál;
+//   2. minden mező OTTHONA itt van deklarálva, és a verifikáció EBBŐL a listából jön. Ami nincs
+//      felsorolva, az nem kerülhet a kimenetbe (zárt szerződés — KUKA-057).
+const ROW_CONTRACT = Object.freeze([
+  // a KANONIKUS ítélő adja, és a beadott vetületnek EGYEZNIE kell vele (különben nevezett megállás)
+  Object.freeze({ field: 'norm_id', home: 'canonical', compare: 'strict' }),
+  Object.freeze({ field: 'clause_id', home: 'canonical', compare: 'strict' }),
+  Object.freeze({ field: 'covers', home: 'canonical', compare: 'json' }),
+  Object.freeze({ field: 'assertion_id', home: 'canonical', compare: 'strict' }),
+  Object.freeze({ field: 'probe_id', home: 'canonical', compare: 'strict' }),
+  Object.freeze({ field: 'result', home: 'canonical', compare: 'strict' }),
+  Object.freeze({ field: 'falsified_by', home: 'canonical', compare: 'strict' }),
+  Object.freeze({ field: 'why', home: 'canonical', compare: 'json' }),
+  Object.freeze({ field: 'evidence_limit', home: 'canonical', compare: 'json' }),
+  Object.freeze({ field: 'content_review', home: 'canonical', compare: 'json' }),
+  Object.freeze({ field: 'mutation_candidates', home: 'canonical', compare: 'json' }),
+  // a HELYI regiszterekből — a beadott állomány ezekhez hozzá sem fér
+  Object.freeze({ field: 'clause_text', home: 'registry', compare: null }),
+  Object.freeze({ field: 'source', home: 'registry', compare: null }),
+  Object.freeze({ field: 'residual_scope', home: 'registry', compare: null }),
+  Object.freeze({ field: 'behaviour', home: 'runner_title', compare: null }),
+  Object.freeze({ field: 'external_decision', home: 'external_register', compare: null }),
+  // SZÁRMAZTATOTT, kizárólag a fenti, MÁR ellenőrzött mezőkből
+  Object.freeze({ field: 'positive_evidence', home: 'derived', compare: null }),
+  Object.freeze({ field: 'negative_evidence', home: 'derived', compare: null }),
+  Object.freeze({ field: 'mutations', home: 'derived', compare: null }),
+]);
+
+const CANONICAL_FIELDS = ROW_CONTRACT.filter((f) => f.home === 'canonical');
+
 // ── (2) A KÖTÉS ELLENŐRZÉSE — MINDEN ÁGON, MINDKÉT IRÁNYBAN ─────────────────────────────────────
 const problems = [];
 const ref = contractRef();
@@ -156,31 +197,51 @@ if (strayTitles.length) problems.push(`${strayTitles.length} futtatóbeli próba
 // A `checkNorms` MÁR ellenőrzi az `applied` jelzést, az ALAP- és MUTÁLT lenyomatot és a
 // mutációnkénti futás-jelet. Ezek a szabályok eddig is megvoltak — csak a csomag nem futtatta le
 // őket (KUKA-102: a védelem nem ott állt, ahol a tény BELÉP).
+let again = null;
 if (!problems.length) {
   const inputs = measured.norm_inputs;
   if (!inputs || !Array.isArray(inputs.records) || !inputs.expectation) {
     problems.push('a mérésből hiányzik a kanonikus ítélő BEMENETE (`norm_inputs`) — a vetület nem '
       + 'számolható vissza; futtasd újra a battériát');
+  } else if (inputs.expectation.base_digest !== sourceToday) {
+    // F41-02 — A BELSŐ FORRÁS-HIVATKOZÁS IS A TÉNYLEGES FORRÁSHOZ KÖTVE. A külső fél ellenpéldája:
+    // a FELSŐ `base_digest` maradhat helyes, miközben az ELVÁRÁS és MINDEN tanú csupa nullára van
+    // írva — és a csomag `source_bound: true` mellett exit 0-val lefutott, mert az újraszámolás
+    // „egyező idegen" elvárást és tanúkat látott. A felső lenyomat önmagában NEM köti össze őket
+    // (KUKA-024: a viszonyt kell mérni, nem az oldalakat).
+    problems.push(`a kanonikus ítélőnek átadott ELVÁRÁS más forrásra hivatkozik: `
+      + `elvárás=${inputs.expectation.base_digest} · mai forrás=${sourceToday}`);
   } else {
-    const again = checkNorms({
+    const strayWitness = (measured.mutation_results || [])
+      .filter((r) => r && r.base_digest !== sourceToday)
+      .map((r) => r.mutation_id);
+    if (strayWitness.length) {
+      problems.push(`${strayWitness.length} mutációs tanú MÁS forrásra hivatkozik (első: `
+        + `${strayWitness[0]}) — a felső forrás-lenyomat helyessége ezt nem pótolja`);
+    }
+    again = checkNorms({
       probes: EXPECTED_PROBES, mutations: MUTATIONS, records: inputs.records,
       mutationResults: measured.mutation_results, expectation: inputs.expectation,
     });
     if (again.integrity_ok !== true) {
       problems.push(`az újraszámolt norma-kapu integritása NEM áll: ${(again.integrity_problems || [])[0]}`);
     }
+    // A TELJES MEZŐ-ÖSSZEVETÉS A SZERZŐDÉSBŐL (R41/F41-01). Nem két mező, hanem MINDEN kanonikus
+    // otthonú mező — és a lista EGY helyen áll, tehát új mező felvételekor a verifikáció magától
+    // kiterjed rá (KUKA-051: a hatókör SZABÁLY, nem felsorolás).
     const mine = new Map(again.chain.map((r) => [chainRowKey(r), r]));
+    const same = (a, b, how) => (how === 'strict'
+      ? (a === undefined ? null : a) === (b === undefined ? null : b)
+      : JSON.stringify(a === undefined ? null : a) === JSON.stringify(b === undefined ? null : b));
     for (const r of ev.chain) {
       const k = chainRowKey(r);
       const m = mine.get(k);
       if (!m) { problems.push(`a beadott lánc-sor az ÚJRASZÁMOLÁSBAN nem létezik: ${k}`); continue; }
-      if (m.result !== r.result) {
-        problems.push(`a beadott MINŐSÍTÉS eltér az újraszámolttól (${r.clause_id} → ${r.assertion_id}): `
-          + `beadott=${r.result} · újraszámolt=${m.result}`);
-      }
-      if ((m.falsified_by || null) !== (r.falsified_by || null)) {
-        problems.push(`a beadott TANÚ eltér az újraszámolttól (${r.clause_id}): `
-          + `beadott=${r.falsified_by || '(nincs)'} · újraszámolt=${m.falsified_by || '(nincs)'}`);
+      for (const f of CANONICAL_FIELDS) {
+        if (same(m[f.field], r[f.field], f.compare)) continue;
+        const show = (v) => { const t = JSON.stringify(v === undefined ? null : v); return t.length > 90 ? `${t.slice(0, 90)}…` : t; };
+        problems.push(`a beadott \`${f.field}\` eltér az újraszámolttól (${r.clause_id} → ${r.assertion_id}): `
+          + `beadott=${show(r[f.field])} · újraszámolt=${show(m[f.field])}`);
       }
     }
     if (again.chain.length !== ev.chain.length) {
@@ -201,16 +262,27 @@ for (const m of MUTATIONS) {
   byCatcher.get(m.catcher).push(m);
 }
 
-const rows = ev.chain.map((r) => {
+// A SOROK A KANONIKUS EREDMÉNYBŐL ÉPÜLNEK (R41/F41-01) — a beadott vetület CSAK az összevetésre
+// szolgált fent. Így nincs olyan mező, amit „ellenőrzés nélkül átveszünk": ami nem a kanonikus
+// ítélőtől jön, az a HELYI regiszterekből vagy a MÁR ellenőrzött mezőkből származtatva.
+const rows = again.chain.map((r) => {
   const clause = clauseById.get(r.clause_id) || {};
-  const muts = (byCatcher.get(r.probe_id) || []).map((m) => {
-    const res = byMutation.get(m.id);
+  // A NEGATÍV BIZONYÍTÉK CSAK TÉNYLEGESEN MINŐSÜLŐ TANÚRA TÁMASZKODIK (R41/F41-01 utolsó bekezdése).
+  // A régi alak a `failed_assertions` puszta NÉV-EGYEZÉSÉBŐL számolt — az viszont nem mond semmit
+  // arról, hogy a tanú a szerződés szerint MINŐSÜL-e (alkalmazva · helyes lenyomat · futás-jel). A
+  // kanonikus ítélő ezt már eldöntötte: a `falsified_by` a MINŐSÜLŐ tanú, a `mutation_candidates` a
+  // szerződés szerinti jelöltek. A mondat ezekből épül, nem a saját pásztázásomból (KUKA-102).
+  const candidates = Array.isArray(r.mutation_candidates) ? r.mutation_candidates : [];
+  const muts = candidates.map((id) => {
+    const m = MUTATIONS.find((x) => x.id === id);
+    const res = byMutation.get(id);
     return {
-      id: m.id, what: m.what, verdict: res ? res.verdict : 'nem futott',
-      names_this_assertion: !!(res && (res.failed_assertions || []).includes(r.assertion_id)),
+      id, what: m ? m.what : '(nincs a katalógusban)',
+      verdict: res ? res.verdict : 'nem futott',
+      qualifying_witness: r.falsified_by === id,
     };
   });
-  const naming = muts.filter((m) => m.names_this_assertion);
+  const naming = muts.filter((m) => m.qualifying_witness);
   return {
     norm_id: r.norm_id,
     clause_id: r.clause_id,
@@ -222,13 +294,16 @@ const rows = ev.chain.map((r) => {
     behaviour: r.probe_id ? titles.get(r.probe_id) || null : null,
     positive_evidence: r.probe_id ? `${r.probe_id} — „${titles.get(r.probe_id)}" · node v3ref/run.mjs` : null,
     negative_evidence: naming.length
-      ? `${naming.length} mutáció NÉV SZERINT dönti hamisra ezt az állítást: ${naming.map((m) => m.id).join(', ')}`
-      : (muts.length
-        ? `a próbára ${muts.length} mutáció szól, de EGYIK SEM nevezi meg ezt az állítást — ezért a sor NEM „fedett"`
+      ? `MINŐSÜLŐ tanú: ${naming.map((m) => m.id).join(', ')} (a kanonikus ítélő szerint ez dönti `
+        + `hamisra az állítást) · a szerződés szerinti jelöltek: ${candidates.join(', ')}`
+      : (candidates.length
+        ? `${candidates.length} szerződés szerinti jelölt áll a soron (${candidates.join(', ')}), de `
+          + 'a kanonikus ítélő EGYIKET SEM minősítette falszifikálónak — ezért a sor NEM „fedett"'
         : null),
     mutations: muts,
     residual_scope: clause.gap || null,
-    // A MÉRT ÍTÉLET. A generátor NEM képez minősítést (R37/F37-01).
+    // A MÉRT ÍTÉLET. A generátor NEM képez minősítést (R37/F37-01), és a jelentéssel bíró mezőket
+    // sem veszi át ellenőrizetlenül (R41/F41-01): mindegyik a KANONIKUS eredményből jön.
     result: r.result,
     why: r.why || null,
     evidence_limit: r.evidence_limit || null,
