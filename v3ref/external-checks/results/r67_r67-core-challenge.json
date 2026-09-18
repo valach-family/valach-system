@@ -1,8 +1,8 @@
 {
   "program": "r67_chatgpt-v3.core.mjs",
-  "source_commit": "59afcf8eddca89c89bdd28851656021eed8d0cc7",
+  "source_commit": "a661b78242eabb6b80febd66c075e912e23cedeb",
   "node": "v22.22.2",
-  "at": "2026-09-18T10:19:01.916Z",
+  "at": "2026-09-18T14:14:22.784Z",
   "verbatim": true,
   "scope": "isolated reference functions and SQLite, no HTTP or production claim",
   "results": [

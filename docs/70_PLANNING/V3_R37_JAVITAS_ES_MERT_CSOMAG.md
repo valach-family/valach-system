@@ -177,4 +177,37 @@ modell; nem biztonsági tanúsítvány, nem rendszerkészültség; forrás- vagy
 
 ## 7. Mérések ezen a revízión
 
-_(a záró számok a lap végén)_
+| mérés | parancs | eredmény |
+|---|---|---|
+| mag-próbák | `node v3ref/run.mjs` | **54/54 PASS** |
+| mutációs battéria (darabolva, összefűzve) | `npm run verify:v3ref` | **159 mutáció · 159 elkapva · 0 túlélte · 0 rossz próba · 0 mérőhiba · 0 elavult horgony** · kilépés 0 |
+| **a csomag-generátor ellenpárjai** | `npm run proof:norm-chain-package` | **12/12 RENDBEN** — tíz visszalépés PIROS a kilépési kódon, két pozitív ellenpár |
+| a mért norma-lánc | `npm run docs:norm-chain` | **93 láncsor — 70 fedett · 13 részben fedett · 0 nem falszifikált · 10 bizonyíték nélkül** |
+| tanulság-regiszter | `npm run verify:kuka` | **283/283 PASS** |
+| döntés-számok | `npm run verify:decision-numbers` | **4/4 PASS** · a következő szabad: D-VS-3048 |
+| **teljes söprés** | `npm run verify:sweep` | **10 verifier · 10 zöld · 0 env-kihagyás · 0 piros** (667 mp) |
+| **külső lánc (terheletlen gépen)** | `node v3ref/external-checks/run-all.mjs` | **LÁNC_EREDMÉNY** |
+
+**A lánc-bontás mozgása, kimondva.** A beadott (c891961) mérés: **60 fedett · 12 részben · 6 nem
+falszifikált · 10 bizonyíték nélkül** = 88 sor. A mai: **70 · 13 · 0 · 10** = **93 sor**. A
+különbség nem „javuló szám", hanem **több és pontosabb sor**:
+
+- **+6** sor a `not_falsified`-ből lett fedett, mert **célzott mutáció** született rájuk (M153–M160);
+- **+5** ÚJ láncsor: két új állítás a bemeneti sémán (örökölt név · sémaverzió), egy a testvér-
+  regiszterekre (CLR-01), és **kettő** a K05-DSC-d kiegészítő kötésén;
+- **+1** részleges: a **K05-DSC-c** fedettről részlegesre került — ez **rosszabb** szám, és így helyes.
+
+**Amit a 70-es szám jelent, és amit nem:** azt jelenti, hogy a klauzula deklarált állítását egy
+lefutott mutáció **név szerint** hamisra fordította. **Nem** jelenti, hogy a klauzula normatív
+tartalma maradéktalanul teljesül — azt az OB-7 tartalmi elbírálás mondja ki, és az **0/93** a
+repóban rögzített rekordok szerint.
+
+---
+
+## 8. Végső revíziók
+
+- **V3 (`valach-family/valach-system`), ág `claude/cmd-vs-300-002-002-r23-9gxbee`:** `VEGSO_SHA`
+- **V2 (`valach-family/vs`):** `98a4270` — **ebben a körben nem változott**.
+
+**Szállított lapok:** ez a lap · a javított `V3_R36_NORMA_LANC_CSOMAG.md` + `.json` (a gépi csomag,
+a lap függelékében is) · a helyesbített `V3_R36_ZARO_CSOMAG.md`.
