@@ -7818,6 +7818,142 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'érzés nem védelem.',
   }),
   Object.freeze({
+    id: 'KUKA-179',
+    date: '2026-09-18',
+    title: 'AZ ÖSSZESÍTŐ, AMI A MÉRÉST NEM IS OLVASTA — bizonyíték nélkül állított fedettséget',
+    what: 'Az R35-ben szállított norma-lánc csomag generátora (NCP-01) a sorok MINŐSÍTÉSÉT MAGA '
+      + 'képezte: „ha van állítás-azonosító, akkor fedett, kivéve ha a klauzulának van hiánya". A '
+      + 'lánc kanonikus ítélője (`checkNorms`) ellenben MÁR kiírta a saját vetületét a mért '
+      + 'állományba (`norm_evidence.chain`) — a generátor ezt nem olvasta. Következmény, a külső fél '
+      + 'ellenpéldájával reprodukálva: a mutációs eredményfájl helyére `{"mutation_results":[]}` '
+      + 'téve a generátor KILÉPÉS 0-val „88 láncsor · 78 fedett"-et írt ki, NULLA mutációs tanú '
+      + 'mellett. A valóság a beadott mérésben: 60 fedett · 12 részben · 6 NEM falszifikált · 10 '
+      + 'bizonyíték nélkül. Mellé: mind a 88 „működés" mező üres volt (kitalált manifeszt-mezőnév), '
+      + 'és a tartalmi felülvizsgálat számlálója rossz feloldó-hívásból dolgozott.',
+    why_wrong: 'Egy összesítő, ami a saját alanyát nem olvassa, nem mérés, hanem VÉLEMÉNY '
+      + 'szám-alakban — és pont bizonyítéknak látszik. A 78-as szám a jelentésbe és a boardra is '
+      + 'kiment. Ez a KUKA-101 (az összevonás határozottabbat állít, mint a részei) és a KUKA-102 (a '
+      + 'védelem nem ott állt, ahol a tény BELÉP) együtt, a saját munkatermékemen.',
+    replaced_by: 'NCP-01 újraírva: a `result` és a `why` KIZÁRÓLAG a mért `norm_evidence.chain`-ből '
+      + 'jön, a generátor egyetlen minősítést sem képez; a KÖTÉST pedig ELLENŐRZI, nem kiírja.',
+    replacement: 'Hét ellenőrzött kötés a csomag megszületése ELŐTT: szerződés-lenyomat és -verzió · '
+      + 'norma-index lenyomat · integritás-jelzés · a sorhalmaz MINDKÉT irányban · a minősítés ZÁRT '
+      + 'halmaza · minden „fedett" sor falszifikáló mutációja LEFUTOTT, CAUGHT, és NÉV SZERINT '
+      + 'megnevezi az állítást · minden próba CÍME feloldható a futtatóból. Bármelyik bukása NEVEZETT '
+      + 'megállás, nem csendes csomag — és a hiányzó bizonyíték SOHA nem fordul „fedett"-re.',
+    decision: 'D-VS-3044',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R37/F37-01), futtatható ellenpéldával — a saját '
+      + 'söprésem végig zöld volt, mert a generátor a söprésen KÍVÜL állt és senki nem mérte.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_norm_chain_package.mjs']),
+        pattern: 'ev\\.chain',
+        why: 'a minősítés a MÉRT lánc-vetületből jön — nem a generátor képezi' }),
+      Object.freeze({ paths: Object.freeze(['tools/v3_norm_chain_package.mjs']),
+        pattern: 'NEM nevezi meg a sor állítását',
+        why: 'a „fedett" sor tanúja NÉV SZERINT dönti hamisra az állítást, különben a csomag megáll' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({
+        pattern: "result: row\\.assertion_id \\?|clause\\.gap \\? 'partially_covered'",
+        paths: ['tools/v3_norm_chain_package.mjs'],
+        reason: 'a csomag SOHA nem képezhet saját minősítést — az ítélő EGY van, és az a checkNorms',
+      }),
+    ]),
+    guard_note: 'gépi jel: `npm run proof:norm-chain-package` (NCP-02 — 12 eset: tíz visszalépés '
+      + 'PIROS a kilépési kódon [üres mérés · elavult szerződés-kötés · elavult index · hiányzó sor · '
+      + 'idegen sor · nem létező tanú · a tanú nem nevezi meg az állítást · ismeretlen minősítés · '
+      + 'hamis integritás-jelzés · tanú nélküli „fedett"], és KÉT pozitív ellenpár az ép csomagon).',
+    lesson: 'AZ ÖSSZESÍTŐ OLVASSA A MÉRÉST, NE KÉPEZZE. Ahol egy tényt már egy KANONIKUS ítélő '
+      + 'eldöntött, ott minden további vetítés csak ÁTVEHETI — mert két ítélő két igazságot szül, és '
+      + 'a másodikat senki nem méri (KUKA-018 a minősítésen). És egy összesítő szám mellé MINDIG oda '
+      + 'kell tenni a kérdést: MI TÖRTÉNIK, HA A BEMENET ÜRES? Ha a válasz „ugyanaz a szám", akkor a '
+      + 'szám nem a bemenetről szól. A saját söprésemen kívül álló szerszám nem „segédeszköz": ha a '
+      + 'jelentésembe kerül a száma, akkor bizonyíték, és őr jár neki (KUKA-051).',
+  }),
+  Object.freeze({
+    id: 'KUKA-180',
+    date: '2026-09-18',
+    title: 'A ZÁRT REGISZTER, AMI AZ ÖRÖKÖLT NEVEKRE NEM ZÁRT',
+    what: 'A bemeneti séma-regiszter a műveletet `OPERATION_SCHEMAS[operation]` alakban kereste ki. '
+      + 'Ez az ÖRÖKÖLT tulajdonságokat is megtalálja: `toString`, `constructor` és `__proto__` '
+      + 'nevekre a lekérés IGAZ értéket adott, a `!schema` kapu ÁTENGEDTE, és a hívás két sorral '
+      + 'lejjebb nyers `TypeError: Cannot convert undefined or null to object` hibával szállt el — '
+      + 'nem nevezett `unknown_operation` elutasítással. Mindhárom név reprodukálva.',
+    why_wrong: 'A „zárt regiszter" ígéret: ami nincs benne, arra NEVEZETT nem jár. Ha a nyelv '
+      + 'öröklési lánca miatt mégis „találat" születik, akkor a regiszter nem zárt, csak annak '
+      + 'látszik — és a programhiba ugyanaz a válasz lesz, mint a valódi „nem" (KUKA-020).',
+    replaced_by: 'SOP-01 (`schemaForOperation`): a NÉV TÍPUSA is mérce, a kulcs SAJÁT kulcsként '
+      + 'ellenőrzött (`Object.prototype.hasOwnProperty.call`), és a talált érték alakja is.',
+    replacement: 'Nevezett feloldó, amit a két hívó HÍV; a válasz minden nem-művelet névre azonos '
+      + 'nevezett `unknown_operation`, kivétel és írás nélkül. Mellé a SÉMAVERZIÓ HATÁRA is kimondva '
+      + '(SVR-01): a verziót a REGISZTER választja, a beadó legfeljebb megerősít, eltérő megnevezett '
+      + 'verzió `unsupported_schema_version` — hallgatólagos átértelmezés nincs.',
+    decision: 'D-VS-3045',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R37/F37-02), három néven futtatva.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/inputSchema.mjs']),
+        pattern: 'hasOwnProperty\\.call\\(OPERATION_SCHEMAS',
+        why: 'a művelet-név SAJÁT kulcsként oldódik fel — az öröklött név nem művelet' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({
+        pattern: 'const schema = OPERATION_SCHEMAS\\[operation\\];',
+        paths: ['v3ref/inputSchema.mjs'],
+        reason: 'a nyers kulcs-olvasás visszahozná az örökölt nevek rését',
+      }),
+    ]),
+    guard_note: 'gépi jel: `node v3ref/run.mjs` — `P-BEM-input-schema` (j) és (k) ága; mutációk: '
+      + 'M153 (tartalékra esés) · M154 (a nyers kulcs-olvasás visszatér) · M158 (a verzió tulajdonosa '
+      + 'a beadó lesz) — mindhárom bizonyítottan elkapva, és NÉV SZERINT dönti hamisra az állítást.',
+    lesson: 'A „ZÁRT HALMAZ" A NYELV ÖRÖKLÉSI LÁNCÁN NEM ZÁRT. Ahol egy NÉV dönt egy kapunál, a '
+      + 'kulcsot SAJÁT kulcsként kell keresni, és a név TÍPUSÁT is ellenőrizni — különben a halmaz '
+      + 'kívülről bővíthető olyan nevekkel, amelyeket soha nem vettünk fel. És ahol egy adat '
+      + 'VERZIÓT hordozhat, ki kell mondani, KI VÁLASZT: ha erre nincs válasz, a beadó választ '
+      + 'helyettünk, némán (KUKA-074). '
+      + '**ÉS EGY TANULSÁG A SAJÁT PRÓBAPADOMRÓL, ugyanebből a körből:** a típus-ellenőrzésre írt '
+      + 'mutációm (M162) ELŐSZÖR TÚLÉLT — tehát az állítás arra a visszalépésre VÉDTELEN volt, és ezt '
+      + 'nem én vettem észre, hanem a túlélő mutáció mondta meg. Megmérve kiderült, hogy a rés '
+      + 'VALÓDI, csak a bemenetem volt gyenge: `hasOwnProperty.call(REGISZTER, {toString:()=>"qty-2"})` '
+      + '**IGAZ**, mert a kulcs szöveggé konvertálódik — típus-ellenőrzés nélkül egy OBJEKTUM is '
+      + 'lehetne érvényes NÉV. A túlélő mutáció tehát nem zaj: azt mondja meg, hogy a próbám nem a '
+      + 'valódi támadás-alakot méri (KUKA-054).',
+  }),
+  Object.freeze({
+    id: 'KUKA-181',
+    date: '2026-09-18',
+    title: 'A LEHETETLENSÉGI INDOK, AMI MÉRVE HAMIS VOLT — „ellenpélda nem állítható elő"',
+    what: 'Két klauzula (K10-TYP-c · K10-TYP-d) hiány-szövege azzal indokolta a bizonyítás '
+      + 'elmaradását, hogy „a magban EGYETLEN mennyiség-profil él, ezért ellenpélda nem állítható '
+      + 'elő". Mérve HAMIS: `QUANTITY_PROFILES` KÉT élő profilt tartalmaz (`qty-1` · `qty-2`), és a '
+      + 'saját `P-BEM-input-schema` próbám (i) ága MINDKETTŐN mér.',
+    why_wrong: 'A „nem tettük meg" és a „nem lehetséges" KÉT KÜLÖNBÖZŐ állítás. Az első adósság, a '
+      + 'második a feladat megszűnése — és ha a másodikat írom oda, azzal a következő kört is '
+      + 'lebeszélem a munkáról. A lehetetlenségi indok ráadásul MÉRHETŐ állítás a rendszerről, tehát '
+      + 'ugyanaz a mérce vonatkozik rá, mint bármelyik másikra (KUKA-033).',
+    replaced_by: 'A hiány megmarad, az INDOK javítva: „a bizonyítás LEHETSÉGES (két profil áll '
+      + 'rendelkezésre) — csak nem történt meg."',
+    replacement: 'Minden hiány-szövegben a hiány OKA is állítás: vagy MÉRVE van, vagy nem írjuk le. '
+      + 'Ahol a bizonyítás elmaradt, ott „nem tettük meg" áll, nem „nem lehet".',
+    decision: 'D-VS-3046',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R37 · K10-TYP-c tartalmi döntése) — a saját '
+      + 'söprésem zöld volt, mert a hiány-szöveg PRÓZA, és a próza tartalmát semmi nem mérte.',
+    positive: Object.freeze([]),
+    forbidden: Object.freeze([
+      Object.freeze({
+        pattern: 'ellenpélda nem állítható elő|egyetlen élő (séma- és )?mennyiség-profil',
+        paths: ['v3ref/norms.mjs'],
+        reason: 'a lehetetlenségi indok mérve hamis volt — két élő mennyiség-profil áll',
+      }),
+    ]),
+    guard_note: 'gépi jel: a tiltó-minta a `verify:kuka`-ban (a két konkrét hamis mondat nem térhet '
+      + 'vissza). AMIRE NINCS GÉPI JEL, KIMONDVA: hogy egy ÚJ hiány-szövegben szereplő indok igaz-e — '
+      + 'az próza, és a védelem a szabály kimondásában van, nem a gépben.',
+    lesson: 'AMIKOR EGY HIÁNYT AZZAL INDOKOLOK, HOGY „NEM IS LEHETSÉGES", AZT A MONDATOT MEG KELL '
+      + 'MÉRNI — mert ha hamis, nemcsak téves, hanem LEBESZÉLI a következő kört a munkáról. A helyes '
+      + 'alapállás: „nem tettük meg". A lehetetlenség kimondása erős állítás, és bizonyítékot kíván, '
+      + 'akárcsak a készenlété.',
+  }),
+  Object.freeze({
     id: 'KUKA-176',
     date: '2026-09-16',
     title: 'A HIBÁS ALAK CSAK AZ EGYIK ÁGON VOLT HIBA — a saját, egy körrel korábbi szerződésemen',

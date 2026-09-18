@@ -25,6 +25,7 @@
     "verify:sweep-verdict": "node tools/vs_verify_sweep_verdict.mjs",
     "verify:unit-admission": "node tools/vs_verify_unit_admission.mjs",
     "verify:v3ref": "node v3ref/run.mjs && npm run --silent v3ref:mutate:units",
-    "docs:norm-chain": "node tools/v3_norm_chain_package.mjs"
+    "docs:norm-chain": "node tools/v3_norm_chain_package.mjs",
+    "proof:norm-chain-package": "node tools/v3_norm_chain_package_proof.mjs"
   }
 }

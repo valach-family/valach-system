@@ -90,6 +90,11 @@ export const EXPECTED_PROBES = Object.freeze([
     discharges: Object.freeze([
       Object.freeze({ clause: 'REV-N1a', assertion: 'A-REV-N1a-dependent-new-op-and-release-blocked' }),
       Object.freeze({ clause: 'REV-N1b', assertion: 'A-REV-N1b-earlier-record-and-decision-survive' }),
+      // K05-DSC-d MÁSODIK FELE (R37): a megvonás és az ISMÉTLÉS a véglegesítési határon akad el —
+      // ez a P-A08-tól FÜGGETLEN bizonyíték, és a külső fél döntése szerint a klauzula ezen a
+      // HÁRMASON áll (P-A08 + P-CMD-finalize-gate + P-CMD-release-effectuation).
+      Object.freeze({ clause: 'K05-DSC-d', assertion: 'A-K05-DSC-d-replay-and-release-are-blocked-at-the-write-boundary',
+        contract: 'DSC-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/külső tartalmi döntés' }),
     ]),
   }),
   Object.freeze({ id: 'P-AUTHZ-roles', assertion: 'R49C05-unknown-role-grants-nothing' }),
@@ -436,6 +441,13 @@ export const EXPECTED_PROBES = Object.freeze([
     discharges: Object.freeze([
       Object.freeze({ clause: 'REV-N3a', assertion: 'A-REV-N3a-release-time-is-the-decision-time' }),
       Object.freeze({ clause: 'REV-N3a', assertion: 'A-REV-N3a-release-refusal-is-neutral-and-inert' }),
+      // K05-DSC-d KIEGÉSZÍTŐ KÖTÉSE (R37, a külső fél kikötése). Az R35-ben a klauzulát EGYETLEN
+      // állításra kötöttük (`A-A08-revoked-right-blocks-replay-and-reread` @ P-A08), és a külső fél
+      // tartalmi döntése ezt pontosította: a P-A08 ÖNMAGÁBAN a HATÁLYOSULÁSI VERSENYT nem fedi — a
+      // klauzula HÁROM próba EGYÜTTESÉN áll. Ez a sor a hiányzó harmadik fél: a kiadás ideje a
+      // DÖNTÉS ideje, egyetlen hatályosulási ponton (KUKA-024: a viszonyt kell mérni, nem az oldalakat).
+      Object.freeze({ clause: 'K05-DSC-d', assertion: 'A-K05-DSC-d-release-stands-on-one-effectuation-point',
+        contract: 'DSC-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/külső tartalmi döntés' }),
     ]),
   }),
   Object.freeze({
@@ -506,7 +518,6 @@ export const EXPECTED_PROBES = Object.freeze([
   }),
   Object.freeze({
     id: 'P-BEM-input-schema', assertion: 'BEM01-input-shape-is-declared-and-fail-closed',
-    discharges: Object.freeze([]),
     discharges: Object.freeze([
       Object.freeze({ clause: 'K10-TYP-b', assertion: 'A-BEM-unknown-operation-is-fail-closed',
         contract: 'BEM-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP' }),
@@ -516,6 +527,18 @@ export const EXPECTED_PROBES = Object.freeze([
         contract: 'BEM-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP' }),
       Object.freeze({ clause: 'K10-TYP-b', assertion: 'A-BEM-type-is-checked-on-the-raw-value',
         contract: 'BEM-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP' }),
+      // R37/F37-02 — a ZÁRT REGISZTER és a SÉMAVERZIÓ HATÁRA saját néven. Az elsőt a külső fél
+      // lelete hozta (örökölt tulajdonság-név ⇒ nyers kivétel), a másodikat a kért kimondás: a
+      // verziót a REGISZTER választja, a beadó legfeljebb megerősít (SVR-01).
+      Object.freeze({ clause: 'K10-TYP-b', assertion: 'A-BEM-inherited-property-name-is-not-an-operation',
+        contract: 'BEM-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01' }),
+      Object.freeze({ clause: 'K10-TYP-b', assertion: 'A-BEM-schema-version-is-owned-by-the-register-not-the-submitter',
+        contract: 'BEM-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01' }),
+      // A TESTVÉR-ÁG (CLR-01, R37): a zárt regiszter szabálya nem egy fájl tulajdonsága. A mérés
+      // MINDHÁROM regisztert bejárja (mennyiség-profil · korlát-szerződés · főkönyvi nézet), és a
+      // JOGOS nevet is megköveteli — a szigorítás nem törheti el a valódi használatot (KUKA-039).
+      Object.freeze({ clause: 'K10-TYP-b', assertion: 'A-CLR-every-closed-registry-refuses-inherited-names',
+        contract: 'BEM-01', contract_version: 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01' }),
       // A MENNYISÉG KANONIKUS ALAKJA (MNY-01) a BEM-01 határán mérve — a K10-TYP-c ELSŐ fele. A
       // profilváltás és a korábbi tárolt érték viszonya NINCS mérve: az a klauzula kimondott maradéka.
       // A NAPTÁRI PILLANAT érvényessége az idő-fogalom része (K10-TYP-e első fele).

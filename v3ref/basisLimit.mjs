@@ -35,6 +35,7 @@
  */
 import { basisAsOf, withinBasis, BASIS_LIMIT_AXES } from './authorityBasis.mjs';
 import { canonicalize } from './command.mjs';
+import { lookupClosed } from './closedRegistry.mjs';
 
 const frozen = (o) => Object.freeze(o);
 
@@ -74,7 +75,9 @@ export const OPERATION_LIMIT_CONTRACT = Object.freeze({
 
 /** A szerződés KÖTELEZŐ tengelyei — egy nevezett feloldó, hogy a lista ne másolódjon szét. */
 export function requiredAxesFor(operation) {
-  const c = OPERATION_LIMIT_CONTRACT[operation];
+  // ZÁRT REGISZTER, SAJÁT KULCSON (CLR-01, R37 · KUKA-180). A régi alak `toString` névre nyers
+  // `TypeError`-ral állt meg a következő sorban — a hívó fail-closed ága meg sem valósult.
+  const c = lookupClosed(OPERATION_LIMIT_CONTRACT, operation, { shape: (v) => typeof v === 'object' && v.axes });
   if (!c) return null;                                    // ismeretlen művelet ⇒ a hívó ZÁR (fail-closed)
   return Object.freeze(Object.entries(c.axes).filter(([, v]) => v === 'required').map(([k]) => k));
 }

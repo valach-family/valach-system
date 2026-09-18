@@ -1,3 +1,5 @@
+import { lookupClosed, closedNames } from './closedRegistry.mjs';
+
 /** MCS-2 / MNY-01 — A MENNYISÉG SZERZŐDÉSE, VERZIÓZOTT SZÁMÍTÁSI PROFILLAL.
  *
  * MIÉRT VERZIÓZOTT, ÉS MIÉRT NEM CORE-KORLÁT (a külső fél R8 §2 kimondott feltétele).
@@ -75,10 +77,14 @@ export const DEFAULT_PROFILE_ID = 'qty-1';
 
 /** A profil feloldása. Ismeretlen profil FAIL-CLOSED, és megnevezi a választhatókat (KUKA-064). */
 export function quantityProfile(profileId = DEFAULT_PROFILE_ID) {
-  const p = QUANTITY_PROFILES[profileId];
+  // A ZÁRT REGISZTER KÖZÖS FELOLDÓJA (CLR-01, R37). A régi `QUANTITY_PROFILES[profileId]` alak az
+  // ÖRÖKÖLT neveket is megtalálta: `toString` névre nem a nevezett „ismeretlen mennyiség-profil"
+  // jött, hanem egy nyers `Cannot convert undefined to a BigInt` — a TESTVÉR-ÁGA annak, amit a
+  // külső fél a bemeneti sémán talált (KUKA-039 · KUKA-180).
+  const p = lookupClosed(QUANTITY_PROFILES, profileId, { shape: (v) => typeof v === 'object' && v.id });
   if (!p) {
     throw new Error(`ismeretlen mennyiség-profil: ${JSON.stringify(profileId)} — `
-      + `választható: ${Object.keys(QUANTITY_PROFILES).join(' · ')}`);
+      + `választható: ${closedNames(QUANTITY_PROFILES).join(' · ')}`);
   }
   return p;
 }

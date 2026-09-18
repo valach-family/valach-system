@@ -27,6 +27,7 @@ import { measureEntryPointBinding, CONTEXT_AXES, CONTEXT_MODES, ENT_FLOOR } from
 import { banMatrix } from './banMatrix.mjs';
 // MCS-2 (KAT-01 · KSZ-01 · BEM-01 · MNY-01) — az ELSŐ D-folyamat tárolási és parancs-rétege.
 import { parseQuantity, canonicalQuantity, formatQuantity, QUANTITY_ERRORS } from './quantity.mjs';
+import { quantityProfile } from './quantity.mjs';
 import { registerItem, changeItemUnit, itemBySku } from './catalog.mjs';
 import { balanceAt, submitStockReceipt } from './ledger.mjs';
 import { ACCESS_REFUSED, recentRefusals, authorizeBookAction } from './accessGate.mjs';
@@ -955,6 +956,12 @@ probe('P-CMD-finalize-gate', 'R32/K04 · K07 · R49 (saját teljesség-lelet)',
       // itt kiadott állításhoz méri (KUKA-009: a pin HÍVJON, ne szöveget olvasson).
       asserts: {
         'A-REV-N1a-dependent-new-op-and-release-blocked': a1,
+        // K05-DSC-d SAJÁT NEVE UGYANAZON A MÉRT VISELKEDÉSEN (R37). A klauzula HÁROM próba
+        // együttesén áll; ez a fél azt mondja ki, hogy a MEGVONÁS után az ISMÉTLÉS és a korábbi
+        // eredmény ÚJRAOLVASÁSA az ÍRÁSI HATÁRON akad el. A mérés nem változott — a bizonyítéknak
+        // saját NEVE lett, mert egy próbán belül egy állítás-azonosító nem állhat kétszer
+        // (a norma-bizonyíték kapu jogosan utasította el az ismétlődést).
+        'A-K05-DSC-d-replay-and-release-are-blocked-at-the-write-boundary': a1,
         'A-REV-N1b-earlier-record-and-decision-survive': a2,
       },
     };
@@ -3566,6 +3573,9 @@ probe('P-CMD-release-effectuation', 'R81/F04 · REV-N3a · K05 · K07 · KUKA-00
       pass,
       asserts: {
         'A-REV-N3a-release-time-is-the-decision-time': aOk && stampOk && bOk && cOk && fOk && gOk,
+        // K05-DSC-d HARMADIK FELE, SAJÁT NÉVEN (R37): a kiadás EGYETLEN hatályosulási ponton áll —
+        // ez az a rész, amit a külső fél szerint a P-A08 önmagában NEM fed (hatályosulási verseny).
+        'A-K05-DSC-d-release-stands-on-one-effectuation-point': aOk && stampOk && bOk && cOk && fOk && gOk,
         'A-REV-N3a-release-refusal-is-neutral-and-inert': dOk && eOk,
       },
     };
@@ -4805,6 +4815,58 @@ probe('P-BEM-input-schema', 'MCS-2 · BEM-01 · MNY-01 · K10 · KUKA-122 · KUK
 
     // (a) ISMERETLEN MŰVELET — fail-closed, a választhatók felsorolásával.
     const unknownOp = validateInput({ operation: 'stock.teleport', input: base });
+    // (j) A ZÁRT REGISZTER TÉNYLEG ZÁRT (R37/F37-02). A régi alak `OPERATION_SCHEMAS[operation]`-t
+    // olvasott, ami az ÖRÖKÖLT tulajdonságot is megtalálja: `toString` · `constructor` · `__proto__`
+    // mellett a kapu ÁTENGEDETT, és a hívás nyers `TypeError`-ral szállt el — nem nevezett
+    // elutasítással (KUKA-020). A nem-szöveg nevet is mérjük, mert az sem művelet.
+    const inherited = ['toString', 'constructor', '__proto__'].map((op) => {
+      try { return validateInput({ operation: op, input: base }); } catch (e) { return { threw: String(e && e.message) }; }
+    });
+    const badNameTypes = [42, {}, null, undefined, ['stock.receipt']].map((op) => {
+      try { return validateInput({ operation: op, input: base }); } catch (e) { return { threw: String(e && e.message) }; }
+    });
+    // (k) A SÉMAVERZIÓ TULAJDONOSA A REGISZTER (SVR-01). A beadó legfeljebb MEGERŐSÍT; eltérő,
+    // korábbi vagy ismeretlen verzió NEVEZETT elutasítás — hallgatólagos átértelmezés nincs.
+    const verSilent = validateInput({ operation: 'stock.receipt', input: base });
+    const verConfirm = validateInput({ operation: 'stock.receipt', input: base, version: '1' });
+    const verOlder = validateInput({ operation: 'stock.receipt', input: base, version: '0' });
+    const verNewer = validateInput({ operation: 'stock.receipt', input: base, version: '2' });
+    const verShape = validateInput({ operation: 'stock.receipt', input: base, version: {} });
+    // (l) A TESTVÉR-ZÁRT REGISZTEREK (CLR-01, R37). A külső fél a BEMENETI sémán találta meg a rést;
+    // megmérve UGYANEZ élt a mennyiség-profilon (`toString` ⇒ nyers „Cannot convert undefined to a
+    // BigInt") és a korlát-szerződésen. A javítás ezért SZABÁLY, nem egy fájl (KUKA-039): egy közös
+    // feloldó, és MINDHÁROM regisztert ugyanúgy mérjük — a jogos névnek pedig működnie kell.
+    const inheritedNames = ['toString', 'constructor', '__proto__'];
+    // A SZTRINGESÍTHETŐ ÁLNÉV. A saját mutációm (M162) ELŐSZÖR TÚLÉLT, mert a típus-ellenőrzés
+    // kivétele a próbáim bemenetein semmit nem változtatott — tehát az állítás VÉDTELEN volt arra a
+    // visszalépésre (KUKA-054: a saját példám a saját előfeltevésemet igazolta). Megmérve a valódi
+    // rés: `hasOwnProperty.call(REGISZTER, {toString:()=>'qty-2'})` **IGAZ**, mert a kulcs
+    // szöveggé konvertálódik — a típus-ellenőrzés nélkül egy OBJEKTUM is lehetne érvényes NÉV.
+    const aliasProfile = { toString: () => 'qty-2' };
+    const aliasLimit = { toString: () => 'invite_issue' };
+    const aliasOp = { toString: () => 'stock.receipt' };
+    const qtyProfileRefused = inheritedNames.every((n) => {
+      try { quantityProfile(n); return false; } catch (e) { return String(e.message).includes('ismeretlen mennyiség-profil'); }
+    });
+    const qtyProfileWorks = (() => { try { return quantityProfile('qty-2').id === 'qty-2'; } catch { return false; } })();
+    const aliasProfileRefused = (() => {
+      try { quantityProfile(aliasProfile); return false; } catch (e) { return String(e.message).includes('ismeretlen mennyiség-profil'); }
+    })();
+    const limitRefused = inheritedNames.every((n) => {
+      try { return requiredAxesFor(n) === null; } catch { return false; }
+    });
+    const limitWorks = Array.isArray(requiredAxesFor('invite_issue'));
+    const aliasLimitRefused = (() => { try { return requiredAxesFor(aliasLimit) === null; } catch { return false; } })();
+    const aliasOpRefused = (() => {
+      try { const r = validateInput({ operation: aliasOp, input: base }); return r.ok === false && r.error === 'unknown_operation'; }
+      catch { return false; }
+    })();
+    const viewRefused = inheritedNames.every((n) => {
+      // A KULCS TELJES: a `stockKey` a nézet-kapu ELŐTT dob hiányos kulcsra, tehát csonka kulccsal
+      // nem a mért dolgot mérnénk (a saját első alakom épp ezen bukott — KUKA-054).
+      const r = balanceAt({ store: null, key: { bookId: 'b', itemId: 'i', ownerId: 'o', warehouseId: 'w' }, view: n, asOf: '2026-03-10T09:00:00Z' });
+      return r && r.ok === false && r.error === 'unknown_view';
+    });
     // (b) ISMERETLEN MEZŐ előbb dől el, mint a hiányzó.
     const unknownField = V({ szinezes: 'kek' });
     // (c) HIÁNYZÓ KÖTELEZŐ — külön válasz.
@@ -4860,8 +4922,19 @@ probe('P-BEM-input-schema', 'MCS-2 · BEM-01 · MNY-01 · K10 · KUKA-122 · KUK
       && canonTime.ok === true && canonTime.value.effective_at === '2026-03-10T09:00:00.000Z';
     const hOk = contextInBody.ok === false && contextInBody.error === 'unknown_field'
       && contextInBody.at === 'warehouse_id';
+    const jOk = inherited.every((r) => r && r.ok === false && r.error === 'unknown_operation')
+      && badNameTypes.every((r) => r && r.ok === false && r.error === 'unknown_operation');
+    const lOk = qtyProfileRefused && qtyProfileWorks && limitRefused && limitWorks && viewRefused
+      && aliasProfileRefused && aliasLimitRefused && aliasOpRefused;
+    const kOk = verSilent.ok === true && verSilent.version_chosen_by === 'register'
+      && verConfirm.ok === true && verConfirm.version_chosen_by === 'request_confirmed'
+      && verOlder.ok === false && verOlder.error === 'unsupported_schema_version'
+      && verNewer.ok === false && verNewer.error === 'unsupported_schema_version'
+      && verShape.ok === false && verShape.error === 'unsupported_schema_version';
     return {
-      expected: 'ismeretlen művelet fail-closed · ismeretlen mező ELŐBB, mint a hiányzó · a típus a NYERS '
+      expected: 'az ÖRÖKÖLT tulajdonság-név és a nem-szöveg név NEVEZETT unknown_operation (nem kivétel) · '
+        + 'a sémaverziót a REGISZTER választja, a beadó legfeljebb megerősít, eltérőre nevezett elutasítás · '
+        + 'ismeretlen művelet fail-closed · ismeretlen mező ELŐBB, mint a hiányzó · a típus a NYERS '
         + 'értéken (true és [1] NEM 1) · a mennyiség hibakód-sorrendje megmarad · a jogos alak kanonizálódik · '
         + 'a nem létező naptári nap NEVEZETT elutasítás és az időpont kanonizálódik · a kontextus-mező a '
         + 'törzsben nevezett elutasítás, nem néma eldobás',
@@ -4874,8 +4947,16 @@ probe('P-BEM-input-schema', 'MCS-2 · BEM-01 · MNY-01 · K10 · KUKA-122 · KUK
         + ' · kanonikus: "1"→' + good.value?.qty + ' "1.000"→' + good2.value?.qty
         + ' · naptár: 99-99=' + fakeDay.error + ' febr.30=' + fakeFeb.error + ' alak=' + badShape.error
         + ' idő-kanonizálás=' + canonTime.value?.effective_at
-        + ' · kontextus a törzsben=' + contextInBody.error + '@' + contextInBody.at,
-      pass: aOk && bOk && cOk && dOk && eOk && fOk && gOk && hOk && iOk,
+        + ' · kontextus a törzsben=' + contextInBody.error + '@' + contextInBody.at
+        + ' · örökölt név: ' + inherited.map((r) => r.error || ('KIVÉTEL:' + r.threw)).join('/')
+        + ' · rossz típusú név: ' + badNameTypes.map((r) => r.error || ('KIVÉTEL:' + r.threw)).join('/')
+        + ' · verzió: néma=' + verSilent.version_chosen_by + ' megerősített=' + verConfirm.version_chosen_by
+        + ' korábbi=' + verOlder.error + ' újabb=' + verNewer.error + ' rossz alak=' + verShape.error
+        + ' · testvér-regiszterek örökölt névre: profil=' + qtyProfileRefused + ' korlát=' + limitRefused
+        + ' nézet=' + viewRefused + ' (a jogos név működik: profil=' + qtyProfileWorks + ' korlát=' + limitWorks + ')'
+        + ' · SZTRINGESÍTHETŐ álnév elutasítva: profil=' + aliasProfileRefused + ' korlát=' + aliasLimitRefused
+        + ' művelet=' + aliasOpRefused,
+      pass: aOk && bOk && cOk && dOk && eOk && fOk && gOk && hOk && iOk && jOk && kOk && lOk,
       asserts: {
         'A-BEM-unknown-operation-is-fail-closed': aOk,
         'A-BEM-unknown-field-decides-before-missing-field': bOk,
@@ -4886,6 +4967,9 @@ probe('P-BEM-input-schema', 'MCS-2 · BEM-01 · MNY-01 · K10 · KUKA-122 · KUK
         'A-BEM-nonexistent-calendar-instant-is-refused-and-canonicalized': gOk,
         'A-BEM-context-field-in-the-body-is-a-named-refusal': hOk,
         'A-BEM-quantity-profile-is-bound-where-the-item-is-known': iOk,
+        'A-BEM-inherited-property-name-is-not-an-operation': jOk,
+        'A-BEM-schema-version-is-owned-by-the-register-not-the-submitter': kOk,
+        'A-CLR-every-closed-registry-refuses-inherited-names': lOk,
       },
     };
   });

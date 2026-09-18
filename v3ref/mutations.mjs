@@ -1424,4 +1424,103 @@ export const MUTATIONS = [
     from: '  const gate = authorizeBookAction({',
     to: '  const _preSchema = validateInput({ operation: "stock.receipt", input });\n'
       + '  if (!_preSchema.ok) return _preSchema;\n  const gate = authorizeBookAction({' },
+
+  // ── R37 — A HAT NEM FALSZIFIKÁLT SOR PÓTLÁSA + a két ÚJ állítás kontrollja ──────────────────
+  //
+  // MIÉRT KELLENEK. A külső ellenőrző fél (chatgpt-v3, R37/F37-01) kimutatta, hogy a beadott mérési
+  // állományban HAT sor `not_falsified` volt: a K10-TYP-a két és a K10-TYP-b négy állítását egyetlen
+  // mutáció sem fordította hamisra NÉV SZERINT — a meglévő jelöltek (M141 · M143 · M148) a próbát
+  // megbuktatták, de MÁS állításon. A „fedett" tehát erősebb szó volt, mint amit a mérés kiállított
+  // (KUKA-101: az összevonás ne adjon határozottabb választ, mint a részei). Ez a nyolc mutáció
+  // ÁLLÍTÁSONKÉNT céloz, hogy a lánc sorai a saját nevükön falszifikáltak legyenek.
+
+  { id: 'M153', rule: 'K10', catcher: 'P-BEM-input-schema', expect: 'probe_fail',
+    what: 'BEM-01 / R37 — AZ ISMERETLEN MŰVELET TARTALÉKRA ESIK: a fel nem oldott név a bevét '
+      + 'sémáját kapja. A fail-closed alapállás megszűnik, és egy elgépelt művelet NÉMÁN a '
+      + 'készlet-bevét szerződését kapná (KUKA-020)',
+    file: 'inputSchema.mjs',
+    from: "  if (!Object.prototype.hasOwnProperty.call(OPERATION_SCHEMAS, operation)) return null;",
+    to: "  if (!Object.prototype.hasOwnProperty.call(OPERATION_SCHEMAS, operation)) return OPERATION_SCHEMAS['stock.receipt'];" },
+
+  { id: 'M154', rule: 'K10', catcher: 'P-BEM-input-schema', expect: 'probe_fail',
+    what: 'BEM-01 / R37/F37-02 — A ZÁRT REGISZTER ÚJRA NYITOTT: a feloldó visszatér a nyers '
+      + 'kulcs-olvasásra, tehát az ÖRÖKÖLT tulajdonság-nevek (`toString` · `constructor` · '
+      + '`__proto__`) megint „megtalált" sémának látszanak, és a hívás nyers kivétellel áll meg '
+      + 'nevezett elutasítás helyett — pontosan az R37-ben jelentett alak',
+    file: 'inputSchema.mjs',
+    from: "  if (typeof operation !== 'string') return null;\n"
+      + "  if (!Object.prototype.hasOwnProperty.call(OPERATION_SCHEMAS, operation)) return null;\n"
+      + "  const found = OPERATION_SCHEMAS[operation];\n"
+      + "  return found && typeof found === 'object' && found.fields ? found : null;",
+    to: "  return OPERATION_SCHEMAS[operation] || null;" },
+
+  { id: 'M155', rule: 'K10', catcher: 'P-BEM-input-schema', expect: 'probe_fail',
+    what: 'BEM-01 / R37 — AZ ISMERETLEN MEZŐ NÉMÁN ELTŰNIK: a nem deklarált mezőt a séma egyszerűen '
+      + 'átlépi. A beadó azt hiszi, hogy kitöltött valamit, a rendszer viszont eldobja — ez a '
+      + 'KUKA-041 dísz-vezérlője a bemeneten',
+    file: 'inputSchema.mjs',
+    from: "  if (unknown.length) {\n    return fail('unknown_field',",
+    to: "  if (false) {\n    return fail('unknown_field'," },
+
+  { id: 'M156', rule: 'K10', catcher: 'P-BEM-input-schema', expect: 'probe_fail',
+    what: 'BEM-01 / R37 — A HIÁNY RÁLAPUL A TÍPUSHIBÁRA: a hiányzó kötelező mező `invalid_type` '
+      + 'néven megy vissza. A beadó a rossz dolgot javítaná — a HIÁNY külön válasz (KUKA-124/2)',
+    file: 'inputSchema.mjs',
+    from: "      if (spec.required) return fail('missing_field', `kötelező mező: ${name}`, name);",
+    to: "      if (spec.required) return fail('invalid_type', `kötelező mező: ${name}`, name);" },
+
+  { id: 'M157', rule: 'K10', catcher: 'P-BEM-input-schema', expect: 'probe_fail',
+    what: 'BEM-01 / R37 — A KONVERZIÓ MEGELŐZI A TÍPUST: a szám-alakú mennyiség szöveggé alakul, '
+      + 'mielőtt a típus-őr megnézné. A JSON-szám így némán elfogadott mennyiséggé válik — pont az '
+      + 'MNY-01 tilalma (0.1 nem ábrázolható pontosan)',
+    file: 'inputSchema.mjs',
+    from: "      const syn = quantitySyntaxProblem(value);",
+    to: "      const syn = quantitySyntaxProblem(typeof value === 'number' ? String(value) : value);" },
+
+  { id: 'M158', rule: 'K10', catcher: 'P-BEM-input-schema', expect: 'probe_fail',
+    what: 'BEM-01 / SVR-01 (R37) — A SÉMAVERZIÓ TULAJDONOSA A BEADÓ LESZ: bármilyen megnevezett '
+      + 'verzió átmegy, és a rendszer NEM mondja meg, hogy a regiszter választott-e. Egy korábbi '
+      + 'verziójú beadványt így hallgatólagosan a MAI séma szerint olvasnánk (KUKA-074)',
+    file: 'inputSchema.mjs',
+    from: "  if (requested === undefined || requested === null) {",
+    to: "  if (true) {" },
+
+  { id: 'M159', rule: 'K10', catcher: 'P-KAT-item-identity', expect: 'probe_fail',
+    what: 'KAT-01 / R37 — A DUPLIKÁTUM NÉMÁN SIKERNEK LÁTSZIK: a második, azonos SKU-s felvétel '
+      + 'ütközés helyett „rendben" választ ad, és a hívó azt hiszi, hogy felvett egy cikket. Az M148 a '
+      + 'TÚL TÁG hatókört méri — ez az ELLENTÉTES irány, és eddig egyik mutáció sem nevezte meg ezt az '
+      + 'állítást. AMIT MÉRVE MEGTUDTUNK: a puszta ŐR-KIVEZETÉS itt nem szerződés szerinti bizonyíték, '
+      + 'mert a tábla EGYEDISÉGI KÉNYSZERE önállóan is megfogja (a próba nyers SQLITE-kivétellel áll '
+      + 'meg, nem az állításán bukik) — a mutációnak ezért a NÉMA SIKERT kell előállítania',
+    file: 'catalog.mjs',
+    from: "  if (store.get('SELECT item_id FROM item WHERE book_id = ? AND sku = ?', bookId, sku)) {\n"
+      + "    return fail('sku_taken', `ebben a könyvben már van ilyen SKU: ${sku}`);\n  }",
+    to: "  if (store.get('SELECT item_id FROM item WHERE book_id = ? AND sku = ?', bookId, sku)) {\n"
+      + "    return Object.freeze({ ok: true, itemId: itemIdFor(bookId, sku, at), bookId, sku, unit, qtyProfile });\n  }" },
+
+  { id: 'M160', rule: 'K10', catcher: 'P-KAT-item-identity', expect: 'probe_fail',
+    what: 'KAT-01 / R37 — A KÖNYV NÉLKÜLI SKU-FELOLDÁS MEGENGEDETTÉ VÁLIK: a függvény „legjobb '
+      + 'találatot" ad könyv nélkül. Közös csatornán ez pontosan a KUKA-027 hibája — az azonosító '
+      + 'csak a SAJÁT terében egyedi',
+    file: 'catalog.mjs',
+    from: "  if (!bookId) throw new Error('itemBySku: a KÖNYV kötelező — SKU önmagában nem azonosít (KAT-01)');",
+    to: "  if (!bookId) return store.get('SELECT * FROM item WHERE sku = ?', sku) || null;" },
+
+  { id: 'M161', rule: 'K10', catcher: 'P-BEM-input-schema', expect: 'probe_fail',
+    what: 'CLR-01 / R37 — A TESTVÉR-REGISZTER ÚJRA NYITOTT: a mennyiség-profil feloldója visszatér a '
+      + 'nyers kulcs-olvasásra, tehát az ÖRÖKÖLT nevek (`toString` · `constructor` · `__proto__`) '
+      + 'megint „találatnak" számítanak, és a hívás nyers BigInt-kivétellel áll meg a nevezett '
+      + '„ismeretlen mennyiség-profil" helyett. Ez a KUKA-180 TESTVÉR-ÁGA: a külső fél a bemeneti '
+      + 'sémán találta meg, a mérés a profilon is',
+    file: 'quantity.mjs',
+    from: "  const p = lookupClosed(QUANTITY_PROFILES, profileId, { shape: (v) => typeof v === 'object' && v.id });",
+    to: "  const p = QUANTITY_PROFILES[profileId];" },
+
+  { id: 'M162', rule: 'K10', catcher: 'P-BEM-input-schema', expect: 'probe_fail',
+    what: 'CLR-01 / R37 — A KÖZÖS FELOLDÓ ELVESZTI A TÍPUS-ELLENŐRZÉST: a nem szöveg nevet is '
+      + 'kulcsként próbálja feloldani. Egy `{}` vagy szám alakú „név" így a regiszter kulcsává '
+      + 'konvertálódna — a zárt halmaz megint kívülről bővíthető',
+    file: 'closedRegistry.mjs',
+    from: "  if (typeof name !== 'string') return null;",
+    to: "  if (name === undefined) return null;" },
 ];

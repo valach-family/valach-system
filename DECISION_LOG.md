@@ -2923,3 +2923,102 @@ mérendő kérdés** — és amíg nincs mérve, nem állítjuk (KUKA-033).
 
 **Gépi jel: NINCS — kimondva.** Ez a szöveg a board átadó lapján áll, nem kódban; a védelem a lap
 alakjában van (a visszaállítási lépés a kiadás alakját KÉRDEZI, nem feltételezi).
+
+---
+
+## D-VS-3044 — az összesítő olvassa a mérést, ne képezze (a norma-lánc csomag) (2026-09-18)
+
+**Honnan:** a külső ellenőrző fél (chatgpt-v3) **F37-01** lelete a CMD-VS-300-002-002 **R37** lapon.
+
+**A lelet, reprodukálva.** Az R35-ben szállított csomag-generátor (NCP-01) a sorok minősítését MAGA
+képezte, holott a lánc kanonikus ítélője (`checkNorms`) a vetületét már kiírta a mért állományba
+(`norm_evidence.chain`). A saját gépünkön mérve: a mutációs eredményfájl helyére
+`{"mutation_results":[]}` téve a generátor **kilépés 0-val „88 láncsor · 78 fedett"**-et írt ki —
+**nulla mutációs tanú mellett**. A beadott mérés valós bontása ekkor: **60 fedett · 12 részben
+fedett · 6 NEM falszifikált · 10 bizonyíték nélkül**. A 78-as szám a jelentésbe és a boardra is
+kiment; **helyesbítve**.
+
+**Döntés.** A `result` és a `why` **kizárólag** a mért lánc-vetületből jön; a generátor egyetlen
+minősítést sem képez. A **kötés ellenőrzött, nem kiírt** — hét ág, bármelyik bukása nevezett
+megállás: szerződés-lenyomat és -verzió · norma-index lenyomat · integritás-jelzés · a sorhalmaz
+**mindkét irányban** · a minősítés zárt halmaza · minden „fedett" sor falszifikáló mutációja
+**lefutott, CAUGHT, és NÉV SZERINT megnevezi az állítást** · minden próba címe feloldható a
+futtatóból. A hiányzó bizonyíték soha nem fordul „fedett"-re.
+
+**Gépi jel:** `npm run proof:norm-chain-package` — NCP-02, **12 eset**: tíz visszalépés bizonyítottan
+PIROS a **kilépési kódon**, és két pozitív ellenpár az ép csomagon. KUKA-179.
+
+**Amit ez NEM old meg, kimondva:** a próba CÍME forrás-olvasással oldódik fel a futtatóból. Ha a
+`probe(` hívás alakja változik, ez a lépés **nevezetten megáll** — nem ad néma üres címet —, de ez
+forrás-olvasás, nem futásidejű regiszter.
+
+---
+
+## D-VS-3045 — a művelet-név saját kulcson oldódik fel, és a sémaverziót a regiszter választja (2026-09-18)
+
+**Honnan:** a külső ellenőrző fél (chatgpt-v3) **F37-02** lelete a CMD-VS-300-002-002 **R37** lapon.
+
+**A lelet, reprodukálva.** A bemeneti séma-regiszter `OPERATION_SCHEMAS[operation]` alakban keresett.
+Ez az **örökölt** tulajdonságokat is megtalálja: `toString`, `constructor` és `__proto__` nevekre a
+`!schema` kapu átengedett, és a hívás nyers `TypeError: Cannot convert undefined or null to object`
+hibával állt meg — nem nevezett `unknown_operation` elutasítással. Mindhárom név reprodukálva. **Ez
+belső referencia-API hiba; külső HTTP-támadhatóságot nem állítunk** (a külső fél sem állított).
+
+**Döntés — két külön dolog.** **(1)** `schemaForOperation` (SOP-01): a név **típusa** is mérce, a
+kulcs **saját kulcsként** ellenőrzött; minden nem-művelet névre azonos, nevezett
+`unknown_operation`, kivétel és írás nélkül. **(2)** A **sémaverzió tulajdonosa és határa kimondva**
+(SVR-01): a verziót a **regiszter** választja, a beadó legfeljebb **megerősít**; eltérő, korábbi vagy
+ismeretlen megnevezett verzió **nevezett `unsupported_schema_version`** — hallgatólagos
+átértelmezés nincs. **Migrációs keret NEM épült**, és ez határ, nem hiányosság.
+
+**Gépi jel:** `node v3ref/run.mjs` — `P-BEM-input-schema` (j) és (k) ága; mutációk **M153** (tartalékra
+esés) · **M154** (a nyers kulcs-olvasás visszatér) · **M158** (a verzió tulajdonosa a beadó lesz) —
+mind elkapva, és **név szerint** döntik hamisra a saját állításukat. KUKA-180.
+
+---
+
+## D-VS-3046 — a hiány OKA is állítás: a lehetetlenségi indok mérendő (2026-09-18)
+
+**Honnan:** a külső ellenőrző fél (chatgpt-v3) tartalmi döntése a **K10-TYP-c** klauzulán (R37).
+
+**A lelet.** Két klauzula hiány-szövege azzal indokolta a bizonyítás elmaradását, hogy „a magban
+**egyetlen** mennyiség-profil él, ezért ellenpélda nem állítható elő". **Mérve hamis:**
+`QUANTITY_PROFILES` **két** élő profilt tartalmaz (`qty-1` · `qty-2`), és a saját próbánk mindkettőn
+mér.
+
+**Döntés.** A hiány megmarad, az **indok** javítva: „a bizonyítás **lehetséges** — csak nem történt
+meg". Minden hiány-szövegben az ok is állítás a rendszerről: vagy mérve van, vagy nem írjuk le.
+A „nem tettük meg" és a „nem lehetséges" két külön állítás — a második tévesen leírva a **következő
+kört is lebeszéli** a munkáról.
+
+**Gépi jel:** tiltó-minta a két konkrét hamis mondatra (`verify:kuka`). **Amire nincs gépi jel,
+kimondva:** hogy egy ÚJ hiány-indok tartalmilag igaz-e — az próza. KUKA-181.
+
+---
+
+## D-VS-3047 — a külső tartalmi döntés KÜLÖN tengely, és nem gépi hitelesítés (2026-09-18)
+
+**Honnan:** a külső ellenőrző fél (chatgpt-v3) **OB-7** szerinti tartalmi döntései, 29 klauzulán,
+a CMD-VS-300-002-002 **R37** lapon.
+
+**A döntés rögzítése.** A 29 klauzula döntése bekerült a repóba (`v3ref/externalDecisions.mjs`,
+EXD-01), szó szerinti indokkal: **14 „referenciában elfogadva" · 7 részleges · 7 nyitott · 1 nem
+elfogadott egészként**. A hatókör az ő szavukkal: az itt vizsgált **egyírós, szintetikus, megbízható
+belső kontextusú** modellben a norma és a **megnevezett** állítások tartalmi megfelelésére szól —
+**nem** általános biztonsági tanúsítvány és **nem** teljes rendszerkészültség.
+
+**És amit ez NEM jelent — kimondva, mert ők kötötték ki:** a repó `content_review` rekordjai
+**nem** váltak gépileg hitelesítetté; a mechanikus átvezetés nem adhat szélesebb jóváhagyást és nem
+gyárthat operátori aláírást. Ezért a csomag **két külön oszlopot** visel (`content_review` =
+repó-rekord, mérve **0/92** · `external_decision` = boardon rögzített külső döntés), és a kettőt
+sehol nem vonjuk össze (KUKA-105: két minősítési szint összemosása néma elsőbbséget ad az egyiknek).
+Forrás- vagy követelményváltozásnál az érintett döntés **újraellenőrzendő**.
+
+**Átvezetett maradékok ugyanebben a körben:** `K05-DSC-c` fedettről **részlegesre** (az engedő ág
+bizonyítéka hiányzik — „ezt a különbséget ne zöldítsd át") · `K05-DSC-d` **kiegészítő kötése** két
+további, saját nevű állítással (a `P-A08` önmagában a hatályosulási versenyt nem fedi) ·
+`ORG-N1a` elavult maradék-szövege javítva (a meghívó-út alapja **megvan**, BLI-01) ·
+`K10-TYP-c/d` hamis lehetetlenségi indoka javítva (D-VS-3046).
+
+**Gépi jel:** `npm run docs:norm-chain` — a csomag a külső döntést külön oszlopban és külön táblában
+hozza; `verify:kuka` a zárt döntés-szó halmazra.

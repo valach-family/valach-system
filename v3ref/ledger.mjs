@@ -33,6 +33,7 @@ import { itemById } from './catalog.mjs';
 import { validateInput, bindQuantityProfile } from './inputSchema.mjs';
 import { submitCommandWithEffect } from './command.mjs';
 import { authorizeBookAction } from './accessGate.mjs';
+import { lookupClosed } from './closedRegistry.mjs';
 
 export { LEDGER_VIEWS };
 const fail = (error, detail) => Object.freeze({ ok: false, error, detail: detail ?? null });
@@ -113,7 +114,9 @@ function appendMovement({ store, key, item, qty, effectId, recordedAt, effective
  */
 export function balanceAt({ store, key, view, asOf }) {
   const k = stockKey(key);
-  const spec = LEDGER_VIEW_AXES[view];
+  // ZÁRT REGISZTER, SAJÁT KULCSON (CLR-01, R37 · KUKA-180): a nézet NEVE külső bemenet, tehát az
+  // örökölt tulajdonság-nevek itt sem adhatnak „találatot".
+  const spec = lookupClosed(LEDGER_VIEW_AXES, view, { shape: (v) => typeof v === 'object' && v.id });
   if (!spec) {
     return fail('unknown_view', `a nézetet NEVEZNI kell: ${LEDGER_VIEWS.join(' | ')} — `
       + Object.values(LEDGER_VIEW_AXES).map((v) => `${v.id} = "${v.label}"`).join(' · '));

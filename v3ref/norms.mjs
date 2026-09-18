@@ -420,9 +420,22 @@ export const MODULE_CONTRACT_NORMS = Object.freeze([
         // azt teszi, amit a klauzula ilyenkor előír: a vegyes eredményt EGÉSZBEN megtagadja, és a
         // készletjog nem ad ármezőt — mindkettő mérve (P-REV-result-scope aOk/bOk).
         //
-        // NYITOTT ÚT, NEM HIÁNY: ha valaha mezővetítés épül, annak SAJÁT bizonyítéka kell, és a
-        // klauzula akkor a másik ágára fordul — de az ÚJ munka lesz, nem ennek a sornak az adóssága.
-        gap: null,
+        // HELYESBÍTVE (R37, a külső fél TARTALMI döntése). A fenti olvasat TÚL MEGENGEDŐ volt: igaz,
+        // hogy a mezővetítés hiánya a klauzula saját feltétele — de a szöveg ELSŐ mondata ettől
+        // FÜGGETLEN és ERŐSEBB követelmény: „MINDEN érintett adatkörre ÉRVÉNYES OLVASÁSI DÖNTÉS kell".
+        // Az, hogy a tiltott mezőt tartalmazó vegyes eredményt egészben megtagadjuk, csak a MÁSODIK
+        // mondatot bizonyítja. Az adatkörre KORLÁTOZOTT ENGEDŐ alap és a TÉNYLEGES kiadás közötti
+        // bizonyíték nincs megadva — a külső fél szó szerint: „Ezt a különbséget ne zöldítsd át."
+        // Ezért a sor RÉSZLEGES, nem fedett (KUKA-101: az összevonás ne adjon határozottabb választ).
+        partial: Object.freeze({
+          built: 'a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN '
+            + 'megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope '
+            + '(aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással.',
+          remaining: 'az ENGEDŐ ág: hogy MINDEN érintett adatkörre ÉRVÉNYES olvasási döntés áll-e, az '
+            + 'explicit tiltás HIÁNYÁNÁL erősebb követelmény. Az adatkörre korlátozott engedő alap és '
+            + 'a tényleges kiadás közötti bizonyíték ma NINCS megadva — ez NEM a mezővetítés hiánya '
+            + '(az a klauzula saját feltétele), hanem külön, meg nem tett bizonyítás.',
+        }),
       }),
       Object.freeze({
         id: 'K05-DSC-d',
@@ -480,9 +493,15 @@ export const MODULE_CONTRACT_NORMS = Object.freeze([
         // mennyiség PROFILJA verziózva a soron áll (`qty_profile=qty-1`). Ami NINCS mérve: a
         // PROFILVÁLTÁS és a korábbi tárolt érték viszonya — a magban egyetlen profil él, verzióváltás
         // sosem történt, tehát ellenpélda sem állítható elő. A klauzula ezért NEM fedett (KUKA-033).
-        gap: 'A kanonikus alak és a profil-kötés mérve van, de a PROFILVÁLTÁS hatása a korábbi tárolt '
-          + 'értékre nincs: a magban egyetlen mennyiség-profil él (`qty-1`), verzióváltás nem történt, '
-          + 'ezért erre a mondatra ma nincs bizonyíték.',
+        // HELYESBÍTVE (R37, a külső fél lelete). A régi indok azt állította, hogy „a magban EGYETLEN
+        // mennyiség-profil él", tehát ellenpélda nem is állítható elő. Ez MÉRVE HAMIS: `qty-1` ÉS
+        // `qty-2` is él (`QUANTITY_PROFILES`), és a `P-BEM-input-schema` (i) ága MINDKETTŐT méri. A
+        // HIÁNY megmarad — de a LEHETETLENSÉGI indok törlendő: a bizonyítás nem lehetetlen, csak nem
+        // tettük meg (KUKA-033: méretlen állítás nem indok, és a saját kifogásom is mérendő).
+        gap: 'A kanonikus alak és a profil-kötés mérve van MINDKÉT élő profilon (`qty-1` · `qty-2`), de '
+          + 'a PROFILVÁLTÁS hatása a KORÁBBAN TÁROLT értékre nincs mérve: a mag nem végez '
+          + 'profil-verzióváltást, és ilyen ellenpéldát nem építettünk. A bizonyítás LEHETSÉGES (két '
+          + 'profil áll rendelkezésre) — csak nem történt meg.',
       }),
       Object.freeze({
         id: 'K10-TYP-d',
@@ -494,9 +513,16 @@ export const MODULE_CONTRACT_NORMS = Object.freeze([
         // MÉRVE: a parancs+nyugta+mozgás EGYÜTT íródik, az ismétlés nem könyvel kétszer, és az
         // összeg-korlát MINDHÁRMAT visszagörgeti (KSZ-01 három állítása). NINCS MÉRVE: a „korábbi
         // verziójú vagy MÁS PROFILÚ bemenet" ága — egyetlen élő profil mellett nincs ellenpélda.
-        gap: 'Az atomiság és az ismétlés-védelem mérve van (KSZ-01), de a „korábbi verziójú vagy más '
-          + 'PROFILÚ bemenet" ága nincs: egyetlen élő séma- és mennyiség-profil mellett ellenpélda '
-          + 'nem állítható elő, tehát a mondat erre a felére nincs bizonyíték.',
+        // HELYESBÍTVE (R37): a „egyetlen élő profil mellett ellenpélda nem állítható elő" indok
+        // MÉRVE HAMIS — két mennyiség-profil él. A SÉMAVERZIÓ oldalán viszont az R37-ben megszületett
+        // a HATÁR (SVR-01): a verziót a regiszter választja, eltérő megnevezett verzió NEVEZETT
+        // elutasítás. Ami ettől is NYITOTT: az ISMÉTLÉSI és HIBAHATÁR viselkedése, ha a beadvány
+        // KORÁBBI verziójú vagy MÁS profilú — ezt nem mértük.
+        gap: 'Az atomiság és az ismétlés-védelem mérve van (KSZ-01), és a két mennyiség-profil szerinti '
+          + 'működés is. A sémaverzió HATÁRA az R37-ben kimondva és mérve (SVR-01: a regiszter '
+          + 'választ, eltérőre `unsupported_schema_version`). NYITOTT: a „korábbi verziójú vagy más '
+          + 'PROFILÚ bemenet" ISMÉTLÉSI és HIBAHATÁR-viselkedése — ez nem lehetetlen bizonyítani, csak '
+          + 'nem tettük meg.',
       }),
       Object.freeze({
         id: 'K10-TYP-e',
@@ -549,11 +575,17 @@ export const ORG_BASIS_NORMS = Object.freeze([
             + '(`basisAsOf`), és BEKÖTVE a hatáskör-adás útjára: a `grantAdjudicationAuthority` '
             + 'rögzíti, MELYIK verzió alapján adták (`basis_id`/`basis_version`), lejárt vagy még nem '
             + 'hatályos alapra pedig NEVEZETTEN elutasít. Falszifikálva: M116–M120.',
-          remaining: 'az ÁLTALÁNOS képviseleti alap: a MEGHÍVÓ-KIADÁS és a BEVÁLTÁS ma nem hordozza és '
-            + 'nem méri az alapot, tehát a KIADOTT MEGHÍVÓ továbbra sem tudja megmondani, mi alapján '
-            + 'adták ki, és a beváltás sem a KIADÁSKOR hatályos alaphoz mér (az `order` n:1 '
-            + '„property" mezője pontosan ezt kéri). Amíg ez nincs meg, a klauzula NYITOTT, és a '
-            + 'req-5 NEM léphet életbe rá.',
+          // HELYESBÍTVE (R37, a külső fél lelete). A régi mondat azt állította, hogy „a MEGHÍVÓ-KIADÁS
+          // és a BEVÁLTÁS ma nem hordozza és nem méri az alapot" — ez MÁR NEM IGAZ: a BLI-01 korlát a
+          // meghívó KIADÁSÁN és BEVÁLTÁSÁN is valódi kapu (`invite.mjs` 3/b, a KIADÁSKORI alaphoz
+          // mérve), és az ORG-N1b hét állítása ezt méri. A maradék-szöveg tehát a rendszer egy
+          // KORÁBBI állapotát állította, és a hiányt NAGYOBBNAK mutatta a valóságosnál (KUKA-050).
+          remaining: 'az ÁLTALÁNOS képviseleti lefedés. Ami MEGVAN (és a régi szöveg tévesen tagadta): '
+            + 'a meghívó KIADÁSA és BEVÁLTÁSA a KIADÁSKOR hatályos alaphoz mér, valódi kapuval '
+            + '(BLI-01). Ami NINCS: a klauzula szövege MINDEN felhatalmazási döntésre szól, a bekötés '
+            + 'viszont a MEGHÍVÓ útján él — a többi felhatalmazási útra (általános képviselet) nincs '
+            + 'sem alap-hordozás, sem mérés. Amíg ez nincs meg, a klauzula RÉSZLEGES, és a req-5 NEM '
+            + 'léphet életbe rá.',
         }),
         // AMI MÉG NEM ÉPÜLT MEG A KORLÁTON: az az ORG-N1b-é, és az a klauzula MEGTARTJA a saját
         // gap-jét. A `basisState.limit_enforced: false` mező ezt a rendszer válaszában is kimondja

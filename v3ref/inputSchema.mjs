@@ -101,9 +101,61 @@ export const OPERATION_SCHEMAS = Object.freeze({
  * Az ismeretlen mező ELŐBB dől el, mint a hiányzó: egy elgépelt mezőnév különben „hiányzó
  * kötelezőnek" látszana, és a beadó a rossz dolgot javítaná (KUKA-064).
  */
-export function validateInput({ operation, input }) {
+/**
+ * SOP-01 — A MŰVELET-NÉV FELOLDÁSA, SAJÁT KULCSON (R37/F37-02).
+ *
+ * MIÉRT KÜLÖN FELOLDÓ. A régi alak `OPERATION_SCHEMAS[operation]`-t írt, ami az ÖRÖKÖLT
+ * tulajdonságokat is megtalálja: `'toString'`, `'constructor'` és `'__proto__'` mellett a lekérés
+ * egy FÜGGVÉNYT (illetve az Object.prototype-ot) adta vissza, tehát a `!schema` kapu ÁTENGEDTE, és
+ * a hívás két sorral lejjebb `TypeError: Cannot convert undefined or null to object`-tel szállt el
+ * — nem nevezett elutasítással. A zárt regiszter tehát NEM volt zárt; a hiba a külső ellenőrző fél
+ * (chatgpt-v3, R37/F37-02) lelete, három néven reprodukálva.
+ *
+ * A NÉV TÍPUSA IS MÉRCE: egy szám vagy objektum nem művelet-név. A válasz mindkét esetben UGYANAZ
+ * a nevezett `unknown_operation` — kivétel nélkül, írás nélkül (KUKA-020: a programhiba nem lehet
+ * ugyanaz a válasz, mint a valódi „nem", de a valódi „nem" se bújjon kivételbe).
+ */
+export function schemaForOperation(operation) {
+  if (typeof operation !== 'string') return null;
+  if (!Object.prototype.hasOwnProperty.call(OPERATION_SCHEMAS, operation)) return null;
+  const found = OPERATION_SCHEMAS[operation];
+  return found && typeof found === 'object' && found.fields ? found : null;
+}
+
+/**
+ * SVR-01 — A SÉMAVERZIÓ TULAJDONOSA ÉS HATÁRA, KIMONDVA (R37/F37-02 második fele).
+ *
+ * KI A TULAJDONOS: a **regiszter**, nem a beadó. A művelet sémája deklarálja a saját verzióját
+ * (`version`), és a beadó ezt NEM választhatja meg. Ez szándékos szűkítés, nem hiányosság.
+ *
+ * MI A HATÁR: ha a beadvány MEGNEVEZ egy verziót, azt ELLENŐRIZZÜK. Egyezésnél megy tovább;
+ * eltérésnél NEVEZETT elutasítás (`unsupported_schema_version`), a támogatott verzióval együtt.
+ * Hallgatólagos átértelmezés NINCS: egy korábbi vagy ismeretlen verziójú beadványt nem olvasunk
+ * úgy, mintha a maiban jött volna (KUKA-074: a megváltozott tényt nem nyelheti el az őr).
+ *
+ * AMIT EZ NEM CSINÁL, KIMONDVA: nincs migráció, nincs verzió-fordítás, nincs több élő verzió. Ha
+ * valaha kell, annak SAJÁT szerződése és bizonyítéka lesz — ez a feloldó csak a HATÁRT mondja ki.
+ */
+export function checkSchemaVersion(schema, requested) {
+  if (requested === undefined || requested === null) {
+    return { ok: true, version: schema.version, chosen_by: 'register' };
+  }
+  const want = typeof requested === 'number' ? String(requested) : requested;
+  if (typeof want !== 'string' || want !== schema.version) {
+    return {
+      ok: false,
+      error: 'unsupported_schema_version',
+      detail: `a beadvány ${JSON.stringify(requested)} sémaverziót nevez meg; ezen a műveleten `
+        + `EGYETLEN támogatott verzió van: ${JSON.stringify(schema.version)} — a verziót a `
+        + 'REGISZTER választja, nem a beadó, és korábbi verziójú beadványt nem értelmezünk át',
+    };
+  }
+  return { ok: true, version: schema.version, chosen_by: 'request_confirmed' };
+}
+
+export function validateInput({ operation, input, version }) {
   // 1. ISMERETLEN MŰVELET — FAIL-CLOSED, a választhatók felsorolásával (KUKA-064).
-  const schema = OPERATION_SCHEMAS[operation];
+  const schema = schemaForOperation(operation);
   if (!schema) {
     return fail('unknown_operation',
       `nincs deklarált bemeneti séma erre: ${JSON.stringify(operation)} — `
@@ -113,6 +165,11 @@ export function validateInput({ operation, input }) {
   if (input === null || typeof input !== 'object' || Array.isArray(input)) {
     return fail('invalid_body', `a bemenet objektum kell legyen, kapott: ${describe(input)}`);
   }
+
+  // 1/b. A MEGNEVEZETT SÉMAVERZIÓ (SVR-01). A verziót a REGISZTER választja; ha a beadvány
+  // megnevez egyet, azt ellenőrizzük — a néma átértelmezés tiltott.
+  const ver = checkSchemaVersion(schema, version);
+  if (!ver.ok) return fail(ver.error, ver.detail);
 
   // 2. ISMERETLEN MEZŐ.
   const declared = Object.keys(schema.fields);
@@ -162,7 +219,7 @@ export function validateInput({ operation, input }) {
   // A VÁLASZ KIMONDJA, MI MARADT NYITVA. Ha a hívó elfelejtené a B. szakaszt, a `profile_bound`
   // hamis marad, és a főkönyv NEVEZETTEN utasít el — a fél lánc nem csúszhat át némán (KUKA-069).
   return Object.freeze({
-    ok: true, operation, version: schema.version, value: Object.freeze(clean),
+    ok: true, operation, version: schema.version, version_chosen_by: ver.chosen_by, value: Object.freeze(clean),
     quantity_fields: Object.freeze(pendingQuantities), profile_bound: pendingQuantities.length === 0,
   });
 }
@@ -188,7 +245,7 @@ export function bindQuantityProfile(checked, { profileId } = {}) {
       `a(z) ${checked.quantity_fields.join(', ')} mező mennyiség, a jelentését a CIKK profilja adja — `
       + 'profil nélkül a szám nem értelmezhető, ezért nem könyveljük');
   }
-  const schema = OPERATION_SCHEMAS[checked.operation];
+  const schema = schemaForOperation(checked.operation);
   const bound = { ...checked.value };
   for (const name of checked.quantity_fields) {
     const spec = schema.fields[name];
@@ -205,7 +262,15 @@ export const BEM_CONTRACT = Object.freeze({
   id: 'BEM-01',
   owns: 'műveletenként a bemenet deklarált alakja',
   operations: Object.freeze(Object.keys(OPERATION_SCHEMAS)),
-  error_order: Object.freeze(['unknown_operation', 'invalid_body', 'unknown_field', 'missing_field', 'invalid_type']),
+  error_order: Object.freeze(['unknown_operation', 'invalid_body', 'unsupported_schema_version', 'unknown_field', 'missing_field', 'invalid_type']),
+  // A SÉMAVERZIÓ TULAJDONOSA KIMONDVA (SVR-01, R37): a REGISZTER választ, a beadó legfeljebb
+  // MEGERŐSÍT. Több élő verzió, migráció és verzió-fordítás NINCS — ez határ, nem hiányosság.
+  schema_version: Object.freeze({
+    owner: 'register', requester_may: 'confirm_only',
+    on_mismatch: 'unsupported_schema_version',
+    stated_limit: 'egyetlen élő verzió műveletenként; korábbi verziójú beadványt NEM értelmezünk '
+      + 'át, és nincs migrációs keret — ha valaha kell, saját szerződéssel és bizonyítékkal jön',
+  }),
   // A SAJÁT SZERZŐDÉSŰ MEZŐ-FAJTÁK hibakódja NEM lapul `invalid_type`-ra — kimondva, hogy a
   // sorrend-lista fölötti kivétel ne legyen néma (R8 §2 · R10-F03).
   delegates: Object.freeze([

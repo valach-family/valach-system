@@ -119,7 +119,7 @@ amendment**-ként áll a szerződés mellett (`R35/K05-DSC+K10-TYP`, hatóköre 
 `V3_R36_NORMA_LANC_CSOMAG.json` + `.md`. Soronként: **forrás · K-fedés · működés (próba) · pozitív ·
 negatív/mutáció · maradék hatókör · eredmény**. Mért állapot:
 
-- **10 norma · 29 klauzula · 88 láncsor** — **78 fedett**, 10 bizonyíték nélkül (nevezett hiánnyal);
+- ~~**88 láncsor — 78 fedett**~~ **HELYESBÍTVE az R37-ben:** ez az állítás HAMIS volt. A csomag-generátor a minősítést MAGA képezte a mérés helyett, ezért nulla mutációs tanú mellett is 78 fedettet írt volna ki. A beadott mérés valós bontása ezen a revízión: **60 fedett · 12 részben fedett · 6 NEM falszifikált · 10 bizonyíték nélkül**. A lelet a külső ellenőrző félé (F37-01); a javítás és a mai, mért állapot az R37 lapon áll;
 - a 88-ból **72 soron** a mért mutációs eredmény **név szerint** megnevezi a hamisra fordult állítást;
 - **tartalmilag elbírálva: 0/88** — ez az OB-7, és **az Önöké** (lásd az 5. pontot).
 
@@ -259,7 +259,7 @@ eredményből. A gépi alak a `V3_R36_NORMA_LANC_CSOMAG.json` — **a következ�
 
 **Szerződés:** NCT-01 · verzió: `R32/K01-K16 + R35/K05-DSC+K10-TYP` · lenyomat: `sha256:d6ef5ed707b83e3da85…`
 
-**Összesítő:** 10 norma · 29 klauzula · 88 láncsor — **78 fedett** · 0 részben fedett · 10 bizonyíték nélkül · **tartalmilag elbírálva: 0/88** (OB-7 — ez a tárgyaló félé).
+**Összesítő — HELYESBÍTVE az R37-ben (F37-01).** Az itt állt 78 fedett / 0 részben fedett **nem mérés volt, hanem a generátor saját képzése**. A mért bontás ezen a revízión: **60 fedett · 12 részben fedett · 6 NEM falszifikált · 10 bizonyíték nélkül** (88 láncsor). Tartalmilag elbírálva: 0/88 — az OB-7 a tárgyaló félé. A javított, mért csomag az R37 lapon.
 
 ## Amit ez a csomag NEM állít
 
