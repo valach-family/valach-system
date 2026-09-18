@@ -244,10 +244,16 @@ const pkg = {
   schema: 'v3-norm-chain-package/2',
   id: 'NCP-01',
   at: new Date().toISOString(),
-  measured_from: { file: 'v3ref/v3ref-mutation-result.json', base_digest: measured.base_digest, execution: measured.execution },
+  measured_from: { file: 'v3ref/v3ref-mutation-result.json', base_digest: measured.base_digest,
+    source_digest_today: sourceToday, source_bound: measured.base_digest === sourceToday, execution: measured.execution },
   contract: { id: NORM_CONTRACT.id, version: NORM_CONTRACT_VERSION, digest: ref.digest, index_digest: idx },
   amendments: (NORM_CONTRACT.amendments || []).map((a) => ({ id: a.id, scope: a.scope, source: a.source_document || a.artifact })),
+  // A LISTA A TÉNYLEGESEN LEFUTÓ KÖTÉSEKET SOROLJA (R39). A két R39-es kötés nélkül a lap többet
+  // állított volna, mint amit mér — és ez pont az a hiba-osztály, amiről ez a kör szól.
   binding_checked: [
+    'a mérés a MAI FORRÁSON készült (a `base_digest` a mai forrás-lenyomathoz mérve — BND-01)',
+    'a KANONIKUS ítélő (`checkNorms`) ÚJRAFUTTATVA a battéria eltett bemenetével, és a beadott '
+      + 'vetület soronként ehhez mérve (minősítés ÉS tanú)',
     'szerződés-lenyomat és -verzió', 'norma-index lenyomat', 'integritás-jelzés',
     'a sorhalmaz MINDKÉT irányban', 'a minősítés zárt halmaza',
     'minden „covered" sor falszifikáló mutációja LEFUTOTT, CAUGHT, és NÉV SZERINT megnevezi az állítást',

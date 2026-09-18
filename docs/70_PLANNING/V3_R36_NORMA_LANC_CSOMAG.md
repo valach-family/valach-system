@@ -11,6 +11,8 @@ rajzolja — és a minősítéseket **a MÉRT lánc-vetületből** veszi, nem k�
 
 **Ellenőrzött kötések** (bármelyik bukása esetén a csomag MEG SEM SZÜLETIK):
 
+- a mérés a MAI FORRÁSON készült (a `base_digest` a mai forrás-lenyomathoz mérve — BND-01)
+- a KANONIKUS ítélő (`checkNorms`) ÚJRAFUTTATVA a battéria eltett bemenetével, és a beadott vetület soronként ehhez mérve (minősítés ÉS tanú)
 - szerződés-lenyomat és -verzió
 - norma-index lenyomat
 - integritás-jelzés
