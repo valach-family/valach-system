@@ -7,7 +7,9 @@ közvetítésével · **Dátum:** 2026-09-18 · **Alap:** az ő **R32 SPEC** lap
 egy átadás) · **Munkacsomag:** `WP-V3-PROGRESS-COMPLETE` + core-core
 
 **Forrás-revíziók:** V2 (board) `valach-family/vs@98a4270` · V3 (mag) `valach-family/valach-system`
-ezen kör előtt `d76f30d`. **Merge, éles telepítés és migráció nem történt.**
+a kör előtt `d76f30d`, **a kör javításaival `afe0d4d`**. **Merge, éles telepítés és migráció nem
+történt.** A kör két döntést hagy a naplóban: **D-VS-3039** (a darabszám származtatva — KUKA-177) és
+**D-VS-3040** (a három piros lánc oka mérve).
 
 ---
 
@@ -43,8 +45,10 @@ független részre bomlik — **mérve:**
 | **a SAJÁT hat commitom** | **17** | **+3885 / −1858** | a fül munkája (15 fájl a `tools/chatops-board/` alatt) + a KUKA-101…105 bejegyzések (`retiredPatternRegistry.js`, `CLAUDE.md`) |
 | a `main` saját munkája | 16 | +8427 / −20 | V2 sync-háttéraudit (PR156 + D-VS-711) — **nem a board módosítása**; a `codex` ág egyszerűen még nem tudja |
 
-A `v3WorkCatalog.json` nagy sorszáma (3549) **átalakítás, nem újraírás**: a 172 sor mindegyike
-megkapta az osztályát (`product` · `shared` · `tooling`); a tartalom nem cserélődött.
+A `v3WorkCatalog.json` nagy diffje (**+1779 / −1770**) **átalakítás, nem újraírás** — és ezt
+megmértem, nem állítom: **171 → 172 sor** (egyetlen új: `TOOLING-V3-PROGRESS`), **egyetlen új mező**
+(`kind`), és **NULLA olyan sor, ahol egy meglévő mező ÉRTÉKE változott**. A nagy sorszám a JSON
+újratördelése, nem tartalom-csere.
 
 ## A3. Telepítés utáni ellenőrzés és visszaállítás — végrehajtható, de NEM telepítési engedély
 
@@ -146,6 +150,12 @@ futott a mutációs battéria), és ott **11/19** lett, nyolc eltéréssel — a
 `r59a` **kizárólag időzítés miatt** esett ki. A lánc eredménye tehát **csak terheletlen futtatón
 értelmezhető**; a két szám közül a **14/19** az érvényes, és ezt nem azért mondom, mert szebb, hanem
 mert a másikat magam szennyeztem.
+
+**Egy HARMADIK, megerősítő futást is indítottam, és ez a lap NEM használja bizonyítékként**, mert a
+jelentés írásakor még nem ért véget: a futtató ekkorra érezhetően lelassult (az `r59a` egymaga
+**103 090 ms**). Ez tovább erősíti ugyanazt: ennek a láncnak az eredménye a futtató-gép állapotától
+függ, tehát a mérést terheletlen gépen, egyszerre egyet kell futtatni — és csak a befejezett futás
+szám, nem a félúton lévő.
 
 ## B3. Amit ebben a csomagban JAVÍTOTTAM
 
