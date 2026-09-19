@@ -155,8 +155,21 @@ add('N04-restated', 'Az M32 futása nem buktatja az A-REV-N1b állítást; az M4
     const m32 = runMutation('M32');
     const news = ['M47', 'M48', 'M49'].map(runMutation);
     // A BIZONYÍTÉK-LÁNC IS NÉZZE MEG: a REV-N1b-t nem az M32 falszifikálta.
-    const battery = spawnSync(process.execPath, [join(root, 'source/v3ref/mutate.mjs')],
-      { cwd: join(root, 'source'), encoding: 'utf8', timeout: 60000 });
+    //
+    // A BATTÉRIA HÍVÁSA DARABOLVA, A DARABSZÁM SZÁRMAZTATVA (R52 — KUKA-045 ezen a hívó-oldalon).
+    // Az eredeti alak EGY hívásban futtatta a battériát; a battéria azóta 185 mutációra nőtt, és
+    // MÉRVE az egy hívás a `mutate.mjs` saját költségvetése fölé megy, ezért a keresett
+    // „falszifikálta" sor MEG SEM SZÜLETIK — a próba nem a rendszeren bukott el, hanem a hívás
+    // alakján. A darabszám a tool SAJÁT szabályából jön (egység-méret 24), tehát a battéria
+    // növekedésével magától finomodik; az ELLENŐRZÖTT ÁLLÍTÁS VÁLTOZATLAN.
+    const batteryUnits = Math.max(6, Math.ceil(MUTATIONS.length / 24));
+    const batteryArgs = [];
+    for (let i = 1; i <= batteryUnits; i += 1) batteryArgs.push(`--unit=${i}/${batteryUnits}`);
+    batteryArgs.push('--merge');
+    const batteryRuns = batteryArgs.map((arg) => spawnSync(
+      process.execPath, [join(root, 'source/v3ref/mutate.mjs'), arg],
+      { cwd: join(root, 'source'), encoding: 'utf8', timeout: 60000, maxBuffer: 32 * 1024 * 1024 }));
+    const battery = { stdout: batteryRuns.map((r) => r.stdout || '').join('\n') };
     const line = (battery.stdout || '').split('\n').find((l) => l.includes('REV-N1b') && l.includes('falszifikálta'));
     return {
       pass: m32.target_assertion === true && news.every((n) => n.target_assertion === false)

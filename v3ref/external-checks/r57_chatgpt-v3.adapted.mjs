@@ -5,7 +5,14 @@
 // 1-gyel lépett ki, miközben a MÉRT TARTALOM tiszta volt
 // (134/134 elkapva). A darabszám a hívás alakja, nem az elvárás: egyetlen eset, mutáció, elvárás,
 // forráskötés és az időkeret-érvényesítés sem változik. Felülírható: VS_BATTERY_UNITS.
-const BATTERY_UNITS=(()=>{const v=Number(process.env.VS_BATTERY_UNITS);return Number.isInteger(v)&&v>=1&&v<=64?v:6;})();
+// A DARABSZÁM SZÁRMAZTATVA, NEM KÉZZEL (R52 — a KUKA-045 alakja ezen a hívó-oldalon). Az eredeti
+// alak a hatos darabszámot LITERÁLKÉNT hordozta; a battéria azóta 185 mutációra nőtt, és MÉRVE a
+// 2/6 szelet 12 388 ms-ot kért — a `mutate.mjs` SAJÁT költségvetése (12 000 ms) fölött. A hívás
+// ezért 1-gyel zárult, és a `--merge` is, miközben a TARTALOM tiszta volt. A szám helyére a tool
+// SAJÁT szabálya lép (ugyanaz, amit a `--units-auto` használ: egység-méret 24), tehát a hívó a
+// battéria növekedésével magától finomodik. A `VS_BATTERY_UNITS` felülírás VÁLTOZATLAN, a padló a
+// korábbi alapérték (6), és a hívás ALAKJA sem változik: N egység + `--merge`, egységenként 15 000 ms.
+const BATTERY_UNITS=(()=>{const v=Number(process.env.VS_BATTERY_UNITS);if(Number.isInteger(v)&&v>=1&&v<=64)return v;return Math.max(6,Math.ceil(MUTATIONS.length/24));})();
 function batteryArgs(n){const a=[];for(let i=1;i<=n;i++)a.push(`--unit=${i}/${n}`);a.push('--merge');return a;}
 function runBatteryUnits(dir){
   const unitsDir=join(dir,'v3ref','units');rmSync(unitsDir,{recursive:true,force:true});
