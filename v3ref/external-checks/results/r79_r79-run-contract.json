@@ -1,7 +1,7 @@
 {
-  "source_commit": "bcf91cc4064e794203a24a68d02dbf5702af5ea9",
+  "source_commit": "08c89e606f8ae6c5ec5c7ff5e1e3fced4473c62f",
   "node": "v22.22.2",
-  "at": "2026-09-19T13:11:54.692Z",
+  "at": "2026-09-19T16:48:51.018Z",
   "cap_ms": 15000,
   "cases": [
     {
@@ -9,15 +9,17 @@
       "expected": "Untouched chunked run: every unit fits the external cap and the merge is complete and clean.",
       "pass": true,
       "units": [
-        "unit-1-of-7.json",
-        "unit-2-of-7.json",
-        "unit-3-of-7.json",
-        "unit-4-of-7.json",
-        "unit-5-of-7.json",
-        "unit-6-of-7.json",
-        "unit-7-of-7.json"
+        "unit-1-of-8.json",
+        "unit-2-of-8.json",
+        "unit-3-of-8.json",
+        "unit-4-of-8.json",
+        "unit-5-of-8.json",
+        "unit-6-of-8.json",
+        "unit-7-of-8.json",
+        "unit-8-of-8.json"
       ],
       "unit_exits": [
+        0,
         0,
         0,
         0,
@@ -28,21 +30,22 @@
       ],
       "merge_exit": 0,
       "unit_walls": [
-        11532,
-        10912,
-        10757,
-        10605,
+        11486,
         11291,
-        11025,
-        10466
+        11405,
+        11411,
+        11354,
+        11326,
+        10864,
+        11059
       ],
       "cap_ms": 15000,
       "run_state": "complete",
       "clean": true,
       "portable": true,
       "coverage": {
-        "expected": 185,
-        "seen": 185,
+        "expected": 190,
+        "seen": 190,
         "missing": [],
         "duplicated": [],
         "unknown": [],
@@ -64,10 +67,10 @@
       "merge_exit": 2,
       "run_state": "incomplete",
       "clean": null,
-      "missing_count": 158,
+      "missing_count": 166,
       "why": [
-        "HIÁNYZÓ mutáció — nincs RÉSZLETES eredménye (158): M2, M3, M4, M5, M6, M7, M9, M10, M11, M12, M13, M14, M16, M27, M17, M18, M19, M20, M22, M23, M24, M25, M28, M29, M31, M32, M33, M34, M35, M36, M38, M39, M40, M41, M42, M43, M47, M48, M49, M50, M51, M52, M54, M55, M56, M57, M58, M59, M61, M62, M63, M64, M65, M66, M70, M71, M72, M68, M69, M73, M75, M76, M77, M78, M79, M80, M82, M83, M84, M85, M86, M87, M89, M90, M91, M92, M93, M94, M96, M97, M98, M99, M100, M101, M103, M104, M105, M106, M107, M108, M110, M111, M112, M113, M114, M115, M117, M118, M119, M120, M121, M122, M124, M125, M126, M127, M128, M129, M131, M132, M133, M134, M135, M136, M138, M139, M140, M141, M142, M143, M145, M146, M147, M148, M149, M150, M152, M153, M154, M155, M156, M157, M159, M160, M161, M162, M163, M164, M166, M167, M168, M169, M177, M178, M180, M181, M182, M183, M184, M185, M187, M188, M176, M173, M174, M175, M171, M170",
-        "hiányzó kötelező bizonyíték (REV-N1a: not_falsified, REV-N1b: not_falsified, ORG-N2a: not_falsified, REV-N3a: not_falsified, REV-N3b: not_falsified, REV-N3c: not_falsified, REV-N5a: not_falsified, REV-N5b: not_falsified, REV-N5c: not_falsified, REV-N2a: not_falsified, REV-N2b: not_falsified)"
+        "HIÁNYZÓ mutáció — nincs RÉSZLETES eredménye (166): M2, M3, M4, M5, M6, M7, M8, M10, M11, M12, M13, M14, M15, M16, M17, M18, M19, M20, M21, M22, M23, M25, M28, M29, M26, M31, M32, M33, M35, M36, M37, M38, M39, M40, M41, M43, M44, M47, M48, M49, M50, M51, M53, M54, M55, M56, M57, M58, M59, M61, M62, M63, M64, M65, M66, M67, M71, M72, M68, M69, M73, M74, M75, M77, M78, M79, M80, M81, M82, M83, M85, M86, M87, M88, M89, M90, M91, M93, M94, M95, M96, M97, M98, M99, M101, M102, M103, M104, M105, M106, M107, M109, M110, M111, M112, M113, M114, M115, M117, M118, M119, M120, M121, M122, M123, M125, M126, M127, M128, M129, M130, M131, M133, M134, M135, M136, M137, M138, M139, M141, M142, M143, M144, M145, M146, M147, M149, M150, M151, M152, M153, M154, M155, M157, M158, M159, M160, M161, M162, M163, M165, M166, M167, M168, M169, M177, M178, M180, M181, M182, M183, M184, M185, M186, M188, M189, M190, M191, M192, M193, M176, M174, M175, M172, M171, M170",
+        "hiányzó kötelező bizonyíték (REV-N1a: not_falsified, REV-N1b: not_falsified, REV-N3a: not_falsified, REV-N3b: not_falsified, REV-N3c: not_falsified, REV-N5a: not_falsified, REV-N5b: not_falsified, REV-N5c: not_falsified, REV-N2a: not_falsified, REV-N2b: not_falsified)"
       ]
     },
     {
@@ -77,9 +80,9 @@
       "merge_exit": 2,
       "run_state": "incomplete",
       "clean": null,
-      "original_digest": "sha256:d1787bcb1dea7eb437619ae6d26a02e86cbbc7f8ce153e41b98ac95563cb5a16",
+      "original_digest": "sha256:adb2f5aa0b0dc823a7b343ba93c189e95e4169254bb87b127729302a58fd5368",
       "why": [
-        "MÁS FORRÁSRA hivatkozó egység (unit-2-of-7.json) — mai lenyomat: sha256:d1787bcb1dea7eb437619ae6d26a02e86cbbc7f8ce153e41b98ac95563cb5a16"
+        "MÁS FORRÁSRA hivatkozó egység (unit-2-of-8.json) — mai lenyomat: sha256:adb2f5aa0b0dc823a7b343ba93c189e95e4169254bb87b127729302a58fd5368"
       ]
     }
   ]

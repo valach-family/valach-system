@@ -141,7 +141,30 @@ korlát, nem kényelem.
 
 **A SAJÁT FUTÁSOM (ezen a fán, ma):**
 
-MEASUREMENTS_PLACEHOLDER
+| mérés | parancs | eredmény |
+|---|---|---|
+| próbák | `node v3ref/run.mjs` | **61/61 PASS** (az új `P-ORG-adjudication-basis-limit` a 61.) |
+| mutációs battéria | `npm run verify:v3ref` | **190/190 CAUGHT** — „TELJES ÉS TISZTA", minden rontás pontosan egyszer, minden egység a költségvetésen belül |
+| norma-lánc csomag | `node tools/v3_norm_chain_package.mjs` | 127 láncsor · 78 fedett · 39 részben · 2 nem falszifikált · 8 bizonyíték nélkül |
+| a csomag ellenpróbája | `npm run proof:norm-chain-package` | **25/25 RENDBEN** |
+| tanulság-regiszter | `npm run verify:kuka` | **310/310 PASS** (KUKA-193 és KUKA-194 felvéve, alapvonal frissítve) |
+| döntés-számok | `npm run verify:decision-numbers` | **4/4 PASS** — a következő szabad: D-VS-3061 |
+| külső döntés-regiszter | `npm run verify:external-decisions` | **38/38 PASS** — minden indok szó szerinti a saját forrás-lapjában (R53: 1 új sor) |
+| külső programlánc | `npm run verify:external-checks` | **17/19 MEGFELEL · 2 környezeti kihagyás** nevezett, zöld helyettessel (`r57a` · `r59a`) — **nulla eltérő program**, kilépés **0** |
+| teljes söprés | `npm run verify:sweep` | **10 zöld · 0 piros**; 1 ellenőrző (`verify:external-checks`) túllépte a söprés 900 s-os türelmét — ezt a söprés maga mondja ki, hogy **nem bukás**, és külön futtatva zöld |
+| a mérés lábnyoma | `ls /tmp \| grep -c '^v3ref-'` | **0** árva mappa a teljes lánc után — a háló működik |
+
+**A BIZONYÍTÉK ÉS A SZÁM UGYANABBÓL A FUTÁSBÓL VAN — ÉS EZ NEM MAGÁTÓL LETT ÍGY.** A söprés a
+hosszú külső láncot a türelmi idő letelte után **félbeszakította**, és a félbeszakadt futás
+**felülírta** az összesítő bizonyíték-fájlt egy részleges állapottal (`green: 16`, `ok: false`),
+miközben a végigfutott mérés 17/19-et adott. A lemezen lévő fájl tehát **mást mutatott, mint ami
+ténylegesen lefutott** — pontosan az a hiba-osztály, amit ez a kör már kétszer megfogott. Ezért a
+külső láncot **önállóan újrafuttattam**, és a csomagban most az a fájl áll, ami a jelentett számot
+adta (`at: 2026-09-19T16:57:36Z` · `ok: true` · `green: 17` · `env_skipped: 2` · teljes hatókör).
+
+**A KÜLSŐ LÁNC ÁLLAPOTA VÁLTOZATLANUL JÓ:** 17 megfelel, 2 környezeti kihagyás **nevezett, zöld
+helyettessel**, és **nulla** eltérő program. A `complete_evidence` továbbra is `false`, mert a két
+környezeti kihagyás megmarad — ezt nem takarjuk el.
 
 **ÁTVETT MÉRÉS (a külső fél futása, nem az enyém):** 60/60 alappróba · 25/25 norma-csomag ellenpróba
 · EXD 37/37 · NCP-generálás 119 sor · aktív r79 core 18/18 és r81 core 7/7 · a korábbi F49/F51

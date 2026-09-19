@@ -1,7 +1,7 @@
 {
   "program": "f03-restated.mjs",
-  "pin": "bcf91cc4064e794203a24a68d02dbf5702af5ea9",
-  "at": "2026-09-19T13:19:33.331Z",
+  "pin": "08c89e606f8ae6c5ec5c7ff5e1e3fced4473c62f",
+  "at": "2026-09-19T16:57:34.293Z",
   "node": "v22.22.2",
   "cases": [
     {
@@ -14,7 +14,7 @@
         "NORMA/REV-N1/REV-N1a: a(z) P-A04 próba NEM adta ki a deklarált állítást: A-REV-N1a-dependent-new-op-and-release-blocked",
         "PRÓBA/P-CMD-finalize-gate: kiadott egy állítás-azonosítót, amit a manifest nem deklarál: A-REV-N1a-dependent-new-op-and-release-blocked — a bizonyíték-kötés fél maradt (KUKA-039)"
       ],
-      "stderr": "A NORMA-BIZONYÍTÉK INDEX HIBÁS — a regiszter magáról állít valótlant: |   · NORMA/REV-N1/REV-N1a: a(z) P-A04 próba NEM adta ki a deklarált állítást: A-REV-N1a-dependent-new-op-and-release-blocked |   · PRÓBA/P-CMD-finalize-gate: kiadott egy állítás-azonosítót, amit a manifest nem deklarál: A-REV-N1a-dependent-new-op-and-release-blocked — a bizonyíték-kötés fél maradt (KUKA-039) | (node:28609) ExperimentalWarning: SQLite is an experimental feature and might change at any time"
+      "stderr": "A NORMA-BIZONYÍTÉK INDEX HIBÁS — a regiszter magáról állít valótlant: |   · NORMA/REV-N1/REV-N1a: a(z) P-A04 próba NEM adta ki a deklarált állítást: A-REV-N1a-dependent-new-op-and-release-blocked |   · PRÓBA/P-CMD-finalize-gate: kiadott egy állítás-azonosítót, amit a manifest nem deklarál: A-REV-N1a-dependent-new-op-and-release-blocked — a bizonyíték-kötés fél maradt (KUKA-039) | (node:18118) ExperimentalWarning: SQLite is an experimental feature and might change at any time"
     },
     {
       "id": "G02",
@@ -126,6 +126,14 @@
         "ORG-N1a",
         "ORG-N1a",
         "ORG-N1a",
+        "ORG-N1a",
+        "ORG-N1b",
+        "ORG-N1b",
+        "ORG-N1b",
+        "ORG-N1b",
+        "ORG-N1b",
+        "ORG-N1b",
+        "ORG-N1b",
         "ORG-N1b",
         "ORG-N1b",
         "ORG-N1b",
