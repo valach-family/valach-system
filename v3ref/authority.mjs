@@ -22,6 +22,9 @@
 
 import { instantMs, withTransaction } from './store.mjs';
 import { banEffectiveAt, banRequestFor } from './banScope.mjs';
+// ORG-N1b (R53): az ítélet a SEMLEGES modulból jön — az `authorityBasis.mjs` csak a
+// `store.mjs`-t és a zárt regisztert importálja, tehát nincs kör (lásd ott a szerkezeti indoklást).
+import { adjudicationLimitVerdict } from './authorityBasis.mjs';
 
 export const ADJUDICATION_OPS = Object.freeze(['suspend', 'adjudicate', 'alter_right']);
 
@@ -69,6 +72,33 @@ export function authorityRowAt({ store, subjectId, bookId, operation, nowIso }) 
   }
   if (from.ms > now.ms) {
     return { ok: false, reason: 'authority_not_yet_effective', message: 'a hatáskör még nem hatályos' };
+  }
+
+  // ORG-N1b — A DEKLARÁLT ALAP A HASZNÁLAT PILLANATÁBAN IS KORLÁTOZ (R53 · ABL-01).
+  //
+  // MIÉRT ITT. Ez a KÖZÖS belső ellenőrzési pont: mind a három bírálati művelet (`suspend` ·
+  // `adjudicate` · `alter_right`) és mind az öt hatáskör-igényes író ezen megy át. Ha a kapu a
+  // hívókra maradna, az első új belépési pont némán megkerülné (KUKA-039 · KUKA-129).
+  //
+  // A HATÓKÖR KIMONDOTT, ÉS SZŰK: CSAK az a hatáskör-sor esik ide, amelyik KIFEJEZETTEN alapra
+  // hivatkozik. Ahol `basis_id` nincs, ott a mai viselkedés VÁLTOZATLAN — az alap nélküli történeti
+  // hatáskörökről ez a kör nem hoz üzleti döntést, és ezt a norma maradék-határként őrzi (R53).
+  if (row.basis_id !== null && row.basis_id !== undefined) {
+    const verdict = adjudicationLimitVerdict({
+      store, basisId: row.basis_id, bookId, operation,
+      grantedUnderVersion: row.basis_version ?? null, validAt: nowIso, knownAt: nowIso,
+    });
+    if (verdict.ok !== true) {
+      return {
+        ok: false,
+        reason: verdict.reason,
+        message: verdict.message
+          || `a hatáskör a(z) ${row.basis_id} alapra hivatkozik, és az az alap a használat `
+            + `pillanatában nem engedi meg a(z) "${operation}" műveletet (${verdict.reason})`,
+        basis_id: row.basis_id,
+        granted_under_version: row.basis_version ?? null,
+      };
+    }
   }
   return { ok: true, granted_at: row.granted_at };
 }

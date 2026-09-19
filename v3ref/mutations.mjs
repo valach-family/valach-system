@@ -1746,6 +1746,54 @@ export const MUTATIONS = [
         to: "  const live = Array.isArray(state.limit && state.limit.scopes) && state.limit.scopes.length\n    ? state.limit.scopes : [...KNOWN_DATA_SCOPES];" },
     ] },
 
+  // ── R53 — AZ ORG-N1b VISSZABONTÁSAI A BÍRÁLATI ÚTON (ABL-01) ────────────────────────────────
+  //
+  // MIND A KETTŐ IRÁNYT MUTATJÁK: a JOGOSULATLAN HATÁSKÖRT (M189 · M190 · M191 · M192) és a JOGOS
+  // HASZNÁLAT TÉVES TILTÁSÁT (M193). A kár itt nem adatkiadás, hanem JOGVÁLTOZTATÁS: aki a korláton
+  // kívül bírál, az tagságot függeszt fel és von vissza.
+  { id: 'M189', rule: 'K04', catcher: 'P-ORG-adjudication-basis-limit', expect: 'probe_fail',
+    what: 'ABL-01 / R53 — A MEGADÁS KAPUJA MEGSZŰNIK: a hatáskör-adás csak azt nézi, hogy az alap '
+      + 'ÉL, azt nem, hogy MIRE szól. MÉRT HATÁS: egy CSAK meghívó-kiadásra szóló határozattal '
+      + '`adjudicate`, `suspend` és `alter_right` hatáskör is megadható — pontosan az a lelet, amit '
+      + 'a külső fél az R53-ban mért, és amit a saját fánkon megismételtünk',
+    file: 'adjudication.mjs',
+    from: "    if (verdict.ok !== true) {\n      throw new Error(`grantAdjudicationAuthority: az alap korlátja nem engedi meg ezt a műveletet `",
+    to: "    if (false) {\n      throw new Error(`grantAdjudicationAuthority: az alap korlátja nem engedi meg ezt a műveletet `" },
+
+  { id: 'M190', rule: 'K05', catcher: 'P-ORG-adjudication-basis-limit', expect: 'probe_fail',
+    what: 'ABL-01 / R53 — A HASZNÁLAT KAPUJA MEGSZŰNIK: a közös belépési pont nem kérdezi meg az '
+      + 'alapot. MÉRT HATÁS: a MEGVONT, LEJÁRT vagy azóta SZŰKÍTETT határozat mellett is fut a '
+      + 'felfüggesztés, az elbírálás és a jogváltoztatás — a jog túléli az alapját',
+    file: 'authority.mjs',
+    from: "  if (row.basis_id !== null && row.basis_id !== undefined) {",
+    to: "  if (false) {" },
+
+  { id: 'M191', rule: 'K05', catcher: 'P-ORG-adjudication-basis-limit', expect: 'probe_fail',
+    what: 'ABL-01 / R53 — A MEGADÁSKORI VERZIÓT SENKI NEM NÉZI: az ítélet csak a MAI alapot méri. '
+      + 'MÉRT HATÁS: egy későbbi, TÁGABB verzió visszamenőleg kinyit egy korábban adott hatáskört — '
+      + 'a régi bélyegző új ajtót nyit, anélkül hogy bárki újra megadta volna (KUKA-074)',
+    file: 'authorityBasis.mjs',
+    from: "  if (grantedUnderVersion === null || grantedUnderVersion === undefined) {",
+    to: "  if (true) {" },
+
+  { id: 'M192', rule: 'K04', catcher: 'P-ORG-adjudication-basis-limit', expect: 'probe_fail',
+    what: 'ABL-01 / R53 — A MŰVELETI SZERZŐDÉS ELTŰNIK A BÍRÁLATI MŰVELETEKRŐL: a három művelet nem '
+      + 'kap korlát-szerződést, tehát az ítélő „nincs szerződése" ágra esik. MÉRT HATÁS: a megadás '
+      + 'MINDEN alapra elakad — a kapu FALLÁ válik, és a jogos bírálat is ellehetetlenül. Ez a '
+      + 'másik irány: a túl szigorú kapu ugyanúgy hibás, mint a hiányzó (KUKA-122)',
+    file: 'authorityBasis.mjs',
+    from: "  ...Object.fromEntries(ADJUDICATION_LIMIT_OPERATIONS.map((op) => [op, Object.freeze({",
+    to: "  ...Object.fromEntries([].map((op) => [op, Object.freeze({" },
+
+  { id: 'M193', rule: 'K05', catcher: 'P-ORG-adjudication-basis-limit', expect: 'probe_fail',
+    what: 'ABL-01 / R53 — A JOGOS HATÁSKÖR TÉVES TILTÁSA: az ítélet mindig elutasít. MÉRT HATÁS: a '
+      + 'határozat által KIFEJEZETTEN megengedett bírálati művelet sem adható meg és nem is '
+      + 'használható — a pozitív ellenpár bukik. Enélkül a kapu egy „soha semmit" alakkal is '
+      + 'teljesítené a próbát (KUKA-049 · KUKA-122)',
+    file: 'authorityBasis.mjs',
+    from: "  const today = limitVerdict({\n    store, basisId, bookId, operation, role: null, scope: null, validAt, knownAt,\n  });",
+    to: "  const today = frozen({ ok: false, reason: 'forced_denial', basis_version: null, limit: null });" },
+
   { id: 'M176', rule: 'K10', catcher: 'P-KSZ-repeat-and-error-boundary', expect: 'probe_fail',
     what: 'K07 / R45 — AZ ISMÉTLÉS-ŐR ELNYELI A MEGVÁLTOZOTT TARTALMAT: az azonos kulcs melletti '
       + 'ELTÉRŐ deklarált tartalom (más cikk, más profil, más verzió) nem NEVEZETT ütközés, hanem '

@@ -42,7 +42,7 @@ import { membershipAsOf, recordRetroactiveInvalidity, reviewCircleFor, reviewCir
 import { recordAuthorityBasis, basisAsOf, withinBasis, basisState, LIMIT_ENFORCED_PATHS } from './authorityBasis.mjs';
 import {
   issueInviteUnderBasis, redemptionLimitGate, inviteBasisSeal, grantBasisFor, limitVerdict,
-  INVITE_ISSUE_OPERATION, requiredAxesFor,
+  INVITE_ISSUE_OPERATION, requiredAxesFor, ADJUDICATION_LIMIT_OPERATIONS,
 } from './basisLimit.mjs';
 // RSB-01 (K05-DSC-c engedő ága, R47) — az adatkörönkénti olvasási döntés közös kapuja.
 import { scopeReleaseDecision, recordedScopeLimit, RSB_CONTRACT } from './releaseScope.mjs';
@@ -3228,6 +3228,8 @@ probe('P-DSC-scope-grant-history', 'R51/F51-01 · K05-DSC-c · K09 · REV-N2a ·
       w.put('tiszta', { qty: '11.000' });
       const ask = (sub, scope, validAt, knownAt) =>
         readScopeGrantAt({ store: w.store, subjectId: sub, bookId: 'a', scope, validAt, knownAt });
+      const ask2 = (sub, bookId, scope, validAt, knownAt) =>
+        readScopeGrantAt({ store: w.store, subjectId: sub, bookId, scope, validAt, knownAt });
       const revocations = () => w.store.all('SELECT * FROM scope_grant_revocation ORDER BY id');
       const readAt = (key, sub, at) => readCommandResult({
         store: w.store, clock: clockFrom(at), idemKey: key, requester: sub,
@@ -3287,15 +3289,42 @@ probe('P-DSC-scope-grant-history', 'R51/F51-01 · K05-DSC-c · K09 · REV-N2a ·
       const dBook = ask(D.sub, 'keszlet', BIT.AUGUST, BIT.AUGUST);
       const dForeign = readScopeGrantAt({ store: w.store, subjectId: D.sub, bookId: 'nincs-ilyen-konyv',
         scope: 'keszlet', validAt: BIT.AUGUST, knownAt: BIT.AUGUST });
+      // R53 — ÉLŐ ELLENPÁR A MÁSIK KÖNYVRE. A nem létező könyv kérdése önmagában gyenge tanú: abból
+      // csak az látszik, hogy ott nincs jog — nem az, hogy egy LÉTEZŐ másik könyv MEGADOTT jogát a
+      // megvonás nem viszi el. A külső fél ezt a saját mérésében LÉTEZŐ második könyvvel végezte;
+      // a régi eset MEGMARAD, mellé jön az élő (KUKA-122: a kapu ne csak zárni tudjon).
+      w.store.run('INSERT INTO book (id, name) VALUES (?,?)', 'b', 'B könyv');
+      recordAuthorityBasis({
+        store: w.store, basisId: 'HAT-B', bookId: 'b', issuerSubject: 'vezeto',
+        effectiveAt: w.T0, recordedAt: w.T0,
+        allowedOperations: [INVITE_ISSUE_OPERATION], allowedRoles: ['user'],
+        allowedScopes: ['keszlet', 'arak'], evidenceRef: 'doc:HAT-B',
+      });
+      const dLiveGrant = grantReadScope({
+        store: w.store, subjectId: D.sub, bookId: 'b', scope: 'arak', basisId: 'HAT-B',
+        basisVersion: 1, grantedBy: 'vezeto', effectiveAt: w.T0, recordedAt: w.T0,
+      });
+      const dLiveBook = ask2(D.sub, 'b', 'arak', BIT.AUGUST, BIT.AUGUST);
       const dOk = D.built && dOwnStock.granted === true && dOwnPrice.granted === false
         && dOther.granted === true && dBook.granted === true
-        && dForeign.granted === false && dForeign.reason === 'no_scope_grant';
+        && dForeign.granted === false && dForeign.reason === 'no_scope_grant'
+        // A MÁSIK KÖNYVBEN MEGADOTT, UGYANARRA AZ ADATKÖRRE SZÓLÓ jog ÉRINTETLEN marad.
+        && dLiveGrant.ok === true && dLiveBook.granted === true && dLiveBook.reason === 'scope_granted';
 
       // (e) A HIBÁS IDŐ NEVEZETT, ÍRÁSMENTES ELUTASÍTÁS (KUKA-124/2). Nem „valószínűleg most",
       //     és nem néma eldobás: a naplóba egyetlen sor sem kerül, a jog pedig VÁLTOZATLAN.
       const E = w.member(['keszlet']);
       const beforeRows = revocations().length;
-      const badEff = revokeReadScope({ store: w.store, subjectId: E.sub, bookId: 'a', scope: 'keszlet', at: 'nem-idő' });
+      // R53 — A KORREKCIÓ, AMIT A KÜLSŐ FÉL MÉRT KI (és igaza volt). A korábbi alak `at: 'nem-idő'`-t
+      // adott, ami MINDKÉT időt elrontja; ezért az M186 mutáció (az eff-őr elvétele) után nem a
+      // hibás írás látszott, hanem a rec-őr zárt be helyette — vagyis a mutáció csak INDOKOT
+      // cserélt, és az M186 leírása erősebb volt a bemutatott futásnál (KUKA-189). Most a hatály
+      // HIBÁS, a rögzítés ÉRVÉNYES: így pontosan az eff-őr a mérés tárgya, és a mutáció valóban
+      // hibás napló-sort ír (új sor=1, a jog eldönthetetlenné válik).
+      const badEff = revokeReadScope({
+        store: w.store, subjectId: E.sub, bookId: 'a', scope: 'keszlet',
+        effectiveAt: 'nem-idő', recordedAt: BIT.MARCH_LATER,
+      });
       const badRec = revokeReadScope({ store: w.store, subjectId: E.sub, bookId: 'a', scope: 'keszlet',
         effectiveAt: BIT.MARCH_LATER, recordedAt: '2026-02-30T09:00:00.000Z' });
       const badWho = revokeReadScope({ store: w.store, bookId: 'a', scope: 'keszlet', at: BIT.MARCH_LATER });
@@ -3309,22 +3338,42 @@ probe('P-DSC-scope-grant-history', 'R51/F51-01 · K05-DSC-c · K09 · REV-N2a ·
 
       // (f) A TELJES LÁNC EGYBEN, ÉS A KIADÁS IDŐHATÁRA: megadás → KIADÁS → leltár-sor → megvonás →
       //     ZÁRVA. Ugyanaz az olvasó, ugyanaz az eredmény, ugyanaz a hívás — csak az IDŐ más.
+      // R53 — A HATÁR MOST VALÓBAN A HATÁR. A korábbi alak „határnapnak" nevezett egy MÁRCIUSI
+      // olvasást egy JÚNIUSI hatályú megvonás mellett, majd AUGUSZTUSI elutasítást mért: a
+      // működés helyes volt, de az EGYENLŐSÉG kezeléséről semmit nem mondott (a külső fél lelete;
+      // KUKA-049: a jel a mechanizmust mérje, és a SZÓ igazodjon a méréshez).
+      //
+      // A megvonás hatálya egy PONT. Három közvetlen eset, ezredmásodperc-pontossággal:
+      //   · 1 ms-mal ELŐTTE  → a kiadás megtörténik
+      //   · PONTOSAN a határon → ZÁR (a hatály `<=`, nem `<`)
+      //   · 1 ms-mal UTÁNA   → ZÁR
+      // És a két elutasítás EGYETLEN kiadási leltár-sort sem ír.
+      const HATAR = '2026-04-01T00:00:00.000Z';
+      const ELOTTE = '2026-03-31T23:59:59.999Z';
+      const UTANA = '2026-04-01T00:00:00.001Z';
       const F = w.member(['keszlet']);
-      const fBefore = readAt('tiszta', F.sub, BIT.MARCH_LATER);
+      const fFirst = readAt('tiszta', F.sub, BIT.MARCH_LATER);
       const ledgerBefore = w.store.all('SELECT * FROM disclosure WHERE recipient = ?', F.sub).length;
+      // ELŐRE ISMERT, KÉSŐBB HATÁLYOS megvonás: a rögzítés jóval a hatály előtt történik.
       revokeReadScope({ store: w.store, subjectId: F.sub, bookId: 'a', scope: 'keszlet',
-        effectiveAt: BIT.JUNE, recordedAt: BIT.JUNE, actorSubjectId: 'vezeto' });
-      const fStillOnBoundaryDay = readAt('tiszta', F.sub, BIT.MARCH_LATER);   // a hatály ELŐTTI nap KIAD
-      const fAfter = readAt('tiszta', F.sub, BIT.AUGUST);                     // a hatály UTÁNI nap ZÁR
+        effectiveAt: HATAR, recordedAt: w.T0, actorSubjectId: 'vezeto' });
+      const fBeforeBoundary = readAt('tiszta', F.sub, ELOTTE);
+      const ledgerAfterBefore = w.store.all('SELECT * FROM disclosure WHERE recipient = ?', F.sub).length;
+      const fOnBoundary = readAt('tiszta', F.sub, HATAR);
+      const fAfterBoundary = readAt('tiszta', F.sub, UTANA);
       const ledgerAfter = w.store.all('SELECT * FROM disclosure WHERE recipient = ?', F.sub).length;
-      const fDecisionBefore = scopeReleaseDecision({ store: w.store, subjectId: F.sub, bookId: 'a', scope: 'keszlet', nowIso: BIT.MARCH_LATER });
-      const fDecisionAfter = scopeReleaseDecision({ store: w.store, subjectId: F.sub, bookId: 'a', scope: 'keszlet', nowIso: BIT.AUGUST });
-      const fOk = F.built && fBefore.ok === true && fBefore.result.qty === '11.000'
+      const fDecisionBefore = scopeReleaseDecision({ store: w.store, subjectId: F.sub, bookId: 'a', scope: 'keszlet', nowIso: ELOTTE });
+      const fDecisionOn = scopeReleaseDecision({ store: w.store, subjectId: F.sub, bookId: 'a', scope: 'keszlet', nowIso: HATAR });
+      const fDecisionAfter = scopeReleaseDecision({ store: w.store, subjectId: F.sub, bookId: 'a', scope: 'keszlet', nowIso: UTANA });
+      const fOk = F.built && fFirst.ok === true && fFirst.result.qty === '11.000'
         && ledgerBefore === 1
-        && fStillOnBoundaryDay.ok === true && fAfter.ok === false
-        // A ZÁRT KIADÁS NEM ÍR LELTÁRT: a hatás nélküli olvasásról nem születik kiadás-sor.
+        && fBeforeBoundary.ok === true && fBeforeBoundary.result.qty === '11.000'
+        && ledgerAfterBefore === 2                       // a SIKERES olvasás ír leltárt
+        && fOnBoundary.ok === false && fAfterBoundary.ok === false
+        // A KÉT ELUTASÍTÁS NEM ÍR LELTÁRT: a hatás nélküli olvasásról nem születik kiadás-sor.
         && ledgerAfter === 2
         && fDecisionBefore.allowed === true
+        && fDecisionOn.allowed === false && fDecisionOn.reason === 'scope_grant_revoked'
         && fDecisionAfter.allowed === false && fDecisionAfter.reason === 'scope_grant_revoked';
 
       const pass = aOk && bOk && cOk && dOk && eOk && fOk;
@@ -3333,15 +3382,17 @@ probe('P-DSC-scope-grant-history', 'R51/F51-01 · K05-DSC-c · K09 · REV-N2a ·
           + 'ELŐRE ütemezett megvonás a hatályáig nem zár · az ÚJRAADÁS újra nyit, a közbenső nap '
           + 'zárva marad · a megvonás CSAK a saját alany×könyv×adatkör hármasára hat · a hibás idő '
           + 'NEVEZETT, ÍRÁSMENTES elutasítás · és a teljes lánc (megadás → kiadás → leltár → '
-          + 'megvonás) a kiadás IDŐHATÁRÁN válik zárttá',
+          + 'megvonás) PONTOSAN a hatály pillanatában vált zárttá: 1 ms-mal előtte kiad, a határon '
+          + 'és 1 ms-mal utána zár, és a két elutasítás egyetlen leltár-sort sem ír',
         actual: `(a) visszamenőleges: márciusi tudás=${aBefore.granted ? 'kiadva' : 'ZÁRVA(!)'}`
           + `→${aStillBefore.granted ? 'kiadva' : 'ZÁRVA(!)'} · mai tudás=${aToday.granted ? 'KIADVA(!)' : 'zárva'} (${aToday.reason})`
           + ` · (b) ütemezett: június=${bJune.granted ? 'kiadva' : 'ZÁRVA(!)'} augusztus=${bAugust.granted ? 'KIADVA(!)' : 'zárva'}`
           + ` · (c) újraadás: megvonva=${cRevoked.granted} → újra=${cAgain.granted} · közbenső nap=${cBetween.granted}`
           + ` · (d) más adatkör=${dOwnStock.granted} megvont adatkör=${dOwnPrice.granted} más alany=${dOther.granted} más könyv=${dForeign.reason}`
           + ` · (e) hibás idő: ${badEff.reason}/${badRec.reason}/${badWho.reason} · új napló-sor=${afterRows - beforeRows} · a jog áll=${eStill.granted}`
-          + ` · (f) lánc: kiadva=${fBefore.ok} határnap=${fStillOnBoundaryDay.ok} utána=${fAfter.ok ? 'KIADVA(!)' : 'zárva'}`
-          + ` · leltár ${ledgerBefore}→${ledgerAfter} sor`,
+          + ` · (f) lánc: kiadva=${fFirst.ok} · HATÁR −1 ms=${fBeforeBoundary.ok ? 'kiadva' : 'ZÁRVA(!)'}`
+          + ` pontosan a határon=${fOnBoundary.ok ? 'KIADVA(!)' : 'zárva'} +1 ms=${fAfterBoundary.ok ? 'KIADVA(!)' : 'zárva'}`
+          + ` · leltár ${ledgerBefore}→${ledgerAfterBefore}→${ledgerAfter} sor (az elutasítás nem ír)`,
         pass,
         asserts: {
           'A-K05-c-retroactive-revocation-does-not-rewrite-earlier-knowledge': aOk,
@@ -3353,6 +3404,235 @@ probe('P-DSC-scope-grant-history', 'R51/F51-01 · K05-DSC-c · K09 · REV-N2a ·
         },
       };
     } finally { w.store.close(); }
+  });
+
+probe('P-ORG-adjudication-basis-limit', 'R53 · ORG-N1a · ORG-N1b · KUKA-126 · KUKA-074 · KUKA-122',
+  'A DEKLARÁLT ALAP KORLÁTJA KAPU A BÍRÁLATI ÚTON — a megadáskor ÉS a használatkor',
+  () => {
+    // A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, R53; a saját fánkon a javítás előtt megismételve):
+    // egy CSAK `invite_issue`-ra szóló határozatra hivatkozva `adjudicate` hatáskört lehetett ADNI
+    // és HASZNÁLNI. A korlát ott állt az adatbázisban, olvasható alakban (`allowed_operations`), és
+    // egyetlen út sem kérdezte meg — a saját `limit_enforced: false` mezőnk ezt ki is mondta
+    // (KUKA-126: amit a küldő kiír és a fogadó nem kérdez meg, az nem kötés).
+    //
+    // Hétköznapi jelentése: attól, hogy valaki MEGHÍVÓT adhat, még nem kapott jogot vitás ügy
+    // ELBÍRÁLÁSÁRA. A papír, amire hivatkozik, pontosan megmondja, mire szól.
+    const JAN = '2026-01-01T00:00:00.000Z';
+    const MAR = '2026-03-01T00:00:00.000Z';
+    const JUN = '2026-06-01T00:00:00.000Z';
+    const OPS = ADJUDICATION_LIMIT_OPERATIONS;
+
+    const world = ({ allowed, basisId = 'HAT' } = {}) => {
+      const store = openStore();
+      store.run('INSERT INTO book (id, name) VALUES (?,?)', 'a', 'A könyv');
+      store.run('INSERT INTO book (id, name) VALUES (?,?)', 'b', 'B könyv');
+      for (const s of ['judge', 'boss', 'member']) store.run('INSERT INTO subject VALUES (?,?)', s, 'person');
+      store.run('INSERT INTO membership VALUES (?,?,?,?,NULL)', 'member', 'a', 'user', JAN);
+      if (allowed) {
+        recordAuthorityBasis({
+          store, basisId, bookId: 'a', issuerSubject: 'boss', effectiveAt: JAN, recordedAt: JAN,
+          allowedOperations: [...allowed], allowedRoles: ['user'], allowedScopes: ['keszlet'],
+          evidenceRef: `doc:${basisId}`,
+        });
+      }
+      return store;
+    };
+    const grant = (store, operation, basisId, at = MAR) => {
+      try {
+        grantAdjudicationAuthority({ store, subjectId: 'judge', bookId: 'a', operation, clock: clockFrom(at), basisId });
+        return { ok: true };
+      } catch (e) { return { ok: false, error: e.message }; }
+    };
+    const rows = (store) => store.all('SELECT * FROM adjudication_authority').length;
+    const use = (store, operation, at) => adjudicationRightAt({
+      store, subjectId: 'judge', bookId: 'a', operation, clock: clockFrom(at),
+    });
+
+    // (a) A MEGADÁS KAPUJA — MIND A HÁROM MŰVELETRE. A csak meghívó-kiadásra szóló határozat
+    //     EGYIKET sem engedi, és NYOM NÉLKÜL utasít el: hatáskör-sor nem születik.
+    const aRows = [];
+    for (const op of OPS) {
+      const store = world({ allowed: [INVITE_ISSUE_OPERATION] });
+      const g = grant(store, op, 'HAT');
+      aRows.push({ op, refused: g.ok === false, named: /outside_basis_operations/.test(g.error || ''), left: rows(store) });
+      store.close();
+    }
+    const aOk = aRows.length === 3 && aRows.every((r) => r.refused && r.named && r.left === 0);
+
+    // (b) POZITÍV ELLENPÁR — MIND A HÁROM MŰVELETRE. Ahol a határozat MEGENGEDI, a hatáskör
+    //     megszületik ÉS használható. Enélkül a kapu egy „soha semmit" alakkal is teljesülne
+    //     (KUKA-122 · KUKA-049).
+    const bRows = [];
+    for (const op of OPS) {
+      const store = world({ allowed: [op] });
+      const g = grant(store, op, 'HAT');
+      const u = use(store, op, MAR);
+      const st = basisState({ store, subjectId: 'judge', bookId: 'a', operation: op, validAt: MAR, knownAt: MAR });
+      bRows.push({ op, granted: g.ok === true, allowed: u.allowed === true, enforced: st.limit_enforced === true, within: st.within_limit_now?.ok === true });
+      store.close();
+    }
+    const bOk = bRows.length === 3 && bRows.every((r) => r.granted && r.allowed && r.enforced && r.within);
+
+    // (c) A HÁROM MŰVELET KÜLÖN KORLÁT — nem egy általános „bíráló" jelölés. Egy CSAK `suspend`-re
+    //     szóló határozat a másik kettőt nem adja meg (a REV-N3a elve a korlát tengelyén).
+    const cStore = world({ allowed: ['suspend'] });
+    const cGrants = OPS.map((op) => ({ op, ...grant(cStore, op, 'HAT') }));
+    const cLeft = rows(cStore);
+    const cUse = use(cStore, 'suspend', MAR);
+    cStore.close();
+    const cOk = cGrants.find((x) => x.op === 'suspend').ok === true
+      && cGrants.filter((x) => x.op !== 'suspend').every((x) => x.ok === false)
+      && cLeft === 1 && cUse.allowed === true;
+
+    // (d) A HASZNÁLAT KAPUJA — AZ ALAP KÉSŐBB SZŰKÜL. A MÁR KIADOTT hatáskör is zár, és ez VALÓDI
+    //     különbség: ugyanaz a hívás előtte engedett, utána nevezetten elutasít.
+    const dStore = world({ allowed: ['adjudicate', 'suspend'] });
+    grant(dStore, 'adjudicate', 'HAT');
+    const dBefore = use(dStore, 'adjudicate', MAR);
+    recordAuthorityBasis({
+      store: dStore, basisId: 'HAT', bookId: 'a', issuerSubject: 'boss', effectiveAt: JUN, recordedAt: JUN,
+      allowedOperations: ['suspend'], allowedRoles: ['user'], allowedScopes: ['keszlet'], evidenceRef: 'doc:HAT-2',
+    });
+    const dAfter = use(dStore, 'adjudicate', JUN);
+    // A MÚLT VISSZAKERESHETŐ MARAD: a hatáskör-sor és a RÉGI verzió sora sértetlen (REV-N1b).
+    const dRow = dStore.get("SELECT * FROM adjudication_authority WHERE operation='adjudicate'");
+    const dV1 = dStore.get("SELECT * FROM authority_basis WHERE basis_id='HAT' AND version=1");
+    dStore.close();
+    const dOk = dBefore.allowed === true && dAfter.allowed === false
+      && dAfter.reason === 'outside_basis_operations'
+      && dRow && Number(dRow.basis_version) === 1
+      && dV1 && JSON.parse(dV1.allowed_operations).includes('adjudicate');
+
+    // (e) A KÉSŐBB TÁGABB ALAP ÖNMAGÁBAN NEM SZÉLESÍT. A hatáskör-sor az 1. verzióra hivatkozik;
+    //     a 2. verzió megengedné a `suspend`-et, de EZT a jogot nem az alapján adták — új megadás
+    //     kell hozzá, aminek saját nyoma van (KUKA-074: a régi bélyegző nem nyit új ajtót).
+    const eStore = world({ allowed: ['adjudicate'] });
+    grant(eStore, 'adjudicate', 'HAT');
+    eStore.run(`INSERT INTO adjudication_authority (subject_id, book_id, operation, granted_at, revoked_at, basis_id, basis_version)
+                VALUES (?,?,?,?,NULL,?,?)`, 'judge', 'a', 'suspend', MAR, 'HAT', 1);
+    recordAuthorityBasis({
+      store: eStore, basisId: 'HAT', bookId: 'a', issuerSubject: 'boss', effectiveAt: JUN, recordedAt: JUN,
+      allowedOperations: ['adjudicate', 'suspend'], allowedRoles: ['user'], allowedScopes: ['keszlet'], evidenceRef: 'doc:HAT-2',
+    });
+    const eStamped = use(eStore, 'suspend', JUN);
+    // ÚJ megadás a TÁGABB verzió alatt SZABAD — de MÁSIK alanynak, mert a hatáskör-sor
+    // (alany × könyv × művelet) egyedi: ugyanarra a hármasra nem születhet második sor. Így a
+    // mérés azt méri, amit mérni akar (az új megadás megengedettségét), nem az egyediséget.
+    eStore.run('INSERT INTO subject VALUES (?,?)', 'judge2', 'person');
+    let eFresh = { ok: false };
+    try {
+      grantAdjudicationAuthority({ store: eStore, subjectId: 'judge2', bookId: 'a', operation: 'suspend', clock: clockFrom(JUN), basisId: 'HAT' });
+      eFresh = { ok: true };
+    } catch (err) { eFresh = { ok: false, error: err.message }; }
+    const eFreshUse = adjudicationRightAt({ store: eStore, subjectId: 'judge2', bookId: 'a', operation: 'suspend', clock: clockFrom(JUN) });
+    eStore.close();
+    const eOk = eStamped.allowed === false && eStamped.reason === 'outside_granted_basis_version'
+      && eFresh.ok === true && eFreshUse.allowed === true;
+
+    // (f) AZ ALAP MINDEN HIÁNY-ALAKJA SAJÁT, NEVEZETT VÁLASZ — és mind ZÁR (KUKA-124/2 · KUKA-020).
+    const fRows = [];
+    for (const mode of ['missing', 'foreign', 'not_yet', 'expired', 'revoked', 'malformed']) {
+      const store = world({ allowed: ['adjudicate'] });
+      if (mode === 'foreign') {
+        recordAuthorityBasis({
+          store, basisId: 'IDEGEN', bookId: 'b', issuerSubject: 'boss', effectiveAt: JAN, recordedAt: JAN,
+          allowedOperations: ['adjudicate'], allowedRoles: ['user'], allowedScopes: ['keszlet'], evidenceRef: 'doc:IDEGEN',
+        });
+      }
+      const basisId = mode === 'missing' ? 'NINCS-ILYEN' : (mode === 'foreign' ? 'IDEGEN' : 'HAT');
+      const at = mode === 'not_yet' ? '2025-06-01T00:00:00.000Z' : MAR;
+      const g = grant(store, 'adjudicate', basisId, at);
+      let after = null;
+      if (g.ok) {
+        // A megadás sikerült — a HASZNÁLAT oldalán rontjuk el az alapot, hogy a második kaput mérjük.
+        if (mode === 'expired') store.run("UPDATE authority_basis SET expires_at = ? WHERE basis_id='HAT'", JUN);
+        if (mode === 'revoked') store.run("UPDATE authority_basis SET revoked_at = ? WHERE basis_id='HAT'", JUN);
+        if (mode === 'malformed') store.run("UPDATE authority_basis SET allowed_operations = 'nem-json' WHERE basis_id='HAT'");
+        after = use(store, 'adjudicate', JUN);
+      }
+      fRows.push({
+        mode,
+        refused_at_grant: g.ok === false,
+        refused_at_use: after ? after.allowed === false : null,
+        reason: after ? after.reason : (g.error || '').replace(/^.*\(/, '').replace(/[;)].*$/, ''),
+        left: rows(store),
+      });
+      store.close();
+    }
+    const fOk = fRows.every((r) => (r.refused_at_grant && r.left === 0) || r.refused_at_use === true)
+      && fRows.find((r) => r.mode === 'missing').refused_at_grant === true
+      && fRows.find((r) => r.mode === 'foreign').refused_at_grant === true
+      && fRows.find((r) => r.mode === 'not_yet').refused_at_grant === true
+      && fRows.find((r) => r.mode === 'expired').reason === 'basis_expired'
+      && fRows.find((r) => r.mode === 'revoked').reason === 'basis_revoked'
+      && fRows.find((r) => r.mode === 'malformed').reason === 'basis_limit_undecidable';
+
+    // (g) A VALÓDI BELÉPÉSI PONTOKON IS HAT — nem csak a jog-feloldón. Mind a három művelet a maga
+    //     ÉLES útján: felfüggesztés · elbírálás · jogváltoztatás. Ez a közös ellenőrzési pont
+    //     bizonyítéka: a kaput nem a hívók rakják össze (KUKA-039).
+    const live = (allowedOps) => {
+      const store = world({ allowed: allowedOps });
+      for (const op of OPS) grant(store, op, 'HAT');
+      submitClaim({ store, clock: clockFrom(MAR), claimantRef: 'x', bookId: 'a', statement: 'kifogás',
+        intakeContext: { channel: 'test', source: 'synthetic' } });
+      const claim = store.get('SELECT * FROM claim');
+      const s1 = suspendMembership({ store, actorSubjectId: 'judge', subjectId: 'member', bookId: 'a', clock: clockFrom(MAR), reason: 'vizsgálat' });
+      const s2 = adjudicateClaim({ store, actorSubjectId: 'judge', claimId: claim.id, decision: 'resolve', clock: clockFrom(MAR) });
+      const s3 = revokeMembership({ store, subjectId: 'member', bookId: 'a', clock: clockFrom(MAR), actorSubjectId: 'judge' });
+      const out = { suspend: s1.ok === true, adjudicate: s2.ok === true, alter_right: s3.ok === true,
+        claim_state: store.get('SELECT state FROM claim').state,
+        membership_revoked: store.get('SELECT revoked_at FROM membership').revoked_at !== null };
+      store.close();
+      return out;
+    };
+    const gAll = live(OPS);                              // a határozat MINDHÁRMAT megengedi
+    const gNone = live([INVITE_ISSUE_OPERATION]);        // a határozat EGYIKET sem
+    const gOk = gAll.suspend && gAll.adjudicate && gAll.alter_right
+      && gAll.claim_state === 'resolved' && gAll.membership_revoked === true
+      && gNone.suspend === false && gNone.adjudicate === false && gNone.alter_right === false
+      && gNone.claim_state === 'received' && gNone.membership_revoked === false;
+
+    // (h) AZ ALAP NÉLKÜLI, TÖRTÉNETI HATÁSKÖR VISELKEDÉSE VÁLTOZATLAN — és ez KIMONDOTT határ, nem
+    //     feledékenység: erről az R53 nem hoz üzleti döntést (KUKA-033 · KUKA-050).
+    const hStore = world({});
+    grant(hStore, 'adjudicate', null);
+    const hUse = use(hStore, 'adjudicate', MAR);
+    const hState = basisState({ store: hStore, subjectId: 'judge', bookId: 'a', operation: 'adjudicate', validAt: MAR, knownAt: MAR });
+    hStore.close();
+    const hOk = hUse.allowed === true && hState.recorded === false
+      && hState.reason === 'authority_without_recorded_basis'
+      && LIMIT_ENFORCED_PATHS.includes('adjudication_grant')
+      && LIMIT_ENFORCED_PATHS.includes('adjudication_use');
+
+    const pass = aOk && bOk && cOk && dOk && eOk && fOk && gOk && hOk;
+    return {
+      expected: 'a korlát a MEGADÁSKOR is kapu (mind a három műveletre, nyom nélküli elutasítással) '
+        + '· a megengedett művelet megadható ÉS használható (pozitív ellenpár) · a három művelet '
+        + 'KÜLÖN korlát · a később SZŰKÜLŐ alap a már kiadott jogot is zárja · a később TÁGULÓ alap '
+        + 'önmagában nem szélesít · a hiányzó/idegen/nem hatályos/lejárt/megvont/hibás alak mind '
+        + 'NEVEZETTEN zár · a kapu a VALÓDI belépési pontokon is hat · az alap nélküli történeti '
+        + 'hatáskör viselkedése VÁLTOZATLAN',
+      actual: `(a) megadás: ${aRows.map((r) => `${r.op}=${r.refused ? 'elutasítva' : 'MEGADVA(!)'}/${r.left} sor`).join(' · ')}`
+        + ` · (b) pozitív: ${bRows.map((r) => `${r.op}=${r.allowed ? 'használható' : 'ZÁRVA(!)'}`).join(' · ')}`
+        + ` · (c) külön korlát: megadva=${cGrants.filter((x) => x.ok).map((x) => x.op).join(',') || '—'} (${cLeft} sor)`
+        + ` · (d) szűkülés: ${dBefore.allowed}→${dAfter.allowed} (${dAfter.reason})`
+        + ` · (e) régi bélyegző=${eStamped.reason} · új megadás=${eFresh.ok}/használható=${eFreshUse.allowed}`
+        + ` · (f) ${fRows.map((r) => `${r.mode}:${r.reason}`).join(' · ')}`
+        + ` · (g) éles utak: mind engedve=${gAll.suspend}/${gAll.adjudicate}/${gAll.alter_right}`
+        + ` · egyik sem=${gNone.suspend}/${gNone.adjudicate}/${gNone.alter_right} (ügy=${gNone.claim_state})`
+        + ` · (h) alap nélkül=${hUse.allowed} (${hState.reason})`,
+      pass,
+      asserts: {
+        'A-ORG-N1b-declared-basis-gates-the-authority-grant': aOk,
+        'A-ORG-N1b-permitted-operation-is-granted-and-usable': bOk,
+        'A-ORG-N1b-each-adjudication-operation-is-its-own-limit': cOk,
+        'A-ORG-N1b-narrowed-basis-closes-an-already-granted-authority': dOk,
+        'A-ORG-N1b-widened-basis-does-not-broaden-an-already-granted-authority': eOk,
+        'A-ORG-N1b-every-missing-or-invalid-basis-shape-is-a-named-refusal': fOk,
+        'A-ORG-N1b-the-limit-holds-on-the-real-entry-points': gOk,
+        'A-ORG-N1b-authority-without-recorded-basis-is-unchanged-and-named': hOk,
+      },
+    };
   });
 
 probe('P-REV-result-scope', 'R77/F02 · REV-N5b · K05 · K09 · K15 · KUKA-002 · KUKA-121 · KUKA-084',
@@ -4427,12 +4707,21 @@ probe('P-ORG-basis', 'R85 §1 · §5 · ORG-N1a · K04 · K14 · KUKA-003 · KUK
         && notYet.in_effect === false && notYet.reason === 'no_basis_version_in_effect'
         && refused !== null && refused.includes('basis_expired');
 
-      // (d) A KORLÁT MA ADAT, NEM VÉDELEM — ÉS EZT KIMONDJA. Az ítélet-feloldó mindkét irányban
-      //     helyes, de EGYETLEN kiadó út sem hívja: az ORG-N1b még nem épült meg. A nem-kapuzó
-      //     mező LÁTSZIK és megmondja magáról (KUKA-041) — a díszpipa itt bukna el.
+      // (d) A KORLÁT MÁR KAPU, ÉS EZT A MEZŐ IS KIMONDJA (R53 · ABL-01). A régi alak itt azt mérte,
+      //     hogy a korlát CSAK ADAT (`limit_enforced === false`) — ez az akkori valóság volt, és a
+      //     próbánk becsületesen ki is mondta. Az ORG-N1b bírálati ágának megépítése után ugyanez a
+      //     sor BEFAGYASZTANÁ a régi állapotot: aki megépíti a kaput, pirosra vinné a battériát
+      //     (KUKA-057 fordítottja). A mérés ezért a MAI valósághoz igazodik — a gate-et nem
+      //     lazítjuk, a PRÓBÁT igazítjuk a normához (KUKA-191 tanulsága).
+      //
+      //     KÉT KÜLÖN TÉNY, KÉT KÜLÖN MEZŐ: `limit_enforced` = VAN-e kapu ezen az úton (igen),
+      //     `within_limit_now` = belefér-e MA ez a konkrét hatáskör (mérés).
       const inside = withinBasis(now, { operation: 'alter_right', role: 'admin', scope: 'price' });
       const outside = withinBasis(then, { operation: 'alter_right' });
-      const dOk = st.limit_enforced === false && inside.ok === true
+      const dOk = st.limit_enforced === true && st.within_limit_now?.ok === true
+        && LIMIT_ENFORCED_PATHS.includes('adjudication_grant')
+        && LIMIT_ENFORCED_PATHS.includes('adjudication_use')
+        && inside.ok === true
         && outside.ok === false && outside.reason === 'outside_basis_operations';
 
       // (e) AZ ALAP AZONOSSÁGA A (basis_id, book_id) PÁR — R88/F01.
@@ -4465,10 +4754,17 @@ probe('P-ORG-basis', 'R85 §1 · §5 · ORG-N1a · K04 · K14 · KUKA-003 · KUK
         effectiveAt: BIT.AUGUST, recordedAt: BIT.AUGUST, allowedOperations: ['adjudicate'],
         allowedRoles: ['user'], allowedScopes: ['stock'], evidenceRef: 'doc:atugras' });
       // ELLENPÁR: a SAJÁT könyvén a kiadás változatlanul MEGY.
+      //
+      // R53 — A MŰVELET IGAZÍTVA, A MÉRT TÉNY VÁLTOZATLAN. Ez az ág a KÖNYV-azonosságot méri, nem a
+      // korlátot. A korábbi alak `adjudicate`-et adott, amit ez a határozat SOHA nem engedett meg
+      // (v1: suspend · v2: suspend + alter_right) — az ORG-N1b kapuja óta tehát jogosan elakadt
+      // volna. A próba előfeltétele igazodik (az alap által MEGENGEDETT `alter_right`), hogy az ág
+      // továbbra is azt mérje, amit mérni akar (R53: a próbák kapják meg a jogosultsági
+      // előfeltételeket, hogy a CÉLZOTT korlátot mérjék).
       let sameBookOk = true;
       try {
         grantAdjudicationAuthority({ store, clock: clockFrom(BIT.AUGUST), subjectId: 'munkatars',
-          bookId: 'a', operation: 'adjudicate', basisId: 'HAT-2026-01' });
+          bookId: 'a', operation: 'alter_right', basisId: 'HAT-2026-01' });
       } catch { sameBookOk = false; }
       const eOk = foreign.in_effect === false && foreign.reason === 'basis_belongs_to_other_book'
         && noBook.in_effect === false && noBook.reason === 'book_id_required'
@@ -4481,7 +4777,7 @@ probe('P-ORG-basis', 'R85 §1 · §5 · ORG-N1a · K04 · K14 · KUKA-003 · KUK
       return {
         expected: 'a verzió-történet a két tengelyen olvasható · a hatáskör-sor a KIADÁSKORI verziót '
           + 'rögzíti · a lejárt/ismeretlen/még nem hatályos alap KÜLÖN nevezett válasz és ZÁR · a '
-          + 'korlát ma ADAT, és ezt a válasz kimondja · az alap azonossága a (basis_id, book_id) PÁR: '
+          + 'korlát MA KAPU a bírálati úton is, és ezt a válasz kimondja · az alap azonossága a (basis_id, book_id) PÁR: '
           + 'idegen könyvre nevezetten ZÁR, nyom nélkül, a saját könyvén változatlanul MEGY',
         actual: `(a) akkor=v${then.version} ma=v${now.version} · utólag rögzített: akkor=v${retroThen.version} `
           + `ma=v${retroNow.version} · ismert de még nem hatályos=v${knownButNotYetEffective.version} · `

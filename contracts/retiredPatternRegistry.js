@@ -8166,6 +8166,64 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'hazugság, amíg nem mondjuk meg, MELYIK hivatkozást kötöttük.',
   }),
   Object.freeze({
+    id: 'KUKA-193',
+    date: '2026-09-19',
+    title: 'A KORLÁT OTT ÁLLT AZ ADATBÁZISBAN, ÉS SENKI NEM KÉRDEZTE MEG — a bírálati hatáskör alapja',
+    what: 'A felhatalmazási alap (`authority_basis`) MINDIG tárolta, mire szól: mely MŰVELETEKRE, '
+      + 'mely SZEREPEKRE, mely ADATKÖRÖKRE. A meghívó útján ebből kapu lett (BLI-01). A BÍRÁLATI '
+      + 'hatáskör útján viszont a korlát CSAK ADAT maradt: a `grantAdjudicationAuthority` egyedül '
+      + 'azt nézte, hogy az alap ÉL-e, a használat (`authorityRowAt`) pedig semmit. MÉRVE (a külső '
+      + 'fél R53-as reprodukciója, a saját fánkon megismételve): egy CSAK `invite_issue`-ra szóló '
+      + 'határozattal `adjudicate` hatáskört lehetett ADNI, és a használat `allowed: true`-t adott.',
+    why_wrong: 'A hatáskör-sor MEGŐRIZTE a `basis_id`-t és a `basis_version`-t — vagyis a rendszer '
+      + 'KIÍRTA a kötést, de a fogadó oldalon SOHA nem kérdezte meg (KUKA-126: amit a küldő kiír és '
+      + 'a fogadó nem kérdez meg, az nem kötés). A saját `limit_enforced: false` mezőnk becsületesen '
+      + 'ki is mondta ezt — és pont ez a csapda: a MEGNEVEZETT hiány kényelmesen elfér egy zöld '
+      + 'battéria mellett, mert nincs, ami pirosra vigye. A kár itt nem adatkiadás, hanem '
+      + 'JOGVÁLTOZTATÁS: aki a korláton kívül bírál, tagságot függeszt fel és von vissza.',
+    replaced_by: 'ABL-01 (`v3ref/authorityBasis.mjs` → `adjudicationLimitVerdict`, hívva a '
+      + '`grantAdjudicationAuthority`-ból és az `authorityRowAt`-ből): a deklarált alap KÉT ponton '
+      + 'korlátoz — a hatáskör MEGADÁSAKOR és a tényleges HASZNÁLAT alkalmazható időpontjában. A '
+      + 'MŰVELETI SZERZŐDÉS (MOP-01) megkapja a három bírálati műveletet, és KIMONDJA, hogy a '
+      + 'szerep- és adatkör-tengely rajtuk fogalmilag nem értelmezhető — nem találunk ki néma '
+      + 'megfeleltetést. A már kiadott jogot egy később TÁGABB verzió sem szélesíti: az ítélet a '
+      + 'MEGADÁSKORI verzió korlátját is megkérdezi (`outside_granted_basis_version`).',
+    replacement: 'Ha egy tényt KIÍRUNK egy sorba, akkor meg kell nevezni, KI OLVASSA — és ha a '
+      + 'válasz „senki", az nem nyilvántartás, hanem DÍSZ. A megnevezett hiány nem védelem: amíg '
+      + 'nincs gépi jel, ami a visszacsúszásra pirosra vált, addig a hiány csak egy mondat.',
+    decision: 'D-VS-3060',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R53), saját kiinduló méréssel a változatlan '
+      + 'forráson; a saját fánkon a javítás előtt karakterre ugyanazt mértem.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/adjudication.mjs']),
+        pattern: 'adjudicationLimitVerdict\\(',
+        why: 'a hatáskör MEGADÁSA az alap korlátjához mér' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/authority.mjs']),
+        pattern: 'adjudicationLimitVerdict\\(',
+        why: 'a tényleges HASZNÁLAT is az alap korlátjához mér, a közös belépési ponton' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/authorityBasis.mjs']),
+        pattern: 'outside_granted_basis_version',
+        why: 'a később tágabb alap nem szélesíti a MÁR KIADOTT jogot' }),
+    ]),
+    // TILTÓ-MINTA NINCS, ÉS EZ KIMONDOTT VÁLASZTÁS. A visszacsúszás itt nem egy SZÖVEG
+    // visszatérése, hanem egy HÍVÁS eltűnése — arra a POZITÍV minta a helyes jel (a feloldót
+    // HÍVNI kell), és a mutációk mérik a viselkedést. Egy odaerőltetett tiltó-minta a mai kód
+    // alakját fagyasztaná be, nem a szabályt (KUKA-068).
+    forbidden: Object.freeze([]),
+    guard_note: 'gépi jel: `npm run verify:v3ref` — **M189** (a megadás kapuja megszűnik ⇒ a szűk '
+      + 'határozattal mind a három bírálati hatáskör megadható), **M190** (a használat kapuja '
+      + 'megszűnik ⇒ a jog túléli a megvont/lejárt/szűkített alapot), **M191** (a megadáskori '
+      + 'verziót senki nem nézi ⇒ a régi bélyegző új ajtót nyit), **M192** (a szerződés eltűnik a '
+      + 'bírálati műveletekről ⇒ a kapu FALLÁ válik), **M193** (a jogos hatáskör téves tiltása) — '
+      + 'mind a `P-ORG-adjudication-basis-limit` próbán elkapva, a kilépési kódon. AMIRE NINCS GÉPI '
+      + 'JEL, KIMONDVA: az alap NÉLKÜL adott, történeti hatáskörök kezelése — erről az R53 '
+      + 'kifejezetten nem hozott üzleti döntést, tehát nem is találunk ki hozzá szabályt.',
+    lesson: 'A NYILVÁNTARTÁS NEM VÉDELEM. Egy korlátot kiírni, verziózni és két idő-tengelyen '
+      + 'feloldani mind hasznos — de amíg egyetlen ÚT sem kérdezi meg a döntés pillanatában, addig '
+      + 'a korlát nem korlátoz. És ha a hiányt ráadásul MEGNEVEZZÜK egy mezőben, az kényelmesen '
+      + 'elfér egy zöld battéria mellett: a megnevezés őszinteség, nem megoldás.',
+  }),
+  Object.freeze({
     id: 'KUKA-192',
     date: '2026-09-19',
     title: 'A FEGYELEM FELE NEM FEGYELEM — a jog MEGADÁSA két idő-tengelyen állt, a MEGVONÁSA egyen',

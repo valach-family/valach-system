@@ -463,8 +463,11 @@ export const MODULE_CONTRACT_NORMS = Object.freeze([
             + 'a megadás→kiadás→leltár→megvonás teljes útja a kiadás IDŐHATÁRÁN válik zárttá. '
             + 'Falszifikálva: M183 · M184 · M185 · M186 · M187. Mellé az M188: a megvont alapon '
             + 'történő VALÓDI adatkiadás ellenpárja (az M179 csak indokot cserél — R51/F51-02).',
-          remaining: 'HÁROM pont marad, és ezek közül CSAK AZ EGYIK üzleti döntés — a korábbi '
-            + '„egyetlen akadály" megfogalmazás ezt elfedte (a külső fél R51-es lelete). '
+          remaining: 'KÉT, KIMONDOTTAN KÜLÖN HATÁR marad — és EGYIK SEM technikai akadály többé. '
+            + 'Az R53 a K05-DSC-c-t a jelenlegi, egyírós, szintetikus, megbízható belső kontextusú '
+            + 'referencia explicit adatköri jogadására és eredménykiadására ELFOGADTA; az F51-01 '
+            + 'történeti hiba és az M179-állítás helyesbítése LEZÁRT, tehát ezek innentől nem '
+            + 'szerepelnek nyitott teendőként (KUKA-050: a szöveg a valóságot követi). '
             + '(1) ÜZLETI: a MEGHÍVÓ `scope` mezője MÉRVE a meghívó-KIADÁS tengelye (`invite_basis.scope`), '
             + 'nem olvasási jog — ezért a beváltás ma NEM ad adatköri olvasási jogot; hogy a jövőben '
             + 'a meghívó hordozzon-e felajánlott olvasási adatköröket, ÜZLETI döntés, és gép nem '
@@ -472,12 +475,12 @@ export const MODULE_CONTRACT_NORMS = Object.freeze([
             + 'besorolás zárt halmaz; az olvasási JOG csak a zárt halmaz nevére adható '
             + '(`unknown_data_scope`), az ismeretlen szótárú PLAFON pedig ZÁR '
             + '(`basis_scope_vocabulary_unknown`) — a megfeleltetés üzleti döntés, néma fordítás '
-            + 'nincs. (3) TECHNIKAI, NYITOTT BIZONYÍTÁSI PONT: az R49/R50 állítása, hogy az M179 '
-            + '„valódi kiadást eredményez", MÉRVE CÁFOLT — a mutáció a következő korlát-ágon zárul, '
-            + 'tehát a próbát a VÁRT INDOKON bukatja el, nem adatkiadáson. A valódi kiadást okozó '
-            + 'alak külön mutáció (M188, KÉT sor rontásával); ezt az R51 kötelezte ki, és ez a '
-            + 'megkülönböztetés nem üzleti kérdés, hanem a bizonyíték pontossága. A MEZŐVETÍTÉS '
-            + 'hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.',
+            + 'nincs. AMI NEM MARAD NYITVA (mert elkészült): az M179 mért hatásának helyesbítése és '
+            + 'a valódi kiadást okozó ellenpár (M188) az R52-ben megszületett; a megvonás két '
+            + 'idő-tengelye (SGR-01 + `scope_grant_revocation`) szintén. A MEZŐVETÍTÉS hiánya '
+            + 'továbbra is a klauzula SAJÁT feltétele, nem adósság. '
+            + 'AMIT AZ ELFOGADÁS NEM FOGLAL MAGÁBAN, az R53 szavaival: a külső hitelesítési/HTTP-'
+            + 'határ, a teljes szervezeti képviselet és a teljes core-core lezárás.',
         }),
       }),
       Object.freeze({
@@ -665,8 +668,9 @@ export const ORG_BASIS_NORMS = Object.freeze([
             + 'léphet életbe rá.',
         }),
         // AMI MÉG NEM ÉPÜLT MEG A KORLÁTON: az az ORG-N1b-é, és az a klauzula MEGTARTJA a saját
-        // gap-jét. A `basisState.limit_enforced: false` mező ezt a rendszer válaszában is kimondja
-        // (KUKA-041), és a P-ORG-basis (d) állítása méri.
+        // gap-jét. Az R53 óta a `basisState` KÉT külön mezőben mondja ki, hol tart: `limit_enforced`
+        // = VAN-e kapu ezen az úton (a bírálati úton már igen), `within_limit_now` = belefér-e MA ez
+        // a konkrét hatáskör (mérés). A P-ORG-basis (d) állítása ezt méri.
       }),
       Object.freeze({
         id: 'ORG-N1b',
@@ -682,12 +686,28 @@ export const ORG_BASIS_NORMS = Object.freeze([
           built: 'A korlát a MEGHÍVÓ útján KAPU (BLI-01): a kiadás nevezetten elakad a határozaton '
             + 'túli szerepen/műveleten/adatkörön és nyom nélkül, a korláton belüli kiadás '
             + 'változatlanul megy, a beváltás a KIADÁSKORI alaphoz mér és a korlátot is átviszi a '
-            + 'tagságadó eseményre, és a nyers INSERT-tel írt meghívó sem bújhat ki alóla.',
+            + 'tagságadó eseményre, és a nyers INSERT-tel írt meghívó sem bújhat ki alóla. '
+            + 'R53 — A BÍRÁLATI ÚTON IS KAPU (ABL-01), KÉT PONTON: a hatáskör MEGADÁSAKOR és a '
+            + 'tényleges HASZNÁLAT alkalmazható időpontjában. Mérve, mind a három műveletre '
+            + '(`suspend` · `adjudicate` · `alter_right`): a korláton kívüli megadás NEVEZETTEN és '
+            + 'NYOM NÉLKÜL elakad (nulla hatáskör-sor) · a megengedett művelet megadható ÉS '
+            + 'használható (pozitív ellenpár) · a három művelet KÜLÖN korlát · a később SZŰKÜLŐ alap '
+            + 'a MÁR KIADOTT hatáskört is zárja · a később TÁGULÓ alap ÖNMAGÁBAN nem szélesít '
+            + '(`outside_granted_basis_version`; új megadás viszont szabad, saját nyommal) · a '
+            + 'hiányzó · idegen könyvű · még nem hatályos · lejárt · megvont · olvashatatlan korlátú '
+            + 'alap MIND külön nevezett elutasítás · és a kapu a VALÓDI belépési pontokon hat (a '
+            + 'felfüggesztés, az elbírálás és a jogváltoztatás közös ellenőrzési pontján), nem egy '
+            + 'külön teszt-úton. A MEGHÍVÓ-út tengelyeivel ellentétben itt a szerep- és adatkör-'
+            + 'tengely FOGALMILAG nem értelmezhető, ezt a MŰVELETI SZERZŐDÉS mondja ki '
+            + '(`not_applicable`), nem a hívó hagyja el. Falszifikálva: M189 · M190 · M191 · M192 · M193.',
           remaining: 'A korlát DEKLARÁLÁSÁNAK kötelezővé tétele nyitva: ma a deklarálatlan meghívó '
-            + 'a régi szabály szerint megy (a válasz ezt KIMONDJA). Ez SZERVEZETI döntés — ki '
-            + 'hatalmaz fel kit, és mi történik a meglévő, alap nélküli meghívókkal —, tehát az '
-            + 'operátoré, nem a kódé. Ugyanígy nyitva a BÍRÁLATI hatáskör útja, ahol a korlát ma '
-            + 'is csak adat (`basisState.limit_enforced: false`).',
+            + 'ÉS az alap nélkül adott, történeti BÍRÁLATI hatáskör is a régi szabály szerint megy '
+            + '(a válasz ezt mindkét helyen KIMONDJA: `no_declared_basis` · '
+            + '`authority_without_recorded_basis`). Ez SZERVEZETI döntés — ki hatalmaz fel kit, és '
+            + 'mi történik a meglévő, alap nélküli felhatalmazásokkal —, tehát az operátoré, nem a '
+            + 'kódé; az R53 erről kifejezetten NEM hozott üzleti döntést. A BÍRÁLATI hatáskör útja '
+            + 'ezzel szemben már NEM nyitott: ott a korlát az R53 óta KAPU (ABL-01), és a '
+            + '`limit_enforced_paths` négy utat sorol fel.',
         }),
       }),
     ]),

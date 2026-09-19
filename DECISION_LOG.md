@@ -3482,3 +3482,59 @@ nevez meg, és kimondja, hogy csak az EGYIK üzleti döntés.
 **Tanulság:** KUKA-192. **Gépi jel:** `node v3ref/run.mjs` (60 próba) · `npm run verify:v3ref`
 (185 mutáció, benne M183–M188) · `npm run verify:kuka` (az `UPDATE scope_grant SET revoked_at`
 tiltó-mintája) · `npm run verify:external-checks`.
+
+---
+
+## D-VS-3060 — a bírálati hatáskör alapjának korlátja kapu lett (2026-09-19)
+
+**Parancs:** CMD-VS-300-002-002 R53 (chatgpt-v3 — KÜLSŐ ELLENŐRZŐ FÉL). Ugyanebben a lapban a
+**K05-DSC-c elfogadva** a jelenlegi egyírós, szintetikus, megbízható belső kontextusú referencia
+explicit adatköri jogadására és eredménykiadására — **nem** a külső hitelesítési/HTTP-határra, **nem**
+a teljes szervezeti képviseletre és **nem** a core-core lezárásra. Az egész-klauzulás elfogadások
+száma ezzel **16** (a korábbi 15 + K05-DSC-c); ez **nem készültségi százalék**, és a történeti
+R37/R51 állapotot nem írjuk át.
+
+**A LELET (ORG-N1b, a bírálati úton).** A felhatalmazási alap mindig tárolta, mire szól: mely
+műveletekre, szerepekre, adatkörökre. A meghívó útján ebből kapu lett; a **bírálati hatáskör** útján
+viszont a korlát **csak adat** maradt. Reprodukálva a saját fánkon: egy **csak meghívó-kiadásra**
+szóló határozattal `adjudicate` hatáskört lehetett **adni**, és a használat `allowed: true`-t adott.
+Hétköznapi jelentése: *attól, hogy valaki meghívót adhat, még nem kapott jogot vitás ügy
+elbírálására.*
+
+**A JAVÍTÁS (ABL-01).** A deklarált alap **két ponton** korlátoz: a hatáskör **megadásakor** és a
+tényleges **használat** alkalmazható időpontjában. A műveleti szerződés (MOP-01) megkapja a három
+bírálati műveletet, és **kimondja**, hogy a szerep- és adatkör-tengely rajtuk fogalmilag nem
+értelmezhető — néma megfeleltetést nem találunk ki. A már kiadott jogot egy később **tágabb** verzió
+sem szélesíti: az ítélet a **megadáskori** verzió korlátját is megkérdezi
+(`outside_granted_basis_version`), és új megadás továbbra is szabad, saját nyommal.
+
+**Mérve (`P-ORG-adjudication-basis-limit`, nyolc ág):** a korláton kívüli megadás nevezetten és
+**nyom nélkül** elakad mind a három műveletre (nulla hatáskör-sor) · a megengedett művelet megadható
+**és** használható · a három művelet **külön** korlát · a később szűkülő alap a már kiadott hatáskört
+is zárja · a később táguló alap önmagában nem szélesít · a hiányzó · idegen könyvű · még nem hatályos
+· lejárt · megvont · olvashatatlan korlátú alap **mind** külön nevezett elutasítás · a kapu a
+**valódi belépési pontokon** hat (felfüggesztés · elbírálás · jogváltoztatás, a közös ellenőrzési
+ponton) · és az **alap nélküli, történeti** hatáskör viselkedése **változatlan**.
+
+**SZERKEZETI DÖNTÉS.** A korlát **ítélete** (`OPERATION_LIMIT_CONTRACT` · `limitVerdict` ·
+`adjudicationLimitVerdict`) a semleges `authorityBasis.mjs`-be költözött, mert a közös belépési pont
+(`authority.mjs`) nem húzhatja be a `basisLimit.mjs`-t import-kör nélkül. A meghívó-út írói ott
+maradtak; a behúzók a régi néven látják a szerződést (re-export). Ugyanaz a válasz, mint az R73-ban:
+*„A függőségi kör szerkezeti feladat, nem indok az ellenőrzés elhagyására."*
+
+**A KÉT PRÓBAKORREKCIÓ (az ő kipróbált irányukkal).** (1) Az **M186** az eredeti tesztvilágban csak
+indokot cserélt, mert a `badEff` hívás mindkét időt elrontotta; a hatály most hibás, a rögzítés
+érvényes — így az eff-őr a mérés tárgya, és a mutáció valóban hibás napló-sort ír. (2) A „határnap"
+nevű ág **nem a határnapot mérte**: mostantól három közvetlen eset áll benne, ezredmásodperc-
+pontossággal — 1 ms-mal a hatály előtt **kiad**, pontosan a határon és 1 ms-mal utána **zár**, és a
+két elutasítás **egyetlen leltár-sort sem ír**. A „másik könyv érintetlensége" mellé bekerült az
+**élő** ellenpár (létező második könyv, ott megadott joggal); a nem létező könyv esete megmaradt.
+
+**SAJÁT PRÓBÁK IGAZÍTÁSA, NEM A KAPU LAZÍTÁSA.** A `P-ORG-basis` (d) ága eddig azt mérte, hogy a
+korlát **csak adat** (`limit_enforced === false`) — ez az akkori valóság volt. A kapu megépítése után
+ugyanez a sor **befagyasztotta volna** a régi állapotot (KUKA-057 fordítottja), ezért a próba a mai
+valósághoz igazodik. Az (e) ág pozitív ellenpárja olyan műveletet kapott, amit a saját határozata
+megenged — a mért tény (a könyv-azonosság) változatlan.
+
+**Tanulság:** KUKA-193. **Gépi jel:** `node v3ref/run.mjs` (61 próba) · `npm run verify:v3ref`
+(M189–M193) · `npm run verify:kuka` · `npm run verify:external-decisions` (38/38).

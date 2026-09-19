@@ -85,12 +85,31 @@ export const EXTERNAL_DECISION_SOURCE_R51 = Object.freeze({
   revalidate_on: 'forrás- vagy követelményváltozás az érintett klauzulán',
 });
 
+/**
+ * R53 — A K05-DSC-c ELFOGADÁSA a szűk referencia-hatókörben, és az ORG-N1b kijelölése következőnek.
+ * Az elfogadás KIMONDOTTAN nem terjed ki a külső hitelesítési/HTTP-határra, a teljes szervezeti
+ * képviseletre és a core-core lezárásra. A korábbi R37/R51 döntések `superseded` történetként
+ * maradnak meg — a történeti állapotot nem írjuk át.
+ */
+export const EXTERNAL_DECISION_SOURCE_R53 = Object.freeze({
+  round: 'CMD-VS-300-002-002 R53 — ANALYSIS',
+  decided_by: 'chatgpt-v3 (külső ellenőrző fél)',
+  at: '2026-09-19',
+  examined_revision: 'valach-family/valach-system@203fe870cf093e250120b8ca1fa27232af6fc871',
+  scope: 'a jelenlegi EGYÍRÓS, SZINTETIKUS, megbízható belső kontextusú referencia explicit '
+    + 'adatköri jogadása és eredménykiadása — NEM a külső hitelesítési/HTTP-határ, NEM a teljes '
+    + 'szervezeti képviselet, és NEM a teljes core-core lezárás',
+  not_a_machine_attestation: true,
+  revalidate_on: 'forrás- vagy követelményváltozás az érintett klauzulán',
+});
+
 /** A regiszter FORRÁSAI, időrendben — a `source` mező ezekre hivatkozik. */
 export const EXTERNAL_DECISION_SOURCES = Object.freeze([
   Object.freeze({ id: 'R37', document: 'v3ref/source-documents/R37_board_v1.md', ...EXTERNAL_DECISION_SOURCE }),
   Object.freeze({ id: 'R45', document: 'v3ref/source-documents/R45_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R45 }),
   Object.freeze({ id: 'R47', document: 'v3ref/source-documents/R47_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R47 }),
   Object.freeze({ id: 'R51', document: 'v3ref/source-documents/R51_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R51 }),
+  Object.freeze({ id: 'R53', document: 'v3ref/source-documents/R53_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R53 }),
 ]);
 
 /** A HÁROM DÖNTÉS-SZÓ ZÁRT HALMAZ — ismeretlen szó nem csúszhat át „valaminek" (KUKA-101). */
@@ -211,12 +230,18 @@ export const EXTERNAL_CLAUSE_DECISIONS_R51 = Object.freeze([
     reason: 'Az F49-01 és F49-02 konkrét árkiadási hibájának javítását a vizsgált, egyírós szintetikus referencia hatókörében elfogadom. Saját, korábbi teljes meghívási/beváltási/olvasási programom változatlan üzleti kód mellett most mindkét esetben not_available választ kap. Egy külön saját kiegészítésben csak készletjoggal a vegyes eredmény zárt; a tényleges árjog megadása után kijön; az árjog megvonása után ismét zárt. A megadható keret többé nem önmagában olvasási jog. K05-DSC-c egészét még nem zárom le. Az új jog megvonása nem őrzi meg külön a tudomásszerzés idejét; és az M179-ről a jelentés továbbra is erősebbet állít a mért hatásnál.' }),
 ]);
 
+export const EXTERNAL_CLAUSE_DECISIONS_R53 = Object.freeze([
+  Object.freeze({ clause: 'K05-DSC-c', verdict: 'accepted_in_reference', source: 'R53',
+    reason: '**K05-DSC-c elfogadva a jelenlegi egyírós, szintetikus, megbízható belső kontextusú referencia explicit adatköri jogadására és eredménykiadására.** Minden érintett adatkörre külön megadott jog kell; a készletjog nem ad árjogot; a hiány és az alkalmazható tiltás zár; a vegyes eredmény egészben megtagadott, ha bármely érintett adatkörre nincs érvényes döntés. A megvonás hatálya és tudásideje külön kezelhető, az újraadás nem írja át a köztes történetet. Ez nem fogadja el a külső hitelesítési/HTTP-határt, a teljes szervezeti képviseletet vagy a teljes core-core lezárását.' }),
+]);
+
 /** A REGISZTER MINDEN DÖNTÉSE, forrással — a történeti sor `source: 'R37'`-et kap. */
 export const ALL_EXTERNAL_DECISIONS = Object.freeze([
   ...EXTERNAL_CLAUSE_DECISIONS.map((d) => Object.freeze({ source: 'R37', ...d })),
   ...EXTERNAL_CLAUSE_DECISIONS_R45,
   ...EXTERNAL_CLAUSE_DECISIONS_R47,
   ...EXTERNAL_CLAUSE_DECISIONS_R51,
+  ...EXTERNAL_CLAUSE_DECISIONS_R53,
 ]);
 
 // A LEGÚJABB DÖNTÉS NYER, DE A RÉGI NEM TŰNIK EL. A sorrend a `EXTERNAL_DECISION_SOURCES` szerinti:

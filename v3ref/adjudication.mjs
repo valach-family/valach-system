@@ -29,6 +29,7 @@ import { suspensionEffectiveAt } from './suspension.mjs';
 import { banEffectiveAt, banRequestFor } from './ban.mjs';
 import { executableRightAt, effectuate } from './authority.mjs';
 import { basisAsOf } from './authorityBasis.mjs';
+import { adjudicationLimitVerdict } from './authorityBasis.mjs';
 
 // R75/F05 (D-VS-3021) — A HITELESÍTETT KONTEXTUS MIND A NÉGY HATÁSKÖRI BELÉPÉSI PONTON VÉGIGMEGY.
 // A LELET: a `credentials` a `readClaim` · `adjudicateClaim` · `suspendMembership` ·
@@ -90,6 +91,24 @@ export function grantAdjudicationAuthority({ store, subjectId, bookId, operation
     const basis = basisAsOf({ store, basisId, bookId, validAt: at, knownAt: at });
     if (!basis.in_effect) {
       throw new Error(`grantAdjudicationAuthority: a hivatkozott alap nem hatályos (${basis.reason})`);
+    }
+    // ORG-N1b — A KORLÁT A MEGADÁSKOR IS KAPU, NEM CSAK ADAT (R53 · ABL-01).
+    //
+    // A LELET, amit a külső fél mért és mi megismételtünk: egy CSAK `invite_issue`-ra szóló
+    // határozattal `adjudicate` hatáskört lehetett adni, és használni is. A korlát ott állt az
+    // adatbázisban, olvasható alakban — és senki nem kérdezte meg (KUKA-126). Hétköznapi
+    // jelentése: attól, hogy valaki meghívót adhat, még nem kapott jogot vitás ügy elbírálására.
+    //
+    // AZ ELUTASÍTÁS NYOM NÉLKÜLI: a kivétel a beszúrás ELŐTT áll, tehát hatáskör-sor nem születik.
+    // A dobás alakja SZÁNDÉKOSAN változatlan (a nem hatályos alap ága óta ez a szerződés, és a
+    // külső fél r88/F01 programja erre épül) — de az indok NEVEZETT (KUKA-064).
+    const verdict = adjudicationLimitVerdict({
+      store, basisId, bookId, operation, grantedUnderVersion: null, validAt: at, knownAt: at,
+    });
+    if (verdict.ok !== true) {
+      throw new Error(`grantAdjudicationAuthority: az alap korlátja nem engedi meg ezt a műveletet `
+        + `(${verdict.reason}; művelet="${operation}", megengedett: `
+        + `${(verdict.limit && verdict.limit.operations || []).join(', ') || '—'})`);
     }
     basisVersion = basis.version;
   }

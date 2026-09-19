@@ -33,54 +33,22 @@
  *     `basisState.limit_enforced_paths` sorolja fel, hogy a mező ne állítson többet, mint amennyi
  *     igaz (KUKA-050: a szöveg a valóságot követi).
  */
-import { basisAsOf, withinBasis, BASIS_LIMIT_AXES } from './authorityBasis.mjs';
+import {
+  basisAsOf, withinBasis, basisVersionLimit, BASIS_LIMIT_AXES,
+  INVITE_ISSUE_OPERATION, ADJUDICATION_LIMIT_OPERATIONS, OPERATION_LIMIT_CONTRACT,
+  requiredAxesFor, limitVerdict, adjudicationLimitVerdict,
+} from './authorityBasis.mjs';
+
+// A MEGHÍVÓ-ÚT TOVÁBBRA IS INNEN LÁTJA A SZERZŐDÉST ÉS AZ ÍTÉLETET — a behúzók nem tudnak arról,
+// hogy a döntés fizikailag hova költözött, és nem is kell tudniuk (egy otthon, egy név).
+export {
+  INVITE_ISSUE_OPERATION, ADJUDICATION_LIMIT_OPERATIONS, OPERATION_LIMIT_CONTRACT,
+  requiredAxesFor, limitVerdict, adjudicationLimitVerdict,
+};
 import { canonicalize } from './command.mjs';
 import { lookupClosed } from './closedRegistry.mjs';
 
 const frozen = (o) => Object.freeze(o);
-
-/** A KIADÁS MŰVELETE — nevezett állandó, hogy a tengely ne elgépelt szövegen álljon (KUKA-036). */
-export const INVITE_ISSUE_OPERATION = 'invite_issue';
-
-/**
- * MOP-01 — A MŰVELETI SZERZŐDÉS (R92/F01 + R92/F02, a külső fél két bizonyított megkerülése).
- *
- * MI VOLT A KÉT LELET, MÉRVE (az ő programjuk a változatlan kódon, teljes kiadás→beváltás úton):
- *   · **F01** — a `operation` paraméter a HÍVÓÉ volt. Egy CSAK `suspend`-re felhatalmazó alappal az
- *     `operation:'suspend'` átírással a meghívó KIADÁSA és BEVÁLTÁSA is sikerült, és valódi
- *     user-TAGSÁG keletkezett. A kapu tehát azt a nevet mérte, amit a hívó MONDOTT, nem azt a
- *     hatást, amit a belépési pont VÉGREHAJT (KUKA-121: amit a beadó begépelhet, az állítás).
- *     Ráadásul a beváltás UGYANAZT a hamis nevet olvasta vissza a pecsétből — a közös feloldó két
- *     helyen hívása ezért nem zárta a rést (KUKA-129 határa: a közös otthon nem véd, ha a BEMENET
- *     hamis).
- *   · **F02** — a `scope` alapértéke `null`, a feloldó pedig a null tengelyt ÁTUGROTTA. Így az
- *     `allowedScopes: []` alap (ahol fogalmilag SEMMI nincs megengedve) egy ELHAGYÁSSAL
- *     megkerülhető volt: scope-pal elakadt, scope nélkül átment.
- *
- * A SZERZŐDÉS EZÉRT MŰVELETHEZ KÖTÖTT, NEM HÍVÓHOZ:
- *   · `operation` — a belépési pont RÖGZÍTI. Eltérő deklarált művelet NEVEZETT elutasítás, és a
- *     nyers pecsétből érkező eltérő művelet is (a pecsét sem hívó-állítás többé);
- *   · `axes` — mely tengelyek KÖTELEZŐEK. A hiány saját, nevezett válasz (`axis_value_required_*`),
- *     nem az ellenőrzés kikapcsolása. Ahol egy tengely fogalmilag nem alkalmazható, azt a
- *     SZERZŐDÉS mondja ki (`not_applicable`) — a hívó soha.
- *
- * Az általános feloldó (`withinBasis`) paraméterezett marad; a KÖTELEZŐSÉGET innen kapja.
- */
-export const OPERATION_LIMIT_CONTRACT = Object.freeze({
-  [INVITE_ISSUE_OPERATION]: Object.freeze({
-    operation: INVITE_ISSUE_OPERATION,
-    axes: Object.freeze({ operations: 'required', roles: 'required', scopes: 'required' }),
-  }),
-});
-
-/** A szerződés KÖTELEZŐ tengelyei — egy nevezett feloldó, hogy a lista ne másolódjon szét. */
-export function requiredAxesFor(operation) {
-  // ZÁRT REGISZTER, SAJÁT KULCSON (CLR-01, R37 · KUKA-180). A régi alak `toString` névre nyers
-  // `TypeError`-ral állt meg a következő sorban — a hívó fail-closed ága meg sem valósult.
-  const c = lookupClosed(OPERATION_LIMIT_CONTRACT, operation, { shape: (v) => typeof v === 'object' && v.axes });
-  if (!c) return null;                                    // ismeretlen művelet ⇒ a hívó ZÁR (fail-closed)
-  return Object.freeze(Object.entries(c.axes).filter(([, v]) => v === 'required').map(([k]) => k));
-}
 
 /** A KORLÁT KANONIKUS ALAKJA — a pecséthez és az összehasonlításhoz EGY alak (KUKA-018). */
 export function canonicalLimit(limit) {
@@ -90,33 +58,6 @@ export function canonicalLimit(limit) {
     picked[axis] = v;
   }
   return canonicalize(picked);
-}
-
-/**
- * AZ ÍTÉLET — EGY OTTHON, amit a KIADÁS és a BEVÁLTÁS is hív.
- *
- * `validAt` a KIADÁS ideje: a beváltás a KIADÁSKOR hatályos alaphoz mér, nem a mai szöveghez
- * (ORG-N1a/REV-N1b). `knownAt` a kérdezés ideje — a később rögzített verzió nem írja át a múltat.
- */
-export function limitVerdict({ store, basisId, bookId, role, operation, scope, validAt, knownAt }) {
-  if (typeof basisId !== 'string' || !basisId.trim()) {
-    return frozen({ ok: false, reason: 'basis_id_required', basis_version: null, limit: null });
-  }
-  // A MŰVELET A SZERZŐDÉSBŐL KAPJA A KÖTELEZŐ TENGELYEIT (MOP-01). Ismeretlen művelet ⇒ ZÁR: nem
-  // azért, mert „biztos baj van", hanem mert nem tudjuk, mit kellene mérni rajta (KUKA-020).
-  const required = requiredAxesFor(operation);
-  if (required === null) {
-    return frozen({ ok: false, reason: 'operation_has_no_limit_contract', basis_version: null, limit: null });
-  }
-  const basis = basisAsOf({ store, basisId, bookId, validAt, knownAt });
-  if (basis.in_effect !== true) {
-    return frozen({ ok: false, reason: basis.reason, basis_version: basis.version ?? null, limit: null });
-  }
-  const within = withinBasis(basis, { operation, role, scope, required });
-  if (!within.ok) {
-    return frozen({ ok: false, reason: within.reason, basis_version: basis.version, limit: basis.limit });
-  }
-  return frozen({ ok: true, reason: 'within_basis', basis_version: basis.version, limit: basis.limit });
 }
 
 /**

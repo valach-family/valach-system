@@ -39,6 +39,7 @@ const VERSION_R45 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-
 // R47 — a K05-DSC-c ENGEDŐ ága: az adatkörönkénti olvasási döntés rögzített alapja (RSB-01).
 const VERSION_R47 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis';
 // R49 — a TÉNYLEGESEN megadott olvasási jog (SGR-01): a plafon szűkít, a hiány zár.
+const VERSION_R53 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history + R53/ORG-N1b-adjudication';
 const VERSION_R51 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history';
 const VERSION_R49 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant';
 
@@ -407,6 +408,30 @@ export const EXPECTED_PROBES = Object.freeze([
         contract: 'SGR-01', contract_version: VERSION_R51 }),
       Object.freeze({ clause: 'K05-DSC-d', assertion: 'A-K05-c-grant-release-ledger-revocation-chain-turns-on-the-release-time-boundary',
         contract: 'SGR-01', contract_version: VERSION_R51 }),
+    ]),
+  }),
+  Object.freeze({
+    // ABL-01 (R53) — AZ ORG-N1b A BÍRÁLATI ÚTON. A külső fél mérte, és a saját fánkon
+    // megismételtük: egy CSAK `invite_issue`-ra szóló határozattal `adjudicate` hatáskört lehetett
+    // ADNI és HASZNÁLNI. A korlát ott állt az adatbázisban, és senki nem kérdezte meg (KUKA-126).
+    id: 'P-ORG-adjudication-basis-limit', assertion: 'ORGN1b-declared-basis-limits-the-adjudication-path',
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-declared-basis-gates-the-authority-grant',
+        contract: 'ABL-01', contract_version: VERSION_R53 }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-permitted-operation-is-granted-and-usable',
+        contract: 'ABL-01', contract_version: VERSION_R53 }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-each-adjudication-operation-is-its-own-limit',
+        contract: 'ABL-01', contract_version: VERSION_R53 }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-narrowed-basis-closes-an-already-granted-authority',
+        contract: 'ABL-01', contract_version: VERSION_R53 }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-widened-basis-does-not-broaden-an-already-granted-authority',
+        contract: 'ABL-01', contract_version: VERSION_R53 }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-every-missing-or-invalid-basis-shape-is-a-named-refusal',
+        contract: 'ABL-01', contract_version: VERSION_R53 }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-the-limit-holds-on-the-real-entry-points',
+        contract: 'ABL-01', contract_version: VERSION_R53 }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-ORG-N1b-authority-without-recorded-basis-is-unchanged-and-named',
+        contract: 'ABL-01', contract_version: VERSION_R53 }),
     ]),
   }),
   Object.freeze({
