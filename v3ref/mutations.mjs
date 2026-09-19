@@ -1614,14 +1614,20 @@ export const MUTATIONS = [
   // Mindegyik a KÉT valódi kárt mutatja, amit az R47 kért: a JOGOSULATLAN ADATKIADÁST (M177 · M178 ·
   // M179 · M180 · M182) és a JOGOS KIADÁS TÉVES TILTÁSÁT (M181).
   { id: 'M177', rule: 'K05', catcher: 'P-DSC-scope-basis', expect: 'probe_fail',
-    what: 'RSB-01 / R47 — A KIADÁS NEM KÉRDEZI MEG A RÖGZÍTETT ALAPOT: a tiltás-ellenőrzés után a '
-      + 'kapu azonnal enged, tehát a `scopes: [keszlet]`-re korlátozott alap alatt született tagság '
-      + 'megint MEGKAPJA az ármezőt. Pontosan az a mért lelet, amiért ez a csomag született: a '
-      + 'tiltás HIÁNYA engedéllyé válik (K05-DSC-c)',
+    what: 'SGR-01 / R49 — A KIADÁS NEM KÉRDEZI MEG A MEGADOTT JOGOT: a kapu átlépi az adatköri '
+      + 'engedély ellenőrzését, tehát egy olyan tag is megkapja az eredményt (árral együtt), akinek '
+      + 'EGYETLEN adatkörre sincs igazolt olvasási joga. Pontosan az F49-01 mért alakja: a tiltás '
+      + 'hiányából engedély lesz (K05-DSC-c)',
+    // R49 — A HORGONY A VALÓDI KÁRRA KERÜLT ÁT. Az R48-as alak a tagsági PLAFON kihagyását mérte;
+    // a külső fél leletei óta a kapu MAGJA a MEGADOTT jog ellenőrzése — ennek kihagyása adja vissza
+    // pontosan azt a kiadást, amit az F49-01 mért (engedély nélkül kimegy az ár).
+    // A HORGONY A VISSZATÉRŐ ÉRTÉKEN, NEM A FELTÉTELEN. A feltétel kiiktatása után a kód egy
+    // `undefined` alapazonosítóval futott tovább, és NYERS kivételt dobott — az más réteg (a
+    // típus-ellenőrzés) védelme, nem az állítás bukása (KUKA-187). Az ENGEDÉLYRE fordított válasz
+    // viszont pontosan a mért kárt állítja elő: a jog nélküli olvasó megkapja az eredményt.
     file: 'releaseScope.mjs',
-    from: "  const limit = recordedScopeLimit({ store, subjectId, bookId, validAt: nowIso, knownAt });",
-    to: "  return frozen({ ...base, allowed: true, basis: 'membership_only', reason: 'no_declared_basis' });\n"
-      + "  const limit = recordedScopeLimit({ store, subjectId, bookId, validAt: nowIso, knownAt });" },
+    from: "      ...base, allowed: false, basis: 'scope_grant', reason: grant.reason,",
+    to: "      ...base, allowed: true, basis: 'scope_grant', reason: grant.reason," },
 
   { id: 'M178', rule: 'K05', catcher: 'P-DSC-scope-basis', expect: 'probe_fail',
     what: 'RSB-01 / R47 — A KÉRŐ CÍMKÉJE DÖNT A TARTALOM HELYETT: a kiadás a kérés `dataScope` '
@@ -1632,9 +1638,12 @@ export const MUTATIONS = [
     to: "    const d = scopeReleaseDecision({ store, subjectId, bookId, scope: base.dataScope || scope, nowIso, knownAt, request: base });" },
 
   { id: 'M179', rule: 'K05', catcher: 'P-DSC-scope-basis', expect: 'probe_fail',
-    what: 'RSB-01 / R47 — A MEGVONT ALAP TOVÁBB NYIT: a kapu nem nézi meg a határozat MAI állapotát, '
-      + 'tehát a lepecsételt korlát TÚLÉLI a saját alapját. Visszavont (vagy lejárt, vagy idegen '
-      + 'könyvre szóló) határozat mellett is kiadna (R47/3)',
+    what: 'SGR-01 / R49 — A MEGADOTT JOG TÚLÉLI AZ ALAPJÁT: a kapu nem nézi meg a határozat MAI '
+      + 'állapotát, tehát MEGVONT vagy LEJÁRT határozat mellett is kiad. MÉRT HATÁS-HELYESBÍTÉS (a '
+      + 'külső fél R49-es lelete): az R48-as alakban ez a mutáció NEM adatkiadást okozott, csak az '
+      + 'indokot cserélte (`outside_basis_scopes`), mert a plafon úgyis zárt — a leírás erősebb volt '
+      + 'a futásnál. Az SGR-01 óta a jog a MEGADÁSBÓL jön, ezért a kihagyás VALÓDI kiadást eredményez '
+      + 'egy megvont alapon: a próba (f) ága ezt kiadva→zárva különbségként méri',
     file: 'releaseScope.mjs',
     from: "  if (state.in_effect !== true) {\n    return frozen({ ...shape, allowed: false, reason: state.reason });\n  }",
     to: "  if (false) {\n    return frozen({ ...shape, allowed: false, reason: state.reason });\n  }" },
@@ -1650,12 +1659,12 @@ export const MUTATIONS = [
     to: "  if (ban.banned && false) {\n    return frozen({ ...base, allowed: false, basis: 'explicit_ban', reason: ban.reason, message: ban.message ?? null });\n  }" },
 
   { id: 'M181', rule: 'K05', catcher: 'P-DSC-scope-basis', expect: 'probe_fail',
-    what: 'RSB-01 / R47 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon üresre számolódik, tehát MINDEN '
-      + 'érintett adatkörre jogosult olvasó sem kapja meg az eredményt. A kapu nem lehet fal '
-      + '(KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá',
+    what: 'SGR-01 / R49 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon-ellenőrzés MINDIG elutasít, tehát '
+      + 'a valóban MINDKÉT adatkörre megadott jog mellett sem jön ki az eredmény. A kapu nem lehet '
+      + 'fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá',
     file: 'releaseScope.mjs',
-    from: "  const ceiling = limit.scopes.filter((s) => live.includes(s));",
-    to: "  const ceiling = [];" },
+    from: "  if (!live.includes(scope)) {",
+    to: "  if (true) {" },
 
   { id: 'M182', rule: 'K05', catcher: 'P-DSC-scope-basis', expect: 'probe_fail',
     what: 'RSB-01 / R47 — AZ ELUTASÍTÁS SIKERES KIADÁST KÖNYVEL: a megtagadott olvasás is ír a '

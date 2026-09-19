@@ -1,11 +1,11 @@
 {
   "schema": "v3-norm-chain-package/2",
   "id": "NCP-01",
-  "at": "2026-09-18T22:27:18.614Z",
+  "at": "2026-09-19T06:58:50.262Z",
   "measured_from": {
     "file": "v3ref/v3ref-mutation-result.json",
-    "base_digest": "sha256:dc6cc2d0d4c65a61e36f9d4a8d916c77fc680dd5b932d9e4996a5f3b8b8322d0",
-    "source_digest_today": "sha256:dc6cc2d0d4c65a61e36f9d4a8d916c77fc680dd5b932d9e4996a5f3b8b8322d0",
+    "base_digest": "sha256:d64628f2022e6d475466aff51847b3bad93ea122754271da99174655f085f626",
+    "source_digest_today": "sha256:d64628f2022e6d475466aff51847b3bad93ea122754271da99174655f085f626",
     "source_bound": true,
     "execution": "merged_units"
   },
@@ -3705,17 +3705,17 @@
       ],
       "clause_text": "Minden érintett adatkörre érvényes olvasási döntés kell. Amíg nincs külön bizonyított mezővetítés, egy tiltott adatot tartalmazó vegyes eredményt egészben meg kell tagadni; a készletjog nem jogosít ármező kiadására.",
       "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
-      "assertion_id": "A-K05-c-release-scope-decision-comes-from-the-recorded-basis-not-the-caller-label",
+      "assertion_id": "A-K05-c-missing-scope-grant-closes-the-release",
       "probe_id": "P-DSC-scope-basis",
-      "behaviour": "AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély",
-      "positive_evidence": "P-DSC-scope-basis — „AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M181 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M177, M178, M179, M180, M181, M182",
+      "behaviour": "A KIADÁS A TÉNYLEGESEN MEGADOTT OLVASÁSI JOGBÓL DÖNT — a plafon csak szűkít, a hiány zár",
+      "positive_evidence": "P-DSC-scope-basis — „A KIADÁS A TÉNYLEGESEN MEGADOTT OLVASÁSI JOGBÓL DÖNT — a plafon csak szűkít, a hiány zár\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M177 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M177, M178, M179, M180, M181, M182",
       "mutations": [
         {
           "id": "M177",
-          "what": "RSB-01 / R47 — A KIADÁS NEM KÉRDEZI MEG A RÖGZÍTETT ALAPOT: a tiltás-ellenőrzés után a kapu azonnal enged, tehát a `scopes: [keszlet]`-re korlátozott alap alatt született tagság megint MEGKAPJA az ármezőt. Pontosan az a mért lelet, amiért ez a csomag született: a tiltás HIÁNYA engedéllyé válik (K05-DSC-c)",
+          "what": "SGR-01 / R49 — A KIADÁS NEM KÉRDEZI MEG A MEGADOTT JOGOT: a kapu átlépi az adatköri engedély ellenőrzését, tehát egy olyan tag is megkapja az eredményt (árral együtt), akinek EGYETLEN adatkörre sincs igazolt olvasási joga. Pontosan az F49-01 mért alakja: a tiltás hiányából engedély lesz (K05-DSC-c)",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         },
         {
           "id": "M178",
@@ -3725,7 +3725,7 @@
         },
         {
           "id": "M179",
-          "what": "RSB-01 / R47 — A MEGVONT ALAP TOVÁBB NYIT: a kapu nem nézi meg a határozat MAI állapotát, tehát a lepecsételt korlát TÚLÉLI a saját alapját. Visszavont (vagy lejárt, vagy idegen könyvre szóló) határozat mellett is kiadna (R47/3)",
+          "what": "SGR-01 / R49 — A MEGADOTT JOG TÚLÉLI AZ ALAPJÁT: a kapu nem nézi meg a határozat MAI állapotát, tehát MEGVONT vagy LEJÁRT határozat mellett is kiad. MÉRT HATÁS-HELYESBÍTÉS (a külső fél R49-es lelete): az R48-as alakban ez a mutáció NEM adatkiadást okozott, csak az indokot cserélte (`outside_basis_scopes`), mert a plafon úgyis zárt — a leírás erősebb volt a futásnál. Az SGR-01 óta a jog a MEGADÁSBÓL jön, ezért a kihagyás VALÓDI kiadást eredményez egy megvont alapon: a próba (f) ága ezt kiadva→zárva különbségként méri",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         },
@@ -3737,7 +3737,79 @@
         },
         {
           "id": "M181",
-          "what": "RSB-01 / R47 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon üresre számolódik, tehát MINDEN érintett adatkörre jogosult olvasó sem kapja meg az eredményt. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
+          "what": "SGR-01 / R49 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon-ellenőrzés MINDIG elutasít, tehát a valóban MINDKÉT adatkörre megadott jog mellett sem jön ki az eredmény. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M182",
+          "what": "RSB-01 / R47 — AZ ELUTASÍTÁS SIKERES KIADÁST KÖNYVEL: a megtagadott olvasás is ír a kiadási leltárba, tehát a leltár olyan kiadásról tanúskodik, ami meg sem történt — a KUKA-026 tükre a leltáron (R47/4)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        }
+      ],
+      "residual_scope": null,
+      "result": "partially_covered",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: EGY, kimondottan ÜZLETI döntésre váró pont marad, és egy kimondott határ. (1) A MEGHÍVÓ `scope` mezője MÉRVE a meghívó-KIADÁS tengelye (`invite_basis.scope`), nem olvasási jog — ezért a beváltás ma NEM ad adatköri olvasási jogot; hogy a jövőben a meghívó hordozzon-e felajánlott olvasási adatköröket, ÜZLETI döntés, és gép nem vezetheti le. (2) A felhatalmazás adatkör-tengelye szabad szöveg, a tartalom-besorolás zárt halmaz; az olvasási JOG csak a zárt halmaz nevére adható (`unknown_data_scope`), az ismeretlen szótárú PLAFON pedig ZÁR (`basis_scope_vocabulary_unknown`) — a megfeleltetés üzleti döntés, néma fordítás nincs. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
+      "evidence_limit": null,
+      "content_review": {
+        "state": "none",
+        "structural": "none",
+        "binding": "none",
+        "why": "nincs rögzített tartalmi felülvizsgálat",
+        "authenticity": {
+          "state": "unauthenticated",
+          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+        }
+      },
+      "external_decision": {
+        "source": "R37",
+        "clause": "K05-DSC-c",
+        "verdict": "partial",
+        "reason": "a tiltott mezőt tartalmazó vegyes eredmény egészbeni megtagadása bizonyított. A „minden adatkörre érvényes olvasási döntés” erősebb az explicit tiltás hiányánál; az adatkörre korlátozott engedő alap és a tényleges kiadás közötti bizonyíték nincs megadva. Ezt a különbséget ne zöldítsd át."
+      }
+    },
+    {
+      "norm_id": "DSC-N1",
+      "clause_id": "K05-DSC-c",
+      "covers": [
+        "K05"
+      ],
+      "clause_text": "Minden érintett adatkörre érvényes olvasási döntés kell. Amíg nincs külön bizonyított mezővetítés, egy tiltott adatot tartalmazó vegyes eredményt egészben meg kell tagadni; a készletjog nem jogosít ármező kiadására.",
+      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
+      "assertion_id": "A-K05-c-narrow-grant-from-a-broad-basis-stays-narrow",
+      "probe_id": "P-DSC-scope-basis",
+      "behaviour": "A KIADÁS A TÉNYLEGESEN MEGADOTT OLVASÁSI JOGBÓL DÖNT — a plafon csak szűkít, a hiány zár",
+      "positive_evidence": "P-DSC-scope-basis — „A KIADÁS A TÉNYLEGESEN MEGADOTT OLVASÁSI JOGBÓL DÖNT — a plafon csak szűkít, a hiány zár\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M181 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M177, M178, M179, M180, M181, M182",
+      "mutations": [
+        {
+          "id": "M177",
+          "what": "SGR-01 / R49 — A KIADÁS NEM KÉRDEZI MEG A MEGADOTT JOGOT: a kapu átlépi az adatköri engedély ellenőrzését, tehát egy olyan tag is megkapja az eredményt (árral együtt), akinek EGYETLEN adatkörre sincs igazolt olvasási joga. Pontosan az F49-01 mért alakja: a tiltás hiányából engedély lesz (K05-DSC-c)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M178",
+          "what": "RSB-01 / R47 — A KÉRŐ CÍMKÉJE DÖNT A TARTALOM HELYETT: a kiadás a kérés `dataScope` címkéjére kérdez, nem az eredmény TÉNYLEGES adatköreire. Egy „készlet\" címkével beadott olvasás így ármezőt is kivinne — a R77/F02 lelet visszatérése az engedő ágon (KUKA-073)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M179",
+          "what": "SGR-01 / R49 — A MEGADOTT JOG TÚLÉLI AZ ALAPJÁT: a kapu nem nézi meg a határozat MAI állapotát, tehát MEGVONT vagy LEJÁRT határozat mellett is kiad. MÉRT HATÁS-HELYESBÍTÉS (a külső fél R49-es lelete): az R48-as alakban ez a mutáció NEM adatkiadást okozott, csak az indokot cserélte (`outside_basis_scopes`), mert a plafon úgyis zárt — a leírás erősebb volt a futásnál. Az SGR-01 óta a jog a MEGADÁSBÓL jön, ezért a kihagyás VALÓDI kiadást eredményez egy megvont alapon: a próba (f) ága ezt kiadva→zárva különbségként méri",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M180",
+          "what": "RSB-01 / R47 — A KIMONDOTT TILTÁS ÁGA SOSEM FUT: a kapu az engedő alapot megnézi, a TILTÁST nem — tehát egy adatkörre kimondottan tiltott olvasó az engedélye mellett visszakapja azt, amit épp megvontak tőle. MÉRT HATÁS: a tiltás-ág teljes kiiktatása (nem csak az engedő eset alatt), ezért a tiltás-mérésre épülő testvér-próba is bukik — a NEVEZETT elkapó viszont a mienk (REV-N5b: a kimondott tiltás az engedély mellett is áll)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M181",
+          "what": "SGR-01 / R49 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon-ellenőrzés MINDIG elutasít, tehát a valóban MINDKÉT adatkörre megadott jog mellett sem jön ki az eredmény. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
           "verdict": "CAUGHT",
           "qualifying_witness": true
         },
@@ -3750,7 +3822,7 @@
       ],
       "residual_scope": null,
       "result": "partially_covered",
-      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: KÉT, kimondottan ÜZLETI döntésre váró pont marad. (1) Ha a tagsághoz NINCS rögzített adatkör-korlát, a kiadás ma a KÖNYV-tagságon áll — a kapu ezt `membership_only` néven kiírja, de hogy egy ilyen tag MIT láthat, arra a normákból nem vezethető le válasz: nem találunk ki hallgatólagos „mindenhez jogot\". (2) A felhatalmazás adatkör-tengelye ma SZABAD SZÖVEG (a meglévő világok `stock`/`price` szavakat használnak), a tartalom-besorolás viszont ZÁRT halmaz (`keszlet` · `arak`); az ismeretlen szótárú korlát ZÁR (`basis_scope_vocabulary_unknown`), a két szótár megfeleltetése üzleti döntés, gép nem tippelheti meg. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: EGY, kimondottan ÜZLETI döntésre váró pont marad, és egy kimondott határ. (1) A MEGHÍVÓ `scope` mezője MÉRVE a meghívó-KIADÁS tengelye (`invite_basis.scope`), nem olvasási jog — ezért a beváltás ma NEM ad adatköri olvasási jogot; hogy a jövőben a meghívó hordozzon-e felajánlott olvasási adatköröket, ÜZLETI döntés, és gép nem vezetheti le. (2) A felhatalmazás adatkör-tengelye szabad szöveg, a tartalom-besorolás zárt halmaz; az olvasási JOG csak a zárt halmaz nevére adható (`unknown_data_scope`), az ismeretlen szótárú PLAFON pedig ZÁR (`basis_scope_vocabulary_unknown`) — a megfeleltetés üzleti döntés, néma fordítás nincs. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -3779,13 +3851,13 @@
       "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
       "assertion_id": "A-K05-c-reader-entitled-to-every-affected-scope-still-gets-the-result",
       "probe_id": "P-DSC-scope-basis",
-      "behaviour": "AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély",
-      "positive_evidence": "P-DSC-scope-basis — „AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély\" · node v3ref/run.mjs",
+      "behaviour": "A KIADÁS A TÉNYLEGESEN MEGADOTT OLVASÁSI JOGBÓL DÖNT — a plafon csak szűkít, a hiány zár",
+      "positive_evidence": "P-DSC-scope-basis — „A KIADÁS A TÉNYLEGESEN MEGADOTT OLVASÁSI JOGBÓL DÖNT — a plafon csak szűkít, a hiány zár\" · node v3ref/run.mjs",
       "negative_evidence": "MINŐSÜLŐ tanú: M181 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M177, M178, M179, M180, M181, M182",
       "mutations": [
         {
           "id": "M177",
-          "what": "RSB-01 / R47 — A KIADÁS NEM KÉRDEZI MEG A RÖGZÍTETT ALAPOT: a tiltás-ellenőrzés után a kapu azonnal enged, tehát a `scopes: [keszlet]`-re korlátozott alap alatt született tagság megint MEGKAPJA az ármezőt. Pontosan az a mért lelet, amiért ez a csomag született: a tiltás HIÁNYA engedéllyé válik (K05-DSC-c)",
+          "what": "SGR-01 / R49 — A KIADÁS NEM KÉRDEZI MEG A MEGADOTT JOGOT: a kapu átlépi az adatköri engedély ellenőrzését, tehát egy olyan tag is megkapja az eredményt (árral együtt), akinek EGYETLEN adatkörre sincs igazolt olvasási joga. Pontosan az F49-01 mért alakja: a tiltás hiányából engedély lesz (K05-DSC-c)",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         },
@@ -3797,7 +3869,7 @@
         },
         {
           "id": "M179",
-          "what": "RSB-01 / R47 — A MEGVONT ALAP TOVÁBB NYIT: a kapu nem nézi meg a határozat MAI állapotát, tehát a lepecsételt korlát TÚLÉLI a saját alapját. Visszavont (vagy lejárt, vagy idegen könyvre szóló) határozat mellett is kiadna (R47/3)",
+          "what": "SGR-01 / R49 — A MEGADOTT JOG TÚLÉLI AZ ALAPJÁT: a kapu nem nézi meg a határozat MAI állapotát, tehát MEGVONT vagy LEJÁRT határozat mellett is kiad. MÉRT HATÁS-HELYESBÍTÉS (a külső fél R49-es lelete): az R48-as alakban ez a mutáció NEM adatkiadást okozott, csak az indokot cserélte (`outside_basis_scopes`), mert a plafon úgyis zárt — a leírás erősebb volt a futásnál. Az SGR-01 óta a jog a MEGADÁSBÓL jön, ezért a kihagyás VALÓDI kiadást eredményez egy megvont alapon: a próba (f) ága ezt kiadva→zárva különbségként méri",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         },
@@ -3809,7 +3881,7 @@
         },
         {
           "id": "M181",
-          "what": "RSB-01 / R47 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon üresre számolódik, tehát MINDEN érintett adatkörre jogosult olvasó sem kapja meg az eredményt. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
+          "what": "SGR-01 / R49 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon-ellenőrzés MINDIG elutasít, tehát a valóban MINDKÉT adatkörre megadott jog mellett sem jön ki az eredmény. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
           "verdict": "CAUGHT",
           "qualifying_witness": true
         },
@@ -3822,7 +3894,7 @@
       ],
       "residual_scope": null,
       "result": "partially_covered",
-      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: KÉT, kimondottan ÜZLETI döntésre váró pont marad. (1) Ha a tagsághoz NINCS rögzített adatkör-korlát, a kiadás ma a KÖNYV-tagságon áll — a kapu ezt `membership_only` néven kiírja, de hogy egy ilyen tag MIT láthat, arra a normákból nem vezethető le válasz: nem találunk ki hallgatólagos „mindenhez jogot\". (2) A felhatalmazás adatkör-tengelye ma SZABAD SZÖVEG (a meglévő világok `stock`/`price` szavakat használnak), a tartalom-besorolás viszont ZÁRT halmaz (`keszlet` · `arak`); az ismeretlen szótárú korlát ZÁR (`basis_scope_vocabulary_unknown`), a két szótár megfeleltetése üzleti döntés, gép nem tippelheti meg. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: EGY, kimondottan ÜZLETI döntésre váró pont marad, és egy kimondott határ. (1) A MEGHÍVÓ `scope` mezője MÉRVE a meghívó-KIADÁS tengelye (`invite_basis.scope`), nem olvasási jog — ezért a beváltás ma NEM ad adatköri olvasási jogot; hogy a jövőben a meghívó hordozzon-e felajánlott olvasási adatköröket, ÜZLETI döntés, és gép nem vezetheti le. (2) A felhatalmazás adatkör-tengelye szabad szöveg, a tartalom-besorolás zárt halmaz; az olvasási JOG csak a zárt halmaz nevére adható (`unknown_data_scope`), az ismeretlen szótárú PLAFON pedig ZÁR (`basis_scope_vocabulary_unknown`) — a megfeleltetés üzleti döntés, néma fordítás nincs. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -3851,13 +3923,13 @@
       "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
       "assertion_id": "A-K05-c-explicit-ban-holds-alongside-a-permitting-basis",
       "probe_id": "P-DSC-scope-basis",
-      "behaviour": "AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély",
-      "positive_evidence": "P-DSC-scope-basis — „AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély\" · node v3ref/run.mjs",
+      "behaviour": "A KIADÁS A TÉNYLEGESEN MEGADOTT OLVASÁSI JOGBÓL DÖNT — a plafon csak szűkít, a hiány zár",
+      "positive_evidence": "P-DSC-scope-basis — „A KIADÁS A TÉNYLEGESEN MEGADOTT OLVASÁSI JOGBÓL DÖNT — a plafon csak szűkít, a hiány zár\" · node v3ref/run.mjs",
       "negative_evidence": "MINŐSÜLŐ tanú: M180 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M177, M178, M179, M180, M181, M182",
       "mutations": [
         {
           "id": "M177",
-          "what": "RSB-01 / R47 — A KIADÁS NEM KÉRDEZI MEG A RÖGZÍTETT ALAPOT: a tiltás-ellenőrzés után a kapu azonnal enged, tehát a `scopes: [keszlet]`-re korlátozott alap alatt született tagság megint MEGKAPJA az ármezőt. Pontosan az a mért lelet, amiért ez a csomag született: a tiltás HIÁNYA engedéllyé válik (K05-DSC-c)",
+          "what": "SGR-01 / R49 — A KIADÁS NEM KÉRDEZI MEG A MEGADOTT JOGOT: a kapu átlépi az adatköri engedély ellenőrzését, tehát egy olyan tag is megkapja az eredményt (árral együtt), akinek EGYETLEN adatkörre sincs igazolt olvasási joga. Pontosan az F49-01 mért alakja: a tiltás hiányából engedély lesz (K05-DSC-c)",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         },
@@ -3869,7 +3941,7 @@
         },
         {
           "id": "M179",
-          "what": "RSB-01 / R47 — A MEGVONT ALAP TOVÁBB NYIT: a kapu nem nézi meg a határozat MAI állapotát, tehát a lepecsételt korlát TÚLÉLI a saját alapját. Visszavont (vagy lejárt, vagy idegen könyvre szóló) határozat mellett is kiadna (R47/3)",
+          "what": "SGR-01 / R49 — A MEGADOTT JOG TÚLÉLI AZ ALAPJÁT: a kapu nem nézi meg a határozat MAI állapotát, tehát MEGVONT vagy LEJÁRT határozat mellett is kiad. MÉRT HATÁS-HELYESBÍTÉS (a külső fél R49-es lelete): az R48-as alakban ez a mutáció NEM adatkiadást okozott, csak az indokot cserélte (`outside_basis_scopes`), mert a plafon úgyis zárt — a leírás erősebb volt a futásnál. Az SGR-01 óta a jog a MEGADÁSBÓL jön, ezért a kihagyás VALÓDI kiadást eredményez egy megvont alapon: a próba (f) ága ezt kiadva→zárva különbségként méri",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         },
@@ -3881,7 +3953,7 @@
         },
         {
           "id": "M181",
-          "what": "RSB-01 / R47 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon üresre számolódik, tehát MINDEN érintett adatkörre jogosult olvasó sem kapja meg az eredményt. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
+          "what": "SGR-01 / R49 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon-ellenőrzés MINDIG elutasít, tehát a valóban MINDKÉT adatkörre megadott jog mellett sem jön ki az eredmény. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         },
@@ -3894,7 +3966,7 @@
       ],
       "residual_scope": null,
       "result": "partially_covered",
-      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: KÉT, kimondottan ÜZLETI döntésre váró pont marad. (1) Ha a tagsághoz NINCS rögzített adatkör-korlát, a kiadás ma a KÖNYV-tagságon áll — a kapu ezt `membership_only` néven kiírja, de hogy egy ilyen tag MIT láthat, arra a normákból nem vezethető le válasz: nem találunk ki hallgatólagos „mindenhez jogot\". (2) A felhatalmazás adatkör-tengelye ma SZABAD SZÖVEG (a meglévő világok `stock`/`price` szavakat használnak), a tartalom-besorolás viszont ZÁRT halmaz (`keszlet` · `arak`); az ismeretlen szótárú korlát ZÁR (`basis_scope_vocabulary_unknown`), a két szótár megfeleltetése üzleti döntés, gép nem tippelheti meg. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: EGY, kimondottan ÜZLETI döntésre váró pont marad, és egy kimondott határ. (1) A MEGHÍVÓ `scope` mezője MÉRVE a meghívó-KIADÁS tengelye (`invite_basis.scope`), nem olvasási jog — ezért a beváltás ma NEM ad adatköri olvasási jogot; hogy a jövőben a meghívó hordozzon-e felajánlott olvasási adatköröket, ÜZLETI döntés, és gép nem vezetheti le. (2) A felhatalmazás adatkör-tengelye szabad szöveg, a tartalom-besorolás zárt halmaz; az olvasási JOG csak a zárt halmaz nevére adható (`unknown_data_scope`), az ismeretlen szótárú PLAFON pedig ZÁR (`basis_scope_vocabulary_unknown`) — a megfeleltetés üzleti döntés, néma fordítás nincs. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -3921,15 +3993,15 @@
       ],
       "clause_text": "Minden érintett adatkörre érvényes olvasási döntés kell. Amíg nincs külön bizonyított mezővetítés, egy tiltott adatot tartalmazó vegyes eredményt egészben meg kell tagadni; a készletjog nem jogosít ármező kiadására.",
       "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
-      "assertion_id": "A-K05-c-revoked-or-expired-basis-does-not-open",
+      "assertion_id": "A-K05-c-revoked-grant-or-revoked-expired-basis-closes-a-previously-open-release",
       "probe_id": "P-DSC-scope-basis",
-      "behaviour": "AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély",
-      "positive_evidence": "P-DSC-scope-basis — „AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély\" · node v3ref/run.mjs",
+      "behaviour": "A KIADÁS A TÉNYLEGESEN MEGADOTT OLVASÁSI JOGBÓL DÖNT — a plafon csak szűkít, a hiány zár",
+      "positive_evidence": "P-DSC-scope-basis — „A KIADÁS A TÉNYLEGESEN MEGADOTT OLVASÁSI JOGBÓL DÖNT — a plafon csak szűkít, a hiány zár\" · node v3ref/run.mjs",
       "negative_evidence": "MINŐSÜLŐ tanú: M179 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M177, M178, M179, M180, M181, M182",
       "mutations": [
         {
           "id": "M177",
-          "what": "RSB-01 / R47 — A KIADÁS NEM KÉRDEZI MEG A RÖGZÍTETT ALAPOT: a tiltás-ellenőrzés után a kapu azonnal enged, tehát a `scopes: [keszlet]`-re korlátozott alap alatt született tagság megint MEGKAPJA az ármezőt. Pontosan az a mért lelet, amiért ez a csomag született: a tiltás HIÁNYA engedéllyé válik (K05-DSC-c)",
+          "what": "SGR-01 / R49 — A KIADÁS NEM KÉRDEZI MEG A MEGADOTT JOGOT: a kapu átlépi az adatköri engedély ellenőrzését, tehát egy olyan tag is megkapja az eredményt (árral együtt), akinek EGYETLEN adatkörre sincs igazolt olvasási joga. Pontosan az F49-01 mért alakja: a tiltás hiányából engedély lesz (K05-DSC-c)",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         },
@@ -3941,7 +4013,7 @@
         },
         {
           "id": "M179",
-          "what": "RSB-01 / R47 — A MEGVONT ALAP TOVÁBB NYIT: a kapu nem nézi meg a határozat MAI állapotát, tehát a lepecsételt korlát TÚLÉLI a saját alapját. Visszavont (vagy lejárt, vagy idegen könyvre szóló) határozat mellett is kiadna (R47/3)",
+          "what": "SGR-01 / R49 — A MEGADOTT JOG TÚLÉLI AZ ALAPJÁT: a kapu nem nézi meg a határozat MAI állapotát, tehát MEGVONT vagy LEJÁRT határozat mellett is kiad. MÉRT HATÁS-HELYESBÍTÉS (a külső fél R49-es lelete): az R48-as alakban ez a mutáció NEM adatkiadást okozott, csak az indokot cserélte (`outside_basis_scopes`), mert a plafon úgyis zárt — a leírás erősebb volt a futásnál. Az SGR-01 óta a jog a MEGADÁSBÓL jön, ezért a kihagyás VALÓDI kiadást eredményez egy megvont alapon: a próba (f) ága ezt kiadva→zárva különbségként méri",
           "verdict": "CAUGHT",
           "qualifying_witness": true
         },
@@ -3953,7 +4025,7 @@
         },
         {
           "id": "M181",
-          "what": "RSB-01 / R47 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon üresre számolódik, tehát MINDEN érintett adatkörre jogosult olvasó sem kapja meg az eredményt. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
+          "what": "SGR-01 / R49 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon-ellenőrzés MINDIG elutasít, tehát a valóban MINDKÉT adatkörre megadott jog mellett sem jön ki az eredmény. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         },
@@ -3966,79 +4038,7 @@
       ],
       "residual_scope": null,
       "result": "partially_covered",
-      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: KÉT, kimondottan ÜZLETI döntésre váró pont marad. (1) Ha a tagsághoz NINCS rögzített adatkör-korlát, a kiadás ma a KÖNYV-tagságon áll — a kapu ezt `membership_only` néven kiírja, de hogy egy ilyen tag MIT láthat, arra a normákból nem vezethető le válasz: nem találunk ki hallgatólagos „mindenhez jogot\". (2) A felhatalmazás adatkör-tengelye ma SZABAD SZÖVEG (a meglévő világok `stock`/`price` szavakat használnak), a tartalom-besorolás viszont ZÁRT halmaz (`keszlet` · `arak`); az ismeretlen szótárú korlát ZÁR (`basis_scope_vocabulary_unknown`), a két szótár megfeleltetése üzleti döntés, gép nem tippelheti meg. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
-      "evidence_limit": null,
-      "content_review": {
-        "state": "none",
-        "structural": "none",
-        "binding": "none",
-        "why": "nincs rögzített tartalmi felülvizsgálat",
-        "authenticity": {
-          "state": "unauthenticated",
-          "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
-        }
-      },
-      "external_decision": {
-        "source": "R37",
-        "clause": "K05-DSC-c",
-        "verdict": "partial",
-        "reason": "a tiltott mezőt tartalmazó vegyes eredmény egészbeni megtagadása bizonyított. A „minden adatkörre érvényes olvasási döntés” erősebb az explicit tiltás hiányánál; az adatkörre korlátozott engedő alap és a tényleges kiadás közötti bizonyíték nincs megadva. Ezt a különbséget ne zöldítsd át."
-      }
-    },
-    {
-      "norm_id": "DSC-N1",
-      "clause_id": "K05-DSC-c",
-      "covers": [
-        "K05"
-      ],
-      "clause_text": "Minden érintett adatkörre érvényes olvasási döntés kell. Amíg nincs külön bizonyított mezővetítés, egy tiltott adatot tartalmazó vegyes eredményt egészben meg kell tagadni; a készletjog nem jogosít ármező kiadására.",
-      "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
-      "assertion_id": "A-K05-c-undeclared-limit-is-named-as-membership-only-not-a-scope-permission",
-      "probe_id": "P-DSC-scope-basis",
-      "behaviour": "AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély",
-      "positive_evidence": "P-DSC-scope-basis — „AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M177 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M177, M178, M179, M180, M181, M182",
-      "mutations": [
-        {
-          "id": "M177",
-          "what": "RSB-01 / R47 — A KIADÁS NEM KÉRDEZI MEG A RÖGZÍTETT ALAPOT: a tiltás-ellenőrzés után a kapu azonnal enged, tehát a `scopes: [keszlet]`-re korlátozott alap alatt született tagság megint MEGKAPJA az ármezőt. Pontosan az a mért lelet, amiért ez a csomag született: a tiltás HIÁNYA engedéllyé válik (K05-DSC-c)",
-          "verdict": "CAUGHT",
-          "qualifying_witness": true
-        },
-        {
-          "id": "M178",
-          "what": "RSB-01 / R47 — A KÉRŐ CÍMKÉJE DÖNT A TARTALOM HELYETT: a kiadás a kérés `dataScope` címkéjére kérdez, nem az eredmény TÉNYLEGES adatköreire. Egy „készlet\" címkével beadott olvasás így ármezőt is kivinne — a R77/F02 lelet visszatérése az engedő ágon (KUKA-073)",
-          "verdict": "CAUGHT",
-          "qualifying_witness": false
-        },
-        {
-          "id": "M179",
-          "what": "RSB-01 / R47 — A MEGVONT ALAP TOVÁBB NYIT: a kapu nem nézi meg a határozat MAI állapotát, tehát a lepecsételt korlát TÚLÉLI a saját alapját. Visszavont (vagy lejárt, vagy idegen könyvre szóló) határozat mellett is kiadna (R47/3)",
-          "verdict": "CAUGHT",
-          "qualifying_witness": false
-        },
-        {
-          "id": "M180",
-          "what": "RSB-01 / R47 — A KIMONDOTT TILTÁS ÁGA SOSEM FUT: a kapu az engedő alapot megnézi, a TILTÁST nem — tehát egy adatkörre kimondottan tiltott olvasó az engedélye mellett visszakapja azt, amit épp megvontak tőle. MÉRT HATÁS: a tiltás-ág teljes kiiktatása (nem csak az engedő eset alatt), ezért a tiltás-mérésre épülő testvér-próba is bukik — a NEVEZETT elkapó viszont a mienk (REV-N5b: a kimondott tiltás az engedély mellett is áll)",
-          "verdict": "CAUGHT",
-          "qualifying_witness": false
-        },
-        {
-          "id": "M181",
-          "what": "RSB-01 / R47 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon üresre számolódik, tehát MINDEN érintett adatkörre jogosult olvasó sem kapja meg az eredményt. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
-          "verdict": "CAUGHT",
-          "qualifying_witness": false
-        },
-        {
-          "id": "M182",
-          "what": "RSB-01 / R47 — AZ ELUTASÍTÁS SIKERES KIADÁST KÖNYVEL: a megtagadott olvasás is ír a kiadási leltárba, tehát a leltár olyan kiadásról tanúskodik, ami meg sem történt — a KUKA-026 tükre a leltáron (R47/4)",
-          "verdict": "CAUGHT",
-          "qualifying_witness": false
-        }
-      ],
-      "residual_scope": null,
-      "result": "partially_covered",
-      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: KÉT, kimondottan ÜZLETI döntésre váró pont marad. (1) Ha a tagsághoz NINCS rögzített adatkör-korlát, a kiadás ma a KÖNYV-tagságon áll — a kapu ezt `membership_only` néven kiírja, de hogy egy ilyen tag MIT láthat, arra a normákból nem vezethető le válasz: nem találunk ki hallgatólagos „mindenhez jogot\". (2) A felhatalmazás adatkör-tengelye ma SZABAD SZÖVEG (a meglévő világok `stock`/`price` szavakat használnak), a tartalom-besorolás viszont ZÁRT halmaz (`keszlet` · `arak`); az ismeretlen szótárú korlát ZÁR (`basis_scope_vocabulary_unknown`), a két szótár megfeleltetése üzleti döntés, gép nem tippelheti meg. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: EGY, kimondottan ÜZLETI döntésre váró pont marad, és egy kimondott határ. (1) A MEGHÍVÓ `scope` mezője MÉRVE a meghívó-KIADÁS tengelye (`invite_basis.scope`), nem olvasási jog — ezért a beváltás ma NEM ad adatköri olvasási jogot; hogy a jövőben a meghívó hordozzon-e felajánlott olvasási adatköröket, ÜZLETI döntés, és gép nem vezetheti le. (2) A felhatalmazás adatkör-tengelye szabad szöveg, a tartalom-besorolás zárt halmaz; az olvasási JOG csak a zárt halmaz nevére adható (`unknown_data_scope`), az ismeretlen szótárú PLAFON pedig ZÁR (`basis_scope_vocabulary_unknown`) — a megfeleltetés üzleti döntés, néma fordítás nincs. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -4067,13 +4067,13 @@
       "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
       "assertion_id": "A-K05-c-refusal-keeps-the-existence-boundary",
       "probe_id": "P-DSC-scope-basis",
-      "behaviour": "AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély",
-      "positive_evidence": "P-DSC-scope-basis — „AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély\" · node v3ref/run.mjs",
+      "behaviour": "A KIADÁS A TÉNYLEGESEN MEGADOTT OLVASÁSI JOGBÓL DÖNT — a plafon csak szűkít, a hiány zár",
+      "positive_evidence": "P-DSC-scope-basis — „A KIADÁS A TÉNYLEGESEN MEGADOTT OLVASÁSI JOGBÓL DÖNT — a plafon csak szűkít, a hiány zár\" · node v3ref/run.mjs",
       "negative_evidence": "MINŐSÜLŐ tanú: M177 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M177, M178, M179, M180, M181, M182",
       "mutations": [
         {
           "id": "M177",
-          "what": "RSB-01 / R47 — A KIADÁS NEM KÉRDEZI MEG A RÖGZÍTETT ALAPOT: a tiltás-ellenőrzés után a kapu azonnal enged, tehát a `scopes: [keszlet]`-re korlátozott alap alatt született tagság megint MEGKAPJA az ármezőt. Pontosan az a mért lelet, amiért ez a csomag született: a tiltás HIÁNYA engedéllyé válik (K05-DSC-c)",
+          "what": "SGR-01 / R49 — A KIADÁS NEM KÉRDEZI MEG A MEGADOTT JOGOT: a kapu átlépi az adatköri engedély ellenőrzését, tehát egy olyan tag is megkapja az eredményt (árral együtt), akinek EGYETLEN adatkörre sincs igazolt olvasási joga. Pontosan az F49-01 mért alakja: a tiltás hiányából engedély lesz (K05-DSC-c)",
           "verdict": "CAUGHT",
           "qualifying_witness": true
         },
@@ -4085,7 +4085,7 @@
         },
         {
           "id": "M179",
-          "what": "RSB-01 / R47 — A MEGVONT ALAP TOVÁBB NYIT: a kapu nem nézi meg a határozat MAI állapotát, tehát a lepecsételt korlát TÚLÉLI a saját alapját. Visszavont (vagy lejárt, vagy idegen könyvre szóló) határozat mellett is kiadna (R47/3)",
+          "what": "SGR-01 / R49 — A MEGADOTT JOG TÚLÉLI AZ ALAPJÁT: a kapu nem nézi meg a határozat MAI állapotát, tehát MEGVONT vagy LEJÁRT határozat mellett is kiad. MÉRT HATÁS-HELYESBÍTÉS (a külső fél R49-es lelete): az R48-as alakban ez a mutáció NEM adatkiadást okozott, csak az indokot cserélte (`outside_basis_scopes`), mert a plafon úgyis zárt — a leírás erősebb volt a futásnál. Az SGR-01 óta a jog a MEGADÁSBÓL jön, ezért a kihagyás VALÓDI kiadást eredményez egy megvont alapon: a próba (f) ága ezt kiadva→zárva különbségként méri",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         },
@@ -4097,7 +4097,7 @@
         },
         {
           "id": "M181",
-          "what": "RSB-01 / R47 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon üresre számolódik, tehát MINDEN érintett adatkörre jogosult olvasó sem kapja meg az eredményt. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
+          "what": "SGR-01 / R49 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon-ellenőrzés MINDIG elutasít, tehát a valóban MINDKÉT adatkörre megadott jog mellett sem jön ki az eredmény. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         },
@@ -4110,7 +4110,7 @@
       ],
       "residual_scope": null,
       "result": "partially_covered",
-      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: KÉT, kimondottan ÜZLETI döntésre váró pont marad. (1) Ha a tagsághoz NINCS rögzített adatkör-korlát, a kiadás ma a KÖNYV-tagságon áll — a kapu ezt `membership_only` néven kiírja, de hogy egy ilyen tag MIT láthat, arra a normákból nem vezethető le válasz: nem találunk ki hallgatólagos „mindenhez jogot\". (2) A felhatalmazás adatkör-tengelye ma SZABAD SZÖVEG (a meglévő világok `stock`/`price` szavakat használnak), a tartalom-besorolás viszont ZÁRT halmaz (`keszlet` · `arak`); az ismeretlen szótárú korlát ZÁR (`basis_scope_vocabulary_unknown`), a két szótár megfeleltetése üzleti döntés, gép nem tippelheti meg. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: EGY, kimondottan ÜZLETI döntésre váró pont marad, és egy kimondott határ. (1) A MEGHÍVÓ `scope` mezője MÉRVE a meghívó-KIADÁS tengelye (`invite_basis.scope`), nem olvasási jog — ezért a beváltás ma NEM ad adatköri olvasási jogot; hogy a jövőben a meghívó hordozzon-e felajánlott olvasási adatköröket, ÜZLETI döntés, és gép nem vezetheti le. (2) A felhatalmazás adatkör-tengelye szabad szöveg, a tartalom-besorolás zárt halmaz; az olvasási JOG csak a zárt halmaz nevére adható (`unknown_data_scope`), az ismeretlen szótárú PLAFON pedig ZÁR (`basis_scope_vocabulary_unknown`) — a megfeleltetés üzleti döntés, néma fordítás nincs. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -4164,7 +4164,7 @@
       ],
       "residual_scope": null,
       "result": "partially_covered",
-      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: KÉT, kimondottan ÜZLETI döntésre váró pont marad. (1) Ha a tagsághoz NINCS rögzített adatkör-korlát, a kiadás ma a KÖNYV-tagságon áll — a kapu ezt `membership_only` néven kiírja, de hogy egy ilyen tag MIT láthat, arra a normákból nem vezethető le válasz: nem találunk ki hallgatólagos „mindenhez jogot\". (2) A felhatalmazás adatkör-tengelye ma SZABAD SZÖVEG (a meglévő világok `stock`/`price` szavakat használnak), a tartalom-besorolás viszont ZÁRT halmaz (`keszlet` · `arak`); az ismeretlen szótárú korlát ZÁR (`basis_scope_vocabulary_unknown`), a két szótár megfeleltetése üzleti döntés, gép nem tippelheti meg. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
+      "why": "RÉSZBEN MEGÉPÜLT — megvan: a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope (aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással. · HIÁNYZIK: EGY, kimondottan ÜZLETI döntésre váró pont marad, és egy kimondott határ. (1) A MEGHÍVÓ `scope` mezője MÉRVE a meghívó-KIADÁS tengelye (`invite_basis.scope`), nem olvasási jog — ezért a beváltás ma NEM ad adatköri olvasási jogot; hogy a jövőben a meghívó hordozzon-e felajánlott olvasási adatköröket, ÜZLETI döntés, és gép nem vezetheti le. (2) A felhatalmazás adatkör-tengelye szabad szöveg, a tartalom-besorolás zárt halmaz; az olvasási JOG csak a zárt halmaz nevére adható (`unknown_data_scope`), az ismeretlen szótárú PLAFON pedig ZÁR (`basis_scope_vocabulary_unknown`) — a megfeleltetés üzleti döntés, néma fordítás nincs. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.",
       "evidence_limit": null,
       "content_review": {
         "state": "none",
@@ -4319,13 +4319,13 @@
       "source": "R35 — chatgpt-v3, CMD-VS-300-002-002 R35 §„K05 és K10\"",
       "assertion_id": "A-K05-c-one-effectuation-point-for-decision-and-ledger",
       "probe_id": "P-DSC-scope-basis",
-      "behaviour": "AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély",
-      "positive_evidence": "P-DSC-scope-basis — „AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M180 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M177, M178, M179, M180, M181, M182",
+      "behaviour": "A KIADÁS A TÉNYLEGESEN MEGADOTT OLVASÁSI JOGBÓL DÖNT — a plafon csak szűkít, a hiány zár",
+      "positive_evidence": "P-DSC-scope-basis — „A KIADÁS A TÉNYLEGESEN MEGADOTT OLVASÁSI JOGBÓL DÖNT — a plafon csak szűkít, a hiány zár\" · node v3ref/run.mjs",
+      "negative_evidence": "MINŐSÜLŐ tanú: M181 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M177, M178, M179, M180, M181, M182",
       "mutations": [
         {
           "id": "M177",
-          "what": "RSB-01 / R47 — A KIADÁS NEM KÉRDEZI MEG A RÖGZÍTETT ALAPOT: a tiltás-ellenőrzés után a kapu azonnal enged, tehát a `scopes: [keszlet]`-re korlátozott alap alatt született tagság megint MEGKAPJA az ármezőt. Pontosan az a mért lelet, amiért ez a csomag született: a tiltás HIÁNYA engedéllyé válik (K05-DSC-c)",
+          "what": "SGR-01 / R49 — A KIADÁS NEM KÉRDEZI MEG A MEGADOTT JOGOT: a kapu átlépi az adatköri engedély ellenőrzését, tehát egy olyan tag is megkapja az eredményt (árral együtt), akinek EGYETLEN adatkörre sincs igazolt olvasási joga. Pontosan az F49-01 mért alakja: a tiltás hiányából engedély lesz (K05-DSC-c)",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         },
@@ -4337,7 +4337,7 @@
         },
         {
           "id": "M179",
-          "what": "RSB-01 / R47 — A MEGVONT ALAP TOVÁBB NYIT: a kapu nem nézi meg a határozat MAI állapotát, tehát a lepecsételt korlát TÚLÉLI a saját alapját. Visszavont (vagy lejárt, vagy idegen könyvre szóló) határozat mellett is kiadna (R47/3)",
+          "what": "SGR-01 / R49 — A MEGADOTT JOG TÚLÉLI AZ ALAPJÁT: a kapu nem nézi meg a határozat MAI állapotát, tehát MEGVONT vagy LEJÁRT határozat mellett is kiad. MÉRT HATÁS-HELYESBÍTÉS (a külső fél R49-es lelete): az R48-as alakban ez a mutáció NEM adatkiadást okozott, csak az indokot cserélte (`outside_basis_scopes`), mert a plafon úgyis zárt — a leírás erősebb volt a futásnál. Az SGR-01 óta a jog a MEGADÁSBÓL jön, ezért a kihagyás VALÓDI kiadást eredményez egy megvont alapon: a próba (f) ága ezt kiadva→zárva különbségként méri",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         },
@@ -4345,13 +4345,13 @@
           "id": "M180",
           "what": "RSB-01 / R47 — A KIMONDOTT TILTÁS ÁGA SOSEM FUT: a kapu az engedő alapot megnézi, a TILTÁST nem — tehát egy adatkörre kimondottan tiltott olvasó az engedélye mellett visszakapja azt, amit épp megvontak tőle. MÉRT HATÁS: a tiltás-ág teljes kiiktatása (nem csak az engedő eset alatt), ezért a tiltás-mérésre épülő testvér-próba is bukik — a NEVEZETT elkapó viszont a mienk (REV-N5b: a kimondott tiltás az engedély mellett is áll)",
           "verdict": "CAUGHT",
-          "qualifying_witness": true
+          "qualifying_witness": false
         },
         {
           "id": "M181",
-          "what": "RSB-01 / R47 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon üresre számolódik, tehát MINDEN érintett adatkörre jogosult olvasó sem kapja meg az eredményt. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
+          "what": "SGR-01 / R49 — A JOGOS KIADÁS TÉVES TILTÁSA: a plafon-ellenőrzés MINDIG elutasít, tehát a valóban MINDKÉT adatkörre megadott jog mellett sem jön ki az eredmény. A kapu nem lehet fal (KUKA-122) — ezt az ELLENPÁRT ez a mutáció teszi láthatóvá",
           "verdict": "CAUGHT",
-          "qualifying_witness": false
+          "qualifying_witness": true
         },
         {
           "id": "M182",

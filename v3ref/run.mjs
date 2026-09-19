@@ -46,6 +46,8 @@ import {
 } from './basisLimit.mjs';
 // RSB-01 (K05-DSC-c engedő ága, R47) — az adatkörönkénti olvasási döntés közös kapuja.
 import { scopeReleaseDecision, recordedScopeLimit, RSB_CONTRACT } from './releaseScope.mjs';
+// SGR-01 (R49) — a TÉNYLEGESEN megadott, adatkörönkénti olvasási jog írója és olvasója.
+import { grantReadScope, revokeReadScope, readScopeGrantAt, SCOPE_GRANT_CONTRACT } from './scopeGrant.mjs';
 
 // A KANONIKUS NORMA-VERZIÓ EGYETLEN HELYRŐL JÖN (R53 §5). Korábban itt egy KÉZZEL ÍRT `'R32/K01-K16'`
 // állt, miközben a norma-index ugyanezt külön tárolta — két, részben átfedő igazságforrás, ami
@@ -56,6 +58,37 @@ export const IMPL_VERSION = 'v3ref-0.1';
 const T0 = '2026-09-09T08:00:00.000Z';
 
 // ── Világ-építő: a KÉT VILÁG csak a védett tényben tér el (A04) ─────────────────────────────────
+/**
+ * VALÓDI OLVASÁSI JOG EGY PRÓBA-VILÁGBAN (SGR-01, R49) — NEM megkerülő kapcsoló.
+ *
+ * A külső ellenőrző fél kikötése: *„az engedélyezett pozitív világok valódi engedélyt kapjanak, ne
+ * megkerülő kapcsolót."* Ezért ez a segéd a RENDSZER SAJÁT írójával adja meg a jogot: előbb
+ * rögzít egy határozatot (az alapot), majd `grantReadScope`-pal adatkörönként MEGADJA — tehát a
+ * plafon-ellenőrzés és a két idő-tengely is VALÓDI úton fut. Ha bármelyik lépés elakad, a hiba
+ * LÁTSZIK (dob), nem néma kihagyás (KUKA-020).
+ */
+function giveReadScopes(store, { subjectId, bookId, scopes = ['keszlet', 'arak'], at, grantedBy = 'sub_hatosag', basisId }) {
+  const id = basisId || `HAT-OLV-${bookId}`;
+  if (!store.get('SELECT 1 AS x FROM subject WHERE id = ?', grantedBy)) {
+    store.run('INSERT INTO subject (id, kind) VALUES (?,?)', grantedBy, 'person');
+  }
+  if (!store.get('SELECT 1 AS x FROM authority_basis WHERE basis_id = ?', id)) {
+    const rec = recordAuthorityBasis({
+      store, basisId: id, bookId, issuerSubject: grantedBy, effectiveAt: at, recordedAt: at,
+      allowedOperations: [INVITE_ISSUE_OPERATION], allowedRoles: ['user', 'admin'],
+      allowedScopes: [...KNOWN_DATA_SCOPES], evidenceRef: `doc:${id}`,
+    });
+    if (rec && rec.ok === false) throw new Error(`giveReadScopes: az ALAP nem jött létre — ${rec.reason}`);
+  }
+  for (const scope of scopes) {
+    const g = grantReadScope({
+      store, subjectId, bookId, scope, basisId: id, basisVersion: 1, grantedBy,
+      effectiveAt: at, recordedAt: at,
+    });
+    if (g.ok !== true) throw new Error(`giveReadScopes: a(z) ${scope} jog nem jött létre — ${g.reason}`);
+  }
+}
+
 function buildWorld({ inviteeHasAccount }) {
   const store = openStore();
   const clock = clockFrom(T0);
@@ -88,6 +121,11 @@ function buildWorld({ inviteeHasAccount }) {
   // korábbi próbák a megvonást ELŐFELTÉTELKÉNT használják — azok innentől ezen az alanyon át
   // vonnak meg (`revoke()` alább), tehát a mérésük tárgya változatlan.
   seedAdjudicator(store, clock, ['book_a']);
+  // R49/SGR-01 — A VILÁG OLVASÓI VALÓDI ADATKÖRI JOGOT KAPNAK. Enélkül a kiadás (helyesen) zárna,
+  // és a próbák NEM a saját tárgyukat mérnék, hanem a hiányzó engedélyt. A jog a rendszer SAJÁT
+  // íróján megy át, alappal és két tengellyel — nem kapcsolóval.
+  giveReadScopes(store, { subjectId: 'sub_issuer', bookId: 'book_a', at: clock.now() });
+  if (inviteeHasAccount) giveReadScopes(store, { subjectId: 'sub_invitee', bookId: 'book_a', at: clock.now() });
   return { store, clock };
 }
 
@@ -234,6 +272,9 @@ probe('P-A08', 'R32/A08 · K07 · C08 (javított)',
       w.store.run('INSERT INTO subject (id, kind) VALUES (?,?)', 'sub_worker', 'person');
       w.store.run('INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)',
         'sub_worker', 'book_a', 'user', w.clock.now());
+      // R49/SGR-01 — az olvasó VALÓDI adatköri jogot kap (az eredmény ár-adatkörű). A próba tárgya
+      // a MEGVONT KÖNYV-JOG, nem a hiányzó adatköri engedély: a kettőt külön kell tudni mérni.
+      giveReadScopes(w.store, { subjectId: 'sub_worker', bookId: 'book_a', at: w.clock.now() });
 
       let resolveCalls = 0;
       const opts = {
@@ -353,6 +394,9 @@ function twoActorWorld() {
   // REV-N3a: itt is kell NEVEZETT eljáró alany, mert a megvonás innentől hatáskörhöz kötött.
   // SZÁNDÉKOSAN nem tagja egyik könyvnek sem: a hatáskör nem a tagságból jön.
   seedAdjudicator(store, clock, ['book_a', 'book_b']);
+  // R49/SGR-01 — az olvasók VALÓDI adatköri jogot kapnak a saját könyvükben (a rendszer íróján át).
+  for (const s of ['sub_alice', 'sub_carol']) giveReadScopes(store, { subjectId: s, bookId: 'book_a', at: clock.now() });
+  giveReadScopes(store, { subjectId: 'sub_bob', bookId: 'book_b', at: clock.now() });
   return { store, clock };
 }
 // ── A MÚLT PILLANATKÉPE — TARTALOMMAL, NEM DARABSZÁMMAL (R55/F02) ──────────────────────────────
@@ -873,6 +917,8 @@ probe('P-CMD-finalize-gate', 'R32/K04 · K07 · R49 (saját teljesség-lelet)',
       store.run('INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)',
         'sub_alice', 'book_a', 'admin', clock.now());
       seedAdjudicator(store, clock, ['book_a']);
+      // R49/SGR-01 — VALÓDI adatköri jog: a próba tárgya a MEGVONT KÖNYV-JOG, nem a hiányzó engedély.
+      giveReadScopes(store, { subjectId: 'sub_alice', bookId: 'book_a', at: clock.now() });
       return { store, clock };
     };
     const pull = (w) => revoke(w, 'sub_alice', 'book_a');
@@ -2321,6 +2367,11 @@ function buildTwoBookWorld() {
   // A KIADÓ (R75/F01): külön alany, mert a kiadási utat ŐRAJTA mérjük — a tiltott ELJÁRÓ nem
   // tilthat. Hatáskört nem kap itt: azt a próba adja meg, könyvenként, kimondottan.
   w.store.run('INSERT INTO subject (id, kind) VALUES (?,?)', 'sub_biro', 'person');
+  // R49/SGR-01 — a két könyv olvasói is VALÓDI jogot kapnak, adatkörönként.
+  for (const b of ['book_a', 'book_b']) {
+    giveReadScopes(w.store, { subjectId: 'sub_dolgozo', bookId: b, at: w.clock.now() });
+  }
+  giveReadScopes(w.store, { subjectId: 'sub_kollega', bookId: 'book_a', at: w.clock.now() });
   return w;
 }
 
@@ -2994,11 +3045,13 @@ probe('P-REV-ban-record-shape', 'R77/F03 · REV-N5b · K09 · K15 · KUKA-020 ·
     } finally { w.store.close(); }
   });
 
-// ── A JOGALAP-VILÁG (R47) — a MEGLÉVŐ meghívó-lánccal, nem kézzel írt sorokkal ─────────────────
+// ── A JOGALAP-VILÁG (R47, JAVÍTVA R49) — a MEGLÉVŐ lánccal, nem kézzel írt sorokkal ───────────
 //
-// MIÉRT a teljes lánc: a tagságra átvitt adatkör-korlát (`grant_basis`) CSAK a beváltásból
-// születik meg. Ha a próba kézzel írna `grant_basis` sort, a saját előfeltevését igazolná vissza
-// (KUKA-054) — itt a rendszer SAJÁT útján keletkezik a korlát.
+// MI VÁLTOZOTT AZ R49-BEN. Az R48-as világ a MEGHÍVÓ-lánc `scope` tengelyéből származtatta az
+// olvasási jogot. A külső ellenőrző fél megmutatta, hogy ez a KIADÓ FELSŐ KORLÁTJA, nem a címzett
+// joga: a `scopes: ['keszlet','arak']` határozat alatt kiadott, CSAK KÉSZLETRE szóló meghívó
+// címzettje megkapta az árat. Innentől a világ KÜLÖN kezeli a hármat: (1) a határozat plafonját,
+// (2) a ténylegesen MEGADOTT olvasási jogot (SGR-01), (3) a tagságra átvitt korlátot.
 function basisWorld() {
   const T0 = BIT.MARCH;
   const T1 = BIT.MARCH_LATER;
@@ -3006,24 +3059,31 @@ function basisWorld() {
   store.run('INSERT INTO book (id, name) VALUES (?,?)', 'a', 'A könyv');
   for (const id of ['vezeto', 'kiado', 'biro']) store.run('INSERT INTO subject VALUES (?,?)', id, 'person');
   grantMembership({ store, subjectId: 'kiado', bookId: 'a', role: 'admin', at: T0 });
+  // A HATÁROZAT: MINDKÉT adatkörre ADHAT felhatalmazást — ez a PLAFON, nem a jog.
+  recordAuthorityBasis({
+    store, basisId: 'HAT', bookId: 'a', issuerSubject: 'vezeto', effectiveAt: T0, recordedAt: T0,
+    allowedOperations: [INVITE_ISSUE_OPERATION], allowedRoles: ['user', 'admin'],
+    allowedScopes: ['keszlet', 'arak'], evidenceRef: 'doc:HAT',
+  });
   let n = 0;
-  const readerWithScopes = (scopes) => {
+  // A TAGSÁG a VALÓDI meghívó-láncon születik; az OLVASÁSI JOGOT külön, kimondottan adjuk meg.
+  const member = (grantedScopes) => {
     n += 1;
     const sub = `olv${n}`;
-    const basisId = `HAT-${n}`;
     store.run('INSERT INTO subject VALUES (?,?)', sub, 'person');
     store.run('INSERT INTO external_id VALUES (?,?,?,?,?,?,?,?,NULL)',
       sub, 'email', 'self_asserted', 'n/a', `${sub}@p.invalid`, `${sub}@p.invalid`, 'one_to_one', T0);
     store.run('INSERT INTO account VALUES (?,?)', sub, 'jelszo');
     store.run('INSERT INTO channel_proof VALUES (?,?,?,?)', sub, 'email', `${sub}@p.invalid`, T0);
-    recordAuthorityBasis({ store, basisId, bookId: 'a', issuerSubject: 'vezeto',
-      effectiveAt: T0, recordedAt: T0, allowedOperations: [INVITE_ISSUE_OPERATION],
-      allowedRoles: ['user'], allowedScopes: scopes, evidenceRef: `doc:${basisId}` });
     const iv = issueInviteUnderBasis({ store, token: `tok${n}`, bookId: 'a', inviteeNamespace: 'email',
       inviteeValue: `${sub}@p.invalid`, offeredRole: 'user', issuerSubject: 'kiado',
-      expiresAt: '2026-12-31T00:00:00.000Z', basisId, scope: scopes[0], issuedAt: T0 });
+      expiresAt: '2026-12-31T00:00:00.000Z', basisId: 'HAT', scope: 'keszlet', issuedAt: T0 });
     const rd = redeemInvite({ store, token: `tok${n}`, actingSubjectId: sub, clock: clockFrom(T1) });
-    return { sub, basisId, built: iv.ok === true && rd.ok === true };
+    const grants = (grantedScopes || []).map((scope) => grantReadScope({
+      store, subjectId: sub, bookId: 'a', scope, basisId: 'HAT', basisVersion: 1,
+      grantedBy: 'vezeto', effectiveAt: T0, recordedAt: T0,
+    }));
+    return { sub, built: iv.ok === true && rd.ok === true && grants.every((g) => g.ok === true) };
   };
   const put = (key, result) => submitCommand({ store, clock: clockFrom(T1), idemKey: key, actor: 'kiado',
     bookId: 'a', type: 'stock.receipt', typeVersion: '1', declared: { sku: key },
@@ -3031,122 +3091,125 @@ function basisWorld() {
   const read = (key, sub, credentials) => readCommandResult({ store, clock: clockFrom(T1), idemKey: key,
     requester: sub, bookId: 'a', actor: 'kiado', credentials });
   const priced = (r) => r.ok === true && r.result && Object.prototype.hasOwnProperty.call(r.result, 'unit_price');
-  return { store, T0, T1, readerWithScopes, put, read, priced };
+  return { store, T0, T1, member, put, read, priced };
 }
 
-probe('P-DSC-scope-basis', 'R47 · K05-DSC-c · ORG-N1a · ORG-N1b · REV-N5b · KUKA-073 · KUKA-022',
-  'AZ ADATKÖRI OLVASÁSI DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN — a tiltás hiánya nem engedély',
+probe('P-DSC-scope-basis', 'R47 · R49 · K05-DSC-c · ORG-N1a · ORG-N1b · REV-N5b · KUKA-073 · KUKA-022',
+  'A KIADÁS A TÉNYLEGESEN MEGADOTT OLVASÁSI JOGBÓL DÖNT — a plafon csak szűkít, a hiány zár',
   () => {
     const w = basisWorld();
     try {
-      // A LELET, ADATON (R47 — előbb mérés, azután kód): a `scopes: ['keszlet']`-re korlátozott
-      // alap alatt született tagság a VEGYES eredményt ÁREGYÜTT kapta meg, mert a kiadási úton
-      // semmi nem kérdezte meg a rögzített korlátot.
       w.put('vegyes', { qty: '1.000', unit_price: 12345 });
       w.put('tiszta', { qty: '11.000' });
-      const A = w.readerWithScopes(['keszlet']);            // CSAK készlet
-      const B = w.readerWithScopes(['keszlet', 'arak']);    // MINDKÉT adatkör
+      // A HÁROM ALANY KÜLÖNBSÉGE MAGA A BIZONYÍTÁS: mindhárom tagsága UGYANAZON a tág (keszlet+arak)
+      // határozaton született — csak a MEGADOTT jog tér el.
+      const NINCS = w.member([]);                      // tag, de EGYETLEN adatkörre sincs joga
+      const KESZLET = w.member(['keszlet']);           // SZŰK adás a TÁG keretből
+      const MINDEN = w.member(['keszlet', 'arak']);    // valóban MINDKÉT adatkörre megadva
 
-      // (a) A DÖNTÉS A RÖGZÍTETT ALAPBÓL JÖN, NEM A KÉRŐ CÍMKÉJÉBŐL. A készlet-alapú olvasó a
-      //     tiszta készlet-eredményt MEGKAPJA (ellenpár: a kapu nem általános zár — KUKA-092),
-      //     a vegyeset viszont NEM — sem hamis címkével, sem címke nélkül (KUKA-073).
-      const aClean = w.read('tiszta', A.sub, { dataScope: 'keszlet' });
-      const aMixed = w.read('vegyes', A.sub, { dataScope: 'keszlet' });
-      const aLied = w.read('vegyes', A.sub, { dataScope: 'arak' });
-      const aNoLabel = w.read('vegyes', A.sub, undefined);
-      const aDecision = scopeReleaseDecision({ store: w.store, subjectId: A.sub, bookId: 'a', scope: 'arak', nowIso: w.T1 });
-      const aOk = A.built && aClean.ok === true && aClean.result.qty === '11.000'
-        && [aMixed, aLied, aNoLabel].every((r) => r.ok === false)
-        && ![aMixed, aLied, aNoLabel].some(w.priced)
-        && aDecision.allowed === false && aDecision.reason === 'outside_basis_scopes'
-        && aDecision.basis === 'authority_basis';
+      // (a) A HIÁNYZÓ ENGEDÉLY ZÁR (R49/F49-01). A tagság önmagában nem olvasási jog: a tiszta
+      //     készlet-eredmény SEM jön ki. A válasz a `not_available` — a létezést nem árulja el.
+      const nClean = w.read('tiszta', NINCS.sub, { dataScope: 'keszlet' });
+      const nMixed = w.read('vegyes', NINCS.sub, { dataScope: 'keszlet' });
+      const nDecision = scopeReleaseDecision({ store: w.store, subjectId: NINCS.sub, bookId: 'a', scope: 'keszlet', nowIso: w.T1 });
+      const aOk = NINCS.built && nClean.ok === false && nMixed.ok === false && !w.priced(nMixed)
+        && nDecision.allowed === false && nDecision.reason === 'no_scope_grant'
+        && nDecision.basis === 'scope_grant';
 
-      // (b) ELLENPÁR: MINDEN érintett adatkörre jogosult olvasónak a VEGYES eredmény KIJÖN.
+      // (b) SZŰK ADÁS A TÁG KERETBŐL (R49/F49-02). A határozat MINDKÉT adatkörre adhatna, de ennek
+      //     az alanynak CSAK készletet adtak: a tiszta eredmény kijön, a vegyes NEM — sem hamis
+      //     címkével, sem címke nélkül. A megadható jog nem a megadott.
+      const kClean = w.read('tiszta', KESZLET.sub, { dataScope: 'keszlet' });
+      const kMixed = w.read('vegyes', KESZLET.sub, { dataScope: 'keszlet' });
+      const kLied = w.read('vegyes', KESZLET.sub, { dataScope: 'arak' });
+      const kNoLabel = w.read('vegyes', KESZLET.sub, undefined);
+      const kDecision = scopeReleaseDecision({ store: w.store, subjectId: KESZLET.sub, bookId: 'a', scope: 'arak', nowIso: w.T1 });
+      const bOk = KESZLET.built && kClean.ok === true && kClean.result.qty === '11.000'
+        && [kMixed, kLied, kNoLabel].every((r) => r.ok === false)
+        && ![kMixed, kLied, kNoLabel].some(w.priced)
+        && kDecision.allowed === false && kDecision.reason === 'no_scope_grant';
+
+      // (c) ELLENPÁR — VALÓDI, MINDKÉT adatkörre MEGADOTT jog mellett a vegyes eredmény KIJÖN.
       //     Enélkül a kapu egy „soha semmit" alakkal is teljesülne (KUKA-049 · KUKA-122).
-      const bMixed = w.read('vegyes', B.sub, { dataScope: 'keszlet' });
-      const bOk = B.built && bMixed.ok === true && bMixed.result.unit_price === 12345
-        && bMixed.result.qty === '1.000';
+      const mMixed = w.read('vegyes', MINDEN.sub, { dataScope: 'keszlet' });
+      const mDecision = scopeReleaseDecision({ store: w.store, subjectId: MINDEN.sub, bookId: 'a', scope: 'arak', nowIso: w.T1 });
+      const cOk = MINDEN.built && mMixed.ok === true && mMixed.result.unit_price === 12345
+        && mMixed.result.qty === '1.000'
+        && mDecision.allowed === true && mDecision.basis === 'scope_grant'
+        && mDecision.reason === 'scope_granted_and_within_limits';
 
-      // (c) A KIMONDOTT TILTÁS AZ ENGEDÉLY MELLETT IS ÉRVÉNYESÜL — és nem válik általános zárrá.
+      // (d) A KIMONDOTT TILTÁS AZ ENGEDÉLY MELLETT IS ÉRVÉNYESÜL — és nem válik általános zárrá.
       w.store.run(`INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)
-                   VALUES (?,?,?,?,?,?)`, B.sub, 'data_scope', 'data_scope_withdrawn', 'arak', 'biro', w.T0);
-      const bBanned = w.read('vegyes', B.sub, { dataScope: 'keszlet' });
-      const bStillStock = w.read('tiszta', B.sub, { dataScope: 'keszlet' });
-      const banDecision = scopeReleaseDecision({ store: w.store, subjectId: B.sub, bookId: 'a', scope: 'arak', nowIso: w.T1 });
-      const cOk = bBanned.ok === false && !w.priced(bBanned)
-        && bStillStock.ok === true && bStillStock.result.qty === '11.000'
+                   VALUES (?,?,?,?,?,?)`, MINDEN.sub, 'data_scope', 'data_scope_withdrawn', 'arak', 'biro', w.T0);
+      const mBanned = w.read('vegyes', MINDEN.sub, { dataScope: 'keszlet' });
+      const mStillStock = w.read('tiszta', MINDEN.sub, { dataScope: 'keszlet' });
+      const banDecision = scopeReleaseDecision({ store: w.store, subjectId: MINDEN.sub, bookId: 'a', scope: 'arak', nowIso: w.T1 });
+      const dOk = mBanned.ok === false && !w.priced(mBanned)
+        && mStillStock.ok === true && mStillStock.result.qty === '11.000'
         && banDecision.allowed === false && banDecision.basis === 'explicit_ban';
 
-      // (d) A MEGVONT ALAP NEM NYIT. A lepecsételt korlát nem élheti túl a határozatát: a
-      //     visszavonás után ugyanaz az olvasó ugyanazt a tiszta eredményt SEM kapja meg.
-      w.store.run('UPDATE authority_basis SET revoked_at = ? WHERE basis_id = ?', w.T0, A.basisId);
-      const afterRevoke = w.read('tiszta', A.sub, { dataScope: 'keszlet' });
-      const revokedDecision = scopeReleaseDecision({ store: w.store, subjectId: A.sub, bookId: 'a', scope: 'keszlet', nowIso: w.T1 });
-      // A LEJÁRT ALAP UGYANÍGY NEM NYIT (a második, független kivezetési ág).
-      w.store.run('UPDATE authority_basis SET revoked_at = NULL, expires_at = ? WHERE basis_id = ?', w.T0, A.basisId);
-      const afterExpiry = w.read('tiszta', A.sub, { dataScope: 'keszlet' });
-      const expiredDecision = scopeReleaseDecision({ store: w.store, subjectId: A.sub, bookId: 'a', scope: 'keszlet', nowIso: w.T1 });
-      // KIMONDOTT HATÁROK: (1) az IDEGEN KÖNYVRE szóló határozatot a `basisAsOf` zárja
-      // (`basis_belongs_to_other_book`) — azt a P-ORG-basis méri, nem duplikáljuk ide; (2) a
-      // TAGSÁGOT nem ez a kapu dönti el, hanem a könyv-szintű jog, ami ELŐBB fut.
-      const dOk = afterRevoke.ok === false && revokedDecision.allowed === false
-        && revokedDecision.reason === 'basis_revoked'
-        && afterExpiry.ok === false && expiredDecision.allowed === false
-        && expiredDecision.reason === 'basis_expired';
+      // (e) A MEGADOTT JOG MEGVONÁSA ZÁR — és ez VALÓDI kiadás-különbség: ugyanaz az olvasó, ugyanaz
+      //     az eredmény, előtte KIADVA, utána ZÁRVA.
+      const beforeRevoke = w.read('tiszta', KESZLET.sub, { dataScope: 'keszlet' });
+      revokeReadScope({ store: w.store, subjectId: KESZLET.sub, bookId: 'a', scope: 'keszlet', at: w.T0 });
+      const afterRevoke = w.read('tiszta', KESZLET.sub, { dataScope: 'keszlet' });
+      const revokedDecision = scopeReleaseDecision({ store: w.store, subjectId: KESZLET.sub, bookId: 'a', scope: 'keszlet', nowIso: w.T1 });
+      const eOk = beforeRevoke.ok === true && afterRevoke.ok === false
+        && revokedDecision.allowed === false && revokedDecision.reason === 'scope_grant_revoked';
 
-      // (e) A RÖGZÍTETT KORLÁT HIÁNYA NEVEZETT, ÉS NEM ADATKÖRI ENGEDÉLY. A mai mag minden
-      //     tagsága ilyen (nyers sor, napló nélkül): a kiadás megtörténik, de a döntés KIMONDJA,
-      //     hogy a KÖNYV-tagságon áll — a tiltás hiánya nem engedély (K05-DSC-c nyitott ága).
-      w.store.run('INSERT INTO subject VALUES (?,?)', 'olv_nyers', 'person');
-      w.store.run('INSERT INTO membership VALUES (?,?,?,?,NULL)', 'olv_nyers', 'a', 'user', w.T0);
-      const rawRead = w.read('vegyes', 'olv_nyers', { dataScope: 'keszlet' });
-      const rawDecision = scopeReleaseDecision({ store: w.store, subjectId: 'olv_nyers', bookId: 'a', scope: 'arak', nowIso: w.T1 });
-      const rawLimit = recordedScopeLimit({ store: w.store, subjectId: 'olv_nyers', bookId: 'a', validAt: w.T1 });
-      const eOk = rawRead.ok === true && rawDecision.allowed === true
-        && rawDecision.basis === 'membership_only' && rawDecision.weaker === true
-        && rawDecision.reason === 'no_declared_basis'
-        && rawLimit.declared === false
-        && RSB_CONTRACT.stated_limits.some((t) => t.includes('membership_only'));
+      // (f) A JOG NEM ÉLI TÚL AZ ALAPJÁT: a határozat megvonása után a MEGADOTT jog sem nyit —
+      //     és ez is VALÓDI kiadás-különbség (előtte kiadva, utána zárva), nem csak indok-csere.
+      const beforeBasisRevoke = w.read('vegyes', MINDEN.sub, { dataScope: 'keszlet' });  // tiltott: arak
+      const stockBefore = w.read('tiszta', MINDEN.sub, { dataScope: 'keszlet' });
+      w.store.run('UPDATE authority_basis SET revoked_at = ? WHERE basis_id = ?', w.T0, 'HAT');
+      const stockAfter = w.read('tiszta', MINDEN.sub, { dataScope: 'keszlet' });
+      const basisDecision = scopeReleaseDecision({ store: w.store, subjectId: MINDEN.sub, bookId: 'a', scope: 'keszlet', nowIso: w.T1 });
+      w.store.run('UPDATE authority_basis SET revoked_at = NULL, expires_at = ? WHERE basis_id = ?', w.T0, 'HAT');
+      const stockExpired = w.read('tiszta', MINDEN.sub, { dataScope: 'keszlet' });
+      const expiredDecision = scopeReleaseDecision({ store: w.store, subjectId: MINDEN.sub, bookId: 'a', scope: 'keszlet', nowIso: w.T1 });
+      w.store.run('UPDATE authority_basis SET expires_at = NULL WHERE basis_id = ?', 'HAT');
+      const fOk = beforeBasisRevoke.ok === false && stockBefore.ok === true
+        && stockAfter.ok === false && basisDecision.reason === 'basis_revoked'
+        && stockExpired.ok === false && expiredDecision.reason === 'basis_expired';
 
-      // (f) A LÉTEZÉSI HATÁR MEGMARAD (KUKA-084): az adatkör-elutasítás BÁJTRA ugyanaz, mint a
-      //     nem létező hivatkozásé — a válasz nem mondhatja meg, hogy a parancs létezik.
-      const ghost = w.read('nincs-ilyen-kulcs', A.sub, { dataScope: 'keszlet' });
-      const fOk = JSON.stringify(afterRevoke) === JSON.stringify(ghost);
+      // (g) A LÉTEZÉSI HATÁR MEGMARAD (KUKA-084): az adatkör-elutasítás BÁJTRA ugyanaz, mint a nem
+      //     létező hivatkozásé — a válasz nem mondhatja meg, hogy a parancs létezik.
+      const ghost = w.read('nincs-ilyen-kulcs', NINCS.sub, { dataScope: 'keszlet' });
+      const gOk = JSON.stringify(nClean) === JSON.stringify(ghost);
 
-      // (g) HATÁLYOSULÁS ÉS LELTÁR EGY PONTON, ÉS AZ ELUTASÍTÁS NEM ÍR LELTÁRT (R47/4).
+      // (h) HATÁLYOSULÁS ÉS LELTÁR EGY PONTON, ÉS AZ ELUTASÍTÁS NEM ÍR LELTÁRT (R47/4 · R49).
       const rows = w.store.all('SELECT * FROM disclosure ORDER BY id');
-      const forB = rows.filter((r) => r.recipient === B.sub && r.view === 'command_result');
-      const forA = rows.filter((r) => r.recipient === A.sub && r.view === 'command_result');
-      const gOk = rows.every((r) => r.at === w.T1)              // EGY hatályosulási pont
-        && forB.length === 2                                    // B kétszer olvasott sikerrel
-        && forA.length === 1                                    // A-nak CSAK a tiszta eredmény ment ki
-        // A LELTÁR A TÉNYLEGESEN KIADOTT MEZŐ-UTAKAT hordozza: A sorában ÁRMEZŐ nincs, B vegyes
-        // olvasásában VAN — a kettő különbsége maga a bizonyíték (nem a darabszám).
-        && JSON.parse(forA[0].fields).some((f) => f.endsWith('k:qty'))
-        && !JSON.parse(forA[0].fields).some((f) => f.includes('unit_price'))
-        && forB.some((r) => JSON.parse(r.fields).some((f) => f.includes('unit_price')))
-        && rows.filter((r) => r.recipient === 'olv_nyers').length === 1;
+      const forK = rows.filter((r) => r.recipient === KESZLET.sub && r.view === 'command_result');
+      const forM = rows.filter((r) => r.recipient === MINDEN.sub && r.view === 'command_result');
+      const forN = rows.filter((r) => r.recipient === NINCS.sub);
+      const hOk = rows.every((r) => r.at === w.T1)                       // EGY hatályosulási pont
+        && forN.length === 0                                            // engedély nélkül NINCS kiadás
+        && forK.every((r) => !JSON.parse(r.fields).some((f) => f.includes('unit_price')))
+        && forM.some((r) => JSON.parse(r.fields).some((f) => f.includes('unit_price')));
 
       return {
-        expected: 'az adatköri döntés a RÖGZÍTETT alapból jön (nem a kérő címkéjéből) · a kimondott '
-          + 'tiltás az engedély mellett is zár, de nem általános zár · megvont és idegen könyvre '
-          + 'szóló alap nem nyit · a rögzített korlát HIÁNYA nevezett és NEM adatköri engedély · a '
-          + 'létezési határ megmarad · a leltár EGY hatályosulási ponton áll, elutasításra nem ír',
-        actual: `A(csak készlet): tiszta=${aClean.ok ? 'kiadva' : 'zárva'} vegyes=${aMixed.ok ? 'KIADVA(!)' : 'zárva'}`
-          + ` (${aDecision.reason}) · B(mindkettő): vegyes=${bMixed.ok ? 'kiadva' : 'ZÁRVA(!)'}`
-          + ` · tiltás után: vegyes=${bBanned.ok ? 'KIADVA(!)' : 'zárva'} tiszta=${bStillStock.ok ? 'kiadva' : 'ZÁRVA(!)'}`
-          + ` · megvont alap: ${revokedDecision.reason} · lejárt alap: ${expiredDecision.reason}`
-          + ` · rögzített korlát nélkül: ${rawDecision.basis}/${rawDecision.reason} (kiadva=${rawRead.ok})`
-          + ` · létezési határ azonos=${fOk} · leltár-sorok=${rows.length}`,
-        pass: aOk && bOk && cOk && dOk && eOk && fOk && gOk,
+        expected: 'a HIÁNYZÓ adatköri engedély ZÁR · a SZŰK adás a TÁG keretből nem tágul · a valóban '
+          + 'megadott jog mellett a vegyes eredmény KIJÖN · a kimondott tiltás az engedély mellett is '
+          + 'zár, de nem általános zár · a jog MEGVONÁSA és az ALAP megvonása/lejárata is ZÁR '
+          + '(kiadva → zárva) · a létezési határ megmarad · a leltár EGY ponton áll, engedély nélkül '
+          + 'nem születik sor',
+        actual: `NINCS jog: tiszta=${nClean.ok ? 'KIADVA(!)' : 'zárva'} (${nDecision.reason})`
+          + ` · CSAK készlet: tiszta=${kClean.ok ? 'kiadva' : 'ZÁRVA(!)'} vegyes=${kMixed.ok ? 'KIADVA(!)' : 'zárva'} (${kDecision.reason})`
+          + ` · MINDKETTŐ: vegyes=${mMixed.ok ? 'kiadva' : 'ZÁRVA(!)'}`
+          + ` · tiltás után: vegyes=${mBanned.ok ? 'KIADVA(!)' : 'zárva'} tiszta=${mStillStock.ok ? 'kiadva' : 'ZÁRVA(!)'}`
+          + ` · jog megvonva: ${beforeRevoke.ok ? 'kiadva' : '?'}→${afterRevoke.ok ? 'KIADVA(!)' : 'zárva'} (${revokedDecision.reason})`
+          + ` · alap megvonva: ${stockBefore.ok ? 'kiadva' : '?'}→${stockAfter.ok ? 'KIADVA(!)' : 'zárva'} (${basisDecision.reason})`
+          + ` · alap lejárt: ${stockExpired.ok ? 'KIADVA(!)' : 'zárva'} (${expiredDecision.reason})`
+          + ` · létezési határ azonos=${gOk} · leltár-sorok=${rows.length} (engedély nélküli olvasóé: ${forN.length})`,
+        pass: aOk && bOk && cOk && dOk && eOk && fOk && gOk && hOk,
         asserts: {
-          'A-K05-c-release-scope-decision-comes-from-the-recorded-basis-not-the-caller-label': aOk,
-          'A-K05-c-reader-entitled-to-every-affected-scope-still-gets-the-result': bOk,
-          'A-K05-c-explicit-ban-holds-alongside-a-permitting-basis': cOk,
-          'A-K05-c-revoked-or-expired-basis-does-not-open': dOk,
-          'A-K05-c-undeclared-limit-is-named-as-membership-only-not-a-scope-permission': eOk,
-          'A-K05-c-refusal-keeps-the-existence-boundary': fOk,
-          'A-K05-c-one-effectuation-point-for-decision-and-ledger': gOk,
+          'A-K05-c-missing-scope-grant-closes-the-release': aOk,
+          'A-K05-c-narrow-grant-from-a-broad-basis-stays-narrow': bOk,
+          'A-K05-c-reader-entitled-to-every-affected-scope-still-gets-the-result': cOk,
+          'A-K05-c-explicit-ban-holds-alongside-a-permitting-basis': dOk,
+          'A-K05-c-revoked-grant-or-revoked-expired-basis-closes-a-previously-open-release': eOk && fOk,
+          'A-K05-c-refusal-keeps-the-existence-boundary': gOk,
+          'A-K05-c-one-effectuation-point-for-decision-and-ledger': hOk,
         },
       };
     } finally { w.store.close(); }
@@ -3542,6 +3605,9 @@ probe('P-CMD-release-effectuation', 'R81/F04 · REV-N3a · K05 · K07 · KUKA-00
       store.run('INSERT INTO subject VALUES (?,?)', 'sub_olvaso', 'person');
       store.run('INSERT INTO book VALUES (?,?)', 'book_a', 'A könyv');
       store.run('INSERT INTO membership VALUES (?,?,?,?,?)', 'sub_olvaso', 'book_a', 'user', T0, revokedAt);
+      // R49/SGR-01 — VALÓDI adatköri jog T0-tól: a mérés tárgya a HATÁLYOSULÁSI PONT, nem a
+      // hiányzó engedély. A kettőt külön kell tudni mérni (KUKA-039: a fél őr).
+      giveReadScopes(store, { subjectId: 'sub_olvaso', bookId: 'book_a', at: T0 });
       // A parancs MINDIG élő tagsággal, T0-n születik: a mérés a KIADÁSRÓL szól, nem az írásról.
       submitCommand({
         store, clock: { now: () => T0 }, idemKey: 'k', actor: 'sub_olvaso', bookId: 'book_a',

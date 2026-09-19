@@ -436,28 +436,33 @@ export const MODULE_CONTRACT_NORMS = Object.freeze([
           built: 'a TILTÓ ág mérve: a tiltott mezőt tartalmazó VEGYES eredményt a rendszer EGÉSZBEN '
             + 'megtagadja (nem vetít mezőt), és a készletjog NEM ad ármezőt — P-REV-result-scope '
             + '(aOk/bOk), az `A-ORG-N1b-mixed-result-is-refused-as-a-whole` állítással.',
-          // R47 — AZ ENGEDŐ ÁG MEGÉPÜLT ÉS MÉRVE VAN (RSB-01). A kiadás közös határán EGY nevezett
-          // kapu dönt adatkörönként, a MEGLÉVŐ jogalap-láncból: kimondott TILTÁS (REV-N5b) → a
-          // tagságra átvitt adatkör-korlát (ORG-N1b) → a határozat MAI állapota (ORG-N1a). A
-          // kiadás nem lehet tágabb a rögzített alapnál; a korlát HIÁNYA pedig NEVEZETT, gyengébb
-          // alap (`membership_only`), nem hallgatólagos engedély.
-          built_r47: 'az ENGEDŐ ág mérve, adaton: a `scopes: [keszlet]`-re korlátozott alap alatt '
-            + 'született tagság a tiszta készlet-eredményt MEGKAPJA, a vegyeset (ár is) NEM — sem '
-            + 'hamis kérői címkével, sem címke nélkül; a MINDEN érintett adatkörre jogosult olvasó '
-            + 'ugyanazt a vegyes eredményt MEGKAPJA (ellenpár); a kimondott TILTÁS az engedély '
-            + 'mellett is zár, de nem válik általános zárrá; a MEGVONT és a LEJÁRT határozat nem '
-            + 'nyit; a nemleges válasz BÁJTRA azonos a nem létező hivatkozásáéval; a döntés és a '
-            + 'kiadási leltár EGY hatályosulási ponton áll. Falszifikálva: M177 · M178 · M179 · '
-            + 'M180 · M181 · M182.',
-          remaining: 'KÉT, kimondottan ÜZLETI döntésre váró pont marad. (1) Ha a tagsághoz NINCS '
-            + 'rögzített adatkör-korlát, a kiadás ma a KÖNYV-tagságon áll — a kapu ezt `membership_only` '
-            + 'néven kiírja, de hogy egy ilyen tag MIT láthat, arra a normákból nem vezethető le '
-            + 'válasz: nem találunk ki hallgatólagos „mindenhez jogot". (2) A felhatalmazás '
-            + 'adatkör-tengelye ma SZABAD SZÖVEG (a meglévő világok `stock`/`price` szavakat '
-            + 'használnak), a tartalom-besorolás viszont ZÁRT halmaz (`keszlet` · `arak`); az '
-            + 'ismeretlen szótárú korlát ZÁR (`basis_scope_vocabulary_unknown`), a két szótár '
-            + 'megfeleltetése üzleti döntés, gép nem tippelheti meg. A MEZŐVETÍTÉS hiánya továbbra '
-            + 'is a klauzula SAJÁT feltétele, nem adósság.',
+          // R47 → R49 — AZ ENGEDŐ ÁG MEGÉPÜLT, ÉS A KÜLSŐ FÉL KÉT HIBÁJÁT JAVÍTVA ÁLL.
+          //
+          // Az R47-es alak a PLAFONT (a tagságra átvitt korlátot) mérte, és abból következtetett
+          // engedélyre. Az R49 két esetet mutatott meg, változatlan üzleti kódon: (1) rögzített
+          // adatköri engedély NÉLKÜL is kiment az ár; (2) a TÁG határozat alatt kiadott, SZŰK
+          // meghívó címzettje a teljes felső korlátot kapta. Innentől a kiadás a TÉNYLEGESEN
+          // MEGADOTT jogból dönt (SGR-01), a plafon csak SZŰKÍT, a hiány ZÁR.
+          built_r49: 'a kiadás a TÉNYLEGESEN megadott, alanyra + könyvre + EGY adatkörre szóló '
+            + 'olvasási jogból dönt (SGR-01: saját tábla, KÉT idő-tengely, KÖTELEZŐ rögzített alap, '
+            + 'a megadáskor is ellenőrzött plafon). Mérve: a rögzített engedély HIÁNYA ZÁR (a tiszta '
+            + 'készlet-eredmény sem jön ki) · a TÁG határozat alatt SZŰKEN megadott jog nem tágul '
+            + '(hamis kérői címkével és címke nélkül sem) · a valóban MINDKÉT adatkörre megadott jog '
+            + 'mellett a vegyes eredmény KIJÖN (ellenpár) · a kimondott tiltás az engedély mellett is '
+            + 'zár, de nem általános zár · a JOG megvonása és az ALAP megvonása/lejárata egyaránt '
+            + 'ZÁR, kiadva→zárva különbségként mérve · a nemleges válasz BÁJTRA azonos a nem létező '
+            + 'hivatkozásáéval · a döntés és a kiadási leltár EGY hatályosulási ponton áll, és '
+            + 'engedély nélküli olvasónak leltár-sor sem születik. Falszifikálva: M177 · M178 · M179 '
+            + '· M180 · M181 · M182.',
+          remaining: 'EGY, kimondottan ÜZLETI döntésre váró pont marad, és egy kimondott határ. '
+            + '(1) A MEGHÍVÓ `scope` mezője MÉRVE a meghívó-KIADÁS tengelye (`invite_basis.scope`), '
+            + 'nem olvasási jog — ezért a beváltás ma NEM ad adatköri olvasási jogot; hogy a jövőben '
+            + 'a meghívó hordozzon-e felajánlott olvasási adatköröket, ÜZLETI döntés, és gép nem '
+            + 'vezetheti le. (2) A felhatalmazás adatkör-tengelye szabad szöveg, a tartalom-'
+            + 'besorolás zárt halmaz; az olvasási JOG csak a zárt halmaz nevére adható '
+            + '(`unknown_data_scope`), az ismeretlen szótárú PLAFON pedig ZÁR '
+            + '(`basis_scope_vocabulary_unknown`) — a megfeleltetés üzleti döntés, néma fordítás '
+            + 'nincs. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.',
         }),
       }),
       Object.freeze({

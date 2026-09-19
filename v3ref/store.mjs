@@ -673,6 +673,35 @@ CREATE TABLE access_refusal (
   reason     TEXT NOT NULL,
   detail     TEXT
 );
+-- ═══ SGR-01 — A TÉNYLEGESEN MEGADOTT OLVASÁSI JOG, ADATKÖRÖNKÉNT (K05-DSC-c, R49) ═══════════
+--
+-- MIÉRT SZÜLETETT. Az R48-as alak a TAGSÁGRA ÁTVITT KORLÁTOT ("grant_basis.granted_limit") mérte,
+-- és abból következtetett ENGEDÉLYRE. A külső ellenőrző fél két esetben mutatta meg, hogy ez nem
+-- elég (R49): (1) ahol semmilyen adatköri korlát nem volt rögzítve, a kiadás megtörtént; (2) ahol a
+-- HATÁROZAT készletre ÉS árra is adhatott volna felhatalmazást, de a MEGHÍVÓ csak készletre szólt,
+-- a címzett mégis megkapta az árat — a rendszer a teljes FELSŐ KORLÁTOT adta oda.
+--
+-- A KÉT TÉNY KÜLÖN: „mit ADHAT a kiadó" (plafon) és „mit ADTAK MEG ennek az alanynak" (jog). A
+-- plafon SZŰKÍT, de nem ad. Ez a tábla a MEGADOTT jogot tárolja — alanyra, könyvre és a tartalom
+-- ZÁRT adatkör-szótárának EGY nevére szólóan.
+--
+-- KÉT TENGELY, mint minden más jogváltozásnál ("effective_at" × "recorded_at"), és a megvonás a
+-- soron "revoked_at"-ként áll. A "basis_id"/"basis_version" KÖTELEZŐ: egy olvasási jog, aminek
+-- nincs rögzített alapja, pontosan az a „bizonyítatlan engedély", amit a klauzula tilt (ORG-N1a).
+CREATE TABLE scope_grant (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject_id    TEXT NOT NULL REFERENCES subject(id),
+  book_id       TEXT NOT NULL REFERENCES book(id),
+  scope         TEXT NOT NULL,
+  basis_id      TEXT NOT NULL,
+  basis_version INTEGER NOT NULL,
+  granted_by    TEXT NOT NULL,
+  recorded_at   TEXT NOT NULL,
+  effective_at  TEXT NOT NULL,
+  revoked_at    TEXT
+);
+CREATE INDEX scope_grant_who ON scope_grant (subject_id, book_id, scope);
+
 CREATE INDEX access_refusal_subject ON access_refusal (subject_id, book_id, at);
 `;
 

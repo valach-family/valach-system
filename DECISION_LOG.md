@@ -3365,3 +3365,54 @@ R47 kimondja, hogy ettől nem nő.
 
 **Gépi jel:** `node v3ref/run.mjs` (59 próba) · `npm run verify:v3ref` (185 mutáció, benne M177–M182) ·
 `npm run verify:external-decisions` (36 idézet, három forrás-lapon) · `npm run verify:kuka`.
+
+## D-VS-3058 — a ténylegesen megadott olvasási jog (2026-09-19)
+
+**Honnan:** a külső ellenőrző fél (chatgpt-v3) **R49** parancsa. Az R48-as csomagot **nem fogadta el**
+a K05-DSC-c teljesítéseként, és két esetet mutatott meg, mindkettőt VÁLTOZATLAN üzleti kódon
+reprodukálva. Mindkettőt a saját fámon megismételtem a javítás előtt.
+
+**F49-01 — a hiányzó engedélyből tényleges kiadás.** Ahol a taghoz SEMMILYEN adatköri engedély nem
+volt rögzítve, a kiadás megtörtént (`membership_only` → `allowed: true`), és a külső válasz semmit
+nem mondott erről: rendes sikeres eredményt adott, árral együtt. A gyengébb alap MEGNEVEZÉSE nem
+teszi jogszerűvé a kiadást — és a saját próbám egyik ága kifejezetten KÖVETELTE, hogy ez így
+maradjon, tehát a zöld teszt a hibát ŐRIZTE.
+
+**F49-02 — a kiadó kerete lett a címzett joga.** A `grant_basis.granted_limit` a HATÁROZAT teljes
+korlátját tárolja. Mérve: a `scopes: ['keszlet','arak']` határozat alatt kiadott, **csak készletre**
+szóló meghívó címzettje az árat is megkapta — a `scopeReleaseDecision('arak')` `within_basis_scopes`
+indokkal engedett. A megadható jog és a ténylegesen megadott jog két külön tény.
+
+**A JAVÍTÁS: SGR-01 — a TÉNYLEGESEN MEGADOTT OLVASÁSI JOG** (`v3ref/scopeGrant.mjs` + `scope_grant`
+tábla). Alanyra + könyvre + EGY adatkörre szól; KÉT idő-tengelyen áll (hatály × tudás); KÖTELEZŐ
+rögzített alapja van, és a megadás pillanatában is ellenőrzi a plafont (ORG-N1b). A kiadási kapu
+innentől ebből dönt: **a plafon csak szűkít, a hiány zár.** A sorrend: kimondott tiltás → a megadott
+jog → a határozat mai állapota → a tagságra átvitt korlát.
+
+**Mérve (kiadva → zárva különbségként, nem indok-cserével):** a rögzített engedély HIÁNYA zár (a
+tiszta készlet-eredmény sem jön ki) · a TÁG határozat alatt SZŰKEN megadott jog nem tágul · a valóban
+MINDKÉT adatkörre megadott jog mellett a vegyes eredmény kijön (ellenpár) · a kimondott tiltás az
+engedély mellett is zár, de nem általános zár · a JOG megvonása és az ALAP megvonása/lejárata
+egyaránt zár · a nemleges válasz bájtra azonos a nem létező hivatkozásáéval · a leltár egy
+hatályosulási ponton áll, és engedély nélküli olvasónak sor sem születik.
+
+**A PRÓBA-VILÁGOK VALÓDI JOGOT KAPTAK, NEM MEGKERÜLŐ KAPCSOLÓT** (az ő kikötésük). Hét próba állt
+piroson a szigorítás után; mindegyik világ a rendszer SAJÁT íróján (`grantReadScope`) kapott
+adatköri jogot, alappal és két tengellyel. Így a KÖNYV-kapu és az ADATKÖRI kapu állításai külön
+mérhetők maradtak — az M4 bizonyítóereje nem indok az engedély nélküli kiadásra.
+
+**MUTÁCIÓ-PONTOSÍTÁS (az ő leletük).** Az M179 leírása erősebb volt a futásnál: az R48-as alakban a
+határozat-állapot kihagyása csak az INDOKOT cserélte (`outside_basis_scopes`), a kiadás továbbra is
+zárt. Az SGR-01 óta a jog a MEGADÁSBÓL jön, ezért ugyanez a kihagyás VALÓDI kiadást eredményez egy
+megvont alapon — és a próba ezt kiadva→zárva különbségként méri. Az M177 horgonya a feltételről a
+VISSZATÉRŐ ÉRTÉKRE került: a feltétel kiiktatása nyers kivételbe futott (más réteg védelme, nem az
+állítás bukása — KUKA-187).
+
+**KIMONDOTT HATÁROK.** (1) A meghívó `scope` mezője MÉRVE a meghívó-KIADÁS tengelye
+(`invite_basis.scope`), nem olvasási jog — ezért a beváltás ma NEM ad adatköri olvasási jogot; hogy a
+meghívó hordozzon-e felajánlott olvasási adatköröket, ÜZLETI döntés. (2) Az olvasási jog csak a
+tartalom ZÁRT adatkör-szótárának nevére adható (`unknown_data_scope`), az ismeretlen szótárú PLAFON
+pedig zár — néma fordítás nincs.
+
+**Tanulság:** KUKA-191. **Gépi jel:** `node v3ref/run.mjs` (59 próba) · `npm run verify:v3ref`
+(179 mutáció, benne M177–M182) · `npm run verify:kuka` (a `membership_only` alap tiltó-mintája).

@@ -8166,6 +8166,61 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'hazugság, amíg nem mondjuk meg, MELYIK hivatkozást kötöttük.',
   }),
   Object.freeze({
+    id: 'KUKA-191',
+    date: '2026-09-19',
+    title: 'A MEGADHATÓ JOGBÓL MEGADOTT JOG LETT — a kiadó PLAFONJÁT osztottuk ki a címzettnek',
+    what: 'Az R48-as kiadási kapum a TAGSÁGRA ÁTVITT KORLÁTOT (`grant_basis.granted_limit`) mérte, '
+      + 'és abból következtetett ENGEDÉLYRE. A külső ellenőrző fél két esetet mutatott meg, '
+      + 'mindkettőt VÁLTOZATLAN üzleti kódon reprodukálva (R49): (1) ahol a taghoz SEMMILYEN '
+      + 'adatköri engedély nem volt rögzítve, a kiadás megtörtént — a `membership_only` MEGNEVEZÉSE '
+      + 'nem tette jogszerűvé; (2) ahol a HATÁROZAT készletre ÉS árra is ADHATOTT felhatalmazást, de '
+      + 'a MEGHÍVÓ csak készletre szólt, a címzett a TELJES felső korlátot kapta meg. A saját fámon '
+      + 'mérve mindkettő igaz: `unit_price: 12345` kiment, és a kiadási leltár rögzítette is.',
+    why_wrong: 'A „mit ADHAT a kiadó" és a „mit ADTAK MEG ennek az alanynak" KÉT KÜLÖN TÉNY. A '
+      + 'plafon SZŰKÍT, de nem AD — a kettő összevonása pontosan az a levezetett engedély, amit a '
+      + 'klauzula tilt. A `membership_only` alak ráadásul a saját mérésem vakfoltja volt: a kaput '
+      + 'MEGNEVEZTEM gyengébbnek, és a próbám `eOk` ága kifejezetten azt KÖVETELTE, hogy a kiadás '
+      + 'maradjon meg — vagyis a zöld teszt a hibát VÉDTE (KUKA-057 alakja a jogosultságon). A '
+      + 'nyitott üzleti kérdésre a meglévő követelmény MÁR válaszolt: amíg nincs igazolt olvasási '
+      + 'jog az adott adatkörre, az adat nem adható ki.',
+    replaced_by: 'SGR-01 (`v3ref/scopeGrant.mjs`): a TÉNYLEGESEN megadott, alanyra + könyvre + EGY '
+      + 'adatkörre szóló olvasási jog, saját táblával, KÉT idő-tengellyel, KÖTELEZŐ rögzített '
+      + 'alappal, és a megadáskor is ellenőrzött plafonnal. A kiadás EBBŐL dönt; a határozat mai '
+      + 'állapota és a tagságra átvitt korlát SZŰKÍT; a tiltás, a jog-megvonás, a lejárat és a '
+      + 'határozat megvonása ZÁR.',
+    replacement: 'Minden ENGEDŐ döntésnél két külön kérdés: MIT LEHETETT volna adni (plafon) és MIT '
+      + 'ADTAK MEG (jog). A kiadás csak a másodikból indulhat; a plafon legfeljebb elvesz belőle.',
+    decision: 'D-VS-3058',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R49/F49-01 és F49-02), saját, változatlan üzleti '
+      + 'kódon végzett teljes meghívási–beváltási–olvasási futással; a saját fámon mindkettőt '
+      + 'reprodukáltam a javítás előtt.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/releaseScope.mjs']),
+        pattern: 'readScopeGrantAt\\(\\{ store, subjectId, bookId, scope',
+        why: 'a kiadás a TÉNYLEGESEN megadott jogot kérdezi, nem a plafont' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/scopeGrant.mjs']),
+        pattern: 'grant_needs_recorded_basis',
+        why: 'alap nélküli olvasási jog nem rögzíthető (ORG-N1a)' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/releaseScope.mjs']),
+        pattern: "basis: 'membership_only'",
+        why: 'a puszta KÖNYV-tagságból levezetett adatköri engedély kivezetve (R49/F49-01)' }),
+    ]),
+    guard_note: 'gépi jel: `npm run verify:v3ref` — **M177** (a megadott jog ellenőrzésének '
+      + 'kihagyása ⇒ engedély nélküli kiadás), **M179** (a jog túléli a megvont/lejárt alapot), '
+      + '**M181** (a jogos kiadás téves tiltása), és a `verify:kuka` tiltó-mintája a '
+      + '`membership_only` alapra. AMIRE NINCS GÉPI JEL, KIMONDVA: hogy a meghívó `scope` mezője '
+      + 'ÜZLETILEG olvasási jogot jelent-e — mérve az a MEGHÍVÓ-KIADÁS tengelye, ezért olvasási '
+      + 'jogot nem vezetünk le belőle.',
+    lesson: 'A MEGADHATÓ JOG NEM A MEGADOTT JOG. Ha a kapu a plafonból következtet, akkor a '
+      + 'legtágabb lehetséges felhatalmazást osztja ki mindenkinek, akinek a papírja alá esik — és '
+      + 'ez NÉMA: se hibakód, se üres lista, csak egy ármező ott, ahol készletre szólt a '
+      + 'felhatalmazás. És ha egy próba a hiányos állapot FENNMARADÁSÁT követeli meg, akkor a zöld '
+      + 'teszt nem bizonyíték, hanem a hiba ŐRE — ilyenkor a próbát kell a normához igazítani, nem '
+      + 'a normát a próbához.',
+  }),
+  Object.freeze({
     id: 'KUKA-190',
     date: '2026-09-18',
     title: 'A TILTÁS HIÁNYÁBÓL LETT ENGEDÉLY — a kiadás sosem kérdezte meg a RÖGZÍTETT jogalapot',

@@ -43,11 +43,12 @@ import { basisAsOf } from './authorityBasis.mjs';
 import { grantBasisFor } from './basisLimit.mjs';
 import { membershipAsOf } from './bitemporal.mjs';
 import { KNOWN_DATA_SCOPES } from './resultScope.mjs';
+import { readScopeGrantAt } from './scopeGrant.mjs';
 
 const frozen = (o) => Object.freeze(o);
 
 /** A DÖNTÉS ALAPJÁNAK ZÁRT HALMAZA — ismeretlen szó nem csúszhat át „valaminek" (KUKA-101). */
-export const RELEASE_BASES = Object.freeze(['explicit_ban', 'authority_basis', 'membership_only', 'none']);
+export const RELEASE_BASES = Object.freeze(['explicit_ban', 'scope_grant', 'none']);
 
 /**
  * A MEGLÉVŐ KORLÁT KIOLVASÁSA — a tagság ADOTT hatályos adásához kötve.
@@ -90,67 +91,74 @@ export function scopeReleaseDecision({ store, subjectId, bookId, scope, nowIso, 
     return frozen({ ...base, allowed: false, basis: 'explicit_ban', reason: ban.reason, message: ban.message ?? null });
   }
 
-  // 2. A TAGSÁGRA ÁTVITT KORLÁT — a MEGLÉVŐ jogalap-lánc (ORG-N1a → ORG-N1b).
-  const limit = recordedScopeLimit({ store, subjectId, bookId, validAt: nowIso, knownAt });
-  if (limit.declared !== true) {
-    // EZ A KAPU NEM DÖNTI EL A TAGSÁGOT — ÉS EZ MÉRT TANULSÁG (R47, a saját battériám lelete).
-    //
-    // Az első alakom a hiányzó tagságra ZÁRT. Ettől a kapu MÁSODIK otthona lett ugyanannak a
-    // ténynek (KUKA-003 · KUKA-018), és a következménye azonnal megjelent: az **M4** mutáció — ami
-    // a KÖNYV-szintű jog teljes kiiktatását méri — a nevezett próbáján ZÖLD maradt, mert az én új
-    // kapum fogta meg helyette. Egy meglévő bizonyíték NÉMÁN elvesztette az erejét (KUKA-187).
-    //
-    // A tagságot a KÖNYV-kapu dönti el (`releaseAllowed` → `rightAt`), és az ELŐBB fut. Itt a
-    // hiánya nem zárás, hanem ugyanaz a NEVEZETT, gyengébb alap: nincs rögzített adatkör-korlát.
+  // 2. A TÉNYLEGESEN MEGADOTT OLVASÁSI JOG (SGR-01, R49). A HIÁNY ZÁR — a „megadható" nem a
+  //    „megadott", és a tiltás hiánya nem engedély. Ez a kapu NEM dönti el a TAGSÁGOT (az a
+  //    könyv-kapu dolga, és előbb fut); azt dönti el, hogy erre az ADATKÖRRE van-e joga.
+  const grant = readScopeGrantAt({ store, subjectId, bookId, scope, validAt: nowIso, knownAt });
+  if (grant.granted !== true) {
     return frozen({
-      ...base, allowed: true, basis: 'membership_only', weaker: true,
-      reason: String(limit.reason).startsWith('membership_') ? 'no_declared_basis' : limit.reason,
-      membership_note: limit.reason,
-      note: 'a tagsághoz NINCS rögzített adatkör-korlát: ez a döntés a KÖNYVHÖZ való tagságon áll, '
-        + 'NEM adatkörre szóló engedélyen — a tiltás hiánya nem engedély (K05-DSC-c nyitott ága). '
-        + 'A TAGSÁGOT nem ez a kapu dönti el: az a könyv-szintű jog dolga, és ELŐBB fut.',
+      ...base, allowed: false, basis: 'scope_grant', reason: grant.reason,
+      message: `a(z) "${scope}" adatkörre ennek az olvasónak NINCS igazolt olvasási joga `
+        + `(${grant.reason}) — a tiltás hiánya nem engedély, és a megadható jog nem a megadott`,
     });
   }
-  if (limit.usable !== true) {
-    return frozen({ ...base, allowed: false, basis: 'authority_basis', reason: limit.reason });
-  }
+  const shape = { ...base, basis: 'scope_grant', basis_id: grant.basis_id, basis_version: grant.basis_version };
 
-  // 3. A HATÁROZAT MAI ÁLLAPOTA — a lepecsételt korlát nem élheti túl az alapját.
-  //    Hiányzó · más könyvre szóló · még nem hatályos · lejárt · megvont alap NEM NYIT (R47/3).
-  const state = basisAsOf({
-    store, basisId: limit.basis_id, bookId, validAt: nowIso, knownAt: knownAt ?? nowIso,
-  });
-  const shape = { ...base, basis: 'authority_basis', basis_id: limit.basis_id, basis_version: limit.basis_version };
+  // 3. A JOG ALAPJA MA IS ÁLLJON. Megvont, lejárt vagy idegen könyvre szóló határozat mellett a
+  //    belőle származó jog sem él tovább (ORG-N1a) — a jog nem élheti túl az alapját.
+  const state = basisAsOf({ store, basisId: grant.basis_id, bookId, validAt: nowIso, knownAt: knownAt ?? nowIso });
   if (state.in_effect !== true) {
     return frozen({ ...shape, allowed: false, reason: state.reason });
   }
-
-  // 4. A PLAFON A KETTŐ METSZETE: a beváltáskor átvitt korlát ÉS a határozat MAI korlátja. Egy
-  //    későbbi, TÁGABB verzió nem szélesítheti visszamenőleg a már kiadott tagságot, egy SZŰKEBB
-  //    viszont szűkít — mindkét irányban a SZŰKEBB dönt (ORG-N1b).
+  // A MEGADÁSKORI VERZIÓ NEM ÍRJA FELÜL A MAIT: ha az alap azóta SZŰKÜLT, a szűkebb dönt (ORG-N1b).
   const live = Array.isArray(state.limit && state.limit.scopes) ? state.limit.scopes : [];
-  const ceiling = limit.scopes.filter((s) => live.includes(s));
-  if (ceiling.includes(scope)) {
-    return frozen({ ...shape, allowed: true, reason: 'within_basis_scopes', ceiling: Object.freeze([...ceiling]) });
-  }
-  // AZ ISMERETLEN SZÓTÁR KÜLÖN VÁLASZ, ÉS ZÁR. Ha a plafon EGYETLEN neve sem a zárt tartalom-halmazból
-  // való, akkor nem azt tudjuk, hogy „nem fér bele", hanem azt, hogy NEM TUDJUK ÖSSZEVETNI — és a
-  // gép ilyenkor nem fordít (KUKA-022). A nemleges válasz megmondja, mit kell eldönteni (KUKA-064).
-  const unknown = ceiling.filter((s) => !KNOWN_DATA_SCOPES.includes(s));
-  if (ceiling.length > 0 && unknown.length === ceiling.length) {
+  if (!live.includes(scope)) {
+    const unknown = live.filter((x) => !KNOWN_DATA_SCOPES.includes(x));
+    if (live.length > 0 && unknown.length === live.length) {
+      return frozen({
+        ...shape, allowed: false, reason: 'basis_scope_vocabulary_unknown',
+        ceiling: Object.freeze([...live]), unknown_names: Object.freeze([...unknown]),
+        message: `a felhatalmazás adatkör-tengelye a(z) ${unknown.join(', ')} nevet hordozza, a `
+          + `tartalom-besorolás zárt halmaza viszont: ${KNOWN_DATA_SCOPES.join(', ')} — a kettő `
+          + 'megfeleltetése ÜZLETI DÖNTÉS, gép nem tippelheti meg',
+      });
+    }
     return frozen({
-      ...shape, allowed: false, reason: 'basis_scope_vocabulary_unknown',
-      ceiling: Object.freeze([...ceiling]), unknown_names: Object.freeze([...unknown]),
-      message: `a felhatalmazás adatkör-tengelye a(z) ${unknown.join(', ')} nevet hordozza, a `
-        + `tartalom-besorolás zárt halmaza viszont: ${KNOWN_DATA_SCOPES.join(', ')} — a kettő `
-        + 'megfeleltetése ÜZLETI DÖNTÉS, gép nem tippelheti meg',
+      ...shape, allowed: false, reason: 'outside_basis_scopes', ceiling: Object.freeze([...live]),
+      message: `a felhatalmazás adatkör-plafonja (${live.join(', ') || '—'}) nem tartalmazza a(z) `
+        + `"${scope}" adatkört — a megadott jog nem lehet tágabb az alapjánál`,
     });
   }
+
+  // 4. A TAGSÁGRA ÁTVITT KORLÁT IS SZŰKÍT, ahol rögzítve van (R48 megőrzött ága). Ez PLAFON: nem
+  //    ad jogot, csak elvesz. A hiánya ezért NEM zár — a jogot a 2. pont adta.
+  const limit = recordedScopeLimit({ store, subjectId, bookId, validAt: nowIso, knownAt });
+  if (limit.declared === true && limit.usable !== true) {
+    return frozen({ ...shape, allowed: false, reason: limit.reason });
+  }
+  if (limit.declared === true && limit.usable === true && !limit.scopes.includes(scope)) {
+    const unknown = limit.scopes.filter((x) => !KNOWN_DATA_SCOPES.includes(x));
+    if (limit.scopes.length > 0 && unknown.length === limit.scopes.length) {
+      return frozen({
+        ...shape, allowed: false, reason: 'membership_limit_vocabulary_unknown',
+        ceiling: Object.freeze([...limit.scopes]), unknown_names: Object.freeze([...unknown]),
+        message: `a TAGSÁGRA átvitt korlát a(z) ${unknown.join(', ')} nevet hordozza, a `
+          + `tartalom-besorolás zárt halmaza viszont: ${KNOWN_DATA_SCOPES.join(', ')} — a `
+          + 'megfeleltetés üzleti döntés, gép nem tippelheti meg',
+      });
+    }
+    return frozen({
+      ...shape, allowed: false, reason: 'outside_membership_limit',
+      ceiling: Object.freeze([...limit.scopes]),
+      message: `a tagságra átvitt korlát (${limit.scopes.join(', ') || '—'}) nem tartalmazza a(z) `
+        + `"${scope}" adatkört`,
+    });
+  }
+
   return frozen({
-    ...shape, allowed: false, reason: 'outside_basis_scopes',
-    ceiling: Object.freeze([...ceiling]),
-    message: `a felhatalmazás adatkör-plafonja (${ceiling.join(', ') || '—'}) nem tartalmazza a(z) `
-      + `"${scope}" adatkört`,
+    ...shape, allowed: true, reason: 'scope_granted_and_within_limits',
+    ceiling: Object.freeze([...live]),
+    membership_limit: limit.declared === true ? Object.freeze([...limit.scopes]) : null,
   });
 }
 
