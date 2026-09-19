@@ -725,8 +725,38 @@ CREATE INDEX scope_grant_revocation_who ON scope_grant_revocation (subject_id, b
 CREATE INDEX access_refusal_subject ON access_refusal (subject_id, book_id, at);
 `;
 
+// ═══ A TÁROLÓ TAKARÍTÁSA AKKOR IS, HA A PRÓBA DOB (R53 — mérve, nem feltételezve) ══════════════
+//
+// A LELET. A `close()` mindig eltakarította a saját ideiglenes mappáját — de csak ha MEGHÍVTÁK. A
+// mutációs battéria 188 futásában a próbák SZÁNDÉKOSAN buknak, és ahol a `store.close()` nem
+// `finally`-ben áll, ott a mappa bent marad. MÉRVE, ebben a körben: **132 157** árva `v3ref-*`
+// mappa, **30 GB** — és amikor a lemez betelt, a mérés PIROSAT adott olyan dolgokra, amikkel
+// semmi baj nem volt (a külső lánc 11/19, a söprés 2 piros). A néma erőforrás-szivárgás tehát
+// nem kényelmi kérdés: HAZUGGÁ TESZI A MÉRÉST, és a hazug piros ugyanolyan rossz, mint a hazug
+// zöld (KUKA-093 · KUKA-049).
+//
+// A JAVÍTÁS IRÁNYA. Nem a 61 próba átírása egyesével (azt a következő új próba úgyis elfelejti —
+// KUKA-051: a védelem SZABÁLY legyen, ne lista), hanem EGY hálót teszünk a tároló SZÜLETÉSE alá:
+// minden nyitott mappa nyilván van tartva, és a folyamat kilépésekor a maradék eltűnik. A
+// `close()` változatlanul takarít; ez csak a HIÁNYZÓ `close()` esetét fogja meg.
+const OPEN_STORE_DIRS = new Set();
+let exitSweepArmed = false;
+function armExitSweep() {
+  if (exitSweepArmed) return;
+  exitSweepArmed = true;
+  // A KILÉPÉSI HÁLÓ SOHA NEM DOBHAT: egy takarítási hiba nem fedheti el a futás valódi kimenetét.
+  process.on('exit', () => {
+    for (const d of OPEN_STORE_DIRS) {
+      try { rmSync(d, { recursive: true, force: true }); } catch { /* a kilépést nem akasztjuk meg */ }
+    }
+    OPEN_STORE_DIRS.clear();
+  });
+}
+
 export function openStore() {
+  armExitSweep();
   const dir = mkdtempSync(join(tmpdir(), 'v3ref-'));
+  OPEN_STORE_DIRS.add(dir);
   const path = join(dir, 'ref.sqlite');
   const db = new DatabaseSync(path);
   db.exec('PRAGMA foreign_keys = ON;');
@@ -762,7 +792,7 @@ export function openStore() {
   return {
     db,
     path,
-    close() { db.close(); rmSync(dir, { recursive: true, force: true }); },
+    close() { db.close(); OPEN_STORE_DIRS.delete(dir); rmSync(dir, { recursive: true, force: true }); },
     run(sql, ...params) { return db.prepare(sql).run(...params); },
     // A tranzakció a TÁROLÓ szolgáltatása — a hívó nem ír BEGIN-t a kezével (KUKA-003).
     tx(fn) { return withTransaction(db, fn); },

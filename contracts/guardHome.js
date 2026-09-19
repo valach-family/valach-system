@@ -230,6 +230,7 @@ const GUARD_HOME = Object.freeze({
   'KUKA-173': Object.freeze({ home: 'v3', note: 'a hozzáférési kapu a V3 magban él — a jel a P-AUT-object-neutral próba + M149–M152' }),
   'KUKA-174': Object.freeze({ home: 'v3', note: 'a fixtúra a V3 próba-fájljában él — a jel ugyanannak a próbának az (a) ága' }),
   'KUKA-175': Object.freeze({ home: 'v3', note: 'a darabolás közös deklarációja a V3 külső-ellenőrző könyvtárában él — a jel a verify:unit-admission UAD08; a KÜLSŐ burkolók bontása kimondottan MÉRETLEN' }),
+  'KUKA-194': Object.freeze({ home: 'v3', note: 'a kilépési takarító-háló a v3ref/store.mjs-ben él — a jel a pozitív minta; a szivárgás MÉRÉSÉRE nincs őr, ezt a bejegyzés kimondja' }),
   'KUKA-193': Object.freeze({ home: 'v3', note: 'a bírálati hatáskör alap-korlátja (ABL-01) a v3ref/authorityBasis.mjs-ben él, hívva az adjudication.mjs-ből és az authority.mjs-ből — a jel az M189–M193 mutáció (verify:v3ref), a kilépési kódon' }),
   'KUKA-192': Object.freeze({ home: 'v3', note: 'a megvonás két idő-tengelyes eseménye (SGR-01 + scope_grant_revocation) a v3ref/scopeGrant.mjs-ben él — a jel az M183–M187 mutáció (verify:v3ref), a kilépési kódon' }),
   'KUKA-191': Object.freeze({ home: 'v3', note: 'a ténylegesen megadott olvasási jog (SGR-01) a v3ref/scopeGrant.mjs-ben él — a jel az M177/M179/M181 mutáció és a membership_only tiltó-mintája' }),

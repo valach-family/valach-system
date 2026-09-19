@@ -8166,6 +8166,50 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'hazugság, amíg nem mondjuk meg, MELYIK hivatkozást kötöttük.',
   }),
   Object.freeze({
+    id: 'KUKA-194',
+    date: '2026-09-19',
+    title: 'A NÉMA ERŐFORRÁS-SZIVÁRGÁS HAZUGGÁ TETTE A MÉRÉST — és a hazug PIROS is hazugság',
+    what: 'A magreferencia minden tárolója saját ideiglenes mappát kap, és a `close()` ezt mindig '
+      + 'eltakarította — DE CSAK HA MEGHÍVTÁK. A mutációs battéria 188 futásában a próbák '
+      + 'SZÁNDÉKOSAN buknak, és ahol a `store.close()` nem `finally`-ben áll, ott a mappa bent '
+      + 'maradt. MÉRVE ebben a körben: **132 157** árva `v3ref-*` mappa, **30 GB**. Amikor az írható '
+      + 'terület elfogyott, a mérés PIROSAT adott olyan dolgokra, amikkel semmi baj nem volt: a '
+      + 'külső programlánc 11/19-re esett, a söprés két verifiert pirosnak mondott, a battéria '
+      + 'szeletei `ENOSPC`-vel haltak el — és mindez ÚGY NÉZETT KI, mint termékhiba.',
+    why_wrong: 'A hazug PIROS ugyanolyan rossz, mint a hazug zöld (KUKA-093 · KUKA-049): órákat '
+      + 'visz el egy nem létező hiba keresése, és közben betanít arra, hogy a pirosat „biztos a '
+      + 'környezet" alapon át kell lépni — ami után a VALÓDI piros sem fog számítani. A szivárgás '
+      + 'ráadásul NÉMA volt: nem hibaüzenet, nem lassulás, csak egy lassan fogyó erőforrás, amiről '
+      + 'semmilyen jel nem szólt. És a takarítás MEGVOLT a kódban — csak azon az úton, ami a '
+      + 'bukott próbán SOHA nem fut le (KUKA-039: a fél őr).',
+    replaced_by: 'A háló a tároló SZÜLETÉSE alá került (`v3ref/store.mjs`): minden nyitott mappa '
+      + 'nyilván van tartva (`OPEN_STORE_DIRS`), és a folyamat kilépésekor a maradék eltűnik. A '
+      + '`close()` változatlanul takarít; a háló CSAK a hiányzó `close()` esetét fogja meg, és soha '
+      + 'nem dobhat — egy takarítási hiba nem fedheti el a futás valódi kimenetét.',
+    replacement: 'Erőforrást felszabadító lépést SOHA ne csak a boldog úton írjunk meg. Ahol a '
+      + 'bukás NORMÁLIS kimenet (márpedig egy mutációs battériában az), ott a takarításnak a '
+      + 'SZÜLETÉS mellé kell kerülnie, nem a sikeres befejezés mellé — és szabályként, nem '
+      + 'próbánként (KUKA-051: a védelem hatóköre a hiba osztálya, nem az a hely, ahol először '
+      + 'láttuk).',
+    decision: 'D-VS-3060',
+    found_by: 'a SAJÁT mérésem: a teljes lánc kétszer egymás után pirosra futott, és a második '
+      + 'futásnál a lemez-mérés mutatta meg, hogy nem a rendszerrel van baj. A külső fél ezt nem '
+      + 'látta — az ő futásaik rövidebbek.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/store.mjs']),
+        pattern: 'OPEN_STORE_DIRS',
+        why: 'a nyitott tárolók nyilván vannak tartva, és a kilépési háló eltakarítja a maradékot' }),
+    ]),
+    forbidden: Object.freeze([]),
+    guard_note: 'AMIRE NINCS GÉPI JEL, ÉS EZT KIMONDOM: a szivárgás mértékét ma semmi nem méri '
+      + 'automatikusan — a háló megakadályozza, de egy őr, ami a futás UTÁN megszámolná az árva '
+      + 'mappákat, nem készült el ebben a körben. A pozitív minta csak azt méri, hogy a háló a '
+      + 'helyén van. Az „ellenőrizd a szabad helyet a mérés ELŐTT" szabály PRÓZA marad.',
+    lesson: 'AMI A MÉRÉST MÉRI, AZ IS ELROMOLHAT — és akkor a mérés eredménye a MÉRŐRŐL szól, nem a '
+      + 'rendszerről. Ha egy piros a mérés környezetéből jön, azt NEM szabad sem termékhibaként '
+      + 'jelenteni, sem „biztos a környezet" alapon átlépni: meg kell MÉRNI, mi fogyott el.',
+  }),
+  Object.freeze({
     id: 'KUKA-193',
     date: '2026-09-19',
     title: 'A KORLÁT OTT ÁLLT AZ ADATBÁZISBAN, ÉS SENKI NEM KÉRDEZTE MEG — a bírálati hatáskör alapja',
