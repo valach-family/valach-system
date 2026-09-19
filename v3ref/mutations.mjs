@@ -1138,13 +1138,18 @@ export const MUTATIONS = [
     from: "    if (ex.ms <= valid.ms) return frozen({ ...shape, in_effect: false, reason: 'basis_expired' });",
     to: "    if (false) return frozen({ ...shape, in_effect: false, reason: 'basis_expired' });" },
 
-  { id: 'M120', rule: 'K04', catcher: 'P-ORG-basis', expect: 'probe_fail',
-    what: 'ORG-N1a — A KORLÁT MEGÉPÜLTNEK VALLJA MAGÁT: a válasz azt állítja, hogy a korlátot '
-      + 'kikényszerítik, holott EGYETLEN kiadó út sem hívja. Ez a DÍSZ-VEZÉRLŐ (KUKA-041): '
-      + 'sikert jelentene arról, ami meg sem történt',
+  { id: 'M120', rule: 'K04', catcher: 'P-ORG-adjudication-basis-limit', expect: 'probe_fail',
+    what: 'ORG-N1a — A KORLÁT MEGÉPÜLTNEK VALLJA MAGÁT OTT, AHOL NINCS MIT KIKÉNYSZERÍTENI: a '
+      + 'válasz a DEKLARÁLT ALAP NÉLKÜL adott hatáskörre is azt állítja, hogy a korlátot '
+      + 'kikényszerítik. Ez a DÍSZ-VEZÉRLŐ (KUKA-041): sikert jelentene arról, ami meg sem történt. '
+      + 'R53 — A HORGONY KÖVETI A KÓDOT, A MUTÁCIÓ ALANYA VÁLTOZATLAN. Az eredeti alak azt a '
+      + 'törzs-ágat mutálta, ahol a hatáskör ALAPRA hivatkozik; ott a mező az ORG-N1b bírálati '
+      + 'ágának megépítése óta JOGOSAN igaz, tehát a régi horgony elavult (STALE_ANCHOR — és a '
+      + 'battéria MEG IS MONDTA). A védendő tulajdonság ugyanaz maradt: a mező nem állíthat többet '
+      + 'a valóságnál — csak a hely került oda, ahol ez ma is igaz.',
     file: 'authorityBasis.mjs',
-    from: '    limit_enforced: false,\n    limit_enforced_paths: LIMIT_ENFORCED_PATHS,\n  });',
-    to: '    limit_enforced: true,\n    limit_enforced_paths: LIMIT_ENFORCED_PATHS,\n  });' },
+    from: "      recorded: false, reason: 'authority_without_recorded_basis',\n      limit_enforced: false,",
+    to: "      recorded: false, reason: 'authority_without_recorded_basis',\n      limit_enforced: true," },
 
   // ── R88/F01 — AZ ALAP AZONOSSÁGA A (basis_id, book_id) PÁR ────────────────────────────────
 

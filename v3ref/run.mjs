@@ -3601,6 +3601,10 @@ probe('P-ORG-adjudication-basis-limit', 'R53 · ORG-N1a · ORG-N1b · KUKA-126 �
     hStore.close();
     const hOk = hUse.allowed === true && hState.recorded === false
       && hState.reason === 'authority_without_recorded_basis'
+      // …ÉS A MEZŐ NEM ÁLLÍT TÖBBET A VALÓSÁGNÁL: ahol NINCS deklarált alap, ott nincs mit
+      // kikényszeríteni, tehát a `limit_enforced` itt HAMIS. A díszpipa ugyanúgy hazugság, mint a
+      // hiányzó védelem elhallgatása (KUKA-041 · KUKA-050).
+      && hState.limit_enforced === false
       && LIMIT_ENFORCED_PATHS.includes('adjudication_grant')
       && LIMIT_ENFORCED_PATHS.includes('adjudication_use');
 
