@@ -1,16 +1,15 @@
 {
   "program": "r79_chatgpt-v3.core.adapted.mjs",
   "variant": "adapted",
-  "source_commit": "df6bff48b96cd44c71977070bfc656e0bd2ec3b5",
+  "source_commit": "aa801458a17fe16c34cb37706abef0431a8a3ffa+uncommitted",
   "node": "v22.22.2",
-  "at": "2026-09-19T07:22:26.755Z",
+  "at": "2026-09-19T12:27:55.316Z",
   "verbatim": true,
   "commit": "8dced6f444aff777d5842a050101eedefdcdeec1",
   "cases": [
     {
       "id": "P01-flat-quantity",
-      "pass": false,
-      "error": "{\"submit\":{\"ok\":true,\"effect_id\":\"eff_fee1f0f52f74da6d9cef0190cb42be4c\",\"state\":\"finalized\",\"replayed\":false},\"read\":{\"ok\":false,\"error\":\"not_available\",\"message\":\"ehhez a hivatkozáshoz most nem tartozik kiadható eredmény\",\"effect_id\":null,\"result\":null}}\n\nfalse !== true\n"
+      "pass": true
     },
     {
       "id": "P02-flat-price",
@@ -81,6 +80,6 @@
       "pass": true
     }
   ],
-  "passed": 17,
-  "failed": 1
+  "passed": 18,
+  "failed": 0
 }
