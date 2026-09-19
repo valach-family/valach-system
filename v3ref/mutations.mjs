@@ -1779,9 +1779,12 @@ export const MUTATIONS = [
     what: 'ABL-01 / R53 — A MEGADÁSKORI VERZIÓT SENKI NEM NÉZI: az ítélet csak a MAI alapot méri. '
       + 'MÉRT HATÁS: egy későbbi, TÁGABB verzió visszamenőleg kinyit egy korábban adott hatáskört — '
       + 'a régi bélyegző új ajtót nyit, anélkül hogy bárki újra megadta volna (KUKA-074)',
+    // R55 — A HORGONY KÖVETI A KÓDOT: az F55-01 javítása óta a megadáskori verzió KÖTELEZŐ, és a
+    // korábbi horgony (`grantedUnderVersion === null`) megszűnt. A mutáció ALANYA változatlan: azt
+    // a sort vesszük ki, ami a MEGADÁSKORI verzió korlátját ténylegesen kikényszeríti.
     file: 'authorityBasis.mjs',
-    from: "  if (grantedUnderVersion === null || grantedUnderVersion === undefined) {",
-    to: "  if (true) {" },
+    from: "  if (!granted.limit.operations.includes(operation)) {",
+    to: "  if (false) {" },
 
   { id: 'M192', rule: 'K04', catcher: 'P-ORG-adjudication-basis-limit', expect: 'probe_fail',
     what: 'ABL-01 / R53 — A MŰVELETI SZERZŐDÉS ELTŰNIK A BÍRÁLATI MŰVELETEKRŐL: a három művelet nem '
