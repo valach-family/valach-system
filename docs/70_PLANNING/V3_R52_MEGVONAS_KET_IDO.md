@@ -135,7 +135,32 @@ miatt), és az R51-es teszt-előfeltétellel mértet.
 
 **A SAJÁT FUTÁSOM (ezen a fán, ma):**
 
-MEASUREMENTS_PLACEHOLDER
+| mérés | parancs | eredmény |
+|---|---|---|
+| próbák | `node v3ref/run.mjs` | **60/60 PASS** (az új `P-DSC-scope-grant-history` a 60.) |
+| mutációs battéria | `npm run verify:v3ref` | **185/185 CAUGHT** — „TELJES ÉS TISZTA", minden mutáció pontosan egyszer |
+| norma-lánc csomag | `node tools/v3_norm_chain_package.mjs` | 119 láncsor · 78 fedett · 31 részben · 2 nem falszifikált · 8 bizonyíték nélkül |
+| a csomag saját próbája | `npm run proof:norm-chain-package` | **25/25 RENDBEN** |
+| tanulság-regiszter | `npm run verify:kuka` | **306/306 PASS** (KUKA-192-vel, alapvonal frissítve) |
+| döntés-számok | `npm run verify:decision-numbers` | **4/4 PASS** — a következő szabad: D-VS-3060 |
+| külső döntés-regiszter | `npm run verify:external-decisions` | **37/37 PASS** — minden indok szó szerinti a saját forrás-lapjában |
+| külső programlánc | `npm run verify:external-checks` | **17/19 MEGFELEL · 2 környezeti kihagyás** nevezett, zöld helyettessel (r57a · r59a) — **nulla eltérő program** |
+| teljes söprés | `npm run verify:sweep` | **11 verifier · 11 zöld · 0 kihagyás · 0 piros** (877 s) |
+
+**A KÜLSŐ LÁNC JAVULT, ÉS EZ MÉRT KÜLÖNBSÉG.** Az előző körben 15 program felelt meg, 2 környezeti
+kihagyás mellett **2 eltérő programmal** (`r79core` · `r81core` — a hiányzó adatköri jog miatt). Most
+**17 felel meg, és nulla az eltérő**. A lánc `complete_evidence` jelzője továbbra is `false`, mert a
+két környezeti kihagyás megmarad — ezt nem takarjuk el.
+
+**EGY KÖZBENSŐ PIROS, AMIT A SAJÁT KÖRÖM OKOZOTT, ÉS MEGJAVÍTOTTAM.** A battéria 179-ről **185**
+mutációra nőtt, és ettől két program elbukott: az `r59a/P01` és az `r55/N04-restated`. Mérve, a
+`mutate.mjs` pontos hívásával reprodukálva: a **2/6 szelet 12 388 ms**-ot kért, a saját költségvetés
+12 000 ms — az egység 1-gyel zárt, és vele a `--merge` is, miközben a mért tartalom tiszta volt. A
+tool maga írta ki az orvosságot: *„darabold: `--unit=1/8` … `--unit=8/8`"*. Ez **KUKA-045**: kézzel
+beírt darabszám egy növekvő mérésen. A javítás nem a költségvetés tágítása, hanem a szám helyére
+lépő **szabály** (a tool saját, 24-es egység-mérete) — az `r59a`, az `r57a` és az `r55` hívásában.
+Egyetlen eset, elvárás, mutáció vagy időkorlát sem változott. Utána mind a három zöld: **7/7 · 9/9 ·
+5/5**.
 
 **ÁTVETT MÉRÉS (a külső fél futása, nem az enyém):** az elkülönített M179-futásuk
 (`outside_basis_scopes`, 5 leltár-sor) · az r79/r81 programjaik saját futása az engedélyek
