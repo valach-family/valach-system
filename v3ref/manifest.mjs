@@ -39,6 +39,7 @@ const VERSION_R45 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-
 // R47 — a K05-DSC-c ENGEDŐ ága: az adatkörönkénti olvasási döntés rögzített alapja (RSB-01).
 const VERSION_R47 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis';
 // R49 — a TÉNYLEGESEN megadott olvasási jog (SGR-01): a plafon szűkít, a hiány zár.
+const VERSION_R55 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history + R53/ORG-N1b-adjudication + R55/ORG-N1b-granted-version';
 const VERSION_R53 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history + R53/ORG-N1b-adjudication';
 const VERSION_R51 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history';
 const VERSION_R49 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant';
@@ -432,6 +433,9 @@ export const EXPECTED_PROBES = Object.freeze([
         contract: 'ABL-01', contract_version: VERSION_R53 }),
       Object.freeze({ clause: 'ORG-N1a', assertion: 'A-ORG-N1b-authority-without-recorded-basis-is-unchanged-and-named',
         contract: 'ABL-01', contract_version: VERSION_R53 }),
+      // R55/F55-01 — a HIÁNYZÓ megadáskori verzió a VALÓDI utakon is zár, hatás és írás nélkül.
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-missing-granted-version-closes-the-use-on-the-real-paths',
+        contract: 'ABL-01', contract_version: VERSION_R55 }),
     ]),
   }),
   Object.freeze({

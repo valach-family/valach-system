@@ -3437,6 +3437,11 @@ probe('P-ORG-adjudication-basis-limit', 'R53 · ORG-N1a · ORG-N1b · KUKA-126 �
       }
       return store;
     };
+    // A DOBOTT ÜZENETBŐL A NEVEZETT INDOK — egy helyen, hogy a mérés ne szövegre illesszen (KUKA-009).
+    const namedReason = (msg) => {
+      const m = /\(([a-z0-9_]+)[;)]/.exec(String(msg || ''));
+      return m ? m[1] : null;
+    };
     const grant = (store, operation, basisId, at = MAR) => {
       try {
         grantAdjudicationAuthority({ store, subjectId: 'judge', bookId: 'a', operation, clock: clockFrom(at), basisId });
@@ -3529,69 +3534,129 @@ probe('P-ORG-adjudication-basis-limit', 'R53 · ORG-N1a · ORG-N1b · KUKA-126 �
     const eOk = eStamped.allowed === false && eStamped.reason === 'outside_granted_basis_version'
       && eFresh.ok === true && eFreshUse.allowed === true;
 
-    // (f) AZ ALAP MINDEN HIÁNY-ALAKJA SAJÁT, NEVEZETT VÁLASZ — és mind ZÁR (KUKA-124/2 · KUKA-020).
-    const fRows = [];
-    for (const mode of ['missing', 'foreign', 'not_yet', 'expired', 'revoked', 'malformed']) {
+    // (f) AZ ALAP HIÁNY-ALAKJAI — A KÉT KAPU KÜLÖN, SAJÁT ELŐFELTÉTELLEL (R55/F55-02).
+    //
+    // A külső fél kikötése: *„a megadás és használat kapuját külön előfeltételekkel mérd; ne állíts
+    // a mostani hat vegyes esetről minden alakra kétpontos bizonyítást."* Igazuk van: a korábbi
+    // alak EGY hurokban keverte a két kaput, és ahol a MEGADÁS már elutasított, ott a használatról
+    // semmit nem mértünk — a vegyes eset két bizonyítéknak LÁTSZOTT, miközben egy volt (KUKA-054).
+    //
+    // f1 — A MEGADÁS KAPUJA. Olyan alakok, amiket már a megadás visszautasít: a hatáskör-sor meg sem
+    //      születik. Az elutasítás NEVEZETT, és a tároló nyom nélkül marad.
+    const fGrant = [];
+    for (const shape of ['missing', 'foreign', 'not_yet']) {
       const store = world({ allowed: ['adjudicate'] });
-      if (mode === 'foreign') {
+      if (shape === 'foreign') {
         recordAuthorityBasis({
           store, basisId: 'IDEGEN', bookId: 'b', issuerSubject: 'boss', effectiveAt: JAN, recordedAt: JAN,
           allowedOperations: ['adjudicate'], allowedRoles: ['user'], allowedScopes: ['keszlet'], evidenceRef: 'doc:IDEGEN',
         });
       }
-      const basisId = mode === 'missing' ? 'NINCS-ILYEN' : (mode === 'foreign' ? 'IDEGEN' : 'HAT');
-      const at = mode === 'not_yet' ? '2025-06-01T00:00:00.000Z' : MAR;
+      const basisId = shape === 'missing' ? 'NINCS-ILYEN' : (shape === 'foreign' ? 'IDEGEN' : 'HAT');
+      const at = shape === 'not_yet' ? '2025-06-01T00:00:00.000Z' : MAR;
       const g = grant(store, 'adjudicate', basisId, at);
-      let after = null;
-      if (g.ok) {
-        // A megadás sikerült — a HASZNÁLAT oldalán rontjuk el az alapot, hogy a második kaput mérjük.
-        if (mode === 'expired') store.run("UPDATE authority_basis SET expires_at = ? WHERE basis_id='HAT'", JUN);
-        if (mode === 'revoked') store.run("UPDATE authority_basis SET revoked_at = ? WHERE basis_id='HAT'", JUN);
-        if (mode === 'malformed') store.run("UPDATE authority_basis SET allowed_operations = 'nem-json' WHERE basis_id='HAT'");
-        after = use(store, 'adjudicate', JUN);
-      }
-      fRows.push({
-        mode,
-        refused_at_grant: g.ok === false,
-        refused_at_use: after ? after.allowed === false : null,
-        reason: after ? after.reason : (g.error || '').replace(/^.*\(/, '').replace(/[;)].*$/, ''),
-        left: rows(store),
-      });
+      fGrant.push({ shape, refused: g.ok === false, reason: namedReason(g.error), left: rows(store) });
       store.close();
     }
-    const fOk = fRows.every((r) => (r.refused_at_grant && r.left === 0) || r.refused_at_use === true)
-      && fRows.find((r) => r.mode === 'missing').refused_at_grant === true
-      && fRows.find((r) => r.mode === 'foreign').refused_at_grant === true
-      && fRows.find((r) => r.mode === 'not_yet').refused_at_grant === true
-      && fRows.find((r) => r.mode === 'expired').reason === 'basis_expired'
-      && fRows.find((r) => r.mode === 'revoked').reason === 'basis_revoked'
-      && fRows.find((r) => r.mode === 'malformed').reason === 'basis_limit_undecidable';
 
-    // (g) A VALÓDI BELÉPÉSI PONTOKON IS HAT — nem csak a jog-feloldón. Mind a három művelet a maga
-    //     ÉLES útján: felfüggesztés · elbírálás · jogváltoztatás. Ez a közös ellenőrzési pont
-    //     bizonyítéka: a kaput nem a hívók rakják össze (KUKA-039).
-    const live = (allowedOps) => {
-      const store = world({ allowed: allowedOps });
-      for (const op of OPS) grant(store, op, 'HAT');
+    // f2 — A HASZNÁLAT KAPUJA. Itt a hatáskör SZABÁLYOSAN megszületik egy hatályos, megengedő alap
+    //      alatt — és az alap CSAK EZUTÁN válik alkalmatlanná. Így valóban a HASZNÁLATI kapu dönt,
+    //      nem egy korábbi elutasítás (a mérés a saját tárgyát méri).
+    const fUse = [];
+    for (const shape of ['expired', 'revoked', 'malformed', 'version_absent', 'version_unknown', 'version_undecidable']) {
+      const store = world({ allowed: ['adjudicate'] });
+      const g = grant(store, 'adjudicate', 'HAT');
+      if (shape === 'expired') store.run("UPDATE authority_basis SET expires_at = ? WHERE basis_id='HAT'", JUN);
+      if (shape === 'revoked') store.run("UPDATE authority_basis SET revoked_at = ? WHERE basis_id='HAT'", JUN);
+      if (shape === 'malformed') store.run("UPDATE authority_basis SET allowed_operations = 'nem-json' WHERE basis_id='HAT'");
+      // A HÁROM VERZIÓ-ALAK: hiányzó · nem létező · értelmezhetetlen. Mindhárom UGYANAZT a kérdést
+      // teszi fel másként: „mi alapján adták ezt a jogot?" — és a válasz hiánya NEM engedély.
+      if (shape === 'version_absent') store.run("UPDATE adjudication_authority SET basis_version = NULL");
+      if (shape === 'version_unknown') store.run('UPDATE adjudication_authority SET basis_version = 999');
+      if (shape === 'version_undecidable') store.run("UPDATE adjudication_authority SET basis_version = 'nem-szam'");
+      const after = use(store, 'adjudicate', JUN);
+      fUse.push({ shape, granted: g.ok === true, refused: after.allowed === false, reason: after.reason });
+      store.close();
+    }
+    const fOk = fGrant.length === 3 && fGrant.every((r) => r.refused && r.left === 0)
+      && fGrant.find((r) => r.shape === 'missing').reason === 'no_recorded_basis'
+      && fGrant.find((r) => r.shape === 'foreign').reason === 'basis_belongs_to_other_book'
+      && fGrant.find((r) => r.shape === 'not_yet').reason === 'no_basis_version_in_effect'
+      && fUse.length === 6 && fUse.every((r) => r.granted && r.refused)
+      && fUse.find((r) => r.shape === 'expired').reason === 'basis_expired'
+      && fUse.find((r) => r.shape === 'revoked').reason === 'basis_revoked'
+      && fUse.find((r) => r.shape === 'malformed').reason === 'basis_limit_undecidable'
+      && fUse.find((r) => r.shape === 'version_absent').reason === 'granted_basis_version_absent'
+      && fUse.find((r) => r.shape === 'version_unknown').reason === 'granted_basis_version_missing'
+      && fUse.find((r) => r.shape === 'version_undecidable').reason === 'granted_basis_version_undecidable';
+
+    // (g) A VALÓDI BELÉPÉSI PONTOK — ÉS A MÉRÉS A SAJÁT TÁRGYÁT MÉRI (R55/F55-02).
+    //
+    // A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL). A korábbi alak a tiltott esetben ELŐBB megpróbálta
+    // MEGADNI a három hatáskört; a megadási kapu jogosan elutasította, ezért a valódi műveletek
+    // hatáskör-sor HÍJÁN akadtak el — nem a HASZNÁLATI korláton. Mérve: az M190 (a használati kapu
+    // kivétele) a (d)/(e)/(f) ágat megbuktatta, de EZT az állítást nem — vagyis a „valódi belépési
+    // pontokon is hat" mondat nem a megnevezett védelmet bizonyította (KUKA-041 · KUKA-054).
+    //
+    // MOSTANTÓL MIND A NÉGY ÁG ÚGY INDUL, HOGY A HATÁSKÖR SZABÁLYOSAN MEGSZÜLETIK, és csak AZUTÁN
+    // változik a világ. Így a használati kapu elvétele VALÓDI, nem kívánt hatást okoz: felfüggesztés
+    // jön létre, ügy dől el, tagság vész el.
+    const liveWorld = (prepare) => {
+      const store = world({ allowed: [...OPS] });               // az alap MINDHÁRMAT megengedi
+      for (const op of OPS) grant(store, op, 'HAT');            // …és a hatáskörök SZABÁLYOSAN megszületnek
+      if (prepare) prepare(store);                              // a világ CSAK EZUTÁN változik
       submitClaim({ store, clock: clockFrom(MAR), claimantRef: 'x', bookId: 'a', statement: 'kifogás',
         intakeContext: { channel: 'test', source: 'synthetic' } });
       const claim = store.get('SELECT * FROM claim');
-      const s1 = suspendMembership({ store, actorSubjectId: 'judge', subjectId: 'member', bookId: 'a', clock: clockFrom(MAR), reason: 'vizsgálat' });
-      const s2 = adjudicateClaim({ store, actorSubjectId: 'judge', claimId: claim.id, decision: 'resolve', clock: clockFrom(MAR) });
-      const s3 = revokeMembership({ store, subjectId: 'member', bookId: 'a', clock: clockFrom(MAR), actorSubjectId: 'judge' });
-      const out = { suspend: s1.ok === true, adjudicate: s2.ok === true, alter_right: s3.ok === true,
+      const s1 = suspendMembership({ store, actorSubjectId: 'judge', subjectId: 'member', bookId: 'a', clock: clockFrom(JUN), reason: 'vizsgálat' });
+      const s2 = adjudicateClaim({ store, actorSubjectId: 'judge', claimId: claim.id, decision: 'resolve', clock: clockFrom(JUN) });
+      const s3 = revokeMembership({ store, subjectId: 'member', bookId: 'a', clock: clockFrom(JUN), actorSubjectId: 'judge' });
+      const out = {
+        suspend: s1.ok === true, adjudicate: s2.ok === true, alter_right: s3.ok === true,
+        // A VALÓDI HATÁS, NEM A VÁLASZ: a három érintett tábla tartalma.
+        suspension_rows: store.all('SELECT * FROM membership_suspension').length,
         claim_state: store.get('SELECT state FROM claim').state,
-        membership_revoked: store.get('SELECT revoked_at FROM membership').revoked_at !== null };
+        membership_revoked: store.get('SELECT revoked_at FROM membership').revoked_at !== null,
+        // A LÉTEZÉSI HATÁR — PONTOSAN OTT MÉRVE, AHOL ÜGYADAT VAN (KUKA-084 · R55 kikötése).
+        //
+        // AZ ELSŐ ALAKOM TÚL TÁG VOLT, ÉS EZT A SAJÁT FUTÁSOM MUTATTA MEG: minden olyan választ
+        // szivárgásnak vett, amiben szerepel a „basis/version/granted" szó — így a felfüggesztés és
+        // a jogváltoztatás NEVEZETT indoka is annak számított, holott azokon az utakon nincs
+        // ügyadat, és a nevezett indok a RÉGI, kívánt viselkedés (KUKA-049: az őr a kért eredményt
+        // jelentette kudarcnak).
+        //
+        // AMIT A KÖVETELMÉNY TÉNYLEGESEN MOND: a meglévő semlegesítés maradjon meg — vagyis az
+        // ÜGY-út (`adjudicateClaim`) válasza NE mondja meg, hogy az ügy létezik-e. Ezt úgy mérjük,
+        // hogy a nemleges válasz BÁJTRA azonos a NEM LÉTEZŐ ügyére adott válasszal.
+        claim_answer: JSON.stringify(s2),
+        ghost_answer: JSON.stringify(adjudicateClaim({
+          store, actorSubjectId: 'judge', claimId: 999999, decision: 'resolve', clock: clockFrom(JUN),
+        })),
+      };
       store.close();
       return out;
     };
-    const gAll = live(OPS);                              // a határozat MINDHÁRMAT megengedi
-    const gNone = live([INVITE_ISSUE_OPERATION]);        // a határozat EGYIKET sem
-    const gOk = gAll.suspend && gAll.adjudicate && gAll.alter_right
-      && gAll.claim_state === 'resolved' && gAll.membership_revoked === true
-      && gNone.suspend === false && gNone.adjudicate === false && gNone.alter_right === false
-      && gNone.claim_state === 'received' && gNone.membership_revoked === false;
+    // g1 — JOGOS ELLENPÁR: a világ nem változik, mind a három művelet VALÓDI hatást fejt ki.
+    const gLawful = liveWorld(null);
+    // g2 — A HASZNÁLATI KAPU: az alap EGY ÚJ VERZIÓVAL szűkül, miután a hatáskörök megszülettek.
+    const gNarrowed = liveWorld((store) => recordAuthorityBasis({
+      store, basisId: 'HAT', bookId: 'a', issuerSubject: 'boss', effectiveAt: JUN, recordedAt: JUN,
+      allowedOperations: [INVITE_ISSUE_OPERATION], allowedRoles: ['user'], allowedScopes: ['keszlet'],
+      evidenceRef: 'doc:HAT-szukitve',
+    }));
+    // g3 — A HIÁNYZÓ MEGADÁSKORI VERZIÓ (F55-01) UGYANEZEN A HÁROM VALÓDI ÚTON.
+    const gNoVersion = liveWorld((store) => store.run('UPDATE adjudication_authority SET basis_version = NULL'));
+    // g4 — AZ ALAP NÉLKÜLI, TÖRTÉNETI HATÁSKÖR: a MEGŐRZÖTT ellenpár, VÁLTOZATLAN viselkedéssel.
+    const gNoBasis = liveWorld((store) => store.run('UPDATE adjudication_authority SET basis_id = NULL, basis_version = NULL'));
 
+    const liveEffect = (x) => x.suspend && x.adjudicate && x.alter_right
+      && x.suspension_rows === 1 && x.claim_state === 'resolved' && x.membership_revoked === true;
+    const liveClosed = (x) => x.suspend === false && x.adjudicate === false && x.alter_right === false
+      && x.suspension_rows === 0 && x.claim_state === 'received' && x.membership_revoked === false
+      // …és az ÜGY-út válasza ugyanaz, mint a nem létező ügyé: a létezés nem szivárog ki.
+      && x.claim_answer === x.ghost_answer;
+    const gOk = liveEffect(gLawful) && liveClosed(gNarrowed) && liveClosed(gNoVersion)
+      && liveEffect(gNoBasis);
     // (h) AZ ALAP NÉLKÜLI, TÖRTÉNETI HATÁSKÖR VISELKEDÉSE VÁLTOZATLAN — és ez KIMONDOTT határ, nem
     //     feledékenység: erről az R53 nem hoz üzleti döntést (KUKA-033 · KUKA-050).
     const hStore = world({});
@@ -3614,16 +3679,22 @@ probe('P-ORG-adjudication-basis-limit', 'R53 · ORG-N1a · ORG-N1b · KUKA-126 �
         + '· a megengedett művelet megadható ÉS használható (pozitív ellenpár) · a három művelet '
         + 'KÜLÖN korlát · a később SZŰKÜLŐ alap a már kiadott jogot is zárja · a később TÁGULÓ alap '
         + 'önmagában nem szélesít · a hiányzó/idegen/nem hatályos/lejárt/megvont/hibás alak mind '
-        + 'NEVEZETTEN zár · a kapu a VALÓDI belépési pontokon is hat · az alap nélküli történeti '
-        + 'hatáskör viselkedése VÁLTOZATLAN',
+        + 'NEVEZETTEN zár — a MEGADÁS és a HASZNÁLAT kapuja KÜLÖN, saját előfeltétellel mérve · a '
+        + 'HIÁNYZÓ megadáskori verzió is ZÁR (hatás és írás nélkül) · a kapu a VALÓDI belépési '
+        + 'pontokon VALÓDI hatás-különbségként hat (jogos: felfüggesztés + döntés + megvonás '
+        + 'MEGTÖRTÉNIK; szűkített alap és hiányzó verzió mellett EGYIK SEM) · a belső indok nem '
+        + 'szivárog ki · az alap nélküli történeti hatáskör viselkedése VÁLTOZATLAN',
       actual: `(a) megadás: ${aRows.map((r) => `${r.op}=${r.refused ? 'elutasítva' : 'MEGADVA(!)'}/${r.left} sor`).join(' · ')}`
         + ` · (b) pozitív: ${bRows.map((r) => `${r.op}=${r.allowed ? 'használható' : 'ZÁRVA(!)'}`).join(' · ')}`
         + ` · (c) külön korlát: megadva=${cGrants.filter((x) => x.ok).map((x) => x.op).join(',') || '—'} (${cLeft} sor)`
         + ` · (d) szűkülés: ${dBefore.allowed}→${dAfter.allowed} (${dAfter.reason})`
         + ` · (e) régi bélyegző=${eStamped.reason} · új megadás=${eFresh.ok}/használható=${eFreshUse.allowed}`
-        + ` · (f) ${fRows.map((r) => `${r.mode}:${r.reason}`).join(' · ')}`
-        + ` · (g) éles utak: mind engedve=${gAll.suspend}/${gAll.adjudicate}/${gAll.alter_right}`
-        + ` · egyik sem=${gNone.suspend}/${gNone.adjudicate}/${gNone.alter_right} (ügy=${gNone.claim_state})`
+        + ` · (f1) megadás-kapu: ${fGrant.map((r) => `${r.shape}:${r.reason}/${r.left} sor`).join(' · ')}`
+        + ` · (f2) használat-kapu: ${fUse.map((r) => `${r.shape}:${r.reason}`).join(' · ')}`
+        + ` · (g) ÉLES utak — jogos: hatás=${gLawful.suspension_rows}/${gLawful.claim_state}/${gLawful.membership_revoked}`
+        + ` · szűkített alap: hatás=${gNarrowed.suspension_rows}/${gNarrowed.claim_state}/${gNarrowed.membership_revoked} (ügy-válasz azonos a nem létezőével=${gNarrowed.claim_answer === gNarrowed.ghost_answer})`
+        + ` · hiányzó verzió: hatás=${gNoVersion.suspension_rows}/${gNoVersion.claim_state}/${gNoVersion.membership_revoked}`
+        + ` · alap nélkül (megőrzött): hatás=${gNoBasis.suspension_rows}/${gNoBasis.claim_state}/${gNoBasis.membership_revoked}`
         + ` · (h) alap nélkül=${hUse.allowed} (${hState.reason})`,
       pass,
       asserts: {
@@ -3634,6 +3705,7 @@ probe('P-ORG-adjudication-basis-limit', 'R53 · ORG-N1a · ORG-N1b · KUKA-126 �
         'A-ORG-N1b-widened-basis-does-not-broaden-an-already-granted-authority': eOk,
         'A-ORG-N1b-every-missing-or-invalid-basis-shape-is-a-named-refusal': fOk,
         'A-ORG-N1b-the-limit-holds-on-the-real-entry-points': gOk,
+        'A-ORG-N1b-missing-granted-version-closes-the-use-on-the-real-paths': gOk && fOk,
         'A-ORG-N1b-authority-without-recorded-basis-is-unchanged-and-named': hOk,
       },
     };

@@ -85,7 +85,7 @@ export function authorityRowAt({ store, subjectId, bookId, operation, nowIso }) 
   // hatáskörökről ez a kör nem hoz üzleti döntést, és ezt a norma maradék-határként őrzi (R53).
   if (row.basis_id !== null && row.basis_id !== undefined) {
     const verdict = adjudicationLimitVerdict({
-      store, basisId: row.basis_id, bookId, operation,
+      store, basisId: row.basis_id, bookId, operation, mode: 'use',
       grantedUnderVersion: row.basis_version ?? null, validAt: nowIso, knownAt: nowIso,
     });
     if (verdict.ok !== true) {

@@ -103,7 +103,8 @@ export function grantAdjudicationAuthority({ store, subjectId, bookId, operation
     // A dobás alakja SZÁNDÉKOSAN változatlan (a nem hatályos alap ága óta ez a szerződés, és a
     // külső fél r88/F01 programja erre épül) — de az indok NEVEZETT (KUKA-064).
     const verdict = adjudicationLimitVerdict({
-      store, basisId, bookId, operation, grantedUnderVersion: null, validAt: at, knownAt: at,
+      store, basisId, bookId, operation, mode: 'grant', grantedUnderVersion: null,
+      validAt: at, knownAt: at,
     });
     if (verdict.ok !== true) {
       throw new Error(`grantAdjudicationAuthority: az alap korlátja nem engedi meg ezt a műveletet `

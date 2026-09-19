@@ -103,6 +103,23 @@ export const EXTERNAL_DECISION_SOURCE_R53 = Object.freeze({
   revalidate_on: 'forrás- vagy követelményváltozás az érintett klauzulán',
 });
 
+/**
+ * R55 — AZ R53-AS HATÁSKÖRI CSOMAG ELLENŐRZÉSE. A K05-DSC-c elfogadása ÉRVÉNYBEN MARAD; az
+ * ORG-N1a/b TOVÁBBRA IS RÉSZLEGES, req-5-re lépés nincs, és az elfogadott egész klauzulák száma
+ * változatlanul 16. A hatásköri csomagot ez a kör KIMONDOTTAN nem zárja le teljesen.
+ */
+export const EXTERNAL_DECISION_SOURCE_R55 = Object.freeze({
+  round: 'CMD-VS-300-002-002 R55 — ANALYSIS',
+  decided_by: 'chatgpt-v3 (külső ellenőrző fél)',
+  at: '2026-09-19',
+  examined_revision: 'valach-family/valach-system@f675aed6e74038ab6fe34764e9376d912eba9831',
+  scope: 'az R53-as hatásköri csomag ellenőrzése a beadott forráson — a K05-DSC-c korábbi '
+    + 'elfogadása érvényben marad, az ORG-N1a/b részleges, és NINCS req-5-re lépés vagy '
+    + 'core-core lezárás',
+  not_a_machine_attestation: true,
+  revalidate_on: 'forrás- vagy követelményváltozás az érintett klauzulán',
+});
+
 /** A regiszter FORRÁSAI, időrendben — a `source` mező ezekre hivatkozik. */
 export const EXTERNAL_DECISION_SOURCES = Object.freeze([
   Object.freeze({ id: 'R37', document: 'v3ref/source-documents/R37_board_v1.md', ...EXTERNAL_DECISION_SOURCE }),
@@ -110,6 +127,7 @@ export const EXTERNAL_DECISION_SOURCES = Object.freeze([
   Object.freeze({ id: 'R47', document: 'v3ref/source-documents/R47_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R47 }),
   Object.freeze({ id: 'R51', document: 'v3ref/source-documents/R51_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R51 }),
   Object.freeze({ id: 'R53', document: 'v3ref/source-documents/R53_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R53 }),
+  Object.freeze({ id: 'R55', document: 'v3ref/source-documents/R55_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R55 }),
 ]);
 
 /** A HÁROM DÖNTÉS-SZÓ ZÁRT HALMAZ — ismeretlen szó nem csúszhat át „valaminek" (KUKA-101). */
@@ -235,6 +253,11 @@ export const EXTERNAL_CLAUSE_DECISIONS_R53 = Object.freeze([
     reason: '**K05-DSC-c elfogadva a jelenlegi egyírós, szintetikus, megbízható belső kontextusú referencia explicit adatköri jogadására és eredménykiadására.** Minden érintett adatkörre külön megadott jog kell; a készletjog nem ad árjogot; a hiány és az alkalmazható tiltás zár; a vegyes eredmény egészben megtagadott, ha bármely érintett adatkörre nincs érvényes döntés. A megvonás hatálya és tudásideje külön kezelhető, az újraadás nem írja át a köztes történetet. Ez nem fogadja el a külső hitelesítési/HTTP-határt, a teljes szervezeti képviseletet vagy a teljes core-core lezárását.' }),
 ]);
 
+export const EXTERNAL_CLAUSE_DECISIONS_R55 = Object.freeze([
+  Object.freeze({ clause: 'ORG-N1a', verdict: 'partial', source: 'R55', reason: 'Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.' }),
+  Object.freeze({ clause: 'ORG-N1b', verdict: 'partial', source: 'R55', reason: 'Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.' }),
+]);
+
 /** A REGISZTER MINDEN DÖNTÉSE, forrással — a történeti sor `source: 'R37'`-et kap. */
 export const ALL_EXTERNAL_DECISIONS = Object.freeze([
   ...EXTERNAL_CLAUSE_DECISIONS.map((d) => Object.freeze({ source: 'R37', ...d })),
@@ -242,6 +265,7 @@ export const ALL_EXTERNAL_DECISIONS = Object.freeze([
   ...EXTERNAL_CLAUSE_DECISIONS_R47,
   ...EXTERNAL_CLAUSE_DECISIONS_R51,
   ...EXTERNAL_CLAUSE_DECISIONS_R53,
+  ...EXTERNAL_CLAUSE_DECISIONS_R55,
 ]);
 
 // A LEGÚJABB DÖNTÉS NYER, DE A RÉGI NEM TŰNIK EL. A sorrend a `EXTERNAL_DECISION_SOURCES` szerinti:

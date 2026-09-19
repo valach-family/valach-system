@@ -1801,6 +1801,31 @@ export const MUTATIONS = [
     from: "  const today = limitVerdict({\n    store, basisId, bookId, operation, role: null, scope: null, validAt, knownAt,\n  });",
     to: "  const today = frozen({ ok: false, reason: 'forced_denial', basis_version: null, limit: null });" },
 
+  // ── R55 — A HIÁNYZÓ MEGADÁSKORI VERZIÓ ÉS A MÓD-KEVEREDÉS VISSZABONTÁSAI (F55-01) ────────────
+  { id: 'M194', rule: 'K04', catcher: 'P-ORG-adjudication-basis-limit', expect: 'probe_fail',
+    what: 'ABL-01 / R55 — A HIÁNYZÓ TÖRTÉNETI BIZONYÍTÉKBÓL ÚJRA ENGEDÉLY LESZ: a használati ág a '
+      + 'hiányzó megadáskori verziót megint úgy érti, hogy „nincs korábbi bélyegző, tehát csak a MAI '
+      + 'alap dönt". MÉRT HATÁS — és ez VALÓDI, nem indokcsere: egy `basis_version = NULL` '
+      + 'hatáskör-sorral mind a három éles út ÁTMEGY, tehát felfüggesztés JÖN LÉTRE, az ügy '
+      + 'ELDŐL, és a tagság MEGVONÓDIK. Pontosan az F55-01 lelete, amit a külső fél mért és a saját '
+      + 'fánkon megismételtünk',
+    file: 'authorityBasis.mjs',
+    from: "  if (versionAbsent) {\n    return frozen({\n      ok: false, reason: 'granted_basis_version_absent', checked: 'granted_version',",
+    to: "  if (versionAbsent) {\n    return frozen({\n      ok: true, reason: 'within_basis', checked: 'granted_version'," },
+
+  { id: 'M195', rule: 'K04', catcher: 'P-ORG-adjudication-basis-limit', expect: 'probe_fail',
+    what: 'ABL-01 / R55 — A HÍVÓ ELFELEJTI A MÓDOT: a közös belépési pont mód nélkül kéri az '
+      + 'ítéletet. MÉRT HATÁS a MÁSIK irányban: a mód-kapu fail-closed, tehát MINDEN alapra '
+      + 'hivatkozó hatáskör elutasításba fut — a JOGOS felfüggesztés, elbírálás és jogváltoztatás '
+      + 'sem megy végbe. A kapu nem lehet fal (KUKA-122), és ezt a pozitív ellenpár méri. '
+      + 'MÉRT HELYESBÍTÉS (KUKA-187): az ELSŐ alakom magát a mód-kaput vette ki, és `SURVIVED` '
+      + 'lett — mert minden mai hívó ÁTADJA a módot, tehát a kapu kivétele önmagában nem okoz '
+      + 'kárt. Ez a rendszerről jó hír, bizonyítéknak viszont semmi; a mutáció ezért arra az '
+      + 'alakra került, ami VALÓDI hatást okoz.',
+    file: 'authority.mjs',
+    from: "      store, basisId: row.basis_id, bookId, operation, mode: 'use',",
+    to: "      store, basisId: row.basis_id, bookId, operation," },
+
   { id: 'M176', rule: 'K10', catcher: 'P-KSZ-repeat-and-error-boundary', expect: 'probe_fail',
     what: 'K07 / R45 — AZ ISMÉTLÉS-ŐR ELNYELI A MEGVÁLTOZOTT TARTALMAT: az azonos kulcs melletti '
       + 'ELTÉRŐ deklarált tartalom (más cikk, más profil, más verzió) nem NEVEZETT ütközés, hanem '

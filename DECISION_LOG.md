@@ -3538,3 +3538,57 @@ megenged — a mért tény (a könyv-azonosság) változatlan.
 
 **Tanulság:** KUKA-193. **Gépi jel:** `node v3ref/run.mjs` (61 próba) · `npm run verify:v3ref`
 (M189–M193) · `npm run verify:kuka` · `npm run verify:external-decisions` (38/38).
+
+---
+
+## D-VS-3061 — a hiányzó megadáskori verzió zár, és a mérés a saját tárgyát méri (2026-09-19)
+
+**Parancs:** CMD-VS-300-002-002 R55 (chatgpt-v3 — KÜLSŐ ELLENŐRZŐ FÉL). Az R53-as hatásköri
+csomagot **ellenőrizték**, és valós előrelépésnek ismerték el; a **K05-DSC-c elfogadása érvényben
+marad**, az **ORG-N1a/b továbbra is részleges**, req-5-re lépés nincs, és az elfogadott egész
+klauzulák száma változatlanul **16**.
+
+**F55-01 — a hiányzó megadáskori verzió kikapcsolta a történeti korlátot.** Az R53-as alak a
+`null` megadáskori verziót így értette: *„nincs korábbi bélyegző, tehát csak a MAI alap dönt"* — és
+engedett. Ugyanaz a `null` viszont **két** helyzetet jelölt: a MEGADÁST (ahol tényleg nincs még
+verzió) és egy **már megadott** jog **hiányzó történeti bizonyítékát**. Reprodukálva a saját fánkon,
+mind a három bírálati műveletre: egy `basis_id` szerinti, de `basis_version = NULL` hatáskör-sorral
+a február 1-jei használat **átment**, és **valódi hatást** fejtett ki — felfüggesztés jött létre, az
+ügy `resolved` lett, a tagság megvonódott.
+
+**A javítás.** A módot a **hívó mondja ki** (`LIMIT_CHECK_MODES = grant | use`), és egyik mód sem
+következtethető a `null`-ból. HASZNÁLAT módban a megadáskori verzió **kötelező bizonyíték**: a
+hiányzó (`granted_basis_version_absent`), az értelmezhetetlen
+(`granted_basis_version_undecidable`) és a nem létező (`granted_basis_version_missing`) verzió
+**mind külön nevezett elutasítás, hatás és írás nélkül**. MEGADÁS módban a korábbi verzió átadása
+maga is hiba (`granted_version_not_applicable_at_grant`), a mód nélküli hívás pedig zár
+(`limit_check_mode_required`). A rendes megadási út **változatlanul működik**, és a `basis_id`
+nélküli történeti jog kezeléséhez **nem** találtunk ki új üzleti szabályt.
+
+**F55-02 — a valódi használati kapu ellenpróbáját egy korábbi elutasítás elfedte.** A „valódi
+belépési pontok" ága korábban **előbb megpróbálta megadni** a tiltott hatásköröket; a megadási kapu
+jogosan elutasította, ezért a műveletek **hatáskör híján** akadtak el, nem a **használati**
+korláton. Mérve (az ő futásuk és a mienk is): a használati kapu kivétele a (d)/(e)/(f) ágat
+megbuktatta, ezt az állítást **nem**. Mostantól mind a négy ág úgy indul, hogy a hatáskör
+**szabályosan megszületik**, és a világ csak azután változik:
+
+| ág | mit mér | mért hatás |
+|---|---|---|
+| jogos ellenpár | a három művelet **megtörténik** | felfüggesztés-sor · `resolved` ügy · megvont tagság |
+| szűkített alap | a használati kapu | **egyik sem**, a táblák változatlanok |
+| hiányzó megadáskori verzió | F55-01 a valódi utakon | **egyik sem**, a táblák változatlanok |
+| alap nélküli, történeti jog | a **megőrzött** ellenpár | a három művelet megtörténik (változatlan) |
+
+Az ÜGY-út válasza a zárt ágakon **bájtra azonos** a nem létező ügyére adott válasszal — a meglévő
+semlegesítés megmaradt. A hiány-alakokat a **megadás** és a **használat** kapuján **külön, saját
+előfeltétellel** mérjük; a korábbi hat vegyes eset kétpontos bizonyítéknak *látszott*, miközben egy
+volt.
+
+**MÉRT HELYESBÍTÉS A SAJÁT MUTÁCIÓMON (KUKA-187).** Az M195 első alakja magát a mód-kaput vette ki,
+és **`SURVIVED`** lett — mert minden mai hívó átadja a módot, tehát a kapu kivétele önmagában nem
+okoz kárt. Ez a rendszerről jó hír, bizonyítéknak viszont semmi; a mutáció ezért arra az alakra
+került, ami valódi hatást okoz (a hívó elfelejti a módot ⇒ a **jogos** művelet is elakad).
+
+**Tanulság:** KUKA-195. **Gépi jel:** `node v3ref/run.mjs` (61 próba) · `npm run verify:v3ref`
+(M194 · M195 · a megerősített M190) · `npm run verify:kuka` · `npm run verify:external-decisions`
+(40/40).

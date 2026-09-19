@@ -8166,6 +8166,62 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'hazugság, amíg nem mondjuk meg, MELYIK hivatkozást kötöttük.',
   }),
   Object.freeze({
+    id: 'KUKA-195',
+    date: '2026-09-19',
+    title: 'A HIÁNYZÓ TÖRTÉNETI BIZONYÍTÉKBÓL ENGEDÉLY LETT — ugyanaz a `null` két helyzetet jelölt',
+    what: 'Az R53-as hatásköri kapu a MEGADÁSKORI verziót így kérdezte: ha nincs (`null`), akkor '
+      + '„nincs korábbi bélyegző, tehát csak a MAI alap dönt" — és ENGEDETT. Csakhogy ugyanaz a '
+      + '`null` KÉT, gyökeresen különböző helyzetet jelölt: **MEGADÁS** („most adjuk a jogot", ahol '
+      + 'tényleg nincs még verzió) és **HASZNÁLAT** („egy MÁR MEGADOTT jog történeti bizonyítéka '
+      + 'HIÁNYZIK"). MÉRVE, a változatlan forráson, mind a három bírálati műveletre: egy '
+      + '`basis_id` szerinti, de `basis_version = NULL` hatáskör-sorral a használat ÁTMENT, és '
+      + 'VALÓDI hatást fejtett ki — felfüggesztés jött létre, az ügy `resolved` lett, a tagság '
+      + 'megvonódott. A kontroll ugyanott zárt (1. verzió: `outside_granted_basis_version`, 999: '
+      + '`granted_basis_version_missing`).',
+    why_wrong: 'Ez a KUKA-002 alakja a MÓDON: két külön tény ült egy jelölésen, és a hiány NÉMÁN '
+      + 'engedéllyé vált (KUKA-012). A „nem tudom, mi alapján adták" nem ugyanaz, mint a „nincs '
+      + 'korlát" — az elsőből fail-closed válasz jár (KUKA-124/2 · KUKA-020). És a kár itt nem '
+      + 'adatkiadás, hanem JOGVÁLTOZTATÁS: aki így bírál, tagságot függeszt fel és von vissza.',
+    replaced_by: 'ABL-01 kiegészítve (`v3ref/authorityBasis.mjs`): a módot a HÍVÓ mondja ki '
+      + '(`LIMIT_CHECK_MODES = grant | use`), és egyik mód sem következtethető a `null`-ból. '
+      + 'HASZNÁLAT módban a megadáskori verzió KÖTELEZŐ BIZONYÍTÉK: hiányzó '
+      + '(`granted_basis_version_absent`) · értelmezhetetlen (`granted_basis_version_undecidable`) '
+      + '· nem létező (`granted_basis_version_missing`) — mind külön nevezett elutasítás, hatás és '
+      + 'írás nélkül. MEGADÁS módban a korábbi verzió ÁTADÁSA maga is hiba '
+      + '(`granted_version_not_applicable_at_grant`), a mód nélküli hívás pedig zár '
+      + '(`limit_check_mode_required`).',
+    replacement: 'Ha egy érték KÉT, egymást kizáró helyzetet jelölhet, akkor nem az értékből kell '
+      + 'kitalálni, melyikről van szó — a HELYZETET ki kell mondani. A hiányzó bizonyíték soha nem '
+      + 'fordulhat engedélybe (KUKA-094 a jogosultságon).',
+    decision: 'D-VS-3061',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R55/F55-01), saját reprodukcióval mind a három '
+      + 'műveletre; a saját fánkon a javítás előtt karakterre ugyanazt mértem.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/authorityBasis.mjs']),
+        pattern: 'LIMIT_CHECK_MODES',
+        why: 'az ellenőrzés módja kimondott, nem a null-ból kitalált' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/authorityBasis.mjs']),
+        pattern: 'granted_basis_version_absent',
+        why: 'a hiányzó megadáskori verzió HASZNÁLAT módban nevezetten ZÁR' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/authority.mjs']),
+        pattern: "mode: 'use'",
+        why: 'a közös belépési pont HASZNÁLAT módot kér — a mód nem marad a véletlenre' }),
+    ]),
+    forbidden: Object.freeze([]),
+    guard_note: 'gépi jel: `npm run verify:v3ref` — **M194** (a hiányzó verzióból újra engedély lesz '
+      + '⇒ VALÓDI felfüggesztés, ügydöntés és tagságmegvonás), **M195** (a hívó elfelejti a módot ⇒ '
+      + 'a JOGOS művelet is elakad — a másik irány), és az **M190** mostantól a VALÓDI belépési '
+      + 'pontok állítását is buktatja; mind a `P-ORG-adjudication-basis-limit` próbán, a kilépési '
+      + 'kódon. MÉRT HELYESBÍTÉS (KUKA-187): az M195 ELSŐ alakja magát a mód-kaput vette ki, és '
+      + '`SURVIVED` lett — minden mai hívó átadja a módot, tehát a kapu kivétele önmagában nem okoz '
+      + 'kárt; a mutáció ezért arra az alakra került, ami valódi hatást okoz. AMIRE NINCS GÉPI JEL, '
+      + 'KIMONDVA: a `basis_id` NÉLKÜLI, történeti hatáskörök üzleti kezelése — erről sem az R53, '
+      + 'sem az R55 nem hozott döntést.',
+    lesson: 'A HIÁNY NEM ENGEDÉLY — és ha egy jelölés (itt: a `null`) két ellentétes helyzetet is '
+      + 'jelenthet, akkor az egyik némán a másik jogait kapja meg. Ilyenkor nem finomítani kell a '
+      + 'kitalálást, hanem a HELYZETET kimondatni a hívóval.',
+  }),
+  Object.freeze({
     id: 'KUKA-194',
     date: '2026-09-19',
     title: 'A NÉMA ERŐFORRÁS-SZIVÁRGÁS HAZUGGÁ TETTE A MÉRÉST — és a hazug PIROS is hazugság',

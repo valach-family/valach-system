@@ -317,7 +317,7 @@ export function basisState({ store, subjectId, bookId, operation, validAt, known
     // vagyis a mező a saját nevétől eltérő kérdésre felelne (KUKA-073).
     limit_enforced: true,
     within_limit_now: adjudicationLimitVerdict({
-      store, basisId: row.basis_id, bookId, operation,
+      store, basisId: row.basis_id, bookId, operation, mode: 'use',
       grantedUnderVersion: row.basis_version ?? null, validAt, knownAt,
     }),
     limit_enforced_paths: LIMIT_ENFORCED_PATHS,
@@ -458,11 +458,45 @@ export function limitVerdict({ store, basisId, bookId, role, operation, scope, v
  * A múlt visszakereshető marad: a hatáskör-sor `basis_id` + `basis_version` mezőjéhez nem nyúlunk,
  * és a régi verzió sorát sem írjuk át (REV-N1b).
  *
+ * ── R55/F55-01 — A MÓD KIMONDOTT, NEM A `null`-BÓL KITALÁLT ─────────────────────────────────────
+ *
+ * A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, R55/F55-01; a saját fánkon mindhárom műveletre
+ * megismételve). Az R53-as alak a HIÁNYZÓ megadáskori verziót (`null`) úgy értette, hogy „nincs
+ * korábbi bélyegző, tehát csak a MAI alap dönt" — és engedett. Csakhogy ugyanez a `null` KÉT,
+ * egymástól gyökeresen különböző helyzetet jelölt:
+ *
+ *   MEGADÁS  — „most adjuk a jogot": tényleg nincs még korábbi verzió, a mai alap a helyes mérce;
+ *   HASZNÁLAT — „egy MÁR MEGADOTT jog történeti bizonyítéka HIÁNYZIK": ebből engedély NEM következhet.
+ *
+ * Mérve, a változatlan R53-as forráson: egy `basis_id='B'`, `basis_version=NULL` hatáskör-sorral a
+ * február 1-jei használat MIND A HÁROM műveletre ÁTMENT, és VALÓDI hatást fejtett ki — felfüggesztés
+ * létrejött, ügy `resolved` lett, tagság megvonva. Ez a KUKA-002 alakja a MÓDON: két külön tény ült
+ * egy jelölésen, és a hiány NÉMÁN engedéllyé vált (KUKA-012 · KUKA-124/2).
+ *
+ * INNENTŐL A MÓDOT A HÍVÓ MONDJA KI (`mode: 'grant' | 'use'`), és egyik mód sem következtethető a
+ * `null`-ból. HASZNÁLAT módban a megadáskori verzió KÖTELEZŐ: a hiánya, az értelmezhetetlen alakja
+ * és a nem létező verzió MIND külön nevezett elutasítás — hatás és írás nélkül.
+ *
  * PURE: csak olvas, nem ír.
  */
+
+/** A KÉT MÓD ZÁRT HALMAZA — ismeretlen mód nem „valamelyik", hanem NEM DÖNTHETŐ (KUKA-101). */
+export const LIMIT_CHECK_MODES = Object.freeze(['grant', 'use']);
+
 export function adjudicationLimitVerdict({
-  store, basisId, bookId, operation, grantedUnderVersion = null, validAt, knownAt,
+  store, basisId, bookId, operation, mode, grantedUnderVersion = null, validAt, knownAt,
 }) {
+  // A MÓD NÉLKÜLI HÍVÁS NEM „ALAPÉRTELMEZETTEN HASZNÁLAT" ÉS NEM „ALAPÉRTELMEZETTEN MEGADÁS":
+  // mindkét tippelés pont azt a kétértelműséget hozná vissza, ami a leletet okozta (KUKA-020).
+  if (!LIMIT_CHECK_MODES.includes(mode)) {
+    return frozen({
+      ok: false, reason: 'limit_check_mode_required', checked: 'mode',
+      basis_version: null, limit: null, granted_under_version: grantedUnderVersion ?? null,
+      message: `az ellenőrzés MÓDJÁT ki kell mondani (${LIMIT_CHECK_MODES.join(' | ')}) — a `
+        + 'megadáskori verzió hiánya MEGADÁSNÁL természetes, HASZNÁLATNÁL viszont hiányzó '
+        + 'történeti bizonyíték, és a kettőből nem következhet ugyanaz a válasz',
+    });
+  }
   // A MAI ÁLLAPOT — a közös ítélőn át, hogy a meghívó-út és a bírálati út ne tudjon elcsúszni
   // (KUKA-003: egy fogalom, egy otthon). A szerep- és adatkör-tengely itt fogalmilag nem
   // alkalmazható, ezt a MOP-01 szerződés mondja ki — nem a hívó hagyja el (R92/F02).
@@ -472,10 +506,37 @@ export function adjudicationLimitVerdict({
   if (today.ok !== true) {
     return frozen({ ...today, checked: 'today', granted_under_version: grantedUnderVersion ?? null });
   }
-  if (grantedUnderVersion === null || grantedUnderVersion === undefined) {
+  const versionAbsent = grantedUnderVersion === null || grantedUnderVersion === undefined;
+  if (mode === 'grant') {
+    // MEGADÁSKOR nincs korábbi bélyegző — és nem is szabad, hogy legyen. Ha a hívó mégis ad egyet,
+    // az nem „extra óvatosság", hanem összekevert mód: NEVEZETTEN elutasítjuk (KUKA-121).
+    if (!versionAbsent) {
+      return frozen({
+        ok: false, reason: 'granted_version_not_applicable_at_grant', checked: 'mode',
+        basis_version: today.basis_version, limit: today.limit,
+        granted_under_version: grantedUnderVersion,
+      });
+    }
     return frozen({
       ok: true, reason: 'within_basis', checked: 'today',
       basis_version: today.basis_version, limit: today.limit, granted_under_version: null,
+    });
+  }
+  // HASZNÁLAT módban a megadáskori verzió KÖTELEZŐ BIZONYÍTÉK. A hiánya nem „nincs korlát", hanem
+  // NEM TUDJUK, mi alapján adták — és amit nem tudunk, abból engedély nem lehet (R55/F55-01).
+  if (versionAbsent) {
+    return frozen({
+      ok: false, reason: 'granted_basis_version_absent', checked: 'granted_version',
+      basis_version: today.basis_version, limit: today.limit, granted_under_version: null,
+      message: `a hatáskör a(z) ${basisId} alapra hivatkozik, de NEM ŐRZI, melyik verzió alatt `
+        + 'adták — a hiányzó történeti bizonyítékból engedély nem következhet',
+    });
+  }
+  if (!Number.isInteger(Number(grantedUnderVersion))) {
+    return frozen({
+      ok: false, reason: 'granted_basis_version_undecidable', checked: 'granted_version',
+      basis_version: today.basis_version, limit: today.limit,
+      granted_under_version: grantedUnderVersion,
     });
   }
   const granted = basisVersionLimit({ store, basisId, bookId, version: grantedUnderVersion });
