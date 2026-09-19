@@ -454,15 +454,30 @@ export const MODULE_CONTRACT_NORMS = Object.freeze([
             + 'hivatkozásáéval · a döntés és a kiadási leltár EGY hatályosulási ponton áll, és '
             + 'engedély nélküli olvasónak leltár-sor sem születik. Falszifikálva: M177 · M178 · M179 '
             + '· M180 · M181 · M182.',
-          remaining: 'EGY, kimondottan ÜZLETI döntésre váró pont marad, és egy kimondott határ. '
-            + '(1) A MEGHÍVÓ `scope` mezője MÉRVE a meghívó-KIADÁS tengelye (`invite_basis.scope`), '
+          built_r51: 'a jog MEGADÁSA és MEGVONÁSA UGYANAZON a két idő-tengelyen áll (SGR-01 / '
+            + '`scope_grant_revocation`): a megvonás SAJÁT esemény, saját hatály- és tudás-idővel, a '
+            + 'megadás sorát nem írja át. Mérve: a később rögzített, VISSZAMENŐLEGES megvonás nem '
+            + 'írja át a korábbi tudásállapotot · az ELŐRE ütemezett megvonás a hatályáig nem zár · '
+            + 'az ÚJRAADÁS újra nyit, a közbenső nap zárva marad · a megvonás CSAK a saját '
+            + 'alany×könyv×adatkör hármasára hat · a hibás idő NEVEZETT, ÍRÁSMENTES elutasítás · és '
+            + 'a megadás→kiadás→leltár→megvonás teljes útja a kiadás IDŐHATÁRÁN válik zárttá. '
+            + 'Falszifikálva: M183 · M184 · M185 · M186 · M187. Mellé az M188: a megvont alapon '
+            + 'történő VALÓDI adatkiadás ellenpárja (az M179 csak indokot cserél — R51/F51-02).',
+          remaining: 'HÁROM pont marad, és ezek közül CSAK AZ EGYIK üzleti döntés — a korábbi '
+            + '„egyetlen akadály" megfogalmazás ezt elfedte (a külső fél R51-es lelete). '
+            + '(1) ÜZLETI: a MEGHÍVÓ `scope` mezője MÉRVE a meghívó-KIADÁS tengelye (`invite_basis.scope`), '
             + 'nem olvasási jog — ezért a beváltás ma NEM ad adatköri olvasási jogot; hogy a jövőben '
             + 'a meghívó hordozzon-e felajánlott olvasási adatköröket, ÜZLETI döntés, és gép nem '
             + 'vezetheti le. (2) A felhatalmazás adatkör-tengelye szabad szöveg, a tartalom-'
             + 'besorolás zárt halmaz; az olvasási JOG csak a zárt halmaz nevére adható '
             + '(`unknown_data_scope`), az ismeretlen szótárú PLAFON pedig ZÁR '
             + '(`basis_scope_vocabulary_unknown`) — a megfeleltetés üzleti döntés, néma fordítás '
-            + 'nincs. A MEZŐVETÍTÉS hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.',
+            + 'nincs. (3) TECHNIKAI, NYITOTT BIZONYÍTÁSI PONT: az R49/R50 állítása, hogy az M179 '
+            + '„valódi kiadást eredményez", MÉRVE CÁFOLT — a mutáció a következő korlát-ágon zárul, '
+            + 'tehát a próbát a VÁRT INDOKON bukatja el, nem adatkiadáson. A valódi kiadást okozó '
+            + 'alak külön mutáció (M188, KÉT sor rontásával); ezt az R51 kötelezte ki, és ez a '
+            + 'megkülönböztetés nem üzleti kérdés, hanem a bizonyíték pontossága. A MEZŐVETÍTÉS '
+            + 'hiánya továbbra is a klauzula SAJÁT feltétele, nem adósság.',
         }),
       }),
       Object.freeze({

@@ -24,13 +24,18 @@
  * alapja (szerep · művelet · adatkör)"*. A korlát tehát PLAFON, nem engedély — és a kiadás nem
  * lehet tágabb nála.
  *
+ * AZ R49 JAVÍTÁSA — A GYENGÉBB ALAP MEGSZŰNT (F49-01). Az R47-es első alakom még kiadott ott, ahol
+ * SEMMILYEN adatköri engedély nem volt rögzítve: a döntés `basis: 'membership_only'` nevet kapott,
+ * és a válasz kimondta, hogy ez gyengébb tanú. A külső ellenőrző fél ezt NEM fogadta el, és igaza
+ * volt: *„amíg nincs igazolt, az érintett adatkörre szóló olvasási jog, az adat nem adható ki"* —
+ * a gyengébb alap MEGNEVEZÉSE nem teszi jogossá a kiadást (KUKA-190). INNENTŐL a 2. pont (a
+ * ténylegesen megadott, SGR-01 szerinti jog) HIÁNYA ZÁR, és nincs alatta engedő tartalék.
+ *
+ * A TAGSÁGOT EZ A KAPU NEM DÖNTI EL. A hiányzó tagság a KÖNYV-kapu dolga, és az ELŐBB fut — a két
+ * ellenőrzés két külön kérdésre felel, és egyiket sem szabad a másik kedvéért kivenni (R49).
+ *
  * AMI EBBŐL NEM VEZETHETŐ LE, ÉS EZÉRT NEM IS TALÁLJUK KI (R47 kikötése):
- *   (1) Ha a tagsághoz NINCS rögzített korlát (`no_declared_basis` — ma a mag minden próba-világa
- *       ilyen), akkor a mai viselkedés marad: a tagság + tiltás-hiány kiad. Ezt viszont NEM
- *       nevezzük adatkörre szóló engedélynek: a döntés `basis: 'membership_only'`, és a válasz
- *       KIMONDJA, hogy ez GYENGÉBB tanú (KUKA-049 · KUKA-127). A nyitott üzleti kérdés a
- *       jelentésben áll, ellenpéldával.
- *   (2) A korlát ADATKÖR-tengelye ma SZABAD SZÖVEG (a meglévő világok `'stock'`/`'price'` szavakat
+ *   (1) A korlát ADATKÖR-tengelye ma SZABAD SZÖVEG (a meglévő világok `'stock'`/`'price'` szavakat
  *       használnak), a tartalom-besoroló viszont ZÁRT halmazt (`keszlet` · `arak`). A kettő nem
  *       ugyanaz a szótár, és egy gép nem tippelhet: az ismeretlen szótárú korlát ZÁR, saját
  *       nevezett indokkal (`basis_scope_vocabulary_unknown`) — nem nyit, és nem is fordítjuk le
@@ -73,9 +78,10 @@ export function recordedScopeLimit({ store, subjectId, bookId, validAt, knownAt 
 /**
  * EGY ADATKÖR OLVASÁSI DÖNTÉSE — a kiadás közös kapuja.
  *
- * A SORREND KIMONDOTT: a TILTÁS előbb dönt, mint bármely engedő alap (REV-N5b: a kimondott tiltás
- * az engedély mellett is érvényesül). Utána a tagság korlátja; a korlát HIÁNYA nem engedély, hanem
- * NEVEZETT, gyengébb alap.
+ * A SORREND KIMONDOTT: (1) a TILTÁS előbb dönt, mint bármely engedő alap (REV-N5b: a kimondott
+ * tiltás az engedély mellett is érvényesül) · (2) a ténylegesen MEGADOTT jog — a hiánya ZÁR, és
+ * nincs alatta engedő tartalék (R49/F49-01) · (3) a jog ALAPJÁNAK mai állapota · (4) a tagságra
+ * átvitt plafon, ami csak SZŰKÍT (a hiánya ezért nem zár: a jogot a 2. pont adta).
  */
 export function scopeReleaseDecision({ store, subjectId, bookId, scope, nowIso, knownAt, request }) {
   const base = { scope, basis: 'none', basis_id: null, basis_version: null, weaker: false };
@@ -166,8 +172,13 @@ export function scopeReleaseDecision({ store, subjectId, bookId, scope, nowIso, 
 export const RSB_CONTRACT = Object.freeze({
   id: 'RSB-01',
   owns: 'adatkörönkénti olvasási döntés a kiadás közös határán',
-  sources: Object.freeze(['subject_ban (REV-N5b)', 'grant_basis (ORG-N1b)', 'authority_basis (ORG-N1a)']),
-  order: Object.freeze(['explicit_ban', 'membership', 'recorded scope limit', 'live basis state', 'ceiling']),
+  sources: Object.freeze([
+    'subject_ban (REV-N5b)',
+    'scope_grant + scope_grant_revocation (SGR-01 — a ténylegesen megadott jog, két idő-tengelyen)',
+    'authority_basis (ORG-N1a — a jog alapjának mai állapota)',
+    'grant_basis (ORG-N1b — a tagságra átvitt plafon; szűkít, nem ad)',
+  ]),
+  order: Object.freeze(['explicit_ban', 'recorded scope grant', 'live basis state', 'carried membership limit']),
   forbids: Object.freeze([
     'a kérő saját címkéjéből (dataScope) levezetett jog',
     'a tiltás hiányából levezetett engedély',
@@ -175,8 +186,9 @@ export const RSB_CONTRACT = Object.freeze({
     'tágabb kiadás, mint a rögzített alap',
   ]),
   stated_limits: Object.freeze([
-    'rögzített korlát NÉLKÜL a döntés a KÖNYV-tagságon áll (membership_only) — ez NEM adatkörre '
-      + 'szóló engedély, és a válasz ezt kimondja; a nyitott üzleti kérdés a jelentésben áll',
+    'igazolt, adatkörre szóló olvasási jog NÉLKÜL nincs kiadás — a tagság önmagában nem jogosít, '
+      + 'és nincs engedő tartalék a megadott jog hiánya alatt (R49/F49-01)',
+    'a TAGSÁGOT ez a kapu nem dönti el: a hiányzó tagságot a könyv-kapu zárja, és az előbb fut',
     'a korlát adatkör-tengelye szabad szöveg, a tartalom-besorolás zárt halmaz — az ismeretlen '
       + 'szótárú plafon ZÁR, a megfeleltetés üzleti döntés',
     'mezővetítés nincs: a vegyes eredményt egészben tagadjuk meg (a klauzula saját feltétele)',

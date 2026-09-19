@@ -314,9 +314,17 @@ export const PROGRAMS = Object.freeze([
     origin: 'R81 (KÉT mag-próba: a `r81_chatgpt-v3.core.mjs` és a `r81_merge_chatgpt-v3.core.mjs` '
       + 'az ő szövegük — a program TESTE karakterre azonos, a ZÁRÓ SORTÖRÉS eltér az ő saját '
       + 'példányuktól, ahogy ők az R83 §6-ban megmérték). TESZTADAPTÁCIÓ NEM '
-      + 'TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson (eb4d83b) MAG 6 PASS / 1 FAIL '
-      + 'és ÖSSZEFŰZÉS 4 PASS / 4 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson '
-      + 'MAG 7/0 és ÖSSZEFŰZÉS 8/0.',
+      + 'TÖRTÉNT A TÖRTÉNETI FORRÁSON, ami `VS_EXT_CORE_VARIANT=historic` alatt ma is fut. AZ AKTÍV '
+      + 'VÁLTOZAT (`r81_chatgpt-v3.core.adapted.mjs`) KÉT, KÜLÖN ENGEDÉLYEZETT ponton tér el — a '
+      + 'korábbi feltétlen „TESZTADAPTÁCIÓ NEM TÖRTÉNT" mondat ezért pontosítva (KUKA-050): '
+      + '(1) R35 — a mennyiség-literálok kanonikus decimális szövegen (MNY-01); (2) R51 — a '
+      + 'tesztVILÁG kimondott készlet- ÉS ár-olvasási jogot kap a rendszer saját íróján, rögzített '
+      + 'alappal (`explicitReadFixture`). Eset, elvárás, óra és negatív ág nem változott. A futások '
+      + 'külön nevezve: a JAVÍTÁS ELŐTTI forráson (eb4d83b) MAG 6 PASS / 1 FAIL és ÖSSZEFŰZÉS '
+      + '4 PASS / 4 FAIL — pontosan az általuk közölt reprodukció —, az R50-es forráson MAG 5/2 (a '
+      + '`P01-pure-lines` és az `F04-release-time-before` a HIÁNYZÓ adatköri jog miatt — VALÓDI '
+      + 'piros, amit nem nevezünk visszamenőleg zöldnek), az R51-es teszt-előfeltétellel MAG 7/0 és '
+      + 'ÖSSZEFŰZÉS 8/0.',
     what: 'MAG (7 eset): P01–P04 a kiadott eredmény RÉSZFÁJÁNAK adatköre (az R79-es javítás '
       + 'visszamérése) · F04 három alakban — a kiadás jogának és a kiadási LELTÁR-SORÁNAK időpontja: '
       + 'négy külön óraolvasás mellett az eredmény 08:00:00-s jogon ment ki, a leltárba viszont '
@@ -344,9 +352,17 @@ export const PROGRAMS = Object.freeze([
     companions: Object.freeze(['r79_chatgpt-v3.core.mjs', 'r79_chatgpt-v3.core.adapted.mjs', 'activeCoreProgram.mjs']),
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
     origin: 'R79 (a MAG-próba: a `r79_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN — egyetlen '
-      + 'karaktert sem írtunk át benne). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a '
-      + 'JAVÍTÁS ELŐTTI forráson 14 PASS / 4 FAIL — pontosan az általuk közölt reprodukció —, a mai '
-      + 'forráson 18 PASS / 0 FAIL.',
+      + 'karaktert sem írtunk át benne, és ez a TÖRTÉNETI forrás továbbra is futtatható: '
+      + '`VS_EXT_CORE_VARIANT=historic`). AZ AKTÍV VÁLTOZAT (`*.core.adapted.mjs`) KÉT, KÜLÖN '
+      + 'ENGEDÉLYEZETT ponton tér el — a korábbi „TESZTADAPTÁCIÓ NEM TÖRTÉNT" mondat ezért kikerült '
+      + '(KUKA-050): (1) R35 — a tesztadat mennyiség-literáljai kanonikus decimális szövegen '
+      + '(MNY-01); (2) R51 — a tesztVILÁG kimondott készlet- ÉS ár-olvasási jogot kap a rendszer '
+      + 'saját íróján, rögzített alappal (`explicitReadFixture`, karakterre a külső fél alakjában), '
+      + 'mert az R49 óta a kiadás igazolt, adatkörre szóló olvasási jogot követel. Eset, elvárás, '
+      + 'óra és negatív ág EGYIK adaptációnál sem változott. A futások külön nevezve: a JAVÍTÁS '
+      + 'ELŐTTI forráson 14 PASS / 4 FAIL — pontosan az általuk közölt reprodukció —, az R50-es '
+      + 'forráson 17 PASS / 1 FAIL (a `P01-flat-quantity` a HIÁNYZÓ adatköri jog miatt — ez VALÓDI '
+      + 'piros volt, és nem nevezzük visszamenőleg zöldnek), az R51-es teszt-előfeltétellel 18/0.',
     what: '18 eset három lelet-családban: F01 — a KIADOTT eredmény RÉSZFÁJÁNAK adatköre (a tétel-tömb '
       + 'alatt rejtett ármező a készlet-címke alatt kijutott, és a mennyiség helyére csomagolt objektum '
       + 'is átment) · F02 — a PARANCSÍRÁS hatályosulása (a tagsági jog és a rögzített véglegesítési idő '

@@ -39,6 +39,7 @@ const VERSION_R45 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-
 // R47 — a K05-DSC-c ENGEDŐ ága: az adatkörönkénti olvasási döntés rögzített alapja (RSB-01).
 const VERSION_R47 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis';
 // R49 — a TÉNYLEGESEN megadott olvasási jog (SGR-01): a plafon szűkít, a hiány zár.
+const VERSION_R51 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history';
 const VERSION_R49 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant';
 
 export const EXPECTED_PROBES = Object.freeze([
@@ -385,6 +386,27 @@ export const EXPECTED_PROBES = Object.freeze([
         contract: 'RSB-01', contract_version: VERSION_R47 }),
       Object.freeze({ clause: 'K05-DSC-d', assertion: 'A-K05-c-one-effectuation-point-for-decision-and-ledger',
         contract: 'RSB-01', contract_version: VERSION_R47 }),
+    ]),
+  }),
+  Object.freeze({
+    // SGR-01 (R51/F51-01) — A JOG MEGADÁSA ÉS MEGVONÁSA UGYANAZON A KÉT IDŐ-TENGELYEN. A külső
+    // ellenőrző fél lelete: az R49-es megvonás EGYETLEN időpontot írt a megadás sorába, tehát egy
+    // később rögzített, visszamenőleges hatályú megvonás ÁTÍRTA a korábbi tudásállapotot is. A
+    // megadás bitemporális volt, a megvonás nem — a fegyelem FELE nem fegyelem (KUKA-129).
+    id: 'P-DSC-scope-grant-history', assertion: 'K05c-scope-grant-and-revocation-share-one-bitemporal-line',
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-K05-c-retroactive-revocation-does-not-rewrite-earlier-knowledge',
+        contract: 'SGR-01', contract_version: VERSION_R51 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-K05-c-scheduled-future-revocation-does-not-close-before-its-effect',
+        contract: 'SGR-01', contract_version: VERSION_R51 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-K05-c-re-grant-reopens-and-the-gap-day-stays-closed',
+        contract: 'SGR-01', contract_version: VERSION_R51 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-K05-c-revocation-touches-only-its-own-subject-book-and-scope',
+        contract: 'SGR-01', contract_version: VERSION_R51 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-K05-c-invalid-revocation-time-is-a-named-write-free-refusal',
+        contract: 'SGR-01', contract_version: VERSION_R51 }),
+      Object.freeze({ clause: 'K05-DSC-d', assertion: 'A-K05-c-grant-release-ledger-revocation-chain-turns-on-the-release-time-boundary',
+        contract: 'SGR-01', contract_version: VERSION_R51 }),
     ]),
   }),
   Object.freeze({

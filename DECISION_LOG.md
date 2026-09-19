@@ -3404,7 +3404,16 @@ mérhetők maradtak — az M4 bizonyítóereje nem indok az engedély nélküli 
 **MUTÁCIÓ-PONTOSÍTÁS (az ő leletük).** Az M179 leírása erősebb volt a futásnál: az R48-as alakban a
 határozat-állapot kihagyása csak az INDOKOT cserélte (`outside_basis_scopes`), a kiadás továbbra is
 zárt. Az SGR-01 óta a jog a MEGADÁSBÓL jön, ezért ugyanez a kihagyás VALÓDI kiadást eredményez egy
-megvont alapon — és a próba ezt kiadva→zárva különbségként méri. Az M177 horgonya a feltételről a
+megvont alapon — és a próba ezt kiadva→zárva különbségként méri.
+
+> **HELYESBÍTÉS (2026-09-19, D-VS-3059 · forrás: CMD-VS-300-002-002 R51/F51-02, chatgpt-v3 —
+> `v3ref/source-documents/R51_board_v1.md`):** az előző bekezdés utolsó mondata — hogy az M179
+> „VALÓDI kiadást eredményez egy megvont alapon" — **MÉRVE CÁFOLT, és ezennel visszavonva**. A
+> megvont határozat plafonja üres, ezért a kiadás az `outside_basis_scopes` ágon zárul: az M179 a
+> próbát a VÁRT INDOKON bukatja el, nem adatkiadáson. A valódi kiadást okozó alak az **M188** (két
+> sor rontásával). A történeti bekezdés szövegét nem írjuk át, csak megjelöljük (KUKA-050).
+
+Az M177 horgonya a feltételről a
 VISSZATÉRŐ ÉRTÉKRE került: a feltétel kiiktatása nyers kivételbe futott (más réteg védelme, nem az
 állítás bukása — KUKA-187).
 
@@ -3416,3 +3425,60 @@ pedig zár — néma fordítás nincs.
 
 **Tanulság:** KUKA-191. **Gépi jel:** `node v3ref/run.mjs` (59 próba) · `npm run verify:v3ref`
 (179 mutáció, benne M177–M182) · `npm run verify:kuka` (a `membership_only` alap tiltó-mintája).
+
+---
+
+## D-VS-3059 — a megvonás is két idő-tengelyen áll, és az M179 állítása helyesbítve (2026-09-19)
+
+**Parancs:** CMD-VS-300-002-002 R51 (chatgpt-v3 — KÜLSŐ ELLENŐRZŐ FÉL). Az R49-es két javítást a
+referencia hatókörében **elfogadták**; a K05-DSC-c ettől még nem zárul.
+
+**F51-01 — a megvonásnak nem volt külön tudás-ideje.** A jog MEGADÁSA két tengelyen állt (hatály +
+rögzítés), a MEGVONÁS viszont egyetlen időpontot írt vissza a megadás sorába (`revoked_at`), és az
+olvasó csak a megadás rögzítés-idejét nézte. **Reprodukálva a saját fánkon, karakterre az ő
+alakjukban:** egy április 1-jén rögzített, március 10-i hatályú megvonás után ugyanaz a márciusi
+kérdés (`validAt: március 15` · `knownAt: március 20`) előbb `granted: true`, utána
+`scope_grant_revoked` — a rendszer visszamenőleg átírta a korábbi tudás-állapotot. Ez **történeti
+lekérdezési hiba, nem árkiszivárgás**: a mai kiadás helyesen zárt.
+
+**A javítás.** A megvonás SAJÁT esemény lett (`scope_grant_revocation`: alany · könyv · adatkör ·
+eljáró · `effective_at` · `recorded_at`); a megadás sorához nem nyúlunk. Az olvasó EGY idővonalat
+épít a megadásokból ÉS a megvonásokból, mindkét tengelyen szűrve, és a **legkésőbbi alkalmazható
+esemény dönt** — ettől az ÚJRAADÁS is értelmes marad. Azonos hatály + azonos rögzítés esetén a
+megvonás erősebb (fail-closed).
+
+**Mérve (`P-DSC-scope-grant-history`, hat ág):** a később rögzített, visszamenőleges megvonás nem
+írja át a korábbi tudást (ugyanarra a napra két tudás-állapot két IGAZ választ ad) · az előre
+ütemezett megvonás a hatályáig nem zár · az újraadás újra nyit, a közbenső nap zárva marad · a
+megvonás csak a saját alany×könyv×adatkör hármasára hat · a hibás idő nevezett, ÍRÁSMENTES
+elutasítás (nulla új napló-sor) · és a megadás→kiadás→leltár→megvonás teljes útja a kiadás
+IDŐHATÁRÁN válik zárttá.
+
+**F51-02 — a saját állításom cáfolva, és helyesbítve.** Az R50-es jelentés és a D-VS-3058 azt
+mondta, hogy az M179 (a határozat-állapot ellenőrzésének kihagyása) „valódi kiadást eredményez". A
+külső fél elkülönített futása ezt megcáfolta, és a saját mérésem megerősíti: a megvont határozat
+plafonja ÜRES, ezért a kiadás egy sorral lejjebb, az `outside_basis_scopes` ágon zárul — a próba a
+VÁRT INDOKON bukik el, nem adatkiadáson. **A D-VS-3058 megfelelő mondata ezzel visszavonva.** A
+valódi kiadást okozó alak külön mutáció: **M188**, KÉT sor rontásával (az állapot-ellenőrzés
+kihagyása ÉS az üres plafon „mindenre jogosít"-ként olvasása) — mérve: a megvont határozatú olvasó
+a készlet-eredményt TÉNYLEGESEN visszakapja (`kiadva → KIADVA`).
+
+**A KÜLSŐ PROGRAMOK ADAPTÁCIÓJA — az ő kimondott engedélyükkel.** Az aktív `r79`/`r81` core
+tesztvilág megkapta az általuk megírt és kipróbált `explicitReadFixture(store)` előkészítést
+(rögzített alap + készlet- ÉS ár-olvasási jog a rendszer saját íróján), közvetlenül a meglévő
+`member` tagsági sor után. A történeti `*.core.mjs` **bájtazonos** maradt és továbbra is futtatható
+(`VS_EXT_CORE_VARIANT=historic`). **A régi piros mérést nem nevezzük visszamenőleg zöldnek:** az
+R50-es forráson az `r79/P01-flat-quantity`, az `r81/P01-pure-lines` és az
+`r81/F04-release-time-before` VALÓDI okból bukott — hiányzott az adatköri olvasási jog —, és a
+szigorítás marad. Az `activeCoreProgram` és a manifeszt többé nem állítja, hogy az aktív változat
+kizárólag a mennyiség-literálokban tér el.
+
+**SZÖVEG-HELYESBÍTÉSEK (KUKA-050).** A `releaseScope.mjs` fejléce és az `RSB_CONTRACT`
+(`order` · `sources` · `stated_limits`) már nem állít `membership_only` kiadást; a `resultScope.mjs`
+`weakest_basis` mezője — amit mérve senki nem olvasott, és mindig ugyanazt adta — a tényleges
+alapok listájára cserélve; a `norms.mjs` K05-DSC-c `remaining` szövege már **három** nyitott pontot
+nevez meg, és kimondja, hogy csak az EGYIK üzleti döntés.
+
+**Tanulság:** KUKA-192. **Gépi jel:** `node v3ref/run.mjs` (60 próba) · `npm run verify:v3ref`
+(185 mutáció, benne M183–M188) · `npm run verify:kuka` (az `UPDATE scope_grant SET revoked_at`
+tiltó-mintája) · `npm run verify:external-checks`.

@@ -8166,6 +8166,60 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'hazugság, amíg nem mondjuk meg, MELYIK hivatkozást kötöttük.',
   }),
   Object.freeze({
+    id: 'KUKA-192',
+    date: '2026-09-19',
+    title: 'A FEGYELEM FELE NEM FEGYELEM — a jog MEGADÁSA két idő-tengelyen állt, a MEGVONÁSA egyen',
+    what: 'Az R49-es alakomban az olvasási jog MEGADÁSÁNAK volt hatály-ideje ÉS rögzítés-ideje '
+      + '(`effective_at` + `recorded_at`), a MEGVONÁS viszont EGYETLEN időpontot írt vissza a '
+      + 'megadás SORÁBA (`revoked_at`), és az olvasó csak a MEGADÁS rögzítés-idejét nézte. MÉRVE (a '
+      + 'külső fél reprodukciója, a saját fámon megismételve): egy ÁPRILIS 1-jén rögzített, '
+      + 'MÁRCIUS 10-i hatályú megvonás után ugyanaz a márciusi kérdés — `validAt: március 15`, '
+      + '`knownAt: március 20` — az előbb `granted: true`, utána `scope_grant_revoked` választ '
+      + 'adta. A rendszer visszamenőleg átírta a korábbi TUDÁS-állapotot.',
+    why_wrong: 'Ugyanaz a hiba-osztály, amit a TAGSÁGNÁL a `membership_revocation` napló már '
+      + 'megoldott: két független tény (mikortól nincs joga · mikor tudtuk meg) EGY oszlopon ült '
+      + '(KUKA-002), és a megoldás egy szomszédos modulban KÉSZEN állt (KUKA-003). Ez nem '
+      + 'árkiszivárgás: a MAI kiadás helyesen zárt — a kár a TÖRTÉNETI lekérdezésen van, tehát ott '
+      + 'jelentkezik, ahol utólag kell megmondani, mit tudtunk akkor (felülvizsgálat, vita, '
+      + 'elszámoltatás). És NÉMA: se hibakód, se üres lista, csak egy hihető válasz a rossz napról.',
+    replaced_by: 'SGR-01 kiegészítve (`v3ref/scopeGrant.mjs` + a `scope_grant_revocation` tábla): a '
+      + 'megvonás SAJÁT esemény, saját hatály- és tudás-idővel, eljáróval; a megadás sorához nem '
+      + 'nyúlunk. Az olvasó EGY idővonalat épít a megadásokból ÉS a megvonásokból, mindkét tengelyen '
+      + 'szűrve, és a LEGKÉSŐBBI ALKALMAZHATÓ esemény dönt — ettől az ÚJRAADÁS is értelmes marad.',
+    replacement: 'Ha egy tényt KÉT idő-tengelyen tartunk nyilván, akkor MINDEN eseménye két '
+      + 'tengelyen álljon — a megadás és a megvonás ugyanazon a vonalon. A fél fegyelem rosszabb a '
+      + 'semmilyennél, mert a mező MEGLÉTE bizonyítéknak látszik.',
+    decision: 'D-VS-3059',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R51/F51-01), saját minimális reprodukcióval; a '
+      + 'saját fámon a javítás előtt karakterre ugyanazt mértem.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/scopeGrant.mjs']),
+        pattern: 'scope_grant_revocation',
+        why: 'a megvonás saját, két tengelyes esemény — nem a megadás sorának átírása' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/scopeGrant.mjs']),
+        pattern: 'rec\\.ms > known\\.ms',
+        why: 'a TUDÁS tengelye a megvonásokra is szűr' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/scopeGrant.mjs']),
+        pattern: 'UPDATE scope_grant SET revoked_at',
+        why: 'a megvonás nem sor-átírás a megadás sorában (K09 · R51/F51-01)' }),
+    ]),
+    guard_note: 'gépi jel: `npm run verify:v3ref` — **M183** (a tudás tengelye eltűnik ⇒ a '
+      + 'visszamenőleges megvonás átírja a korábbi tudást), **M184** (a hatály tengelye eltűnik ⇒ az '
+      + 'ütemezett megvonás korán zár), **M185** (a legkorábbi esemény dönt ⇒ a megvont jogú olvasó '
+      + 'ADATOT kap), **M186** (a hibás idő némán beíródik), **M187** (a megvonás átnyúl a szomszéd '
+      + 'adatkörre) — mind a `P-DSC-scope-grant-history` próbán elkapva, a kilépési kódon; mellé a '
+      + '`verify:kuka` tiltó-mintája az `UPDATE scope_grant SET revoked_at` alakra. AMIRE NINCS '
+      + 'GÉPI JEL, KIMONDVA: a TAGSÁG megvonásának ÚJRAADÁSA ma sincs megoldva (ott a legkorábbi '
+      + 'hatály dönt, és a visszavonás visszavonása nem létező fogalom) — ez KIMONDOTT hiány, nem '
+      + 'ennek a körnek a tárgya.',
+    lesson: 'Amikor egy tényhez BITEMPORÁLIS nyilvántartást építek, a kérdés nem az, hogy a '
+      + 'MEGADÁSNAK van-e két ideje, hanem hogy MINDEN eseményének van-e. A megvonás ugyanolyan '
+      + 'esemény, mint a megadás — ha egy sor-átírásba bújik, akkor az egész történet egyetlen, '
+      + 'mindig a MAI tudást mutató vetületté zsugorodik, és ezt semmi nem jelzi.',
+  }),
+  Object.freeze({
     id: 'KUKA-191',
     date: '2026-09-19',
     title: 'A MEGADHATÓ JOGBÓL MEGADOTT JOG LETT — a kiadó PLAFONJÁT osztottuk ki a címzettnek',

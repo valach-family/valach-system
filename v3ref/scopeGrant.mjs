@@ -81,58 +81,108 @@ export function grantReadScope({
   if (within.ok !== true) return frozen({ ok: false, reason: within.reason, scope });
   const res = store.run(
     `INSERT INTO scope_grant (subject_id, book_id, scope, basis_id, basis_version, granted_by,
-       recorded_at, effective_at, revoked_at) VALUES (?,?,?,?,?,?,?,?,NULL)`,
+       recorded_at, effective_at) VALUES (?,?,?,?,?,?,?,?)`,
     subjectId, bookId, scope, basisId, Number(basisVersion), grantedBy,
     rec.canonical ?? recordedAt ?? effectiveAt, eff.canonical ?? effectiveAt);
   if (res?.changes !== 1) return frozen({ ok: false, reason: 'grant_row_not_created' });
   return frozen({ ok: true, id: Number(res.lastInsertRowid), scope, basis_id: basisId, basis_version: Number(basisVersion) });
 }
 
-/** A MEGADOTT JOG MEGVONÁSA — a sor megmarad, a megvonás IDŐPONTOT kap (K09: nem sor-törlés). */
-export function revokeReadScope({ store, subjectId, bookId, scope, at }) {
-  const t = instantMs(at);
-  if (!t.ok) return frozen({ ok: false, reason: `at_${t.reason}` });
+/**
+ * A MEGADOTT JOG MEGVONÁSA — SAJÁT ESEMÉNY, SAJÁT TUDÁS-IDŐVEL (R51/F51-01).
+ *
+ * AZ R49-ES ALAK HIBÁJA, ADATON MÉRVE: a megvonás a MEGADÁS sorába írt egy `revoked_at` értéket,
+ * és az olvasó csak a MEGADÁS `recorded_at`-ját nézte. Egy ÁPRILISBAN rögzített, MÁRCIUS 10-i
+ * hatályú megvonás így visszamenőleg átírta a MÁRCIUS 20-i tudásállapotot is: a márciusi kérdésre
+ * áprilisi választ adtunk. Ez ugyanaz a hiba-osztály, amit a tagságnál a `membership_revocation`
+ * napló már megold (K09 · KUKA-002: két független tény nem ülhet egy oszlopon).
+ *
+ * INNENTŐL: a megvonás ÚJ SOR, KÉT tengellyel (mikortól hatályos · mikor tudtuk meg), és a
+ * megadást SOHA nem írjuk át. A hibás idő NEVEZETT, ÍRÁSMENTES elutasítás (KUKA-124/2).
+ */
+export function revokeReadScope({ store, subjectId, bookId, scope, at, effectiveAt, recordedAt, actorSubjectId }) {
+  const eff = instantMs(effectiveAt ?? at);
+  const rec = instantMs(recordedAt ?? at);
+  if (!subjectId || !bookId || !scope) return frozen({ ok: false, reason: 'subject_book_and_scope_required', wrote: 0 });
+  // A HIBÁS IDŐ ELŐBB ÁLL MEG, MINT AZ ÍRÁS — a `wrote: 0` ezt ki is mondja, hogy a próba MÉRHESSE.
+  if (!eff.ok) return frozen({ ok: false, reason: `effective_at_${eff.reason}`, wrote: 0 });
+  if (!rec.ok) return frozen({ ok: false, reason: `recorded_at_${rec.reason}`, wrote: 0 });
   const res = store.run(
-    'UPDATE scope_grant SET revoked_at = ? WHERE subject_id = ? AND book_id = ? AND scope = ? AND revoked_at IS NULL',
-    t.canonical ?? at, subjectId, bookId, scope);
-  return frozen({ ok: (res?.changes || 0) > 0, revoked: res?.changes || 0 });
+    `INSERT INTO scope_grant_revocation (subject_id, book_id, scope, actor_subject_id, recorded_at, effective_at)
+       VALUES (?,?,?,?,?,?)`,
+    subjectId, bookId, scope, actorSubjectId ?? null,
+    rec.canonical ?? (recordedAt ?? at), eff.canonical ?? (effectiveAt ?? at));
+  if (res?.changes !== 1) return frozen({ ok: false, reason: 'revocation_row_not_created', wrote: 0 });
+  return frozen({
+    ok: true, wrote: 1, id: Number(res.lastInsertRowid),
+    effective_at: eff.canonical ?? (effectiveAt ?? at), recorded_at: rec.canonical ?? (recordedAt ?? at),
+  });
 }
 
 /**
- * A JOG ÁLLAPOTA EGY IDŐPONTBAN — KÉT tengelyen (hatály × tudás), mint minden más jogváltozás.
- * A HIÁNY NEVEZETT állapot (`no_scope_grant`), nem néma nulla (KUKA-012 · KUKA-093).
+ * A JOG ÁLLAPOTA EGY IDŐPONTBAN — KÉT tengelyen (hatály × tudás), EGY IDŐVONALON.
+ *
+ * A MEGADÁS ÉS A MEGVONÁS UGYANAZON a vonalon áll, és a LEGKÉSŐBBI ALKALMAZHATÓ esemény dönt —
+ * ettől marad értelmes az ÚJRAADÁS is (megadás → megvonás → újabb megadás). Két szűrő, két külön
+ * kérdés, és egyik sem helyettesíti a másikat:
+ *   `recorded_at <= knownAt`   — ezt az eseményt EKKOR MÁR ISMERTÜK?
+ *   `effective_at <= validAt`  — a KÉRDEZETT NAPRA vonatkozik-e a hatálya?
+ *
+ * A HIÁNY NEVEZETT állapot (`no_scope_grant`), nem néma nulla (KUKA-012 · KUKA-093); az
+ * OLVASHATATLAN sor ZÁR, nem néma kihagyás (KUKA-020).
  */
 export function readScopeGrantAt({ store, subjectId, bookId, scope, validAt, knownAt }) {
   const valid = instantMs(validAt);
   const known = instantMs(knownAt ?? validAt);
   if (!valid.ok) return frozen({ granted: false, reason: `valid_at_${valid.reason}` });
   if (!known.ok) return frozen({ granted: false, reason: `known_at_${known.reason}` });
-  const rows = store.all(
+
+  const grants = store.all(
     'SELECT * FROM scope_grant WHERE subject_id = ? AND book_id = ? AND scope = ? ORDER BY id',
     subjectId, bookId, scope);
-  if (!rows.length) return frozen({ granted: false, reason: 'no_scope_grant' });
-  let best = null;
-  for (const r of rows) {
-    const eff = instantMs(r.effective_at);
-    const rec = instantMs(r.recorded_at);
-    // Az OLVASHATATLAN sor ZÁR — nem néma kihagyás (KUKA-020).
-    if (!eff.ok || !rec.ok) return frozen({ granted: false, reason: 'grant_row_undecidable' });
-    if (rec.ms > known.ms) continue;              // ezt akkor még nem tudtuk
-    if (eff.ms > valid.ms) continue;              // erre a napra még nem hatályos
-    if (r.revoked_at !== null && r.revoked_at !== undefined) {
-      const rv = instantMs(r.revoked_at);
-      if (!rv.ok) return frozen({ granted: false, reason: 'grant_revoked_at_undecidable' });
-      if (rv.ms <= valid.ms) { best = { row: r, revoked: true }; continue; }
+  const revocations = store.all(
+    'SELECT * FROM scope_grant_revocation WHERE subject_id = ? AND book_id = ? AND scope = ? ORDER BY id',
+    subjectId, bookId, scope);
+  if (!grants.length) return frozen({ granted: false, reason: 'no_scope_grant' });
+
+  const line = [];
+  for (const r of grants) line.push({ kind: 'grant', row: r });
+  for (const r of revocations) line.push({ kind: 'revocation', row: r });
+
+  const applied = [];
+  for (const e of line) {
+    const eff = instantMs(e.row.effective_at);
+    const rec = instantMs(e.row.recorded_at);
+    if (!eff.ok || !rec.ok) {
+      return frozen({ granted: false, reason: e.kind === 'grant' ? 'grant_row_undecidable' : 'revocation_row_undecidable' });
     }
-    best = { row: r, revoked: false };
+    if (rec.ms > known.ms) continue;     // ezt akkor még nem tudtuk
+    if (eff.ms > valid.ms) continue;     // erre a napra még nem hatályos
+    applied.push({ ...e, effMs: eff.ms, recMs: rec.ms });
   }
-  if (!best) return frozen({ granted: false, reason: 'grant_not_yet_effective' });
-  if (best.revoked) {
-    return frozen({ granted: false, reason: 'scope_grant_revoked', basis_id: best.row.basis_id, basis_version: best.row.basis_version });
+  if (!applied.length) return frozen({ granted: false, reason: 'grant_not_yet_effective' });
+
+  // A LEGKÉSŐBBI ALKALMAZHATÓ ESEMÉNY DÖNT. Azonos hatálynál a KÉSŐBB RÖGZÍTETT, azon belül a
+  // nagyobb sor-azonosító — a rendezés így teljes és determinisztikus (nem „véletlen sorrend").
+  // Azonos hatály + azonos rögzítés esetén a MEGVONÁS erősebb: a zárás fail-closed (KUKA-012).
+  const rank = (e) => (e.kind === 'revocation' ? 1 : 0);
+  const last = applied.reduce((a, e) => {
+    if (e.effMs !== a.effMs) return e.effMs > a.effMs ? e : a;
+    if (e.recMs !== a.recMs) return e.recMs > a.recMs ? e : a;
+    if (rank(e) !== rank(a)) return rank(e) > rank(a) ? e : a;
+    return e.row.id > a.row.id ? e : a;
+  }, applied[0]);
+
+  if (last.kind === 'revocation') {
+    return frozen({
+      granted: false, reason: 'scope_grant_revoked',
+      revoked_effective_at: last.row.effective_at, revoked_recorded_at: last.row.recorded_at,
+      revoked_by: last.row.actor_subject_id ?? null,
+    });
   }
   return frozen({
-    granted: true, reason: 'scope_granted', id: best.row.id,
-    basis_id: best.row.basis_id, basis_version: Number(best.row.basis_version),
-    granted_by: best.row.granted_by, effective_at: best.row.effective_at, recorded_at: best.row.recorded_at,
+    granted: true, reason: 'scope_granted', id: last.row.id,
+    basis_id: last.row.basis_id, basis_version: Number(last.row.basis_version),
+    granted_by: last.row.granted_by, effective_at: last.row.effective_at, recorded_at: last.row.recorded_at,
   });
 }

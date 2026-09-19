@@ -299,8 +299,10 @@ export function resultReleasable({ store, subjectId, bookId, nowIso, knownAt, ty
     releasable: true,
     scopes: cls.scopes,
     decisions: Object.freeze(decisions),
-    // A GYENGÉBB ALAP LÁTSZIK (KUKA-049 · KUKA-127): ha a kiadás a puszta KÖNYV-tagságon állt —
-    // mert a tagsághoz nincs rögzített adatkör-korlát —, azt a válasz KIMONDJA, nem hallgatja el.
-    weakest_basis: decisions.some((d) => d.basis === 'membership_only') ? 'membership_only' : 'authority_basis',
+    // MIN ÁLLT A KIADÁS — KIMONDVA, NEM LEVEZETVE (KUKA-049 · KUKA-127). Az R47-es alak itt a
+    // `membership_only` gyengébb alapot nevezte meg; az R49 óta ilyen alap NINCS (a megadott jog
+    // hiánya ZÁR), tehát minden engedő döntés a rögzített olvasási jogon áll. A mezőt ezért a
+    // TÉNYLEGES alapokból képezzük — így nem tud némán elcsúszni a valóságtól (KUKA-050).
+    bases: Object.freeze([...new Set(decisions.map((d) => d.basis))].sort()),
   });
 }

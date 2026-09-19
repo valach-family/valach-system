@@ -697,10 +697,30 @@ CREATE TABLE scope_grant (
   basis_version INTEGER NOT NULL,
   granted_by    TEXT NOT NULL,
   recorded_at   TEXT NOT NULL,
-  effective_at  TEXT NOT NULL,
-  revoked_at    TEXT
+  effective_at  TEXT NOT NULL
 );
 CREATE INDEX scope_grant_who ON scope_grant (subject_id, book_id, scope);
+
+-- A MEGVONÁS SAJÁT ESEMÉNY, SAJÁT TUDÁS-IDŐVEL (R51/F51-01 — a külső ellenőrző fél lelete).
+--
+-- AZ R49-ES ALAK a megadás sorába írt egy "revoked_at" értéket, és az olvasó CSAK a megadás
+-- "recorded_at"-ját nézte. Mérve: egy ÁPRILISBAN rögzített, MÁRCIUS 10-i hatályú megvonás
+-- visszamenőleg átírta a MÁRCIUS 20-i tudásállapotot is — a márciusi kérdésre áprilisi választ
+-- adtunk. Ez ugyanaz a hiba-osztály, amit a tagságnál a "membership_revocation" tábla már megold
+-- (K09: az esemény nem sor-átírás; KUKA-003: azonos alakú tényt nem tartunk két szerkezetben).
+--
+-- A MEGADÁS ÉS A MEGVONÁS EGY IDŐVONALON: mindkettő KÉT tengelyen áll, és a LEGKÉSŐBBI ALKALMAZHATÓ
+-- esemény dönt. Így az ÚJRAADÁS is értelmes marad (a tagságnál ez ma nincs — ott kimondottan hiány).
+CREATE TABLE scope_grant_revocation (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject_id    TEXT NOT NULL,
+  book_id       TEXT NOT NULL,
+  scope         TEXT NOT NULL,
+  actor_subject_id TEXT,
+  recorded_at   TEXT NOT NULL,
+  effective_at  TEXT NOT NULL
+);
+CREATE INDEX scope_grant_revocation_who ON scope_grant_revocation (subject_id, book_id, scope);
 
 CREATE INDEX access_refusal_subject ON access_refusal (subject_id, book_id, at);
 `;

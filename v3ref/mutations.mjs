@@ -1642,8 +1642,12 @@ export const MUTATIONS = [
       + 'állapotát, tehát MEGVONT vagy LEJÁRT határozat mellett is kiad. MÉRT HATÁS-HELYESBÍTÉS (a '
       + 'külső fél R49-es lelete): az R48-as alakban ez a mutáció NEM adatkiadást okozott, csak az '
       + 'indokot cserélte (`outside_basis_scopes`), mert a plafon úgyis zárt — a leírás erősebb volt '
-      + 'a futásnál. Az SGR-01 óta a jog a MEGADÁSBÓL jön, ezért a kihagyás VALÓDI kiadást eredményez '
-      + 'egy megvont alapon: a próba (f) ága ezt kiadva→zárva különbségként méri',
+      + 'a futásnál. AZ R51-ES HELYESBÍTÉS (a külső fél elkülönített futása): az SGR-01 utáni alakban '
+      + 'SEM lesz ebből valódi kiadás — a megvont határozat plafonja ÜRES, ezért a kiadás egy sorral '
+      + 'lejjebb, a `outside_basis_scopes` ágon zárul. A MÉRT hatás tehát: a próba a VÁRT INDOKON '
+      + 'bukik el (az (f) ág `basis_revoked`-ot követel, és `outside_basis_scopes`-ot kap), nem '
+      + 'adatkiadáson. A VALÓDI kiadást okozó alak az M188 — a kettő két külön dolgot bizonyít, és '
+      + 'nem cserélhető fel (KUKA-189: a leírás nem lehet erősebb a mért hatásnál)',
     file: 'releaseScope.mjs',
     from: "  if (state.in_effect !== true) {\n    return frozen({ ...shape, allowed: false, reason: state.reason });\n  }",
     to: "  if (false) {\n    return frozen({ ...shape, allowed: false, reason: state.reason });\n  }" },
@@ -1677,6 +1681,70 @@ export const MUTATIONS = [
       + "        recipient: requester, clock, at, body: { ok: true, error: null, message: 'x', effect_id: cmd.effect_id, result: resolved } });\n"
       + "      return refused;\n"
       + "    }" },
+
+  // ── R51 — A KÉT IDŐ-TENGELY VISSZABONTÁSAI A MEGVONÁSON (F51-01) ─────────────────────────────
+  //
+  // A LELETET a KÜLSŐ ELLENŐRZŐ FÉL találta (R51/F51-01). Ezek a rontások MINDKÉT irányt mutatják:
+  // a JOGOSULATLAN KIADÁST (M185) és a JOGOS KIADÁS TÉVES TILTÁSÁT (M183 · M184 · M187) — plusz a
+  // NÉMA, HIBÁS ÍRÁST (M186), ami a legdrágább, mert utólag már nem tudjuk, mi volt az igazság.
+  { id: 'M183', rule: 'K05', catcher: 'P-DSC-scope-grant-history', expect: 'probe_fail',
+    what: 'SGR-01 / R51 — A TUDÁS TENGELYE ELTŰNIK: az olvasó nem nézi meg, hogy egy eseményt a '
+      + 'kérdezett tudás-állapotban MÁR ISMERTÜNK-E. MÉRT HATÁS: egy JÚNIUSBAN rögzített, március '
+      + '20-i hatályú megvonás visszamenőleg átírja a MÁRCIUSI tudás-állapotot is — pontosan az '
+      + 'F51-01 mért alakja. A rendszer a múltról hazudik, és ez nem látszik hibának (KUKA-002)',
+    file: 'scopeGrant.mjs',
+    from: "    if (rec.ms > known.ms) continue;     // ezt akkor még nem tudtuk",
+    to: "    if (false) continue;" },
+
+  { id: 'M184', rule: 'K05', catcher: 'P-DSC-scope-grant-history', expect: 'probe_fail',
+    what: 'SGR-01 / R51 — A HATÁLY TENGELYE ELTŰNIK: minden ismert esemény AZONNAL hat, a saját '
+      + 'hatályba lépése előtt is. MÉRT HATÁS: az ELŐRE ütemezett, augusztusi hatályú megvonás már '
+      + 'JÚNIUSBAN zár — jogos olvasás téves tiltása (a másik irány, KUKA-122)',
+    file: 'scopeGrant.mjs',
+    from: "    if (eff.ms > valid.ms) continue;     // erre a napra még nem hatályos",
+    to: "    if (false) continue;" },
+
+  { id: 'M185', rule: 'K05', catcher: 'P-DSC-scope-grant-history', expect: 'probe_fail',
+    what: 'SGR-01 / R51 — A LEGKORÁBBI ESEMÉNY DÖNT A LEGKÉSŐBBI HELYETT: az idővonal visszafelé '
+      + 'olvasódik. MÉRT HATÁS: a MEGVONÁS UTÁN is a MEGADÁS marad érvényben, tehát a megvont jogú '
+      + 'olvasó VALÓDI adatot kap vissza (jogosulatlan kiadás); az újraadás fogalma pedig értelmét '
+      + 'veszti',
+    file: 'scopeGrant.mjs',
+    from: "    if (e.effMs !== a.effMs) return e.effMs > a.effMs ? e : a;",
+    to: "    if (e.effMs !== a.effMs) return e.effMs < a.effMs ? e : a;" },
+
+  { id: 'M186', rule: 'K05', catcher: 'P-DSC-scope-grant-history', expect: 'probe_fail',
+    what: 'SGR-01 / R51 — A HIBÁS IDŐ NÉMÁN BEÍRÓDIK: az értelmezhetetlen hatály-időpont nem '
+      + 'nevezett elutasítás, hanem nyers szövegként a naplóba kerül. MÉRT HATÁS: a megvonás-napló '
+      + 'olvashatatlan sort kap, tehát onnantól a jog állapota egyáltalán nem eldönthető — az '
+      + 'írásmentes elutasítás követelménye (KUKA-124/2) megszűnik',
+    file: 'scopeGrant.mjs',
+    from: "  if (!eff.ok) return frozen({ ok: false, reason: `effective_at_${eff.reason}`, wrote: 0 });",
+    to: "  void eff;" },
+
+  { id: 'M187', rule: 'K05', catcher: 'P-DSC-scope-grant-history', expect: 'probe_fail',
+    what: 'SGR-01 / R51 — A MEGVONÁS ÁTNYÚL A SZOMSZÉD ADATKÖRRE: az olvasó a megvonásokat adatkör '
+      + 'nélkül gyűjti. MÉRT HATÁS: egy ÁRAK-ra szóló megvonás a KÉSZLET-jogot is elveszi '
+      + 'ugyanattól az olvasótól — a hatókör nem a mérce szerint szabott (KUKA-048), és a kár itt a '
+      + 'jogos olvasás elzárása',
+    file: 'scopeGrant.mjs',
+    from: "    'SELECT * FROM scope_grant_revocation WHERE subject_id = ? AND book_id = ? AND scope = ? ORDER BY id',",
+    to: "    'SELECT * FROM scope_grant_revocation WHERE subject_id = ? AND book_id = ? AND ? IS NOT NULL ORDER BY id'," },
+
+  { id: 'M188', rule: 'K05', catcher: 'P-DSC-scope-basis', expect: 'probe_fail',
+    what: 'RSB-01 / R51 — A MEGVONT ALAPON VALÓDI ADAT MEGY KI. Ez az M179 helyesbített párja: KÉT '
+      + 'sor rontása kell hozzá, mert egy sor kevés. (1) a kapu nem nézi meg a határozat MAI '
+      + 'állapotát, és (2) az ÜRES plafont „mindenre jogosít"-ként olvassa. MÉRT HATÁS: a MEGVONT '
+      + 'határozatú olvasó a készlet-eredményt TÉNYLEGESEN visszakapja (az (f) ág kiadva→kiadva '
+      + 'különbségként méri) — ez a valódi jogosulatlan adatkiadás, szemben az M179 puszta '
+      + 'indok-cseréjével',
+    file: 'releaseScope.mjs',
+    edits: [
+      { from: "  if (state.in_effect !== true) {\n    return frozen({ ...shape, allowed: false, reason: state.reason });\n  }",
+        to: "  if (false) {\n    return frozen({ ...shape, allowed: false, reason: state.reason });\n  }" },
+      { from: "  const live = Array.isArray(state.limit && state.limit.scopes) ? state.limit.scopes : [];",
+        to: "  const live = Array.isArray(state.limit && state.limit.scopes) && state.limit.scopes.length\n    ? state.limit.scopes : [...KNOWN_DATA_SCOPES];" },
+    ] },
 
   { id: 'M176', rule: 'K10', catcher: 'P-KSZ-repeat-and-error-boundary', expect: 'probe_fail',
     what: 'K07 / R45 — AZ ISMÉTLÉS-ŐR ELNYELI A MEGVÁLTOZOTT TARTALMAT: az azonos kulcs melletti '

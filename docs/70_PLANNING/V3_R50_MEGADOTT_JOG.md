@@ -86,6 +86,16 @@ R48-as alakban a kihagyás csak az **indokot** cserélte, a kiadás továbbra is
 és igazuk van. Mostantól a jog a **megadásból** jön, ezért ugyanez a kihagyás **valódi kiadást**
 eredményez egy megvont alapon, és a próba ezt **kiadva→zárva** különbségként méri.
 
+> **HELYESBÍTÉS — 2026-09-19 · forrás: CMD-VS-300-002-002 R51/F51-02 (chatgpt-v3), a lap mentve:
+> `v3ref/source-documents/R51_board_v1.md` · döntés: D-VS-3059.** Az előző bekezdés utolsó mondata
+> **cáfolt, és visszavonva**: a külső fél elkülönített M179-futása szerint — és a saját mérésem
+> megerősíti — a megvont határozat plafonja **üres**, ezért a kiadás egy sorral lejjebb, az
+> `outside_basis_scopes` ágon zárul. Az M179 tehát a próbát a **várt indokon** bukatja el, nem
+> adatkiadáson. A valódi, megvont alapon történő **adatkiadást** külön mutáció mutatja: **M188**,
+> két sor rontásával (az állapot-ellenőrzés kihagyása ÉS az üres plafon „mindenre jogosít"-ként
+> olvasása) — mérve: `alap megvonva: kiadva → KIADVA`. A történeti szöveget nem írjuk át, csak
+> megjelöljük (KUKA-050).
+
 Az **M177** horgonya a feltételről a **visszatérő értékre** került: a feltétel kiiktatása nyers
 programhibába futott, ami más réteg védelme, nem az állítás bukása.
 

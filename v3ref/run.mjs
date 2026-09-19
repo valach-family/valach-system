@@ -3215,6 +3215,146 @@ probe('P-DSC-scope-basis', 'R47 · R49 · K05-DSC-c · ORG-N1a · ORG-N1b · REV
     } finally { w.store.close(); }
   });
 
+probe('P-DSC-scope-grant-history', 'R51/F51-01 · K05-DSC-c · K09 · REV-N2a · KUKA-002 · KUKA-124',
+  'A JOG MEGADÁSA ÉS MEGVONÁSA UGYANAZON A KÉT IDŐ-TENGELYEN — a későbbi tudás nem írja át a korábbit',
+  () => {
+    // A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, R51/F51-01). Az R49-es megvonás EGYETLEN
+    // időpontot írt a MEGADÁS sorába (`revoked_at`), és az olvasó csak a megadás `recorded_at`-ját
+    // nézte. Adaton mérve: egy ÁPRILISBAN rögzített, MÁRCIUS 10-i hatályú megvonás a MÁRCIUS 20-i
+    // tudásállapotra is „megvont"-at adott — vagyis a márciusi kérdésre áprilisi választ adtunk.
+    // A megadás bitemporális volt, a megvonás nem: a fegyelem FELE nem fegyelem (KUKA-129).
+    const w = basisWorld();
+    try {
+      w.put('tiszta', { qty: '11.000' });
+      const ask = (sub, scope, validAt, knownAt) =>
+        readScopeGrantAt({ store: w.store, subjectId: sub, bookId: 'a', scope, validAt, knownAt });
+      const revocations = () => w.store.all('SELECT * FROM scope_grant_revocation ORDER BY id');
+      const readAt = (key, sub, at) => readCommandResult({
+        store: w.store, clock: clockFrom(at), idemKey: key, requester: sub,
+        bookId: 'a', actor: 'kiado', credentials: { dataScope: 'keszlet' },
+      });
+
+      // (a) VISSZAMENŐLEGES MEGVONÁS, AMIT KÉSŐBB TUDTUNK MEG. A hatály MÁRCIUS 20., a rögzítés
+      //     JÚNIUS. UGYANARRA a napra (augusztus) KÉT tudásállapot KÉT igaz választ ad — és ez a
+      //     hiba-osztály maga: a júniusi tudás nem írhatja át a márciusit (REV-N2a).
+      const A = w.member(['keszlet']);
+      const aBefore = ask(A.sub, 'keszlet', BIT.AUGUST, BIT.MARCH_LATER);   // „ahogy márciusban tudtuk"
+      revokeReadScope({ store: w.store, subjectId: A.sub, bookId: 'a', scope: 'keszlet',
+        effectiveAt: BIT.MARCH_LATER, recordedAt: BIT.JUNE, actorSubjectId: 'vezeto' });
+      const aStillBefore = ask(A.sub, 'keszlet', BIT.AUGUST, BIT.MARCH_LATER);
+      const aToday = ask(A.sub, 'keszlet', BIT.AUGUST, BIT.AUGUST);         // „ahogy ma tudjuk"
+      // A MEGADÁS SORA SÉRTETLEN: a megvonás ÚJ esemény, nem sor-átírás (K09 · REV-N1b).
+      const grantRow = w.store.get('SELECT * FROM scope_grant WHERE subject_id = ? AND scope = ?', A.sub, 'keszlet');
+      const aOk = A.built && aBefore.granted === true
+        && aStillBefore.granted === true && JSON.stringify(aBefore) === JSON.stringify(aStillBefore)
+        && aToday.granted === false && aToday.reason === 'scope_grant_revoked'
+        && aToday.revoked_effective_at === BIT.MARCH_LATER && aToday.revoked_recorded_at === BIT.JUNE
+        && grantRow && grantRow.recorded_at === w.T0 && grantRow.effective_at === w.T0;
+
+      // (b) ELŐRE ÜTEMEZETT, JÖVŐBELI HATÁLYÚ MEGVONÁS. Márciusban TUDJUK, augusztustól HATÁLYOS:
+      //     júniusban a jog MÉG ÁLL, augusztusban MÁR NEM. A tudás megléte önmagában nem zár.
+      const B = w.member(['keszlet']);
+      revokeReadScope({ store: w.store, subjectId: B.sub, bookId: 'a', scope: 'keszlet',
+        effectiveAt: BIT.AUGUST, recordedAt: BIT.MARCH_LATER, actorSubjectId: 'vezeto' });
+      const bJune = ask(B.sub, 'keszlet', BIT.JUNE, BIT.JUNE);
+      const bAugust = ask(B.sub, 'keszlet', BIT.AUGUST, BIT.AUGUST);
+      const bOk = B.built && bJune.granted === true
+        && bAugust.granted === false && bAugust.reason === 'scope_grant_revoked';
+
+      // (c) ÚJRAADÁS. A megvonás nem zárja le örökre az idővonalat: egy KÉSŐBBI hatályú megadás
+      //     újra nyit. (A tagságnál ez ma NINCS meg — ott a hiány KIMONDOTT; itt az EGY idővonal
+      //     + „a legkésőbbi alkalmazható esemény dönt" alak ezt magától megoldja.)
+      const C = w.member(['keszlet']);
+      revokeReadScope({ store: w.store, subjectId: C.sub, bookId: 'a', scope: 'keszlet',
+        effectiveAt: BIT.MARCH_LATER, recordedAt: BIT.MARCH_LATER, actorSubjectId: 'vezeto' });
+      const cRevoked = ask(C.sub, 'keszlet', BIT.MARCH_LATER, BIT.MARCH_LATER);
+      const reGrant = grantReadScope({ store: w.store, subjectId: C.sub, bookId: 'a', scope: 'keszlet',
+        basisId: 'HAT', basisVersion: 1, grantedBy: 'vezeto', effectiveAt: BIT.JUNE, recordedAt: BIT.JUNE });
+      const cAgain = ask(C.sub, 'keszlet', BIT.JUNE, BIT.JUNE);
+      const cBetween = ask(C.sub, 'keszlet', BIT.MARCH_LATER, BIT.AUGUST);  // a KÖZBENSŐ nap zárva marad
+      const cOk = C.built && cRevoked.granted === false && reGrant.ok === true
+        && cAgain.granted === true && cAgain.reason === 'scope_granted'
+        && cBetween.granted === false;
+
+      // (d) MÁS ALANY · MÁS ADATKÖR · MÁS KÖNYV ÉRINTETLEN. A megvonás PONTOSAN azt a hármast
+      //     zárja, amire szól — nem általános zár (KUKA-048: a hatókör a mérce).
+      const D = w.member(['keszlet', 'arak']);
+      revokeReadScope({ store: w.store, subjectId: D.sub, bookId: 'a', scope: 'arak',
+        effectiveAt: BIT.MARCH_LATER, recordedAt: BIT.MARCH_LATER, actorSubjectId: 'vezeto' });
+      const dOwnStock = ask(D.sub, 'keszlet', BIT.AUGUST, BIT.AUGUST);      // saját másik adatköre ÁLL
+      const dOwnPrice = ask(D.sub, 'arak', BIT.AUGUST, BIT.AUGUST);         // a megvont adatkör ZÁRVA
+      const dOther = ask(B.sub, 'keszlet', BIT.JUNE, BIT.JUNE);             // más alany ÉRINTETLEN
+      const dBook = ask(D.sub, 'keszlet', BIT.AUGUST, BIT.AUGUST);
+      const dForeign = readScopeGrantAt({ store: w.store, subjectId: D.sub, bookId: 'nincs-ilyen-konyv',
+        scope: 'keszlet', validAt: BIT.AUGUST, knownAt: BIT.AUGUST });
+      const dOk = D.built && dOwnStock.granted === true && dOwnPrice.granted === false
+        && dOther.granted === true && dBook.granted === true
+        && dForeign.granted === false && dForeign.reason === 'no_scope_grant';
+
+      // (e) A HIBÁS IDŐ NEVEZETT, ÍRÁSMENTES ELUTASÍTÁS (KUKA-124/2). Nem „valószínűleg most",
+      //     és nem néma eldobás: a naplóba egyetlen sor sem kerül, a jog pedig VÁLTOZATLAN.
+      const E = w.member(['keszlet']);
+      const beforeRows = revocations().length;
+      const badEff = revokeReadScope({ store: w.store, subjectId: E.sub, bookId: 'a', scope: 'keszlet', at: 'nem-idő' });
+      const badRec = revokeReadScope({ store: w.store, subjectId: E.sub, bookId: 'a', scope: 'keszlet',
+        effectiveAt: BIT.MARCH_LATER, recordedAt: '2026-02-30T09:00:00.000Z' });
+      const badWho = revokeReadScope({ store: w.store, bookId: 'a', scope: 'keszlet', at: BIT.MARCH_LATER });
+      const afterRows = revocations().length;
+      const eStill = ask(E.sub, 'keszlet', BIT.AUGUST, BIT.AUGUST);
+      const eOk = E.built && badEff.ok === false && badEff.reason.startsWith('effective_at_')
+        && badRec.ok === false && badRec.reason.startsWith('recorded_at_')
+        && badWho.ok === false && badWho.reason === 'subject_book_and_scope_required'
+        && [badEff, badRec, badWho].every((r) => r.wrote === 0)
+        && afterRows === beforeRows && eStill.granted === true;
+
+      // (f) A TELJES LÁNC EGYBEN, ÉS A KIADÁS IDŐHATÁRA: megadás → KIADÁS → leltár-sor → megvonás →
+      //     ZÁRVA. Ugyanaz az olvasó, ugyanaz az eredmény, ugyanaz a hívás — csak az IDŐ más.
+      const F = w.member(['keszlet']);
+      const fBefore = readAt('tiszta', F.sub, BIT.MARCH_LATER);
+      const ledgerBefore = w.store.all('SELECT * FROM disclosure WHERE recipient = ?', F.sub).length;
+      revokeReadScope({ store: w.store, subjectId: F.sub, bookId: 'a', scope: 'keszlet',
+        effectiveAt: BIT.JUNE, recordedAt: BIT.JUNE, actorSubjectId: 'vezeto' });
+      const fStillOnBoundaryDay = readAt('tiszta', F.sub, BIT.MARCH_LATER);   // a hatály ELŐTTI nap KIAD
+      const fAfter = readAt('tiszta', F.sub, BIT.AUGUST);                     // a hatály UTÁNI nap ZÁR
+      const ledgerAfter = w.store.all('SELECT * FROM disclosure WHERE recipient = ?', F.sub).length;
+      const fDecisionBefore = scopeReleaseDecision({ store: w.store, subjectId: F.sub, bookId: 'a', scope: 'keszlet', nowIso: BIT.MARCH_LATER });
+      const fDecisionAfter = scopeReleaseDecision({ store: w.store, subjectId: F.sub, bookId: 'a', scope: 'keszlet', nowIso: BIT.AUGUST });
+      const fOk = F.built && fBefore.ok === true && fBefore.result.qty === '11.000'
+        && ledgerBefore === 1
+        && fStillOnBoundaryDay.ok === true && fAfter.ok === false
+        // A ZÁRT KIADÁS NEM ÍR LELTÁRT: a hatás nélküli olvasásról nem születik kiadás-sor.
+        && ledgerAfter === 2
+        && fDecisionBefore.allowed === true
+        && fDecisionAfter.allowed === false && fDecisionAfter.reason === 'scope_grant_revoked';
+
+      const pass = aOk && bOk && cOk && dOk && eOk && fOk;
+      return {
+        expected: 'a VISSZAMENŐLEG rögzített megvonás NEM írja át a korábbi tudásállapotot · az '
+          + 'ELŐRE ütemezett megvonás a hatályáig nem zár · az ÚJRAADÁS újra nyit, a közbenső nap '
+          + 'zárva marad · a megvonás CSAK a saját alany×könyv×adatkör hármasára hat · a hibás idő '
+          + 'NEVEZETT, ÍRÁSMENTES elutasítás · és a teljes lánc (megadás → kiadás → leltár → '
+          + 'megvonás) a kiadás IDŐHATÁRÁN válik zárttá',
+        actual: `(a) visszamenőleges: márciusi tudás=${aBefore.granted ? 'kiadva' : 'ZÁRVA(!)'}`
+          + `→${aStillBefore.granted ? 'kiadva' : 'ZÁRVA(!)'} · mai tudás=${aToday.granted ? 'KIADVA(!)' : 'zárva'} (${aToday.reason})`
+          + ` · (b) ütemezett: június=${bJune.granted ? 'kiadva' : 'ZÁRVA(!)'} augusztus=${bAugust.granted ? 'KIADVA(!)' : 'zárva'}`
+          + ` · (c) újraadás: megvonva=${cRevoked.granted} → újra=${cAgain.granted} · közbenső nap=${cBetween.granted}`
+          + ` · (d) más adatkör=${dOwnStock.granted} megvont adatkör=${dOwnPrice.granted} más alany=${dOther.granted} más könyv=${dForeign.reason}`
+          + ` · (e) hibás idő: ${badEff.reason}/${badRec.reason}/${badWho.reason} · új napló-sor=${afterRows - beforeRows} · a jog áll=${eStill.granted}`
+          + ` · (f) lánc: kiadva=${fBefore.ok} határnap=${fStillOnBoundaryDay.ok} utána=${fAfter.ok ? 'KIADVA(!)' : 'zárva'}`
+          + ` · leltár ${ledgerBefore}→${ledgerAfter} sor`,
+        pass,
+        asserts: {
+          'A-K05-c-retroactive-revocation-does-not-rewrite-earlier-knowledge': aOk,
+          'A-K05-c-scheduled-future-revocation-does-not-close-before-its-effect': bOk,
+          'A-K05-c-re-grant-reopens-and-the-gap-day-stays-closed': cOk,
+          'A-K05-c-revocation-touches-only-its-own-subject-book-and-scope': dOk,
+          'A-K05-c-invalid-revocation-time-is-a-named-write-free-refusal': eOk,
+          'A-K05-c-grant-release-ledger-revocation-chain-turns-on-the-release-time-boundary': fOk,
+        },
+      };
+    } finally { w.store.close(); }
+  });
+
 probe('P-REV-result-scope', 'R77/F02 · REV-N5b · K05 · K09 · K15 · KUKA-002 · KUKA-121 · KUKA-084',
   'A KIADOTT EREDMÉNY ADATKÖRE — a típus deklarálja, nem a kérő címkéje (DSC-01)',
   () => {
