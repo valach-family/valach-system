@@ -40,11 +40,23 @@ export const UNIT_BUDGET_MS = 12_000;
 export const EXTERNAL_CAP_MS = 15_000;
 
 /**
- * A MAI, MÉRT-JÓ BONTÁS. 145 mutációnál a legrosszabb egység 7569 ms (a költségvetés 50%-a).
- * Ha a battéria tovább nő, ezt az értéket kell emelni — a jelet a `mutate.mjs` nem-nulla kilépése
- * adja, nem egy jóslat.
+ * A MAI, MÉRT-JÓ BONTÁS — ÉS A JEL, AMI MEGMONDTA, HOGY EMELNI KELL.
+ *
+ * R53 (190 mutáció): a HETES bontásnál a hét egység faliórája 11 761 … 13 244 ms volt, tehát HAT
+ * egység átlépte a `mutate.mjs` SAJÁT költségvetését (12 000 ms) — az `r79` futás-szerződés próba
+ * POZITÍV ellenpárja (U04) emiatt pirosra ment egy ÉP rendszeren (`portable: false`, miközben
+ * `clean: true` és a lefedettség 190/190). A NYOLCAS bontás ugyanezen a gépen végigfutott, mind a
+ * nyolc egység a költségvetésen belül. A jelet tehát a `mutate.mjs` nem-nulla kilépése adta, nem
+ * jóslat — pontosan ahogy ez a bekezdés eddig is előírta.
+ *
+ * KIMONDOTT GYENGE PONT (KUKA-045). Ez KÉZZEL karbantartott szám, és harmadszor avult el a
+ * battéria növekedésekor. A SZÁRMAZTATOTT alak (`ceil(mutáció-szám / 24)`, ahogy a `--units-auto`
+ * csinálja) itt azért NEM épült meg, mert ez a modul KÉT környezetben fut: a repóból (a söprés
+ * útján) és a futtató által készített IDEIGLENES MÁSOLATBÓL — és a mutációs regiszter csak a
+ * másolatban érhető el (`source/v3ref/mutations.mjs`), a repóban nincs `source` mappa. Ez MÉRT
+ * korlát, nem kényelem; amíg nincs feloldva, a szám kézzel marad, és a jel a tool kilépési kódja.
  */
-export const DECLARED_UNITS = 7;
+export const DECLARED_UNITS = 8;
 
 /** A futásidejű darabszám: környezetből felülírható, különben a deklarált érték. */
 export function batteryUnits(env = process.env) {
