@@ -1,7 +1,7 @@
 {
-  "pin": "dc6550087557ae9deef147e40cd3f28577c0bfb4",
+  "pin": "df6bff48b96cd44c71977070bfc656e0bd2ec3b5",
   "node": "v22.22.2",
-  "at": "2026-09-18T22:25:11.298Z",
+  "at": "2026-09-19T07:29:19.414Z",
   "cases": [
     {
       "id": "T01",
@@ -1134,7 +1134,20 @@
           "probe_id": "P-DSC-scope-basis",
           "probe_status": "PASS",
           "failed_assertions": [
-            "A-K05-c-release-scope-decision-comes-from-the-recorded-basis-not-the-caller-label"
+            "A-K05-c-missing-scope-grant-closes-the-release"
+          ],
+          "verdict": "SURVIVED"
+        },
+        {
+          "mutation_id": "NOT_IN_REGISTRY",
+          "applied": true,
+          "base_digest": "sha256:foreign-base",
+          "mutated_digest": "sha256:foreign-mutated",
+          "run_token": "old-run",
+          "probe_id": "P-DSC-scope-basis",
+          "probe_status": "PASS",
+          "failed_assertions": [
+            "A-K05-c-narrow-grant-from-a-broad-basis-stays-narrow"
           ],
           "verdict": "SURVIVED"
         },
@@ -1173,20 +1186,7 @@
           "probe_id": "P-DSC-scope-basis",
           "probe_status": "PASS",
           "failed_assertions": [
-            "A-K05-c-revoked-or-expired-basis-does-not-open"
-          ],
-          "verdict": "SURVIVED"
-        },
-        {
-          "mutation_id": "NOT_IN_REGISTRY",
-          "applied": true,
-          "base_digest": "sha256:foreign-base",
-          "mutated_digest": "sha256:foreign-mutated",
-          "run_token": "old-run",
-          "probe_id": "P-DSC-scope-basis",
-          "probe_status": "PASS",
-          "failed_assertions": [
-            "A-K05-c-undeclared-limit-is-named-as-membership-only-not-a-scope-permission"
+            "A-K05-c-revoked-grant-or-revoked-expired-basis-closes-a-previously-open-release"
           ],
           "verdict": "SURVIVED"
         },
@@ -3773,7 +3773,38 @@
             "covers": [
               "K05"
             ],
-            "assertion_id": "A-K05-c-release-scope-decision-comes-from-the-recorded-basis-not-the-caller-label",
+            "assertion_id": "A-K05-c-missing-scope-grant-closes-the-release",
+            "probe_id": "P-DSC-scope-basis",
+            "mutation_candidates": [
+              "M177",
+              "M178",
+              "M179",
+              "M180",
+              "M181",
+              "M182"
+            ],
+            "falsified_by": null,
+            "evidence_limit": null,
+            "content_review": {
+              "state": "none",
+              "structural": "none",
+              "binding": "none",
+              "why": "nincs rögzített tartalmi felülvizsgálat",
+              "authenticity": {
+                "state": "unauthenticated",
+                "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
+              }
+            },
+            "result": "not_falsified",
+            "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát"
+          },
+          {
+            "norm_id": "DSC-N1",
+            "clause_id": "K05-DSC-c",
+            "covers": [
+              "K05"
+            ],
+            "assertion_id": "A-K05-c-narrow-grant-from-a-broad-basis-stays-narrow",
             "probe_id": "P-DSC-scope-basis",
             "mutation_candidates": [
               "M177",
@@ -3866,38 +3897,7 @@
             "covers": [
               "K05"
             ],
-            "assertion_id": "A-K05-c-revoked-or-expired-basis-does-not-open",
-            "probe_id": "P-DSC-scope-basis",
-            "mutation_candidates": [
-              "M177",
-              "M178",
-              "M179",
-              "M180",
-              "M181",
-              "M182"
-            ],
-            "falsified_by": null,
-            "evidence_limit": null,
-            "content_review": {
-              "state": "none",
-              "structural": "none",
-              "binding": "none",
-              "why": "nincs rögzített tartalmi felülvizsgálat",
-              "authenticity": {
-                "state": "unauthenticated",
-                "why": "a rekord nem hordoz elfogadás-bizonyítékot — a `reviewer.id` ÁLLÍTÁS, nem hitelesítés; a regisztrálás jogának ellenőrzése NYITOTT tétel (R57/F03 zárómondata)"
-              }
-            },
-            "result": "not_falsified",
-            "why": "a klauzula deklarált állítását EGYETLEN mutációs futás sem buktatta meg — NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát · NOT_IN_REGISTRY: nincs ELVÁRT érték a szülő futási környezetéből — a csomag nem igazolhatja saját magát"
-          },
-          {
-            "norm_id": "DSC-N1",
-            "clause_id": "K05-DSC-c",
-            "covers": [
-              "K05"
-            ],
-            "assertion_id": "A-K05-c-undeclared-limit-is-named-as-membership-only-not-a-scope-permission",
+            "assertion_id": "A-K05-c-revoked-grant-or-revoked-expired-basis-closes-a-previously-open-release",
             "probe_id": "P-DSC-scope-basis",
             "mutation_candidates": [
               "M177",
@@ -5520,12 +5520,12 @@
     {
       "id": "E02",
       "expected": "Final CLI must fail when all required clauses are not_falsified.",
-      "test_error": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT\n    at Object.spawnSync (node:internal/child_process:1120:20)\n    at spawnSync (node:child_process:902:24)\n    at run (file:///tmp/v3ref-ext-MRdAX4/r57_chatgpt-v3.mjs:17:43)\n    at file:///tmp/v3ref-ext-MRdAX4/r57_chatgpt-v3.mjs:43:504\n    at copy (file:///tmp/v3ref-ext-MRdAX4/r57_chatgpt-v3.mjs:15:136)\n    at file:///tmp/v3ref-ext-MRdAX4/r57_chatgpt-v3.mjs:43:272\n    at add (file:///tmp/v3ref-ext-MRdAX4/r57_chatgpt-v3.mjs:14:73)\n    at file:///tmp/v3ref-ext-MRdAX4/r57_chatgpt-v3.mjs:43:252"
+      "test_error": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT\n    at Object.spawnSync (node:internal/child_process:1120:20)\n    at spawnSync (node:child_process:902:24)\n    at run (file:///tmp/v3ref-ext-mWEHKA/r57_chatgpt-v3.mjs:17:43)\n    at file:///tmp/v3ref-ext-mWEHKA/r57_chatgpt-v3.mjs:43:504\n    at copy (file:///tmp/v3ref-ext-mWEHKA/r57_chatgpt-v3.mjs:15:136)\n    at file:///tmp/v3ref-ext-mWEHKA/r57_chatgpt-v3.mjs:43:272\n    at add (file:///tmp/v3ref-ext-mWEHKA/r57_chatgpt-v3.mjs:14:73)\n    at file:///tmp/v3ref-ext-mWEHKA/r57_chatgpt-v3.mjs:43:252"
     },
     {
       "id": "E03",
       "expected": "Final CLI must reject foreign or contradictory results even after actual runs.",
-      "test_error": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT\n    at Object.spawnSync (node:internal/child_process:1120:20)\n    at spawnSync (node:child_process:902:24)\n    at run (file:///tmp/v3ref-ext-MRdAX4/r57_chatgpt-v3.mjs:17:43)\n    at file:///tmp/v3ref-ext-MRdAX4/r57_chatgpt-v3.mjs:43:504\n    at copy (file:///tmp/v3ref-ext-MRdAX4/r57_chatgpt-v3.mjs:15:136)\n    at file:///tmp/v3ref-ext-MRdAX4/r57_chatgpt-v3.mjs:43:272\n    at add (file:///tmp/v3ref-ext-MRdAX4/r57_chatgpt-v3.mjs:14:73)\n    at file:///tmp/v3ref-ext-MRdAX4/r57_chatgpt-v3.mjs:43:252"
+      "test_error": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT\n    at Object.spawnSync (node:internal/child_process:1120:20)\n    at spawnSync (node:child_process:902:24)\n    at run (file:///tmp/v3ref-ext-mWEHKA/r57_chatgpt-v3.mjs:17:43)\n    at file:///tmp/v3ref-ext-mWEHKA/r57_chatgpt-v3.mjs:43:504\n    at copy (file:///tmp/v3ref-ext-mWEHKA/r57_chatgpt-v3.mjs:15:136)\n    at file:///tmp/v3ref-ext-mWEHKA/r57_chatgpt-v3.mjs:43:272\n    at add (file:///tmp/v3ref-ext-mWEHKA/r57_chatgpt-v3.mjs:14:73)\n    at file:///tmp/v3ref-ext-mWEHKA/r57_chatgpt-v3.mjs:43:252"
     },
     {
       "id": "E04",
