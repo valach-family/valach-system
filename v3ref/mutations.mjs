@@ -1292,7 +1292,9 @@ export const MUTATIONS = [
     what: 'ORG-N1b — A SZERZŐDÉS NÉLKÜLI MŰVELET FAIL-OPEN: az ismeretlen művelet üres kötelező-listát '
       + 'kap a ZÁRÁS helyett. Ettől egy új belépési pont NÉMÁN kikerülné a tengely-kötelezettséget '
       + '(KUKA-041: a nem-kapuzó mező kapunak látszana)',
-    file: 'basisLimit.mjs',
+    // R53 — A HORGONY KÖVETI A KÓDOT: a műveleti szerződés és a `requiredAxesFor` az
+    // `authorityBasis.mjs`-be költözött (a függőségi kör miatt); a mutáció ALANYA változatlan.
+    file: 'authorityBasis.mjs',
     from: '  if (!c) return null;',
     to: '  if (!c) return Object.freeze([]);' },
 
