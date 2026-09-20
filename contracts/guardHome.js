@@ -248,6 +248,7 @@ const GUARD_HOME = Object.freeze({
   'KUKA-184': Object.freeze({ home: 'v3', note: 'a sémaverzió a KANONIKUS bevét-úton mérve — a jel a P-KSZ-ledger-truth új állítása és az M163 mutáció' }),
   'KUKA-183': Object.freeze({ home: 'v3', note: 'a soha nem dobó diagnosztikai megjelenítő (showValue) itt él — a jel a P-BEM-input-schema nyolc alakja és a verify:kuka tiltó-mintája' }),
   'KUKA-182': Object.freeze({ home: 'v3', note: 'a forrás-kötés és a kanonikus ítélő újrafuttatása a csomag-generátorban él — a jel a proof:norm-chain-package húsz esete, a kilépési kódon' }),
+  'KUKA-200': Object.freeze({ home: 'v3', note: 'a bizonyíték-újrahasználat feloldója (SRU-01) és a söprés bekötése a V3 szerszám-könyvtárában él — a jel a verify:sweep-reuse SRU01–SRU10, szintetikus git-repón, a VALÓDI söprés alfolyamatként futtatva' }),
   'KUKA-181': Object.freeze({ home: 'v3', note: 'a két konkrét HAMIS lehetetlenségi mondatra tiltó-minta áll a V3 norma-fájlján — az viszont, hogy egy ÚJ hiány-indok igaz-e, PRÓZA, és arra a bejegyzés maga mondja ki, hogy gépi jel nincs' }),
   'KUKA-180': Object.freeze({ home: 'v3', note: 'a művelet-név saját kulcsos feloldója és a sémaverzió határa a V3 magreferenciájában él — a jel a P-BEM-input-schema (j)/(k) ága és az M153/M154/M158 mutáció' }),
   'KUKA-179': Object.freeze({ home: 'v3', note: 'a csomag-generátor és az ellenpár-battériája ITT van — a jel a proof:norm-chain-package tíz piros visszalépése és két pozitív ellenpárja, a kilépési kódon' }),

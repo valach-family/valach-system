@@ -14,52 +14,36 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 // SWV-01 (OB-10, R16 §2): a verdikt a gyermek GÉPI deklarációjából dől el, nem részszövegből.
 import { sweepVerdict } from './lib/vs_sweep_verdict.mjs';
+// SRU-01 (R69 F69-01): a kihagyás döntése a KÖZÖS feloldóé — a söprés hívja, nem maga méri.
+import { assessReuse, reuseLine } from './lib/vs_sweep_reuse.mjs';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// CÉLZOTT SÖPRÉS (R67 F67-03 → R69 F69-01): a több-tízperces láncok NEVESÍTETT kihagyása — de a kihagyás
+// CSAK akkor „ÚJRAHASZNÁLT BIZONYÍTÉK", ha a feloldó (SRU-01, `tools/lib/vs_sweep_reuse.mjs`) mind a négy
+// feltételt MÉRTE: feloldott commit · zöld, tiszta bizonyíték a commitban · a lánc bemenete a MUNKAFÁN
+// (munkafa + index + követetlen) azonos a bizonyíték forrásával · lánc-szkriptek, függőségek, futtató azonosak.
+//   npm run verify:sweep -- --skip verify:external-checks,verify:v3ref --reuse <commit>
+// Ha bármelyik hiányzik: „NEM FUTOTT — NEM IGAZOLT", az összverdikt NEM zöld (kilépés 1), és a láncot a
+// söprés NEM indítja el magától — a sor megmondja, mit kell külön futtatni. (Az R68-as alak két COMMITOT
+// hasonlított és a bizonyítékot meg sem nézte — módosított munkafán, bukott bizonyíték mellett is „érvényes"-t
+// írt: KUKA-200.) A mag-battéria olcsó fele (a próbák) újrahasználat mellett is lefut (`cheap_part`).
+const argv = process.argv.slice(2);
+const argOf = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
+// `--root` CSAK a szintetikus próbának (verify:sweep-reuse): a söprést egy másik repó-gyökéren futtatja.
+const ROOT = argOf('--root') ? resolve(argOf('--root')) : resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 const allScripts = Object.keys(pkg.scripts || {})
   .filter((s) => s.startsWith('verify:') && s !== 'verify:sweep')
   .sort();
-
-// CÉLZOTT SÖPRÉS (R67 F67-03): a több-tízperces láncok NEVESÍTETT kihagyása — de csak AZONOSSÁG mellett.
-//   npm run verify:sweep -- --skip verify:external-checks,verify:v3ref --reuse <commit>
-// A kihagyott verifier BEMENETI útjai (alább) a `--reuse` commithoz mérve VÁLTOZATLANOK kell legyenek
-// (git diff), különben a kihagyás ELUTASÍTVA és a verifier lefut. Az újrahasznált bizonyíték státusza
-// külön sor a kimenetben: „KIHAGYVA — a <commit> eredménye érvényes, azonosság mérve". Nem „a mag nem
-// változott" alapon, hanem a mért diffen (KUKA-038: a létezés nem bizonyíték, a mérés az).
-// A bemenet a FORRÁS, nem a kimenet: a `results/` (a lánc saját írása) és a `source-documents/` (a körök
-// lapjai, a próbák nem olvassák) kizárva — különben egy új kör-lap mentése hamisan „változott bemenetet" mérne.
-const CORE = ['v3ref', ':(exclude)v3ref/external-checks/results', ':(exclude)v3ref/source-documents', 'contracts'];
-// A package.json-ból CSAK a lánc által futtatott szkriptek számítanak bemenetnek (a többi szkript, pl. egy új
-// mérő felvétele, nem változtat a lánc eredményén) — ezért nem az egész fájl, hanem a nevezett előtagok.
-const SCRIPT_PREFIXES = ['verify:v3ref', 'verify:external-checks', 'v3ref:', 'proof:'];
-function chainScriptsAt(ref) {
-  const raw = ref === 'HEAD' ? readFileSync(join(ROOT, 'package.json'), 'utf8') : execSync(`git show ${ref}:package.json`, { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString();
-  const sc = JSON.parse(raw).scripts || {};
-  return JSON.stringify(Object.fromEntries(Object.entries(sc).filter(([k]) => SCRIPT_PREFIXES.some((p) => k.startsWith(p))).sort()));
-}
-const SKIP_INPUTS = {
-  'verify:external-checks': [...CORE, 'tools/vs_verify_external_checks.mjs'],
-  'verify:v3ref': CORE,
-};
-const argv = process.argv.slice(2);
-const argOf = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
 const skipReq = String(argOf('--skip') || '').split(',').map((x) => x.trim()).filter(Boolean);
 const reuse = argOf('--reuse');
-const skipped = []; const skipRefused = [];
+const reused = []; const unverified = [];
 for (const s of skipReq) {
-  const inputs = SKIP_INPUTS[s];
-  if (!inputs) { skipRefused.push({ s, why: 'nincs deklarált bemeneti útja — csak nevesített láncot lehet kihagyni' }); continue; }
-  if (!reuse) { skipRefused.push({ s, why: 'nincs --reuse <commit>, amihez az azonosság mérhető' }); continue; }
-  try {
-    execSync(`git diff --quiet ${reuse} HEAD -- ${inputs.map((x) => `'${x}'`).join(' ')}`, { cwd: ROOT, stdio: 'ignore' });
-    if (chainScriptsAt(reuse) !== chainScriptsAt('HEAD')) throw new Error('a lánc szkriptjei változtak a package.json-ban');
-    skipped.push({ s, reuse, inputs });
-  } catch (e) {
-    skipRefused.push({ s, why: `a bemenete VÁLTOZOTT a(z) ${reuse} óta (${inputs.filter((x) => !x.startsWith(':(')).join(', ')}, lánc-szkriptek; ${e.message || e}) — a régi eredmény nem érvényes, lefut` });
-  }
+  const a = assessReuse({ root: ROOT, chain: s, reuseRef: reuse === null ? '' : reuse });
+  (a.status === 'reused' ? reused : unverified).push(a);
 }
-const scripts = allScripts.filter((s) => !skipped.some((k) => k.s === s));
+// A kihagyott lánc SEMELYIK ágon nem indul a söprésből (R69: az elutasítás nem indíthat húszperces láncot).
+const scripts = allScripts.filter((s) => !skipReq.includes(s));
+const cheapParts = reused.filter((a) => a.cheap_part).map((a) => ({ s: `${a.chain} (olcsó fele: ${a.cheap_part})`, cmd: a.cheap_part }));
 
 // A SÖPRÉS TÜRELME NEM MÉRCE (a SAJÁT söprésem lelete, R81). A régi 180 000 ms a `verify:external-
 // checks` láncát PONT akkor vágta el, amikor az R81-es programokkal ~200 mp-re nőtt — és a
@@ -74,11 +58,12 @@ let pass = 0;
 const envSkips = [];
 const timedOut = [];
 const fails = [];
-for (const s of scripts) {
+const runs = [...scripts.map((s) => ({ s, cmd: `npm run -s ${s}` })), ...cheapParts];
+for (const { s, cmd } of runs) {
   const started = Date.now();
   let exitCode = 0; let out = ''; let killed = false;
   try {
-    out = String(execSync(`npm run -s ${s}`, { stdio: ['ignore', 'pipe', 'pipe'], cwd: ROOT, timeout: PATIENCE_MS }) || '');
+    out = String(execSync(cmd, { stdio: ['ignore', 'pipe', 'pipe'], cwd: ROOT, timeout: PATIENCE_MS }) || '');
   } catch (e) {
     killed = e.code === 'ETIMEDOUT' || e.signal === 'SIGTERM';
     exitCode = typeof e.status === 'number' ? e.status : 1;
@@ -98,10 +83,11 @@ for (const s of scripts) {
 }
 
 const secs = Math.round((Date.now() - t0) / 1000);
-console.log(`\nSÖPRÉS (${scripts.length} verifier${skipped.length ? ` + ${skipped.length} nevesített kihagyás` : ''}, ${secs}s): ${pass} zöld · ${envSkips.length} env-kihagyás`
+console.log(`\nSÖPRÉS (${runs.length} verifier${reused.length ? ` + ${reused.length} újrahasznált bizonyíték` : ''}${unverified.length ? ` + ${unverified.length} NEM IGAZOLT kihagyás` : ''}, ${secs}s): ${pass} zöld · ${envSkips.length} env-kihagyás`
   + `${timedOut.length ? ` · ${timedOut.length} NEM FEJEZŐDÖTT BE` : ''} · ${fails.length} piros`);
-for (const k of skipped) console.log(`KIHAGYVA — ${k.s}: a(z) ${k.reuse} commit eredménye érvényes, azonosság MÉRVE (${k.inputs.filter((x) => !x.startsWith(':(')).join(', ')} és a lánc szkriptjei változatlanok a git szerint; a results/ és a source-documents/ nem bemenet)`);
-for (const k of skipRefused) console.log(`KIHAGYÁS ELUTASÍTVA — ${k.s}: ${k.why}`);
+for (const a of reused) console.log(reuseLine(a));
+for (const a of unverified) console.log(reuseLine(a));
+if (unverified.length) console.error(`ÖSSZVERDIKT: NEM ZÖLD — ${unverified.length} lánc nem futott és nem igazolt (${unverified.map((a) => a.chain).join(', ')})`);
 if (timedOut.length) {
   console.error(`NEM FEJEZŐDÖTT BE a söprés türelmén (${Math.round(PATIENCE_MS / 1000)}s) belül: `
     + timedOut.map((t) => `${t.s} (${Math.round(t.ms / 1000)}s)`).join(', '));
@@ -112,4 +98,4 @@ if (envSkips.length) {
   for (const e of envSkips) console.log(`  · ${e.s} — ${e.reason}`);
 }
 if (fails.length) console.error(`PIROS: ${fails.join(', ')}`);
-if (fails.length || timedOut.length) process.exit(1);
+if (fails.length || timedOut.length || unverified.length) process.exit(1);

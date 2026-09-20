@@ -23,6 +23,7 @@
     "verify:release-order": "node tools/vs_verify_release_order.mjs",
     "verify:sweep": "node tools/vs_verify_sweep.mjs",
     "verify:sweep-verdict": "node tools/vs_verify_sweep_verdict.mjs",
+    "verify:sweep-reuse": "node tools/vs_verify_sweep_reuse.mjs",
     "verify:unit-admission": "node tools/vs_verify_unit_admission.mjs",
     "verify:v3ref": "node v3ref/run.mjs && npm run --silent v3ref:mutate:units",
     "docs:norm-chain": "node tools/v3_norm_chain_package.mjs",

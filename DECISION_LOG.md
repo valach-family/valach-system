@@ -3541,6 +3541,61 @@ megenged — a mért tény (a könyv-azonosság) változatlan.
 
 ---
 
+## D-VS-3068 — a bizonyíték-újrahasználat a bizonyítékhoz kötve, a hibás „visszaállítás" helyesbítve, a mérő a csomaghoz kötve (2026-09-20)
+
+**Parancs:** CMD-VS-300-002-002 R69 — ANALYSIS (chatgpt-v3 — KÜLSŐ ELLENŐRZŐ FÉL). A külső fél az R68
+mérő-javítását (kumulatív rekord · epoch-ablak · nevezett hiány · tartalommentes leltár) ELFOGADTA a
+vizsgált hatókörben, a teszt-újrahasználatot és a „visszaállított" bizonyítékcsomagot NEM. Vizsgált fej:
+`f09458ea343b9061fd505daedc2c7792e77b6c0e`. Tanulság: **KUKA-200**.
+
+**F69-01 — a söprés kihagyása (SRU-01, `tools/lib/vs_sweep_reuse.mjs`).** Az R68-as `--skip/--reuse`
+két COMMITOT hasonlított (`git diff <reuse> HEAD`), a munkafát/indexet/követetlent nem, a bizonyíték létét
+és verdiktjét nem — a külső fél szintetikus repón bizonyította, hogy módosított és indexbe tett tesztfájl
+mellett is „érvényes"-t írt. **Saját mérés rá:** a hivatkozott `64d1983` külső-lánc eredménye `ok:false`
+(15/19) — a söprés BUKOTT bizonyítékot mondott érvényesnek. Mostantól a kihagyás CSAK „ÚJRAHASZNÁLT
+BIZONYÍTÉK", ha (1) a hivatkozás feloldott commit (argumentumos git, shell nélkül) · (2) a commitban ott a
+lánc bizonyíték-fájlja, ZÖLD verdikttel, TISZTA forráson · (3) a munkafa + index + követetlen bemenet
+azonos a bizonyíték FORRÁSÁVAL (külső lánc: a `source.commit`-hoz; mag-battéria: a `base_digest` tartalmi
+lenyomat + a bizonyíték commitja) · (4) lánc-szkriptek · függőségek · package-lock · futtató fő verziója
+azonosak. Különben **„NEM FUTOTT — NEM IGAZOLT"**: az összverdikt nem zöld (kilépés 1), a lánc NEM indul
+magától (az elutasítás nem indíthat húszperces láncot), a sor megmondja, mit kell külön futtatni. A
+mag-battéria olcsó fele (`node v3ref/run.mjs`, ~2 s) újrahasználat mellett is lefut. **Mérve a bemenet:**
+a `contracts/` mappát egyik lánc sem húzza be, a `tools/vs_verify_external_checks.mjs` nem létezik — az
+R68-as bemeneti lista mindkettőt bemenetnek mondta. Gépi jel: `npm run verify:sweep-reuse` **SRU01–SRU10**
+(43 állítás): szintetikus git-repó, a feloldó HÍVVA, a VALÓDI söprés alfolyamatként, a lánc el nem
+indulása jelölő-fájlon mérve; a régi alakon bizonyítottan piros. A KUKA-200 tiltó-mintái a régi söprésen
+TALÁLNAK, a pozitív minta HIÁNYZIK — mindkettő mérve.
+
+**F69-02 — a bizonyítékcsomag és az átadás.** Az R68 REPORT „a results/ visszaállt a 64d1983 alakra"
+mondata **HAMIS volt** — mérve 16 fájl eltért: az f09458e a részben lefutott, `64d1983+uncommitted`
+bélyegű (18:43) futást vitte be. Most a `results/` VALÓBAN a `64d1983` alakon áll (`git diff --quiet
+64d1983 -- results` üres), és KIMONDVA: **az a bizonyíték nem zöld** (`ok:false`, 15/19 — r57/r59
+fal-időtúllépés felmentés nélkül, r57a/r59a `cap_ms` nélkül); az utolsó zöld, tiszta külső-lánc futás a
+`c0fda69` forráson készült (252f38e), ami azóta változott. **A külső láncra ma nincs újrahasználható zöld
+bizonyíték az ágon** — a söprés ezt NEM IGAZOLT-ként mondja ki, nem zöldként; a változatlan termék
+újramérése nem volt követelmény, az R64 termékfelülvizsgálat nyitott. **A leltár:** a `tool_commit`
+(80e48ea) a repó FEJE volt az exportkor, nem az eszközé — az exportáló FGY-01/2 akkor nem könyvelt fájl
+volt (f09458e-ben, sha256 `e182a7c3…`); az exportkori fájl-hash NEM rögzült, és az ismétlés ebből a
+környezetből nem lehetséges (az átiratok a régi környezetben állnak — mérve: itt 1 fő-átirat). Ezt a
+leltár `annotations_r70` mezője NEVEZETTEN hordozza (a mért számok érintetlenek); a „R67" ablak
+helyesbítve „R66 utáni időszak"-ra, záró pillanatképpel (19:38:43.316Z); a 3043 hívás növekménye nem
+kizárólag a mérőjavítás (21 új hívás az ablakban). FGY-01/3 óta a jelentés viszi a `tool_file_sha256` ·
+`tool_dirty` · `snapshot_closed_at` mezőt.
+
+**F69-03 — a mérő kijelzése és kötése (FGY-01/3).** Hiányos usage mellett az összeg **ISMERT
+RÉSZÖSSZEG** (`totals_kind`), az összes ISMERETLEN; hiányos megfigyelésből **nem következik „kereten
+belül"** — a küszöb ilyenkor NEM ELDÖNTHETŐ (kilépés 1), az átlépés viszont kimondható. `--session auto`
+CSAK egyértelmű kötésnél: a futó folyamat saját `CLAUDE_CODE_SESSION_ID`-ja, ha van hozzá átirat — a
+„legutóbb módosult fájl" nem választó többé (nevezett hiány, kilépés 2). `--quick` KÖTELEZŐEN `--from
+<csomag kezdete>`-vel fut. Ellenpróbák T15–T17, 17/17. **A két elavult képesség-rögzítés** nem operátori
+teendő: a bizonyítékhoz kötött rendezés a chatgpt-v2/Claude-v2 sáv dolga, külön hatáskörben — a V2-t
+nem módosítottuk, `present`-re bizonyíték nélkül nem állítjuk.
+
+**Mérve ebben a körben:** a V2 repó gyökér-fájlja ehhez a munkamenethez is BETÖLTŐDÖTT (két repó volt
+csatolva, a parancs „csak valach-system" kérése ellenére) — a fő-szál kontextus-mediánja emiatt a jelző
+fölött; a szűkítés: nulla ügynök, célzott olvasás. Nincs merge, telepítés, V2-módosítás, új üzleti
+modul; az R64/core termékelfogadás nyitott.
+
 ## D-VS-3067 — a mérő a mért rekord-szemantikán, a kihagyás azonossághoz kötve, a kör-határ a board időbélyege (2026-09-20)
 
 **Parancs:** CMD-VS-300-002-002 R67 — ANALYSIS (chatgpt-v3 — KÜLSŐ ELLENŐRZŐ FÉL). A külső fél az R66-ot

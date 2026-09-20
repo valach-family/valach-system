@@ -39,29 +39,36 @@ ma a gépi jelük) → **`npm run verify:kuka`** (a söprés része; visszacsús
   ezzel NEM lehet megnézni, ezért az ügynök ilyen csomaghoz NEM ad az operátornak checkout/pull/söprés
   utasítást — a kipróbálás útja az artifact-link és a board-lap, vagy az operátor kimondott
   ág-kérése (R67 F67-04).
-- **A SÖPRÉS A CSOMAG VÉGÉN FUT, a hosszú láncok kihagyása NEVESÍTETT és MÉRT.** A `npm run
-  verify:sweep` alapból MINDEN `verify:*`-ot elindít (a két több-tízperces lánc a 900 s türelmen túl
-  „NEM FEJEZŐDÖTT BE"-t kap — az nem kihagyás és nem zöld). Szerszám-/szabály-csomagnál, ahol a mag nem
-  változott, a célzott út: `npm run verify:sweep -- --skip verify:external-checks,verify:v3ref --reuse
-  <commit>` — a söprés a kihagyott lánc BEMENETÉT (v3ref forrás, contracts, a lánc package.json-szkriptjei; a results/
-  és a source-documents/ nem bemenet) a megadott commithoz méri, és csak AZONOSSÁG mellett hagy ki;
-  a kimenetben „KIHAGYVA — a <commit> eredménye érvényes, azonosság mérve" sor áll. A hivatkozott
-  eredmény-fájlok a hivatkozott commit alakjában maradnak: a részben lefutott lánc által felülírt
-  results/ nem friss bizonyíték (R67 F67-03). Közben a módosított terület saját ellenőrzője elég.
+- **A SÖPRÉS A CSOMAG VÉGÉN FUT, a hosszú láncok kihagyása NEVESÍTETT és a BIZONYÍTÉKHOZ KÖTÖTT.** A
+  `npm run verify:sweep` alapból MINDEN `verify:*`-ot elindít (a két több-tízperces lánc a 900 s türelmen
+  túl „NEM FEJEZŐDÖTT BE"-t kap — az nem kihagyás és nem zöld). Szerszám-/szabály-csomagnál a célzott
+  út: `npm run verify:sweep -- --skip verify:external-checks,verify:v3ref --reuse <commit>` — a kihagyás
+  CSAK akkor „ÚJRAHASZNÁLT BIZONYÍTÉK", ha a feloldó (SRU-01, `tools/lib/vs_sweep_reuse.mjs`) mind a
+  négyet MÉRTE: feloldott commit · a commitban ZÖLD, TISZTA forráson született bizonyíték-fájl · a lánc
+  bemenete a MUNKAFÁN (munkafa + index + követetlen) azonos a bizonyíték forrásával · lánc-szkriptek,
+  függőségek, futtató azonosak. Különben **„NEM FUTOTT — NEM IGAZOLT"**: az összverdikt NEM zöld, a
+  lánc nem indul magától — külön futtatod (`npm run <lánc>`), és a REPORT a NEM IGAZOLT állapotot írja,
+  nem zöldet (R69 F69-01 · KUKA-200). A mag-battéria olcsó fele (a próbák) mindig lefut. A
+  hivatkozott eredmény-fájlok a hivatkozott commit alakjában maradnak; „visszaállítva" csak `git diff
+  --quiet` után írható le. Gépi jel: `npm run verify:sweep-reuse`.
 - **PÁRHUZAMOS ÜGYNÖK csak indokolt, SZÉTVÁLASZTHATÓ részfeladatra**, ügynökönként kimondott céllal ·
   forrással · elvárt kimenettel · hívás-kerettel. **Csak olvasó** feladatra az `Explore` fajta
   (mérve: NEM kapja meg a gyökér-fájlokat); írásra az általános (megkapja). Nagy, sokügynökös
   kutatást alapból nem indítunk — az R63/R64 ablak hívásainak 65%-a workflow-ügynök volt (mérve).
 - **A FOGYASZTÁS MÉRÉS, nem érzés — és munka KÖZBEN is nézzük:** `npm run meres:fogyasztas --
-  --session auto --quick` egy sor, modellhívás nélkül — kötelező ellenőrzési pont (1) MINDEN nagyobb
-  delegálás (2+ ügynök vagy workflow) ELŐTT és (2) minden lényeges feladatcsoport UTÁN; átlépett
-  jelzőnél a koordinátor szűkít (új munkamenet, kevesebb ügynök, célzott olvasás) vagy a REPORT-ban
-  indokolja a folytatást — nem az operátorra hárítja. A csomag végén a teljes mérés
-  (`--session <id> --from <ISO> --to <ISO> --label <ablak>`), a tartalom nélküli leltár a repóba
-  (fent), EGY rövid sor a REPORT-ban; **körönkénti usage-melléklet nincs többé**. Az ablak-határ a
-  board-üzenetek időbélyege (parancs → válasz), a bizonytalan határ jelölve; az esemény utáni hívás
-  nem automatikusan az esemény költsége. Kísérleti jelzők: fő-szál medián > 200 ezer · ügynök-bemenet
-  > 40 M / csomag. Egyenlőtlen feltételek mellett megtakarítást NEM állítunk.
+  --session auto --from <a parancs board-időbélyege> --quick` egy sor, modellhívás nélkül — kötelező
+  ellenőrzési pont (1) MINDEN nagyobb delegálás (2+ ügynök vagy workflow) ELŐTT és (2) minden lényeges
+  feladatcsoport UTÁN. Az `auto` CSAK a futó folyamat saját azonosítójára köt (`CLAUDE_CODE_SESSION_ID`);
+  ha nem köthető, explicit `--session <id>` (R69 F69-03). A `--from` a CSOMAG kezdete — nélküle a jelző a
+  múlt ablakait mérné. Átlépett jelzőnél a koordinátor szűkít (új munkamenet, kevesebb ügynök, célzott
+  olvasás) vagy a REPORT-ban indokolja — nem az operátorra hárítja; **hiányos megfigyelésből nem
+  következik „kereten belül"** (a mérő ezt NEM ELDÖNTHETŐ-nek írja, az összeg ISMERT RÉSZÖSSZEG). A csomag
+  végén a teljes mérés (`--session <id> --from <ISO> --to <ISO> --label <ablak>`), a tartalom nélküli
+  leltár a repóba (fent), EGY rövid sor a REPORT-ban; **körönkénti usage-melléklet nincs többé**. Az
+  ablak-határ a board-üzenetek időbélyege (parancs → válasz), a bizonytalan határ jelölve, a nyitott
+  ablak záró pillanatképe a jelentésben; az esemény utáni hívás nem automatikusan az esemény költsége.
+  Kísérleti jelzők: fő-szál medián > 200 ezer · ügynök-bemenet > 40 M / csomag. Egyenlőtlen feltételek
+  mellett megtakarítást NEM állítunk.
 - `DATABASE_URL` és bármely kulcs **soha nem kerül chatbe** (csak `.env`). Üzleti adat (törzs, árak,
   bolti válasz) **nem kerül a repóba** és a boardra sem — a feltöltés gépi titok-őrön megy át.
 - **Ne írj új `.md`-t azért, hogy „legyen dokumentálva".** Ami operatív, az ide jön; ami
@@ -119,6 +126,7 @@ migráció áll; az `npm run db:migrate` az ELSŐ migrációval kerül ide (`ver
 | **kiadás / migráció** | e fájl 5. szakasza · `contracts/releaseOrder.js` · `migrations/LEDGER.json` |
 | **generált fájlt írsz** | `contracts/artifactNaming.js` (`artifactPath`) · a `var/` rend (5. szakasz) |
 | **fogyasztást mérsz** | `tools/v3_fogyasztas_meres.mjs` (`--selftest` az ellenpróbák) · `docs/70_PLANNING/V3_R64_FOGYASZTAS_SZABALYOK_LEVEL.md` |
+| **hosszú láncot hagysz ki a söprésből** | `tools/lib/vs_sweep_reuse.mjs` (SRU-01) · `npm run verify:sweep-reuse` |
 | **boardra töltesz** | `tools/vs_board_doc.mjs` · `tools/vs_board_round.mjs` (1. szakasz) |
 | **döntést rögzítesz** | `DECISION_LOG.md` feje (a szám a `verify:decision-numbers`-ből) |
 | **a V2-ből kell valami** | CSAK a megnevezett fájl/szakasz, a SPEC-ben kimondva — a V2 CLAUDE.md-jét nem olvassuk be egészben |
@@ -135,7 +143,7 @@ sort, amelyik a munkád hiba-osztályát fedi:
 | ha ezt csinálod | ELŐBB ezt vedd elő |
 |---|---|
 | **új gépi őrt / pint írsz** | KUKA-009 · 045 · 049 · 051 · 057 · 068 · 091 · 124 |
-| **bizonyítékot fogadsz be** (külső fél, futás-tanú, beadvány) | KUKA-121 · 122 · 125 · 126 · 128 · 132 |
+| **bizonyítékot fogadsz be** (külső fél, futás-tanú, beadvány) | KUKA-121 · 122 · 125 · 126 · 128 · 132 · 200 |
 | **szabályt javítasz, ami több helyen igaz** | KUKA-003 · 013 · 029 · 039 · 129 · 130 |
 | **jogosultsági kaput építesz** | KUKA-047 · 059 · 062 · 076 · 083 · 084 · 085 · 164 |
 | **mérést vagy riportot írsz** | KUKA-033 · 054 · 067 · 082 · 131 · 133 · 134 |

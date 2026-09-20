@@ -33,6 +33,67 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-200',
+    date: '2026-09-20',
+    title: 'A KIHAGYÁS, AMI A BIZONYÍTÉKOT MEG SEM NÉZTE — és a „visszaállítás", ami az ellenkezőjét tette',
+    what: 'Az R68-as söprés `--skip <lánc> --reuse <commit>` alakja a hosszú láncot ÚGY hagyta ki, hogy '
+      + '`git diff --quiet <reuse> HEAD` alakban KÉT COMMITOT hasonlított: a munkafa, az index és a követetlen '
+      + 'fájl nem számított, a hivatkozott commithoz tartozó BIZONYÍTÉK létét és verdiktjét pedig meg sem '
+      + 'kérdezte — módosított, sőt indexbe tett tesztfájl mellett is „eredménye érvényes, azonosság MÉRVE" '
+      + 'sort írt, és a hivatkozást shell-interpolációval adta a gitnek. A SAJÁT ágon mérve még rosszabb: a '
+      + 'hivatkozott `64d1983` külső-lánc eredménye `ok:false` (15/19) volt, tehát a söprés egy BUKOTT '
+      + 'bizonyítékot mondott érvényesnek. Mellé az R68 REPORT azt állította, hogy a 14 eredmény-fájl '
+      + '„VISSZAÁLLÍTVA a 64d1983 alakra" — mérve (`git diff --stat 64d1983 HEAD -- results`) 16 fájl '
+      + 'ELTÉRT: a commit a részben lefutott, „+uncommitted" bélyegű 18:43-as futást vitte be, nem a '
+      + 'hivatkozott alakot. Az elutasított kihagyás ráadásul automatikusan ELINDÍTOTTA a húszperces láncot.',
+    why_wrong: 'A KUKA-038 a söprésen: „a mag nem változott" nem bizonyíték — és két commit diffje sem az, '
+      + 'mert a lánc a MUNKAFÁN fut, nem a HEAD-en. A bizonyíték-újrahasználat HÁROM tényből áll (van '
+      + 'bizonyíték · zöld és tiszta forráson született · a mai bemenet azonos azzal, amin készült), és az '
+      + 'R68-as alak ebből EGYET mért, azt is rossz alanyon. A „visszaállítva" pedig ÁLLÍTÁS volt, nem '
+      + 'mérés (KUKA-054 a saját jelentésemen): a commit előtt egyetlen `git diff --quiet` megmutatta volna. '
+      + 'És az elutasítás → automatikus lánc-indítás a kihagyás célját fordította visszájára.',
+    replaced_by: 'SRU-01 (`tools/lib/vs_sweep_reuse.mjs`, `assessReuse`): a kihagyás CSAK „ÚJRAHASZNÁLT '
+      + 'BIZONYÍTÉK", ha (1) a hivatkozás FELOLDOTT commit (argumentumos git-hívás), (2) a commitban OTT a lánc '
+      + 'bizonyíték-fájlja, ZÖLD verdikttel, TISZTA forráson, (3) a munkafa + index + követetlen bemenet AZONOS '
+      + 'a bizonyíték forrásával (külső láncnál a `source.commit`-hoz, a mag-battériánál a `base_digest` '
+      + 'tartalmi lenyomathoz és a bizonyíték commitjához mérve), (4) lánc-szkriptek · függőségek · '
+      + 'package-lock · futtató fő verziója azonosak. Különben „NEM FUTOTT — NEM IGAZOLT": az összverdikt nem '
+      + 'zöld (kilépés 1), a lánc NEM indul magától, a sor megmondja, mit kell külön futtatni; a mag-battéria '
+      + 'olcsó fele (a próbák) újrahasználat mellett is lefut.',
+    replacement: 'A results/ VISSZAÁLLT a 64d1983 alakra (mérve: `git diff --quiet 64d1983 -- results` üres), '
+      + 'és kimondva: az a bizonyíték NEM zöld — a külső láncra ma NINCS újrahasználható zöld bizonyíték az '
+      + 'ágon (az utolsó zöld, tiszta futás a c0fda69 forráson készült, ami azóta változott).',
+    decision: 'D-VS-3068',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R69/F69-01 — szintetikus git-repón, módosított és indexbe '
+      + 'tett tesztfájllal; F69-02 — GitHub-összevetéssel a 16 eltérő eredmény-fájlra; a bukott hivatkozott '
+      + 'bizonyíték tényét a saját R70-es mérésem',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_sweep.mjs']),
+        pattern: "import \\{[^}]*assessReuse[^}]*\\} from '\\./lib/vs_sweep_reuse\\.mjs'",
+        why: 'a söprés a KÖZÖS feloldót hívja — ha eltűnik, a kihagyás megint helyben dőlne el' }),
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_sweep_reuse.mjs']),
+        pattern: "ev\\.green[\\s\\S]{0,300}worktreeIdentity",
+        why: 'a bizonyíték verdiktje ÉS a munkafa-azonosság együtt — bármelyik kiesése a régi fél-őr' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['tools/vs_verify_sweep.mjs'], pattern: 'git diff --quiet \\$\\{reuse\\} HEAD',
+        reason: 'a két-commitos, shell-interpolált azonosság-mérés nem térhet vissza (R69 F69-01)' }),
+      Object.freeze({ paths: ['tools/vs_verify_sweep.mjs'], pattern: 'eredménye érvényes, azonosság MÉRVE',
+        reason: 'az „érvényes" sor csak a feloldó reused ágán születhet, a söprés szövegében nem' }),
+    ]),
+    lesson: 'BIZONYÍTÉKOT ÚJRAHASZNÁLNI CSAK A BIZONYÍTÉKKAL EGYÜTT LEHET — a kérdés nem az, hogy „változott-e '
+      + 'a mag két commit között", hanem hogy VAN-E zöld bizonyíték, MIN készült, és a MAI munkafa (munkafa + '
+      + 'index + követetlen) az-e. Ha a három közül bármelyik nem mérhető, a helyes válasz a NEVEZETT „nem '
+      + 'futott, nem igazolt" — nem a zöld, és nem az automatikus újrafuttatás sem (az elutasítás nem indíthat '
+      + 'húszperces láncot). És a saját jelentés „visszaállítva" mondata is MÉRÉS után írható le, nem előtte '
+      + '(KUKA-038 · KUKA-054 a saját REPORT-omon): a commit előtti `git diff --quiet` egy sor.',
+    guard_note: 'gépi jel: `npm run verify:sweep-reuse` **SRU01–SRU10** (43 állítás) — szintetikus git-repón a '
+      + 'feloldó HÍVVA, és a VALÓDI söprés alfolyamatként: érvényes pár csak valódi bizonyítékkal · módosított '
+      + 'munkafa · staged · követetlen · hiányzó és bukott bizonyíték · piszkos forrás · fel nem oldható és '
+      + 'shell-metakarakteres hivatkozás (végrehajtás nélkül) · szkript/függőség/lock/futtató eltérés — a '
+      + 'lánc el nem indulása jelölő-fájlon mérve. A régi alakon bizonyítottan piros (SRU01/SRU02/SRU06).',
+  }),
+  Object.freeze({
     id: 'KUKA-095',
     date: '2026-09-10',
     title: 'AZ EGYIK FELTÉTELT LEZÁRTAM, ÉS A VÉDELMET JELENTETTEM KÉSZNEK',

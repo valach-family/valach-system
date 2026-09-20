@@ -1817,5 +1817,23 @@
   "node tools/v3_fogyasztas_meres.mjs --session 333f9791-28cc-5d6d-8cb6-88747379954a --from 2026-09-20T16:21:32Z --to 2026-09-20T17:45:19Z --label \"utólagos diagnózis (R64 üzenet → R65 parancs)\" --projects ~/.claude/projects",
   "node tools/v3_fogyasztas_meres.mjs --session 333f9791-28cc-5d6d-8cb6-88747379954a --from 2026-09-20T17:45:19Z --to 2026-09-20T18:39:17Z --label \"R65 végrehajtás (R65 parancs → R66 üzenet)\" --projects ~/.claude/projects",
   "node tools/v3_fogyasztas_meres.mjs --session 333f9791-28cc-5d6d-8cb6-88747379954a --from 2026-09-20T18:39:17Z --label \"R66 után: R67 (nyitott, e mérés idejéig)\" --projects ~/.claude/projects"
- ]
+ ],
+ "annotations_r70": {
+  "mi_ez": "R69 F69-02 utáni metaadat-helyesbítés (R70, Claude-v3, 2026-09-20). A MÉRT SZÁMOKHOZ NEM NYÚLTUNK; a hibás vagy hiányos kötések itt állnak, nevezetten.",
+  "tool_binding": {
+   "tool_commit_jelentese": "80e48ea = a repó FEJE az exportkor (git rev-parse HEAD), NEM az eszköz commitja: azon a fejen még az FGY-01/1 áll (sha256 2c7a1429834e1e9d6ed916c9ac16679ade1dcdae639c0f5d36616c800ae2ef29). Az exportot az FGY-01/2 készítette, ami akkor NEM KÖNYVELT (dirty) munkafa-fájl volt, és az f09458e commitban került be (sha256 e182a7c3bb8aa72912149ef95fb344583f932aa2cb6c39e3a174960772104eea).",
+   "tool_file_sha256_at_export": null,
+   "tool_file_sha256_at_export_note": "NEM RÖGZÜLT az exportkor — az FGY-01/2 csak a commitot írta. Hogy az exportáló fájl bájtra az f09458e-ben könyvelt alak-e, KÖVETKEZTETÉS (ugyanabban a munkamenetben, a commit előtt perceken belül készült), nem mérés. Az ismétlés a könyvelt eszközön EBBŐL a környezetből NEM lehetséges: az átiratok a régi környezet ~/.claude/projects mappájában állnak, itt csak a mai munkamenet átirata van (mérve: 1 fő-átirat).",
+   "tool_dirty_at_export": true,
+   "javitas": "FGY-01/3 óta a jelentés hordozza a tool_file_sha256 és tool_dirty mezőt, és a nyitott ablak snapshot_closed_at záró pillanatképét — a következő export ezt automatikusan viszi."
+  },
+  "ablak_helyesbites": {
+   "erintett_ablak": "R66 után: R67 (nyitott, e mérés idejéig)",
+   "helyes_nev": "R66 UTÁNI IDŐSZAK (az R66 üzenet 18:39:17Z-től az export 19:38:43.316Z-ig) — NEM az R67 parancs végrehajtási ablaka: az R67 COMMAND 18:46:58Z-kor érkezett, a 18:39:17–18:46:58 közti hívások az R66 lezárásához tartoznak, és az ablak az export pillanatában nyitott volt.",
+   "to_effective": "2026-09-20T19:38:43.316Z",
+   "ismetles_zaro_hatar": "node tools/v3_fogyasztas_meres.mjs --session 333f9791-28cc-5d6d-8cb6-88747379954a --from 2026-09-20T18:39:17Z --to 2026-09-20T19:38:43.316Z --label \"R66 utáni időszak\" --projects ~/.claude/projects (csak a régi környezetben futtatható)",
+   "novekmeny_megjegyzes": "A teljes munkamenet 3043 hívása és a kimenet R66-hoz mért növekménye NEM kizárólag a mérőjavítás (kumulatív rekordok) hatása: az R66 üzenet után 21 új hívás is keletkezett ebben az ablakban."
+  },
+  "megorzes": "A nyers eredeti átiratok megőrzési helye a régi környezet ~/.claude/projects mappája (a manifest sha256-jai azonosítják); a régi környezetet nem töröljük."
+ }
 }
