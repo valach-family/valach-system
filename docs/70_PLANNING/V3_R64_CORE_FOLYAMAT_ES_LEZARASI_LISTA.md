@@ -101,7 +101,7 @@ kifejezetten adaptáltuk (adapted-v3, 3.4. szakasz); élő migráció nincs, mer
 | `npm run app:selfcheck` | a teljes lánc a valódi végpontokon | **57/57 PASS** |
 | `npm run proof:core-ux` (Playwright) | a lánc böngészőben + a 14 helyzet, böngésző- és szerver-bizonyíték külön | **27/27 PASS** (13 folyamat-lépés + 14 helyzet; 35 s) |
 | `npm run proof:multiconn` (MCN-01) | OB-1: KÉT valódi folyamat — meghívó-beváltás versenye · megvonás ↔ véglegesítés · visszajátszás | **40/40 OK** (20+20 menet; mindkét sorrend előfordult; a vesztes nevezett elutasítást kapott; a megvont jog visszajátszással nem tér vissza) |
-| `npm run verify:external-checks` | a külső fél 19 programja (7 program adapted-v3 fixtúrával) | «EXT» |
+| `npm run verify:external-checks` | a külső fél 19 programja (7 program adapted-v3 fixtúrával) | **17/19 MEGFELEL · 2 nevezett ENV-KIHAGYÁS helyettessel** (a történeti r57/r59: a battéria egy hívásban a 15 s-os gyermek-korlát fölött — időtúllépés, mérve; az r57 három T-esete R63 szabályváltás miatt bukik, MÉRT okkal/predikátummal, az adaptált r57a mind a kilencet zölden futtatja) · kilépés 0 · 24 perc 44 mp. **Amit ez a kör a láncon javított:** öt burkoló (r67 · r69 · r75 · r85 · r88) még a történeti fájlt hívta kézzel — most a feloldón át; a külső programok egység-darabszáma EGY otthonból (18, mérve — a kilences bontás túllépte a költségvetést); a szabályváltás miatt bukó történeti eseteket a manifest MÉRT alakon menti fel, nem deklarációval |
 | `npm run verify:grant-paths` | GPR-01: 12 jogadási út, mindkét irányban + önpróba | **12/12 + 3/3 piros ellenpélda** |
 | `npm run verify:kuka` | 190 tanulság, tiltó/pozitív minták (KUKA-199 új) | **324/324 PASS** |
 | `npm run verify:sweep` | minden `verify:*` | «SWEEP» |

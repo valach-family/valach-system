@@ -1,8 +1,8 @@
 {
   "program": "restated.mjs",
-  "source_commit": "c0fda69e34492a6d3b5b0fb66669cad80d90a92d",
+  "source_commit": "0e796bb7893d7a5943dcd78eba7886dbfd02de2f+uncommitted",
   "node": "v22.22.2",
-  "at": "2026-09-20T07:42:07.602Z",
+  "at": "2026-09-20T15:56:47.220Z",
   "cases": [
     {
       "id": "C11-restated",
@@ -22,7 +22,8 @@
           "shape": "membership_only",
           "outcome": "granted",
           "subject_id": "holder",
-          "book_id": "A"
+          "book_id": "A",
+          "read_scope_granted": null
         },
         "membership": {
           "subject_id": "holder",
@@ -44,7 +45,8 @@
           "shape": "membership_only",
           "outcome": "granted",
           "subject_id": "holder",
-          "book_id": "A"
+          "book_id": "A",
+          "read_scope_granted": null
         },
         "membership": {
           "subject_id": "holder",
@@ -80,7 +82,8 @@
         "shape": "membership_only",
         "outcome": "granted",
         "subject_id": "holder",
-        "book_id": "A"
+        "book_id": "A",
+        "read_scope_granted": null
       },
       "membership": {
         "subject_id": "holder",
@@ -116,7 +119,7 @@
           "target_assertion": false
         }
       ],
-      "final_credit_line": "FEDVE  REV-N1b → A-REV-N1b-earlier-record-and-decision-survive @ P-CMD-finalize-gate · falszifikálta: M47"
+      "final_credit_line": "FEDVE  REV-N1b → A-REV-N1b-earlier-record-and-decision-survive @ P-CMD-finalize-gate · falszifikálta: M49"
     },
     {
       "id": "D01-restated",
@@ -124,13 +127,13 @@
       "pass": true,
       "before": {
         "contract": "sha256:d6ef5ed707b83e3da8502819c7f6bf294c46c1985afefc2716b29aff20c0bdb5",
-        "index": "sha256:d74ffffba22b917e822aa3073aeb00f7795d1639455617f2291226213e5f7bf4",
-        "combined": "sha256:85c06d96476fa4d900b12c0ddffc5729302b7c1af2dfbf202ef8df0b685ee419"
+        "index": "sha256:df8da7f33a19dadd539c8e3b15d1b2bc99b00df6c532206dc1a846400cc7053c",
+        "combined": "sha256:c1b0f479a4ac69eedc93b50a08447ec4f207c45dae193a885231046e7f1ccff6"
       },
       "after": {
         "contract": "sha256:6f69c810203ba0df51a06614c15266a4639b5821c7b49b0f2e88cc06a132256d",
-        "index": "sha256:d74ffffba22b917e822aa3073aeb00f7795d1639455617f2291226213e5f7bf4",
-        "combined": "sha256:7da59ed76a0aa505d058ebd21cc6acffea0875f3fb8728eee66f25d519273ba3"
+        "index": "sha256:df8da7f33a19dadd539c8e3b15d1b2bc99b00df6c532206dc1a846400cc7053c",
+        "combined": "sha256:cdb8144a30cb635f07fc02328e492cf9d3492cfa715a3884ebeece43ce089ffe"
       },
       "note": "a szerződés és az index KÜLÖN artefaktum: a címjegyzék változása az elsőt érinti, a másodikat nem — és az együttes lenyomat mindkettőt hordozza"
     }
