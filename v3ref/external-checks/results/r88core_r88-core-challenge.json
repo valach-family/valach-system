@@ -1,9 +1,9 @@
 {
   "program": "r88_chatgpt-v3.core.adapted.mjs",
   "variant": "adapted",
-  "source_commit": "64d1983b4a8207ef681d55fa95ad2ce6ee52f35d+uncommitted",
+  "source_commit": "80e48eadc8467e47223ac6b154facdd5f4169b20+uncommitted",
   "node": "v22.22.2",
-  "at": "2026-09-20T18:17:41.367Z",
+  "at": "2026-09-20T19:36:23.909Z",
   "verbatim": true,
   "cases": [
     {

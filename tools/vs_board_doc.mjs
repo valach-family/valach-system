@@ -15,6 +15,7 @@
 //
 // Környezet: CHATOPS_BASE_URL + CHATOPS_WRITE_TOKEN (a .env-ből is betöltődik — KUKA-040).
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 import { dirname, resolve, join, basename } from 'node:path';
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { loadRepoEnv } from './lib/vs_tool_env.mjs';
@@ -104,6 +105,20 @@ if (!existsSync(join(ROOT, rel))) {
   process.exit(2);
 }
 
+
+// A REPÓ MEZŐ ALAPÉRTÉKE A SAJÁT GIT-TÁVOLIBÓL (R67 F67-04): a régi alak `valach-family/vs`-t írt, ezért a
+// V3-ból küldött üzenet a V2 repó neve alatt jelent meg a boardon. `--repo` felülír; ha nincs távoli, hiba.
+function repoDefault() {
+  try {
+    const url = execSync('git remote get-url origin', { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    const m = url.match(/[:/]([^/:]+\/[^/]+?)(?:\.git)?$/);
+    if (m) return m[1];
+  } catch { /* lent nevezett hiba */ }
+  return null;
+}
+const REPO = opt('repo', repoDefault());
+if (!REPO) { console.error('HIÁNYZIK: --repo <owner/repo> (a git távolijából nem olvasható ki).'); process.exit(2); }
+
 const cmd = keyOf('CMD');
 if (!cmd) {
   console.error('Melyik PARANCS köréhez tartozik? Add meg: --pr 300 --step 2 --cmd 1 (vagy --cmd CMD-VS-300-002-001).');
@@ -112,6 +127,7 @@ if (!cmd) {
 }
 
 const payload = {
+  repo: REPO,
   cmd,
   pr: keyOf('PR'), step: keyOf('STEP'),
   round: opt('round') || null,

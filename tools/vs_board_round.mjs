@@ -27,6 +27,7 @@
 //
 // Környezet: CHATOPS_BASE_URL + CHATOPS_WRITE_TOKEN (a .env-ből is betöltődik — KUKA-040).
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
@@ -62,6 +63,20 @@ async function call(method, path, body) {
   if (!res.ok) throw new Error(`${method} ${path} → ${res.status}: ${JSON.stringify(data).slice(0, 300)}`);
   return data;
 }
+
+
+// A REPÓ MEZŐ ALAPÉRTÉKE A SAJÁT GIT-TÁVOLIBÓL (R67 F67-04): a régi alak `valach-family/vs`-t írt, ezért a
+// V3-ból küldött üzenet a V2 repó neve alatt jelent meg a boardon. `--repo` felülír; ha nincs távoli, hiba.
+function repoDefault() {
+  try {
+    const url = execSync('git remote get-url origin', { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    const m = url.match(/[:/]([^/:]+\/[^/]+?)(?:\.git)?$/);
+    if (m) return m[1];
+  } catch { /* lent nevezett hiba */ }
+  return null;
+}
+const REPO = opt('repo', repoDefault());
+if (!REPO) { console.error('HIÁNYZIK: --repo <owner/repo> (a git távolijából nem olvasható ki).'); process.exit(2); }
 
 // ── Kulcs-összerakás: a rövid szám a SZÜLŐBŐL kapja a helyét (KUKA-036: nem gépeljük kétszer). ──
 const SERIES = String(opt('series', 'VS')).toUpperCase();
@@ -104,7 +119,7 @@ async function postMatrix(objectType, objectKey, pr, items, notes, by) {
   for (const item of items) {
     const na = naList.includes(item);
     await call('POST', '/api/chatops/frm/status', {
-      object_type: objectType, object_key: objectKey, pr, repo: opt('repo', 'valach-family/vs'),
+      object_type: objectType, object_key: objectKey, pr, repo: REPO,
       item_key: item, status: na ? 'not_applicable' : 'ok', updated_by: by,
       note: na ? naNote : (notes[item] || notes._default || 'Kör-záró gépi futás zölden; részletek a repo söprésében és a riportban.'),
     }).catch((e) => console.warn(`  mátrix ${item}: ${e.message.slice(0, 90)}`));
@@ -123,14 +138,14 @@ async function postMessage(m) { return call('POST', '/api/chatops/messages', m);
 async function twoStepClose(type, key, note) {
   for (const to of ['reported', 'done']) {
     await call('POST', '/api/chatops/object-status', {
-      object_type: type, object_key: key, to_status: to, repo: opt('repo', 'valach-family/vs'),
+      object_type: type, object_key: key, to_status: to, repo: REPO,
       actor: opt('by', 'Claude-DEV'), note, skipCatalogGate: false,
     }).catch((e) => console.warn(`  állapot ${key}→${to}: ${e.message.slice(0, 120)}`));
   }
 }
 
 async function main() {
-  const repo = opt('repo', 'valach-family/vs');
+  const repo = REPO;
   const K = keys();
   const by = opt('by', 'Claude-DEV');
   const readText = () => (opt('text-file') ? readFileSync(String(opt('text-file')), 'utf8') : String(opt('text', '')));

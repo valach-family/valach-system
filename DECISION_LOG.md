@@ -3541,6 +3541,49 @@ megenged — a mért tény (a könyv-azonosság) változatlan.
 
 ---
 
+## D-VS-3067 — a mérő a mért rekord-szemantikán, a kihagyás azonossághoz kötve, a kör-határ a board időbélyege (2026-09-20)
+
+**Parancs:** CMD-VS-300-002-002 R67 — ANALYSIS (chatgpt-v3 — KÜLSŐ ELLENŐRZŐ FÉL). A külső fél az R66-ot
+RÉSZ-eredménynek fogadta el (rövidebb gyökér-fájl, a board-eszköz indulása), és a fogyasztási védelmet NEM:
+a mérő az ő ellenpéldáin adatot vesztett, a drága lánc a söprésben újra elindult, az export nem volt átadva.
+Ellenőrzött fej: `80e48eadc8467e47223ac6b154facdd5f4169b20`.
+
+**F67-01 — a mérő (FGY-01/2), a MÉRT formátumra:** egy modellhívás az átiratban több sorban áll
+(tartalom-blokkonként), a usage KUMULATÍV — a kimenet a sorokon nő, az utolsó sor a teljes (667/667
+többsoros azonosító, 0 kivétel; azonos azonosító két fájlban 0/1666). Az első alak az ELSŐ rekordot
+tartotta meg, tehát a kimenet elveszett (**megtalálta: chatgpt-v3**, „1 → 100 ⇒ 1"). Mostantól: az UTOLSÓ
+rekord a hívás; az időablak EPOCH-on hasonlít (a `+02:00` alak helyesen esik az ablakba), a hibás határ
+nevezett hiba; üres/hiányos usage HIÁNY (külön számláló), szintetikus rekord nem hívás; a lefedettség csak
+akkor „teljes", ha egyetlen hiány-számláló sem nulla fölötti; a manifest bájtot mér; a megismétlő parancs
+viszi a `--projects` utat és az eszköz commitját. Hét új ellenpróba (T8–T14), 14/14; a söprés része.
+**Új mérés benne: a fő szál ébresztés-bontása** (user · hook · notification · compaction), minden hívás
+pontosan egy indítóhoz — átfedés kizárva; a beszúrt skill-/parancs-visszhang sorok nem ébresztések.
+
+**F67-02 — a kör-határ a board időbélyege, a leltár a repóban:** az ablakok a board üzeneteinek
+`created_at` idejéből (R63 parancs 09:25:09Z · R64 üzenet 16:21:32Z · R65 parancs 17:45:19Z · R66 üzenet
+18:39:17Z), a bizonytalan határ jelölve (az R63 első hívása a modellváltás után 10:14:40Z). Az R66 „R63/R64
+ablak" (10:14→18:09) tehát R63-végrehajtást, utólagos diagnózist ÉS R65-végrehajtást kevert — visszavonva.
+A tartalom nélküli leltár az átadási helyen: `docs/70_PLANNING/V3_R68_FOGYASZTAS_LELTAR.json` (ablakonkénti
+összesítők · bemeneti manifest sha256-tal · örökléskontroll-tanú: 43 al-ügynök átirat mellékletének mérete
+és lenyomata; nyers átirat, szöveg, titok nincs benne). „Nem használt ≠ nem betöltött": a V2 ebben a körben
+NEM volt munkára használva, de a három csatolt repó gyökér-fájlja MINDEN általános ügynöknek betöltődött.
+
+**F67-03 — a söprés célzott útja MÉRT azonossággal:** `npm run verify:sweep -- --skip … --reuse <commit>`
+csak akkor hagy ki, ha a lánc BEMENETE (v3ref forrás a results/ és a source-documents/ nélkül, contracts,
+a lánc package.json-szkriptjei) a git szerint azonos a hivatkozott committal; különben lefut. Az R66-ban a
+sweep által részben felülírt 14 eredmény-fájl visszaállítva a `64d1983` alakra (az a hivatkozott bizonyíték).
+A munka közbeni ellenőrzési pont: `meres:fogyasztas -- --session auto --quick` (modellhívás nélkül) minden
+nagyobb delegálás előtt és feladatcsoport után; a mentő commit megengedett.
+
+**F67-04 — a helyes forráság és a tényleges felhatalmazás:** az ügynök össze nem olvasztott ághoz NEM ad
+main-checkout/pull/söprés utasítást az operátornak; a chatgpt-v3 az operátor felhatalmazásával PARANCS-KÖRT
+ír a boardra (mérve: R65, R67) — a régi tiltó mondat visszavonva, a felhatalmazás az operátoré; a board-eszközök
+`repo` mezője a git-távoliból jön (`--repo` felülír) — az R66 üzenet még `valach-family/vs` alatt ment fel.
+
+**Nincs új KUKA-bejegyzés, kimondva:** a mérő hibája a KUKA-067 osztálya (tárolási konvenciót nem
+feltételezünk — kiolvassuk), az ablak-keverés a KUKA-054 (mi választotta ki a mintát), a felülírt eredmény-
+fájl a KUKA-011 (a feltolt kód ≠ ami fut); mind a három tanulság hordozza. **Megtalálta: chatgpt-v3** (R67).
+
 ## D-VS-3066 — a munkarend tényleges javítása: rövid memória, egy csomag = egy munkamenet, mért fogyasztás (2026-09-20)
 
 **Parancs:** CMD-VS-300-002-002 R65 — SPEC (chatgpt-v3 — KÜLSŐ ELLENŐRZŐ FÉL, az operátor R64-es

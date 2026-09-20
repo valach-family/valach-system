@@ -17,9 +17,49 @@ import { sweepVerdict } from './lib/vs_sweep_verdict.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-const scripts = Object.keys(pkg.scripts || {})
+const allScripts = Object.keys(pkg.scripts || {})
   .filter((s) => s.startsWith('verify:') && s !== 'verify:sweep')
   .sort();
+
+// CÉLZOTT SÖPRÉS (R67 F67-03): a több-tízperces láncok NEVESÍTETT kihagyása — de csak AZONOSSÁG mellett.
+//   npm run verify:sweep -- --skip verify:external-checks,verify:v3ref --reuse <commit>
+// A kihagyott verifier BEMENETI útjai (alább) a `--reuse` commithoz mérve VÁLTOZATLANOK kell legyenek
+// (git diff), különben a kihagyás ELUTASÍTVA és a verifier lefut. Az újrahasznált bizonyíték státusza
+// külön sor a kimenetben: „KIHAGYVA — a <commit> eredménye érvényes, azonosság mérve". Nem „a mag nem
+// változott" alapon, hanem a mért diffen (KUKA-038: a létezés nem bizonyíték, a mérés az).
+// A bemenet a FORRÁS, nem a kimenet: a `results/` (a lánc saját írása) és a `source-documents/` (a körök
+// lapjai, a próbák nem olvassák) kizárva — különben egy új kör-lap mentése hamisan „változott bemenetet" mérne.
+const CORE = ['v3ref', ':(exclude)v3ref/external-checks/results', ':(exclude)v3ref/source-documents', 'contracts'];
+// A package.json-ból CSAK a lánc által futtatott szkriptek számítanak bemenetnek (a többi szkript, pl. egy új
+// mérő felvétele, nem változtat a lánc eredményén) — ezért nem az egész fájl, hanem a nevezett előtagok.
+const SCRIPT_PREFIXES = ['verify:v3ref', 'verify:external-checks', 'v3ref:', 'proof:'];
+function chainScriptsAt(ref) {
+  const raw = ref === 'HEAD' ? readFileSync(join(ROOT, 'package.json'), 'utf8') : execSync(`git show ${ref}:package.json`, { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString();
+  const sc = JSON.parse(raw).scripts || {};
+  return JSON.stringify(Object.fromEntries(Object.entries(sc).filter(([k]) => SCRIPT_PREFIXES.some((p) => k.startsWith(p))).sort()));
+}
+const SKIP_INPUTS = {
+  'verify:external-checks': [...CORE, 'tools/vs_verify_external_checks.mjs'],
+  'verify:v3ref': CORE,
+};
+const argv = process.argv.slice(2);
+const argOf = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
+const skipReq = String(argOf('--skip') || '').split(',').map((x) => x.trim()).filter(Boolean);
+const reuse = argOf('--reuse');
+const skipped = []; const skipRefused = [];
+for (const s of skipReq) {
+  const inputs = SKIP_INPUTS[s];
+  if (!inputs) { skipRefused.push({ s, why: 'nincs deklarált bemeneti útja — csak nevesített láncot lehet kihagyni' }); continue; }
+  if (!reuse) { skipRefused.push({ s, why: 'nincs --reuse <commit>, amihez az azonosság mérhető' }); continue; }
+  try {
+    execSync(`git diff --quiet ${reuse} HEAD -- ${inputs.map((x) => `'${x}'`).join(' ')}`, { cwd: ROOT, stdio: 'ignore' });
+    if (chainScriptsAt(reuse) !== chainScriptsAt('HEAD')) throw new Error('a lánc szkriptjei változtak a package.json-ban');
+    skipped.push({ s, reuse, inputs });
+  } catch (e) {
+    skipRefused.push({ s, why: `a bemenete VÁLTOZOTT a(z) ${reuse} óta (${inputs.filter((x) => !x.startsWith(':(')).join(', ')}, lánc-szkriptek; ${e.message || e}) — a régi eredmény nem érvényes, lefut` });
+  }
+}
+const scripts = allScripts.filter((s) => !skipped.some((k) => k.s === s));
 
 // A SÖPRÉS TÜRELME NEM MÉRCE (a SAJÁT söprésem lelete, R81). A régi 180 000 ms a `verify:external-
 // checks` láncát PONT akkor vágta el, amikor az R81-es programokkal ~200 mp-re nőtt — és a
@@ -58,8 +98,10 @@ for (const s of scripts) {
 }
 
 const secs = Math.round((Date.now() - t0) / 1000);
-console.log(`\nSÖPRÉS (${scripts.length} verifier, ${secs}s): ${pass} zöld · ${envSkips.length} env-kihagyás`
+console.log(`\nSÖPRÉS (${scripts.length} verifier${skipped.length ? ` + ${skipped.length} nevesített kihagyás` : ''}, ${secs}s): ${pass} zöld · ${envSkips.length} env-kihagyás`
   + `${timedOut.length ? ` · ${timedOut.length} NEM FEJEZŐDÖTT BE` : ''} · ${fails.length} piros`);
+for (const k of skipped) console.log(`KIHAGYVA — ${k.s}: a(z) ${k.reuse} commit eredménye érvényes, azonosság MÉRVE (${k.inputs.filter((x) => !x.startsWith(':(')).join(', ')} és a lánc szkriptjei változatlanok a git szerint; a results/ és a source-documents/ nem bemenet)`);
+for (const k of skipRefused) console.log(`KIHAGYÁS ELUTASÍTVA — ${k.s}: ${k.why}`);
 if (timedOut.length) {
   console.error(`NEM FEJEZŐDÖTT BE a söprés türelmén (${Math.round(PATIENCE_MS / 1000)}s) belül: `
     + timedOut.map((t) => `${t.s} (${Math.round(t.ms / 1000)}s)`).join(', '));

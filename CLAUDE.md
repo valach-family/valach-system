@@ -28,26 +28,40 @@ ma a gépi jelük) → **`npm run verify:kuka`** (a söprés része; visszacsús
   repó gyökér-fájlja MINDEN ügynöknek betöltődik (a V2-é 222 614 bájt — mérve, R64). Gépi jel: nincs
   (szervezési szabály); a mérése a `meres:fogyasztas` kimenete.
 - **EGY CSOMAG = EGY MUNKAMENET.** Új Claude-beszélgetést ÖSSZEFÜGGŐ munkacsomagonként nyitunk, nem
-  board-sorszámonként; egy csomagon belül a kör megszakítás nélkül fut. A csomag ELŐTT a régi
-  munkamenet mérés-forrásai mentve (`v3ref/source-documents/`), a záró REPORT commitolva és feltolva.
-- **A KIJELÖLT ÁG AZ ÜGYNÖKÉ, a `main` az operátoré.** Az ügynök a munkamenetben megadott ágon
-  dolgozik, és NEM vált `main`-re; a lenti terminál-blokk az OPERÁTOR gépén fut. Ez a két dolog
-  nem mond ellent egymásnak: más gép, más szerep (R65 rendezte).
-- **A SÖPRÉS A CSOMAG VÉGÉN TELJES, közben célzott.** `npm run verify:sweep` a csomagot záró commit
-  előtt; közben a módosított terület saját ellenőrzője elég. **A többperces külső lánc
-  (`external-checks`) NEM fut újra változatlan magra** — a legutóbbi teljes futás eredmény-fájlját és
-  commit-SHA-ját hivatkozzuk (R63 §5 szabálya, itt kimondva). A környezethez kötött kihagyás
-  NEVESÍTVE jelenik meg, nem néma zöldként.
+  board-sorszámonként; egy csomagon belül a kör megszakítás nélkül fut. A váltás ELŐTT az átadás kész:
+  a SPEC-ek szó szerint (`v3ref/source-documents/`), a tartalom nélküli fogyasztás-leltár
+  (`docs/70_PLANNING/…_FOGYASZTAS_LELTAR.json`, a régi környezetből exportálva — a `var/` helyi fájl
+  puszta megnevezése nem átadás), a záró REPORT commitolva és feltolva. Párhuzamos második végrehajtó
+  nem indul. Mentő commit a csomag közben MEGENGEDETT (a cél az üres ébresztés, nem a commit).
+- **A KIJELÖLT ÁG AZ ÜGYNÖKÉ, a `main` az operátoré — és a kettő nem cserélhető.** Az ügynök a
+  munkamenetben megadott ágon dolgozik, NEM vált `main`-re. A lenti terminál-blokk a KIADÁS
+  megtekintése (a `main`-en összeolvasztott állapot): egy össze nem olvasztott ág eredményét
+  ezzel NEM lehet megnézni, ezért az ügynök ilyen csomaghoz NEM ad az operátornak checkout/pull/söprés
+  utasítást — a kipróbálás útja az artifact-link és a board-lap, vagy az operátor kimondott
+  ág-kérése (R67 F67-04).
+- **A SÖPRÉS A CSOMAG VÉGÉN FUT, a hosszú láncok kihagyása NEVESÍTETT és MÉRT.** A `npm run
+  verify:sweep` alapból MINDEN `verify:*`-ot elindít (a két több-tízperces lánc a 900 s türelmen túl
+  „NEM FEJEZŐDÖTT BE"-t kap — az nem kihagyás és nem zöld). Szerszám-/szabály-csomagnál, ahol a mag nem
+  változott, a célzott út: `npm run verify:sweep -- --skip verify:external-checks,verify:v3ref --reuse
+  <commit>` — a söprés a kihagyott lánc BEMENETÉT (v3ref forrás, contracts, a lánc package.json-szkriptjei; a results/
+  és a source-documents/ nem bemenet) a megadott commithoz méri, és csak AZONOSSÁG mellett hagy ki;
+  a kimenetben „KIHAGYVA — a <commit> eredménye érvényes, azonosság mérve" sor áll. A hivatkozott
+  eredmény-fájlok a hivatkozott commit alakjában maradnak: a részben lefutott lánc által felülírt
+  results/ nem friss bizonyíték (R67 F67-03). Közben a módosított terület saját ellenőrzője elég.
 - **PÁRHUZAMOS ÜGYNÖK csak indokolt, SZÉTVÁLASZTHATÓ részfeladatra**, ügynökönként kimondott céllal ·
   forrással · elvárt kimenettel · hívás-kerettel. **Csak olvasó** feladatra az `Explore` fajta
   (mérve: NEM kapja meg a gyökér-fájlokat); írásra az általános (megkapja). Nagy, sokügynökös
   kutatást alapból nem indítunk — az R63/R64 ablak hívásainak 65%-a workflow-ügynök volt (mérve).
-- **A FOGYASZTÁS MÉRÉS, nem érzés:** `npm run meres:fogyasztas -- --session <azonosító> --from
-  <ISO-idő>` → `var/reports/…_fogyasztas.json` (tartalom nélkül: hívás · friss bemenet ·
-  cache-írás/-olvasás · kimenet · fő-szál kontextus medián/max, fajtánként és modellenként). A
-  csomag végén EGY rövid összefoglaló sor a REPORT-ban; **körönkénti usage-melléklet nincs többé**
-  (az operátor: abból senki nem vette észre a bajt). Kísérleti jelzők: fő-szál medián > 200 ezer ·
-  ügynök-bemenet > 40 M / csomag. Egyenlőtlen feltételek mellett megtakarítást NEM állítunk.
+- **A FOGYASZTÁS MÉRÉS, nem érzés — és munka KÖZBEN is nézzük:** `npm run meres:fogyasztas --
+  --session auto --quick` egy sor, modellhívás nélkül — kötelező ellenőrzési pont (1) MINDEN nagyobb
+  delegálás (2+ ügynök vagy workflow) ELŐTT és (2) minden lényeges feladatcsoport UTÁN; átlépett
+  jelzőnél a koordinátor szűkít (új munkamenet, kevesebb ügynök, célzott olvasás) vagy a REPORT-ban
+  indokolja a folytatást — nem az operátorra hárítja. A csomag végén a teljes mérés
+  (`--session <id> --from <ISO> --to <ISO> --label <ablak>`), a tartalom nélküli leltár a repóba
+  (fent), EGY rövid sor a REPORT-ban; **körönkénti usage-melléklet nincs többé**. Az ablak-határ a
+  board-üzenetek időbélyege (parancs → válasz), a bizonytalan határ jelölve; az esemény utáni hívás
+  nem automatikusan az esemény költsége. Kísérleti jelzők: fő-szál medián > 200 ezer · ügynök-bemenet
+  > 40 M / csomag. Egyenlőtlen feltételek mellett megtakarítást NEM állítunk.
 - `DATABASE_URL` és bármely kulcs **soha nem kerül chatbe** (csak `.env`). Üzleti adat (törzs, árak,
   bolti válasz) **nem kerül a repóba** és a boardra sem — a feltöltés gépi titok-őrön megy át.
 - **Ne írj új `.md`-t azért, hogy „legyen dokumentálva".** Ami operatív, az ide jön; ami
@@ -58,13 +72,17 @@ ma a gépi jelük) → **`npm run verify:kuka`** (a söprés része; visszacsús
 - **AZ ELSŐ ÚT A BOARD** (D-VS-655). A lap: `node tools/vs_board_doc.mjs <lap>.md --pr 300 --step 2
   --cmd 2 --round R<n> --label REPORT --by Claude-v3`; a kör-üzenet: `node tools/vs_board_round.mjs
   reply --pr 300 --step 2 --cmd 2 --type NOTE --by Claude-v3 --round R<n> --text-file <fájl>`.
-  **Ami EBBŐL a repóból megy, mérve (R65):** lap-feltöltés és kör-üzenet — a `CHATOPS_WRITE_TOKEN`
-  a környezetben áll. **Ami NEM:** a zárás mátrixa (`close-cmd/-step/-pr`) — a katalógus a V2 repóban
-  él, az eszköz ezt nevezett hibával mondja ki. Egy körhöz EGY üzenet és EGY lap fér (a board 409-cel
+  **Ami EBBŐL a repóból megy, mérve (R65/R67):** lap-feltöltés és kör-üzenet — a `CHATOPS_WRITE_TOKEN`
+  a környezetben áll; a `repo` mező a git-távoliból jön (`valach-family/valach-system`), `--repo`
+  felülír. **Ami NEM:** a zárás mátrixa (`close-cmd/-step/-pr`) — a katalógus a V2 repóban él, az
+  eszköz ezt nevezett hibával mondja ki. Egy körhöz EGY üzenet és EGY lap fér (a board 409-cel
   utasítja el a másodikat) — teszt-kört nem gyártunk.
-- **A KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3)** a boardot az MCP-hídon OLVASSA és lapot tölthet fel, de
-  **parancsot nem ad, gazda-sáv nem lehet**; a csatorna az operátor, minden üzenet ÖNMAGÁBAN
-  ÉRTHETŐ FÁJL (`docs/70_PLANNING/`). A sáv-nevek: `Claude-v3` · `Claude-v2` · `chatgpt-v3` ·
+- **A KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3) — a tényleges felhatalmazás szerint (R67 F67-04):** az
+  MCP-hídon olvassa a boardot, lapot tölt fel, és **az OPERÁTOR felhatalmazásával PARANCS-KÖRT ír**
+  (SPEC/ANALYSIS; mérve: az R65 és az R67 `COMMAND` kör, `chatgpt-v3` forrással). A felhatalmazás az
+  operátoré — a technikai hozzáférés önmagában nem az; ha az operátor visszavonja, a sor itt is
+  változik. Gazda-sáv nem lehet, a végrehajtó a Claude-v3; minden üzenet ÖNMAGÁBAN ÉRTHETŐ
+  (`docs/70_PLANNING/` vagy board-lap). A sáv-nevek: `Claude-v3` · `Claude-v2` · `chatgpt-v3` ·
   `chatgpt-v2` · `operator` (a régi alak alias, a múltat nem írjuk át; a lista a V2
   `config/registries/lanes.json`-jában él, ide NEM másoljuk).
 - **A SZÖVEG A VALÓSÁGOT KÖVETI** (KUKA-050): függő ígéret csak NEVESÍTVE (indok · dátum ·
