@@ -1,11 +1,11 @@
 {
   "schema": "v3-norm-chain-package/2",
   "id": "NCP-01",
-  "at": "2026-09-20T13:29:14.633Z",
+  "at": "2026-09-20T14:25:06.701Z",
   "measured_from": {
     "file": "v3ref/v3ref-mutation-result.json",
-    "base_digest": "sha256:6b8c76897607577489e6fc6c6a92fc71402b7926dfaee6b58d3aca66fbbb7d1d",
-    "source_digest_today": "sha256:6b8c76897607577489e6fc6c6a92fc71402b7926dfaee6b58d3aca66fbbb7d1d",
+    "base_digest": "sha256:72dde1733dd3a9a6fb2f2b870156e8150cfee0cef0dc0bfce05ea5c56b97b577",
+    "source_digest_today": "sha256:72dde1733dd3a9a6fb2f2b870156e8150cfee0cef0dc0bfce05ea5c56b97b577",
     "source_bound": true,
     "execution": "merged_units"
   },
@@ -4639,7 +4639,7 @@
       "probe_id": "P-CORE-startup-and-delegation",
       "behaviour": "REGISZTRÁCIÓ → SAJÁT MUNKAKÖRNYEZET → MEGHÍVÓ → BEVÁLTÁS → ADAT → MEGVONÁS — a mag saját íróin, alappal",
       "positive_evidence": "P-CORE-startup-and-delegation — „REGISZTRÁCIÓ → SAJÁT MUNKAKÖRNYEZET → MEGHÍVÓ → BEVÁLTÁS → ADAT → MEGVONÁS — a mag saját íróin, alappal\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M196 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M196, M197, M198, M199, M200, M201, M202, M203, M204, M205",
+      "negative_evidence": "MINŐSÜLŐ tanú: M196 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M196, M197, M198, M199, M200, M201, M202, M203, M204, M205, M206, M207",
       "mutations": [
         {
           "id": "M196",
@@ -4698,6 +4698,18 @@
         {
           "id": "M205",
           "what": "BLI-01 / R63 — AZ ÁTVITT KORLÁT ÚJRAPECSÉTELHETŐ NYERS ÍRÁSSAL: a beszúrás-oldali őr nem néz semmit. Ettől egy pragma nélküli második kapcsolat INSERT OR REPLACE-szel némán átírja a tagságadó eseményhez tartozó korlátot (verzió, műveletek) — a törlés-trigger recursive_triggers nélkül nem fut, tehát ez az EGYETLEN őr, ami a kapcsolat beállításától függetlenül zár (R55/F01 elve a grant_basis-on; KUKA-057: a védelem ne a hívó jóindulatán múljon)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M206",
+          "what": "BLI-01 / R63 §4 / R64-H09 — A BEVÁLTÁSKORI ÉRVÉNYESSÉG NINCS MÉRVE: a kapu csak a KIADÁSKORI alaphoz mér, a mai naphoz nem. Ettől egy közben visszavont delegálási alapon kiadott meghívó beváltható marad, amíg a kiadó tagsága él — az R63 „beváltáskori aktuális érvényesség kötelező\" mondata dísz (KUKA-024: két időpont két tény)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M207",
+          "what": "INV / R64-H06/H09 — A MEGFIGYELÉS NEM MÉRI A KIADÓ MAI JOGÁT: a megvont admin függő meghívójára a lap folytatást ígér („jelentkezz be, és a meghívás folytatódik\"), amit a beváltás azonnal elutasít — a címzett zsákutcába fut (KUKA-064), és a képernyő olyat állít, ami nem történhet meg (KUKA-050)",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         }
@@ -7649,7 +7661,7 @@
       "probe_id": "P-CORE-startup-and-delegation",
       "behaviour": "REGISZTRÁCIÓ → SAJÁT MUNKAKÖRNYEZET → MEGHÍVÓ → BEVÁLTÁS → ADAT → MEGVONÁS — a mag saját íróin, alappal",
       "positive_evidence": "P-CORE-startup-and-delegation — „REGISZTRÁCIÓ → SAJÁT MUNKAKÖRNYEZET → MEGHÍVÓ → BEVÁLTÁS → ADAT → MEGVONÁS — a mag saját íróin, alappal\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M196 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M196, M197, M198, M199, M200, M201, M202, M203, M204, M205",
+      "negative_evidence": "MINŐSÜLŐ tanú: M196 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M196, M197, M198, M199, M200, M201, M202, M203, M204, M205, M206, M207",
       "mutations": [
         {
           "id": "M196",
@@ -7708,6 +7720,18 @@
         {
           "id": "M205",
           "what": "BLI-01 / R63 — AZ ÁTVITT KORLÁT ÚJRAPECSÉTELHETŐ NYERS ÍRÁSSAL: a beszúrás-oldali őr nem néz semmit. Ettől egy pragma nélküli második kapcsolat INSERT OR REPLACE-szel némán átírja a tagságadó eseményhez tartozó korlátot (verzió, műveletek) — a törlés-trigger recursive_triggers nélkül nem fut, tehát ez az EGYETLEN őr, ami a kapcsolat beállításától függetlenül zár (R55/F01 elve a grant_basis-on; KUKA-057: a védelem ne a hívó jóindulatán múljon)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M206",
+          "what": "BLI-01 / R63 §4 / R64-H09 — A BEVÁLTÁSKORI ÉRVÉNYESSÉG NINCS MÉRVE: a kapu csak a KIADÁSKORI alaphoz mér, a mai naphoz nem. Ettől egy közben visszavont delegálási alapon kiadott meghívó beváltható marad, amíg a kiadó tagsága él — az R63 „beváltáskori aktuális érvényesség kötelező\" mondata dísz (KUKA-024: két időpont két tény)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M207",
+          "what": "INV / R64-H06/H09 — A MEGFIGYELÉS NEM MÉRI A KIADÓ MAI JOGÁT: a megvont admin függő meghívójára a lap folytatást ígér („jelentkezz be, és a meghívás folytatódik\"), amit a beváltás azonnal elutasít — a címzett zsákutcába fut (KUKA-064), és a képernyő olyat állít, ami nem történhet meg (KUKA-050)",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         }
@@ -7764,7 +7788,7 @@
       "probe_id": "P-CORE-startup-and-delegation",
       "behaviour": "REGISZTRÁCIÓ → SAJÁT MUNKAKÖRNYEZET → MEGHÍVÓ → BEVÁLTÁS → ADAT → MEGVONÁS — a mag saját íróin, alappal",
       "positive_evidence": "P-CORE-startup-and-delegation — „REGISZTRÁCIÓ → SAJÁT MUNKAKÖRNYEZET → MEGHÍVÓ → BEVÁLTÁS → ADAT → MEGVONÁS — a mag saját íróin, alappal\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M202 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M196, M197, M198, M199, M200, M201, M202, M203, M204, M205",
+      "negative_evidence": "MINŐSÜLŐ tanú: M202 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M196, M197, M198, M199, M200, M201, M202, M203, M204, M205, M206, M207",
       "mutations": [
         {
           "id": "M196",
@@ -7823,6 +7847,18 @@
         {
           "id": "M205",
           "what": "BLI-01 / R63 — AZ ÁTVITT KORLÁT ÚJRAPECSÉTELHETŐ NYERS ÍRÁSSAL: a beszúrás-oldali őr nem néz semmit. Ettől egy pragma nélküli második kapcsolat INSERT OR REPLACE-szel némán átírja a tagságadó eseményhez tartozó korlátot (verzió, műveletek) — a törlés-trigger recursive_triggers nélkül nem fut, tehát ez az EGYETLEN őr, ami a kapcsolat beállításától függetlenül zár (R55/F01 elve a grant_basis-on; KUKA-057: a védelem ne a hívó jóindulatán múljon)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M206",
+          "what": "BLI-01 / R63 §4 / R64-H09 — A BEVÁLTÁSKORI ÉRVÉNYESSÉG NINCS MÉRVE: a kapu csak a KIADÁSKORI alaphoz mér, a mai naphoz nem. Ettől egy közben visszavont delegálási alapon kiadott meghívó beváltható marad, amíg a kiadó tagsága él — az R63 „beváltáskori aktuális érvényesség kötelező\" mondata dísz (KUKA-024: két időpont két tény)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M207",
+          "what": "INV / R64-H06/H09 — A MEGFIGYELÉS NEM MÉRI A KIADÓ MAI JOGÁT: a megvont admin függő meghívójára a lap folytatást ígér („jelentkezz be, és a meghívás folytatódik\"), amit a beváltás azonnal elutasít — a címzett zsákutcába fut (KUKA-064), és a képernyő olyat állít, ami nem történhet meg (KUKA-050)",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         }
@@ -8829,7 +8865,7 @@
       "probe_id": "P-CORE-startup-and-delegation",
       "behaviour": "REGISZTRÁCIÓ → SAJÁT MUNKAKÖRNYEZET → MEGHÍVÓ → BEVÁLTÁS → ADAT → MEGVONÁS — a mag saját íróin, alappal",
       "positive_evidence": "P-CORE-startup-and-delegation — „REGISZTRÁCIÓ → SAJÁT MUNKAKÖRNYEZET → MEGHÍVÓ → BEVÁLTÁS → ADAT → MEGVONÁS — a mag saját íróin, alappal\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M196 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M196, M197, M198, M199, M200, M201, M202, M203, M204, M205",
+      "negative_evidence": "MINŐSÜLŐ tanú: M196 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M196, M197, M198, M199, M200, M201, M202, M203, M204, M205, M206, M207",
       "mutations": [
         {
           "id": "M196",
@@ -8888,6 +8924,18 @@
         {
           "id": "M205",
           "what": "BLI-01 / R63 — AZ ÁTVITT KORLÁT ÚJRAPECSÉTELHETŐ NYERS ÍRÁSSAL: a beszúrás-oldali őr nem néz semmit. Ettől egy pragma nélküli második kapcsolat INSERT OR REPLACE-szel némán átírja a tagságadó eseményhez tartozó korlátot (verzió, műveletek) — a törlés-trigger recursive_triggers nélkül nem fut, tehát ez az EGYETLEN őr, ami a kapcsolat beállításától függetlenül zár (R55/F01 elve a grant_basis-on; KUKA-057: a védelem ne a hívó jóindulatán múljon)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M206",
+          "what": "BLI-01 / R63 §4 / R64-H09 — A BEVÁLTÁSKORI ÉRVÉNYESSÉG NINCS MÉRVE: a kapu csak a KIADÁSKORI alaphoz mér, a mai naphoz nem. Ettől egy közben visszavont delegálási alapon kiadott meghívó beváltható marad, amíg a kiadó tagsága él — az R63 „beváltáskori aktuális érvényesség kötelező\" mondata dísz (KUKA-024: két időpont két tény)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M207",
+          "what": "INV / R64-H06/H09 — A MEGFIGYELÉS NEM MÉRI A KIADÓ MAI JOGÁT: a megvont admin függő meghívójára a lap folytatást ígér („jelentkezz be, és a meghívás folytatódik\"), amit a beváltás azonnal elutasít — a címzett zsákutcába fut (KUKA-064), és a képernyő olyat állít, ami nem történhet meg (KUKA-050)",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         }
@@ -8944,7 +8992,7 @@
       "probe_id": "P-CORE-startup-and-delegation",
       "behaviour": "REGISZTRÁCIÓ → SAJÁT MUNKAKÖRNYEZET → MEGHÍVÓ → BEVÁLTÁS → ADAT → MEGVONÁS — a mag saját íróin, alappal",
       "positive_evidence": "P-CORE-startup-and-delegation — „REGISZTRÁCIÓ → SAJÁT MUNKAKÖRNYEZET → MEGHÍVÓ → BEVÁLTÁS → ADAT → MEGVONÁS — a mag saját íróin, alappal\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M196 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M196, M197, M198, M199, M200, M201, M202, M203, M204, M205",
+      "negative_evidence": "MINŐSÜLŐ tanú: M196 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M196, M197, M198, M199, M200, M201, M202, M203, M204, M205, M206, M207",
       "mutations": [
         {
           "id": "M196",
@@ -9003,6 +9051,18 @@
         {
           "id": "M205",
           "what": "BLI-01 / R63 — AZ ÁTVITT KORLÁT ÚJRAPECSÉTELHETŐ NYERS ÍRÁSSAL: a beszúrás-oldali őr nem néz semmit. Ettől egy pragma nélküli második kapcsolat INSERT OR REPLACE-szel némán átírja a tagságadó eseményhez tartozó korlátot (verzió, műveletek) — a törlés-trigger recursive_triggers nélkül nem fut, tehát ez az EGYETLEN őr, ami a kapcsolat beállításától függetlenül zár (R55/F01 elve a grant_basis-on; KUKA-057: a védelem ne a hívó jóindulatán múljon)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M206",
+          "what": "BLI-01 / R63 §4 / R64-H09 — A BEVÁLTÁSKORI ÉRVÉNYESSÉG NINCS MÉRVE: a kapu csak a KIADÁSKORI alaphoz mér, a mai naphoz nem. Ettől egy közben visszavont delegálási alapon kiadott meghívó beváltható marad, amíg a kiadó tagsága él — az R63 „beváltáskori aktuális érvényesség kötelező\" mondata dísz (KUKA-024: két időpont két tény)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M207",
+          "what": "INV / R64-H06/H09 — A MEGFIGYELÉS NEM MÉRI A KIADÓ MAI JOGÁT: a megvont admin függő meghívójára a lap folytatást ígér („jelentkezz be, és a meghívás folytatódik\"), amit a beváltás azonnal elutasít — a címzett zsákutcába fut (KUKA-064), és a képernyő olyat állít, ami nem történhet meg (KUKA-050)",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         }
@@ -9059,7 +9119,7 @@
       "probe_id": "P-CORE-startup-and-delegation",
       "behaviour": "REGISZTRÁCIÓ → SAJÁT MUNKAKÖRNYEZET → MEGHÍVÓ → BEVÁLTÁS → ADAT → MEGVONÁS — a mag saját íróin, alappal",
       "positive_evidence": "P-CORE-startup-and-delegation — „REGISZTRÁCIÓ → SAJÁT MUNKAKÖRNYEZET → MEGHÍVÓ → BEVÁLTÁS → ADAT → MEGVONÁS — a mag saját íróin, alappal\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M196 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M196, M197, M198, M199, M200, M201, M202, M203, M204, M205",
+      "negative_evidence": "MINŐSÜLŐ tanú: M196 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M196, M197, M198, M199, M200, M201, M202, M203, M204, M205, M206, M207",
       "mutations": [
         {
           "id": "M196",
@@ -9118,6 +9178,18 @@
         {
           "id": "M205",
           "what": "BLI-01 / R63 — AZ ÁTVITT KORLÁT ÚJRAPECSÉTELHETŐ NYERS ÍRÁSSAL: a beszúrás-oldali őr nem néz semmit. Ettől egy pragma nélküli második kapcsolat INSERT OR REPLACE-szel némán átírja a tagságadó eseményhez tartozó korlátot (verzió, műveletek) — a törlés-trigger recursive_triggers nélkül nem fut, tehát ez az EGYETLEN őr, ami a kapcsolat beállításától függetlenül zár (R55/F01 elve a grant_basis-on; KUKA-057: a védelem ne a hívó jóindulatán múljon)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M206",
+          "what": "BLI-01 / R63 §4 / R64-H09 — A BEVÁLTÁSKORI ÉRVÉNYESSÉG NINCS MÉRVE: a kapu csak a KIADÁSKORI alaphoz mér, a mai naphoz nem. Ettől egy közben visszavont delegálási alapon kiadott meghívó beváltható marad, amíg a kiadó tagsága él — az R63 „beváltáskori aktuális érvényesség kötelező\" mondata dísz (KUKA-024: két időpont két tény)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M207",
+          "what": "INV / R64-H06/H09 — A MEGFIGYELÉS NEM MÉRI A KIADÓ MAI JOGÁT: a megvont admin függő meghívójára a lap folytatást ígér („jelentkezz be, és a meghívás folytatódik\"), amit a beváltás azonnal elutasít — a címzett zsákutcába fut (KUKA-064), és a képernyő olyat állít, ami nem történhet meg (KUKA-050)",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         }
@@ -9174,7 +9246,7 @@
       "probe_id": "P-CORE-startup-and-delegation",
       "behaviour": "REGISZTRÁCIÓ → SAJÁT MUNKAKÖRNYEZET → MEGHÍVÓ → BEVÁLTÁS → ADAT → MEGVONÁS — a mag saját íróin, alappal",
       "positive_evidence": "P-CORE-startup-and-delegation — „REGISZTRÁCIÓ → SAJÁT MUNKAKÖRNYEZET → MEGHÍVÓ → BEVÁLTÁS → ADAT → MEGVONÁS — a mag saját íróin, alappal\" · node v3ref/run.mjs",
-      "negative_evidence": "MINŐSÜLŐ tanú: M196 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M196, M197, M198, M199, M200, M201, M202, M203, M204, M205",
+      "negative_evidence": "MINŐSÜLŐ tanú: M196 (a kanonikus ítélő szerint ez dönti hamisra az állítást) · a szerződés szerinti jelöltek: M196, M197, M198, M199, M200, M201, M202, M203, M204, M205, M206, M207",
       "mutations": [
         {
           "id": "M196",
@@ -9233,6 +9305,18 @@
         {
           "id": "M205",
           "what": "BLI-01 / R63 — AZ ÁTVITT KORLÁT ÚJRAPECSÉTELHETŐ NYERS ÍRÁSSAL: a beszúrás-oldali őr nem néz semmit. Ettől egy pragma nélküli második kapcsolat INSERT OR REPLACE-szel némán átírja a tagságadó eseményhez tartozó korlátot (verzió, műveletek) — a törlés-trigger recursive_triggers nélkül nem fut, tehát ez az EGYETLEN őr, ami a kapcsolat beállításától függetlenül zár (R55/F01 elve a grant_basis-on; KUKA-057: a védelem ne a hívó jóindulatán múljon)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M206",
+          "what": "BLI-01 / R63 §4 / R64-H09 — A BEVÁLTÁSKORI ÉRVÉNYESSÉG NINCS MÉRVE: a kapu csak a KIADÁSKORI alaphoz mér, a mai naphoz nem. Ettől egy közben visszavont delegálási alapon kiadott meghívó beváltható marad, amíg a kiadó tagsága él — az R63 „beváltáskori aktuális érvényesség kötelező\" mondata dísz (KUKA-024: két időpont két tény)",
+          "verdict": "CAUGHT",
+          "qualifying_witness": false
+        },
+        {
+          "id": "M207",
+          "what": "INV / R64-H06/H09 — A MEGFIGYELÉS NEM MÉRI A KIADÓ MAI JOGÁT: a megvont admin függő meghívójára a lap folytatást ígér („jelentkezz be, és a meghívás folytatódik\"), amit a beváltás azonnal elutasít — a címzett zsákutcába fut (KUKA-064), és a képernyő olyat állít, ami nem történhet meg (KUKA-050)",
           "verdict": "CAUGHT",
           "qualifying_witness": false
         }

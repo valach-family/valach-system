@@ -97,7 +97,7 @@ kifejezetten adaptáltuk (adapted-v3, 3.4. szakasz); élő migráció nincs, mer
 | Jel | Mit mér | Eredmény (saját futás, ezen a fán) |
 |---|---|---|
 | `node v3ref/run.mjs` | 62 próba, benne a P-CORE-startup-and-delegation 7 állítása (a)–(g) | **62/62 PASS** |
-| `npm run verify:v3ref` (mutációs battéria) | 202 mutáció (M204–M205 új; M196–M203 az R63 magjára) | **202/202 elkapva · 0 túlélte · 0 rossz próba · 0 elavult horgony — TELJES ÉS TISZTA (18 egység, 2 perc 39 mp, nyugodt gépen)** |
+| `npm run verify:v3ref` (mutációs battéria) | 204 mutáció (M196–M207 az R63 magjára és a felülvizsgálat javításaira) | **204/204 elkapva · 0 túlélte · 0 rossz próba · 0 elavult horgony — TELJES ÉS TISZTA (a felülvizsgálat utáni végső futás: 18 egység, 2 perc 50 mp, nyugodt gépen)** |
 | `npm run app:selfcheck` | a teljes lánc a valódi végpontokon | **57/57 PASS** |
 | `npm run proof:core-ux` (Playwright) | a lánc böngészőben + a 14 helyzet, böngésző- és szerver-bizonyíték külön | **27/27 PASS** (13 folyamat-lépés + 14 helyzet; 35 s) |
 | `npm run proof:multiconn` (MCN-01) | OB-1: KÉT valódi folyamat — meghívó-beváltás versenye · megvonás ↔ véglegesítés · visszajátszás | **40/40 OK** (20+20 menet; mindkét sorrend előfordult; a vesztes nevezett elutasítást kapott; a megvont jog visszajátszással nem tér vissza) |
