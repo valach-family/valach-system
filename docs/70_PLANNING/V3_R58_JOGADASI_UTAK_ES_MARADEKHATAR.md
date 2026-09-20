@@ -188,6 +188,7 @@ mérés **nem címkézhető át**. Az új lenyomathoz tartozó teljes battéria 
 | lefedettség | 192/192, hiány 0, duplikátum 0 |
 | norma-lánc | 128/128 elvárt sor · hiányzó 0 · idegen 0 |
 | egységek | 16 szelet, mind belefér a külső 15 000 ms-os korlátba (legrosszabb: 11 234 ms) |
+| 19 programos külső lánc (önállóan, a kör végén) | **17 megfelel · 2 nevezett környezeti kihagyás** (`r59` · `r57` — mindkettőnek ZÖLD a darabolt helyettese: `r59a` · `r57a`), 0 eltérő |
 
 **Két kimondott korlát, változatlanul.** Az egység-fájl nincs kriptográfiailag a futásához kötve (a
 lenyomat-egyezés szűkít, de nem bizonyít — nevezett függő: aláírt egység-tanú). És: a darabolás
