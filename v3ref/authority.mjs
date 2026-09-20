@@ -83,7 +83,25 @@ export function authorityRowAt({ store, subjectId, bookId, operation, nowIso }) 
   // A HATÓKÖR KIMONDOTT, ÉS SZŰK: CSAK az a hatáskör-sor esik ide, amelyik KIFEJEZETTEN alapra
   // hivatkozik. Ahol `basis_id` nincs, ott a mai viselkedés VÁLTOZATLAN — az alap nélküli történeti
   // hatáskörökről ez a kör nem hoz üzleti döntést, és ezt a norma maradék-határként őrzi (R53).
-  if (row.basis_id !== null && row.basis_id !== undefined) {
+  if (row.basis_id === null || row.basis_id === undefined) {
+    // R63 §4 — AZ ALAP NÉLKÜLI HATÁSKÖR-SOR NEM HASZNÁLHATÓ. Az R53–R61 alak ezt a sort a régi
+    // szabály szerint ÁTENGEDTE, és a maradékot kimondott üzleti határként őrizte (KUKA-033). Az
+    // R63 ezt a határt szakmai alapértelmezéssé tette: „Ismeretlen eredetű régi aktív jog nem lesz
+    // automatikusan érvényes. Új, szabályos felhatalmazás új esemény, nem visszamenőleges igazolás."
+    // A történeti TÉNY (a sor) megmarad; a MAI használat zár, nevezetten. A megadó út
+    // (`grantAdjudicationAuthority`) az alapot ugyanettől a körtől KÖVETELI, tehát ilyen sor
+    // innentől csak nyers írásból vagy történeti alakból származhat — pontosan az, amit a szabály
+    // nem enged megkerülni.
+    return {
+      ok: false,
+      reason: 'authority_without_recorded_basis',
+      message: `"${who}" ${operation} hatásköre alap nélkül lett rögzítve — a rögzített `
+        + 'felhatalmazás nélküli hatáskör ma nem használható; új, szabályos megadás kell (R63 §4)',
+      basis_id: null,
+      granted_under_version: null,
+    };
+  }
+  {
     const verdict = adjudicationLimitVerdict({
       store, basisId: row.basis_id, bookId, operation, mode: 'use',
       grantedUnderVersion: row.basis_version ?? null, validAt: nowIso, knownAt: nowIso,

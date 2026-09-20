@@ -1148,8 +1148,8 @@ export const MUTATIONS = [
       + 'battéria MEG IS MONDTA). A védendő tulajdonság ugyanaz maradt: a mező nem állíthat többet '
       + 'a valóságnál — csak a hely került oda, ahol ez ma is igaz.',
     file: 'authorityBasis.mjs',
-    from: "      recorded: false, reason: 'authority_without_recorded_basis',\n      limit_enforced: false,",
-    to: "      recorded: false, reason: 'authority_without_recorded_basis',\n      limit_enforced: true," },
+    from: "      usable_now: false, limit_enforced: true, limit_enforced_paths: LIMIT_ENFORCED_PATHS,",
+    to: "      usable_now: true, limit_enforced: true, limit_enforced_paths: LIMIT_ENFORCED_PATHS," },
 
   // ── R88/F01 — AZ ALAP AZONOSSÁGA A (basis_id, book_id) PÁR ────────────────────────────────
 
@@ -1220,8 +1220,8 @@ export const MUTATIONS = [
       + 'INSERT-tel írt meghívó megkerüli a korlátot — az őr, ami csak az egyik írót ismeri, nem őr '
       + '(KUKA-013)',
     file: 'invite.mjs',
-    from: "  if (!limitGate.ok) {\n    return Object.freeze({ ok: false, error: 'invite_outside_basis', reason: limitGate.reason });\n  }",
-    to: '  if (false) {\n    return Object.freeze({ ok: false });\n  }' },
+    from: "  const limitGate = redemptionLimitGate({ store, invite: inv, knownAt: clock.now() });\n  if (!limitGate.ok) {",
+    to: "  const limitGate = redemptionLimitGate({ store, invite: inv, knownAt: clock.now() });\n  if (false) {" },
 
   { id: 'M129', rule: 'K04', catcher: 'P-ORG-basis-limit', expect: 'probe_fail',
     what: 'ORG-N1b — A KIADOTT KORLÁT NEM KERÜL A PAPÍRRA: a meghívó megszületik, a pecsét elmarad. '
@@ -1256,12 +1256,13 @@ export const MUTATIONS = [
     to: '-- (a mutacio eltavolitotta az immutabilitasi ort)' },
 
   { id: 'M133', rule: 'K04', catcher: 'P-ORG-basis-limit', expect: 'probe_fail',
-    what: 'ORG-N1b — A DEKLARÁLATLAN MEGHÍVÓ KAPUZOTTNAK VALLJA MAGÁT: a válasz azt állítja, hogy a '
-      + 'korlát hatott, holott nincs kiadott korlát. Ez a DÍSZ-PIPA (KUKA-041): sikert jelentene '
-      + 'arról, ami meg sem történt — és a KUKA-012 alakja a válaszon (a hiány nem lehet néma)',
+    what: 'ORG-N1b — A PECSÉT NÉLKÜLI MEGHÍVÓ ÚJRA ÁTMEGY: az R37–R61 alak visszatér, a beváltás a '
+      + 'hiányt csak KIMONDJA, de nem zárja. R63 §4 óta a rögzített alap nélküli meghívó nem '
+      + 'kerülheti meg a használati határt — a mutáció pontosan ezt a szabályt veszi ki, és a '
+      + 'nyers INSERT-tel írt meghívóból VALÓDI tagság születik (KUKA-041: a néma engedély)',
     file: 'basisLimit.mjs',
-    from: "    return frozen({ ok: true, basis_declared: false, reason: 'no_declared_basis', limit: null, seal: null });",
-    to: "    return frozen({ ok: true, basis_declared: true, reason: 'within_basis', limit: null, seal: null });" },
+    from: "    return frozen({ ok: false, basis_declared: false, reason: 'no_declared_basis', limit: null, seal: null });",
+    to: "    return frozen({ ok: true, basis_declared: false, reason: 'no_declared_basis', limit: null, seal: null });" },
 
   // ── R92/F01–F02 — A MŰVELETI SZERZŐDÉS (MOP-01) ───────────────────────────────────────────
 
@@ -1772,8 +1773,8 @@ export const MUTATIONS = [
       + 'alapot. MÉRT HATÁS: a MEGVONT, LEJÁRT vagy azóta SZŰKÍTETT határozat mellett is fut a '
       + 'felfüggesztés, az elbírálás és a jogváltoztatás — a jog túléli az alapját',
     file: 'authority.mjs',
-    from: "  if (row.basis_id !== null && row.basis_id !== undefined) {",
-    to: "  if (false) {" },
+    from: "  {\n    const verdict = adjudicationLimitVerdict({",
+    to: "  if (false) {\n    const verdict = adjudicationLimitVerdict({" },
 
   { id: 'M191', rule: 'K05', catcher: 'P-ORG-adjudication-basis-limit', expect: 'probe_fail',
     what: 'ABL-01 / R53 — A MEGADÁSKORI VERZIÓT SENKI NEM NÉZI: az ítélet csak a MAI alapot méri. '
@@ -1907,4 +1908,62 @@ export const MUTATIONS = [
     // fogta meg, tehát nem az állítás bukott (KUKA-187 · WRONG_CATCHER).
     from: "  const identityBody = Object.freeze({ ...bound.value, owner_id: ownerId, warehouse_id: warehouseId,",
     to: "  const identityBody = Object.freeze({ ...bound.value, qty: String(input.qty), owner_id: ownerId, warehouse_id: warehouseId," },
+
+  // ── R63 — CORE-UX-01: az első felhasználói folyamat a mag íróin (WSP-01 · DLG-01 · XID-01 · ENT-02 · ACC-01) ──
+  { id: 'M196', rule: 'K03', catcher: 'P-CORE-startup-and-delegation', expect: 'probe_fail',
+    what: 'WSP-01 / R63 — A BIZONYÍTATLAN CSATORNA IS INDÍTHAT MUNKAKÖRNYEZETET: a létrehozás nem kérdezi meg, hogy a fiók e-mail csatornája bizonyított-e. Ettől egy beírt, senki által nem birtokolt címre is születik saját könyv és helyi admin jog — a K03 „aki beír egy címet, még nem birtokolja" elve megkerülve (KUKA-041: a néma engedély)',
+    file: 'workspace.mjs',
+    from: '  const email = provenEmailOf(store, creatorSubjectId);\n  if (!email) return frozen({ ok: false, reason: \'creator_channel_unproven\',',
+    to: '  const email = provenEmailOf(store, creatorSubjectId) || \'nem-bizonyitott\';\n  if (false) return frozen({ ok: false, reason: \'creator_channel_unproven\',' },
+  { id: 'M197', rule: 'K04', catcher: 'P-CORE-startup-and-delegation', expect: 'probe_fail',
+    what: 'WSP-01 / R63 — AZ INDULÁSI SZABÁLY PLATFORMBÍRÁLÓI HATÁSKÖRT IS AD: a saját munkakörnyezet létrehozója az indulási alapra hivatkozva `adjudicate` hatáskört adhat magának. Ez pontosan a „helyi admin és platformbíráló nem olvad össze" határ átlépése (R63 §4) — a sima munkatér-létrehozás bírálói jogot szülne',
+    file: 'workspace.mjs',
+    from: '  operations: frozen([INVITE_ISSUE_OPERATION, \'alter_right\']),',
+    to: '  operations: frozen([INVITE_ISSUE_OPERATION, \'alter_right\', \'adjudicate\', \'suspend\']),' },
+  { id: 'M198', rule: 'K05', catcher: 'P-CORE-startup-and-delegation', expect: 'probe_fail',
+    what: 'WSP-01 / R63 — A LÉTREHOZÓ NEM KAP ADATKÖRI JOGOT: az indulás a két adatkör olvasási jogát nem adja meg. Ettől a saját munkakörnyezet gazdája a saját mintarekordját sem látja — a lánc első lépése halott, és ezt csak a kiadási kapu mondaná ki, a munkakör „sikeresen" létrejön (KUKA-025: mi viszi ki?)',
+    file: 'workspace.mjs',
+    from: '    for (const scope of STARTUP_RULE.scopes) {\n      const sg = grantReadScope({',
+    to: '    for (const scope of []) {\n      const sg = grantReadScope({' },
+  { id: 'M199', rule: 'K04', catcher: 'P-CORE-startup-and-delegation', expect: 'probe_fail',
+    what: 'DLG-01 / R63 — A MEGHÍVÓ ADATKÖR NÉLKÜL IS KIMEGY: a delegáló nem követeli meg az adatkör-tengelyt, a kiadó szerződése pedig a hiányzó tengelyre `axis_value_required_scopes` névvel áll meg — tehát a hiba a hívó válaszában a KIADÓ belső nevén jelenik meg, nem a felhasználó által javítható tényen (KUKA-064 · KUKA-124/2: a hiány külön, nevezett válasz)',
+    file: 'delegation.mjs',
+    from: '  if (!KNOWN_DATA_SCOPES.includes(scope)) {\n    return frozen({ ok: false, reason: \'data_scope_required\', message: `választható adatkörök: ${KNOWN_DATA_SCOPES.join(\' · \')}` });\n  }',
+    to: '  if (false) {\n    return frozen({ ok: false, reason: \'data_scope_required\' });\n  }' },
+  { id: 'M200', rule: 'K09', catcher: 'P-CORE-startup-and-delegation', expect: 'probe_fail',
+    what: 'DLG-01 / R63 — A MEGVONT TAG DELEGÁLÁSI ALAPJA ÉLETBEN MARAD: a megvonás után az ő képzett alapja nem szűnik meg. Ettől a FÜGGŐ meghívója a kiadó jogának megszűnése ELLENÉRE hatályos alapra hivatkozik — a beváltás ma a kibocsátói jogon elakad, de az alap-oldali védelem (R63 §5.3/9) hiányzik: egy második, csak az alapot néző olvasó némán átengedné (KUKA-039: a fél őr)',
+    file: 'delegation.mjs',
+    from: '  const r = revokeAuthorityBasis({ store, basisId, bookId, at });\n  if (!r.ok && r.reason === \'no_recorded_basis\') return frozen({ ok: true, changed: false, reason: \'no_delegation_basis\' });\n  return r;',
+    to: '  return frozen({ ok: true, changed: true, reason: \'basis_revoked\', versions: 0, revoked_at: at });' },
+  { id: 'M201', rule: 'K01', catcher: 'P-CORE-startup-and-delegation', expect: 'probe_fail',
+    what: 'XID-01 / R63 — A JOGHATÓSÁG KIESIK AZ AZONOSSÁG KULCSÁBÓL: az egyeztető csak a névtérre és a karaktersorra keres. Ettől a HU és az AT adószám azonos karaktersora UGYANAZT az alanyt találja meg — pontosan a téves azonosság, amit a K01 és az R63 §5.3/12 tilt (KUKA-027: egy azonosító csak a saját terében egyedi)',
+    file: 'externalId.mjs',
+    from: '     WHERE namespace = ? AND jurisdiction = ? AND value_norm = ? AND valid_to IS NULL ORDER BY subject_id`,\n    namespace, profile.jurisdiction, normalizeExternalValue(valueRaw));',
+    to: '     WHERE namespace = ? AND value_norm = ? AND valid_to IS NULL ORDER BY subject_id`,\n    namespace, normalizeExternalValue(valueRaw));' },
+  { id: 'M202', rule: 'K04', catcher: 'P-CORE-startup-and-delegation', expect: 'probe_fail',
+    what: 'ENT-02 / R63 — AZ ELŐFIZETÉS FELÜLÍRJA A JOG-KAPUT: a két kapu együttes ítélete akkor is enged, ha CSAK az egyik nyitott. Ettől a jogosulatlan munkatárs az előfizetett funkcióhoz hozzájut, a jogosult pedig a nem előfizetett művelethez — a két feltétel egy mezőbe folyt (KUKA-002 · R63 §5.3/11: „a két feltételt külön ellenőrizzük")',
+    file: 'entitlement.mjs',
+    from: '  if (r && e) return frozen({ allowed: true, refused_by: null });',
+    to: '  if (r || e) return frozen({ allowed: true, refused_by: null });' },
+  { id: 'M203', rule: 'K03', catcher: 'P-CORE-startup-and-delegation', expect: 'probe_fail',
+    what: 'ACC-01 / R63 — A KIHÍVÁS BEVÁLTÁSA NEM BIZONYÍTJA A CSATORNÁT: a beváltás a kihívást elfogyasztja, de a `channel_proof` sort nem írja. Ettől a címzett SOHA nem lesz „bizonyított", tehát a meghívó megfigyelése és beváltása örökre `needs_invitee_identity` — a K03 lánca halott, és a kudarc néma, mert a beváltó „siker"-t mond (KUKA-012 · KUKA-025)',
+    file: 'account.mjs',
+    from: '    store.run(\n      \'INSERT OR IGNORE INTO channel_proof (subject_id, namespace, value_norm, proven_at) VALUES (?,?,?,?)\',\n      row.subject_id, row.namespace, row.value_norm, at);',
+    to: '    // (a mutáció nem írja a csatorna-bizonyítékot)' },
+
+  { id: 'M204', rule: 'K05', catcher: 'P-CORE-startup-and-delegation', expect: 'probe_fail',
+    what: 'KUKA-199 / R63 — A PLAFON JOGGÁ VÁLIK: a beváltás a pecsét adatkörét rögtön olvasási joggá írja (ez volt az R63-as core-folyamat ELSŐ, visszavont alakja). Ettől a tag a belépés pillanatában látja a készletet, a kezelő kimondott lépése nélkül — a MEGADHATÓ a MEGADOTT-tá válik, pontosan amit az elfogadott K05-DSC-c tilt (R49/R53; R63 §5.3/7: „a pozitív, KÜLÖN engedélyezett olvasás")',
+    file: 'invite.mjs',
+    from: "        if (!rb.ok) throw new Error(`redeemInvite: az átvitt korlát nem írható — ${rb.reason}`);\n",
+    to: "        if (!rb.ok) throw new Error(`redeemInvite: az átvitt korlát nem írható — ${rb.reason}`);\n"
+      + "        for (const sc of (limitGate.limit && limitGate.limit.scopes) || []) {\n"
+      + "          store.run('INSERT INTO scope_grant (subject_id, book_id, scope, basis_id, basis_version, granted_by, recorded_at, effective_at) VALUES (?,?,?,?,?,?,?,?)',\n"
+      + "            subjectId, fresh.book_id, sc, limitGate.seal.basis_id, Number(limitGate.seal.basis_version), fresh.issuer_subject, clock.now(), clock.now());\n"
+      + "          readScopeGranted = sc;\n"
+      + "        }\n" },
+  { id: 'M205', rule: 'K04', catcher: 'P-CORE-startup-and-delegation', expect: 'probe_fail',
+    what: 'BLI-01 / R63 — AZ ÁTVITT KORLÁT ÚJRAPECSÉTELHETŐ NYERS ÍRÁSSAL: a beszúrás-oldali őr nem néz semmit. Ettől egy pragma nélküli második kapcsolat INSERT OR REPLACE-szel némán átírja a tagságadó eseményhez tartozó korlátot (verzió, műveletek) — a törlés-trigger recursive_triggers nélkül nem fut, tehát ez az EGYETLEN őr, ami a kapcsolat beállításától függetlenül zár (R55/F01 elve a grant_basis-on; KUKA-057: a védelem ne a hívó jóindulatán múljon)',
+    file: 'store.mjs',
+    from: "WHEN EXISTS (SELECT 1 FROM grant_basis WHERE grant_event_id = NEW.grant_event_id) BEGIN",
+    to: "WHEN 0 BEGIN" },
 ];

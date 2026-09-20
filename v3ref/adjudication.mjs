@@ -86,7 +86,16 @@ export function grantAdjudicationAuthority({ store, subjectId, bookId, operation
   // A NEM HATÁLYOS ALAP ZÁR, NEVEZETTEN: a fail-closed itt nem választás, mert a „valamilyen
   // alapra hivatkoztunk, de az nem élt" eset pont az, amit az ORG-N1a ki akar zárni (KUKA-020).
   let basisVersion = null;
-  if (basisId !== null && basisId !== undefined) {
+  // R63 §4 — AZ ALAP KÖTELEZŐ. „Bírálati/felülvizsgálati hatáskör: nevezett, erre jogosult
+  // delegáló vagy külön védett rendszerüzemeltetői kiinduló szabály kell." A paraméter alakja
+  // megmarad (a hívók nem törnek), de a hiány ugyanúgy DOB, mint a nem hatályos alap — a
+  // szerződés (r88/F01) ezt az alakot ismeri. A próbák a `platformRule.mjs` nevezett szabályával
+  // adnak alapot, a felhasználói út (workspace.mjs) az indulási szabállyal.
+  if (basisId === null || basisId === undefined) {
+    throw new Error('grantAdjudicationAuthority: az alap kötelező (basis_id_required) — nevezett '
+      + 'delegáló vagy a védett rendszerüzemeltetői kiinduló szabály (platformRule.mjs) adja');
+  }
+  {
     // A KÖNYVET IS ÁTADJUK — az alap azonossága a (basis_id, book_id) PÁR (R88/F01).
     const basis = basisAsOf({ store, basisId, bookId, validAt: at, knownAt: at });
     if (!basis.in_effect) {

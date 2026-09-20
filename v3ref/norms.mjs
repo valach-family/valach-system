@@ -667,29 +667,26 @@ export const ORG_BASIS_NORMS = Object.freeze([
           // mi teljesítené (KUKA-050 · KUKA-087 — aki nem tudja leírni, MI hiányzik, annak a hiánya
           // sem mérhető). Innentől a maradék KONKRÉT utakat nevez meg a GPR-01 táblából, és a
           // `verify:grant-paths` GP05 méri, hogy nevez-e egyáltalán.
+          // R63 §4 — A „KÉT OPERÁTORI DÖNTÉS" KERET MEGSZŰNT (a külső fél helyesbítette az R61-es
+          // minősítését): a jogadás alapja SZAKMAI ALAPÉRTELMEZÉS, nem operátori kérdés. A maradék
+          // ezért ÁTÍRVA — a történeti alak a D-VS-3062/3064 naplóban és az R58/R62 lapokon áll.
           remaining: 'A MAI ÁLLAPOT, ÚTANKÉNT megnevezve (GPR-01, `contracts/grantPathRegistry.js`). '
-            + 'ALAPOT HORDOZ ÉS MÉRI: GP-INVITE-ISSUE és GP-INVITE-REDEEM (a KIADÁSKOR hatályos '
-            + 'alaphoz, BLI-01) · GP-ADJUDICATION-AUTHORITY (megadási ÉS használati kapu, ABL-01) · '
-            + 'GP-SCOPE-GRANT (itt az alap nem opció, hanem FELTÉTEL). '
-            + 'AMI KONKRÉTAN HIÁNYZIK — KÉT KÜLÖN DOLOG, és nem szabad összemosni őket: '
-            + 'HÁROM, EGYMÁSTÓL KÜLÖNBÖZŐ ALAP NÉLKÜLI ESET (R59/F59-01 — nem szabad összevonni őket, '
-            + 'és a korábbi szövegem az elsőt rosszul nevezte meg): '
-            + '(1) PECSÉT NÉLKÜLI MEGHÍVÓ BEVÁLTÁSA — a NEVEZETT kiadó út az alapot KÖVETELI '
-            + '(`issueInviteUnderBasis` alap nélkül `basis_id_required`, nulla sorral, MÉRVE), '
-            + 'tehát alap nélküli meghívó csak NYERS írással, a kiadó utat MEGKERÜLVE keletkezik; '
-            + 'a beváltás az ilyet `no_declared_basis` néven ÁTENGEDI. '
-            + '(2) ALAP NÉLKÜLI BÍRÁLATI JOGADÁS — itt a NEVEZETT függvény engedi: a `basisId` '
-            + 'OPCIONÁLIS, és a hatáskör-sor `basis_id = NULL` értékkel LÉTREJÖN (MÉRVE). '
-            + '(3) EXPLICIT ADATKÖRI JOGADÁS — itt az alap FELTÉTEL, tehát ez az eset NEM áll fenn. '
-            + 'Az (1) és (2) kötelezővé tétele OPERÁTORI döntés, nem rejtett kód-hiány: a rendszer '
-            + 'mindkét helyen KIMONDJA a hiányt. '
-            + 'KÉSŐBBI ADAPTER-HATÁR, NEM MAI CORE-HIÁNY: egyik belépési pontnak sincs próbán '
-            + 'kívüli hívója — sem a GP-SCOPE-GRANT-nak, sem a testvéreinek. Ez a REFERENCIA mai '
-            + 'hatóköre (egyírós, szintetikus, belső), nem egy út sajátja; a korábbi „fél lánc, új '
-            + 'bejáratot kell építeni" következtetés ezért VISSZAVONVA (KUKA-054). '
-            + 'KÜLÖN HATÁR: az ÁLTALÁNOS szervezeti képviselet (képviselő szervezet nevében, '
-            + 'delegálási lánccal, több úton át) ma NEM LÉTEZŐ képesség — nincs olyan meglévő út, '
-            + 'amit megsértene, és nem tervezünk hozzá modult. '
+            + 'ALAPOT HORDOZ, MÉR ÉS HIÁNYÁRA ZÁR: GP-INVITE-ISSUE és GP-INVITE-REDEEM (a pecsét nélküli '
+            + 'meghívó beváltása R63 óta `invite_without_basis` néven ZÁR) · GP-ADJUDICATION-AUTHORITY '
+            + '(az alap KÖTELEZŐ a megadáskor — `basis_id_required` —, és az alap nélküli sor a '
+            + 'használatkor ZÁR — `authority_without_recorded_basis`) · GP-SCOPE-GRANT (az alap feltétel, '
+            + 'a séma is zár) · GP-WORKSPACE-STARTUP (a saját munkakörnyezet indulási alapja v1, a '
+            + 'rendszer saját írásán) · GP-DELEGATED-INVITE (a meghívó alapja a kiadó továbbadható '
+            + 'jogából, plafonnal) · GP-PLATFORM-RULE (a platformbírálói hatáskör nevezett, védett '
+            + 'kiinduló szabálya). '
+            + 'AMI KONKRÉTAN NYITVA MARADT, LÉTEZŐ ÚTON: (1) a MEGHÍVÓ VISSZAVONÁSA mint saját esemény '
+            + '(ma a lejárat és a kiadó jogának megvonása zár; a meghívón nincs `revoked_at`) · (2) az '
+            + 'ÚJRA-MEGHÍVÁS MEGVONÁS UTÁN (a `membership` kulcsa alany × könyv, a beváltás '
+            + '`revoked_needs_decision` néven áll meg — az újranyitás külön döntés, nincs megépítve). '
+            + 'KÜLÖN HATÁR, NEM HIÁNY: az ÁLTALÁNOS szervezeti képviselet — szervezeti egységek, '
+            + 'delegált adminisztráció hierarchiája, együttes jóváhagyás — ma NEM LÉTEZŐ képesség; a '
+            + 'kétszemélyes és a növekvő vállalkozás útja ugyanazon az egy tagság-/engedélymodellen '
+            + 'megy, a nagy szervezeté ennek KÉSŐBBI bővítése, nem másik motor. '
             + 'Amíg az (1) és (2) nyitva, a klauzula RÉSZLEGES, és a req-5 NEM léphet életbe rá.',
         }),
         // AMI MÉG NEM ÉPÜLT MEG A KORLÁTON: az az ORG-N1b-é, és az a klauzula MEGTARTJA a saját
@@ -747,22 +744,18 @@ export const ORG_BASIS_NORMS = Object.freeze([
             + 'előfeltétellel mérjük. Falszifikálva: M189 · M190 · M191 · M192 · M193 · M194 · M195.',
           // R57 §3 — A MARADÉK UTANKENT MEGNEVEZVE (GPR-01). A régi szöveg igaz volt, de nem
           // mondta meg, MELYIK úton mi hiányzik, tehát nem lehetett megmondani, mi teljesítené.
-          remaining: 'A korlát DEKLARÁLÁSÁNAK kötelezővé tétele nyitva, és ez ÚTANKÉNT más '
-            + '(GPR-01, `contracts/grantPathRegistry.js`): '
-            + 'GP-INVITE-ISSUE — az alap KÖTELEZŐ (`basis_id_required`, nulla sor; MÉRVE), tehát '
-            + 'ezen az úton a korlát deklarálása nem opció · '
-            + 'GP-INVITE-REDEEM — a NYERSEN keletkezett, pecsét nélküli meghívó beváltása ÁTMEGY, '
-            + 'a válasz `no_declared_basis` néven KIMONDJA · '
-            + 'GP-ADJUDICATION-AUTHORITY — a korlát az R53 óta KAPU mindkét ponton, de a megadáskor '
-            + 'az alap megadása nem kötelező, és a régi, alap nélküli sorok '
-            + '`authority_without_recorded_basis` néven a régi szabály szerint mennek · '
-            + 'GP-SCOPE-GRANT — itt a korlát MÁR ma is feltétel (alap nélkül nincs jog), tehát ezen '
-            + 'az úton a klauzula nem részleges. Próbán kívüli hívója nincs, de ez a REFERENCIA '
-            + 'hatóköre (a testvér-belépési pontoknak sincs) — KÉSŐBBI ADAPTER-HATÁR, nem hiány. '
-            + 'A kötelezővé tétel SZERVEZETI döntés — ki hatalmaz fel kit, és mi történik a már '
-            + 'meglévő, alap nélküli felhatalmazásokkal —, tehát az operátoré, nem a kódé; az R53 '
-            + 'és az R57 erről kifejezetten NEM hozott üzleti döntést. A '
-            + '`limit_enforced_paths` ma négy utat sorol fel.',
+          // R63 §4 — A KORLÁT DEKLARÁLÁSA INNENTŐL NEM „NYITVA", HANEM KÖTELEZŐ, ÉS A HIÁNYA ZÁR. A
+          // régi maradék („operátori döntés") a történeti lapokon marad; itt a mai állapot áll.
+          remaining: 'A korlát MINDEN létező úton kapu, és a HIÁNYA is zár (R63 §4, GPR-01): '
+            + 'GP-INVITE-ISSUE — az alap kötelező · GP-INVITE-REDEEM — a pecsét nélküli meghívó '
+            + '`invite_without_basis` néven zár · GP-ADJUDICATION-AUTHORITY — az alap kötelező a '
+            + 'megadáskor, az alap nélküli sor a használatkor zár · GP-SCOPE-GRANT — az alap feltétel · '
+            + 'GP-DELEGATED-INVITE — a plafon a szülő alap és a továbbadható szerepek METSZETE, tehát a '
+            + 'helyi admin nem adhat többet, mint amennyit kapott. '
+            + 'AMI KONKRÉTAN NYITVA MARADT: a korlát TÖBB ADATKÖRRE egy meghívón (ma egy meghívó egy '
+            + 'adatkör-plafont visel; a többi adatkört a kezelő külön adja) · a szervezeti egységek '
+            + 'közötti delegálási plafon (a nagy szervezet útja — KÉSŐBBI határ, nem mai hiány). A '
+            + '`limit_enforced_paths` ma nyolc utat sorol fel.',
         }),
       }),
     ]),
@@ -823,11 +816,19 @@ export const ALL_NORMS = Object.freeze([...REVOCATION_NORMS, ...MODULE_CONTRACT_
 // már nem olvassa el, hanem itt, ahol a futtató minden alkalommal kiírja őket.
 export const OPEN_BLOCKERS = Object.freeze([
   Object.freeze({
-    id: 'OB-1', title: 'A valódi TÖBB-ÍRÓS véglegesítési határ',
-    why: 'A `node:sqlite` `BEGIN IMMEDIATE` egyetlen íróval dolgozik, és minden „a tranzakció '
-      + 'határán" mérésünk determinisztikus közbeiktatás, nem valódi versenyhelyzet.',
+    id: 'OB-1', title: 'A valódi TÖBB-ÍRÓS véglegesítési határ — RÉSZBEN MÉRVE, a Postgres-határ nyitva',
+    why: 'A BLOKKOLÓ SZÖVEGE ELÉVÜLT, ezért ÚJRAÍRVA (KUKA-050; R63 §5.1: „a régi OB-szöveg '
+      + 'helyesbítése ugyanebben a munkában"). A RÉGI állítás — „minden határ-mérésünk '
+      + 'determinisztikus közbeiktatás" — MA NEM IGAZ: az `npm run proof:multiconn` (MCN-01, R63) '
+      + 'KÉT VALÓDI, külön folyamatban nyitott kapcsolaton méri a meghívó-beváltás versenyét, a '
+      + 'megvonás ↔ véglegesítés sorrendjét és a megvonás utáni visszajátszást, menetenként friss '
+      + 'kapcsolatról visszaolvasva (40/40 menet, mindkét sorrend előfordult). AMI NEM ÁLL: a tároló '
+      + 'továbbra is `node:sqlite` (WAL · BEGIN IMMEDIATE), nem Postgres; nincs hálózati határ, nem '
+      + 'kettőnél több író, nem terhelés — az egyírós közbeiktatást továbbra sem nevezzük '
+      + 'többfelhasználós bizonyítéknak, és a két-folyamatos SQLite-mérést sem nevezzük Postgres-'
+      + 'egyenértékűnek.',
     closes_when: 'Postgres (vagy azzal egyenértékű) tárolón sor-zár vagy verzió-őr, KÉT valódi '
-      + 'kapcsolattal mérve.',
+      + 'kapcsolattal mérve — a MÉRŐ már megvan (MCN-01), a tároló-réteg hiányzik.',
   }),
   Object.freeze({
     id: 'OB-2', title: 'Q17 — műtermék-útvonal ütközése',
@@ -860,10 +861,18 @@ export const OPEN_BLOCKERS = Object.freeze([
       + 'sorrendet az R53 §7 rögzíti: REV-N3 → REV-N5 → REV-N2 → ORG-N1 → ORG-N3 → REV-N4.',
   }),
   Object.freeze({
-    id: 'OB-6', title: 'Az önálló szervezeti alap (ORG-N1, ORG-N3)',
-    why: 'A válasz megvan, a modell nincs. Addig a tiltó alapértelmezés (ORG-N2) él, és az az '
-      + 'EGYETLEN szervezeti klauzula, aminek ma bizonyítéka van.',
-    closes_when: 'Határozat-azonosító + verzió + hatály tárolva, VAGY/ÉS jogalap-utakkal.',
+    id: 'OB-6', title: 'Az önálló szervezeti alap (ORG-N1 · ORG-N3) — a SAJÁT KÖR alapja megvan, a KÉPVISELET nyitva',
+    why: 'A BLOKKOLÓ SZÖVEGE ELÉVÜLT, ezért ÚJRAÍRVA (KUKA-050). A RÉGI állítás — „a modell nincs" — '
+      + 'MA NEM IGAZ: a határozat-azonosító + verzió + hatály tárolva van (authorityBasis, R51), és '
+      + 'R63 óta a saját indulás alapja (WSP-01: `startup-rule:v1`, a bizonyított csatornájú fiók '
+      + 'saját létrehozási műveletéből) meg a meghívó delegált alapja (DLG-01: a kiadó továbbadható '
+      + 'jogából képezve, plafonnal) is nevezett, verziózott, hatályos alap; alap nélküli hatáskör és '
+      + 'alap nélküli meghívó nem ad új jogot. AMI NEM ÁLL: az ORG-N3 — a SZERVEZET KÉPVISELETE '
+      + '(hogy egy cégtér a jogi személy nevében jár el, külső okirat vagy tanú alapján) — nincs '
+      + 'modellezve: a saját kör alapja CSAK a saját körre szól, képviseletet, idegen adatot és '
+      + 'globális névfoglalást nem ad (R63 §4). A tiltó alapértelmezés (ORG-N2) ott továbbra is él.',
+    closes_when: 'ORG-N3: a képviseleti alap (külső tanú · okirat · országprofil-adapter) nevezett, '
+      + 'cserélhető darabként, saját próbával — nem a mai kör tárgya, és nem regisztrációs akadály.',
   }),
   Object.freeze({
     id: 'OB-7', title: 'A norma ↔ állítás TARTALMI megfelelése',
@@ -1068,11 +1077,12 @@ export const NEXT_REQUIRED_EVIDENCE = Object.freeze({
   becomes_required_when: 'mindkét klauzulának van olyan mutációs bizonyítéka, ami a SAJÁT '
     + 'deklarált állítását buktatja meg — addig a `req-4` a kötelező készlet, és ezek NYITOTTAK',
   // A MAI ÁLLAPOT — KÜLÖN MEZŐ, hogy a történeti indoklás és a jelen ne csússzon össze (KUKA-105).
-  current_state_note: 'R57 (2026-09-20): a req-5 NEM lépett életbe, és a külső fél kimondta, hogy '
-    + 'nem is léphet — az ORG-N1a/b EGÉSZE részleges. Ami a történeti indoklás óta MEGVÁLTOZOTT: a '
-    + 'meghívó ma TÁROLJA a határozat azonosítóját, verzióját és hatályát (`invite_basis`), és a '
-    + 'bírálati hatáskör (ABL-01) meg az adatköri jogadás (SGR-01) is. Ami NYITVA maradt, az '
-    + 'ÚTANKÉNT megnevezve a klauzulák `remaining` szövegében és a GPR-01 táblában áll.',
+  current_state_note: 'R63 (2026-09-20): a req-5 NEM lépett életbe. Ami a történeti indoklás óta '
+    + 'MEGVÁLTOZOTT: a meghívó TÁROLJA a határozat azonosítóját, verzióját és hatályát (`invite_basis`), '
+    + 'a bírálati hatáskör (ABL-01) és az adatköri jogadás (SGR-01) is; R63 óta a HIÁNYZÓ alap ZÁR '
+    + '(pecsét nélküli meghívó · alap nélküli hatáskör), a saját munkakörnyezet indulási alapja '
+    + '(WSP-01) és a meghívó delegálási alapja (DLG-01) a rendszer saját írásán képződik. Ami NYITVA '
+    + 'maradt, az ÚTANKÉNT a klauzulák `remaining` szövegében és a GPR-01 táblában áll.',
   // A SORREND AZ R53 §7-BŐL JÖN, változatlanul: REV-N3 → REV-N5 → REV-N2 → ORG-N1 → ORG-N3 → REV-N4.
   // A REV-N3 az R65-ben (req-2), a REV-N5 az R71-ben (req-3), a REV-N2 az R83-ban (req-4) lezárult —
   // a soron következő az ORG-N1: A FELHATALMAZÁS ALAPJA, azonosítóval, verzióval és korláttal.
@@ -2250,9 +2260,12 @@ export const USE_GATES = Object.freeze([
     title: 'Több-írós vagy valódi üzleti használat',
     closed_until: 'OB-1 — valódi, több-írós véglegesítési határ bizonyítva, nem egyírós SQLite-on',
     what_the_green_reference_does_not_authorize:
-      'A referencia egyetlen folyamaton, egyetlen írón, szintetikus adaton mérve zöld. Ebből NEM '
-      + 'következik, hogy két párhuzamos író alatt a véglegesítési határ tart. Az R35 §4 szó szerint: '
-      + '„csak a megnevezett egyírós referencia határain belüli technikai továbblépés engedhető."',
+      'A referencia próbái egyetlen folyamaton, szintetikus adaton mérve zöldek; R63 óta KÉT valódi '
+      + 'folyamat versenye is mérve van (`proof:multiconn`, WAL SQLite, 40/40) — de ebből SEM '
+      + 'következik, hogy Postgres-en, hálózati határon, kettőnél több íróval vagy terhelés alatt a '
+      + 'véglegesítési határ tart. Az R35 §4 szó szerint: „csak a megnevezett egyírós referencia '
+      + 'határain belüli technikai továbblépés engedhető." — a kapu zárva marad, amíg OB-1 tároló-'
+      + 'rétege hiányzik.',
     source: 'R35 §„Meghozott döntések" 4.',
   }),
   Object.freeze({

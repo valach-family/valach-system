@@ -1,3 +1,38 @@
+// ADAPTÁCIÓ R63 (verzió: adapted-v3 · forrás: CMD-VS-300-002-002 R63 §4, `v3ref/source-documents/R63_board_v1.md`):
+// a próba-világ bírálói hatásköre (`judge` → suspend · alter_right MINDKÉT könyvön: `a` és `b`) a VÉDETT
+// RENDSZERÜZEMELTETŐI KIINDULÓ SZABÁLY alatt születik — `grantAdjudicationAuthority(…)` helyett
+// `grantPlatformReviewAuthority({store,clock,subjectId,bookId,operation})` (`platformRule.mjs`, PRL-01),
+// UGYANAZOKKAL az argumentumokkal: az rögzíti a könyv platformbírálói alapját (könyvenként egyszer,
+// idempotensen), és AZ ALATT ad. A hívás `.ok`-ját a fixtúra ELLENŐRZI, és bukásnál az INDOKKAL dob,
+// hogy egy fixtúra-hiba nevezett FAIL-ként jelenjen meg, ne néma „nem"-ként (KUKA-020).
+//
+// MIÉRT: az R63 két szabályt szigorított a magreferenciában. (A) `grantAdjudicationAuthority`
+// (`adjudication.mjs`) alap NÉLKÜL DOB (`basis_id_required`), és `authorityRowAt` (`authority.mjs`) az
+// alap nélküli (`basis_id` NULL) hatáskör-sort NEM használja (`authority_without_recorded_basis`) —
+// „Bírálati/felülvizsgálati hatáskör: nevezett, erre jogosult delegáló vagy külön védett
+// rendszerüzemeltetői kiinduló szabály kell." (B) `redeemInvite` (`invite.mjs` 3/b · `basisLimit.mjs`
+// `redemptionLimitGate`) az `invite_basis` pecsét nélküli meghívót elutasítja (`invite_without_basis`,
+// `no_declared_basis`). Ez a program az R63 ELŐTT született, és a közös `test()` fixtúrája alap NÉLKÜL
+// adott hatáskört — ezért ma MIND A 39 eset (34 M-* útvonal-eset + F01×3 + F02 + F03) a fixtúrában, az
+// első kérdés előtt bukik el (mérve: passed 0 / failed 39, mind `basis_id_required`). A piros tehát
+// ELAVULT ELŐFELTÉTEL, nem a mért tulajdonság kudarca és nem termékhiba — és NEM nevezzük visszamenőleg
+// zöldnek: a szigorítás marad, a TESZT-ELŐFELTÉTEL változik.
+//
+// A (B) SZABÁLY ERRE A PROGRAMRA NEM VONATKOZIK, KIMONDVA: meghívót nem ír és nem vált be.
+//
+// AMI NEM VÁLTOZOTT: egyetlen eset-azonosító, elvárás, óra (2026-09-14T08:00:00.000Z, és az F01 lépő
+// órája), negatív ág (a 34 M-* eset egyező/másik/hiányzó kontextusa és a `before`-pillanatkép · F01 a
+// megvont hatáskör az írás pillanatában · F02 az adatkör-címke és az ármező · F03 a hibás tárolt
+// műveleti hatókör), a nyers `subject_ban`-írás (`raw` — az SZÁNDÉKOS, a tiltás-tényt méri, nem
+// hatáskört ad), az F01 nyers `revoked_at` UPDATE-je (a megvonás TÉNYÉT állítja elő, ugyanúgy, mint
+// eddig), a `legal_basis` tiltás `basisId` kontextusa (az a KÉRÉS megkülönböztetője — `banScope.mjs` —,
+// nem a hatáskör-sor alapja, tehát a platformalap nem hat rá), a mátrix, forráskötés és kilépési
+// szerződés sem. Az R35-ös adaptáció (mennyiség-literálok, lentebb) változatlanul áll. A platformszabály
+// a rendszer SAJÁT íróin megy (recordAuthorityBasis · grantAdjudicationAuthority), tehát a megadási
+// kapu is fut — nem kiskapu, hanem a GPR-01 `measurement_fixture` használat. A már nem hívott
+// `grantAdjudicationAuthority` behúzása kikerült (holt behúzás nem marad — KUKA-050).
+// AZ EREDETI VÁLTOZAT ÉRINTETLEN ÉS TOVÁBBRA IS FUT: `r77_chatgpt-v3.core.mjs` (történeti forrás).
+//
 // ADAPTÁCIÓ (chatgpt-v3 R35 §„Meghozott döntések" 1. pontjának kimondott engedélyével): a TESZTADAT
 // mennyiség-literáljai kanonikus decimális SZÖVEGRE állnak — `qty:1` → `qty:'1'`, `qty:2` → `qty:'2'`.
 //
@@ -15,12 +50,13 @@ import assert from 'node:assert/strict';
 import {openStore,clockFrom} from './source/v3ref/store.mjs';
 import {rightAt} from './source/v3ref/authz.mjs';
 import {issueBan,operationScopeRef} from './source/v3ref/ban.mjs';
-import {grantAdjudicationAuthority,suspendMembership,liftSuspension} from './source/v3ref/adjudication.mjs';
+import {suspendMembership,liftSuspension} from './source/v3ref/adjudication.mjs';
+import {grantPlatformReviewAuthority} from './source/v3ref/platformRule.mjs';
 import {submitCommand,readCommandResult} from './source/v3ref/command.mjs';
 import {banMatrix} from './source/v3ref/banMatrix.mjs';
 const results=[];
 const T='2026-09-14T08:00:00.000Z';
-function test(id,fn){const store=openStore(),clock=clockFrom(T);try{for(const s of ['judge','member'])store.run('INSERT INTO subject VALUES (?,?)',s,'person');for(const b of ['a','b']){store.run('INSERT INTO book VALUES (?,?)',b,b);store.run('INSERT INTO membership VALUES (?,?,?,?,NULL)','member',b,'user',T);for(const operation of ['suspend','alter_right'])grantAdjudicationAuthority({store,clock,subjectId:'judge',bookId:b,operation});}const raw=(subject,kind,cause,target)=>store.run('INSERT INTO subject_ban(subject_id,kind,cause,target_ref,actor_subject_id,banned_at) VALUES(?,?,?,?,?,?)',subject,kind,cause,target,'judge',T);fn({store,clock,raw});results.push({id,pass:true});}catch(e){results.push({id,pass:false,error:e.message});}finally{store.close();}}
+function test(id,fn){const store=openStore(),clock=clockFrom(T);try{for(const s of ['judge','member'])store.run('INSERT INTO subject VALUES (?,?)',s,'person');for(const b of ['a','b']){store.run('INSERT INTO book VALUES (?,?)',b,b);store.run('INSERT INTO membership VALUES (?,?,?,?,NULL)','member',b,'user',T);for(const operation of ['suspend','alter_right']){const g=grantPlatformReviewAuthority({store,clock,subjectId:'judge',bookId:b,operation});if(!g.ok)throw new Error('platform review basis: '+g.reason);}}const raw=(subject,kind,cause,target)=>store.run('INSERT INTO subject_ban(subject_id,kind,cause,target_ref,actor_subject_id,banned_at) VALUES(?,?,?,?,?,?)',subject,kind,cause,target,'judge',T);fn({store,clock,raw});results.push({id,pass:true});}catch(e){results.push({id,pass:false,error:e.message});}finally{store.close();}}
 const plans=[['book','left_company','a',null],['operation','operation_misuse',operationScopeRef('a','suspend'),null],['subject','court_order_subject',null,null],['credential','credential_compromised','old','credentialId'],['session','session_hijack_suspected','old','sessionId'],['legal_basis','mandate_withdrawn','old','basisId'],['data_scope','data_scope_withdrawn','old','dataScope']];
 for(const path of ['suspend','lift'])for(const [kind,cause,target,axis]of plans)for(const mode of axis?['matching','other','absent']:(kind==='subject'?['matching']:['matching','other']))test(`M-${path}-${kind}-${mode}`,({store,clock,raw})=>{const bookId=!axis&&mode==='other'?'b':'a';if(path==='lift')store.run('INSERT INTO membership_suspension(subject_id,book_id,actor_subject_id,suspended_at) VALUES(?,?,?,?)','member',bookId,'judge',T);raw('judge',kind,cause,target);const credentials=axis&&mode!=='absent'?{[axis]:mode==='matching'?'old':'new'}:undefined;const before=JSON.stringify(store.all('SELECT * FROM membership_suspension ORDER BY id'));const r=(path==='suspend'?suspendMembership:liftSuspension)({store,clock,actorSubjectId:'judge',subjectId:'member',bookId,credentials});const expected=mode==='other';assert.equal(r.ok,expected,JSON.stringify(r));if(!expected)assert.equal(JSON.stringify(store.all('SELECT * FROM membership_suspension ORDER BY id')),before);else assert.equal(rightAt({store,clock,subjectId:'member',bookId,opClass:'own_book'}).allowed,path==='lift');});
 for(const path of ['issue','suspend','lift'])test(`F01-${path}-authority-expired-at-write`,({store,clock})=>{if(path==='lift')assert(suspendMembership({store,clock,actorSubjectId:'judge',subjectId:'member',bookId:'a'}).ok);store.run('UPDATE adjudication_authority SET revoked_at=? WHERE subject_id=?','2026-09-14T08:00:01.000Z','judge');let calls=0;const advancing={now:()=>++calls===1?T:'2026-09-14T08:00:02.000Z'};const a={store,clock:advancing,actorSubjectId:'judge',subjectId:'member',bookId:'a'};const r=path==='issue'?issueBan({...a,cause:'left_company',targetRef:'a'}):(path==='suspend'?suspendMembership(a):liftSuspension(a));assert.equal(r.ok,false,JSON.stringify({calls,result:r}));});

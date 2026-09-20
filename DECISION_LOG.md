@@ -3541,6 +3541,61 @@ megenged — a mért tény (a könyv-azonosság) változatlan.
 
 ---
 
+## D-VS-3065 — a jogadás alapja SZAKMAI ALAPÉRTELMEZÉS, kódban; az első felhasználói folyamat a magon (2026-09-20)
+
+**Parancs:** CMD-VS-300-002-002 R63 — SPEC (chatgpt-v3 — KÜLSŐ ELLENŐRZŐ FÉL). A külső fél
+**helyesbítette a saját R61-es keretezését**: az A/B jogadási kérdés (D-VS-3064) nem operátori üzleti
+akadály, hanem szakmai alapértelmezés — *„Zsolt nem döntött a felhatalmazási alapról" többé nem
+elfogadható indok*. A D-VS-3064 két kérdése ezzel **kódban zárult**, nem döntéssel.
+
+**A modellváltás MÉRVE:** az operátor a munkamenetben **Fable 5.1**-re váltott, és utána adta át az
+R63-at (`session_context.model` · `last_served_model` · `user_switched_model` mind
+`claude-fable-5-1`). Az R63 §7 „claude-opus-5, medium" ajánlása mellett a kör Fable 5.1-en futott;
+ezt a jelentés kimondja. A fogyasztás R24-től ismeretlen; a költség `null`.
+
+**Ami a magban megépült (R63 §4 → kód):**
+- **ACC-01** fiók és csatorna-bizonyítás (`account.mjs`) · **WSP-01** saját munkakörnyezet EGY
+  tranzakcióban, `startup-rule:v1` alappal, CSAK bizonyított csatornával (`workspace.mjs`) ·
+  **DLG-01** a meghívó alapja a kiadó továbbadható jogából, plafonnal; a jog KÜLÖN lépés
+  (`delegation.mjs`) · **PRL-01** védett platform-szabály a bírálói kezdő jogra (`platformRule.mjs`) ·
+  **XID-01** névterezett külső azonosító, országprofil (`externalId.mjs`) · **ENT-02** előfizetés-profil
+  és két kapu külön (`entitlement.mjs`) · **openStoreAt** tartós, több-kapcsolatos WAL-tároló.
+- **ALAP-ZÁRÁS:** alap nélküli hatáskör nem adható (`basis_id_required`) és nem használható
+  (`authority_without_recorded_basis`); pecsét nélküli meghívó nem váltható be
+  (`invite_without_basis`). A történeti sor MARAD, a mai használat külön; **élő migráció nincs**.
+- **BLI-01 őr:** a `grant_basis` beszúrás-oldali újrapecsét-tilalma — a feltérképező olvasó KÉT
+  kapcsolaton mérte, hogy egy pragma nélküli második kapcsolat `INSERT OR REPLACE`-szel némán
+  átírta volna az átvitt korlátot (a törlés-trigger `recursive_triggers` nélkül nem fut).
+- **A próba-alkalmazás** (`v3app/`, nulla új futásidejű csomag): a cselekvő a szerveroldali
+  munkamenetből; a kliens `book_id`/`actor`/`role` mezője NEVEZETTEN figyelmen kívül; levél külső
+  személynek soha (fejlesztői fogadó); `npm run app:dev` · `app:selfcheck` · `proof:core-ux`.
+- **OB-1 többkapcsolatos mérő** (`tools/v3_multiconn_proof.mjs`, `proof:multiconn`): két VALÓDI
+  folyamat, 40/40 menet — az OB-1 **nem zárult** (nem Postgres), a szövege helyesbítve.
+
+**VISSZAVONT ELSŐ ALAK — KUKA-199:** a beváltás első változata a pecsét adatkörét automatikusan
+olvasási joggá írta; a saját P-DSC próbák az első futáson pirosak lettek (K05-DSC-c: a megadható nem a
+megadott). Visszavonva; M204 mutáció őrzi; **megtalálta a saját próbám, kiadás előtt**.
+
+**Az OB-szövegek ugyanebben a munkában helyesbítve** (R63 §5.1 · KUKA-050): OB-1 („determinisztikus
+közbeiktatás" → két valódi folyamaton mérve, a Postgres-határ nyitva) · OB-6 („a modell nincs" → a
+saját kör és a delegált alap megvan, a KÉPVISELET (ORG-N3) nyitva) · USE-G1 (a kapu zárva marad).
+
+**A lezárási lista OTTHONA:** `docs/70_PLANNING/V3_R64_CORE_FOLYAMAT_ES_LEZARASI_LISTA.md` 7. szakasza
+(L1–L9 + az eltéréslista sorai), a gépi eltéréslista
+`docs/70_PLANNING/V3_R64_CORE_ELTERESLISTA_LELTAR.json`. **Világos állítás:** az első UX elkészült ·
+a mini-modulok közös alapja RÉSZBEN · üzemi használat NEM bizonyított.
+
+**Nincs új KUKA-bejegyzés a többi hibára, kimondva:** a P-CORE első mutációs futásának WRONG_CATCHER
+ítélete (a lánc első lépésének bukása kivételként jelent meg) a KUKA-187 osztálya — javítva (a bukás
+állítás-bukás); az OB-szövegek elévülése a KUKA-050.
+
+**Gépi jel:** `node v3ref/run.mjs` (62 próba, P-CORE 7 állítás) · `npm run verify:v3ref` (M196–M205) ·
+`npm run app:selfcheck` (57/57) · `npm run proof:core-ux` · `npm run proof:multiconn` (40/40) ·
+`npm run verify:grant-paths` (12/12 + 3/3) · `npm run verify:kuka` (KUKA-199) ·
+`npm run verify:external-decisions` (az R63 forrás bejegyezve, elfogadást nem hordoz).
+
+---
+
 ## D-VS-3064 — az átadási csomag lezárva; a jogadási szabály OPERÁTORI döntésre vár (2026-09-20)
 
 **Parancs:** CMD-VS-300-002-002 R61 (chatgpt-v3 — KÜLSŐ ELLENŐRZŐ FÉL). A lap a saját szavával

@@ -173,6 +173,39 @@ export function basisAsOf({ store, basisId, bookId, validAt, knownAt }) {
 }
 
 /**
+ * AZ ALAP MEGVONÁSA — SAJÁT, NEVEZETT ESEMÉNY (R63 §4 · CORE-UX-01).
+ *
+ * MIÉRT MOST SZÜLETIK. Az `authority_basis.revoked_at` oszlop az R85 óta áll, és a `basisAsOf`
+ * OLVASSA — de ÍRÓJA nem volt: a megvont alapot eddig csak nyers `UPDATE`-tel lehetett előállítani
+ * (a próbák így tették). Az első felhasználói folyamatban viszont a megvonás VALÓDI lépés: ha egy
+ * munkatárs tagságát megvonják, az ő továbbadható jogából képzett meghívó-alapnak is meg kell
+ * szűnnie, különben a FÜGGŐ meghívója a megszűnt alapon váltható be (R63 §5.3/9). A fél lánc
+ * (olvasó van, író nincs) a KUKA-069 alakja — ezért kap most a tény írót.
+ *
+ * MIT CSINÁL. A basis MINDEN, még meg nem vont verziójára beírja a megvonás idejét — a verzió a
+ * régit VÁLTJA, nem törli (REV-N1b), tehát a megvonás sem verziónként, hanem az ALAPRA szól. A
+ * múlt nem íródik át: a `basisAsOf` a megvonás ELŐTTI napra továbbra is hatályosat ad.
+ * Idempotens: a már megvont alapra `changed: false`, nevezett indokkal.
+ */
+export function revokeAuthorityBasis({ store, basisId, bookId, at }) {
+  const t = instantMs(at);
+  if (!t.ok) return frozen({ ok: false, reason: `revoked_at_${t.reason}` });
+  if (typeof basisId !== 'string' || !basisId.trim()) return frozen({ ok: false, reason: 'basis_id_required' });
+  if (typeof bookId !== 'string' || !bookId.trim()) return frozen({ ok: false, reason: 'book_id_required' });
+  const rows = store.all('SELECT version, book_id, revoked_at FROM authority_basis WHERE basis_id = ?', basisId);
+  if (!rows.length) return frozen({ ok: false, reason: 'no_recorded_basis' });
+  if (rows.some((r) => String(r.book_id) !== String(bookId))) {
+    return frozen({ ok: false, reason: 'basis_belongs_to_other_book' });
+  }
+  const open = rows.filter((r) => r.revoked_at === null || r.revoked_at === undefined);
+  if (!open.length) return frozen({ ok: true, changed: false, reason: 'basis_already_revoked' });
+  const res = store.run(
+    'UPDATE authority_basis SET revoked_at = ? WHERE basis_id = ? AND revoked_at IS NULL', at, basisId);
+  if (res.changes !== open.length) throw new Error('revokeAuthorityBasis: a megvonás nem a várt számú sort írta — bekötési hiba');
+  return frozen({ ok: true, changed: true, reason: 'basis_revoked', versions: open.length, revoked_at: at });
+}
+
+/**
  * EGY KONKRÉT VERZIÓ KORLÁTJA — ABV-01 (R53/ORG-N1b).
  *
  * MIÉRT KELL KÜLÖN. A `basisAsOf` mindig a KÉRDEZETT IDŐBEN hatályos LEGMAGASABB verziót adja. A
@@ -276,6 +309,10 @@ export const LIMIT_ENFORCED_PATHS = Object.freeze([
   // HASZNÁLAT is az alap korlátjához mér. A lista ezért nő — és nem egy igen/nem mezővé olvad
   // össze, mert az elhallgatná, MELYIK úton áll ma kapu (KUKA-050).
   'adjudication_grant', 'adjudication_use',
+  // R63 — A HIÁNYZÓ ALAP IS KAPU: a pecsét nélküli meghívó beváltása és az alap nélküli hatáskör
+  // használata ZÁR (nem csak kimondja a hiányt); a saját munkakörnyezet indulási alapja és a
+  // meghívó delegálási alapja a rendszer SAJÁT írásán képződik.
+  'invite_redeem_without_basis', 'adjudication_use_without_basis', 'workspace_startup', 'invite_delegation',
 ]);
 
 export function basisState({ store, subjectId, bookId, operation, validAt, knownAt }) {
@@ -289,11 +326,14 @@ export function basisState({ store, subjectId, bookId, operation, validAt, known
     });
   }
   if (row.basis_id === null || row.basis_id === undefined) {
-    // A HIÁNY KIMONDVA: a hatáskör él, de nem tudjuk, mi alapján adták. Ez NEM hiba ma — de nem is
-    // hallgatható el (KUKA-012 · KUKA-127: a gyengébb tanút meg kell nevezni).
+    // A HIÁNY KIMONDVA — ÉS R63 ÓTA ZÁR IS. A sor él (történeti tény), de a használati kapu
+    // (`authorityRowAt`) ma ELUTASÍTJA: a rögzített alap nélküli hatáskör nem használható. Ezért a
+    // `limit_enforced` itt IGAZ (van kapu ezen az úton, és éppen zár), a `usable_now` pedig HAMIS —
+    // két külön tény, két külön mező (KUKA-002 · KUKA-073). Az R53-as alak `limit_enforced: false`
+    // értéke akkor volt igaz, amikor a sor átment; ma hazugság volna (KUKA-050).
     return frozen({
       recorded: false, reason: 'authority_without_recorded_basis',
-      limit_enforced: false, limit_enforced_paths: LIMIT_ENFORCED_PATHS,
+      usable_now: false, limit_enforced: true, limit_enforced_paths: LIMIT_ENFORCED_PATHS,
     });
   }
   const basis = basisAsOf({ store, basisId: row.basis_id, bookId, validAt, knownAt });

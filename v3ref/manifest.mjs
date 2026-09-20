@@ -39,6 +39,9 @@ const VERSION_R45 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-
 // R47 — a K05-DSC-c ENGEDŐ ága: az adatkörönkénti olvasási döntés rögzített alapja (RSB-01).
 const VERSION_R47 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis';
 // R49 — a TÉNYLEGESEN megadott olvasási jog (SGR-01): a plafon szűkít, a hiány zár.
+// R63 — A HIÁNYZÓ ALAP ZÁR (pecsét nélküli meghívó · alap nélküli hatáskör), a saját munkakörnyezet
+// indulási alapja és a meghívó delegálási alapja a rendszer SAJÁT írásán képződik (WSP-01 · DLG-01).
+const VERSION_R63 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history + R53/ORG-N1b-adjudication + R55/ORG-N1b-granted-version + R63/CORE-UX-1-basis-closed';
 const VERSION_R55 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history + R53/ORG-N1b-adjudication + R55/ORG-N1b-granted-version';
 const VERSION_R53 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history + R53/ORG-N1b-adjudication';
 const VERSION_R51 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history';
@@ -308,7 +311,8 @@ export const EXPECTED_PROBES = Object.freeze([
       Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-issuing-within-the-basis-is-unchanged' }),
       Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-redemption-carries-the-limit-not-only-the-role' }),
       Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-raw-written-invite-cannot-escape-the-issued-limit' }),
-      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-undeclared-basis-is-named-not-silent' }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-undeclared-basis-is-named-and-closed',
+        contract: 'BLI-01', contract_version: VERSION_R63 }),
       // R92/F01–F02 (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL, a teljes kiadás→beváltás úton mérve). A
       // korlát KÉT módon volt megkerülhető: a hívó átnevezhette az ellenőrzött MŰVELETET, és az
       // adatkör ELHAGYÁSA kikapcsolta a tengelyt. A javítás a MŰVELETI SZERZŐDÉS (MOP-01): a
@@ -412,6 +416,30 @@ export const EXPECTED_PROBES = Object.freeze([
     ]),
   }),
   Object.freeze({
+    // CORE-UX-01 (R63) — AZ ELSŐ FELHASZNÁLÓI FOLYAMAT A MAG SZINTJÉN: saját indulás verziózott
+    // alappal (WSP-01), a meghívó alapja a továbbadható jogból (DLG-01), explicit adatköri jog,
+    // megvonás továbbgyűrűzése, a helyi admin ≠ platformbíráló, névtér és előfizetés külön tény.
+    // A (f) állítás az ORG-N1a alá van kötve, mert azt méri, hogy az AZONOSÍTÓ és az ELŐFIZETÉS
+    // NEM felhatalmazási alap — jogot egyik sem ad; a kötést ez a megjegyzés mondja ki (KUKA-087).
+    id: 'P-CORE-startup-and-delegation', assertion: 'CORE-UX-1-the-first-user-flow-holds-on-the-core-writers',
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-CORE-own-workspace-starts-with-a-versioned-basis-and-proven-channel',
+        contract: 'WSP-01', contract_version: VERSION_R63 }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-CORE-invite-basis-is-derived-from-the-delegable-right-and-capped',
+        contract: 'DLG-01', contract_version: VERSION_R63 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-CORE-membership-does-not-release-data-until-a-scope-is-explicitly-granted',
+        contract: 'DLG-01', contract_version: VERSION_R63 }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-CORE-revocation-closes-the-member-and-their-pending-invites-but-not-others',
+        contract: 'DLG-01', contract_version: VERSION_R63 }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-CORE-self-appointment-as-reviewer-is-refused-and-local-admin-is-not-platform-reviewer',
+        contract: 'WSP-01', contract_version: VERSION_R63 }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-CORE-identifier-namespace-and-entitlement-give-no-right-and-are-separate-facts',
+        contract: 'XID-01', contract_version: VERSION_R63 }),
+      Object.freeze({ clause: 'ORG-N1b', assertion: 'A-CORE-raw-rewrite-of-the-transferred-limit-is-blocked-from-any-connection',
+        contract: 'BLI-01', contract_version: VERSION_R63 }),
+    ]),
+  }),
+  Object.freeze({
     // ABL-01 (R53) — AZ ORG-N1b A BÍRÁLATI ÚTON. A külső fél mérte, és a saját fánkon
     // megismételtük: egy CSAK `invite_issue`-ra szóló határozattal `adjudicate` hatáskört lehetett
     // ADNI és HASZNÁLNI. A korlát ott állt az adatbázisban, és senki nem kérdezte meg (KUKA-126).
@@ -431,8 +459,8 @@ export const EXPECTED_PROBES = Object.freeze([
         contract: 'ABL-01', contract_version: VERSION_R53 }),
       Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-the-limit-holds-on-the-real-entry-points',
         contract: 'ABL-01', contract_version: VERSION_R53 }),
-      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-ORG-N1b-authority-without-recorded-basis-is-unchanged-and-named',
-        contract: 'ABL-01', contract_version: VERSION_R53 }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-ORG-N1b-authority-without-recorded-basis-is-named-and-closed',
+        contract: 'ABL-01', contract_version: VERSION_R63 }),
       // R55/F55-01 — a HIÁNYZÓ megadáskori verzió a VALÓDI utakon is zár, hatás és írás nélkül.
       Object.freeze({ clause: 'ORG-N1b', assertion: 'A-ORG-N1b-missing-granted-version-closes-the-use-on-the-real-paths',
         contract: 'ABL-01', contract_version: VERSION_R55 }),

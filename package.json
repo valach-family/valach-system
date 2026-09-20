@@ -27,7 +27,13 @@
     "verify:v3ref": "node v3ref/run.mjs && npm run --silent v3ref:mutate:units",
     "docs:norm-chain": "node tools/v3_norm_chain_package.mjs",
     "proof:norm-chain-package": "node tools/v3_norm_chain_package_proof.mjs",
+    "proof:multiconn": "node tools/v3_multiconn_proof.mjs",
     "verify:external-decisions": "node tools/vs_verify_external_decisions.mjs",
-    "verify:grant-paths": "node tools/vs_verify_grant_paths.mjs && node tools/vs_verify_grant_paths.mjs --selftest"
+    "verify:grant-paths": "node tools/vs_verify_grant_paths.mjs && node tools/vs_verify_grant_paths.mjs --selftest",
+    "app:dev": "node v3app/server.mjs",
+    "app:selfcheck": "node v3app/selfcheck.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.0"
   }
 }

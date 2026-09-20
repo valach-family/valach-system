@@ -365,6 +365,16 @@ CREATE TRIGGER grant_basis_no_delete BEFORE DELETE ON grant_basis BEGIN
   SELECT RAISE(ABORT, 'grant_basis: az ATVITT korlat nem torolheto');
 END;
 
+-- R63 (a felterkepezo olvaso lelete, ket kapcsolaton MERVE): a REPLACE torles-triggere csak
+-- recursive_triggers=ON alatt fut, egy pragma nelkuli MASODIK kapcsolatrol az INSERT OR REPLACE
+-- az ATVITT korlatot nemán atirta volna (verzio, muveletek). Ezert a BESZURAS oldalarol is zarva,
+-- a pragmatol FUGGETLENUL: egy tagsagado esemenyhez MASODIK atvitt korlat nem szulethet
+-- (ugyanaz az or, amit az invite_terms/invite_basis mar R55 ota hordoz).
+CREATE TRIGGER grant_basis_no_reseal BEFORE INSERT ON grant_basis
+WHEN EXISTS (SELECT 1 FROM grant_basis WHERE grant_event_id = NEW.grant_event_id) BEGIN
+  SELECT RAISE(ABORT, 'grant_basis: ehhez a tagsagado esemenyhez MAR van atvitt korlat - masodik nem szulethet');
+END;
+
 CREATE TRIGGER invite_terms_no_update BEFORE UPDATE ON invite_terms BEGIN
   SELECT RAISE(ABORT, 'invite_terms: a KIADOTT feltetel nem irhato at - visszavonas + uj meghivo kell');
 END;
@@ -723,6 +733,70 @@ CREATE TABLE scope_grant_revocation (
 CREATE INDEX scope_grant_revocation_who ON scope_grant_revocation (subject_id, book_id, scope);
 
 CREATE INDEX access_refusal_subject ON access_refusal (subject_id, book_id, at);
+
+-- ═══ R63 — A SAJÁT MUNKAKÖRNYEZET INDULÁSA ÉS AZ ELSŐ FELHASZNÁLÓI FOLYAMAT (CORE-UX-01) ═════════
+--
+-- MIÉRT ÚJ TÁBLA, ÉS NEM A grant_basis. A beváltáskor átvitt korlát (grant_basis) a MEGHÍVÓ
+-- tokenjéhez kötött (token NOT NULL), mert ott a jog egy KIADOTT meghívóból születik. A saját
+-- munkakörnyezet létrehozásánál NINCS meghívó: a jogot az ELLENŐRZÖTT FIÓK SAJÁT létrehozási
+-- művelete és a VERZIÓZOTT indulási szabály alapozza meg (R63 §4). Ez más tény, más otthonnal
+-- (KUKA-002: két független tény nem ülhet egy oszlopon) — de ugyanúgy AUDITÁLHATÓ: melyik
+-- fiók, melyik szabály-verzió alatt, melyik alap-verzióval, melyik tagságadó eseménnyel.
+CREATE TABLE workspace_bootstrap (
+  book_id            TEXT PRIMARY KEY REFERENCES book(id),
+  creator_subject_id TEXT NOT NULL REFERENCES subject(id),
+  grant_event_id     INTEGER NOT NULL REFERENCES membership_grant(id),
+  basis_id           TEXT NOT NULL,
+  basis_version      INTEGER NOT NULL,
+  rule_version       TEXT NOT NULL,
+  recorded_at        TEXT NOT NULL
+);
+
+CREATE TRIGGER workspace_bootstrap_no_update BEFORE UPDATE ON workspace_bootstrap BEGIN
+  SELECT RAISE(ABORT, 'workspace_bootstrap: az indulasi alap nem irhato at');
+END;
+CREATE TRIGGER workspace_bootstrap_no_delete BEFORE DELETE ON workspace_bootstrap BEGIN
+  SELECT RAISE(ABORT, 'workspace_bootstrap: az indulasi alap nem torolheto');
+END;
+
+-- A CÍMZETTI CSATORNA BIZONYÍTÁSÁNAK KIHÍVÁSA (K03). A fiók regisztrációjakor az e-mail cím
+-- ÖNBEVALLOTT (external_id, issuer=self_asserted); a csatorna BIZONYÍTÉKA (channel_proof) csak
+-- akkor születik, ha a címre kiküldött egyszeri kihívást a birtokosa beváltja. Egyszeri, lejáró,
+-- és a beváltás ténye a sorban marad (used_at) — a hiány nem néma.
+CREATE TABLE channel_challenge (
+  token        TEXT PRIMARY KEY,
+  subject_id   TEXT NOT NULL REFERENCES subject(id),
+  namespace    TEXT NOT NULL,
+  value_norm   TEXT NOT NULL,
+  created_at   TEXT NOT NULL,
+  expires_at   TEXT NOT NULL,
+  used_at      TEXT
+);
+
+-- AZ ELŐFIZETÉS FUNKCIÓT BIZTOSÍT, NEM CÉGES ADATJOGOT (R63 §3 — „A két feltételt külön
+-- ellenőrizzük"). Ezért KÜLÖN tábla, KÜLÖN feloldó (entitlement.mjs), és a jogosultsági
+-- döntésbe (rightAt · scopeReleaseDecision) SOHA nem folyik bele. Tesztprofil: fizetési
+-- integráció nélkül, a terv és a funkció-lista rögzített ténye.
+CREATE TABLE entitlement_profile (
+  book_id      TEXT PRIMARY KEY REFERENCES book(id),
+  plan         TEXT NOT NULL,
+  features     TEXT NOT NULL,
+  recorded_at  TEXT NOT NULL
+);
+
+-- A MUNKAKÖRNYEZET VÁLLALKOZÁSI MINŐSÉGE (K01 · R63 §3). Adóregisztráció, jogalany, személy és
+-- fiók NÉGY külön objektum: a fiók a SZEMÉLY alanyához tartozik; a vállalkozási minőség egy
+-- KÜLÖN, legal_entity fajtájú alany, aminek a külső azonosítója NÉVTEREZETT (namespace +
+-- jurisdiction + issuer) — a HU és az AT adószám azonos karaktersora két különböző tény. Az
+-- issuer=self_asserted kimondja: ez BEÍRT állítás, nem hatósági igazolás; ugyanazt a
+-- karaktersort más is beírhatja, és attól SEM kap hozzáférést ehhez a munkakörnyezethez.
+CREATE TABLE business_identity (
+  book_id            TEXT PRIMARY KEY REFERENCES book(id),
+  entity_subject_id  TEXT NOT NULL REFERENCES subject(id),
+  namespace          TEXT NOT NULL,
+  jurisdiction       TEXT NOT NULL,
+  recorded_at        TEXT NOT NULL
+);
 `;
 
 // ═══ A TÁROLÓ TAKARÍTÁSA AKKOR IS, HA A PRÓBA DOB (R53 — mérve, nem feltételezve) ══════════════
@@ -751,6 +825,48 @@ function armExitSweep() {
     }
     OPEN_STORE_DIRS.clear();
   });
+}
+
+/**
+ * TÁROLÓ ADOTT FÁJLON, TARTÓS MÓDBAN — a fejlesztői előnézethez és az OB-1 többkapcsolatos
+ * próbához (R63 §5.2). KÉT dologban tér el az `openStore`-tól, és mindkettő KIMONDOTT:
+ *   · a fájl a HÍVÓÉ (nem ideiglenes, nem takarítjuk el), ezért a séma `IF NOT EXISTS`-szel
+ *     épül: második kapcsolat ugyanarra a fájlra a MEGLÉVŐ sémát találja;
+ *   · a napló WAL, a szinkron NORMAL, és a foglalt-várakozás (`timeout`) be van állítva — két
+ *     VALÓDI kapcsolat írás-zár versenye így nem `database is locked` kivétel, hanem várakozás,
+ *     majd a `BEGIN IMMEDIATE` szerinti SOROS végrehajtás.
+ * A `recursive_triggers` őre és az API UGYANAZ, mint az `openStore`-nál (KUKA-003: egy tároló,
+ * egy ajtó) — a különbség a fájl sorsa és a tartósság.
+ */
+export function openStoreAt(path, { timeoutMs = 2000 } = {}) {
+  if (typeof path !== 'string' || !path.trim()) throw new Error('openStoreAt: a fájl útja kötelező');
+  const db = new DatabaseSync(path, { timeout: timeoutMs });
+  db.exec('PRAGMA foreign_keys = ON;');
+  db.exec('PRAGMA journal_mode = WAL;');
+  db.exec('PRAGMA synchronous = NORMAL;');
+  db.exec('PRAGMA recursive_triggers = ON;');
+  const rt = db.prepare('PRAGMA recursive_triggers').get();
+  if (!(rt && Number(Object.values(rt)[0]) === 1)) {
+    const err = new Error('openStoreAt: a recursive_triggers nem kapcsolt be — a tároló-őrök viselkedése nem garantálható');
+    err.code = 'STORE_PRAGMA_NOT_APPLIED';
+    throw err;
+  }
+  // A SÉMA CSAK EGYSZER ÉPÜL: a második kapcsolat a meglévőt találja. A CREATE-ek `IF NOT EXISTS`
+  // alakja itt, a hívás pillanatában képződik a KANONIKUS sémából — nem egy második, kézzel
+  // másolt séma-szövegből (KUKA-018: egy fogalomnak egy otthona).
+  const already = db.prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'subject'").get();
+  if (!already) db.exec(SCHEMA);
+  return {
+    db,
+    path,
+    durable: true,
+    close() { db.close(); },
+    run(sql, ...params) { return db.prepare(sql).run(...params); },
+    tx(fn) { return withTransaction(db, fn); },
+    atomic: (fn) => atomically(db, fn),
+    all(sql, ...params) { return db.prepare(sql).all(...params); },
+    get(sql, ...params) { return db.prepare(sql).get(...params); },
+  };
 }
 
 export function openStore() {

@@ -1,3 +1,38 @@
+// ADAPTÁCIÓ R63 (verzió: adapted-v1 · forrás: CMD-VS-300-002-002 R63 §4, `v3ref/source-documents/R63_board_v1.md`):
+// a próba-világ meghívója NEVEZETT, rögzített felhatalmazási alap alatt, a rendszer SAJÁT kiadóján
+// születik — a nyers `INSERT INTO invite …` helyett `recordAuthorityBasis(…)` (`authorityBasis.mjs`,
+// BAS-01: `allowedOperations: [invite_issue]` · `allowedRoles: [a kínált szerep]` · `allowedScopes:
+// ['keszlet']` · `evidenceRef: 'synthetic:R63-adaptation'`) + `issueInviteUnderBasis(…)`
+// (`basisLimit.mjs`, BLI-01, `scope: 'keszlet'`), UGYANAZOKKAL a meghívó-mezőkkel (token · könyv · cím ·
+// szerep · kiadó · lejárat), UGYANAZON az órán (T0). Mindkét hívás `.ok`-ját a fixtúra ELLENŐRZI, és
+// bukásnál az INDOKKAL dob, hogy egy fixtúra-hiba nevezett FAIL-ként (`test_error`) jelenjen meg, ne
+// néma „nem"-ként (KUKA-020). A művelet nevét a szerződéstől kérdezzük (`INVITE_ISSUE_OPERATION`), nem
+// gépeljük le (KUKA-036).
+//
+// MIÉRT: az R63 két szabályt szigorított a magreferenciában. (A) `grantAdjudicationAuthority`
+// (`adjudication.mjs`) alap NÉLKÜL DOB (`basis_id_required`), és `authorityRowAt` (`authority.mjs`) az
+// alap nélküli (`basis_id` NULL) hatáskör-sort NEM használja (`authority_without_recorded_basis`).
+// (B) `redeemInvite` (`invite.mjs` 3/b · `basisLimit.mjs` `redemptionLimitGate`) az `invite_basis`
+// pecsét nélküli meghívót ELUTASÍTJA (`invite_without_basis`, `no_declared_basis`) — „Nyers tárolói
+// írással keletkezett, alap nélküli meghívó vagy hatáskör nem kerülheti meg az új használati határt."
+// Ez a program az R63 ELŐTT született, és a `world()` fixtúrája nyers INSERT-tel írta a meghívót, pecsét
+// nélkül — ezért az R63 után a beváltásra épülő HÁROM eset (C11' nyitott ága · N10' (a) ága · F01')
+// a fixtúrában, a mért kérdés előtt bukna el (`invite_without_basis`). A piros tehát ELAVULT
+// ELŐFELTÉTEL, nem a mért tulajdonság kudarca és nem termékhiba — és NEM nevezzük visszamenőleg
+// zöldnek: a szigorítás marad, a TESZT-ELŐFELTÉTEL változik.
+//
+// AZ (A) SZABÁLY ERRE A PROGRAMRA NEM VONATKOZIK, KIMONDVA: bírálati hatáskört nem ad és nem használ.
+//
+// AMI NEM VÁLTOZOTT: egyetlen eset-azonosító, elvárás, óra (T0 = 2026-09-10T10:00:00.000Z, és a C11'
+// két lejárata), negatív ág (C11' lejárt ága · N10' (a) elutasított UPDATE-je és (b) őr nélküli
+// `invite_terms_changed` ága · F01' elutasított átírása), a GUARDS-lista és a triggerek elvétele, a
+// mutációs (N04') és a lenyomat- (D01') mérés, az `evidence/restated.json` alakja és a kimenet sem.
+// Az N10' (b) ágán a nyers `UPDATE invite SET offered_role='admin'` SZÁNDÉKOS marad: az a pecsét-
+// eltérés TÉNYÉT állítja elő, és a beváltás az (1/b) ponton — a 3/b alap-kapu ELŐTT — fogja meg,
+// tehát az elvárt válasz (`invite_terms_changed`) az R63 után is ugyanaz. A kiadás a rendszer SAJÁT
+// íróin megy (recordAuthorityBasis · issueInviteUnderBasis), tehát a kiadási korlát-kapu is fut —
+// nem kiskapu, hanem a GPR-01 `measurement_fixture` használat.
+//
 // R55 — AZ ÚJRAFOGALMAZOTT ESETEK (Claude-AUX, R56).
 //
 // MIÉRT KELL. Öt korábbi eset LITERÁLIS alakja a mai szerződésen nem fut le — nem azért, mert a
@@ -22,12 +57,17 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { openStore, clockFrom } from './source/v3ref/store.mjs';
 import { redeemInvite } from './source/v3ref/invite.mjs';
+import { recordAuthorityBasis } from './source/v3ref/authorityBasis.mjs';
+import { issueInviteUnderBasis, INVITE_ISSUE_OPERATION } from './source/v3ref/basisLimit.mjs';
 import { MUTATIONS } from './source/v3ref/mutations.mjs';
 import { indexDigest, contractDigest, normsDigest } from './source/v3ref/norms.mjs';
 
 const root = import.meta.dirname;
 const PIN = JSON.parse(readFileSync(join(root, 'source-manifest.json'), 'utf8')).commit;
 const T0 = '2026-09-10T10:00:00.000Z';
+// ADAPTÁCIÓ R63 (B): a próba-meghívó felhatalmazási alapja — egy nevezett azonosító, egy bizonyíték-
+// hivatkozás, egy adatkör (KUKA-036: egy fogalom, egy képző).
+const BASIS = Object.freeze({ id: 'synthetic:R63-adaptation:A', evidence: 'synthetic:R63-adaptation', scope: 'keszlet' });
 const out = { program: 'restated.mjs', source_commit: PIN, node: process.version, at: new Date().toISOString(), cases: [] };
 
 function world({ expiresAt = '2026-09-30T00:00:00.000Z', role = 'user' } = {}) {
@@ -38,7 +78,19 @@ function world({ expiresAt = '2026-09-30T00:00:00.000Z', role = 'user' } = {}) {
   store.run('INSERT INTO external_id VALUES (?,?,?,?,?,?,?,?,NULL)', 'holder', 'email', 'self_asserted', 'n/a', 'holder@example.invalid', 'holder@example.invalid', 'one_to_one', T0);
   store.run('INSERT INTO account VALUES (?,?)', 'holder', 'original');
   store.run('INSERT INTO channel_proof VALUES (?,?,?,?)', 'holder', 'email', 'holder@example.invalid', T0);
-  store.run('INSERT INTO invite VALUES (?,?,?,?,?,?,?,NULL)', 'invite', 'A', 'email', 'holder@example.invalid', role, 'issuer', expiresAt);
+  // ADAPTÁCIÓ R63 (B): a meghívó NEVEZETT alap alatt, a rendszer SAJÁT kiadóján születik — a régi
+  // nyers `INSERT INTO invite VALUES (…)` helyett. A mezők, a token és az óra ugyanazok.
+  const basis = recordAuthorityBasis({
+    store, basisId: BASIS.id, bookId: 'A', issuerSubject: 'issuer', effectiveAt: T0, recordedAt: T0,
+    allowedOperations: [INVITE_ISSUE_OPERATION], allowedRoles: [role], allowedScopes: [BASIS.scope],
+    evidenceRef: BASIS.evidence,
+  });
+  if (!basis.ok) throw new Error(`R63 adaptation: az alap nem rögzíthető — ${basis.reason}`);
+  const issued = issueInviteUnderBasis({
+    store, token: 'invite', bookId: 'A', inviteeNamespace: 'email', inviteeValue: 'holder@example.invalid',
+    offeredRole: role, issuerSubject: 'issuer', expiresAt, basisId: BASIS.id, scope: BASIS.scope, issuedAt: T0,
+  });
+  if (!issued.ok) throw new Error(`R63 adaptation: a meghívó nem adható ki az alap alatt — ${issued.reason}`);
   return { store, clock };
 }
 const GUARDS = ['invite_terms_no_update', 'invite_terms_no_delete', 'invite_terms_no_reseal',

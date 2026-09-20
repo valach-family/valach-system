@@ -27,7 +27,9 @@ export const CORE_VARIANTS = Object.freeze({
     id: 'adapted',
     suffix: '.core.adapted.mjs',
     why: 'a tesztadat mennyiség-literáljai kanonikus decimális szövegen (MNY-01) — R35 engedélyével; '
-      + 'az r79/r81 tesztvilága ezen felül kimondott készlet- és ár-olvasási jogot kap — R51 engedélyével',
+      + 'az r79/r81 tesztvilága ezen felül kimondott készlet- és ár-olvasási jogot kap — R51 engedélyével; '
+      + 'R63 óta a fixtúrák bírálói hatásköre a platform-szabály alapján születik, mert alap nélküli '
+      + 'hatáskör és alap nélküli meghívó nem ad jogot — R63 §4 szerint',
     adaptations: Object.freeze([
       Object.freeze({ version: 'adapted-v1', round: 'R35', source: 'v3ref/source-documents/R35_board_v1.md',
         what: 'a tesztadat mennyiség-literáljai kanonikus decimális szövegre álltak (MNY-01)',
@@ -36,6 +38,16 @@ export const CORE_VARIANTS = Object.freeze({
         what: 'a tesztvilág kimondott készlet- ÉS ár-olvasási jogot kap a rendszer saját íróján, '
           + 'rögzített alappal (explicitReadFixture) — a kiadás R49 óta igazolt adatköri jogot követel',
         programs: Object.freeze(['r79_chatgpt-v3', 'r81_chatgpt-v3']) }),
+      Object.freeze({ version: 'adapted-v3', round: 'R63', source: 'v3ref/source-documents/R63_board_v1.md',
+        what: 'a fixtúra a bírálói hatáskört a VÉDETT PLATFORM-SZABÁLY alapján kapja '
+          + '(grantPlatformReviewAuthority — PRL-01), mert R63 óta alap nélküli hatáskör nem adható '
+          + '(basis_id_required · authority_without_recorded_basis); ahol a fixtúra nyers meghívó-sort írt, '
+          + 'ott rögzített alappal kiadott meghívó áll (invite_without_basis). CSAK az előfeltétel változott: '
+          + 'az esetek, az elvárások és az óra karakterre a történeti alakon állnak. Az r88 ELŐFELTÉTELE nem '
+          + 'változott (a fixtúrája már saját alapot rögzít) — ott az adaptált fájl a történeti szöveg '
+          + 'R63-fejléccel, hogy a feloldó egy úton járjon minden burkolónál',
+        programs: Object.freeze(['r67_chatgpt-v3', 'r69_chatgpt-v3', 'r75_chatgpt-v3', 'r77_chatgpt-v3',
+          'r79_chatgpt-v3', 'r85_chatgpt-v3', 'r88_chatgpt-v3']) }),
     ]),
   }),
   historic: Object.freeze({

@@ -162,11 +162,58 @@ const PATHS = Object.freeze([
     // útra levont következtetés nem következetes (KUKA-054: a minta a mért tulajdonság szerint
     // volt kiválasztva). A hiányzó hívó a REFERENCIA hatókörén KÍVÜL eső réteg kérdése.
     missing: 'EZEN AZ ÚTON A SZABÁLY TELJES: alap kötelező, plafon szűkít, megvonás két tengelyen, '
-      + 'az olvasó oldal bekötve (releaseScope → resultScope). Ami nincs: próbán kívüli HÍVÓ — de '
-      + 'ez NEM ennek az útnak a sajátja, hanem a REFERENCIA mai hatóköre (a testvér-belépési '
-      + 'pontoknak sincs), tehát KÉSŐBBI ADAPTER-/INTEGRÁCIÓS HATÁR (`later_adapter_surface`), '
-      + 'nem mai core-hiba. Új burkolót pusztán emiatt tenni elé NEM bizonyított követelmény',
+      + 'az olvasó oldal bekötve (releaseScope → resultScope). R63 óta a REFERENCIÁN BELÜL is van '
+      + 'hívója: a delegation.mjs → grantScopeToMember (a jogosult kezelő kimondott lépése) és a '
+      + 'workspace.mjs (a létrehozó saját joga) — a korábbi „nincs hívó" megjegyzés ezzel elévült',
     probes: Object.freeze(['P-DSC-scope-grant-history', 'P-DSC-scope-basis']),
+  }),
+  Object.freeze({
+    id: 'GP-WORKSPACE-STARTUP',
+    classification: 'internal_reference_entry_point',
+    entry_point: 'v3ref/workspace.mjs → createWorkspace',
+    module: 'v3ref/workspace.mjs',
+    delegates_to: Object.freeze(['grantMembership', 'grantAdjudicationAuthority', 'grantReadScope', 'recordAuthorityBasis']),
+    symbol: 'createWorkspace',
+    granted_right: 'a saját munkakörnyezet admin tagsága · helyi alter_right hatáskör · a két adatkör olvasási joga a létrehozónak',
+    basis_storage: 'authority_basis (startup-rule:<könyv>, v1) + workspace_bootstrap (könyv · létrehozó · tagságadó esemény · alap · verzió · szabály-verzió)',
+    grant_gate: 'ellenőrzött fiók (hitelesítő + BIZONYÍTOTT e-mail csatorna) · egy tranzakció · az alap a rendszer SAJÁT írásán képződik (R63 §4)',
+    use_gate: 'ugyanaz, mint minden más jogé: rightAt · authorityRowAt (mode: use) · scopeReleaseDecision',
+    norm: 'K02 · K03 · ORG-N1a · ORG-N1b',
+    works: 'a helyi kezelői jog NEVEZHETŐ eredettel, hatókörrel, szabályverzióval és hatállyal születik; suspend/adjudicate NEM jár vele (helyi admin ≠ platformbíráló)',
+    missing: 'a vállalkozási minőség hatósági igazolása (adapter-határ) · a munkakörnyezet lezárása/átadása (nem ebben a körben)',
+    probes: Object.freeze(['P-CORE-startup-and-delegation']),
+  }),
+  Object.freeze({
+    id: 'GP-DELEGATED-INVITE',
+    classification: 'internal_reference_entry_point',
+    entry_point: 'v3ref/delegation.mjs → inviteColleague (+ deriveDelegationBasis · grantScopeToMember · revokeDelegationsOf)',
+    module: 'v3ref/delegation.mjs',
+    delegates_to: Object.freeze(['issueInviteUnderBasis', 'recordAuthorityBasis', 'grantReadScope', 'revokeAuthorityBasis']),
+    symbol: 'inviteColleague',
+    granted_right: 'meghívó egy szerepre és egy adatkör-plafonra a kiadó TOVÁBBADHATÓ jogából · explicit adatköri olvasási jog egy tagnak',
+    basis_storage: 'authority_basis (deleg:<könyv>:<kiadó>, a szülő alapra hivatkozó bizonyítékkal) → invite_basis (pecsét) → grant_basis (átvitt korlát)',
+    grant_gate: 'a kiadó MAI joga (rightAt) · a szerep továbbadhatósága (roleDelegates) · a szülő alap plafonja (metszet) · a kiadó szerződése (limitVerdict)',
+    use_gate: 'redemptionLimitGate (a kiadáskori alaphoz mérve; pecsét nélkül ZÁR) · a kiadó jogának megvonása a delegálási alapot is megvonja',
+    norm: 'K03 · K04 · ORG-N1b · K05-DSC-c',
+    works: 'a delegálási plafon megmarad (helyi admin nem adhat többet, mint amennyit kapott) · a megvont tag függő meghívója elakad · a pecsételt adatkör PLAFON, a jogot külön, kimondott lépés adja',
+    missing: 'meghívó visszavonása külön eseményként (ma csak a lejárat és a kiadó jogának megvonása zár) · több adatkör egy meghívón',
+    probes: Object.freeze(['P-CORE-startup-and-delegation']),
+  }),
+  Object.freeze({
+    id: 'GP-PLATFORM-RULE',
+    classification: 'internal_reference_entry_point',
+    entry_point: 'v3ref/platformRule.mjs → grantPlatformReviewAuthority',
+    module: 'v3ref/platformRule.mjs',
+    delegates_to: Object.freeze(['grantAdjudicationAuthority', 'recordAuthorityBasis']),
+    symbol: 'grantPlatformReviewAuthority',
+    granted_right: 'platformbírálói hatáskör (suspend · adjudicate · alter_right) a védett rendszerüzemeltetői kiinduló szabály alatt',
+    basis_storage: 'authority_basis (platform-rule:<könyv>, evidence platform-rule:v1)',
+    grant_gate: 'adjudicationLimitVerdict (mode: grant) — a rendszer saját írásán',
+    use_gate: 'authorityRowAt (mode: use) — az alap nélküli sor ZÁR',
+    norm: 'ORG-N1a · ORG-N1b · REV-N3',
+    works: 'a próbák és a mérési előkészítők NEVEZETT alappal adnak bírálói hatáskört; a felhasználói út (v3app) ezt NEM hívja — helyi admin és platformbíráló nem olvad össze',
+    missing: 'a platformbíráló KIJELÖLÉSÉNEK felhasználói útja (szándékosan nincs: rendszerüzemeltetői szabály, nem terméki felület)',
+    probes: Object.freeze(['P-REV-authority', 'P-ORG-adjudication-basis-limit']),
   }),
   Object.freeze({
     id: 'GP-MEMBERSHIP-DIRECT',
@@ -285,7 +332,7 @@ function referenceEntryPoints() {
 }
 
 /** A PADLÓ: ennyi útnak MINDIG szerepelnie kell. Csökkenni nem szabad, nőni igen. */
-const PATH_FLOOR = 9;
+const PATH_FLOOR = 12;
 
 module.exports = {
   CLASSIFICATIONS, GRANTING_TABLES, GRANT_WRITE_SITES, PATHS, PATH_FLOOR, referenceEntryPoints,

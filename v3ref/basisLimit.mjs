@@ -115,7 +115,15 @@ export function inviteBasisSeal(store, token) {
 export function redemptionLimitGate({ store, invite, knownAt }) {
   const sealed = inviteBasisSeal(store, invite.token);
   if (!sealed.declared) {
-    return frozen({ ok: true, basis_declared: false, reason: 'no_declared_basis', limit: null, seal: null });
+    // R63 §4 — A PECSÉT NÉLKÜLI MEGHÍVÓ NEM VÁLTHATÓ BE. Az R37–R61 alak ezt ÁTENGEDTE, és a
+    // válasz csak KIMONDTA a hiányt (`ok: true, basis_declared: false`). A megőrzött történeti
+    // indok: „a kapu nem fal" (KUKA-122). Az R63 viszont a felhasználói folyamat alapszabályát
+    // hozta: „Nyers tárolói írással keletkezett, alap nélküli meghívó vagy hatáskör nem kerülheti
+    // meg az új használati határt." — és mivel a NEVEZETT kiadó (`issueInviteUnderBasis`) az
+    // alapot MINDIG pecsételi, pecsét nélküli meghívó CSAK a kiadó megkerülésével keletkezhet.
+    // A hiány továbbra is NEVEZETT (a válasz ugyanazt az indokot viszi), de innentől ZÁR. A régi
+    // elvárást a próba VERZIÓZOTTAN cseréli (P-ORG-basis-limit (e) · manifest R63), nem némán.
+    return frozen({ ok: false, basis_declared: false, reason: 'no_declared_basis', limit: null, seal: null });
   }
   const s = sealed.seal;
   if (String(s.book_id) !== String(invite.book_id)) {

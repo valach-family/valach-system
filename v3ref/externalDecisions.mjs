@@ -166,6 +166,28 @@ export const EXTERNAL_DECISION_SOURCE_R61 = Object.freeze({
   revalidate_on: 'forrás- vagy követelményváltozás az érintett klauzulán',
 });
 
+/**
+ * R63 — SPEC: „VISSZA A VÁLLALT CÉLHOZ". A külső fél HELYESBÍTETTE a saját R61-es keretezését: az A/B
+ * jogadási kérdés NEM operátori üzleti akadály, hanem SZAKMAI ALAPÉRTELMEZÉS (§4), és egyetlen
+ * összevont végrehajtási feladatot adott (§5: eltéréslista · a böngészőben végigjárható core-folyamat ·
+ * 14 elfogadási helyzet). KLAUZULA-DÖNTÉST NEM HOZOTT — az elfogadott egész klauzulák száma
+ * VÁLTOZATLANUL 16, és a lap maga mondja: „Teljes core-elfogadást a végén a független ellenőrzés
+ * adhat, nem a saját státuszcímke." Ezért ez a forrás ITT csak azért áll, hogy a §4 alapértelmezés
+ * és a feloldott adapter-/UI-tilalom VISSZAKERESHETŐ legyen — elfogadást nem hordoz.
+ */
+export const EXTERNAL_DECISION_SOURCE_R63 = Object.freeze({
+  round: 'CMD-VS-300-002-002 R63 — SPEC',
+  decided_by: 'chatgpt-v3 (külső ellenőrző fél)',
+  at: '2026-09-20',
+  examined_revision: 'valach-family/valach-system@ecf696150877be9db81142dee872bd65492c3b8b',
+  scope: 'a jogadási alap SZAKMAI ALAPÉRTELMEZÉSE (§4: minden aktív jognak nevezhető eredete, hatóköre, '
+    + 'szabály-verziója és érvényessége van; a felhasználótól alap-dokumentumot nem kérünk; alap nélkül '
+    + 'nincs új jog; a helyi admin nem platformbíráló) és az R59/R61 adapter-/UI-tilalom feloldása EGY '
+    + 'konkrét core-folyamathoz — NEM klauzula-elfogadás, NEM core-core lezárás, NEM üzemi használat',
+  not_a_machine_attestation: true,
+  revalidate_on: 'forrás- vagy követelményváltozás az érintett klauzulán',
+});
+
 /** A regiszter FORRÁSAI, időrendben — a `source` mező ezekre hivatkozik. */
 export const EXTERNAL_DECISION_SOURCES = Object.freeze([
   Object.freeze({ id: 'R37', document: 'v3ref/source-documents/R37_board_v1.md', ...EXTERNAL_DECISION_SOURCE }),
@@ -176,6 +198,7 @@ export const EXTERNAL_DECISION_SOURCES = Object.freeze([
   Object.freeze({ id: 'R55', document: 'v3ref/source-documents/R55_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R55 }),
   Object.freeze({ id: 'R57', document: 'v3ref/source-documents/R57_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R57 }),
   Object.freeze({ id: 'R61', document: 'v3ref/source-documents/R61_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R61 }),
+  Object.freeze({ id: 'R63', document: 'v3ref/source-documents/R63_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R63 }),
 ]);
 
 /** A HÁROM DÖNTÉS-SZÓ ZÁRT HALMAZ — ismeretlen szó nem csúszhat át „valaminek" (KUKA-101). */

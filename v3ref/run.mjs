@@ -9,10 +9,12 @@
 //
 //   node v3ref/run.mjs            # emberi kimenet
 //   node v3ref/run.mjs --json     # bizonyítékrekordok (R32 §4 alakja)
+import { grantPlatformReviewAuthority } from './platformRule.mjs';
 import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { openStore, clockFrom, instantMs } from './store.mjs';
 import { observeInvite, redeemInvite, rememberIntent, resumeIntent, inviteGrantAt } from './invite.mjs';
 import { rightAt, revokeMembership, revocationTransition, roleGrants, KNOWN_ROLES } from './authz.mjs';
@@ -48,6 +50,11 @@ import {
 import { scopeReleaseDecision, recordedScopeLimit, RSB_CONTRACT } from './releaseScope.mjs';
 // SGR-01 (R49) — a TÉNYLEGESEN megadott, adatkörönkénti olvasási jog írója és olvasója.
 import { grantReadScope, revokeReadScope, readScopeGrantAt, SCOPE_GRANT_CONTRACT } from './scopeGrant.mjs';
+import { registerAccount, authenticate, issueChannelChallenge, redeemChannelChallenge, provenEmailOf } from './account.mjs';
+import { createWorkspace, bootstrapOf, workspacesOf, STARTUP_RULE } from './workspace.mjs';
+import { inviteColleague, grantScopeToMember, revokeDelegationsOf, deriveDelegationBasis } from './delegation.mjs';
+import { setEntitlementProfile, entitlementFor, twoGateVerdict } from './entitlement.mjs';
+import { attachBusinessIdentity, identityClaimsMatching, profileFor } from './externalId.mjs';
 
 // A KANONIKUS NORMA-VERZIÓ EGYETLEN HELYRŐL JÖN (R53 §5). Korábban itt egy KÉZZEL ÍRT `'R32/K01-K16'`
 // állt, miközben a norma-index ugyanezt külön tárolta — két, részben átfedő igazságforrás, ami
@@ -89,6 +96,37 @@ function giveReadScopes(store, { subjectId, bookId, scopes = ['keszlet', 'arak']
   }
 }
 
+/**
+ * PECSÉTELT MEGHÍVÓ EGY PRÓBA-VILÁGBAN (R63 §4) — a rendszer SAJÁT kiadóján, rögzített alappal.
+ *
+ * Az R63 óta a pecsét nélküli meghívó beváltása ZÁR (`invite_without_basis`), tehát a nyers
+ * `INSERT INTO invite` fixtúra többé nem „egy meghívó", hanem egy MEGKERÜLŐ írás. A próbák
+ * tesztelőképe ezért KIMONDOTTAN átáll: a meghívó ugyanazon a kapun születik, amin élesben
+ * (`issueInviteUnderBasis`), egy fixtúra-alap alatt — a mért állítások változatlanok, csak az
+ * előfeltétel lett szabályos (R63: „expliciten alakítjuk át a tesztelőképeket az új szabályhoz").
+ * Ahol egy próba SZÁNDÉKOSAN nyers meghívót mér (P-ORG-basis-limit d/e), ott a nyers írás marad.
+ */
+function sealedInvite(store, {
+  token, bookId = 'book_a', invitee = 'kovacs@pelda.hu', role = 'user', issuer = 'sub_issuer',
+  expiresAt = '2026-09-30T00:00:00.000Z', at = T0, scope = 'keszlet',
+}) {
+  const basisId = `HAT-MEGHIVO-${bookId}`;
+  if (!store.get('SELECT 1 AS x FROM authority_basis WHERE basis_id = ?', basisId)) {
+    const rec = recordAuthorityBasis({
+      store, basisId, bookId, issuerSubject: issuer, effectiveAt: at, recordedAt: at,
+      allowedOperations: [INVITE_ISSUE_OPERATION], allowedRoles: ['user', 'admin'],
+      allowedScopes: [...KNOWN_DATA_SCOPES], evidenceRef: `doc:${basisId}`,
+    });
+    if (!rec.ok) throw new Error(`sealedInvite: az alap nem jött létre — ${rec.reason}`);
+  }
+  const r = issueInviteUnderBasis({
+    store, token, bookId, inviteeNamespace: 'email', inviteeValue: invitee, offeredRole: role,
+    issuerSubject: issuer, expiresAt, basisId, scope, issuedAt: at,
+  });
+  if (!r.ok) throw new Error(`sealedInvite: a meghívó nem jött létre — ${r.reason}`);
+  return r;
+}
+
 function buildWorld({ inviteeHasAccount }) {
   const store = openStore();
   const clock = clockFrom(T0);
@@ -109,12 +147,7 @@ function buildWorld({ inviteeHasAccount }) {
     store.run('INSERT INTO account (subject_id, credential) VALUES (?,?)', 'sub_invitee', 'cred_EREDETI');
   }
 
-  store.run(
-    `INSERT INTO invite (token, book_id, invitee_namespace, invitee_value, offered_role,
-                         issuer_subject, expires_at, redeemed_at)
-     VALUES (?,?,?,?,?,?,?,NULL)`,
-    'tok_1', 'book_a', 'email', 'kovacs@pelda.hu', 'user', 'sub_issuer',
-    '2026-09-30T00:00:00.000Z');
+  sealedInvite(store, { token: 'tok_1', at: clock.now() });
 
   // REV-N3a: a JOGVÁLTOZTATÁS hatáskörhöz kötött, tehát a világnak van egy NEVEZETT eljáró alanya.
   // SZÁNDÉKOSAN NEM a kibocsátó és nem a könyv admin tagja: a hatáskör nem a tagságból jön. A
@@ -139,7 +172,7 @@ function seedAdjudicator(store, clock, books = ['book_a']) {
   store.run('INSERT OR IGNORE INTO subject (id, kind) VALUES (?,?)', 'sub_adjudicator', 'person');
   for (const b of books) {
     for (const op of ADJUDICATION_OPS) {
-      grantAdjudicationAuthority({ store, subjectId: 'sub_adjudicator', bookId: b, operation: op, clock });
+      grantPlatformReviewAuthority({ store, subjectId: 'sub_adjudicator', bookId: b, operation: op, clock });
     }
   }
 }
@@ -683,12 +716,7 @@ probe('P-INVITE-window', 'R32/K03 · a teljesség-kritika élő lelete',
       // a PECSÉT-eltérésen akadna fenn, és ez a próba nem az ablakot mérné, hanem a pecsétet —
       // vagyis egy ÚJ, KORÁBBAN tüzelő kapu venné el a próbát a saját tengelyéről (KUKA-094).
       // A megkülönböztetés ára egy külön token; a mért állítás így változatlan marad.
-      w.store.run(
-        `INSERT INTO invite (token, book_id, invitee_namespace, invitee_value, offered_role,
-                             issuer_subject, expires_at, redeemed_at)
-         VALUES (?,?,?,?,?,?,?,NULL)`,
-        'tok_zona', 'book_a', 'email', 'kovacs@pelda.hu', 'user', 'sub_issuer',
-        '2026-09-09T09:00:00+02:00');
+      sealedInvite(w.store, { token: 'tok_zona', expiresAt: '2026-09-09T09:00:00+02:00', at: w.clock.now() });
       const obs = observeInvite({ store: w.store, token: 'tok_zona', viewerSubjectId: 'sub_holder', clock: w.clock });
       const red = redeemInvite({ store: w.store, token: 'tok_zona', actingSubjectId: 'sub_holder', newCredential: 'c', clock: w.clock });
       // CSAK az ÚJ tagságot számoljuk: a világ a kibocsátó tagságával születik.
@@ -757,8 +785,7 @@ probe('P-INVITE-effect', 'R32/K03 · Q11 · Q12',
       const acct = w.store.get('SELECT credential FROM account WHERE subject_id = ?', born.subject_id);
       const mem = w.store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', born.subject_id, 'book_a');
       // (b) ATOMICITÁS: a meghívó-fogyasztást megállítva SEMMI nem marad.
-      w.store.run(`INSERT INTO invite (token,book_id,invitee_namespace,invitee_value,offered_role,issuer_subject,expires_at,redeemed_at)
-                   VALUES (?,?,?,?,?,?,?,NULL)`, 'tok_2', 'book_a', 'email', 'masik@pelda.hu', 'user', 'sub_issuer', '2026-09-30T00:00:00.000Z');
+      sealedInvite(w.store, { token: 'tok_2', invitee: 'masik@pelda.hu', at: w.clock.now() });
       w.store.run('INSERT INTO channel_proof (subject_id, namespace, value_norm, proven_at) VALUES (?,?,?,?)',
         'sub_holder', 'email', 'masik@pelda.hu', w.clock.now());
       w.store.db.exec("CREATE TRIGGER stop_use BEFORE UPDATE OF redeemed_at ON invite BEGIN SELECT RAISE(ABORT,'proba'); END;");
@@ -1912,7 +1939,7 @@ probe('P-REV-authority', 'R32/K04 · K05 · K09 · REV-N3a · REV-N3c',
         'sub_target', 'book_a', 'user', w.clock.now());
       // A SZŰK FELHATALMAZÁS: csak FELFÜGGESZTÉSRE szól — jogváltoztatásra NEM.
       w.store.run('INSERT INTO subject (id, kind) VALUES (?,?)', 'sub_suspender', 'person');
-      grantAdjudicationAuthority({ store: w.store, subjectId: 'sub_suspender', bookId: 'book_a',
+      grantPlatformReviewAuthority({ store: w.store, subjectId: 'sub_suspender', bookId: 'book_a',
         operation: 'suspend', clock: w.clock });
 
       // (a) HATÁSKÖR NÉLKÜLI jogváltoztatás-kérés → NEVEZETT elutasítás.
@@ -2067,7 +2094,7 @@ probe('P-REV-claim-read', 'R32/K05 · K15 · REV-N3b · KUKA-084 · KUKA-085',
       // könyvre szól a felhatalmazásom" a legkönnyebben elfelejtett nemleges ág (KUKA-039).
       w.store.run('INSERT INTO book (id, name) VALUES (?,?)', 'book_masik', 'Egy másik cég könyve');
       w.store.run('INSERT INTO subject (id, kind) VALUES (?,?)', 'sub_adjudicator_b', 'person');
-      grantAdjudicationAuthority({ store: w.store, subjectId: 'sub_adjudicator_b',
+      grantPlatformReviewAuthority({ store: w.store, subjectId: 'sub_adjudicator_b',
         bookId: 'book_masik', operation: 'adjudicate', clock: w.clock });
 
       // A BEFOGADÁSI KONTEXTUS RÉSZENKÉNT KÜLÖN (R67 §7/3). A korábbi alak MINDEN beadást a
@@ -2516,7 +2543,7 @@ probe('P-REV-ban-paths', 'R71 §8/1 · REV-N5a · K09 · K15 · KUKA-039',
       // A MÁSODIK ENGEDŐ ÚT: a hatásköri út (REV-N3). A munkatárs kap `suspend` hatáskört MINDKÉT
       // könyvön — így a tiltás hatását MINDKÉT úton, MINDKÉT könyvön mérni tudjuk.
       for (const b of ['book_a', 'book_b']) {
-        grantAdjudicationAuthority({ store: w.store, subjectId: 'sub_dolgozo', bookId: b,
+        grantPlatformReviewAuthority({ store: w.store, subjectId: 'sub_dolgozo', bookId: b,
           operation: 'suspend', clock: w.clock });
       }
       const viaMembership = (book) => rightAt({ store: w.store, subjectId: 'sub_dolgozo',
@@ -2554,7 +2581,7 @@ probe('P-REV-ban-paths', 'R71 §8/1 · REV-N5a · K09 · K15 · KUKA-039',
       const wc = buildTwoBookWorld();
       try {
         for (const b of ['book_a', 'book_b']) {
-          grantAdjudicationAuthority({ store: wc.store, subjectId: 'sub_dolgozo', bookId: b,
+          grantPlatformReviewAuthority({ store: wc.store, subjectId: 'sub_dolgozo', bookId: b,
             operation: 'suspend', clock: wc.clock });
         }
         const cAuth = (book) => adjudicationRightAt({ store: wc.store, subjectId: 'sub_dolgozo',
@@ -2589,7 +2616,7 @@ probe('P-REV-ban-paths', 'R71 §8/1 · REV-N5a · K09 · K15 · KUKA-039',
       let eOk = false; let eBefore = null; let eAfter = null;
       const we = buildTwoBookWorld();
       try {
-        grantAdjudicationAuthority({ store: we.store, subjectId: 'sub_biro', bookId: 'book_a',
+        grantPlatformReviewAuthority({ store: we.store, subjectId: 'sub_biro', bookId: 'book_a',
           operation: 'alter_right', clock: we.clock });
         // KONTROLL: a tiltatlan bíró TUD tiltani — enélkül a későbbi elutasítás nem bizonyít semmit.
         eBefore = issueBan({ store: we.store, subjectId: 'sub_kollega', cause: 'left_company',
@@ -2614,7 +2641,7 @@ probe('P-REV-ban-paths', 'R71 §8/1 · REV-N5a · K09 · K15 · KUKA-039',
       let fOk = false; let fRaw = null; let fNamed = null;
       const wf = buildTwoBookWorld();
       try {
-        grantAdjudicationAuthority({ store: wf.store, subjectId: 'sub_biro', bookId: 'book_a',
+        grantPlatformReviewAuthority({ store: wf.store, subjectId: 'sub_biro', bookId: 'book_a',
           operation: 'alter_right', clock: wf.clock });
         const args = { store: wf.store, subjectId: 'sub_dolgozo', cause: 'left_company',
           targetRef: 'book_b', actorSubjectId: 'sub_biro', clock: wf.clock, bookId: 'book_a' };
@@ -2729,7 +2756,7 @@ probe('P-REV-ban-past', 'R71 §8/1 · REV-N5c · K09 · KUKA-085',
       // az M68 (a kiadás mellé tett `DELETE FROM command_event`) TÚLÉLÉSE a saját mutációs
       // próbámon. A kiadható alak KÖNYV-hatókörű (ehhez van hatásköre a bírónak), és épp azon a
       // könyvön, ahol a korábbi parancs született — tehát a törlés, ha megtörténne, LÁTSZANA.
-      grantAdjudicationAuthority({ store: w.store, subjectId: 'sub_biro', bookId: 'book_a',
+      grantPlatformReviewAuthority({ store: w.store, subjectId: 'sub_biro', bookId: 'book_a',
         operation: 'alter_right', clock: w.clock });
       const issued = issueBan({ store: w.store, subjectId: 'sub_dolgozo', cause: 'left_company',
         targetRef: 'book_a', actorSubjectId: 'sub_biro', clock: w.clock, bookId: 'book_a' });
@@ -2883,7 +2910,7 @@ probe('P-REV-effectuation', 'R77/F01 · REV-N3a · REV-N2a(NEM zárva) · K04 ·
       store.run('INSERT INTO book VALUES (?,?)', 'a', 'A könyv');
       store.run('INSERT INTO membership VALUES (?,?,?,?,NULL)', 'member', 'a', 'user', T0);
       for (const op of ['suspend', 'alter_right', 'adjudicate']) {
-        grantAdjudicationAuthority({ store, clock: fixed, subjectId: 'judge', bookId: 'a', operation: op });
+        grantPlatformReviewAuthority({ store, clock: fixed, subjectId: 'judge', bookId: 'a', operation: op });
       }
       // A FELOLDÁS-ÚT ELŐFELTÉTELE FIXTÚRA, NEM TERMÉK-HÍVÁS — és ezt kimondjuk (R75/F03 fegyelme).
       // Ha a felfüggesztést a termék-úton tennénk be, a MEGVONT hatáskörű világban az a lépés is
@@ -3406,6 +3433,223 @@ probe('P-DSC-scope-grant-history', 'R51/F51-01 · K05-DSC-c · K09 · REV-N2a ·
     } finally { w.store.close(); }
   });
 
+// ── R63 — AZ ELSŐ FELHASZNÁLÓI CORE-FOLYAMAT A MAG SZINTJÉN (CORE-UX-01) ─────────────────────────
+probe('P-CORE-startup-and-delegation', 'R63 §4 · §5.2 · §5.3 · K02 · K03 · K04 · K05-DSC-c · ORG-N1a · ORG-N1b',
+  'REGISZTRÁCIÓ → SAJÁT MUNKAKÖRNYEZET → MEGHÍVÓ → BEVÁLTÁS → ADAT → MEGVONÁS — a mag saját íróin, alappal',
+  () => {
+    // A LÁNC, amit a böngésző-folyam is hív (v3app): itt a MAG szintjén, determinisztikus órával.
+    // Minden jog NEVEZHETŐ eredettel születik; a felhasználótól alapobjektumot nem kérünk (R63 §4).
+    const T = {
+      d0: '2026-03-01T00:00:00.000Z', d1: '2026-03-02T00:00:00.000Z', d2: '2026-03-03T00:00:00.000Z',
+      d3: '2026-03-04T00:00:00.000Z', d4: '2026-03-05T00:00:00.000Z',
+    };
+    const clock = (t) => ({ now: () => t });
+    const store = openStore();
+    try {
+      const person = (id, email, at) => {
+        const r = registerAccount({ store, subjectId: id, email, secret: `${id}-jelszo-1`, at });
+        if (!r.ok) throw new Error(`fixtúra: ${id} regisztráció — ${r.reason}`);
+        const c = issueChannelChallenge({ store, subjectId: id, value: email, token: `tok_${id}_${'q'.repeat(14)}`, at });
+        return { redeem: () => redeemChannelChallenge({ store, token: c.token, at }) };
+      };
+
+      // (a) A SAJÁT MUNKAKÖRNYEZET: bizonyítatlan csatornával NEM indul; bizonyítottal EGY tranzakcióban
+      //     születik a könyv, az indulási alap (v1), az admin tagság, a helyi alter_right és az adatköri jog.
+      const anna = person('anna', 'anna@pelda.hu', T.d0);
+      const unproven = createWorkspace({ store, creatorSubjectId: 'anna', bookId: 'csalad', name: 'Családi Kft', at: T.d0 });
+      anna.redeem();
+      const ws = createWorkspace({ store, creatorSubjectId: 'anna', bookId: 'csalad', name: 'Családi Kft', at: T.d0 });
+      const boot = bootstrapOf({ store, bookId: 'csalad' });
+      const startup = basisAsOf({ store, basisId: 'startup-rule:csalad', bookId: 'csalad', validAt: T.d1, knownAt: T.d1 });
+      const annaRight = rightAt({ store, subjectId: 'anna', bookId: 'csalad', opClass: 'own_book', nowIso: T.d1 });
+      const annaAlter = adjudicationRightAt({ store, subjectId: 'anna', bookId: 'csalad', operation: 'alter_right', clock: clock(T.d1) });
+      const annaAdjudicate = adjudicationRightAt({ store, subjectId: 'anna', bookId: 'csalad', operation: 'adjudicate', clock: clock(T.d1) });
+      const annaScopes = KNOWN_DATA_SCOPES.map((sc) => scopeReleaseDecision({ store, subjectId: 'anna', bookId: 'csalad', scope: sc, nowIso: T.d1, knownAt: T.d1 }).allowed);
+      const aOk = unproven.ok === false && unproven.reason === 'creator_channel_unproven'
+        && ws.ok === true && ws.basis_id === 'startup-rule:csalad' && ws.rule_version === STARTUP_RULE.version
+        && boot && boot.creator_subject_id === 'anna' && Number(boot.grant_event_id) === Number(ws.grant_event_id)
+        && startup.in_effect === true && startup.issuer_subject === 'anna'
+        && /startup-rule:v1/.test(startup.evidence_ref) && /channel=email:anna@pelda.hu:proven/.test(startup.evidence_ref)
+        && annaRight.allowed === true && annaRight.detail && annaRight.detail.role === 'admin'
+        && annaAlter.allowed === true
+        && annaAdjudicate.allowed === false && annaAdjudicate.reason === 'authority_not_established'
+        && annaScopes.every((x) => x === true)
+        && workspacesOf({ store, subjectId: 'anna', at: T.d1 }).some((w) => w.book_id === 'csalad' && w.role === 'admin');
+
+      // HA A LÁNC ELSŐ LÉPÉSE NEM ÁLL, A TÖBBI SZAKASZ NEM MÉRHETŐ — és ezt az ÁLLÍTÁS bukásaként kell
+      // kimondani, nem kivételként: a (b)–(f) szakasz egy nem létező könyvre írna, és a tároló
+      // idegenkulcs-hibája WRONG_CATCHER-ré tenné a mérést (KUKA-187 — a mutáció ítélete a szerződés
+      // szerinti bizonyíték legyen, ne a fagyasztás vagy a séma mellékhatása).
+      if (ws.ok !== true) {
+        return {
+          expected: 'bizonyított csatornával a saját munkakörnyezet EGY tranzakcióban létrejön — enélkül a lánc többi szakasza nem mérhető',
+          actual: `(a) csatorna nélkül=${unproven.reason} · munkakör=${ws.ok}/${ws.reason ?? '—'} — a (b)–(f) szakasz nem futott, mert nincs könyv`,
+          pass: false,
+          asserts: {
+            'A-CORE-own-workspace-starts-with-a-versioned-basis-and-proven-channel': false,
+            'A-CORE-invite-basis-is-derived-from-the-delegable-right-and-capped': false,
+            'A-CORE-membership-does-not-release-data-until-a-scope-is-explicitly-granted': false,
+            'A-CORE-revocation-closes-the-member-and-their-pending-invites-but-not-others': false,
+            'A-CORE-self-appointment-as-reviewer-is-refused-and-local-admin-is-not-platform-reviewer': false,
+            'A-CORE-identifier-namespace-and-entitlement-give-no-right-and-are-separate-facts': false,
+            'A-CORE-raw-rewrite-of-the-transferred-limit-is-blocked-from-any-connection': false,
+          },
+        };
+      }
+
+      // (b) A MEGHÍVÓ ALAPJA A KIADÓ TOVÁBBADHATÓ JOGÁBÓL — plafonnal. Adatkör nélkül NEM; ismeretlen
+      //     szerep NEM (outside_basis_roles); szabályos meghívó IGEN, a képzett alap a szülőt nevezi.
+      const noScope = inviteColleague({ store, inviterSubjectId: 'anna', bookId: 'csalad', inviteeEmail: 'bela@pelda.hu', offeredRole: 'user', token: 'inv_0', expiresAt: '2026-04-01T00:00:00.000Z', at: T.d1 });
+      const badRole = inviteColleague({ store, inviterSubjectId: 'anna', bookId: 'csalad', inviteeEmail: 'bela@pelda.hu', offeredRole: 'owner', scope: 'keszlet', token: 'inv_1', expiresAt: '2026-04-01T00:00:00.000Z', at: T.d1 });
+      const inv = inviteColleague({ store, inviterSubjectId: 'anna', bookId: 'csalad', inviteeEmail: 'bela@pelda.hu', offeredRole: 'user', scope: 'keszlet', token: 'inv_bela', expiresAt: '2026-04-01T00:00:00.000Z', at: T.d1 });
+      const deleg = basisAsOf({ store, basisId: 'deleg:csalad:anna', bookId: 'csalad', validAt: T.d1, knownAt: T.d1 });
+      const inviteRows = store.all("SELECT token FROM invite WHERE token IN ('inv_0','inv_1','inv_bela')").map((r) => r.token);
+      const bOk = noScope.ok === false && noScope.reason === 'data_scope_required'
+        && badRole.ok === false && badRole.reason === 'outside_basis_roles'
+        && inv.ok === true && inv.basis_id === 'deleg:csalad:anna'
+        && deleg.in_effect === true && /delegated-from:startup-rule:csalad@v1/.test(deleg.evidence_ref)
+        && deleg.limit.operations.length === 1 && deleg.limit.operations[0] === INVITE_ISSUE_OPERATION
+        && inviteRows.length === 1 && inviteRows[0] === 'inv_bela';
+
+      // (c) BEVÁLTÁS MEGLÉVŐ FIÓKKAL: a csatorna bizonyítása ELŐBB; a tagság megszületik, de ADAT nem
+      //     jár vele, amíg a jogosult kezelő KÜLÖN meg nem adja (K05-DSC-c: a megadható nem a megadott);
+      //     ismételt beváltás nem ad második jogot.
+      const bela = person('bela', 'bela@pelda.hu', T.d1);
+      const obsBefore = observeInvite({ store, token: 'inv_bela', viewerSubjectId: 'bela', clock: clock(T.d1) });
+      bela.redeem();
+      const obsAfter = observeInvite({ store, token: 'inv_bela', viewerSubjectId: 'bela', clock: clock(T.d1) });
+      const red = redeemInvite({ store, token: 'inv_bela', actingSubjectId: 'bela', clock: clock(T.d2) });
+      const belaRight = rightAt({ store, subjectId: 'bela', bookId: 'csalad', opClass: 'own_book', nowIso: T.d2 });
+      const belaStockBefore = scopeReleaseDecision({ store, subjectId: 'bela', bookId: 'csalad', scope: 'keszlet', nowIso: T.d2, knownAt: T.d2 });
+      const belaInvites = inviteColleague({ store, inviterSubjectId: 'bela', bookId: 'csalad', inviteeEmail: 'c@pelda.hu', offeredRole: 'user', scope: 'keszlet', token: 'inv_c', expiresAt: '2026-04-01T00:00:00.000Z', at: T.d2 });
+      const give = grantScopeToMember({ store, granterSubjectId: 'anna', bookId: 'csalad', targetSubjectId: 'bela', scope: 'keszlet', at: T.d2 });
+      const belaStock = scopeReleaseDecision({ store, subjectId: 'bela', bookId: 'csalad', scope: 'keszlet', nowIso: T.d2, knownAt: T.d2 });
+      const belaPrice = scopeReleaseDecision({ store, subjectId: 'bela', bookId: 'csalad', scope: 'arak', nowIso: T.d2, knownAt: T.d2 });
+      const again = redeemInvite({ store, token: 'inv_bela', actingSubjectId: 'bela', clock: clock(T.d2) });
+      const belaMemberships = store.all("SELECT * FROM membership_grant WHERE subject_id='bela'").length;
+      const cOk = obsBefore.status === 'needs_invitee_identity' && obsAfter.status === 'redeem_as_existing'
+        && red.ok === true && red.shape === 'membership_only' && red.read_scope_granted === null
+        && belaRight.allowed === true && belaRight.detail.role === 'user'
+        && belaStockBefore.allowed === false && belaStockBefore.reason === 'no_scope_grant'
+        && belaInvites.ok === false && belaInvites.reason === 'role_not_delegable'
+        && give.ok === true && give.basis_id === 'deleg:csalad:anna'
+        && belaStock.allowed === true && belaPrice.allowed === false && belaPrice.reason === 'no_scope_grant'
+        && again.ok === false && belaMemberships === 1;
+
+      // (d) MEGVONÁS: a megvont admin joga és DELEGÁLÁSI ALAPJA is megszűnik, a FÜGGŐ meghívója elakad —
+      //     a többiek független joga NEM szűnik meg (R63 §5.3/9).
+      inviteColleague({ store, inviterSubjectId: 'anna', bookId: 'csalad', inviteeEmail: 'cili@pelda.hu', offeredRole: 'admin', scope: 'arak', token: 'inv_cili', expiresAt: '2026-04-01T00:00:00.000Z', at: T.d2 });
+      person('cili', 'cili@pelda.hu', T.d2).redeem();
+      const ciliRed = redeemInvite({ store, token: 'inv_cili', actingSubjectId: 'cili', clock: clock(T.d2) });
+      const ciliInvites = inviteColleague({ store, inviterSubjectId: 'cili', bookId: 'csalad', inviteeEmail: 'daniel@pelda.hu', offeredRole: 'user', scope: 'keszlet', token: 'inv_daniel', expiresAt: '2026-04-01T00:00:00.000Z', at: T.d2 });
+      const revoke = revokeMembership({ store, subjectId: 'cili', bookId: 'csalad', clock: clock(T.d3), actorSubjectId: 'anna' });
+      const delegRevoked = revokeDelegationsOf({ store, subjectId: 'cili', bookId: 'csalad', at: T.d3 });
+      const ciliAfter = rightAt({ store, subjectId: 'cili', bookId: 'csalad', opClass: 'own_book', nowIso: T.d4 });
+      person('daniel', 'daniel@pelda.hu', T.d3).redeem();
+      const danielRed = redeemInvite({ store, token: 'inv_daniel', actingSubjectId: 'daniel', clock: clock(T.d4) });
+      const belaAfter = rightAt({ store, subjectId: 'bela', bookId: 'csalad', opClass: 'own_book', nowIso: T.d4 });
+      const ciliDeleg = basisAsOf({ store, basisId: 'deleg:csalad:cili', bookId: 'csalad', validAt: T.d4, knownAt: T.d4 });
+      const dOk = ciliRed.ok === true && ciliInvites.ok === true
+        && revoke.ok === true && revoke.changed === true
+        && delegRevoked.ok === true && delegRevoked.reason === 'basis_revoked'
+        && ciliAfter.allowed === false && ciliAfter.reason === 'membership_revoked'
+        && danielRed.ok === false && danielRed.error === 'invite_not_actionable' && danielRed.reason === 'issuer_right_withdrawn'
+        && ciliDeleg.in_effect === false && ciliDeleg.reason === 'basis_revoked'
+        && belaAfter.allowed === true;
+
+      // (e) BÍRÁLÓI ÖNFELJOGOSÍTÁS: a helyi admin az indulási alapra hivatkozva sem adhat magának
+      //     `adjudicate` hatáskört (outside_basis_operations, nyom nélkül) — helyi admin ≠ platformbíráló.
+      let selfAppoint = null;
+      try {
+        grantAdjudicationAuthority({ store, subjectId: 'anna', bookId: 'csalad', operation: 'adjudicate', clock: clock(T.d4), basisId: 'startup-rule:csalad' });
+        selfAppoint = { ok: true };
+      } catch (e) { selfAppoint = { ok: false, error: e.message }; }
+      const adjRows = store.all("SELECT * FROM adjudication_authority WHERE subject_id='anna' AND operation='adjudicate'").length;
+      const eOk = selfAppoint.ok === false && /outside_basis_operations/.test(selfAppoint.error) && adjRows === 0
+        && !STARTUP_RULE.operations.includes('adjudicate') && !STARTUP_RULE.operations.includes('suspend');
+
+      // (f) NÉVTEREZETT AZONOSÍTÓ ÉS ELŐFIZETÉS — KÉT KÜLÖN TÉNY, EGYIK SEM AD JOGOT (K01 · R63 §3, §5.3/5, /11, /12):
+      //     ugyanaz a beírt adószám HU-ban és AT-ban két különböző tény; a másik jelentkező azonos
+      //     karaktersorral SAJÁT munkakörnyezetet indíthat, de ehhez a könyvhöz NEM fér hozzá; az
+      //     ismeretlen országprofil sem ad képviseleti jogot, sem nem tiltja a saját munkát; az
+      //     előfizetés a funkciót adja, a jog-kaput NEM írja felül — a válasz megmondja, melyik zárt.
+      const biz = attachBusinessIdentity({ store, bookId: 'csalad', namespace: 'tax_id', jurisdiction: 'hu', valueRaw: '12345678-2-41', at: T.d1 });
+      person('erno', 'erno@pelda.hu', T.d1).redeem();
+      const ws2 = createWorkspace({ store, creatorSubjectId: 'erno', bookId: 'masik', name: 'Másik Kft', at: T.d1 });
+      const biz2 = attachBusinessIdentity({ store, bookId: 'masik', namespace: 'tax_id', jurisdiction: 'HU', valueRaw: '12345678241', at: T.d1 });
+      const bizAt = attachBusinessIdentity({ store, bookId: 'masik', namespace: 'tax_id', jurisdiction: 'AT', valueRaw: '12345678241', at: T.d1 });
+      const sameHu = identityClaimsMatching({ store, namespace: 'tax_id', jurisdiction: 'HU', valueRaw: '12345678-2-41' });
+      const sameAt = identityClaimsMatching({ store, namespace: 'tax_id', jurisdiction: 'AT', valueRaw: '12345678-2-41' });
+      const ernoInCsalad = rightAt({ store, subjectId: 'erno', bookId: 'csalad', opClass: 'own_book', nowIso: T.d2 });
+      const unknownProfile = profileFor('XX');
+      const starter = entitlementFor({ store, bookId: 'csalad', feature: 'price_view' });
+      const annaPrice = scopeReleaseDecision({ store, subjectId: 'anna', bookId: 'csalad', scope: 'arak', nowIso: T.d2, knownAt: T.d2 });
+      const gateStarter = twoGateVerdict({ right: annaPrice, entitlement: starter });
+      setEntitlementProfile({ store, bookId: 'csalad', plan: 'pro', at: T.d2 });
+      const gatePro = twoGateVerdict({ right: annaPrice, entitlement: entitlementFor({ store, bookId: 'csalad', feature: 'price_view' }) });
+      const gateBela = twoGateVerdict({ right: belaPrice, entitlement: entitlementFor({ store, bookId: 'csalad', feature: 'price_view' }) });
+      const fOk = biz.ok === true && biz.issuer === 'self_asserted' && biz.verification === 'none_available'
+        && ws2.ok === true && biz2.ok === true && biz2.entity_subject_id !== biz.entity_subject_id
+        && bizAt.ok === false && bizAt.reason === 'business_identity_already_attached'
+        && sameHu.subjects.length === 2 && sameHu.grants_any_right === false && sameAt.subjects.length === 0
+        && ernoInCsalad.allowed === false && ernoInCsalad.reason === 'no_membership'
+        && unknownProfile.known === false && unknownProfile.representation_from_identifier === false && unknownProfile.own_work_allowed === true
+        && starter.available === false && starter.reason === 'feature_not_in_plan'
+        && gateStarter.allowed === false && gateStarter.refused_by === 'entitlement'
+        && gatePro.allowed === true
+        && gateBela.allowed === false && gateBela.refused_by === 'right';
+
+      // (g) A NYERS ÍRÁS NEM KERÜLI MEG A PLAFONT — EGY PRAGMA NÉLKÜLI MÁSODIK KAPCSOLATRÓL SEM (R63 §4:
+      //     „a nyersen írt, alap nélküli meghívó/hatáskör sem kerülheti meg az új használati korlátot").
+      //     A feltérképező olvasó lelete, KÉT kapcsolaton mérve: a REPLACE törlés-triggere
+      //     recursive_triggers nélkül nem fut, tehát egy nyers második kapcsolat az ÁTVITT korlátot
+      //     némán átírhatta volna. A próba a MÁSODIK kapcsolat pragma-hiányát is méri (KUKA-054: a
+      //     minta menjen szembe az előfeltevéssel), és azt, hogy a sor karakterre változatlan maradt.
+      const gb = store.get('SELECT grant_event_id, basis_version, granted_limit FROM grant_basis WHERE token = ?', 'inv_bela');
+      const rawConn = new DatabaseSync(store.path);
+      let reseal = null; let rawRecursive = null; let gbAfter = null;
+      try {
+        rawRecursive = Number(rawConn.prepare('PRAGMA recursive_triggers').get().recursive_triggers);
+        try {
+          rawConn.exec(`INSERT OR REPLACE INTO grant_basis (grant_event_id, token, basis_id, basis_version, granted_limit) `
+            + `VALUES (${Number(gb.grant_event_id)}, 'inv_bela', 'deleg:csalad:anna', 99, '{"operations":["adjudicate"],"roles":["admin"],"scopes":["keszlet","arak"]}')`);
+          reseal = { ok: true };
+        } catch (e) { reseal = { ok: false, error: String(e && e.message) }; }
+        gbAfter = store.get('SELECT basis_version, granted_limit FROM grant_basis WHERE token = ?', 'inv_bela');
+      } finally { rawConn.close(); }
+      const gOk = gb && gbAfter && rawRecursive === 0
+        && reseal.ok === false && /masodik nem szulethet/.test(reseal.error)
+        && Number(gbAfter.basis_version) === Number(gb.basis_version) && gbAfter.granted_limit === gb.granted_limit;
+
+      const pass = aOk && bOk && cOk && dOk && eOk && fOk && gOk;
+      return {
+        expected: 'bizonyított csatorna nélkül nincs munkakörnyezet; a saját indulás alapja v1, a helyi admin '
+          + 'alter_right-ot kap, adjudicate-et nem · a meghívó alapja a továbbadható jogból képződik, plafonnal, '
+          + 'adatkör nélkül és ismeretlen szereppel nyom nélkül elakad · a beváltás tagságot ad, adatot csak a '
+          + 'jogosult kezelő KÜLÖN lépése · a megvont admin delegálási alapja is megszűnik, a függő meghívó elakad, '
+          + 'a többiek joga marad · bírálói önfeljogosítás nyom nélkül elutasítva · az azonosító és az előfizetés '
+          + 'két külön tény, egyik sem ad jogot, és a válasz megmondja, melyik kapu zárt',
+        actual: `(a) csatorna nélkül=${unproven.reason} · munkakör=${ws.ok}/${ws.basis_id}@v${ws.basis_version} · alter_right=${annaAlter.allowed} adjudicate=${annaAdjudicate.reason}`
+          + ` · (b) adatkör nélkül=${noScope.reason} · rossz szerep=${badRole.reason} · meghívó=${inv.ok}/${inv.basis_id} · nyom=${inviteRows.join(',')}`
+          + ` · (c) megfigyelés=${obsBefore.status}→${obsAfter.status} · beváltás=${red.shape}/jog=${red.read_scope_granted} · keszlet előtte=${belaStockBefore.reason} utána=${belaStock.allowed} · arak=${belaPrice.reason} · ismét=${again.ok}`
+          + ` · (d) megvonás=${revoke.reason} · delegálás=${delegRevoked.reason} · cili=${ciliAfter.reason} · dániel=${danielRed.reason} · béla=${belaAfter.allowed}`
+          + ` · (e) önfeljogosítás=${selfAppoint.ok ? 'ÁTMENT(!)' : 'elutasítva'}/${adjRows} sor`
+          + ` · (f) HU=${sameHu.subjects.length} alany · AT=${sameAt.subjects.length} · ernő a családban=${ernoInCsalad.reason} · starter=${gateStarter.refused_by} · pro=${gatePro.allowed} · béla ár=${gateBela.refused_by}`
+          + ` · (g) nyers újrapecsét (2. kapcsolat, recursive_triggers=${rawRecursive})=${reseal.ok ? 'ÁTMENT(!)' : 'elutasítva'} · sor változatlan=${gbAfter && gb && gbAfter.granted_limit === gb.granted_limit}`,
+        pass,
+        asserts: {
+          'A-CORE-raw-rewrite-of-the-transferred-limit-is-blocked-from-any-connection': gOk,
+          'A-CORE-own-workspace-starts-with-a-versioned-basis-and-proven-channel': aOk,
+          'A-CORE-invite-basis-is-derived-from-the-delegable-right-and-capped': bOk,
+          'A-CORE-membership-does-not-release-data-until-a-scope-is-explicitly-granted': cOk,
+          'A-CORE-revocation-closes-the-member-and-their-pending-invites-but-not-others': dOk,
+          'A-CORE-self-appointment-as-reviewer-is-refused-and-local-admin-is-not-platform-reviewer': eOk,
+          'A-CORE-identifier-namespace-and-entitlement-give-no-right-and-are-separate-facts': fOk,
+        },
+      };
+    } finally { store.close(); }
+  });
+
 probe('P-ORG-adjudication-basis-limit', 'R53 · ORG-N1a · ORG-N1b · KUKA-126 · KUKA-074 · KUKA-122',
   'A DEKLARÁLT ALAP KORLÁTJA KAPU A BÍRÁLATI ÚTON — a megadáskor ÉS a használatkor',
   () => {
@@ -3655,23 +3899,31 @@ probe('P-ORG-adjudication-basis-limit', 'R53 · ORG-N1a · ORG-N1b · KUKA-126 �
       && x.suspension_rows === 0 && x.claim_state === 'received' && x.membership_revoked === false
       // …és az ÜGY-út válasza ugyanaz, mint a nem létező ügyé: a létezés nem szivárog ki.
       && x.claim_answer === x.ghost_answer;
+    // R63 §4 — AZ ALAP NÉLKÜLI, TÖRTÉNETI HATÁSKÖR IS ZÁR. Az R53–R61 alak ezt az ágat „megőrzött
+    // ellenpárként" MÉRTE (a nyers, alap nélküli sor a régi szabály szerint dolgozott); az R63
+    // szakmai alapértelmezése: „Ismeretlen eredetű régi aktív jog nem lesz automatikusan érvényes."
+    // A VERZIÓZOTT elvárás: ugyanazon a három valódi úton EGYIK hatás sem következik be.
     const gOk = liveEffect(gLawful) && liveClosed(gNarrowed) && liveClosed(gNoVersion)
-      && liveEffect(gNoBasis);
-    // (h) AZ ALAP NÉLKÜLI, TÖRTÉNETI HATÁSKÖR VISELKEDÉSE VÁLTOZATLAN — és ez KIMONDOTT határ, nem
-    //     feledékenység: erről az R53 nem hoz üzleti döntést (KUKA-033 · KUKA-050).
+      && liveClosed(gNoBasis);
+    // (h) AZ ALAP NÉLKÜLI HATÁSKÖR: a MEGADÁS alap nélkül nevezetten és nyom nélkül elakad
+    //     (`basis_id_required`); a NYERSEN írt, alap nélküli sor a HASZNÁLATKOR zár; és az állapot-
+    //     feloldó két külön mezőben mondja ki, hogy VAN kapu (`limit_enforced`) és hogy a sor MA nem
+    //     használható (`usable_now`) — a díszpipa és az elhallgatás egyaránt hazugság (KUKA-041 · 050).
     const hStore = world({});
-    grant(hStore, 'adjudicate', null);
+    const hGrant = grant(hStore, 'adjudicate', null);
+    const hLeft = rows(hStore);
+    hStore.run(`INSERT INTO adjudication_authority (subject_id, book_id, operation, granted_at, revoked_at, basis_id, basis_version)
+                VALUES ('judge','a','adjudicate',?,NULL,NULL,NULL)`, MAR);
     const hUse = use(hStore, 'adjudicate', MAR);
     const hState = basisState({ store: hStore, subjectId: 'judge', bookId: 'a', operation: 'adjudicate', validAt: MAR, knownAt: MAR });
     hStore.close();
-    const hOk = hUse.allowed === true && hState.recorded === false
-      && hState.reason === 'authority_without_recorded_basis'
-      // …ÉS A MEZŐ NEM ÁLLÍT TÖBBET A VALÓSÁGNÁL: ahol NINCS deklarált alap, ott nincs mit
-      // kikényszeríteni, tehát a `limit_enforced` itt HAMIS. A díszpipa ugyanúgy hazugság, mint a
-      // hiányzó védelem elhallgatása (KUKA-041 · KUKA-050).
-      && hState.limit_enforced === false
+    const hOk = hGrant.ok === false && /basis_id_required/.test(hGrant.error || '') && hLeft === 0
+      && hUse.allowed === false && hUse.reason === 'authority_without_recorded_basis'
+      && hState.recorded === false && hState.reason === 'authority_without_recorded_basis'
+      && hState.usable_now === false && hState.limit_enforced === true
       && LIMIT_ENFORCED_PATHS.includes('adjudication_grant')
-      && LIMIT_ENFORCED_PATHS.includes('adjudication_use');
+      && LIMIT_ENFORCED_PATHS.includes('adjudication_use')
+      && LIMIT_ENFORCED_PATHS.includes('adjudication_use_without_basis');
 
     const pass = aOk && bOk && cOk && dOk && eOk && fOk && gOk && hOk;
     return {
@@ -3683,7 +3935,7 @@ probe('P-ORG-adjudication-basis-limit', 'R53 · ORG-N1a · ORG-N1b · KUKA-126 �
         + 'HIÁNYZÓ megadáskori verzió is ZÁR (hatás és írás nélkül) · a kapu a VALÓDI belépési '
         + 'pontokon VALÓDI hatás-különbségként hat (jogos: felfüggesztés + döntés + megvonás '
         + 'MEGTÖRTÉNIK; szűkített alap és hiányzó verzió mellett EGYIK SEM) · a belső indok nem '
-        + 'szivárog ki · az alap nélküli történeti hatáskör viselkedése VÁLTOZATLAN',
+        + 'szivárog ki · az alap nélküli történeti hatáskör ZÁR — megadáskor és használatkor is (R63)',
       actual: `(a) megadás: ${aRows.map((r) => `${r.op}=${r.refused ? 'elutasítva' : 'MEGADVA(!)'}/${r.left} sor`).join(' · ')}`
         + ` · (b) pozitív: ${bRows.map((r) => `${r.op}=${r.allowed ? 'használható' : 'ZÁRVA(!)'}`).join(' · ')}`
         + ` · (c) külön korlát: megadva=${cGrants.filter((x) => x.ok).map((x) => x.op).join(',') || '—'} (${cLeft} sor)`
@@ -3694,8 +3946,8 @@ probe('P-ORG-adjudication-basis-limit', 'R53 · ORG-N1a · ORG-N1b · KUKA-126 �
         + ` · (g) ÉLES utak — jogos: hatás=${gLawful.suspension_rows}/${gLawful.claim_state}/${gLawful.membership_revoked}`
         + ` · szűkített alap: hatás=${gNarrowed.suspension_rows}/${gNarrowed.claim_state}/${gNarrowed.membership_revoked} (ügy-válasz azonos a nem létezőével=${gNarrowed.claim_answer === gNarrowed.ghost_answer})`
         + ` · hiányzó verzió: hatás=${gNoVersion.suspension_rows}/${gNoVersion.claim_state}/${gNoVersion.membership_revoked}`
-        + ` · alap nélkül (megőrzött): hatás=${gNoBasis.suspension_rows}/${gNoBasis.claim_state}/${gNoBasis.membership_revoked}`
-        + ` · (h) alap nélkül=${hUse.allowed} (${hState.reason})`,
+        + ` · alap nélkül (R63: zár): hatás=${gNoBasis.suspension_rows}/${gNoBasis.claim_state}/${gNoBasis.membership_revoked}`
+        + ` · (h) alap nélkül: megadás=${hGrant.ok ? 'ÁTMENT(!)' : 'elutasítva'}/${hLeft} sor · használat=${hUse.allowed} (${hUse.reason}) · usable_now=${hState.usable_now} enforced=${hState.limit_enforced}`,
       pass,
       asserts: {
         'A-ORG-N1b-declared-basis-gates-the-authority-grant': aOk,
@@ -3706,7 +3958,7 @@ probe('P-ORG-adjudication-basis-limit', 'R53 · ORG-N1a · ORG-N1b · KUKA-126 �
         'A-ORG-N1b-every-missing-or-invalid-basis-shape-is-a-named-refusal': fOk,
         'A-ORG-N1b-the-limit-holds-on-the-real-entry-points': gOk,
         'A-ORG-N1b-missing-granted-version-closes-the-use-on-the-real-paths': gOk && fOk,
-        'A-ORG-N1b-authority-without-recorded-basis-is-unchanged-and-named': hOk,
+        'A-ORG-N1b-authority-without-recorded-basis-is-named-and-closed': hOk,
       },
     };
   });
@@ -4394,7 +4646,7 @@ function bitemporalWorld({ withCommands = true } = {}) {
   store.run('INSERT INTO membership VALUES (?,?,?,?,NULL)', 'member', 'a', 'user', BIT.GRANT);
   store.run('INSERT INTO membership VALUES (?,?,?,?,NULL)', 'other', 'a', 'user', BIT.GRANT);
   for (const op of ['suspend', 'alter_right', 'adjudicate']) {
-    grantAdjudicationAuthority({ store, clock: clockFrom(BIT.GRANT), subjectId: 'judge', bookId: 'a', operation: op });
+    grantPlatformReviewAuthority({ store, clock: clockFrom(BIT.GRANT), subjectId: 'judge', bookId: 'a', operation: op });
   }
   if (withCommands) {
     // A MŰVELETEK A TERMÉK ÚTJÁN SZÜLETNEK (nem kézi INSERT-tel): a kör tagsága így VALÓDI
@@ -4978,7 +5230,7 @@ probe('P-ORG-basis-limit', 'R90 §6 · ORG-N1b · K04 · K05 · KUKA-041 · KUKA
         && rawRedeem.ok === false && rawRedeem.error === 'invite_outside_basis'
         && sealDeleteRefused !== null;
 
-      // (e) A DEKLARÁLATLAN MEGHÍVÓ NEM AKAD EL, DE A VÁLASZ KIMONDJA (KUKA-041 · KUKA-122), és a
+      // (e) A DEKLARÁLATLAN MEGHÍVÓ — R63 ÓTA ZÁR (lásd lent a verziózott elvárást; KUKA-041 · KUKA-050), és a
       //     kikényszerítés HELYE nevezve van — a bírálati úton a korlát MA IS csak adat (KUKA-050).
       store.run(`INSERT INTO invite (token, book_id, invitee_namespace, invitee_value, offered_role,
                    issuer_subject, expires_at, redeemed_at) VALUES (?,?,?,?,?,?,?,NULL)`,
@@ -4987,8 +5239,18 @@ probe('P-ORG-basis-limit', 'R90 §6 · ORG-N1b · K04 · K05 · KUKA-041 · KUKA
       const st = basisState({ store, subjectId: 'munkatars', bookId: 'a', operation: 'adjudicate', validAt: BIT.MARCH_LATER, knownAt: BIT.MARCH_LATER });
       const verdictHome = limitVerdict({ store, basisId: 'HAT-KORLAT', bookId: 'a', role: 'admin',
         operation: INVITE_ISSUE_OPERATION, scope: 'stock', validAt: BIT.MARCH, knownAt: BIT.MARCH });
-      const eOk = undeclared.ok === true && undeclared.basis_declared === false
+      // R63 §4 — A PECSÉT NÉLKÜLI MEGHÍVÓ INNENTŐL ZÁR. Az R37–R61 alak itt `ok: true`-t várt („a kapu
+      // nem fal, csak kimondja"); az R63 szakmai alapértelmezése szerint a nyers írással keletkezett,
+      // alap nélküli meghívó nem kerülheti meg a használati határt. A VERZIÓZOTT elvárás: a kapu
+      // nevezetten zár, a beváltás `invite_without_basis` hibakóddal áll meg, a meghívó nem fogy el.
+      const undeclaredRedeem = redeemInvite({ store, token: 'tok_nincs', actingSubjectId: 'cimzett', clock: clockFrom(BIT.MARCH_LATER) });
+      const undeclaredRow = store.get('SELECT redeemed_at FROM invite WHERE token = ?', 'tok_nincs');
+      const eOk = undeclared.ok === false && undeclared.basis_declared === false
         && undeclared.reason === 'no_declared_basis'
+        && undeclaredRedeem.ok === false && undeclaredRedeem.error === 'invite_without_basis'
+        && undeclaredRedeem.reason === 'no_declared_basis'
+        && undeclaredRow && undeclaredRow.redeemed_at === null
+        && LIMIT_ENFORCED_PATHS.includes('invite_redeem_without_basis')
         && st.limit_enforced === false
         && Array.isArray(LIMIT_ENFORCED_PATHS) && LIMIT_ENFORCED_PATHS.includes('invite_issue')
         && LIMIT_ENFORCED_PATHS.includes('invite_redeem')
@@ -5092,7 +5354,7 @@ probe('P-ORG-basis-limit', 'R90 §6 · ORG-N1b · K04 · K05 · KUKA-041 · KUKA
           'A-ORG-N1b-issuing-within-the-basis-is-unchanged': bOk,
           'A-ORG-N1b-redemption-carries-the-limit-not-only-the-role': cOk,
           'A-ORG-N1b-raw-written-invite-cannot-escape-the-issued-limit': dOk,
-          'A-ORG-N1b-undeclared-basis-is-named-not-silent': eOk,
+          'A-ORG-N1b-undeclared-basis-is-named-and-closed': eOk,
           'A-ORG-N1b-operation-identity-is-the-entry-point-not-the-caller': fOk,
           'A-ORG-N1b-omitting-an-axis-does-not-disable-it': gOk,
         },

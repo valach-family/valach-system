@@ -76,13 +76,14 @@ export const PROGRAMS = Object.freeze([
   Object.freeze({
     id: 'r88core',
     file: 'r88_chatgpt-v3.mjs',
-    companions: Object.freeze(['r88_chatgpt-v3.core.mjs']),
+    companions: Object.freeze(['r88_chatgpt-v3.core.mjs', 'r88_chatgpt-v3.core.adapted.mjs', 'activeCoreProgram.mjs']),
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
     origin: 'R88 §3 (a MAG-próba: az `r88_chatgpt-v3.core.mjs` az ő szövegük, karakterre — '
       + 'md5 d12336ec7dc26febcfcb222b9627f562, ahogy a lapjukról kinyertük; „bájtazonost" az ő saját '
       + 'példányukhoz képest NEM állítunk, mert azt nem mértük meg — R83 §6 tanulsága). '
       + 'TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson '
-      + '3 PASS / 2 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson 5 PASS / 0 FAIL.',
+      + '3 PASS / 2 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson 5 PASS / 0 FAIL.'
+      + ' R63 ÓTA AZ AKTÍV FUTÁS AZ ADAPTÁLT VÁLTOZAT (`r88_chatgpt-v3.core.adapted.mjs`, adapted-v3 — `activeCoreProgram.mjs`), amelyben a KÓD karakterre a történeti szöveg (md5 azonos), csak R63-fejlécet kapott: a fixtúrája már saját, rögzített alapot használ, ezért R63 nem kért előfeltétel-változást — a feloldó viszont egy úton jár minden burkolónál.',
     what: 'F01 — a felhatalmazási ALAP azonossága a (basis_id, book_id) PÁR: idegen könyvre hivatkozva '
       + 'nem adható hatáskör, és a tiltott kérés NYOM NÉLKÜL akad el (se sor, se későbbi engedő '
       + 'válasz); pozitív kontroll: a SAJÁT könyvén változatlanul megy. F02 — a tagságadás EGY ÍRÁS: '
@@ -100,7 +101,7 @@ export const PROGRAMS = Object.freeze([
   Object.freeze({
     id: 'r85core',
     file: 'r85_chatgpt-v3.mjs',
-    companions: Object.freeze(['r85_chatgpt-v3.core.mjs']),
+    companions: Object.freeze(['r85_chatgpt-v3.core.mjs', 'r85_chatgpt-v3.core.adapted.mjs', 'activeCoreProgram.mjs']),
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
     // HELYESBÍTÉS (R88 §7 — megtalálta: a KÜLSŐ TÁRGYALÓ FÉL). Az R86 §10-ben azt állítottam, hogy
     // ez a program „be van kötve" ide. MÉRVE nem volt igaz: sem a fájl-fában, sem ebben a
@@ -109,7 +110,8 @@ export const PROGRAMS = Object.freeze([
     origin: 'R85 §3–§4 (a MAG-próba: az `r85_chatgpt-v3.core.mjs` az ő szövegük, karakterre — '
       + 'md5 854892614413c6d8fbd0afe8c785e765). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: '
       + 'a JAVÍTÁS ELŐTTI forráson 2 PASS / 2 FAIL — pontosan az általuk közölt reprodukció —, a mai '
-      + 'forráson 4 PASS / 0 FAIL.',
+      + 'forráson 4 PASS / 0 FAIL.'
+      + ' R63 ÓTA AZ AKTÍV FUTÁS AZ ADAPTÁLT VÁLTOZAT (`r85_chatgpt-v3.core.adapted.mjs`, adapted-v3 — `activeCoreProgram.mjs`): a történeti fájl bájtazonos marad és `VS_EXT_CORE_VARIANT=historic` alatt futtatható; az adaptáció CSAK az előfeltétel (a fixtúra bírálói hatásköre a platform-szabály alapján születik, mert alap nélküli hatáskör R63 óta nem adható) — az esetek és az elvárások karakterre a történeti alakon állnak.',
     what: 'F01 — a tagságadás KÉT IDŐ-TENGELYE: a júniusi beváltás nem írhatja át, mit tudtunk '
       + 'márciusban (a megvonással azonos szerkezet). F02 — a jogváltozási esemény SAJÁT, tartós '
       + 'bizonyíték-hivatkozása: a visszamenőleges ÉS a jövőbeli hatályú ágon is megmarad (korábban '
@@ -186,13 +188,14 @@ export const PROGRAMS = Object.freeze([
   Object.freeze({
     id: 'r75',
     file: 'r75_chatgpt-v3.mjs',
-    companions: Object.freeze(['r75_chatgpt-v3.core.mjs']),
+    companions: Object.freeze(['r75_chatgpt-v3.core.mjs', 'r75_chatgpt-v3.core.adapted.mjs', 'activeCoreProgram.mjs']),
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
     origin: 'R75 §7 (a MAG-próba: a `r75_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN; ez a '
       + 'bejegyzés a burkolóra mutat, ami az artefaktumot írja — a próba szövegéhez nem nyúlunk). '
       + 'Ebben a körben az R73-nál még szükséges kétlépéses adaptáció ELMARADT: a program a mai '
       + 'forráson VÁLTOZTATÁS NÉLKÜL fut. A két futás külön nevezve: a JAVÍTÁS ELŐTTI (R74-es) '
-      + 'forráson 2/7, a mai forráson 7/7.',
+      + 'forráson 2/7, a mai forráson 7/7.'
+      + ' R63 ÓTA AZ AKTÍV FUTÁS AZ ADAPTÁLT VÁLTOZAT (`r75_chatgpt-v3.core.adapted.mjs`, adapted-v3 — `activeCoreProgram.mjs`): a történeti fájl bájtazonos marad és `VS_EXT_CORE_VARIANT=historic` alatt futtatható; az adaptáció CSAK az előfeltétel (a fixtúra bírálói hatásköre a platform-szabály alapján születik, mert alap nélküli hatáskör R63 óta nem adható) — az esetek és az elvárások karakterre a történeti alakon állnak.',
     what: 'C01–C02 kontroll (a jogos könyv-tiltás hat, a független könyvet nem érinti · hatáskör '
       + 'nélkül és idegen könyvre nem adható ki) és F01–F05: a TILTOTT eljáró NEM tilthat (a kiadás '
       + 'is engedő út) · a könyv-hatáskörből kiadott művelet-tiltás nem ér át a független könyvbe · '
@@ -214,13 +217,14 @@ export const PROGRAMS = Object.freeze([
   Object.freeze({
     id: 'r69',
     file: 'r69_chatgpt-v3.mjs',
-    companions: Object.freeze(['r69_chatgpt-v3.core.mjs']),
+    companions: Object.freeze(['r69_chatgpt-v3.core.mjs', 'r69_chatgpt-v3.core.adapted.mjs', 'activeCoreProgram.mjs']),
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
     origin: 'R69 §8 (a MAG-próba: a `r69_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN; ez a bejegyzés '
       + 'a burkolóra mutat, ami az artefaktumot írja — a próba szövegéhez nem nyúlunk). A csomagjuk '
       + 'másik két programja (`board-r69.cjs` · `runner-challenge.mjs`) a V2 BOARDOT méri, ezért annak '
       + 'a repónak a próba-rendszerébe tartozik — ide csak a MAG-próba jön (a hatókört kimondjuk, '
-      + 'nem hagyjuk némán hiányozni).',
+      + 'nem hagyjuk némán hiányozni).'
+      + ' R63 ÓTA AZ AKTÍV FUTÁS AZ ADAPTÁLT VÁLTOZAT (`r69_chatgpt-v3.core.adapted.mjs`, adapted-v3 — `activeCoreProgram.mjs`): a történeti fájl bájtazonos marad és `VS_EXT_CORE_VARIANT=historic` alatt futtatható; az adaptáció CSAK az előfeltétel (a fixtúra bírálói hatásköre a platform-szabály alapján születik, mert alap nélküli hatáskör R63 óta nem adható) — az esetek és az elvárások karakterre a történeti alakon állnak.',
     what: 'C01–C02 kontroll (a felfüggesztés-feloldás megőrzi a történetet · a sérült tartalom nem megy '
       + 'ki olvasásra) és F01–F03: sérült tartalmú ügy NEM zárható le érdemben · hiányzó tartalmú ügy '
       + 'ugyanúgy · a másik fél szabadon megadott hivatkozása NEM veheti el annak keretét egy független '
@@ -239,10 +243,11 @@ export const PROGRAMS = Object.freeze([
   Object.freeze({
     id: 'r67',
     file: 'r67_chatgpt-v3.mjs',
-    companions: Object.freeze(['r67_chatgpt-v3.core.mjs']),
+    companions: Object.freeze(['r67_chatgpt-v3.core.mjs', 'r67_chatgpt-v3.core.adapted.mjs', 'activeCoreProgram.mjs']),
     by: 'chatgpt-v3 — KÜLSŐ, független fél',
     origin: 'R67 (a MAG-próba: a `r67_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN; ez a bejegyzés '
-      + 'a burkolóra mutat, ami az artefaktumot írja — a próba szövegéhez nem nyúlunk)',
+      + 'a burkolóra mutat, ami az artefaktumot írja — a próba szövegéhez nem nyúlunk)'
+      + ' R63 ÓTA AZ AKTÍV FUTÁS AZ ADAPTÁLT VÁLTOZAT (`r67_chatgpt-v3.core.adapted.mjs`, adapted-v3 — `activeCoreProgram.mjs`): a történeti fájl bájtazonos marad és `VS_EXT_CORE_VARIANT=historic` alatt futtatható; az adaptáció CSAK az előfeltétel (a fixtúra bírálói hatásköre a platform-szabály alapján születik, mert alap nélküli hatáskör R63 óta nem adható) — az esetek és az elvárások karakterre a történeti alakon állnak.',
     what: 'C01–C03 kontroll (jogosulatlan felfüggesztés · olvasás-semlegesség · a jelzés nem ad tagságot) '
       + 'és F01–F05: a felfüggesztés TÉNYLEGES hatása · a döntési út nemleges válaszának semlegessége · '
       + 'az elbíráló visszakapja a beadvány SZÖVEGÉT · a bukott befogadás ATOMI · a beadó saját '

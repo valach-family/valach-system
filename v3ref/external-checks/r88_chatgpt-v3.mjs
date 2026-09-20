@@ -22,11 +22,16 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { activeCoreProgram, coreVariant } from './activeCoreProgram.mjs';
 
+// R63 — AZ AKTÍV VÁLTOZAT FELOLDÓN ÁT (KUKA-018/039): a burkoló nem a történeti fájlt hívja
+// kézzel, hanem az `activeCoreProgram` feloldót — ugyanazt, amit az r77/r79/r81 burkoló. A
+// történeti alak (`VS_EXT_CORE_VARIANT=historic`) futtatható marad; az eredmény `variant` mezője
+// kimondja, MI futott.
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PIN = JSON.parse(readFileSync(join(HERE, 'source-manifest.json'), 'utf8')).commit;
 
-const run = spawnSync(process.execPath, [join(HERE, 'r88_chatgpt-v3.core.mjs')], {
+const run = spawnSync(process.execPath, [join(HERE, activeCoreProgram('r88_chatgpt-v3'))], {
   cwd: HERE, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024,
 });
 const raw = String(run.stdout || '');
@@ -39,10 +44,10 @@ const cases = Array.isArray(parsed)
   ? parsed.map((r) => ({ id: r && r.id, pass: r && r.pass === true, result: r }))
   : [];
 const out = parsed
-  ? { program: 'r88_chatgpt-v3.core.mjs', source_commit: PIN, node: process.version,
+  ? { program: activeCoreProgram('r88_chatgpt-v3'), variant: coreVariant().id, source_commit: PIN, node: process.version,
       at: new Date().toISOString(), verbatim: true, cases,
       passed: cases.filter((c) => c.pass).length, failed: cases.filter((c) => !c.pass).length }
-  : { program: 'r88_chatgpt-v3.core.mjs', source_commit: PIN, node: process.version,
+  : { program: activeCoreProgram('r88_chatgpt-v3'), variant: coreVariant().id, source_commit: PIN, node: process.version,
       at: new Date().toISOString(), verbatim: true,
       error: 'a program kimenete nem értelmezhető JSON', cases: [], passed: 0, failed: 0 };
 writeFileSync(join(HERE, 'evidence/r88-core-challenge.json'), `${JSON.stringify(out, null, 2)}\n`);

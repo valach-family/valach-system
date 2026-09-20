@@ -25,11 +25,16 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { activeCoreProgram, coreVariant } from './activeCoreProgram.mjs';
 
+// R63 — AZ AKTÍV VÁLTOZAT FELOLDÓN ÁT (KUKA-018/039): a burkoló nem a történeti fájlt hívja
+// kézzel, hanem az `activeCoreProgram` feloldót — ugyanazt, amit az r77/r79/r81 burkoló. A
+// történeti alak (`VS_EXT_CORE_VARIANT=historic`) futtatható marad; az eredmény `variant` mezője
+// kimondja, MI futott.
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PIN = JSON.parse(readFileSync(join(HERE, 'source-manifest.json'), 'utf8')).commit;
 
-const run = spawnSync(process.execPath, [join(HERE, 'r75_chatgpt-v3.core.mjs')], {
+const run = spawnSync(process.execPath, [join(HERE, activeCoreProgram('r75_chatgpt-v3'))], {
   cwd: HERE, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024,
 });
 const raw = String(run.stdout || '');
@@ -64,10 +69,10 @@ const mapped = parsed && Array.isArray(parsed.results)
   ? parsed.results.map((r) => { const v = caseVerdict(r); return { id: r && r.id, pass: v.pass, verdict_shape: v.shape, result: r }; })
   : null;
 const out = parsed
-  ? { program: 'r75_chatgpt-v3.core.mjs', source_commit: PIN, node: process.version,
+  ? { program: activeCoreProgram('r75_chatgpt-v3'), variant: coreVariant().id, source_commit: PIN, node: process.version,
       at: new Date().toISOString(), verbatim: true, ...parsed,
       ...(mapped ? { cases: mapped, cases_mapped_from: 'results (a burkoló képezte, a program szövege érintetlen)' } : {}) }
-  : { program: 'r75_chatgpt-v3.core.mjs', source_commit: PIN, node: process.version,
+  : { program: activeCoreProgram('r75_chatgpt-v3'), variant: coreVariant().id, source_commit: PIN, node: process.version,
       at: new Date().toISOString(), verbatim: true, error: 'a program kimenete nem értelmezhető JSON',
       cases: [], passed: 0, failed: 0 };
 writeFileSync(join(HERE, 'evidence/r75-core-challenge.json'), `${JSON.stringify(out, null, 2)}\n`);

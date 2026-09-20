@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VS3 — első felhasználói folyamat</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar" data-testid="header">
+    <div class="brand">VS3 <span class="muted">magreferencia · R63</span></div>
+    <div class="who">
+      <span data-testid="header-subject">nincs bejelentkezve</span>
+      <span class="sep">·</span>
+      <span data-testid="header-workspace">nincs munkakörnyezet</span>
+    </div>
+  </header>
+
+  <main>
+    <p class="notice" data-testid="global-notice" hidden></p>
+
+    <!-- (1) FIÓK -->
+    <section id="sec-account" data-testid="section-account">
+      <h2>1. Fiók</h2>
+      <div class="grid2">
+        <form id="form-register" data-testid="register-form">
+          <h3>Regisztráció</h3>
+          <label>E-mail <input type="email" name="email" required data-testid="register-email" autocomplete="username"></label>
+          <label>Jelszó (min. 8) <input type="password" name="password" required minlength="8" data-testid="register-password" autocomplete="new-password"></label>
+          <button type="submit" data-testid="register-submit">Regisztráció</button>
+          <p class="result" data-testid="register-result"></p>
+        </form>
+        <form id="form-login" data-testid="login-form">
+          <h3>Belépés</h3>
+          <label>E-mail <input type="email" name="email" required data-testid="login-email" autocomplete="username"></label>
+          <label>Jelszó <input type="password" name="password" required data-testid="login-password" autocomplete="current-password"></label>
+          <button type="submit" data-testid="login-submit">Belépés</button>
+          <p class="result" data-testid="login-result"></p>
+        </form>
+      </div>
+      <div class="row">
+        <span>Csatorna bizonyítva: <strong data-testid="channel-proven">—</strong></span>
+        <button type="button" id="btn-logout" data-testid="logout" hidden>Kilépés</button>
+      </div>
+    </section>
+
+    <!-- (2) MUNKAKÖRNYEZET -->
+    <section id="sec-workspace" data-testid="section-workspace" hidden>
+      <h2>2. Munkakörnyezet</h2>
+      <form id="form-ws" data-testid="ws-form">
+        <h3>Új munkakörnyezet</h3>
+        <label>Név <input type="text" name="name" required data-testid="ws-name"></label>
+        <label>Terv
+          <select name="plan" data-testid="ws-plan">
+            <option value="starter">starter (ár-nézet nélkül)</option>
+            <option value="pro">pro (ár-nézettel)</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" name="is_business" data-testid="ws-business"> Vállalkozási minőség (önbevallott — hatósági igazolás nincs)</label>
+        <div id="ws-business-fields" hidden>
+          <label>Joghatóság
+            <select name="jurisdiction" data-testid="ws-jurisdiction">
+              <option value="HU">HU</option><option value="AT">AT</option><option value="DE">DE</option>
+              <option value="SK">SK</option><option value="RO">RO</option><option value="egyeb">egyéb</option>
+            </select>
+          </label>
+          <label>Adószám <input type="text" name="tax_id" data-testid="ws-tax-id"></label>
+        </div>
+        <button type="submit" data-testid="ws-create">Létrehozás</button>
+        <p class="result" data-testid="ws-create-result"></p>
+      </form>
+      <h3>Váltó</h3>
+      <ul id="ws-list" class="list" data-testid="ws-list"></ul>
+      <form id="form-plan" data-testid="plan-form" hidden>
+        <h3>Terv módosítása (csak admin)</h3>
+        <label>Terv
+          <select name="plan" data-testid="plan-select">
+            <option value="starter">starter</option><option value="pro">pro</option>
+          </select>
+        </label>
+        <button type="submit" data-testid="plan-submit">Terv mentése</button>
+        <p class="result" data-testid="plan-result"></p>
+      </form>
+    </section>
+
+    <!-- (3) MUNKATÁRSAK (csak admin) -->
+    <section id="sec-members" data-testid="section-members" hidden>
+      <h2>3. Munkatársak</h2>
+      <form id="form-invite" data-testid="invite-form">
+        <h3>Meghívás</h3>
+        <label>E-mail <input type="email" name="email" required data-testid="invite-email"></label>
+        <label>Szerep
+          <select name="role" data-testid="invite-role"><option value="user">user</option><option value="admin">admin</option></select>
+        </label>
+        <label>Adatkör (plafon)
+          <select name="scope" data-testid="invite-scope"><option value="keszlet">keszlet</option><option value="arak">arak</option></select>
+        </label>
+        <button type="submit" data-testid="invite-submit">Meghívó kiadása</button>
+        <p class="result" data-testid="invite-result"></p>
+      </form>
+      <h3>Tagok</h3>
+      <p class="muted small">A meghívó adatköre PLAFON; a tényleges olvasási jogot itt, kimondott lépésben adja az admin („adatkör adása").</p>
+      <ul id="members-list" class="list" data-testid="members-list"></ul>
+      <p class="result" data-testid="members-result"></p>
+    </section>
+
+    <!-- (4) ADATOK -->
+    <section id="sec-data" data-testid="section-data" hidden>
+      <h2>4. Adatok</h2>
+      <div class="row">
+        <button type="button" id="btn-stock" data-testid="data-stock-btn">Készlet-nézet</button>
+        <button type="button" id="btn-price" data-testid="data-price-btn">Ár-nézet</button>
+      </div>
+      <div class="grid2">
+        <div class="panel"><h3>Készlet</h3><pre class="out" data-testid="data-stock">—</pre></div>
+        <div class="panel"><h3>Ár</h3><pre class="out" data-testid="data-price">—</pre></div>
+      </div>
+    </section>
+
+    <!-- (5) MEGHÍVÓ BEVÁLTÁSA -->
+    <section id="sec-invite" data-testid="section-invite" hidden>
+      <h2>5. Meghívó beváltása</h2>
+      <p>Meghívó: <code data-testid="invite-token"></code></p>
+      <pre class="out" data-testid="invite-observe">—</pre>
+      <p class="next" data-testid="invite-next"></p>
+      <button type="button" id="btn-redeem" data-testid="invite-redeem" hidden>Meghívó beváltása</button>
+      <pre class="out" data-testid="invite-redeem-result" hidden></pre>
+    </section>
+
+    <!-- (6) FEJLESZTŐI LEVÉL-FOGADÓ -->
+    <section id="sec-mailbox" data-testid="section-mailbox">
+      <h2>6. FEJLESZTŐI LEVÉL-FOGADÓ — nem küld külső személynek</h2>
+      <p class="muted small">Valódi levél soha nem megy ki. Ami itt áll, azt a rendszer „küldte volna”: a hivatkozásokra ugyanúgy rá lehet kattintani.</p>
+      <button type="button" id="btn-mailbox" data-testid="mailbox-refresh">Frissítés</button>
+      <ul id="mailbox" class="list" data-testid="mailbox"></ul>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

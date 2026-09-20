@@ -44,6 +44,7 @@
 // A cellák VÁRT értékei a normából (REV-N5a/b/c) következnek, nem a mai kód olvasatából — ezért ha
 // a kód elcsúszik a normától, a mátrix PIROS lesz, nem „új igazságot" ír ki.
 
+import { grantPlatformReviewAuthority } from './platformRule.mjs';
 import { openStore, clockFrom } from './store.mjs';
 import { rightAt } from './authz.mjs';
 import { adjudicationRightAt, grantAdjudicationAuthority } from './adjudication.mjs';
@@ -181,9 +182,9 @@ function worldWithBan(plan) {
     store.run('INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)',
       'sub_alany', b, 'user', clock.now());
     for (const op of ['suspend', 'alter_right']) {
-      grantAdjudicationAuthority({ store, subjectId: 'sub_alany', bookId: b, operation: op, clock });
+      grantPlatformReviewAuthority({ store, subjectId: 'sub_alany', bookId: b, operation: op, clock });
     }
-    grantAdjudicationAuthority({ store, subjectId: 'sub_biro', bookId: b, operation: 'alter_right', clock });
+    grantPlatformReviewAuthority({ store, subjectId: 'sub_biro', bookId: b, operation: 'alter_right', clock });
   }
   // A TILTÁS FIXTÚRAKÉNT kerül be (közvetlenül a tárolóba), és ezt KIMONDJUK: a mátrix a HATÓKÖRT
   // méri, nem a kiadhatóságot. A kiadhatóságnak SAJÁT mérése van (`P-REV-ban-paths` (b3)/(e)/(f)),

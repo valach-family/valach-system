@@ -385,7 +385,16 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
   // korlát nem volt kikényszerítve, tehát a hiány nem néma engedély (KUKA-041).
   const limitGate = redemptionLimitGate({ store, invite: inv, knownAt: clock.now() });
   if (!limitGate.ok) {
-    return Object.freeze({ ok: false, error: 'invite_outside_basis', reason: limitGate.reason });
+    // R63 §4: a HIÁNYZÓ alap és a KORLÁTON KÍVÜLI meghívó két különböző tény (KUKA-124/2) — a
+    // válasz hibakódja is különbözik, hogy a hívó tudja, mit pótoljon (KUKA-064).
+    return Object.freeze({
+      ok: false,
+      error: limitGate.basis_declared === false ? 'invite_without_basis' : 'invite_outside_basis',
+      reason: limitGate.reason,
+      message: limitGate.basis_declared === false
+        ? 'ehhez a meghívóhoz nincs rögzített felhatalmazási alap — kérj új meghívót a jogosult kiadótól'
+        : 'a meghívó a kiadáskori felhatalmazás korlátján kívül esik — kérj új meghívót',
+    });
   }
 
   // (4) A CÍM MÖGÖTTI EMBER — a lezárt sorokat is számon tartva (K09-söprés).
@@ -492,6 +501,7 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
     }
 
     let subjectId = target;
+    let readScopeGranted = null;
     if (shape === 'birth') {
       subjectId = `sub_${token}`;
       store.run('INSERT INTO subject (id, kind) VALUES (?, ?)', subjectId, 'person');
@@ -538,6 +548,12 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
       if (limitGate.basis_declared === true) {
         const rb = recordGrantBasis({ store, grantEventId: g.grant_event_id, gate: limitGate });
         if (!rb.ok) throw new Error(`redeemInvite: az átvitt korlát nem írható — ${rb.reason}`);
+        // R63 — A PECSÉTELT ADATKÖR PLAFON MARAD, NEM AUTOMATIKUS JOG. Az első alakom itt a pecsét
+        // adatkörét beváltáskor OLVASÁSI JOGGÁ írta volna — a P-DSC-scope-basis próba azonnal
+        // megfogta: az elfogadott K05-DSC-c (R49/R53) épp azt mondja ki, hogy a MEGADHATÓ nem a
+        // MEGADOTT. A jogot a jogosult kezelő KÜLÖN, kimondott lépésben adja (delegation.mjs →
+        // grantScopeToMember), a plafon (grant_basis) pedig szűkíti. A válasz kimondja, hogy itt
+        // NEM született olvasási jog (KUKA-012 · KUKA-041).
       }
     }
 
@@ -547,6 +563,6 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
       clock.now(), token);
     if (used.changes !== 1) throw new Error('redeemInvite: a meghívót közben már felhasználták');
 
-    return Object.freeze({ ok: true, shape, outcome: outcome2.outcome, subject_id: subjectId, book_id: fresh.book_id });
+    return Object.freeze({ ok: true, shape, outcome: outcome2.outcome, subject_id: subjectId, book_id: fresh.book_id, read_scope_granted: readScopeGranted });
   });
 }

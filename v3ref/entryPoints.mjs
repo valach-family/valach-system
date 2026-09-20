@@ -73,6 +73,7 @@
 //     hanem KÖVETELMÉNY: a próba azt is méri, hogy a két válasz BÁJTAZONOS (KUKA-084: a szivárgás
 //     kijárata nem hely, hanem CSATORNA — a mondat MEGLÉTE is csatorna).
 
+import { grantPlatformReviewAuthority } from './platformRule.mjs';
 import { openStore, clockFrom } from './store.mjs';
 import { KNOWN_BAN_KINDS, KNOWN_BAN_CAUSES, banKind, kindForCause } from './banScope.mjs';
 import { issueBan } from './ban.mjs';
@@ -118,7 +119,7 @@ function world() {
       s, 'book_a', 'user', T0);
   }
   for (const op of ['suspend', 'alter_right', 'adjudicate']) {
-    grantAdjudicationAuthority({ store, subjectId: 'sub_eljaro', bookId: 'book_a', operation: op, clock });
+    grantPlatformReviewAuthority({ store, subjectId: 'sub_eljaro', bookId: 'book_a', operation: op, clock });
   }
   return { store, clock };
 }

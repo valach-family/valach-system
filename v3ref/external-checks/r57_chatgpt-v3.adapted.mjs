@@ -1,3 +1,49 @@
+// ADAPTÁCIÓ R63 (adaptált burkoló, közvetlenül szerkesztve · forrás: CMD-VS-300-002-002 R63 §4,
+// `v3ref/source-documents/R63_board_v1.md`): a `world()` próba-meghívója NEVEZETT, rögzített felhatalmazási
+// alap alatt, a rendszer SAJÁT kiadóján születik — a nyers `INSERT INTO invite VALUES (…)` helyett
+// `recordAuthorityBasis(…)` (`authorityBasis.mjs`, BAS-01: `allowedOperations: [invite_issue]` ·
+// `allowedRoles: ['user']` (a kínált szerep) · `allowedScopes: ['keszlet']` · `evidenceRef:
+// 'synthetic:R63-adaptation'`) + `issueInviteUnderBasis(…)` (`basisLimit.mjs`, BLI-01, `scope: 'keszlet'`),
+// UGYANAZOKKAL a meghívó-mezőkkel (token `invite` · könyv `A` · cím `holder@example.invalid` · szerep `user` ·
+// kiadó `issuer` · a HÍVÓ által adott lejárat), UGYANAZON az órán (a fixtúra órája, 2026-09-10T10:00:00.000Z).
+// Mindkét hívás `.ok`-ját a fixtúra ELLENŐRZI, és bukásnál az INDOKKAL dob, hogy egy fixtúra-hiba nevezett
+// `test_error`-ként jelenjen meg, ne néma „nem"-ként (KUKA-020). A művelet nevét a szerződéstől kérdezzük
+// (`INVITE_ISSUE_OPERATION`), nem gépeljük le (KUKA-036).
+//
+// MIÉRT: az R63 két szabályt szigorított a magreferenciában. (A) `grantAdjudicationAuthority`
+// (`adjudication.mjs`) alap NÉLKÜL DOB (`basis_id_required`), és `authorityRowAt` (`authority.mjs`) az
+// alap nélküli (`basis_id` NULL) hatáskör-sort NEM használja (`authority_without_recorded_basis`) —
+// „Bírálati/felülvizsgálati hatáskör: nevezett, erre jogosult delegáló vagy külön védett
+// rendszerüzemeltetői kiinduló szabály kell." (B) `redeemInvite` (`invite.mjs` 3/b · `basisLimit.mjs`
+// `redemptionLimitGate`) az `invite_basis` pecsét nélküli meghívót ELUTASÍTJA (`invite_without_basis`,
+// `no_declared_basis`) — „Nyers tárolói írással keletkezett, alap nélküli meghívó vagy hatáskör nem
+// kerülheti meg az új használati határt." Ez a program az R63 ELŐTT született, és a `world()` fixtúrája
+// nyers INSERT-tel írta a meghívót, pecsét nélkül — ezért az R63 után a beváltásra épülő HÁROM eset a
+// fixtúrában, a mért kérdés előtt bukott el (MÉRVE, az adaptáció ELŐTT: T01 · T02 · T05
+// `invite_without_basis` / `no_declared_basis`; a T03 · T04 · E01 · E04 meghívót nem vált be, az zöld
+// maradt; az E02 · E03 a mérés gépén a battéria 15 000 ms-os egység-korlátján akadt el —
+// `spawnSync … ETIMEDOUT`, KÖRNYEZETI akadály, nem az R63 két szabálya: a futtató utolsó, R63 előtti
+// eredményében (results/, 2026-09-20 07:41) mind a kilenc zöld volt; a kilencből ELŐTTE passed 4 /
+// failed 5). A piros tehát ELAVULT ELŐFELTÉTEL, nem a mért tulajdonság kudarca és nem termékhiba —
+// és NEM nevezzük visszamenőleg zöldnek: a szigorítás marad, a TESZT-ELŐFELTÉTEL változik.
+//
+// AZ (A) SZABÁLY ERRE A PROGRAMRA NEM VONATKOZIK, KIMONDVA: bírálati hatáskört nem ad és nem használ.
+//
+// AMI NEM VÁLTOZOTT: egyetlen eset-azonosító (T01–T05 · E01–E04), elvárás, óra (2026-09-10T10:00:00.000Z
+// és a T01 két lejárata — az offset-zónás LEJÁRT és a nyílt), negatív ág (T01 lejárt ága · T02 elutasított
+// UPDATE-je és a `invite_no_change_sealed` elvétele utáni `invite_terms_changed` ága · T05 mind a 14 DML
+// alakja a `recursive_triggers` 0 és 1 alatt · E01–E04 kapu-megkerülései), a T03 mutáció-ellenpárja, a
+// T04 lenyomat-mérése, a battéria darabolt hívása (R81 §5 · R8 §3 · R52, lentebb), az
+// `evidence/r56-challenge.json` alakja és a kimenet sem. A T02 őr nélküli ágán a nyers
+// `UPDATE invite SET offered_role='admin'` SZÁNDÉKOS marad: az a pecsét-eltérés TÉNYÉT állítja elő, és a
+// beváltás az (1/b) ponton — a 3/b alap-kapu ELŐTT — fogja meg, tehát az elvárt válasz
+// (`invite_terms_changed`) az R63 után is ugyanaz. A T05 14 nyers DML-je ugyanígy SZÁNDÉKOS: azok a
+// KIADOTT feltétel átírhatatlanságát támadják, és a tároló őrei utasítják el őket — a pecsét mellettük
+// érintetlen marad. A kiadás a rendszer SAJÁT íróin megy (recordAuthorityBasis · issueInviteUnderBasis),
+// tehát a kiadási korlát-kapu is fut — nem kiskapu, hanem a GPR-01 `measurement_fixture` használat.
+// AZ EREDETI VÁLTOZAT ÉRINTETLEN ÉS TOVÁBBRA IS FUT: `r57_chatgpt-v3.mjs` (történeti forrás, a nyers
+// INSERT-tel — ott a három eset az R63 után NEVEZETTEN piros, és ezt nem takarjuk el).
+//
 // ADAPTÁCIÓ (chatgpt-v3 R8 §3 hozzájárulásával): a battéria egység-DARABSZÁMA konfigurálható
 // futtatási paraméter, alapértéke 6. MIÉRT: a mutációs battéria 134 mutációra nőtt, és a korábban
 // rögzített HÁRMAS darabolásnál minden egység ~12,0–12,4 s — a `v3ref/mutate.mjs` SAJÁT
@@ -29,13 +75,17 @@ import {tmpdir} from 'node:os';
 import {spawnSync} from 'node:child_process';
 import {openStore,clockFrom} from './source/v3ref/store.mjs';
 import {redeemInvite} from './source/v3ref/invite.mjs';
+import {recordAuthorityBasis} from './source/v3ref/authorityBasis.mjs';
+import {issueInviteUnderBasis,INVITE_ISSUE_OPERATION} from './source/v3ref/basisLimit.mjs';
 import {EXPECTED_PROBES} from './source/v3ref/manifest.mjs';
 import {MUTATIONS} from './source/v3ref/mutations.mjs';
 import {ALL_NORMS,checkNorms,clauseDigest,contentReviewState,indexDigest,normsDigest} from './source/v3ref/norms.mjs';
 import {contractDigest} from './source/v3ref/normContract.mjs';
 const root=import.meta.dirname,pin=JSON.parse(readFileSync(join(root,'source-manifest.json'))).commit;
 const cases=[];
-function world(expires='2026-09-30T00:00:00.000Z'){const store=openStore(),clock=clockFrom('2026-09-10T10:00:00.000Z');for(const s of ['issuer','holder'])store.run('INSERT INTO subject VALUES (?,?)',s,'person');store.run('INSERT INTO book VALUES (?,?)','A','A');store.run('INSERT INTO membership VALUES (?,?,?,?,NULL)','issuer','A','admin','2026-09-01T00:00:00.000Z');store.run('INSERT INTO external_id VALUES (?,?,?,?,?,?,?,?,NULL)','holder','email','self_asserted','n/a','holder@example.invalid','holder@example.invalid','one_to_one','2026-09-01T00:00:00.000Z');store.run('INSERT INTO account VALUES (?,?)','holder','original');store.run('INSERT INTO channel_proof VALUES (?,?,?,?)','holder','email','holder@example.invalid','2026-09-01T00:00:00.000Z');store.run('INSERT INTO invite VALUES (?,?,?,?,?,?,?,NULL)','invite','A','email','holder@example.invalid','user','issuer',expires);return{store,clock};}
+// ADAPTÁCIÓ R63 (B): a próba-meghívó felhatalmazási alapja — egy nevezett azonosító, egy bizonyíték-hivatkozás, egy adatkör (KUKA-036: egy fogalom, egy képző).
+const BASIS=Object.freeze({id:'synthetic:R63-adaptation:A',evidence:'synthetic:R63-adaptation',scope:'keszlet'});
+function world(expires='2026-09-30T00:00:00.000Z'){const store=openStore(),clock=clockFrom('2026-09-10T10:00:00.000Z');for(const s of ['issuer','holder'])store.run('INSERT INTO subject VALUES (?,?)',s,'person');store.run('INSERT INTO book VALUES (?,?)','A','A');store.run('INSERT INTO membership VALUES (?,?,?,?,NULL)','issuer','A','admin','2026-09-01T00:00:00.000Z');store.run('INSERT INTO external_id VALUES (?,?,?,?,?,?,?,?,NULL)','holder','email','self_asserted','n/a','holder@example.invalid','holder@example.invalid','one_to_one','2026-09-01T00:00:00.000Z');store.run('INSERT INTO account VALUES (?,?)','holder','original');store.run('INSERT INTO channel_proof VALUES (?,?,?,?)','holder','email','holder@example.invalid','2026-09-01T00:00:00.000Z');/* ADAPTÁCIÓ R63 (B): a meghívó NEVEZETT alap alatt, a rendszer SAJÁT kiadóján születik — a régi nyers `INSERT INTO invite VALUES (…)` helyett. A mezők, a token és az óra ugyanazok. */const at=clock.now();const basis=recordAuthorityBasis({store,basisId:BASIS.id,bookId:'A',issuerSubject:'issuer',effectiveAt:at,recordedAt:at,allowedOperations:[INVITE_ISSUE_OPERATION],allowedRoles:['user'],allowedScopes:[BASIS.scope],evidenceRef:BASIS.evidence});if(!basis.ok)throw new Error('R63 adaptation: az alap nem rögzíthető — '+basis.reason);const issued=issueInviteUnderBasis({store,token:'invite',bookId:'A',inviteeNamespace:'email',inviteeValue:'holder@example.invalid',offeredRole:'user',issuerSubject:'issuer',expiresAt:expires,basisId:BASIS.id,scope:BASIS.scope,issuedAt:at});if(!issued.ok)throw new Error('R63 adaptation: a meghívó nem adható ki az alap alatt — '+issued.reason);return{store,clock};}
 async function add(id,expected,fn){try{cases.push({id,expected,...await fn()});}catch(e){cases.push({id,expected,test_error:e.stack});}}
 async function copy(fn){const dir=mkdtempSync(join(tmpdir(),'r57-'));try{cpSync(join(root,'source'),dir,{recursive:true});return await fn(dir);}finally{rmSync(dir,{recursive:true,force:true});}}
 function replace(file,from,to){const s=readFileSync(file,'utf8');if(s.split(from).length!==2)throw Error('Anchor must match exactly once: '+file);writeFileSync(file,s.replace(from,to));}

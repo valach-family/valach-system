@@ -8166,6 +8166,53 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'hazugság, amíg nem mondjuk meg, MELYIK hivatkozást kötöttük.',
   }),
   Object.freeze({
+    id: 'KUKA-199',
+    date: '2026-09-20',
+    title: 'A PLAFON MINT JOG — a meghívó pecsételt adatköre beváltáskor magától olvasási joggá vált',
+    what: 'Az R63-as core-folyamat első alakjában a meghívó BEVÁLTÁSA (`invite.mjs`) a pecsét '
+      + 'adatkörét (amit a kiadó TOVÁBBADHAT) rögtön OLVASÁSI JOGGÁ írta: a tag a belépés '
+      + 'pillanatában látta a készletet, anélkül, hogy a jogosult kezelő ezt kimondta volna. A '
+      + 'saját P-DSC-scope-basis és P-DSC-scope-grant-history próba az ELSŐ futáson piros lett '
+      + '(„NINCS jog: tiszta=KIADVA(!)"), mert az elfogadott K05-DSC-c klauzula (R49/R53) pont ezt '
+      + 'tiltja: a MEGADHATÓ nem a MEGADOTT.',
+    why_wrong: 'A KUKA-002 alakja a jogok terében: KÉT tény ült egy soron — a plafon (grant_basis: '
+      + 'mit szabad a kiadónak továbbadnia) és a megadott jog (scope_grant: mit adott a kezelő '
+      + 'TÉNYLEG). Ha a plafon némán joggá válik, akkor maga a meghívás ad ki adatot, a kezelő '
+      + 'kimondott lépése nélkül — és a KÉSŐBBI szűkítés sem tud különbséget tenni „megadható" és '
+      + '„megadott" között. Az R63 §5.3/7 külön ki is mondja: „A pozitív, KÜLÖN engedélyezett '
+      + 'olvasás működik" — a külön a lényeg. A hiba kényelemből született: a lánc végigkattintása '
+      + 'egy lépéssel rövidebb lett volna.',
+    replaced_by: 'A beváltás CSAK tagságot szül, és ezt a válasz kimondja (`read_scope_granted: '
+      + 'null`); a jogot a jogosult kezelő KÜLÖN, kimondott lépésben adja (`delegation.mjs` → '
+      + '`grantScopeToMember`, DLG-01, a saját delegálási alapja alatt); a P-CORE próba (c) '
+      + 'szakasza a jog HIÁNYÁT méri a kimondott lépés ELŐTT (`no_scope_grant`) és a meglétét '
+      + 'UTÁNA; az M204 mutáció a régi alakot (a plafon joggá válik) visszateszi, és a próba piros.',
+    replacement: 'A plafon nem jog. Amit valaki továbbadhat, az nem az, amit megadott — a két tény '
+      + 'két külön sor, és a beváltás csak tagságot ad. Ahol egy lépés „kényelmesen" összevonható '
+      + 'egy másikkal, ott előbb meg kell kérdezni, melyik ELFOGADOTT klauzula tiltja az összevonást.',
+    decision: 'D-VS-3065',
+    found_by: 'a SAJÁT próbám (P-DSC-scope-basis · P-DSC-scope-grant-history) az első futáson, '
+      + 'kiadás előtt — a külső fél nem látta, mert a hibás alak soha nem lett feltolva.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/invite.mjs']),
+        pattern: 'NEM AUTOMATIKUS JOG',
+        why: 'a beváltás helye kimondja, hogy a pecsét plafon, nem jog' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/delegation.mjs']),
+        pattern: 'grantScopeToMember',
+        why: 'a jogot a kezelő KÜLÖN lépése adja, saját delegálási alap alatt' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/invite.mjs']),
+        pattern: 'grantReadScope',
+        why: 'a beváltás nem hívhat adatköri jogadót — az a delegation.mjs kimondott lépése' }),
+    ]),
+    guard_note: 'gépi jel: `npm run verify:kuka` tiltó-minta (a beváltó nem hívhat adatköri '
+      + 'jogadót) + a P-CORE-startup-and-delegation (c) szakasza (`npm run verify:v3ref`) + az '
+      + 'M204 mutáció a kilépési kódon.',
+    lesson: 'A PLAFON NEM JOG: amit továbbadhatsz, az nem az, amit megadtál — a beváltás csak '
+      + 'tagságot szül, az adat a kezelő külön szavára megy ki.',
+  }),
+  Object.freeze({
     id: 'KUKA-198',
     date: '2026-09-20',
     title: 'A KÖVETKEZTETÉS EGY OLYAN TULAJDONSÁGBÓL, AMI A TESTVÉREKEN IS IGAZ',
