@@ -1,0 +1,159 @@
+{
+ "tool": "FGY-01/3",
+ "tool_commit": "c075167137505af6f35a786429df56ee35fdb92c",
+ "tool_file": "./tools/v3_fogyasztas_meres.mjs",
+ "tool_file_sha256": "6caa058e29b0a44c90bd0063f69774d85b6a9935d4e9c67fff7cc1a9f456db6f",
+ "tool_dirty": false,
+ "generated_at": "2026-09-20T20:41:16.352Z",
+ "session": "76fa7fd1-bacc-5f4b-9450-d1bcb6c9cd5b",
+ "snapshot_closed_at": "2026-09-20T20:41:16.352Z",
+ "runtime_versions": [
+  "2.1.278"
+ ],
+ "window": {
+  "label": "R69 végrehajtás (R69 parancs 20:06:40Z → a csomag záró mérése)",
+  "from": "2026-09-20T20:06:40Z",
+  "to": null,
+  "to_effective": "2026-09-20T20:41:16.352Z"
+ },
+ "coverage": {
+  "files": 1,
+  "unreadable": [],
+  "unparsable_lines": 0,
+  "assistant_without_usage": 0,
+  "invalid_timestamp_calls": 0,
+  "cross_file_duplicate_ids": 0,
+  "incomplete_usage_calls": 0,
+  "synthetic_records": 0,
+  "calls_total": 47,
+  "calls_in_window": 47,
+  "complete": true,
+  "note": "teljes: minden megtalált átirat beolvasva, minden modell-válasz usage-dzsal, azonos azonosító csak egy fájlban"
+ },
+ "whole_session": {
+  "calls": 47,
+  "synthetic_records": 0,
+  "incomplete_usage_calls": 0,
+  "totals_kind": "teljes",
+  "first_call": "2026-09-20T20:17:42.080Z",
+  "last_call": "2026-09-20T20:41:15.112Z",
+  "totals": {
+   "input": 1474,
+   "cache_write": 428306,
+   "cache_read": 15297264,
+   "output": 94955
+  },
+  "by_kind": {
+   "main": {
+    "calls": 47,
+    "input": 1474,
+    "cache_write": 428306,
+    "cache_read": 15297264,
+    "output": 94955
+   }
+  },
+  "by_model": {
+   "claude-fable-5-1": {
+    "calls": 47,
+    "input": 1474,
+    "cache_write": 428306,
+    "cache_read": 15297264,
+    "output": 94955
+   }
+  },
+  "main_context": {
+   "median": 338171,
+   "max": 454751,
+   "calls_over_400k": 10
+  },
+  "main_wakeups": {
+   "user": {
+    "wakeups": 1,
+    "calls": 47,
+    "input_with_cache": 15727044
+   }
+  },
+  "agent_input_total": 0,
+  "agent_count": 0,
+  "thresholds": {
+   "main_context_median": {
+    "limit": 200000,
+    "value": 338171,
+    "exceeded": true
+   },
+   "agent_input_per_package": {
+    "limit": 40000000,
+    "value": 0,
+    "exceeded": false
+   }
+  }
+ },
+ "window_summary": {
+  "calls": 47,
+  "synthetic_records": 0,
+  "incomplete_usage_calls": 0,
+  "totals_kind": "teljes",
+  "first_call": "2026-09-20T20:17:42.080Z",
+  "last_call": "2026-09-20T20:41:15.112Z",
+  "totals": {
+   "input": 1474,
+   "cache_write": 428306,
+   "cache_read": 15297264,
+   "output": 94955
+  },
+  "by_kind": {
+   "main": {
+    "calls": 47,
+    "input": 1474,
+    "cache_write": 428306,
+    "cache_read": 15297264,
+    "output": 94955
+   }
+  },
+  "by_model": {
+   "claude-fable-5-1": {
+    "calls": 47,
+    "input": 1474,
+    "cache_write": 428306,
+    "cache_read": 15297264,
+    "output": 94955
+   }
+  },
+  "main_context": {
+   "median": 338171,
+   "max": 454751,
+   "calls_over_400k": 10
+  },
+  "main_wakeups": {
+   "user": {
+    "wakeups": 1,
+    "calls": 47,
+    "input_with_cache": 15727044
+   }
+  },
+  "agent_input_total": 0,
+  "agent_count": 0,
+  "thresholds": {
+   "main_context_median": {
+    "limit": 200000,
+    "value": 338171,
+    "exceeded": true
+   },
+   "agent_input_per_package": {
+    "limit": 40000000,
+    "value": 0,
+    "exceeded": false
+   }
+  }
+ },
+ "thresholds_decidable": true,
+ "input_manifest": [
+  {
+   "path": "~/.claude/projects/-home-user/76fa7fd1-bacc-5f4b-9450-d1bcb6c9cd5b.jsonl",
+   "bytes": 2365217,
+   "sha256": "1a3a0592b8583a57f99bfaf770619729c984cddd8db93a62d3c059d26f2cdebb",
+   "kind": "main"
+  }
+ ],
+ "reproduce": "node tools/v3_fogyasztas_meres.mjs --session 76fa7fd1-bacc-5f4b-9450-d1bcb6c9cd5b --from 2026-09-20T20:06:40Z --to 2026-09-20T20:41:16.352Z --label \"R69 végrehajtás (R69 parancs 20:06:40Z → a csomag záró mérése)\" --projects ~/.claude/projects"
+}
