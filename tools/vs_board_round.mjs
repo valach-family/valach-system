@@ -80,12 +80,21 @@ function keys() {
 // A hatókörönkénti mátrix-tételek a KATALÓGUSBÓL jönnek, nem kézzel másolt listából (KUKA-051:
 // a mérés hatóköre nem LISTA, hanem SZABÁLY — a kézi másolat a következő új tételről nem tudna,
 // és a hiánya NÉMA lenne). A katalógus CommonJS, ez a fájl ESM: createRequire a híd.
+// A V3 repóban a katalógus NEM él (a board forrása a V2 repó — egy otthon, nem másolat); ezért a
+// behúzás KÉSLELTETETT: csak a mátrixot író zárások (close-cmd · close-step · close-pr) kérik, a
+// kör-üzenet (reply · cmd · open · status) nélküle is megy. Ha hiányzik, a hiba NEVEZETT (KUKA-064).
 const requireCjs = createRequire(import.meta.url);
-const FRM = requireCjs(resolve(ROOT, 'tools/chatops-board/src/frmCatalog.js'));
-const byScope = (s) => (FRM.DEFAULT_FRM_CATALOG || []).filter((i) => i.scope === s).map((i) => i.item_key);
-const CMD_MATRIX = byScope('cmd');
-const STEP_MATRIX = byScope('step');
-const PR_MATRIX = byScope('pr');
+const FRM_PATH = resolve(ROOT, 'tools/chatops-board/src/frmCatalog.js');
+let FRM_CACHE = null;
+function frmCatalog() {
+  if (FRM_CACHE) return FRM_CACHE;
+  try { FRM_CACHE = requireCjs(FRM_PATH); } catch (e) {
+    console.error(`HIÁNYZIK a mátrix-katalógus: ${FRM_PATH} — a zárás (close-cmd/close-step/close-pr) a V2 repóból (valach-family/vs) futtatható, ahol a katalógus él; a kör-üzenet (reply) ebből a repóból is megy. (${e && e.code || e})`);
+    process.exit(2);
+  }
+  return FRM_CACHE;
+}
+const byScope = (s) => (frmCatalog().DEFAULT_FRM_CATALOG || []).filter((i) => i.scope === s).map((i) => i.item_key);
 
 async function postMatrix(objectType, objectKey, pr, items, notes, by) {
   // --na tétel1,tétel2 → azok NEM-RELEVÁNS státuszt kapnak (indok a --na-note-ból) — ami nem érinti
@@ -205,7 +214,7 @@ async function main() {
     // ELŐBB a mátrix, UTÁNA a záró riport — a board üzenet-kapuja a záró riportot csak teljesített
     // mátrix mellett engedi be (helyesen: a zöld állítás előbb legyen könyvelve, mint a „kész" szó).
     if (!opt('no-matrix')) {
-      await postMatrix('CMD', K.cmd, K.pr, CMD_MATRIX,
+      await postMatrix('CMD', K.cmd, K.pr, byScope('cmd'),
         { _default: `Kör-záró gépi futás zölden (${dvs || 'lásd a riportot'}); részletek a repo söprésében.` }, by);
     }
     await postMessage({
@@ -229,7 +238,7 @@ async function main() {
       frm_ai: opt('ai-note', 'AI-szándékok a lépés újdonságaihoz igazítva; a gépi AI-próbák zölden.'),
       frm_tutor: opt('tutor-note', 'A súgó/tutor-tartalom a lépés változásaihoz igazítva (vagy kimondva: a lépés nem érintett magyarázó szöveget).'),
     };
-    await postMatrix('STEP', K.step, K.pr, STEP_MATRIX, notes, by);
+    await postMatrix('STEP', K.step, K.pr, byScope('step'), notes, by);
     await twoStepClose('STEP', K.step, `${opt('summary')}${dvs ? ` (${dvs})` : ''} — a lépés zárása a nyitott parancsait is zárja (kaszkád)`);
     console.log(`LÉPÉS ZÁRVA: ${K.step} (a nyitott cmd-ket a kaszkád zárta)`);
     return;
@@ -240,7 +249,7 @@ async function main() {
     const dvs = opt('dvs', '');
     // FRISSESSÉG-KÖRÚT (operátori R3, D-VS-521): a PR zárásakor a TELJES régi állomány (i18n-szövegek ·
     // AI-bejegyzések · tutor/súgó) átnézve a mai rendszerhez — a tétel bizonyítéka a körút jegyzéke.
-    await postMatrix('PR', K.pr, K.pr, PR_MATRIX, {
+    await postMatrix('PR', K.pr, K.pr, byScope('pr'), {
       frm_frissesseg_korut: opt('frissesseg-note', 'A régi i18n-szövegek + AI-bejegyzések + tutor/súgó átnézve a mai rendszerhez mérve; a részletek a PR-záró riportban.'),
       frm_legal_frissesseg: opt('legal-note', 'A három jogi dokumentum (ÁSZF · GDPR · cookie) átnézve a mai rendszerhez mérve, mindhárom nyelven; review_log-bejegyzés a regiszterben, verify:legal zölden.'),
     }, by);

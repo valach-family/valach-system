@@ -3541,6 +3541,42 @@ megenged — a mért tény (a könyv-azonosság) változatlan.
 
 ---
 
+## D-VS-3066 — a munkarend tényleges javítása: rövid memória, egy csomag = egy munkamenet, mért fogyasztás (2026-09-20)
+
+**Parancs:** CMD-VS-300-002-002 R65 — SPEC (chatgpt-v3 — KÜLSŐ ELLENŐRZŐ FÉL, az operátor R64-es
+kérdéseiből). Kiindulás: a munkamenet mért fogyasztása (R64) — a fő szál kontextusa 480 ezer token
+körül állt hívásonként, a csatolt V2 gyökér-fájl (222 614 bájt) minden általános ügynöknek betöltődött,
+és a hook/értesítés-ébresztések a hívások többségét adták. Kezdő SHA: `64d1983b4a8207ef681d55fa95ad2ce6ee52f35d`.
+
+**Amit ez a döntés rögzít (a CLAUDE.md 1. szakasza a rövid alak):**
+1. **A SPEC első sora a repó** — `Repó: valach-system` az alapérték; a V2 csatolását a Claude-v3
+   vagy a chatgpt-v3 indokolja, a célzott olvasnivalóval — nem az operátor dönti el.
+2. **Egy összefüggő csomag = egy munkamenet**, a csomag ELŐTT a régi munkamenet mérés-forrásai mentve
+   (`v3ref/source-documents/`), a záró REPORT commitolva; új beszélgetés nem board-sorszámonként.
+3. **A kijelölt ág az ügynöké, a `main` az operátoré** — a terminál-blokk az operátor gépén fut, az
+   ügynök nem vált `main`-re. **A söprés a csomag végén teljes, közben célzott**; a többperces külső
+   lánc nem fut újra változatlan magra (az R63 §5 szabálya a memóriában, a régi „minden kör" alak
+   helyett). **A kiadás nem a kör** — a két menetrend külön áll.
+4. **Párhuzamos ügynök csak szétválasztható részfeladatra**, kimondott céllal · forrással ·
+   kimenettel · hívás-kerettel; csak-olvasásra `Explore` (mérve: nem kapja a gyökér-fájlokat).
+5. **A fogyasztás mérés:** `npm run meres:fogyasztas` (FGY-01, `tools/v3_fogyasztas_meres.mjs`),
+   tartalom nélküli gépi összefoglaló, hét ellenpróba (`verify:fogyasztas-meres`, a söprés része);
+   a körönkénti usage-melléklet megszűnik, helyette egy sor a csomag végén. Kísérleti jelzők: fő-szál
+   medián > 200 ezer · ügynök-bemenet > 40 M / csomag.
+6. **A board-írás tényleges hatóköre ebből a repóból:** lap (`vs_board_doc.mjs`) és kör-üzenet
+   (`vs_board_round.mjs reply`) megy; a zárás mátrixa (`close-*`) a V2 katalógusához kötött, és az
+   eszköz ezt nevezett hibával mondja ki — a katalógust és a sáv-listát ide NEM másoljuk.
+
+**Mérve, nem feltételezve:** a CLAUDE.md 16 880 → 12 492 bájt (a bájt nem token); a Stop-hook
+(`~/.claude/stop-hook-git-check.sh`) és az értesítés-ébresztés KÖRNYEZETI beállítás
+(`~/.claude/launcher-settings.json`), a repóból nem módosítható — a kerülő munkarend: a köztes
+futások `var/`-ba írnak, a csomag EGY záró commitot kap, a hook üres ébresztése így nem ismétlődik.
+A részletek és a V2-átadás: `docs/70_PLANNING/V3_R66_MUNKAREND_JAVITAS_REPORT.md`.
+
+**Nincs új KUKA-bejegyzés, kimondva:** a hibás alak (a teljes gyökér-fájl minden ügynöknek) nem
+kód volt, hanem munkarend; a tanulság a KUKA-051 (a hatókör szabály, nem lista) és a KUKA-054 (a
+mérés mintája) osztályába esik, és a CLAUDE.md 1. szakasza hordozza.
+
 ## D-VS-3065 — a jogadás alapja SZAKMAI ALAPÉRTELMEZÉS, kódban; az első felhasználói folyamat a magon (2026-09-20)
 
 **Parancs:** CMD-VS-300-002-002 R63 — SPEC (chatgpt-v3 — KÜLSŐ ELLENŐRZŐ FÉL). A külső fél

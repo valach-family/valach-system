@@ -33,7 +33,9 @@
     "app:dev": "node v3app/server.mjs",
     "app:selfcheck": "node v3app/selfcheck.mjs",
     "test:e2e": "playwright test",
-    "proof:core-ux": "playwright test"
+    "proof:core-ux": "playwright test",
+    "meres:fogyasztas": "node tools/v3_fogyasztas_meres.mjs",
+    "verify:fogyasztas-meres": "node tools/v3_fogyasztas_meres.mjs --selftest"
   },
   "devDependencies": {
     "@playwright/test": "1.56.0"
