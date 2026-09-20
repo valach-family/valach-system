@@ -56,7 +56,7 @@ export const EXTERNAL_CAP_MS = 15_000;
  * másolatban érhető el (`source/v3ref/mutations.mjs`), a repóban nincs `source` mappa. Ez MÉRT
  * korlát, nem kényelem; amíg nincs feloldva, a szám kézzel marad, és a jel a tool kilépési kódja.
  */
-export const DECLARED_UNITS = 8;
+export const DECLARED_UNITS = 9;
 
 /** A futásidejű darabszám: környezetből felülírható, különben a deklarált érték. */
 export function batteryUnits(env = process.env) {

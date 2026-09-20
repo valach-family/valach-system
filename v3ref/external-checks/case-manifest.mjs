@@ -510,6 +510,17 @@ export const PROGRAMS = Object.freeze([
     id: 'r57',
     file: 'r57_chatgpt-v3.mjs',
     superseded_by: 'r57a',
+    // R63 — A SZABÁLY MEGVÁLTOZOTT, A TÖRTÉNETI PROGRAM NEM: a T01 · T02 · T05 nyers, alap nélküli
+    // meghívó-sort ír, és R63 óta az ilyen meghívó beváltása NEVEZETTEN elakad
+    // (`invite_without_basis`). Ez nem környezeti akadály és nem teszthiba, hanem a KÜLSŐ FÉL ÁLTAL
+    // KÉRT szabály következménye a saját régebbi programján — az adaptált `r57a` ugyanezt a három
+    // esetet rögzített alappal futtatja végig. A felmentés MÉRT: csak a felsorolt esetek, csak a
+    // megnevezett okkal, és csak amíg a helyettes zöld (KUKA-124/2 · KUKA-126).
+    rule_superseded: Object.freeze({
+      round: 'R63', source: 'v3ref/source-documents/R63_board_v1.md',
+      cases: Object.freeze(['T01', 'T02', 'T05']), reason_mark: 'invite_without_basis',
+      why: 'a történeti fixtúra pecsét nélküli meghívót ír; R63 §4 szerint alap nélküli meghívó nem ad jogot',
+    }),
     env_limit: Object.freeze({
       kind: 'wall_clock_timeout',
       cap_ms: 15000,   // a program SAJÁT gyermek-korlátja (spawnSync timeout) — a MÁSODIK tanú mércéje
@@ -728,8 +739,14 @@ const TIMEOUT_MARK = /ETIMEDOUT|ERR_CHILD_PROCESS_STDIO_MAXBUFFER|\btimed?[ _-]?
  * EGY ESET KUDARCÁNAK FAJTÁJA — a NYERS eredményből, fordítás nélkül (KUKA-028).
  * @returns {'ok'|'wall_clock_timeout'|'assertion_failure'|'malformed'}
  */
-export function caseFailureKind(c) {
+export function caseFailureKind(c, program = null) {
   if (!c || typeof c !== 'object' || Array.isArray(c)) return 'malformed';
+  // R63 — A SZABÁLYVÁLTÁS MIATT BUKÓ ESET: csak ha a bejegyzés NÉV SZERINT vállalja, ÉS a nyers
+  // eredmény a megnevezett okot hordozza. Egyik önmagában nem elég (a deklaráció állítás, a nyers
+  // eredmény mérés — KUKA-121 · KUKA-126).
+  const rs = program && program.rule_superseded && typeof program.rule_superseded === 'object' ? program.rule_superseded : null;
+  if (rs && !c.test_error && c.pass === false && Array.isArray(rs.cases) && rs.cases.includes(c.id)
+    && typeof rs.reason_mark === 'string' && JSON.stringify(c).includes(rs.reason_mark)) return 'rule_superseded';
   if (c.test_error) return TIMEOUT_MARK.test(String(c.test_error)) ? 'wall_clock_timeout' : 'assertion_failure';
   if (c.pass === true) return 'ok';
   if (typeof c.pass !== 'boolean') return 'malformed';
@@ -753,12 +770,13 @@ export function measuredFailureKind(program, {
   cases, audit, artifactOk = true, exitCode = 0, spawnError = null, stderr = '', elapsedMs = null,
 }) {
   const rows = (Array.isArray(cases) ? cases : []).map((c) => ({
-    id: (c && c.id) || '(azonosító nélkül)', kind: caseFailureKind(c),
+    id: (c && c.id) || '(azonosító nélkül)', kind: caseFailureKind(c, program),
     why: c && c.test_error ? String(c.test_error).split('\n')[0] : null,
   }));
   const timedOut = rows.filter((r) => r.kind === 'wall_clock_timeout');
-  const otherBad = rows.filter((r) => r.kind !== 'ok' && r.kind !== 'wall_clock_timeout');
-  const explained = new Set(timedOut.map((r) => r.id));
+  const ruleSuperseded = rows.filter((r) => r.kind === 'rule_superseded');
+  const otherBad = rows.filter((r) => r.kind !== 'ok' && r.kind !== 'wall_clock_timeout' && r.kind !== 'rule_superseded');
+  const explained = new Set([...timedOut, ...ruleSuperseded].map((r) => r.id));
   // A MÁSODIK, FÜGGETLEN TANÚ: a FUTTATÓ SAJÁT ÓRÁJA. A program hibaszövege a program SAJÁT szava
   // (KUKA-121: amit a beadó begépelhet, az állítás) — a futtató mért ideje viszont a miénk. Ha a
   // bejegyzés kimondja a program belső korlátját (`cap_ms`), akkor időtúllépést CSAK akkor
@@ -823,6 +841,11 @@ export function measuredFailureKind(program, {
   if (exitCode !== 0) {
     return { kind: 'assertion_failure', rows, why: `a program nem nullával zárt (kilépés ${exitCode})` };
   }
+  if (!timedOut.length && ruleSuperseded.length) {
+    return { kind: 'rule_superseded', rows,
+      why: `a bukott esetek MIND a bejelentett szabályváltás miatt buknak (${program.rule_superseded.round}: `
+        + `${ruleSuperseded.map((r) => r.id).join(' · ')}, ok: ${program.rule_superseded.reason_mark}) — minden más eset zöld` };
+  }
   if (!timedOut.length) return { kind: 'unknown', rows, why: 'nincs mért környezeti akadály a nyers eredményben' };
   if (!capReached) return { kind: 'unknown', rows, why: `a bukott esetek időtúllépést mondanak, de ${capWhy}` };
   // EZ AZ ERŐS ÁG: van esetenkénti bizonyíték, és a fentebbi `otherBad`/`unexplained` kapukon MINDEN
@@ -833,8 +856,9 @@ export function measuredFailureKind(program, {
     witness_limit: null,
     witness_basis: 'esetenkénti bizonyíték: minden bukott eset időtúllépést mond, és bármely más '
       + 'kudarc-fajta VALÓDI eset-hibára vitte volna (otherBad · unexplained)',
-    why: `MÉRT időtúllépés (${timedOut.length} eset: ${timedOut.map((r) => r.id).join(' · ')}) — minden más eset zöld, `
-      + `és a mért futásidő (${elapsedMs} ms) elérte a bejelentett belső korlátot (${cap} ms)` };
+    why: `MÉRT időtúllépés (${timedOut.length} eset: ${timedOut.map((r) => r.id).join(' · ')}) — minden más eset zöld`
+      + (ruleSuperseded.length ? ` (kivéve a bejelentett szabályváltás miatt bukó ${ruleSuperseded.map((r) => r.id).join(' · ')} — ${program.rule_superseded.round}, ok: ${program.rule_superseded.reason_mark})` : '')
+      + `, és a mért futásidő (${elapsedMs} ms) elérte a bejelentett belső korlátot (${cap} ms)` };
 }
 
 /**
@@ -883,7 +907,8 @@ export function environmentalObstacle(program, measured, substitute, substituteI
         + 'program felelt kétszer, tehát a zöldje nem menti fel az eredetit');
     }
   }
-  if (measured.kind !== kind) {
+  const ruleOnly = measured.kind === 'rule_superseded' && program.rule_superseded && typeof program.rule_superseded === 'object';
+  if (measured.kind !== kind && !ruleOnly) {
     return out(false, `a MÉRT kudarc nem a bejelentett környezeti akadály: ${measured.why} `
       + `(bejelentve: ${kind}, mérve: ${measured.kind}) — statikus regiszter-mező nem menthet fel valódi teszthibát`);
   }
