@@ -41,6 +41,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
+import { batteryUnits } from './batteryUnits.mjs';
 // A PROGRAM-REGISZTER ÉS AZ ESET-SZEMLE KÜLÖN MODULBAN ÁLL (EXT-02, R59/F02), hogy a verifier
 // HÍVHASSA ugyanazt a döntést, amit a futtató használ — ne a forrás szövegét olvassa (KUKA-009).
 import {
@@ -207,8 +208,14 @@ for (const p of selected) {
     rmSync(leftover, { recursive: true, force: true });
   }
   const t0 = Date.now();
+  // A BATTÉRIA EGYSÉG-DARABSZÁMA EGY OTTHONBÓL (KUKA-172 · R64): az adaptált külső programok a
+  // saját alakjukat számolják (ceil(mutáció/24)), ami 204 mutációnál 9 — és az egységek a 15 000 ms-os
+  // gyermek-korlát fölé nőttek (mérve: 14 033 … 14 905 ms, az E02/E03 időtúllépésbe futott). A
+  // deklarált, MÉRT darabszámot (`batteryUnits.mjs`) ezért a futtató adja át a környezetben; a
+  // program a saját `VS_BATTERY_UNITS` olvasóján veszi, a kézi felülírás továbbra is lehetséges.
   const q = spawnSync(process.execPath, [join(dir, p.file)], {
     cwd: dir, encoding: 'utf8', timeout: 600_000, maxBuffer: 64 * 1024 * 1024,
+    env: { ...process.env, VS_BATTERY_UNITS: String(batteryUnits()) },
   });
   const ms = Date.now() - t0;
   const exists = existsSync(evidencePath);
