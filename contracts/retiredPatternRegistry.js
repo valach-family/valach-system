@@ -8166,6 +8166,107 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'hazugság, amíg nem mondjuk meg, MELYIK hivatkozást kötöttük.',
   }),
   Object.freeze({
+    id: 'KUKA-198',
+    date: '2026-09-20',
+    title: 'A KÖVETKEZTETÉS EGY OLYAN TULAJDONSÁGBÓL, AMI A TESTVÉREKEN IS IGAZ',
+    what: 'Az R57-es leltárból azt vezettem le, hogy a következő munka az adatköri jogadás '
+      + '(`grantReadScope`) hiányzó bejáratának megépítése, mert „a termékben ma SEMMI nem hívja" — '
+      + 'és ezt „bizonyított technikai hiánynak" meg „az egyetlen következő munkacsomagnak" '
+      + 'neveztem. MÉRVE: ugyanez igaz a TESTVÉREIRE is. Az `issueInviteUnderBasis` hívói szintén '
+      + 'csak próbák, a `grantAdjudicationAuthority` hívói a `run.mjs` és két MÉRÉSI ELŐKÉSZÍTŐ '
+      + '(`banMatrix` · `entryPoints`) — amiket ugyanabban a leltárban én magam soroltam a '
+      + 'fixtúrák közé. A tulajdonság tehát nem EGY út sajátja, hanem a REFERENCIA mai hatóköre. '
+      + 'Ugyanebben a körben egy MÉRT tény is rosszul állt a lapon: azt írtam, hogy „a deklarálatlan '
+      + 'meghívó is kiadható", holott a nevezett kiadó út az alapot KÖVETELI (`basis_id_required`, '
+      + 'nulla sorral) — az alap nélküli meghívó NYERS írásból keletkezik, ami MEGKERÜLI azt az utat.',
+    why_wrong: 'A KUKA-054 alakja a KÖVETKEZTETÉSEN: a „mintát" (az egy megnevezett utat) épp az a '
+      + 'tulajdonság választotta ki, amit mérni akartam — a különbség ezért nem lelet, hanem a saját '
+      + 'figyelmem lenyomata. A kár konkrét: egy MEGLÉVŐ, szabályosan működő referencia-függvény elé '
+      + 'akartam burkolót tenni, és ezt „bizonyított követelményteljesítésnek" neveztem volna. És a '
+      + 'rosszul megnevezett út (kiadás helyett beváltás) miatt az operátori döntés IS rossz helyre '
+      + 'mutatott volna: a kiadó függvényen nincs mit eldönteni, ott a szabály már zár.',
+    replaced_by: 'A GPR-01 sorokban a `missing` mező mostantól MEGKÜLÖNBÖZTET: ami ezen az úton '
+      + 'valóban hiányzik · ami a REFERENCIA hatóköre (KÉSŐBBI ADAPTER-HATÁR, `later_adapter_surface`) '
+      + '· és ami OPERÁTORI döntés. Az alap nélküli eset HÁROM külön alakja külön áll: pecsét nélküli '
+      + 'meghívó BEVÁLTÁSA (nyers írásból) · alap nélküli BÍRÁLATI jogadás (a nevezett függvény '
+      + 'engedi) · explicit ADATKÖRI jogadás (ott az alap feltétel, tehát nem áll fenn).',
+    replacement: 'Mielőtt egy tulajdonságból „ez a következő munka" következtetést vonsz le, mérd '
+      + 'meg a TESTVÉREKEN is. Ha ott is igaz, akkor nem az út hibája, hanem a réteg határa — és a '
+      + 'határt nevezni kell, nem befoltozni.',
+    decision: 'D-VS-3063',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R59/F59-01), a testvér-utak hívóit felsorolva és '
+      + 'a `basis_id_required` választ saját hívással megmérve; mindkettőt reprodukáltam a saját '
+      + 'fánkon, a javítás előtt.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['contracts/grantPathRegistry.js']),
+        pattern: 'later_adapter_surface',
+        why: 'a későbbi adapter-réteg NEVEZETT határ, nem mai core-hiány' }),
+      Object.freeze({ paths: Object.freeze(['contracts/grantPathRegistry.js']),
+        pattern: 'basis_id_required',
+        why: 'a kiadó út MÉRT válasza áll a lapon, nem a régi, hibás állításom' }),
+    ]),
+    forbidden: Object.freeze([]),
+    guard_note: 'gépi jel: RÉSZBEN. A `npm run verify:grant-paths` GP03 kikényszeríti, hogy minden '
+      + 'sor `missing` mezője ki legyen töltve, és a zárt besorolás-szótár tartalmazza a '
+      + '`later_adapter_surface` réteget — tehát a HATÁRT nevezni LEHET. AMIRE NINCS GÉPI JEL, '
+      + 'KIMONDVA: hogy egy levont következtetés a testvér-utakon is mérve lett-e. Ez emberi '
+      + 'fegyelem; a védelem az, hogy a lap a MÉRT választ idézi, nem az emlékezetet.',
+    lesson: 'Ha egy hiány a TESTVÉREKEN is fennáll, az nem az út hibája, hanem a réteg határa — és '
+      + 'a határt nevezni kell, nem befoltozni.',
+  }),
+  Object.freeze({
+    id: 'KUKA-197',
+    date: '2026-09-20',
+    title: 'AZ ŐR TÖBBET ÁLLÍTOTT, MINT AMENNYIT ELLENŐRIZ — és az állítást senki nem mérte',
+    what: 'Az R57-ben írt `verify:grant-paths` GP04 ezt mondta magáról: „minden jogadó író szerepel '
+      + 'a táblában", és a jelentés hozzátette, hogy a tábla „holnap nem tud némán elavulni". Az őr '
+      + 'VALÓJÁBAN a `v3ref/*.mjs` fájlokban, MODUL-szinten kereste az `INSERT INTO <kézzel '
+      + 'felsorolt tábla>` mintát. A külső fél három izolált ellenpéldával mérte meg, és '
+      + 'MINDHÁRMAT reprodukáltam: (1) új modul, sima `INSERT` ⇒ kilépés 1, az őr FOGTA · '
+      + '(2) ugyanaz `INSERT OR IGNORE` alakkal ⇒ kilépés 0, ÁTMENT · (3) új függvény egy MÁR '
+      + 'FELSOROLT modulban ⇒ kilépés 0, ÁTMENT. Mindkét elszalasztott alak szintaktikailag '
+      + 'érvényes, jogadó SQL volt.',
+    why_wrong: 'A hamis ZÖLD itt kétszeresen drága: az őr nem csak elmulaszt, hanem BIZONYÍTVÁNYT '
+      + 'is ad róla — a jelentésem „gépileg bizonyítottnak" nevezte a teljességet, amit az őr soha '
+      + 'nem mért (KUKA-041 a saját őrömön; KUKA-057 fordítottja). A (2) a MINTA hibája volt (a '
+      + 'kizáró felsorolás a következő alakról nem tud), a (3) viszont a GRANULARITÁSÉ: egy '
+      + 'modul-szintű őr elvből nem lát egy modulon BELÜLI új utat, és ezt a hatókört KI KELL '
+      + 'MONDANI, nem a szöveggel elfedni.',
+    replaced_by: 'Három lépés. (a) Az írás-alakok NEVEZETT listája: az `INSERT OR IGNORE/REPLACE/'
+      + 'ABORT/FAIL/ROLLBACK` és a `REPLACE INTO` is jogadó írás. (b) GP06 — ARÁNYOS, célzott '
+      + 'ellenőrzés a (3)-ra: a jogadó írás-helyek DARABSZÁMA modulonként deklarált, tehát egy '
+      + 'modulon belüli új út megemeli a számot ⇒ PIROS; a mérési előkészítők (`run.mjs` · '
+      + '`mutations.mjs`) deklaráltan VÁLTOZÓK, hogy ne szülessen kézzel léptetett számláló '
+      + '(KUKA-045). (c) A SZÖVEG a tényleges vizsgálatot mondja ki: strukturális, szöveg-szintű '
+      + 'mérés, NEM hívási lánc-elemzés, és a próbákat NEM futtatja.',
+    replacement: 'Egy új őr ÁLLÍTÁSA maga is mérendő: ellenpéldával kell bizonyítani, MIT fog — és '
+      + 'amit nem fog, azt KIMONDOTT kézi felülvizsgálati határként kell nevezni.',
+    decision: 'D-VS-3063',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R59/F59-02), három izolált ellenpéldával, '
+      + 'másolaton, a mag viselkedésének megváltoztatása nélkül; mindhármat reprodukáltam a saját '
+      + 'fánkon (1 ⇒ 1 · 0 · 0), a javítás előtt.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_grant_paths.mjs']),
+        pattern: 'COUNTEREXAMPLES',
+        why: 'az őr saját ellenpéldái a fában élnek, nem egy jelentés mondatában' }),
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_grant_paths.mjs']),
+        pattern: 'WRITE_FORMS',
+        why: 'az INSERT OR IGNORE és a REPLACE INTO is jogadó írás' }),
+      Object.freeze({ paths: Object.freeze(['contracts/grantPathRegistry.js']),
+        pattern: 'GRANT_WRITE_SITES',
+        why: 'a modulon belüli új út a darabszámon fennakad (arányos válasz, nem elemzőmotor)' }),
+    ]),
+    forbidden: Object.freeze([]),
+    guard_note: 'gépi jel: `npm run verify:grant-paths` — a parancs KÉT futást végez: az ép fán a '
+      + 'GP01–GP06 (pozitív ellenpár), majd `--selftest` módban a HÁROM ellenpéldát egy eldobható '
+      + 'MÁSOLATON, és megköveteli, hogy mind a három PIROSRA vigye az őrt, a KILÉPÉSI KÓDON mérve '
+      + '(KUKA-094/4). Mérve: 3/3 bizonyítottan piros. AMIRE NINCS GÉPI JEL, KIMONDVA: a '
+      + 'FÜGGVÉNY-szintű teljesség és a HÍVÓ-besorolás — ez KÉZI felülvizsgálati határ, és az őr '
+      + 'kimenete is ezt írja ki, nem a jelentés jóindulata.',
+    lesson: 'AZ ŐR ÁLLÍTÁSA IS MÉRÉS. Amíg ellenpélda nem bizonyítja, mit fog, addig a „mindent '
+      + 'fog" mondat nem védelem, hanem hamis bizonyítvány — és a nem mért hatókört ki kell mondani.',
+  }),
+  Object.freeze({
     id: 'KUKA-196',
     date: '2026-09-20',
     title: 'AZ ÁLTALÁNOS HIÁNY-MONDAT — a maradék, amiről nem lehet megmondani, mi teljesítené',
@@ -8203,7 +8304,7 @@ const RETIRED_PATTERNS = Object.freeze([
         pattern: 'GRANTING_TABLES',
         why: 'a mérés alanyait a JOGADÓ TÁBLÁK halmaza adja, nem egy kézi felsorolás (KUKA-051)' }),
       Object.freeze({ paths: Object.freeze(['contracts/grantPathRegistry.js']),
-        pattern: 'product_grant_surface',
+        pattern: 'internal_reference_entry_point',
         why: 'a besorolás a tényleges használat szerint megy — a teszt-előkészítő nem termékbeli felület' }),
       Object.freeze({ paths: Object.freeze(['v3ref/norms.mjs']),
         pattern: 'GP-SCOPE-GRANT',

@@ -230,6 +230,8 @@ const GUARD_HOME = Object.freeze({
   'KUKA-173': Object.freeze({ home: 'v3', note: 'a hozzáférési kapu a V3 magban él — a jel a P-AUT-object-neutral próba + M149–M152' }),
   'KUKA-174': Object.freeze({ home: 'v3', note: 'a fixtúra a V3 próba-fájljában él — a jel ugyanannak a próbának az (a) ága' }),
   'KUKA-175': Object.freeze({ home: 'v3', note: 'a darabolás közös deklarációja a V3 külső-ellenőrző könyvtárában él — a jel a verify:unit-admission UAD08; a KÜLSŐ burkolók bontása kimondottan MÉRETLEN' }),
+  'KUKA-198': Object.freeze({ home: 'v3', note: 'a GPR-01 later_adapter_surface rétege és a kitöltött missing mezo (GP03) ITT el; RESZBEN gepi jel - hogy egy kovetkeztetes a testver-utakon is merve lett-e, arra nincs gepi jel, kimondva' }),
+  'KUKA-197': Object.freeze({ home: 'v3', note: 'az or sajat harom ellenpeldaja a fajlban el (vs_verify_grant_paths.mjs --selftest), es a npm run verify:grant-paths mindharmat lefuttatja a kilepesi kodon - 3/3 bizonyitottan piros' }),
   'KUKA-196': Object.freeze({ home: 'v3', note: 'a jogadási utak nyilvántartása (GPR-01, contracts/grantPathRegistry.js) ITT él, és a npm run verify:grant-paths (GP01–GP05) mindkét irányban visszaméri — a jogadó írók halmaza a FORRÁSBÓL jön, nem kézi listából' }),
   'KUKA-195': Object.freeze({ home: 'v3', note: 'a kimondott ellenőrzési mód és a kötelező megadáskori verzió (ABL-01) a v3ref/authorityBasis.mjs-ben él — a jel az M194/M195 mutáció és a megerősített M190 (verify:v3ref), a kilépési kódon' }),
   'KUKA-194': Object.freeze({ home: 'v3', note: 'a kilépési takarító-háló a v3ref/store.mjs-ben él — a jel a pozitív minta; a szivárgás MÉRÉSÉRE nincs őr, ezt a bejegyzés kimondja' }),

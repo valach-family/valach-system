@@ -28,6 +28,6 @@
     "docs:norm-chain": "node tools/v3_norm_chain_package.mjs",
     "proof:norm-chain-package": "node tools/v3_norm_chain_package_proof.mjs",
     "verify:external-decisions": "node tools/vs_verify_external_decisions.mjs",
-    "verify:grant-paths": "node tools/vs_verify_grant_paths.mjs"
+    "verify:grant-paths": "node tools/vs_verify_grant_paths.mjs && node tools/vs_verify_grant_paths.mjs --selftest"
   }
 }

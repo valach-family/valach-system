@@ -3541,6 +3541,59 @@ megenged — a mért tény (a könyv-azonosság) változatlan.
 
 ---
 
+## D-VS-3063 — az őr állítása is mérés, és a hiány határa nem az út hibája (2026-09-20)
+
+**Parancs:** CMD-VS-300-002-002 R59 (chatgpt-v3 — KÜLSŐ ELLENŐRZŐ FÉL). A jogadási leltárt és az
+R57 szűk elfogadásának átvezetését **előrelépésnek** ismerték el, a bírálati hatásköri javítócsomag
+korábbi lezárása **megmarad**, a működő kódot nem nyitjuk vissza. Három leletet kellett egyben
+rendezni — mindhármat **reprodukáltam a saját fánkon, a javítás előtt**.
+
+**F59-01 — a következtetés egy olyan tulajdonságból, ami a testvéreken is igaz (KUKA-198).**
+Az R58-ban „bizonyított technikai hiánynak" és „az egyetlen következő munkacsomagnak" neveztem,
+hogy az adatköri jogadásnak nincs próbán kívüli hívója. Mérve: **ugyanez igaz a testvéreire is** —
+az `issueInviteUnderBasis` hívói szintén csak próbák, a `grantAdjudicationAuthority` hívói a
+`run.mjs` és két mérési előkészítő, amiket ugyanabban a leltárban én magam soroltam a fixtúrák
+közé. A tulajdonság tehát nem egy út sajátja, hanem a **referencia mai hatóköre**: ez **későbbi
+adapter-/integrációs határ** (`later_adapter_surface`), nem mai core-hiba. A következtetést
+**visszavontam**; meglévő, szabályosan működő referencia-függvény elé pusztán emiatt burkolót tenni
+nem bizonyított követelményteljesítés.
+
+**Ugyanitt egy mért tény is rosszul állt a lapon.** Azt írtam, hogy „a deklarálatlan meghívó is
+kiadható" — a nevezett kiadó út viszont az alapot **követeli**: `basisId: null` mellett
+`basis_id_required`, és **nulla sor** születik (mérve). Az alap nélküli meghívó **nyers írásból**
+keletkezik, ami megkerüli azt az utat. Innentől a három alap nélküli eset **külön** áll: pecsét
+nélküli meghívó **beváltása** · alap nélküli **bírálati** jogadás (itt a nevezett függvény engedi,
+a sor `basis_id = NULL` értékkel létrejön — mérve) · explicit **adatköri** jogadás (ott az alap
+feltétel, tehát az eset nem áll fenn).
+
+**F59-02 — az őr többet állított, mint amennyit ellenőriz (KUKA-197).**
+Három izolált ellenpélda, mind reprodukálva: új modul sima `INSERT`-tel ⇒ kilépés 1 (**fogta**) ·
+ugyanaz `INSERT OR IGNORE` alakkal ⇒ kilépés 0 (**átment**) · új függvény egy már felsorolt
+modulban ⇒ kilépés 0 (**átment**). Javítás: az írás-alakok nevezett listája · **GP06** arányos,
+célzott ellenőrzés (a jogadó írás-helyek darabszáma modulonként deklarált; a mérési előkészítők
+deklaráltan **változók**, hogy ne szülessen kézzel léptetett számláló — KUKA-045) · és a szöveg a
+tényleges vizsgálatot mondja ki: strukturális, szöveg-szintű mérés, **nem** hívási lánc-elemzés, a
+próbákat **nem** futtatja. **Kimondott kézi felülvizsgálati határ:** a függvény-szintű teljesség és
+a hívó-besorolás nem gépileg bizonyított.
+
+**F59-03 — a végső normaösszesítő régi forrást mutatott.** A beadott
+`docs/70_PLANNING/V3_R36_NORMA_LANC_CSOMAG.json` a korábbi `4ca52d2d…` lenyomatot és 40 döntéssort
+hordozott, miközben a mag `ca9c6739…`, a regiszter 42 soros. Nem generátorhiba: a végső beadásból
+maradt ki az újragenerált csomag. Innentől a csomag a bizonyíték-próbák **után**, az ép, eredeti
+bemenetből készül, és **vissza is olvassuk**.
+
+**Amit ez a döntés nem tesz meg.** Nem épít új adatköri bejáratot, HTTP-adaptert vagy felületet;
+nem hoz jogadási üzleti szabályt; nem oldja fel az ORG-N1 részlegességét; nem címkéz át régi
+mérést. A „kis munka, csak az opcionális szót kell elvenni" becslést **visszavontam** — nem volt
+mérve —, és a meglévő jogok migrációjáról szóló következmény **feltételes üzemeltetési
+forgatókönyvként** szerepel, a szintetikus referencia tényeitől elválasztva.
+
+**Gépi jel:** `npm run verify:grant-paths` — két futás: az ép fán GP01–GP06 (pozitív ellenpár),
+majd `--selftest` a három ellenpéldát eldobható másolaton, a kilépési kódon mérve (**3/3
+bizonyítottan piros**).
+
+---
+
 ## D-VS-3062 — a jogadási utak nyilvántartása, és a maradék útankénti megnevezése (2026-09-20)
 
 **Parancs:** CMD-VS-300-002-002 R57 (chatgpt-v3 — KÜLSŐ ELLENŐRZŐ FÉL). A külső fél **elfogadta**

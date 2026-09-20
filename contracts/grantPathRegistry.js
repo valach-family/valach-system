@@ -20,15 +20,29 @@
 //
 // PURE + INERT: nincs DB, nincs hálózat, nincs titok.
 
-/** A BESOROLÁS ZÁRT SZÓTÁRA — ismeretlen szó nem csúszhat át „valaminek" (KUKA-101). */
+/**
+ * A BESOROLÁS ZÁRT SZÓTÁRA — ismeretlen szó nem csúszhat át „valaminek" (KUKA-101).
+ *
+ * R59/F59-02 SZERINT ÁTNEVEZVE. Az R57-es alak `product_grant_surface`-nek hívta a négy utat, és a
+ * „termékbeli" szó MŰKÖDŐ ÉLES vagy FELHASZNÁLÓI felületet sugallt — ilyen a V3-ban ma NINCS. A
+ * külső fél ezt kimondta: *„A »termékbeli« szó ne sugalljon működő éles vagy felhasználói
+ * felületet."* A mai valóság: ez egy egyírós, szintetikus, megbízható belső kontextusú referencia,
+ * tehát a helyes szó BELSŐ REFERENCIA-BELÉPÉSI PONT (KUKA-061: új szó = új fogalom; KUKA-050: a
+ * szöveg a valóságot követi).
+ *
+ * A NÉGY RÉTEG UGYANAZ MINDEN SORRA — a besorolás nem a függvény nevéből, hanem a TÉNYLEGES
+ * használatából jön.
+ */
 const CLASSIFICATIONS = Object.freeze({
-  product_grant_surface: 'termékbeli jogadási felület — exportált belépési pont, aminek a hívása '
-    + 'valódi jogot ad a rendszerben',
-  writer_of_another_path: 'egy MÁSIK út írója — exportált, de a termékben CSAK egy nevezett '
-    + 'jogadási út hívja; önállóan nem jogadási felület',
-  measurement_fixture: 'mérési előkészítő — a jogot azért adja, hogy legyen mit mérni; a termék '
-    + 'egyetlen útja sem hívja',
+  internal_reference_entry_point: 'exportált, megbízható BELSŐ referencia-belépési pont — a hívása '
+    + 'valódi jogot ad ebben a referenciában. NEM éles felület és NEM felhasználói felület',
+  internal_writer_of_another_path: 'egy MÁSIK út belső írója — exportált, de ma CSAK egy nevezett '
+    + 'jogadási út hívja; önállóan nem belépési pont',
+  measurement_fixture: 'mérési előkészítő — a jogot azért adja, hogy legyen mit mérni; a referencia '
+    + 'egyetlen jogadási útja sem hívja',
   schema_trigger: 'sémaszintű tükrözés — a tárolóban élő trigger írja, nem alkalmazás-kód',
+  later_adapter_surface: 'későbbi adapter-/felhasználói felület — ma NEM LÉTEZŐ réteg; a szótárban '
+    + 'azért áll, hogy a határt NEVEZNI lehessen, és ne csússzon össze a belső belépési ponttal',
 });
 
 /**
@@ -44,7 +58,7 @@ const GRANTING_TABLES = Object.freeze([
 const PATHS = Object.freeze([
   Object.freeze({
     id: 'GP-INVITE-ISSUE',
-    classification: 'product_grant_surface',
+    classification: 'internal_reference_entry_point',
     entry_point: 'v3ref/basisLimit.mjs → issueInviteUnderBasis',
     module: 'v3ref/basisLimit.mjs',
     symbol: 'issueInviteUnderBasis',
@@ -57,13 +71,19 @@ const PATHS = Object.freeze([
     norm: 'ORG-N1a · ORG-N1b',
     works: 'az alap azonosítója, verziója és hatálya TÁROLVA van, a korlát KAPU mindkét ponton, és '
       + 'a nyers INSERT-tel írt meghívó sem bújik ki alóla',
-    missing: 'az alap DEKLARÁLÁSA nem kötelező: alap nélkül kiadott meghívó ma is létezhet '
-      + '(a beváltás ezt `no_declared_basis` néven KIMONDJA, de nem zárja) — OPERÁTORI döntés',
+    // HELYESBÍTVE (R59/F59-01). Az R57-es szövegem azt állította, hogy „a deklarálatlan meghívó
+    // is kiadható" — MÉRVE ez NEM igaz EZEN a függvényen: `basisId: null` mellett a válasz
+    // `basis_id_required`, és NULLA sor születik (se meghívó, se pecsét). A külső fél ugyanezt
+    // mérte meg. Az alap nélküli meghívó MÁS úton keletkezik, és azt ott kell megnevezni.
+    missing: 'EZEN AZ ÚTON SEMMI: az alap KÖTELEZŐ — `basisId: null` mellett a válasz '
+      + '`basis_id_required`, és nulla sor születik (mérve). Ami alap nélkül létezhet, az NYERS '
+      + '`INSERT INTO invite` írással kerül a tárolóba, MEGKERÜLVE ezt a nevezett kiadó utat — '
+      + 'annak a következménye a GP-INVITE-REDEEM soron áll',
     probes: Object.freeze(['P-ORG-basis-limit', 'P-ORG-basis']),
   }),
   Object.freeze({
     id: 'GP-INVITE-REDEEM',
-    classification: 'product_grant_surface',
+    classification: 'internal_reference_entry_point',
     entry_point: 'v3ref/invite.mjs → redeemInvite',
     module: 'v3ref/invite.mjs',
     // NEM ÍR KÖZVETLENÜL: a tagságot a `grantMembership`, a korlátot a `recordGrantBasis` írja —
@@ -79,13 +99,18 @@ const PATHS = Object.freeze([
     norm: 'ORG-N1a · ORG-N1b · K09 · REV-N1b',
     works: 'a korlát a KIADÁSKORI alaphoz mér, és a beváltás a korlátot is ÁTVISZI a tagságadó '
       + 'eseményre — nem csak a szerepet',
-    missing: 'a deklarálatlan meghívó beváltása a RÉGI szabály szerint megy (nevezetten) — ez '
-      + 'ugyanaz az OPERÁTORI döntés, ami a kiadásnál',
+    // HELYESBÍTVE (R59/F59-01): itt áll az alap nélküli eset VALÓDI útja, mérve. Nem a nevezett
+    // kiadó függvény engedi — az nem is engedi —, hanem a beváltás fogadja el a pecsét NÉLKÜLI,
+    // nyersen vagy történetileg keletkezett meghívót.
+    missing: 'a PECSÉT NÉLKÜLI meghívó beváltása ÁTMEGY: a kapu `{ ok: true, basis_declared: '
+      + 'false, reason: no_declared_basis }` választ ad (mérve, nyers `INSERT INTO invite` sorra). '
+      + 'A hiány tehát NEM néma, de nem is zár. Ez a három alap nélküli eset közül az ELSŐ, és '
+      + 'OPERÁTORI döntés, hogy kötelezővé tesszük-e',
     probes: Object.freeze(['P-ORG-basis-limit', 'P-INVITE-seal', 'P-INVITE-terms', 'P-INVITE-window']),
   }),
   Object.freeze({
     id: 'GP-ADJUDICATION-AUTHORITY',
-    classification: 'product_grant_surface',
+    classification: 'internal_reference_entry_point',
     entry_point: 'v3ref/adjudication.mjs → grantAdjudicationAuthority',
     module: 'v3ref/adjudication.mjs',
     symbol: 'grantAdjudicationAuthority',
@@ -98,14 +123,16 @@ const PATHS = Object.freeze([
     norm: 'ORG-N1a · ORG-N1b · REV-N3',
     works: 'a korlát mindkét ponton kapu; a később SZŰKÜLŐ alap a már kiadott hatáskört is zárja, a '
       + 'később TÁGULÓ alap önmagában nem szélesít; a hiányzó megadáskori verzió ZÁR',
-    missing: 'a `basisId` paraméter ma OPCIONÁLIS (alapértéke `null`): alap nélküli hatáskör-sor ma '
-      + 'is születhet, és a régi, alap nélküli sorok a régi szabály szerint mennek '
-      + '(`authority_without_recorded_basis`, kimondva) — OPERÁTORI döntés',
+    missing: 'a `basisId` paraméter ma OPCIONÁLIS (alapértéke `null`), és MÉRVE: alap nélkül '
+      + 'hívva a hatáskör-sor LÉTREJÖN, `basis_id = NULL` értékkel. A régi, alap nélküli sorok a '
+      + 'régi szabály szerint mennek (`authority_without_recorded_basis`, kimondva). Ez a három '
+      + 'alap nélküli eset közül a MÁSODIK, és OPERÁTORI döntés — a meghívó-beváltástól KÜLÖN '
+      + 'kérdés, mert itt a NEVEZETT függvény engedi, ott egy megkerülő írás következménye',
     probes: Object.freeze(['P-ORG-adjudication-basis-limit', 'P-ORG-basis', 'P-REV-authority']),
   }),
   Object.freeze({
     id: 'GP-SCOPE-GRANT',
-    classification: 'product_grant_surface',
+    classification: 'internal_reference_entry_point',
     entry_point: 'v3ref/scopeGrant.mjs → grantReadScope',
     module: 'v3ref/scopeGrant.mjs',
     symbol: 'grantReadScope',
@@ -119,14 +146,22 @@ const PATHS = Object.freeze([
     norm: 'K05-DSC-c · ORG-N1b',
     works: 'ez az EGYETLEN út, ahol az alap nem opció, hanem FELTÉTEL; a megvonás nem írja át a '
       + 'megadás sorát, és a köztes tudásállapot sértetlen marad',
-    missing: 'a termékben ma NINCS hívója: a jogot a próbák és a külső ellenőrző fél átvett '
-      + 'programjai adják meg — az OLVASÓ oldal viszont be van kötve (releaseScope → resultScope). '
-      + 'Ez FÉL LÁNC (KUKA-069): a hiányzó darab egy belépési pont, nem egy szabály',
+    // HELYESBÍTVE (R59/F59-01). Az R57-es szövegem ebből „bizonyított technikai hiányt" és
+    // „egyetlen következő fejlesztést" vezetett le. A külső fél megcáfolta, és igaza van: a
+    // testvér-belépési pontoknak SINCS próbán kívüli hívójuk (`issueInviteUnderBasis` ·
+    // `grantAdjudicationAuthority` — utóbbit csak mérési előkészítők hívják), tehát ebből az EGY
+    // útra levont következtetés nem következetes (KUKA-054: a minta a mért tulajdonság szerint
+    // volt kiválasztva). A hiányzó hívó a REFERENCIA hatókörén KÍVÜL eső réteg kérdése.
+    missing: 'EZEN AZ ÚTON A SZABÁLY TELJES: alap kötelező, plafon szűkít, megvonás két tengelyen, '
+      + 'az olvasó oldal bekötve (releaseScope → resultScope). Ami nincs: próbán kívüli HÍVÓ — de '
+      + 'ez NEM ennek az útnak a sajátja, hanem a REFERENCIA mai hatóköre (a testvér-belépési '
+      + 'pontoknak sincs), tehát KÉSŐBBI ADAPTER-/INTEGRÁCIÓS HATÁR (`later_adapter_surface`), '
+      + 'nem mai core-hiba. Új burkolót pusztán emiatt tenni elé NEM bizonyított követelmény',
     probes: Object.freeze(['P-DSC-scope-grant-history', 'P-DSC-scope-basis']),
   }),
   Object.freeze({
     id: 'GP-MEMBERSHIP-DIRECT',
-    classification: 'writer_of_another_path',
+    classification: 'internal_writer_of_another_path',
     entry_point: 'v3ref/bitemporal.mjs → grantMembership',
     module: 'v3ref/bitemporal.mjs',
     symbol: 'grantMembership',
@@ -204,12 +239,45 @@ const PATHS = Object.freeze([
   }),
 ]);
 
-/** Hány TERMÉKBELI jogadási felület áll ma — MÉRVE, nem beírva (KUKA-045). */
-function productGrantSurfaces() {
-  return PATHS.filter((p) => p.classification === 'product_grant_surface').map((p) => p.id);
+/**
+ * GP06 — A JOGADÓ SQL-ÍRÁS-HELYEK MODULONKÉNTI DARABSZÁMA (R59/F59-02, (3) ellenpélda).
+ *
+ * MIÉRT KELL. A GP04 MODUL-szinten mér: ha egy MÁR FELSOROLT modulba kerül egy ÚJ jogadó út, a
+ * modul neve változatlanul szerepel a táblában, tehát az őr némán átengedi. A külső fél ezt
+ * ellenpéldával mérte meg (új `freshUnregisteredWriter` a `scopeGrant.mjs`-ben ⇒ 9/9 PASS), és a
+ * saját fánkon reprodukáltam.
+ *
+ * MIÉRT ÍGY, ÉS MIÉRT NEM TÖBBET. Függvény-szintű teljességhez hívási lánc-elemző kellene; azt az
+ * R59 kifejezetten NEM kéri. Az arányos válasz: az írás-helyek SZÁMA deklarált, tehát egy új
+ * jogadó írás a számot megemeli ⇒ PIROS. Ez nem bizonyítja, hogy a DEKLARÁLT szám a helyes
+ * besoroláshoz tartozik — csak azt, hogy NÉMÁN nem lehet újat bevinni.
+ *
+ * A KÉZZEL LÉPTETETT SZÁM CSAPDÁJA (KUKA-045) ELLEN: a mérési előkészítők (`run.mjs` ·
+ * `mutations.mjs`) NEM kapnak rögzített számot. Ott minden új próba jogosan ír fixtúra-sort, és egy
+ * pinelt darabszám pontosan azt tanítaná be, hogy a javítás = a szám átírása. Ezeknél a
+ * deklaráció maga mondja ki, hogy VÁLTOZÓ, és MIÉRT.
+ */
+const GRANT_WRITE_SITES = Object.freeze({
+  'v3ref/adjudication.mjs': 1,
+  'v3ref/banMatrix.mjs': 1,
+  'v3ref/basisLimit.mjs': 3,
+  'v3ref/bitemporal.mjs': 2,
+  'v3ref/entryPoints.mjs': 1,
+  'v3ref/scopeGrant.mjs': 1,
+  'v3ref/store.mjs': 2,
+  // VÁLTOZÓ — mérési előkészítő: minden új próba jogosan ír fixtúra-sort (lásd fent, KUKA-045).
+  'v3ref/run.mjs': 'variable',
+  'v3ref/mutations.mjs': 'variable',
+});
+
+/** Hány BELSŐ REFERENCIA-BELÉPÉSI PONT áll ma — MÉRVE, nem beírva (KUKA-045). */
+function referenceEntryPoints() {
+  return PATHS.filter((p) => p.classification === 'internal_reference_entry_point').map((p) => p.id);
 }
 
 /** A PADLÓ: ennyi útnak MINDIG szerepelnie kell. Csökkenni nem szabad, nőni igen. */
 const PATH_FLOOR = 9;
 
-module.exports = { CLASSIFICATIONS, GRANTING_TABLES, PATHS, PATH_FLOOR, productGrantSurfaces };
+module.exports = {
+  CLASSIFICATIONS, GRANTING_TABLES, GRANT_WRITE_SITES, PATHS, PATH_FLOOR, referenceEntryPoints,
+};
