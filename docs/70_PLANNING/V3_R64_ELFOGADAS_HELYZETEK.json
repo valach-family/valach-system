@@ -1,0 +1,148 @@
+{
+  "schema": "v3app-elfogadas-helyzetek/1",
+  "round": "CMD-VS-300-002-002 R64",
+  "lane": "Claude-v3",
+  "source": "tests/e2e/v3app-acceptance.spec.mjs",
+  "command": "npm run proof:core-ux",
+  "generated_at": "2026-09-20T11:23:10.377Z",
+  "package_version": "3.0.0-alpha",
+  "base_url": "http://127.0.0.1:41519",
+  "db_path": "var/tmp/v3_v3.0.0-alpha_20260920_112152_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
+  "what_this_is": "Az R63 §5.3 tizennégy elfogadási helyzete a v3app héjon, valódi böngészőből (Playwright · Chromium), helyzetenként KÉT rekeszben: amit a lap mutatott (browser) és amit a szerver válaszolt / a tároló őrzött (server). Az ítélet nem díszpipa: ahol egy al-eset a böngészőből nem hajtható meg, ott a lap a mag-próbára mutat.",
+  "verdict_vocabulary": {
+    "bizonyitva": "a helyzet minden állítása a böngésző- és a szerver-rekeszből áll össze",
+    "reszben": "egy vagy több nevezett al-eset a böngészőből nem hajtható meg — a `note` megmondja, melyik, és hol van a mag-bizonyíték",
+    "nem_bongeszoben": "a helyzet a héjból nem hajtható meg — a `note` a mag-próbára / szerszámra mutat; NEM sikeres próba"
+  },
+  "evidence_kinds": {
+    "browser": "a lap által mutatott szöveg, a vezérlők állapota, a fejléc — Playwright-lokátorokkal olvasva",
+    "server": "HTTP-válasz törzse (a felület kérése elfogva vagy a böngésző sütijével küldött kérés) · ADATBÁZIS: a tárolt sor második kapcsolaton (WAL) olvasva"
+  },
+  "summary": {
+    "bizonyitva": 0,
+    "reszben": 12,
+    "nem_bongeszoben": 2
+  },
+  "situations": [
+    {
+      "id": "H01",
+      "title": "Egyszerű magánfiók céges adatbekérés nélkül létrejön; csak saját adatait látja.",
+      "browser": [],
+      "server": [],
+      "verdict": "reszben",
+      "note": "a próba nem futott le"
+    },
+    {
+      "id": "H02",
+      "title": "A meglévő magánfiók alkalmazotti meghívót elfogad; saját jelszava, személyes adatai és más céges jogai változatlanok.",
+      "browser": [],
+      "server": [],
+      "verdict": "reszben",
+      "note": "a próba nem futott le"
+    },
+    {
+      "id": "H03",
+      "title": "A fiókhoz adószámos működési minőség társul; a magán- és üzleti kör nem olvad össze.",
+      "browser": [],
+      "server": [],
+      "verdict": "reszben",
+      "note": "a próba nem futott le"
+    },
+    {
+      "id": "H04",
+      "title": "Saját családi munkakörnyezet indul; második tagot meghívhat a jogosult kezelő, külön állami igazolási kör nélkül a saját helyi körhöz.",
+      "browser": [],
+      "server": [],
+      "verdict": "reszben",
+      "note": "a próba nem futott le"
+    },
+    {
+      "id": "H05",
+      "title": "Azonos beírt cégazonosítóval más jelentkező nem kapja meg e munkakörnyezet vagy egy harmadik szolgáltató adatait; legitim saját indulása továbbra lehetséges.",
+      "browser": [],
+      "server": [],
+      "verdict": "reszben",
+      "note": "a próba nem futott le"
+    },
+    {
+      "id": "H06",
+      "title": "Továbbadható körön túli meghívás/jogadás elutasított. Lejárt, visszavont, idegen címzettű és ismételten beváltott meghívó nem ad jogot; érvényes párja sikerül.",
+      "browser": [],
+      "server": [],
+      "verdict": "reszben",
+      "note": "a próba nem futott le"
+    },
+    {
+      "id": "H07",
+      "title": "A raktári szerepnek adott mennyiségnézetből ár-, számla- vagy beszállítói bizalmas adat nem következik. A pozitív, külön engedélyezett olvasás működik.",
+      "browser": [],
+      "server": [],
+      "verdict": "reszben",
+      "note": "a próba nem futott le"
+    },
+    {
+      "id": "H08",
+      "title": "Cégváltáskor a session-kontextus, válaszok és klienscache nem keverik a cégeket. Módosított API-paraméter sem ad idegen jogot.",
+      "browser": [],
+      "server": [],
+      "verdict": "reszben",
+      "note": "a próba nem futott le"
+    },
+    {
+      "id": "H09",
+      "title": "Megvonás/lejárat után új kérés és függő meghívó nem használhatja a megszűnt alapot; másik független jogosultság nem szűnik meg indokolatlanul.",
+      "browser": [],
+      "server": [],
+      "verdict": "reszben",
+      "note": "a próba nem futott le"
+    },
+    {
+      "id": "H10",
+      "title": "Két szervezeti egység és korlátozott helyi admin példája: a vezető nem kap automatikusan minden üzleti adatot; a delegálási plafon megmarad. Közös jóváhagyás támogatását vagy tényleges hiányát külön, bizonyítékkal nevezd meg.",
+      "browser": [],
+      "server": [],
+      "verdict": "reszben",
+      "note": "a próba nem futott le"
+    },
+    {
+      "id": "H11",
+      "title": "Előfizetésileg elérhető funkcióhoz jogosulatlan munkatárs nem jut; jogosult személy sem használhat előfizetésileg nem engedett műveletet. Ehhez tesztprofil elég, fizetési integráció nem kell.",
+      "browser": [],
+      "server": [],
+      "verdict": "reszben",
+      "note": "a próba nem futott le"
+    },
+    {
+      "id": "H12",
+      "title": "Két joghatósági azonosítónévtér azonos karaktersora nem téves azonosság; ismeretlen országprofil nem ad széles képviseleti jogot, és nem tiltja általánosan a független saját munkát.",
+      "browser": [],
+      "server": [],
+      "verdict": "reszben",
+      "note": "a próba nem futott le"
+    },
+    {
+      "id": "H13",
+      "title": "Kezdő jogosultság, alap nélküli történeti sor, szabályos új felhatalmazás és jogosulatlan bírálói önfeljogosítás külön eredményt kap.",
+      "browser": [
+        "A felületen nincs bírálati / hatásköri vezérlő: a lap hat szakasza fiók · munkakörnyezet · munkatársak · adatok · meghívó · levél-fogadó — bírálói önfeljogosításra nincs gomb, tehát a négy kimenet a böngészőből nem váltható ki"
+      ],
+      "server": [
+        "A héjban nincs bírálati végpont (mérve): /api/adjudicate → 404 unknown_endpoint; /api/claims → 404 unknown_endpoint; /api/authority → 404 unknown_endpoint; /api/members/suspend → 404 unknown_endpoint; ADATBÁZIS: az indulási szabály műveletei [\"invite_issue\",\"alter_right\"] (adjudicate és suspend NINCS benne), a létrehozó hatáskörei: [alter_right] (csak a helyi alter_right)"
+      ],
+      "verdict": "nem_bongeszoben",
+      "note": "A négy külön eredmény (kezdő jog · alap nélküli történeti sor · szabályos új felhatalmazás · jogosulatlan bírálói önfeljogosítás) a magban mérve áll: `P-CORE-startup-and-delegation` (e) — a helyi admin az indulási alapra hivatkozva sem adhat magának `adjudicate` hatáskört (outside_basis_operations, nyom nélkül) — és `P-ORG-adjudication-basis-limit` (a deklarált alap korlátja kapu a bírálati úton, a megadáskor ÉS a használatkor), mindkettő v3ref/run.mjs. A héjnak nincs bírálati végpontja, és a próba nem gyárt alap nélküli történeti sort (a mag íróit nem hívja)."
+    },
+    {
+      "id": "H14",
+      "title": "Két valódi kapcsolat meghívóbeváltási és megvonás–véglegesítési versenye: egyszeri, aktuális szabály szerinti hatás; visszajátszás nem kerüli meg a jelenlegi adatjogot.",
+      "browser": [
+        "A böngésző-próba EGY szerver-folyamattal beszél, amely EGY tároló-kapcsolatot tart: két VALÓDI, külön OS-folyamatban nyitott kapcsolat versenye a lapról nem indítható — a látszólagos „egyszerre kattintás\" egyírós sorrendet mérne, amit az R63 §5.2 kimondva nem fogad el bizonyítéknak"
+      ],
+      "server": [
+        "A többkapcsolatos bizonyíték szerszáma a repóban áll (mérve): tools/v3_multiconn_proof.mjs létezik=true; package.json → \"proof:multiconn\": \"node tools/v3_multiconn_proof.mjs\""
+      ],
+      "verdict": "nem_bongeszoben",
+      "note": "Bizonyíték: `npm run proof:multiconn` (tools/v3_multiconn_proof.mjs, MCN-01) — két külön gyermek-folyamat, saját `openStoreAt` kapcsolattal, WAL-naplón: (1) ugyanazt a meghívót egyszerre váltják be → pontosan EGY tagság, a vesztes nevezett elutasítást kap; (2) megvonás ↔ véglegesítés mindkét sorrendben, az aktuális szabály szerint; (3) a visszajátszás (kulcs-ismétlés · eredmény-olvasás) a megvonás után `not_available`, új kiadási sor nem születik."
+    }
+  ]
+}
