@@ -55,8 +55,14 @@ export const EXTERNAL_CAP_MS = 15_000;
  * útján) és a futtató által készített IDEIGLENES MÁSOLATBÓL — és a mutációs regiszter csak a
  * másolatban érhető el (`source/v3ref/mutations.mjs`), a repóban nincs `source` mappa. Ez MÉRT
  * korlát, nem kényelem; amíg nincs feloldva, a szám kézzel marad, és a jel a tool kilépési kódja.
+ *
+ * R64 (204 mutáció): a KILENCES bontás egységei 14 033 … 14 905 ms-ot kértek — a `mutate.mjs`
+ * költségvetése (12 000 ms) fölött, ezért az r79 U04 pozitív ellenpárja pirosra ment, az r57a/r59a
+ * egységei időtúllépésbe futottak. A repón belüli `--units-auto` ugyanezen a gépen TIZENNYOLC egységre
+ * finomított, mind a költségvetésen belül (2 perc 50 mp). A deklarált szám ezért 18 — negyedszer
+ * avult el kézzel; a származtatott alak hiánya a fenti mért korlát miatt áll.
  */
-export const DECLARED_UNITS = 9;
+export const DECLARED_UNITS = 18;
 
 /** A futásidejű darabszám: környezetből felülírható, különben a deklarált érték. */
 export function batteryUnits(env = process.env) {
