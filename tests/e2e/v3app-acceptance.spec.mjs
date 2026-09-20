@@ -57,10 +57,22 @@ class Evidence {
 }
 
 const line = (text) => (text || '').split('\n')[0];
-const TAX = '12345678-2-42';
+// EGY tároló, tizennégy világ: minden helyzet SAJÁT adószám-karaktersort ír, hogy az adatbázis-oldali
+// számlálás a saját világára szűküljön (a közös érték a testvér-helyzetek sorait is megtalálná — KUKA-054).
+const taxOf = (tag) => `${tag.replace(/\D/g, '').padStart(2, '0')}345678-2-42`;
 
 test.afterAll(async () => {
+  // A MUNKÁS ÚJRAINDULHAT (egy bukott próba után a futtató új folyamatot nyit): az előző munkás
+  // már kiírt tételei a FÁJLBAN állnak — azokat megtartjuk, a sajátjainkat rájuk írjuk. Így a lap
+  // akkor is teljes, ha a futás közben folyamat-váltás történt (KUKA-012: néma hiány nincs).
+  let previous = [];
+  try {
+    if (process.env.VS_E2E_EVIDENCE_PATH && existsSync(process.env.VS_E2E_EVIDENCE_PATH)) {
+      previous = JSON.parse(readFileSync(process.env.VS_E2E_EVIDENCE_PATH, 'utf8')).situations || [];
+    }
+  } catch { previous = []; }
   const situations = SITUATIONS.map((s) => EVIDENCE.find((e) => e.id === s.id)?.toJSON()
+    ?? previous.find((e) => e.id === s.id && (e.browser.length || e.server.length))
     ?? { id: s.id, title: s.title, browser: [], server: [], verdict: 'reszben', note: 'a próba nem futott le' });
   const summary = { bizonyitva: 0, reszben: 0, nem_bongeszoben: 0 };
   for (const s of situations) summary[s.verdict] = (summary[s.verdict] || 0) + 1;
@@ -142,7 +154,7 @@ test('H02 — A meglévő magánfiók alkalmazotti meghívót elfogad; jelszava,
       own: db.get('SELECT role, revoked_at FROM membership WHERE subject_id = ? AND book_id = ?', bela.subjectId, own.bookId),
     };
     const anna = await w.person('anna');
-    await createWorkspaceUI(anna.page, { name: 'Családi Kft', business: { jurisdiction: 'HU', tax_id: TAX } });
+    await createWorkspaceUI(anna.page, { name: 'Családi Kft', business: { jurisdiction: 'HU', tax_id: taxOf(w.tag) } });
     const inv = await inviteUI(anna.page, { email: bela.email, role: 'user', scope: 'keszlet' });
     const o = await openInviteUI(bela.page, inv.link);
     ev.b(`Béla (meglévő, belépett fiók) megnyitja a meghívó hivatkozását: a lap „${o.observe.status}"-t mutat, a következő lépés: „${o.next}"; a Beváltás gomb látszik: ${o.redeemVisible}`);
@@ -174,10 +186,10 @@ test('H03 — Adószámos működési minőség társul a fiókhoz; a magán- é
   try {
     const anna = await w.person('anna');
     const p = await createWorkspaceUI(anna.page, { name: 'Anna magántere' });
-    const c = await createWorkspaceUI(anna.page, { name: 'Anna Kft', business: { jurisdiction: 'HU', tax_id: TAX } });
+    const c = await createWorkspaceUI(anna.page, { name: 'Anna Kft', business: { jurisdiction: 'HU', tax_id: taxOf(w.tag) } });
     ev.b(`Magántér: „${p.resultText}" · Céges: „${c.resultText}" — a céges soron látszik az önbevallott minőség és hogy igazolás nincs; a választó két külön tételt mutat: ${(await workspaceListUI(anna.page)).map((x) => line(x.text)).join(' | ')}`);
     ev.s(`POST /api/workspaces (céges) → business: ${j(c.body.business)}`);
-    expect(c.body.business).toMatchObject({ ok: true, jurisdiction: 'HU', value_norm: '12345678242', issuer: 'self_asserted', verification: 'none_available' });
+    expect(c.body.business).toMatchObject({ ok: true, jurisdiction: 'HU', value_norm: taxOf(w.tag).replace(/-/g, ''), issuer: 'self_asserted', verification: 'none_available' });
     const sw = await switchUI(anna.page, p.bookId);
     const hP = (await header(anna.page)).workspace;
     await switchUI(anna.page, c.bookId);
@@ -200,7 +212,7 @@ test('H04 — Saját családi munkakörnyezet indul; második tagot a jogosult k
   const ev = new Evidence('H04'); const w = new World(browser, 'h04'); const db = new Db();
   try {
     const anna = await w.person('anna');
-    const c = await createWorkspaceUI(anna.page, { name: 'Családi Kft', business: { jurisdiction: 'HU', tax_id: TAX } });
+    const c = await createWorkspaceUI(anna.page, { name: 'Családi Kft', business: { jurisdiction: 'HU', tax_id: taxOf(w.tag) } });
     ev.b(`Anna a felületen indítja a családi munkakörnyezetet: „${c.resultText}"; a Munkatársak szakasz (meghívás) megjelent: ${await anna.page.getByTestId('section-members').isVisible()}`);
     ev.s(`POST /api/workspaces → ${c.status}; business.verification=${c.body.business.verification} (állami igazolási kör NEM futott, nem is kért); role=${c.body.role}`);
     const boot = db.get('SELECT rule_version, basis_id FROM workspace_bootstrap WHERE book_id = ?', c.bookId);
@@ -227,11 +239,11 @@ test('H05 — Azonos cégazonosítóval más jelentkező nem kap hozzáférést;
   const ev = new Evidence('H05'); const w = new World(browser, 'h05'); const db = new Db();
   try {
     const anna = await w.person('anna');
-    const A = await createWorkspaceUI(anna.page, { name: 'Anna Kft', plan: 'pro', business: { jurisdiction: 'HU', tax_id: TAX } });
+    const A = await createWorkspaceUI(anna.page, { name: 'Anna Kft', plan: 'pro', business: { jurisdiction: 'HU', tax_id: taxOf(w.tag) } });
     const dani = await w.person('dani');
-    const D = await createWorkspaceUI(dani.page, { name: 'Harmadik szolgáltató', plan: 'pro', business: { jurisdiction: 'HU', tax_id: TAX } });
+    const D = await createWorkspaceUI(dani.page, { name: 'Harmadik szolgáltató', plan: 'pro', business: { jurisdiction: 'HU', tax_id: taxOf(w.tag) } });
     const cili = await w.person('cili');
-    const C = await createWorkspaceUI(cili.page, { name: 'Cili Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: TAX } });
+    const C = await createWorkspaceUI(cili.page, { name: 'Cili Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: taxOf(w.tag) } });
     ev.b(`Cili UGYANAZT a HU adószámot írja be, mint Anna és a harmadik szolgáltató: „${C.resultText}" — a saját indulása megtörtént; a választója: ${(await workspaceListUI(cili.page)).map((x) => line(x.text)).join(' | ')} (csak a sajátja)`);
     ev.s(`POST /api/workspaces (Cili, azonos adószám) → ${C.status}; business.ok=${C.body.business.ok}, value_norm=${C.body.business.value_norm}`);
     expect(C.status).toBe(201);
@@ -242,9 +254,10 @@ test('H05 — Azonos cégazonosítóval más jelentkező nem kap hozzáférést;
     ev.s(`Cili váltása Anna könyvére → ${swA.status} ${swA.body.reason}/${swA.body.detail}; a harmadik szolgáltatóéra → ${swD.status} ${swD.body.reason}/${swD.body.detail}; ár ?book_id=<Anna pro könyve> → param_ignored=${forced.body.param_ignored}, ok=${forced.body.ok}, refused_by=${forced.body.refused_by} (a saját starter könyve dönt); /api/me munkakörnyezetei: ${me.workspaces.map((x) => x.name).join(', ')}`);
     expect(swA.status).toBe(403); expect(swD.status).toBe(403); expect(forced.body).toMatchObject({ param_ignored: true, ok: false, refused_by: 'entitlement' });
     expect(me.workspaces.map((x) => x.book_id)).toEqual([C.bookId]);
-    const claims = db.all("SELECT subject_id FROM external_id WHERE namespace = 'tax_id' AND jurisdiction = 'HU' AND value_norm = '12345678242' ORDER BY subject_id");
+    const norm = taxOf(w.tag).replace(/-/g, '');
+    const claims = db.all("SELECT subject_id FROM external_id WHERE namespace = 'tax_id' AND jurisdiction = 'HU' AND value_norm = ? ORDER BY subject_id", norm);
     const ciliMem = db.all('SELECT book_id FROM membership WHERE subject_id = ?', cili.subjectId).map((r) => r.book_id);
-    ev.s(`ADATBÁZIS: ugyanazt a (tax_id · HU · 12345678242) kulcsot ${claims.length} KÜLÖN jogalany állítja (${claims.map((r) => r.subject_id).join(', ')}) — az azonosító állítás, nem jog; Cili tagságai: ${j(ciliMem)}`);
+    ev.s(`ADATBÁZIS: ugyanazt a (tax_id · HU · ${norm}) kulcsot ${claims.length} KÜLÖN jogalany állítja (${claims.map((r) => r.subject_id).join(', ')}) — az azonosító állítás, nem jog; Cili tagságai: ${j(ciliMem)}`);
     expect(claims.length).toBe(3); expect(ciliMem).toEqual([C.bookId]);
     ev.verdictIs('bizonyitva', 'Nincs globális cégnév-/adószám-lefoglalás: az azonos karaktersor három független jogalanyon áll, egyik sem nyit a másik könyvére.');
   } finally { await w.close(); db.close(); }
@@ -254,7 +267,7 @@ test('H06 — Körön túli meghívás/jogadás elutasítva; visszavont, idegen 
   const ev = new Evidence('H06'); const w = new World(browser, 'h06'); const db = new Db();
   try {
     const anna = await w.person('anna');
-    const K = await createWorkspaceUI(anna.page, { name: 'Családi Kft', business: { jurisdiction: 'HU', tax_id: TAX } });
+    const K = await createWorkspaceUI(anna.page, { name: 'Családi Kft', business: { jurisdiction: 'HU', tax_id: taxOf(w.tag) } });
     const roleOptions = await anna.page.locator('[data-testid="invite-role"] option').evaluateAll((els) => els.map((e) => e.value));
     const owner = await anna.api.post('/api/invites', { email: w.email('x'), role: 'owner', scope: 'keszlet' });
     const badScope = await anna.api.post('/api/invites', { email: w.email('x'), role: 'user', scope: 'penzugy' });
@@ -298,7 +311,7 @@ test('H06 — Körön túli meghívás/jogadás elutasítva; visszavont, idegen 
     const erik = await w.person('erik');
     const oE = await openInviteUI(erik.page, invE.link);
     const rE = await redeemUI(erik.page);
-    ev.b(`VISSZAVONT alap: Anna a tag-listán megvonja Cilit („${rev.resultText}"); Erik megnyitja a Cili által kiadott függő meghívót → a megfigyelés „${oE.observe.status}", Beváltásra kattint → a lap: „${line(rE.resultText)} … ${rE.body.reason}"`);
+    ev.b(`VISSZAVONT alap: Anna a tag-listán megvonja Cilit („${rev.resultText}"); Erik megnyitja a Cili által kiadott függő meghívót → a megfigyelés „${oE.observe.status}", Beváltásra kattint → a lap a válasz-törzset írja ki: ${rE.body.error} / ${rE.body.reason} (a lap mutatja: ${rE.resultText.includes('issuer_right_withdrawn')})`);
     ev.s(`Megvonás → delegation=${j(rev.body.delegation)}; Erik beváltása → ${rE.status} ${rE.body.error}/${rE.body.reason}; ADATBÁZIS: Erik tagsága ${db.count('SELECT COUNT(*) AS n FROM membership WHERE subject_id = ? AND book_id = ?', erik.subjectId, K.bookId)} sor, a meghívó nem fogyott el (redeemed_at=${db.get('SELECT redeemed_at FROM invite WHERE token = ?', invE.token).redeemed_at})`);
     expect(rE.body.reason).toBe('issuer_right_withdrawn');
     ev.verdictIs('reszben', 'LEJÁRT meghívó a böngészőből nem hajtható meg: a héjnak nincs óra-állító végpontja, és a próba a mag íróit nem hívja (nem gyárt lejárt sort) — a lejárat mag-bizonyítéka: `P-INVITE-window` (v3ref/run.mjs, valódi idő-összehasonlítás, zónás alakon is). A „visszavont" itt a KIADÓ jogának megvonása (külön meghívó-visszavonó végpont a héjban nincs — kimondva). MÉRT LELET: a megfigyelés (`observe`) a csatornát és az ablakot méri, a kiadó MAI jogát nem — ezért a halott meghívóra a lap még Beváltás gombot kínál, és csak a beváltás utasít el nevezetten; jog nem születik, de a felhasználó egy kattintással később tudja meg.');
@@ -309,7 +322,7 @@ test('H07 — A raktári mennyiség-nézetből ár nem következik; a külön en
   const ev = new Evidence('H07'); const w = new World(browser, 'h07'); const db = new Db();
   try {
     const anna = await w.person('anna');
-    const K = await createWorkspaceUI(anna.page, { name: 'Raktár Kft', plan: 'pro', business: { jurisdiction: 'HU', tax_id: TAX } });
+    const K = await createWorkspaceUI(anna.page, { name: 'Raktár Kft', plan: 'pro', business: { jurisdiction: 'HU', tax_id: taxOf(w.tag) } });
     const bela = await w.person('bela');
     const inv = await inviteUI(anna.page, { email: bela.email, role: 'user', scope: 'keszlet' });
     await openInviteUI(bela.page, inv.link); await redeemUI(bela.page);
@@ -339,7 +352,7 @@ test('H08 — Cégváltáskor a munkamenet, a válaszok és a kliens nem keverik
   try {
     const anna = await w.person('anna');
     const P = await createWorkspaceUI(anna.page, { name: 'Anna magántere', plan: 'starter' });
-    const K = await createWorkspaceUI(anna.page, { name: 'Anna Kft', plan: 'pro', business: { jurisdiction: 'HU', tax_id: TAX } });
+    const K = await createWorkspaceUI(anna.page, { name: 'Anna Kft', plan: 'pro', business: { jurisdiction: 'HU', tax_id: taxOf(w.tag) } });
     const bela = await w.person('bela');
     const B = await createWorkspaceUI(bela.page, { name: 'Béla Kft', plan: 'pro', business: { jurisdiction: 'AT', tax_id: 'ATU99999999' } });
     const inv = await inviteUI(bela.page, { email: anna.email, role: 'user', scope: 'keszlet' });
@@ -385,7 +398,7 @@ test('H09 — Megvonás után új kérés és függő meghívó nem használhatj
   const ev = new Evidence('H09'); const w = new World(browser, 'h09'); const db = new Db();
   try {
     const anna = await w.person('anna');
-    const K = await createWorkspaceUI(anna.page, { name: 'Családi Kft', business: { jurisdiction: 'HU', tax_id: TAX } });
+    const K = await createWorkspaceUI(anna.page, { name: 'Családi Kft', business: { jurisdiction: 'HU', tax_id: taxOf(w.tag) } });
     const bela = await w.person('bela'); const cili = await w.person('cili'); const dani = await w.person('dani');
     const own = await createWorkspaceUI(cili.page, { name: 'Cili saját tere' });
     const invB = await inviteUI(anna.page, { email: bela.email, role: 'user', scope: 'keszlet' });
@@ -395,7 +408,7 @@ test('H09 — Megvonás után új kérés és függő meghívó nem használhatj
     await openInviteUI(cili.page, invC.link); await redeemUI(cili.page);
     const invD = await inviteUI(cili.page, { email: dani.email, role: 'user', scope: 'keszlet' });
     const stC0 = await stockUI(cili.page);
-    ev.b(`Kiindulás: Cili admin a családi könyvben (fejléc „${(await header(cili.page)).workspace}"), készlet-nézete „${line(stC0.text)}"; Cili függő meghívót adott Daninak; Bélának (user) keszlet adatköre van`);
+    ev.b(`Kiindulás: Cili admin a családi könyvben (fejléc „${(await header(cili.page)).workspace}"), készlet-nézete „${line(stC0.text)}" (a meghívott admin tagsága sem ad adatkört automatikusan — azt itt nem kérte); Cili függő meghívót adott Daninak; Bélának (user) keszlet adatköre van`);
     const rev = await revokeUI(anna.page, cili.subjectId);
     ev.b(`Anna a tag-listán MEGVONJA Cilit: „${rev.resultText}"; a sor ezután: „${line(await memberRowText(anna.page, cili.subjectId))}"`);
     const stC = await stockUI(cili.page);
@@ -424,7 +437,7 @@ test('H10 — Két szervezeti egység, korlátozott helyi admin: a vezető nem l
   const ev = new Evidence('H10'); const w = new World(browser, 'h10'); const db = new Db();
   try {
     const anna = await w.person('anna'); const bela = await w.person('bela'); const cili = await w.person('cili');
-    const A = await createWorkspaceUI(anna.page, { name: 'A egység', business: { jurisdiction: 'HU', tax_id: TAX } });
+    const A = await createWorkspaceUI(anna.page, { name: 'A egység', business: { jurisdiction: 'HU', tax_id: taxOf(w.tag) } });
     const B = await createWorkspaceUI(bela.page, { name: 'B egység', plan: 'pro', business: { jurisdiction: 'HU', tax_id: '87654321-2-42' } });
     const invC = await inviteUI(anna.page, { email: cili.email, role: 'admin', scope: 'keszlet' });
     await openInviteUI(cili.page, invC.link); await redeemUI(cili.page);
@@ -461,7 +474,7 @@ test('H11 — Előfizetés: jogosulatlan munkatárs nem jut a funkcióhoz; jogos
   const ev = new Evidence('H11'); const w = new World(browser, 'h11'); const db = new Db();
   try {
     const anna = await w.person('anna');
-    const K = await createWorkspaceUI(anna.page, { name: 'Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: TAX } });
+    const K = await createWorkspaceUI(anna.page, { name: 'Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: taxOf(w.tag) } });
     const bela = await w.person('bela');
     const inv = await inviteUI(anna.page, { email: bela.email, role: 'user', scope: 'keszlet' });
     await openInviteUI(bela.page, inv.link); await redeemUI(bela.page);
@@ -477,7 +490,7 @@ test('H11 — Előfizetés: jogosulatlan munkatárs nem jut a funkcióhoz; jogos
     ev.b(`Anna a felületen PRO-ra vált: „${plan.resultText}"; fejléc: „${(await header(anna.page)).workspace}"; Anna ár-nézete: „${line(prA2.text)}"; Béla ár-nézete: „${prB2.text.replace(/\n/g, ' · ')}" — a terv NEM írja felül a jog-kaput`);
     ev.s(`POST /api/workspaces/plan pro → features=[${plan.body.features.join(', ')}]; ismeretlen terv (enterprise) → ${unknown.status} ${unknown.body.reason}; Anna price ok=${prA2.body.ok}; Béla price refused_by=${prB2.body.refused_by} (előfizetés: ${prB2.body.entitlement_reason}); ADATBÁZIS entitlement_profile: ${j(db.get('SELECT plan, features FROM entitlement_profile WHERE book_id = ?', K.bookId))}`);
     expect(prA2.body.ok).toBe(true); expect(prB2.body).toMatchObject({ refused_by: 'right', entitlement_reason: 'feature_entitled' }); expect(unknown.body.reason).toBe('unknown_plan');
-    ev.verdictIs('bizonyitva', 'Tesztprofil: a tervek a kódban zárt szótár (starter · pro), a profil az `entitlement_profile` táblában áll; fizetési integráció nincs, nem is kell — a két kapu (jog · előfizetés) külön mér és külön jelent.');
+    ev.verdictIs('bizonyitva', 'Tesztprofil: a tervek a kódban zárt szótár (starter · pro), a profil az `entitlement_profile` táblában áll; fizetési integráció nincs, nem is kell — a két kapu (jog · előfizetés) külön mér és külön jelent. MÉRT LELET (a héj szövegén, nem a döntésén): ha a JOG-kapu enged és csak az ELŐFIZETÉS zár, a válasz `message` mezője a mag jog-kapujának mondatát („az eredmény kiadva") viszi az ELUTASÍTVA felirat alá — a döntés helyes, a kísérő mondat nem követi (KUKA-050); a héjban nem javítva, hogy a próba ne írja át azt, amit mér.');
   } finally { await w.close(); db.close(); }
 });
 
@@ -485,15 +498,16 @@ test('H12 — HU és AT azonos karaktersora nem azonosság; ismeretlen országpr
   const ev = new Evidence('H12'); const w = new World(browser, 'h12'); const db = new Db();
   try {
     const anna = await w.person('anna'); const bela = await w.person('bela'); const cili = await w.person('cili'); const dani = await w.person('dani');
-    const HU = await createWorkspaceUI(anna.page, { name: 'Anna HU', business: { jurisdiction: 'HU', tax_id: TAX } });
-    const AT = await createWorkspaceUI(bela.page, { name: 'Béla AT', business: { jurisdiction: 'AT', tax_id: TAX } });
-    const XX = await cili.api.post('/api/workspaces', { name: 'Cili XX', plan: 'starter', business: { jurisdiction: 'XX', tax_id: TAX } });
-    const EG = await createWorkspaceUI(dani.page, { name: 'Dani egyéb', business: { jurisdiction: 'egyeb', tax_id: TAX } });
+    const HU = await createWorkspaceUI(anna.page, { name: 'Anna HU', business: { jurisdiction: 'HU', tax_id: taxOf(w.tag) } });
+    const AT = await createWorkspaceUI(bela.page, { name: 'Béla AT', business: { jurisdiction: 'AT', tax_id: taxOf(w.tag) } });
+    const XX = await cili.api.post('/api/workspaces', { name: 'Cili XX', plan: 'starter', business: { jurisdiction: 'XX', tax_id: taxOf(w.tag) } });
+    const EG = await createWorkspaceUI(dani.page, { name: 'Dani egyéb', business: { jurisdiction: 'egyeb', tax_id: taxOf(w.tag) } });
     ev.b(`Anna HU joghatósággal: „${HU.resultText}" · Béla AT joghatósággal, UGYANAZZAL a karaktersorral: „${AT.resultText}" · Dani az „egyéb" joghatósággal: „${EG.resultText}"`);
     ev.s(`Cili ismeretlen országprofillal (XX) → ${XX.status}; business: profile_known=${XX.body.business.profile_known}, jurisdiction=${XX.body.business.jurisdiction}, verification=${XX.body.business.verification}`);
     expect(XX.status).toBe(201); expect(XX.body.business.profile_known).toBe(false);
-    const rows = db.all("SELECT subject_id, jurisdiction FROM external_id WHERE namespace = 'tax_id' AND value_norm = '12345678242' ORDER BY jurisdiction");
-    const huOnly = db.all("SELECT subject_id FROM external_id WHERE namespace = 'tax_id' AND jurisdiction = 'HU' AND value_norm = '12345678242'");
+    const norm = taxOf(w.tag).replace(/-/g, '');
+    const rows = db.all("SELECT subject_id, jurisdiction FROM external_id WHERE namespace = 'tax_id' AND value_norm = ? ORDER BY jurisdiction", norm);
+    const huOnly = db.all("SELECT subject_id FROM external_id WHERE namespace = 'tax_id' AND jurisdiction = 'HU' AND value_norm = ?", norm);
     ev.s(`ADATBÁZIS: ugyanaz a karaktersor ${rows.length} KÜLÖN joghatóság-kulcson (${rows.map((r) => r.jurisdiction).join(' · ')}), ${new Set(rows.map((r) => r.subject_id)).size} külön jogalanyon; a (tax_id · HU · érték) kulcs pontosan ${huOnly.length} alanyt talál — az AT sort NEM`);
     expect(rows.map((r) => r.jurisdiction)).toEqual(['AT', 'EGYEB', 'HU', 'XX']); expect(huOnly.length).toBe(1);
     const swBA = await bela.api.post('/api/session/workspace', { book_id: HU.bookId });
@@ -510,7 +524,7 @@ test('H13 — Kezdő jogosultság, alap nélküli történeti sor, szabályos ú
   const ev = new Evidence('H13'); const w = new World(browser, 'h13'); const db = new Db();
   try {
     const anna = await w.person('anna');
-    const K = await createWorkspaceUI(anna.page, { name: 'Kft', business: { jurisdiction: 'HU', tax_id: TAX } });
+    const K = await createWorkspaceUI(anna.page, { name: 'Kft', business: { jurisdiction: 'HU', tax_id: taxOf(w.tag) } });
     const probes = ['/api/adjudicate', '/api/claims', '/api/authority', '/api/members/suspend'];
     const results = [];
     for (const p of probes) { const r = await anna.api.post(p, {}); results.push(`${p} → ${r.status} ${r.body.reason}`); }

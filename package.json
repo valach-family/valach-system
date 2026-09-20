@@ -31,7 +31,9 @@
     "verify:external-decisions": "node tools/vs_verify_external_decisions.mjs",
     "verify:grant-paths": "node tools/vs_verify_grant_paths.mjs && node tools/vs_verify_grant_paths.mjs --selftest",
     "app:dev": "node v3app/server.mjs",
-    "app:selfcheck": "node v3app/selfcheck.mjs"
+    "app:selfcheck": "node v3app/selfcheck.mjs",
+    "test:e2e": "playwright test",
+    "proof:core-ux": "playwright test"
   },
   "devDependencies": {
     "@playwright/test": "1.56.0"

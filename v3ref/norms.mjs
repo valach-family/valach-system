@@ -762,12 +762,15 @@ export const ORG_BASIS_NORMS = Object.freeze([
   }),
   Object.freeze({
     id: 'ORG-N2',
-    rule: 'ALAPÉRTELMEZÉS, amíg az explicit szervezeti alap nincs megépítve és MÉRVE: az egy '
-      + 'kibocsátói alapra építő referencia annak megvonásakor maradjon TILTÓ. A szervezeti '
+    rule: 'TERVEZETT SZABÁLY, nem ideiglenes alapértelmezés (R63 óta a delegált alap megépült és '
+      + 'mérve van): az egy kibocsátói alapra építő referencia annak megvonásakor TILTÓ marad — a '
+      + 'kiadó delegálási alapja a tagságával együtt megszűnik, a függő meghívó a kiadáskori alaphoz '
+      + 'mérve elakad. A szervezeti (KÉPVISELETI, ORG-N3) '
       + 'kivételt SOHA nem helyettesítjük tulajdonos-metaadattal, admin-címkével vagy szabadon '
       + 'választott `basis_kind` mezővel — egy önbevalló mező kiírná magát a jog-ellenőrzés alól.',
-    example: 'A kibocsátó jogának megvonása a függő meghívót is érvényteleníti. Ez nem hiányosság, '
-      + 'hanem a hiányzó modell helyes kezelése (fail-closed).',
+    example: 'A kibocsátó jogának megvonása a függő meghívót is érvényteleníti. Ez nem hiányosság és '
+      + 'nem ideiglenes alapértelmezés, hanem a delegált alap tervezett következménye (fail-closed); '
+      + 'ami nyitva marad, az a képviseleti kivétel (ORG-N3).',
     clauses: Object.freeze([
       Object.freeze({
         id: 'ORG-N2a',
@@ -837,12 +840,13 @@ export const OPEN_BLOCKERS = Object.freeze([
   }),
   Object.freeze({
     id: 'OB-3', title: 'Bemeneti séma-regiszter — RÉSZBEN MEGÉPÜLT, a HATÁR hiányzik',
-    why: 'A BLOKKOLÓ SZÖVEGE ELÉVÜLT, ezért ÚJRAÍRVA (KUKA-050: a leíró szöveg ÁLLÍTÁS a '
-      + 'rendszerről, és az állítás elévül). MÉRVE: a mezőnkénti séma MEGVAN (BEM-01), a kanonikus '
-      + 'bevét-út VALIDÁLJA, a mennyiség két szakaszban (profil-független alak, majd a CIKK '
-      + 'profiljához kötött jelentés) és az időpont valódi naptárral dől el. AMI NEM ÁLL: nincs '
-      + 'külső HATÁR (HTTP-réteg, bizalmi határ), ahol a sémának kapuznia kellene — ma minden hívó '
-      + 'a magon BELÜL van, tehát a séma védelme MÉRHETŐ, de nem PRÓBÁRA TÉVE idegen beadóval.',
+    why: 'A BLOKKOLÓ SZÖVEGE KÉTSZER ELÉVÜLT, ezért ÚJRAÍRVA (KUKA-050). MÉRVE: a mezőnkénti séma '
+      + 'MEGVAN (BEM-01), a kanonikus bevét-út VALIDÁLJA, a mennyiség két szakaszban és az időpont '
+      + 'valódi naptárral dől el. R63 ÓTA VAN KÜLSŐ HATÁR — a v3app HTTP-rétege (süti-munkamenet, '
+      + 'kliens-JSON törzs, a cselekvőt nevező kliens-mezők nevezetten figyelmen kívül) —, DE A SÉMA '
+      + 'NEM AZON KAPUZ: a végpontok kézi ellenőrzést futtatnak, a BEM-01 sémái HTTP-n nem érhetők '
+      + 'el, idegen mező és rossz típus ott nem kap nevezett `unknown_field`/`invalid_type` választ. '
+      + 'A régi „nincs külső határ" mondat és az inputSchema.mjs azonos állítása elavult.',
     closes_when: 'A BEJ-01 külső határ megépül, és a séma AZON a határon kapuz — a belső írók '
       + 'pedig a saját invariánsaikat tartják (két külön felelősség, az R6 §4 szűkítése).',
   }),
@@ -854,8 +858,11 @@ export const OPEN_BLOCKERS = Object.freeze([
   }),
   Object.freeze({
     id: 'OB-5', title: 'A megvonás visszamenőleges hatálya (REV-N1c · REV-N2 … REV-N5)',
-    why: 'A protokoll megvan és klauzulákra bontva nevesítve van, de a tizenhárom megvonási '
-      + 'klauzulából csak kettőnek van ma bizonyítéka.',
+    why: 'A SZÁMOK ELÉVÜLTEK, ezért ÚJRAÍRVA (KUKA-050 · KUKA-045: a szöveg ne hordozzon kézzel '
+      + 'léptetett darabszámot). MÉRVE a mai futásból: a megvonási normák 15 klauzulából állnak, '
+      + 'tíznek van deklarált állítású próbája (REV-N1a/b · N2a/b · N3a/b/c · N5a/b/c), öt nyitott '
+      + 'nevezett hiánnyal (REV-N1c · N3d · N3e · N4a · N4b). A két idő-tengely (R83), a hatáskörös '
+      + 'kifogás (R65) és az alany-szintű célzott tiltás (R71) MEGÉPÜLT; a kompenzáló esemény nem.',
     closes_when: 'A hatály/tudomás két tengelye szétválasztva, kompenzáló esemény, hatáskörös '
       + 'kifogás és alany-szintű célzott tiltás — mind mért, deklarált állítású próbával. A '
       + 'sorrendet az R53 §7 rögzíti: REV-N3 → REV-N5 → REV-N2 → ORG-N1 → ORG-N3 → REV-N4.',
@@ -886,7 +893,10 @@ export const OPEN_BLOCKERS = Object.freeze([
       + 'eset → megváltoztatott kód → ténylegesen megbukó állítás → maradék hatókör. A '
       + 'felülvizsgálat a KONKRÉT verziókhoz kötődik (szerződés-lenyomat + klauzula-lenyomat), és '
       + 'bármelyik változása ELAVULTTÁ teszi — a gépezet ezt már méri (content_review), az ELBÍRÁLÁS '
-      + 'még nincs meg: ma MINDEN klauzula `none` állapotú. (A DARABSZÁMOT ez a szöveg szándékosan '
+      + 'a repó rekordjában még nincs meg: ma egyetlen klauzula-sor sincs `current` állapotú. A külső '
+      + 'fél klauzula-szintű döntés-sorai KÜLÖN tengelyen, forrás-lapokhoz mérve állnak '
+      + '(externalDecisions.mjs, `verify:external-decisions`) — az nem sor- és lenyomat-szintű '
+      + 'elbírálás, ezért ezt a blokkolót nem zárja. (A DARABSZÁMOT ez a szöveg szándékosan '
       + 'nem mondja ki: az első alak „tizenhat"-ot írt, miközben a regiszter már húszat hordozott — a '
       + 'kézzel léptetett szám elcsúszik, a kérdés nem „hány van", hanem hogy MEGVAN-E MIND, KUKA-045; '
       + 'a számot a lánc-tábla méri: `node v3ref/run.mjs`.) A LEKÉPEZÉS (klauzula → forrás → '
@@ -913,8 +923,10 @@ export const CLOSED_BLOCKERS = Object.freeze([
       + 'gyártottunk (az R35 kifejezetten tiltotta): a meglévő, MÁR FUTÓ bizonyítékot vetettük össze '
       + 'tartalmilag, és ahol egy már mért viselkedésnek nem volt SAJÁT neve, ott az állítás kapott '
       + 'nevet (`A-ORG-N1b-mixed-result-is-refused-as-a-whole`) — mérés nem változott.',
-    guard: 'npm run verify:v3ref — a norma-lánc a négy klauzulát FEDETTNEK mutatja, és a '
-      + '`P-NORM-evidence` kapu 28 támadása közül egyik sem enged át hamis kötést.',
+    guard: 'npm run verify:v3ref — a norma-lánc a négy klauzulát a mutációs battéria TELJES, '
+      + 'összevont futása után mutatja fedettnek (a részleges futás „függőben"-t ír), és a '
+      + '`P-NORM-evidence` kapu egyetlen támadást sem enged át — a támadások SZÁMÁT a futás írja ki, '
+      + 'nem ez a szöveg (KUKA-045).',
     residual: 'A K05-DSC-c MEZŐVETÍTÉS-ága NYITOTT ÚT, nem adósság: a klauzula maga mondja ki, hogy '
       + '„amíg nincs külön bizonyított mezővetítés", a vegyes eredmény egészben megtagadandó — a mai '
       + 'rendszer pontosan ezt teszi. Ha valaha mezővetítés épül, annak SAJÁT bizonyítéka kell.',
@@ -932,12 +944,12 @@ export const CLOSED_BLOCKERS = Object.freeze([
     // (KUKA-093: a kihagyás nem zöld, de a nyitott sor sem tűnhet el a lezárásban).
     // HELYESBÍTVE (R41, a külső fél lelete). A régi szöveg itt is „egyetlen élő profil"-t mondott —
     // MÉRVE HAMIS: két profil él (`qty-1` · `qty-2`). A hiány megmarad, az INDOK javítva (KUKA-181).
-    residual: 'HÁROM klauzula NYITOTT, nevezett hiánnyal: K10-TYP-c (a PROFILVÁLTÁS hatása a korábbi '
-      + 'tárolt értékre nincs mérve — KÉT élő profil áll, tehát a bizonyítás LEHETSÉGES, csak nem '
-      + 'történt meg) · K10-TYP-d (a „korábbi verziójú vagy más PROFILÚ bemenet" ISMÉTLÉSI és '
-      + 'HIBAHATÁR-viselkedése; a sémaverzió HATÁRA az R37/R39-ben kimondva és a kanonikus úton is '
-      + 'mérve) · K10-TYP-e (a MEGFIGYELÉSI idő fogalma nincs a magban — a QNT-munka előfeltétele). '
-      + 'Ezek NEM a blokkoló maradékai, hanem a klauzulák saját, kimondott hiányai.',
+    residual: 'EGY klauzula NYITOTT: K10-TYP-e (a MEGFIGYELÉSI idő fogalma nincs a magban — a '
+      + 'QNT-munka előfeltétele). KETTŐ RÉSZLEGES, deklarált állítással (R43 óta): K10-TYP-c (a '
+      + 'profil-kötés és a `profile_mismatch` mérve, támogatott PROFILVÁLTÁS nincs) · K10-TYP-d (hat '
+      + 'helyzet a kanonikus úton mérve; a más profilú bemenet ugyanarra a cikkre nem elérhető). '
+      + 'Ezek NEM a blokkoló maradékai, hanem a klauzulák saját, kimondott hiányai (a régi „három '
+      + 'nyitott" alak elévült — KUKA-050).',
   }),
   Object.freeze({
     id: 'OB-10', title: 'A SÖPRÉS A SZÖVEGET OLVASSA, NEM A VERDIKTET — a piros lánc kihagyásnak látszik',

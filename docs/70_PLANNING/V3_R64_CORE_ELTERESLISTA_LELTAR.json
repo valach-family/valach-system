@@ -1,0 +1,1385 @@
+{
+ "schema": "V3_ELTERESLISTA/1",
+ "round": "R64",
+ "lane": "Claude-v3",
+ "source": "CMD-VS-300-002-002 R63 §5.1",
+ "generated_at": "2026-09-20",
+ "reader_notes": [
+  {
+   "reader": null,
+   "note": "Amit nem tudtam mérni: (1) böngésző-szintű végigkattintás — a repóban nincs tests/ könyvtár és nincs Playwright-próba a v3app-ra, ezért a klienscache és a UI-váltás csak HTTP-fejléc (no-store) és a saját app.js clearPanels olvasásából áll, nem böngészőben mérve; (2) a kétkönyves személy esete (H02) és az azonos adószámos második jelentkező héj-szintű útja (H05) egyetlen próbában sincs, tehát ott a „működik” a mag-szintű P-CORE-ra és a kód olvasására támaszkodik; (3) a szervezeti egység / együttes jóváhagyás (EH-6, H10) — nincs mit mérni, a képesség nem létezik, ezt a norms.mjs és az externalDecisions.mjs kimondja; (4) a teljes mutációs battériát (M1–M203) nem futtattam újra, csak a run.mjs 62/62-t, a selfcheck 57/57-et és a multiconn próbát --n=3-mal — az M196–M203 pirossága a mutations.mjs deklarációjából és az R62/R63 beadott állításából jön, nem saját friss futásból; (5) az OB-1 Postgres-feltétele ebben a környezetben nem mérhető (nincs Postgres), és ezt a próba maga is kimondja. A kihagyás egyik pontja sem zöld."
+  },
+  {
+   "reader": null,
+   "note": "Amit NEM tudtam mérni, kimondva (KUKA-093): (1) A mutációs battéria (node v3ref/mutate.mjs --units-auto) ezen a gépen exit=1-gyel zárult, mert a 12000 ms-os egység-költségvetésbe 4 próbálkozás után sem fért bele (utoljára a 40/72 szeleten) — a futtató saját szavaival „a MÉRÉS hiányos, nem zöld és nem piros”. A lefutott szeletekben 110 különböző mutáció futott, mind elkapva, 0 túlélő; ebből a K-kötésű R63-as csomagból csak M202 (K04), M22, M23 (K03), M24 (K09) futott nálam bizonyíthatóan; M196–M201 és M203 (a WSP-01/DLG-01/XID-01/ACC-01 rontások) NEM futottak le nálam, tehát a P-CORE-startup-and-delegation falszifikációja ebben a környezetben nem igazolt — a norma-lánc minden sora FÜGGŐBEN (falszifikáció függőben), 0 fedett. (2) A tartalmi felülvizsgálat (OB-7) 0/134 klauzula-soron áll; a K-sorok „works_now” állításai gépi bizonyítékok, nem külső tartalmi elfogadás (USE-G4). (3) K13 és K16 sorain nincs kód, tehát csak a hiányt tudtam kimondani, mérni nem. (4) Böngészőben nem kattintottam: a v3app/selfcheck.mjs a HTTP-végpontokat járja be süti-tárcával (57/57 PASS), az app.js kliens-oldali cache-törlését és képernyő-viselkedését nem mértem. (5) Az OB-1 zárófeltétele (Postgres vagy egyenértékű) nem teljesül: a többkapcsolatos próba SQLite-fájlon, két OS-folyamattal futott (40/40 PASS), és ezt a lap maga is kimondja. (6) Az org_unit alany-fajta használatát és a changeItemUnit viselkedését nem mértem. (7) A K-oszlop-hozzárendelés a norms.mjs covers mezőiből és a run.mjs maps sztringjeiből jön; a K11 → P-NORM-evidence kötést tartalmilag kérdésesnek jelöltem, nem döntöttem el."
+  },
+  {
+   "reader": null,
+   "note": "AMIT NEM MÉRTEM, ÉS MIÉRT (KUKA-093 — a kihagyás nem zöld): (1) A MUTÁCIÓS BATTÉRIA (`npm run verify:v3ref`, M1–M205) ebben a körben NEM futott — hosszú, egységekre osztott futás; a repó mai összevont eredménye (v3ref/v3ref-mutation-result.json, 2026-09-20T11:07:40Z) `run_state: incomplete`, 14/200 mutáció mért, admission ok:false, 186 mutáció részletes eredmény nélkül; két frissebb egység-fájl (v3ref/units/unit-3-of-9, unit-4-of-9, 11:12–11:13) nincs összevonva. Ezért MINDEN „Falszifikálva: M…\\\" állítás a normákban (ORG-N1a M116–M120, ORG-N1b M189–M195, K10-TYP-c/d M168–M175) és a DECISION_LOG D-VS-3063 „M196–M205\\\" sora ma korábbi futás ÁLLÍTÁSA, nem friss bizonyíték; a run.mjs mai kimenete 135 klauzula-sorra „0 fedett · 127 állítás teljesült, falszifikáció függőben\\\". A req-4 → req-5 lépés (R64 L9) ettől függ. (2) A BÖNGÉSZŐ-PRÓBA (`npm run proof:core-ux`, Playwright, a 14 elfogadási helyzet) nem futott; a docs/70_PLANNING/V3_R64_ELFOGADAS_HELYZETEK.json (11:24, 14 helyzet, böngésző- és szerver-bizonyíték külön) létezik, tartalmát nem ellenőriztem soronként. (3) A többkapcsolatos mérőt csak --n=3-mal futtattam (6/6 OK), nem az alap 20+20 menettel; Postgres ebben a környezetben nincs, tehát az OB-1 zárófeltétele mérhetetlen. (4) `verify:sweep-verdict`, `verify:sweep`, `verify:external-checks` (a külső fél 19 programja) nem futott. (5) A V2 söprés állapotát (OB-10 maradék) csak grep-pel néztem (/home/user/vs/tools: nincs vs_sweep_verdict-hívás), nem futtattam. (6) Az OB-7 TARTALMI elbírálás a külső félé — én csak azt mértem, hogy a repó-rekord üres (0/135) és a 44 külső döntés-sor szó szerint egyezik a forrás-lapokkal (44/44). (7) Nem az én csoportom, de a leltár teljességéhez tartozik: a docs/70_PLANNING/V3_R64_CORE_FOLYAMAT_ES_LEZARASI_LISTA.md §4–§7 kitöltetlen «BATTERY» «E2E» «EXT» «SWEEP» «H14_TABLE» «GAP_SUMMARY» «CRIT_N» «OB_MORE» «GAP_ROWS» helyőrzőket hordoz, és a §6-ban hivatkozott gépi eltéréslista (docs/70_PLANNING/V3_R64_CORE_ELTERESLISTA_LELTAR.json) NEM LÉTEZIK a fán — a lap ma sablon, nem kész szállítmány; az itt adott sorok ennek a bemenete. (8) A norms.mjs OB-1 és OB-6 szövege MÁR az R63-ban helyesbítve áll (a régi mondatok csak idézetként maradtak); a mai állapothoz képest ELAVULTNAK mértem: OB-3 (a HTTP-határ ma létezik — v3app —, csak a séma nem azon kapuz; inputSchema.mjs:20,294 ugyanígy), OB-5 („tizenhárom … csak kettőnek\\\" — 15 klauzula, 10 próbával), OB-7 („MINDEN klauzula none\\\" — a 44 külső döntést elhallgatja; a leképezés-fájl szept. 17-i), OB-8 guard („28 támadása\\\" — ma 31; „FEDETTNEK mutatja\\\" — ma függőben), OB-9 residual (K10-TYP-c/d már partial, csak TYP-e nyitott), ORG-N2 rule/example („amíg … nincs megépítve\\\", „hiányzó modell\\\" — a delegált alap megépült). A javasolt helyesbített mondatok a closes_by mezőkben állnak; fájlt nem módosítottam."
+  },
+  {
+   "reader": "olvas:G",
+   "note": "az olvasó a futtatási keret kimerülése miatt nem futott; a G1–G8 és USE-G1–G4 sorokat a sáv írta az R32 §4 és a norms.mjs USE_GATES alapján — gyengébb, egyszerzős bizonyíték (KUKA-033)"
+  },
+  {
+   "reader": "olvas:QNT",
+   "note": "az olvasó nem futott; a QNT-01…24 sorok az R20 §3/d leképezéséből és a ma újrafuttatott K0 hatásvizsgálatból állnak"
+  },
+  {
+   "reader": "kritikus",
+   "note": "A TELJESSÉGI KRITIKUS NEM FUTOTT (a futtatási keret kimerült). A missing_requirements három sora a sáv sajátja az R63 §4–§5.2 kimondott határaiból; az A01–A18 elfogadási esetek tételes egyeztetése ezzel a leltárral NEM történt meg — nevezett hiány, a következő kör első tétele."
+  }
+ ],
+ "counts": {
+  "rows": 87
+ },
+ "rows": [
+  {
+   "id": "EH-1",
+   "group": "elethelyzet",
+   "requirement": "Magánszemély vásárló: egyszerű fiók, saját személyes kör, cégalapítás és szervezeti hierarchia nélkül.",
+   "works_now": "A fiók egyedül a személy alanya + önbevallott e-mail + sózott jelszó-lenyomat (registerAccount), a csatorna-bizonyítás külön kihívás; a héjon POST /api/register semleges választ ad, GET /api/verify bizonyít, /api/me csak a saját adatokat mutatja; munkakörnyezet nélkül a fiók él és bejelentkezhet.",
+   "evidence": [
+    "v3ref/account.mjs:59-78 (registerAccount) · :82-89 (authenticate) · :114-127 (redeemChannelChallenge)",
+    "v3app/server.mjs:206-226 (POST /api/register, NEUTRAL_REGISTER) · :253-269 (GET /api/me)",
+    "v3app/selfcheck.mjs:51-76 (névtelen munkamenet · regisztráció · bájtra azonos semleges válasz · megerősítés · belépés) — futás: 57/57 PASS",
+    "v3ref/run.mjs:3436 P-CORE (a) person() fixtúra · P-A04 (run.mjs:212) anti-enumeráció",
+    "M196 · M203 (mutations.mjs:1913-1951) — a csatorna-bizonyítás kivétele a P-CORE-t pirosra viszi"
+   ],
+   "missing": "A „személyes kör” a mai magban nem külön tér: a magánfiókhoz nem tartozik saját könyv, tehát „saját rendelések/iratok” fogadására nincs helye — a modulnézet nem épült (R63 szerint későbbi). A UI-ban a személyes állapot csak a „nincs kiválasztott munkakörnyezet” alak, nincs nevesített „személyes” cél a váltóban (app.js:44-51 csak könyveket sorol).",
+   "blocks": "mini_module_base",
+   "closes_by": "A személyes kör nevesített állapota (könyv nélkül, vagy saját alap-könyv) + a váltóban nevesített „személyes” cél; a saját irat/rendelés modulnézet későbbi csomag.",
+   "stale_text": ""
+  },
+  {
+   "id": "EH-2",
+   "group": "elethelyzet",
+   "requirement": "Ugyanaz az ember egy cég alkalmazottja: meglévő fiókkal elfogadja a meghívót és munkateret vált; személyes és céges jogok elkülönülnek, nincs új fiók vagy jelszó-átírás.",
+   "works_now": "A meglévő fiók beváltása csak tagságot ad (shape membership_only, read_scope_granted null), a hitelesítő adatot soha nem írja felül; a munkatér-váltás POST /api/session/workspace a mag membershipAsOf feloldójával; idegen fiókból érkezés account_authentication_required, a szándék a szerveren (pending_intent) megőrződik és belépés után átkerül az új munkamenetre.",
+   "evidence": [
+    "v3ref/run.mjs:3436 P-CORE (c) obsBefore→obsAfter · red.shape==='membership_only' · read_scope_granted===null · belaMemberships===1",
+    "v3ref/run.mjs:253 P-K03-cred · :276 P-K03-intent · :732 P-INVITE-authority (run.mjs:761 account_authentication_required)",
+    "v3ref/invite.mjs:414-420 (foreign_existing_subject ⇒ nevezett elutasítás, resume_with)",
+    "v3app/server.mjs:230-243 (POST /api/login: rotált munkamenet + függő meghívó átvitele) · :302-312 (session/workspace)",
+    "v3app/selfcheck.mjs:97-128 (Béla útja: observe · pending · regisztráció · belépés → pending átkerül · redeem membership_only · váltás user · idegen könyv not_a_member)",
+    "tests/e2e/v3app-acceptance.spec.mjs H02 · H08 · H09 (2026-09-20, 27/27 PASS)"
+   ],
+   "missing": "nincs ismert hiány — Böngészőben és adatbázison mérve (H02, H08): Béla két könyvben tag (saját tere admin · Családi Kft user), a beváltás után a saját terének tagsága változatlan; Anna három könyvben (admin·admin·user) — a szerep könyvenként külön sor. A megvonás utáni másik-könyv-változatlanság: H09 (Cili saját tere admin marad, készlet KIADVA).",
+   "blocks": "none",
+   "closes_by": "lezárt (R64 böngésző-próba)",
+   "stale_text": ""
+  },
+  {
+   "id": "EH-3",
+   "group": "elethelyzet",
+   "requirement": "Egyéni adószámos szereplő: a meglévő fiókhoz vállalkozási minőség és saját munkakörnyezet kapcsolható; adóregisztráció, jogalany, személy és fiók nem ugyanaz az objektum.",
+   "works_now": "attachBusinessIdentity külön legal_entity alanyt hoz létre (ent_<könyv>), névterezett, joghatóságos, önbevallott azonosítóval (issuer self_asserted, verification none_available), és a business_identity köti a könyvhöz; a személy alanyához nem nyúl. A héjon a POST /api/workspaces business{jurisdiction,tax_id} mezője hívja.",
+   "evidence": [
+    "v3ref/externalId.mjs:113-131 (attachBusinessIdentity) · :80-100 (recordSelfAssertedExternalId)",
+    "v3ref/run.mjs:3436 P-CORE (f) biz.ok · issuer==='self_asserted' · verification==='none_available' · biz2.entity_subject_id !== biz.entity_subject_id",
+    "v3app/server.mjs:273-277 · v3app/selfcheck.mjs:78-81 (HU adószám, verification none_available)"
+   ],
+   "missing": "A vállalkozási minőség CSAK a munkakörnyezet létrehozásakor adható meg (nincs külön végpont meglévő könyvhöz); könyvenként egy azonosító, csere/„új adószám” útja nincs (business_identity_already_attached); egyéni vállalkozó és társaság ugyanaz a legal_entity fajta — a jogi átalakulás nem-azonosságát semmi nem modellezi (R63 §3 kimondott, de nem épített határ).",
+   "blocks": "later_operational_use",
+   "closes_by": "Külön „vállalkozási minőség hozzáadása” végpont meglévő könyvhöz + azonosító-történet (valid_to lezárás, új sor) próbával; a jogi átalakulás külön alanyként kezelése.",
+   "stale_text": ""
+  },
+  {
+   "id": "EH-4",
+   "group": "elethelyzet",
+   "requirement": "Kétszemélyes családi vállalkozás: az egyik tag elindul, egyszerű szerepválasztással meghívja a másikat; a létrehozói és a meghívó alapja automatikusan, auditálhatóan keletkezik, állami igazolási akadály nélkül.",
+   "works_now": "createWorkspace EGY tranzakcióban: könyv · startup-rule:v1 valódi authority_basis sor (evidence_ref a létrehozót és a bizonyított csatornát nevezi) · admin tagság · workspace_bootstrap · alter_right · adatköri jog · előfizetési profil. A meghívó alapja deriveDelegationBasis-szel a kiadó tagságának szülő alapjából képződik (deleg:<könyv>:<kiadó>, evidence_ref delegated-from:…). Előfeltétel csak a bizonyított e-mail, hatósági igazolás nem.",
+   "evidence": [
+    "v3ref/workspace.mjs:38-46 (STARTUP_RULE) · :56-98 (createWorkspace) · :61-63 (creator_channel_unproven)",
+    "v3ref/delegation.mjs:66-100 (deriveDelegationBasis) · :106-124 (inviteColleague)",
+    "v3ref/run.mjs:3436 P-CORE (a) ws.basis_id==='startup-rule:csalad' · boot · startup.evidence_ref · (b) deleg.evidence_ref /delegated-from:startup-rule:csalad@v1/",
+    "v3app/selfcheck.mjs:78-90 (Családi Kft létrehozás · Béla meghívása user/keszlet · levél a fogadóban)",
+    "M196 · M197 · M198 (mutations.mjs:1913-1927) bizonyítottan piros"
+   ],
+   "missing": "nincs ismert hiány",
+   "blocks": "none",
+   "closes_by": "lezárt — P-CORE (a)(b) + selfcheck 78–90",
+   "stale_text": ""
+  },
+  {
+   "id": "EH-5",
+   "group": "elethelyzet",
+   "requirement": "Növekvő vállalkozás: munkatársak, csoportok és körülhatárolt kezelői jog; ugyanaz a fiók-/tagság-/engedélymodell, nem kell új rendszerbe költözni.",
+   "works_now": "Több munkatárs ugyanazon a tagság + adatkör-jog + delegálási-plafon modellen (admin továbbadhat admin/user szerepet, user nem delegál: role_not_delegable); grantScopeToMember a plafonon belül ad adatkört; a modell nem vált a létszámmal.",
+   "evidence": [
+    "v3ref/delegation.mjs:130-142 (grantScopeToMember) · v3ref/run.mjs:3436 P-CORE (c) belaInvites.reason==='role_not_delegable' · give.basis_id==='deleg:csalad:anna' · (d) cili admin továbbdelegál (ciliInvites.ok)",
+    "v3app/selfcheck.mjs:140-144 (adatkör-adás + tag-lista) · :167-168 (user magának nem adhat)"
+   ],
+   "missing": "CSOPORT fogalma nincs: sem tábla, sem író (store.mjs-ben csak a subject.kind CHECK enged org_unit-ot, store.mjs:21, senki nem írja); a „körülhatárolt kezelői jog” ma két szerep (admin/user) × két adatkör (keszlet/arak) — finomabb hatáskör nincs.",
+   "blocks": "later_operational_use",
+   "closes_by": "Csoport/egység entitás és csoporthoz kötött adatkör-jog a meglévő basis/scope kapun át, saját próbával (ORG-N3 modell, OB-6).",
+   "stale_text": ""
+  },
+  {
+   "id": "EH-6",
+   "group": "elethelyzet",
+   "requirement": "Nagy szervezet: szervezeti egységek, telephelyek, csoportok, delegált adminisztráció, jóváhagyások; a hierarchia nem automatikus mindenadat-jog, jogadás csak a továbbadható hatáskörben, együttes jóváhagyás és önjóváhagyás tilalma ahol a profil előírja.",
+   "works_now": "Csak a delegálási plafon: a képzett alap a szülő alap szerep-/adatkör-plafonjának METSZETE (tágabb nem adható tovább), a bírálati úton a megadáskor és használatkor is kapu; a helyi admin nem ad magának adjudicate-et.",
+   "evidence": [
+    "v3ref/delegation.mjs:78-84 (metszet) · v3ref/run.mjs:3436 P-CORE (b) badRole outside_basis_roles · (e) önfeljogosítás outside_basis_operations, adjRows===0",
+    "v3ref/run.mjs:3627 P-ORG-adjudication-basis-limit · :5108 P-ORG-basis-limit",
+    "v3ref/norms.mjs:686-689 (ORG-N1a remaining: „szervezeti egységek, delegált adminisztráció hierarchiája, együttes jóváhagyás — ma NEM LÉTEZŐ képesség”)",
+    "v3ref/externalDecisions.mjs:256-259 (ORG-N3a open: „a vagylagos és együttes jogalapút külön modellje hiányzik”)"
+   ],
+   "missing": "Szervezeti egység, telephely, csoport, hierarchikus delegált adminisztráció, együttes jóváhagyás, önjóváhagyás-tilalom, jóváhagyási profil: egyik sincs a magban (nulla tábla, nulla író, nulla próba). Csak a plafon és az önfeljogosítás-tilalom mért.",
+   "blocks": "later_operational_use",
+   "closes_by": "ORG-N3 modell (OB-6 lezárása): egység-entitás + vagylagos/együttes jogalap-út + jóváhagyási profil, próbával és mutációval.",
+   "stale_text": ""
+  },
+  {
+   "id": "EH-7",
+   "group": "elethelyzet",
+   "requirement": "Magán- és üzleti értékesítő: VMarket mindkét minőségnek, VShop az adószámos célcsoportnak — termékkövetelmény, nem globális jogi mentesség és nem ebben a körben megépítendő piactér.",
+   "works_now": "semmi",
+   "evidence": [
+    "grep VMarket/VShop a v3ref/ és v3app/ alatt: nincs találat (a mag és a héj nem tud piactérről) — R63.md §3 sorrendben 7. sor és §5.2: „nem VShop, VMarket”"
+   ],
+   "missing": "Piactér-modul nincs; egyedül az EH-3 vállalkozási-minőség kötése (business_identity) ad később célcsoport-szűrésre alapot. Nem hiány ebben a körben — R63 szerint kimondottan nem építendő.",
+   "blocks": "none",
+   "closes_by": "Későbbi termék-csomag; előfeltétele a magán/üzleti minőség (EH-3) és az előfizetési profil (EH-8).",
+   "stale_text": ""
+  },
+  {
+   "id": "EH-8",
+   "group": "elethelyzet",
+   "requirement": "Termelés, gyártás vagy szolgáltatás: a megfelelő modul és előfizetés szerint később; az előfizetés funkciót biztosít, nem céges adatjogot, a két feltétel külön ellenőrzött.",
+   "works_now": "entitlement.mjs zárt terv- és funkció-szótárral (starter/pro; workspace·invite·stock_view·price_view), a profil hiánya nevezett; twoGateVerdict a JOG és az ELŐFIZETÉS kapuját külön ítéli és megmondja, melyik zárt; a héjon GET /api/data/price külön right_reason és entitlement_reason.",
+   "evidence": [
+    "v3ref/entitlement.mjs:20-24 · :44-56 (setEntitlementProfile) · :59-68 (entitlementFor) · :74-82 (twoGateVerdict)",
+    "v3ref/run.mjs:3436 P-CORE (f) gateStarter.refused_by==='entitlement' · gatePro.allowed · gateBela.refused_by==='right'",
+    "v3app/server.mjs:412-430 (GET /api/data/price két kapu) · selfcheck.mjs:150-165 (both · entitlement · right)",
+    "M202 (mutations.mjs:1943-1946) bizonyítottan piros"
+   ],
+   "missing": "Termelési/gyártási/szolgáltatási modul nincs (nem ebben a körben); a tervet a létrehozó admin állítja (POST /api/workspaces/plan), számlázási adapter nincs — kimondott tesztprofil.",
+   "blocks": "none",
+   "closes_by": "lezárt az előfizetés-kapura (ENT-02); a modulok későbbi csomag.",
+   "stale_text": ""
+  },
+  {
+   "id": "H01",
+   "group": "elethelyzet",
+   "requirement": "Egyszerű magánfiók céges adatbekérés nélkül létrejön; csak saját adatait látja.",
+   "works_now": "POST /api/register csak e-mail + jelszó; GET /api/me a saját alanyt, címét, csatorna-állapotát és tagságait adja; könyv nélkül minden adat-végpont no_current_workspace-szel elutasít, idegen könyv nem érhető el.",
+   "evidence": [
+    "v3app/server.mjs:206-226 · :253-269 · :404-409 (GET /api/data/stock könyv nélkül elutasít)",
+    "v3app/selfcheck.mjs:51-58 · :75-76 (Anna /api/me) · :178-179 (Béla könyv nélkül: workspaces 0, current null)",
+    "v3ref/account.mjs:59-78 · run.mjs:3436 P-CORE (a) person() fixtúra"
+   ],
+   "missing": "„Saját adat” ma = a fiók tényei; személyes iratok/rendelések tára nincs (lásd EH-1).",
+   "blocks": "none",
+   "closes_by": "lezárt a fiókra; a személyes tár EH-1 alatt nyitott.",
+   "stale_text": ""
+  },
+  {
+   "id": "H02",
+   "group": "elethelyzet",
+   "requirement": "A meglévő magánfiók alkalmazotti meghívót elfogad; saját jelszava, személyes adatai és más céges jogai változatlanok.",
+   "works_now": "Meglévő fiók beváltása membership_only, jelszó-lenyomat érintetlen (P-K03-cred), személy-alanyhoz a beváltás nem ír külső azonosítót; a másik tag joga a megvonás után is áll (belaAfter).",
+   "evidence": [
+    "v3ref/run.mjs:253 P-K03-cred · :3436 P-CORE (c) red.shape==='membership_only' · belaMemberships===1 · (d) belaAfter.allowed===true",
+    "v3app/selfcheck.mjs:119-126",
+    "V3_R64_ELFOGADAS_HELYZETEK.json H02 (bizonyitva)"
+   ],
+   "missing": "nincs ismert hiány — Böngészőben és adatbázison bizonyítva: jelszó-lenyomat változatlan, e-mail sor változatlan, a saját tér tagsága változatlan; a régi jelszóval újra belép.",
+   "blocks": "none",
+   "closes_by": "lezárt (R64 böngésző-próba)",
+   "stale_text": ""
+  },
+  {
+   "id": "H03",
+   "group": "elethelyzet",
+   "requirement": "A fiókhoz adószámos működési minőség társul; a magán- és üzleti kör nem olvad össze.",
+   "works_now": "attachBusinessIdentity külön legal_entity alanyt és business_identity kötést hoz létre, a személy alanyához nem nyúl; a két könyv két külön entitás-alanyt kap.",
+   "evidence": [
+    "v3ref/externalId.mjs:113-131 · run.mjs:3436 P-CORE (f) biz2.entity_subject_id !== biz.entity_subject_id",
+    "v3app/selfcheck.mjs:78-81"
+   ],
+   "missing": "Csak létrehozáskor adható; nincs próba arra, hogy a személy alanyának kind-ja és e-mail sora a kötés után változatlan (közvetve igaz, nem mért). Lásd EH-3.",
+   "blocks": "later_operational_use",
+   "closes_by": "Utólagos kötés végpontja + a személy-alany változatlanságának kimondott állítása a P-CORE (f)-ben.",
+   "stale_text": ""
+  },
+  {
+   "id": "H04",
+   "group": "elethelyzet",
+   "requirement": "Saját családi munkakörnyezet indul; második tagot meghívhat a jogosult kezelő, külön állami igazolási kör nélkül a saját helyi körhöz.",
+   "works_now": "Lásd EH-4: createWorkspace + inviteColleague; egyetlen előfeltétel a bizonyított csatorna.",
+   "evidence": [
+    "v3ref/workspace.mjs:56-98 · v3ref/delegation.mjs:106-124",
+    "v3ref/run.mjs:3436 P-CORE (a)(b) · selfcheck.mjs:78-90"
+   ],
+   "missing": "nincs ismert hiány",
+   "blocks": "none",
+   "closes_by": "lezárt",
+   "stale_text": ""
+  },
+  {
+   "id": "H05",
+   "group": "elethelyzet",
+   "requirement": "Azonos beírt cégazonosítóval más jelentkező nem kapja meg e munkakörnyezet vagy harmadik szolgáltató adatait; legitim saját indulása lehetséges.",
+   "works_now": "Ugyanaz a HU adószám két könyvön két külön entitás-alany; identityClaimsMatching listát ad, grants_any_right false; Ernő a családi könyvben no_membership; saját könyve létrejön.",
+   "evidence": [
+    "v3ref/externalId.mjs:104-111 · run.mjs:3436 P-CORE (f) sameHu.subjects.length===2 · grants_any_right===false · ernoInCsalad.reason==='no_membership' · ws2.ok",
+    "M201 (mutations.mjs:1938-1941)",
+    "V3_R64_ELFOGADAS_HELYZETEK.json H05 (bizonyitva)"
+   ],
+   "missing": "nincs ismert hiány — Böngészőben bizonyítva: Cili azonos HU adószámmal saját munkakörnyezetet indít (201), Anna és a harmadik szolgáltató könyvére 403 not_a_member; három külön jogalany ugyanazzal a kulccsal.",
+   "blocks": "none",
+   "closes_by": "lezárt (R64 böngésző-próba)",
+   "stale_text": ""
+  },
+  {
+   "id": "H06",
+   "group": "elethelyzet",
+   "requirement": "Továbbadható körön túli meghívás/jogadás elutasított; lejárt, visszavont, idegen címzettű és ismételten beváltott meghívó nem ad jogot; érvényes párja sikerül.",
+   "works_now": "Plafonon túli szerep outside_basis_roles (nyom nélkül), plafonon túli adatkör outside_basis_scopes; lejárt: invite_expired; idegen fiók: account_authentication_required; ismételt: again.ok false, 1 tagság; kiadó jogának megvonása: issuer_right_withdrawn; pecsét nélküli: invite_without_basis; érvényes pár sikerül.",
+   "evidence": [
+    "v3ref/run.mjs:3436 P-CORE (b) badRole · inv.ok · (c) again.ok===false · belaMemberships===1 · (d) danielRed issuer_right_withdrawn",
+    "v3ref/run.mjs:705 P-INVITE-window (:723 invite_expired) · :732 P-INVITE-authority (:761) · :5108 P-ORG-basis-limit (:5224 invite_without_basis)",
+    "v3app/selfcheck.mjs:92-95 · :116-117 · :122-123"
+   ],
+   "missing": "A MEGHÍVÓ VISSZAVONÁSA mint saját esemény nincs (az invite táblán nincs revoked_at; norms.mjs:679-681 remaining (1)); „visszavont meghívó” ma csak a kiadó jogának megvonásán vagy lejáraton át zár. Az idegen címzett esete a héjon csak megfigyelés-szinten mért (selfcheck 117), beváltás-szinten a magban.",
+   "blocks": "later_operational_use",
+   "closes_by": "Meghívó-visszavonás esemény (revoked_at + nevezett elutasítás beváltáskor) próbával; selfcheck-lépés idegen fiókos beváltásra.",
+   "stale_text": ""
+  },
+  {
+   "id": "H07",
+   "group": "elethelyzet",
+   "requirement": "A raktári szerepnek adott mennyiségnézetből ár-, számla- vagy beszállítói bizalmas adat nem következik; a pozitív, külön engedélyezett olvasás működik.",
+   "works_now": "Beváltás után adat nem jár (no_scope_grant); keszlet külön megadása után a készlet olvasható, az arak továbbra sem; user a plafonon túl nem ad magának.",
+   "evidence": [
+    "v3ref/run.mjs:3436 P-CORE (c) belaStockBefore no_scope_grant · belaStock.allowed · belaPrice no_scope_grant",
+    "v3app/selfcheck.mjs:135-151 (előtte elutasítva · adatkör-adás · stock ok qty 12 · price refused both)",
+    "M198 (mutations.mjs:1923-1927)"
+   ],
+   "missing": "Adatkör-szótár csak keszlet és arak (resultScope KNOWN_DATA_SCOPES); számla- és beszállítói adatkör nincs nevesítve; „raktári szerep” nincs, csak user+keszlet.",
+   "blocks": "mini_module_base",
+   "closes_by": "Adatkör-szótár bővítése a modulokkal együtt (számla, beszállító), ugyanazon a scopeGrant kapun, próbával.",
+   "stale_text": ""
+  },
+  {
+   "id": "H08",
+   "group": "elethelyzet",
+   "requirement": "Cégváltáskor a session-kontextus, válaszok és klienscache nem keverik a cégeket; módosított API-paraméter sem ad idegen jogot.",
+   "works_now": "Az aktuális könyv csak a munkamenetből, membershipAsOf-fal ellenőrizve; a kliens book_id/actor/role mezői nevezetten figyelmen kívül (param_ignored); Cache-Control no-store minden válaszon; a UI váltás előtt üríti a paneleket.",
+   "evidence": [
+    "v3app/server.mjs:56 (CLIENT_AUTHORITY_PARAMS) · :149-160 (currentBookOf) · :186-195 · :302-312 · :447",
+    "v3app/selfcheck.mjs:53 · :125-128 · :181-189",
+    "v3app/public/app.js:66-78 (clearPanels · switchWorkspace)",
+    "V3_R64_ELFOGADAS_HELYZETEK.json H08 (bizonyitva)"
+   ],
+   "missing": "nincs ismert hiány — Böngészőben bizonyítva: váltáskor a panelek ürülnek, a fejléc az új könyvet mutatja, Cache-Control: no-store; a módosított ?book_id/actor/role param_ignored, idegen jog nem születik.",
+   "blocks": "none",
+   "closes_by": "lezárt (R64 böngésző-próba)",
+   "stale_text": ""
+  },
+  {
+   "id": "H09",
+   "group": "elethelyzet",
+   "requirement": "Megvonás/lejárat után új kérés és függő meghívó nem használhatja a megszűnt alapot; másik független jogosultság nem szűnik meg indokolatlanul.",
+   "works_now": "revokeMembership + revokeDelegationsOf: a megvont tag joga membership_revoked, delegálási alapja basis_revoked, függő meghívója issuer_right_withdrawn; Béla joga megmarad; a héjon a megvonás után stock elutasít, visszaváltás not_a_member; két valódi kapcsolaton is mért.",
+   "evidence": [
+    "v3ref/delegation.mjs:147-153 · run.mjs:3436 P-CORE (d) mind a hét állítás",
+    "v3app/server.mjs:388-396 · selfcheck.mjs:173-189",
+    "tools/v3_multiconn_proof.mjs (2)(3) REV04–REV12 — saját futás --n=3: 6/6 OK",
+    "M200 (mutations.mjs:1928-1932)"
+   ],
+   "missing": "A tagság LEJÁRATA (időbeli érvény vége) nincs — csak megvonás; a meghívó saját visszavonása nincs (H06).",
+   "blocks": "later_operational_use",
+   "closes_by": "Tagság valid_to + próba; meghívó-visszavonás esemény.",
+   "stale_text": ""
+  },
+  {
+   "id": "H10",
+   "group": "elethelyzet",
+   "requirement": "Két szervezeti egység és korlátozott helyi admin: a vezető nem kap automatikusan minden üzleti adatot; a delegálási plafon megmarad; közös jóváhagyás támogatása vagy hiánya bizonyítékkal nevezve.",
+   "works_now": "Csak a plafon: a delegált alap a szülő metszete, a tag adatkört csak külön kap; szervezeti egység nincs.",
+   "evidence": [
+    "v3ref/delegation.mjs:78-84 · run.mjs:3436 P-CORE (b)(c) · :5108 P-ORG-basis-limit",
+    "v3ref/norms.mjs:686-689 · v3ref/externalDecisions.mjs:256-259 (ORG-N3a/b open) · v3ref/store.mjs:21 (org_unit csak CHECK, nincs író)"
+   ],
+   "missing": "Két szervezeti egység példája nem futtatható: nincs egység-entitás; közös jóváhagyás NINCS — ez kimondott hiány (norms.mjs ORG-N1a remaining, ORG-N3a open), nem támogatás.",
+   "blocks": "later_operational_use",
+   "closes_by": "OB-6 / ORG-N3 modell megépítése próbával; addig a lap „nem támogatott” jelölést visel.",
+   "stale_text": ""
+  },
+  {
+   "id": "H11",
+   "group": "elethelyzet",
+   "requirement": "Előfizetésileg elérhető funkcióhoz jogosulatlan munkatárs nem jut; jogosult sem használhat előfizetésileg nem engedett műveletet; tesztprofil elég.",
+   "works_now": "Lásd EH-8: két kapu külön ítélve (refused_by right / entitlement / both), starter→pro váltás után a jogosult olvas, a jogosulatlan továbbra sem.",
+   "evidence": [
+    "v3ref/entitlement.mjs:74-82 · run.mjs:3436 P-CORE (f) gateStarter/gatePro/gateBela",
+    "v3app/selfcheck.mjs:150-165 · M202"
+   ],
+   "missing": "nincs ismert hiány",
+   "blocks": "none",
+   "closes_by": "lezárt",
+   "stale_text": ""
+  },
+  {
+   "id": "H12",
+   "group": "elethelyzet",
+   "requirement": "Két joghatósági névtér azonos karaktersora nem téves azonosság; ismeretlen országprofil nem ad széles képviseleti jogot és nem tiltja a független saját munkát.",
+   "works_now": "Az azonosság kulcsa namespace·jurisdiction·issuer·value_norm (HU 2 alany, AT 0); profileFor('XX') known false, representation_from_identifier false, own_work_allowed true.",
+   "evidence": [
+    "v3ref/externalId.mjs:49-53 · :104-111 · run.mjs:3436 P-CORE (f) sameAt.subjects.length===0 · unknownProfile",
+    "M201"
+   ],
+   "missing": "Ismeretlen profillal indított munkakörnyezet a héjon nem mért (selfcheck csak HU); az ismeretlen profil névtér-listája üres, tehát tax_id ott CSAK profil nélkül rögzül — a viselkedés helyes, de HTTP-szinten nem futott.",
+   "blocks": "none",
+   "closes_by": "Selfcheck-lépés ismeretlen országkóddal (workspace létrejön, verification none_available).",
+   "stale_text": ""
+  },
+  {
+   "id": "H13",
+   "group": "elethelyzet",
+   "requirement": "Kezdő jogosultság, alap nélküli történeti sor, szabályos új felhatalmazás és jogosulatlan bírálói önfeljogosítás külön eredményt kap.",
+   "works_now": "Kezdő: startup-rule:v1 alap; alap nélküli sor: megadás basis_id_required, használat authority_without_recorded_basis, pecsét nélküli meghívó invite_without_basis (verziózott elvárás, a régi ok:true átírva); szabályos új: deleg-alap új verzióval; önfeljogosítás outside_basis_operations nyom nélkül; platformbírálói alap külön, védett szabály.",
+   "evidence": [
+    "v3ref/run.mjs:3436 P-CORE (a) · (e) · :3627 P-ORG-adjudication-basis-limit (h) run.mjs:3880-3898 · :5108 P-ORG-basis-limit run.mjs:5212-5228",
+    "v3ref/platformRule.mjs:27-33 · :43-58 · v3ref/delegation.mjs:55-62 (membership_has_no_recorded_basis)",
+    "M197 (mutations.mjs:1918-1922)"
+   ],
+   "missing": "A tagság alap nélküli történeti sorának ága (delegation.mjs:55-62 membership_has_no_recorded_basis / membership_without_grant_event) nincs próbában és mutációban (grep run.mjs/mutations.mjs: nincs találat).",
+   "blocks": "mini_module_base",
+   "closes_by": "P-CORE vagy P-ORG bővítése: nyersen írt, grant_basis nélküli tagságból delegálás → nevezett elutasítás; mutáció az ágra.",
+   "stale_text": ""
+  },
+  {
+   "id": "H14",
+   "group": "elethelyzet",
+   "requirement": "Két valódi kapcsolat meghívóbeváltási és megvonás–véglegesítési versenye: egyszeri, aktuális szabály szerinti hatás; visszajátszás nem kerüli meg a jelenlegi adatjogot.",
+   "works_now": "tools/v3_multiconn_proof.mjs két külön OS-folyamat, saját openStoreAt kapcsolattal, WAL + BEGIN IMMEDIATE: (1) pontosan egy beváltás, a vesztes nevezett; (2) megvonás↔bevét sorrendfüggő invariáns; (3) readCommandResult és kulcs-ismétlés not_available, nulla új kiadás. Saját futás --n=3: 6 menet OK, 0 HIBA, 0 elakadt, PASS.",
+   "evidence": [
+    "tools/v3_multiconn_proof.mjs:1-60 (mit mér / mit nem) · :343-361 RED04–RED10 · :403-464 REV04–REV12",
+    "saját futás: node tools/v3_multiconn_proof.mjs --n=3 → RESULT: PASS — 6 menet, 6 OK",
+    "package.json:30 proof:multiconn (nincs a verify:sweep-ben — tools/vs_verify_sweep.mjs nem hivatkozza)"
+   ],
+   "missing": "Nem Postgres, nem hálózati kérésfogadási határ, nem >2 író — az OB-1 zárófeltétele („Postgres vagy egyenértékű”) nem teljesül, USE-G1 zárva marad; a próba nincs a söprésben, tehát visszacsúszásra nem piros automatikusan.",
+   "blocks": "later_operational_use",
+   "closes_by": "OB-1: ugyanez a próba Postgres (vagy egyenértékű) tárolón, hálózati határon; addig proof:multiconn felvétele a söprésbe.",
+   "stale_text": "v3ref/norms.mjs:820-822 OB-1 why: „A `node:sqlite` `BEGIN IMMEDIATE` egyetlen íróval dolgozik, és minden „a tranzakció határán\" mérésünk determinisztikus közbeiktatás, nem valódi versenyhelyzet.” — elavult: a tools/v3_multiconn_proof.mjs két külön folyamatban valódi versenyt mér (a closes_when Postgres-feltétele viszont továbbra is nyitott)."
+  },
+  {
+   "id": "K01",
+   "group": "K",
+   "requirement": "A fiók, a személy, a jogalany, az adóregisztráció, a munkatér és a könyv külön azonosított objektum; a külső azonosító névterezett (kibocsátó, joghatósági profil, érvényesség), és az egyezés soha nem ad automatikus jogot, ügyegyesítést vagy összeolvasztást.",
+   "works_now": "A séma három alany-fajtát ismer (person · legal_entity · org_unit); a külső azonosító sor névtér · kibocsátó · joghatóság · nyers/normalizált érték · számosság · érvényességi intervallum mezőkkel áll. Az XID-01 modul zárt névtér-szótárt és öt joghatósági profilt ad (HU/AT/DE/SK/RO), az ismeretlen ország nem ad képviseleti jogot és nem tiltja a saját munkát; az azonosító önbevallott (self_asserted, verification=none_available). A vállalkozási minőség ÚJ legal_entity alanyként kötődik a könyvhöz, a személy alanyához nem nyúl. Az egyeztetés kulcsa névtér·joghatóság·érték: a HU és az AT azonos karaktersora két tény; az egyezés listát ad, jogot nem. Mérve: azonos adószám két könyvön, a másik jelentkező a családi könyvben no_membership.",
+   "evidence": [
+    "v3ref/store.mjs:19-35 (subject.kind · external_id oszlopai)",
+    "v3ref/externalId.mjs:26-54 (KNOWN_NAMESPACES · JURISDICTION_PROFILES · profileFor) · :98-109 (identityClaimsMatching, grants_any_right:false) · :115-132 (attachBusinessIdentity)",
+    "v3ref/run.mjs:3557-3583 P-CORE-startup-and-delegation (f) ág: sameHu=2 alany · sameAt=0 · ernoInCsalad=no_membership · unknownProfile.known=false",
+    "P-IDENTITY-address (run.mjs:1328): két bizonyíték egy emberre egy személy, nem új fiók",
+    "v3ref/manifest.mjs:435-437: ORG-N1a ← A-CORE-identifier-namespace-and-entitlement-give-no-right-and-are-separate-facts (XID-01, VERSION_R63)",
+    "v3ref/mutations.mjs:1938-1941 M201 (rule K01) — nálam NEM futott le (lásd reader_note)",
+    "v3app/selfcheck.mjs futás 57/57: 14–15. sor (HU adószám · verification none_available)",
+    "futás: node v3ref/run.mjs → RESULT 62/62 PASS"
+   ],
+   "missing": "Nincs kötési bizonyíték és kötésverzió az azonosító soron (a séma nem hordozza); nincs téves-kötés eljárás (függő kiadások leállítása, kötésverzió javítása, kiadási leltár, incidens); az org_unit fajtának nincs írója/olvasója a modulokban (csoport, szervezeti egység nem modellezett); hatósági igazoló adapter nincs (none_available, kimondva); az e-mail új tulajdonosa / két cím / új adószám folytonosság-kérdése nincs modellezve; helyi partnerreferencia fogalom nincs.",
+   "blocks": "later_operational_use",
+   "closes_by": "Kötésverzió + téves-kötés eljárás próbával (nevezett feloldó, ellenpárral); org_unit író/olvasó a K04 szervezeti bővítésével együtt; az országadapter a §3 szerint későbbi profil-munka, nem ebben a körben.",
+   "stale_text": ""
+  },
+  {
+   "id": "K02",
+   "group": "K",
+   "requirement": "Saját munkatér egyszerű regisztrációs profillal indulhat; a helyi admin a saját környezetét kezeli, nem foglal le cégnevet; a gazda nélküli állapot (előfizetés megszűnése, utolsó admin kiesése) külön életciklus-esemény, technikai őrzővel, automatikus átadás nélkül.",
+   "works_now": "A WSP-01 createWorkspace egy tranzakcióban írja a könyvet, a startup-rule:v1 authority_basis sort (bizonyíték-hivatkozás: a létrehozó ellenőrzött fiókja + bizonyított csatorna), az admin tagságot, a helyi alter_right hatáskört, a két adatkör olvasási jogát és az előfizetési tesztprofilt; előfeltétel a bizonyított e-mail csatorna (creator_channel_unproven nevezett elutasítás). A jog csak a saját könyvre szól: adjudicate/suspend nincs benne. Azonos beírt adószámmal más is indíthat saját könyvet (nincs globális lefoglalás). Az app HTTP-héján a folyamat végigmegy.",
+   "evidence": [
+    "v3ref/workspace.mjs:174-182 (STARTUP_RULE: operations invite_issue+alter_right, not_granted suspend/adjudicate) · :193-239 (createWorkspace, egy tranzakció)",
+    "v3ref/run.mjs:3454-3471 P-CORE (a): unproven.reason=creator_channel_unproven · basis startup-rule:csalad@v1 · annaAdjudicate=authority_not_established",
+    "v3ref/run.mjs:3559-3560 P-CORE (f): ws2 'masik' azonos adószámmal ok",
+    "v3ref/manifest.mjs:425-426: ORG-N1a ← A-CORE-own-workspace-starts-with-a-versioned-basis-and-proven-channel (WSP-01)",
+    "v3ref/mutations.mjs:1913-1927 M196 · M197 · M198 (workspace.mjs rontások) — nálam NEM futottak le",
+    "v3app/selfcheck.mjs 57/57: 14. sor (Anna létrehozza a könyvet) · 17. sor (aktuális munkakörnyezet admin)"
+   ],
+   "missing": "A gazda nélküli állapot életciklusa egyáltalán nincs: nincs esemény az előfizetés megszűnésére, az utolsó admin kiesésére, a szolgáltató megszűnésére; nincs technikai őrzői profil, nincs 'működő / átadásra váró / korlátozottan őrzött / vitatott / törölt' állapot (grep last_admin/orphan/custodian: 0 találat a modulokban). Nincs partner-fogalom, tehát a 'felhasználó nélküli partnerhez tartozó állítás a saját könyvben' és az 'elkülönített kezelt könyv' sem létezik.",
+   "blocks": "later_operational_use",
+   "closes_by": "Életciklus-események + őrzői profil (K14-hez kötve), nevezett állapotgéppel és próbával; partner-törzs a mini modulok közös alapjában.",
+   "stale_text": ""
+  },
+  {
+   "id": "K03",
+   "group": "K",
+   "requirement": "A meghívó célhoz, címzetthez, jogkörhöz, jogadási alaphoz, kibocsátóhoz és lejárathoz kötött, egyszer váltható be; meglévő fiókhoz tagságot adunk jelszó-átírás nélkül; a szándék belépés előtt védett szerveroldali állapotban él; a fiók létezése nem szivároghat; rossz fiókból biztonságos váltás.",
+   "works_now": "ACC-01: jelszó scrypt lenyomattal, egyforma elutasítás ismeretlen címre és rossz jelszóra, csatorna-kihívás egyszeri beváltása ad channel_proof-ot. A meghívó sor hordozza a címzettet, a felajánlott szerepet, a kibocsátót, a lejáratot és a beváltás tényét; a pecsét és a feltételek változtathatatlanok (P-INVITE-seal/-terms), a lejárat idő-összehasonlítással dől el (P-INVITE-window), a beváltás kapui a tx-határon újramérve (P-INVITE-finalize-gate), atomi (P-INVITE-effect). A kibocsátó ugyanazt a választ látja létező és nem létező fiókra (P-A04), a címzett világonként helyes utat kap (P-A04b), a beváltás csak tagságot ad (P-K03-cred), a függő szándék munkamenet nélkül is megőrződik (P-K03-intent). A meghívó alapja a kiadó továbbadható jogából képződik (DLG-01), ismételt beváltás nem ad második tagságot (P-CORE c). A v3app: semleges regisztráció, valódi belépés munkamenet-rotációval, a függő szándék átkerül az új munkamenetre, dev levél-fogadó. Két valódi folyamat beváltás-versenye: 20/20 menet egy tagsággal.",
+   "evidence": [
+    "v3ref/account.mjs:33-50 (hash/verify) · :87-94 (authenticate, egyforma elutasítás) · :97-127 (kihívás/beváltás) · :130-135 (provenEmailOf)",
+    "v3ref/store.mjs:235-244 (invite oszlopai)",
+    "v3ref/run.mjs:212-297 P-A04 · P-A04b · P-K03-cred · P-K03-intent (mind PASS) · :705-790 P-INVITE-window · P-INVITE-authority (idegen alany=account_authentication_required, visszavont=revoked_needs_decision, kibocsátó=issuer_right_withdrawn) · P-INVITE-effect · :815 P-INVITE-finalize-gate · :1062 P-INVITE-seal · :1145 P-INVITE-terms",
+    "v3ref/run.mjs:3500-3521 P-CORE (c): obsBefore=needs_invitee_identity → redeem_as_existing · red.shape=membership_only · again.ok=false · belaMemberships=1",
+    "v3ref/delegation.mjs:110-128 (inviteColleague: adatkör kötelező, plafon)",
+    "v3app/server.mjs:198-218 (semleges regisztráció) · :231-244 (login: rotált munkamenet, pending intent átvitel) · :430 (/dev/mailbox)",
+    "v3app/selfcheck.mjs 57/57: 6–12 · 19 · 22–31 · 60–61. sor",
+    "tools/v3_multiconn_proof.mjs futás: (1) meghívó-beváltás versenye 20/20 invariáns, RESULT PASS 40 menet",
+    "mutációk lefutva nálam és elkapva: M22 · M23 (K03) · M24 (K09); M196 · M203 (K03) nálam NEM futott"
+   ],
+   "missing": "Nincs MFA / második faktor (a reviews.mjs maradéka: 'az MFA'); nincs fiókhelyreállítás mint külön eljárás; a meghívó visszavonása nem saját esemény (az invite táblán nincs revoked_at — csak a lejárat és a kiadó jogának megvonása zár); meglévő tagság reaktiválása / szerepváltozása külön auditált döntésként nincs (a beváltás revoked_needs_decision-nél megáll, az újranyitás nincs megépítve); 'a kézbesítő nem feltétlenül jogadó' elválasztás nincs (a kiadó = jogadó); nem digitális résztvevő (papíros közlés) nincs, mert partner-fogalom sincs; a HTTP-szintű anti-enumeráció (státusz, fejléc, időzítés) a P-A04 maradéka szerint nem mért.",
+   "blocks": "later_operational_use",
+   "closes_by": "Meghívó-visszavonás esemény + reaktiválás külön döntésként (ORG-N1a remaining (1)(2)) próbával; fiókhelyreállítás és MFA a K04 erős-hitelesítés profiljával; a reviews.mjs maradék-állásainak frissítése a v3app tényével.",
+   "stale_text": "v3ref/reviews.mjs:104-107 és :114 (P-K03-intent maradéka): „nincs valódi belépés, session-rotáció, sessionhöz kötött folytatás …” — a v3app/server.mjs:231-244 valódi belépést ad rotált munkamenettel és a függő szándék átvitelével (selfcheck 12. és 27. sor); ugyanígy reviews.mjs:57 és :65 (P-A04b): „nem jelentkezik be” — a selfcheck 25–30. sora regisztrál, megerősít, belép és bevált. A run.mjs kimenetében ezek ma is NYITOTT maradékként állnak."
+  },
+  {
+   "id": "K04",
+   "group": "K",
+   "requirement": "Az engedély hiteles cselekvőre, minőségre, műveletre, célra, erőforrásra és adatkörre szól; a szerep sablon, az adatolvasás és a jogadás külön; a jogút a delegálási lánc metszete; önfeljogosítás és jóváhagyó kinevezése nem kerülőút; nagy hatású jogadáshoz erős, friss hitelesítés; együttes eljárás jóváhagyási szabállyal.",
+   "works_now": "A jog művelet-osztályonként dől el (ismeretlen osztály/szerep tiltott, a tagság hatály-intervalluma mérve). A felhatalmazás alapja saját tábla (azonosító · verzió · hatály · kötelező bizonyíték-hivatkozás), a korlát (szerep · művelet · adatkör) a meghívó-kiadáson, a beváltáson, a hatáskör-adáson és a használaton is kapu. A DLG-01 a kiadó szerepe és a szülő alap metszetéből képzi a delegálási plafont, a plafonon túli szerep nyom nélkül elakad (outside_basis_roles). A helyi admin nem adhat magának adjudicate hatáskört (outside_basis_operations, 0 sor); a platformbírálói alap külön, védett szabály (PLATFORM_RULE), felhasználói út nem hívja. Az előfizetés és a jog két kapu, a válasz megmondja, melyik zárt. Az app csak a munkamenetből azonosít, a kliens actor/role mezőit figyelmen kívül hagyja.",
+   "evidence": [
+    "v3ref/run.mjs:595 P-AUTHZ-opclass · :612 P-AUTHZ-membership-time · :1252 P-AUTHZ-roles · :4938 P-ORG-basis · :5108 P-ORG-basis-limit · :3627 P-ORG-adjudication-basis-limit (mind PASS)",
+    "v3ref/delegation.mjs:72-104 (deriveDelegationBasis: szerep-metszet, adatkör-plafon, evidence_ref delegated-from) · :135-146 (grantScopeToMember)",
+    "v3ref/run.mjs:3487-3498 P-CORE (b): badRole=outside_basis_roles · deleg.evidence_ref delegated-from:startup-rule:csalad@v1 · :3539-3547 (e): önfeljogosítás elutasítva, adjRows=0",
+    "v3ref/platformRule.mjs:180-186 (PLATFORM_RULE) · :198-213 (seedPlatformReviewBasis)",
+    "v3ref/entitlement.mjs:297-307 (twoGateVerdict)",
+    "v3ref/manifest.mjs:427-434: ORG-N1b ← A-CORE-invite-basis-is-derived… · A-CORE-self-appointment-as-reviewer-is-refused… (VERSION_R63)",
+    "v3app/server.mjs:440 (ALLOW) · :458-460 (ignoredParamsOf) · selfcheck 20 · 48 · 49 · 53–55. sor",
+    "mutációk: 32 db rule K04 a mutations.mjs-ben; M202 (K04) nálam lefutott és elkapva; M197 · M199 nálam NEM futott",
+    "run_out: ORG-N3a/ORG-N3b NYITOTT (norms.mjs:789-806: egyetlen jogalap-út, a VAGY/ÉS nem mérhető)"
+   ],
+   "missing": "Nincs erős/friss hitelesítés nagy hatású műveletnél (step-up); nincs együttes jóváhagyás és önjóváhagyás-tilalom profil (ORG-N1a remaining: 'együttes jóváhagyás … NEM LÉTEZŐ képesség'); egyetlen jogalap-út van (tagság), a több önálló jogút / VAGY-ÉS metszet nem modellezett (ORG-N3a/b NYITOTT); nincs hatásleltár hatáskörváltozásnál; nincs szervezeti egység, hierarchia, delegált adminisztráció; a 'ki mit láthat / milyen úton' nézet csak a tag-lista (admin_required), nem teljességjelzett nézet; 'két fiók nem két ember' összeférhetetlenség nincs.",
+   "blocks": "mini_module_base",
+   "closes_by": "ORG-N3 vagylagos jogalap-út modellje + hatásleltár + step-up hitelesítési profil, mindhárom deklarált állítású próbával; a §5.3/10 (két szervezeti egység, együttes jóváhagyás) tényleges hiányát a jelentésben külön kimondani.",
+   "stale_text": "v3ref/norms.mjs:856-858 (OB-6 why): „Addig a tiltó alapértelmezés (ORG-N2) él, és az az EGYETLEN szervezeti klauzula, aminek ma bizonyítéka van.” — a mai láncban az ORG-N1a nyolc és az ORG-N1b húsznál több állítása áll bizonyítékkal (run.mjs kimenet, FÜGGŐBEN ORG-N1a/ORG-N1b sorok); ugyanez a mondat run.mjs:757 és manifest.mjs:82 megjegyzésében."
+  },
+  {
+   "id": "K05",
+   "group": "K",
+   "requirement": "Minden csatorna ugyanazt a közlési határt tartja; új út alapból nem nyilvános; a kliens által küldött cégtér/szerep nem bizonyíték; tételes olvasásnál mezővetület, összesítésnél külön eredményjog; idősor/változásjel külön engedély; minden kiadáshoz védett leltár; azonos tudású világok megfigyelhető válasza nem különbözhet a titok miatt.",
+   "works_now": "A kiadott eredmény adatkörét a típus deklarálja (beágyazott mezőre is), a vegyes eredmény egészben megtagadva, a besorolatlan fail-closed (DSC-01). Az olvasás a ténylegesen megadott adatköri jogból dönt, a plafon csak szűkít, a hiány zár; a jog adása/megvonása két idő-tengelyen. Minden kiadás leltározott, a nyugta a parancs tényéhez kötött. A tagság önmagában nem ad adatot: a kezelő külön adja meg az adatkört (keszlet igen, arak nem). Az app a kliens book_id/actor/role paramétereit figyelmen kívül hagyja és ezt kimondja; minden JSON-válasz no-store. A jogosulatlan hívó ugyanazt a választ kapja hiányzó és idegen objektumra (P-AUT-object-neutral). K05-DSC-a…d mind bizonyítékkal áll a láncban; OB-8 lezárva.",
+   "evidence": [
+    "v3ref/run.mjs:3940 P-REV-result-scope · :4039 P-REV-result-shape · :3123 P-DSC-scope-basis · :3244 P-DSC-scope-grant-history · :531 P-CMD-disclosure · :1203 P-CMD-receipt-integrity · :4305 P-CMD-release-effectuation · :5684 P-AUT-object-neutral (mind PASS)",
+    "v3ref/run.mjs:3500-3521 P-CORE (c): belaStockBefore=no_scope_grant · give.ok · belaPrice=no_scope_grant",
+    "v3ref/manifest.mjs:429-430: K05-DSC-c ← A-CORE-membership-does-not-release-data-until-a-scope-is-explicitly-granted (DLG-01)",
+    "v3ref/norms.mjs:892-906 (OB-8 lezárt, residual: mezővetítés nyitott út)",
+    "v3app/server.mjs:440 · :458-460 (ignoredParamsOf) · selfcheck 5 (Cache-Control no-store) · 37–43 · 53–55. sor",
+    "run_out: K05-DSC-a/b/c/d FÜGGŐBEN-bizonyítékkal · REV-N3d, REV-N3e NYITOTT",
+    "mutációk: 37 db rule K05 (+ K05/K15, K05/K07, K05/K09); nálam lefutott és elkapva pl. M179, M190, M8; M198 nálam NEM futott"
+   ],
+   "missing": "Nincs összesítési eredményjog (könyvkör, mérőszám, lefedettség, tudásállapot deklarációja); nincs idősor/küszöbjelzés/változásértesítés mint külön közlési forma; a csatornák közül csak az API létezik (export, fájl, értesítés, webhook, háttérmunka, AI, támogatás nincs); AI-eredmény forrásfüggőség és visszavont forrás érvénytelenítése nincs; a hozzáférési kimutatás csak a tag-lista; mezővetítés nem épült (kimondott nyitott út); REV-N3d (beadó-kontextus eredete) és REV-N3e nyitott; időzítési mérési környezet nincs.",
+   "blocks": "mini_module_base",
+   "closes_by": "Aggregációs eredményjog-deklaráció + csatorna-regiszter (alapból nem nyilvános) próbával; az idősor/változásjel külön jogosítása; a mezővetítés saját bizonyítékkal, ha épül.",
+   "stale_text": "v3ref/norms.mjs:831-841 (OB-3 why): „ma minden hívó a magon BELÜL van, tehát a séma védelme MÉRHETŐ, de nem PRÓBÁRA TÉVE idegen beadóval” — a v3app/server.mjs HTTP-héj már külső hívó (JSON-törzs, paraméter-átlépés mérve: selfcheck 53–55), bár a BEM-01 séma nem ezen a határon kapuz; a mondat az R63 óta részben elavult."
+  },
+  {
+   "id": "K06",
+   "group": "K",
+   "requirement": "A megfigyelés, bizonyítéka, közlése és célkönyvi hatása külön tény; forráskulcs névtere; forrásközi egyeztetés explicit állapotokkal; célkönyvi elfogadási szabály; kettős könyvelés elleni mechanizmus; a hatásegység, korreláció és véglegesítés atomikus.",
+   "works_now": "Csak a véglegesítés oldala áll: a parancs hatása és nyugtája egy tranzakcióban születik, tartós esemény-sorral; a tároló őrei tiltják az árva mozgás-sort (unknown_effect) és a nyugta nélküli hatást (receipt_missing); az ismétlés-kulcs hatóköre aktor+könyv (más aktor nem kapja meg az idegen hatást).",
+   "evidence": [
+    "v3ref/run.mjs:883 P-CMD-receipt · :1203 P-CMD-receipt-integrity · :470 P-CMD-namespace (mind PASS)",
+    "v3ref/store.mjs:601-620 (stock_movement_requires_finalized_command · stock_movement_requires_receipt triggerek)",
+    "run_out: REV-N4a [K06+K08] NYITOTT · REV-N4b [K04+K06] NYITOTT (norms.mjs:290-311: nincs kompenzáló-esemény fogalom)",
+    "docs/70_PLANNING/OB7_LEKEPEZES.json: K06 2 említés, saját modul nélkül",
+    "grep (egyeztet/reconcil a modulokban): csak külső-azonosító és tiltás-hatókör kommentek, egyeztetési állapotgép nincs"
+   ],
+   "missing": "Nincs megfigyelés/állítás/közlés/hatás négyes modell; nincs forrásközi egyeztetés (jelölt · igazolt · eltérő · konfliktus · ismeretlen); nincs célkönyvi elfogadási szabály és beérkezett/függő/elfogadott/vitatott állapot; nincs több forrásból jelzett ugyanazon hatás elleni védelem; a kompenzáló/korrekciós esemény fogalma hiányzik (REV-N4a/b nyitott); külső forrásfiók névtere nincs.",
+   "blocks": "mini_module_base",
+   "closes_by": "Esemény/állítás modell + egyeztetési állapotgép + célkönyvi elfogadás (REV-N4a előfeltétele), deklarált állítású próbákkal; a mini modulok közös alapjának része.",
+   "stale_text": ""
+  },
+  {
+   "id": "K07",
+   "group": "K",
+   "requirement": "A parancs típusa, cselekvője, célkönyve, bemenete és ismétlésvédelmi kulcsa rögzített; a kulcs hatókörös; azonos kulcs eltérő tartalommal konfliktus; a hatás egyszer születik; a válasz kiadása a mai jogon megy át; véglegesítés és visszavonás közös bizonyított sorrendben; ismeretlen kimenet előbb egyeztetés.",
+   "works_now": "A submitCommand kulcsa aktor+könyv hatókörű, az azonosság a beágyazott tartalomra, műveletre és verzióra is kiterjed (eltérő tartalom = idempotency_conflict), a jog a véglegesítés előtt és a tx-határon újramérve, a nyugta atomi. Jogosult újrapróbálás ugyanarra a hatásra, a feloldás egyszer fut; megvonás után az ismétlés és az olvasás azonos az ismeretlen kulcséval (a hatás nem születik újra, létezés nem szivárog). Két valódi OS-folyamat versenyén: megvonás ↔ véglegesítés 20/20 invariáns, a megvonás előtt véglegesített parancs visszajátszása not_available, új leltár-sor nélkül.",
+   "evidence": [
+    "v3ref/run.mjs:299-372 P-A08 (retrySameActor.replayed · conflict=idempotency_conflict · resolveCalls=1 · retry azonos az ismeretlen kulcséval) · :470 P-CMD-namespace · :492 P-CMD-identity · :515 P-CMD-finalize · :936 P-CMD-finalize-gate · :4155 P-CMD-effectuation · :1279 P-CANON-shape (mind PASS)",
+    "tools/v3_multiconn_proof.mjs futás: (2) 20/20 · (3) readCommandResult(pre) not_available 20/20, kulcs-ismétlés új sor nélkül 20/20 · RESULT PASS 40 menet; a lap kimondja: nem Postgres, nem hálózati határ",
+    "v3ref/manifest.mjs:100-112 (P-CMD-finalize-gate discharges REV-N1a · REV-N1b · K05-DSC-d)",
+    "mutációk: 9 db rule K07 + K05/K07 5 db; nálam lefutott és elkapva: M4 · M5 · M10 nem igazolt egyenként (a lefutott 110-ből egyik sem élt túl), M32/M47-49 futása nálam nem igazolt",
+    "v3ref/command.mjs grep retention/window: 0 találat"
+   ],
+   "missing": "Nincs kulcsmegőrzési ablak és annak lejárta utáni tartós üzletihatás-azonosító + duplikáció-ellenőrzés; nincs 'egyeztetésre váró ismeretlen kimenet' állapot (befogadott/végrehajtás alatt/véglegesült/elutasított/ismeretlen ötös); nincs nagy munka több véglegesíthető egységgel és folytatási ponttal; nincs külső rendszer felé tartós kimenő esemény és visszaigazolás; OB-1 (Postgres vagy egyenértékű, sor-zár/verzió-őr) nem zárt; OB-2 (Q17 műtermék-útvonal) nyitott.",
+   "blocks": "later_operational_use",
+   "closes_by": "Kulcs-ablak + tartós hatás-azonosító + ismeretlen-kimenet állapot próbával; OB-1 zárása a megnevezett tárolón; az OB-1 why mondat átírása a többfolyamatos próba tényére.",
+   "stale_text": "v3ref/norms.mjs:819-824 (OB-1 why): „minden „a tranzakció határán” mérésünk determinisztikus közbeiktatás, nem valódi versenyhelyzet.” — a tools/v3_multiconn_proof.mjs két külön OS-folyamattal, valódi zár-várakozással 40/40 menetet mért (kimenete: „Egyírós közbeiktatás itt sehol nem szerepel”); a closes_when (Postgres vagy egyenértékű) továbbra áll, a why elavult. Ugyanez az R63 lap §2: „A normaszöveg továbbra is egyírós…” — a mai állapotra nem igaz."
+  },
+  {
+   "id": "K08",
+   "group": "K",
+   "requirement": "Minden állítás- és korrekcióverzió hordoz üzleti hatályidőt, rögzítési időt és sorrendet; a tudásállapot a véglegesítési pontig ismert verziók halmaza; a korrekció új verzió, nem felülírás; a beadott jelentés változatlan példánya megőrzendő; hiányos történetre 'nem rekonstruálható' állapot.",
+   "works_now": "A tagság, a tagságadás, a hatáskör-alap és az adatköri jog két idő-tengelyen áll (hatály ⊥ tudás): a júniusi rögzítés nem írja át a márciusi képet, a mai kép a helyesbített; a felülvizsgálati kör számított tagsággal, érintetlen eredeti történettel. A készlet-főkönyv sorai recorded_at/effective_at párral, hozzáfűzésesek (UPDATE/DELETE tiltva a tárolóban), a két idő-nézet tengely-párral. A sikertelen kísérlet tartós nyoma külön (access_refusal).",
+   "evidence": [
+    "v3ref/run.mjs:4641-4662 P-REV-bitemporal · :4714 P-REV-review-circle · :4788 P-REV-grant-axis · :4870 P-REV-evidence-home · :5339 P-ORG-grant-atomic · :3244 P-DSC-scope-grant-history · :5473 P-KSZ-ledger-truth · :5684 P-AUT-object-neutral (mind PASS)",
+    "v3ref/store.mjs:45-56 (granted_at/granted_recorded_at indoklás) · :585-595 (stock_movement recorded_at/effective_at) · :626-633 (no_update/no_delete triggerek)",
+    "run_out: REV-N2a/N2b FÜGGŐBEN-bizonyítékkal · REV-N1c [K08] NYITOTT (norms.mjs:115-118: nincs korrekciós esemény-fogalom és alkalmazandó profil)",
+    "mutációk: 15 db rule K08 + 7 db K08/K09 (M47–M49 stb.); nálam részben futottak, a lefutottak közül egy sem élt túl"
+   ],
+   "missing": "Nincs általános korrekciós esemény (REV-N1c, REV-N4a nyitott); nincs benyújtott/kiadott jelentés változatlan példánya, lenyomata, generálási paraméterei, forrás-vízjele és átadási nyoma; nincs 'nem rekonstruálható teljesen' állapot; a megfigyelt esemény ideje mint harmadik tengely hiányzik (K10-TYP-e nyitott); az 'akkori lehetséges jogkör vs akkori döntés' külön nézete csak a tagságra van.",
+   "blocks": "mini_module_base",
+   "closes_by": "Korrekciós esemény modell (REV-N1c/N4a) + jelentés-példány megőrzés + megfigyelési idő (QNT előfeltétel), próbákkal.",
+   "stale_text": ""
+  },
+  {
+   "id": "K09",
+   "group": "K",
+   "requirement": "Érvényes megvonás nem vár utódra; tagság-megszűnés, célzott tiltás és globális letiltás külön esemény; a megvonás lefedi a függő meghívókat, delegálásokat, exportokat, cache-t, AI-kontextust; szerveren ellenőrzött új lekérés a mai jogtól függ; az átadott másolat nem távoli hozzáférés; helyreállítás és képviselet-rendezés külön hatáskör.",
+   "works_now": "Az azonnali megvonás előrehozza az ütemezettet, a már hatályosat nem hosszabbítja, az előzmény megmarad. A megvont tag delegálási alapja is megszűnik, a függő meghívója beváltáskor elakad (issuer_right_withdrawn), a többi tag joga marad. A tiltás fajta × engedő út × cél mátrixon mérve, az okából származó hatókörrel, nem törli a múltat; a felfüggesztés tényleg felfüggeszt. Megvonás után az adatkiadás, a visszajátszás és a kulcs-ismétlés not_available (két valódi folyamat versenyén is). Az app: megvonás után a készlet-nézet elutasítva, a munkatér-lista üres, a kliens book_id-je figyelmen kívül, minden válasz no-store, visszaváltás membership_revoked.",
+   "evidence": [
+    "v3ref/run.mjs:673-703 P-AUTHZ-revoke-now · :732-770 P-INVITE-authority (c) · :2008 P-REV-suspension · :2404 P-REV-ban-scope · :2537 P-REV-ban-paths · :2713 P-REV-ban-past · :2806 P-REV-ban-matrix · :4532 P-REV-entry-points (mind PASS)",
+    "v3ref/run.mjs:3523-3538 P-CORE (d): delegRevoked=basis_revoked · ciliAfter=membership_revoked · danielRed=issuer_right_withdrawn · belaAfter.allowed=true",
+    "v3ref/delegation.mjs:149-154 (revokeDelegationsOf) · v3app/server.mjs:392-402 (revoke + delegation)",
+    "v3ref/manifest.mjs:431-432: ORG-N1b ← A-CORE-revocation-closes-the-member-and-their-pending-invites-but-not-others",
+    "tools/v3_multiconn_proof.mjs futás: (2) megvonás ↔ véglegesítés 20/20 · (3) 20/20",
+    "v3app/selfcheck.mjs 57/57: 5 · 50–56. sor",
+    "mutációk: 23 db rule K09; nálam lefutott és elkapva: M24; M200 nálam NEM futott",
+    "run_out: REV-N5a/b/c FÜGGŐBEN-bizonyítékkal · REV-N3e NYITOTT"
+   ],
+   "missing": "Export, index, AI-kontextus, előre aláírt URL nem létezik, tehát a megvonás lefedettsége rájuk nem mérhető; nincs fiók-helyreállítás, helyi admin pótlás, céges képviselet rendezése; a valódi vita bírálati útjának egy része nyitott (REV-N3e); offline/ellenőrizetlen kliens másolat-szabálya nincs; az online kliens saját cache-törlése/kontextusérvénytelenítése az app.js-ben nem mért (csak a no-store fejléc); az újra-meghívás megvonás után nincs megépítve.",
+   "blocks": "later_operational_use",
+   "closes_by": "Helyreállítási hatáskörök (K09/K02) + kliens-oldali cache/kontextus próba böngészőben + REV-N3e; az OB-5 szövegének frissítése.",
+   "stale_text": "v3ref/norms.mjs:848-851 (OB-5 why): „a tizenhárom megvonási klauzulából csak kettőnek van ma bizonyítéka.” — a mai láncban 15 REV-klauzula áll, ebből tíznek van állítása (REV-N1a/b · N2a/b · N3a/b/c · N5a/b/c), öt nyitott (N1c · N3d · N3e · N4a · N4b); a szám és a darabszám is elavult (run.mjs kimenet)."
+  },
+  {
+   "id": "K10",
+   "group": "K",
+   "requirement": "Mennyiség = érték és egység, pénz = érték és pénznem, hiány nem nulla; tárolási pontosság, megjelenítés és üzleti kerekítés külön; verziózott számítási profil; névtér-specifikus, verziózott normalizálás univerzális kisbetűsítés nélkül; dimenzióváltás csak profil alapján.",
+   "works_now": "A mennyiség érték+profil (qty_scaled · qty_profile a soron, a tárolt sor a saját profilját viszi, profilváltás nem értelmezheti át a múltat); a cikk azonossága belső azonosító az SKU mellett, könyvön belül egyedi, a mértékegység a mennyiség jelentése; a bemeneti séma zárt regiszter, ismeretlen művelet fail-closed, a típus a nyers értéken ellenőrzött, a sémaverzió a regiszteré; ismétlés és hibahatár: egy hatás, részleges írás nélkül. K10-TYP-a…d bizonyítékkal, OB-9 lezárva.",
+   "evidence": [
+    "v3ref/run.mjs:5435 P-KAT-item-identity · :6073 P-KAT-identity-history · :5819 P-BEM-input-schema · :6135 P-KSZ-canonical-input-boundary · :6194 P-MNY-stored-profile-history · :6282 P-KSZ-repeat-and-error-boundary (mind PASS)",
+    "v3ref/norms.mjs:907-926 (OB-9 lezárt; residual: TYP-c/d/e nevezett hiány, két élő profil)",
+    "run_out: K10-TYP-a/b/c/d FÜGGŐBEN-bizonyítékkal · K10-TYP-e NYITOTT (megfigyelési idő)",
+    "v3ref/store.mjs:591-592 (qty_scaled · qty_profile)",
+    "v3ref/externalId.mjs:61-63 (normalizeExternalValue: egységes nagybetűsítés + szóköz/kötőjel elhagyás)",
+    "mutációk: 34 db rule K10; nálam a lefutott 110-ben egy sem élt túl"
+   ],
+   "missing": "Nincs pénz típus (érték+pénznem) és számítási profil (kerekítési mód, felbontás, maradék felosztása, sor/dokumentum/adó kerekítés külön); nincs dimenzióváltás termék-/mérési profil alapján (unitDimension létezik, váltási profil nincs); a külső azonosító normalizálása egy univerzális szabály (nagybetű, szóköz/kötőjel), nem névtér-specifikus és nem verziózott, ütközésleltár nélkül — ez a K10 tiltásával feszül; nyelv/fordítás és elfogadott nyelvi verzió nincs; K10-TYP-e (megfigyelési idő) nyitott.",
+   "blocks": "mini_module_base",
+   "closes_by": "Pénz + számítási profil szerződés; névtér-specifikus, verziózott normalizáló ütközésleltárral (XID-01 javítása); K10-TYP-e a QNT-vel.",
+   "stale_text": ""
+  },
+  {
+   "id": "K11",
+   "group": "K",
+   "requirement": "A mag birtokolja a művelettípus-regiszter sémáját és a közös végrehajtási protokollt; a modul saját névtérben deklarál művelettípusokat, adatköröket, eseményeket, megőrzést; teljes moduléletciklus (előkészítés, aktív, leállás, visszatérés) checkpointtal és idempotens hatásokkal.",
+   "works_now": "Egyetlen művelettípus él, zárt regiszterben (OPERATION_SCHEMAS: stock.receipt), ismeretlen művelet és örökölt tulajdonságnév fail-closed, a sémaverzió a regiszteré, nem a beadóé (SVR-01); a közös végrehajtási protokoll (parancs → jog → hatás → nyugta) egy úton bizonyított.",
+   "evidence": [
+    "v3ref/inputSchema.mjs:73-86 (OPERATION_SCHEMAS, 'stock.receipt') · :262 (BEM_CONTRACT)",
+    "v3ref/run.mjs:5819 P-BEM-input-schema (ismeretlen művelet fail-closed, örökölt név nem művelet) · :5473 P-KSZ-ledger-truth (nincs megkerülő író)",
+    "v3ref/run.mjs:1355 P-NORM-evidence maps 'R32/K11' — a próba tárgya a norma-bizonyíték kapu, nem a művelettípus-katalógus",
+    "docs/70_PLANNING/OB7_LEKEPEZES.json: K11 0 sor; mutations.mjs: 0 db rule K11"
+   ],
+   "missing": "Nincs modul-fogalom: nincs modul-névtér, nincs modul-deklaráció (adatkörök, függőségek, fogyasztott/kibocsátott események, megőrzés, kiadási csatornák), nincs életciklus-állapotgép, nincs checkpoint/visszajátszás/újranyitás, nincs vetület-újraépítés külső hatás nélkül; a művelettípus-regiszter felvételi/kompatibilitási ellenőrzése nincs (egy beégetett bejegyzés van).",
+   "blocks": "mini_module_base",
+   "closes_by": "Modul-regiszter séma + felvételi ellenőrzés + életciklus-állapotgép, saját próbával — ez a mini modulok közös alapjának belépési feltétele; a P-NORM-evidence K11-kötését tartalom szerint átnézni (KUKA-087).",
+   "stale_text": "v3ref/run.mjs:1355: a P-NORM-evidence maps mezője 'R32/K11'-et nevez, miközben a próba a checkNorms kapu hazugság-ellenpróbája (run.mjs:1361-1364 saját leírása); a K11 (művelettípus-katalógus) tartalmához nem kapcsolódik — sorszám szerinti, nem tartalmi kötés."
+  },
+  {
+   "id": "K12",
+   "group": "K",
+   "requirement": "Minden joghoz szükséges függőségnek van hiteles forrása, legnagyobb kora, lejárata, visszavonási csatornája és kiesési szabálya; helyi jog mindig ellenőrzött, külső bizonyíték kiesés alatt a rögzített határig él; backupból visszaállás izolált ellenőrzési állapot, lejárt link/hitelesítő nem éled újra.",
+   "works_now": "A külső bizonyíték három tengelye külön (kor · hatály · megvonás): hiányzó/olvashatatlan/zóna nélküli/jövőbeli lekérés tiltott, friss lekérés lejárt megbízással tiltott, kiesés alatt érvényes friss bizonyíték él, visszavont nem; a visszavont tagság a képviselet elé kerül; a saját könyv a külső forrástól független; a nem létező naptári nap nem normalizálódik.",
+   "evidence": [
+    "v3ref/run.mjs:373-400 P-A14 (own=igen · friss+kiesés=igen · lejárt=evidence_stale · visszavont=evidence_revoked) · :635-660 P-AUTHZ-evidence · :1305 P-TIME-calendar (mind PASS)",
+    "run_out maradék: NYITOTT [P-A14] „a 24 óra TESZTPARAMÉTER, nem jogi/adminisztratív szabály”",
+    "mutációk: 4 db rule K12 + 1 K04/K12",
+    "grep backup/restore/mentésből a v3ref modulokban: csak normContract.mjs kommentje — nincs helyreállítási kód"
+   ],
+   "missing": "Nincs bizonyítékosztályonkénti profil-regiszter (legnagyobb kor, lejárat, visszavonási csatorna, kiesési szabály) — a 24 órás kor tesztparaméter; nincs backupból visszaállás izolált ellenőrzési állapota, visszavonási vízjel egyeztetése, döntés-/adatverzió egyeztetés; nincs lejárt link/hitelesítő/küldési sor újraéledés elleni próba; a helyreállítás próbája nem létezik.",
+   "blocks": "later_operational_use",
+   "closes_by": "Bizonyíték-profil regiszter (művelet × bizonyítékosztály) + izolált mentés/visszaállítás próba a felsorolt eseményekkel.",
+   "stale_text": ""
+  },
+  {
+   "id": "K13",
+   "group": "K",
+   "requirement": "Az importforrás rendszer, forrásfiók, kivonat/lenyomat, kulcsok, fordulónap, leképezési profil, beemelő aktor és célkönyv szerint azonosított; előkészítő terület, jogosult céloldali elfogadás; ismeretlen régi aktor 'ismeretlen forrásaktor'; két explicit nyitási stratégia; ismételt import nem dupláz.",
+   "works_now": "semmi",
+   "evidence": [
+    "v3ref/store.mjs CREATE TABLE lista (19–783): nincs import/staging/nyitó tábla",
+    "grep K13 a v3ref/*.mjs-ben: csak a szerződés-verzió szövegében (manifest.mjs:36-48); run.mjs probe maps: 0; mutations.mjs: 0 db rule K13; OB7_LEKEPEZES.json: 0 sor",
+    "v3ref/norms.mjs:842-846 (OB-4: nulla migrációs korpusz) · :2251-2257 (USE-G2 zárt az első valódi importig)"
+   ],
+   "missing": "Minden: forrás-leíró, előkészítő terület, duplikáció/bizonytalanság vizsgálat, ismeretlen forrásaktor, nyitóállomány vs rekonstruált mozgássor stratégia, átállási vízjel, 'történeti betöltés nem küld meghívót/számlát'. A V2 CLAUDE.md szerint a V3 adatforrása a V2 lesz — ehhez ez a klauzula a bejárat.",
+   "blocks": "later_operational_use",
+   "closes_by": "Import modul a K13 szerinti forrás-leíróval és két stratégiával, valódi korpuszon mérve (OB-4 és USE-G2 zárása).",
+   "stale_text": ""
+  },
+  {
+   "id": "K14",
+   "group": "K",
+   "requirement": "A felelősségi profil tevékenységhez, célhoz, adatkörhöz, résztvevőhöz és időhöz kötött, jogi minőséggel, jogalappal, megőrzéssel és felülvizsgálóval; a megállapodás önálló verziózott objektum; technikai grant nem jogalap; támogatási hozzáférés célhoz kötött; megszűnéskor tevékenységenkénti rendezés.",
+   "works_now": "Csak az alap-nyilvántartás oldala: a felhatalmazás alapja azonosítóval, verzióval, hatállyal és kötelező bizonyíték-hivatkozással áll (ORG-N1a a K14-et fedi); az indulási és a delegálási alap bizonyíték-hivatkozása a szabály verzióját és a szülőt nevezi; a platform saját szabálya külön az ügyfél-térétől; az előfizetés (funkció) és az adatjog két külön kapu (technikai grant ≠ jogalap irányban részben).",
+   "evidence": [
+    "v3ref/norms.mjs:637 (ORG-N1a covers K04 · K14) · :654-690 (partial.built · remaining útanként)",
+    "v3ref/run.mjs:4938 P-ORG-basis (azonosító · VERZIÓ · HATÁLY · rögzítési idő) PASS",
+    "v3ref/workspace.mjs:210-216 (startup-rule evidenceRef) · v3ref/delegation.mjs:96-100 (delegated-from evidenceRef) · v3ref/platformRule.mjs:180-186",
+    "v3ref/entitlement.mjs:252-264 (ENT-02 forbids: előfizetésből levezetett adatjog) · run.mjs:3573-3580 P-CORE (f) gateStarter=entitlement · gateBela=right",
+    "OB7_LEKEPEZES.json: K14 1 említés; mutations.mjs: 0 db rule K14"
+   ],
+   "missing": "Nincs felelősségi profil (jogi szerep, jogalap/utasítási alap, megőrzés, kiadási/megszűnési eljárás, felülvizsgáló, verzió); nincs megállapodás mint verziózott objektum (grep agreement/megállapodás: csak normContract.mjs); nincs technikai őrzői profil és támogatási hozzáférés; az országprofil jogi tartalma none_available; megszűnéskori rendezés nincs (K02-vel együtt).",
+   "blocks": "later_operational_use",
+   "closes_by": "Felelősségi profil + megállapodás objektum (verziózott, adatkörre kötött), a K02 életciklusához kötve, próbával; az ORG-N1a remaining (1)(2) zárása.",
+   "stale_text": ""
+  },
+  {
+   "id": "K15",
+   "group": "K",
+   "requirement": "Partnerfelvétel, meghívás, külső lekérdezés, publikálás és képviselet-igénylés eltérő művelet és kockázat; verziózott szereplőnkénti/munkatérenkénti/csatornánkénti keret; küszöbátlépés eredménye meghatározott; a meglévő saját munka nem vész el; több fiókra osztás külön teszteset; korlát nélküli alapértelmezés nincs.",
+   "works_now": "A kifogás-bejelentés útján szerver képezte kulcson áll visszaélés-korlát (rate_limited nevezett válasz), a másodlagos hivatkozás nem veheti el más keretét, a befogadás atomi és semleges; a tiltás alany-szintű hatóköre az okából származik (REV-N5). Minden más csatornán korlát nincs.",
+   "evidence": [
+    "v3ref/adjudication.mjs:15 (UNATTRIBUTED_INTAKE_KEY) · :18 (intakeKeyOf) · :47-49 (submitClaim, rate_limited)",
+    "v3ref/run.mjs:2086 P-REV-claim-read (A-REV-N3c-intake-limit-server-keyed) · :2263 P-REV-claim-decide (secondary-ref-cannot-take-others-quota) PASS",
+    "v3ref/norms.mjs:196-244 (REV-N3c gap:null; REV-N3d gap: közös vödör, hat zárási feltétel) · run_out: REV-N3d NYITOTT",
+    "v3app/server.mjs:442-478 kérés-ciklus: rate limit nincs benne",
+    "mutációk: 5 db K05/K15 + 2 db K09/K15 + 1 K07/K15"
+   ],
+   "missing": "REV-N3d nyitott (a beadó-kontextus eredete és bizalmi szintje, jóhiszemű beadók szétválasztása); nincs korlát-profil a meghívó-kiadásra, regisztrációra, külső lekérdezésre, publikálásra; nincs szereplőnkénti/munkatérenkénti/összesített keret és küszöb-eredmény (lassítás/sorba állítás); a HTTP-héjon semmilyen korlát; több fiókra osztás és kvótakimerítés teszteset nincs; induló számszerű értékek nincsenek rögzítve.",
+   "blocks": "later_operational_use",
+   "closes_by": "REV-N3d hat pontjának teljesítése + verziózott korlát-profil regiszter csatornánként, a HTTP-határon mérve, a saját munka megőrzésének ellenpárjával.",
+   "stale_text": ""
+  },
+  {
+   "id": "K16",
+   "group": "K",
+   "requirement": "Jogosult megfigyelés külső azonosító nélkül is rögzíthető stabil helyi referenciával, hellyel, mennyiséggel, rögzítővel és bizonytalansági állapottal; a hely, az őrző, a tulajdonos, a könyv és a felhasználhatóság külön tengely; a hiány explicit, nem kitalált; későbbi azonosítás K01 szerinti kötéssel.",
+   "works_now": "A készlet-mozgás kulcsa négy tengelyt visz (könyv · cikk · owner_id · warehouse_id), mind kötelező; a mennyiség a saját profilját hordozza; a mozgás hozzáfűzéses. Ennél több nincs.",
+   "evidence": [
+    "v3ref/store.mjs:585-595 (stock_movement oszlopai) · v3ref/ledger.mjs:42-49 (stockKey: hiányzó ownerId/warehouseId elutasít) · :215 (submitStockReceipt paraméterei)",
+    "grep K16 a v3ref/*.mjs-ben: csak a szerződés-verzió szövegében; run.mjs probe maps: 0; mutations.mjs: 0 db rule K16; OB7_LEKEPEZES.json: 0 sor",
+    "v3ref/norms.mjs:2259-2273 (USE-G3: a megfigyelés fogalma hiányzik, a stock.receipt mozgást ír)"
+   ],
+   "missing": "Nincs helyi referencia külső azonosító nélküli félre, nincs 'ismeretlen felek külön alanya'; owner_id és warehouse_id szabad szöveg regiszter nélkül, az őrző és az állított/igazolt tulajdonos nem különül el, a 'nem ismert' állapot nem explicit (a hiány elutasítás, nem rögzíthető hiány); nincs bizonytalansági állapot és hatásmentes megfigyelés (QNT, USE-G3 zárt); nincs 'már megtörtént tény nem tüntethető el' szabály; a későbbi azonosítás K01-kötése nincs.",
+   "blocks": "mini_module_base",
+   "closes_by": "QNT csomag (megfigyelés hatásmentes rögzítése) + hely/őrző/tulajdonos regiszter explicit 'ismeretlen' állapottal + ismeretlen-fél alany, próbával.",
+   "stale_text": ""
+  },
+  {
+   "id": "OB-1",
+   "group": "OB",
+   "requirement": "A véglegesítési határ valódi, több-írós tárolón is tart: két egyidejű kapcsolat versenyén egyszeri hatás születik, az aktuális szabály dönt, a visszajátszás nem adja vissza a megvont jogot.",
+   "works_now": "Két VALÓDI, külön OS-folyamatban nyitott kapcsolat versenye mérve ugyanazon a tartós SQLite-fájlon (WAL, BEGIN IMMEDIATE): meghívó-beváltás versenye (1 tagság · 1 esemény · 1 grant_basis, a vesztes nevezett elutasítást kap), megvonás ↔ bevét-véglegesítés mindkét sorrendben, és a megvonás utáni visszajátszás `not_available`. Saját futásom ma: 6/6 menet OK (--n=3). A norms.mjs OB-1 szövege MÁR a mai állapotot írja (R63-ban helyesbítve).",
+   "evidence": [
+    "tools/v3_multiconn_proof.mjs:3-48 (mit mér, miért külön folyamat) · :653-655 (amit nem bizonyít)",
+    "futás: node tools/v3_multiconn_proof.mjs --n=3 → RESULT: PASS — 6 menet, 6 OK (1) 3/3 · (2) 3/3 · (3) REV09–REV12 3/3",
+    "v3ref/norms.mjs:818-832 (OB-1 why/closes_when, R63-ban újraírva) · :2259-2270 (USE-G1 a kapu zárva marad)",
+    "v3ref/store.mjs:831 (openStoreAt tartós, többkapcsolatos mód)",
+    "docs/70_PLANNING/V3_R64_CORE_FOLYAMAT_ES_LEZARASI_LISTA.md:103,110-111,131 · DECISION_LOG.md:3572-3573"
+   ],
+   "missing": "A tároló továbbra is node:sqlite egy gépen, egy fájlon — nincs Postgres (vagy egyenértékű) sor-zár/verzió-őr, nincs hálózati kérésfogadási határ, nincs kettőnél több író, nincs terhelés. A szerszám ezt maga is kiírja. A why-ban a „40/40 menet\" kézzel beírt futás-szám (KUKA-045): a mai alap 20 menet feladatonként, az érték nem a szövegből, hanem a futásból olvasandó.",
+   "blocks": "later_operational_use",
+   "closes_by": "Postgres (vagy egyenértékű) tároló-réteg alatt UGYANEZ a mérő (MCN-01) három forgatókönyve zöld, két valódi kapcsolattal (R64 L1). HELYESBÍTETT MONDAT-JAVASLAT a why elejére: „A határ KÉT valódi, külön folyamatban nyitott SQLite-kapcsolaton mérve tart (MCN-01, `npm run proof:multiconn`); egyírós közbeiktatás a bizonyítékok között nem szerepel. Ami nyitva: a Postgres-szintű tároló-réteg, a hálózati határ, a kettőnél több író és a terhelés — a két-folyamatos SQLite-mérés nem Postgres-egyenértékű.\" — és a „40/40\" szám helyett: „menetenként friss kapcsolatról visszaolvasva, a darabszámot a futás írja ki\".",
+   "stale_text": "A RÉGI, R63 előtti mondat — „minden határ-mérésünk determinisztikus közbeiktatás\" / „egyírós közbeiktatás\" mint a mérés alakja — MA NEM IGAZ (tools/v3_multiconn_proof.mjs:27-33: két gyermek-folyamat, saját kapcsolattal). A norms.mjs:820-829 ezt MÁR helyesbítette és csak idézetként hordozza; élő fájlban a régi alak nem maradt (grep: DECISION_LOG.md:3580 és R64 md:131 is helyesbítésként idézi). Maradó pontatlanság: norms.mjs:825 „(40/40 menet, mindkét sorrend előfordult)\" — futás-szám a szerződés szövegében."
+  },
+  {
+   "id": "OB-2",
+   "group": "OB",
+   "requirement": "Két egyidejű futás nem adhatja ugyanazt a műtermék-útvonalat (Q17): a generált fájl neve futásonként egyedi, a létrehozás atomi és felülírást kizáró.",
+   "works_now": "A generált-fájl nevet egyetlen képző adja (`artifactPath`, verzió + dátum + idő), a v3app és a selfcheck is ezt hívja; a probléma ismert, kimondott és NEM szépített: az R47 §5 visszavonta a korábbi „Q17 kész\" állítást.",
+   "evidence": [
+    "v3ref/norms.mjs:833-837 (OB-2 bejegyzés)",
+    "DECISION_LOG.md:2242-2245 (Q17 az egyetlen megmaradt FAIL, valódi, nyitott) · docs/70_PLANNING/V3_R47_Q01_Q15_JAVITAS.md:161-176 (a példa: két azonos útnév; a külső fél orvossága elfogadva)",
+    "v3app/server.mjs:62-70 (resolveDbPath/selfcheckDbPath az artifactPath-ból)",
+    "contracts/artifactNaming.js — grep runId/collision/futásazonosító: nulla találat (csak :92 elválasztó-megjegyzés) → futásazonosító és atomi létrehozás NINCS"
+   ],
+   "missing": "Nevezett ütközés-szabály és próba: egyedi futásazonosító a névben + atomi, felülírást kizáró létrehozás (O_EXCL), és egy próba, ahol két egyidejű futás ugyanabban a másodpercben ír. Ma két azonos hívás ugyanazt az utat adja; amint valódi állományt írunk (var/reports, var/backups), a két futás egymást írhatja felül.",
+   "blocks": "later_operational_use",
+   "closes_by": "contracts/artifactNaming.js: futásazonosító a névképzőben + `wx`/O_EXCL létrehozás; próba két párhuzamos folyamattal (a MCN-01 mintájára) → a második nevezett elutasítást vagy más nevet kap; az `npm run verify:artifact-naming` új ellenpárral. JAVASOLT closes_when: „Futásonként egyedi név (futásazonosító) és atomi, felülírást kizáró létrehozás, két egyidejű futással mérve; az útnév-előtag megtartható (R47 §5).\"",
+   "stale_text": ""
+  },
+  {
+   "id": "OB-3",
+   "group": "OB",
+   "requirement": "A bemeneti séma-regiszter (BEM-01) a KÜLSŐ, bizalmi határon kapuz: ismeretlen mező, rossz típus, hiányzó kötelező mező, ismeretlen művelet nevezett elutasítás, írás nélkül — idegen beadóval mérve.",
+   "works_now": "A mezőnkénti séma megvan és a kanonikus bevét-út validál vele (`validateInput` + `bindQuantityProfile` a `stock.receipt` úton). ÚJ R63 óta: VAN külső HTTP-határ — a v3app 17 végpontja süti-munkamenettel, a kliens `book_id`/`actor`/`role` mezőit NEVEZETTEN figyelmen kívül hagyva (`param_ignored` boríték), útvonal-átlépés és túl nagy törzs elutasítva; selfcheck 57/57 PASS.",
+   "evidence": [
+    "v3ref/inputSchema.mjs:1-24 (BEM-01 szerződés) · :157 validateInput · :294 stated_limit",
+    "v3ref/ledger.mjs:240,260 (az EGYETLEN hívó: stock.receipt)",
+    "v3app/server.mjs:198-412 (végpontok, KÉZI mező-ellenőrzés: email_required, token_required, book_id_required, subject_id_required) · :440 ALLOW · :452-470 (kérés-ciklus, invalid_json, param_ignored)",
+    "grep validateInput/bindQuantityProfile a v3app alatt: NULLA hívás",
+    "futás: node v3app/selfcheck.mjs → selfcheck: 57/57 PASS",
+    "v3ref/norms.mjs:838-848 (OB-3 szöveg) · v3ref/externalDecisions.mjs:49,292 (K10-TYP-b elfogadása kifejezetten NEM fedi az OB-3 külső határát)"
+   ],
+   "missing": "A séma-regiszter NEM a HTTP-határon kapuz: a v3app végpontjai kézzel írt, végpontonként eltérő ellenőrzéseket futtatnak (nem a BEM-01 műveleti sémáit), a `stock.receipt` séma pedig HTTP-n el sem érhető. Nincs próba idegen mezővel / rossz típussal a HTTP-határon → nevezett elutasítás. A K05-DSC-b „ismeretlen mező\" tétele a határon nem mért.",
+   "blocks": "mini_module_base",
+   "closes_by": "A v3app végpontjaihoz deklarált séma (OPERATION_SCHEMAS bővítése vagy a BEM-01 hívása a `handle` kérés-ciklusban a handler előtt), böngésző-/selfcheck-próba idegen mezővel és rossz típussal (nevezett `unknown_field`/`invalid_type`, írás nélkül); az inputSchema.mjs:20 és :294 stated_limit átírása. HELYESBÍTETT OB-3 why-JAVASLAT: „A séma-regiszter (BEM-01) megvan, a kanonikus bevét-út validál vele. R63 óta VAN külső határ (v3app HTTP-réteg, süti-munkamenet, figyelmen kívül hagyott kliens-mezők) — de a séma NEM azon kapuz: a végpontok kézi ellenőrzést futtatnak, a BEM-01 sémái HTTP-n nem elérhetők, idegen beadóval nincs mérve.\"",
+   "stale_text": "norms.mjs:844-846: „nincs külső HATÁR (HTTP-réteg, bizalmi határ), ahol a sémának kapuznia kellene — ma minden hívó a magon BELÜL van\" — ELAVULT: a v3app/server.mjs:452-470 külső HTTP-határ, kliens-JSON törzzsel. Ugyanez: v3ref/inputSchema.mjs:20 „HTTP-réteg és bizalmi határ NINCS\" és :294 „ma NINCS külső határ (HTTP-réteg)\". A closes_when „A BEJ-01 külső határ megépül\" feltétel FELE teljesült (a határ áll), a másik fele (a séma AZON kapuz) nem."
+  },
+  {
+   "id": "OB-4",
+   "group": "OB",
+   "requirement": "A kiadási menetrend-osztályozó (bővítés → átállás → szűkítés, bontó migráció csak korábbi kivezetéssel) nem üres, valódi migrációs korpuszon legyen ellenőrizve, a besorolások kézzel átnézve.",
+   "works_now": "A szabály kódban él és fixtúrákon BIZONYÍTOTTAN tüzel (REL06 önpróba), tehát nulla migrációval sem „üres zöld\"; a migrációs főkönyv (LEDGER.json) sha256-tal mér. Saját futás ma: 37/37 PASS, „migráció: 0 db (bontó: 0) · kiadva a naplóban: 0\".",
+   "evidence": [
+    "futás: node tools/vs_verify_release_order.mjs → RESULT: 37/37 PASS · „még NINCS migráció — a REL03 élő adaton nem mért semmit\"",
+    "migrations/: csak LEDGER.json és README.md; find *.sql: nulla fájl",
+    "v3ref/norms.mjs:849-854 (OB-4) · :2272-2281 (USE-G2: az első valódi importig zárva)"
+   ],
+   "missing": "Valódi, nem üres migrációs korpusz — a V3-ban ma sincs egyetlen .sql migráció sem, tehát az osztályozó valódi besorolást még nem végzett; az első valódi import maga lesz a korpusz.",
+   "blocks": "later_operational_use",
+   "closes_by": "Az első valódi migráció(k) megszületése és lefuttatása az osztályozón, a besorolások kézzel átnézve (`npm run verify:release-order` REL03 élő adaton) — USE-G2 ettől nyílik. A szöveg ma NEM elavult (a „NULLA .sql migráció\" állítás mérve igaz).",
+   "stale_text": ""
+  },
+  {
+   "id": "OB-5",
+   "group": "OB",
+   "requirement": "A megvonás visszamenőleges hatályának teljes klauzula-készlete (REV-N1c · REV-N2 … REV-N5) deklarált állítású próbával bizonyítva: hatály/tudomás két tengelye, kompenzáló esemény, hatáskörös kifogás, alany-szintű célzott tiltás.",
+   "works_now": "A 15 REV-klauzulából 10-nek van deklarált állítású próbája: REV-N1a/b (P-A04, P-A08, P-CMD-finalize-gate), REV-N2a/b (BIT-01: `membershipAsOf({validAt, knownAt})`, `recordRetroactiveInvalidity`, felülvizsgálati kör — R83), REV-N3a/b/c (P-REV-authority, P-REV-suspension, P-REV-claim-*), REV-N5a/b/c (BAN-01: P-REV-ban-scope/paths/past/matrix — R71). A megvonás ↔ véglegesítés versenye két valódi folyamaton is mérve (MCN-01 (2)–(3)).",
+   "evidence": [
+    "v3ref/norms.mjs:855-862 (OB-5 szöveg) · :79-120 (REV-N1a/b gap:null, N1c gap :115) · :131-155 (N2a/b gap az R83-ban zárult) · :169-219 (N3a/b/c gap:null) · :235 (N3d gap) · :268 (N3e gap) · :293,310 (N4a/b gap) · :332-365 (N5a/b/c megépült)",
+    "futás: node v3ref/run.mjs → NYITOTT: REV-N1c · REV-N3d · REV-N3e · REV-N4a · REV-N4b (5 sor); RESULT: 62/62 PASS; a próba-lista :116-152 (P-REV-*)",
+    "tools/v3_multiconn_proof.mjs futás --n=3: (2) 3/3 · (3) 3/3"
+   ],
+   "missing": "Öt klauzula nyitott, nevezett hiánnyal: REV-N1c (nincs korrekciós esemény és „alkalmazandó profil\"), REV-N3d (nincs adapter valódi szerver-oldali beadó-kontextusra — a v3app süti-munkamenete NEM van bekötve a visszaélés-korlát kulcsába; hat zárási feltétel a norms.mjs:245-257-ben), REV-N3e (karantén-lezárás sérült ügyre), REV-N4a (kompenzáló esemény), REV-N4b (külön jogosult jóváhagyás). A régi sorrendből (N3 → N5 → N2 → ORG-N1 → ORG-N3 → N4) az első három elkészült; ami hátravan: ORG-N1 (részleges) → ORG-N3 → REV-N4 (+ N1c, N3d, N3e).",
+   "blocks": "later_operational_use",
+   "closes_by": "REV-N4a/b kompenzáló esemény + külön jóváhagyó (a V2 `reverse` fogalmának V3-modellje), REV-N1c a N2+N4-re építve, REV-N3d a v3app munkamenetéből képzett beadó-kulccsal (a hat feltétellel), REV-N3e karantén-művelet saját hatáskörrel — mind deklarált állítású próbával (R64 L8: „mind a klauzula deklarált állítású próbával\"). HELYESBÍTETT why-JAVASLAT: „A megvonási normák 15 klauzulából állnak; tíznek van deklarált állítású próbája (REV-N1a/b · N2a/b · N3a/b/c · N5a/b/c), öt nyitott nevezett hiánnyal (REV-N1c · N3d · N3e · N4a · N4b). A két idő-tengely (R83), a hatáskörös kifogás (R65) és a célzott tiltás (R71) megépült; a kompenzáló esemény és a korrekció (REV-N4, N1c), a beadó-kontextus (N3d) és a karantén (N3e) hiányzik.\" — a closes_when sorrendje: „ORG-N1 → ORG-N3 → REV-N4 (+ N1c, N3d, N3e)\".",
+   "stale_text": "norms.mjs:857-858: „a tizenhárom megvonási klauzulából csak kettőnek van ma bizonyítéka\" — ELAVULT mindkét számban: 15 klauzula van, 10-nek van deklarált állítású próbája (run.mjs mai futás: 5 NYITOTT REV-sor). A closes_when :859-861 négy feltételéből három („a hatály/tudomás két tengelye szétválasztva\" — R83; „hatáskörös kifogás\" — R65; „alany-szintű célzott tiltás\" — R71) MEGÉPÜLT, csak a „kompenzáló esemény\" nyitott; a rögzített sorrend első három tagja (REV-N3 → REV-N5 → REV-N2) kész."
+  },
+  {
+   "id": "OB-6",
+   "group": "OB",
+   "requirement": "Az önálló szervezeti alap: minden jognak nevezhető eredete, hatóköre, szabályverziója és hatálya van (ORG-N1); a saját kör alapját a rendszer képzi; a szervezet KÉPVISELETE és a vagylagos/együttes jogalap-utak (ORG-N3) modellezve.",
+   "works_now": "A határozat-azonosító + verzió + hatály tárolva (`authority_basis`). R63 óta: a saját munkakörnyezet indulási alapja a rendszer saját írásán (`startup-rule:v1`, csak bizonyított e-mail csatornával, EGY tranzakcióban: könyv · alap · admin tagság · alter_right · adatköri jog · előfizetési profil; NEM ad suspend/adjudicate-ot); a meghívó alapja a kiadó továbbadható jogából, plafonnal (szülő alap × delegálható szerepek METSZETE); a megvonás továbbgyűrűzik a delegálási alapra; a platformbírálói kezdő jog külön, védett szabály; alap nélküli hatáskör és pecsét nélküli meghívó ZÁR. Mérve: P-CORE (a)–(g) 62/62-ben, selfcheck 57/57, grant-paths 12/12.",
+   "evidence": [
+    "v3ref/workspace.mjs:39-47 (STARTUP_RULE) · :60-107 (createWorkspace, egy tranzakció, creator_channel_unproven)",
+    "v3ref/delegation.mjs:22-25 (a megvonás továbbgyűrűzik) · :41-63 (parentBasisOfMembership, két otthon) · :67-101 (deriveDelegationBasis, METSZET) · :149-154 (revokeDelegationsOf)",
+    "v3ref/platformRule.mjs:27-33 (PLATFORM_RULE, felhasználói út nem hívja)",
+    "v3ref/run.mjs:3437-3470 (P-CORE-startup-and-delegation) · a hét állítás A-CORE-* (:3489-3495 környéke, (a)–(f) ágak) · :3556 (danielRed issuer_right_withdrawn)",
+    "futás: node v3ref/run.mjs → RESULT: 62/62 PASS · node v3app/selfcheck.mjs → 57/57 PASS · node tools/vs_verify_grant_paths.mjs → 12/12 PASS (GP-WORKSPACE-STARTUP :171, GP-DELEGATED-INVITE :187, GP-PLATFORM-RULE :203 a contracts/grantPathRegistry.js-ben)",
+    "v3ref/norms.mjs:863-876 (OB-6, R63-ban újraírva) · :792-795 (ORG-N3a gap) · :803 (ORG-N3b gap)"
+   ],
+   "missing": "ORG-N3: a szervezet KÉPVISELETE (jogi személy nevében eljárás külső tanú/okirat/országprofil-adapter alapján) nincs modellezve — a saját kör alapja csak a saját körre szól; ORG-N3a/b (vagylagos VAGY együttes jogalap-utak, a célzott tiltás elsőbbsége a második úton) nyitott; közös (kétszemélyes) jóváhagyás nincs (R64 L3); szervezeti egységek közti delegálási plafon nincs (ORG-N1b maradéka).",
+   "blocks": "mini_module_base",
+   "closes_by": "ORG-N3: a képviseleti alap cserélhető darabként (külső tanú · okirat · országprofil-adapter) saját próbával, NEM regisztrációs akadályként (R64 L2); ORG-N3a a második jogalap-út modellezésével; közös jóváhagyás második jóváhagyó-eseménnyel (R64 L3). A norms.mjs OB-6 szövege MA a valóságot írja; JAVASOLT pontosítás az ORG-N3a gap-jére: „egy tagságnak egyetlen alapja van (bootstrap VAGY átvitt korlát — `parentBasisOfMembership`), ezért a VAGY/ÉS megkülönböztetés nem jelenik meg\".",
+   "stale_text": "A RÉGI OB-6 mondat — „a modell nincs\" (az önálló szervezeti alap nincs modellezve) — ELAVULT: a saját kör alapja (workspace.mjs) és a delegált alap (delegation.mjs) nevezett, verziózott, hatályos; a norms.mjs:865-866 ezt MÁR helyesbítette és idézetként hordozza. Átnézendő: norms.mjs:792 ORG-N3a gap „A magban EGYETLEN jogalap-út van (tagság)\" — a jogalap EREDETE ma két otthonból jöhet (delegation.mjs:41-63: workspace_bootstrap vagy grant_basis), a REV-N5a megjegyzése (:336-339) pedig „MÁSODIK engedő út\"-ról beszél; a mondat pontosítandó „egy tagságnak egyetlen alapja van\" alakra, hogy ne mondjon ellent a testvér-klauzulának."
+  },
+  {
+   "id": "OB-7",
+   "group": "OB",
+   "requirement": "A norma ↔ állítás TARTALMI megfelelése klauzulánként, független (külső) felülvizsgálattal, a konkrét szerződés- és klauzula-lenyomathoz kötve — a gép csak az átkötést méri, nem a tartalmat.",
+   "works_now": "A gépezet megvan: a lánc-tábla klauzulánként méri az átkötést, a `content_review` állapot a lenyomatokhoz kötött és elavul, a leképezés (klauzula → forrás → bizonyíték) generálható (`tools/vs_ob7_map.cjs`). A KÜLSŐ fél 44 tartalmi döntés-sora (16 egész klauzula elfogadva, 13 részleges/nyitott az R63 §2 szerint) szó szerint rögzítve és gépileg a forrás-lapokhoz mérve (EXD-01, külön tengely).",
+   "evidence": [
+    "futás: node v3ref/run.mjs → „TARTALMI FELÜLVIZSGÁLAT (OB-7): 0/135 klauzula-soron van érvényes emberi jóváhagyás\" (run.mjs:6631-6632) · „0 fedett · 127 állítás teljesült, falszifikáció függőben · 135 klauzula-sor összesen\"",
+    "futás: node tools/vs_verify_external_decisions.mjs → 44/44 PASS · „44 döntés-sor (R37: 29 · … · R63: 0)\"",
+    "v3ref/norms.mjs:877-903 (OB-7) · :2296-2311 (USE-G4: a repó-rekord hiánya NEM azonos a külső döntés hiányával) · :1228-1251 (a felülvizsgálati állapot)",
+    "docs/70_PLANNING/OB7_LEKEPEZES.json (2026-09-17 14:55 — RÉGEBBI az R63 magmoduloknál) · v3ref/externalDecisions.mjs:3-4, 178-201 (R63 forrás bejegyezve, döntés nélkül)",
+    "/tmp/claude-0/R63.md §2: „16 egész klauzula elfogadott, 13 részleges/nyitott\""
+   ],
+   "missing": "Klauzula-SORONKÉNT, lenyomathoz kötött `content_review` rekord egyetlen soron sincs (0/135) — a 44 külső döntés klauzula-szintű, nem a mai 135 sorhoz és a mai szerződés-lenyomathoz kötött; az R63 még nem hozott döntés-sort (R63: 0); az OB7_LEKEPEZES.json a szeptember 17-i forrásból készült, az R63-as új próba (P-CORE, 7 állítás) és modulok nincsenek benne → újra kell generálni. A mutációs battéria mai összevont eredménye HIÁNYOS (14/200 mérve), tehát a „fedett\" oszlop ma üres.",
+   "blocks": "mini_module_base",
+   "closes_by": "A leképezés újragenerálása a mai forrásból (`node tools/vs_ob7_map.cjs`), majd a külső fél klauzulánkénti elbírálása a mai lenyomatokon, `content_review` rekordként; előtte a mutációs battéria TELJES, összevont futása (`npm run verify:v3ref`), hogy a lánc „fedett\" oszlopa ne legyen üres. HELYESBÍTETT MONDAT-JAVASLAT a why végére: „…az ELBÍRÁLÁS a repó rekordjában még nincs meg: ma egyetlen klauzula-sor sincs `current` állapotban (0/135). A külső fél 44 döntés-sora (16 egész klauzula elfogadva) KÜLÖN tengelyen, forrás-lapokhoz mérve áll (EXD-01) — ez klauzula-szintű, nem sor- és lenyomat-szintű, tehát az OB-7 láncát nem zárja.\"",
+   "stale_text": "norms.mjs:886-887: „az ELBÍRÁLÁS még nincs meg: ma MINDEN klauzula `none` állapotú\" — a repó-rekordra igaz (0/135), de a mondat elhallgatja, hogy a külső tartalmi döntések LÉTEZNEK (44 sor, 16 egész klauzula elfogadva, v3ref/externalDecisions.mjs, verifier 44/44) — a USE-G4 (:2302-2304) ezt már kimondja, az OB-7 szövege nem. Továbbá :890-892 „A LEKÉPEZÉS … az R20-ban ELKÉSZÜLT és a … OB7_LEKEPEZES.json állományban áll, a tools/vs_ob7_map.cjs generálja a mai forrásból\" — a fájl szeptember 17-i, a mai forrás (R63 modulok, P-CORE) nincs benne."
+  },
+  {
+   "id": "OB-8",
+   "group": "OB",
+   "requirement": "LEZÁRT: a K05 kiadási osztályozójának legyen saját klauzulája (K05-DSC-a…d), és a DSC-01 állításai `discharges` kötéssel a helyükön álljanak.",
+   "works_now": "A négy atomi klauzula a normaregiszterben áll (a külső fél R35 szövegével), a DSC-01 állításai a szerződés azonosítójával és verziójával kötve; a norma-bizonyíték kapu ma 31/31 támadást hárít el és a helyes csomag zöld; a lezárás gépi jellel és maradékkal (K05-DSC-c mezővetítés nyitott út) áll a lezárt listán.",
+   "evidence": [
+    "v3ref/norms.mjs:374-420 (DSC-N1, K05-DSC-a…d, gap:null) · :906-921 (OB-8 lezárt bejegyzés)",
+    "v3ref/manifest.mjs:484-528 (DSC-01 module_contract closes: 'OB-8')",
+    "futás: node v3ref/run.mjs → P-NORM-evidence PASS · :115 „31/31 támadás elhárítva + ellenpár zöld\"",
+    "futás: node v3ref/run.mjs → „0 fedett · 127 állítás teljesült, falszifikáció függőben\" · v3ref/v3ref-mutation-result.json (2026-09-20T11:07:40Z: run_state \"incomplete\", total 200, measured 14, admission ok:false)"
+   ],
+   "missing": "Nincs ismert hiány a lezáráson; a guard-mondat két száma/állítása elcsúszott a mért értéktől (lásd stale_text). A „FEDETTNEK mutatja\" állítás csak TELJES mutációs futás után igaz — a mai összevont eredmény hiányos.",
+   "blocks": "none",
+   "closes_by": "Lezárt; a guard szövegének átírása MÉRT alakra. JAVASLAT: „npm run verify:v3ref — a norma-lánc a négy klauzulát a mutációs battéria TELJES futása után fedettnek mutatja (a részleges futás »függőben«-t ír), és a P-NORM-evidence kapu egyetlen támadást sem enged át — a támadások számát a futás írja ki, nem ez a szöveg.\"",
+   "stale_text": "norms.mjs:916-917 guard: „a `P-NORM-evidence` kapu 28 támadása közül egyik sem enged át hamis kötést\" — a mai futás 31/31 támadást mér (run.mjs kimenet :115): kézzel léptetett szám (KUKA-045). Ugyanott „a norma-lánc a négy klauzulát FEDETTNEK mutatja\" — a mai repó-állapotban „0 fedett … falszifikáció függőben\", mert az összevont mutációs eredmény hiányos (14/200)."
+  },
+  {
+   "id": "OB-9",
+   "group": "OB",
+   "requirement": "LEZÁRT: a K10 (típus · normalizálás · számítási profil) öt atomi klauzulája (K10-TYP-a…e) létezzen, és a KAT-01/BEM-01 állításai kötve legyenek hozzájuk.",
+   "works_now": "Az öt klauzula áll; K10-TYP-a/b kötve (KAT-01, BEM-01, KSZ-01); K10-TYP-c RÉSZLEGES (két élő profil mérve, profil-elcsúszás nevezett `profile_mismatch`, R43) és K10-TYP-d RÉSZLEGES (hat helyzet a kanonikus úton, teljes tartalmi pillanatkép, R43/R45) — mindkettőnek deklarált állítása van; egyedül K10-TYP-e (megfigyelési idő) `gap`.",
+   "evidence": [
+    "v3ref/norms.mjs:499-625 (TYP-N1) · :554-566 (K10-TYP-c partial built/remaining) · :585-608 (K10-TYP-d partial) · :619 (K10-TYP-e gap) · :922-941 (OB-9 lezárt bejegyzés, residual :935-941)",
+    "v3ref/manifest.mjs:599,621,667 (KAT-01/KSZ-01/BEM-01 closes: 'OB-9')",
+    "futás: node v3ref/run.mjs → FÜGGŐBEN K10-TYP-c (A-K10-c-mismatched-profile-…) · FÜGGŐBEN K10-TYP-d (öt A-K10-d-* állítás) · NYITOTT csak K10-TYP-e"
+   ],
+   "missing": "A lezáráson nincs hiány; a klauzulák saját maradéka: K10-TYP-c valódi, támogatott profilváltó művelet nincs; K10-TYP-d a „más profilú bemenet UGYANARRA a cikkre\" ága nem szólítható meg; K10-TYP-e a megfigyelési idő fogalma (QNT előfeltétel, USE-G3).",
+   "blocks": "none",
+   "closes_by": "Lezárt; a residual szövegének átírása a mai állapotra. JAVASLAT: „EGY klauzula NYITOTT (K10-TYP-e: a MEGFIGYELÉSI idő fogalma nincs a magban — a QNT-munka előfeltétele), KETTŐ RÉSZLEGES, deklarált állítással: K10-TYP-c (a profil-kötés és a `profile_mismatch` mérve, támogatott PROFILVÁLTÁS nincs) · K10-TYP-d (hat helyzet a kanonikus úton mérve, a más profilú bemenet ugyanarra a cikkre nem elérhető). Ezek a klauzulák saját, kimondott maradékai, nem a blokkoló maradékai.\"",
+   "stale_text": "norms.mjs:935-941 residual: „HÁROM klauzula NYITOTT, nevezett hiánnyal: K10-TYP-c (a PROFILVÁLTÁS hatása a korábbi tárolt értékre nincs mérve … csak nem történt meg) · K10-TYP-d (a »korábbi verziójú vagy más PROFILÚ bemenet« ISMÉTLÉSI és HIBAHATÁR-viselkedése …)\" — ELAVULT: mindkettő az R43 óta `partial` deklarált állítással (norms.mjs:554-608, „Falszifikálva: M168 · M169\" és „M170 · M172 · M173 · M175\"), a mai futásban FÜGGŐBEN, nem NYITOTT; csak K10-TYP-e nyitott."
+  },
+  {
+   "id": "OB-10",
+   "group": "OB",
+   "requirement": "LEZÁRT: a söprés a gyermek GÉPI verdiktjéből dönt, nem részszövegből — a piros lánc ne látsszon env-kihagyásnak (SWV-01).",
+   "works_now": "A V3 söprése a közös verdikt-feloldót hívja (`tools/lib/vs_sweep_verdict.mjs`), a kihagyást a gyermek gépi deklarációval mondja ki; hat SWV-őr, mindkét irányban mérve; a lezárás guard-dal, maradékkal, kimondott határral áll.",
+   "evidence": [
+    "v3ref/norms.mjs:942-975 (OB-10 lezárt bejegyzés, residual/v2_compatibility)",
+    "tools/lib/vs_sweep_verdict.mjs:1,95 (SWV-01, origin OB-10) · tools/vs_verify_sweep.mjs:15,50",
+    "contracts/guardHome.js:225-228 (KUKA-171: a jel a blokkoló LÉTÉT méri)",
+    "V2: /home/user/vs/tools — grep vs_sweep_verdict: nulla találat; /home/user/vs/tools/vs_verify_sweep.mjs:6,45 (env-kihagyás szöveg-alapú számlálása) → a maradék ma is áll",
+    "package.json:25 verify:sweep-verdict (nem futtattam ebben a körben — lásd reader_note)"
+   ],
+   "missing": "A lezáráson nincs hiány. Maradék (nevesített függő): a V2 söprése továbbra is részszöveges osztályozót visel, a négy V2-verifier gépi kihagyás-deklarációja nélkül a szerződés oda nem vihető át — V2-módosításra az R63 §7 szerint ma sincs engedély.",
+   "blocks": "none",
+   "closes_by": "Lezárt; a maradék a V2 sávé (Claude-v2), az R63 §7 „nincs V2-módosítás\" alatt nem mozdul. A szöveg MA nem elavult (a V2 állapota grep-pel egyezik a residual állításával).",
+   "stale_text": ""
+  },
+  {
+   "id": "ORG-N1a",
+   "group": "K",
+   "requirement": "A felhatalmazási döntés tárolja a határozat/grant AZONOSÍTÓJÁT, VERZIÓJÁT és HATÁLYÁT — nem csak a kibocsátó személyét (K04 · K14).",
+   "works_now": "Az `authority_basis` tábla (azonosító · verzió · hatály · rögzítés · kötelező bizonyíték-hivatkozás), két idő-tengelyen feloldva; MINDEN létező jogadási út hordozza és méri az alapot, a hiánya ZÁR: meghívó-kiadás/beváltás (`invite_without_basis`), hatáskör-adás (`basis_id_required`) és -használat (`authority_without_recorded_basis`), adatköri jogadás, saját indulás (`startup-rule:v1`), delegált meghívó (`deleg:<könyv>:<kiadó>`), platform-szabály. A maradék-szöveg tényállításai mérve igazak: a meghívón nincs `revoked_at` (store.mjs:235-244), az újra-meghívás `revoked_needs_decision`-nel áll meg (invite.mjs:204).",
+   "evidence": [
+    "v3ref/norms.mjs:636-696 (ORG-N1a; remaining :673-690 — R63 §4 szerint átírva)",
+    "v3ref/authorityBasis.mjs:306-316 (LIMIT_ENFORCED_PATHS) · v3ref/invite.mjs:392 (invite_without_basis) · :204 (revoked_needs_decision) · v3ref/store.mjs:235-244 (invite tábla, nincs revoked_at)",
+    "v3ref/workspace.mjs:60-107 · v3ref/delegation.mjs:67-101 · contracts/grantPathRegistry.js:62-282 (GP-INVITE-ISSUE … GP-PLATFORM-RULE)",
+    "futás: node v3ref/run.mjs → P-ORG-basis PASS, P-CORE-startup-and-delegation PASS (A-CORE-own-workspace-starts-with-a-versioned-basis-and-proven-channel, A-CORE-identifier-namespace-and-entitlement-…); 62/62",
+    "futás: node tools/vs_verify_grant_paths.mjs → 12/12 PASS · node v3app/selfcheck.mjs → 57/57",
+    "v3ref/v3ref-mutation-result.json: at 2026-09-20T11:07:40Z · run_state \"incomplete\" · measured 14/200 · admission ok:false"
+   ],
+   "missing": "Két konkrét nyitott alak létező úton: (1) a meghívó VISSZAVONÁSA mint saját esemény (ma csak a lejárat és a kiadó jogának megvonása zár; a meghívón nincs `revoked_at`); (2) ÚJRA-MEGHÍVÁS megvonás után (a `membership` kulcsa alany × könyv, a beváltás `revoked_needs_decision`-nel áll meg, az újranyitás döntése nincs megépítve). Ezért a klauzula RÉSZLEGES, a req-5 nem léphet életbe. A „Falszifikálva: M116–M120\" állítás mai repó-bizonyítéka HIÁNYOS: az összevont mutációs eredmény 14/200 mért, a mai run.mjs „falszifikáció függőben\"-t ír.",
+   "blocks": "later_operational_use",
+   "closes_by": "(1) `invite.revoked_at` + `revokeInvite` mint saját esemény, a beváltás nevezett elutasításával; (2) az újra-meghívás/újranyitás döntése a megvont tagságon (új tagságadó esemény, a régi történet érintetlen), próbával; utána a mutációs battéria TELJES futása (`npm run verify:v3ref`), hogy a „KÖTELEZŐ BIZONYÍTÉK\" sor `covered` legyen (R64 L9). A remaining szövege MA a valóságot írja — módosítás nem kell.",
+   "stale_text": "A `remaining` (norms.mjs:673-690) NEM elavult (állításai mérve igazak). A `built` :652-657 „Falszifikálva: M116–M120\" és a bekezdés-kommentek korábbi futásra hivatkoznak: a repó mai összevont mutációs eredménye (v3ref-mutation-result.json, 2026-09-20 11:07, run_state incomplete, 186 mutáció részletes eredmény nélkül) ezt NEM tartalmazza, a run.mjs a 135 sorra „0 fedett … falszifikáció függőben\"-t mér — a falszifikáció ma állítás, nem friss bizonyíték (KUKA-093)."
+  },
+  {
+   "id": "ORG-N1b",
+   "group": "K",
+   "requirement": "A döntés kimondja az adható SZEREP, MŰVELET és ADATKÖR korlátját — a felhatalmazás nem lehet tágabb, mint az alapja (K04 · K05).",
+   "works_now": "A korlát minden létező úton kapu, és a hiánya is zár: meghívó-kiadás (nevezett elakadás a határozaton túli szerepen/műveleten/adatkörön, nyom nélkül), beváltás a KIADÁSKORI alaphoz mérve és a korlátot a tagságadó eseményre átvíve, nyers INSERT sem bújik ki; bírálati út két ponton (megadás + használat, `mode: grant | use`, szűkülő alap zár, táguló nem szélesít); delegált meghívó plafonja = szülő alap ∩ továbbadható szerepek, adatkör-plafon a szülőé; raktári mennyiség-nézetből ár nem következik (`outside_basis_scopes`); a helyi admin bírálói önfeljogosítása `outside_basis_operations`. `limit_enforced_paths` mérve nyolc út.",
+   "evidence": [
+    "v3ref/norms.mjs:698-760 (ORG-N1b; remaining :749-758)",
+    "v3ref/authorityBasis.mjs:306-316 (LIMIT_ENFORCED_PATHS — 8 elem, egyezik a „nyolc utat\" állítással)",
+    "v3ref/delegation.mjs:80-83 (METSZET) · :131-146 (grantScopeToMember, outside_basis_scopes) · v3ref/workspace.mjs:39-47 (not_granted: suspend · adjudicate)",
+    "futás: node v3ref/run.mjs → P-ORG-basis-limit PASS · P-ORG-adjudication-basis-limit PASS · P-CORE (b) delegált plafon, (e) önfeljogosítás elutasítva, (g) átvitt korlát nyers átírása KÉT kapcsolatról blokkolva; 62/62",
+    "v3ref/mutations.mjs:1913-1968 (M196–M205 a P-CORE-ra) · v3ref/v3ref-mutation-result.json: run_state incomplete (14/200)",
+    "/tmp/claude-0/R63.md §5.3/6, /7, /10, /13 (a helyzetek, amelyeket a fenti ágak mérnek)"
+   ],
+   "missing": "Két konkrét nyitott alak: a korlát TÖBB ADATKÖRRE egy meghívón (ma egy meghívó egy adatkör-plafont visel, a többit a kezelő külön adja `grantScopeToMember`-rel) · a szervezeti egységek közötti delegálási plafon (nagy szervezet — KÉSŐBBI határ, nem mai hiány). A „Falszifikálva: M189–M195\" és az M196–M205 mai repó-bizonyítéka hiányos (összevont eredmény 14/200).",
+   "blocks": "later_operational_use",
+   "closes_by": "Több-adatkörös meghívó-pecsét (a `scope` lista, a beváltás mindegyikre alappal ad jogot) próbával; a szervezeti egységek plafonja az ORG-N3/OB-6 képviseleti modelljével együtt; a mutációs battéria TELJES futása a `covered` állapothoz (R64 L9). A remaining MA nem elavult.",
+   "stale_text": "A `remaining` (norms.mjs:749-758) mérve igaz (nyolc út: authorityBasis.mjs:306-316). A `built` :707-746 „Falszifikálva: M189 · M190 · … · M195\" — a mai összevont mutációs eredmény (v3ref-mutation-result.json, run_state incomplete) nem tartalmazza őket; ez ma korábbi futás állítása, nem friss bizonyíték."
+  },
+  {
+   "id": "ORG-N2a",
+   "group": "K",
+   "requirement": "A kibocsátó jogának megvonása után a függő meghívó NEM ad tagságot; a nemleges válasz nevezett (`issuer_right_withdrawn`), nem néma (K03 · K04).",
+   "works_now": "Mérve három helyen: a beváltás kapuján a kibocsátó MAI jogát méri (`issuer_right_withdrawn`); az R63-as láncban a megvont admin függő meghívója elakad és a delegálási alapja is megszűnik (`revokeDelegationsOf` → `basis_revoked`), miközben másik tag független jogosultsága marad; két VALÓDI folyamat versenyén (megvonás ↔ véglegesítés) mindkét sorrendben tartott az invariáns. A run.mjs n0 ellenpárja „ORG-N2=implemented\"-et mér.",
+   "evidence": [
+    "v3ref/run.mjs:757-770 (P-INVITE-authority, A-ORG-N2a-issuer-basis-withdrawn-is-fail-closed) · :3539-3556 (P-CORE (d): danielRed.reason === 'issuer_right_withdrawn', A-CORE-revocation-closes-the-member-and-their-pending-invites-but-not-others)",
+    "v3ref/delegation.mjs:22-25, 149-154 · v3ref/authorityBasis.mjs:154,205 (basis_revoked)",
+    "v3ref/manifest.mjs:85 (ORG-N2a ↔ állítás kötés)",
+    "futás: node v3ref/run.mjs → 62/62 PASS · :115 „n0:REV-N1=partial · ORG-N2=implemented\" · tools/v3_multiconn_proof.mjs --n=3 → (2) 3/3, (3) 3/3",
+    "v3ref/norms.mjs:764-778 (ORG-N2 szabály, példa, ORG-N2a gap:null)"
+   ],
+   "missing": "Nincs ismert hiány a klauzulán. Megjegyzés: a megvonás két néven látszik az úttól függően (`issuer_right_withdrawn` a meghívó-úton, `basis_revoked` az alap-feloldón) — ez nem hiba, de a szótárban kimondandó.",
+   "blocks": "none",
+   "closes_by": "Semmi a klauzulán; a NORMA-SZÖVEG helyesbítése. JAVASOLT ORG-N2 rule: „A kibocsátó jogára épített referencia annak megvonásakor TILTÓ marad — ez tervezett szabály: a kiadó delegálási alapja a tagságával együtt megszűnik (`revokeDelegationsOf`), a függő meghívó a kiadáskori alaphoz mérve `issuer_right_withdrawn`/`basis_revoked` néven elakad. A szervezeti (képviseleti) kivétel — ha ORG-N3 megépül — SOHA nem helyettesíthető tulajdonos-metaadattal, admin-címkével vagy önbevalló `basis_kind` mezővel.\" JAVASOLT example: „…Ez nem hiányosság és nem ideiglenes alapértelmezés, hanem a delegált alap tervezett következménye (fail-closed); a másik tag független jogosultsága nem szűnik meg.\"",
+   "stale_text": "norms.mjs:765 rule: „ALAPÉRTELMEZÉS, amíg az explicit szervezeti alap nincs megépítve és MÉRVE\" és :769-770 example: „Ez nem hiányosság, hanem a hiányzó modell helyes kezelése (fail-closed).\" — ELAVULT keret: a delegált alap modellje R63 óta megépült és mérve van (delegation.mjs:22-25, P-CORE (d), MCN-01 (2)); a tiltó viselkedés nem egy hiányzó modell helyettesítője, hanem a delegált alap tervezett következménye. Ami továbbra is nyitva: a KÉPVISELETI (ORG-N3) kivétel — azt a mondat második fele helyesen tiltja önbevalló mezővel pótolni."
+  },
+  {
+   "id": "G1",
+   "group": "G",
+   "requirement": "Egyetlen normatív alap: rögzített verzió/lenyomat, régi normákhoz döntés és célhely",
+   "works_now": "a normák gépi regisztere (norms.mjs ALL_NORMS + normContract.mjs K01–K16 lenyomat), a külső döntés-regiszter (externalDecisions.mjs)",
+   "evidence": [
+    "verify:external-decisions 44/44 · verify:v3ref P-NORM-evidence 31/31"
+   ],
+   "missing": "tartalmi összhang független elfogadása (chatgpt-v3) — géppel csak a hivatkozás mérhető",
+   "blocks": "mini_module_base",
+   "closes_by": "a független ellenőrzés elfogadása ezen a lapon",
+   "stale_text": ""
+  },
+  {
+   "id": "G2",
+   "group": "G",
+   "requirement": "Tételes lelet-visszakövetés: teljes ID-halmaz, tételenként ítélet és bizonyíték",
+   "works_now": "a 225-ös lencseleltár (R31) és a K-szerződés (verify:k-contract a V2-ben); itt a manifest discharges → norma → próba lánc",
+   "evidence": [
+    "v3ref/manifest.mjs · docs:norm-chain"
+   ],
+   "missing": "tételes szemantikai lezárás nincs — csak lencse-szintű",
+   "blocks": "later_operational_use",
+   "closes_by": "tételes lezárási ellenőrzés a külső féllel",
+   "stale_text": ""
+  },
+  {
+   "id": "G3",
+   "group": "G",
+   "requirement": "Élethelyzet × életciklus mátrix: minden kritikus cellához kezdővilág és végállapot",
+   "works_now": "az R63 §3 hat élethelyzete (EH-1…EH-6, e leltár) + a 14 helyzet (H01–H14) saját futással",
+   "evidence": [
+    "docs/70_PLANNING/V3_R64_ELFOGADAS_HELYZETEK.json · tests/e2e/v3app-acceptance.spec.mjs 14/14"
+   ],
+   "missing": "a teljes mátrix (változás · vita · megszűnés oszlopai, csoport/nagyvállalat sor) nincs kitöltve",
+   "blocks": "mini_module_base",
+   "closes_by": "a mátrix hiányzó celláinak nevezett kezdővilága és próbája",
+   "stale_text": ""
+  },
+  {
+   "id": "G4",
+   "group": "G",
+   "requirement": "Független elvárt kimenet: az elvárás nem a tesztelt függvényből számolt",
+   "works_now": "a 19 külső program (chatgpt-v3) saját elvárásaival, adapted-v3 fixtúrával; a P-CORE elvárása az R63 §5.3 szövegéből",
+   "evidence": [
+    "verify:external-checks · run.mjs P-CORE"
+   ],
+   "missing": "a 14 helyzet elvárását MI írtuk az R63 szövegéből — a külső fél ellenpélda-ellenőrzése még nincs",
+   "blocks": "mini_module_base",
+   "closes_by": "chatgpt-v3 ellenpéldái a 14 helyzetre",
+   "stale_text": ""
+  },
+  {
+   "id": "G5",
+   "group": "G",
+   "requirement": "Futtatható V3 magreferencia: elkülönített tároló, valódi kérés–jog–véglegesítés lánc, rögzített környezet",
+   "works_now": "node v3ref/run.mjs 62/62 · v3app selfcheck 57/57 · proof:core-ux 27/27 · proof:multiconn 40/40",
+   "evidence": [
+    "ez a kör, saját futás"
+   ],
+   "missing": "kritikus tesztek „mind\" — a kötelező készlet (req-4) falszifikációs eredménye a battéria teljes futásától függ",
+   "blocks": "none",
+   "closes_by": "verify:v3ref teljes futása (ez a lap 4. szakasza)",
+   "stale_text": ""
+  },
+  {
+   "id": "G6",
+   "group": "G",
+   "requirement": "Hibák észlelése: mutáció, konkurens tranzakció, megszakítás, duplikáció, adatkiadási megkerülés",
+   "works_now": "mutációs battéria (M1–M205), MCN-01 két valódi folyamat, P-CORE (g) nyers írás egy pragma nélküli kapcsolatról",
+   "evidence": [
+    "verify:v3ref · proof:multiconn · run.mjs P-CORE (g)"
+   ],
+   "missing": "restore-próba nincs (nincs éles adat); megszakítás-próba csak a tranzakció-határon",
+   "blocks": "later_operational_use",
+   "closes_by": "restore-gyakorlat az első éles adatbázissal (CLAUDE.md §4)",
+   "stale_text": ""
+  },
+  {
+   "id": "G7",
+   "group": "G",
+   "requirement": "Maradék és támogatási határ: nyitott blokkoló = 0, nincs modulhoz bújtatott alaplelet",
+   "works_now": "az egyetlen lezárási lista (R64 jelentés 7. szakasz, L1–L9) + ez a leltár; OB-1…OB-7 nyitva, szövegük ma igaz",
+   "evidence": [
+    "v3ref/norms.mjs OPEN_BLOCKERS · ez a JSON"
+   ],
+   "missing": "nyitott blokkoló ≠ 0 — a kapu ZÁRVA marad",
+   "blocks": "none",
+   "closes_by": "OB-1…OB-7 zárása a saját feltételükkel",
+   "stale_text": ""
+  },
+  {
+   "id": "G8",
+   "group": "G",
+   "requirement": "Lezárási jelentés: G1–G7 elfogadva változatlan bizonyítékkal; a két fél igenje nem elég",
+   "works_now": "ez a lap (R64) a teljes bizonyíték-csomaggal",
+   "evidence": [
+    "docs/70_PLANNING/V3_R64_CORE_FOLYAMAT_ES_LEZARASI_LISTA.md"
+   ],
+   "missing": "G1–G7 nincs mind elfogadva ⇒ G8 nem nyílik",
+   "blocks": "none",
+   "closes_by": "a független ellenőrzés",
+   "stale_text": ""
+  },
+  {
+   "id": "USE-G1",
+   "group": "USE",
+   "requirement": "Több-írós vagy valódi üzleti használat",
+   "works_now": "két valódi folyamat versenye WAL SQLite-on mérve (proof:multiconn 40/40)",
+   "evidence": [
+    "tools/v3_multiconn_proof.mjs"
+   ],
+   "missing": "Postgres/hálózati határ, >2 író, terhelés — a kapu ZÁRVA",
+   "blocks": "later_operational_use",
+   "closes_by": "OB-1 tároló-rétege",
+   "stale_text": ""
+  },
+  {
+   "id": "USE-G2",
+   "group": "USE",
+   "requirement": "Valódi migrációs korpusz a kiadási osztályozón",
+   "works_now": "szintetikus korpusz (verify:release-order 37/37)",
+   "evidence": [
+    "tools/vs_verify_release_order.mjs"
+   ],
+   "missing": "valódi import nincs (nincs éles adat)",
+   "blocks": "later_operational_use",
+   "closes_by": "az első valódi import",
+   "stale_text": ""
+  },
+  {
+   "id": "USE-G3",
+   "group": "USE",
+   "requirement": "Bizonytalan mennyiséggel dolgozó valódi folyamat (QNT)",
+   "works_now": "a K0 hatásvizsgálat fut (tools/vs_k0_qnt_probe.mjs: 2 rendben · 5 hiányzik · 2 hibás — ma újramérve, változatlan)",
+   "evidence": [
+    "node tools/vs_k0_qnt_probe.mjs"
+   ],
+   "missing": "a MEGFIGYELÉS mint hatásmentes művelet nincs",
+   "blocks": "later_operational_use",
+   "closes_by": "a QNT csomag (L6)",
+   "stale_text": ""
+  },
+  {
+   "id": "USE-G4",
+   "group": "USE",
+   "requirement": "A „core kész\" állítás hatóköre",
+   "works_now": "a lap kimondja: első UX igen · közös alap részben · üzemi nem",
+   "evidence": [
+    "R64 jelentés 8. szakasz"
+   ],
+   "missing": "OB-7 tartalmi elbírálás a külső féltől",
+   "blocks": "none",
+   "closes_by": "chatgpt-v3 klauzulánkénti elbírálása",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-01",
+   "group": "QNT",
+   "requirement": "tétel/HU/folyamat ismeretlen tömeg mellett is rögzíthető",
+   "works_now": "a K0 mérés szerint: **részben — MÉRVE (A1)**: a tétel igen; HU és folyamat a magban nincs",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d",
+    "node tools/vs_k0_qnt_probe.mjs (2026-09-20 újrafuttatva: 2 rendben · 5 hiányzik · 2 hibás)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: KAT-01",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-02",
+   "group": "QNT",
+   "requirement": "ismeretlen ⊥ ismert nulla ⊥ nem alkalmazható ⊥ még nem történt",
+   "works_now": "a K0 mérés szerint: **hiányzik — MÉRVE (A2)**",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d",
+    "node tools/vs_k0_qnt_probe.mjs (2026-09-20 újrafuttatva: 2 rendben · 5 hiányzik · 2 hibás)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: BEM-01 · MNY-01",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-03",
+   "group": "QNT",
+   "requirement": "az eredet (mért · számlált · névleges · becsült · származtatott · egyeztetett) megmarad",
+   "works_now": "a K0 mérés szerint: **hiányzik — MÉRVE (E1)**",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d",
+    "node tools/vs_k0_qnt_probe.mjs (2026-09-20 újrafuttatva: 2 rendben · 5 hiányzik · 2 hibás)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: KSZ-01",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-04",
+   "group": "QNT",
+   "requirement": "terv ⊥ létező anyag becslése",
+   "works_now": "semmi — a mag a fogalmat nem ismeri (hiányzik (nincs terv-fogalom))",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d (forrásból levezetett, KUKA-033)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: —",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-05",
+   "group": "QNT",
+   "requirement": "dimenziónként külön ismert/ismeretlen",
+   "works_now": "semmi — a mag a fogalmat nem ismeri (hiányzik)",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d (forrásból levezetett, KUKA-033)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: KAT-01 (egy egység/cikk)",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-06",
+   "group": "QNT",
+   "requirement": "részleges ismeret bármely ágon",
+   "works_now": "semmi — a mag a fogalmat nem ismeri (hiányzik (nincs folyamat-ág))",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d (forrásból levezetett, KUKA-033)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: —",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-07",
+   "group": "QNT",
+   "requirement": "későbbi mérés ÚJ állítás, a régi nem íródik át",
+   "works_now": "a K0 mérés szerint: **hibás — MÉRVE (C2 · D1)**",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d",
+    "node tools/vs_k0_qnt_probe.mjs (2026-09-20 újrafuttatva: 2 rendben · 5 hiányzik · 2 hibás)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: C05 · C06",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-08",
+   "group": "QNT",
+   "requirement": "képlet + feltétel + verzió + forrás",
+   "works_now": "a K0 mérés szerint: **hiányzik — MÉRVE (E2)**",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d",
+    "node tools/vs_k0_qnt_probe.mjs (2026-09-20 újrafuttatva: 2 rendben · 5 hiányzik · 2 hibás)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: C07–C08",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-09",
+   "group": "QNT",
+   "requirement": "több megoldás ⇒ tartomány/feltételes/ismeretlen",
+   "works_now": "semmi — a mag a fogalmat nem ismeri (hiányzik)",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d (forrásból levezetett, KUKA-033)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: —",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-10",
+   "group": "QNT",
+   "requirement": "a recept várakozás, nem felülíró bizonyíték",
+   "works_now": "semmi — a mag a fogalmat nem ismeri (hiányzik (nincs recept))",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d (forrásból levezetett, KUKA-033)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: —",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-11",
+   "group": "QNT",
+   "requirement": "a százalék nevezője kötelező",
+   "works_now": "semmi — a mag a fogalmat nem ismeri (hiányzik)",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d (forrásból levezetett, KUKA-033)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: MNY-01 (profil)",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-12",
+   "group": "QNT",
+   "requirement": "mérleg: határ, időszak, hozzáadás, minta, veszteség",
+   "works_now": "semmi — a mag a fogalmat nem ismeri (hiányzik)",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d (forrásból levezetett, KUKA-033)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: —",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-13",
+   "group": "QNT",
+   "requirement": "szétosztás/összeöntés kapcsolatai ismeretlen arány mellett",
+   "works_now": "semmi — a mag a fogalmat nem ismeri (hiányzik)",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d (forrásból levezetett, KUKA-033)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: —",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-14",
+   "group": "QNT",
+   "requirement": "ismételt/offline/késői mérés nem dupláz",
+   "works_now": "a K0 mérés szerint: **részben — MÉRVE (C1)**: az ismétlés nem dupláz; a „késői mérés\" a C2 miatt mégis duplázó hatású",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d",
+    "node tools/vs_k0_qnt_probe.mjs (2026-09-20 újrafuttatva: 2 rendben · 5 hiányzik · 2 hibás)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: C05",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-15",
+   "group": "QNT",
+   "requirement": "ellentmondó mérés nem oldódik fel átlagolással/titkos felülírással",
+   "works_now": "semmi — a mag a fogalmat nem ismeri (hiányzik (nincs két állítás ugyanarról))",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d (forrásból levezetett, KUKA-033)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: C05",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-16",
+   "group": "QNT",
+   "requirement": "fizikai ⊥ becsült ⊥ foglalható ⊥ jövőbeli",
+   "works_now": "semmi — a mag a fogalmat nem ismeri (hiányzik)",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d (forrásból levezetett, KUKA-033)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: KSZ-01",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-17",
+   "group": "QNT",
+   "requirement": "teljes HU továbbadása tömeg nélkül",
+   "works_now": "semmi — a mag a fogalmat nem ismeri (hiányzik (nincs HU))",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d (forrásból levezetett, KUKA-033)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: —",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-18",
+   "group": "QNT",
+   "requirement": "becslés-változás ⊥ anyagveszteség",
+   "works_now": "a K0 mérés szerint: **hibás — MÉRVE (C2)**",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d",
+    "node tools/vs_k0_qnt_probe.mjs (2026-09-20 újrafuttatva: 2 rendben · 5 hiányzik · 2 hibás)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: C05",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-19",
+   "group": "QNT",
+   "requirement": "a korrekció hatásának előnézete",
+   "works_now": "semmi — a mag a fogalmat nem ismeri (hiányzik)",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d (forrásból levezetett, KUKA-033)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: C03 · C05",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-20",
+   "group": "QNT",
+   "requirement": "fizikai ⊥ mennyiségi ⊥ pénzügyi lezárás",
+   "works_now": "semmi — a mag a fogalmat nem ismeri (hiányzik)",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d (forrásból levezetett, KUKA-033)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: —",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-21",
+   "group": "QNT",
+   "requirement": "a címke és az AI megőrzi az ismeretlen/becsült jelleget",
+   "works_now": "a K0 mérés szerint: **hiányzik — MÉRVE (B1)**",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d",
+    "node tools/vs_k0_qnt_probe.mjs (2026-09-20 újrafuttatva: 2 rendben · 5 hiányzik · 2 hibás)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: C03 (DSC-01)",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-22",
+   "group": "QNT",
+   "requirement": "export célrendszerenként választ, a külső korlát nem hamisít",
+   "works_now": "semmi — a mag a fogalmat nem ismeri (hiányzik)",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d (forrásból levezetett, KUKA-033)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: C03",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-23",
+   "group": "QNT",
+   "requirement": "a régi V2-adat nem „mért\" pusztán mert számszerű",
+   "works_now": "a K0 mérés szerint: **hiányzik — MÉRVE (E1 következménye)**",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d",
+    "node tools/vs_k0_qnt_probe.mjs (2026-09-20 újrafuttatva: 2 rendben · 5 hiányzik · 2 hibás)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: C07–C08",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  },
+  {
+   "id": "QNT-24",
+   "group": "QNT",
+   "requirement": "minden számítás megismételhető a korabeli forrásokkal, jogosultsággal",
+   "works_now": "a K0 mérés szerint: **hiányzik — MÉRVE (B2 · D1)**",
+   "evidence": [
+    "docs/70_PLANNING/V3_R20_OB7_K0_CSOMAG.md §3/d",
+    "node tools/vs_k0_qnt_probe.mjs (2026-09-20 újrafuttatva: 2 rendben · 5 hiányzik · 2 hibás)"
+   ],
+   "missing": "a QNT csomag: a mennyiségi ÁLLÍTÁS elválasztása a MOZGÁSTÓL (megfigyelés), eredet, képlet-verzió; alapja: C03 · C06 · C07",
+   "blocks": "later_operational_use",
+   "closes_by": "QNT csomag (R19 PLAN 24 követelmény / 36 eset) — L6; a core szerződésbeli helye ma is áll (K10-TYP-e)",
+   "stale_text": ""
+  }
+ ],
+ "missing_requirements": [
+  {
+   "id": "R63-§4-nyers-írás",
+   "group": "R63",
+   "requirement": "A nyersen írt, alap nélküli meghívó/hatáskör nem kerülheti meg az új használati korlátot — egyetlen kapcsolatról sem",
+   "source": "R63 §4",
+   "why_missing_from_registry": "nem klauzula, hanem a §4 kimondott határa",
+   "works_now": "pecsét nélküli meghívó: invite_without_basis; alap nélküli hatáskör: authority_without_recorded_basis; az ÁTVITT korlát újrapecsételése pragma nélküli második kapcsolatról is tiltva (grant_basis_no_reseal)",
+   "missing": "nincs ismert hiány",
+   "blocks": "none",
+   "closes_by": "P-CORE (g) · M205 · P-ORG-basis-limit (e) · P-ORG-adjudication-basis-limit (g4/h) · M190"
+  },
+  {
+   "id": "R63-§5.2-cselekvő",
+   "group": "R63",
+   "requirement": "A cselekvő hiteles munkamenetből jön, nem kliens által megadott actor/role/workspace mezőből",
+   "source": "R63 §5.2",
+   "why_missing_from_registry": "héj-szintű követelmény, a mag klauzulái nem fedik",
+   "works_now": "a v3app minden végponton a süti-munkamenet alanyát használja; a kliens mezői nevezetten figyelmen kívül (param_ignored)",
+   "missing": "nincs ismert hiány a héjon; a mag maga nem ismer munkamenetet (adapter-határ)",
+   "blocks": "none",
+   "closes_by": "selfcheck + e2e H08 (böngésző és szerver bizonyíték)"
+  },
+  {
+   "id": "R63-§5.2-levél",
+   "group": "R63",
+   "requirement": "Valós küldés és fejlesztői levél-fogadó külön jelölve; a csomag nem küld külső személynek",
+   "source": "R63 §5.2",
+   "why_missing_from_registry": "szállítási szabály, nem klauzula",
+   "works_now": "csak fejlesztői fogadó (memória, /dev/mailbox, a képernyő 6. szakasza a címkével); valódi küldő nincs",
+   "missing": "valódi levél-csatorna kimondott kapuval (L4)",
+   "blocks": "later_operational_use",
+   "closes_by": "L4"
+  }
+ ],
+ "wrong_rows": []
+}

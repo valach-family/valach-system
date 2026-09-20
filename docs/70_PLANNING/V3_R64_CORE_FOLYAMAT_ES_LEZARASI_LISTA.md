@@ -64,7 +64,7 @@ npm run app:dev            # → http://127.0.0.1:3300/  (két böngésző-ablak
 
 Gépi végigjárás (nem kell hozzá kattintani): `npm run app:selfcheck` (a valódi végpontokon,
 süti-tárcával) és `npm run proof:core-ux` (Playwright, valódi böngésző; ehhez egyszer
-`npm install --include=dev`). A böngésző-próba eredménye JSON-ban: «E2E_JSON».
+`npm install --include=dev`). A böngésző-próba eredménye JSON-ban: `docs/70_PLANNING/V3_R64_ELFOGADAS_HELYZETEK.json` (+ a futás-jelentés a `var/reports` alatt).
 
 A kipróbálás lépései szereplőnként, „mi történik és miért" magyarázattal: **`V3_R64_CORE_FOLYAMAT_UTMUTATO.md`**
 (egy oldal).
@@ -97,9 +97,9 @@ kifejezetten adaptáltuk (adapted-v3, 3.4. szakasz); élő migráció nincs, mer
 | Jel | Mit mér | Eredmény (saját futás, ezen a fán) |
 |---|---|---|
 | `node v3ref/run.mjs` | 62 próba, benne a P-CORE-startup-and-delegation 7 állítása (a)–(g) | **62/62 PASS** |
-| `npm run verify:v3ref` (mutációs battéria) | 202 mutáció (M204–M205 új; M196–M203 az R63 magjára) | «BATTERY» |
+| `npm run verify:v3ref` (mutációs battéria) | 202 mutáció (M204–M205 új; M196–M203 az R63 magjára) | **202/202 elkapva · 0 túlélte · 0 rossz próba · 0 elavult horgony — TELJES ÉS TISZTA (18 egység, 2 perc 39 mp, nyugodt gépen)** |
 | `npm run app:selfcheck` | a teljes lánc a valódi végpontokon | **57/57 PASS** |
-| `npm run proof:core-ux` (Playwright) | a lánc böngészőben + a 14 helyzet, böngésző- és szerver-bizonyíték külön | «E2E» |
+| `npm run proof:core-ux` (Playwright) | a lánc böngészőben + a 14 helyzet, böngésző- és szerver-bizonyíték külön | **27/27 PASS** (13 folyamat-lépés + 14 helyzet; 35 s) |
 | `npm run proof:multiconn` (MCN-01) | OB-1: KÉT valódi folyamat — meghívó-beváltás versenye · megvonás ↔ véglegesítés · visszajátszás | **40/40 OK** (20+20 menet; mindkét sorrend előfordult; a vesztes nevezett elutasítást kapott; a megvont jog visszajátszással nem tér vissza) |
 | `npm run verify:external-checks` | a külső fél 19 programja (7 program adapted-v3 fixtúrával) | «EXT» |
 | `npm run verify:grant-paths` | GPR-01: 12 jogadási út, mindkét irányban + önpróba | **12/12 + 3/3 piros ellenpélda** |
@@ -113,7 +113,24 @@ ilyen a csomagban nincs.
 
 ## 5. A 14 elfogadási helyzet eredménye a rögzített commiton
 
-«H14_TABLE»
+| # | Helyzet | Ítélet | Böngésző-bizonyíték | Szerver/adatbázis-bizonyíték | Hiány / megjegyzés |
+|---|---|---|---|---|---|
+| H01 | Egyszerű magánfiók céges adatbekérés nélkül létrejön; csak saját adata… | **bizonyítva** | 4 tétel — A regisztrációs űrlap mezői: email, password — céges adatot (adószám, cégnév) nem kér; a megerősítő hivatkozás… | 3 tétel — POST /api/workspaces → 201; business=null; role=admin; plan=starter… | A minta-rekordok minden munkakörnyezetben azonos tartalmúak (qty 12), ezért a „saját adat" azonosságát nem a tartalom, hanem a munkamenet könyve és az idegen könyv-paraméter figyelmen kívül hagyása bizonyítja; a terv-különbség (sa… |
+| H02 | A meglévő magánfiók alkalmazotti meghívót elfogad; saját jelszava, sze… | **bizonyítva** | 3 tétel — Béla (meglévő, belépett fiók) megnyitja a meghívó hivatkozását: a lap „redeem_as_existing"-t mutat, a következ… | 2 tétel — POST /api/invites/redeem → 200; shape=membership_only, outcome=granted, read_scope_granted=null — a beváltás C… | A második faktor a magban nem létező fogalom (nincs mit törölni); a „személyes adat" itt az e-mail azonosító sora és az alany fajtája.… |
+| H03 | A fiókhoz adószámos működési minőség társul; a magán- és üzleti kör ne… | **bizonyítva** | 2 tétel — Magántér: „Létrejött: Anna magántere (ws_c34d95e7) · terv: starter" · Céges: „Létrejött: Anna Kft (ws_caf41202… | 2 tétel — POST /api/workspaces (céges) → business: {"ok":true,"book_id":"ws_caf41202","entity_subject_id":"ent_ws_caf412… | A vállalkozási minőség önbevallott (verification: none_available) — hatósági igazoló adapter a magban ma nincs, és ezt a válasz és a lap egyaránt kimondja.… |
+| H04 | Saját családi munkakörnyezet indul; második tagot meghívhat a jogosult… | **bizonyítva** | 3 tétel — Anna a felületen indítja a családi munkakörnyezetet: „Létrejött: Családi Kft (ws_5690a9df) · terv: starter · v… | 5 tétel — POST /api/workspaces → 201; business.verification=none_available (állami igazolási kör NEM futott, nem is kért… | A második tag a HELYI körbe kerül (tagság a családi könyvben); adatot a tagság önmagában nem ad — azt az admin külön adatkör-adása nyitja (H07).… |
+| H05 | Azonos beírt cégazonosítóval más jelentkező nem kapja meg e munkakörny… | **bizonyítva** | 1 tétel — Cili UGYANAZT a HU adószámot írja be, mint Anna és a harmadik szolgáltató: „Létrejött: Cili Kft (ws_9c62cb29) … | 3 tétel — POST /api/workspaces (Cili, azonos adószám) → 201; business.ok=true, value_norm=05345678242… | Nincs globális cégnév-/adószám-lefoglalás: az azonos karaktersor három független jogalanyon áll, egyik sem nyit a másik könyvére.… |
+| H06 | Továbbadható körön túli meghívás/jogadás elutasított. Lejárt, visszavo… | részben | 5 tétel — A meghívó szerep-választója CSAK a zárt regiszter szerepeit kínálja: [user, admin]… | 6 tétel — KÖRÖN TÚLI meghívás: role=owner → 403 outside_basis_roles, plafon={"operations":["invite_issue"],"roles":["adm… | LEJÁRT meghívó a böngészőből nem hajtható meg: a héjnak nincs óra-állító végpontja, és a próba a mag íróit nem hívja (nem gyárt lejárt sort) — a lejárat mag-bizonyítéka: `P-INVITE-window` (v3ref/run.mjs, valódi idő-összehasonlítás… |
+| H07 | A raktári szerepnek adott mennyiségnézetből ár-, számla- vagy beszállí… | **bizonyítva** | 3 tétel — Béla (raktári user) készlet-nézete az adatkör-adás ELŐTT: „ELUTASÍTVA — melyik kapu: right · ok: not_available… | 2 tétel — GET /api/data/stock → ok=true, a kiadott mezők: [qty] (ár NINCS benne); GET /api/data/price → ok=false, refuse… | A magreferencia adatkör-szótára KÉT tagú (keszlet · arak): „számla" és „beszállítói" adatkör a rendszerben nem létezik, ezért azokra a helyzet tartalmilag üres — a kimondott elv (mennyiségből ár nem következik) a létező két körön … |
+| H08 | Cégváltáskor a session-kontextus, válaszok és klienscache nem keverik … | **bizonyítva** | 3 tétel — Anna a saját pro cégében (fejléc „Anna Kft · admin · pro"): ár-nézet „KIADVA"… | 3 tétel — MÓDOSÍTOTT PARAMÉTER a magánteres munkamenetben: ár ?book_id=<saját pro cég> → param_ignored=true [book_id], o… | A kliensnek nincs saját gyorsítótára: minden panel a váltás pillanatában ürül, és minden válasz `Cache-Control: no-store`; a cselekvő és a könyv KIZÁRÓLAG a szerveroldali munkamenetből jön, a kliens-mezők NEVEZETTEN figyelmen kívü… |
+| H09 | Megvonás/lejárat után új kérés és függő meghívó nem használhatja a meg… | részben | 5 tétel — Kiindulás: Cili admin a családi könyvben (fejléc „Családi Kft · admin · starter"), készlet-nézete „ELUTASÍTVA … | 3 tétel — Cili: GET /api/data/stock → ok=false not_a_member/membership_revoked; váltás a családi könyvre → 403 not_a_mem… | A MEGVONÁS ága teljesen bizonyítva (új kérés · függő meghívó · független jog). A LEJÁRAT ága a héjból nem hajtható meg: az alap `expires_at`-ját és a meghívó lejáratát a héj nem állítja, a próba a mag íróit nem hívja — mag-bizonyí… |
+| H10 | Két szervezeti egység és korlátozott helyi admin példája: a vezető nem… | **bizonyítva** | 1 tétel — A egység: Anna admin; B egység: Béla admin (a „vezető"); Cili az A egység HELYI adminja (fejléc „A egység · ad… | 4 tétel — A vezető (Béla) váltása az A egységre → 403 not_a_member/no_membership; /api/me könyvei: B egység — NEM kap au… | KÖZÖS JÓVÁHAGYÁS: TÉNYLEGES HIÁNY — a mag egyetlen műveletet sem köt két személy egyetértéséhez (mérve: 0 találat a forrásban, nincs ilyen végpont); minden jogváltoztatás egyetlen jogosult cselekvő döntése, alappal. A plafon ebben… |
+| H11 | Előfizetésileg elérhető funkcióhoz jogosulatlan munkatárs nem jut; jog… | **bizonyítva** | 2 tétel — STARTER terven: Anna (admin, arak adatkörrel) ár-nézete: „ELUTASÍTVA — melyik kapu: entitlement · előfizetés-k… | 2 tétel — Anna price → refused_by=entitlement (feature_not_in_plan, terv starter) — a JOG megvan, az ELŐFIZETÉS zár; Bél… | Tesztprofil: a tervek a kódban zárt szótár (starter · pro), a profil az `entitlement_profile` táblában áll; fizetési integráció nincs, nem is kell — a két kapu (jog · előfizetés) külön mér és külön jelent. MÉRT LELET (a héj szöveg… |
+| H12 | Két joghatósági azonosítónévtér azonos karaktersora nem téves azonossá… | **bizonyítva** | 1 tétel — Anna HU joghatósággal: „Létrejött: Anna HU (ws_4fe8e888) · terv: starter · vállalkozási minőség: HU 1234567824… | 3 tétel — Cili ismeretlen országprofillal (XX) → 201; business: profile_known=false, jurisdiction=XX, verification=none_… | Az azonosság kulcsa a teljes négyes (névtér · joghatóság · kibocsátó · érték), nem a puszta szöveg; az ismeretlen profil ugyanazt a szerkezetet példányosítja (representation_from_identifier: false · own_work_allowed: true), csak „… |
+| H13 | Kezdő jogosultság, alap nélküli történeti sor, szabályos új felhatalma… | nem böngészőben | 1 tétel — A felületen nincs bírálati / hatásköri vezérlő: a lap hat szakasza fiók · munkakörnyezet · munkatársak · adato… | 1 tétel — A héjban nincs bírálati végpont (mérve): /api/adjudicate → 404 unknown_endpoint; /api/claims → 404 unknown_end… | A négy külön eredmény (kezdő jog · alap nélküli történeti sor · szabályos új felhatalmazás · jogosulatlan bírálói önfeljogosítás) a magban mérve áll: `P-CORE-startup-and-delegation` (e) — a helyi admin az indulási alapra hivatkozv… |
+| H14 | Két valódi kapcsolat meghívóbeváltási és megvonás–véglegesítési versen… | nem böngészőben | 1 tétel — A böngésző-próba EGY szerver-folyamattal beszél, amely EGY tároló-kapcsolatot tart: két VALÓDI, külön OS-folya… | 1 tétel — A többkapcsolatos bizonyíték szerszáma a repóban áll (mérve): tools/v3_multiconn_proof.mjs létezik=true; packa… | Bizonyíték: `npm run proof:multiconn` (tools/v3_multiconn_proof.mjs, MCN-01) — két külön gyermek-folyamat, saját `openStoreAt` kapcsolattal, WAL-naplón: (1) ugyanazt a meghívót egyszerre váltják be → pontosan EGY tagság, a vesztes… |
+
+A teljes bizonyíték-szöveg soronként (böngésző · szerver külön): `docs/70_PLANNING/V3_R64_ELFOGADAS_HELYZETEK.json` (saját futás, 2026-09-20; a generált másolat a `var/reports` alatt). **Ítéletek: 10 bizonyítva · 2 részben (H06, H09: a LEJÁRT ág a héjból nem hajtható meg — mag-bizonyíték `P-INVITE-window`) · 2 nem böngészőben (H13 mag-próba, H14 `proof:multiconn`).**
 
 **Közös jóváhagyás (10. helyzet):** a magban NINCS kétszemélyes jóváhagyás — mérve: a `v3ref/`
 egyetlen írója sem kér második jóváhagyót; ez **tényleges hiány**, nem beállítás kérdése, és a
@@ -121,10 +138,10 @@ lezárási listán áll.
 
 ## 6. Az eltéréslista (R63 §5.1) és a helyesbített OB-szövegek
 
-A gépi alak: **`docs/70_PLANNING/V3_R64_CORE_ELTERESLISTA_LELTAR.json`** — «GAP_SUMMARY».
+A gépi alak: **`docs/70_PLANNING/V3_R64_CORE_ELTERESLISTA_LELTAR.json`** — 87 sor (élethelyzet 22 · K 19 · OB 10 · G 8 · USE 4 · QNT 24) + 3 regiszteren kívüli követelmény; blokkolás: első core-folyamat **0** · mini-modul közös alap 16 · későbbi üzemi használat 52 · semmit 19. **Kimondva:** az élethelyzet-, K- és OB-sorokat három független olvasó írta forrás-kötéssel; a G/USE/QNT sorokat a sáv (egyszerzős, gyengébb — KUKA-033).
 Minden sor: mi működik ma · forrás és bizonyíték · mi hiányzik · mit blokkol (első core-folyamat /
 mini-modul közös alap / későbbi üzemi használat / semmit) · mi zárja le. **A 29 klauzula nem a teljes
-leltár:** a teljességi kritika «CRIT_N» olyan követelményt talált, ami még nem volt a regiszterben — ezek
+leltár:** a teljességi kritika — NEM FUTOTT (a futtatási keret kimerült): a sáv három sort írt az R63 §4–§5.2 kimondott határaiból; az A01–A18 tételes egyeztetése nevezett hiány, a következő kör első tétele — olyan követelményt talált, ami még nem volt a regiszterben — ezek
 a JSON `missing_requirements` blokkjában állnak, ugyanazzal a mezőkészlettel.
 
 **Helyesbített OB-szövegek (ugyanebben a munkában, nem külön körben — KUKA-050):**
@@ -134,7 +151,11 @@ a JSON `missing_requirements` blokkjában állnak, ugyanazzal a mezőkészlettel
   alap (DLG-01) nevezett, verziózott, hatályos; ami nem áll: ORG-N3, a szervezet KÉPVISELETE. Nyitva.
 - **USE-G1:** a „egyetlen folyamaton, egyetlen írón mérve" mondat a két-folyamatos mérésre
   frissítve; a kapu zárva marad.
-«OB_MORE»
+- **OB-3:** R63 óta VAN külső határ (a v3app HTTP-rétege), de a séma ott nem kapuz — a „nincs külső határ" mondat elavult (inputSchema.mjs is javítva). Nyitva, L7.
+- **OB-5:** a számok elévültek: 15 megvonási klauzula, tíznek van deklarált próbája, öt nyitott (REV-N1c · N3d · N3e · N4a · N4b). Nyitva, L8.
+- **OB-7:** a külső fél klauzula-szintű döntés-sorai külön tengelyen állnak — a mondat ezt eddig elhallgatta. Nyitva.
+- **OB-8 (lezárt) guard:** a kézzel léptetett „28 támadás" helyett a mért alak. · **OB-9 (lezárt) residual:** „három nyitott" → egy nyitott (K10-TYP-e), kettő részleges.
+- **ORG-N2 szabály-szöveg:** „ideiglenes alapértelmezés, amíg a modell nincs" → tervezett szabály, a delegált alap következménye; a képviseleti kivétel (ORG-N3) marad nyitva.
 
 ## 7. AZ EGYETLEN CORE-LEZÁRÁSI LISTA — az eredeti normákhoz kötve
 
@@ -149,7 +170,8 @@ a JSON `missing_requirements` blokkjában állnak, ugyanazzal a mezőkészlettel
 | L7 | A bemeneti séma KÜLSŐ határon (HTTP) kapuz | OB-3 · BEJ-01 | mini-modul közös alap | a v3app végpontjain a BEM-01 séma kapuzása, idegen beadóval mérve | próba idegen mezővel a HTTP-határon: nevezett elutasítás |
 | L8 | A megvonás visszamenőleges hatályának teljes klauzula-készlete | OB-5 · REV-N* | core-core lezárás (req-5) | a hiányzó REV-klauzulák próbái a rögzített sorrendben | mind a 13 klauzula deklarált állítású próbával |
 | L9 | A kötelező bizonyíték-készlet (req-4 → req-5) | ORG-N1a · ORG-N1b | core-core lezárás | a mutációs battéria falszifikációs eredményei a két klauzulára | `verify:v3ref` „KÖTELEZŐ BIZONYÍTÉK" sora `covered` |
-«GAP_ROWS»
+| L10 | A01–A18 elfogadási esetek tételes egyeztetése ezzel a leltárral (a teljességi kritika nem futott) | R32 A01–A18 · R63 §5.1 | mini-modul közös alap | a kritika lefuttatása, a hiányzó sorok felvétele | minden A-eset sorral vagy nevezett hiánnyal |
+| L11 | A „személyes kör" nevesített állapota a váltóban (könyv nélküli magánfiók saját iratai) | R63 §3 EH-1 | mini-modul közös alap | nevezett személyes cél a váltóban vagy saját alap-könyv | selfcheck/e2e lépés |
 
 **Elfogadott korábbi munka nem tűnt el:** az R57–R62 leltár és a 16 elfogadott egész klauzula
 változatlan; az R63 §4 szerint az alap-kötelezettség most a kódban áll, a történeti sorok megmaradtak.

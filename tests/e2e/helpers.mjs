@@ -202,7 +202,21 @@ export async function priceUI(page) {
   return { ...r, text: (await pre.textContent()) || '' };
 }
 
+/**
+ * A TAG-LISTA PILLANATKÉP: az admin lapja a saját utolsó rajzolása óta nem tud a MÁSIK böngészőben
+ * beváltott tagságról (a lap nem kap értesítést). A felhasználó ilyenkor újratölti a lapot — a helper
+ * ugyanezt teszi, és CSAK akkor, ha a sor tényleg hiányzik (a core-folyam útját nem változtatja).
+ */
+export async function ensureMemberRow(page, subjectId) {
+  if (await page.getByTestId(`member-${subjectId}`).count() === 0) {
+    await page.reload();
+    await expect(page.getByTestId('header-subject')).not.toHaveText('nincs bejelentkezve');
+  }
+  await expect(page.getByTestId(`member-${subjectId}`)).toBeVisible();
+}
+
 export async function grantScopeUI(page, subjectId, scope) {
+  await ensureMemberRow(page, subjectId);
   await expect(page.getByTestId(`member-scope-select-${subjectId}`)).toBeVisible();
   await page.getByTestId(`member-scope-select-${subjectId}`).selectOption(scope);
   const r = await withResponse(page, { path: '/api/members/scope' }, () => page.getByTestId(`member-scope-${subjectId}`).click());
@@ -211,6 +225,7 @@ export async function grantScopeUI(page, subjectId, scope) {
 }
 
 export async function revokeUI(page, subjectId) {
+  await ensureMemberRow(page, subjectId);
   await expect(page.getByTestId(`member-revoke-${subjectId}`)).toBeVisible();
   const r = await withResponse(page, { path: '/api/members/revoke' }, () => page.getByTestId(`member-revoke-${subjectId}`).click());
   await expect(page.getByTestId('members-result')).not.toHaveText('');

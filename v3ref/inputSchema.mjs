@@ -17,8 +17,8 @@
  *
  * MIT NEM CSINÁL — KIMONDVA (az MCS-1 §3/BEM-01 mért függősége, az R6 §4 szűkítésével).
  * Ma a magban **19 exportált író függvény** van: 5 deklarált belépési pont · 13 belső író · 1 mérési
- * segéd. **Egyik sem érhető el kívülről — HTTP-réteg és bizalmi határ NINCS**, tehát jelenlegi
- * megkerülésről nincs szó; ez TERVEZÉSI kockázat. Amikor a BEJ-01 megépül, a BEM-01 a KÜLSŐ HATÁRON
+ * segéd. R63 ÓTA VAN külső határ (a v3app HTTP-rétege), DE A BEM-01 OTT NEM KAPUZ — a végpontok kézi
+ * ellenőrzést futtatnak; ez nevezett maradék (OB-3, R64 L7). Amikor a BEM-01 a KÜLSŐ HATÁRON
  * ellenőriz sémát, a belső írók pedig a SAJÁT invariánsaikat tartják — két külön felelősség.
  */
 import { parseQuantity, quantitySyntaxProblem } from './quantity.mjs';
@@ -291,7 +291,7 @@ export const BEM_CONTRACT = Object.freeze({
     'reguláris kifejezéssel „validált" időpont (R10-F03)',
     'a mennyiség kanonizálása ALAPÉRTELMEZETT profillal, a cikk profilja helyett',
   ]),
-  stated_limit: 'ma NINCS külső határ (HTTP-réteg): 5 deklarált belépési pont · 13 belső író · '
-    + '1 mérési segéd. A BEM-01 a BEJ-01 megépülésekor áll a KÜLSŐ határra; a belső írók a SAJÁT '
+  stated_limit: 'a séma a KÜLSŐ határon (a v3app HTTP-rétege, R63) még NEM kapuz: 5 deklarált '
+    + 'belépési pont · 13 belső író · 1 mérési segéd a magon belül. A belső írók a SAJÁT '
     + 'invariánsaikat tartják — két külön felelősség (az R6 §4 szűkítése).',
 });

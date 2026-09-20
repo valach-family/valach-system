@@ -241,7 +241,7 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     const g = await grantScopeUI(anna.page, bela.subjectId, 'keszlet');
     expect(g.body).toMatchObject({ ok: true, scope: 'keszlet' });
     expect(g.resultText).toContain('Adatkör megadva: keszlet');
-    expect(await memberRowText(anna.page, bela.subjectId)).toContain('keszlet: van');
+    await expect(anna.page.getByTestId(`member-${bela.subjectId}`)).toContainText('keszlet: van');
     const row = db.get('SELECT scope, granted_by FROM scope_grant WHERE subject_id = ? AND book_id = ?', bela.subjectId, companyBook);
     expect(row).toEqual({ scope: 'keszlet', granted_by: anna.subjectId });
     const after = await stockUI(bela.page);
@@ -256,7 +256,8 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     const v = await revokeUI(anna.page, bela.subjectId);
     expect(v.body).toMatchObject({ ok: true, reason: 'revocation_recorded' });
     expect(v.body.revocation.changed).toBe(true);
-    expect(await memberRowText(anna.page, bela.subjectId)).toContain('NEM hatályos (membership_revoked)');
+    // A lista a válasz UTÁN töltődik újra (KUKA-046): a próba az ÚJ igazságot várja meg, nem a régi sort olvassa.
+    await expect(anna.page.getByTestId(`member-${bela.subjectId}`)).toContainText('NEM hatályos (membership_revoked)');
     await expect(anna.page.getByTestId(`member-revoke-${bela.subjectId}`)).toBeDisabled();
     const stock = await stockUI(bela.page);
     expect(stock.body).toMatchObject({ ok: false, refused_by: 'right', reason: 'not_a_member', detail: 'membership_revoked' });
