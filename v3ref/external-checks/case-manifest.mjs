@@ -518,7 +518,12 @@ export const PROGRAMS = Object.freeze([
     // megnevezett okkal, és csak amíg a helyettes zöld (KUKA-124/2 · KUKA-126).
     rule_superseded: Object.freeze({
       round: 'R63', source: 'v3ref/source-documents/R63_board_v1.md',
-      cases: Object.freeze(['T01', 'T02', 'T05']), reason_mark: 'invite_without_basis',
+      cases: Object.freeze(['T01', 'T02']), reason_mark: 'invite_without_basis',
+      // A T05 a beváltás eredményét NEM írja ki (csak a `pass`-t), tehát az ok ott nem olvasható —
+      // amit MÉRNI lehet: mind a 28 al-eset `rejected` mezője nem üres (a DML-őr TARTOTT), a bukás
+      // kizárólag a beváltás `ok===true` elvárásán áll. Ezt a predikátumot a futtató a nyers
+      // eredményen méri; a beváltás okát az adaptált r57a ugyanezen a 28 alakon zölden mutatja.
+      cases_all_rejected: Object.freeze(['T05']),
       why: 'a történeti fixtúra pecsét nélküli meghívót ír; R63 §4 szerint alap nélküli meghívó nem ad jogot',
     }),
     env_limit: Object.freeze({
@@ -747,6 +752,12 @@ export function caseFailureKind(c, program = null) {
   const rs = program && program.rule_superseded && typeof program.rule_superseded === 'object' ? program.rule_superseded : null;
   if (rs && !c.test_error && c.pass === false && Array.isArray(rs.cases) && rs.cases.includes(c.id)
     && typeof rs.reason_mark === 'string' && JSON.stringify(c).includes(rs.reason_mark)) return 'rule_superseded';
+  // A második, MÉRT alak: az al-esetek mindegyike ELUTASÍTÁST hordoz (`rejected` nem üres) — tehát a
+  // védett őr tartott, és a bukás a szabályváltás által érintett beváltás-elváráson áll.
+  if (rs && !c.test_error && c.pass === false && Array.isArray(rs.cases_all_rejected) && rs.cases_all_rejected.includes(c.id)) {
+    const subs = c.result && Array.isArray(c.result.results) ? c.result.results : (Array.isArray(c.results) ? c.results : null);
+    if (subs && subs.length && subs.every((x) => x && typeof x.rejected === 'string' && x.rejected.length > 0)) return 'rule_superseded';
+  }
   if (c.test_error) return TIMEOUT_MARK.test(String(c.test_error)) ? 'wall_clock_timeout' : 'assertion_failure';
   if (c.pass === true) return 'ok';
   if (typeof c.pass !== 'boolean') return 'malformed';
