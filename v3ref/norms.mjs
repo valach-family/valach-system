@@ -660,12 +660,31 @@ export const ORG_BASIS_NORMS = Object.freeze([
           // meghívó KIADÁSÁN és BEVÁLTÁSÁN is valódi kapu (`invite.mjs` 3/b, a KIADÁSKORI alaphoz
           // mérve), és az ORG-N1b hét állítása ezt méri. A maradék-szöveg tehát a rendszer egy
           // KORÁBBI állapotát állította, és a hiányt NAGYOBBNAK mutatta a valóságosnál (KUKA-050).
-          remaining: 'az ÁLTALÁNOS képviseleti lefedés. Ami MEGVAN (és a régi szöveg tévesen tagadta): '
-            + 'a meghívó KIADÁSA és BEVÁLTÁSA a KIADÁSKOR hatályos alaphoz mér, valódi kapuval '
-            + '(BLI-01). Ami NINCS: a klauzula szövege MINDEN felhatalmazási döntésre szól, a bekötés '
-            + 'viszont a MEGHÍVÓ útján él — a többi felhatalmazási útra (általános képviselet) nincs '
-            + 'sem alap-hordozás, sem mérés. Amíg ez nincs meg, a klauzula RÉSZLEGES, és a req-5 NEM '
-            + 'léphet életbe rá.',
+          // HELYESBÍTVE MÁSODSZOR (R57 §3, a külső fél lelete). Az R37-es alak még azt mondta, hogy
+          // „a bekötés a MEGHÍVÓ útján él, a többi útra nincs alap-hordozás" — ez MÉRVE már nem igaz:
+          // a bírálati hatáskör (R53/R55) és az adatköri jogadás (R51) is hordozza és méri az alapot.
+          // Az „általános képviselet hiányzik" mondat TÚL ÁLTALÁNOS volt: nem lehetett megmondani,
+          // mi teljesítené (KUKA-050 · KUKA-087 — aki nem tudja leírni, MI hiányzik, annak a hiánya
+          // sem mérhető). Innentől a maradék KONKRÉT utakat nevez meg a GPR-01 táblából, és a
+          // `verify:grant-paths` GP05 méri, hogy nevez-e egyáltalán.
+          remaining: 'A MAI ÁLLAPOT, ÚTANKÉNT megnevezve (GPR-01, `contracts/grantPathRegistry.js`). '
+            + 'ALAPOT HORDOZ ÉS MÉRI: GP-INVITE-ISSUE és GP-INVITE-REDEEM (a KIADÁSKOR hatályos '
+            + 'alaphoz, BLI-01) · GP-ADJUDICATION-AUTHORITY (megadási ÉS használati kapu, ABL-01) · '
+            + 'GP-SCOPE-GRANT (itt az alap nem opció, hanem FELTÉTEL). '
+            + 'AMI KONKRÉTAN HIÁNYZIK — KÉT KÜLÖN DOLOG, és nem szabad összemosni őket: '
+            + '(1) LÉTEZŐ ÚT, NEM KÖTELEZŐ ALAP: a GP-ADJUDICATION-AUTHORITY `basisId` paramétere ma '
+            + 'OPCIONÁLIS, és a GP-INVITE-ISSUE deklarálatlan meghívója is kiadható — ezeken a '
+            + 'klauzula szövege („tárolja a határozat azonosítóját, verzióját és hatályát") NEM '
+            + 'kényszerül ki. Ez viszont OPERÁTORI döntés (ki hatalmaz fel kit, és mi legyen a már '
+            + 'meglévő, alap nélküli jogokkal), nem rejtett kód-hiány: a rendszer mindkét helyen '
+            + 'KIMONDJA a hiányt (`no_declared_basis` · `authority_without_recorded_basis`). '
+            + '(2) LÉTEZŐ ÚT, HIÁNYZÓ BEJÁRAT: a GP-SCOPE-GRANT író oldalát a termékben ma SEMMI nem '
+            + 'hívja (az olvasó oldal be van kötve) — ez FÉL LÁNC (KUKA-069), és ez valódi, mert '
+            + 'nélküle az adatköri jog csak próbából adható meg. '
+            + 'KÜLÖN HATÁR, NEM HIÁNY: az ÁLTALÁNOS szervezeti képviselet (képviselő szervezet '
+            + 'nevében, delegálási lánccal, több úton át) ma NEM LÉTEZŐ képesség — nincs olyan '
+            + 'meglévő út, amit megsértene, és e feladat alatt nem is tervezünk hozzá modult. '
+            + 'Amíg az (1) és (2) nyitva, a klauzula RÉSZLEGES, és a req-5 NEM léphet életbe rá.',
         }),
         // AMI MÉG NEM ÉPÜLT MEG A KORLÁTON: az az ORG-N1b-é, és az a klauzula MEGTARTJA a saját
         // gap-jét. Az R53 óta a `basisState` KÉT külön mezőben mondja ki, hol tart: `limit_enforced`
@@ -720,14 +739,21 @@ export const ORG_BASIS_NORMS = Object.freeze([
             + 'és a hiányzó verzió mellett EGYIK SEM, az ÜGY-út válasza pedig bájtra azonos a nem '
             + 'létező ügyéével. A hiány-alakokat a MEGADÁS és a HASZNÁLAT kapuján KÜLÖN, saját '
             + 'előfeltétellel mérjük. Falszifikálva: M189 · M190 · M191 · M192 · M193 · M194 · M195.',
-          remaining: 'A korlát DEKLARÁLÁSÁNAK kötelezővé tétele nyitva: ma a deklarálatlan meghívó '
-            + 'ÉS az alap nélkül adott, történeti BÍRÁLATI hatáskör is a régi szabály szerint megy '
-            + '(a válasz ezt mindkét helyen KIMONDJA: `no_declared_basis` · '
-            + '`authority_without_recorded_basis`). Ez SZERVEZETI döntés — ki hatalmaz fel kit, és '
-            + 'mi történik a meglévő, alap nélküli felhatalmazásokkal —, tehát az operátoré, nem a '
-            + 'kódé; az R53 erről kifejezetten NEM hozott üzleti döntést. A BÍRÁLATI hatáskör útja '
-            + 'ezzel szemben már NEM nyitott: ott a korlát az R53 óta KAPU (ABL-01), és a '
-            + '`limit_enforced_paths` négy utat sorol fel.',
+          // R57 §3 — A MARADÉK UTANKENT MEGNEVEZVE (GPR-01). A régi szöveg igaz volt, de nem
+          // mondta meg, MELYIK úton mi hiányzik, tehát nem lehetett megmondani, mi teljesítené.
+          remaining: 'A korlát DEKLARÁLÁSÁNAK kötelezővé tétele nyitva, és ez ÚTANKÉNT más '
+            + '(GPR-01, `contracts/grantPathRegistry.js`): '
+            + 'GP-INVITE-ISSUE / GP-INVITE-REDEEM — a deklarálatlan meghívó ma kiadható és '
+            + 'váltható, a válasz `no_declared_basis` néven KIMONDJA · '
+            + 'GP-ADJUDICATION-AUTHORITY — a korlát az R53 óta KAPU mindkét ponton, de a megadáskor '
+            + 'az alap megadása nem kötelező, és a régi, alap nélküli sorok '
+            + '`authority_without_recorded_basis` néven a régi szabály szerint mennek · '
+            + 'GP-SCOPE-GRANT — itt a korlát MÁR ma is feltétel (alap nélkül nincs jog), tehát ezen '
+            + 'az úton a klauzula nem részleges; ami hiányzik, az a TERMÉKBELI HÍVÓ (fél lánc). '
+            + 'A kötelezővé tétel SZERVEZETI döntés — ki hatalmaz fel kit, és mi történik a már '
+            + 'meglévő, alap nélküli felhatalmazásokkal —, tehát az operátoré, nem a kódé; az R53 '
+            + 'és az R57 erről kifejezetten NEM hozott üzleti döntést. A '
+            + '`limit_enforced_paths` ma négy utat sorol fel.',
         }),
       }),
     ]),
@@ -1032,6 +1058,12 @@ export const NEXT_REQUIRED_EVIDENCE = Object.freeze({
   clauses: Object.freeze(['ORG-N1a', 'ORG-N1b']),
   becomes_required_when: 'mindkét klauzulának van olyan mutációs bizonyítéka, ami a SAJÁT '
     + 'deklarált állítását buktatja meg — addig a `req-4` a kötelező készlet, és ezek NYITOTTAK',
+  // A MAI ÁLLAPOT — KÜLÖN MEZŐ, hogy a történeti indoklás és a jelen ne csússzon össze (KUKA-105).
+  current_state_note: 'R57 (2026-09-20): a req-5 NEM lépett életbe, és a külső fél kimondta, hogy '
+    + 'nem is léphet — az ORG-N1a/b EGÉSZE részleges. Ami a történeti indoklás óta MEGVÁLTOZOTT: a '
+    + 'meghívó ma TÁROLJA a határozat azonosítóját, verzióját és hatályát (`invite_basis`), és a '
+    + 'bírálati hatáskör (ABL-01) meg az adatköri jogadás (SGR-01) is. Ami NYITVA maradt, az '
+    + 'ÚTANKÉNT megnevezve a klauzulák `remaining` szövegében és a GPR-01 táblában áll.',
   // A SORREND AZ R53 §7-BŐL JÖN, változatlanul: REV-N3 → REV-N5 → REV-N2 → ORG-N1 → ORG-N3 → REV-N4.
   // A REV-N3 az R65-ben (req-2), a REV-N5 az R71-ben (req-3), a REV-N2 az R83-ban (req-4) lezárult —
   // a soron következő az ORG-N1: A FELHATALMAZÁS ALAPJA, azonosítóval, verzióval és korláttal.
@@ -1042,6 +1074,13 @@ export const NEXT_REQUIRED_EVIDENCE = Object.freeze({
   // adták ki. A REV-N2-ben most megépült KÉT IDŐ-TENGELY ennek az előfeltétele volt: egy
   // határozatnak SAJÁT hatálya van, és a róla szerzett tudomás KÉSŐBB érkezhet — enélkül az
   // „érvényes volt-e a határozat, amikor a meghívót kiadták?" kérdés nem is fogalmazható meg.
+  //
+  // HELYESBÍTÉS A MAI ÁLLAPOTRÓL (R57 §3, 2026-09-20 — a külső fél lelete). A FENTI BEKEZDÉS
+  // TÖRTÉNETI VÁLLALÁS, és ÚGY MARAD: az R83-ban ez volt a kiindulás, és a tervet nem írjuk át
+  // utólag (KUKA-103: az átírás is kivezetés). DE JELEN IDEJŰ ÁLLÍTÁSKÉNT MÁR NEM IGAZ: a meghívó
+  // az R37 óta TÁROLJA a határozat azonosítóját, verzióját és hatályát (`invite_basis`), a
+  // beváltás pedig a KIADÁSKORI alaphoz mér. A mai állapotot a `current_state_note` és a GPR-01
+  // tábla mondja ki, klauzulánként az ORG-N1a/b `remaining` szövege.
   //
   // A TERV ELŐRE ÁLL, MIELŐTT EGYETLEN SOR KÓD MEGSZÜLETNE — különben a mérce a megépült dologhoz
   // igazodna, és a próba a saját előfeltevését igazolná vissza (KUKA-054).

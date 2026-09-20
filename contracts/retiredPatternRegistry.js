@@ -8166,6 +8166,63 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'hazugság, amíg nem mondjuk meg, MELYIK hivatkozást kötöttük.',
   }),
   Object.freeze({
+    id: 'KUKA-196',
+    date: '2026-09-20',
+    title: 'AZ ÁLTALÁNOS HIÁNY-MONDAT — a maradék, amiről nem lehet megmondani, mi teljesítené',
+    what: 'Az ORG-N1a maradék-szövege így szólt: hiányzik „az ÁLTALÁNOS képviseleti lefedés", mert '
+      + '„a bekötés a MEGHÍVÓ útján él, a többi felhatalmazási útra nincs sem alap-hordozás, sem '
+      + 'mérés". MÉRVE, ugyanazon a forráson: ez KÉT ponton már nem volt igaz — a bírálati hatáskör '
+      + '(`grantAdjudicationAuthority`, R53/R55) és az adatköri jogadás (`grantReadScope`, R51) is '
+      + 'hordozza ÉS méri az alapot, utóbbinál az alap egyenesen FELTÉTEL. A mondat tehát egyszerre '
+      + 'tagadta a saját, már leszállított munkánkat, és mutatta nagyobbnak a hiányt a valóságosnál. '
+      + 'Közben a `NEXT_REQUIRED_EVIDENCE` magyarázata JELEN IDŐBEN állította, hogy a meghívó nem '
+      + 'tárol határozat-azonosítót, verziót és hatályt — holott az `invite_basis` az R37 óta áll.',
+    why_wrong: 'Az általános hiány-mondat NEM MÉRHETŐ: nincs olyan munka, amiről meg lehetne '
+      + 'mondani, hogy teljesíti (KUKA-087 — aki nem tudja leírni, MI hiányzik, annak a hiánya sem '
+      + 'mérhető). Ez rosszabb a pontos hiánynál kétfelől is: aki olvassa, TÖBBET hisz hiányzónak, '
+      + 'mint amennyi az (a leszállított munka láthatatlan marad), és a klauzula a saját '
+      + 'szövegétől marad részleges, nem a rendszer állapotától (KUKA-050: a szöveg a valóságot '
+      + 'követi). Külön hiba volt, hogy a LÉTEZŐ, de nem kötelező alap (operátori döntés), a LÉTEZŐ, '
+      + 'de hívó nélküli út (fél lánc) és a MÉG NEM LÉTEZŐ képesség (általános képviselet) EGY '
+      + 'mondatba mosódott — három különböző dolog, három különböző következménnyel.',
+    replaced_by: 'GPR-01 (`contracts/grantPathRegistry.js`): a JELENLEGI magforrás tényleges '
+      + 'jogadási útjai EGY táblában — belépési pont · adott jog · alap/verzió/hatály tárolása · '
+      + 'megadási és használati kapu · érintett norma · mi működik és mi hiányzik —, a besorolás a '
+      + 'TÉNYLEGES használat szerint (termékbeli felület · egy másik út írója · mérési előkészítő · '
+      + 'sémaszintű tükrözés). A klauzulák `remaining` szövege innentől ezeket az azonosítókat '
+      + 'nevezi meg, és a három hiány-fajtát KÜLÖN mondja ki.',
+    replacement: 'Hiány-szöveget csak úgy szabad írni, hogy MEGNEVEZI a konkrét, ma létező utat és '
+      + 'a megsértett normát — vagy kimondja, hogy MÉG NEM LÉTEZŐ képességről beszél. A kettő nem '
+      + 'ugyanaz, és nem is ugyanaz a következménye.',
+    decision: 'D-VS-3062',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R57 §3), három konkrét forrásbeli ellentmondást '
+      + 'megnevezve; a saját söprésem végig zöld volt, mert egyetlen őr sem mérte a hiány-szöveg és '
+      + 'a kód VISZONYÁT (KUKA-024 a dokumentáció terében).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['contracts/grantPathRegistry.js']),
+        pattern: 'GRANTING_TABLES',
+        why: 'a mérés alanyait a JOGADÓ TÁBLÁK halmaza adja, nem egy kézi felsorolás (KUKA-051)' }),
+      Object.freeze({ paths: Object.freeze(['contracts/grantPathRegistry.js']),
+        pattern: 'product_grant_surface',
+        why: 'a besorolás a tényleges használat szerint megy — a teszt-előkészítő nem termékbeli felület' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/norms.mjs']),
+        pattern: 'GP-SCOPE-GRANT',
+        why: 'a maradék-szöveg KONKRÉT utat nevez meg, nem általánosságot' }),
+    ]),
+    forbidden: Object.freeze([]),
+    guard_note: 'gépi jel: `npm run verify:grant-paths` — **GP01** a deklarált belépési pont '
+      + 'létezik · **GP02** a hivatkozott próba tényleg fut, és termékbeli felület mérés nélkül nem '
+      + 'állhat · **GP03** zárt besorolás-szótár és PADLÓ · **GP04** MINDKÉT IRÁNY: minden jogadó '
+      + 'táblába író modul szerepel a táblában (egy holnap született író magától piros), és minden '
+      + 'deklarált sor vagy maga ír, vagy KIMONDOTT delegálást mér · **GP05** az ORG-N1a/b '
+      + 'maradék-szövege konkrét utat nevez meg a táblából. Az őr az ELSŐ futásán négy valódi '
+      + 'eltérést talált (a `mutations.mjs` hiányzó besorolását, a `redeemInvite` ki nem mondott '
+      + 'delegálását és mindkét általános maradék-szöveget). AMIRE NINCS GÉPI JEL, KIMONDVA: hogy '
+      + 'egy megírt hiány-mondat TARTALMILAG helyes-e — a GP05 csak azt méri, hogy NEVEZ-E utat.',
+    lesson: 'A MARADÉK IS MÉRÉS. Ha a hiány-szöveg nem nevez meg konkrét utat és konkrét normát, '
+      + 'akkor nem hiány-lista, hanem hangulat — és közben eltakarja azt is, ami már elkészült.',
+  }),
+  Object.freeze({
     id: 'KUKA-195',
     date: '2026-09-19',
     title: 'A HIÁNYZÓ TÖRTÉNETI BIZONYÍTÉKBÓL ENGEDÉLY LETT — ugyanaz a `null` két helyzetet jelölt',

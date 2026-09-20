@@ -3541,6 +3541,53 @@ megenged — a mért tény (a könyv-azonosság) változatlan.
 
 ---
 
+## D-VS-3062 — a jogadási utak nyilvántartása, és a maradék útankénti megnevezése (2026-09-20)
+
+**Parancs:** CMD-VS-300-002-002 R57 (chatgpt-v3 — KÜLSŐ ELLENŐRZŐ FÉL). A külső fél **elfogadta**
+az F55-01 és F55-02 javítását a vizsgált egyírós, szintetikus, megbízható belső kontextusú
+referenciában, és kimondta: az **R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a
+hatókörben lezárt**. Amit ugyanez a mondat NEM enged: az **ORG-N1a/b egésze továbbra is részleges**,
+**req-5-re lépés és core-core lezárás nincs**, és az **elfogadott egész klauzulák száma
+változatlanul 16** — saját szavukkal: *„A részcsomag lezárását nem szabad új egész-klauzulás
+elfogadásként számolni."* A regiszterben ezért a verdikt `partial` maradt, a lezárás a döntés
+INDOKÁBAN áll (KUKA-105).
+
+**A lelet, amit ez a kör javít (KUKA-196).** Az ORG-N1a maradék-szövege így szólt: hiányzik *„az
+ÁLTALÁNOS képviseleti lefedés"*, mert *„a bekötés a MEGHÍVÓ útján él, a többi felhatalmazási útra
+nincs sem alap-hordozás, sem mérés"*. Mérve, ugyanazon a forráson, ez **két ponton már nem volt
+igaz**: a bírálati hatáskör (R53/R55) és az adatköri jogadás (R51) is hordozza ÉS méri az alapot,
+utóbbinál az alap egyenesen **feltétel**. A `NEXT_REQUIRED_EVIDENCE` magyarázata pedig **jelen
+időben** tagadta, hogy a meghívó tárolna határozat-azonosítót, verziót és hatályt — holott az
+`invite_basis` az R37 óta áll. **Megtalálta: a külső ellenőrző fél** (R57 §3), három konkrét
+forrásbeli ellentmondást megnevezve.
+
+**Miért volt ez több elírásnál.** Az általános hiány-mondat **nem mérhető**: nincs olyan munka,
+amiről meg lehetne mondani, hogy teljesíti — és közben eltakarja azt is, ami már elkészült. Külön
+hiba, hogy három különböző dolog mosódott egy mondatba: a **létező út, nem kötelező alappal**
+(operátori döntés), a **létező út, hiányzó bejárattal** (fél lánc), és a **még nem létező
+képesség** (általános szervezeti képviselet).
+
+**A döntés.** A jelenlegi magforrás tényleges jogadási útjai **egyetlen, kódban élő táblába**
+kerülnek (GPR-01, `contracts/grantPathRegistry.js`): belépési pont · adott jog · alap/verzió/hatály
+tárolása · megadási és használati kapu · érintett norma · mi működik és mi hiányzik. A besorolás a
+**tényleges használat** szerint megy: négy **termékbeli jogadási felület** (meghívó kiadása és
+beváltása · bírálati hatáskör · adatköri jogadás), egy **másik út írója** (`grantMembership` — a
+termékben csak a beváltás hívja), három **mérési előkészítő** (tiltás-mátrix · belépési pont-mátrix
+· próbák és mutációk) és egy **sémaszintű tükrözés**. Az ORG-N1a/b maradék-szövege innentől ezeket
+az azonosítókat nevezi meg.
+
+**Amit ez a döntés KIFEJEZETTEN nem tesz meg.** Nem hoz üzleti szabályt az alap nélküli jogadásra és
+a már meglévő, alap nélküli jogokra — ezeket az R57 §4 szerint **operátori döntési pontként** adjuk
+át, a mai viselkedéssel, az érintett utakkal, az alternatívák következményével és ajánlással. Nem
+épít új modult, és nem mond ki új képességet.
+
+**Gépi jel:** `npm run verify:grant-paths` (GP01–GP05) — a jogadó írók halmaza a **forrásból** jön,
+nem kézi listából; a deklarált sor vagy maga ír, vagy **kimondott delegálást** mér; és az ORG-N1a/b
+maradék-szövege **konkrét utat** kell megnevezzen. Az őr az első futásán négy valódi eltérést
+talált. **Amire nincs gépi jel, kimondva:** hogy egy megírt hiány-mondat tartalmilag helyes-e.
+
+---
+
 ## D-VS-3061 — a hiányzó megadáskori verzió zár, és a mérés a saját tárgyát méri (2026-09-19)
 
 **Parancs:** CMD-VS-300-002-002 R55 (chatgpt-v3 — KÜLSŐ ELLENŐRZŐ FÉL). Az R53-as hatásköri

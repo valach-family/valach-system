@@ -120,6 +120,28 @@ export const EXTERNAL_DECISION_SOURCE_R55 = Object.freeze({
   revalidate_on: 'forrás- vagy követelményváltozás az érintett klauzulán',
 });
 
+/**
+ * R57 — AZ F55-01 ÉS F55-02 JAVÍTÁSÁNAK ELFOGADÁSA, SZŰK HATÓKÖRBEN. A külső fél kimondta: az
+ * R53–R56 deklarált alapú bírálati hatásköri javítócsomag EBBEN a hatókörben lezárt — de az
+ * ORG-N1a/b EGÉSZE TOVÁBBRA IS RÉSZLEGES, req-5-re lépés és core-core lezárás NINCS, és az
+ * elfogadott egész klauzulák száma VÁLTOZATLANUL 16. Saját szavukkal: „A részcsomag lezárását nem
+ * szabad új egész-klauzulás elfogadásként számolni." Ezért a verdikt itt `partial` MARAD — a
+ * részcsomag lezárása a döntés INDOKÁBAN áll, nem a klauzula minősítésében (KUKA-105: két
+ * minősítési szintet soha nem mosunk össze).
+ */
+export const EXTERNAL_DECISION_SOURCE_R57 = Object.freeze({
+  round: 'CMD-VS-300-002-002 R57 — ANALYSIS',
+  decided_by: 'chatgpt-v3 (külső ellenőrző fél)',
+  at: '2026-09-20',
+  examined_revision: 'valach-family/valach-system@de47183cd043474c0c385b5f0519e04d2b5ee90a',
+  scope: 'az R53–R56 deklarált alapú bírálati hatásköri javítócsomag a három meglévő műveletre '
+    + '(suspend · adjudicate · alter_right) a vizsgált egyírós, szintetikus, megbízható belső '
+    + 'kontextusú referenciában — NEM a teljes általános szervezeti képviselet, NEM az alap nélkül '
+    + 'adott jogok általános üzleti szabálya, és NEM core-core lezárás',
+  not_a_machine_attestation: true,
+  revalidate_on: 'forrás- vagy követelményváltozás az érintett klauzulán',
+});
+
 /** A regiszter FORRÁSAI, időrendben — a `source` mező ezekre hivatkozik. */
 export const EXTERNAL_DECISION_SOURCES = Object.freeze([
   Object.freeze({ id: 'R37', document: 'v3ref/source-documents/R37_board_v1.md', ...EXTERNAL_DECISION_SOURCE }),
@@ -128,6 +150,7 @@ export const EXTERNAL_DECISION_SOURCES = Object.freeze([
   Object.freeze({ id: 'R51', document: 'v3ref/source-documents/R51_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R51 }),
   Object.freeze({ id: 'R53', document: 'v3ref/source-documents/R53_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R53 }),
   Object.freeze({ id: 'R55', document: 'v3ref/source-documents/R55_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R55 }),
+  Object.freeze({ id: 'R57', document: 'v3ref/source-documents/R57_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R57 }),
 ]);
 
 /** A HÁROM DÖNTÉS-SZÓ ZÁRT HALMAZ — ismeretlen szó nem csúszhat át „valaminek" (KUKA-101). */
@@ -258,6 +281,11 @@ export const EXTERNAL_CLAUSE_DECISIONS_R55 = Object.freeze([
   Object.freeze({ clause: 'ORG-N1b', verdict: 'partial', source: 'R55', reason: 'Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.' }),
 ]);
 
+export const EXTERNAL_CLAUSE_DECISIONS_R57 = Object.freeze([
+  Object.freeze({ clause: 'ORG-N1a', verdict: 'partial', source: 'R57', reason: '**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.' }),
+  Object.freeze({ clause: 'ORG-N1b', verdict: 'partial', source: 'R57', reason: '**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.' }),
+]);
+
 /** A REGISZTER MINDEN DÖNTÉSE, forrással — a történeti sor `source: 'R37'`-et kap. */
 export const ALL_EXTERNAL_DECISIONS = Object.freeze([
   ...EXTERNAL_CLAUSE_DECISIONS.map((d) => Object.freeze({ source: 'R37', ...d })),
@@ -266,6 +294,7 @@ export const ALL_EXTERNAL_DECISIONS = Object.freeze([
   ...EXTERNAL_CLAUSE_DECISIONS_R51,
   ...EXTERNAL_CLAUSE_DECISIONS_R53,
   ...EXTERNAL_CLAUSE_DECISIONS_R55,
+  ...EXTERNAL_CLAUSE_DECISIONS_R57,
 ]);
 
 // A LEGÚJABB DÖNTÉS NYER, DE A RÉGI NEM TŰNIK EL. A sorrend a `EXTERNAL_DECISION_SOURCES` szerinti:
