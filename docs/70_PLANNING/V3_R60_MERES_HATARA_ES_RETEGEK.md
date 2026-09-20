@@ -132,6 +132,13 @@ A magforrás szövege ebben a körben is változott, tehát a korábbi mérés *
 | tanulság-ellenőrzés | 321/321 (KUKA-197 · KUKA-198-cal) |
 | idézet-hűség | 42/42 |
 | norma-csomag ellenpróbája | 25/25 |
+| 19 programos külső lánc | **17 megfelel · 2 nevezett környezeti kihagyás** (`r59` · `r57`, mindkettőnek ZÖLD a darabolt helyettese), 0 eltérő |
+
+**A külső lánc forráskötése TISZTA — mérve, nem állítva.** Az R59 kifogásolta, hogy az előző
+futás forrása `de47183…+uncommitted`, `clean: false` volt. Ezért most a láncot **commit után,
+tiszta munkafán** futtattam: a rögzített forrás `commit: c0fda69e34492a6d3b5b0fb66669cad80d90a92d`,
+`clean: true`, `dirty_files: []`. Tiszta fejkötést **tényleges futás** alapján állítok, nem
+tartalmi hasonlítás alapján.
 
 **Az újragenerált végső csomag visszaolvasva** (F59-03): `measured_from.base_digest` =
 `source_digest_today` = `sha256:d1a96c90…`, `source_bound: true`, 128 láncsor, **42 döntéssor** — a
