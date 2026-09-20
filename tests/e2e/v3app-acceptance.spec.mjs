@@ -310,11 +310,14 @@ test('H06 — Körön túli meghívás/jogadás elutasítva; visszavont, idegen 
     const rev = await revokeUI(anna.page, cili.subjectId);
     const erik = await w.person('erik');
     const oE = await openInviteUI(erik.page, invE.link);
-    const rE = await redeemUI(erik.page);
-    ev.b(`VISSZAVONT alap: Anna a tag-listán megvonja Cilit („${rev.resultText}"); Erik megnyitja a Cili által kiadott függő meghívót → a megfigyelés „${oE.observe.status}", Beváltásra kattint → a lap a válasz-törzset írja ki: ${rE.body.error} / ${rE.body.reason} (a lap mutatja: ${rE.resultText.includes('issuer_right_withdrawn')})`);
-    ev.s(`Megvonás → delegation=${j(rev.body.delegation)}; Erik beváltása → ${rE.status} ${rE.body.error}/${rE.body.reason}; ADATBÁZIS: Erik tagsága ${db.count('SELECT COUNT(*) AS n FROM membership WHERE subject_id = ? AND book_id = ?', erik.subjectId, K.bookId)} sor, a meghívó nem fogyott el (redeemed_at=${db.get('SELECT redeemed_at FROM invite WHERE token = ?', invE.token).redeemed_at})`);
+    // R64 (ellenséges felülvizsgálat H06/H09 után): a megfigyelés MÁR a kiadó mai jogát is méri —
+    // a halott meghívóra a lap nem kínál Beváltás gombot; a nyers kérés is nevezetten elutasít.
+    const rE = await erik.api.post('/api/invites/redeem', { token: invE.token });
+    ev.b(`VISSZAVONT alap: Anna a tag-listán megvonja Cilit („${rev.resultText}"); Erik megnyitja a Cili által kiadott függő meghívót → a megfigyelés „${oE.observe.status}" (${oE.observe.reason}), Beváltás gomb: ${oE.redeemVisible} — a lap nem ígér folytatást`);
+    ev.s(`Megvonás → delegation=${j(rev.body.delegation)}; Erik NYERS beváltási kérése → ${rE.status} ${rE.body.error}/${rE.body.reason}; ADATBÁZIS: Erik tagsága ${db.count('SELECT COUNT(*) AS n FROM membership WHERE subject_id = ? AND book_id = ?', erik.subjectId, K.bookId)} sor, a meghívó nem fogyott el (redeemed_at=${db.get('SELECT redeemed_at FROM invite WHERE token = ?', invE.token).redeemed_at})`);
+    expect(oE.observe.status).toBe('not_actionable'); expect(oE.observe.reason).toBe('issuer_right_withdrawn'); expect(oE.redeemVisible).toBe(false);
     expect(rE.body.reason).toBe('issuer_right_withdrawn');
-    ev.verdictIs('reszben', 'LEJÁRT meghívó a böngészőből nem hajtható meg: a héjnak nincs óra-állító végpontja, és a próba a mag íróit nem hívja (nem gyárt lejárt sort) — a lejárat mag-bizonyítéka: `P-INVITE-window` (v3ref/run.mjs, valódi idő-összehasonlítás, zónás alakon is). A „visszavont" itt a KIADÓ jogának megvonása (külön meghívó-visszavonó végpont a héjban nincs — kimondva). MÉRT LELET: a megfigyelés (`observe`) a csatornát és az ablakot méri, a kiadó MAI jogát nem — ezért a halott meghívóra a lap még Beváltás gombot kínál, és csak a beváltás utasít el nevezetten; jog nem születik, de a felhasználó egy kattintással később tudja meg.');
+    ev.verdictIs('reszben', 'LEJÁRT meghívó a böngészőből nem hajtható meg: a héjnak nincs óra-állító végpontja, és a próba a mag íróit nem hívja (nem gyárt lejárt sort) — a lejárat mag-bizonyítéka: `P-INVITE-window` (v3ref/run.mjs, valódi idő-összehasonlítás, zónás alakon is). A „visszavont" itt a KIADÓ jogának megvonása (külön meghívó-visszavonó végpont a héjban nincs — kimondva). JAVÍTVA EBBEN A KÖRBEN (az ellenséges felülvizsgálat lelete után): a megfigyelés a kiadó MAI jogát is méri — a halott meghívóra a lap nem kínál Beváltás gombot (`not_actionable` / `issuer_right_withdrawn`).');
   } finally { await w.close(); db.close(); }
 });
 
@@ -418,8 +421,10 @@ test('H09 — Megvonás után új kérés és függő meghívó nem használhatj
     ev.s(`Cili: GET /api/data/stock → ok=${stC.body.ok} ${stC.body.reason}/${stC.body.detail}; váltás a családi könyvre → ${swC.status} ${swC.body.reason}/${swC.body.detail}; /api/me munkakörnyezetei: ${meC.workspaces.map((x) => `${x.name} (${x.role})`).join(', ')}`);
     expect(stC.body).toMatchObject({ ok: false, reason: 'not_a_member', detail: 'membership_revoked' }); expect(swC.status).toBe(403);
     const oD = await openInviteUI(dani.page, invD.link);
-    const rD = await redeemUI(dani.page);
-    ev.b(`Dani megnyitja a Cili által kiadott FÜGGŐ meghívót → „${oD.observe.status}" → Beváltás → „${rD.body.reason}"`);
+    // R64: a megfigyelés a kiadó mai jogát is méri — a lap nem kínál Beváltás gombot; a nyers kérés is elutasít.
+    const rD = await dani.api.post('/api/invites/redeem', { token: invD.token });
+    ev.b(`Dani megnyitja a Cili által kiadott FÜGGŐ meghívót → „${oD.observe.status}" (${oD.observe.reason}), Beváltás gomb: ${oD.redeemVisible}; nyers beváltási kérés → „${rD.body.reason}"`);
+    expect(oD.observe.status).toBe('not_actionable'); expect(oD.redeemVisible).toBe(false);
     ev.s(`Dani beváltása → ${rD.status} ${rD.body.error}/${rD.body.reason}; ADATBÁZIS: Cili delegálási alapja visszavonva (revoked_at=${db.get('SELECT revoked_at FROM authority_basis WHERE basis_id = ? AND book_id = ?', `deleg:${K.bookId}:${cili.subjectId}`, K.bookId).revoked_at !== null}); megvonás-napló: ${db.count('SELECT COUNT(*) AS n FROM membership_revocation WHERE subject_id = ? AND book_id = ?', cili.subjectId, K.bookId)} sor; Dani tagsága: ${db.count('SELECT COUNT(*) AS n FROM membership WHERE subject_id = ? AND book_id = ?', dani.subjectId, K.bookId)} sor`);
     expect(rD.body.reason).toBe('issuer_right_withdrawn');
     // FÜGGETLEN jogok: Béla adatköre él, Cili SAJÁT tere él.

@@ -280,11 +280,14 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     expect(db.get('SELECT revoked_at FROM authority_basis WHERE basis_id = ? AND book_id = ?', `deleg:${companyBook}:${cili.subjectId}`, companyBook).revoked_at).not.toBeNull();
     erik = await world.person('erik');
     const o = await openInviteUI(erik.page, erikInvite.link);
-    expect(o.redeemVisible).toBe(true);           // a megfigyelés a csatornát és az ablakot méri — a kiadó jogát a BEVÁLTÁS
-    const r = await redeemUI(erik.page);
+    // R64 (az ellenséges felülvizsgálat után): a megfigyelés a kiadó MAI jogát is méri — a lap nem
+    // ígér folytatást és nem kínál gombot; a nyers beváltási kérés ugyanazzal az okkal utasít el.
+    expect(o.observe.status).toBe('not_actionable');
+    expect(o.observe.reason).toBe('issuer_right_withdrawn');
+    expect(o.redeemVisible).toBe(false);
+    const r = await erik.api.post('/api/invites/redeem', { token: erikInvite.token });
     expect(r.status).toBe(403);
     expect(r.body).toMatchObject({ ok: false, error: 'invite_not_actionable', reason: 'issuer_right_withdrawn' });
-    expect(r.resultText).toContain('issuer_right_withdrawn');
     expect(db.count('SELECT COUNT(*) AS n FROM membership WHERE subject_id = ? AND book_id = ?', erik.subjectId, companyBook)).toBe(0);
     expect(db.get('SELECT redeemed_at FROM invite WHERE token = ?', erikInvite.token).redeemed_at).toBeNull();
     // Független jog nem szűnik meg: Dani (Anna hívta) továbbra is tag, Anna továbbra is admin.

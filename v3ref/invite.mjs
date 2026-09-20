@@ -292,6 +292,22 @@ export function observeInvite({ store, token, viewerSubjectId, clock }) {
     });
   }
 
+  // A KIADÓ MAI JOGA IS A „MIT LEHET MOST" RÉSZE (KUKA-064 · az R64 ellenséges felülvizsgálat
+  // H06/H09 lelete): a megvont kiadó függő meghívójára a lap eddig folytatást ígért („jelentkezz
+  // be, és a meghívás folytatódik"), amit a beváltás azonnal elutasított. A címzett birtokolja a
+  // csatornát, tehát neki megmondani a helyes válasz — ugyanazzal a feloldóval, amit a beváltás hív.
+  const issuer = inviteGrantAt({ store, invite: inv, clock });
+  if (!issuer.ok) {
+    return Object.freeze({
+      status: 'not_actionable',
+      message: 'ehhez a hivatkozáshoz most nem tartozik beváltható meghívás',
+      continue_as: { namespace: inv.invitee_namespace, hint: maskHint(inv.invitee_value) },
+      switch_account_offered: false,
+      account_exists: null,
+      reason: issuer.reason,
+    });
+  }
+
   const holders = addressHolders(store, inv.invitee_namespace, inv.invitee_value, clock.now());
   const target = holders.live.length === 1 ? holders.live[0] : null;
   const accountState = accountStateFor(store, target);

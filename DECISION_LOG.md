@@ -3589,7 +3589,19 @@ a mini-modulok közös alapja RÉSZBEN · üzemi használat NEM bizonyított.
 ítélete (a lánc első lépésének bukása kivételként jelent meg) a KUKA-187 osztálya — javítva (a bukás
 állítás-bukás); az OB-szövegek elévülése a KUKA-050.
 
-**Gépi jel:** `node v3ref/run.mjs` (62 próba, P-CORE 7 állítás) · `npm run verify:v3ref` (M196–M205) ·
+**ELLENSÉGES FELÜLVIZSGÁLAT UGYANEBBEN A KÖRBEN — és amit ebből javítottunk:** tizennégy független
+szkeptikus a 14 helyzetre; a mag jogosultsági döntését egyik sem döntötte meg, de három R63-as
+részszabály hiányát és több díszfeliratot/mérési rést talált. Javítva, saját próbával: a beváltás a
+KIADÁSKORI alapon túl a MAI érvényességet is méri (`basis_not_in_effect_at_redemption`, M206) · a
+megfigyelés a kiadó mai jogát is méri, halott meghívóra nem ígér folytatást (M207) · az ár-nézet a
+jog-kaput kiadás NÉLKÜL méri, kiadás csak ha mindkét kapu enged · nevezett 400 az ismeretlen tervre
+és az üres adószámra · `/api/me` hozza a vállalkozási minőséget · generáció-őr a kliens adat-gombjain ·
+MEGENGEDŐ szabály a kliens-mezőkre · a több-folyamatos mérő MINDKÉT sorrendet megköveteli. A pecsét
+adatkörének „plafon" felirata a valóságra javítva (a szűkítő átvitelt MÉRTÜK: a delegálási láncot
+törte volna — nem az). Részletek: a jelentés 5/b. szakasza. **Nincs új KUKA-bejegyzés ezekre** —
+a leletek a KUKA-024 · 015/041 · 064 · 057 · 054/093 osztályaiba esnek.
+
+**Gépi jel:** `node v3ref/run.mjs` (62 próba, P-CORE 7 állítás) · `npm run verify:v3ref` (M196–M207) ·
 `npm run app:selfcheck` (57/57) · `npm run proof:core-ux` · `npm run proof:multiconn` (40/40) ·
 `npm run verify:grant-paths` (12/12 + 3/3) · `npm run verify:kuka` (KUKA-199) ·
 `npm run verify:external-decisions` (az R63 forrás bejegyezve, elfogadást nem hordoz).

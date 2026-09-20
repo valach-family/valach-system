@@ -130,11 +130,47 @@ ilyen a csomagban nincs.
 | H13 | Kezdő jogosultság, alap nélküli történeti sor, szabályos új felhatalma… | nem böngészőben | 1 tétel — A felületen nincs bírálati / hatásköri vezérlő: a lap hat szakasza fiók · munkakörnyezet · munkatársak · adato… | 1 tétel — A héjban nincs bírálati végpont (mérve): /api/adjudicate → 404 unknown_endpoint; /api/claims → 404 unknown_end… | A négy külön eredmény (kezdő jog · alap nélküli történeti sor · szabályos új felhatalmazás · jogosulatlan bírálói önfeljogosítás) a magban mérve áll: `P-CORE-startup-and-delegation` (e) — a helyi admin az indulási alapra hivatkozv… |
 | H14 | Két valódi kapcsolat meghívóbeváltási és megvonás–véglegesítési versen… | nem böngészőben | 1 tétel — A böngésző-próba EGY szerver-folyamattal beszél, amely EGY tároló-kapcsolatot tart: két VALÓDI, külön OS-folya… | 1 tétel — A többkapcsolatos bizonyíték szerszáma a repóban áll (mérve): tools/v3_multiconn_proof.mjs létezik=true; packa… | Bizonyíték: `npm run proof:multiconn` (tools/v3_multiconn_proof.mjs, MCN-01) — két külön gyermek-folyamat, saját `openStoreAt` kapcsolattal, WAL-naplón: (1) ugyanazt a meghívót egyszerre váltják be → pontosan EGY tagság, a vesztes… |
 
-A teljes bizonyíték-szöveg soronként (böngésző · szerver külön): `docs/70_PLANNING/V3_R64_ELFOGADAS_HELYZETEK.json` (saját futás, 2026-09-20; a generált másolat a `var/reports` alatt). **Ítéletek: 10 bizonyítva · 2 részben (H06, H09: a LEJÁRT ág a héjból nem hajtható meg — mag-bizonyíték `P-INVITE-window`) · 2 nem böngészőben (H13 mag-próba, H14 `proof:multiconn`).**
+A teljes bizonyíték-szöveg soronként (böngésző · szerver külön): `docs/70_PLANNING/V3_R64_ELFOGADAS_HELYZETEK.json` (saját futás, 2026-09-20; a generált másolat a `var/reports` alatt). **Ítéletek: 10 bizonyítva · 2 részben (H06, H09: a LEJÁRT ág a héjból nem hajtható meg — mag-bizonyíték `P-INVITE-window`) · 2 nem böngészőben (H13 mag-próba, H14 `proof:multiconn`).** A tábla az ellenséges felülvizsgálat UTÁNI, javított futás eredménye (27/27); a felülvizsgálat leletei és javításai az 5/b. szakaszban.
 
 **Közös jóváhagyás (10. helyzet):** a magban NINCS kétszemélyes jóváhagyás — mérve: a `v3ref/`
 egyetlen írója sem kér második jóváhagyót; ez **tényleges hiány**, nem beállítás kérdése, és a
 lezárási listán áll.
+
+## 5/b. Ellenséges felülvizsgálat a 14 helyzeten — mit talált, mit javítottunk, mi maradt
+
+Tizennégy független szkeptikus (egy helyzet — egy ügynök) kapta a feladatot, hogy **cáfolja** a
+bizonyítékot: kód-olvasással és saját kis próbákkal (a battéria és a külső lánc futtatása tiltva volt).
+Eredmény: 7 helyzetet „cáfoltnak" jelöltek — **egyik sem a mag jogosultsági döntését** döntötte meg
+(adat idegen kézbe egyetlen úton sem került), hanem a BIZONYÍTÉK alakját, a képernyő ígéretét, vagy egy
+R63-ban kimondott, de meg nem épített részszabályt. **Ugyanebben a körben javítva, saját próbával:**
+
+| Lelet (helyzet) | Mi volt | Javítás | Gépi jel |
+|---|---|---|---|
+| **beváltáskori érvényesség** (H09) | a beváltás csak a KIADÁSKORI alaphoz mért; a közben visszavont delegálási alapon kiadott meghívó beváltható maradt, amíg a kiadó tagsága élt — az R63 §4 „beváltáskori aktuális érvényesség kötelező" mondata dísz volt (KUKA-024) | `redemptionLimitGate` a MAI napra is mér: `basis_not_in_effect_at_redemption`; új alap-verzióval a következő meghívó megint működik (pozitív ellenpár) | P-CORE (d) · **M206** |
+| **halott meghívó a lapon** (H06 · H09) | a megfigyelés a kiadó mai jogát nem mérte: a megvont admin függő meghívójára a lap „jelentkezz be, és a meghívás folytatódik"-ot ígért, gombbal, amit a beváltás rögtön elutasított (KUKA-064) | `observeInvite` ugyanazt a feloldót hívja, mint a beváltás: `not_actionable` / `issuer_right_withdrawn`, gomb nélkül | P-CORE (d) · **M207** · e2e H06/H09 |
+| **„adatkör-plafon" felirat** (H06 · H07) | a képernyő és a levél plafont ígért a meghívó adatkörére, a gép az alap teljes korlátját vitte át — a pipa dísz volt (KUKA-015/041). MÉRTÜK a szűkítő alakot is: a pecsét szerepére/adatkörére szűkített átvitel a delegálási láncot törte volna | a felirat a valóságot mondja: „a meghívás tárgya — a jogot beváltás után külön adod meg"; a cél tag átvitt plafonja a jogadásnál is kapu (`outside_transferred_limit`) | delegation.mjs · e2e |
+| **kiadás az előfizetés-kapu előtt** (H11) | az ár-nézet ELŐBB olvasta ki a mintát (a mag kiadásként könyvelte), és csak utána kérdezte az előfizetést | a jog-kapu kiadás NÉLKÜL mérve (`scopeReleaseDecision`), kiadás csak ha mindkét kapu enged | selfcheck · e2e H11 |
+| **ismeretlen terv / üres adószám → 500** (H11 · H03) | a létrehozás bejáratán az ismeretlen terv és az üres adószám programhibaként (500) jelent meg | nevezett 400: `unknown_plan` · `tax_id_value_required` | selfcheck · e2e |
+| **a vállalkozási minőségnek nem volt olvasója** (H03) | `businessIdentityOf` importálva, de egyetlen végpont sem hívta (KUKA-015) | a `/api/me` minden könyv mellett hozza (névtér · joghatóság · igazolás) | e2e H03 |
+| **váltási verseny a kliensen** (H08) | egy lassú adat-válasz a már átváltott cég paneljébe írhatta a régi cég adatát; egy második lap a nyitáskori céget mutatta | generáció-őr az adat-gombokon + a fejléc frissítése minden adat-kérés előtt | app.js · e2e H08 |
+| **tiltó felsorolás a kliens-mezőkre** (H08, KUKA-057) | nyolc írásmód volt felsorolva; más írásmód (`bookId`, `tenant_id`) némán maradt | MEGENGEDŐ szabály: minden végpont kimondja, mit fogad, minden más `param_ignored` | server.mjs · e2e H08 |
+| **egyoldalú sorrend a mérőben** (H14) | nyugodt gépen a megvonás mindig előbb ért célba; a „parancs előbb" ág mérése elmaradt, a szerszám mégis zöldet adott (KUKA-054/093) | mindkét sorrend KÖTELEZŐ (különben HIÁNYOS MÉRÉS, kilépés 3); a megvonó munkás páros menetekben 1–5 ms lépcsőt kap — a fixtúra időzítése, nem a mag | proof:multiconn (12/8 sorrend, 40/40) |
+| **ismeretlen joghatóság két írásmódon** (H12) | `''` → `unknown`, `'unknown'` → `UNKNOWN` | egy írásmód: `UNKNOWN` (KUKA-029) | externalId.mjs |
+
+**Amit a szkeptikusok találtak, és NEM javítottunk — nevesítve:** a `/dev/mailbox` globális, hitelesítés
+nélküli (fejlesztői fogadó, a lap és az útmutató kimondja — élesben nem létezhet) · a delegálási plafon
+részhalmaz-mérése üres bizonyíték, mert a zárt regiszter kéttagú és az indulási szabály teljes — a
+szűkülő lánc csak nagyobb regiszterrel mérhető (L2/L10) · a `recordAuthorityBasis` nyers írónak nincs
+eljáró-kapuja (a mag hatóköre; a héj nem hív ilyet — `later_adapter_surface`) · a H02 „más céges jogai
+változatlanok" a böngésző-próbában üres alapsokaságon állt (a mag-szintű saját próba zárta: a beváltás
+csak a cél-könyv tagságát írja) · a H07 „számla · beszállítói" adatosztály a kéttagú szótárban nem létezik
+— ott a helyes szó „nincs alkalmazható eset", és a lap ezt kimondja · H13 négy eredménye a magban áll, a
+héjból nem mérhető (nincs bírálati végpont) · a szkeptikusok maguk sem futtatták a battériát — a
+cáfolatok kód-olvasásból és kis próbákból jöttek; a végső bizonyíték az itt felsorolt gépi jelek zöldje.
+
+**Nincs új KUKA-bejegyzés ezekre, kimondva:** a leletek a meglévő osztályokba esnek (KUKA-024 a két
+időpontra · KUKA-015/041 a díszfeliratra · KUKA-064 a zsákutcára · KUKA-057 a tiltó felsorolásra ·
+KUKA-054/093 a mérő egyoldalúságára); a KUKA-199 marad az egyetlen új tanulság.
 
 ## 6. Az eltéréslista (R63 §5.1) és a helyesbített OB-szövegek
 

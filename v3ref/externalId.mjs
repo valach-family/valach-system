@@ -50,7 +50,9 @@ export function profileFor(jurisdiction) {
   const j = String(jurisdiction || '').trim().toUpperCase();
   const known = JURISDICTION_PROFILES[j];
   if (known) return frozen({ jurisdiction: j, ...known });
-  return frozen({ jurisdiction: j || 'unknown', ...PROFILE_SHAPE, known: false, namespaces: frozen([]) });
+  // Az üres és a beírt „unknown" ugyanaz az ismeretlen — EGY írásmódon (KUKA-029: minden olvasó
+  // a gyógyított alakot nézze; az R64 ellenséges felülvizsgálat H12 lelete).
+  return frozen({ jurisdiction: j || 'UNKNOWN', ...PROFILE_SHAPE, known: false, namespaces: frozen([]) });
 }
 
 /**

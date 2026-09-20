@@ -149,6 +149,20 @@ export function redemptionLimitGate({ store, invite, knownAt }) {
   if (canonicalLimit(verdict.limit) !== String(s.sealed_limit)) {
     return frozen({ ok: false, basis_declared: true, reason: 'sealed_limit_differs_from_basis', limit: verdict.limit, seal: s });
   }
+  // R63 §4 — „a beváltáskori aktuális érvényesség kötelező": a kiadáskori alap MA is hatályos legyen.
+  // A fenti mérés a KIADÁS idejére szól (validAt = issued_at); egy közben visszavont alap ott még
+  // hatályosnak látszik. Ez a második mérés a MAI napra kérdez — a KUKA-024 viszony-elve: a két
+  // időpont külön tény (az R64 ellenséges felülvizsgálat H09 lelete).
+  const nowB = basisAsOf({ store, basisId: s.basis_id, bookId: invite.book_id, validAt: knownAt, knownAt });
+  if (nowB.in_effect !== true) {
+    return frozen({ ok: false, basis_declared: true, reason: 'basis_not_in_effect_at_redemption', detail: nowB.reason, limit: verdict.limit, seal: s });
+  }
+  // AZ ÁTVITT KORLÁT AZ ALAP PLAFONJA (a kiadó továbbadható joga a kiadás pillanatában) — NEM a
+  // pecsét egyetlen adatköre. Az R64 ellenséges felülvizsgálat (H06/H07) lelete után ezt MÉRTÜK:
+  // a pecsét szerepére/adatkörére szűkített átvitel a delegálási láncot törte volna (egy admin-nak
+  // meghívott tag csak admint hívhatott volna), és az adatkör későbbi, jogos bővítését is zárta
+  // volna. A pecsét adatköre a MEGHÍVÁS TÁRGYA (amit a kezelő megadni szándékozik), nem plafon —
+  // a képernyő és a levél ezt mondja (KUKA-050), a jogot a kezelő KÜLÖN lépése adja (K05-DSC-c).
   return frozen({ ok: true, basis_declared: true, reason: 'within_basis', limit: verdict.limit, seal: s });
 }
 

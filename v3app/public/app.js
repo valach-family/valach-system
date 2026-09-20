@@ -17,7 +17,7 @@
     return { status: res.status, ...json };
   }
 
-  const state = { me: null, inviteToken: new URL(location.href).searchParams.get('invite') };
+  const state = { me: null, generation: 0, inviteToken: new URL(location.href).searchParams.get('invite') };
 
   // ── FEJLÉC + LÁTHATÓSÁG ───────────────────────────────────────────────────────────────────────
   function renderMe() {
@@ -72,6 +72,7 @@
   }
 
   async function switchWorkspace(bookId) {
+    state.generation += 1;
     clearPanels();
     const r = await api('POST', '/api/session/workspace', { book_id: bookId });
     notice(r.ok ? `Munkakörnyezet: ${r.name || r.book_id} (${r.role})` : `Váltás elutasítva: ${r.reason} — ${r.message || ''}`, !r.ok);
@@ -192,8 +193,21 @@
     if (r.param_ignored) lines.push(`(figyelmen kívül hagyott kliens-mezők: ${r.ignored_params.join(', ')})`);
     return lines.join('\n');
   }
-  $('#btn-stock').addEventListener('click', async () => { text(byTest('data-stock'), '…'); text(byTest('data-stock'), gateText(await api('GET', '/api/data/stock'))); });
-  $('#btn-price').addEventListener('click', async () => { text(byTest('data-price'), '…'); text(byTest('data-price'), gateText(await api('GET', '/api/data/price'))); });
+  // GENERÁCIÓ-ŐR (KUKA-046 · az R64 ellenséges felülvizsgálat H08 lelete): ha a válasz megérkezése
+  // ELŐTT munkakörnyezetet váltottak, a régi cég válasza nem írható az új cég paneljébe. Minden
+  // váltás lépteti a számlálót; a késve érkező válasz a saját generációját hasonlítja a maihoz.
+  async function fetchData(path, testId) {
+    // A FEJLÉC ELŐBB FRISSÜL (ugyanaz a munkamenet egy másik lapon már válthatott): a kérés a
+    // SZERVER mai könyvére megy, és a lap ezt mutatja, nem a nyitáskori állapotot.
+    await refreshMe();
+    const gen = state.generation;
+    text(byTest(testId), '…');
+    const r = await api('GET', path);
+    if (gen !== state.generation) return;   // közben váltottak — a válasz elavult, nem rajzoljuk
+    text(byTest(testId), gateText(r));
+  }
+  $('#btn-stock').addEventListener('click', () => fetchData('/api/data/stock', 'data-stock'));
+  $('#btn-price').addEventListener('click', () => fetchData('/api/data/price', 'data-price'));
 
   // ── (5) MEGHÍVÓ ───────────────────────────────────────────────────────────────────────────────
   async function observeInvite() {

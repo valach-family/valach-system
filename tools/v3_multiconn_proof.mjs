@@ -200,6 +200,7 @@ function runWorker(job) {
     const trace = traceTransactions(store);
     emit({ phase: 'ready', worker: job.name, role: job.role, pid: process.pid, journal_mode: String(Object.values(jm)[0]) });
     if (!spinUntilExists(job.goFile, Date.now() + BARRIER_TIMEOUT_MS)) throw new Error('a rajt-fájl nem érkezett meg időben');
+    if (job.delay_ms) { const until = nowMs() + job.delay_ms; while (nowMs() < until) { /* lépcsőztetett rajt */ } }
     const clock = wallClock();
     const observed = observeBefore(store, job);
     const t0 = nowMs();
@@ -532,7 +533,17 @@ async function runAttempt(scenario, iteration, attempt, { keep }) {
     // A RAJT-SORREND VÁLTAKOZIK: páratlan menetben B indul előbb — így nem az indítás sorrendje
     // választja meg a nyertest, és mindkét sorrend esélyt kap (a mintavétel ne igazolja vissza önmagát).
     if (iteration % 2 === 0) jobs.reverse();
-    record.spawn_order = jobs.map((j) => j.name).join('→');
+    // A MEGVONÁS-ÁG LÉPCSŐZTETÉSE (az R64 ellenséges felülvizsgálat H14 lelete): nyugodt gépen a
+    // megvonás rövidebb útja MINDIG előbb ér célba, tehát a „parancs előbb" sorrend mérése elmaradt
+    // volna. Páros menetekben a megvonó munkás a rajt UTÁN néhány ms-ot vár — ez a FIXTÚRA
+    // időzítése (a rajt része), nem a mag viselkedése; a sor-invariánsok változatlanul mérve.
+    if (scenario === 'revoke' && iteration % 2 === 0) {
+      const rj = jobs.find((j) => j.role === 'revoke');
+      // 1–5 ms; az újrapróbálásnál CSÖKKEN (a túl nagy lépcső mellett a parancs a megvonás előtt teljesen
+      // lefut, és a menet nem versengett — mérve: +8 ms-tól már nem volt verseny).
+      rj.delay_ms = Math.max(0, 1 + ((iteration / 2) % 5) - (attempt - 1) * 2);
+    }
+    record.spawn_order = jobs.map((j) => `${j.name}${j.delay_ms ? `(+${j.delay_ms}ms)` : ''}`).join('→');
     const workers = await runRace({ goFile, jobs });
     const v = scenario === 'redeem' ? verifyRedeem(dbPath, workers, process.pid) : verifyRevoke(dbPath, workers, process.pid, world);
     record.checks = v.checks;
@@ -669,7 +680,17 @@ async function main() {
   const revoke = await runScenario('revoke', iterations, { keep });
   summary(redeem, revoke, iterations);
   const allOk = [...redeem, ...revoke].every((r) => r.verdict === 'ok');
-  console.log(`RESULT: ${allOk ? 'PASS' : 'FAIL'} — ${redeem.length + revoke.length} menet, ${[...redeem, ...revoke].filter((r) => r.verdict === 'ok').length} OK`);
+  // MINDKÉT SORREND KÖTELEZŐ (az R64 ellenséges felülvizsgálat H14 lelete): ha a megvonás MINDIG
+  // előbb ér célba, a „parancs előbb, utána a visszaolvasás elutasítva" ág mérése HIÁNYZIK, és a
+  // zöld a saját gép ütemezését igazolná vissza (KUKA-054 · KUKA-093). Ilyenkor a mérés nem zöld,
+  // hanem HIÁNYOS — nevezett kilépési kóddal.
+  const orderings = new Set(revoke.filter((r) => r.witness && r.witness.ordering).map((r) => r.witness.ordering));
+  const bothOrders = orderings.has('revoke_before_command') && orderings.has('command_before_revoke');
+  if (allOk && !bothOrders) {
+    console.log(`RESULT: HIÁNYOS MÉRÉS — minden menet OK, de a megvonás ↔ véglegesítés versenyben csak EGY sorrend fordult elő (${[...orderings].join(', ') || 'egyik sem'}); a másik ág mérése hiányzik — futtasd újra (--n=<több menet>)`);
+    process.exit(3);
+  }
+  console.log(`RESULT: ${allOk ? 'PASS' : 'FAIL'} — ${redeem.length + revoke.length} menet, ${[...redeem, ...revoke].filter((r) => r.verdict === 'ok').length} OK${allOk ? ' · mindkét sorrend mérve' : ''}`);
   if (!allOk) console.log('A hibás menetek fájljai (verdict=HIBA) a var/tmp alatt maradnak a diagnózishoz.');
   process.exit(allOk ? 0 : 1);
 }

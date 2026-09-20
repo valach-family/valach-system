@@ -137,6 +137,16 @@ export function grantScopeToMember({ store, granterSubjectId, bookId, targetSubj
   if (!basis.ok) return frozen({ ok: false, reason: basis.reason });
   const m = membershipAsOf({ store, subjectId: targetSubjectId, bookId, validAt: at, knownAt: at });
   if (m.effective !== true) return frozen({ ok: false, reason: 'target_not_a_member', detail: m.reason });
+  // A CÉL TAG SAJÁT PLAFONJA IS KAPU (R63 §5.3/7 · az R64 ellenséges felülvizsgálat H06/H07/H10
+  // lelete): a beváltáskor átvitt korlát (a pecsételt adatkör) szűkíti, mit kaphat — a kezelő
+  // tágabb alapja sem írja felül. Az indulási (bootstrap) tagságnak a teljes szabály a plafonja.
+  const target = parentBasisOfMembership({ store, subjectId: targetSubjectId, bookId, at });
+  if (target.ok && target.origin === 'grant_basis' && KNOWN_DATA_SCOPES.includes(scope)) {
+    const tScopes = Array.isArray(target.limit.scopes) ? target.limit.scopes : [];
+    if (!tScopes.includes(scope)) {
+      return frozen({ ok: false, reason: 'outside_transferred_limit', scope, ceiling: tScopes, message: `a tag átvitt plafonja: ${tScopes.join(' · ') || '(üres)'}` });
+    }
+  }
   const g = grantReadScope({
     store, subjectId: targetSubjectId, bookId, scope, basisId: basis.basis_id, basisVersion: basis.version,
     grantedBy: granterSubjectId, effectiveAt: at, recordedAt: at, knownAt: at,

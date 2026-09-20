@@ -41,7 +41,7 @@ import { submitCommand, readCommandResult, commandRef, canonicalize, CanonError,
 // REV-N2a/b (BIT-01): a két idő-tengely és a felülvizsgálati kör — a próbák a TERMÉK feloldóit
 // hívják, nem a másolatukat (KUKA-009).
 import { membershipAsOf, recordRetroactiveInvalidity, reviewCircleFor, reviewCircleState, closeReviewCircle, grantMembership } from './bitemporal.mjs';
-import { recordAuthorityBasis, basisAsOf, withinBasis, basisState, LIMIT_ENFORCED_PATHS } from './authorityBasis.mjs';
+import { recordAuthorityBasis, basisAsOf, withinBasis, basisState, LIMIT_ENFORCED_PATHS, revokeAuthorityBasis } from './authorityBasis.mjs';
 import {
   issueInviteUnderBasis, redemptionLimitGate, inviteBasisSeal, grantBasisFor, limitVerdict,
   INVITE_ISSUE_OPERATION, requiredAxesFor, ADJUDICATION_LIMIT_OPERATIONS,
@@ -3549,7 +3549,24 @@ probe('P-CORE-startup-and-delegation', 'R63 §4 · §5.2 · §5.3 · K02 · K03 
       const danielRed = redeemInvite({ store, token: 'inv_daniel', actingSubjectId: 'daniel', clock: clock(T.d4) });
       const belaAfter = rightAt({ store, subjectId: 'bela', bookId: 'csalad', opClass: 'own_book', nowIso: T.d4 });
       const ciliDeleg = basisAsOf({ store, basisId: 'deleg:csalad:cili', bookId: 'csalad', validAt: T.d4, knownAt: T.d4 });
+      // A MEGFIGYELÉS A KIADÓ MAI JOGÁT IS MÉRI (R64 ellenséges felülvizsgálat H06/H09): a megvont
+      // Cili függő meghívójára a lap nem ígérhet folytatást — ugyanazt a feloldót hívja, mint a beváltás.
+      const danielObs = observeInvite({ store, token: 'inv_daniel', viewerSubjectId: 'daniel', clock: clock(T.d4) });
+      // A BEVÁLTÁSKORI ÉRVÉNYESSÉG KÜLÖN TÉNY (R63 §4 · R64/H09): Anna admin MARAD, de a delegálási
+      // ALAPJÁT visszavonjuk — a kiadáskor még hatályos alapon kiadott meghívó ma nem váltható be;
+      // a következő meghívó új alap-verzióval megint működik (pozitív ellenpár, KUKA-054).
+      inviteColleague({ store, inviterSubjectId: 'anna', bookId: 'csalad', inviteeEmail: 'zsofi@pelda.hu', offeredRole: 'user', scope: 'keszlet', token: 'inv_zsofi', expiresAt: '2026-04-01T00:00:00.000Z', at: T.d2 });
+      const annaBasisRevoked = revokeAuthorityBasis({ store, basisId: 'deleg:csalad:anna', bookId: 'csalad', at: T.d3 });
+      person('zsofi', 'zsofi@pelda.hu', T.d3).redeem();
+      const zsofiRed = redeemInvite({ store, token: 'inv_zsofi', actingSubjectId: 'zsofi', clock: clock(T.d4) });
+      const annaStillAdmin = rightAt({ store, subjectId: 'anna', bookId: 'csalad', opClass: 'own_book', nowIso: T.d4 });
+      const inv2 = inviteColleague({ store, inviterSubjectId: 'anna', bookId: 'csalad', inviteeEmail: 'zsofi@pelda.hu', offeredRole: 'user', scope: 'keszlet', token: 'inv_zsofi2', expiresAt: '2026-04-01T00:00:00.000Z', at: T.d4 });
+      const zsofiRed2 = redeemInvite({ store, token: 'inv_zsofi2', actingSubjectId: 'zsofi', clock: clock(T.d4) });
       const dOk = ciliRed.ok === true && ciliInvites.ok === true
+        && danielObs.status === 'not_actionable' && danielObs.reason === 'issuer_right_withdrawn'
+        && annaBasisRevoked.ok === true && annaStillAdmin.allowed === true
+        && zsofiRed.ok === false && zsofiRed.error === 'invite_outside_basis' && zsofiRed.reason === 'basis_not_in_effect_at_redemption'
+        && inv2.ok === true && Number(inv2.basis_version) > 1 && zsofiRed2.ok === true
         && revoke.ok === true && revoke.changed === true
         && delegRevoked.ok === true && delegRevoked.reason === 'basis_revoked'
         && ciliAfter.allowed === false && ciliAfter.reason === 'membership_revoked'
@@ -3632,7 +3649,7 @@ probe('P-CORE-startup-and-delegation', 'R63 §4 · §5.2 · §5.3 · K02 · K03 
         actual: `(a) csatorna nélkül=${unproven.reason} · munkakör=${ws.ok}/${ws.basis_id}@v${ws.basis_version} · alter_right=${annaAlter.allowed} adjudicate=${annaAdjudicate.reason}`
           + ` · (b) adatkör nélkül=${noScope.reason} · rossz szerep=${badRole.reason} · meghívó=${inv.ok}/${inv.basis_id} · nyom=${inviteRows.join(',')}`
           + ` · (c) megfigyelés=${obsBefore.status}→${obsAfter.status} · beváltás=${red.shape}/jog=${red.read_scope_granted} · keszlet előtte=${belaStockBefore.reason} utána=${belaStock.allowed} · arak=${belaPrice.reason} · ismét=${again.ok}`
-          + ` · (d) megvonás=${revoke.reason} · delegálás=${delegRevoked.reason} · cili=${ciliAfter.reason} · dániel=${danielRed.reason} · béla=${belaAfter.allowed}`
+          + ` · (d) megvonás=${revoke.reason} · delegálás=${delegRevoked.reason} · cili=${ciliAfter.reason} · dániel=${danielRed.reason} · dániel megfigyelés=${danielObs.status}/${danielObs.reason} · béla=${belaAfter.allowed} · zsófi (visszavont alap, élő admin)=${zsofiRed.error}/${zsofiRed.reason} · új alap v${inv2.basis_version}=${zsofiRed2.ok}`
           + ` · (e) önfeljogosítás=${selfAppoint.ok ? 'ÁTMENT(!)' : 'elutasítva'}/${adjRows} sor`
           + ` · (f) HU=${sameHu.subjects.length} alany · AT=${sameAt.subjects.length} · ernő a családban=${ernoInCsalad.reason} · starter=${gateStarter.refused_by} · pro=${gatePro.allowed} · béla ár=${gateBela.refused_by}`
           + ` · (g) nyers újrapecsét (2. kapcsolat, recursive_triggers=${rawRecursive})=${reseal.ok ? 'ÁTMENT(!)' : 'elutasítva'} · sor változatlan=${gbAfter && gb && gbAfter.granted_limit === gb.granted_limit}`,

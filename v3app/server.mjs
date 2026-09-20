@@ -31,6 +31,7 @@ import { observeInvite, redeemInvite, rememberIntent, resumeIntent } from '../v3
 import { rightAt, revokeMembership, KNOWN_ROLES } from '../v3ref/authz.mjs';
 import { submitCommand, readCommandResult } from '../v3ref/command.mjs';
 import { KNOWN_DATA_SCOPES } from '../v3ref/resultScope.mjs';
+import { scopeReleaseDecision } from '../v3ref/releaseScope.mjs';
 import { entitlementFor, twoGateVerdict, setEntitlementProfile, PLANS } from '../v3ref/entitlement.mjs';
 import { attachBusinessIdentity, businessIdentityOf, JURISDICTION_PROFILES } from '../v3ref/externalId.mjs';
 import { membershipAsOf } from '../v3ref/bitemporal.mjs';
@@ -155,8 +156,10 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
     const at = clock.now();
     const m = membershipAsOf({ store, subjectId: session.subject_id, bookId: session.current_book_id, validAt: at, knownAt: at });
     if (m.effective !== true) {
-      // A fejléc nem mutathat olyan munkakörnyezetet, amiben az alany már nem tag (KUKA-050).
-      session.current_book_id = null;
+      // A fejléc nem mutat olyan munkakörnyezetet, amiben az alany már nem tag (a /api/me a tagságok
+      // listájából számol) — de a munkamenet könyv-választását NEM töröljük: így a következő
+      // adat-kérés a VALÓDI okot mondja („nem tag: megvonva"), nem azt, hogy „nincs munkakörnyezet"
+      // (KUKA-064: a nemleges válasz vigye magával az okot; az R64 böngésző-próba lelete).
       return { book_id: null, reason: 'not_a_member', detail: m.reason };
     }
     return { book_id: session.current_book_id, reason: 'membership_effective' };
@@ -178,13 +181,13 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
   }
 
   /** A kliens által küldött cselekvő/könyv-mezők — NEVEZETTEN figyelmen kívül hagyva. */
-  function ignoredParamsOf(url, body, allow = []) {
+  function ignoredParamsOf(url, body, accepts = []) {
     const found = new Set();
-    for (const k of CLIENT_AUTHORITY_PARAMS) {
-      if (allow.includes(k)) continue;
-      if (url.searchParams.has(k)) found.add(k);
-      if (body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, k)) found.add(k);
-    }
+    for (const k of url.searchParams.keys()) if (!accepts.includes(k)) found.add(k);
+    if (body && typeof body === 'object') for (const k of Object.keys(body)) if (!accepts.includes(k)) found.add(k);
+    // A cselekvőt/könyvet nevező ISMERT mezők mindig itt kötnek ki, ha a végpont nem fogadja őket —
+    // a lista csak a NÉV kedvéért marad: a szabály a fenti megengedő alak.
+    for (const k of CLIENT_AUTHORITY_PARAMS) if (!accepts.includes(k) && (url.searchParams.has(k) || (body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, k)))) found.add(k);
     return [...found];
   }
 
@@ -260,7 +263,11 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
       return { status: 200, body: {
         ok: true, subject_id: session.subject_id, email: emailOf(session.subject_id),
         channel_proven: !!provenEmailOf(store, session.subject_id),
-        workspaces: ws.map((w) => ({ ...w, plan: (store.get('SELECT plan FROM entitlement_profile WHERE book_id = ?', w.book_id) || {}).plan ?? null })),
+        workspaces: ws.map((w) => {
+          const biz = businessIdentityOf({ store, bookId: w.book_id });
+          return { ...w, plan: (store.get('SELECT plan FROM entitlement_profile WHERE book_id = ?', w.book_id) || {}).plan ?? null,
+            business: biz && biz.attached ? { namespace: biz.namespace, jurisdiction: biz.jurisdiction, verification: biz.verification ?? 'none_available' } : null };
+        }),
         current_book_id: current ? current.book_id : null,
         current_role: current ? current.role : null,
         current_book_name: current ? current.name : null,
@@ -273,6 +280,14 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
       if (!session.subject_id) return loginRequired();
       const name = String(body.name ?? '').trim();
       const plan = body.plan === undefined || body.plan === null || body.plan === '' ? 'starter' : String(body.plan);
+      if (!Object.prototype.hasOwnProperty.call(PLANS, plan)) {
+        return { status: 400, body: { ok: false, reason: 'unknown_plan', message: `ismeretlen terv: ${plan} — választható: ${Object.keys(PLANS).join(' · ')}` } };
+      }
+      const bizIn = body.business && typeof body.business === 'object' ? body.business : null;
+      if (bizIn && Object.prototype.hasOwnProperty.call(bizIn, 'tax_id')) {
+        const raw = typeof bizIn.tax_id === 'string' ? bizIn.tax_id : '';
+        if (!raw.replace(/[\s-]/g, '')) return { status: 400, body: { ok: false, reason: 'tax_id_value_required', message: 'az adószám nem lehet üres — hagyd el a vállalkozási minőséget, vagy add meg' } };
+      }
       const at = clock.now();
       const bookId = `ws_${hex(4)}`;
       const ws = createWorkspace({ store, creatorSubjectId: session.subject_id, bookId, name, at, plan });
@@ -352,7 +367,7 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
       });
       if (!r.ok) return { status: 403, body: { ok: false, reason: r.reason, message: r.message ?? 'a meghívó nem adható ki', ceiling: r.ceiling ?? null } };
       pushMail({ to: String(body.email).trim(), subject: `Meghívás: ${bookNameOf(cur.book_id) ?? cur.book_id}`, link: `http://${host}/?invite=${token}`,
-        body: `${emailOf(session.subject_id) ?? session.subject_id} meghívott a(z) „${bookNameOf(cur.book_id) ?? cur.book_id}" munkakörnyezetbe (${String(body.role)} szerep, ${String(body.scope)} adatkör-plafon). A meghívó 7 napig él.` });
+        body: `${emailOf(session.subject_id) ?? session.subject_id} meghívott a(z) „${bookNameOf(cur.book_id) ?? cur.book_id}" munkakörnyezetbe (${String(body.role)} szerep; adatkör: ${String(body.scope)} — a jogot a kezelő a beváltás után külön adja meg). A meghívó 7 napig él.` });
       return { status: 201, body: { ok: true, token, ceiling: r.ceiling, basis_id: r.basis_id, basis_version: r.basis_version, expires_at: expiresAt } };
     },
 
@@ -414,11 +429,17 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
       const cur = currentBookOf(session);
       if (!cur.book_id) return { status: 200, body: { ok: false, result: null, refused_by: 'right', reason: cur.reason, right_reason: cur.reason, entitlement_reason: null, message: 'nincs hatályos tagságod a kiválasztott munkakörnyezetben' } };
       // KÉT KAPU, KÜLÖN MÉRVE, KÜLÖN JELENTVE — egy mezőbe vonni tilos (ENT-02 · KUKA-002).
-      const r = readSample(cur.book_id, session.subject_id, 'minta-ar');
+      // A JOG-KAPU KIADÁS NÉLKÜL MÉRVE (az R64 ellenséges felülvizsgálat H11 lelete): a régi alak
+      // ELŐBB olvasta ki a mintát (és a mag KIADÁSKÉNT könyvelte a leltárban), és csak utána
+      // kérdezte az előfizetést — így egy előfizetés-kapun elutasított kérés is kiadási nyomot
+      // hagyott. Most: a döntés két olvasó kapuja előbb, a tényleges kiadás csak ha mindkettő enged.
+      const at = clock.now();
+      const rightDecision = scopeReleaseDecision({ store, subjectId: session.subject_id, bookId: cur.book_id, scope: 'arak', nowIso: at, knownAt: at });
       const entitlement = entitlementFor({ store, bookId: cur.book_id, feature: 'price_view' });
-      const verdict = twoGateVerdict({ right: { allowed: r.ok === true, reason: r.ok ? null : r.error }, entitlement });
+      const verdict = twoGateVerdict({ right: { allowed: rightDecision.allowed === true, reason: rightDecision.allowed ? null : (rightDecision.reason === 'no_scope_grant' ? 'not_available' : rightDecision.reason) }, entitlement });
+      const r = verdict.allowed ? readSample(cur.book_id, session.subject_id, 'minta-ar') : { ok: false, result: null, message: null };
       return { status: 200, body: {
-        ok: verdict.allowed, result: verdict.allowed ? r.result : null,
+        ok: verdict.allowed && r.ok === true, result: verdict.allowed && r.ok ? r.result : null,
         refused_by: verdict.refused_by,
         right_reason: verdict.allowed ? null : verdict.right_reason,
         entitlement_reason: verdict.allowed ? null : verdict.entitlement_reason,
@@ -437,7 +458,17 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
     return readCommandResult({ store, idemKey, requester, bookId, actor: boot.creator_subject_id, clock });
   }
 
-  const ALLOW = { 'POST /api/invites': ['role'], 'POST /api/session/workspace': ['book_id'] };
+  // MEGENGEDŐ SZABÁLY, NEM TILTÓ FELSOROLÁS (KUKA-057 · az R64 ellenséges felülvizsgálat H08 lelete):
+  // minden végpont kimondja, MELY mezőket olvassa; minden más törzs- és lekérdezés-mező NEVEZETTEN
+  // figyelmen kívül marad (`param_ignored`), akármilyen írásmódon érkezik (bookId · tenant_id · …).
+  const ACCEPTS = {
+    'POST /api/register': ['email', 'password'], 'GET /api/verify': ['token'], 'POST /api/login': ['email', 'password'],
+    'POST /api/logout': [], 'GET /api/me': [], 'POST /api/workspaces': ['name', 'plan', 'business'],
+    'POST /api/session/workspace': ['book_id'], 'POST /api/workspaces/plan': ['plan'], 'GET /api/members': [],
+    'POST /api/invites': ['email', 'role', 'scope'], 'GET /api/invites/observe': ['token'], 'POST /api/invites/pending': ['token'],
+    'POST /api/invites/redeem': ['token'], 'POST /api/members/scope': ['subject_id', 'scope'], 'POST /api/members/revoke': ['subject_id'],
+    'GET /api/data/stock': [], 'GET /api/data/price': [], 'GET /dev/mailbox': [],
+  };
 
   // ── A KÉRÉS-CIKLUS ───────────────────────────────────────────────────────────────────────────
   async function handle(req, res) {
@@ -460,7 +491,7 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
           }
           if (!body || typeof body !== 'object' || Array.isArray(body)) body = {};
         }
-        const ignored = ignoredParamsOf(url, body, ALLOW[key] || []);
+        const ignored = ignoredParamsOf(url, body, ACCEPTS[key] || []);
         const out = handler({ session, body, url, host });
         if (out.html !== undefined) return sendHtml(res, out.status, out.html, setCookie);
         const envelope = ignored.length ? { ...out.body, param_ignored: true, ignored_params: ignored } : out.body;
