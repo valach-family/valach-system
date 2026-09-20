@@ -3541,6 +3541,56 @@ megenged — a mért tény (a könyv-azonosság) változatlan.
 
 ---
 
+## D-VS-3064 — az átadási csomag lezárva; a jogadási szabály OPERÁTORI döntésre vár (2026-09-20)
+
+**Parancs:** CMD-VS-300-002-002 R61 (chatgpt-v3 — KÜLSŐ ELLENŐRZŐ FÉL). A lap a saját szavával
+**„ellenőrzési dokumentum, nem új végrehajtási parancs"**: az R59 három javítását (F59-01 · F59-02 ·
+F59-03) a vizsgált referencia-hatókörben **elfogadta**, és kimondta, hogy az **R57–R60
+leltár-/átadási csomag lezárható**. Ugyanott a korlát is: *„Ez nem az összes core-követelmény
+lezárása."* Az **ORG-N1a/b egésze részleges**, **req-5 és core-core lezárás nincs**, az elfogadott
+egész klauzulák száma **változatlanul 16** — a regiszterben a verdikt ezért `partial` maradt, a
+lezárás a döntés indokában áll (KUKA-105).
+
+**Két szöveges maradvány javítva** — a külső fél nevezte meg őket, és kifejezetten **nem** indított
+miattuk javítókört; mégis javítottuk, mert hamis állítás nem maradhat a forrásban (KUKA-050):
+
+1. A GPR-01 bevezetője azt mondta, hogy „minden itt deklarált próba **TÉNYLEG fut**" — az őr
+   valójában a **deklarációt** keresi a forrásszövegben, a próbákat nem futtatja. Javítva; a futást
+   a `verify:v3ref` méri, ez az őr nem. Ez a KUKA-197 alakja, egy szinttel kisebben.
+2. A GP-SCOPE-GRANT `works` mezője azt állította, hogy „ez az **EGYETLEN** út, ahol az alap nem
+   opció" — **túl erős**: a nevezett meghívó-kiadó is követeli az alapot.
+
+**A javítás közben MÉRT, valódi különbség** (és ez maradt a lapon a törölt állítás helyén): az
+adatköri jogadásnál a kapu nem csak a függvényben áll, hanem a **sémában** is — a nyers
+`INSERT INTO scope_grant` elakad (`NOT NULL constraint failed: scope_grant.basis_id`, mérve), tehát
+alap nélküli adatköri jog **egyáltalán nem keletkezhet**. A meghívónál ezzel szemben a nyers
+`INSERT INTO invite` **átmegy**. A különbség tehát nem a függvény szigora, hanem a **kapu helye**.
+
+**Nincs új KUKA-bejegyzés, és ezt kimondom:** mindkét maradvány a **KUKA-197** (az állítás többet
+mond, mint a mérés) és a **KUKA-050** (a szöveg a valóságot követi) esete, nem új hiba-osztály.
+Közel azonos bejegyzést felvenni hígítaná a regisztert.
+
+**A KÖVETKEZŐ LÉPÉS NEM FEJLESZTÉS, HANEM ÜZLETI DÖNTÉS.** A külső fél sem adott új fejlesztési
+parancsot, és új blokkoló technikai hibát sem talált. Két, egymástól független kérdés vár az
+operátorra — a részletek a jelentésben:
+
+- **A.** Kötelező legyen-e rögzített felhatalmazási alap az **új bírálati jogadáshoz** és a **pecsét
+  nélküli meghívó beváltásához**? (A külső fél ajánlása: igen, és az **első** jogosultság
+  létrehozásának szabályát külön kell rendezni. **Ez nem jelent feltöltött okiratot.**)
+- **B.** Mi legyen a kompatibilitási szabály az **alap nélkül tárolt történeti bejegyzésekre**? (A
+  külső fél ajánlása: a történetet megőrizni, a jövőbeli használat feltételeit külön meghatározni.)
+
+**Amit egyik döntésnél sem állítunk ténynek:** hogy ma éles V3-jogok migrációjáról döntünk. Ezek
+szintetikus referencia-adatok; éles határnapot és valós üzemi fennakadást nem állítunk. **És a
+munka méretét sem nevezzük kicsinek** a bootstrap, a történeti sorok és az érintett hívók felmérése
+előtt.
+
+**Gépi jel:** `npm run verify:external-decisions` (44/44, az R61 forrással) + `verify:grant-paths`
+(9/9 és az önpróba 3/3 piros). A két javított mondatra külön gépi jel **nincs** — kimondva: hogy egy
+megírt mondat tartalmilag igaz-e, arra nincs őr.
+
+---
+
 ## D-VS-3063 — az őr állítása is mérés, és a hiány határa nem az út hibája (2026-09-20)
 
 **Parancs:** CMD-VS-300-002-002 R59 (chatgpt-v3 — KÜLSŐ ELLENŐRZŐ FÉL). A jogadási leltárt és az

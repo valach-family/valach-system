@@ -8,7 +8,9 @@
 // méri:
 //
 //   · minden itt deklarált belépési pont TÉNYLEG létezik a megnevezett fájlban;
-//   · minden itt deklarált próba TÉNYLEG fut a `v3ref/run.mjs`-ben;
+//   · minden itt deklarált próba-azonosító SZEREPEL a `v3ref/run.mjs` deklarációi között
+//     (HELYESBÍTVE, R61: az ellenőrző a DEKLARÁCIÓT keresi a forrásszövegben — a próbákat NEM
+//     futtatja le; a futásukat a `npm run verify:v3ref` méri, ez az őr nem);
 //   · és — ez a fontosabb — MINDEN olyan modul, ami jogadó táblába ír, SZEREPEL itt, akkor is, ha
 //     holnap születik (KUKA-051: a hatókör SZABÁLY, nem lista; KUKA-069: a fél lánc néma).
 //
@@ -144,8 +146,15 @@ const PATHS = Object.freeze([
     use_gate: 'readScopeGrantAt → releaseScope.mjs → scopeReleaseDecision → resultScope.mjs — a '
       + 'megvonás SAJÁT esemény, két tengellyel',
     norm: 'K05-DSC-c · ORG-N1b',
-    works: 'ez az EGYETLEN út, ahol az alap nem opció, hanem FELTÉTEL; a megvonás nem írja át a '
-      + 'megadás sorát, és a köztes tudásállapot sértetlen marad',
+    // HELYESBÍTVE (R61): az „EGYETLEN út, ahol az alap nem opció" TÚL ERŐS volt — a nevezett
+    // meghívó-kiadó is KÖVETELI az alapot (`basis_id_required`). A VALÓDI, MÉRT különbség nem a
+    // függvény szigora, hanem hogy hol áll a kapu: itt a SÉMA is zár, tehát nyers írással SEM
+    // keletkezhet alap nélküli jog — a meghívónál a nyers `INSERT INTO invite` átmegy.
+    works: 'az alap itt nem opció, hanem FELTÉTEL — és nem csak a nevezett függvényben: a NYERS '
+      + '`INSERT INTO scope_grant` is elakad a sémán (`NOT NULL constraint failed: '
+      + 'scope_grant.basis_id`, mérve), tehát alap nélküli adatköri jog EGYÁLTALÁN nem keletkezhet. '
+      + 'Ez a MÉRT különbség a meghívó útjához képest, ahol a nyers írás átmegy. A megvonás nem '
+      + 'írja át a megadás sorát, és a köztes tudásállapot sértetlen marad',
     // HELYESBÍTVE (R59/F59-01). Az R57-es szövegem ebből „bizonyított technikai hiányt" és
     // „egyetlen következő fejlesztést" vezetett le. A külső fél megcáfolta, és igaza van: a
     // testvér-belépési pontoknak SINCS próbán kívüli hívójuk (`issueInviteUnderBasis` ·

@@ -142,6 +142,30 @@ export const EXTERNAL_DECISION_SOURCE_R57 = Object.freeze({
   revalidate_on: 'forrás- vagy követelményváltozás az érintett klauzulán',
 });
 
+/**
+ * R61 — AZ R57–R60 LELTÁR-/ÁTADÁSI CSOMAG LEZÁRÁSA. A külső fél az R59 három javítását a vizsgált
+ * referencia-hatókörben ELFOGADTA, és kimondta, hogy a csomag LEZÁRHATÓ — de ugyanabban a
+ * mondatban azt is: „Ez nem az összes core-követelmény lezárása." Az ORG-N1a/b EGÉSZE továbbra is
+ * részleges, req-5 és core-core lezárás NINCS, az elfogadott egész klauzulák száma VÁLTOZATLANUL
+ * 16. A verdikt ezért itt is `partial` MARAD (KUKA-105).
+ *
+ * EGY KÜLÖN KÖRÜLMÉNY, KIMONDVA: az R61 maga írja, hogy „Ez ellenőrzési dokumentum, nem új
+ * végrehajtási parancs" — tehát a kör NEM hozott új munkát, csak elfogadást és KÉT operátori
+ * döntési kérdést. A két megnevezett szöveges maradványt (a „TÉNYLEG fut" próba-állítás és az
+ * „EGYETLEN út" fordulat) a felülvizsgálat maga helyesbítette; a forrásban is javítottuk.
+ */
+export const EXTERNAL_DECISION_SOURCE_R61 = Object.freeze({
+  round: 'CMD-VS-300-002-002 R61 — ANALYSIS',
+  decided_by: 'chatgpt-v3 (külső ellenőrző fél)',
+  at: '2026-09-20',
+  examined_revision: 'valach-family/valach-system@252f38eb3f77bbe9e48ea586cc14a8b8a4d2ddfe',
+  scope: 'az R59 három javítása (F59-01 · F59-02 · F59-03) a vizsgált referencia-hatókörben, és az '
+    + 'R57–R60 leltár-/átadási csomag lezárhatósága — NEM az összes core-követelmény lezárása, NEM '
+    + 'req-5, NEM core-core lezárás, és NEM a mai kód hibamentessége minden jövőbeli használatra',
+  not_a_machine_attestation: true,
+  revalidate_on: 'forrás- vagy követelményváltozás az érintett klauzulán',
+});
+
 /** A regiszter FORRÁSAI, időrendben — a `source` mező ezekre hivatkozik. */
 export const EXTERNAL_DECISION_SOURCES = Object.freeze([
   Object.freeze({ id: 'R37', document: 'v3ref/source-documents/R37_board_v1.md', ...EXTERNAL_DECISION_SOURCE }),
@@ -151,6 +175,7 @@ export const EXTERNAL_DECISION_SOURCES = Object.freeze([
   Object.freeze({ id: 'R53', document: 'v3ref/source-documents/R53_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R53 }),
   Object.freeze({ id: 'R55', document: 'v3ref/source-documents/R55_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R55 }),
   Object.freeze({ id: 'R57', document: 'v3ref/source-documents/R57_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R57 }),
+  Object.freeze({ id: 'R61', document: 'v3ref/source-documents/R61_board_v1.md', ...EXTERNAL_DECISION_SOURCE_R61 }),
 ]);
 
 /** A HÁROM DÖNTÉS-SZÓ ZÁRT HALMAZ — ismeretlen szó nem csúszhat át „valaminek" (KUKA-101). */
@@ -286,6 +311,11 @@ export const EXTERNAL_CLAUSE_DECISIONS_R57 = Object.freeze([
   Object.freeze({ clause: 'ORG-N1b', verdict: 'partial', source: 'R57', reason: '**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.' }),
 ]);
 
+export const EXTERNAL_CLAUSE_DECISIONS_R61 = Object.freeze([
+  Object.freeze({ clause: 'ORG-N1a', verdict: 'partial', source: 'R61', reason: 'Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.' }),
+  Object.freeze({ clause: 'ORG-N1b', verdict: 'partial', source: 'R61', reason: 'Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.' }),
+]);
+
 /** A REGISZTER MINDEN DÖNTÉSE, forrással — a történeti sor `source: 'R37'`-et kap. */
 export const ALL_EXTERNAL_DECISIONS = Object.freeze([
   ...EXTERNAL_CLAUSE_DECISIONS.map((d) => Object.freeze({ source: 'R37', ...d })),
@@ -295,6 +325,7 @@ export const ALL_EXTERNAL_DECISIONS = Object.freeze([
   ...EXTERNAL_CLAUSE_DECISIONS_R53,
   ...EXTERNAL_CLAUSE_DECISIONS_R55,
   ...EXTERNAL_CLAUSE_DECISIONS_R57,
+  ...EXTERNAL_CLAUSE_DECISIONS_R61,
 ]);
 
 // A LEGÚJABB DÖNTÉS NYER, DE A RÉGI NEM TŰNIK EL. A sorrend a `EXTERNAL_DECISION_SOURCES` szerinti:

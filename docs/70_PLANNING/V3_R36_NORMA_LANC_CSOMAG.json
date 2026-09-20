@@ -1,11 +1,11 @@
 {
   "schema": "v3-norm-chain-package/2",
   "id": "NCP-01",
-  "at": "2026-09-20T07:27:42.170Z",
+  "at": "2026-09-20T08:58:26.217Z",
   "measured_from": {
     "file": "v3ref/v3ref-mutation-result.json",
-    "base_digest": "sha256:d1a96c90d37cf17bd82ee45e6dd34c1ce38999ddb5925faed5bdfecb090e6922",
-    "source_digest_today": "sha256:d1a96c90d37cf17bd82ee45e6dd34c1ce38999ddb5925faed5bdfecb090e6922",
+    "base_digest": "sha256:8a872bf5490bc4ee4b941b6b3e998f952909090e60e92ec0c763662722bcecd4",
+    "source_digest_today": "sha256:8a872bf5490bc4ee4b941b6b3e998f952909090e60e92ec0c763662722bcecd4",
     "source_bound": true,
     "execution": "merged_units"
   },
@@ -43,7 +43,7 @@
     "no_evidence": 8,
     "content_review_current": 0,
     "external_decision_clauses": 29,
-    "external_decision_rows": 42,
+    "external_decision_rows": 44,
     "external_decisions": 29
   },
   "open_blockers": [
@@ -7118,18 +7118,24 @@
       "external_decision": {
         "clause": "ORG-N1a",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1a",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1a",
             "verdict": "partial",
-            "reason": "BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1a",
+              "verdict": "partial",
+              "reason": "BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell."
+            }
           }
         }
       }
@@ -7209,18 +7215,24 @@
       "external_decision": {
         "clause": "ORG-N1a",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1a",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1a",
             "verdict": "partial",
-            "reason": "BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1a",
+              "verdict": "partial",
+              "reason": "BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell."
+            }
           }
         }
       }
@@ -7300,18 +7312,24 @@
       "external_decision": {
         "clause": "ORG-N1a",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1a",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1a",
             "verdict": "partial",
-            "reason": "BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1a",
+              "verdict": "partial",
+              "reason": "BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell."
+            }
           }
         }
       }
@@ -7391,18 +7409,24 @@
       "external_decision": {
         "clause": "ORG-N1a",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1a",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1a",
             "verdict": "partial",
-            "reason": "BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1a",
+              "verdict": "partial",
+              "reason": "BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell."
+            }
           }
         }
       }
@@ -7482,18 +7506,24 @@
       "external_decision": {
         "clause": "ORG-N1a",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1a",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1a",
             "verdict": "partial",
-            "reason": "BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1a",
+              "verdict": "partial",
+              "reason": "BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell."
+            }
           }
         }
       }
@@ -7579,18 +7609,24 @@
       "external_decision": {
         "clause": "ORG-N1a",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1a",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1a",
             "verdict": "partial",
-            "reason": "BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1a",
+              "verdict": "partial",
+              "reason": "BAS-01 verziózott alap és hatáskörkiadás bizonyított. Az általános képviseleti lefedés nem teljes. A régi maradék „a meghívó nem hordoz alapot” mondata ütközik a már létező BLI-01 bizonyítékkal; aktualizálni kell."
+            }
           }
         }
       }
@@ -7694,18 +7730,24 @@
       "external_decision": {
         "clause": "ORG-N1b",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1b",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1b",
             "verdict": "partial",
-            "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1b",
+              "verdict": "partial",
+              "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            }
           }
         }
       }
@@ -7809,18 +7851,24 @@
       "external_decision": {
         "clause": "ORG-N1b",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1b",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1b",
             "verdict": "partial",
-            "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1b",
+              "verdict": "partial",
+              "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            }
           }
         }
       }
@@ -7924,18 +7972,24 @@
       "external_decision": {
         "clause": "ORG-N1b",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1b",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1b",
             "verdict": "partial",
-            "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1b",
+              "verdict": "partial",
+              "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            }
           }
         }
       }
@@ -8039,18 +8093,24 @@
       "external_decision": {
         "clause": "ORG-N1b",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1b",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1b",
             "verdict": "partial",
-            "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1b",
+              "verdict": "partial",
+              "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            }
           }
         }
       }
@@ -8154,18 +8214,24 @@
       "external_decision": {
         "clause": "ORG-N1b",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1b",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1b",
             "verdict": "partial",
-            "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1b",
+              "verdict": "partial",
+              "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            }
           }
         }
       }
@@ -8269,18 +8335,24 @@
       "external_decision": {
         "clause": "ORG-N1b",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1b",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1b",
             "verdict": "partial",
-            "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1b",
+              "verdict": "partial",
+              "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            }
           }
         }
       }
@@ -8384,18 +8456,24 @@
       "external_decision": {
         "clause": "ORG-N1b",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1b",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1b",
             "verdict": "partial",
-            "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1b",
+              "verdict": "partial",
+              "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            }
           }
         }
       }
@@ -8481,18 +8559,24 @@
       "external_decision": {
         "clause": "ORG-N1b",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1b",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1b",
             "verdict": "partial",
-            "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1b",
+              "verdict": "partial",
+              "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            }
           }
         }
       }
@@ -8578,18 +8662,24 @@
       "external_decision": {
         "clause": "ORG-N1b",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1b",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1b",
             "verdict": "partial",
-            "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1b",
+              "verdict": "partial",
+              "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            }
           }
         }
       }
@@ -8675,18 +8765,24 @@
       "external_decision": {
         "clause": "ORG-N1b",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1b",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1b",
             "verdict": "partial",
-            "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1b",
+              "verdict": "partial",
+              "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            }
           }
         }
       }
@@ -8772,18 +8868,24 @@
       "external_decision": {
         "clause": "ORG-N1b",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1b",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1b",
             "verdict": "partial",
-            "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1b",
+              "verdict": "partial",
+              "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            }
           }
         }
       }
@@ -8869,18 +8971,24 @@
       "external_decision": {
         "clause": "ORG-N1b",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1b",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1b",
             "verdict": "partial",
-            "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1b",
+              "verdict": "partial",
+              "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            }
           }
         }
       }
@@ -8966,18 +9074,24 @@
       "external_decision": {
         "clause": "ORG-N1b",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1b",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1b",
             "verdict": "partial",
-            "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1b",
+              "verdict": "partial",
+              "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            }
           }
         }
       }
@@ -9063,18 +9177,24 @@
       "external_decision": {
         "clause": "ORG-N1b",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1b",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1b",
             "verdict": "partial",
-            "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1b",
+              "verdict": "partial",
+              "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            }
           }
         }
       }
@@ -9160,18 +9280,24 @@
       "external_decision": {
         "clause": "ORG-N1b",
         "verdict": "partial",
-        "source": "R57",
-        "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
+        "source": "R61",
+        "reason": "Az R59 három összefüggő javítását a vizsgált referencia-hatókörben elfogadom. Claude helyesbítette a következő fejlesztés indoklását, javította és korlátozta a leltár ellenőrzőjének állítását, valamint friss, forráshoz kötött végső normaösszesítőt adott át. Az R57–R60 leltár-/átadási csomag lezárható. Új termékfunkciót ez a kör nem adott: a meglévő működésről lett megbízhatóbb a kép, és elkerültünk egy nem indokolt fejlesztést. Ez nem az összes core-követelmény lezárása. A korábbi hatásköri részcsomag elfogadása megmarad. 16 egész klauzula elfogadott, 13 részleges/nyitott; ez nem készültségi százalék. ORG-N1a/b egésze részleges, req-5 és core-core lezárás nincs.",
         "superseded": {
           "clause": "ORG-N1b",
           "verdict": "partial",
-          "source": "R55",
-          "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+          "source": "R57",
+          "reason": "**Az F55-01 és F55-02 javítását elfogadom a vizsgált egyírós, szintetikus, megbízható belső kontextusú referenciában. Az R53–R56 deklarált alapú bírálati hatásköri javítócsomag ebben a hatókörben lezárt.** Ez konkrét előrelépés: a hatáskör alapja már nemcsak egy eltett adat. A rendszer a jog megadásakor és használatakor is ellenőrzi, hogy az adott művelet belefér-e; a hiányzó megadáskori verzióból nem lesz engedély. A jogos munka ugyanakkor továbbra is elvégezhető. A megerősített próba a védelem kivételét már a valódi jogváltoztatáson is észleli. Az elfogadás a három meglévő műveletre szól: suspend, adjudicate, alter_right. Kiterjed a jelenlegi alap és a megadáskori verzió korlátjának ellenőrzésére, a szűkülés miatti zárásra, a későbbi tágulásból nem származó automatikus jogbővülésre, a hiányzó/hibás/nem létező verzió zárására, a jogos ellenpárra és az ügyválasz meglévő semlegesítésére. Nem fogadja el a teljes általános szervezeti képviseletet vagy az alap nélkül adott jogok általános üzleti szabályát. ORG-N1a/b egésze továbbra is részleges; req-5-re lépés és core-core lezárás nincs. A 16 elfogadott egész klauzula és 13 részleges/nyitott állapot változatlan, nem készültségi százalék. A részcsomag lezárását nem szabad új egész-klauzulás elfogadásként számolni.",
           "superseded": {
-            "source": "R37",
             "clause": "ORG-N1b",
             "verdict": "partial",
-            "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            "source": "R55",
+            "reason": "Az R53 K05-DSC-c elfogadása érvényben marad. Az R54 döntésátvezetése és a korábbi próbakorrekciók ellenőrzöttek. A mostani hatásköri csomagot nem zárom le teljesen; ORG-N1a/b továbbra is részleges, req-5-re lépés nincs. Az elfogadott egész klauzulák száma 16, a további 13 részleges/nyitott. Ez nem készültségi százalék és nem teljes core-core elfogadás.",
+            "superseded": {
+              "source": "R37",
+              "clause": "ORG-N1b",
+              "verdict": "partial",
+              "reason": "a deklarált meghívó kiadás/beváltás korlátja bizonyított; a deklarálatlan alap és a bírálati hatáskör korlátjának kikényszerítése nyitott."
+            }
           }
         }
       }
