@@ -69,6 +69,13 @@ ma a gépi jelük) → **`npm run verify:kuka`** (a söprés része; visszacsús
   ablak záró pillanatképe a jelentésben; az esemény utáni hívás nem automatikusan az esemény költsége.
   Kísérleti jelzők: fő-szál medián > 200 ezer · ügynök-bemenet > 40 M / csomag. Egyenlőtlen feltételek
   mellett megtakarítást NEM állítunk.
+- **A SAJÁT KIMENET IS KONTEXTUS (R73, mérve):** a 47 hívásos ablak növekedésének ~40%-a az előző válaszok
+  (usage-ban mért kimenet), ~27%-a az eszközválaszok és mellékletek (bájt/4 becslés), a többi becslési hiba
+  és nem tárolt tényező. Ezért: terminálra CSAK összesítő és a hibás sor (a teljes napló fájlba, `var/`);
+  board-lapból csak a kért szakasz (`sed -n`), nem az egész; nagy fájlt egy eszközzel írunk (Write VAGY
+  shell), nem vegyesen — a kevert írás a harness `edited_text_file` visszatöltését váltja ki. A
+  gyökér-fájl induló terhe MÉRVE: a csatolt V2 repó `CLAUDE.md`-je 334 kB (KUKA-tábla 189 kB + Állandók
+  137 kB), a V3-é 17 kB — a csatolást a munkamenet forrás-listája adja, nem ez a fájl (3. szakasz).
 - `DATABASE_URL` és bármely kulcs **soha nem kerül chatbe** (csak `.env`). Üzleti adat (törzs, árak,
   bolti válasz) **nem kerül a repóba** és a boardra sem — a feltöltés gépi titok-őrön megy át.
 - **Ne írj új `.md`-t azért, hogy „legyen dokumentálva".** Ami operatív, az ide jön; ami
@@ -165,21 +172,13 @@ operátor valódi adat-alakján mérünk), és a megváltoztatott képernyőt V�
 (`npm run test:e2e`). Az operátor elve: *„sokkal olcsóbb 50%-kal tovább fejleszteni … de
 körültekintően, mint egyfolytában ugyanazon a dolgon újabb és újabb kisebb hibákat javítani"*.
 
-### 5. KIADÁS, KÖRNYEZET, KÖNYVTÁRREND — röviden, a részlet gépi őrben
+### 5. KIADÁS, KÖRNYEZET, KÖNYVTÁRREND — a részlet gépi őrben, itt csak a mutató
 
-- **Kiadási menetrend** (D-VS-3000, `npm run verify:release-order`): a verzió CÍMKE
-  (`FŐ.ALVERZIÓ.JAVÍTÁS`), egy `main`; a migráció előrefelé megy, számozott, merge után soha nem
-  szerkesztjük (`migrations/LEDGER.json` sha256); **BŐVÍTÉS → ÁTÁLLÁS → SZŰKÍTÉS három külön
-  kiadásban** — a bontó migráció fejlécében `-- KIVEZETVE: <verzió>`, szigorúan korábbi a mainál
-  (`contracts/releaseOrder.js`, fixtúrán bizonyítottan tüzel). A rossz kiadást a KÓD
-  visszagörgetésével javítjuk, nem adatbázis-visszaállítással. **Nevesített függő:** alapállás-mentés
-  még nincs (nincs adat); az első éles adatbázissal ide kerül a mester neve és a visszaolvasás.
-  **A kiadás nem a kör:** a kör átadása board-üzenet + REPORT; a kiadás ez a menetrend — a kettő
-  nem helyettesíti egymást (R65 rendezte).
-- **Környezetek** (egy Railway-projekt): production (valódi adat) · staging (minta, itt próbáljuk a
-  kiadást) · demo (CÉGTÉR a stagingben). A fejlesztői/teszt-tároló nem a felhőben van.
-- **Generált fájl neve és helye** (operátori parancs 2026-09-09): `artifactPath({ area, kind, ext,
-  version })` — `var/<terület>/v3_<verzió>_<dátum>_<idő>_<mi_ez>.<ext>`; kézzel soha. A verzió
-  SZÁRMAZÁS, a dátum+idő rendez. `var/logs` · `var/backups` (ÜZLETI ADAT) · `var/reports` ·
-  `var/exports` (ÜZLETI ADAT) · `var/tmp`; a `var/` gitignore-olva, a `docs/_olvashato/` a helyén
-  marad. Gépi jel: `npm run verify:artifact-naming`.
+- **Kiadás** (D-VS-3000): verzió = CÍMKE, egy `main`; migráció előre, számozott, merge után nem szerkesztjük
+  (`migrations/LEDGER.json`); **BŐVÍTÉS → ÁTÁLLÁS → SZŰKÍTÉS három kiadásban**, a bontó migráció `-- KIVEZETVE:`
+  fejléce korábbi a mainál — `contracts/releaseOrder.js` · `npm run verify:release-order`. Rossz kiadás: KÓD
+  visszagörgetése. Alapállás-mentés még nincs (nincs adat) — nevesített függő. A kiadás nem a kör (R65).
+- **Környezetek:** production · staging (itt próbáljuk a kiadást) · demo (CÉGTÉR a stagingben); a fejlesztői
+  tároló nem a felhőben.
+- **Generált fájl:** `artifactPath({ area, kind, ext, version })` → `var/<terület>/…`, kézzel soha; `var/`
+  gitignore, `docs/_olvashato/` marad — `contracts/artifactNaming.js` · `npm run verify:artifact-naming`.
