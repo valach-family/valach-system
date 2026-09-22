@@ -362,9 +362,11 @@ pontosítás **nem készletmozgás** · a történeti fogyasztás ismeretlen hel
 
 ## 12. Fogyasztás — egy rövid, tartalommentes sor
 
-`npm run meres:fogyasztas -- --session auto --from <a parancs időbélyege> --quick`:
-**178 hívás · fő-szál kontextus medián 333 999,5 / max 568 051 · ügynök-bemenet 0 (0 ügynök) ·
-cache-olvasás 59 826 428 · lefedettség: teljes.**
+`npm run meres:fogyasztas -- --session auto --from <a parancs időbélyege> --quick` — a csomag ZÁRÓ
+pillanatképe: **221 hívás · fő-szál kontextus medián 399 511 / max 630 104 · ügynök-bemenet 0 (0 ügynök) ·
+cache-olvasás 85 496 434 · lefedettség: teljes.** (Munka közbeni ellenőrzési pont ugyanezen az ablakon:
+178 hívás · medián 333 999,5 — a két leolvasás KÖZÖTT a két hosszú lánc külön futtatása és a lapok
+zárása áll.)
 
 **A jelző átlépve** (`main_context_median > 200 000`) — **indoklás, nem mentegetés:** ez EGY összefüggő
 munkacsomag EGY munkamenetben (a munkarend ezt írja elő), **nulla al-ügynökkel** (a parancs kimondta: nincs
