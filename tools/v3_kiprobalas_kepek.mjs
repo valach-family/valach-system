@@ -159,18 +159,23 @@ try {
   const finished = new Date().toISOString();
   const html = `<!doctype html>
 <html lang="hu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>V3 — kipróbálható átadás (képernyő-bizonyíték)</title>
+<title>V3 kipróbálható átadás</title>
 <style>
- :root { --ink:#0f172a; --muted:#475569; --line:#e2e8f0; --accent:#1d4ed8; }
- body { margin:0; font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:#f8fafc; }
+ :root { --ink:#0f172a; --muted:#475569; --line:#e2e8f0; --card:#ffffff; --bg:#f8fafc; --accent:#1d4ed8; --chip:#eef2f7; }
+ @media (prefers-color-scheme: dark) {
+   :root:not([data-theme="light"]) { --ink:#e2e8f0; --muted:#94a3b8; --line:#1e293b; --card:#0f172a; --bg:#020617; --accent:#93b4fd; --chip:#111c33; }
+ }
+ :root[data-theme="dark"] { --ink:#e2e8f0; --muted:#94a3b8; --line:#1e293b; --card:#0f172a; --bg:#020617; --accent:#93b4fd; --chip:#111c33; }
+ body { margin:0; font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:var(--bg); }
  main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 64px; }
- h1 { font-size: 26px; margin: 0 0 6px; } h2 { font-size: 19px; margin: 28px 0 6px; }
+ h1 { font-size: 26px; margin: 0 0 6px; line-height:1.25; } h2 { font-size: 19px; margin: 28px 0 6px; }
  .lead { color: var(--muted); }
- .step { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; margin:18px 0; }
- .step img { width:100%; border:1px solid var(--line); border-radius:8px; margin-top:10px; }
+ .step { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:18px 0; }
+ .step img { width:100%; border:1px solid var(--line); border-radius:8px; margin-top:10px; background:#fff; }
  .ev { font-size:13px; color:var(--muted); margin-top:8px; }
- code { background:#eef2f7; padding:1px 5px; border-radius:4px; font-size:14px; }
- .box { background:#fff; border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:8px; padding:14px 16px; margin:18px 0; }
+ code { background:var(--chip); padding:1px 5px; border-radius:4px; font-size:14px; }
+ .box { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:8px; padding:14px 16px; margin:18px 0; }
+ a { color: var(--accent); }
 </style></head><body><main>
 <h1>V3 — kipróbálható átadás</h1>
 <p class="lead">Anna létrehozza a fiókját, elindítja a családi vállalkozás körét, meghívja Bélát, külön olvasójogot ad,

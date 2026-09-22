@@ -1,7 +1,7 @@
 {
-  "source_commit": "b21b0a70b790442aaf99b747da0372a5037bab0f",
+  "source_commit": "6a7bfc2b1e6abfe726a8d8620fd7a248206bc2e3",
   "node": "v22.22.2",
-  "at": "2026-09-20T16:10:25.741Z",
+  "at": "2026-09-22T21:45:53.007Z",
   "cap_ms": 15000,
   "cases": [
     {
@@ -50,24 +50,24 @@
       ],
       "merge_exit": 0,
       "unit_walls": [
-        10136,
-        7964,
-        8040,
-        8602,
-        8696,
-        8447,
-        8659,
-        8763,
-        8366,
-        8385,
-        9566,
-        8978,
-        9267,
-        9551,
-        9467,
-        8666,
-        8928,
-        8477
+        7900,
+        7869,
+        7612,
+        6965,
+        6316,
+        6562,
+        6649,
+        6990,
+        7296,
+        7542,
+        7928,
+        7948,
+        7483,
+        7403,
+        8201,
+        7477,
+        7563,
+        7361
       ],
       "cap_ms": 15000,
       "run_state": "complete",
@@ -110,9 +110,9 @@
       "merge_exit": 2,
       "run_state": "incomplete",
       "clean": null,
-      "original_digest": "sha256:72dde1733dd3a9a6fb2f2b870156e8150cfee0cef0dc0bfce05ea5c56b97b577",
+      "original_digest": "sha256:92115b10b917364b9c29392bce8c1ba4b683ca41a36793427e332a3f2a2c9cc4",
       "why": [
-        "MÁS FORRÁSRA hivatkozó egység (unit-2-of-18.json) — mai lenyomat: sha256:72dde1733dd3a9a6fb2f2b870156e8150cfee0cef0dc0bfce05ea5c56b97b577"
+        "MÁS FORRÁSRA hivatkozó egység (unit-2-of-18.json) — mai lenyomat: sha256:92115b10b917364b9c29392bce8c1ba4b683ca41a36793427e332a3f2a2c9cc4"
       ]
     }
   ]
