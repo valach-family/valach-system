@@ -112,7 +112,19 @@
       "lezarasi_feltetel": "mind a 15 klauzula deklarált állítású próbával",
       "allapot": "nyitott",
       "mozditotta": "R75 — a SZÁM HELYESBÍTVE: az R64-es lap lezárási feltétele „mind a 13 klauzulá\"-t írt, miközben ugyanannak a lapnak az OB-5 bekezdése 15-öt. A regiszterből MÉRVE: 15 klauzula, ebből 10 deklarált hiány nélkül, 5 nevezett hiánnyal (REV-N1c · REV-N3d · REV-N3e · REV-N4a · REV-N4b). A 13 elavult szám volt.",
-      "mert_szamok": { "klauzula": 15, "hiany_nelkul": 10, "nyitott": 5, "nyitott_id": ["REV-N1c", "REV-N3d", "REV-N3e", "REV-N4a", "REV-N4b"], "forras": "v3ref/norms.mjs → REVOCATION_NORMS" },
+      "mert_szamok": {
+        "klauzula": 15,
+        "hiany_nelkul": 10,
+        "nyitott": 5,
+        "nyitott_id": [
+          "REV-N1c",
+          "REV-N3d",
+          "REV-N3e",
+          "REV-N4a",
+          "REV-N4b"
+        ],
+        "forras": "v3ref/norms.mjs → REVOCATION_NORMS"
+      },
       "maradek_kimondva": "a „hiány nélkül\" itt azt jelenti, hogy a klauzula nem hordoz deklarált hiányt — NEM azt, hogy mind a tíznek önálló, deklarált állítású PRÓBÁJA van; a próba-fedettség külön mérés (L9)"
     },
     {
@@ -123,8 +135,15 @@
       "kovetkezo_munka": "a mutációs battéria falszifikációs eredményei a két klauzulára",
       "lezarasi_feltetel": "`verify:v3ref` „KÖTELEZŐ BIZONYÍTÉK\" sora `covered`",
       "allapot": "nyitott",
-      "mozditotta": null,
-      "maradek_kimondva": "a sor állapotát a mutációs battéria futása mondja meg; ebben a körben a battéria a söprésben futott, az eredmény a kör REPORT-jában áll"
+      "mozditotta": "R75 — a mutációs battéria KÜLÖN futtatva (a söprés 900 s-os türelme nem elég neki): 204/204 mutáció elkapva, 0 túlélte, egység 18/18 tiszta, kilépés 0. A KÖTELEZŐ BIZONYÍTÉK (req-4) MÉRT állapota viszont 0/11 — az ORG-N1a/N1b klauzulák deklarált állítását egyetlen mutációs futás sem buktatta meg.",
+      "maradek_kimondva": "a battéria ZÖLDJE nem jelenti a req-4 teljesülését: a falszifikációs bizonyíték a két ORG-klauzulára ma HIÁNYZIK (0/11), és ezt a futás maga írja ki",
+      "mert_szamok": {
+        "kotelezo_bizonyitek": "0/11",
+        "elvart": "covered",
+        "mutacio": "204/204 elkapva",
+        "egyseg": "18/18 tiszta",
+        "forras": "npm run verify:v3ref (külön futtatva)"
+      }
     },
     {
       "id": "L10",

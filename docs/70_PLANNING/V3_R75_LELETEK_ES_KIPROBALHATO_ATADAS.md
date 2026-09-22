@@ -262,7 +262,7 @@ szerszámra (`npm run proof:multiconn`).
 | L6 QNT | nyitott | — |
 | **L7 séma a HTTP-határon** | **lezárva** | HTP-01 |
 | L8 megvonási klauzulák | nyitott | **szám helyesbítve:** 15 klauzula (10 hiány nélkül · 5 nevezett hiánnyal) — a „mind a 13" elavult volt |
-| L9 kötelező bizonyíték-készlet | nyitott | a mutációs battéria a söprésben futott (9. szakasz) |
+| L9 kötelező bizonyíték-készlet | nyitott | **mérve: 0/11** (`req-4`) — a battéria zöld, de a két ORG-klauzulát egyetlen mutáció sem falszifikálta |
 | **L10 A01–A18** | **lezárva** | 18/18 sor, számolt összegzéssel |
 | **L11 személyes kör** | **lezárva** | SZK-01 |
 
@@ -284,7 +284,20 @@ százalék** — a core-core teljes lezárása **továbbra sincs elfogadva**, é
 | `npm run verify:kuka` | a tanulság-regiszter, az archívum és az őr-otthon | **338/338 PASS** |
 | `npm run verify:sweep` | MINDEN `verify:*` | lásd alább |
 
-**A söprés eredménye:** `@@SWEEP@@`
+**A söprés eredménye (16 verifier, 1208 s):** **13 zöld · 1 piros · 2 NEM FEJEZŐDÖTT BE a söprés 900 s-os
+türelmén belül** (`verify:external-checks` · `verify:v3ref`). A két hosszú láncot ezért — a szabály szerint
+— **külön futtattam**, és a saját eredményüket írom ide, nem a söprés türelmét:
+
+| külön futtatva | eredmény |
+|---|---|
+| `npm run verify:external-checks` | **17/19 program MEGFELEL · 2 ENV-KIHAGYÁS nevezett helyettessel** (r57 → r57a · r59 → r59a; a bejelentett akadály MÉRVE: `wall_clock_timeout` — a program a battériát EGY hívásban futtatja 15 000 ms korláttal, a mai gépen a battéria legjobb alakja 17,1 mp) · kilépés **0** |
+| `npm run verify:v3ref` | **204/204 mutáció elkapva · 0 túlélte · 0 rossz próba · 0 mérőhiba · lefedettség 204/204, hiány 0, duplikátum 0 · egység 18/18 tiszta** · kilépés **0** |
+
+**És egy MÉRT szám, ami nyitva marad (L9):** a mutációs battéria kiírja, hogy a **KÖTELEZŐ BIZONYÍTÉK
+(req-4)** ma **0/11** — az elvárt állapot `covered`. Ez nem a battéria bukása (a futás kilépése 0), hanem
+az L9 sor pontos állapota: az ORG-N1a/N1b klauzulák deklarált állítását **egyetlen mutációs futás sem
+buktatta meg**, tehát falszifikációs bizonyíték nincs rájuk. Az L9 ezért nyitott marad — mostantól MÉRT
+számmal, nem „nem mértük"-kel.
 
 **ÖRÖKÖLT PIROS, ami NEM ebben a körben keletkezett — mérve:** `verify:capability-witness`
 **9/11** („2 ELAVULT RÖGZÍTÉS": `v3-ui-slice` és `v3-vertical-slice` mérve *present*, a board
