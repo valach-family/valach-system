@@ -69,27 +69,42 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     expect(await sessionCookie(anna.ctx)).not.toBe(before);
     await expect(anna.page.getByTestId('channel-proven')).toHaveText('igen');
     await expect(anna.page.getByTestId('section-workspace')).toBeVisible();
-    await expect(anna.page.getByTestId('ws-list')).toContainText('még nincs munkakörnyezeted');
+    // A MEGERŐSÍTÉS ELSŐ KÖVETKEZMÉNYE A SZEMÉLYES KÖR (SZK-01 · R75/L11): a váltó NEM üres, és
+    // nem is azt írja, hogy „hozz létre egyet" — a magánszemélynek nincs mit elneveznie.
+    await expect(anna.page.getByTestId('ws-list')).toContainText('személyes kör');
   });
 
-  test('4. Anna SAJÁT magánteret (adószám nélkül) és CÉGES munkakörnyezetet (HU adószám) indít', async () => {
-    const p = await createWorkspaceUI(anna.page, { name: 'Anna magántere', plan: 'starter' });
+  test('4. Anna SZEMÉLYES köre (magától) · saját műhely (adószám nélkül) · CÉGES munkakörnyezet (HU adószám)', async () => {
+    // A SZEMÉLYES KÖR MÁR ÁLL (SZK-01 · R75/L11): a cím megerősítésekor született, név-kitalálás
+    // nélkül. Amit ez a lépés indít, az egy TOVÁBBI saját kör — a kettő nem ugyanaz a fogalom.
+    const meBefore = (await anna.api.get('/api/me')).body;
+    expect(meBefore.personal_book_id).toBeTruthy();
+    expect(meBefore.workspaces.filter((x) => x.personal).length).toBe(1);
+    personalBook = meBefore.personal_book_id;
+    const p = await createWorkspaceUI(anna.page, { name: 'Anna műhelye', plan: 'starter' });
     expect(p.status).toBe(201);
     expect(p.body.business).toBeNull();
     expect(p.resultText).not.toContain('vállalkozási minőség');
-    personalBook = p.bookId;
+    const workshopBook = p.bookId;
     const c = await createWorkspaceUI(anna.page, { name: 'Családi Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '12345678-2-42' } });
     expect(c.status).toBe(201);
     expect(c.body.business.ok).toBe(true);
     expect(c.body.business.verification).toBe('none_available');
-    expect(c.resultText).toContain('önbevallott, igazolás: none_available');
+    expect(c.resultText).toContain('ÖNBEVALLOTT, hatósági igazolás: none_available');
+    // A KÉPVISELETI HATÁR A KÉPERNYŐN IS ÁLL (REP-01 · R75 §3/3).
+    expect(c.resultText).toContain('más szervezet képviselete ebből nem következik');
     companyBook = c.bookId;
     const h = await header(anna.page);
     expect(h.workspace).toBe('Családi Kft · admin · starter');
     const list = await workspaceListUI(anna.page);
-    expect(list.map((x) => x.testid).sort()).toEqual([`ws-item-${personalBook}`, `ws-item-${companyBook}`].sort());
+    expect(list.map((x) => x.testid).sort()).toEqual([`ws-item-${personalBook}`, `ws-item-${workshopBook}`, `ws-item-${companyBook}`].sort());
+    // A SZEMÉLYES KÖR A VÁLTÓBAN NEVESÍTVE ÁLL, és az ALANY ugyanaz maradt (nem új személyazonosság).
+    await expect(anna.page.getByTestId(`ws-kind-${personalBook}`)).toHaveText('személyes kör');
+    await expect(anna.page.getByTestId(`ws-kind-${companyBook}`)).toHaveText('közös munkakörnyezet');
+    expect(db.count('SELECT COUNT(*) AS n FROM personal_space WHERE subject_id = ?', anna.subjectId)).toBe(1);
     // ADATBÁZIS: vállalkozási minőség CSAK a céges könyvön; a személy alanya változatlanul 'person'.
     expect(db.count('SELECT COUNT(*) AS n FROM business_identity WHERE book_id = ?', personalBook)).toBe(0);
+    expect(db.count('SELECT COUNT(*) AS n FROM business_identity WHERE book_id = ?', workshopBook)).toBe(0);
     expect(db.count('SELECT COUNT(*) AS n FROM business_identity WHERE book_id = ?', companyBook)).toBe(1);
     expect(db.get('SELECT kind FROM subject WHERE id = ?', anna.subjectId).kind).toBe('person');
     expect(db.get('SELECT kind FROM subject WHERE id = ?', `ent_${companyBook}`).kind).toBe('legal_entity');
@@ -101,7 +116,13 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     cili = await world.person('cili');
     expect(bela.subjectId).toMatch(/^sub_/);
     expect(cili.subjectId).toMatch(/^sub_/);
-    expect(db.count('SELECT COUNT(*) AS n FROM membership WHERE subject_id IN (?, ?)', bela.subjectId, cili.subjectId)).toBe(0);
+    // MINDKETTEN A SAJÁT SZEMÉLYES KÖRÜKKEL indulnak (SZK-01) — és EGYIKÜKNEK SINCS tagsága
+    // IDEGEN könyvben: ez az állítás, amit ez a lépés mér (nem az, hogy nulla tagságuk van).
+    expect(db.count('SELECT COUNT(*) AS n FROM personal_space WHERE subject_id IN (?, ?)', bela.subjectId, cili.subjectId)).toBe(2);
+    expect(db.count(
+      `SELECT COUNT(*) AS n FROM membership m WHERE m.subject_id IN (?, ?)
+         AND m.book_id NOT IN (SELECT book_id FROM personal_space WHERE subject_id = m.subject_id)`,
+      bela.subjectId, cili.subjectId)).toBe(0);
   });
 
   test('6. Anna meghívja Bélát (user · keszlet) — a meghívó PLAFONNAL születik, a levél a fogadóban', async () => {
@@ -206,6 +227,7 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
   });
 
   test('11. MUNKAKÖRNYEZET-VÁLTÁS: a fejléc a helyes nevet/szerepet mutatja, az adat-terület ÜRÜL a lekérés előtt, a cégek nem keverednek', async () => {
+    const personalName = ((await anna.api.get('/api/me')).body.workspaces.find((x) => x.book_id === personalBook) || {}).name;
     const plan = await setPlanUI(anna.page, 'pro');
     expect(plan.body).toMatchObject({ ok: true, plan: 'pro' });
     await expect(anna.page.getByTestId('header-workspace')).toHaveText('Családi Kft · admin · pro');
@@ -217,9 +239,12 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     await anna.page.getByTestId(`ws-switch-${personalBook}`).click();
     await expect(anna.page.getByTestId('data-price')).toHaveText('—');
     await expect(anna.page.getByTestId('data-stock')).toHaveText('—');
-    await expect(anna.page.getByTestId('global-notice')).toContainText('Munkakörnyezet: Anna magántere (admin)');
+    // A VÁLTÁS ÜZENETE A KÖR FAJTÁJÁT MONDJA (SZK-01): a személyes körre váltva „Személyes kör".
+    await expect(anna.page.getByTestId('global-notice')).toContainText(`Személyes kör: ${personalName} (admin)`);
     await anna.page.unroute('**/api/session/workspace');
-    await expect(anna.page.getByTestId('header-workspace')).toHaveText('Anna magántere · admin · starter');
+    await expect(anna.page.getByTestId('header-workspace')).toHaveText(`${personalName} · admin · starter`);
+    // A FEJLÉC KIMONDJA, KI NEVÉBEN JÁR EL (R75 §4).
+    await expect(anna.page.getByTestId('header-acting-as')).toContainText('személyes kör');
     const me = (await anna.api.get('/api/me')).body;
     expect(me.current_book_id).toBe(personalBook);
     const priceP = await priceUI(anna.page);

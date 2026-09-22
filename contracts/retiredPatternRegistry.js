@@ -33,6 +33,141 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-203',
+    date: '2026-09-22',
+    title: 'A HATÁRON A String() KÉNYSZERÍTÉS — a típus-kérdést nem feltette, hanem ELTÜNTETTE',
+    what: 'A v3app HTTP-héja a törzs-mezőket kézzel olvasta: `String(body.name ?? \'\').trim()`. A külső '
+      + 'ellenőrző fél (chatgpt-v3, R75/F75-03) valódi HTTP-n mérte, mi lesz ebből: a '
+      + '`POST /api/workspaces {"name":{"invalid":true},"plan":"starter"}` kérésre HTTP 201 jött, a '
+      + 'létrejött munkakörnyezet NEVE „[object Object]" lett, és a munkakörnyezetek száma 0 → 1 nőtt. '
+      + 'Ugyanezen a bejáraton a nem deklarált mező (`actor`, `book_id`) NÉMÁN kimaradt — a válasz '
+      + 'nevezetten jelölte ugyan (`param_ignored`), de a kérés ATTÓL MÉG ÍRT.',
+    why_wrong: 'A kényszerítés NEM ellenőrzés: a `String()` mindenből szöveget csinál, tehát a rossz '
+      + 'TÍPUSÚ bemenetből nem elutasítás lesz, hanem ADAT (KUKA-125 ugyanez a magban, a `Number()`-rel). '
+      + 'És a BEM-01 szerződés a magban KÉSZEN ÁLLT — csak épp a KÜLSŐ határon nem kapuzott, amit a '
+      + 'saját szövegünk „nevezett maradéknak" (OB-3 / R64 L7) hívott; egy nevezett maradék viszont nem '
+      + 'védelem, hanem ígéret (KUKA-092: a tiltás/halasztás a megépítés helyett).',
+    replaced_by: 'HTP-01 (`v3app/httpSchema.mjs`): végpontonkénti SAJÁT séma, a KÖZÖS BEM-01 motoron '
+      + '(`validateAgainstSchema`, `v3ref/inputSchema.mjs`) — nem a `stock.receipt` üzleti sémájára húzva, és '
+      + 'nem a motor második másolatával. ÁLLAPOTVÁLTOZTATÓ végponton a séma KAPU: ismeretlen mező · hiányzó '
+      + 'kötelező · rossz típus · zárt készleten kívüli érték · nem támogatott sémaverzió ⇒ nevezett 400, '
+      + 'ÍRÁS NÉLKÜL, és `param_ignored` ott többé nem születik. OLVASÓ végponton marad a NEVEZETT figyelmen '
+      + 'kívül hagyás — a két szerződés határát a regiszter `mutates` mezője mondja ki, nem a végpont kódja.',
+    decision: 'D-VS-3069',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R75/F75-03 — valódi HTTP-méréssel, bizonyított csatornájú fiókkal',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "validateRequest\\(\\{ key, body, query \\}\\)",
+        why: 'a héj a KÖZÖS séma-feloldót hívja minden kérésre — ha kiesik, a bejárat megint kézi lenne' }),
+      Object.freeze({ paths: Object.freeze(['v3app/httpSchema.mjs']),
+        pattern: "validateAgainstSchema[\\s\\S]{0,4000}mutates",
+        why: 'a határ a MAG motorját használja, és a kapuzás a deklarált `mutates` mezőn dől el' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3app/server.mjs'], pattern: "String\\(body\\.name",
+        reason: 'a név kézi kényszerítése a bejáraton nem térhet vissza (R75 F75-03)' }),
+      Object.freeze({ paths: ['v3app/server.mjs'], pattern: "const ACCEPTS = \\{",
+        reason: 'a mező-szerződés MÁSODIK, kézi másolata nem térhet vissza — az otthona a séma-regiszter' }),
+    ]),
+    lesson: 'A KÜLSŐ HATÁRON A TÍPUS KÉRDÉS, NEM FORMÁZÁS. Ahol a bemenetet kényszerítjük, ott nem '
+      + 'ellenőriztünk, csak eltüntettük a kérdést — és a rossz bemenetből ADAT lett. Ha egy szerződés (BEM-01) '
+      + 'megvan a magban, de a HATÁRON nem kapuz, akkor a határon NINCS szerződés: a „nevezett maradék" nem '
+      + 'védelem. A kapunak EGY motorja legyen (a sorrend és a hibakódok egy otthonban élnek), a MEZŐK viszont '
+      + 'végpontonként sajátok — az üzleti séma átmásolása a határra ugyanúgy hiba lett volna.',
+    guard_note: 'gépi jel: `npm run verify:app-findings` (F75-03 szakasz: az eredeti lelet · hiányzó kötelező · '
+      + 'idegen mező · örökölt művelet-név · `__proto__` · sémaverzió · beágyazott objektum · ÍRÁS-MENTESSÉG öt '
+      + 'elutasított kérésen · pozitív ellenpár) + `verify:app-selfcheck` + a böngésző-csomag H06/H08/H10/H11 ága.',
+  }),
+  Object.freeze({
+    id: 'KUKA-202',
+    date: '2026-09-22',
+    title: 'A RÉSZLEGES GENERÁCIÓ-ŐR — a védelem a váltón állt, a válaszokon és a szerveren nem',
+    what: 'Az R64-ben a kliens kapott egy generáció-számlálót a cég-váltási verseny ellen. A külső ellenőrző '
+      + 'fél (chatgpt-v3, R75/F75-02) vezérelt klienspróbával megmutatta, mi maradt ki: a számlálót CSAK a '
+      + '`switchWorkspace` léptette, és CSAK az adat-gombok nézték. Ezért (1) egy visszatartott TAGLISTA-válasz '
+      + 'a váltás után a RÉGI cég tagját írta az ÚJ cég nézetébe (a fejléc már B, a listában A tagja), (2) a '
+      + 'kilépés után beérkező adat-válasz a kiürített panelbe íródott vissza, (3) a `/me` válasza nem '
+      + 'ellenőrzött semmit, tehát egy MÁSIK LAPON (közös munkameneten) történt váltásról ez a lap nem tudott, '
+      + '(4) a SZERVER pedig egyáltalán nem tudta, melyik képernyőn született a gomb: a régi nézet „megvonás" '
+      + 'gombja az ÚJ cég nevében ment volna végbe.',
+    why_wrong: 'A védelem a LÁTHATÓ helyen állt (a váltó), nem azon, ahol a kár keletkezik (a késve érkező '
+      + 'válasz és az írás). Ez a KUKA-041 alakja a versenyhelyzetben: a számláló jelenléte AZT SUGALLTA, hogy a '
+      + 'kontextus meg van fogva. És a kliens-oldali őr fogalmilag sem elég: a munkamenet KÖZÖS (második lap), '
+      + 'az írás pedig a szerveren dől el — a lap számlálója ott nem bizonyít semmit.',
+    replaced_by: 'KTX-01 — HÁROM réteg: (1) a generációt MINDEN kontextus-váltó esemény lépteti (belépés · '
+      + 'kilépés · váltás · létrehozás · beváltás), és minden kérés a SAJÁT generációjával tér vissza; (2) a '
+      + '`/me` minden válaszánál a lap a SZERVER igazságához méri magát (alany + könyv), tehát a másik lapon '
+      + 'történt váltás is kontextus-váltás; (3) minden állapotváltoztató kérés VISZI a könyvet, amiben a gomb '
+      + 'született (`expected_book_id`), és a szerver eltérésnél NEVEZETTEN elakad (409 `context_mismatch`), '
+      + 'írás nélkül. A mező MEGERŐSÍTÉS, nem felhatalmazás: könyvet SOHA nem választ (a hatóság a munkameneté), '
+      + 'csak szűkít — ugyanaz a minta, mint a sémaverziónál (SVR-01).',
+    decision: 'D-VS-3069',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R75/F75-02 — az eredeti app.js-en, Node vm-ben, vezérelt '
+      + 'DOM- és hálózati helyettesítővel; a javítás böngésző-bizonyítékát a saját Playwright-próbám adja',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "context_mismatch",
+        why: 'a szerver nevezetten elakad, ha a gomb MÁS könyvben született — ez a réteg a döntő' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "state\\.ctx[\\s\\S]{0,2000}state\\.generation \\+= 1",
+        why: 'a lap a SZERVER kontextusához méri magát, nem csak a saját váltásaihoz' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3app/public/app.js'], pattern: "const gen = state\\.generation;\\n    text\\(byTest",
+        reason: 'a generáció-őr nem szűkülhet vissza egyetlen gomb-ágra (R75 F75-02)' }),
+    ]),
+    lesson: 'A VERSENY ELLENI ŐRT OTT KELL ÁLLÍTANI, AHOL A KÁR KELETKEZIK: a késve érkező VÁLASZNÁL és az '
+      + 'ÍRÁSNÁL — nem ott, ahol a váltás látszik. Ha az őr csak az egyik úton áll, a jelenléte a TÖBBIT is '
+      + 'megvédettnek mutatja (KUKA-041). És a kliens jelzése soha nem lehet jogosultsági forrás: MEGERŐSÍTÉSként '
+      + 'viszont szűkíthet — ez a különbség teszi biztonságossá a `expected_book_id`-t.',
+    guard_note: 'gépi jel: `npm run verify:app-findings` (F75-02 szakasz: régi képernyő gombja · a megerősítő '
+      + 'mező nem ad hatóságot · pozitív ellenpár · a mező elhagyható) + böngésző-próba '
+      + '`tests/e2e/v3app-r75.spec.mjs` (visszatartott taglista · másik lap váltása · késve érkező adat · kilépés).',
+  }),
+  Object.freeze({
+    id: 'KUKA-201',
+    date: '2026-09-22',
+    title: 'A LEJÁRT MEGERŐSÍTÉS ZSÁKUTCÁJA — a felirat olyan folytatást ígért, ami nem létezett',
+    what: 'A megerősítő hivatkozás 24 óráig élt; lejárás után a lap ezt írta: „A hivatkozás lejárt — regisztrálj '
+      + 'újra." A külső ellenőrző fél (chatgpt-v3, R75/F75-01) valódi HTTP-n végigjátszotta: az újraregisztráció '
+      + '(helyesen) SEMLEGES választ ad, mert a cím foglalt — tehát ÚJ LEVÉL NEM MEGY KI. A felhasználó belépni '
+      + 'tudott, de a csatornája bizonyítatlan maradt, így munkakörnyezetet nem indíthatott '
+      + '(`creator_channel_unproven`). A felirat által ígért út NEM LÉTEZETT.',
+    why_wrong: 'Két hiba egy mondatban. (1) A KUKA-064 zsákutcája: a nemleges válasz nem vitte magával a '
+      + 'MŰKÖDŐ folytatást. (2) A KUKA-050: a szöveg olyat állított, ami nem igaz — az „regisztrálj újra" a '
+      + 'rendszer SAJÁT anti-enumerációs szabályával (helyesen) ütközött. A hiány azért maradt láthatatlan, mert '
+      + 'a próbáink a BOLDOG úton mentek végig: a megerősítés mindig AZONNAL megtörtént, tehát a lejárati ág '
+      + 'soha nem futott (és a héjnak nem is volt órája, amivel futhatott volna).',
+    replaced_by: 'CHR-01 (`v3ref/account.mjs`): a megerősítés ÚJRAKÉRHETŐ (`reissueChannelChallenge` + '
+      + '`POST /api/verification/resend`), a válasz MINDEN ágon semleges, a jelszóhoz egyik ág sem nyúl, és az '
+      + 'ismétlés CÍMENKÉNT korlátos (legalább 60 mp két levél között, ablakonként legfeljebb 5). Az ÚJ hivatkozás '
+      + 'a korábbi ÉLŐ hivatkozást LEVÁLTJA (`superseded_at` + `superseded_by` — saját tény, nem a „használt" vagy '
+      + 'a „lejárt" oszlop átírása), a lejárt és a beváltott hivatkozás pedig SOHA nem éled újra. A megerősítő lap '
+      + 'minden nemleges ágon FOLYTATÁST ad, és a bejelentkező képernyőn ott az újrakérő űrlap.',
+    decision: 'D-VS-3069',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R75/F75-01 — valódi HTTP-n, a `startServer` támogatott '
+      + 'óra-paraméterével (t0 + 25 óra), négy lépésben reprodukálva',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/account.mjs']),
+        pattern: "reissueChannelChallenge[\\s\\S]{0,3000}resend_rate_limited",
+        why: 'az újrakérés és a korlátja EGY helyen él — ha kiesik, a lejárat megint zsákutca lenne' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "verify-resend-link",
+        why: 'a megerősítő lap NEMLEGES ága folytatást kínál, nem csak hibakódot' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3app/server.mjs'], pattern: "regisztrálj újra",
+        reason: 'a nem létező folytatást ígérő mondat nem térhet vissza (R75 F75-01)' }),
+    ]),
+    lesson: 'A LEJÁRAT IS ÚT, NEM VÉGÁLLOMÁS — és a feliratot a VALÓSÁGHOZ kell mérni, nem a szándékhoz: '
+      + '„regisztrálj újra" egy anti-enumerációs rendszerben fogalmilag nem működhet. Ha egy ágat a próbáink soha '
+      + 'nem járnak be (mert mindig a boldog úton megyünk), akkor az az ág MÉRETLEN, nem „rendben" — ezért kellett '
+      + 'TÁMOGATOTT idővezérlés (fejlesztői óra), hogy a lejárat böngészőből is bejárható legyen.',
+    guard_note: 'gépi jel: `npm run verify:app-findings` (F75-01 szakasz: lejárat · folytatás · leváltás · a '
+      + 'lejárt és a beváltott nem éled · ismétlés-korlát · anti-enumeráció · a jelszó változatlan) + böngésző-próba '
+      + '`tests/e2e/v3app-r75.spec.mjs` (a felhasználó útján végigkattintva).',
+  }),
+  Object.freeze({
     id: 'KUKA-200',
     date: '2026-09-20',
     title: 'A KIHAGYÁS, AMI A BIZONYÍTÉKOT MEG SEM NÉZTE — és a „visszaállítás", ami az ellenkezőjét tette',

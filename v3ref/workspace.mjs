@@ -55,12 +55,18 @@ export function startupBasisId(bookId) {
  * indulás ténye · helyi jogváltoztatási hatáskör · adatköri olvasási jog · előfizetési tesztprofil.
  * Bármelyik bukása az egészet visszagörgeti (KUKA-026: a hatás és a nyoma nem szakad el).
  */
-export function createWorkspace({ store, creatorSubjectId, bookId, name, at, plan = 'starter' }) {
+export function createWorkspace({ store, creatorSubjectId, bookId, name, at, plan = 'starter', kind = 'shared' }) {
   const t = instantMs(at);
   if (!t.ok) return frozen({ ok: false, reason: `created_at_${t.reason}` });
   if (typeof creatorSubjectId !== 'string' || !creatorSubjectId.trim()) return frozen({ ok: false, reason: 'creator_required' });
   if (typeof bookId !== 'string' || !bookId.trim()) return frozen({ ok: false, reason: 'book_id_required' });
   if (typeof name !== 'string' || !name.trim()) return frozen({ ok: false, reason: 'name_required' });
+  if (kind !== 'personal' && kind !== 'shared') return frozen({ ok: false, reason: 'unknown_book_kind' });
+  // EGY ALANY — EGY SZEMÉLYES KÖR (SZK-01). A második kérés nevezetten elakad, nem gyárt párhuzamos
+  // „saját" könyvet: a váltóban ugyanaz a cél kétszer nem állhat (KUKA-003).
+  if (kind === 'personal' && personalSpaceOf({ store, subjectId: creatorSubjectId })) {
+    return frozen({ ok: false, reason: 'personal_space_exists', message: 'ennek a fióknak már van személyes köre' });
+  }
   if (!store.get('SELECT 1 AS ok FROM subject WHERE id = ?', creatorSubjectId)) return frozen({ ok: false, reason: 'creator_unknown' });
   const acc = store.get('SELECT credential FROM account WHERE subject_id = ?', creatorSubjectId);
   if (!acc || !acc.credential) return frozen({ ok: false, reason: 'creator_has_no_credential' });
@@ -72,6 +78,9 @@ export function createWorkspace({ store, creatorSubjectId, bookId, name, at, pla
   const clock = { now: () => at };
   return store.atomic(() => {
     store.run('INSERT INTO book (id, name) VALUES (?, ?)', bookId, name.trim());
+    // A SZEMÉLYES KÖR TÉNYE UGYANEBBEN A TRANZAKCIÓBAN (SZK-01): ha ez bukik, a könyv sem marad —
+    // „személyes kör" nevű, de a váltóban fel nem ismerhető könyv nem születhet (KUKA-026).
+    if (kind === 'personal') store.run('INSERT INTO personal_space (subject_id, book_id, created_at) VALUES (?,?,?)', creatorSubjectId, bookId, at);
     const basis = recordAuthorityBasis({
       store, basisId, bookId, issuerSubject: creatorSubjectId, effectiveAt: at, recordedAt: at,
       allowedOperations: [...STARTUP_RULE.operations], allowedRoles: [...STARTUP_RULE.roles],
@@ -98,7 +107,7 @@ export function createWorkspace({ store, creatorSubjectId, bookId, name, at, pla
     if (!ent.ok) throw Object.assign(new Error(`createWorkspace: az előfizetési profil nem írható — ${ent.reason}`), { code: ent.reason });
     return frozen({
       ok: true, book_id: bookId, basis_id: basisId, basis_version: basis.version,
-      grant_event_id: g.grant_event_id, rule_version: STARTUP_RULE.version, plan,
+      grant_event_id: g.grant_event_id, rule_version: STARTUP_RULE.version, plan, kind,
     });
   });
 }
@@ -112,12 +121,54 @@ export function bootstrapOf({ store, bookId }) {
 /** MELY KÖNYVEKBEN ÉL az alany tagsága MOST — a munkatér-váltó ebből dolgozik, nem kliens-listából. */
 export function workspacesOf({ store, subjectId, at }) {
   const rows = store.all(
-    `SELECT b.id, b.name, m.role FROM membership m JOIN book b ON b.id = m.book_id
-     WHERE m.subject_id = ? ORDER BY b.name, b.id`, subjectId);
+    `SELECT b.id, b.name, m.role, ps.subject_id AS personal_of
+       FROM membership m
+       JOIN book b ON b.id = m.book_id
+       LEFT JOIN personal_space ps ON ps.book_id = b.id
+     WHERE m.subject_id = ?
+     ORDER BY CASE WHEN ps.subject_id IS NULL THEN 1 ELSE 0 END, b.name, b.id`, subjectId);
   const out = [];
   for (const r of rows) {
     const m = membershipAsOf({ store, subjectId, bookId: r.id, validAt: at, knownAt: at });
-    if (m.effective === true) out.push(frozen({ book_id: r.id, name: r.name, role: r.role }));
+    // A FAJTA IS A VÁLTÓ ADATA (SZK-01): a „személyes kör" a képernyőn NEVESÍTETT cél, nem a név
+    // kitalálása. A rendezés a személyes kört hozza elöl — az ember a sajátjából indul.
+    // A FAJTA A VÁLTÓ ADATA (SZK-01): „személyes kör" CSAK az, ami a SAJÁT alanyáé — másnak a
+    // személyes köre (ha valaha tagságot kapna benne) NEM az övé, és a felirat sem mondhatja annak.
+    if (m.effective === true) {
+      const personal = r.personal_of === subjectId;
+      out.push(frozen({ book_id: r.id, name: r.name, role: r.role, kind: personal ? 'personal' : 'shared', personal }));
+    }
   }
   return frozen(out);
+}
+
+/**
+ * SZK-01 — A SZEMÉLYES KÖR (R64 L11 · R75 §3/1).
+ *
+ * A LELET, amit lezár: „egyszerű vásárlói regisztráció után ne kelljen »céget« vagy kézzel
+ * elnevezett munkakörnyezetet létrehozni csak a saját fiókhoz". A régi alakban a megerősített fiók
+ * NULLA körrel állt: a képernyő azt mondta, „még nincs munkakörnyezeted — hozz létre egyet", tehát
+ * a magánszemélynek is egy NEVET kellett kitalálnia ahhoz, hogy bármit lásson.
+ *
+ * AMIT EZ NEM CSINÁL, KIMONDVA: NEM új jogosultsági motor és nem új alap-fajta. A személyes kör
+ * UGYANAZZAL a `createWorkspace`-szel, UGYANAZZAL az indulási szabállyal (WSP-01) és ugyanazzal a
+ * tagsággal születik, mint bármely más kör — a különbség egyetlen tárolt tény (`book.kind`) és a
+ * felület szava. A vállalkozási minőség később sem személyazonosság: az adószámos kör KÜLÖN könyv,
+ * a személyes kör érintetlen marad, és az ALANY (a fiók) mindkettőben ugyanaz.
+ */
+export function personalSpaceOf({ store, subjectId }) {
+  const row = store.get(
+    `SELECT b.id, b.name, ps.created_at FROM personal_space ps
+     JOIN book b ON b.id = ps.book_id
+     WHERE ps.subject_id = ?`, subjectId);
+  return row ? frozen({ book_id: row.id, name: row.name, created_at: row.created_at }) : null;
+}
+
+/** A személyes kör MEGLÉTÉT biztosítja — idempotens: ha már van, nem születik második. */
+export function ensurePersonalSpace({ store, subjectId, bookId, name, at, plan = 'starter' }) {
+  const existing = personalSpaceOf({ store, subjectId });
+  if (existing) return frozen({ ok: true, created: false, book_id: existing.book_id, name: existing.name });
+  const r = createWorkspace({ store, creatorSubjectId: subjectId, bookId, name, at, plan, kind: 'personal' });
+  if (!r.ok) return frozen({ ok: false, created: false, reason: r.reason, message: r.message ?? null });
+  return frozen({ ok: true, created: true, book_id: r.book_id, name, basis_id: r.basis_id, basis_version: r.basis_version });
 }

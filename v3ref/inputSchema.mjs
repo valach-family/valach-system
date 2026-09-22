@@ -15,11 +15,12 @@
  * tehát mindent elfogadunk" ágra fut, akkor a séma nem kapu, hanem OPCIÓ: aki meg akarja kerülni,
  * elnevezi másnak a műveletét. A szerződés HIÁNYA ZÁR.
  *
- * MIT NEM CSINÁL — KIMONDVA (az MCS-1 §3/BEM-01 mért függősége, az R6 §4 szűkítésével).
- * Ma a magban **19 exportált író függvény** van: 5 deklarált belépési pont · 13 belső író · 1 mérési
- * segéd. R63 ÓTA VAN külső határ (a v3app HTTP-rétege), DE A BEM-01 OTT NEM KAPUZ — a végpontok kézi
- * ellenőrzést futtatnak; ez nevezett maradék (OB-3, R64 L7). Amikor a BEM-01 a KÜLSŐ HATÁRON
- * ellenőriz sémát, a belső írók pedig a SAJÁT invariánsaikat tartják — két külön felelősség.
+ * HOL KAPUZ MA (R75/F75-03 — az OB-3 / R64 L7 lezárása). A KÜLSŐ HATÁRON is: a v3app minden
+ * ÁLLAPOTVÁLTOZTATÓ végpontja a `validateAgainstSchema` motoron megy át, a SAJÁT, végpontonkénti
+ * sémájával (`v3app/httpSchema.mjs`, HTP-01) — nem a `stock.receipt` üzleti sémájára húzva. Ami
+ * eddig ott állt: kézi `String(...)` kényszerítés, amitől a `{"name":{"invalid":true}}` törzsből
+ * `"[object Object]"` NEVŰ munkakörnyezet született (HTTP 201). A mag belső írói továbbra is a
+ * SAJÁT invariánsaikat tartják — két külön felelősség, két külön otthon (KUKA-003).
  */
 import { parseQuantity, quantitySyntaxProblem } from './quantity.mjs';
 import { parseInstant } from './instant.mjs';
@@ -44,6 +45,21 @@ const TYPES = Object.freeze({
     return Number.isFinite(v) ? null : 'nem véges szám (NaN vagy ±Infinity)';
   },
   boolean: (v) => (typeof v === 'boolean' ? null : `logikai érték kell, kapott: ${describe(v)}`),
+  // A BESZÉDES ALAKOK (HTP-01, R75/F75-03) — a KÜLSŐ határ mezői. Mindegyik a NYERS értéken mér:
+  // az `email_address` és a `secret_string` NEM üzleti szabály, csak az ALAK legszűkebb állítása,
+  // amit a határ felelősséggel kimondhat; a tartalmi döntés (létezik-e a cím, jó-e a jelszó) a magé.
+  email_address: (v) => {
+    if (typeof v !== 'string') return `szöveg kell, kapott: ${describe(v)}`;
+    const t = v.trim();
+    if (!t) return 'nem lehet üres';
+    if (!t.includes('@') || t.startsWith('@') || t.endsWith('@')) return 'e-mail cím kell (kukac a cím belsejében)';
+    if (/\s/.test(t)) return 'az e-mail cím nem tartalmazhat szóközt';
+    return null;
+  },
+  secret_string: (v) => (typeof v === 'string' ? null : `szöveg kell, kapott: ${describe(v)}`),
+  // A BEÁGYAZOTT OBJEKTUM a HATÁRON is szerződés: a burkoló típusa itt dől el, a MEZŐI pedig a
+  // saját (rekurzív) sémájukon — így egy „business": "igen" alakú szöveg nem csúszik át némán.
+  object: (v) => (v !== null && typeof v === 'object' && !Array.isArray(v) ? null : `objektum kell, kapott: ${describe(v)}`),
 });
 
 // Az IDŐPONT — ez is SAJÁT SZERZŐDÉSŰ fajta (IDO-01), mint a mennyiség, nem egyszerű típus-próba.
@@ -154,14 +170,19 @@ export function checkSchemaVersion(schema, requested) {
   return { ok: true, version: schema.version, chosen_by: 'request_confirmed' };
 }
 
-export function validateInput({ operation, input, version }) {
-  // 1. ISMERETLEN MŰVELET — FAIL-CLOSED, a választhatók felsorolásával (KUKA-064).
-  const schema = schemaForOperation(operation);
-  if (!schema) {
-    return fail('unknown_operation',
-      `nincs deklarált bemeneti séma erre: ${showValue(operation)} — `
-      + `választható: ${Object.keys(OPERATION_SCHEMAS).join(' · ')}`);
-  }
+/**
+ * A MOTOR — EGY OTTHON A SÉMA-ELLENŐRZÉSNEK (HTP-01 kiemelése, R75/F75-03).
+ *
+ * MIÉRT KELLETT KIEMELNI. A HTTP-határ sémáját (v3app) NEM szabad a `stock.receipt` üzleti
+ * sémájára húzni (a külső fél R75 kikötése), de a SORRENDET, a hibakódokat és a „konverzió sosem
+ * előzi meg a típust" szabályt SEM szabad másolni: két másolatból egy nap kettő IGAZSÁG lesz
+ * (KUKA-003 · KUKA-018 · KUKA-039). Ezért a művelet-feloldás maradt a hívóé, a MÉRÉS pedig ez.
+ *
+ * A DEKLARÁLT ALAPÉRTELMEZÉS MEGENGEDETT, A NÉMA TILOS. A BEM-01 tiltása a NÉMA alapértelmezésre
+ * szól. Ha egy mezőnek a SÉMÁBAN áll az alapértéke (`default`), az nem néma: a válasz felsorolja
+ * (`defaults_applied`), tehát a hívó és a próba is látja, hogy nem a beadó küldte.
+ */
+export function validateAgainstSchema({ schema, input, version }) {
   // A BURKOLÓ MAGA IS TÍPUS: a tömb és a null is „object" a `typeof`-nak (KUKA-125 rokona).
   if (input === null || typeof input !== 'object' || Array.isArray(input)) {
     return fail('invalid_body', `a bemenet objektum kell legyen, kapott: ${describe(input)}`);
@@ -183,10 +204,15 @@ export function validateInput({ operation, input, version }) {
   // 3. HIÁNYZÓ KÖTELEZŐ — a HIÁNY külön válasz, nem „rossz típus" (KUKA-124/2).
   const clean = {};
   const pendingQuantities = [];
+  const defaultsApplied = [];
   for (const [name, spec] of Object.entries(schema.fields)) {
     const present = Object.prototype.hasOwnProperty.call(input, name);
     if (!present) {
       if (spec.required) return fail('missing_field', `kötelező mező: ${name}`, name);
+      if (Object.prototype.hasOwnProperty.call(spec, 'default')) {
+        clean[name] = spec.default;
+        defaultsApplied.push(name);
+      }
       continue;
     }
     const value = input[name];
@@ -210,19 +236,57 @@ export function validateInput({ operation, input, version }) {
       clean[name] = t.canonical;     // a KANONIKUS UTC-szöveg megy tovább — a főkönyv ezen rendez
       continue;
     }
-    const checker = TYPES[spec.type];
-    if (!checker) return fail('schema_error', `ismeretlen mező-típus a sémában: ${spec.type}`, name);
+    const checker = Object.prototype.hasOwnProperty.call(TYPES, spec.type) ? TYPES[spec.type] : null;
+    if (typeof checker !== 'function') return fail('schema_error', `ismeretlen mező-típus a sémában: ${spec.type}`, name);
     const problem = checker(value);
     if (problem) return fail('invalid_type', problem, name);
+
+    // 5. A BEÁGYAZOTT OBJEKTUM a SAJÁT sémáján — ugyanezzel a motorral, hogy a sorrend és a
+    // hibakódok egy szinttel lejjebb se legyenek mások (KUKA-018). A mező NEVE a hibában dottal jön.
+    if (spec.type === 'object' && spec.fields) {
+      const inner = validateAgainstSchema({ schema: { version: schema.version, fields: spec.fields }, input: value });
+      if (!inner.ok) return fail(inner.error, inner.detail, inner.at ? `${name}.${inner.at}` : name);
+      clean[name] = inner.value;
+      continue;
+    }
+
+    // 6. ZÁRT ÉRTÉK-KÉSZLET és HOSSZ-HATÁR — a típus JÓ volt, az ÉRTÉK nem: külön hibakód, hogy a
+    // beadó ne a típust javítsa (KUKA-064 · KUKA-124/2).
+    if (spec.enum) {
+      const allowed = [...spec.enum];
+      if (!allowed.includes(value)) {
+        return fail('invalid_value', `nem választható érték: ${showValue(value)} — választható: ${allowed.map((x) => showValue(x)).join(' · ')}`, name);
+      }
+    }
+    if (typeof value === 'string' && typeof spec.max_length === 'number' && value.length > spec.max_length) {
+      return fail('value_too_long', `legfeljebb ${spec.max_length} karakter, kapott: ${value.length}`, name);
+    }
+    if (typeof value === 'string' && typeof spec.min_length === 'number' && value.trim().length < spec.min_length) {
+      return fail('value_too_short', `legalább ${spec.min_length} karakter kell`, name);
+    }
     clean[name] = value;
   }
 
   // A VÁLASZ KIMONDJA, MI MARADT NYITVA. Ha a hívó elfelejtené a B. szakaszt, a `profile_bound`
   // hamis marad, és a főkönyv NEVEZETTEN utasít el — a fél lánc nem csúszhat át némán (KUKA-069).
   return Object.freeze({
-    ok: true, operation, version: schema.version, version_chosen_by: ver.chosen_by, value: Object.freeze(clean),
-    quantity_fields: Object.freeze(pendingQuantities), profile_bound: pendingQuantities.length === 0,
+    ok: true, version: schema.version, version_chosen_by: ver.chosen_by, value: Object.freeze(clean),
+    quantity_fields: Object.freeze(pendingQuantities), defaults_applied: Object.freeze(defaultsApplied),
+    profile_bound: pendingQuantities.length === 0,
   });
+}
+
+export function validateInput({ operation, input, version }) {
+  // 1. ISMERETLEN MŰVELET — FAIL-CLOSED, a választhatók felsorolásával (KUKA-064).
+  const schema = schemaForOperation(operation);
+  if (!schema) {
+    return fail('unknown_operation',
+      `nincs deklarált bemeneti séma erre: ${showValue(operation)} — `
+      + `választható: ${Object.keys(OPERATION_SCHEMAS).join(' · ')}`);
+  }
+  const checked = validateAgainstSchema({ schema, input, version });
+  if (!checked.ok) return checked;
+  return Object.freeze({ ...checked, operation });
 }
 
 /**
@@ -263,7 +327,7 @@ export const BEM_CONTRACT = Object.freeze({
   id: 'BEM-01',
   owns: 'műveletenként a bemenet deklarált alakja',
   operations: Object.freeze(Object.keys(OPERATION_SCHEMAS)),
-  error_order: Object.freeze(['unknown_operation', 'invalid_body', 'unsupported_schema_version', 'unknown_field', 'missing_field', 'invalid_type']),
+  error_order: Object.freeze(['unknown_operation', 'invalid_body', 'unsupported_schema_version', 'unknown_field', 'missing_field', 'invalid_type', 'invalid_value', 'value_too_long', 'value_too_short']),
   // A SÉMAVERZIÓ TULAJDONOSA KIMONDVA (SVR-01, R37): a REGISZTER választ, a beadó legfeljebb
   // MEGERŐSÍT. Több élő verzió, migráció és verzió-fordítás NINCS — ez határ, nem hiányosság.
   schema_version: Object.freeze({
@@ -286,12 +350,21 @@ export const BEM_CONTRACT = Object.freeze({
   ]),
   forbids: Object.freeze([
     'Number()/String() konverzió a típus-ellenőrzés ELŐTT',
-    'néma alapértelmezés hiányzó mezőre',
+    'néma alapértelmezés hiányzó mezőre (a DEKLARÁLT, válaszban felsorolt alapértelmezés megengedett)',
     'ismeretlen műveletre megengedő ág',
     'reguláris kifejezéssel „validált" időpont (R10-F03)',
     'a mennyiség kanonizálása ALAPÉRTELMEZETT profillal, a cikk profilja helyett',
+    'a séma-motor MÁSODIK példánya a határon (a sorrend és a hibakódok egy otthonban élnek)',
   ]),
-  stated_limit: 'a séma a KÜLSŐ határon (a v3app HTTP-rétege, R63) még NEM kapuz: 5 deklarált '
-    + 'belépési pont · 13 belső író · 1 mérési segéd a magon belül. A belső írók a SAJÁT '
-    + 'invariánsaikat tartják — két külön felelősség (az R6 §4 szűkítése).',
+  // A DEKLARÁLT ALAPÉRTELMEZÉS ÉS A NÉMA KÜLÖNBSÉGE, kimondva: az elsőt a séma írja le és a válasz
+  // felsorolja (`defaults_applied`), a másodikat a kód rejti el. A BEM-01 a másodikat tiltja.
+  declared_defaults: Object.freeze({ allowed: true, must_be_listed_in: 'defaults_applied' }),
+  engine: Object.freeze({
+    exported: 'validateAgainstSchema',
+    used_by: Object.freeze(['v3ref/inputSchema.mjs → validateInput (mag-műveletek)', 'v3app/httpSchema.mjs → validateRequest (HTTP-határ, HTP-01)']),
+  }),
+  stated_limit: 'a HATÁRON a séma a KÉRÉS ALAKJÁT méri, nem az üzleti igazságot: hogy létezik-e a '
+    + 'cím, jár-e a jog, hatályos-e a tagság, azt továbbra is a mag dönti el. A magban 5 deklarált '
+    + 'belépési pont · 13 belső író · 1 mérési segéd áll, és a belső írók a SAJÁT invariánsaikat '
+    + 'tartják — két külön felelősség (az R6 §4 szűkítése).',
 });

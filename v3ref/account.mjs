@@ -93,18 +93,107 @@ export function authenticate({ store, email, secret }) {
   return frozen({ ok: true, subject_id: subjectId });
 }
 
+/**
+ * CHR-01 — A MEGERŐSÍTÉS ÚJRAKÉRÉSÉNEK SZABÁLYA, EGY HELYEN (R75/F75-01).
+ *
+ * MI VOLT A HIBA. A kihívás 24 óráig élt, és lejárás után a képernyő azt mondta: „regisztrálj
+ * újra" — ami NEM működik: a cím már foglalt, a második regisztráció (helyesen) semleges választ
+ * ad, levél nem megy ki, a fiók pedig bizonyítatlan marad, tehát munkakörnyezetet sem lehet
+ * indítani. A felhasználó ZSÁKUTCÁBA ért (KUKA-064), a felirat meg olyasmit ígért, ami nem igaz
+ * (KUKA-050). A lelet a külső ellenőrző félé (chatgpt-v3, R75/F75-01), valódi HTTP-n reprodukálva.
+ *
+ * A SZABÁLY, KIMONDVA — EGY CÍMRE EGY ÉLŐ HIVATKOZÁS:
+ *   · új hivatkozás kiadása a korábbi, még be nem váltott és le nem járt hivatkozásokat LEVÁLTJA
+ *     (`superseded_at` + `superseded_by`), tehát a régi levél hivatkozása nevezetten elutasított;
+ *   · a LEJÁRT és a MÁR BEVÁLTOTT hivatkozás SOHA nem éled újra — az új kérés ÚJ sort ír, a
+ *     régi tények változatlanok maradnak (a napló nem íródik át);
+ *   · az ismétlés KORLÁTOS: két levél között legalább `min_gap_ms`, és egy ablakban legfeljebb
+ *     `max_per_window` — a korlát a CÍMHEZ tartozik, tehát nem lehet vele levelet záporoztatni;
+ *   · a jelszóhoz EGYETLEN ága sem nyúl: az újrakérés nem hitelesítő-művelet.
+ */
+export const CHALLENGE_POLICY = frozen({
+  ttl_ms: 24 * 60 * 60 * 1000,
+  min_gap_ms: 60 * 1000,
+  max_per_window: 5,
+  window_ms: 24 * 60 * 60 * 1000,
+});
+
 /** EGYSZERI KIHÍVÁS a címre — a kiküldés az alkalmazás dolga (fejlesztői levél-fogadó), ez csak a tény. */
-export function issueChannelChallenge({ store, subjectId, namespace = 'email', value, token, at, ttlMs = 24 * 60 * 60 * 1000 }) {
+export function issueChannelChallenge({ store, subjectId, namespace = 'email', value, token, at, ttlMs = CHALLENGE_POLICY.ttl_ms, supersede = true }) {
   const t = instantMs(at);
   if (!t.ok) return frozen({ ok: false, reason: `issued_at_${t.reason}` });
   if (typeof token !== 'string' || token.length < 16) return frozen({ ok: false, reason: 'token_too_short' });
   const v = norm(value);
   if (!v) return frozen({ ok: false, reason: 'value_required' });
   const expiresAt = new Date(t.ms + ttlMs).toISOString();
-  store.run(
-    'INSERT INTO channel_challenge (token, subject_id, namespace, value_norm, created_at, expires_at, used_at) VALUES (?,?,?,?,?,?,NULL)',
-    token, subjectId, namespace, v, at, expiresAt);
-  return frozen({ ok: true, token, subject_id: subjectId, namespace, value_norm: v, expires_at: expiresAt });
+  return store.atomic(() => {
+    // A LEVÁLTÁS AZ ÍRÁSSAL EGY TRANZAKCIÓBAN: nem lehet olyan pillanat, amikor két élő
+    // hivatkozás áll ugyanarra a címre (KUKA-026: a hatás és a nyoma nem szakad el).
+    let superseded = 0;
+    if (supersede) {
+      // AZ IDŐT NEM SZÖVEGKÉNT HASONLÍTJUK (KUKA-029 · IDO-01): a lejárat eldöntése az `instantMs`
+      // feloldóé, nem az SQL `>` operátoráé — egy zónás alak („+02:00") a szöveg-rendezésben
+      // NÉMÁN rossz oldalra kerülne, és egy lejárt hivatkozást „élőnek" olvasnánk.
+      const open = store.all(
+        `SELECT token, expires_at FROM channel_challenge
+         WHERE subject_id = ? AND namespace = ? AND value_norm = ? AND used_at IS NULL AND superseded_at IS NULL`,
+        subjectId, namespace, v);
+      for (const row of open) {
+        const ex = instantMs(row.expires_at);
+        if (!ex.ok || ex.ms <= t.ms) continue;                       // a lejárt marad „lejárt"
+        const r = store.run(
+          'UPDATE channel_challenge SET superseded_at = ?, superseded_by = ? WHERE token = ? AND used_at IS NULL AND superseded_at IS NULL',
+          at, token, row.token);
+        superseded += Number(r.changes || 0);
+      }
+    }
+    store.run(
+      'INSERT INTO channel_challenge (token, subject_id, namespace, value_norm, created_at, expires_at, used_at) VALUES (?,?,?,?,?,?,NULL)',
+      token, subjectId, namespace, v, at, expiresAt);
+    return frozen({ ok: true, token, subject_id: subjectId, namespace, value_norm: v, expires_at: expiresAt, superseded });
+  });
+}
+
+/**
+ * ÚJ MEGERŐSÍTŐ HIVATKOZÁS KÉRÉSE — a korlátokkal együtt (CHR-01).
+ *
+ * A VÁLASZ BEFELÉ NEVEZETT, KIFELÉ A HÍVÓ DOLGA SEMLEGESSÉ TENNI (K03 anti-enumeráció): ez a
+ * függvény megmondja, MIÉRT nem ment ki levél (`channel_already_proven` · `resend_rate_limited`),
+ * az alkalmazás viszont ugyanazt a semleges mondatot adja vissza minden ágon (KUKA-084 · KUKA-058:
+ * ahol a válasz szándékosan egyforma, befelé a napló beszél).
+ */
+export function reissueChannelChallenge({ store, subjectId, namespace = 'email', value, token, at, policy = CHALLENGE_POLICY }) {
+  const t = instantMs(at);
+  if (!t.ok) return frozen({ ok: false, reason: `requested_at_${t.reason}` });
+  if (typeof subjectId !== 'string' || !subjectId.trim()) return frozen({ ok: false, reason: 'subject_id_required' });
+  const v = norm(value);
+  if (!v) return frozen({ ok: false, reason: 'value_required' });
+  if (!store.get('SELECT 1 AS ok FROM subject WHERE id = ?', subjectId)) return frozen({ ok: false, reason: 'subject_unknown' });
+  // MÁR BIZONYÍTOTT CSATORNÁRA NINCS ÚJ HIVATKOZÁS — nem hiba, hanem „nincs mit kérni".
+  const proven = store.get(
+    'SELECT 1 AS ok FROM channel_proof WHERE subject_id = ? AND namespace = ? AND value_norm = ?',
+    subjectId, namespace, v);
+  if (proven) return frozen({ ok: false, reason: 'channel_already_proven' });
+
+  const windowStart = new Date(t.ms - policy.window_ms).toISOString();
+  const recent = store.all(
+    `SELECT created_at FROM channel_challenge
+     WHERE subject_id = ? AND namespace = ? AND value_norm = ? AND created_at > ?
+     ORDER BY created_at DESC`,
+    subjectId, namespace, v, windowStart);
+  if (recent.length >= policy.max_per_window) {
+    return frozen({ ok: false, reason: 'resend_rate_limited', limit: 'max_per_window', sent_in_window: recent.length, window_ms: policy.window_ms });
+  }
+  if (recent.length) {
+    const last = instantMs(recent[0].created_at);
+    const waited = last.ok ? t.ms - last.ms : Number.POSITIVE_INFINITY;
+    if (waited < policy.min_gap_ms) {
+      return frozen({ ok: false, reason: 'resend_rate_limited', limit: 'min_gap', retry_after_ms: policy.min_gap_ms - waited });
+    }
+  }
+  const issued = issueChannelChallenge({ store, subjectId, namespace, value: v, token, at, ttlMs: policy.ttl_ms, supersede: true });
+  if (!issued.ok) return issued;
+  return frozen({ ...issued, sent_in_window: recent.length + 1 });
 }
 
 /** A KIHÍVÁS BEVÁLTÁSA ⇒ csatorna-bizonyíték. Lejárt, ismeretlen vagy már használt: nevezett, írásmentes. */
@@ -114,8 +203,11 @@ export function redeemChannelChallenge({ store, token, at }) {
   const row = store.get('SELECT * FROM channel_challenge WHERE token = ?', String(token ?? ''));
   if (!row) return frozen({ ok: false, reason: 'challenge_unknown' });
   if (row.used_at) return frozen({ ok: false, reason: 'challenge_already_used' });
+  // A SORREND SZERZŐDÉS: a BEVÁLTOTT marad „beváltott", a LEJÁRT marad „lejárt" — a leváltás csak
+  // az élő, még beváltatlan hivatkozásra igaz (CHR-01). Egyik ág sem éled újra egy újabb kéréstől.
   const ex = instantMs(row.expires_at);
   if (!ex.ok || ex.ms <= t.ms) return frozen({ ok: false, reason: 'challenge_expired' });
+  if (row.superseded_at) return frozen({ ok: false, reason: 'challenge_superseded', superseded_at: row.superseded_at });
   return store.atomic(() => {
     const used = store.run('UPDATE channel_challenge SET used_at = ? WHERE token = ? AND used_at IS NULL', at, row.token);
     if (used.changes !== 1) throw new Error('redeemChannelChallenge: a kihívást közben már beváltották');

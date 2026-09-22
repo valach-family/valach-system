@@ -24,8 +24,9 @@ import { createRequire } from 'node:module';
 import { openStoreAt } from '../v3ref/store.mjs';
 import {
   registerAccount, authenticate, issueChannelChallenge, redeemChannelChallenge, provenEmailOf,
+  reissueChannelChallenge, subjectByEmail, CHALLENGE_POLICY,
 } from '../v3ref/account.mjs';
-import { createWorkspace, bootstrapOf, workspacesOf } from '../v3ref/workspace.mjs';
+import { createWorkspace, bootstrapOf, workspacesOf, ensurePersonalSpace, personalSpaceOf } from '../v3ref/workspace.mjs';
 import { inviteColleague, grantScopeToMember, revokeDelegationsOf } from '../v3ref/delegation.mjs';
 import { observeInvite, redeemInvite, rememberIntent, resumeIntent } from '../v3ref/invite.mjs';
 import { rightAt, revokeMembership, KNOWN_ROLES } from '../v3ref/authz.mjs';
@@ -36,6 +37,8 @@ import { entitlementFor, twoGateVerdict, setEntitlementProfile, PLANS } from '..
 import { attachBusinessIdentity, businessIdentityOf, JURISDICTION_PROFILES } from '../v3ref/externalId.mjs';
 import { membershipAsOf } from '../v3ref/bitemporal.mjs';
 import { readScopeGrantAt } from '../v3ref/scopeGrant.mjs';
+import { representationCheck } from '../v3ref/representation.mjs';
+import { validateRequest, schemaForEndpoint, isGated, endpointsWithoutSchema, CONTEXT_FIELD } from './httpSchema.mjs';
 
 const require = createRequire(import.meta.url);
 const { artifactPath } = require('../contracts/artifactNaming.js');
@@ -46,16 +49,18 @@ const PUBLIC_DIR = resolve(HERE, 'public');
 const PKG_VERSION = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).version;
 
 export const DEV_MAILBOX_LABEL = 'FEJLESZTŐI LEVÉL-FOGADÓ — nem küld külső személynek';
+export const DEV_CLOCK_LABEL = 'FEJLESZTŐI ÓRA — a lejárati ágak próbájához; élesben nem létezhet';
 export const NEUTRAL_REGISTER = Object.freeze({ ok: true, message: 'Ha a cím szabad, megerősítő levelet küldtünk.' });
 
 const SESSION_COOKIE = 'vs_session';
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_BODY_BYTES = 64 * 1024;
 
-// A KLIENS ÁLTAL KÜLDHETŐ, DE A CSELEKVŐT VAGY A KÖNYVET MEGNEVEZŐ MEZŐK — ezeket egyetlen
-// adat-végpont sem olvassa. Ahol egy mező LEGITIM bemenet (a meghívó FELAJÁNLOTT szerepe, a
-// munkakörnyezet-választó könyve), ott a végpont NEVEZETTEN engedi (allow-lista).
-const CLIENT_AUTHORITY_PARAMS = Object.freeze(['book_id', 'workspace_id', 'workspace', 'current_book_id', 'actor', 'actor_id', 'role', 'subject']);
+// A CSELEKVŐT VAGY A KÖNYVET MEGNEVEZŐ KLIENS-MEZŐK — a lista ma DOKUMENTÁCIÓ és próba-bemenet,
+// nem kapu: a kapu a séma-regiszter (HTP-01). Állapotváltoztató végponton az ilyen mező NEVEZETT
+// elutasítás (`unknown_field`), olvasón NEVEZETTEN figyelmen kívül marad (`param_ignored`) — a
+// cselekvőt és a könyvet változatlanul KIZÁRÓLAG a szerveroldali munkamenet adja.
+export const CLIENT_AUTHORITY_PARAMS = Object.freeze(['book_id', 'workspace_id', 'workspace', 'current_book_id', 'actor', 'actor_id', 'role', 'subject']);
 
 const hex = (bytes) => randomBytes(bytes).toString('hex');
 const nowIso = () => new Date().toISOString();
@@ -124,15 +129,38 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
  * Létrehozza a HTTP-szervert (még nem figyel). EGY tároló folyamatonként.
  * @param {{dbPath?:string, clock?:{now:()=>string}}} opts
  */
-export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
+export function createApp({ dbPath, clock = { now: nowIso }, devSurface = process.env.VS_APP_DEV !== '0' } = {}) {
   const path = dbPath || resolveDbPath();
   mkdirSync(dirname(path), { recursive: true });
   const store = openStoreAt(path, { timeoutMs: 2000 });
   const sessions = new Map();        // id → { id, subject_id, current_book_id, created_at }
   const mailbox = [];                // a FEJLESZTŐI LEVÉL-FOGADÓ — memóriában, kifelé soha
 
+  // ── FEJLESZTŐI ÓRA (DEV-CLOCK, R75 §3/6) ────────────────────────────────────────────────────
+  // MIÉRT KELL. A lejárati ágakat (megerősítő hivatkozás 24 óra · meghívó 7 nap) BÖNGÉSZŐBŐL is
+  // bizonyítani kell, és „várjunk egy napot" nem próba. A héj ezért TÁMOGATOTT idővezérlést ad: a
+  // dolgozó óra a valódi idő + egy eltolás, amit egyetlen fejlesztői végpont állít.
+  // AMI EZ NEM: nem éles képesség. A `devSurface` kapcsoló mögött áll (a fejlesztői levél-fogadóval
+  // együtt), és a lap is kimondja, hogy ez a próba-alkalmazás nyilvánosan nem tehető ki.
+  let devClockOffsetMs = 0;
+  const baseClock = clock;
+  const appClock = {
+    now: () => (devClockOffsetMs === 0 ? baseClock.now() : new Date(Date.parse(baseClock.now()) + devClockOffsetMs).toISOString()),
+  };
+  clock = appClock;
+
   function pushMail({ to, subject, link, body }) {
     mailbox.push(Object.freeze({ id: mailbox.length + 1, at: clock.now(), to, subject, link, body: body || '' }));
+  }
+
+  /** A MEGERŐSÍTŐ LEVÉL — egy helyen, hogy a regisztráció és az újrakérés ne tudjon elcsúszni. */
+  function sendVerification({ subjectId, value, at, host }) {
+    const token = hex(32);
+    const ch = issueChannelChallenge({ store, subjectId, value, token, at });
+    if (!ch.ok) return null;
+    pushMail({ to: value, subject: 'Erősítsd meg az e-mail címedet', link: `http://${host}/api/verify?token=${token}`,
+      body: `Kattints a hivatkozásra, hogy bizonyítsd: ez a cím a tiéd. A hivatkozás ${Math.round(CHALLENGE_POLICY.ttl_ms / 3600000)} óráig él. Ha lejár, a bejelentkező képernyőn kérhetsz újat.` });
+    return ch;
   }
 
   function newSession() {
@@ -180,15 +208,59 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
     return { ok: true, role: right.detail.role };
   }
 
-  /** A kliens által küldött cselekvő/könyv-mezők — NEVEZETTEN figyelmen kívül hagyva. */
-  function ignoredParamsOf(url, body, accepts = []) {
-    const found = new Set();
-    for (const k of url.searchParams.keys()) if (!accepts.includes(k)) found.add(k);
-    if (body && typeof body === 'object') for (const k of Object.keys(body)) if (!accepts.includes(k)) found.add(k);
-    // A cselekvőt/könyvet nevező ISMERT mezők mindig itt kötnek ki, ha a végpont nem fogadja őket —
-    // a lista csak a NÉV kedvéért marad: a szabály a fenti megengedő alak.
-    for (const k of CLIENT_AUTHORITY_PARAMS) if (!accepts.includes(k) && (url.searchParams.has(k) || (body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, k)))) found.add(k);
-    return [...found];
+  /**
+   * KTX-01 — A KONTEXTUS MEGERŐSÍTÉSE (R75/F75-02).
+   *
+   * A LELET: egy RÉGI képernyőn maradt gomb (pl. a korábbi cég taglistájának „megvonás" gombja) a
+   * váltás után is ÍRHATOTT volna — a szerver ugyanis csak azt nézte, mi a munkamenet MAI könyve.
+   * A kliens generáció-őre ezt önmagában nem tudja megfogni: a második lap ugyanabban a
+   * munkamenetben válthat, és a `/me` előzetes lekérése NEM atomikus kötés.
+   *
+   * A MEGOLDÁS ALAKJA — MEGERŐSÍTÉS, NEM FELHATALMAZÁS (ugyanaz a minta, mint a sémaverziónál,
+   * SVR-01): a kliens elküldheti, MELYIK könyvben állt (`expected_book_id`). Ha ez ELTÉR a
+   * munkamenet mai könyvétől, a kérés NEVEZETTEN elakad, írás nélkül. A mező SOHA nem VÁLASZT
+   * könyvet — a hatóság marad a munkameneté (KUKA-047), a megerősítés csak SZŰKÍTHET.
+   */
+  function contextGate(body, currentBookId) {
+    const expected = body && typeof body === 'object' ? body[CONTEXT_FIELD] : undefined;
+    if (expected === undefined || expected === null) return { ok: true, confirmed: false };
+    if (String(expected) !== String(currentBookId)) {
+      return {
+        ok: false, status: 409, reason: 'context_mismatch',
+        message: 'közben munkakörnyezetet váltottál — ez a művelet a korábbi munkakörnyezetben indult, '
+          + 'ezért nem hajtottuk végre; frissítsd a képernyőt, és indítsd újra abban, amelyikben dolgozni akarsz',
+        expected_book_id: String(expected), current_book_id: currentBookId,
+      };
+    }
+    return { ok: true, confirmed: true };
+  }
+
+  /** A KÉT SZINTETIKUS MINTA-REKORD — minden könyv ugyanazt kapja (a jelöltsége kimondott). */
+  function seedSamples(bookId, actorSubjectId) {
+    return {
+      stock: submitCommand({ store, idemKey: 'minta-keszlet', actor: actorSubjectId, bookId, type: 'stock.receipt', typeVersion: '1', declared: { qty: '12' }, resolve: () => ({ qty: '12' }), clock }),
+      price: submitCommand({ store, idemKey: 'minta-ar', actor: actorSubjectId, bookId, type: 'stock.receipt', typeVersion: '1', declared: { qty: '12' }, resolve: () => ({ qty: '12', unit_price: 3490 }), clock }),
+    };
+  }
+
+  /**
+   * SZK-01 — A SZEMÉLYES KÖR MEGSZÜLETÉSE (R64 L11 · R75 §3/1).
+   *
+   * MIKOR: amint a csatorna BIZONYÍTOTT (a megerősítő hivatkozás beváltásakor), és — a korábban
+   * megerősített fiókok miatt — belépéskor is, idempotensen. Nevet nem kér: a cím helyi részéből
+   * képezzük, mert a magánszemélynek nincs mit „elnevezni" (ez volt az L11 lelete).
+   * AMIT NEM CSINÁL: nem ad új jogot és nem új jogosultsági motor — ugyanaz a `createWorkspace`.
+   */
+  function ensurePersonal(subjectId) {
+    const proven = provenEmailOf(store, subjectId);
+    if (!proven) return null;
+    const existing = personalSpaceOf({ store, subjectId });
+    if (existing) return { ...existing, created: false };
+    const local = String(proven).split('@')[0] || 'saját';
+    const r = ensurePersonalSpace({ store, subjectId, bookId: `ps_${hex(4)}`, name: `${local} személyes köre`, at: clock.now() });
+    if (!r.ok) return null;
+    if (r.created) seedSamples(r.book_id, subjectId);
+    return { book_id: r.book_id, name: r.name, created: Boolean(r.created) };
   }
 
   // ── A VÉGPONTOK ──────────────────────────────────────────────────────────────────────────────
@@ -198,21 +270,28 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
 
   const handlers = {
     // ── FIÓK ─────────────────────────────────────────────────────────────────────────────────
-    'POST /api/register': ({ body, host }) => {
-      const email = String(body.email ?? '').trim();
-      const password = typeof body.password === 'string' ? body.password : '';
-      if (!email.includes('@')) return { status: 400, body: { ok: false, reason: 'email_required', message: 'adj meg egy e-mail címet' } };
-      if (password.length < 8) return { status: 400, body: { ok: false, reason: 'secret_too_short', message: 'a jelszó legalább 8 karakter' } };
+    // A mezők ALAKJÁT a séma mérte (HTP-01) — itt már csak a mag dönt (K03).
+    'POST /api/register': ({ input, host }) => {
+      const email = String(input.email).trim();
+      const password = input.password;
       const at = clock.now();
       const r = registerAccount({ store, subjectId: `sub_${hex(8)}`, email, secret: password, at });
       if (r.ok) {
-        const token = hex(32);
-        const ch = issueChannelChallenge({ store, subjectId: r.subject_id, value: r.email, token, at });
-        if (ch.ok) {
-          pushMail({ to: r.email, subject: 'Erősítsd meg az e-mail címedet', link: `http://${host}/api/verify?token=${token}`,
-            body: 'Kattints a hivatkozásra, hogy bizonyítsd: ez a cím a tiéd. A hivatkozás 24 óráig él.' });
+        sendVerification({ subjectId: r.subject_id, value: r.email, at, host });
+      } else if (r.reason === 'address_already_registered') {
+        // AZ ÚJRAREGISZTRÁCIÓ NEM ZSÁKUTCA TÖBBÉ (F75-01). A cím foglalt — kifelé ettől semleges
+        // marad a válasz —, BEFELÉ viszont ez egy megerősítés-újrakérés: ha a fiók csatornája még
+        // bizonyítatlan, ÚJ hivatkozás megy a CÍMRE (a korlátokkal), a jelszóhoz pedig senki nem
+        // nyúl (a `registerAccount` az `address_already_registered` ágon nem írt semmit).
+        const existing = subjectByEmail(store, email);
+        if (existing) {
+          const again = reissueChannelChallenge({ store, subjectId: existing, value: email, token: hex(32), at });
+          if (again.ok) {
+            pushMail({ to: email, subject: 'Új megerősítő hivatkozás', link: `http://${host}/api/verify?token=${again.token}`,
+              body: 'Új hivatkozást kértél a cím megerősítéséhez. A korábbi hivatkozás ettől érvénytelen, ez a hivatkozás 24 óráig él. A jelszavad nem változott.' });
+          }
         }
-      } else if (r.reason !== 'address_already_registered') {
+      } else {
         // A SAJÁT bemenet hibája nevezett (KUKA-070); a cím foglaltsága viszont NEM (anti-enumeráció).
         return { status: 400, body: { ok: false, reason: r.reason, message: 'a regisztráció adatai hiányosak' } };
       }
@@ -220,19 +299,56 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
       return { status: 200, body: { ...NEUTRAL_REGISTER } };
     },
 
+    /**
+     * ÚJ MEGERŐSÍTŐ HIVATKOZÁS KÉRÉSE (F75-01) — a lejárt hivatkozás FOLYTATÁSA.
+     *
+     * A VÁLASZ SEMLEGES, MINDEN ÁGON: nem árulja el, hogy a címhez tartozik-e fiók, hogy az már
+     * bizonyított-e, és azt sem, hogy a korlát miatt maradt-e el a levél (K03 · KUKA-084). Ami
+     * BEFELÉ történik, az nevezett, és a fejlesztői levél-fogadóban MÉRHETŐ.
+     */
+    'POST /api/verification/resend': ({ input, host }) => {
+      const email = String(input.email).trim();
+      const at = clock.now();
+      const subjectId = subjectByEmail(store, email);
+      if (subjectId) {
+        const again = reissueChannelChallenge({ store, subjectId, value: email, token: hex(32), at });
+        if (again.ok) {
+          pushMail({ to: email, subject: 'Új megerősítő hivatkozás', link: `http://${host}/api/verify?token=${again.token}`,
+            body: 'Új hivatkozást kértél a cím megerősítéséhez. A korábbi hivatkozás ettől érvénytelen, ez a hivatkozás 24 óráig él. A jelszavad nem változott.' });
+        }
+      }
+      return { status: 200, body: { ok: true, message: 'Ha a címhez megerősítésre váró fiók tartozik, új hivatkozást küldtünk. Nézd meg a leveleidet.' } };
+    },
+
     'GET /api/verify': ({ url }) => {
       const token = url.searchParams.get('token') || '';
       const r = redeemChannelChallenge({ store, token, at: clock.now() });
       const ok = r.ok === true;
+      // A BIZONYÍTOTT CSATORNA ELSŐ KÖVETKEZMÉNYE A SZEMÉLYES KÖR (SZK-01): a magánszemélynek
+      // innentől van hova belépnie, és nem kell „céget" kitalálnia a saját irataihoz (R64 L11).
+      const personal = ok ? ensurePersonal(r.subject_id) : null;
+      // A KUDARC IS FOLYTATÁS (F75-01 · KUKA-064): minden nemleges ág megmondja, mi a KÖVETKEZŐ
+      // lépés, és a lap gombot ad hozzá — a régi „regisztrálj újra" mondat NEM működött.
+      const REASONS = {
+        challenge_expired: 'A hivatkozás lejárt (24 óráig élt).',
+        challenge_already_used: 'Ezt a hivatkozást már beváltották — ha te voltál, egyszerűen lépj be.',
+        challenge_superseded: 'Ehhez a címhez újabb megerősítő levelet kértek, ezért ez a hivatkozás már nem él — a LEGUTÓBBI levélben lévő hivatkozás működik.',
+        challenge_unknown: 'Ismeretlen vagy hibás hivatkozás.',
+      };
+      const detail = ok ? '' : (Object.prototype.hasOwnProperty.call(REASONS, r.reason) ? REASONS[r.reason] : 'Ismeretlen vagy hibás hivatkozás.');
       const msg = ok
-        ? `Az e-mail címed (${esc(r.value_norm)}) bizonyítva. Most már bejelentkezhetsz és indíthatsz munkakörnyezetet.`
-        : `A megerősítés nem sikerült: <code>${esc(r.reason)}</code>. ${r.reason === 'challenge_already_used' ? 'Ezt a hivatkozást már beváltották.' : (r.reason === 'challenge_expired' ? 'A hivatkozás lejárt — regisztrálj újra.' : 'Ismeretlen vagy hibás hivatkozás.')}`;
-      const html = `<!doctype html><html lang="hu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>E-mail megerősítés — VS3</title><link rel="stylesheet" href="/style.css"></head><body><main class="verify"><h1>${ok ? 'Megerősítve' : 'Nem sikerült'}</h1><p data-testid="verify-result" data-ok="${ok}">${msg}</p><p><a href="/" data-testid="verify-back">Vissza az alkalmazáshoz</a></p></main></body></html>`;
+        ? `Az e-mail címed (${esc(r.value_norm)}) bizonyítva.${personal ? ` A személyes köröd („${esc(personal.name)}") készen áll` : ''} — most már bejelentkezhetsz.`
+        : `A megerősítés nem sikerült: <code>${esc(r.reason)}</code>. ${esc(detail)}`;
+      const next = ok
+        ? '<p><a href="/" data-testid="verify-back">Vissza az alkalmazáshoz</a></p>'
+        : `<p data-testid="verify-next">Folytatás: kérj új megerősítő hivatkozást a címedre — a jelszavad nem változik, és új fiókot sem kell csinálnod.</p>
+           <p><a href="/?megerosites=${esc(r.reason)}" data-testid="verify-resend-link">Új hivatkozás kérése</a> · <a href="/" data-testid="verify-back">Vissza az alkalmazáshoz</a></p>`;
+      const html = `<!doctype html><html lang="hu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>E-mail megerősítés — VS3</title><link rel="stylesheet" href="/style.css"></head><body><main class="verify"><h1>${ok ? 'Megerősítve' : 'Nem sikerült'}</h1><p data-testid="verify-result" data-ok="${ok}">${msg}</p>${next}</main></body></html>`;
       return { status: ok ? 200 : 400, html };
     },
 
-    'POST /api/login': ({ session, body }) => {
-      const r = authenticate({ store, email: String(body.email ?? ''), secret: typeof body.password === 'string' ? body.password : '' });
+    'POST /api/login': ({ session, input }) => {
+      const r = authenticate({ store, email: input.email, secret: input.password });
       if (!r.ok) return { status: 401, body: { ok: false, reason: r.reason, message: 'a belépés nem sikerült — ellenőrizd a címet és a jelszót' } };
       // A FÜGGŐ MEGHÍVÓ-SZÁNDÉK A RÉGI munkamenet-azonosítón áll — átvisszük az ÚJRA (K03).
       const pending = resumeIntent({ store, sessionId: session.id });
@@ -243,7 +359,10 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
         rememberIntent({ store, sessionId: fresh.id, token: pending, clock });
         store.run('DELETE FROM pending_intent WHERE session_id = ?', session.id);
       }
-      return { status: 200, body: { ok: true, subject_id: r.subject_id, pending_invite_token: pending || null }, setCookie: sessionCookie(fresh.id), session: fresh };
+      // A KORÁBBAN megerősített fiókok is megkapják a személyes körüket — idempotens (SZK-01).
+      const personal = ensurePersonal(r.subject_id);
+      if (personal && !fresh.current_book_id) fresh.current_book_id = personal.book_id;
+      return { status: 200, body: { ok: true, subject_id: r.subject_id, pending_invite_token: pending || null, personal_book_id: personal ? personal.book_id : null }, setCookie: sessionCookie(fresh.id), session: fresh };
     },
 
     'POST /api/logout': ({ session }) => {
@@ -254,7 +373,7 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
 
     'GET /api/me': ({ session }) => {
       if (!session.subject_id) {
-        return { status: 200, body: { ok: true, subject_id: null, email: null, channel_proven: false, workspaces: [], current_book_id: null, current_role: null, current_book_name: null } };
+        return { status: 200, body: { ok: true, subject_id: null, email: null, channel_proven: false, workspaces: [], current_book_id: null, current_role: null, current_book_name: null, current_kind: null, personal_book_id: null, acting_as: 'nincs bejelentkezve' } };
       }
       const at = clock.now();
       const ws = workspacesOf({ store, subjectId: session.subject_id, at });
@@ -271,22 +390,30 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
         current_book_id: current ? current.book_id : null,
         current_role: current ? current.role : null,
         current_book_name: current ? current.name : null,
+        current_kind: current ? current.kind : null,
+        current_personal: current ? current.personal === true : null,
+        personal_book_id: (personalSpaceOf({ store, subjectId: session.subject_id }) || {}).book_id ?? null,
+        // A KÉPERNYŐ MONDJA KI, KI NEVÉBEN JÁRSZ EL (R75 §4) — egy mondat, a SZERVER igazságából.
+        acting_as: current
+          ? `${emailOf(session.subject_id) ?? session.subject_id} · ${current.personal ? 'személyes kör' : 'munkakörnyezet'}: ${current.name} · szerep: ${current.role}`
+          : `${emailOf(session.subject_id) ?? session.subject_id} · nincs kiválasztott kör`,
         current_plan: current ? ((store.get('SELECT plan FROM entitlement_profile WHERE book_id = ?', current.book_id) || {}).plan ?? null) : null,
       } };
     },
 
     // ── MUNKAKÖRNYEZET ───────────────────────────────────────────────────────────────────────
-    'POST /api/workspaces': ({ session, body }) => {
+    'POST /api/workspaces': ({ session, input }) => {
       if (!session.subject_id) return loginRequired();
-      const name = String(body.name ?? '').trim();
-      const plan = body.plan === undefined || body.plan === null || body.plan === '' ? 'starter' : String(body.plan);
-      if (!Object.prototype.hasOwnProperty.call(PLANS, plan)) {
-        return { status: 400, body: { ok: false, reason: 'unknown_plan', message: `ismeretlen terv: ${plan} — választható: ${Object.keys(PLANS).join(' · ')}` } };
-      }
-      const bizIn = body.business && typeof body.business === 'object' ? body.business : null;
-      if (bizIn && Object.prototype.hasOwnProperty.call(bizIn, 'tax_id')) {
-        const raw = typeof bizIn.tax_id === 'string' ? bizIn.tax_id : '';
-        if (!raw.replace(/[\s-]/g, '')) return { status: 400, body: { ok: false, reason: 'tax_id_value_required', message: 'az adószám nem lehet üres — hagyd el a vállalkozási minőséget, vagy add meg' } };
+      // A NÉV, A TERV ÉS A VÁLLALKOZÁSI MINŐSÉG ALAKJÁT A SÉMA MÉRTE (HTP-01): a régi
+      // `String(body.name ?? '')` kényszerítés helyén most nevezett elutasítás áll, ÍRÁS ELŐTT.
+      const name = String(input.name).trim();
+      const plan = input.plan;
+      const biz = input.business ?? null;
+      // A KÉPVISELETI HATÁR KIMONDVA (REP-01 · R75 §3/3): ez ÖNBEVALLOTT saját munkatér — hatósági
+      // igazolást nem kérünk hozzá, és ebből NEM következik más jogalany képviselete.
+      const representation = representationCheck({ operationClass: 'own_self_declared_work', actorSubjectId: session.subject_id, at: clock.now() });
+      if (!representation.allowed) {
+        return { status: 403, body: { ok: false, reason: representation.reason, message: representation.message } };
       }
       const at = clock.now();
       const bookId = `ws_${hex(4)}`;
@@ -294,41 +421,42 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
       if (!ws.ok) return { status: ws.reason === 'creator_channel_unproven' ? 403 : 400, body: { ok: false, reason: ws.reason, message: ws.message ?? 'a munkakörnyezet nem jött létre' } };
 
       let business = null;
-      const biz = body.business && typeof body.business === 'object' ? body.business : null;
       if (biz && String(biz.tax_id ?? '').trim()) {
         // ÖNBEVALLOTT ÁLLÍTÁS — hatósági igazolás nincs, és ezt a válasz kimondja (verification: none_available).
         business = attachBusinessIdentity({ store, bookId, namespace: 'tax_id', jurisdiction: String(biz.jurisdiction ?? ''), valueRaw: String(biz.tax_id), at: clock.now() });
       }
 
       // KÉT SZINTETIKUS MINTA-REKORD a létrehozó nevében — a mennyiség KANONIKUS DECIMÁLIS SZÖVEG (MNY-01).
-      const samples = {
-        stock: submitCommand({ store, idemKey: 'minta-keszlet', actor: session.subject_id, bookId, type: 'stock.receipt', typeVersion: '1', declared: { qty: '12' }, resolve: () => ({ qty: '12' }), clock }),
-        price: submitCommand({ store, idemKey: 'minta-ar', actor: session.subject_id, bookId, type: 'stock.receipt', typeVersion: '1', declared: { qty: '12' }, resolve: () => ({ qty: '12', unit_price: 3490 }), clock }),
-      };
+      const samples = seedSamples(bookId, session.subject_id);
       session.current_book_id = bookId;
-      return { status: 201, body: { ok: true, workspace: ws, business, samples, book_id: bookId, name, role: 'admin' } };
+      return { status: 201, body: {
+        ok: true, workspace: ws, business, samples, book_id: bookId, name, role: 'admin', kind: 'shared',
+        representation: { basis: representation.basis, verification: 'none_available', stated_limit: representation.stated_limit },
+      } };
     },
 
-    'POST /api/session/workspace': ({ session, body }) => {
+    'POST /api/session/workspace': ({ session, input }) => {
       if (!session.subject_id) return loginRequired();
-      const bookId = String(body.book_id ?? '').trim();
-      if (!bookId) return { status: 400, body: { ok: false, reason: 'book_id_required', message: 'add meg, melyik munkakörnyezetre váltasz' } };
+      const bookId = String(input.book_id).trim();
       const at = clock.now();
       const m = membershipAsOf({ store, subjectId: session.subject_id, bookId, validAt: at, knownAt: at });
       if (m.effective !== true) {
         return { status: 403, body: { ok: false, reason: 'not_a_member', detail: m.reason, message: 'ebben a munkakörnyezetben nincs hatályos tagságod' } };
       }
       session.current_book_id = bookId;
-      return { status: 200, body: { ok: true, book_id: bookId, role: roleIn(session.subject_id, bookId, at), name: bookNameOf(bookId) } };
+      const ws = workspacesOf({ store, subjectId: session.subject_id, at }).find((w) => w.book_id === bookId) || null;
+      return { status: 200, body: { ok: true, book_id: bookId, role: roleIn(session.subject_id, bookId, at), name: bookNameOf(bookId), kind: ws ? ws.kind : null, personal: ws ? ws.personal : null } };
     },
 
-    'POST /api/workspaces/plan': ({ session, body }) => {
+    'POST /api/workspaces/plan': ({ session, input, body }) => {
       if (!session.subject_id) return loginRequired();
       const cur = currentBookOf(session);
       if (!cur.book_id) return workspaceRequired(cur);
+      const ctx = contextGate(body, cur.book_id);
+      if (!ctx.ok) return { status: ctx.status, body: { ok: false, reason: ctx.reason, message: ctx.message, expected_book_id: ctx.expected_book_id, current_book_id: ctx.current_book_id } };
       const gate = adminGate(session, cur.book_id);
       if (!gate.ok) return { status: gate.status, body: { ok: false, reason: gate.reason, message: gate.message } };
-      const r = setEntitlementProfile({ store, bookId: cur.book_id, plan: String(body.plan ?? ''), at: clock.now() });
+      const r = setEntitlementProfile({ store, bookId: cur.book_id, plan: input.plan, at: clock.now() });
       return { status: r.ok ? 200 : 400, body: { ...r } };
     },
 
@@ -353,21 +481,23 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
       return { status: 200, body: { ok: true, book_id: cur.book_id, members, known_scopes: [...KNOWN_DATA_SCOPES], known_roles: [...KNOWN_ROLES] } };
     },
 
-    'POST /api/invites': ({ session, body, host }) => {
+    'POST /api/invites': ({ session, input, body, host }) => {
       if (!session.subject_id) return loginRequired();
       const cur = currentBookOf(session);
       if (!cur.book_id) return workspaceRequired(cur);
+      const ctx = contextGate(body, cur.book_id);
+      if (!ctx.ok) return { status: ctx.status, body: { ok: false, reason: ctx.reason, message: ctx.message, expected_book_id: ctx.expected_book_id, current_book_id: ctx.current_book_id } };
       const token = hex(32);
       const at = clock.now();
       const expiresAt = new Date(Date.parse(at) + INVITE_TTL_MS).toISOString();
       const r = inviteColleague({
         store, inviterSubjectId: session.subject_id, bookId: cur.book_id,
-        inviteeEmail: String(body.email ?? ''), offeredRole: String(body.role ?? ''), scope: String(body.scope ?? ''),
+        inviteeEmail: input.email, offeredRole: input.role, scope: input.scope,
         token, expiresAt, at,
       });
       if (!r.ok) return { status: 403, body: { ok: false, reason: r.reason, message: r.message ?? 'a meghívó nem adható ki', ceiling: r.ceiling ?? null } };
-      pushMail({ to: String(body.email).trim(), subject: `Meghívás: ${bookNameOf(cur.book_id) ?? cur.book_id}`, link: `http://${host}/?invite=${token}`,
-        body: `${emailOf(session.subject_id) ?? session.subject_id} meghívott a(z) „${bookNameOf(cur.book_id) ?? cur.book_id}" munkakörnyezetbe (${String(body.role)} szerep; adatkör: ${String(body.scope)} — a jogot a kezelő a beváltás után külön adja meg). A meghívó 7 napig él.` });
+      pushMail({ to: String(input.email).trim(), subject: `Meghívás: ${bookNameOf(cur.book_id) ?? cur.book_id}`, link: `http://${host}/?invite=${token}`,
+        body: `${emailOf(session.subject_id) ?? session.subject_id} meghívott a(z) „${bookNameOf(cur.book_id) ?? cur.book_id}" munkakörnyezetbe (${input.role} szerep; adatkör: ${input.scope} — a jogot a kezelő a beváltás után külön adja meg). A meghívó 7 napig él.` });
       return { status: 201, body: { ok: true, token, ceiling: r.ceiling, basis_id: r.basis_id, basis_version: r.basis_version, expires_at: expiresAt } };
     },
 
@@ -377,17 +507,14 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
       return { status: 200, body: { ...r } };
     },
 
-    'POST /api/invites/pending': ({ session, body }) => {
-      const token = String(body.token ?? '').trim();
-      if (!token) return { status: 400, body: { ok: false, reason: 'token_required', message: 'hiányzik a meghívó azonosítója' } };
-      rememberIntent({ store, sessionId: session.id, token, clock });
+    'POST /api/invites/pending': ({ session, input }) => {
+      rememberIntent({ store, sessionId: session.id, token: String(input.token).trim(), clock });
       return { status: 200, body: { ok: true } };
     },
 
-    'POST /api/invites/redeem': ({ session, body }) => {
+    'POST /api/invites/redeem': ({ session, input }) => {
       if (!session.subject_id) return loginRequired();
-      const token = String(body.token ?? '').trim();
-      if (!token) return { status: 400, body: { ok: false, reason: 'token_required', message: 'hiányzik a meghívó azonosítója' } };
+      const token = String(input.token).trim();
       const r = redeemInvite({ store, token, actingSubjectId: session.subject_id, clock });
       if (r.ok) {
         session.current_book_id = r.book_id;
@@ -396,20 +523,23 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
       return { status: r.ok ? 200 : 403, body: { ...r } };
     },
 
-    'POST /api/members/scope': ({ session, body }) => {
+    'POST /api/members/scope': ({ session, input, body }) => {
       if (!session.subject_id) return loginRequired();
       const cur = currentBookOf(session);
       if (!cur.book_id) return workspaceRequired(cur);
-      const r = grantScopeToMember({ store, granterSubjectId: session.subject_id, bookId: cur.book_id, targetSubjectId: String(body.subject_id ?? ''), scope: String(body.scope ?? ''), at: clock.now() });
+      const ctx = contextGate(body, cur.book_id);
+      if (!ctx.ok) return { status: ctx.status, body: { ok: false, reason: ctx.reason, message: ctx.message, expected_book_id: ctx.expected_book_id, current_book_id: ctx.current_book_id } };
+      const r = grantScopeToMember({ store, granterSubjectId: session.subject_id, bookId: cur.book_id, targetSubjectId: input.subject_id, scope: input.scope, at: clock.now() });
       return { status: r.ok ? 200 : 403, body: { ...r } };
     },
 
-    'POST /api/members/revoke': ({ session, body }) => {
+    'POST /api/members/revoke': ({ session, input, body }) => {
       if (!session.subject_id) return loginRequired();
       const cur = currentBookOf(session);
       if (!cur.book_id) return workspaceRequired(cur);
-      const target = String(body.subject_id ?? '').trim();
-      if (!target) return { status: 400, body: { ok: false, reason: 'subject_id_required', message: 'add meg, kinek a tagságát vonod meg' } };
+      const ctx = contextGate(body, cur.book_id);
+      if (!ctx.ok) return { status: ctx.status, body: { ok: false, reason: ctx.reason, message: ctx.message, expected_book_id: ctx.expected_book_id, current_book_id: ctx.current_book_id } };
+      const target = String(input.subject_id).trim();
       const revocation = revokeMembership({ store, subjectId: target, bookId: cur.book_id, clock, actorSubjectId: session.subject_id });
       const delegation = revocation.ok ? revokeDelegationsOf({ store, subjectId: target, bookId: cur.book_id, at: clock.now() }) : null;
       return { status: revocation.ok ? 200 : 403, body: { ok: revocation.ok, reason: revocation.reason, message: revocation.message ?? null, revocation, delegation } };
@@ -449,6 +579,13 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
     },
 
     'GET /dev/mailbox': () => ({ status: 200, body: { ok: true, label: DEV_MAILBOX_LABEL, mails: [...mailbox].reverse() } }),
+
+    // ── FEJLESZTŐI ÓRA — a lejárati ágak böngészőből is bizonyíthatók (R75 §3/6) ──────────────
+    'GET /dev/clock': () => ({ status: 200, body: { ok: true, label: DEV_CLOCK_LABEL, now: clock.now(), real_now: baseClock.now(), offset_ms: devClockOffsetMs } }),
+    'POST /dev/clock': ({ input }) => {
+      devClockOffsetMs += input.advance_ms;
+      return { status: 200, body: { ok: true, label: DEV_CLOCK_LABEL, now: clock.now(), real_now: baseClock.now(), offset_ms: devClockOffsetMs } };
+    },
   };
 
   /** A minta-rekord kiadása: a kérő a munkamenet alanya, a cselekvő a könyv LÉTREHOZÓJA. */
@@ -458,17 +595,18 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
     return readCommandResult({ store, idemKey, requester, bookId, actor: boot.creator_subject_id, clock });
   }
 
-  // MEGENGEDŐ SZABÁLY, NEM TILTÓ FELSOROLÁS (KUKA-057 · az R64 ellenséges felülvizsgálat H08 lelete):
-  // minden végpont kimondja, MELY mezőket olvassa; minden más törzs- és lekérdezés-mező NEVEZETTEN
-  // figyelmen kívül marad (`param_ignored`), akármilyen írásmódon érkezik (bookId · tenant_id · …).
-  const ACCEPTS = {
-    'POST /api/register': ['email', 'password'], 'GET /api/verify': ['token'], 'POST /api/login': ['email', 'password'],
-    'POST /api/logout': [], 'GET /api/me': [], 'POST /api/workspaces': ['name', 'plan', 'business'],
-    'POST /api/session/workspace': ['book_id'], 'POST /api/workspaces/plan': ['plan'], 'GET /api/members': [],
-    'POST /api/invites': ['email', 'role', 'scope'], 'GET /api/invites/observe': ['token'], 'POST /api/invites/pending': ['token'],
-    'POST /api/invites/redeem': ['token'], 'POST /api/members/scope': ['subject_id', 'scope'], 'POST /api/members/revoke': ['subject_id'],
-    'GET /api/data/stock': [], 'GET /api/data/price': [], 'GET /dev/mailbox': [],
-  };
+  // A MEZŐ-SZERZŐDÉS OTTHONA A SÉMA-REGISZTER (HTP-01, `v3app/httpSchema.mjs`) — itt nincs második
+  // másolat. A korábbi `ACCEPTS` tábla ezt a végponton kívül, kézzel ismételte: megengedő szabály
+  // volt ugyan (KUKA-057), de nem KAPU — a nem deklarált mező némán kimaradt, a DEKLARÁLT mező
+  // rossz típusa pedig `String()`-gel „megjavult" (R75/F75-03). Ma: a séma kapuz az
+  // állapotváltoztató végpontokon, és NEVEZETTEN hagy ki az olvasókon.
+  //
+  // FAIL-CLOSED INDULÁSKOR: ha egy kezelőnek nincs deklarált sémája, azt nem futás közben vesszük
+  // észre — a héj indulásakor kimondjuk (KUKA-051: a hiányzó őr zöldnek látszik).
+  const missingSchemas = endpointsWithoutSchema(Object.keys(handlers));
+  if (missingSchemas.length) {
+    throw new Error(`v3app: deklarált bemeneti séma nélküli végpont(ok): ${missingSchemas.join(' · ')} — a szerződés hiánya ZÁR (HTP-01)`);
+  }
 
   // ── A KÉRÉS-CIKLUS ───────────────────────────────────────────────────────────────────────────
   async function handle(req, res) {
@@ -481,20 +619,42 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
     const key = `${req.method} ${url.pathname}`;
 
     try {
-      const handler = handlers[key];
-      if (handler) {
+      // A KEZELŐ FELOLDÁSA SAJÁT KULCSON (SOP-01 alakja a héjon): az örökölt tulajdonság-nevek
+      // (`toString` · `constructor` · `__proto__`) nem adhatnak vissza „kezelőt".
+      const handler = Object.prototype.hasOwnProperty.call(handlers, key) ? handlers[key] : undefined;
+      if (typeof handler === 'function') {
+        // A FEJLESZTŐI FELÜLET KAPCSOLÓ MÖGÖTT (levél-fogadó · óra): kikapcsolva NEM LÉTEZIK —
+        // ugyanazt a választ adja, mint bármely ismeretlen út (nem árulja el, hogy létezne).
+        if (key.includes(' /dev/') && !devSurface) {
+          return sendJson(res, 404, { ok: false, reason: 'unknown_endpoint', message: `nincs ilyen végpont: ${key}` }, setCookie);
+        }
         let body = {};
         if (req.method === 'POST') {
           const raw = await readBody(req);
           if (raw.trim()) {
             try { body = JSON.parse(raw); } catch { return sendJson(res, 400, { ok: false, reason: 'invalid_json', message: 'a kérés törzse nem JSON' }, setCookie); }
           }
-          if (!body || typeof body !== 'object' || Array.isArray(body)) body = {};
+          // A NEM-OBJEKTUM TÖRZS SEM NÉMÁN ÜRÜL KI: a séma-motor mondja ki (`invalid_body`).
+          if (body === undefined) body = {};
         }
-        const ignored = ignoredParamsOf(url, body, ACCEPTS[key] || []);
-        const out = handler({ session, body, url, host });
+        const query = Object.fromEntries(url.searchParams.entries());
+        // A BEMENETI SÉMA — a HATÁRON (HTP-01). Állapotváltoztató végponton KAPU: nevezett
+        // elutasítás, ÍRÁS NÉLKÜL (a kezelő meg sem hívódik). Olvasón: nevezett figyelmen kívül.
+        const checked = validateRequest({ key, body, query });
+        if (!checked.ok) {
+          return sendJson(res, 400, {
+            ok: false, reason: checked.error, message: checked.detail,
+            field: checked.at, where: checked.where, refused_by: 'input_schema',
+          }, setCookie);
+        }
+        const out = handler({ session, body: (body && typeof body === 'object' && !Array.isArray(body)) ? body : {}, input: checked.value, query: checked.query, url, host });
         if (out.html !== undefined) return sendHtml(res, out.status, out.html, setCookie);
-        const envelope = ignored.length ? { ...out.body, param_ignored: true, ignored_params: ignored } : out.body;
+        let envelope = out.body;
+        if (checked.ignored_params.length) envelope = { ...envelope, param_ignored: true, ignored_params: [...checked.ignored_params] };
+        // A DEKLARÁLT ALAPÉRTELMEZÉS KIMONDVA (BEM-01): ha egy mezőt nem a beadó küldött, hanem a
+        // séma tette hozzá, azt a válasz FELSOROLJA — különben pont az a némaság születne vissza,
+        // amit a szerződés tilt.
+        if (checked.defaults_applied && checked.defaults_applied.length) envelope = { ...envelope, defaults_applied: [...checked.defaults_applied] };
         return sendJson(res, out.status, envelope, out.setCookie || setCookie);
       }
       if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/dev/')) {
@@ -527,8 +687,8 @@ export function createApp({ dbPath, clock = { now: nowIso } } = {}) {
 }
 
 /** Elindítja a szervert; `port: 0` ⇒ szabad port. */
-export function startServer({ port = Number(process.env.VS_APP_PORT || 3300), dbPath, clock } = {}) {
-  const app = createApp({ dbPath, clock });
+export function startServer({ port = Number(process.env.VS_APP_PORT || 3300), dbPath, clock, devSurface } = {}) {
+  const app = createApp({ dbPath, clock, ...(devSurface === undefined ? {} : { devSurface }) });
   return new Promise((resolveStart, reject) => {
     app.server.once('error', reject);
     app.server.listen(port, '127.0.0.1', () => {

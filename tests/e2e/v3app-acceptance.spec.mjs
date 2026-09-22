@@ -1,4 +1,6 @@
-// tests/e2e/v3app-acceptance.spec.mjs — AZ R63 §5.3 TIZENNÉGY ELFOGADÁSI HELYZETE A BÖNGÉSZŐBEN (R64).
+// tests/e2e/v3app-acceptance.spec.mjs — AZ R63 §5.3 TIZENNÉGY ELFOGADÁSI HELYZETE A BÖNGÉSZŐBEN
+// (R64 → R75: a lejárati ágak a fejlesztői órával a böngészőből is mérve; a bemeneti séma a
+// határon kapuz, ezért a zárt regiszteren kívüli bemenet MÁS NÉVEN, de ugyanúgy elakad).
 //
 // HELYZETENKÉNT EGY PRÓBA (H01…H14), ÉS EGY BIZONYÍTÉK-TÉTEL, KÉT REKESSZEL:
 //   · `browser` — amit a lap MUTATOTT, és amit a felhasználó TEHETETT (gomb volt-e, mi állt a fejlécben);
@@ -22,7 +24,9 @@ import {
 } from './helpers.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const COMMITTED_COPY = 'docs/70_PLANNING/V3_R64_ELFOGADAS_HELYZETEK.json';
+// A FRISS MÉRÉS ÚJ LAPRA MEGY, a korábbi kör lapját NEM írjuk át (a történetet nem szerkesztjük —
+// D-VS-682 elve): az R64-es alak marad a maga helyén, ez a lap a MAI állapot (R75).
+const COMMITTED_COPY = 'docs/70_PLANNING/V3_R75_ELFOGADAS_HELYZETEK.json';
 
 // R63 §5.3 — szó szerint.
 const SITUATIONS = Object.freeze([
@@ -78,7 +82,7 @@ test.afterAll(async () => {
   for (const s of situations) summary[s.verdict] = (summary[s.verdict] || 0) + 1;
   const out = {
     schema: 'v3app-elfogadas-helyzetek/1',
-    round: 'CMD-VS-300-002-002 R64',
+    round: 'CMD-VS-300-002-002 R75',
     lane: 'Claude-v3',
     source: 'tests/e2e/v3app-acceptance.spec.mjs',
     command: 'npm run proof:core-ux',
@@ -126,8 +130,13 @@ test('H01 — Egyszerű magánfiók céges adatbekérés nélkül létrejön; cs
     const bela = await w.person('bela');
     const bws = await createWorkspaceUI(bela.page, { name: 'Béla tere', plan: 'pro' });
     const list = await workspaceListUI(anna.page);
-    ev.b(`Anna választója ${list.length} tételt mutat (a sajátját); Béla tere nem szerepel benne`);
-    expect(list.length).toBe(1);
+    const annaMe0 = (await anna.api.get('/api/me')).body;
+    ev.b(`Anna választója ${list.length} tételt mutat: a SZEMÉLYES köre (a cím megerősítésekor magától született — SZK-01, R75) és a most indított tere; Béla tere nem szerepel benne`);
+    // A LISTA KETTŐ: a személyes kör + a próbában indított tér. A helyzet állítása változatlan —
+    // Anna CSAK a sajátjait látja —, a szám a személyes kör bevezetésével nőtt (R64 L11 zárása).
+    expect(list.length).toBe(2);
+    expect(annaMe0.workspaces.filter((x) => x.personal).length).toBe(1);
+    expect(annaMe0.workspaces.map((x) => x.book_id)).not.toContain(bws.bookId);
     const sw = await anna.api.post('/api/session/workspace', { book_id: bws.bookId });
     const forced = await anna.api.get(`/api/data/price?book_id=${bws.bookId}`);
     const me = (await anna.api.get('/api/me')).body;
@@ -136,8 +145,11 @@ test('H01 — Egyszerű magánfiók céges adatbekérés nélkül létrejön; cs
     const bi = db.count('SELECT COUNT(*) AS n FROM business_identity WHERE book_id = ?', p.bookId);
     const xids = db.all('SELECT namespace FROM external_id WHERE subject_id = ?', anna.subjectId).map((r) => r.namespace);
     const mem = db.all('SELECT book_id, role FROM membership WHERE subject_id = ?', anna.subjectId);
-    ev.s(`ADATBÁZIS: business_identity a magántéren: ${bi} sor; Anna külső azonosítói: [${xids.join(', ')}] (csak e-mail); tagságai: ${j(mem)} (csak a saját tere, admin)`);
-    expect(bi).toBe(0); expect(xids).toEqual(['email']); expect(mem).toEqual([{ book_id: p.bookId, role: 'admin' }]);
+    const personalBookId = (await anna.api.get('/api/me')).body.personal_book_id;
+    ev.s(`ADATBÁZIS: business_identity a magántéren: ${bi} sor; Anna külső azonosítói: [${xids.join(', ')}] (csak e-mail); tagságai: ${j(mem)} — a SZEMÉLYES köre (${personalBookId}, SZK-01) és a most indított tere, mindkettő admin; idegen könyvben nincs tagsága`);
+    expect(bi).toBe(0); expect(xids).toEqual(['email']);
+    expect(mem.map((x) => x.book_id).sort()).toEqual([personalBookId, p.bookId].sort());
+    expect(mem.every((x) => x.role === 'admin')).toBe(true);
     ev.verdictIs('bizonyitva', 'A minta-rekordok minden munkakörnyezetben azonos tartalmúak (qty 12), ezért a „saját adat" azonosságát nem a tartalom, hanem a munkamenet könyve és az idegen könyv-paraméter figyelmen kívül hagyása bizonyítja; a terv-különbség (saját starter ↔ idegen pro) az ár-nézeten tartalmilag is szétválasztja a két könyvet.');
   } finally { await w.close(); db.close(); }
 });
@@ -176,7 +188,10 @@ test('H02 — A meglévő magánfiók alkalmazotti meghívót elfogad; jelszava,
     const me = (await bela.api.get('/api/me')).body;
     ev.b(`Kilépés után a RÉGI jelszóval újra belép: „${login.resultText}"; munkakörnyezetei: ${me.workspaces.map((x) => `${x.name} (${x.role})`).join(' · ')}`);
     expect(login.body.ok).toBe(true);
-    expect(me.workspaces.map((x) => x.role).sort()).toEqual(['admin', 'user']);
+    // A SZEMÉLYES KÖR (admin) + a SAJÁT tere (admin) + a meghívott céges tagság (user). A helyzet
+    // állítása változatlan: a meghívás elfogadása NEM írta át sem a jelszót, sem a saját jogait.
+    expect(me.workspaces.map((x) => x.role).sort()).toEqual(['admin', 'admin', 'user']);
+    expect(me.workspaces.filter((x) => x.personal).length).toBe(1);
     ev.verdictIs('bizonyitva', 'A második faktor a magban nem létező fogalom (nincs mit törölni); a „személyes adat" itt az e-mail azonosító sora és az alany fajtája.');
   } finally { await w.close(); db.close(); }
 });
@@ -253,12 +268,17 @@ test('H05 — Azonos cégazonosítóval más jelentkező nem kap hozzáférést;
     const me = (await cili.api.get('/api/me')).body;
     ev.s(`Cili váltása Anna könyvére → ${swA.status} ${swA.body.reason}/${swA.body.detail}; a harmadik szolgáltatóéra → ${swD.status} ${swD.body.reason}/${swD.body.detail}; ár ?book_id=<Anna pro könyve> → param_ignored=${forced.body.param_ignored}, ok=${forced.body.ok}, refused_by=${forced.body.refused_by} (a saját starter könyve dönt); /api/me munkakörnyezetei: ${me.workspaces.map((x) => x.name).join(', ')}`);
     expect(swA.status).toBe(403); expect(swD.status).toBe(403); expect(forced.body).toMatchObject({ param_ignored: true, ok: false, refused_by: 'entitlement' });
-    expect(me.workspaces.map((x) => x.book_id)).toEqual([C.bookId]);
+    // Cili könyvei: a SZEMÉLYES köre és a saját cége — Annáé és a harmadik szolgáltatóé NEM.
+    expect(me.workspaces.map((x) => x.book_id)).toContain(C.bookId);
+    expect(me.workspaces.map((x) => x.book_id)).not.toContain(A.bookId);
+    expect(me.workspaces.map((x) => x.book_id)).not.toContain(D.bookId);
+    expect(me.workspaces.filter((x) => x.personal).length).toBe(1);
     const norm = taxOf(w.tag).replace(/-/g, '');
     const claims = db.all("SELECT subject_id FROM external_id WHERE namespace = 'tax_id' AND jurisdiction = 'HU' AND value_norm = ? ORDER BY subject_id", norm);
     const ciliMem = db.all('SELECT book_id FROM membership WHERE subject_id = ?', cili.subjectId).map((r) => r.book_id);
     ev.s(`ADATBÁZIS: ugyanazt a (tax_id · HU · ${norm}) kulcsot ${claims.length} KÜLÖN jogalany állítja (${claims.map((r) => r.subject_id).join(', ')}) — az azonosító állítás, nem jog; Cili tagságai: ${j(ciliMem)}`);
-    expect(claims.length).toBe(3); expect(ciliMem).toEqual([C.bookId]);
+    expect(claims.length).toBe(3);
+    expect(ciliMem).toContain(C.bookId); expect(ciliMem).not.toContain(A.bookId); expect(ciliMem).not.toContain(D.bookId);
     ev.verdictIs('bizonyitva', 'Nincs globális cégnév-/adószám-lefoglalás: az azonos karaktersor három független jogalanyon áll, egyik sem nyit a másik könyvére.');
   } finally { await w.close(); db.close(); }
 });
@@ -272,8 +292,15 @@ test('H06 — Körön túli meghívás/jogadás elutasítva; visszavont, idegen 
     const owner = await anna.api.post('/api/invites', { email: w.email('x'), role: 'owner', scope: 'keszlet' });
     const badScope = await anna.api.post('/api/invites', { email: w.email('x'), role: 'user', scope: 'penzugy' });
     ev.b(`A meghívó szerep-választója CSAK a zárt regiszter szerepeit kínálja: [${roleOptions.join(', ')}]`);
-    ev.s(`KÖRÖN TÚLI meghívás: role=owner → ${owner.status} ${owner.body.reason}, plafon=${j(owner.body.ceiling)}; scope=penzugy → ${badScope.status} ${badScope.body.reason}; ADATBÁZIS: körön túli meghívó-sor NEM született: ${db.count("SELECT COUNT(*) AS n FROM invite WHERE invitee_value = ?", w.email('x'))} sor`);
-    expect(owner.body.reason).toBe('outside_basis_roles'); expect(badScope.body.reason).toBe('data_scope_required');
+    ev.s(`KÖRÖN TÚLI meghívás: role=owner → ${owner.status} ${owner.body.reason} (${owner.body.field}), scope=penzugy → ${badScope.status} ${badScope.body.reason} (${badScope.body.field}); ADATBÁZIS: körön túli meghívó-sor NEM született: ${db.count("SELECT COUNT(*) AS n FROM invite WHERE invitee_value = ?", w.email('x'))} sor`);
+    // R75/F75-03 ÓTA A HATÁR DÖNT ELŐBB: a zárt regiszteren kívüli szerep és adatkör a BEMENETI
+    // SÉMÁN akad el (HTP-01, 400 invalid_value, ÍRÁS NÉLKÜL), tehát a mag `outside_basis_roles` /
+    // `data_scope_required` ága ezen a bemeneten már nem hívódik. A MAG SZABÁLYA VÁLTOZATLAN, és a
+    // bizonyítéka a mag-battériában áll (`npm run verify:v3ref` · P-CORE, P-DSC) — itt az a mérés,
+    // hogy a körön túli kérés SEHOL nem hagy nyomot (KUKA-050: a próba a MAI valóságot mérje).
+    expect(owner.status).toBe(400); expect(owner.body.reason).toBe('invalid_value'); expect(owner.body.field).toBe('role');
+    expect(badScope.status).toBe(400); expect(badScope.body.reason).toBe('invalid_value'); expect(badScope.body.field).toBe('scope');
+    expect(db.count('SELECT COUNT(*) AS n FROM invite WHERE invitee_value = ?', w.email('x'))).toBe(0);
     // ÉRVÉNYES PÁR: Béla (user) — beváltva; utána a user NEM adhat tovább, magának nem adhat jogot.
     const bela = await w.person('bela');
     const invB = await inviteUI(anna.page, { email: bela.email, role: 'user', scope: 'keszlet' });
@@ -284,7 +311,11 @@ test('H06 — Körön túli meghívás/jogadás elutasítva; visszavont, idegen 
     const selfGrant = await bela.api.post('/api/members/scope', { subject_id: bela.subjectId, scope: 'arak' });
     const badGrant = await anna.api.post('/api/members/scope', { subject_id: bela.subjectId, scope: 'penzugy' });
     ev.s(`Béla beváltása → ${rB.status} ${rB.body.outcome}; a user meghívna → ${userInvites.status} ${userInvites.body.reason}; a user magának adna adatkört → ${selfGrant.status} ${selfGrant.body.reason}; az admin körön túli adatkört adna (penzugy) → ${badGrant.status} ${badGrant.body.reason}, plafon=${j(badGrant.body.ceiling)}`);
-    expect(userInvites.body.reason).toBe('role_not_delegable'); expect(selfGrant.body.reason).toBe('role_not_delegable'); expect(badGrant.body.reason).toBe('unknown_data_scope');
+    // A MAG JOG-KAPUJA VÁLTOZATLANUL MÉRVE a HTTP-úton: a user nem hívhat meg és magának nem adhat
+    // jogot (`role_not_delegable`) — ezek a kérések ALAKILAG rendben vannak, tehát a séma átengedi
+    // őket, és a MAG utasítja el. Az admin `penzugy` adatköre viszont már a határon elakad.
+    expect(userInvites.body.reason).toBe('role_not_delegable'); expect(selfGrant.body.reason).toBe('role_not_delegable');
+    expect(badGrant.status).toBe(400); expect(badGrant.body.reason).toBe('invalid_value'); expect(badGrant.body.field).toBe('scope');
     // ISMÉTELT beváltás.
     const again = await bela.api.post('/api/invites/redeem', { token: invB.token });
     const reopen = await openInviteUI(bela.page, invB.link);
@@ -317,7 +348,29 @@ test('H06 — Körön túli meghívás/jogadás elutasítva; visszavont, idegen 
     ev.s(`Megvonás → delegation=${j(rev.body.delegation)}; Erik NYERS beváltási kérése → ${rE.status} ${rE.body.error}/${rE.body.reason}; ADATBÁZIS: Erik tagsága ${db.count('SELECT COUNT(*) AS n FROM membership WHERE subject_id = ? AND book_id = ?', erik.subjectId, K.bookId)} sor, a meghívó nem fogyott el (redeemed_at=${db.get('SELECT redeemed_at FROM invite WHERE token = ?', invE.token).redeemed_at})`);
     expect(oE.observe.status).toBe('not_actionable'); expect(oE.observe.reason).toBe('issuer_right_withdrawn'); expect(oE.redeemVisible).toBe(false);
     expect(rE.body.reason).toBe('issuer_right_withdrawn');
-    ev.verdictIs('reszben', 'LEJÁRT meghívó a böngészőből nem hajtható meg: a héjnak nincs óra-állító végpontja, és a próba a mag íróit nem hívja (nem gyárt lejárt sort) — a lejárat mag-bizonyítéka: `P-INVITE-window` (v3ref/run.mjs, valódi idő-összehasonlítás, zónás alakon is). A „visszavont" itt a KIADÓ jogának megvonása (külön meghívó-visszavonó végpont a héjban nincs — kimondva). JAVÍTVA EBBEN A KÖRBEN (az ellenséges felülvizsgálat lelete után): a megfigyelés a kiadó MAI jogát is méri — a halott meghívóra a lap nem kínál Beváltás gombot (`not_actionable` / `issuer_right_withdrawn`).');
+    // ── LEJÁRT MEGHÍVÓ A BÖNGÉSZŐBŐL (R75 §3/6) ─────────────────────────────────────────────
+    // Az R64-ben ez volt a „reszben" oka: a héjnak nem volt óra-állítója. A FEJLESZTŐI ÓRA
+    // (`/dev/clock`, a fejlesztői felület mögött) ezt megnyitja — nem várunk hét napot, és a
+    // próba TOVÁBBRA SEM hívja a mag íróit: a lejárt sort az IDŐ csinálja, nem mi.
+    const ferenc = await w.person('ferenc');
+    const invF = await inviteUI(anna.page, { email: ferenc.email, role: 'user', scope: 'keszlet' });
+    const EIGHT_DAYS = 8 * 24 * 3600 * 1000;
+    await anna.api.post('/dev/clock', { advance_ms: EIGHT_DAYS });
+    const oF = await openInviteUI(ferenc.page, invF.link);
+    const forcedF = await ferenc.api.post('/api/invites/redeem', { token: invF.token });
+    const fMem = db.count('SELECT COUNT(*) AS n FROM membership WHERE subject_id = ? AND book_id = ?', ferenc.subjectId, K.bookId);
+    ev.b(`LEJÁRT meghívó (az óra 8 nappal előre — a meghívó 7 napig él): Ferenc megnyitja a hivatkozást → „${oF.observe.status}" (${oF.observe.reason}); a lap: „${oF.next}"; Beváltás gomb: ${oF.redeemVisible}`);
+    ev.s(`LEJÁRAT a HÉJBÓL, támogatott órával: erőltetett beváltás → ${forcedF.status} ${forcedF.body.error}/${forcedF.body.reason}; ADATBÁZIS: Ferenc tagsága ${fMem} sor`);
+    expect(oF.observe.status).toBe('not_actionable'); expect(oF.redeemVisible).toBe(false);
+    expect(forcedF.body.ok).toBe(false); expect(fMem).toBe(0);
+    // POZITÍV ELLENPÁR: ÚJ meghívó ugyanannak a címzettnek, az ablakon BELÜL — beváltható.
+    const invF2 = await inviteUI(anna.page, { email: ferenc.email, role: 'user', scope: 'keszlet' });
+    await openInviteUI(ferenc.page, invF2.link);
+    const rF2 = await redeemUI(ferenc.page);
+    ev.s(`POZITÍV ELLENPÁR: FRISS meghívó ugyanannak a címzettnek → ${rF2.status} ${rF2.body.outcome}; ADATBÁZIS: Ferenc tagsága ${db.count('SELECT COUNT(*) AS n FROM membership WHERE subject_id = ? AND book_id = ?', ferenc.subjectId, K.bookId)} sor`);
+    expect(rF2.body.ok).toBe(true);
+    await anna.api.post('/dev/clock', { advance_ms: -EIGHT_DAYS });   // az óra VISSZAÁLL a valódi időre
+    ev.verdictIs('bizonyitva', 'R75: a LEJÁRT meghívó ága MOST a böngészőből is mérve van (fejlesztői óra `/dev/clock`, +8 nap, majd visszaállítva): a lap nem kínál Beváltás gombot, az erőltetett beváltás nevezetten elakad, tagság nem születik — és a FRISS meghívó ugyanannak a címzettnek beváltható (pozitív ellenpár). A mag-bizonyíték változatlanul áll: `P-INVITE-window` (valódi idő-összehasonlítás, zónás alakon is). A „visszavont" itt a KIADÓ jogának megvonása (külön meghívó-visszavonó végpont a héjban nincs — kimondva). A ZÁRT REGISZTEREN KÍVÜLI szerep/adatkör R75 óta a BEMENETI SÉMÁN akad el (HTP-01, 400 invalid_value, írás nélkül); a mag plafon-szabálya változatlan, bizonyítéka a mag-battériában. KORÁBBI ALAK (R64): „reszben — a héjnak nincs óra-állító végpontja".');
   } finally { await w.close(); db.close(); }
 });
 
@@ -387,10 +440,16 @@ test('H08 — Cégváltáskor a munkamenet, a válaszok és a kliens nem keverik
     const membersHidden = !(await anna.page.getByTestId('section-members').isVisible());
     const priceB = await priceUI(anna.page);
     const forcedGrant = await anna.api.post('/api/members/scope', { subject_id: anna.subjectId, scope: 'arak', actor: bela.subjectId, role: 'admin' });
+    // UGYANEZ A KÉRÉS HAMISÍTOTT MEZŐK NÉLKÜL: alakilag rendben van, tehát a MAG jog-kapuja dönt —
+    // így a régi mérés (role_not_delegable) NEM veszett el a séma-kapu bevezetésével.
+    const honestGrant = await anna.api.post('/api/members/scope', { subject_id: anna.subjectId, scope: 'arak' });
     ev.b(`Váltás Béla cégére (ahol Anna csak user): „${swB.notice}" → fejléc „${hB}"; a Munkatársak (admin) szakasz rejtve: ${membersHidden}; ár-nézet: „${priceB.text.replace(/\n/g, ' · ')}" — a saját cégének admin-szerepe és pro-terve NEM utazik át`);
-    ev.s(`Anna (user Béla cégében) adatkört adna magának actor=<Béla>&role=admin törzs-mezőkkel → ${forcedGrant.status} ${forcedGrant.body.reason}, figyelmen kívül hagyva: [${forcedGrant.body.ignored_params}]`);
+    ev.s(`Anna (user Béla cégében) adatkört adna magának actor=<Béla>&role=admin törzs-mezőkkel → ${forcedGrant.status} ${forcedGrant.body.reason} (${forcedGrant.body.field}, ${forcedGrant.body.refused_by}) — az ÁLLAPOTVÁLTOZTATÓ végponton az idegen mező R75 óta ELUTASÍTÁS, nem „figyelmen kívül hagyva"; ugyanez a kérés hamisítás NÉLKÜL → ${honestGrant.status} ${honestGrant.body.reason} (a MAG jog-kapuja)`);
     expect(hB).toBe('Béla Kft · user · pro'); expect(membersHidden).toBe(true); expect(priceB.body).toMatchObject({ ok: false, refused_by: 'right' });
-    expect(forcedGrant.body).toMatchObject({ reason: 'role_not_delegable', param_ignored: true });
+    expect(forcedGrant.status).toBe(400);
+    expect(forcedGrant.body).toMatchObject({ reason: 'unknown_field', refused_by: 'input_schema' });
+    expect(forcedGrant.body.param_ignored).toBeUndefined();
+    expect(honestGrant.body.reason).toBe('role_not_delegable');
     const sessions = db.count('SELECT COUNT(*) AS n FROM membership WHERE subject_id = ?', anna.subjectId);
     ev.s(`ADATBÁZIS: Anna tagságai ${sessions} könyvben (P admin · K admin · B user) — a szerep könyvenként külön sor, nem összevont tulajdonság`);
     ev.verdictIs('bizonyitva', 'A kliensnek nincs saját gyorsítótára: minden panel a váltás pillanatában ürül, és minden válasz `Cache-Control: no-store`; a cselekvő és a könyv KIZÁRÓLAG a szerveroldali munkamenetből jön, a kliens-mezők NEVEZETTEN figyelmen kívül maradnak.');
@@ -434,7 +493,23 @@ test('H09 — Megvonás után új kérés és függő meghívó nem használhatj
     ev.b(`Béla készlet-nézete a megvonás UTÁN is: „${line(stB.text)}"; Cili a SAJÁT terére vált: „${swOwn.notice}" → készlet-nézet „${line(stOwn.text)}"`);
     ev.s(`Béla stock ok=${stB.body.ok}; Cili saját tere: role=${swOwn.body.role}, stock ok=${stOwn.body.ok}; ADATBÁZIS: Cili saját tagsága: ${j(db.get('SELECT role, revoked_at FROM membership WHERE subject_id = ? AND book_id = ?', cili.subjectId, own.bookId))}`);
     expect(stB.body.ok).toBe(true); expect(swOwn.body.role).toBe('admin'); expect(stOwn.body.ok).toBe(true);
-    ev.verdictIs('reszben', 'A MEGVONÁS ága teljesen bizonyítva (új kérés · függő meghívó · független jog). A LEJÁRAT ága a héjból nem hajtható meg: az alap `expires_at`-ját és a meghívó lejáratát a héj nem állítja, a próba a mag íróit nem hívja — mag-bizonyíték: `P-INVITE-window` (a meghívó ablaka) és `P-CORE-startup-and-delegation` (d) (v3ref/run.mjs).');
+    // ── A LEJÁRAT ÁGA A BÖNGÉSZŐBŐL (R75 §3/6): a FÜGGŐ meghívó ablaka. ─────────────────────
+    // Anna (érvényes admin) ad ki egy meghívót, majd az óra 8 nappal előrelép: a MEGSZŰNT ALAP
+    // itt nem a kiadó joga, hanem az IDŐ — a lap nem kínál gombot, a beváltás nevezetten elakad.
+    const erik = await w.person('erik');
+    const invE = await inviteUI(anna.page, { email: erik.email, role: 'user', scope: 'keszlet' });
+    const EIGHT_DAYS = 8 * 24 * 3600 * 1000;
+    await anna.api.post('/dev/clock', { advance_ms: EIGHT_DAYS });
+    const oE = await openInviteUI(erik.page, invE.link);
+    const rE = await erik.api.post('/api/invites/redeem', { token: invE.token });
+    const bStock = await bela.api.get('/api/data/stock');
+    ev.b(`LEJÁRAT (az óra 8 nappal előre): Erik megnyitja az ÉRVÉNYES kiadótól kapott, de LEJÁRT meghívót → „${oE.observe.status}" (${oE.observe.reason}); Beváltás gomb: ${oE.redeemVisible}`);
+    ev.s(`LEJÁRT meghívó beváltása → ${rE.status} ${rE.body.error}/${rE.body.reason}; ADATBÁZIS: Erik tagsága ${db.count('SELECT COUNT(*) AS n FROM membership WHERE subject_id = ? AND book_id = ?', erik.subjectId, K.bookId)} sor; a FÜGGETLEN jog az idő múlásától sem szűnt meg: Béla készlet-nézete ok=${bStock.body.ok}`);
+    expect(oE.observe.status).toBe('not_actionable'); expect(oE.redeemVisible).toBe(false);
+    expect(rE.body.ok).toBe(false); expect(db.count('SELECT COUNT(*) AS n FROM membership WHERE subject_id = ? AND book_id = ?', erik.subjectId, K.bookId)).toBe(0);
+    expect(bStock.body.ok).toBe(true);
+    await anna.api.post('/dev/clock', { advance_ms: -EIGHT_DAYS });   // az óra VISSZAÁLL
+    ev.verdictIs('bizonyitva', 'R75: a MEGVONÁS ága (új kérés · függő meghívó · független jog) és a LEJÁRAT ága is mérve van a böngészőből — utóbbi a fejlesztői órával (`/dev/clock`, +8 nap, majd visszaállítva), a mag íróinak hívása nélkül. KIMONDOTT HATÁR, ami a héjból továbbra sem hajtható meg: az ALAP (`authority_basis.expires_at`) lejárata — arra a héjnak nincs útja, a mag-bizonyíték `P-CORE-startup-and-delegation` (d) és `P-INVITE-window` (v3ref/run.mjs). KORÁBBI ALAK (R64): „reszben — a lejárat ága a héjból nem hajtható meg".');
   } finally { await w.close(); db.close(); }
 });
 
@@ -458,7 +533,15 @@ test('H10 — Két szervezeti egység, korlátozott helyi admin: a vezető nem l
     const overScope = await cili.api.post('/api/invites', { email: w.email('erik'), role: 'user', scope: 'penzugy' });
     const overGrant = await cili.api.post('/api/members/scope', { subject_id: anna.subjectId, scope: 'penzugy' });
     ev.s(`DELEGÁLÁSI PLAFON a helyi adminnál: user/keszlet meghívó → ${okInvite.status} (plafon ${j(okInvite.body.ceiling)}); role=owner → ${overRole.status} ${overRole.body.reason}; scope=penzugy → ${overScope.status} ${overScope.body.reason}; adatkör-adás penzugy → ${overGrant.status} ${overGrant.body.reason}`);
-    expect(okInvite.status).toBe(201); expect(overRole.body.reason).toBe('outside_basis_roles'); expect(overScope.body.reason).toBe('data_scope_required'); expect(overGrant.body.reason).toBe('unknown_data_scope');
+    // A PLAFON KÉT SZINTEN ÁLL (R75/F75-03 óta): a zárt REGISZTEREN kívüli szerep/adatkör a
+    // HATÁRON akad el (400 invalid_value, írás nélkül), a regiszteren BELÜLI, de az ALAPON kívüli
+    // kérést a mag utasítja el — utóbbi bizonyítéka a delegálási alap részhalmaz-mérése alább és a
+    // mag-battéria (P-CORE · P-DSC). Egyik sem tűnt el, csak KÜLÖN NEVEN áll.
+    expect(okInvite.status).toBe(201);
+    expect(overRole.status).toBe(400); expect(overRole.body.reason).toBe('invalid_value'); expect(overRole.body.field).toBe('role');
+    expect(overScope.status).toBe(400); expect(overScope.body.reason).toBe('invalid_value'); expect(overScope.body.field).toBe('scope');
+    expect(overGrant.status).toBe(400); expect(overGrant.body.reason).toBe('invalid_value'); expect(overGrant.body.field).toBe('scope');
+    expect(db.count('SELECT COUNT(*) AS n FROM invite WHERE invitee_value = ?', w.email('erik'))).toBe(0);
     const cb = db.get('SELECT allowed_roles, allowed_scopes, evidence_ref FROM authority_basis WHERE basis_id = ? AND book_id = ?', `deleg:${A.bookId}:${cili.subjectId}`, A.bookId);
     const ab = db.get('SELECT allowed_roles, allowed_scopes FROM authority_basis WHERE basis_id = ? AND book_id = ?', `deleg:${A.bookId}:${anna.subjectId}`, A.bookId);
     const subset = (x, y) => JSON.parse(x).every((v) => JSON.parse(y).includes(v));
@@ -494,7 +577,11 @@ test('H11 — Előfizetés: jogosulatlan munkatárs nem jut a funkcióhoz; jogos
     const prA2 = await priceUI(anna.page); const prB2 = await priceUI(bela.page);
     ev.b(`Anna a felületen PRO-ra vált: „${plan.resultText}"; fejléc: „${(await header(anna.page)).workspace}"; Anna ár-nézete: „${line(prA2.text)}"; Béla ár-nézete: „${prB2.text.replace(/\n/g, ' · ')}" — a terv NEM írja felül a jog-kaput`);
     ev.s(`POST /api/workspaces/plan pro → features=[${plan.body.features.join(', ')}]; ismeretlen terv (enterprise) → ${unknown.status} ${unknown.body.reason}; Anna price ok=${prA2.body.ok}; Béla price refused_by=${prB2.body.refused_by} (előfizetés: ${prB2.body.entitlement_reason}); ADATBÁZIS entitlement_profile: ${j(db.get('SELECT plan, features FROM entitlement_profile WHERE book_id = ?', K.bookId))}`);
-    expect(prA2.body.ok).toBe(true); expect(prB2.body).toMatchObject({ refused_by: 'right', entitlement_reason: 'feature_entitled' }); expect(unknown.body.reason).toBe('unknown_plan');
+    expect(prA2.body.ok).toBe(true); expect(prB2.body).toMatchObject({ refused_by: 'right', entitlement_reason: 'feature_entitled' });
+    // AZ ISMERETLEN TERV R75 ÓTA A HATÁRON akad el (a zárt terv-szótárral a válaszban), nem a
+    // kezelőben — a mérés ugyanaz: nevezett 400, ÍRÁS NÉLKÜL, a profil változatlan.
+    expect(unknown.status).toBe(400); expect(unknown.body.reason).toBe('invalid_value'); expect(String(unknown.body.message)).toContain('starter');
+    expect(db.get('SELECT plan FROM entitlement_profile WHERE book_id = ?', K.bookId).plan).toBe('pro');
     ev.verdictIs('bizonyitva', 'Tesztprofil: a tervek a kódban zárt szótár (starter · pro), a profil az `entitlement_profile` táblában áll; fizetési integráció nincs, nem is kell — a két kapu (jog · előfizetés) külön mér és külön jelent. MÉRT LELET (a héj szövegén, nem a döntésén): ha a JOG-kapu enged és csak az ELŐFIZETÉS zár, a válasz `message` mezője a mag jog-kapujának mondatát („az eredmény kiadva") viszi az ELUTASÍTVA felirat alá — a döntés helyes, a kísérő mondat nem követi (KUKA-050); a héjban nem javítva, hogy a próba ne írja át azt, amit mér.');
   } finally { await w.close(); db.close(); }
 });

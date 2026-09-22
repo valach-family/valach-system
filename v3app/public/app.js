@@ -17,7 +17,48 @@
     return { status: res.status, ...json };
   }
 
-  const state = { me: null, generation: 0, inviteToken: new URL(location.href).searchParams.get('invite') };
+  // KTX-01 — A KONTEXTUS A LAPON (R75/F75-02).
+  //
+  // MI VOLT A RÉSZLEGES ALAK. A generáció-számlálót CSAK a munkakörnyezet-váltó léptette, és csak az
+  // adat-gombok nézték. Ezért: egy lassú TAGLISTA-válasz a váltás után is beírhatta a RÉGI cég
+  // tagjait az ÚJ nézetbe, a kilépés után visszaérkező adat-válasz a rejtett panelbe írt, és egy
+  // MÁSIK LAPON történt váltásról ez a lap nem tudott.
+  //
+  // A MAI ALAK — HÁROM RÉTEG, és mindhárom kell:
+  //   1. GENERÁCIÓ: minden kontextus-váltó esemény lépteti (belépés · kilépés · váltás · létrehozás ·
+  //      beváltás · megvonás). Minden kérés a SAJÁT generációjával tér vissza; ami elavult, azt a
+  //      lap ELDOBJA — nem rajzolja, és a gombjai sem írnak.
+  //   2. A SZERVER IGAZSÁGA: a `/me` minden válaszánál összevetjük, kinek a nevében és melyik
+  //      könyvben állunk. Ha a szerver MÁST mond (mert egy másik lap ugyanabban a munkamenetben
+  //      váltott), az KONTEXTUS-VÁLTÁS: léptet és ürít.
+  //   3. A SZERVER MEGERŐSÍTÉSE: minden állapotváltoztató kérés VISZI a könyvet, amiben a gomb
+  //      született (`expected_book_id`) — a szerver eltérésnél nevezetten elakad (KTX-01). Ez a
+  //      réteg a döntő: a kliens jelzése SOHA nem ad jogot, csak SZŰKÍT.
+  const state = {
+    me: null,
+    generation: 0,
+    seq: 0,
+    ctx: { subject: null, book: null },
+    inviteToken: new URL(location.href).searchParams.get('invite'),
+    resendReason: new URL(location.href).searchParams.get('megerosites'),
+  };
+
+  /** A kontextus léptetése — minden váltó esemény ezen megy át, hogy egy helyen legyen (KUKA-018). */
+  function newContext(why) {
+    state.generation += 1;
+    clearPanels();
+    return { generation: state.generation, why };
+  }
+
+  /** A mai kontextus jele: amivel egy válasz vagy egy gomb ÖSSZEHASONLÍTHATÓ. */
+  const currentGeneration = () => state.generation;
+  const currentBookId = () => (state.me && state.me.current_book_id) || null;
+
+  /** Állapotváltoztató kérés a MAI könyv megerősítésével (KTX-01). */
+  async function apiInContext(method, path, body) {
+    const book = currentBookId();
+    return api(method, path, book ? { ...body, expected_book_id: book } : body);
+  }
 
   // ── FEJLÉC + LÁTHATÓSÁG ───────────────────────────────────────────────────────────────────────
   function renderMe() {
@@ -27,7 +68,9 @@
     text(byTest('header-workspace'), me && me.current_book_id
       ? `${me.current_book_name || me.current_book_id} · ${me.current_role}${me.current_plan ? ' · ' + me.current_plan : ''}`
       : 'nincs munkakörnyezet');
-    text(byTest('channel-proven'), loggedIn ? (me.channel_proven ? 'igen' : 'nem — kattints a levél-fogadóban a megerősítő hivatkozásra') : '—');
+    text(byTest('channel-proven'), loggedIn ? (me.channel_proven ? 'igen' : 'nem — kattints a levél-fogadóban a megerősítő hivatkozásra, vagy kérj új hivatkozást') : '—');
+    // A KÉPERNYŐ MONDJA KI, KI NEVÉBEN JÁRSZ EL — a SZERVER mondatával, nem a lap találgatásával.
+    text(byTest('header-acting-as'), loggedIn ? (me.acting_as || '—') : '—');
     show(byTest('logout'), loggedIn);
     show($('#sec-workspace'), loggedIn);
     show($('#sec-data'), loggedIn && !!me.current_book_id);
@@ -36,14 +79,24 @@
     show($('#form-plan'), isAdmin);
     if (isAdmin && me.current_plan) byTest('plan-select').value = me.current_plan;
 
+    // AZ ÚJRAKÉRÉS OTT VAN, AHOL KERESIK (KUKA-011): kilépve mindig, belépve akkor, ha a csatorna
+    // még bizonyítatlan — a bizonyított fióknak nincs mit kérnie, és a felirat sem ígéri.
+    show($('#form-resend'), !loggedIn || (loggedIn && me.channel_proven === false));
+
     const list = $('#ws-list');
     list.innerHTML = '';
-    if (loggedIn && me.workspaces.length === 0) list.innerHTML = '<li class="muted">még nincs munkakörnyezeted — hozz létre egyet, vagy válts be egy meghívót</li>';
+    if (loggedIn && me.workspaces.length === 0) {
+      list.innerHTML = me.channel_proven
+        ? '<li class="muted">még nincs munkakörnyezeted — hozz létre egyet, vagy válts be egy meghívót</li>'
+        : '<li class="muted">a SZEMÉLYES köröd a cím megerősítése után magától létrejön — kattints a megerősítő hivatkozásra, vagy kérj újat</li>';
+    }
     for (const w of (loggedIn ? me.workspaces : [])) {
       const li = document.createElement('li');
-      li.className = w.book_id === me.current_book_id ? 'current' : '';
+      li.className = (w.book_id === me.current_book_id ? 'current' : '') + (w.personal ? ' personal' : '');
       li.dataset.testid = `ws-item-${w.book_id}`;
-      li.innerHTML = `<span><strong>${escapeHtml(w.name)}</strong> <span class="muted">${escapeHtml(w.book_id)} · ${escapeHtml(w.role)}${w.plan ? ' · ' + escapeHtml(w.plan) : ''}</span></span>`;
+      // A SZEMÉLYES KÖR NEVESÍTETT CÉL A VÁLTÓBAN (SZK-01 · R64 L11) — nem egy sokadik „cég".
+      const kindLabel = w.personal ? 'személyes kör' : 'közös munkakörnyezet';
+      li.innerHTML = `<span><strong>${escapeHtml(w.name)}</strong> <span class="badge" data-testid="ws-kind-${escapeHtml(w.book_id)}">${kindLabel}</span> <span class="muted">${escapeHtml(w.book_id)} · ${escapeHtml(w.role)}${w.plan ? ' · ' + escapeHtml(w.plan) : ''}</span></span>`;
       const b = document.createElement('button');
       b.type = 'button'; b.textContent = w.book_id === me.current_book_id ? 'aktív' : 'váltás';
       b.disabled = w.book_id === me.current_book_id;
@@ -58,7 +111,19 @@
   function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
   async function refreshMe() {
-    state.me = await api('GET', '/api/me');
+    const seq = (state.seq += 1);
+    const me = await api('GET', '/api/me');
+    // A KÉSVE ÉRKEZŐ `/me` NEM ÍRHATJA FELÜL AZ ÚJABBAT: két gyors váltásnál a régi válasz a RÉGI
+    // cég fejlécét tenné vissza (a fejléc a kontextus egyik látható jele — KUKA-050).
+    if (seq !== state.seq) return;
+    // A SZERVER IGAZSÁGA DÖNT: ha az alany vagy a könyv MÁS, mint amit a lap hitt (mert egy másik
+    // lap ugyanabban a munkamenetben váltott, vagy a tagságot megvonták), az KONTEXTUS-VÁLTÁS.
+    if (me.subject_id !== state.ctx.subject || (me.current_book_id ?? null) !== state.ctx.book) {
+      state.ctx = { subject: me.subject_id ?? null, book: me.current_book_id ?? null };
+      state.generation += 1;
+      clearPanels();
+    }
+    state.me = me;
     renderMe();
     if (state.inviteToken) await observeInvite();
   }
@@ -72,11 +137,32 @@
   }
 
   async function switchWorkspace(bookId) {
-    state.generation += 1;
-    clearPanels();
+    newContext('workspace_switch');
     const r = await api('POST', '/api/session/workspace', { book_id: bookId });
-    notice(r.ok ? `Munkakörnyezet: ${r.name || r.book_id} (${r.role})` : `Váltás elutasítva: ${r.reason} — ${r.message || ''}`, !r.ok);
+    notice(r.ok
+      ? `${r.personal ? 'Személyes kör' : 'Munkakörnyezet'}: ${r.name || r.book_id} (${r.role})`
+      : `Váltás elutasítva: ${r.reason} — ${r.message || ''}`, !r.ok);
     await refreshMe();
+  }
+
+  /**
+   * A SZERVER MONDTA KI, HOGY ELAVULT (KTX-01 `context_mismatch`) — a MAGYARÁZAT NEM TŰNHET EL.
+   *
+   * MIÉRT A GLOBÁLIS SÁVBA MEGY. A magyarázat első alakja a tag-lista eredmény-sorába került, a rá
+   * következő `refreshMe()` viszont kontextus-váltást észlelt (a másik lap váltott), tehát ÜRÍTETT
+   * — és a felhasználó egy NÉMA, változatlan képernyőt kapott volna arról, hogy a kérése elakadt
+   * (KUKA-012). A globális sávot a panel-ürítés nem törli; ezt a saját böngésző-próbám fogta meg.
+   */
+  async function contextMismatchNotice(r) {
+    notice(r.message || 'Közben munkakörnyezetet váltottál — a művelet nem hajtódott végre.', true);
+    await refreshMe();
+    notice(r.message || 'Közben munkakörnyezetet váltottál — a művelet nem hajtódott végre.', true);
+  }
+
+  /** ELAVULT GOMB: nem csinál semmit — de KIMONDJA, miért (KUKA-064). */
+  function staleNotice() {
+    notice('Közben munkakörnyezetet váltottál — ez a gomb a korábbi kör listájából maradt itt, ezért nem hajtottuk végre. A lista frissül.', true);
+    loadMembers();
   }
 
   function notice(msg, isError) {
@@ -99,15 +185,24 @@
     const r = await api('POST', '/api/login', { email: f.email.value, password: f.password.value });
     text(byTest('login-result'), r.ok ? 'Belépve.' : `${r.reason}: ${r.message || ''}`);
     if (r.ok && r.pending_invite_token) state.inviteToken = r.pending_invite_token;
-    clearPanels();
+    newContext('login');
     await refreshMe();
   });
 
   $('#btn-logout').addEventListener('click', async () => {
     await api('POST', '/api/logout');
-    clearPanels();
+    newContext('logout');
     text(byTest('login-result'), 'Kiléptél.');
     await refreshMe();
+  });
+
+  // ÚJ MEGERŐSÍTŐ HIVATKOZÁS (F75-01) — a lejárt hivatkozás FOLYTATÁSA, nem új regisztráció.
+  $('#form-resend').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const r = await api('POST', '/api/verification/resend', { email: f.email.value });
+    text(byTest('resend-result'), r.ok ? r.message : `${r.reason}: ${r.message || ''}`);
+    await loadMailbox();
   });
 
   // ── (2) MUNKAKÖRNYEZET ────────────────────────────────────────────────────────────────────────
@@ -118,17 +213,18 @@
     const f = e.target;
     const body = { name: f.name.value, plan: f.plan.value };
     if (f.is_business.checked) body.business = { jurisdiction: f.jurisdiction.value, tax_id: f.tax_id.value };
-    clearPanels();
+    newContext('workspace_create');
     const r = await api('POST', '/api/workspaces', body);
     text(byTest('ws-create-result'), r.ok
-      ? `Létrejött: ${r.name} (${r.book_id}) · terv: ${r.workspace.plan}` + (r.business ? ` · vállalkozási minőség: ${r.business.ok ? `${r.business.jurisdiction} ${r.business.value_norm} — önbevallott, igazolás: ${r.business.verification}` : `nem rögzült (${r.business.reason})`}` : '')
-      : `${r.reason}: ${r.message || ''}`);
+      ? `Létrejött: ${r.name} (${r.book_id}) · terv: ${r.workspace.plan}`
+        + (r.business ? ` · vállalkozási minőség: ${r.business.ok ? `${r.business.jurisdiction} ${r.business.value_norm} — ÖNBEVALLOTT, hatósági igazolás: ${r.business.verification} (más szervezet képviselete ebből nem következik)` : `nem rögzült (${r.business.reason})`}` : '')
+      : `${r.reason}${r.field ? ` (${r.field})` : ''}: ${r.message || ''}`);
     await refreshMe();
   });
 
   $('#form-plan').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const r = await api('POST', '/api/workspaces/plan', { plan: e.target.plan.value });
+    const r = await apiInContext('POST', '/api/workspaces/plan', { plan: e.target.plan.value });
     text(byTest('plan-result'), r.ok ? `Terv: ${r.plan} (${r.features.join(', ')})` : `${r.reason}: ${r.message || ''}`);
     text(byTest('data-price'), '—');
     await refreshMe();
@@ -138,7 +234,7 @@
   $('#form-invite').addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = e.target;
-    const r = await api('POST', '/api/invites', { email: f.email.value, role: f.role.value, scope: f.scope.value });
+    const r = await apiInContext('POST', '/api/invites', { email: f.email.value, role: f.role.value, scope: f.scope.value });
     text(byTest('invite-result'), r.ok
       ? `Meghívó kiadva (${r.token.slice(0, 8)}…) · plafon: szerepek ${r.ceiling.roles.join('/')}, adatkörök ${r.ceiling.scopes.join('/')} · lejár: ${r.expires_at}`
       : `Elutasítva: ${r.reason} — ${r.message || ''}` + (r.ceiling ? ` (plafon: ${pretty(r.ceiling)})` : ''));
@@ -147,11 +243,19 @@
 
   async function loadMembers() {
     const list = $('#members-list');
+    // A KÉRÉS A SAJÁT GENERÁCIÓJÁVAL TÉR VISSZA (KTX-01): ha közben váltottunk, a RÉGI cég
+    // taglistája nem kerülhet az ÚJ nézetbe — ez volt az F75-02 első ága, valódi versenyben mérve.
+    const gen = currentGeneration();
+    const book = currentBookId();
     const r = await api('GET', '/api/members');
+    if (gen !== currentGeneration()) return;
     list.innerHTML = '';
     // A LISTA ÚJRATÖLTÉSE NEM TÖRLI A MŰVELET EREDMÉNYÉT: a „megadva"/„megvonva" mondatnak a
     // képernyőn kell maradnia (KUKA-012) — csak a munkakörnyezet-váltás (clearPanels) törli.
     if (!r.ok) { text(byTest('members-result'), `${r.reason}: ${r.message || ''}`); return; }
+    // A VÁLASZ MEGMONDJA, MELYIK KÖNYVÉ — és ha nem a mai, eldobjuk (a generáció-őr mellé egy
+    // TARTALMI ellenőrzés: a szerver igazsága, nem a lap számlálója).
+    if (r.book_id && book && r.book_id !== book) return;
     for (const m of r.members) {
       const li = document.createElement('li');
       li.dataset.testid = `member-${m.subject_id}`;
@@ -164,7 +268,12 @@
       const grant = document.createElement('button'); grant.type = 'button'; grant.textContent = 'adatkör adása';
       grant.dataset.testid = `member-scope-${m.subject_id}`;
       grant.addEventListener('click', async () => {
-        const g = await api('POST', '/api/members/scope', { subject_id: m.subject_id, scope: sel.value });
+        // A GOMB A SAJÁT KÖRÉBEN ÍR, VAGY SEHOL: a kérés viszi a könyvet, amiben született, és a
+        // lap a saját generációját is ellenőrzi (KTX-01 · F75-02 második ága).
+        if (gen !== currentGeneration()) { staleNotice(); return; }
+        const g = await api('POST', '/api/members/scope', { subject_id: m.subject_id, scope: sel.value, ...(book ? { expected_book_id: book } : {}) });
+        if (g.reason === 'context_mismatch') { contextMismatchNotice(g); return; }
+        if (gen !== currentGeneration()) return;
         text(byTest('members-result'), g.ok ? `Adatkör megadva: ${g.scope} → ${m.email || m.subject_id}` : `Elutasítva: ${g.reason} ${g.message || ''}${g.ceiling ? ' (plafon: ' + g.ceiling.join('/') + ')' : ''}`);
         await loadMembers();
       });
@@ -172,7 +281,10 @@
       revoke.dataset.testid = `member-revoke-${m.subject_id}`;
       revoke.disabled = !m.effective;
       revoke.addEventListener('click', async () => {
-        const v = await api('POST', '/api/members/revoke', { subject_id: m.subject_id });
+        if (gen !== currentGeneration()) { staleNotice(); return; }
+        const v = await api('POST', '/api/members/revoke', { subject_id: m.subject_id, ...(book ? { expected_book_id: book } : {}) });
+        if (v.reason === 'context_mismatch') { contextMismatchNotice(v); return; }
+        if (gen !== currentGeneration()) return;
         text(byTest('members-result'), v.ok ? `Megvonva: ${m.email || m.subject_id} (${v.reason})` : `Elutasítva: ${v.reason} — ${v.message || ''}`);
         await refreshMe();
       });
@@ -200,10 +312,11 @@
     // A FEJLÉC ELŐBB FRISSÜL (ugyanaz a munkamenet egy másik lapon már válthatott): a kérés a
     // SZERVER mai könyvére megy, és a lap ezt mutatja, nem a nyitáskori állapotot.
     await refreshMe();
-    const gen = state.generation;
+    const gen = currentGeneration();
     text(byTest(testId), '…');
     const r = await api('GET', path);
-    if (gen !== state.generation) return;   // közben váltottak — a válasz elavult, nem rajzoljuk
+    // KÖZBEN VÁLTOTTAK (ez a lap, egy másik lap, vagy megvonás) — a válasz elavult, nem rajzoljuk.
+    if (gen !== currentGeneration()) return;
     text(byTest(testId), gateText(r));
   }
   $('#btn-stock').addEventListener('click', () => fetchData('/api/data/stock', 'data-stock'));
@@ -251,11 +364,11 @@
     show(out, true);
     text(out, pretty(r));
     if (r.ok) {
-      notice(`Meghívó beváltva: ${r.book_id} (${r.shape} / ${r.outcome}). Az olvasási jogot az admin adja meg külön lépésben.`, false);
+      notice(`Meghívó beváltva: ${r.book_id} (${r.shape} / ${r.outcome}). Az olvasási jogot az admin adja meg külön lépésben. A SZEMÉLYES köröd megmarad — a váltóban mindkettő ott lesz.`, false);
       state.inviteToken = null;
       history.replaceState(null, '', '/');
       show($('#sec-invite'), false);
-      clearPanels();
+      newContext('invite_redeem');
     }
     await refreshMe();
   });
@@ -277,5 +390,17 @@
   $('#btn-mailbox').addEventListener('click', loadMailbox);
 
   // ── INDULÁS ───────────────────────────────────────────────────────────────────────────────────
+  // A MEGERŐSÍTŐ LAPRÓL VISSZATÉRŐ FOLYTATÁS (F75-01): a lap KIMONDJA, mi történt, és az újrakérés
+  // űrlapja készen áll — nem a felhasználónak kell kitalálnia, hogy most mit tegyen (KUKA-064).
+  if (state.resendReason) {
+    const REASONS = {
+      challenge_expired: 'A megerősítő hivatkozás lejárt. Kérj újat — a jelszavad nem változik.',
+      challenge_superseded: 'Ehhez a címhez újabb megerősítő levelet kértek: a LEGUTÓBBI levél hivatkozása él.',
+      challenge_already_used: 'Ezt a hivatkozást már beváltották — ha te voltál, egyszerűen lépj be.',
+      challenge_unknown: 'Ismeretlen vagy hibás hivatkozás. Kérj újat a címedre.',
+    };
+    notice(Object.prototype.hasOwnProperty.call(REASONS, state.resendReason) ? REASONS[state.resendReason] : 'A megerősítés nem sikerült — kérj új hivatkozást.', true);
+    history.replaceState(null, '', '/');
+  }
   refreshMe().then(loadMailbox);
 })();

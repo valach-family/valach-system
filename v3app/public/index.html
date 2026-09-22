@@ -8,11 +8,13 @@
 </head>
 <body>
   <header class="topbar" data-testid="header">
-    <div class="brand">VS3 <span class="muted">magreferencia · R63</span></div>
+    <div class="brand">VS3 <span class="muted">magreferencia · próba-alkalmazás (nem üzemi rendszer)</span></div>
     <div class="who">
       <span data-testid="header-subject">nincs bejelentkezve</span>
       <span class="sep">·</span>
       <span data-testid="header-workspace">nincs munkakörnyezet</span>
+      <span class="sep">·</span>
+      <span data-testid="header-acting-as" class="small">—</span>
     </div>
   </header>
 
@@ -42,13 +44,24 @@
         <span>Csatorna bizonyítva: <strong data-testid="channel-proven">—</strong></span>
         <button type="button" id="btn-logout" data-testid="logout" hidden>Kilépés</button>
       </div>
+      <form id="form-resend" data-testid="resend-form">
+        <h3>Nem kaptad meg a megerősítő levelet, vagy lejárt?</h3>
+        <p class="muted small">Kérj újat: a jelszavad NEM változik, új fiókot sem kell csinálnod. A legutóbb küldött
+          hivatkozás él, a korábbiak érvénytelenné válnak. Rövid időn belül ismételve nem küldünk újabb levelet.</p>
+        <label>E-mail <input type="email" name="email" required data-testid="resend-email" autocomplete="username"></label>
+        <button type="submit" data-testid="resend-submit">Új megerősítő hivatkozás kérése</button>
+        <p class="result" data-testid="resend-result"></p>
+      </form>
     </section>
 
     <!-- (2) MUNKAKÖRNYEZET -->
     <section id="sec-workspace" data-testid="section-workspace" hidden>
       <h2>2. Munkakörnyezet</h2>
+      <p class="muted small" data-testid="personal-space-note">A saját, SZEMÉLYES köröd a cím megerősítésekor magától
+        létrejön — ahhoz nem kell „céget" alapítanod. Új kört akkor indíts, ha másokkal közösen (családi/céges
+        könyvben) akarsz dolgozni. A vállalkozási minőség NEM új személyazonosság: ugyanaz a fiókod marad.</p>
       <form id="form-ws" data-testid="ws-form">
-        <h3>Új munkakörnyezet</h3>
+        <h3>Új közös (családi/céges) munkakörnyezet</h3>
         <label>Név <input type="text" name="name" required data-testid="ws-name"></label>
         <label>Terv
           <select name="plan" data-testid="ws-plan">
@@ -57,6 +70,9 @@
           </select>
         </label>
         <label class="check"><input type="checkbox" name="is_business" data-testid="ws-business"> Vállalkozási minőség (önbevallott — hatósági igazolás nincs)</label>
+        <p class="muted small" data-testid="representation-note">Az adószám ÁLLÍTÁS, nem igazolás: a SAJÁT köröd
+          indításához elég. Más, már létező szervezet nevében eljárni vagy annak körét átvenni ebből NEM következik —
+          ahhoz külön képviseleti ellenőrzés kellene, és olyan ma nincs bekötve.</p>
         <div id="ws-business-fields" hidden>
           <label>Joghatóság
             <select name="jurisdiction" data-testid="ws-jurisdiction">

@@ -16,6 +16,59 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3069 — AZ R75 HÁROM LELETE JAVÍTVA: A MEGERŐSÍTÉS FOLYTATÁSA · A KONTEXTUS KÖTÉSE · A SÉMA A HATÁRON
+
+> **Hatály:** V3 (`valach-system`) — a magreferencia (`v3ref/`) és a próba-alkalmazás (`v3app/`).
+> **Nincs V2-módosítás, merge, telepítés, migráció és külső levélküldés.**
+
+**Dátum:** 2026-09-22 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 **R75** (a külső ellenőrző fél
+ANALYSIS lapjára) · **Lap:** `docs/70_PLANNING/V3_R75_LELETEK_ES_KIPROBALHATO_ATADAS.md`
+
+**1. A HÁROM LELET REPRODUKÁLVA ÉS JAVÍTVA** (mind a három a külső ellenőrző fél — chatgpt-v3 — mérése):
+**F75-01** a lejárt megerősítő hivatkozás ZSÁKUTCA volt („regisztrálj újra", miközben a cím foglalt, tehát
+levél nem ment ki) ⇒ **CHR-01**: újrakérhető megerősítés semleges válaszban, címenkénti ismétlés-korláttal,
+a korábbi ÉLŐ hivatkozás LEVÁLTÁSÁVAL (`superseded_at`, saját tény), a lejárt és a beváltott hivatkozás nem
+éled újra, és minden nemleges ág FOLYTATÁST ad · **F75-02** a cég-váltási védelem RÉSZLEGES volt (csak a
+váltó léptette a generációt, csak az adat-gombok nézték, a szerver semmit) ⇒ **KTX-01**: minden váltó
+esemény léptet, a lap a `/me`-ben a SZERVER igazságához méri magát, és minden állapotváltoztató kérés viszi
+a könyvet, amiben a gomb született (`expected_book_id` — MEGERŐSÍTÉS, nem felhatalmazás; eltérésre 409
+`context_mismatch`, írás nélkül) · **F75-03** a HTTP-határon `String()` kényszerítés állt, amitől a
+`{"name":{"invalid":true}}` törzsből „[object Object]" nevű munkakörnyezet született (HTTP 201) ⇒
+**HTP-01**: végpontonkénti SAJÁT séma a KÖZÖS BEM-01 motoron, állapotváltoztató végponton KAPU (nevezett
+400, írás nélkül), olvasón NEVEZETT figyelmen kívül hagyás — a két szerződés határát a regiszter `mutates`
+mezője mondja ki, nem a végpont kódja.
+
+**2. AZ R64 MARADÉKAIBÓL EBBEN A KÖRBEN LEZÁRT:** **L7** (a séma a külső határon — a saját lezárási
+feltétele szerint) · **L10** (A01–A18 tételes megfeleltetés: 18/18 sor, 3 fedett · 11 részben · 4 nevezett
+hiány) · **L11** (a személyes kör: **SZK-01** — a csatorna bizonyításakor magától születik, ugyanazzal a
+`createWorkspace`-szel és indulási szabállyal, alanyonként legfeljebb egy, a kulcs tartja) · **L2** (a
+képviselet: **REP-01** cserélhető ellenőrzés, zárt osztály-regiszter, fail-closed, és a nemleges válasz
+kimondja, hogy CSAK az adott műveletet zárja — a regisztrációt és a saját munkát soha). **L3 DÖNTÉS:** a
+közös (kétszemélyes) jóváhagyás VÁLASZTHATÓ szervezeti szabály lesz, nem kötelező teher; amíg nincs
+megépítve, a rendszer ilyen védelmet nem ígér (mérve: 0 ilyen ígéret a héj és a felület forrásában).
+
+**3. A SZÁM-ELLENTMONDÁS HELYESBÍTVE (L8).** Az R64-es lap lezárási feltétele „mind a 13 klauzulá"-t írt,
+ugyanannak a lapnak az OB-5 bekezdése 15-öt. A regiszterből MÉRVE: **15** megvonási klauzula, **10**
+deklarált hiány nélkül, **5** nevezett hiánnyal (REV-N1c · REV-N3d · REV-N3e · REV-N4a · REV-N4b). A 13
+elavult szám volt; a lezárási lista élő alakja innentől `docs/70_PLANNING/V3_CORE_LEZARASI_LISTA.json`,
+és a számokat gépi jel köti a regiszterhez.
+
+**4. A LEJÁRATI ÁGAK MOSTANTÓL BÖNGÉSZŐBŐL IS MÉRHETŐK.** A héj TÁMOGATOTT idővezérlést kapott
+(`/dev/clock`, a fejlesztői felület mögött, `devSurface` kapcsolóval — kikapcsolva a fejlesztői végpontok
+404-et adnak, tehát nem „letiltva", hanem NEM LÉTEZNEK). Ezzel a H06 és a H09 „reszben" minősítése
+megszűnt: **12 bizonyítva · 0 részben · 2 nem böngészőben** (a maradék kettő a magban mért).
+
+**5. AMIT EZ A KÖR NEM ÁLLÍT.** A core-core teljes lezárása NINCS elfogadva. Üzemi használat nem
+állítható (L1 · L4 · L5 nyitott). A „lezárt" sorok a SAJÁT feltételükre zárultak, kimondott maradékkal —
+egyik sem készültségi százalék. Az A-esetek forgatókönyve nem futott le (megfeleltetés, nem futtatás).
+
+**6. ÚJ TANULSÁGOK:** **KUKA-201** (a lejárat is út, nem végállomás) · **KUKA-202** (a verseny elleni őrt
+ott kell állítani, ahol a kár keletkezik) · **KUKA-203** (a külső határon a típus kérdés, nem formázás).
+**Gépi jelek:** `npm run verify:app-findings` (73 állítás) · `verify:app-selfcheck` (57) · `verify:kuka`
+(338) · `npm run proof:core-ux` (30 böngésző-próba) — mindegyik a söprés része.
+
+---
+
 ## D-VS-3036 — AZ R26 ÖT LELETE JAVÍTVA: A BEFOGADÁSI SZABÁLY, AZ ESZKÖZ-SOR ÉS A PR155-FOLYTATÁS
 
 > **Hatály:** V2+V3 — a javítás a V2 repó board-eszközében (`tools/chatops-board/`), a rajta megjelenő

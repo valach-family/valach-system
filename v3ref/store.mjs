@@ -43,6 +43,27 @@ CREATE TABLE book (
   name          TEXT NOT NULL
 );
 
+-- A SZEMÉLYES KÖR TÉNYE — SAJÁT TÁBLÁN (SZK-01, R75/L11 · R64 L11).
+--
+-- MIT MOND KI. Ez a könyv a SZEMÉLY saját köre: a csatorna bizonyításakor MAGÁTÓL születik, nevet
+-- nem kell kitalálni hozzá, és a váltóban NEVESÍTETT cél („személyes kör"), nem egy sokadik cég.
+--
+-- MIÉRT KÜLÖN TÁBLA, ÉS MIÉRT NEM OSZLOP A KÖNYVÖN. Két okból. (1) A könyv sorrendfüggő,
+-- pozicionális INSERT-tel is íródik tizenkilenc KÜLSŐ, beadott programban — egy új oszlop azokat
+-- TÖRNÉ, a beadott bizonyítékot pedig nem írjuk át (KUKA-121/122: a külső fél programja tanú, nem
+-- a mi szövegünk). (2) A tény ÍGY tud a MODELLBEN is igaz lenni: az „egy alany — egy személyes kör"
+-- szabályt itt a KULCS tartja (PRIMARY KEY + UNIQUE), nem egy alkalmazás-oldali ellenőrzés, amit
+-- egy versenyhelyzet megkerülhet (KUKA-047).
+--
+-- AMI NEM VÁLTOZIK: a személyes kör UGYANAZZAL az indulási szabállyal (WSP-01), ugyanazzal az
+-- alappal és ugyanazzal a tagsággal születik, mint bármely más könyv — ez a sor csak a CÉLJÁT
+-- mondja ki, nem ad külön jogot és nem külön jogosultsági motor.
+CREATE TABLE personal_space (
+  subject_id    TEXT PRIMARY KEY REFERENCES subject(id),
+  book_id       TEXT NOT NULL UNIQUE REFERENCES book(id),
+  created_at    TEXT NOT NULL
+);
+
 -- A TAGSÁGADÁS IS KÉT TENGELYEN ÁLL (R85/F01). A "granted_at" a HATÁLY ("melyik naptól jár a
 -- jog"), a "granted_recorded_at" a TUDÁS ("mikor került a rendszerbe"). A kettő a mai
 -- tagságadásnál AZONOS, és ezt az író biztosítja — de a modell nem köti össze őket, mert az
@@ -763,14 +784,22 @@ END;
 -- ÖNBEVALLOTT (external_id, issuer=self_asserted); a csatorna BIZONYÍTÉKA (channel_proof) csak
 -- akkor születik, ha a címre kiküldött egyszeri kihívást a birtokosa beváltja. Egyszeri, lejáró,
 -- és a beváltás ténye a sorban marad (used_at) — a hiány nem néma.
+--
+-- A LEVÁLTÁS KÜLÖN TÉNY (CHR-01, R75/F75-01). Ha a birtokos ÚJ megerősítő levelet kér, a korábbi,
+-- még be nem váltott hivatkozás nem maradhat élő — de nem is hazudhatjuk rá, hogy „beváltották"
+-- (used_at) vagy hogy „lejárt" (expires_at átírása): mindkettő MÁS tényt állítana (KUKA-050 · a
+-- szöveg a valóságot követi). Ezért a leváltás SAJÁT oszlopon áll, a leváltó hivatkozás nevével —
+-- így a beváltó NEVEZETTEN tud challenge_superseded-et mondani, és a napló megmondja, mi váltotta.
 CREATE TABLE channel_challenge (
-  token        TEXT PRIMARY KEY,
-  subject_id   TEXT NOT NULL REFERENCES subject(id),
-  namespace    TEXT NOT NULL,
-  value_norm   TEXT NOT NULL,
-  created_at   TEXT NOT NULL,
-  expires_at   TEXT NOT NULL,
-  used_at      TEXT
+  token          TEXT PRIMARY KEY,
+  subject_id     TEXT NOT NULL REFERENCES subject(id),
+  namespace      TEXT NOT NULL,
+  value_norm     TEXT NOT NULL,
+  created_at     TEXT NOT NULL,
+  expires_at     TEXT NOT NULL,
+  used_at        TEXT,
+  superseded_at  TEXT,
+  superseded_by  TEXT
 );
 
 -- AZ ELŐFIZETÉS FUNKCIÓT BIZTOSÍT, NEM CÉGES ADATJOGOT (R63 §3 — „A két feltételt külön

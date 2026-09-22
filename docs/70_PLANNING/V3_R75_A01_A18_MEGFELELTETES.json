@@ -1,0 +1,350 @@
+{
+  "schema": "v3-a01-a18-megfeleltetes/1",
+  "round": "CMD-VS-300-002-002 R75",
+  "lane": "Claude-v3",
+  "source_of_cases": "v3ref/source-documents/R32_board_v1.md — „A01–A18 elfogadási esetek\" tábla, szó szerint (a KEZDŐHELYZET és a KÖTELEZŐ EREDMÉNY oszlop)",
+  "inventory": "docs/70_PLANNING/V3_R64_CORE_ELTERESLISTA_LELTAR.json (87 sor: élethelyzet 22 · K 19 · OB 10 · G 8 · USE 4 · QNT 24)",
+  "what_this_is": "Az R64 L10 maradéka: az EREDETI A01–A18 elfogadási esetek TÉTELES egyeztetése a MAI leltárral. Soronként: mi a forrás, mi működik ma, mi a bizonyíték, mi a PONTOS maradék, és mit blokkol. Ahol a leltárban nincs fedő sor, ott a sor NEVEZETT HIÁNY — nem „lefedett\".",
+  "how_to_read": {
+    "allapot": {
+      "fedett": "az eset MINDEN kötelező eredménye mért állítással áll (kód + próba), a maradék nélküle is igaz marad",
+      "reszben": "az eset egy RÉSZE mérve áll, a többi nevezett hiány — a `maradek` mondja meg, melyik",
+      "nevezett_hiany": "a mai magban NINCS meg a fogalom, amire az eset épül; a sor ezt kimondja, és megnevezi, mi kellene hozzá"
+    },
+    "figyelmeztetes": "A „fedett\" NEM azt jelenti, hogy az eset FORGATÓKÖNYVE végigfutott: azt jelenti, hogy a kötelező eredményét kimondó szabály a magban él, és van rá élő bizonyíték. Az A-esetek teljes, végigjátszott forgatókönyve NEM futott le — ez az egész tábla kimondott határa (R32: „egyik sem ebben a körben lefutott V3-teszt\")."
+  },
+  "summary": {
+    "fedett": 3,
+    "reszben": 11,
+    "nevezett_hiany": 4,
+    "osszesen": 18
+  },
+  "cases": [
+    {
+      "id": "A01",
+      "kezdohelyzet": "Két jogalany egy csoportos adóregisztrációban; később egyik kilép",
+      "kotelezo_eredmeny": "Mindkét jogalany/könyv használható; időben helyes tagság; nincs alany-/jogösszevonás.",
+      "allapot": "reszben",
+      "mukodik_ma": "Az azonosító ÁLLÍTÁS, nem jog: ugyanazt az adószám-karaktersort több független jogalany viselheti, és egyik sem nyit a másik könyvére; a tagság KÉT időtengelyen áll (hatály + tudás), a megvonás külön esemény, nem sor-törlés — tehát a „kilépés\" időben helyesen ábrázolható, és alany-összevonás sehol nem történik.",
+      "bizonyitek": [
+        "v3ref/externalId.mjs (névtér · joghatóság · kibocsátó · érték négyes)",
+        "v3ref/bitemporal.mjs — membershipAsOf · grantMembership · revokeMembership",
+        "böngésző: H05 (három jogalany azonos adószámmal) · H12 (két joghatóság azonos karaktersora) — docs/70_PLANNING/V3_R75_ELFOGADAS_HELYZETEK.json"
+      ],
+      "maradek": "A CSOPORTOS ADÓREGISZTRÁCIÓ mint fogalom NINCS a magban: nincs olyan objektum, ami két jogalanyt EGY adójogi egységbe kötne, és nincs „kilépés a csoportból\" esemény. Amit ma mérünk, az a párhuzamos, FÜGGETLEN állítás, nem a közös regisztráció.",
+      "leltar_sorok": [
+        "K01",
+        "K09",
+        "H05",
+        "H12"
+      ],
+      "blokkol": "későbbi üzemi használat (adójogi csoport kezelése)"
+    },
+    {
+      "id": "A02",
+      "kezdohelyzet": "Téves alanykötésből ismert export készült, majd javítás",
+      "kotelezo_eredmeny": "Új kiadás leáll; kötés és vetület rendezett; export a kiadási leltárban, a letöltött példányra nincs törlési garancia.",
+      "allapot": "nevezett_hiany",
+      "mukodik_ma": "A KIADÁS leltárba kerül (K05: minden kiadott eredmény a kiadási leltárba, és a kiadás a jog- és előfizetés-kapu UTÁN történik), és a megvont jog után új kiadás nem indul.",
+      "bizonyitek": [
+        "v3ref/releaseScope.mjs (scopeReleaseDecision) · v3ref/command.mjs (readCommandResult)",
+        "böngésző: H09 (megvonás után új kérés elakad)"
+      ],
+      "maradek": "EXPORT-FOGALOM NINCS: a mag nem ismer fájlt, letöltést vagy külső példányt, tehát „az export a kiadási leltárban\" és „a letöltött példányra nincs törlési garancia\" ma nem mérhető állítás — a kiadási leltár MA parancs-eredményekre áll, nem exportokra.",
+      "leltar_sorok": [
+        "K05",
+        "OB-4"
+      ],
+      "blokkol": "későbbi üzemi használat (export/kiadás-kezelés)"
+    },
+    {
+      "id": "A03",
+      "kezdohelyzet": "Rendszert nem használó partner könyvét vezető szolgáltató megszűnik",
+      "kotelezo_eredmeny": "A profil szerinti őrzési/átadási állapot; nincs automatikus platform- vagy partneradmin; ellenőrzött jogosultnak csak kiadható kör.",
+      "allapot": "reszben",
+      "mukodik_ma": "AUTOMATIKUS PLATFORM-ADMIN NINCS, és ez mérve áll: az indulási szabály (WSP-01) kimondottan NEM ad `suspend` és `adjudicate` hatáskört, a helyi admin a saját könyvén kívülre semmit; a tagság csak MEGHÍVÓVAL születik. A KÉPVISELETI átvétel R75 óta nevezett, ZÁRT osztály (REP-01 `take_over_existing_space`).",
+      "bizonyitek": [
+        "v3ref/workspace.mjs STARTUP_RULE.not_granted = [suspend, adjudicate]",
+        "v3ref/representation.mjs (REP-01) — `take_over_existing_space` ⇒ representation_unproven",
+        "v3app/findings_r75.mjs L2 szakasz (67/67 PASS)"
+      ],
+      "maradek": "ŐRZÉSI/ÁTADÁSI PROFIL NINCS: nincs „megszűnő szolgáltató\" esemény, nincs őrzési idő, és nincs átadási folyamat. A REP-01 ma a kaput adja (nincs adapter), nem a folyamatot.",
+      "leltar_sorok": [
+        "OB-6",
+        "K09",
+        "ORG-N1b"
+      ],
+      "blokkol": "mini-modul közös alap (ahol a modul idegen kör átvételét igényli)"
+    },
+    {
+      "id": "A04",
+      "kezdohelyzet": "A kibocsátó saját fiókjával nézi ugyanazon címre szóló meghívót két világban: a címhez van/nincs fiók",
+      "kotelezo_eredmeny": "Ugyanaz az engedélyezett megfigyelés és általános váltási út; nincs létjelzés. A valódi címzett megfelelő hitelesítés után mindkét világban végigjut a saját helyes útján.",
+      "allapot": "fedett",
+      "mukodik_ma": "A megfigyelés (`observeInvite`) NEM árulja el, létezik-e fiók a címhez (`account_exists: null` az idegen néző számára), a felajánlott folytatás mindkét világban ugyanaz, és a VALÓDI címzett mindkét úton (meglévő fiók · új fiók) végigjut — a lap a függő szándékot a szerveren tartja.",
+      "bizonyitek": [
+        "v3ref/invite.mjs (observeInvite · rememberIntent · resumeIntent · redeemInvite)",
+        "v3ref/run.mjs — P-A04 (a két világ azonos megfigyelése)",
+        "böngésző: core-flow 7–10. lépés (rossz fiók · meglévő fiók · névtelen folytatás · új fiók)"
+      ],
+      "maradek": "Nincs nevezett maradék ezen az eseten.",
+      "leltar_sorok": [
+        "K03",
+        "EH-3",
+        "H06"
+      ],
+      "blokkol": "semmit"
+    },
+    {
+      "id": "A05",
+      "kezdohelyzet": "Együttes képviselethez két külön jogosult kell; egy ember két fiókot használ, majd két ember eltérő tartalmat hagy jóvá",
+      "kotelezo_eredmeny": "Egyik sem érvényes közös döntés; két megfelelő személy ugyanazon tartalmi változatra adott érvényes jóváhagyása véglegesíthető.",
+      "allapot": "nevezett_hiany",
+      "mukodik_ma": "SEMMI — és ezt a rendszer KI IS MONDJA: közös (kétszemélyes) jóváhagyás nincs, és a felület sehol nem ígéri. Mérve: a héj és a felület forrásában 0 ilyen ígéret; a magban egyetlen művelet sem köt két személy egyetértéséhez.",
+      "bizonyitek": [
+        "v3app/findings_r75.mjs — L3 forrás-mérés (0 találat)",
+        "böngésző: H10 (a mag és a héj forrásában nincs ilyen szabály/végpont)"
+      ],
+      "maradek": "A TELJES megvalósítás nevesített üzemi hiány (R64 L3 · R75 §3/4): saját JÓVÁHAGYÁSI ESEMÉNY kell (ki · mit · melyik tartalmi változatra), ELTÉRŐ jogosult jóváhagyókkal, és a „két fiók, egy ember\" eset kizárásával. Amíg ez nincs, a rendszer ilyen védelmet NEM ígérhet — és ez a szervezeti szabály VÁLASZTHATÓ lesz, nem kötelező teher a kétszemélyes családi cégnél.",
+      "leltar_sorok": [
+        "OB-6",
+        "ORG-N2a"
+      ],
+      "blokkol": "későbbi üzemi használat"
+    },
+    {
+      "id": "A06",
+      "kezdohelyzet": "Csak rögzített idejű aggregátumjog; percenkénti lekérdezés, eltérő export és változásértesítés kérése",
+      "kotelezo_eredmeny": "Az idő-/csatornaprofil egységes; nincs sűrűbb titkos közlés más úton. Külön engedélyezett élő összesítés pozitív ága működik, következtetési határa megnevezett.",
+      "allapot": "nevezett_hiany",
+      "mukodik_ma": "A KIADÁS osztályozója (K05) minden kiadott eredményt leltárba tesz, és a jogot adatkörönként méri — tehát „más úton\" ma sincs kiadás jog nélkül.",
+      "bizonyitek": [
+        "v3ref/releaseScope.mjs · v3ref/resultScope.mjs (KNOWN_DATA_SCOPES: keszlet · arak)"
+      ],
+      "maradek": "IDŐ- ÉS CSATORNAPROFIL NINCS: nincs aggregátum-jog, nincs gyakoriság-korlát, nincs értesítési csatorna, és nincs következtetési (inferencia-) határ. A kéttagú adatkör-szótár ezt nem tudja kifejezni.",
+      "leltar_sorok": [
+        "K05",
+        "OB-4",
+        "USE-G2"
+      ],
+      "blokkol": "későbbi üzemi használat"
+    },
+    {
+      "id": "A07",
+      "kezdohelyzet": "Szállító és fuvarozó külön kulccsal jelenti ugyanazt; második valódi szállítás azonos napon azonos mennyiséggel",
+      "kotelezo_eredmeny": "Elsőnél egyeztetett egy hatás; második nem vész el kulcs-/mezőegyezés miatt. Bizonytalan eset nincs kétszer automatikusan befogadva.",
+      "allapot": "reszben",
+      "mukodik_ma": "A PARANCS AZONOSSÁGA névterezett (könyv + cselekvő + ismétlés-kulcs), az ismétlés NEM ír másodszor, és a MÁS tartalommal érkező azonos kulcs NEVEZETT ütközés (`idempotency_conflict`) — tehát a második valódi szállítás nem tűnik el némán, és nem is íródik felül.",
+      "bizonyitek": [
+        "v3ref/command.mjs (submitCommand · idem-kulcs névterezve) · v3ref/ledger.mjs",
+        "v3ref/run.mjs — P-KSZ-ledger-truth · P-KSZ-repeat-and-error-boundary (62/62 PASS)"
+      ],
+      "maradek": "KÉT BEJELENTŐ EGYEZTETÉSE NINCS: a mag nem ismer „szállító\" és „fuvarozó\" szerepű bejelentést, tehát „az elsőnél EGYEZTETETT egy hatás\" ma nem mérhető — ma az első beadó ír, a második ütközik. A bizonytalan eset KÉZI eldöntése (befogadás/elutasítás) szintén hiányzik.",
+      "leltar_sorok": [
+        "K06",
+        "K13",
+        "QNT-09"
+      ],
+      "blokkol": "későbbi üzemi használat (készlet-modul)"
+    },
+    {
+      "id": "A08",
+      "kezdohelyzet": "Befogadott/véglegesült parancs közben szabályverzió vált; azonos kulccsal újra kérik, majd megvonják a kérő olvasási jogát",
+      "kotelezo_eredmeny": "Egy hatás rögzített bemenetből; eltérő tartalom konfliktus; megvonás után a régi eredményadat sem játszható vissza.",
+      "allapot": "reszben",
+      "mukodik_ma": "EGY HATÁS + KONFLIKTUS: mérve (fent, A07). A MEGVONÁS UTÁNI VISSZAJÁTSZÁS zárva: az eredmény KIADÁSA minden olvasáskor újra méri a kérő MAI jogát (`readCommandResult` → jog-kapu), tehát a régi eredmény sem jön ki megvont joggal.",
+      "bizonyitek": [
+        "v3ref/command.mjs readCommandResult · v3ref/releaseScope.mjs",
+        "böngésző: H09 (megvonás után az ÚJ kérés elakad) · findings_r75 F75-02 (c/2)"
+      ],
+      "maradek": "A SZABÁLYVERZIÓ-VÁLTÁS MENET KÖZBEN nincs modellezve: a mag nem ismer futó parancsra ható szabályverzió-váltást (nincs verziózott feldolgozási szabály a parancson).",
+      "leltar_sorok": [
+        "K06",
+        "K08",
+        "K05"
+      ],
+      "blokkol": "későbbi üzemi használat"
+    },
+    {
+      "id": "A09",
+      "kezdohelyzet": "Márciusi rekordról márciusi jelentés, júniusi visszamenőleges javítás",
+      "kotelezo_eredmeny": "Régi beadott fájl változatlan; márciusi tudás szerinti és mai tudás szerinti március külön, helyesen reprodukálható.",
+      "allapot": "fedett",
+      "mukodik_ma": "A főkönyv KÉT idő-nézetet ad (hatály + tudás), tengely-párral: a „márciusi tudás szerinti március\" és a „mai tudás szerinti március\" KÜLÖN szám, és a visszadátumozás nem kerüli meg az összeg-korlátot. A történetet nem írjuk át: a javítás ÚJ esemény.",
+      "bizonyitek": [
+        "v3ref/ledger.mjs LEDGER_VIEWS · balanceAt",
+        "v3ref/run.mjs — P-KSZ-ledger-truth (A=10.000 recorded_at+effective_at · B=10.000 effective_at · június-B=17.000 · visszadátumozás=sum_out_of_range)"
+      ],
+      "maradek": "A „régi beadott FÁJL\" fogalom nincs (fájlt a mag nem kezel) — a tábla ezt az A02-nél kimondott export-hiányként viszi tovább; maga az idő-nézet állítás fedett.",
+      "leltar_sorok": [
+        "K08",
+        "K10"
+      ],
+      "blokkol": "semmit"
+    },
+    {
+      "id": "A10",
+      "kezdohelyzet": "Szerverkapus link, közvetlen aláírt link, online cache és letöltött PDF; megvonás/kilépés/cégváltás",
+      "kotelezo_eredmeny": "Mindegyik a deklarált tényleges határt tartja; más cég cache-e nem jelenik meg; offline másolat törlése nem állított.",
+      "allapot": "reszben",
+      "mukodik_ma": "A CÉGVÁLTÁS ÉS A GYORSÍTÓTÁR ága mérve: minden válasz `Cache-Control: no-store`, a kliensnek nincs saját gyorsítótára, a váltás ürít, a késve érkező válasz eldobódik (R75/F75-02), és a kilépés után sem íródik vissza adat.",
+      "bizonyitek": [
+        "böngésző: H08 · R75/F75-02 (1)-(4) — tests/e2e/v3app-r75.spec.mjs",
+        "v3app/server.mjs sendJson → Cache-Control: no-store"
+      ],
+      "maradek": "ALÁÍRT LINK ÉS LETÖLTHETŐ DOKUMENTUM (PDF) NINCS: a rendszer nem ad ki fájlt és nem ad közvetlen, szerver-kapu nélküli hivatkozást, tehát ezek határa ma nem mérhető. Az „offline másolat törlése nem állított\" mondat ezért ma ÜRES igaz.",
+      "leltar_sorok": [
+        "K05",
+        "H08",
+        "OB-4"
+      ],
+      "blokkol": "későbbi üzemi használat (dokumentum-kiadás)"
+    },
+    {
+      "id": "A11",
+      "kezdohelyzet": "Szintetikus tesztprofil: két 0,005 egység, fél-felfelé kerekítéssel soronként vagy végösszegre",
+      "kotelezo_eredmeny": "Soronként 0,02; összesítés után 0,01; helyes profil/verzió kerül az eseményre.",
+      "allapot": "reszben",
+      "mukodik_ma": "A MENNYISÉG PROFILHOZ KÖTÖTT: a tizedesjegy a CIKK profiljáé, a kanonikus alak a profil szerint születik, és a TÁROLT mennyiség a SAJÁT profilját viszi — profilváltás nem értelmezi át a múltat.",
+      "bizonyitek": [
+        "v3ref/quantity.mjs · v3ref/inputSchema.mjs (bindQuantityProfile)",
+        "v3ref/run.mjs — P-MNY-stored-profile-history · P-BEM-input-schema"
+      ],
+      "maradek": "KEREKÍTÉSI STRATÉGIA (soronként vs. végösszegre) NINCS deklarálva: a mag ma elutasítja a profilon túli tizedest (`precision`), de nem kerekít, és nincs összesítő művelet, amin a különbség megjelenne. Ez a QNT-csomag tárgya.",
+      "leltar_sorok": [
+        "K10",
+        "QNT-11",
+        "QNT-12"
+      ],
+      "blokkol": "későbbi üzemi használat (készlet-modul)"
+    },
+    {
+      "id": "A12",
+      "kezdohelyzet": "Azonosító 0012/12, ß/ss és ékezetes változatok külön névterekben; normalizáló frissítése",
+      "kotelezo_eredmeny": "Csak a séma szerinti egyezés; keresési hasonlóság nem olvaszt alanyt. Ütközésleltár, eredeti írásmód és régi kötés megmarad.",
+      "allapot": "reszben",
+      "mukodik_ma": "AZ EGYEZÉS A TELJES NÉGYESEN dől el (névtér · joghatóság · kibocsátó · érték), az EREDETI írásmód megmarad (`value_raw`) a normalizált mellett, és hasonlóság alapján semmi nem olvad össze.",
+      "bizonyitek": [
+        "v3ref/externalId.mjs (value_raw + value_norm, cardinality)",
+        "böngésző: H12 (HU és AT azonos karaktersora nem azonosság)"
+      ],
+      "maradek": "A NORMALIZÁLÓ FRISSÍTÉSE mint esemény nincs: nincs verziózott normalizáló, és nincs ÜTKÖZÉS-LELTÁR, ami egy frissítés után megmutatná, mely korábbi kötések ütköznének.",
+      "leltar_sorok": [
+        "K01",
+        "K10"
+      ],
+      "blokkol": "későbbi üzemi használat"
+    },
+    {
+      "id": "A13",
+      "kezdohelyzet": "Modul fél év után visszatér; eseményeinek egy része lejárt, más részét már külső rendszer teljesítette",
+      "kotelezo_eredmeny": "Kötelező állapot/helyreállítás; nincs hamis teljes vetület, elnyelt hiány vagy duplán kiküldött hatás.",
+      "allapot": "nevezett_hiany",
+      "mukodik_ma": "A parancs-azonosság és az ismétlés-védelem (A07) megakadályozza a duplán KÖNYVELT hatást a magon belül.",
+      "bizonyitek": [
+        "v3ref/command.mjs · v3ref/run.mjs P-KSZ-repeat-and-error-boundary"
+      ],
+      "maradek": "MODUL-ÉLETCIKLUS NINCS: nincs ki/bekapcsolható modul, nincs esemény-sor lejárati kezeléssel, és nincs külső rendszer felé kimenő hatás — tehát sem a „hamis teljes vetület\", sem a „duplán KIKÜLDÖTT\" hatás nem mérhető ma.",
+      "leltar_sorok": [
+        "USE-G4",
+        "OB-1"
+      ],
+      "blokkol": "későbbi üzemi használat"
+    },
+    {
+      "id": "A14",
+      "kezdohelyzet": "Külső bizonyítékforrás kiesik érvényes, majd lejárt bizonyíték mellett; közben helyi megvonás érkezik",
+      "kotelezo_eredmeny": "Érvényes profilon belüli független saját út működik; lejárt/visszavont alap nem. Külső hívás kikerülése nem helyi jogellenőrzés kikerülése.",
+      "allapot": "reszben",
+      "mukodik_ma": "A HELYI JOG-ELLENŐRZÉS MINDIG FUT: nincs olyan út, ahol egy külső hívás kimaradása átugorná a jog-kaput (a kiadás két kapun megy, a tagságot élő feloldó méri). A VISSZAVONT és LEJÁRT alap nem ad jogot — a lejárt ág R75 óta a böngészőből is mérve (fejlesztői óra).",
+      "bizonyitek": [
+        "böngésző: H06 · H09 (lejárt meghívó · visszavont alap · független jog megmarad)",
+        "v3ref/run.mjs — P-INVITE-window · P-CORE-startup-and-delegation (d)"
+      ],
+      "maradek": "KÜLSŐ BIZONYÍTÉKFORRÁS NINCS bekötve (REP-01: nulla adapter), tehát a „kiesik\" eset ma nem játszható le. A kapu viszont ELŐRE áll: hiányzó adapter ⇒ az ADOTT művelet zárul, a saját munka nem.",
+      "leltar_sorok": [
+        "OB-6",
+        "K12",
+        "ORG-N1b"
+      ],
+      "blokkol": "mini-modul közös alap (ahol a modul külső bizonyítékot igényel)"
+    },
+    {
+      "id": "A15",
+      "kezdohelyzet": "Fordulónapi 100 darab nyitóállomány; később bekerül a benne már szereplő 20 darabos régi mozgás; import újrafut",
+      "kotelezo_eredmeny": "Marad 100 darab; történet bekötve, nem új hatás. Kimaradt pozíció csak explicit korrekcióval; nincs új külső értesítés.",
+      "allapot": "reszben",
+      "mukodik_ma": "A KÉT IDŐTENGELY és az ismétlés-védelem együtt adja a kötelező eredmény MAGJÁT: a régi mozgás visszamenőleges hatállyal, ÚJ eseményként rögzül, az ismétlés nem ír másodszor, és az egyenleg a nézet szerint számolódik.",
+      "bizonyitek": [
+        "v3ref/ledger.mjs (LEDGER_VIEWS) · v3ref/run.mjs P-KSZ-ledger-truth"
+      ],
+      "maradek": "NYITÓÁLLOMÁNY ÉS IMPORT NINCS: nincs „fordulónapi nyitó\" fogalom, nincs import-futtatás, és nincs külső értesítés — tehát a „marad 100 darab\" állítás ma nem játszható le az eset saját útján.",
+      "leltar_sorok": [
+        "K08",
+        "QNT-15",
+        "QNT-16"
+      ],
+      "blokkol": "későbbi üzemi használat (készlet-modul)"
+    },
+    {
+      "id": "A16",
+      "kezdohelyzet": "Ugyanazon szervezet két tevékenységben eltérő felelősségi szerepet visel; egyik megbízás megszűnik",
+      "kotelezo_eredmeny": "Csak érintett adatcél/kör rendeződik; másik jogszerű tevékenység nem törlődik, technikai admin nem írhatja át a jogi minősítést önigazolásként.",
+      "allapot": "reszben",
+      "mukodik_ma": "A SZEREP KÖNYVENKÉNT KÜLÖN SOR (nem összevont tulajdonság), a megvonás CSAK az érintett könyvre hat (a független jog megmarad — mérve), és a helyi admin NEM adhat magának bírálói hatáskört (az indulási alapra hivatkozva sem).",
+      "bizonyitek": [
+        "böngésző: H09 (a független jog megmarad) · H10 (a vezető nem lát át)",
+        "v3ref/run.mjs — P-ORG-adjudication-basis-limit (outside_basis_operations)"
+      ],
+      "maradek": "A „JOGI MINŐSÍTÉS\" mint tárolt tény nincs (nincs adatkezelői/adatfeldolgozói szerep, nincs megbízás-objektum), tehát az „önigazolásként átírás\" tiltása ma nem a minősítésre, hanem a HATÁSKÖRRE mérve áll.",
+      "leltar_sorok": [
+        "K09",
+        "ORG-N1a",
+        "OB-6"
+      ],
+      "blokkol": "későbbi üzemi használat"
+    },
+    {
+      "id": "A17",
+      "kezdohelyzet": "Tömeges partnerfelvétel/meghívás több fiókból, egy célszemély terhelésével",
+      "kotelezo_eredmeny": "Nincs névfoglalás; a kockázati keretek a kijátszást és a címzett elleni kvótatámadást kezelik; legitim saját munka nem vész el. Számszerű profilt a futás előtt rögzíteni kell.",
+      "allapot": "reszben",
+      "mukodik_ma": "NÉVFOGLALÁS NINCS (mérve: azonos adószámot három független jogalany visel, egyik sem zárja ki a másikat), és a legitim saját munka egyetlen ilyen esetben sem akad el. R75 óta VAN az első címzett-védő korlát: a megerősítő levél ismétlése CÍMENKÉNT korlátos (CHR-01: legalább 60 mp két levél között, ablakonként legfeljebb 5).",
+      "bizonyitek": [
+        "böngésző: H05 (nincs névfoglalás)",
+        "v3app/findings_r75.mjs F75-01 (i)/(i/2) — az ismétlés-korlát mérve",
+        "v3ref/account.mjs CHALLENGE_POLICY"
+      ],
+      "maradek": "A MEGHÍVÓKRA NINCS KVÓTA: egy fiók tetszőleges számú meghívót adhat ki, és a CÍMZETT oldalán nincs összesített terhelés-korlát. A „számszerű kockázati profil\" (ki mennyit, milyen ablakban) nincs rögzítve — ez nevezett hiány, nem megoldott eset.",
+      "leltar_sorok": [
+        "K03",
+        "K12",
+        "USE-G2"
+      ],
+      "blokkol": "későbbi üzemi használat"
+    },
+    {
+      "id": "A18",
+      "kezdohelyzet": "Két ismeretlen helyi fél, egyik később azonosított; saját helyen idegen áru és külső helyen saját áru",
+      "kotelezo_eredmeny": "Külön helyi referenciák; valós fizikai lista működik; kötés nem ír tulajdont/jogot, és a hiánytól függő véglegesítés megfelelően korlátozott.",
+      "allapot": "fedett",
+      "mukodik_ma": "A KÉSZLETKULCS NÉGY TAGÚ (könyv · cikk · TULAJDONOS · raktár), tehát „saját helyen idegen áru\" és „külső helyen saját áru\" külön soron áll; a kötés (azonosító-állítás) NEM ír tulajdont vagy jogot (H05/H12), a cikk a KÖNYVÖN BELÜL egyedi, és idegen könyv cikkére a bevét nevezetten elakad.",
+      "bizonyitek": [
+        "v3ref/ledger.mjs stockKey({bookId, itemId, ownerId, warehouseId})",
+        "v3ref/run.mjs — P-KSZ-ledger-truth (idegen könyv cikke = item_belongs_to_another_book) · P-KAT-item-identity"
+      ],
+      "maradek": "A „valós FIZIKAI lista\" (leltározás) mint művelet nincs megépítve — az ADATMODELL viszont elkülöníti a helyet és a tulajdonost, és a kötelező eredmény minden állítása ezen a modellen mérve áll.",
+      "leltar_sorok": [
+        "K10",
+        "K13",
+        "QNT-20"
+      ],
+      "blokkol": "semmit (a leltározás művelete: később, a készlet-modulban)"
+    }
+  ],
+  "stated_limits": [
+    "EZ MEGFELELTETÉS, NEM FUTTATÁS: egyetlen A-eset forgatókönyve sem lett VÉGIGJÁTSZVA ebben a körben — az R32 maga mondja ki, hogy ezek nem lefutott V3-tesztek. Amit a tábla állít: hol áll ma a kötelező eredményt kimondó SZABÁLY, és mi a pontos maradék.",
+    "A `leltar_sorok` a meglévő eltéréslista (R64) soraira mutat; ahol nincs fedő sor, a `maradek` mezője NEVEZI meg a hiányt — üres „lefedett\" sor nincs.",
+    "A NÉGY NEVEZETT HIÁNY (A02 export · A05 közös jóváhagyás · A06 idő-/csatornaprofil · A13 modul-életciklus) egyike sem blokkolja az ELSŐ core-folyamatot; a `blokkol` mező soronként mondja meg, mit igen. A „reszben\" sorok maradéka ugyanígy nevesítve áll — összevont „majdnem kész\" minősítés nincs."
+  ]
+}

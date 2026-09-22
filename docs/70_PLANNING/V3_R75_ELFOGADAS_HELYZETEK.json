@@ -1,0 +1,248 @@
+{
+  "schema": "v3app-elfogadas-helyzetek/1",
+  "round": "CMD-VS-300-002-002 R75",
+  "lane": "Claude-v3",
+  "source": "tests/e2e/v3app-acceptance.spec.mjs",
+  "command": "npm run proof:core-ux",
+  "generated_at": "2026-09-22T20:55:52.041Z",
+  "package_version": "3.0.0-alpha",
+  "base_url": "http://127.0.0.1:46097",
+  "db_path": "var/tmp/v3_v3.0.0-alpha_20260922_205522_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
+  "what_this_is": "Az R63 §5.3 tizennégy elfogadási helyzete a v3app héjon, valódi böngészőből (Playwright · Chromium), helyzetenként KÉT rekeszben: amit a lap mutatott (browser) és amit a szerver válaszolt / a tároló őrzött (server). Az ítélet nem díszpipa: ahol egy al-eset a böngészőből nem hajtható meg, ott a lap a mag-próbára mutat.",
+  "verdict_vocabulary": {
+    "bizonyitva": "a helyzet minden állítása a böngésző- és a szerver-rekeszből áll össze",
+    "reszben": "egy vagy több nevezett al-eset a böngészőből nem hajtható meg — a `note` megmondja, melyik, és hol van a mag-bizonyíték",
+    "nem_bongeszoben": "a helyzet a héjból nem hajtható meg — a `note` a mag-próbára / szerszámra mutat; NEM sikeres próba"
+  },
+  "evidence_kinds": {
+    "browser": "a lap által mutatott szöveg, a vezérlők állapota, a fejléc — Playwright-lokátorokkal olvasva",
+    "server": "HTTP-válasz törzse (a felület kérése elfogva vagy a böngésző sütijével küldött kérés) · ADATBÁZIS: a tárolt sor második kapcsolaton (WAL) olvasva"
+  },
+  "summary": {
+    "bizonyitva": 12,
+    "reszben": 0,
+    "nem_bongeszoben": 2
+  },
+  "situations": [
+    {
+      "id": "H01",
+      "title": "Egyszerű magánfiók céges adatbekérés nélkül létrejön; csak saját adatait látja.",
+      "browser": [
+        "A regisztrációs űrlap mezői: email, password — céges adatot (adószám, cégnév) nem kér; a megerősítő hivatkozásra a levél-fogadó listájából kattintott; belépés után a fejléc: „h01.anna@pelda.hu (sub_c9d16c1e46e850e5)\"",
+        "Munkakörnyezet adószám NÉLKÜL (a „Vállalkozási minőség\" pipa üresen): a lap: „Létrejött: Anna magántere (ws_60421ceb) · terv: starter\"; fejléc: „Anna magántere · admin · starter\"",
+        "Készlet-nézet a saját terén: „KIADVA\" (qty 12)",
+        "Anna választója 2 tételt mutat: a SZEMÉLYES köre (a cím megerősítésekor magától született — SZK-01, R75) és a most indított tere; Béla tere nem szerepel benne"
+      ],
+      "server": [
+        "POST /api/workspaces → 201; business=null; role=admin; plan=starter",
+        "Anna váltása Béla terére → 403 not_a_member/no_membership; Anna ár-kérése ?book_id=<Béla pro tere> → param_ignored=true, ok=false, refused_by=entitlement (a SAJÁT starter tere dönt — Béla pro-adata nem jön ki); /api/me current_book_id = a saját tere: true",
+        "ADATBÁZIS: business_identity a magántéren: 0 sor; Anna külső azonosítói: [email] (csak e-mail); tagságai: [{\"book_id\":\"ps_26fab2ed\",\"role\":\"admin\"},{\"book_id\":\"ws_60421ceb\",\"role\":\"admin\"}] — a SZEMÉLYES köre (ps_26fab2ed, SZK-01) és a most indított tere, mindkettő admin; idegen könyvben nincs tagsága"
+      ],
+      "verdict": "bizonyitva",
+      "note": "A minta-rekordok minden munkakörnyezetben azonos tartalmúak (qty 12), ezért a „saját adat\" azonosságát nem a tartalom, hanem a munkamenet könyve és az idegen könyv-paraméter figyelmen kívül hagyása bizonyítja; a terv-különbség (saját starter ↔ idegen pro) az ár-nézeten tartalmilag is szétválasztja a két könyvet."
+    },
+    {
+      "id": "H02",
+      "title": "A meglévő magánfiók alkalmazotti meghívót elfogad; saját jelszava, személyes adatai és más céges jogai változatlanok.",
+      "browser": [
+        "Béla (meglévő, belépett fiók) megnyitja a meghívó hivatkozását: a lap „redeem_as_existing\"-t mutat, a következő lépés: „A címhez (h***@pelda.hu) tartozó fiókkal be vagy lépve — váltsd be a meghívót.\"; a Beváltás gomb látszik: true",
+        "Beváltás után az értesítő: „Meghívó beváltva: ws_8c68fdf6 (membership_only / granted). Az olvasási jogot az admin adja meg külön lépésben. A SZEMÉLYES köröd megmarad — a váltóban mindkettő ott lesz.\"; fejléc: „Családi Kft · user · starter\"; a választó: h02.bela személyes köre személyes kör ps_293b92d2 · admin · starterváltás | Béla magántere közös munkakörnyezet ws_741ad368 · admin · starterváltás | Családi Kft közös munkakörnyezet ws_8c68fdf6 · user · starteraktív",
+        "Kilépés után a RÉGI jelszóval újra belép: „Belépve.\"; munkakörnyezetei: h02.bela személyes köre (admin) · Béla magántere (admin) · Családi Kft (user)"
+      ],
+      "server": [
+        "POST /api/invites/redeem → 200; shape=membership_only, outcome=granted, read_scope_granted=null — a beváltás CSAK tagságot ír, hitelesítőt nem",
+        "ADATBÁZIS: a jelszó-lenyomat változatlan: true; az e-mail azonosító sora változatlan: true; az alany fajtája: person; a SAJÁT terének tagsága változatlan: {\"role\":\"admin\",\"revoked_at\":null}"
+      ],
+      "verdict": "bizonyitva",
+      "note": "A második faktor a magban nem létező fogalom (nincs mit törölni); a „személyes adat\" itt az e-mail azonosító sora és az alany fajtája."
+    },
+    {
+      "id": "H03",
+      "title": "A fiókhoz adószámos működési minőség társul; a magán- és üzleti kör nem olvad össze.",
+      "browser": [
+        "Magántér: „Létrejött: Anna magántere (ws_78c6a672) · terv: starter\" · Céges: „Létrejött: Anna Kft (ws_ade7331a) · terv: starter · vállalkozási minőség: HU 03345678242 — ÖNBEVALLOTT, hatósági igazolás: none_available (más szervezet képviselete ebből nem következik)\" — a céges soron látszik az önbevallott minőség és hogy igazolás nincs; a választó két külön tételt mutat: h03.anna személyes köre személyes kör ps_d4b3a2a5 · admin · starterváltás | Anna Kft közös munkakörnyezet ws_ade7331a · admin · starteraktív | Anna magántere közös munkakörnyezet ws_78c6a672 · admin · starterváltás",
+        "Váltás a magántérre: „Munkakörnyezet: Anna magántere (admin)\" → fejléc „Anna magántere · admin · starter\"; vissza a cégesre → fejléc „Anna Kft · admin · starter\" — két külön könyv, két külön fejléc"
+      ],
+      "server": [
+        "POST /api/workspaces (céges) → business: {\"ok\":true,\"book_id\":\"ws_ade7331a\",\"entity_subject_id\":\"ent_ws_ade7331a\",\"subject_id\":\"ent_ws_ade7331a\",\"namespace\":\"tax_id\",\"jurisdiction\":\"HU\",\"value_norm\":\"03345678242\",\"issuer\":\"self_asserted\",\"profile_known\":true,\"verification\":\"none_available\"}",
+        "ADATBÁZIS: business_identity a magántéren 0 sor, a cégesen {\"entity_subject_id\":\"ent_ws_ade7331a\",\"namespace\":\"tax_id\",\"jurisdiction\":\"HU\"}; a jogalany alanya: legal_entity; Anna alanya marad: person; adószám Anna SZEMÉLYÉN: 0 sor, a JOGALANYON: 1 sor — három külön objektum (személy · jogalany · könyv), a személyhez nem nyúlt"
+      ],
+      "verdict": "bizonyitva",
+      "note": "A vállalkozási minőség önbevallott (verification: none_available) — hatósági igazoló adapter a magban ma nincs, és ezt a válasz és a lap egyaránt kimondja."
+    },
+    {
+      "id": "H04",
+      "title": "Saját családi munkakörnyezet indul; második tagot meghívhat a jogosult kezelő, külön állami igazolási kör nélkül a saját helyi körhöz.",
+      "browser": [
+        "Anna a felületen indítja a családi munkakörnyezetet: „Létrejött: Családi Kft (ws_7725f6ed) · terv: starter · vállalkozási minőség: HU 04345678242 — ÖNBEVALLOTT, hatósági igazolás: none_available (más szervezet képviselete ebből nem következik)\"; a Munkatársak szakasz (meghívás) megjelent: true",
+        "Anna meghívja Bélát (user · keszlet): „Meghívó kiadva (96fd043f…) · plafon: szerepek admin/user, adatkörök keszlet/arak · lejár: 2026-09-29T20:55:28.846Z\"; a levél-fogadóban a meghívó hivatkozás: megvan",
+        "Béla a hivatkozásra kattint → „redeem_as_existing\" → Beváltás → fejléc: „Családi Kft · user · starter\""
+      ],
+      "server": [
+        "POST /api/workspaces → 201; business.verification=none_available (állami igazolási kör NEM futott, nem is kért); role=admin",
+        "ADATBÁZIS: az indulás ténye: szabály v1, alap startup-rule:ws_7725f6ed; az alap korlátja: műveletek [\"invite_issue\",\"alter_right\"], szerepek [\"admin\",\"user\"], adatkörök [\"keszlet\",\"arak\"]; bizonyíték-hivatkozás: „startup-rule:v1 · creator=sub_1dd9060d36c5082e · channel=email:h04.anna@pelda.hu:proven\" — a bizonyíték a létrehozó ELLENŐRZÖTT csatornája, nem hatósági okirat",
+        "POST /api/invites → 201; basis_id=deleg:ws_7725f6ed:sub_1dd9060d36c5082e; plafon={\"operations\":[\"invite_issue\"],\"roles\":[\"admin\",\"user\"],\"scopes\":[\"keszlet\",\"arak\"]}",
+        "ADATBÁZIS: a meghívó alapja a kezelő továbbadható jogából KÉPZŐDÖTT: „delegated-from:startup-rule:ws_7725f6ed@v1 · membership_grant#14 · role=admin\"; a meghívó sora + pecsételt feltételek + kiadott korlát: 1/1/1 sor",
+        "POST /api/invites/redeem → 200 membership_only/granted; ADATBÁZIS tagság: {\"role\":\"user\",\"revoked_at\":null}"
+      ],
+      "verdict": "bizonyitva",
+      "note": "A második tag a HELYI körbe kerül (tagság a családi könyvben); adatot a tagság önmagában nem ad — azt az admin külön adatkör-adása nyitja (H07)."
+    },
+    {
+      "id": "H05",
+      "title": "Azonos beírt cégazonosítóval más jelentkező nem kapja meg e munkakörnyezet vagy egy harmadik szolgáltató adatait; legitim saját indulása továbbra lehetséges.",
+      "browser": [
+        "Cili UGYANAZT a HU adószámot írja be, mint Anna és a harmadik szolgáltató: „Létrejött: Cili Kft (ws_011be854) · terv: starter · vállalkozási minőség: HU 05345678242 — ÖNBEVALLOTT, hatósági igazolás: none_available (más szervezet képviselete ebből nem következik)\" — a saját indulása megtörtént; a választója: h05.cili személyes köre személyes kör ps_1e0fe9b5 · admin · starterváltás | Cili Kft közös munkakörnyezet ws_011be854 · admin · starteraktív (csak a sajátja)"
+      ],
+      "server": [
+        "POST /api/workspaces (Cili, azonos adószám) → 201; business.ok=true, value_norm=05345678242",
+        "Cili váltása Anna könyvére → 403 not_a_member/no_membership; a harmadik szolgáltatóéra → 403 not_a_member/no_membership; ár ?book_id=<Anna pro könyve> → param_ignored=true, ok=false, refused_by=entitlement (a saját starter könyve dönt); /api/me munkakörnyezetei: h05.cili személyes köre, Cili Kft",
+        "ADATBÁZIS: ugyanazt a (tax_id · HU · 05345678242) kulcsot 3 KÜLÖN jogalany állítja (ent_ws_011be854, ent_ws_8e9f4ffa, ent_ws_e1b70c3c) — az azonosító állítás, nem jog; Cili tagságai: [\"ps_1e0fe9b5\",\"ws_011be854\"]"
+      ],
+      "verdict": "bizonyitva",
+      "note": "Nincs globális cégnév-/adószám-lefoglalás: az azonos karaktersor három független jogalanyon áll, egyik sem nyit a másik könyvére."
+    },
+    {
+      "id": "H06",
+      "title": "Továbbadható körön túli meghívás/jogadás elutasított. Lejárt, visszavont, idegen címzettű és ismételten beváltott meghívó nem ad jogot; érvényes párja sikerül.",
+      "browser": [
+        "A meghívó szerep-választója CSAK a zárt regiszter szerepeit kínálja: [user, admin]",
+        "ÉRVÉNYES meghívó (Béla): beváltva → fejléc „Családi Kft · user · starter\"; Bélánál a Munkatársak (meghívó) szakasz NEM jelenik meg: true",
+        "Béla ÚJRA megnyitja a már beváltott hivatkozást: „not_actionable\" (invite_already_redeemed); a lap: „Ehhez a hivatkozáshoz most nem tartozik beváltható meghívás (invite_already_redeemed).\"; gomb: false",
+        "IDEGEN CÍMZETT: Cili (belépve) megnyitja Dani meghívóját → „needs_invitee_identity\", fiók-váltás felajánlva: false, a lap: „Ez a fiók nem a meghívás címzettje, vagy a címzetti csatorna nincs bizonyítva. Lépj ki, majd lépj be / regisztrálj azzal a címmel, amelyre a meghívó érkezett, és erősítsd meg a levél-fogadóban.\"; gomb: false",
+        "VISSZAVONT alap: Anna a tag-listán megvonja Cilit („Megvonva: h06.cili@pelda.hu (revocation_recorded)\"); Erik megnyitja a Cili által kiadott függő meghívót → a megfigyelés „not_actionable\" (issuer_right_withdrawn), Beváltás gomb: false — a lap nem ígér folytatást",
+        "LEJÁRT meghívó (az óra 8 nappal előre — a meghívó 7 napig él): Ferenc megnyitja a hivatkozást → „not_actionable\" (invite_expired); a lap: „Ehhez a hivatkozáshoz most nem tartozik beváltható meghívás (invite_expired).\"; Beváltás gomb: false"
+      ],
+      "server": [
+        "KÖRÖN TÚLI meghívás: role=owner → 400 invalid_value (role), scope=penzugy → 400 invalid_value (scope); ADATBÁZIS: körön túli meghívó-sor NEM született: 0 sor",
+        "Béla beváltása → 200 granted; a user meghívna → 403 role_not_delegable; a user magának adna adatkört → 403 role_not_delegable; az admin körön túli adatkört adna (penzugy) → 400 invalid_value, plafon=undefined",
+        "ISMÉTELT beváltás → 403 invite_not_actionable/invite_already_redeemed; ADATBÁZIS tagság-sor Bélának: 1 (nem duplázódott)",
+        "Cili erőltetett beváltása → 403 invitee_identity_required; ADATBÁZIS Cili tagsága a könyvben: 0 sor",
+        "Dani (a valódi címzett) érvényes párja → 200 granted",
+        "Megvonás → delegation={\"ok\":true,\"changed\":true,\"reason\":\"basis_revoked\",\"versions\":1,\"revoked_at\":\"2026-09-22T20:55:33.963Z\"}; Erik NYERS beváltási kérése → 403 invite_not_actionable/issuer_right_withdrawn; ADATBÁZIS: Erik tagsága 0 sor, a meghívó nem fogyott el (redeemed_at=null)",
+        "LEJÁRAT a HÉJBÓL, támogatott órával: erőltetett beváltás → 403 invite_not_actionable/invite_expired; ADATBÁZIS: Ferenc tagsága 0 sor",
+        "POZITÍV ELLENPÁR: FRISS meghívó ugyanannak a címzettnek → 200 granted; ADATBÁZIS: Ferenc tagsága 1 sor"
+      ],
+      "verdict": "bizonyitva",
+      "note": "R75: a LEJÁRT meghívó ága MOST a böngészőből is mérve van (fejlesztői óra `/dev/clock`, +8 nap, majd visszaállítva): a lap nem kínál Beváltás gombot, az erőltetett beváltás nevezetten elakad, tagság nem születik — és a FRISS meghívó ugyanannak a címzettnek beváltható (pozitív ellenpár). A mag-bizonyíték változatlanul áll: `P-INVITE-window` (valódi idő-összehasonlítás, zónás alakon is). A „visszavont\" itt a KIADÓ jogának megvonása (külön meghívó-visszavonó végpont a héjban nincs — kimondva). A ZÁRT REGISZTEREN KÍVÜLI szerep/adatkör R75 óta a BEMENETI SÉMÁN akad el (HTP-01, 400 invalid_value, írás nélkül); a mag plafon-szabálya változatlan, bizonyítéka a mag-battériában. KORÁBBI ALAK (R64): „reszben — a héjnak nincs óra-állító végpontja\"."
+    },
+    {
+      "id": "H07",
+      "title": "A raktári szerepnek adott mennyiségnézetből ár-, számla- vagy beszállítói bizalmas adat nem következik. A pozitív, külön engedélyezett olvasás működik.",
+      "browser": [
+        "Béla (raktári user) készlet-nézete az adatkör-adás ELŐTT: „ELUTASÍTVA — melyik kapu: right · ok: not_available · ehhez a hivatkozáshoz most nem tartozik kiadható eredmény\"",
+        "Anna a tag-listán megadja a keszlet adatkört: „Adatkör megadva: keszlet → h07.bela@pelda.hu\"; Béla készlet-nézete: „KIADVA\"; ár-nézete: „ELUTASÍTVA — melyik kapu: right · jog-kapu: not_available · előfizetés-kapu: feature_entitled (terv: pro)\"",
+        "Anna KÜLÖN megadja az arak adatkört: „Adatkör megadva: arak → h07.bela@pelda.hu\"; Béla ár-nézete most: „KIADVA\" (unit_price 3490)"
+      ],
+      "server": [
+        "GET /api/data/stock → ok=true, a kiadott mezők: [qty] (ár NINCS benne); GET /api/data/price → ok=false, refused_by=right, jog-kapu=not_available, előfizetés-kapu=feature_entitled (a terv engedné — a JOG zár)",
+        "ADATBÁZIS: Béla adatköri sorai: [{\"scope\":\"keszlet\",\"granted_by\":\"sub_17213ce2bef5d807\",\"basis_id\":\"deleg:ws_a8eb6a27:sub_17213ce2bef5d807\"},{\"scope\":\"arak\",\"granted_by\":\"sub_17213ce2bef5d807\",\"basis_id\":\"deleg:ws_a8eb6a27:sub_17213ce2bef5d807\"}] — mindkettő az admin delegálási alapja alatt; a rendszer ismert adatkörei: [keszlet, arak]"
+      ],
+      "verdict": "bizonyitva",
+      "note": "A magreferencia adatkör-szótára KÉT tagú (keszlet · arak): „számla\" és „beszállítói\" adatkör a rendszerben nem létezik, ezért azokra a helyzet tartalmilag üres — a kimondott elv (mennyiségből ár nem következik) a létező két körön mérve áll."
+    },
+    {
+      "id": "H08",
+      "title": "Cégváltáskor a session-kontextus, válaszok és klienscache nem keverik a cégeket. Módosított API-paraméter sem ad idegen jogot.",
+      "browser": [
+        "Anna a saját pro cégében (fejléc „Anna Kft · admin · pro\"): ár-nézet „KIADVA\"",
+        "Váltás a starter magántérre: a kérés ideje alatt az adat-panelek: ár „—\", készlet „—\" (ürítve, a régi cég adata nem marad a képernyőn); utána a fejléc: „Anna magántere · admin · starter\"; ár-nézet: „ELUTASÍTVA — melyik kapu: entitlement · előfizetés-kapu: feature_not_in_plan (terv: starter)\"",
+        "Váltás Béla cégére (ahol Anna csak user): „Munkakörnyezet: Béla Kft (user)\" → fejléc „Béla Kft · user · pro\"; a Munkatársak (admin) szakasz rejtve: true; ár-nézet: „ELUTASÍTVA — melyik kapu: right · jog-kapu: not_available · előfizetés-kapu: feature_entitled (terv: pro)\" — a saját cégének admin-szerepe és pro-terve NEM utazik át"
+      ],
+      "server": [
+        "MÓDOSÍTOTT PARAMÉTER a magánteres munkamenetben: ár ?book_id=<saját pro cég> → param_ignored=true [book_id], ok=false, refused_by=entitlement; készlet ?book_id=<Béla cége>&actor=<Béla>&role=admin → param_ignored=true [book_id,actor,role], ok=true (a SAJÁT könyv adata); /api/me current_book_id = a magántér: true; Cache-Control: no-store (kliens-gyorsítótár tiltva minden válaszon)",
+        "Anna (user Béla cégében) adatkört adna magának actor=<Béla>&role=admin törzs-mezőkkel → 400 unknown_field (actor, input_schema) — az ÁLLAPOTVÁLTOZTATÓ végponton az idegen mező R75 óta ELUTASÍTÁS, nem „figyelmen kívül hagyva\"; ugyanez a kérés hamisítás NÉLKÜL → 403 role_not_delegable (a MAG jog-kapuja)",
+        "ADATBÁZIS: Anna tagságai 4 könyvben (P admin · K admin · B user) — a szerep könyvenként külön sor, nem összevont tulajdonság"
+      ],
+      "verdict": "bizonyitva",
+      "note": "A kliensnek nincs saját gyorsítótára: minden panel a váltás pillanatában ürül, és minden válasz `Cache-Control: no-store`; a cselekvő és a könyv KIZÁRÓLAG a szerveroldali munkamenetből jön, a kliens-mezők NEVEZETTEN figyelmen kívül maradnak."
+    },
+    {
+      "id": "H09",
+      "title": "Megvonás/lejárat után új kérés és függő meghívó nem használhatja a megszűnt alapot; másik független jogosultság nem szűnik meg indokolatlanul.",
+      "browser": [
+        "Kiindulás: Cili admin a családi könyvben (fejléc „Családi Kft · admin · starter\"), készlet-nézete „ELUTASÍTVA — melyik kapu: right\" (a meghívott admin tagsága sem ad adatkört automatikusan — azt itt nem kérte); Cili függő meghívót adott Daninak; Bélának (user) keszlet adatköre van",
+        "Anna a tag-listán MEGVONJA Cilit: „Megvonva: h09.cili@pelda.hu (revocation_recorded)\"; a sor ezután: „h09.cili@pelda.hu sub_82d28c868f595e31 · admin · NEM hatályos (membership_revoked)keszlet: nincs (no_scope_grant) · arak: nincs (no_scope_grant)keszletarakadatkör adásamegvonás\"",
+        "Cili ÚJ kérése a régi lapon: készlet-nézet „ELUTASÍTVA — melyik kapu: right · ok: not_a_member · nincs hatályos tagságod a kiválasztott munkakörnyezetben\"; frissítés után a fejléc: „nincs munkakörnyezet\"",
+        "Dani megnyitja a Cili által kiadott FÜGGŐ meghívót → „not_actionable\" (issuer_right_withdrawn), Beváltás gomb: false; nyers beváltási kérés → „issuer_right_withdrawn\"",
+        "Béla készlet-nézete a megvonás UTÁN is: „KIADVA\"; Cili a SAJÁT terére vált: „Munkakörnyezet: Cili saját tere (admin)\" → készlet-nézet „KIADVA\"",
+        "LEJÁRAT (az óra 8 nappal előre): Erik megnyitja az ÉRVÉNYES kiadótól kapott, de LEJÁRT meghívót → „not_actionable\" (invite_expired); Beváltás gomb: false"
+      ],
+      "server": [
+        "Cili: GET /api/data/stock → ok=false not_a_member/membership_revoked; váltás a családi könyvre → 403 not_a_member/membership_revoked; /api/me munkakörnyezetei: h09.cili személyes köre (admin), Cili saját tere (admin)",
+        "Dani beváltása → 403 invite_not_actionable/issuer_right_withdrawn; ADATBÁZIS: Cili delegálási alapja visszavonva (revoked_at=true); megvonás-napló: 1 sor; Dani tagsága: 0 sor",
+        "Béla stock ok=true; Cili saját tere: role=admin, stock ok=true; ADATBÁZIS: Cili saját tagsága: {\"role\":\"admin\",\"revoked_at\":null}",
+        "LEJÁRT meghívó beváltása → 403 invite_not_actionable/invite_expired; ADATBÁZIS: Erik tagsága 0 sor; a FÜGGETLEN jog az idő múlásától sem szűnt meg: Béla készlet-nézete ok=true"
+      ],
+      "verdict": "bizonyitva",
+      "note": "R75: a MEGVONÁS ága (új kérés · függő meghívó · független jog) és a LEJÁRAT ága is mérve van a böngészőből — utóbbi a fejlesztői órával (`/dev/clock`, +8 nap, majd visszaállítva), a mag íróinak hívása nélkül. KIMONDOTT HATÁR, ami a héjból továbbra sem hajtható meg: az ALAP (`authority_basis.expires_at`) lejárata — arra a héjnak nincs útja, a mag-bizonyíték `P-CORE-startup-and-delegation` (d) és `P-INVITE-window` (v3ref/run.mjs). KORÁBBI ALAK (R64): „reszben — a lejárat ága a héjból nem hajtható meg\"."
+    },
+    {
+      "id": "H10",
+      "title": "Két szervezeti egység és korlátozott helyi admin példája: a vezető nem kap automatikusan minden üzleti adatot; a delegálási plafon megmarad. Közös jóváhagyás támogatását vagy tényleges hiányát külön, bizonyítékkal nevezd meg.",
+      "browser": [
+        "A egység: Anna admin; B egység: Béla admin (a „vezető\"); Cili az A egység HELYI adminja (fejléc „A egység · admin · starter\"), a Munkatársak szakasz nála látszik: true"
+      ],
+      "server": [
+        "A vezető (Béla) váltása az A egységre → 403 not_a_member/no_membership; /api/me könyvei: h10.bela személyes köre, B egység — NEM kap automatikusan minden üzleti adatot; a helyi admin (Cili) váltása a B egységre → 403 not_a_member; ?book_id=<B> → param_ignored=true",
+        "DELEGÁLÁSI PLAFON a helyi adminnál: user/keszlet meghívó → 201 (plafon {\"operations\":[\"invite_issue\"],\"roles\":[\"admin\",\"user\"],\"scopes\":[\"arak\",\"keszlet\"]}); role=owner → 400 invalid_value; scope=penzugy → 400 invalid_value; adatkör-adás penzugy → 400 invalid_value",
+        "ADATBÁZIS: Cili delegálási alapja: szerepek [\"admin\",\"user\"], adatkörök [\"arak\",\"keszlet\"], eredete: „delegated-from:deleg:ws_e25820d3:sub_c2225db759054340@v1 · membership_grant#58 · role=admin\" — részhalmaza Anna alapjának (true); tágabb NEM képződhet",
+        "KÖZÖS JÓVÁHAGYÁS: 44 forrásfájl átfésülve (v3ref/*.mjs + v3app/server.mjs) a két-személyes / négy-szem / ellenjegyzés mintákra → 0 találat; a héj végpontjai: POST /api/register · POST /api/verification/resend · GET /api/verify · POST /api/login · POST /api/logout · GET /api/me · POST /api/workspaces · POST /api/session/workspace · POST /api/workspaces/plan · GET /api/members · POST /api/invites · GET /api/invites/observe · POST /api/invites/pending · POST /api/invites/redeem · POST /api/members/scope · POST /api/members/revoke · GET /api/data/stock · GET /api/data/price · GET /dev/mailbox · GET /dev/clock · POST /dev/clock — jóváhagyó végpont nincs"
+      ],
+      "verdict": "bizonyitva",
+      "note": "KÖZÖS JÓVÁHAGYÁS: TÉNYLEGES HIÁNY — a mag egyetlen műveletet sem köt két személy egyetértéséhez (mérve: 0 találat a forrásban, nincs ilyen végpont); minden jogváltoztatás egyetlen jogosult cselekvő döntése, alappal. A plafon ebben a héjban a zárt regiszterrel egyezik (admin·user × keszlet·arak): szűkebb plafonú al-admin a héjból nem állítható elő — a szűkítés mag-bizonyítéka: `P-ORG-adjudication-basis-limit` és `P-CORE-startup-and-delegation` (b)."
+    },
+    {
+      "id": "H11",
+      "title": "Előfizetésileg elérhető funkcióhoz jogosulatlan munkatárs nem jut; jogosult személy sem használhat előfizetésileg nem engedett műveletet. Ehhez tesztprofil elég, fizetési integráció nem kell.",
+      "browser": [
+        "STARTER terven: Anna (admin, arak adatkörrel) ár-nézete: „ELUTASÍTVA — melyik kapu: entitlement · előfizetés-kapu: feature_not_in_plan (terv: starter)\"; Béla (user, csak keszlet) ár-nézete: „ELUTASÍTVA — melyik kapu: both · jog-kapu: not_available · előfizetés-kapu: feature_not_in_plan (terv: starter)\"; a Terv módosítása űrlap Bélánál rejtve: true",
+        "Anna a felületen PRO-ra vált: „Terv: pro (workspace, invite, stock_view, price_view)\"; fejléc: „Kft · admin · pro\"; Anna ár-nézete: „KIADVA\"; Béla ár-nézete: „ELUTASÍTVA — melyik kapu: right · jog-kapu: not_available · előfizetés-kapu: feature_entitled (terv: pro)\" — a terv NEM írja felül a jog-kaput"
+      ],
+      "server": [
+        "Anna price → refused_by=entitlement (feature_not_in_plan, terv starter) — a JOG megvan, az ELŐFIZETÉS zár; Béla price → refused_by=both (jog: not_available · előfizetés: feature_not_in_plan); Béla tervet váltana → 403 admin_required",
+        "POST /api/workspaces/plan pro → features=[workspace, invite, stock_view, price_view]; ismeretlen terv (enterprise) → 400 invalid_value; Anna price ok=true; Béla price refused_by=right (előfizetés: feature_entitled); ADATBÁZIS entitlement_profile: {\"plan\":\"pro\",\"features\":\"[\\\"workspace\\\",\\\"invite\\\",\\\"stock_view\\\",\\\"price_view\\\"]\"}"
+      ],
+      "verdict": "bizonyitva",
+      "note": "Tesztprofil: a tervek a kódban zárt szótár (starter · pro), a profil az `entitlement_profile` táblában áll; fizetési integráció nincs, nem is kell — a két kapu (jog · előfizetés) külön mér és külön jelent. MÉRT LELET (a héj szövegén, nem a döntésén): ha a JOG-kapu enged és csak az ELŐFIZETÉS zár, a válasz `message` mezője a mag jog-kapujának mondatát („az eredmény kiadva\") viszi az ELUTASÍTVA felirat alá — a döntés helyes, a kísérő mondat nem követi (KUKA-050); a héjban nem javítva, hogy a próba ne írja át azt, amit mér."
+    },
+    {
+      "id": "H12",
+      "title": "Két joghatósági azonosítónévtér azonos karaktersora nem téves azonosság; ismeretlen országprofil nem ad széles képviseleti jogot, és nem tiltja általánosan a független saját munkát.",
+      "browser": [
+        "Anna HU joghatósággal: „Létrejött: Anna HU (ws_232c29ed) · terv: starter · vállalkozási minőség: HU 12345678242 — ÖNBEVALLOTT, hatósági igazolás: none_available (más szervezet képviselete ebből nem következik)\" · Béla AT joghatósággal, UGYANAZZAL a karaktersorral: „Létrejött: Béla AT (ws_46fbc13c) · terv: starter · vállalkozási minőség: AT 12345678242 — ÖNBEVALLOTT, hatósági igazolás: none_available (más szervezet képviselete ebből nem következik)\" · Dani az „egyéb\" joghatósággal: „Létrejött: Dani egyéb (ws_223b6b50) · terv: starter · vállalkozási minőség: EGYEB 12345678242 — ÖNBEVALLOTT, hatósági igazolás: none_available (más szervezet képviselete ebből nem következik)\""
+      ],
+      "server": [
+        "Cili ismeretlen országprofillal (XX) → 201; business: profile_known=false, jurisdiction=XX, verification=none_available",
+        "ADATBÁZIS: ugyanaz a karaktersor 4 KÜLÖN joghatóság-kulcson (AT · EGYEB · HU · XX), 4 külön jogalanyon; a (tax_id · HU · érték) kulcs pontosan 1 alanyt talál — az AT sort NEM",
+        "Béla (AT, azonos karaktersor) váltása Anna HU könyvére → 403 not_a_member; Cili (XX) váltása Anna könyvére → 403 not_a_member (nincs képviseleti jog az azonosítóból); Cili SAJÁT munkája az XX-profillal: stock ok=true (qty 12), munkatárs-meghívó → 201"
+      ],
+      "verdict": "bizonyitva",
+      "note": "Az azonosság kulcsa a teljes négyes (névtér · joghatóság · kibocsátó · érték), nem a puszta szöveg; az ismeretlen profil ugyanazt a szerkezetet példányosítja (representation_from_identifier: false · own_work_allowed: true), csak „ismert: nem\" jelöléssel."
+    },
+    {
+      "id": "H13",
+      "title": "Kezdő jogosultság, alap nélküli történeti sor, szabályos új felhatalmazás és jogosulatlan bírálói önfeljogosítás külön eredményt kap.",
+      "browser": [
+        "A felületen nincs bírálati / hatásköri vezérlő: a lap hat szakasza fiók · munkakörnyezet · munkatársak · adatok · meghívó · levél-fogadó — bírálói önfeljogosításra nincs gomb, tehát a négy kimenet a böngészőből nem váltható ki"
+      ],
+      "server": [
+        "A héjban nincs bírálati végpont (mérve): /api/adjudicate → 404 unknown_endpoint; /api/claims → 404 unknown_endpoint; /api/authority → 404 unknown_endpoint; /api/members/suspend → 404 unknown_endpoint; ADATBÁZIS: az indulási szabály műveletei [\"invite_issue\",\"alter_right\"] (adjudicate és suspend NINCS benne), a létrehozó hatáskörei: [alter_right] (csak a helyi alter_right)"
+      ],
+      "verdict": "nem_bongeszoben",
+      "note": "A négy külön eredmény (kezdő jog · alap nélküli történeti sor · szabályos új felhatalmazás · jogosulatlan bírálói önfeljogosítás) a magban mérve áll: `P-CORE-startup-and-delegation` (e) — a helyi admin az indulási alapra hivatkozva sem adhat magának `adjudicate` hatáskört (outside_basis_operations, nyom nélkül) — és `P-ORG-adjudication-basis-limit` (a deklarált alap korlátja kapu a bírálati úton, a megadáskor ÉS a használatkor), mindkettő v3ref/run.mjs. A héjnak nincs bírálati végpontja, és a próba nem gyárt alap nélküli történeti sort (a mag íróit nem hívja)."
+    },
+    {
+      "id": "H14",
+      "title": "Két valódi kapcsolat meghívóbeváltási és megvonás–véglegesítési versenye: egyszeri, aktuális szabály szerinti hatás; visszajátszás nem kerüli meg a jelenlegi adatjogot.",
+      "browser": [
+        "A böngésző-próba EGY szerver-folyamattal beszél, amely EGY tároló-kapcsolatot tart: két VALÓDI, külön OS-folyamatban nyitott kapcsolat versenye a lapról nem indítható — a látszólagos „egyszerre kattintás\" egyírós sorrendet mérne, amit az R63 §5.2 kimondva nem fogad el bizonyítéknak"
+      ],
+      "server": [
+        "A többkapcsolatos bizonyíték szerszáma a repóban áll (mérve): tools/v3_multiconn_proof.mjs létezik=true; package.json → \"proof:multiconn\": \"node tools/v3_multiconn_proof.mjs\""
+      ],
+      "verdict": "nem_bongeszoben",
+      "note": "Bizonyíték: `npm run proof:multiconn` (tools/v3_multiconn_proof.mjs, MCN-01) — két külön gyermek-folyamat, saját `openStoreAt` kapcsolattal, WAL-naplón: (1) ugyanazt a meghívót egyszerre váltják be → pontosan EGY tagság, a vesztes nevezett elutasítást kap; (2) megvonás ↔ véglegesítés mindkét sorrendben, az aktuális szabály szerint; (3) a visszajátszás (kulcs-ismétlés · eredmény-olvasás) a megvonás után `not_available`, új kiadási sor nem születik."
+    }
+  ]
+}

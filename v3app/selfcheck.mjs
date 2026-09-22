@@ -81,7 +81,12 @@ try {
   step('a vállalkozási minőség ÖNBEVALLOTT: verification = none_available', r.body.business && r.body.business.ok === true && r.body.business.verification === 'none_available' && r.body.business.jurisdiction === 'HU', r.body.business);
   step('két minta-rekord véglegesítve a létrehozó nevében', r.body.samples.stock.ok === true && r.body.samples.price.ok === true && r.body.samples.stock.state === 'finalized');
   r = await anna.get('/api/me');
-  step('Anna aktuális munkakörnyezete a Családi Kft (admin)', r.body.current_book_id === csalad && r.body.current_role === 'admin' && r.body.workspaces.length === 1);
+  // A SZEMÉLYES KÖR MÁR MEGVAN (SZK-01): a lista KETTŐ — a saját kör és a most indított cég.
+  step('Anna aktuális munkakörnyezete a Családi Kft (admin), és a SZEMÉLYES köre is megvan',
+    r.body.current_book_id === csalad && r.body.current_role === 'admin' && r.body.workspaces.length === 2
+    && r.body.workspaces.filter((w) => w.personal === true).length === 1
+    && r.body.personal_book_id !== null && r.body.current_personal === false,
+    { ws: r.body.workspaces.map((w) => `${w.name}:${w.kind}`), acting_as: r.body.acting_as });
 
   r = await anna.post('/api/invites', { email: 'bela@csaladi.hu', role: 'user', scope: 'keszlet' });
   step('Anna meghívja Bélát (user / keszlet) → token + plafon', r.status === 201 && r.body.ok === true && /^[0-9a-f]{64}$/.test(r.body.token) && r.body.ceiling.roles.includes('user'), { ceiling: r.body.ceiling });
@@ -90,9 +95,13 @@ try {
   step('meghívó levél a levél-fogadóban, ?invite= hivatkozással', !!inviteLink && tokenOf(inviteLink, 'invite') === inviteToken, inviteLink);
 
   r = await anna.post('/api/invites', { email: 'cili@csaladi.hu', role: 'owner', scope: 'keszlet' });
-  step('ismeretlen szerep a meghívón → nevezett elutasítás (nem 500)', r.status === 403 && r.body.ok === false && typeof r.body.reason === 'string', r.body.reason);
+  // A ZÁRT KÉSZLET A HATÁRON IS ZÁRT (HTP-01): a séma ELŐBB dönt, mint a mag — nevezett 400,
+  // a választható értékekkel, ÍRÁS NÉLKÜL. (Korábban a mag adta a 403-at; a mag ítélete változatlan.)
+  step('ismeretlen szerep a meghívón → nevezett elutasítás a HATÁRON (400 invalid_value)',
+    r.status === 400 && r.body.ok === false && r.body.reason === 'invalid_value' && r.body.field === 'role' && r.body.refused_by === 'input_schema', r.body.reason);
   r = await anna.post('/api/invites', { email: 'cili@csaladi.hu', role: 'user', scope: 'penzugy' });
-  step('ismeretlen adatkör a meghívón → data_scope_required', r.status === 403 && r.body.reason === 'data_scope_required', r.body.reason);
+  step('ismeretlen adatkör a meghívón → nevezett elutasítás a HATÁRON (400 invalid_value)',
+    r.status === 400 && r.body.reason === 'invalid_value' && r.body.field === 'scope' && r.body.refused_by === 'input_schema', r.body.reason);
 
   // ── BÉLA — ÚJ FIÓK A MEGHÍVÓN ÁT ────────────────────────────────────────────────────────────
   r = await bela.get(`/api/invites/observe?token=${inviteToken}`);
@@ -156,7 +165,8 @@ try {
   r = await anna.post('/api/workspaces/plan', { plan: 'pro' });
   step('Anna tervet vált: pro', r.body.ok === true && r.body.plan === 'pro' && r.body.features.includes('price_view'));
   r = await anna.post('/api/workspaces/plan', { plan: 'enterprise' });
-  step('ismeretlen terv → unknown_plan', r.status === 400 && r.body.reason === 'unknown_plan');
+  step('ismeretlen terv → nevezett elutasítás a HATÁRON (400 invalid_value, a választható tervekkel)',
+    r.status === 400 && r.body.reason === 'invalid_value' && r.body.field === 'plan' && /starter/.test(String(r.body.message)), r.body.reason);
 
   r = await anna.get('/api/data/price');
   step('Anna /api/data/price pro terven → ok, unit_price 3490', r.body.ok === true && r.body.result.unit_price === 3490 && r.body.result.qty === '12' && r.body.refused_by === null, r.body.result);
@@ -176,7 +186,12 @@ try {
   r = await bela.get('/api/data/stock');
   step('Béla /api/data/stock megvonás után → elutasítva (nem tag)', r.body.ok === false && r.body.refused_by === 'right' && r.body.reason === 'not_a_member', { reason: r.body.reason, detail: r.body.detail });
   r = await bela.get('/api/me');
-  step('Béla /api/me → nincs munkakörnyezete, aktuális könyv üres', r.body.workspaces.length === 0 && r.body.current_book_id === null && r.body.current_role === null);
+  // A MEGVONÁS A CÉGES TAGSÁGOT VITTE EL — a SAJÁT köre megmarad (SZK-01): a fiók nem szűnik meg
+  // attól, hogy egy cégben már nincs tagsága, és a váltóban van hova visszalépnie.
+  step('Béla /api/me megvonás után → a céges kör eltűnt, a SZEMÉLYES köre megmaradt',
+    r.body.workspaces.length === 1 && r.body.workspaces[0].personal === true
+    && r.body.current_book_id === null && r.body.current_role === null,
+    { ws: r.body.workspaces.map((w) => `${w.name}:${w.kind}`) });
 
   r = await bela.get(`/api/data/stock?book_id=${csalad}`);
   step('Béla ?book_id=<csalad> paramétere FIGYELMEN KÍVÜL (param_ignored true), továbbra is elutasítva', r.body.param_ignored === true && r.body.ignored_params.includes('book_id') && r.body.ok === false, { ignored: r.body.ignored_params, reason: r.body.reason });

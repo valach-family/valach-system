@@ -1,0 +1,166 @@
+{
+  "schema": "v3-core-lezarasi-lista/1",
+  "allapot": "élő",
+  "lane": "Claude-v3",
+  "last_round": "CMD-VS-300-002-002 R75",
+  "origin": "docs/70_PLANNING/V3_R64_CORE_FOLYAMAT_ES_LEZARASI_LISTA.md §7 — az EGYETLEN core-lezárási lista első alakja (R64)",
+  "what_this_is": "AZ EGYETLEN CORE-LEZÁRÁSI LISTA ÉLŐ ALAKJA. Az R64-es lap a maga körének jelentése, és az is marad (a történetet nem írjuk át); a lista MAI állapota innentől EZ a fájl — egy fogalom, egy otthon (KUKA-018). Soronként: mi a maradék, melyik eredeti normához tartozik, mit blokkol, mi a következő munka, mi a lezárási feltétel, MA hol tart, és melyik kör mozdította.",
+  "status_vocabulary": {
+    "nyitott": "a lezárási feltétel nem teljesült; a sor változatlanul blokkol",
+    "lezart": "a SAJÁT lezárási feltétele teljesült, élő bizonyítékkal — a `maradek_kimondva` mezőben áll, ami ettől még hiányzik",
+    "dontes_megvan": "a kérdés ELDŐLT (szervezési döntés), a megvalósítás nevesített üzemi hiány"
+  },
+  "rows": [
+    {
+      "id": "L1",
+      "maradek": "Több-írós véglegesítési határ Postgres (vagy egyenértékű) tárolón",
+      "norma": "OB-1 · USE-G1 · K14",
+      "blokkol": "üzemi használat",
+      "kovetkezo_munka": "a tároló-réteg (Postgres) + a MCN-01 ugyanazon a mérőn",
+      "lezarasi_feltetel": "2 valódi kapcsolat, sor-zár/verzió-őr, a MCN-01 három forgatókönyve zöld",
+      "allapot": "nyitott",
+      "mozditotta": null,
+      "maradek_kimondva": "ma SQLite (WAL) két valódi folyamaton mérve (proof:multiconn); Postgres, hálózat, kettőnél több író és terhelés NEM mérve"
+    },
+    {
+      "id": "L2",
+      "maradek": "A szervezet KÉPVISELETE (jogi személy nevében eljárás)",
+      "norma": "ORG-N3 · OB-6 · R63 §4",
+      "blokkol": "mini-modul közös alap (ahol a modul képviseletet igényel)",
+      "kovetkezo_munka": "képviseleti alap cserélhető darabként (külső tanú · okirat · országprofil-adapter), próbával",
+      "lezarasi_feltetel": "nevezett képviseleti alap + próba; nem regisztrációs akadály",
+      "allapot": "lezart",
+      "mozditotta": "R75 — REP-01 (v3ref/representation.mjs): zárt művelet-osztály-regiszter, fail-closed ismeretlen osztályra, cserélhető adapter-hely, és a nemleges válasz KIMONDJA, hogy CSAK az adott műveletet zárja (a regisztrációt és a saját munkát soha). A felületi állítás is pontos lett: az adószám ÁLLÍTÁS, nem igazolás.",
+      "bizonyitek": [
+        "v3ref/representation.mjs — REP_CONTRACT",
+        "npm run verify:app-findings — L2 szakasz (a · b · b/2 · c · c/2)",
+        "böngésző: core-flow 4. lépés — a képernyő kimondja a határt"
+      ],
+      "maradek_kimondva": "NULLA adapter van bekötve, és NULLA megépített művelet tartozik a két zárt osztályba — tehát idegen szervezet nevében eljárni ma NEM lehet, és ezt a rendszer nevezetten mondja ki. A DÖNTÉS, amit a mini-modul kapu kért: a saját, önbevallott munkatér (készlet · folyamat · saját felület) képviselet NÉLKÜL indulhat; más jogalany képviselete és idegen kör átvétele NEM.",
+      "dontes": "own_self_declared_work ⇒ nincs képviseleti bizonyíték-igény · represent_existing_legal_person és take_over_existing_space ⇒ zárt, adapterrel nyílik"
+    },
+    {
+      "id": "L3",
+      "maradek": "Közös (kétszemélyes) jóváhagyás",
+      "norma": "R63 §5.3/10",
+      "blokkol": "későbbi üzemi használat",
+      "kovetkezo_munka": "saját jóváhagyási esemény (ki · mit · melyik tartalmi változatra), eltérő jogosult jóváhagyókkal",
+      "lezarasi_feltetel": "próba két jóváhagyóval, egy hiányzóval piros",
+      "allapot": "dontes_megvan",
+      "mozditotta": "R75 — a döntés: a közös jóváhagyás VÁLASZTHATÓ SZERVEZETI SZABÁLY lesz, nem kötelező teher (a kétszemélyes családi cégnél ne legyen akadály). Amíg nincs megépítve, a rendszer ilyen védelmet NEM ígérhet — ez MÉRVE áll (a héj és a felület forrásában 0 ilyen ígéret).",
+      "bizonyitek": [
+        "npm run verify:app-findings — (L3) forrás-mérés: 0 találat",
+        "böngésző: H10 — a mag és a héj forrásában nincs ilyen szabály/végpont"
+      ],
+      "maradek_kimondva": "A TELJES megvalósítás nevesített üzemi hiány: jóváhagyási esemény, tartalmi változat azonossága, a „két fiók – egy ember\" eset kizárása, és a szervezeti kapcsoló (kell-e ennek a körnek)."
+    },
+    {
+      "id": "L4",
+      "maradek": "Valódi levélküldés (szolgáltató, kézbesítés-tanú)",
+      "norma": "K03 · R63 §5.2",
+      "blokkol": "üzemi használat",
+      "kovetkezo_munka": "a fejlesztői fogadó mögé valódi csatorna, kimondott kapuval",
+      "lezarasi_feltetel": "egy valódi kézbesítés mérve; a csomag továbbra sem küld külső személynek engedély nélkül",
+      "allapot": "nyitott",
+      "mozditotta": "R75 — a levél-fogadó és a fejlesztői óra MOSTANTÓL kapcsoló mögött áll (`devSurface`), és kikapcsolva NEM LÉTEZIK (404). Ez nem a levélküldés megépítése, hanem a fejlesztői felület határának kimondása.",
+      "maradek_kimondva": "valódi levél soha nem megy ki; a megerősítő és meghívó hivatkozás a fejlesztői fogadóban áll"
+    },
+    {
+      "id": "L5",
+      "maradek": "Országprofil-adapterek hivatalos műveletekhez",
+      "norma": "K01 · R63 §7",
+      "blokkol": "későbbi üzemi használat országonként",
+      "kovetkezo_munka": "profilonként ellenőrzött adapter",
+      "lezarasi_feltetel": "adapter-próba; a hiány ma nem tilt saját munkát",
+      "allapot": "nyitott",
+      "mozditotta": "R75 — mérve marad, hogy az ISMERETLEN országprofil NEM tiltja a saját munkát: a határ sémája szándékosan NEM zárt készlet a joghatóságon (H12 pozitív ellenpár).",
+      "maradek_kimondva": "nulla adapter; az azonosító mindenhol ÖNBEVALLOTT állítás (verification: none_available)"
+    },
+    {
+      "id": "L6",
+      "maradek": "QNT — mennyiség-bizonytalanság (R19 PLAN 24 követelmény / 36 eset)",
+      "norma": "K10-TYP-e · USE-G3",
+      "blokkol": "későbbi üzemi használat (készlet-modul)",
+      "kovetkezo_munka": "a QNT csomag; a megfigyelés mint hatásmentes esemény",
+      "lezarasi_feltetel": "a 24 követelmény próbával; a becslés nem válik méréssé",
+      "allapot": "nyitott",
+      "mozditotta": null,
+      "maradek_kimondva": "a QNT core-alapjai (mennyiség-profil · kanonikus alak · tárolt profil-történet) MEGVANNAK és nem tűnhetnek el; a 24 követelmény külön csomag"
+    },
+    {
+      "id": "L7",
+      "maradek": "A bemeneti séma KÜLSŐ határon (HTTP) kapuz",
+      "norma": "OB-3 · BEJ-01",
+      "blokkol": "mini-modul közös alap",
+      "kovetkezo_munka": "a v3app végpontjain a BEM-01 séma kapuzása, idegen beadóval mérve",
+      "lezarasi_feltetel": "próba idegen mezővel a HTTP-határon: nevezett elutasítás",
+      "allapot": "lezart",
+      "mozditotta": "R75/F75-03 — HTP-01 (v3app/httpSchema.mjs): végpontonkénti SAJÁT séma a KÖZÖS BEM-01 motoron; állapotváltoztató végponton KAPU (nevezett elutasítás, írás nélkül), olvasón NEVEZETT figyelmen kívül hagyás. A `String(...)` kényszerítés a bejáratról kivezetve.",
+      "bizonyitek": [
+        "npm run verify:app-findings — F75-03 szakasz (a…m), köztük: az eredeti lelet · írás-mentesség 5 elutasított kérésen · __proto__ · örökölt művelet-név · sémaverzió · beágyazott objektum",
+        "npm run verify:app-selfcheck — 57/57",
+        "böngésző: H06 · H08 · H10 · H11 (a régi bemenetek MÁS néven, de ugyanúgy elakadnak)"
+      ],
+      "maradek_kimondva": "a séma az ALAKOT méri, nem az üzleti igazságot; a mag döntései változatlanok. A `GET /api/verify` kimondott kivétel (levélből nyitott hivatkozás — idegen paramétertől nem futhat zsákutcába)."
+    },
+    {
+      "id": "L8",
+      "maradek": "A megvonás visszamenőleges hatályának teljes klauzula-készlete",
+      "norma": "OB-5 · REV-N*",
+      "blokkol": "core-core lezárás (req-5)",
+      "kovetkezo_munka": "a hiányzó REV-klauzulák próbái a rögzített sorrendben",
+      "lezarasi_feltetel": "mind a 15 klauzula deklarált állítású próbával",
+      "allapot": "nyitott",
+      "mozditotta": "R75 — a SZÁM HELYESBÍTVE: az R64-es lap lezárási feltétele „mind a 13 klauzulá\"-t írt, miközben ugyanannak a lapnak az OB-5 bekezdése 15-öt. A regiszterből MÉRVE: 15 klauzula, ebből 10 deklarált hiány nélkül, 5 nevezett hiánnyal (REV-N1c · REV-N3d · REV-N3e · REV-N4a · REV-N4b). A 13 elavult szám volt.",
+      "mert_szamok": { "klauzula": 15, "hiany_nelkul": 10, "nyitott": 5, "nyitott_id": ["REV-N1c", "REV-N3d", "REV-N3e", "REV-N4a", "REV-N4b"], "forras": "v3ref/norms.mjs → REVOCATION_NORMS" },
+      "maradek_kimondva": "a „hiány nélkül\" itt azt jelenti, hogy a klauzula nem hordoz deklarált hiányt — NEM azt, hogy mind a tíznek önálló, deklarált állítású PRÓBÁJA van; a próba-fedettség külön mérés (L9)"
+    },
+    {
+      "id": "L9",
+      "maradek": "A kötelező bizonyíték-készlet (req-4 → req-5)",
+      "norma": "ORG-N1a · ORG-N1b",
+      "blokkol": "core-core lezárás",
+      "kovetkezo_munka": "a mutációs battéria falszifikációs eredményei a két klauzulára",
+      "lezarasi_feltetel": "`verify:v3ref` „KÖTELEZŐ BIZONYÍTÉK\" sora `covered`",
+      "allapot": "nyitott",
+      "mozditotta": null,
+      "maradek_kimondva": "a sor állapotát a mutációs battéria futása mondja meg; ebben a körben a battéria a söprésben futott, az eredmény a kör REPORT-jában áll"
+    },
+    {
+      "id": "L10",
+      "maradek": "A01–A18 elfogadási esetek tételes egyeztetése ezzel a leltárral",
+      "norma": "R32 A01–A18 · R63 §5.1",
+      "blokkol": "mini-modul közös alap",
+      "kovetkezo_munka": "a kritika lefuttatása, a hiányzó sorok felvétele",
+      "lezarasi_feltetel": "minden A-eset sorral vagy nevezett hiánnyal",
+      "allapot": "lezart",
+      "mozditotta": "R75 — docs/70_PLANNING/V3_R75_A01_A18_MEGFELELTETES.json: mind a 18 eset soronként (mi működik ma · bizonyíték · PONTOS maradék · mit blokkol), az azonosítók a FORRÁS-dokumentumból mérve. Eredmény: 3 fedett · 11 részben · 4 nevezett hiány.",
+      "bizonyitek": [
+        "docs/70_PLANNING/V3_R75_A01_A18_MEGFELELTETES.json",
+        "npm run verify:app-findings — L10 szakasz (forrás-azonosság · teljesség · SZÁMOLT összegzés)"
+      ],
+      "maradek_kimondva": "ez MEGFELELTETÉS, nem futtatás: egyetlen A-eset forgatókönyve sem lett végigjátszva (az R32 maga mondja ki, hogy ezek nem lefutott V3-tesztek)"
+    },
+    {
+      "id": "L11",
+      "maradek": "A „személyes kör\" nevesített állapota a váltóban (könyv nélküli magánfiók saját iratai)",
+      "norma": "R63 §3 EH-1",
+      "blokkol": "mini-modul közös alap",
+      "kovetkezo_munka": "nevezett személyes cél a váltóban vagy saját alap-könyv",
+      "lezarasi_feltetel": "selfcheck/e2e lépés",
+      "allapot": "lezart",
+      "mozditotta": "R75 — SZK-01: a csatorna bizonyításakor MAGÁTÓL születik a személyes kör (ugyanazzal a `createWorkspace`-szel és indulási szabállyal, nem külön jogosultsági motorral), alanyonként legfeljebb egy (a kulcs tartja), a váltóban NEVESÍTVE áll, és a fejléc kimondja, ki nevében jár el.",
+      "bizonyitek": [
+        "v3ref/workspace.mjs — personalSpaceOf · ensurePersonalSpace · v3ref/store.mjs personal_space",
+        "npm run verify:app-selfcheck (57/57) · npm run verify:app-findings — L11 szakasz",
+        "böngésző: core-flow 4. lépés · R75/F75-01 (5.)"
+      ],
+      "maradek_kimondva": "a személyes kör ugyanazokat a SZINTETIKUS minta-rekordokat kapja, mint bármely kör — valódi „saját iratok\" (dokumentum, feltöltés) nincs, és nem is ígérjük"
+    }
+  ],
+  "stated_limits": [
+    "A LEZÁRT SOR NEM KÉSZÜLTSÉGI SZÁZALÉK: mindegyik a SAJÁT, korábban kimondott lezárási feltételére zárult, és mindegyik viszi a `maradek_kimondva` mezőjét.",
+    "A CORE-CORE TELJES LEZÁRÁSA NINCS ELFOGADVA — ezt a lista egyetlen sora sem állítja, és a külső ellenőrző fél elfogadása nélkül nem is állítható.",
+    "Üzemi használat NEM állítható: L1 · L4 · L5 nyitott."
+  ]
+}
