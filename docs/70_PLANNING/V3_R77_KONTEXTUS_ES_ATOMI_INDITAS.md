@@ -188,7 +188,7 @@ fejlesztői levél-fogadó nyilvánosan nem tehető ki (hitelesítés nélkül m
 | `npm run verify:kuka` | a kivezetett minták nem jöttek vissza (197 tanulság) | **351/351 PASS** |
 | `npm run verify:v3ref` | a mag mutációs battériája | **204 mutáció · 204 elkapva · 0 túlélte** |
 | `npm run verify:external-checks` | a külső fél 19 beadott programja | **17/19 MEGFELEL · 2 ENV-KIHAGYÁS nevezett, ZÖLD helyettessel** (r57→r57a · r59→r59a; a mért akadály `wall_clock_timeout`) · kilépés **0** · a bizonyíték a `9d6637a` commithoz kötve, tiszta forráson |
-| `npm run verify:sweep` | a TELJES söprés | __SWEEP_TABLE__ |
+| `npm run verify:sweep` | a TELJES söprés (16 verifier + 2 ÚJRAHASZNÁLT bizonyíték) | **15 zöld · 0 env-kihagyás · 1 piros** — a piros a `verify:capability-witness` (lásd alább) |
 
 ### 6/b. Az R76-os ellentmondás feloldva — futási azonosító és forrás szerint
 
@@ -225,6 +225,42 @@ elhallgatni (KUKA-033).
 
 ---
 
+### 6/c. A söprés — és a két hosszú lánc újrahasználata (SRU-01)
+
+A két több-tízperces láncot **egyszer** futtattam le a célzott javítások után, a `9d6637a` commiton,
+tiszta munkafán; a záró söprés ezeket **nem futtatta újra**, hanem a bizonyítékukat használta fel —
+és ezt a feloldó MÉRTE, nem én állítom:
+
+- `verify:external-checks` → **ÚJRAHASZNÁLT BIZONYÍTÉK**: a `9bb1be7` commit bizonyítéka ZÖLD
+  (17/19, env-kihagyás 2, `2026-09-23T18:30:47.835Z`), azonosság mérve (nevezett lánc · feloldott
+  commit · zöld, tiszta forrás · azonos lánc-bemenet a munkafán).
+- `verify:v3ref` → **ÚJRAHASZNÁLT BIZONYÍTÉK**: ugyanennek a commitnak a bizonyítéka ZÖLD
+  (204/204 mutáció elkapva, `2026-09-23T18:06:37.084Z`), azonosság mérve.
+
+**És egy kimondott kitérő, mert a kapu ELŐSZÖR elutasította.** Az első söprés-futásom a `9d6637a`
+commitra hivatkozott, a friss bizonyíték-fájlok viszont akkor még csak a MUNKAFÁN álltak — a feloldó
+ezért a commitban lévő RÉGI bizonyítékot mérte, és nevezetten elutasította: „a munkafa eltér a commit
+alakjától" (external-checks) · „a forrás-köteg lenyomata ≠ a bizonyíték base_digest-je" (v3ref). A
+söprés összverdiktje ekkor **NEM ZÖLD** volt, „nem futott — nem igazolt" minősítéssel. A megoldás nem
+a kapu megkerülése volt, hanem a friss bizonyíték COMMITOLÁSA (`9bb1be7`) és a söprés megismétlése
+erre a commitra — a hosszú láncok újrafuttatása nélkül. **Így néz ki a kapu, amikor dolgozik.**
+
+**A söprés egyetlen pirosa: `verify:capability-witness` — ÖRÖKÖLT, és NEM ebben a körben keletkezett.**
+A verifier a V2 repó board-regiszteréhez méri a V3 fáját
+(`/home/user/vs/tools/chatops-board/config/matrix-capabilities.json`), és két RÖGZÍTÉS elavult:
+`v3-ui-slice` és `v3-vertical-slice` mérve **present**, a regiszterben **absent** (9/11 egyezik; további
+2 tétel gépileg nem mérhető, kimondva). Ezt az R76-os kör mérte örököltnek (a kiinduló fejen,
+`f8828ba`, ugyanez a 9/11), és a javítás helye a **V2 repó** — amit ez a parancs kimondottan tilt.
+Javaslat változatlanul: a két sort a V2 sáv állítsa `present`-re.
+
+---
+
 ## 8. Fogyasztás
 
-*(a csomag záró mérése a lap alján, egy sorban)*
+A csomag ablaka a parancs board-időbélyegétől (`2026-09-22T22:39:22Z`) a zárásig: **433 hívás ·
+fő-szál kontextus medián 403 074 / max 783 902 token · 0 al-ügynök · cache-olvasás 166 M · lefedettség:
+teljes.** A **kísérleti jelzőt átléptük** (medián 403 074 > 200 000) — kimondva, indokkal: ez a
+munkamenet KÉT kört vitt végig (R75 és R77), és a kör tárgya végig nagy fájlokon (böngésző-csomag,
+mérőlapok, regiszterek) dolgozott. Amit emiatt szűkítettem: **nulla al-ügynököt** indítottam, a
+terminálra csak összegző és hibás sor ment (a teljes napló fájlba), és a hosszú láncok egyszer futottak.
+Amit a KÖVETKEZŐ csomag tesz: **új munkamenet**, mert a jelző a munkamenet-szintű kontextusra mér.
