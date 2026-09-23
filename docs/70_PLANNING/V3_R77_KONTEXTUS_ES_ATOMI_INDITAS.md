@@ -157,10 +157,13 @@ részleges futás nem írhatja felül a teljes mérés lapját).
 
 ## 5. Az átadás — ami MOST a kezében van
 
-**(1) A képernyős lap.** 15 képernyő a valódi felületről, valódi böngészőben: Anna regisztrál → lejárt
-levél és a működő folytatás → személyes kör → családi vállalkozás köre → Béla meghívása → **külön**
-adatkör-adás → készlet-nézet → megvonás és annak hatása; a végén **az R77 két javítása külön képen**. A lap
-fejléce kimondja, melyik ágból és melyik commitból készült, és azt is, hogy a munkafa tiszta volt-e.
+**(1) A képernyős lap — MEGNYITHATÓ:** <https://claude.ai/artifact/E3q3i7vu12RSiXMRZPk5rh>
+15 képernyő a valódi felületről, valódi böngészőben: Anna regisztrál → lejárt levél és a működő
+folytatás → személyes kör → családi vállalkozás köre → Béla meghívása → **külön** adatkör-adás →
+készlet-nézet → megvonás és annak hatása; a végén **az R77 két javítása külön képen**. A lap fejléce
+kimondja, melyik ágból és melyik commitból készült: **`bd6f0a1`, TISZTA munkafán** — a képek tehát
+pontosan ehhez a commithoz tartoznak. (Ez a jelentés-lap egy committal később áll, mert a lap
+hivatkozását utólag írtam bele; a próba-alkalmazás kódja a kettő között nem változott.)
 
 **(2) A saját gépes kipróbálás — végigpróbált út.** A lapon ott a négy sor; a lényeg: **külön mappába**
 tölt le, tehát a meglévő munkamásolatot és a `main`-t nem érinti, és a futtatáshoz **nem kell** adatbázis,
