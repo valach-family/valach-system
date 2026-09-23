@@ -16,6 +16,76 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3070 — AZ R77 KÉT LELETE JAVÍTVA: AZ OLVASÁS NÉZETHEZ KÖTÉSE ÉS AZ ATOMI MUNKAKÖRNYEZET-INDÍTÁS
+
+> **Hatály:** V3 (`valach-system`) — a magreferencia (`v3ref/`) és a próba-alkalmazás (`v3app/`).
+> **Nincs V2-módosítás, merge, telepítés, migráció, fizetős szolgáltatás és külső levélküldés.**
+
+**Dátum:** 2026-09-23 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 **R77** (a külső ellenőrző fél
+ANALYSIS lapjára) · **Lap:** `docs/70_PLANNING/V3_R77_KONTEXTUS_ES_ATOMI_INDITAS.md`
+
+**1. A KÉT LELET REPRODUKÁLVA ÉS JAVÍTVA** (mindkettő a külső ellenőrző fél — chatgpt-v3 — mérése):
+**F77-01** két böngésző-lap KÖZÖS munkameneten: a lap „A"-ra szóló `/me`-t kapott, a másik lap közben
+„B"-re váltott, és a rákövetkező OLVASÁST a szerver MÁR B-re szolgálta ki — a fejléc A-t mutatott, a panel
+B adatát; a válasz ráadásul nem mondta meg, melyik kontextusban született ⇒ **KTX-02**: minden
+kontextusfüggő olvasás VISZI a nézetét (`expected_book_id` · `expected_subject_id`, a HTP-01 regiszterben
+deklarálva), a szerver UGYANABBAN a kiszolgálásban veti össze (409 `context_mismatch`, adat nélkül),
+minden válasz kimondja a TÉNYLEGESEN kiszolgált kontextust (`served_*`), a lap csak egyezésnél rajzol (a
+hiányzó mező NEM egyezés), és a mező SOHA nem ad jogot — csak szűkít; az alany- és a könyv-váltást EGYÜTT
+nézzük (közös süti mellett a másik lap más fiókkal is beléphet) · **F77-02** a `{"tax_id":"---"}` bemenetre
+HTTP 500 jött ÉS a munkakörnyezetek száma 1 → 2 nőtt (félkész könyv üzleti azonosság nélkül) ⇒ **PRV-01**:
+a bemenet problémáját a NORMALIZÁLÓ SAJÁT szabályából olvassuk ki ÍRÁS ELŐTT
+(`businessIdentityProblem` — nem új „adószám-ellenőrzés"), a mag (könyv · tagság · indulási tények · üzleti
+azonosság) EGY atomi egységben íródik, bármelyik lépés bukása NULLA sort hagy, a munkamenet csak siker után
+vált, a határ pedig nevezett **400 `tax_id_value_required`**-et ad a hibás mező megnevezésével. Az
+ISMERETLEN országprofil továbbra sem tilt saját munkát (H12/REP-01).
+
+**2. §4 — TARTALMI HELYESBÍTÉSEK, ÚJ KÉPESSÉG NÉLKÜL.** **L2** visszakerült `dontes_megvan` állapotba: a
+döntés és a belépési határ kész, a tényleges képviseleti ALAP nyitott (nulla adapter, nulla megépített
+művelet) · **A09** és **A18** „fedett" → `reszben` (mindkettő nevezett hiányt hordozott: a „régi beadott
+FÁJL" fogalma nincs; a valós FIZIKAI lista mint művelet nincs megépítve) ⇒ a megfeleltetés összegzése
+**1 fedett · 13 részben · 4 nevezett hiány** · **H08** „bizonyítva" állapota az ÚJ ellenpéldával csak a
+javítás UTÁN tartható — a két lapos verseny bizonyítéka bekerült a helyzet SAJÁT sorába · **H07** (a címsor
+számla- és beszállítói adatosztályt nevez, a szótár két tagú) · **H09** (a meghívó-lejárat és a
+jogosultsági ALAP lejárata KÉT külön állítás, külön bizonyítékkal) · **H10** (a valódi szervezeti hierarchia
+hiánya az ÁLLAPOTBAN áll, nem a megjegyzésben) → mind `reszben`; az elfogadási lap összegzése az állítások
+tényleges határa szerint **9 bizonyítva · 3 részben · 2 nem böngészőben** (a korábbi 12/0 helyett) ·
+**H11** szöveg-lelete JAVÍTVA: az elutasítás mondatát a ZÁRÓ KAPU adja, a „kiadva" csak tényleges kiadáskor
+hangzik el · **L10** kimondott hatókörrel zárt: a SZERKEZETI teljesség gépi jellel áll, a TARTALMI
+helyesség olvasással — és az R77 ezen az úton két sort helyesbített is.
+
+**3. A „LEZART" SZÓ A SAJÁT MÉRCÉJÉHEZ VAN KÖTVE.** A lezárási lista minden sora viszi, hogy a saját
+lezárási feltétele teljesült-e (`lezarasi_feltetel_teljesult`), és ahol nem, ott MEGNEVEZI, mi hiányzik; a
+kettő EGYÜTT mozog, gépi jellel. Ugyanígy a megfeleltetésen: „fedett" csak ott, ahol a sor KIMONDJA, hogy
+nincs nevezett maradék.
+
+**4. SAJÁT LELET A KÖRBEN (nem a külső féltől):** a részleges böngésző-futás FELÜLÍRTA a közzétett
+bizonyíték-lapot, és a nem futott helyzet „részben"-ként jelent meg (9/3/2 → 1/13 némán). Javítva: a nem
+futott helyzet saját szót kap (`nem_futott`), a lap viszi a futás hatókörét, és részleges futás a közzétett
+lapot NEM írja felül. **És egy sorrend-hiba a saját javításomban:** a `fetchData` előbb frissítette a
+fejlécet, és csak utána ürített — lassú válasz alatt a RÉGI cég adata a képernyőn maradt (a teljes csomag
+futtatásakor ez egy próbát meg is buktatott). Mostantól az ürítés az ELSŐ lépés (KUKA-050), és ezt vezérelt
+lassítású böngésző-próba méri.
+
+**5. ÁTADÁS (§5).** A kipróbálható átadás lapja 15 képernyővel áll (az R77 két javítása külön képen), a lap
+fejléce KIMONDJA az ágat, a commitot és azt, hogy a munkafa tiszta volt-e; és a lap tartalmazza a LOKÁLIS
+kipróbálás pontos, végigpróbált útját (külön mappába töltött másolat, Node ≥ 22.5, `node v3app/server.mjs`
+→ `http://127.0.0.1:3300/`) — a meglévő munkamásolat és a `main` érintése nélkül. Nyilvános telepítés,
+Railway-változtatás, merge és külső levél továbbra sincs.
+
+**6. ÚJ TANULSÁGOK:** **KUKA-204** (a kontextus a KISZOLGÁLÁSKOR dől el — az olvasásnak is kötése kell, és a
+válasz mondja ki, kinek szolgált ki) · **KUKA-205** (ami EGYÜTT igaz, azt EGY egységben írjuk; a meglévő
+szabályt írás ELŐTT kérdezzük meg) · **KUKA-206** (a részleges futás nem írhatja felül a teljes mérés
+lapját; a hiányzó mérés nem kap eredmény-szót). **Gépi jelek:** `npm run verify:app-findings-r77` (34
+állítás) · `verify:app-findings` (73) · `verify:app-selfcheck` · `verify:kuka` (351) · `npm run
+proof:core-ux` (33 böngésző-próba) — mindegyik a söprés része.
+
+**7. AMIT EZ A KÖR NEM ÁLLÍT.** A core-core teljes lezárása NINCS elfogadva. A „16 elfogadott / 13 részleges
+klauzula" nem készültségi arány. Az R19 QNT (24 követelmény / 36 eset) nyitott marad. Becslésből
+visszamenőleg nem lesz mérés.
+
+---
+
 ## D-VS-3069 — AZ R75 HÁROM LELETE JAVÍTVA: A MEGERŐSÍTÉS FOLYTATÁSA · A KONTEXTUS KÖTÉSE · A SÉMA A HATÁRON
 
 > **Hatály:** V3 (`valach-system`) — a magreferencia (`v3ref/`) és a próba-alkalmazás (`v3app/`).

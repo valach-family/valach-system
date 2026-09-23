@@ -15,6 +15,7 @@
 // (ART-01). Hálózat és kulcs nem kell hozzá.
 import { chromium } from '@playwright/test';
 import { writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
@@ -24,6 +25,19 @@ const require = createRequire(import.meta.url);
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const { artifactPath } = require('../contracts/artifactNaming.js');
 const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
+
+/**
+ * A LAP KÖTÖTT FORRÁSA (R77 §5). Egy képernyő-lap önmagában nem mondja meg, MIBŐL készült — ezért a
+ * fejléc a git-állapotot viszi: ÁG · COMMIT · tiszta-e a munkafa. Ha a munkafa nem tiszta, azt a lap
+ * KIMONDJA (nem „a commithoz tartozik" — az a bizonyíték hamisítása lenne, KUKA-122).
+ */
+function gitState() {
+  const git = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
+  try {
+    return { branch: git(['rev-parse', '--abbrev-ref', 'HEAD']), commit: git(['rev-parse', 'HEAD']), dirty: git(['status', '--porcelain']).length > 0 };
+  } catch { return { branch: null, commit: null, dirty: null }; }
+}
+const GIT = gitState();
 
 const shots = [];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -156,6 +170,51 @@ try {
   await bela.getByTestId('data-stock').waitFor();
   await shot(bela, '13. Béla oldalán a megvonás hatása', 'Az új kérés nevezetten elutasítva („nem tag"), a Családi Kft eltűnt a váltójából — a SZEMÉLYES köre viszont megmaradt: a fiók nem szűnik meg attól, hogy egy cégben már nincs tagsága.', 'H09 · SZK-01');
 
+  // ── 9. AZ R77 KÉT JAVÍTÁSA A FELÜLETEN ─────────────────────────────────────────────────────
+  // (a) F77-02: értelmetlen adószámmal a kör EL SEM INDUL — nevezett mondat, nem programhiba.
+  await anna.getByTestId('ws-name').fill('Elgépelt Kft');
+  const box = anna.getByTestId('ws-business');
+  if (!(await box.isChecked())) await box.check();
+  await anna.getByTestId('ws-jurisdiction').selectOption('HU');
+  await anna.getByTestId('ws-tax-id').fill('---');
+  await anna.getByTestId('ws-create').click();
+  // A VÁLASZRA VÁRUNK, NEM A DOBOZ MEGLÉTÉRE: a lap üres eredmény-dobozzal is „megvan" (a
+  // `waitFor` az ELEMET várja, nem a tartalmát) — a mérés így a saját türelmetlenségét mérné.
+  await anna.waitForFunction(() => {
+    const el = document.querySelector('[data-testid="ws-create-result"]');
+    return !!(el && el.textContent && el.textContent.trim().length > 0);
+  });
+  // A KÉP NEM ÖNMAGÁBAN BIZONYÍT: a szövegét MEGMÉRJÜK, és ha nem azt mondja, a futtató PIROS
+  // (KUKA-041 — díszpipát nem szállítunk).
+  const hibaSzoveg = (await anna.getByTestId('ws-create-result').textContent()) || '';
+  if (!/business\.tax_id/.test(hibaSzoveg) || /internal_error/i.test(hibaSzoveg)) {
+    throw new Error(`a 14. lépés nem a nevezett elutasítást mutatja: ${hibaSzoveg}`);
+  }
+  await shot(anna, '14. Elgépelt adószám: a kör EL SEM INDUL (R77 javítás)', 'A korábbi alak ilyenkor programhibát adott (HTTP 500), a munkakörnyezet viszont FÉLKÉSZEN megszületett. Most a képernyő megmondja, melyik mező a baj, és a kör, a tagság és az indulási jogok közül EGY sem születik meg — a fejléc is ott marad, ahol volt.', 'PRV-01 (atomi indítás) · verify:app-findings-r77 F77-02 · KUKA-205');
+
+  // (b) F77-01: két lap, KÖZÖS munkamenet — a fejléc és az adat EGYÜTT mozdul.
+  const me = await (await ctxA.request.get(`${base}/api/me`)).json();
+  const szemelyes = (me.workspaces || []).find((w) => w.personal);
+  const masodikLap = await ctxA.newPage();
+  await masodikLap.goto('/');
+  await masodikLap.getByTestId(`ws-switch-${szemelyes.book_id}`).click();
+  await masodikLap.getByTestId('global-notice').waitFor();
+  await anna.getByTestId('data-stock-btn').click();
+  await anna.waitForFunction(() => {
+    const el = document.querySelector('[data-testid="data-stock"]');
+    const n = document.querySelector('[data-testid="global-notice"]');
+    return !!(el && el.textContent && el.textContent.trim() && el.textContent.trim() !== '…'
+      && n && n.textContent && n.textContent.trim().length > 0);
+  });
+  const fejlec = (await anna.getByTestId('header-workspace').textContent()) || '';
+  const mondat = (await anna.getByTestId('global-notice').textContent()) || '';
+  const panel = (await anna.getByTestId('data-stock').textContent()) || '';
+  if (!fejlec.includes(szemelyes.name) || !/MÁSIK munkakörnyezetre váltottak/.test(mondat) || panel.includes('…')) {
+    throw new Error(`a 15. lépés nem az együtt mozduló képet mutatja — fejléc: „${fejlec}" · mondat: „${mondat}" · panel: „${panel}"`);
+  }
+  await shot(anna, '15. Két böngésző-lap, egy munkamenet (R77 javítás)', 'A MÁSIK lapon átváltottunk a személyes körre. Ezen a lapon a korábbi alak a RÉGI cég fejléce alatt mutatta volna az ÚJ kör adatát. Most a lap a szerver igazságához igazodik: a fejléc és a panel EGYÜTT mozdul, és a képernyő kimondja, hogy időközben máshol váltottak.', 'KTX-02 (a válasz kimondja, kinek szolgált ki) · verify:app-findings-r77 F77-01 · KUKA-204');
+  await masodikLap.close();
+
   const finished = new Date().toISOString();
   const html = `<!doctype html>
 <html lang="hu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -176,6 +235,8 @@ try {
  code { background:var(--chip); padding:1px 5px; border-radius:4px; font-size:14px; }
  .box { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:8px; padding:14px 16px; margin:18px 0; }
  a { color: var(--accent); }
+ pre.cmd { background:var(--chip); border:1px solid var(--line); border-radius:8px; padding:12px 14px; overflow-x:auto; font-size:13px; line-height:1.55; }
+ pre.cmd code { background:none; padding:0; font-size:13px; }
 </style></head><body><main>
 <h1>V3 — kipróbálható átadás</h1>
 <p class="lead">Anna létrehozza a fiókját, elindítja a családi vállalkozás körét, meghívja Bélát, külön olvasójogot ad,
@@ -184,9 +245,23 @@ Béla vált a személyes és a céges nézet között, majd a megvonás hatása 
 <p><strong>Hol fut ez ma, és hol NEM.</strong> Ez egy <strong>telepítés nélküli próba-alkalmazás</strong> a V3 magreferencia fölött.
 <strong>Megosztható, nyilvános cím NINCS</strong> — és ez szándékos: a lapon látható <em>fejlesztői levél-fogadó</em> hitelesítés nélkül
 mutatja a kimenő leveleket, azt nyilvánosan kitenni nem szabad. Amit itt lát, az egy VALÓDI futás valódi böngészőben készült képeivel.</p>
-<p><strong>A KÖVETKEZŐ HOZZÁFÉRÉSI LÉPÉS — egy döntés az Öné:</strong> ha kipróbálná a saját gépén, szóljon, és a következő körben
-odaadom a pontos indító parancsot erre az ágra (két sor: letöltés + indítás, hálózat és kulcs nélkül). Ha inkább közös, kattintható
-címet szeretne, az külön munka: egy belépéssel védett előnézet, a fejlesztői levél-fogadó nélkül.</p>
+</div>
+<div class="box">
+<p><strong>HA KIPRÓBÁLNÁ A SAJÁT GÉPÉN — ez a pontos út.</strong> Külön mappába tölt le, tehát a meglévő munkamásolatot és a
+<code>main</code>-t NEM érinti. Adatbázis, kulcs, internet-hozzáférés a futtatáshoz nem kell (a letöltéshez igen).</p>
+<p><strong>Előfeltétel:</strong> Node <strong>22.5 vagy újabb</strong>. Ellenőrzés: <code>node -v</code> — ha régebbi (vagy „command not found”),
+a <a href="https://nodejs.org/">nodejs.org</a> LTS telepítője elég, más nem kell.</p>
+<p>Terminálban, sorban (a négy sor egyben másolható):</p>
+<pre class="cmd"><code>cd ~/Downloads
+git clone --branch ${esc(GIT.branch || 'claude/affectionate-dijkstra-76w5e8')} --single-branch https://github.com/valach-family/valach-system.git v3-proba
+cd v3-proba
+node v3app/server.mjs</code></pre>
+<p>A negyedik sor kiírja a címet: <code>http://127.0.0.1:3300/</code> — ezt nyissa meg a böngészőben. A kimenő levelek
+(megerősítés, meghívó) a <code>http://127.0.0.1:3300/dev/mailbox</code> lapon állnak; VALÓDI levél nem megy ki.
+A leállítás: a terminálban <strong>Ctrl + C</strong>. A próba adatai egy eldobható fájlban élnek a letöltött mappán belül
+(<code>var/tmp/</code>) — a törléshez elég a <code>v3-proba</code> mappát kidobni.</p>
+<p><strong>Ez a lap ebből a forrásból készült:</strong> ág <code>${esc(GIT.branch || '—')}</code> · commit
+<code>${esc((GIT.commit || '—').slice(0, 12))}</code>${GIT.dirty === false ? ' · a munkafa TISZTA volt (a képek pontosan ehhez a commithoz tartoznak)' : GIT.dirty === true ? ' · <strong>a munkafán COMMITOLATLAN változások álltak</strong> — a képek tehát nem köthetők karakterre ehhez a commithoz' : ''}.</p>
 </div>
 <p class="lead">Készült: ${esc(started)} – ${esc(finished)} · verzió: ${esc(VERSION)} · ${shots.length} képernyő</p>
 ${shots.map((s, i) => `<div class="step"><h2>${esc(s.title)}</h2><p>${esc(s.what)}</p>

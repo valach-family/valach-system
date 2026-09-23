@@ -138,8 +138,15 @@ export async function createWorkspaceUI(page, { name, plan = 'starter', business
 }
 
 export async function switchUI(page, bookId) {
+  // A VÁLTÁS UTÁN A LAP MÉG FRISSÍTI A FEJLÉCET (`/api/me`) — és a segéd ezt MEGVÁRJA. MÉRT LELET
+  // (R77): a visszatartott `/me`-vel dolgozó versenypróbák véletlenszerűen ezt a HÁTTÉRBEN FUTÓ
+  // frissítést fogták el a próba saját kérése helyett, ezért a csomag hol zöld, hol piros volt.
+  // Egy próba nem versenyezhet a saját előkészítésével (KUKA-120: a kivágott próbapad a SAJÁT
+  // versenyhelyzetét mérte).
+  const meDone = page.waitForResponse((r) => r.request().method() === 'GET' && new URL(r.url()).pathname === '/api/me');
   const r = await withResponse(page, { path: '/api/session/workspace' }, () => page.getByTestId(`ws-switch-${bookId}`).click());
   await expect(page.getByTestId('global-notice')).toBeVisible();
+  await meDone;
   return { ...r, notice: await page.getByTestId('global-notice').textContent() };
 }
 

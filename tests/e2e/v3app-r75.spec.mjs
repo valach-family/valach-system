@@ -7,6 +7,10 @@
 //   F75-01  a lejárt megerősítésnek VAN folytatása — a felhasználó útján végigkattintva
 //   F75-02  a kontextusváltás védelme TELJES — késleltetett válaszokkal, valódi versenyben
 //
+// AZ ÚTVONAL-MINTA VÉGÉN `**` ÁLL (R77 óta): a kontextusfüggő olvasások LEKÉRDEZÉS-mezőt visznek
+// (`expected_book_id` · `expected_subject_id`, KTX-02), és a kérdőjeles címet a csupasz minta NEM
+// fogja meg — a visszatartás némán elmaradna, a próba pedig „zölden" mérne semmit (KUKA-051).
+//
 // A KÉSLELTETÉS ITT A MÉRŐESZKÖZ (nem „flaky" próba): a `page.route` a VÁLASZT tartja vissza, amíg
 // a felhasználó vált — pontosan azt a versenyt állítja elő, amit a külső ellenőrző fél a saját
 // klienspróbájában reprodukált. A tiltás mellett MINDEN esetben ott a POZITÍV ELLENPÁR is
@@ -115,7 +119,7 @@ test('R75/F75-02 — KONTEXTUSVÁLTÁS: a régi cég válasza és gombja nem ér
     let releaseFirst = null;
     const firstHeld = new Promise((r) => { releaseFirst = r; });
     let seen = 0;
-    await anna.page.route('**/api/members', async (route) => {
+    await anna.page.route('**/api/members**', async (route) => {
       seen += 1;
       if (seen === 1) await firstHeld;
       await route.continue();
@@ -173,7 +177,7 @@ test('R75/F75-02 — KONTEXTUSVÁLTÁS: a régi cég válasza és gombja nem ér
     let releaseData = null;
     const dataHeld = new Promise((r) => { releaseData = r; });
     let dataSeen = 0;
-    await anna.page.route('**/api/data/stock', async (route) => {
+    await anna.page.route('**/api/data/stock**', async (route) => {
       dataSeen += 1;
       if (dataSeen === 1) await dataHeld;
       await route.continue();
@@ -194,8 +198,8 @@ test('R75/F75-02 — KONTEXTUSVÁLTÁS: a régi cég válasza és gombja nem ér
     let releaseLogout = null;
     const logoutHeld = new Promise((r) => { releaseLogout = r; });
     let logoutSeen = 0;
-    await anna.page.unroute('**/api/data/stock');
-    await anna.page.route('**/api/data/stock', async (route) => {
+    await anna.page.unroute('**/api/data/stock**');
+    await anna.page.route('**/api/data/stock**', async (route) => {
       logoutSeen += 1;
       if (logoutSeen === 1) await logoutHeld;
       await route.continue();

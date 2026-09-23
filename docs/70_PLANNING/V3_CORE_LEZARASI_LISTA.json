@@ -2,13 +2,13 @@
   "schema": "v3-core-lezarasi-lista/1",
   "allapot": "élő",
   "lane": "Claude-v3",
-  "last_round": "CMD-VS-300-002-002 R75",
+  "last_round": "CMD-VS-300-002-002 R77",
   "origin": "docs/70_PLANNING/V3_R64_CORE_FOLYAMAT_ES_LEZARASI_LISTA.md §7 — az EGYETLEN core-lezárási lista első alakja (R64)",
   "what_this_is": "AZ EGYETLEN CORE-LEZÁRÁSI LISTA ÉLŐ ALAKJA. Az R64-es lap a maga körének jelentése, és az is marad (a történetet nem írjuk át); a lista MAI állapota innentől EZ a fájl — egy fogalom, egy otthon (KUKA-018). Soronként: mi a maradék, melyik eredeti normához tartozik, mit blokkol, mi a következő munka, mi a lezárási feltétel, MA hol tart, és melyik kör mozdította.",
   "status_vocabulary": {
     "nyitott": "a lezárási feltétel nem teljesült; a sor változatlanul blokkol",
-    "lezart": "a SAJÁT lezárási feltétele teljesült, élő bizonyítékkal — a `maradek_kimondva` mezőben áll, ami ettől még hiányzik",
-    "dontes_megvan": "a kérdés ELDŐLT (szervezési döntés), a megvalósítás nevesített üzemi hiány"
+    "lezart": "a SAJÁT lezárási feltétele teljesült, élő bizonyítékkal — a `maradek_kimondva` mezőben áll, ami ettől még hiányzik. R77 §4: a szó a FELTÉTELHEZ van mérve, nem a munka mennyiségéhez, és ezt soronként a `lezarasi_feltetel_teljesult` mező mondja ki (gépi jel köti az állapothoz).",
+    "dontes_megvan": "a kérdés ELDŐLT (szervezési döntés vagy kimondott határ), a megvalósítás nevesített üzemi hiány — a lezárási feltétel tehát NEM teljesült"
   },
   "rows": [
     {
@@ -20,7 +20,9 @@
       "lezarasi_feltetel": "2 valódi kapcsolat, sor-zár/verzió-őr, a MCN-01 három forgatókönyve zöld",
       "allapot": "nyitott",
       "mozditotta": null,
-      "maradek_kimondva": "ma SQLite (WAL) két valódi folyamaton mérve (proof:multiconn); Postgres, hálózat, kettőnél több író és terhelés NEM mérve"
+      "maradek_kimondva": "ma SQLite (WAL) két valódi folyamaton mérve (proof:multiconn); Postgres, hálózat, kettőnél több író és terhelés NEM mérve",
+      "lezarasi_feltetel_teljesult": false,
+      "miert_nem_teljesult": "nincs Postgres (vagy egyenértékű) tárolón futó, több-írós mérés; az MCN-01 három forgatókönyve ma node:sqlite WAL-on áll"
     },
     {
       "id": "L2",
@@ -29,15 +31,17 @@
       "blokkol": "mini-modul közös alap (ahol a modul képviseletet igényel)",
       "kovetkezo_munka": "képviseleti alap cserélhető darabként (külső tanú · okirat · országprofil-adapter), próbával",
       "lezarasi_feltetel": "nevezett képviseleti alap + próba; nem regisztrációs akadály",
-      "allapot": "lezart",
-      "mozditotta": "R75 — REP-01 (v3ref/representation.mjs): zárt művelet-osztály-regiszter, fail-closed ismeretlen osztályra, cserélhető adapter-hely, és a nemleges válasz KIMONDJA, hogy CSAK az adott műveletet zárja (a regisztrációt és a saját munkát soha). A felületi állítás is pontos lett: az adószám ÁLLÍTÁS, nem igazolás.",
+      "allapot": "dontes_megvan",
+      "mozditotta": "R75 — REP-01 (v3ref/representation.mjs): zárt művelet-osztály-regiszter, fail-closed ismeretlen osztályra, cserélhető adapter-hely, és a nemleges válasz KIMONDJA, hogy CSAK az adott műveletet zárja (a regisztrációt és a saját munkát soha). A felületi állítás is pontos lett: az adószám ÁLLÍTÁS, nem igazolás. R77 §4 HELYESBÍTÉS: a sor R75-ben „lezart\"-ra állt — ez NEM volt tartható. A saját lezárási feltétele („nevezett képviseleti alap + próba\") TELJESÜLETLEN: nulla adapter van bekötve és nulla megépített művelet tartozik a két zárt osztályba. Ami elkészült, az a DÖNTÉS (mi indulhat képviselet nélkül) és a BELÉPÉSI HATÁR (fail-closed osztály-regiszter, nevezett nemleges válasz) — ezért az állapot `dontes_megvan`, nem `lezart`.",
       "bizonyitek": [
         "v3ref/representation.mjs — REP_CONTRACT",
         "npm run verify:app-findings — L2 szakasz (a · b · b/2 · c · c/2)",
         "böngésző: core-flow 4. lépés — a képernyő kimondja a határt"
       ],
-      "maradek_kimondva": "NULLA adapter van bekötve, és NULLA megépített művelet tartozik a két zárt osztályba — tehát idegen szervezet nevében eljárni ma NEM lehet, és ezt a rendszer nevezetten mondja ki. A DÖNTÉS, amit a mini-modul kapu kért: a saját, önbevallott munkatér (készlet · folyamat · saját felület) képviselet NÉLKÜL indulhat; más jogalany képviselete és idegen kör átvétele NEM.",
-      "dontes": "own_self_declared_work ⇒ nincs képviseleti bizonyíték-igény · represent_existing_legal_person és take_over_existing_space ⇒ zárt, adapterrel nyílik"
+      "maradek_kimondva": "A TÉNYLEGES KÉPVISELETI ALAP NYITOTT: nulla adapter, nulla megépített művelet a két zárt osztályban (`represent_existing_legal_person` · `take_over_existing_space`) — idegen jogalany nevében eljárni ma NEM lehet, és ezt a rendszer nevezetten mondja ki. Ami ELDŐLT és mérve áll: a saját, ÖNBEVALLOTT munkatér (készlet · folyamat · saját felület) képviselet NÉLKÜL indulhat, és a hiány nem regisztrációs akadály. A sor akkor zárható, ha egy NEVEZETT alap (külső tanú · okirat · országprofil-adapter) be van kötve, próbával — ez ma nincs.",
+      "dontes": "own_self_declared_work ⇒ nincs képviseleti bizonyíték-igény · represent_existing_legal_person és take_over_existing_space ⇒ zárt, adapterrel nyílik",
+      "lezarasi_feltetel_teljesult": false,
+      "miert_nem_teljesult": "nulla képviseleti adapter van bekötve és nulla megépített művelet tartozik a két zárt osztályba — a „nevezett képviseleti alap + próba\" feltétel teljesületlen"
     },
     {
       "id": "L3",
@@ -52,7 +56,9 @@
         "npm run verify:app-findings — (L3) forrás-mérés: 0 találat",
         "böngésző: H10 — a mag és a héj forrásában nincs ilyen szabály/végpont"
       ],
-      "maradek_kimondva": "A TELJES megvalósítás nevesített üzemi hiány: jóváhagyási esemény, tartalmi változat azonossága, a „két fiók – egy ember\" eset kizárása, és a szervezeti kapcsoló (kell-e ennek a körnek)."
+      "maradek_kimondva": "A TELJES megvalósítás nevesített üzemi hiány: jóváhagyási esemény, tartalmi változat azonossága, a „két fiók – egy ember\" eset kizárása, és a szervezeti kapcsoló (kell-e ennek a körnek). R77: a közös jóváhagyás TÉNYLEGES HIÁNYKÉNT a H10 helyzet-lapon is kimondva áll (a mag egyetlen műveletet sem köt két személy egyetértéséhez).",
+      "lezarasi_feltetel_teljesult": false,
+      "miert_nem_teljesult": "a közös (kétszemélyes) jóváhagyás nincs megépítve; a döntés megvan, a próba két jóváhagyóval nem futhat"
     },
     {
       "id": "L4",
@@ -63,7 +69,9 @@
       "lezarasi_feltetel": "egy valódi kézbesítés mérve; a csomag továbbra sem küld külső személynek engedély nélkül",
       "allapot": "nyitott",
       "mozditotta": "R75 — a levél-fogadó és a fejlesztői óra MOSTANTÓL kapcsoló mögött áll (`devSurface`), és kikapcsolva NEM LÉTEZIK (404). Ez nem a levélküldés megépítése, hanem a fejlesztői felület határának kimondása.",
-      "maradek_kimondva": "valódi levél soha nem megy ki; a megerősítő és meghívó hivatkozás a fejlesztői fogadóban áll"
+      "maradek_kimondva": "valódi levél soha nem megy ki; a megerősítő és meghívó hivatkozás a fejlesztői fogadóban áll",
+      "lezarasi_feltetel_teljesult": false,
+      "miert_nem_teljesult": "valódi levélküldés (szolgáltató, kézbesítés-tanú) nincs — a csomag külső címre nem küld"
     },
     {
       "id": "L5",
@@ -74,7 +82,9 @@
       "lezarasi_feltetel": "adapter-próba; a hiány ma nem tilt saját munkát",
       "allapot": "nyitott",
       "mozditotta": "R75 — mérve marad, hogy az ISMERETLEN országprofil NEM tiltja a saját munkát: a határ sémája szándékosan NEM zárt készlet a joghatóságon (H12 pozitív ellenpár).",
-      "maradek_kimondva": "nulla adapter; az azonosító mindenhol ÖNBEVALLOTT állítás (verification: none_available)"
+      "maradek_kimondva": "nulla adapter; az azonosító mindenhol ÖNBEVALLOTT állítás (verification: none_available)",
+      "lezarasi_feltetel_teljesult": false,
+      "miert_nem_teljesult": "országprofil-adapter egy sincs bekötve"
     },
     {
       "id": "L6",
@@ -85,7 +95,9 @@
       "lezarasi_feltetel": "a 24 követelmény próbával; a becslés nem válik méréssé",
       "allapot": "nyitott",
       "mozditotta": null,
-      "maradek_kimondva": "a QNT core-alapjai (mennyiség-profil · kanonikus alak · tárolt profil-történet) MEGVANNAK és nem tűnhetnek el; a 24 követelmény külön csomag"
+      "maradek_kimondva": "a QNT core-alapjai (mennyiség-profil · kanonikus alak · tárolt profil-történet) MEGVANNAK és nem tűnhetnek el; a 24 követelmény külön csomag",
+      "lezarasi_feltetel_teljesult": false,
+      "miert_nem_teljesult": "a QNT 24 követelménye próbával nem áll; a becslés nem válik méréssé"
     },
     {
       "id": "L7",
@@ -101,7 +113,8 @@
         "npm run verify:app-selfcheck — 57/57",
         "böngésző: H06 · H08 · H10 · H11 (a régi bemenetek MÁS néven, de ugyanúgy elakadnak)"
       ],
-      "maradek_kimondva": "a séma az ALAKOT méri, nem az üzleti igazságot; a mag döntései változatlanok. A `GET /api/verify` kimondott kivétel (levélből nyitott hivatkozás — idegen paramétertől nem futhat zsákutcába)."
+      "maradek_kimondva": "a séma az ALAKOT méri, nem az üzleti igazságot; a mag döntései változatlanok. A `GET /api/verify` kimondott kivétel (levélből nyitott hivatkozás — idegen paramétertől nem futhat zsákutcába).",
+      "lezarasi_feltetel_teljesult": true
     },
     {
       "id": "L8",
@@ -125,7 +138,9 @@
         ],
         "forras": "v3ref/norms.mjs → REVOCATION_NORMS"
       },
-      "maradek_kimondva": "a „hiány nélkül\" itt azt jelenti, hogy a klauzula nem hordoz deklarált hiányt — NEM azt, hogy mind a tíznek önálló, deklarált állítású PRÓBÁJA van; a próba-fedettség külön mérés (L9)"
+      "maradek_kimondva": "a „hiány nélkül\" itt azt jelenti, hogy a klauzula nem hordoz deklarált hiányt — NEM azt, hogy mind a tíznek önálló, deklarált állítású PRÓBÁJA van; a próba-fedettség külön mérés (L9)",
+      "lezarasi_feltetel_teljesult": false,
+      "miert_nem_teljesult": "15 megvonási klauzulából 5 nevezett hiánnyal áll (REV-N1c · REV-N3d · REV-N3e · REV-N4a · REV-N4b)"
     },
     {
       "id": "L9",
@@ -143,7 +158,9 @@
         "mutacio": "204/204 elkapva",
         "egyseg": "18/18 tiszta",
         "forras": "npm run verify:v3ref (külön futtatva)"
-      }
+      },
+      "lezarasi_feltetel_teljesult": false,
+      "miert_nem_teljesult": "a `verify:v3ref` „KÖTELEZŐ BIZONYÍTÉK\" sora nem `covered`"
     },
     {
       "id": "L10",
@@ -153,12 +170,14 @@
       "kovetkezo_munka": "a kritika lefuttatása, a hiányzó sorok felvétele",
       "lezarasi_feltetel": "minden A-eset sorral vagy nevezett hiánnyal",
       "allapot": "lezart",
-      "mozditotta": "R75 — docs/70_PLANNING/V3_R75_A01_A18_MEGFELELTETES.json: mind a 18 eset soronként (mi működik ma · bizonyíték · PONTOS maradék · mit blokkol), az azonosítók a FORRÁS-dokumentumból mérve. Eredmény: 3 fedett · 11 részben · 4 nevezett hiány.",
+      "mozditotta": "R75 — docs/70_PLANNING/V3_R75_A01_A18_MEGFELELTETES.json: mind a 18 eset soronként (mi működik ma · bizonyíték · PONTOS maradék · mit blokkol), az azonosítók a FORRÁS-dokumentumból mérve. R77 §4 HELYESBÍTÉS: az A09 és az A18 „fedett\" minősítése nem volt tartható (mindkettő nevezett hiányt hordoz a saját `maradek` mezőjében) — mindkettő `reszben`. A mai, SZÁMOLT összegzés: 1 fedett · 13 részben · 4 nevezett hiány.",
       "bizonyitek": [
         "docs/70_PLANNING/V3_R75_A01_A18_MEGFELELTETES.json",
         "npm run verify:app-findings — L10 szakasz (forrás-azonosság · teljesség · SZÁMOLT összegzés)"
       ],
-      "maradek_kimondva": "ez MEGFELELTETÉS, nem futtatás: egyetlen A-eset forgatókönyve sem lett végigjátszva (az R32 maga mondja ki, hogy ezek nem lefutott V3-tesztek)"
+      "maradek_kimondva": "ez MEGFELELTETÉS, nem futtatás: egyetlen A-eset forgatókönyve sem lett végigjátszva (az R32 maga mondja ki, hogy ezek nem lefutott V3-tesztek). És a lap TARTALMI helyessége nem gépi jellel áll, hanem olvasással: az R77 két sort (A09 · A18) helyesbített — a szerkezeti teljesség tehát nem igazolja a tartalmat.",
+      "lezaras_hatokore": "SZERKEZETI teljesség (ez zárult le, gépi jellel): mind a 18 eset a forrás-dokumentumból, egyetlen mező sem üres, az összegzés a sorokból SZÁMOLT — `npm run verify:app-findings` L10 (a · b · c). TARTALMI helyesség (ez NEM zárult le, és gép nem is igazolja): a soronkénti próza helyességét a külső ellenőrző fél olvasása méri; az R77 ezen az úton két sort ténylegesen helyesbített. A „lezart\" szó ezen a soron a szerkezetre igaz, a tartalomra nem.",
+      "lezarasi_feltetel_teljesult": true
     },
     {
       "id": "L11",
@@ -174,12 +193,15 @@
         "npm run verify:app-selfcheck (57/57) · npm run verify:app-findings — L11 szakasz",
         "böngésző: core-flow 4. lépés · R75/F75-01 (5.)"
       ],
-      "maradek_kimondva": "a személyes kör ugyanazokat a SZINTETIKUS minta-rekordokat kapja, mint bármely kör — valódi „saját iratok\" (dokumentum, feltöltés) nincs, és nem is ígérjük"
+      "maradek_kimondva": "a személyes kör ugyanazokat a SZINTETIKUS minta-rekordokat kapja, mint bármely kör — valódi „saját iratok\" (dokumentum, feltöltés) nincs, és nem is ígérjük",
+      "lezarasi_feltetel_teljesult": true
     }
   ],
   "stated_limits": [
     "A LEZÁRT SOR NEM KÉSZÜLTSÉGI SZÁZALÉK: mindegyik a SAJÁT, korábban kimondott lezárási feltételére zárult, és mindegyik viszi a `maradek_kimondva` mezőjét.",
     "A CORE-CORE TELJES LEZÁRÁSA NINCS ELFOGADVA — ezt a lista egyetlen sora sem állítja, és a külső ellenőrző fél elfogadása nélkül nem is állítható.",
-    "Üzemi használat NEM állítható: L1 · L4 · L5 nyitott."
+    "Üzemi használat NEM állítható: L1 · L4 · L5 nyitott.",
+    "R77 §4: a „lezart\" szót a SAJÁT lezárási feltételéhez mérjük, nem a munka mennyiségéhez. Ezen a mércén az L2 visszakerült `dontes_megvan` állapotba (a döntés és a belépési határ kész, a képviseleti ALAP nyitott), az L10 pedig kimondott hatókörrel zárt (szerkezeti teljesség igen, tartalmi helyesség nem).",
+    "R77 §4: az elfogadási helyzet-lap (docs/70_PLANNING/V3_R75_ELFOGADAS_HELYZETEK.json) korábbi 12 bizonyított / 0 részleges összegzése az állítások TÉNYLEGES határa szerint újraszámolva 9 bizonyítva · 3 részben · 2 nem böngészőben — a H07 (számla/beszállítói adatosztály nincs), a H09 (a meghívó-lejárat és a jogosultsági alap lejárata KÉT külön állítás) és a H10 (valódi szervezeti hierarchia nincs) sorok részlegesek."
   ]
 }

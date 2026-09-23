@@ -33,6 +33,152 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-206',
+    date: '2026-09-23',
+    title: 'A RÉSZLEGES FUTÁS FELÜLÍRTA A TELJES MÉRÉS LAPJÁT — és a NEM FUTOTT helyzet „részben"-ként jelent meg',
+    what: 'Az elfogadási böngésző-csomag záró lépése MINDEN futás végén kiírta a közzétett bizonyíték-lapot '
+      + '(`docs/70_PLANNING/V3_R75_ELFOGADAS_HELYZETEK.json`). Egy SZŰKÍTETT futás (`npx playwright test '
+      + '… -g "H11"`) után a másik tizenhárom helyzetnek nem volt bizonyítéka, ezért mindegyik a tartalék '
+      + 'ágra esett — `verdict: "reszben"`, „a próba nem futott le" —, és a lap FELÜLÍRÓDOTT: a teljes futás '
+      + 'MÉRT 9 bizonyítva · 3 részben · 2 nem böngészőben összegzéséből némán 1 bizonyítva · 13 részben lett.',
+    why_wrong: 'A HIÁNYZÓ MÉRÉS EREDMÉNY-SZÓT KAPOTT. A „reszben" azt állítja, hogy mértünk és egy rész nem '
+      + 'jött össze; a valóság az volt, hogy EL SEM INDULT — ez a KUKA-093 alakja a V3-ban (HIBA · ELAKADT '
+      + 'MÉRÉS · nincs alkalmazható eset SOHA nem mosható össze). És a származtatott lap a SAJÁT hatókörét '
+      + 'nem hordozta: egy szűkített futásból közzétett lap ugyanúgy néz ki, mint a teljesből származó, '
+      + 'tehát a veszteség néma (KUKA-012 · KUKA-033).',
+    replaced_by: 'A záró lépés (1) a nem futott helyzetnek SAJÁT szót ad (`nem_futott`), (2) kiírja a futás '
+      + 'hatókörét (`partial_run` · `measured_ids` · `not_run_ids`), és (3) RÉSZLEGES futáson a közzétett '
+      + 'lapot NEM írja felül — csak a `var/` példányt, nevezett sorral a naplóban. A közzétett lap '
+      + 'teljességét gépi jel méri, nem a futtató figyelme.',
+    decision: 'D-VS-3070',
+    found_by: 'saját mérés a körön belül (Claude-v3, R77) — az R77 §4 gépi kötése mutatta meg: a helyzet-lap '
+      + 'összegzése 1/13-ra csúszott egy célzott H11-futás után',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-acceptance.spec.mjs']),
+        pattern: "partialRun[\\s\\S]{0,2000}NEM íródott felül",
+        why: 'részleges futás nem írhatja felül a közzétett bizonyíték-lapot' }),
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r77.mjs']),
+        pattern: "sheet\\.partial_run !== true",
+        why: 'a közzétett lap teljességét GÉP méri, nem a futtató figyelme' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['tests/e2e/v3app-acceptance.spec.mjs'],
+        pattern: "verdict: 'reszben', note: 'a próba nem futott le'",
+        reason: 'a nem futott helyzet nem kaphat eredmény-szót (R77, saját lelet)' }),
+    ]),
+    lesson: 'A SZÁRMAZTATOTT LAP VIGYE A SAJÁT HATÓKÖRÉT: amit a futás nem érintett, arról nem eredményt kell '
+      + 'írni, hanem hiányt — és egy részleges futás nem léphet a teljes helyébe. A tartalék ág a '
+      + 'legveszélyesebb hely a szóhasználatra: ott dől el, hogy a hiányból „majdnem eredmény" lesz-e.',
+    guard_note: 'gépi jel: `npm run verify:app-findings-r77` — R77 §4 (c/0): a közzétett lap `partial_run` '
+      + 'jelölése hamis, `not_run_ids` üres, és egyetlen helyzet sem `nem_futott`; a tiltó-minta pedig a '
+      + 'régi tartalék ág szövegére áll.',
+  }),
+  Object.freeze({
+    id: 'KUKA-205',
+    date: '2026-09-23',
+    title: 'A FÉLKÉSZ MUNKAKÖRNYEZET — a könyv megszületett, az azonosság elbukott, és a hiba a HATÁRON 500 lett',
+    what: 'A v3app héja a munkakörnyezetet LÉPÉSENKÉNT írta: előbb `createWorkspace` (könyv · tagság · '
+      + 'indulási tények), utána `attachBusinessIdentity`. A külső ellenőrző fél (chatgpt-v3, R77/F77-02) '
+      + 'valódi HTTP-n mérte: a `POST /api/workspaces {"business":{"jurisdiction":"HU","tax_id":"---"}}` '
+      + 'kérésre HTTP **500** jött (nevezetlen belső hiba), a munkakörnyezetek száma viszont **1 → 2** nőtt — '
+      + 'a könyv, a tagság és az indulási tények BENT MARADTAK, üzleti azonosság nélkül. A „---" nem '
+      + 'kitalált alak: a normalizáló saját szabálya (`normalizeExternalValue`) a kötőjeleket elhagyja, tehát '
+      + 'az érték NORMALIZÁLÁS UTÁN ÜRES — a mag ezen dobott kivételt, a héj pedig nem fordította le.',
+    why_wrong: 'Ez két hiba egy sorban. (1) A BEMENET ellenőrzése az ÍRÁS KÖZEPÉN történt: mire kiderült, hogy '
+      + 'az azonosító nem rögzíthető, a könyv már állt — márpedig ami EGYÜTT igaz (munkakörnyezet + üzleti '
+      + 'azonosság + indulási tények), azt EGY egységben kell írni, különben a rendszer félkész jogi alakot '
+      + 'őriz. (2) A kivétel a határon `internal_error`-rá vált, tehát a felhasználó a saját elgépeléséről '
+      + 'PROGRAMHIBÁT látott, a képernyő pedig nem mondta meg, mit javítson (KUKA-011 · KUKA-201). '
+      + 'És a hiba nem a „tax_id ellenőrzés hiánya" volt: a szabály MEGVOLT a normalizálóban — csak nem KÉRDEZTÜK meg, mielőtt írtunk.',
+    replaced_by: 'PRV-01 (`provisionWorkspace`, `v3ref/workspace.mjs`): (1) a vállalkozási minőség problémáját '
+      + 'a NORMALIZÁLÓ SAJÁT szabályából olvassuk ki, ÍRÁS ELŐTT (`businessIdentityProblem`, '
+      + '`v3ref/externalId.mjs`) — új „adószám-ellenőrzés" nem született, és az ISMERETLEN országprofil '
+      + 'továbbra sem tilt saját munkát (H12/REP-01); (2) a mag (könyv · tagság · indulási tények · üzleti '
+      + 'azonosság) EGY atomi egységben íródik (`store.atomic`, savepointtal), tehát bármelyik lépés bukása '
+      + 'NULLA sort hagy; (3) a munkamenet CSAK a sikeres egység után vált az új könyvre; (4) a HTTP-határ '
+      + 'nevezett **400 `tax_id_value_required`**-et ad, a hibás mező megnevezésével (`business.tax_id`). '
+      + 'A MINTA-rekordok SZÁNDÉKOSAN az egységen KÍVÜL maradnak (a `submitCommand` `store.tx`-e mért, '
+      + 'felső szintű határ) — és a hiányuk NEVEZETT (`seed_failed`), nem néma.',
+    decision: 'D-VS-3070',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R77/F77-02 — valódi HTTP-méréssel, a sorok ELŐTTE/UTÁNA számlálásával',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/workspace.mjs']),
+        pattern: "provisionWorkspace[\\s\\S]{0,3000}store\\.atomic",
+        why: 'a munkakörnyezet magja EGY egységben íródik — ha ez kiesik, megint félkész könyv maradhat' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/externalId.mjs']),
+        pattern: "export function businessIdentityProblem",
+        why: 'a bemenet problémáját a normalizáló SAJÁT szabályából olvassuk ki, írás előtt' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "tax_id_value_required",
+        why: 'a határ nevezett 400-at ad, nem programhibát' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3app/server.mjs'], pattern: "const ws = createWorkspace\\(\\{ store, creatorSubjectId: session",
+        reason: 'a héj nem írhatja a könyvet a saját kezével, az egységen kívül (R77 F77-02)' }),
+      Object.freeze({ paths: ['v3app/server.mjs'], pattern: "attachBusinessIdentity\\(\\{ store",
+        reason: 'az üzleti azonosság nem íródhat külön lépésben, a könyv megszületése UTÁN' }),
+    ]),
+    lesson: 'AMI EGYÜTT IGAZ, AZT EGYÜTT KELL ÍRNI — és amit meg tudunk kérdezni ÍRÁS ELŐTT, azt ne a '
+      + 'kivételre bízzuk. A félkész állapot nem „majdnem siker": jogi alakot (könyvet, tagságot, indulási '
+      + 'jogot) hagy hátra olyan azonosság nélkül, amire a felhasználó számít. És a szabály gyakran MEGVAN '
+      + 'már (itt: a normalizáló ürességi szabálya) — a hiba az, hogy nem KÉRDEZTÜK MEG időben; új ellenőrzést '
+      + 'írni helyette második igazság lett volna (KUKA-018 · KUKA-039).',
+    guard_note: 'gépi jel: `npm run verify:app-findings-r77` (F77-02 szakasz: az EREDETI kérés · négy '
+      + 'normalizálás-után-üres alak · érvényes HU és ISMERETLEN joghatóság pozitív ága · vezérelt bukás egy '
+      + 'KÉSŐBBI lépésben, a sorok ELŐTTE/UTÁNA számlálásával) + böngésző-próba `tests/e2e/v3app-r77.spec.mjs`.',
+  }),
+  Object.freeze({
+    id: 'KUKA-204',
+    date: '2026-09-23',
+    title: 'A KONTEXTUS-ŐR CSAK AZ ÍRÁSON ÁLLT — az OLVASÁS a kiszolgálás pillanatában dőlt el, és a válasz nem mondta meg, kinek szolgált ki',
+    what: 'Az R75-ös javítás (KTX-01) minden ÁLLAPOTVÁLTOZTATÓ kérésre rátette a nézet megerősítését '
+      + '(`expected_book_id`), az OLVASÁS viszont kötetlen maradt. A külső ellenőrző fél (chatgpt-v3, '
+      + 'R77/F77-01) két lappal, KÖZÖS sütivel mérte: a lap megkapta az „A" cégre szóló `/me`-t, a másik lap '
+      + 'közben „B"-re váltott, és a rákövetkező adat-kérést a szerver MÁR B-re szolgálta ki — a fejléc A-t '
+      + 'mutatott, a panel B adatát. A válasz ráadásul NEM mondta meg, melyik kontextusban született, tehát a '
+      + 'lap nem is tudta volna eldobni.',
+    why_wrong: 'Az őr ott állt, ahol ÍRUNK, nem ott, ahol a KÁR keletkezik (KUKA-202 olvasó-oldali ikertestvére): '
+      + 'a cégek összekeverése a képernyőn történik, olvasásból. A kliens saját generáció-számlálója itt '
+      + 'fogalmilag sem elég — a munkamenet KÖZÖS, tehát a lap nem tudhatja, hogy a szerver közben másik '
+      + 'könyvet (vagy másik ALANYT) szolgál ki. És a hiányzó mező nem egyezés: ha a válasz nem mondja ki a '
+      + 'kiszolgált kontextust, az „nem tudom", nem „rendben" (KUKA-094).',
+    replaced_by: 'KTX-02 — NÉGY kötelem, mind a kettő oldalon: (1) minden kontextusfüggő OLVASÁS viszi a '
+      + 'nézetet, amiben indult (`expected_book_id` · `expected_subject_id`, a HTP-01 regiszterben '
+      + 'deklarálva: `readContextQuery`); (2) a szerver UGYANABBAN a kiszolgálásban veti össze a várt és a '
+      + 'tényleges kontextust (`readContextGate`), eltérésnél 409 `context_mismatch`, ADAT NÉLKÜL; (3) minden '
+      + 'ilyen válasz KIMONDJA a TÉNYLEGESEN kiszolgált kontextust (`served_book_id` · `served_subject_id`), '
+      + 'és a lap csak egyezésnél rajzol (`servedMatches` — a hiányzó mező NEM egyezés); (4) a mező '
+      + 'MEGERŐSÍTÉS, nem felhatalmazás: könyvet és alanyt soha nem választ, csak szűkít — az alany- és a '
+      + 'könyv-váltást EGYÜTT nézzük, mert közös süti mellett a másik lap BELÉPHET más fiókkal is.',
+    decision: 'D-VS-3070',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R77/F77-01 — két lap, közös süti, valódi HTTP',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "function readContextGate",
+        why: 'a szerver a KISZOLGÁLÁS pillanatában veti össze a várt és a tényleges kontextust' }),
+      Object.freeze({ paths: Object.freeze(['v3app/httpSchema.mjs']),
+        pattern: "readContextQuery",
+        why: 'a kötés a séma-regiszterben DEKLARÁLT, nem végpontonként kézzel' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "function servedMatches",
+        why: 'a lap csak akkor rajzol, ha a válasz a SAJÁT nézetéhez tartozik — a hiányzó mező nem egyezés' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3app/public/app.js'], pattern: "await api\\('GET', path\\);",
+        reason: 'a kontextusfüggő olvasás nem mehet ki a nézet megerősítése nélkül (R77 F77-01)' }),
+      Object.freeze({ paths: ['v3app/public/app.js'], pattern: "await api\\('GET', '/api/members'\\);",
+        reason: 'a taglista sem kérhető kötetlenül — ugyanaz a verseny viszi el' }),
+    ]),
+    lesson: 'A KONTEXTUS NEM A KÉRÉS INDÍTÁSAKOR DŐL EL, HANEM A KISZOLGÁLÁSKOR — ezért az olvasásnak is '
+      + 'ugyanolyan kötése kell, mint az írásnak, és a válasznak KI KELL MONDANIA, kinek szolgált ki. Egy '
+      + 'javítás, ami az egyik művelet-osztályt (írás) védi, a másikat (olvasás) MEGVÉDETTNEK MUTATJA '
+      + '(KUKA-041). A megerősítő mező biztonságos, amíg csak SZŰKÍT: jogot soha nem adhat — különben a '
+      + 'kliens jelzésével lehetne idegen kontextust nyitni.',
+    guard_note: 'gépi jel: `npm run verify:app-findings-r77` (F77-01 szakasz: az eredeti lelet két lappal · '
+      + 'három időzítési pont · fiók-váltás · a mező nem ad hatóságot · pozitív ellenpárok) + böngésző-próba '
+      + '`tests/e2e/v3app-r77.spec.mjs` (valódi Chromium, közös süti) és `tests/e2e/v3app-acceptance.spec.mjs` H08.',
+  }),
+  Object.freeze({
     id: 'KUKA-203',
     date: '2026-09-22',
     title: 'A HATÁRON A String() KÉNYSZERÍTÉS — a típus-kérdést nem feltette, hanem ELTÜNTETTE',

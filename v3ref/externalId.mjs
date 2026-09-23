@@ -65,6 +65,38 @@ export function normalizeExternalValue(valueRaw) {
 }
 
 /**
+ * A BEMENET BAJA — ÍRÁS ELŐTT, NEVEZETTEN (R77/F77-02).
+ *
+ * MI VOLT A HIBA. A `{"tax_id":"---"}` érték normalizálva ÜRES; ezt eddig CSAK az írás közben, a
+ * `recordSelfAssertedExternalId` belsejében vettük észre, és az `attachBusinessIdentity` ott már
+ * kivételt dobott — a hívó HTTP 500-at kapott, a MUNKAKÖRNYEZET viszont addigra megszületett.
+ *
+ * A SZABÁLY NEM ÚJ, ÉS NEM „ADÓELLENŐRZÉS": pontosan a MEGLÉVŐ normalizáló saját szabálya
+ * (`normalizeExternalValue`) — csak most MEGKÉRDEZHETŐ, mielőtt bármit írnánk (KUKA-039: egy
+ * fogalom, egy otthon; a kérdést ahhoz tesszük, aki tudja a választ). Az ISMERETLEN országprofil
+ * továbbra sem tiltás: a profil-ismeretlenség nem hiba, csak `known: false` (H12).
+ *
+ * @returns {null|{error:string, detail:string}} `null`, ha a bemenet rögzíthető.
+ */
+export function businessIdentityProblem({ namespace, jurisdiction, valueRaw } = {}) {
+  if (!KNOWN_NAMESPACES.includes(namespace)) {
+    return { error: 'unknown_namespace', detail: `ismert névterek: ${KNOWN_NAMESPACES.join(' · ')}` };
+  }
+  const profile = profileFor(jurisdiction);
+  if (namespace !== 'email' && profile.known && !profile.namespaces.includes(namespace)) {
+    return { error: 'namespace_not_in_profile', detail: `a(z) ${profile.jurisdiction} profil névterei: ${profile.namespaces.join(' · ')}` };
+  }
+  if (!normalizeExternalValue(valueRaw)) {
+    return {
+      error: 'value_required',
+      detail: 'az azonosító normalizálás után ÜRES (a szóköz és a kötőjel nem számít) — '
+        + 'adj meg valódi azonosítót, vagy hagyd el a vállalkozási minőséget',
+    };
+  }
+  return null;
+}
+
+/**
  * ÖNBEVALLOTT KÜLSŐ AZONOSÍTÓ RÖGZÍTÉSE egy alanyra. Több alany ugyanazt beírhatja
  * (cardinality: many_to_many) — épp ez a K01 lényege: az azonosítót a kötés minősíti, nem fordítva.
  */
@@ -119,6 +151,9 @@ export function attachBusinessIdentity({ store, bookId, namespace, jurisdiction,
   if (namespace === 'email' || !KNOWN_NAMESPACES.includes(namespace)) {
     return frozen({ ok: false, reason: 'business_namespace_required', message: 'tax_id vagy company_registry' });
   }
+  // A BEMENET BAJA NEVEZETT VÁLASZ, NEM KIVÉTEL AZ ÍRÁS KÖZEPÉN (R77/F77-02 · KUKA-020).
+  const problem = businessIdentityProblem({ namespace, jurisdiction, valueRaw });
+  if (problem) return frozen({ ok: false, reason: problem.error, message: problem.detail });
   const existing = store.get('SELECT * FROM business_identity WHERE book_id = ?', bookId);
   if (existing) return frozen({ ok: false, reason: 'business_identity_already_attached', entity_subject_id: existing.entity_subject_id });
   const entityId = `ent_${bookId}`;

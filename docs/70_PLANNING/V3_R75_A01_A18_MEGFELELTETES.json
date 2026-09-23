@@ -1,6 +1,6 @@
 {
   "schema": "v3-a01-a18-megfeleltetes/1",
-  "round": "CMD-VS-300-002-002 R75",
+  "round": "CMD-VS-300-002-002 R77 (az R75-ben született lap, az R77 §4 helyesbítésével)",
   "lane": "Claude-v3",
   "source_of_cases": "v3ref/source-documents/R32_board_v1.md — „A01–A18 elfogadási esetek\" tábla, szó szerint (a KEZDŐHELYZET és a KÖTELEZŐ EREDMÉNY oszlop)",
   "inventory": "docs/70_PLANNING/V3_R64_CORE_ELTERESLISTA_LELTAR.json (87 sor: élethelyzet 22 · K 19 · OB 10 · G 8 · USE 4 · QNT 24)",
@@ -14,8 +14,8 @@
     "figyelmeztetes": "A „fedett\" NEM azt jelenti, hogy az eset FORGATÓKÖNYVE végigfutott: azt jelenti, hogy a kötelező eredményét kimondó szabály a magban él, és van rá élő bizonyíték. Az A-esetek teljes, végigjátszott forgatókönyve NEM futott le — ez az egész tábla kimondott határa (R32: „egyik sem ebben a körben lefutott V3-teszt\")."
   },
   "summary": {
-    "fedett": 3,
-    "reszben": 11,
+    "fedett": 1,
+    "reszben": 13,
     "nevezett_hiany": 4,
     "osszesen": 18
   },
@@ -169,18 +169,18 @@
       "id": "A09",
       "kezdohelyzet": "Márciusi rekordról márciusi jelentés, júniusi visszamenőleges javítás",
       "kotelezo_eredmeny": "Régi beadott fájl változatlan; márciusi tudás szerinti és mai tudás szerinti március külön, helyesen reprodukálható.",
-      "allapot": "fedett",
+      "allapot": "reszben",
       "mukodik_ma": "A főkönyv KÉT idő-nézetet ad (hatály + tudás), tengely-párral: a „márciusi tudás szerinti március\" és a „mai tudás szerinti március\" KÜLÖN szám, és a visszadátumozás nem kerüli meg az összeg-korlátot. A történetet nem írjuk át: a javítás ÚJ esemény.",
       "bizonyitek": [
         "v3ref/ledger.mjs LEDGER_VIEWS · balanceAt",
         "v3ref/run.mjs — P-KSZ-ledger-truth (A=10.000 recorded_at+effective_at · B=10.000 effective_at · június-B=17.000 · visszadátumozás=sum_out_of_range)"
       ],
-      "maradek": "A „régi beadott FÁJL\" fogalom nincs (fájlt a mag nem kezel) — a tábla ezt az A02-nél kimondott export-hiányként viszi tovább; maga az idő-nézet állítás fedett.",
+      "maradek": "A kötelező eredmény HÁROM állítást tesz, és csak KETTŐ áll mérve: a „márciusi tudás szerinti\" és a „mai tudás szerinti\" március KÜLÖN, helyesen reprodukálható (tengely-pár), és a történetet nem írjuk át (a javítás ÚJ esemény). A HARMADIK — „a régi BEADOTT FÁJL változatlan\" — a mai magban nem mérhető: fájl- és beadvány-fogalom nincs (nincs export, nincs beadott dokumentum megőrzése), tehát nincs mihez mérni a változatlanságot. Ez ugyanaz a hiány, amit az A02 export-sora nevez meg.",
       "leltar_sorok": [
         "K08",
         "K10"
       ],
-      "blokkol": "semmit"
+      "blokkol": "semmit az ELSŐ core-folyamatból; a „beadott fájl\" állítás igazolását viszont blokkolja, amíg export/megőrzés nincs (A02)"
     },
     {
       "id": "A10",
@@ -327,24 +327,26 @@
       "id": "A18",
       "kezdohelyzet": "Két ismeretlen helyi fél, egyik később azonosított; saját helyen idegen áru és külső helyen saját áru",
       "kotelezo_eredmeny": "Külön helyi referenciák; valós fizikai lista működik; kötés nem ír tulajdont/jogot, és a hiánytól függő véglegesítés megfelelően korlátozott.",
-      "allapot": "fedett",
+      "allapot": "reszben",
       "mukodik_ma": "A KÉSZLETKULCS NÉGY TAGÚ (könyv · cikk · TULAJDONOS · raktár), tehát „saját helyen idegen áru\" és „külső helyen saját áru\" külön soron áll; a kötés (azonosító-állítás) NEM ír tulajdont vagy jogot (H05/H12), a cikk a KÖNYVÖN BELÜL egyedi, és idegen könyv cikkére a bevét nevezetten elakad.",
       "bizonyitek": [
         "v3ref/ledger.mjs stockKey({bookId, itemId, ownerId, warehouseId})",
         "v3ref/run.mjs — P-KSZ-ledger-truth (idegen könyv cikke = item_belongs_to_another_book) · P-KAT-item-identity"
       ],
-      "maradek": "A „valós FIZIKAI lista\" (leltározás) mint művelet nincs megépítve — az ADATMODELL viszont elkülöníti a helyet és a tulajdonost, és a kötelező eredmény minden állítása ezen a modellen mérve áll.",
+      "maradek": "A kötelező eredmény NÉGY állításából három mérve áll: a külön helyi referenciák (a készletkulcs négy tagú: könyv · cikk · TULAJDONOS · raktár), a kötés nem ír tulajdont/jogot, és a könyvön belüli cikk-egyediség. A NEGYEDIK — „valós fizikai lista működik\" (leltározás mint MŰVELET: felvétel · eltérés · rendezés) — nincs megépítve, tehát nem mérhető; és a „hiánytól függő véglegesítés megfelelően korlátozott\" is csak az ADATMODELLEN áll, a leltározási műveleten nem. A két ISMERETLEN helyi fél későbbi azonosítása (a partner-azonosság összevonása) szintén nem épült meg.",
       "leltar_sorok": [
         "K10",
         "K13",
         "QNT-20"
       ],
-      "blokkol": "semmit (a leltározás művelete: később, a készlet-modulban)"
+      "blokkol": "semmit az ELSŐ core-folyamatból; a leltározás (fizikai lista) és a helyi felek utólagos azonosítása a készlet-modul KÜLÖN tétele marad"
     }
   ],
   "stated_limits": [
     "EZ MEGFELELTETÉS, NEM FUTTATÁS: egyetlen A-eset forgatókönyve sem lett VÉGIGJÁTSZVA ebben a körben — az R32 maga mondja ki, hogy ezek nem lefutott V3-tesztek. Amit a tábla állít: hol áll ma a kötelező eredményt kimondó SZABÁLY, és mi a pontos maradék.",
     "A `leltar_sorok` a meglévő eltéréslista (R64) soraira mutat; ahol nincs fedő sor, a `maradek` mezője NEVEZI meg a hiányt — üres „lefedett\" sor nincs.",
-    "A NÉGY NEVEZETT HIÁNY (A02 export · A05 közös jóváhagyás · A06 idő-/csatornaprofil · A13 modul-életciklus) egyike sem blokkolja az ELSŐ core-folyamatot; a `blokkol` mező soronként mondja meg, mit igen. A „reszben\" sorok maradéka ugyanígy nevesítve áll — összevont „majdnem kész\" minősítés nincs."
+    "A NÉGY NEVEZETT HIÁNY (A02 export · A05 közös jóváhagyás · A06 idő-/csatornaprofil · A13 modul-életciklus) egyike sem blokkolja az ELSŐ core-folyamatot; a `blokkol` mező soronként mondja meg, mit igen. A „reszben\" sorok maradéka ugyanígy nevesítve áll — összevont „majdnem kész\" minősítés nincs.",
+    "R77 §4 HELYESBÍTÉS (a külső ellenőrző fél leletére): az A09 és az A18 „fedett\" állapota NEM volt tartható — mindkét sor `maradek` mezője NEVEZETT hiányt írt le (A09: a „régi beadott FÁJL\" fogalma nincs; A18: a valós FIZIKAI lista mint művelet nincs megépítve), márpedig a `fedett` szó saját meghatározása szerint azt jelenti, hogy a maradék NÉLKÜLE is igaz marad. Mindkettő `reszben`. Az összegzés ezzel 1 fedett · 13 reszben · 4 nevezett hiány — és a szám a sorokból SZÁMOLT (gépi jel: `npm run verify:app-findings` L10/(c)).",
+    "L10 KÉT KÜLÖN ÁLLÍTÁS (R77 §4): a lap SZERKEZETI teljessége gépi jellel áll (mind a 18 eset a forrás-dokumentumból, egyetlen mező sem üres, az összegzés számolt) — a soronkénti TARTALMI helyesség viszont PRÓZA, amit gép nem igazol; azt a külső ellenőrző fél olvasása méri, és az R77 két sort (A09 · A18) ténylegesen helyesbített is. A „L10 lezárva\" ezért csak a szerkezeti teljességre igaz, a tartalmi helyességre nem."
   ]
 }

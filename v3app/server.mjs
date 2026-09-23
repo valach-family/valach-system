@@ -26,7 +26,7 @@ import {
   registerAccount, authenticate, issueChannelChallenge, redeemChannelChallenge, provenEmailOf,
   reissueChannelChallenge, subjectByEmail, CHALLENGE_POLICY,
 } from '../v3ref/account.mjs';
-import { createWorkspace, bootstrapOf, workspacesOf, ensurePersonalSpace, personalSpaceOf } from '../v3ref/workspace.mjs';
+import { bootstrapOf, workspacesOf, ensurePersonalSpace, personalSpaceOf, provisionWorkspace } from '../v3ref/workspace.mjs';
 import { inviteColleague, grantScopeToMember, revokeDelegationsOf } from '../v3ref/delegation.mjs';
 import { observeInvite, redeemInvite, rememberIntent, resumeIntent } from '../v3ref/invite.mjs';
 import { rightAt, revokeMembership, KNOWN_ROLES } from '../v3ref/authz.mjs';
@@ -34,7 +34,7 @@ import { submitCommand, readCommandResult } from '../v3ref/command.mjs';
 import { KNOWN_DATA_SCOPES } from '../v3ref/resultScope.mjs';
 import { scopeReleaseDecision } from '../v3ref/releaseScope.mjs';
 import { entitlementFor, twoGateVerdict, setEntitlementProfile, PLANS } from '../v3ref/entitlement.mjs';
-import { attachBusinessIdentity, businessIdentityOf, JURISDICTION_PROFILES } from '../v3ref/externalId.mjs';
+import { businessIdentityOf, businessIdentityProblem, JURISDICTION_PROFILES } from '../v3ref/externalId.mjs';
 import { membershipAsOf } from '../v3ref/bitemporal.mjs';
 import { readScopeGrantAt } from '../v3ref/scopeGrant.mjs';
 import { representationCheck } from '../v3ref/representation.mjs';
@@ -235,6 +235,43 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
     return { ok: true, confirmed: true };
   }
 
+  /**
+   * KTX-02 — A KONTEXTUSFÜGGŐ OLVASÁS A NÉZETHEZ KÖTVE (R77/F77-01).
+   *
+   * A LELET: a lap A-ra szóló `/me`-t kapott, a MÁSIK lap (közös süti) közben B-re váltott, és a
+   * rákövetkező adat-kérést a szerver MÁR B-re szolgálta ki — a fejléc A-t mutatott, a panel B
+   * adatát. A taglistának VOLT könyv-kötése (a válasz `book_id`-ja), az adat-utaknak nem.
+   *
+   * A JAVÍTÁS KÉT IRÁNYBAN, EGY KISZOLGÁLÁSON BELÜL:
+   *   · a kérés MEGMONDHATJA, melyik nézetben indult (`expected_book_id` · `expected_subject_id`);
+   *     eltérésnél a válasz NEVEZETTEN elakad (409), és ADATOT NEM AD;
+   *   · a válasz MINDIG kimondja a TÉNYLEGES kontextust (`served_book_id` · `served_subject_id`),
+   *     tehát a kliens a kötés nélkül is össze tudja vetni, mit kapott azzal, amit hitt.
+   *
+   * AMI EZ NEM: jogosultsági forrás. A mező csak SZŰKÍT (ugyanaz a minta, mint a KTX-01-nél és a
+   * sémaverziónál): a könyvet és a cselekvőt továbbra is KIZÁRÓLAG a szerveroldali munkamenet adja,
+   * idegen könyvre hivatkozva semmi nem nyílik meg (KUKA-047).
+   */
+  function readContextGate(query, session, servedBookId) {
+    const servedSubject = session.subject_id ?? null;
+    const served = { served_book_id: servedBookId ?? null, served_subject_id: servedSubject };
+    const expectedBook = query && query.expected_book_id !== undefined ? String(query.expected_book_id) : null;
+    const expectedSubject = query && query.expected_subject_id !== undefined ? String(query.expected_subject_id) : null;
+    const bookMismatch = expectedBook !== null && expectedBook !== String(servedBookId ?? '');
+    const subjectMismatch = expectedSubject !== null && expectedSubject !== String(servedSubject ?? '');
+    if (!bookMismatch && !subjectMismatch) return { ok: true, served };
+    return {
+      ok: false,
+      status: 409,
+      body: {
+        ok: false, result: null, refused_by: 'context', reason: 'context_mismatch',
+        expected_book_id: expectedBook, expected_subject_id: expectedSubject, ...served,
+        message: 'közben megváltozott a munkakörnyezet vagy a belépett fiók (például egy másik lapon), '
+          + 'ezért ezt a kérést nem szolgáltuk ki — a képernyő frissül, és utána megismételheted',
+      },
+    };
+  }
+
   /** A KÉT SZINTETIKUS MINTA-REKORD — minden könyv ugyanazt kapja (a jelöltsége kimondott). */
   function seedSamples(bookId, actorSubjectId) {
     return {
@@ -417,20 +454,44 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
       }
       const at = clock.now();
       const bookId = `ws_${hex(4)}`;
-      const ws = createWorkspace({ store, creatorSubjectId: session.subject_id, bookId, name, at, plan });
-      if (!ws.ok) return { status: ws.reason === 'creator_channel_unproven' ? 403 : 400, body: { ok: false, reason: ws.reason, message: ws.message ?? 'a munkakörnyezet nem jött létre' } };
-
-      let business = null;
-      if (biz && String(biz.tax_id ?? '').trim()) {
-        // ÖNBEVALLOTT ÁLLÍTÁS — hatósági igazolás nincs, és ezt a válasz kimondja (verification: none_available).
-        business = attachBusinessIdentity({ store, bookId, namespace: 'tax_id', jurisdiction: String(biz.jurisdiction ?? ''), valueRaw: String(biz.tax_id), at: clock.now() });
+      // A VÁLLALKOZÁSI MINŐSÉG BAJÁT ÍRÁS ELŐTT KÉRDEZZÜK MEG (R77/F77-02): a szabály a mag
+      // normalizálójáé, nem új „adóellenőrzés" — a normalizálva ÜRES azonosító nevezett 400, és a
+      // könyv MEG SEM SZÜLETIK. (A régi alak 500-at adott, és ottfelejtett egy félkész könyvet.)
+      const businessInput = biz && String(biz.tax_id ?? '').trim()
+        ? { namespace: 'tax_id', jurisdiction: String(biz.jurisdiction ?? ''), valueRaw: String(biz.tax_id) }
+        : null;
+      if (businessInput) {
+        const problem = businessIdentityProblem(businessInput);
+        if (problem) {
+          return { status: 400, body: {
+            ok: false, reason: problem.error === 'value_required' ? 'tax_id_value_required' : problem.error,
+            field: 'business.tax_id', refused_by: 'input_schema', message: problem.detail, wrote: false,
+          } };
+        }
       }
-
-      // KÉT SZINTETIKUS MINTA-REKORD a létrehozó nevében — a mennyiség KANONIKUS DECIMÁLIS SZÖVEG (MNY-01).
-      const samples = seedSamples(bookId, session.subject_id);
+      // A KÖNYV · AZ INDULÁSI TÉNYEK · A VÁLLALKOZÁSI MINŐSÉG EGY EGYSÉG (PRV-01): bármelyik lépés
+      // bukása MINDENT visszagörget — félkész könyv és félkész jog nem maradhat hátra.
+      const provisioned = provisionWorkspace({
+        store, creatorSubjectId: session.subject_id, bookId, name, at, plan, kind: 'shared',
+        business: businessInput,
+        // A MINTA-REKORDOK az egység UTÁN íródnak (a parancs-út saját, mért tranzakció-határa —
+        // azt nem mozdítjuk el); a hiányuk NEVEZETT, nem néma.
+        seed: () => seedSamples(bookId, session.subject_id),
+      });
+      if (!provisioned.ok) {
+        const status = provisioned.reason === 'creator_channel_unproven' ? 403 : 400;
+        return { status, body: {
+          ok: false, reason: provisioned.reason, at: provisioned.at,
+          message: provisioned.message ?? 'a munkakörnyezet nem jött létre', wrote: provisioned.wrote === true,
+        } };
+      }
+      const ws = provisioned.workspace;
+      const business = provisioned.business;
+      const samples = provisioned.seeded;
       session.current_book_id = bookId;
       return { status: 201, body: {
         ok: true, workspace: ws, business, samples, book_id: bookId, name, role: 'admin', kind: 'shared',
+        seeded: provisioned.seeded !== null, seed_failed: provisioned.seed_failed ?? null,
         representation: { basis: representation.basis, verification: 'none_available', stated_limit: representation.stated_limit },
       } };
     },
@@ -461,9 +522,11 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
     },
 
     // ── MUNKATÁRSAK ──────────────────────────────────────────────────────────────────────────
-    'GET /api/members': ({ session }) => {
+    'GET /api/members': ({ session, query }) => {
       if (!session.subject_id) return loginRequired();
       const cur = currentBookOf(session);
+      const ctx = readContextGate(query, session, cur.book_id);
+      if (!ctx.ok) return { status: ctx.status, body: ctx.body };
       if (!cur.book_id) return workspaceRequired(cur);
       const gate = adminGate(session, cur.book_id);
       if (!gate.ok) return { status: gate.status, body: { ok: false, reason: gate.reason, message: gate.message } };
@@ -478,7 +541,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
         }
         return { subject_id: row.subject_id, email: emailOf(row.subject_id), role: row.role, effective: m.effective === true, effective_reason: m.reason, scopes };
       });
-      return { status: 200, body: { ok: true, book_id: cur.book_id, members, known_scopes: [...KNOWN_DATA_SCOPES], known_roles: [...KNOWN_ROLES] } };
+      return { status: 200, body: { ok: true, book_id: cur.book_id, ...ctx.served, members, known_scopes: [...KNOWN_DATA_SCOPES], known_roles: [...KNOWN_ROLES] } };
     },
 
     'POST /api/invites': ({ session, input, body, host }) => {
@@ -546,18 +609,25 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
     },
 
     // ── ADATOK ───────────────────────────────────────────────────────────────────────────────
-    'GET /api/data/stock': ({ session }) => {
+    'GET /api/data/stock': ({ session, query }) => {
       if (!session.subject_id) return loginRequired();
       const cur = currentBookOf(session);
-      if (!cur.book_id) return { status: 200, body: { ok: false, result: null, refused_by: 'right', reason: cur.reason, detail: cur.detail ?? null, message: 'nincs hatályos tagságod a kiválasztott munkakörnyezetben' } };
+      // A KONTEXTUS ELŐBB DÖNT, MINT AZ ADAT (KTX-02): eltérő nézetből érkező kérésre NEM olvasunk
+      // — így a kiadás sem születik meg, nem csak a rajzolás marad el (KUKA-002: a döntés és a
+      // megjelenítés két külön tény; a védelemnek a DÖNTÉSNÉL kell állnia).
+      const ctx = readContextGate(query, session, cur.book_id);
+      if (!ctx.ok) return { status: ctx.status, body: ctx.body };
+      if (!cur.book_id) return { status: 200, body: { ok: false, result: null, refused_by: 'right', reason: cur.reason, detail: cur.detail ?? null, ...ctx.served, message: 'nincs hatályos tagságod a kiválasztott munkakörnyezetben' } };
       const r = readSample(cur.book_id, session.subject_id, 'minta-keszlet');
-      return { status: 200, body: { ok: r.ok, result: r.ok ? r.result : null, refused_by: r.ok ? null : 'right', reason: r.ok ? null : r.error, message: r.message ?? null } };
+      return { status: 200, body: { ok: r.ok, result: r.ok ? r.result : null, refused_by: r.ok ? null : 'right', reason: r.ok ? null : r.error, ...ctx.served, message: r.message ?? null } };
     },
 
-    'GET /api/data/price': ({ session }) => {
+    'GET /api/data/price': ({ session, query }) => {
       if (!session.subject_id) return loginRequired();
       const cur = currentBookOf(session);
-      if (!cur.book_id) return { status: 200, body: { ok: false, result: null, refused_by: 'right', reason: cur.reason, right_reason: cur.reason, entitlement_reason: null, message: 'nincs hatályos tagságod a kiválasztott munkakörnyezetben' } };
+      const ctx = readContextGate(query, session, cur.book_id);
+      if (!ctx.ok) return { status: ctx.status, body: ctx.body };
+      if (!cur.book_id) return { status: 200, body: { ok: false, result: null, refused_by: 'right', reason: cur.reason, right_reason: cur.reason, entitlement_reason: null, ...ctx.served, message: 'nincs hatályos tagságod a kiválasztott munkakörnyezetben' } };
       // KÉT KAPU, KÜLÖN MÉRVE, KÜLÖN JELENTVE — egy mezőbe vonni tilos (ENT-02 · KUKA-002).
       // A JOG-KAPU KIADÁS NÉLKÜL MÉRVE (az R64 ellenséges felülvizsgálat H11 lelete): a régi alak
       // ELŐBB olvasta ki a mintát (és a mag KIADÁSKÉNT könyvelte a leltárban), és csak utána
@@ -568,13 +638,24 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
       const entitlement = entitlementFor({ store, bookId: cur.book_id, feature: 'price_view' });
       const verdict = twoGateVerdict({ right: { allowed: rightDecision.allowed === true, reason: rightDecision.allowed ? null : (rightDecision.reason === 'no_scope_grant' ? 'not_available' : rightDecision.reason) }, entitlement });
       const r = verdict.allowed ? readSample(cur.book_id, session.subject_id, 'minta-ar') : { ok: false, result: null, message: null };
+      // A FELIRAT ÉS A DÖNTÉS EGYEZZEN (R77 §4 · KUKA-050). A régi alak az ELUTASÍTOTT ágon a mag
+      // kiadás-mondatát (`az eredmény kiadva`) vitte tovább, mert a `readSample` üzenetét adta
+      // vissza — a képernyőn így az ELUTASÍTVA felirat alatt „kiadva" állt. Most az elutasítás
+      // mondatát a ZÁRÓ KAPU adja, névvel; a „kiadva" csak akkor hangzik el, ha tényleg kiadtuk.
+      const refusalMessage = () => {
+        if (verdict.refused_by === 'entitlement') return `az ár-nézet nincs a mai terv (${entitlement.plan ?? '—'}) képességei között — az előfizetés-kapu zárt, a jogod megvan`;
+        if (verdict.refused_by === 'right') return 'az ár adatköre nincs megadva neked — ezt a munkakörnyezet kezelője adja meg külön lépésben';
+        if (verdict.refused_by === 'both') return 'két kapu is zárt: az ár adatköre nincs megadva neked, és a mai terv sem tartalmazza az ár-nézetet';
+        return r.message ?? null;
+      };
       return { status: 200, body: {
         ok: verdict.allowed && r.ok === true, result: verdict.allowed && r.ok ? r.result : null,
         refused_by: verdict.refused_by,
         right_reason: verdict.allowed ? null : verdict.right_reason,
         entitlement_reason: verdict.allowed ? null : verdict.entitlement_reason,
         entitlement: { available: entitlement.available, reason: entitlement.reason, plan: entitlement.plan },
-        message: verdict.allowed ? 'az ár-nézet kiadva' : (r.message ?? null),
+        ...ctx.served,
+        message: verdict.allowed && r.ok === true ? 'az ár-nézet kiadva' : refusalMessage(),
       } };
     },
 

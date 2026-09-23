@@ -75,14 +75,20 @@ test.afterAll(async () => {
       previous = JSON.parse(readFileSync(process.env.VS_E2E_EVIDENCE_PATH, 'utf8')).situations || [];
     }
   } catch { previous = []; }
+  // A NEM FUTOTT HELYZETNEK SAJÁT SZAVA VAN — és a RÉSZLEGES FUTÁS NEM ÍRJA FELÜL A LAPOT.
+  // MÉRT LELET (R77, a saját szerszámomon): egy szűkített futás (`-g H11`) a többi tizenhárom
+  // helyzetet „reszben"-re állította, és a KÖZZÉTETT lapot felülírta — a teljes futás 9/3/2
+  // mérése így némán elveszett. A „nem futott" nem részleges eredmény, hanem HIÁNYZÓ mérés
+  // (KUKA-033 · KUKA-093: a mérés hatóköre is mérendő, és a nulla lelet nem bizonyíték).
   const situations = SITUATIONS.map((s) => EVIDENCE.find((e) => e.id === s.id)?.toJSON()
     ?? previous.find((e) => e.id === s.id && (e.browser.length || e.server.length))
-    ?? { id: s.id, title: s.title, browser: [], server: [], verdict: 'reszben', note: 'a próba nem futott le' });
-  const summary = { bizonyitva: 0, reszben: 0, nem_bongeszoben: 0 };
+    ?? { id: s.id, title: s.title, browser: [], server: [], verdict: 'nem_futott', note: 'ez a helyzet EBBEN a futásban nem futott le — a lap ezt hiányként viszi, nem részleges eredményként' });
+  const summary = { bizonyitva: 0, reszben: 0, nem_bongeszoben: 0, nem_futott: 0 };
   for (const s of situations) summary[s.verdict] = (summary[s.verdict] || 0) + 1;
+  const partialRun = summary.nem_futott > 0;
   const out = {
     schema: 'v3app-elfogadas-helyzetek/1',
-    round: 'CMD-VS-300-002-002 R75',
+    round: 'CMD-VS-300-002-002 R77 (az R75-ben született lap, az R77 §4 helyesbítéseivel)',
     lane: 'Claude-v3',
     source: 'tests/e2e/v3app-acceptance.spec.mjs',
     command: 'npm run proof:core-ux',
@@ -97,7 +103,11 @@ test.afterAll(async () => {
       bizonyitva: 'a helyzet minden állítása a böngésző- és a szerver-rekeszből áll össze',
       reszben: 'egy vagy több nevezett al-eset a böngészőből nem hajtható meg — a `note` megmondja, melyik, és hol van a mag-bizonyíték',
       nem_bongeszoben: 'a helyzet a héjból nem hajtható meg — a `note` a mag-próbára / szerszámra mutat; NEM sikeres próba',
+      nem_futott: 'ez a helyzet EBBEN a futásban el sem indult (szűkített futás vagy megszakadás) — HIÁNYZÓ mérés, nem eredmény; ilyen lappal a közzétett bizonyíték-lap nem írható felül',
     },
+    partial_run: partialRun,
+    measured_ids: situations.filter((s) => s.verdict !== 'nem_futott').map((s) => s.id),
+    not_run_ids: situations.filter((s) => s.verdict === 'nem_futott').map((s) => s.id),
     evidence_kinds: {
       browser: 'a lap által mutatott szöveg, a vezérlők állapota, a fejléc — Playwright-lokátorokkal olvasva',
       server: 'HTTP-válasz törzse (a felület kérése elfogva vagy a böngésző sütijével küldött kérés) · ADATBÁZIS: a tárolt sor második kapcsolaton (WAL) olvasva',
@@ -107,6 +117,11 @@ test.afterAll(async () => {
   };
   const text = `${JSON.stringify(out, null, 2)}\n`;
   if (process.env.VS_E2E_EVIDENCE_PATH) writeFileSync(process.env.VS_E2E_EVIDENCE_PATH, text);
+  if (partialRun) {
+    console.log(`[e2e] RÉSZLEGES FUTÁS (${summary.nem_futott} helyzet nem futott: ${out.not_run_ids.join(', ')}) — `
+      + `a közzétett lap (${COMMITTED_COPY}) NEM íródott felül; a futás alakja csak a var/ példányban áll.`);
+    return;
+  }
   writeFileSync(resolve(ROOT, COMMITTED_COPY), text);
   console.log(`[e2e] bizonyíték-lap: ${process.env.VS_E2E_EVIDENCE_PATH} + ${COMMITTED_COPY} · ${j(summary)}`);
 });
@@ -399,7 +414,7 @@ test('H07 — A raktári mennyiség-nézetből ár nem következik; a külön en
     const known = (await anna.api.get('/api/members')).body.known_scopes;
     ev.s(`ADATBÁZIS: Béla adatköri sorai: ${j(grants)} — mindkettő az admin delegálási alapja alatt; a rendszer ismert adatkörei: [${known.join(', ')}]`);
     expect(grants.map((r) => r.scope)).toEqual(['keszlet', 'arak']);
-    ev.verdictIs('bizonyitva', 'A magreferencia adatkör-szótára KÉT tagú (keszlet · arak): „számla" és „beszállítói" adatkör a rendszerben nem létezik, ezért azokra a helyzet tartalmilag üres — a kimondott elv (mennyiségből ár nem következik) a létező két körön mérve áll.');
+    ev.verdictIs('reszben', 'R77 §4 helyesbítés: a helyzet címsora ÁR-, SZÁMLA- és BESZÁLLÍTÓI bizalmas adatot nevez meg, a magreferencia adatkör-szótára viszont KÉT tagú (keszlet · arak). Ami MÉRVE áll: a mennyiség-nézetből az ÁR nem következik, és a külön engedélyezett olvasás pozitív ága működik. Ami NEM: a „számla" és a „beszállítói" adatosztály a rendszerben nem létezik, tehát azokra nincs alkalmazható eset — a címsor teljes állítása így NEM igazolt, csak a létező két körön. A hiányt a bővebb adatkör-szótár zárja majd (nem ebben a csomagban).')
   } finally { await w.close(); db.close(); }
 });
 
@@ -452,7 +467,24 @@ test('H08 — Cégváltáskor a munkamenet, a válaszok és a kliens nem keverik
     expect(honestGrant.body.reason).toBe('role_not_delegable');
     const sessions = db.count('SELECT COUNT(*) AS n FROM membership WHERE subject_id = ?', anna.subjectId);
     ev.s(`ADATBÁZIS: Anna tagságai ${sessions} könyvben (P admin · K admin · B user) — a szerep könyvenként külön sor, nem összevont tulajdonság`);
-    ev.verdictIs('bizonyitva', 'A kliensnek nincs saját gyorsítótára: minden panel a váltás pillanatában ürül, és minden válasz `Cache-Control: no-store`; a cselekvő és a könyv KIZÁRÓLAG a szerveroldali munkamenetből jön, a kliens-mezők NEVEZETTEN figyelmen kívül maradnak.');
+    // ── KÉT LAP, KÖZÖS MUNKAMENET (R77/F77-01) — a helyzet SAJÁT címsora ezt is állítja, ezért a
+    // bizonyítéka is ITT kell álljon, nem egy másik lapon (a részletes megjegyzés nem takarhatja el).
+    const masodikLap = await anna.ctx.newPage();
+    await masodikLap.goto('/');
+    await masodikLap.getByTestId(`ws-switch-${K.bookId}`).click();
+    await expect(masodikLap.getByTestId('header-workspace')).toContainText('Anna Kft');
+    const utanaStock = await stockUI(anna.page);
+    const hUtana = (await header(anna.page)).workspace;
+    const kotottIdegen = await anna.api.get(`/api/data/stock?expected_book_id=${B.bookId}`);
+    ev.b(`KÉT LAP, KÖZÖS MUNKAMENET: a második lap átvált Anna saját cégére, majd az ELSŐ lapon adatot kérünk → a fejléc „${hUtana}", a panel: „${line(utanaStock.text)}" — a kettő EGYÜTT mozdul, kevert kép (régi fejléc + új cég adata) nem keletkezik`);
+    ev.s(`A válasz megmondja a TÉNYLEGES kontextust: served_book_id=${utanaStock.body.served_book_id} (a fejléc ezzel egyezik); a RÉGI nézethez kötött kérés (expected_book_id=<Béla cége>) → ${kotottIdegen.status} ${kotottIdegen.body.reason}, adat: ${kotottIdegen.body.result === null ? 'nincs' : 'VAN(!)'}`);
+    expect(utanaStock.body.served_book_id).toBe(K.bookId);
+    expect(hUtana).toContain('Anna Kft');
+    expect(kotottIdegen.status).toBe(409);
+    expect(kotottIdegen.body.reason).toBe('context_mismatch');
+    expect(kotottIdegen.body.result).toBeNull();
+    await masodikLap.close();
+    ev.verdictIs('bizonyitva', 'R77: a KÉT LAP (közös munkamenet) versenye is mérve — a kontextusfüggő olvasás a NÉZETHEZ kötött (`expected_book_id` · `expected_subject_id`), a válasz kimondja a TÉNYLEGESEN kiszolgált kontextust (`served_*`), és eltérésnél 409 `context_mismatch` jön ADAT NÉLKÜL. A három időzítési pont (váltás a `/me` előtt · a `/me` után · a válasz megérkezése előtt) és a FIÓK-váltás külön próbában áll: `tests/e2e/v3app-r77.spec.mjs`. KORÁBBI ALAK (R76): a védelem csak a saját lap váltására állt, a másik lapéra nem (F77-01). A kliensnek nincs saját gyorsítótára: minden panel a váltás pillanatában ürül, és minden válasz `Cache-Control: no-store`; a cselekvő és a könyv KIZÁRÓLAG a szerveroldali munkamenetből jön, a kliens-mezők NEVEZETTEN figyelmen kívül maradnak.');
   } finally { await w.close(); db.close(); }
 });
 
@@ -509,7 +541,7 @@ test('H09 — Megvonás után új kérés és függő meghívó nem használhatj
     expect(rE.body.ok).toBe(false); expect(db.count('SELECT COUNT(*) AS n FROM membership WHERE subject_id = ? AND book_id = ?', erik.subjectId, K.bookId)).toBe(0);
     expect(bStock.body.ok).toBe(true);
     await anna.api.post('/dev/clock', { advance_ms: -EIGHT_DAYS });   // az óra VISSZAÁLL
-    ev.verdictIs('bizonyitva', 'R75: a MEGVONÁS ága (új kérés · függő meghívó · független jog) és a LEJÁRAT ága is mérve van a böngészőből — utóbbi a fejlesztői órával (`/dev/clock`, +8 nap, majd visszaállítva), a mag íróinak hívása nélkül. KIMONDOTT HATÁR, ami a héjból továbbra sem hajtható meg: az ALAP (`authority_basis.expires_at`) lejárata — arra a héjnak nincs útja, a mag-bizonyíték `P-CORE-startup-and-delegation` (d) és `P-INVITE-window` (v3ref/run.mjs). KORÁBBI ALAK (R64): „reszben — a lejárat ága a héjból nem hajtható meg".');
+    ev.verdictIs('reszben', 'R77 §4 helyesbítés — a címsor KÉT KÜLÖN állítást tesz, és a kettő bizonyítéka KÜLÖN SZINTEN áll. MÉRVE a böngészőből: a MEGVONÁS ága teljesen (új kérés · függő meghívó · független jog megmarad), és a MEGHÍVÓ lejárata (fejlesztői óra, +8 nap, majd visszaállítva). NEM a böngészőből: a JOGOSULTSÁGI ALAP (`authority_basis.expires_at`) lejárata — arra a héjnak nincs útja, a mag-bizonyíték `P-CORE-startup-and-delegation` (d) és `P-INVITE-window` (v3ref/run.mjs). A két lejárat NEM ugyanaz az állítás, ezért a helyzet teljes címsora RÉSZBEN igazolt.')
   } finally { await w.close(); db.close(); }
 });
 
@@ -554,7 +586,7 @@ test('H10 — Két szervezeti egység, korlátozott helyi admin: a vezető nem l
     const endpoints = [...readFileSync(join(ROOT, 'v3app/server.mjs'), 'utf8').matchAll(/'(GET|POST) (\/[a-z/]+)'/g)].map((m) => `${m[1]} ${m[2]}`);
     ev.s(`KÖZÖS JÓVÁHAGYÁS: ${files.length} forrásfájl átfésülve (v3ref/*.mjs + v3app/server.mjs) a két-személyes / négy-szem / ellenjegyzés mintákra → ${hits.length} találat; a héj végpontjai: ${endpoints.join(' · ')} — jóváhagyó végpont nincs`);
     expect(hits).toEqual([]); expect(endpoints.some((e) => /approv|jovahagy/i.test(e))).toBe(false);
-    ev.verdictIs('bizonyitva', 'KÖZÖS JÓVÁHAGYÁS: TÉNYLEGES HIÁNY — a mag egyetlen műveletet sem köt két személy egyetértéséhez (mérve: 0 találat a forrásban, nincs ilyen végpont); minden jogváltoztatás egyetlen jogosult cselekvő döntése, alappal. A plafon ebben a héjban a zárt regiszterrel egyezik (admin·user × keszlet·arak): szűkebb plafonú al-admin a héjból nem állítható elő — a szűkítés mag-bizonyítéka: `P-ORG-adjudication-basis-limit` és `P-CORE-startup-and-delegation` (b).');
+    ev.verdictIs('reszben', 'R77 §4 helyesbítés — a hiányt az ÁLLAPOT mondja ki, nem csak a megjegyzés. MÉRVE: a vezető NEM kap automatikusan más egység adatát (váltás 403), a delegálási plafon részhalmaz-mérése adatbázison áll, és a KÖZÖS JÓVÁHAGYÁS TÉNYLEGES HIÁNY (a mag egyetlen műveletet sem köt két személy egyetértéséhez — 0 találat a forrásban, és a rendszer ilyen védelmet nem is ígér). AMI HIÁNYZIK, ÉS EZÉRT A CÍMSOR NEM TELJESEN IGAZOLT: valódi SZERVEZETI HIERARCHIA nincs — nincs egység-fa, nincs öröklődő jog, nincs könyvek fölötti szerep; két elkülönített munkakörnyezet NEM bizonyít nagyvállalati hierarchiát. Ami ma szervezeti egységként MŰKÖDIK: könyvenként külön tagság, szerep, adatköri jog és delegálási alap.')
   } finally { await w.close(); db.close(); }
 });
 
@@ -572,17 +604,29 @@ test('H11 — Előfizetés: jogosulatlan munkatárs nem jut a funkcióhoz; jogos
     ev.b(`STARTER terven: Anna (admin, arak adatkörrel) ár-nézete: „${prA.text.replace(/\n/g, ' · ')}"; Béla (user, csak keszlet) ár-nézete: „${prB.text.replace(/\n/g, ' · ')}"; a Terv módosítása űrlap Bélánál rejtve: ${!(await bela.page.getByTestId('plan-form').isVisible())}`);
     ev.s(`Anna price → refused_by=${prA.body.refused_by} (${prA.body.entitlement_reason}, terv ${prA.body.entitlement.plan}) — a JOG megvan, az ELŐFIZETÉS zár; Béla price → refused_by=${prB.body.refused_by} (jog: ${prB.body.right_reason} · előfizetés: ${prB.body.entitlement_reason}); Béla tervet váltana → ${planB.status} ${planB.body.reason}`);
     expect(prA.body).toMatchObject({ refused_by: 'entitlement', entitlement_reason: 'feature_not_in_plan' }); expect(prB.body.refused_by).toBe('both'); expect(planB.body.reason).toBe('admin_required');
+    // A FELIRAT A DÖNTÉST KÖVETI (R77 §4): az ELUTASÍTOTT ágon a mondat az elutasítást mondja ki,
+    // és a mag kiadás-mondata („kiadva") SEHOL nem jelenik meg elutasítás alatt (KUKA-050).
+    expect(prA.body.message).toContain('előfizetés-kapu zárt');
+    expect(prA.body.message).not.toContain('kiadva');
+    expect(prB.body.message).toContain('két kapu is zárt');
+    expect(prB.body.message).not.toContain('kiadva');
+    expect(prA.text).not.toContain('kiadva'); expect(prB.text).not.toContain('kiadva');
     const plan = await setPlanUI(anna.page, 'pro');
     const unknown = await anna.api.post('/api/workspaces/plan', { plan: 'enterprise' });
     const prA2 = await priceUI(anna.page); const prB2 = await priceUI(bela.page);
     ev.b(`Anna a felületen PRO-ra vált: „${plan.resultText}"; fejléc: „${(await header(anna.page)).workspace}"; Anna ár-nézete: „${line(prA2.text)}"; Béla ár-nézete: „${prB2.text.replace(/\n/g, ' · ')}" — a terv NEM írja felül a jog-kaput`);
     ev.s(`POST /api/workspaces/plan pro → features=[${plan.body.features.join(', ')}]; ismeretlen terv (enterprise) → ${unknown.status} ${unknown.body.reason}; Anna price ok=${prA2.body.ok}; Béla price refused_by=${prB2.body.refused_by} (előfizetés: ${prB2.body.entitlement_reason}); ADATBÁZIS entitlement_profile: ${j(db.get('SELECT plan, features FROM entitlement_profile WHERE book_id = ?', K.bookId))}`);
     expect(prA2.body.ok).toBe(true); expect(prB2.body).toMatchObject({ refused_by: 'right', entitlement_reason: 'feature_entitled' });
+    // POZITÍV ELLENPÁR: ahol tényleg kiadtuk, OTT hangzik el a „kiadva"; a jog-kapun elutasított
+    // ágon a mondat a hiányzó adatkört nevezi meg — nem a mag kiadás-mondatát.
+    expect(prA2.body.message).toContain('kiadva');
+    expect(prB2.body.message).toContain('adatköre nincs megadva');
+    expect(prB2.body.message).not.toContain('kiadva');
     // AZ ISMERETLEN TERV R75 ÓTA A HATÁRON akad el (a zárt terv-szótárral a válaszban), nem a
     // kezelőben — a mérés ugyanaz: nevezett 400, ÍRÁS NÉLKÜL, a profil változatlan.
     expect(unknown.status).toBe(400); expect(unknown.body.reason).toBe('invalid_value'); expect(String(unknown.body.message)).toContain('starter');
     expect(db.get('SELECT plan FROM entitlement_profile WHERE book_id = ?', K.bookId).plan).toBe('pro');
-    ev.verdictIs('bizonyitva', 'Tesztprofil: a tervek a kódban zárt szótár (starter · pro), a profil az `entitlement_profile` táblában áll; fizetési integráció nincs, nem is kell — a két kapu (jog · előfizetés) külön mér és külön jelent. MÉRT LELET (a héj szövegén, nem a döntésén): ha a JOG-kapu enged és csak az ELŐFIZETÉS zár, a válasz `message` mezője a mag jog-kapujának mondatát („az eredmény kiadva") viszi az ELUTASÍTVA felirat alá — a döntés helyes, a kísérő mondat nem követi (KUKA-050); a héjban nem javítva, hogy a próba ne írja át azt, amit mér.');
+    ev.verdictIs('bizonyitva', 'Tesztprofil: a tervek a kódban zárt szótár (starter · pro), a profil az `entitlement_profile` táblában áll; fizetési integráció nincs, nem is kell — a két kapu (jog · előfizetés) külön mér és külön jelent. R77 §4: az R75-ben MÉRT szöveg-lelet JAVÍTVA — a jog-kapun átment, de előfizetésen elutasított válasz korábban a mag kiadás-mondatát („az eredmény kiadva") vitte az ELUTASÍTVA felirat alá; mostantól az elutasítás mondatát a ZÁRÓ KAPU adja (előfizetés · jog · mindkettő), és a „kiadva" csak tényleges kiadáskor hangzik el. A próba mindkét irányban mér: a három elutasító ágon a mondat nem tartalmazza a „kiadva" szót, a kiadott ágon igen.');
   } finally { await w.close(); db.close(); }
 });
 

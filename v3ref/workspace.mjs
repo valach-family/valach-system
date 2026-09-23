@@ -33,6 +33,7 @@ import { INVITE_ISSUE_OPERATION } from './authorityBasis.mjs';
 import { KNOWN_ROLES } from './authz.mjs';
 import { setEntitlementProfile } from './entitlement.mjs';
 import { provenEmailOf } from './account.mjs';
+import { attachBusinessIdentity, businessIdentityProblem } from './externalId.mjs';
 
 const frozen = (o) => Object.freeze(o);
 
@@ -110,6 +111,74 @@ export function createWorkspace({ store, creatorSubjectId, bookId, name, at, pla
       grant_event_id: g.grant_event_id, rule_version: STARTUP_RULE.version, plan, kind,
     });
   });
+}
+
+/**
+ * PRV-01 — A MUNKAKÖRNYEZET LÉTREHOZÁSA EGY KONZISZTENS EGYSÉGKÉNT (R77/F77-02).
+ *
+ * A LELET, amit lezár (a külső ellenőrző fél, chatgpt-v3, R77/F77-02 — valódi HTTP-n mérve):
+ *   POST /api/workspaces {"name":"Hibas ceg","business":{"tax_id":"---","jurisdiction":"HU"}}
+ *   → HTTP 500 (`attachBusinessIdentity: value_required`), ÉS a munkakörnyezetek száma 1 → 2.
+ * A `createWorkspace` addigra VÉGLEGESÍTETT (saját tranzakció), az azonosító-rögzítés pedig a SAJÁT
+ * tranzakciójában bukott el — a hibaválasz mellett ottmaradt a könyv és az összes indulási joga.
+ *
+ * A JAVÍTÁS KÉT RÉSZE, EGYÜTT:
+ *   (1) a BEMENET baját ÍRÁS ELŐTT kérdezzük meg (`businessIdentityProblem`) — a szabály a meglévő
+ *       normalizálóé, nem új „adóellenőrzés";
+ *   (2) a könyv · az indulási alap · a tagság · az indulás ténye · a helyi hatáskör · az adatköri
+ *       jogok · az előfizetési profil · ÉS a vállalkozási minőség EGYETLEN tranzakcióban születik.
+ *       Bármelyik lépés bukása MINDENT visszagörget (KUKA-026: a hatás és a nyoma nem szakad el).
+ *
+ * AMI KIMONDOTTAN KÍVÜL MARAD: a demonstrációs MINTA-REKORDOK. Azokat a parancs-út írja, aminek a
+ * tranzakció-határa SAJÁT, mért szerződés (`store.tx`, a véglegesítési kapu mérési pontja) — azt
+ * beágyazni annyi volna, mint egy mért határt elmozdítani (a KUKA-018 lecke a saját söprésünkből).
+ * A minta tehát az egység UTÁN íródik, és a válasz KIMONDJA, ha elmaradt (`seeded`) — a hiánya nem
+ * félkész JOG, csak hiányzó példa-adat.
+ *
+ * @param {{ onAfterCore?: () => void }} opts `onAfterCore` a PRÓBA vezérelt hibája: az egységen
+ *   BELÜL fut, tehát a visszagörgetés mérhető. Üzemi úton nem hívja senki.
+ */
+export function provisionWorkspace({
+  store, creatorSubjectId, bookId, name, at, plan = 'starter', kind = 'shared',
+  business = null, seed = null, onAfterCore = null,
+}) {
+  // 1. A BEMENET — ÍRÁS ELŐTT. Ha a vállalkozási minőség nem rögzíthető, a könyv MEG SEM SZÜLETIK.
+  if (business) {
+    const problem = businessIdentityProblem(business);
+    if (problem) {
+      return frozen({ ok: false, wrote: false, at: 'business', reason: problem.error, message: problem.detail });
+    }
+  }
+  // 2. AZ EGYSÉG. A belső írók savepointot kapnak (`store.atomic` beágyazva), tehát egyetlen
+  //    bukás az EGÉSZET visszagörgeti — nem marad félkész könyv vagy jog.
+  let out;
+  try {
+    out = store.atomic(() => {
+      const ws = createWorkspace({ store, creatorSubjectId, bookId, name, at, plan, kind });
+      if (!ws.ok) throw Object.assign(new Error(ws.message || ws.reason), { provision: { at: 'workspace', reason: ws.reason, message: ws.message ?? null } });
+      let biz = null;
+      if (business) {
+        biz = attachBusinessIdentity({ store, bookId, namespace: business.namespace, jurisdiction: business.jurisdiction, valueRaw: business.valueRaw, at });
+        if (!biz.ok) throw Object.assign(new Error(biz.message || biz.reason), { provision: { at: 'business', reason: biz.reason, message: biz.message ?? null } });
+      }
+      if (typeof onAfterCore === 'function') onAfterCore({ bookId });
+      return frozen({ ok: true, wrote: true, workspace: ws, business: biz });
+    });
+  } catch (e) {
+    const named = e && e.provision
+      ? e.provision
+      : { at: 'unit', reason: 'provision_failed', message: String((e && e.message) || e) };
+    // A VISSZAGÖRGETÉS MEGTÖRTÉNT — a válasz ezt KIMONDJA, nem a hívóra bízza a találgatást.
+    return frozen({ ok: false, wrote: false, ...named });
+  }
+  // 3. A MINTA — az egység UTÁN, és a hiánya NEVEZETT (nem néma).
+  let seeded = null;
+  if (typeof seed === 'function') {
+    try { seeded = seed({ bookId }); } catch (e) {
+      return frozen({ ...out, seeded: null, seed_failed: String((e && e.message) || e) });
+    }
+  }
+  return frozen({ ...out, seeded });
 }
 
 /** Az indulás TÉNYE — auditálható: ki, mikor, melyik szabály-verzióval. */

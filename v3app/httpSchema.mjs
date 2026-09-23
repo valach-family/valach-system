@@ -44,6 +44,13 @@ export const VERSION_FIELD = 'schema_version';
 export const CONTEXT_FIELD = 'expected_book_id';
 const contextConfirm = frozen({ type: 'nonempty_string', required: false, max_length: 64, confirm_only: true });
 
+// A NÉZET MEGERŐSÍTÉSE AZ OLVASÁSON (KTX-02, R77/F77-01) — ugyanaz a „csak szűkíthet" alak, mint a
+// `CONTEXT_FIELD`-nél, csak lekérdezés-mezőként: a kliens megmondhatja, MELYIK nézetben indult a
+// kérés, és eltérésnél a szerver nem ad adatot. Jogot SOHA nem ad.
+const expectedBookQuery = frozen({ type: 'nonempty_string', required: false, max_length: 64, confirm_only: true });
+const expectedSubjectQuery = frozen({ type: 'nonempty_string', required: false, max_length: 64, confirm_only: true });
+const readContextQuery = frozen({ fields: frozen({ expected_book_id: expectedBookQuery, expected_subject_id: expectedSubjectQuery }) });
+
 const email = frozen({ type: 'email_address', required: true, max_length: 254 });
 const token = frozen({ type: 'nonempty_string', required: true, max_length: 128 });
 const subjectRef = frozen({ type: 'nonempty_string', required: true, max_length: 64 });
@@ -158,7 +165,7 @@ export const ENDPOINT_SCHEMAS = frozen({
 
   // ── OLVASÓ VÉGPONTOK — a séma itt a DEKLARÁLT paramétereket méri, a többi NEVEZETTEN kimarad.
   'GET /api/me': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({}) }) }),
-  'GET /api/members': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({}) }) }),
+  'GET /api/members': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
   // A MEGERŐSÍTŐ HIVATKOZÁS ÍR (beváltja a kihívást), MÉGSEM KAPUZÓ — és ez KIMONDOTT kivétel, nem
   // feledékenység: ez egy LEVÉLBŐL megnyitott böngésző-hivatkozás, amihez a levelezők szívesen
   // ragasztanak saját paramétert. Ha egy idegen paraméter miatt a megerősítés elutasításba futna,
@@ -166,8 +173,8 @@ export const ENDPOINT_SCHEMAS = frozen({
   // séma védi, hanem a kihívás SAJÁT szerződése (CHR-01): egyszeri · lejáró · leváltható token.
   'GET /api/verify': frozen({ version: '1', mutates: true, gate: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({ token: frozen({ type: 'nonempty_string', required: false, max_length: 128 }) }) }) }),
   'GET /api/invites/observe': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({ token: frozen({ type: 'nonempty_string', required: false, max_length: 128 }) }) }) }),
-  'GET /api/data/stock': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({}) }) }),
-  'GET /api/data/price': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({}) }) }),
+  'GET /api/data/stock': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
+  'GET /api/data/price': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
   'GET /dev/mailbox': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({}) }) }),
   'GET /dev/clock': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({}) }) }),
 });

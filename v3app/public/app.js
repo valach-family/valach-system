@@ -39,13 +39,20 @@
     generation: 0,
     seq: 0,
     ctx: { subject: null, book: null },
+    noticeSeq: 0,
+    selfInitiated: false,
     inviteToken: new URL(location.href).searchParams.get('invite'),
     resendReason: new URL(location.href).searchParams.get('megerosites'),
   };
 
-  /** A kontextus léptetése — minden váltó esemény ezen megy át, hogy egy helyen legyen (KUKA-018). */
+  /**
+   * A kontextus léptetése — minden váltó esemény ezen megy át, hogy egy helyen legyen (KUKA-018).
+   * A `why` egyben azt is rögzíti, hogy a váltást EZ A LAP kezdeményezte: az így érkező változásra
+   * nem kell külön figyelmeztetni (a felhasználó maga kattintotta), a MÁSHONNAN érkezőre igen.
+   */
   function newContext(why) {
     state.generation += 1;
+    state.selfInitiated = why || true;
     clearPanels();
     return { generation: state.generation, why };
   }
@@ -58,6 +65,49 @@
   async function apiInContext(method, path, body) {
     const book = currentBookId();
     return api(method, path, book ? { ...body, expected_book_id: book } : body);
+  }
+
+  /**
+   * KTX-02 — OLVASÁS A NÉZETHEZ KÖTVE (R77/F77-01).
+   *
+   * MI VOLT A RÉS. A lap előbb frissítette a fejlécet (`/me`), és utána kérte az adatot — a kettő
+   * KÖZÖTT viszont a MÁSIK lap (közös munkamenet) átválthatott, és a szerver már az ÚJ könyvre
+   * szolgált ki. A fejléc A-t mutatott, a panel B adatát: a lap generáció-számlálója ettől nem
+   * mozdult, mert nem ITT történt a váltás.
+   *
+   * A MAI ALAK: a kérés VISZI a nézetet, amiben indult (`expected_book_id` · `expected_subject_id`),
+   * és a válasz VISSZAMONDJA a ténylegesen kiszolgált kontextust (`served_*`). A lap CSAK akkor
+   * rajzol, ha mindkettő egyezik — eltérésnél nem rajzol, hanem KIMONDJA és frissít.
+   */
+  function readQuery(extra) {
+    const p = new URLSearchParams(extra || {});
+    const me = state.me;
+    if (me && me.current_book_id) p.set('expected_book_id', me.current_book_id);
+    if (me && me.subject_id) p.set('expected_subject_id', me.subject_id);
+    const q = p.toString();
+    return q ? `?${q}` : '';
+  }
+
+  /** Egyezik-e a válasz kontextusa azzal, amiben a kérés indult? (A hiányzó mező NEM egyezés.) */
+  function servedMatches(r, expected) {
+    if (!r || r.reason === 'context_mismatch') return false;
+    if (r.served_book_id !== undefined && r.served_book_id !== expected.book) return false;
+    if (r.served_subject_id !== undefined && r.served_subject_id !== expected.subject) return false;
+    return true;
+  }
+
+  /**
+   * EGY HELYZET — EGY MONDAT. A frissítés maga is kimondhatja, hogy MÁSHOL váltottak (fiók vagy
+   * kör); ha megtette, nem írjuk felül egy általánosabb mondattal — két egymást takaró üzenet
+   * ugyanaz a hiba, mint a néma képernyő (KUKA-012 · KUKA-064).
+   */
+  async function contextChangedNotice() {
+    const before = state.noticeSeq;
+    await refreshMe();
+    if (state.noticeSeq === before) {
+      notice('Közben megváltozott a munkakörnyezet vagy a belépett fiók (például egy másik lapon) — '
+        + 'ezért nem rajzoltuk ki a választ. A képernyő frissült, próbáld újra.', true);
+    }
   }
 
   // ── FEJLÉC + LÁTHATÓSÁG ───────────────────────────────────────────────────────────────────────
@@ -119,10 +169,22 @@
     // A SZERVER IGAZSÁGA DÖNT: ha az alany vagy a könyv MÁS, mint amit a lap hitt (mert egy másik
     // lap ugyanabban a munkamenetben váltott, vagy a tagságot megvonták), az KONTEXTUS-VÁLTÁS.
     if (me.subject_id !== state.ctx.subject || (me.current_book_id ?? null) !== state.ctx.book) {
+      const foreignSubjectChange = state.ctx.subject !== null && me.subject_id !== state.ctx.subject && !state.selfInitiated;
+      const foreignBookChange = state.ctx.subject !== null && me.subject_id === state.ctx.subject
+        && (me.current_book_id ?? null) !== state.ctx.book && !state.selfInitiated;
       state.ctx = { subject: me.subject_id ?? null, book: me.current_book_id ?? null };
       state.generation += 1;
       clearPanels();
+      // AMIT NEM EZ A LAP CSINÁLT, AZT KI KELL MONDANI (KUKA-012 · KUKA-064): a közös munkamenetben
+      // egy MÁSIK lap beléphetett más fiókkal vagy válthatott kört — a felhasználó ne úgy lássa,
+      // mintha a saját képernyője változott volna meg magától.
+      if (foreignSubjectChange) {
+        notice(`Ebben a böngészőben időközben MÁSIK fiókba léptek be (${me.email || me.subject_id || 'nincs bejelentkezve'}) — a képernyő ezt az állapotot mutatja.`, true);
+      } else if (foreignBookChange) {
+        notice('Ebben a böngészőben időközben MÁSIK munkakörnyezetre váltottak (például egy másik lapon) — a képernyő ezt az állapotot mutatja.', true);
+      }
     }
+    state.selfInitiated = false;
     state.me = me;
     renderMe();
     if (state.inviteToken) await observeInvite();
@@ -168,6 +230,7 @@
   function notice(msg, isError) {
     const el = byTest('global-notice');
     el.textContent = msg; el.className = 'notice' + (isError ? ' error' : ''); el.hidden = !msg;
+    state.noticeSeq += 1;
   }
 
   // ── (1) FIÓK ──────────────────────────────────────────────────────────────────────────────────
@@ -247,8 +310,12 @@
     // taglistája nem kerülhet az ÚJ nézetbe — ez volt az F75-02 első ága, valódi versenyben mérve.
     const gen = currentGeneration();
     const book = currentBookId();
-    const r = await api('GET', '/api/members');
+    const expected = { book, subject: (state.me && state.me.subject_id) || null };
+    const r = await api('GET', '/api/members' + readQuery());
     if (gen !== currentGeneration()) return;
+    // A TAGLISTA IS A NÉZETHEZ KÖTÖTT (KTX-02): a másik lapon történt váltás után a régi cég
+    // tagjait nem rajzoljuk ki — a lista ÜRES marad, és a lap kimondja, miért.
+    if (!servedMatches(r, expected)) { list.innerHTML = ''; await contextChangedNotice(); return; }
     list.innerHTML = '';
     // A LISTA ÚJRATÖLTÉSE NEM TÖRLI A MŰVELET EREDMÉNYÉT: a „megadva"/„megvonva" mondatnak a
     // képernyőn kell maradnia (KUKA-012) — csak a munkakörnyezet-váltás (clearPanels) törli.
@@ -309,14 +376,25 @@
   // ELŐTT munkakörnyezetet váltottak, a régi cég válasza nem írható az új cég paneljébe. Minden
   // váltás lépteti a számlálót; a késve érkező válasz a saját generációját hasonlítja a maihoz.
   async function fetchData(path, testId) {
+    // ELŐBB ÜRÍTÜNK, CSAK UTÁNA KÉRDEZÜNK (KUKA-050). MÉRT LELET (R77, a saját böngésző-csomagom
+    // terhelés alatt): amikor a `/me` frissítése a panel ürítése ELŐTT futott, egy lassú válasz
+    // alatt a RÉGI cég adata másodpercekig a képernyőn maradt — miközben a felhasználó már új
+    // lekérést indított. A sorrend tehát nem ízlés kérdése: az ürítés az ELSŐ dolog.
+    text(byTest(testId), '…');
     // A FEJLÉC ELŐBB FRISSÜL (ugyanaz a munkamenet egy másik lapon már válthatott): a kérés a
     // SZERVER mai könyvére megy, és a lap ezt mutatja, nem a nyitáskori állapotot.
     await refreshMe();
     const gen = currentGeneration();
+    // A NÉZET, AMIBEN A KÉRÉS INDUL — ezt viszi a kérés, és ezt kell visszakapnunk (KTX-02).
+    const expected = { book: currentBookId(), subject: (state.me && state.me.subject_id) || null };
+    // A `refreshMe` kontextus-váltáskor ÜRÍT (a panelek „—"-re állnak) — a saját jelzésünket ezért
+    // a frissítés UTÁN is kiírjuk, különben a folyamatban lévő kérés jelöletlen maradna.
     text(byTest(testId), '…');
-    const r = await api('GET', path);
-    // KÖZBEN VÁLTOTTAK (ez a lap, egy másik lap, vagy megvonás) — a válasz elavult, nem rajzoljuk.
+    const r = await api('GET', path + readQuery());
+    // KÖZBEN VÁLTOTTAK EZEN A LAPON — a válasz elavult, nem rajzoljuk.
     if (gen !== currentGeneration()) return;
+    // KÖZBEN VÁLTOTTAK MÁSHOL — a szerver megmondta, kinek/melyik könyvnek szolgált ki.
+    if (!servedMatches(r, expected)) { text(byTest(testId), '—'); await contextChangedNotice(); return; }
     text(byTest(testId), gateText(r));
   }
   $('#btn-stock').addEventListener('click', () => fetchData('/api/data/stock', 'data-stock'));
