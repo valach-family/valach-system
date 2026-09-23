@@ -222,9 +222,9 @@ try {
 <style>
  :root { --ink:#0f172a; --muted:#475569; --line:#e2e8f0; --card:#ffffff; --bg:#f8fafc; --accent:#1d4ed8; --chip:#eef2f7; }
  @media (prefers-color-scheme: dark) {
-   :root:not([data-theme="light"]) { --ink:#e2e8f0; --muted:#94a3b8; --line:#1e293b; --card:#0f172a; --bg:#020617; --accent:#93b4fd; --chip:#111c33; }
+   :root:not([data-theme="light"]) { color-scheme: dark; --ink:#e2e8f0; --muted:#94a3b8; --line:#1e293b; --card:#0f172a; --bg:#020617; --accent:#93b4fd; --chip:#111c33; }
  }
- :root[data-theme="dark"] { --ink:#e2e8f0; --muted:#94a3b8; --line:#1e293b; --card:#0f172a; --bg:#020617; --accent:#93b4fd; --chip:#111c33; }
+ :root[data-theme="dark"] { color-scheme: dark; --ink:#e2e8f0; --muted:#94a3b8; --line:#1e293b; --card:#0f172a; --bg:#020617; --accent:#93b4fd; --chip:#111c33; }
  body { margin:0; font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:var(--bg); }
  main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 64px; }
  h1 { font-size: 26px; margin: 0 0 6px; line-height:1.25; } h2 { font-size: 19px; margin: 28px 0 6px; }
