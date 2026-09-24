@@ -46,7 +46,7 @@ const shots = [];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 async function shot(page, title, what, evidence) {
-  const buf = await page.screenshot({ fullPage: true, ...(JPEG ? { type: 'jpeg', quality: 72 } : {}) });
+  const buf = await page.screenshot({ fullPage: true, ...(JPEG ? { type: 'jpeg', quality: 58 } : {}) });
   shots.push({ title, what, evidence, png: buf.toString('base64'), mime: JPEG ? 'image/jpeg' : 'image/png' });
   console.log(`kép ${shots.length}: ${title}`);
 }
@@ -59,7 +59,7 @@ const browser = await chromium.launch();
 const started = new Date().toISOString();
 
 try {
-  const ctxA = await browser.newContext({ baseURL: base, viewport: { width: 1100, height: 900 }, locale: 'hu-HU' });
+  const ctxA = await browser.newContext({ baseURL: base, viewport: { width: 1100, height: 900 }, locale: 'hu-HU', ...(JPEG ? { deviceScaleFactor: 0.7 } : {}) });
   const anna = await ctxA.newPage();
   const ANNA = 'anna@pelda.hu';
   const BELA = 'bela@pelda.hu';
@@ -124,7 +124,7 @@ try {
     .locator('a[data-testid^="mail-link-"]').getAttribute('href');
 
   // ── 6. BÉLA: SAJÁT FIÓK, SAJÁT BÖNGÉSZŐ ────────────────────────────────────────────────────
-  const ctxB = await browser.newContext({ baseURL: base, viewport: { width: 1100, height: 900 }, locale: 'hu-HU' });
+  const ctxB = await browser.newContext({ baseURL: base, viewport: { width: 1100, height: 900 }, locale: 'hu-HU', ...(JPEG ? { deviceScaleFactor: 0.7 } : {}) });
   const bela = await ctxB.newPage();
   await bela.goto('/');
   await bela.getByTestId('register-email').fill(BELA);
