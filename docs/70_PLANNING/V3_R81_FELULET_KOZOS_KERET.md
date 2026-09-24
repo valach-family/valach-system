@@ -128,6 +128,21 @@ Három tétel a tervből a mai szerver-képességekkel nem teljesíthető, és *
 Mindkét lap NEVEZETTEN kezeli a részleges futást: ha egy tétel abban a futásban nem futott, a lap
 `nem_futott`-ként viszi, és a közzétett példányt NEM írja felül (KUKA-206).
 
+**A ZÁRÓ SÖPRÉS** (`npm run verify:sweep -- --skip verify:external-checks,verify:v3ref --reuse c8c8b25`):
+**16 zöld · 0 env-kihagyás · 1 piros**, plusz KÉT ÚJRAHASZNÁLT BIZONYÍTÉK. A feloldó (SRU-01) mind a
+négy feltételt MÉRTE mindkét hosszú láncnál — feloldott commit · a commitban ZÖLD, tiszta forráson
+született bizonyíték · azonos lánc-bemenet a munkafán · azonos lánc-szkriptek, függőségek és futtató
+(v22.22.2) —, tehát ez „újrahasznált bizonyíték", nem kihagyás.
+
+**A PIROS NEVESÍTVE: `verify:capability-witness` — és NEM ennek a körnek a műve.** A board
+képesség-regisztere két tételt (`v3-ui-slice` · `v3-vertical-slice`) `absent`-ként tart nyilván,
+miközben a fájl-szintű tanújuk MEGVAN (playwright-konfiguráció, `test:e2e`, `.html` lap, illetve
+`server.mjs`). **Ugyanez a piros állt az R80 söprésében is, karakterre ugyanazzal az összeggel
+(9/11 egyezik · 2 elavult rögzítés)** — tehát a felület átalakítása nem rontotta el és nem is javította.
+**Miért nem javítottuk most:** a regiszter a V2 repóban él
+(`tools/chatops-board/config/matrix-capabilities.json`), az R81 parancs pedig kimondottan tiltja a
+V2 módosítását ebben a körben. A rögzítést az a kör vezeti át, amelyik erre felhatalmazást kap.
+
 **A BEMUTATÓ KÉT LAPJA** (`npm run docs:kiprobalas-kepek`, illetve `VS_KEPEK_JPEG=1` a tömör alakhoz):
 `…_v3app_bemutato.html` (felhasználói, 18 képernyő, lépésenként „mit próbálhat ki" és „miből látja a
 sikert") és `…_v3app_muszaki.html` (forráscommit · helyi indítás · szerződés-azonosítók · hiányok).
