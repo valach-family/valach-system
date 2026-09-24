@@ -129,7 +129,7 @@ migráció áll; az `npm run db:migrate` az ELSŐ migrációval kerül ide (`ver
 |---|---|
 | **bármit** — a kör parancsa | a SPEC szó szerint: `v3ref/source-documents/R<n>_board_v1.md`; a legutóbbi REPORT: `docs/70_PLANNING/V3_R<n>_…md` |
 | **a magot** (v3ref) módosítod | `v3ref/` (modulonként, a belépő `v3ref/entryPoints.mjs`) · a mutációs battéria `npm run verify:v3ref` (204 mutáció, 18 egység) · `v3ref/external-checks/` |
-| **a próba-alkalmazást** (v3app) | `v3app/` · a HATÁR sémája `v3app/httpSchema.mjs` (HTP-01) · `npm run app:selfcheck` · `npm run verify:app-findings` (az R75 leletei) · `npm run verify:app-findings-r77` (az R77 leletei + a §4 tartalmi kötések) · `npm run proof:core-ux` (Playwright) |
+| **a próba-alkalmazást** (v3app) | `v3app/` · a HATÁR sémája `v3app/httpSchema.mjs` (HTP-01) · `npm run app:selfcheck` · `npm run verify:app-findings` (az R75 leletei) · `npm run verify:app-findings-r77` (az R77 leletei + a §4 tartalmi kötések) · `npm run verify:app-findings-r79` (az R79 leletei; a nézet-kötés szabálya: `v3app/public/contextBinding.mjs` — a LAP és a próba UGYANAZT futtatja) · `npm run proof:core-ux` (Playwright) |
 | **kiadás / migráció** | e fájl 5. szakasza · `contracts/releaseOrder.js` · `migrations/LEDGER.json` |
 | **generált fájlt írsz** | `contracts/artifactNaming.js` (`artifactPath`) · a `var/` rend (5. szakasz) |
 | **fogyasztást mérsz** | `tools/v3_fogyasztas_meres.mjs` (`--selftest` az ellenpróbák) · `docs/70_PLANNING/V3_R64_FOGYASZTAS_SZABALYOK_LEVEL.md` |
@@ -149,7 +149,7 @@ sort, amelyik a munkád hiba-osztályát fedi:
 
 | ha ezt csinálod | ELŐBB ezt vedd elő |
 |---|---|
-| **új gépi őrt / pint írsz** | KUKA-009 · 045 · 049 · 051 · 057 · 068 · 091 · 124 |
+| **új gépi őrt / pint írsz** | KUKA-009 · 045 · 049 · 051 · 057 · 068 · 091 · 124 · **207** (amit próba nem tud MEGHÍVNI, azt bizalomból hisszük — a lap és a próba ugyanazt a fájlt futtassa) |
 | **bizonyítékot fogadsz be** (külső fél, futás-tanú, beadvány) | KUKA-121 · 122 · 125 · 126 · 128 · 132 · 200 |
 | **szabályt javítasz, ami több helyen igaz** | KUKA-003 · 013 · 029 · 039 · 129 · 130 |
 | **jogosultsági kaput építesz** | KUKA-047 · 059 · 062 · 076 · 083 · 084 · 085 · 164 |
@@ -157,7 +157,7 @@ sort, amelyik a munkád hiba-osztályát fedi:
 | **szerszámot szállítasz az operátornak** | KUKA-031 · 040 · 064 · 072 · 079 · 089 · 165 |
 | **felületet módosítasz** | KUKA-011 · 015 · 025 · 041 · 055 · 078 · 080 · 092 · **201** (a nemleges válasz vigye a MŰKÖDŐ folytatást) |
 | **külső határt (HTTP) vagy bemenetet érintesz** | **203** (a kényszerítés nem ellenőrzés, a „nevezett maradék" nem védelem) · **205** (ami EGYÜTT igaz, azt EGY egységben írjuk — és a meglévő szabályt írás ELŐTT kérdezzük meg) · KUKA-092 |
-| **versenyhelyzetet védesz** (váltás, késő válasz) | KUKA-041 · 046 · **202** (az őr ott álljon, ahol a kár keletkezik) · **204** (az OLVASÁS is a nézethez kötött, és a válasz mondja ki, kinek szolgált ki) |
+| **versenyhelyzetet védesz** (váltás, késő válasz) | KUKA-041 · 046 · **202** (az őr ott álljon, ahol a kár keletkezik) · **204** (az OLVASÁS is a nézethez kötött, és a válasz mondja ki, kinek szolgált ki) · **208** (a kontextus PÁR: alany ÉS könyv — a fél-megerősítés a másik felét láthatatlanná teszi) |
 
 **Ha egy megoldást azért vezetünk ki, mert HIBÁS volt** → ugyanabban a körben KUKA-bejegyzés a
 regiszterbe (mi volt · miért rossz · mi váltja · **ki találta meg** · tanulság · gépi jel; ha nincs

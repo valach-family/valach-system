@@ -16,6 +16,50 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3071 — AZ R79 KÉT MARADÉKA: A NÉZET-KÖTÉS SZABÁLYA KÓDBA KERÜL, ÉS AZ ÍRÁS AZ ALANYHOZ IS KÖTVE
+
+> **Hatály:** V3 (`valach-system`) — a próba-alkalmazás (`v3app/`) kliense, HTTP-határa és szervere.
+> **A magreferencia (`v3ref/`) egyetlen fájlja sem változott.** Nincs V2-módosítás, merge, telepítés,
+> migráció, fizetős szolgáltatás, külső levélküldés és új üzleti modul.
+
+**Dátum:** 2026-09-24 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 **R79** (a külső ellenőrző fél
+ANALYSIS lapjára) · **Lap:** `docs/70_PLANNING/V3_R79_NEZET_KOTES_ALANY_ES_KONYV.md`
+
+**1. F79-01 — A SZABÁLY A MEGJEGYZÉSBEN ÉLT, A KÓDBAN NEM.** Az R77-es `servedMatches` csak akkor
+hasonlított, HA a mező megvolt: két hiányzó `served_*` mezővel IGAZAT adott — a külső fél hibabevitellel
+(a valódi, sikeres válaszból kivett mezőkkel) megmutatta, hogy a változatlan lap kirajzolja a „KIADVA"
+képet. ⇒ **KTX-03**: a szabály egy behúzható modulba került (`v3app/public/contextBinding.mjs`), amit a
+LAP és a BATTÉRIA UGYANÚGY futtat; a kontextusfüggő SIKERES válasznak meg kell adnia mindkét mezőt
+(megléte · érvényes típus · pontos egyezés), a nevezett nemleges válasz pedig emberi mondatot kap és nem
+indít újabb kérést (nincs frissítési körforgás). A taglista és az adat-panelek UGYANAZT a döntést hívják.
+
+**2. F79-02 — A KÖNYV EGYEZETT, A SZEMÉLY NEM.** A másik lap kilépett, BÉLÁVAL lépett be, és ugyanazt a
+céget választotta; Anna régi lapjának gombja lefutott (`expected_book_id` egyezett, alany-megerősítés nem
+volt), és az írás Béla nevében, az ő naplózott cselekvőjével történt meg. ⇒ **KTX-03**: minden
+állapotváltoztató művelet viszi a nézet ALANYÁT és KÖNYVÉT (a séma deklarálja, `confirm_only`), a szerver
+az ÍRÁS ELŐTT, ugyanabban a kiszolgálásban méri mindkettőt (409 `context_mismatch`, `wrote:false`, nyom
+nélkül), és a sikeres válasz is kimondja a kiszolgált nézetet. A mező SOHA nem választ cselekvőt vagy
+könyvet — a jogot a mag kapui döntik el (mérve: jogosulatlan fiók helyes mezőkkel is elakad).
+
+**3. A MÁTRIX, amit a parancs kért:** négy művelet (adatkör-adás · megvonás · meghívás · terv-változtatás)
+× négy kontextus-állapot (alany változik · könyv változik · mindkettő · egyik sem), a tárolóból mért
+sorokkal; a megvonás pozitív párja OLYAN szereplővel, akinek ténylegesen van rá hatásköre (mérve: Béla
+admin, de a megvonási hatásköre nincs megalapozva — az ő 403-a nem bizonyítana kontextusvédelmet).
+
+**4. GÉPI JELEK:** `npm run verify:app-findings-r79` (49 állítás: 13 soros igazság-tábla a VALÓDI
+szabályon + a mátrix + a séma-deklaráció) · böngésző: `tests/e2e/v3app-r79.spec.mjs` (hibabevitel a
+válaszba; két lap, közös süti, AZONOS cégen belüli fiókváltás). Regresszió: 57/57 · 73/73 · 34/34 ·
+35/35 böngésző-próba.
+
+**5. ÚJ TANULSÁGOK:** **KUKA-207** (amit próba nem tud MEGHÍVNI, azt bizalomból hisszük — a lap és a próba
+ugyanazt a fájlt futtassa) · **KUKA-208** (ha a kontextus PÁR, a megerősítés is pár).
+
+**6. AMIT EZ A KÖR NEM ÁLLÍT.** A core-core teljes lezárása nincs elfogadva; a H08 és a teljes
+kontextusvédelem elfogadása a külső ellenőrző félé. Az R19 QNT nyitva marad. Becslésből visszamenőleg nem
+lesz mérés.
+
+---
+
 ## D-VS-3070 — AZ R77 KÉT LELETE JAVÍTVA: AZ OLVASÁS NÉZETHEZ KÖTÉSE ÉS AZ ATOMI MUNKAKÖRNYEZET-INDÍTÁS
 
 > **Hatály:** V3 (`valach-system`) — a magreferencia (`v3ref/`) és a próba-alkalmazás (`v3app/`).

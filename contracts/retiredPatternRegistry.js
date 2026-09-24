@@ -33,6 +33,92 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-208',
+    date: '2026-09-24',
+    title: 'A KÖNYV EGYEZETT, A SZEMÉLY NEM — a régi lap gombja MÁS FIÓK nevében írt ugyanabban a cégben',
+    what: 'Az R77-es kontextus-megerősítés (KTX-01) CSAK a könyvet vitte. A külső ellenőrző fél (chatgpt-v3, '
+      + 'R79/F79-02) mérése: Anna lapján ott állt Cili sora és az „adatkör adása" gomb; a MÁSIK lap (közös süti) '
+      + 'KILÉPETT, BÉLÁVAL belépett, és UGYANAZT a céget választotta. Anna régi lapjának gombja ezután lefutott: '
+      + '`POST /api/members/scope {subject_id, scope, expected_book_id}` → HTTP 200, a `scope_grant` sor 0 → 1, '
+      + '`granted_by = Béla` — miközben a műveletet indító nézet Annát mutatta.',
+    why_wrong: 'A KONTEXTUS PÁR: alany ÉS könyv. A megerősítés fele a másik felét LÁTHATATLANNÁ tette — az azonos '
+      + 'cég elfedte a fiókváltást. Ez nem jogosultság-megkerülés volt (Bélának volt delegálási joga), hanem ennél '
+      + 'alattomosabb: EGY NÉZET SZÁNDÉKA MÁS SZEMÉLY NEVÉBEN és az ő naplózott cselekvőjével teljesült. A KUKA-202 '
+      + 'tanulságának a másik fele: az őr ott áll, ahol a kár keletkezik — de csak akkor véd, ha a TELJES kontextust nézi.',
+    replaced_by: 'KTX-03 — minden kontextusfüggő ÁLLAPOTVÁLTOZTATÓ művelet viszi a nézet ALANYÁT és KÖNYVÉT '
+      + '(`expected_subject_id` · `expected_book_id`, a HTP-01 regiszterben deklarálva, `confirm_only`); a szerver '
+      + 'UGYANABBAN a kiszolgálásban, az ÍRÁS ELŐTT méri mindkettőt, eltérésnél 409 `context_mismatch`, `wrote:false`, '
+      + 'nyom nélkül. A mező SOHA nem választ cselekvőt vagy könyvet — a jogot változatlanul a mag kapui döntik el. '
+      + 'A sikeres írás-válasz is KIMONDJA a kiszolgált nézetet, tehát az eredmény-felirat is kötött.',
+    decision: 'D-VS-3071',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R79/F79-02 — változatlan klienssel, valódi HTTP/SQLite-on, a közös süti frissítését modellezve',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "CONTEXT_SUBJECT_FIELD[\\s\\S]{0,600}subjectMismatch",
+        why: 'az írás-kapu az ALANYT is méri, nem csak a könyvet' }),
+      Object.freeze({ paths: Object.freeze(['v3app/httpSchema.mjs']),
+        pattern: "export const CONTEXT_SUBJECT_FIELD",
+        why: 'a mezőt a séma DEKLARÁLJA — nem véletlenül elfogadott extra mező' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "confirm\\.expected_subject_id = v\\.subject",
+        why: 'a gomb a SAJÁT nézetének alanyát viszi, egyetlen helyen összerakva' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3app/server.mjs'], pattern: "function contextGate\\(body, currentBookId\\)",
+        reason: 'a csak-könyvet néző írás-kapu nem térhet vissza (R79 F79-02)' }),
+      Object.freeze({ paths: ['v3app/public/app.js'], pattern: "\\.\\.\\.\\(book \\? \\{ expected_book_id: book \\} : \\{\\}\\)",
+        reason: 'a gomb kézi, fél-kontextusú megerősítése nem térhet vissza' }),
+    ]),
+    lesson: 'HA A KONTEXTUS PÁR, A MEGERŐSÍTÉS IS PÁR. A fél-megerősítés nem „kevésbé véd", hanem a másik felét '
+      + 'LÁTHATATLANNÁ teszi: ott lesz a rés, ahol a két fél közül az egyik VÉLETLENÜL egyezik. És a kár nem mindig '
+      + 'jogosultság-megkerülés: elég, ha egy művelet MÁS SZEMÉLY nevén és naplózott cselekvőjével teljesül.',
+    guard_note: 'gépi jel: `npm run verify:app-findings-r79` — a NÉGY művelet (adatkör-adás · megvonás · meghívás · '
+      + 'terv-változtatás) × NÉGY kontextus-állapot mátrixa, a tárolóból mért sorokkal, plusz a megvonás pozitív párja '
+      + 'olyan szereplővel, akinek TÉNYLEGESEN van hatásköre; böngésző-próba: `tests/e2e/v3app-r79.spec.mjs` '
+      + '(két lap, közös süti, AZONOS cégen belüli fiókváltás).',
+  }),
+  Object.freeze({
+    id: 'KUKA-207',
+    date: '2026-09-24',
+    title: 'A SZABÁLY A MEGJEGYZÉSBEN ÉLT, A KÓDBAN NEM — „a hiányzó mező nem egyezés", miközben a kód igazat adott rá',
+    what: 'Az R77-es `servedMatches` így szólt: `if (r.served_book_id !== undefined && r.served_book_id !== '
+      + 'expected.book) return false;` — vagyis CSAK akkor hasonlított, ha a mező MEGVOLT. Két hiányzó `served_*` '
+      + 'mezővel IGAZAT adott. A külső ellenőrző fél (chatgpt-v3, R79/F79-01) HIBABEVITELLEL mutatta meg: a valódi, '
+      + 'sikeres készlet-válaszból a szállítási rétegben eltávolította mindkét mezőt, a sikeres eredményt meghagyta — '
+      + 'és a VÁLTOZATLAN kliens kirajzolta a „KIADVA" képet a `qty: 12` adattal.',
+    why_wrong: 'Az állítás a MEGJEGYZÉSBEN és a jelentésben élt, nem a kódban (KUKA-038). A hiányzó tanú nem egyezés, '
+      + 'hanem „nem tudom" — és a „nem tudom" nem adat (KUKA-094). Súlyosbító: a szabály olyan helyen állt (a lap '
+      + 'IIFE-jében), ahonnan próba NEM tudta meghívni, tehát a betartását semmi nem mérte.',
+    replaced_by: 'KTX-03 — a szabály EGY behúzható modulba került (`v3app/public/contextBinding.mjs`), amit a LAP és a '
+      + 'BATTÉRIA UGYANÚGY futtat: a kontextusfüggő SIKERES válasznak MEG KELL adnia mindkét mezőt, érvényes típussal, '
+      + 'PONTOS egyezéssel; a hiányzó, `undefined`, rossz típusú vagy idegen mező NEM egyezés. A NEVEZETT nemleges '
+      + 'válasz (nincs belépve · kontextus-eltérés) nem adat, de EMBERI mondatot kap, és nem indít újabb kérést — '
+      + 'tehát nincs frissítési körforgás.',
+    decision: 'D-VS-3071',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R79/F79-01 — hibabeviteles kliens-próbával a valódi válaszon',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/contextBinding.mjs']),
+        pattern: "export function contextBindingVerdict",
+        why: 'a szabály behúzható, tehát MÉRHETŐ — nem a lap belsejébe zárt bizalom' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "from './contextBinding.mjs'",
+        why: 'a lap UGYANAZT a fájlt futtatja, amit a battéria mér' }),
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r79.mjs']),
+        pattern: "from './public/contextBinding.mjs'",
+        why: 'a próba a VALÓDI szabályt hívja, nem egy másolatát' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3app/public/app.js'], pattern: "served_book_id !== undefined && r\\.served_book_id",
+        reason: 'a „csak ha megvan" alakú kötés nem térhet vissza (R79 F79-01)' }),
+    ]),
+    lesson: 'AMIT PRÓBA NEM TUD MEGHÍVNI, AZT BIZALOMBÓL HISSZÜK. A szabályt oda kell tenni, ahonnan a próba HÍVNI '
+      + 'tudja — és a lapnak meg a próbának UGYANAZT a fájlt kell futtatnia, különben a „mérés" egy másolatot igazol. '
+      + 'A hiányzó mező sosem „egyezés": a tanú hiánya nem zöld.',
+    guard_note: 'gépi jel: `npm run verify:app-findings-r79` — 13 soros igazság-tábla a VALÓDI szabályon (egyezés · '
+      + 'egyik/másik/mindkettő hiányzik · idegen alany/könyv · rossz típus · `null` · nevezett nemleges), plusz a '
+      + 'böngésző-próba, ami a VÁLASZBÓL veszi ki a mezőket és méri, hogy a lap nem rajzol (`tests/e2e/v3app-r79.spec.mjs`).',
+  }),
+  Object.freeze({
     id: 'KUKA-206',
     date: '2026-09-23',
     title: 'A RÉSZLEGES FUTÁS FELÜLÍRTA A TELJES MÉRÉS LAPJÁT — és a NEM FUTOTT helyzet „részben"-ként jelent meg',
@@ -159,9 +245,10 @@ const RETIRED_PATTERNS = Object.freeze([
       Object.freeze({ paths: Object.freeze(['v3app/httpSchema.mjs']),
         pattern: "readContextQuery",
         why: 'a kötés a séma-regiszterben DEKLARÁLT, nem végpontonként kézzel' }),
-      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
-        pattern: "function servedMatches",
-        why: 'a lap csak akkor rajzol, ha a válasz a SAJÁT nézetéhez tartozik — a hiányzó mező nem egyezés' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/contextBinding.mjs']),
+        pattern: "export function servedMatches",
+        why: 'a lap csak akkor rajzol, ha a válasz a SAJÁT nézetéhez tartozik — a szabály R79 óta KÜLÖN, '
+          + 'behúzható modulban él (KUKA-207), mert az app.js-be zárt alakját próba nem tudta meghívni' }),
     ]),
     forbidden: Object.freeze([
       Object.freeze({ paths: ['v3app/public/app.js'], pattern: "await api\\('GET', path\\);",

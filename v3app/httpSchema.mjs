@@ -42,6 +42,10 @@ export const VERSION_FIELD = 'schema_version';
 // munkakörnyezetben állt, amikor a gombot megnyomta. Eltérésnél a kérés nevezetten elakad —
 // így egy RÉGI képernyőn hagyott gomb nem írhat az ÚJ cég nevében.
 export const CONTEXT_FIELD = 'expected_book_id';
+// A NÉZET MÁSIK FELE (KTX-03, R79/F79-02): a gomb ALANYA. A külső ellenőrző fél mérése szerint az
+// azonos cégen belüli FIÓK-váltást a puszta könyv-megerősítés ELFEDTE: a régi lap gombja a MÁSIK
+// belépett felhasználó nevében írt. A mező ugyanúgy CSAK megerősítés: cselekvőt nem választ.
+export const CONTEXT_SUBJECT_FIELD = 'expected_subject_id';
 const contextConfirm = frozen({ type: 'nonempty_string', required: false, max_length: 64, confirm_only: true });
 
 // A NÉZET MEGERŐSÍTÉSE AZ OLVASÁSON (KTX-02, R77/F77-01) — ugyanaz a „csak szűkíthet" alak, mint a
@@ -115,7 +119,7 @@ export const ENDPOINT_SCHEMAS = frozen({
   }),
   'POST /api/workspaces/plan': frozen({
     version: '1', mutates: true,
-    body: frozen({ fields: frozen({ plan: frozen({ type: 'nonempty_string', required: true, enum: frozen(Object.keys(PLANS)) }), [CONTEXT_FIELD]: contextConfirm }) }),
+    body: frozen({ fields: frozen({ plan: frozen({ type: 'nonempty_string', required: true, enum: frozen(Object.keys(PLANS)) }), [CONTEXT_FIELD]: contextConfirm, [CONTEXT_SUBJECT_FIELD]: contextConfirm }) }),
     query: frozen({ fields: frozen({}) }),
   }),
   'POST /api/invites': frozen({
@@ -125,7 +129,7 @@ export const ENDPOINT_SCHEMAS = frozen({
         email,
         role: frozen({ type: 'nonempty_string', required: true, enum: frozen([...KNOWN_ROLES]) }),
         scope: frozen({ type: 'nonempty_string', required: true, enum: frozen([...KNOWN_DATA_SCOPES]) }),
-        [CONTEXT_FIELD]: contextConfirm,
+        [CONTEXT_FIELD]: contextConfirm, [CONTEXT_SUBJECT_FIELD]: contextConfirm,
       }),
     }),
     query: frozen({ fields: frozen({}) }),
@@ -146,14 +150,14 @@ export const ENDPOINT_SCHEMAS = frozen({
       fields: frozen({
         subject_id: subjectRef,
         scope: frozen({ type: 'nonempty_string', required: true, enum: frozen([...KNOWN_DATA_SCOPES]) }),
-        [CONTEXT_FIELD]: contextConfirm,
+        [CONTEXT_FIELD]: contextConfirm, [CONTEXT_SUBJECT_FIELD]: contextConfirm,
       }),
     }),
     query: frozen({ fields: frozen({}) }),
   }),
   'POST /api/members/revoke': frozen({
     version: '1', mutates: true,
-    body: frozen({ fields: frozen({ subject_id: subjectRef, [CONTEXT_FIELD]: contextConfirm }) }),
+    body: frozen({ fields: frozen({ subject_id: subjectRef, [CONTEXT_FIELD]: contextConfirm, [CONTEXT_SUBJECT_FIELD]: contextConfirm }) }),
     query: frozen({ fields: frozen({}) }),
   }),
   // ── FEJLESZTŐI FELÜLET — a `devSurface` kapcsoló mögött; élesben nem létezhet (lásd server.mjs).
@@ -276,7 +280,7 @@ export const HTP_CONTRACT = frozen({
     reading: 'nincs írás, ezért NEVEZETT figyelmen kívül hagyás (`param_ignored` + `ignored_params`)',
     boundary_owner: 'ez a regiszter (`mutates`), nem a végpont kódja',
   }),
-  confirm_only_fields: frozen([VERSION_FIELD, CONTEXT_FIELD]),
+  confirm_only_fields: frozen([VERSION_FIELD, CONTEXT_FIELD, CONTEXT_SUBJECT_FIELD]),
   stated_limit: 'a séma az ALAKOT méri: a cím létezése, a tagság hatálya, a jog megléte és az '
     + 'előfizetés továbbra is a mag döntése — a határ nem vesz át üzleti döntést',
 });

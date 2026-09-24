@@ -1,5 +1,11 @@
 // v3app/public/app.js — A KÉPERNYŐ CSAK AZT RAJZOLJA, AMIT A SZERVER MOND. Nincs kliensoldali
 // jogosultsági mátrix: minden „lehet-e" kérdésre a szerver nevezett válasza a forrás.
+//
+// A NÉZET-KÖTÉS SZABÁLYA NEM ITT ÁLL, hanem a `contextBinding.js` modulban (KTX-03) — ugyanazt a
+// fájlt futtatja a lap ÉS a lelet-battéria, tehát a próba pontosan azt méri, amit a felhasználó
+// kap (KUKA-039: egy szabály, egy otthon).
+import { contextBindingVerdict, servedMatches, unboundMessage } from './contextBinding.mjs';
+
 (() => {
   'use strict';
   const $ = (sel) => document.querySelector(sel);
@@ -61,39 +67,50 @@
   const currentGeneration = () => state.generation;
   const currentBookId = () => (state.me && state.me.current_book_id) || null;
 
-  /** Állapotváltoztató kérés a MAI könyv megerősítésével (KTX-01). */
-  async function apiInContext(method, path, body) {
-    const book = currentBookId();
-    return api(method, path, book ? { ...body, expected_book_id: book } : body);
+  /** A mai nézet ALANYA — a kérés ezt is megerősíti (KTX-03 · R79/F79-02). */
+  const currentSubjectId = () => (state.me && state.me.subject_id) || null;
+  /** A nézet, amiben egy gomb vagy egy kérés született: ALANY + KÖNYV együtt. */
+  const currentView = () => ({ book: currentBookId(), subject: currentSubjectId() });
+
+  /**
+   * ÁLLAPOTVÁLTOZTATÓ KÉRÉS A MAI NÉZET MEGERŐSÍTÉSÉVEL (KTX-01 + R79/F79-02).
+   *
+   * MI VOLT A RÉS. A kérés eddig CSAK a könyvet erősítette meg. A külső ellenőrző fél mérése: a
+   * másik lap KILÉPETT, BÉLÁVAL lépett be, és UGYANAZT a céget választotta — a közös süti frissült,
+   * Anna régi lapjának „adatkör adása" gombja pedig lefutott, mert a KÖNYV egyezett. Az írás így
+   * BÉLA nevében és az ő naplózott cselekvőjével történt meg, miközben a nézet Annát mutatta.
+   * Ezért a megerősítés mostantól ALANY + KÖNYV, és a szerver ugyanabban a kiszolgálásban mindkettőt
+   * méri — a mező továbbra is CSAK szűkít: cselekvőt és könyvet soha nem választ (KUKA-047).
+   */
+  async function apiInContext(method, path, body, view) {
+    const v = view || currentView();
+    const confirm = {};
+    if (v.book) confirm.expected_book_id = v.book;
+    if (v.subject) confirm.expected_subject_id = v.subject;
+    return api(method, path, { ...body, ...confirm });
   }
 
   /**
-   * KTX-02 — OLVASÁS A NÉZETHEZ KÖTVE (R77/F77-01).
+   * KTX-02/KTX-03 — OLVASÁS ÉS ÍRÁS A NÉZETHEZ KÖTVE (R77/F77-01 · R79/F79-01).
    *
-   * MI VOLT A RÉS. A lap előbb frissítette a fejlécet (`/me`), és utána kérte az adatot — a kettő
-   * KÖZÖTT viszont a MÁSIK lap (közös munkamenet) átválthatott, és a szerver már az ÚJ könyvre
-   * szolgált ki. A fejléc A-t mutatott, a panel B adatát: a lap generáció-számlálója ettől nem
-   * mozdult, mert nem ITT történt a váltás.
+   * MI VOLT A RÉS (R77). A lap előbb frissítette a fejlécet (`/me`), és utána kérte az adatot — a
+   * kettő KÖZÖTT viszont a MÁSIK lap (közös munkamenet) átválthatott, és a szerver már az ÚJ könyvre
+   * szolgált ki: a fejléc A-t mutatott, a panel B adatát.
    *
-   * A MAI ALAK: a kérés VISZI a nézetet, amiben indult (`expected_book_id` · `expected_subject_id`),
-   * és a válasz VISSZAMONDJA a ténylegesen kiszolgált kontextust (`served_*`). A lap CSAK akkor
-   * rajzol, ha mindkettő egyezik — eltérésnél nem rajzol, hanem KIMONDJA és frissít.
+   * MI VOLT A RÉS (R79). A döntést végző `servedMatches` CSAK akkor hasonlított, ha a mező megvolt —
+   * két hiányzó `served_*` mezővel IGAZAT adott, tehát a „hiányzó mező nem egyezés" a megjegyzésben
+   * élt, nem a kódban. A mai szabály EGY fájlban áll (`contextBinding.mjs`), és ugyanazt futtatja a
+   * lap és a battéria: a mezőnek MEG KELL LENNIE, érvényes típussal, PONTOS egyezéssel.
    */
-  function readQuery(extra) {
+
+  /** OLVASÓ KÉRÉS a nézet megerősítésével — ugyanaz a két mező, lekérdezés-alakban (KTX-02). */
+  function readQuery(extra, view) {
+    const v = view || currentView();
     const p = new URLSearchParams(extra || {});
-    const me = state.me;
-    if (me && me.current_book_id) p.set('expected_book_id', me.current_book_id);
-    if (me && me.subject_id) p.set('expected_subject_id', me.subject_id);
+    if (v.book) p.set('expected_book_id', v.book);
+    if (v.subject) p.set('expected_subject_id', v.subject);
     const q = p.toString();
     return q ? `?${q}` : '';
-  }
-
-  /** Egyezik-e a válasz kontextusa azzal, amiben a kérés indult? (A hiányzó mező NEM egyezés.) */
-  function servedMatches(r, expected) {
-    if (!r || r.reason === 'context_mismatch') return false;
-    if (r.served_book_id !== undefined && r.served_book_id !== expected.book) return false;
-    if (r.served_subject_id !== undefined && r.served_subject_id !== expected.subject) return false;
-    return true;
   }
 
   /**
@@ -101,13 +118,10 @@
    * kör); ha megtette, nem írjuk felül egy általánosabb mondattal — két egymást takaró üzenet
    * ugyanaz a hiba, mint a néma képernyő (KUKA-012 · KUKA-064).
    */
-  async function contextChangedNotice() {
+  async function contextChangedNotice(why) {
     const before = state.noticeSeq;
     await refreshMe();
-    if (state.noticeSeq === before) {
-      notice('Közben megváltozott a munkakörnyezet vagy a belépett fiók (például egy másik lapon) — '
-        + 'ezért nem rajzoltuk ki a választ. A képernyő frissült, próbáld újra.', true);
-    }
+    if (state.noticeSeq === before) notice(unboundMessage(why), true);
   }
 
   // ── FEJLÉC + LÁTHATÓSÁG ───────────────────────────────────────────────────────────────────────
@@ -287,7 +301,10 @@
 
   $('#form-plan').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const r = await apiInContext('POST', '/api/workspaces/plan', { plan: e.target.plan.value });
+    const planView = currentView();
+    const r = await apiInContext('POST', '/api/workspaces/plan', { plan: e.target.plan.value }, planView);
+    const pv = contextBindingVerdict(r, planView);
+    if (!pv.bound) { text(byTest('plan-result'), ''); text(byTest('data-price'), '—'); await contextChangedNotice(pv.why); return; }
     text(byTest('plan-result'), r.ok ? `Terv: ${r.plan} (${r.features.join(', ')})` : `${r.reason}: ${r.message || ''}`);
     text(byTest('data-price'), '—');
     await refreshMe();
@@ -297,7 +314,11 @@
   $('#form-invite').addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = e.target;
-    const r = await apiInContext('POST', '/api/invites', { email: f.email.value, role: f.role.value, scope: f.scope.value });
+    const view = currentView();
+    const r = await apiInContext('POST', '/api/invites', { email: f.email.value, role: f.role.value, scope: f.scope.value }, view);
+    // A MEGHÍVÓ EREDMÉNYE IS KÖTÖTT (KTX-03): idegen nézet válaszát nem írjuk ki sikerként.
+    const iv = contextBindingVerdict(r, view);
+    if (!iv.bound) { text(byTest('invite-result'), ''); await contextChangedNotice(iv.why); return; }
     text(byTest('invite-result'), r.ok
       ? `Meghívó kiadva (${r.token.slice(0, 8)}…) · plafon: szerepek ${r.ceiling.roles.join('/')}, adatkörök ${r.ceiling.scopes.join('/')} · lejár: ${r.expires_at}`
       : `Elutasítva: ${r.reason} — ${r.message || ''}` + (r.ceiling ? ` (plafon: ${pretty(r.ceiling)})` : ''));
@@ -313,9 +334,11 @@
     const expected = { book, subject: (state.me && state.me.subject_id) || null };
     const r = await api('GET', '/api/members' + readQuery());
     if (gen !== currentGeneration()) return;
-    // A TAGLISTA IS A NÉZETHEZ KÖTÖTT (KTX-02): a másik lapon történt váltás után a régi cég
-    // tagjait nem rajzoljuk ki — a lista ÜRES marad, és a lap kimondja, miért.
-    if (!servedMatches(r, expected)) { list.innerHTML = ''; await contextChangedNotice(); return; }
+    // A TAGLISTA IS A NÉZETHEZ KÖTÖTT (KTX-02/KTX-03) — UGYANAZZAL a szabállyal, nem másolattal:
+    // a másik lapon történt váltás (vagy egy kontextus-mező nélküli válasz) után a lista ÜRES
+    // marad, és a lap kimondja, miért.
+    const listVerdict = contextBindingVerdict(r, expected);
+    if (!listVerdict.bound) { list.innerHTML = ''; await contextChangedNotice(listVerdict.why); return; }
     list.innerHTML = '';
     // A LISTA ÚJRATÖLTÉSE NEM TÖRLI A MŰVELET EREDMÉNYÉT: a „megadva"/„megvonva" mondatnak a
     // képernyőn kell maradnia (KUKA-012) — csak a munkakörnyezet-váltás (clearPanels) törli.
@@ -335,12 +358,15 @@
       const grant = document.createElement('button'); grant.type = 'button'; grant.textContent = 'adatkör adása';
       grant.dataset.testid = `member-scope-${m.subject_id}`;
       grant.addEventListener('click', async () => {
-        // A GOMB A SAJÁT KÖRÉBEN ÍR, VAGY SEHOL: a kérés viszi a könyvet, amiben született, és a
-        // lap a saját generációját is ellenőrzi (KTX-01 · F75-02 második ága).
+        // A GOMB A SAJÁT NÉZETÉBEN ÍR, VAGY SEHOL: a kérés viszi az ALANYT ÉS a könyvet, amiben
+        // született (KTX-01 · KTX-03), és a lap a saját generációját is ellenőrzi.
         if (gen !== currentGeneration()) { staleNotice(); return; }
-        const g = await api('POST', '/api/members/scope', { subject_id: m.subject_id, scope: sel.value, ...(book ? { expected_book_id: book } : {}) });
+        const g = await apiInContext('POST', '/api/members/scope', { subject_id: m.subject_id, scope: sel.value }, expected);
         if (g.reason === 'context_mismatch') { contextMismatchNotice(g); return; }
         if (gen !== currentGeneration()) return;
+        // AZ EREDMÉNY-FELIRAT IS KÖTÖTT: idegen nézet válaszáról nem írunk ki sikert (R79/F79-01).
+        const gv = contextBindingVerdict(g, expected);
+        if (!gv.bound) { await contextChangedNotice(gv.why); await loadMembers(); return; }
         text(byTest('members-result'), g.ok ? `Adatkör megadva: ${g.scope} → ${m.email || m.subject_id}` : `Elutasítva: ${g.reason} ${g.message || ''}${g.ceiling ? ' (plafon: ' + g.ceiling.join('/') + ')' : ''}`);
         await loadMembers();
       });
@@ -349,9 +375,11 @@
       revoke.disabled = !m.effective;
       revoke.addEventListener('click', async () => {
         if (gen !== currentGeneration()) { staleNotice(); return; }
-        const v = await api('POST', '/api/members/revoke', { subject_id: m.subject_id, ...(book ? { expected_book_id: book } : {}) });
+        const v = await apiInContext('POST', '/api/members/revoke', { subject_id: m.subject_id }, expected);
         if (v.reason === 'context_mismatch') { contextMismatchNotice(v); return; }
         if (gen !== currentGeneration()) return;
+        const vv = contextBindingVerdict(v, expected);
+        if (!vv.bound) { await contextChangedNotice(vv.why); await refreshMe(); return; }
         text(byTest('members-result'), v.ok ? `Megvonva: ${m.email || m.subject_id} (${v.reason})` : `Elutasítva: ${v.reason} — ${v.message || ''}`);
         await refreshMe();
       });
@@ -393,8 +421,10 @@
     const r = await api('GET', path + readQuery());
     // KÖZBEN VÁLTOTTAK EZEN A LAPON — a válasz elavult, nem rajzoljuk.
     if (gen !== currentGeneration()) return;
-    // KÖZBEN VÁLTOTTAK MÁSHOL — a szerver megmondta, kinek/melyik könyvnek szolgált ki.
-    if (!servedMatches(r, expected)) { text(byTest(testId), '—'); await contextChangedNotice(); return; }
+    // A KÖTÉS DÖNT (KTX-03): hiányzó vagy idegen kontextus-mező mellett NEM rajzolunk — és a lap
+    // KIMONDJA, miért. A frissítés EGYSZER fut (nincs újrakérés, tehát nincs körforgás).
+    const verdict = contextBindingVerdict(r, expected);
+    if (!verdict.bound) { text(byTest(testId), '—'); await contextChangedNotice(verdict.why); return; }
     text(byTest(testId), gateText(r));
   }
   $('#btn-stock').addEventListener('click', () => fetchData('/api/data/stock', 'data-stock'));

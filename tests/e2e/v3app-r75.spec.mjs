@@ -158,7 +158,10 @@ test('R75/F75-02 — KONTEXTUSVÁLTÁS: a régi cég válasza és gombja nem ér
     expect(db.get('SELECT revoked_at FROM membership WHERE subject_id = ? AND book_id = ?', bela.subjectId, A.bookId).revoked_at).toBeNull();
     // A MAGYARÁZAT A GLOBÁLIS SÁVBAN ÁLL — a panel-ürítés (kontextus-váltás) nem törli, tehát a
     // felhasználó nem néma képernyőt kap (KUKA-012; a saját böngésző-próbám lelete a javítás közben).
-    await expect(anna.page.getByTestId('global-notice')).toContainText('munkakörnyezetet váltottál');
+    // A MONDAT R79 ÓTA KÉT OKOT NEVEZ MEG (munkakörnyezet VAGY belépett fiók) — a kontextus-eltérés
+    // ugyanis azonos cégen belüli FIÓK-váltásból is jöhet (R79/F79-02). A próba állítása ugyanaz
+    // marad: a magyarázat a globális sávban ÁLL, nem tűnik el a panel-ürítéssel.
+    await expect(anna.page.getByTestId('global-notice')).toContainText(/munkakörnyezet|belépett fiók/);
 
     // POZITÍV ELLENPÁR: a HELYES körben ugyanez a gomb dolgozik.
     await anna.page.reload();

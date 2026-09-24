@@ -38,7 +38,7 @@ import { businessIdentityOf, businessIdentityProblem, JURISDICTION_PROFILES } fr
 import { membershipAsOf } from '../v3ref/bitemporal.mjs';
 import { readScopeGrantAt } from '../v3ref/scopeGrant.mjs';
 import { representationCheck } from '../v3ref/representation.mjs';
-import { validateRequest, schemaForEndpoint, isGated, endpointsWithoutSchema, CONTEXT_FIELD } from './httpSchema.mjs';
+import { validateRequest, schemaForEndpoint, isGated, endpointsWithoutSchema, CONTEXT_FIELD, CONTEXT_SUBJECT_FIELD } from './httpSchema.mjs';
 
 const require = createRequire(import.meta.url);
 const { artifactPath } = require('../contracts/artifactNaming.js');
@@ -122,7 +122,7 @@ function readBody(req) {
   });
 }
 
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
 
 // ── AZ ALKALMAZÁS ────────────────────────────────────────────────────────────────────────────────
 /**
@@ -221,18 +221,29 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
    * munkamenet mai könyvétől, a kérés NEVEZETTEN elakad, írás nélkül. A mező SOHA nem VÁLASZT
    * könyvet — a hatóság marad a munkameneté (KUKA-047), a megerősítés csak SZŰKÍTHET.
    */
-  function contextGate(body, currentBookId) {
-    const expected = body && typeof body === 'object' ? body[CONTEXT_FIELD] : undefined;
-    if (expected === undefined || expected === null) return { ok: true, confirmed: false };
-    if (String(expected) !== String(currentBookId)) {
-      return {
-        ok: false, status: 409, reason: 'context_mismatch',
-        message: 'közben munkakörnyezetet váltottál — ez a művelet a korábbi munkakörnyezetben indult, '
-          + 'ezért nem hajtottuk végre; frissítsd a képernyőt, és indítsd újra abban, amelyikben dolgozni akarsz',
-        expected_book_id: String(expected), current_book_id: currentBookId,
-      };
+  function contextGate(body, session, currentBookId) {
+    const served = { served_book_id: currentBookId ?? null, served_subject_id: session.subject_id ?? null };
+    const raw = body && typeof body === 'object' ? body : {};
+    const expectedBook = raw[CONTEXT_FIELD] === undefined || raw[CONTEXT_FIELD] === null ? null : String(raw[CONTEXT_FIELD]);
+    const expectedSubject = raw[CONTEXT_SUBJECT_FIELD] === undefined || raw[CONTEXT_SUBJECT_FIELD] === null ? null : String(raw[CONTEXT_SUBJECT_FIELD]);
+    const bookMismatch = expectedBook !== null && expectedBook !== String(currentBookId ?? '');
+    const subjectMismatch = expectedSubject !== null && expectedSubject !== String(session.subject_id ?? '');
+    if (!bookMismatch && !subjectMismatch) {
+      return { ok: true, served, confirmed: { book: expectedBook !== null, subject: expectedSubject !== null } };
     }
-    return { ok: true, confirmed: true };
+    return {
+      ok: false,
+      status: 409,
+      body: {
+        ok: false, wrote: false, refused_by: 'context', reason: 'context_mismatch',
+        expected_book_id: expectedBook, expected_subject_id: expectedSubject,
+        current_book_id: currentBookId ?? null, current_subject_id: session.subject_id ?? null,
+        ...served,
+        message: 'közben megváltozott a munkakörnyezet vagy a belépett fiók ebben a böngészőben — ez a '
+          + 'művelet a korábbi nézetben indult, ezért NEM hajtottuk végre; frissítsd a képernyőt, és '
+          + 'indítsd újra abban a nézetben, amelyikben dolgozni akarsz',
+      },
+    };
   }
 
   /**
@@ -513,12 +524,12 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
       if (!session.subject_id) return loginRequired();
       const cur = currentBookOf(session);
       if (!cur.book_id) return workspaceRequired(cur);
-      const ctx = contextGate(body, cur.book_id);
-      if (!ctx.ok) return { status: ctx.status, body: { ok: false, reason: ctx.reason, message: ctx.message, expected_book_id: ctx.expected_book_id, current_book_id: ctx.current_book_id } };
+      const ctx = contextGate(body, session, cur.book_id);
+      if (!ctx.ok) return { status: ctx.status, body: ctx.body };
       const gate = adminGate(session, cur.book_id);
       if (!gate.ok) return { status: gate.status, body: { ok: false, reason: gate.reason, message: gate.message } };
       const r = setEntitlementProfile({ store, bookId: cur.book_id, plan: input.plan, at: clock.now() });
-      return { status: r.ok ? 200 : 400, body: { ...r } };
+      return { status: r.ok ? 200 : 400, body: { ...r, ...ctx.served } };
     },
 
     // ── MUNKATÁRSAK ──────────────────────────────────────────────────────────────────────────
@@ -548,8 +559,8 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
       if (!session.subject_id) return loginRequired();
       const cur = currentBookOf(session);
       if (!cur.book_id) return workspaceRequired(cur);
-      const ctx = contextGate(body, cur.book_id);
-      if (!ctx.ok) return { status: ctx.status, body: { ok: false, reason: ctx.reason, message: ctx.message, expected_book_id: ctx.expected_book_id, current_book_id: ctx.current_book_id } };
+      const ctx = contextGate(body, session, cur.book_id);
+      if (!ctx.ok) return { status: ctx.status, body: ctx.body };
       const token = hex(32);
       const at = clock.now();
       const expiresAt = new Date(Date.parse(at) + INVITE_TTL_MS).toISOString();
@@ -558,10 +569,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
         inviteeEmail: input.email, offeredRole: input.role, scope: input.scope,
         token, expiresAt, at,
       });
-      if (!r.ok) return { status: 403, body: { ok: false, reason: r.reason, message: r.message ?? 'a meghívó nem adható ki', ceiling: r.ceiling ?? null } };
+      if (!r.ok) return { status: 403, body: { ok: false, reason: r.reason, message: r.message ?? 'a meghívó nem adható ki', ceiling: r.ceiling ?? null, ...ctx.served } };
       pushMail({ to: String(input.email).trim(), subject: `Meghívás: ${bookNameOf(cur.book_id) ?? cur.book_id}`, link: `http://${host}/?invite=${token}`,
         body: `${emailOf(session.subject_id) ?? session.subject_id} meghívott a(z) „${bookNameOf(cur.book_id) ?? cur.book_id}" munkakörnyezetbe (${input.role} szerep; adatkör: ${input.scope} — a jogot a kezelő a beváltás után külön adja meg). A meghívó 7 napig él.` });
-      return { status: 201, body: { ok: true, token, ceiling: r.ceiling, basis_id: r.basis_id, basis_version: r.basis_version, expires_at: expiresAt } };
+      return { status: 201, body: { ok: true, token, ceiling: r.ceiling, basis_id: r.basis_id, basis_version: r.basis_version, expires_at: expiresAt, ...ctx.served } };
     },
 
     'GET /api/invites/observe': ({ session, url }) => {
@@ -590,22 +601,22 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
       if (!session.subject_id) return loginRequired();
       const cur = currentBookOf(session);
       if (!cur.book_id) return workspaceRequired(cur);
-      const ctx = contextGate(body, cur.book_id);
-      if (!ctx.ok) return { status: ctx.status, body: { ok: false, reason: ctx.reason, message: ctx.message, expected_book_id: ctx.expected_book_id, current_book_id: ctx.current_book_id } };
+      const ctx = contextGate(body, session, cur.book_id);
+      if (!ctx.ok) return { status: ctx.status, body: ctx.body };
       const r = grantScopeToMember({ store, granterSubjectId: session.subject_id, bookId: cur.book_id, targetSubjectId: input.subject_id, scope: input.scope, at: clock.now() });
-      return { status: r.ok ? 200 : 403, body: { ...r } };
+      return { status: r.ok ? 200 : 403, body: { ...r, ...ctx.served } };
     },
 
     'POST /api/members/revoke': ({ session, input, body }) => {
       if (!session.subject_id) return loginRequired();
       const cur = currentBookOf(session);
       if (!cur.book_id) return workspaceRequired(cur);
-      const ctx = contextGate(body, cur.book_id);
-      if (!ctx.ok) return { status: ctx.status, body: { ok: false, reason: ctx.reason, message: ctx.message, expected_book_id: ctx.expected_book_id, current_book_id: ctx.current_book_id } };
+      const ctx = contextGate(body, session, cur.book_id);
+      if (!ctx.ok) return { status: ctx.status, body: ctx.body };
       const target = String(input.subject_id).trim();
       const revocation = revokeMembership({ store, subjectId: target, bookId: cur.book_id, clock, actorSubjectId: session.subject_id });
       const delegation = revocation.ok ? revokeDelegationsOf({ store, subjectId: target, bookId: cur.book_id, at: clock.now() }) : null;
-      return { status: revocation.ok ? 200 : 403, body: { ok: revocation.ok, reason: revocation.reason, message: revocation.message ?? null, revocation, delegation } };
+      return { status: revocation.ok ? 200 : 403, body: { ok: revocation.ok, reason: revocation.reason, message: revocation.message ?? null, revocation, delegation, ...ctx.served } };
     },
 
     // ── ADATOK ───────────────────────────────────────────────────────────────────────────────

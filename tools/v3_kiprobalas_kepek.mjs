@@ -39,17 +39,20 @@ function gitState() {
 }
 const GIT = gitState();
 
+// KÉT ALAK, EGY TARTALOM (R79 §4): a PNG-s lap a részletekhez, a JPEG-es TÖMÖR lap a
+// továbbküldéshez. A tömör alakot a `VS_KEPEK_JPEG=1` kapcsolja — a lépések és a szövegek azonosak.
+const JPEG = process.env.VS_KEPEK_JPEG === '1';
 const shots = [];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 async function shot(page, title, what, evidence) {
-  const buf = await page.screenshot({ fullPage: true });
-  shots.push({ title, what, evidence, png: buf.toString('base64') });
+  const buf = await page.screenshot({ fullPage: true, ...(JPEG ? { type: 'jpeg', quality: 72 } : {}) });
+  shots.push({ title, what, evidence, png: buf.toString('base64'), mime: JPEG ? 'image/jpeg' : 'image/png' });
   console.log(`kép ${shots.length}: ${title}`);
 }
 
 const dbPath = resolve(ROOT, artifactPath({ area: 'tmp', kind: 'v3app_kiprobalas', ext: 'sqlite', version: VERSION }));
-const outPath = resolve(ROOT, artifactPath({ area: 'reports', kind: 'v3app_kiprobalas_kepek', ext: 'html', version: VERSION }));
+const outPath = resolve(ROOT, artifactPath({ area: 'reports', kind: JPEG ? 'v3app_kiprobalas_kepek_tomor' : 'v3app_kiprobalas_kepek', ext: 'html', version: VERSION }));
 const app = await startServer({ port: 0, dbPath });
 const base = `http://127.0.0.1:${app.port}`;
 const browser = await chromium.launch();
@@ -249,12 +252,15 @@ mutatja a kimenő leveleket, azt nyilvánosan kitenni nem szabad. Amit itt lát,
 <div class="box">
 <p><strong>HA KIPRÓBÁLNÁ A SAJÁT GÉPÉN — ez a pontos út.</strong> Külön mappába tölt le, tehát a meglévő munkamásolatot és a
 <code>main</code>-t NEM érinti. Adatbázis, kulcs, internet-hozzáférés a futtatáshoz nem kell (a letöltéshez igen).</p>
-<p><strong>Előfeltétel:</strong> Node <strong>22.5 vagy újabb</strong>. Ellenőrzés: <code>node -v</code> — ha régebbi (vagy „command not found”),
-a <a href="https://nodejs.org/">nodejs.org</a> LTS telepítője elég, más nem kell.</p>
-<p>Terminálban, sorban (a négy sor egyben másolható):</p>
+<p><strong>Előfeltételek:</strong> <strong>Node 22.5 vagy újabb</strong> (ellenőrzés: <code>node -v</code>; ha régebbi vagy „command not found”,
+a <a href="https://nodejs.org/">nodejs.org</a> LTS telepítője elég) · <strong>Git</strong> (<code>git --version</code>) ·
+és <strong>hozzáférés a repóhoz</strong> — ugyanaz a GitHub-belépés, amivel a szokásos <code>git pull</code> is megy (a repó nem nyilvános).</p>
+<p>Terminálban, sorban (öt sor, egyben másolható). A negyedik sor a <strong>PONTOS commitra</strong> állítja a másolatot,
+tehát pontosan ezt a bemutatót kapja vissza — a meglévő munkamásolatát és a <code>main</code>-t nem érinti:</p>
 <pre class="cmd"><code>cd ~/Downloads
-git clone --branch ${esc(GIT.branch || 'claude/affectionate-dijkstra-76w5e8')} --single-branch https://github.com/valach-family/valach-system.git v3-proba
+git clone https://github.com/valach-family/valach-system.git v3-proba
 cd v3-proba
+git checkout ${esc(GIT.commit || '')}
 node v3app/server.mjs</code></pre>
 <p>A negyedik sor kiírja a címet: <code>http://127.0.0.1:3300/</code> — ezt nyissa meg a böngészőben. A kimenő levelek
 (megerősítés, meghívó) a <code>http://127.0.0.1:3300/dev/mailbox</code> lapon állnak; VALÓDI levél nem megy ki.
@@ -265,7 +271,7 @@ A leállítás: a terminálban <strong>Ctrl + C</strong>. A próba adatai egy el
 </div>
 <p class="lead">Készült: ${esc(started)} – ${esc(finished)} · verzió: ${esc(VERSION)} · ${shots.length} képernyő</p>
 ${shots.map((s, i) => `<div class="step"><h2>${esc(s.title)}</h2><p>${esc(s.what)}</p>
-<img alt="${esc(s.title)}" src="data:image/png;base64,${s.png}">
+<img alt="${esc(s.title)}" src="data:${s.mime};base64,${s.png}">
 <p class="ev">Bizonyíték: ${esc(s.evidence)}</p></div>`).join('\n')}
 <div class="box"><p><strong>Amit ez a lap NEM állít.</strong> Nem üzemi rendszer és nem üzleti modul: a minta-rekordok szintetikusak,
 valódi levél nem megy ki, és a teljes core-lezárás nincs elfogadva. Amit állít: a fenti lánc a mag SAJÁT szabályain, valódi
