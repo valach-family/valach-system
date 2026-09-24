@@ -135,7 +135,22 @@ A felhasználói laphoz **nem kell terminál, Git vagy Node** — böngésző el
 
 ---
 
-## 6. Amit ez a kör NEM állít
+## 6. Fogyasztás — egy sor, mérve
+
+`npm run meres:fogyasztas -- --session auto --from 2026-09-24T17:55:06Z --label "R81 csomag" --quick`
+→ **hívás 402 · fő-szál kontextus medián 493 380,5 (max 761 514) · ügynök-bemenet 0 (0 ügynök) ·
+cache-olvasás 194 693 918 · lefedettség: teljes.**
+
+**A kísérleti jelző ÁTLÉPVE** (fő-szál medián > 200 ezer), és ezt nem az operátorra hárítom:
+ez EGY csomag volt, egy munkamenetben — teljes felület-átírás plusz a 43 böngésző-próba zöldre
+vitele, tizenkét teljes csomag-futással. Az ügynök-oldal nulla (párhuzamos ügynököt nem indítottam,
+mert a feladat nem volt szétválasztható). **A szűkítés helye a KÖVETKEZŐ csomag:** a felület-munka
+befejeződött, a következő kör új munkamenetben indul, és a hosszú böngésző-iterációt érdemes
+előbb célzott, EGY-próbás futásokkal végezni, csak a végén teljes csomaggal — ebben a körben az
+első három teljes futás nagyrészt ugyanazt az információt adta, mint amit egy szűkített futás is
+megadott volna.
+
+## 7. Amit ez a kör NEM állít
 
 - Nem állítja, hogy a V3 core-lezárása elfogadott — az a külső ellenőrző félé.
 - Nem állítja, hogy a bemutatóadatok mögött üzleti modul áll: nincs készletmozgás, könyvelés,
