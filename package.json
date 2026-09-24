@@ -20,7 +20,6 @@
     "proof:norm-chain-package": "node tools/v3_norm_chain_package_proof.mjs",
     "proof:r75-findings": "node v3app/findings_r75.mjs",
     "proof:r77-findings": "node v3app/findings_r77.mjs",
-    "proof:r79-findings": "node v3app/findings_r79.mjs",
     "test:e2e": "playwright test",
     "v3ref:evidence": "node v3ref/run.mjs --json",
     "v3ref:mutate": "node v3ref/mutate.mjs",
