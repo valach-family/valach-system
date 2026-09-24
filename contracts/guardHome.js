@@ -248,6 +248,8 @@ const GUARD_HOME = Object.freeze({
   'KUKA-184': Object.freeze({ home: 'v3', note: 'a sémaverzió a KANONIKUS bevét-úton mérve — a jel a P-KSZ-ledger-truth új állítása és az M163 mutáció' }),
   'KUKA-183': Object.freeze({ home: 'v3', note: 'a soha nem dobó diagnosztikai megjelenítő (showValue) itt él — a jel a P-BEM-input-schema nyolc alakja és a verify:kuka tiltó-mintája' }),
   'KUKA-182': Object.freeze({ home: 'v3', note: 'a forrás-kötés és a kanonikus ítélő újrafuttatása a csomag-generátorban él — a jel a proof:norm-chain-package húsz esete, a kilépési kódon' }),
+  'KUKA-210': Object.freeze({ home: 'v3', note: 'az EGY szövegforrás (v3app/public/texts.mjs) a V3 felületén él — a jel a tests/e2e/v3app-r81-ux.spec.mjs UX-07 szöveg-mérése és a verify:kuka tiltó-mintái' }),
+  'KUKA-209': Object.freeze({ home: 'v3', note: 'a lekérés nézetenként EGYSZER indul magától a V3 felületén — a jel a tests/e2e/v3app-r79.spec.mjs kérés-számlálója és a verify:kuka tiltó-mintája' }),
   'KUKA-208': Object.freeze({ home: 'v3', note: 'az ÍRÁS alany+könyv kötése (KTX-03) a V3 héjában, séma-regiszterében és felületén él — a jel a verify:app-findings-r79 mátrixa és a tests/e2e/v3app-r79.spec.mjs azonos cégen belüli fiókváltása' }),
   'KUKA-207': Object.freeze({ home: 'v3', note: 'a nézet-kötés szabálya külön, behúzható modulban él (v3app/public/contextBinding.mjs) — a jel a verify:app-findings-r79 igazság-táblája ugyanazon a fájlon, és a böngésző hibabeviteles próbája' }),
   'KUKA-206': Object.freeze({ home: 'v3', note: 'a származtatott bizonyíték-lap hatókör-jelölése a V3 böngésző-csomagjában él — a jel a verify:app-findings-r77 R77 §4 (c/0) szakasza és a tiltó-minta a régi tartalék ágra' }),

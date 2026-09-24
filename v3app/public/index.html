@@ -3,156 +3,61 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>VS3 — első felhasználói folyamat</title>
+  <title>VS — Valach System</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <header class="topbar" data-testid="header">
-    <div class="brand">VS3 <span class="muted">magreferencia · próba-alkalmazás (nem üzemi rendszer)</span></div>
-    <div class="who">
-      <span data-testid="header-subject">nincs bejelentkezve</span>
-      <span class="sep">·</span>
-      <span data-testid="header-workspace">nincs munkakörnyezet</span>
-      <span class="sep">·</span>
-      <span data-testid="header-acting-as" class="small">—</span>
-    </div>
+  <!-- A KERET ÜRES VÁZ: minden tartalmat a lap rajzol (app.js), egyetlen szövegforrásból
+       (texts.mjs). Így a menücím, az oldalcím és a gomb-felirat nem tud elcsúszni (R81 §6). -->
+  <div class="demobar" data-testid="demo-marker">
+    <strong>Bemutató · mintaadatok</strong>
+    <span class="muted">Nincs valódi levélküldés, számlázás vagy készletmozgás.</span>
+    <span class="spacer"></span>
+    <button type="button" class="plain" data-testid="demo-mail-open">Próbaüzenetek</button>
+  </div>
+
+  <header class="top" data-testid="header">
+    <button type="button" class="mobile-toggle" data-testid="nav-toggle" aria-label="Menü megnyitása" aria-expanded="false">☰</button>
+    <button type="button" class="brand" data-testid="brand" aria-label="Kezdőlap">VS</button>
+
+    <details class="switcher" data-testid="account-switcher">
+      <summary aria-label="Aktív fiók">
+        <span class="label">Fiók</span>
+        <span class="value" data-testid="header-workspace">nincs fiók</span>
+        <span aria-hidden="true">⌄</span>
+      </summary>
+      <div class="menu" data-testid="ws-list"></div>
+    </details>
+
+    <span class="spacer"></span>
+    <span class="sr-only" data-testid="header-acting-as">—</span>
+    <span class="sr-only" data-testid="channel-proven">—</span>
+
+    <details class="profile" data-testid="profile">
+      <summary aria-label="Saját profil menü">
+        <span class="avatar" data-testid="avatar">–</span>
+        <span class="personname" data-testid="header-subject">nincs bejelentkezve</span>
+        <span aria-hidden="true">⌄</span>
+      </summary>
+      <div class="menu" data-testid="profile-menu"></div>
+    </details>
   </header>
 
-  <main>
-    <p class="notice" data-testid="global-notice" hidden></p>
+  <!-- BELÉPÉSI OLDALAK: bejelentkezés után NINCS belépési űrlap a belső oldalon (UX-01). -->
+  <section class="auth" data-testid="auth" hidden></section>
 
-    <!-- (1) FIÓK -->
-    <section id="sec-account" data-testid="section-account">
-      <h2>1. Fiók</h2>
-      <div class="grid2">
-        <form id="form-register" data-testid="register-form">
-          <h3>Regisztráció</h3>
-          <label>E-mail <input type="email" name="email" required data-testid="register-email" autocomplete="username"></label>
-          <label>Jelszó (min. 8) <input type="password" name="password" required minlength="8" data-testid="register-password" autocomplete="new-password"></label>
-          <button type="submit" data-testid="register-submit">Regisztráció</button>
-          <p class="result" data-testid="register-result"></p>
-        </form>
-        <form id="form-login" data-testid="login-form">
-          <h3>Belépés</h3>
-          <label>E-mail <input type="email" name="email" required data-testid="login-email" autocomplete="username"></label>
-          <label>Jelszó <input type="password" name="password" required data-testid="login-password" autocomplete="current-password"></label>
-          <button type="submit" data-testid="login-submit">Belépés</button>
-          <p class="result" data-testid="login-result"></p>
-        </form>
-      </div>
-      <div class="row">
-        <span>Csatorna bizonyítva: <strong data-testid="channel-proven">—</strong></span>
-        <button type="button" id="btn-logout" data-testid="logout" hidden>Kilépés</button>
-      </div>
-      <form id="form-resend" data-testid="resend-form">
-        <h3>Nem kaptad meg a megerősítő levelet, vagy lejárt?</h3>
-        <p class="muted small">Kérj újat: a jelszavad NEM változik, új fiókot sem kell csinálnod. A legutóbb küldött
-          hivatkozás él, a korábbiak érvénytelenné válnak. Rövid időn belül ismételve nem küldünk újabb levelet.</p>
-        <label>E-mail <input type="email" name="email" required data-testid="resend-email" autocomplete="username"></label>
-        <button type="submit" data-testid="resend-submit">Új megerősítő hivatkozás kérése</button>
-        <p class="result" data-testid="resend-result"></p>
-      </form>
-    </section>
+  <div class="layout" data-testid="app" hidden>
+    <nav class="sidebar" data-testid="nav" aria-label="Főmenü"></nav>
+    <div class="workspace">
+      <div class="tabs" data-testid="tabs" aria-label="Nyitott munkalapok"></div>
+      <main class="content" data-testid="main" tabindex="-1"></main>
+    </div>
+  </div>
 
-    <!-- (2) MUNKAKÖRNYEZET -->
-    <section id="sec-workspace" data-testid="section-workspace" hidden>
-      <h2>2. Munkakörnyezet</h2>
-      <p class="muted small" data-testid="personal-space-note">A saját, SZEMÉLYES köröd a cím megerősítésekor magától
-        létrejön — ahhoz nem kell „céget" alapítanod. Új kört akkor indíts, ha másokkal közösen (családi/céges
-        könyvben) akarsz dolgozni. A vállalkozási minőség NEM új személyazonosság: ugyanaz a fiókod marad.</p>
-      <form id="form-ws" data-testid="ws-form">
-        <h3>Új közös (családi/céges) munkakörnyezet</h3>
-        <label>Név <input type="text" name="name" required data-testid="ws-name"></label>
-        <label>Terv
-          <select name="plan" data-testid="ws-plan">
-            <option value="starter">starter (ár-nézet nélkül)</option>
-            <option value="pro">pro (ár-nézettel)</option>
-          </select>
-        </label>
-        <label class="check"><input type="checkbox" name="is_business" data-testid="ws-business"> Vállalkozási minőség (önbevallott — hatósági igazolás nincs)</label>
-        <p class="muted small" data-testid="representation-note">Az adószám ÁLLÍTÁS, nem igazolás: a SAJÁT köröd
-          indításához elég. Más, már létező szervezet nevében eljárni vagy annak körét átvenni ebből NEM következik —
-          ahhoz külön képviseleti ellenőrzés kellene, és olyan ma nincs bekötve.</p>
-        <div id="ws-business-fields" hidden>
-          <label>Joghatóság
-            <select name="jurisdiction" data-testid="ws-jurisdiction">
-              <option value="HU">HU</option><option value="AT">AT</option><option value="DE">DE</option>
-              <option value="SK">SK</option><option value="RO">RO</option><option value="egyeb">egyéb</option>
-            </select>
-          </label>
-          <label>Adószám <input type="text" name="tax_id" data-testid="ws-tax-id"></label>
-        </div>
-        <button type="submit" data-testid="ws-create">Létrehozás</button>
-        <p class="result" data-testid="ws-create-result"></p>
-      </form>
-      <h3>Váltó</h3>
-      <ul id="ws-list" class="list" data-testid="ws-list"></ul>
-      <form id="form-plan" data-testid="plan-form" hidden>
-        <h3>Terv módosítása (csak admin)</h3>
-        <label>Terv
-          <select name="plan" data-testid="plan-select">
-            <option value="starter">starter</option><option value="pro">pro</option>
-          </select>
-        </label>
-        <button type="submit" data-testid="plan-submit">Terv mentése</button>
-        <p class="result" data-testid="plan-result"></p>
-      </form>
-    </section>
+  <dialog data-testid="panel"><div data-testid="panel-body"></div></dialog>
+  <div class="toast" data-testid="toast" role="status" hidden></div>
+  <noscript><p style="padding:24px">Ehhez a felülethez engedélyezd a JavaScriptet a böngészőben.</p></noscript>
 
-    <!-- (3) MUNKATÁRSAK (csak admin) -->
-    <section id="sec-members" data-testid="section-members" hidden>
-      <h2>3. Munkatársak</h2>
-      <form id="form-invite" data-testid="invite-form">
-        <h3>Meghívás</h3>
-        <label>E-mail <input type="email" name="email" required data-testid="invite-email"></label>
-        <label>Szerep
-          <select name="role" data-testid="invite-role"><option value="user">user</option><option value="admin">admin</option></select>
-        </label>
-        <label>Adatkör (a meghívás tárgya — a jogot beváltás után külön adod meg)
-          <select name="scope" data-testid="invite-scope"><option value="keszlet">keszlet</option><option value="arak">arak</option></select>
-        </label>
-        <button type="submit" data-testid="invite-submit">Meghívó kiadása</button>
-        <p class="result" data-testid="invite-result"></p>
-      </form>
-      <h3>Tagok</h3>
-      <p class="muted small">A meghívó adatköre PLAFON; a tényleges olvasási jogot itt, kimondott lépésben adja az admin („adatkör adása").</p>
-      <ul id="members-list" class="list" data-testid="members-list"></ul>
-      <p class="result" data-testid="members-result"></p>
-    </section>
-
-    <!-- (4) ADATOK -->
-    <section id="sec-data" data-testid="section-data" hidden>
-      <h2>4. Adatok</h2>
-      <div class="row">
-        <button type="button" id="btn-stock" data-testid="data-stock-btn">Készlet-nézet</button>
-        <button type="button" id="btn-price" data-testid="data-price-btn">Ár-nézet</button>
-      </div>
-      <div class="grid2">
-        <div class="panel"><h3>Készlet</h3><pre class="out" data-testid="data-stock">—</pre></div>
-        <div class="panel"><h3>Ár</h3><pre class="out" data-testid="data-price">—</pre></div>
-      </div>
-    </section>
-
-    <!-- (5) MEGHÍVÓ BEVÁLTÁSA -->
-    <section id="sec-invite" data-testid="section-invite" hidden>
-      <h2>5. Meghívó beváltása</h2>
-      <p>Meghívó: <code data-testid="invite-token"></code></p>
-      <pre class="out" data-testid="invite-observe">—</pre>
-      <p class="next" data-testid="invite-next"></p>
-      <button type="button" id="btn-redeem" data-testid="invite-redeem" hidden>Meghívó beváltása</button>
-      <pre class="out" data-testid="invite-redeem-result" hidden></pre>
-    </section>
-
-    <!-- (6) FEJLESZTŐI LEVÉL-FOGADÓ -->
-    <section id="sec-mailbox" data-testid="section-mailbox">
-      <h2>6. FEJLESZTŐI LEVÉL-FOGADÓ — nem küld külső személynek</h2>
-      <p class="muted small">Valódi levél soha nem megy ki. Ami itt áll, azt a rendszer „küldte volna”: a hivatkozásokra ugyanúgy rá lehet kattintani.</p>
-      <button type="button" id="btn-mailbox" data-testid="mailbox-refresh">Frissítés</button>
-      <ul id="mailbox" class="list" data-testid="mailbox"></ul>
-    </section>
-  </main>
-
-  <!-- MODUL: a nézet-kötés szabálya külön fájlban él (contextBinding.js), és a lap onnan hívja. -->
   <script type="module" src="/app.js"></script>
 </body>
 </html>

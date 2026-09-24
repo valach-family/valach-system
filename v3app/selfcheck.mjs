@@ -205,7 +205,11 @@ try {
 
   // ── STATIKUS ÉS HÉJ-ŐRÖK ────────────────────────────────────────────────────────────────────
   r = await anna.get('/');
-  step('GET / → index.html', r.status === 200 && typeof r.body === 'string' && r.body.includes('data-testid="mailbox"'));
+  // A KERET ÜRES VÁZ (R81): a levél-fogadó listája ÁTKÖLTÖZÖTT a „Próbaüzenetek" panelbe, amit a
+  // lap rajzol — a kiszolgált HTML-ben ezért a KERET jelei mérhetők, nem a panel tartalma.
+  step('GET / → index.html (a keret váza)', r.status === 200 && typeof r.body === 'string'
+    && r.body.includes('data-testid="app"') && r.body.includes('data-testid="demo-marker"')
+    && r.body.includes('/app.js'));
   r = await anna.get('/../package.json');
   step('útvonal-átlépés elutasítva', r.status === 403 || r.status === 404, r.status);
   r = await anna.get('/%2e%2e/package.json');

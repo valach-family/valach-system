@@ -22,17 +22,21 @@
 import { test, expect } from '@playwright/test';
 import {
   World, Db, PASSWORD, registerUI, loginUI, logoutUI, header, createWorkspaceUI, switchUI,
-  inviteUI, openInviteUI, redeemUI, stockUI, workspaceListUI, withResponse,
+  inviteUI, openInviteUI, redeemUI, stockUI, workspaceListUI, withResponse, openSwitcher, openStockPage, gotoPage,
+  openMailbox, openMemberPanel, revokeUI,
 } from './helpers.mjs';
 
 const DAY = 24 * 3600 * 1000;
 
 /** A levél-fogadó adott című, adott tárgyú levelének hivatkozása — a felhasználó útján (lista). */
 async function mailLink(page, email, subjectPart) {
-  await page.getByTestId('mailbox-refresh').click();
+  await openMailbox(page);                     // R81: a levél-fogadó a „Próbaüzenetek" panelben él
   const li = page.locator('li[data-testid^="mail-"]').filter({ hasText: email }).filter({ hasText: subjectPart }).first();
   await expect(li).toBeVisible();
-  return li.locator('a[data-testid^="mail-link-"]').getAttribute('href');
+  const href = await li.locator('a[data-testid^="mail-link-"]').getAttribute('href');
+  await page.locator('[data-action="panel-close"]').last().click();
+  await expect(page.getByTestId('panel-body')).not.toBeVisible();
+  return href;
 }
 
 test('R75/F75-01 — LEJÁRT megerősítés: a lap FOLYTATÁST ad, az új hivatkozás működik, a jelszó változatlan', async ({ browser }) => {
@@ -47,15 +51,19 @@ test('R75/F75-01 — LEJÁRT megerősítés: a lap FOLYTATÁST ad, az új hivatk
     await api.post('/dev/clock', { advance_ms: 25 * 3600 * 1000 });
     await page.goto(first);
     await expect(page.getByTestId('verify-result')).toHaveAttribute('data-ok', 'false');
-    await expect(page.getByTestId('verify-result')).toContainText('challenge_expired');
+    // R81 §5/02: a mondat EMBERI („a hivatkozás 24 óráig élt, és ez az idő letelt"), a gépi ok a
+    // „Technikai részletek" lenyílóban marad meg — a mérés tehát ODA néz, nem a fő mondatba.
+    await expect(page.getByTestId('verify-result')).toContainText('24 óráig élt');
+    await expect(page.locator('details.tech pre')).toContainText('challenge_expired');
     // A RÉGI ALAK ITT ÉRT VÉGET: „regisztrálj újra" — ami nem működik (a cím foglalt).
     await expect(page.getByTestId('verify-result')).not.toContainText('regisztrálj újra');
-    await expect(page.getByTestId('verify-next')).toContainText('Folytatás');
+    await expect(page.getByTestId('verify-next')).toContainText('Új megerősítő levél kérése');
 
-    // 2. A FOLYTATÁS GOMBJA ott van, ahol keresik, és a lap KIMONDJA, mi történt.
+    // 2. A FOLYTATÁS GOMBJA ott van, ahol keresik, és a lap az ÚJ LEVÉL lapjára visz.
     await page.getByTestId('verify-resend-link').click();
-    await expect(page.getByTestId('global-notice')).toContainText('lejárt');
     await expect(page.getByTestId('resend-form')).toBeVisible();
+    await expect(page.getByTestId('resend-reason')).toContainText('lejárt');
+    expect(await page.getByTestId('register-email').count()).toBe(0);   // a regisztráció NEM indul újra
 
     // 3. ÚJ HIVATKOZÁS KÉRÉSE a felületről — semleges válasz, ÚJ levél.
     await page.getByTestId('resend-email').fill(email);
@@ -67,7 +75,7 @@ test('R75/F75-01 — LEJÁRT megerősítés: a lap FOLYTATÁST ad, az új hivatk
 
     // 4. A RÉGI hivatkozás NEM éled újra, az ÚJ működik (pozitív ellenpár).
     await page.goto(first);
-    await expect(page.getByTestId('verify-result')).toContainText('challenge_expired');
+    await expect(page.getByTestId('verify-result')).toContainText('24 óráig élt');
     await page.goto(second);
     await expect(page.getByTestId('verify-result')).toHaveAttribute('data-ok', 'true');
     await page.getByTestId('verify-back').click();
@@ -79,7 +87,8 @@ test('R75/F75-01 — LEJÁRT megerősítés: a lap FOLYTATÁST ad, az új hivatk
     expect(me.channel_proven).toBe(true);
     expect(me.personal_book_id).toBeTruthy();
     expect(me.workspaces.filter((x) => x.personal).length).toBe(1);
-    await expect(page.getByTestId('ws-list')).toContainText('személyes kör');
+    await openSwitcher(page);
+    await expect(page.getByTestId('ws-list')).toContainText('személyes köre');
     // A TÁROLÓBAN: a leváltott és a beváltott kihívás KÜLÖN tény, egyik sem írta át a másikat.
     const rows = db.all("SELECT used_at, superseded_at FROM channel_challenge WHERE value_norm = ? ORDER BY created_at", email);
     expect(rows.length).toBe(2);
@@ -113,6 +122,7 @@ test('R75/F75-02 — KONTEXTUSVÁLTÁS: a régi cég válasza és gombja nem ér
 
     // ── (1) A KÉSVE ÉRKEZŐ TAGLISTA NEM KERÜL AZ ÚJ NÉZETBE ────────────────────────────────
     await switchUI(anna.page, A.bookId);
+    await gotoPage(anna.page, 'members');
     await expect(anna.page.getByTestId(`member-${bela.subjectId}`)).toBeVisible();
     // CSAK AZ ELSŐ taglista-kérést tartjuk vissza (az ALFÁÉT); a váltás utáni kérés szabadon fut —
     // különben nem versenyt mérnénk, hanem egy megbénított lapot.
@@ -124,14 +134,20 @@ test('R75/F75-02 — KONTEXTUSVÁLTÁS: a régi cég válasza és gombja nem ér
       if (seen === 1) await firstHeld;
       await route.continue();
     });
-    await anna.page.reload();                       // ez indítja az ALFA taglistájának kérését
+    await anna.page.reload();
     await expect(anna.page.getByTestId('header-workspace')).toContainText('Alfa Kft');
+    // R81: a taglista a Beállítások MENÜPONTJA — a kérést a képernyő megnyitása indítja.
+    await gotoPage(anna.page, 'members');           // ez indítja az ALFA taglistájának kérését
+    await expect(anna.page.getByTestId('members-list')).toHaveText('Betöltés…');
+    await openSwitcher(anna.page);
     await anna.page.getByTestId(`ws-switch-${B.bookId}`).click();
     await expect(anna.page.getByTestId('header-workspace')).toContainText('Béta Kft');
+    await gotoPage(anna.page, 'members');           // a BÉTA listája — ez a kérés szabadon fut
     // POZITÍV ELLENPÁR ELŐSZÖR: a BÉTA saját tagja megjelenik (a lista nem „üres biztonság").
     await expect(anna.page.getByTestId(`member-${cili.subjectId}`)).toBeVisible();
     releaseFirst();                                  // MOST érkezik meg az ALFA régi válasza
     await anna.page.waitForTimeout(300);
+
     // A RÉGI cég tagja SEHOL — sem a listában, sem rejtve: a válasz eldobva (KTX-01).
     await expect(anna.page.getByTestId(`member-${bela.subjectId}`)).toHaveCount(0);
     await expect(anna.page.getByTestId(`member-${cili.subjectId}`)).toBeVisible();
@@ -141,14 +157,21 @@ test('R75/F75-02 — KONTEXTUSVÁLTÁS: a régi cég válasza és gombja nem ér
     // A taglista az ALFÁN áll; a MÁSIK LAP (ugyanaz a munkamenet!) átvált a BÉTÁRA. A gomb ezután
     // is ott van a régi képernyőn — a szervernek kell megfognia (a kliens jelzése nem jog).
     await switchUI(anna.page, A.bookId);
+    await gotoPage(anna.page, 'members');
     await expect(anna.page.getByTestId(`member-${bela.subjectId}`)).toBeVisible();
+    // R81: a megszüntetés a tag PANELJÉN áll, és MEGERŐSÍTÉST kér — a panelt a RÉGI (alfa)
+    // nézetben nyitjuk meg, tehát a gomb ugyanúgy „ottfelejtett gomb" marad, mint a leletben.
+    await openMemberPanel(anna.page, bela.subjectId);
+    await anna.page.getByTestId(`member-revoke-${bela.subjectId}`).click();
+    await expect(anna.page.getByTestId('revoke-confirm')).toBeVisible();
     const second = await anna.ctx.newPage();                 // MÁSODIK LAP, közös süti-tárca
     await second.goto('/');
+    await openSwitcher(second);
     await second.getByTestId(`ws-switch-${B.bookId}`).click();
     await expect(second.getByTestId('header-workspace')).toContainText('Béta Kft');
     const before = db.count('SELECT COUNT(*) AS n FROM membership_revocation WHERE subject_id = ? AND book_id = ?', bela.subjectId, A.bookId);
     const forced = await withResponse(anna.page, { path: '/api/members/revoke' },
-      () => anna.page.getByTestId(`member-revoke-${bela.subjectId}`).click());
+      () => anna.page.getByTestId('revoke-confirm').click());
     expect(forced.status).toBe(409);
     expect(forced.body.reason).toBe('context_mismatch');
     expect(forced.body.expected_book_id).toBe(A.bookId);
@@ -161,13 +184,12 @@ test('R75/F75-02 — KONTEXTUSVÁLTÁS: a régi cég válasza és gombja nem ér
     // A MONDAT R79 ÓTA KÉT OKOT NEVEZ MEG (munkakörnyezet VAGY belépett fiók) — a kontextus-eltérés
     // ugyanis azonos cégen belüli FIÓK-váltásból is jöhet (R79/F79-02). A próba állítása ugyanaz
     // marad: a magyarázat a globális sávban ÁLL, nem tűnik el a panel-ürítéssel.
-    await expect(anna.page.getByTestId('global-notice')).toContainText(/munkakörnyezet|belépett fiók/);
+    await expect(anna.page.getByTestId('global-notice')).toContainText(/fiókot váltottál|Másik felhasználó|másik fiókra/);
 
     // POZITÍV ELLENPÁR: a HELYES körben ugyanez a gomb dolgozik.
     await anna.page.reload();
     await expect(anna.page.getByTestId('header-workspace')).toContainText('Béta Kft');
-    const okRevoke = await withResponse(anna.page, { path: '/api/members/revoke' },
-      () => anna.page.getByTestId(`member-revoke-${cili.subjectId}`).click());
+    const okRevoke = await revokeUI(anna.page, cili.subjectId);
     expect(okRevoke.status).toBe(200);
     expect(okRevoke.body.ok).toBe(true);
     expect(db.count('SELECT COUNT(*) AS n FROM membership_revocation WHERE subject_id = ? AND book_id = ?', cili.subjectId, B.bookId)).toBe(1);
@@ -177,6 +199,7 @@ test('R75/F75-02 — KONTEXTUSVÁLTÁS: a régi cég válasza és gombja nem ér
     await switchUI(anna.page, A.bookId);
     const st = await stockUI(anna.page);
     expect(st.body.ok).toBe(true);
+    expect(st.granted).toBe(true);
     let releaseData = null;
     const dataHeld = new Promise((r) => { releaseData = r; });
     let dataSeen = 0;
@@ -186,13 +209,16 @@ test('R75/F75-02 — KONTEXTUSVÁLTÁS: a régi cég válasza és gombja nem ér
       await route.continue();
     });
     await anna.page.getByTestId('data-stock-btn').click();
-    await expect(anna.page.getByTestId('data-stock')).toHaveText('…');
+    // R81: a kérés előtt a panel „Betöltés…" (előbb ürít, aztán kér — KUKA-050).
+    await expect(anna.page.getByTestId('data-stock')).toHaveText('Betöltés…');
+    await openSwitcher(anna.page);
     await anna.page.getByTestId(`ws-switch-${B.bookId}`).click();
     await expect(anna.page.getByTestId('header-workspace')).toContainText('Béta Kft');
     releaseData();
     await anna.page.waitForTimeout(300);
-    // A váltás ÜRÍTETT, és a késve érkező válasz nem rajzolódik vissza.
-    await expect(anna.page.getByTestId('data-stock')).toHaveText('—');
+    // A VÁLTÁS MÁS KÉPERNYŐRE VISZ, tehát a panel meg sem marad — a késve érkező válasznak
+    // nincs hova visszaírnia (az eredeti követelmény ERŐSEBBEN teljesül, nem gyengébben).
+    await expect(anna.page.getByTestId('data-stock')).toHaveCount(0);
 
     // ── (4) KILÉPÉS UTÁN a késve érkező válasz sem kerül a DOM-ba ─────────────────────────
     // KIMONDVA, MIT NEM ÁLLÍTUNK: a rejtett szakaszban maradt szöveg ÖNMAGÁBAN nem „látható
@@ -202,18 +228,21 @@ test('R75/F75-02 — KONTEXTUSVÁLTÁS: a régi cég válasza és gombja nem ér
     const logoutHeld = new Promise((r) => { releaseLogout = r; });
     let logoutSeen = 0;
     await anna.page.unroute('**/api/data/stock**');
+    // A KÉPERNYŐ MEGNYITÁSA AZ ELŐKÉSZÍTÉS RÉSZE: a visszatartó útvonalat CSAK utána tesszük fel,
+    // különben a próba a SAJÁT előkészítését mérné (KUKA-120).
+    await switchUI(anna.page, A.bookId);
+    await openStockPage(anna.page);
     await anna.page.route('**/api/data/stock**', async (route) => {
       logoutSeen += 1;
       if (logoutSeen === 1) await logoutHeld;
       await route.continue();
     });
-    await switchUI(anna.page, A.bookId);
     await anna.page.getByTestId('data-stock-btn').click();
-    await expect(anna.page.getByTestId('data-stock')).toHaveText('…');
+    await expect(anna.page.getByTestId('data-stock')).toHaveText('Betöltés…');
     await logoutUI(anna.page);
     releaseLogout();
     await anna.page.waitForTimeout(300);
-    await expect(anna.page.getByTestId('data-stock')).toHaveText('—');
+    await expect(anna.page.getByTestId('data-stock')).toHaveCount(0);
     expect((await header(anna.page)).subject).toBe('nincs bejelentkezve');
   } finally {
     await w.close(); db.close();

@@ -130,6 +130,7 @@ migráció áll; az `npm run db:migrate` az ELSŐ migrációval kerül ide (`ver
 | **bármit** — a kör parancsa | a SPEC szó szerint: `v3ref/source-documents/R<n>_board_v1.md`; a legutóbbi REPORT: `docs/70_PLANNING/V3_R<n>_…md` |
 | **a magot** (v3ref) módosítod | `v3ref/` (modulonként, a belépő `v3ref/entryPoints.mjs`) · a mutációs battéria `npm run verify:v3ref` (204 mutáció, 18 egység) · `v3ref/external-checks/` |
 | **a próba-alkalmazást** (v3app) | `v3app/` · a HATÁR sémája `v3app/httpSchema.mjs` (HTP-01) · `npm run app:selfcheck` · `npm run verify:app-findings` (az R75 leletei) · `npm run verify:app-findings-r77` (az R77 leletei + a §4 tartalmi kötések) · `npm run verify:app-findings-r79` (az R79 leletei; a nézet-kötés szabálya: `v3app/public/contextBinding.mjs` — a LAP és a próba UGYANAZT futtatja) · `npm run proof:core-ux` (Playwright) |
+| **a FELÜLETET** (v3app/public) | a közös keret `v3app/public/app.js` · MINDEN felirat EGY forrásból: `v3app/public/texts.mjs` (SZO-01 — sablonba felirat nem égethető) · a bemutató mintaadatai `v3app/public/demoData.mjs` (DEM-01) · a nézet-kötés `contextBinding.mjs` (KTX-03) · a 22 UX-feltétel `tests/e2e/v3app-r81-ux.spec.mjs` → `docs/70_PLANNING/V3_R81_UX_ELFOGADAS.json` |
 | **kiadás / migráció** | e fájl 5. szakasza · `contracts/releaseOrder.js` · `migrations/LEDGER.json` |
 | **generált fájlt írsz** | `contracts/artifactNaming.js` (`artifactPath`) · a `var/` rend (5. szakasz) |
 | **fogyasztást mérsz** | `tools/v3_fogyasztas_meres.mjs` (`--selftest` az ellenpróbák) · `docs/70_PLANNING/V3_R64_FOGYASZTAS_SZABALYOK_LEVEL.md` |
@@ -155,7 +156,7 @@ sort, amelyik a munkád hiba-osztályát fedi:
 | **jogosultsági kaput építesz** | KUKA-047 · 059 · 062 · 076 · 083 · 084 · 085 · 164 |
 | **mérést vagy riportot írsz** | KUKA-033 · 054 · 067 · 082 · 131 · 133 · 134 · **206** (a részleges futás nem írhatja felül a teljes mérés lapját; a nem futott nem „részben") |
 | **szerszámot szállítasz az operátornak** | KUKA-031 · 040 · 064 · 072 · 079 · 089 · 165 |
-| **felületet módosítasz** | KUKA-011 · 015 · 025 · 041 · 055 · 078 · 080 · 092 · **201** (a nemleges válasz vigye a MŰKÖDŐ folytatást) |
+| **felületet módosítasz** | KUKA-011 · 015 · 025 · 041 · 055 · 078 · 080 · 092 · **201** (a nemleges válasz vigye a MŰKÖDŐ folytatást) · **209** (a rajzolás és a lekérés KÉT külön döntés — az újrarajzoló hibaüzenet frissítési kört indított) · **210** (a mag szava nem a felhasználó szava; a felirat EGY forrásból jön, sablonba nem égetjük) |
 | **külső határt (HTTP) vagy bemenetet érintesz** | **203** (a kényszerítés nem ellenőrzés, a „nevezett maradék" nem védelem) · **205** (ami EGYÜTT igaz, azt EGY egységben írjuk — és a meglévő szabályt írás ELŐTT kérdezzük meg) · KUKA-092 |
 | **versenyhelyzetet védesz** (váltás, késő válasz) | KUKA-041 · 046 · **202** (az őr ott álljon, ahol a kár keletkezik) · **204** (az OLVASÁS is a nézethez kötött, és a válasz mondja ki, kinek szolgált ki) · **208** (a kontextus PÁR: alany ÉS könyv — a fél-megerősítés a másik felét láthatatlanná teszi) |
 

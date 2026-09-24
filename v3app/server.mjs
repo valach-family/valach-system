@@ -375,23 +375,33 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
       // A BIZONYÍTOTT CSATORNA ELSŐ KÖVETKEZMÉNYE A SZEMÉLYES KÖR (SZK-01): a magánszemélynek
       // innentől van hova belépnie, és nem kell „céget" kitalálnia a saját irataihoz (R64 L11).
       const personal = ok ? ensurePersonal(r.subject_id) : null;
-      // A KUDARC IS FOLYTATÁS (F75-01 · KUKA-064): minden nemleges ág megmondja, mi a KÖVETKEZŐ
-      // lépés, és a lap gombot ad hozzá — a régi „regisztrálj újra" mondat NEM működött.
+      // A KUDARC IS FOLYTATÁS (F75-01 · KUKA-064 · KUKA-201): minden nemleges ág megmondja, mi a
+      // KÖVETKEZŐ lépés, és a lap gombot ad hozzá — a régi „regisztrálj újra" mondat nem működött.
+      //
+      // R81 §5/02 ÉS §5/04: ez a lap ELHAGYJA a belső szavakat. Korábban a hibakódot
+      // (`challenge_superseded`) és a „bizonyítva" szót mutatta a felhasználónak; most azt mondja
+      // meg, MI TÖRTÉNT és MI A TEENDŐ — a gépi ok a „Technikai részletek" alatt marad meg.
       const REASONS = {
-        challenge_expired: 'A hivatkozás lejárt (24 óráig élt).',
-        challenge_already_used: 'Ezt a hivatkozást már beváltották — ha te voltál, egyszerűen lépj be.',
-        challenge_superseded: 'Ehhez a címhez újabb megerősítő levelet kértek, ezért ez a hivatkozás már nem él — a LEGUTÓBBI levélben lévő hivatkozás működik.',
-        challenge_unknown: 'Ismeretlen vagy hibás hivatkozás.',
+        challenge_expired: 'A hivatkozás 24 óráig élt, és ez az idő letelt.',
+        challenge_already_used: 'Ezt a hivatkozást már felhasználták. Ha te voltál, egyszerűen jelentkezz be.',
+        challenge_superseded: 'Ehhez a címhez újabb megerősítő levelet kértek, ezért ez a hivatkozás már nem él. A LEGUTÓBBI levélben lévő hivatkozás működik.',
+        challenge_unknown: 'Ez a hivatkozás nem használható — lehet, hogy hiányosan másolódott ki a levélből.',
       };
-      const detail = ok ? '' : (Object.prototype.hasOwnProperty.call(REASONS, r.reason) ? REASONS[r.reason] : 'Ismeretlen vagy hibás hivatkozás.');
+      const detail = ok ? '' : (Object.prototype.hasOwnProperty.call(REASONS, r.reason) ? REASONS[r.reason] : 'Ez a hivatkozás nem használható.');
+      const title = ok ? 'Az e-mail-címed megerősítve' : 'Ez a megerősítő hivatkozás már nem él';
       const msg = ok
-        ? `Az e-mail címed (${esc(r.value_norm)}) bizonyítva.${personal ? ` A személyes köröd („${esc(personal.name)}") készen áll` : ''} — most már bejelentkezhetsz.`
-        : `A megerősítés nem sikerült: <code>${esc(r.reason)}</code>. ${esc(detail)}`;
+        ? `A(z) ${esc(r.value_norm)} cím megerősítve. Mostantól be tudsz jelentkezni${personal ? `, és a személyes fiókod („${esc(personal.name)}") is készen áll` : ''}.`
+        : `${esc(detail)} Kérj új megerősítő levelet a címedre — a jelszavad nem változik, és új fiókot sem kell létrehoznod.`;
       const next = ok
-        ? '<p><a href="/" data-testid="verify-back">Vissza az alkalmazáshoz</a></p>'
-        : `<p data-testid="verify-next">Folytatás: kérj új megerősítő hivatkozást a címedre — a jelszavad nem változik, és új fiókot sem kell csinálnod.</p>
-           <p><a href="/?megerosites=${esc(r.reason)}" data-testid="verify-resend-link">Új hivatkozás kérése</a> · <a href="/" data-testid="verify-back">Vissza az alkalmazáshoz</a></p>`;
-      const html = `<!doctype html><html lang="hu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>E-mail megerősítés — VS3</title><link rel="stylesheet" href="/style.css"></head><body><main class="verify"><h1>${ok ? 'Megerősítve' : 'Nem sikerült'}</h1><p data-testid="verify-result" data-ok="${ok}">${msg}</p>${next}</main></body></html>`;
+        ? '<p><a class="primary" href="/" data-testid="verify-back">Tovább a bejelentkezéshez</a></p>'
+        : `<p data-testid="verify-next"><a class="primary" href="/?megerosites=${esc(r.reason)}" data-testid="verify-resend-link">Új megerősítő levél kérése</a></p>
+           <p class="authfoot"><a href="/" data-testid="verify-back">Vissza a bejelentkezéshez</a></p>`;
+      const html = `<!doctype html><html lang="hu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">`
+        + `<title>E-mail-cím megerősítése — VS</title><link rel="stylesheet" href="/style.css"></head><body>`
+        + `<main class="verify"><div class="card"><div class="status-icon${ok ? '' : ' warn'}">${ok ? '✓' : '!'}</div>`
+        + `<h1>${title}</h1><p data-testid="verify-result" data-ok="${ok}">${msg}</p>${next}`
+        + `${ok ? '' : `<details class="tech"><summary>Technikai részletek</summary><pre>${esc(r.reason)}</pre></details>`}`
+        + `</div></main></body></html>`;
       return { status: ok ? 200 : 400, html };
     },
 

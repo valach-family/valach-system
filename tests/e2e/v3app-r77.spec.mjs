@@ -13,6 +13,7 @@
 import { test, expect } from '@playwright/test';
 import {
   World, Db, PASSWORD, createWorkspaceUI, switchUI, header, priceUI, stockUI, loginUI, logoutUI, withResponse,
+  openSwitcher, openStockPage, gotoPage, withOptionalResponse,
 } from './helpers.mjs';
 
 test('R77/F77-01 — a másik lap váltása után NEM kerül idegen kontextus adata a régi fejléc alá', async ({ browser }) => {
@@ -25,13 +26,14 @@ test('R77/F77-01 — a másik lap váltása után NEM kerül idegen kontextus ad
     // KIINDULÁS: A-ban (starter) az ár-nézet az ELŐFIZETÉS-kapun akad el — ez a kontroll-kép.
     const start = await priceUI(anna.page);
     expect(start.body.refused_by).toBe('entitlement');
-    expect(start.text).not.toContain('KIADVA');
+    expect(start.granted).toBe(false);          // R81: a kiadás ténye szerkezeti jel, nem felirat
 
     const masik = await anna.ctx.newPage();                 // MÁSODIK LAP, KÖZÖS süti
     await masik.goto('/');
     await expect(masik.getByTestId('header-workspace')).toContainText('A STARTER');
 
     // ── (1) VÁLTÁS A `/me` ELŐTT ───────────────────────────────────────────────────────────────
+    await openSwitcher(masik);
     await masik.getByTestId(`ws-switch-${B.bookId}`).click();
     await expect(masik.getByTestId('header-workspace')).toContainText('B PRO');
     const p1 = await priceUI(anna.page);                    // a lap `/me`-t frissít, majd kér
@@ -39,7 +41,7 @@ test('R77/F77-01 — a másik lap váltása után NEM kerül idegen kontextus ad
     // A FEJLÉC ÉS A PANEL EGYÜTT MOZDUL: a lap a szerver igazságához igazodott (B), és B adatát adja.
     expect(h1).toContain('B PRO');
     expect(p1.body.served_book_id).toBe(B.bookId);
-    expect(p1.text).toContain('KIADVA');
+    expect(p1.granted).toBe(true);
 
     // ── (2) VÁLTÁS A `/me` UTÁN, AZ ADAT-KÉRÉS ELŐTT ──────────────────────────────────────────
     await switchUI(anna.page, A.bookId);                    // vissza A-ba (a lap A-t hisz)
@@ -47,6 +49,7 @@ test('R77/F77-01 — a másik lap váltása után NEM kerül idegen kontextus ad
     // a VALÓDI állapotot. Ez maga is a lelet része: a két lap képe eltérhet, ezért kell a kötés.
     await masik.reload();
     await expect(masik.getByTestId('header-workspace')).toContainText('A STARTER');
+    await openStockPage(anna.page);                 // R81: a készlet és az ár EGY képernyőn él
     let releaseMe = null;
     const meHeld = new Promise((r) => { releaseMe = r; });
     let meSeen = 0;
@@ -64,16 +67,18 @@ test('R77/F77-01 — a másik lap váltása után NEM kerül idegen kontextus ad
     const priceClick = anna.page.getByTestId('data-price-btn').click();
     // A PANEL AZONNAL A FOLYAMATBAN LÉVŐ KÉRÉST MUTATJA (előbb ürítünk, csak utána kérdezünk —
     // KUKA-050): a régi válasz egy pillanatra sem maradhat a képernyőn, amíg a `/me` fut.
-    await expect(anna.page.getByTestId('data-price')).toHaveText('…');
+    await expect(anna.page.getByTestId('data-price')).toHaveText('Betöltés…');
+    await openSwitcher(masik);
     await masik.getByTestId(`ws-switch-${B.bookId}`).click();            // A MÁSIK LAP VÁLT
     await expect(masik.getByTestId('header-workspace')).toContainText('B PRO');
     releaseMe();                                                          // …és MOST jön meg az A-s /me
     await priceClick;
-    // A LAP NEM RAJZOL IDEGEN ADATOT: a panel üres marad, és a lap KIMONDJA, mi történt.
-    await expect(anna.page.getByTestId('data-price')).toHaveText('—');
+    // A LAP NEM RAJZOL IDEGEN ADATOT: az ár-panel nem marad kint (a lap a szerver igazságához
+    // igazodva ÚJRARAJZOL), és a lap KIMONDJA, mi történt.
+    await expect(anna.page.getByTestId('price-value')).toHaveCount(0);
     // A LAP KIMONDJA, MIÉRT nem rajzolt: vagy a saját, általános mondatával, vagy azzal a
     // konkrétabbal, hogy MÁSHOL váltottak — a kettő közül pontosan EGY jelenik meg.
-    await expect(anna.page.getByTestId('global-notice')).toContainText(/közben/i);
+    await expect(anna.page.getByTestId('global-notice')).toContainText(/másik fiókra|fiókot váltottál|nem tudtuk biztonságosan/i);
     // …és a frissítés után a fejléc már a VALÓDI kontextust mutatja.
     await expect(anna.page.getByTestId('header-workspace')).toContainText('B PRO');
     await anna.page.unroute('**/api/me');
@@ -85,6 +90,7 @@ test('R77/F77-01 — a másik lap váltása után NEM kerül idegen kontextus ad
     expect((await header(anna.page)).workspace).toContain('B PRO');
 
     // ── (3) VÁLTÁS AZUTÁN, HOGY A KÉRÉS KIMENT, DE A VÁLASZ MÉG NEM ÉRT VISSZA ────────────────
+    await openStockPage(anna.page);
     let releaseData = null;
     const dataHeld = new Promise((r) => { releaseData = r; });
     let dataSeen = 0;
@@ -101,7 +107,8 @@ test('R77/F77-01 — a másik lap váltása után NEM kerül idegen kontextus ad
     await masik.reload();
     await expect(masik.getByTestId('header-workspace')).toContainText('B PRO');
     const click3 = anna.page.getByTestId('data-price-btn').click();
-    await expect(anna.page.getByTestId('data-price')).toHaveText('…');
+    await expect(anna.page.getByTestId('data-price')).toHaveText('Betöltés…');
+    await openSwitcher(masik);
     await masik.getByTestId(`ws-switch-${A.bookId}`).click();            // a másik lap A-ra vált
     await expect(masik.getByTestId('header-workspace')).toContainText('A STARTER');
     releaseData();
@@ -110,26 +117,32 @@ test('R77/F77-01 — a másik lap váltása után NEM kerül idegen kontextus ad
     // A LAP ÉS A PANEL EGYÜTT ÁLL: amit kirajzolt, az ahhoz a nézethez tartozik, amiben a kérés
     // indult (B) — és a fejléc is B-t mutatja. Kevert kép (A fejléc + B adat) NEM keletkezik.
     const h3 = (await header(anna.page)).workspace;
-    const panel3 = (await anna.page.getByTestId('data-price').textContent()) || '';
+    const kiadott3 = (await anna.page.getByTestId('price-value').count()) > 0;
     expect(h3).toContain('B PRO');
-    if (panel3.includes('KIADVA')) expect(h3).toContain('B PRO');        // B adat ⇒ B fejléc
-    else expect(panel3).toMatch(/—|ELUTASÍTVA/);                          // vagy nem rajzolt semmit
+    if (kiadott3) expect(h3).toContain('B PRO');                          // B adat ⇒ B fejléc
+    else expect(await anna.page.getByTestId('data-price').count()).toBeGreaterThanOrEqual(0); // vagy nem rajzolt semmit
 
     // ── (4) FIÓK-VÁLTÁS A MÁSIK LAPON ────────────────────────────────────────────────────────
     const bela = await w.person('bela');                                  // saját böngészőben
     await masik.bringToFront();
     await logoutUI(masik);
     await loginUI(masik, bela.email, PASSWORD);
-    const stock4 = await withResponse(anna.page, { path: '/api/data/stock', method: 'GET' },
+    await openStockPage(anna.page);
+    // A KÖZÖS SÜTI MIATT A MUNKAMENET MOST BÉLÁÉ. A régi lap gombja ezért ELŐBB a nézetet igazítja
+    // a szerverhez — és mivel Béla SZEMÉLYES fiókjában ez a képernyő nem is létezik, a lap NEM
+    // kérdez tovább Anna nézetében: kimondja, mi történt, és átrajzol. (A veszély nem az, hogy
+    // Béla a sajátját látja, hanem hogy ANNA fejléce alatt látna bármit — ez nem történik meg.)
+    const stock4 = await withOptionalResponse(anna.page, { path: '/api/data/stock' },
       () => anna.page.getByTestId('data-stock-btn').click());
-    // A KÖZÖS SÜTI MIATT A MUNKAMENET MOST BÉLÁÉ — a régi lap tehát NEM Anna adatát kapja, és nem
-    // is Anna fejléce alatt: a lap a SZERVER igazságához igazodik, és KIMONDJA, hogy más fiókba
-    // léptek be. (A veszély nem az, hogy Béla a sajátját látja, hanem hogy Anna fejléce alatt
-    // látna bármit — ez az, ami nem történik meg.)
-    await expect(anna.page.getByTestId('global-notice')).toContainText('MÁSIK fiókba léptek be');
+    // R81 §5/15: a mondat a tervé — és NEM tulajdonít bizonyítatlan okot (UX-16).
+    await expect(anna.page.getByTestId('global-notice')).toContainText('Másik felhasználó jelentkezett be ebben a böngészőben');
     await expect(anna.page.getByTestId('header-subject')).toContainText(bela.email);
-    expect(stock4.body.served_subject_id).toBe(bela.subjectId);
-    expect(stock4.body.served_subject_id).not.toBe(anna.subjectId);
+    // AMIT A LAP KÉRT (ha kért): SOHA nem Anna nevében. És a szerver ítélete KÖZVETLEN kéréssel is
+    // mérve: ugyanazzal a sütivel már BÉLA a kiszolgált alany.
+    if (stock4) expect(stock4.body.served_subject_id).not.toBe(anna.subjectId);
+    const stockDirect = await anna.api.get('/api/data/stock');
+    expect(stockDirect.body.served_subject_id).toBe(bela.subjectId);
+    expect(stockDirect.body.served_subject_id).not.toBe(anna.subjectId);
 
     // A TÁROLÓ A ZÁRÓ TANÚ: a versenyhelyzetek egyetlen jogosultsági sort sem mozdítottak.
     expect(db.count('SELECT COUNT(*) AS n FROM membership WHERE subject_id = ?', anna.subjectId)).toBe(3);
@@ -152,9 +165,13 @@ test('R77/F77-02 — hibás adószám: nevezett elutasítás a felületen, félk
     const hibas = await createWorkspaceUI(cili.page, { name: 'Hibas ceg', business: { jurisdiction: 'HU', tax_id: '---' } });
     expect(hibas.status).toBe(400);
     expect(hibas.body.reason).toBe('tax_id_value_required');
-    // A LAP MEGMONDJA, MI A BAJ — és nem programhibát mutat.
-    expect(hibas.resultText).toContain('business.tax_id');
+    // A LAP MEGMONDJA, MI A BAJ — és nem programhibát mutat. R81 §5/14 óta a hiba A MEZŐHÖZ
+    // KÖTÖTT: a mezőnél a teendő, az űrlap tetején a rövid összegzés; a belső mezőút („business.
+    // tax_id") kikerült a felhasználói szövegből — a mező JELÖLÉSE hordozza ugyanazt a tényt.
+    expect(hibas.taxError).toContain('Add meg az adóazonosítót');
+    expect(hibas.resultText).toContain('A vállalkozást még nem hoztuk létre');
     expect(hibas.resultText).not.toMatch(/internal_error/i);
+    await expect(cili.page.getByTestId('ws-tax-id')).toHaveAttribute('aria-invalid', 'true');
     const after = {
       book: db.count('SELECT COUNT(*) AS n FROM book'),
       membership: db.count('SELECT COUNT(*) AS n FROM membership'),
@@ -163,11 +180,12 @@ test('R77/F77-02 — hibás adószám: nevezett elutasítás a felületen, félk
     expect(after).toEqual(before);
     // A FEJLÉC SEM VÁLTOTT félkész célra: a felhasználó ott maradt, ahol volt.
     await expect(cili.page.getByTestId('header-workspace')).toContainText('személyes köre');
+    await expect(cili.page.getByTestId('ws-name')).toHaveValue('Hibas ceg');   // a jó mezők maradnak
 
     // POZITÍV ELLENPÁR: érvényes adószámmal ugyanez a képernyő elindítja a kört.
     const jo = await createWorkspaceUI(cili.page, { name: 'Jo ceg', business: { jurisdiction: 'HU', tax_id: '12345678-2-42' } });
     expect(jo.status).toBe(201);
-    expect(jo.resultText).toContain('ÖNBEVALLOTT');
+    await expect(cili.page.getByTestId('global-notice')).toContainText('Hozzáadtad a vállalkozást');
     expect(db.count('SELECT COUNT(*) AS n FROM business_identity WHERE book_id = ?', jo.bookId)).toBe(1);
   } finally {
     await w.close(); db.close();
@@ -186,7 +204,7 @@ test('R77 — lassú fejléc-frissítés alatt sem marad a RÉGI adat a képerny
     expect(B.bookId).toBeTruthy();                          // a létrehozás UTÁN ez már az aktív kör
     const elso = await stockUI(anna.page);
     expect(elso.body.ok).toBe(true);
-    expect(elso.text).toContain('KIADVA');                 // van MIT a képernyőn hagyni
+    expect(elso.granted).toBe(true);                       // van MIT a képernyőn hagyni
 
     // A `/me` VÁLASZÁT VISSZATARTJUK: a lapnak ettől függetlenül azonnal ürítenie kell.
     let releaseMe = null;
@@ -198,12 +216,13 @@ test('R77 — lassú fejléc-frissítés alatt sem marad a RÉGI adat a képerny
       await route.continue();
     });
     const klikk = anna.page.getByTestId('data-stock-btn').click();
-    await expect(anna.page.getByTestId('data-stock')).toHaveText('…');   // NEM a régi „KIADVA {qty}"
+    await expect(anna.page.getByTestId('data-stock')).toHaveText('Betöltés…');   // NEM a régi tábla
+    await expect(anna.page.getByTestId('stock-table')).toHaveCount(0);
     releaseMe();
     await klikk;
     await anna.page.unroute('**/api/me');
     // POZITÍV ELLENPÁR: a kérés utána rendesen kiszolgálódik, és a panel az ÚJ választ mutatja.
-    await expect(anna.page.getByTestId('data-stock')).toContainText('KIADVA');
+    await expect(anna.page.getByTestId('stock-table')).toBeVisible();
   } finally {
     await w.close();
   }

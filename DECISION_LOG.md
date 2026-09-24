@@ -16,6 +16,61 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3072 — A V3 FELÜLETE KÖZÖS ALKALMAZÁSKERETRE VÁLT, ÉS MINDEN FELIRAT EGY FORRÁSBÓL JÖN
+
+> **Hatály:** V3 (`valach-system`) — a próba-alkalmazás felülete (`v3app/public/`), a megerősítő lap
+> szövege a héjban, a böngésző-próbák és a bemutató-szerszám. **A magreferencia (`v3ref/`) egyetlen
+> fájlja sem változott.** Nincs V2-módosítás, merge, telepítés, migráció, fizetős szolgáltatás,
+> külső levélküldés és új üzleti modul.
+
+**Dátum:** 2026-09-24 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 **R81** (a külső ellenőrző fél
+PLAN lapjára) · **Lap:** `docs/70_PLANNING/V3_R81_FELULET_KOZOS_KERET.md`
+
+**1. A LELET.** A próba-alkalmazás EGY hosszú, számozott lap volt: regisztráció, belépés, meghívás,
+cégalapítás és adat-lekérés egymás alatt, a válaszok nyers alakban (`KIADVA {"qty":"12"}` ·
+`ELUTASÍTVA — melyik kapu: right` · `challenge_superseded` · belső azonosítók). A külső ellenőrző fél
+mind a tizenöt képernyőn megmutatta, hogy a felhasználó nem tudja megmondani, sikerült-e
+csatlakoznia, mi a teendő egy lejárt hivatkozással, és mit jelent, hogy „a plafon" nem jog.
+⇒ **KUKA-210.**
+
+**2. A KERET.** Fejléc fiókválasztóval (személyes fiók + vállalkozások) és külön profilmenüvel; bal
+oldalon a V2-ből ismerős menü (Műveletek · Riportok · Törzsadatok · Beállítások); középen az éppen
+végzett feladat EGY kiemelt művelettel; jobbról nyíló panel a meghívásnak és a jogosultságoknak;
+felül állandó „Bemutató · mintaadatok" jelölés. A belépési oldalak ÖNÁLLÓ kártyák — belépés után a
+belső nézetben nincs belépési űrlap, és a korábbi képernyő tartalma sem marad ott rejtve.
+
+**3. SZO-01 — EGY SZÖVEGFORRÁS.** A menücím, az oldalcím, a gomb-felirat, az állapot-mondat és a
+szerver hibakódjának emberi megfelelője MIND a `v3app/public/texts.mjs`-ből jön; a gépi ok a
+„Technikai részletek" lenyílóban marad meg. **DEM-01 — a bemutató adatai** külön modulban
+(`v3app/public/demoData.mjs`), fiókonként eltérő csomaggal; a mennyiség három állapota (mért ·
+becsült · nem ismert) DEKLARÁLT adat, és a mintatábla CSAK akkor látszik, ha a valódi mag kiadja.
+
+**4. A VÉDELEM NEM GYENGÜLT (UX-15).** A nézet-kötés szabálya változatlanul EGY modulban él
+(`v3app/public/contextBinding.mjs`), amit a lap és a próba-battéria is onnan hív; minden
+kontextusfüggő olvasás és írás viszi a nézet ALANYÁT és KÖNYVÉT; a késve érkező válasz nem írhat az
+új nézetbe; a jogot változatlanul a szerver dönti el. **ERŐSÖDÖTT:** az adat-lekérés ELŐBB a
+szerverhez igazítja a nézetet, a fiókváltás AZONNAL üríti a paneleket, és a belépési oldalra lépve a
+korábbi képernyő tartalma eltűnik a lapból (nem csak elrejtve marad).
+
+**5. SAJÁT LELET MENET KÖZBEN — KUKA-209.** Az első alakban az újrarajzolás indította a lekérést, így
+a nemleges válasz mondata frissítési kört indított: **700 ms alatt 33 kérés** (a saját böngésző-próbám
+kérés-számlálója mérte). A rajzolás és a lekérés azóta KÉT külön döntés: a `render()` csak rajzol, és
+EGY hely indít lekérést (`loadPageData()`), amit a nézet-váltás vagy a felhasználó gombja hív.
+
+**6. GÉPI JELEK.** `tests/e2e/v3app-r81-ux.spec.mjs` — az R81 terv 22 elfogadási feltétele valódi
+böngészőben, gépi bizonyíték-lappal (`docs/70_PLANNING/V3_R81_UX_ELFOGADAS.json`; a részleges futás
+nem írja felül, KUKA-206). Regresszió: `app:selfcheck` 57/57 · `verify:app-findings` 73/73 ·
+`-r77` 34/34 · `-r79` 49/49 · `verify:kuka` 367/367 · a teljes böngésző-csomag **43/43**, benne az
+R63 tizennégy elfogadási helyzete változatlan ítélettel (9 bizonyítva · 3 részben · 2 nem böngészőben).
+
+**7. AMIT EZ A KÖR NEM ÁLLÍT.** Három tervezett tétel a mai szerver-képességekkel nem teljesíthető, és
+nem is színleltük: az újraküldés visszaszámlálója (a szerver nem ad hátralévő időt) · a „Meghívások"
+fül és a „Meghívásra vár" állapot (nincs lekérdező végpont a függő meghívókra) · a meghívó cégneve és
+a meghívó személy neve a kártyán (a megfigyelés szándékosan nem adja ki annak, aki a címzetti
+csatornát nem bizonyította). Mindháromhoz kivezetési feltétel tartozik a REPORT 4. szakaszában.
+
+---
+
 ## D-VS-3071 — AZ R79 KÉT MARADÉKA: A NÉZET-KÖTÉS SZABÁLYA KÓDBA KERÜL, ÉS AZ ÍRÁS AZ ALANYHOZ IS KÖTVE
 
 > **Hatály:** V3 (`valach-system`) — a próba-alkalmazás (`v3app/`) kliense, HTTP-határa és szervere.

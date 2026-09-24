@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 import {
   World, Db, PASSWORD, loginUI, logoutUI, header, createWorkspaceUI, switchUI, setPlanUI, inviteUI,
   openInviteUI, redeemUI, stockUI, priceUI, grantScopeUI, revokeUI, memberRowText, workspaceListUI, j,
+  openSwitcher, openStockPage, gotoPage, openMailbox,
 } from './helpers.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -61,6 +62,10 @@ class Evidence {
 }
 
 const line = (text) => (text || '').split('\n')[0];
+// R81: a Felhasználók képernyő MENÜPONTKÉNT létezik, és a Beállítások csoport CSAK a fiókkezelőnek
+// épül fel (UX-09 · a terv 3.4 szakasza) — a „megjelenik-e a munkatárs-kezelés" tény tehát itt
+// mérhető, nem egy mindig kirajzolt szakasz láthatóságán. A MÉRT ÁLLÍTÁS ugyanaz maradt.
+const munkatarsakElerheto = async (page) => (await page.getByTestId('nav-members').count()) > 0;
 // EGY tároló, tizennégy világ: minden helyzet SAJÁT adószám-karaktersort ír, hogy az adatbázis-oldali
 // számlálás a saját világára szűküljön (a közös érték a testvér-helyzetek sorait is megtalálná — KUKA-054).
 const taxOf = (tag) => `${tag.replace(/\D/g, '').padStart(2, '0')}345678-2-42`;
@@ -130,10 +135,19 @@ test.afterAll(async () => {
 test('H01 — Egyszerű magánfiók céges adatbekérés nélkül létrejön; csak saját adatait látja', async ({ browser }) => {
   const ev = new Evidence('H01'); const w = new World(browser, 'h01'); const db = new Db();
   try {
+    // R81: a regisztráció ÖNÁLLÓ belépési lap — belépés UTÁN nincs kint űrlap (UX-01), ezért a
+    // „mit kér be az űrlap" mérést ott végezzük, ahol a felhasználó találkozik vele: a belépési
+    // oldalon, bejelentkezés előtt. A NEVESÍTETT mezőket számoljuk (a „Jelszó megjelenítése"
+    // kapcsoló vezérlő, nem adatmező).
+    const nezo = await w.anonymous();
+    await nezo.page.goto('/');
+    await nezo.page.locator('[data-auth="register"]').first().click();
+    const fields = await nezo.page.locator('[data-testid="register-form"] input').evaluateAll(
+      (els) => els.map((e) => e.getAttribute('name')).filter((n) => n));
     const anna = await w.person('anna');
-    const fields = await anna.page.locator('[data-testid="register-form"] input').evaluateAll((els) => els.map((e) => e.getAttribute('name')));
-    ev.b(`A regisztrációs űrlap mezői: ${fields.join(', ')} — céges adatot (adószám, cégnév) nem kér; a megerősítő hivatkozásra a levél-fogadó listájából kattintott; belépés után a fejléc: „${(await header(anna.page)).subject}"`);
+    ev.b(`A regisztrációs űrlap mezői: ${fields.join(', ')} — céges adatot (adószám, cégnév) nem kér; a megerősítő hivatkozásra a próbaüzenetek listájából kattintott; belépés után a fejléc: „${(await header(anna.page)).subject}", és belépési űrlap NINCS a belső oldalon (${await anna.page.getByTestId('login-email').count()} mező)`);
     expect(fields).toEqual(['email', 'password']);
+    expect(await anna.page.getByTestId('login-email').count()).toBe(0);
     const p = await createWorkspaceUI(anna.page, { name: 'Anna magántere' });
     ev.b(`Munkakörnyezet adószám NÉLKÜL (a „Vállalkozási minőség" pipa üresen): a lap: „${p.resultText}"; fejléc: „${(await header(anna.page)).workspace}"`);
     ev.s(`POST /api/workspaces → ${p.status}; business=${j(p.body.business)}; role=${p.body.role}; plan=${p.body.workspace.plan}`);
@@ -225,7 +239,10 @@ test('H03 — Adószámos működési minőség társul a fiókhoz; a magán- é
     await switchUI(anna.page, c.bookId);
     const hC = (await header(anna.page)).workspace;
     ev.b(`Váltás a magántérre: „${sw.notice}" → fejléc „${hP}"; vissza a cégesre → fejléc „${hC}" — két külön könyv, két külön fejléc`);
-    expect(hP).toBe('Anna magántere · admin · starter'); expect(hC).toBe('Anna Kft · admin · starter');
+    // R81: a fejléc a fiók NEVÉT viszi; a szerep és a csomag a fiókválasztó tételén áll.
+    expect(hP).toBe('Anna magántere'); expect(hC).toBe('Anna Kft');
+    await openSwitcher(anna.page);
+    await expect(anna.page.getByTestId(`ws-kind-${c.bookId}`)).toHaveText('Fiókkezelő · Alap');
     const biP = db.count('SELECT COUNT(*) AS n FROM business_identity WHERE book_id = ?', p.bookId);
     const biC = db.get('SELECT entity_subject_id, namespace, jurisdiction FROM business_identity WHERE book_id = ?', c.bookId);
     const entKind = db.get('SELECT kind FROM subject WHERE id = ?', biC.entity_subject_id).kind;
@@ -243,7 +260,7 @@ test('H04 — Saját családi munkakörnyezet indul; második tagot a jogosult k
   try {
     const anna = await w.person('anna');
     const c = await createWorkspaceUI(anna.page, { name: 'Családi Kft', business: { jurisdiction: 'HU', tax_id: taxOf(w.tag) } });
-    ev.b(`Anna a felületen indítja a családi munkakörnyezetet: „${c.resultText}"; a Munkatársak szakasz (meghívás) megjelent: ${await anna.page.getByTestId('section-members').isVisible()}`);
+    ev.b(`Anna a felületen indítja a családi munkakörnyezetet: „${c.resultText}"; a Munkatársak (Felhasználók) menüpont megjelent: ${await munkatarsakElerheto(anna.page)}`);
     ev.s(`POST /api/workspaces → ${c.status}; business.verification=${c.body.business.verification} (állami igazolási kör NEM futott, nem is kért); role=${c.body.role}`);
     const boot = db.get('SELECT rule_version, basis_id FROM workspace_bootstrap WHERE book_id = ?', c.bookId);
     const startup = db.get('SELECT allowed_operations, allowed_roles, allowed_scopes, evidence_ref FROM authority_basis WHERE basis_id = ? AND book_id = ?', boot.basis_id, c.bookId);
@@ -321,7 +338,7 @@ test('H06 — Körön túli meghívás/jogadás elutasítva; visszavont, idegen 
     const invB = await inviteUI(anna.page, { email: bela.email, role: 'user', scope: 'keszlet' });
     await openInviteUI(bela.page, invB.link);
     const rB = await redeemUI(bela.page);
-    ev.b(`ÉRVÉNYES meghívó (Béla): beváltva → fejléc „${(await header(bela.page)).workspace}"; Bélánál a Munkatársak (meghívó) szakasz NEM jelenik meg: ${!(await bela.page.getByTestId('section-members').isVisible())}`);
+    ev.b(`ÉRVÉNYES meghívó (Béla): beváltva → fejléc „${(await header(bela.page)).workspace}"; Bélánál a Munkatársak (Felhasználók) menüpont NEM jelenik meg: ${!(await munkatarsakElerheto(bela.page))}`);
     const userInvites = await bela.api.post('/api/invites', { email: w.email('y'), role: 'user', scope: 'keszlet' });
     const selfGrant = await bela.api.post('/api/members/scope', { subject_id: bela.subjectId, scope: 'arak' });
     const badGrant = await anna.api.post('/api/members/scope', { subject_id: bela.subjectId, scope: 'penzugy' });
@@ -434,15 +451,19 @@ test('H08 — Cégváltáskor a munkamenet, a válaszok és a kliens nem keverik
     expect(priceK.body.ok).toBe(true);
     // A váltás kérését lassítjuk: a panelnek MÁR a válasz előtt üresnek kell lennie.
     await anna.page.route('**/api/session/workspace', async (route) => { await new Promise((r) => setTimeout(r, 500)); await route.continue(); });
+    await openSwitcher(anna.page);
     await anna.page.getByTestId(`ws-switch-${P.bookId}`).click();
-    const duringPrice = await anna.page.getByTestId('data-price').textContent();
-    const duringStock = await anna.page.getByTestId('data-stock').textContent();
-    await expect(anna.page.getByTestId('global-notice')).toContainText('Munkakörnyezet: Anna magántere');
+    // R81: a váltás MÁS KÉPERNYŐRE visz, ezért a régi adat-panelek meg sem maradnak — a mérés
+    // ugyanaz („a régi cég adata nem marad a képernyőn"), csak a bizonyíték ERŐSEBB alakban.
+    const duringPrice = (await anna.page.getByTestId('data-price').count()) ? 'kint maradt(!)' : 'nincs a képernyőn';
+    const duringStock = (await anna.page.getByTestId('data-stock').count()) ? 'kint maradt(!)' : 'nincs a képernyőn';
+    await expect(anna.page.getByTestId('global-notice')).toContainText('Megnyitva: Anna magántere');
     await anna.page.unroute('**/api/session/workspace');
     const hP = (await header(anna.page)).workspace;
     const priceP = await priceUI(anna.page);
     ev.b(`Váltás a starter magántérre: a kérés ideje alatt az adat-panelek: ár „${duringPrice}", készlet „${duringStock}" (ürítve, a régi cég adata nem marad a képernyőn); utána a fejléc: „${hP}"; ár-nézet: „${priceP.text.replace(/\n/g, ' · ')}"`);
-    expect(duringPrice).toBe('—'); expect(duringStock).toBe('—'); expect(hP).toBe('Anna magántere · admin · starter');
+    expect(duringPrice).toBe('nincs a képernyőn'); expect(duringStock).toBe('nincs a képernyőn');
+    expect(hP).toBe('Anna magántere');
     expect(priceP.body).toMatchObject({ ok: false, refused_by: 'entitlement' });
     const f1 = await anna.api.get(`/api/data/price?book_id=${K.bookId}`);
     const f2 = await anna.api.get(`/api/data/stock?book_id=${B.bookId}&actor=${bela.subjectId}&role=admin`);
@@ -452,7 +473,9 @@ test('H08 — Cégváltáskor a munkamenet, a válaszok és a kliens nem keverik
     expect(f2.body.ignored_params.sort()).toEqual(['actor', 'book_id', 'role']); expect(f1.headers['cache-control']).toBe('no-store');
     const swB = await switchUI(anna.page, B.bookId);
     const hB = (await header(anna.page)).workspace;
-    const membersHidden = !(await anna.page.getByTestId('section-members').isVisible());
+    // R81 §3.4: a Beállítások csoport (benne a Felhasználók) CSAK a fiókkezelőnek jelenik meg —
+    // a tag nem lát olyan menüpontot, amin „nincs jogod" fogadná (a jogot a szerver dönti el).
+    const membersHidden = (await anna.page.getByTestId('nav-members').count()) === 0;
     const priceB = await priceUI(anna.page);
     const forcedGrant = await anna.api.post('/api/members/scope', { subject_id: anna.subjectId, scope: 'arak', actor: bela.subjectId, role: 'admin' });
     // UGYANEZ A KÉRÉS HAMISÍTOTT MEZŐK NÉLKÜL: alakilag rendben van, tehát a MAG jog-kapuja dönt —
@@ -460,7 +483,7 @@ test('H08 — Cégváltáskor a munkamenet, a válaszok és a kliens nem keverik
     const honestGrant = await anna.api.post('/api/members/scope', { subject_id: anna.subjectId, scope: 'arak' });
     ev.b(`Váltás Béla cégére (ahol Anna csak user): „${swB.notice}" → fejléc „${hB}"; a Munkatársak (admin) szakasz rejtve: ${membersHidden}; ár-nézet: „${priceB.text.replace(/\n/g, ' · ')}" — a saját cégének admin-szerepe és pro-terve NEM utazik át`);
     ev.s(`Anna (user Béla cégében) adatkört adna magának actor=<Béla>&role=admin törzs-mezőkkel → ${forcedGrant.status} ${forcedGrant.body.reason} (${forcedGrant.body.field}, ${forcedGrant.body.refused_by}) — az ÁLLAPOTVÁLTOZTATÓ végponton az idegen mező R75 óta ELUTASÍTÁS, nem „figyelmen kívül hagyva"; ugyanez a kérés hamisítás NÉLKÜL → ${honestGrant.status} ${honestGrant.body.reason} (a MAG jog-kapuja)`);
-    expect(hB).toBe('Béla Kft · user · pro'); expect(membersHidden).toBe(true); expect(priceB.body).toMatchObject({ ok: false, refused_by: 'right' });
+    expect(hB).toBe('Béla Kft'); expect(membersHidden).toBe(true); expect(priceB.body).toMatchObject({ ok: false, refused_by: 'right' });
     expect(forcedGrant.status).toBe(400);
     expect(forcedGrant.body).toMatchObject({ reason: 'unknown_field', refused_by: 'input_schema' });
     expect(forcedGrant.body.param_ignored).toBeUndefined();
@@ -471,6 +494,7 @@ test('H08 — Cégváltáskor a munkamenet, a válaszok és a kliens nem keverik
     // bizonyítéka is ITT kell álljon, nem egy másik lapon (a részletes megjegyzés nem takarhatja el).
     const masodikLap = await anna.ctx.newPage();
     await masodikLap.goto('/');
+    await openSwitcher(masodikLap);
     await masodikLap.getByTestId(`ws-switch-${K.bookId}`).click();
     await expect(masodikLap.getByTestId('header-workspace')).toContainText('Anna Kft');
     const utanaStock = await stockUI(anna.page);
@@ -505,12 +529,17 @@ test('H09 — Megvonás után új kérés és függő meghívó nem használhatj
     ev.b(`Kiindulás: Cili admin a családi könyvben (fejléc „${(await header(cili.page)).workspace}"), készlet-nézete „${line(stC0.text)}" (a meghívott admin tagsága sem ad adatkört automatikusan — azt itt nem kérte); Cili függő meghívót adott Daninak; Bélának (user) keszlet adatköre van`);
     const rev = await revokeUI(anna.page, cili.subjectId);
     ev.b(`Anna a tag-listán MEGVONJA Cilit: „${rev.resultText}"; a sor ezután: „${line(await memberRowText(anna.page, cili.subjectId))}"`);
+    // R81: a RÉGI lapon a „Frissítés" gomb előbb a NÉZETET igazítja a szerverhez (R77/F77-01) —
+    // és mivel a tagság megszűnt, a lap NEM kérdez tovább a megszűnt könyvben, hanem kimondja,
+    // mi történt. A szerver ítéletét ezért KÖZVETLEN kéréssel mérjük (ugyanazzal a sütivel).
     const stC = await stockUI(cili.page);
+    const stDirect = await cili.api.get('/api/data/stock');
     const swC = await cili.api.post('/api/session/workspace', { book_id: K.bookId });
     const meC = (await cili.api.get('/api/me')).body;
-    ev.b(`Cili ÚJ kérése a régi lapon: készlet-nézet „${stC.text.replace(/\n/g, ' · ')}"; frissítés után a fejléc: „${(await (async () => { await cili.page.reload(); return header(cili.page); })()).workspace}"`);
-    ev.s(`Cili: GET /api/data/stock → ok=${stC.body.ok} ${stC.body.reason}/${stC.body.detail}; váltás a családi könyvre → ${swC.status} ${swC.body.reason}/${swC.body.detail}; /api/me munkakörnyezetei: ${meC.workspaces.map((x) => `${x.name} (${x.role})`).join(', ')}`);
-    expect(stC.body).toMatchObject({ ok: false, reason: 'not_a_member', detail: 'membership_revoked' }); expect(swC.status).toBe(403);
+    ev.b(`Cili ÚJ kérése a régi lapon: a lap a nézetet a szerverhez igazította, a védett adat eltűnt (a képernyő üzenete: „${line(stC.text)}"); frissítés után a fejléc: „${(await (async () => { await cili.page.reload(); return header(cili.page); })()).workspace}"`);
+    ev.s(`Cili: GET /api/data/stock (a böngésző sütijével) → ok=${stDirect.body.ok} ${stDirect.body.reason}/${stDirect.body.detail}; váltás a családi könyvre → ${swC.status} ${swC.body.reason}/${swC.body.detail}; /api/me munkakörnyezetei: ${meC.workspaces.map((x) => `${x.name} (${x.role})`).join(', ')}`);
+    expect(stC.granted).toBe(false);
+    expect(stDirect.body).toMatchObject({ ok: false, reason: 'not_a_member', detail: 'membership_revoked' }); expect(swC.status).toBe(403);
     const oD = await openInviteUI(dani.page, invD.link);
     // R64: a megfigyelés a kiadó mai jogát is méri — a lap nem kínál Beváltás gombot; a nyers kérés is elutasít.
     const rD = await dani.api.post('/api/invites/redeem', { token: invD.token });
@@ -553,7 +582,7 @@ test('H10 — Két szervezeti egység, korlátozott helyi admin: a vezető nem l
     const B = await createWorkspaceUI(bela.page, { name: 'B egység', plan: 'pro', business: { jurisdiction: 'HU', tax_id: '87654321-2-42' } });
     const invC = await inviteUI(anna.page, { email: cili.email, role: 'admin', scope: 'keszlet' });
     await openInviteUI(cili.page, invC.link); await redeemUI(cili.page);
-    ev.b(`A egység: Anna admin; B egység: Béla admin (a „vezető"); Cili az A egység HELYI adminja (fejléc „${(await header(cili.page)).workspace}"), a Munkatársak szakasz nála látszik: ${await cili.page.getByTestId('section-members').isVisible()}`);
+    ev.b(`A egység: Anna admin; B egység: Béla admin (a „vezető"); Cili az A egység HELYI adminja (fejléc „${(await header(cili.page)).workspace}"), a Munkatársak (Felhasználók) menüpont nála látszik: ${await munkatarsakElerheto(cili.page)}`);
     const swBA = await bela.api.post('/api/session/workspace', { book_id: A.bookId });
     const meB = (await bela.api.get('/api/me')).body;
     const swCB = await cili.api.post('/api/session/workspace', { book_id: B.bookId });
@@ -601,7 +630,7 @@ test('H11 — Előfizetés: jogosulatlan munkatárs nem jut a funkcióhoz; jogos
     await grantScopeUI(anna.page, bela.subjectId, 'keszlet');
     const prA = await priceUI(anna.page); const prB = await priceUI(bela.page);
     const planB = await bela.api.post('/api/workspaces/plan', { plan: 'pro' });
-    ev.b(`STARTER terven: Anna (admin, arak adatkörrel) ár-nézete: „${prA.text.replace(/\n/g, ' · ')}"; Béla (user, csak keszlet) ár-nézete: „${prB.text.replace(/\n/g, ' · ')}"; a Terv módosítása űrlap Bélánál rejtve: ${!(await bela.page.getByTestId('plan-form').isVisible())}`);
+    ev.b(`STARTER terven: Anna (admin, arak adatkörrel) ár-nézete: „${prA.text.replace(/\n/g, ' · ')}"; Béla (user, csak keszlet) ár-nézete: „${prB.text.replace(/\n/g, ' · ')}"; az Előfizetés menüpont Bélánál nem jelenik meg: ${(await bela.page.getByTestId('nav-plan').count()) === 0}`);
     ev.s(`Anna price → refused_by=${prA.body.refused_by} (${prA.body.entitlement_reason}, terv ${prA.body.entitlement.plan}) — a JOG megvan, az ELŐFIZETÉS zár; Béla price → refused_by=${prB.body.refused_by} (jog: ${prB.body.right_reason} · előfizetés: ${prB.body.entitlement_reason}); Béla tervet váltana → ${planB.status} ${planB.body.reason}`);
     expect(prA.body).toMatchObject({ refused_by: 'entitlement', entitlement_reason: 'feature_not_in_plan' }); expect(prB.body.refused_by).toBe('both'); expect(planB.body.reason).toBe('admin_required');
     // A FELIRAT A DÖNTÉST KÖVETI (R77 §4): az ELUTASÍTOTT ágon a mondat az elutasítást mondja ki,
@@ -610,6 +639,7 @@ test('H11 — Előfizetés: jogosulatlan munkatárs nem jut a funkcióhoz; jogos
     expect(prA.body.message).not.toContain('kiadva');
     expect(prB.body.message).toContain('két kapu is zárt');
     expect(prB.body.message).not.toContain('kiadva');
+    expect(prA.granted).toBe(false); expect(prB.granted).toBe(false);
     expect(prA.text).not.toContain('kiadva'); expect(prB.text).not.toContain('kiadva');
     const plan = await setPlanUI(anna.page, 'pro');
     const unknown = await anna.api.post('/api/workspaces/plan', { plan: 'enterprise' });

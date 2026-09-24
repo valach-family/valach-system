@@ -60,19 +60,16 @@ export function servedMatches(r, expected) {
 export function unboundMessage(why) {
   switch (why) {
     case 'login_required':
-      return 'Ebben a böngészőben nincs (vagy megszűnt) a belépés — lépj be újra, és a művelet megismételhető.';
+      return 'A bejelentkezésed lejárt. Jelentkezz be újra, és a művelet megismételhető.';
     case 'context_mismatch':
-      return 'Közben megváltozott a munkakörnyezet vagy a belépett fiók (például egy másik lapon) — '
-        + 'ezért ezt a kérést nem szolgáltuk ki. A képernyő frissült, próbáld újra.';
+      return 'A módosítást nem mentettük, mert közben másik fiókra vagy felhasználóra váltottál ebben a böngészőben.';
     case 'other_book':
     case 'other_subject':
-      return 'Közben megváltozott a munkakörnyezet vagy a belépett fiók (például egy másik lapon) — '
-        + 'ezért nem rajzoltuk ki a választ. A képernyő frissült, próbáld újra.';
+      return 'Közben másik fiókra vagy felhasználóra váltottál ebben a böngészőben, ezért ezt a választ nem jelenítettük meg. Az oldal frissült.';
     case 'missing_context_field':
     case 'invalid_context_field':
-      return 'A válasz nem mondta meg, MELYIK munkakörnyezetnek és kinek szolgált ki, ezért nem rajzoltuk ki — '
-        + 'így nem kerülhet idegen kör adata a képernyőre. Frissítsd a képernyőt, és próbáld újra.';
+      return 'Az adatokat nem tudtuk biztonságosan megjeleníteni. Frissítsd az oldalt.';
     default:
-      return 'A választ nem tudtuk a mai nézethez kötni, ezért nem rajzoltuk ki. Frissítsd a képernyőt, és próbáld újra.';
+      return 'Az adatokat nem tudtuk biztonságosan megjeleníteni. Frissítsd az oldalt.';
   }
 }

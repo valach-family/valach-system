@@ -1,0 +1,298 @@
+{
+  "schema": "v3app-ux-elfogadas/1",
+  "round": "CMD-VS-300-002-002 R81 (a terv 9. szakaszának 22 feltétele)",
+  "lane": "Claude-v3",
+  "source": "tests/e2e/v3app-r81-ux.spec.mjs",
+  "command": "npm run proof:core-ux",
+  "generated_at": "2026-09-24T20:27:31.230Z",
+  "package_version": "3.0.0-alpha",
+  "base_url": "http://127.0.0.1:43095",
+  "db_path": "var/tmp/v3_v3.0.0-alpha_20260924_202534_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
+  "what_this_is": "Az R81 terv 22 elfogadási feltétele a MEGÚJÍTOTT v3app felületen, valódi böngészőből (Playwright · Chromium), feltételenként KÉT rekeszben: amit a lap mutatott (browser) és amit a szerver válaszolt / a tároló őrzött (server).",
+  "verdict_vocabulary": {
+    "bizonyitva": "a feltétel minden állítása a böngésző- és/vagy a szerver-rekeszből áll össze",
+    "reszben": "egy vagy több nevezett al-eset nem hajtható meg — a `note` megmondja, melyik",
+    "nem_bongeszoben": "a feltétel a böngészőből nem mérhető (például az ÁTADÁS alakjára vonatkozik) — NEM sikeres próba",
+    "nem_futott": "ez a feltétel EBBEN a futásban el sem indult — HIÁNYZÓ mérés, nem eredmény; ilyen lappal a közzétett lap nem írható felül"
+  },
+  "partial_run": false,
+  "measured_ids": [
+    "UX-01",
+    "UX-02",
+    "UX-03",
+    "UX-04",
+    "UX-05",
+    "UX-06",
+    "UX-07",
+    "UX-08",
+    "UX-09",
+    "UX-10",
+    "UX-11",
+    "UX-12",
+    "UX-13",
+    "UX-14",
+    "UX-15",
+    "UX-16",
+    "UX-17",
+    "UX-18",
+    "UX-19",
+    "UX-20",
+    "UX-21",
+    "UX-22"
+  ],
+  "not_run_ids": [],
+  "summary": {
+    "bizonyitva": 21,
+    "reszben": 0,
+    "nem_bongeszoben": 1,
+    "nem_futott": 0
+  },
+  "criteria": [
+    {
+      "id": "UX-01",
+      "title": "Bejelentkezés után nincs belépési/regisztrációs űrlap a belső oldalon.",
+      "browser": [
+        "Belépés után a belső nézetben a belépési és regisztrációs mezők DARABSZÁMA 0 (login-email · login-password · register-email); a belépési lapok külön nézetben élnek."
+      ],
+      "server": [],
+      "verdict": "bizonyitva",
+      "note": "A keret két külön állapotot rajzol: belépés előtt CSAK a belépési kártya, belépés után CSAK az alkalmazás. A régi lapon a két dolog egymás alatt állt."
+    },
+    {
+      "id": "UX-02",
+      "title": "A fiókválasztó minden belső nézetben ugyanott elérhető; személyes és legalább két céges fiókkal bemutatva.",
+      "browser": [
+        "A fiókválasztó UGYANAZON a helyen (fejléc) mind a négy belső nézetben: overview: fiókválasztó látszik=true · stock: fiókválasztó látszik=true · products: fiókválasztó látszik=true · members: fiókválasztó látszik=true. A listában 3 tétel: 1 személyes + 2 céges (Első Kft · Második Kft), a személyes külön csoportban, „Személyes fiók\" felirattal."
+      ],
+      "server": [
+        "A tételek a szerver /api/me válaszának munkakörnyezet-listájából jönnek (personal_book_id=van) — a lap nem talál ki fiókot."
+      ],
+      "verdict": "bizonyitva",
+      "note": "A választó a fejlécben rögzített helyen áll, és minden belső nézetből ugyanúgy elérhető."
+    },
+    {
+      "id": "UX-03",
+      "title": "A saját profil külön menü; belépett személy és aktív vállalkozás nem keveredik.",
+      "browser": [
+        "A fejlécben KÉT külön vezérlő áll: a fiókválasztó („Második Kft\") és a saját profil („ux1.anna@pelda.hu\"). A profilmenüben a saját ügyek (Saját profil · Belépés és biztonság · Kijelentkezés) és a cím megerősítésének állapota — a fiók adatai NEM itt vannak."
+      ],
+      "server": [],
+      "verdict": "bizonyitva",
+      "note": "A belépett SZEMÉLY és az aktív VÁLLALKOZÁS két külön vezérlő, két külön szöveggel; a régi lapon ugyanaz a felirat hordozta mindkettőt."
+    },
+    {
+      "id": "UX-04",
+      "title": "A V2 menüszerkezet kijelölt része visszaköszön; ugyanaz a menünév és oldalcím.",
+      "browser": [
+        "Tizenegy menüpont, és MINDEGYIKNÉL a menünév karakterre azonos az oldalcímmel: Áttekintés · Folyamatok · Bizonylatok · Készletegyenleg · Készletmozgások · Termékek · Partnerek · Raktárak · Fiók adatai · Felhasználók · Előfizetés. A csoportok a V2 elrendezését követik (Műveletek · Riportok · Törzsadatok · Beállítások)."
+      ],
+      "server": [],
+      "verdict": "bizonyitva",
+      "note": "A menücím és az oldalcím EGY szövegforrásból jön (`v3app/public/texts.mjs`), ezért nem tudnak elcsúszni."
+    },
+    {
+      "id": "UX-05",
+      "title": "Azonos munkalap megnyitása nem hoz másolatot. Másik fiókba nem visz át idegen adatot vagy szerkesztést.",
+      "browser": [
+        "Ugyanaz a munkalap („Készletegyenleg\") HÁROM megnyitás után is EGYSZER szerepel a munkalapsávon (darabszám=1). Fiókváltáskor a lapkészlet ÚJRAINDUL: 11 lapról 1 lapra (csak az Áttekintés) — a korábbi fiók lapjai és a bennük lévő adat nem utaznak át."
+      ],
+      "server": [],
+      "verdict": "bizonyitva",
+      "note": "A munkalap-nyitás azonosító szerint egyedi, a fiókváltás pedig ÚJ generációt és új lapkészletet indít."
+    },
+    {
+      "id": "UX-06",
+      "title": "A 15 régi képernyő mindegyikének van új, a tervnek megfelelő folytatása.",
+      "browser": [
+        "Tizenöt belső képernyő nyílt meg, mindegyik saját címmel: Áttekintés · Folyamatok · Bizonylatok · Kimenő e-mailek · Készletegyenleg · Készletmozgások · Termékkarton · Termékek · Partnerek · Raktárak · Fiók adatai · Felhasználók · Előfizetés · Saját profil · Belépés és biztonság. A belépési oldalak külön kártyák (Bejelentkezés · Fiók létrehozása · Új megerősítő levél · Nézd meg a leveleidet · Új megerősítő levél — a lejárt link OKÁVAL a tetején · Meghívás)."
+      ],
+      "server": [],
+      "verdict": "bizonyitva",
+      "note": "A régi számozott szakaszok mindegyikének van megfelelője: vagy menüpont a kereten belül, vagy önálló belépési kártya."
+    },
+    {
+      "id": "UX-07",
+      "title": "Nyers JSON, belső azonosító, angol hibakód és nagybetűs technikai szó nincs a normál nézetben.",
+      "browser": [
+        "Hat normál nézet teljes szövegére (a „Technikai részletek\" lenyíló NÉLKÜL) tizenhat gépi mintát futtattunk — nyers JSON, belső azonosító-előtag (sub_ · ws_ · ps_), angol hibakód (no_scope_grant · not_a_member · feature_not_in_plan · challenge_* · context_mismatch) és a régi nagybetűs feliratok (KIADVA · ELUTASÍTVA). TALÁLAT: 0."
+      ],
+      "server": [
+        "A gépi ok NEM tűnt el: a Készletegyenleg oldalon 2 „Technikai részletek\" lenyíló hordozza (a másolható hibaösszefoglaló ott áll, nem a normál nézetben)."
+      ],
+      "verdict": "bizonyitva",
+      "note": "A normál nézet emberi szöveget mond; a gépi ok lenyitható helyen megmarad, tehát a hibakeresés sem vész el."
+    },
+    {
+      "id": "UX-08",
+      "title": "Lejárt megerősítésből új levél kérhető; a regisztráció nem indul újra.",
+      "browser": [
+        "A leváltott hivatkozás lapja: „A hivatkozás 24 óráig élt, és ez az idő letelt. Kérj új megerősítő levelet a címedre — a jelszavad nem változik, és új fiókot sem kell létrehoznod.\" — gépi ok nincs a mondatban, és nem kér új regisztrációt. Az „Új megerősítő levél kérése\" gomb az ÚJ LEVÉL lapra visz (egy mező, egy gomb); a regisztrációs mező darabszáma ott 0."
+      ],
+      "server": [
+        "Az újraküldés HTTP 200, a válasz SEMLEGES („Ha ehhez a címhez megerősítésre váró fiók tartozik…\"). ADATBÁZIS: a címhez továbbra is EGY azonosító-sor tartozik (1) — tehát nem született új fiók, és a jelszóhoz sem nyúlt senki."
+      ],
+      "verdict": "bizonyitva",
+      "note": "A lejárt/leváltott hivatkozás FOLYTATÁST ad (új levél), nem zsákutcát; a regisztráció nem indul újra."
+    },
+    {
+      "id": "UX-09",
+      "title": "A meghívó elfogadása jól látható fő feladat, belépés után oda tér vissza a felhasználó.",
+      "browser": [
+        "Kijelentkezve a meghívó hivatkozása ÖNÁLLÓ, középre helyezett kártyát nyit — a lap teljes látható tartalma maga a meghívás: „…\", fő gombja a bejelentkezés. A belépés UTÁN ugyanaz a hivatkozás a „Meghívás elfogadása\" gombot mutatja, tehát a felhasználó visszatér a feladatához."
+      ],
+      "server": [
+        "A beváltás HTTP 200, a lap üzenete: „Csatlakoztál a(z) „Családi Műhely Kft\" fiókjához. Az adatok megtekintését a fiókkezelő külön engedélyezi.\""
+      ],
+      "verdict": "bizonyitva",
+      "note": "A függő meghívó a munkamenet-váltáson is átjön (a szerver őrzi), és a belépés a meghívó lapjára tér vissza."
+    },
+    {
+      "id": "UX-10",
+      "title": "A meghívott tagsága és adatjoga külön, érthető állapot. A csomagkorlát sem olvad össze velük.",
+      "browser": [
+        "A taglista sora HÁROM külön tényt mond: a TAGSÁG állapota („Aktív\"), és KÜLÖN oszlopban a két adatkör engedélye („Nincs engedélyezve\"). A csomagkorlát nem ezekben ül: az Árak nézet mondata az Előfizetéshez irányít, nem a jog hiányát állítja."
+      ],
+      "server": [
+        "Anna (fiókkezelő) ár-nézete az alapcsomagon: kapu=entitlement, ok=false — a szerver KÉT kaput külön mér (jog · előfizetés)."
+      ],
+      "verdict": "bizonyitva",
+      "note": "A tagság, az adatjog és a csomag három külön állapot a képernyőn és a szerver válaszában is."
+    },
+    {
+      "id": "UX-11",
+      "title": "A készletjog engedélyezése után valódi adatkérés alapján változik a felület; nem csak helyi címke cserélődik.",
+      "browser": [
+        "Béla képernyője az engedély ELŐTT állapotkártyát mutat („A készletadatokhoz még nincs hozzáférésed\" + Frissítés gomb), UTÁNA — ugyanarra a Frissítés gombra — a készlettáblát. A változás forrása a VÁLASZ, nem helyi címkecsere."
+      ],
+      "server": [
+        "Az engedély előtti kérés: ok=false, kapu=right; az engedély utáni: ok=true, served_book_id egyezik a nézettel. ADATBÁZIS: scope_grant sor keletkezett (scope=keszlet, granted_by=Anna)."
+      ],
+      "verdict": "bizonyitva",
+      "note": "A felület a szerver válaszából rajzol: engedély nélkül nincs tábla, engedéllyel van — a kettő között VALÓDI HTTP-kérés áll."
+    },
+    {
+      "id": "UX-12",
+      "title": "Teljes tagság megszüntetése nem néz ki egyetlen olvasójog kikapcsolásának. Van névvel, fiókkal és következménnyel megerősítés.",
+      "browser": [
+        "A megszüntetés a tag PANELJÉN, külön szakaszban áll, kimondott mondattal („Ennek megszüntetése a TELJES céges hozzáférést érinti, nem egyetlen adatkört\"), és MEGERŐSÍTÉST kér. A megerősítő szövegben mind a három tény ott van: a NÉV (ux9.bela@pelda.hu), a FIÓK (Családi Műhely Kft) és a KÖVETKEZMÉNY („A saját fiókja és a korábbi műveletek története megmarad\")."
+      ],
+      "server": [
+        "A megerősítés után HTTP 200, reason=revocation_recorded. A megerősítő mező NEM ad jogot: a művelet ugyanúgy a szerver kapuján ment át."
+      ],
+      "verdict": "bizonyitva",
+      "note": "A teljes tagság megszüntetése külön művelet, külön mondattal és megerősítéssel — nem keverhető össze egy adatkör kikapcsolásával."
+    },
+    {
+      "id": "UX-13",
+      "title": "Megszüntetett tag nem kap aktív jogadási gombot; a saját személyes fiókja továbbra elérhető.",
+      "browser": [
+        "A megszüntetett tag paneljén a jogadó és a megszüntető gomb DARABSZÁMA 0, helyette a helyzet mondata áll („megszűnt a céges hozzáférése, ezért adatkört sem lehet neki engedélyezni\"). Béla oldalán a céges fiók kikerült a választóból, a SZEMÉLYES fiókja viszont megnyitható maradt."
+      ],
+      "server": [
+        "Béla /api/me válasza a megszüntetés után: a céges könyv nincs a listában, personal_book_id megvan (igen)."
+      ],
+      "verdict": "bizonyitva",
+      "note": "A megszüntetés után nincs működőnek látszó jogadó vezérlő, és a felhasználó nem marad fiók nélkül."
+    },
+    {
+      "id": "UX-14",
+      "title": "A hibás adóazonosító hibája a mezőhöz kötött; a sikertelen műveletnél nincs félkész fiók és nincs indokolatlan adatvesztés.",
+      "browser": [
+        "A hiba A MEZŐNÉL áll („Add meg az adóazonosítót. Csak szóköz vagy kötőjel nem elegendő.\"), a mező jelölve (aria-invalid=true), és az űrlap tetején rövid összegzés („A vállalkozást még nem hoztuk létre. Javítsd a jelölt mezőt.\"). A „Vállalkozás neve\" mező értéke MEGMARADT, az aktív fiók nem változott („ux14.cili személyes köre\")."
+      ],
+      "server": [
+        "A szerver ÍRÁS ELŐTT utasít el: HTTP 400, reason=tax_id_value_required, field=business.tax_id, wrote=false. ADATBÁZIS: a könyvek és tagságok száma VÁLTOZATLAN (94/114) — félkész fiók nem maradt hátra. A mező javítása után UGYANAZ a gomb HTTP 201-et ad."
+      ],
+      "verdict": "bizonyitva",
+      "note": "A hiba a mezőhöz kötött, a többi kitöltés megmarad, és a sikertelen művelet nyomot sem hagy."
+    },
+    {
+      "id": "UX-15",
+      "title": "Az R79 személy+fiók-védelme, késői válaszok kizárása és írásmentes elutasításai az új felülettel is megmaradnak.",
+      "browser": [
+        "Az új felület gombja ugyanúgy viszi a SAJÁT nézetének két felét: a kérés törzsében `expected_book_id` ÉS `expected_subject_id` áll. A régi nézetben hagyott gomb HTTP 409-et kap, és a képernyő újrarajzol."
+      ],
+      "server": [
+        "A szabályos írás törzse: expected_book_id=<a nézet könyve>, expected_subject_id=<a nézet alanya>. A régi gomb: HTTP 409, reason=context_mismatch, expected_subject_id=Anna, served_subject_id=Béla, wrote=false. ADATBÁZIS: a jogosultsági sorok száma VÁLTOZATLAN (1)."
+      ],
+      "verdict": "bizonyitva",
+      "note": "A KTX-01/02/03 kötés és a generáció-őr az ÚJ kereten is áll — a szabály EGY modulban él (`v3app/public/contextBinding.mjs`), amit a lap és a próba-battéria is ugyanonnan hív."
+    },
+    {
+      "id": "UX-16",
+      "title": "Másik fülön történt változásnál a közlés pontos; nem tulajdonítunk bizonyítatlan okot a változásnak.",
+      "browser": [
+        "A közlés szó szerint: „Másik felhasználó jelentkezett be ebben a böngészőben. Az oldal frissült.\" — megnevezi a MÉRT tényt (ebben a böngészőben másik felhasználó lépett be), és nem állít okot, amit nem mértünk (nincs benne „megvonták\" · „kizártak\" · „kiléptettek\")."
+      ],
+      "server": [],
+      "verdict": "bizonyitva",
+      "note": "A mondat pontos és bizonyított: a szerver /api/me válasza mondja ki az új alanyt, a lap ezt közli."
+    },
+    {
+      "id": "UX-17",
+      "title": "390×844 és 1440×900 képernyőn használható; a menü, profil, fiókváltás és fő művelet nem takaródik el.",
+      "browser": [
+        "1440×900: a bal menü, a fiókválasztó, a profil és a fő művelet EGYSZERRE látszik; vízszintes görgetés nincs (true). 390×844: a menü gombbá csukódik (nem tűnik el), a fiókválasztó és a profil a fejlécben marad, a fő művelet gombja a képernyőn belül áll (x=14…256 a 390-ből), vízszintes görgetés nincs (true)."
+      ],
+      "server": [],
+      "verdict": "bizonyitva",
+      "note": "Mindkét mérce-képernyőn használható: a négy nevezett elem elérhető, és a lap nem csúszik ki oldalra."
+    },
+    {
+      "id": "UX-18",
+      "title": "A fő folyamat billentyűzettel is végigjárható; panelnyitás/-zárás fókusza helyes.",
+      "browser": [
+        "A Felhasználók képernyőn a fő művelet gombja TAB-bal elérhető (18 lépés után a fókusz a „Felhasználó meghívása\" gombon áll), ENTER-rel megnyílik a panel, a fókusz a panelbe kerül (true), és ESC-re bezárul — a háttér vezérlői újra elérhetők."
+      ],
+      "server": [],
+      "verdict": "bizonyitva",
+      "note": "A fő folyamat egér nélkül is járható, és a panel fókusz-kezelése helyes (nyitáskor be, záráskor vissza)."
+    },
+    {
+      "id": "UX-19",
+      "title": "Ismeretlen mennyiség és ár nem nulla; becsült mennyiség jelölt. A különböző egységek nem adódnak össze.",
+      "browser": [
+        "A készlettábla a mennyiség HÁROM állapotát külön szóval viszi: „Mért\" · „Becsült\" · „Nem ismert\". Az ismeretlen mennyiségű sor szövegében nincs 0. A mag által kiadott minta-rekordnál „Egység nincs megadva\" áll — nem találtunk ki hozzá „db\"-ot. A tábla lábjegyzete kimondja: „4 sor · különböző mértékegységű mennyiségeket nem adunk össze.\"."
+      ],
+      "server": [],
+      "verdict": "bizonyitva",
+      "note": "A hiány és a nulla két külön tény a képernyőn; a mértékegység deklarált adat, nem a felület találmánya."
+    },
+    {
+      "id": "UX-20",
+      "title": "A mintanézet és működő core-funkció jelölése őszinte. Látszatküldés, látszatmentés és látszatszámlázás nincs.",
+      "browser": [
+        "A bemutató jelölése a lap tetején állandóan látszik („Bemutató · mintaadatok\" + „Nincs valódi levélküldés, számlázás vagy készletmozgás\"), és minden mintatábla külön is jelölt. A levelek panelje kimondja: „Valódi e-mailt nem küldtünk\" — a meghívó üzenete sem állít küldést."
+      ],
+      "server": [
+        "A MINTAADAT A VALÓDI CORE JOGÁTÓL FÜGG: Béla (tag, adatjog nélkül) kérésére ok=false, kapu=right, és a mintatábla darabszáma a képernyőn 0 — tehát nem „mindig látszó díszlet\"."
+      ],
+      "verdict": "bizonyitva",
+      "note": "A jelölés őszinte: a bemutatóadat jelölve van, a jogosultsághoz kötve jelenik meg, és nincs látszatküldés/mentés/számlázás."
+    },
+    {
+      "id": "UX-21",
+      "title": "Az átadott HTML melléklet internet és belépés nélkül megnyitható. Az artifact-link csak kiegészítő.",
+      "browser": [
+        "Ez a feltétel az ÁTADÁSRA vonatkozik (a címzett gépén megnyitható HTML melléklet), nem az alkalmazás viselkedésére — böngésző-próbával nem igazolható."
+      ],
+      "server": [
+        "A bizonyíték helye a kör REPORT-ja: a csatolt, önálló HTML fájl (internet és belépés nélkül megnyitható), az artifact-link csak kiegészítés. Az R79/R80 tanulsága szerint egy PUSZTA HIVATKOZÁS nem bizonyítja a hozzáférhetőséget."
+      ],
+      "verdict": "nem_bongeszoben",
+      "note": "Nem sikeres próba, hanem NEVEZETT hatókör-hiány: a szállítás tényét a REPORT melléklete hordozza, nem ez a battéria."
+    },
+    {
+      "id": "UX-22",
+      "title": "Van egy teljes használati történet: Anna → vállalkozás → Béla → készletjog → hozzáférés megszüntetése.",
+      "browser": [
+        "A történet EGY futásban, egyetlen böngésző-világban ment végig: Anna regisztrált és megerősítette a címét → hozzáadta a „Családi Műhely Kft\" vállalkozást → meghívta Bélát → Béla belépett és elfogadta a meghívást → Anna engedélyezte a készletadatok megtekintését → Béla látta a készletet → Anna megszüntette Béla céges hozzáférését → Béla személyes fiókja megmaradt."
+      ],
+      "server": [
+        "Minden lépés MÉRT szerver-válasszal és tároló-sorral együtt áll a fenti UX-09…UX-13 rekeszekben — nem izolált gombképek."
+      ],
+      "verdict": "bizonyitva",
+      "note": "A teljes használati történet végigjárható az új felületen."
+    }
+  ]
+}

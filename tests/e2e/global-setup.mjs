@@ -20,13 +20,17 @@ const VERSION = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8')).
 export default async function globalSetup() {
   const dbPath = resolve(ROOT, artifactPath({ area: 'tmp', kind: 'v3app_e2e', ext: 'sqlite', version: VERSION }));
   const evidencePath = resolve(ROOT, artifactPath({ area: 'reports', kind: 'v3app_elfogadas_helyzetek', ext: 'json', version: VERSION }));
+  // Az R81 UX-feltételeinek SAJÁT bizonyíték-lapja (a két lap nem írja felül egymást).
+  const uxPath = resolve(ROOT, artifactPath({ area: 'reports', kind: 'v3app_ux_elfogadas', ext: 'json', version: VERSION }));
   const app = await startServer({ port: 0, dbPath });
   process.env.VS_E2E_BASE_URL = `http://127.0.0.1:${app.port}`;
   process.env.VS_E2E_DB_PATH = dbPath;
   process.env.VS_E2E_EVIDENCE_PATH = evidencePath;
+  process.env.VS_E2E_UX_PATH = uxPath;
   process.env.VS_E2E_VERSION = VERSION;
   console.log(`[e2e] v3app fut: ${process.env.VS_E2E_BASE_URL} · tároló: ${dbPath}`);
   console.log(`[e2e] bizonyíték-lap: ${evidencePath}`);
+  console.log(`[e2e] UX bizonyíték-lap: ${uxPath}`);
   console.log(`[e2e] futás-jelentés: ${process.env.VS_E2E_REPORT_PATH}`);
   return async () => {
     await app.close();

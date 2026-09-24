@@ -12,7 +12,7 @@
 import { test, expect } from '@playwright/test';
 import {
   World, Db, PASSWORD, createWorkspaceUI, switchUI, header, stockUI, inviteUI, openInviteUI, redeemUI,
-  loginUI, logoutUI, withResponse,
+  loginUI, logoutUI, withResponse, openSwitcher, openStockPage, openMemberPanel, gotoPage,
 } from './helpers.mjs';
 
 test('R79/F79-01 — hibabevitel: a kontextus-mezők nélküli SIKERES válasz nem rajzolódik ki', async ({ browser }) => {
@@ -25,7 +25,7 @@ test('R79/F79-01 — hibabevitel: a kontextus-mezők nélküli SIKERES válasz n
     // POZITÍV KONTROLL ELŐSZÖR: a szabályos válasz KIRAJZOLÓDIK (a szigorítás nem tiltja ki a saját felületünket).
     const jo = await stockUI(anna.page);
     expect(jo.body.ok).toBe(true);
-    expect(jo.text).toContain('KIADVA');
+    expect(jo.granted).toBe(true);              // R81: a kiadás ténye szerkezeti jel, nem felirat
     expect(typeof jo.body.served_book_id).toBe('string');
     expect(typeof jo.body.served_subject_id).toBe('string');
 
@@ -39,10 +39,11 @@ test('R79/F79-01 — hibabevitel: a kontextus-mezők nélküli SIKERES válasz n
     });
     await anna.page.getByTestId('data-stock-btn').click();
     // A PANEL NEM RAJZOL ADATOT — és a lap KIMONDJA, miért (nem néma képernyő).
-    await expect(anna.page.getByTestId('data-stock')).toHaveText('—');
-    await expect(anna.page.getByTestId('global-notice')).toContainText(/nem mondta meg|MELYIK munkakörnyezetnek/i);
+    await expect(anna.page.getByTestId('data-stock')).toContainText('Az adatokat nem tudtuk biztonságosan megjeleníteni');
+    await expect(anna.page.getByTestId('stock-table')).toHaveCount(0);
+    await expect(anna.page.getByTestId('global-notice')).toContainText(/nem tudtuk biztonságosan megjeleníteni/i);
     const panel = (await anna.page.getByTestId('data-stock').textContent()) || '';
-    expect(panel).not.toContain('KIADVA');
+    expect(panel).not.toContain('Mennyiség jellege');     // a tábla FEJLÉCE sem születik meg
     expect(panel).not.toContain('qty');
 
     // A FRISSÍTÉS EGYSZER FUT: a lap nem indít újabb adat-kérést magától (nincs körforgás).
@@ -55,7 +56,7 @@ test('R79/F79-01 — hibabevitel: a kontextus-mezők nélküli SIKERES válasz n
     await anna.page.unroute('**/api/data/stock**');
     const ujra = await stockUI(anna.page);
     expect(ujra.body.ok).toBe(true);
-    expect(ujra.text).toContain('KIADVA');
+    expect(ujra.granted).toBe(true);
   } finally {
     await w.close();
   }
@@ -75,6 +76,7 @@ test('R79/F79-02 — a régi lap gombja NEM ír a közben belépett MÁSIK fiók
     await openInviteUI(cili.page, invC.link); await redeemUI(cili.page);
     await anna.page.reload();
     await expect(anna.page.getByTestId('header-workspace')).toContainText('C KOZOS');
+    await gotoPage(anna.page, 'members');            // R81: a taglista a Beállítások menüpontja
     await expect(anna.page.getByTestId(`member-${cili.subjectId}`)).toBeVisible();
     expect((await header(anna.page)).subject).toContain(anna.email);
 
@@ -88,6 +90,9 @@ test('R79/F79-02 — a régi lap gombja NEM ír a közben belépett MÁSIK fiók
 
     // A RÉGI LAP GOMBJA: Anna nézetében született, de a munkamenet MÁR Béláé.
     const elotte = db.count('SELECT COUNT(*) AS n FROM scope_grant WHERE book_id = ? AND subject_id = ?', C.bookId, cili.subjectId);
+    // R81: a jogosultság a tag JOBB OLDALI PANELJÉN kezelhető — a panelt a RÉGI (Anna-beli)
+    // nézetben nyitjuk meg, tehát a gomb ugyanúgy „ottfelejtett gomb" marad, mint a leletben.
+    await openMemberPanel(anna.page, cili.subjectId);
     await anna.page.getByTestId(`member-scope-select-${cili.subjectId}`).selectOption('arak');
     const forced = await withResponse(anna.page, { path: '/api/members/scope' },
       () => anna.page.getByTestId(`member-scope-${cili.subjectId}`).click());
@@ -99,20 +104,22 @@ test('R79/F79-02 — a régi lap gombja NEM ír a közben belépett MÁSIK fiók
     // A TÁROLÓ A DÖNTŐ TANÚ: adatkör-adás NEM született.
     expect(db.count('SELECT COUNT(*) AS n FROM scope_grant WHERE book_id = ? AND subject_id = ?', C.bookId, cili.subjectId)).toBe(elotte);
     // A KÉPERNYŐ KIMONDJA, MI TÖRTÉNT, és a fejléc a VALÓDI állapotra frissül.
-    await expect(anna.page.getByTestId('global-notice')).toContainText(/munkakörnyezet vagy a belépett fiók|MÁSIK fiókba léptek be/i);
+    await expect(anna.page.getByTestId('global-notice')).toContainText(/másik fiókra|Másik felhasználó jelentkezett be/i);
     await expect(anna.page.getByTestId('header-subject')).toContainText(bela.email);
-    expect((await anna.page.getByTestId('members-result').textContent()) || '').not.toContain('Adatkör megadva');
+    expect((await anna.page.getByTestId('members-result').count()) === 0
+      || !((await anna.page.getByTestId('members-result').textContent()) || '').includes('mostantól megtekintheti')).toBe(true);
 
     // POZITÍV ELLENPÁR: a MAI nézetben (Béla, ugyanaz a cég) ugyanaz a művelet MŰKÖDIK.
     await anna.page.reload();
-    await expect(anna.page.getByTestId(`member-${cili.subjectId}`)).toBeVisible();
+    await gotoPage(anna.page, 'members');
+    await openMemberPanel(anna.page, cili.subjectId);
     await anna.page.getByTestId(`member-scope-select-${cili.subjectId}`).selectOption('arak');
     const jo = await withResponse(anna.page, { path: '/api/members/scope' },
       () => anna.page.getByTestId(`member-scope-${cili.subjectId}`).click());
     expect(jo.status).toBe(200);
     expect(jo.body.ok).toBe(true);
     expect(jo.body.served_subject_id).toBe(bela.subjectId);
-    await expect(anna.page.getByTestId('members-result')).toContainText('Adatkör megadva');
+    await expect(anna.page.getByTestId('members-result')).toContainText('mostantól megtekintheti az árakat');
     expect(db.count('SELECT COUNT(*) AS n FROM scope_grant WHERE book_id = ? AND subject_id = ? AND scope = ?', C.bookId, cili.subjectId, 'arak')).toBe(1);
   } finally {
     await w.close(); db.close();

@@ -33,6 +33,81 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-210',
+    date: '2026-09-24',
+    title: 'A FELÜLET A MAG SZAVAIT MONDTA A FELHASZNÁLÓNAK — nyers JSON, belső azonosító és angol hibakód a normál nézeten',
+    what: 'A próba-alkalmazás EGY hosszú, számozott lapon állt: a belépés, a regisztráció, a meghívás, a cégalapítás '
+      + 'és az adat-lekérés egymás alatt, a válaszok pedig NYERS alakban — `KIADVA {"qty":"12"}`, '
+      + '`ELUTASÍTVA — melyik kapu: right`, `challenge_superseded`, `business.tax_id`, `sub_…`/`ws_…` azonosítók. '
+      + 'A külső ellenőrző fél (chatgpt-v3, R81) tizenöt képernyőn sorolta fel: a felhasználó nem tudta megmondani, '
+      + 'sikerült-e csatlakoznia, mi a teendő egy lejárt hivatkozással, és mit jelent, hogy „a plafon” nem jog.',
+    why_wrong: 'A MAG SZAVA NEM A FELHASZNÁLÓ SZAVA. Amit a címzett nem ért, azt nem szállítottuk le (KUKA-079 a '
+      + 'saját felületünkre fordítva). Súlyosbító: ugyanaz a fogalom a menüben, az oldalcímen és a gombon MÁS nevet '
+      + 'kapott, mert a feliratok a sablonokba voltak égetve — egy szövegjavítás így mindig csak az egyik helyet érte el.',
+    replaced_by: 'SZO-01 — EGY szövegforrás (`v3app/public/texts.mjs`): a menücím, az oldalcím, a gomb-felirat, az '
+      + 'állapot-mondat és a szerver hibakódjának emberi megfelelője MIND innen jön; a gépi ok nem tűnik el, hanem a '
+      + '„Technikai részletek” lenyílóba kerül. Aki új képernyőt ír, ide vesz fel szöveget — nem a sablonba égeti.',
+    decision: 'D-VS-3072',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R81 — a tizenöt képernyő végigjárásával, képernyőnként nevesített szöveg-javaslattal',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/texts.mjs']),
+        pattern: "export const REASON = Object\\.freeze",
+        why: 'a szerver okainak emberi megfelelője EGY helyen él' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "import \\{ PAGE, NAV_GROUPS",
+        why: 'a lap a KÖZÖS szövegforrásból rajzol, nem beégetett feliratokból' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3app/public/app.js'], pattern: "KIADVA",
+        reason: 'a mag kiadás-felirata nem kerülhet vissza a felhasználói nézetbe (R81 §6)' }),
+      Object.freeze({ paths: ['v3app/public/app.js'], pattern: "ELUTASÍTVA — melyik kapu",
+        reason: 'a kapu-nevet a felhasználó nem érti: a nemleges válasz KONKRÉT okot és folytatást ad' }),
+    ]),
+    lesson: 'AMIT A CÍMZETT NEM ÉRT, AZT NEM SZÁLLÍTOTTUK LE. A belső szó (könyv · alany · kapu · plafon · csatorna) '
+      + 'a MI nyelvünk, nem a felhasználóé — és ha a felirat a sablonba van égetve, a javítás mindig csak az egyik '
+      + 'helyre jut el. Egy fogalom = egy szó = egy otthon.',
+    guard_note: 'gépi jel: `tests/e2e/v3app-r81-ux.spec.mjs` UX-07 — hat normál nézet TELJES szövegére tizenhat gépi '
+      + 'minta (nyers JSON · belső azonosító-előtag · angol hibakód · a régi nagybetűs feliratok), a „Technikai '
+      + 'részletek” lenyíló NÉLKÜL; a találat 0 kell legyen. Plusz `npm run verify:kuka` a fenti tiltó-mintákkal.',
+  }),
+  Object.freeze({
+    id: 'KUKA-209',
+    date: '2026-09-24',
+    title: 'AZ ÚJRARAJZOLÁS INDÍTOTTA A LEKÉRÉST — és a nemleges válasz mondata újrarajzolt: 700 ms alatt 33 kérés',
+    what: 'Az új közös keretben a képernyő rajzolása maga indította a nézet adat-lekérését (`render()` végén '
+      + '`loadStock()`). Amikor egy válasz NEM volt a nézethez kötve, a lap kiírta a mondatot, frissítette az '
+      + 'állapotát — és ezzel ÚJRARAJZOLT, ami ÚJRA kért. A saját böngésző-próbám mérte: a hibabevitel után '
+      + '700 ezredmásodperc alatt 33 kérés ment ki ugyanarra a végpontra.',
+    why_wrong: 'A NEMLEGES VÁLASZ SOHA NEM INDÍTHAT FRISSÍTÉSI KÖRT — ezt az R79 parancsa kifejezetten kikötötte, és '
+      + 'a védelem első alakja pont ezt szegte meg. A kör nemcsak terhel: ELFEDI a leletet is, mert a képernyő '
+      + '„dolgozik”, miközben semmi nem halad. A hiba oka szerkezeti: a RAJZOLÁS és a LEKÉRÉS nem ugyanaz a döntés, '
+      + 'és a kettőt összekötve minden állapot-változás kérést szül.',
+    replaced_by: 'A RAJZOLÁS ÉS A LEKÉRÉS KÉT KÜLÖN DÖNTÉS: a `render()` CSAK rajzol, és EGY hely indít lekérést '
+      + '(`loadPageData()`), amit a NÉZET-VÁLTÁS hív — menüpont, fiókváltás, vagy a szerver szerinti '
+      + 'kontextus-változás —, illetve a felhasználó „Frissítés” gombja. A panel tartalma ÁLLAPOT '
+      + '(`state.panels`), nem csak DOM, így az újrarajzolás nem veszíti el, és nem kell „újrakérni, hogy legyen '
+      + 'mit mutatni”.',
+    decision: 'D-VS-3072',
+    found_by: 'Claude-v3 SAJÁT böngésző-próbája (R81) — az R79 spec kérés-számlálója a hibabevitel után',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "function loadPageData\\(\\)",
+        why: 'a lekérésnek EGY otthona van, és azt a nézet-váltás hívja — nem a rajzolás' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r79.spec.mjs']),
+        pattern: "utanKeres",
+        why: 'a kérés-számláló MÉRI, hogy a nemleges válasz után nem indul újabb kérés' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3app/public/app.js'], pattern: "render\\(\\);\\s*\\n\\s*if \\(state\\.page === 'stock'\\) loadStock",
+        reason: 'a rajzolás végén futó, feltétel nélküli lekérés nem térhet vissza (R81 lelet)' }),
+    ]),
+    lesson: 'A RAJZOLÁS ÉS A LEKÉRÉS KÉT KÜLÖN DÖNTÉS. Ha az újrarajzolás kérdez, akkor minden állapot-változás — '
+      + 'köztük a HIBA KIÍRÁSA is — újabb kérést szül, és a védelem mondata maga lesz a kör motorja. A kérés '
+      + 'okát mondd ki: nézet-váltás, felhasználói gomb, vagy egy művelet utáni célzott frissítés.',
+    guard_note: 'gépi jel: `tests/e2e/v3app-r79.spec.mjs` (a hibabevitel után 700 ms-on át számolt kérés = 0) + '
+      + '`npm run verify:kuka` a fenti tiltó-mintával.',
+  }),
+  Object.freeze({
     id: 'KUKA-208',
     date: '2026-09-24',
     title: 'A KÖNYV EGYEZETT, A SZEMÉLY NEM — a régi lap gombja MÁS FIÓK nevében írt ugyanabban a cégben',
