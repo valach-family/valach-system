@@ -177,6 +177,9 @@ export const ENDPOINT_SCHEMAS = frozen({
   // séma védi, hanem a kihívás SAJÁT szerződése (CHR-01): egyszeri · lejáró · leváltható token.
   'GET /api/verify': frozen({ version: '1', mutates: true, gate: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({ token: frozen({ type: 'nonempty_string', required: false, max_length: 128 }) }) }) }),
   'GET /api/invites/observe': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({ token: frozen({ type: 'nonempty_string', required: false, max_length: 128 }) }) }) }),
+  // A VÁRAKOZÓ MEGHÍVÁSOK OLVASÁSA (R83/F83-04). Ugyanaz a kontextus-kötés, mint a tagoknál: a
+  // válasz csak ahhoz a NÉZETHEZ szól, amelyikben a kérés indult (KTX-02 · KUKA-204).
+  'GET /api/invites/waiting': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
   'GET /api/data/stock': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
   'GET /api/data/price': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
   'GET /dev/mailbox': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({}) }) }),

@@ -21,6 +21,7 @@
 // (ART-01). Hálózat és kulcs nem kell hozzá.
 import { chromium } from '@playwright/test';
 import { writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -344,26 +345,32 @@ try {
   // ── 13. KÉT BÖNGÉSZŐFÜL, EGY BÖNGÉSZŐ ───────────────────────────────────────────────────────
   const me = await (await ctxA.request.get(`${base}/api/me`)).json();
   const szemelyes = (me.workspaces || []).find((w) => w.personal);
+  // ELŐKÉSZÍTÉS: az első fülön NYITVA marad egy félbehagyott meghívó-űrlap.
+  await menu(anna, 'members').catch(() => {});
+  await anna.getByTestId('invite-open').click();
+  await anna.getByTestId('invite-email').fill('kollega@pelda.hu');
   const masodikLap = await ctxA.newPage();
   await masodikLap.goto('/');
   await nyitFiokValaszto(masodikLap);
   await masodikLap.getByTestId(`ws-switch-${szemelyes.book_id}`).click();
   await masodikLap.getByTestId('global-notice').waitFor();
   await anna.bringToFront();
-  await menu(anna, 'stock').catch(() => {});
-  await anna.getByTestId('data-stock-btn').click();
+  // A HELYZET A NYITOTT SZERKESZTŐVEL A LEGÉLESEBB (R83/F83-01): az első fülön OTT ÁLL a meghívó
+  // panel, benne a beírt címmel — és a kattintás pillanatában már a MÁSIK fiók az aktív.
+  await anna.getByTestId('invite-submit').click().catch(() => {});
   await anna.waitForFunction(() => {
     const n = document.querySelector('[data-testid="global-notice"]');
     return !!(n && !n.hidden && (n.textContent || '').trim().length > 0);
   });
   const fejlec = (await anna.getByTestId('header-workspace').textContent()) || '';
   const mondat = (await anna.getByTestId('global-notice').textContent()) || '';
-  mert(fejlec.includes(szemelyes.name) && /fiókot váltottál|Megnyitva/.test(mondat),
-    `a 17. lépés nem az együtt mozduló képet mutatja — fejléc: „${fejlec}" · mondat: „${mondat}"`);
+  const panelMaradt = await anna.getByTestId('invite-email').count();
+  mert(/Személyes fiók/.test(fejlec) && /fiókot váltottál|Megnyitva/.test(mondat) && panelMaradt === 0,
+    `a 17. lépés nem az együtt mozduló képet mutatja — fejléc: „${fejlec}" · mondat: „${mondat}" · nyitott panel: ${panelMaradt}`);
   await shot(anna, '17. Másik böngészőfülön fiókot váltottak', {
-    mit: 'Nyisson egy MÁSIK fület ugyanabban a böngészőben, ott váltson másik fiókra, majd térjen vissza az első fülre, és kérjen adatot.',
-    siker: 'Az első fül nem mutat kevert képet: a fejléc és az adat EGYÜTT mozdul, és a lap kimondja, hogy időközben másik fiókra váltott. A korábbi nézetben hagyott gombok nem írnak a másik fiók nevében.',
-    muszaki: 'KTX-01/02/03 nézet-kötés (`expected_book_id` + `expected_subject_id`) · R77/F77-01 · R79/F79-02 · KUKA-204 · KUKA-208',
+    mit: 'Hagyjon nyitva egy félbehagyott űrlapot (például a meghívásét), nyisson egy MÁSIK fület ugyanabban a böngészőben, ott váltson másik fiókra, majd térjen vissza az első fülre, és nyomja meg a gombot.',
+    siker: 'Az első fül nem mutat kevert képet: a fejléc, a menü és az adat EGYÜTT mozdul, a lap kimondja, hogy időközben másik fiókra váltott, és a régi űrlap BEZÁRUL. A beírt szöveg NEM megy át az új fiókba, és a gomb másodszor sem ír a másik fiók nevében.',
+    muszaki: 'PNL-01 megnyitáskori nézet-bélyeg (R83/F83-01) · KTX-01/02/03 nézet-kötés (`expected_book_id` + `expected_subject_id`) · R77/F77-01 · R79/F79-02 · KUKA-204 · KUKA-208 · KUKA-211',
   });
   await masodikLap.close();
 
@@ -491,10 +498,47 @@ REPORT-ja sorolja fel nevesítve.</p></div>
 
   writeFileSync(demoPath, demoHtml);
   writeFileSync(techPath, techHtml);
+
+  /**
+   * AZ ÖNHORDÓSÁG MÉRVE, NEM FELTÉTELEZVE (R83/F83-06 · UX-21).
+   *
+   * A külső ellenőrző fél kikötése: a mellékletnek internet és belépés NÉLKÜL kell megnyílnia —
+   * beágyazott képekkel, külső erőforrás nélkül. Eddig ezt a szándék garantálta; mostantól MÉRJÜK:
+   * a lapban nem állhat külső hivatkozás (`http(s)://` betöltendő erőforrásként), minden kép
+   * `data:`-URI, és nincs külső `<script src>` vagy `<link href>`. Ha mégis, a futtató NEVEZETTEN
+   * megáll — a „megnyitható melléklet" nem lehet bizalom kérdése (KUKA-125).
+   */
+  const onhordo = (nev, html) => {
+    const bajok = [];
+    for (const m of html.matchAll(/<img\b[^>]*\bsrc="([^"]*)"/gi)) {
+      if (!m[1].startsWith('data:')) bajok.push(`kép külső forrásból: ${m[1].slice(0, 60)}`);
+    }
+    for (const m of html.matchAll(/<script\b[^>]*\bsrc="([^"]*)"/gi)) bajok.push(`külső szkript: ${m[1].slice(0, 60)}`);
+    for (const m of html.matchAll(/<link\b[^>]*\bhref="([^"]*)"/gi)) bajok.push(`külső stíluslap: ${m[1].slice(0, 60)}`);
+    for (const m of html.matchAll(/\b(?:src|href)="(https?:\/\/[^"]*)"/gi)) {
+      // A SZÖVEGBEN SZEREPLŐ cím (pl. a helyi indítás URL-je) nem betöltendő erőforrás — az `<a>`
+      // hivatkozás nem tölt be semmit a lap megnyitásakor. A mérés a BETÖLTŐ attribútumokat nézi.
+      if (!/<a\b[^>]*$/i.test(html.slice(Math.max(0, m.index - 200), m.index))) bajok.push(`betöltendő külső erőforrás: ${m[1].slice(0, 60)}`);
+    }
+    const kepek = [...html.matchAll(/<img\b/gi)].length;
+    return { nev, bajok, kepek, bajt: Buffer.byteLength(html), sha: createHash('sha256').update(html).digest('hex') };
+  };
+  const meresek = [onhordo('felhasználói bemutató', demoHtml), onhordo('műszaki melléklet', techHtml)];
   console.log(`\nKÉSZ:`);
   console.log(`  felhasználói bemutató: ${demoPath} · ${(demoHtml.length / 1024 / 1024).toFixed(2)} MB`);
   console.log(`  műszaki melléklet:     ${techPath} · ${(techHtml.length / 1024).toFixed(0)} kB`);
   console.log(`  ${shots.length} képernyő`);
+  console.log('\nÖNHORDÓSÁG (UX-21 — hálózat nélkül megnyitható?):');
+  for (const m of meresek) {
+    console.log(`  ${m.nev}: ${m.kepek} kép, mind beágyazva · külső erőforrás: ${m.bajok.length ? m.bajok.join(' · ') : 'NINCS'}`);
+    console.log(`    sha256: ${m.sha}`);
+  }
+  console.log(`  forrás-commit: ${GIT.commit ?? 'ismeretlen'} · ág: ${GIT.branch ?? 'ismeretlen'} · munkafa: ${GIT.dirty === null ? 'nem mérhető' : (GIT.dirty ? 'MÓDOSÍTOTT' : 'tiszta')}`);
+  const rossz = meresek.filter((m) => m.bajok.length);
+  if (rossz.length) {
+    console.error('\nHIBA: a melléklet NEM önhordó — a fenti külső erőforrás(ok) miatt hálózat nélkül hiányosan nyílna meg.');
+    process.exitCode = 3;
+  }
 } finally {
   await browser.close();
   await app.close();

@@ -15,7 +15,7 @@
 // FÜGGŐSÉG: NULLA új futásidejű csomag — node:http · node:crypto · node:fs · node:path · node:url
 // (+ node:module a CommonJS `artifactNaming.js` behúzásához, ahogy a feladat kimondta).
 import http from 'node:http';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import { readFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { dirname, resolve, join, sep, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -63,6 +63,12 @@ const MAX_BODY_BYTES = 64 * 1024;
 export const CLIENT_AUTHORITY_PARAMS = Object.freeze(['book_id', 'workspace_id', 'workspace', 'current_book_id', 'actor', 'actor_id', 'role', 'subject']);
 
 const hex = (bytes) => randomBytes(bytes).toString('hex');
+/**
+ * A LISTA-SOR JELÖLŐJE — EGYIRÁNYÚ lenyomat, nem a titok rövidítése (R83/F83-04). A meghívó-token
+ * ELSŐ karakterei maguk is titok-részletek; egy lenyomat viszont a kiadott hivatkozást nem
+ * állítja vissza. A beváltás továbbra is a TELJES tokenhez kötött.
+ */
+const shortRef = (token) => createHash('sha256').update(String(token)).digest('hex').slice(0, 10);
 const nowIso = () => new Date().toISOString();
 
 /** A tároló útja: env, különben a generált-fájl szabály szerinti név a `var/tmp` alatt (ART-01). */
@@ -452,9 +458,13 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
         current_personal: current ? current.personal === true : null,
         personal_book_id: (personalSpaceOf({ store, subjectId: session.subject_id }) || {}).book_id ?? null,
         // A KÉPERNYŐ MONDJA KI, KI NEVÉBEN JÁRSZ EL (R75 §4) — egy mondat, a SZERVER igazságából.
+        // A FELÜLET SZAVAIVAL (R81 §6 · R83/F83-04): „személyes kör" → Személyes fiók, és a
+        // személyes fiók BELSŐ neve nem kerül a mondatba — ott a nevezett szó áll.
         acting_as: current
-          ? `${emailOf(session.subject_id) ?? session.subject_id} · ${current.personal ? 'személyes kör' : 'munkakörnyezet'}: ${current.name} · szerep: ${current.role}`
-          : `${emailOf(session.subject_id) ?? session.subject_id} · nincs kiválasztott kör`,
+          ? (current.personal
+            ? `${emailOf(session.subject_id) ?? session.subject_id} · Személyes fiók · szerep: ${current.role}`
+            : `${emailOf(session.subject_id) ?? session.subject_id} · fiók: ${current.name} · szerep: ${current.role}`)
+          : `${emailOf(session.subject_id) ?? session.subject_id} · nincs kiválasztott fiók`,
         current_plan: current ? ((store.get('SELECT plan FROM entitlement_profile WHERE book_id = ?', current.book_id) || {}).plan ?? null) : null,
       } };
     },
@@ -585,10 +595,62 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
       return { status: 201, body: { ok: true, token, ceiling: r.ceiling, basis_id: r.basis_id, basis_version: r.basis_version, expires_at: expiresAt, ...ctx.served } };
     },
 
+    /**
+     * A VÁRAKOZÓ MEGHÍVÁSOK LISTÁJA (R83/F83-04).
+     *
+     * A LELET: a Felhasználók képernyő CSAK a már belépett tagokat mutatta, a kiadott, még be nem
+     * váltott meghívások SEHOL nem látszottak — a fiókkezelő nem tudta, kire vár. Ez a végpont
+     * MEGLÉVŐ tényekből olvas, UGYANAZON a joghatáron: bejelentkezés · a nézet kötése · fiókkezelői
+     * jog · CSAK az aktuális könyv sorai.
+     *
+     * AMIT NEM AD KI: a NYERS meghívó-tokent. A token a levél titka; egy listában megjelenve
+     * bárki, aki a képernyőt látja, más nevében beváltható hivatkozást kapna (KUKA-006: a szerver
+     * titka nem kerül a kliensbe). A lista helyette az ÁLLAPOTOT mondja meg.
+     */
+    'GET /api/invites/waiting': ({ session, query }) => {
+      if (!session.subject_id) return loginRequired();
+      const cur = currentBookOf(session);
+      const ctx = readContextGate(query, session, cur.book_id);
+      if (!ctx.ok) return { status: ctx.status, body: ctx.body };
+      if (!cur.book_id) return workspaceRequired(cur);
+      const gate = adminGate(session, cur.book_id);
+      if (!gate.ok) return { status: gate.status, body: { ok: false, reason: gate.reason, message: gate.message } };
+      const at = clock.now();
+      const rows = store.all(
+        `SELECT token, invitee_namespace, invitee_value, offered_role, issuer_subject, expires_at, redeemed_at
+           FROM invite WHERE book_id = ? ORDER BY expires_at DESC`, cur.book_id);
+      const invites = rows.filter((r) => !r.redeemed_at).map((r) => ({
+        // AZONOSÍTÓ A KÉPERNYŐNEK, DE NEM A TOKEN: a lista-sor jelölője a token RÖVID lenyomata,
+        // amiből a hivatkozás nem állítható vissza (a beváltás a teljes tokenhez kötött).
+        ref: shortRef(r.token),
+        email: r.invitee_namespace === 'email' ? r.invitee_value : null,
+        role: r.offered_role,
+        invited_by: emailOf(r.issuer_subject) ?? null,
+        expires_at: r.expires_at,
+        expired: Date.parse(r.expires_at) <= Date.parse(at),
+      }));
+      return { status: 200, body: { ok: true, book_id: cur.book_id, ...ctx.served, invites, at } };
+    },
+
+    /**
+     * A MEGFIGYELÉS — ÉS A MINIMÁLIS KIADÁS A BIZONYÍTOTT CÍMZETTNEK (R83/F83-04).
+     *
+     * A mag két állapota (`redeem_as_existing` · `redeem_as_new`) CSAK akkor születik, ha a néző
+     * BIZONYÍTOTTA a meghívás címzetti csatornáját — minden más esetben bájt-azonos, semleges
+     * választ ad (KUKA-084). Ezért a jogos címzettnek kiadható a MINIMÁLIS tény: MELYIK fiókba és
+     * MILYEN szerepre szól a meghívás. Ennél több nem: nincs általános, anonim cégnév-lekérdező, és
+     * a meghívó SZEMÉLYÉT sem találjuk ki — a ténylegesen tárolt e-mail-címét adjuk, vagy semmit.
+     */
     'GET /api/invites/observe': ({ session, url }) => {
       const token = url.searchParams.get('token') || '';
       const r = observeInvite({ store, token, viewerSubjectId: session.subject_id, clock });
-      return { status: 200, body: { ...r } };
+      const proven = r.status === 'redeem_as_existing' || r.status === 'redeem_as_new';
+      if (!proven) return { status: 200, body: { ...r } };
+      const inv = store.get('SELECT book_id, offered_role, issuer_subject FROM invite WHERE token = ?', token);
+      if (!inv) return { status: 200, body: { ...r } };
+      return { status: 200, body: { ...r,
+        account: { name: bookNameOf(inv.book_id) ?? null, role: inv.offered_role },
+        invited_by: emailOf(inv.issuer_subject) ?? null } };
     },
 
     'POST /api/invites/pending': ({ session, input }) => {

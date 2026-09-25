@@ -229,9 +229,11 @@ export async function createWorkspaceUI(page, { name, plan = 'starter', business
   await page.getByTestId('ws-add').click();
   await expect(page.getByTestId('ws-name')).toBeVisible();
   await page.getByTestId('ws-name').fill(name);
-  const box = page.getByTestId('ws-business');
+  // A FIÓK FAJTÁJA VÁLASZTÁS (R83/F83-04): „Vállalkozás" vagy „Közös fiók" — a céges adatlap CSAK
+  // az elsőnél látszik, ezért a segéd is a választással kezd, ahogy a felhasználó.
   if (business) {
-    if (!(await box.isChecked())) await box.check();
+    await page.getByTestId('ws-kind-business').check();
+    await expect(page.getByTestId('ws-tax-id')).toBeVisible();
     const ismert = ['HU', 'AT', 'DE', 'SK', 'RO'];
     if (ismert.includes(business.jurisdiction)) {
       await page.getByTestId('ws-jurisdiction').selectOption(business.jurisdiction);
@@ -240,8 +242,9 @@ export async function createWorkspaceUI(page, { name, plan = 'starter', business
       await page.getByTestId('ws-jurisdiction-other').fill(business.jurisdiction);
     }
     await page.getByTestId('ws-tax-id').fill(business.tax_id);
-  } else if (await box.isChecked()) {
-    await box.uncheck();
+  } else {
+    await page.getByTestId('ws-kind-shared').check();
+    await expect(page.getByTestId('ws-tax-id')).toBeHidden();
   }
   const r = await withResponse(page, { path: '/api/workspaces' }, () => page.getByTestId('ws-create').click());
   // SIKERNÉL A LAP TOVÁBBLÉP (az űrlap eltűnik), ezért a visszajelzést a KÖVETKEZMÉNY hordozza:

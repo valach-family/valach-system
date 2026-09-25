@@ -179,7 +179,7 @@ test('R77/F77-02 — hibás adószám: nevezett elutasítás a felületen, félk
     };
     expect(after).toEqual(before);
     // A FEJLÉC SEM VÁLTOTT félkész célra: a felhasználó ott maradt, ahol volt.
-    await expect(cili.page.getByTestId('header-workspace')).toContainText('személyes köre');
+    await expect(cili.page.getByTestId('header-workspace')).toContainText('Személyes fiók');
     await expect(cili.page.getByTestId('ws-name')).toHaveValue('Hibas ceg');   // a jó mezők maradnak
 
     // POZITÍV ELLENPÁR: érvényes adószámmal ugyanez a képernyő elindítja a kört.

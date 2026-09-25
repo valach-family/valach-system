@@ -5,9 +5,10 @@
 //   mindegyikéhez egy vagy több MÉRT tény, két rekeszben (amit a lap mutatott · amit a szerver
 //   válaszolt vagy a tároló őrzött). A bizonyíték-lap gépi alakban is kiíródik.
 //   NEM MÉRI: a tervezési HTML-minta viselkedését (az külön fájl, nem ez az alkalmazás), és nem
-//   méri azt sem, hogy a SZÁLLÍTOTT melléklet megnyitható-e a címzett gépén (UX-21) — ez a lap
-//   ezért az UX-21-et NEVEZETTEN `nem_bongeszoben`-nek írja, nem zöldnek (KUKA-041 · KUKA-093:
-//   a díszpipa sikert jelent arról, ami meg sem történt).
+//   méri azt sem, hogy a SZÁLLÍTOTT melléklet megérkezett-e a címzetthez (UX-21). A melléklet
+//   ÖNHORDÓSÁGÁT viszont a `tools/v3_kiprobalas_kepek.mjs` MÉRI (beágyazott képek · külső erőforrás
+//   nincs · SHA-256), ezért az UX-21 `reszben_bizonyitva`, nem zöld és nem néma (KUKA-041 ·
+//   KUKA-093 · KUKA-216: a verdikt a mérés hatókörén nem mutathat túl).
 //
 // A RÉSZLEGES FUTÁS NEM EREDMÉNY (KUKA-206): ha egy feltétel EBBEN a futásban nem futott, a lap
 // `nem_futott`-ként viszi, és a közzétett példányt NEM írjuk felül.
@@ -17,7 +18,7 @@ import { resolve, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   World, Db, PASSWORD, createWorkspaceUI, switchUI, header, stockUI, priceUI, inviteUI, openInviteUI,
-  redeemUI, grantScopeUI, revokeUI, loginUI, logoutUI, registerUI, setPlanUI, withResponse,
+  redeemUI, grantScopeUI, revokeUI, loginUI, logoutUI, registerUI, verifyFromMailboxUI, setPlanUI, withResponse,
   openSwitcher, openProfile, openStockPage, openMemberPanel, openMailbox, gotoPage, ensureMemberRow,
 } from './helpers.mjs';
 
@@ -50,12 +51,39 @@ const CRITERIA = Object.freeze([
   ['UX-22', 'Van egy teljes használati történet: Anna → vállalkozás → Béla → készletjog → hozzáférés megszüntetése.'],
 ].map(([id, title]) => Object.freeze({ id, title })));
 
+/**
+ * A TIZENÖT RÉGI HASZNÁLATI HELYZET (R81 §5, a terv 01–15-es szakaszai) — és MELYIK rekesz MÉRI.
+ *
+ * MIÉRT ÍGY (R83/F83-06 · KUKA-216): az R82-es alak TIZENÖT BELSŐ MENÜPONTOT nyitott meg, és ezt
+ * mondta a tizenöt HELYZET leképezésének. A kettő nem ugyanaz: a menüpont a keret egy lapja, a
+ * helyzet egy FELHASZNÁLÓI ÚT. Ezért a lista a helyzetekhez KÖTI a mérést: `itt` = ebben a
+ * rekeszben mérve, konkrét állítással; `rekesz` = NEVEZETT másik rekesz ugyanezen a lapon, ami a
+ * helyzet TELJES útját végigjárja. A „hol" mondja meg, hova került a helyzet folytatása.
+ */
+const HASZNALATI_HELYZETEK = Object.freeze([
+  Object.freeze({ n: '01', cim: 'Anna regisztrál', hol: 'önálló belépési kártya: Fiók létrehozása', merve: 'itt' }),
+  Object.freeze({ n: '02', cim: 'Lejárt megerősítő link', hol: 'a lejárat OKÁVAL nyíló újraküldő kártya', merve: 'itt' }),
+  Object.freeze({ n: '03', cim: 'Új megerősítő levél kérése', hol: 'önálló kártya a bejelentkezés lábából', merve: 'itt' }),
+  Object.freeze({ n: '04', cim: 'E-mail-cím megerősítve', hol: 'önálló megerősítő lap, emberi mondattal', merve: 'itt' }),
+  Object.freeze({ n: '05', cim: 'Első belépés, személyes fiók', hol: 'a keret Áttekintése + egyszerű személyes menü', merve: 'itt' }),
+  Object.freeze({ n: '06', cim: 'Vállalkozás hozzáadása', hol: 'Új fiók hozzáadása munkalap, fajta-választással', merve: 'itt' }),
+  Object.freeze({ n: '07', cim: 'Anna meghívja Bélát', hol: 'Felhasználók képernyő + meghívó panel', merve: 'UX-09…UX-10' }),
+  Object.freeze({ n: '08', cim: 'Béla megnyitja a meghívót', hol: 'önálló meghívás-kártya (semleges, ha nincs bizonyítva)', merve: 'UX-09' }),
+  Object.freeze({ n: '09', cim: 'A meghívás elfogadva, adatjog még nincs', hol: 'Felhasználók tábla: tagság ÉS adatkör KÉT állapot', merve: 'UX-10' }),
+  Object.freeze({ n: '10', cim: 'Anna engedélyezi a készlet megtekintését', hol: 'tag-panel adatkör-űrlapja', merve: 'UX-11' }),
+  Object.freeze({ n: '11', cim: 'Béla látja a készletet', hol: 'Készletegyenleg képernyő (valódi kérés alapján)', merve: 'UX-11' }),
+  Object.freeze({ n: '12', cim: 'Céges hozzáférés megszüntetése', hol: 'megerősítő panel névvel, fiókkal, következménnyel', merve: 'UX-12' }),
+  Object.freeze({ n: '13', cim: 'Béla oldalán megszűnik a hozzáférés', hol: 'kimondott értesítés + a személyes fiók megmarad', merve: 'UX-13' }),
+  Object.freeze({ n: '14', cim: 'Hibás adóazonosító', hol: 'a MEZŐHÖZ kötött hiba, félkész fiók nélkül', merve: 'UX-14' }),
+  Object.freeze({ n: '15', cim: 'Másik böngészőfülön fiókot váltottak', hol: 'kimondott értesítés + a régi szerkesztő érvénytelenítése', merve: 'UX-16 · R83/F83-01' }),
+]);
+
 const EVIDENCE = [];
 class Ux {
   constructor(id) {
     const c = CRITERIA.find((x) => x.id === id);
     this.id = id; this.title = c.title; this.browser = []; this.server = [];
-    this.verdict = 'reszben';
+    this.verdict = 'reszben_bizonyitva';
     this.note = 'a próba megszakadt, mielőtt az ítélet megszületett volna — a fenti sorok a megszakadásig mért tények';
     EVIDENCE.push(this);
   }
@@ -118,7 +146,7 @@ test('UX-01…UX-07 — a közös keret: belépési űrlap nélküli belső néz
     await openSwitcher(anna.page);
     const tetelek = await anna.page.locator('li[data-testid^="ws-item-"]').count();
     expect(tetelek).toBeGreaterThanOrEqual(3);
-    await expect(anna.page.getByTestId(`ws-kind-${personal}`)).toHaveText('Személyes fiók');
+    await expect(anna.page.getByTestId(`ws-kind-${personal}`)).toHaveText('A saját ügyeid helye');
     u2.b(`A fiókválasztó UGYANAZON a helyen (fejléc) mind a négy belső nézetben: ${switcherMinden.join(' · ')}. A listában ${tetelek} tétel: 1 személyes + 2 céges (Első Kft · Második Kft), a személyes külön csoportban, „Személyes fiók" felirattal.`)
       .s(`A tételek a szerver /api/me válaszának munkakörnyezet-listájából jönnek (personal_book_id=${personal ? 'van' : 'nincs'}) — a lap nem talál ki fiókot.`)
       .verdictIs('bizonyitva', 'A választó a fejlécben rögzített helyen áll, és minden belső nézetből ugyanúgy elérhető.');
@@ -157,30 +185,109 @@ test('UX-01…UX-07 — a közös keret: belépési űrlap nélküli belső néz
     const lapokUtana = await anna.page.locator('.tab').count();
     expect(lapokUtana).toBe(1);
     await expect(anna.page.getByTestId('tab-overview')).toBeVisible();
+    // A KÜLSŐ ELLENŐRZŐ FÉL KÉT ELLENPRÓBÁJA IS EBBE A FELTÉTELBE VÁG (R83/F83-01 · F83-02): a
+    // megkezdett SZERKESZTÉS sem mehet át az új fiókba, és a saját váltás ne dobja el szó nélkül.
+    await openSwitcher(anna.page);
+    await anna.page.getByTestId('ws-add').click();
+    await anna.page.getByTestId('ws-name').fill('Átvitel-próba Kft');
+    await openSwitcher(anna.page);
+    await anna.page.getByTestId(`ws-switch-${K2.bookId}`).click();
+    await expect(anna.page.getByTestId('unsaved-dialog')).toBeVisible();
+    await anna.page.getByTestId('unsaved-discard').click();
+    await expect(anna.page.getByTestId('header-workspace')).toContainText('Második Kft');
+    await openSwitcher(anna.page);
+    await anna.page.getByTestId('ws-add').click();
+    await expect(anna.page.getByTestId('ws-name')).toHaveValue('');
+    await switchUI(anna.page, K1.bookId);
     u5.b(`Ugyanaz a munkalap („Készletegyenleg") HÁROM megnyitás után is EGYSZER szerepel a munkalapsávon (darabszám=1). Fiókváltáskor a lapkészlet ÚJRAINDUL: ${lapokElotte} lapról ${lapokUtana} lapra (csak az Áttekintés) — a korábbi fiók lapjai és a bennük lévő adat nem utaznak át.`)
-      .verdictIs('bizonyitva', 'A munkalap-nyitás azonosító szerint egyedi, a fiókváltás pedig ÚJ generációt és új lapkészletet indít.');
+      .b('A MEGKEZDETT SZERKESZTÉS sem megy át: egy félbehagyott „Új fiók" űrlap után a saját fiókváltás '
+        + 'MEGKÉRDEZ („Vannak nem mentett módosításaid" → Szerkesztés folytatása / Elvetés és váltás), és az '
+        + 'elvetés utáni ÚJ fiókban az űrlap ÜRESEN nyílik (mért érték: "").')
+      .s('A KÜLSŐ okból jött nézet-váltásra ugyanez a szabály a `tests/e2e/v3app-r83.spec.mjs` F83-01 és F83-02 '
+        + 'rekeszeiben van mérve (a régi panel bezárul, és a MÁSODIK kattintás sem ír a másik fiókba) — ez a sor '
+        + 'azt NEM állítja, csak megnevezi, hol áll a mérése.')
+      .verdictIs('bizonyitva', 'A munkalap-nyitás azonosító szerint egyedi, a fiókváltás ÚJ generációt és új '
+        + 'lapkészletet indít, és a megkezdett kitöltés sem utazik át — a saját váltás pedig megkérdez.');
 
-    // ── UX-06 ────────────────────────────────────────────────────────────────────────────────
-    // A tizenöt régi képernyő folytatása: hat a belépési lapokon (01–04 · 08 · 15 közlése), a többi
-    // a kereten belül. Itt azt mérjük, hogy MINDEGYIK folytatás LÉTEZIK és megnyílik.
-    const belso = ['overview', 'processes', 'documents', 'outbox', 'stock', 'movements', 'stockcard',
-      'products', 'partners', 'warehouses', 'account', 'members', 'plan', 'profile', 'security'];
-    const megnyilt = [];
-    for (const p of belso) {
-      if (await anna.page.getByTestId(`nav-${p}`).count()) await gotoPage(anna.page, p);
-      else { await openProfile(anna.page); await anna.page.locator(`[data-go="${p}"]`).first().click(); }
-      const cim = (await anna.page.locator('h1').first().textContent()) || '';
-      expect(cim.length).toBeGreaterThan(2);
-      megnyilt.push(cim.trim());
-    }
-    // A BELÉPÉSI LAPOK a BEJELENTKEZÉS NÉLKÜLI látogatót szolgálják ki — ezért friss, névtelen
-    // nézetben mérjük őket (a belépett felhasználót nem dobjuk ki a munkájából egy régi linkért).
+    // ── UX-06: A TIZENÖT HASZNÁLATI HELYZET, NEM TIZENÖT MENÜPONT ────────────────────────────
+    //
+    // A KÜLSŐ ELLENŐRZŐ FÉL LELETE (R83/F83-06): az előző alak tizenöt BELSŐ MENÜPONTOT nyitott meg,
+    // és ezt mondta a tizenöt HELYZET leképezésének. Most a mérés a helyzeteket járja végig: amit itt
+    // tudunk megmutatni, azt KONKRÉT állítással; amihez második ember és teljes út kell, azt NEVEZETT
+    // rekesz méri ugyanezen a lapon (a `HASZNALATI_HELYZETEK` tábla mondja meg, melyik).
+    const helyzetek = [];
+    const jegyez = (n, mit) => helyzetek.push(`${n}: ${mit}`);
+
+    // 01 · 02 · 03 · 04 — a belépési lapok a BEJELENTKEZÉS NÉLKÜLI látogatót szolgálják ki, ezért
+    // friss, névtelen nézetben mérjük őket (a belépett felhasználót nem dobjuk ki a munkájából).
     const vendeg2 = await w.anonymous();
+    await vendeg2.page.goto('/');
+    await vendeg2.page.locator('[data-auth="register"]').first().click();
+    await expect(vendeg2.page.locator('h1')).toContainText('Fiók létrehozása');
+    await expect(vendeg2.page.getByTestId('register-email')).toBeVisible();
+    expect(await vendeg2.page.getByTestId('ws-tax-id').count()).toBe(0);      // céges adat itt nem kell
+    jegyez('01', 'a „Fiók létrehozása" önálló kártya (e-mail + jelszó), céges mező nélkül');
+
     await vendeg2.page.goto('/?megerosites=challenge_expired');
     await expect(vendeg2.page.locator('h1')).toContainText('Új megerősítő levél');
     await expect(vendeg2.page.getByTestId('resend-reason')).toContainText('lejárt');
-    u6.b(`Tizenöt belső képernyő nyílt meg, mindegyik saját címmel: ${megnyilt.join(' · ')}. A belépési oldalak külön kártyák (Bejelentkezés · Fiók létrehozása · Új megerősítő levél · Nézd meg a leveleidet · Új megerősítő levél — a lejárt link OKÁVAL a tetején · Meghívás).`)
-      .verdictIs('bizonyitva', 'A régi számozott szakaszok mindegyikének van megfelelője: vagy menüpont a kereten belül, vagy önálló belépési kártya.');
+    jegyez('02', 'a lejárt hivatkozás az OKÁVAL nyitja az újraküldő kártyát, nem zsákutcával');
+
+    await vendeg2.page.goto('/');
+    await vendeg2.page.locator('[data-auth="resend"]').first().click();
+    await expect(vendeg2.page.getByTestId('resend-form')).toBeVisible();
+    jegyez('03', 'az „Új megerősítő levél" a bejelentkezés lábából önálló kártyaként nyílik');
+
+    // 04 — a MEGERŐSÍTŐ LAP: valódi levélből, valódi tokennel (nem kitalált címmel).
+    const ujCim = w.email('helyzet04');
+    await registerUI(vendeg2.page, ujCim);
+    const megerosites = await verifyFromMailboxUI(vendeg2.page, ujCim);
+    expect(megerosites.resultText || '').toMatch(/megerősítve|megerősítettük/i);
+    jegyez('04', `a megerősítő lap emberi mondattal áll („${(megerosites.resultText || '').trim().slice(0, 60)}…"), és a „Tovább a bejelentkezéshez" visz onnan`);
+
+    // 05 — SZEMÉLYES FIÓK: a fejléc nevezett szava és az EGYSZERŰ menü (nincs céges kezelő-csoport).
+    await switchUI(anna.page, personal);
+    await expect(anna.page.getByTestId('header-workspace')).toHaveText('Személyes fiók');
+    expect(await anna.page.getByTestId('nav-members').count()).toBe(0);
+    expect(await anna.page.getByTestId('nav-plan').count()).toBe(0);
+    expect(await anna.page.getByTestId('nav-stock').count()).toBe(0);
+    await expect(anna.page.getByTestId('nav-personal')).toBeVisible();
+    jegyez('05', 'a személyes fiók fejlécében „Személyes fiók" áll, a menü egyszerű (Áttekintés · Ügyleteim · Saját adatok) — céges kezelőmenü nélkül');
+
+    // 06 — ÚJ FIÓK: a fajta VÁLASZTÁS, és a céges adatlap csak a vállalkozásnál látszik.
+    await switchUI(anna.page, K1.bookId);
+    await openSwitcher(anna.page);                     // az „Új fiók hozzáadása" a fiókválasztóból nyílik
+    await anna.page.getByTestId('ws-add').click();
+    await expect(anna.page.getByTestId('ws-kind-business')).toBeVisible();
+    await expect(anna.page.getByTestId('ws-kind-shared')).toBeVisible();
+    await anna.page.getByTestId('ws-kind-shared').check();
+    await expect(anna.page.getByTestId('ws-tax-id')).toBeHidden();
+    await anna.page.getByTestId('ws-kind-business').check();
+    await expect(anna.page.getByTestId('ws-tax-id')).toBeVisible();
+    jegyez('06', 'az „Új fiók hozzáadása" lapon a fajta VÁLASZTÁS („Vállalkozás" / „Közös fiók"), és az adószám-mező CSAK a vállalkozásnál látszik');
+
+    // 07 — a MEGHÍVÁS belépője itt is mérhető (a teljes utat az UX-09…UX-10 járja végig).
+    await gotoPage(anna.page, 'members');
+    await anna.page.getByTestId('invite-open').click();
+    await expect(anna.page.getByTestId('invite-email')).toBeVisible();
+    await expect(anna.page.getByTestId('panel-body')).toContainText('Első Kft');
+    await anna.page.keyboard.press('Escape');
+    jegyez('07', 'a Felhasználók képernyőről a meghívó panel megnyílik, és KIMONDJA, melyik fiókba szól');
+
+    // A TÖBBI HELYZET TELJES ÚTJÁT NEVEZETT REKESZ MÉRI — ezt nem itt állítjuk, hanem megnevezzük.
+    for (const h of HASZNALATI_HELYZETEK.filter((x) => x.merve !== 'itt' && x.n !== '07')) {
+      jegyez(h.n, `a folytatás helye: ${h.hol} — a TELJES útját ${h.merve} méri ezen a lapon`);
+    }
+    const ittMerve = HASZNALATI_HELYZETEK.filter((x) => x.merve === 'itt').length + 1;   // +1: a 07 belépője
+    expect(helyzetek.length).toBe(HASZNALATI_HELYZETEK.length);
+    u6.b(`Mind a TIZENÖT régi használati helyzetnek van nevesített folytatása, és mindegyikhez tartozik MÉRÉS: `
+      + `${ittMerve} helyzet EBBEN a rekeszben, konkrét állítással · ${HASZNALATI_HELYZETEK.length - ittMerve} helyzet `
+      + `NEVEZETT másik rekeszben (UX-09…UX-16 · R83/F83-01). Tételesen: ${helyzetek.join(' | ')}`)
+      .s('A mérés HATÓKÖRE kimondva (R83/F83-06): ez a rekesz a helyzetek BELÉPŐJÉT és a hozzájuk tartozó '
+        + 'nézet-alakot méri; a második embert igénylő teljes utakat a megnevezett rekeszek járják végig — '
+        + 'nem ez a sor állítja őket.')
+      .verdictIs('bizonyitva', 'A tizenöt helyzet leképezése hiánytalan, és MINDEGYIKHEZ tartozik nevezett mérés — '
+        + 'nem menüpont-darabszám. Ami nem itt fut, azt a megnevezett rekesz méri ugyanebben a csomagban.');
 
     // ── UX-07 ────────────────────────────────────────────────────────────────────────────────
     const talalatok = [];
@@ -249,7 +356,11 @@ test('UX-09…UX-13, UX-22 — a teljes történet: Anna → vállalkozás → B
     const anna = await w.person('anna');
     const K = await createWorkspaceUI(anna.page, { name: 'Családi Műhely Kft', business: { jurisdiction: 'HU', tax_id: '91345678-2-42' } });
     expect(K.bookId).toBeTruthy();
-    await expect(anna.page.getByTestId('after-create')).toContainText('Hozzáadtad a vállalkozást');
+    // EGY SIKERJELZÉS ÉS EGY KÖVETKEZŐ-LÉPÉS KÁRTYA (R83/F83-04): a sikert a fejléc-sáv mondja ki
+    // EGYSZER, a kártya pedig a következő lépést KÉRDEZI — nem ismétli meg ugyanazt.
+    await expect(anna.page.getByTestId('global-notice')).toContainText('Hozzáadtad a vállalkozást');
+    await expect(anna.page.getByTestId('after-create')).toContainText('Szeretnél másokat is meghívni?');
+    expect(await anna.page.getByTestId('after-create').textContent()).not.toContain('Hozzáadtad');
     const inv = await inviteUI(anna.page, { email: w.email('bela'), role: 'user', scope: 'keszlet' });
     expect(inv.status).toBe(201);
     expect(inv.resultText).toContain('A meghívó elkészült');
@@ -303,7 +414,9 @@ test('UX-09…UX-13, UX-22 — a teljes történet: Anna → vállalkozás → B
 
     // ── UX-12: a megszüntetés NEM egy olvasójog kikapcsolása ─────────────────────────────────
     await openMemberPanel(anna.page, bela.subjectId);
-    await expect(anna.page.getByTestId('panel-body')).toContainText('Ennek megszüntetése a TELJES céges hozzáférést érinti');
+    // A FONTOSAT SZERKEZET MONDJA KI, NEM NAGYBETŰ (R83/F83-04): külön szakasz-cím + külön mondat.
+    await expect(anna.page.getByTestId('panel-body')).toContainText('Hozzáférés a fiókhoz');
+    await expect(anna.page.getByTestId('panel-body')).toContainText('Ez a teljes hozzáférést érinti, nem egyetlen adatkört');
     await anna.page.getByTestId(`member-revoke-${bela.subjectId}`).click();
     const megerosites = (await anna.page.getByTestId('panel-body').textContent()) || '';
     expect(megerosites).toContain(bela.email);              // NÉV
@@ -311,7 +424,11 @@ test('UX-09…UX-13, UX-22 — a teljes történet: Anna → vállalkozás → B
     expect(megerosites).toContain('A saját fiókja és a korábbi műveletek története megmarad'); // KÖVETKEZMÉNY
     const v = await withResponse(anna.page, { path: '/api/members/revoke' }, () => anna.page.getByTestId('revoke-confirm').click());
     expect(v.body.ok).toBe(true);
-    u12.b(`A megszüntetés a tag PANELJÉN, külön szakaszban áll, kimondott mondattal („Ennek megszüntetése a TELJES céges hozzáférést érinti, nem egyetlen adatkört"), és MEGERŐSÍTÉST kér. A megerősítő szövegben mind a három tény ott van: a NÉV (${bela.email}), a FIÓK (Családi Műhely Kft) és a KÖVETKEZMÉNY („A saját fiókja és a korábbi műveletek története megmarad").`)
+    u12.b(`A megszüntetés a tag PANELJÉN, KÜLÖN szakaszban áll („Hozzáférés a fiókhoz"), kimondott mondattal `
+      + `(„Ez a teljes hozzáférést érinti, nem egyetlen adatkört"), és MEGERŐSÍTÉST kér. A megerősítő szövegben `
+      + `mind a három tény ott van: a NÉV (${bela.email}), a FIÓK (Családi Műhely Kft) és a KÖVETKEZMÉNY `
+      + `(„A saját fiókja és a korábbi műveletek története megmarad"). A súlyt a SZERKEZET hordozza — nagybetűs `
+      + `kiabálás nélkül (R83/F83-04).`)
       .s(`A megerősítés után HTTP ${v.status}, reason=${v.body.reason}. A megerősítő mező NEM ad jogot: a művelet ugyanúgy a szerver kapuján ment át.`)
       .verdictIs('bizonyitva', 'A teljes tagság megszüntetése külön művelet, külön mondattal és megerősítéssel — nem keverhető össze egy adatkör kikapcsolásával.');
 
@@ -329,7 +446,7 @@ test('UX-09…UX-13, UX-22 — a teljes történet: Anna → vállalkozás → B
     expect(belaMe.workspaces.map((x) => x.book_id)).not.toContain(K.bookId);
     expect(belaMe.personal_book_id).toBeTruthy();
     await switchUI(bela.page, belaMe.personal_book_id);
-    await expect(bela.page.getByTestId('header-workspace')).toContainText('személyes köre');
+    await expect(bela.page.getByTestId('header-workspace')).toContainText('Személyes fiók');
     u13.b('A megszüntetett tag paneljén a jogadó és a megszüntető gomb DARABSZÁMA 0, helyette a helyzet mondata áll („megszűnt a céges hozzáférése, ezért adatkört sem lehet neki engedélyezni"). Béla oldalán a céges fiók kikerült a választóból, a SZEMÉLYES fiókja viszont megnyitható maradt.')
       .s(`Béla /api/me válasza a megszüntetés után: a céges könyv nincs a listában, personal_book_id megvan (${belaMe.personal_book_id ? 'igen' : 'nem'}).`)
       .verdictIs('bizonyitva', 'A megszüntetés után nincs működőnek látszó jogadó vezérlő, és a felhasználó nem marad fiók nélkül.');
@@ -416,7 +533,15 @@ test('UX-15, UX-16 — az R79 védelme az új felületen is áll, és a másik f
     const kozles = (await anna.page.getByTestId('global-notice').textContent()) || '';
     // NEM TULAJDONÍTUNK BIZONYÍTATLAN OKOT: nincs „megvonták", nincs „kiléptettek", nincs vád.
     expect(kozles).not.toMatch(/megvon|kizár|kiléptet|jogosulatlan|támadás/i);
+    // ÉS A MÁSODIK KATTINTÁS? (R83/F83-01 ellenpróbája): a 409 után a RÉGI panel érvénytelen —
+    // bezárul, tehát a gomb DARABSZÁMA 0, és nincs mivel másodszor is nekifutni.
+    // A VÁLASZ MEGÉRKEZÉSE ÉS A LAP REAKCIÓJA KÉT KÜLÖN PILLANAT (KUKA-120): a `withResponse` a
+    // válaszra vár, a panel bezárása UTÁNA történik — ezért ÚJRAPRÓBÁLÓ állítással mérünk.
+    await expect(anna.page.getByTestId(`member-scope-${cili.subjectId}`)).toHaveCount(0);
+    expect(db.count('SELECT COUNT(*) AS n FROM scope_grant WHERE book_id = ? AND subject_id = ?', K.bookId, cili.subjectId)).toBe(elotteSor);
     u15.b('Az új felület gombja ugyanúgy viszi a SAJÁT nézetének két felét: a kérés törzsében `expected_book_id` ÉS `expected_subject_id` áll. A régi nézetben hagyott gomb HTTP 409-et kap, és a képernyő újrarajzol.')
+      .b('A 409 UTÁN a régi panel ÉRVÉNYTELEN: bezárul (a jogadó gomb darabszáma 0), tehát a MÁSODIK kattintás '
+        + 'nem tud a közben aktívvá lett nézetbe írni — a jogosultsági sorok száma változatlan.')
       .s(`A szabályos írás törzse: expected_book_id=<a nézet könyve>, expected_subject_id=<a nézet alanya>. A régi gomb: HTTP ${tiltott.status}, reason=${tiltott.body.reason}, expected_subject_id=Anna, served_subject_id=Béla, wrote=${tiltott.body.wrote}. ADATBÁZIS: a jogosultsági sorok száma VÁLTOZATLAN (${elotteSor}).`)
       .verdictIs('bizonyitva', 'A KTX-01/02/03 kötés és a generáció-őr az ÚJ kereten is áll — a szabály EGY modulban él (`v3app/public/contextBinding.mjs`), amit a lap és a próba-battéria is ugyanonnan hív.');
     u16.b(`A közlés szó szerint: „${kozles.trim()}" — megnevezi a MÉRT tényt (ebben a böngészőben másik felhasználó lépett be), és nem állít okot, amit nem mértünk (nincs benne „megvonták" · „kizártak" · „kiléptettek").`)
@@ -429,7 +554,7 @@ test('UX-17, UX-18 — 390×844 és 1440×900; a fő folyamat billentyűzettel i
   const w = new World(browser, 'ux17');
   try {
     const anna = await w.person('anna');
-    await createWorkspaceUI(anna.page, { name: 'Mobil Kft' });
+    const K = await createWorkspaceUI(anna.page, { name: 'Mobil Kft' });
 
     // ── UX-17/a: 1440×900 ────────────────────────────────────────────────────────────────────
     await anna.page.setViewportSize({ width: 1440, height: 900 });
@@ -461,34 +586,92 @@ test('UX-17, UX-18 — 390×844 és 1440×900; a fő folyamat billentyűzettel i
     u17.b(`1440×900: a bal menü, a fiókválasztó, a profil és a fő művelet EGYSZERRE látszik; vízszintes görgetés nincs (${vizszintes1440}). 390×844: a menü gombbá csukódik (nem tűnik el), a fiókválasztó és a profil a fejlécben marad, a fő művelet gombja a képernyőn belül áll (x=${Math.round(doboz.x)}…${Math.round(doboz.x + doboz.width)} a 390-ből), vízszintes görgetés nincs (${vizszintes390}).`)
       .verdictIs('bizonyitva', 'Mindkét mérce-képernyőn használható: a négy nevezett elem elérhető, és a lap nem csúszik ki oldalra.');
 
-    // ── UX-18: BILLENTYŰZET ──────────────────────────────────────────────────────────────────
+    // ── UX-18: BILLENTYŰZET — A FŐ TÖRTÉNET VÉGIG, ÉS A FÓKUSZ VISSZATÉRÉSE ─────────────────
+    //
+    // A KÜLSŐ ELLENŐRZŐ FÉL LELETE (R83/F83-06): az előző alak EGY panel megnyitását és Esc-re
+    // záródását mérte, és ebből mondta ki, hogy „a fő folyamat billentyűzettel végigjárható".
+    // A kettő nem ugyanaz. Most a mérés a fő történet LÉPÉSEIT járja végig billentyűvel — menü,
+    // munkalap, fiókválasztó, panel —, és azt is méri, hogy záráskor a fókusz ARRA a vezérlőre tér
+    // vissza, amelyik nyitotta (nem a lap tetejére).
     await anna.page.setViewportSize({ width: 1440, height: 900 });
-    await gotoPage(anna.page, 'members');
-    // A fő műveletig TAB-bal eljutunk, és ENTER-rel megnyitjuk a panelt.
-    let lepes = 0;
-    await anna.page.keyboard.press('Tab');
-    while (lepes < 40) {
-      const aktiv = await anna.page.evaluate(() => (document.activeElement || {}).getAttribute?.('data-testid') || '');
-      if (aktiv === 'invite-open') break;
-      await anna.page.keyboard.press('Tab');
-      lepes += 1;
-    }
-    const elertTabbal = await anna.page.evaluate(() => (document.activeElement || {}).getAttribute?.('data-testid') || '');
-    expect(elertTabbal).toBe('invite-open');
+    const aktivJel = () => anna.page.evaluate(() => (document.activeElement || {}).getAttribute?.('data-testid') || '');
+    // A KERESÉST MINDIG A LAP ELEJÉRŐL indítjuk: különben a TAB az ÉPPEN fókuszált elem UTÁNI
+    // elemeket járná be, és egy előrébb álló vezérlőt „elérhetetlennek" mérnénk (KUKA-120 alakja).
+    const resetFokusz = () => anna.page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
+    /** TAB-bal a megnevezett vezérlőig, a lap elejéről. A lépésszámot adja vissza (−1 = nem érte el). */
+    const tabbalEl = async (jel, max = 80) => {
+      await resetFokusz();
+      for (let i = 0; i <= max; i += 1) {
+        if ((await aktivJel()) === jel) return i;
+        await anna.page.keyboard.press('Tab');
+      }
+      return -1;
+    };
+    const utLepesei = [];
+
+    // (1) A MENÜ: a Felhasználók képernyő billentyűvel nyílik meg.
+    await gotoPage(anna.page, 'overview');
+    const l1 = await tabbalEl('nav-members');
+    expect(l1).toBeGreaterThanOrEqual(0);
+    await anna.page.keyboard.press('Enter');
+    await expect(anna.page.getByTestId('invite-open')).toBeVisible();
+    utLepesei.push(`menüpont „Felhasználók" ENTER-rel megnyitva (${l1} TAB)`);
+
+    // (2) A FŐ MŰVELET: a meghívó panel billentyűvel nyílik, a fókusz a panelbe kerül.
+    const l2 = await tabbalEl('invite-open');
+    expect(l2).toBeGreaterThanOrEqual(0);
     await anna.page.keyboard.press('Enter');
     await expect(anna.page.getByTestId('invite-email')).toBeVisible();
-    // A PANEL NYITÁSAKOR A FÓKUSZ A PANELBE KERÜL (modális párbeszéd), nem marad a háttérben.
     const fokuszPanelben = await anna.page.evaluate(() => {
       const panel = document.querySelector('[data-testid="panel"]');
       return !!(panel && document.activeElement && panel.contains(document.activeElement));
     });
     expect(fokuszPanelben).toBe(true);
-    // A PANEL BILLENTYŰVEL ZÁRHATÓ, és a háttér visszakapja a vezérlést.
+    utLepesei.push(`fő művelet ENTER-rel megnyitva (${l2} TAB), a fókusz a panelbe került`);
+
+    // (3) A PANELEN BELÜL: a mezők és a küldés gomb TAB-bal elérhetők (a panel nem zsákutca).
+    // A modális párbeszéd SAJÁT bejárási körben áll, ezért itt NEM a lap elejéről indítunk.
+    let l3 = -1;
+    for (let i = 0; i <= 20; i += 1) {
+      if ((await aktivJel()) === 'invite-submit') { l3 = i; break; }
+      await anna.page.keyboard.press('Tab');
+    }
+    expect(l3).toBeGreaterThanOrEqual(0);
+    utLepesei.push(`a panel „Meghívó létrehozása" gombja TAB-bal elérhető (${l3} TAB)`);
+
+    // (4) ZÁRÁS ESC-cel, ÉS A FÓKUSZ VISSZATÉR A NYITÓ GOMBRA — ez a lelet lényege.
     await anna.page.keyboard.press('Escape');
     await expect(anna.page.getByTestId('invite-email')).toHaveCount(0);
-    await expect(anna.page.getByTestId('invite-open')).toBeVisible();
-    u18.b(`A Felhasználók képernyőn a fő művelet gombja TAB-bal elérhető (${lepes} lépés után a fókusz a „Felhasználó meghívása" gombon áll), ENTER-rel megnyílik a panel, a fókusz a panelbe kerül (${fokuszPanelben}), és ESC-re bezárul — a háttér vezérlői újra elérhetők.`)
-      .verdictIs('bizonyitva', 'A fő folyamat egér nélkül is járható, és a panel fókusz-kezelése helyes (nyitáskor be, záráskor vissza).');
+    const fokuszZarasUtan = await aktivJel();
+    expect(fokuszZarasUtan).toBe('invite-open');
+    utLepesei.push('ESC-re a panel bezárul, és a fókusz a NYITÓ gombra tér vissza (invite-open)');
+
+    // (5) A FIÓKVÁLTÓ: billentyűvel nyitható, és a lista tételei elérhetők.
+    const l5 = await tabbalEl('account-switcher-summary');
+    expect(l5).toBeGreaterThanOrEqual(0);
+    await anna.page.keyboard.press('Enter');
+    await expect(anna.page.getByTestId('account-switcher')).toHaveJSProperty('open', true);
+    const l6 = await tabbalEl(`ws-switch-${K.bookId}`);
+    expect(l6).toBeGreaterThanOrEqual(0);
+    await anna.page.keyboard.press('Escape');
+    utLepesei.push(`a fiókválasztó ENTER-rel nyílik (${l5} TAB), és a fiók tétele TAB-bal elérhető (${l6} TAB)`);
+
+    // (6) A MUNKALAPSÁV: a megnyitott lap füle billentyűvel elérhető.
+    await gotoPage(anna.page, 'stock');
+    const l7 = await tabbalEl('tab-overview');
+    expect(l7).toBeGreaterThanOrEqual(0);
+    await anna.page.keyboard.press('Enter');
+    await expect(anna.page.locator('h1').first()).toHaveText('Áttekintés');
+    utLepesei.push(`a munkalapsáv „Áttekintés" füle ENTER-rel váltható (${l7} TAB)`);
+
+    u18.b(`A fő történet HAT lépése billentyűvel végigjárva, egérkattintás nélkül: ${utLepesei.join(' → ')}.`)
+      .s('A MÉRÉS HATÓKÖRE kimondva (R83/F83-06): ez a rekesz a fő történet HAT lépését méri (menü · fő '
+        + 'művelet · panelen belüli elérés · ESC + fókusz-visszatérés · fiókválasztó · munkalapsáv). '
+        + 'AMIT NEM MÉR, és ezért nem is állít: a képernyőolvasó felolvasási sorrendjét, a fókusz-csapdát a '
+        + 'panelben (TAB a panel VÉGÉN), és a mobil nézet billentyűs útját — ezek NEVESÍTETT nyitott al-esetek.')
+      .verdictIs('reszben_bizonyitva', 'A fő történet mért lépései egér nélkül járhatók, és a panel záráskor '
+        + 'VISSZAADJA a fókuszt a nyitó gombnak. A fókusz-csapda és a képernyőolvasó-sorrend NEM mérve — ezért '
+        + 'a feltétel nem kap teljes verdiktet (KUKA-216).');
   } finally { await w.close(); }
 });
 
@@ -504,8 +687,14 @@ test('UX-19, UX-20 — az ismeretlen nem nulla, a becsült jelölt; a bemutató 
     expect(tabla).toContain('Nem ismert');
     expect(tabla).toContain('Becsült');
     expect(tabla).toContain('Mért');
-    // A MAG ÁLTAL KIADOTT `qty:"12"`-höz NEM TALÁLUNK KI EGYSÉGET.
+    // A MAG ÁLTAL KIADOTT `qty:"12"`-höz NEM TALÁLUNK KI SEM EGYSÉGET, SEM RAKTÁRT, SEM MÉRÉSI
+    // EREDETET (R83/F83-03): a válasz egyiket sem bizonyítja, ezért a sor „Nincs megadva"-t visz.
     expect(tabla).toContain('Egység nincs megadva');
+    expect(tabla).toContain('Bemutató tétel');
+    const magSor = (await anna.page.locator('[data-testid="stock-table"] tbody tr')
+      .filter({ hasText: 'Bemutató tétel' }).first().textContent()) || '';
+    expect(magSor).toContain('Nincs megadva');
+    expect(magSor).not.toContain('Központi raktár');
     // AZ ISMERETLEN NEM NULLA: az „Alapanyag A" sorában nem 0 áll.
     const ismeretlenSor = await anna.page.locator('[data-testid="stock-table"] tbody tr')
       .filter({ hasText: 'Nem ismert' }).first().textContent();
@@ -514,8 +703,15 @@ test('UX-19, UX-20 — az ismeretlen nem nulla, a becsült jelölt; a bemutató 
     // KÜLÖNBÖZŐ EGYSÉGEK: a tábla NEM összegez (nincs összesen-sor a mennyiség-oszlopon).
     const labjegyzet = (await anna.page.locator('[data-testid="stock-table"] .tablefoot').textContent()) || '';
     expect(labjegyzet).toContain('nem adunk össze');
-    u19.b(`A készlettábla a mennyiség HÁROM állapotát külön szóval viszi: „Mért" · „Becsült" · „Nem ismert". Az ismeretlen mennyiségű sor szövegében nincs 0. A mag által kiadott minta-rekordnál „Egység nincs megadva" áll — nem találtunk ki hozzá „db"-ot. A tábla lábjegyzete kimondja: „${labjegyzet.trim()}".`)
-      .verdictIs('bizonyitva', 'A hiány és a nulla két külön tény a képernyőn; a mértékegység deklarált adat, nem a felület találmánya.');
+    u19.b(`A készlettábla a mennyiség HÁROM állapotát külön szóval viszi: „Mért" · „Becsült" · „Nem ismert". `
+      + `Az ismeretlen mennyiségű sor szövegében nincs 0. A magtól kapott sor („Bemutató tétel") mellett `
+      + `„Egység nincs megadva" és „Nincs megadva" áll RAKTÁRRA és MENNYISÉG-JELLEGRE is — a válasz egyiket `
+      + `sem bizonyítja, ezért nem tulajdonítunk neki mérési eredetet. A tábla lábjegyzete kimondja: „${labjegyzet.trim()}".`)
+      .s('A HÁROM ÁLLAPOT FORRÁSA KIMONDVA: a „Mért" és a „Becsült" szó a DEKLARÁLT mintacsomag adata '
+        + '(`v3app/public/demoData.mjs`), nem a szerver válaszából levezetett tény; a szerver válasza CSAK '
+        + 'mennyiséget ad, és az a sor ezért jelöletlen marad (R83/F83-03).')
+      .verdictIs('bizonyitva', 'A hiány és a nulla két külön tény a képernyőn; a mértékegység és a mennyiség '
+        + 'jellege DEKLARÁLT adat vagy kimondott hiány — a felület egyiket sem találja ki.');
 
     // ── UX-20: a bemutató jelölése ───────────────────────────────────────────────────────────
     await expect(anna.page.getByTestId('demo-marker')).toBeVisible();
@@ -530,23 +726,46 @@ test('UX-19, UX-20 — az ismeretlen nem nulla, a becsült jelölt; a bemutató 
     expect(belaStock.body.ok).toBe(false);
     expect(belaStock.granted).toBe(false);
     expect(await bela.page.getByTestId('stock-table').count()).toBe(0);
+    // ÉS UGYANEZ A HÁROM KÉSZLET-JELLEGŰ NÉZETRE (R83/F83-03): a Termékkarton és a Készletmozgások
+    // sem rajzolhat adatot jog nélkül — korábban mindkettő rajzolt, mert más úton ment.
+    const kapuk = [];
+    for (const oldal of ['stockcard', 'movements']) {
+      await gotoPage(bela.page, oldal);
+      await expect(bela.page.getByTestId(`${oldal}-denied`)).toBeVisible();
+      expect(await bela.page.getByTestId(`${oldal}-table`).count()).toBe(0);
+      const szoveg = (await bela.page.getByTestId('main').textContent()) || '';
+      expect(szoveg).not.toMatch(/\b840\b|\b200\b|−80/);
+      kapuk.push(oldal);
+    }
     // NINCS LÁTSZATKÜLDÉS: a meghívó lapja nem állítja, hogy levelet küldtünk.
     expect(inv.resultText).not.toMatch(/elküldtük|kiküldtük|kézbesítettük/i);
     await openMailbox(bela.page);
     await expect(bela.page.getByTestId('mailbox')).toContainText('Meghívás');
     await expect(bela.page.locator('[data-testid="panel-body"]')).toContainText('Valódi e-mailt nem küldtünk');
     u20.b(`A bemutató jelölése a lap tetején állandóan látszik („Bemutató · mintaadatok" + „Nincs valódi levélküldés, számlázás vagy készletmozgás"), és minden mintatábla külön is jelölt. A levelek panelje kimondja: „Valódi e-mailt nem küldtünk" — a meghívó üzenete sem állít küldést.`)
-      .s(`A MINTAADAT A VALÓDI CORE JOGÁTÓL FÜGG: Béla (tag, adatjog nélkül) kérésére ok=${belaStock.body.ok}, kapu=${belaStock.gate}, és a mintatábla darabszáma a képernyőn 0 — tehát nem „mindig látszó díszlet".`)
-      .verdictIs('bizonyitva', 'A jelölés őszinte: a bemutatóadat jelölve van, a jogosultsághoz kötve jelenik meg, és nincs látszatküldés/mentés/számlázás.');
+      .s(`A MINTAADAT A VALÓDI CORE JOGÁTÓL FÜGG: Béla (tag, adatjog nélkül) kérésére ok=${belaStock.body.ok}, `
+        + `kapu=${belaStock.gate}, és a mintatábla darabszáma a képernyőn 0 — tehát nem „mindig látszó díszlet". `
+        + `UGYANEZ MIND A HÁROM KÉSZLET-JELLEGŰ NÉZETRE áll (${kapuk.join(' · ')}): nemleges nézet, tábla nélkül, `
+        + `és a lap szövegében nincs 840 · 200 · −80 (R83/F83-03 ellenpróbája).`)
+      .verdictIs('bizonyitva', 'A jelölés őszinte: a bemutatóadat jelölve van, MIND A HÁROM készlet-jellegű '
+        + 'nézetben UGYANAHHOZ a szerver-válaszhoz kötve jelenik meg, és nincs látszatküldés/mentés/számlázás.');
   } finally { await w.close(); }
 });
 
 test('UX-21 — a szállított melléklet megnyithatósága: NEM böngészőből mérhető', async () => {
   const u = new Ux('UX-21');
-  u.b('Ez a feltétel az ÁTADÁSRA vonatkozik (a címzett gépén megnyitható HTML melléklet), nem az alkalmazás viselkedésére — böngésző-próbával nem igazolható.')
-    .s('A bizonyíték helye a kör REPORT-ja: a csatolt, önálló HTML fájl (internet és belépés nélkül megnyitható), az artifact-link csak kiegészítés. Az R79/R80 tanulsága szerint egy PUSZTA HIVATKOZÁS nem bizonyítja a hozzáférhetőséget.')
-    .verdictIs('nem_bongeszoben', 'Nem sikeres próba, hanem NEVEZETT hatókör-hiány: a szállítás tényét a REPORT melléklete hordozza, nem ez a battéria.');
-  expect(u.verdict).toBe('nem_bongeszoben');
+  u.b('Ez a feltétel az ÁTADÁSRA vonatkozik (a címzett gépén megnyitható HTML melléklet), nem az alkalmazás viselkedésére — a KÉZBESÍTÉS tényét böngésző-próba nem igazolja.')
+    .s('AMI MÉRVE VAN (R83/F83-06): az ÖNHORDÓSÁG. A `node tools/v3_kiprobalas_kepek.mjs` a két előállított '
+      + 'lapot MEGMÉRI: minden kép `data:`-URI (beágyazva), nincs külső `<script src>` és `<link href>`, és '
+      + 'nincs betöltendő `http(s)://` erőforrás — talált külső erőforrásnál a futtató NEVEZETTEN megáll (3-as '
+      + 'kilépési kód). A kimenet kiírja mindkét fájl teljes SHA-256 lenyomatát és a forrás-commitot, a '
+      + 'munkafa tisztaságával együtt.')
+    .s('AMIT EZ NEM BIZONYÍT, kimondva: hogy a címzett meg is KAPTA és meg is NYITOTTA a fájlt. Az R79/R80 '
+      + 'tanulsága szerint egy puszta hivatkozás nem bizonyítja a hozzáférhetőséget — a kézbesítés bizonyítéka '
+      + 'a kör REPORT-jának csatolmánya és a benne szereplő SHA, nem ez a battéria.')
+    .verdictIs('reszben_bizonyitva', 'Az önhordóság MÉRVE van (beágyazott képek · külső erőforrás nincs · SHA '
+      + 'rögzítve); a KÉZBESÍTÉS ténye viszont ezen a lapon kívül esik — ezért a feltétel nem kap teljes verdiktet.');
+  expect(u.verdict).toBe('reszben_bizonyitva');
 });
 
 test.afterAll(async () => {
@@ -559,7 +778,7 @@ test.afterAll(async () => {
   const criteria = CRITERIA.map((c) => EVIDENCE.find((e) => e.id === c.id)?.toJSON()
     ?? previous.find((e) => e.id === c.id && (e.browser.length || e.server.length))
     ?? { id: c.id, title: c.title, browser: [], server: [], verdict: 'nem_futott', note: 'ez a feltétel EBBEN a futásban nem futott le — a lap ezt hiányként viszi, nem részleges eredményként' });
-  const summary = { bizonyitva: 0, reszben: 0, nem_bongeszoben: 0, nem_futott: 0 };
+  const summary = { bizonyitva: 0, reszben_bizonyitva: 0, nem_bongeszoben: 0, nem_futott: 0 };
   for (const c of criteria) summary[c.verdict] = (summary[c.verdict] || 0) + 1;
   const partialRun = summary.nem_futott > 0;
   const out = {
@@ -576,7 +795,8 @@ test.afterAll(async () => {
       + 'feltételenként KÉT rekeszben: amit a lap mutatott (browser) és amit a szerver válaszolt / a tároló őrzött (server).',
     verdict_vocabulary: {
       bizonyitva: 'a feltétel minden állítása a böngésző- és/vagy a szerver-rekeszből áll össze',
-      reszben: 'egy vagy több nevezett al-eset nem hajtható meg — a `note` megmondja, melyik',
+      reszben_bizonyitva: 'a feltétel egy RÉSZE mérve van, egy vagy több NEVEZETT al-eset nem — a `note` megmondja, '
+        + 'melyik. A részleges mérés nem kap teljes verdiktet (R83/F83-06 · KUKA-216).',
       nem_bongeszoben: 'a feltétel a böngészőből nem mérhető (például az ÁTADÁS alakjára vonatkozik) — NEM sikeres próba',
       nem_futott: 'ez a feltétel EBBEN a futásban el sem indult — HIÁNYZÓ mérés, nem eredmény; ilyen lappal a közzétett lap nem írható felül',
     },

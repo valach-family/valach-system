@@ -16,6 +16,63 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3073 — A SZERKESZTŐ A MEGNYITÁSKORI NÉZETHEZ TARTOZIK, A MUNKALAP MEGŐRZI A MUNKÁT, ÉS A VERDIKT NEM MUTAT A MÉRÉSEN TÚL
+
+> **Hatály:** V3 (`valach-system`) — a próba-alkalmazás felülete (`v3app/public/`), a héj két
+> végpontja (`v3app/server.mjs`: a várakozó meghívások olvasása és a megfigyelés minimális kiadása),
+> a böngésző-próbák és a bemutató-szerszám. **A magreferencia (`v3ref/`) egyetlen fájlja sem
+> változott.** Nincs V2-módosítás, merge, telepítés, migráció, új üzleti modul és külső levélküldés.
+
+**Dátum:** 2026-09-25 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 **R83** (a külső ellenőrző fél
+ANALYSIS lapjára) · **Lap:** `docs/70_PLANNING/V3_R83_SZERKESZTO_KOTES_ES_SZOVEGEK.md`
+
+**1. A HAT LELET.** A külső ellenőrző fél (chatgpt-v3) az R82-es átadást a SAJÁT környezetében
+végigjárta, és hat eltérést mért. A legsúlyosabb (F83-01): a nyitva maradt meghívó-panel MÁSODIK
+kattintása a közben aktívvá lett MÁSIK cégbe írt — az első kattintás helyesen HTTP 409-et kapott,
+de a panel nyitva maradt a régi cég nevével, és a lap a szerver igazságához igazított globális
+nézetből küldte a másodikat. Nem jog-megkerülés: a SZÁNDÉK és a VÉGREHAJTÁS CÉLJA vált el. Mellé:
+a munkalap csak látszólag őrizte a kitöltést (F83-02); a Termékkarton és a Készletmozgások jog
+nélkül is rajzolt adatot, a mintacsomag hozzárendelése pedig karakter-összeg paritásán dőlt el
+(F83-03); a „minden felirat egy forrásból" állítás részleges szótárra épült (F83-04); a sikertelen
+levélkérés után is sikeres folytatás látszott (F83-05); és a „21 UX-feltétel bizonyítva" összegzés
+két rekeszben a mérésnél többet állított (F83-06).
+
+**2. A DÖNTÉS — ÖT SZERZŐDÉS, MIND EGY HELYEN.**
+
+- **PNL-01** — minden ÍRÓ űrlap a rajzolásakor megbélyegződik a nézettel (könyv · alany ·
+  generáció), a beküldés EZT használja, és elavult bélyegnél a kérés EL SEM INDUL: a szerkesztő
+  bezárul, a lap kimondja, mi történt, a régi kitöltés pedig nem megy át az új fiókba. A meghívás,
+  a jogadás, a megszüntetés, a csomagmódosítás és a fiók-létrehozás UGYANAZT hívja — nem épül
+  oldalanként külön őr.
+- **FRM-01** — a megőrzendőnek jelölt űrlapok kitöltése az állapotba kerül, amint a felhasználó
+  hozzáér, és minden rajzolás után visszaáll. A SAJÁT kezdeményezésű fiókváltás megkérdez, a KÜLSŐ
+  okból jött nézet-váltás eldobja a kitöltést (PNL-01), a sikeres mentés pedig felejt — mert ami el
+  van mentve, az nem „nem mentett munka".
+- **STK-01** — a három készlet-jellegű nézet EGY hozzáférés-állapotot olvas, amit EGYETLEN
+  szerver-válasz állít be; a mintacsomag hozzárendelése KIMONDOTT (első közös fiók ⇒ A, második ⇒
+  B, minden további és a személyes ⇒ jelölt ÜRES mintanézet); és amit a mag válasza nem mond meg
+  (raktár, mérési eredet), azt nem találjuk ki: ott „Nincs megadva" áll.
+- **A SZÓTÁR PARAMÉTERES** — a mondat a közös forrásban él (`TPL` + `tpl()`), a behelyezett érték
+  (fiók neve · e-mail · időpont · adatkör) ADAT, nem fordítás. Ezzel a kényszerített névelő és a
+  hibás idézőjel sem a kódban keletkezik. A személyes fiók a felületen „Személyes fiók", nem a
+  tárolt belső neve; a menüje az R81-ben kijelölt egyszerű alak.
+- **A VERDIKT A MÉRT HATÓKÖRHÖZ KÖTVE** — a bizonyíték-lap szava `reszben_bizonyitva`, ha egy
+  nevezett al-eset nem futott; az UX-06 a tizenöt HASZNÁLATI HELYZETET járja végig (nem menüpontot
+  számol), az UX-18 a fő történet hat lépését billentyűvel és a fókusz visszatérését is méri, az
+  UX-21 önhordósága pedig MÉRVE van (beágyazott képek · külső erőforrás nincs · SHA-256).
+
+**3. AMIT EZ A DÖNTÉS NEM MOND.** Nem állítja, hogy MINDEN felirat a szótárból jön: a normál
+mondatok és a paraméteres alakok ott vannak, a maradék beégetett felirat NEVESÍTETT nyitott tétel,
+és a védelme az emberi képolvasás. Nem állítja, hogy a felület billentyűvel teljesen akadálymentes:
+a fókusz-csapda és a képernyőolvasó felolvasási sorrendje NEM mérve. És nem állítja, hogy a
+melléklet megérkezett a címzetthez — az önhordóság mérve van, a kézbesítés nem.
+
+**4. Gépi jel:** `npm run verify:kuka` (KUKA-211…216 tiltó- és pozitív mintái) ·
+`tests/e2e/v3app-r83.spec.mjs` (öt ellenpróba) · `tests/e2e/v3app-r81-ux.spec.mjs` (22 feltétel,
+hatókörhöz kötött verdikttel) · `node tools/v3_kiprobalas_kepek.mjs` (önhordóság + SHA-256).
+
+---
+
 ## D-VS-3072 — A V3 FELÜLETE KÖZÖS ALKALMAZÁSKERETRE VÁLT, ÉS MINDEN FELIRAT EGY FORRÁSBÓL JÖN
 
 > **Hatály:** V3 (`valach-system`) — a próba-alkalmazás felülete (`v3app/public/`), a megerősítő lap

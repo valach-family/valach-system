@@ -64,12 +64,38 @@ export const DEMO = frozen({
 export const QUALITY_LABEL = Object.freeze({ mert: 'Mért', becsult: 'Becsült', ismeretlen: 'Nem ismert' });
 
 /**
- * MELYIK mintacsomag tartozik ehhez a fiókhoz? A választás a könyv AZONOSÍTÓJÁBÓL dől el (stabil,
- * de fiókonként eltérő) — így minden fiók a SAJÁT adatát mutatja, és a váltás látható változás.
+ * AZ ÜRES MINTACSOMAG — nem hiba, hanem KIMONDOTT állapot (R83/F83-03).
+ *
+ * A LELET: a korábbi alak a könyv azonosítójának karakter-összegéből választott a KÉT csomag
+ * között, tehát három külön létrehozott cég közül kettő UGYANAZT az adatot kapta, a harmadik meg
+ * „másikat" — és ez VALÓDI elkülönítést sugallt, ami nem volt. A paritás nem hozzárendelés
+ * (KUKA-066: a hamis adat nem hibának látszik, hanem adatnak).
  */
-export function demoFor(bookId) {
-  if (!bookId) return DEMO.default;
-  let sum = 0;
-  for (const ch of String(bookId)) sum = (sum + ch.charCodeAt(0)) % 997;
-  return sum % 2 === 0 ? DEMO.default : DEMO.second;
+export const DEMO_EMPTY = frozen({
+  products: frozen([]), partners: frozen([]), warehouses: frozen([]),
+  processes: frozen([]), documents: frozen([]), movements: frozen([]),
+});
+
+/**
+ * A KÉT BEMUTATOTT CÉG KIMONDOTT MINTACSOMAGJA, ebben a sorrendben. A hozzárendelés a személy SAJÁT
+ * közös fiókjainak SORRENDJE: az első közös fiók az `A`, a második a `B`, minden TOVÁBBI és minden
+ * személyes fiók ÜRES mintanézetet kap. Ez DEKLARÁLT szabály, nem számítás az azonosítóból: a
+ * bemutató két cégén más adat áll (így a fiókváltás tévedése látszik), a többinél pedig a lap
+ * KIMONDJA, hogy ehhez a fiókhoz nem készült mintacsomag.
+ */
+export const FIXTURES = frozen([DEMO.default, DEMO.second]);
+export const FIXTURE_NAMES = frozen(['bemutato-A', 'bemutato-B']);
+
+function sharedBooks(workspaces) {
+  return (workspaces || []).filter((w) => w && w.personal !== true).map((w) => w.book_id);
+}
+/** MELYIK mintacsomag tartozik ehhez a fiókhoz? (Nincs hozzárendelés ⇒ `DEMO_EMPTY`.) */
+export function demoFor(bookId, workspaces) {
+  const i = bookId ? sharedBooks(workspaces).indexOf(bookId) : -1;
+  return i >= 0 && i < FIXTURES.length ? FIXTURES[i] : DEMO_EMPTY;
+}
+/** A MŰSZAKI FORRÁS NEVE — a részletekben kiírjuk, hogy melyik csomagot látja a felhasználó. */
+export function demoSource(bookId, workspaces) {
+  const i = bookId ? sharedBooks(workspaces).indexOf(bookId) : -1;
+  return i >= 0 && i < FIXTURES.length ? FIXTURE_NAMES[i] : null;
 }

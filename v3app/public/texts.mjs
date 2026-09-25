@@ -27,7 +27,7 @@ export const PAGE = Object.freeze({
   personal: 'Ügyleteim',
   profile: 'Saját profil',
   security: 'Belépés és biztonság',
-  new: 'Vállalkozás hozzáadása',
+  new: 'Új fiók hozzáadása',
 });
 
 /** A menü csoportjai — a V2 elnevezéseivel, üres pontok nélkül (R81 §3.4). */
@@ -39,20 +39,42 @@ export const NAV_GROUPS = Object.freeze([
 ]);
 export const NAV_ADMIN = Object.freeze({ group: 'Beállítások', pages: Object.freeze(['account', 'members', 'plan']) });
 /**
- * A SZEMÉLYES FIÓK MENÜJE. Rövidebb, mint a vállalkozásé: nincs Beállítások csoport (nincs kit
- * meghívni és nincs céges előfizetés), de AMI MŰKÖDIK, azt nem rejtjük el — a mag a személyes
- * fiókban is kiadja a készlet-nézetet, ezért a Riportok csoport itt is áll (KUKA-092: a tiltás
- * nem helyettesíti a megépítést).
+ * A SZEMÉLYES FIÓK MENÜJE — az R81-ben KIJELÖLT egyszerű alak: „Áttekintés · Ügyleteim · Saját
+ * adatok" (R81 §3.4 táblája). Nincs Beállítások csoport és nincsenek céges riportok.
+ *
+ * MIÉRT SZŰKÜLT (R83/F83-04): az R82-ben azért került ide a Riportok csoport, mert a mag a személyes
+ * fiókban is kiadja a készlet-választ — vagyis a MŰSZAKI KÉPESSÉG indokolta a menüpontot. A külső
+ * ellenőrző fél kikötése: „a technikai képesség megléte önmagában nem indokol minden menüpontot egy
+ * vásárlónál". A képesség megvan és mérve van (a szerver oldalán), de a VÁSÁRLÓ menüje nem ettől
+ * lesz jó. A KUKA-092 (a tiltás a megépítés helyett) itt nem sérül: nem tiltottunk le működő ágat,
+ * a személyes fiók menüje a TERV szerinti alakot kapta vissza.
  */
 export const NAV_PERSONAL = Object.freeze([
   Object.freeze({ group: null, pages: Object.freeze(['overview']) }),
   Object.freeze({ group: 'Saját ügyek', pages: Object.freeze(['personal']) }),
-  Object.freeze({ group: 'Riportok', pages: Object.freeze(['stock', 'movements', 'stockcard']) }),
+  Object.freeze({ group: 'Saját adatok', pages: Object.freeze(['profile', 'security']) }),
 ]);
+
+/**
+ * A FIÓK NEVE A FELÜLETEN (R83/F83-04 · R81 §6 táblája: „személyes kör → Személyes fiók").
+ *
+ * A személyes fiók TÁROLT neve belső alak („… személyes köre"), és ez jelent meg a fejlécben. A
+ * felületen NEVEZETT szó áll helyette; a tárolt név nem tűnik el, a technikai részletek között ott
+ * marad. A cégnév és a közös fiók neve ADAT — azt változatlanul írjuk ki (nem fordítjuk).
+ */
+export function accountLabel(ws) {
+  if (!ws) return '';
+  return ws.personal === true ? STATE.personalAccount : (ws.name || '');
+}
 
 /** Szerep és adatkör: a felületen EMBERI név, a szerveren a mag szava (R81 §6). */
 export const ROLE = Object.freeze({ user: 'Tag', admin: 'Fiókkezelő' });
 export const SCOPE = Object.freeze({ keszlet: 'Készletadatok', arak: 'Árak' });
+/**
+ * AZ ADATKÖR TÁRGYESETE — ez is SZÖVEG, nem számítás (R83/F83-04). A magyar toldalékot nem
+ * ragasztjuk hozzá a kódban (abból lesz a „a(z)" alak): a kész alak a szótárban áll.
+ */
+export const SCOPE_ACC = Object.freeze({ keszlet: 'a készletadatokat', arak: 'az árakat' });
 export const PLAN = Object.freeze({ starter: 'Alap', pro: 'Bővített' });
 
 /**
@@ -62,6 +84,42 @@ export const PLAN = Object.freeze({ starter: 'Alap', pro: 'Bővített' });
  * általános mondatot kapja, és a technikai kódot a „Technikai részletek" alatt (KUKA-201: a nemleges
  * válasz is vigye a MŰKÖDŐ folytatást).
  */
+/**
+ * PARAMÉTERES SABLONOK (R83/F83-04). A mondat a SZÓTÁRBAN él, a behelyezett érték ADAT: a fiók neve,
+ * a felhasználó e-mail-címe, egy időpont vagy egy adatkör neve — ezeket nem fordítjuk.
+ *
+ * MIÉRT KELLETT: a korábbi alak a mondatot a hívás helyén állította össze („a(z) „…" fiókjához"),
+ * ezért a kényszerített névelő és a hibás idézőjel a KÓDBAN élt, nem a szótárban — és minden új
+ * mondat újra elkövethette. A `{jel}` helyére a `tpl` teszi az értéket, egyszer, egy helyen.
+ */
+export const TPL = Object.freeze({
+  accountJoined: 'Csatlakoztál ehhez a fiókhoz: {nev}',
+  accountLost: 'Megszűnt a hozzáférésed ehhez a fiókhoz: {nev}',
+  accountOpened: 'Megnyitva: {nev}',
+  accountCreated: 'Hozzáadtad a vállalkozást: {nev}',
+  sharedCreated: 'Létrehoztad ezt a közös fiókot: {nev}',
+  accountSwitchedElsewhere: 'Másik böngészőfülön fiókot váltottál. Most ez a fiók van megnyitva: {nev}',
+  scopeOnlyHere: 'Az engedély ehhez a fiókhoz tartozik: {nev}',
+  memberCanSee: '{ki} mostantól megtekintheti {mit}.',
+  memberRevoked: '{ki} hozzáférése megszűnt ehhez a fiókhoz: {nev}',
+  memberAccessTitle: '{ki} hozzáférése',
+  revokeTitle: 'Megszünteted {ki} hozzáférését?',
+  revokeLead: '{ki} ezután nem nyithatja meg ennek a fióknak az adatait: {nev}. A saját fiókja és a korábbi műveletek története megmarad.',
+  inviteReady: 'A meghívó elkészült. A próbaüzenetek között megnyithatod. Eddig érvényes: {mikor}',
+  inviteFor: 'Meghívás ebbe a fiókba: {nev}',
+  planSaved: 'A csomag mentve: {csomag}',
+  rowCount: '{n} mintaadat · ehhez a bemutatóhoz nem tartozik üzleti végrehajtás.',
+});
+/** A sablon behelyettesítése — ismeretlen jelet NEM hagyunk a szövegben (a hiány kiderüljön). */
+export function tpl(key, vals) {
+  const t = TPL[key];
+  if (!t) return '';
+  return t.replace(/\{(\w+)\}/g, (_, k) => {
+    const v = vals && vals[k] !== undefined && vals[k] !== null && String(vals[k]) !== '' ? String(vals[k]) : null;
+    return v === null ? '—' : v;
+  });
+}
+
 export const REASON = Object.freeze({
   invalid_credentials: 'Az e-mail-cím vagy a jelszó nem megfelelő.',
   credentials_rejected: 'Az e-mail-cím vagy a jelszó nem megfelelő.',
@@ -103,12 +161,39 @@ export const REASON = Object.freeze({
   name_required: 'Add meg a vállalkozás nevét.',
   value_required: 'Add meg az adóazonosítót. Csak szóköz vagy kötőjel nem elegendő.',
   namespace_not_in_profile: 'Ebben az országban vagy területen más azonosítót tartunk nyilván. Válassz másik országot, vagy hagyd üresen a mezőt.',
-  network_error: 'Nem sikerült elérni a rendszert. Ellenőrizd a kapcsolatot, és próbáld újra.',
+  network_error: 'Nem sikerült kapcsolatba lépni a rendszerrel. Próbáld újra.',
   invalid_response: 'Az adatokat nem tudtuk biztonságosan megjeleníteni. Frissítsd az oldalt.',
 });
 
 /** Állandó állapot-szövegek — egy helyzet, egy mondat (R81 §6.1). */
 export const STATE = Object.freeze({
+  // A KIMENET, AMIT NEM TUDUNK: a kérés elindult, de a válasz elveszett — ez NEM „nem sikerült" és
+  // NEM „sikerült". A lap kimondja a tudatlanságot, és nevezett folytatást ad (R83/F83-05).
+  uncertainWrite: 'Nem tudjuk biztosan, hogy a kérés teljesült. Nézd meg a leveleidet, és csak akkor kérj újat, ha nem érkezett meg.',
+  // A BEMUTATÓ MINTAADAT SZAVAI (R83/F83-03 · F83-04). A belső magyarázat („a magtól kapott sor")
+  // a technikai részletekbe került: a felhasználó a tételt látja, nem a rendszer belső fogalmát.
+  demoItem: 'Bemutató tétel',
+  personalAccount: 'Személyes fiók',
+  personalKind: 'A saját ügyeid helye',
+  // AZ ÚJ FIÓK KÉT FAJTÁJA (R83/F83-04). Nem új jogmodell: ugyanaz a fiók, csak a vállalkozásnál
+  // van céges adatlap. A közös fióknál adószám-mező NEM látszik.
+  kindBusiness: 'Vállalkozás',
+  kindShared: 'Közös fiók',
+  kindBusinessLead: 'Cégként dolgozol: megadhatod a nyilvántartás országát és az adóazonosítót.',
+  kindSharedLead: 'Közös munkahely adóazonosító nélkül. Később vállalkozássá alakítható.',
+  inviteScopeQuestion: 'Mely adatokhoz kaphat hozzáférést?',
+  inviteScopeHelp: 'A megtekintést a csatlakozás után külön engedélyezed.',
+  inviteRoleHelp: 'A fiókkezelő a saját jogosultságain belül kezelheti a hozzáféréseket.',
+  invitePending: 'Várakozó meghívások',
+  invitePendingEmpty: 'Nincs várakozó meghívás.',
+  inviteAsk: 'Szeretnél másokat is meghívni?',
+  inviteSkip: 'Most kihagyom',
+  revokeSectionLead: 'Ez a teljes hozzáférést érinti, nem egyetlen adatkört.',
+  demoItemLead: 'A bemutató tételek jelölve vannak.',
+  notGiven: 'Nincs megadva',
+  demoNone: 'Ehhez a fiókhoz nem tartozik bemutató-mintaadat',
+  demoNoneLead: 'A bemutató két cégén látható mintaadat. Ez a fiók üresen indul — a képernyők elrendezése itt is megnézhető.',
+
   loading: 'Betöltés…',
   empty: 'Még nincs adat',
   noResult: 'Nincs a szűrésnek megfelelő találat.',

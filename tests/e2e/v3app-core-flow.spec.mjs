@@ -86,7 +86,7 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     // A MEGERŐSÍTÉS ELSŐ KÖVETKEZMÉNYE A SZEMÉLYES KÖR (SZK-01 · R75/L11): a váltó NEM üres, és
     // nem is azt írja, hogy „hozz létre egyet" — a magánszemélynek nincs mit elneveznie.
     await openSwitcher(anna.page);
-    await expect(anna.page.getByTestId('ws-list')).toContainText('személyes köre');
+    await expect(anna.page.getByTestId('ws-list')).toContainText('Személyes fiók');
     await expect(anna.page.getByTestId('ws-list')).toContainText('Személyes fiók');
   });
 
@@ -101,7 +101,9 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     expect(p.status).toBe(201);
     expect(p.body.business).toBeNull();
     expect(p.resultText).not.toContain('vállalkozási minőség');
-    expect(p.resultText).toContain('Hozzáadtad a vállalkozást');
+    // ADÓSZÁM NÉLKÜL EZ KÖZÖS FIÓK, nem vállalkozás (R83/F83-04: a fajta VÁLASZTÁS, és a mondat is
+    // ezt mondja) — a korábbi alak minden új fiókra „vállalkozást" írt.
+    expect(p.resultText).toContain('Létrehoztad ezt a közös fiókot');
     const workshopBook = p.bookId;
     const c = await createWorkspaceUI(anna.page, { name: 'Családi Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '12345678-2-42' } });
     expect(c.status).toBe(201);
@@ -120,7 +122,7 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     expect(list.map((x) => x.testid).sort()).toEqual([`ws-item-${personalBook}`, `ws-item-${workshopBook}`, `ws-item-${companyBook}`].sort());
     // A SZEMÉLYES KÖR A VÁLTÓBAN NEVESÍTVE ÁLL, és az ALANY ugyanaz maradt (nem új személyazonosság).
     await openSwitcher(anna.page);
-    await expect(anna.page.getByTestId(`ws-kind-${personalBook}`)).toHaveText('Személyes fiók');
+    await expect(anna.page.getByTestId(`ws-kind-${personalBook}`)).toHaveText('A saját ügyeid helye');
     // R81 §6: a választó tétele a SZEREPET és a csomagot mondja (a „közös munkakörnyezet" belső szó).
     await expect(anna.page.getByTestId(`ws-kind-${companyBook}`)).toHaveText('Fiókkezelő · Alap');
     expect(db.count('SELECT COUNT(*) AS n FROM personal_space WHERE subject_id = ?', anna.subjectId)).toBe(1);
@@ -265,7 +267,9 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
   });
 
   test('11. MUNKAKÖRNYEZET-VÁLTÁS: a fejléc a helyes nevet/szerepet mutatja, az adat-terület ÜRÜL a lekérés előtt, a cégek nem keverednek', async () => {
-    const personalName = ((await anna.api.get('/api/me')).body.workspaces.find((x) => x.book_id === personalBook) || {}).name;
+    // A FEJLÉCEN ÉS AZ ÜZENETBEN A FELÜLET NEVE ÁLL (R83/F83-04): a személyes fiók nevezett szava
+    // „Személyes fiók", nem a tárolt belső név — a tárolt nevet a technikai részletek viszik.
+    const personalName = 'Személyes fiók';
     const plan = await setPlanUI(anna.page, 'pro');
     expect(plan.body).toMatchObject({ ok: true, plan: 'pro' });
     await expect(anna.page.getByTestId('header-workspace')).toHaveText('Családi Kft');
@@ -285,16 +289,19 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     await anna.page.unroute('**/api/session/workspace');
     await expect(anna.page.getByTestId('header-workspace')).toHaveText(personalName);
     await openSwitcher(anna.page);
-    await expect(anna.page.getByTestId(`ws-kind-${personalBook}`)).toHaveText('Személyes fiók');
+    await expect(anna.page.getByTestId(`ws-kind-${personalBook}`)).toHaveText('A saját ügyeid helye');
     // A SZERVER MONDATA ARRÓL, KI NEVÉBEN JÁRSZ EL, megmaradt (R75 §4) — a fejlécben rejtve,
     // képernyőolvasónak elérhetően, a szemnek a Belépés és biztonság oldalon.
-    await expect(anna.page.getByTestId('header-acting-as')).toContainText('személyes kör');
+    await expect(anna.page.getByTestId('header-acting-as')).toContainText('Személyes fiók');
     const me = (await anna.api.get('/api/me')).body;
     expect(me.current_book_id).toBe(personalBook);
-    const priceP = await priceUI(anna.page);
+    // A SZEMÉLYES FIÓK MENÜJE AZ R81-BEN KIJELÖLT EGYSZERŰ ALAK (R83/F83-04): nincs benne céges
+    // riport-csoport, tehát a Készletegyenleg/Árak KÉPERNYŐ itt nem elérhető. A SZERVER kapuja
+    // viszont változatlanul mérendő — ezért itt a VÁLASZT mérjük közvetlenül, nem a képernyőt.
+    // (A csomag-kapu KÉPERNYŐS alakját a R77/F77-01 méri, egy céges, „Alap" csomagú fiókban.)
+    expect(await anna.page.getByTestId('nav-stock').count()).toBe(0);
+    const priceP = await anna.api.get('/api/data/price');
     expect(priceP.body).toMatchObject({ ok: false, refused_by: 'entitlement', entitlement_reason: 'feature_not_in_plan' });
-    expect(priceP.gate).toBe('entitlement');
-    expect(priceP.text).toContain('Ez a funkció nincs benne a jelenlegi csomagban.');
     // Idegen könyv-paraméter a magánteres munkamenetben: FIGYELMEN KÍVÜL, a pro-könyv ára NEM jön ki.
     const forced = await anna.api.get(`/api/data/price?book_id=${companyBook}`);
     expect(forced.body).toMatchObject({ ok: false, param_ignored: true, ignored_params: ['book_id'], refused_by: 'entitlement' });

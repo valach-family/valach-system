@@ -88,7 +88,7 @@ test('R75/F75-01 — LEJÁRT megerősítés: a lap FOLYTATÁST ad, az új hivatk
     expect(me.personal_book_id).toBeTruthy();
     expect(me.workspaces.filter((x) => x.personal).length).toBe(1);
     await openSwitcher(page);
-    await expect(page.getByTestId('ws-list')).toContainText('személyes köre');
+    await expect(page.getByTestId('ws-list')).toContainText('Személyes fiók');
     // A TÁROLÓBAN: a leváltott és a beváltott kihívás KÜLÖN tény, egyik sem írta át a másikat.
     const rows = db.all("SELECT used_at, superseded_at FROM channel_challenge WHERE value_norm = ? ORDER BY created_at", email);
     expect(rows.length).toBe(2);

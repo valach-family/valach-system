@@ -186,7 +186,7 @@ try {
   step('(a) egyszerű regisztráció után VAN hova belépni: EGY személyes kör, név-kitalálás nélkül',
     r.body.workspaces.length === 1 && r.body.workspaces[0].personal === true && r.body.current_book_id === r.body.personal_book_id,
     { nev: r.body.workspaces[0].name, acting_as: r.body.acting_as });
-  step('(a/2) a képernyő KIMONDJA, ki nevében jár el', typeof r.body.acting_as === 'string' && r.body.acting_as.includes('gabi@pelda.hu') && r.body.acting_as.includes('személyes kör'));
+  step('(a/2) a képernyő KIMONDJA, ki nevében jár el', typeof r.body.acting_as === 'string' && r.body.acting_as.includes('gabi@pelda.hu') && r.body.acting_as.includes('Személyes fiók'));
   r = await gabi.get('/api/data/stock');
   step('(a/3) a személyes körben az adat OLVASHATÓ (a kör nem dísz)', r.body.ok === true && r.body.result && r.body.result.qty === '12', r.body.result);
 
