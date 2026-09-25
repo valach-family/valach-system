@@ -1,0 +1,171 @@
+{
+ "tool": "FGY-01/3",
+ "tool_commit": "165cdc27f0bd040b9010dc0e082353775e0a4f14",
+ "tool_file": "./tools/v3_fogyasztas_meres.mjs",
+ "tool_file_sha256": "6caa058e29b0a44c90bd0063f69774d85b6a9935d4e9c67fff7cc1a9f456db6f",
+ "tool_dirty": false,
+ "generated_at": "2026-09-25T08:46:42.463Z",
+ "session": "3348238d-ffe3-5461-b7e7-a2d9271bf2e9",
+ "snapshot_closed_at": "2026-09-25T08:46:42.463Z",
+ "runtime_versions": [
+  "2.1.280",
+  "2.1.281",
+  "2.1.282"
+ ],
+ "window": {
+  "label": "R85 csomag (CMD-VS-300-002-002 R85→R86)",
+  "from": "2026-09-25T07:29:39Z",
+  "to": "2026-09-25T08:46:41Z",
+  "to_effective": "2026-09-25T08:46:41Z"
+ },
+ "coverage": {
+  "files": 1,
+  "unreadable": [],
+  "unparsable_lines": 0,
+  "assistant_without_usage": 0,
+  "invalid_timestamp_calls": 0,
+  "cross_file_duplicate_ids": 0,
+  "incomplete_usage_calls": 0,
+  "synthetic_records": 0,
+  "calls_total": 1529,
+  "calls_in_window": 82,
+  "complete": true,
+  "note": "teljes: minden megtalált átirat beolvasva, minden modell-válasz usage-dzsal, azonos azonosító csak egy fájlban"
+ },
+ "whole_session": {
+  "calls": 1529,
+  "synthetic_records": 0,
+  "incomplete_usage_calls": 0,
+  "totals_kind": "teljes",
+  "first_call": "2026-09-22T20:17:18.061Z",
+  "last_call": "2026-09-25T08:46:40.605Z",
+  "totals": {
+   "input": 3058,
+   "cache_write": 6809466,
+   "cache_read": 664917271,
+   "output": 1321617
+  },
+  "by_kind": {
+   "main": {
+    "calls": 1529,
+    "input": 3058,
+    "cache_write": 6809466,
+    "cache_read": 664917271,
+    "output": 1321617
+   }
+  },
+  "by_model": {
+   "claude-opus-5": {
+    "calls": 1529,
+    "input": 3058,
+    "cache_write": 6809466,
+    "cache_read": 664917271,
+    "output": 1321617
+   }
+  },
+  "main_context": {
+   "median": 429631,
+   "max": 783902,
+   "calls_over_400k": 937
+  },
+  "main_wakeups": {
+   "user": {
+    "wakeups": 7,
+    "calls": 508,
+    "input_with_cache": 260804897
+   },
+   "notification": {
+    "wakeups": 9,
+    "calls": 15,
+    "input_with_cache": 7808918
+   },
+   "compaction": {
+    "wakeups": 3,
+    "calls": 1006,
+    "input_with_cache": 403115980
+   }
+  },
+  "agent_input_total": 0,
+  "agent_count": 0,
+  "thresholds": {
+   "main_context_median": {
+    "limit": 200000,
+    "value": 429631,
+    "exceeded": true
+   },
+   "agent_input_per_package": {
+    "limit": 40000000,
+    "value": 0,
+    "exceeded": false
+   }
+  }
+ },
+ "window_summary": {
+  "calls": 82,
+  "synthetic_records": 0,
+  "incomplete_usage_calls": 0,
+  "totals_kind": "teljes",
+  "first_call": "2026-09-25T07:54:26.919Z",
+  "last_call": "2026-09-25T08:46:40.605Z",
+  "totals": {
+   "input": 164,
+   "cache_write": 120932,
+   "cache_read": 42626376,
+   "output": 79649
+  },
+  "by_kind": {
+   "main": {
+    "calls": 82,
+    "input": 164,
+    "cache_write": 120932,
+    "cache_read": 42626376,
+    "output": 79649
+   }
+  },
+  "by_model": {
+   "claude-opus-5": {
+    "calls": 82,
+    "input": 164,
+    "cache_write": 120932,
+    "cache_read": 42626376,
+    "output": 79649
+   }
+  },
+  "main_context": {
+   "median": 524763,
+   "max": 576341,
+   "calls_over_400k": 82
+  },
+  "main_wakeups": {
+   "user": {
+    "wakeups": 1,
+    "calls": 82,
+    "input_with_cache": 42747472
+   }
+  },
+  "agent_input_total": 0,
+  "agent_count": 0,
+  "thresholds": {
+   "main_context_median": {
+    "limit": 200000,
+    "value": 524763,
+    "exceeded": true
+   },
+   "agent_input_per_package": {
+    "limit": 40000000,
+    "value": 0,
+    "exceeded": false
+   }
+  }
+ },
+ "thresholds_decidable": true,
+ "input_manifest": [
+  {
+   "path": "~/.claude/projects/-home-user/3348238d-ffe3-5461-b7e7-a2d9271bf2e9.jsonl",
+   "bytes": 23547198,
+   "sha256": "234ff8b71684fa72a2653ffe8eb6c710c3b53685b53815ee48e9cc606c4ab7a9",
+   "kind": "main"
+  }
+ ],
+ "reproduce": "node tools/v3_fogyasztas_meres.mjs --session 3348238d-ffe3-5461-b7e7-a2d9271bf2e9 --from 2026-09-25T07:29:39Z --to 2026-09-25T08:46:41Z --label \"R85 csomag (CMD-VS-300-002-002 R85→R86)\" --projects ~/.claude/projects"
+}
