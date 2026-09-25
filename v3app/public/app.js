@@ -46,20 +46,32 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     const opts = { method, credentials: 'same-origin', headers: {} };
     if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
     let res;
-    try { res = await fetch(path, opts); } catch { return { status: 0, ok: false, reason: 'network_error' }; }
+    // A KÉRÉS FAJTÁJA A VÁLASZ RÉSZE: egy elveszett válasz OLVASÁSNÁL ártalmatlan, ÍRÁSNÁL viszont
+    // NEM dönthető el, teljesült-e (R85/F85-04). A hívó ezt a mezőt olvassa, nem találgat.
+    const mutating = method !== 'GET';
+    try { res = await fetch(path, opts); } catch { return { status: 0, ok: false, reason: 'network_error', mutating }; }
     let json;
     try { json = await res.json(); } catch { json = { ok: false, reason: 'invalid_response' }; }
-    return { status: res.status, ...json };
+    return { status: res.status, mutating, ...json };
   }
 
   /**
-   * A HÁROM KIMENET KÜLÖN SZÓ (R83/F83-05 · KUKA-093 a felületen): `ok` = a szerver válaszolt és
-   * teljesítette · `refused` = nevezetten elutasította · `network` = el sem ért a szerverig (biztosan
-   * nem történt meg) · `uncertain` = a kérés kimenete NEM ELDÖNTHETŐ (a válasz elveszett vagy
-   * értelmezhetetlen). Az utolsó kettő NEM ugyanaz: az egyik biztos hiány, a másik tudatlanság.
+   * A NÉGY KIMENET KÜLÖN SZÓ — ÉS A BÖNGÉSZŐ KIVÉTELE NEM BIZONYÍTÉK (R85/F85-04 · KUKA-093).
+   *
+   * A LELET (a külső ellenőrző fél, R85): a próba a kérést TÉNYLEGESEN végrehajtotta a szerveren
+   * (HTTP 200, a levél-fogadóban 1 → 2), és CSAK a böngésző felé menő választ dobta el. A lap
+   * mégis azt írta: „Nem sikerült kapcsolatba lépni… Próbáld újra." — vagyis a `fetch` kivételét
+   * BIZTOS meghiúsulásnak nevezte. A böngésző NEM tudja megkülönböztetni a meg sem indult kérést
+   * az elveszett választól; ezt a mérés cáfolta.
+   *
+   * A MAI SZABÁLY: `ok` = a szerver válaszolt és teljesítette · `refused` = nevezetten elutasította ·
+   * `uncertain` = a kimenet NEM ELDÖNTHETŐ (elveszett vagy értelmezhetetlen válasz, 5xx — vagy
+   * bármilyen ÍRÓ kérés kivétele) · `network` = CSAK OLVASÁSNÁL: a lekérés nem jutott el, és ott
+   * nincs mit eldönteni, mert olvasás semmit nem változtat. Alkalmazás-szintű bizonyíték hiányában
+   * az írás sorsát NEM állítjuk — sem így, sem úgy.
    */
   function requestOutcome(r) {
-    if (!r || r.status === 0) return 'network';
+    if (!r || r.status === 0) return r && r.mutating ? 'uncertain' : 'network';
     if (r.status >= 500 || r.reason === 'invalid_response') return 'uncertain';
     return r.ok ? 'ok' : 'refused';
   }
@@ -257,9 +269,7 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
       const personal = me.personal_book_id || null;
       state.ctx = { subject: me.subject_id ?? null, book: me.current_book_id ?? null, bookName: me.current_book_name ?? null };
       state.generation += 1;
-      state.members = [];
-      state.panels = { stock: null, price: null, members: null };
-      state.access = { stock: { state: 'unknown' } };
+      resetViewCaches();
       state.tabs = ['overview'];
       state.afterCreate = null;
       // KÜLSŐ OKBÓL VÁLTOZOTT A NÉZET: a nyitott szerkesztő és a félbehagyott kitöltés NEM
@@ -384,8 +394,13 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
   }
   const demoBadge = () => `<span class="badge gray">${STATE.demo}</span>`;
   /** A FIÓKHOZ RENDELT mintacsomag (KIMONDOTT hozzárendelés, nem számítás — R83/F83-03). */
-  const demoSet = () => demoFor(bookId(), state.me && state.me.workspaces);
-  const demoName = () => demoSource(bookId(), state.me && state.me.workspaces);
+  /** A FIÓKHOZ RÖGZÍTETT bemutató-csomag azonosítója — a SZERVER válaszából (DEM-02, R85/F83-03). */
+  const demoFixture = () => {
+    const w = ((state.me && state.me.workspaces) || []).find((x) => x.book_id === bookId());
+    return (w && w.demo_fixture) || null;
+  };
+  const demoSet = () => demoFor(demoFixture());
+  const demoName = () => demoSource(demoFixture());
   /** NINCS HOZZÁRENDELVE? Akkor a lap ezt KIMONDJA — nem rajzol másik cég adatát (KUKA-066). */
   const noDemoBox = () => `<div class="empty" data-testid="demo-empty"><h2>${esc(STATE.demoNone)}</h2>
       <p>${esc(STATE.demoNoneLead)}</p></div>`;
@@ -507,6 +522,28 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
         </div>`;
   }
 
+  /**
+   * A NÉZETHEZ KÖTÖTT GYORSÍTÓTÁRAK EGY HELYEN ÜRÜLNEK (R85/F85-02).
+   *
+   * A LELET: a várakozó meghívások listája (`state.invites`) KIMARADT a közös ürítésből, ezért
+   * fiókváltás után a MÁSODIK cég fejléce alatt még az ELSŐ cég címzettje állt, amíg az új válasz
+   * meg nem érkezett. A generáció-őr ezt nem javítja: az a KÉSVE ÉRKEZŐ választ fogja meg, nem a
+   * már kirajzolt RÉGI sort.
+   *
+   * Ezért MINDEN nézethez kötött tár EGY függvényben ürül, és ezt hívja a saját váltás ÉS a külső
+   * okból jött nézet-változás is — új tár felvételekor itt az egyetlen hely, amit bővíteni kell
+   * (KUKA-003: a több helyen igaz szabály EGY helyen él).
+   */
+  function resetViewCaches() {
+    state.members = [];
+    state.panels = { stock: null, price: null, members: null };
+    state.access = { stock: { state: 'unknown' } };
+    state.invites = null;
+    state.membersTab = 'members';
+    state.search = '';
+    state.processState = '';
+  }
+
   /** A panel tartalmát EGY helyen írjuk: az állapotba és a DOM-ba is (KUKA-039). */
   function setPanel(name, testid, html) {
     state.panels[name] = html;
@@ -528,6 +565,13 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     const a = state.access.stock;
     if (a.state === 'granted') return null;
     if (a.state === 'unbound') return `<div class="notice warn" data-testid="${testid}-unbound">${esc(unboundMessage(a.why))}</div>`;
+    // AZ OLVASÁS EL SEM JUTOTT (R85/F85-04): olvasásnál ez ELDÖNTHETŐ hiány — nem változtattunk
+    // semmit, tehát a lap nyugodtan kimondhatja, és ugyanazzal a gombbal újra lehet próbálni.
+    if (a.state === 'network') {
+      return `<div class="empty" data-testid="${testid}-network"><h2>${esc(reasonText('network_error'))}</h2>
+          <p>A készletadatokat nem kérdeztük le. Semmi nem változott.</p>
+          <button type="button" data-action="reload-stock">Frissítés</button></div>`;
+    }
     if (a.state === 'denied') {
       return `<div class="empty" data-testid="${testid}-denied" data-gate="${esc(a.gate || '')}">
           <h2>A készletadatokhoz még nincs hozzáférésed</h2>
@@ -565,6 +609,7 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     const gen = state.generation;
     const r = await api('GET', '/api/data/stock' + readQuery(null, v));
     if (gen !== state.generation || !STOCK_PAGES.includes(state.page)) return;
+    if (requestOutcome(r) === 'network') { state.access.stock = { state: 'network' }; renderStockViews(); return; }
     const verdict = contextBindingVerdict(r, v);
     if (!verdict.bound) {
       state.access.stock = { state: 'unbound', why: verdict.why };
@@ -680,7 +725,7 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
   /** A VÁRAKOZÓ MEGHÍVÁSOK TÁBLÁJA — a szerver válaszából, token nélkül. */
   function invitesBody() {
     const list = state.invites;
-    if (list === null) return STATE.loading;
+    if (list === null) return `<p data-testid="invites-loading">${esc(STATE.invitesLoading)}</p>`;
     if (!list.length) return emptyBox(STATE.invitePendingEmpty, 'A „Felhasználó meghívása" gombbal küldhetsz újat.');
     return `<div class="tablebox" data-testid="invites-table"><div class="table-scroll"><table>
       <thead><tr><th>Meghívott cím</th><th>Szerepkör</th><th>Meghívta</th><th>Érvényesség</th><th>Állapot</th></tr></thead>
@@ -1307,9 +1352,7 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     if (hasUnsaved() && !(opts && opts.discarded)) { unsavedPanel(id); return; }
     forgetForms();
     newContext('workspace_switch');
-    state.panels = { stock: null, price: null, members: null };
-    state.access = { stock: { state: 'unknown' } };
-    state.members = [];
+    resetViewCaches();
     state.tabs = ['overview']; state.page = 'overview'; state.notice = null; state.afterCreate = null;
     closePanel();
     const sw = byTest('account-switcher'); if (sw) sw.open = false;
@@ -1323,11 +1366,15 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
   }
 
   async function doCreateWorkspace(form) {
-    // UGYANAZ A KÖZÖS ŐR (PNL-01): a létrehozás a SZEMÉLYHEZ kötött — ha közben más ember lépett be
-    // ebben a böngészőben, a félbehagyott űrlap NEM hozhat létre vállalkozást az ő nevében.
-    if (await refuseStale(stampOf(form))) return;
+    // UGYANAZ A KÖZÖS ŐR (PNL-01), DE A DÖNTÉS A SZERVERÉ (R85/F85-01). A helyi bélyeg csak az
+    // ITT látható nézet-változást fogja meg; ha egy MÁSIK fül lépett be más emberként, a régi lap
+    // állapota nem mozdul. Ezért a kérés VISZI a megnyitáskori alanyt, és a szerver ÍRÁS ELŐTT
+    // utasít el — a kliens-oldali ellenőrzés ezt kiegészíti, nem helyettesíti.
+    const nyitottNezet = stampOf(form);
+    if (await refuseStale(nyitottNezet)) return;
     const name = form.elements.name.value.trim();
     const body = { name };
+    if (nyitottNezet.subject) body.expected_subject_id = nyitottNezet.subject;
     const cegkent = !form.elements.kind || form.elements.kind.value === 'business';
     if (cegkent) {
       const valasztott = form.elements.jurisdiction.value;
@@ -1338,6 +1385,19 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     const input = byTest('ws-tax-id');
     if (input) { input.classList.remove('fieldbad'); input.removeAttribute('aria-invalid'); }
     const r = await api('POST', '/api/workspaces', body);
+    if (!r.ok && r.reason === 'context_mismatch') {
+      // MÁSIK EMBER LÉPETT BE EBBEN A BÖNGÉSZŐBEN. A kitöltést NEM mentettük el, és nem is visszük
+      // át az ő fiókjába: a szerkesztő érvénytelen, a lap pedig kimondja a folytatást.
+      forgetForms();
+      // A RÉGI SZERKESZTŐ ÉRVÉNYTELEN: nem hagyjuk kint az űrlapot a MÁSIK ember nézetében, mert az
+      // azt ígérné, hogy onnan folytatható. A folytatást a mondat adja meg.
+      state.page = 'overview'; state.tabs = ['overview'];
+      notice(STATE.otherPersonSignedIn, 'warn');
+      await refreshMe();
+      notice(STATE.otherPersonSignedIn, 'warn');   // a frissítés saját mondatát ez a konkrétabb váltja
+      render();
+      return;
+    }
     if (!r.ok) {
       // A HIBA A MEZŐHÖZ KÖTÖTT (UX-14): a hibás mező jelölve és megnevezve, a fenti összegzés rövid.
       // A kiváltó lelet: `{"tax_id":"---"}` ⇒ HTTP 500 és félig létrejött fiók (R77/F77-02) — ma a

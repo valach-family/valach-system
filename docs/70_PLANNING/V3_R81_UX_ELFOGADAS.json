@@ -4,10 +4,10 @@
   "lane": "Claude-v3",
   "source": "tests/e2e/v3app-r81-ux.spec.mjs",
   "command": "npm run proof:core-ux",
-  "generated_at": "2026-09-25T05:33:26.205Z",
+  "generated_at": "2026-09-25T08:40:21.485Z",
   "package_version": "3.0.0-alpha",
-  "base_url": "http://127.0.0.1:35737",
-  "db_path": "var/tmp/v3_v3.0.0-alpha_20260925_053125_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
+  "base_url": "http://127.0.0.1:46261",
+  "db_path": "var/tmp/v3_v3.0.0-alpha_20260925_083816_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
   "what_this_is": "Az R81 terv 22 elfogadási feltétele a MEGÚJÍTOTT v3app felületen, valódi böngészőből (Playwright · Chromium), feltételenként KÉT rekeszben: amit a lap mutatott (browser) és amit a szerver válaszolt / a tároló őrzött (server).",
   "verdict_vocabulary": {
     "bizonyitva": "a feltétel minden állítása a böngésző- és/vagy a szerver-rekeszből áll össze",
@@ -95,13 +95,14 @@
       "title": "Azonos munkalap megnyitása nem hoz másolatot. Másik fiókba nem visz át idegen adatot vagy szerkesztést.",
       "browser": [
         "Ugyanaz a munkalap („Készletegyenleg\") HÁROM megnyitás után is EGYSZER szerepel a munkalapsávon (darabszám=1). Fiókváltáskor a lapkészlet ÚJRAINDUL: 11 lapról 1 lapra (csak az Áttekintés) — a korábbi fiók lapjai és a bennük lévő adat nem utaznak át.",
-        "A MEGKEZDETT SZERKESZTÉS sem megy át: egy félbehagyott „Új fiók\" űrlap után a saját fiókváltás MEGKÉRDEZ („Vannak nem mentett módosításaid\" → Szerkesztés folytatása / Elvetés és váltás), és az elvetés utáni ÚJ fiókban az űrlap ÜRESEN nyílik (mért érték: \"\")."
+        "A MEGKEZDETT SZERKESZTÉS sem megy át: egy félbehagyott „Új fiók\" űrlap után a saját fiókváltás MEGKÉRDEZ („Vannak nem mentett módosításaid\" → Szerkesztés folytatása / Elvetés és váltás), és az elvetés utáni ÚJ fiókban az űrlap ÜRESEN nyílik (mért érték: \"\").",
+        "A NÉZETHEZ KÖTÖTT LISTÁK sem utaznak át: az Első Kft-ben kiadott várakozó meghívás címzettje a Második Kft fejléce alatt TÍZ mintavételen át EGYSZER sem jelent meg (a lista a közös ürítés része, és a betöltést a lap kimondja)."
       ],
       "server": [
         "A KÜLSŐ okból jött nézet-váltásra ugyanez a szabály a `tests/e2e/v3app-r83.spec.mjs` F83-01 és F83-02 rekeszeiben van mérve (a régi panel bezárul, és a MÁSODIK kattintás sem ír a másik fiókba) — ez a sor azt NEM állítja, csak megnevezi, hol áll a mérése."
       ],
       "verdict": "bizonyitva",
-      "note": "A munkalap-nyitás azonosító szerint egyedi, a fiókváltás ÚJ generációt és új lapkészletet indít, és a megkezdett kitöltés sem utazik át — a saját váltás pedig megkérdez."
+      "note": "A munkalap-nyitás azonosító szerint egyedi, a fiókváltás ÚJ generációt és új lapkészletet indít, a megkezdett kitöltés és a nézethez kötött listák sem utaznak át — a saját váltás pedig megkérdez."
     },
     {
       "id": "UX-06",
@@ -219,6 +220,7 @@
         "A 409 UTÁN a régi panel ÉRVÉNYTELEN: bezárul (a jogadó gomb darabszáma 0), tehát a MÁSODIK kattintás nem tud a közben aktívvá lett nézetbe írni — a jogosultsági sorok száma változatlan."
       ],
       "server": [
+        "A FIÓK-LÉTREHOZÁS útja is a MEGNYITÁSKORI személyhez kötött, és ott a döntés a SZERVERÉ (a kliens-oldali bélyeg a másik fül belépését nem érzékeli). Ennek mérése — HTTP 409, wrote=false, változatlan könyv-/tagság-/jog-darabszám, és a helyes személy alatti pozitív pár — a tests/e2e/v3app-r85.spec.mjs · F85-01 rekeszben áll; ez a sor NEM állítja, csak megnevezi a helyét.",
         "A szabályos írás törzse: expected_book_id=<a nézet könyve>, expected_subject_id=<a nézet alanya>. A régi gomb: HTTP 409, reason=context_mismatch, expected_subject_id=Anna, served_subject_id=Béla, wrote=false. ADATBÁZIS: a jogosultsági sorok száma VÁLTOZATLAN (1)."
       ],
       "verdict": "bizonyitva",
@@ -275,10 +277,12 @@
         "A bemutató jelölése a lap tetején állandóan látszik („Bemutató · mintaadatok\" + „Nincs valódi levélküldés, számlázás vagy készletmozgás\"), és minden mintatábla külön is jelölt. A levelek panelje kimondja: „Valódi e-mailt nem küldtünk\" — a meghívó üzenete sem állít küldést."
       ],
       "server": [
-        "A MINTAADAT A VALÓDI CORE JOGÁTÓL FÜGG: Béla (tag, adatjog nélkül) kérésére ok=false, kapu=right, és a mintatábla darabszáma a képernyőn 0 — tehát nem „mindig látszó díszlet\". UGYANEZ MIND A HÁROM KÉSZLET-JELLEGŰ NÉZETRE áll (stockcard · movements): nemleges nézet, tábla nélkül, és a lap szövegében nincs 840 · 200 · −80 (R83/F83-03 ellenpróbája)."
+        "A MINTAADAT A VALÓDI CORE JOGÁTÓL FÜGG: Béla (tag, adatjog nélkül) kérésére ok=false, kapu=right, és a mintatábla darabszáma a képernyőn 0 — tehát nem „mindig látszó díszlet\". UGYANEZ MIND A HÁROM KÉSZLET-JELLEGŰ NÉZETRE áll (stockcard · movements): nemleges nézet, tábla nélkül, és a lap szövegében nincs 840 · 200 · −80 (R83/F83-03 ellenpróbája).",
+        "UGYANAZ A FIÓK, KÉT NÉZŐ: a mintacsomag azonosítója a SZERVER válaszából jön és a FIÓKHOZ tartozik (demo_fixture=bemutato-A), ezért Anna és Béla UGYANAZT a tételsort látja ugyanazon a fiókon (R85/F85-03 ellenpróbája). A korábbi alak a néző saját lista-sorrendjéből választott, és ugyanaz a cég két embernek MÁS adatot mutatott.",
+        "ÉS A LAP NEM ÁLLÍT OLYAT, AMIT NEM MÉRT (R85/F85-04): egy VÉGREHAJTOTT, de elveszett válaszú írásra a felület a NEM ELDÖNTHETŐ kimenetet mondja ki, nem biztos meghiúsulást; ennek öt külön esete a `tests/e2e/v3app-r85.spec.mjs` F85-04/b rekeszében van mérve."
       ],
       "verdict": "bizonyitva",
-      "note": "A jelölés őszinte: a bemutatóadat jelölve van, MIND A HÁROM készlet-jellegű nézetben UGYANAHHOZ a szerver-válaszhoz kötve jelenik meg, és nincs látszatküldés/mentés/számlázás."
+      "note": "A jelölés őszinte: a bemutatóadat jelölve van, MIND A HÁROM készlet-jellegű nézetben UGYANAHHOZ a szerver-válaszhoz kötve jelenik meg, UGYANAZON a fiókon minden nézőnek ugyanaz, és nincs látszatküldés/mentés/számlázás — sem látszat-kudarc."
     },
     {
       "id": "UX-21",

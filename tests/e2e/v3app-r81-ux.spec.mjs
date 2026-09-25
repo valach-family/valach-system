@@ -199,6 +199,23 @@ test('UX-01…UX-07 — a közös keret: belépési űrlap nélküli belső néz
     await anna.page.getByTestId('ws-add').click();
     await expect(anna.page.getByTestId('ws-name')).toHaveValue('');
     await switchUI(anna.page, K1.bookId);
+    // A NÉZETHEZ KÖTÖTT LISTÁK SEM UTAZNAK ÁT (R85/F85-02): az egyik cégben kiadott várakozó
+    // meghívás a MÁSIK cég fejléce alatt egyetlen pillanatra sem jelenhet meg.
+    const megCim = 'csak-elso-ceg@example.test';
+    await inviteUI(anna.page, { email: megCim, role: 'user', scope: 'keszlet' });
+    await gotoPage(anna.page, 'members');
+    await anna.page.getByTestId('members-tab-invites').click();
+    await expect(anna.page.getByTestId('invites-table')).toContainText(megCim);
+    await switchUI(anna.page, K2.bookId);
+    await gotoPage(anna.page, 'members');
+    await anna.page.getByTestId('members-tab-invites').click();
+    let atutazott = false;
+    for (let i = 0; i < 10; i += 1) {
+      if (((await anna.page.getByTestId('main').textContent()) || '').includes(megCim)) atutazott = true;
+      await anna.page.waitForTimeout(80);
+    }
+    expect(atutazott).toBe(false);
+    await switchUI(anna.page, K1.bookId);
     u5.b(`Ugyanaz a munkalap („Készletegyenleg") HÁROM megnyitás után is EGYSZER szerepel a munkalapsávon (darabszám=1). Fiókváltáskor a lapkészlet ÚJRAINDUL: ${lapokElotte} lapról ${lapokUtana} lapra (csak az Áttekintés) — a korábbi fiók lapjai és a bennük lévő adat nem utaznak át.`)
       .b('A MEGKEZDETT SZERKESZTÉS sem megy át: egy félbehagyott „Új fiók" űrlap után a saját fiókváltás '
         + 'MEGKÉRDEZ („Vannak nem mentett módosításaid" → Szerkesztés folytatása / Elvetés és váltás), és az '
@@ -206,8 +223,12 @@ test('UX-01…UX-07 — a közös keret: belépési űrlap nélküli belső néz
       .s('A KÜLSŐ okból jött nézet-váltásra ugyanez a szabály a `tests/e2e/v3app-r83.spec.mjs` F83-01 és F83-02 '
         + 'rekeszeiben van mérve (a régi panel bezárul, és a MÁSODIK kattintás sem ír a másik fiókba) — ez a sor '
         + 'azt NEM állítja, csak megnevezi, hol áll a mérése.')
+      .b('A NÉZETHEZ KÖTÖTT LISTÁK sem utaznak át: az Első Kft-ben kiadott várakozó meghívás címzettje a '
+        + 'Második Kft fejléce alatt TÍZ mintavételen át EGYSZER sem jelent meg (a lista a közös ürítés '
+        + 'része, és a betöltést a lap kimondja).')
       .verdictIs('bizonyitva', 'A munkalap-nyitás azonosító szerint egyedi, a fiókváltás ÚJ generációt és új '
-        + 'lapkészletet indít, és a megkezdett kitöltés sem utazik át — a saját váltás pedig megkérdez.');
+        + 'lapkészletet indít, a megkezdett kitöltés és a nézethez kötött listák sem utaznak át — a saját '
+        + 'váltás pedig megkérdez.');
 
     // ── UX-06: A TIZENÖT HASZNÁLATI HELYZET, NEM TIZENÖT MENÜPONT ────────────────────────────
     //
@@ -539,7 +560,16 @@ test('UX-15, UX-16 — az R79 védelme az új felületen is áll, és a másik f
     // válaszra vár, a panel bezárása UTÁNA történik — ezért ÚJRAPRÓBÁLÓ állítással mérünk.
     await expect(anna.page.getByTestId(`member-scope-${cili.subjectId}`)).toHaveCount(0);
     expect(db.count('SELECT COUNT(*) AS n FROM scope_grant WHERE book_id = ? AND subject_id = ?', K.bookId, cili.subjectId)).toBe(elotteSor);
+    // A LÉTREHOZÁS ÚTJA IS SZERVEROLDALI SZEMÉLY-KÖTÉST KAPOTT (R85/F85-01). A HELYES MÉRÉSI
+    // PILLANAT az, amikor a régi lap MÉG NEM frissült — ebben a rekeszben viszont a lap a fenti
+    // 409 után MÁR igazodott a szerverhez, tehát itt a létrehozás JOGGAL sikerülne. Ezért ezt a
+    // helyzetet NEVEZETT másik rekesz méri, és ez a sor nem állítja, hanem megnevezi (KUKA-216).
+    const letrehozasKotes = 'tests/e2e/v3app-r85.spec.mjs · F85-01';
     u15.b('Az új felület gombja ugyanúgy viszi a SAJÁT nézetének két felét: a kérés törzsében `expected_book_id` ÉS `expected_subject_id` áll. A régi nézetben hagyott gomb HTTP 409-et kap, és a képernyő újrarajzol.')
+      .s(`A FIÓK-LÉTREHOZÁS útja is a MEGNYITÁSKORI személyhez kötött, és ott a döntés a SZERVERÉ `
+        + `(a kliens-oldali bélyeg a másik fül belépését nem érzékeli). Ennek mérése — HTTP 409, `
+        + `wrote=false, változatlan könyv-/tagság-/jog-darabszám, és a helyes személy alatti pozitív `
+        + `pár — a ${letrehozasKotes} rekeszben áll; ez a sor NEM állítja, csak megnevezi a helyét.`)
       .b('A 409 UTÁN a régi panel ÉRVÉNYTELEN: bezárul (a jogadó gomb darabszáma 0), tehát a MÁSODIK kattintás '
         + 'nem tud a közben aktívvá lett nézetbe írni — a jogosultsági sorok száma változatlan.')
       .s(`A szabályos írás törzse: expected_book_id=<a nézet könyve>, expected_subject_id=<a nézet alanya>. A régi gomb: HTTP ${tiltott.status}, reason=${tiltott.body.reason}, expected_subject_id=Anna, served_subject_id=Béla, wrote=${tiltott.body.wrote}. ADATBÁZIS: a jogosultsági sorok száma VÁLTOZATLAN (${elotteSor}).`)
@@ -742,13 +772,39 @@ test('UX-19, UX-20 — az ismeretlen nem nulla, a becsült jelölt; a bemutató 
     await openMailbox(bela.page);
     await expect(bela.page.getByTestId('mailbox')).toContainText('Meghívás');
     await expect(bela.page.locator('[data-testid="panel-body"]')).toContainText('Valódi e-mailt nem küldtünk');
+    // UGYANAZ A FIÓK, KÉT NÉZŐ, UGYANAZ A MINTACSOMAG (R85/F85-03): a csomagot a SZERVER adja, a
+    // fiókhoz rögzítve — nem a néző saját fiók-listájának sorrendje dönt.
+    await bela.page.keyboard.press('Escape');     // a nyitott Próbaüzenetek panel takarná a menüt
+    await grantScopeUI(anna.page, bela.subjectId, 'keszlet');
+    const annaMe = (await anna.api.get('/api/me')).body;
+    const kozosFiok = annaMe.workspaces.find((x) => x.name === 'Mérték Kft');
+    const belaMe2 = (await bela.api.get('/api/me')).body;
+    const belaFiok = belaMe2.workspaces.find((x) => x.book_id === kozosFiok.book_id);
+    expect(belaFiok.demo_fixture).toBe(kozosFiok.demo_fixture);
+    expect(kozosFiok.demo_fixture).toBeTruthy();
+    const belaStock2 = await stockUI(bela.page);
+    expect(belaStock2.body.ok).toBe(true);
+    const belaTabla = (await bela.page.getByTestId('stock-table').textContent()) || '';
+    await stockUI(anna.page);                      // Anna a jogadás miatt a Felhasználókon állt
+    const annaTabla = (await anna.page.getByTestId('stock-table').textContent()) || '';
+    for (const nev of ['Rögzítőelem M8', 'Papírtasak']) {
+      expect(belaTabla.includes(nev)).toBe(annaTabla.includes(nev));
+    }
     u20.b(`A bemutató jelölése a lap tetején állandóan látszik („Bemutató · mintaadatok" + „Nincs valódi levélküldés, számlázás vagy készletmozgás"), és minden mintatábla külön is jelölt. A levelek panelje kimondja: „Valódi e-mailt nem küldtünk" — a meghívó üzenete sem állít küldést.`)
       .s(`A MINTAADAT A VALÓDI CORE JOGÁTÓL FÜGG: Béla (tag, adatjog nélkül) kérésére ok=${belaStock.body.ok}, `
         + `kapu=${belaStock.gate}, és a mintatábla darabszáma a képernyőn 0 — tehát nem „mindig látszó díszlet". `
         + `UGYANEZ MIND A HÁROM KÉSZLET-JELLEGŰ NÉZETRE áll (${kapuk.join(' · ')}): nemleges nézet, tábla nélkül, `
         + `és a lap szövegében nincs 840 · 200 · −80 (R83/F83-03 ellenpróbája).`)
+      .s(`UGYANAZ A FIÓK, KÉT NÉZŐ: a mintacsomag azonosítója a SZERVER válaszából jön és a FIÓKHOZ `
+        + `tartozik (demo_fixture=${kozosFiok.demo_fixture}), ezért Anna és Béla UGYANAZT a tételsort látja `
+        + `ugyanazon a fiókon (R85/F85-03 ellenpróbája). A korábbi alak a néző saját lista-sorrendjéből `
+        + `választott, és ugyanaz a cég két embernek MÁS adatot mutatott.`)
+      .s('ÉS A LAP NEM ÁLLÍT OLYAT, AMIT NEM MÉRT (R85/F85-04): egy VÉGREHAJTOTT, de elveszett válaszú '
+        + 'írásra a felület a NEM ELDÖNTHETŐ kimenetet mondja ki, nem biztos meghiúsulást; ennek öt külön '
+        + 'esete a `tests/e2e/v3app-r85.spec.mjs` F85-04/b rekeszében van mérve.')
       .verdictIs('bizonyitva', 'A jelölés őszinte: a bemutatóadat jelölve van, MIND A HÁROM készlet-jellegű '
-        + 'nézetben UGYANAHHOZ a szerver-válaszhoz kötve jelenik meg, és nincs látszatküldés/mentés/számlázás.');
+        + 'nézetben UGYANAHHOZ a szerver-válaszhoz kötve jelenik meg, UGYANAZON a fiókon minden nézőnek '
+        + 'ugyanaz, és nincs látszatküldés/mentés/számlázás — sem látszat-kudarc.');
   } finally { await w.close(); }
 });
 

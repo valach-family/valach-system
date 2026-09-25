@@ -83,19 +83,20 @@ export const DEMO_EMPTY = frozen({
  * bemutató két cégén más adat áll (így a fiókváltás tévedése látszik), a többinél pedig a lap
  * KIMONDJA, hogy ehhez a fiókhoz nem készült mintacsomag.
  */
-export const FIXTURES = frozen([DEMO.default, DEMO.second]);
-export const FIXTURE_NAMES = frozen(['bemutato-A', 'bemutato-B']);
+export const FIXTURES = frozen({ 'bemutato-A': DEMO.default, 'bemutato-B': DEMO.second });
 
-function sharedBooks(workspaces) {
-  return (workspaces || []).filter((w) => w && w.personal !== true).map((w) => w.book_id);
+/**
+ * MELYIK mintacsomag tartozik ehhez a fiókhoz? A választ a SZERVER adja: a fiók létrehozásakor
+ * rögzített csomag-azonosító (`demo_fixture`) érkezik a nézethez kötött válaszban. A felület NEM
+ * számol: nem a néző fiók-listájának sorrendjéből, nem az azonosítóból, nem a helyi tárolóból.
+ *
+ * MIÉRT (R85/F85-03): a korábbi alak a néző SAJÁT listájában elfoglalt sorszámból választott, ezért
+ * UGYANAZ a cég két felhasználónak MÁS adatot mutatott. A hozzárendelés a FIÓK tulajdonsága.
+ */
+export function demoFor(fixtureId) {
+  return (fixtureId && FIXTURES[fixtureId]) || DEMO_EMPTY;
 }
-/** MELYIK mintacsomag tartozik ehhez a fiókhoz? (Nincs hozzárendelés ⇒ `DEMO_EMPTY`.) */
-export function demoFor(bookId, workspaces) {
-  const i = bookId ? sharedBooks(workspaces).indexOf(bookId) : -1;
-  return i >= 0 && i < FIXTURES.length ? FIXTURES[i] : DEMO_EMPTY;
-}
-/** A MŰSZAKI FORRÁS NEVE — a részletekben kiírjuk, hogy melyik csomagot látja a felhasználó. */
-export function demoSource(bookId, workspaces) {
-  const i = bookId ? sharedBooks(workspaces).indexOf(bookId) : -1;
-  return i >= 0 && i < FIXTURES.length ? FIXTURE_NAMES[i] : null;
+/** A MŰSZAKI FORRÁS NEVE — a részletekben kiírjuk, melyik csomagot látja a felhasználó. */
+export function demoSource(fixtureId) {
+  return fixtureId && FIXTURES[fixtureId] ? fixtureId : null;
 }

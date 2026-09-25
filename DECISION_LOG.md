@@ -16,6 +16,54 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3074 — A KÖTÉS OTT ÁLL, AHOL AZ ÍRÁS TÖRTÉNIK; A FIÓK ADATA A FIÓKÉ; ÉS A NEM TUDOTT NEM „NEM TÖRTÉNT MEG"
+
+> **Hatály:** V3 (`valach-system`) — a próba-alkalmazás felülete (`v3app/public/`), a héj két
+> pontja (`v3app/server.mjs`: a létrehozás kontextus-kapuja és a fiókhoz rögzített bemutató-csomag),
+> a határ sémája (`v3app/httpSchema.mjs`) és a böngésző-próbák. **A magreferencia (`v3ref/`) egyetlen
+> fájlja sem változott.** Nincs V2-módosítás, merge, telepítés, migráció, új üzleti modul.
+
+**Dátum:** 2026-09-25 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 **R85** (a külső ellenőrző fél
+ANALYSIS lapjára) · **Lap:** `docs/70_PLANNING/V3_R85_SZEMELY_KOTES_ES_FIOK_ADATA.md`
+
+**1. A NÉGY LELET.** A külső ellenőrző fél (chatgpt-v3) az R84-es átadást a SAJÁT környezetében
+végigjárta, és négy eltérést mért. **(F85-01, blokkoló)** Anna félbehagyott vállalkozás-űrlapja —
+miután ugyanabban a böngészőben egy másik belépés Bélára váltott — HTTP 201-gyel BÉLÁHOZ hozott
+létre fiókot: a kliens-oldali nézet-bélyeg (PNL-01) a másik fül belépését nem érzékeli.
+**(F85-02)** Az előző cég várakozó meghívása az új cég fejléce alatt maradt: a lista kimaradt a
+közös ürítésből. **(F85-03)** Ugyanaz a cég Annának és Bélának MÁS bemutatóadatot mutatott, mert a
+csomagot a NÉZŐ saját fiók-listájának sorrendje választotta ki. **(F85-04)** Egy VÉGREHAJTOTT, de
+elveszett válaszú levélkérésre a lap „Nem sikerült kapcsolatba lépni… Próbáld újra" szöveget írt —
+vagyis egy már megtörtént írás megismétlésére biztatott.
+
+**2. A DÖNTÉS — NÉGY SZABÁLY.**
+
+- **A KÖTÉS OTT ÁLL, AHOL AZ ÍRÁS TÖRTÉNIK.** A fiók-létrehozás is viszi a megnyitáskori ALANYT
+  (`expected_subject_id`), és a szerver ÍRÁS ELŐTT veti össze a munkamenet alanyával; eltérésnél
+  nevezett, írás-mentes 409. Itt nincs célkönyv, ezért a személy az elsődleges kötés — nem létező
+  könyv azonosítóját nem követeljük. A kliens-oldali bélyeg megmarad, de KIEGÉSZÍTÉS, nem helyettes.
+- **MINDEN NÉZETHEZ KÖTÖTT TÁR EGY HELYEN ÜRÜL** (`resetViewCaches`) — a saját váltás és a külső
+  okból jött nézet-változás is ezt hívja. Új tár felvételekor ez az egyetlen hely, amit bővíteni
+  kell; az üres lista helyén a lap KIMONDJA a betöltést, nem régi sorral tölti ki az időt.
+- **A FIÓK ADATA A FIÓKÉ** (DEM-02): a bemutató-csomag hozzárendelése a fiók LÉTREHOZÁSAKOR
+  születik, a tárolóban áll, és a jogosult nézethez kötött szerver-válasz adja vissza. Sem a néző
+  lista-sorrendje, sem az azonosítóból számolt érték, sem a böngésző tárolója nem dönt benne.
+- **A NEM TUDOTT NEM „NEM TÖRTÉNT MEG".** Az ÍRÓ kérés elveszett válasza NEM ELDÖNTHETŐ; az OLVASÓ
+  kérésé eldönthető hiány, mert olvasás semmit nem változtat. A kérés fajtája a válasz mezője lett,
+  tehát a hívó nem találgat. Öt kimenet, öt külön mondat, mindegyik külön mérve.
+
+**3. AMIT EZ A DÖNTÉS NEM MOND.** Nem mondja ki a core-core teljes lezárását, és a 16 elfogadott /
+13 részleges mag-klauzula nem készültségi százalék. Nem állítja, hogy MINDEN felirat a közös
+szótárból jön (a maradék nevesített nyitott tétel). Nem állítja, hogy a felület billentyűvel
+teljesen akadálymentes (a fókusz-csapda és a képernyőolvasó-sorrend nincs mérve). És nem állít zöld
+söprést: a két hosszú lánc ebben a csomagban sem futott.
+
+**4. Gépi jel:** `npm run verify:kuka` (KUKA-217…220) · `tests/e2e/v3app-r85.spec.mjs` (öt
+ellenpróba, mind pozitív párral) · `tests/e2e/v3app-r81-ux.spec.mjs` (UX-05 · UX-15 · UX-20 a teljes
+hatókörre igazítva).
+
+---
+
 ## D-VS-3073 — A SZERKESZTŐ A MEGNYITÁSKORI NÉZETHEZ TARTOZIK, A MUNKALAP MEGŐRZI A MUNKÁT, ÉS A VERDIKT NEM MUTAT A MÉRÉSEN TÚL
 
 > **Hatály:** V3 (`valach-system`) — a próba-alkalmazás felülete (`v3app/public/`), a héj két

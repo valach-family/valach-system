@@ -93,6 +93,10 @@ export const ENDPOINT_SCHEMAS = frozen({
         // DEKLARÁLT (nem néma) alapértelmezés: a válasz felsorolja (`defaults_applied`), tehát
         // látszik, hogy nem a beadó küldte — a BEM-01 a NÉMA alapértelmezést tiltja.
         plan: frozen({ type: 'nonempty_string', required: false, default: 'starter', enum: frozen(Object.keys(PLANS)) }),
+        // A MEGNYITÁSKORI SZEMÉLY KÖTÉSE (R85/F85-01). Itt NINCS célkönyv — a létrehozás a SZEMÉLYHEZ
+        // tartozik —, ezért csak az alany megerősítése áll a határon; könyv-azonosítót nem követelünk
+        // olyan könyvhöz, ami még nem létezik. A mező csak SZŰKÍT: jogot soha nem ad (KTX-01 alakja).
+        [CONTEXT_SUBJECT_FIELD]: contextConfirm,
         business: frozen({
           type: 'object', required: false,
           fields: frozen({

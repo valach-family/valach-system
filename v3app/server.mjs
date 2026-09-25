@@ -155,6 +155,50 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
   };
   clock = appClock;
 
+  /**
+   * DEM-02 — A BEMUTATÓ-CSOMAG A FIÓKHOZ TARTOZIK, NEM A NÉZŐHÖZ (R85/F85-03).
+   *
+   * A LELET: a felület a néző SAJÁT fiók-listájában elfoglalt sorszámból választott csomagot, ezért
+   * UGYANAZ a cég Annának „Szenzormodul 120 db"-ot, Bélának „Rögzítőelem M8 840 db"-ot mutatott. A
+   * korábbi karakter-összeg-paritás (KUKA-213) helyére így egy MÁSIK, ugyanolyan törékeny szabály
+   * lépett: az új tagság vagy a lista átrendezése ugyanezt sértené.
+   *
+   * A MAI ALAK: a hozzárendelés a fiók LÉTREHOZÁSAKOR születik, a tárolóban áll, és a jogosult
+   * nézethez kötött szerver-válasz adja vissza. Nem a böngésző tárolója, nem a NÉZŐ lista-sorrendje,
+   * és nem az azonosítóból számolt találgatás dönt. A bemutatóhoz KÉT csomag tartozik — a bemutatót
+   * végigjáró ember ELSŐ KÉT saját fiókja kapja meg őket, EGYSZER, a létrehozás pillanatában —,
+   * minden további fiók (és minden személyes fiók) JELÖLT ÜRES mintanézetet kap.
+   *
+   * MIÉRT A LÉTREHOZÓ ÉS NEM A TÁROLÓ ELEJE: a bemutató-alkalmazás egyetlen tárolón több embert is
+   * kiszolgál (a próbáinkban tucatnyit). A „tároló első két fiókja" szabály ott az első próba
+   * fiókjainak adná a két csomagot, a többi ember végig üres mintanézetet látna — a bemutató pedig
+   * pont a KÉT eltérő adatú cég váltását akarja megmutatni. A LÉNYEG ettől nem változik: a
+   * hozzárendelés a FIÓK tulajdonsága, egyszer születik, és MINDEN néző ugyanazt kapja.
+   *
+   * EZ NEM ÜZLETI MODUL: csak a bemutató szintetikus sorainak azonosítója, üzleti végrehajtás nélkül.
+   */
+  const DEMO_FIXTURES = ['bemutato-A', 'bemutato-B'];
+  store.run(`CREATE TABLE IF NOT EXISTS app_demo_fixture (
+    book_id     TEXT PRIMARY KEY REFERENCES book(id),
+    fixture     TEXT NOT NULL,
+    created_by  TEXT NOT NULL,
+    assigned_at TEXT NOT NULL
+  )`);
+  function demoFixtureOf(bookId) {
+    if (!bookId) return null;
+    const row = store.get('SELECT fixture FROM app_demo_fixture WHERE book_id = ?', bookId);
+    return row ? row.fixture : null;
+  }
+  function assignDemoFixture(bookId, creatorSubjectId, at) {
+    const used = store.all('SELECT fixture FROM app_demo_fixture WHERE created_by = ? ORDER BY assigned_at, book_id', creatorSubjectId)
+      .map((r) => r.fixture);
+    const free = DEMO_FIXTURES.find((f) => !used.includes(f));
+    if (!free) return null;                 // a bemutató KÉT cége megvan — a többi üres mintanézet
+    store.run('INSERT INTO app_demo_fixture (book_id, fixture, created_by, assigned_at) VALUES (?,?,?,?)',
+      bookId, free, creatorSubjectId, at);
+    return free;
+  }
+
   function pushMail({ to, subject, link, body }) {
     mailbox.push(Object.freeze({ id: mailbox.length + 1, at: clock.now(), to, subject, link, body: body || '' }));
   }
@@ -449,6 +493,8 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
         workspaces: ws.map((w) => {
           const biz = businessIdentityOf({ store, bookId: w.book_id });
           return { ...w, plan: (store.get('SELECT plan FROM entitlement_profile WHERE book_id = ?', w.book_id) || {}).plan ?? null,
+            // A FIÓKHOZ RÖGZÍTETT bemutató-csomag azonosítója (DEM-02): MINDEN néző ugyanazt kapja.
+            demo_fixture: demoFixtureOf(w.book_id),
             business: biz && biz.attached ? { namespace: biz.namespace, jurisdiction: biz.jurisdiction, verification: biz.verification ?? 'none_available' } : null };
         }),
         current_book_id: current ? current.book_id : null,
@@ -470,8 +516,23 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
     },
 
     // ── MUNKAKÖRNYEZET ───────────────────────────────────────────────────────────────────────
-    'POST /api/workspaces': ({ session, input }) => {
+    /**
+     * ÚJ FIÓK — ÉS A MEGNYITÁSKORI SZEMÉLY KÖTÉSE (R85/F85-01).
+     *
+     * A LELET (a külső ellenőrző fél, chatgpt-v3, R85): Anna megnyitotta és kitöltötte az új fiók
+     * űrlapját; ugyanabban a böngészőben (közös süti) egy MÁSIK belépés Bélára váltott; Anna régi
+     * lapjának beküldése HTTP 201-et kapott, és a fiók BÉLÁHOZ jött létre. A kliens-oldali
+     * generáció-bélyeg (PNL-01) ezt NEM fogja meg: a másik fül belépése a régi lap helyi
+     * állapotát nem mozdítja, és egy előzetes `/api/me`-frissítés sem zárja le a frissítés és az
+     * írás közötti versenyhelyzetet. A kötésnek a SZERVEREN, az írás ELŐTT kell állnia.
+     *
+     * Itt NINCS célkönyv (a könyv még nem létezik), ezért az elsődleges kötés a SZEMÉLY. A mező
+     * csak SZŰKÍT: a cselekvőt továbbra is KIZÁRÓLAG a munkamenet adja (KUKA-047).
+     */
+    'POST /api/workspaces': ({ session, input, body }) => {
       if (!session.subject_id) return loginRequired();
+      const ctx = contextGate(body, session, null);
+      if (!ctx.ok) return { status: ctx.status, body: ctx.body };
       // A NÉV, A TERV ÉS A VÁLLALKOZÁSI MINŐSÉG ALAKJÁT A SÉMA MÉRTE (HTP-01): a régi
       // `String(body.name ?? '')` kényszerítés helyén most nevezett elutasítás áll, ÍRÁS ELŐTT.
       const name = String(input.name).trim();
@@ -522,6 +583,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
       session.current_book_id = bookId;
       return { status: 201, body: {
         ok: true, workspace: ws, business, samples, book_id: bookId, name, role: 'admin', kind: 'shared',
+        ...ctx.served, demo_fixture: assignDemoFixture(bookId, session.subject_id, at),
         seeded: provisioned.seeded !== null, seed_failed: provisioned.seed_failed ?? null,
         representation: { basis: representation.basis, verification: 'none_available', stated_limit: representation.stated_limit },
       } };

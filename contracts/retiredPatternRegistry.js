@@ -33,6 +33,131 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-220',
+    date: '2026-09-25',
+    title: 'A BÖNGÉSZŐ KIVÉTELÉT BIZTOS MEGHIÚSULÁSNAK NEVEZTÜK — a lap olyan hiányt állított, amit nem mért',
+    what: 'A felület a `fetch` kivételét „hálózati hiba" néven kezelte, és a megjegyzés kimondta: „el sem ért a '
+      + 'szerverig, biztosan nem történt meg". A külső ellenőrző fél (chatgpt-v3, R85) a böngészőben ELVÉGEZTETTE a '
+      + 'kérést (HTTP 200, a bemutató levél-fogadójában a levelek száma 1-ről 2-re nőtt), és CSAK a böngésző felé '
+      + 'menő választ dobta el. A lap ekkor is azt írta: „Nem sikerült kapcsolatba lépni a rendszerrel. Próbáld újra."',
+    why_wrong: 'A BÖNGÉSZŐ NEM TUDJA MEGKÜLÖNBÖZTETNI a meg sem indult kérést az elveszett választól — a kivétel '
+      + 'mindkettőnél ugyanaz. Az „újra" felszólítás így egy MÁR VÉGREHAJTOTT írás megismétlésére biztatott. Ez a '
+      + 'KUKA-215 testvére: ott a választ nem MÉRTÜK, itt a mérés eredményét ÉRTELMEZTÜK túl.',
+    replaced_by: 'A KIMENET A KÉRÉS FAJTÁJÁHOZ KÖTVE: ÍRÓ kérés elveszett válasza NEM ELDÖNTHETŐ („Nem tudjuk '
+      + 'biztosan, hogy a kérés teljesült…"), OLVASÓ kérésé viszont eldönthető hiány („Nem sikerült kapcsolatba '
+      + 'lépni… Semmi nem változott."), mert olvasás semmit nem módosít. A kérés fajtája a válasz mezője lett '
+      + '(`mutating`), tehát a hívó nem találgat.',
+    decision: 'D-VS-3074',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R85 §5 — a kérést route.fetch-csel VÉGREHAJTVA, majd a választ eldobva',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'r && r\\.mutating \\? .uncertain. : .network.',
+        why: 'az író kérés elveszett válasza nem eldönthető, az olvasóé igen' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3app/public/app.js'], pattern: 'biztosan nem történt meg',
+        reason: 'a böngésző kivétele nem bizonyít írás-mentességet (R85/F85-04)' }),
+    ]),
+    lesson: 'A MÉRÉS ÉS A MÉRÉS ÉRTELMEZÉSE KÉT KÜLÖN LÉPÉS, és mindkettő elromolhat. Egy jel hiánya nem a '
+      + 'jelzett esemény hiánya — „nem tudom" és „nem történt meg" nem ugyanaz, és a felhasználó teendője is más.',
+    guard_note: 'gépi jel: `tests/e2e/v3app-r85.spec.mjs` F85-04 (végrehajtott, de elveszett válaszú kérés) és '
+      + 'F85-04/b (mind az ÖT kimenet külön esetként: megszakítás · elveszett válasz · hibás választest · nevezett '
+      + 'elutasítás · siker, plusz az olvasó ág) + a fenti tiltó- és pozitív minta.',
+  }),
+  Object.freeze({
+    id: 'KUKA-219',
+    date: '2026-09-25',
+    title: 'A PARITÁS HELYÉRE A NÉZŐ LISTA-SORRENDJE LÉPETT — ugyanaz a cég két embernek MÁS adatot mutatott',
+    what: 'A KUKA-213 kivezette a karakter-összeg-paritást, és helyére a személy SAJÁT fiók-listájában elfoglalt '
+      + 'sorszáma lépett. A külső ellenőrző fél (chatgpt-v3, R85) mérése: ugyanazon a „Második Műhely" fiókon Anna '
+      + '„Szenzormodul 120 db"-ot látott, Béla „Rögzítőelem M8 840 db"-ot — a fiók ugyanaz, a fejléc ugyanaz, a '
+      + 'készletjog ugyanaz. A második cég Annának a MÁSODIK, Bélának az ELSŐ közös fiókja volt.',
+    why_wrong: 'A JAVÍTÁS UGYANAZT A HIBA-OSZTÁLYT HOZTA VISSZA MÁS ALAKBAN: a csomag továbbra is SZÁMÍTÁSBÓL jött, '
+      + 'csak most a NÉZŐ adatából, nem a fiókéból. Egy új tagság vagy a lista átrendezése bármikor átírta volna, '
+      + 'amit a felhasználó a fiók adatának hitt (KUKA-066: a hamis adat nem hibának látszik, hanem adatnak).',
+    replaced_by: 'DEM-02 — a hozzárendelés a fiók LÉTREHOZÁSAKOR születik, a tárolóban áll (`app_demo_fixture`), és '
+      + 'a jogosult nézethez kötött szerver-válasz adja vissza (`demo_fixture` a fiók sorában). A felület NEM '
+      + 'számol: sem a néző listájából, sem az azonosítóból, sem a böngésző tárolójából. A bemutató KÉT csomagját a '
+      + 'bemutatót végigjáró ember ELSŐ KÉT saját fiókja kapja; minden további fiók JELÖLT ÜRES mintanézetet kap.',
+    decision: 'D-VS-3074',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R85 §4 — ugyanazt a fiókot KÉT felhasználóval megnyitva',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'CREATE TABLE IF NOT EXISTS app_demo_fixture',
+        why: 'a hozzárendelés a fiókhoz tartozik és a tárolóban áll' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/demoData.mjs']),
+        pattern: 'export function demoFor\\(fixtureId\\)',
+        why: 'a felület a SZERVERTŐL kapott azonosítót használja, nem számol' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3app/public/demoData.mjs'], pattern: 'workspaces',
+        reason: 'a mintacsomag nem a néző fiók-listájából dől el (R85/F85-03)' }),
+    ]),
+    lesson: 'EGY SZÁMÍTOTT HOZZÁRENDELÉS HELYÉRE NEM MÁSIK SZÁMÍTÁS VALÓ, HANEM RÖGZÍTETT TÉNY. Ha egy adat a '
+      + 'FIÓK tulajdonsága, akkor a NÉZŐRŐL semmi nem dönthet benne — különben ugyanaz a képernyő két embernek '
+      + 'mást mond, és mindkettő igaznak hiszi.',
+    guard_note: 'gépi jel: `tests/e2e/v3app-r85.spec.mjs` F85-03 (ugyanaz a fiók két felhasználónak ugyanaz a '
+      + 'csomag; a két bemutató cég csomagja viszont eltér) + `tests/e2e/v3app-r81-ux.spec.mjs` UX-20 + a fenti minták.',
+  }),
+  Object.freeze({
+    id: 'KUKA-218',
+    date: '2026-09-25',
+    title: 'A NÉZETHEZ KÖTÖTT LISTA KIMARADT A KÖZÖS ÜRÍTÉSBŐL — az előző cég címzettje az új cég fejléce alatt maradt',
+    what: 'Az R84-ben megépült a várakozó meghívások listája. A külső ellenőrző fél (chatgpt-v3, R85) mérése: az '
+      + 'Első Műhelyben kiadott meghívás címzettje a MÁSODIK Műhelyre váltás után is ott állt a táblázatban, amíg az '
+      + 'új lista-válasz meg nem érkezett — a fejléc közben már a Második Műhelyt mutatta.',
+    why_wrong: 'AZ ÚJ TÁR NEM KERÜLT BE A KÖZÖS ÜRÍTÉSBE. A nézet-váltás a panelekét, a taglistáét és a '
+      + 'hozzáférés-állapotét ürítette, a meghívás-listáét nem — és a rajzolás MEGELŐZTE a lekérés nullázását. A '
+      + 'generáció-őr ezt nem fogja meg: az a KÉSVE ÉRKEZŐ választ védi, nem a már kirajzolt RÉGI sort.',
+    replaced_by: 'EGY közös ürítő (`resetViewCaches`), amit a SAJÁT váltás és a KÜLSŐ okból jött nézet-változás is '
+      + 'hív; minden nézethez kötött tár ott ürül, és új tár felvételekor ez az EGYETLEN hely, amit bővíteni kell. '
+      + 'Az üres lista helyén a lap KIMONDJA a betöltést („Meghívások betöltése…"), nem régi sorral tölti ki az időt.',
+    decision: 'D-VS-3074',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R85 §3 — fiókváltással és a lista-válasz késleltetésével',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'function resetViewCaches\\(\\)',
+        why: 'minden nézethez kötött tár EGY helyen ürül' }),
+    ]),
+    lesson: 'AMIKOR ÚJ NÉZET-ADATOT VESZÜNK FEL, AZ ÜRÍTÉSE UGYANANNAK A MUNKÁNAK A RÉSZE. Egy közös szabály '
+      + 'annyit ér, amennyire teljes: a kimaradt tag nem „kis hiány", hanem a szabály cáfolata (KUKA-003).',
+    guard_note: 'gépi jel: `tests/e2e/v3app-r85.spec.mjs` F85-02 (a régi címzett TIZENHAT mintavételen át egyszer '
+      + 'sem jelenik meg az új fejléc alatt, és a betöltés mondata látszik) + `tests/e2e/v3app-r81-ux.spec.mjs` UX-05.',
+  }),
+  Object.freeze({
+    id: 'KUKA-217',
+    date: '2026-09-25',
+    title: 'A KLIENS-OLDALI NÉZET-BÉLYEG NEM SZERVEROLDALI SZEMÉLY-ELLENŐRZÉS — a félbehagyott űrlap MÁSIK embernek hozott létre fiókot',
+    what: 'Az R84-ben minden ÍRÓ űrlap megkapta a megnyitáskori nézet bélyegét (PNL-01), és ez a panelek esetében '
+      + 'működött. A külső ellenőrző fél (chatgpt-v3, R85) mérése: Anna megnyitotta és kitöltötte az ÚJ FIÓK '
+      + 'űrlapját; ugyanabban a böngészőben (közös süti) egy másik belépés Bélára váltott; Anna régi lapjának '
+      + 'beküldése HTTP 201-et kapott, és a fiók BÉLÁHOZ jött létre — „Anna félbehagyott vállalkozása" néven.',
+    why_wrong: 'A BÉLYEG A LAP SAJÁT TUDÁSÁT ŐRZI, NEM A SZERVERÉT. A másik fül belépése a régi lap helyi '
+      + 'generációját nem mozdítja, tehát nincs mit elavultnak találni; egy előzetes `/api/me`-frissítés pedig a '
+      + 'frissítés és az írás közötti versenyhelyzetet nem zárja le. A kötésnek ott kell állnia, ahol a kár '
+      + 'keletkezik: a SZERVEREN, az írás ELŐTT (KUKA-202).',
+    replaced_by: 'A LÉTREHOZÁS IS VISZI A MEGNYITÁSKORI ALANYT (`expected_subject_id`), és a szerver ÍRÁS ELŐTT '
+      + 'veti össze a munkamenet alanyával; eltérésnél nevezett, írás-mentes 409. Itt NINCS célkönyv, ezért a '
+      + 'személy az elsődleges kötés — nem létező könyv azonosítóját nem követeljük. A lap a régi szerkesztőt '
+      + 'érvényteleníti, és kimondja: „Másik felhasználó jelentkezett be. A korábbi kitöltést nem mentettük el."',
+    decision: 'D-VS-3074',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R85 §2 — két valódi böngészőlappal, közös sütivel',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "'POST /api/workspaces': \\(\\{ session, input, body \\}\\)",
+        why: 'a létrehozás a kérés törzsét is látja, tehát a kontextus-kapu ott állhat' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'body\\.expected_subject_id = nyitottNezet\\.subject',
+        why: 'a kérés viszi a megnyitáskori alanyt' }),
+    ]),
+    lesson: 'AMIT A KLIENS TUD, AZ A KLIENS TÖRTÉNETE — nem a világ állapota. Egy másik fül eseménye a régi lapon '
+      + 'NEM keletkeztet jelet, ezért kliens-oldali őrrel nem is fogható meg. A szándék és a végrehajtó azonosságát '
+      + 'ott kell összevetni, ahol az írás történik.',
+    guard_note: 'gépi jel: `tests/e2e/v3app-r85.spec.mjs` F85-01 (két böngészőlap közös sütivel; a könyvek, '
+      + 'tagságok, jogosultságok és felhatalmazások darabszáma VÁLTOZATLAN; pozitív pár a helyes személy alatt) + '
+      + 'a fenti pozitív minták.',
+  }),
+  Object.freeze({
     id: 'KUKA-216',
     date: '2026-09-25',
     title: 'A PRÓBA A SZŰKEBBET MÉRTE, A VERDIKT A BŐVEBBET ÁLLÍTOTTA — „21 UX-feltétel bizonyítva" egy 15 menüpont-megnyitásra és egy panel-Esc-re',

@@ -221,8 +221,9 @@ test('R83/F83-05 — sikertelen levélkérés NEM mutat sikeres folytatást', as
     // A KÉRÉST MEGSZAKÍTJUK — a hálózat elszakadását modellezve.
     await c.page.route('**/api/verification/resend', (route) => route.abort('failed'));
     await c.page.getByTestId('resend-submit').click();
-    // A LAP NEM ÁLLÍT KÜLDÉST: a cím a mezőben marad, és a mondat a hálózati hibáról szól.
-    await expect(c.page.getByTestId('resend-result')).toContainText('Nem sikerült kapcsolatba lépni');
+    // A LAP NEM ÁLLÍT KÜLDÉST — de azt sem állítja, hogy biztosan NEM ment el (R85/F85-04): a
+    // böngésző kivétele nem különbözteti meg a meg sem indult kérést az elveszett választól.
+    await expect(c.page.getByTestId('resend-result')).toContainText('Nem tudjuk biztosan');
     await expect(c.page.getByTestId('resend-email')).toHaveValue(email);
     expect(await c.page.getByTestId('resend-form').count()).toBe(1);
 

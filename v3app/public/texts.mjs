@@ -170,6 +170,10 @@ export const STATE = Object.freeze({
   // A KIMENET, AMIT NEM TUDUNK: a kérés elindult, de a válasz elveszett — ez NEM „nem sikerült" és
   // NEM „sikerült". A lap kimondja a tudatlanságot, és nevezett folytatást ad (R83/F83-05).
   uncertainWrite: 'Nem tudjuk biztosan, hogy a kérés teljesült. Nézd meg a leveleidet, és csak akkor kérj újat, ha nem érkezett meg.',
+  // MÁSIK EMBER LÉPETT BE UGYANEBBEN A BÖNGÉSZŐBEN (R85/F85-01). A mondat megmondja, mi NEM
+  // történt meg (a mentés), és mi a folytatás — nem a felhasználót hibáztatja.
+  otherPersonSignedIn: 'Másik felhasználó jelentkezett be. A korábbi kitöltést nem mentettük el. Indítsd újra a létrehozást a saját fiókodból.',
+  invitesLoading: 'Meghívások betöltése…',
   // A BEMUTATÓ MINTAADAT SZAVAI (R83/F83-03 · F83-04). A belső magyarázat („a magtól kapott sor")
   // a technikai részletekbe került: a felhasználó a tételt látja, nem a rendszer belső fogalmát.
   demoItem: 'Bemutató tétel',
