@@ -1,5 +1,8 @@
 <!doctype html>
-<html lang="hu">
+<!-- A NYELV ÉS AZ ÍRÁSIRÁNY A LAPRÓL JÖN (R89 §5). A kiinduló `lang="hu"` az alapnyelv; az `app.js`
+     indulásakor a `documentElement.lang` és `dir` a TÉNYLEGESEN aktív nyelvre áll (LANG-01). A W3C a
+     nyelvet és az írásirányt KÜLÖN kezeli — ezért két attribútum, nem egy. -->
+<html lang="hu" dir="ltr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,22 +11,23 @@
 </head>
 <body>
   <!-- A KERET ÜRES VÁZ: minden tartalmat a lap rajzol (app.js), egyetlen szövegforrásból
-       (texts.mjs). Így a menücím, az oldalcím és a gomb-felirat nem tud elcsúszni (R81 §6). -->
+       (texts.mjs → i18n/<nyelv>.mjs). Így a menücím, az oldalcím és a gomb-felirat nem tud
+       elcsúszni (R81 §6), és a felirat LEFORDÍTHATÓ (R89 §5 · KUKA-214). A vázban SZÖVEG NINCS. -->
   <div class="demobar" data-testid="demo-marker">
-    <strong>Bemutató · mintaadatok</strong>
-    <span class="muted">Nincs valódi levélküldés, számlázás vagy készletmozgás.</span>
+    <strong data-testid="demo-bar-title"></strong>
+    <span class="muted" data-testid="demo-bar-lead"></span>
     <span class="spacer"></span>
-    <button type="button" class="plain" data-testid="demo-mail-open">Próbaüzenetek</button>
+    <button type="button" class="plain" data-testid="demo-mail-open"></button>
   </div>
 
   <header class="top" data-testid="header">
-    <button type="button" class="mobile-toggle" data-testid="nav-toggle" aria-label="Menü megnyitása" aria-expanded="false">☰</button>
-    <button type="button" class="brand" data-testid="brand" aria-label="Kezdőlap">VS</button>
+    <button type="button" class="mobile-toggle" data-testid="nav-toggle" aria-expanded="false">☰</button>
+    <button type="button" class="brand" data-testid="brand">VS</button>
 
     <details class="switcher" data-testid="account-switcher">
-      <summary aria-label="Aktív fiók" data-testid="account-switcher-summary">
-        <span class="label">Fiók</span>
-        <span class="value" data-testid="header-workspace">nincs fiók</span>
+      <summary data-testid="account-switcher-summary">
+        <span class="label" data-testid="ws-label"></span>
+        <span class="value" data-testid="header-workspace"></span>
         <span aria-hidden="true">⌄</span>
       </summary>
       <div class="menu" data-testid="ws-list"></div>
@@ -33,10 +37,14 @@
     <span class="sr-only" data-testid="header-acting-as">—</span>
     <span class="sr-only" data-testid="channel-proven">—</span>
 
+    <!-- A SEGÍTSÉG ÁLLANDÓ BELÉPŐJE (SEG-01, R89 §4). A panelt a FELHASZNÁLÓ nyitja: magától nem
+         ugrik fel, és modellhívást NEM indít. -->
+    <button type="button" class="plain help-open" data-testid="help-open" data-action="help-open"></button>
+
     <details class="profile" data-testid="profile">
-      <summary aria-label="Saját profil menü">
+      <summary>
         <span class="avatar" data-testid="avatar">–</span>
-        <span class="personname" data-testid="header-subject">nincs bejelentkezve</span>
+        <span class="personname" data-testid="header-subject"></span>
         <span aria-hidden="true">⌄</span>
       </summary>
       <div class="menu" data-testid="profile-menu"></div>
@@ -47,16 +55,22 @@
   <section class="auth" data-testid="auth" hidden></section>
 
   <div class="layout" data-testid="app" hidden>
-    <nav class="sidebar" data-testid="nav" aria-label="Főmenü"></nav>
+    <nav class="sidebar" data-testid="nav"></nav>
     <div class="workspace">
-      <div class="tabs" data-testid="tabs" aria-label="Nyitott munkalapok"></div>
+      <div class="tabs" data-testid="tabs"></div>
       <main class="content" data-testid="main" tabindex="-1"></main>
     </div>
   </div>
 
   <dialog data-testid="panel"><div data-testid="panel-body"></div></dialog>
+  <!-- A SEGÍTSÉGPANEL SAJÁT párbeszéde: a munka-panel (`panel`) NEM zárul be attól, hogy a
+       felhasználó súgót nyit — a kettő külön él (R89 §4: a panel ne fedje el a fő műveletet). -->
+  <dialog data-testid="help-panel" class="drawer help"><div data-testid="help-body"></div></dialog>
+  <!-- A KATTINTHATÓ BEMUTATÓ buborékja — NEM párbeszéd, mert a valódi képernyőre mutat, és a
+       felhasználónak KATTINTHATÓNAK kell maradnia mögötte (TUR-01, R89 §4). -->
+  <div class="tourbubble" data-testid="tour" role="dialog" aria-modal="false" hidden></div>
   <div class="toast" data-testid="toast" role="status" hidden></div>
-  <noscript><p style="padding:24px">Ehhez a felülethez engedélyezd a JavaScriptet a böngészőben.</p></noscript>
+  <noscript><p style="padding:24px" data-testid="noscript">JavaScript · Please enable JavaScript · Bitte JavaScript aktivieren · Engedélyezd a JavaScriptet</p></noscript>
 
   <script type="module" src="/app.js"></script>
 </body>

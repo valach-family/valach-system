@@ -275,7 +275,15 @@ test('R85/F85-04/b — a kérés ÖT kimenete KÜLÖN mondat, és egyik sem áll
     await anna.page.route('**/api/data/stock**', (route) => route.abort('failed'));
     await anna.page.getByTestId('data-stock-btn').click();
     await expect(anna.page.getByTestId('stock-network')).toBeVisible();
-    await expect(anna.page.getByTestId('stock-network')).toContainText('Nem sikerült kapcsolatba lépni');
+    // A MONDAT AZ R89-BEN SZŰKÜLT (az R87/R88 nevesített függője): korábban „Nem sikerült
+    // kapcsolatba lépni…" és „a készletadatokat nem kérdeztük le" állt itt. Mindkettő TÁGABB volt a
+    // bizonyíthatónál: a válasz elveszhetett akkor is, ha az olvasás lefutott. A mai alak azt állítja,
+    // ami MÉRT — a betöltés nem sikerült —, és hozzáteszi, hogy a fiókban semmi nem változott.
+    // A PRÓBA ÁLLÍTÁSA UGYANAZ MARADT: az OLVASÁS eldönthető hiány, tehát a lap kimondhatja (szemben
+    // az ÍRÁS bizonytalan kimenetével, amit az (1)–(3) pont mér).
+    await expect(anna.page.getByTestId('stock-network')).toContainText('A készletadatokat nem sikerült betölteni');
+    await expect(anna.page.getByTestId('stock-network')).toContainText('Semmi nem változott');
+    expect(await anna.page.getByTestId('stock-network').textContent()).not.toContain('Nem tudjuk biztosan');
     await anna.page.unroute('**/api/data/stock**');
   } finally { await w.close(); }
 });

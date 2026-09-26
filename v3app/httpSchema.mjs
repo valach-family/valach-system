@@ -171,6 +171,21 @@ export const ENDPOINT_SCHEMAS = frozen({
     query: frozen({ fields: frozen({}) }),
   }),
 
+  // ── A SEGÉD (AST-01) — a kérdés ÁLLAPOTVÁLTOZTATÓ végponton megy, mert modellhívást indíthat és
+  // mérést ír; a séma ezért KAPU. A nyelv MEGERŐSÍTŐ mező: a válasz nyelvét a beadó mondja meg, de
+  // jogot nem ad vele (ugyanaz az alak, mint a kontextus-mezőknél).
+  'POST /api/assistant/ask': frozen({
+    version: '1', mutates: true,
+    body: frozen({
+      fields: frozen({
+        question: frozen({ type: 'nonempty_string', required: true, max_length: 500 }),
+        lang: frozen({ type: 'nonempty_string', required: false, default: 'hu', max_length: 32 }),
+        [CONTEXT_FIELD]: contextConfirm, [CONTEXT_SUBJECT_FIELD]: contextConfirm,
+      }),
+    }),
+    query: frozen({ fields: frozen({}) }),
+  }),
+
   // ── OLVASÓ VÉGPONTOK — a séma itt a DEKLARÁLT paramétereket méri, a többi NEVEZETTEN kimarad.
   'GET /api/me': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({}) }) }),
   'GET /api/members': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
@@ -186,6 +201,18 @@ export const ENDPOINT_SCHEMAS = frozen({
   'GET /api/invites/waiting': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
   'GET /api/data/stock': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
   'GET /api/data/price': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
+  // A SEGÉD ÁLLAPOTA: szolgáltatói csatlakozás (NEVEK, érték nélkül) · korlátok · a kérőre
+  // ENGEDÉLYEZETT műveletek és bemutatók. A `lang` itt is csak a válasz nyelvét szűkíti.
+  'GET /api/assistant/status': frozen({
+    version: '1', mutates: false, body: frozen({ fields: frozen({}) }),
+    query: frozen({ fields: frozen({ ...readContextQuery.fields, lang: frozen({ type: 'nonempty_string', required: false, max_length: 32, confirm_only: true }) }) }),
+  }),
+  // A TUDÁS-INDEX (és egy funkció célzott lekérése). A teljes kézikönyvet SOHA nem adjuk ki egyben:
+  // a `feature` paraméter EGY funkció szerződését kéri (R89 §3: célzottan lekérhető tartalom).
+  'GET /api/assistant/knowledge': frozen({
+    version: '1', mutates: false, body: frozen({ fields: frozen({}) }),
+    query: frozen({ fields: frozen({ ...readContextQuery.fields, lang: frozen({ type: 'nonempty_string', required: false, max_length: 32, confirm_only: true }), feature: frozen({ type: 'nonempty_string', required: false, max_length: 64, confirm_only: true }) }) }),
+  }),
   'GET /dev/mailbox': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({}) }) }),
   'GET /dev/clock': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({}) }) }),
 });

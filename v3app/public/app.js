@@ -13,8 +13,14 @@
 //   · a generáció-őr: a késve érkező válasz nem írhat az új nézetbe (KUKA-041);
 //   · a jogosultságot KIZÁRÓLAG a szerver dönti el — itt nincs kliens-oldali jog-mátrix.
 import { contextBindingVerdict, unboundMessage } from './contextBinding.mjs';
-import { PAGE, NAV_GROUPS, NAV_ADMIN, NAV_PERSONAL, ROLE, SCOPE, SCOPE_ACC, PLAN, STATE, reasonText, whenText, tpl, accountLabel } from './texts.mjs';
-import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
+import { PAGE, NAV_GROUPS, NAV_ADMIN, NAV_PERSONAL, ROLE, SCOPE, SCOPE_ACC, PLAN, QUALITY, STATE, UNBOUND, UI, HELP, TOURUI, CHAT,
+  reasonText, whenText, tpl, accountLabel, setLang, currentLang, currentDir, currentEndonym, enabledLanguages } from './texts.mjs';
+import { demoFor, demoSource } from './demoData.mjs';
+// A SEGÍTSÉG HÁROM DARABJA — mind TISZTA rajzoló/állapot-modul: lekérést egyik sem indít, azt EGY
+// helyen, itt végezzük (KUKA-209: a rajzolás nem kérdez).
+import { helpPanelHtml, guidesHtml, faqHtml, sitemapHtml, VIEWS } from './help.mjs';
+import { chatHtml, emptyChat } from './chat.mjs';
+import * as tourMod from './tour.mjs';
 
 (() => {
   'use strict';
@@ -39,6 +45,17 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     // A MEGKEZDETT KITÖLTÉS ÁLLAPOT, NEM CSAK DOM (FRM-01, R83/F83-02): a munkalap-váltás
     // újrarajzol, és az újrarajzolt űrlap üres volt — a lap „megőrizte a munkát" látszatával.
     forms: {},
+    // ── A SEGÍTSÉG ÁLLAPOTA (R89 §4). A panel a FELHASZNÁLÓ nyitására nyílik, magától soha.
+    help: { open: false, view: 'ask', topic: null, search: '', faqSearch: '', faqOpen: null },
+    // A SZERVER válasza arról, MI engedélyezett (művelet · bemutató · szolgáltatói csatlakozás).
+    // A böngésző ezt NEM találja ki: a „böngészőből küldött admin jelzés" nem felhatalmazás (AST-01).
+    astStatus: null,
+    // A TUDÁS-INDEX a szerverről: melyik funkció látható ENNEK a kérőnek, és ha nem, MIÉRT nem.
+    helpIndex: null,
+    // A SZEMÉLYES beszélgetés — a nyilvános terméksúgótól KÜLÖN tárolva (R89 §6).
+    chat: emptyChat(),
+    // A FUTÓ BEMUTATÓ (TUR-01) — a nézethez kötve, a böngészőben nem tároljuk.
+    tour: null, tourBlocked: null, tourFinished: false, tourAborted: null,
   };
 
   // ── HÁLÓZAT ─────────────────────────────────────────────────────────────────────────────────
@@ -241,7 +258,7 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
   async function contextChangedNotice(why) {
     const before = state.noticeSeq;
     await refreshMe();
-    if (state.noticeSeq === before) notice(unboundMessage(why), 'warn');
+    if (state.noticeSeq === before) notice(unboundMessage(why, UNBOUND), 'warn');
   }
 
   /**
@@ -279,10 +296,10 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
       if (!pageAvailable(state.page, me)) state.page = 'overview';
       if (state.page !== 'overview') state.tabs = ['overview', state.page];
       if (foreign && otherSubject) {
-        notice('Másik felhasználó jelentkezett be ebben a böngészőben. Az oldal frissült.', 'warn');
+        notice(UI.otherPersonHere, 'warn');
       } else if (accessLost) {
-        notice(`${tpl('accountLost', { nev: prevBookName })} A személyes fiókodat továbbra is használhatod.`,
-          'warn', personal ? { label: 'Személyes fiók megnyitása', go: 'switch:' + personal } : null);
+        notice(`${tpl('accountLost', { nev: prevBookName })} ${UI.personalStillUsable}`,
+          'warn', personal ? { label: UI.openPersonal, go: 'switch:' + personal } : null);
       } else if (foreign) {
         notice(tpl('accountSwitchedElsewhere', { nev: me.current_personal === true ? STATE.personalAccount : me.current_book_name }), 'warn');
       }
@@ -302,13 +319,50 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     return NAV_ADMIN.pages.includes(page) && me.current_role === 'admin';
   }
 
+  // ── A KERET SZÖVEGEI ÉS A NYELV ─────────────────────────────────────────────────────────────
+  /**
+   * A LAP NYELVE ÉS ÍRÁSIRÁNYA (LANG-01, R89 §5). A `lang` és a `dir` a `documentElement`-en áll,
+   * mert a böngésző ezt olvassa: elválasztás, betűkészlet, felolvasó nyelve és a tükrözés is ettől
+   * függ. A W3C a kettőt KÜLÖN kezeli — ezért két attribútum.
+   *
+   * ÉS AMIT A NYELV NEM ÁLLÍT: országot, adózási rendet, időzónát, pénznemet. A `dir` váltása
+   * kizárólag az ELRENDEZÉST tükrözi.
+   */
+  function applyLanguage() {
+    const root = document.documentElement;
+    root.setAttribute('lang', currentLang());
+    root.setAttribute('dir', currentDir());
+  }
+  /**
+   * A VÁZ FELIRATAI. Az `index.html` szándékosan SZÖVEG NÉLKÜLI: a demósáv, az aria-címkék és a
+   * Segítség gomb felirata is a szótárból jön, különben a fordítás kihagyná őket (KUKA-214 — ez volt
+   * a „részleges szótár" utolsó zuga: a váz).
+   */
+  function renderChrome() {
+    applyLanguage();
+    setText(byTest('demo-bar-title'), UI.demoBar);
+    setText(byTest('demo-bar-lead'), UI.demoBarLead);
+    setText(byTest('demo-mail-open'), UI.demoMailButton);
+    setText(byTest('ws-label'), UI.activeAccount);
+    const help = byTest('help-open');
+    if (help) { help.textContent = HELP.open; help.setAttribute('aria-label', HELP.openAria); }
+    const aria = [
+      ['nav-toggle', UI.navOpen], ['brand', UI.home],
+      ['account-switcher-summary', UI.activeAccount], ['nav', UI.mainMenu], ['tabs', UI.openTabs],
+    ];
+    for (const [id, label] of aria) { const el = byTest(id); if (el) el.setAttribute('aria-label', label); }
+    const prof = document.querySelector('[data-testid="profile"] summary');
+    if (prof) prof.setAttribute('aria-label', UI.profileMenu);
+    const ns = byTest('noscript'); if (ns) ns.textContent = UI.noScript;
+  }
+
   // ── FEJLÉC ──────────────────────────────────────────────────────────────────────────────────
   function renderHeader() {
     const me = state.me;
     const loggedIn = !!(me && me.subject_id);
     const list = (me && me.workspaces) || [];
-    setText(byTest('header-workspace'), loggedIn ? (accountName() || 'Válassz fiókot') : 'nincs fiók');
-    setText(byTest('header-subject'), loggedIn ? (me.email || me.subject_id) : 'nincs bejelentkezve');
+    setText(byTest('header-workspace'), loggedIn ? (accountName() || UI.chooseAccount) : UI.noAccountShort);
+    setText(byTest('header-subject'), loggedIn ? (me.email || me.subject_id) : UI.notSignedIn);
     setText(byTest('avatar'), loggedIn ? String(me.email || '?').slice(0, 2).toUpperCase() : '–');
     // A SZERVER mondata arról, ki nevében járunk el, és a cím-megerősítés állapota: képernyőolvasónak
     // mindig elérhető, a szemnek a Saját profil / Belépés és biztonság oldalon (R81 §3.3).
@@ -328,20 +382,20 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     const menu = byTest('ws-list');
     if (menu) {
       menu.innerHTML = loggedIn ? `
-        ${personal.length ? `<div class="group">Személyes</div><ul class="menu-list">${personal.map(line).join('')}</ul>` : ''}
-        ${shared.length ? `<div class="group">Vállalkozások és közös fiókok</div><ul class="menu-list">${shared.map(line).join('')}</ul>` : ''}
+        ${personal.length ? `<div class="group">${esc(UI.groupPersonal)}</div><ul class="menu-list">${personal.map(line).join('')}</ul>` : ''}
+        ${shared.length ? `<div class="group">${esc(UI.groupShared)}</div><ul class="menu-list">${shared.map(line).join('')}</ul>` : ''}
         <div class="divider"></div>
-        <button type="button" data-go="new" data-testid="ws-add">+ Vállalkozás hozzáadása</button>` : '';
+        <button type="button" data-go="new" data-testid="ws-add">${esc(UI.addBusiness)}</button>` : '';
     }
     const pm = byTest('profile-menu');
     if (pm) {
       pm.innerHTML = loggedIn ? `
         <div class="identity"><strong>${esc(me.email || me.subject_id)}</strong>
-          <small>${me.channel_proven ? 'E-mail-cím megerősítve' : 'E-mail-cím megerősítésre vár'}</small></div>
+          <small>${esc(me.channel_proven ? UI.channelProven : UI.channelPending)}</small></div>
         <button type="button" data-go="profile">${PAGE.profile}</button>
         <button type="button" data-go="security">${PAGE.security}</button>
         <div class="divider"></div>
-        <button type="button" data-action="logout" data-testid="logout">Kijelentkezés</button>` : '';
+        <button type="button" data-action="logout" data-testid="logout">${esc(UI.logout)}</button>` : '';
     }
   }
 
@@ -351,7 +405,7 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     if (!nav) return;
     const item = (p) => `<button type="button" class="navitem ${state.page === p ? 'active' : ''}" data-go="${p}"
       data-testid="nav-${p}" ${state.page === p ? 'aria-current="page"' : ''}>${PAGE[p]}</button>`;
-    let h = '<button type="button" class="mobile-close" data-action="nav-close">Menü bezárása ×</button>';
+    let h = `<button type="button" class="mobile-close" data-action="nav-close">${esc(UI.navClose)} ×</button>`;
     if (isPersonal()) {
       for (const g of NAV_PERSONAL) h += (g.group ? `<div class="navgroup">${g.group}</div>` : '') + g.pages.map(item).join('');
     } else {
@@ -367,7 +421,7 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     if (!el) return;
     el.innerHTML = state.tabs.map((p) => `<div class="tab ${p === state.page ? 'active' : ''}">
       <button type="button" data-tab="${p}" data-testid="tab-${p}">${PAGE[p]}</button>
-      ${p === 'overview' ? '' : `<button type="button" class="x" data-close-tab="${p}" aria-label="${PAGE[p]} lap bezárása">×</button>`}</div>`).join('');
+      ${p === 'overview' ? '' : `<button type="button" class="x" data-close-tab="${p}" aria-label="${esc(tpl('closeTab', { oldal: PAGE[p] }))}">×</button>`}</div>`).join('');
   }
   /** UX-05: ugyanaz a munkalap nem nyílik meg kétszer; fiókváltáskor új lap-készlet indul. */
   function go(page) {
@@ -389,10 +443,32 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     return `<div class="pagehead"><div><div class="eyebrow">${esc(accountName())}</div><h1>${esc(title)}</h1>
       ${lead ? `<p>${esc(lead)}</p>` : ''}</div>${action || ''}</div>`;
   }
+  /**
+   * A MEZŐ / MŰVELET MELLETTI KÉRDŐJEL (R89 §4): ugyanazt a segítség-panelt nyitja, mindjárt az
+   * ADOTT témán. Nem külön súgó-rendszer — EGY panel, egy tudásforrás (SEG-01).
+   */
+  const helpDot = (featureId) => `<button type="button" class="helpdot" data-action="help-topic"
+    data-topic="${esc(featureId)}" data-testid="helpdot-${esc(featureId)}"
+    aria-label="${esc(HELP.fieldHelpAria)}" title="${esc(HELP.fieldHelpAria)}">?</button>`;
   function emptyBox(title, lead, action) {
     return `<div class="empty"><h2>${esc(title)}</h2><p>${esc(lead)}</p>${action || ''}</div>`;
   }
-  const demoBadge = () => `<span class="badge gray">${STATE.demo}</span>`;
+  const demoBadge = () => `<span class="badge gray">${esc(STATE.demo)}</span>`;
+  /**
+   * A MENNYISÉG JELLEGÉNEK JELVÉNYE A KÓDBÓL DÖNT, NEM A FELIRATBÓL (R89 §5 · KUKA-214 osztálya).
+   *
+   * A LELET, amit ez lezár (a SAJÁT R89-es mérésem): a korábbi alak a MAGYAR feliratot hasonlította
+   * (`x.quality === 'Mért'`), ezért angolul és németül egyetlen sor sem került volna a „mért" ágra —
+   * minden mennyiség „ismeretlen"-nek LÁTSZOTT volna, holott a fixtúra mérte. A fordítás így nem
+   * csak szöveget, hanem a képernyő ÁLLÍTÁSÁT is elrontotta volna (KUKA-066: a hamis adat nem
+   * hibának látszik, hanem adatnak).
+   */
+  const qualityBadge = (code) => {
+    const nev = QUALITY[code];
+    if (code === 'mert') return `<span class="badge ok">${esc(nev)}</span>`;
+    if (code === 'becsult') return `<span class="badge wait">${esc(nev)}</span>`;
+    return `<span class="badge gray">${esc(nev || STATE.notGiven)}</span>`;
+  };
   /** A FIÓKHOZ RENDELT mintacsomag (KIMONDOTT hozzárendelés, nem számítás — R83/F83-03). */
   /** A FIÓKHOZ RÖGZÍTETT bemutató-csomag azonosítója — a SZERVER válaszából (DEM-02, R85/F83-03). */
   const demoFixture = () => {
@@ -404,7 +480,7 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
   /** NINCS HOZZÁRENDELVE? Akkor a lap ezt KIMONDJA — nem rajzol másik cég adatát (KUKA-066). */
   const noDemoBox = () => `<div class="empty" data-testid="demo-empty"><h2>${esc(STATE.demoNone)}</h2>
       <p>${esc(STATE.demoNoneLead)}</p></div>`;
-  const techDetails = (obj) => `<details class="tech"><summary>Technikai részletek</summary><pre>${esc(JSON.stringify(obj, null, 2))}</pre></details>`;
+  const techDetails = (obj) => `<details class="tech"><summary>${esc(UI.technicalDetails)}</summary><pre>${esc(JSON.stringify(obj, null, 2))}</pre></details>`;
 
   /**
    * A LISTÁK KÖZÖS RAJZOLÓJA — sorra kattintható RÉSZLETEZŐ panellel (R83/F83-04).
@@ -414,45 +490,45 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
    * (se mozgás, se könyvelés, se írás), és a panel ezt KIMONDJA.
    */
   const ROW_DEF = Object.freeze({
-    products: { cols: ['Termék', 'Kód', 'Típus', 'Raktár'], of: (d) => d.products,
+    products: { cols: () => [UI.colProduct, UI.colCode, UI.colKind, UI.colWarehouse], of: (d) => d.products,
       row: (p) => [`<strong>${esc(p.name)}</strong>`, esc(p.code), esc(p.kind), esc(p.warehouse)] },
-    partners: { cols: ['Partner', 'Kapcsolat', 'Ország'], of: (d) => d.partners,
+    partners: { cols: () => [UI.colPartner, UI.colContact, UI.colCountry], of: (d) => d.partners,
       row: (p) => [`<strong>${esc(p.name)}</strong>`, esc(p.kind), esc(p.country)] },
-    warehouses: { cols: ['Raktár', 'Típus', 'Itt tartott mintatételek'], of: (d) => d.warehouses,
-      row: (wh, d) => [`<strong>${esc(wh.name)}</strong>`, esc(wh.kind), `${d.products.filter((x) => x.warehouse === wh.name).length} tétel`] },
-    processes: { cols: ['Folyamat', 'Megnevezés', 'Állapot', 'Időpont'], of: (d) => d.processes,
+    warehouses: { cols: () => [UI.colWarehouse, UI.colKind, UI.colSamplesHere], of: (d) => d.warehouses,
+      row: (wh, d) => [`<strong>${esc(wh.name)}</strong>`, esc(wh.kind), esc(tpl('itemCount', { n: d.products.filter((x) => x.warehouse === wh.name).length }))] },
+    processes: { cols: () => [UI.colProcess, UI.colName, UI.colState, UI.colWhen], of: (d) => d.processes,
       row: (p) => [`<strong>${esc(p.code)}</strong>`, esc(p.name), `<span class="badge">${esc(p.state)}</span>`, esc(whenText(p.at))] },
-    documents: { cols: ['Bizonylat', 'Típus', 'Partner', 'Időpont'], of: (d) => d.documents,
+    documents: { cols: () => [UI.colDocument, UI.colKind, UI.colPartner, UI.colWhen], of: (d) => d.documents,
       row: (x) => [`<strong>${esc(x.code)}</strong>`, esc(x.kind), esc(x.partner), esc(whenText(x.at))] },
   });
 
   function tablePage(page) {
     const def = ROW_DEF[page];
-    if (!def) return head(PAGE[page] || page, 'Ez a nézet ebben a bemutatóban még nem épült meg.') + emptyBox('Nincs megjeleníthető tartalom', 'A menüből másik nézetet nyithatsz meg.');
+    if (!def) return head(PAGE[page] || page, UI.notBuiltLead) + emptyBox(UI.notBuiltTitle, UI.notBuiltBox);
     const d = demoSet();
     const all = def.of(d);
-    if (!all.length) return head(PAGE[page], 'Bemutatóadatok a V2-ből ismert elrendezésben.') + noDemoBox();
-    const q = state.search.toLocaleLowerCase('hu');
+    if (!all.length) return head(PAGE[page], UI.demoListLead) + noDemoBox();
+    const q = state.search.toLocaleLowerCase(currentLang());
     // A FOLYAMATOK ÁLLAPOT-SZŰRÉSE (R83/F83-04): a választható értékek a MEGLÉVŐ sorokból jönnek —
     // nem találunk ki állapot-listát, amit a mintaadat nem tartalmaz (KUKA-050).
     const states = page === 'processes' ? [...new Set(all.map((x) => x.state))] : [];
     const kept = all.map((item, i) => ({ item, i }))
       .filter(({ item }) => !(page === 'processes' && state.processState) || item.state === state.processState);
     const visible = kept.filter(({ item }) => !q
-      || Object.values(item).join(' ').toLocaleLowerCase('hu').includes(q));
-    const szuro = states.length ? `<label class="inline">Állapot
-        <select data-testid="process-state"><option value="">Mind (${all.length})</option>
-        ${states.map((st) => `<option value="${esc(st)}" ${state.processState === st ? 'selected' : ''}>${esc(st)} (${all.filter((x) => x.state === st).length})</option>`).join('')}</select></label>` : '';
-    return head(PAGE[page], 'Bemutatóadatok a V2-ből ismert elrendezésben. A sorra kattintva a részletek is megnyílnak.')
+      || Object.values(item).join(' ').toLocaleLowerCase(currentLang()).includes(q));
+    const szuro = states.length ? `<label class="inline">${esc(UI.stateFilter)}
+        <select data-testid="process-state"><option value="">${esc(tpl('allOf', { n: all.length }))}</option>
+        ${states.map((st) => `<option value="${esc(st)}" ${state.processState === st ? 'selected' : ''}>${esc(tpl('stateWithCount', { allapot: st, n: all.filter((x) => x.state === st).length }))}</option>`).join('')}</select></label>` : '';
+    return head(PAGE[page], UI.demoListLeadRows)
       + `<div class="tablebox"><div class="toolbar">
-          <input data-testid="list-search" aria-label="Keresés a listában" placeholder="Keresés a listában…" value="${esc(state.search)}">
+          <input data-testid="list-search" aria-label="${esc(UI.searchInList)}" placeholder="${esc(UI.searchInListPlaceholder)}" value="${esc(state.search)}">
           ${szuro}${demoBadge()}</div>
-        <div class="table-scroll"><table><thead><tr>${def.cols.map((c) => `<th>${c}</th>`).join('')}<th><span class="sr-only">Részletek</span></th></tr></thead>
+        <div class="table-scroll"><table><thead><tr>${def.cols().map((c) => `<th>${esc(c)}</th>`).join('')}<th><span class="sr-only">${esc(UI.details)}</span></th></tr></thead>
         <tbody data-testid="list-rows">${visible.length ? visible.map(({ item, i }) => `<tr data-testid="row-${page}-${i}">${def.row(item, d).map((c) => `<td>${c}</td>`).join('')}
             <td><button type="button" class="plain" data-action="row-open" data-list="${page}" data-row="${i}"
-              data-testid="row-open-${page}-${i}">Részletek</button></td></tr>`).join('')
-          : `<tr><td colspan="${def.cols.length + 1}">${STATE.noResult}
-              <button type="button" class="plain" data-action="clear-search">Szűrők törlése</button></td></tr>`}</tbody></table></div>
+              data-testid="row-open-${page}-${i}">${esc(UI.details)}</button></td></tr>`).join('')
+          : `<tr><td colspan="${def.cols().length + 1}">${esc(STATE.noResult)}
+              <button type="button" class="plain" data-action="clear-search">${esc(UI.clearFilters)}</button></td></tr>`}</tbody></table></div>
         <div class="tablefoot">${esc(tpl('rowCount', { n: visible.length }))}</div></div>`;
   }
 
@@ -465,60 +541,60 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     const line = (nev, ertek) => `<div class="splitline"><span>${esc(nev)}</span><strong>${esc(ertek ?? STATE.notGiven)}</strong></div>`;
     let body = '';
     if (list === 'products') {
-      body = line('Kód', item.code) + line('Típus', item.kind) + line('Raktár', item.warehouse)
-        + line('Mennyiség', item.qty === null ? STATE.unknownQty : `${item.qty} ${item.unit || STATE.noUnit}`)
-        + line('Mennyiség jellege', QUALITY_LABEL[item.quality])
-        + line('Egységár', item.price === null ? STATE.noPrice : `${item.price} ${item.currency}`);
+      body = line(UI.colCode, item.code) + line(UI.colKind, item.kind) + line(UI.colWarehouse, item.warehouse)
+        + line(UI.colQty, item.qty === null ? STATE.unknownQty : `${item.qty} ${item.unit || STATE.noUnit}`)
+        + line(UI.colQtyQuality, QUALITY[item.quality])
+        + line(UI.colUnitPrice, item.price === null ? STATE.noPrice : `${item.price} ${item.currency}`);
     } else if (list === 'partners') {
-      body = line('Kapcsolat', item.kind) + line('Ország', item.country);
+      body = line(UI.colContact, item.kind) + line(UI.colCountry, item.country);
     } else if (list === 'warehouses') {
       const itt = d.products.filter((x) => x.warehouse === item.name);
-      body = line('Típus', item.kind) + line('Itt tartott mintatételek', `${itt.length} tétel`)
-        + `<h3>Tételek ebben a raktárban</h3><ul class="menu-list" data-testid="warehouse-items">${itt.length
+      body = line(UI.colKind, item.kind) + line(UI.colSamplesHere, tpl('itemCount', { n: itt.length }))
+        + `<h3>${esc(UI.detailItemsHere)}</h3><ul class="menu-list" data-testid="warehouse-items">${itt.length
           ? itt.map((x) => `<li><span>${esc(x.name)}</span> <small>${esc(x.qty === null ? STATE.unknownQty : `${x.qty} ${x.unit || STATE.noUnit}`)}</small></li>`).join('')
           : `<li class="muted">${STATE.empty}</li>`}</ul>`;
     } else if (list === 'processes') {
-      body = line('Megnevezés', item.name) + line('Állapot', item.state) + line('Időpont', whenText(item.at));
+      body = line(UI.colName, item.name) + line(UI.colState, item.state) + line(UI.colWhen, whenText(item.at));
     } else if (list === 'documents') {
-      body = line('Típus', item.kind) + line('Partner', item.partner) + line('Időpont', whenText(item.at));
+      body = line(UI.colKind, item.kind) + line(UI.colPartner, item.partner) + line(UI.colWhen, whenText(item.at));
     }
     openPanel(panelHead(item.name || item.code, STATE.demo)
       + `<div data-testid="detail-body">${body}</div>
-      <p class="muted" style="font-size:13px">Ez bemutató tétel: a rendszer ehhez nem végez üzleti műveletet.</p>
+      <p class="muted" style="font-size:13px">${esc(UI.detailDemoNote)}</p>
       ${techDetails({ list, index: Number(idx), demo_fixture: demoName(), row: item })}
-      <div class="buttonrow"><button type="button" data-action="panel-close">Bezárás</button></div>`);
+      <div class="buttonrow"><button type="button" data-action="panel-close">${esc(UI.close)}</button></div>`);
   }
 
   function overviewPage() {
     if (isPersonal()) {
-      return head(PAGE.overview, 'Itt találod a saját ügyeidet. Vállalkozást később is hozzáadhatsz.')
-        + `<div class="grid"><section class="card"><h2>Személyes fiók</h2>
-            <p class="muted">A fiókod készen áll. A vállalkozásaidat a fejléc fiókválasztójából éred el.</p>
-            <button type="button" data-go="personal" class="primary">${PAGE.personal} megnyitása</button></section>
-          <section class="card"><h2>Vállalkozást is kezelsz?</h2>
-            <p class="muted">Ugyanezzel a belépéssel hozzáadhatod. A személyes fiókod megmarad.</p>
-            <button type="button" data-go="new">${PAGE.new}</button></section></div>`;
+      return head(PAGE.overview, UI.overviewPersonalLead)
+        + `<div class="grid"><section class="card"><h2>${esc(STATE.personalAccount)}</h2>
+            <p class="muted">${esc(UI.personalReady)}</p>
+            <button type="button" data-go="personal" class="primary">${esc(tpl('openPage', { oldal: PAGE.personal }))}</button></section>
+          <section class="card"><h2>${esc(UI.alsoBusiness)}</h2>
+            <p class="muted">${esc(UI.alsoBusinessLead)}</p>
+            <button type="button" data-go="new">${esc(PAGE.new)}</button></section></div>`;
     }
     const demo = demoSet();
     const justCreated = state.afterCreate ? `<section class="card" data-testid="after-create">
         <h2>${esc(STATE.inviteAsk)}</h2>
-        <p class="muted">Ha egyedül dolgozol, ezt a lépést nyugodtan kihagyhatod.</p>
-        <div class="buttonrow">${isAdmin() ? `<button type="button" class="primary" data-action="invite-from-create" data-testid="after-create-invite">Felhasználó meghívása</button>` : ''}
+        <p class="muted">${esc(UI.afterCreateLead)}</p>
+        <div class="buttonrow">${isAdmin() ? `<button type="button" class="primary" data-action="invite-from-create" data-testid="after-create-invite">${esc(UI.inviteUser)}</button>` : ''}
           <button type="button" data-action="dismiss-after-create" data-testid="after-create-skip">${esc(STATE.inviteSkip)}</button></div></section>` : '';
-    return head(PAGE.overview, 'A napi munka és a következő teendők.')
+    return head(PAGE.overview, UI.overviewLead)
       + justCreated
       + `<div class="stats">
-          <div class="card stat"><span>Folyamatban lévő munkák</span><strong>${demo.processes.filter((p) => p.state === 'Folyamatban').length}</strong></div>
-          <div class="card stat"><span>Megjelenített termékek</span><strong>${demo.products.length}</strong></div>
-          <div class="card stat"><span>Szerepköröd</span><strong>${esc(ROLE[state.me.current_role] || state.me.current_role || '—')}</strong></div>
+          <div class="card stat"><span>${esc(UI.statProcesses)}</span><strong>${demo.processes.filter((p) => p.state === 'Folyamatban').length}</strong></div>
+          <div class="card stat"><span>${esc(UI.statProducts)}</span><strong>${demo.products.length}</strong></div>
+          <div class="card stat"><span>${esc(UI.statRole)}</span><strong>${esc(ROLE[state.me.current_role] || state.me.current_role || '—')}</strong></div>
         </div>
         <div class="grid">
-          <section class="card"><h2>Következő teendők</h2>
-            <p class="muted">A készlet- és ármegtekintést a fiókkezelő felhasználónként engedélyezi.</p>
-            <div class="buttonrow"><button type="button" data-go="stock" class="primary">${PAGE.stock}</button>
-            ${isAdmin() ? `<button type="button" data-go="members">${PAGE.members}</button>` : ''}</div></section>
-          <section class="card"><h2>Aktív fiók</h2><p><strong>${esc(accountName())}</strong></p>
-            <p class="muted">Másik fiókra a fejléc fiókválasztójával válthatsz.</p>${demoBadge()}</section>
+          <section class="card"><h2>${esc(UI.nextTasks)}</h2>
+            <p class="muted">${esc(UI.nextTasksLead)}</p>
+            <div class="buttonrow"><button type="button" data-go="stock" class="primary">${esc(PAGE.stock)}</button>
+            ${isAdmin() ? `<button type="button" data-go="members">${esc(PAGE.members)}</button>` : ''}</div></section>
+          <section class="card"><h2>${esc(UI.activeAccountCard)}</h2><p><strong>${esc(accountName())}</strong></p>
+            <p class="muted">${esc(UI.switchAccountLead)}</p>${demoBadge()}</section>
         </div>`;
   }
 
@@ -535,6 +611,18 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
    * (KUKA-003: a több helyen igaz szabály EGY helyen él).
    */
   function resetViewCaches() {
+    // A SEGÉD ÁLLAPOTA IS NÉZETHEZ KÖTÖTT (KUKA-218: minden nézethez kötött tár EGY helyen ürül).
+    // A beszélgetés, a tudás-index, az engedélyezett műveletek és a futó bemutató MIND a megnyitáskori
+    // személy + fiók párhoz tartozik — a fiókváltás vagy a másik ember belépése után egyik sem élhet
+    // tovább (R89 §6: „Kijelentkezés vagy személyváltás után más nem láthatja az előző felhasználó
+    // kitöltését és beszélgetését").
+    state.chat = emptyChat();
+    state.astStatus = null;
+    state.helpIndex = null;
+    state.tour = null; state.tourBlocked = null; state.tourFinished = false; state.tourAborted = null;
+    state.help = { open: false, view: 'ask', topic: null, search: '', faqSearch: '', faqOpen: null };
+    tourMod.clearHighlight();
+    closeHelp();
     state.members = [];
     state.panels = { stock: null, price: null, members: null };
     state.access = { stock: { state: 'unknown' } };
@@ -564,30 +652,30 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
   function stockGate(testid) {
     const a = state.access.stock;
     if (a.state === 'granted') return null;
-    if (a.state === 'unbound') return `<div class="notice warn" data-testid="${testid}-unbound">${esc(unboundMessage(a.why))}</div>`;
+    if (a.state === 'unbound') return `<div class="notice warn" data-testid="${testid}-unbound">${esc(unboundMessage(a.why, UNBOUND))}</div>`;
     // AZ OLVASÁS EL SEM JUTOTT (R85/F85-04): olvasásnál ez ELDÖNTHETŐ hiány — nem változtattunk
     // semmit, tehát a lap nyugodtan kimondhatja, és ugyanazzal a gombbal újra lehet próbálni.
     if (a.state === 'network') {
-      return `<div class="empty" data-testid="${testid}-network"><h2>${esc(reasonText('network_error'))}</h2>
-          <p>A készletadatokat nem kérdeztük le. Semmi nem változott.</p>
-          <button type="button" data-action="reload-stock">Frissítés</button></div>`;
+      return `<div class="empty" data-testid="${testid}-network"><h2>${esc(STATE.stockLoadFailed)}</h2>
+          <p>${esc(STATE.stockLoadFailedLead)}</p>
+          <button type="button" data-action="reload-stock">${esc(UI.refresh)}</button></div>`;
     }
     if (a.state === 'denied') {
       return `<div class="empty" data-testid="${testid}-denied" data-gate="${esc(a.gate || '')}">
-          <h2>A készletadatokhoz még nincs hozzáférésed</h2>
-          <p>${esc(reasonText(a.reason, 'A fiókkezelő tudja engedélyezni a megtekintésüket.'))}</p>
-          <button type="button" data-action="reload-stock">Frissítés</button></div>
+          <h2>${esc(UI.stockNoAccessTitle)}</h2>
+          <p>${esc(reasonText(a.reason, UI.stockNoAccessLead))}</p>
+          <button type="button" data-action="reload-stock">${esc(UI.refresh)}</button></div>
         ${techDetails({ ok: false, refused_by: a.gate ?? null, reason: a.reason ?? null, detail: a.detail ?? null, demo_fixture: demoName() })}`;
     }
     return `<p data-testid="${testid}-loading">${STATE.loading}</p>`;
   }
 
   function stockPage() {
-    return head(PAGE.stock, 'Mennyiségek raktáranként. Az ismeretlen mennyiség nem nulla.',
-      '<button type="button" class="primary" data-action="reload-stock" data-testid="data-stock-btn">Frissítés</button>')
+    return head(PAGE.stock, UI.stockLead,
+      `${helpDot('data.stock')}<button type="button" class="primary" data-action="reload-stock" data-testid="data-stock-btn">${esc(UI.refresh)}</button>`)
       + `<div data-testid="data-stock">${stockBody()}</div>
-         <section class="card" style="margin-top:20px"><div class="cardhead"><h2>Árak</h2>
-           <button type="button" data-action="reload-price" data-testid="data-price-btn">Frissítés</button></div>
+         <section class="card" style="margin-top:20px"><div class="cardhead"><h2>${esc(UI.prices)}</h2>
+           <button type="button" data-action="reload-price" data-testid="data-price-btn">${esc(UI.refresh)}</button></div>
            <div data-testid="data-price">${state.panels.price ?? STATE.loading}</div></section>`;
   }
 
@@ -650,22 +738,22 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     const d = demoSet();
     const rows = d.products.filter((p) => p.kind !== 'Szolgáltatás').map((p) => ({
       name: p.name, code: p.code, warehouse: p.warehouse,
-      qty: p.qty === null ? STATE.unknownQty : p.qty, unit: p.unit || STATE.noUnit, quality: QUALITY_LABEL[p.quality],
+      qty: p.qty === null ? STATE.unknownQty : p.qty, unit: p.unit || STATE.noUnit, quality: p.quality,
     }));
     // A MAGTÓL KAPOTT SOR: „Bemutató tétel", és amit a válasz NEM mond meg, az „Nincs megadva" —
     // sem raktárt, sem mérési eredetet nem tulajdonítunk neki (R83/F83-03 · UX-19).
     if (a.coreQty) {
       rows.unshift({ name: STATE.demoItem, code: STATE.notGiven, warehouse: STATE.notGiven,
-        qty: a.coreQty, unit: STATE.noUnit, quality: STATE.notGiven });
+        qty: a.coreQty, unit: STATE.noUnit, quality: null });
     }
     if (!rows.length) return noDemoBox() + techDetails({ ok: true, result: a.result, demo_fixture: demoName() });
     return `<div class="tablebox" data-testid="stock-table"><div class="toolbar">${demoBadge()}
         <span class="muted">${esc(STATE.demoItemLead)}</span></div>
-      <div class="table-scroll"><table><thead><tr><th>Termék</th><th>Raktár</th><th class="numeric">Mennyiség</th><th>Egység</th><th>Mennyiség jellege</th></tr></thead>
+      <div class="table-scroll"><table><thead><tr><th>${esc(UI.colProduct)}</th><th>${esc(UI.colWarehouse)}</th><th class="numeric">${esc(UI.colQty)}</th><th>${esc(UI.colUnit)}</th><th>${esc(UI.colQtyQuality)}</th></tr></thead>
       <tbody>${rows.map((x) => `<tr><td><strong>${esc(x.name)}</strong><small>${esc(x.code)}</small></td><td>${esc(x.warehouse)}</td>
         <td class="numeric">${esc(x.qty)}</td><td>${esc(x.unit)}</td>
-        <td>${x.quality === 'Mért' ? '<span class="badge ok">Mért</span>' : x.quality === 'Becsült' ? '<span class="badge wait">Becsült</span>' : `<span class="badge gray">${esc(x.quality)}</span>`}</td></tr>`).join('')}
-      </tbody></table></div><div class="tablefoot">${rows.length} sor · különböző mértékegységű mennyiségeket nem adunk össze.</div></div>
+        <td>${qualityBadge(x.quality)}</td></tr>`).join('')}
+      </tbody></table></div><div class="tablefoot">${esc(tpl('rowsAndUnits', { n: rows.length }))}</div></div>
       ${techDetails({ ok: true, result: a.result, served_book_id: a.servedBook, served_subject_id: a.servedSubject, demo_fixture: demoName() })}`;
   }
 
@@ -681,7 +769,7 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     if (!verdict.bound) {
       // UGYANAZ A SZABÁLY MINDKÉT PANELEN (KUKA-039): a kötetlen válasz nem rajzol, és a lap
       // KIMONDJA, mi változott — nem néma képernyő (R81 §5/15 · KUKA-201).
-      setPanel('price', 'data-price', `<p class="muted">${esc(unboundMessage(verdict.why))}</p>`);
+      setPanel('price', 'data-price', `<p class="muted">${esc(unboundMessage(verdict.why, UNBOUND))}</p>`);
       await contextChangedNotice(verdict.why);
       return;
     }
@@ -690,14 +778,14 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
       const ent = r.refused_by === 'entitlement' || r.refused_by === 'both';
       setPanel('price', 'data-price', `<p data-testid="price-denied" data-gate="${esc(r.refused_by || '')}">${esc(ent
         ? (isAdmin() ? STATE.planMissingAdmin : STATE.planMissingMember)
-        : reasonText(r.right_reason === 'no_scope_grant' || r.right_reason === 'not_available' ? 'no_scope_grant' : r.right_reason, 'Az árak megtekintése nincs engedélyezve.'))}</p>
-        ${ent && isAdmin() ? `<button type="button" data-go="plan">${PAGE.plan} megnyitása</button>` : ''}
+        : reasonText(r.right_reason === 'no_scope_grant' || r.right_reason === 'not_available' ? 'no_scope_grant' : r.right_reason, UI.priceNotAllowed))}</p>
+        ${ent && isAdmin() ? `<button type="button" data-go="plan">${esc(tpl('openPage', { oldal: PAGE.plan }))}</button>` : ''}
         ${techDetails({ refused_by: r.refused_by, right_reason: r.right_reason ?? null, entitlement_reason: r.entitlement_reason ?? null, message: r.message ?? null })}`);
       return;
     }
     const price = r.result && r.result.unit_price !== undefined && r.result.unit_price !== null ? String(r.result.unit_price) : null;
     setPanel('price', 'data-price', `<p data-testid="price-value"><strong>${esc(STATE.demoItem)}</strong> · ${esc(price ?? STATE.noPrice)} <span class="muted">(${STATE.noCurrency})</span></p>
-      <p class="muted">A hiányzó ár nem 0: ahol nincs megadva, ott „${STATE.noPrice}" áll.</p>
+      <p class="muted">${esc(UI.priceMissingNote)}</p>
       ${techDetails({ ok: r.ok, result: r.result ?? null, served_book_id: r.served_book_id ?? null, served_subject_id: r.served_subject_id ?? null })}`);
   }
 
@@ -709,12 +797,12 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
    * nézet kötése), és NYERS meghívó-token nem kerül bele — a token a levél titka (KUKA-006).
    */
   function membersPage() {
-    if (!isAdmin()) return head(PAGE.members) + emptyBox('Ehhez a beállításhoz nincs hozzáférésed', 'A fiókkezelő tud segíteni.');
+    if (!isAdmin()) return head(PAGE.members) + emptyBox(UI.membersNoAccessTitle, UI.membersNoAccessLead);
     const fül = (kulcs, cimke) => `<button type="button" role="tab" data-action="members-tab" data-mtab="${kulcs}"
       data-testid="members-tab-${kulcs}" aria-selected="${state.membersTab === kulcs}" class="${state.membersTab === kulcs ? 'current' : ''}">${cimke}</button>`;
     const varakozo = state.membersTab === 'invites';
-    return head(PAGE.members, 'Itt kezelheted, ki fér hozzá a fiókhoz és az adatokhoz.',
-      '<button type="button" class="primary" data-action="invite-open" data-testid="invite-open">+ Felhasználó meghívása</button>')
+    return head(PAGE.members, UI.membersLead,
+      `${helpDot('invite.send')}<button type="button" class="primary" data-action="invite-open" data-testid="invite-open">${esc(UI.inviteUserButton)}</button>`)
       + '<p class="notice" data-testid="members-result" hidden></p>'
       + `<div class="subtabs" role="tablist">${fül('members', PAGE.members)}${fül('invites', STATE.invitePending)}</div>`
       + (varakozo
@@ -726,15 +814,15 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
   function invitesBody() {
     const list = state.invites;
     if (list === null) return `<p data-testid="invites-loading">${esc(STATE.invitesLoading)}</p>`;
-    if (!list.length) return emptyBox(STATE.invitePendingEmpty, 'A „Felhasználó meghívása" gombbal küldhetsz újat.');
+    if (!list.length) return emptyBox(STATE.invitePendingEmpty, UI.inviteEmptyLead);
     return `<div class="tablebox" data-testid="invites-table"><div class="table-scroll"><table>
-      <thead><tr><th>Meghívott cím</th><th>Szerepkör</th><th>Meghívta</th><th>Érvényesség</th><th>Állapot</th></tr></thead>
+      <thead><tr><th>${esc(UI.colInvitedEmail)}</th><th>${esc(UI.colRole)}</th><th>${esc(UI.colInvitedBy)}</th><th>${esc(UI.colValidUntil)}</th><th>${esc(UI.colState)}</th></tr></thead>
       <tbody>${list.map((x) => `<tr data-testid="invite-row-${esc(x.ref)}">
         <td><strong>${esc(x.email || STATE.notGiven)}</strong></td><td>${esc(ROLE[x.role] || x.role)}</td>
         <td>${esc(x.invited_by || STATE.notGiven)}</td><td>${esc(whenText(x.expires_at))}</td>
-        <td>${x.expired ? '<span class="badge gray">Lejárt</span>' : '<span class="badge wait">Elfogadásra vár</span>'}</td></tr>`).join('')}
+        <td>${x.expired ? `<span class="badge gray">${esc(UI.inviteExpired)}</span>` : `<span class="badge wait">${esc(UI.inviteWaiting)}</span>`}</td></tr>`).join('')}
       </tbody></table></div>
-      <div class="tablefoot">A meghívó hivatkozása csak a levélben szerepel — itt nem jelenítjük meg.</div></div>`;
+      <div class="tablefoot">${esc(UI.inviteTokenNote)}</div></div>`;
   }
 
   /** A VÁRAKOZÓ MEGHÍVÁSOK LEKÉRÉSE — ugyanazzal a nézet-kötéssel, mint a tagoké (KTX-02). */
@@ -757,23 +845,23 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     const r = await api('GET', '/api/members' + readQuery(null, v));
     if (gen !== state.generation || state.page !== 'members') return;
     const verdict = contextBindingVerdict(r, v);
-    if (!verdict.bound) { setPanel('members', 'members-list', `<div class="notice warn">${esc(unboundMessage(verdict.why))}</div>`); await contextChangedNotice(verdict.why); return; }
+    if (!verdict.bound) { setPanel('members', 'members-list', `<div class="notice warn">${esc(unboundMessage(verdict.why, UNBOUND))}</div>`); await contextChangedNotice(verdict.why); return; }
     if (!r.ok) { setPanel('members', 'members-list', `<div class="empty"><h2>${esc(STATE.noAccess)}</h2><p>${esc(reasonText(r.reason))}</p></div>`); return; }
     state.members = r.members || [];
     const cell = (m, k) => (m.effective
-      ? (m.scopes && m.scopes[k] && m.scopes[k].granted ? '<span class="badge ok">Megtekintheti</span>' : '<span class="badge wait">Nincs engedélyezve</span>')
-      : '<span class="badge gray">Nincs hozzáférés</span>');
+      ? (m.scopes && m.scopes[k] && m.scopes[k].granted ? `<span class="badge ok">${esc(UI.canView)}</span>` : `<span class="badge wait">${esc(UI.notAllowed)}</span>`)
+      : `<span class="badge gray">${esc(UI.noAccessBadge)}</span>`);
     const rows = state.members.map((m) => `<tr data-testid="member-${esc(m.subject_id)}">
-        <td><strong>${esc(m.email || 'ismeretlen cím')}</strong></td>
+        <td><strong>${esc(m.email || UI.unknownEmail)}</strong></td>
         <td>${esc(ROLE[m.role] || m.role)}</td>
         <td>${cell(m, 'keszlet')}</td><td>${cell(m, 'arak')}</td>
-        <td>${m.effective ? '<span class="badge ok">Aktív</span>' : '<span class="badge gray">Megszüntetve</span>'}</td>
-        <td><button type="button" data-action="member-open" data-subject="${esc(m.subject_id)}" data-testid="member-open-${esc(m.subject_id)}">Hozzáférés</button></td>
+        <td>${m.effective ? `<span class="badge ok">${esc(UI.active)}</span>` : `<span class="badge gray">${esc(UI.revoked)}</span>`}</td>
+        <td><button type="button" data-action="member-open" data-subject="${esc(m.subject_id)}" data-testid="member-open-${esc(m.subject_id)}">${esc(UI.accessButton)}</button></td>
       </tr>`).join('');
     setPanel('members', 'members-list', `<div class="tablebox"><div class="table-scroll"><table>
-      <thead><tr><th>Felhasználó</th><th>Szerepkör</th><th>${SCOPE.keszlet}</th><th>${SCOPE.arak}</th><th>Állapot</th><th><span class="sr-only">Műveletek</span></th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="6">${STATE.noMembers}</td></tr>`}</tbody></table></div>
-      <div class="tablefoot">A tagság és az adatok megtekintésének engedélye két külön állapot.</div></div>`);
+      <thead><tr><th>${esc(UI.colUser)}</th><th>${esc(UI.colRole)}</th><th>${esc(SCOPE.keszlet)}</th><th>${esc(SCOPE.arak)}</th><th>${esc(UI.colState)}</th><th><span class="sr-only">${esc(UI.colActions)}</span></th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="6">${esc(STATE.noMembers)}</td></tr>`}</tbody></table></div>
+      <div class="tablefoot">${esc(UI.membersFoot)}</div></div>`);
   }
 
   /**
@@ -788,72 +876,97 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
   }
 
   // ── PANELEK ─────────────────────────────────────────────────────────────────────────────────
+  /**
+   * A FUTÓ BEMUTATÓ ÚJRAÉRTÉKELÉSE, amikor a DOM változott (panel nyílt/zárult, súgó nyílt/zárult).
+   * MIÉRT EGY HELYEN: a bemutató célja lehet panelen BELÜL — a feltárás pillanatában a buboréknak a
+   * VALÓDI célra kell átállnia, különben a felhasználó a régi kiemelést látja (TUR-01 · KUKA-228).
+   */
+  function tourRecheck() { if (state.tour) renderTour(); }
+  /**
+   * A BUBORÉK OTTHONA — ha MODÁLIS panel van nyitva, a buborék ANNAK a gyereke lesz.
+   *
+   * MIÉRT (a saját R89-es böngésző-mérésem lelete). A meghívó-, a csomag- és a hozzáférés-panel
+   * `showModal()`-lal nyílik, tehát a párbeszéd MÖGÖTT semmi nem kattintható — a lap tetején lebegő
+   * buborék „Tovább" gombja is elérhetetlen lett. A bemutató így pontosan ott állt meg, ahol a
+   * felhasználónak a legnagyobb szüksége volt rá: a kitöltés közben (KUKA-011: hol kattint?).
+   * A párbeszéd a felső rétegben van, ezért a buborékot ODA kell tenni — nem „fölé emelni"
+   * z-index-szel, mert a felső réteg fölé z-index nem visz (mérve).
+   */
+  function hostTour() {
+    const box = byTest('tour');
+    if (!box) return null;
+    const open = [...document.querySelectorAll('dialog[open]')];
+    const host = open.length ? open[open.length - 1] : document.body;
+    if (box.parentElement !== host) host.appendChild(box);
+    return box;
+  }
   function openPanel(html, drawer = true) {
     const d = byTest('panel');
     d.className = drawer ? 'drawer' : '';
     stampEl(d);                     // A PANEL A MEGNYITÁSKORI SZEMÉLYHEZ ÉS FIÓKHOZ TARTOZIK (PNL-01)
     byTest('panel-body').innerHTML = html;
     if (!d.open) d.showModal();
+    tourRecheck();
   }
   function closePanel() { const d = byTest('panel'); if (d && d.open) d.close(); }
   // A PANEL TARTALMA A BEZÁRÁSSAL ELTŰNIK — Esc-re is. A rejtett, de meglévő űrlap ugyanúgy a lap
   // része (a böngésző kitöltője és a képernyőolvasó is megtalálja), ezért nem hagyjuk ott.
   const panelEl = byTest('panel');
-  if (panelEl) panelEl.addEventListener('close', () => { const b = byTest('panel-body'); if (b) b.innerHTML = ''; });
+  if (panelEl) panelEl.addEventListener('close', () => { const b = byTest('panel-body'); if (b) b.innerHTML = ''; tourRecheck(); });
   function panelHead(title, lead) {
     return `<div class="dialoghead"><div><small>${esc(accountName())}</small><h2>${esc(title)}</h2>
       ${lead ? `<p class="muted">${esc(lead)}</p>` : ''}</div>
-      <button type="button" class="x" data-action="panel-close" aria-label="Bezárás">×</button></div>`;
+      <button type="button" class="x" data-action="panel-close" aria-label="${esc(UI.close)}">×</button></div>`;
   }
 
   function invitePanel() {
-    openPanel(panelHead('Felhasználó meghívása', 'A meghívott a fiók adataihoz külön engedéllyel fér hozzá.')
+    openPanel(panelHead(UI.inviteTitle, UI.inviteLead)
       + `<form class="form" data-testid="invite-form">
-        <label>E-mail-cím<input type="email" name="email" required data-testid="invite-email" autocomplete="off" placeholder="pelda@example.test"></label>
-        <label>Szerepkör<select name="role" data-testid="invite-role"><option value="user">${ROLE.user}</option><option value="admin">${ROLE.admin}</option></select>
+        <label>${esc(UI.email)}<input type="email" name="email" required data-testid="invite-email" autocomplete="off" placeholder="pelda@example.test"></label>
+        <label>${esc(UI.role)}<select name="role" data-testid="invite-role"><option value="user">${esc(ROLE.user)}</option><option value="admin">${esc(ROLE.admin)}</option></select>
           <small>${esc(STATE.inviteRoleHelp)}</small></label>
-        <label>${esc(STATE.inviteScopeQuestion)}<select name="scope" data-testid="invite-scope"><option value="keszlet">${SCOPE.keszlet}</option><option value="arak">${SCOPE.arak}</option></select>
+        <label>${esc(STATE.inviteScopeQuestion)}<select name="scope" data-testid="invite-scope"><option value="keszlet">${esc(SCOPE.keszlet)}</option><option value="arak">${esc(SCOPE.arak)}</option></select>
           <small>${esc(STATE.inviteScopeHelp)}</small></label>
-        <div class="buttonrow"><button type="submit" class="primary" data-testid="invite-submit">Meghívó létrehozása</button>
-          <button type="button" data-action="panel-close">Mégse</button></div>
+        <div class="buttonrow"><button type="submit" class="primary" data-testid="invite-submit">${esc(UI.inviteCreate)}</button>
+          <button type="button" data-action="panel-close">${esc(UI.cancel)}</button></div>
         <p class="notice" data-testid="invite-result" hidden></p>
         <!-- KÖZVETLEN ÚT A LEVÉLHEZ (R81 §8): a meghívó elkészülte után egy gomb viszi a
              próbaüzenethez — nem kell megkeresni a lap alján. Sikerig rejtve. -->
         <p hidden data-testid="invite-mail-row"><button type="button" data-action="mail-open"
-          data-testid="invite-mail-open">A meghívó levél megnyitása a Próbaüzenetek között</button></p></form>`);
+          data-testid="invite-mail-open">${esc(UI.inviteMailOpen)}</button></p></form>`);
   }
 
   function memberPanel(id) {
     const m = (state.members || []).find((x) => x.subject_id === id);
     if (!m) return;
     const scopes = m.scopes || {};
-    const row = (k) => `<div class="splitline"><div><strong>${SCOPE[k]}</strong>
-        <small>${scopes[k] && scopes[k].granted ? 'Megtekintheti' : 'Nincs engedélyezve'}</small></div>
-      ${scopes[k] && scopes[k].granted ? '<span class="badge ok">Engedélyezve</span>' : '<span class="badge wait">Nincs engedélyezve</span>'}</div>`;
+    const row = (k) => `<div class="splitline"><div><strong>${esc(SCOPE[k])}</strong>
+        <small>${esc(scopes[k] && scopes[k].granted ? UI.canView : UI.notAllowed)}</small></div>
+      ${scopes[k] && scopes[k].granted ? `<span class="badge ok">${esc(UI.allowed)}</span>` : `<span class="badge wait">${esc(UI.notAllowed)}</span>`}</div>`;
     openPanel(panelHead(tpl('memberAccessTitle', { ki: m.email || m.subject_id }))
       + `<p class="identity"><strong>${esc(m.email || m.subject_id)}</strong>
-          <small>${esc(ROLE[m.role] || m.role)} · ${m.effective ? 'Aktív' : 'Megszüntetve'}</small></p>
-      ${m.effective ? '' : '<div class="notice warn">Ennek a felhasználónak megszűnt a céges hozzáférése, ezért adatkört sem lehet neki engedélyezni.</div>'}
-      <h3>Adatok megtekintése</h3>${row('keszlet')}${row('arak')}
+          <small>${esc(ROLE[m.role] || m.role)} · ${esc(m.effective ? UI.active : UI.revoked)}</small></p>
+      ${m.effective ? '' : `<div class="notice warn">${esc(UI.memberRevokedNote)}</div>`}
+      <h3>${esc(UI.dataViewing)}</h3>${row('keszlet')}${row('arak')}
       ${m.effective ? `<form class="form" data-testid="member-scope-form" data-subject="${esc(id)}">
-        <label>Engedélyezendő adatkör
+        <label>${esc(UI.scopeToGrant)}
           <select data-testid="member-scope-select-${esc(id)}" name="scope">
-            <option value="keszlet">${SCOPE.keszlet}</option><option value="arak">${SCOPE.arak}</option></select></label>
-        <button type="submit" class="primary" data-testid="member-scope-${esc(id)}">Megtekintés engedélyezése</button>
+            <option value="keszlet">${esc(SCOPE.keszlet)}</option><option value="arak">${esc(SCOPE.arak)}</option></select></label>
+        <button type="submit" class="primary" data-testid="member-scope-${esc(id)}">${esc(UI.grantView)}</button>
         <p class="muted" style="font-size:13px">${esc(tpl('scopeOnlyHere', { nev: accountName() }))}</p></form>
-      <div class="divider"></div><h3>Hozzáférés a fiókhoz</h3>
+      <div class="divider"></div><h3>${esc(UI.accountAccess)}</h3>
       <p class="muted">${esc(STATE.revokeSectionLead)}</p>
-      <button type="button" class="danger" data-action="revoke-start" data-subject="${esc(id)}" data-testid="member-revoke-${esc(id)}">Céges hozzáférés megszüntetése</button>` : ''}
-      <div class="buttonrow"><button type="button" data-action="panel-close">Bezárás</button></div>`);
+      <button type="button" class="danger" data-action="revoke-start" data-subject="${esc(id)}" data-testid="member-revoke-${esc(id)}">${esc(UI.revokeBusinessAccess)}</button>` : ''}
+      <div class="buttonrow"><button type="button" data-action="panel-close">${esc(UI.close)}</button></div>`);
   }
 
   function revokePanel(id) {
     const m = (state.members || []).find((x) => x.subject_id === id);
-    const who = m ? (m.email || m.subject_id) : 'A felhasználó';
+    const who = m ? (m.email || m.subject_id) : UI.someUser;
     openPanel(panelHead(tpl('revokeTitle', { ki: who }))
       + `<p>${esc(tpl('revokeLead', { ki: who, nev: accountName() }))}</p>
-      <div class="buttonrow"><button type="button" data-action="member-open" data-subject="${esc(id)}">Mégse</button>
-        <button type="button" class="danger" data-action="revoke" data-subject="${esc(id)}" data-testid="revoke-confirm">Hozzáférés megszüntetése</button></div>`, false);
+      <div class="buttonrow"><button type="button" data-action="member-open" data-subject="${esc(id)}">${esc(UI.cancel)}</button>
+        <button type="button" class="danger" data-action="revoke" data-subject="${esc(id)}" data-testid="revoke-confirm">${esc(UI.revokeConfirm)}</button></div>`, false);
   }
 
   /**
@@ -865,15 +978,187 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     const r = await api('GET', '/dev/mailbox');
     const off = r.status === 404 || r.reason === 'unknown_endpoint';
     const mails = r.mails || [];
-    openPanel(panelHead('Próbaüzenetek', STATE.demoMail)
+    openPanel(panelHead(UI.mailboxTitle, STATE.demoMail)
       + (off
-        ? '<div class="notice warn">Ebben a környezetben a próbaüzenetek nem érhetők el (a bemutató levél-fogadója ki van kapcsolva).</div>'
+        ? `<div class="notice warn">${esc(UI.mailboxOff)}</div>`
         : `<ul class="maillist" data-testid="mailbox">${mails.length ? mails.map((m) => `<li data-testid="mail-${m.id}">
             <small>${esc(m.to)} · ${esc(whenText(m.at))}</small><h3>${esc(m.subject)}</h3>
             <p class="muted">${esc(m.body || '')}</p>
-            <a href="${esc(m.link)}" data-testid="mail-link-${m.id}">Megnyitás</a></li>`).join('') : `<li class="muted">${STATE.empty}</li>`}</ul>`)
-      + `<div class="buttonrow">${off ? '' : '<button type="button" data-action="mail-refresh" data-testid="mailbox-refresh">Frissítés</button>'}
-        <button type="button" data-action="panel-close">Bezárás</button></div>`);
+            <a href="${esc(m.link)}" data-testid="mail-link-${m.id}">${esc(UI.mailOpen)}</a></li>`).join('') : `<li class="muted">${esc(STATE.empty)}</li>`}</ul>`)
+      + `<div class="buttonrow">${off ? '' : `<button type="button" data-action="mail-refresh" data-testid="mailbox-refresh">${esc(UI.refresh)}</button>`}
+        <button type="button" data-action="panel-close">${esc(UI.close)}</button></div>`);
+  }
+
+  // ── SEGÍTSÉG · BEMUTATÓ · CHAT ──────────────────────────────────────────────────────────────
+  /**
+   * A SEGÍTSÉGPANEL MEGNYITÁSA. A felhasználó nyitja — magától SOHA (R89 §4). A megnyitás
+   * MODELLHÍVÁST NEM indít: legfeljebb KÉT olvasó kérést tesz (állapot + tudás-index), és azokat is
+   * csak egyszer nézetenként. A szöveg a már letöltött nyelvcsomagból jön.
+   */
+  async function openHelp(view, topic) {
+    state.help.open = true;
+    if (view) state.help.view = VIEWS.includes(view) ? view : 'ask';
+    if (topic !== undefined) state.help.topic = topic;
+    // A SÚGÓ-PANEL IS ÍRÓ FELÜLET: a kérdés `POST /api/assistant/ask`-ot indít, tehát UGYANÚGY a
+    // MEGNYITÁSKORI nézethez tartozik, mint a szerkesztő-panel és a fő tartalom (PNL-01). A bélyeg
+    // MEGNYITÁSKOR születik (nem minden rajzolásnál), és a `help-body` attribútumain áll, ezért a
+    // belső újrarajzolás nem írja felül. Bélyeg nélkül a `stampOf` „elavult szerkesztőt" mért: a
+    // kérdés EL SEM INDULT, és a lap egy MEG NEM TÖRTÉNT nézet-váltást állított (KUKA-227).
+    stampEl(byTest('help-body'));
+    renderHelp();
+    const d = byTest('help-panel');
+    if (d && !d.open) d.showModal();
+    tourRecheck();
+    await loadHelpData();
+    renderHelp();
+  }
+  function closeHelp() {
+    state.help.open = false;
+    const d = byTest('help-panel');
+    if (d && d.open) d.close();
+    tourRecheck();
+  }
+  /** A KÉT OLVASÓ KÉRÉS — nézetenként EGYSZER. A nemleges válasz NEM indít újabb kört (KUKA-209). */
+  async function loadHelpData() {
+    if (!(state.me && state.me.subject_id)) return;
+    const v = view();
+    const gen = state.generation;
+    // A NYELV IS LEKÉRDEZÉS-MEZŐ, a KÖZÖS összeállítón keresztül (KTX-02): a kötés és a nyelv EGY
+    // helyen kerül a címbe, tehát nem tud elcsúszni.
+    const q = readQuery({ lang: currentLang() }, v);
+    if (state.astStatus === null) {
+      const r = await api('GET', `/api/assistant/status${q}`);
+      if (gen !== state.generation) return;
+      state.astStatus = r && r.ok ? r : { ok: false, reason: (r && r.reason) || 'network_error', provider: { configured: false, missing: [] }, actions: [], tours: [] };
+    }
+    if (state.helpIndex === null) {
+      const r = await api('GET', `/api/assistant/knowledge${q}`);
+      if (gen !== state.generation) return;
+      state.helpIndex = r && r.ok ? r.index : [];
+    }
+  }
+  /** A funkció-címek a forrás-sorokhoz — a szerver indexéből, a mai nyelven. */
+  function featureTitles() {
+    const box = {};
+    for (const r of state.helpIndex || []) box[r.id] = r.title || r.id;
+    return box;
+  }
+  function renderHelp() {
+    const body = byTest('help-body');
+    if (!body) return;
+    // A BEZÁRT PANELT NEM RAJZOLJUK ÚJRA. A LELET (saját R89-es böngésző-mérés): a megnyitás a tudás-
+    // indexet HÁLÓZATON kéri le, és ha a felhasználó közben Esc-cel bezárta a panelt, a KÉSVE érkező
+    // válasz újra kitöltötte a `help-body`-t — a bezárt felület tartalma (fülek, gombok, a kérdés-mező)
+    // VISSZATÉRT a lapra, láthatatlanul. A rejtett, de meglévő űrlap ugyanúgy a lap része: a böngésző
+    // kitöltője és a képernyőolvasó is megtalálja (R75/F75-02 · KUKA-209 · KUKA-012).
+    if (!state.help.open) { body.innerHTML = ''; return; }
+    const st = state.astStatus;
+    const index = state.helpIndex || [];
+    let inner = '';
+    if (state.help.view === 'guides') {
+      inner = guidesHtml({ index, page: state.page, search: state.help.search, topic: state.help.topic,
+        tours: (st && st.tours) || [], actions: (st && st.actions) || [] });
+    } else if (state.help.view === 'faq') {
+      inner = faqHtml({ index, search: state.help.faqSearch, open: state.help.faqOpen });
+    } else if (state.help.view === 'sitemap') {
+      inner = sitemapHtml({ me: state.me });
+    } else {
+      inner = chatHtml({ chat: state.chat, status: st, titles: featureTitles() });
+    }
+    body.innerHTML = helpPanelHtml({ view: state.help.view, body: inner, page: state.page });
+  }
+
+  /**
+   * A BEMUTATÓ INDÍTÁSA. A definíciót a SZERVER adta (`astStatus.tours`) — a böngésző nem talál ki
+   * bemutatót, és nem indít olyat, amihez nincs joga (AST-01). Ha a bemutató másik oldalhoz tartozik,
+   * ELŐBB odavisz, és csak utána emel ki.
+   */
+  async function startTour(id) {
+    await loadHelpData();
+    const defs = (state.astStatus && state.astStatus.tours) || [];
+    const def = defs.find((t) => t.id === id);
+    state.tourFinished = false; state.tourAborted = null; state.tourBlocked = null;
+    if (!def) { state.tourAborted = 'rightLost'; renderTour(); return; }
+    // AZ ELŐZŐ FUTÁS ELŐBB ZÁRUL: a panel bezárása újraértékeli a futó bemutatót, és egy már
+    // elhagyott futásra nem akarunk megszakítást írni (a sorrend itt MÉRT, nem vélt).
+    if (state.tour) { tourMod.exitRun(state.tour, 'restart'); state.tour = null; }
+    closeHelp();
+    state.tour = tourMod.newTourRun({ def, view: view(), role: state.me && state.me.current_role });
+    const page = tourMod.pageOf(state.tour);
+    if (page && state.page !== page) go(page);
+    renderTour();
+  }
+  function renderTour() {
+    const box = hostTour();
+    if (!box) return;
+    if (state.tourAborted) {
+      tourMod.clearHighlight();
+      box.innerHTML = tourMod.abortedHtml(state.tourAborted);
+      show(box, true);
+      return;
+    }
+    if (!state.tour) { tourMod.clearHighlight(); box.innerHTML = ''; show(box, false); return; }
+    if (state.tourFinished) {
+      tourMod.clearHighlight();
+      box.innerHTML = tourMod.finishedHtml(state.tour);
+      show(box, true);
+      return;
+    }
+    const check = tourMod.checkRun(state.tour, { view: view(), role: state.me && state.me.current_role });
+    if (!check.ok) {
+      state.tourAborted = check.why === 'no_run' ? 'targetMissing' : check.why;
+      renderTour();
+      return;
+    }
+    // A FELTÁRÁSRA VÁRÁS a MAI DOM-ból dől el, nem tárolt állapotból: a felhasználó bármikor
+    // megnyithatja a panelt, és a következő rajzolás már a valódi célt emeli ki (TUR-01).
+    box.innerHTML = tourMod.tourHtml(state.tour, { blocked: state.tourBlocked, pending: check.pending || null });
+    show(box, true);
+    tourMod.highlight(state.tour);
+    const first = box.querySelector('button:not([disabled])');
+    if (first && typeof first.focus === 'function') first.focus();
+  }
+  /** A FELADAT IGAZOLÁSA — a SZERVER válasza után hívjuk, nem a kattintás után (TUR-01). */
+  function tourTaskDone(taskId) {
+    if (!state.tour) return;
+    if (tourMod.taskDone(state.tour, taskId)) { state.tourBlocked = null; renderTour(); }
+  }
+
+  /** A KÉRDÉS ELKÜLDÉSE — a nézet a küldéskor rögzül, és a késő válasz nem rajzol (KUKA-041). */
+  async function doAsk(form) {
+    const el = byTest('chat-input');
+    const question = el ? String(el.value || '').trim() : '';
+    if (!question) return;
+    const v = stampOf(form);
+    if (await refuseStale(v)) return;
+    const gen = state.generation;
+    state.chat.sending = true; state.chat.draft = question; state.chat.cleared = false;
+    renderHelp();
+    const r = await apiInContext('POST', '/api/assistant/ask', { question, lang: currentLang() }, v);
+    if (gen !== state.generation) return;               // a késő válasz NEM jelenik meg új nézetben
+    const verdict = contextBindingVerdict({ ...r, served_book_id: r.served_book_id, served_subject_id: r.served_subject_id }, v);
+    state.chat.sending = false;
+    if (!verdict.bound) {
+      state.chat.draft = question;
+      renderHelp();
+      formResult('chat-result', unboundMessage(verdict.why, UNBOUND), 'warn');
+      await contextChangedNotice(verdict.why);
+      return;
+    }
+    state.chat.turns.push({
+      question,
+      answer: r.ok ? r.answer : null,
+      kind: r.answer_kind || null,
+      reason: r.ok ? null : r.reason,
+      sources: r.sources || [],
+      actions: r.actions || [],
+      faq: r.faq || [],
+      injection: Number(r.injection_markers || 0) > 0,
+      usage: r.usage || null,
+    });
+    state.chat.draft = '';
+    forgetForm('chat');
+    renderHelp();
   }
 
   // ── BELÉPÉSI OLDALAK (UX-01: belső oldalon NINCS belépési űrlap) ────────────────────────────
@@ -889,35 +1174,33 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     let h = '';
     if (kind === 'register' || kind === 'login') {
       const reg = kind === 'register';
-      h = `<h1>${reg ? 'Fiók létrehozása' : 'Bejelentkezés'}</h1>
-        <p class="muted">${reg ? 'Egy fiókkal a saját és a vállalkozásaid ügyeit is kezelheted.' : 'Lépj be a saját fiókodba.'}</p>
+      h = `<h1>${esc(reg ? UI.registerTitle : UI.loginTitle)}</h1>
+        <p class="muted">${esc(reg ? UI.registerLead : UI.loginLead)}</p>
         <form class="form" data-kind="${kind}" data-testid="${reg ? 'register-form' : 'login-form'}">
-          <label>E-mail-cím<input type="email" name="email" required autocomplete="username" data-testid="${reg ? 'register-email' : 'login-email'}"></label>
-          <label>Jelszó<input type="password" name="password" required ${reg ? 'minlength="8"' : ''} autocomplete="${reg ? 'new-password' : 'current-password'}" data-testid="${reg ? 'register-password' : 'login-password'}">
-            ${reg ? '<small>Legalább 8 karakter.</small>' : ''}</label>
-          <label class="check"><input type="checkbox" data-testid="show-password" data-pw="${reg ? 'register-password' : 'login-password'}">Jelszó megjelenítése</label>
-          <button type="submit" class="primary" data-testid="${reg ? 'register-submit' : 'login-submit'}">${reg ? 'Fiók létrehozása' : 'Bejelentkezés'}</button>
+          <label>${esc(UI.email)}<input type="email" name="email" required autocomplete="username" data-testid="${reg ? 'register-email' : 'login-email'}"></label>
+          <label>${esc(UI.password)}<input type="password" name="password" required ${reg ? 'minlength="8"' : ''} autocomplete="${reg ? 'new-password' : 'current-password'}" data-testid="${reg ? 'register-password' : 'login-password'}">
+            ${reg ? `<small>${esc(UI.passwordMin)}</small>` : ''}</label>
+          <label class="check"><input type="checkbox" data-testid="show-password" data-pw="${reg ? 'register-password' : 'login-password'}">${esc(UI.showPassword)}</label>
+          <button type="submit" class="primary" data-testid="${reg ? 'register-submit' : 'login-submit'}">${esc(reg ? UI.registerTitle : UI.loginTitle)}</button>
           <p class="notice" data-testid="${reg ? 'register-result' : 'login-result'}" hidden></p>
         </form>
-        <p class="authfoot">${reg ? 'Már van fiókod?' : 'Még nincs fiókod?'}
-          <button type="button" class="plain" data-auth="${reg ? 'login' : 'register'}">${reg ? 'Bejelentkezés' : 'Fiók létrehozása'}</button></p>
-        ${reg ? '' : '<p class="authfoot"><button type="button" class="plain" data-auth="resend">Új megerősítő levél kérése</button></p>'}`;
+        <p class="authfoot">${esc(reg ? UI.haveAccount : UI.noAccountYet)}
+          <button type="button" class="plain" data-auth="${reg ? 'login' : 'register'}">${esc(reg ? UI.loginTitle : UI.registerTitle)}</button></p>
+        ${reg ? '' : `<p class="authfoot"><button type="button" class="plain" data-auth="resend">${esc(UI.resendAsk)}</button></p>`}`;
     } else if (kind === 'resend') {
-      h = `<h1>Új megerősítő levél</h1>
+      h = `<h1>${esc(UI.resendTitle)}</h1>
         ${state.resendReason ? `<p class="notice warn" data-testid="resend-reason">${esc(state.resendReason)}</p>` : ''}
-        <p class="muted">Add meg a regisztrációnál használt e-mail-címedet.</p>
+        <p class="muted">${esc(UI.resendLead)}</p>
         <form class="form" data-kind="resend" data-testid="resend-form">
-          <label>E-mail-cím<input type="email" name="email" required autocomplete="username" data-testid="resend-email"></label>
-          <button type="submit" class="primary" data-testid="resend-submit">Levél kérése</button>
+          <label>${esc(UI.email)}<input type="email" name="email" required autocomplete="username" data-testid="resend-email"></label>
+          <button type="submit" class="primary" data-testid="resend-submit">${esc(UI.resendSubmit)}</button>
           <p class="notice" data-testid="resend-result" hidden></p></form>
-        <p class="authfoot"><button type="button" class="plain" data-auth="login">Vissza a bejelentkezéshez</button></p>`;
+        <p class="authfoot"><button type="button" class="plain" data-auth="login">${esc(UI.backToLogin)}</button></p>`;
     } else if (kind === 'sent' || kind === 'resent') {
-      h = `<div class="status-icon">✉</div><h1>Nézd meg a leveleidet</h1>
-        <p class="muted" data-testid="${kind === 'sent' ? 'register-result' : 'resend-result'}">${kind === 'sent'
-          ? 'Ha ezzel a címmel folytatható a regisztráció, elküldjük a következő lépést. Nyisd meg a levélben lévő hivatkozást.'
-          : 'Ha ehhez a címhez megerősítésre váró fiók tartozik, új levelet küldünk. Nézd meg a levélszemét mappát is. A legutóbbi levél linkjét használd.'}</p>
-        <button type="button" class="primary" data-action="mail-open">Próbaüzenetek megnyitása</button>
-        <p class="authfoot"><button type="button" class="plain" data-auth="login">Bejelentkezés</button></p>`;
+      h = `<div class="status-icon">✉</div><h1>${esc(UI.checkMailTitle)}</h1>
+        <p class="muted" data-testid="${kind === 'sent' ? 'register-result' : 'resend-result'}">${esc(kind === 'sent' ? UI.registerSentLead : UI.resendSentLead)}</p>
+        <button type="button" class="primary" data-action="mail-open">${esc(UI.openMailbox)}</button>
+        <p class="authfoot"><button type="button" class="plain" data-auth="login">${esc(UI.loginTitle)}</button></p>`;
     } else if (kind === 'invite') {
       h = invitePageHtml();
     }
@@ -932,54 +1215,54 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
   function invitePageHtml() {
     const o = state.invite;
     const loggedIn = !!(state.me && state.me.subject_id);
-    if (!o) return `<div data-testid="section-invite"><h1>Meghívás megnyitása</h1><p>${STATE.loading}</p></div>`;
+    if (!o) return `<div data-testid="section-invite"><h1>${esc(UI.inviteOpenTitle)}</h1><p>${esc(STATE.loading)}</p></div>`;
     let lead = ''; let actions = '';
     if (o.status === 'redeem_as_existing' && loggedIn) {
-      lead = 'A meghívás erre a belépéshez tartozó címre szól. Az elfogadás után a fiókkezelő külön engedélyezi az adatok megtekintését.';
-      actions = '<button type="button" class="primary" data-action="redeem" data-testid="invite-redeem">Meghívás elfogadása</button>';
+      lead = UI.inviteAsExistingLead;
+      actions = `<button type="button" class="primary" data-action="redeem" data-testid="invite-redeem">${esc(UI.inviteAcceptButton)}</button>`;
     } else if (o.status === 'redeem_as_new') {
-      lead = 'Állíts be belépést a meghívott címhez, és a meghívás folytatódik.';
-      actions = `<button type="button" class="primary" data-auth="register">Fiók létrehozása</button>
-        <button type="button" data-auth="login">Már van fiókom</button>`;
+      lead = UI.inviteAsNewLead;
+      actions = `<button type="button" class="primary" data-auth="register">${esc(UI.registerTitle)}</button>
+        <button type="button" data-auth="login">${esc(UI.inviteHaveAccount)}</button>`;
     } else if (o.status === 'redeem_as_existing') {
-      lead = 'Ehhez a címhez tartozik belépés — jelentkezz be vele, és a meghívás folytatódik.';
-      actions = '<button type="button" class="primary" data-auth="login">Bejelentkezés és folytatás</button>';
+      lead = UI.inviteLoginFirstLead;
+      actions = `<button type="button" class="primary" data-auth="login">${esc(UI.inviteContinueLogin)}</button>`;
     } else if (o.status === 'needs_invitee_identity') {
-      lead = 'A folytatáshoz jelentkezz be azzal az e-mail-címmel, amelyre a meghívó érkezett, és erősítsd meg a címet.';
-      actions = `<button type="button" class="primary" data-auth="login">Bejelentkezés</button>
-        <button type="button" data-auth="register">Fiók létrehozása</button>`;
+      lead = UI.inviteNeedsIdentityLead;
+      actions = `<button type="button" class="primary" data-auth="login">${esc(UI.loginTitle)}</button>
+        <button type="button" data-auth="register">${esc(UI.registerTitle)}</button>`;
     } else {
-      lead = reasonText(o.reason, 'Ehhez a hivatkozáshoz most nem tartozik beváltható meghívás.');
-      actions = '<button type="button" class="primary" data-auth="login">Bejelentkezés</button>';
+      lead = reasonText(o.reason, UI.inviteUnknownLead);
+      actions = `<button type="button" class="primary" data-auth="login">${esc(UI.loginTitle)}</button>`;
     }
     const hint = o.continue_as && o.continue_as.hint ? o.continue_as.hint : null;
     // A FIÓK NEVE CSAK A BIZONYÍTOTT CÍMZETTNEK (R83/F83-04): a szerver akkor adja ki, ha a néző a
     // meghívás címzetti csatornáját bizonyította — a lap semmit nem következtet ki magától.
     const acc = o.account && o.account.name ? o.account : null;
     return `<div data-testid="section-invite"><div class="status-icon">✉</div>
-      <h1>${esc(acc ? tpl('inviteFor', { nev: acc.name }) : 'Meghívás egy közös fiókba')}</h1>
-      ${acc ? `<p class="helpbox" data-testid="invite-account">Szerepkör: <strong>${esc(ROLE[acc.role] || acc.role)}</strong>${o.invited_by ? ` · Meghívta: <strong>${esc(o.invited_by)}</strong>` : ''}</p>` : ''}
+      <h1>${esc(acc ? tpl('inviteFor', { nev: acc.name }) : UI.inviteGenericTitle)}</h1>
+      ${acc ? `<p class="helpbox" data-testid="invite-account">${esc(UI.inviteRoleLine)}: <strong>${esc(ROLE[acc.role] || acc.role)}</strong>${o.invited_by ? ` · ${esc(UI.inviteInvitedByLine)}: <strong>${esc(o.invited_by)}</strong>` : ''}</p>` : ''}
       <p class="muted" data-testid="invite-observe">${esc(lead)}</p>
-      ${hint ? `<p class="helpbox">A meghívott cím: <strong>${esc(hint)}</strong></p>` : ''}
-      ${loggedIn ? `<p class="helpbox">Bejelentkezve: <strong>${esc(state.me.email || '')}</strong></p>` : ''}
+      ${hint ? `<p class="helpbox">${esc(UI.inviteAddressLine)}: <strong>${esc(hint)}</strong></p>` : ''}
+      ${loggedIn ? `<p class="helpbox">${esc(UI.signedInAs)}: <strong>${esc(state.me.email || '')}</strong></p>` : ''}
       <div class="buttonrow">${actions}</div>
       <p class="notice" data-testid="invite-redeem-result" hidden></p>
-      <p class="authfoot" data-testid="invite-next">${esc(o.message || 'Ha nem a te címedre szól, jelentkezz be a meghívott címmel.')}</p>
-      <details class="tech"><summary>Technikai részletek</summary>
+      <p class="authfoot" data-testid="invite-next">${esc(o.message || UI.inviteWrongAddress)}</p>
+      <details class="tech"><summary>${esc(UI.technicalDetails)}</summary>
         <pre data-testid="invite-observe-json">${esc(JSON.stringify(o, null, 2))}</pre></details></div>`;
   }
 
   // ── TOVÁBBI OLDALAK ─────────────────────────────────────────────────────────────────────────
   function stockCardPage() {
     const gate = stockGate('stockcard');
-    if (gate) return head(PAGE.stockcard, 'Egy termék készlete és mozgásai.') + gate;
+    if (gate) return head(PAGE.stockcard, UI.stockcardLead) + gate;
     const p = demoSet().products[0];
-    if (!p) return head(PAGE.stockcard, 'Egy termék készlete és mozgásai.') + noDemoBox();
-    return head(PAGE.stockcard, 'Egy termék készlete és mozgásai.')
+    if (!p) return head(PAGE.stockcard, UI.stockcardLead) + noDemoBox();
+    return head(PAGE.stockcard, UI.stockcardLead)
       + `<section class="card" data-testid="stockcard-table"><h2>${esc(p.name)}</h2><p class="muted">${esc(p.code)} · ${esc(p.kind)}</p>
-        <div class="splitline"><span>Készlet</span><strong>${esc(p.qty ?? STATE.unknownQty)} ${esc(p.unit || STATE.noUnit)} · ${QUALITY_LABEL[p.quality]}</strong></div>
-        <div class="splitline"><span>Raktár</span><strong>${esc(p.warehouse)}</strong></div>
-        <div class="buttonrow"><button type="button" data-go="movements">${PAGE.movements}</button></div>${demoBadge()}</section>`;
+        <div class="splitline"><span>${esc(UI.stockcardStock)}</span><strong>${esc(p.qty ?? STATE.unknownQty)} ${esc(p.unit || STATE.noUnit)} · ${esc(QUALITY[p.quality] || STATE.notGiven)}</strong></div>
+        <div class="splitline"><span>${esc(UI.colWarehouse)}</span><strong>${esc(p.warehouse)}</strong></div>
+        <div class="buttonrow"><button type="button" data-go="movements">${esc(PAGE.movements)}</button></div>${demoBadge()}</section>`;
   }
 
   /**
@@ -988,15 +1271,15 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
    */
   function movementsPage() {
     const gate = stockGate('movements');
-    if (gate) return head(PAGE.movements, 'A készlet mozgásai időrendben.') + gate;
+    if (gate) return head(PAGE.movements, UI.movementsLead) + gate;
     const d = demoSet();
-    if (!d.movements.length) return head(PAGE.movements, 'A készlet mozgásai időrendben.') + noDemoBox();
-    return head(PAGE.movements, 'A készlet mozgásai időrendben.')
+    if (!d.movements.length) return head(PAGE.movements, UI.movementsLead) + noDemoBox();
+    return head(PAGE.movements, UI.movementsLead)
       + `<div class="tablebox" data-testid="movements-table"><div class="toolbar">${demoBadge()}</div>
-        <div class="table-scroll"><table><thead><tr><th>Időpont</th><th>Termék</th><th>Művelet</th><th class="numeric">Mennyiség</th></tr></thead>
+        <div class="table-scroll"><table><thead><tr><th>${esc(UI.colWhen)}</th><th>${esc(UI.colProduct)}</th><th>${esc(UI.colOperation)}</th><th class="numeric">${esc(UI.colQty)}</th></tr></thead>
         <tbody>${d.movements.map((m) => `<tr><td>${esc(whenText(m.at))}</td><td>${esc(m.product)}</td><td>${esc(m.op)}</td>
           <td class="numeric">${esc(m.qty)} ${esc(m.unit)}</td></tr>`).join('')}</tbody></table></div>
-        <div class="tablefoot">${d.movements.length} mintaadat · ehhez a bemutatóhoz nem tartozik üzleti végrehajtás.</div></div>`;
+        <div class="tablefoot">${esc(tpl('rowCount', { n: d.movements.length }))}</div></div>`;
   }
 
   /**
@@ -1010,88 +1293,90 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     // A FAJTA EGY FORRÁSBÓL: a megőrzött űrlap-állapot (FRM-01) — nem külön jelző, ami elcsúszhat
     // tőle (KUKA-039: egy tény, egy otthon).
     const cegkent = !(state.forms.ws && state.forms.ws.kind === 'shared');
-    return head(PAGE.new, 'Ugyanezzel a belépéssel kezelheted. A személyes fiókod megmarad.')
+    return head(PAGE.new, UI.newLead, helpDot('account.add_business'))
       + `<section class="card"><form class="form" data-kind="ws" data-keep="ws" data-testid="ws-form">
-        <fieldset class="choice"><legend>Milyen fiókot adsz hozzá?</legend>
+        <fieldset class="choice"><legend>${esc(UI.newKindLegend)}</legend>
           <label class="check"><input type="radio" name="kind" value="business" data-testid="ws-kind-business" ${cegkent ? 'checked' : ''}>
             <span><strong>${esc(STATE.kindBusiness)}</strong><small>${esc(STATE.kindBusinessLead)}</small></span></label>
           <label class="check"><input type="radio" name="kind" value="shared" data-testid="ws-kind-shared" ${cegkent ? '' : 'checked'}>
             <span><strong>${esc(STATE.kindShared)}</strong><small>${esc(STATE.kindSharedLead)}</small></span></label></fieldset>
-        <label>${cegkent ? 'Vállalkozás neve' : 'A fiók neve'}<input name="name" required data-testid="ws-name" autocomplete="organization"></label>
+        <label>${esc(cegkent ? UI.businessName : UI.sharedName)}<input name="name" required data-testid="ws-name" autocomplete="organization"></label>
         <div data-testid="ws-business-fields" ${cegkent ? '' : 'hidden'}>
-          <label>Nyilvántartás országa vagy területe
+          <label>${esc(UI.jurisdiction)}
             <select name="jurisdiction" data-testid="ws-jurisdiction">
-              <option value="HU">Magyarország</option><option value="AT">Ausztria</option><option value="DE">Németország</option>
-              <option value="SK">Szlovákia</option><option value="RO">Románia</option>
-              <option value="__egyeb__">Más ország vagy terület…</option></select></label>
-          <label hidden data-testid="ws-jurisdiction-other-row">Ország vagy terület kódja
+              <option value="HU">${esc(UI.countryHU)}</option><option value="AT">${esc(UI.countryAT)}</option><option value="DE">${esc(UI.countryDE)}</option>
+              <option value="SK">${esc(UI.countrySK)}</option><option value="RO">${esc(UI.countryRO)}</option>
+              <option value="__egyeb__">${esc(UI.jurisdictionOther)}</option></select></label>
+          <label hidden data-testid="ws-jurisdiction-other-row">${esc(UI.jurisdictionOtherRow)}
             <input name="jurisdiction_other" data-testid="ws-jurisdiction-other" autocomplete="off" maxlength="32">
-            <small>A megadott kódot változatlanul megőrizzük — nem olvasztjuk össze más országokéval.</small></label>
-          <label><span data-testid="ws-tax-label">Adószám</span>
+            <small>${esc(UI.jurisdictionOtherNote)}</small></label>
+          <label><span data-testid="ws-tax-label">${esc(UI.taxIdHu)}</span>
             <input name="tax_id" data-testid="ws-tax-id" autocomplete="off" inputmode="numeric">
             <span class="error" data-testid="ws-tax-error" role="alert"></span></label>
-          <p class="muted" style="font-size:13px">A megadott cégadatokat most nem ellenőrizzük hatósági nyilvántartásban, és a megadásuk nem igazolja más vállalkozás képviseletét.</p></div>
-        <details class="tech"><summary>Csatlakozás egy meglévő céges fiókhoz</summary>
-          <p>Meglévő céges fiókhoz meghívóval csatlakozhatsz: a fiókkezelő küld meghívót az e-mail-címedre.
-          Az adóazonosító megadása önmagában nem ad hozzáférést más fiókjához.</p></details>
-        <div class="buttonrow"><button type="submit" class="primary" data-testid="ws-create">${PAGE.new}</button>
-          <button type="button" data-go="overview">Mégse</button></div>
+          <p class="muted" style="font-size:13px">${esc(UI.businessNote)}</p></div>
+        <details class="tech"><summary>${esc(UI.joinExisting)}</summary>
+          <p>${esc(UI.joinExistingLead)}</p></details>
+        <div class="buttonrow"><button type="submit" class="primary" data-testid="ws-create">${esc(PAGE.new)}</button>
+          <button type="button" data-go="overview">${esc(UI.cancel)}</button></div>
         <p class="notice" data-testid="ws-create-result" hidden></p></form></section>`;
   }
 
   function planPage() {
     const plan = (state.me && state.me.current_plan) || 'starter';
-    const opt = (k) => `<option value="${k}" ${plan === k ? 'selected' : ''}>${PLAN[k]}</option>`;
-    return head(PAGE.plan, 'A csomag a FUNKCIÓK elérhetőségét szabja meg. Az adatok megtekintésének jogát nem a csomag adja.')
+    const opt = (k) => `<option value="${k}" ${plan === k ? 'selected' : ''}>${esc(PLAN[k])}</option>`;
+    return head(PAGE.plan, UI.planLead, helpDot('plan.change'))
       + `<section class="card"><form class="form" data-kind="plan" data-keep="plan" data-testid="plan-form">
-        <div class="splitline"><span>Jelenlegi csomag</span><strong>${esc(PLAN[plan] || plan)}</strong></div>
-        <div class="splitline"><span>${SCOPE.keszlet} megtekintése</span><strong>Elérhető, ha a fiókkezelő engedélyezte</strong></div>
-        <div class="splitline"><span>${SCOPE.arak} megtekintése</span><strong>${plan === 'pro' ? 'Elérhető, ha a fiókkezelő engedélyezte' : 'Nincs a csomagban'}</strong></div>
-        <label style="margin-top:18px">Csomag<select name="plan" data-testid="plan-select">${opt('starter')}${opt('pro')}</select></label>
-        <div class="buttonrow"><button type="submit" class="primary" data-testid="plan-submit">Csomag mentése</button></div>
+        <div class="splitline"><span>${esc(UI.planCurrent)}</span><strong>${esc(PLAN[plan] || plan)}</strong></div>
+        <div class="splitline"><span>${esc(tpl('scopeViewOf', { mit: SCOPE.keszlet }))}</span><strong>${esc(UI.planAvailableIfGranted)}</strong></div>
+        <div class="splitline"><span>${esc(tpl('scopeViewOf', { mit: SCOPE.arak }))}</span><strong>${esc(plan === 'pro' ? UI.planAvailableIfGranted : UI.planNotIncluded)}</strong></div>
+        <label style="margin-top:18px">${esc(UI.planField)}<select name="plan" data-testid="plan-select">${opt('starter')}${opt('pro')}</select></label>
+        <div class="buttonrow"><button type="submit" class="primary" data-testid="plan-submit">${esc(UI.planSave)}</button></div>
         <p class="notice" data-testid="plan-result" hidden></p>
-        <p class="muted" style="font-size:13px">Ebben a bemutatóban nincs vásárlás és nincs díjfizetés.</p></form></section>`;
+        <p class="muted" style="font-size:13px">${esc(UI.planNoPurchase)}</p></form></section>`;
   }
 
   function accountPage() {
     const ws = ((state.me && state.me.workspaces) || []).find((w) => w.book_id === bookId()) || null;
     const b = ws && ws.business ? ws.business : null;
-    return head(PAGE.account, 'A fiók törzsadatai.')
+    return head(PAGE.account, UI.accountLead)
       + `<section class="card" data-testid="section-account">
-        <div class="splitline"><span>Név</span><strong>${esc(accountName())}</strong></div>
-        <div class="splitline"><span>Szerepköröd</span><strong>${esc(ROLE[state.me.current_role] || state.me.current_role || '—')}</strong></div>
-        <div class="splitline"><span>Csomag</span><strong>${esc(PLAN[state.me.current_plan] || state.me.current_plan || '—')}</strong></div>
-        <div class="splitline"><span>Vállalkozási adatok</span><strong data-testid="representation-note">${b
-          ? `${esc(b.jurisdiction || '—')} · megadva, hatósági ellenőrzés nélkül`
-          : 'Nincs rögzítve'}</strong></div>
-        <p class="muted" style="font-size:13px">A név vagy az adóazonosító megadása nem igazolja más vállalkozás képviseletét.</p></section>`;
+        <div class="splitline"><span>${esc(UI.fieldName)}</span><strong>${esc(accountName())}</strong></div>
+        <div class="splitline"><span>${esc(UI.statRole)}</span><strong>${esc(ROLE[state.me.current_role] || state.me.current_role || '—')}</strong></div>
+        <div class="splitline"><span>${esc(UI.planField)}</span><strong>${esc(PLAN[state.me.current_plan] || state.me.current_plan || '—')}</strong></div>
+        <div class="splitline"><span>${esc(UI.fieldBusinessData)}</span><strong data-testid="representation-note">${esc(b
+          ? `${b.jurisdiction || '—'} · ${UI.businessGivenNoCheck}`
+          : UI.businessNotRecorded)}</strong></div>
+        <p class="muted" style="font-size:13px">${esc(UI.accountRepresentationNote)}</p></section>`;
   }
 
   function profilePage() {
     const me = state.me;
-    return head(PAGE.profile, 'Ezek az adatok a saját belépésedhez tartoznak, nem a fiókhoz.')
+    return head(PAGE.profile, UI.profileLead, helpDot('shell.language'))
       + `<section class="card">
-        <div class="splitline"><span>E-mail-cím</span><strong>${esc(me.email || me.subject_id)}</strong></div>
-        <div class="splitline"><span>E-mail-cím állapota</span><strong data-testid="personal-space-note">${me.channel_proven ? 'Megerősítve' : 'Megerősítésre vár'}</strong></div>
-        <div class="splitline"><span>Nyelv</span><strong>Magyar</strong></div>
-        <p class="muted" style="font-size:13px">A profil szerkesztése ebben a csomagban még nem érhető el — ezért nem is kínálunk rá gombot.</p></section>`;
+        <div class="splitline"><span>${esc(UI.email)}</span><strong>${esc(me.email || me.subject_id)}</strong></div>
+        <div class="splitline"><span>${esc(UI.emailState)}</span><strong data-testid="personal-space-note">${esc(me.channel_proven ? UI.confirmed : UI.awaitingConfirm)}</strong></div>
+        <label class="inline" data-testid="lang-row">${esc(UI.language)}
+          <select data-testid="lang-select">${enabledLanguages().map((l) => `<option value="${esc(l.code)}" ${l.code === currentLang() ? 'selected' : ''}>${esc(l.endonym)}</option>`).join('')}</select></label>
+        <p class="muted" style="font-size:13px">${esc(UI.languageLead)}</p>
+        <p class="muted" style="font-size:13px">${esc(UI.profileEditPending)}</p></section>`;
   }
 
   function securityPage() {
     const me = state.me;
-    return head(PAGE.security, 'A belépéshez tartozó adatok és műveletek.')
+    return head(PAGE.security, UI.securityLead)
       + `<section class="card">
-        <div class="splitline"><span>Bejelentkezve</span><strong>${esc(me.email || me.subject_id)}</strong></div>
-        <div class="splitline"><span>E-mail-cím megerősítve</span><strong>${me.channel_proven ? 'Igen' : 'Nem'}</strong></div>
-        <div class="splitline"><span>Ki nevében jársz el</span><strong>${esc(me.acting_as || '—')}</strong></div>
-        ${me.channel_proven ? '' : '<div class="buttonrow"><button type="button" data-auth="resend">Új megerősítő levél kérése</button></div>'}
+        <div class="splitline"><span>${esc(UI.signedIn)}</span><strong>${esc(me.email || me.subject_id)}</strong></div>
+        <div class="splitline"><span>${esc(UI.emailConfirmed)}</span><strong>${esc(me.channel_proven ? UI.yes : UI.no)}</strong></div>
+        <div class="splitline"><span>${esc(UI.actingAs)}</span><strong>${esc(me.acting_as || '—')}</strong></div>
+        ${me.channel_proven ? '' : `<div class="buttonrow"><button type="button" data-auth="resend">${esc(UI.resendAsk)}</button></div>`}
         <div class="divider"></div>
-        <div class="buttonrow"><button type="button" data-action="logout">Kijelentkezés</button></div>
-        <p class="muted" style="font-size:13px">Jelszó-változtatás ebben a csomagban még nem érhető el — ezért nem is kínálunk rá gombot.</p></section>`;
+        <div class="buttonrow"><button type="button" data-action="logout">${esc(UI.logout)}</button></div>
+        <p class="muted" style="font-size:13px">${esc(UI.passwordChangePending)}</p></section>`;
   }
 
   // ── FŐ RENDER ───────────────────────────────────────────────────────────────────────────────
   function render() {
+    renderChrome();
     renderHeader();
     if (state.inviteToken) { renderAuth('invite'); return; }
     if (!(state.me && state.me.subject_id)) {
@@ -1117,9 +1402,9 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     // a lap ezt KIMONDJA, és a választóhoz küld, nem mutat gazdátlan sorokat.
     if (!bookId()) {
       main.innerHTML = `<p class="notice ${n ? n.kind : ''}" data-testid="global-notice" ${n ? '' : 'hidden'}>${n ? esc(n.msg) + (n.action ? ` <button type="button" class="plain" data-go="${esc(n.action.go)}">${esc(n.action.label)}</button>` : '') : ''}</p>`
-        + head('Válassz fiókot', 'A folytatáshoz nyiss meg egy fiókot a fejléc fiókválasztójából.')
-        + emptyBox(STATE.noAccount, 'A fejléc bal oldalán lévő fiókválasztóban megtalálod a személyes fiókodat és a vállalkozásaidat.',
-          `<button type="button" class="primary" data-go="new">${PAGE.new}</button>`);
+        + head(UI.chooseAccount, UI.chooseAccountLead)
+        + emptyBox(STATE.noAccount, UI.chooseAccountBox,
+          `<button type="button" class="primary" data-go="new">${esc(PAGE.new)}</button>`);
       renderNav();
       return;
     }
@@ -1134,11 +1419,11 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
       case 'security': body = securityPage(); break;
       case 'stockcard': body = stockCardPage(); break;
       case 'movements': body = movementsPage(); break;
-      case 'personal': body = head(PAGE.personal, 'A saját ügyeid egy helyen.')
-        + emptyBox('Még nincs megjeleníthető ügyleted', 'A vállalkozásaid ügyeit a fejléc fiókválasztójából éred el.'); break;
-      case 'outbox': body = head(PAGE.outbox, 'A vállalkozás kimenő levelei ezen a helyen lesznek elérhetők.')
-        + emptyBox('Ez most mintanézet', 'A belépési és meghívólevelek a Próbaüzenetek panelen próbálhatók ki. Valódi levelet ez a bemutató nem küld.',
-          '<button type="button" data-action="mail-open">Próbaüzenetek</button>'); break;
+      case 'personal': body = head(PAGE.personal, UI.personalLead)
+        + emptyBox(UI.personalEmptyTitle, UI.personalEmptyLead); break;
+      case 'outbox': body = head(PAGE.outbox, UI.outboxLead)
+        + emptyBox(UI.outboxSampleTitle, UI.outboxSampleLead,
+          `<button type="button" data-action="mail-open">${esc(UI.demoMailButton)}</button>`); break;
       default: body = tablePage(state.page);
     }
     const noticeAction = n && n.action ? ` <button type="button" class="plain" data-go="${esc(n.action.go)}">${esc(n.action.label)}</button>` : '';
@@ -1193,6 +1478,49 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
       case 'invite-from-create': state.afterCreate = null; go('members'); invitePanel(); break;
       case 'reload-stock': await loadStock(); break;
       case 'reload-price': await loadPrice(); break;
+      // ── SEGÍTSÉG (SEG-01). A panel CSAK innen nyílik: felhasználói kattintásra.
+      case 'help-open': await openHelp(); break;
+      case 'help-close': closeHelp(); break;
+      case 'help-view': state.help.view = b.dataset.view; state.help.topic = null; renderHelp(); break;
+      case 'help-topic': state.help.topic = b.dataset.topic || null; state.help.view = 'guides';
+        if (!state.help.open) await openHelp('guides', b.dataset.topic || null); else renderHelp(); break;
+      case 'faq-open': state.help.faqOpen = state.help.faqOpen === b.dataset.faq ? null : b.dataset.faq;
+        state.help.view = 'faq'; if (!state.help.open) await openHelp('faq'); else renderHelp(); break;
+      // A SÚGÓBÓL INDULÓ TOVÁBBLÉPÉS VALÓDI KÉPERNYŐRE VISZ (R89 §4) — a panel bezárul, hogy ne
+      // fedje el a fő műveletet.
+      case 'help-go': closeHelp(); go(b.dataset.page); break;
+      // ── BEMUTATÓ (TUR-01)
+      case 'tour-start': await startTour(b.dataset.tour); break;
+      case 'tour-next': {
+        const r = tourMod.advance(state.tour);
+        if (!r.moved && r.why === 'finished') { state.tourFinished = true; state.tourBlocked = null; }
+        // A FELTÁRÁSRA VÁRÁS és a HIÁNYZÓ CÉL nem „elakadás": az elsőt a buborék MÁR kimondja, a
+        // másodikat a rajzolás nevezett megszakításként írja ki — egyikre sem teszünk második,
+        // figyelmeztető mondatot (a rajzolás a MAI DOM-ból dönt — TUR-01).
+        else if (!r.moved) state.tourBlocked = ['targetPending', 'targetMissing'].includes(r.why) ? null : r.why;
+        else state.tourBlocked = null;
+        renderTour(); break;
+      }
+      case 'tour-back': tourMod.back(state.tour); state.tourBlocked = null; renderTour(); break;
+      case 'tour-finish': state.tourFinished = true; renderTour(); break;
+      case 'tour-restart': { const id = state.tour ? state.tour.id : null; if (id) await startTour(id); break; }
+      case 'tour-exit': tourMod.exitRun(state.tour, 'exit'); state.tour = null; state.tourFinished = false;
+        state.tourAborted = null; state.tourBlocked = null; renderTour(); break;
+      // ── CHAT (AST-01). A javasolt kérdés csak KITÖLTI a mezőt — nem küldi el magától.
+      case 'chat-suggest': { state.chat.draft = b.dataset.q || ''; renderHelp(); const inp = byTest('chat-input'); if (inp) inp.focus(); break; }
+      case 'chat-new': state.chat = emptyChat(); renderHelp(); break;
+      case 'chat-clear': state.chat = emptyChat(); state.chat.cleared = true; renderHelp(); break;
+      // A SEGÉD FOLYTATÁSA: a műveletet a SZERVER engedélyezte, és CSAK megnyit — nem ír (AST-01).
+      case 'chat-do': {
+        const allowed = ((state.astStatus && state.astStatus.actions) || []).find((a) => a.id === b.dataset.do);
+        if (!allowed) { formResult('chat-result', reasonText('action_not_allowed'), 'bad'); break; }
+        closeHelp();
+        if (allowed.page) go(allowed.page);
+        if (allowed.panel === 'invite') invitePanel();
+        if (allowed.panel === 'mailbox') await mailPanel();
+        if (allowed.focus) { const f = byTest(allowed.focus); if (f && typeof f.focus === 'function') f.focus(); }
+        break;
+      }
       case 'logout': await doLogout(); break;
       case 'revoke': await doRevoke(b.dataset.subject, b); break;
       case 'redeem': await doRedeem(); break;
@@ -1208,6 +1536,7 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     if (kind === 'resend') return doResend(f);
     if (kind === 'ws') return doCreateWorkspace(f);
     if (kind === 'plan') return doPlan(f);
+    if (f.dataset.testid === 'chat-form') return doAsk(f);
     if (f.dataset.testid === 'invite-form') return doInvite(f);
     if (f.dataset.testid === 'member-scope-form') return doGrant(f.dataset.subject, f.elements.scope.value, f);
     return undefined;
@@ -1223,14 +1552,26 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
   }
 
   document.addEventListener('input', (e) => {
-    if (!e.target.dataset || e.target.dataset.testid !== 'list-search') return;
+    const t = e.target && e.target.dataset ? e.target.dataset.testid : null;
+    // A SÚGÓ KERESŐI GÉPELÉS KÖZBEN SZŰRNEK, és a kurzor a helyén marad (ugyanaz a minta, mint a
+    // lista-keresőnél). MODELLHÍVÁS NINCS: ez helyi keresés a letöltött útmutatókban.
+    if (t === 'guide-search' || t === 'faq-search') {
+      const pos = e.target.selectionStart;
+      if (t === 'guide-search') { state.help.search = e.target.value; state.help.topic = null; } else state.help.faqSearch = e.target.value;
+      renderHelp();
+      const again = byTest(t);
+      if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch { /* nem szöveges mező */ } }
+      return;
+    }
+    if (t === 'chat-input') { state.chat.draft = e.target.value; return; }
+    if (t !== 'list-search') return;
     const pos = e.target.selectionStart;
     state.search = e.target.value;
     render();
     const again = byTest('list-search');
     if (again) { again.focus(); again.setSelectionRange(pos, pos); }
   });
-  document.addEventListener('change', (e) => {
+  document.addEventListener('change', async (e) => {
     if (restoring) return;                   // a visszaállítás nem felhasználói művelet
     const d = e.target.dataset || {};
     if (d.testid === 'show-password') {
@@ -1246,10 +1587,56 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
       if (ujra) ujra.focus();
       return;
     }
+    // NYELVVÁLTÁS (LANG-01). A választás azonnal érvényes: a szótár élő nézetei miatt EGYETLEN
+    // újrarajzolás elég. A nézethez kötött tudás-index és segéd-állapot ÜRÜL, mert azok a kért
+    // nyelven jöttek (a szerver a `lang` mezőt olvasta) — különben magyar index maradna angol lapon.
+    if (d.testid === 'lang-select') {
+      const wanted = e.target.value;
+      const got = setLang(wanted);
+      state.astStatus = null; state.helpIndex = null;
+      render();
+      if (state.help.open) { renderHelp(); await loadHelpData(); renderHelp(); }
+      if (state.tour) renderTour();
+      // A KÉRT ÉS A KAPOTT NYELV KÜLÖNBSÉGE KIMONDVA — néma elnyelés nincs (KUKA-012).
+      notice(tpl('langSwitched', { nyelv: currentEndonym() }), got === wanted ? 'ok' : 'warn');
+      const again = byTest('lang-select');
+      if (again && typeof again.focus === 'function') again.focus();
+      return;
+    }
+    if (d.testid === 'guide-search') { state.help.search = e.target.value; renderHelp(); return; }
+    if (d.testid === 'faq-search') { state.help.faqSearch = e.target.value; renderHelp(); return; }
     if (d.testid === 'process-state') { state.processState = e.target.value; render(); return; }
     if (d.testid === 'ws-jurisdiction') {
-      setText(byTest('ws-tax-label'), e.target.value === 'HU' ? 'Adószám' : 'Adóazonosító');
+      setText(byTest('ws-tax-label'), e.target.value === 'HU' ? UI.taxIdHu : UI.taxIdOther);
       show(byTest('ws-jurisdiction-other-row'), e.target.value === '__egyeb__');
+    }
+  });
+
+  /**
+   * ESC — a súgó-panel és a bemutató is zárul, és a FÓKUSZ visszatér a megnyitó gombra (R89 §4:
+   * „Esc bezárás és fókusz-visszaadás"). A súgó `<dialog>`, ezért a böngésző maga is elkapja az
+   * Esc-et: a `close` esemény ADJA VISSZA a fókuszt, hogy mindkét úton ugyanaz történjen (KUKA-039).
+   */
+  const helpEl = byTest('help-panel');
+  if (helpEl) helpEl.addEventListener('close', () => {
+    state.help.open = false;
+    const b = byTest('help-body'); if (b) b.innerHTML = '';
+    const opener = byTest('help-open');
+    if (opener && typeof opener.focus === 'function') opener.focus();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    // HA PÁRBESZÉD VAN NYITVA, AZ ESC AZT ZÁRJA — és a bemutató MEGMARAD (saját R89-es lelet).
+    // A korábbi alakom a bemutatót is kilőtte: aki a meghívó-panelt Esc-cel csukta be a bemutató
+    // ötödik lépésénél, annak a bemutatója is eltűnt — egy szabályos lépés vitte el a saját
+    // folytatását (KUKA-160: amit a képernyő felkínál, annak végig kell mennie).
+    if (document.querySelector('dialog[open]')) return;
+    if (state.tour || state.tourAborted || state.tourFinished) {
+      tourMod.exitRun(state.tour, 'escape');
+      state.tour = null; state.tourFinished = false; state.tourAborted = null; state.tourBlocked = null;
+      renderTour();
+      const opener = byTest('help-open');
+      if (opener && typeof opener.focus === 'function') opener.focus();
     }
   });
 
@@ -1283,7 +1670,7 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
       return;
     }
     const r = await api('POST', '/api/login', { email, password });
-    if (!r.ok) { formResult('login-result', reasonText(r.reason, 'Az e-mail-cím vagy a jelszó nem megfelelő.'), 'bad'); return; }
+    if (!r.ok) { formResult('login-result', reasonText(r.reason, reasonText('invalid_credentials')), 'bad'); return; }
     newContext('login');
     state.tabs = ['overview'];
     state.page = 'overview';
@@ -1307,7 +1694,7 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
    */
   async function doResend(form) {
     const cim = form.elements.email.value.trim();
-    formResult('resend-result', 'Levélkérés folyamatban…', '');
+    formResult('resend-result', UI.resendInProgress, '');
     const r = await api('POST', '/api/verification/resend', { email: cim });
     const v = requestOutcome(r);
     if (v === 'network') {
@@ -1339,13 +1726,12 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
    */
   function unsavedPanel(id) {
     openPanel(`<div data-testid="unsaved-dialog"><div class="dialoghead"><div>
-        <h2>Vannak nem mentett módosításaid</h2>
-        <p class="muted">Ha most másik fiókra váltasz, a megkezdett kitöltés elveszik. A fiókok adatai
-          nem keverednek: a beírt szöveget nem visszük át az új fiókba.</p></div></div>
+        <h2>${esc(UI.unsavedTitle)}</h2>
+        <p class="muted">${esc(UI.unsavedLead)}</p></div></div>
       <div class="buttonrow"><button type="button" class="primary" data-action="unsaved-keep"
-          data-testid="unsaved-keep">Szerkesztés folytatása</button>
+          data-testid="unsaved-keep">${esc(UI.unsavedKeep)}</button>
         <button type="button" class="danger" data-action="unsaved-discard" data-switch-to="${esc(id)}"
-          data-testid="unsaved-discard">Elvetés és váltás</button></div></div>`, false);
+          data-testid="unsaved-discard">${esc(UI.unsavedDiscard)}</button></div></div>`, false);
   }
 
   async function switchWorkspace(id, opts) {
@@ -1403,9 +1789,9 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
       // A kiváltó lelet: `{"tax_id":"---"}` ⇒ HTTP 500 és félig létrejött fiók (R77/F77-02) — ma a
       // szerver ÍRÁS ELŐTT utasítja el, a lap pedig a MEZŐNÉL mondja meg, mit kell javítani.
       if (String(r.field || '').startsWith('business.tax_id')) {
-        setText(byTest('ws-tax-error'), reasonText(r.reason, 'Add meg az adóazonosítót.'));
+        setText(byTest('ws-tax-error'), reasonText(r.reason, UI.taxIdRequired));
         if (input) { input.classList.add('fieldbad'); input.setAttribute('aria-invalid', 'true'); input.focus(); }
-        formResult('ws-create-result', 'A vállalkozást még nem hoztuk létre. Javítsd a jelölt mezőt.', 'bad');
+        formResult('ws-create-result', UI.wsNotCreated, 'bad');
       } else {
         formResult('ws-create-result', reasonText(r.reason, r.message), 'bad');
       }
@@ -1419,6 +1805,7 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     // fejléc-sáv jelzi a tényt, a kártya a KÖVETKEZŐ LÉPÉST kérdezi meg.
     state.afterCreate = r.name || name;
     notice(tpl(cegkent ? 'accountCreated' : 'sharedCreated', { nev: r.name || name }), 'ok');
+    tourTaskDone('workspace.created');       // IGAZOLT létrehozás után (TUR-01)
     render();
   }
 
@@ -1427,13 +1814,14 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     if (await refuseStale(v)) return;
     const r = await apiInContext('POST', '/api/workspaces/plan', { plan: form.elements.plan.value }, v);
     const verdict = contextBindingVerdict(r, v);
-    if (!verdict.bound) { formResult('plan-result', unboundMessage(verdict.why), 'warn'); await contextChangedNotice(verdict.why); return; }
+    if (!verdict.bound) { formResult('plan-result', unboundMessage(verdict.why, UNBOUND), 'warn'); await contextChangedNotice(verdict.why); return; }
     if (!r.ok) { formResult('plan-result', reasonText(r.reason, r.message), 'bad'); return; }
     // A VISSZAJELZÉS A FRISSÍTÉS UTÁN SZÜLETIK: a frissítés újrarajzolja a képernyőt, és egy
     // előbb kiírt üzenetet elmosna (ugyanaz az osztály, mint a létrehozás-kártyánál).
     forgetForm('plan');                      // elmentve ⇒ nincs mit megőrizni (és nincs mit kérdezni)
     await refreshMe();
     formResult('plan-result', tpl('planSaved', { csomag: PLAN[r.plan] || r.plan }), 'ok');
+    tourTaskDone('plan.saved');              // IGAZOLT mentés után (TUR-01)
   }
 
   async function doInvite(form) {
@@ -1443,9 +1831,12 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
       email: form.elements.email.value.trim(), role: form.elements.role.value, scope: form.elements.scope.value,
     }, v);
     const verdict = contextBindingVerdict(r, v);
-    if (!verdict.bound) { formResult('invite-result', unboundMessage(verdict.why), 'warn'); await contextChangedNotice(verdict.why); return; }
+    if (!verdict.bound) { formResult('invite-result', unboundMessage(verdict.why, UNBOUND), 'warn'); await contextChangedNotice(verdict.why); return; }
     if (!r.ok) { formResult('invite-result', reasonText(r.reason, r.message), 'bad'); return; }
     formResult('invite-result', tpl('inviteReady', { mikor: whenText(r.expires_at) }), 'ok');
+    // A BEMUTATÓ FELADAT-LÉPÉSE ITT LESZ IGAZOLT: a szerver TÉNYLEGESEN létrehozta a meghívót. A
+    // gomb megnyomása önmagában nem siker (TUR-01 · KUKA-129).
+    tourTaskDone('invite.created');
     show(byTest('invite-mail-row'), true);
     if (state.page === 'members' && state.membersTab === 'invites') await loadInvites();
   }
@@ -1501,7 +1892,7 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     newContext('invite_redeemed');
     state.tabs = ['overview']; state.page = 'overview';
     await refreshMe();
-    notice(`${tpl('accountJoined', { nev: accountName() })} Az adatok megtekintését a fiókkezelő külön engedélyezi.`, 'ok');
+    notice(`${tpl('accountJoined', { nev: accountName() })} ${UI.inviteJoinedScopeNote}`, 'ok');
     render();
   }
 
@@ -1511,7 +1902,7 @@ import { demoFor, demoSource, QUALITY_LABEL } from './demoData.mjs';
     state.inviteToken = url.searchParams.get('invite');
     const megerosites = url.searchParams.get('megerosites');
     if (megerosites) {
-      state.resendReason = reasonText(megerosites, 'Ez a megerősítő link nem használható.');
+      state.resendReason = reasonText(megerosites, reasonText('challenge_not_found'));
       state.authView = 'resend';
     }
     await refreshMe();

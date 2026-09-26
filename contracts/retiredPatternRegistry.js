@@ -33,6 +33,336 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-230',
+    date: '2026-09-26',
+    title: 'A KÉSVE ÉRKEZŐ SÚGÓ-ADAT ÚJRARAJZOLTA A MÁR BEZÁRT PANELT — a becsukott felület tartalma visszatért a lapra',
+    what: 'A súgó megnyitása HÁLÓZATON kéri le a tudás-indexet és a segéd-állapotot, majd a válasz után '
+      + 'ÚJRA rajzol. Ha a felhasználó közben Esc-cel bezárta a panelt, a KÉSVE érkező válasz újra '
+      + 'kitöltötte a `help-body`-t: a fülek, a gombok és a kérdés-mező VISSZATÉRTEK a lapra — '
+      + 'láthatatlanul, mert a párbeszéd már zárva volt. Mérve a böngésző-próbán: a bezárás után a '
+      + '`help-close` gomb TIZENNÉGY mintavételen át ott állt a DOM-ban.',
+    why_wrong: 'A REJTETT, DE MEGLÉVŐ ŰRLAP UGYANÚGY A LAP RÉSZE: a böngésző jelszó-kitöltője és a '
+      + 'képernyőolvasó is megtalálja, a billentyűzet-bejárás is beléfut (R75/F75-02 · KUKA-012). És a '
+      + 'rajzolás itt a LEKÉRÉS mellékhatása volt, nem külön döntés — pontosan a KUKA-209 alakja: a '
+      + 'bezárás a SZÁNDÉK, a késő válasz mégis felülírta.',
+    replaced_by: 'A RAJZOLÁS MEGKÉRDEZI A NYITVA-VAN-E TÉNYT: `renderHelp` a bezárt panelen NEM rajzol, '
+      + 'hanem KIÜRÍTI a törzset — tehát a késve érkező válasz sem tud visszaírni. A nyitva-lét a '
+      + 'lap állapota, nem a válasz sorrendje.',
+    decision: 'D-VS-3075',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R89) — a böngésző-próba R89-05-ös esete NEVEZETTEN bukott el rá',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'if \\(!state\\.help\\.open\\) \\{ body\\.innerHTML = ..; return; \\}',
+        why: 'a bezárt panelt nem rajzoljuk újra, és a tartalma sem marad ott' }),
+    ]),
+    lesson: 'A BEZÁRÁS UTÁN MEGÉRKEZŐ VÁLASZ NEM RAJZOL. Egy „megnyitás → lekérés → újrarajzolás" lánc '
+      + 'közepén a felhasználó bármikor bezárhat; ha a rajzolás nem kérdezi meg a MAI állapotot, a '
+      + 'becsukott felület visszatér — és ezt senki nem látja, mert láthatatlan.',
+    guard_note: 'gépi jel: a fenti pozitív minta + `tests/e2e/v3app-r89-tutor.spec.mjs` (a `closeHelp` '
+      + 'lépés a `help-close` DARABSZÁMÁT méri, nem a láthatóságát — a rejtett maradék így piros).',
+  }),
+  Object.freeze({
+    id: 'KUKA-229',
+    date: '2026-09-26',
+    title: 'A KÉPERNYŐOLVASÓNAK REJTETT SZÖVEG FIZIKAI IRÁNNYAL BÚJT EL — a tükrözött lapon 10 000 képpontos csúszást csinált',
+    what: 'A `.sr-only` szabály `left:-10000px`-szel tolta ki a képből a csak képernyőolvasónak szánt '
+      + 'feliratokat. A TÜKRÖZÖTT (RTL) próba-nyelven ez a `documentElement.scrollWidth`-et 390-ről '
+      + '10 390-re vitte 390 képpontos ablakon. Ugyanebben a mérésben derült ki, hogy a fiókváltó '
+      + 'lenyílója a MEGNYITÓ GOMB széléhez tapadt: LTR-ben 10 képpontot kicsúszott (400 > 390), '
+      + 'tükrözve pedig 96 képpontja a képernyőn kívülre esett — csúszás NÉLKÜL, tehát a csúszás-mérés '
+      + 'nem is látta volna.',
+    why_wrong: 'A FIZIKAI IRÁNY A TÜKRÖZÖTT LAPON MÁST JELENT. A „balra kitolom" trükk a jobbról balra '
+      + 'írt lapon BEFELÉ tol, és a lap szélességét növeli; a gombhoz tapasztott lenyíló pedig a kis '
+      + 'képernyőn kifut. A rosszabb eset a MÉRHETETLEN: a képernyőn kívülre eső tartalom nem csinál '
+      + 'csúszást, tehát a „nincs vízszintes csúszás" zöld marad, miközben a felhasználó nem éri el '
+      + '(KUKA-011: hol kattint?).',
+    replaced_by: 'KIVÁGÁSSAL REJTÜNK (`clip-path: inset(50%)`), ami IRÁNY-FÜGGETLEN; a lenyíló mobilon '
+      + 'a KÉPERNYŐHÖZ igazodik (`position: fixed`, logikai `inset-inline-start`), nem a gombhoz; és a '
+      + 'felület iránnyal érintett szabályai logikai tulajdonságokat használnak.',
+    decision: 'D-VS-3075',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R89) — az RTL próba-nyelv elrendezés-mérésén',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/style.css']),
+        pattern: 'clip-path:inset\\(50%\\)',
+        why: 'a képernyőolvasó-szöveg irány-független módon rejtett' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/style.css']),
+        pattern: 'inset-inline-start:0',
+        why: 'a lenyíló a SOR ELEJÉHEZ tapad, nem „balra"' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3app/public/style.css'], pattern: 'left:-10000px',
+        reason: 'a fizikai iránnyal kitolt rejtés a tükrözött lapon vízszintes csúszást csinál (R89-08)' }),
+    ]),
+    lesson: 'AZ IRÁNY-FÜGGŐ TRÜKK A TÜKRÖZÖTT LAPON HIBA LESZ, és kétféleképpen: vagy MÉRHETŐEN (csúszás), '
+      + 'vagy MÉRHETETLENÜL (a képernyőn kívül, csúszás nélkül). Ezért az elrendezés-mérés mellé '
+      + 'ELÉRHETŐSÉG-mérés is kell: a tartalom a képernyőn van-e, találat-vizsgálattal és kattintással.',
+    guard_note: 'gépi jel: a fenti két pozitív és egy tiltó minta + `tests/e2e/v3app-r89-tutor.spec.mjs` '
+      + 'R89-08 (390×844: nincs vízszintes csúszás LTR-ben és RTL-ben, ÉS a lenyíló első sora a '
+      + 'képernyőn belül van, találat-vizsgálattal és valódi kattintással).',
+  }),
+  Object.freeze({
+    id: 'KUKA-228',
+    date: '2026-09-26',
+    title: 'A PANELEN BELÜLI CÉL „ELTŰNT CÉLNAK" MINŐSÜLT — a bemutató ÉP képernyőn szakadt meg, és a modális panel mögött elérhetetlen volt',
+    what: 'A meghívó-bemutató harmadik lépése a meghívó-panel e-mail mezőjére mutat. A bemutató — '
+      + 'HELYESEN — nem kattint helyettünk, tehát a mező abban a pillanatban MÉG NEM LÉTEZIK. A régi '
+      + 'alak ezt `targetMissing`-nek minősítette, kiírta, hogy a cél „eltűnt a képernyőről", és '
+      + 'MEGSZAKÍTOTTA a bemutatót egy teljesen ép képernyőn. Ugyanebben a mérésben derült ki a másik '
+      + 'fele is: a panel `showModal()`-lal nyílik, tehát a lap tetején lebegő buborék „Tovább" gombja '
+      + 'a panel mögött ELÉRHETETLEN volt — a bemutató pont a kitöltés közben állt meg.',
+    why_wrong: 'HAMIS ÁLLÍTÁS ÉS HASZNÁLHATATLAN LÁNC EGYSZERRE. A mondat nem volt igaz (a cél nem '
+      + 'eltűnt, hanem még nem jelent meg — KUKA-050), a felkínált út pedig nem volt végigvihető '
+      + '(KUKA-160). A hiba oka a MÉRÉS hatóköre: a lépés-célokat statikusan mértük (léteznek-e a '
+      + 'forrásban), de a MEGJELENÉSÜK feltételét nem — és a modális párbeszéd fölé z-index nem visz, '
+      + 'mert a párbeszéd a FELSŐ RÉTEGBEN van (mérve).',
+    replaced_by: 'A LÉPÉS KIMONDJA, MI TÁRJA FEL (`appears_after`): amíg a cél nincs meg, de a feltáró '
+      + 'ott van, a bemutató VÁR (`targetPending`), a FELTÁRÓ gombot emeli ki, és a mondat megmondja a '
+      + 'folytatást — nem szakít meg és nem kattint helyettünk. A VALÓBAN eltűnt cél továbbra is '
+      + 'nevezett megszakítás. A buborék pedig a nyitott párbeszéd GYEREKE lesz (`hostTour`), tehát a '
+      + 'felső rétegben, kattinthatóan. És a cél nélküli lépés NEM lép tovább: a régi alak `done`-ra '
+      + 'állította és átugrotta — „elvégzett"-nek könyvelt egy lépést, ami meg sem történhetett.',
+    decision: 'D-VS-3075',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R89) — a böngésző-próba R89-06-os esete a harmadik lépésen bukott el',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/tour.mjs']),
+        pattern: 'export function revealerOf\\(run\\)',
+        why: 'a feltáró elem NEVEZETT feloldóból jön' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/tour.mjs']),
+        pattern: "why: isPending\\(run\\) \\? .targetPending. : .targetMissing.",
+        why: 'a várakozás és a megszakítás KÉT külön kimenet' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'function hostTour\\(\\)',
+        why: 'a buborék a nyitott párbeszéd gyereke lesz, tehát elérhető' }),
+    ]),
+    lesson: 'AMIT A BEMUTATÓ NEM NYOM MEG HELYETTÜNK, ARRA VÁRNI KELL — nem megszakítani. A „nincs ott" '
+      + 'és a „még nincs ott" két külön helyzet, két külön mondattal és két külön teendővel; és a '
+      + 'felkínált lánc elérhetőségét a FELSŐ RÉTEG szabályai döntik el, nem a z-index.',
+    guard_note: 'gépi jel: `npm run verify:tutor` TUT05 (a feltáró létezik · nem önmaga · KORÁBBI lépés '
+      + 'célja · a modul olvassa · a szerződés kimondja · a mondat mindhárom nyelven megvan, plusz HÁROM '
+      + 'romlott alak ellenpróbája) + `tests/e2e/v3app-r89-tutor.spec.mjs` R89-06 (a bemutató végigmegy '
+      + 'a MODÁLIS panelen, és a valóban hiányzó cél nevezetten megszakít).',
+  }),
+  Object.freeze({
+    id: 'KUKA-227',
+    date: '2026-09-26',
+    title: 'AZ ÚJ ÍRÓ FELÜLET BÉLYEG NÉLKÜL SZÜLETETT — a kérdés EL SEM INDULT, és a lap egy MEG NEM TÖRTÉNT nézet-váltást állított',
+    what: 'A PNL-01 szabály szerint minden ÍRÓ űrlap a rajzolásakor megkapja a nézet bélyegét, és a '
+      + 'beküldés EZT használja. A bélyeget a szerkesztő-panel és a fő tartalom megkapta, a SÚGÓ-panel '
+      + 'nem — pedig a segédnek feltett kérdés `POST`-ot indít. Ezért a `stampOf` minden kérdésnél '
+      + '„elavult szerkesztőt" mért: a kérés el sem indult, a panel bezárult, és a lap kiírta, hogy a '
+      + 'nézet közben megváltozott. Semmi nem változott.',
+    why_wrong: 'KÉT KÁR EGYSZERRE. (1) A HASZNÁLHATÓSÁG: a beépített képesség NULLA kérdést tudott '
+      + 'elküldeni — a HTTP-határ mérése (`findings_r89`) zöld volt, mert az a végpontot hívta, nem a '
+      + 'gombot (KUKA-011: a végpont nem felület). (2) A SZÖVEG: a lap egy MEG NEM TÖRTÉNT eseményt '
+      + 'állított — nézet-váltást, ami nem volt (KUKA-050 · KUKA-066: a hamis mondat nem hibának '
+      + 'látszik, hanem magyarázatnak). A bekötés listája a RÉGI olvasók köréből jött, nem az ÚJ '
+      + 'felület hatóköréből (KUKA-159).',
+    replaced_by: 'A SÚGÓ-PANEL IS BÉLYEGET KAP, MEGNYITÁSKOR (`stampEl(byTest(\'help-body\'))` az '
+      + '`openHelp`-ben) — nem minden rajzolásnál, mert a panel a MEGNYITÁSKORI nézethez tartozik '
+      + '(PNL-01), és a bélyeg a `help-body` attribútumain áll, ezért a belső újrarajzolás nem írja felül.',
+    decision: 'D-VS-3075',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R89) — a böngésző-próba R89-07-es esete („a válasz megjön") bukott el',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "stampEl\\(byTest\\('help-body'\\)\\)",
+        why: 'a súgó-panel írói útja is a megnyitáskori nézethez kötött' }),
+    ]),
+    lesson: 'AMIKOR ÚJ ÍRÓ FELÜLETET NYITUNK, A RÁ ÉRVÉNYES SZABÁLYOK LISTÁJA AZ ÚJ FELÜLET '
+      + 'HATÓKÖRÉBŐL JÖN, nem a szabály régi olvasóiból. És a határ zöldje nem a felület zöldje: '
+      + 'a végpontot hívó mérés pontosan azt a lépést hagyja ki, amit a felhasználó megtesz — a '
+      + 'gombot.',
+    guard_note: 'gépi jel: a fenti pozitív minta + `tests/e2e/v3app-r89-tutor.spec.mjs` R89-07 és R89-09 '
+      + '(a kérdés ELKÜLDÉSE és a válasz megjelenése a VALÓDI felületen, nem a végponton).',
+  }),
+  Object.freeze({
+    id: 'KUKA-226',
+    date: '2026-09-26',
+    title: 'A PRÓBAPAD VÉGTELEN TÜRELME ELREJTETTE A LELETET — „időtúllépés" állt a valódi ok helyén',
+    what: 'Az R89-es böngésző-próbám első futása 3 perc után „időtúllépés"-sel bukott el, egyetlen hasznos sor '
+      + 'nélkül. Az OK nem időzítés volt: a próba egy NEM LÉTEZŐ felületi pontra kattintott (elgépelt '
+      + 'azonosító), és a Playwright alapbeállítása szerint a művelet-türelem NULLA, azaz VÉGTELEN — a '
+      + 'kattintás a teljes próba-türelmet (180 s) megette, majd a futtató a próbát „lassúnak" jelentette.',
+    why_wrong: 'A NÉMA VÁRAKOZÁS ELREJTI A LELETET: a hibás azonosítóból „időtúllépés" lett, vagyis a mérés a '
+      + 'SAJÁT beállítását jelentette hibaként a mért dolog helyett (KUKA-121 alakja a próbapadon). Súlyosbító, '
+      + 'hogy a `catch`-be tett kattintás ugyanezt még el is fedte: a próba „megpróbálom, ha nem megy, másképp" '
+      + 'alakja három percet állt, majd csendben a másik ágra ment.',
+    replaced_by: 'KIMONDOTT MŰVELET-TÜRELEM a futtató konfigurációjában (`actionTimeout` · `navigationTimeout`), '
+      + 'és a próbákban NINCS `catch`-be tett kattintás: ami nem létezik, arra NEVEZETTEN bukunk el, a hibás '
+      + 'azonosítóval együtt.',
+    decision: 'D-VS-3075',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R89) — az első böngésző-futás elemzésekor',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['playwright.config.mjs']),
+        pattern: 'actionTimeout: 15_000',
+        why: 'a művelet-türelem KIMONDOTT, nem végtelen' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['tests/e2e/v3app-r89-tutor.spec.mjs'], pattern: '\\.click\\(\\)\\.catch\\(',
+        reason: 'a `catch`-be tett kattintás a hibás azonosítót néma várakozássá változtatja (R89)' }),
+    ]),
+    lesson: 'A PRÓBAPAD BEÁLLÍTÁSA IS MÉRCE. Ahol a türelem végtelen, ott a hiba MINDIG időtúllépésnek fog '
+      + 'látszani — és a valódi ok (elgépelt azonosító, eltűnt gomb) soha nem jelenik meg a jelentésben.',
+    guard_note: 'gépi jel: a fenti pozitív minta (a konfigurációban) és a tiltó-minta (a próbában), plusz az '
+      + 'R89-es böngésző-csomag futása (`npm run test:e2e`).',
+  }),
+  Object.freeze({
+    id: 'KUKA-225',
+    date: '2026-09-26',
+    title: 'A STATIKUS ŐR A SABLONBÓL SZÜLETETT FELÜLETI PONTOT HIÁNYNAK NÉZTE — a MEGLÉVŐ elemet jelentette be hibának',
+    what: 'Az R89-es átadási kapu (`verify:tutor`) első alakja SZÓ SZERINTI `data-testid="…"` egyezést keresett a '
+      + 'forrásban, és pirosat adott a `nav-stock`, `nav-members`, `members-tab-invites` pontokra. Ezek '
+      + 'LÉTEZNEK: a lap SABLONBÓL írja őket (`data-testid="nav-${p}"`). Az őr tehát hat szabályos felületi '
+      + 'pontot hiánynak minősített.',
+    why_wrong: 'AZ ŐR EGY SZABÁLYOS ÁLLAPOTOT JELENTETT HIBÁNAK (KUKA-049), és ha ezt „elnézzük" — például a '
+      + 'mérés elhagyásával —, akkor a HIÁNYZÓ horgony is átmegy. A két rossz válasz (hamis piros, néma zöld) '
+      + 'ugyanabból fakad: a mérés nem ismerte a mért dolog ELŐÁLLÍTÁSÁT.',
+    replaced_by: 'DEKLARÁLT SABLON-CSALÁDOK (`GENERATED_FAMILIES`), MINDKÉT irányban mérve: a család sablonjának '
+      + 'TÉNYLEGESEN a forrásban kell lennie (különben a deklaráció halott), és a családba eső pont csak NEVEZETT '
+      + 'érték-készletből fogadható el. Ami egyikbe sem esik, az továbbra is piros — és a VALÓDI DOM-ot ezen '
+      + 'felül a böngésző-próba méri, külön tanúként.',
+    decision: 'D-VS-3075',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R89) — az átadási kapu első futásán',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_tutor.mjs']),
+        pattern: 'const GENERATED_FAMILIES = Object\\.freeze',
+        why: 'a sablonból születő felületi pontok deklarálva vannak, nem kitalálva' }),
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_tutor.mjs']),
+        pattern: 'a sablon-család TÉNYLEGESEN létezik a forrásban',
+        why: 'a deklarációt MINDKÉT irányban mérjük — a halott család is hiba' }),
+    ]),
+    lesson: 'A STATIKUS MÉRÉSNEK ISMERNIE KELL, HOGYAN SZÜLETIK A MÉRT DOLOG. Ahol a felület sablonból ír '
+      + 'azonosítót, ott a szó szerinti keresés hamis pirosat és — javítás címén — néma zöldet is tud adni.',
+    guard_note: 'gépi jel: a fenti két pozitív minta, plusz az élő DOM-mérés a böngésző-próbában '
+      + '(`tests/e2e/v3app-r89-tutor.spec.mjs`) — a statikus és az élő tanú KÜLÖN.',
+  }),
+  Object.freeze({
+    id: 'KUKA-224',
+    date: '2026-09-26',
+    title: 'AZ AI-SZERZŐDÉS A REGISZTERBEN ÉLT, A KÓDBAN NEM — a segéd a NEM LÉTEZŐ funkcióhoz is gombot adott',
+    what: 'Minden funkció deklarálja, mit tehet vele az AI (`ai: { explain, open, prepare }`), és a `planned` '
+      + 'állapotúaknál ez `open: false`. A segéd válasz-építője (`localAnswer`) viszont a funkció `action` '
+      + 'mezőjét használta a szerződés MEGKÉRDEZÉSE NÉLKÜL: a „Jelszó megváltoztatása" (ami nem létezik) mellé '
+      + 'is odatette a „Belépés és biztonság megnyitása" gombot.',
+    why_wrong: 'A KIMONDOTT SZERZŐDÉS NEM BIZONYÍTÉK ARRA, HOGY A KÓD TELJESÍTI IS (KUKA-038). A hiba nem '
+      + 'jog-megkerülés volt — a megnyitott oldal létezik —, hanem ennél alattomosabb: a segéd egy NEM LÉTEZŐ '
+      + 'képességhez kínált folytatást, vagyis tervet tanított kész szolgáltatásként.',
+    replaced_by: 'A VÁLASZ-ÉPÍTŐ A FUNKCIÓ SAJÁT SZERZŐDÉSÉT KÉRDEZI MEG: `prepare` csak `prepare.*` művelettel '
+      + 'és `ai.prepare === true` mellett, `open` csak `ai.open === true` mellett; a `planned` és a `retired` '
+      + 'állapot pedig egyiket sem kaphatja meg. Az állapot MONDATA is bekerül a válaszba.',
+    decision: 'D-VS-3075',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R89) — a helyi válasz első kimenetének átolvasásakor',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
+        pattern: 'const mayPrepare = ai\\.prepare === true && prepareAction',
+        why: 'a folytatást a funkció SAJÁT AI-szerződése engedi, nem a puszta művelet-mező' }),
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_tutor.mjs']),
+        pattern: "\\['planned', 'retired'\\]\\.includes\\(f\\.status\\)",
+        why: 'a tervezett és a kivezetett funkció nem nyit és nem készít elő — mérve' }),
+    ]),
+    lesson: 'AMIT EGY REGISZTER KIMOND, AZT A HÍVÓ OLDALON IS MEG KELL KÉRDEZNI. A deklaráció önmagában '
+      + 'dokumentáció; szerződéssé attól lesz, hogy a kód a DÖNTÉS pontján elolvassa.',
+    guard_note: 'gépi jel: a fenti két pozitív minta + `verify:tutor` TUT03 (a szerződés és a tervezett/kivezetett '
+      + 'ág) + `v3app/findings_r89.mjs` E) rekesze (a felajánlott folytatások az engedélyezett listából).',
+  }),
+  Object.freeze({
+    id: 'KUKA-223',
+    date: '2026-09-26',
+    title: 'A KERESŐ A KÉRDŐ SZÓRA TALÁLT, A RAGOZOTT KULCSSZÓRA NEM — rossz találat és nulla találat egyszerre',
+    what: 'A segéd tudás-kiválasztója szó szerinti egyezést keresett. Ezért (1) a „Hogyan hívhatok meg '
+      + 'valakit?" kérdésre a JELSZÓ-változtatás útmutatója is előkerült, mert annak a gyakori kérdése is '
+      + '„Hogyan"-nal kezdődött; és (2) a teljesen szabályos „Miért nem látom a készletadatokat?" kérdés NULLA '
+      + 'találatot adott, mert a „készletadatokat" ragozott alak nem egyezett a `keszlet` kulcsszóval. Németül '
+      + 'ugyanez az összetétellel (`Bestandsdaten` ≠ `bestand`).',
+    why_wrong: 'A MAGYAR RAGOZ, A NÉMET ÖSSZETESZ. Egy szó szerinti egyezés ezért a HELYES találatot kihagyja, '
+      + 'a rosszat behozza — a tudás megvolt, az ÚT nem (KUKA-011 a keresőn). És a nulla találat a felhasználó '
+      + 'felé „nincs ellenőrzött útmutató"-ként jelent meg, ami HAMIS állítás volt.',
+    replaced_by: 'HÁROM EGYÜTT: (a) KÉRDŐ-SZÓ lista (`STOPWORDS`), mert ami minden útmutatóban ott van, az nem '
+      + 'szűkít; (b) ELŐTAG-EGYEZÉS (`wordHit`, legalább 4 karakter), ami a ragot és az összetétel elejét '
+      + 'elkapja; (c) NYELVENKÉNTI KULCSSZÓ-SOR a nyelvcsomagban (`SEARCH`), mert a kereshető szó nyelvi '
+      + 'tartalom. És egy NEVEZETT kérdés-készlet, amit a kapu MINDEN bekapcsolt nyelven lefuttat.',
+    decision: 'D-VS-3075',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R89) — a kiválasztó első kimenetének átolvasásakor',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
+        pattern: 'export function wordHit\\(word, hay\\)',
+        why: 'az előtag-egyezés EGY helyen él, és a mérés ugyanezt hívja' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/hu.mjs']),
+        pattern: 'export const SEARCH = Object\\.freeze',
+        why: 'a kereshető kulcsszó NYELVI tartalom, a nyelvcsomagban' }),
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_tutor.mjs']),
+        pattern: 'export const QUESTION_SET = Object\\.freeze',
+        why: 'a nevezett kérdés-készlet minden bekapcsolt nyelven mérve — a nulla találat itt HIBA' }),
+    ]),
+    lesson: 'A KERESÉST A NYELVEN KELL MÉRNI, NEM A KÓDON. Ahol a nyelv ragoz vagy összetesz, ott a szó szerinti '
+      + 'egyezés kétféleképpen hibázik: kihagyja a helyest és behozza a rosszat — és mindkettő NÉMÁN történik.',
+    guard_note: 'gépi jel: a fenti három pozitív minta + `verify:tutor` TUT08 (a nevezett kérdés-készlet HU/EN/DE '
+      + 'nyelven, benne EGY hatókörön kívüli kérdéssel, ahol a nulla találat a helyes válasz).',
+  }),
+  Object.freeze({
+    id: 'KUKA-222',
+    date: '2026-09-26',
+    title: 'A SEGÉD A FIÓKOT NEM KÉRDEZTE MEG — a MEGVONT tag még megkapta a fiókhoz kötött tudást',
+    what: 'A segéd tudás-kiválasztója a belépést, a szerepet, a személyes jelleget és a csomagot ellenőrizte, a '
+      + 'FIÓK meglétét NEM. A saját R89-es HTTP-battériám mérte: miután Anna megszüntette Béla hozzáférését '
+      + '(`currentBookOf` → `book_id: null`), Béla tudás-indexe VÁLTOZATLANUL 20 látható funkciót adott — köztük '
+      + 'a készlet-, ár-, tagság- és mintaadat-leírásokat.',
+    why_wrong: 'A TERV SORRENDJE NÉVSZERINT FELSOROLJA A FIÓKOT: „a szerver … ellenőrzi a személyt, A FIÓKOT, a '
+      + 'jogosultságot, az előfizetést és a funkció állapotát". A kihagyott kapu miatt a segéd TÖBBET adott ki, '
+      + 'mint amihez a kérőnek hozzáférése volt — nem adatot, hanem a fiók KÉPESSÉGEINEK leírását, ami maga is '
+      + 'információ (KUKA-047).',
+    replaced_by: 'A FUNKCIÓ DEKLARÁLJA A HATÓKÖRÉT (`scope: person | book`), és a kiválasztó a `book` hatókörű '
+      + 'funkciót CSAK hatályos tagság mellett adja ki (`ctx.book_id && ctx.member === true`); a kizárás okát '
+      + 'nevezetten kiírja (`workspace_required` · `not_a_member`).',
+    decision: 'D-VS-3075',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R89) — a `v3app/findings_r89.mjs` C) rekesze, VALÓDI HTTP-n',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
+        pattern: "f\\.scope === 'book' && !\\(ctx\\.book_id && ctx\\.member === true\\)",
+        why: 'a fiók is a kapu része — a hatókör a funkció deklarációjából jön' }),
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_tutor.mjs']),
+        pattern: 'MEGVONT tagság mellett sem látható fiókhoz kötött funkció',
+        why: 'a megvont tagság ága MÉRVE van, nem feltételezve' }),
+    ]),
+    lesson: 'A JOG-ELLENŐRZÉS FELSOROLÁSÁT VÉGIG KELL OLVASNI. Egy kimaradt tengely (itt: a fiók) nem hibának '
+      + 'látszik, hanem bőkezűségnek — és pont azon a ponton, ahol a hozzáférés MÁR megszűnt.',
+    guard_note: 'gépi jel: a fenti két pozitív minta + `v3app/findings_r89.mjs` C) rekesze (élő HTTP, megvonás '
+      + 'előtt/után mérve) + `verify:tutor` TUT01 (fiók nélküli és megvont kérő).',
+  }),
+  Object.freeze({
+    id: 'KUKA-221',
+    date: '2026-09-26',
+    title: 'A JELVÉNY A MAGYAR FELIRATHOZ HASONLÍTOTT — a fordítás a képernyő ÁLLÍTÁSÁT is elrontotta volna',
+    what: 'A készlet-tábla „Mennyiség jellege" jelvénye a MEGJELENÍTETT SZÖVEGET hasonlította '
+      + '(`x.quality === „Mért"`), mert a felirat-tábla (`QUALITY_LABEL`) a `demoData.mjs`-ben, a szótáron '
+      + 'KÍVÜL élt. Angolul és németül tehát EGYETLEN sor sem esett volna a „mért" ágra: minden mennyiség '
+      + '„ismeretlen"-nek LÁTSZOTT volna, holott a mintaadat mérte.',
+    why_wrong: 'KÉT HIBA EGYBEN. (1) MÁSODIK SZÖVEG-OTTHON a `texts.mjs` mellett: a nyelvcsomagok nem érték el, '
+      + 'tehát a felirat LEFORDÍTHATATLAN volt (SZO-01 · KUKA-214). (2) A DÖNTÉS A FELIRATON ÁLLT: a fordítás '
+      + 'nem csak a szöveget, hanem a képernyő ÁLLÍTÁSÁT is elrontotta volna — és a hamis adat nem hibának '
+      + 'látszik, hanem adatnak (KUKA-066).',
+    replaced_by: 'A KÓD A TÉNY, A FELIRAT A NYELVCSOMAGBAN: a `demoData.mjs` a `QUALITY_CODES` kódokat tartja '
+      + '(`mert` · `becsult` · `ismeretlen`), a feliratot a `QUALITY` csoport adja nyelvenként, és a jelvényt '
+      + 'EGY feloldó választja a KÓD alapján (`qualityBadge`).',
+    decision: 'D-VS-3075',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R89) — a szótár-kiemelés közben, a fordítás előtt',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'const qualityBadge = \\(code\\)',
+        why: 'a jelvény a KÓDBÓL dől el, nem a feliratból' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/demoData.mjs']),
+        pattern: 'export const QUALITY_CODES = Object\\.freeze',
+        why: 'a mintaadat a kódot tartja, feliratot nem' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3app/public/demoData.mjs', 'v3app/public/app.js'], pattern: 'QUALITY_LABEL',
+        reason: 'a felirat-tábla nem élhet a szótáron kívül: lefordíthatatlan és a döntést a szövegre bízza (R89)' }),
+    ]),
+    lesson: 'AMI DÖNTÉS, AZ A KÓDON ÁLLJON, NEM A FELIRATON. Egy fordítás bevezetése kimutatja, hol hasonlítottunk '
+      + 'megjelenített szöveghez — és ott a hiba nem szöveg-hiba lesz, hanem HAMIS ADAT.',
+    guard_note: 'gépi jel: a fenti két pozitív és egy tiltó minta + `verify:i18n` (a `QUALITY` csoport mindhárom '
+      + 'nyelven) + a böngésző-próba nyelvváltása (`tests/e2e/v3app-r89-tutor.spec.mjs` R89-05).',
+  }),
+  Object.freeze({
     id: 'KUKA-220',
     date: '2026-09-25',
     title: 'A BÖNGÉSZŐ KIVÉTELÉT BIZTOS MEGHIÚSULÁSNAK NEVEZTÜK — a lap olyan hiányt állított, amit nem mért',

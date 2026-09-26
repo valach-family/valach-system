@@ -60,8 +60,20 @@ export const DEMO = frozen({
   }),
 });
 
-/** A mennyiség HÁROM állapotának felirata — az ismeretlen soha nem nulla (UX-19). */
-export const QUALITY_LABEL = Object.freeze({ mert: 'Mért', becsult: 'Becsült', ismeretlen: 'Nem ismert' });
+/**
+ * A MENNYISÉG HÁROM ÁLLAPOTA — a KÓD, felirat nélkül (R89 §5).
+ *
+ * MI VOLT ITT, ÉS MIÉRT KÖLTÖZÖTT EL. Eddig ebben a fájlban állt a `QUALITY_LABEL` felirat-tábla
+ * („Mért" · „Becsült" · „Nem ismert"). Ez MÁSODIK szöveg-otthon volt a `texts.mjs` mellett, tehát
+ * (a) a SZO-01 szabályt sértette, és (b) LEFORDÍTHATATLAN volt: a nyelvcsomagok nem érték el.
+ * Súlyosbító, amit a saját R89-es átírás mérése talált: a készlet-tábla jelvénye a FELIRATHOZ
+ * hasonlított (`x.quality === 'Mért'`), tehát angol vagy német nyelven SOHA nem lett volna igaz —
+ * minden sor a „szürke, ismeretlen" ágra esett volna (KUKA-214 ugyanaz az osztály, a jelvényen).
+ *
+ * A MAI ALAK: itt a KÓD él (`mert` · `becsult` · `ismeretlen`), a felirata a nyelvcsomagokban
+ * (`i18n/<nyelv>.mjs` → `QUALITY`), és a felület a KÓDRA hasonlít, nem a szóra.
+ */
+export const QUALITY_CODES = Object.freeze(['mert', 'becsult', 'ismeretlen']);
 
 /**
  * AZ ÜRES MINTACSOMAG — nem hiba, hanem KIMONDOTT állapot (R83/F83-03).

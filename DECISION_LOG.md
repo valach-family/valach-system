@@ -16,6 +16,79 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3075 — A SEGÍTSÉG EGY FORRÁSBÓL: TUDÁS-REGISZTER, SÚGÓ, BEMUTATÓ, SEGÉD — ÉS A NYELV BŐVÍTHETŐ JEGYZÉKBŐL
+
+> **Hatály:** V3 (`valach-system`) — a nyelvi jegyzék és a szótár (`v3app/public/i18n/`), a
+> tudás-regiszter (`v3app/knowledge/features.mjs`), a súgó · bemutató · chat rajzolói
+> (`v3app/public/help.mjs` · `tour.mjs` · `chat.mjs`), a segéd három modulja
+> (`v3app/assistant/`), a héj három új végpontja és a határ sémája (`v3app/server.mjs` ·
+> `httpSchema.mjs`), a felület (`v3app/public/app.js` · `index.html` · `style.css`), négy új gépi
+> őr és egy böngésző-csomag. **A magreferencia (`v3ref/`) egyetlen fájlja sem változott.** Nincs
+> V2-módosítás, merge, telepítés, migráció, új üzleti modul, új előfizetés és külső
+> szolgáltató-vásárlás.
+
+**Dátum:** 2026-09-26 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 **R89** (a külső ellenőrző
+fél SPEC-jére) · **Lap:** `docs/70_PLANNING/V3_R89_SEGITSEG_ES_NYELVEK.md`
+
+**1. A DÖNTÉS — EGY TUDÁS-FORRÁS, NÉGY FOGYASZTÓ.** Minden képesség EGY helyen, verzióval
+deklarálja magát (TUD-01, 26 funkció): állapot (`working` · `demo` · `planned` · `retired`) ·
+képernyő · művelet · jogosultsági hivatkozás · MINDEN kimenet-fajta · az AI-szerződése (mit
+magyarázhat, mit nyithat meg, mit készíthet elő) · nyelvenkénti forrás-verzió és átnézési állapot ·
+bizonyíték. Ebből az EGY forrásból él a súgó négy nézete (Kérdezz · Útmutatók · Gyakori kérdések ·
+Oldaltérkép), a kattintható bemutató, a keresés és a segéd — tehát új képességnél nincs négy helyen
+frissítés, és nem tud elcsúszni egyik a másiktól (KUKA-003 · KUKA-018).
+
+**2. A SEGÍTSÉG A FELHASZNÁLÓ DOLGA, NEM A RENDSZERÉ.** A panel MAGÁTÓL nem nyílik ki; a belépője a
+fejlécben áll, mellette a mező-szintű kérdőjelek. A súgó · a GYIK · az oldaltérkép · a bemutató ·
+a helyi keresés **NULLA modellhívással** fut (a böngésző-próba MÉRI a kéréseket), egy kérdésre
+legfeljebb EGY modellhívás jut, és nincs újrapróbálási lánc. Az oldaltérkép a SZERVER igazságát
+mutatja, és kimondja, mi MIÉRT nem elérhető.
+
+**3. A BEMUTATÓ SOHA NEM KATTINT HELYETTÜNK.** Kiemel és magyaráz; mentésre, meghívásra,
+jóváhagyásra, jogadásra, törlésre nem nyúl. A feladathoz kötött lépés CSAK a szerver által igazolt
+siker után halad (a gomb megnyomása önmagában nem siker), az „átugrott" pedig NEM „elvégezett" —
+három állapot, és a zárás kiírja, mi maradt el. **És ami a panelen BELÜL van, arra VÁRNI kell:** a
+lépés kimondja, mi tárja fel a célját (`appears_after`), a bemutató a feltáró gombot emeli ki, a
+mondat megmondja a folytatást — a cél hiánya így NEM hamis megszakítás (KUKA-228).
+
+**4. A NYELV JEGYZÉKBŐL JÖN, NEM A KÓDBÓL.** Egy bejegyzés: azonosító · saját nyelvi név · írásirány
+· bekapcsolt állapot · KIMONDOTT tartalék-lánc. Három termék-nyelv (HU · EN · DE) teljes, 588
+kulcson karakterre mérve; a bővíthetőséget egy NEGYEDIK nyelv (francia próba-csomag) és egy
+jobbról-balra írt PRÓBA-tartalom bizonyítja — kód-módosítás nélkül. **A tartalék NEM lefedettség:**
+a hiányzó vagy elavult fordítás nevezett hiány, nem „megvan". A felhasználó adatát soha nem
+fordítjuk le. A nyelv NEM dönt országról, adózási rendről, időzónáról, pénznemről.
+
+**5. A SEGÉD HATÁRA KÓDBAN ÁLL.** A jog- és állapot-ellenőrzés a tudás KIVÁLASZTÁSA ELŐTT fut
+(belépés · fiók · tagság · szerep · csomag · funkció-állapot), a nyitható műveletek ZÁRT listából
+jönnek és MIND `writes: false` — a mentést a felhasználó végzi a rendes űrlapon, friss
+szerver-ellenőrzéssel. A védelem a zárt lista, nem a minta-felismerés. Ha nincs engedélyezett
+szolgáltatói csatlakozás, a panel KIMONDJA, mi hiányzik (változó-NEVEK, érték soha), és a helyi
+válasz megmondja magáról, hogy nem AI-válasz. Az ismeretlen fogyasztás és ár `null` — a képernyőn
+„nincs adat", SOHA nem nulla.
+
+**6. AZ ÁTADÁSI KAPU INNENTŐL MINDEN ÚJ KÉPESSÉGRE ÉRVÉNYES.** Egy új funkció akkor kész, ha a
+tudás-regiszterben áll (állapottal, kimenetekkel, AI-szerződéssel), a súgója és a GYIK-je a három
+termék-nyelven megvan, az oldaltérkép látja, és a bemutatója végigvihető. A részletes szabály a
+lapon áll, a gyökér-fájlban csak a kötelem és a mutató (R65 rendje).
+
+**7. AMIT EZ A DÖNTÉS NEM MOND.** **Nincs mérve élő AI-szolgáltató:** ebben a környezetben sem
+`VS_AI_PROVIDER`, sem `VS_AI_API_KEY` nem áll (mérve: `npm run kapcsolat:ai`), ezért a
+szolgáltatói út **NEM FUTOTT** — a `proof:assistant-live` nevezett kilépési kóddal (2) mondja ki, és
+megnevezi, melyik elfogadási sort hagyja igazolatlanul. Nem állítjuk, hogy a francia és a
+jobbról-balra írt csomag FORDÍTÁS: azok PRÓBA-tartalmak, a bővíthetőség bizonyítására. Nem állítjuk,
+hogy a felület képernyőolvasóval teljesen akadálymentes (a felolvasási sorrend nincs mérve). Nem
+zárul a core-core, és nem zárul a CMD/PR. És nem állítunk zöld söprést: két hosszú lánc ebben a
+környezetben sem futott végig, a `verify:capability-witness` pedig a V2 board-regiszterének
+frissítését kéri, amit ez a csomag SZÁNDÉKOSAN nem végez el (V2-módosítás tilos).
+
+**8. Gépi jel:** `npm run verify:i18n` (41 + 5 ellenpróba) · `npm run verify:tutor` (65 + 9) ·
+`npm run verify:assistant` (49 + 6) · `npm run verify:app-findings-r89` (41, élő HTTP-n) ·
+`npm run verify:kuka` (KUKA-221…230) · `npx playwright test` (59 böngésző-eset, ebből 6 az R89-é) ·
+`npm run kapcsolat:ai` és `npm run proof:assistant-live` (a szolgáltatói út állapota NEVEZETT
+kilépési kóddal).
+
+---
+
 ## D-VS-3074 — A KÖTÉS OTT ÁLL, AHOL AZ ÍRÁS TÖRTÉNIK; A FIÓK ADATA A FIÓKÉ; ÉS A NEM TUDOTT NEM „NEM TÖRTÉNT MEG"
 
 > **Hatály:** V3 (`valach-system`) — a próba-alkalmazás felülete (`v3app/public/`), a héj két

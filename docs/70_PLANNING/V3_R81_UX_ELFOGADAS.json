@@ -4,10 +4,10 @@
   "lane": "Claude-v3",
   "source": "tests/e2e/v3app-r81-ux.spec.mjs",
   "command": "npm run proof:core-ux",
-  "generated_at": "2026-09-25T08:40:21.485Z",
+  "generated_at": "2026-09-26T10:11:03.641Z",
   "package_version": "3.0.0-alpha",
-  "base_url": "http://127.0.0.1:46261",
-  "db_path": "var/tmp/v3_v3.0.0-alpha_20260925_083816_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
+  "base_url": "http://127.0.0.1:41577",
+  "db_path": "var/tmp/v3_v3.0.0-alpha_20260926_100855_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
   "what_this_is": "Az R81 terv 22 elfogadási feltétele a MEGÚJÍTOTT v3app felületen, valódi böngészőből (Playwright · Chromium), feltételenként KÉT rekeszben: amit a lap mutatott (browser) és amit a szerver válaszolt / a tároló őrzött (server).",
   "verdict_vocabulary": {
     "bizonyitva": "a feltétel minden állítása a böngésző- és/vagy a szerver-rekeszből áll össze",
@@ -250,7 +250,7 @@
       "id": "UX-18",
       "title": "A fő folyamat billentyűzettel is végigjárható; panelnyitás/-zárás fókusza helyes.",
       "browser": [
-        "A fő történet HAT lépése billentyűvel végigjárva, egérkattintás nélkül: menüpont „Felhasználók\" ENTER-rel megnyitva (12 TAB) → fő művelet ENTER-rel megnyitva (19 TAB), a fókusz a panelbe került → a panel „Meghívó létrehozása\" gombja TAB-bal elérhető (4 TAB) → ESC-re a panel bezárul, és a fókusz a NYITÓ gombra tér vissza (invite-open) → a fiókválasztó ENTER-rel nyílik (7 TAB), és a fiók tétele TAB-bal elérhető (2 TAB) → a munkalapsáv „Áttekintés\" füle ENTER-rel váltható (14 TAB)."
+        "A fő történet HAT lépése billentyűvel végigjárva, egérkattintás nélkül: menüpont „Felhasználók\" ENTER-rel megnyitva (12 TAB) → fő művelet ENTER-rel megnyitva (20 TAB), a fókusz a panelbe került → a panel „Meghívó létrehozása\" gombja TAB-bal elérhető (4 TAB) → ESC-re a panel bezárul, és a fókusz a NYITÓ gombra tér vissza (invite-open) → a fiókválasztó ENTER-rel nyílik (7 TAB), és a fiók tétele TAB-bal elérhető (2 TAB) → a munkalapsáv „Áttekintés\" füle ENTER-rel váltható (14 TAB)."
       ],
       "server": [
         "A MÉRÉS HATÓKÖRE kimondva (R83/F83-06): ez a rekesz a fő történet HAT lépését méri (menü · fő művelet · panelen belüli elérés · ESC + fókusz-visszatérés · fiókválasztó · munkalapsáv). AMIT NEM MÉR, és ezért nem is állít: a képernyőolvasó felolvasási sorrendjét, a fókusz-csapdát a panelben (TAB a panel VÉGÉN), és a mobil nézet billentyűs útját — ezek NEVESÍTETT nyitott al-esetek."

@@ -1,0 +1,316 @@
+{
+  "kor": "CMD-VS-300-002-002 R89",
+  "sav": "Claude-v3",
+  "repo": "valach-family/valach-system",
+  "ag": "claude/cmd-vs-300-002-002-r89-l1y9ui",
+  "fej": "4b93d1a",
+  "dontes": "D-VS-3075",
+  "lap": "docs/70_PLANNING/V3_R89_SEGITSEG_ES_NYELVEK.md",
+  "verdikt_szotar": {
+    "bizonyitva": "a sor minden állítása MÉRT kimenetből áll össze (megnevezve)",
+    "reszben_bizonyitva": "egy NEVEZETT al-eset nem futott — a lap kimondja, melyik",
+    "nem_futott": "a mérés nem futott le; ez NEM zöld és NEM piros tartalom (KUKA-093)",
+    "hatokoron_kivul": "a parancs kizárta ebből a csomagból"
+  },
+  "szamok": {
+    "kepesseg": 26,
+    "kepesseg_allapot": {
+      "working": 20,
+      "demo": 3,
+      "planned": 2,
+      "retired": 1
+    },
+    "muvelet": 21,
+    "iro_muvelet": 0,
+    "bemutato": 8,
+    "bemutato_lepes": 32,
+    "feltarasra_varo_lepes": 9,
+    "gyik": 42,
+    "utmutato_szoveg": 26,
+    "kereso_kulcsszo": 26,
+    "szotar_kulcs_nyelvenkent": 589
+  },
+  "nyelvek": {
+    "hu": {
+      "endonim": "magyar",
+      "irany": "ltr",
+      "bekapcsolt": true,
+      "lefedettseg": "589/589",
+      "hiany": 0,
+      "elavult": 0,
+      "tartalek_lanc": "hu"
+    },
+    "en": {
+      "endonim": "English",
+      "irany": "ltr",
+      "bekapcsolt": true,
+      "lefedettseg": "589/589",
+      "hiany": 0,
+      "elavult": 0,
+      "tartalek_lanc": "en → hu"
+    },
+    "de": {
+      "endonim": "Deutsch",
+      "irany": "ltr",
+      "bekapcsolt": true,
+      "lefedettseg": "589/589",
+      "hiany": 0,
+      "elavult": 0,
+      "tartalek_lanc": "de → hu"
+    },
+    "fr": {
+      "endonim": "français",
+      "irany": "ltr",
+      "bekapcsolt": false,
+      "lefedettseg": "92/589",
+      "hiany": 401,
+      "elavult": 0,
+      "tartalek_lanc": "fr → en → hu"
+    },
+    "ar-x-proba": {
+      "endonim": "اختبار (RTL próba)",
+      "irany": "rtl",
+      "bekapcsolt": false,
+      "lefedettseg": "52/589",
+      "hiany": 435,
+      "elavult": 0,
+      "tartalek_lanc": "ar-x-proba → en → hu"
+    }
+  },
+  "elfogadas": [
+    {
+      "id": "R89-A1",
+      "mit": "A segítség ELÉRHETŐ a felületről, és magától nem nyílik ki",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "tests/e2e/v3app-r89-tutor.spec.mjs R89-01…04",
+        "npm run verify:tutor"
+      ],
+      "megjegyzes": null
+    },
+    {
+      "id": "R89-A2",
+      "mit": "A súgó NÉGY nézete működik (Kérdezz · Útmutatók · Gyakori kérdések · Oldaltérkép)",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "tests/e2e/v3app-r89-tutor.spec.mjs R89-01…04"
+      ],
+      "megjegyzes": null
+    },
+    {
+      "id": "R89-A3",
+      "mit": "A mező melletti kérdőjel az ADOTT témát nyitja",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "tests/e2e/v3app-r89-tutor.spec.mjs R89-02 (a Készlet képernyőn)"
+      ],
+      "megjegyzes": null
+    },
+    {
+      "id": "R89-A4",
+      "mit": "Az oldaltérkép a SZERVER igazságából áll, és az OKOT kimondja",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "tests/e2e/v3app-r89-tutor.spec.mjs R89-03",
+        "v3app/findings_r89.mjs C) és D) rekesz"
+      ],
+      "megjegyzes": null
+    },
+    {
+      "id": "R89-A5",
+      "mit": "EGY verziózott tudás-forrás, négy fogyasztóval",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "v3app/knowledge/features.mjs",
+        "npm run verify:tutor TUT01–TUT08"
+      ],
+      "megjegyzes": null
+    },
+    {
+      "id": "R89-A6",
+      "mit": "A súgó · GYIK · oldaltérkép · bemutató · helyi keresés MODELLHÍVÁS NÉLKÜL fut",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "tests/e2e/v3app-r89-tutor.spec.mjs (a POST /api/assistant/ask kérések SZÁMOLVA: 0)",
+        "npm run verify:tutor TUT09"
+      ],
+      "megjegyzes": null
+    },
+    {
+      "id": "R89-A7",
+      "mit": "A kattintható bemutató a VALÓDI képernyőn halad, és SOHA nem kattint helyettünk",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "tests/e2e/v3app-r89-tutor.spec.mjs R89-06",
+        "npm run verify:tutor TUT05 (tiltott .click()/dispatchEvent)"
+      ],
+      "megjegyzes": null
+    },
+    {
+      "id": "R89-A8",
+      "mit": "A feladathoz kötött lépés CSAK igazolt siker után halad; az „átugrott\" nem „elvégezett\"",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "tests/e2e/v3app-r89-tutor.spec.mjs R89-06",
+        "v3app/public/tour.mjs STEP_STATES"
+      ],
+      "megjegyzes": null
+    },
+    {
+      "id": "R89-A9",
+      "mit": "A panelen belüli cél FELTÁRÓJA deklarált: a bemutató VÁR, nem szakít meg hamisan",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "npm run verify:tutor TUT05 (6 állítás + 3 romlott alak ellenpróbája)",
+        "tests/e2e/… R89-06"
+      ],
+      "megjegyzes": "a kör lelete: KUKA-228"
+    },
+    {
+      "id": "R89-A10",
+      "mit": "HU · EN · DE teljes, karakterre mérve",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "npm run verify:i18n I18N02 (589/589 kulcs mindhárom nyelven)"
+      ],
+      "megjegyzes": null
+    },
+    {
+      "id": "R89-A11",
+      "mit": "A nyelv-jegyzék BŐVÍTHETŐ: negyedik nyelv kód-módosítás nélkül",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "v3app/public/i18n/languages.mjs + fr.mjs",
+        "npm run verify:i18n I18N05"
+      ],
+      "megjegyzes": "a francia csomag PRÓBA, nem lektorált fordítás"
+    },
+    {
+      "id": "R89-A12",
+      "mit": "Jobbról balra írás: a lap tükröz, az elrendezés nem esik szét, a tartalom ELÉRHETŐ",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "tests/e2e/v3app-r89-tutor.spec.mjs R89-08 (390×844: nincs vízszintes csúszás + találat-vizsgálat + valódi kattintás)"
+      ],
+      "megjegyzes": "a kör lelete: KUKA-229"
+    },
+    {
+      "id": "R89-A13",
+      "mit": "A tartalék NEM lefedettség; a hiányzó és az elavult fordítás nevezett hiány",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "npm run verify:i18n I18N03/I18N06 + 5 ellenpróba"
+      ],
+      "megjegyzes": null
+    },
+    {
+      "id": "R89-A14",
+      "mit": "A jog- és állapot-ellenőrzés a tudás KIVÁLASZTÁSA ELŐTT fut (belépés · fiók · tagság · szerep · csomag · állapot)",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "v3app/findings_r89.mjs A)–C) rekesz (élő HTTP)",
+        "npm run verify:assistant AST01–AST03"
+      ],
+      "megjegyzes": "a kör lelete: KUKA-222 (a fiók-kapu kimaradt)"
+    },
+    {
+      "id": "R89-A15",
+      "mit": "A nyitható műveletek ZÁRT listából jönnek, és egyik sem ír",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "npm run verify:assistant AST04 (writes:false mind a 21 műveleten)",
+        "v3app/findings_r89.mjs E)"
+      ],
+      "megjegyzes": null
+    },
+    {
+      "id": "R89-A16",
+      "mit": "A segéd válasza a FORRÁSÁT megmutatja, és a „nincs ellenőrzött útmutató\" nevezett válasz",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "tests/e2e/v3app-r89-tutor.spec.mjs R89-07",
+        "npm run verify:tutor TUT08 (9 kérdés × 3 nyelv, benne hatókörön kívüli)"
+      ],
+      "megjegyzes": null
+    },
+    {
+      "id": "R89-A17",
+      "mit": "A kérdés ELKÜLDHETŐ a felületről (nem csak a végpont működik)",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "tests/e2e/v3app-r89-tutor.spec.mjs R89-07 és R89-09"
+      ],
+      "megjegyzes": "a kör legsúlyosabb lelete: KUKA-227 — az első alakban a küldés EL SEM INDULT"
+    },
+    {
+      "id": "R89-A18",
+      "mit": "A fogyasztás MÉRVE, és az ismeretlen érték null („nincs adat\"), nem nulla",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "npm run verify:assistant AST07",
+        "tests/e2e/… R89-07 (chat-usage-cost = „nincs adat\")"
+      ],
+      "megjegyzes": null
+    },
+    {
+      "id": "R89-A19",
+      "mit": "Egy kérdésre legfeljebb EGY modellhívás, újrapróbálási lánc nélkül",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "npm run verify:assistant AST06",
+        "v3app/assistant/policy.mjs LIMITS.model_calls_per_question = 1"
+      ],
+      "megjegyzes": null
+    },
+    {
+      "id": "R89-A20",
+      "mit": "A beszélgetés és a súgó-állapot NEM megy át másik fiókba/személyhez",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "tests/e2e/v3app-r89-tutor.spec.mjs R89-09",
+        "v3app/public/app.js resetViewCaches"
+      ],
+      "megjegyzes": null
+    },
+    {
+      "id": "R89-A21",
+      "mit": "VALÓDI AI-integráció: engedélyezett szolgáltatóval mért kérdés–válasz",
+      "verdikt": "nem_futott",
+      "bizonyitek": [
+        "npm run kapcsolat:ai → NINCS CSATLAKOZÁS (hiányzik: VS_AI_PROVIDER)",
+        "npm run proof:assistant-live → kilépési kód 2"
+      ],
+      "megjegyzes": "KÜLSŐ BEÁLLÍTÁS, nem hiányzó kód. Ami bizonyított: a csatlakozási felület, a hibakezelés és a korlátok befecskendezett fetch-fel."
+    },
+    {
+      "id": "R89-A22",
+      "mit": "Ugyanez a kapu KÖTELEZŐ minden későbbi képességre és Mini modulra",
+      "verdikt": "bizonyitva",
+      "bizonyitek": [
+        "CLAUDE.md 3. szakasz (kötelem + mutató)",
+        "DECISION_LOG.md D-VS-3075 6. pont",
+        "ez a lap 12. szakasza"
+      ],
+      "megjegyzes": null
+    },
+    {
+      "id": "R89-A23",
+      "mit": "A teljes söprés zöld",
+      "verdikt": "reszben_bizonyitva",
+      "bizonyitek": [
+        "a csomag verifierjei zöldek (verify:i18n · tutor · assistant · kuka · app-findings* · selfcheck · playwright)"
+      ],
+      "megjegyzes": "HÁROM lánc NEM ad zöldet ebben a konténerben, és ugyanez állt az ÉRINTETLEN kiinduló commiten is: verify:capability-witness (a V2 board-regiszterét kellene frissíteni — a parancs kizárja), verify:v3ref (a battéria nem fér a saját egység-költségvetésébe ezen a gépen), verify:external-checks (nem fejeződött be a 900 s türelmen)."
+    }
+  ],
+  "hatokoron_kivul": [
+    "merge",
+    "telepítés",
+    "V2-módosítás",
+    "új üzleti Mini modul",
+    "új előfizetés",
+    "szolgáltató-vásárlás",
+    "a core-core zárása",
+    "a CMD/PR zárása"
+  ]
+}

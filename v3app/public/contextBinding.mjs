@@ -56,20 +56,38 @@ export function servedMatches(r, expected) {
   return contextBindingVerdict(r, expected).bound === true;
 }
 
-/** EMBERI MONDAT a nem-kötött válaszra: a képernyő sosem marad néma (KUKA-012 · KUKA-201). */
-export function unboundMessage(why) {
-  switch (why) {
-    case 'login_required':
-      return 'A bejelentkezésed lejárt. Jelentkezz be újra, és a művelet megismételhető.';
-    case 'context_mismatch':
-      return 'A módosítást nem mentettük, mert közben másik fiókra vagy felhasználóra váltottál ebben a böngészőben.';
-    case 'other_book':
-    case 'other_subject':
-      return 'Közben másik fiókra vagy felhasználóra váltottál ebben a böngészőben, ezért ezt a választ nem jelenítettük meg. Az oldal frissült.';
-    case 'missing_context_field':
-    case 'invalid_context_field':
-      return 'Az adatokat nem tudtuk biztonságosan megjeleníteni. Frissítsd az oldalt.';
-    default:
-      return 'Az adatokat nem tudtuk biztonságosan megjeleníteni. Frissítsd az oldalt.';
-  }
+/**
+ * A NEM-KÖTÖTT VÁLASZ OKA → SZÓTÁR-KULCS. A szabály (melyik ok melyik mondatot kapja) ITT él, a
+ * MONDAT viszont a nyelvcsomagokban (`i18n/<nyelv>.mjs` → `UNBOUND`) — R89 §5.
+ *
+ * MIÉRT VÁLT KETTŐ: eddig a négy mondat ebben a fájlban állt, tehát HARMADIK szöveg-otthon volt a
+ * `texts.mjs` és a `demoData.mjs` mellett, és lefordíthatatlan (SZO-01 · KUKA-214). A DÖNTÉS
+ * viszont a kötés szabálya, nem szöveg — ezért maradt itt, kulcsra fordítva.
+ */
+export const UNBOUND_KEY = Object.freeze({
+  login_required: 'login_required',
+  context_mismatch: 'context_mismatch',
+  other_book: 'other_context',
+  other_subject: 'other_context',
+  missing_context_field: 'unsafe',
+  invalid_context_field: 'unsafe',
+});
+
+/** A kulcs egy okhoz; ismeretlen oknál a NEVEZETT „nem biztonságos" ág (nem néma üres szöveg). */
+export function unboundKey(why) {
+  return Object.prototype.hasOwnProperty.call(UNBOUND_KEY, why) ? UNBOUND_KEY[why] : 'unsafe';
+}
+
+/**
+ * EMBERI MONDAT a nem-kötött válaszra: a képernyő sosem marad néma (KUKA-012 · KUKA-201).
+ *
+ * A `texts` paraméter a SZÓTÁR `UNBOUND` csoportja. A hívó adja át, hogy ez a modul TISZTA
+ * maradjon (se import-kör, se rejtett globális) — a lap és a próba UGYANEZT a függvényt hívja
+ * (KUKA-207). Szótár nélkül a kulcsot adja vissza: a hiány DERÜLJÖN KI, ne néma üres mondat legyen.
+ */
+export function unboundMessage(why, texts) {
+  const key = unboundKey(why);
+  const box = texts && typeof texts === 'object' ? texts : null;
+  const sentence = box && typeof box[key] === 'string' && box[key] ? box[key] : null;
+  return sentence || key;
 }

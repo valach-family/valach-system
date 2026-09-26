@@ -39,6 +39,12 @@ export default defineConfig({
   globalSetup: './tests/e2e/global-setup.mjs',
   reporter: [['list'], ['json', { outputFile: process.env.VS_E2E_REPORT_PATH }]],
   use: {
+    // MŰVELET-TÜRELEM KIMONDVA (R89 saját lelet): alapból a Playwright `actionTimeout`-ja NULLA,
+    // vagyis VÉGTELEN — egy nem létező elemre adott kattintás így a TELJES próba-türelmet (180 s)
+    // megeszi, és a hiba „időtúllépés"-ként jelenik meg a valódi ok helyett. Ez a KUKA-121 alakja a
+    // próbapadon: a türelem nem mérce, a néma várakozás elrejti a leletet.
+    actionTimeout: 15_000,
+    navigationTimeout: 20_000,
     baseURL: process.env.VS_E2E_BASE_URL,
     locale: 'hu-HU',
     trace: 'off',
