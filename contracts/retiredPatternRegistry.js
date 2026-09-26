@@ -82,9 +82,15 @@ const RETIRED_PATTERNS = Object.freeze([
       Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
         pattern: 'resolveLanguage\\(\\{ explicit, acceptLanguage: acceptLanguage \\|\\| ..\\ .\\}\\)|resolveLanguage\\(\\{ explicit, acceptLanguage',
         why: 'a szerver a szerződés mezőnevein hívja a feloldót' }),
+      // A HÍVÁS OTTHONT VÁLTOTT (R97, F95-01): a lap már nem közvetlenül hívja a feloldót, hanem a
+      // LNG-02 döntésen (`decideLang`) keresztül — a jel ezért ODA került, ahol ma tényleg fut
+      // (KUKA-051: a nem létező helyen mért minta zöldnek látszik).
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/langMemory.mjs']),
+        pattern: 'resolveLanguage\\(\\{ explicit: explicit \\|\\| carried, stored, acceptLanguage \\}\\)',
+        why: 'a nyelv-döntés a szerződés mezőnevein hívja a feloldót (a lap ezt a döntést használja)' }),
       Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
-        pattern: 'resolveLanguage\\(\\{ explicit: wanted, acceptLanguage',
-        why: 'a lap is a szerződés mezőnevein hívja' }),
+        pattern: 'acceptLanguage: nav\\.filter\\(Boolean\\)\\.join',
+        why: 'a lap a böngésző kérését a szerződés MEZŐNEVÉN adja át (nem kitalált néven)' }),
     ]),
     lesson: 'A TARTALÉK-ÁGGAL RENDELKEZŐ FELOLDÓ ELREJTI A HIBÁS HÍVÁST. Ahol a hiányzó bemenetre van '
       + 'válasz, ott a mezőnév elírása nem kivétel, hanem NÉMA alapértelmezés — ezért az ilyen feloldót '
@@ -219,9 +225,14 @@ pattern: 'sources: modelAccepted \\? \\w+\\.sources : local\\.sources',
       Object.freeze({ paths: Object.freeze(['v3app/public/i18n/hu.mjs']),
         pattern: 'export const SRV = Object\\.freeze',
         why: 'a szerver-oldali lapok és levelek szövege a szótárban áll' }),
+      // A KULCS ALAKJA OTTHONT VÁLTOTT (R97, F95-01): a `vs3.lang.<alany>` előtag a LNG-02 modulban
+      // áll, a lap onnan kéri (`langStoreKey`) — a jel a MAI helyén mér.
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/langMemory.mjs']),
+        pattern: 'LANG_STORE_PREFIX = .vs3\\.lang\\..',
+        why: 'a nyelvi választás SZEMÉLYHEZ kötve marad meg (a kulcs alakja egy helyen áll)' }),
       Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
-        pattern: 'const LANG_STORE_PREFIX = .vs3\\.lang\\..',
-        why: 'a nyelvi választás SZEMÉLYHEZ kötve marad meg' }),
+        pattern: 'langStoreKey\\(state\\.me && state\\.me\\.subject_id',
+        why: 'a lap a SZEMÉLY kulcsát a feloldótól kéri, nem maga fűzi össze' }),
       Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
         pattern: "data-testid=\"lang-select-public\"",
         why: 'a nyelvválasztó belépés előtt is elérhető' }),
@@ -10574,6 +10585,107 @@ pattern: 'sources: modelAccepted \\? \\w+\\.sources : local\\.sources',
     guard_note: 'gépi jel: `tests/e2e/v3app-r93.spec.mjs` R93-05/06 (visszatartott válasz + oda-vissza '
       + 'váltás, a régi válasz nem jelenik meg) és R93-04 (az úton választott nyelv túléli az első '
       + 'belépést, de kijelentkezéskor nem öröklődik) + `npm run verify:kuka` pozitív mintái.',
+  }),
+  Object.freeze({
+    id: 'KUKA-245',
+    date: '2026-09-26',
+    title: 'A SZTRINGEN OLVASOTT `.code` MEZŐ KÉT ÁGAT TARTOTT HALVA — és az egyik FELÉLEDÉSE egy MÁSIK szabályt sértett meg',
+    what: 'Az F91/F93-as nyelv-életciklus HÁROM helyen a `setLang` visszatérésén vizsgált `got.code` mezőt '
+      + '(`app.js` 459 · 462 · 1890), miközben a függvény NYELVKÓD-SZTRINGET ad (I18N-01, `i18n/dict.mjs` 82). '
+      + 'A személyhez mentés két ága ezért SOHA nem futott le: a felhasználó angol/német választása az ELSŐ '
+      + 'belépést és a frissítést túlélte (a kijelentkezésig élő választás-kulcsról), de KIJELENTKEZÉS és '
+      + 'ÚJBÓLI BELÉPÉS után magyarra váltott. A harmadik helyet a tartalék-ága (`: wanted`) mentette meg, '
+      + 'VÉLETLENÜL. MÁSODLAGOS LELET: amikor a mezőnevet javítottam, a lap CÍMÉBŐL (`?lang=`) jövő ág '
+      + 'FELÉLEDT — és a névtelen tárolási maradványt TUDATOS választássá mosta, tehát a KÖVETKEZŐ ember '
+      + 'örökölte az előzőét (az R93-04 utolsó állítása bukott el a saját böngésző-próbámon).',
+    why_wrong: 'A HIBÁS MEZŐNÉV EGY SZTRINGEN NEM HIBA, HANEM `undefined` — az `if` néma hamis lesz, a lap '
+      + 'pedig hihetően működik. Ezt a saját próbánk sem fogta meg, mert CSAK az első belépést mérte, ahol egy '
+      + 'MÁSIK kulcs (a kijelentkezésig élő választás) fedte a hiányt. És a javítás önmagában sem elég: egy '
+      + 'hibás mezőnév mögött ALVÓ ág is van, aminek a feléledése MÁS szabályt írhat át — a „csak elírás" '
+      + 'javítás tehát viselkedés-változás, amit újra kell mérni (KUKA-238 · KUKA-092).',
+    replaced_by: 'LNG-02 (`v3app/public/i18n/langMemory.mjs`): a döntést EGY tiszta feloldó hozza '
+      + '(`decideLang`), MÉRT kimenettel (`source`: choice · url · stored · carried · accept_language · '
+      + 'default), és MEGMONDJA, kell-e menteni (`persist_for_person` · `persist_choice`). A lapon EGY '
+      + 'bejárat érvényesít (`useLang`), tehát PONTOSAN EGY `setLang(` hívás van, mezőolvasás nélkül.',
+    replacement: 'A hordozó választás-kulcsot KIZÁRÓLAG valódi átállítás írja (a cím ága megjelenít és '
+      + 'személyhez elteszi, de hordozót nem gyárt) — így a feléledt ág nem írja át a „másik ember nem '
+      + 'örökli" szabályt.',
+    decision: 'D-VS-3078',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R95 §F95-01 — teljes UI-úton mérve mindhárom aktív '
+      + 'nyelven (regisztráció → levél → belépés → frissítés → kijelentkezés → újbóli belépés). A MÁSODLAGOS '
+      + 'leletet (a feléledt ág átírta a másik szabályt) a SAJÁT böngésző-próbám fogta meg (R97-02).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'function useLang\\(decision\\)',
+        why: 'a nyelv érvényesítésének EGY bejárata van, és a döntés a modulból jön' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/langMemory.mjs']),
+        pattern: 'persist_for_person',
+        why: 'a mentés a DÖNTÉS következménye, nem hívónkénti ág' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'got\\s*&&\\s*got\\.code',
+        reason: 'a setLang visszatérésén olvasott, NEM LÉTEZŐ mező' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js', 'v3app/public/texts.mjs']),
+        pattern: 'setLang\\([^)]*\\)\\s*\\.\\s*\\w',
+        reason: 'mező-olvasás a SZTRINGET adó setLang eredményén' }),
+    ]),
+    lesson: 'A SZTRINGEN OLVASOTT MEZŐ A LEGCSENDESEBB HIBA — de a fontosabb tanulság a JAVÍTÁSÁRÓL szól: '
+      + 'egy hibás mezőnév ÁGAKAT TART HALVA, és a feléledésük ÚJ viselkedés. Ezért az ilyen javítás nem '
+      + '„elírás-javítás": végig kell mérni MINDEN szabályt, amit a feléledt ág érint (itt a „következő ember '
+      + 'nem örökli" szabályt), és a próbának a TELJES életciklust kell járnia — az első belépés zöldje semmit '
+      + 'nem mond a kijelentkezés utáni állapotról.',
+    guard_note: 'gépi jel: `npm run verify:app-findings-r95` (a szerződés MEGHÍVVA · egy bejárat · a teljes '
+      + 'út MINDEN bekapcsolt nyelven · ROMLÁS-ELLENPRÓBA a régi szabállyal) + `tests/e2e/v3app-r97.spec.mjs` '
+      + 'R97-01/02 (valódi böngésző: kijelentkezés + újbóli belépés, és két ember egy böngészőben) + '
+      + '`verify:kuka` fenti mintái.',
+  }),
+  Object.freeze({
+    id: 'KUKA-246',
+    date: '2026-09-26',
+    title: 'A LEJÁRT ELLENŐRZÉS UNOKÁI TOVÁBB FUTOTTAK — a türelem letelt, a terhelés maradt',
+    what: 'A söprés `execSync`-kel indította a gyermekeket (900 000 ms türelem). A Node időtúllépéskor a '
+      + 'KÖZVETLEN gyermeknek küld jelet — itt egy héjnak, ami node-ot indít, ami továbbiakat. Az UNOKÁK '
+      + 'életben maradtak: a folyamatfa `ppid=1`-gyel tovább futott, a terhelés négy magon 10,85 volt, '
+      + 'MIKÖZBEN már a következő ellenőrzés mért.',
+    why_wrong: 'KÉT KÁR EGYSZERRE: a gép terhelése ÉS a mérés hitele — a következő próba egy terhelt gépen '
+      + 'fut, tehát az időzítése más, és egy kivágás ettől hamis pirosat adhat. A „továbblépek, a gyermek majd '
+      + 'meghal" feltevés néma: a futtató nem mérte, megszűnt-e a fa (KUKA-121: a jel hiánya nem a jelzett '
+      + 'esemény hiánya).',
+    replaced_by: 'CHR-01 (`tools/lib/vs_child_runner.mjs`): a gyermek SAJÁT folyamatcsoportban indul '
+      + '(`detached`), a leállítás a CSOPORTRA megy — szabályos jel → VÉGES türelmi idő → kényszerleállítás → '
+      + 'IGAZOLT üresség, MIELŐTT a következő próba indul. A takarítás sikernél, hibánál ÉS megszakításnál is '
+      + 'fut, a jel-küldés EGY ponton megy át, és KIZÁRÓLAG a maga indította, nyilvántartott csoportokra.',
+    replacement: 'A maradvány NEVEZETT tény a söprés jelentésében (nem néma), és nem támogatott platformon '
+      + 'NEVEZETT korlát áll a helyén — nem hallgatás.',
+    decision: 'D-VS-3079',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R95 §F95-02 — elkülönített próbával, 200 ms kerettel: '
+      + 'ETIMEDOUT/SIGTERM után a gyermek életjele 4-ről 10-re nőtt. Az R94-es körben a SAJÁT mérésem is látta '
+      + 'a `ppid=1` fát és a 10,85-os terhelést, de nem a futtató hibájaként könyveltem el.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_sweep.mjs']),
+        pattern: 'runGuarded\\(',
+        why: 'a söprés a védett futtatót hívja, nem saját ágat' }),
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_child_runner.mjs']),
+        pattern: 'signalOwnGroup',
+        why: 'a jel a SAJÁT, nyilvántartott folyamatcsoportra megy, EGY ponton' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_sweep.mjs']),
+        pattern: 'execSync\\(',
+        reason: 'az időtúllépéskor csak a KÖZVETLEN gyermeket leállító futtatás' }),
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_child_runner.mjs']),
+        pattern: '(execSync|spawnSync)\\s*\\(|killall|kill\\s+-9\\s+-1',
+        reason: 'gépszintű leállítás vagy héj-hívás a futtatóban (a hatókör a saját fa)' }),
+    ]),
+    lesson: 'AKI FOLYAMATOT INDÍT, A FÁJÁÉRT FELEL — nem a közvetlen gyermekéért. Időtúllépésnél a jel a '
+      + 'CSOPORTRA megy, a türelem VÉGES, és a végén IGAZOLT ürességnek kell állnia, MIELŐTT a következő mérés '
+      + 'indul; különben a következő mérés egy terhelt gépen fut, és a saját eredményét sem tudjuk hova tenni. '
+      + 'A takarítás nem lehet a siker-ág kiváltsága: hibánál és MEGSZAKÍTÁSNÁL ugyanaz az út. És a hatókör '
+      + 'kódban álljon (nyilvántartott csoport), ne jóindulatban — gépszintű leállítás SOHA.',
+    guard_note: 'gépi jel: `npm run verify:child-runner` (CR01–CR08: siker · hibás kilépés · MAKACS '
+      + 'gyermek/unoka időtúllépéskor · nincs további életjel és nincs átfedés · ELLENPRÓBA a régi '
+      + 'mechanizmussal · megszakítás · hatókör · a söprés bekötése) + `verify:kuka` fenti mintái.',
   }),
 ]);
 

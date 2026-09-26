@@ -9,7 +9,10 @@
 // Használat: npm run verify:sweep  (minden kör vége előtt — agent-fegyelem, CLAUDE.md ÁLLANDÓK)
 
 import { readFileSync } from 'node:fs';
-import { execSync } from 'node:child_process';
+// CHR-01 (F95-02, R97): a gyermek SAJÁT folyamatcsoportban indul, és a lezárása IGAZOLT — az
+// `execSync` időtúllépése csak a KÖZVETLEN gyermeknek küldött jelet, az unokák életben maradtak, és a
+// gép a KÖVETKEZŐ ellenőrzés alatt is terhelt volt (chatgpt-v3 mérése, R95 §F95-02).
+import { runGuarded, PLATFORM_LIMIT } from './lib/vs_child_runner.mjs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 // SWV-01 (OB-10, R16 §2): a verdikt a gyermek GÉPI deklarációjából dől el, nem részszövegből.
@@ -53,22 +56,26 @@ const cheapParts = reused.filter((a) => a.cheap_part).map((a) => ({ s: `${a.chai
 // SAJÁT, nevezett válasz — nem piros, hanem „NEM FEJEZŐDÖTT BE", a futási idővel együtt, hogy
 // látszódjon, mennyivel nőtt túl (KUKA-124/2 · KUKA-064: a nemleges válasz mondja meg a teendőt).
 const PATIENCE_MS = 900000;
+// A TÜRELMI IDŐ A SZABÁLYOS LEÁLLÍTÁSNAK (F95-02): ennyit várunk a SIGTERM után, mielőtt a csoport
+// kényszerleállítást kap. Nem küszöb-emelés: a türelem VÉGES, és a végén IGAZOLT üresség áll.
+const GRACE_MS = 5000;
 const t0 = Date.now();
 let pass = 0;
 const envSkips = [];
 const timedOut = [];
 const fails = [];
 const runs = [...scripts.map((s) => ({ s, cmd: `npm run -s ${s}` })), ...cheapParts];
+const leftovers = [];
 for (const { s, cmd } of runs) {
   const started = Date.now();
-  let exitCode = 0; let out = ''; let killed = false;
-  try {
-    out = String(execSync(cmd, { stdio: ['ignore', 'pipe', 'pipe'], cwd: ROOT, timeout: PATIENCE_MS }) || '');
-  } catch (e) {
-    killed = e.code === 'ETIMEDOUT' || e.signal === 'SIGTERM';
-    exitCode = typeof e.status === 'number' ? e.status : 1;
-    out = `${e.stdout || ''}\n${e.stderr || ''}`;
-  }
+  const r = await runGuarded(cmd, { cwd: ROOT, timeoutMs: PATIENCE_MS, graceMs: GRACE_MS, verifyMs: GRACE_MS });
+  const exitCode = r.exitCode;
+  const killed = r.timedOut;
+  // A GYERMEK GÉPI DEKLARÁCIÓJA a kimenetén jön (SWV-01), a hibacsatorna a jelentéshez kell.
+  const out = r.timedOut || exitCode !== 0 ? r.output : r.stdout;
+  // A MARADVÁNY KÜLÖN TÉNY, mint a kivágás: ha a fa a kényszerleállítás után SEM ürült ki, azt
+  // KI KELL ÍRNI — a következő ellenőrzés egy terhelt gépen mérne (KUKA-012 · F95-02).
+  if (r.cleanup && r.cleanup.leftovers === true) leftovers.push({ s, verdict: r.cleanup.verdict, steps: r.cleanup.steps });
   // A DÖNTÉST A KÖZÖS FELOLDÓ HOZZA (SWV-01). A régi alak itt, helyben keresett részszöveget: ha a
   // bukott gyermek kimenetében BÁRHOL szerepelt az „ENV-KIHAGYÁS", az EGÉSZ ellenőrző kihagyássá
   // vált — és a `verify:external-checks` SAJÁT, szabályos jelentése épp ezt a szót tartalmazza.
@@ -97,5 +104,11 @@ if (envSkips.length) {
   console.log('ENV-KIHAGYÁS (a gyermek MAGA deklarálta, gépi alakban — a söprés nem szövegből következtet):');
   for (const e of envSkips) console.log(`  · ${e.s} — ${e.reason}`);
 }
+if (leftovers.length) {
+  console.error(`MARADVÁNY a leállítás után (F95-02 — a következő ellenőrzés terhelt gépen mérne): `
+    + leftovers.map((l) => `${l.s} (${l.verdict})`).join(', '));
+  for (const l of leftovers) console.error(`  · ${l.s}: ${l.steps.join(' → ')}`);
+}
+if (PLATFORM_LIMIT) console.log(`NEVEZETT PLATFORM-KORLÁT: ${PLATFORM_LIMIT}`);
 if (fails.length) console.error(`PIROS: ${fails.join(', ')}`);
-if (fails.length || timedOut.length || unverified.length) process.exit(1);
+if (fails.length || timedOut.length || unverified.length || leftovers.length) process.exit(1);

@@ -15,7 +15,7 @@
 import { contextBindingVerdict, unboundMessage } from './contextBinding.mjs';
 import { PAGE, NAV_GROUPS, NAV_ADMIN, NAV_PERSONAL, ROLE, SCOPE, SCOPE_ACC, PLAN, QUALITY, STATE, UNBOUND, UI, HELP, TOURUI, CHAT,
   reasonText, whenText, tpl, accountLabel, setLang, currentLang, currentDir, currentEndonym, enabledLanguages,
-  resolveLanguage, dict } from './texts.mjs';
+  dict, decideLang, langStoreKey, LANG_CHOICE_KEY } from './texts.mjs';
 import { demoFor, demoSource } from './demoData.mjs';
 // A SEGÍTSÉG HÁROM DARABJA — mind TISZTA rajzoló/állapot-modul: lekérést egyik sem indít, azt EGY
 // helyen, itt végezzük (KUKA-209: a rajzolás nem kérdez).
@@ -383,7 +383,6 @@ import * as tourMod from './tour.mjs';
    * A tároló hibáját (privát ablak · letiltott tároló) ELNYELJÜK: a nyelv ettől nem áll meg, csak
    * nem marad meg — és ezt a profil-oldal ki is mondja.
    */
-  const LANG_STORE_PREFIX = 'vs3.lang.';
   /**
    * AZ ÚTON VÁLASZTOTT NYELV SAJÁT KULCSA (F93-02) — és MIÉRT NEM elég a memória.
    *
@@ -397,7 +396,6 @@ import * as tourMod from './tour.mjs';
    * kijelentkezés után belépő MÁSIK ember soha nem örökli — a tér csak addig él, amíg ugyanaz a
    * belépési/regisztrációs út tart. Üzleti adat nincs benne: egy nyelv-kód.
    */
-  const LANG_CHOICE_KEY = 'vs3.lang.choice';
   function rememberChoice(code) {
     state.langChoice = code || null;
     try {
@@ -409,15 +407,34 @@ import * as tourMod from './tour.mjs';
     if (state.langChoice) return state.langChoice;
     try { return window.localStorage.getItem(LANG_CHOICE_KEY); } catch { return null; }
   }
-  function langStoreKey() {
-    const sub = state.me && state.me.subject_id ? String(state.me.subject_id) : null;
-    return `${LANG_STORE_PREFIX}${sub || 'anon'}`;
-  }
+  /** A MAI személy tárolási kulcsa — a KULCS ALAKJA a modulé (LNG-02), nem itt épül újra. */
+  function myLangKey() { return langStoreKey(state.me && state.me.subject_id ? state.me.subject_id : null); }
   function rememberLang(code) {
-    try { window.localStorage.setItem(langStoreKey(), String(code)); return true; } catch { return false; }
+    try { window.localStorage.setItem(myLangKey(), String(code)); return true; } catch { return false; }
   }
   function storedLang() {
-    try { return window.localStorage.getItem(langStoreKey()); } catch { return null; }
+    try { return window.localStorage.getItem(myLangKey()); } catch { return null; }
+  }
+  /**
+   * EGY BEJÁRAT A NYELV ÉRVÉNYESÍTÉSÉHEZ (F95-01) — ÉS MIÉRT PONT EGY.
+   *
+   * A HIBA, amit a külső ellenőrző fél (chatgpt-v3) az R95-ben MÉRT: az angolra/németre állított
+   * felület KIJELENTKEZÉS és ÚJBÓLI BELÉPÉS után magyarra váltott. Az OK a forráson: a `setLang`
+   * NYELVKÓD-SZTRINGET ad (I18N-01), a lap viszont HÁROM helyen egy nem létező `got.code` mezőt
+   * olvasott rajta. Két ág (a személyhez mentés) ezért SOHA nem futott le, a harmadikat a
+   * tartalék-ága mentette meg — VÉLETLENÜL (KUKA-238 · KUKA-245).
+   *
+   * Ezért innentől a nyelv-váltás MINDEN útja ezen az egy függvényen megy át, a döntést pedig a
+   * tiszta modul hozza (`decideLang`), amit a próba is HÍVNI tud (KUKA-207). A mentés nem külön ág
+   * minden hívóban: a döntés MEGMONDJA, kell-e (`persist_for_person` · `persist_choice`).
+   */
+  function useLang(decision) {
+    const code = setLang(decision.code);        // SZTRING — mezőt nem olvasunk rajta (KUKA-245)
+    state.langSource = decision.source;
+    applyLanguage();
+    state.langStored = decision.persist_for_person ? rememberLang(code) : state.langStored;
+    if (decision.persist_choice) rememberChoice(code);
+    return code;
   }
   /**
    * A NYELV VISSZAÁLLÍTÁSA a MAI személyhez. Sorrend: (1) a lap címében KIFEJEZETTEN kért nyelv
@@ -425,11 +442,10 @@ import * as tourMod from './tour.mjs';
    * választása, (3) a böngésző nyelvi kérése. Ami nincs bekapcsolva, azt a feloldó eldobja.
    */
   function restoreLang({ fromUrl = false, newPerson = false } = {}) {
-    let wanted = null;
+    let urlAsked = null;
     if (fromUrl) {
-      try { wanted = new URL(window.location.href).searchParams.get('lang'); } catch { wanted = null; }
+      try { urlAsked = new URL(window.location.href).searchParams.get('lang'); } catch { urlAsked = null; }
     }
-    if (!wanted) wanted = storedLang();
     /**
      * AZ ÚJ SZEMÉLY ÖRÖKLI AZ ÚTON VÁLASZTOTT NYELVET (F93-02, a külső ellenőrző fél mérése, R93).
      *
@@ -445,22 +461,23 @@ import * as tourMod from './tour.mjs';
      *   · a RÉGI ANONIM TÁROLÁSI MARADVÁNY NEM ilyen választás: csak az számít, amit a felhasználó
      *     ténylegesen átállított most (ezért külön mező, nem a `vs3.lang.anon` olvasása).
      */
-    const carried = !wanted && newPerson ? pathChoice() : null;
-    if (carried) wanted = carried;
-    // A BÖNGÉSZŐ NYELVI KÉRÉSE a HARMADIK forrás — a jegyzék feloldójával, a szerződés mezőnevein
-    // (`explicit` · `stored` · `acceptLanguage`). A saját, kitalált mezőnév itt NÉMÁN alapnyelvre
-    // esett vissza: a hibát a mérés fogta meg, nem a figyelem (KUKA-039).
+    // A BÖNGÉSZŐ NYELVI KÉRÉSE a NEGYEDIK forrás — a döntést a tiszta modul hozza, a jegyzék
+    // feloldójának SAJÁT mezőnevein (`explicit` · `stored` · `acceptLanguage`). A kitalált mezőnév
+    // itt NÉMÁN alapnyelvre esett vissza: a hibát a mérés fogta meg, nem a figyelem (KUKA-039/238).
     const nav = (window.navigator && (window.navigator.languages || [window.navigator.language])) || [];
-    const resolved = resolveLanguage({ explicit: wanted, acceptLanguage: nav.filter(Boolean).join(',') });
-    const got = setLang(resolved.code);
-    applyLanguage();
-    // AZ ÁTVITT VÁLASZTÁS INNENTŐL AZ ÖVÉ: eltesszük a SAJÁT kulcsára, hogy a következő betöltés már
-    // a személyes beállításából jöjjön — az úthoz kötött tér itt ér véget (F93-02).
-    if (carried && got && got.code) rememberLang(got.code);
-    // A CÍMBŐL KÉRT NYELV IS TUDATOS VÁLASZTÁS (F93-02): a megerősítő levél hivatkozása azt a
-    // nyelvet hozza vissza, amit a felhasználó a regisztrációnál választott — ez a lánc közepe.
-    if (fromUrl && wanted && got && got.code) rememberChoice(got.code);
-    return got;
+    // AZ ÁTVITT VÁLASZTÁS INNENTŐL AZ ÖVÉ: a döntés `persist_for_person`-t ad, és a `useLang`
+    // elteszi a SAJÁT kulcsára — az úthoz kötött tér itt ér véget (F93-02 · F95-01).
+    return useLang(decideLang({
+      asked: urlAsked,
+      askedSource: 'url',
+      storedForPerson: storedLang(),
+      carriedChoice: pathChoice(),
+      acceptLanguage: nav.filter(Boolean).join(','),
+      newPerson,
+      // VAN-E KIHEZ KÖTNI: a cím ága csak BELÉPETT emberhez tesz el nyelvet — névtelen maradványt
+      // nem gyárt, mert azt a KÖVETKEZŐ ember örökölné (F95-01 másodlagos lelete, KUKA-245).
+      hasPerson: Boolean(state.me && state.me.subject_id),
+    }));
   }
   /**
    * A VÁZ FELIRATAI. Az `index.html` szándékosan SZÖVEG NÉLKÜLI: a demósáv, az aria-címkék és a
@@ -1885,11 +1902,11 @@ import * as tourMod from './tour.mjs';
     // újrarajzolás elég. A nézethez kötött tudás-index és segéd-állapot ÜRÜL, mert azok a kért
     // nyelven jöttek (a szerver a `lang` mezőt olvasta) — különben magyar index maradna angol lapon.
     if (d.testid === 'lang-select' || d.testid === 'lang-select-public') {
-      const wanted = e.target.value;
-      const got = setLang(wanted);
-      const code = got && got.code ? got.code : wanted;
-      // A VÁLASZTÁS MEGMARAD — személyhez kötve (F91-02). A tároló hibája nem állítja meg a váltást.
-      rememberLang(code);
+      // UGYANAZ AZ EGY SZABÁLY, mint a visszaállításnál (F95-01): a döntés a modulé, a mentés a
+      // döntés következménye — nem három helyen kitalált mező-név. A tároló hibája nem állítja meg
+      // a váltást (privát ablak · letiltott tároló): a nyelv váltódik, csak nem marad meg.
+      const decision = decideLang({ asked: e.target.value, askedSource: 'choice' });
+      const code = useLang(decision);
       /**
        * A GENERÁCIÓ MINDEN VÁLTÁSNÁL NŐ (F93-02) — akkor is, ha a nyelv ugyanoda ér vissza. A
        * MÉRT lelet: magyar → német → magyar közben visszatartott chat-válasz megjelent, mert az
@@ -1897,7 +1914,7 @@ import * as tourMod from './tour.mjs';
        */
       state.langGen += 1;
       // AZ ÚTON TUDATOSAN VÁLASZTOTT NYELV — ezt viszi át az új személy első belépése (F93-02).
-      rememberChoice(code);
+      // A `useLang` már eltette (`persist_choice`), ezért itt NINCS második írás (KUKA-018).
       state.astStatus = null; state.helpIndex = null;
       render();
       // A TUDÁS A KÉRT NYELVEN JÖN, ezért a nyelvváltás UTÁN újra kell kérni — és ez a FUTÓ

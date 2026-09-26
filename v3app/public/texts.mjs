@@ -27,6 +27,9 @@ import {
   reasonText as reasonInner, plural as pluralInner, fmtNumber as fmtNumberInner, fmtDate,
   coverageOf, knowledgeText, TEXT_GROUPS, DEEP_GROUPS, PACKS, I18N_CONTRACT, resolveLanguage,
 } from './i18n/dict.mjs';
+// A NYELV-EMLÉKEZET IS EZEN A BEJÁRATON JÖN (LNG-02, F95-01): a lap egy helyről kéri a nyelvhez
+// tartozó mindent — különben a döntésnek két ajtaja lenne, és a második elcsúszna (KUKA-018).
+import { decideLang, langStoreKey, LANG_CHOICE_KEY, LANG_STORE_PREFIX, LANG_MEMORY_CONTRACT } from './i18n/langMemory.mjs';
 
 /**
  * ÉLŐ NÉZET EGY SZÖVEG-CSOPORTRA. A kulcsok a magyar (teljes) csomagból jönnek, az ÉRTÉK viszont az
@@ -128,6 +131,7 @@ export {
   enabledLanguages, allLanguages, languageOf, resolveLanguage,
   lookup, placeholdersOf, coverageOf, knowledgeText, dict, dictFor,
   TEXT_GROUPS, DEEP_GROUPS, PACKS, I18N_CONTRACT,
+  decideLang, langStoreKey, LANG_CHOICE_KEY, LANG_STORE_PREFIX, LANG_MEMORY_CONTRACT,
 };
 
 export const SZO_CONTRACT = Object.freeze({
