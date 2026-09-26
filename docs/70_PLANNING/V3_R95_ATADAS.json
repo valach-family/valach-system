@@ -1,0 +1,127 @@
+{
+  "kor": "CMD-VS-300-002-002 R95",
+  "sav": "Claude-v3",
+  "tipus": "ATADAS_FRISS_MUNKAMENETNEK",
+  "parancs": "CMD-VS-300-002-002 R95 — ANALYSIS (chatgpt-v3)",
+  "miert": "az R95 §F95-03 sorrendje: (1) bizonyíték-mentés a RÉGI munkamenetben, mert a napló ott van; (2) a tényleges F95-01/02 javítás FRISS munkamenetben; (3) a régiben ne induljon új hosszú teszt vagy kódolás",
+
+  "munkamenet": {
+    "azonosito": "58df5489-e4e1-5837-92ba-4e56e2ac2d29",
+    "forras": "env:CLAUDE_CODE_SESSION_ID",
+    "mert_kezdet": "2026-09-26T15:22:19.267Z",
+    "vitte": ["R94 teljes csomag", "R95 parancs beolvasása", "R95 bizonyíték-mentés"],
+    "zaro_median": 435591,
+    "zaro_max": 625398,
+    "hivas": 325,
+    "ugynok": 0,
+    "kiserleti_jelzo": 200000,
+    "jelzo_atlepve": true,
+    "arany": "a jelző 2,2-szerese",
+    "kovetkezmeny": "az R95 §F95-03/4 szerint checkpoint és FRISS munkamenet; az 'egyben tartás' nem felmentés a korlát alól",
+    "kimondva": "ez a kör KÓDOT NEM ÍRT"
+  },
+
+  "forras_kotes": {
+    "ag": "claude/serene-bardeen-g7zzmv",
+    "kod_commit": "68d76421f1f0",
+    "tree_digest": "1b5ac803c00af20bf889f455c6a8585dd4d1165666a801715debd41acc7105f6",
+    "r95_altal_vizsgalt_jelentesfej": "918e211f69aa05f3cd74d4b49dbc8a09d2e60b35",
+    "mellekletek": [
+      "docs/70_PLANNING/V3_R95_FOGYASZTAS_LELTAR.json",
+      "docs/70_PLANNING/V3_R95_HASH_MANIFESZT.json"
+    ]
+  },
+
+  "elvegezve_ebben_a_korben": {
+    "F95-03_1_bizonyitek_mentes": {
+      "allapot": "KÉSZ",
+      "hivas_sorok": 325,
+      "ablakok": {
+        "R94_pillanatkep_15:22:00Z-16:43:14Z": 260,
+        "a_pillanatkep_UTANI_nevesitett_hiany_16:43:14Z-18:48:18Z": 65,
+        "teljes": 325
+      },
+      "tartalommentesseg": "zárt kulcs-lista, gépi jel: verify:fogyasztas-meres FGY-T18",
+      "kimondott_maradek": "a mai export UTÁNI publikálási farok (commit + feltöltés) külön jelölt hiány — mérésként nem számolom hozzá"
+    },
+    "F95-03_5_fajlonkenti_manifeszt": { "allapot": "KÉSZ", "fajl": 195, "bajt": 11033437 },
+    "gyokerek_forrasnal_igazolva": ["F95-01", "F95-02"],
+    "R94_tárgyi_pontositasok": 3
+  },
+
+  "hatravan_A_FRISS_MUNKAMENETNEK": [
+    {
+      "id": "F95-01",
+      "cim": "a személy választott nyelve kijelentkezés + újbóli belépés után is maradjon",
+      "gyoker_MERVE": "v3app/public/i18n/dict.mjs:82 — a setLang SZTRINGET ad vissza (return active), nem objektumot",
+      "hibas_helyek": [
+        "v3app/public/app.js:459 — restoreLang: `if (carried && got && got.code) rememberLang(got.code)` ⇒ SOHA nem fut",
+        "v3app/public/app.js:462 — restoreLang: a ?lang= úti választás rögzítése ⇒ SOHA nem fut",
+        "v3app/public/app.js:1890 — a választó kezelője: `got && got.code ? got.code : wanted` ⇒ a TARTALÉK-ág menti meg, véletlenül"
+      ],
+      "miert_nem_fogta_meg_a_probam": "az R93-04 eset csak az ELSŐ belépést mérte; a tudatos-választás kulcsa elfedte a hiányzó SZEMÉLYES kulcsot, amit kijelentkezéskor szándékosan ürítünk (KUKA-238 alakja a saját kódomon: a tartalék-ág elfedte a hibás mező-nevet)",
+      "teendo": [
+        "a setLang visszatérési SZERZŐDÉSE és MINDEN hívója egységesítve — ne három helyen találgassuk a mező nevét",
+        "az első tudatos választás SZEMÉLYHEZ mentése",
+        "a már tárolt személyes választás és a MÁSIK emberre váltás szabálya maradjon helyes",
+        "új nyelv bekapcsolása UGYANAZT az egy generikus szabályt használja"
+      ],
+      "probak": [
+        "mindhárom aktív nyelven TELJES út: regisztráció → levél → megerősítés → első belépés → frissítés → KIJELENTKEZÉS → ugyanaz a személy ÚJRA belép",
+        "KÉT különböző ember egymás utáni használata",
+        "a meglévő tests/e2e/v3app-r93.spec.mjs R93-04 bővítendő"
+      ]
+    },
+    {
+      "id": "F95-02",
+      "cim": "lejárt ellenőrzés ne terhelje tovább a gépet",
+      "gyoker_MERVE": "tools/vs_verify_sweep.mjs:55 PATIENCE_MS=900000 · :66 execSync(cmd,{timeout:PATIENCE_MS}) — a Node a KÖZVETLEN gyermeknek küld jelet; az unokák életben maradnak",
+      "sajat_megfigyeles_R94": "a söprés elengedte a láncot, a folyamatfa ppid=1-gyel tovább futott, terhelés 10,85 négy magon, miközben a következő ellenőrzés már mért",
+      "kimondva": "a külső fél 200 ms-os elkülönített próbája a MECHANIZMUST bizonyítja, nem az eredeti 15 perces futást méri újra",
+      "teendo": [
+        "a futtató KIZÁRÓLAG a saját folyamatcsoportját/fáját kezelje",
+        "időtúllépésnél: szabályos leállítás → VÉGES türelmi idő → szükség esetén kényszerleállítás → IGAZOLT befejezés a következő próba ELŐTT",
+        "rendezett takarítás sikernél, hibánál ÉS megszakításnál",
+        "nem támogatott platform NEVEZETT korlátot kapjon"
+      ],
+      "tilos": ["általános gépszintű pkill", "küszöb-emelés", "állítás-gyengítés"],
+      "proba": "rövid szintetikus: normál siker · hibás kilépés · makacs gyermek/unoka időtúllépéskor · nincs további életjel · nincs átfedés a következő ellenőrzéssel",
+      "nem_lezarasi_feltetel": "a 65 perces külső lánc automatikus ismétlése; és a már piros core/külső eredmények ettől NEM válnak zölddé"
+    }
+  ],
+
+  "R94_pontositasok": [
+    {
+      "mi": "„a v3ref/ egyetlen fájlja sem változott”",
+      "helyesen": "a v3ref/ alatt 20 EREDMÉNY-JSON változott (a külső lánc saját kimenete); a VÉGREHAJTHATÓ core-kód nem"
+    },
+    {
+      "mi": "a 756 112-es medián összevetése az induló 125 005-tel",
+      "helyesen": "a 756 112 az R93 BEOLVASÁSÁHOZ tartozó hat híváshoz kötődik, nem az R91 kezdetéhez — nem azonos munkaszakasz, az összevetés nem áll"
+    },
+    {
+      "mi": "a háromnyelvű szövegmunka megnevezése",
+      "helyesen": "RÉSZLEGES ÁTNÉZÉS — amíg teljes tartalmi ellenőrzés nincs"
+    },
+    {
+      "mi": "a hash-eszköz önpróbája a külső fél .git nélküli másolatában 5/7",
+      "helyesen": "a két nem futó eset (HSH-T1, HSH-T3/b) a git KÖVETETT listáját használja — .git nélkül NEM ALKALMAZHATÓ ESET, nem bukás; a független 195 fájlos újraszámítás ettől külön, sikeres bizonyíték"
+    }
+  ],
+
+  "valtozatlanul_nyitott": [
+    "élő AI-mérés",
+    "a modell kiválasztási minőségének mérése",
+    "teljes háromnyelvű lektorálás",
+    "a meghívó-elfogadás saját képernyőjének súgója/túrája",
+    "a V2-képesség-katalógus három hiánya — HIÁNY, nem elfogadott piros",
+    "a külső lánc három eltérése (r79 · r59a · r59) — az r79 időzítési magyarázata NEM bizonyítja minden sikertelen eset gyökerét"
+  ],
+
+  "keret": {
+    "nem_indul": ["merge", "telepítés", "V2-módosítás", "új szolgáltató-előfizetés", "üzleti Mini modul", "párhuzamos végrehajtó", "ultracode", "modellváltás"],
+    "nem_allithato": "teljes rendszer-zöld",
+    "nem_keszultsegi_szazalek": "a 16 elfogadott / 13 részleges klauzula",
+    "ismeretlen_koltseg": "null, nem nulla"
+  }
+}
