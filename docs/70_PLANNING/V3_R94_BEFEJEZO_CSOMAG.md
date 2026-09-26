@@ -308,8 +308,15 @@ külön dolog áll itt, és a harmadik szándékosan a végén:
 |---|---|
 | **forrás-indulás** | `43db6ba966de0b391bc19ee0037942837af79156` (az R93 átadó commitja; a parancs által vizsgált fej `ce38f823…` ennek a szülője) |
 | **ág** | `claude/serene-bardeen-g7zzmv` |
-| **a mért fájlkészlet tartalom-azonosítója** | lásd `var/reports/…_hash_manifeszt.json` → `tree_digest` (a `npm run hash:manifeszt` írja ki) |
-| **a jelentést hordozó commit** | a lap feltöltése utáni commit — **ez a szám nem állhat a manifesztben**, mert a manifeszt a commit tartalma. A kettő együtt zárja a láncot. |
+| **a KÓD-commit** (az R93 §8 „előre rögzített kódcommit"-ja) | `68d76421f1f0…` — ez hordozza a csomag MINDEN kód- és bizonyíték-változását |
+| **a mért fájlkészlet tartalom-azonosítója** | `1b5ac803c00af20bf889f455c6a8585dd4d1165666a801715debd41acc7105f6` |
+| **a mért készlet** | **195 fájl · 11 033 437 bájt** · forrás: a git KÖVETETT listája (`file_source: git-tracked`) · a munkafa TISZTA |
+| **a jelentést hordozó commit** | a KÓD-commit UTÁNI, külön commit — **ez a szám nem állhat a manifesztben**, mert a manifeszt a commit tartalma. A kettő együtt zárja a láncot. |
+
+**MÉRVE, hogy a szám a TARTALOMTÓL függ, nem a git állapotától:** ugyanaz a `tree_digest` jött ki
+a commit ELŐTT (piszkos munkafa) és UTÁNA (tiszta munkafa) — a bájtok nem változtak, tehát a szám
+sem. A `docs/` **nincs** a hatókörben, ezért ez a lap maga nem mozdítja el a számot: a jelentés-commit
+biztonsággal ráhivatkozhat.
 
 **Egy kikötés, ami NEM az enyém (R93 §7/1).** „A friss indulás követelménye a Board-parancsban is
 szerepeljen, ne csak az operátori válaszban." A board-parancsot a chatgpt-v3 írja — ez a sor tehát

@@ -10,9 +10,20 @@
     "forras_indulas_commit": "43db6ba966de0b391bc19ee0037942837af79156",
     "parancs_altal_vizsgalt_fej": "ce38f823efc3432af1ecc9b9796f66434f59b5df",
     "ag": "claude/serene-bardeen-g7zzmv",
-    "mert_fakeszlet_azonositoja": "a var/reports/…_hash_manifeszt.json tree_digest mezője (npm run hash:manifeszt)",
+    "mert_fakeszlet_azonositoja": "1b5ac803c00af20bf889f455c6a8585dd4d1165666a801715debd41acc7105f6",
     "jelentes_commit": null,
-    "jelentes_commit_indok": "a manifeszt a commit TARTALMA, tehát önmagát nem azonosíthatja; a REPORT 7. szakasza mondja ki, melyik commit hordozza — a két szám együtt zárja a láncot"
+    "jelentes_commit_indok": "a manifeszt a commit TARTALMA, tehát önmagát nem azonosíthatja; a REPORT 7. szakasza mondja ki, melyik commit hordozza — a két szám együtt zárja a láncot",
+    "kod_commit": "68d76421f1f0",
+    "tree_digest": "1b5ac803c00af20bf889f455c6a8585dd4d1165666a801715debd41acc7105f6",
+    "mert_keszlet": {
+      "fajl": 195,
+      "bajt": 11033437,
+      "file_source": "git-tracked",
+      "munkafa": "tiszta"
+    },
+    "bizonyitek": "ugyanaz a tree_digest jött ki a commit ELŐTT (piszkos munkafa) és UTÁNA (tiszta) — a szám a TARTALOMTÓL függ, nem a git állapotától",
+    "docs_a_hatokorben": false,
+    "docs_megjegyzes": "a docs/ nincs a mért hatókörben, ezért a REPORT lap maga nem mozdítja el a tree_digest-et — a jelentés-commit biztonsággal ráhivatkozhat"
   },
   "munkamenet": {
     "azonosito": "58df5489-e4e1-5837-92ba-4e56e2ac2d29",
