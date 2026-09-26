@@ -180,8 +180,10 @@ const RETIRED_PATTERNS = Object.freeze([
         pattern: 'export function verifyModelAnswer',
         why: 'a modell válaszát NEVEZETT szerződés ellenőrzi' }),
       Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
-        pattern: 'sources: modelAccepted \\? verified\\.sources : local\\.sources',
-        why: 'a forrás-lista a MEGJELENÍTETT válaszhoz tartozik' }),
+pattern: 'sources: modelAccepted \\? \\w+\\.sources : local\\.sources',
+        why: 'a forrás-lista a MEGJELENÍTETT válaszhoz tartozik — az AST-05 (KUKA-242) a hordozó '
+          + 'változót átnevezte (`verified` → `composed`), a SZABÁLY változatlan, ezért a minta a '
+          + 'szerkezetre illeszkedik, nem a névre' }),
       Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
         pattern: 'history_turns_sent: historyKept\\.length',
         why: 'a véges előzmény MÉRT kimenet, nem deklaráció' }),
@@ -10378,6 +10380,200 @@ const RETIRED_PATTERNS = Object.freeze([
       + 'NÉGY további hibás alak nullával zárva, HÁROM ellenpár (jelölő nélküli zöld · érvényes kihagyás · '
       + 'türelem-túllépés), és az ÖTÖDIK VALÓDI gyermek-folyamat, ami a hibás alakot `exit 0`-val adja ki. '
       + 'A régi sorrendre bizonyítottan piros: 7 SWV07 állítás + a valódi gyermek (SWV05).',
+  }),
+  Object.freeze({
+    id: 'KUKA-240',
+    date: '2026-09-26',
+    title: 'A BUBORÉK ELNYELTE A KATTINTÁST AZON AZ ELEMEN, AMIRE MUTATOTT',
+    what: 'A kattintható bemutató buboréka fix helyen, a jobb alsó sarokban áll, és a szerződése '
+      + 'kimondja, hogy „a valódi képernyő MÖGÖTTE kattintható marad" (aria-modal="false"). A '
+      + 'hozzáférés-bemutató harmadik lépése a tag-listára mutat — és a buborék pontosan a tag-sor '
+      + '„Hozzáférés" gombjára ült rá, tehát a kattintást ELNYELTE.',
+    why_wrong: 'A bemutató arra az elemre mutatott, amit ő maga tett elérhetetlenné. A szerződés '
+      + 'mondata CSAK ott volt igaz, ahol a buborék nem takar — vagyis a kimondott állítás a '
+      + 'hatókörét nem mondta ki (KUKA-011: hol kattint? · KUKA-160: amit a képernyő felkínál, annak '
+      + 'végig kell mennie). A korábbi próbák ezt NEM foghatták meg, mert a bemutatót ELINDÍTOTTÁK, '
+      + 'de nem VITTÉK VÉGIG.',
+    replaced_by: 'TUR-03 (`avoidOverlap`): a rajzolás után megmérjük, fedi-e a buborék a KIEMELT '
+      + 'elemet, és ha igen, átmegy a szemközti sarokba; ha a cél akkora, hogy nincs szabad sarok '
+      + '(egy egész lista), a kártya ÁTENGEDI a kattintást (`pointer-events: none`), miközben a '
+      + 'saját gombjai működnek.',
+    replacement: 'A két ág KÜLÖN mérve: a kitérés a sarok-választáson, az átengedés a teljes '
+      + 'végigjáráson (a hozzáférés-bemutató enélkül nem járható végig).',
+    decision: 'D-VS-3077',
+    found_by: 'a SAJÁT teljes végigjárásom (R93-01 böngésző-próba) — a KÜLSŐ ELLENŐRZŐ FÉL '
+      + '(chatgpt-v3, R93 §4) kikötése nyomán, hogy az indulási próba nem elég: „Az összes deklarált '
+      + 'bemutató tényleges végigjárása kell."',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/tour.mjs']),
+        pattern: 'export function avoidOverlap[\\s\\S]{0,1200}PASSTHROUGH',
+        why: 'a kitérés ÉS az átengedő ág is ott van — ha valaki kiveszi, a minta nem talál' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'tourMod\\.avoidOverlap\\(box, marked\\)',
+        why: 'a rajzolás HÍVJA is — a szerződés megléte nem bizonyíték a használatára (KUKA-038)' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'AZ INDÍTÁS NEM HASZNÁLAT. Egy bemutatóról az „elindult és kiemel" semmit nem mond arról, '
+      + 'hogy VÉGIG lehet-e menni rajta — és pont a végigmenés a szolgáltatás. Amikor egy próba a '
+      + 'kiemelést, a várakozást ÉS a megszakadást is sikernek veszi, akkor a mérés a saját '
+      + 'megengedőségét igazolja vissza (KUKA-127 a próbapadon). A kimenetnek NÉGY külön szava van: '
+      + 'befejezve · átugorva · megszakadt · el sem indult.',
+    guard_note: 'gépi jel: `tests/e2e/v3app-r93.spec.mjs` R93-01 (mind a kilenc bemutató végigjárva, '
+      + 'a verdikt „befejezve", nem „elindult") + `npm run verify:kuka` pozitív mintái.',
+  }),
+  Object.freeze({
+    id: 'KUKA-241',
+    date: '2026-09-26',
+    title: 'AZ ÜRES OSZTÁLYNÉV KIVÉTELE NÉMÁN ELVITTE A KÖVETKEZŐ LÉPÉST',
+    what: 'A TUR-03 kitérő első alakomban a sarkok listájának első eleme — az alapállás — ÜRES '
+      + 'SZTRING volt, és a takarítás `classList.remove("")`-t hívott rá. Ez a böngészőben KIVÉTELT '
+      + 'DOB. A kivétel a meghívás mentése UTÁN, de a „levélhez" gomb felfedése ELŐTT szállt el, '
+      + 'mert a rajzolást a `tourTaskDone` indítja, és a felfedés csak UTÁNA következik.',
+    why_wrong: 'A szerver oldalán MINDEN rendben volt: a meghívó elkészült, a válasz `ok`. A '
+      + 'felhasználó mégsem kapta meg a következő lépést, és a képernyő semmit nem mondott — a hiba '
+      + 'NÉMA volt. Egy kliens-oldali kivétel így pontosan úgy néz ki, mint egy „nincs is ilyen gomb" '
+      + '(KUKA-220: a böngésző kivétele nem bizonyít semmit, ha senki nem méri).',
+    replaced_by: 'Az alapállás jelölője `null`, és a `classList` hívások őrzöttek '
+      + '(`for (const c of BUBBLE_CORNERS) if (c) ...`).',
+    replacement: 'A bemutató-lépés célja ELLENŐRZÖTT állítás lett a próbában: a mentés után a '
+      + '„levélhez" gombnak LÁTHATÓNAK kell lennie — nem elég, hogy az eredmény-sor nem üres.',
+    decision: 'D-VS-3077',
+    found_by: 'a SAJÁT teljes végigjárásom (R93-01) — a meghívás-bemutató a hatodik lépésén megállt, '
+      + 'és a DOM-mérés mutatta meg, hogy a felfedő sor `hidden` maradt',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/tour.mjs']),
+        pattern: 'BUBBLE_CORNERS = Object\\.freeze\\(\\[null',
+        why: 'az alapállás jelölője `null`, nem üres sztring' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/tour.mjs']),
+        pattern: "classList\\.(?:remove|add)\\(''\\)",
+        why: 'üres osztálynévvel a DOM kivételt dob — a visszacsúszás némán viszi el a következő lépést' }),
+    ]),
+    lesson: 'A SIKERES SZERVER-VÁLASZ UTÁNI KLIENS-OLDALI KIVÉTEL A LEGROSSZABB FAJTA HIBA: az adat '
+      + 'elkészült, a felhasználó pedig nem tud róla. Az ilyet CSAK a végigkattintás fogja meg — sem '
+      + 'a szerződés-mérés, sem a HTTP-battéria nem látja, mert mindkettő a határnál megáll. Ezért a '
+      + 'lépés CÉLJÁT kell állítani (látszik-e a gomb), nem a művelet nyugtáját (nem üres-e a sor).',
+    guard_note: 'gépi jel: `npm run verify:kuka` tiltó-mintája (üres osztálynév) + '
+      + '`tests/e2e/v3app-r93.spec.mjs` R93-01, a meghívás-bemutató hatodik lépésének állításával.',
+  }),
+  Object.freeze({
+    id: 'KUKA-242',
+    date: '2026-09-26',
+    title: 'AZ ÉRVÉNYES FORRÁS-JELÖLŐ DÍSZÍTÉS VOLT, NEM BIZONYÍTÉK',
+    what: 'Az AST-04 válasz-szerződés négy dolgot mért: van-e forrás-jelölő, az ÁTADOTT tudásra '
+      + 'mutat-e, egyezik-e a verzió, és a deklarált nyelv a kért-e. A külső ellenőrző fél ezt '
+      + 'kipróbálta: a HELYES `invite.send@1.2.0` jelölővel és HELYES `de` nyelv-deklarációval '
+      + 'ellátott, de tartalmilag HAMIS mondat („A Vshop már éles számlákat állít ki.") átment a '
+      + 'kapun, és IGAZOLT súgóválaszként jelent meg.',
+    why_wrong: 'A kapu a HIVATKOZÁS létezését mérte, nem azt, hogy a mondat KÖVETKEZIK-e belőle. Az '
+      + 'AST-04 ezt a korlátot ki is mondta a saját szövegében — de a kimondott korlát nem védelem: '
+      + 'a felhasználó a képernyőn egy forrással alátámasztottnak látszó, kitalált tényt kapott '
+      + '(KUKA-235 megismétlődése egy szinttel feljebb: nem a forrás-LISTA volt díszítés, hanem maga '
+      + 'a forrás-JELÖLŐ).',
+    replaced_by: 'AST-05 (`composeBlockAnswer`): a modell nem szöveget ad, hanem KIVÁLASZTJA a már '
+      + 'ellenőrzött, lefordított tudás-blokkokat (`[[VS-BLOCKS: <funkció>@<verzió>#<szakasz>]]`), a '
+      + 'szerver pedig mind a négyet megméri — elérhetőség · verzió · nyelv · TÉNYLEGES TARTALOM — és '
+      + 'a megjelenő szöveget a NYELVCSOMAGBÓL állítja össze. A modell prózája nem jelenik meg.',
+    replacement: 'A szabad próza NEVEZETT, NEM ELFOGADOTT mód maradt (`model_prose_unverified`): a '
+      + 'pontos elutasítási okok (nem átadott forrás · elavult verzió · téves nyelv · túl hosszú) így '
+      + 'is mérhetők, de a próza SOHA nem lesz a megjelenő válasz.',
+    decision: 'D-VS-3077',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R93 §6 — saját, helyben befecskendezett '
+      + 'szolgáltatói ellenpróbával',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
+        pattern: 'export function composeBlockAnswer[\\s\\S]{0,4000}model_empty_block',
+        why: 'a blokk-összeállító megvan, és a TÉNYLEGES tartalmat is méri (üres blokk = nem válasz)' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "model_prose_unverified",
+        why: 'a szabad próza nevezett, NEM elfogadott mód — nem néma elnyelés és nem elfogadás' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'AMIT NEM ELLENŐRIZTÜNK, AHHOZ NEM TEHETÜNK IGAZOLÁS-JELZÉST — és a korlát KIMONDÁSA nem '
+      + 'pótolja az ellenőrzést. Ha egy kapu csak a hivatkozás ALAKJÁT méri, akkor az azonosító '
+      + 'DÍSZÍTÉSSÉ válik: pont azt a bizalmat kelti, amit nem fedez. A megoldás nem a modell '
+      + 'kikapcsolása (az a KUKA-092 alakja lenne), hanem a MUNKAMEGOSZTÁS átrendezése: a modell '
+      + 'VÁLOGAT, a szerver MOND.',
+    guard_note: 'gépi jel: `npm run verify:app-findings-r93` A) szakasz — a külső fél ellenpéldája '
+      + 'reprodukálva (a hamis mondat HELYES jelölővel sem jelenik meg), plusz az öt nevezett '
+      + 'elutasítási ok és az ELFOGADOTT út is mérve.',
+  }),
+  Object.freeze({
+    id: 'KUKA-243',
+    date: '2026-09-26',
+    title: 'A BEMUTATÓ A SAJÁT SIKERÉTŐL VESZTETTE EL AZ ELSZÁMOLÁSÁT',
+    what: 'A cégalapítás bemutatójának utolsó lépése a TÉNYLEGES létrehozáshoz kötött. A szerver `ok` '
+      + 'válasza után a lap átvált az ÚJ cégre, a váltás pedig a nézethez kötött tárakkal együtt a '
+      + 'FUTÓ BEMUTATÓT is üríti (`resetViewCaches`). A buborék a képernyőn maradt — mögötte viszont '
+      + 'már nem volt állapot: a Befejezés gomb egy nem létező futást zárt volna le.',
+    why_wrong: 'A felhasználó SIKERESEN elvégezte az öt lépést, és SEMMILYEN lezárást nem kapott — a '
+      + 'bemutató pont ott tűnt el, ahol meg kellett volna dicsérnie. Mellé egy állapot nélküli gomb '
+      + 'maradt a lapon, ami semmit nem csinál (KUKA-160). A sorrendcsere nem lett volna megoldás: a '
+      + 'váltás UTÁNI takarítás bárhová tett tanúsítást elvinne.',
+    replaced_by: 'TUR-02 (`carrySnapshot`): a BIZONYÍTOTT eredményről a váltás ELŐTT készül egy sima, '
+      + 'olvasható pillanatkép, ami túléli a nézet-ürítést, és a záró lapot UGYANAZ a rajzoló írja ki '
+      + 'belőle (`finishedHtml`, `data-carried="true"`). Az ürítés mostantól a MEGJELENÍTETT buborékot '
+      + 'is takarítja.',
+    replacement: 'A hordozás hatóköre KIMONDOTT: csak az elszámolás megy át — szerkesztő-állapot, '
+      + 'lépés-cél és jog SOHA —, és MÁS ember belépésekor ürül (R83/F83-01 marad érvényben).',
+    decision: 'D-VS-3077',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R93 §4 — a bemutató öt lépésének tényleges '
+      + 'végigjárásával és valódi cégalapítással',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/tour.mjs']),
+        pattern: 'export function carrySnapshot',
+        why: 'a hordozható elszámolás a bemutató-modul szerződésében él, nem a lap rögtönzésében' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'state\\.processState = \\x27\\x27;[\\s\\S]{0,900}renderTour\\(\\);',
+        why: 'a közös ürítés a MEGJELENÍTETT buborékot is takarítja — nem marad gazdátlan gomb' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'AMI EGY MŰVELET SIKERÉTŐL SZŰNIK MEG, AZT A SIKER ELŐTT KELL LEZÁRNI — de nem '
+      + 'sorrendcserével, hanem úgy, hogy a BIZONYÍTOTT eredmény kikerüljön abból a tárból, amit a '
+      + 'váltás elvisz. És a közös ürítés nem csak ÁLLAPOT: ami a képernyőn maradt, az ugyanúgy a '
+      + 'nézethez tartozik (KUKA-218 kiterjesztve a rajzolásra).',
+    guard_note: 'gépi jel: `tests/e2e/v3app-r93.spec.mjs` R93-02 (a fiókváltás UTÁN is van lezárás, '
+      + '`data-whole="true"` és `data-carried="true"`, az ÚJ fiók fejlécével) és R93-03 (futó bemutató '
+      + 'közbeni váltás után nem marad Befejezés gomb) + `npm run verify:app-findings-r93` C) szakasz.',
+  }),
+  Object.freeze({
+    id: 'KUKA-244',
+    date: '2026-09-26',
+    title: 'A KÉSŐ VÁLASZ ELDOBÁSA A NYELV ÉRTÉKÉT NÉZTE, NEM A VÁLTÁS TÉNYÉT',
+    what: 'A chat késve érkező válaszát négy tengelyen dobtuk el: nézet-generáció · beszélgetés · '
+      + 'kérés-sorszám · NYELV. A nyelvet viszont az ÉRTÉKÉN hasonlítottuk (`askLang !== '
+      + 'currentLang()`), ezért a magyar → német → magyar ODA-VISSZA váltás átcsúszott rajta, és a '
+      + 'régi nyelvű válasz megjelent. Mellé: az eldobó ág a `sending` jelzőt akkor is törölte, ha '
+      + 'közben ÚJABB kérés indult — a lap késznek látszott, miközben dolgozott.',
+    why_wrong: 'A nyelvváltás ESEMÉNY, nem állapot: két váltás között a felhasználó MÁS lapot látott, '
+      + 'a válasz pedig a réginek szólt. Az érték-összehasonlítás a visszatérést „nem történt semmi"-'
+      + 'nek olvasta. A `sending` törlése pedig egy MÁSIK, még futó kérés jelzését vitte el — az őr '
+      + 'nem ott állt, ahol a kár keletkezik (KUKA-202).',
+    replaced_by: 'Monoton `langGen`: MINDEN váltásnál nő, tehát a visszaváltás is érvénytelenít; '
+      + 'ugyanez őrzi a súgó/bemutató tudás-betöltését (`loadHelpData`) is. A küldés-állapotot CSAK a '
+      + 'SAJÁT, még futó kérés oldhatja fel.',
+    replacement: 'A nyelv-életciklus másik fele is javítva: az ÚTON tudatosan választott nyelvet az ÚJ '
+      + 'személy első belépése MEGTARTJA (saját kulcs, ami kijelentkezéskor ürül — tehát a következő '
+      + 'ember nem örökli), és az a választás innentől az ÖVÉ lesz.',
+    decision: 'D-VS-3077',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R93 §5 — a chat valódi HTTP-válaszát visszatartva, '
+      + 'közben oda-vissza váltva; a `sending` rést kód-vizsgálattal',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'askLangGen !== state\\.langGen',
+        why: 'a nyelv ÉLETCIKLUSA dönt, nem az értéke' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'if \\(mine\\) \\{ state\\.chat\\.sending = false;',
+        why: 'a küldés-állapotot csak a SAJÁT kérés oldhatja fel' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'AZ ÁLLAPOT ÉRTÉKE NEM MONDJA MEG, MI TÖRTÉNT KÖZBEN. Ahol egy versenyhelyzetet védünk, ott '
+      + 'MONOTON generáció kell, nem érték-összehasonlítás: az oda-vissza váltás ugyanoda ér, a köztes '
+      + 'idő viszont valóságos. És egy eldobott válasz SOHA nem nyúlhat a nála ÚJABB kérés jelzéséhez.',
+    guard_note: 'gépi jel: `tests/e2e/v3app-r93.spec.mjs` R93-05/06 (visszatartott válasz + oda-vissza '
+      + 'váltás, a régi válasz nem jelenik meg) és R93-04 (az úton választott nyelv túléli az első '
+      + 'belépést, de kijelentkezéskor nem öröklődik) + `npm run verify:kuka` pozitív mintái.',
   }),
 ]);
 

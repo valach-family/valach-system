@@ -246,7 +246,33 @@ export function boundSession(projectsDir, env = process.env) {
   return { session: id, basis: 'env:CLAUDE_CODE_SESSION_ID', why: null };
 }
 
-export function measure({ projectsDir, session, from, to, label }) {
+/**
+ * TARTALOMMENTES HÍVÁS-SOROK (FGY-02, R93 F93-04/5 — a külső ellenőrző fél kérése).
+ *
+ * MIÉRT KELL. Az R91-es összesítőből a külső fél nem tudta újraszámolni sem a 411 976-os INDULÓ
+ * értéket, sem a növekedés okait: az összeg egy szám, a NÖVEKEDÉS viszont a hívások SORRENDJÉBŐL
+ * olvasható ki. Ezért a mérő mostantól hívásonként EGY SORT is tud adni — és abban SEMMILYEN
+ * tartalom nincs: se üzenet, se parancs, se eszköz-kimenet. Csak sorszám · idő · szereplő · modell ·
+ * a négy számláló · a kontextus összege · az ébresztés fajtája.
+ *
+ * ÍGY A NAPLÓ NEM KERÜL MODELL-KONTEXTUSBA (a külső fél kikötése): a fájlt egy helyi szkript írja,
+ * és a másik fél MAGA nézi meg — az ügynöknek nem kell beolvasnia.
+ */
+export function callRows(calls) {
+  return calls.filter((c) => !c.synthetic).sort((a, b) => (a.epoch ?? 0) - (b.epoch ?? 0)).map((c, i) => ({
+    n: i + 1,
+    ts: c.ts || null,
+    kind: c.kind,                         // main | agent
+    agent: c.agent || null,
+    model: c.model || null,
+    input: c.input, cache_write: c.cache_write, cache_read: c.cache_read, output: c.output,
+    context: c.input + c.cache_write + c.cache_read,
+    trigger: c.trigger || null,
+    incomplete: Boolean(c.missing_fields && c.missing_fields.length),
+  }));
+}
+
+export function measure({ projectsDir, session, from, to, label, withCalls = false }) {
   const w = windowOf(from, to);
   const files = transcriptsOf(projectsDir, session);
   const records = []; const manifest = []; const unreadable = []; const versions = new Set();
@@ -296,6 +322,8 @@ export function measure({ projectsDir, session, from, to, label }) {
       complete: gaps.length === 0, note: gaps.length ? `HIÁNYOS: ${gaps.join(' · ')}` : 'teljes: minden megtalált átirat beolvasva, minden modell-válasz usage-dzsal, azonos azonosító csak egy fájlban',
     },
     whole_session: summarize(all), window_summary: summarize(win),
+    // A HÍVÁS-SOROK CSAK KÉRÉSRE (a jelentés különben feleslegesen nagy lenne).
+    ...(withCalls ? { window_calls: callRows(win) } : {}),
     // A KÜSZÖB CSAK TELJES MEGFIGYELÉSEN DÖNTHETŐ EL (R69 F69-03): hiányos lefedettségből nem következik
     // „kereten belül" — az átlépés IGEN mondható (ami látszik, az már túl van), a „rendben" NEM.
     thresholds_decidable: gaps.length === 0,
@@ -379,6 +407,28 @@ export function selftest() {
   const r17b = measure({ projectsDir: join(tmp, 'p'), session: 'S1' });
   const big = summarize([{ kind: 'main', input: 0, cache_write: 0, cache_read: 250_000, output: 1, ts: 't', model: 'm', missing_fields: ['output_tokens'] }]);
   ok('FGY-T17 hiányos megfigyelés: nem eldönthető, de az átlépés látszik', r17.thresholds_decidable === true && r17b.thresholds_decidable === false && r17b.coverage.complete === false && big.thresholds.main_context_median.exceeded === true && big.totals_kind === 'ismert_reszosszeg');
+  /**
+   * (18) R93 F93-04/5: A HÍVÁS-SOROK IDŐREND SZERINT ÁLLNAK, TARTALMAT NEM VISZNEK, ÉS A
+   * SZINTETIKUS REKORD NEM HÍVÁS. Enélkül a másik fél nem tudja újraszámolni a növekedést.
+   */
+  const rowsIn = [
+    { kind: 'main', ts: '2026-01-01T00:00:02Z', epoch: 2, model: 'm', input: 1, cache_write: 2, cache_read: 3, output: 4, trigger: 'nyitó' },
+    { kind: 'main', ts: '2026-01-01T00:00:01Z', epoch: 1, model: 'm', input: 5, cache_write: 0, cache_read: 0, output: 1, trigger: 'nyitó' },
+    { kind: 'main', ts: '2026-01-01T00:00:03Z', epoch: 3, model: '<synthetic>', synthetic: true, input: 9, cache_write: 9, cache_read: 9, output: 9 },
+  ];
+  const rows = callRows(rowsIn);
+  /**
+   * A TARTALOMMENTESSÉGET A KULCS-HALMAZ MÉRI, NEM SZÖVEG-MINTA. (A saját első alakom mintája a
+   * „context" szóra illeszkedett a „text" miatt, és pirosat adott egy jó soron — KUKA-239: a
+   * hatókör nélküli minta a szomszéd sort igazolja.) A zárt kulcs-lista viszont NEM téveszthető:
+   * ha valaki új mezőt tesz a sorba, ez a próba PIROS lesz, amíg a mező nincs kimondva.
+   */
+  const ALLOWED = ['n', 'ts', 'kind', 'agent', 'model', 'input', 'cache_write', 'cache_read', 'output', 'context', 'trigger', 'incomplete'];
+  const contentless = rows.every((r) => Object.keys(r).sort().join(',') === [...ALLOWED].sort().join(','));
+  ok('FGY-T18 hívás-sorok: időrend · kontextus-összeg · zárt kulcs-lista · szintetikus kihagyva',
+    rows.length === 2 && rows[0].n === 1 && rows[0].ts === '2026-01-01T00:00:01Z'
+    && rows[0].context === 5 && rows[1].context === 6 && contentless
+    && rows.every((r) => r.model !== '<synthetic>'));
   return results;
 }
 
@@ -402,7 +452,13 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (!session) { console.error('add meg: --session <munkamenet-azonosító|auto> (a ~/.claude/projects alatti átirat neve)'); process.exit(2); }
   if (process.argv.includes('--quick') && !flag('--from')) { console.error('--quick: add meg a CSOMAG KEZDŐ HATÁRÁT (--from <ISO>, a parancs board-időbélyege) — a jelző a csomagra szól, nem a teljes múltra.'); process.exit(2); }
   let rep;
-  try { rep = measure({ projectsDir, session, from: flag('--from'), to: flag('--to'), label: flag('--label') }); } catch (e) { console.error(`HIBA: ${e.message}`); process.exit(2); }
+  const callsOut = flag('--calls');
+  try {
+    rep = measure({
+      projectsDir, session, from: flag('--from'), to: flag('--to'), label: flag('--label'),
+      withCalls: Boolean(callsOut),
+    });
+  } catch (e) { console.error(`HIBA: ${e.message}`); process.exit(2); }
   if (!rep.coverage.files) { console.error(`nincs mérhető átirat ehhez a munkamenethez: ${session} (${projectsDir})`); process.exit(2); }
   const fmt = (n) => (n === null || n === undefined ? '—' : Number(n).toLocaleString('hu-HU'));
   const w = rep.window_summary; const a = rep.whole_session;
@@ -417,6 +473,21 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   }
   const out = flag('--json') || join(ROOT, artifactPath({ area: 'reports', kind: 'fogyasztas', ext: 'json', version: VERSION }));
   mkdirSync(dirname(out), { recursive: true });
+  /**
+   * A HÍVÁS-SOROK KÜLÖN FÁJLBA (FGY-02, R93 F93-04/5). Külön fájl, mert a fő jelentés így marad
+   * olvasható méretű, és mert ezt a másik fél MAGA nézi meg — nem kerül modell-kontextusba.
+   */
+  if (callsOut) {
+    const rows = rep.window_calls || [];
+    delete rep.window_calls;
+    mkdirSync(dirname(callsOut), { recursive: true });
+    writeFileSync(callsOut, `${JSON.stringify({
+      tool: TOOL_VERSION, session, window: rep.window, snapshot_closed_at: rep.snapshot_closed_at,
+      coverage: rep.coverage, contentless: 'sorszám · idő · szereplő · modell · négy számláló · kontextus · ébresztés — üzenet, parancs és eszköz-kimenet NEM',
+      calls: rows,
+    }, null, 1)}\n`);
+    console.log(`  hívás-sorok (tartalommentes, ${rows.length} sor): ${callsOut}`);
+  }
   writeFileSync(out, `${JSON.stringify(rep, null, 1)}\n`);
   console.log(`FGY-01 — munkamenet ${session} (${sessionBasis}) · eszköz ${TOOL_VERSION}@${(rep.tool_commit || '').slice(0, 7)} (fájl ${rep.tool_file_sha256.slice(0, 12)}${rep.tool_dirty ? ', NEM KÖNYVELT változással' : rep.tool_dirty === false ? ', könyvelt' : ''}) · futtató ${rep.runtime_versions.join(', ') || 'ismeretlen'} · lefedettség: ${rep.coverage.note} (${rep.coverage.files} átirat, ${rep.coverage.calls_total} hívás)`);
   console.log(`  teljes munkamenet: ${a.first_call} → ${a.last_call} · hívás ${fmt(a.calls)} · friss bemenet ${fmt(a.totals.input)} · cache-írás ${fmt(a.totals.cache_write)} · cache-olvasás ${fmt(a.totals.cache_read)} · kimenet ${fmt(a.totals.output)} [${a.totals_kind === 'ismert_reszosszeg' ? 'ISMERT RÉSZÖSSZEG' : 'teljes összeg'}]`);

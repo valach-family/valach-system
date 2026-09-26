@@ -175,6 +175,47 @@ export function finishRun(run) {
   return { ok: true, why: null };
 }
 
+/**
+ * A LEZÁRT FUTÁS HORDOZHATÓ PÉLDÁNYA (TUR-02, F93-01).
+ *
+ * MIÉRT KELL. A fiók LÉTREHOZÁSÁNAK bemutatója a saját sikerétől veszítette el az elszámolását: a
+ * szerver `ok` válasza után a lap ÁTVÁLT az ÚJ cégre, a váltás pedig a nézethez kötött tárakkal
+ * együtt a FUTÓ BEMUTATÓT is üríti (`resetViewCaches`). A buborék a képernyőn maradt, mögötte
+ * viszont már nem volt állapot: a Befejezés gomb egy nem létező futást zárt volna le, és a
+ * felhasználó SEMMILYEN lezárást nem kapott arra, amit ténylegesen elvégzett (a külső ellenőrző
+ * fél lelete, R93/F93-01).
+ *
+ * A MEGOLDÁS NEM SORRENDCSERE — azzal a váltás utáni takarítás ugyanúgy elvinné. Ehelyett a
+ * BIZONYÍTOTT eredményről készül egy sima, olvasható pillanatkép, ami túléli a nézet-ürítést, és a
+ * záró lapot UGYANAZ a rajzoló írja ki belőle (`finishedHtml`) — tehát a két úton megjelenő
+ * elszámolás nem tud elcsúszni (KUKA-018: egy fogalom, egy otthon).
+ *
+ * AMIT EZ NEM VISZ ÁT — kimondva: se szerkesztő-állapotot, se félbehagyott kitöltést, se lépés-célt,
+ * se jogot. Csak a MÁR MEGTÖRTÉNT lépések elszámolását, és azt is a SZEMÉLYHEZ kötve — a hívó
+ * ürítni köteles, ha más ember kerül a munkamenetbe (R83/F83-01 marad érvényben).
+ */
+export function carrySnapshot(run) {
+  if (!run) return null;
+  return {
+    id: run.id,
+    version: run.version,
+    feature: run.feature,
+    text: run.text || null,
+    steps: run.steps.map((s) => ({ id: s.id, state: s.state })),
+    endedBy: run.endedBy || null,
+    carried: true,
+  };
+}
+
+/** A futás ELSZÁMOLÁSA — egy helyen, mert a záró lap és a gépi mérés is ezt olvassa. */
+export function runSummary(run) {
+  const steps = (run && run.steps) || [];
+  const done = steps.filter((s) => s.state === 'done').length;
+  const skipped = steps.filter((s) => s.state === 'skipped').length;
+  const pending = steps.filter((s) => s.state === 'pending').length;
+  return { done, skipped, pending, total: steps.length, whole: steps.length > 0 && done === steps.length };
+}
+
 /** A KILÉPÉS: a hátralévő lépések „átugrott"-ak — NEM „elvégezett"-ek. */
 export function exitRun(run, by) {
   if (!run) return null;
@@ -232,14 +273,15 @@ export function tourHtml(run, { blocked, pending } = {}) {
  * kevesebb a lépések számánál: a „végére értél" mondat csak akkor áll ott, ha semmi nem maradt ki.
  */
 export function finishedHtml(run) {
-  const done = run.steps.filter((s) => s.state === 'done').length;
-  const skipped = run.steps.filter((s) => s.state === 'skipped').length;
-  const pendingCount = run.steps.filter((s) => s.state === 'pending').length;
-  const whole = done === run.steps.length;
+  const { done, skipped, pending: pendingCount, whole } = runSummary(run);
+  // A HORDOZOTT LEZÁRÁS MÁS MONDATTAL ÁLL (F93-01): kimondja, hogy az elszámolás az ELŐZŐ fiókban
+  // elvégzett lépésekről szól — a felhasználó ne higgye, hogy az ÚJ fiókban járt végig valamit.
+  const lead = run && run.carried ? (TOURUI.carriedLead || TOURUI.finishedLead)
+    : (whole ? TOURUI.finishedLead : TOURUI.endedLead);
   return `<div class="tourhead"><small data-testid="tour-progress">${esc(run.text && run.text.title ? run.text.title : run.id)}</small>
       <button type="button" class="x" data-action="tour-exit" aria-label="${esc(TOURUI.exit)}" data-testid="tour-exit">×</button></div>
-    <h3 data-testid="tour-finished" data-whole="${whole ? 'true' : 'false'}">${esc(whole ? TOURUI.finishedTitle : TOURUI.endedTitle)}</h3>
-    <p>${esc(whole ? TOURUI.finishedLead : TOURUI.endedLead)}</p>
+    <h3 data-testid="tour-finished" data-whole="${whole ? 'true' : 'false'}" data-carried="${run && run.carried ? 'true' : 'false'}">${esc(whole ? TOURUI.finishedTitle : TOURUI.endedTitle)}</h3>
+    <p>${esc(lead)}</p>
     <p data-testid="tour-summary">${esc(TOURUI.done)}: ${esc(String(done))} · ${esc(TOURUI.skipped)}: ${esc(String(skipped))} · ${esc(TOURUI.pending)}: ${esc(String(pendingCount))}</p>
     <div class="buttonrow"><button type="button" data-action="tour-restart" data-testid="tour-restart">${esc(TOURUI.restart)}</button>
       <button type="button" class="primary" data-action="tour-exit" data-testid="tour-close">${esc(TOURUI.exit)}</button></div>`;
@@ -270,6 +312,64 @@ export function clearHighlight() {
   for (const el of document.querySelectorAll('.tourtarget')) el.classList.remove('tourtarget');
 }
 
+/**
+ * A BUBORÉK KITÉR A CÉL ELŐL (TUR-03, F93-01 — SAJÁT LELET a teljes végigjárásból).
+ *
+ * A LELET, ÉS MIÉRT CSAK MOST JÖTT KI. A buborék szerződése kimondta, hogy „a valódi képernyő
+ * MÖGÖTTE kattintható marad" (`aria-modal="false"`) — ez viszont csak ott igaz, ahol a buborék NEM
+ * takar. A hozzáférés-bemutató végigjárásakor a buborék pontosan a tag-sor gombjára ült rá, és a
+ * kattintást ELNYELTE: a bemutató arra az elemre mutatott, amit ő maga tett elérhetetlenné
+ * (KUKA-011: hol kattint? · KUKA-160: amit a képernyő felkínál, annak végig kell mennie). Az
+ * eddigi próbák ezt nem foghatták meg, mert a bemutatót elindították, de nem VITTÉK VÉGIG — pont
+ * ezért kérte a külső ellenőrző fél a tényleges végigjárást (R93 §4).
+ *
+ * A MEGOLDÁS: a rajzolás után megmérjük, fedi-e a buborék a KIEMELT elemet, és ha igen, a buborék
+ * átmegy a szemközti sarokba. Négy sarkot próbálunk, és az ELSŐT választjuk, amelyik nem fedi a
+ * célt; ha egyik sem jó (a cél nagyobb, mint a szabad hely), marad az alapértelmezett — de akkor
+ * sem hazudunk: a helyzetet a hívó a `false` visszatéréssel megkapja.
+ */
+/**
+ * A SARKOK — az ELSŐ a lehorgonyzás alapállása (nincs osztálya), a többi a kitérő.
+ *
+ * ÉS EGY SAJÁT LELET, AMIT A VÉGIGJÁRÁS FOGOTT MEG: az első alakomban az alapállást ÜRES SZTRING
+ * jelölte, és a `classList.remove('')` a böngészőben KIVÉTELT DOB. A kivétel a meghívás mentése
+ * UTÁN, de a „levélhez" gomb felfedése ELŐTT szállt el — vagyis a mentés sikerült, a felhasználó
+ * pedig nem kapta meg a következő lépést. A hiba NÉMA volt: a szerver oldalán minden rendben, a
+ * képernyőn semmi. Pontosan ezért kell a bemutatót VÉGIG járni, nem elindítani (R93 §4 · KUKA-220:
+ * a böngésző kivétele nem bizonyít semmit, ha senki nem méri).
+ */
+export const BUBBLE_CORNERS = Object.freeze([null, 'tour-top', 'tour-top-start', 'tour-bottom-start']);
+
+/** Két téglalap metszi-e egymást. Külön függvény, mert a próba EZT hívja meg (KUKA-207). */
+export function rectsOverlap(a, b) {
+  if (!a || !b) return false;
+  return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
+
+export const PASSTHROUGH = 'tour-passthrough';
+
+export function avoidOverlap(box, target) {
+  if (!box) return true;
+  for (const c of BUBBLE_CORNERS) if (c) box.classList.remove(c);
+  box.classList.remove(PASSTHROUGH);
+  if (!target || typeof box.getBoundingClientRect !== 'function') return true;
+  for (const corner of BUBBLE_CORNERS) {
+    if (corner) box.classList.add(corner);
+    const clash = rectsOverlap(box.getBoundingClientRect(), target.getBoundingClientRect());
+    if (!clash) return true;
+    if (corner) box.classList.remove(corner);
+  }
+  /**
+   * NINCS SZABAD SAROK — ÉS EZ NEM RITKA HATÁRESET (saját lelet, R93 végigjárás). A hozzáférés-
+   * bemutató célja egy EGÉSZ LISTA: akárhova tesszük a buborékot, rá fog érni. A kitérés ilyenkor
+   * fogalmilag nem megoldható, a szerződés viszont áll: „a valódi képernyő MÖGÖTTE kattintható
+   * marad". Ezért a kártya ÁTENGEDI a kattintást (`pointer-events: none`), a SAJÁT gombjai pedig
+   * továbbra is fogadják — a bemutató így se nem takar, se nem tűnik el.
+   */
+  box.classList.add(PASSTHROUGH);
+  return false;
+}
+
 /** A bemutatóhoz tartozó oldal neve — a lap ide visz, mielőtt az első lépés kiemel. */
 export function pageOf(run) { return run && run.page && PAGE[run.page] ? run.page : null; }
 
@@ -285,8 +385,15 @@ export const TUR_CONTRACT = Object.freeze({
   skip_rule: 'a tudatos kihagyás KÜLÖN állapot és külön gomb (skipStep): a felhasználó nincs '
     + 'bezárva, de az átugrott lépés az elszámolásban is átugrottnak látszik',
   abort_reasons: Object.freeze(['contextChanged', 'rightLost', 'targetMissing']),
+  overlap_rule: 'a buborék KITÉR a kiemelt cél elől (avoidOverlap), és ha nincs szabad sarok (a cél '
+    + 'egy egész lista), a kártya ÁTENGEDI a kattintást, miközben a saját gombjai működnek — a '
+    + 'szerződés („a képernyő mögötte kattintható marad") így minden célméretnél igaz',
   pending_rule: 'a panelen belüli cél FELTÁRÓJA deklarált (appears_after): amíg a felhasználó meg '
     + 'nem nyitja, a bemutató VÁR (targetPending) és a FELTÁRÓT emeli ki — nem szakít meg, és nem '
     + 'kattint helyette',
+  carry_rule: 'a fiók LÉTREHOZÁSÁVAL lezárt futás elszámolása HORDOZHATÓ pillanatképként éli túl a '
+    + 'nézet-ürítést (carrySnapshot), és UGYANAZ a rajzoló írja ki (finishedHtml) — de csak az '
+    + 'elszámolás megy át, szerkesztő-állapot és jog SOHA, és a hívó üríti, ha MÁS ember kerül a '
+    + 'munkamenetbe',
   progress: 'memóriában, személy + fiók + bemutató-verzió kötéssel; böngészőben NEM tároljuk',
 });

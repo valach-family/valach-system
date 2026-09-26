@@ -485,6 +485,8 @@ export const TOURUI = Object.freeze({
   done: 'Done',
   pending: 'Remaining',
   progressNote: 'We keep the progress of the walkthrough only for this user and this account.',
+  // The closure that survived the account switch (F93-01) — see the Hungarian pack for the finding.
+  carriedLead: 'You completed this tour by creating the business. The summary covers the steps you took in the previous account — your new account is already open.',
   finishedTitle: 'You reached the end of the walkthrough',
   finishedLead: 'The description can be read again at any time under Help → Guides.',
 });
@@ -512,6 +514,12 @@ export const CHAT = Object.freeze({
     model_stale_source: 'The answer cited another version of the guide, not the one handed over.',
     model_wrong_language: 'The answer was not written in the requested language.',
     model_too_long: 'The answer was longer than allowed.',
+    // AST-05 (F93-03) — see the Hungarian pack for the finding.
+    model_no_blocks: 'The answer did not mark which verified guide section it is based on.',
+    model_unknown_block: 'The answer referred to a guide section that cannot be published.',
+    model_empty_block: 'The marked guide section is empty in this language.',
+    model_too_many_blocks: 'The answer marked more guide sections than allowed.',
+    model_prose_unverified: 'The answer wrote its own text instead of the source sentences — we do not publish that as a verified answer.',
   }),
   historyNote: 'We keep the last {n} questions of the conversation — older ones drop out.',
   singleTurnNote: 'Without a provider connection every question is answered on its own: the local search does not use the previous questions.',

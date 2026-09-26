@@ -51,22 +51,40 @@ function usageRows(u) {
 }
 
 /** EGY forrás-sor: melyik útmutató, milyen forrásváltozattal. */
-function sourceLine(s, titles, faqTitles) {
+function sourceLine(s, titles, faqTitles, openable) {
   /**
    * A SOR EMBERI CÍMMEL ÁLL (F91-06, a külső fél lelete: „a chat forrásai között nyers
    * `faq.invite.who` azonosító jelenik meg"). A gépi azonosító a `data-testid`-ben és a technikai
    * részben marad — ott MÉRHETŐ —, a felhasználó a kérdés SZÖVEGÉT látja.
+   *
+   * ÉS A FORRÁS MEGNYITHATÓ (F93-03, a külső ellenőrző fél R93-as kikötése: „A chat forráscíme
+   * kattintásra nyissa meg a megfelelő útmutatót/GYIK-t"). Eddig sima listasor volt: a felhasználó
+   * látta, MIRE épül a válasz, de nem tudott eljutni oda — a megnevezett forrás zsákutca volt
+   * (KUKA-011 a forrás-soron). A megnyitás a MEGLÉVŐ, csak olvasó műveleteket használja
+   * (`help-topic` · `faq-open`), tehát üzleti írás nem történik, és a nyelv sem vált.
+   *
+   * ÉS AMIT NEM TESZÜNK: nem gyártunk gombot oda, ahol nincs mit megnyitni. Ha az útmutató ennek a
+   * kérőnek NEM elérhető (nincs a tudás-indexében), a sor SZÖVEG marad — a letiltott vagy üresre
+   * nyíló gomb rosszabb, mint a gomb hiánya (KUKA-160: amit a képernyő felkínál, annak végig kell
+   * mennie).
    */
   if (s.faq) {
     const q = (faqTitles && faqTitles[s.faq]) || null;
-    return `<li data-testid="chat-source-${esc(s.faq)}">${esc(HELP.tabFaq)}: ${esc(q || HELP.tabFaq)}</li>`;
+    const label = `${HELP.tabFaq}: ${q || HELP.tabFaq}`;
+    if (!q) return `<li data-testid="chat-source-${esc(s.faq)}">${esc(label)}</li>`;
+    return `<li data-testid="chat-source-${esc(s.faq)}"><button type="button" class="plain" data-action="faq-open"
+      data-faq="${esc(s.faq)}" data-testid="chat-source-open-${esc(s.faq)}">${esc(label)}</button></li>`;
   }
   const title = (titles && titles[s.feature]) || s.title || s.feature;
-  return `<li data-testid="chat-source-${esc(s.feature)}">${esc(tpl('chatSourceLine', { cim: title, verzio: s.version }))}</li>`;
+  const label = tpl('chatSourceLine', { cim: title, verzio: s.version });
+  const canOpen = typeof openable === 'function' ? openable(s.feature) : false;
+  if (!canOpen) return `<li data-testid="chat-source-${esc(s.feature)}">${esc(label)}</li>`;
+  return `<li data-testid="chat-source-${esc(s.feature)}"><button type="button" class="plain" data-action="help-topic"
+    data-topic="${esc(s.feature)}" data-testid="chat-source-open-${esc(s.feature)}">${esc(label)}</button></li>`;
 }
 
 /** EGY kör (kérdés + válasz) rajzolása. */
-function turnHtml(t, i, titles, faqTitles) {
+function turnHtml(t, i, titles, faqTitles, openable) {
   const answered = t.answer !== null && t.answer !== undefined;
   return `<li class="chatturn" data-testid="chat-turn-${i}">
     <p class="question" data-testid="chat-question-${i}">${esc(t.question)}</p>
@@ -77,9 +95,9 @@ function turnHtml(t, i, titles, faqTitles) {
         ${t.kind === 'local' ? `<p class="muted" style="font-size:12px" data-testid="chat-localonly-${i}">${esc(CHAT.localOnlyNote)}</p>` : ''}
         ${t.discarded ? `<p class="notice warn" data-testid="chat-discarded-${i}" data-why="${esc(t.discarded.reason || '')}">${esc(CHAT.modelDiscarded)} ${esc((CHAT.modelDiscardedWhy || {})[t.discarded.reason] || '')}</p>` : ''}
         ${t.sources && t.sources.length ? `<div class="sources"><strong>${esc(CHAT.source)}</strong>
-          <ul>${t.sources.map((s) => sourceLine(s, titles, faqTitles)).join('')}</ul></div>` : ''}
+          <ul>${t.sources.map((s) => sourceLine(s, titles, faqTitles, openable)).join('')}</ul></div>` : ''}
         ${t.related && t.related.length ? `<div class="sources" data-testid="chat-related-${i}"><strong>${esc(CHAT.related)}</strong>
-          <ul>${t.related.map((s) => sourceLine(s, titles, faqTitles)).join('')}</ul></div>` : ''}
+          <ul>${t.related.map((s) => sourceLine(s, titles, faqTitles, openable)).join('')}</ul></div>` : ''}
         ${t.actions && t.actions.length ? `<div class="buttonrow" data-testid="chat-actions-${i}">
           ${t.actions.map((a) => (a.kind === 'tour'
     ? `<button type="button" class="primary" data-action="tour-start" data-tour="${esc(a.tour)}" data-testid="chat-tour-${i}">${esc(a.label || HELP.startTour)}</button>`
@@ -99,7 +117,7 @@ function turnHtml(t, i, titles, faqTitles) {
  * A KÉRDEZZ NÉZET. A `status` a szerver `GET /api/assistant/status` válasza: ebből tudjuk, hogy van-e
  * engedélyezett szolgáltatói csatlakozás — a képernyő NEM találgat (KUKA-089).
  */
-export function chatHtml({ chat, status, titles, faqTitles, limits }) {
+export function chatHtml({ chat, status, titles, faqTitles, limits, openable }) {
   const configured = Boolean(status && status.provider && status.provider.configured);
   const missing = (status && status.provider && status.provider.missing) || [];
   const keep = (limits && limits.history_turns) || (status && status.limits && status.limits.history_turns) || 6;
@@ -109,7 +127,7 @@ export function chatHtml({ chat, status, titles, faqTitles, limits }) {
       <br><small>${esc(CHAT.singleTurnNote)}</small>
       ${missing.length ? `<details class="tech" data-testid="chat-operator-details"><summary>${esc(UI.technicalDetails)}</summary>
         <p class="muted" style="font-size:12px" data-testid="chat-missing-config">${esc(missing.join(' · '))}</p></details>` : ''}</div>`}
-    ${chat.turns.length ? `<ul class="chatlist" data-testid="chat-list">${chat.turns.map((t, i) => turnHtml(t, i, titles, faqTitles)).join('')}</ul>
+    ${chat.turns.length ? `<ul class="chatlist" data-testid="chat-list">${chat.turns.map((t, i) => turnHtml(t, i, titles, faqTitles, openable)).join('')}</ul>
       <p class="muted" style="font-size:12px" data-testid="chat-history-note">${esc(tpl('chatHistoryNote', { n: keep }))}</p>`
     : `<div class="chatintro" data-testid="chat-intro"><h3>${esc(CHAT.intro)}</h3><p class="muted">${esc(CHAT.introLead)}</p>
         <p class="muted" style="font-size:12px">${esc(CHAT.suggested)}</p>

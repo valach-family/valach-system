@@ -16,6 +16,51 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3077 — A SEGÍTSÉG BEFEJEZÉSE: VÉGIGVIHETŐ BEMUTATÓK, MONOTON NYELVI ÉLETCIKLUS, ELLENŐRZÖTT TUDÁS-BLOKKBÓL ÉPÜLŐ VÁLASZ
+
+> **Hatály:** V3 (`valach-system`) — a bemutató-modul (`v3app/public/tour.mjs`), a felület
+> (`v3app/public/app.js` · `chat.mjs` · `style.css`), a segéd szabály-modulja
+> (`v3app/assistant/policy.mjs`), a héj (`v3app/server.mjs`), a három termék-nyelvcsomag, a
+> fogyasztásmérő és az új hash-manifeszt szerszám, valamint az R93 battéria és böngésző-próba.
+> **A magreferencia (`v3ref/`) egyetlen fájlja sem változott.** Nincs V2-módosítás, merge,
+> telepítés, migráció, új üzleti Mini modul, új előfizetés és szolgáltató-vásárlás.
+
+**A parancs:** `CMD-VS-300-002-002 R93 — ANALYSIS` (chatgpt-v3). Öt tétel: a bemutatók TELJES
+felhasználói úton záruljanak · a nyelv életciklusa legyen monoton · a válasz ellenőrzött
+tudás-blokkokból épüljön, megnyitható forrással · a fogyasztás friss munkamenetben, tartalom nélküli
+hívás-sorokkal · a lezárás csak a MÉRT állítást mondja, hash-manifeszttel.
+
+**A négy döntés, amit ez a kör meghoz:**
+
+1. **A VÁLASZT A SZERVER MONDJA, A MODELL VÁLOGAT (AST-05).** A megjelenő súgóválasz a nyelvcsomag
+   ellenőrzött blokkjaiból áll össze; a modell csak kiválasztja, MELYIK blokk felel a kérdésre
+   (`[[VS-BLOCKS: <funkció>@<verzió>#<szakasz>]]`). A szerver az elérhetőséget, a verziót, a nyelvet
+   ÉS a tényleges tartalmat is megméri. A szabad próza NEVEZETT, NEM ELFOGADOTT mód marad
+   (`model_prose_unverified`) — az AST-04 formai kapuja megmarad, de a prózából nem lesz válasz
+   (KUKA-242). **Kimondva: ez nem LLM-igazsággarancia** — azt garantálja, hogy a megjelenő MONDAT
+   ellenőrzött forrásszöveg, nem azt, hogy a válogatás mindig a legjobb blokkot hozza.
+2. **A LEZÁRÁS TÚLÉLI A FIÓKVÁLTÁST (TUR-02).** A fiók létrehozásával lezárt bemutató elszámolása
+   hordozható pillanatképként éli túl a nézet-ürítést, és ugyanaz a rajzoló írja ki. Csak az
+   ELSZÁMOLÁS megy át — szerkesztő-állapot és jog soha —, és más ember belépésekor ürül (KUKA-243).
+3. **A NYELV ÉLETCIKLUSA MONOTON (F93-02).** Minden váltás lépteti a generációt, tehát az oda-vissza
+   váltás is érvényteleníti a késve érkező választ; ugyanez őrzi a tudás-betöltést. Az ÚTON
+   tudatosan választott nyelvet az ÚJ személy első belépése megtartja — saját kulcson, ami
+   KIJELENTKEZÉSKOR ürül, tehát a következő ember nem örökli (KUKA-244).
+4. **A BEMUTATÓ NEM TAKARHATJA EL A SAJÁT CÉLJÁT (TUR-03).** A buborék kitér a kiemelt elem elől, és
+   ha nincs szabad sarok, átengedi a kattintást (KUKA-240).
+
+**A mérés, amit ez a kör bevezet:** a `tree_digest` (HSH-01) — a mért fájlkészlet tartalom-azonosítója.
+A forrás-indulás, a mért bájtok és a jelentést hordozó commit ettől KÜLÖN áll, és a lánc így zárul,
+önmagát tartalmazó commit-hash nélkül (R93 §8). Mellé a fogyasztásmérő tartalommentes hívás-sorai
+(FGY-02), amikből a növekedés újraszámolható anélkül, hogy a napló modell-kontextusba kerülne.
+
+**Nevesített hiány, nem feledékenység:** az R91-es ablak nyers naplója (munkamenet `495e48b5…`) EBBEN
+a konténerben NEM érhető el — friss munkamenetben dolgozunk, a korábbi átirat nem jött át. Az „első
+21 hívás" és a 411 976-os induló érték ezért NEM rekonstruálható; hiányzó adat utólag nem válik
+méréssé (R93 §7/5). A hívás-sorok képessége megépült, és EZ a csomag mérve van vele.
+
+---
+
 ## D-VS-3076 — A SEGÍTSÉG HASZNÁLATI ÚTJAI: EGY ELÉRHETŐSÉGI SZABÁLY, IGAZOLT VÁLASZ-FORRÁS, TELJES NYELVI ÚT
 
 > **Hatály:** V3 (`valach-system`) — a tudás-regiszter (`v3app/knowledge/features.mjs`), a segéd

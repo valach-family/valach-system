@@ -261,6 +261,16 @@ dl.usage dd { margin: 0; }
 .tourlist li[aria-current="step"] { font-weight: 700; color: #0f172a; }
 .tourlist li[data-state="done"] small { color: #15803d; }
 .tourlist li[data-state="skipped"] small { color: #b45309; }
+/* A BUBORÉK KITÉRŐ SARKAI (TUR-03, F93-01): ha a buborék a kiemelt célra ülne, átmegy máshova.
+   A négy sarok ugyanazon a rétegen marad — csak a lehorgonyzás változik, tehát nem ugrál a tartalom. */
+.tourbubble.tour-top { inset-block-end: auto; inset-block-start: 16px; }
+.tourbubble.tour-top-start { inset-block-end: auto; inset-block-start: 16px; inset-inline-end: auto; inset-inline-start: 16px; }
+.tourbubble.tour-bottom-start { inset-inline-end: auto; inset-inline-start: 16px; }
+/* NINCS SZABAD SAROK (a cél egy egész lista): a kártya átengedi a kattintást, a gombjai nem. */
+.tourbubble.tour-passthrough { pointer-events: none; }
+.tourbubble.tour-passthrough button,
+.tourbubble.tour-passthrough a,
+.tourbubble.tour-passthrough .tourlist { pointer-events: auto; }
 /* A KIEMELÉS: látható, de nem takar. Az `outline` nem tolja el az elrendezést. */
 .tourtarget { outline: 3px solid #2563eb; outline-offset: 3px; border-radius: 6px; }
 

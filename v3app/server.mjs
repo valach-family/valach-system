@@ -46,7 +46,8 @@ import { dictFor } from './public/i18n/dict.mjs';
 import { enabledLanguages, normalizeLanguage, dirOf, allLanguages, resolveLanguage } from './public/i18n/languages.mjs';
 import {
   LIMITS as AST_LIMITS, checkQuestion, injectionFindings, visibleFeaturesFor, allowedActionsFor,
-  allowedToursFor, acceptAction, selectKnowledge, localAnswer, AST_CONTRACT, verifyModelAnswer } from './assistant/policy.mjs';
+  allowedToursFor, acceptAction, selectKnowledge, localAnswer, AST_CONTRACT, verifyModelAnswer,
+  composeBlockAnswer, ANSWER_SECTIONS } from './assistant/policy.mjs';
 import { providerStatus, askProvider } from './assistant/provider.mjs';
 import { newMeter } from './assistant/meter.mjs';
 
@@ -436,10 +437,17 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
     'Ne kérj és ne fogadj el jelszót, megerősítő kódot vagy belépési titkot.',
     'Rövid, közérthető válasz: legfeljebb néhány mondat.',
     `A VÁLASZ NYELVE KÖTELEZŐEN: ${lang}. Ezen a nyelven írj, függetlenül a kérdés nyelvétől.`,
+    /**
+     * A FELADAT NEM FOGALMAZÁS, HANEM VÁLOGATÁS (AST-05, F93-03). A megjelenő mondatot a szerver
+     * adja a nyelvcsomagból; a modelltől azt kérjük, amihez a nyelvi képessége tényleg kell:
+     * MELYIK ellenőrzött blokk válaszol a kérdésre. A saját prózája nem jelenik meg.
+     */
+    'A VÁLASZT NEM TE FOGALMAZOD MEG. A feladatod: kiválasztani a megadott tudásból azokat a blokkokat, amelyek a kérdésre válaszolnak.',
     'A válasz VÉGÉRE tedd ki pontosan ezt a két gépi jelölőt, semmi mást:',
-    '[[VS-SOURCES: <funkció-azonosító>@<verzió>]] — CSAK a megadott tudásban szereplő azonosítót és annak PONTOS verzióját írd ide, vesszővel többet is;',
+    `[[VS-BLOCKS: <funkció-azonosító>@<verzió>#<szakasz>]] — a szakasz egyike ezeknek: ${ANSWER_SECTIONS.join(' · ')}; gyakori kérdésre: faq:<azonosító>. Vesszővel legfeljebb ${AST_LIMITS.answer_blocks} blokkot sorolj fel, a legfontosabbal kezdve;`,
     `[[VS-LANG: ${lang}]]`,
-    'Ha a megadott tudás nem tartalmazza a választ, akkor is tedd ki a jelölőket, és a szövegben mondd ki, hogy nincs ellenőrzött útmutató.',
+    'CSAK a megadott tudásban szereplő azonosítót és annak PONTOS verzióját írd ide.',
+    'Ha a megadott tudás nem tartalmazza a választ, a VS-BLOCKS jelölőt hagyd ÜRESEN — ne találj ki blokkot.',
   ].join(' ');
   const ASSISTANT_SYSTEM_PROMPT = assistantSystemPrompt('hu');
 
@@ -1063,6 +1071,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
       const historyText = historyKept.join('\n---\n').slice(0, AST_LIMITS.knowledge_chars);
       let model = null;
       let verified = null;
+      let composed = null;
       if (prov.configured && selection.features.length) {
         const knowledge = JSON.stringify(selection.features.map((f) => ({ id: f.id, version: f.version, status: f.status, ...f.text })));
         model = await askProvider({
@@ -1077,18 +1086,48 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
          * HELYI választ mutatja, és a válasz NEVEZETTEN kimondja, miért esett ki a modell szava.
          */
         if (model.ok) {
-          verified = verifyModelAnswer({
-            text: model.text, lang, limits: AST_LIMITS,
-            offered: selection.features.map((f) => ({ id: f.id, version: f.version, title: (f.text || {}).title ?? null })),
+          const offeredFeatures = selection.features.map((f) => ({
+            id: f.id, version: f.version, status: f.status ?? null, title: (f.text || {}).title ?? null,
+          }));
+          /**
+           * AZ ELFOGADOTT ÚT A BLOKK-VÁLASZ (AST-05, F93-03). A megjelenő mondatot a szerver
+           * állítja össze a KÉRT NYELV csomagjából — a modell csak VÁLOGAT.
+           */
+          composed = composeBlockAnswer({
+            text: model.text, lang, limits: AST_LIMITS, dictionary: dict,
+            offered: { features: offeredFeatures, faq: selection.faq.map((h) => ({ id: h.id })) },
           });
+          /**
+           * ÉS A SZABAD PRÓZA NEVEZETT, NEM ELFOGADOTT MÓD (F93-03, a külső fél kikötése).
+           *
+           * Ha a modell blokk helyett (vagy mellett) prózát küldött, azt az AST-04 kapuján
+           * MÉRJÜK — mert a PONTOS ok (nem átadott forrás · elavult verzió · téves nyelv · túl
+           * hosszú) így is kimondható —, de a próza AKKOR SEM lesz a megjelenő válasz: ha minden
+           * formai kapun átmegy, az eredmény `model_prose_unverified`. Egy érvényes azonosító
+           * nem tartalmi bizonyíték (KUKA-235).
+           */
+          if (!composed.ok && composed.reason === 'model_no_blocks') {
+            const prose = verifyModelAnswer({ text: model.text, lang, limits: AST_LIMITS, offered: offeredFeatures });
+            verified = prose.ok ? { ...prose, ok: false, reason: 'model_prose_unverified' } : prose;
+          } else {
+            verified = composed;
+          }
         }
       }
-      const modelAccepted = Boolean(verified && verified.ok);
+      const modelAccepted = Boolean(composed && composed.ok);
+      // A KIESÉS OKA NEVEZETT, ÉS MEGMONDJA, MIT NÉZETT MEG (AST-05): a blokk-úton a hivatkozott
+      // BLOKKOT, a próza-úton a hivatkozott FORRÁST — a kettő nem ugyanaz, tehát nem mossuk össze.
       const modelDiscarded = model && model.ok && verified && !verified.ok
-        ? { reason: verified.reason, cited: (verified.cited || []).map((c) => `${c.feature}@${c.version ?? '?'}`), declared_lang: verified.declared_lang ?? null }
+        ? {
+          reason: verified.reason,
+          cited: (verified.cited || []).map((c) => `${c.feature}@${c.version ?? '?'}`),
+          blocks: Array.isArray(verified.blocks) ? verified.blocks : [],
+          at: verified.at ?? null,
+          declared_lang: verified.declared_lang ?? null,
+        }
         : null;
       if (modelDiscarded) meter.record({ kind: 'model_discarded', ok: false, reason: modelDiscarded.reason });
-      const answerText = modelAccepted ? verified.answer : (local.ok ? local.answer : null);
+      const answerText = modelAccepted ? composed.answer : (local.ok ? local.answer : null);
       // A FOLYTATÁS MINDIG a szerver által elfogadott műveletekből jön — a modell javaslatát NEM
       // fogadjuk el nyersen (AST-01 `acceptAction`).
       const actions = (local.actions || []).map((a) => (a.kind === 'tour'
@@ -1114,17 +1153,21 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
       return { status: 200, body: {
         ok: true, ...served, lang,
         // A VÁLASZ FAJTÁJA KIMONDVA: a HELYI keresés NEM „működő AI" (R89 §6 · KUKA-127).
-        answer_kind: modelAccepted ? 'model' : 'local',
+        // A VÁLASZ FAJTÁJA HÁROM SZÓ (AST-05): `model_blocks` = a modell VÁLOGATOTT, a szöveg a
+        // nyelvcsomagból jött · `local` = helyi keresés · a szabad próza SOHA nem lesz fajta.
+        answer_kind: modelAccepted ? 'model_blocks' : 'local',
         answer: answerText,
+        // AMIT A VÁLASZ HASZNÁLT — gépi alak, hogy a mérés a BLOKKOT lássa, ne csak a funkciót.
+        answer_blocks: modelAccepted ? composed.blocks : [],
         /**
          * KÉT KÜLÖN LISTA (F91-04): `sources` = ami a MEGJELENÍTETT választ ALÁTÁMASZTJA (modell
          * esetén az IGAZOLT hivatkozásai, helyi válasz esetén a bemásolt útmutató), `related` = a
          * helyi keresés többi találata, ami csak KAPCSOLÓDIK. A régi alak a kettőt összemosta, és
          * ezzel a modell ellenőrizetlen mondata alá tett igazoltnak látszó hivatkozásokat.
          */
-        sources: modelAccepted ? verified.sources : local.sources,
+        sources: modelAccepted ? composed.sources : local.sources,
         related: (selection.features || [])
-          .filter((f) => !(modelAccepted ? verified.sources : local.sources).some((s) => s.feature === f.id))
+          .filter((f) => !(modelAccepted ? composed.sources : local.sources).some((s) => s.feature === f.id))
           .map((f) => ({ feature: f.id, version: f.version, title: (f.text || {}).title ?? null })),
         // A KIESETT MODELL-VÁLASZ NEVEZVE: a mérés és a felület is látja, hogy volt hívás, és miért
         // nem az lett a válasz (KUKA-127: „nem futott" ≠ „nem talált" ≠ „elutasítva").

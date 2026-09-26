@@ -481,6 +481,8 @@ export const TOURUI = Object.freeze({
   done: 'Erledigt',
   pending: 'Ausstehend',
   progressNote: 'Den Fortschritt des Rundgangs führen wir nur für diesen Benutzer und dieses Konto.',
+  // Der Abschluss, der den Kontowechsel überstanden hat (F93-01) — Befund siehe ungarisches Paket.
+  carriedLead: 'Sie haben diese Einführung mit dem Anlegen des Unternehmens abgeschlossen. Die Abrechnung bezieht sich auf die Schritte im vorherigen Konto — Ihr neues Konto ist bereits geöffnet.',
   finishedTitle: 'Du hast das Ende des Rundgangs erreicht',
   finishedLead: 'Die Beschreibung kann jederzeit unter Hilfe → Anleitungen erneut gelesen werden.',
 });
@@ -508,6 +510,12 @@ export const CHAT = Object.freeze({
     model_stale_source: 'Die Antwort berief sich auf eine andere Fassung der Anleitung, nicht auf die übergebene.',
     model_wrong_language: 'Die Antwort wurde nicht in der gewünschten Sprache verfasst.',
     model_too_long: 'Die Antwort war länger als erlaubt.',
+    // AST-05 (F93-03) — see the Hungarian pack for the finding.
+    model_no_blocks: 'Die Antwort hat nicht angegeben, auf welchen geprüften Anleitungsabschnitt sie sich stützt.',
+    model_unknown_block: 'Die Antwort verwies auf einen Anleitungsabschnitt, der nicht ausgegeben werden darf.',
+    model_empty_block: 'Der angegebene Anleitungsabschnitt ist in dieser Sprache leer.',
+    model_too_many_blocks: 'Die Antwort hat mehr Anleitungsabschnitte angegeben als erlaubt.',
+    model_prose_unverified: 'Die Antwort hat eigenen Text anstelle der Quellsätze formuliert — das geben wir nicht als geprüfte Antwort aus.',
   }),
   historyNote: 'Wir behalten die letzten {n} Fragen des Gesprächs — ältere fallen heraus.',
   singleTurnNote: 'Ohne Anbieter-Verbindung wird jede Frage eigenständig beantwortet: die lokale Suche verwendet die vorherigen Fragen nicht.',

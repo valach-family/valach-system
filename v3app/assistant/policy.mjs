@@ -28,6 +28,9 @@ export const LIMITS = Object.freeze({
   answer_chars: 1200,
   model_calls_per_question: 1,
   faq_hits: 5,
+  // A BLOKK-VÁLASZ KORLÁTJA (AST-05, F93-03): a modell legfeljebb ennyi ellenőrzött
+  // tudás-blokkot válogathat össze — a hosszú, sok forrású válasz nem segítség, hanem kivonat.
+  answer_blocks: 4,
 });
 
 /** A TALÁLAT MINIMUMA — egyetlen, a leírás testében elkapott szó nem találat (lásd `selectKnowledge`). */
@@ -311,6 +314,121 @@ export function verifyModelAnswer({ text, lang, offered = [], limits = LIMITS } 
 }
 
 /**
+ * AST-05 — A VÁLASZ ELLENŐRZÖTT TUDÁS-BLOKKOKBÓL ÉPÜL (F93-03, a külső ellenőrző fél R93-as kikötése).
+ *
+ * A LELET, AMIT EZ LEZÁR. Az AST-04 azt mérte, hogy a hivatkozott források LÉTEZNEK és át voltak
+ * adva — azt nem, hogy a MONDAT belőlük következik. A külső fél ezt ki is próbálta: a helyes
+ * `invite.send@1.2.0` jelölővel és helyes `de` nyelv-deklarációval ellátott, de TARTALMILAG HAMIS
+ * mondat („A Vshop már éles számlákat állít ki.") átment a kapun, és igazolt súgóválaszként jelent
+ * meg. Egy érvényes azonosító tehát DÍSZÍTÉS volt, nem bizonyíték (KUKA-235).
+ *
+ * A MAI SZABÁLY — A MODELL VÁLASZT, A SZERVER MOND. A modell nem szöveget ad, hanem KIVÁLASZTJA a
+ * hozzá illő, már ellenőrzött és lefordított tudás-blokkokat:
+ *   `[[VS-BLOCKS: <funkció>@<verzió>#<szakasz>, faq:<azonosító>]]`  ·  `[[VS-LANG: <nyelv>]]`
+ * A szerver mind a négyet MEGMÉRI — elérhetőség · verzió · nyelv · TÉNYLEGES TARTALOM —, és a
+ * megjelenő szöveget a NYELVCSOMAGBÓL állítja össze. A modell saját prózája SOHA nem jelenik meg.
+ *
+ * MIÉRT NEM „minden modellválasz kikapcsolása" (a külső fél külön kikötése): a modell munkája
+ * megmarad, és mérhető — ő dönti el, MELYIK blokk válaszol a kérdésre, három nyelven, a
+ * ragozás és a kérdés-alak ismeretében. Amit elveszít, az csak a SZABAD FOGALMAZÁS joga.
+ *
+ * AMIT EZ NEM ÁLLÍT — kimondva: nem LLM-igazsággarancia. Azt garantálja, hogy a megjelenő MONDAT
+ * ellenőrzött forrásszöveg, a kért nyelven; azt nem, hogy a kiválasztás mindig a legjobb blokkot
+ * hozza. A rossz VÁLOGATÁS így is lehetséges — de az rossz TALÁLAT, nem kitalált tény.
+ */
+export const BLOCK_MARKERS = Object.freeze({
+  blocks: /\[\[VS-BLOCKS:([^\]]*)\]\]/i,
+  strip: /\[\[VS-(?:BLOCKS|SOURCES|LANG):[^\]]*\]\]/gi,
+});
+
+/** A KIADHATÓ SZAKASZOK — a nyelvcsomag EMBERNEK írt, lektorált mezői. Más mező nem hivatkozható. */
+export const ANSWER_SECTIONS = Object.freeze(['purpose', 'prereq', 'result']);
+
+/** Egy blokk-hivatkozás alakja: `funkció@verzió#szakasz` vagy `faq:<azonosító>`. */
+function parseBlockRefs(raw) {
+  return String(raw || '').split(',').map((x) => x.trim()).filter(Boolean).map((one) => {
+    if (/^faq:/i.test(one)) return { kind: 'faq', id: one.slice(4).trim() };
+    const hash = one.lastIndexOf('#');
+    const head = hash > 0 ? one.slice(0, hash).trim() : one;
+    const section = hash > 0 ? one.slice(hash + 1).trim() : null;
+    const at = head.lastIndexOf('@');
+    return {
+      kind: 'kb',
+      feature: at > 0 ? head.slice(0, at).trim() : head,
+      version: at > 0 ? head.slice(at + 1).trim() : null,
+      section,
+    };
+  });
+}
+
+/**
+ * A BLOKK-VÁLASZ ÖSSZEÁLLÍTÁSA. A `dictionary` a KÉRT NYELV csomagja — a szöveg ONNAN jön, nem a
+ * modelltől. `ok: false` esetén a `reason` NEVEZI meg, mi bukott el, és a lap a helyi választ mutatja.
+ */
+export function composeBlockAnswer({ text, lang, offered = [], dictionary = null, limits = LIMITS } = {}) {
+  const raw = String(text ?? '');
+  const mBlocks = BLOCK_MARKERS.blocks.exec(raw);
+  const mLang = ANSWER_MARKERS.lang.exec(raw);
+  if (!mBlocks) return { ok: false, reason: 'model_no_blocks', answer: null, sources: [], blocks: [] };
+  const refs = parseBlockRefs(mBlocks[1]);
+  if (!refs.length) return { ok: false, reason: 'model_no_blocks', answer: null, sources: [], blocks: [] };
+  // A DEKLARÁLT NYELV itt is szerződés — a kiadott szöveg a KÉRT nyelv csomagjából jön, tehát a
+  // téves deklaráció azt jelenti, hogy a modell nem a kért feladatot oldotta meg.
+  const declared = mLang ? String(mLang[1]).trim().toLowerCase() : null;
+  if (!declared || declared !== String(lang).toLowerCase()) {
+    return { ok: false, reason: 'model_wrong_language', answer: null, sources: [], blocks: [], declared_lang: declared };
+  }
+  if (refs.length > limits.answer_blocks) {
+    return { ok: false, reason: 'model_too_many_blocks', answer: null, sources: [], blocks: [], count: refs.length, limit: limits.answer_blocks };
+  }
+  const KB = (dictionary && dictionary.KB) || {};
+  const FAQ = (dictionary && dictionary.FAQ) || {};
+  const parts = [];
+  const sources = [];
+  const used = [];
+  for (const r of refs) {
+    if (r.kind === 'faq') {
+      const e = FAQ[r.id];
+      // A GYIK IS CSAK AZ ÁTADOTT HALMAZBÓL: a kiválasztásban szereplő kérdések azonosítói.
+      const allowed = (offered.faq || []).some((f) => f.id === r.id);
+      if (!e || !allowed) return { ok: false, reason: 'model_unknown_block', answer: null, sources: [], blocks: [], at: `faq:${r.id}` };
+      const body = String(e.a || '').trim();
+      if (!body) return { ok: false, reason: 'model_empty_block', answer: null, sources: [], blocks: [], at: `faq:${r.id}` };
+      parts.push(body);
+      sources.push({ faq: r.id });
+      used.push(`faq:${r.id}`);
+      continue;
+    }
+    const hit = (offered.features || []).find((o) => o.id === r.feature);
+    if (!hit) return { ok: false, reason: 'model_unknown_source', answer: null, sources: [], blocks: [], at: r.feature };
+    if (r.version !== String(hit.version)) {
+      return { ok: false, reason: 'model_stale_source', answer: null, sources: [], blocks: [], at: r.feature, expected: String(hit.version) };
+    }
+    if (!r.section || !ANSWER_SECTIONS.includes(r.section)) {
+      return { ok: false, reason: 'model_unknown_block', answer: null, sources: [], blocks: [], at: `${r.feature}#${r.section ?? ''}` };
+    }
+    // A TÉNYLEGES TARTALOM A KÉRT NYELVEN — az üres vagy hiányzó blokk NEM válasz (KUKA-050).
+    const body = String((KB[r.feature] || {})[r.section] || '').trim();
+    if (!body || body === '—') {
+      return { ok: false, reason: 'model_empty_block', answer: null, sources: [], blocks: [], at: `${r.feature}#${r.section}` };
+    }
+    parts.push(body);
+    if (!sources.some((x) => x.feature === hit.id)) {
+      sources.push({ feature: hit.id, version: String(hit.version), status: hit.status ?? null, title: hit.title ?? null });
+    }
+    used.push(`${r.feature}@${r.version}#${r.section}`);
+  }
+  const answer = parts.join(' ');
+  if (!answer) return { ok: false, reason: 'assistant_no_knowledge', answer: null, sources: [], blocks: [] };
+  // A HOSSZ IS MÉRT: a kiadott szöveg a forrásból jön, de a sok blokk így is túlnőhet a korláton —
+  // és nem csonkolunk bele egy mondatba (ugyanaz a szabály, mint az AST-04-nél).
+  if (answer.length > limits.answer_chars) {
+    return { ok: false, reason: 'model_too_long', answer: null, sources: [], blocks: used, length: answer.length, limit: limits.answer_chars };
+  }
+  return { ok: true, reason: null, answer, sources, blocks: used, declared_lang: declared };
+}
+
+/**
  * A KÉRDÉS-SZAVAK, AMIK SEMMIT NEM SZŰKÍTENEK (R89 saját lelet). A „hogyan", „miért", „hol" és a
  * hasonló kérdő-szavak MINDEN útmutatóban előfordulnak, ezért pontszámot adva a TALÁLATI SORRENDET
  * rontják: az első mérésemben a „Hogyan hívhatok meg valakit?" kérdésre a JELSZÓ-változtatás
@@ -498,4 +616,8 @@ export const AST_CONTRACT = Object.freeze({
   protection: 'a védelem a ZÁRT művelet-lista és a `writes: false`, NEM a minta-felismerés',
   never_writes: 'egyetlen nyitható művelet sem ír; a mentést a felhasználó végzi a rendes űrlapon',
   limits: LIMITS,
+  answer_rule: 'a MEGJELENŐ válasz a nyelvcsomag ellenőrzött blokkjaiból áll össze (AST-05 '
+    + 'composeBlockAnswer): a modell BLOKKOT VÁLASZT, a szöveget a szerver adja. A modell szabad '
+    + 'prózája NEVEZETT, NEM ELFOGADOTT mód (model_prose_unverified) — érvényes azonosító önmagában '
+    + 'nem tartalmi bizonyíték (KUKA-235)',
 });

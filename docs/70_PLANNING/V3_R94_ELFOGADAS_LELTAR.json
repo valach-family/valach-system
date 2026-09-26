@@ -1,0 +1,158 @@
+{
+  "kor": "CMD-VS-300-002-002 R94",
+  "sav": "Claude-v3",
+  "parancs": "CMD-VS-300-002-002 R93 — ANALYSIS (chatgpt-v3)",
+  "datum": "2026-09-26",
+  "dontes": "D-VS-3077",
+  "repo": "valach-family/valach-system",
+
+  "forras_kotes": {
+    "megjegyzes": "HÁROM KÜLÖN SZÁM (R93 §8). A 'fájl-darabszám' NEM tartalom-azonosító, ezért nem is szerepel itt.",
+    "forras_indulas_commit": "43db6ba966de0b391bc19ee0037942837af79156",
+    "parancs_altal_vizsgalt_fej": "ce38f823efc3432af1ecc9b9796f66434f59b5df",
+    "ag": "claude/serene-bardeen-g7zzmv",
+    "mert_fakeszlet_azonositoja": "a var/reports/…_hash_manifeszt.json tree_digest mezője (npm run hash:manifeszt)",
+    "jelentes_commit": null,
+    "jelentes_commit_indok": "a manifeszt a commit TARTALMA, tehát önmagát nem azonosíthatja; a REPORT 7. szakasza mondja ki, melyik commit hordozza — a két szám együtt zárja a láncot"
+  },
+
+  "munkamenet": {
+    "azonosito": "58df5489-e4e1-5837-92ba-4e56e2ac2d29",
+    "forras": "env:CLAUDE_CODE_SESSION_ID",
+    "friss": true,
+    "elozo_munkamenet": "495e48b5-33ea-5833-9c76-5457e902f51f",
+    "indulo_fo_szal_median": 125005,
+    "indulo_fo_szal_max": 153246,
+    "indulo_hivas": 26,
+    "kiserleti_jelzo": 200000,
+    "jelzo_atlepve_indulaskor": false,
+    "elozo_munkamenet_indulo_medianja": 756112
+  },
+
+  "tetelek": [
+    {
+      "id": "F93-01",
+      "cim": "A bemutatót a TELJES felhasználói úton kell lezárni",
+      "allapot": "lezarva",
+      "amit_kertek": [
+        "a saját, sikeres fióklétrehozás lezárása a bizonyított eredményből",
+        "a közös törlés a megjelenített buborékot is takarítsa; állapot nélküli Befejezés gomb nem maradhat",
+        "az ÖSSZES deklarált bemutató tényleges végigjárása (targetMissing/contextChanged nem elfogadás)",
+        "a hozzáférés-adásnál valódi tag, valódi engedélymentés; a létrehozásnál valódi új fiók",
+        "kihagyás · megszakítás · valódi befejezés · meg sem kezdett út KÜLÖN eredmény"
+      ],
+      "amit_epult": ["TUR-02 carrySnapshot (hordozható lezárás)", "TUR-03 avoidOverlap (a buborék kitér, vagy átengedi a kattintást)", "a közös nézet-ürítés a buborékot is takarítja"],
+      "uj_leletek_a_vegigjarasbol": ["KUKA-240 a buborék elnyelte a kattintást", "KUKA-241 az üres osztálynév kivétele némán elvitte a következő lépést", "KUKA-243 a lezárás a saját sikerétől veszett el"],
+      "futasi_tanu": {
+        "parancs": "npx playwright test tests/e2e/v3app-r93.spec.mjs",
+        "hatokor": "R93-01/02/03 — mind a 9 deklarált bemutató végigjárva valódi műveletekkel",
+        "eredmeny": "9/9 verdikt = 'befejezve'; a cégalapítás lezárása data-whole=true ÉS data-carried=true az ÚJ fiók fejlécével"
+      }
+    },
+    {
+      "id": "F93-02",
+      "cim": "A választott nyelv és a késő válasz ugyanahhoz az úthoz tartozzon",
+      "allapot": "lezarva",
+      "amit_kertek": [
+        "ismert személy tárolt választása marad; új személynél az ÚTON választott nyelv átvitele",
+        "kijelentkezéskor az előző személy preferenciája ne váljon a következő ember választásává",
+        "monoton nyelvi/kérés-életciklus azonosító: az oda-vissza váltás is érvénytelenít",
+        "ugyanez védje a súgó/túra hálózati betöltését is",
+        "elavult chatválasz ne oldja fel egy újabb folyamatban lévő kérés küldési állapotát"
+      ],
+      "amit_epult": ["state.langGen monoton generáció (chat + loadHelpData)", "vs3.lang.choice — az úton választott nyelv, ami KIJELENTKEZÉSKOR ürül", "a sending jelzőt csak a saját kérés oldhatja fel"],
+      "uj_lelet": "KUKA-244",
+      "futasi_tanu": {
+        "parancs": "npx playwright test tests/e2e/v3app-r93.spec.mjs",
+        "hatokor": "R93-04 (DE választás → regisztráció → megerősítés → első belépés; majd kijelentkezés → MÁSIK ember) · R93-05/06 (visszatartott HTTP-válasz + hu→de→hu)",
+        "eredmeny": "PASS — a nyelv túléli az első belépést, a következő ember NEM örökli, és az oda-vissza váltás után a régi válasz nem jelenik meg (chat-list 0)"
+      }
+    },
+    {
+      "id": "F93-03",
+      "cim": "Valódi forrásból származó válasz, megnyitható hivatkozással",
+      "allapot": "lezarva_a_mert_hatarig",
+      "amit_kertek": [
+        "az alapértelmezett válasz ellenőrzött, lokalizált tudásblokkokból épüljön; a szerver jelenítse meg a forrásszöveget",
+        "a hamis állítás / nem létező képesség / helyes jelölővel rossz nyelv / elavult forrás TÉNYLEGES elutasítása mérve",
+        "a MŰKÖDŐ, helyes válasz útját is mérd — ne minden modellválasz kikapcsolása legyen javítás",
+        "a szabad generálás maradjon külön nevesített, NEM elfogadott mód",
+        "a chat forráscíme kattintásra nyissa meg az útmutatót",
+        "a HU/EN/DE átnézés MÓDJÁT és KORLÁTJÁT nevezd meg"
+      ],
+      "amit_epult": ["AST-05 composeBlockAnswer", "model_prose_unverified (nevezett, nem elfogadott mód)", "kattintható chat-forrás (help-topic / faq-open, csak olvasó)", "3 magyar szöveg-javítás"],
+      "uj_lelet": "KUKA-242",
+      "szoveg_atnezes": {
+        "modszer": "gépi osztály-szűrés a magyar csomag 1079 szöveg-literálján: határozott névelő × szókezdő hang",
+        "talalat": 3,
+        "valodi_hiba": 2,
+        "teves_riasztas": 1,
+        "teves_riasztas_oka": "„Csak az látszik” — mutató névmás, helyes",
+        "tovabbi_javitas": "„nem törli semmit” → „nem töröl semmit” (az R93 nevesítette)",
+        "korlat": "NEM teljes anyanyelvi lektorálás: egy hibaosztály, csak magyarul. Az EN/DE csomagban csak a három javított mondat megfelelőit néztem át tételesen. A verify:i18n kulcs-egyezést mér, nem nyelvi minőséget."
+      },
+      "futasi_tanu": {
+        "parancs": "npm run verify:app-findings-r93",
+        "hatokor": "AST-05 elfogadás ÉS az öt elutasítási ok, a külső fél ellenpéldája, a nyelv a blokk-úton, a forrás elérhetősége",
+        "eredmeny": "21/21 PASS — a hamis mondat HELYES blokk-jelölővel sem jelenik meg; a kiadott szöveg KARAKTERRE a nyelvcsomag mondata"
+      }
+    },
+    {
+      "id": "F93-04",
+      "cim": "Fogyasztás: friss munkamenet és tartalom nélküli hívás-sorok",
+      "allapot": "reszben",
+      "teljesult": [
+        "friss Claude-v3 munkamenet, mérve (58df5489… ≠ 495e48b5…)",
+        "a végrehajtó indulás ELŐTT ellenőrizte a munkamenet-azonosítót és a kezdést",
+        "induló olcsó fogyasztásjelző (medián 125 005 / max 153 246) — a 200 000-es jelző alatt",
+        "FGY-02: tartalommentes hívás-sorok (--calls), zárt kulcs-listával, gépi ellenpróbával (FGY-T18)"
+      ],
+      "nem_teljesult_es_miert": {
+        "tetel": "az R91-es ablak nyers naplójából az első 21 hívás, a 411 976-os induló érték és az eszközválaszok méretbontása",
+        "ok": "a korábbi munkamenet (495e48b5…) átirata EBBEN a konténerben nem létezik — friss munkamenet friss környezetben indul",
+        "mert": "a ~/.claude/projects/ alatt egyedül a saját munkamenet átirata áll",
+        "kovetkezmeny": "hiányzó adat utólag nem válik méréssé — nem közelítem és nem vezetem le (R93 §7/5)"
+      },
+      "futasi_tanu": {
+        "parancs": "npm run meres:fogyasztas -- --session auto --from <csomag kezdete> --quick · npm run verify:fogyasztas-meres",
+        "hatokor": "a csomag ablaka + a mérő 18 ellenpróbája",
+        "eredmeny": "18/18 ZÖLD; a záró pillanatkép a REPORT 7. szakaszában, a UTÁNA következő szakasz kimondottan kimarad"
+      }
+    },
+    {
+      "id": "F93-05",
+      "cim": "A lezárás csak a mért állítást mondja",
+      "allapot": "lezarva",
+      "amit_kertek": [
+        "forrás-indulás, mért munkafa tartalom-azonosítója és a jelentés-commit KÜLÖN",
+        "tesztfájl-név mellé futási tanú: forrás, parancs, hatókör, eredmény",
+        "a fennmaradó részlegesség maradjon látható",
+        "a V2 capability-witness eltéréseit ne csak a zöld jelért állítsátok át",
+        "a hosszú láncok időkeretbe ütközése ≠ 'nem indult el'"
+      ],
+      "amit_epult": ["HSH-01 hash-manifeszt (tree_digest) 6 ellenpróbával", "minden bizonyíték-sor futási tanúval a REPORT 6. szakaszában"],
+      "v2_capability_witness": {
+        "allapot": "ERINTETLEN",
+        "mert": "8/11 egyezik — 3 ELAVULT RÖGZÍTÉS · 2 gépileg nem mérhető",
+        "indok": "az R93 §8 kimondta: ne csak a zöld jelért állítsuk át a katalógust. Nem néztem újra, nem módosítottam V2-t."
+      }
+    }
+  ],
+
+  "nyitott_tetelek": [
+    { "id": "NY-1", "mi": "élő AI-mérés", "allapot": "KÜLSŐ HIÁNY", "indok": "nincs engedélyezett szolgáltató; a helyi csonk NEM élő AI-bizonyíték", "meres": "npm run kapcsolat:ai" },
+    { "id": "NY-2", "mi": "az AI VÁLOGATÁSÁNAK minősége", "allapot": "NEM MÉRVE", "indok": "az AST-05 a megjelenő mondat forrás-hűségét garantálja, a találat jóságát nem; élő modell és találati-minőség mérce kellene" },
+    { "id": "NY-3", "mi": "HU/EN/DE teljes lektorálás", "allapot": "RÉSZLEGES", "indok": "egy hibaosztály gépi szűrése, magyarul — a módszer és a korlát kimondva" },
+    { "id": "NY-4", "mi": "az R91-es nyers napló rekonstrukciója", "allapot": "NEM ELÉRHETŐ", "indok": "a korábbi munkamenet átirata nincs ebben a konténerben" },
+    { "id": "NY-5", "mi": "segítség a meghívó-elfogadás SAJÁT képernyőjéről", "allapot": "NEVESÍTETT RÉSZLEGES", "indok": "az R93 §4 kérte, hogy maradjon nevesítve; ebben a körben nem épült meg — az invite.accept funkció tour_note-tal deklarálja a hiányt" },
+    { "id": "NY-6", "mi": "V2 capability-witness 3 eltérés", "allapot": "ÉRINTETLEN", "indok": "az R93 §8 kikötése" }
+  ],
+
+  "uj_tanulsagok": ["KUKA-240", "KUKA-241", "KUKA-242", "KUKA-243", "KUKA-244"],
+
+  "hatokor_kimondva": {
+    "nem_tortent": ["újratervezés", "merge", "telepítés", "V2-módosítás", "migráció", "új üzleti Mini modul", "új előfizetés", "szolgáltató-vásárlás", "második modell-bíró", "core-core/CMD/PR-zárás"],
+    "v3ref_valtozott": false,
+    "megjegyzes": "a 16 elfogadott és 13 részleges/nyitott klauzula NEM készültségi százalék; az R19 24 QNT-követelménye változatlan"
+  }
+}

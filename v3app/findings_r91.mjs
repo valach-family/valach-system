@@ -233,15 +233,27 @@ try {
     bad5.body.model_discarded && bad5.body.model_discarded.reason === 'model_too_long', bad5.body.model_discarded);
 
   const invVer = (await anna.c.get('/api/assistant/knowledge' + q({ lang: 'de', feature: 'invite.send' }))).body.feature.version;
+  /**
+   * (g) LEVÁLTVA AZ R93 §6-BAN — és ezt KIMONDJUK, nem csendben írjuk át (KUKA-206).
+   *
+   * Az R91-ben ez a sor azt mérte, hogy a FORMAI szerződést teljesítő PRÓZA modell-válasszá válik.
+   * A külső ellenőrző fél az R93-ban megmutatta, hogy pontosan ez a rés: helyes forrás-jelölővel és
+   * helyes nyelv-deklarációval ellátott, TARTALMILAG HAMIS mondat is átment rajta. Az R93 döntése
+   * szerint a szabad próza NEVEZETT, NEM ELFOGADOTT mód — a megjelenő választ a szerver állítja
+   * össze ellenőrzött tudás-blokkokból (AST-05). A sor tehát nem „javítva zöldre" lett, hanem a
+   * MEGVÁLTOZOTT szerződést méri; az ELFOGADOTT út mérése a `verify:app-findings-r93` battériában áll.
+   */
   stub.next = `So lädst du jemanden ein: öffne Benutzer und drücke Einladen. [[VS-SOURCES: invite.send@${invVer}]] [[VS-LANG: de]]`;
   const good = await anna.c.post('/api/assistant/ask', { question: 'Wie lade ich jemanden ein?', lang: 'de' });
-  step('(g) a SZERZŐDÉST TELJESÍTŐ válasz modell-válasz lesz, IGAZOLT forrással, jelölők nélkül',
-    good.body.ok === true && good.body.answer_kind === 'model' && good.body.model_discarded === null
-    && !String(good.body.answer).includes('[[VS-') && (good.body.sources || []).some((s) => s.feature === 'invite.send'),
-    { answer_kind: good.body.answer_kind, forrás: good.body.sources, válasz: String(good.body.answer).slice(0, 50) });
-  step('(g/2) …és a KAPCSOLÓDÓ útmutató KÜLÖN listán áll (nem a válasz forrása)',
-    Array.isArray(good.body.related) && !good.body.related.some((r) => r.feature === 'invite.send'),
-    { igazolt_forrás: (good.body.sources || []).map((s) => s.feature), kapcsolódó: (good.body.related || []).map((r) => r.feature) });
+  step('(g) [R93 §6 óta] a FORMAILAG szabályos PRÓZA sem lesz válasz — nevezett, nem elfogadott mód',
+    good.body.answer_kind !== 'model' && good.body.model_discarded
+    && good.body.model_discarded.reason === 'model_prose_unverified'
+    && !String(good.body.answer || '').includes('öffne Benutzer'),
+    { answer_kind: good.body.answer_kind, eldobva: good.body.model_discarded.reason });
+  step('(g/2) …és a HELYI válasz forrásai a HELYI keresésből valók (nem a próza díszítése)',
+    good.body.ok === true && (good.body.sources || []).some((s) => s.feature === 'invite.send')
+    && !String(good.body.answer || '').includes('[[VS-'),
+    { forrás: (good.body.sources || []).map((s) => s.feature || `faq:${s.faq}`), fajta: good.body.answer_kind });
   step('(h) a KÉRT NYELV és az ELŐZMÉNY ténylegesen ÁT VAN ADVA a szolgáltatónak',
     JSON.stringify(stub.lastBody).includes('A VÁLASZ NYELVE: de') && JSON.stringify(stub.lastBody).includes('KÖTELEZŐEN: de'),
     'a csonk kérésében ott a kért nyelv');

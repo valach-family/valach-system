@@ -508,7 +508,7 @@ export const TOURUI = Object.freeze({
   exit: 'Kilépés',
   restart: 'Újraindítás',
   stepList: 'A bemutató lépései',
-  simulationNote: 'A bemutató nem ment, nem hív meg senkit és nem törli semmit. Ezeket te végzed el a rendes felületen.',
+  simulationNote: 'A bemutató nem ment, nem hív meg senkit és nem töröl semmit. Ezeket te végzed el a rendes felületen.',
   targetMissing: 'Ez a lépés most nem folytatható: a bemutatóban megnevezett elem nem látható ezen a képernyőn.',
   targetMissingNext: 'Bezárom a bemutatót. A leírás a Súgó → Útmutatók között továbbra is elolvasható.',
   // FELTÁRÁSRA VÁRÁS: a cél még nem jelent meg (panel · választás), a felhasználó nyitja meg.
@@ -525,6 +525,10 @@ export const TOURUI = Object.freeze({
   done: 'Elvégezve',
   pending: 'Hátravan',
   progressNote: 'A bemutató haladását csak ehhez a felhasználóhoz és fiókhoz tartjuk nyilván.',
+  // A LEZÁRÁS, AMI TÚLÉLTE A FIÓKVÁLTÁST (F93-01): a létrehozás bemutatója a SAJÁT sikerétől
+  // veszítette el az elszámolását — a lap átváltott az új cégre, és a buborék mögül eltűnt az
+  // állapot. A lezárás most a BIZONYÍTOTT eredményről szól, és kimondja, hol történt.
+  carriedLead: 'Ezt a bemutatót a vállalkozás létrehozásával fejezted be. Az elszámolás az előző fiókban elvégzett lépésekről szól — az új fiókod már meg is nyílt.',
   finishedTitle: 'A bemutató végére értél',
   finishedLead: 'A leírás a Súgó → Útmutatók között bármikor újra elolvasható.',
 });
@@ -555,6 +559,12 @@ export const CHAT = Object.freeze({
     model_stale_source: 'A válasz az útmutató másik, nem az átadott változatára hivatkozott.',
     model_wrong_language: 'A válasz nem a kért nyelven készült.',
     model_too_long: 'A válasz hosszabb volt a megengedettnél.',
+    // AST-05 (F93-03): a válasz ellenőrzött tudás-blokkokból épül — a modell VÁLOGAT, nem fogalmaz.
+    model_no_blocks: 'A válasz nem jelölte meg, melyik ellenőrzött útmutató-szakaszra épül.',
+    model_unknown_block: 'A válasz olyan útmutató-szakaszra hivatkozott, ami nem adható ki.',
+    model_empty_block: 'A megjelölt útmutató-szakasz ezen a nyelven üres.',
+    model_too_many_blocks: 'A válasz a megengedettnél több útmutató-szakaszt jelölt meg.',
+    model_prose_unverified: 'A válasz saját szöveget fogalmazott a forrás mondatai helyett — ezt nem adjuk ki ellenőrzött válaszként.',
   }),
   // AZ ELŐZMÉNY VÉGES, ÉS EZT A LAP KIMONDJA (F91-03).
   historyNote: 'A beszélgetésből a legutóbbi {n} kérdést tartjuk meg — a régebbiek kiesnek.',
@@ -870,7 +880,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.register.noMail': Object.freeze({
     q: 'Nem jött meg a megerősítő levél. Mit tegyek?',
-    a: 'Nézd meg a levélszemét mappát is. Ha nincs ott, kérj új levelet a „Új megerősítő levél kérése" gombbal. Mindig a LEGUTÓBBI levél hivatkozása érvényes.',
+    a: 'Nézd meg a levélszemét mappát is. Ha nincs ott, kérj új levelet az „Új megerősítő levél kérése" gombbal. Mindig a LEGUTÓBBI levél hivatkozása érvényes.',
   }),
   'faq.verify.expired': Object.freeze({
     q: 'Lejárt a megerősítő linkem.',
@@ -1062,7 +1072,7 @@ export const TOUR = Object.freeze({
     s2: Object.freeze({ title: 'A fiók neve', body: 'Ez látszik majd a fiókválasztóban és a képernyők fejlécében.' }),
     s3: Object.freeze({ title: 'A nyilvántartás országa', body: 'Ez azt mondja meg, milyen alakú azonosítót tartunk nyilván. Nem választ adózási rendet és nem ellenőrzi a céget hatósági nyilvántartásban.' }),
     s4: Object.freeze({ title: 'Az adóazonosító', body: 'Ez önbevallott adat: az alakját mérjük, az igazságát nem. Megadása nem igazolja más vállalkozás képviseletét.' }),
-    s5: Object.freeze({ title: 'A létrehozás', body: 'Nyomd meg a „Új fiók hozzáadása" gombot. Ez a lépés csak TÉNYLEGES létrehozás után halad tovább.' }),
+    s5: Object.freeze({ title: 'A létrehozás', body: 'Nyomd meg az „Új fiók hozzáadása" gombot. Ez a lépés csak TÉNYLEGES létrehozás után halad tovább.' }),
   }),
   'tour.stock': Object.freeze({
     title: 'A készletadatok megtekintése',
