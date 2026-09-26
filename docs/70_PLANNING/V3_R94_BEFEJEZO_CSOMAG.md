@@ -195,6 +195,40 @@ ELFOGADOTT út mérése az új R93-as battériában áll. A többi 29 állítás
 
 ---
 
+## 6/b. A TELJES SÖPRÉS — és a három sor, ami NEM zöld
+
+`npm run verify:sweep` · **25 verifier · 1025 s · 22 ZÖLD · 0 env-kihagyás · 1 NEM FEJEZŐDÖTT BE ·
+2 PIROS.** A három nem-zöld sort NEM mossuk össze, mert három KÜLÖN állapot (R93 §8):
+
+**1) `verify:external-checks` — NEM FEJEZŐDÖTT BE** a söprés 900 s-os türelmén belül. Ez **nem
+bukás és nem kihagyás**: a lánc ELINDULT, és az eredménye **nem igazolt**. Külön futtatva sem
+kaptam eredményt ebben a körben (lásd a 3. pontot).
+
+**2) `verify:capability-witness` — PIROS, KIMONDOTTAN ÉRINTETLENÜL HAGYVA.** `8/11 egyezik —
+3 ELAVULT RÖGZÍTÉS · 2 gépileg nem mérhető`. Az R93 §8 kikötése szó szerint: *„Ne csak a zöld jelért
+állítsátok át a katalógust."* Nem néztem újra, nem módosítottam a V2-t, és **nem állítottam át a
+katalógust**. Ez a piros tehát a KÉRT állapot, nem mulasztás.
+
+**3) `verify:v3ref` — PIROS, de a MÉRÉS hiánya, nem tartalmi bukás — és megmértem, MIÉRT.**
+A mutációs battéria a saját, egységenkénti idő-költségvetésébe (12 000 ms) nem fért bele, négy
+egyre finomabb darabolás (9 → 18 → 36 → 72 egység) után sem. A szerszám maga mondja ki:
+*„EZ NEM ZÖLD ÉS NEM PIROS TARTALOM: a MÉRÉS hiányos — a futtató-gép lassabb, mint amire a
+darabolás méretezve van."*
+
+**AZ OKOT MEGMÉRTEM, nem feltételeztem.** A söprés a 900 s-os türelemnél ELENGEDTE az
+`external-checks` láncot, de az **nem állt le**: a folyamatfa tovább futott, és a `verify:v3ref`
+mérése MELLETTE indult. A mért terhelés ekkor **10,85 volt négy magon** — vagyis a battéria a
+saját idő-költségvetését egy két-három szorosan túlterhelt gépen próbálta tartani. Ez a KUKA-194
+osztálya: a néma erőforrás-szivárgás hazuggá teszi a mérést. Az árva folyamatfa leállítása után a
+terhelés **3,40**-re esett, és a láncot ÚJRA futtattam — az eredménye a következő pontban.
+
+**AMIT EBBŐL NEM VEZETEK LE:** hogy a mag rendben van. A `v3ref/` **egyetlen fájlja sem változott**
+ebben a körben — ez TÉNY, de az R93 §8 pont ezt tiltja meg bizonyítékként: *„A mag változatlansága
+önmagában nem zöld újrafutás."* Amit a változatlanság ad, az annyi: a csomag nem érintette a mért
+területet. A zöld újrafutást a külön mérés adja, nem ez.
+
+---
+
 ## 7. A forrás-kötés: három KÜLÖN szám (R93 §8)
 
 Az R93 kifogása jogos volt: a „36 változott fájl" nem azonosítja a mért bájtokat. Ezért három

@@ -56,17 +56,49 @@ function walk(dir, out = []) {
   return out;
 }
 
+/**
+ * A KÖVETETT FORRÁS-HALMAZ (nem a munkafa minden fájlja) — SAJÁT LELET, még kiadás előtt.
+ *
+ * Az első alakom a fájlrendszert járta be, és ezzel a GENERÁLT, gitignore-olt kimenetet is
+ * beleszámolta volna a tartalom-azonosítóba: a `v3ref/units/` szelet-eredményei minden mérésnél
+ * mások, tehát a `tree_digest` a MÉRÉSTŐL változott volna, nem a FORRÁSTÓL. Egy ilyen szám nem
+ * azonosítja a mért bájtokat — épp azt rontotta volna el, amiért az R93 kérte (KUKA-091: a saját
+ * szerszámunk kimenetét ne olvassuk a mért anyag részének).
+ *
+ * Ezért a halmaz a git KÖVETETT listája, a hatókörre szűrve. Ha a git nem elérhető, a bejárás a
+ * tartalék — és a jelentés KIMONDJA, melyik úton született (`file_source`).
+ */
+function trackedFiles(root) {
+  let out;
+  try { out = execSync('git ls-files -z', { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }); } catch { return null; }
+  const rels = out.split('\0').filter(Boolean);
+  const inScope = (rel) => MEASURED_FILES.includes(rel)
+    || MEASURED_ROOTS.some((r) => rel === r || rel.startsWith(`${r}/`));
+  return rels.filter((rel) => inScope(rel) && EXT.some((x) => rel.endsWith(x))
+    && !EXCLUDED.some((x) => rel === x || rel.startsWith(`${x}/`)))
+    .map((rel) => join(root, rel))
+    .filter((abs) => { try { statSync(abs); return true; } catch { return false; } });
+}
+
 /** Egy determinisztikus manifeszt a munkafáról. A sorrend az ÚT szerinti, nem a fájlrendszeré. */
 export function manifest(root = ROOT) {
+  const tracked = trackedFiles(root);
   const files = [];
-  for (const r of MEASURED_ROOTS) files.push(...walk(join(root, r)));
-  for (const f of MEASURED_FILES) { try { statSync(join(root, f)); files.push(join(root, f)); } catch { /* nincs */ } }
+  if (tracked) files.push(...tracked);
+  else {
+    for (const r of MEASURED_ROOTS) files.push(...walk(join(root, r)));
+    for (const f of MEASURED_FILES) { try { statSync(join(root, f)); files.push(join(root, f)); } catch { /* nincs */ } }
+  }
   const rows = files.map((p) => {
     const buf = readFileSync(p);
     return { path: relative(root, p).split(sep).join('/'), bytes: buf.length, sha256: createHash('sha256').update(buf).digest('hex') };
   }).sort((a, b) => a.path.localeCompare(b.path));
   const list = rows.map((r) => `${r.sha256}  ${r.path}`).join('\n');
-  return { rows, tree_digest: createHash('sha256').update(list).digest('hex'), files: rows.length, bytes: rows.reduce((s, r) => s + r.bytes, 0) };
+  return {
+    rows, tree_digest: createHash('sha256').update(list).digest('hex'),
+    files: rows.length, bytes: rows.reduce((s, r) => s + r.bytes, 0),
+    file_source: tracked ? 'git-tracked' : 'fs-walk',
+  };
 }
 
 function git(cmd) { try { return execSync(`git ${cmd}`, { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { return null; }
@@ -83,6 +115,10 @@ export function report(root = ROOT) {
     source_branch: git('rev-parse --abbrev-ref HEAD'),
     worktree_dirty: dirty === null ? null : dirty.length > 0,
     tree_digest: m.tree_digest,
+    file_source: m.file_source,
+    file_source_note: m.file_source === 'git-tracked'
+      ? 'a KÖVETETT forrás-halmaz — a generált, gitignore-olt kimenet (pl. v3ref/units/) NINCS benne'
+      : 'TARTALÉK ÚT: a git nem volt elérhető, a halmaz fájlrendszer-bejárásból jött — generált kimenetet is tartalmazhat',
     report_commit: null,
     report_commit_note: 'A jelentést HORDOZÓ commit nem állhat itt: a manifeszt a commit TARTALMA, '
       + 'tehát önmagát nem azonosíthatja. A REPORT lap mondja ki, melyik commit hordozza — a '
@@ -104,6 +140,10 @@ export function selftest() {
     a.files > 50 && a.rows.every((r) => /^[0-9a-f]{64}$/.test(r.sha256) && r.path && r.bytes >= 0));
   ok('HSH-T3 a generált és idegen fa KIMARAD (var · node_modules · .git)',
     !a.rows.some((r) => EXCLUDED.some((x) => r.path === x || r.path.startsWith(`${x}/`))));
+  // A SAJÁT LELET ELLENPRÓBÁJA: a gitignore-olt, GENERÁLT kimenet nem lehet a mért halmazban —
+  // különben a tartalom-azonosító a MÉRÉSTŐL változna, nem a forrástól.
+  ok('HSH-T3/b a KÖVETETT halmazból jön, és a generált szelet-eredmény nincs benne',
+    a.file_source === 'git-tracked' && !a.rows.some((r) => r.path.startsWith('v3ref/units/')));
   // EGY BÁJT ELÉG: ha a manifeszt nem változik egy megváltozott fájlra, nem tartalom-azonosító.
   const rows = a.rows.map((r) => ({ ...r }));
   rows[0].sha256 = `${rows[0].sha256.slice(0, 63)}${rows[0].sha256.endsWith('0') ? '1' : '0'}`;

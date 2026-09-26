@@ -369,6 +369,13 @@ export function avoidOverlap(box, target) {
   box.classList.add(PASSTHROUGH);
   return false;
 }
+/**
+ * AZ ÁTENGEDÉS ÁRA, KIMONDVA (nem elhallgatott mellékhatás): amíg a kártya átengedi a kattintást,
+ * a SZÖVEG-törzse nem fogadja el a görgetést sem — a gombjai és a lépés-listája igen. Ez a
+ * bemutató mai méreteinél (3–6 lépés) nem jelent elvesztett tartalmat, és csak abban a ritka
+ * esetben lép életbe, amikor a cél akkora, hogy egyetlen sarok sem szabad. A választás tudatos:
+ * egy nem kattintható CÉL teljesen megállítja a bemutatót, egy nem görgethető SZÖVEG-törzs nem.
+ */
 
 /** A bemutatóhoz tartozó oldal neve — a lap ide visz, mielőtt az első lépés kiemel. */
 export function pageOf(run) { return run && run.page && PAGE[run.page] ? run.page : null; }
