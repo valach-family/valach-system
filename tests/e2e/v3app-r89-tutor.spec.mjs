@@ -264,7 +264,13 @@ test('R89-06 — a bemutató: kiemel, halad, a FELADAT igazolt sikerre vár, és
     await expect(anna.page.getByTestId('tour-pending')).toBeVisible();
 
     // ── KILÉPÉS: a hátralévő lépések „átugrott"-ak, NEM „elvégezett"-ek ──────────────────────
+    // AZ R91-BEN SZIGORODOTT (F91-01): a kilépés NEM tünteti el némán a bemutatót, hanem ELSZÁMOL —
+    // a záró lap kiírja az elvégzett, az átugrott és a hátralévő lépések számát, és MÁS mondattal,
+    // mint a teljes befejezés. A lapról a „Bezárom" (`tour-close`) veszi le.
     await anna.page.getByTestId('tour-exit').click();
+    await expect(anna.page.getByTestId('tour-finished')).toHaveAttribute('data-whole', 'false');
+    await expect(anna.page.getByTestId('tour-summary')).toContainText('1');
+    await anna.page.getByTestId('tour-close').click();
     await expect(anna.page.getByTestId('tour')).toBeHidden();
     await expect(anna.page.locator('.tourtarget')).toHaveCount(0);
 

@@ -55,6 +55,9 @@ const expectedBookQuery = frozen({ type: 'nonempty_string', required: false, max
 const expectedSubjectQuery = frozen({ type: 'nonempty_string', required: false, max_length: 64, confirm_only: true });
 const readContextQuery = frozen({ fields: frozen({ expected_book_id: expectedBookQuery, expected_subject_id: expectedSubjectQuery }) });
 
+// A KÉRT NYELV — EGY leíró, három író végponton (F91-02). Csak SZŰKÍT: jogot nem ad, és a
+// próba-nyelvet a szerver feloldója utasítja el (LANG-01).
+const langField = frozen({ type: 'nonempty_string', required: false, max_length: 32 });
 const email = frozen({ type: 'email_address', required: true, max_length: 254 });
 const token = frozen({ type: 'nonempty_string', required: true, max_length: 128 });
 const subjectRef = frozen({ type: 'nonempty_string', required: true, max_length: 64 });
@@ -67,12 +70,12 @@ const subjectRef = frozen({ type: 'nonempty_string', required: true, max_length:
 export const ENDPOINT_SCHEMAS = frozen({
   'POST /api/register': frozen({
     version: '1', mutates: true,
-    body: frozen({ fields: frozen({ email, password: frozen({ type: 'secret_string', required: true, min_length: 8, max_length: 512 }) }) }),
+    body: frozen({ fields: frozen({ email, password: frozen({ type: 'secret_string', required: true, min_length: 8, max_length: 512 }), lang: langField }) }),
     query: frozen({ fields: frozen({}) }),
   }),
   'POST /api/verification/resend': frozen({
     version: '1', mutates: true,
-    body: frozen({ fields: frozen({ email }) }),
+    body: frozen({ fields: frozen({ email, lang: langField }) }),
     query: frozen({ fields: frozen({}) }),
   }),
   'POST /api/login': frozen({
@@ -133,6 +136,7 @@ export const ENDPOINT_SCHEMAS = frozen({
         email,
         role: frozen({ type: 'nonempty_string', required: true, enum: frozen([...KNOWN_ROLES]) }),
         scope: frozen({ type: 'nonempty_string', required: true, enum: frozen([...KNOWN_DATA_SCOPES]) }),
+        lang: langField,
         [CONTEXT_FIELD]: contextConfirm, [CONTEXT_SUBJECT_FIELD]: contextConfirm,
       }),
     }),
@@ -180,6 +184,14 @@ export const ENDPOINT_SCHEMAS = frozen({
       fields: frozen({
         question: frozen({ type: 'nonempty_string', required: true, max_length: 500 }),
         lang: frozen({ type: 'nonempty_string', required: false, default: 'hu', max_length: 32 }),
+        // A BESZÉLGETÉS ELŐZMÉNYE EGY SZÖVEG-MEZŐBEN (F91-03). MIÉRT így: a mag séma-motorja
+        // (BEM-01) nem ismer tömb-típust, és a magot ez a csomag SZÁNDÉKOSAN nem módosítja —
+        // ezért a kliens `\n---\n` határolóval adja át a legutóbbi fordulókat, a szerver pedig a
+        // deklarált korlátra (`history_turns`) VÁGJA. A hossz-korlát itt a séma dolga.
+        history_text: frozen({ type: 'string', required: false, max_length: 4000 }),
+        // A BESZÉLGETÉS AZONOSÍTÓJA: a válasz VISSZAADJA, így a kliens el tudja dobni az elavult
+        // választ (Új beszélgetés · Törlés · nyelv-, fiók- és személyváltás után).
+        conversation_id: frozen({ type: 'nonempty_string', required: false, max_length: 64 }),
         [CONTEXT_FIELD]: contextConfirm, [CONTEXT_SUBJECT_FIELD]: contextConfirm,
       }),
     }),
@@ -194,7 +206,7 @@ export const ENDPOINT_SCHEMAS = frozen({
   // ragasztanak saját paramétert. Ha egy idegen paraméter miatt a megerősítés elutasításba futna,
   // a felhasználó ZSÁKUTCÁBA érne (KUKA-064) — pont abba, amit az F75-01 javít. Az írást itt nem a
   // séma védi, hanem a kihívás SAJÁT szerződése (CHR-01): egyszeri · lejáró · leváltható token.
-  'GET /api/verify': frozen({ version: '1', mutates: true, gate: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({ token: frozen({ type: 'nonempty_string', required: false, max_length: 128 }) }) }) }),
+  'GET /api/verify': frozen({ version: '1', mutates: true, gate: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({ token: frozen({ type: 'nonempty_string', required: false, max_length: 128 }), lang: frozen({ type: 'nonempty_string', required: false, max_length: 32 }) }) }) }),
   'GET /api/invites/observe': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({ token: frozen({ type: 'nonempty_string', required: false, max_length: 128 }) }) }) }),
   // A VÁRAKOZÓ MEGHÍVÁSOK OLVASÁSA (R83/F83-04). Ugyanaz a kontextus-kötés, mint a tagoknál: a
   // válasz csak ahhoz a NÉZETHEZ szól, amelyikben a kérés indult (KTX-02 · KUKA-204).

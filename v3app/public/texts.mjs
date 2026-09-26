@@ -25,7 +25,7 @@ import {
   dict, dictFor, setLang as setLangInner, currentLang, currentDir, currentLocale, currentEndonym,
   enabledLanguages, allLanguages, languageOf, lookup, placeholdersOf, tpl as tplInner,
   reasonText as reasonInner, plural as pluralInner, fmtNumber as fmtNumberInner, fmtDate,
-  coverageOf, knowledgeText, TEXT_GROUPS, DEEP_GROUPS, PACKS, I18N_CONTRACT,
+  coverageOf, knowledgeText, TEXT_GROUPS, DEEP_GROUPS, PACKS, I18N_CONTRACT, resolveLanguage,
 } from './i18n/dict.mjs';
 
 /**
@@ -125,7 +125,7 @@ export function setLang(code, opts) { return setLangInner(code, opts); }
 
 export {
   currentLang, currentDir, currentLocale, currentEndonym,
-  enabledLanguages, allLanguages, languageOf,
+  enabledLanguages, allLanguages, languageOf, resolveLanguage,
   lookup, placeholdersOf, coverageOf, knowledgeText, dict, dictFor,
   TEXT_GROUPS, DEEP_GROUPS, PACKS, I18N_CONTRACT,
 };

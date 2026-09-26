@@ -207,8 +207,17 @@ export async function loginUI(page, email, password = PASSWORD) {
 export async function logoutUI(page) {
   await openProfile(page);
   await withResponse(page, { path: '/api/logout' }, () => page.getByTestId('logout').click());
-  await expect(page.getByTestId('header-subject')).toHaveText('nincs bejelentkezve');
+  /**
+   * A KILÉPÉS MÉRÉSE NYELV-FÜGGETLEN (R91 saját lelet a PRÓBÁN, nem a terméken).
+   *
+   * A korábbi alak a MAGYAR mondatot hasonlította (`'nincs bejelentkezve'`), ezért a NÉMETRE állított
+   * felületen a kilépés „nem történt meg"-nek látszott — a próba a saját beégetett szövegén bukott
+   * el, nem a rendszeren (KUKA-210 a próbapadon: a felirat egy forrásból jön, és a mérés a
+   * VISELKEDÉST mérje, ne a szöveget). Amit mérünk: van belépési űrlap, és a fejléc már NEM az
+   * e-mail címet mutatja.
+   */
   await expect(page.getByTestId('login-email')).toBeVisible();
+  await expect(page.getByTestId('header-subject')).not.toContainText('@');
 }
 
 export async function header(page) {
@@ -424,7 +433,9 @@ export async function ensureMemberRow(page, subjectId) {
     && await page.getByTestId('members-list').count() === 0) await gotoPage(page, 'members');
   if (await page.getByTestId(`member-${subjectId}`).count() === 0) {
     await page.reload();
-    await expect(page.getByTestId('header-subject')).not.toHaveText('nincs bejelentkezve');
+    // NYELV-FÜGGETLEN ÁLLÍTÁS (KUKA-237): a frissítés után a fejléc az e-mail címet mutatja — ez a
+    // belépettség TÉNYE, nem egy magyar mondat.
+    await expect(page.getByTestId('header-subject')).toContainText('@');
     await gotoPage(page, 'members');
   }
   await expect(page.getByTestId(`member-${subjectId}`)).toBeVisible();

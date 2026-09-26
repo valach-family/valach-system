@@ -4,10 +4,10 @@
   "lane": "Claude-v3",
   "source": "tests/e2e/v3app-r81-ux.spec.mjs",
   "command": "npm run proof:core-ux",
-  "generated_at": "2026-09-26T10:11:03.641Z",
+  "generated_at": "2026-09-26T12:36:00.999Z",
   "package_version": "3.0.0-alpha",
-  "base_url": "http://127.0.0.1:41577",
-  "db_path": "var/tmp/v3_v3.0.0-alpha_20260926_100855_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
+  "base_url": "http://127.0.0.1:42943",
+  "db_path": "var/tmp/v3_v3.0.0-alpha_20260926_123348_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
   "what_this_is": "Az R81 terv 22 elfogadási feltétele a MEGÚJÍTOTT v3app felületen, valódi böngészőből (Playwright · Chromium), feltételenként KÉT rekeszben: amit a lap mutatott (browser) és amit a szerver válaszolt / a tároló őrzött (server).",
   "verdict_vocabulary": {
     "bizonyitva": "a feltétel minden állítása a böngésző- és/vagy a szerver-rekeszből áll össze",

@@ -98,9 +98,20 @@ try {
   step('(a) belépés nélkül a kérdés NEVEZETTEN elakad (401, login_required)',
     askAnon.status === 401 && askAnon.body.reason === 'login_required', askAnon.body.reason);
   const idxAnon = await nevtelen.get('/api/assistant/knowledge');
-  step('(a/2) …és belépés nélkül a tudás-index EGYETLEN funkciót sem ad láthatóként',
-    idxAnon.body.ok === true && idxAnon.body.visible_count === 0 && idxAnon.body.population > 0,
-    { latható: idxAnon.body.visible_count, alapsokaság: idxAnon.body.population });
+  /**
+   * A SZABÁLY AZ R91-BEN MEGVÁLTOZOTT, ÉS EZT KIMONDJUK (F91-01 · F91-05).
+   *
+   * Az R89-es alak azt mérte, hogy névtelenül EGYETLEN funkció sem látható. A külső ellenőrző fél
+   * (chatgpt-v3, R91) leletei szerint ez KÁRT okozott: a regisztrációhoz nem volt belépés előtti
+   * segítség, miközben a GYIK-kereső a szótár minden sorát végigjárta. A mai szabály KÉT állítás:
+   * a NYILVÁNOS funkció (regisztráció · belépés · megerősítés · meghívó elfogadása · nyelv · súgó)
+   * névtelenül is elérhető, a belépéshez vagy fiókhoz kötött viszont SOHA.
+   */
+  const anonVisibleIds = (idxAnon.body.index || []).filter((r) => r.visible).map((r) => r.id);
+  step('(a/2) belépés nélkül CSAK a nyilvános funkciók láthatók (R91-ben szűkített szabály)',
+    idxAnon.body.ok === true && anonVisibleIds.includes('auth.register')
+      && !anonVisibleIds.some((id) => ['invite.send', 'members.grant', 'data.stock'].includes(id)),
+    { latható: anonVisibleIds, alapsokaság: idxAnon.body.population });
 
   const anna = await person('anna.r89@pelda.hu');
   const ws = await anna.c.post('/api/workspaces', { name: 'Súgó Kft', business: { jurisdiction: 'HU', tax_id: '12345678-1-42' } });

@@ -128,7 +128,15 @@ export function sitemapHtml({ me }) {
 
 /** A GYAKORI KÉRDÉSEK — kereshető, modellhívás nélkül. */
 export function faqHtml({ index, search, open }) {
-  const ids = [...new Set((index || []).flatMap((r) => r.faq || []))];
+  /**
+   * A GYIK SOROK A LÁTHATÓ FUNKCIÓKBÓL (F91-05). A régi alak az index MINDEN sorának GYIK-jét
+   * felsorolta — a `visible: false` sorokét is —, tehát a fiók nélküli vagy belépés előtti
+   * felhasználó a fiókhoz kötött kérdéseket is látta. A szerver is ugyanezt a halmazt keresi
+   * (`searchableFaqIds`), így a képernyő és a segéd NEM tud elcsúszni (KUKA-018 · KUKA-039).
+   * A `plan_limited` sor LÁTHATÓ marad: annak a tudása kiadható, a mondata mondja ki a két kaput.
+   */
+  const rows_ = (index || []).filter((r) => r.visible !== false || r.why === 'plan_limited');
+  const ids = [...new Set(rows_.flatMap((r) => r.faq || []))];
   const lang = currentLang();
   // A GYIK SZÖVEGE A SZÓTÁRBÓL — EGY otthon (`i18n/<nyelv>.mjs` → `FAQ`), a visszaesési lánccal.
   const box = (dict().FAQ) || {};

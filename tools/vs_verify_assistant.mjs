@@ -54,10 +54,30 @@ const CTX = {
 // ── AST01: a SORREND ──────────────────────────────────────────────────────────────────────────
 check('AST01', 'a szerződés KIMONDJA, hogy a jog-ellenőrzés a kiválasztás ELŐTT fut',
   /ELŐTT/i.test(policy.AST_CONTRACT.order_rule), policy.AST_CONTRACT.order_rule);
+/**
+ * BELÉPÉS NÉLKÜL CSAK A NYILVÁNOS TUDÁS (F91-05 — a szabály MEGVÁLTOZOTT, és ez KIMONDOTT).
+ *
+ * A korábbi alak azt mérte, hogy névtelenül EGYETLEN funkció tudása sem választódik ki. A külső
+ * ellenőrző fél (chatgpt-v3, R91) leletei szerint ez két hibát okozott: a regisztrációhoz NEM volt
+ * belépés előtti segítség (F91-01), miközben a GYIK-kereső a szótár MINDEN sorát végigjárta, tehát a
+ * fiókhoz kötött kérdések mégis előkerültek (F91-05). A mai szabály KÉT állítás: (a) a NYILVÁNOS
+ * funkció tudása névtelenül is kiválasztódik, (b) a belépéshez vagy fiókhoz kötött funkció SOHA.
+ */
+const anonPublic = policy.selectKnowledge({ question: 'Hogyan regisztrálok?', dictionary: HU, ctx: CTX.anon });
+check('AST01', 'belépés nélkül a NYILVÁNOS funkció tudása kiválasztódik',
+  anonPublic.features.some((f) => f.id === 'auth.register') && anonPublic.feature_population === 7,
+  `kiválasztott: ${anonPublic.features.map((f) => f.id).join(',') || '—'} · nyilvános alapsokaság: ${anonPublic.feature_population}`);
 const anonSel = policy.selectKnowledge({ question: 'Hogyan hívhatok meg valakit?', dictionary: HU, ctx: CTX.anon });
-check('AST01', 'belépés nélkül EGYETLEN funkció tudása sem választódik ki',
-  anonSel.features.length === 0 && anonSel.feature_population === 0,
-  `kiválasztott: ${anonSel.features.length} · látható alapsokaság: ${anonSel.feature_population}`);
+check('AST01', 'belépés nélkül a FIÓKHOZ kötött funkció tudása NEM választódik ki',
+  anonSel.features.length === 0 && anonSel.faq.length === 0,
+  `kiválasztott: ${anonSel.features.length} funkció · ${anonSel.faq.length} GYIK · nyilvános alapsokaság: ${anonSel.feature_population}`);
+// ÉS A GYIK-KERESŐ ALAPSOKASÁGA IS SZŰKÜL — a régi alak a szótár TELJES tábláját járta végig.
+const anonFaq = policy.selectKnowledge({ question: 'Ki hívhat meg engem?', dictionary: HU, ctx: CTX.anon });
+check('AST01', 'a GYIK-kereső alapsokasága a kérőre ELÉRHETŐ funkciók GYIK-je',
+  anonFaq.faq_population === policy.searchableFaqIds(CTX.anon).length
+  && anonFaq.faq_population < anonFaq.faq_population_total
+  && !anonFaq.faq.some((f) => f.id.startsWith('faq.invite') || f.id.startsWith('faq.members')),
+  `kereshető: ${anonFaq.faq_population} / teljes: ${anonFaq.faq_population_total} · találat: ${anonFaq.faq.map((f) => f.id).join(',') || '—'}`);
 check('AST01', 'a végpont a belépést ELŐBB kérdezi, mint a tudást',
   SRV_SRC.indexOf("'POST /api/assistant/ask'") < SRV_SRC.indexOf('selectKnowledge(')
   && /if \(!session\.subject_id\) return loginRequired\(\);\s*\n\s*const cur = currentBookOf\(session\);/.test(SRV_SRC),
@@ -92,12 +112,26 @@ check('AST03', 'öröklött tulajdonság-név NEM művelet (SOP-01 alakja)',
   'toString · constructor · __proto__ · hasOwnProperty → action_unknown');
 check('AST03', 'a fiókkezelői művelet a TAGNAK elakad',
   policy.acceptAction('open.members', CTX.member).reason === 'action_not_allowed', policy.acceptAction('open.members', CTX.member).reason);
-check('AST03', 'a paraméter TÍPUSA ellenőrzött (objektum-paraméter elutasítva)',
-  policy.acceptAction({ id: 'open.stock', params: { x: { a: 1 } } }, CTX.admin).reason === 'invalid_type',
-  policy.acceptAction({ id: 'open.stock', params: { x: { a: 1 } } }, CTX.admin).reason);
+/**
+ * A PARAMÉTER-SZERZŐDÉS NÉGY ELUTASÍTÁSA (F91-05). A külső fél lelete: a TÖMB némán átment
+ * (`params:['bad']` → `{0:'bad'}`), és a „primitív típus" szabály minden KITALÁLT mezőt elfogadott.
+ * A mai szabály ZÁRT MEZŐ-LISTA műveletenként (`ACTION_PARAMS`), tehát a mezőnév is mérce.
+ */
+check('AST03', 'a paraméter TÍPUSA ellenőrzött (objektum-érték elutasítva a MEGENGEDETT mezőn is)',
+  policy.acceptAction({ id: 'open.stock', params: { focus: { a: 1 } } }, CTX.admin).reason === 'invalid_type',
+  policy.acceptAction({ id: 'open.stock', params: { focus: { a: 1 } } }, CTX.admin).reason);
 check('AST03', 'a túl hosszú paraméter-érték elutasítva',
-  policy.acceptAction({ id: 'open.stock', params: { x: 'y'.repeat(200) } }, CTX.admin).reason === 'invalid_value',
-  policy.acceptAction({ id: 'open.stock', params: { x: 'y'.repeat(200) } }, CTX.admin).reason);
+  policy.acceptAction({ id: 'open.stock', params: { focus: 'y'.repeat(200) } }, CTX.admin).reason === 'invalid_value',
+  policy.acceptAction({ id: 'open.stock', params: { focus: 'y'.repeat(200) } }, CTX.admin).reason);
+check('AST03', 'a TÖMB-paraméter NEVEZETTEN elakad (a külső fél R91-es lelete)',
+  policy.acceptAction({ id: 'open.overview', params: ['bad'] }, CTX.admin).reason === 'invalid_type',
+  JSON.stringify(policy.acceptAction({ id: 'open.overview', params: ['bad'] }, CTX.admin)));
+check('AST03', 'az ISMERETLEN paraméter-mező nevezetten elakad (zárt mező-lista)',
+  policy.acceptAction({ id: 'open.stock', params: { kitalalt: 'x' } }, CTX.admin).reason === 'param_unknown',
+  JSON.stringify(policy.acceptAction({ id: 'open.stock', params: { kitalalt: 'x' } }, CTX.admin)));
+check('AST03', 'a paraméter-mentes művelet üres paraméterrel megy át',
+  policy.acceptAction({ id: 'open.overview' }, CTX.admin).ok === true,
+  JSON.stringify(policy.acceptAction({ id: 'open.overview' }, CTX.admin).action || {}));
 const okAct = policy.acceptAction('open.stock', CTX.member);
 check('AST03', 'az engedélyezett művelet elfogadva, és NEM ír', okAct.ok === true && okAct.action.kind === 'open_page',
   `${okAct.ok} · ${okAct.action && okAct.action.kind}`);

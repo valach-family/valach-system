@@ -14,7 +14,8 @@
 //   · a jogosultságot KIZÁRÓLAG a szerver dönti el — itt nincs kliens-oldali jog-mátrix.
 import { contextBindingVerdict, unboundMessage } from './contextBinding.mjs';
 import { PAGE, NAV_GROUPS, NAV_ADMIN, NAV_PERSONAL, ROLE, SCOPE, SCOPE_ACC, PLAN, QUALITY, STATE, UNBOUND, UI, HELP, TOURUI, CHAT,
-  reasonText, whenText, tpl, accountLabel, setLang, currentLang, currentDir, currentEndonym, enabledLanguages } from './texts.mjs';
+  reasonText, whenText, tpl, accountLabel, setLang, currentLang, currentDir, currentEndonym, enabledLanguages,
+  resolveLanguage, dict } from './texts.mjs';
 import { demoFor, demoSource } from './demoData.mjs';
 // A SEGÍTSÉG HÁROM DARABJA — mind TISZTA rajzoló/állapot-modul: lekérést egyik sem indít, azt EGY
 // helyen, itt végezzük (KUKA-209: a rajzolás nem kérdez).
@@ -275,6 +276,17 @@ import * as tourMod from './tour.mjs';
     const prevBook = state.ctx.book;
     const prevBookName = state.ctx.bookName;
     const changed = (me.subject_id ?? null) !== prevSubject || (me.current_book_id ?? null) !== prevBook;
+    /**
+     * A NYELV A SZEMÉLYHEZ TARTOZIK (F91-02, a reviewer kikötése): „személyváltáskor egy korábbi
+     * ember személyes preferenciáját ne keverjük az új ember beállításával". Ezért AMINT kiderül,
+     * hogy MÁS ember van a munkamenetben, a nyelv az ŐVÉ lesz — a tárolt választása, vagy ha
+     * nincs, a böngésző kérése. A régi ember nyelve NEM öröklődik át.
+     */
+    if ((me.subject_id ?? null) !== prevSubject) {
+      state.me = { ...(state.me || {}), subject_id: me.subject_id ?? null };
+      restoreLang();
+      state.astStatus = null; state.helpIndex = null;   // a tudás a KÉRT nyelven jött (KTX-02)
+    }
     if (changed) {
       const foreign = prevSubject !== null && !state.selfInitiated;
       const otherSubject = (me.subject_id ?? null) !== prevSubject;
@@ -332,6 +344,52 @@ import * as tourMod from './tour.mjs';
     const root = document.documentElement;
     root.setAttribute('lang', currentLang());
     root.setAttribute('dir', currentDir());
+  }
+
+  /**
+   * A NYELV-VÁLASZTÁS TÚLÉLI A LAPFRISSÍTÉST — DE SZEMÉLYHEZ KÖTVE (F91-02 · LANG-01).
+   *
+   * A LELET (a külső ellenőrző fél, chatgpt-v3, R91): a profilban németre állított lap FRISSÍTÉS után
+   * magyarra állt vissza — a választás csak a modul memóriájában élt. A javítás KÉT kikötéssel jár:
+   *   · a választás a BÖNGÉSZŐBEN marad meg (nem a szerveren): a nyelv a NÉZŐ kényelme, nem a fiók
+   *     adata — üzleti adatot a böngésző tárolójába nem írunk;
+   *   · a tárolás KULCSA A SZEMÉLY: `vs3.lang.<alany>` belépve, `vs3.lang.anon` névtelenül. Ezért
+   *     személyváltáskor a MÁSIK ember beállítása nem szivárog át (a reviewer kikötése), és ha az új
+   *     embernek nincs saját választása, a lap a böngésző kérésére (`Accept-Language`) esik vissza —
+   *     NEM az előző ember nyelvére.
+   * A tároló hibáját (privát ablak · letiltott tároló) ELNYELJÜK: a nyelv ettől nem áll meg, csak
+   * nem marad meg — és ezt a profil-oldal ki is mondja.
+   */
+  const LANG_STORE_PREFIX = 'vs3.lang.';
+  function langStoreKey() {
+    const sub = state.me && state.me.subject_id ? String(state.me.subject_id) : null;
+    return `${LANG_STORE_PREFIX}${sub || 'anon'}`;
+  }
+  function rememberLang(code) {
+    try { window.localStorage.setItem(langStoreKey(), String(code)); return true; } catch { return false; }
+  }
+  function storedLang() {
+    try { return window.localStorage.getItem(langStoreKey()); } catch { return null; }
+  }
+  /**
+   * A NYELV VISSZAÁLLÍTÁSA a MAI személyhez. Sorrend: (1) a lap címében KIFEJEZETTEN kért nyelv
+   * (`?lang=` — a megerősítő levélből visszatérő út hozza), (2) ENNEK A SZEMÉLYNEK a tárolt
+   * választása, (3) a böngésző nyelvi kérése. Ami nincs bekapcsolva, azt a feloldó eldobja.
+   */
+  function restoreLang({ fromUrl = false } = {}) {
+    let wanted = null;
+    if (fromUrl) {
+      try { wanted = new URL(window.location.href).searchParams.get('lang'); } catch { wanted = null; }
+    }
+    if (!wanted) wanted = storedLang();
+    // A BÖNGÉSZŐ NYELVI KÉRÉSE a HARMADIK forrás — a jegyzék feloldójával, a szerződés mezőnevein
+    // (`explicit` · `stored` · `acceptLanguage`). A saját, kitalált mezőnév itt NÉMÁN alapnyelvre
+    // esett vissza: a hibát a mérés fogta meg, nem a figyelem (KUKA-039).
+    const nav = (window.navigator && (window.navigator.languages || [window.navigator.language])) || [];
+    const resolved = resolveLanguage({ explicit: wanted, acceptLanguage: nav.filter(Boolean).join(',') });
+    const got = setLang(resolved.code);
+    applyLanguage();
+    return got;
   }
   /**
    * A VÁZ FELIRATAI. Az `index.html` szándékosan SZÖVEG NÉLKÜLI: a demósáv, az aria-címkék és a
@@ -1020,7 +1078,11 @@ import * as tourMod from './tour.mjs';
   }
   /** A KÉT OLVASÓ KÉRÉS — nézetenként EGYSZER. A nemleges válasz NEM indít újabb kört (KUKA-209). */
   async function loadHelpData() {
-    if (!(state.me && state.me.subject_id)) return;
+    // BELÉPÉS ELŐTT IS BETÖLT — a NYILVÁNOS tudás (regisztráció · belépés · megerősítés · meghívó
+    // elfogadása · nyelv · súgó) a belépési képernyőn a legszükségesebb. A korábbi alak itt
+    // visszatért, ezért a névtelen felhasználónak a Segítség gomb LÁTSZOTT, de a panel üres maradt
+    // (F91-01, a külső fél lelete). A szerver oldali kapu változatlan: a nem nyilvános funkciót a
+    // KÖZÖS elérhetőségi feloldó zárja ki (AVL-01), nem a kliens hallgatása.
     const v = view();
     const gen = state.generation;
     // A NYELV IS LEKÉRDEZÉS-MEZŐ, a KÖZÖS összeállítón keresztül (KTX-02): a kötés és a nyelv EGY
@@ -1043,6 +1105,13 @@ import * as tourMod from './tour.mjs';
     for (const r of state.helpIndex || []) box[r.id] = r.title || r.id;
     return box;
   }
+  /** A GYAKORI KÉRDÉSEK EMBERI CÍMEI — a nyers azonosító nem felhasználói szöveg (F91-06). */
+  function faqTitles() {
+    const box = {};
+    const src = (dict().FAQ) || {};
+    for (const [id, e] of Object.entries(src)) if (e && e.q) box[id] = e.q;
+    return box;
+  }
   function renderHelp() {
     const body = byTest('help-body');
     if (!body) return;
@@ -1063,7 +1132,8 @@ import * as tourMod from './tour.mjs';
     } else if (state.help.view === 'sitemap') {
       inner = sitemapHtml({ me: state.me });
     } else {
-      inner = chatHtml({ chat: state.chat, status: st, titles: featureTitles() });
+      inner = chatHtml({ chat: state.chat, status: st, titles: featureTitles(), faqTitles: faqTitles(),
+        limits: (st && st.limits) || null });
     }
     body.innerHTML = helpPanelHtml({ view: state.help.view, body: inner, page: state.page });
   }
@@ -1078,14 +1148,23 @@ import * as tourMod from './tour.mjs';
     const defs = (state.astStatus && state.astStatus.tours) || [];
     const def = defs.find((t) => t.id === id);
     state.tourFinished = false; state.tourAborted = null; state.tourBlocked = null;
-    if (!def) { state.tourAborted = 'rightLost'; renderTour(); return; }
+    // A SZERVER ADJA A LISTÁT (AST-01): ami nincs rajta, az ebben az állapotban NEM indítható. A
+    // mondat ezt KIMONDJA (`notAvailable`) — a korábbi alak „megszűnt jogot" állított akkor is, ha a
+    // bemutató egyszerűen nem ehhez az állapothoz tartozik (F91-01: a regisztrációs bemutató belépve
+    // azonnal `targetMissing`-gel szakadt meg, holott NEM is lett volna szabad felkínálni).
+    if (!def) { state.tourAborted = 'notAvailable'; renderTour(); return; }
     // AZ ELŐZŐ FUTÁS ELŐBB ZÁRUL: a panel bezárása újraértékeli a futó bemutatót, és egy már
     // elhagyott futásra nem akarunk megszakítást írni (a sorrend itt MÉRT, nem vélt).
     if (state.tour) { tourMod.exitRun(state.tour, 'restart'); state.tour = null; }
     closeHelp();
     state.tour = tourMod.newTourRun({ def, view: view(), role: state.me && state.me.current_role });
-    const page = tourMod.pageOf(state.tour);
-    if (page && state.page !== page) go(page);
+    // A BELÉPÉS ELŐTTI BEMUTATÓ a belépési képernyőn jár: oda visz, nem egy belső oldalra.
+    if (def.requires_anonymous === true) {
+      if (state.authView !== 'register') renderAuth('register');
+    } else {
+      const page = tourMod.pageOf(state.tour);
+      if (page && state.page !== page) go(page);
+    }
     renderTour();
   }
   function renderTour() {
@@ -1118,6 +1197,22 @@ import * as tourMod from './tour.mjs';
     const first = box.querySelector('button:not([disabled])');
     if (first && typeof first.focus === 'function') first.focus();
   }
+  /**
+   * A FUTÓ BEMUTATÓ SZÖVEGE A MAI NYELVRE ÁLL (F91-03, a reviewer kikötése: „a nyelvváltás után a
+   * bemutató is a választott nyelven folytatódik vagy érthetően újraindítható").
+   *
+   * A LÉPÉS-ÁLLAPOTOK MEGMARADNAK: az elvégzett lépés elvégzett marad, a nyelv csak a SZÖVEGET
+   * váltja. Ha az új nyelvű válasz nem tartalmazza ezt a bemutatót (mert a jog közben megszűnt), a
+   * bemutató NEVEZETTEN megszakad — nem marad ott régi nyelvű szöveggel (KUKA-050).
+   */
+  function retextTour() {
+    if (!state.tour) return;
+    const defs = (state.astStatus && state.astStatus.tours) || [];
+    const def = defs.find((t) => t.id === state.tour.id);
+    if (!def) { state.tourAborted = 'notAvailable'; state.tour = null; renderTour(); return; }
+    state.tour.text = def.text || null;
+    renderTour();
+  }
   /** A FELADAT IGAZOLÁSA — a SZERVER válasza után hívjuk, nem a kattintás után (TUR-01). */
   function tourTaskDone(taskId) {
     if (!state.tour) return;
@@ -1132,10 +1227,33 @@ import * as tourMod from './tour.mjs';
     const v = stampOf(form);
     if (await refuseStale(v)) return;
     const gen = state.generation;
+    /**
+     * A KÉRÉS HÁROM AZONOSÍTÓT VISZ (F91-03): a NÉZET generációját (fiók/személy), a BESZÉLGETÉS
+     * azonosítóját és a beszélgetésen belüli SORSZÁMOT — plusz a kérés NYELVÉT. A késve érkező
+     * választ mind a négy tengelyen eldobjuk: fiókváltás · Új beszélgetés · újabb kérdés · nyelvváltás.
+     */
+    const convId = state.chat.id;
+    const seq = (state.chat.seq += 1);
+    const askLang = currentLang();
+    /**
+     * AZ ELŐZMÉNY VÉGES — ÉS A KLIENS OLDALON IS (F91-03). A deklarált korlát (`history_turns`) a
+     * MEGVALÓSULT működés: a legutóbbi N fordulót adjuk át, a régebbiek KIESNEK, és ezt a panel
+     * kimondja. A korábbi alak korlátlanul gyűjtötte a fordulókat, és a modellnek EGYÁLTALÁN nem
+     * adott előzményt — tehát a „6 előzmény-kör" nem a működést írta le (KUKA-038).
+     */
+    const keep = historyTurnsLimit();
+    const historyText = state.chat.turns.slice(-keep)
+      .map((t) => `K: ${t.question}\nV: ${t.answer || ''}`).join('\n---\n');
     state.chat.sending = true; state.chat.draft = question; state.chat.cleared = false;
     renderHelp();
-    const r = await apiInContext('POST', '/api/assistant/ask', { question, lang: currentLang() }, v);
+    const r = await apiInContext('POST', '/api/assistant/ask', {
+      question, lang: askLang, conversation_id: convId, history_text: historyText,
+    }, v);
     if (gen !== state.generation) return;               // a késő válasz NEM jelenik meg új nézetben
+    // ÚJ BESZÉLGETÉS · TÖRLÉS · ÚJABB KÉRDÉS · NYELVVÁLTÁS után a válasz NEM rajzol (F91-03).
+    if (convId !== state.chat.id || seq !== state.chat.seq || askLang !== currentLang()) {
+      state.chat.sending = false; renderHelp(); return;
+    }
     const verdict = contextBindingVerdict({ ...r, served_book_id: r.served_book_id, served_subject_id: r.served_subject_id }, v);
     state.chat.sending = false;
     if (!verdict.bound) {
@@ -1151,14 +1269,26 @@ import * as tourMod from './tour.mjs';
       kind: r.answer_kind || null,
       reason: r.ok ? null : r.reason,
       sources: r.sources || [],
+      // A KAPCSOLÓDÓ ÚTMUTATÓ NEM A VÁLASZ FORRÁSA (F91-04) — külön listán, külön felirattal.
+      related: r.related || [],
+      // A KIESETT MODELL-VÁLASZ OKA a felületen is megjelenik, nevezetten.
+      discarded: r.model_discarded || null,
       actions: r.actions || [],
       faq: r.faq || [],
       injection: Number(r.injection_markers || 0) > 0,
       usage: r.usage || null,
     });
+    // A TÁROLT ELŐZMÉNY IS VÉGES: a legutóbbi N forduló marad, a régebbi KIESIK (F91-03).
+    const cap = historyTurnsLimit();
+    if (state.chat.turns.length > cap) state.chat.turns.splice(0, state.chat.turns.length - cap);
     state.chat.draft = '';
     forgetForm('chat');
     renderHelp();
+  }
+  /** A DEKLARÁLT ELŐZMÉNY-KORLÁT — a SZERVER mondja meg (AST-01 `LIMITS`), nem a lap találja ki. */
+  function historyTurnsLimit() {
+    const n = state.astStatus && state.astStatus.limits && Number(state.astStatus.limits.history_turns);
+    return Number.isFinite(n) && n > 0 ? n : 6;
   }
 
   // ── BELÉPÉSI OLDALAK (UX-01: belső oldalon NINCS belépési űrlap) ────────────────────────────
@@ -1204,7 +1334,22 @@ import * as tourMod from './tour.mjs';
     } else if (kind === 'invite') {
       h = invitePageHtml();
     }
-    auth.innerHTML = `<div class="card">${h}</div>`;
+    /**
+     * A NYELVVÁLASZTÓ A BELÉPÉS ELŐTT IS OTT VAN (F91-02).
+     *
+     * A LELET (a külső ellenőrző fél, chatgpt-v3, R91): „névtelen kezdőlapon nincs nyelvválasztó" —
+     * vagyis a regisztráció, a belépés és a megerősítés lépését a felhasználó NEM tudta a saját
+     * nyelvén elvégezni, csak a böngészője beállításától remélhette. A választó ugyanazt a
+     * jegyzéket kínálja, mint a profil-oldal (LANG-01), és a választás ITT is megmarad (személyhez
+     * kötve: névtelenül a `anon` kulcson).
+     */
+    const langRow = `<div class="langbar" data-testid="auth-langbar">
+      <label class="sr-only" for="auth-lang-select">${esc(UI.language)}</label>
+      <select id="auth-lang-select" data-testid="lang-select-public" aria-label="${esc(UI.language)}">
+        ${enabledLanguages().map((l) => `<option value="${esc(l.code)}" ${l.code === currentLang() ? 'selected' : ''}>${esc(l.endonym)}</option>`).join('')}</select>
+      <button type="button" class="plain" data-action="help-open" data-testid="auth-help-open">${esc(HELP.open)}</button>
+    </div>`;
+    auth.innerHTML = `<div class="card">${langRow}${h}</div>`;
     renderHeader();
   }
 
@@ -1502,10 +1647,33 @@ import * as tourMod from './tour.mjs';
         renderTour(); break;
       }
       case 'tour-back': tourMod.back(state.tour); state.tourBlocked = null; renderTour(); break;
-      case 'tour-finish': state.tourFinished = true; renderTour(); break;
+      // A BEFEJEZÉS UGYANAZT AZ ÁLLAPOTELLENŐRZÉST FUTTATJA, MINT A TOVÁBB (F91-01, a külső fél
+      // R91-es lelete: függő feladat mellett is „a bemutató végére értél" állt a lapon).
+      case 'tour-finish': {
+        const f = tourMod.finishRun(state.tour);
+        if (f.ok) { state.tourFinished = true; state.tourBlocked = null; }
+        else state.tourBlocked = ['targetPending', 'targetMissing'].includes(f.why) ? null : f.why;
+        renderTour(); break;
+      }
+      // A TUDATOS KIHAGYÁS: külön művelet és külön ÁLLAPOT — nem hamis befejezés (F91-01).
+      case 'tour-skip': {
+        const r = tourMod.skipStep(state.tour);
+        if (!r.moved && r.why === 'finished') state.tourFinished = true;
+        state.tourBlocked = null;
+        renderTour(); break;
+      }
       case 'tour-restart': { const id = state.tour ? state.tour.id : null; if (id) await startTour(id); break; }
-      case 'tour-exit': tourMod.exitRun(state.tour, 'exit'); state.tour = null; state.tourFinished = false;
-        state.tourAborted = null; state.tourBlocked = null; renderTour(); break;
+      // A KILÉPÉS ELSZÁMOL: a záró lap KIÍRJA, mi lett elvégezve és mi maradt ki — a néma eltűnés
+      // volt a hiba párja (F91-01). A záró lap „Bezárom" gombja (`tour-close`) veszi le a lapról.
+      case 'tour-exit': {
+        if (state.tour && !state.tourFinished && !state.tourAborted) {
+          tourMod.exitRun(state.tour, 'exit');
+          state.tourFinished = true; state.tourBlocked = null;
+          renderTour(); break;
+        }
+        state.tour = null; state.tourFinished = false; state.tourAborted = null; state.tourBlocked = null;
+        renderTour(); break;
+      }
       // ── CHAT (AST-01). A javasolt kérdés csak KITÖLTI a mezőt — nem küldi el magától.
       case 'chat-suggest': { state.chat.draft = b.dataset.q || ''; renderHelp(); const inp = byTest('chat-input'); if (inp) inp.focus(); break; }
       case 'chat-new': state.chat = emptyChat(); renderHelp(); break;
@@ -1590,16 +1758,21 @@ import * as tourMod from './tour.mjs';
     // NYELVVÁLTÁS (LANG-01). A választás azonnal érvényes: a szótár élő nézetei miatt EGYETLEN
     // újrarajzolás elég. A nézethez kötött tudás-index és segéd-állapot ÜRÜL, mert azok a kért
     // nyelven jöttek (a szerver a `lang` mezőt olvasta) — különben magyar index maradna angol lapon.
-    if (d.testid === 'lang-select') {
+    if (d.testid === 'lang-select' || d.testid === 'lang-select-public') {
       const wanted = e.target.value;
       const got = setLang(wanted);
+      // A VÁLASZTÁS MEGMARAD — személyhez kötve (F91-02). A tároló hibája nem állítja meg a váltást.
+      rememberLang(got && got.code ? got.code : wanted);
       state.astStatus = null; state.helpIndex = null;
       render();
-      if (state.help.open) { renderHelp(); await loadHelpData(); renderHelp(); }
-      if (state.tour) renderTour();
+      // A TUDÁS A KÉRT NYELVEN JÖN, ezért a nyelvváltás UTÁN újra kell kérni — és ez a FUTÓ
+      // bemutatóra is áll: a lépés-szövege a régi nyelvű válaszból származik (F91-03).
+      await loadHelpData();
+      if (state.help.open) renderHelp();
+      retextTour();
       // A KÉRT ÉS A KAPOTT NYELV KÜLÖNBSÉGE KIMONDVA — néma elnyelés nincs (KUKA-012).
       notice(tpl('langSwitched', { nyelv: currentEndonym() }), got === wanted ? 'ok' : 'warn');
-      const again = byTest('lang-select');
+      const again = byTest(d.testid);
       if (again && typeof again.focus === 'function') again.focus();
       return;
     }
@@ -1664,7 +1837,8 @@ import * as tourMod from './tour.mjs';
     const email = form.elements.email.value.trim();
     const password = form.elements.password.value;
     if (kind === 'register') {
-      const r = await api('POST', '/api/register', { email, password });
+      // A KÉRT NYELV A LEVÉLLEL IS MEGY (F91-02): a megerősítő levél és a lapja ezen a nyelven szól.
+      const r = await api('POST', '/api/register', { email, password, lang: currentLang() });
       if (!r.ok) { formResult('register-result', reasonText(r.reason, r.message), 'bad'); return; }
       renderAuth('sent');
       return;
@@ -1695,7 +1869,7 @@ import * as tourMod from './tour.mjs';
   async function doResend(form) {
     const cim = form.elements.email.value.trim();
     formResult('resend-result', UI.resendInProgress, '');
-    const r = await api('POST', '/api/verification/resend', { email: cim });
+    const r = await api('POST', '/api/verification/resend', { email: cim, lang: currentLang() });
     const v = requestOutcome(r);
     if (v === 'network') {
       // A CÍM A MEZŐBEN MARAD: nem kell újra beírni, és nem állítunk küldést (UX-14).
@@ -1797,6 +1971,12 @@ import * as tourMod from './tour.mjs';
       }
       return;
     }
+    // A SIKER TANÚSÍTÁSA MEGELŐZI A KONTEXTUS-VÁLTÁST (F91-01, a külső fél kód-vizsgálati leletei).
+    // A `newContext` lépteti a generációt, és a `refreshMe` átváltja az aktív fiókot az ÚJ cégre —
+    // ettől a bemutató nézet-kötése `contextChanged`-re fut, tehát a LÉTREHOZÁS bemutatója soha nem
+    // tudta volna befejezni a saját feladat-lépését. A szerver válasza (`r.ok`) MÁR megvan: a tanú
+    // ITT keletkezik, nem a rajzolás után (KUKA-129: a nyugtának is igazat kell mondania).
+    tourTaskDone('workspace.created');
     newContext('workspace_created');
     forgetForms();                  // A LÉTREHOZÁS LEZÁRTA A MUNKÁT: nincs mit megőrizni
     state.tabs = ['overview']; state.page = 'overview';
@@ -1805,7 +1985,6 @@ import * as tourMod from './tour.mjs';
     // fejléc-sáv jelzi a tényt, a kártya a KÖVETKEZŐ LÉPÉST kérdezi meg.
     state.afterCreate = r.name || name;
     notice(tpl(cegkent ? 'accountCreated' : 'sharedCreated', { nev: r.name || name }), 'ok');
-    tourTaskDone('workspace.created');       // IGAZOLT létrehozás után (TUR-01)
     render();
   }
 
@@ -1829,6 +2008,8 @@ import * as tourMod from './tour.mjs';
     if (await refuseStale(v)) return;
     const r = await apiInContext('POST', '/api/invites', {
       email: form.elements.email.value.trim(), role: form.elements.role.value, scope: form.elements.scope.value,
+      // A MEGHÍVÓ LEVÉL A MEGHÍVÓ nyelvén szól — a címzett a saját nyelvét a lapon állítja át (F91-02).
+      lang: currentLang(),
     }, v);
     const verdict = contextBindingVerdict(r, v);
     if (!verdict.bound) { formResult('invite-result', unboundMessage(verdict.why, UNBOUND), 'warn'); await contextChangedNotice(verdict.why); return; }
@@ -1853,6 +2034,7 @@ import * as tourMod from './tour.mjs';
     const m = (state.members || []).find((x) => x.subject_id === id);
     const who = m ? (m.email || id) : id;
     if (r.ok) {
+      tourTaskDone('grant.saved');           // IGAZOLT mentés után (TUR-01 · F91-01)
       const mondat = tpl('memberCanSee', { ki: who, mit: SCOPE_ACC[scope] || SCOPE[scope] || scope });
       formResult('members-result', mondat, 'ok');
       toast(mondat);
@@ -1899,6 +2081,10 @@ import * as tourMod from './tour.mjs';
   // ── INDULÁS ─────────────────────────────────────────────────────────────────────────────────
   (async function start() {
     const url = new URL(location.href);
+    // A NYELV AZ ELSŐ RAJZOLÁS ELŐTT ÁLL BE (F91-02): a megerősítő levélből visszatérő út a címben
+    // hozza (`?lang=`), különben ennek a SZEMÉLYNEK a tárolt választása, végül a böngésző kérése.
+    // Névtelenül a `anon` kulcs a személy — a másik ember beállítása nem szivárog át.
+    restoreLang({ fromUrl: true });
     state.inviteToken = url.searchParams.get('invite');
     const megerosites = url.searchParams.get('megerosites');
     if (megerosites) {

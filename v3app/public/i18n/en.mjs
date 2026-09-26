@@ -75,6 +75,7 @@ export const TPL = Object.freeze({
   askedInLang: 'We answer the question in this language: {nyelv}',
   helpForScreen: 'For this screen: {oldal}',
   chatSourceLine: 'Source: {cim} ({verzio})',
+  chatHistoryNote: 'We keep the last {n} questions of the conversation — older ones drop out.',
 });
 
 export const REASON = Object.freeze({
@@ -473,6 +474,10 @@ export const TOURUI = Object.freeze({
   targetMissing: 'This step cannot continue: the element named in the walkthrough is not visible on this screen.',
   targetMissingNext: 'I am closing the walkthrough. The description stays readable under Help → Guides.',
   targetPending: 'This step is not available yet: open it first with the HIGHLIGHTED button. The walkthrough does not press it for you.',
+  endedTitle: 'You left the walkthrough',
+  endedLead: 'Not every step was completed — the summary below says what was left out. You can restart the walkthrough any time.',
+  skipStep: 'Skip this step',
+  notAvailable: 'This walkthrough cannot start now: its screen is not available in this state. The description stays readable under Help → Guides.',
   rightLost: 'Your permission for this step has ended in the meantime, so the walkthrough stops here.',
   contextChanged: 'You switched to another account or user in the meantime, so the walkthrough stops here. It can be restarted.',
   taskNotDone: 'This step is tied to actually carrying out the operation. Pressing the button alone is not yet a success.',
@@ -499,6 +504,17 @@ export const CHAT = Object.freeze({
   q2: 'Why can I not see the stock data?',
   q3: 'How do I add a business?',
   source: 'Guide used',
+  related: 'Related guides',
+  modelDiscarded: 'We did not accept the provider answer, so you see the answer of the local guide search.',
+  modelDiscardedWhy: Object.freeze({
+    model_no_source: 'The answer did not mark which guide it builds on.',
+    model_unknown_source: 'The answer cited a guide we did not hand to it.',
+    model_stale_source: 'The answer cited another version of the guide, not the one handed over.',
+    model_wrong_language: 'The answer was not written in the requested language.',
+    model_too_long: 'The answer was longer than allowed.',
+  }),
+  historyNote: 'We keep the last {n} questions of the conversation — older ones drop out.',
+  singleTurnNote: 'Without a provider connection every question is answered on its own: the local search does not use the previous questions.',
   nextSteps: 'Next step',
   openAction: 'Open',
   prepareAction: 'Prepare',
@@ -1005,6 +1021,13 @@ export const TOUR = Object.freeze({
     s3: Object.freeze({ title: 'Refresh', body: 'Reads the data again. If it fails, the page says so, and nothing changes in the account.' }),
     s4: Object.freeze({ title: 'The prices', body: 'Prices sit behind TWO gates: plan AND permission. The page says which one is missing.' }),
   }),
+  'tour.grant': Object.freeze({
+    title: 'Granting access to a colleague',
+    lead: 'Three steps. The access is valid in THIS account only.',
+    s1: Object.freeze({ title: 'Open Users', body: 'Under Settings, with account manager rights.' }),
+    s2: Object.freeze({ title: 'Pick the colleague', body: 'In the list the „Access" button opens that person\'s access page.' }),
+    s3: Object.freeze({ title: 'Allow the data set', body: 'Pick the data set and press the allow button. This step only moves on after an ACTUAL save.' }),
+  }),
   'tour.plan': Object.freeze({
     title: 'Setting the plan',
     lead: 'Three steps. There is no purchase and no payment.',
@@ -1093,4 +1116,28 @@ export const SEARCH = Object.freeze({
   'profile.edit': 'edit profile change own data',
   'security.password_change': 'change password new password password change',
   'shell.numbered_probe': 'old surface numbered probe surface retired',
+});
+
+/** Server-rendered pages and demo messages — same dictionary, same fallback chain (F91-02). */
+export const SRV = Object.freeze({
+  verifyTitleOk: 'Your e-mail address is confirmed',
+  verifyTitleBad: 'This confirmation link is no longer valid',
+  verifyPageTitle: 'E-mail confirmation — VS',
+  verifyOkLead: 'The address {cim} is confirmed. You can sign in from now on.',
+  verifyOkLeadPersonal: 'The address {cim} is confirmed. You can sign in from now on, and your personal account („{nev}") is ready too.',
+  verifyBadLead: '{indok} Ask for a new confirmation mail — your password does not change, and you do not need a new account.',
+  verifyBack: 'Continue to sign-in',
+  verifyBackShort: 'Back to sign-in',
+  verifyResend: 'Ask for a new confirmation mail',
+  verifyTech: 'Technical details',
+  reason_challenge_expired: 'The link lived for 24 hours, and that time is over.',
+  reason_challenge_already_used: 'This link has already been used. If that was you, simply sign in.',
+  reason_challenge_superseded: 'A newer confirmation mail was requested for this address, so this link is no longer alive. The link in the LATEST mail works.',
+  reason_challenge_unknown: 'This link cannot be used — it may have been copied out of the mail incompletely.',
+  mailVerifySubject: 'Confirm your e-mail address',
+  mailVerifyBody: 'Click the link to prove this address is yours. The link lives for {ora} hours. If it expires, you can ask for a new one on the sign-in screen.',
+  mailResendSubject: 'New confirmation link',
+  mailResendBody: 'You asked for a new link to confirm the address. The earlier link is void from now on, this one lives for 24 hours. Your password has not changed.',
+  mailInviteSubject: 'Invitation: {fiok}',
+  mailInviteBody: 'You have been invited to the {fiok} account. Opening the link lets you accept the invitation; if you have no account yet, you can create one after opening it.',
 });

@@ -71,6 +71,7 @@ export const TPL = Object.freeze({
   askedInLang: 'Wir beantworten die Frage in dieser Sprache: {nyelv}',
   helpForScreen: 'Zu diesem Bildschirm: {oldal}',
   chatSourceLine: 'Quelle: {cim} ({verzio})',
+  chatHistoryNote: 'Wir behalten die letzten {n} Fragen des Gesprächs — ältere fallen heraus.',
 });
 
 export const REASON = Object.freeze({
@@ -469,6 +470,10 @@ export const TOURUI = Object.freeze({
   targetMissing: 'Dieser Schritt kann nicht fortgesetzt werden: das im Rundgang genannte Element ist auf diesem Bildschirm nicht sichtbar.',
   targetMissingNext: 'Ich schließe den Rundgang. Die Beschreibung bleibt unter Hilfe → Anleitungen lesbar.',
   targetPending: 'Dieser Schritt ist noch nicht verfügbar: öffne ihn zuerst mit der HERVORGEHOBENEN Schaltfläche. Der Rundgang drückt sie nicht für dich.',
+  endedTitle: 'Du hast den Rundgang verlassen',
+  endedLead: 'Nicht jeder Schritt wurde erledigt — die Aufstellung unten sagt, was ausgelassen wurde. Du kannst den Rundgang jederzeit neu starten.',
+  skipStep: 'Diesen Schritt überspringen',
+  notAvailable: 'Dieser Rundgang kann jetzt nicht starten: sein Bildschirm ist in diesem Zustand nicht verfügbar. Die Beschreibung bleibt unter Hilfe → Anleitungen lesbar.',
   rightLost: 'Deine Berechtigung für diesen Schritt ist zwischenzeitlich entfallen, daher endet der Rundgang hier.',
   contextChanged: 'Du hast zwischenzeitlich zu einem anderen Konto oder Benutzer gewechselt, daher endet der Rundgang hier. Er kann neu gestartet werden.',
   taskNotDone: 'Dieser Schritt ist an die tatsächliche Ausführung des Vorgangs gebunden. Das Drücken der Schaltfläche allein ist noch kein Erfolg.',
@@ -495,6 +500,17 @@ export const CHAT = Object.freeze({
   q2: 'Warum sehe ich die Bestandsdaten nicht?',
   q3: 'Wie füge ich ein Unternehmen hinzu?',
   source: 'Verwendete Anleitung',
+  related: 'Verwandte Anleitungen',
+  modelDiscarded: 'Wir haben die Antwort des Anbieters nicht akzeptiert, deshalb siehst du die Antwort der lokalen Anleitungssuche.',
+  modelDiscardedWhy: Object.freeze({
+    model_no_source: 'Die Antwort hat nicht angegeben, auf welcher Anleitung sie aufbaut.',
+    model_unknown_source: 'Die Antwort berief sich auf eine Anleitung, die wir ihr nicht übergeben haben.',
+    model_stale_source: 'Die Antwort berief sich auf eine andere Fassung der Anleitung, nicht auf die übergebene.',
+    model_wrong_language: 'Die Antwort wurde nicht in der gewünschten Sprache verfasst.',
+    model_too_long: 'Die Antwort war länger als erlaubt.',
+  }),
+  historyNote: 'Wir behalten die letzten {n} Fragen des Gesprächs — ältere fallen heraus.',
+  singleTurnNote: 'Ohne Anbieter-Verbindung wird jede Frage eigenständig beantwortet: die lokale Suche verwendet die vorherigen Fragen nicht.',
   nextSteps: 'Nächster Schritt',
   openAction: 'Öffnen',
   prepareAction: 'Vorbereiten',
@@ -1001,6 +1017,13 @@ export const TOUR = Object.freeze({
     s3: Object.freeze({ title: 'Aktualisieren', body: 'Fragt die Daten erneut ab. Gelingt es nicht, sagt die Seite das, und im Konto ändert sich nichts.' }),
     s4: Object.freeze({ title: 'Die Preise', body: 'Preise stehen hinter ZWEI Toren: Paket UND Freigabe. Die Seite sagt, welches fehlt.' }),
   }),
+  'tour.grant': Object.freeze({
+    title: 'Zugriff für eine Kollegin freigeben',
+    lead: 'Drei Schritte. Der Zugriff gilt NUR in diesem Konto.',
+    s1: Object.freeze({ title: 'Benutzer öffnen', body: 'Unter Einstellungen, mit Kontoverwalter-Recht.' }),
+    s2: Object.freeze({ title: 'Die Kollegin auswählen', body: 'In der Liste öffnet die Schaltfläche „Zugriff" die Zugriffsseite dieser Person.' }),
+    s3: Object.freeze({ title: 'Den Datenbereich freigeben', body: 'Wähle den Datenbereich und drücke die Freigabe-Schaltfläche. Dieser Schritt geht erst nach einem TATSÄCHLICHEN Speichern weiter.' }),
+  }),
   'tour.plan': Object.freeze({
     title: 'Das Paket einstellen',
     lead: 'Drei Schritte. Kauf und Zahlung gibt es nicht.',
@@ -1088,4 +1111,28 @@ export const SEARCH = Object.freeze({
   'profile.edit': 'profil bearbeiten eigene daten ändern',
   'security.password_change': 'passwort ändern neues passwort passwortwechsel',
   'shell.numbered_probe': 'alte oberfläche numerierte probeoberfläche eingestellt',
+});
+
+/** Server-gezeichnete Seiten und Demo-Nachrichten — dasselbe Wörterbuch, dieselbe Kette (F91-02). */
+export const SRV = Object.freeze({
+  verifyTitleOk: 'Deine E-Mail-Adresse ist bestätigt',
+  verifyTitleBad: 'Dieser Bestätigungslink gilt nicht mehr',
+  verifyPageTitle: 'E-Mail-Bestätigung — VS',
+  verifyOkLead: 'Die Adresse {cim} ist bestätigt. Du kannst dich ab jetzt anmelden.',
+  verifyOkLeadPersonal: 'Die Adresse {cim} ist bestätigt. Du kannst dich ab jetzt anmelden, und dein persönliches Konto („{nev}") ist auch bereit.',
+  verifyBadLead: '{indok} Bitte fordere eine neue Bestätigungsmail an — dein Passwort ändert sich nicht, und ein neues Konto brauchst du auch nicht.',
+  verifyBack: 'Weiter zur Anmeldung',
+  verifyBackShort: 'Zurück zur Anmeldung',
+  verifyResend: 'Neue Bestätigungsmail anfordern',
+  verifyTech: 'Technische Details',
+  reason_challenge_expired: 'Der Link lebte 24 Stunden, und diese Zeit ist vorbei.',
+  reason_challenge_already_used: 'Dieser Link wurde bereits verwendet. Wenn du das warst, melde dich einfach an.',
+  reason_challenge_superseded: 'Für diese Adresse wurde eine neuere Bestätigungsmail angefordert, deshalb lebt dieser Link nicht mehr. Der Link in der NEUESTEN Mail funktioniert.',
+  reason_challenge_unknown: 'Dieser Link kann nicht verwendet werden — vielleicht wurde er unvollständig aus der Mail kopiert.',
+  mailVerifySubject: 'Bestätige deine E-Mail-Adresse',
+  mailVerifyBody: 'Klicke auf den Link, um zu belegen: diese Adresse gehört dir. Der Link lebt {ora} Stunden. Läuft er ab, kannst du auf dem Anmeldebildschirm einen neuen anfordern.',
+  mailResendSubject: 'Neuer Bestätigungslink',
+  mailResendBody: 'Du hast einen neuen Link zur Bestätigung der Adresse angefordert. Der frühere Link ist damit ungültig, dieser lebt 24 Stunden. Dein Passwort hat sich nicht geändert.',
+  mailInviteSubject: 'Einladung: {fiok}',
+  mailInviteBody: 'Du wurdest in das Konto {fiok} eingeladen. Mit dem Öffnen des Links kannst du die Einladung annehmen; wenn du noch kein Konto hast, kannst du es danach erstellen.',
 });

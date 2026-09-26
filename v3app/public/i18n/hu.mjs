@@ -88,6 +88,7 @@ export const TPL = Object.freeze({
   askedInLang: 'A kérdést ezen a nyelven válaszoljuk meg: {nyelv}',
   helpForScreen: 'Ehhez a képernyőhöz: {oldal}',
   chatSourceLine: 'Forrás: {cim} ({verzio})',
+  chatHistoryNote: 'A beszélgetésből a legutóbbi {n} kérdést tartjuk meg — a régebbiek kiesnek.',
 });
 
 export const REASON = Object.freeze({
@@ -512,6 +513,11 @@ export const TOURUI = Object.freeze({
   targetMissingNext: 'Bezárom a bemutatót. A leírás a Súgó → Útmutatók között továbbra is elolvasható.',
   // FELTÁRÁSRA VÁRÁS: a cél még nem jelent meg (panel · választás), a felhasználó nyitja meg.
   targetPending: 'Ez a lépés még nem érhető el: előbb nyisd meg a KIEMELT gombbal. A bemutató nem nyomja meg helyetted.',
+  // A ZÁRÁS KÉT MONDATA: a „végére értél" CSAK akkor, ha semmi nem maradt ki (F91-01).
+  endedTitle: 'Kiléptél a bemutatóból',
+  endedLead: 'Nem minden lépés lett elvégezve — az alábbi elszámolás megmondja, mi maradt ki. A bemutatót bármikor újraindíthatod.',
+  skipStep: 'Kihagyom ezt a lépést',
+  notAvailable: 'Ez a bemutató most nem indítható: a képernyője ebben az állapotban nem érhető el. A leírás a Súgó → Útmutatók között továbbra is elolvasható.',
   rightLost: 'Közben megszűnt a jogosultságod ehhez a lépéshez, ezért a bemutató itt megáll.',
   contextChanged: 'Közben másik fiókra vagy felhasználóra váltottál, ezért a bemutató itt megáll. Újraindítható.',
   taskNotDone: 'Ez a lépés a művelet tényleges elvégzéséhez kötött. A gomb megnyomása önmagában még nem siker.',
@@ -539,6 +545,20 @@ export const CHAT = Object.freeze({
   q2: 'Miért nem látom a készletadatokat?',
   q3: 'Hogyan adok hozzá egy vállalkozást?',
   source: 'Felhasznált útmutató',
+  // A KÉT LISTA KÜLÖN SZAVA (F91-04): ami ALÁTÁMASZTJA a választ, és ami csak KAPCSOLÓDIK.
+  related: 'Kapcsolódó útmutatók',
+  // A KIESETT MODELL-VÁLASZ: a felhasználó azt látja, hogy helyi választ kapott, és MIÉRT.
+  modelDiscarded: 'A szolgáltató válaszát nem fogadtuk el, ezért a helyi útmutató-keresés válaszát látod.',
+  modelDiscardedWhy: Object.freeze({
+    model_no_source: 'A válasz nem jelölte meg, melyik útmutatóra épül.',
+    model_unknown_source: 'A válasz olyan útmutatóra hivatkozott, amit nem adtunk át neki.',
+    model_stale_source: 'A válasz az útmutató másik, nem az átadott változatára hivatkozott.',
+    model_wrong_language: 'A válasz nem a kért nyelven készült.',
+    model_too_long: 'A válasz hosszabb volt a megengedettnél.',
+  }),
+  // AZ ELŐZMÉNY VÉGES, ÉS EZT A LAP KIMONDJA (F91-03).
+  historyNote: 'A beszélgetésből a legutóbbi {n} kérdést tartjuk meg — a régebbiek kiesnek.',
+  singleTurnNote: 'Szolgáltatói csatlakozás nélkül minden kérdésre önállóan válaszolunk: a helyi keresés nem használja az előző kérdéseket.',
   nextSteps: 'Következő lépés',
   openAction: 'Megnyitás',
   prepareAction: 'Előkészítés',
@@ -1052,6 +1072,13 @@ export const TOUR = Object.freeze({
     s3: Object.freeze({ title: 'Frissítés', body: 'Újra lekérdezi az adatot. Ha nem sikerül, a lap kimondja, és semmi nem változik a fiókban.' }),
     s4: Object.freeze({ title: 'Az árak', body: 'Az árak KÉT kapu mögött állnak: csomag ÉS engedély. A lap megmondja, melyik hiányzik.' }),
   }),
+  'tour.grant': Object.freeze({
+    title: 'Hozzáférés adása egy kollégának',
+    lead: 'Három lépés. A hozzáférés CSAK ebben a fiókban érvényes.',
+    s1: Object.freeze({ title: 'Nyisd meg a Felhasználókat', body: 'A Beállítások csoportban, fiókkezelői jogosultsággal.' }),
+    s2: Object.freeze({ title: 'Válaszd ki a kollégát', body: 'A listában a „Hozzáférés" gombbal nyílik meg az adott ember hozzáférés-lapja.' }),
+    s3: Object.freeze({ title: 'Az adatkör engedélyezése', body: 'Válaszd ki az adatkört, és nyomd meg az engedélyező gombot. Ez a lépés csak TÉNYLEGES mentés után halad tovább.' }),
+  }),
   'tour.plan': Object.freeze({
     title: 'A csomag beállítása',
     lead: 'Három lépés. Vásárlás és díjfizetés nincs.',
@@ -1155,4 +1182,37 @@ export const SEARCH = Object.freeze({
   'profile.edit': 'profil szerkesztése saját adatok módosítása átírás',
   'security.password_change': 'jelszó megváltoztatása jelszócsere új jelszó',
   'shell.numbered_probe': 'régi felület számozott próbafelület kivezetve',
+});
+
+/**
+ * A SZERVER ÁLTAL RAJZOLT LAPOK ÉS A PRÓBAÜZENETEK SZÖVEGE (F91-02).
+ *
+ * A LELET (a külső ellenőrző fél, chatgpt-v3, R91): a megerősítő oldal `lang="hu"` jelöléssel és
+ * MAGYAR mondatokkal készült a `server.mjs`-ben, és a megerősítő/meghívó próbaüzenetek szövege is a
+ * szerverben maradt — ezek tehát KÍVÜL estek az „589 kulcs mindhárom nyelven" mérésen. A teljes
+ * használati út (regisztráció → megerősítés → alkalmazás → meghívó) nem lehet félig fordított: a
+ * szerver-oldali szöveg ugyanebből a szótárból jön, ugyanazzal a visszaesési lánccal (SZO-01).
+ */
+export const SRV = Object.freeze({
+  verifyTitleOk: 'Az e-mail-címed megerősítve',
+  verifyTitleBad: 'Ez a megerősítő hivatkozás már nem él',
+  verifyPageTitle: 'E-mail-cím megerősítése — VS',
+  verifyOkLead: 'A(z) {cim} cím megerősítve. Mostantól be tudsz jelentkezni.',
+  verifyOkLeadPersonal: 'A(z) {cim} cím megerősítve. Mostantól be tudsz jelentkezni, és a személyes fiókod („{nev}") is készen áll.',
+  verifyBadLead: '{indok} Kérj új megerősítő levelet a címedre — a jelszavad nem változik, és új fiókot sem kell létrehoznod.',
+  verifyBack: 'Tovább a bejelentkezéshez',
+  verifyBackShort: 'Vissza a bejelentkezéshez',
+  verifyResend: 'Új megerősítő levél kérése',
+  verifyTech: 'Technikai részletek',
+  // A NÉGY OK MONDATA — a kulcs a MAG hibakódja, hogy a megfeleltetés ne kézi táblán álljon.
+  reason_challenge_expired: 'A hivatkozás 24 óráig élt, és ez az idő letelt.',
+  reason_challenge_already_used: 'Ezt a hivatkozást már felhasználták. Ha te voltál, egyszerűen jelentkezz be.',
+  reason_challenge_superseded: 'Ehhez a címhez újabb megerősítő levelet kértek, ezért ez a hivatkozás már nem él. A LEGUTÓBBI levélben lévő hivatkozás működik.',
+  reason_challenge_unknown: 'Ez a hivatkozás nem használható — lehet, hogy hiányosan másolódott ki a levélből.',
+  mailVerifySubject: 'Erősítsd meg az e-mail címedet',
+  mailVerifyBody: 'Kattints a hivatkozásra, hogy bizonyítsd: ez a cím a tiéd. A hivatkozás {ora} óráig él. Ha lejár, a bejelentkező képernyőn kérhetsz újat.',
+  mailResendSubject: 'Új megerősítő hivatkozás',
+  mailResendBody: 'Új hivatkozást kértél a cím megerősítéséhez. A korábbi hivatkozás ettől érvénytelen, ez a hivatkozás 24 óráig él. A jelszavad nem változott.',
+  mailInviteSubject: 'Meghívás: {fiok}',
+  mailInviteBody: 'Meghívtak a(z) {fiok} fiókba. A hivatkozás megnyitásával elfogadhatod a meghívást; ha még nincs fiókod, a megnyitás után létrehozhatod.',
 });

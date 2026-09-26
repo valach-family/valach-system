@@ -17,7 +17,7 @@
 //
 // TISZTA MODUL: se hálózat, se tároló, se óra. A végpont hívja, és a `verify:assistant` UGYANEZT
 // (KUKA-207).
-import { FEATURES, ACTIONS, TOURS } from '../knowledge/features.mjs';
+import { FEATURES, ACTIONS, ACTION_PARAMS, TOURS } from '../knowledge/features.mjs';
 
 /** A VÉGES KORLÁTOK — külön szám minden tengelyre (R89 §6 „Költség és adatkezelés"). */
 export const LIMITS = Object.freeze({
@@ -79,34 +79,52 @@ export function injectionFindings(question) {
  * `ctx`: `{ signed_in, book_id, role, personal, plan, member }`. A `reason` mező megmondja, MIÉRT
  * maradt ki egy funkció — a hiány nem néma (KUKA-012), és a súgó ezt KI IS ÍRJA a felhasználónak.
  */
+/**
+ * EGY KÖZÖS ELÉRHETŐSÉGI FELOLDÓ — a tudás, a GYIK, a bemutató ÉS a művelet UGYANEBBŐL felel (AVL-01).
+ *
+ * A LELET (a külső ellenőrző fél, chatgpt-v3, R91/F91-05): három külön szabály élt egymás mellett.
+ * A funkció-lista a személyt/fiókot/szerepet mérte, a GYIK-kereső MINDEN sort végigjárt (fiók és
+ * tagság nélküli kérőnél is előkerült a `faq.invite.who` és a `faq.members.revoke`), a művelet- és
+ * bemutató-lista pedig a SAJÁT, hiányos szerep-szűrőjét használta. Ez nem bizonyított
+ * üzletiadat-szivárgás — a szövegek általános terméksúgók —, a HIBA a háromféle szerződés
+ * (KUKA-003: a több helyen igaz szabály EGY helyen él · KUKA-039: egy feloldó, minden hívó).
+ *
+ * A KÉT TENGELY KIMONDVA, a deklarációból (nem a kiválasztó találja ki):
+ *   · `audience` — `public` = belépés ELŐTT is elmagyarázható (regisztráció · belépés · megerősítés ·
+ *     meghívó elfogadása · nyelv · súgó) · `signed_in` = belépés kell hozzá;
+ *   · `scope` — `person` = a belépett emberhez tartozik · `book` = HATÁLYOS tagság kell hozzá.
+ * A NYILVÁNOS MAGYARÁZAT ÉS A JOGOSAN NYITHATÓ MŰVELET KÉT KÜLÖN ÁLLAPOT: az első a belépés előtt is
+ * jár, a második soha (`open_required`) — a régi alak a kettőt összemosta.
+ */
+export function availabilityOf(item, ctx = {}) {
+  if (!item) return { visible: false, why: 'action_unknown' };
+  if (item.status === 'retired') return { visible: false, why: 'retired' };
+  const audience = item.audience || 'signed_in';
+  if (audience !== 'public' && !ctx.signed_in) return { visible: false, why: 'login_required' };
+  if ((item.scope || 'person') === 'book' && !(ctx.book_id && ctx.member === true)) {
+    return { visible: false, why: ctx.book_id ? 'not_a_member' : 'workspace_required' };
+  }
+  const needsAdmin = item.requires_role === 'admin'
+    || (item.action && ACTIONS[item.action] && ACTIONS[item.action].requires_role === 'admin');
+  if (needsAdmin && ctx.role !== 'admin') return { visible: false, why: 'admin_required' };
+  const personalBlocked = ['invite', 'members', 'plan'].includes(item.group || '')
+    || ['members', 'plan', 'account'].includes(item.page || '');
+  if (ctx.personal === true && personalBlocked) return { visible: false, why: 'personal_space' };
+  return { visible: true, why: null };
+}
+
+/** A NYILVÁNOS (belépés előtt is elmagyarázható) funkciók — a deklarációból, egy helyen. */
+export function isPublicFeature(feature) { return Boolean(feature) && feature.audience === 'public' && feature.status !== 'retired'; }
+
 export function visibleFeaturesFor(ctx = {}) {
-  const admin = ctx.role === 'admin';
-  const personal = ctx.personal === true;
   const plan = String(ctx.plan || 'starter');
   const out = [];
   for (const f of FEATURES) {
-    // A KIVEZETETT FUNKCIÓ NEM AKTÍV TALÁLAT (R89 §3). Nem tűnik el: a `replaced_by` viszi tovább.
-    if (f.status === 'retired') { out.push({ feature: f, visible: false, why: 'retired', replaced_by: f.replaced_by || null }); continue; }
-    if (!ctx.signed_in) { out.push({ feature: f, visible: false, why: 'login_required' }); continue; }
-    /**
-     * A FIÓK IS A KAPU RÉSZE — a SAJÁT R89-es HTTP-mérésem lelete (`v3app/findings_r89.mjs` C).
-     *
-     * A korábbi alakom a személyt, a szerepet, a személyes jelleget és a csomagot nézte, a FIÓK
-     * meglétét NEM. Ezért a MEGVONT tag (akinek `currentBookOf` már `book_id: null`-t ad) továbbra is
-     * megkapta a készlet-, ár-, tagság- és mintaadat-tudást: a segéd többet adott ki, mint amihez
-     * hozzáférése volt. A terv sorrendje kimondja: „a szerver … ellenőrzi a személyt, A FIÓKOT, a
-     * jogosultságot, az előfizetést és a funkció állapotát" (R89 §6 · KUKA-047).
-     *
-     * A hatókört a funkció DEKLARÁLJA (`scope`), nem a kiválasztó találja ki: `book` = hatályos
-     * tagság kell hozzá, `person` = a belépéshez tartozik (regisztráció · nyelv · súgó · profil).
-     */
-    if (f.scope === 'book' && !(ctx.book_id && ctx.member === true)) {
-      out.push({ feature: f, visible: false, why: ctx.book_id ? 'not_a_member' : 'workspace_required' });
+    const a = availabilityOf(f, ctx);
+    if (!a.visible) {
+      out.push({ feature: f, visible: false, why: a.why, replaced_by: a.why === 'retired' ? (f.replaced_by || null) : undefined });
       continue;
     }
-    const needsAdmin = f.action && ACTIONS[f.action] && ACTIONS[f.action].requires_role === 'admin';
-    if (needsAdmin && !admin) { out.push({ feature: f, visible: false, why: 'admin_required' }); continue; }
-    if (personal && ['invite', 'members', 'plan'].includes(f.group)) { out.push({ feature: f, visible: false, why: 'personal_space' }); continue; }
     // AZ ÁRAK KÉT KAPUJA (ENT-02): a csomag ÉS az engedély. A csomag itt mérhető, az ENGEDÉLY a
     // mag döntése — azt NEM találjuk ki, ezért az ár-funkció tudása kiadható, a MONDATA viszont
     // kimondja, hogy két kapu áll előtte.
@@ -116,17 +134,68 @@ export function visibleFeaturesFor(ctx = {}) {
   return out;
 }
 
-/** A jelenleg NYITHATÓ műveletek — a zárt listából, a kérő tényeire szűkítve. */
+/**
+ * A KERESHETŐ GYAKORI KÉRDÉSEK — a ELÉRHETŐ funkciók GYIK-jei, és semmi más (F91-05).
+ *
+ * A kereső alapsokasága ETTŐL a halmaztól függ, nem a szótár teljes GYIK-táblájától — és az
+ * alapsokaságot a válasz KIÍRJA, hogy a szűkebb találati lista ne látszódjon hibának (KUKA-093).
+ */
+export function searchableFaqIds(ctx = {}) {
+  const ids = [];
+  for (const { feature, visible } of visibleFeaturesFor(ctx)) {
+    if (!visible) continue;
+    for (const id of feature.faq || []) if (!ids.includes(id)) ids.push(id);
+  }
+  return Object.freeze(ids);
+}
+
+/**
+ * A JELENLEG NYITHATÓ MŰVELETEK — a zárt listából, a KÖZÖS feloldóval (AVL-01).
+ *
+ * KÉT feltétel, nem egy: (a) a művelet MAGA elérhető a kérőnek (`audience` · `scope` · szerep ·
+ * személyes tér), és (b) ha egy vagy több FUNKCIÓ hivatkozik rá, akkor legalább egy hivatkozó
+ * funkciónak is elérhetőnek kell lennie — különben a segéd olyan képességhez kínálna belépőt,
+ * amiről ugyanő azt mondja, hogy nem érhető el (F91-05).
+ */
 export function allowedActionsFor(ctx = {}) {
-  const admin = ctx.role === 'admin';
-  const personal = ctx.personal === true;
   const allowed = [];
+  const visible = visibleFeaturesFor(ctx);
   for (const [id, a] of Object.entries(ACTIONS)) {
-    if (a.requires_role === 'admin' && !admin) continue;
-    if (personal && ['members', 'plan', 'account'].includes(a.page)) continue;
+    if (a.writes === true) continue;
+    if (!availabilityOf({ ...a, action: id }, ctx).visible) continue;
+    const refs = FEATURES.filter((f) => f.action === id);
+    if (refs.length) {
+      const anyVisible = refs.some((f) => (visible.find((r) => r.feature.id === f.id) || {}).visible);
+      if (!anyVisible) continue;
+    }
     allowed.push(id);
   }
   return Object.freeze(allowed);
+}
+
+/**
+ * A NYITHATÓ BEMUTATÓK — UGYANEBBŐL a feloldóból, a bemutató FUNKCIÓJÁN keresztül (F91-05).
+ *
+ * A régi alak csak a `requires_role`-t nézte, tehát fiók nélküli kérőnek is felkínálta a fiókhoz
+ * kötött bemutatókat. Mostantól a bemutató annyira elérhető, amennyire a FUNKCIÓJA — plusz a
+ * bemutató saját kikötései (szerep · belépés előtti képernyő).
+ */
+export function allowedToursFor(ctx = {}) {
+  const visible = visibleFeaturesFor(ctx);
+  const out = [];
+  for (const t of Object.values(TOURS)) {
+    if (t.requires_role === 'admin' && ctx.role !== 'admin') continue;
+    // A BELÉPÉS ELŐTTI KÉPERNYŐN futó bemutató (regisztráció) belépve NEM indítható: a célja ott
+    // nincs a lapon. Ez NEVEZETT kizárás, nem `targetMissing`-gel megszakadó bemutató (F91-01).
+    if (t.requires_anonymous === true && ctx.signed_in) continue;
+    // A BEMUTATÓ SAJÁT KÖZÖNSÉGE. Nem a funkcióé: a nyelvváltás ELMAGYARÁZHATÓ belépés előtt is
+    // (a funkció `public`), de a bemutatója az alkalmazás-héjban jár, tehát belépés kell hozzá.
+    if (!availabilityOf({ audience: t.audience || 'signed_in', scope: 'person' }, ctx).visible) continue;
+    const f = FEATURES.find((x) => x.id === t.feature);
+    if (f) { const row = visible.find((r) => r.feature.id === f.id); if (!row || !row.visible) continue; }
+    out.push(t.id);
+  }
+  return Object.freeze(out);
 }
 
 /**
@@ -143,14 +212,102 @@ export function acceptAction(proposed, ctx = {}) {
   const a = ACTIONS[id];
   if (a.writes === true) return { ok: false, reason: 'action_not_allowed', id };
   if (!allowedActionsFor(ctx).includes(id)) return { ok: false, reason: 'action_not_allowed', id };
-  const params = proposed && typeof proposed === 'object' && proposed.params ? proposed.params : {};
-  if (params && typeof params === 'object' && !Array.isArray(params)) {
-    for (const [k, v] of Object.entries(params)) {
+  /**
+   * A PARAMÉTEREK — ZÁRT MEZŐ-LISTA, NEM TÍPUS-SZABÁLY (F91-05, a külső fél lelete).
+   *
+   * A régi alak a TÖMBÖT némán átvette (`params:['bad']` → `{0:'bad'}`), és minden kitalált mezőt
+   * elfogadott, ha primitív volt. Mostantól: a tömb és minden nem-objektum NEVEZETT elutasítás, és
+   * csak az `ACTION_PARAMS`-ban KIMONDOTT mező mehet át (`param_unknown`).
+   */
+  const raw = proposed && typeof proposed === 'object' ? proposed.params : undefined;
+  const params = {};
+  if (raw !== undefined && raw !== null) {
+    if (typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, reason: 'invalid_type', at: 'params' };
+    const allowedFields = ACTION_PARAMS[id] || [];
+    for (const [k, v] of Object.entries(raw)) {
+      if (!allowedFields.includes(k)) return { ok: false, reason: 'param_unknown', at: k };
       if (!['string', 'number', 'boolean'].includes(typeof v)) return { ok: false, reason: 'invalid_type', at: k };
       if (typeof v === 'string' && v.length > 120) return { ok: false, reason: 'invalid_value', at: k };
+      params[k] = v;
     }
   }
   return { ok: true, action: Object.freeze({ id, kind: a.kind, page: a.page ?? null, panel: a.panel ?? null, focus: a.focus ?? null, params: Object.freeze({ ...params }) }) };
+}
+
+/**
+ * AST-04 — A SZOLGÁLTATÓI VÁLASZ SZERZŐDÉSE (F91-04, a külső ellenőrző fél R91-es lelete).
+ *
+ * A LELET, amit ez lezár. A német nyelvű meghívási kérdésre befecskendezett szolgáltatói válasz
+ * **„UNSUPPORTED: A Vshop már éles számlákat állít ki."** volt — oda nem tartozó, magyar nyelvű,
+ * forrás nélküli állítás. A szerver ezt `ok: true`, `answer_kind: 'model'`, `lang: 'de'` válasszal
+ * TOVÁBBADTA, és mellétette a HELYI keresés forrásait (`Benutzer einladen`, `invite.send` 1.2.0,
+ * `faq.invite.who`). Azok a forrás-sorok nem támasztották alá az állítást: a lista a helyi
+ * keresésből jött, NEM a modell válaszának ellenőrzéséből — vagyis a felület egy IGAZOLTNAK látszó
+ * hivatkozás-csokrot tett egy ellenőrizetlen mondat alá (KUKA-066: a hamis adat nem hibának
+ * látszik, hanem adatnak · KUKA-127: a mérés harmadik szava).
+ *
+ * A MAI SZABÁLY. A modellnek gépi jelölőkkel KELL lezárnia a válaszát, és a szerver ezeket
+ * ELLENŐRZI a NEKI ÁTADOTT tudáson:
+ *   `[[VS-SOURCES: <funkció>@<verzió>, …]]`  ·  `[[VS-LANG: <nyelv>]]`
+ * Ami nem teljesíti, az NEM jelenik meg modell-válaszként: a lap a HELYI választ mutatja, és a
+ * válasz NEVEZETTEN kimondja, miért esett ki a modell szava. A jelölőket a szerver LEVÁGJA a
+ * megjelenített szövegről.
+ *
+ * AMIT EZ NEM ÁLLÍT — kimondva:
+ *   · nem nyelv-FELISMERÉS: a `VS-LANG` a modell SAJÁT DEKLARÁCIÓJA, és azt vetjük össze a kért
+ *     nyelvvel; egy hamisan `de`-t deklaráló magyar választ ez a kapu nem fog meg (a tartalmi
+ *     nyelvhelyesség mérése nyitott tétel);
+ *   · nem tartalmi ellenőrzés: azt mérjük, hogy a hivatkozott források LÉTEZNEK és ÁT VOLTAK ADVA —
+ *     azt nem, hogy a mondat logikailag következik belőlük. Érvényes forrásazonosító önmagában sem
+ *     tartalmi bizonyíték (a külső fél kikötése, R91/F91-04);
+ *   · a védelem NEM a minta-felismerés: a folytatás továbbra is a ZÁRT művelet-listából jön, és
+ *     egyetlen művelet sem ír.
+ */
+export const ANSWER_MARKERS = Object.freeze({
+  sources: /\[\[VS-SOURCES:([^\]]*)\]\]/i,
+  lang: /\[\[VS-LANG:([^\]]*)\]\]/i,
+  strip: /\[\[VS-(?:SOURCES|LANG):[^\]]*\]\]/gi,
+});
+
+/** EGY hivatkozás alakja: `funkció@verzió`. A verzió NEM elhagyható — az elavult forrás is lelet. */
+function parseCitations(raw) {
+  return String(raw || '').split(',').map((s) => s.trim()).filter(Boolean).map((one) => {
+    const at = one.lastIndexOf('@');
+    return at > 0 ? { feature: one.slice(0, at).trim(), version: one.slice(at + 1).trim() } : { feature: one, version: null };
+  });
+}
+
+export function verifyModelAnswer({ text, lang, offered = [], limits = LIMITS } = {}) {
+  const raw = String(text ?? '');
+  if (!raw.trim()) return { ok: false, reason: 'assistant_no_knowledge', answer: null, sources: [], cited: [] };
+  const mSrc = ANSWER_MARKERS.sources.exec(raw);
+  const mLang = ANSWER_MARKERS.lang.exec(raw);
+  const body = raw.replace(ANSWER_MARKERS.strip, '').trim();
+  // (1) A JELÖLŐ HIÁNYA: a válasz nem teljesíti a szerződést — a helyi válasz jön.
+  if (!mSrc) return { ok: false, reason: 'model_no_source', answer: null, sources: [], cited: [] };
+  const cited = parseCitations(mSrc[1]);
+  if (!cited.length) return { ok: false, reason: 'model_no_source', answer: null, sources: [], cited: [] };
+  // (2) A DEKLARÁLT NYELV — a KÉRT nyelvvel vetjük össze (nem felismerés, hanem deklaráció).
+  const declared = mLang ? String(mLang[1]).trim().toLowerCase() : null;
+  if (!declared || declared !== String(lang).toLowerCase()) {
+    return { ok: false, reason: 'model_wrong_language', answer: null, sources: [], cited, declared_lang: declared };
+  }
+  // (3) A HIVATKOZÁS CSAK AZ ÁTADOTT TUDÁSRA MUTATHAT — és a verziójának is egyeznie kell.
+  const bad = [];
+  const good = [];
+  for (const c of cited) {
+    const hit = offered.find((o) => o.id === c.feature);
+    if (!hit) { bad.push({ ...c, why: 'model_unknown_source' }); continue; }
+    if (c.version !== String(hit.version)) { bad.push({ ...c, why: 'model_stale_source', expected: String(hit.version) }); continue; }
+    good.push({ feature: hit.id, version: String(hit.version), title: hit.title ?? null });
+  }
+  if (bad.length) return { ok: false, reason: bad[0].why, answer: null, sources: [], cited, bad };
+  // (4) A TÚL HOSSZÚ VÁLASZ SEM „félig jó": nem csonkolunk bele egy ellenőrizetlen mondatba.
+  if (body.length > limits.answer_chars) {
+    return { ok: false, reason: 'model_too_long', answer: null, sources: [], cited, length: body.length, limit: limits.answer_chars };
+  }
+  if (!body) return { ok: false, reason: 'assistant_no_knowledge', answer: null, sources: [], cited };
+  return { ok: true, reason: null, answer: body, sources: good, cited, declared_lang: declared };
 }
 
 /**
@@ -192,12 +349,25 @@ export function tokensOf(text, { keepStopwords = false } = {}) {
  * minden bekapcsolt nyelven talál (a nulla találat ott nem „nincs eset", hanem HIBA — KUKA-093).
  */
 export const STEM_MIN = 4;
+/**
+ * ÉS A RAGOZÁS A SZÓ VÉGÉT IS ÁTÍRJA — MÉRVE (F91-05 nyomán, a saját R91-es mérésem).
+ *
+ * Az előtag-szabály csak akkor talál, ha az egyik szó a másik ELEJE. A magyarban viszont a rag a
+ * tövet is átírja: „regisztrálok" és „regisztráció" KÖZÖS ELEJE hét karakter, de egyik sem előtagja
+ * a másiknak — ezért a teljesen szabályos „Hogyan regisztrálok?" kérdés NULLA találatot adott,
+ * miközben a regisztráció a NYILVÁNOS tudás első sora. Mostantól a KÖZÖS ELŐTAG hossza is mérce
+ * (legalább 6 karakter). AMIT EZ NEM: nem tövező és nem szemantikus kereső — a hat karakter
+ * szándékosan szigorú („megvon" / „megvan" közös eleje 4, tehát NEM találat).
+ */
+export const PREFIX_MIN = 6;
+function commonPrefixLen(a, b) { let i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i += 1; return i; }
 export function wordHit(word, hay) {
   for (const h of hay) {
     if (h === word) return true;
     const short = h.length <= word.length ? h : word;
     const long = h.length <= word.length ? word : h;
     if (short.length >= STEM_MIN && long.startsWith(short)) return true;
+    if (short.length >= PREFIX_MIN && commonPrefixLen(h, word) >= PREFIX_MIN) return true;
   }
   return false;
 }
@@ -247,7 +417,10 @@ export function selectKnowledge({ question, dictionary, ctx = {}, top = LIMITS.k
   }
   // A GYAKORI KÉRDÉSEK külön találati listája — modellhívás NÉLKÜL is ez a helyi keresés eredménye.
   const faqHits = [];
+  // A KERESHETŐ HALMAZ AZ ELÉRHETŐ FUNKCIÓK GYIK-JE (F91-05) — nem a szótár teljes táblája.
+  const searchable = searchableFaqIds(ctx);
   for (const [id, e] of Object.entries(FAQ)) {
+    if (!searchable.includes(id)) continue;
     const inQuestion = tokensOf(e.q || '');
     const hay = tokensOf(e.a || '');
     let score = 0;
@@ -258,7 +431,10 @@ export function selectKnowledge({ question, dictionary, ctx = {}, top = LIMITS.k
   return {
     features: picked,
     faq: faqHits.slice(0, LIMITS.faq_hits),
-    faq_population: Object.keys(FAQ).length,
+    // AZ ALAPSOKASÁG KÉT SZÁM: a KERESHETŐ (a kérőre elérhető) és a szótár TELJES táblája — a
+    // szűkebb találati lista így nem látszik hibának, és a kizárás mértéke is látható (KUKA-093).
+    faq_population: searchable.length,
+    faq_population_total: Object.keys(FAQ).length,
     feature_population: visible.length,
     truncated,
     chars,
@@ -312,11 +488,6 @@ export function localAnswer({ selection, dictionary, ctx = {} }) {
 }
 
 /** A bemutatók, amiket a kérő EL IS TUD indítani — a szerepkör-kötés a `TOURS` bejegyzésből jön. */
-export function allowedToursFor(ctx = {}) {
-  return Object.freeze(Object.values(TOURS)
-    .filter((t) => !(t.requires_role === 'admin' && ctx.role !== 'admin'))
-    .map((t) => t.id));
-}
 
 export const AST_CONTRACT = Object.freeze({
   id: 'AST-01',

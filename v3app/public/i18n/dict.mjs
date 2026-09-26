@@ -21,7 +21,7 @@ import * as en from './en.mjs';
 import * as de from './de.mjs';
 import * as fr from './fr.mjs';
 import * as rtlProba from './rtl_proba.mjs';
-import { BASE_LANGUAGE, fallbackChainOf, normalizeLanguage, dirOf, localeOf, languageOf, enabledLanguages, allLanguages } from './languages.mjs';
+import { BASE_LANGUAGE, fallbackChainOf, normalizeLanguage, dirOf, localeOf, languageOf, enabledLanguages, allLanguages, resolveLanguage} from './languages.mjs';
 
 /** A CSOMAGOK — a jegyzék kódja a kulcs. Új nyelv: EGY sor a jegyzékben + EGY sor itt. */
 export const PACKS = Object.freeze({
@@ -32,6 +32,8 @@ export const PACKS = Object.freeze({
 export const TEXT_GROUPS = Object.freeze([
   'PAGE', 'NAV', 'ROLE', 'SCOPE', 'SCOPE_ACC', 'PLAN', 'QUALITY',
   'TPL', 'REASON', 'UNBOUND', 'STATE', 'UI', 'HELP', 'TOURUI', 'CHAT',
+  // A SZERVER ÁLTAL RAJZOLT LAPOK ÉS A PRÓBAÜZENETEK is a szótárból jönnek (F91-02).
+  'SRV',
 ]);
 
 /** A MÉLY (funkció-tudás) csoportok — külön kezeljük, mert al-objektumokat tartanak. */
@@ -250,6 +252,10 @@ export function coverageOf(code, features = []) {
     covered: population - missing.length - deepMissing.length,
   };
 }
+
+// A JEGYZÉK FELOLDÓJA TOVÁBBADVA: a lap a szótár belépőjén kéri a nyelv-egyeztetést is, nem a
+// jegyzéket importálja külön — egy fogalom, egy bejárat (I18N-01 · KUKA-018).
+export { resolveLanguage };
 
 export const I18N_CONTRACT = Object.freeze({
   id: 'I18N-01',

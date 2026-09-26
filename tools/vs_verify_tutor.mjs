@@ -214,6 +214,33 @@ check('TUT05', 'a bemutató szerződése KIMONDJA a várakozás szabályát',
 const pendingText = LANGS.filter((l) => !((dict.dictFor(l).TOURUI || {}).targetPending));
 check('TUT05', 'a várakozás MONDATA minden bekapcsolt nyelven megvan', pendingText.length === 0,
   pendingText.join(' · ') || LANGS.join(' · '));
+/**
+ * A `tour: null` NEM TELJESÍTÉS — az INDOK is mérce (R91/F91-01).
+ *
+ * A külső ellenőrző fél kikötése: a meghívás-elfogadás és a hozzáférés-kezelés kapjon bemutatót,
+ * VAGY tételesen, INDOKKAL maradjon nyitott. Ezért minden bemutató nélküli funkció `tour_note`-ot
+ * visel, és a hiány indoka a REGISZTERBEN áll, nem egy jelentés mondatában (KUKA-050).
+ */
+const noteMissing = FEATURES.filter((f) => !f.tour && (typeof f.tour_note !== 'string' || f.tour_note.length < 25));
+check('TUT05', 'MINDEN bemutató nélküli funkció KIMONDJA a hiány indokát (tour_note)', noteMissing.length === 0,
+  noteMissing.map((f) => f.id).join(' · ') || `${FEATURES.filter((f) => !f.tour).length} indokolt hiány · ${FEATURES.filter((f) => f.tour).length} bemutató`);
+check('TUT05', 'a külső fél által NEVESÍTETT két funkció bemutatója megépült VAGY indokolt',
+  ['invite.accept', 'members.grant'].every((id) => { const f = FEATURES.find((x) => x.id === id); return Boolean(f && (f.tour || (f.tour_note || '').length > 40)); }),
+  ['invite.accept', 'members.grant'].map((id) => { const f = FEATURES.find((x) => x.id === id); return `${id}: ${f.tour || 'indokolt hiány'}`; }).join(' · '));
+// A BEFEJEZÉS ÉS A KIHAGYÁS SZERZŐDÉSE (F91-01): a modul mindkettőt NEVEZETTEN viszi.
+check('TUT05', 'a Befejezés UGYANAZT az ellenőrzést futtatja, mint a Tovább (finishRun)',
+  typeof tour.finishRun === 'function' && typeof tour.skipStep === 'function'
+  && /finish_rule/.test(JSON.stringify(tour.TUR_CONTRACT)) && /tour-finish': \{|case 'tour-finish'/.test(APP_SRC)
+  && /tourMod\.finishRun\(/.test(APP_SRC),
+  'finishRun · skipStep · a lap a modult HÍVJA (KUKA-207)');
+check('TUT05', 'a záró lap MINDHÁROM számot kiírja, és a „végére értél" csak teljes elvégzésnél áll',
+  /data-whole="\$\{whole \? 'true' : 'false'\}"/.test(TOUR_SRC) && /TOURUI\.endedTitle/.test(TOUR_SRC)
+  && /TOURUI\.pending\)\}: \$\{esc\(String\(pendingCount\)\)\}/.test(TOUR_SRC),
+  'elvégezve · átugorva · hátravan, és két külön záró mondat');
+// A BELÉPÉS ELŐTTI SEGÍTSÉG (F91-01): a lap NEM hallgat el a nyilvános tudást.
+check('TUT05', 'a súgó betöltése NEM áll meg belépés nélkül (nyilvános tudás-út)',
+  !/async function loadHelpData\(\) \{\s*\n\s*if \(!\(state\.me && state\.me\.subject_id\)\) return;/.test(APP_SRC),
+  'loadHelpData: nincs belépés-feltétel a függvény elején');
 const tasks = [...new Set(Object.values(TOURS).flatMap((t) => t.steps.map((s) => s.task).filter(Boolean)))];
 const taskUnproven = tasks.filter((t) => !APP_SRC.includes(`tourTaskDone('${t}')`));
 check('TUT05', 'MINDEN feladathoz kötött lépést a lap IGAZOL (nem a kattintás)', taskUnproven.length === 0,
@@ -231,6 +258,47 @@ check('TUT05', 'a bemutató SOHA nem kattint: a modul nem aktivál DOM-elemet',
 check('TUT05', 'az „átugrott" NEM „elvégezett" — három állapot a kódban',
   tour.STEP_STATES.length === 3 && tour.STEP_STATES.includes('skipped') && tour.STEP_STATES.includes('done'),
   tour.STEP_STATES.join(' · '));
+
+/**
+ * AVL-01 — A KÖZÖS ELÉRHETŐSÉGI SZERZŐDÉS (F91-05). Négy fogyasztó, EGY feloldó, és a deklaráció
+ * MINDKÉT irányban mérve: minden funkció és minden művelet KIMONDJA a közönségét és a hatókörét.
+ */
+const audBadF = FEATURES.filter((f) => !['public', 'signed_in'].includes(f.audience));
+check('TUT11', 'MINDEN funkció kimondja a közönségét (audience)', audBadF.length === 0,
+  audBadF.map((f) => f.id).join(' · ') || `public: ${FEATURES.filter((f) => f.audience === 'public').length} · signed_in: ${FEATURES.filter((f) => f.audience === 'signed_in').length}`);
+const audBadA = Object.entries(ACTIONS).filter(([, a]) => !['public', 'signed_in'].includes(a.audience) || !['person', 'book'].includes(a.scope));
+check('TUT11', 'MINDEN művelet kimondja a közönségét ÉS a hatókörét', audBadA.length === 0,
+  audBadA.map(([id]) => id).join(' · ') || `${Object.keys(ACTIONS).length} művelet`);
+const audBadT = Object.values(TOURS).filter((t) => !['public', 'signed_in'].includes(t.audience));
+check('TUT11', 'MINDEN bemutató kimondja a közönségét', audBadT.length === 0,
+  audBadT.map((t) => t.id).join(' · ') || `${Object.keys(TOURS).length} bemutató`);
+const anonCtx = { signed_in: false };
+const anonVisible = policy.visibleFeaturesFor(anonCtx).filter((r) => r.visible).map((r) => r.feature.id);
+check('TUT11', 'belépés előtt CSAK a nyilvános funkciók láthatók',
+  anonVisible.length > 0 && anonVisible.every((id) => (FEATURES.find((f) => f.id === id) || {}).audience === 'public'),
+  anonVisible.join(' · '));
+// A NÉGY FOGYASZTÓ UGYANAZT A HALMAZT LÁTJA: tudás · GYIK · bemutató · művelet.
+const noBookFaq = policy.searchableFaqIds(noBookCtx);
+const bookFaqIds = FEATURES.filter((f) => f.scope === 'book').flatMap((f) => f.faq);
+check('TUT11', 'a GYIK-kereső halmaza a TUDÁS halmazához kötött (fiók nélkül nincs fiókhoz kötött kérdés)',
+  noBookFaq.length > 0 && !noBookFaq.some((id) => bookFaqIds.includes(id)),
+  `fiók nélkül kereshető: ${noBookFaq.length} · fiókhoz kötött kizárva: ${bookFaqIds.length}`);
+check('TUT11', 'a bemutató-lista is a funkció elérhetőségéhez kötött (fiók nélkül nincs fiókhoz kötött bemutató)',
+  !policy.allowedToursFor(noBookCtx).some((id) => ['tour.invite', 'tour.stock', 'tour.plan', 'tour.grant'].includes(id)),
+  policy.allowedToursFor(noBookCtx).join(' · '));
+check('TUT11', 'a művelet-lista is a funkció elérhetőségéhez kötött (a hivatkozó funkció nélkül nincs belépő)',
+  !policy.allowedActionsFor(noBookCtx).includes('prepare.invite') && !policy.allowedActionsFor(anonCtx).length,
+  `fiók nélkül: ${policy.allowedActionsFor(noBookCtx).length} művelet · névtelenül: ${policy.allowedActionsFor(anonCtx).length}`);
+/**
+ * ÉS A MÉRÉS A HELYES FÜGGVÉNYT MÉRI. Az első alakom a FÁJL BÁRMELY sorára illesztett, és zöldet
+ * adott egy MÁSIK függvény (`guidesFor`) szűrésére — vagyis a hamis zöld pontosan abban a mérésben
+ * jelent meg, amit a hamis zöld ellen írtam (KUKA-051 · KUKA-068). Ezért a `faqHtml` TESTÉT vágjuk
+ * ki, és abban keresünk.
+ */
+const faqBody = (HELP_SRC.split('export function faqHtml(')[1] || '').split('\nexport function ')[0];
+check('TUT11', 'a kliens GYIK-nézete is a LÁTHATÓ sorokból dolgozik (a faqHtml TESTÉBEN mérve)',
+  faqBody.length > 0 && /visible !== false/.test(faqBody) && /flatMap/.test(faqBody),
+  faqBody.length ? 'faqHtml: a látható sorokra szűkít' : 'nincs faqHtml test');
 
 // ── TUT06: a kivezetés ────────────────────────────────────────────────────────────────────────
 const retired = FEATURES.filter((f) => f.status === 'retired');
@@ -353,6 +421,12 @@ if (selftest) {
     else if (!fakeTour.steps.slice(0, i).some((e) => e.target === st.appears_after)) fakeBad.push(`${st.id}:nem korábbi lépés célja`);
   });
   t('a HÁROM romlott feltáró-alak MIND pirosra vált', fakeBad.length === 3, fakeBad.join(' · '));
+  // A HAMIS ZÖLD ELLENPRÓBÁJA (F91-05): egy MÁSIK függvény szűrése NEM igazolja a GYIK-nézetet.
+  const fakeHelp = 'export function guidesFor(x) { return x.filter((r) => r.visible !== false); }\n'
+    + 'export function faqHtml({ index }) { const ids = index.flatMap((r) => r.faq || []); return ids; }\n';
+  const fakeBody = (fakeHelp.split('export function faqHtml(')[1] || '').split('\nexport function ')[0];
+  t('a hamis zöld (másik függvény szűrése) PIROSRA vált', !/visible !== false/.test(fakeBody),
+    'a faqHtml testében nincs szűrés, tehát a mérés pirosat ad');
   // A VÁRAKOZÁS ÉS A MEGSZAKÍTÁS KÜLÖN SZÓ: ha összemosódnának, a mérés ne legyen zöld.
   t('a várakozás és a megszakítás KÉT külön kulcs', tour.TUR_CONTRACT.abort_reasons.includes('targetMissing')
     && !tour.TUR_CONTRACT.abort_reasons.includes('targetPending'), tour.TUR_CONTRACT.abort_reasons.join(' · '));

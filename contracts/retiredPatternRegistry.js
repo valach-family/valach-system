@@ -33,6 +33,322 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-239',
+    date: '2026-09-26',
+    title: 'A HAMIS ZÖLD A SAJÁT ŐRÖMBEN — a fájl BÁRMELY sorára illesztő minta egy MÁSIK függvény szűrését igazolta',
+    what: 'Az F91-05-höz írt mérésem azt akarta bizonyítani, hogy a súgó GYIK-nézete a LÁTHATÓ sorokra '
+      + 'szűkít. A minta a `help.mjs` EGÉSZ tartalmára illesztett (`/visible !== false/.test(HELP_SRC)`), '
+      + 'és ZÖLDET adott — miközben a `faqHtml` még NEM szűrt: a találat egy MÁSIK függvényből '
+      + '(`guidesFor`) jött. A hamis zöld tehát pontosan abban a mérésben jelent meg, amit a hamis zöld '
+      + 'ELLEN írtam.',
+    why_wrong: 'A FÁJL NEM A FÜGGVÉNY. Egy fájl-szintű minta akkor is talál, ha a mért viselkedés máshol '
+      + 'van — és ez a legrosszabb fajta zöld: azt hiszem, mérek, közben a mérés a szomszéd sort '
+      + 'igazolja (KUKA-051: a nem mért dolog nem „ismeretlen", hanem zöldnek látszik · KUKA-068: a '
+      + 'tükör nem ellenpár).',
+    replaced_by: 'A MÉRÉS A FÜGGVÉNY TESTÉT VÁGJA KI, és abban keres (`HELP_SRC.split(\'export function '
+      + 'faqHtml(\')[1]`), plusz ELLENPRÓBA: egy szintetikus forrásban a `guidesFor` szűr, a `faqHtml` '
+      + 'nem — és a mérés PIROSAT ad rá.',
+    decision: 'D-VS-3076',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R91) — a zöld eredmény ÁTOLVASÁSAKOR, a javítás előtt',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_tutor.mjs']),
+        pattern: "const faqBody = \\(HELP_SRC\\.split\\('export function faqHtml\\('\\)",
+        why: 'a mérés a függvény TESTÉT méri, nem a fájlt' }),
+    ]),
+    lesson: 'AMIT A MÉRÉS HATÓKÖRE NEM ZÁR LE, AZT A MÉRÉS NEM MÉRI. Fájl-szintű minta csak fájl-szintű '
+      + 'állítást igazol; ha a szabály EGY függvényre szól, a mérésnek is arra kell szólnia — és kell '
+      + 'hozzá ellenpróba, ami a szomszéd függvény megfelelését NEM fogadja el bizonyítéknak.',
+    guard_note: 'gépi jel: a fenti pozitív minta + `verify:tutor` ellenpróba („a hamis zöld PIROSRA vált").',
+  }),
+  Object.freeze({
+    id: 'KUKA-238',
+    date: '2026-09-26',
+    title: 'A KITALÁLT MEZŐNÉV NÉMÁN ALAPNYELVRE ESETT — a nyelv-egyeztetés mindig magyart adott',
+    what: 'Az F91-02 javításában a nyelv-feloldót `resolveLanguage({ accept: … })` alakban hívtam, a '
+      + 'szerződése viszont `acceptLanguage` mezőt olvas. A hívás nem hibázott: a feloldó a nem '
+      + 'létező mezőt üresnek látta, és a `default` ágon ALAPNYELVET adott. A szerver-oldali és a '
+      + 'kliens-oldali hívás EGYSZERRE volt rossz, tehát a „böngésző nyelvi kérése" NEM működött, de '
+      + 'semmi nem jelezte.',
+    why_wrong: 'A HIÁNYZÓ MEZŐ NEM HIBA, HANEM ÜRES ÉRTÉK. Egy tartalék-ágas feloldó éppen azért nem '
+      + 'kiabál, mert a hiányra van válasza — ezért a hibás mezőnév a LEGCSENDESEBB hiba: a viselkedés '
+      + 'hihető (magyar felület), az ok láthatatlan (KUKA-039: a feloldót HÍVNI kell, a szerződése '
+      + 'szerint · KUKA-121: a jel hiánya nem a jelzett esemény hiánya).',
+    replaced_by: 'A FELOLDÓ SZERZŐDÉS SZERINTI HÍVÁSA (`explicit` · `stored` · `acceptLanguage`), és a '
+      + 'visszatérési érték `.code`/`.source` mezőjének HASZNÁLATA — a `source` a bizonyíték arra, '
+      + 'honnan jött a nyelv. A hívást élő HTTP-mérés fogja: `Accept-Language: de` → német lap.',
+    decision: 'D-VS-3076',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R91) — a feloldó kimenetének kiíratásakor, még a próba előtt',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'resolveLanguage\\(\\{ explicit, acceptLanguage: acceptLanguage \\|\\| ..\\ .\\}\\)|resolveLanguage\\(\\{ explicit, acceptLanguage',
+        why: 'a szerver a szerződés mezőnevein hívja a feloldót' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'resolveLanguage\\(\\{ explicit: wanted, acceptLanguage',
+        why: 'a lap is a szerződés mezőnevein hívja' }),
+    ]),
+    lesson: 'A TARTALÉK-ÁGGAL RENDELKEZŐ FELOLDÓ ELREJTI A HIBÁS HÍVÁST. Ahol a hiányzó bemenetre van '
+      + 'válasz, ott a mezőnév elírása nem kivétel, hanem NÉMA alapértelmezés — ezért az ilyen feloldót '
+      + 'MÉRT kimenettel kell bekötni (honnan jött a döntés), nem csak meghívni.',
+    guard_note: 'gépi jel: a fenti két pozitív minta + `v3app/findings_r91.mjs` B) rekesz (c): '
+      + '`Accept-Language: de` fejjel a szerver által rajzolt lap NÉMET — élő HTTP-n mérve.',
+  }),
+  Object.freeze({
+    id: 'KUKA-237',
+    date: '2026-09-26',
+    title: 'A PRÓBA A SAJÁT BEÉGETETT MAGYAR MONDATÁN BUKOTT EL — a németre állított felületen a kilépés „nem történt meg"-nek látszott',
+    what: 'A közös böngésző-próba kilépés-segédje a fejléc mondatát SZÓ SZERINT hasonlította '
+      + '(`toHaveText(\'nincs bejelentkezve\')`). Az R91-es nyelvi próbában a felület NÉMETRE van '
+      + 'állítva — a kilépés lefutott, a segéd mégis elakadt, mert a német mondat nem egyezett a '
+      + 'beégetett magyarral.',
+    why_wrong: 'A PRÓBA IS FELÜLET-FOGYASZTÓ: ha beéget egy feliratot, ugyanabba a hibába esik, amit a '
+      + 'terméken tiltunk (SZO-01 · KUKA-210). És a kár itt kétféle: hamis piros (mint most), vagy — ha '
+      + 'valaki „megjavítja" a mondat kivételével — NÉMA zöld.',
+    replaced_by: 'A SEGÉD A VISELKEDÉST MÉRI, NEM A SZÖVEGET: van belépési űrlap, és a fejléc már NEM '
+      + 'az e-mail címet mutatja. Ez nyelv-független, és pontosan azt állítja, ami a kilépés TÉNYE.',
+    decision: 'D-VS-3076',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R91) — a személyváltásos nyelvi próba első futásán',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tests/e2e/helpers.mjs']),
+        pattern: "expect\\(page\\.getByTestId\\('header-subject'\\)\\)\\.not\\.toContainText\\('@'\\)",
+        why: 'a kilépés mérése nyelv-független viselkedés-állítás' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['tests/e2e/helpers.mjs'], pattern: "toHaveText\\('nincs bejelentkezve'\\)",
+        reason: 'a próba nem éget be felületi mondatot: a nyelvváltás hamis pirosat adna (R91)' }),
+    ]),
+    lesson: 'A PRÓBA SZÖVEG-FÜGGŐSÉGE UGYANAZ A HIBA, MINT A TERMÉKÉ. Ahol a felirat fordítható, ott a '
+      + 'mérés a VISELKEDÉSRE kérdezzen — különben az első nyelvi próba a saját próbapadunkat buktatja '
+      + 'meg, és a valódi leletet elrejti.',
+    guard_note: 'gépi jel: a fenti pozitív és tiltó minta + `tests/e2e/v3app-r91.spec.mjs` R91-06 (a '
+      + 'személyváltás NÉMET felületen fut végig).',
+  }),
+  Object.freeze({
+    id: 'KUKA-236',
+    date: '2026-09-26',
+    title: 'A MŰVELET-PARAMÉTER TÖMBJE NÉMÁN ÁTMENT — és minden KITALÁLT mező is, ha primitív volt',
+    what: '`acceptAction({ id: \'open.overview\', params: [\'bad\'] })` SIKERREL járt, és `{0:\'bad\'}` '
+      + 'paraméter-objektumot adott vissza: a tömb kimaradt a nevezett elutasításból. A típus-szabály '
+      + '(„string · number · boolean mehet") pedig minden MEZŐNEVET elfogadott — a művelet nem mondta '
+      + 'meg, mely mezőt ismeri.',
+    why_wrong: 'A TÍPUS-ELLENŐRZÉS NEM MEZŐ-ELLENŐRZÉS. Egy zárt művelet-listát azzal védünk, hogy a '
+      + 'művelet KIMONDJA, mit fogad el; a „primitív, tehát bármi mehet" szabály nyitva hagyta a '
+      + 'nevet, és a tömb–objektum határt sem mérte (KUKA-203: a kényszerítés nem ellenőrzés).',
+    replaced_by: 'MŰVELETENKÉNT KIMONDOTT, ZÁRT MEZŐ-LISTA (`ACTION_PARAMS`): a tömb és minden '
+      + 'nem-objektum NEVEZETT `invalid_type`, az ismeretlen mező `param_unknown`, a hosszú érték '
+      + '`invalid_value`. A paraméter-mentes művelet üres paraméterrel megy át.',
+    decision: 'D-VS-3076',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R91/F91-05 — saját modul-próbával',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/knowledge/features.mjs']),
+        pattern: 'export const ACTION_PARAMS = Object\\.freeze',
+        why: 'a megengedett mezők a regiszterben, műveletenként' }),
+      Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
+        pattern: "reason: 'param_unknown'",
+        why: 'az ismeretlen mező NEVEZETT elutasítás' }),
+    ]),
+    lesson: 'A ZÁRT LISTA A MEZŐKRE IS ÉRVÉNYES. Ha egy szerződés azt állítja, hogy „típus-ellenőrzött '
+      + 'folytatás", a mérésnek a TÖMBÖT, a nem-objektumot és a KITALÁLT mezőnevet is meg kell '
+      + 'próbálnia — a primitív érték önmagában nem szűkít.',
+    guard_note: 'gépi jel: a fenti két pozitív minta + `verify:assistant` AST03 (négy elutasítás és egy '
+      + 'átmenő eset) + `v3app/findings_r91.mjs` F) rekesz.',
+  }),
+  Object.freeze({
+    id: 'KUKA-235',
+    date: '2026-09-26',
+    title: 'A FORRÁS-LISTA DÍSZÍTÉS VOLT — a modell ellenőrizetlen mondata alá a HELYI keresés hivatkozásai kerültek',
+    what: 'A német nyelvű meghívási kérdésre befecskendezett szolgáltatói válasz — „UNSUPPORTED: A '
+      + 'Vshop már éles számlákat állít ki." — oda nem tartozó, magyar, forrás nélküli állítás volt. A '
+      + 'szerver `ok: true`, `answer_kind: model`, `lang: de` válasszal TOVÁBBADTA, és mellétette a '
+      + 'HELYI keresés forrásait (`Benutzer einladen`, `invite.send` 1.2.0, `faq.invite.who`). Ugyanez '
+      + 'a kör mérte, hogy a deklarált `history_turns: 6` sem valósult meg: a kliens korlátlanul '
+      + 'gyűjtött, a szolgáltató pedig EGYÁLTALÁN nem kapott előzményt.',
+    why_wrong: 'A FORRÁS-HIVATKOZÁS BIZONYÍTÉKNAK LÁTSZIK. Ha a lista nem a válasz ELLENŐRZÉSÉBŐL jön, '
+      + 'akkor egy ellenőrizetlen mondat mellé tett igazolás-jelzés — a hamis adat nem hibának látszik, '
+      + 'hanem adatnak (KUKA-066), és a mérés harmadik szava is elmarad (KUKA-127). A deklarált korlát '
+      + 'pedig önmagában nem működés (KUKA-038).',
+    replaced_by: 'AST-04 VÁLASZ-SZERZŐDÉS: a modell gépi jelölőkkel zárja a válaszát '
+      + '(`[[VS-SOURCES: funkció@verzió]]` · `[[VS-LANG: nyelv]]`), és a szerver ELLENŐRZI az ÁTADOTT '
+      + 'tudáson — nem létező forrás, elavult verzió, téves nyelv-deklaráció vagy hossz-túllépés '
+      + 'esetén a válasz NEM modell-válasz: a helyi keresés válasza jön, és a lap NEVEZETTEN kimondja, '
+      + 'miért esett ki. A megjelenített választ ALÁTÁMASZTÓ forrás (`sources`) és a csak KAPCSOLÓDÓ '
+      + 'útmutató (`related`) KÉT külön lista. Az előzmény véges: a kliens a legutóbbi hatot adja át, a '
+      + 'szerver a deklarált korlátra VÁGJA, és a kért nyelvet KIFEJEZETTEN átadja.',
+    decision: 'D-VS-3076',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R91/F91-04 — valódi helyi szerveren, befecskendezett szolgáltatói válasszal',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
+        pattern: 'export function verifyModelAnswer',
+        why: 'a modell válaszát NEVEZETT szerződés ellenőrzi' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'sources: modelAccepted \\? verified\\.sources : local\\.sources',
+        why: 'a forrás-lista a MEGJELENÍTETT válaszhoz tartozik' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'history_turns_sent: historyKept\\.length',
+        why: 'a véges előzmény MÉRT kimenet, nem deklaráció' }),
+    ]),
+    lesson: 'AMIT NEM ELLENŐRIZTÜNK, AHHOZ NEM TESZÜNK IGAZOLÁS-JELZÉST. Érvényes forrás-azonosító '
+      + 'önmagában sem tartalmi bizonyíték: a hivatkozásnak az ÁTADOTT tudásra kell mutatnia, a '
+      + 'verziójának egyeznie kell, és a kiesést NEVEZETTEN ki kell mondani — a csendes díszítés '
+      + 'rosszabb, mint a bevallott helyi válasz.',
+    guard_note: 'gépi jel: a fenti három pozitív minta + `verify:assistant` (a hat eset szerződés-szinten) '
+      + '+ `v3app/findings_r91.mjs` D) és E) rekesz — a külső fél lelete ÉLŐ HTTP-n, helyi szolgáltatói '
+      + 'csonkkal reprodukálva. KIMONDVA: ez NEM élő AI-eredmény.',
+  }),
+  Object.freeze({
+    id: 'KUKA-234',
+    date: '2026-09-26',
+    title: 'A NYELV CSAK A MEMÓRIÁBAN ÉLT, A SZERVER ÁLTAL RAJZOLT LAP PEDIG BEÉGETETT MAGYAR VOLT',
+    what: 'A profilban németre állított felület LAPFRISSÍTÉS után magyarra állt vissza (a választás '
+      + 'csak a modul memóriájában élt), a névtelen kezdőlapon nem volt nyelvválasztó, a `server.mjs` '
+      + 'megerősítő lapja pedig `lang="hu"` jelöléssel és magyar mondatokkal készült — a megerősítő és '
+      + 'meghívó próbaüzenetek szövegével együtt. Ezek KÍVÜL estek az „589 kulcs mindhárom nyelven" mérésen.',
+    why_wrong: 'A TELJES HASZNÁLATI ÚT A MÉRCE, NEM A SZÓTÁR MÉRETE. A felhasználó útja a '
+      + 'regisztrációnál kezdődik és a megerősítő lapon folytatódik: ha ott magyar szöveg áll, akkor a '
+      + '„három teljes nyelv" állítás a szótárra igaz, az ÚTRA nem (KUKA-011 a nyelvre fordítva · '
+      + 'KUKA-050: a szöveg a valóságot követi).',
+    replaced_by: 'HÁROM EGYÜTT: (1) a szerver-oldali lapok és levelek szövege a nyelvcsomagok `SRV` '
+      + 'csoportjából jön, a megerősítő hivatkozás pedig VISZI a nyelvet (`&lang=`), tartalékként a '
+      + 'böngésző kérése; (2) a nyelvválasztó BELÉPÉS ELŐTT is ott van; (3) a választás megmarad, de '
+      + 'SZEMÉLYHEZ kötve (`vs3.lang.<alany>` · `anon`) — személyváltáskor a másik ember beállítása '
+      + 'nem szivárog át, és aki még nem választott, a böngésző kérését kapja.',
+    decision: 'D-VS-3076',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R91/F91-02 — saját böngésző- és HTTP-mérésekkel',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/hu.mjs']),
+        pattern: 'export const SRV = Object\\.freeze',
+        why: 'a szerver-oldali lapok és levelek szövege a szótárban áll' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'const LANG_STORE_PREFIX = .vs3\\.lang\\..',
+        why: 'a nyelvi választás SZEMÉLYHEZ kötve marad meg' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "data-testid=\"lang-select-public\"",
+        why: 'a nyelvválasztó belépés előtt is elérhető' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: ['v3app/server.mjs'], pattern: 'html lang="hu"',
+        reason: 'a szerver által rajzolt lap nyelve a KÉRÉSBŐL jön, nem beégetve (R91/F91-02)' }),
+    ]),
+    lesson: 'A NYELV NEM A SZÓTÁRBAN DŐL EL, HANEM AZ ÚTON. Minden lépés, amit a SZERVER rajzol vagy '
+      + 'levélben küld, ugyanabból a szótárból jöjjön, és a kért nyelv a hivatkozásban utazzon — '
+      + 'különben a lefedettség-szám igaz lesz, a felhasználó élménye pedig félig fordított.',
+    guard_note: 'gépi jel: `verify:i18n` (a `SRV` csoport mindhárom nyelven) + `v3app/findings_r91.mjs` '
+      + 'B) rekesz (levél · hivatkozás · lap · Accept-Language · meghívó) + `tests/e2e/v3app-r91.spec.mjs` '
+      + 'R91-05 (frissítés) és R91-06 (személyváltás).',
+  }),
+  Object.freeze({
+    id: 'KUKA-233',
+    date: '2026-09-26',
+    title: 'HÁROM KÜLÖN ELÉRHETŐSÉGI SZABÁLY ÉLT EGYMÁS MELLETT — a GYIK-kereső a szótár MINDEN sorát végigjárta',
+    what: 'A funkció-lista a személyt, a fiókot, a szerepet és a csomagot mérte; a GYIK-kereső '
+      + '(`selectKnowledge`) viszont a szótár TELJES tábláján keresett, ezért fiók és tagság nélküli '
+      + 'kérőnél is előkerült a `faq.invite.who` és a `faq.members.revoke`; a kliens `faqHtml` szintén '
+      + 'az index ÖSSZES hivatkozását felsorolta; a művelet- és bemutató-lista pedig a saját, hiányos '
+      + 'szerep-szűrőjét használta.',
+    why_wrong: 'NEM BIZONYÍTOTT ÜZLETIADAT-SZIVÁRGÁS — a szövegek általános terméksúgók —, a HIBA a '
+      + 'HÁROMFÉLE SZERZŐDÉS: ugyanarra a kérdésre („mit láthat ez a kérő?") három hely három választ '
+      + 'adott (KUKA-003: a több helyen igaz szabály EGY helyen él · KUKA-039: egy feloldó, minden '
+      + 'hívó). És a kettő közül az egyik irány KÁRT is okozott: a NYILVÁNOS regisztrációs segítség '
+      + 'nem volt elérhető, miközben a fiókhoz kötött kérdések átszivárogtak.',
+    replaced_by: 'AVL-01 — EGY feloldó (`availabilityOf`), KÉT kimondott tengellyel: `audience` '
+      + '(`public` = belépés előtt is elmagyarázható · `signed_in`) és `scope` (`person` · `book` = '
+      + 'hatályos tagság kell). Ebből felel a tudás-index, a GYIK-kereső (`searchableFaqIds`), a '
+      + 'bemutató-lista, a művelet-lista ÉS a kliens GYIK-nézete. A nyilvános magyarázat és a jogosan '
+      + 'nyitható művelet KÉT külön állapot: névtelenül nulla nyitható művelet van.',
+    decision: 'D-VS-3076',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R91/F91-05 — saját modul-próbával',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
+        pattern: 'export function availabilityOf',
+        why: 'EGY elérhetőségi feloldó' }),
+      Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
+        pattern: 'export function searchableFaqIds',
+        why: 'a GYIK-kereső halmaza a tudás halmazához kötött' }),
+      Object.freeze({ paths: Object.freeze(['v3app/knowledge/features.mjs']),
+        pattern: "audience: 'public'",
+        why: 'a közönség DEKLARÁLT, nem levezetett' }),
+    ]),
+    lesson: 'AZ ELÉRHETŐSÉG EGY KÉRDÉS, TEHÁT EGY VÁLASZ. Ha négy fogyasztó (tudás · GYIK · bemutató · '
+      + 'művelet) külön szabályt visz, akkor nem négy szűrő van, hanem NÉGY KÜLÖNBÖZŐ SZERZŐDÉS — és a '
+      + 'különbség mindkét irányba téved: kizárja, ami jár, és kiadja, ami nem.',
+    guard_note: 'gépi jel: `verify:tutor` **TUT11** (a deklaráció mindkét irányban, és a négy fogyasztó '
+      + 'ugyanazon a halmazon) + `v3app/findings_r91.mjs` A) rekesz — élő HTTP-n, három kérő-állapottal.',
+  }),
+  Object.freeze({
+    id: 'KUKA-232',
+    date: '2026-09-26',
+    title: 'A BELÉPÉS ELŐTTI SEGÍTSÉG ÜRES VOLT, ÉS A REGISZTRÁCIÓS BEMUTATÓ AZONNAL MEGSZAKADT',
+    what: 'A névtelen felhasználónak a „Segítség" gomb LÁTSZOTT, de a panel üres maradt: a '
+      + '`loadHelpData()` első sora belépés nélkül VISSZATÉRT. Ugyanakkor a BEJELENTKEZETT felhasználó '
+      + 'a regisztrációs útmutatóból elindíthatta a `tour.register` bemutatót, ami azonnal '
+      + '`targetMissing` okkal megszakadt — a regisztrációs mezők nem azon a képernyőn vannak.',
+    why_wrong: 'KÉT HIBA UGYANARRÓL A TŐRŐL: a segítség ÉPP AKKOR hiányzott, amikor a legszükségesebb '
+      + '(a belépés előtti lépéseknél), és ÉPP AZT ajánlotta fel, amit nem lehetett végigvinni. Az első '
+      + 'a KUKA-011 alakja (a gomb ott van, az út nincs), a második a KUKA-160 alakja (amit a képernyő '
+      + 'felkínál, annak végig kell mennie).',
+    replaced_by: 'A NYILVÁNOS TUDÁS-ÚT: a `loadHelpData` belépés nélkül is betölt, a szerver a KÖZÖS '
+      + 'feloldóval (AVL-01) a NYILVÁNOS hetet adja, és a belépési kártyán ott a Segítség belépő. A '
+      + 'bemutató KIMONDJA a közönségét (`audience`) és azt is, hogy CSAK belépés előtt fut '
+      + '(`requires_anonymous`): belépve NEM AJÁNLOTT, névtelenül pedig a belépési képernyőre visz, '
+      + 'ahol a három lépése végigvihető. A nem ajánlott bemutató mondata `notAvailable`, nem '
+      + '„megszűnt jog".',
+    decision: 'D-VS-3076',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R91/F91-01 — saját böngésző-reprodukcióval',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/knowledge/features.mjs']),
+        pattern: 'requires_anonymous: true',
+        why: 'a belépés előtti bemutató KIMONDJA magát' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "state\\.tourAborted = 'notAvailable'",
+        why: 'a nem ajánlott bemutató NEVEZETT mondata' }),
+    ]),
+    lesson: 'AMI BELÉPÉS ELŐTT KELL, AZ BELÉPÉS ELŐTT LEGYEN ELÉRHETŐ — és amit a súgó felkínál, azon '
+      + 'végig kell tudni menni. A „csak belépve" alapállás a segítségnél a leggyengébb ponton üt: ott, '
+      + 'ahol a felhasználónak még nincs fiókja.',
+    guard_note: 'gépi jel: `verify:tutor` TUT05 (a `loadHelpData` belépés-feltételének TILALMA) + '
+      + '`v3app/findings_r91.mjs` A) rekesz (a) és (a/3) + `tests/e2e/v3app-r91.spec.mjs` R91-04 (a '
+      + 'panel négy nézete és a bemutató VÉGIGVITELE belépés előtt).',
+  }),
+  Object.freeze({
+    id: 'KUKA-231',
+    date: '2026-09-26',
+    title: 'A BEFEJEZÉS HAMIS SIKERT ÁLLÍTOTT — a függő feladatú lépés eltűnt az elszámolásból',
+    what: 'A csomagváltás bemutatójának HÁROM lépése közül a harmadik `plan.saved` feladathoz kötött. '
+      + 'A felhasználó mentés nélkül nyomta meg a Befejezést, és a lap ezt írta: „A bemutató végére '
+      + 'értél", **Elvégezve: 2 · Kihagyva: 0**. A harmadik lépés SEHOL nem szerepelt. Kódban: a '
+      + '`tour-finish` ága közvetlenül beállította a befejezést, és NEM futtatta a `tour.mjs/advance` '
+      + 'feladat-ellenőrzését.',
+    why_wrong: 'EGY GOMB KIKERÜLTE A SZABÁLYT, AMIT A SZOMSZÉDJA BETARTOTT. A „Tovább" helyesen '
+      + 'elakadt igazolt siker nélkül, a „Befejezés" viszont ugyanabban az állapotban sikert állított — '
+      + 'és a záró szám is hazudott (KUKA-129: a nyugtának is igazat kell mondania · KUKA-041: a '
+      + 'díszpipa sikert jelent arról, ami meg sem történt).',
+    replaced_by: 'A BEFEJEZÉS UGYANAZT AZ ÁLLAPOTELLENŐRZÉST FUTTATJA (`finishRun`): függő feladatnál '
+      + 'NEVEZETTEN elakad, és mellé kerül a KIMONDOTT kihagyás útja (`skipStep` — a lépés `skipped` '
+      + 'lesz, nem `done`). A záró lap HÁROM számot ír ki (elvégezve · átugorva · hátravan), és a „végére '
+      + 'értél" mondat CSAK teljes elvégzésnél áll ott; a KILÉPÉS is elszámol, más mondattal. Ráadásul a '
+      + 'fiók-létrehozás tanúsítása MEGELŐZI a kontextus-váltást, különben az a bemutató soha nem '
+      + 'tudta volna befejezni a saját feladat-lépését.',
+    decision: 'D-VS-3076',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R91/F91-01 — saját böngésző-reprodukcióval',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/tour.mjs']),
+        pattern: 'export function finishRun',
+        why: 'a Befejezés ugyanazt ellenőrzi, mint a Tovább' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/tour.mjs']),
+        pattern: 'export function skipStep',
+        why: 'a tudatos kihagyás KÜLÖN állapot' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'tourMod\\.finishRun\\(state\\.tour\\)',
+        why: 'a lap a modult hívja, nem maga dönt (KUKA-207)' }),
+    ]),
+    lesson: 'KÉT GOMB, EGY SZABÁLY. Ha egy állapot-feltételt csak az egyik kilépési út ellenőriz, a '
+      + 'másik úton a rendszer sikert fog állítani arról, ami meg sem történt — és a záró elszámolás '
+      + 'ettől lesz hamis, nem a haladástól. A tudatos kihagyást KI KELL AJÁNLANI, különben a '
+      + 'felhasználó a hamis sikert választja helyette.',
+    guard_note: 'gépi jel: `verify:tutor` TUT05 (`finishRun` · `skipStep` · a záró lap három száma · a '
+      + 'lap a modult hívja) + `tests/e2e/v3app-r91.spec.mjs` R91-01/02 — a lelet pontos '
+      + 'reprodukciója: függő feladat mellett NINCS záró lap, kihagyás után 2/1, mentés után 3/0.',
+  }),
+  Object.freeze({
     id: 'KUKA-230',
     date: '2026-09-26',
     title: 'A KÉSVE ÉRKEZŐ SÚGÓ-ADAT ÚJRARAJZOLTA A MÁR BEZÁRT PANELT — a becsukott felület tartalma visszatért a lapra',
@@ -317,8 +633,11 @@ const RETIRED_PATTERNS = Object.freeze([
     found_by: 'SAJÁT MÉRÉS (Claude-v3, R89) — a `v3app/findings_r89.mjs` C) rekesze, VALÓDI HTTP-n',
     positive: Object.freeze([
       Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
-        pattern: "f\\.scope === 'book' && !\\(ctx\\.book_id && ctx\\.member === true\\)",
-        why: 'a fiók is a kapu része — a hatókör a funkció deklarációjából jön' }),
+        // AZ OTTHON AZ R91-BEN ÁTKERÜLT (AVL-01): a fiók-kapu a KÖZÖS elérhetőségi feloldóba került,
+        // ahonnan a tudás, a GYIK, a bemutató ÉS a művelet is felel (KUKA-233). A szabály ugyanaz —
+        // a mintát a mérés kényszerítette át, nem a jóindulat (ez a KUK03 haszna).
+        pattern: "\\(item\\.scope \\|\\| 'person'\\) === 'book' && !\\(ctx\\.book_id && ctx\\.member === true\\)",
+        why: 'a fiók is a kapu része — a hatókör a deklarációból jön, EGY feloldóban' }),
       Object.freeze({ paths: Object.freeze(['tools/vs_verify_tutor.mjs']),
         pattern: 'MEGVONT tagság mellett sem látható fiókhoz kötött funkció',
         why: 'a megvont tagság ága MÉRVE van, nem feltételezve' }),

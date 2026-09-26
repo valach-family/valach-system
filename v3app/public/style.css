@@ -284,3 +284,8 @@ dl.usage dd { margin: 0; }
 }
 /* A HOSSZABB FORDÍTÁS NEM LÓGHAT KI (R89 §4): a feliratok törnek, nem vágódnak. */
 .navitem, .tab button, .badge, .helpbody button, .tourbubble button { white-space: normal; overflow-wrap: anywhere; }
+
+/* A BELÉPÉS ELŐTTI NYELVSÁV (F91-02): a választó és a Segítség a kártya fejében, sorban. */
+.langbar{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-bottom:14px}
+.langbar select{min-height:38px}
+@media (max-width:760px){.langbar{flex-wrap:wrap;justify-content:space-between}}

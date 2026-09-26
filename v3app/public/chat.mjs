@@ -20,8 +20,21 @@ import { CHAT, HELP, UI, STATE, reasonText, tpl } from './texts.mjs';
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 /** Az üres beszélgetés — a lap ezt teszi az állapotba, és a nézet-váltás ezt állítja vissza. */
+/**
+ * ÚJ BESZÉLGETÉS — SAJÁT AZONOSÍTÓVAL (F91-03, a külső ellenőrző fél R91-es lelete).
+ *
+ * A LELET: a kérdésre adott VALÓDI HTTP-választ a mérés visszatartotta → „Új beszélgetés" → a lista
+ * kiürült → a régi választ felengedte, és az MEGJELENT az új beszélgetésben (`chat-list: 0 → 1`). A
+ * fiók nem változott, tehát a nézet-generáció ezt nem fogta meg: a beszélgetésnek SAJÁT azonosítója
+ * kell, és a válasz csak akkor rajzolódik, ha ugyanahhoz a beszélgetéshez tartozik.
+ *
+ * A KÉRÉS-SORSZÁM (`seq`) a MÁSODIK tengely: ugyanabban a beszélgetésben is eldobjuk a régi,
+ * késve érkező választ, ha közben újabb kérdés indult.
+ */
+let convCounter = 0;
 export function emptyChat() {
-  return { turns: [], sending: false, draft: '', lastUsage: null };
+  convCounter += 1;
+  return { id: `c${convCounter}`, seq: 0, turns: [], sending: false, draft: '', lastUsage: null };
 }
 
 /** A mérés emberi alakja: ami `null`, az „nincs adat" — nem nulla (AST-03). */
@@ -38,14 +51,22 @@ function usageRows(u) {
 }
 
 /** EGY forrás-sor: melyik útmutató, milyen forrásváltozattal. */
-function sourceLine(s, titles) {
-  if (s.faq) return `<li data-testid="chat-source-${esc(s.faq)}">${esc(HELP.tabFaq)}: ${esc(s.faq)}</li>`;
+function sourceLine(s, titles, faqTitles) {
+  /**
+   * A SOR EMBERI CÍMMEL ÁLL (F91-06, a külső fél lelete: „a chat forrásai között nyers
+   * `faq.invite.who` azonosító jelenik meg"). A gépi azonosító a `data-testid`-ben és a technikai
+   * részben marad — ott MÉRHETŐ —, a felhasználó a kérdés SZÖVEGÉT látja.
+   */
+  if (s.faq) {
+    const q = (faqTitles && faqTitles[s.faq]) || null;
+    return `<li data-testid="chat-source-${esc(s.faq)}">${esc(HELP.tabFaq)}: ${esc(q || HELP.tabFaq)}</li>`;
+  }
   const title = (titles && titles[s.feature]) || s.title || s.feature;
   return `<li data-testid="chat-source-${esc(s.feature)}">${esc(tpl('chatSourceLine', { cim: title, verzio: s.version }))}</li>`;
 }
 
 /** EGY kör (kérdés + válasz) rajzolása. */
-function turnHtml(t, i, titles) {
+function turnHtml(t, i, titles, faqTitles) {
   const answered = t.answer !== null && t.answer !== undefined;
   return `<li class="chatturn" data-testid="chat-turn-${i}">
     <p class="question" data-testid="chat-question-${i}">${esc(t.question)}</p>
@@ -54,8 +75,11 @@ function turnHtml(t, i, titles) {
     ? `<div class="answer" data-testid="chat-answer-${i}">
         <p>${esc(t.answer)}</p>
         ${t.kind === 'local' ? `<p class="muted" style="font-size:12px" data-testid="chat-localonly-${i}">${esc(CHAT.localOnlyNote)}</p>` : ''}
+        ${t.discarded ? `<p class="notice warn" data-testid="chat-discarded-${i}" data-why="${esc(t.discarded.reason || '')}">${esc(CHAT.modelDiscarded)} ${esc((CHAT.modelDiscardedWhy || {})[t.discarded.reason] || '')}</p>` : ''}
         ${t.sources && t.sources.length ? `<div class="sources"><strong>${esc(CHAT.source)}</strong>
-          <ul>${t.sources.map((s) => sourceLine(s, titles)).join('')}</ul></div>` : ''}
+          <ul>${t.sources.map((s) => sourceLine(s, titles, faqTitles)).join('')}</ul></div>` : ''}
+        ${t.related && t.related.length ? `<div class="sources" data-testid="chat-related-${i}"><strong>${esc(CHAT.related)}</strong>
+          <ul>${t.related.map((s) => sourceLine(s, titles, faqTitles)).join('')}</ul></div>` : ''}
         ${t.actions && t.actions.length ? `<div class="buttonrow" data-testid="chat-actions-${i}">
           ${t.actions.map((a) => (a.kind === 'tour'
     ? `<button type="button" class="primary" data-action="tour-start" data-tour="${esc(a.tour)}" data-testid="chat-tour-${i}">${esc(a.label || HELP.startTour)}</button>`
@@ -75,14 +99,18 @@ function turnHtml(t, i, titles) {
  * A KÉRDEZZ NÉZET. A `status` a szerver `GET /api/assistant/status` válasza: ebből tudjuk, hogy van-e
  * engedélyezett szolgáltatói csatlakozás — a képernyő NEM találgat (KUKA-089).
  */
-export function chatHtml({ chat, status, titles }) {
+export function chatHtml({ chat, status, titles, faqTitles, limits }) {
   const configured = Boolean(status && status.provider && status.provider.configured);
   const missing = (status && status.provider && status.provider.missing) || [];
+  const keep = (limits && limits.history_turns) || (status && status.limits && status.limits.history_turns) || 6;
   return `<div data-testid="help-chat">
     ${configured ? '' : `<div class="notice warn" data-testid="chat-not-configured">
       <strong>${esc(CHAT.notConfigured)}</strong> ${esc(CHAT.notConfiguredLead)}
-      ${missing.length ? `<br><small data-testid="chat-missing-config">${esc(missing.join(' · '))}</small>` : ''}</div>`}
-    ${chat.turns.length ? `<ul class="chatlist" data-testid="chat-list">${chat.turns.map((t, i) => turnHtml(t, i, titles)).join('')}</ul>`
+      <br><small>${esc(CHAT.singleTurnNote)}</small>
+      ${missing.length ? `<details class="tech" data-testid="chat-operator-details"><summary>${esc(UI.technicalDetails)}</summary>
+        <p class="muted" style="font-size:12px" data-testid="chat-missing-config">${esc(missing.join(' · '))}</p></details>` : ''}</div>`}
+    ${chat.turns.length ? `<ul class="chatlist" data-testid="chat-list">${chat.turns.map((t, i) => turnHtml(t, i, titles, faqTitles)).join('')}</ul>
+      <p class="muted" style="font-size:12px" data-testid="chat-history-note">${esc(tpl('chatHistoryNote', { n: keep }))}</p>`
     : `<div class="chatintro" data-testid="chat-intro"><h3>${esc(CHAT.intro)}</h3><p class="muted">${esc(CHAT.introLead)}</p>
         <p class="muted" style="font-size:12px">${esc(CHAT.suggested)}</p>
         <div class="buttonrow">${[CHAT.q1, CHAT.q2, CHAT.q3].map((q, i) => `<button type="button" class="plain" data-action="chat-suggest" data-q="${esc(q)}" data-testid="chat-suggest-${i}">${esc(q)}</button>`).join('')}</div></div>`}

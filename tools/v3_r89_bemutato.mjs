@@ -28,7 +28,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const { artifactPath } = require('../contracts/artifactNaming.js');
 const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 
-const { FEATURES, TOURS } = await import(join(ROOT, 'v3app/knowledge/features.mjs'));
+const { FEATURES, TOURS, ACTIONS } = await import(join(ROOT, 'v3app/knowledge/features.mjs'));
 const dict = await import(join(ROOT, 'v3app/public/i18n/dict.mjs'));
 const { allLanguages, dirOf } = await import(join(ROOT, 'v3app/public/i18n/languages.mjs'));
 
@@ -44,17 +44,37 @@ for (const l of LANGS) {
     coverage: (() => { const c = dict.coverageOf(l.code, FEATURES); return { covered: c.covered, population: c.population, kind: c.kind, enabled: c.enabled }; })(),
   };
 }
+/**
+ * A BEMUTATÓ A KÖZÖS ELÉRHETŐSÉGI TENGELYEKET VISZI (F91-05/F91-06): `audience` (belépés előtt /
+ * után) és `scope` (személy / fiók). A korábbi alak egy KITALÁLT `needs_admin` szabályt használt
+ * (a művelet NEVÉBŐL levezetve) — vagyis a melléklet MÁS szabály szerint szűrt, mint a rendszer
+ * (KUKA-039: egy feloldó, minden hívó). Mostantól a deklarációból jön.
+ */
 const INDEX = FEATURES.map((f) => ({
-  id: f.id, status: f.status, group: f.group, scope: f.scope, screen: f.screen, version: f.version,
-  tour: f.tour, faq: [...f.faq], replaced_by: f.replaced_by ?? null,
-  needs_admin: f.action ? String(f.action).includes('members') || String(f.action).includes('plan') || String(f.action).includes('account') : false,
+  id: f.id, status: f.status, group: f.group, scope: f.scope, audience: f.audience, screen: f.screen,
+  version: f.version, action: f.action ?? null, tour: f.tour, tour_note: f.tour_note ?? null,
+  faq: [...f.faq], replaced_by: f.replaced_by ?? null,
+  needs_admin: Boolean(f.action && ACTIONS[f.action] && ACTIONS[f.action].requires_role === 'admin'),
 }));
+// A LAP SAJÁT MŰVELETEI — képernyőnként, a regiszterből. A korábbi alak MINDEN oldalra kitette a
+// „Frissítés / Meghívás / Csomag" hármast, ezért a készlet-oldalon meghívási és csomag-vezérlő állt
+// (a külső fél R91-es lelete). Ami nem ehhez az oldalhoz tartozik, az nem is jelenik meg.
+const PAGE_ACTIONS = {};
+for (const f of FEATURES) {
+  if (!f.screen || !f.action || f.status === 'retired') continue;
+  const a = ACTIONS[f.action];
+  if (!a) continue;
+  (PAGE_ACTIONS[f.screen] = PAGE_ACTIONS[f.screen] || []).push({
+    id: f.action, feature: f.id, kind: a.kind, needs_admin: a.requires_role === 'admin',
+  });
+}
 const TOURDEF = Object.fromEntries(Object.entries(TOURS).map(([id, t]) => [id, {
   id, version: t.version, feature: t.feature, page: t.page ?? null, requires_role: t.requires_role ?? null,
-  steps: t.steps.map((s) => ({ id: s.id, target: s.target, task: s.task ?? null })),
+  audience: t.audience ?? 'signed_in', requires_anonymous: t.requires_anonymous === true,
+  steps: t.steps.map((s) => ({ id: s.id, target: s.target, task: s.task ?? null, appears_after: s.appears_after ?? null })),
 }]));
 
-const payload = JSON.stringify({ LANGS, DATA, INDEX, TOURDEF, version: VERSION })
+const payload = JSON.stringify({ LANGS, DATA, INDEX, TOURDEF, PAGE_ACTIONS, version: VERSION })
   .replace(/</g, '\\u003c');
 
 const html = `<!doctype html>
@@ -93,19 +113,21 @@ const html = `<!doctype html>
   ul.list li { border-bottom:1px solid #eef2f7; padding:6px 0; }
   .line span { display:block; font-size:12px; color:var(--muted); }
   input[type=text] { inline-size:100%; padding:7px 9px; border:1px solid var(--line); border-radius:8px; font:inherit; }
+  .tech { margin:16px; padding:10px 14px; border:1px solid var(--line); border-radius:10px; background:#f8fafc; }
+  .tech summary { cursor:pointer; font-weight:650; }
+  .simbar { font-weight:650; }
 </style>
 </head>
 <body>
-<div class="simbar">SZIMULÁCIÓ — nem a futó rendszer
-  <small>Ez egy önálló, hálózat nélküli bemutató. A SZÖVEGEK a valódi nyelvcsomagokból és funkció-regiszterből
-  származnak, de itt <b>nincs szerver</b>: a jogosultságot alább egy legördülő állítja, nem a rendszer.
-  <b>Ez a lap NEM bizonyít szerveroldali jogosultságot és nem bizonyít élő AI-választ.</b>
-  A tényleges alkalmazás útjairól külön futási bizonyíték készült (böngésző-próbák és HTTP-battériák).</small></div>
+<div class="simbar">Bemutató — mintaadatokkal</div>
 
 <header>
   <strong>VS</strong>
   <label>Nyelv <select id="lang"></select></label>
-  <label>Szerep (szimulált) <select id="role"><option value="admin">Fiókkezelő</option><option value="user">Tag</option></select></label>
+  <label>Nézet <select id="role">
+    <option value="admin">Fiókkezelő</option>
+    <option value="user">Tag</option>
+    <option value="anon">Belépés előtt</option></select></label>
   <span class="sp"></span>
   <button id="help">Segítség</button>
 </header>
@@ -114,12 +136,13 @@ const html = `<!doctype html>
   <section class="body">
     <h1 id="title"></h1>
     <p class="muted" id="lead"></p>
-    <div class="warn" id="simnote"></div>
-    <p><button class="p" id="fake-refresh">—</button> <button id="fake-invite">—</button> <select id="fake-plan"><option>—</option></select></p>
-    <p class="muted" id="cov"></p>
+    <p id="pageacts"></p>
   </section>
 </main>
-<div class="foot" id="foot"></div>
+<details class="tech" id="techbox">
+  <summary>Technikai részletek — mit mutat és mit NEM mutat ez a lap</summary>
+  <div id="tech"></div>
+</details>
 <div id="panelbox"></div>
 <div id="bubblebox"></div>
 <script type="application/json" id="payload">${payload}</script>
@@ -146,16 +169,22 @@ const html = `<!doctype html>
     sel.innerHTML = P.LANGS.map((l) => '<option value="' + esc(l.code) + '"' + (l.code === st.lang ? ' selected' : '') + '>'
       + esc(l.endonym) + (l.kind === 'probe' ? ' — PRÓBA' : '') + '</option>').join('');
     document.getElementById('help').textContent = D().HELP.open;
-    document.getElementById('fake-refresh').textContent = D().UI.refresh;
-    document.getElementById('fake-invite').textContent = D().UI.inviteUserButton;
-    document.getElementById('fake-plan').innerHTML = '<option>' + esc(D().UI.planField) + '</option>';
+    // A LAP SAJÁT MŰVELETEI — csak ami EHHEZ a képernyőhöz tartozik (F91-06).
+    const acts = (P.PAGE_ACTIONS[st.page] || []).filter((a) => !(a.needs_admin && st.role !== 'admin'));
+    document.getElementById('pageacts').innerHTML = acts.length
+      ? acts.map((a, i) => '<button class="' + (i === 0 ? 'p' : '') + '" data-testid="sim-' + esc(a.id) + '">'
+        + esc((D().KB[a.feature] || {}).title || a.feature) + '</button>').join(' ')
+      : '<span class="muted">' + esc(D().UI.demoListLead) + '</span>';
+    // A MÉRÉSI RÉSZLETEK A TECHNIKAI SZAKASZBAN (F91-06): a kulcs-darabszám nem a fő oldal szövege.
     const c = D().coverage;
-    document.getElementById('cov').textContent = 'Nyelvi lefedettség (MÉRT): ' + c.covered + '/' + c.population
-      + ' kulcs · ' + (c.enabled ? 'bekapcsolt termék-nyelv' : 'PRÓBA-nyelv, nem kínált') + '.';
-    document.getElementById('simnote').textContent = 'SZIMULÁLT KÉPERNYŐ: itt nincs adat és nincs művelet. '
-      + 'A gombok a bemutató céljai — megnyomásukra a rendszer semmit nem ír.';
-    document.getElementById('foot').textContent = 'SZIMULÁCIÓ — a lap nem hív szervert és nem hív modellt. '
-      + 'A jogosultság itt a fenti legördülőből jön; a valódi rendszerben a szerver dönti el.';
+    document.getElementById('tech').innerHTML = '<ul class="list">'
+      + '<li>Nyelvi lefedettség (MÉRT): <b>' + c.covered + '/' + c.population + '</b> kulcs · '
+      + (c.enabled ? 'bekapcsolt termék-nyelv' : 'PRÓBA-nyelv, nem kínált') + '.'
+      + '<span>A kulcsok megléte NEM nyelvi lektorálás: a termék-nyelvek szövegét ember nézi át, a próba-nyelvek pedig szándékosan hiányosak.</span></li>'
+      + '<li>Ez a lap <b>nem hív szervert és nem hív modellt</b>.<span>A nézet (fiókkezelő / tag / belépés előtt) itt egy legördülőből jön; a valódi rendszerben a szerver dönti el.</span></li>'
+      + '<li>Amit ez a lap NEM bizonyít: szerveroldali jogosultságot, élő AI-választ, és a valódi alkalmazás útjait.'
+      + '<span>Azokról külön futási bizonyíték készült: böngésző-próbák és HTTP-battériák.</span></li>'
+      + '</ul>';
   }
   function renderNav() {
     const n = document.getElementById('nav');
@@ -170,7 +199,17 @@ const html = `<!doctype html>
     document.getElementById('lead').textContent = st.page === 'stock' ? D().UI.stockLead
       : st.page === 'members' ? D().UI.membersLead : st.page === 'plan' ? D().UI.planLead : D().UI.demoListLead;
   }
-  const visible = () => P.INDEX.filter((r) => r.status !== 'retired' && !(r.needs_admin && st.role !== 'admin'));
+  /**
+   * A LÁTHATÓ FUNKCIÓK — UGYANAZ A KÉT TENGELY, mint a rendszerben (F91-05): a közönség és a
+   * hatókör, plusz a szerep. A „Belépés előtt" nézet ezért a NYILVÁNOS hetet mutatja: a melléklet a
+   * rendszer szabályát mutatja be, nem egy hasonlót.
+   */
+  const visible = () => P.INDEX.filter((r) => {
+    if (r.status === 'retired') return false;
+    if (st.role === 'anon') return r.audience === 'public';
+    if (r.scope === 'book' && false) return false;
+    return !(r.needs_admin && st.role !== 'admin');
+  });
   function topicHtml(r) {
     const t = D().KB[r.id] || {};
     const o = t.outcomes || {};
@@ -241,8 +280,12 @@ const html = `<!doctype html>
     if (st.done) {
       const d = run.steps.filter((s) => s.state === 'done').length;
       const sk = run.steps.filter((s) => s.state === 'skipped').length;
-      box.innerHTML = '<div class="bubble"><h3>' + esc(D().TOURUI.finishedTitle) + '</h3><p>' + esc(D().TOURUI.finishedLead) + '</p>'
-        + '<p>' + esc(D().TOURUI.done) + ': ' + d + ' · ' + esc(D().TOURUI.skipped) + ': ' + sk + '</p>'
+      const pend = run.steps.filter((s) => s.state === 'pending').length;
+      const whole = d === run.steps.length;
+      box.innerHTML = '<div class="bubble"><h3>' + esc(whole ? D().TOURUI.finishedTitle : D().TOURUI.endedTitle) + '</h3>'
+        + '<p>' + esc(whole ? D().TOURUI.finishedLead : D().TOURUI.endedLead) + '</p>'
+        + '<p>' + esc(D().TOURUI.done) + ': ' + d + ' · ' + esc(D().TOURUI.skipped) + ': ' + sk
+        + ' · ' + esc(D().TOURUI.pending) + ': ' + pend + '</p>'
         + '<button data-texit="1">' + esc(D().TOURUI.exit) + '</button></div>';
       return;
     }
@@ -259,7 +302,9 @@ const html = `<!doctype html>
       + '<p class="muted">' + esc(D().TOURUI.simulationNote) + '</p>'
       + '<p><button data-tback="1"' + (run.at === 0 ? ' disabled' : '') + '>' + esc(D().TOURUI.back) + '</button> '
       + '<button class="p" data-' + (last ? 'tfinish' : 'tnext') + '="1">' + esc(last ? D().TOURUI.finish : D().TOURUI.next) + '</button> '
-      + '<button data-texit="1">' + esc(D().TOURUI.exit) + '</button></p></div>';
+      + '<button data-texit="1">' + esc(D().TOURUI.exit) + '</button></p>'
+      + (st.blocked === 'taskNotDone' ? '<p><button data-tskip="1">' + esc(D().TOURUI.skipStep) + '</button></p>' : '')
+      + '</div>';
   }
   function render() { applyLang(); renderChrome(); renderNav(); renderPanel(); renderTour(); }
 
@@ -299,15 +344,26 @@ const html = `<!doctype html>
       st.blocked = null; render(); return;
     }
     if (d.tback) { if (st.tour.at > 0) st.tour.at -= 1; st.blocked = null; render(); return; }
-    if (d.tfinish) { st.done = true; render(); return; }
+    if (d.tfinish) {
+      const s = st.tour && st.tour.steps[st.tour.at];
+      if (s && s.state === 'pending' && s.task) { st.blocked = 'taskNotDone'; render(); return; }
+      if (s && s.state === 'pending') s.state = 'done';
+      st.done = true; render(); return;
+    }
     if (d.texit) {
       if (st.tour) for (const s of st.tour.steps) if (s.state === 'pending') s.state = 'skipped';
       st.tour = null; st.done = false; st.aborted = null; st.blocked = null; render(); return;
     }
     // A SZIMULÁLT MŰVELETEK: a feladathoz kötött lépést CSAK ez „igazolja" — a bemutató maga nem kattint.
-    if (b.id === 'fake-invite' || b.id === 'fake-refresh') {
+    if (String(b.dataset.testid || '').startsWith('sim-')) {
       if (st.tour) { const s = st.tour.steps[st.tour.at]; if (s.task) { s.state = 'done'; st.blocked = null; } }
       render(); return;
+    }
+    // A KIHAGYÁS KÜLÖN ÁLLAPOT, a befejezés pedig csak ELSZÁMOLT lépéssel zárul (F91-01).
+    if (d.tskip) {
+      if (st.tour) { const s = st.tour.steps[st.tour.at]; s.state = 'skipped';
+        if (st.tour.at + 1 >= st.tour.steps.length) st.done = true; else st.tour.at += 1; }
+      st.blocked = null; render(); return;
     }
   });
   document.addEventListener('input', (e) => {

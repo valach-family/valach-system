@@ -16,6 +16,85 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3076 — A SEGÍTSÉG HASZNÁLATI ÚTJAI: EGY ELÉRHETŐSÉGI SZABÁLY, IGAZOLT VÁLASZ-FORRÁS, TELJES NYELVI ÚT
+
+> **Hatály:** V3 (`valach-system`) — a tudás-regiszter (`v3app/knowledge/features.mjs`), a segéd
+> három modulja (`v3app/assistant/`), a nyelvcsomagok és a feloldó (`v3app/public/i18n/`), a súgó ·
+> bemutató · chat rajzolói, a felület (`v3app/public/app.js` · `style.css`), a héj
+> (`v3app/server.mjs`) és a határ sémája (`v3app/httpSchema.mjs`), a bemutató-melléklet generátora, a
+> gépi őrök és a próbák. **A magreferencia (`v3ref/`) egyetlen fájlja sem változott.** Nincs
+> V2-módosítás, merge, telepítés, migráció, új üzleti Mini modul, új előfizetés és
+> szolgáltató-vásárlás.
+
+**Dátum:** 2026-09-26 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 **R91** (a külső ellenőrző
+fél ANALYSIS lapjára) · **Lap:** `docs/70_PLANNING/V3_R91_HASZNALATI_UTAK.md`
+
+**1. A HÉT LELET.** A külső ellenőrző fél (chatgpt-v3) az R90-es beadást a saját környezetében
+végigjárta, és hét eltérést mért — négy közülük CSAK böngészőben vagy helyi szolgáltatói próbával
+jött ki. **(F91-01)** A bemutató BEFEJEZÉSE hamis sikert állított: a `plan.saved` feladatú harmadik
+lépés `pending` maradt, a lap mégis „a bemutató végére értél" · „2 elvégezve · 0 kihagyva" szöveget
+írt; a regisztrációs bemutató belépve azonnal `targetMissing`-gel megszakadt; belépés előtt a súgó
+üres maradt. **(F91-02)** A németre állított lap frissítésre magyarra állt vissza, névtelenül nem
+volt nyelvválasztó, a szerver által rajzolt megerősítő lap és a próbaüzenetek pedig beégetett magyar
+szöveggel készültek. **(F91-03)** Az Új beszélgetés után a visszatartott régi válasz visszakerült, és
+a deklarált `history_turns: 6` nem a megvalósult működést írta le. **(F91-04)** Egy idegen, forrás
+nélküli szolgáltatói válasz `ok: true` · `answer_kind: model` verdiktet kapott, és mellé a HELYI
+keresés forrásait. **(F91-05)** Három külön elérhetőségi szabály élt egymás mellett; az `acceptAction`
+a tömb-paramétert is elfogadta. **(F91-06)** A melléklet és a panel technikai maradványokat mutatott
+(nyers azonosító, kulcs-darabszám, szolgáltatói változónév). **(F91-07)** Az elfogadási leltár feje az
+INDULÓ commit volt, nem a mért kód, és a fogyasztási leltár nem került át.
+
+**2. A DÖNTÉS — HAT SZERZŐDÉS, MINDEGYIK EGY HELYEN.**
+
+- **AVL-01 — EGY ELÉRHETŐSÉGI FELOLDÓ, NÉGY FOGYASZTÓ.** A tudás, a gyakori kérdések, a bemutató és
+  a nyitható művelet UGYANABBÓL felel (`availabilityOf`), két KIMONDOTT tengellyel: `audience`
+  (`public` = belépés előtt is elmagyarázható · `signed_in`) és `scope` (`person` · `book` = hatályos
+  tagság kell). **A nyilvános magyarázat és a jogosan nyitható művelet KÉT külön állapot:** névtelenül
+  hét funkció tudása elérhető, nyitható művelet pedig NULLA.
+- **A BEFEJEZÉS UGYANAZT ELLENŐRZI, MINT A TOVÁBB** (`finishRun`), és a tudatos kihagyás KÜLÖN
+  állapot (`skipStep`). A záró lap HÁROM számot ír ki (elvégezve · átugorva · hátravan), és a „végére
+  értél" mondat csak teljes elvégzésnél áll ott; a kilépés is elszámol, más mondattal. A
+  fiók-létrehozás tanúsítása MEGELŐZI a kontextus-váltást. A `tour: null` NEM teljesítés: minden
+  bemutató nélküli funkció `tour_note`-ban mondja ki az indokot, és a nevesített hozzáférés-kezelés
+  megkapta a saját bemutatóját (`tour.grant`).
+- **A NYELV A TELJES ÚTON.** A szerver által rajzolt lap és minden próbaüzenet a nyelvcsomagok `SRV`
+  csoportjából jön; a megerősítő hivatkozás VISZI a nyelvet, tartalékként a böngésző kérése
+  (`Accept-Language`). A választó belépés előtt is ott van, a választás megmarad — de SZEMÉLYHEZ
+  kötve, tehát a másik ember beállítása nem szivárog át. **Az átadási kötelezettség MINDEN BEKAPCSOLT
+  NYELVRE szól** — nem „három termék-nyelvre".
+- **AST-04 — A SZOLGÁLTATÓI VÁLASZ SZERZŐDÉSE.** A modell gépi jelölőkkel zárja a válaszát
+  (`[[VS-SOURCES: funkció@verzió]]` · `[[VS-LANG: nyelv]]`), és a szerver ELLENŐRZI az ÁTADOTT
+  tudáson. Nem létező forrás, elavult verzió, téves nyelv-deklaráció vagy hossz-túllépés esetén a
+  válasz NEM modell-válasz: a helyi keresés válasza jön, és a lap NEVEZETTEN kimondja, miért esett ki.
+  A választ ALÁTÁMASZTÓ forrás (`sources`) és a csak KAPCSOLÓDÓ útmutató (`related`) KÉT külön lista.
+- **A BESZÉLGETÉS VÉGES ÉS AZONOSÍTOTT.** A kliens a legutóbbi hat fordulót adja át, a szerver a
+  deklarált korlátra VÁGJA (`history_turns_sent` a válaszban), és a kért nyelvet KIFEJEZETTEN átadja.
+  A beszélgetés- és kérés-azonosító plusz a kérés nyelve MIND a négy tengelyen eldobja az elavult
+  választ: fiókváltás · Új beszélgetés · újabb kérdés · nyelvváltás.
+- **A MŰVELET-PARAMÉTER ZÁRT MEZŐ-LISTA** (`ACTION_PARAMS`): a tömb és minden nem-objektum nevezett
+  `invalid_type`, az ismeretlen mező `param_unknown`. Az üzleti írás továbbra is a rendes
+  megerősítési és szerveroldali ellenőrzési úton történik.
+
+**3. AMIT EZ A DÖNTÉS NEM MOND.** **Az élő AI-szolgáltatói mérés továbbra is NEM FUTOTT:** ebben a
+környezetben nincs engedélyezett csatlakozás (`npm run kapcsolat:ai` → NINCS CSATLAKOZÁS), a
+válasz-szerződést HELYI CSONKKAL mértük — ez nem élő AI-eredmény, és a `proof:assistant-live`
+2-es kilépési kóddal mondja ki. A `VS-LANG` jelölő a modell SAJÁT DEKLARÁCIÓJA: nyelv-FELISMERÉS nem
+történik, tehát egy hamisan deklaráló válasz tartalmi nyelvhelyességét ez a kapu nem méri. A
+forrás-ellenőrzés azt méri, hogy a hivatkozott útmutató LÉTEZIK és ÁT VOLT ADVA — nem azt, hogy a
+mondat logikailag következik belőle. A francia és a jobbról-balra írt csomag PRÓBA, nem lektorált
+fordítás; a nyelvi lektorálás módja megnevezve, de nem elvégezve. A `16/13` mag-klauzula nem
+százalék, a core-core nem zárul, a CMD/PR nem zárul, és a teljes söprés nem zöld (a részletek a
+lapon, három KÜLÖN állapotként).
+
+**4. Gépi jel:** `npm run verify:tutor` (78 + 10 ellenpróba, benne a TUT11 elérhetőségi rekesz) ·
+`npm run verify:assistant` (54 + 6) · `npm run verify:i18n` (41 + 5) ·
+`npm run verify:app-findings-r91` (30 állítás ÉLŐ HTTP-n, helyi szolgáltatói csonkkal) ·
+`npm run verify:kuka` (KUKA-231…239) · `npx playwright test` (a hat R91-es eset + a korábbi körök) ·
+`npm run kapcsolat:ai` és `npm run proof:assistant-live` (a szolgáltatói út állapota nevezett
+kilépési kóddal).
+
+---
+
 ## D-VS-3075 — A SEGÍTSÉG EGY FORRÁSBÓL: TUDÁS-REGISZTER, SÚGÓ, BEMUTATÓ, SEGÉD — ÉS A NYELV BŐVÍTHETŐ JEGYZÉKBŐL
 
 > **Hatály:** V3 (`valach-system`) — a nyelvi jegyzék és a szótár (`v3app/public/i18n/`), a

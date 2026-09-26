@@ -134,6 +134,47 @@ export function taskDone(run, taskId) {
   return true;
 }
 
+/**
+ * EGY LÉPÉS TUDATOS KIHAGYÁSA (F91-01). A felhasználó nincs bezárva: ha nem akarja elvégezni a
+ * feladatot, KIMONDVA átugorhatja — a lépés `skipped` lesz, és az elszámolásban is annak látszik.
+ * A hallgatólagos „továbbengedés" volt a hiba, nem a továbbmenés lehetősége (KUKA-092).
+ */
+export function skipStep(run) {
+  if (!run) return { moved: false, why: 'no_run' };
+  const step = run.steps[run.at];
+  if (!step) return { moved: false, why: 'no_run' };
+  step.state = 'skipped';
+  if (run.at + 1 >= run.steps.length) return { moved: false, why: 'finished' };
+  run.at += 1;
+  return { moved: true, why: null };
+}
+
+/**
+ * A BEFEJEZÉS — UGYANAZT AZ ÁLLAPOTELLENŐRZÉST FUTTATJA, MINT A TOVÁBB (F91-01).
+ *
+ * A LELET (a külső ellenőrző fél, chatgpt-v3, R91): a csomagváltás bemutatójának harmadik,
+ * `plan.saved` feladathoz kötött lépése `pending` maradt (a felhasználó nem mentett), a Befejezés
+ * mégis kiírta, hogy „A bemutató végére értél", **2 elvégezve · 0 kihagyva** — a HÁROM lépéses
+ * bemutató harmadik lépése eltűnt az elszámolásból. A hiba nem a bemutató haladása volt, hanem a
+ * ZÁRÓ ÁLLÍTÁS: a lap sikert mondott arról, ami meg sem történt (KUKA-041 · KUKA-129).
+ *
+ * A MAI SZABÁLY: a Befejezés csak akkor zárul sikerrel, ha az UTOLSÓ lépés is el van számolva
+ * (`done` vagy kimondottan `skipped`). Függő feladatnál NEVEZETT elakadás — ugyanaz a mondat, mint a
+ * Továbbnál —, és mellette a kimondott kihagyás útja.
+ */
+export function finishRun(run) {
+  if (!run) return { ok: false, why: 'no_run' };
+  const step = run.steps[run.at];
+  if (!step) return { ok: false, why: 'no_run' };
+  if (step.state === 'pending') {
+    if (step.task) return { ok: false, why: 'taskNotDone' };
+    if (!targetOf(run)) return { ok: false, why: isPending(run) ? 'targetPending' : 'targetMissing' };
+    step.state = 'done';
+  }
+  run.endedBy = 'finish';
+  return { ok: true, why: null };
+}
+
 /** A KILÉPÉS: a hátralévő lépések „átugrott"-ak — NEM „elvégezett"-ek. */
 export function exitRun(run, by) {
   if (!run) return null;
@@ -179,18 +220,27 @@ export function tourHtml(run, { blocked, pending } = {}) {
     ? `<button type="button" class="primary" data-action="tour-finish" data-testid="tour-finish">${esc(TOURUI.finish)}</button>`
     : `<button type="button" class="primary" data-action="tour-next" data-testid="tour-next">${esc(TOURUI.next)}</button>`}
       <button type="button" data-action="tour-restart" data-testid="tour-restart">${esc(TOURUI.restart)}</button>
-    </div>`;
+    </div>
+    ${blocked === 'taskNotDone' ? `<div class="buttonrow"><button type="button" class="plain" data-action="tour-skip"
+      data-testid="tour-skip">${esc(TOURUI.skipStep)}</button></div>` : ''}`;
 }
 
-/** A ZÁRÓ LAP — kimondja, mi lett elvégezve és mi maradt átugorva. */
+/**
+ * A ZÁRÓ LAP — a BEFEJEZÉS és a KILÉPÉS két külön mondat, és MINDEN lépés el van számolva (F91-01).
+ *
+ * A lap KIÍRJA a három számot (elvégezve · átugorva · hátravan), és az összegük SOHA nem lehet
+ * kevesebb a lépések számánál: a „végére értél" mondat csak akkor áll ott, ha semmi nem maradt ki.
+ */
 export function finishedHtml(run) {
   const done = run.steps.filter((s) => s.state === 'done').length;
   const skipped = run.steps.filter((s) => s.state === 'skipped').length;
+  const pendingCount = run.steps.filter((s) => s.state === 'pending').length;
+  const whole = done === run.steps.length;
   return `<div class="tourhead"><small data-testid="tour-progress">${esc(run.text && run.text.title ? run.text.title : run.id)}</small>
       <button type="button" class="x" data-action="tour-exit" aria-label="${esc(TOURUI.exit)}" data-testid="tour-exit">×</button></div>
-    <h3 data-testid="tour-finished">${esc(TOURUI.finishedTitle)}</h3>
-    <p>${esc(TOURUI.finishedLead)}</p>
-    <p data-testid="tour-summary">${esc(TOURUI.done)}: ${esc(String(done))} · ${esc(TOURUI.skipped)}: ${esc(String(skipped))}</p>
+    <h3 data-testid="tour-finished" data-whole="${whole ? 'true' : 'false'}">${esc(whole ? TOURUI.finishedTitle : TOURUI.endedTitle)}</h3>
+    <p>${esc(whole ? TOURUI.finishedLead : TOURUI.endedLead)}</p>
+    <p data-testid="tour-summary">${esc(TOURUI.done)}: ${esc(String(done))} · ${esc(TOURUI.skipped)}: ${esc(String(skipped))} · ${esc(TOURUI.pending)}: ${esc(String(pendingCount))}</p>
     <div class="buttonrow"><button type="button" data-action="tour-restart" data-testid="tour-restart">${esc(TOURUI.restart)}</button>
       <button type="button" class="primary" data-action="tour-exit" data-testid="tour-close">${esc(TOURUI.exit)}</button></div>`;
 }
@@ -229,6 +279,11 @@ export const TUR_CONTRACT = Object.freeze({
   never_clicks: 'nem aktivál DOM-elemet: se mentést, se meghívást, se jogadást, se törlést',
   task_rule: 'a feladathoz kötött lépés CSAK a szerver által igazolt siker után halad (taskDone)',
   skipped_is_not_done: 'három állapot: pending · done · skipped — a zárás kiírja, mi maradt el',
+  finish_rule: 'a Befejezés UGYANAZT az állapotellenőrzést futtatja, mint a Tovább (finishRun): '
+    + 'függő feladat mellett NEM zárul sikerrel, és a záró lap csak akkor mondja, hogy „a végére '
+    + 'értél", ha MINDEN lépés elvégezve — különben kimondja az átugrott és a hátralévő számot',
+  skip_rule: 'a tudatos kihagyás KÜLÖN állapot és külön gomb (skipStep): a felhasználó nincs '
+    + 'bezárva, de az átugrott lépés az elszámolásban is átugrottnak látszik',
   abort_reasons: Object.freeze(['contextChanged', 'rightLost', 'targetMissing']),
   pending_rule: 'a panelen belüli cél FELTÁRÓJA deklarált (appears_after): amíg a felhasználó meg '
     + 'nem nyitja, a bemutató VÁR (targetPending) és a FELTÁRÓT emeli ki — nem szakít meg, és nem '
