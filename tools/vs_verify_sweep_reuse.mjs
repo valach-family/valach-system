@@ -193,7 +193,12 @@ say('SRU07', both(C4).every((a) => a.status === 'reused'), 'a zöld bizonyíték
   const src = readFileSync(SWEEP, 'utf8');
   say('SRU10', /import \{[^}]*assessReuse[^}]*\} from '\.\/lib\/vs_sweep_reuse\.mjs'/.test(src) && /assessReuse\(\{/.test(src), 'a söprés nem a közös feloldót hívja');
   say('SRU10', !/git diff --quiet \$\{reuse\}/.test(src) && !/execSync\(`git diff/.test(src), 'a régi, shell-interpolált két-commitos git diff visszajött a söprésbe');
-  say('SRU10', /unverified\.length\) process\.exit\(1\)/.test(src) || /timedOut\.length \|\| unverified\.length\) process\.exit\(1\)/.test(src), 'a NEM IGAZOLT kihagyás nem viszi 1-re a söprés kilépési kódját');
+  // A PIN A SZABÁLYT MÉRI, NEM A SOR SZÓRENDJÉT (R97 javítás, KUKA-009). A korábbi alak két KONKRÉT
+  // szövegalakot fogadott el; amikor a söprés kilépési feltétele egy ÚJ, szabályos taggal bővült (a
+  // folyamat-MARADVÁNY, F95-02), a pin pirosat adott egy HELYES kódra. Amit mérünk: a kilépési
+  // feltételben OTT VAN a NEM IGAZOLT kihagyás — a tagok sorrendje nem szabály.
+  say('SRU10', /if \([^)]*\bunverified\.length\b[^)]*\) process\.exit\(1\)/.test(src),
+    'a NEM IGAZOLT kihagyás nem viszi 1-re a söprés kilépési kódját');
   say('SRU10', SRU_CONTRACT.statuses.length === 2 && SRU_CONTRACT.chains.length === 2, 'a szerződés nem két állapot / két lánc');
 }
 

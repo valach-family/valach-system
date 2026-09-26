@@ -1,0 +1,117 @@
+{
+  "kor": "R97",
+  "sav": "Claude-v3",
+  "parancs": "CMD-VS-300-002-002 R95 — ANALYSIS (chatgpt-v3)",
+  "atadas": "CMD-VS-300-002-002 R96 — REPORT (V3_R95_ATADAS.md)",
+  "repo": "valach-family/valach-system",
+  "ag": "claude/admiring-euler-ylij2e",
+  "atadasi_fej": "e7930953f28586f1f24b95c65a9a85761cb66c5b",
+  "datum": "2026-09-26",
+  "allapot": "lezart",
+  "tetelek": [
+    {
+      "id": "F95-01",
+      "cim": "A szemely valasztott nyelve kijelentkezes es ujboli belepes utan is megmarad",
+      "allapot": "javitva",
+      "gyoker": "a setLang NYELVKOD-SZTRINGET ad (i18n/dict.mjs:82), az app.js harom helyen `got.code` mezot olvasott rajta (459 · 462 · 1890): a szemelyhez mentes ket aga soha nem futott, a harmadikat a tartalek-aga mentette meg",
+      "javitas": {
+        "szerzodes": "LNG-02",
+        "uj_fajl": "v3app/public/i18n/langMemory.mjs",
+        "erintett": ["v3app/public/app.js", "v3app/public/texts.mjs"],
+        "elv": "EGY dontes (decideLang) MERT kimenettel (source) + EGY bejarat a lapon (useLang); pontosan egy setLang( hivas, mezo-olvasas nelkul"
+      },
+      "masodlagos_lelet": {
+        "mit": "a mezonev javitasaval a `?lang=` ag FELELEDT, es a nevtelen tarolasi maradvanyt tudatos valasztassa mosta — a KOVETKEZO ember orokolte volna az elozoet (az R93-04 utolso allitasa)",
+        "megtalalta": "SAJAT bongeszo-proba (Claude-v3, R97-02), a szallitas ELOTT",
+        "kezeles": "a hordozo valasztas-kulcsot kizarolag VALODI atallitas irja; a cim aga megjelenit es belepett emberhez eltesz, de hordozot nem gyart"
+      },
+      "bizonyitek": [
+        { "parancs": "npm run verify:app-findings-r95", "eredmeny": "42/42 PASS", "tartalmazza": "romlas-ellenproba a regi szaballyal (en→hu · de→hu)" },
+        { "parancs": "npx playwright test tests/e2e/v3app-r97.spec.mjs", "eredmeny": "2/2 PASS (9,0 s)", "esetek": ["R97-01 hu/en/de teljes ut, bongeszo-nyelv szandekosan mas", "R97-02 ket ember egy bongeszoben"] },
+        { "parancs": "npx playwright test tests/e2e/v3app-r93.spec.mjs tests/e2e/v3app-r91.spec.mjs", "eredmeny": "10/10 PASS", "mit": "a korabbi nyelv- es tour-esetek megorizve" },
+        { "parancs": "npm run verify:app-selfcheck", "eredmeny": "57/57 PASS" }
+      ],
+      "kuka": "KUKA-245",
+      "dontes": "D-VS-3078"
+    },
+    {
+      "id": "F95-02",
+      "cim": "A lejart ellenorzes nem terheli tovabb a gepet",
+      "allapot": "javitva",
+      "gyoker": "a sopres execSync-kel indított; a Node idotullepeskor csak a KOZVETLEN gyermeknek kuld jelet, az unokak eletben maradtak (ppid=1), a terheles negy magon 10,85 volt a kovetkezo ellenorzes alatt",
+      "javitas": {
+        "szerzodes": "CHR-01",
+        "uj_fajl": "tools/lib/vs_child_runner.mjs",
+        "erintett": ["tools/vs_verify_sweep.mjs"],
+        "elv": "sajat folyamatcsoport; SIGTERM → veges turelmi ido (5000 ms) → SIGKILL → IGAZOLT uresseg a kovetkezo proba ELOTT; takaritas sikernel, hibanal ES megszakitasnal; EGY jel-kuldo pont; kizarolag nyilvantartott sajat csoport; gepszintu pkill nincs; win32-re NEVEZETT korlat"
+      },
+      "bizonyitek": [
+        { "parancs": "npm run verify:child-runner", "eredmeny": "26/26 PASS", "esetek": "CR01 siker · CR02 hibas kilepes (kod 3) · CR03 makacs gyermek+unoka, lezaras igazolt · CR04 nincs tovabbi eletjel es nincs atfedes (35→35) · CR05 ELLENPROBA: a regi alak szivarog (eletjel 35→45) · CR06 megszakitas (kilepes 130, nincs eletjel) · CR07 hatokor · CR08 a sopres bekotese" }
+      ],
+      "nem_bizonyitja": [
+        "a szintetikus proba a MECHANIZMUST meri, nem az eredeti 15 perces sopres-futast",
+        "a beragadt futas pontos token- vagy heti limit-koltsege NINCS merve (a processzor-terheles es a modell-fogyasztas kulon mertek)"
+      ],
+      "kuka": "KUKA-246",
+      "dontes": "D-VS-3079"
+    },
+    {
+      "id": "F95-03",
+      "cim": "Menthető fogyasztasi bizonyitek es mukodo munkamenet-hatar",
+      "allapot": "betartva_nevezett_atlepessel",
+      "mit": "a bizonyitek-mentest az R95/R96 elvegezte (V3_R95_FOGYASZTAS_LELTAR.json, 325 hivas-sor); ez a kor a FRISS munkamenet, amiben a javitas indult",
+      "merve": {
+        "munkamenet": "9a15ba99-384a-5b14-abdd-b9c5450dbd1b",
+        "kozbeni_meres": "82 hivas · fo-szal kontextus median 235329,5 · max 348286 · ugynok 0",
+        "kuszob": "main_context_median 235329,5 > 200000 — ATLEPVE",
+        "valasz": "azonnali checkpoint (e72e4b6 commit + push), utana szukites: celzott, kis kimenetu muveletek, uj hosszu lanc es uj nagy olvasas nelkul; parhuzamos vegrehajto es workflow nem indult"
+      },
+      "zaro_leltar": "docs/70_PLANNING/V3_R97_FOGYASZTAS_LELTAR.json",
+      "ismeretlen_koltseg": null
+    }
+  ],
+  "sopres": {
+    "parancs": "npm run verify:sweep -- --skip verify:external-checks,verify:v3ref",
+    "eredmeny": "25 verifier + 2 NEM IGAZOLT kihagyas, 23s: 24 zold · 0 env-kihagyas · 1 piros",
+    "ossz_verdikt": "NEM ZOLD",
+    "nem_futott_nem_igazolt": ["verify:external-checks", "verify:v3ref"],
+    "nem_futott_indok": "az R95 kimondottan szukitette a futtatast; targyi indok: a v3ref/ egyetlen fajlja sem valtozott ebben a csomagban",
+    "piros": [
+      {
+        "lanc": "verify:capability-witness",
+        "minosites": "OROKOLT, NEVESITETT — nem ennek a kornek a muve, de nem is elfogadott zold",
+        "mit": "harom rogzites ELAVULT a V2 board-regiszterében: v3-ui-slice · v3-vertical-slice · v3-user-facing-text (mind: mert present, rogzitett absent)",
+        "teendo": "a V2 repo tools/chatops-board/config/matrix-capabilities.json harom soranak present-re allitasa",
+        "miert_nem_tettuk_meg": "a parancs kizarja a V2-modositast",
+        "merve": "az atadasi fejen (e7930953) ez a verifier zoldnek latszott, mert ott a V2 regiszter nem volt elerheto (rogzitett: —, nincs mihez merni)"
+      }
+    ]
+  },
+  "idegen_orok_hozzaigazitva": [
+    { "or": "verify:i18n I18N01", "mit": "a mappa minden .mjs-et csomagnak vett ket kivett nev kivetelevel, ezert az uj LNG-02 modul holt nyelvcsomagnak latszott", "javitas": "a csomag-sagot a fajl SAJAT meta.code deklaracioja mondja meg; a kihagyott sege-modulok NEVESITVE (KUKA-049 · 057 · 091)" },
+    { "or": "verify:sweep-reuse SRU10", "mit": "a sopres kilepesi soranak SZORENDJET merte, ezert pirosat adott egy helyes, uj taggal bovult feltetelre", "javitas": "a pin azt meri, hogy az unverified.length BENNE VAN a kilepesi feltetelben (KUKA-009)" },
+    { "or": "KUKA-238 es KUKA-234 pozitiv mintai", "mit": "a feloldo hivasat es a tarolasi kulcs alakjat a lapon mertek; mindketto a LNG-02 modulba koltozott", "javitas": "a jel a MAI otthonara allitva (KUKA-051: nem letezo helyen mert minta zoldnek latszik)" }
+  ],
+  "konyveles": {
+    "kuka_uj": ["KUKA-245", "KUKA-246"],
+    "kuka_verifier": "456/456 PASS",
+    "dontesek": ["D-VS-3078", "D-VS-3079"],
+    "kovetkezo_szabad_dvs": "D-VS-3080"
+  },
+  "nyitott_marad": [
+    "elo AI-meres",
+    "a modell kivalasztasi minosegenek merese",
+    "teljes haromnyelvu lektoralas (RESZLEGES ATNEZES marad)",
+    "a meghivo-elfogadas sajat kepernyojenek sugoja/turaja",
+    "a V2-kepesseg-katalogus harom hianya (HIANY, nem elfogadott piros)",
+    "a kulso lanc harom elterese (r79 · r59a · r59)",
+    "a ket hosszu lanc ebben a korben NEM futott"
+  ],
+  "nem_allithato": [
+    "teljes rendszer-zold",
+    "teljes core-core lezaras",
+    "a 16 elfogadott / 13 reszleges klauzula NEM keszultsegi szazalek",
+    "V2-re atadhato ar/ertek-javulas"
+  ],
+  "nem_tortent": ["merge", "telepites", "V2-modositas", "migracio", "uj elofizetes", "uzleti Mini modul", "parhuzamos vegrehajto", "ultracode", "modellvaltas"]
+}

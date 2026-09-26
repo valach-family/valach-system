@@ -16,6 +16,71 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3079 — A FUTTATÓ A SAJÁT FOLYAMATFÁJÁÉRT FELEL (CHR-01)
+
+> **Hatály:** V3 (`valach-system`) — `tools/lib/vs_child_runner.mjs` (új), `tools/vs_verify_sweep.mjs`,
+> `tools/vs_verify_child_runner.mjs` (új battéria). Nincs V2-módosítás, merge, telepítés, migráció.
+
+**A parancs:** `CMD-VS-300-002-002 R95 — ANALYSIS` (chatgpt-v3) §F95-02.
+
+**A lelet:** a söprés `execSync`-kel indított, és a Node időtúllépéskor a KÖZVETLEN gyermeknek küld
+jelet. A gyermek itt egy héj, ami node-ot indít, ami továbbiakat — az UNOKÁK életben maradtak
+(`ppid=1`), a terhelés négy magon 10,85 volt, MIKÖZBEN már a következő ellenőrzés mért.
+
+**A döntés:** minden külső parancs SAJÁT FOLYAMATCSOPORTBAN indul, és a lezárás a CSOPORTRA megy:
+szabályos jel → **VÉGES** türelmi idő → kényszerleállítás → **IGAZOLT üresség**, MIELŐTT a következő
+próba indul. A takarítás sikernél, hibánál ÉS megszakításnál ugyanaz az út. A jel-küldés EGY ponton
+megy át, és KIZÁRÓLAG a maga indította, nyilvántartott csoportokra — **gépszintű `pkill`, küszöb-emelés
+és állítás-gyengítés SOHA**. Nem támogatott platformon (win32) **NEVEZETT korlát** áll, nem hallgatás.
+A maradvány NEVEZETT tény a söprés jelentésében, és az összverdikt akkor nem zöld.
+
+**Amit ez NEM állít:** a beragadt futás pontos token- vagy heti limit-költségét nem mértük (a
+processzor-terhelés és a modell-fogyasztás külön mérték — R95). És a szintetikus próba a MECHANIZMUST
+méri (héj → node → node, makacs jel-elnyeléssel), nem az eredeti 15 perces futást.
+
+**Gépi jel:** `npm run verify:child-runner` — CR01 siker · CR02 hibás kilépés · CR03 makacs
+gyermek/unoka időtúllépéskor · CR04 nincs további életjel és nincs átfedés · **CR05 a RÉGI mechanizmus
+ellenpróbája** (ugyanitt MÉRHETŐEN szivárog) · CR06 megszakítás · CR07 hatókör · CR08 a söprés
+bekötése. **KUKA-246.**
+
+---
+
+## D-VS-3078 — A NYELV A SZEMÉLYÉ, EGY DÖNTÉSBŐL, MÉRT KIMENETTEL (LNG-02)
+
+> **Hatály:** V3 (`valach-system`) — `v3app/public/i18n/langMemory.mjs` (új), `v3app/public/app.js`,
+> `v3app/public/texts.mjs`, `v3app/findings_r95.mjs` (új battéria), `tests/e2e/v3app-r97.spec.mjs`
+> (új böngésző-tanú). A magreferencia (`v3ref/`) egyetlen fájlja sem változott. Nincs V2-módosítás,
+> merge, telepítés, migráció, új üzleti Mini modul, új előfizetés.
+
+**A parancs:** `CMD-VS-300-002-002 R95 — ANALYSIS` (chatgpt-v3) §F95-01.
+
+**A lelet:** az új ember angol vagy német nyelve az ELSŐ belépéskor és frissítéskor megmaradt, de
+KIJELENTKEZÉS és ÚJBÓLI BELÉPÉS után magyarra váltott. A gyökér a forráson: a `setLang`
+NYELVKÓD-SZTRINGET ad (I18N-01), a lap viszont HÁROM helyen egy nem létező `got.code` mezőt olvasott
+rajta — a személyhez mentés két ága SOHA nem futott le.
+
+**A döntés:** a nyelv-döntés EGY tiszta feloldóba kerül (`decideLang`), ami **MÉRT kimenetet** ad
+(`source`: `choice` · `url` · `stored` · `carried` · `accept_language` · `default`) és MEGMONDJA, kell-e
+menteni (`persist_for_person` · `persist_choice`). A lapon **EGY bejárat** érvényesít (`useLang`),
+tehát pontosan egy `setLang(` hívás van, és a visszatérésén mező-olvasás nincs. Új nyelv bekapcsolása
+ugyanezt az EGY szabályt használja — a próbák alanyai a JEGYZÉKBŐL jönnek, nem kézi listából.
+
+**A MÁSODLAGOS DÖNTÉS, amit a javítás kényszerített ki:** a `got.code` elírás KÉT ágat tartott halva,
+és az egyik feléledése egy MÁSIK, korábban elfogadott szabályt sértett meg — a lap CÍMÉBŐL (`?lang=`)
+jövő ág a NÉVTELEN tárolási maradványt tudatos választássá mosta, tehát a KÖVETKEZŐ ember örökölte
+volna az előzőét. Ezért a hordozó választás-kulcsot **kizárólag VALÓDI átállítás** írja; a cím ága a
+nyelvet megjeleníti és belépett emberhez elteszi, de hordozót nem gyárt.
+
+**Amit ez NEM állít:** a teljes háromnyelvű lektorálás továbbra is nyitott (RÉSZLEGES ÁTNÉZÉS), és a
+nyelv a NÉZŐ kényelme — országot, adózási rendet, időzónát, pénznemet SOHA nem választ (LANG-01).
+
+**Gépi jel:** `npm run verify:app-findings-r95` (a szerződés MEGHÍVVA · EGY bejárat · a teljes út
+MINDEN bekapcsolt nyelven · **ROMLÁS-ELLENPRÓBA** a régi szabállyal) + `tests/e2e/v3app-r97.spec.mjs`
+R97-01/02 (valódi böngésző: kijelentkezés + újbóli belépés három nyelven, és két ember egy
+böngészőben). **KUKA-245.**
+
+---
+
 ## D-VS-3077 — A SEGÍTSÉG BEFEJEZÉSE: VÉGIGVIHETŐ BEMUTATÓK, MONOTON NYELVI ÉLETCIKLUS, ELLENŐRZÖTT TUDÁS-BLOKKBÓL ÉPÜLŐ VÁLASZ
 
 > **Hatály:** V3 (`valach-system`) — a bemutató-modul (`v3app/public/tour.mjs`), a felület

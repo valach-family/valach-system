@@ -52,9 +52,22 @@ check('I18N01', 'minden csomag szerepel a jegyzékben (nincs jegyzék nélküli 
   packCodes.every((c) => listCodes.includes(c)),
   `csomag nélküli jegyzék-sor vagy jegyzék nélküli csomag: ${[...packCodes.filter((c) => !listCodes.includes(c)), ...listCodes.filter((c) => !packCodes.includes(c))].join(' · ') || 'nincs'}`);
 // A FÁJLOK is a jegyzékhez mérve: egy „elfelejtett" csomag-fájl ne álljon holtan a mappában.
-const files = readdirSync(I18N_DIR).filter((f) => f.endsWith('.mjs') && !['languages.mjs', 'dict.mjs'].includes(f));
+//
+// A CSOMAG-SÁGOT A FÁJL TARTALMA MONDJA MEG, NEM EGY KÉZI NÉV-LISTA (R97 javítás). A korábbi alak a
+// mappa MINDEN `.mjs`-ét csomagnak vette két kivett néven kívül (`languages.mjs` · `dict.mjs`), ezért
+// egy ÚJ segéd-modul (LNG-02 `langMemory.mjs`) „holt nyelvcsomagként" jelent meg — az őr egy
+// szabályos állapotot mondott hibának (KUKA-049), és a kizáró felsorolás a következő modulról sem
+// tudott volna (KUKA-057). A csomag ISMERTETŐJELE a saját deklarációja: `export const meta = … code:`.
+const mjsFiles = readdirSync(I18N_DIR).filter((f) => f.endsWith('.mjs'));
+const declaresPack = (f) => /export const meta = Object\.freeze\(\{\s*code:/.test(readFileSync(join(I18N_DIR, f), 'utf8'));
+const files = mjsFiles.filter(declaresPack);
+const helpers = mjsFiles.filter((f) => !declaresPack(f));
 check('I18N01', 'nincs holt nyelvcsomag-fájl a mappában',
-  files.length === listCodes.length, `fájl: ${files.length} · jegyzék: ${listCodes.length} (${files.join(' · ')})`);
+  files.length === listCodes.length,
+  `csomag-fájl: ${files.length} · jegyzék: ${listCodes.length} (${files.join(' · ')})`);
+// A KIHAGYOTTAKAT IS KIÍRJUK: a mérés ne hallgasson arról, mit NEM vett csomagnak (KUKA-091).
+check('I18N01', 'a csomagnak NEM számító modulok NEVESÍTVE vannak (a mérés nem hallgat a hatóköréről)',
+  helpers.length >= 2, `segéd-modul: ${helpers.join(' · ') || 'nincs'}`);
 
 // ── I18N02: az ALAPNYELV teljes, és ő a lánc vége ─────────────────────────────────────────────
 check('I18N02', 'az alapnyelv a lánc VÉGE minden nyelvnél',
