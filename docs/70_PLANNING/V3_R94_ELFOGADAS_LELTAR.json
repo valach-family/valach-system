@@ -247,7 +247,14 @@
         "mert": "a mutációs battéria a 12000 ms-os egység-költségvetésbe 9 → 18 → 36 → 72 darabolás után sem fért bele",
         "mert_ok": "a söprés a 900 s-os türelemnél ELENGEDTE az external-checks láncot, de az NEM állt le: a v3ref mérése mellette indult, terhelés 10,85 NÉGY magon (KUKA-194 osztálya)",
         "beavatkozas": "az árva folyamatfa leállítása után a terhelés 3,40 — a lánc KÜLÖN újrafuttatva",
-        "amit_nem_vezetek_le": "hogy a mag rendben van. A v3ref/ egyetlen fájlja sem változott — ez TÉNY, de az R93 §8 szerint 'a mag változatlansága önmagában nem zöld újrafutás'."
+        "amit_nem_vezetek_le": "hogy a mag rendben van. A v3ref/ egyetlen fájlja sem változott — ez TÉNY, de az R93 §8 szerint 'a mag változatlansága önmagában nem zöld újrafutás'.",
+        "kulon_futas": {
+          "parancs": "npm run verify:v3ref",
+          "terheles_a_futaskor": "3,40 → 0,62 (az árva folyamatfa elmúltával)",
+          "eredmeny": "TELJES ÉS TISZTA — minden mutáció pontosan egyszer, minden egység belefér a korlátba",
+          "szamok": "204 mutáció · 204 elkapva · 0 túlélte · 0 rossz próba · 0 mérőhiba · 0 elavult horgony · lefedettség 204/204, hiány 0, duplikátum 0",
+          "kovetkeztetes": "a söprésben látott piros MÉRÉSI hiba volt; a külön futás ÚJRAMÉRVE cáfolta meg, nem magyarázattal"
+        }
       }
     }
   }

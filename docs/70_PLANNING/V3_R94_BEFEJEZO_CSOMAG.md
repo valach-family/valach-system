@@ -149,6 +149,40 @@ Ellenőriztem — a `~/.claude/projects/` alatt egyedül a saját munkamenetem �
   **eszközválaszok méretbontása** ebből a körből **nem adható meg**;
 - **hiányzó adat utólag nem válik méréssé** — nem közelítem, nem becslöm, nem vezetem le.
 
+**A ZÁRÓ PILLANATKÉP — és a küszöb-átlépés kimondva.** A csomag ablakára (2026-09-26T15:22:00Z →
+16:43:14Z, nyitott ablak, a pillanatkép zárása) **MÉRVE**:
+
+| | |
+|---|---:|
+| modellhívás | 260 |
+| ügynök (al-ügynök · workflow) | **0** |
+| cache-olvasás | 93 070 474 token |
+| cache-írás | 554 976 token |
+| kimenet | 229 120 token |
+| fő-szál kontextus mediánja | **369 287** |
+| legnagyobb kontextus | 554 978 |
+| 400 ezer feletti hívás | 111 |
+| lefedettség | **teljes** (1 átirat, minden modell-válasz usage-dzsal) |
+
+**A 200 000-es kísérleti mediánjelző ÁT VAN LÉPVE** (369 287), és ezt nem szépítem. Amit tettem és
+amit nem:
+- **a csomagot EGYBEN tartottam** — az R93 §7/1 ezt kérte, és a szétvágás új munkamenetet jelentett
+  volna a szállítás közben;
+- **egyetlen al-ügynököt sem indítottam** (ügynök-bemenet 0) — az R93 §7/3 tiltása szerint;
+- az induló érték **125 005** volt, tehát a növekedés a csomag MUNKÁJÁÉ, nem örökölt teher (az előző
+  munkamenet ugyanitt 756 112-nél KEZDTE);
+- **a következő csomag friss munkamenetben induljon** — ugyanaz a szabály, ami ezt a kört elindította.
+
+**A záró pillanatképen KÍVÜL eső szakasz kimondva (R93 §7/6):** a fenti számok a mérés pillanatáig
+tartanak. Ami UTÁNA történik — a záró commit, a board-feltöltés és a válasz megírása — **nincs
+benne**. Költséget és heti-limit-százalékot továbbra sem vezetek le; ismeretlen költség `null`, nem
+nulla.
+
+**A tartalommentes hívás-sorok MEGVANNAK ehhez az ablakhoz:** 260 sor, ellenőrizve, hogy a zárt
+kulcs-listán kívül egyetlen szöveg-mező sincs bennük (se üzenet, se parancs, se eszköz-kimenet).
+Ebből a külső fél maga újraszámolhatja az induló értéket és a növekedést, anélkül hogy a napló
+modell-kontextusba kerülne.
+
 Amit helyette megépítettem: a **képesség**. A `--calls` kapcsoló mostantól tartalommentes hívás-sorokat
 ír fájlba, és **ez a csomag mérve van vele** — a következő körben ugyanez a kérdés már megválaszolható.
 A záró pillanatkép ideje és a kimaradó publikálási szakasz a 7. szakaszban áll.
@@ -221,6 +255,16 @@ mérése MELLETTE indult. A mért terhelés ekkor **10,85 volt négy magon** —
 saját idő-költségvetését egy két-három szorosan túlterhelt gépen próbálta tartani. Ez a KUKA-194
 osztálya: a néma erőforrás-szivárgás hazuggá teszi a mérést. Az árva folyamatfa leállítása után a
 terhelés **3,40**-re esett, és a láncot ÚJRA futtattam — az eredménye a következő pontban.
+
+**A KÜLÖN FUTÁS EREDMÉNYE — ez a valódi mérés.** Az árva folyamatfa elmúltával (terhelés 3,40 →
+0,62) a láncot újrafuttattam:
+
+> `npm run verify:v3ref` → **RESULT: TELJES ÉS TISZTA — minden mutáció pontosan egyszer, minden
+> egység belefér a korlátba.** · **204 mutáció · 204 elkapva · 0 túlélte · 0 rossz próba · 0
+> mérőhiba · 0 elavult horgony** · lefedettség 204/204, hiány 0, duplikátum 0.
+
+Tehát a söprésben látott piros **mérési** hiba volt, és a külön futás **megcáfolta** — nem
+magyarázattal, hanem újramérve.
 
 **AMIT EBBŐL NEM VEZETEK LE:** hogy a mag rendben van. A `v3ref/` **egyetlen fájlja sem változott**
 ebben a körben — ez TÉNY, de az R93 §8 pont ezt tiltja meg bizonyítékként: *„A mag változatlansága
