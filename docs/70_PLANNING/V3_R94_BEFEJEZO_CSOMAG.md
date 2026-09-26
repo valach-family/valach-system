@@ -234,9 +234,35 @@ ELFOGADOTT út mérése az új R93-as battériában áll. A többi 29 állítás
 `npm run verify:sweep` · **25 verifier · 1025 s · 22 ZÖLD · 0 env-kihagyás · 1 NEM FEJEZŐDÖTT BE ·
 2 PIROS.** A három nem-zöld sort NEM mossuk össze, mert három KÜLÖN állapot (R93 §8):
 
-**1) `verify:external-checks` — NEM FEJEZŐDÖTT BE** a söprés 900 s-os türelmén belül. Ez **nem
-bukás és nem kihagyás**: a lánc ELINDULT, és az eredménye **nem igazolt**. Külön futtatva sem
-kaptam eredményt ebben a körben (lásd a 3. pontot).
+**1) `verify:external-checks` — a söprésben NEM FEJEZŐDÖTT BE, KÜLÖN FUTTATVA VÉGIGMENT.** A
+söprés 900 s-os türelme kevés volt; tiszta gépen a lánc **65 perc alatt teljes** lett
+(`scope: full`, „MINDEN nyilvántartott program lefutott"). Az eredménye:
+
+> **15/19 program MEGFELEL · 1 ENV-KIHAGYÁS (nevezett helyettessel: `r57` → `r57a`, zöld) ·
+> ELTÉRÉS: `r79` · `r59a` · `r59`.**
+
+**Ez ELTÉR a könyvelt előző futástól** (2026-09-23: `ok: true`, 17 zöld, 2 env-kihagyás), és ezt
+nem hallgatom el. **Az OKOT megmértem, és a szám egyértelmű** — az `r79/U04` eset gépi eredménye:
+
+| | |
+|---|---:|
+| külső korlát (`cap_ms`) | 15 000 ms |
+| a 18 szelet falióra-ideje | 11 696 – 13 512 ms — **mind a külső korlát ALATT** |
+| a `mutate.mjs` BELSŐ szelet-költségvetése | 12 000 ms |
+| 12 000 ms fölé ment | 12 szelet a 18-ból |
+| `run_state` · `clean` | `complete` · `true` |
+| lefedettség | **204/204 · hiány 0 · duplikátum 0** |
+
+Vagyis a **tartalom teljes és tiszta** — a szeletek a KÜLSŐ korlátot tartották —, de a `mutate.mjs`
+saját, BELSŐ 12 000 ms-os költségvetését ez a futtató-gép nem bírja, ezért a szeletek `exit 1`-gyel
+zárnak, és az eset ettől bukik. Ugyanez az `r59a/P01`-nél (462 s) és az `r59`-nél (a dokumentált
+`spawnSync … ETIMEDOUT` alak, amire a testvér-programnál MÁR ÁLL bejelentett env-kihagyás).
+
+**AMIT EBBŐL ÁLLÍTOK:** a három eltérés a futtató-gép sebességéhez kötött, és a mért tartalom
+(204/204, tiszta) ezt alátámasztja. **AMIT NEM:** hogy a lánc „valójában zöld". A verdikt
+`ok: false`, és úgy is marad a könyvelt bizonyítékban — a frissebb, TELJES futást tettem be a
+régi, zöldebb helyére, mert a mérést nem a kedvezőbb eredmény szerint választjuk ki (KUKA-033).
+A teendő a szerszám oldalán van: a költségvetést nem tágítjuk, a gép vagy a darabolás felülvizsgálandó.
 
 **2) `verify:capability-witness` — PIROS, KIMONDOTTAN ÉRINTETLENÜL HAGYVA.** `8/11 egyezik —
 3 ELAVULT RÖGZÍTÉS · 2 gépileg nem mérhető`. Az R93 §8 kikötése szó szerint: *„Ne csak a zöld jelért

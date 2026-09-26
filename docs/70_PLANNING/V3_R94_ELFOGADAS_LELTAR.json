@@ -233,9 +233,41 @@
     "megjegyzes": "A három nem-zöld sor HÁROM KÜLÖN állapot, nem egy (R93 §8).",
     "reszletek": {
       "verify:external-checks": {
-        "allapot": "NEM FEJEZŐDÖTT BE",
+        "allapot": "a söprésben NEM FEJEZŐDÖTT BE; KÜLÖN futtatva VÉGIGMENT, és eltérést mért",
         "indok": "a söprés 900 s-os türelmén belül nem ért véget — ELINDULT, az eredménye NEM IGAZOLT",
-        "nem_azonos": "ez NEM 'nem futott' és NEM 'elbukott'"
+        "nem_azonos": "ez NEM 'nem futott' és NEM 'elbukott'",
+        "kulon_futas": {
+          "parancs": "npm run verify:external-checks",
+          "ido": "65 perc, tiszta gépen",
+          "hatokor": "full — MINDEN nyilvántartott program lefutott (scope.complete = true)",
+          "eredmeny": "15/19 program MEGFELEL · 1 ENV-KIHAGYÁS (r57 → helyette r57a, zöld) · ELTÉRÉS: r79 · r59a · r59",
+          "verdict": {
+            "ok": false,
+            "green": 15,
+            "env_skipped": 1,
+            "of": 19
+          },
+          "konyvelt_elozo_futas": {
+            "at": "2026-09-23T18:30:47Z",
+            "ok": true,
+            "green": 17,
+            "env_skipped": 2,
+            "of": 19
+          },
+          "elteres_oka_MERVE": {
+            "eset": "r79/U04",
+            "kulso_korlat_ms": 15000,
+            "szelet_faliora_ms": "11696–13512 (mind a külső korlát ALATT)",
+            "mutate_belso_koltsegvetes_ms": 12000,
+            "12000_fole_ment": "12 szelet a 18-ból",
+            "run_state": "complete",
+            "clean": true,
+            "lefedettseg": "204/204 · hiány 0 · duplikátum 0",
+            "kovetkeztetes": "a tartalom teljes és tiszta; a bukás a mutate.mjs BELSŐ 12000 ms-os szelet-költségvetése, amit ez a futtató-gép nem bír"
+          },
+          "amit_allitok": "a három eltérés a futtató-gép sebességéhez kötött, és a mért tartalom (204/204, tiszta) ezt alátámasztja",
+          "amit_nem_allitok": "hogy a lánc 'valójában zöld'. A verdikt ok:false, és a FRISSEBB, TELJES futás került a könyvelt bizonyítékba a régi, zöldebb helyére — a mérést nem a kedvezőbb eredmény szerint választjuk ki (KUKA-033)"
+        }
       },
       "verify:capability-witness": {
         "allapot": "PIROS — KIMONDOTTAN ÉRINTETLENÜL HAGYVA",
