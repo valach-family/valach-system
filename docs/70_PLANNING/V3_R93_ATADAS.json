@@ -1,0 +1,44 @@
+{
+  "kor": "CMD-VS-300-002-002 R93",
+  "sav": "Claude-v3",
+  "tipus": "ATADAS_INDULAS_ELOTT",
+  "miert": "az R93 parancs F93-04/2 pontja szerint a végrehajtó indulás ELŐTT jelzi, ha csak a régi munkamenetben tud dolgozni",
+  "munkamenet": {
+    "azonosito": "495e48b5-33ea-5833-9c76-5457e902f51f",
+    "forras": "env:CLAUDE_CODE_SESSION_ID",
+    "mert_kezdet": "2026-09-26T07:44:43.638Z",
+    "vitte": [
+      "R89",
+      "R91",
+      "R93 parancs beolvasása"
+    ],
+    "r93_ablak_kezdete": "2026-09-26T13:42:51Z",
+    "indulo_fo_szal_kontextus_median": 756112,
+    "indulo_max": 766806,
+    "hivas_az_ablakban": 6,
+    "ugynok": 0,
+    "kiserleti_jelzo": 200000,
+    "jelzo_atlepve": true,
+    "mero_parancs": "npm run meres:fogyasztas -- --session auto --from 2026-09-26T13:42:51Z --quick"
+  },
+  "forras_kotes": {
+    "ag": "claude/cmd-vs-300-002-002-r89-l1y9ui",
+    "parancs_altal_ellenorzott_fej": "ce38f823efc3432af1ecc9b9796f66434f59b5df",
+    "atadas_keszult_a_fejen": "ce38f823efc3432af1ecc9b9796f66434f59b5df",
+    "board_lap": "20260926_V3_R93_R92_ELLENORZES (CMD-VS-300-002-002 R93 — ANALYSIS)",
+    "elozo_kor_lapja": "docs/70_PLANNING/V3_R91_HASZNALATI_UTAK.md"
+  },
+  "hatravan": [
+    "F93-01 bemutató-életciklus és TELJES út",
+    "F93-02 nyelvi életciklus és monoton generáció",
+    "F93-03 ellenőrzött tudás-blokkból épített válasz + megnyitható forrás-hivatkozás + HU/EN/DE átnézés",
+    "F93-04 fogyasztás friss munkamenetben, tartalom nélküli hívás-sorok",
+    "F93-05 hash-manifeszt és futási tanú a leltárban"
+  ],
+  "kimondva": [
+    "a csomag ebben a munkamenetben NEM indult el",
+    "a friss beszélgetést az operátor nyitja — az ügynök magát nem indítja újra",
+    "a friss munkamenet ELŐBB a board R93 ANALYSIS lapját olvassa el teljes egészében",
+    "ez az átadás NEM helyettesíti a parancs lapját, csak a forrás-kötést és a munka-listát viszi"
+  ]
+}
