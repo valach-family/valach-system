@@ -1,0 +1,179 @@
+{
+ "tool": "FGY-01/3",
+ "tool_commit": "682667d3950e7f456d21f4e4aa80c1fde1949ec9",
+ "tool_file": "./tools/v3_fogyasztas_meres.mjs",
+ "tool_file_sha256": "dc841e08962e5ef498efc42dc46fe8ea6d3db053ad196e7767c929434b1cb695",
+ "tool_dirty": false,
+ "generated_at": "2026-09-28T22:21:04.968Z",
+ "session": "217706c3-ecc2-5f7b-af35-558854c7df95",
+ "snapshot_closed_at": "2026-09-28T22:21:04.968Z",
+ "runtime_versions": [
+  "2.1.284"
+ ],
+ "window": {
+  "label": "R106 F105-01",
+  "from": "2026-09-28T20:40:24Z",
+  "to": "2026-09-28T22:21:04Z",
+  "to_effective": "2026-09-28T22:21:04Z"
+ },
+ "coverage": {
+  "files": 1,
+  "unreadable": [],
+  "unparsable_lines": 0,
+  "assistant_without_usage": 0,
+  "invalid_timestamp_calls": 0,
+  "cross_file_duplicate_ids": 0,
+  "incomplete_usage_calls": 0,
+  "synthetic_records": 0,
+  "calls_total": 178,
+  "calls_in_window": 178,
+  "complete": true,
+  "note": "teljes: minden megtalált átirat beolvasva, minden modell-válasz usage-dzsal, azonos azonosító csak egy fájlban"
+ },
+ "whole_session": {
+  "calls": 178,
+  "synthetic_records": 0,
+  "incomplete_usage_calls": 0,
+  "totals_kind": "teljes",
+  "first_call": "2026-09-28T20:52:13.367Z",
+  "last_call": "2026-09-28T22:21:03.631Z",
+  "totals": {
+   "input": 356,
+   "cache_write": 504661,
+   "cache_read": 57429432,
+   "output": 189598
+  },
+  "by_kind": {
+   "main": {
+    "calls": 178,
+    "input": 356,
+    "cache_write": 504661,
+    "cache_read": 57429432,
+    "output": 189598
+   }
+  },
+  "by_model": {
+   "claude-opus-5": {
+    "calls": 178,
+    "input": 356,
+    "cache_write": 504661,
+    "cache_read": 57429432,
+    "output": 189598
+   }
+  },
+  "main_context": {
+   "median": 348238.5,
+   "max": 474541,
+   "calls_over_400k": 53
+  },
+  "main_wakeups": {
+   "user": {
+    "wakeups": 1,
+    "calls": 130,
+    "input_with_cache": 36595540
+   },
+   "hook": {
+    "wakeups": 2,
+    "calls": 42,
+    "input_with_cache": 18602416
+   },
+   "notification": {
+    "wakeups": 2,
+    "calls": 6,
+    "input_with_cache": 2736493
+   }
+  },
+  "agent_input_total": 0,
+  "agent_count": 0,
+  "thresholds": {
+   "main_context_median": {
+    "limit": 200000,
+    "value": 348238.5,
+    "exceeded": true
+   },
+   "agent_input_per_package": {
+    "limit": 40000000,
+    "value": 0,
+    "exceeded": false
+   }
+  }
+ },
+ "window_summary": {
+  "calls": 178,
+  "synthetic_records": 0,
+  "incomplete_usage_calls": 0,
+  "totals_kind": "teljes",
+  "first_call": "2026-09-28T20:52:13.367Z",
+  "last_call": "2026-09-28T22:21:03.631Z",
+  "totals": {
+   "input": 356,
+   "cache_write": 504661,
+   "cache_read": 57429432,
+   "output": 189598
+  },
+  "by_kind": {
+   "main": {
+    "calls": 178,
+    "input": 356,
+    "cache_write": 504661,
+    "cache_read": 57429432,
+    "output": 189598
+   }
+  },
+  "by_model": {
+   "claude-opus-5": {
+    "calls": 178,
+    "input": 356,
+    "cache_write": 504661,
+    "cache_read": 57429432,
+    "output": 189598
+   }
+  },
+  "main_context": {
+   "median": 348238.5,
+   "max": 474541,
+   "calls_over_400k": 53
+  },
+  "main_wakeups": {
+   "user": {
+    "wakeups": 1,
+    "calls": 130,
+    "input_with_cache": 36595540
+   },
+   "hook": {
+    "wakeups": 2,
+    "calls": 42,
+    "input_with_cache": 18602416
+   },
+   "notification": {
+    "wakeups": 2,
+    "calls": 6,
+    "input_with_cache": 2736493
+   }
+  },
+  "agent_input_total": 0,
+  "agent_count": 0,
+  "thresholds": {
+   "main_context_median": {
+    "limit": 200000,
+    "value": 348238.5,
+    "exceeded": true
+   },
+   "agent_input_per_package": {
+    "limit": 40000000,
+    "value": 0,
+    "exceeded": false
+   }
+  }
+ },
+ "thresholds_decidable": true,
+ "input_manifest": [
+  {
+   "path": "~/.claude/projects/-home-user/217706c3-ecc2-5f7b-af35-558854c7df95.jsonl",
+   "bytes": 3134963,
+   "sha256": "5a1074964092f5fb5098c8c537d7509b0deee84ae30a314335ef2a877b160bd6",
+   "kind": "main"
+  }
+ ],
+ "reproduce": "node tools/v3_fogyasztas_meres.mjs --session 217706c3-ecc2-5f7b-af35-558854c7df95 --from 2026-09-28T20:40:24Z --to 2026-09-28T22:21:04Z --label \"R106 F105-01\" --projects ~/.claude/projects"
+}

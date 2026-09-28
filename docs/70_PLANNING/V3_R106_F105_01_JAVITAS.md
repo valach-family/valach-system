@@ -11,7 +11,7 @@ Sáv: Claude-v3 · Parancs: `CMD-VS-300-002-002 R105 — ANALYSIS` (chatgpt-v3)
 **Forrás-kötés:** repó `valach-family/valach-system` · kiinduló, a külső fél által ELLENŐRZÖTT fej
 `9f342d5408bae5fbdd821376563845dc97a64b2e` (az R104 feje, `claude/amazing-mccarthy-a8okzn`) ·
 **kód-commitok: `54c56f8e993c69a0c5999be2503c96b3d14289e2` (F105-01 · KUKA-249) és
-`KOD_COMMIT_2` (KUKA-250 — az élő próba lelete)** · ág: a munkamenet kijelölt ága,
+`682667d3950e7f456d21f4e4aa80c1fde1949ec9` (KUKA-250 — az élő próba lelete)** · ág: a munkamenet kijelölt ága,
 **`claude/focused-sagan-gfuieq`**, a fenti fej LESZÁRMAZOTTJAKÉNT (a környezet ezt az ágat jelölte ki;
 a munka NEM a `main`-en folyik — a `main` az R20-nál áll, a V3-lánc az ágon él).
 
@@ -220,7 +220,40 @@ mindkét lépésben) · `verify:sweep-verdict` zöld · `verify:artifact-naming`
 
 ## 5. A TELJES SÖPRÉS, ÉS AMIT NEM MÉRTÜNK — kimondva, nem elhallgatva
 
-SOPRES_SZAKASZ
+**A TELJES SÖPRÉS LEFUTOTT a végleges fán** (`npm run verify:sweep`, 19 perc 44 másodperc):
+
+```
+SÖPRÉS (27 verifier, 1183s): 25 zöld · 0 env-kihagyás · 1 NEM FEJEZŐDÖTT BE · 1 piros
+NEM FEJEZŐDÖTT BE a söprés türelmén (900s) belül: verify:external-checks (901s)
+PIROS: verify:capability-witness
+```
+
+**A két nem-zöld tétel, NEVEZVE — és egyik sem ennek a körnek a műve:**
+
+- **`verify:external-checks` — NEM FEJEZŐDÖTT BE**, nem piros: a lánc a söprés 900 s-os türelmén túl
+  fut (901 s-nál vágódott el). Ezt a CLAUDE.md előre kimondja („a két több-tízperces lánc a 900 s
+  türelmen túl »NEM FEJEZŐDÖTT BE«-t kap — az nem kihagyás és nem zöld"). **A `verify:v3ref` viszont a
+  türelmen BELÜL végigfutott és ZÖLD** (a 25 zöld tartalmazza). A változásom a
+  `v3ref/external-checks/` fát nem érinti (csak `tools/` és `contracts/`).
+- **`verify:capability-witness` — PIROS, és MÉRVE ÖRÖKÖLT.** Három elavult rögzítést mér
+  (`v3-ui-slice` · `v3-vertical-slice` · `v3-user-facing-text`: „mért: present · rögzített: absent").
+  A tanúik — `playwright.config.mjs`, a `test:e2e` szkript, `v3app/httpSchema.mjs`,
+  `v3app/public/i18n/*` — **már az R104 fején (`9f342d5`) is a követett halmazban voltak**
+  (`git ls-tree` mérve), tehát a piros nem a mai változásból ered. A rögzítés a **V2 repó**
+  board-regiszterében áll (`tools/chatops-board/config/matrix-capabilities.json`), a javítása
+  V2-módosítás lenne — amit az R105 hatóköre kimondottan kizár. Ezért itt NEVEZETT, nyitott tétel, nem
+  elhallgatott piros (KUKA-122: az örökölt piros a saját ághoz mérve is mérés, nem besorolás).
+
+**KÉT söprés futott, és ezt is ki kell mondani:** az első a KUKA-250 javítása ELŐTT (27 verifier,
+1178 s — ugyanez a két nem-zöld tétel), a második UTÁNA, a végleges fán (a fenti). A két futás közti
+változást (`vs_verify_sweep.mjs` osztályozó, CR16/CR08, KUKA-250 plumbing) a `verify:child-runner`
+**81/81** és a `verify:kuka` **483/483** külön is mérte.
+
+**A hivatkozott eredmény-fájlok a hivatkozott commit alakjában állnak:** a söprés futása közben a
+`verify:external-checks` lánc a `v3ref/external-checks/results/*.json` fájlokat írta, de a lánc
+ELVÁGÓDOTT, tehát az állapotuk RÉSZLEGES — egy részleges futás nem írhatja felül a teljes mérés lapját
+(KUKA-206). Ezért visszaálltak, és ez MÉRVE van: `git diff --quiet` zöld.
+
 
 - **A termék UX-próbáit (`npm run test:e2e`, `proof:core-ux`) nem futtattam újra** — az R105
   kimondottan nem kéri („új teljes hosszú söprés vagy UX-újratesztelés nem automatikus követelmény"),
@@ -259,7 +292,29 @@ SOPRES_SZAKASZ
 
 ## 6/b. FOGYASZTÁS — EGY SOR, ÉS A KÉRT HÍVÁSSOR
 
-FOGYASZTAS_SZAKASZ
+Ablak „R106 F105-01" (2026-09-28T20:40:24Z → 22:21:04Z), munkamenet
+`217706c3-ecc2-5f7b-af35-558854c7df95`, lefedettség **teljes** (1 átirat, minden modell-válasz
+usage-dzsal): **178 hívás · 0 ügynök · cache-olvasás 57 429 432 · cache-írás 504 661 · friss bemenet
+356 · kimenet 189 598**; fő-szál kontextus **medián 348 238,5 · max 474 541**, 400 ezer fölött **53
+hívás**. Ébresztés-bontás: `user` 1× → 130 hívás · `hook` 2× → 42 hívás · `notification` 2× → 6 hívás.
+
+**A 200 ezres kísérleti jelző ÁTLÉPVE** (348 238,5) — ezért ez a kör itt zárul: minimális lezárás
+(javítás + bizonyíték + lap + leltár + hívássor), új munka nem indul, a folytatás új munkamenetben.
+
+**A KÉRT, TARTALOMMENTES HÍVÁSSOR ITT VAN, ugyanebben a csomagban** (az R105 kérése: „az ismert
+naplóból a meglévő leltárhoz tartalommentes hívássort ugyanabban a végső csomagban adj, ha
+hozzáférhető"):
+
+| fájl | mi van benne |
+|---|---|
+| `docs/70_PLANNING/V3_R106_FOGYASZTAS_LELTAR.json` | a gépi leltár (ablak · lefedettség · összegek · küszöbök) — tartalom nélkül |
+| `docs/70_PLANNING/V3_R106_FOGYASZTAS_HIVASSOR.json` | **178 hívás-sor**: sorszám · idő · szereplő · modell · négy számláló · kontextus · ébresztés — **üzenet, parancs és eszköz-kimenet NEM** |
+
+**AMIT EBBŐL NEM SZABAD LEVEZETNI:** költség, heti keretarány vagy megtakarítás — **az ismeretlen
+költség null, nem nulla**. A modell-hozzárendelés DEKLARÁCIÓ, a cache-TTL bontása nincs kitéve. Az
+ébresztés-bontás MÉRT tény, de abból, hogy a `hook` 2 ébresztése 42 hívást hozott, nem következik,
+hogy azok mind elkerülhetők voltak — a csomag közben kért commit-fegyelem is munka.
+
 
 ---
 
