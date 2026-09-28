@@ -10837,6 +10837,109 @@ pattern: 'sources: modelAccepted \\? \\w+\\.sources : local\\.sources',
       + '[F101-01-KAPU:INDITAS] kivételére a leállítás alatt 1/1 ÚJ GYERMEK indul (nevezett pgid-del); '
       + 'ha a jelölő hiányzik, az ellenpróba „nincs alkalmazható eset", NEM zöld (KUKA-093).',
   }),
+  Object.freeze({
+    id: 'KUKA-249',
+    date: '2026-09-28',
+    title: 'A JELENTÉS EGY ESEMÉNYHUROK-FORDULÓRA VOLT BÍZVA — makacs gyermek és ISMÉTELT jel mellett '
+      + 'a söprés TELJESEN NÉMÁN lépett ki (üres stdout ÉS stderr), és az ismételt jel a kényszer utáni '
+      + 'IGAZOLÁST is elvágta',
+    what: 'A KUKA-248 javítása után a megszakítás alatt új munka valóban nem indult — de a JELENTÉS '
+      + 'láthatósága egy `setImmediate`-nyi fordulón állt: a jelkezelő a rendezett lezárás után adott '
+      + 'EGY fordulót, hogy a folyamatban lévő hívások (`runGuarded` visszatérése → `runSequence` '
+      + 'következő döntése → a söprés kiírása) visszatekeredjenek. MAKACS gyermeknél ez a forduló '
+      + 'elveszett: a lezárási lánc GYORS (az ismételt jel lezárta a türelmet, a SIGKILL azonnal ment), '
+      + 'a gyermek `close` eseménye viszont LASSÚ (jel-átadás, SIGCHLD, a stdio EOF-ja) — tehát a '
+      + 'kilépés ért előbb. A TÉNYLEGES `tools/vs_verify_sweep.mjs` így üres stdout ÉS üres stderr '
+      + 'mellett lépett ki 143-mal: se a megszakítás ténye, se a jel, se a MEG NEM INDULT ellenőrző '
+      + 'neve, se a takarítás állapota nem látszott. MÁSODIK, ELLENTÉTES IRÁNYÚ HIBA ugyanott: a '
+      + '`waitGone` az ismételt jelre a KÉNYSZER UTÁNI IGAZOLÁST is rövidre zárta, ezért egy VALÓBAN '
+      + 'leállított fát `nem_igazolt`-nak minősített.',
+    why_wrong: 'AZ EGY FORDULÓ NEM CSATORNA, HANEM VERSENY. A jelentés akkor íródott ki, ha a gyermek '
+      + '`close` eseménye MEGELŐZTE a `setImmediate`-et — vagyis a láthatóságot időzítés döntötte el, '
+      + 'nem szabály (KUKA-127 alakja a SAJÁT jelentésünkön: ahol a kilépés versenyez a láthatósággal, '
+      + 'ott a zöld a versenyt igazolja). Az elvesztett versenyből NÉMASÁG lett, és a néma kimaradás a '
+      + 'legrosszabb fajta hiány (KUKA-012). A `console.error` mint csatorna is része a hibának: a '
+      + 'folyam-írás pufferelhet, és a `process.exit` a pufferre nem vár. A második hiba a türelem és a '
+      + 'BIZONYÍTÉK összemosása volt: az ismételt jel joggal zárja le a SZABÁLYOS leállítás türelmét, de '
+      + 'a kényszer utáni IGAZOLÁS nem türelem — aki azt vágja el, az hamis „nem igazolt"-at ír, ami '
+      + 'ugyanolyan hazugság, mint a hamis zöld (KUKA-093).',
+    replaced_by: 'ITR-01 (`tools/lib/vs_interrupt_report.mjs`): a MINIMÁLIS megszakítási jelentés SAJÁT, '
+      + 'BIZTOS csatornát kapott. (1) A söprés a TERVÉT a futás ELEJÉN bejelenti (`registerPlan`) és a '
+      + 'haladást jelöli (`markStarted` · `markSettled`), ezért a jel pillanatában a meg nem indult '
+      + 'ellenőrzők NEVE MÁR tudható — nem kell hozzá megvárni a visszatekeredést. (2) A kiírás SZINKRON '
+      + 'rendszer-hívással megy (`writeSync(2, …)`, VÉGES EAGAIN-újrapróbálással, tartalék a folyam), '
+      + 'tehát a kilépés nem tudja elnyelni. (3) A jelentést HÁROM út hívhatja — jel-út · SZÁRMAZTATOTT, '
+      + 'VÉGES határidő · kilépési védőháló —, és EGYSZER megy ki. (4) A takarítás szava a MÉRT lezárási '
+      + 'jelentésből jön: hiányzó jelentés és maradvány egyaránt NEVEZETTEN „NEM IGAZOLT", nulla csoport '
+      + 'pedig „nincs alkalmazható eset" — hamis zöld nincs.',
+    replacement: 'Mellé a türelem és a bizonyíték szétválasztása a futtatóban: a `waitGone` KÉT '
+      + 'várakozást ismer (`forceCuts: true` a SZABÁLYOS leállítás türelme — az ismételt jel lezárhatja; '
+      + '`forceCuts: false` a kényszer utáni IGAZOLÁS — azt nem). A határidő nem kitalált szám: a '
+      + 'lezárás SAJÁT, kimondott türelmeinek összege + egy nevezett ráhagyás (`REPORT_MARGIN_MS`), és '
+      + 'ismételt jelnél a szabályos türelem kiesik belőle — önkényes sleep és korlátlan várakozás nincs.',
+    decision: 'D-VS-3082',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R105 §F105-01 — a TÉNYLEGES söprés belépési pontján, '
+      + 'kéttételes szintetikus gyökéren, SIGTERM-et elnyelő gyermekkel és 150 ms-mal később ismételt '
+      + 'jellel, KÉT független futtatásban egyaránt üres stdout/stderr és 143-as kilépés. Ebben a körben '
+      + 'a saját reprodukcióm a javítás ELŐTT 2/2 ugyanezt adta.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_interrupt_report.mjs']),
+        pattern: 'export function emitInterruptReport',
+        why: 'a BIZTOS megszakítási jelentésnek EGY otthona van — nem szóródik szét a hívók között' }),
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_interrupt_report.mjs']),
+        pattern: 'off \\+= writeSync\\(fd, buf',
+        why: 'a kiírás SZINKRON rendszer-hívás, nem folyam-puffer: a kilépés nem tudja elnyelni' }),
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_interrupt_report.mjs']),
+        pattern: 'export function registerPlan',
+        why: 'a terv ELŐRE bejelentve — a meg nem indult tételek NEVE a jel pillanatában is tudható' }),
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_child_runner.mjs']),
+        pattern: 'emitInterruptReport\\(',
+        why: 'a futtató a KILÉPÉS ELŐTT kiírja a jelentést — a láthatóság nem a visszatekeredésen múlik' }),
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_child_runner.mjs']),
+        pattern: 'deadlineMsFor\\(liveGroups\\(\\)',
+        why: 'a lezárásra SZÁRMAZTATOTT, VÉGES határidő áll — nem kitalált szám és nem korlátlan várakozás' }),
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_child_runner.mjs']),
+        pattern: 'forceCuts: false',
+        why: 'a kényszer utáni IGAZOLÁS türelmét az ismételt jel NEM vágja el (az bizonyíték, nem türelem)' }),
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_sweep.mjs']),
+        pattern: 'registerPlan\\(runs\\.map',
+        why: 'a söprés a saját tervét jelenti be — a jelentés névsora nem a sorozat visszatérésén áll' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_interrupt_report.mjs']),
+        pattern: 'console\\.(error|log|warn)\\(',
+        reason: 'a BIZTOS jelentés folyam-pufferen: a `process.exit` a pufferre nem vár, tehát a jelentés elveszhet' }),
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_child_runner.mjs']),
+        pattern: 'waitGone\\(pgid, verifyMs\\)',
+        reason: 'a kényszer utáni IGAZOLÁS a türelem-elvágó ágon: az ismételt jel egy leállított fát is „nem igazolt"-nak minősít' }),
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_sweep.mjs']),
+        pattern: 'A SÖPRÉS MEGSZAKADT',
+        reason: 'a megszakítás jelentése a söprés TÖRZSÉBEN — makacs gyermeknél a vezérlés soha nem ér el odáig' }),
+    ]),
+    lesson: 'A LÁTHATÓSÁG CSATORNA KÉRDÉSE, NEM IDŐZÍTÉSÉ. Ha egy jelentés attól függ, hogy a '
+      + 'folyamatban lévő hívások „még visszatekerednek" a kilépés előtt, akkor nincs jelentés, csak '
+      + 'VERSENY — és a versenyt egyszer elveszítjük, némán. A megoldás nem hosszabb várakozás (az '
+      + 'önkényes sleep ugyanaz a hiba lassabban), hanem (a) az ADAT a jel pillanatában MÁR legyen kész '
+      + '— a tervet ELŐRE be kell jelenteni, nem utólag megkérdezni —, és (b) a KIÍRÁS szinkron '
+      + 'rendszer-hívással menjen, ne folyam-pufferen. ÉS A HÁROM FELELŐSSÉG KÜLÖN: a folyamatok '
+      + 'LEÁLLÍTÁSA, annak IGAZOLÁSA és a KIÍRÁS — aki összevonja őket, annak az egyik hibája a másik '
+      + 'kettőt is elnémítja. A türelem és a bizonyíték sem ugyanaz: a kényszer előtti várakozás '
+      + 'türelem (lezárható), a kényszer utáni IGAZOLÁS bizonyíték (nem lezárható) — különben a hamis '
+      + '„nem igazolt" is hazugság, csak a másik irányba.',
+    guard_note: 'gépi jel: `npm run verify:child-runner` CR16 — a TÉNYLEGES söprés belépési pontján '
+      + '(`tools/vs_verify_sweep.mjs --root <kéttételes szintetikus gyökér>`), 10 menet: szabályosan '
+      + 'késleltetve záró ÉS makacs gyermek/unoka × SIGTERM/SIGINT × egyszeri/ismételt jel, plusz a '
+      + 'KISZÖKÖTT csővezeték-tartó (a `close` esemény soha nem érkezik meg, tehát a RÉSZLETES jelentés '
+      + 'útja bizonyítottan járhatatlan — a jelentés mégis kimegy). Mérve menetenként: az első gyermek '
+      + 'elindult · a második ellenőrző NULLA alkalommal · a kimenet nem üres és tartalmazza a jelet ÉS '
+      + 'a `verify:b` nevet · a lezárás NEVEZETT szava · NINCS HAMIS ZÖLD (ahol „igazolt", ott MÉRVE '
+      + 'nulla túlélő) · kilépés 143/130 · véges idő. ELLENPRÓBÁVAL: (a) a [F105-01-BIZTOS-CSATORNA] '
+      + 'jelölt blokkok kivételére a jelentés MÉRHETŐEN eltűnik; (b) az R104-es alakon (a jelölt blokkok '
+      + 'kivéve ÉS a `forceCuts: false` visszaállítva `true`-ra) az elfogadási próba MIND A 3 menetben '
+      + 'ELBUKIK, és a TELJES NÉMASÁG is reprodukálódik — ha egy gépen a néma kilépés nem áll elő, az '
+      + 'NEVEZETT KIHAGYÁS, nem zöld (KUKA-093). Mellé az ITR-01 feloldóit HÍVVA: a négy '
+      + 'takarítás-válasz, a származtatott határidő és a három halmaz (lefutott · félbemaradt · nem indult).',
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

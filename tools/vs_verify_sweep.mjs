@@ -16,6 +16,11 @@ import { readFileSync } from 'node:fs';
 // jelentés MEGVÁRJA a rendezett lezárást, hogy a kimaradó tételek ne némán vesszenek el.
 import { runGuarded, PLATFORM_LIMIT, interruptState, shutdownSettled } from './lib/vs_child_runner.mjs';
 import { runSequence } from './lib/vs_sweep_sequence.mjs';
+// ITR-01 (F105-01, R105): a MEGSZAKÍTÁSI JELENTÉS BIZTOS csatornája. A söprés a TERVÉT ELŐRE
+// bejelenti, és a haladást jelöli — így a jel pillanatában a meg nem indult ellenőrzők NEVE MÁR
+// tudható, és nem kell hozzá megvárni, hogy a gyermek `close` eseménye visszatekeredjen. Az R104-es
+// alak épp ezen bukott el: makacs gyermek + ismételt jel mellett a söprés TELJESEN NÉMÁN lépett ki.
+import { registerPlan, markStarted, markSettled } from './lib/vs_interrupt_report.mjs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 // SWV-01 (OB-10, R16 §2): a verdikt a gyermek GÉPI deklarációjából dől el, nem részszövegből.
@@ -62,19 +67,27 @@ const PATIENCE_MS = 900000;
 // A TÜRELMI IDŐ A SZABÁLYOS LEÁLLÍTÁSNAK (F95-02): ennyit várunk a SIGTERM után, mielőtt a csoport
 // kényszerleállítást kap. Nem küszöb-emelés: a türelem VÉGES, és a végén IGAZOLT üresség áll.
 const GRACE_MS = 5000;
+// A VERDIKT SZAVA MAGYARUL — a megszakítási jelentés (ITR-01) ezt viszi. Négy külön szó, mert négy
+// külön teendő: a „nem fejeződött be" NEM piros, az env-kihagyás NEM zöld (OB-10 · KUKA-002).
+const SZO = Object.freeze({ green: 'zöld', failed: 'piros', unfinished: 'nem fejeződött be', env_skipped: 'env-kihagyás' });
 const t0 = Date.now();
 let pass = 0;
 const envSkips = [];
 const timedOut = [];
 const fails = [];
 const runs = [...scripts.map((s) => ({ s, cmd: `npm run -s ${s}` })), ...cheapParts];
+// A TERV ELŐRE BEJELENTVE (ITR-01, F105-01): a jel pillanatában ebből tudjuk MEGNEVEZNI, mi nem
+// indult el — a `runSequence` `notStarted` listája ehhez késő lenne (a gyermek `close` eseményén múlik).
+registerPlan(runs.map((r) => r.s));
 const leftovers = [];
 // A SORRENDET A KÖZÖS VEZÉRLŐ BIRTOKOLJA (SEQ-01, F98-01/A): igazolatlan lezárás után a KÖVETKEZŐ
 // ellenőrzés NEM indul el. A régi alak a maradványt csak FELJEGYEZTE, és futott tovább — a következő
 // mérés egy olyan gépen zajlott, amelyen az előző fa lezárása nem volt igazolt. A vezérlés azért él
 // külön fájlban, hogy a próba a TÉNYLEGES utat hívhassa, ne a másolatát (KUKA-207).
 const seq = await runSequence(runs, {
-  run: ({ cmd }) => runGuarded(cmd, { cwd: ROOT, timeoutMs: PATIENCE_MS, graceMs: GRACE_MS, verifyMs: GRACE_MS }),
+  // A JELÖLÉS A FUTTATÁS ELŐTT (ITR-01): innentől ez a tétel „elindult". Ha a jel most érkezik,
+  // a jelentés FÉLBEMARADTKÉNT nevezi meg — nem „lefutott"-ként és nem „nem indult"-ként (KUKA-002).
+  run: (item) => { markStarted(item.s); return runGuarded(item.cmd, { cwd: ROOT, timeoutMs: PATIENCE_MS, graceMs: GRACE_MS, verifyMs: GRACE_MS }); },
   onResult: ({ item, result: r, ms, cleanup_state: state, cleanup_why: why, cleanup_steps: steps }) => {
     const { s } = item;
     const exitCode = r.exitCode;
@@ -89,6 +102,9 @@ const seq = await runSequence(runs, {
     // vált — és a `verify:external-checks` SAJÁT, szabályos jelentése épp ezt a szót tartalmazza.
     // Hiba és kihagyás együtt nem lehet tiszta kihagyás (OB-10).
     const v = sweepVerdict({ exitCode, timedOut: killed, stdout: out });
+    // A TÉTEL LEZÁRULT, NEVEZETT SZÓVAL (ITR-01): a megszakítási jelentés ezt a szót viszi, nem
+    // számot — a „2 zöld"-féle összemosás pontosan az a hiba, amiről a KUKA-093 szól.
+    markSettled(s, `${SZO[v.verdict] || v.verdict}${state !== 'igazolt' ? ` · lezárás: ${state}` : ''}`);
     if (v.verdict === 'green') { pass += 1; return; }
     if (v.verdict === 'unfinished') { timedOut.push({ s, ms }); return; }
     if (v.verdict === 'env_skipped') { envSkips.push({ s, reason: v.reason }); return; }
@@ -138,12 +154,15 @@ if (leftovers.length) {
   for (const l of leftovers) console.error(`  · ${l.s}: ${(l.steps || []).join(' → ')}`);
 }
 // A KIMARADT FELADAT NEVET KAP, nem néma kihagyást és végképp nem zöldet (F98-01/A).
-if (notStarted.length) {
+//
+// MEGSZAKÍTÁSNÁL EZT A LISTÁT AZ ITR-01 ADJA, ÉS NEM ITT (F105-01): ez a blokk csak akkor íródik ki,
+// ha a sorozat vissza tudott tekeredni — makacs gyermek + ismételt jel mellett épp NEM tud, és a
+// régi alak ezért lépett ki NÉMÁN. A megszakítási jelentés BIZTOS csatornán megy (szinkron írás, a
+// kilépés előtt), tehát itt a megszakítási ág megkettőzése csak zaj lenne.
+if (notStarted.length && notStarted[0].kind !== 'megszakitas') {
   const elso = notStarted[0];
   const utana = elso.after ? `a(z) ${elso.after.s}` : 'az első ellenőrzés';
-  console.error(elso.kind === 'megszakitas'
-    ? `NEM INDULT EL (${notStarted.length}): a sorozat MEGSZAKÍTÁS (${elso.signal}) miatt állt meg ${utana} után`
-    : `NEM INDULT EL (${notStarted.length}): a sorozat ${utana} lezárásának hiánya miatt megállt`);
+  console.error(`NEM INDULT EL (${notStarted.length}): a sorozat ${utana} lezárásának hiánya miatt megállt`);
   for (const n of notStarted) console.error(`  · ${n.item.s} — ${n.reason}`);
 }
 if (PLATFORM_LIMIT) console.log(`NEVEZETT PLATFORM-KORLÁT: ${PLATFORM_LIMIT}`);
@@ -151,9 +170,11 @@ if (fails.length) console.error(`PIROS: ${fails.join(', ')}`);
 // MEGSZAKÍTÁS: a jelentés MÁR kiíródott (fent), és a KILÉPÉS OKA a jelé — nem „1-es hiba" és
 // végképp nem siker (F101-01/4). A rendezett lezárást MEGVÁRJUK: az ígéret a `process.exit`-tel
 // zárul, tehát ez a sor a lezárás után adja vissza a vezérlést a jelnek (véges lánc, CHR-01).
+// A MEGSZAKÍTÁS JELENTÉSE AZ ITR-01 BIZTOS CSATORNÁJÁN megy ki, a kilépés ELŐTT — nem innen, mert
+// ide makacs gyermeknél a vezérlés soha nem ér el (F105-01). Itt már csak a rendezett lezárást
+// várjuk meg, és a kilépés a jel oka (128 + jelszám) — nem „1-es hiba" és végképp nem siker.
 const megszakitas = interruptState();
 if (megszakitas) {
-  console.error(`\nA SÖPRÉS MEGSZAKADT (${megszakitas.signal}) — a fenti lista mondja meg, mi futott le és mi nem.`);
   const zaras = shutdownSettled();
   if (zaras) await zaras;
   process.exit(megszakitas.code);

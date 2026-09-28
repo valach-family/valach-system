@@ -21,7 +21,7 @@
 // A NYOM (REC-01 elve): minden általunk indított makacs folyamat PID-je fájlba kerül, MIELŐTT bármit
 // leállítanánk — így egy megszakadt próba után is AZONOSÍTHATÓ, mit hagytunk hátra, és a takarítás
 // KIZÁRÓLAG a felírt PID-eket bántja. Általános „minden node-ot leállítok" SOHA.
-import { writeFileSync, appendFileSync, readFileSync, existsSync, statSync, mkdirSync, rmSync } from 'node:fs';
+import { writeFileSync, appendFileSync, readFileSync, readdirSync, existsSync, statSync, mkdirSync, rmSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
@@ -30,6 +30,10 @@ import { runSequence, cleanupStateOf, NOT_STARTED_REASON, NOT_STARTED_INTERRUPTE
 // SHD-01 (F101-01, R103): a közös megszakítási állapot szerződése. A `beginInterrupt` NEM hívható
 // ebben a folyamatban (visszafordíthatatlan) — a szerződését külön folyamatban mérjük (CR15).
 import { INTERRUPT_EXIT_CODES } from './lib/vs_shutdown_state.mjs';
+// ITR-01 (F105-01, R105): a megszakítási jelentés BIZTOS csatornája. A feloldóit HÍVJUK (nem
+// forrásszöveget vizsgálunk), és a TÉNYLEGES söprést futtatjuk a jelentés mérésére — CR16.
+import { cleanupLine, deadlineMsFor, renderInterruptReport, registerPlan, markStarted, markSettled,
+  planProgress, REPORT_MARGIN_MS, INTERRUPT_REPORT_CONTRACT } from './lib/vs_interrupt_report.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TMP = join(ROOT, 'var', 'tmp');
@@ -507,8 +511,14 @@ writeFileSync(dir + '/seq.json', JSON.stringify({
     check('CR14', 'a kilépés NEM siker, és a jel oka igaz marad (SIGTERM→143 · SIGINT→130), VÉGES időn belül',
       eles.every((r) => r.code === INTERRUPT_EXIT_CODES[r.sig] && r.ms < 20000),
       eles.map((r) => `${r.sig}→${r.code} (${r.ms} ms)`).join(' · '));
-    check('CR14', 'a lezárás alatt a felvett lista MÖGÉ nem került új csoport, és a hibacsatorna néma',
-      eles.every((r) => r.err === ''), eles.map((r) => r.err).filter(Boolean).slice(0, 2));
+    // A HIBACSATORNA MOSTANTÓL NEM NÉMA, ÉS EZ A JAVÍTÁS (F105-01, R105 — a szöveg a valóságot
+    // követi, KUKA-050). Az R104-es alak itt üres hibacsatornát KÖVETELT meg; közben épp a NÉMASÁG
+    // volt a lelet: makacs gyermeknél a söprés jelentés nélkül lépett ki. Amit itt mérni kell: a
+    // csatornán a MEGSZAKÍTÁSI JELENTÉS áll (a jellel), és NEM váratlan kivétel vagy veremkiírás.
+    check('CR14', 'a lezárás alatt a hibacsatornán a MEGSZAKÍTÁSI JELENTÉS áll (a jellel), váratlan kivétel nélkül',
+      eles.every((r) => /MEGSZAKÍTÁSI JELENTÉS \(ITR-01\)/.test(r.err) && r.err.includes(`JEL: ${r.sig}`)
+        && !/\bat .*\.mjs:\d+|ERR_[A-Z_]+|UnhandledPromiseRejection/.test(r.err)),
+      eles.map((r) => `${r.sig}: jelentes=${/MEGSZAKÍTÁSI JELENTÉS/.test(r.err)}`).join(' · '));
 
     // ══ CR15 — A KÉT KAPU ELLENPRÓBÁJA + A FUTTATÓ SAJÁT HATÁRA ═══════════════════════════════════
     // A ZÖLD CSAK AKKOR JELENT VÉDELMET, HA A KAPU KIVÉTELÉRE MÉRHETŐEN ELBUKIK (KUKA-127). A
@@ -518,7 +528,10 @@ writeFileSync(dir + '/seq.json', JSON.stringify({
       const d = join(F101, `nogate_${nev}`);
       rmSync(d, { recursive: true, force: true }); mkdirSync(d, { recursive: true });
       let vagott = 0;
-      for (const f of ['vs_shutdown_state.mjs', 'vs_child_runner.mjs', 'vs_sweep_sequence.mjs']) {
+      // A LISTA A TELJES BEHÚZÁSI LÁNC (F105-01): a futtató az ITR-01-et is behúzza, és egy hiányzó
+      // fájl miatt a másolat IMPORT-HIBÁRA futna — abból „a második visszahívás nem futott le"
+      // látszana, vagyis a kapu nélküli alak is „zöldnek". Az ellenpróba akkor mér, ha FUT (KUKA-120).
+      for (const f of ['vs_shutdown_state.mjs', 'vs_child_runner.mjs', 'vs_sweep_sequence.mjs', 'vs_interrupt_report.mjs']) {
         let src = readFileSync(join(LIBDIR, f), 'utf8');
         const nyit = src.indexOf(`[${jelolo}]`);
         const zar = src.indexOf(`[/${jelolo}]`);
@@ -640,12 +653,362 @@ console.log(JSON.stringify({ elotte, elso_friss: a.fresh, kozben, ismetelt_friss
     check('CR15', 'SHD-01: a kilépési kód 128 + jelszám mind a három kezelt jelre (a SIGHUP is 129, nem 143)',
       Boolean(shd) && shd.terkep.SIGINT === 130 && shd.terkep.SIGTERM === 143 && shd.terkep.SIGHUP === 129,
       shd && shd.terkep);
+
+    // ══ CR16 — F105-01: A MEGSZAKÍTÁS JELENTÉSE A TÉNYLEGES SÖPRÉS BELÉPÉSI PONTJÁN (R105) ════════
+    //
+    // A LELET (chatgpt-v3, R105 §F105-01, két független futtatásban; a saját reprodukcióm 2/2):
+    // MAKACS gyermek + ISMÉTELT megszakító jel mellett a `tools/vs_verify_sweep.mjs` TELJESEN NÉMÁN
+    // lépett ki — üres stdout ÉS stderr, kilépés 143. Új munka nem indult (az R104 kapuja működik),
+    // de a jelentésből SEMMI nem látszott: se a jel, se a meg nem indult ellenőrző, se a lezárás.
+    //
+    // EZ A PRÓBA A TÉNYLEGES BELÉPÉSI PONTON MÉR (az R105 kikötése: „nem csupán a könyvtárak köré
+    // írt hívón"): a VALÓDI söprést indítja `--root` kapcsolóval, KÉTTÉTELES szintetikus gyökéren.
+    // Menetenként HAT dolgot mérünk, mert egyik sem elég önmagában:
+    //   (1) a helyzet VALÓDI volt — az első ellenőrző gyermeke tényleg elindult (üres alapsokaság
+    //       nem zöld, KUKA-093);
+    //   (2) új munka NEM indult — a második ellenőrző nulla alkalommal futott le;
+    //   (3) a kimenet NEM ÜRES, és GÉPILEG tartalmazza a jelet ÉS a meg nem indult tétel NEVÉT;
+    //   (4) a lezárás NEVEZETT szóval áll ott (igazolt VAGY nevezetten nem igazolt) — és ha
+    //       „igazolt", akkor MÉRVE nincs túlélő a saját fából (ez a hamis zöld tilalma);
+    //   (5) a kilépés a JEL oka (128 + jelszám), tehát nem siker és nem „1-es hiba";
+    //   (6) VÉGES idő.
+    const F105 = join(TMP, `${tag}_f105`);
+    mkdirSync(F105, { recursive: true });
+    const SWEEP_UT = join(ROOT, 'tools', 'vs_verify_sweep.mjs');
+    const LIB_FAJLOK = readdirSync(LIBDIR).filter((f) => f.endsWith('.mjs'));
+
+    /**
+     * A SZINTETIKUS GYÖKÉR — KÉT ellenőrzővel. Az első ÁLLÍTJA ELŐ a helyzetet, a második a tanú:
+     * ha ő lefutott, akkor a megszakítás alatt ÚJ MUNKA indult. Rövid, kéttételes fixture (R105).
+     */
+    const f105Gyoker = (dir) => {
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({
+        name: 'f105-szintetikus', version: '0.0.0', private: true,
+        scripts: { 'verify:a': 'exec node elso.mjs', 'verify:b': 'node masodik.mjs' },
+      }, null, 2));
+      // A HÁROM HELYZET EGY FÁJLBAN, a módot a környezet adja — így a gyökér minden menetben azonos.
+      writeFileSync(join(dir, 'elso.mjs'), `// A HELYZET ELŐÁLLÍTÓJA (F105-01 próbája).
+import { appendFileSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+const mode = process.env.F105_MODE || 'makacs';
+// A NYOM AZ INDÍTÁS ELŐTT ÍRÓDIK (REC-01): amit elindítunk, az AZONOSÍTHATÓ marad, ha a próba megszakad.
+const jegyez = (role, pid) => { try { appendFileSync(process.env.F105_NYOM, role + ' ' + pid + '\\n'); } catch { /* a fájl eltűnt */ } };
+jegyez('elso', process.pid);
+let zar = false;
+// SZABÁLYOS: a jelre KÉSLELTETVE (100 ms) zár. MAKACS és KISZÖKÖTT: elnyeli a jelet.
+const zarj = () => { if (mode !== 'szabalyos' || zar) return; zar = true; setTimeout(() => process.exit(0), 100); };
+process.on('SIGTERM', zarj); process.on('SIGINT', zarj); process.on('SIGHUP', zarj);
+if (mode === 'makacs') {
+  // UNOKA A SAJÁT CSOPORTUNKBAN: a csoport-jel eléri, tehát a lezárás IGAZOLHATÓ.
+  const u = spawn(process.execPath, ['unoka.mjs'], { stdio: 'ignore' });
+  jegyez('unoka', u.pid);
+}
+if (mode === 'kiszokott') {
+  // A SAJÁT CSOPORTJÁBÓL KILÉPŐ CSŐVEZETÉK-TARTÓ: a futtató gyermek-csövét NYITVA tartja, ezért a
+  // A close esemény SOHA nem érkezik meg — a RÉSZLETES jelentés útja bizonyítottan járhatatlan.
+  // (Ez a CHILD_RUNNER_CONTRACT.not_guaranteed NEVEZETT tétele, nem új hiány.)
+  const t = spawn(process.execPath, ['tarto.mjs'], { detached: true, stdio: ['ignore', 'inherit', 'inherit'] });
+  jegyez('tarto', t.pid);
+  t.unref();
+}
+writeFileSync(process.env.F105_JELZO, 'all');
+setInterval(() => {}, 50);
+`);
+      writeFileSync(join(dir, 'unoka.mjs'), `process.on('SIGTERM', () => {});
+process.on('SIGINT', () => {});
+setInterval(() => {}, 50);
+`);
+      writeFileSync(join(dir, 'tarto.mjs'), `process.on('SIGTERM', () => {});
+process.on('SIGINT', () => {});
+setInterval(() => {}, 200);
+`);
+      writeFileSync(join(dir, 'masodik.mjs'), `// A TANÚ: ha ez a fájl létrejön, a megszakítás alatt ÚJ MUNKA indult el.
+import { writeFileSync } from 'node:fs';
+writeFileSync(process.env.F105_MASODIK, 'masodik-futott');
+`);
+      return dir;
+    };
+
+    /** A FELÍRT PID-EKRE, ÉS CSAK AZOKRA (R95 §F95-02): általános keresés vagy pkill TILOS. */
+    const f105Takarit = (nyom) => {
+      if (!existsSync(nyom)) return;
+      for (const l of readFileSync(nyom, 'utf8').split('\n').filter(Boolean)) {
+        const pid = Number(l.split(' ')[1]);
+        if (Number.isInteger(pid)) { try { process.kill(pid, 'SIGKILL'); } catch { /* már nincs */ } }
+      }
+    };
+
+    /** EGY MENET a TÉNYLEGES söprésen: elindít · megvárja a helyzetet · jelet küld · MÉR. */
+    const f105Menet = async ({ toolsDir, mode, sig, ismetelt, cimke }) => {
+      const dir = join(F105, `menet_${cimke}`);
+      rmSync(dir, { recursive: true, force: true });
+      const gyoker = f105Gyoker(join(dir, 'gyoker'));
+      const nyom = join(dir, 'nyom.txt');
+      const jelzo = join(dir, 'elso_all.txt');
+      const masodik = join(dir, 'masodik_futott.txt');
+      writeFileSync(nyom, '');
+      const { spawn } = await import('node:child_process');
+      const p = spawn(process.execPath, [join(toolsDir, 'vs_verify_sweep.mjs'), '--root', gyoker], {
+        cwd: ROOT,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, F105_MODE: mode, F105_NYOM: nyom, F105_JELZO: jelzo, F105_MASODIK: masodik },
+      });
+      let out = ''; let err = '';
+      p.stdout.on('data', (d) => { out += d; });
+      p.stderr.on('data', (d) => { err += d; });
+      // A ZÁRÁS FIGYELŐJE A JELEK ELŐTT ÁLL FEL (KUKA-120: a próba ne a SAJÁT versenyét mérje).
+      // A `close` a stdio EOF-ját is várja — a KISZÖKÖTT tartó épp ezt tartja nyitva, ezért az
+      // `exit` után NEVEZETT, rövid ráhagyással zárunk; korlátlanul nem várunk (KUKA-121).
+      const zarva = new Promise((r) => {
+        let kesz = false;
+        const zar = (c, honnan) => { if (kesz) return; kesz = true; r({ code: c, honnan }); };
+        p.on('close', (c) => zar(c, 'close'));
+        p.on('exit', (c) => setTimeout(() => zar(c, 'exit'), 1200));
+        setTimeout(() => zar(null, 'idotullepes'), 40000);
+      });
+      const t0 = Date.now();
+      while (!existsSync(jelzo) && Date.now() - t0 < 20000) await sleep(20);
+      const elsoAll = existsSync(jelzo);
+      const tSig = Date.now();
+      p.kill(sig);
+      if (ismetelt) { await sleep(150); try { p.kill(sig); } catch { /* már kilépett */ } }
+      const z = await zarva;
+      const ms = Date.now() - tSig;
+      await sleep(250);
+      const pidek = readFileSync(nyom, 'utf8').split('\n').filter(Boolean)
+        .map((l) => ({ role: l.split(' ')[0], pid: Number(l.split(' ')[1]) })).filter((x) => Number.isInteger(x.pid));
+      // A TÚLÉLŐK MÉRÉSE. A KISZÖKÖTT TARTÓ KIVÉTELE NEVEZETT, nem elhallgatott: a saját
+      // folyamatcsoportjából ÖNÁLLÓAN kilépő leszármazottat a csoport-jel nem éri el, és ezt a
+      // futtató szerződése (`not_guaranteed`) kimondja. A többi (első gyermek, unoka) a SAJÁT fánk.
+      const tulelok = pidek.filter((x) => x.role !== 'tarto' && alive(x.pid));
+      const kimenet = `${out}${err}`;
+      return {
+        cimke, mode, sig, ismetelt, elsoAll, masodikFutott: existsSync(masodik),
+        code: z.code, honnan: z.honnan, ms, out, err, kimenet, pidek, tulelok, nyom,
+        teljesenNema: out.trim() === '' && err.trim() === '',
+        jelentes: /MEGSZAKÍTÁSI JELENTÉS \(ITR-01\)/.test(kimenet),
+        jelNevezve: kimenet.includes(`JEL: ${sig}`),
+        masodikNevezve: /NEM INDULT \(1\)/.test(kimenet) && /verify:b/.test(kimenet),
+        reszletes: /SÖPRÉS \(/.test(out),
+        lezarasIgazolt: /LEZÁRÁS: IGAZOLT/.test(kimenet),
+        lezarasNevezve: /LEZÁRÁS: (IGAZOLT|NEM IGAZOLT|nincs alkalmazható eset)/.test(kimenet),
+      };
+    };
+
+    // ── A MÁTRIX: KÉT gyermek-fajta × KÉT jel × egyszeri/ismételt, plusz a KISZÖKÖTT tartó ────────
+    const f105Terv = [];
+    for (const mode of ['szabalyos', 'makacs']) {
+      for (const sig of ['SIGTERM', 'SIGINT']) {
+        for (const ismetelt of [false, true]) {
+          f105Terv.push({ mode, sig, ismetelt, cimke: `${mode}_${sig}_${ismetelt ? 'ismetelt' : 'egyszeri'}` });
+        }
+      }
+    }
+    f105Terv.push({ mode: 'kiszokott', sig: 'SIGTERM', ismetelt: true, cimke: 'kiszokott_SIGTERM_ismetelt' });
+    f105Terv.push({ mode: 'kiszokott', sig: 'SIGINT', ismetelt: false, cimke: 'kiszokott_SIGINT_egyszeri' });
+
+    const eles105 = [];
+    for (const m of f105Terv) {
+      const r = await f105Menet({ toolsDir: join(ROOT, 'tools'), ...m });
+      eles105.push(r);
+      // A TAKARÍTÁS AZONNAL, MENETENKÉNT: egy életben hagyott fa a KÖVETKEZŐ menet gépét terhelné,
+      // és az időzítését átírná — ez a KUKA-246 leckéje a saját próbapadunkra fordítva.
+      f105Takarit(r.nyom);
+    }
+
+    check('CR16', 'a helyzet VALÓDI mind a 10 menetben: az első ellenőrző gyermeke elindult (üres alapsokaság nem zöld)',
+      eles105.length === 10 && eles105.every((r) => r.elsoAll),
+      eles105.map((r) => `${r.cimke}:${r.elsoAll}`).join(' '));
+    check('CR16', 'MEGSZAKÍTÁS után a MÁSODIK ellenőrző NULLA alkalommal indul el a TÉNYLEGES söprésen',
+      eles105.every((r) => r.masodikFutott === false),
+      eles105.filter((r) => r.masodikFutott).map((r) => r.cimke).join(' ') || '10/10: nem indult el');
+    check('CR16', 'A KIMENET SOHA NEM ÜRES: a megszakítási jelentés MIND A 10 menetben megvan (ez az F105-01 javítása)',
+      eles105.every((r) => !r.teljesenNema && r.jelentes),
+      eles105.map((r) => `${r.cimke}: nema=${r.teljesenNema} jelentes=${r.jelentes}`).join(' · '));
+    check('CR16', 'a jelentés MEGNEVEZI a megszakítás jelét — a VALÓDI jelet (SIGTERM és SIGINT, egyszeri és ismételt)',
+      eles105.every((r) => r.jelNevezve),
+      eles105.filter((r) => !r.jelNevezve).map((r) => r.cimke).join(' ') || '10/10: a jel nevezve');
+    check('CR16', 'a jelentés MEGNEVEZI a MEG NEM INDULT ellenőrzőt (`verify:b`) — nem néma kihagyás és nem zöld',
+      eles105.every((r) => r.masodikNevezve),
+      eles105.filter((r) => !r.masodikNevezve).map((r) => r.cimke).join(' ') || '10/10: verify:b megnevezve');
+    check('CR16', 'a lezárás NEVEZETT szóval áll a jelentésben (igazolt VAGY nevezetten nem igazolt — harmadik nincs)',
+      eles105.every((r) => r.lezarasNevezve),
+      eles105.map((r) => `${r.cimke}:${(/LEZÁRÁS: [^\n]*/.exec(r.kimenet) || ['—'])[0].slice(0, 40)}`).join(' · '));
+    check('CR16', 'NINCS HAMIS ZÖLD: ahol a jelentés IGAZOLT lezárást ír, ott MÉRVE nincs túlélő a saját fából',
+      eles105.every((r) => !r.lezarasIgazolt || r.tulelok.length === 0),
+      eles105.map((r) => `${r.cimke}: igazolt=${r.lezarasIgazolt} tulelo=${r.tulelok.length}`).join(' · '));
+    check('CR16', 'a kilépés a JEL oka (SIGTERM→143 · SIGINT→130) — nem siker és nem „1-es hiba"',
+      eles105.every((r) => r.code === INTERRUPT_EXIT_CODES[r.sig]),
+      eles105.map((r) => `${r.cimke}→${r.code}`).join(' · '));
+    check('CR16', 'a kilépés VÉGES: minden menet a jel után 20 másodpercen belül lezárult',
+      eles105.every((r) => Number.isFinite(r.ms) && r.ms < 20000),
+      eles105.map((r) => `${r.cimke}: ${r.ms} ms`).join(' · '));
+
+    // ── A DÖNTŐ MENET: ahol a RÉSZLETES út BIZONYÍTOTTAN járhatatlan, mégis van jelentés ──────────
+    // Itt nem versenyről van szó: a kiszökött tartó a gyermek-csövet nyitva tartja, tehát a
+    // `close` esemény soha nem érkezik meg, a `runGuarded` nem tér vissza, a söprés összegző sora
+    // MEG SEM SZÜLETHET. Ha ilyenkor is megvan a jel, a kimaradó tétel NEVE és a lezárás szava,
+    // akkor a láthatóság NEM a visszatekeredésen áll — és épp ez az F105-01 kérése.
+    const kisz = eles105.filter((r) => r.mode === 'kiszokott');
+    check('CR16', 'KISZÖKÖTT csővezeték-tartó: a RÉSZLETES söprés-jelentés MÉRHETŐEN elmarad, a MEGSZAKÍTÁSI JELENTÉS mégis kimegy',
+      kisz.length === 2 && kisz.every((r) => r.reszletes === false && r.jelentes && r.jelNevezve && r.masodikNevezve),
+      kisz.map((r) => `${r.cimke}: reszletes=${r.reszletes} jelentes=${r.jelentes} verify_b=${r.masodikNevezve}`).join(' · '));
+    check('CR16', 'a FÉLBEMARADT és a MEG NEM INDULT tétel KÜLÖN szóval áll (a kettő nem ugyanaz — KUKA-002)',
+      kisz.every((r) => /FÉLBEMARADT \(1\): verify:a/.test(r.kimenet)),
+      kisz.map((r) => (/FÉLBEMARADT[^\n]*/.exec(r.kimenet) || ['—'])[0]).join(' · '));
+
+    // ── AZ ELLENPRÓBÁK: a zöld csak akkor jelent védelmet, ha a védelem KIVÉTELÉRE elbukik ────────
+    /**
+     * A MUTÁNS FORRÁSFA — NEVEZETT, MINIMÁLIS mutációkkal (KUKA-127). Kettő van, és külön is
+     * kérhető: (a) a BIZTOS CSATORNA kivétele (a jelölt blokkok törlése), (b) az R104-es
+     * IGAZOLÁS-TÜRELEM visszaállítása (`forceCuts: false` → `true`, vagyis az ismételt jel a
+     * kényszer utáni IGAZOLÁST is elvágja). Ha a mutáció célja nincs meg a forrásban, az ellenpróba
+     * „nincs alkalmazható eset", NEM zöld (KUKA-093 · KUKA-051).
+     */
+    const f105Mutans = (nev, { csatornaNelkul = false, regiIgazolas = false }) => {
+      // A MUTÁNS FA A REPÓ SZERKEZETÉT TÜKRÖZI, ÉS ÖNÁLLÓ. Az első alakom csak a `lib/`-et és a
+      // söprést másolta — a `vs_sweep_reuse.mjs` viszont `../../v3ref/bundleDigest.mjs`-t húz be,
+      // tehát a másolat IMPORT-HIBÁRA futott, és az ellenpróba nem a védelmet mérte, hanem a saját
+      // hiányos fixtúráját (KUKA-120). A próba ezt MEGFOGTA, mert a menet külön követeli, hogy az
+      // első gyermek TÉNYLEG elinduljon (`elsoAll`) — üres alapsokaságon nincs zöld (KUKA-093).
+      const d = join(F105, `mutans_${nev}`);
+      rmSync(d, { recursive: true, force: true });
+      mkdirSync(join(d, 'tools', 'lib'), { recursive: true });
+      mkdirSync(join(d, 'v3ref'), { recursive: true });
+      writeFileSync(join(d, 'v3ref', 'bundleDigest.mjs'), readFileSync(join(ROOT, 'v3ref', 'bundleDigest.mjs'), 'utf8'));
+      let vagott = 0; let cserelt = 0;
+      for (const f of LIB_FAJLOK) {
+        let src = readFileSync(join(LIBDIR, f), 'utf8');
+        if (csatornaNelkul) {
+          for (;;) {
+            const nyit = src.indexOf('[F105-01-BIZTOS-CSATORNA]');
+            const zar = src.indexOf('[/F105-01-BIZTOS-CSATORNA]');
+            if (!(nyit >= 0 && zar > nyit)) break;
+            const sorEleje = src.lastIndexOf('\n', nyit) + 1;
+            const sorVege = src.indexOf('\n', zar) + 1;
+            src = src.slice(0, sorEleje) + src.slice(sorVege);
+            vagott += 1;
+          }
+        }
+        if (regiIgazolas) {
+          const db = src.split('{ forceCuts: false }').length - 1;
+          if (db) { src = src.split('{ forceCuts: false }').join('{ forceCuts: true }'); cserelt += db; }
+        }
+        writeFileSync(join(d, 'tools', 'lib', f), src);
+      }
+      writeFileSync(join(d, 'tools', 'vs_verify_sweep.mjs'), readFileSync(SWEEP_UT, 'utf8'));
+      return { dir: join(d, 'tools'), vagott, cserelt };
+    };
+
+    // (a) A BIZTOS CSATORNA KIVÉVE — determinisztikus: a jelentés-blokk MÉRHETŐEN eltűnik.
+    const mutA = f105Mutans('csatorna_nelkul', { csatornaNelkul: true });
+    if (mutA.vagott < 1) {
+      skip('CR16', 'a BIZTOS CSATORNA ellenpróbája',
+        'a [F105-01-BIZTOS-CSATORNA] jelölő nem található — NINCS ALKALMAZHATÓ ESET (nem zöld)');
+    } else {
+      const ellenA = [];
+      for (let i = 1; i <= 2; i += 1) {
+        const r = await f105Menet({ toolsDir: mutA.dir, mode: 'makacs', sig: 'SIGTERM', ismetelt: true, cimke: `ellenA_${i}` });
+        ellenA.push(r); f105Takarit(r.nyom);
+      }
+      check('CR16', `ELLENPRÓBA (a): a BIZTOS CSATORNA kivételére a megszakítási jelentés MÉRHETŐEN eltűnik (${mutA.vagott} jelölt blokk kivéve)`,
+        ellenA.every((r) => r.elsoAll && r.jelentes === false && r.masodikFutott === false),
+        ellenA.map((r) => `elso=${r.elsoAll} jelentes=${r.jelentes} masodik=${r.masodikFutott}`).join(' · '));
+    }
+
+    // (b) AZ R104-ES ALAK — a lelet eredeti helyzete: az ismételtjeles próbának EL KELL BUKNIA.
+    const mutB = f105Mutans('r104_alak', { csatornaNelkul: true, regiIgazolas: true });
+    if (mutB.vagott < 1 || mutB.cserelt < 1) {
+      skip('CR16', 'az R104-es alak ellenpróbája',
+        `a mutáció célja nem teljes (jelölt blokk: ${mutB.vagott} · igazolás-türelem: ${mutB.cserelt}) — NINCS ALKALMAZHATÓ ESET (nem zöld)`);
+    } else {
+      const ellenB = [];
+      for (let i = 1; i <= 3; i += 1) {
+        const r = await f105Menet({ toolsDir: mutB.dir, mode: 'makacs', sig: 'SIGTERM', ismetelt: true, cimke: `ellenB_${i}` });
+        ellenB.push(r); f105Takarit(r.nyom);
+      }
+      const nemak = ellenB.filter((r) => r.teljesenNema).length;
+      check('CR16', 'ELLENPRÓBA (b): az R104-ES ALAKON az ismételtjeles elfogadási próba MIND A 3 menetben ELBUKIK',
+        ellenB.every((r) => r.elsoAll && !(r.jelentes && r.masodikNevezve)),
+        ellenB.map((r) => `elso=${r.elsoAll} jelentes=${r.jelentes} verify_b=${r.masodikNevezve} nema=${r.teljesenNema}`).join(' · '));
+      if (nemak >= 1) {
+        check('CR16', `ELLENPRÓBA (b): az R104-es alakon a TELJES NÉMASÁG is reprodukálódott (${nemak}/3 menet: üres stdout ÉS stderr)`,
+          true, ellenB.map((r) => `${r.cimke}: out=${r.out.length} err=${r.err.length} kilepes=${r.code}`).join(' · '));
+      } else {
+        // A NÉMASÁG VERSENY-TERMÉK, tehát gépenként eltérhet — ilyenkor NEVEZETT kihagyás áll itt,
+        // nem zöld (KUKA-093). A determinisztikus (a) ellenpróba viszont MÉRT, és az a védelem jele.
+        skip('CR16', 'az R104-es alak TELJES NÉMASÁGA',
+          `ezen a gépen 0/3 menetben állt elő az üres kimenet (a néma kilépés versenyből ered) — `
+          + `az (a) ellenpróba és a fenti bukás viszont MÉRT; kilépések: ${ellenB.map((r) => r.code).join(',')}`);
+      }
+    }
+
+    // ── ITR-01 SZERZŐDÉSE, A FELOLDÓT HÍVVA (nem forrásszöveg-vizsgálat) ─────────────────────────
+    check('CR16', 'ITR-01: a NEM MÉRT lezárás NEVEZETTEN „nem igazolt" — a hiányzó jelentésből nem lesz zöld',
+      /^LEZÁRÁS: NEM IGAZOLT/.test(cleanupLine(null))
+      && /nincs alkalmazható eset/.test(cleanupLine({ groups: [] }))
+      && /^LEZÁRÁS: NEM IGAZOLT/.test(cleanupLine({ groups: [{ pgid: 9, verdict: 'nem_igazolt', leftovers: true }] }))
+      && /^LEZÁRÁS: NEM IGAZOLT/.test(cleanupLine({ groups: [{ pgid: 9, verdict: 'nem_mert', leftovers: null }] }))
+      && /^LEZÁRÁS: IGAZOLT/.test(cleanupLine({ groups: [{ pgid: 9, verdict: 'kenyszerrel', leftovers: false }] })),
+      { nincs_jelentes: cleanupLine(null).slice(0, 48), nulla_csoport: cleanupLine({ groups: [] }).slice(0, 48) });
+    check('CR16', 'ITR-01: a határidő SZÁRMAZTATOTT (a lezárás saját türelmeiből), és az ismételt jel CSAK a szabályos türelmet veszi ki',
+      deadlineMsFor([{ graceMs: 5000, verifyMs: 5000 }]) === 10000 + REPORT_MARGIN_MS
+      && deadlineMsFor([{ graceMs: 5000, verifyMs: 5000 }], { forced: true }) === 5000 + REPORT_MARGIN_MS
+      && deadlineMsFor([]) === REPORT_MARGIN_MS
+      && deadlineMsFor([{ graceMs: 1000, verifyMs: 500 }, { graceMs: 1000, verifyMs: 500 }]) === 3000 + REPORT_MARGIN_MS,
+      { egy_csoport: deadlineMsFor([{ graceMs: 5000, verifyMs: 5000 }]), ismetelt: deadlineMsFor([{ graceMs: 5000, verifyMs: 5000 }], { forced: true }), rahagyas: REPORT_MARGIN_MS });
+    {
+      // A JELENTÉS SZÖVEGE A BEJELENTETT TERVBŐL SZÜLETIK — és a három halmaz KÜLÖN marad.
+      registerPlan(['x:egy', 'x:ketto', 'x:harom']);
+      markSettled('x:egy', 'zöld');
+      markStarted('x:ketto');
+      const p = planProgress();
+      const szoveg = renderInterruptReport({ state: { signal: 'SIGTERM', code: 143 }, shutdown: null, forced: true });
+      check('CR16', 'ITR-01: a jelentés a bejelentett tervből MEGNEVEZI a meg nem indult tételt, a félbemaradtat külön, és a lezárást nem nevezi igazoltnak',
+        p.notStarted.join(',') === 'x:harom' && p.inFlight.join(',') === 'x:ketto'
+        && /NEM INDULT \(1\): x:harom/.test(szoveg) && /FÉLBEMARADT \(1\): x:ketto/.test(szoveg)
+        && /LEFUTOTT \(1\/3\): x:egy \[zöld\]/.test(szoveg) && /ISMÉTELT JEL: igen/.test(szoveg)
+        && /LEZÁRÁS: NEM IGAZOLT/.test(szoveg) && !/A FUTÁS SIKERES/.test(szoveg),
+        { nem_indult: p.notStarted, felbemaradt: p.inFlight });
+      check('CR16', 'ITR-01: a szerződés KIMONDJA a határait (a részletes jelentés nem garantált · terv nélkül nincs névsor)',
+        INTERRUPT_REPORT_CONTRACT.id === 'ITR-01'
+        && INTERRUPT_REPORT_CONTRACT.states_limits.some((x) => /RÉSZLETES.*NEM garantált/.test(x))
+        && INTERRUPT_REPORT_CONTRACT.states_limits.some((x) => /bejelentett feladatlista nélkül/.test(x))
+        && /korlátlan várakozás/.test(INTERRUPT_REPORT_CONTRACT.never),
+        { hatarok: INTERRUPT_REPORT_CONTRACT.states_limits.length });
+    }
+    check('CR16', 'BEKÖTÉS: a söprés a TERVÉT előre bejelenti, és a megszakítási jelentést a FUTTATÓ adja (nem a söprés törzse)',
+      /registerPlan\(runs\.map/.test(readFileSync(SWEEP_UT, 'utf8'))
+      && /markStarted\(item\.s\)/.test(readFileSync(SWEEP_UT, 'utf8'))
+      && /emitInterruptReport\(/.test(readFileSync(join(LIBDIR, 'vs_child_runner.mjs'), 'utf8')),
+      { sweep: SWEEP_UT });
   }
 } finally {
   // A PRÓBA SAJÁT SZEMETE: a felírt PID-ek, majd a fájlok. A nyomot CSAK sikeres takarítás után visszük el.
   cleanupTraced();
   // Az F101-01 próbájának SAJÁT munkakönyvtára (fák, kapu nélküli másolatok, menet-naplók).
   try { rmSync(join(TMP, `${tag}_f101`), { recursive: true, force: true }); } catch { /* marad, és ez a nyom */ }
+  // Az F105-01 próbájának SAJÁT munkakönyvtára (szintetikus gyökerek, mutáns forrásfák, nyom-fájlok).
+  // A NYOMOKAT ELŐBB a benne felírt PID-ekre takarítjuk (REC-01: a kapocs csak azután vágható el,
+  // hogy az azonosító megvolt) — a KISZÖKÖTT tartó a saját csoportjából lépett ki, ezért csak innen érhető el.
+  try {
+    const f105 = join(TMP, `${tag}_f105`);
+    if (existsSync(f105)) {
+      const jaras = (d) => { for (const e of readdirSync(d, { withFileTypes: true })) {
+        const ut = join(d, e.name);
+        if (e.isDirectory()) jaras(ut);
+        else if (e.name === 'nyom.txt') {
+          for (const l of readFileSync(ut, 'utf8').split('\n').filter(Boolean)) {
+            const pid = Number(l.split(' ')[1]);
+            if (Number.isInteger(pid)) { try { process.kill(pid, 'SIGKILL'); } catch { /* már nincs */ } }
+          }
+        }
+      } };
+      jaras(f105);
+      rmSync(f105, { recursive: true, force: true });
+    }
+  } catch { /* marad, és ez a nyom */ }
   for (const f of [SCEN, HB, TRACE, INTERRUPT, join(TMP, `${tag}_nyom_regi.txt`), join(TMP, `${tag}_eletjel_regi.txt`),
     join(TMP, `${tag}_nyom_megszakitas.txt`), join(TMP, `${tag}_eletjel_megszakitas.txt`),
     join(TMP, `${tag}_szabalyos.mjs`), join(TMP, `${tag}_szabalyos_kesz.txt`), join(TMP, `${tag}_futtato_szabalyos.mjs`),

@@ -16,6 +16,69 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3082 — A MEGSZAKÍTÁS JELENTÉSE BIZTOS CSATORNÁN MEGY, NEM EGY ESEMÉNYHUROK-FORDULÓN (ITR-01)
+
+> **Hatály:** V3 (`valach-system`) — `tools/lib/vs_interrupt_report.mjs` (új), `tools/lib/vs_child_runner.mjs`,
+> `tools/vs_verify_sweep.mjs`, `tools/vs_verify_child_runner.mjs` (CR16 + a CR14 egy állításának
+> valósághoz igazítása). Nincs V2-módosítás, merge, telepítés, migráció, új üzleti modul,
+> core/CMD/PR-zárás; a termék felülete és magja nem változott.
+
+**A parancs:** `CMD-VS-300-002-002 R105 — ANALYSIS` (chatgpt-v3) §F105-01.
+
+**A lelet.** A D-VS-3081 (KUKA-248) után a megszakítás alatt új munka valóban nem indult — a külső
+ellenőrző fél ezt a vizsgált POSIX-határon elfogadta. De a JELENTÉS láthatósága egy `setImmediate`-nyi
+fordulón állt: a jelkezelő a rendezett lezárás után adott EGY fordulót, hogy a folyamatban lévő hívások
+(`runGuarded` visszatérése → `runSequence` következő döntése → a söprés kiírása) visszatekeredjenek.
+MAKACS gyermeknél ez elveszett: a lezárási lánc GYORS (az ismételt jel lezárta a türelmet, a SIGKILL
+azonnal ment), a gyermek `close` eseménye viszont LASSÚ (jel-átadás, SIGCHLD, a stdio EOF-ja) — tehát a
+kilépés ért előbb. A TÉNYLEGES `tools/vs_verify_sweep.mjs` így **üres stdout ÉS üres stderr mellett
+lépett ki 143-mal**: se a megszakítás ténye, se a jel, se a MEG NEM INDULT ellenőrző neve, se a
+takarítás állapota nem látszott. **Ugyanott egy MÁSODIK, ellentétes irányú hiba, amit a saját mérésem
+tett hozzá:** a `waitGone` az ismételt jelre a KÉNYSZER UTÁNI IGAZOLÁST is rövidre zárta, ezért egy
+VALÓBAN leállított fát `nem_igazolt`-nak minősített — a hamis „nem igazolt" ugyanolyan hazugság, mint a
+hamis zöld.
+
+**A döntés — négy kimondott szabály:**
+
+1. **A LÁTHATÓSÁG CSATORNA, NEM IDŐZÍTÉS** (ITR-01, `tools/lib/vs_interrupt_report.mjs`). A minimális
+   megszakítási jelentés SZINKRON rendszer-hívással megy ki (`writeSync(2, …)`, VÉGES
+   EAGAIN-újrapróbálással; tartalék a folyam, és a HASZNÁLT csatorna mérhető) — a `process.exit` nem
+   tudja elnyelni. `console.error` erre a célra tilos: a folyam-írás pufferelhet.
+2. **AZ ADAT A JEL PILLANATÁBAN MÁR KÉSZ.** A söprés a TERVÉT a futás ELEJÉN bejelenti
+   (`registerPlan`) és a haladást jelöli (`markStarted` · `markSettled`), ezért a meg nem indult
+   ellenőrzők NEVE nem a sorozat visszatérésén múlik. Három halmaz KÜLÖN marad: lefutott ·
+   FÉLBEMARADT (a jel pillanatában futott) · NEM INDULT — a kettő-három összemosása a KUKA-002.
+3. **HÁROM FELELŐSSÉG, HÁROM KÜLÖN HELY:** a folyamatok LEÁLLÍTÁSA (CHR-01) · annak IGAZOLÁSA
+   (CHR-01 `cleanup`) · a KIÍRÁS (ITR-01). A jelentés a takarítás szavát a MÉRT lezárási jelentésből
+   veszi: hiányzó jelentés és maradvány egyaránt NEVEZETTEN „NEM IGAZOLT", nulla folyamatcsoport pedig
+   „nincs alkalmazható eset" (KUKA-093) — hamis zöld nincs. A jelentést három út hívhatja (jel-út ·
+   határidő · kilépési védőháló), és EGYSZER megy ki.
+4. **A TÜRELEM ÉS A BIZONYÍTÉK NEM UGYANAZ.** Az ismételt jel a SZABÁLYOS leállítás türelmét zárja le
+   (`forceCuts: true`), a KÉNYSZER UTÁNI IGAZOLÁST nem (`forceCuts: false`). A lezárásra
+   SZÁRMAZTATOTT, VÉGES határidő áll — a lezárás saját, kimondott türelmeinek összege + egy nevezett
+   ráhagyás (`REPORT_MARGIN_MS = 250`), ismételt jelnél a szabályos türelem kiesik belőle. Önkényes
+   sleep és korlátlan várakozás nincs (az R105 kikötése).
+
+**A bizonyíték.** `npm run verify:child-runner` **80/80 PASS**, nevezett kihagyás nélkül. A CR16 a
+TÉNYLEGES söprés belépési pontján mér (`tools/vs_verify_sweep.mjs --root <kéttételes szintetikus
+gyökér>`), 10 menetben: szabályosan késleltetve záró ÉS makacs gyermek/unoka × SIGTERM/SIGINT ×
+egyszeri/ismételt jel, plusz a **KISZÖKÖTT csővezeték-tartó** — ott a gyermek `close` eseménye SOHA nem
+érkezik meg, tehát a RÉSZLETES jelentés útja BIZONYÍTOTTAN járhatatlan, és a jelentés mégis kimegy.
+Menetenként mérve: az első gyermek elindult (nem üres alapsokaság) · a második ellenőrző NULLA
+alkalommal indult el · a kimenet nem üres, és tartalmazza a jelet ÉS a `verify:b` nevet · a lezárás
+NEVEZETT szava · NINCS HAMIS ZÖLD (ahol „igazolt", ott MÉRVE nulla túlélő a saját fából) · kilépés
+143/130 · véges idő (1337–6508 ms). **ELLENPRÓBÁVAL (KUKA-127):** (a) a `[F105-01-BIZTOS-CSATORNA]`
+jelölt blokkok kivételére a jelentés MÉRHETŐEN eltűnik (2/2); (b) az **R104-es alakon** (a blokkok
+kivéve ÉS a `forceCuts: false` visszaállítva `true`-ra) az elfogadási próba MIND A 3 menetben ELBUKIK,
+és a TELJES NÉMASÁG is reprodukálódott — 3/3 menet üres stdout ÉS stderr, kilépés 143. **Amit NEM
+mértünk, kimondva:** a RÉSZLETES söprés-jelentés kiírása továbbra sem garantált (azt a rendes út adja,
+ha a `close` esemény a kilépés előtt megérkezik) · bejelentett feladatlista nélkül (közvetlen
+`runGuarded`-hívás) a meg nem indult tételeket nem tudjuk megnevezni, és a jelentés ezt KIMONDJA · a
+futtatóra küldött SIGKILL és az operációs rendszer kiesése változatlanul nem garantált · a Windows-ág
+nevezett platform-korlát.
+
+---
+
 ## D-VS-3081 — A MEGSZAKÍTÁS KÖZÖS, NEVEZETT ÁLLAPOT, ÉS A LEÁLLÍTÁS ALATT ÚJ MUNKA NEM INDUL (SHD-01)
 
 > **Hatály:** V3 (`valach-system`) — `tools/lib/vs_shutdown_state.mjs` (új), `tools/lib/vs_child_runner.mjs`,

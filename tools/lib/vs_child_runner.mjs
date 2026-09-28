@@ -27,6 +27,11 @@ import { spawn } from 'node:child_process';
 // kapcsolót — ugyanazt kérdezi, amit a sorozat-vezérlő (R101 kikötése: nem egymástól független
 // kapcsolók). A `spawn` ELŐTTI kérdés ezen az állapoton áll.
 import { beginInterrupt, interruptState, isInterrupted, forceRequested, HANDLED_SIGNALS } from './vs_shutdown_state.mjs';
+// ITR-01 (F105-01, R105): a MEGSZAKÍTÁSI JELENTÉS BIZTOS csatornája. A futtató nem maga formáz és
+// nem `console.error`-ral ír: a jelentés SZINKRON rendszer-hívással megy ki, MIELŐTT kilépünk — mert
+// az R104-es alak a láthatóságot egy eseményhurok-fordulóra bízta, és makacs gyermeknél a kilépés
+// megelőzte a jelentést (üres stdout ÉS stderr, chatgpt-v3 R105 §F105-01 · saját mérés 2/2).
+import { emitInterruptReport, deadlineMsFor, REPORT_SOURCES } from './vs_interrupt_report.mjs';
 
 /**
  * A SAJÁT, ÉLŐ csoportok — a jel-küldés HATÓKÖRE. Ami nincs benne, arra nem küldünk jelet.
@@ -90,13 +95,25 @@ export function signalOwnGroup(pgid, signal) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function waitGone(pgid, ms, stepMs = 25) {
+/**
+ * VÁRAKOZÁS A CSOPORT ÜRESSÉGÉRE — ÉS A KÉT VÁRAKOZÁS NEM UGYANAZ (F105-01, R105).
+ *
+ * `forceCuts: true`  → ez a SZABÁLYOS LEÁLLÍTÁS TÜRELME. Ismételt jel lezárhatja: a hívó azt kérte,
+ *                      hogy ne várjunk tovább a jóindulatra, hanem menjünk a kényszerre.
+ * `forceCuts: false` → ez a KÉNYSZER UTÁNI IGAZOLÁS, vagyis BIZONYÍTÉK, nem türelem. Ezt az ismételt
+ *                      jel NEM vághatja el: a régi alak elvágta, és így egy VALÓBAN leállított fát
+ *                      `nem_igazolt`-nak nevezett (a SIGKILL után a halál átadása pár milliszekundum,
+ *                      de a `forceRequested()` ág az első körben visszatért). A hamis „nem igazolt"
+ *                      ugyanolyan hazugság, mint a hamis zöld — csak a másik irányba (KUKA-093).
+ * Mindkettő VÉGES: a saját `ms` keretét egyik sem lépi túl.
+ */
+async function waitGone(pgid, ms, { forceCuts = false, stepMs = 25 } = {}) {
   const until = Date.now() + ms;
   while (Date.now() < until) {
     if (!groupAlive(pgid)) return true;
     // ISMÉTELT MEGSZAKÍTÁS: a türelem VÉGE, nem egy MÁSODIK takarítás indulása (F98-01/B). A hívás
     // visszatér, és a MÁR FUTÓ rend lép tovább a kényszerre — versengő takarítás nem keletkezik.
-    if (forceRequested()) return !groupAlive(pgid);
+    if (forceCuts && forceRequested()) return !groupAlive(pgid);
     await sleep(stepMs);
   }
   return !groupAlive(pgid);
@@ -112,10 +129,13 @@ async function ensureGroupGone(pgid, { graceMs, verifyMs }) {
   steps.push('a gyermek kilépése után MARADT élő folyamat a csoportban (unoka)');
   signalOwnGroup(pgid, 'SIGTERM');
   steps.push('SIGTERM a SAJÁT folyamatcsoportra');
-  if (await waitGone(pgid, graceMs)) return { verdict: 'szabalyosan', steps, leftovers: false };
-  steps.push(`a csoport a ${graceMs} ms türelmi idő alatt nem ürült ki → SIGKILL`);
+  // A TÜRELMET az ismételt jel lezárhatja (ez türelem) …
+  if (await waitGone(pgid, graceMs, { forceCuts: true })) return { verdict: 'szabalyosan', steps, leftovers: false };
+  steps.push(`a csoport a ${graceMs} ms türelmi idő alatt nem ürült ki${forceRequested() ? ' (a türelmet ISMÉTELT JEL zárta le)' : ''} → SIGKILL`);
   signalOwnGroup(pgid, 'SIGKILL');
-  if (await waitGone(pgid, verifyMs)) return { verdict: 'kenyszerrel', steps, leftovers: false };
+  // … az IGAZOLÁST viszont NEM (ez bizonyíték — F105-01): különben a valóban leállított fát is
+  // `nem_igazolt`-nak nevezné, és a saját mérésünk mondana nem igazat (KUKA-093 · KUKA-127).
+  if (await waitGone(pgid, verifyMs, { forceCuts: false })) return { verdict: 'kenyszerrel', steps, leftovers: false };
   steps.push('a csoport a KÉNYSZERLEÁLLÍTÁS után SEM ürült ki — ez NEVEZETT HIÁNY, nem zöld');
   return { verdict: 'nem_igazolt', steps, leftovers: true };
 }
@@ -179,6 +199,12 @@ function installHooks() {
       try { signalOwnGroup(pgid, 'SIGKILL'); } catch { /* már nincs, vagy már kivettük */ }
       live.delete(pgid);
     }
+    // A LEGVÉGSŐ CSATORNA (F105-01): ha a folyamat MÁS úton lép ki, miközben megszakítás van
+    // (idegen `process.exit`, kivétel, a hurok kiürülése), a jelentés AKKOR SEM maradhat el. A
+    // hívás idempotens — ha a jel-út már kiírta, ez semmit nem tesz.
+    // [F105-01-BIZTOS-CSATORNA] — a BIZTOS jelentés; a kivételére a CR16 ellenpróbája NÉMA kimenetet mér.
+    if (isInterrupted()) emitInterruptReport({ state: interruptState(), shutdown: lastShutdown, forced: forceRequested(), source: REPORT_SOURCES.EXIT_NET });
+    // [/F105-01-BIZTOS-CSATORNA]
   };
   process.on('exit', sweepOwn);
 
@@ -229,9 +255,40 @@ function installHooks() {
       // soha nem kerülne a jelentésbe — a hiány NÉMA lenne (KUKA-012), és ami még rosszabb: a
       // védelem MÉRHETETLEN maradna, mert a versenyt a kilépés döntené el, nem a kapu (KUKA-127).
       // Egy forduló VÉGES és elhanyagolható; új munkát pedig nem enged, mert a tilalom már áll.
+      //
+      // ── ÉS AZ EGY FORDULÓ NEM CSATORNA, HANEM VERSENY (F105-01, R105). Az R104-es alak a
+      // láthatóságot EZRE bízta, és makacs gyermeknél elvesztette: a lezárási lánc gyors (az
+      // ismételt jel lezárja a türelmet, a SIGKILL azonnal megy), a gyermek `close` eseménye
+      // viszont lassú — tehát a kilépés ért előbb, és a söprés TELJESEN NÉMÁN lépett ki (üres
+      // stdout ÉS stderr, kilépés 143). Ezért a jelentés mostantól NEM a visszatekeredésen múlik:
+      // az ITR-01 SZINKRON rendszer-hívással írja ki, a kilépés ELŐTT. A forduló MEGMARAD — attól a
+      // RÉSZLETES jelentés is kiírhat, ha van ideje —, de a MINIMÁLIS jelentés már nem tőle függ.
+      //
+      // ── A HATÁRIDŐ (F105-01): a jelentés a lezárásra sem várhat korlátlanul. A határidő
+      // SZÁRMAZTATOTT — a lezárás SAJÁT, kimondott türelmeinek összege + egy nevezett ráhagyás —,
+      // nem önkényes szám és nem sleep; ha lejár, a jelentés NEVEZETTEN „NEM IGAZOLT" lezárást ír.
+      const hatarido = deadlineMsFor(liveGroups(), { forced: forceRequested() });
+      const ora = setTimeout(() => {
+        // [F105-01-BIZTOS-CSATORNA] — a BIZTOS jelentés; a kivételére a CR16 ellenpróbája NÉMA kimenetet mér.
+        emitInterruptReport({ state, shutdown: lastShutdown, forced: forceRequested(), source: REPORT_SOURCES.DEADLINE, deadlineMs: hatarido });
+        // [/F105-01-BIZTOS-CSATORNA]
+        process.exit(state.code);
+      }, hatarido);
+      // AZ ÓRA NE TARTSA ÉLETBEN A FOLYAMATOT: ha a hurok kiürül, a kilépés a rendes úton történik,
+      // és a jelentést a kilépési védőháló adja — nem a határidő nyújtja meg a futást.
+      if (typeof ora.unref === 'function') ora.unref();
       const zarasUtan = (r, e) => {
         lastShutdown = e ? { reason: sig, error: String(e && e.message), leftovers: null } : r;
-        return new Promise((resolve) => { setImmediate(() => { resolve(); process.exit(state.code); }); });
+        clearTimeout(ora);
+        return new Promise((resolve) => {
+          setImmediate(() => {
+            resolve();
+            // [F105-01-BIZTOS-CSATORNA] — a BIZTOS jelentés; a kivételére a CR16 ellenpróbája NÉMA kimenetet mér.
+            emitInterruptReport({ state, shutdown: lastShutdown, forced: forceRequested(), source: REPORT_SOURCES.SIGNAL });
+            // [/F105-01-BIZTOS-CSATORNA]
+            process.exit(state.code);
+          });
+        });
       };
       shutdown = shutdownOwn(sig).then((r) => zarasUtan(r, null), (e) => zarasUtan(null, e));
     });
@@ -319,7 +376,7 @@ export async function runGuarded(cmd, {
       escalating = (async () => {
         if (pgid) {
           if (live.has(pgid)) signalOwnGroup(pgid, 'SIGTERM');
-          if (!(await waitGone(pgid, graceMs))) {
+          if (!(await waitGone(pgid, graceMs, { forceCuts: true }))) {
             escalation.push(`a türelmi idő (${graceMs} ms) letelt → SIGKILL a csoportra`);
             if (live.has(pgid)) signalOwnGroup(pgid, 'SIGKILL');
           }
@@ -385,6 +442,15 @@ export const CHILD_RUNNER_CONTRACT = Object.freeze({
     + 'és nem a tiszta takarítás letagadása',
   one_close_per_group: 'csoportonként EGY lezárási menet fut; a normál és a megszakítási út UGYANAZT az '
     + 'ígéretet várja meg (nincs versengő második takarítás, és a verdikt EGY)',
+  // A HARMADIK KÖTELEM (F105-01, R105): a leállítás, az IGAZOLÁSA és a KIÍRÁS három külön felelősség.
+  reports_on_interrupt: 'a kilépés ELŐTT a MINIMÁLIS megszakítási jelentés BIZTOSAN kimegy (ITR-01, '
+    + 'szinkron `writeSync`): a jel, a meg nem indult feladatok NEVE és a lezárás NEVEZETT állapota — '
+    + 'a láthatóság NEM egy eseményhurok-fordulón és NEM a gyermek `close` eseményén múlik; a lezárásra '
+    + 'SZÁRMAZTATOTT, VÉGES határidő áll (a saját türelmek összege + nevezett ráhagyás), és három út '
+    + 'hívja ugyanazt az EGYSZERI kiírást: jel-út · határidő · kilépési védőháló',
+  patience_vs_proof: 'ISMÉTELT JEL a SZABÁLYOS leállítás türelmét zárja le — a KÉNYSZER UTÁNI IGAZOLÁS '
+    + 'türelmét NEM: az bizonyíték, nem türelem. A régi alak elvágta, és egy valóban leállított fát '
+    + 'nevezett `nem_igazolt`-nak (a hamis „nem igazolt" ugyanolyan hazugság, mint a hamis zöld)',
   // A GARANCIA HATÁRA — amit NEM állítunk (KUKA-012 · KUKA-089: a hiányt kimondjuk, nem elhallgatjuk).
   not_guaranteed: Object.freeze([
     'SIGKILL a FUTTATÓRA (a saját folyamatunkra): a jel nem kezelhető, takarítás nem fut — a fa a rendszernél marad',
