@@ -69,12 +69,19 @@ const PATIENCE_MS = 900000;
 const GRACE_MS = 5000;
 // A VERDIKT SZAVA MAGYARUL — a megszakítási jelentés (ITR-01) ezt viszi. Négy külön szó, mert négy
 // külön teendő: a „nem fejeződött be" NEM piros, az env-kihagyás NEM zöld (OB-10 · KUKA-002).
-const SZO = Object.freeze({ green: 'zöld', failed: 'piros', unfinished: 'nem fejeződött be', env_skipped: 'env-kihagyás' });
+const SZO = Object.freeze({ green: 'zöld', failed: 'piros', unfinished: 'nem fejeződött be', env_skipped: 'env-kihagyás', interrupted: 'megszakítva' });
 const t0 = Date.now();
 let pass = 0;
 const envSkips = [];
 const timedOut = [];
 const fails = [];
+// A MEGSZAKÍTÁS ALATT LEÁLLÍTOTT ELLENŐRZŐ NEM PIROS (F105-01 saját lelete, R106 — KUKA-250). A
+// megszakítási út a SAJÁT folyamatcsoportjára küld jelet, tehát az ÉPPEN FUTÓ ellenőrzőt MI állítjuk
+// le: a nem-nulla kilépése a mi jelünk következménye, nem a verifier ítélete. „Piros"-nak könyvelni
+// azt jelentené, hogy egy meg sem ítélt mérésre HIBÁT állítunk — ugyanaz az összemosás, mint a néma
+// kihagyás, csak a másik irányba (KUKA-002 · KUKA-093: a HIBA, az ELAKADT MÉRÉS és a „nincs
+// alkalmazható eset" három külön szó).
+const interrupted = [];
 const runs = [...scripts.map((s) => ({ s, cmd: `npm run -s ${s}` })), ...cheapParts];
 // A TERV ELŐRE BEJELENTVE (ITR-01, F105-01): a jel pillanatában ebből tudjuk MEGNEVEZNI, mi nem
 // indult el — a `runSequence` `notStarted` listája ehhez késő lenne (a gyermek `close` eseményén múlik).
@@ -104,10 +111,20 @@ const seq = await runSequence(runs, {
     const v = sweepVerdict({ exitCode, timedOut: killed, stdout: out });
     // A TÉTEL LEZÁRULT, NEVEZETT SZÓVAL (ITR-01): a megszakítási jelentés ezt a szót viszi, nem
     // számot — a „2 zöld"-féle összemosás pontosan az a hiba, amiről a KUKA-093 szól.
-    markSettled(s, `${SZO[v.verdict] || v.verdict}${state !== 'igazolt' ? ` · lezárás: ${state}` : ''}`);
+    // A MEGSZAKÍTÁS a MINŐSÍTÉST is érinti: ha a jel MÁR megérkezett, ez a gyermek a mi
+    // folyamatcsoport-jelünket kapta — az eredménye ebből nem ítélhető meg (lásd a fenti indoklást).
+    const megszakitva = interruptState() !== null;
+    const szo = megszakitva && v.verdict === 'failed' ? SZO.interrupted : (SZO[v.verdict] || v.verdict);
+    markSettled(s, `${szo}${state !== 'igazolt' ? ` · lezárás: ${state}` : ''}`);
     if (v.verdict === 'green') { pass += 1; return; }
     if (v.verdict === 'unfinished') { timedOut.push({ s, ms }); return; }
     if (v.verdict === 'env_skipped') { envSkips.push({ s, reason: v.reason }); return; }
+    if (megszakitva) {
+      interrupted.push({ s, why: v.why });
+      console.error(`\n=== MEGSZAKÍTVA: ${s} === (a SAJÁT leállító jelünk állította le — az eredménye ebből NEM ítélhető meg, tehát se nem zöld, se nem piros)`);
+      console.error(String(out).trim().split('\n').slice(-12).join('\n'));
+      return;
+    }
     fails.push(s);
     console.error(`\n=== PIROS: ${s} === (${v.why})`);
     console.error(String(out).trim().split('\n').slice(-12).join('\n'));
@@ -132,6 +149,7 @@ const notStarted = seq.notStarted;
 const secs = Math.round((Date.now() - t0) / 1000);
 console.log(`\nSÖPRÉS (${runs.length} verifier${reused.length ? ` + ${reused.length} újrahasznált bizonyíték` : ''}${unverified.length ? ` + ${unverified.length} NEM IGAZOLT kihagyás` : ''}, ${secs}s): ${pass} zöld · ${envSkips.length} env-kihagyás`
   + `${timedOut.length ? ` · ${timedOut.length} NEM FEJEZŐDÖTT BE` : ''} · ${fails.length} piros`
+  + `${interrupted.length ? ` · ${interrupted.length} MEGSZAKÍTVA` : ''}`
   + `${notStarted.length ? ` · ${notStarted.length} NEM INDULT` : ''}`);
 // A SZÁM NEM MOSHATJA ÖSSZE A NEM FUTOTTAT A ZÖLDDEL (KUKA-093): ha a sorozat megállt, a lefutott
 // darabszám KIMONDOTTAN kevesebb a tervezettnél.
@@ -165,6 +183,10 @@ if (notStarted.length && notStarted[0].kind !== 'megszakitas') {
   console.error(`NEM INDULT EL (${notStarted.length}): a sorozat ${utana} lezárásának hiánya miatt megállt`);
   for (const n of notStarted) console.error(`  · ${n.item.s} — ${n.reason}`);
 }
+if (interrupted.length) {
+  console.error(`MEGSZAKÍTVA (${interrupted.length}): ${interrupted.map((x) => x.s).join(', ')} — a saját leállító jelünk `
+    + 'állította le őket; ez NEM piros és NEM zöld, az eredményükhöz külön futtatás kell.');
+}
 if (PLATFORM_LIMIT) console.log(`NEVEZETT PLATFORM-KORLÁT: ${PLATFORM_LIMIT}`);
 if (fails.length) console.error(`PIROS: ${fails.join(', ')}`);
 // MEGSZAKÍTÁS: a jelentés MÁR kiíródott (fent), és a KILÉPÉS OKA a jelé — nem „1-es hiba" és
@@ -180,4 +202,4 @@ if (megszakitas) {
   process.exit(megszakitas.code);
 }
 // A FUTTATÓ HIBÁVAL ZÁR, ha bármi nem igazolt — a meg nem indult feladat is ide tartozik (F98-01/A).
-if (fails.length || timedOut.length || unverified.length || leftovers.length || notStarted.length) process.exit(1);
+if (fails.length || timedOut.length || unverified.length || leftovers.length || notStarted.length || interrupted.length) process.exit(1);

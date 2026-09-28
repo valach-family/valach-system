@@ -262,9 +262,15 @@ await runGuarded(${JSON.stringify(`node ${JSON.stringify(SCEN)} szulo ${JSON.str
   // A SORREND IS BEKÖTÖTT ÚT: a söprés a KÖZÖS vezérlőt hívja, nem a törzsében őrzött másolatot.
   check('CR08', 'a söprés a KÖZÖS sorozat-vezérlőt hívja (SEQ-01), nem saját ciklusa dönt a sorrendről',
     /vs_sweep_sequence\.mjs/.test(sweepCode) && /runSequence\(/.test(sweepCode));
+  // A MINTA A SZABÁLYRA ILLESZT, NEM EGY SZÓ SZERINTI SORRA (KUKA-045). Az első alak a
+  // `notStarted.length) process.exit(1)` karaktersorra illesztett — a KUKA-250 egy ÚJ okot tett a
+  // feltételbe (`|| interrupted.length`), és a minta azonnal elbukott, holott a SZABÁLY teljesült.
+  // Amit mérni kell: a `notStarted.length` BENNE VAN-e a záró, hibával kilépő feltételben.
+  const zaroKilepes = /if \(([^)]*)\) process\.exit\(1\);/.exec(sweepCode);
+  const zarFeltetel = zaroKilepes ? zaroKilepes[1] : '';
   check('CR08', 'a söprés a MEG NEM INDULT feladatokat kiírja, és miattuk HIBÁVAL zár',
-    /NEM INDULT EL/.test(sweep) && /notStarted\.length\) process\.exit\(1\)/.test(sweepCode),
-    { kiirja: /NEM INDULT EL/.test(sweep), hibaval_zar: /notStarted\.length\) process\.exit\(1\)/.test(sweepCode) });
+    /NEM INDULT EL/.test(sweep) && /notStarted\.length/.test(zarFeltetel),
+    { kiirja: /NEM INDULT EL/.test(sweep), hibaval_zar: /notStarted\.length/.test(zarFeltetel), zaro_feltetel: zarFeltetel });
 
   // ══ CR09 — A SOROZAT MEGY TOVÁBB, HA A LEZÁRÁS IGAZOLT ═════════════════════════════════════════
   // A TÉNYLEGES vezérlőt (SEQ-01) hívjuk, és CSAK a futtató válaszát helyettesítjük — pontosan úgy,
@@ -854,6 +860,16 @@ writeFileSync(process.env.F105_MASODIK, 'masodik-futott');
     check('CR16', 'KISZÖKÖTT csővezeték-tartó: a RÉSZLETES söprés-jelentés MÉRHETŐEN elmarad, a MEGSZAKÍTÁSI JELENTÉS mégis kimegy',
       kisz.length === 2 && kisz.every((r) => r.reszletes === false && r.jelentes && r.jelNevezve && r.masodikNevezve),
       kisz.map((r) => `${r.cimke}: reszletes=${r.reszletes} jelentes=${r.jelentes} verify_b=${r.masodikNevezve}`).join(' · '));
+    // ── A SAJÁT JELÜNKKEL LEÁLLÍTOTT ELLENŐRZŐ NEM PIROS (KUKA-250) ───────────────────────────────
+    // Az élő próba (a VALÓDI söprés megszakítása) a saját jelentésemben mutatta meg: a megszakítás
+    // alatt futó ellenőrző nem-nulla kilépése a MI folyamatcsoport-jelünk következménye, nem a
+    // verifier ítélete — „piros"-nak könyvelni annyi, mint egy meg sem ítélt mérésre HIBÁT állítani.
+    const lezart105 = eles105.filter((r) => /LEFUTOTT \(1\/2\)/.test(r.kimenet));
+    check('CR16', 'a SAJÁT jelünkkel leállított ellenőrző MEGSZAKÍTVA, nem „piros" — se nem zöld, se nem hiba (KUKA-250)',
+      lezart105.length === 8 && lezart105.every((r) => /verify:a \[megszakítva/.test(r.kimenet))
+      && eles105.every((r) => !/PIROS: verify:a/.test(r.kimenet) && !/verify:a \[piros/.test(r.kimenet))
+      && lezart105.every((r) => /MEGSZAKÍTVA \(1\): verify:a/.test(r.kimenet)),
+      lezart105.map((r) => `${r.cimke}: ${(/verify:a \[[^\]]*\]/.exec(r.kimenet) || ['—'])[0]}`).join(' · '));
     check('CR16', 'a FÉLBEMARADT és a MEG NEM INDULT tétel KÜLÖN szóval áll (a kettő nem ugyanaz — KUKA-002)',
       kisz.every((r) => /FÉLBEMARADT \(1\): verify:a/.test(r.kimenet)),
       kisz.map((r) => (/FÉLBEMARADT[^\n]*/.exec(r.kimenet) || ['—'])[0]).join(' · '));

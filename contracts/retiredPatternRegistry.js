@@ -10940,6 +10940,64 @@ pattern: 'sources: modelAccepted \\? \\w+\\.sources : local\\.sources',
       + 'NEVEZETT KIHAGYÁS, nem zöld (KUKA-093). Mellé az ITR-01 feloldóit HÍVVA: a négy '
       + 'takarítás-válasz, a származtatott határidő és a három halmaz (lefutott · félbemaradt · nem indult).',
   }),
+  Object.freeze({
+    id: 'KUKA-250',
+    date: '2026-09-28',
+    title: 'A MEGSZAKÍTÁS ALATT A SAJÁT JELÜNKKEL LEÁLLÍTOTT ELLENŐRZŐ „PIROS"-KÉNT KÖNYVELŐDÖTT — '
+      + 'egy meg sem ítélt mérésre állítottunk HIBÁT, a saját megszakítási jelentésünkben',
+    what: 'A KUKA-249 javítása után a megszakítási jelentés megszólalt — és az ELSŐ élő próbán (a '
+      + 'VALÓDI söprés megszakítása 27 ellenőrzős terven) a jelentés azt írta: `verify:child-runner '
+      + '[piros]`, a záró sor pedig `PIROS: verify:capability-witness, verify:child-runner`. A '
+      + '`verify:child-runner` azonban NEM bukott el: a megszakítási út a SAJÁT folyamatcsoportjára '
+      + 'küldött SIGTERM-et, tehát MI állítottuk le futás közben, és a nem-nulla kilépése ennek a '
+      + 'jelnek a következménye. A söprés osztályozója viszont csak a kilépési kódot látta, a '
+      + 'megszakítás tényét nem kérdezte meg.',
+    why_wrong: 'Ez UGYANAZ az összemosás, amiről a KUKA-249 szól, csak a MÁSIK IRÁNYBA: ott a '
+      + 'némaságból lett hamis „minden rendben", itt a saját jelünkből hamis „HIBA". A három szót nem '
+      + 'szabad összemosni (KUKA-002 · KUKA-093): a HIBA a rendszerről szól, az ELAKADT/MEGSZAKÍTOTT '
+      + 'MÉRÉS a mérésről, a „nincs alkalmazható eset" pedig az üres alapsokaságról. Egy „piros" '
+      + 'állítás egy meg sem ítélt mérésre bizonyítatlan állítás — és a következő kör ezt a szót '
+      + 'olvasná leletnek.',
+    replaced_by: 'A söprés osztályozója a MEGSZAKÍTÁS tényét is megkérdezi (`interruptState()`), és a '
+      + 'megszakítás alatt nem-nullával záró ellenőrző NEGYEDIK, nevezett kimenetet kap: '
+      + '**MEGSZAKÍTVA** — se nem zöld, se nem piros. A `fails` listába nem kerül be, a saját '
+      + 'számlálója és saját mondata van („a SAJÁT leállító jelünk állította le — az eredménye ebből '
+      + 'NEM ítélhető meg"), a gyermek kimenetének vége továbbra is kiíródik, és a futtató HIBÁVAL '
+      + 'zár (a megszakítás kilépési kódja a jelé). A megszakítási jelentés (ITR-01) ugyanezt a szót '
+      + 'viszi a tétel verdiktjeként.',
+    replacement: 'A zöld ág változatlan: ha a gyermek a jel ELLENÉRE nullával zárt, az zöld marad; az '
+      + 'env-kihagyás és a „nem fejeződött be" szintén a saját ágán marad — a MEGSZAKÍTVA csak a '
+      + 'korábban PIROSNAK könyvelt esetet veszi át.',
+    decision: 'D-VS-3082',
+    found_by: 'SAJÁT LELET (Claude-v3, R106) — a KUKA-249 javításának ELSŐ élő próbáján, a VALÓDI '
+      + 'söprés megszakításával: a saját, épp megépített jelentésem írta ki a hamis „piros" szót.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_sweep.mjs']),
+        pattern: 'const megszakitva = interruptState\\(\\) !== null',
+        why: 'a minősítés a MEGSZAKÍTÁS tényét is megkérdezi, nem csak a kilépési kódot' }),
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_sweep.mjs']),
+        pattern: 'MEGSZAKÍTVA: \\$\\{s\\}',
+        why: 'a negyedik kimenetnek SAJÁT mondata van — nem a piros ág szövegét kapja' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_sweep.mjs']),
+        pattern: "if \\(v\\.verdict === 'env_skipped'\\) \\{ envSkips\\.push\\(\\{ s, reason: v\\.reason \\}\\); return; \\}\\s*\\n\\s*fails\\.push\\(s\\);",
+        flags: '',
+        reason: 'az osztályozó a megszakítás megkérdezése NÉLKÜL esik a piros ágra (a saját jelünkkel leállított ellenőrző HIBÁNAK látszik)' }),
+    ]),
+    lesson: 'AMIT MI ÁLLÍTOTTUNK LE, AZ NEM BUKOTT EL. Ahol a rendszer a saját mérését szakítja meg, '
+      + 'ott a mérés eredménye NEM ÍTÉLHETŐ MEG — és a „nem ítélhető meg" se nem zöld, se nem piros, '
+      + 'hanem SAJÁT, negyedik szó. A hamis HIBA ugyanolyan rossz, mint a hamis zöld: a következő kör '
+      + 'leletnek olvassa, és olyat javít, ami nem törött. ÉS A MÓDSZERRŐL: ezt a leletet nem a '
+      + 'szintetikus próba adta, hanem az ELSŐ ÉLŐ FUTÁS a valódi terven — a saját munkatermékünket '
+      + 'is végig kell olvasni azon az úton, amin a felhasználó látja (a használat-próba a saját '
+      + 'jelentésünkre is áll).',
+    guard_note: 'gépi jel: `npm run verify:child-runner` CR16 — a nyolc lezárult menetben a jelentés '
+      + '`verify:a [megszakítva]` szót visz és a `MEGSZAKÍTVA (1): verify:a` sort, a `PIROS: verify:a` '
+      + 'és a `verify:a [piros]` alak pedig egyetlen menetben sem fordul elő; mellé a `verify:kuka` '
+      + 'fenti pozitív és tiltó mintái (a tiltó minta arra az alakra illeszt, amelyben az osztályozó a '
+      + 'megszakítás megkérdezése nélkül esik a piros ágra).',
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

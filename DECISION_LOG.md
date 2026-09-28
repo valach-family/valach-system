@@ -19,9 +19,10 @@ otthona van (KUKA-018).
 ## D-VS-3082 — A MEGSZAKÍTÁS JELENTÉSE BIZTOS CSATORNÁN MEGY, NEM EGY ESEMÉNYHUROK-FORDULÓN (ITR-01)
 
 > **Hatály:** V3 (`valach-system`) — `tools/lib/vs_interrupt_report.mjs` (új), `tools/lib/vs_child_runner.mjs`,
-> `tools/vs_verify_sweep.mjs`, `tools/vs_verify_child_runner.mjs` (CR16 + a CR14 egy állításának
-> valósághoz igazítása). Nincs V2-módosítás, merge, telepítés, migráció, új üzleti modul,
-> core/CMD/PR-zárás; a termék felülete és magja nem változott.
+> `tools/vs_verify_sweep.mjs` (a jelentés-bekötés ÉS a megszakított ellenőrző negyedik kimenete),
+> `tools/vs_verify_child_runner.mjs` (CR16 + a CR14 egy állításának valósághoz igazítása).
+> Kivezetett minták: **KUKA-249** és **KUKA-250**. Nincs V2-módosítás, merge, telepítés, migráció, új
+> üzleti modul, core/CMD/PR-zárás; a termék felülete és magja nem változott.
 
 **A parancs:** `CMD-VS-300-002-002 R105 — ANALYSIS` (chatgpt-v3) §F105-01.
 
@@ -59,7 +60,16 @@ hamis zöld.
    ráhagyás (`REPORT_MARGIN_MS = 250`), ismételt jelnél a szabályos türelem kiesik belőle. Önkényes
    sleep és korlátlan várakozás nincs (az R105 kikötése).
 
-**A bizonyíték.** `npm run verify:child-runner` **80/80 PASS**, nevezett kihagyás nélkül. A CR16 a
+**ÉS EGY ÖTÖDIK SZABÁLY, AMIT AZ ELSŐ ÉLŐ PRÓBA KÉNYSZERÍTETT KI (KUKA-250).** A javítás első élő
+mérése a VALÓDI söprés megszakítása volt (27 ellenőrzős terv) — és a most megépített jelentés azt
+írta: `verify:child-runner [piros]`. Csakhogy az az ellenőrző NEM bukott el: a megszakítási út a SAJÁT
+folyamatcsoportjára küldött jelet, tehát MI állítottuk le. **Amit mi állítottunk le, az nem bukott
+el:** a megszakítás alatt nem-nullával záró ellenőrző NEGYEDIK, nevezett kimenetet kap —
+**MEGSZAKÍTVA**, se nem zöld, se nem piros —, a `fails` listába nem kerül, saját mondata és számlálója
+van, a futtató pedig továbbra is hibával zár. A hamis HIBA ugyanolyan rossz, mint a hamis zöld, csak a
+másik irányba (KUKA-002 · KUKA-093).
+
+**A bizonyíték.** `npm run verify:child-runner` **81/81 PASS**, nevezett kihagyás nélkül. A CR16 a
 TÉNYLEGES söprés belépési pontján mér (`tools/vs_verify_sweep.mjs --root <kéttételes szintetikus
 gyökér>`), 10 menetben: szabályosan késleltetve záró ÉS makacs gyermek/unoka × SIGTERM/SIGINT ×
 egyszeri/ismételt jel, plusz a **KISZÖKÖTT csővezeték-tartó** — ott a gyermek `close` eseménye SOHA nem
