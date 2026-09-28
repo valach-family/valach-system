@@ -23,6 +23,10 @@
 // AMIT NEM BIRTOKOL: a verdiktet (azt a hívó feloldója hozza — SWV-01), és a türelem MÉRTÉKÉT (az a
 // hívó döntése). Ez a modul a FOLYAMATOKRÓL szól, nem arról, hogy egy ellenőrző zöld-e.
 import { spawn } from 'node:child_process';
+// SHD-01 (F101-01, R103): a MEGSZAKÍTÁS közös, nevezett állapota. A futtató NEM tart saját
+// kapcsolót — ugyanazt kérdezi, amit a sorozat-vezérlő (R101 kikötése: nem egymástól független
+// kapcsolók). A `spawn` ELŐTTI kérdés ezen az állapoton áll.
+import { beginInterrupt, interruptState, isInterrupted, forceRequested, HANDLED_SIGNALS } from './vs_shutdown_state.mjs';
 
 /**
  * A SAJÁT, ÉLŐ csoportok — a jel-küldés HATÓKÖRE. Ami nincs benne, arra nem küldünk jelet.
@@ -37,11 +41,29 @@ const live = new Map();
 let hooksInstalled = false;
 /** A FUTÓ megszakítási takarítás. EGY van belőle: ismételt jel NEM indít versengő második menetet. */
 let shutdown = null;
-/** ISMÉTELT JEL: a türelmet lezárja (a rend így is VÉGES), de új takarítást nem indít. */
-let forceRequested = false;
+/**
+ * CSOPORTONKÉNT EGY LEZÁRÁS — a normál és a megszakítási út UGYANAZT várja meg (F101-01/3).
+ *
+ * A régi alakban a két út egymástól függetlenül hívta a lezárót ugyanarra a csoportra: az egyik
+ * kivette a nyilvántartásból, a másik ott már KIVÉTELBE futott, és a `nem_igazolt` verdikt nem a
+ * gépről szólt, hanem a saját versenyhelyzetünkről (KUKA-120: a próbapad a saját versenyét mérte).
+ * Az ígéret a MEGÁLLAPODÁS pontja: aki másodikként ér ide, ugyanazt az EGY mérést kapja vissza.
+ * A bejegyzés a lezárás végén törlődik — a rendszer újrahasznosíthatja a PID-et, és egy elévült
+ * verdikt egy ÚJ csoportra a legrosszabb fajta hazugság lenne.
+ */
+const closings = new Map();
 /** A megszakítási lezárás MÉRT eredménye — a próba és a hívó ebből látja, hogy a rend lefutott. */
 let lastShutdown = null;
 export function lastShutdownReport() { return lastShutdown; }
+
+/** A MEGSZAKÍTÁS TÉNYE a futtató felől is olvasható — a hívónak nem kell két modult ismernie. */
+export { interruptState, isInterrupted } from './vs_shutdown_state.mjs';
+
+/** A FUTÓ megszakítási lezárás ígérete (vagy `null`) — a hívó MEGVÁRHATJA, mielőtt kilép. */
+export function shutdownSettled() { return shutdown; }
+
+/** A MEG NEM INDULT FELADAT NEVEZETT OKA a futtató oldalán (KUKA-093: a néma kihagyás tilos). */
+export const NOT_STARTED_INTERRUPT = 'nem indult — MEGSZAKÍTÁS alatt a futtató nem indít új gyermeket';
 
 /** A folyamatcsoport-jel támogatása. Windowson a csoport-jel más gépezet: NEVEZETT korlát. */
 export function supportsProcessGroups() { return process.platform !== 'win32'; }
@@ -74,7 +96,7 @@ async function waitGone(pgid, ms, stepMs = 25) {
     if (!groupAlive(pgid)) return true;
     // ISMÉTELT MEGSZAKÍTÁS: a türelem VÉGE, nem egy MÁSODIK takarítás indulása (F98-01/B). A hívás
     // visszatér, és a MÁR FUTÓ rend lép tovább a kényszerre — versengő takarítás nem keletkezik.
-    if (forceRequested) return !groupAlive(pgid);
+    if (forceRequested()) return !groupAlive(pgid);
     await sleep(stepMs);
   }
   return !groupAlive(pgid);
@@ -96,6 +118,33 @@ async function ensureGroupGone(pgid, { graceMs, verifyMs }) {
   if (await waitGone(pgid, verifyMs)) return { verdict: 'kenyszerrel', steps, leftovers: false };
   steps.push('a csoport a KÉNYSZERLEÁLLÍTÁS után SEM ürült ki — ez NEVEZETT HIÁNY, nem zöld');
   return { verdict: 'nem_igazolt', steps, leftovers: true };
+}
+
+/**
+ * A LEZÁRÁS EGYETLEN BEJÁRATA — csoportonként EGY menet, akárhány hívó kéri (F101-01/3).
+ *
+ * A normál út (a gyermek bezárult) és a megszakítási út UGYANARRA a csoportra érkezhet. Itt
+ * találkoznak: az első hívó indítja a mérést, a többi ugyanazt az ígéretet kapja vissza — így a
+ * verdikt EGY, és a nyilvántartásból is EGYSZER kerül ki. A takarítás hibája HIBA marad, nem
+ * „igazolt nulla maradék" (KUKA-126 · D-VS-703).
+ */
+function closeGroup(pgid) {
+  const running = closings.get(pgid);
+  if (running) return running;
+  const rec = live.get(pgid) || {};
+  const graceMs = Number.isFinite(rec.graceMs) ? rec.graceMs : 5000;
+  const verifyMs = Number.isFinite(rec.verifyMs) ? rec.verifyMs : 5000;
+  const p = (async () => {
+    let v;
+    try { v = await ensureGroupGone(pgid, { graceMs, verifyMs }); }
+    catch (e) { v = { verdict: 'nem_igazolt', steps: [`a lezárás kivétellel állt meg: ${e && e.message}`], leftovers: true }; }
+    live.delete(pgid);
+    return v;
+  })();
+  closings.set(pgid, p);
+  // A BEJEGYZÉS A MÉRÉS UTÁN ELTŰNIK — lásd a `closings` indoklását (PID-újrahasznosítás).
+  p.then(() => closings.delete(pgid), () => closings.delete(pgid));
+  return p;
 }
 
 /**
@@ -136,30 +185,55 @@ function installHooks() {
   // ── A MEGSZAKÍTÁSI ÚT (aszinkron, véges): csoportonként UGYANAZ a feloldó fut, mint a normál úton.
   const shutdownOwn = async (reason) => {
     const groups = [];
-    for (const pgid of [...live.keys()]) {
-      const rec = live.get(pgid) || {};
-      const graceMs = Number.isFinite(rec.graceMs) ? rec.graceMs : 5000;
-      const verifyMs = Number.isFinite(rec.verifyMs) ? rec.verifyMs : 5000;
-      let v;
-      // A TAKARÍTÁS HIBÁJA HIBA, nem „igazolt nulla maradék" (KUKA-126 · D-VS-703).
-      try { v = await ensureGroupGone(pgid, { graceMs, verifyMs }); }
-      catch (e) { v = { verdict: 'nem_igazolt', steps: [`a lezárás kivétellel állt meg: ${e && e.message}`], leftovers: true }; }
-      groups.push({ pgid, cmd: rec.cmd || null, ...v });
-      live.delete(pgid);
+    const seen = new Set();
+    // A LISTA A LEÁLLÍTÁS PILLANATÁBAN ÁLL ÖSSZE, ÉS MÖGÉ ÚJ NEM KERÜLHET (F101-01/3): a `runGuarded`
+    // a megszakítás beálltától nem indít gyermeket, tehát nincs miből újabb csoport keletkezzen.
+    // A ciklus MÉGIS újranéz, mert a NÉMÁN kimaradó csoport a rosszabb hiba (KUKA-012): ha valami
+    // mégis bekerülne, azt is lezárjuk, és a jelentés KIÍRJA, hogy a felvett lista után érkezett.
+    const firstBatch = live.size;
+    for (;;) {
+      const pending = [...live.keys()].filter((pgid) => !seen.has(pgid));
+      if (!pending.length) break;
+      for (const pgid of pending) {
+        seen.add(pgid);
+        const rec = live.get(pgid) || {};
+        // A KÖZÖS LEZÁRÓ: ha a normál út már elindította ugyanerre a csoportra, ugyanazt várjuk meg.
+        const v = await closeGroup(pgid);
+        groups.push({ pgid, cmd: rec.cmd || null, ...v });
+      }
     }
-    return { reason, forced: forceRequested, groups, leftovers: groups.some((g) => g.leftovers === true) };
+    return {
+      reason,
+      forced: forceRequested(),
+      groups,
+      leftovers: groups.some((g) => g.leftovers === true),
+      // NEVEZETT TÉNY, nem elhallgatott: hány csoport került a felvett lista MÖGÉ (elvárt: 0).
+      late_groups: Math.max(0, groups.length - firstBatch),
+    };
   };
 
-  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  for (const sig of HANDLED_SIGNALS) {
     process.on(sig, () => {
-      const code = sig === 'SIGINT' ? 130 : 143;
-      if (shutdown) { forceRequested = true; return; }   // ISMÉTELT JEL: türelem vége, új menet NEM
+      // ── AZ ELSŐ LÉPÉS, SZINKRON: AZ ÚJ INDÍTÁSOK TILALMA (F101-01/1). Ez MEGELŐZI az aszinkron
+      // takarítás minden sorát — így a `runGuarded` és a `runSequence` a jel pillanatától tudja,
+      // hogy nem kezdhet újat. A régi alak csak a TAKARÍTÁST indította el, a tilalmat nem: a
+      // szabályosan záró gyermek után a sorozat elindította a következőt (a mért rés).
+      const { fresh, state } = beginInterrupt(sig);
+      // ISMÉTELT JEL: a türelmet a közös állapot zárja le (`forceRequested`), új menet NEM indul.
+      if (!fresh || shutdown) return;
       // A JELET NEM NYELJÜK EL: a saját kilépési okunk igaz marad (128 + jelszám) — csak most a
       // lezárás IGAZOLÁSA UTÁN lépünk ki, nem előtte.
-      shutdown = shutdownOwn(sig).then(
-        (r) => { lastShutdown = r; process.exit(code); },
-        (e) => { lastShutdown = { reason: sig, error: String(e && e.message), leftovers: null }; process.exit(code); },
-      );
+      // A KILÉPÉS EGY ESEMÉNYHUROK-FORDULÓT VÁR (F101-01/4). A lezárás kész, a fa üres — de a
+      // FOLYAMATBAN LÉVŐ hívások (`runGuarded` visszatérése, a sorozat következő döntése) még nem
+      // tekeredtek vissza. Ha itt AZONNAL kilépnénk, a MEG NEM INDULT tételek és a megszakítás oka
+      // soha nem kerülne a jelentésbe — a hiány NÉMA lenne (KUKA-012), és ami még rosszabb: a
+      // védelem MÉRHETETLEN maradna, mert a versenyt a kilépés döntené el, nem a kapu (KUKA-127).
+      // Egy forduló VÉGES és elhanyagolható; új munkát pedig nem enged, mert a tilalom már áll.
+      const zarasUtan = (r, e) => {
+        lastShutdown = e ? { reason: sig, error: String(e && e.message), leftovers: null } : r;
+        return new Promise((resolve) => { setImmediate(() => { resolve(); process.exit(state.code); }); });
+      };
+      shutdown = shutdownOwn(sig).then((r) => zarasUtan(r, null), (e) => zarasUtan(null, e));
     });
   }
 }
@@ -185,6 +259,38 @@ export async function runGuarded(cmd, {
 } = {}) {
   installHooks();
   const startedAt = Date.now();
+  // ── AZ INDÍTÁSI KAPU (F101-01/2): MEGSZAKÍTÁS ALATT NEM INDUL ÚJ GYERMEK. A kérdés és a `spawn`
+  // között NINCS `await`: a jelkezelő az eseményhurokban fut, tehát ezt a szinkron sorozatot nem
+  // tudja kettévágni — a rés bezárása ezen áll, nem időzítésen.
+  //
+  // A TILTÁS NEVEZETT ÁLLAPOT, nem hamis maradvány és nem a tiszta takarítás letagadása (R101/2
+  // kikötése): a válasz kimondja, hogy a feladat MEG SEM INDULT, és MELYIK jel miatt.
+  // [F101-01-KAPU:INDITAS] — a kapu, aminek a KIVÉTELÉRE a CR15 ellenpróbája PIROS lesz.
+  if (isInterrupted()) {
+    const intr = interruptState();
+    return {
+      cmd,
+      started: false,
+      interrupted: intr,
+      not_started: NOT_STARTED_INTERRUPT,
+      stdout: '',
+      stderr: '',
+      output: '',
+      exitCode: null,
+      signal: null,
+      spawnError: null,
+      timedOut: false,
+      escalation: null,
+      ms: 0,
+      pgid: null,
+      // NINCS MIT IGAZOLNI: gyermek sem indult. Ezt NEM nevezzük „igazolt lezárásnak" — a nevezett
+      // `nem_indult` verdikt a sorozat-vezérlőnél is MEGÁLLÍTÓ válasz, nem zöld (KUKA-093).
+      cleanup: { verdict: 'nem_indult', steps: [`${NOT_STARTED_INTERRUPT} (${intr.signal})`], leftovers: null },
+      truncated: false,
+      platform_limit: PLATFORM_LIMIT,
+    };
+  }
+  // [/F101-01-KAPU:INDITAS]
   const child = spawn(cmd, {
     cwd, env, shell: true, detached: supportsProcessGroups(), stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -235,16 +341,15 @@ export async function runGuarded(cmd, {
   // dönthet össze egy futást a takarítás közben (KUKA-118): NEVEZETT `nem_igazolt` lesz belőle.
   let cleanup;
   if (pgid) {
-    try { cleanup = await ensureGroupGone(pgid, { graceMs, verifyMs }); }
-    catch (e) {
-      cleanup = { verdict: 'nem_igazolt', steps: [`a lezárás kivétellel állt meg: ${e && e.message}`], leftovers: true };
-    }
+    // A KÖZÖS BEJÁRAT (F101-01/3): ha a megszakítási út már lezárja ezt a csoportot, ugyanazt az EGY
+    // mérést kapjuk vissza — nem indul második menet, és nem keletkezik versengésből hamis verdikt.
+    cleanup = await closeGroup(pgid);
   } else {
     cleanup = { verdict: 'nem_mert', steps: ['nincs folyamatcsoport-támogatás: a fa lezárása nem igazolható'], leftovers: null };
   }
-  if (pgid) live.delete(pgid);
   return {
     cmd,
+    started: true,
     stdout,
     stderr,
     output: `${stdout}${stderr ? `\n${stderr}` : ''}`,
@@ -274,6 +379,12 @@ export const CHILD_RUNNER_CONTRACT = Object.freeze({
   interrupt: 'kezelhető jelre (SIGINT · SIGTERM · SIGHUP) UGYANAZ a véges lánc fut, mint a normál úton, '
     + 'a hívó `graceMs`/`verifyMs` beállításával; ISMÉTELT jel a türelmet zárja le, második takarítást '
     + 'NEM indít; a szinkron `exit`-hook csak VÉGSŐ VÉDŐHÁLÓ, nem az aszinkron igazolás helyettesítője',
+  // AZ INDÍTÁSI TILALOM KÜLÖN KIMONDVA (F101-01, R103): a lezárás KÉT kötelem, nem egy.
+  no_new_starts: 'a MEGSZAKÍTÁS pillanatától (SHD-01, szinkron) a futtató NEM indít új gyermeket: a válasz '
+    + '`started:false` + nevezett `not_started` ok + `cleanup.verdict="nem_indult"` — nem hamis maradvány '
+    + 'és nem a tiszta takarítás letagadása',
+  one_close_per_group: 'csoportonként EGY lezárási menet fut; a normál és a megszakítási út UGYANAZT az '
+    + 'ígéretet várja meg (nincs versengő második takarítás, és a verdikt EGY)',
   // A GARANCIA HATÁRA — amit NEM állítunk (KUKA-012 · KUKA-089: a hiányt kimondjuk, nem elhallgatjuk).
   not_guaranteed: Object.freeze([
     'SIGKILL a FUTTATÓRA (a saját folyamatunkra): a jel nem kezelhető, takarítás nem fut — a fa a rendszernél marad',

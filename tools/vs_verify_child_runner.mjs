@@ -26,7 +26,10 @@ import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { runGuarded, signalOwnGroup, liveGroups, supportsProcessGroups, PLATFORM_LIMIT, CHILD_RUNNER_CONTRACT, groupAlive } from './lib/vs_child_runner.mjs';
-import { runSequence, cleanupStateOf, NOT_STARTED_REASON, SWEEP_SEQUENCE_CONTRACT } from './lib/vs_sweep_sequence.mjs';
+import { runSequence, cleanupStateOf, NOT_STARTED_REASON, NOT_STARTED_INTERRUPTED, SWEEP_SEQUENCE_CONTRACT } from './lib/vs_sweep_sequence.mjs';
+// SHD-01 (F101-01, R103): a közös megszakítási állapot szerződése. A `beginInterrupt` NEM hívható
+// ebben a folyamatban (visszafordíthatatlan) — a szerződését külön folyamatban mérjük (CR15).
+import { INTERRUPT_EXIT_CODES } from './lib/vs_shutdown_state.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TMP = join(ROOT, 'var', 'tmp');
@@ -299,7 +302,7 @@ await runGuarded(${JSON.stringify(`node ${JSON.stringify(SCEN)} szulo ${JSON.str
       && r.notStarted.every((n) => n.reason === NOT_STARTED_REASON),
       r.notStarted.map((n) => `${n.item.s}: ${n.reason}`));
   }
-  check('CR10', 'a takarítás-állapot feloldója a HÁROM nevezett választ adja (igazolt · maradvany · nem_igazolhato)',
+  check('CR10', 'a takarítás-állapot feloldója NEVEZETT választ ad (igazolt · maradvany · nem_igazolhato; a negyedik, `nem_indult` a CR15-ben)',
     cleanupStateOf({ leftovers: false }).state === 'igazolt'
     && cleanupStateOf({ leftovers: true }).state === 'maradvany'
     && cleanupStateOf({ leftovers: null }).state === 'nem_igazolhato'
@@ -415,10 +418,234 @@ await runGuarded(${JSON.stringify(cmd)}, { timeoutMs: 60000, graceMs: ${graceMs}
     await runGuarded('node -e "process.exit(4)"', { cwd: ROOT, timeoutMs: 20000, graceMs: 300, verifyMs: 300 });
     check('CR13', 'normál siker és hibás kilépés után a NYILVÁNTARTÁS is üres (nem gyűlnek a csoportok)',
       liveGroups().length === 0, liveGroups());
+
+    // ══ CR14 — MEGSZAKÍTÁS UTÁN NINCS ÚJ FELADAT (F101-01, R101/R103) ═════════════════════════════
+    // AZ ELFOGADÁSI PRÓBA, ahogy a külső ellenőrző fél kérte: VALÓDI jel, VALÓDI `runSequence` +
+    // `runGuarded`, külön folyamatban. A mérés HÁROM dolgot mond ki egyszerre, mert egyik sem elég:
+    //   · a második VISSZAHÍVÁS nulla   (a sorozat nem hívta meg a következő feladatot)
+    //   · a második GYERMEK nulla       (a futtató nem indított új folyamatot)
+    //   · az első feladat lezárása IGAZOLT volt (`igazolt`) — tehát a megállást NEM hamis maradvány
+    //     és NEM a tiszta takarítás letagadása okozta, hanem a nevezett MEGSZAKÍTÁS (R101/2).
+    const F101 = join(TMP, `${tag}_f101`);
+    mkdirSync(F101, { recursive: true });
+    const LIBDIR = join(ROOT, 'tools', 'lib');
+    writeFileSync(join(F101, 'elso.mjs'), `// SZABÁLYOSAN, KÉSLELTETVE záró gyermek: jelre 100 ms alatt kilép.
+import { writeFileSync } from 'node:fs';
+let zar = false;
+const zarj = () => { if (zar) return; zar = true; setTimeout(() => process.exit(0), 100); };
+process.on('SIGTERM', zarj); process.on('SIGINT', zarj);
+setInterval(() => {}, 1000);
+writeFileSync(process.argv[2], 'elso-gyermek-all');
+`);
+    writeFileSync(join(F101, 'masodik.mjs'), 'setInterval(() => {}, 50);\n');
+    writeFileSync(join(F101, 'szulo.mjs'), `// A VALÓDI vezérlőt és a VALÓDI futtatót használó szülő.
+import { writeFileSync } from 'node:fs';
+const [libDir, dir] = process.argv.slice(2);
+const { runGuarded } = await import(libDir + '/vs_child_runner.mjs');
+const { runSequence } = await import(libDir + '/vs_sweep_sequence.mjs');
+const here = import.meta.dirname;
+const seq = await runSequence(['a', 'b'], {
+  run: async (name) => {
+    if (name === 'b') writeFileSync(dir + '/masodik_visszahivas.txt', 'meghivva');
+    // Az ELSŐ parancs exec-kel indít node-ot (egyetlen folyamat a csoportban), a MÁSODIK a héjból
+    // AZONNAL jelzi az indulását — így a „második gyermek" ténye a spawn pillanatában látszik.
+    const cmd = name === 'a'
+      ? 'exec node ' + JSON.stringify(here + '/elso.mjs') + ' ' + JSON.stringify(dir + '/elso_all.txt')
+      : 'printf masodik > ' + JSON.stringify(dir + '/masodik_gyermek.txt') + '; exec node ' + JSON.stringify(here + '/masodik.mjs');
+    return runGuarded(cmd, { timeoutMs: 60000, graceMs: 1000, verifyMs: 1000 });
+  },
+});
+writeFileSync(dir + '/seq.json', JSON.stringify({
+  elso_cleanup: (seq.results[0] || {}).cleanup_state || null,
+  halted: seq.halted, notStarted: seq.notStarted.map((n) => ({ item: n.item, reason: n.reason, kind: n.kind, signal: n.signal })),
+}));
+`);
+    /** EGY menet: elindít, megvárja az első gyermek indulását, jelet küld, és MÉR. */
+    const f101Menet = async (libDir, sig, i) => {
+      const dir = join(F101, `m_${libDir === LIBDIR ? 'eles' : 'ellen'}_${sig}_${i}`);
+      rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
+      const { spawn } = await import('node:child_process');
+      const p = spawn(process.execPath, [join(F101, 'szulo.mjs'), libDir, dir], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+      let err = '';
+      p.stderr.on('data', (d) => { err += d; });
+      const zarva = new Promise((r) => { p.on('close', (c) => r(c)); setTimeout(() => r(null), 25000); });
+      const t0 = Date.now();
+      while (!existsSync(join(dir, 'elso_all.txt')) && Date.now() - t0 < 10000) await sleep(20);
+      const elsoAll = existsSync(join(dir, 'elso_all.txt'));
+      p.kill(sig);
+      const code = await zarva;
+      await sleep(250);
+      const seq = existsSync(join(dir, 'seq.json')) ? JSON.parse(readFileSync(join(dir, 'seq.json'), 'utf8')) : null;
+      return {
+        elsoAll,
+        masodikVisszahivas: existsSync(join(dir, 'masodik_visszahivas.txt')),
+        masodikGyermek: existsSync(join(dir, 'masodik_gyermek.txt')),
+        code, ms: Date.now() - t0, seq, err: err.trim(),
+      };
+    };
+
+    const eles = [];
+    for (const sig of ['SIGTERM', 'SIGINT']) {
+      for (let i = 1; i <= 2; i += 1) eles.push({ sig, ...(await f101Menet(LIBDIR, sig, i)) });
+    }
+    check('CR14', 'a helyzet VALÓDI: mind a négy menetben elindult az ELSŐ gyermek (üres alapsokaság nem zöld)',
+      eles.every((r) => r.elsoAll), eles.map((r) => `${r.sig}:${r.elsoAll}`).join(' '));
+    check('CR14', 'MEGSZAKÍTÁS után a MÁSODIK VISSZAHÍVÁS nulla alkalommal fut le (SIGTERM és SIGINT)',
+      eles.every((r) => r.masodikVisszahivas === false),
+      eles.map((r) => `${r.sig}:${r.masodikVisszahivas}`).join(' '));
+    check('CR14', 'MEGSZAKÍTÁS után a MÁSODIK GYERMEK nulla alkalommal indul el',
+      eles.every((r) => r.masodikGyermek === false),
+      eles.map((r) => `${r.sig}:${r.masodikGyermek}`).join(' '));
+    check('CR14', 'a megállás oka NEVEZETT MEGSZAKÍTÁS — nem hamis maradvány, és nem a tiszta takarítás letagadása',
+      eles.every((r) => r.seq && r.seq.elso_cleanup === 'igazolt' && r.seq.halted
+        && r.seq.halted.kind === 'megszakitas' && r.seq.halted.signal === r.sig),
+      eles.map((r) => `${r.sig}: elso_lezaras=${r.seq && r.seq.elso_cleanup} megallas=${r.seq && r.seq.halted && r.seq.halted.kind}`).join(' · '));
+    check('CR14', 'a MEG NEM INDULT tétel megnevezve marad, a jellel együtt (nem néma kihagyás, nem zöld)',
+      eles.every((r) => r.seq && r.seq.notStarted.length === 1 && r.seq.notStarted[0].item === 'b'
+        && r.seq.notStarted[0].reason === NOT_STARTED_INTERRUPTED && r.seq.notStarted[0].signal === r.sig),
+      eles[0].seq && eles[0].seq.notStarted);
+    check('CR14', 'a kilépés NEM siker, és a jel oka igaz marad (SIGTERM→143 · SIGINT→130), VÉGES időn belül',
+      eles.every((r) => r.code === INTERRUPT_EXIT_CODES[r.sig] && r.ms < 20000),
+      eles.map((r) => `${r.sig}→${r.code} (${r.ms} ms)`).join(' · '));
+    check('CR14', 'a lezárás alatt a felvett lista MÖGÉ nem került új csoport, és a hibacsatorna néma',
+      eles.every((r) => r.err === ''), eles.map((r) => r.err).filter(Boolean).slice(0, 2));
+
+    // ══ CR15 — A KÉT KAPU ELLENPRÓBÁJA + A FUTTATÓ SAJÁT HATÁRA ═══════════════════════════════════
+    // A ZÖLD CSAK AKKOR JELENT VÉDELMET, HA A KAPU KIVÉTELÉRE MÉRHETŐEN ELBUKIK (KUKA-127). A
+    // forrásból jelölők mentén vesszük ki a kaput; ha a jelölő HIÁNYZIK, a válasz „nincs alkalmazható
+    // eset", NEM zöld (KUKA-093 · KUKA-051: a hatókör szabály, nem lista).
+    const kapuNelkul = (nev, jelolo) => {
+      const d = join(F101, `nogate_${nev}`);
+      rmSync(d, { recursive: true, force: true }); mkdirSync(d, { recursive: true });
+      let vagott = 0;
+      for (const f of ['vs_shutdown_state.mjs', 'vs_child_runner.mjs', 'vs_sweep_sequence.mjs']) {
+        let src = readFileSync(join(LIBDIR, f), 'utf8');
+        const nyit = src.indexOf(`[${jelolo}]`);
+        const zar = src.indexOf(`[/${jelolo}]`);
+        if (nyit >= 0 && zar > nyit) {
+          const sorEleje = src.lastIndexOf('\n', nyit) + 1;
+          const sorVege = src.indexOf('\n', zar) + 1;
+          src = src.slice(0, sorEleje) + src.slice(sorVege);
+          vagott += 1;
+        }
+        writeFileSync(join(d, f), src);
+      }
+      return vagott === 1 ? d : null;
+    };
+
+    // ── (a) A SOROZAT-KAPU: kivéve visszatér a MÉRT hiba (a második visszahívás lefut).
+    const nogateSeq = kapuNelkul('sorozat', 'F101-01-KAPU:SOROZAT');
+    if (!nogateSeq) {
+      skip('CR15', 'a sorozat-kapu ellenpróbája', 'a [F101-01-KAPU:SOROZAT] jelölő nem található — NINCS ALKALMAZHATÓ ESET (nem zöld)');
+    } else {
+      const ellen = [];
+      for (let i = 1; i <= 2; i += 1) ellen.push(await f101Menet(nogateSeq, 'SIGTERM', i));
+      check('CR15', 'ELLENPRÓBA: a SOROZAT-KAPU nélkül a második visszahívás MÉRHETŐEN lefut — tehát a CR14 a VÉDELMET méri',
+        ellen.every((r) => r.elsoAll) && ellen.every((r) => r.masodikVisszahivas === true),
+        ellen.map((r) => `elso=${r.elsoAll} masodik_visszahivas=${r.masodikVisszahivas}`).join(' · '));
+    }
+
+    // ── (b) A FUTTATÓ SAJÁT HATÁRA: közvetlen hívás a leállítás ALATT — és a kapu ellenpróbája.
+    // A sorozat itt nincs a képben: ezt a kaput a futtató maga tartja (R101/2 második fele).
+    // A MAKACS gyermek KÜLÖN FÁJL: a beágyazott idézőjelek az első alakomban a PRÓBÁT buktatták el
+    // (`exit 1`, üres válasz), nem a rendszert — pontosan az a hiba-osztály, amiről a KUKA-120 szól.
+    writeFileSync(join(F101, 'makacs.mjs'), `process.on('SIGTERM', () => {});
+process.on('SIGINT', () => {});
+setInterval(() => {}, 50);
+`);
+    writeFileSync(join(F101, 'hatar.mjs'), `// KÖZVETLEN futtató-hívás a rendezett lezárás KÖZBEN.
+import { writeFileSync } from 'node:fs';
+const [libDir, dir] = process.argv.slice(2);
+const { runGuarded } = await import(libDir + '/vs_child_runner.mjs');
+const here = import.meta.dirname;
+// MAKACS fa hosszú türelemmel: a lezárás eltart egy ideig — ez a MÉRHETŐ ABLAK.
+const p = runGuarded('exec node ' + JSON.stringify(here + '/makacs.mjs'), { timeoutMs: 60000, graceMs: 2500, verifyMs: 3000 });
+// A SAJÁT figyelőnk a futtatóé UTÁN fut (az övé települt előbb) — a tilalom tehát MÁR áll.
+process.on('SIGTERM', () => {
+  setTimeout(async () => {
+    const r = await runGuarded('printf masodik > ' + JSON.stringify(dir + '/kozvetlen_gyermek.txt') + '; exec node ' + JSON.stringify(here + '/makacs.mjs'),
+      { timeoutMs: 20000, graceMs: 300, verifyMs: 300 });
+    writeFileSync(dir + '/kozvetlen.json', JSON.stringify({
+      started: r.started === true, not_started: r.not_started || null, verdict: r.cleanup && r.cleanup.verdict, pgid: r.pgid,
+    }));
+  }, 500);
+});
+console.log('indul');
+await p;
+`);
+    const hatarMenet = async (libDir, cimke) => {
+      const dir = join(F101, `hatar_${cimke}`);
+      rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
+      const { spawn } = await import('node:child_process');
+      const p = spawn(process.execPath, [join(F101, 'hatar.mjs'), libDir, dir], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+      const zarva = new Promise((r) => { p.on('close', (c) => r(c)); setTimeout(() => r(null), 25000); });
+      await new Promise((r) => { p.stdout.on('data', (d) => { if (String(d).includes('indul')) r(); }); setTimeout(r, 5000); });
+      await sleep(400);
+      p.kill('SIGTERM');
+      const code = await zarva;
+      await sleep(200);
+      return {
+        gyermek: existsSync(join(dir, 'kozvetlen_gyermek.txt')),
+        valasz: existsSync(join(dir, 'kozvetlen.json')) ? JSON.parse(readFileSync(join(dir, 'kozvetlen.json'), 'utf8')) : null,
+        code,
+      };
+    };
+    const h = await hatarMenet(LIBDIR, 'eles');
+    check('CR15', 'a futtató SAJÁT HATÁRÁN sem indul gyermek a leállítás alatt (a sorozat nincs a képben)',
+      h.gyermek === false && h.valasz && h.valasz.started === false && h.valasz.pgid === null, h);
+    check('CR15', 'és a válasz NEVEZETT: „nem indult" + `nem_indult` verdikt — nem hamis maradvány, nem tiszta takarítás',
+      Boolean(h.valasz && h.valasz.verdict === 'nem_indult' && /MEGSZAKÍTÁS/.test(String(h.valasz.not_started))),
+      h.valasz);
+    const nogateChr = kapuNelkul('inditas', 'F101-01-KAPU:INDITAS');
+    if (!nogateChr) {
+      skip('CR15', 'az indítási kapu ellenpróbája', 'a [F101-01-KAPU:INDITAS] jelölő nem található — NINCS ALKALMAZHATÓ ESET (nem zöld)');
+    } else {
+      const he = await hatarMenet(nogateChr, 'ellen');
+      check('CR15', 'ELLENPRÓBA: az INDÍTÁSI KAPU nélkül a leállítás alatt MÉRHETŐEN elindul egy új gyermek',
+        he.gyermek === true && he.valasz && he.valasz.started === true && Number.isInteger(he.valasz.pgid), he);
+    }
+
+    // ── (c) A KAPU HELYE SZABÁLY, NEM SZÖVEG: a kérdés és a `spawn` közé nem kerülhet `await`.
+    // Ha odakerülne, a jelkezelő KÖZÉJÜK tudna futni, és a rés visszanyílna — időzítéstől függően,
+    // tehát némán (KUKA-202: az őr ott álljon, ahol a kár keletkezik).
+    const runnerTxt = readFileSync(join(LIBDIR, 'vs_child_runner.mjs'), 'utf8');
+    const kapuTol = runnerTxt.indexOf('if (isInterrupted()) {');
+    const spawnIg = runnerTxt.indexOf('const child = spawn(cmd, {');
+    check('CR15', 'az indítási kapu és a `spawn` között NINCS `await` (jel nem tud közéjük futni)',
+      kapuTol >= 0 && spawnIg > kapuTol && !/\bawait\b/.test(runnerTxt.slice(kapuTol, spawnIg)),
+      { kapu_a_spawn_elott: kapuTol >= 0 && spawnIg > kapuTol });
+    check('CR15', 'a takarítás-feloldó a MEG NEM INDULT feladatot sem nevezi igazoltnak',
+      cleanupStateOf({ verdict: 'nem_indult', leftovers: null }).state === 'nem_indult'
+      && SWEEP_SEQUENCE_CONTRACT.halts_on.includes('nem_indult'),
+      { halts_on: SWEEP_SEQUENCE_CONTRACT.halts_on });
+    // A KÖZÖS ÁLLAPOT SZERZŐDÉSE külön folyamatban mérve: a `beginInterrupt` visszafordíthatatlan,
+    // ezért a saját folyamatunkban NEM hívjuk meg (az a próba hátralévő részét bénítaná meg).
+    const SHD = join(F101, 'shd.mjs');
+    writeFileSync(SHD, `import { beginInterrupt, isInterrupted, forceRequested, interruptState, INTERRUPT_EXIT_CODES }
+  from ${JSON.stringify(join(LIBDIR, 'vs_shutdown_state.mjs'))};
+const elotte = isInterrupted();
+const a = beginInterrupt('SIGTERM');
+const kozben = forceRequested();
+const b = beginInterrupt('SIGINT');
+console.log(JSON.stringify({ elotte, elso_friss: a.fresh, kozben, ismetelt_friss: b.fresh, force: forceRequested(),
+  jel: interruptState().signal, kod: interruptState().code, terkep: INTERRUPT_EXIT_CODES }));
+`);
+    const shdOut = await runGuarded(`node ${JSON.stringify(SHD)}`, { cwd: ROOT, timeoutMs: 20000, graceMs: 300, verifyMs: 300 });
+    let shd = null;
+    try { shd = JSON.parse(shdOut.stdout.trim()); } catch { /* nevezett hiány lesz belőle */ }
+    check('CR15', 'SHD-01: az ELSŐ jel állítja be az állapotot, az ISMÉTELT csak a kényszert kéri — az ok az ELSŐ jelé',
+      Boolean(shd) && shd.elotte === false && shd.elso_friss === true && shd.kozben === false
+      && shd.ismetelt_friss === false && shd.force === true && shd.jel === 'SIGTERM' && shd.kod === 143,
+      shd || shdOut.output.trim().slice(0, 200));
+    check('CR15', 'SHD-01: a kilépési kód 128 + jelszám mind a három kezelt jelre (a SIGHUP is 129, nem 143)',
+      Boolean(shd) && shd.terkep.SIGINT === 130 && shd.terkep.SIGTERM === 143 && shd.terkep.SIGHUP === 129,
+      shd && shd.terkep);
   }
 } finally {
   // A PRÓBA SAJÁT SZEMETE: a felírt PID-ek, majd a fájlok. A nyomot CSAK sikeres takarítás után visszük el.
   cleanupTraced();
+  // Az F101-01 próbájának SAJÁT munkakönyvtára (fák, kapu nélküli másolatok, menet-naplók).
+  try { rmSync(join(TMP, `${tag}_f101`), { recursive: true, force: true }); } catch { /* marad, és ez a nyom */ }
   for (const f of [SCEN, HB, TRACE, INTERRUPT, join(TMP, `${tag}_nyom_regi.txt`), join(TMP, `${tag}_eletjel_regi.txt`),
     join(TMP, `${tag}_nyom_megszakitas.txt`), join(TMP, `${tag}_eletjel_megszakitas.txt`),
     join(TMP, `${tag}_szabalyos.mjs`), join(TMP, `${tag}_szabalyos_kesz.txt`), join(TMP, `${tag}_futtato_szabalyos.mjs`),

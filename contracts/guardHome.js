@@ -245,6 +245,7 @@ const GUARD_HOME = Object.freeze({
   'KUKA-241': Object.freeze({ home: 'v3', note: 'az üres osztálynév tiltása a v3app/public/tour.mjs-en fut, a lelet a meghívás-bemutató hatodik lépésén' }),
   'KUKA-242': Object.freeze({ home: 'v3', note: 'az AST-05 blokk-válasz a v3app/assistant/policy.mjs-ben és a v3app/server.mjs-ben él; élő mérés: verify:app-findings-r93' }),
   'KUKA-243': Object.freeze({ home: 'v3', note: 'a hordozott lezárás a v3app/public/tour.mjs + app.js párosban él; böngésző-tanú: R93-02/03' }),
+  'KUKA-248': Object.freeze({ home: 'v3', note: 'a közös megszakítási állapot (SHD-01, tools/lib/vs_shutdown_state.mjs), az indítási kapu (CHR-01) és a sorozat megszakítás-kapuja (SEQ-01) ITT él; jel: verify:child-runner CR14–CR15, ellenpróbával' }),
   'KUKA-247': Object.freeze({ home: 'v3', note: 'a sorozat-vezérlő (SEQ-01, tools/lib/vs_sweep_sequence.mjs) és a futtató megszakítási útja (CHR-01) ITT él; jel: verify:child-runner CR09–CR13' }),
   'KUKA-246': Object.freeze({ home: 'v3', note: 'a védett futtató (CHR-01, tools/lib/vs_child_runner.mjs) és a söprés bekötése ITT él; jel: verify:child-runner CR01–CR08' }),
   'KUKA-245': Object.freeze({ home: 'v3', note: 'a nyelv-emlékezet (LNG-02) és az EGY bejárat a v3app/public-ban él; tanú: verify:app-findings-r95 + tests/e2e/v3app-r97.spec.mjs' }),

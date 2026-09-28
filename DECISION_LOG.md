@@ -16,6 +16,53 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3081 — A MEGSZAKÍTÁS KÖZÖS, NEVEZETT ÁLLAPOT, ÉS A LEÁLLÍTÁS ALATT ÚJ MUNKA NEM INDUL (SHD-01)
+
+> **Hatály:** V3 (`valach-system`) — `tools/lib/vs_shutdown_state.mjs` (új), `tools/lib/vs_child_runner.mjs`,
+> `tools/lib/vs_sweep_sequence.mjs`, `tools/vs_verify_sweep.mjs`, `tools/vs_verify_child_runner.mjs`
+> (CR14–CR15). Nincs V2-módosítás, merge, telepítés, migráció, új üzleti modul, core/CMD/PR-zárás.
+
+**A parancs:** `CMD-VS-300-002-002 R101 — ANALYSIS` (chatgpt-v3) §F101-01, a munkamódot az `R103 — GUIDE`
+pontosítja.
+
+**A lelet.** A D-VS-3080 a megszakítási utat VÉGESSÉ és igazolttá tette — de a lezárásnak KÉT kötelme
+van, és csak az egyik épült meg: „leállítom, ami fut" és „nem kezdek újat". Az első gyermek a jelre
+SZABÁLYOSAN, 100 ms alatt kilépett, a `runGuarded` erre `mar_ures` / `leftovers:false` választ adott,
+a `runSequence` pedig CSAK a takarítás állapotát nézte — ez FOLYTATÁSI ENGEDÉLY volt. A külső ellenőrző
+fél valódi SIGTERM-mel háromszor reprodukálta, hogy a második visszahívás lefut; **ebben a körben a saját
+mérés kiterjesztette: a második GYERMEK is elindult, szintén 3/3** (ezt az R101 nem állította).
+
+**A döntés — négy kimondott szabály:**
+
+1. **A MEGSZAKÍTÁS KÖZÖS, NEVEZETT ÁLLAPOT** (SHD-01, `tools/lib/vs_shutdown_state.mjs`). A futtató és a
+   sorozat UGYANAZT kérdezi — nem két, egymástól független kapcsoló (az R101 kikötése). A jelkezelő ELSŐ,
+   SZINKRON lépése az állapot beállítása, MIELŐTT az aszinkron takarítás egyetlen sort is futna.
+2. **AZ INDÍTÁSI KAPU OTT ÁLL, AHOL AZ ÚJ MUNKA ELINDUL** (KUKA-202). A futtatóban a `spawn` ELŐTT, a
+   sorozatban minden tétel ELŐTT. A kérdés és a `spawn` között nincs `await`: a jelkezelő az eseményhurokban
+   fut, tehát ezt a szinkron sorozatot nem tudja kettévágni — a rés bezárása ezen áll, nem időzítésen.
+3. **A TILTÁS SAJÁT SZÓVAL TÖRTÉNIK, nem hamis maradvánnyal és nem a tiszta takarítás letagadásával.**
+   A futtató válasza `started:false` + nevezett `not_started` ok + `cleanup.verdict="nem_indult"`; a
+   sorozat megállásának fajtája `megszakitas` (nem `takaritas`), a kimaradó tételek a JELLEL együtt
+   megnevezve maradnak, a kilépés 128 + jelszám (a SIGHUP mostantól 129, nem 143 — a modul saját, kimondott
+   szabálya eddig a SIGHUP ágon nem volt igaz).
+4. **A VÉDELEMNEK MEG KELL TUDNI SZÓLALNI.** Csoportonként EGY lezárási menet fut (a normál és a
+   megszakítási út ugyanazt az ígéretet várja meg, versengő második takarítás nincs), és a kilépés EGY
+   eseményhurok-fordulót vár, hogy a folyamatban lévő hívások visszatekeredjenek és a MEG NEM INDULT tételek
+   bekerüljenek a jelentésbe. E nélkül a zöldet a kilépés és a kapu VERSENYE adná, nem a kapu — és a próba a
+   saját időzítését mérné (KUKA-120 · KUKA-127).
+
+**A bizonyíték.** `npm run verify:child-runner` **61/61 PASS**, nevezett kihagyás nélkül: CR14 (valódi
+SIGTERM és SIGINT, 4 menet — a második visszahívás ÉS a második gyermek egyaránt nulla, az első feladat
+lezárása közben `igazolt`, a kimaradt tétel a jellel megnevezve, kilépés 143/130, 484–504 ms) és CR15 (a
+futtató saját határa; a kapu és a `spawn` között nincs `await`; SHD-01 szerződése). **ELLENPRÓBÁVAL:** a
+sorozat-kapu kivételére a második visszahívás 2/2 lefut, az indítási kapu kivételére a leállítás alatt 1/1
+ÚJ GYERMEK indul, nevezett pgid-del — tehát a zöld a VÉDELMET méri. Mellé `npm run verify:sweep-reuse`
+**43/43 PASS** és `npm run verify:kuka` **470/470 PASS** (KUKA-248). **Amit NEM mértünk, kimondva:** a
+Windows-ág (nevezett platform-korlát) és a futtatóra küldött SIGKILL továbbra sem garantált — a
+`CHILD_RUNNER_CONTRACT.not_guaranteed` változatlanul kimondja.
+
+---
+
 ## D-VS-3080 — A LEZÁRÁS MINDHÁROM ÚTON UGYANAZ, ÉS AZ IGAZOLATLAN LEZÁRÁS MEGÁLLÍTJA A SOROZATOT (SEQ-01)
 
 > **Hatály:** V3 (`valach-system`) — `tools/lib/vs_sweep_sequence.mjs` (új), `tools/lib/vs_child_runner.mjs`,

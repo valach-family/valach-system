@@ -12,7 +12,9 @@ import { readFileSync } from 'node:fs';
 // CHR-01 (F95-02, R97): a gyermek SAJÁT folyamatcsoportban indul, és a lezárása IGAZOLT — az
 // `execSync` időtúllépése csak a KÖZVETLEN gyermeknek küldött jelet, az unokák életben maradtak, és a
 // gép a KÖVETKEZŐ ellenőrzés alatt is terhelt volt (chatgpt-v3 mérése, R95 §F95-02).
-import { runGuarded, PLATFORM_LIMIT } from './lib/vs_child_runner.mjs';
+// SHD-01/F101-01 (R103): a MEGSZAKÍTÁS a sorozat MÁSODIK megállási oka — külön szóval, és a
+// jelentés MEGVÁRJA a rendezett lezárást, hogy a kimaradó tételek ne némán vesszenek el.
+import { runGuarded, PLATFORM_LIMIT, interruptState, shutdownSettled } from './lib/vs_child_runner.mjs';
 import { runSequence } from './lib/vs_sweep_sequence.mjs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
@@ -96,7 +98,15 @@ const seq = await runSequence(runs, {
   },
   // AZONNAL LÁTHATÓ: a megállás a pillanatában kiíródik, nem a futás végén (R98 előírása).
   onHalt: (h) => {
-    console.error(`\n=== A SOROZAT MEGÁLL: ${h.after.s} után a lezárás ${h.state === 'maradvany' ? 'MARADVÁNYT hagyott' : 'NEM IGAZOLHATÓ'} (${h.why})`);
+    // A MEGÁLLÁSNAK KÉT OKA LEHET, ÉS A KETTŐ NEM UGYANAZ (KUKA-002): igazolatlan LEZÁRÁS vagy
+    // MEGSZAKÍTÁS. Megszakításnál az `after` üres is lehet (a jel az első feladat ELŐTT érkezett).
+    const utana = h.after ? `${h.after.s} után` : 'az első ellenőrzés előtt';
+    if (h.kind === 'megszakitas') {
+      console.error(`\n=== A SOROZAT MEGÁLL: MEGSZAKÍTÁS (${h.signal}) — ${utana}`);
+      console.error('  A leállítás alatt új ellenőrzés nem indul. Ami nem futott le, az NEM zöld és nem kihagyás.');
+      return;
+    }
+    console.error(`\n=== A SOROZAT MEGÁLL: ${utana} a lezárás ${h.state === 'maradvany' ? 'MARADVÁNYT hagyott' : 'NEM IGAZOLHATÓ'} (${h.why})`);
     for (const st of h.steps || []) console.error(`  · ${st}`);
     console.error('  A következő ellenőrzés egy terhelt/ismeretlen állapotú gépen mérne — ezért nem indul el.');
   },
@@ -129,10 +139,24 @@ if (leftovers.length) {
 }
 // A KIMARADT FELADAT NEVET KAP, nem néma kihagyást és végképp nem zöldet (F98-01/A).
 if (notStarted.length) {
-  console.error(`NEM INDULT EL (${notStarted.length}): a sorozat a(z) ${notStarted[0].after.s} lezárásának hiánya miatt megállt`);
+  const elso = notStarted[0];
+  const utana = elso.after ? `a(z) ${elso.after.s}` : 'az első ellenőrzés';
+  console.error(elso.kind === 'megszakitas'
+    ? `NEM INDULT EL (${notStarted.length}): a sorozat MEGSZAKÍTÁS (${elso.signal}) miatt állt meg ${utana} után`
+    : `NEM INDULT EL (${notStarted.length}): a sorozat ${utana} lezárásának hiánya miatt megállt`);
   for (const n of notStarted) console.error(`  · ${n.item.s} — ${n.reason}`);
 }
 if (PLATFORM_LIMIT) console.log(`NEVEZETT PLATFORM-KORLÁT: ${PLATFORM_LIMIT}`);
 if (fails.length) console.error(`PIROS: ${fails.join(', ')}`);
+// MEGSZAKÍTÁS: a jelentés MÁR kiíródott (fent), és a KILÉPÉS OKA a jelé — nem „1-es hiba" és
+// végképp nem siker (F101-01/4). A rendezett lezárást MEGVÁRJUK: az ígéret a `process.exit`-tel
+// zárul, tehát ez a sor a lezárás után adja vissza a vezérlést a jelnek (véges lánc, CHR-01).
+const megszakitas = interruptState();
+if (megszakitas) {
+  console.error(`\nA SÖPRÉS MEGSZAKADT (${megszakitas.signal}) — a fenti lista mondja meg, mi futott le és mi nem.`);
+  const zaras = shutdownSettled();
+  if (zaras) await zaras;
+  process.exit(megszakitas.code);
+}
 // A FUTTATÓ HIBÁVAL ZÁR, ha bármi nem igazolt — a meg nem indult feladat is ide tartozik (F98-01/A).
 if (fails.length || timedOut.length || unverified.length || leftovers.length || notStarted.length) process.exit(1);

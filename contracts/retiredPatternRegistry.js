@@ -10751,6 +10751,92 @@ pattern: 'sources: modelAccepted \\? \\w+\\.sources : local\\.sources',
       + 'fenti mintái. ELLENPRÓBÁVAL MÉRVE (R100): a régi jelkezelő visszaállítására a CR11 PIROS '
       + '(jelzőfájl nem születik, 6 ms alatt kilép), a megállás kivételére a CR10 hat ága PIROS.',
   }),
+  Object.freeze({
+    id: 'KUKA-248',
+    date: '2026-09-28',
+    title: 'A LEZÁRÁS ELINDULT, DE AZ ÚJ INDÍTÁSOKAT SEMMI NEM TILTOTTA — a szabályosan záró gyermek '
+      + 'TISZTA takarítása folytatási engedélynek látszott, és a megszakítás alatt elindult a következő feladat',
+    what: 'A KUKA-247 javítása után a megszakítási út VÉGES és igazolt lett, de a lezárásnak KÉT '
+      + 'kötelme van, és csak az egyik épült meg: „leállítom, ami fut" — és „nem kezdek újat". Az '
+      + 'első gyermek a jelre SZABÁLYOSAN, 100 ms alatt kilépett, a `runGuarded` erre `mar_ures` / '
+      + '`leftovers:false` választ adott, a `runSequence` pedig CSAK a takarítás állapotát nézte: '
+      + 'ez FOLYTATÁSI ENGEDÉLY volt. A második visszahívás lefutott, és a `runGuarded` a leállítás '
+      + 'alatt ÚJ GYERMEKET indított; a második folyamatot utóbb a késleltetett `process.exit` vagy '
+      + 'a szinkron kilépési védőháló vitte el — ez azonban nem azonos azzal, hogy EL SEM INDULT.',
+    why_wrong: 'A megszakítás nem volt NEVEZETT ÁLLAPOT sehol: a `shutdown` folyamat PUSZTA LÉTE nem '
+      + 'indítási tilalom, mert sem a futtató (a `spawn` előtt), sem a sorozat (a következő tétel '
+      + 'előtt) nem kérdezte meg. Ez a KUKA-041 alakja a futtatón — a szabály az egyik irányon '
+      + '(leállítás) érvényesült, a másikon (indítás) nem —, és egyben a KUKA-202-é: az őr nem ott '
+      + 'állt, ahol a kár keletkezik (a `spawn` pontján). A kimenet ráadásul IDŐZÍTÉSTŐL függött, '
+      + 'tehát NÉMÁN: ugyanaz a kód héj-indítással nem, `exec`-kel viszont 3/3 alkalommal vitte át '
+      + 'a második feladatot.',
+    replaced_by: 'SHD-01 (`tools/lib/vs_shutdown_state.mjs`): EGY közös, nevezett megszakítási '
+      + 'állapot, amit a futtató és a sorozat EGYARÁNT kérdez — nem két, egymástól független '
+      + 'kapcsoló. A jelkezelő ELSŐ, SZINKRON lépése az állapot beállítása, MIELŐTT az aszinkron '
+      + 'takarítás egyetlen sort is futna. CHR-01-ben a `spawn` ELŐTT áll a kapu (a kérdés és a '
+      + '`spawn` között nincs `await`, tehát jel nem tud közéjük futni), és a válasz NEVEZETT: '
+      + '`started:false` + `not_started` ok + `cleanup.verdict="nem_indult"`. SEQ-01-ben minden tétel '
+      + 'ELŐTT ugyanez a kérdés áll; a megállás fajtája `megszakitas` (nem `takaritas`), a kimaradó '
+      + 'tételek a JELLEL együtt megnevezve maradnak, és a kilépés a jel kódja (128 + jelszám).',
+    replacement: 'Mellé két kiegészítés, mert e nélkül a védelem MÉRHETETLEN maradt volna: (1) '
+      + 'csoportonként EGY lezárási menet fut, a normál és a megszakítási út UGYANAZT az ígéretet '
+      + 'várja meg (nincs versengő második takarítás, a felvett lista mögé új csoport nem kerül); '
+      + '(2) a kilépés egy eseményhurok-fordulót vár, hogy a FOLYAMATBAN LÉVŐ hívások visszatekeredjenek '
+      + 'és a MEG NEM INDULT tételek bekerüljenek a jelentésbe — különben a versenyt a kilépés döntené '
+      + 'el, nem a kapu, és a hiány néma lenne (KUKA-012 · KUKA-127).',
+    decision: 'D-VS-3081',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R101 §F101-01 — valódi SIGTERM-jelet használó, '
+      + 'elkülönített próbával, HÁROMSZOR reprodukálva (a második visszahívás lefutott). Ebben a körben '
+      + 'a saját mérés ezt KITERJESZTETTE: a második GYERMEK indulása is bekövetkezett, szintén 3/3 — '
+      + 'ezt az R101 nem állította, és a kettő nem ugyanaz a kár.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_shutdown_state.mjs']),
+        pattern: 'export function beginInterrupt',
+        why: 'a megszakítás KÖZÖS, nevezett állapota EGY helyen él — nem két, egymástól független kapcsoló' }),
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_child_runner.mjs']),
+        pattern: 'const \\{ fresh, state \\} = beginInterrupt\\(sig\\)',
+        why: 'a tilalom a jelkezelő ELSŐ, szinkron lépése — MIELŐTT az aszinkron takarítás elindul' }),
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_child_runner.mjs']),
+        pattern: 'if \\(isInterrupted\\(\\)\\) \\{',
+        why: 'az INDÍTÁSI KAPU a futtató saját határán, a `spawn` előtt — ott, ahol a kár keletkezik' }),
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_sweep_sequence.mjs']),
+        pattern: 'const intr = interruptState\\(\\)',
+        why: 'a sorozat MINDEN tétel előtt a közös állapotot kérdezi, nem csak a takarítást nézi' }),
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_child_runner.mjs']),
+        pattern: 'function closeGroup\\(pgid\\)',
+        why: 'csoportonként EGY lezárás: a normál és a megszakítási út ugyanazt az ígéretet várja meg' }),
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_sweep.mjs']),
+        pattern: 'h\\.after \\?',
+        why: 'a jelentés kiállja, hogy a megszakítás az ELSŐ feladat előtt érkezzen (nincs mi „után")' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_child_runner.mjs']),
+        pattern: 'let forceRequested = false',
+        reason: 'a futtató SAJÁT, a közös állapottól független megszakítási kapcsolója — két kapcsoló elcsúszik' }),
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_sweep_sequence.mjs']),
+        pattern: "halts_on: Object\\.freeze\\(\\['maradvany', 'nem_igazolhato'\\]\\)",
+        reason: 'a sorozat szerződése, amely CSAK a takarítást ismeri megállási okként (a megszakítást nem)' }),
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_sweep.mjs']),
+        pattern: 'MEGÁLL: \\$\\{h\\.after\\.s\\}',
+        reason: 'a megállás jelentése FELTÉTEL NÉLKÜL olvassa az előző tételt — megszakításnál az `after` üres, és a jelentés összeomlik' }),
+    ]),
+    lesson: 'A LEÁLLÍTÁS KÉT KÖTELEM, NEM EGY: „leállítom, ami fut" és „nem kezdek újat" — és a '
+      + 'második nem következik az elsőből. Egy folyamatban lévő takarítás PUSZTA LÉTE nem tilalom, '
+      + 'amíg valaki meg nem kérdezi; a tilalmat NEVEZETT, KÖZÖS állapotba kell tenni, és ott kell '
+      + 'kérdezni, AHOL az új munka elindul (a `spawn` pontján és a sorozat következő tétele előtt). '
+      + 'A tiszta takarítás NEM folytatási engedély, ha közben megszakítás van — és a tiltás nem '
+      + 'hamis maradvánnyal történik, hanem saját szóval. ÉS A MÉRÉSRŐL: ahol a kilépés versenyez a '
+      + 'védelemmel, ott a zöld a versenyt igazolja, nem a kaput — a kilépésnek meg kell várnia, hogy '
+      + 'a védelem MEGSZÓLALHASSON, különben a próba a saját időzítését méri (KUKA-120 · KUKA-127).',
+    guard_note: 'gépi jel: `npm run verify:child-runner` CR14 (valódi SIGTERM és SIGINT, 4 menet: a '
+      + 'második VISSZAHÍVÁS és a második GYERMEK egyaránt nulla, az első feladat lezárása közben '
+      + 'IGAZOLT — tehát a megállás nem hamis maradvány; a kimaradt tétel a jellel együtt megnevezve; '
+      + 'kilépés 143/130, véges) + CR15 (a futtató saját határa: közvetlen hívás a leállítás alatt '
+      + 'nem indít gyermeket; az indítási kapu és a `spawn` között nincs `await`; SHD-01 szerződése). '
+      + 'ELLENPRÓBÁVAL MÉRVE: a [F101-01-KAPU:SOROZAT] kivételére a második visszahívás 2/2 lefut, a '
+      + '[F101-01-KAPU:INDITAS] kivételére a leállítás alatt 1/1 ÚJ GYERMEK indul (nevezett pgid-del); '
+      + 'ha a jelölő hiányzik, az ellenpróba „nincs alkalmazható eset", NEM zöld (KUKA-093).',
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({
