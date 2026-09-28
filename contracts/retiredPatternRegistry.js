@@ -10687,6 +10687,70 @@ pattern: 'sources: modelAccepted \\? \\w+\\.sources : local\\.sources',
       + 'gyermek/unoka időtúllépéskor · nincs további életjel és nincs átfedés · ELLENPRÓBA a régi '
       + 'mechanizmussal · megszakítás · hatókör · a söprés bekötése) + `verify:kuka` fenti mintái.',
   }),
+  Object.freeze({
+    id: 'KUKA-247',
+    date: '2026-09-28',
+    title: 'A LEZÁRÁSI SZERZŐDÉS EGY ÚTON ÉPÜLT MEG — a sorozat továbbindult igazolatlan takarítás után, '
+      + 'a megszakítás pedig türelem nélkül ölt',
+    what: 'A KUKA-246 javítása a NORMÁL úton (időtúllépés) helyes volt, de a szerződésnek két további '
+      + 'útja van, és egyik sem épült meg. (A) A söprés a maradványt a `leftovers` listába tette, majd '
+      + 'a ciklust FOLYTATTA: az első feladat `cleanup.leftovers=true` eredménye után a második elindult, '
+      + 'a hibakód csak a futás végén keletkezett, és a kijelzett számláló közben „2 zöld"-et mutatott. '
+      + '(B) A futtató jelkezelője SIGTERM-et és SIGKILL-t KÖZVETLENÜL egymás után küldött, majd törölte '
+      + 'a nyilvántartást és kilépett — a beállított türelmi idő ezen az úton NEM LÉTEZETT: 1000 ms '
+      + 'türelem mellett egy 100 ms alatt szabályosan záró gyermek lezárási jelzőfájlja MEG SEM SZÜLETETT.',
+    why_wrong: 'A SAJÁT JELENTÉSEM AZT ÁLLÍTOTTA, hogy a takarítás „sikernél, hibánál ÉS megszakításnál '
+      + 'ugyanaz az út" — miközben a megszakítási ág a türelmet át sem vette. Ez a KUKA-041 alakja a '
+      + 'futtatón: a szabály az egyik irányon érvényesült, a másikon nem, és a különbséget semmi nem mérte. '
+      + 'A sorozat-oldali fele ugyanaz a kár, mint a KUKA-246-é: a következő ellenőrzés olyan gépen mér, '
+      + 'amelyen az előző fa lezárása nem igazolt — csak most NEM az időtúllépés miatt, hanem mert a '
+      + 'vezérlés a saját, meg nem állítható ciklusában élt. A platform-korlát pedig HALLGATÓLAGOS '
+      + 'ENGEDÉLLYÉ vált: ahol a lezárást nem tudtuk MÉRNI, ott a sorozat ment tovább (KUKA-012).',
+    replaced_by: 'SEQ-01 (`tools/lib/vs_sweep_sequence.mjs`): a sorrend KÜLÖN, hívható feloldóban áll — '
+      + 'maradvány, nem mérhető lezárás és hiányzó takarítás-válasz után a KÖVETKEZŐ feladat NEM indul el, '
+      + 'a kimaradók NEVEZETT állapotot kapnak („nem indult — az előző lezárása nem igazolt"), a futtató '
+      + 'hibával zár. A feladat EREDMÉNYE és a LEZÁRÁS állapota külön tény marad: piros verifier NEM állít '
+      + 'meg. CHR-01-ben a megszakítási út UGYANAZT a véges láncot futtatja, mint a normál (jel → a HÍVÓ '
+      + 'türelme → csak szükség esetén kényszer → igazolás); ismételt jel a türelmet zárja le, második, '
+      + 'versengő takarítást nem indít; a szinkron `exit`-hook csak VÉGSŐ VÉDŐHÁLÓ.',
+    replacement: 'A garancia HATÁRA kimondva (`CHILD_RUNNER_CONTRACT.not_guaranteed`): a futtatóra küldött '
+      + 'SIGKILL, az operációs rendszer kiesése és a saját csoportjából ÖNÁLLÓAN kilépő leszármazott nem '
+      + 'garantált — ezekre nem állítunk felügyeletet.',
+    decision: 'D-VS-3080',
+    found_by: 'a KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), R98 §F98-01/A és /B — az (A)-t az EREDETI vezérlési kód '
+      + 'futtatásával, kizárólag a gyermekfuttató válaszát helyettesítve; a (B)-t tényleges futtatásban, '
+      + '1000 ms türelem mellett a 100 ms-os szabályos lezárás jelzőfájljának HIÁNYÁVAL.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_sweep.mjs']),
+        pattern: 'runSequence\\(',
+        why: 'a söprés a KÖZÖS sorozat-vezérlőt hívja, nem a törzsében őrzött, meg nem állítható ciklust' }),
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_sweep_sequence.mjs']),
+        pattern: 'halted = \\{ after: item',
+        why: 'a megállás KÓDBAN áll: igazolatlan lezárás után nincs következő feladat' }),
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_child_runner.mjs']),
+        pattern: 'shutdownOwn',
+        why: 'a megszakítási út ASZINKRON, véges rendje — nem a szinkron védőháló' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_child_runner.mjs']),
+        pattern: 'sweepOwn\\(\\);\\s*process\\.exit',
+        reason: 'a szinkron védőháló a megszakítás FŐ útjaként — türelem és igazolás nélkül' }),
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_sweep.mjs']),
+        pattern: 'for \\(const \\{ s, cmd \\} of runs\\)',
+        reason: 'a söprés saját, meg nem állítható sorozat-ciklusa (a maradványt feljegyzi, de fut tovább)' }),
+    ]),
+    lesson: 'EGY SZERZŐDÉSNEK MINDEN ÚTJÁT MEG KELL ÉPÍTENI — a normál ág zöldje nem bizonyít a VEZÉRLÉSI '
+      + 'és a MEGSZAKÍTÁSI ágról semmit. Ahol egy szabály több úton igaz, ott a próbának mindegyiket '
+      + 'külön kell járnia, és a vezérlést HÍVHATÓ feloldóba kell tenni, különben bizonyíthatatlan marad '
+      + '(KUKA-207). És amit nem tudunk MÉRNI (platform-korlát, hiányzó válasz), az nem engedély a '
+      + 'folytatásra, hanem NEVEZETT megállás.',
+    guard_note: 'gépi jel: `npm run verify:child-runner` (CR09–CR13: a sorozat igazolt lezárás után '
+      + 'pontosan egyszer indul · maradvány/platform-korlát/hiányzó válasz után NULLA alkalommal, a '
+      + 'kimaradók megnevezve · a szabályos gyermek a türelmen BELÜL takarít · a makacs fa véges '
+      + 'kényszerleállítása igazolt · ismételt megszakítás véges és maradvány nélküli) + `verify:kuka` '
+      + 'fenti mintái. ELLENPRÓBÁVAL MÉRVE (R100): a régi jelkezelő visszaállítására a CR11 PIROS '
+      + '(jelzőfájl nem születik, 6 ms alatt kilép), a megállás kivételére a CR10 hat ága PIROS.',
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

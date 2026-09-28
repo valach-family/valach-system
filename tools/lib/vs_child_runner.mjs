@@ -24,9 +24,24 @@
 // hívó döntése). Ez a modul a FOLYAMATOKRÓL szól, nem arról, hogy egy ellenőrző zöld-e.
 import { spawn } from 'node:child_process';
 
-/** A SAJÁT, ÉLŐ csoportok — a jel-küldés HATÓKÖRE. Ami nincs benne, arra nem küldünk jelet. */
+/**
+ * A SAJÁT, ÉLŐ csoportok — a jel-küldés HATÓKÖRE. Ami nincs benne, arra nem küldünk jelet.
+ *
+ * AZ ÉRTÉK A HÍVÓ TÜRELMÉT IS HORDOZZA (`graceMs` · `verifyMs`) — F98-01/B. A megszakítási út
+ * UGYANAZT a rendet futtatja, mint a normál, és ahhoz ismernie kell a türelmet; a régi alak a
+ * beállított türelmet NEM ismerte, ezért SIGTERM után azonnal SIGKILL-t küldött, és a szabályos
+ * gyermek nem jutott el a SAJÁT takarításáig (chatgpt-v3 mérése: 1000 ms türelem mellett a 100 ms-os
+ * lezárás jelzőfájlja meg sem született).
+ */
 const live = new Map();
 let hooksInstalled = false;
+/** A FUTÓ megszakítási takarítás. EGY van belőle: ismételt jel NEM indít versengő második menetet. */
+let shutdown = null;
+/** ISMÉTELT JEL: a türelmet lezárja (a rend így is VÉGES), de új takarítást nem indít. */
+let forceRequested = false;
+/** A megszakítási lezárás MÉRT eredménye — a próba és a hívó ebből látja, hogy a rend lefutott. */
+let lastShutdown = null;
+export function lastShutdownReport() { return lastShutdown; }
 
 /** A folyamatcsoport-jel támogatása. Windowson a csoport-jel más gépezet: NEVEZETT korlát. */
 export function supportsProcessGroups() { return process.platform !== 'win32'; }
@@ -57,6 +72,9 @@ async function waitGone(pgid, ms, stepMs = 25) {
   const until = Date.now() + ms;
   while (Date.now() < until) {
     if (!groupAlive(pgid)) return true;
+    // ISMÉTELT MEGSZAKÍTÁS: a türelem VÉGE, nem egy MÁSODIK takarítás indulása (F98-01/B). A hívás
+    // visszatér, és a MÁR FUTÓ rend lép tovább a kényszerre — versengő takarítás nem keletkezik.
+    if (forceRequested) return !groupAlive(pgid);
     await sleep(stepMs);
   }
   return !groupAlive(pgid);
@@ -80,12 +98,32 @@ async function ensureGroupGone(pgid, { graceMs, verifyMs }) {
   return { verdict: 'nem_igazolt', steps, leftovers: true };
 }
 
-/** MEGSZAKÍTÁSKOR IS REND VAN: a saját csoportokat lezárjuk, idegenhez nem nyúlunk. */
+/**
+ * MEGSZAKÍTÁSKOR IS REND VAN — ÉS UGYANAZ A REND (F98-01/B).
+ *
+ * A RÉGI ALAK HIBÁJA (chatgpt-v3, R98): a jelkezelő SIGTERM-et és SIGKILL-t küldött KÖZVETLENÜL
+ * egymás után, majd törölte a nyilvántartást és kilépett. A beállított türelmi idő ezen az úton NEM
+ * LÉTEZETT: egy szabályosan, 100 ms alatt záró gyermek 1000 ms türelem mellett sem jutott el a saját
+ * takarításáig. A lezárási szerződésnek KÉT ÚTJA van (normál és megszakítási), és csak az egyik volt
+ * megépítve — ugyanaz a hiba-osztály, mint a söprés vezérlési útja (KUKA-041: a szabály egy irányon
+ * érvényesült, a másikon nem).
+ *
+ * A MAI REND — ugyanaz a VÉGES lánc, mint a normál úton: jel → türelem → csak SZÜKSÉG ESETÉN
+ * kényszer → IGAZOLÁS. A türelem a HÍVÓ beállítása (a nyilvántartásból), nem egy itteni új szám.
+ *
+ * ISMÉTELT JEL: NEM indít második takarítást (versengés nélkül), hanem a türelmet zárja le — a futó
+ * rend lép tovább a kényszerre. Így a viselkedés egyértelmű ÉS véges marad.
+ *
+ * A SZINKRON `exit`-HOOK CSAK VÉGSŐ VÉDŐHÁLÓ: a kilépés pillanatában már nem lehet várni, ezért ott
+ * csak az marad, ami akkor még a nyilvántartásban van (rendes úton: semmi). Nem ez helyettesíti az
+ * aszinkron ellenőrzést.
+ */
 function installHooks() {
   if (hooksInstalled) return;
   hooksInstalled = true;
-  // A MEGSZAKÍTÁSI ÚT IS AZ EGYETLEN JEL-KÜLDŐN megy át (`signalOwnGroup`) — különben a hatókör
-  // két helyen élne, és a második elcsúszna (KUKA-018 · KUKA-003).
+
+  // ── VÉGSŐ VÉDŐHÁLÓ (szinkron): a kilépéskor még nyilvántartott csoportok. Itt nincs mit várni,
+  // ezért itt a türelem NEM értelmezhető — és épp ezért NEM ez a lezárás fő útja.
   const sweepOwn = () => {
     for (const pgid of [...live.keys()]) {
       try { signalOwnGroup(pgid, 'SIGTERM'); } catch { /* már nincs, vagy már kivettük */ }
@@ -94,11 +132,34 @@ function installHooks() {
     }
   };
   process.on('exit', sweepOwn);
+
+  // ── A MEGSZAKÍTÁSI ÚT (aszinkron, véges): csoportonként UGYANAZ a feloldó fut, mint a normál úton.
+  const shutdownOwn = async (reason) => {
+    const groups = [];
+    for (const pgid of [...live.keys()]) {
+      const rec = live.get(pgid) || {};
+      const graceMs = Number.isFinite(rec.graceMs) ? rec.graceMs : 5000;
+      const verifyMs = Number.isFinite(rec.verifyMs) ? rec.verifyMs : 5000;
+      let v;
+      // A TAKARÍTÁS HIBÁJA HIBA, nem „igazolt nulla maradék" (KUKA-126 · D-VS-703).
+      try { v = await ensureGroupGone(pgid, { graceMs, verifyMs }); }
+      catch (e) { v = { verdict: 'nem_igazolt', steps: [`a lezárás kivétellel állt meg: ${e && e.message}`], leftovers: true }; }
+      groups.push({ pgid, cmd: rec.cmd || null, ...v });
+      live.delete(pgid);
+    }
+    return { reason, forced: forceRequested, groups, leftovers: groups.some((g) => g.leftovers === true) };
+  };
+
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
     process.on(sig, () => {
-      sweepOwn();
-      // A JELET NEM NYELJÜK EL: a saját kilépési okunk maradjon igaz (128 + jelszám).
-      process.exit(sig === 'SIGINT' ? 130 : 143);
+      const code = sig === 'SIGINT' ? 130 : 143;
+      if (shutdown) { forceRequested = true; return; }   // ISMÉTELT JEL: türelem vége, új menet NEM
+      // A JELET NEM NYELJÜK EL: a saját kilépési okunk igaz marad (128 + jelszám) — csak most a
+      // lezárás IGAZOLÁSA UTÁN lépünk ki, nem előtte.
+      shutdown = shutdownOwn(sig).then(
+        (r) => { lastShutdown = r; process.exit(code); },
+        (e) => { lastShutdown = { reason: sig, error: String(e && e.message), leftovers: null }; process.exit(code); },
+      );
     });
   }
 }
@@ -129,7 +190,7 @@ export async function runGuarded(cmd, {
   });
   // A CSOPORT VEZETŐJE A GYERMEK PID-je (detached indítás) — ez a hatókörünk azonosítója.
   const pgid = supportsProcessGroups() && Number.isInteger(child.pid) ? child.pid : null;
-  if (pgid) live.set(pgid, { cmd, startedAt });
+  if (pgid) live.set(pgid, { cmd, startedAt, graceMs, verifyMs });
   let stdout = ''; let stderr = ''; let truncated = false;
   const add = (which, d) => {
     const s = String(d);
@@ -169,9 +230,18 @@ export async function runGuarded(cmd, {
   const res = await closed;
   if (escalating) await escalating;          // a késői jel SOHA nem érhet a nyilvántartás után
   // ── A LEZÁRÁS MINDEN ÁGON UGYANEZ: siker · hiba · időtúllépés (rendezett takarítás).
-  const cleanup = pgid
-    ? await ensureGroupGone(pgid, { graceMs, verifyMs })
-    : { verdict: 'nem_mert', steps: ['nincs folyamatcsoport-támogatás: a fa lezárása nem igazolható'], leftovers: null };
+  // A KÉT ÚT TALÁLKOZHAT: ha közben MEGSZAKÍTÁS érkezett, a csoportot a jel-út már kivehette a
+  // nyilvántartásból — ilyenkor a jel-küldés KIVÉTELT dob. A kivétel NEM némulhat el és nem
+  // dönthet össze egy futást a takarítás közben (KUKA-118): NEVEZETT `nem_igazolt` lesz belőle.
+  let cleanup;
+  if (pgid) {
+    try { cleanup = await ensureGroupGone(pgid, { graceMs, verifyMs }); }
+    catch (e) {
+      cleanup = { verdict: 'nem_igazolt', steps: [`a lezárás kivétellel állt meg: ${e && e.message}`], leftovers: true };
+    }
+  } else {
+    cleanup = { verdict: 'nem_mert', steps: ['nincs folyamatcsoport-támogatás: a fa lezárása nem igazolható'], leftovers: null };
+  }
   if (pgid) live.delete(pgid);
   return {
     cmd,
@@ -200,4 +270,15 @@ export const CHILD_RUNNER_CONTRACT = Object.freeze({
   scope: 'KIZÁRÓLAG a maga indította, nyilvántartott folyamatcsoportok — idegenre kérésre sem',
   never: 'gépszintű pkill · küszöb-emelés · állítás-gyengítés · a jel elnyelése megszakításnál',
   stated_limit: PLATFORM_LIMIT || 'POSIX: a csoport-jel a mért út; Windowson NEVEZETT korlát lép életbe',
+  // A MEGSZAKÍTÁSI ÚT KÜLÖN KIMONDVA (F98-01/B): ugyanaz a lánc, a HÍVÓ türelmével.
+  interrupt: 'kezelhető jelre (SIGINT · SIGTERM · SIGHUP) UGYANAZ a véges lánc fut, mint a normál úton, '
+    + 'a hívó `graceMs`/`verifyMs` beállításával; ISMÉTELT jel a türelmet zárja le, második takarítást '
+    + 'NEM indít; a szinkron `exit`-hook csak VÉGSŐ VÉDŐHÁLÓ, nem az aszinkron igazolás helyettesítője',
+  // A GARANCIA HATÁRA — amit NEM állítunk (KUKA-012 · KUKA-089: a hiányt kimondjuk, nem elhallgatjuk).
+  not_guaranteed: Object.freeze([
+    'SIGKILL a FUTTATÓRA (a saját folyamatunkra): a jel nem kezelhető, takarítás nem fut — a fa a rendszernél marad',
+    'az operációs rendszer kiesése (áramszünet, kernel-leállás): semmilyen felhasználói kód nem fut',
+    'a SAJÁT folyamatcsoportjából ÖNÁLLÓAN kilépő leszármazott (pl. `setsid`): a csoport-jel nem éri el, '
+      + 'tehát a mai csoport-kezelés NEM bizonyítja felügyeltnek',
+  ]),
 });

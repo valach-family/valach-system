@@ -16,6 +16,47 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3080 — A LEZÁRÁS MINDHÁROM ÚTON UGYANAZ, ÉS AZ IGAZOLATLAN LEZÁRÁS MEGÁLLÍTJA A SOROZATOT (SEQ-01)
+
+> **Hatály:** V3 (`valach-system`) — `tools/lib/vs_sweep_sequence.mjs` (új), `tools/lib/vs_child_runner.mjs`,
+> `tools/vs_verify_sweep.mjs`, `tools/vs_verify_child_runner.mjs` (CR09–CR13). Nincs V2-módosítás, merge,
+> telepítés, migráció, core/CMD/PR-zárás.
+
+**A parancs:** `CMD-VS-300-002-002 R98 — ANALYSIS` (chatgpt-v3) §F98-01/A és /B.
+
+**A lelet.** A D-VS-3079 a NORMÁL (időtúllépéses) utat építette meg helyesen, a szerződés másik két
+útját nem. **(A)** A söprés a maradványt a `leftovers` listába tette, de a ciklust folytatta: az első
+feladat `cleanup.leftovers=true` eredménye után a második elindult, a hibakód csak a végén keletkezett,
+és a kijelzett számláló közben „2 zöld”-et mutatott. **(B)** A futtató jelkezelője SIGTERM-et és
+SIGKILL-t közvetlenül egymás után küldött: 1000 ms türelem mellett egy 100 ms alatt szabályosan záró
+gyermek lezárási jelzőfájlja meg sem született.
+
+**A döntés — három kimondott szabály:**
+
+1. **A SORREND KÜLÖN, HÍVHATÓ FELOLDÓBAN ÁLL** (SEQ-01). Maradvány · nem mérhető lezárás · hiányzó
+   takarítás-válasz után a KÖVETKEZŐ feladat **nem indul el**; a kimaradók NEVEZETT állapotot kapnak
+   („nem indult — az előző lezárása nem igazolt”); a futtató hibával zár. A vezérlés azért él külön
+   fájlban, hogy a próba a TÉNYLEGES utat hívhassa, ne a másolatát (KUKA-207).
+2. **A FELADAT EREDMÉNYE ÉS A LEZÁRÁS ÁLLAPOTA KÉT KÜLÖN TÉNY.** Piros verifier NEM állítja meg a
+   sorozatot (az a mérés dolga); igazolatlan LEZÁRÁS igen (az a gép állapotáról szól).
+3. **A MEGSZAKÍTÁSI ÚT UGYANAZ A VÉGES LÁNC**, mint a normál (jel → a HÍVÓ türelme → csak szükség
+   esetén kényszer → igazolás). Ismételt jel a türelmet zárja le, második, versengő takarítást nem
+   indít; a szinkron `exit`-hook csak VÉGSŐ VÉDŐHÁLÓ.
+
+**A platform-korlát nem hallgatólagos engedély:** ahol a lezárást nem tudjuk MÉRNI, ott a sorozat
+megáll — nem állítjuk, hogy rendben van (KUKA-012).
+
+**A GARANCIA HATÁRA, kimondva** (`CHILD_RUNNER_CONTRACT.not_guaranteed`): a futtatóra küldött SIGKILL,
+az operációs rendszer kiesése és a saját folyamatcsoportjából ÖNÁLLÓAN kilépő leszármazott (`setsid`)
+**nem garantált** — ezekre nem állítunk felügyeletet.
+
+**Gépi jel:** `npm run verify:child-runner` CR09–CR13 + `verify:kuka` (KUKA-247 mintái).
+**ELLENPRÓBÁVAL mérve:** a régi jelkezelő visszaállítására a CR11 PIROS (a jelzőfájl nem születik meg,
+a futtató 6 ms alatt kilép), a megállás kivételére a CR10 hat ága PIROS. A visszaállítás sha256-tal
+igazolva (KUKA-126).
+
+---
+
 ## D-VS-3079 — A FUTTATÓ A SAJÁT FOLYAMATFÁJÁÉRT FELEL (CHR-01)
 
 > **Hatály:** V3 (`valach-system`) — `tools/lib/vs_child_runner.mjs` (új), `tools/vs_verify_sweep.mjs`,

@@ -26,6 +26,7 @@ import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { runGuarded, signalOwnGroup, liveGroups, supportsProcessGroups, PLATFORM_LIMIT, CHILD_RUNNER_CONTRACT, groupAlive } from './lib/vs_child_runner.mjs';
+import { runSequence, cleanupStateOf, NOT_STARTED_REASON, SWEEP_SEQUENCE_CONTRACT } from './lib/vs_sweep_sequence.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TMP = join(ROOT, 'var', 'tmp');
@@ -251,11 +252,178 @@ await runGuarded(${JSON.stringify(`node ${JSON.stringify(SCEN)} szulo ${JSON.str
     !/execSync\(/.test(sweepCode), { talalat: (sweepCode.match(/execSync\(/g) || []).length });
   check('CR08', 'a söprés a MARADVÁNYT is kiírja, nem csak az időtúllépést (a némaság tilos — KUKA-012)',
     /cleanup/.test(sweepCode) && /leftovers|maradv/.test(sweepCode));
+  // A SORREND IS BEKÖTÖTT ÚT: a söprés a KÖZÖS vezérlőt hívja, nem a törzsében őrzött másolatot.
+  check('CR08', 'a söprés a KÖZÖS sorozat-vezérlőt hívja (SEQ-01), nem saját ciklusa dönt a sorrendről',
+    /vs_sweep_sequence\.mjs/.test(sweepCode) && /runSequence\(/.test(sweepCode));
+  check('CR08', 'a söprés a MEG NEM INDULT feladatokat kiírja, és miattuk HIBÁVAL zár',
+    /NEM INDULT EL/.test(sweep) && /notStarted\.length\) process\.exit\(1\)/.test(sweepCode),
+    { kiirja: /NEM INDULT EL/.test(sweep), hibaval_zar: /notStarted\.length\) process\.exit\(1\)/.test(sweepCode) });
+
+  // ══ CR09 — A SOROZAT MEGY TOVÁBB, HA A LEZÁRÁS IGAZOLT ═════════════════════════════════════════
+  // A TÉNYLEGES vezérlőt (SEQ-01) hívjuk, és CSAK a futtató válaszát helyettesítjük — pontosan úgy,
+  // ahogy az R98 a hibát mérte. Így a próba nem egy másolatot igazol (KUKA-207 · KUKA-051).
+  const IGAZOLT = { verdict: 'mar_ures', steps: [], leftovers: false };
+  const valasz = (cleanup, exitCode = 0) => async () => ({ exitCode, timedOut: false, stdout: 'ok', output: 'ok', cleanup });
+  {
+    const inditva = [];
+    const r = await runSequence([{ s: 'elso' }, { s: 'masodik' }], {
+      run: async (it) => { inditva.push(it.s); return valasz(IGAZOLT)(); },
+    });
+    check('CR09', 'IGAZOLT lezárás után a második feladat PONTOSAN EGYSZER indul el',
+      inditva.join(',') === 'elso,masodik' && r.notStarted.length === 0 && !r.halted,
+      { inditva, nem_indult: r.notStarted.length, megallt: Boolean(r.halted) });
+
+    // A FELADAT EREDMÉNYE ÉS A LEZÁRÁS KÉT KÜLÖN TÉNY (R98 előírása).
+    const piros = [];
+    const rp = await runSequence([{ s: 'a' }, { s: 'b' }], {
+      run: async (it) => { piros.push(it.s); return valasz(IGAZOLT, 1)(); },
+    });
+    check('CR09', 'PIROS verifier NEM állítja meg a sorozatot (az eredmény és a lezárás külön tény)',
+      piros.join(',') === 'a,b' && !rp.halted, { inditva: piros });
+  }
+
+  // ══ CR10 — IGAZOLATLAN LEZÁRÁS UTÁN A KÖVETKEZŐ NULLA ALKALOMMAL INDUL ══════════════════════════
+  for (const [cim, cleanup] of [
+    ['MARADVÁNY', { verdict: 'nem_igazolt', steps: ['a csoport a KÉNYSZER után sem ürült ki'], leftovers: true }],
+    ['PLATFORM-KORLÁT (nem mérhető lezárás)', { verdict: 'nem_mert', steps: ['nincs folyamatcsoport-támogatás'], leftovers: null }],
+    ['HIÁNYZÓ takarítás-válasz', undefined],
+  ]) {
+    const inditva = [];
+    const r = await runSequence([{ s: 'elso' }, { s: 'masodik' }, { s: 'harmadik' }], {
+      run: async (it) => { inditva.push(it.s); return valasz(cleanup)(); },
+    });
+    check('CR10', `${cim}: a KÖVETKEZŐ feladat NULLA alkalommal indul el`,
+      inditva.join(',') === 'elso' && r.results.length === 1, { inditva });
+    check('CR10', `${cim}: a kimaradt feladatok MEGNEVEZVE, nevezett okkal (nem néma kihagyás, nem zöld)`,
+      r.notStarted.map((n) => n.item.s).join(',') === 'masodik,harmadik'
+      && r.notStarted.every((n) => n.reason === NOT_STARTED_REASON),
+      r.notStarted.map((n) => `${n.item.s}: ${n.reason}`));
+  }
+  check('CR10', 'a takarítás-állapot feloldója a HÁROM nevezett választ adja (igazolt · maradvany · nem_igazolhato)',
+    cleanupStateOf({ leftovers: false }).state === 'igazolt'
+    && cleanupStateOf({ leftovers: true }).state === 'maradvany'
+    && cleanupStateOf({ leftovers: null }).state === 'nem_igazolhato'
+    && cleanupStateOf(undefined).state === 'nem_igazolhato',
+    { platform_korlat: SWEEP_SEQUENCE_CONTRACT.platform_limit });
+
+  // ══ CR11 — MEGSZAKÍTÁSKOR A SZABÁLYOS GYERMEK BEFEJEZI A SAJÁT TAKARÍTÁSÁT ══════════════════════
+  // EZ AZ R98 MÉRÉSE: 1000 ms türelem mellett egy 100 ms alatt záró gyermek jelzőfájlja meg sem
+  // született, mert a jel-út SIGTERM után AZONNAL SIGKILL-t küldött.
+  const KESZ = join(TMP, `${tag}_szabalyos_kesz.txt`);
+  const SZABALYOS = join(TMP, `${tag}_szabalyos.mjs`);
+  const RUNNER_UT = join(ROOT, 'tools', 'lib', 'vs_child_runner.mjs');
+  if (!supportsProcessGroups()) {
+    skip('CR11', 'a szabályos gyermek türelmen belüli takarítása', PLATFORM_LIMIT);
+    skip('CR12', 'a makacs fa véges kényszerleállítása megszakításkor', PLATFORM_LIMIT);
+    skip('CR13', 'ismételt megszakítás', PLATFORM_LIMIT);
+  } else {
+    const { spawn } = await import('node:child_process');
+    writeFileSync(SZABALYOS, `// SZABÁLYOSAN LEZÁRÓ gyermek: SIGTERM-re 100 ms alatt takarít és NYOMOT hagy.
+import { writeFileSync } from 'node:fs';
+let zar = false;
+process.on('SIGTERM', () => {
+  if (zar) return; zar = true;
+  setTimeout(() => { writeFileSync(${JSON.stringify(KESZ)}, 'LEZART'); process.exit(0); }, 100);
+});
+setInterval(() => {}, 1000);
+console.log('gyermek-indult');
+`);
+    /** Egy futtatót indít, megvárja az indulást, majd megszakítja — és MÉRI a lezárást. */
+    const megszakit = async ({ file, cmd, graceMs, jelek = 1, kozotte = 120, varakozas = 12000 }) => {
+      writeFileSync(file, `import { runGuarded } from ${JSON.stringify(RUNNER_UT)};
+console.log('indul');
+await runGuarded(${JSON.stringify(cmd)}, { timeoutMs: 60000, graceMs: ${graceMs}, verifyMs: 3000 });
+`);
+      const runner = spawn(process.execPath, [file], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+      await new Promise((r) => { runner.stdout.on('data', (d) => { if (String(d).includes('indul')) r(); }); setTimeout(r, 4000); });
+      await sleep(700);                                   // hagyjuk felállni a fát
+      // A ZÁRÁS FIGYELŐJE A JELEK ELŐTT ÁLL FEL. Az első alakom a jel-küldő ciklus UTÁN kötötte be, és
+      // az ismételt jelre GYORSAN (≈180 ms) kilépő futtató `close` eseménye a ciklus alatt ELVESZETT —
+      // a próba a SAJÁT versenyhelyzetét mérte a rendszer helyett, és ártatlan kódot mondott hibásnak
+      // (KUKA-120 · KUKA-127: a piros nem a védelem miatt piros).
+      const zarva = new Promise((r) => { runner.on('close', (c) => r(c)); setTimeout(() => r(null), varakozas); });
+      const t0 = Date.now();
+      for (let i = 0; i < jelek; i += 1) { runner.kill('SIGINT'); if (i + 1 < jelek) await sleep(kozotte); }
+      const code = await zarva;
+      return { code, ms: Date.now() - t0 };
+    };
+
+    const r11 = await megszakit({
+      file: join(TMP, `${tag}_futtato_szabalyos.mjs`),
+      cmd: `node ${JSON.stringify(SZABALYOS)}`,
+      graceMs: 1000,
+    });
+    check('CR11', 'MEGSZAKÍTÁSKOR a szabályos gyermek a TÜRELMEN BELÜL befejezi a saját takarítását',
+      existsSync(KESZ), { jelzo_letrejott: existsSync(KESZ), kilepes: r11.code, ms: r11.ms });
+    check('CR11', 'és a jel így sem nyelődik el: a futtató 130-cal lép ki, VÉGES időn belül',
+      r11.code === 130 && r11.ms < 12000, { kilepes: r11.code, ms: r11.ms });
+
+    // ══ CR12 — MAKACS FA: A VÉGES KÉNYSZERLEÁLLÍTÁS IS IGAZOLT A MEGSZAKÍTÁSI ÚTON ════════════════
+    const TR12 = join(TMP, `${tag}_nyom_cr12.txt`);
+    const HB12 = join(TMP, `${tag}_eletjel_cr12.txt`);
+    writeFileSync(TR12, ''); writeFileSync(HB12, '');
+    const r12 = await megszakit({
+      file: join(TMP, `${tag}_futtato_makacs.mjs`),
+      cmd: `node ${JSON.stringify(SCEN)} szulo ${JSON.stringify(HB12)} ${JSON.stringify(TR12)}`,
+      graceMs: 400,
+    });
+    await sleep(400);
+    const pids12 = readFileSync(TR12, 'utf8').split('\n').filter(Boolean)
+      .map((l) => Number(l.split(' ')[1])).filter(Number.isInteger);
+    const tul12 = pids12.filter((pid) => alive(pid));
+    const hb12 = statSync(HB12).size; await sleep(300); const hb12k = statSync(HB12).size;
+    try {
+      check('CR12', 'a MAKACS fa (szülő + unoka) tényleg felállt — üres alapsokaság nem zöld',
+        pids12.length >= 2, pids12);
+      check('CR12', 'megszakításkor a türelem után a KÉNYSZERLEÁLLÍTÁS is lefut: nem marad élő folyamat',
+        tul12.length === 0, tul12.length ? tul12 : `${pids12.length} PID mérve, mind megszűnt`);
+      check('CR12', 'a lezárás VÉGES (a türelem + kényszer nem nyúlik el), és nincs további életjel',
+        r12.ms < 12000 && hb12k === hb12, { ms: r12.ms, eletjel: `${hb12} → ${hb12k}`, kilepes: r12.code });
+    } finally {
+      for (const pid of tul12) { try { process.kill(pid, 'SIGKILL'); } catch { /* már nincs */ } }
+    }
+
+    // ══ CR13 — ISMÉTELT MEGSZAKÍTÁS: EGYÉRTELMŰ, VÉGES, VERSENGÉS NÉLKÜL ══════════════════════════
+    const TR13 = join(TMP, `${tag}_nyom_cr13.txt`);
+    const HB13 = join(TMP, `${tag}_eletjel_cr13.txt`);
+    writeFileSync(TR13, ''); writeFileSync(HB13, '');
+    // HOSSZÚ türelem + KÉT jel: az ismételt jel a türelmet zárja le — a kilépés a türelemnél GYORSABB.
+    const r13 = await megszakit({
+      file: join(TMP, `${tag}_futtato_ismetelt.mjs`),
+      cmd: `node ${JSON.stringify(SCEN)} szulo ${JSON.stringify(HB13)} ${JSON.stringify(TR13)}`,
+      graceMs: 9000,
+      jelek: 3,
+      kozotte: 150,
+    });
+    await sleep(400);
+    const pids13 = readFileSync(TR13, 'utf8').split('\n').filter(Boolean)
+      .map((l) => Number(l.split(' ')[1])).filter(Number.isInteger);
+    const tul13 = pids13.filter((pid) => alive(pid));
+    try {
+      check('CR13', 'ISMÉTELT megszakítás (3 jel): a futtató VÉGES időn belül kilép — a türelmet a jel zárja le',
+        r13.code !== null && r13.ms < 9000, { kilepes: r13.code, ms: r13.ms, turelem_volt: 9000 });
+      check('CR13', 'ismételt jel után sem marad ÉLŐ folyamat (versengő takarítás nem szakítja meg a lezárást)',
+        tul13.length === 0, tul13.length ? tul13 : `${pids13.length} PID mérve, mind megszűnt`);
+      check('CR13', 'a kilépési ok IGAZ marad ismételt jelnél is (130), nem lesz belőle összeomlás',
+        r13.code === 130, { kilepes: r13.code });
+    } finally {
+      for (const pid of tul13) { try { process.kill(pid, 'SIGKILL'); } catch { /* már nincs */ } }
+    }
+
+    // A NORMÁL SIKER ÉS A HIBÁS KILÉPÉS NYILVÁNTARTÁSI MARADVÁNYA — a négyes lefedés zárása.
+    await runGuarded('node -e "process.exit(0)"', { cwd: ROOT, timeoutMs: 20000, graceMs: 300, verifyMs: 300 });
+    await runGuarded('node -e "process.exit(4)"', { cwd: ROOT, timeoutMs: 20000, graceMs: 300, verifyMs: 300 });
+    check('CR13', 'normál siker és hibás kilépés után a NYILVÁNTARTÁS is üres (nem gyűlnek a csoportok)',
+      liveGroups().length === 0, liveGroups());
+  }
 } finally {
   // A PRÓBA SAJÁT SZEMETE: a felírt PID-ek, majd a fájlok. A nyomot CSAK sikeres takarítás után visszük el.
   cleanupTraced();
   for (const f of [SCEN, HB, TRACE, INTERRUPT, join(TMP, `${tag}_nyom_regi.txt`), join(TMP, `${tag}_eletjel_regi.txt`),
-    join(TMP, `${tag}_nyom_megszakitas.txt`), join(TMP, `${tag}_eletjel_megszakitas.txt`)]) {
+    join(TMP, `${tag}_nyom_megszakitas.txt`), join(TMP, `${tag}_eletjel_megszakitas.txt`),
+    join(TMP, `${tag}_szabalyos.mjs`), join(TMP, `${tag}_szabalyos_kesz.txt`), join(TMP, `${tag}_futtato_szabalyos.mjs`),
+    join(TMP, `${tag}_futtato_makacs.mjs`), join(TMP, `${tag}_nyom_cr12.txt`), join(TMP, `${tag}_eletjel_cr12.txt`),
+    join(TMP, `${tag}_futtato_ismetelt.mjs`), join(TMP, `${tag}_nyom_cr13.txt`), join(TMP, `${tag}_eletjel_cr13.txt`)]) {
     try { rmSync(f, { force: true }); } catch { /* marad, és ez a nyom */ }
   }
 }

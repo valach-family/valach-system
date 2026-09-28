@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs';
 // `execSync` időtúllépése csak a KÖZVETLEN gyermeknek küldött jelet, az unokák életben maradtak, és a
 // gép a KÖVETKEZŐ ellenőrzés alatt is terhelt volt (chatgpt-v3 mérése, R95 §F95-02).
 import { runGuarded, PLATFORM_LIMIT } from './lib/vs_child_runner.mjs';
+import { runSequence } from './lib/vs_sweep_sequence.mjs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 // SWV-01 (OB-10, R16 §2): a verdikt a gyermek GÉPI deklarációjából dől el, nem részszövegből.
@@ -66,32 +67,49 @@ const timedOut = [];
 const fails = [];
 const runs = [...scripts.map((s) => ({ s, cmd: `npm run -s ${s}` })), ...cheapParts];
 const leftovers = [];
-for (const { s, cmd } of runs) {
-  const started = Date.now();
-  const r = await runGuarded(cmd, { cwd: ROOT, timeoutMs: PATIENCE_MS, graceMs: GRACE_MS, verifyMs: GRACE_MS });
-  const exitCode = r.exitCode;
-  const killed = r.timedOut;
-  // A GYERMEK GÉPI DEKLARÁCIÓJA a kimenetén jön (SWV-01), a hibacsatorna a jelentéshez kell.
-  const out = r.timedOut || exitCode !== 0 ? r.output : r.stdout;
-  // A MARADVÁNY KÜLÖN TÉNY, mint a kivágás: ha a fa a kényszerleállítás után SEM ürült ki, azt
-  // KI KELL ÍRNI — a következő ellenőrzés egy terhelt gépen mérne (KUKA-012 · F95-02).
-  if (r.cleanup && r.cleanup.leftovers === true) leftovers.push({ s, verdict: r.cleanup.verdict, steps: r.cleanup.steps });
-  // A DÖNTÉST A KÖZÖS FELOLDÓ HOZZA (SWV-01). A régi alak itt, helyben keresett részszöveget: ha a
-  // bukott gyermek kimenetében BÁRHOL szerepelt az „ENV-KIHAGYÁS", az EGÉSZ ellenőrző kihagyássá
-  // vált — és a `verify:external-checks` SAJÁT, szabályos jelentése épp ezt a szót tartalmazza.
-  // Hiba és kihagyás együtt nem lehet tiszta kihagyás (OB-10).
-  const v = sweepVerdict({ exitCode, timedOut: killed, stdout: out });
-  if (v.verdict === 'green') { pass += 1; continue; }
-  if (v.verdict === 'unfinished') { timedOut.push({ s, ms: Date.now() - started }); continue; }
-  if (v.verdict === 'env_skipped') { envSkips.push({ s, reason: v.reason }); continue; }
-  fails.push(s);
-  console.error(`\n=== PIROS: ${s} === (${v.why})`);
-  console.error(String(out).trim().split('\n').slice(-12).join('\n'));
-}
+// A SORRENDET A KÖZÖS VEZÉRLŐ BIRTOKOLJA (SEQ-01, F98-01/A): igazolatlan lezárás után a KÖVETKEZŐ
+// ellenőrzés NEM indul el. A régi alak a maradványt csak FELJEGYEZTE, és futott tovább — a következő
+// mérés egy olyan gépen zajlott, amelyen az előző fa lezárása nem volt igazolt. A vezérlés azért él
+// külön fájlban, hogy a próba a TÉNYLEGES utat hívhassa, ne a másolatát (KUKA-207).
+const seq = await runSequence(runs, {
+  run: ({ cmd }) => runGuarded(cmd, { cwd: ROOT, timeoutMs: PATIENCE_MS, graceMs: GRACE_MS, verifyMs: GRACE_MS }),
+  onResult: ({ item, result: r, ms, cleanup_state: state, cleanup_why: why, cleanup_steps: steps }) => {
+    const { s } = item;
+    const exitCode = r.exitCode;
+    const killed = r.timedOut;
+    // A GYERMEK GÉPI DEKLARÁCIÓJA a kimenetén jön (SWV-01), a hibacsatorna a jelentéshez kell.
+    const out = r.timedOut || exitCode !== 0 ? r.output : r.stdout;
+    // A LEZÁRÁS ÁLLAPOTA KÜLÖN TÉNY a feladat eredményétől: ezt akkor is ki kell írni, ha a verifier
+    // egyébként zöld volt (KUKA-012 · F95-02).
+    if (state !== 'igazolt') leftovers.push({ s, state, verdict: why, steps });
+    // A DÖNTÉST A KÖZÖS FELOLDÓ HOZZA (SWV-01). A régi alak itt, helyben keresett részszöveget: ha a
+    // bukott gyermek kimenetében BÁRHOL szerepelt az „ENV-KIHAGYÁS", az EGÉSZ ellenőrző kihagyássá
+    // vált — és a `verify:external-checks` SAJÁT, szabályos jelentése épp ezt a szót tartalmazza.
+    // Hiba és kihagyás együtt nem lehet tiszta kihagyás (OB-10).
+    const v = sweepVerdict({ exitCode, timedOut: killed, stdout: out });
+    if (v.verdict === 'green') { pass += 1; return; }
+    if (v.verdict === 'unfinished') { timedOut.push({ s, ms }); return; }
+    if (v.verdict === 'env_skipped') { envSkips.push({ s, reason: v.reason }); return; }
+    fails.push(s);
+    console.error(`\n=== PIROS: ${s} === (${v.why})`);
+    console.error(String(out).trim().split('\n').slice(-12).join('\n'));
+  },
+  // AZONNAL LÁTHATÓ: a megállás a pillanatában kiíródik, nem a futás végén (R98 előírása).
+  onHalt: (h) => {
+    console.error(`\n=== A SOROZAT MEGÁLL: ${h.after.s} után a lezárás ${h.state === 'maradvany' ? 'MARADVÁNYT hagyott' : 'NEM IGAZOLHATÓ'} (${h.why})`);
+    for (const st of h.steps || []) console.error(`  · ${st}`);
+    console.error('  A következő ellenőrzés egy terhelt/ismeretlen állapotú gépen mérne — ezért nem indul el.');
+  },
+});
+const notStarted = seq.notStarted;
 
 const secs = Math.round((Date.now() - t0) / 1000);
 console.log(`\nSÖPRÉS (${runs.length} verifier${reused.length ? ` + ${reused.length} újrahasznált bizonyíték` : ''}${unverified.length ? ` + ${unverified.length} NEM IGAZOLT kihagyás` : ''}, ${secs}s): ${pass} zöld · ${envSkips.length} env-kihagyás`
-  + `${timedOut.length ? ` · ${timedOut.length} NEM FEJEZŐDÖTT BE` : ''} · ${fails.length} piros`);
+  + `${timedOut.length ? ` · ${timedOut.length} NEM FEJEZŐDÖTT BE` : ''} · ${fails.length} piros`
+  + `${notStarted.length ? ` · ${notStarted.length} NEM INDULT` : ''}`);
+// A SZÁM NEM MOSHATJA ÖSSZE A NEM FUTOTTAT A ZÖLDDEL (KUKA-093): ha a sorozat megállt, a lefutott
+// darabszám KIMONDOTTAN kevesebb a tervezettnél.
+if (notStarted.length) console.error(`A SÖPRÉS NEM TELJES: ${runs.length - notStarted.length}/${runs.length} ellenőrző futott le.`);
 for (const a of reused) console.log(reuseLine(a));
 for (const a of unverified) console.log(reuseLine(a));
 if (unverified.length) console.error(`ÖSSZVERDIKT: NEM ZÖLD — ${unverified.length} lánc nem futott és nem igazolt (${unverified.map((a) => a.chain).join(', ')})`);
@@ -105,10 +123,16 @@ if (envSkips.length) {
   for (const e of envSkips) console.log(`  · ${e.s} — ${e.reason}`);
 }
 if (leftovers.length) {
-  console.error(`MARADVÁNY a leállítás után (F95-02 — a következő ellenőrzés terhelt gépen mérne): `
-    + leftovers.map((l) => `${l.s} (${l.verdict})`).join(', '));
-  for (const l of leftovers) console.error(`  · ${l.s}: ${l.steps.join(' → ')}`);
+  console.error(`NEM IGAZOLT LEZÁRÁS (F95-02 · F98-01/A — a következő ellenőrzés terhelt/ismeretlen gépen mérne): `
+    + leftovers.map((l) => `${l.s} (${l.state}: ${l.verdict})`).join(', '));
+  for (const l of leftovers) console.error(`  · ${l.s}: ${(l.steps || []).join(' → ')}`);
+}
+// A KIMARADT FELADAT NEVET KAP, nem néma kihagyást és végképp nem zöldet (F98-01/A).
+if (notStarted.length) {
+  console.error(`NEM INDULT EL (${notStarted.length}): a sorozat a(z) ${notStarted[0].after.s} lezárásának hiánya miatt megállt`);
+  for (const n of notStarted) console.error(`  · ${n.item.s} — ${n.reason}`);
 }
 if (PLATFORM_LIMIT) console.log(`NEVEZETT PLATFORM-KORLÁT: ${PLATFORM_LIMIT}`);
 if (fails.length) console.error(`PIROS: ${fails.join(', ')}`);
-if (fails.length || timedOut.length || unverified.length || leftovers.length) process.exit(1);
+// A FUTTATÓ HIBÁVAL ZÁR, ha bármi nem igazolt — a meg nem indult feladat is ide tartozik (F98-01/A).
+if (fails.length || timedOut.length || unverified.length || leftovers.length || notStarted.length) process.exit(1);
