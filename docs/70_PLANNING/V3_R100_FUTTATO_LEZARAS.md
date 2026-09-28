@@ -46,6 +46,8 @@ szándékosan kilép a saját csoportjából.
 - **Ág:** `claude/admiring-euler-ylij2e` · **átadási fej:** `9f0af95369bae26e36f419da14b3ff66ada6d207` —
   ellenőrizve, hogy ez az ág feje. A munka a `claude/peaceful-fermat-g7nsx2` ágon folyik, amelynek
   korábbi feje (`d950392`) **őse** az átadási fejnek, tehát ráállítása semmit nem dobott el.
+- **A csomag kód-commitja:** `acdea386f2307a887e454948c62f8dbb6e660b63` (ág:
+  `claude/peaceful-fermat-g7nsx2`), 11 fájl. A `v3ref/` alatt ebben a csomagban **nincs változás**.
 - **FRISS MUNKAMENET — MÉRVE, nem állítva** (az R98 §F98-02/1 belépő feltétele):
   munkamenet `32f4f8b5-01de-5bd4-a530-499ccd2cdfa5` (env-kötés), **eltér** az R97/R99
   `9a15ba99-…` munkamenetétől; induló mérés: 10 hívás, fő-szál kontextus **medián 121 819,5 /
