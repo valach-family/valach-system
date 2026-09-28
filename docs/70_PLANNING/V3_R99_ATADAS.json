@@ -1,0 +1,84 @@
+{
+  "kor": "R99",
+  "sav": "Claude-v3",
+  "tipus": "HANDOFF",
+  "parancs": "CMD-VS-300-002-002 R98 — ANALYSIS (chatgpt-v3)",
+  "repo": "valach-family/valach-system",
+  "ag": "claude/admiring-euler-ylij2e",
+  "vizsgalt_kod_fej": "1ab5a854c24cfbfcf8d6b6efbf4c561b6d9a2cff",
+  "datum": "2026-09-28",
+  "allapot": "lezart",
+  "miert_atadas": {
+    "szabaly": "R98 §F98-02/1-2: az F98-01 javitas FRISS munkamenetben induljon; atlepett jelzonel uj kodolas, uj probasorozat es nagy beolvasas nem indul, csak minimalis checkpoint/atadas — es ha a valtast az operator tudja elvegezni, ezt kell kerni, majd megallni",
+    "merve": {
+      "parancs": "npm run meres:fogyasztas -- --session auto --from 2026-09-28T16:10:58Z --quick",
+      "munkamenet": "9a15ba99-384a-5b14-abdd-b9c5450dbd1b",
+      "friss_munkamenet": false,
+      "azonos_mint": "R97 munkamenete",
+      "hivas_az_ablakban": 3,
+      "fo_szal_kontextus_median": 426552,
+      "fo_szal_kontextus_max": 432003,
+      "kuszob": 200000,
+      "ugynok": 0,
+      "lefedettseg": "teljes"
+    },
+    "kovetkezmeny": "ez a kor kodot nem irt, probasorozatot nem inditott, nagy beolvasast nem vegzett; a javitas a friss munkamenetre var"
+  },
+  "elfogadva_vita_nelkul": [
+    { "id": "F98-01/A", "mit": "a sopres igazolatlan takaritas utan is elinditja a kovetkezo ellenorzest; a maradvany csak a vegen valik hibakodda, a szamlalo kozben zoldet mutat", "hely": "tools/vs_verify_sweep.mjs:68,69,78" },
+    { "id": "F98-01/B", "mit": "a megszakitasi ag SIGTERM-et es SIGKILL-t kozvetlenul egymas utan kuld, turelmi ido nelkul, majd torli a nyilvantartast es kilep — a szabalyos gyermek nem jut el a sajat takaritasaig", "hely": "tools/lib/vs_child_runner.mjs:89-101" }
+  ],
+  "javitott_allitasok": [
+    {
+      "felulirja": "V3_R97_ELFOGADAS.json → tetelek[F95-03].allapot = 'betartva_nevezett_atlepessel'",
+      "helyes": "megszegve — a szabaly checkpoint ES friss munkamenet vagy nevezett megallas volt; ehelyett ugyanabban a munkamenetben folytattam"
+    },
+    {
+      "felulirja": "V3_R97_JAVITAS.md §3: 'a kuszob-atlepes a kor elejen tortent' es 'a csomag nagyobbik felere ervenyesult'",
+      "helyes": "a hivas-sorokbol nem igazolhato: az elso kumulativ median-atlepes az 59. hivasnal (2026-09-26T19:31:11.503Z), a megnevezett meres a 82. (19:44:47.446Z), es utana meg 18 hivas szerepel a leltarban. Az 59-es ertek utolagos szamitas az exportbol, nem akkori meres."
+    },
+    {
+      "felulirja": "V3_R97_JAVITAS.md §3: ablakveg 2026-09-26T19:56:00Z, lefedettseg 'teljes'",
+      "helyes": "a pillanatkep tenyleges zarasa 19:54:17.029Z (utolso hivas 19:54:15.737Z); a megadott ablakveg kesobbi a valosagosnal. A 'teljes' csak az akkor elerheto naplo feldolgozasi lefedettsege — a kesobbi idore nem bizonyit teljesseget. A publikalasi farok NEVEZETT hiany marad."
+    },
+    {
+      "felulirja": "a 24,99 M cache-olvasas osszevetese az R94-gyel",
+      "helyes": "megtakaritas, heti limit-arany es V2-re atadhato ar/ertek-javulas ebbol NEM allithato (elteroe terjedelem es idoablak). Ismeretlen koltseg null, nem nulla."
+    },
+    {
+      "felulirja": "verify:child-runner 26/26 mint altalanos allitas",
+      "helyes": "26/26 a SAJAT kornyezetemben; a fuggetlen futtatasban 25 sikeres + 1 NEVEZETT kihagyas (a CR05 ellenproba ott nem reprodukalodott). A ket szam nem mossa ossze egymast, es a javitas a nevezett-kihagyas utat megorzi — hamis zoldet nem csinalunk belole."
+    }
+  ],
+  "ez_a_kor_elvegezte": [
+    "a jelzo merese (modellhivas nelkul)",
+    "a parhuzamos leltar megszuntetese: a gyokeren allo '--json' nevu fajl (98 soros, tulirt export) torolve; a kanonikus 100 soros export a helyen marad (docs/70_PLANNING/V3_R97_FOGYASZTAS_LELTAR.json); hivatkozas nem mutatott ra",
+    "a fenti allitasok javitasa",
+    "az induló csomag atadasa a friss munkamenetnek"
+  ],
+  "nevezett_lelet_elkezdes_nelkul": {
+    "mit": "a tools/v3_fogyasztas_meres.mjs ut-parameterei (--calls, --json) elfogadnak '--'-sal kezdodo erteket, ezert keletkezett a gyokeren '--json' nevu fajl",
+    "javaslat": "a '--'-sal kezdodo ertek NEVEZETT hibaval alljon meg, ne csendben irjon",
+    "miert_nem_most": "UJ kodolas, amit az atlepett jelzo mellett nem inditunk — a friss munkamenet dontse el"
+  },
+  "elfogadasi_probak_a_friss_munkamenetnek": [
+    "sikeres elso feladat utan a masodik pontosan egyszer indul",
+    "maradvany=true es nem igazolhato/platformkorlat esetén a masodik nulla alkalommal indul, a kimaradt feladatok megnevezve",
+    "szabalyos SIGTERM-kezelo gyermek a turelmen BELUL befejezi a takaritasat",
+    "makacs gyermek/unoka utan a veges kenyszerleallitas is igazolt",
+    "megszakitas, ISMETELT megszakitas, normal siker es hibas kilepes nem hagy nyilvantartasi vagy elo folyamat-maradvanyt a tamogatott utvonalon",
+    "a meglevo esetek megorzese; a platformfuggo ellenproba nem valhat hamis zoldde"
+  ],
+  "nem_indul": ["hosszu kulso vagy core-lanc", "uj parhuzamos nyilvantartas", "ultracode", "parhuzamos vegrehajto ugynok", "modellvaltas", "folyamatos modell-pollozas", "merge", "telepites", "V2-modositas", "uj szolgaltato", "uzleti Mini modul", "core/CMD/PR-zaras"],
+  "nyitott_marad": [
+    "F98-01 (a futtato-lezarasi csomag)",
+    "elo AI-meres",
+    "a modell kivalasztasi minosegenek merese",
+    "teljes haromnyelvu lektoralas (reszleges atnezes marad)",
+    "a meghivo-elfogadas sajat kepernyojenek sugoja/turaja",
+    "a V2-kepesseg-katalogus harom elterese (HIANY, nem felhatalmazas harom jelzo bizonyitek nelkuli atallitasara)",
+    "a kulso lanc korabbi hibai (r79 · r59a · r59)",
+    "a ket hosszu lanc az R97-ben nem futott"
+  ],
+  "nem_allithato": ["teljes rendszer-zold", "teljes core-core lezaras", "a 16/13 klauzula nem keszultsegi szazalek", "eszkozok kozotti nyelv-profil szinkron", "megtakaritas vagy V2-re atadhato ar/ertek-javulas"]
+}
