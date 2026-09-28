@@ -1,0 +1,159 @@
+{
+ "tool": "FGY-01/3",
+ "tool_commit": "b905d5dd035813c08ffc3cb73381408a533f0b88",
+ "tool_file": "./tools/v3_fogyasztas_meres.mjs",
+ "tool_file_sha256": "dc841e08962e5ef498efc42dc46fe8ea6d3db053ad196e7767c929434b1cb695",
+ "tool_dirty": false,
+ "generated_at": "2026-09-28T19:48:41.670Z",
+ "session": "dd1b2336-b85f-5955-aaec-140d1596626a",
+ "snapshot_closed_at": "2026-09-28T19:48:41.670Z",
+ "runtime_versions": [
+  "2.1.284"
+ ],
+ "window": {
+  "label": "R104 F101-01",
+  "from": "2026-09-28T19:04:10.953Z",
+  "to": "2026-09-28T19:48:41.000Z",
+  "to_effective": "2026-09-28T19:48:41.000Z"
+ },
+ "coverage": {
+  "files": 1,
+  "unreadable": [],
+  "unparsable_lines": 0,
+  "assistant_without_usage": 0,
+  "invalid_timestamp_calls": 0,
+  "cross_file_duplicate_ids": 0,
+  "incomplete_usage_calls": 0,
+  "synthetic_records": 0,
+  "calls_total": 80,
+  "calls_in_window": 80,
+  "complete": true,
+  "note": "teljes: minden megtalált átirat beolvasva, minden modell-válasz usage-dzsal, azonos azonosító csak egy fájlban"
+ },
+ "whole_session": {
+  "calls": 80,
+  "synthetic_records": 0,
+  "incomplete_usage_calls": 0,
+  "totals_kind": "teljes",
+  "first_call": "2026-09-28T19:09:27.405Z",
+  "last_call": "2026-09-28T19:48:39.449Z",
+  "totals": {
+   "input": 160,
+   "cache_write": 341578,
+   "cache_read": 16706330,
+   "output": 111749
+  },
+  "by_kind": {
+   "main": {
+    "calls": 80,
+    "input": 160,
+    "cache_write": 341578,
+    "cache_read": 16706330,
+    "output": 111749
+   }
+  },
+  "by_model": {
+   "claude-opus-5": {
+    "calls": 80,
+    "input": 160,
+    "cache_write": 341578,
+    "cache_read": 16706330,
+    "output": 111749
+   }
+  },
+  "main_context": {
+   "median": 223951.5,
+   "max": 316992,
+   "calls_over_400k": 0
+  },
+  "main_wakeups": {
+   "user": {
+    "wakeups": 1,
+    "calls": 80,
+    "input_with_cache": 17048068
+   }
+  },
+  "agent_input_total": 0,
+  "agent_count": 0,
+  "thresholds": {
+   "main_context_median": {
+    "limit": 200000,
+    "value": 223951.5,
+    "exceeded": true
+   },
+   "agent_input_per_package": {
+    "limit": 40000000,
+    "value": 0,
+    "exceeded": false
+   }
+  }
+ },
+ "window_summary": {
+  "calls": 80,
+  "synthetic_records": 0,
+  "incomplete_usage_calls": 0,
+  "totals_kind": "teljes",
+  "first_call": "2026-09-28T19:09:27.405Z",
+  "last_call": "2026-09-28T19:48:39.449Z",
+  "totals": {
+   "input": 160,
+   "cache_write": 341578,
+   "cache_read": 16706330,
+   "output": 111749
+  },
+  "by_kind": {
+   "main": {
+    "calls": 80,
+    "input": 160,
+    "cache_write": 341578,
+    "cache_read": 16706330,
+    "output": 111749
+   }
+  },
+  "by_model": {
+   "claude-opus-5": {
+    "calls": 80,
+    "input": 160,
+    "cache_write": 341578,
+    "cache_read": 16706330,
+    "output": 111749
+   }
+  },
+  "main_context": {
+   "median": 223951.5,
+   "max": 316992,
+   "calls_over_400k": 0
+  },
+  "main_wakeups": {
+   "user": {
+    "wakeups": 1,
+    "calls": 80,
+    "input_with_cache": 17048068
+   }
+  },
+  "agent_input_total": 0,
+  "agent_count": 0,
+  "thresholds": {
+   "main_context_median": {
+    "limit": 200000,
+    "value": 223951.5,
+    "exceeded": true
+   },
+   "agent_input_per_package": {
+    "limit": 40000000,
+    "value": 0,
+    "exceeded": false
+   }
+  }
+ },
+ "thresholds_decidable": true,
+ "input_manifest": [
+  {
+   "path": "~/.claude/projects/-home-user/dd1b2336-b85f-5955-aaec-140d1596626a.jsonl",
+   "bytes": 1873620,
+   "sha256": "140b6080cb9d0da99746906d1ecba7aa8fc20fdd84d83742a36fb58078f76914",
+   "kind": "main"
+  }
+ ],
+ "reproduce": "node tools/v3_fogyasztas_meres.mjs --session dd1b2336-b85f-5955-aaec-140d1596626a --from 2026-09-28T19:04:10.953Z --to 2026-09-28T19:48:41.000Z --label \"R104 F101-01\" --projects ~/.claude/projects"
+}

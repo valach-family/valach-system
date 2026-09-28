@@ -179,6 +179,18 @@ kényszert kér; a kilépési kódok 130 · 143 · 129).
 
 ---
 
+## 6/b. FOGYASZTÁS — EGY SOR
+
+Ablak „R104 F101-01" (2026-09-28T19:04:10.953Z → 19:48:41Z), munkamenet
+`dd1b2336-b85f-5955-aaec-140d1596626a`, lefedettség **teljes**: **80 hívás · 0 ügynök · cache-olvasás
+16 706 330 · kimenet 111 749**; fő-szál kontextus **medián 223 951,5 · max 316 992**. **A 200 ezres
+kísérleti jelző ÁTLÉPVE** — ezért ez a kör itt zárul: minimális lezárás (leltár + lap + kör), új
+munka nem indul, a folytatás új munkamenetben. Gépi alak (tartalom nélkül):
+`docs/70_PLANNING/V3_R104_FOGYASZTAS_LELTAR.json`. **Ebből költség, heti keretarány vagy megtakarítás
+NEM számítható** — az ismeretlen költség null, nem nulla.
+
+---
+
 ## 7. MI MARADT NYITVA
 
 - **A teljes söprés és a termék-UX újrafuttatása** — nevesítve nem futott (5. szakasz). Ha a következő
