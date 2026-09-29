@@ -147,7 +147,7 @@ Ez ugyanaz a darabszám, mint az R113-ban — bizonyíték nem veszett el.
 
 | Parancs | Eredmény |
 |---|---|
-| `npm run verify:i18n` | **49/49 PASS · ellenpróba 6/6** — hu/en/de mind **686/686 kulcs**, 0 hiány · 0 árva · 0 helyőrző-eltérés |
+| `npm run verify:i18n` | **49/49 PASS · ellenpróba 6/6** — hu/en/de mind **687/687 kulcs**, 0 hiány · 0 árva · 0 helyőrző-eltérés |
 | `npm run verify:tutor` | **86/86 PASS · ellenpróba 14/14** |
 | `npm run verify:assistant` | **55/55 PASS · ellenpróba 6/6** |
 | `npm run verify:app-selfcheck` | **57/57 PASS** |
@@ -265,7 +265,7 @@ Friss munkamenet, a parancs kikötése szerint. A mérés a csomag ablakára (a 
 
 | Fájl | Mi változott |
 |---|---|
-| `v3app/public/i18n/hu.mjs` · `en.mjs` · `de.mjs` | a kilenc döntés szövegei · az új `STORYUI` csoport (35 kulcs) · `TPL.dataViewingOf` · `TPL.storySteps` · `TPL.evidenceGreen` · `UI.cannotView` · a `TERMS`/`TERMS_AVOID` átállítása |
+| `v3app/public/i18n/hu.mjs` · `en.mjs` · `de.mjs` | a kilenc döntés szövegei · az új `STORYUI` csoport (34 kulcs) · `TPL.dataViewingOf` · `TPL.storySteps` · `TPL.evidenceGreen` · `UI.cannotView` · a `TERMS`/`TERMS_AVOID` átállítása |
 | `v3app/public/i18n/dict.mjs` | a `STORYUI` csoport bejegyzése a szerződéses csoport-listába |
 | `v3app/public/app.js` | a tag paneljének megtekintés-szakasza a fiók nevével · az újraküldés gombja a profilmenüben és a Saját profil oldalon · a kétszeres felirat javítása |
 | `tools/v3_r89_bemutato.mjs` | a lap kerete (sáv · módok · legördülők · lenyíló) a nyelvcsomagból; a beégetett magyar feliratok megszűntek; egy elrendezési javítás |
