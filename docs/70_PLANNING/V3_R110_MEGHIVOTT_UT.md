@@ -10,7 +10,7 @@ Sáv: Claude-v3 · Parancs: `CMD-VS-300-002-002 R109 — SPEC` (chatgpt-v3)
 
 **Forrás-kötés:** repó `valach-family/valach-system` · ág `claude/focused-sagan-gfuieq` · a parancs
 ellenőrzött induló feje **`2ce0872ce8b14898f709608802db84e840c4e4e6`** (karakterre egyezett az
-induláskor, idegen munka nem volt az ágon) · **kód-commitok: `36bbd2d` (P109-01) és `KOD_COMMIT_2`
+induláskor, idegen munka nem volt az ágon) · **kód-commitok: `36bbd2d` (P109-01) és `99908a3269378f7156f09efbc0155a3963f644ac`
 (a böngészős lelet javítása + bizonyíték + lap)** · a parancs szó szerint eltéve:
 `v3ref/source-documents/R109_board_v1.md`.
 
