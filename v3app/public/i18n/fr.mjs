@@ -81,7 +81,7 @@ export const STATE = Object.freeze({
   loading: 'Chargement…',
   empty: 'Pas encore de données',
   noAccess: 'Pas d’accès',
-  demo: 'Démo · données d’exemple',
+  demo: 'Espace d’essai · données d’exemple',
   unknownQty: 'Inconnu',
   noPrice: 'Non indiqué',
   personalAccount: 'Compte personnel',
@@ -103,30 +103,30 @@ export const HELP = Object.freeze({
   open: 'Aide',
   title: 'Aide',
   tabAsk: 'Demander',
-  tabGuides: 'Guides',
+  tabGuides: 'Sujets',
   tabFaq: 'Questions fréquentes',
   tabSitemap: 'Plan du site',
   whatFor: 'À quoi ça sert',
   prerequisites: 'Ce qu’il faut',
   result: 'Quel sera le résultat',
   outcomes: 'Ce qui peut arriver',
-  searchGuides: 'Rechercher dans les guides',
+  searchGuides: 'Rechercher dans les sujets',
   translationMissing: 'Il n’y a pas encore de traduction pour cette langue — le texte est affiché en hongrois.',
 });
 
 export const TOURUI = Object.freeze({
-  title: 'Visite guidée',
+  title: 'Guide pas à pas',
   next: 'Suivant',
   back: 'Retour',
   finish: 'Terminer',
-  exit: 'Quitter',
+  exit: 'Fermer le guide',
 });
 
 export const CHAT = Object.freeze({
   title: 'Demander',
   intro: 'Comment puis-je vous aider ?',
   send: 'Envoyer la question',
-  source: 'Guide utilisé',
+  source: 'Sujet utilisé',
   notConfigured: 'L’assistant de discussion n’est pas configuré dans cet environnement.',
 });
 
@@ -141,12 +141,12 @@ export const KB = Object.freeze({
   }),
   'shell.help': Object.freeze({
     title: 'Aide',
-    purpose: 'Quatre vues dans un seul panneau : Demander · Guides · Questions fréquentes · Plan du site. C’est vous qui ouvrez le panneau.',
+    purpose: 'Quatre vues dans un seul panneau : Demander · Sujets · Questions fréquentes · Plan du site. C’est vous qui ouvrez le panneau.',
     prereq: 'Aucune. L’aide, les questions fréquentes, le plan du site et la visite guidée fonctionnent sans appel de modèle.',
     result: 'Les sujets de l’écran courant apparaissent en premier.',
     outcomes: Object.freeze({
       success: 'Le panneau est ouvert.',
-      empty: 'Il n’y a pas encore de guide vérifié pour cet écran.',
+      empty: 'Il n’y a pas encore de sujet vérifié pour cet écran.',
       refused: 'Vous n’avez pas accès à ces connaissances dans ce compte.',
     }),
   }),
