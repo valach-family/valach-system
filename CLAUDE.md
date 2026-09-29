@@ -60,15 +60,37 @@ ma a gépi jelük) → **`npm run verify:kuka`** (a söprés része; visszacsús
   ellenőrzési pont (1) MINDEN nagyobb delegálás (2+ ügynök vagy workflow) ELŐTT és (2) minden lényeges
   feladatcsoport UTÁN. Az `auto` CSAK a futó folyamat saját azonosítójára köt (`CLAUDE_CODE_SESSION_ID`);
   ha nem köthető, explicit `--session <id>` (R69 F69-03). A `--from` a CSOMAG kezdete — nélküle a jelző a
-  múlt ablakait mérné. Átlépett jelzőnél a koordinátor szűkít (új munkamenet, kevesebb ügynök, célzott
-  olvasás) vagy a REPORT-ban indokolja — nem az operátorra hárítja; **hiányos megfigyelésből nem
-  következik „kereten belül"** (a mérő ezt NEM ELDÖNTHETŐ-nek írja, az összeg ISMERT RÉSZÖSSZEG). A csomag
+  múlt ablakait mérné. A sávot a mérő KIMONDJA (lentebb); szűkíteni (kevesebb ügynök, célzott olvasás)
+  vagy a REPORT-ban indokolni a KOORDINÁTOR dolga — nem az operátorra hárítjuk; **hiányos megfigyelésből
+  nem következik „kereten belül"** (a mérő ezt NEM ELDÖNTHETŐ-nek írja, az összeg ISMERT RÉSZÖSSZEG). A csomag
   végén a teljes mérés (`--session <id> --from <ISO> --to <ISO> --label <ablak>`), a tartalom nélküli
   leltár a repóba (fent), EGY rövid sor a REPORT-ban; **körönkénti usage-melléklet nincs többé**. Az
   ablak-határ a board-üzenetek időbélyege (parancs → válasz), a bizonytalan határ jelölve, a nyitott
   ablak záró pillanatképe a jelentésben; az esemény utáni hívás nem automatikusan az esemény költsége.
-  Kísérleti jelzők: fő-szál medián > 200 ezer · ügynök-bemenet > 40 M / csomag. Egyenlőtlen feltételek
-  mellett megtakarítást NEM állítunk.
+  Kísérleti jelző az ügynök-bemenetre: **> 40 M / csomag**. Egyenlőtlen feltételek mellett
+  megtakarítást NEM állítunk.
+- **A CHATVÁLTÁS HÁROM SÁVJA — a régi 200 ezres kötelező jelző KIVEZETVE** (D-VS-3083 ·
+  `CMD-VS-300-002-002 R107 — DECISION`, chatgpt-v3, az OPERÁTOR kifejezett kérésére). A mérce a
+  **kumulatív fő-szál kontextusmedián**, és a mérő a sávot maga írja ki (`contextBand`, EGY feloldó):
+  · **300 ezer alatt** → normál folytatás; körszám és eltelt nap NEM váltási ok.
+  · **300–400 ezer** → figyelmeztetés + rövid állapotmérés a munkablokk határán; **megállni NEM kell,
+    új beszélgetést NEM kérünk.**
+  · **400 ezer elérve/túllépve** → a FUTÓ munkablokk célzott ellenőrzéssel lezárható; a **KÖVETKEZŐ
+    önálló nagy blokk** induljon friss beszélgetésben. A lezárás címén NINCS új feltárás, új funkció
+    vagy opcionális teljes söprés.
+  · **valódi környezeti korlát vagy MÉRT megbízhatósági gond** → előbb is váltunk, de KONKRÉT okkal;
+    feltételezett korlát alapján nem.
+  **A munkablokk a megkezdéskor meghatározott javítás/funkció**, nem korlátlanul bővíthető feladatsor.
+  **A végső jelentés önmagában NEM chatváltási ok** — egy beszélgetés több jelentést és több blokkot is
+  kiszolgálhat. Gépi jel: `npm run verify:fogyasztas-meres` (FGY-T7: a 250 ezer NORMÁL, a 350 ezer
+  FIGYELMEZTETÉS, a 450 ezer VÁLTÁS, a nincs-mért-medián NEM ELDÖNTHETŐ). **Amit ez NEM állít:** nem
+  szolgáltatói limit, nem kimért optimum, nem megtakarítási ígéret, és a korábbi eltéréseket nem
+  igazolja visszamenőleg.
+- **A CÉLZOTT PRÓBA AZ ALAPÉRTELMEZETT** (R107): teljes hosszú söprés konkrét KIADÁSI KAPU vagy
+  megnevezett keresztmetszeti kockázat miatt induljon, ne automatikusan — és **ne kétszer**, ha egy
+  célzott visszaellenőrzés is elég. **Kész munka nélküli ismételt commit-/hook-ébresztés NEM indít új
+  munka-, dokumentum- vagy próbacsomagot.** (A magasabb prioritású kötelező szabályt ez nem kerüli meg;
+  ütközésnél azt NEVEZZÜK MEG.)
 - **A SAJÁT KIMENET IS KONTEXTUS (R73, mérve):** a 47 hívásos ablak növekedésének ~40%-a az előző válaszok
   (usage-ban mért kimenet), ~27%-a az eszközválaszok és mellékletek (bájt/4 becslés), a többi becslési hiba
   és nem tárolt tényező. Ezért: terminálra CSAK összesítő és a hibás sor (a teljes napló fájlba, `var/`);

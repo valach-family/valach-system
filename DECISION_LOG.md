@@ -16,6 +16,64 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3083 — A CHATVÁLTÁS HÁROM SÁVJA: a 200 ezres kötelező jelző kivezetve, a 400 ezres lép a helyébe
+
+> **Hatály:** V3 (`valach-system`) — `tools/v3_fogyasztas_meres.mjs` (a küszöbök és a sáv-feloldó),
+> `CLAUDE.md` (a szabály OTTHONA). Nincs kód a terméken, nincs V2-módosítás, merge, telepítés,
+> migráció, új üzleti modul, core/CMD/PR-zárás. A söprés nem futott újra: a döntés kimondottan a
+> CÉLZOTT próbát teszi alapértelmezetté.
+
+**A parancs:** `CMD-VS-300-002-002 R107 — DECISION` (chatgpt-v3), **az OPERÁTOR kifejezett kérésére**;
+az átvezetést az operátor ebben a körben rendelte el („vezesd át most a 400 ezres szabályt").
+
+**A lelet — miért nem működött a régi alak.** A régi munkarend EGY kötelező jelzőt ismert: fő-szál
+kontextusmedián > **200 000** ⇒ a kör azonnal zárul, a folytatás új beszélgetésbe kerül. **MÉRVE
+(R106, a beadott 178 soros tartalommentes hívássorból, a külső fél újraszámolásával):** ez a jelző már
+a **51. hívásnál** (2026-09-28T21:10:14.497Z) átlépett, és utána még **127 hívás** és 47 987 126
+cache-olvasás következett ugyanabban az ablakban. Vagyis a jelző nem VÁLTÁSI PONT volt, hanem egy
+korán megszólaló, onnantól folyamatosan igaz állapot — a „jelző átlépve, most zárunk" mondat pedig nem
+bizonyította a betartását sem. A használhatóság kára az operátoré volt: kényszerű chatváltás olyan
+ponton, ahol a munka még össze tartozott.
+
+**A döntés — a mérce a KUMULATÍV fő-szál kontextusmedián, és három NEVEZETT sávja van:**
+
+| sáv | teendő |
+|---|---|
+| **300 ezer alatt** (`normal`) | normál folytatás; körszám és eltelt nap NEM váltási ok |
+| **300–400 ezer** (`figyelmeztetes`) | figyelmeztetés + rövid állapotmérés a munkablokk határán — **megállni nem kell, új beszélgetést nem kérünk** |
+| **400 ezer elérve/túllépve** (`valtas`) | a FUTÓ munkablokk célzott ellenőrzéssel lezárható; a KÖVETKEZŐ önálló nagy blokk friss beszélgetésben induljon. A lezárás címén nincs új feltárás, új funkció vagy opcionális teljes söprés |
+| **nincs mért medián** (`null`) | **NEM ELDÖNTHETŐ** — a hiány nem „normál" (KUKA-093) |
+
+Mellé két kimondott határ: **a munkablokk a megkezdéskor meghatározott javítás/funkció**, nem
+korlátlanul bővíthető feladatsor; és **a végső jelentés önmagában nem chatváltási ok** — egy
+beszélgetés több jelentést és több blokkot is kiszolgálhat. Valódi környezeti korlát vagy MÉRT
+megbízhatósági gond esetén előbb is váltunk, de KONKRÉT okkal — feltételezett korlát alapján nem.
+
+**A SÁV EGY FELOLDÓBÓL JÖN** (`contextBand`, KUKA-003 · KUKA-018): a kiírás, a JSON-jelentés és a
+próba ugyanazt hívja, nem három helyen összehasonlított szám. Az `exceeded` mező mostantól a
+**TEENDŐT** jelöli (a 400 ezres váltási jelző), nem a figyelmeztetést — a 300–400 ezres sáv
+kimondottan nem megállási ok, ezért nem „átlépés", és a mérő **nullával zár** benne.
+
+**A bizonyíték.** `npm run verify:fogyasztas-meres` **18/18 ellenpróba ZÖLD**, benne az átalakított
+**FGY-T7**: a **250 ezer** — ami a régi alakban ÁTLÉPÉS volt — ma `normal` és nem jelez; a **350 ezer**
+`figyelmeztetes` és NEM váltás; a **450 ezer** `valtas`; a sávhatárok pontosan a 300 000/400 000
+értéken fordulnak (299 999 · 300 000 · 399 999 · 400 000 mérve); a nincs-mért-medián `null`. **Élő
+futtatáson** ugyanez: a mai munkamenet 366 570-es mediánjára a mérő
+`FIGYELMEZTETÉS … MEGÁLLNI NEM KELL` sort ír és **0-val zár** (a régi alak itt `KÜSZÖB ÁTLÉPVE`-t írt
+és 1-gyel zárt).
+
+**Amit ez a döntés NEM állít — szó szerint a forrásból:** munkarendi engedmény a használhatóság
+javítására, **nem** szolgáltatói limit, **nem** kimért optimum, **nem** megtakarítási ígéret, és a
+korábbi eltéréseket **nem igazolja visszamenőleg**. Költség és heti keretarány ebből nem számítható —
+az ismeretlen költség null, nem nulla.
+
+**Mellé egy kötelem, ami ugyanebből a döntésből jön** (a `CLAUDE.md`-ben is): a CÉLZOTT próba az
+alapértelmezett; teljes hosszú söprés konkrét kiadási kapu vagy megnevezett keresztmetszeti kockázat
+miatt induljon, ne automatikusan, és ne kétszer; kész munka nélküli ismételt commit-/hook-ébresztés
+pedig nem indít új munka-, dokumentum- vagy próbacsomagot.
+
+---
+
 ## D-VS-3082 — A MEGSZAKÍTÁS JELENTÉSE BIZTOS CSATORNÁN MEGY, NEM EGY ESEMÉNYHUROK-FORDULÓN (ITR-01)
 
 > **Hatály:** V3 (`valach-system`) — `tools/lib/vs_interrupt_report.mjs` (új), `tools/lib/vs_child_runner.mjs`,

@@ -51,7 +51,43 @@ export const TOOL_VERSION = 'FGY-01/3';
 const USAGE_FIELDS = ['input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens', 'output_tokens'];
 
 // KÍSÉRLETI KÜSZÖBÖK (R65 §5): jelzők, nem tilalmak — átlépésnél a koordinátor szűkít vagy indokol.
-export const THRESHOLDS = Object.freeze({ main_context_median: 200_000, agent_input_per_package: 40_000_000 });
+//
+// A CHATVÁLTÁS HÁROM SÁVJA (D-VS-3083 · `CMD-VS-300-002-002 R107 — DECISION`, chatgpt-v3, az
+// OPERÁTOR kifejezett kérésére). A régi alak EGY kötelező 200 000-es váltási jelzőt ismert: átlépésnél
+// a kör azonnal zárult és a folytatás új beszélgetésbe került. MÉRVE (R106): ez a jelző a 178 hívásos
+// ablakban már az 51. hívásnál átlépett, és utána még 127 hívás következett — tehát a gyakorlatban nem
+// váltási pont volt, hanem egy korán megszólaló, folyamatosan igaz jelző. A 200 000 ezért NEM él
+// tovább küszöbként; a helyére HÁROM nevezett sáv lép, és a `figyelmeztetes` sáv KIMONDOTTAN nem
+// megállási ok.
+//
+// AMIT EZ NEM ÁLLÍT (KUKA-050 · a döntés szó szerinti kikötése): ez MUNKARENDI engedmény a
+// használhatóság javítására — nem szolgáltatói limit, nem kimért optimum, nem megtakarítási ígéret, és
+// a korábbi eltéréseket NEM igazolja visszamenőleg. Költség és heti keretarány ebből nem számítható.
+export const THRESHOLDS = Object.freeze({
+  main_context_warn: 300_000,
+  main_context_switch: 400_000,
+  agent_input_per_package: 40_000_000,
+});
+
+/** A HÁROM SÁV NEVE — a `null` a NEGYEDIK válasz: nincs mért medián (nem „normál"), KUKA-093. */
+export const CONTEXT_BANDS = Object.freeze(['normal', 'figyelmeztetes', 'valtas']);
+
+/**
+ * A SÁV EGY FELOLDÓBÓL (KUKA-003 · KUKA-018: egy fogalomnak egy otthona). A kiírás, a JSON-jelentés
+ * és a próba UGYANEZT hívja — nem három helyen összehasonlított szám.
+ *
+ *   `normal`          a medián 300 ezer ALATT   → folytatás; körszám és eltelt nap nem váltási ok
+ *   `figyelmeztetes`  300–400 ezer között       → rövid állapotmérés a munkablokk határán; MEGÁLLNI NEM KELL
+ *   `valtas`          400 ezer ELÉRVE/túllépve  → a FUTÓ blokk célzottan lezárható, a KÖVETKEZŐ önálló
+ *                                                 nagy blokk friss beszélgetésben induljon
+ *   `null`            nincs mért medián         → NEM ELDÖNTHETŐ (a hiány nem „normál")
+ */
+export function contextBand(median) {
+  if (!Number.isFinite(median)) return null;
+  if (median >= THRESHOLDS.main_context_switch) return 'valtas';
+  if (median >= THRESHOLDS.main_context_warn) return 'figyelmeztetes';
+  return 'normal';
+}
 
 /** ISO-időbélyeg → epoch ms, vagy null ha érvénytelen. Az összehasonlítás SZÁMON megy, nem szövegen. */
 export function epochOf(s) {
@@ -181,7 +217,15 @@ export function summarize(calls) {
     main_wakeups: trig,
     agent_input_total: agentInput, agent_count: new Set(agents.map((c) => c.agent || c.file)).size,
     thresholds: {
-      main_context_median: { limit: THRESHOLDS.main_context_median, value: median(ctx), exceeded: median(ctx) !== null && median(ctx) > THRESHOLDS.main_context_median },
+      // Az `exceeded` a TEENDŐT jelöli (a 400 ezres váltási jelző), nem a figyelmeztetést — a
+      // 300–400 ezres sáv a döntés szerint kimondottan NEM megállási ok, ezért nem „átlépés".
+      main_context_median: {
+        warn_limit: THRESHOLDS.main_context_warn,
+        switch_limit: THRESHOLDS.main_context_switch,
+        value: median(ctx),
+        band: contextBand(median(ctx)),
+        exceeded: contextBand(median(ctx)) === 'valtas',
+      },
       agent_input_per_package: { limit: THRESHOLDS.agent_input_per_package, value: agentInput, exceeded: agentInput > THRESHOLDS.agent_input_per_package },
     },
   };
@@ -359,8 +403,20 @@ export function selftest() {
   const r = measure({ projectsDir: join(tmp, 'p'), session: 'S1' });
   ok('FGY-T5 idegen session kizárva, saját al-ügynök benne', r.coverage.files === 2 && r.whole_session.calls === 2 && r.whole_session.by_kind.main.cache_read === 5 && r.whole_session.agent_input_total === 10 && r.coverage.complete === true);
   ok('FGY-T6 medián', median([3, 1, 2]) === 2 && median([1, 2, 3, 4]) === 2.5 && median([]) === null);
-  const s = summarize([{ kind: 'main', input: 0, cache_write: 0, cache_read: 250_000, output: 1, ts: 't', model: 'm' }]);
-  ok('FGY-T7 küszöb átlépése jelez', s.thresholds.main_context_median.exceeded === true);
+  // (7) A HÁROM SÁV (D-VS-3083 · R107): a 250 ezer a régi alakban ÁTLÉPÉS volt, ma NORMÁL folytatás —
+  // ez a döntés lényege, ezért ellenpróbaként is itt áll. A 350 ezer FIGYELMEZTETÉS (nem megállás), a
+  // 450 ezer VÁLTÁSI jelző. A nincs-mért-medián a NEGYEDIK válasz: `null`, nem „normal" (KUKA-093).
+  const sav = (ctx) => summarize([{ kind: 'main', input: 0, cache_write: 0, cache_read: ctx, output: 1, ts: 't', model: 'm' }]).thresholds.main_context_median;
+  const s = sav(450_000);
+  ok('FGY-T7 a három kontextus-sáv: 250e normál (nem jelez) · 350e figyelmeztetés (nem váltás) · 450e VÁLTÁS',
+    sav(250_000).band === 'normal' && sav(250_000).exceeded === false
+    && sav(350_000).band === 'figyelmeztetes' && sav(350_000).exceeded === false
+    && s.band === 'valtas' && s.exceeded === true
+    && contextBand(299_999) === 'normal' && contextBand(300_000) === 'figyelmeztetes'
+    && contextBand(399_999) === 'figyelmeztetes' && contextBand(400_000) === 'valtas'
+    && contextBand(null) === null && contextBand(undefined) === null
+    && CONTEXT_BANDS.join(',') === 'normal,figyelmeztetes,valtas'
+    && THRESHOLDS.main_context_warn === 300_000 && THRESHOLDS.main_context_switch === 400_000);
   // (8) R67: KUMULATÍV streamelt rekord — az UTOLSÓ kimenet marad meg, nem az első (1 → 100 ⇒ 100)
   const c8 = dedupe([callOf(L('s', '2026-01-01T00:00:00Z', U(10, 0, 0, 1)), 'f', 'main'), callOf(L('s', '2026-01-01T00:00:01Z', U(10, 0, 0, 100)), 'f', 'main')]);
   ok('FGY-T8 kumulatív rekord: a végső usage marad meg', c8.length === 1 && c8[0].output === 100 && c8[0].input === 10);
@@ -405,7 +461,7 @@ export function selftest() {
   const r17 = measure({ projectsDir: join(tmp, 'p'), session: 'S1' }); // a T14 fájl: teljes lefedettség
   writeFileSync(join(proj, 'S1.jsonl'), L('a1', '2026-01-01T00:00:00Z', U(1, 0, 5, 1)) + '\n{"type":"assistant","message":{"id":"nu","model":"m"}}\n');
   const r17b = measure({ projectsDir: join(tmp, 'p'), session: 'S1' });
-  const big = summarize([{ kind: 'main', input: 0, cache_write: 0, cache_read: 250_000, output: 1, ts: 't', model: 'm', missing_fields: ['output_tokens'] }]);
+  const big = summarize([{ kind: 'main', input: 0, cache_write: 0, cache_read: 450_000, output: 1, ts: 't', model: 'm', missing_fields: ['output_tokens'] }]);
   ok('FGY-T17 hiányos megfigyelés: nem eldönthető, de az átlépés látszik', r17.thresholds_decidable === true && r17b.thresholds_decidable === false && r17b.coverage.complete === false && big.thresholds.main_context_median.exceeded === true && big.totals_kind === 'ismert_reszosszeg');
   /**
    * (18) R93 F93-04/5: A HÍVÁS-SOROK IDŐREND SZERINT ÁLLNAK, TARTALMAT NEM VISZNEK, ÉS A
@@ -466,7 +522,20 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const ex = Object.entries(t.thresholds).filter(([, v]) => v.exceeded);
   const decidable = rep.thresholds_decidable;
   const sumKind = t.totals_kind === 'ismert_reszosszeg' ? `ISMERT RÉSZÖSSZEG (${fmt(t.incomplete_usage_calls)} hívás hiányos usage-dzsal, az összes ISMERETLEN)` : 'teljes összeg';
-  const thresholdWord = ex.length ? `KÜSZÖB ÁTLÉPVE: ${ex.map(([k, v]) => `${k} ${fmt(v.value)} > ${fmt(v.limit)}`).join(' · ')}` : (decidable ? 'küszöbök: rendben' : 'küszöb: NEM ELDÖNTHETŐ — hiányos megfigyelésből nem következik „kereten belül"');
+  // A SÁVNAK SAJÁT SZAVA VAN (D-VS-3083): a figyelmeztetés NEM „küszöb átlépve" és NEM megállás.
+  // A hiányos megfigyelés pedig NEM „rendben" — a NEM ELDÖNTHETŐ külön válasz (KUKA-093).
+  const mc = t.thresholds.main_context_median;
+  const agentEx = t.thresholds.agent_input_per_package.exceeded
+    ? ` · ÜGYNÖK-BEMENET ÁTLÉPVE: ${fmt(t.thresholds.agent_input_per_package.value)} > ${fmt(t.thresholds.agent_input_per_package.limit)}` : '';
+  const bandWord = mc.band === 'valtas'
+    ? `CHATVÁLTÁSI JELZŐ ELÉRVE (${fmt(mc.value)} ≥ ${fmt(mc.switch_limit)}): a FUTÓ munkablokk célzott ellenőrzéssel lezárható, a KÖVETKEZŐ önálló nagy blokk friss beszélgetésben induljon`
+    : mc.band === 'figyelmeztetes'
+      ? `FIGYELMEZTETÉS (${fmt(mc.value)} a ${fmt(mc.warn_limit)}–${fmt(mc.switch_limit)} sávban): rövid állapotmérés a munkablokk határán — MEGÁLLNI NEM KELL, új beszélgetés NEM kell`
+      : mc.band === 'normal'
+        ? `kontextus-sáv: normál folytatás (${fmt(mc.value)} < ${fmt(mc.warn_limit)})`
+        : 'kontextus-sáv: NEM ELDÖNTHETŐ — nincs mért medián';
+  const thresholdWord = `${bandWord}${agentEx}`
+    + (decidable ? '' : ' · a küszöb NEM ELDÖNTHETŐ: hiányos megfigyelésből nem következik „kereten belül"');
   if (process.argv.includes('--quick')) {
     console.log(`FGY ${session.slice(0, 8)} (${sessionBasis}) · ablak ${rep.window.from || '…'} → ${rep.window.to || 'most'} · hívás ${fmt(t.calls)} · fő-szál kontextus medián ${fmt(t.main_context.median)} / max ${fmt(t.main_context.max)} · ügynök-bemenet ${fmt(t.agent_input_total)} (${t.agent_count} ügynök) · cache-olvasás ${fmt(t.totals.cache_read)} [${sumKind}] · lefedettség: ${rep.coverage.complete ? 'teljes' : rep.coverage.note} · ${thresholdWord}`);
     process.exit(ex.length || !decidable ? 1 : 0);
