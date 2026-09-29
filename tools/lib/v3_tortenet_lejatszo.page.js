@@ -1,6 +1,7 @@
-  // ── R112: A TÖRTÉNETEK LEJÁTSZÓJA (beágyazva a bemutató-lap közös IIFE-jébe; P · st · D · esc innen jön) ──
-  // A kezelő feliratai az operátornak szólnak (magyarul); a SZIMULÁLT képernyők szövege a kiválasztott
-  // nyelv csomagjából jön. A lap nem hív szervert, nem ír adatot, és nem fogad el meghívót.
+  // ── A HASZNÁLATI UTAK LEJÁTSZÓJA (beágyazva a próbalap közös IIFE-jébe; P · st · D · esc innen jön) ──
+  // R114/9: a kezelő feliratai IS a kiválasztott nyelv csomagjából jönnek (`STORYUI`), nem beégetve —
+  // korábban magyarul álltak a kódban, tehát a lap angolul és németül is magyar kezelőt adott.
+  // A lap nem hív szervert, nem ír adatot, és nem fogad el meghívót.
   const SS = { mode: 'stories', story: null, at: 0, phase: 'before', done: 0, langBefore: null };
   const EMAIL = { anna: 'anna@pelda.hu', bea: 'bea@pelda.hu', cecil: 'cecil@pelda.hu' };
   const MINE = 'te@pelda.hu';
@@ -143,30 +144,42 @@
     // A levél tárgya helyőrzőt hordoz ({fiok}) — a szintetikus fiók nevével töltjük ki.
     return T(step.act).replace('{fiok}', 'Minta Kft');
   }
+  /**
+   * AZ ELLENŐRZÉSI RÉSZLETEK (R114/8): a mérés, a forrás és a dátum LENYITHATÓ rész alatt áll, nem az
+   * előtérben. Ami nincs mérve, az „nem mért" — nem zöld (KUKA-094). A feliratok a nyelvcsomagból.
+   */
   function evidenceHtml(id) {
     const ev = (P.EVIDENCE && P.EVIDENCE.stories && P.EVIDENCE.stories[id]) || null;
     const story = P.STORIES.find((s) => s.id === id);
+    const S = D().STORYUI;
     const rows = story.evidence.map((e, i) => {
       const m = ev ? ev[i] : null;
-      const mark = !m ? '<span class="evno">nem mért</span>' : m.runs && m.passed === m.runs
+      const mark = !m ? '<span class="evno">' + esc(S.notMeasured) + '</span>' : m.runs && m.passed === m.runs
         ? '<span class="evok">✓ ' + m.passed + '/' + m.runs + '</span>' : '<span class="evbad">✗ ' + m.passed + '/' + m.runs + '</span>';
       return '<li>' + mark + ' <code>' + esc(e.spec.replace('tests/e2e/', '')) + '</code> — ' + esc(e.title) + '</li>';
     }).join('');
-    const when = P.EVIDENCE ? ' (' + esc(P.EVIDENCE.measured_at || '') + ' · ' + esc((P.EVIDENCE.commit || '').slice(0, 7)) + ')' : '';
+    const when = P.EVIDENCE ? '<p class="muted">' + esc(S.measuredAt) + ': ' + esc(P.EVIDENCE.measured_at || '')
+      + ' · ' + esc(S.source) + ': <code>' + esc((P.EVIDENCE.commit || '').slice(0, 7)) + '</code></p>' : '';
     const zold = ev ? ev.filter((m) => m.runs && m.passed === m.runs).length : 0;
-    const osszeg = ev ? zold + '/' + story.evidence.length + ' bizonyító próba zöld' : 'bizonyíték: nem mért';
-    return '<details class="sevid" data-testid="story-evidence"><summary>A VALÓDI alkalmazásban bizonyítva: <span data-testid="story-evidence-count">' + osszeg + '</span>' + when + '</summary><ul class="list">' + rows + '</ul>'
-      + '<p class="muted">A pipa a próba mért kimenete a megnevezett commiton: valódi HTTP-szerver, valódi böngésző, valódi adatbázis-sor. '
-      + 'A fenti képernyők ezzel szemben SZIMULÁCIÓ.</p></details>';
+    const osszeg = ev ? tplT('evidenceGreen', { zold, osszes: story.evidence.length }) : S.evidenceNotMeasured;
+    // A SZÁM IS A LENYÍLÓ ALATT VAN (R114/8): a „próba zöld" fejlesztői megfogalmazás, tehát nem
+    // állhat a mindig látszó fejlécben — ott csak az „Ellenőrzési részletek" szó áll.
+    return '<details class="sevid" data-testid="story-evidence"><summary>' + esc(S.checkDetails) + '</summary>'
+      + '<p><b data-testid="story-evidence-count">' + esc(osszeg) + '</b></p>'
+      + when + '<ul class="list">' + rows + '</ul>'
+      + '<p class="muted">' + esc(S.evidenceLead) + '</p></details>';
   }
   function helpLinks(id) {
     const story = P.STORIES.find((s) => s.id === id);
+    const S = D().STORYUI;
     const feats = story.features.map((f) => esc(((D().KB || {})[f] || {}).title || f)).join(' · ');
     const tours = story.tours.map((t) => esc(((D().TOUR || {})[t] || {}).title || t)).join(' · ');
     const faqs = [...new Set(story.features.flatMap((f) => (P.INDEX.find((r) => r.id === f) || { faq: [] }).faq))]
       .map((q) => esc(((D().FAQ || {})[q] || {}).q || q)).join(' · ');
-    return '<details class="shelp"><summary>Súgó, gyakori kérdések és bemutató ehhez az úthoz</summary>'
-      + '<p><b>Súgó-témák:</b> ' + feats + '</p><p><b>Kattintható bemutató:</b> ' + tours + '</p><p><b>Gyakori kérdések:</b> ' + faqs + '</p></details>';
+    return '<details class="shelp"><summary>' + esc(S.helpForPath) + '</summary>'
+      + '<p><b>' + esc(D().HELP.guidesFor) + ':</b> ' + feats + '</p>'
+      + '<p><b>' + esc(S.helpTours) + ':</b> ' + tours + '</p>'
+      + '<p><b>' + esc(D().HELP.tabFaq) + ':</b> ' + faqs + '</p></details>';
   }
 
   function renderStories() {
@@ -179,17 +192,17 @@
     const roleSel = document.getElementById('role'); if (roleSel && roleSel.parentElement) roleSel.parentElement.hidden = on;
     for (const b of document.querySelectorAll('[data-mode]')) b.classList.toggle('on', b.dataset.mode === SS.mode);
     if (!on) return;
+    const S = D().STORYUI;
     if (!SS.story) {
-      box.innerHTML = '<h1>Történetek — válassz egy használati utat</h1>'
-        + '<p class="muted">Minden történet a valódi alkalmazás egyszerűsített képein megy végig, a kiválasztott nyelven. '
-        + 'A lépéseknél te kattintasz; a lap szimulál, a valódi működést a lap alján felsorolt böngésző-próbák bizonyítják.</p>'
+      // A KEZDŐLAP (R114/6 · R114/7): rövid kérdés, és kártyánként NÉV + legfeljebb két mondat.
+      // A mérés száma NEM a kártyán áll, hanem az út alján, az Ellenőrzési részletek alatt (R114/8).
+      box.innerHTML = '<h1 data-testid="story-start-title">' + esc(S.startTitle) + '</h1>'
+        + '<p class="muted">' + esc(S.startLead) + '</p>'
         + '<div class="scards">' + P.STORIES.map((s) => {
           const t = (D().STORY || {})[s.id] || {};
-          const ev = P.EVIDENCE && P.EVIDENCE.stories && P.EVIDENCE.stories[s.id];
-          const ok = ev ? ev.filter((m) => m.runs && m.passed === m.runs).length : 0;
           return '<div class="scard" data-testid="story-card-' + esc(s.id) + '"><h3>' + esc(t.title || s.id) + '</h3><p class="muted">' + esc(t.lead || '') + '</p>'
-            + '<p><small>' + (ev ? ok + '/' + s.evidence.length + ' bizonyító próba zöld' : 'bizonyíték: nem mért') + ' · ' + (P.STORY_STEPS[s.id] || []).length + ' lépés</small></p>'
-            + '<button class="p" data-sstart="' + esc(s.id) + '" data-testid="story-start-' + esc(s.id) + '">Indítás</button></div>';
+            + '<p><small>' + esc(tplT('storySteps', { n: (P.STORY_STEPS[s.id] || []).length })) + '</small></p>'
+            + '<button class="p" data-sstart="' + esc(s.id) + '" data-testid="story-start-' + esc(s.id) + '">' + esc(S.start) + '</button></div>';
         }).join('') + '</div>';
       return;
     }
@@ -199,22 +212,24 @@
     const finished = SS.at >= steps.length;
     let body = '';
     if (finished) {
-      body = '<div class="sdone" data-testid="story-finished"><h2>A történet végére értél</h2><p>' + steps.length + ' lépés · mindegyiknél te kattintottál, és a lap megmutatta az eredményt.</p>'
-        + '<p><button class="p" data-srestart="1" data-testid="story-restart">Újrakezdés</button> <button data-sback="1" data-testid="story-back">Vissza a történetekhez</button></p></div>';
+      body = '<div class="sdone" data-testid="story-finished"><h2>' + esc(S.finishedTitle) + '</h2>'
+        + '<p>' + esc(tplT('storySteps', { n: steps.length })) + ' · ' + esc(S.finishedLead) + '</p>'
+        + '<p><button class="p" data-srestart="1" data-testid="story-restart">' + esc(S.restart) + '</button> '
+        + '<button data-sback="1" data-testid="story-back">' + esc(S.back) + '</button></p></div>';
     } else {
       const sc = SS.phase === 'before' ? step.before : step.after;
       body = '<p class="sexplain" data-testid="story-explain"><b>' + (SS.at + 1) + '/' + steps.length + '.</b> ' + esc(T(step.explain)) + '</p>'
-        + (SS.phase === 'before' ? '<p class="shint">Kattints a kiemelt gombra: <b>' + esc(actLabel(step)) + '</b></p>' : '<p class="shint ok">Eredmény — így néz ki a valódi képernyő a művelet után:</p>')
+        + (SS.phase === 'before' ? '<p class="shint">' + esc(S.clickHint) + ' <b>' + esc(actLabel(step)) + '</b></p>' : '<p class="shint ok">' + esc(S.resultHint) + '</p>')
         + screenHtml(sc, SS.phase === 'before' ? actBtn(actLabel(step)) : '')
-        + (SS.phase === 'after' ? '<p><button class="p" data-snext="1" data-testid="story-next">Tovább</button></p>' : '');
+        + (SS.phase === 'after' ? '<p><button class="p" data-snext="1" data-testid="story-next">' + esc(D().TOURUI.next) + '</button></p>' : '');
     }
-    box.innerHTML = '<div class="shead"><button data-sback="1" data-testid="story-back-top">← Történetek</button> '
-      + '<button data-srestart="1" data-testid="story-restart-top">Újrakezdés</button></div>'
+    box.innerHTML = '<div class="shead"><button data-sback="1" data-testid="story-back-top">← ' + esc(S.back) + '</button> '
+      + '<button data-srestart="1" data-testid="story-restart-top">' + esc(S.restart) + '</button></div>'
       + '<h1 data-testid="story-title">' + esc(t.title || SS.story) + '</h1><p class="muted">' + esc(t.lead || '') + '</p>'
       + '<div class="splayer"><ol class="ssteps" data-testid="story-steps">' + steps.map((s, i) => '<li class="' + (i < SS.at ? 'sdone-step' : i === SS.at ? 'scur' : '') + '">'
         + '<button data-sjump="' + i + '">' + (i + 1) + '. ' + esc(actLabel(s)) + '</button></li>').join('') + '</ol>'
       + '<div class="sstage">' + body + '</div></div>'
-      + '<p class="simtag">SZIMULÁCIÓ: ez a lap nem hív szervert, nem ír adatot, nem küld levelet és nem fogad el meghívót. Az adatok szintetikusak (pelda.hu).</p>'
+      + '<p class="simtag">' + esc(S.simulationBanner) + '</p>'
       + helpLinks(SS.story) + evidenceHtml(SS.story);
   }
   const renderBase = render;

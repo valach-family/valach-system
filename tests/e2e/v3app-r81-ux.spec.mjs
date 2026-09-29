@@ -176,7 +176,7 @@ test('UX-01…UX-07 — a közös keret: belépési űrlap nélküli belső néz
       expect(cim.trim()).toBe(menu.trim());
       parok.push(`${menu.trim()}`);
     }
-    u4.b(`Tizenegy menüpont, és MINDEGYIKNÉL a menünév karakterre azonos az oldalcímmel: ${parok.join(' · ')}. A csoportok a V2 elrendezését követik (Műveletek · Riportok · Törzsadatok · Beállítások).`)
+    u4.b(`Tizenegy menüpont, és MINDEGYIKNÉL a menünév karakterre azonos az oldalcímmel: ${parok.join(' · ')}. A csoportok a V2 elrendezését követik (${[HU.NAV.operations, HU.NAV.reports, HU.NAV.masterdata, HU.NAV.settings].join(' · ')}).`)
       .verdictIs('bizonyitva', 'A menücím és az oldalcím EGY szövegforrásból jön (`v3app/public/texts.mjs`), ezért nem tudnak elcsúszni.');
 
     // ── UX-05 ────────────────────────────────────────────────────────────────────────────────
@@ -724,9 +724,11 @@ test('UX-19, UX-20 — az ismeretlen nem nulla, a becsült jelölt; a bemutató 
     // A MAG ÁLTAL KIADOTT `qty:"12"`-höz NEM TALÁLUNK KI SEM EGYSÉGET, SEM RAKTÁRT, SEM MÉRÉSI
     // EREDETET (R83/F83-03): a válasz egyiket sem bizonyítja, ezért a sor „Nincs megadva"-t visz.
     expect(tabla).toContain('Egység nincs megadva');
-    expect(tabla).toContain('Bemutató tétel');
+    // A FELIRATOT A NYELVCSOMAGBÓL VESSZÜK, nem beégetve (KUKA-237): a D1-es átnevezés után a
+    // mag sorának szava „Mintaadat-tétel" — a próba a VISELKEDÉST méri, nem a régi szöveget.
+    expect(tabla).toContain(HU.STATE.demoItem);
     const magSor = (await anna.page.locator('[data-testid="stock-table"] tbody tr')
-      .filter({ hasText: 'Bemutató tétel' }).first().textContent()) || '';
+      .filter({ hasText: HU.STATE.demoItem }).first().textContent()) || '';
     expect(magSor).toContain('Nincs megadva');
     expect(magSor).not.toContain('Központi raktár');
     // AZ ISMERETLEN NEM NULLA: az „Alapanyag A" sorában nem 0 áll.
@@ -738,7 +740,7 @@ test('UX-19, UX-20 — az ismeretlen nem nulla, a becsült jelölt; a bemutató 
     const labjegyzet = (await anna.page.locator('[data-testid="stock-table"] .tablefoot').textContent()) || '';
     expect(labjegyzet).toContain('nem adunk össze');
     u19.b(`A készlettábla a mennyiség HÁROM állapotát külön szóval viszi: „Mért" · „Becsült" · „Nem ismert". `
-      + `Az ismeretlen mennyiségű sor szövegében nincs 0. A magtól kapott sor („Bemutató tétel") mellett `
+      + `Az ismeretlen mennyiségű sor szövegében nincs 0. A magtól kapott sor („${HU.STATE.demoItem}") mellett `
       + `„Egység nincs megadva" és „Nincs megadva" áll RAKTÁRRA és MENNYISÉG-JELLEGRE is — a válasz egyiket `
       + `sem bizonyítja, ezért nem tulajdonítunk neki mérési eredetet. A tábla lábjegyzete kimondja: „${labjegyzet.trim()}".`)
       .s('A HÁROM ÁLLAPOT FORRÁSA KIMONDVA: a „Mért" és a „Becsült" szó a DEKLARÁLT mintacsomag adata '
@@ -749,9 +751,9 @@ test('UX-19, UX-20 — az ismeretlen nem nulla, a becsült jelölt; a bemutató 
 
     // ── UX-20: a bemutató jelölése ───────────────────────────────────────────────────────────
     await expect(anna.page.getByTestId('demo-marker')).toBeVisible();
-    await expect(anna.page.getByTestId('demo-marker')).toContainText('Bemutató · mintaadatok');
+    await expect(anna.page.getByTestId('demo-marker')).toContainText(HU.STATE.demo);
     await expect(anna.page.getByTestId('demo-marker')).toContainText('Nincs valódi levélküldés, számlázás vagy készletmozgás');
-    expect((await anna.page.getByTestId('stock-table').textContent()) || '').toContain('Bemutató · mintaadatok');
+    expect((await anna.page.getByTestId('stock-table').textContent()) || '').toContain(HU.STATE.demo);
     // A MINTAADAT A VALÓDI JOGTÓL FÜGG: ahol a mag elutasít, ott a mintatábla SEM jelenik meg.
     const bela = await w.person('bela');
     const inv = await inviteUI(anna.page, { email: bela.email, role: 'user', scope: 'keszlet' });
@@ -794,7 +796,7 @@ test('UX-19, UX-20 — az ismeretlen nem nulla, a becsült jelölt; a bemutató 
     for (const nev of ['Rögzítőelem M8', 'Papírtasak']) {
       expect(belaTabla.includes(nev)).toBe(annaTabla.includes(nev));
     }
-    u20.b(`A bemutató jelölése a lap tetején állandóan látszik („Bemutató · mintaadatok" + „Nincs valódi levélküldés, számlázás vagy készletmozgás"), és minden mintatábla külön is jelölt. A levelek panelje kimondja: „Valódi e-mailt nem küldtünk" — a meghívó üzenete sem állít küldést.`)
+    u20.b(`A mintaadat jelölése a lap tetején állandóan látszik („${HU.STATE.demo}" + „Nincs valódi levélküldés, számlázás vagy készletmozgás"), és minden mintatábla külön is jelölt. A levelek panelje kimondja: „Valódi e-mailt nem küldtünk" — a meghívó üzenete sem állít küldést.`)
       .s(`A MINTAADAT A VALÓDI CORE JOGÁTÓL FÜGG: Béla (tag, adatjog nélkül) kérésére ok=${belaStock.body.ok}, `
         + `kapu=${belaStock.gate}, és a mintatábla darabszáma a képernyőn 0 — tehát nem „mindig látszó díszlet". `
         + `UGYANEZ MIND A HÁROM KÉSZLET-JELLEGŰ NÉZETRE áll (${kapuk.join(' · ')}): nemleges nézet, tábla nélkül, `

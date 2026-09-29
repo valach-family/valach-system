@@ -71,6 +71,8 @@ for (const l of LANGS) {
   DATA[l.code] = {
     dir: dirOf(l.code),
     PAGE: d.PAGE, NAV: d.NAV, UI: d.UI, HELP: d.HELP, TOURUI: d.TOURUI, CHAT: d.CHAT, STATE: d.STATE, REASON: d.REASON,
+    // R114/9 — a LAP SAJÁT kezelő-feliratai is a nyelvcsomagból jönnek, nem a generátorból.
+    STORYUI: d.STORYUI,
     KB: d.KB, FAQ: d.FAQ, TOUR: d.TOUR,
     // A TÖRTÉNETEK (R112) további csoportjai: szerepkör · adatkör · sablon · levél · történet-cím.
     ROLE: d.ROLE, SCOPE: d.SCOPE, SCOPE_ACC: d.SCOPE_ACC, TPL: d.TPL, SRV: d.SRV, STORY: d.STORY,
@@ -118,7 +120,7 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>V3 használati történetek</title>
+<title>Valach System — kipróbálás</title>
 <style>
   :root { --ink:#0f172a; --muted:#64748b; --line:#cbd5e1; --warn:#b45309; --warnbg:#fffbeb; --ok:#15803d; }
   * { box-sizing: border-box; }
@@ -151,6 +153,8 @@ const html = `<!doctype html>
   input[type=text] { inline-size:100%; padding:7px 9px; border:1px solid var(--line); border-radius:8px; font:inherit; }
   .tech { margin:16px; padding:10px 14px; border:1px solid var(--line); border-radius:10px; background:#f8fafc; }
   .tech summary { cursor:pointer; font-weight:650; }
+  /* R116: a magyarázó mondat a SAJÁT sorába kerül — korábban a listaelem szövegéhez tapadt */
+  .tech ul.list li span { display:block; font-size:12px; color:var(--muted); margin-block-start:2px; }
   .simbar { font-weight:650; }
   /* R112 — a [hidden] attribútum ERŐSEBB a keret saját display-szabályánál (a main flex volt, és látszott) */
   [hidden] { display:none !important; }
@@ -193,20 +197,16 @@ const html = `<!doctype html>
 </style>
 </head>
 <body>
-<div class="simbar">Bemutató — mintaadatokkal</div>
-<div class="modebar"><button data-mode="stories" class="on" data-testid="mode-stories">Történetek</button>
-  <button data-mode="help" data-testid="mode-help">Súgó és bemutató (R89)</button>
-  <small class="muted">Szimuláció: a lap nem hív szervert és nem ír adatot — a valódi működést böngésző-próbák bizonyítják.</small></div>
+<div class="simbar" id="simbar"></div>
+<div class="modebar"><button data-mode="stories" class="on" data-testid="mode-stories"></button>
+  <button data-mode="help" data-testid="mode-help"></button></div>
 
 <header>
   <strong>VS</strong>
-  <label>Nyelv <select id="lang"></select></label>
-  <label>Nézet <select id="role">
-    <option value="admin">Fiókkezelő</option>
-    <option value="user">Tag</option>
-    <option value="anon">Belépés előtt</option></select></label>
+  <label><span id="langlabel"></span> <select id="lang"></select></label>
+  <label><span id="rolelabel"></span> <select id="role"></select></label>
   <span class="sp"></span>
-  <button id="help">Segítség</button>
+  <button id="help"></button>
 </header>
 <main>
   <nav id="nav"></nav>
@@ -218,7 +218,7 @@ const html = `<!doctype html>
 </main>
 <section id="stories" data-testid="stories"></section>
 <details class="tech" id="techbox">
-  <summary>Technikai részletek — mit mutat és mit NEM mutat ez a lap</summary>
+  <summary id="techsummary"></summary>
   <div id="tech"></div>
 </details>
 <div id="panelbox"></div>
@@ -243,9 +243,22 @@ const html = `<!doctype html>
     document.documentElement.dir = D().dir;
   }
   function renderChrome() {
+    // A LAP KERETE IS A KIVÁLASZTOTT NYELVEN SZÓL (R114/9): a sáv, a két mód, a két legördülő címkéje
+    // és a lenyíló fejléce mind a STORYUI csoportból jön — a generátorban nincs beégetett felirat.
+    const S = D().STORYUI;
     const sel = document.getElementById('lang');
     sel.innerHTML = P.LANGS.map((l) => '<option value="' + esc(l.code) + '"' + (l.code === st.lang ? ' selected' : '') + '>'
-      + esc(l.endonym) + (l.kind === 'probe' ? ' — PRÓBA' : '') + '</option>').join('');
+      + esc(l.endonym) + (l.kind === 'probe' ? ' — ' + esc(S.probeLang) : '') + '</option>').join('');
+    // A SZIMULÁCIÓ JELÖLÉSE VÉGIG LÁTSZIK, és a mondat megmondja, mi NEM történik (R114/8).
+    document.getElementById('simbar').innerHTML = '<strong>' + esc(D().STATE.demo) + '</strong><small>' + esc(S.simulationBanner) + '</small>';
+    document.querySelector('[data-testid="mode-stories"]').textContent = S.modeStories;
+    document.querySelector('[data-testid="mode-help"]').textContent = S.modeHelp;
+    document.getElementById('langlabel').textContent = D().UI.language;
+    document.getElementById('rolelabel').textContent = S.viewAs;
+    const roleSel = document.getElementById('role');
+    const roles = [['admin', D().ROLE.admin], ['user', D().ROLE.user], ['anon', S.viewAnon]];
+    roleSel.innerHTML = roles.map(([v, t]) => '<option value="' + v + '"' + (v === st.role ? ' selected' : '') + '>' + esc(t) + '</option>').join('');
+    document.getElementById('techsummary').textContent = S.checkDetails + ' — ' + S.checkDetailsLead;
     document.getElementById('help').textContent = D().HELP.open;
     // A LAP SAJÁT MŰVELETEI — csak ami EHHEZ a képernyőhöz tartozik (F91-06).
     const acts = (P.PAGE_ACTIONS[st.page] || []).filter((a) => !(a.needs_admin && st.role !== 'admin'));
@@ -256,12 +269,11 @@ const html = `<!doctype html>
     // A MÉRÉSI RÉSZLETEK A TECHNIKAI SZAKASZBAN (F91-06): a kulcs-darabszám nem a fő oldal szövege.
     const c = D().coverage;
     document.getElementById('tech').innerHTML = '<ul class="list">'
-      + '<li>Nyelvi lefedettség (MÉRT): <b>' + c.covered + '/' + c.population + '</b> kulcs · '
-      + (c.enabled ? 'bekapcsolt termék-nyelv' : 'PRÓBA-nyelv, nem kínált') + '.'
-      + '<span>A kulcsok megléte NEM nyelvi lektorálás: a termék-nyelvek szövegét ember nézi át, a próba-nyelvek pedig szándékosan hiányosak.</span></li>'
-      + '<li>Ez a lap <b>nem hív szervert és nem hív modellt</b>.<span>A nézet (fiókkezelő / tag / belépés előtt) itt egy legördülőből jön; a valódi rendszerben a szerver dönti el.</span></li>'
-      + '<li>Amit ez a lap NEM bizonyít: szerveroldali jogosultságot, élő AI-választ, és a valódi alkalmazás útjait.'
-      + '<span>Azokról külön futási bizonyíték készült: böngésző-próbák és HTTP-battériák.</span></li>'
+      + '<li>' + esc(S.techCoverage) + ': <b>' + c.covered + '/' + c.population + '</b> · '
+      + esc(c.enabled ? S.techEnabledLang : S.techProbeLang) + '.'
+      + '<span>' + esc(S.techCoverageNote) + '</span></li>'
+      + '<li><b>' + esc(S.techNoServer) + '</b><span>' + esc(S.techNoServerNote) + '</span></li>'
+      + '<li>' + esc(S.techNotProven) + '<span>' + esc(S.techNotProvenNote) + '</span></li>'
       + '</ul>';
   }
   function renderNav() {
@@ -312,7 +324,7 @@ const html = `<!doctype html>
         const q = st.search.toLowerCase();
         const rows = visible().filter((r) => !q || ((D().KB[r.id] || {}).title || '').toLowerCase().includes(q) || ((D().KB[r.id] || {}).purpose || '').toLowerCase().includes(q));
         inner = '<input type="text" id="gsearch" placeholder="' + esc(D().HELP.searchGuidesPlaceholder) + '" value="' + esc(st.search) + '">'
-          + '<p class="muted">' + esc(D().HELP.searchGuides) + ' — 0 modellhívás</p>'
+          + '<p class="muted">' + esc(D().HELP.searchGuides) + ' — ' + esc(D().STORYUI.noModelCall) + '</p>'
           + '<ul class="list">' + rows.map((r) => '<li><button data-topic="' + esc(r.id) + '">' + esc((D().KB[r.id] || {}).title || r.id) + '</button></li>').join('') + '</ul>'
           + (rows.length ? '' : '<p class="warn">' + esc(D().HELP.searchNoHit) + '</p>');
       }
@@ -339,7 +351,7 @@ const html = `<!doctype html>
     box.innerHTML = '<div class="panel"><div style="display:flex;justify-content:space-between;align-items:start">'
       + '<h2 style="margin:0">' + esc(D().HELP.title) + '</h2><button data-close="1">×</button></div>'
       + '<div class="tabs">' + tab('ask', D().HELP.tabAsk) + tab('guides', D().HELP.tabGuides) + tab('faq', D().HELP.tabFaq) + tab('sitemap', D().HELP.tabSitemap) + '</div>'
-      + inner + '<p class="muted" style="margin-top:14px">SZIMULÁCIÓ: ez a panel nem kér szervert és nem hív modellt.</p></div>';
+      + inner + '<p class="muted" style="margin-top:14px">' + esc(D().STORYUI.panelSimNote) + '</p></div>';
   }
   function targetEl(run) {
     const s = run.steps[run.at];

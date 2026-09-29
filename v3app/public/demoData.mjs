@@ -2,7 +2,7 @@
 //
 // MI EZ, ÉS MI NEM. Ezek KITALÁLT sorok, hogy a képernyők elrendezése és a fogalmak érthetők
 // legyenek — üzleti modul NEM tartozik hozzájuk: nincs készletmozgás, könyvelés, számlázás.
-// Ezért minden ilyen lista a felületen jelölve van (`Bemutató · mintaadatok`), és a megjelenésük
+// Ezért minden ilyen lista a felületen jelölve van (`Próbafelület · mintaadatok`), és a megjelenésük
 // a VALÓDI mag jogosultságától függ: ha a core nem adja ki az adatot, a mintatábla SEM látszik
 // (R81 §7 utolsó bekezdés · UX-20).
 //

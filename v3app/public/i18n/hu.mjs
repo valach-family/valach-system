@@ -44,7 +44,7 @@ export const PAGE = Object.freeze({
 /** A MENÜ CSOPORT-NEVEI — a szerkezet (mely oldal melyik csoportban) a `texts.mjs`-ben áll. */
 export const NAV = Object.freeze({
   operations: 'Műveletek',
-  reports: 'Riportok',
+  reports: 'Kimutatások',
   masterdata: 'Törzsadatok',
   settings: 'Beállítások',
   ownMatters: 'Saját ügyek',
@@ -88,7 +88,12 @@ export const TPL = Object.freeze({
   stateWithCount: '{allapot} ({n})',
   tourStepOf: '{n}. lépés (összesen {osszes})',
   tourStepsLeft: 'Még {n} lépés',
+  storySteps: '{n} lépés',
+  evidenceGreen: '{zold}/{osszes} ellenőrző próba zöld',
   scopeViewOf: '{mit} megtekintése',
+  // D2 (R114/2): a megtekintés MINDIG egy fiókhoz tartozik, és a változó értéke NÉV — a régi,
+  // birtokos alak ragozott mondatrészt kért volna a cégnévtől („Minta Kft adatainak…”).
+  dataViewingOf: 'Adatok megtekintése — {fiok}',
   langSwitched: 'A felület nyelve: {nyelv}',
   askedInLang: 'A kérdést ezen a nyelven válaszoljuk meg: {nyelv}',
   helpForScreen: 'Ehhez a képernyőhöz: {oldal}',
@@ -156,12 +161,12 @@ export const REASON = Object.freeze({
   network_error: 'Nem sikerült kapcsolatba lépni a rendszerrel. Próbáld újra.',
   invalid_response: 'Az adatokat nem tudtuk biztonságosan megjeleníteni. Frissítsd az oldalt.',
   // R89 — a segéd nevezett nemleges okai
-  assistant_unavailable: 'A segéd most nem elérhető. Az útmutatókban továbbra is kereshetsz.',
-  assistant_not_configured: 'A segéd ebben a környezetben nincs beállítva. Az útmutatók és a gyakori kérdések működnek.',
-  assistant_question_too_long: 'Ez a kérdés túl hosszú. Fogalmazd rövidebben, vagy keress az útmutatókban.',
-  assistant_no_knowledge: 'Ehhez még nincs ellenőrzött útmutató.',
+  assistant_unavailable: 'A segéd most nem elérhető. A leírásokban továbbra is kereshetsz.',
+  assistant_not_configured: 'A segéd ebben a környezetben nincs beállítva. A leírások és a gyakori kérdések működnek.',
+  assistant_question_too_long: 'Ez a kérdés túl hosszú. Fogalmazd rövidebben, vagy keress a leírásokban.',
+  assistant_no_knowledge: 'Ehhez még nincs ellenőrzött leírás.',
   assistant_out_of_scope: 'Ez a kérdés nem erről a rendszerről szól, ezért nem válaszolok rá.',
-  assistant_rate_limited: 'Most sok kérdés érkezett. Várj egy kicsit, vagy keress az útmutatókban.',
+  assistant_rate_limited: 'Most sok kérdés érkezett. Várj egy kicsit, vagy keress a leírásokban.',
   action_not_allowed: 'Ezt a műveletet a segéd nem indíthatja el.',
   action_unknown: 'Ilyen műveletet nem ismerünk.',
   feature_not_working: 'Ez a funkció még nem használható, ezért nem is nyitjuk meg.',
@@ -179,7 +184,7 @@ export const STATE = Object.freeze({
   uncertainWrite: 'Nem tudjuk biztosan, hogy a kérés teljesült. Nézd meg a Próbaüzeneteket, és csak akkor kérj újat, ha ott nem jelent meg.',
   otherPersonSignedIn: 'Ebben a böngészőben másik felhasználó lépett be. A korábbi kitöltést nem mentettük el. Lépj be a saját adataiddal, és kezdd újra a létrehozást.',
   invitesLoading: 'Meghívások betöltése…',
-  demoItem: 'Bemutató tétel',
+  demoItem: 'Mintaadat-tétel',
   personalAccount: 'Személyes fiók',
   personalKind: 'A saját ügyeid helye',
   kindBusiness: 'Vállalkozás',
@@ -194,10 +199,10 @@ export const STATE = Object.freeze({
   inviteAsk: 'Szeretnél másokat is meghívni?',
   inviteSkip: 'Most kihagyom',
   revokeSectionLead: 'Ez a teljes tagságot megszünteti ebben a fiókban, nem csak egy adatkört.',
-  demoItemLead: 'A bemutató tételek jelölve vannak.',
+  demoItemLead: 'A mintaadat-tételek jelölve vannak.',
   notGiven: 'Nincs megadva',
-  demoNone: 'Ehhez a fiókhoz nem tartozik bemutató-mintaadat',
-  demoNoneLead: 'A bemutató két cégén látható mintaadat. Ez a fiók üresen indul — a képernyők elrendezése itt is megnézhető.',
+  demoNone: 'Ehhez a fiókhoz nem tartozik mintaadat',
+  demoNoneLead: 'A próbafelület két cégén látható mintaadat. Ez a fiók üresen indul — a képernyők elrendezése itt is megnézhető.',
   loading: 'Betöltés…',
   empty: 'Még nincs adat',
   noResult: 'Nincs a szűrésnek megfelelő találat.',
@@ -209,8 +214,8 @@ export const STATE = Object.freeze({
   stockLoadFailedLead: 'Semmi nem változott a fiókban.',
   saveUncertain: 'Nem tudjuk biztosan, hogy a mentés befejeződött. Ellenőrizd az állapotot, mielőtt újra próbálod.',
   unbound: 'Az adatokat nem tudtuk biztonságosan megjeleníteni. Frissítsd az oldalt.',
-  demo: 'Bemutató · mintaadatok',
-  demoMail: 'Bemutatóüzenet. Valódi e-mailt nem küldtünk.',
+  demo: 'Próbafelület · mintaadatok',
+  demoMail: 'Próbaüzenet. Valódi e-mailt nem küldtünk.',
   noMembers: 'Még nem hívtál meg másokat.',
   noAccount: 'Nincs megnyitott fiók.',
   planMissingAdmin: 'Ez a funkció nincs benne a fiók jelenlegi csomagjában. A Beállításokban válthatsz olyan csomagra, amely tartalmazza.',
@@ -224,7 +229,7 @@ export const STATE = Object.freeze({
 /** A KÉPERNYŐK FELIRATAI — ide kerül minden szó, ami eddig az `app.js`-be volt égetve (KUKA-214). */
 export const UI = Object.freeze({
   // fejléc és keret
-  demoBar: 'Bemutató · mintaadatok',
+  demoBar: 'Próbafelület · mintaadatok',
   demoBarLead: 'Nincs valódi levélküldés, számlázás vagy készletmozgás.',
   demoMailButton: 'Próbaüzenetek',
   navOpen: 'Menü megnyitása',
@@ -239,7 +244,7 @@ export const UI = Object.freeze({
   groupShared: 'Vállalkozások és közös fiókok',
   addBusiness: '+ Vállalkozás hozzáadása',
   channelProven: 'E-mail-cím megerősítve',
-  channelPending: 'E-mail-cím megerősítésre vár',
+  channelPending: 'Az e-mail-címed még nincs megerősítve.',
   logout: 'Kijelentkezés',
   openTabs: 'Nyitott lapok',
   mainMenu: 'Főmenü',
@@ -273,8 +278,8 @@ export const UI = Object.freeze({
   switchAccountLead: 'Másik fiókra a fejléc fiókválasztójával válthatsz.',
   // listák
   demoListLead: 'Mintaadatok a korábbi rendszerből ismert elrendezésben.',
-  demoListLeadRows: 'Bemutatóadatok a V2-ből ismert elrendezésben. A sorra kattintva a részletek is megnyílnak.',
-  notBuiltLead: 'Ez a nézet ebben a bemutatóban még nem épült meg.',
+  demoListLeadRows: 'Mintaadatok a V2-ből ismert elrendezésben. A sorra kattintva a részletek is megnyílnak.',
+  notBuiltLead: 'Ez a nézet ezen a próbafelületen még nem épült meg.',
   notBuiltTitle: 'Nincs megjeleníthető tartalom',
   notBuiltBox: 'A menüből másik nézetet nyithatsz meg.',
   colProduct: 'Termék',
@@ -302,14 +307,14 @@ export const UI = Object.freeze({
   colInvitedBy: 'Meghívta',
   colValidUntil: 'Érvényesség',
   detailItemsHere: 'Tételek ebben a raktárban',
-  detailDemoNote: 'Ez bemutató tétel: a rendszer ehhez nem végez üzleti műveletet.',
+  detailDemoNote: 'Ez mintaadat-tétel: a rendszer ehhez nem végez üzleti műveletet.',
   // készlet
   stockLead: 'Mennyiségek raktáranként. Az ismeretlen mennyiség nem nulla.',
   stockNoAccessTitle: 'A készletadatokhoz még nincs hozzáférésed',
   stockNoAccessLead: 'A fiókkezelő tudja engedélyezni a megtekintésüket.',
   prices: 'Árak',
   priceNotAllowed: 'Az árak megtekintését a fiókkezelő még nem engedélyezte neked. Kérd meg, hogy engedélyezze.',
-  priceMissingNote: 'A hiányzó ár nem 0: ahol nincs megadva, ott „Nincs megadva” áll.',
+  priceMissingNote: 'A hiányzó ár nem 0: ahol nincs megadva, ott „Nincs megadva” áll. Ez más, mint a „Nem ismert”: azt olyan mennyiségnél írjuk ki, amit senki nem mért meg.',
   stockcardLead: 'Egy termék készlete és mozgásai.',
   stockcardStock: 'Készlet',
   movementsLead: 'A készlet mozgásai időrendben.',
@@ -323,6 +328,9 @@ export const UI = Object.freeze({
   inviteWaiting: 'Elfogadásra vár',
   inviteTokenNote: 'A meghívó hivatkozása csak a levélben szerepel — itt nem jelenítjük meg.',
   canView: 'Megtekintheti',
+  // R116: a nem engedélyezett sor korábban KÉTSZER írta ki ugyanazt („Nincs engedélyezve" a
+  // mondatban és a jelölőn is) — a mondat mostantól a KÖVETKEZMÉNYT mondja meg.
+  cannotView: 'Most nem tudja megtekinteni',
   notAllowed: 'Nincs engedélyezve',
   noAccessBadge: 'Nincs hozzáférés',
   active: 'Aktív',
@@ -340,7 +348,6 @@ export const UI = Object.freeze({
   inviteCreate: 'Meghívó létrehozása',
   inviteMailOpen: 'A meghívó levél megnyitása a Próbaüzenetek között',
   memberRevokedNote: 'Ennek a felhasználónak megszűnt a hozzáférése ehhez a fiókhoz, ezért adatkört sem lehet neki engedélyezni.',
-  dataViewing: 'Adatok megtekintése',
   scopeToGrant: 'Engedélyezendő adatkör',
   grantView: 'Megtekintés engedélyezése',
   accountAccess: 'Hozzáférés a fiókhoz',
@@ -348,7 +355,7 @@ export const UI = Object.freeze({
   revokeConfirm: 'Hozzáférés megszüntetése',
   someUser: 'A felhasználó',
   mailboxTitle: 'Próbaüzenetek',
-  mailboxOff: 'Ebben a környezetben a próbaüzenetek nem érhetők el (a bemutató levél-fogadója ki van kapcsolva).',
+  mailboxOff: 'Ebben a környezetben a próbaüzenetek nem érhetők el (a próbafelület levél-fogadója ki van kapcsolva).',
   mailOpen: 'Megnyitás',
   // belépés
   registerTitle: 'Fiók létrehozása',
@@ -431,7 +438,7 @@ export const UI = Object.freeze({
   planNotIncluded: 'Nincs a csomagban',
   planField: 'Csomag',
   planSave: 'Csomag mentése',
-  planNoPurchase: 'Ebben a bemutatóban nincs vásárlás és nincs díjfizetés.',
+  planNoPurchase: 'Ezen a próbafelületen nincs vásárlás és nincs díjfizetés.',
   // fiók adatai
   accountLead: 'A fiók törzsadatai.',
   fieldName: 'Név',
@@ -443,7 +450,7 @@ export const UI = Object.freeze({
   profileLead: 'Ezek az adatok a saját belépésedhez tartoznak, nem a fiókhoz.',
   emailState: 'E-mail-cím állapota',
   confirmed: 'Megerősítve',
-  awaitingConfirm: 'Megerősítésre vár',
+  awaitingConfirm: 'Még nincs megerősítve',
   language: 'Nyelv',
   languageLead: 'A felület, a súgó és a segéd ezen a nyelven beszél. Az ország, az adózási rend és a pénznem nem ettől függ.',
   profileEditPending: 'A profil szerkesztése még nem érhető el, ezért nem kínálunk rá gombot.',
@@ -460,7 +467,7 @@ export const UI = Object.freeze({
   personalEmptyLead: 'A vállalkozásaid ügyeit a fejléc fiókválasztójából éred el.',
   outboxLead: 'Ez mintanézet: itt jelennének meg a fiók kimenő levelei. Levélküldés jelenleg nincs; a rendszer levelei a Próbaüzenetek között látszanak.',
   outboxSampleTitle: 'Ez mintanézet',
-  outboxSampleLead: 'A belépési és meghívólevelek a Próbaüzenetek panelen próbálhatók ki. Valódi levelet ez a bemutató nem küld.',
+  outboxSampleLead: 'A belépési és meghívólevelek a Próbaüzenetek panelen próbálhatók ki. Valódi levelet ez a próbafelület nem küld.',
   // nem mentett munka
   unsavedTitle: 'Vannak nem mentett módosításaid',
   unsavedLead: 'Ha most másik fiókra váltasz, a megkezdett kitöltés elveszik. A fiókok adatai nem keverednek: a beírt szöveget nem visszük át az új fiókba.',
@@ -480,12 +487,12 @@ export const HELP = Object.freeze({
   fieldHelpAria: 'Súgó ehhez a mezőhöz',
   close: 'Súgó bezárása',
   tabAsk: 'Kérdezz',
-  tabGuides: 'Útmutatók',
+  tabGuides: 'Leírások',
   tabFaq: 'Gyakori kérdések',
   tabSitemap: 'Oldaltérkép',
-  searchGuides: 'Keresés az útmutatókban',
+  searchGuides: 'Keresés a leírásokban',
   searchGuidesPlaceholder: 'Írd be, mit keresel…',
-  searchNoHit: 'Erre nincs találat az útmutatókban.',
+  searchNoHit: 'Erre nincs találat a leírásokban.',
   searchNoHitLead: 'Próbáld más szóval, vagy tedd fel kérdésként a Kérdezz fülön.',
   currentScreenFirst: 'Ehhez a képernyőhöz',
   otherTopics: 'További témák',
@@ -502,7 +509,7 @@ export const HELP = Object.freeze({
   openScreen: 'Képernyő megnyitása',
   startTour: 'Mutasd meg lépésről lépésre',
   statusWorking: 'Használható',
-  statusDemo: 'Bemutató',
+  statusDemo: 'Mintaadatos',
   statusPlanned: 'Tervezett',
   statusRetired: 'Kivezetett',
   statusDemoNote: 'Ez a lap mintaadatokat mutat; bizonylatot itt nem lehet kiállítani.',
@@ -518,8 +525,8 @@ export const HELP = Object.freeze({
   sitemapWhyRole: 'Fiókkezelői jogosultsághoz kötött.',
   sitemapWhyPersonal: 'A személyes fiókban nem szerepel.',
   sitemapWhyPlan: 'A jelenlegi csomag nem tartalmazza.',
-  noTopics: 'Ehhez a képernyőhöz még nincs ellenőrzött útmutató.',
-  guidesFor: 'Útmutatók',
+  noTopics: 'Ehhez a képernyőhöz még nincs ellenőrzött leírás.',
+  guidesFor: 'Leírások',
   faqLead: 'A leggyakoribb kérdések. MI-szolgáltató nélkül is működik.',
   faqSearchPlaceholder: 'Keresés a kérdések között…',
   backToList: 'Vissza a listához',
@@ -527,50 +534,95 @@ export const HELP = Object.freeze({
 
 /** A KATTINTHATÓ BEMUTATÓ KERETE (TUR-01, R89 §4). A lépések szövege a `TOUR` csoportban áll. */
 export const TOURUI = Object.freeze({
-  title: 'Bemutató',
+  title: 'Lépésenkénti útmutató',
   next: 'Tovább',
   back: 'Vissza',
   finish: 'Befejezés',
-  exit: 'Kilépés',
+  exit: 'Útmutató bezárása',
   restart: 'Újraindítás',
-  stepList: 'A bemutató lépései',
-  simulationNote: 'A bemutató nem ment, nem hív meg senkit és nem töröl semmit. Ezeket te végzed el a rendes felületen.',
-  targetMissing: 'Ez a lépés most nem folytatható: a bemutatóban megnevezett elem nem látható ezen a képernyőn.',
-  targetMissingNext: 'A bemutatót bezárhatod vagy újraindíthatod. A leírás a Súgó → Útmutatók között továbbra is elolvasható.',
+  stepList: 'Az útmutató lépései',
+  simulationNote: 'Az útmutató nem ment, nem hív meg senkit és nem töröl semmit. Ezeket te végzed el a rendes felületen.',
+  targetMissing: 'Ez a lépés most nem folytatható: az útmutatóban megnevezett elem nem látható ezen a képernyőn.',
+  targetMissingNext: 'Az útmutatót bezárhatod vagy újraindíthatod. A leírás a Súgó → Leírások fülön továbbra is elolvasható.',
   // FELTÁRÁSRA VÁRÁS: a cél még nem jelent meg (panel · választás), a felhasználó nyitja meg.
-  targetPending: 'Ez a lépés még nem érhető el: előbb nyisd meg a kiemelt gombbal. A bemutató nem nyomja meg helyetted.',
+  targetPending: 'Ez a lépés még nem érhető el: előbb nyisd meg a kiemelt gombbal. Az útmutató nem nyomja meg helyetted.',
   // A ZÁRÁS KÉT MONDATA: a „végére értél" CSAK akkor, ha semmi nem maradt ki (F91-01).
-  endedTitle: 'Kiléptél a bemutatóból',
-  endedLead: 'Nem minden lépés lett elvégezve — az alábbi összegzés megmondja, mi maradt ki. A bemutatót bármikor újraindíthatod.',
+  endedTitle: 'Bezártad az útmutatót',
+  endedLead: 'Nem minden lépés lett elvégezve — az alábbi összegzés megmondja, mi maradt ki. Az útmutatót bármikor újraindíthatod.',
   skipStep: 'Kihagyom ezt a lépést',
-  notAvailable: 'Ez a bemutató most nem indítható: a képernyője ebben az állapotban nem érhető el. A leírás a Súgó → Útmutatók között továbbra is elolvasható.',
-  rightLost: 'Közben megszűnt a jogosultságod ehhez a lépéshez, ezért a bemutató itt megáll.',
-  contextChanged: 'Közben másik fiókra vagy felhasználóra váltottál, ezért a bemutató itt megáll. Újraindítható.',
+  notAvailable: 'Ez az útmutató most nem indítható: a képernyője ebben az állapotban nem érhető el. A leírás a Súgó → Leírások fülön továbbra is elolvasható.',
+  rightLost: 'Közben megszűnt a jogosultságod ehhez a lépéshez, ezért az útmutató itt megáll.',
+  contextChanged: 'Közben másik fiókra vagy felhasználóra váltottál, ezért az útmutató itt megáll. Újraindítható.',
   taskNotDone: 'Ez a lépés a művelet tényleges elvégzéséhez kötött; a gomb megnyomása önmagában még nem siker. Végezd el a műveletet, vagy hagyd ki a lépést a „Kihagyom ezt a lépést” gombbal.',
   skipped: 'Kihagyva',
   done: 'Elvégezve',
   pending: 'Hátravan',
-  progressNote: 'A bemutató haladását csak ehhez a felhasználóhoz és fiókhoz tartjuk nyilván.',
+  progressNote: 'Az útmutató haladását csak ehhez a felhasználóhoz és fiókhoz tartjuk nyilván.',
   // A LEZÁRÁS, AMI TÚLÉLTE A FIÓKVÁLTÁST (F93-01): a létrehozás bemutatója a SAJÁT sikerétől
   // veszítette el az elszámolását — a lap átváltott az új cégre, és a buborék mögül eltűnt az
   // állapot. A lezárás most a BIZONYÍTOTT eredményről szól, és kimondja, hol történt.
-  carriedLead: 'Ezt a bemutatót a vállalkozás létrehozásával fejezted be. Az összegzés az előző fiókban megtett lépésekről szól — az új fiókod már meg is nyílt.',
+  carriedLead: 'Ezt az útmutatót a vállalkozás létrehozásával fejezted be. Az összegzés az előző fiókban megtett lépésekről szól — az új fiókod már meg is nyílt.',
   // A MEGHÍVÁS ELFOGADÁSA IS FIÓKOT VÁLT (F111-01): a lezárás itt is túléli a váltást, de MÁS a mondata —
   // nem vállalkozást hoztál létre, hanem csatlakoztál egy meglévő fiókhoz.
-  carriedLeadInvite: 'A bemutatót a meghívás elfogadása zárta le. Az összegzés a meghívó képernyőjén megtett lépésekről szól — a fiók, amelyhez csatlakoztál, már meg is nyílt.',
+  carriedLeadInvite: 'Az útmutatót a meghívás elfogadása zárta le. Az összegzés a meghívó képernyőjén megtett lépésekről szól — a fiók, amelyhez csatlakoztál, már meg is nyílt.',
   // A MŰVELET ZÁRTA LE, NEM A FELHASZNÁLÓ LÉPETT KI: a félbehagyott, de hordozott futás címe.
-  carriedEndedTitle: 'A bemutató véget ért',
+  carriedEndedTitle: 'Az útmutató véget ért',
   // A MEGHÍVÓ BEMUTATÓJA a belépés felé elhagyva (F111-01, a regisztráción át érkező út).
-  inviteSignInFirst: 'A meghívást belépés után tudod elfogadni, ezért a bemutató itt megáll. A meghívás megmarad: belépés után ez a képernyő újra megnyílik (vagy nyisd meg újra a levélben kapott hivatkozást), és a bemutatót onnan újraindíthatod.',
-  finishedTitle: 'A bemutató végére értél',
-  finishedLead: 'A leírás a Súgó → Útmutatók között bármikor újra elolvasható.',
+  inviteSignInFirst: 'A meghívást belépés után tudod elfogadni, ezért az útmutató itt megáll. A meghívás megmarad: belépés után ez a képernyő újra megnyílik (vagy nyisd meg újra a levélben kapott hivatkozást), és az útmutatót onnan újraindíthatod.',
+  finishedTitle: 'Az útmutató végére értél',
+  finishedLead: 'A leírás a Súgó → Leírások fülön bármikor újra elolvasható.',
+});
+
+/**
+ * A KATTINTHATÓ PRÓBALAP KERETE (R114/9). A `docs:r89-bemutato` által írt önálló HTML minden
+ * felirata INNEN jön — korábban a generátorban és a lejátszóban beégetve állt, magyarul, tehát a
+ * lap angolul és németül is magyar kezelőt adott, és a szavai elcsúszhattak a terméktől (KUKA-210).
+ * Egy fogalom = egy szó: ami a felületen „próbafelület", az itt sem lehet más.
+ */
+export const STORYUI = Object.freeze({
+  modeStories: 'Használati utak',
+  modeHelp: 'Súgó és képernyők',
+  // A SZIMULÁCIÓ JELÖLÉSE VÉGIG LÁTHATÓ MARAD (R114/8) — ez a mondat a lap tetején áll.
+  simulationBanner: 'Itt mintaadatokkal próbálhatod ki a lépéseket. Nem küldünk meghívót, és nem módosítunk valódi adatokat.',
+  startTitle: 'Mit szeretnél kipróbálni?',
+  startLead: 'Válassz egy utat. Minden lépésnél te kattintasz, és a lap megmutatja, mit látnál utána a képernyőn.',
+  start: 'Indítás',
+  back: 'Vissza a választáshoz',
+  restart: 'Újrakezdés',
+  clickHint: 'Kattints a kiemelt gombra:',
+  resultHint: 'Az eredmény — így néz ki a képernyő a művelet után:',
+  finishedTitle: 'Végigmentél ezen az úton',
+  finishedLead: 'Minden lépésnél te kattintottál, és a lap megmutatta az eredményt.',
+  helpForPath: 'Súgó és gyakori kérdések ehhez az úthoz',
+  helpTours: 'Lépésenkénti útmutatók',
+  // A FEJLESZTŐI RÉSZLET LENYITHATÓ (R114/8): forrással és dátummal, de nem az előtérben.
+  checkDetails: 'Ellenőrzési részletek',
+  checkDetailsLead: 'Mit mutat és mit nem mutat ez a lap',
+  evidenceLead: 'A mért eredmény a valódi alkalmazásban futó böngésző-próbákból származik: valódi kiszolgáló, valódi böngésző, valódi adatbázis-sor. A fenti képernyők ezzel szemben mintaadatos utánzatok.',
+  measuredAt: 'Mérve',
+  source: 'Forrás',
+  notMeasured: 'nem mért',
+  evidenceNotMeasured: 'a próbák eredménye nincs mérve',
+  viewAs: 'Nézet',
+  viewAnon: 'Belépés előtt',
+  probeLang: 'próbanyelv',
+  noModelCall: 'modellhívás nélkül',
+  panelSimNote: 'Ez a panel nem kér szervert és nem hív modellt.',
+  techCoverage: 'Nyelvi lefedettség (mért)',
+  techCoverageNote: 'A kulcsok megléte nem nyelvi lektorálás: a termék-nyelvek szövegét ember nézi át, a próbanyelvek pedig szándékosan hiányosak.',
+  techNoServer: 'Ez a lap nem hív szervert és nem hív modellt.',
+  techNoServerNote: 'A nézetet (fiókkezelő, tag, belépés előtt) itt egy legördülő állítja; a valódi rendszerben a kiszolgáló dönti el.',
+  techNotProven: 'Amit ez a lap nem bizonyít: a kiszolgáló jogosultsági döntését, az élő MI-választ és a valódi alkalmazás útjait.',
+  techNotProvenNote: 'Azokról külön futási bizonyíték készült: a Használati utak alatt minden út végén ott áll a mért eredmény, a mérés dátumával és forrásával.',
+  techEnabledLang: 'bekapcsolt termék-nyelv',
+  techProbeLang: 'próbanyelv, nem kínált',
 });
 
 /** A CHATES SEGÉD (AST-01, R89 §6). */
 export const CHAT = Object.freeze({
   title: 'Kérdezz',
   intro: 'Miben segítsek?',
-  introLead: 'Az ellenőrzött útmutatókból válaszolok, és megmutatom, honnan.',
+  introLead: 'Az ellenőrzött leírásokból válaszolok, és megmutatom, honnan.',
   placeholder: 'Írd le a kérdésedet…',
   send: 'Kérdés elküldése',
   sending: 'Válasz készül…',
@@ -581,22 +633,22 @@ export const CHAT = Object.freeze({
   q1: 'Hogyan hívhatok meg valakit?',
   q2: 'Miért nem látom a készletadatokat?',
   q3: 'Hogyan adok hozzá egy vállalkozást?',
-  source: 'Felhasznált útmutató',
+  source: 'Felhasznált leírás',
   // A KÉT LISTA KÜLÖN SZAVA (F91-04): ami ALÁTÁMASZTJA a választ, és ami csak KAPCSOLÓDIK.
-  related: 'Kapcsolódó útmutatók',
+  related: 'Kapcsolódó leírások',
   // A KIESETT MODELL-VÁLASZ: a felhasználó azt látja, hogy helyi választ kapott, és MIÉRT.
-  modelDiscarded: 'Az MI-szolgáltató válaszát nem fogadtuk el, ezért a helyi útmutató-keresés válaszát látod.',
+  modelDiscarded: 'Az MI-szolgáltató válaszát nem fogadtuk el, ezért a helyi leírás-keresés válaszát látod.',
   modelDiscardedWhy: Object.freeze({
-    model_no_source: 'A válasz nem jelölte meg, melyik útmutatóra épül.',
-    model_unknown_source: 'A válasz olyan útmutatóra hivatkozott, amit nem adtunk át neki.',
-    model_stale_source: 'A válasz az útmutató másik, nem az átadott változatára hivatkozott.',
+    model_no_source: 'A válasz nem jelölte meg, melyik leírásra épül.',
+    model_unknown_source: 'A válasz olyan leírásra hivatkozott, amit nem adtunk át neki.',
+    model_stale_source: 'A válasz a leírás másik, nem az átadott változatára hivatkozott.',
     model_wrong_language: 'A válasz nem a kért nyelven készült.',
     model_too_long: 'A válasz hosszabb volt a megengedettnél.',
     // AST-05 (F93-03): a válasz ellenőrzött tudás-blokkokból épül — a modell VÁLOGAT, nem fogalmaz.
-    model_no_blocks: 'A válasz nem jelölte meg, melyik ellenőrzött útmutató-szakaszra épül.',
-    model_unknown_block: 'A válasz olyan útmutató-szakaszra hivatkozott, ami nem adható ki.',
-    model_empty_block: 'A megjelölt útmutató-szakasz ezen a nyelven üres.',
-    model_too_many_blocks: 'A válasz a megengedettnél több útmutató-szakaszt jelölt meg.',
+    model_no_blocks: 'A válasz nem jelölte meg, melyik ellenőrzött leírás-szakaszra épül.',
+    model_unknown_block: 'A válasz olyan leírás-szakaszra hivatkozott, ami nem adható ki.',
+    model_empty_block: 'A megjelölt leírás-szakasz ezen a nyelven üres.',
+    model_too_many_blocks: 'A válasz a megengedettnél több leírás-szakaszt jelölt meg.',
     model_prose_unverified: 'A válasz saját szöveget fogalmazott a forrás mondatai helyett — ezt nem adjuk ki ellenőrzött válaszként.',
   }),
   // AZ ELŐZMÉNY VÉGES, ÉS EZT A LAP KIMONDJA (F91-03).
@@ -606,14 +658,14 @@ export const CHAT = Object.freeze({
   openAction: 'Megnyitás',
   prepareAction: 'Előkészítés',
   prepareNote: 'Az űrlapot előkészítem, de a mentést te végzed el.',
-  answerFromGuides: 'Ez a válasz az útmutatókból származik.',
-  noAnswer: 'Ehhez még nincs ellenőrzött útmutató.',
-  noAnswerLead: 'Nézd meg a Gyakori kérdéseket, vagy keress az útmutatókban.',
-  offline: 'A segéd most nem elérhető. Az útmutatókban továbbra is kereshetsz.',
+  answerFromGuides: 'Ez a válasz a leírásokból származik.',
+  noAnswer: 'Ehhez még nincs ellenőrzött leírás.',
+  noAnswerLead: 'Nézd meg a Gyakori kérdéseket, vagy keress a leírásokban.',
+  offline: 'A segéd most nem elérhető. A leírásokban továbbra is kereshetsz.',
   notConfigured: 'A segéd ebben a környezetben nincs beállítva.',
-  notConfiguredLead: 'A helyi keresés, a gyakori kérdések, az oldaltérkép és a bemutató modellhívás nélkül működik.',
+  notConfiguredLead: 'A helyi keresés, a gyakori kérdések, az oldaltérkép és a lépésenkénti útmutató modellhívás nélkül működik.',
   localOnly: 'Helyi keresés',
-  localOnlyNote: 'Ez helyi keresés az útmutatókban, nem az MI-szolgáltató válasza.',
+  localOnlyNote: 'Ez helyi keresés a leírásokban, nem az MI-szolgáltató válasza.',
   noSecrets: 'Jelszót és megerősítő kódot ne írj ide.',
   tooLong: 'Ez a kérdés túl hosszú.',
   measuredTitle: 'Mérés',
@@ -647,7 +699,7 @@ export const KB = Object.freeze({
   'auth.verify': Object.freeze({
     title: 'E-mail-cím megerősítése',
     purpose: 'A levélben lévő hivatkozás bizonyítja, hogy a cím a tiéd. Enélkül a fiók nem használható.',
-    prereq: 'A legutóbbi megerősítő levél. A bemutatóban ezt a Próbaüzenetek panel mutatja.',
+    prereq: 'A legutóbbi megerősítő levél. A próbafelületen ezt a Próbaüzenetek panel mutatja.',
     result: 'A cím megerősítve, és megszületik a személyes fiókod.',
     outcomes: Object.freeze({
       success: 'A cím megerősítve — be tudsz lépni.',
@@ -698,7 +750,7 @@ export const KB = Object.freeze({
   'account.add_business': Object.freeze({
     title: 'Vállalkozás vagy közös fiók hozzáadása',
     purpose: 'Új munkahelyet nyitsz ugyanezzel a belépéssel. Két fajta van: vállalkozás (adóazonosítóval) és közös fiók (adóazonosító nélkül).',
-    prereq: 'Megerősített e-mail-cím és a fiók neve. Vállalkozásnál a nyilvántartás országa és az adóazonosító.',
+    prereq: 'Megerősített e-mail-cím és a fiók neve. Vállalkozásnál a nyilvántartás országa vagy területe, és az ott használt adóazonosító: az elvárt alakot a kiválasztott ország adja meg. Az azonosító alakját és egyediségét ellenőrizzük — hatósági nyilvántartásban nem nézzük meg, és a megadása nem igazolja a vállalkozás képviseletét.',
     result: 'A fiók létrejön, te lesz a fiókkezelője, és a fiókválasztóban megjelenik.',
     outcomes: Object.freeze({
       success: 'A fiók létrejött, és megnyitottuk.',
@@ -781,7 +833,7 @@ export const KB = Object.freeze({
     title: 'Előfizetés (csomag)',
     purpose: 'A csomag a funkciók elérhetőségét szabja meg. Az adatok megtekintésének jogát nem a csomag adja, hanem a fiókkezelő engedélye.',
     prereq: 'Fiókkezelői jogosultság.',
-    result: 'A csomag mentve. Ebben a bemutatóban nincs vásárlás és nincs díjfizetés.',
+    result: 'A csomag mentve. Ezen a próbafelületen nincs vásárlás és nincs díjfizetés.',
     outcomes: Object.freeze({
       success: 'A csomag mentve.',
       refused: 'Nincs hozzá jogosultságod, vagy a választott érték nem létezik.',
@@ -795,8 +847,8 @@ export const KB = Object.freeze({
     result: 'A lista. Ugyanez az engedély dönt a Termékkartonról és a Készletmozgásokról is.',
     outcomes: Object.freeze({
       success: 'A készletadatok betöltve.',
-      empty: 'Ehhez a fiókhoz nem tartozik bemutató-mintaadat. Az elrendezés így is megnézhető.',
-      missing: 'Ahol a mennyiség nem ismert, ott ezt írjuk ki — nem nullát.',
+      empty: 'Ehhez a fiókhoz nem tartozik mintaadat. Az elrendezés így is megnézhető.',
+      missing: 'Ahol a mennyiség nem ismert, ott ezt írjuk ki — nem nullát. A „Nem ismert” azt jelenti, hogy senki nem mérte meg; a „Nincs megadva” azt, hogy senki nem írta be.',
       refused: 'Ehhez az adathoz még nincs hozzáférésed. A fiókkezelő tudja engedélyezni.',
       error: 'A készletadatokat nem sikerült betölteni. Semmi nem változott a fiókban.',
     }),
@@ -839,31 +891,31 @@ export const KB = Object.freeze({
   }),
   'shell.help': Object.freeze({
     title: 'Súgó',
-    purpose: 'Négy nézet egy panelben: Kérdezz · Útmutatók · Gyakori kérdések · Oldaltérkép. A panelt te nyitod meg, magától nem ugrik fel.',
-    prereq: 'Nincs előfeltétel. A súgó, a gyakori kérdések, az oldaltérkép és a bemutató MI-szolgáltató nélkül működik.',
+    purpose: 'Négy nézet egy panelben: Kérdezz · Leírások · Gyakori kérdések · Oldaltérkép. A panelt te nyitod meg, magától nem ugrik fel.',
+    prereq: 'Nincs előfeltétel. A súgó, a gyakori kérdések, az oldaltérkép és a lépésenkénti útmutató MI-szolgáltató nélkül működik.',
     result: 'Az adott képernyőhöz tartozó témák kerülnek előre, és a továbblépés valódi képernyőre visz.',
     outcomes: Object.freeze({
       success: 'A panel megnyílt.',
-      empty: 'Ehhez a képernyőhöz még nincs ellenőrzött útmutató.',
+      empty: 'Ehhez a képernyőhöz még nincs ellenőrzött leírás.',
       refused: 'Ehhez a tudásanyaghoz ebben a fiókban nincs hozzáférésed.',
     }),
   }),
   'shell.assistant': Object.freeze({
     title: 'Chates segéd',
-    purpose: 'Szabad szöveggel kérdezhetsz. Az ellenőrzött útmutatókból válaszol, megmutatja a forrást, és legfeljebb néhány valódi következő lépést ajánl.',
+    purpose: 'Szabad szöveggel kérdezhetsz. Az ellenőrzött leírásokból válaszol, megmutatja a forrást, és legfeljebb néhány valódi következő lépést ajánl.',
     prereq: 'Be vagy lépve. Az élő MI-válaszhoz engedélyezett MI-szolgáltatói kapcsolat kell; enélkül a helyi keresés működik.',
-    result: 'Rövid magyarázat, a felhasznált útmutató hivatkozása, és — ha van — megnyitható vagy előkészíthető folytatás. A segéd semmit nem ment és nem módosít.',
+    result: 'Rövid magyarázat, a felhasznált leírás hivatkozása, és — ha van — megnyitható vagy előkészíthető folytatás. A segéd semmit nem ment és nem módosít.',
     outcomes: Object.freeze({
       success: 'A válasz elkészült, a forrásával együtt.',
-      empty: 'Ehhez még nincs ellenőrzött útmutató.',
+      empty: 'Ehhez még nincs ellenőrzött leírás.',
       refused: 'A kérdés nem erről a rendszerről szól, túl hosszú, vagy nincs hozzá jogosultságod.',
-      error: 'Az MI-szolgáltató most nem válaszolt. Az útmutatókban továbbra is kereshetsz.',
+      error: 'Az MI-szolgáltató most nem válaszolt. A leírásokban továbbra is kereshetsz.',
       uncertain: 'Nem tudjuk biztosan, elkészült-e a válasz. Kérdezd meg újra.',
     }),
   }),
   'shell.demo_mail': Object.freeze({
     title: 'Próbaüzenetek',
-    purpose: 'A bemutató levél-fogadója: itt nyithatók meg a megerősítő és meghívó levelek. Valódi levelet a rendszer nem küld.',
+    purpose: 'A próbafelület levél-fogadója: itt nyithatók meg a megerősítő és meghívó levelek. Valódi levelet a rendszer nem küld.',
     prereq: 'A fejlesztői felület be van kapcsolva ebben a környezetben.',
     result: 'A levelek listája, megnyitható hivatkozásokkal.',
     outcomes: Object.freeze({
@@ -879,7 +931,7 @@ export const KB = Object.freeze({
     result: 'Kereshető, szűrhető lista, sorra kattintva részletező panellel.',
     outcomes: Object.freeze({
       success: 'A lista betöltve.',
-      empty: 'Ehhez a fiókhoz nem tartozik bemutató-mintaadat.',
+      empty: 'Ehhez a fiókhoz nem tartozik mintaadat.',
     }),
   }),
   'profile.edit': Object.freeze({
@@ -942,7 +994,7 @@ export const FAQ = Object.freeze({
   // A 4. TÖRTÉNET KÉRDÉSE (R112): több vállalkozásban dolgozva hol és milyen joggal járok el.
   'faq.account.whichAccount': Object.freeze({
     q: 'Honnan tudom, melyik fiókban dolgozom, és mit tehetek ott?',
-    a: 'A fejléc fiókválasztója mutatja a nyitott fiókot. A Belépés és biztonság oldalon a „Ki nevében jársz el” sor a szerepkörödet is megnevezi: fiókkezelőként a Beállítások menüt is látod, tagként az adatok megtekintését a fiókkezelő engedélyezi. Fiókváltáskor a félbehagyott kitöltés, a súgó-beszélgetés és a bemutató nem kerül át a másik fiókba.',
+    a: 'A fejléc fiókválasztója mutatja a nyitott fiókot. A Belépés és biztonság oldalon a „Ki nevében jársz el” sor a szerepkörödet is megnevezi: fiókkezelőként a Beállítások menüt is látod, tagként az adatok megtekintését a fiókkezelő engedélyezi. Fiókváltáskor a félbehagyott kitöltés, a súgó-beszélgetés és a lépésenkénti útmutató nem kerül át a másik fiókba.',
   }),
   'faq.account.unsaved': Object.freeze({
     q: 'Fiókváltásnál megkérdezi, hogy elveszik-e a munkám. Miért?',
@@ -950,7 +1002,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.business.taxId': Object.freeze({
     q: 'Muszáj adószámot megadnom?',
-    a: 'Vállalkozásnál igen, mert az azonosítja a céget. Ha adóazonosító nélkül dolgoznál közösen, válaszd a „Közös fiók” fajtát. A közös fiókhoz utólag nem adható adóazonosító.',
+    a: 'Vállalkozásnál igen, mert az azonosítja a céget: előbb a nyilvántartás országát vagy területét választod ki, és az ott használt azonosítót adod meg — az elvárt alakot ez az ország határozza meg. Csak az alakot és az egyediséget ellenőrizzük; hatóságnál nem kérdezzük le. Ha adóazonosító nélkül dolgoznál közösen, válaszd a „Közös fiók” fajtát. A közös fiókhoz utólag nem adható adóazonosító.',
   }),
   'faq.business.alreadyAttached': Object.freeze({
     q: 'Azt írja, hogy ehhez az adóazonosítóhoz már tartozik fiók.',
@@ -970,7 +1022,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.invite.link': Object.freeze({
     q: 'Hol találom a meghívó hivatkozását?',
-    a: 'A levélben. A várakozó meghívások listájában szándékosan nem jelenítjük meg: a hivatkozás a levél titka. A bemutatóban a Próbaüzenetek panel mutatja.',
+    a: 'A levélben. A várakozó meghívások listájában szándékosan nem jelenítjük meg: a hivatkozás a levél titka. A próbafelületen a Próbaüzenetek panel mutatja.',
   }),
   'faq.invite.accept': Object.freeze({
     q: 'Hogyan fogadok el egy meghívást?',
@@ -1002,7 +1054,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.plan.purchase': Object.freeze({
     q: 'Fizetnem kell a csomagváltásért?',
-    a: 'Ebben a bemutatóban nincs vásárlás és nincs díjfizetés. A csomag-választás csak a funkciók elérhetőségét állítja.',
+    a: 'Ezen a próbafelületen nincs vásárlás és nincs díjfizetés. A csomag-választás csak a funkciók elérhetőségét állítja.',
   }),
   'faq.stock.noAccess': Object.freeze({
     q: 'Miért nem látom a készletadatokat?',
@@ -1042,7 +1094,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.lang.which': Object.freeze({
     q: 'Milyen nyelveken használható a rendszer?',
-    a: 'Magyar, angol és német nyelven — a felület, a hibaüzenetek, a súgó, a gyakori kérdések, az oldaltérkép és a bemutató is. A nyelvet a Saját profil oldalon állíthatod.',
+    a: 'Magyar, angol és német nyelven — a felület, a hibaüzenetek, a súgó, a gyakori kérdések, az oldaltérkép és a lépésenkénti útmutató is. A nyelvet a Saját profil oldalon állíthatod.',
   }),
   'faq.lang.country': Object.freeze({
     q: 'Ha angolra váltok, változik az adózási rend vagy a pénznem?',
@@ -1058,11 +1110,11 @@ export const FAQ = Object.freeze({
   }),
   'faq.help.noModel': Object.freeze({
     q: 'A súgó használatáért fizetni kell (MI-költség)?',
-    a: 'A súgó, a gyakori kérdések, az oldaltérkép és a bemutató MI-szolgáltató nélkül működik. MI-szolgáltatót csak akkor hívunk, ha a Kérdezz fülön kérdést küldesz, és van engedélyezett MI-kapcsolat.',
+    a: 'A súgó, a gyakori kérdések, az oldaltérkép és a lépésenkénti útmutató MI-szolgáltató nélkül működik. MI-szolgáltatót csak akkor hívunk, ha a Kérdezz fülön kérdést küldesz, és van engedélyezett MI-kapcsolat.',
   }),
   'faq.chat.source': Object.freeze({
     q: 'Honnan tudom, hogy a segéd válasza hiteles?',
-    a: 'Minden válasz megnevezi, melyik útmutatóból dolgozott, és annak a forrásváltozatát is. Ha valamihez nincs ellenőrzött útmutató, a segéd ezt kimondja, nem talál ki választ.',
+    a: 'Minden válasz megnevezi, melyik leírásból dolgozott, és annak a forrásváltozatát is. Ha valamihez nincs ellenőrzött leírás, a segéd ezt kimondja, nem talál ki választ.',
   }),
   'faq.chat.limits': Object.freeze({
     q: 'Mit nem tesz meg helyettem a segéd?',
@@ -1074,11 +1126,11 @@ export const FAQ = Object.freeze({
   }),
   'faq.chat.offline': Object.freeze({
     q: 'Azt írja, hogy a segéd nem elérhető.',
-    a: 'Ilyenkor az MI-szolgáltatói kapcsolat hiányzik vagy nem válaszol. A keresés az útmutatókban, a gyakori kérdések, az oldaltérkép és a bemutató továbbra is működik.',
+    a: 'Ilyenkor az MI-szolgáltatói kapcsolat hiányzik vagy nem válaszol. A keresés a leírásokban, a gyakori kérdések, az oldaltérkép és a lépésenkénti útmutató továbbra is működik.',
   }),
   'faq.mail.real': Object.freeze({
     q: 'A rendszer valódi e-mailt küld?',
-    a: 'Ebben a bemutatóban nem. A leveleket a Próbaüzenetek panel gyűjti, és ott nyithatók meg. Ez azért fontos, hogy próbálgatás közben senkinek ne menjen ki levél.',
+    a: 'Ezen a próbafelületen nem. A leveleket a Próbaüzenetek panel gyűjti, és ott nyithatók meg. Ez azért fontos, hogy próbálgatás közben senkinek ne menjen ki levél.',
   }),
   'faq.demo.whatIsReal': Object.freeze({
     q: 'Melyik adat valódi, és melyik minta?',
@@ -1086,7 +1138,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.demo.noFixture': Object.freeze({
     q: 'Az újonnan létrehozott fiókom üres. Elromlott?',
-    a: 'Nem. A bemutató-mintaadat két céghez van rögzítve; az új fiók szándékosan üresen indul. Az elrendezés így is megnézhető.',
+    a: 'Nem. A mintaadat két céghez van rögzítve; az új fiók szándékosan üresen indul. Az elrendezés így is megnézhető.',
   }),
 });
 
@@ -1099,17 +1151,17 @@ export const TOUR = Object.freeze({
     s2: Object.freeze({ title: 'A menü', body: 'A bal oldali menü csoportokba rendezi a képernyőket. Csak az látszik, amit használni is tudsz.' }),
     s3: Object.freeze({ title: 'A lapok', body: 'A megnyitott képernyők fülként itt sorakoznak. Ugyanaz a lap nem nyílik meg kétszer.' }),
     s4: Object.freeze({ title: 'A saját profil', body: 'A jobb felső menüben a saját adataid, a nyelv és a kijelentkezés.' }),
-    s5: Object.freeze({ title: 'A Súgó', body: 'Innen nyílik a súgó: kérdezhetsz, útmutatót olvashatsz, kereshetsz a gyakori kérdésekben, vagy megnézheted az oldaltérképet.' }),
+    s5: Object.freeze({ title: 'A Súgó', body: 'Innen nyílik a súgó: kérdezhetsz, leírást olvashatsz, kereshetsz a gyakori kérdésekben, vagy megnézheted az oldaltérképet.' }),
   }),
   'tour.invite': Object.freeze({
     title: 'Hogyan hívj meg valakit',
-    lead: 'Hat lépés. A meghívót te hozod létre — a bemutató nem kattint helyetted.',
+    lead: 'Hat lépés. A meghívót te hozod létre — az útmutató nem kattint helyetted.',
     s1: Object.freeze({ title: 'Nyisd meg a Felhasználókat', body: 'A Beállítások csoportban találod. Ez a menüpont fiókkezelői jogosultsághoz kötött.' }),
     s2: Object.freeze({ title: 'Meghívás indítása', body: 'A „+ Felhasználó meghívása” gomb jobb oldali panelt nyit.' }),
     s3: Object.freeze({ title: 'A meghívott címe', body: 'Ide az ő e-mail-címe kerül. A meghívó ehhez a címhez tartozik, más címmel nem váltható be.' }),
     s4: Object.freeze({ title: 'Mely adatokhoz kaphat hozzáférést', body: 'Ez a szándékod rögzítése. A tényleges megtekintést a csatlakozás után külön engedélyezed.' }),
     s5: Object.freeze({ title: 'A meghívó létrehozása', body: 'Nyomd meg a „Meghívó létrehozása” gombot. Ez a lépés csak akkor halad tovább, ha a meghívó ténylegesen elkészült — a gomb megnyomása önmagában nem siker.' }),
-    s6: Object.freeze({ title: 'A levél megnyitása', body: 'A bemutatóban a levél a Próbaüzenetek panelen nyílik meg. Valódi levelet nem küldtünk.' }),
+    s6: Object.freeze({ title: 'A levél megnyitása', body: 'A próbafelületen a levél a Próbaüzenetek panelen nyílik meg. Valódi levelet nem küldtünk.' }),
   }),
   'tour.addBusiness': Object.freeze({
     title: 'Vállalkozás hozzáadása',
@@ -1144,9 +1196,9 @@ export const TOUR = Object.freeze({
   }),
   'tour.register': Object.freeze({
     title: 'Fiók létrehozása',
-    lead: 'Három lépés. Jelszót a bemutató nem ír be és nem tárol.',
+    lead: 'Három lépés. Jelszót az útmutató nem ír be és nem tárol.',
     s1: Object.freeze({ title: 'Az e-mail-címed', body: 'Olyan címet adj meg, amit el tudsz olvasni: ide megy a megerősítő levél.' }),
-    s2: Object.freeze({ title: 'A jelszó', body: 'Legalább 8 karakter. A bemutató nem tölti ki és nem tárolja el.' }),
+    s2: Object.freeze({ title: 'A jelszó', body: 'Legalább 8 karakter. Az útmutató nem tölti ki és nem tárolja el.' }),
     s3: Object.freeze({ title: 'A létrehozás', body: 'A válasz szándékosan semleges: ugyanaz, akár szabad a cím, akár nem. Nyisd meg a levelet a folytatáshoz.' }),
   }),
   'tour.language': Object.freeze({
@@ -1157,17 +1209,17 @@ export const TOUR = Object.freeze({
   }),
   'tour.inviteAccept': Object.freeze({
     title: 'Meghívás elfogadása — végigvezetés',
-    lead: 'Négy lépés a meghívó képernyőjén. Elfogadni te fogsz: a bemutató nem kattint helyetted.',
+    lead: 'Négy lépés a meghívó képernyőjén. Elfogadni te fogsz: az útmutató nem kattint helyetted.',
     s1: Object.freeze({ title: 'Hová hívtak', body: 'Itt látod, melyik fiókba hívtak, és milyen szerepkört ajánlanak. Csak azt írjuk ki, amit a meghívás alapján ki lehet adni.' }),
     s2: Object.freeze({ title: 'Melyik fiókkal', body: 'Ez a sor megmutatja, be vagy-e jelentkezve, és melyik címmel. A meghívás egy konkrét címhez tartozik — ha másikkal vagy bent, itt látszik.' }),
     s3: Object.freeze({ title: 'Mi a következő lépés', body: 'Ez a mondat mindig a mostani állapotra szól: belépés, regisztráció, vagy már elfogadhatod. Ha a meghívás lejárt vagy más címre szól, itt írjuk ki, mit tehetsz.' }),
-    s4: Object.freeze({ title: 'Az elfogadás a te kattintásod', body: 'A „Meghívás elfogadása” gombot te nyomod meg. A bemutató csak akkor zárul, ha a rendszer visszaigazolta a csatlakozást — a „Tovább” gomb nem fogadja el a meghívást helyetted. Ha még nem vagy belépve, előbb lépj be vagy regisztrálj: a meghívás megmarad.' }),
+    s4: Object.freeze({ title: 'Az elfogadás a te kattintásod', body: 'A „Meghívás elfogadása” gombot te nyomod meg. Az útmutató csak akkor zárul, ha a rendszer visszaigazolta a csatlakozást — a „Tovább” gomb nem fogadja el a meghívást helyetted. Ha még nem vagy belépve, előbb lépj be vagy regisztrálj: a meghívás megmarad.' }),
   }),
   'tour.help': Object.freeze({
     title: 'A Súgó használata',
     lead: 'Négy lépés. Egyik sem indít modellhívást.',
     s1: Object.freeze({ title: 'A Súgó megnyitása', body: 'A fejléc „Súgó” gombja. A panel magától soha nem nyílik ki.' }),
-    s2: Object.freeze({ title: 'Útmutatók', body: 'Az adott képernyőhöz tartozó témák kerülnek előre. Minden téma megmondja, mire való, mi kell hozzá, és mi lehet a kimenete.' }),
+    s2: Object.freeze({ title: 'Leírások', body: 'Az adott képernyőhöz tartozó témák kerülnek előre. Minden téma megmondja, mire való, mi kell hozzá, és mi lehet a kimenete.' }),
     s3: Object.freeze({ title: 'Gyakori kérdések', body: 'Kereshető kérdés–válasz lista. MI-szolgáltató nélkül működik.' }),
     s4: Object.freeze({ title: 'Oldaltérkép', body: 'Megmutatja, mely menüpontok érhetők el neked ebben a fiókban — a listát a rendszer a jogosultságaid alapján állítja össze.' }),
   }),
@@ -1181,29 +1233,32 @@ export const TOUR = Object.freeze({
 // AZ ÖT HASZNÁLATI ÚT (R112 · STR-01 · `v3app/knowledge/stories.mjs`): a történet címe és rövid bevezetője.
 // A lépések magyarázata a MEGLÉVŐ bemutató- és súgószövegekből jön — itt nincs második, azonos tartalmú változat.
 export const STORY = Object.freeze({
+  // A KÁRTYA NEVE ÉS KÉT MONDATA (R114/6 · R114/7): a név azt mondja meg, MIT próbálsz ki, a két
+  // mondat a CSELEKVÉST és az EREDMÉNYT. Fejlesztői megfogalmazás ide nem kerül (R114/8) — a mérés
+  // és a forrás az „Ellenőrzési részletek" lenyíló alatt áll.
   'story.private': Object.freeze({
-    title: 'Magánszemély: saját belépés és személyes fiók',
-    lead: 'Regisztrálsz, megerősíted a címedet, belépsz, és a személyes fiókodban dolgozol. Kijelentkezés és újrabelépés után is a te nyelveden szól a felület.',
+    title: 'Személyes fiók',
+    lead: 'Regisztrálj, erősítsd meg a címedet, és lépj be. A személyes fiókod megnyílik, és a választott nyelv a következő belépésnél is megmarad.',
   }),
   'story.solo': Object.freeze({
-    title: 'Egyedül dolgozó vállalkozó: vállalkozási fiók a személyes mellé',
-    lead: 'A meglévő belépéseddel vállalkozási fiókot adsz hozzá a nyilvántartás országával és az adóazonosítóval, majd váltasz a személyes és a vállalkozási fiók között. Új személy nem születik.',
+    title: 'Vállalkozás hozzáadása',
+    lead: 'Add hozzá a vállalkozásodat a meglévő belépéseddel. Utána egy kattintással válthatsz a személyes és a vállalkozási fiókod között.',
   }),
   'story.growing': Object.freeze({
-    title: 'Bővülő kisvállalkozás: második ember meghívása',
-    lead: 'A fiókkezelő meghív egy második embert. A meghívott – új vagy már regisztrált – belép, a saját súgójával elfogadja a meghívást, és a vállalkozás fiókjába jut.',
+    title: 'Munkatárs meghívása',
+    lead: 'Hívd meg a munkatársadat. Megnézheted, hogyan fogadja el a meghívást, és jut el a vállalkozás fiókjába.',
   }),
   'story.multi': Object.freeze({
-    title: 'Több vállalkozásban: váltás a tagságok között',
-    lead: 'Az egyik vállalkozásban tag vagy, a másikban fiókkezelő. A fejléc mindig megmondja, melyik fiókban vagy és milyen szerepkörrel; váltáskor semmi nem kerül át a másik fiókba.',
+    title: 'Váltás a fiókok között',
+    lead: 'Válts az egyik vállalkozásból a másikba. Látod, hogy a fejléc mindig megmondja, melyik fiókban vagy, és hogy a fiókok adatai nem keverednek.',
   }),
   'story.team': Object.freeze({
-    title: 'Kezelő és munkatárs: hozzáférés megadása és megszüntetése',
-    lead: 'A tagság után a fiókkezelő engedélyezi a készletadatok megtekintését, és a munkatárs valóban látja az adatot. A hozzáférés megszüntetése után a munkatárs érthető visszajelzést kap, és a személyes fiókja megmarad.',
+    title: 'Hozzáférések kezelése',
+    lead: 'Engedélyezd egy munkatársnak a készletadatok megtekintését, majd vond vissza. Látod, mit lát ő a két állapotban.',
   }),
   'story.invites': Object.freeze({
-    title: 'Meghívó-helyzetek: új, regisztrált, más címre szóló, lejárt, felhasznált',
-    lead: 'Ugyanaz a meghívó-képernyő öt helyzetben. Mindegyiknél látszik, mit mond a lap, és mi a következő lépés — elfogadni csak ott lehet, ahol a szerver engedi.',
+    title: 'Probléma a meghívóval',
+    lead: 'Nyisd meg ugyanazt a meghívó-képernyőt öt helyzetben. Látod, mit mond a lap, és mi a következő lépés, ha a meghívó lejárt vagy már felhasznált.',
   }),
 });
 
@@ -1221,7 +1276,9 @@ export const TERMS = Object.freeze({
   access: 'hozzáférés',
   dataArea: 'adatkör',
   invitation: 'meghívás',
-  walkthrough: 'bemutató',
+  guidedTour: 'lépésenkénti útmutató',
+  helpTopic: 'leírás',
+  sandbox: 'próbafelület',
   help: 'súgó',
   faq: 'gyakori kérdések',
   plan: 'csomag',
@@ -1231,7 +1288,10 @@ export const TERMS = Object.freeze({
 export const TERMS_AVOID = Object.freeze([
   Object.freeze({ re: '\\b(tenant|scope|payload|endpoint|fixture|provider)\\b', why: 'belső gépi szó a fő szövegben' }),
   Object.freeze({ re: '\\b(cégtér|munkatér|munkakörnyezet)', why: 'a V2 szava — a V3 felületén: fiók' }),
-  Object.freeze({ re: 'elszámolás', why: 'a bemutató összegzése nem elszámolás (számlázást sugall)' }),
+  Object.freeze({ re: 'elszámolás', why: 'az útmutató összegzése nem elszámolás (számlázást sugall)' }),
+  // D1 (R114/1): a „bemutató” KÉT dolgot jelentett — a mintaadatos környezetet és a vezetett segítséget.
+  // Mostantól: PRÓBAFELÜLET · mintaadatok, illetve LÉPÉSENKÉNTI ÚTMUTATÓ. A régi szó visszacsúszása piros.
+  Object.freeze({ re: 'bemutató', why: 'a mintaadatos környezet: próbafelület · a vezetett segítség: lépésenkénti útmutató' }),
   Object.freeze({ re: 'szolgáltatói csatlakozás', why: 'a csatlakozás a fiókhoz csatlakozás szava — az MI-hez: kapcsolat' }),
 ]);
 
@@ -1298,7 +1358,7 @@ export const SEARCH = Object.freeze({
   'shell.language': 'nyelv nyelvváltás magyar angol német fordítás felület nyelve',
   'shell.help': 'súgó segítség útmutató gyakori kérdések oldaltérkép hol kérdezhetek',
   'shell.assistant': 'chat segéd asszisztens kérdezés mesterséges intelligencia ai válasz',
-  'shell.demo_mail': 'próbaüzenetek levelek levél-fogadó postafiók bemutató levél',
+  'shell.demo_mail': 'próbaüzenetek levelek levél-fogadó postafiók próbafelület bemutató levél',
   'shell.sample_pages': 'termékek partnerek raktárak folyamatok bizonylatok mintaadat lista',
   'profile.edit': 'profil szerkesztése saját adatok módosítása átírás',
   'security.password_change': 'jelszó megváltoztatása jelszócsere új jelszó',

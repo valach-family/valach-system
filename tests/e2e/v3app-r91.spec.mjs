@@ -22,6 +22,9 @@ import { resolve } from 'node:path';
 import {
   World, createWorkspaceUI, openProfile, setPlanUI, logoutUI, registerUI, verifyFromMailboxUI, loginUI,
 } from './helpers.mjs';
+import { dictFor } from '../../v3app/public/i18n/dict.mjs';
+
+const HU = dictFor('hu');
 
 const openHelp = async (page) => { await page.getByTestId('help-open').click(); await expect(page.getByTestId('help-close')).toBeVisible(); };
 const closeHelp = async (page) => {
@@ -224,14 +227,16 @@ test('R91-09 — a szimulált melléklet EMBERI: nincs nyers azonosító, nincs 
     await page.goto(`file://${file}`);
     // R112 ÓTA a lap KÖZÖS BELÉPŐ: alapból a Történetek nyílnak, a súgó-bemutató a második mód.
     await page.getByTestId('mode-help').click();
-    // EGY rövid jelzés a fejben — nem ismételt nagy szimulációs szövegek.
-    await expect(page.locator('.simbar')).toHaveText('Bemutató — mintaadatokkal');
+    // EGY jelzés a fejben, a NYELVCSOMAGBÓL (KUKA-237): a rövid jelölés + a mondat, ami kimondja,
+    // mi NEM történik itt (R114/8 — a szimuláció jelölése mindig látható marad).
+    await expect(page.locator('.simbar')).toContainText(HU.STATE.demo);
+    await expect(page.locator('.simbar')).toContainText(HU.STORYUI.simulationBanner);
     // A MÉRÉSI RÉSZLETEK LENYITHATÓ szakaszban állnak, és a lektorálás módja KIMONDVA.
     await expect(page.locator('#techbox')).toBeVisible();
     expect(await page.locator('#techbox').evaluate((el) => el.open)).toBe(false);
     await page.locator('#techbox summary').click();
-    await expect(page.locator('#tech')).toContainText('kulcs');
-    await expect(page.locator('#tech')).toContainText('NEM nyelvi lektorálás');
+    await expect(page.locator('#tech')).toContainText(HU.STORYUI.techCoverage);
+    await expect(page.locator('#tech')).toContainText(HU.STORYUI.techCoverageNote);
     // A LÁTHATÓ SZÖVEGBEN nincs nyers azonosító és nincs környezeti változónév (F91-06).
     const visible = await page.evaluate(() => document.body.innerText);
     expect(visible).not.toMatch(/\b(faq|shell|invite|auth|members|plan|account|security|data)\.[a-z_]+\b/);

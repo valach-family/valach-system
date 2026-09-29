@@ -15,9 +15,12 @@ import { existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { STORIES } from '../../v3app/knowledge/stories.mjs';
 import { STORY_STEPS } from '../../tools/lib/v3_tortenet_lejatszo.mjs';
+import { dictFor } from '../../v3app/public/i18n/dict.mjs';
+
+const HU = dictFor('hu');
 
 const FILE = resolve(process.cwd(), 'docs/_olvashato/V3_R112_TORTENETEK_BEMUTATO.html');
-const UNRESOLVED = /\[(UI|STATE|TPL|REASON|SRV|PAGE|ROLE|SCOPE|TOURUI|KB|FAQ|TOUR|STORY|NAME)[.:][^\]]*\]/;
+const UNRESOLVED = /\[(UI|STATE|TPL|REASON|SRV|PAGE|ROLE|SCOPE|TOURUI|STORYUI|KB|FAQ|TOUR|STORY|NAME)[.:][^\]]*\]/;
 
 async function openDemo(browser, viewport) {
   const ctx = await browser.newContext(viewport ? { viewport } : {});
@@ -62,10 +65,12 @@ test.describe('R112 — a történetek bemutató-lapja', () => {
       await page.getByTestId('story-back-top').click();
       await expect(page.getByTestId(`story-card-${s.id}`)).toBeVisible();
     }
-    // A BIZONYÍTÉK és a SZIMULÁCIÓ jelölése a lejátszóban.
+    // A MINTAADAT-JELÖLÉS és az ELLENŐRZÉSI RÉSZLETEK a lejátszóban — a szöveg a NYELVCSOMAGBÓL
+    // (KUKA-237), és a mérés a LENYITHATÓ rész alatt áll, nem a kártyán (R114/8).
     await page.getByTestId('story-start-story.growing').click();
-    await expect(page.locator('.simtag')).toContainText('SZIMULÁCIÓ');
+    await expect(page.locator('.simtag')).toContainText(HU.STORYUI.simulationBanner);
     await expect(page.getByTestId('story-evidence')).toBeVisible();
+    await expect(page.getByTestId('story-evidence')).toContainText(HU.STORYUI.checkDetails);
     expect(errors, 'nincs konzol-hiba').toEqual([]);
     await ctx.close();
   });

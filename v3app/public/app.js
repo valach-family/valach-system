@@ -539,7 +539,8 @@ import { inviteNextKey } from './inviteText.mjs';
     if (pm) {
       pm.innerHTML = loggedIn ? `
         <div class="identity"><strong>${esc(me.email || me.subject_id)}</strong>
-          <small>${esc(me.channel_proven ? UI.channelProven : UI.channelPending)}</small></div>
+          <small data-testid="profile-menu-channel">${esc(me.channel_proven ? UI.channelProven : UI.channelPending)}</small></div>
+        ${me.channel_proven ? '' : `<button type="button" data-auth="resend" data-testid="profile-menu-resend">${esc(UI.resendAsk)}</button>`}
         <button type="button" data-go="profile">${PAGE.profile}</button>
         <button type="button" data-go="security">${PAGE.security}</button>
         <div class="divider"></div>
@@ -895,7 +896,7 @@ import { inviteNextKey } from './inviteText.mjs';
       name: p.name, code: p.code, warehouse: p.warehouse,
       qty: p.qty === null ? STATE.unknownQty : p.qty, unit: p.unit || STATE.noUnit, quality: p.quality,
     }));
-    // A MAGTÓL KAPOTT SOR: „Bemutató tétel", és amit a válasz NEM mond meg, az „Nincs megadva" —
+    // A MAGTÓL KAPOTT SOR: „Mintaadat-tétel", és amit a válasz NEM mond meg, az „Nincs megadva" —
     // sem raktárt, sem mérési eredetet nem tulajdonítunk neki (R83/F83-03 · UX-19).
     if (a.coreQty) {
       rows.unshift({ name: STATE.demoItem, code: STATE.notGiven, warehouse: STATE.notGiven,
@@ -1098,13 +1099,13 @@ import { inviteNextKey } from './inviteText.mjs';
     if (!m) return;
     const scopes = m.scopes || {};
     const row = (k) => `<div class="splitline"><div><strong>${esc(SCOPE[k])}</strong>
-        <small>${esc(scopes[k] && scopes[k].granted ? UI.canView : UI.notAllowed)}</small></div>
+        <small>${esc(scopes[k] && scopes[k].granted ? UI.canView : UI.cannotView)}</small></div>
       ${scopes[k] && scopes[k].granted ? `<span class="badge ok">${esc(UI.allowed)}</span>` : `<span class="badge wait">${esc(UI.notAllowed)}</span>`}</div>`;
     openPanel(panelHead(tpl('memberAccessTitle', { ki: m.email || m.subject_id }))
       + `<p class="identity"><strong>${esc(m.email || m.subject_id)}</strong>
           <small>${esc(ROLE[m.role] || m.role)} · ${esc(m.effective ? UI.active : UI.revoked)}</small></p>
       ${m.effective ? '' : `<div class="notice warn">${esc(UI.memberRevokedNote)}</div>`}
-      <h3>${esc(UI.dataViewing)}</h3>${row('keszlet')}${row('arak')}
+      <h3>${esc(tpl('dataViewingOf', { fiok: accountName() }))}</h3>${row('keszlet')}${row('arak')}
       ${m.effective ? `<form class="form" data-testid="member-scope-form" data-subject="${esc(id)}">
         <label>${esc(UI.scopeToGrant)}
           <select data-testid="member-scope-select-${esc(id)}" name="scope">
@@ -1685,6 +1686,7 @@ import { inviteNextKey } from './inviteText.mjs';
       + `<section class="card">
         <div class="splitline"><span>${esc(UI.email)}</span><strong>${esc(me.email || me.subject_id)}</strong></div>
         <div class="splitline"><span>${esc(UI.emailState)}</span><strong data-testid="personal-space-note">${esc(me.channel_proven ? UI.confirmed : UI.awaitingConfirm)}</strong></div>
+        ${me.channel_proven ? '' : `<div class="buttonrow"><button type="button" data-auth="resend" data-testid="profile-resend">${esc(UI.resendAsk)}</button></div>`}
         <label class="inline" data-testid="lang-row">${esc(UI.language)}
           <select data-testid="lang-select">${enabledLanguages().map((l) => `<option value="${esc(l.code)}" ${l.code === currentLang() ? 'selected' : ''}>${esc(l.endonym)}</option>`).join('')}</select></label>
         <p class="muted" style="font-size:13px">${esc(UI.languageLead)}</p>

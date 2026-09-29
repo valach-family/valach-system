@@ -208,7 +208,7 @@ test('R83/F83-03 — a készlet-jellegű nézetek UGYANAZT a hozzáférést muta
     // A MENNYISÉG JELLEGÉT NEM TALÁLJUK KI: a mag válaszán („qty") nincs mérési eredet és raktár.
     await gotoPage(bela.page, 'stock');
     const tabla = (await bela.page.getByTestId('stock-table').textContent()) || '';
-    expect(tabla).toContain('Bemutató tétel');
+    expect(tabla).toContain(HU.STATE.demoItem);
     expect(tabla).not.toContain('Mag minta-rekord');
   } finally { await w.close(); }
 });

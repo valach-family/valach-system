@@ -31,7 +31,7 @@ export const PACKS = Object.freeze({
 /** A SZÖVEG-CSOPORTOK — ez a lista a szerződés, nem a hívó emlékezete. */
 export const TEXT_GROUPS = Object.freeze([
   'PAGE', 'NAV', 'ROLE', 'SCOPE', 'SCOPE_ACC', 'PLAN', 'QUALITY',
-  'TPL', 'REASON', 'UNBOUND', 'STATE', 'UI', 'HELP', 'TOURUI', 'CHAT',
+  'TPL', 'REASON', 'UNBOUND', 'STATE', 'UI', 'HELP', 'TOURUI', 'STORYUI', 'CHAT',
   // A SZERVER ÁLTAL RAJZOLT LAPOK ÉS A PRÓBAÜZENETEK is a szótárból jönnek (F91-02).
   'SRV',
 ]);

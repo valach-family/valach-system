@@ -4,10 +4,10 @@
   "lane": "Claude-v3",
   "source": "tests/e2e/v3app-r81-ux.spec.mjs",
   "command": "npm run proof:core-ux",
-  "generated_at": "2026-09-29T10:11:38.598Z",
+  "generated_at": "2026-09-29T16:00:15.945Z",
   "package_version": "3.0.0-alpha",
-  "base_url": "http://127.0.0.1:42567",
-  "db_path": "var/tmp/v3_v3.0.0-alpha_20260929_100758_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
+  "base_url": "http://127.0.0.1:37451",
+  "db_path": "var/tmp/v3_v3.0.0-alpha_20260929_155651_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
   "what_this_is": "Az R81 terv 22 elfogadási feltétele a MEGÚJÍTOTT v3app felületen, valódi böngészőből (Playwright · Chromium), feltételenként KÉT rekeszben: amit a lap mutatott (browser) és amit a szerver válaszolt / a tároló őrzött (server).",
   "verdict_vocabulary": {
     "bizonyitva": "a feltétel minden állítása a böngésző- és/vagy a szerver-rekeszből áll össze",
@@ -84,7 +84,7 @@
       "id": "UX-04",
       "title": "A V2 menüszerkezet kijelölt része visszaköszön; ugyanaz a menünév és oldalcím.",
       "browser": [
-        "Tizenegy menüpont, és MINDEGYIKNÉL a menünév karakterre azonos az oldalcímmel: Áttekintés · Folyamatok · Bizonylatok · Készletegyenleg · Készletmozgások · Termékek · Partnerek · Raktárak · Fiók adatai · Felhasználók · Előfizetés. A csoportok a V2 elrendezését követik (Műveletek · Riportok · Törzsadatok · Beállítások)."
+        "Tizenegy menüpont, és MINDEGYIKNÉL a menünév karakterre azonos az oldalcímmel: Áttekintés · Folyamatok · Bizonylatok · Készletegyenleg · Készletmozgások · Termékek · Partnerek · Raktárak · Fiók adatai · Felhasználók · Előfizetés. A csoportok a V2 elrendezését követik (Műveletek · Kimutatások · Törzsadatok · Beállítások)."
       ],
       "server": [],
       "verdict": "bizonyitva",
@@ -262,7 +262,7 @@
       "id": "UX-19",
       "title": "Ismeretlen mennyiség és ár nem nulla; becsült mennyiség jelölt. A különböző egységek nem adódnak össze.",
       "browser": [
-        "A készlettábla a mennyiség HÁROM állapotát külön szóval viszi: „Mért\" · „Becsült\" · „Nem ismert\". Az ismeretlen mennyiségű sor szövegében nincs 0. A magtól kapott sor („Bemutató tétel\") mellett „Egység nincs megadva\" és „Nincs megadva\" áll RAKTÁRRA és MENNYISÉG-JELLEGRE is — a válasz egyiket sem bizonyítja, ezért nem tulajdonítunk neki mérési eredetet. A tábla lábjegyzete kimondja: „5 sor · különböző mértékegységű mennyiségeket nem adunk össze.\"."
+        "A készlettábla a mennyiség HÁROM állapotát külön szóval viszi: „Mért\" · „Becsült\" · „Nem ismert\". Az ismeretlen mennyiségű sor szövegében nincs 0. A magtól kapott sor („Mintaadat-tétel\") mellett „Egység nincs megadva\" és „Nincs megadva\" áll RAKTÁRRA és MENNYISÉG-JELLEGRE is — a válasz egyiket sem bizonyítja, ezért nem tulajdonítunk neki mérési eredetet. A tábla lábjegyzete kimondja: „5 sor · különböző mértékegységű mennyiségeket nem adunk össze.\"."
       ],
       "server": [
         "A HÁROM ÁLLAPOT FORRÁSA KIMONDVA: a „Mért\" és a „Becsült\" szó a DEKLARÁLT mintacsomag adata (`v3app/public/demoData.mjs`), nem a szerver válaszából levezetett tény; a szerver válasza CSAK mennyiséget ad, és az a sor ezért jelöletlen marad (R83/F83-03)."
@@ -274,7 +274,7 @@
       "id": "UX-20",
       "title": "A mintanézet és működő core-funkció jelölése őszinte. Látszatküldés, látszatmentés és látszatszámlázás nincs.",
       "browser": [
-        "A bemutató jelölése a lap tetején állandóan látszik („Bemutató · mintaadatok\" + „Nincs valódi levélküldés, számlázás vagy készletmozgás\"), és minden mintatábla külön is jelölt. A levelek panelje kimondja: „Valódi e-mailt nem küldtünk\" — a meghívó üzenete sem állít küldést."
+        "A mintaadat jelölése a lap tetején állandóan látszik („Próbafelület · mintaadatok\" + „Nincs valódi levélküldés, számlázás vagy készletmozgás\"), és minden mintatábla külön is jelölt. A levelek panelje kimondja: „Valódi e-mailt nem küldtünk\" — a meghívó üzenete sem állít küldést."
       ],
       "server": [
         "A MINTAADAT A VALÓDI CORE JOGÁTÓL FÜGG: Béla (tag, adatjog nélkül) kérésére ok=false, kapu=right, és a mintatábla darabszáma a képernyőn 0 — tehát nem „mindig látszó díszlet\". UGYANEZ MIND A HÁROM KÉSZLET-JELLEGŰ NÉZETRE áll (stockcard · movements): nemleges nézet, tábla nélkül, és a lap szövegében nincs 840 · 200 · −80 (R83/F83-03 ellenpróbája).",
