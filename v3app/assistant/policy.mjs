@@ -191,6 +191,12 @@ export function allowedToursFor(ctx = {}) {
     // A BELÉPÉS ELŐTTI KÉPERNYŐN futó bemutató (regisztráció) belépve NEM indítható: a célja ott
     // nincs a lapon. Ez NEVEZETT kizárás, nem `targetMissing`-gel megszakadó bemutató (F91-01).
     if (t.requires_anonymous === true && ctx.signed_in) continue;
+    // A MEGHÍVÁS-KONTEXTUSHOZ KÖTÖTT BEMUTATÓ (P109-01, R109): a meghívó-képernyő CSAK érvényes
+    // meghívó-hivatkozásból nyílik meg, ezért meghívás nélkül a bemutató célja NEM LÉTEZIK. Ezt
+    // NEVEZETT kizárással zárjuk ki — nem `targetMissing`-gel megszakadó bemutatóval (F91-01) —, és
+    // a kontextust a SZERVER mondja meg (`resumeIntent`), nem a böngésző feltevése. A súgó
+    // főoldaláról így nem kínálódik fel, mesterséges meghívót pedig nem gyártunk hozzá.
+    if (t.requires_invite === true && ctx.invite_context !== true) continue;
     // A BEMUTATÓ SAJÁT KÖZÖNSÉGE. Nem a funkcióé: a nyelvváltás ELMAGYARÁZHATÓ belépés előtt is
     // (a funkció `public`), de a bemutatója az alkalmazás-héjban jár, tehát belépés kell hozzá.
     if (!availabilityOf({ audience: t.audience || 'signed_in', scope: 'person' }, ctx).visible) continue;

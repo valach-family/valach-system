@@ -206,20 +206,28 @@ export const FEATURES = Object.freeze([
     evidence: F(['tests/e2e/v3app-acceptance.spec.mjs', 'v3app/selfcheck.mjs']),
   }),
   F({
-    id: 'invite.accept', module: 'invite', version: '1.1.0', status: 'working',
+    id: 'invite.accept', module: 'invite', version: '1.2.0', status: 'working',
     group: 'invite', scope: 'person', audience: 'public', screen: null, action: null, entry: 'section-invite',
-    anchors: F(['invite-observe', 'invite-redeem']),
+    // A HORGONYOK a meghívó-képernyő MINDIG MEGLÉVŐ pontjai (P109-01). A `invite-redeem` gomb
+    // állapot-függő (csak a bejelentkezett, egyező címzettnek létezik), ezért a bemutató a
+    // GOMBSORRA (`invite-actions`) áll, ami minden állapotban ott van — a hiányzó cél így nem
+    // hamis megszakítás (KUKA-228 · KUKA-232).
+    anchors: F(['invite-observe', 'invite-identity', 'invite-actions', 'invite-next', 'invite-redeem']),
     authority: F({ endpoint: 'POST /api/invites/redeem', decided_by: 'v3ref/invite.mjs',
       reasons: F(['invite_expired', 'invite_already_redeemed', 'invite_unknown', 'invite_terms_changed',
         'issuer_right_withdrawn', 'invitee_mismatch', 'channel_not_proven']) }),
     outcomes: F(['success', 'refused', 'uncertain', 'error']),
     ai: F({ explain: true, open: false, prepare: false,
       note: 'a meghívás elfogadása a felhasználó saját döntése — a segéd elmagyarázza, de nem kattintja meg' }),
-    faq: F(['faq.invite.accept', 'faq.invite.wrongAddress']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'NEVEZETT NYITOTT TÉTEL (R91/F91-01): a képernyője CSAK érvényes meghívó-hivatkozásból (levélből) nyílik meg, ezért egy súgóból indított bemutató nem létező célra mutatna. A használati utat a meghívás-bemutató utolsó lépése (a levél megnyitása) és a meghívó lapjának saját szövege vezeti; önálló bemutató akkor épül, ha a meghívó-képernyő a súgóból is elérhetővé válik',
-    evidence: F(['tests/e2e/v3app-acceptance.spec.mjs']),
+    faq: F(['faq.invite.accept', 'faq.invite.wrongAddress', 'faq.invite.personalVsBusiness']),
+    // A NEVEZETT NYITOTT TÉTEL LEZÁRVA (P109-01, R109): a bemutató megépült, és a korábbi indok is
+    // megoldódott. A régi `tour: null` azért állt itt, mert a képernyő CSAK érvényes meghívó-
+    // hivatkozásból nyílik meg, tehát a SÚGÓ FŐOLDALÁRÓL indított bemutató nem létező célra mutatna.
+    // A megoldás NEM mesterséges meghívó: a bemutató `requires_invite`, vagyis a szerver CSAK akkor
+    // kínálja fel, ha a munkamenetnek VAN meghívás-kontextusa (`resumeIntent`) — és a felület a
+    // meghívó-képernyőről indítja. Így a cél mindig létezik, és védett adatot sem tárunk fel.
+    tour: 'tour.inviteAccept',
+    evidence: F(['tests/e2e/v3app-acceptance.spec.mjs', 'tests/e2e/v3app-r109-invite.spec.mjs']),
   }),
   F({
     id: 'members.list', module: 'delegation', version: '1.1.0', status: 'working',
@@ -527,6 +535,23 @@ export const TOURS = Object.freeze({
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'profile', task: null }),
       Object.freeze({ id: 's2', target: 'lang-select', task: null }),
+    ]),
+  }),
+  // A MEGHÍVÁS ELFOGADÁSA — a KÉPERNYŐRŐL indítva (P109-01, R109). Három kötés miatt más, mint a többi:
+  //   (1) `requires_invite`: a szerver CSAK meghívás-kontextussal kínálja fel (`resumeIntent`), tehát a
+  //       súgó főoldaláról nem indítható olyan bemutató, aminek nincs hova mutatnia (R91/F91-01 indoka);
+  //   (2) `audience: 'public'`: a meghívott ember még nem biztos, hogy be van jelentkezve;
+  //   (3) az UTOLSÓ lépés a GOMBSORRA áll, és a feladata `invite.redeemed` — tehát a bemutató MEGVÁRJA
+  //       a felhasználó SAJÁT kattintását és a szerver IGAZOLT sikerét. A „Tovább"/„Befejezés" gomb
+  //       NEM fogadja el a meghívást (KUKA-231 · a P109-01 kikötése).
+  'tour.inviteAccept': Object.freeze({
+    id: 'tour.inviteAccept', version: '1.0.0', audience: 'public', requires_invite: true,
+    feature: 'invite.accept', page: null,
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'invite-observe', task: null }),
+      Object.freeze({ id: 's2', target: 'invite-identity', task: null }),
+      Object.freeze({ id: 's3', target: 'invite-next', task: null }),
+      Object.freeze({ id: 's4', target: 'invite-actions', task: 'invite.redeemed' }),
     ]),
   }),
   'tour.help': Object.freeze({

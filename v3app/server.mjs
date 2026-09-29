@@ -407,6 +407,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
     return Object.freeze({
       signed_in: Boolean(session.subject_id),
       subject_id: session.subject_id ?? null,
+      // VAN-E MEGHÍVÁS-KONTEXTUS (P109-01, R109). A meghívó-képernyőhöz kötött bemutatót csak így
+      // kínáljuk fel: a tényt a MAG mondja meg (`resumeIntent` a `pending_intent` soron), nem a
+      // böngésző feltevése — és NEM a meghívó tartalma, tehát védett adat nem szivárog ki vele.
+      invite_context: Boolean(resumeIntent({ store, sessionId: session.id })),
       book_id: bookId,
       member: Boolean(ws),
       role: ws ? ws.role : null,
@@ -947,6 +951,9 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
           // és nem a saját feltevéséből (F91-01 · AVL-01).
           audience: TOURS[id].audience ?? 'signed_in',
           requires_anonymous: TOURS[id].requires_anonymous === true,
+          // A MEGHÍVÓ-KÉPERNYŐHÖZ KÖTÖTT BEMUTATÓ: a lap ebből tudja, hogy nem egy belső oldalra
+          // kell vinnie, hanem a meghívó lapján kell maradnia (P109-01).
+          requires_invite: TOURS[id].requires_invite === true,
           steps: TOURS[id].steps.map((st) => ({
             id: st.id, target: st.target, task: st.task ?? null,
             // MI TÁRJA FEL a célt (panel · választás · navigáció). A lap ebből tudja, hogy a

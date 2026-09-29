@@ -71,7 +71,6 @@ export const TPL = Object.freeze({
   revokeTitle: 'Megszünteted {ki} hozzáférését?',
   revokeLead: '{ki} ezután nem nyithatja meg ennek a fióknak az adatait: {nev}. A saját fiókja és a korábbi műveletek története megmarad.',
   inviteReady: 'A meghívó elkészült. A próbaüzenetek között megnyithatod. Eddig érvényes: {mikor}',
-  inviteFor: 'Meghívás ebbe a fiókba: {nev}',
   planSaved: 'A csomag mentve: {csomag}',
   rowCount: '{n} mintaadat · ehhez a bemutatóhoz nem tartozik üzleti végrehajtás.',
   // R89 — a súgó, a bemutató és a segéd paraméteres mondatai
@@ -117,12 +116,12 @@ export const REASON = Object.freeze({
   invalid_value: 'A megadott érték nem választható.',
   missing_field: 'Egy kötelező mező hiányzik.',
   unknown_field: 'A kérés nem megengedett mezőt tartalmazott.',
-  invite_expired: 'Ez a meghívó lejárt. Kérj új meghívót attól, aki meghívott.',
+  invite_expired: 'Ez a meghívás lejárt. Kérj új meghívót attól, aki küldte.',
   invite_already_redeemed: 'Ezt a meghívót már felhasználták.',
   invite_unknown: 'Ehhez a hivatkozáshoz nem tartozik beváltható meghívás.',
   invite_terms_changed: 'A meghívás feltételei időközben megváltoztak. Kérj új meghívót attól, aki meghívott.',
   issuer_right_withdrawn: 'Aki a meghívót kiadta, már nem jogosult rá. Kérj új meghívót a fiók kezelőjétől.',
-  invitee_mismatch: 'Ez a meghívó másik e-mail-címre szól.',
+  invitee_mismatch: 'Ez a meghívás másik e-mail-címre szól. Jelentkezz be azzal a címmel, vagy kérj új meghívót a sajátodra.',
   workspace_required: 'Válassz fiókot a folytatáshoz.',
   business_identity_already_attached: 'Ehhez az adóazonosítóhoz már tartozik fiók. Ha a vállalkozásod már használja a rendszert, kérj meghívót attól, aki kezeli.',
   creator_channel_unproven: 'A folytatáshoz erősítsd meg az e-mail-címedet.',
@@ -361,7 +360,15 @@ export const UI = Object.freeze({
   openMailbox: 'Próbaüzenetek megnyitása',
   // meghívó lapja
   inviteOpenTitle: 'Meghívás megnyitása',
-  inviteGenericTitle: 'Meghívás egy közös fiókba',
+  // A CÍM EGY SZÓ, A FIÓK NEVE ALATTA ÁLL (P109-01): így a mondat nem múlik a névelőn, és
+  // egyik nyelv sem kényszerül ragozni egy behelyettesített nevet (KUKA-214 osztálya).
+  inviteGenericTitle: 'Meghívás',
+  inviteWhatHappens: 'A meghívás elfogadásával a megadott hozzáférést kapod ehhez a fiókhoz.',
+  inviteNotSignedIn: 'Még nem vagy bejelentkezve.',
+  inviteFaqOpen: 'Gyakori kérdések',
+  inviteTourStart: 'Végigvezetlek',
+  inviteAcceptedLead: 'Elfogadtad a meghívást.',
+  inviteOtherPersonLead: 'Másik fiókkal vagy bejelentkezve. Jelentkezz be azzal a fiókkal, amelyhez a meghívás tartozik.',
   inviteRoleLine: 'Szerepkör',
   inviteInvitedByLine: 'Meghívta',
   inviteAddressLine: 'A meghívott cím',
@@ -700,9 +707,9 @@ export const KB = Object.freeze({
   }),
   'invite.accept': Object.freeze({
     title: 'Meghívás elfogadása',
-    purpose: 'A neked szóló meghívóval csatlakozol egy fiókhoz.',
-    prereq: 'Be vagy jelentkezve azzal a címmel, amire a meghívó szól, és a cím megerősítve.',
-    result: 'Tagság születik. Az adatok megtekintését a fiókkezelő ezután külön engedélyezi.',
+    purpose: 'A neked szóló meghívással csatlakozol egy vállalkozás fiókjához. A személyes belépés és a csatlakozás két külön lépés: a meghívás nem hoz létre új személyes fiókot, és nem ad tulajdonosi jogot.',
+    prereq: 'Azzal a címmel vagy bejelentkezve, amelyre a meghívás szól, és a cím meg van erősítve.',
+    result: 'Tagság születik, és megnyílik a fiók. Az adatok megtekintését a fiókkezelő ezután külön engedélyezi.',
     outcomes: Object.freeze({
       success: 'Csatlakoztál. A menüben megjelennek a fiók képernyői.',
       refused: 'A meghívó lejárt, felhasználták, más címre szól, vagy időközben megváltoztak a feltételei.',
@@ -938,6 +945,10 @@ export const FAQ = Object.freeze({
     q: 'Azt írja, hogy a meghívó másik címre szól.',
     a: 'A meghívó egy konkrét e-mail-címhez tartozik. Jelentkezz be azzal a címmel, vagy kérj új meghívót a sajátodra.',
   }),
+  'faq.invite.personalVsBusiness': Object.freeze({
+    q: 'A meghívással új fiókot kapok?',
+    a: 'Nem. A saját belépésed és a vállalkozás fiókja két külön dolog. A meghívás elfogadásával TAGGÁ válsz abban a vállalkozásban, a személyes fiókod pedig változatlanul a tiéd marad. Tulajdonosi jogot sem ad: azt kapod, amit a meghívás megnevez.',
+  }),
   'faq.members.membershipVsScope': Object.freeze({
     q: 'Csatlakoztam, de nem látom az adatokat. Miért?',
     a: 'A tagság és az adatok megtekintésének engedélye KÉT külön állapot. A csatlakozás után a fiókkezelő külön engedélyezi, mely adatkört nézheted meg.',
@@ -1109,6 +1120,14 @@ export const TOUR = Object.freeze({
     s1: Object.freeze({ title: 'A saját profil', body: 'A jobb felső profilmenüből nyílik a Saját profil oldal.' }),
     s2: Object.freeze({ title: 'A nyelv kiválasztása', body: 'A választás azonnal érvényes a felületre, a súgóra, a gyakori kérdésekre és a segédre. Országot, adózási rendet és pénznemet NEM állít.' }),
   }),
+  'tour.inviteAccept': Object.freeze({
+    title: 'Meghívás elfogadása — végigvezetés',
+    lead: 'Négy lépés a meghívó képernyőjén. Elfogadni te fogsz: a bemutató nem kattint helyetted.',
+    s1: Object.freeze({ title: 'Hová hívtak', body: 'Itt látod, melyik vállalkozás fiókjába hívtak, és milyen hozzáférést ajánlanak. Csak azt írjuk ki, amit a meghívás alapján ki lehet adni.' }),
+    s2: Object.freeze({ title: 'Melyik fiókkal', body: 'Ez a sor megmutatja, be vagy-e jelentkezve, és melyik címmel. A meghívás egy konkrét címhez tartozik — ha másikkal vagy bent, itt látszik.' }),
+    s3: Object.freeze({ title: 'Mi a következő lépés', body: 'Ez a mondat mindig a mostani állapotra szól: bejelentkezés, regisztráció, vagy már elfogadhatod. Ha a meghívás lejárt vagy más címre szól, itt írjuk ki, mit tehetsz.' }),
+    s4: Object.freeze({ title: 'Az elfogadás a te kattintásod', body: 'A gombot te nyomd meg. A bemutató csak akkor zárul, ha a rendszer visszaigazolta a csatlakozást — a „Tovább" gomb nem fogadja el a meghívást helyetted.' }),
+  }),
   'tour.help': Object.freeze({
     title: 'A Segítség használata',
     lead: 'Négy lépés. Egyik sem indít modellhívást.',
@@ -1134,7 +1153,7 @@ export const KB_SOURCE = Object.freeze({
   'account.add_business': Object.freeze({ source_version: '1.2.0', review: 'source' }),
   'account.switch': Object.freeze({ source_version: '1.1.0', review: 'source' }),
   'invite.send': Object.freeze({ source_version: '1.2.0', review: 'source' }),
-  'invite.accept': Object.freeze({ source_version: '1.1.0', review: 'source' }),
+  'invite.accept': Object.freeze({ source_version: '1.2.0', review: 'source' }),
   'members.list': Object.freeze({ source_version: '1.1.0', review: 'source' }),
   'members.grant': Object.freeze({ source_version: '1.1.0', review: 'source' }),
   'members.revoke': Object.freeze({ source_version: '1.1.0', review: 'source' }),

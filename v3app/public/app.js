@@ -1270,7 +1270,11 @@ import * as tourMod from './tour.mjs';
     closeHelp();
     state.tour = tourMod.newTourRun({ def, view: view(), role: state.me && state.me.current_role });
     // A BELÉPÉS ELŐTTI BEMUTATÓ a belépési képernyőn jár: oda visz, nem egy belső oldalra.
-    if (def.requires_anonymous === true) {
+    if (def.requires_invite === true) {
+      // A MEGHÍVÓ-KÉPERNYŐHÖZ KÖTÖTT BEMUTATÓ ott jár, ahol a célja van (P109-01): nem visz belső
+      // oldalra, és nem is gyárt meghívót — a szerver csak meghívás-kontextussal kínálta fel.
+      if (state.authView !== 'invite') renderAuth('invite');
+    } else if (def.requires_anonymous === true) {
       if (state.authView !== 'register') renderAuth('register');
     } else {
       const page = tourMod.pageOf(state.tour);
@@ -1520,15 +1524,35 @@ import * as tourMod from './tour.mjs';
     // A FIÓK NEVE CSAK A BIZONYÍTOTT CÍMZETTNEK (R83/F83-04): a szerver akkor adja ki, ha a néző a
     // meghívás címzetti csatornáját bizonyította — a lap semmit nem következtet ki magától.
     const acc = o.account && o.account.name ? o.account : null;
+    /**
+     * A CÍM NÉVELŐ-FÜGGETLEN (P109-01, R109). A régi alak egy mondatba tette a fiók nevét
+     * („Meghívás ebbe a fiókba: X"), ami három nyelven három nyelvtani csapda. Mostantól a cím EGY
+     * szó („Meghívás"), és a fiók neve ALATTA, önálló sorban áll — a mondatszerkezet így nem múlik
+     * a névelőn, és a fordítás sem kényszerül ragozni (KUKA-214 osztálya a feliraton).
+     */
+    /**
+     * A SZEMÉLY SORA MINDIG OTT VAN (`invite-identity`) — akkor is, ha senki nincs bejelentkezve.
+     * KÉT OKBÓL: (1) a meghívott ember első kérdése az, hogy MELYIK fiókjával lép be, és a
+     * személyes belépés meg a vállalkozáshoz csatlakozás KÉT külön lépés (P109-01); (2) a
+     * bemutató erre a pontra áll, és egy állapot-függő horgony hamis megszakítást adna (KUKA-228).
+     */
+    const identity = loggedIn
+      ? `${esc(UI.signedInAs)}: <strong>${esc(state.me.email || '')}</strong>`
+      : esc(UI.inviteNotSignedIn);
     return `<div data-testid="section-invite"><div class="status-icon">✉</div>
-      <h1>${esc(acc ? tpl('inviteFor', { nev: acc.name }) : UI.inviteGenericTitle)}</h1>
-      ${acc ? `<p class="helpbox" data-testid="invite-account">${esc(UI.inviteRoleLine)}: <strong>${esc(ROLE[acc.role] || acc.role)}</strong>${o.invited_by ? ` · ${esc(UI.inviteInvitedByLine)}: <strong>${esc(o.invited_by)}</strong>` : ''}</p>` : ''}
+      <div class="cardhead"><h1>${esc(UI.inviteGenericTitle)}</h1>${helpDot('invite.accept')}</div>
+      ${acc ? `<p class="lead" data-testid="invite-account-name"><strong>${esc(acc.name)}</strong></p>
+        <p class="helpbox" data-testid="invite-account">${esc(UI.inviteRoleLine)}: <strong>${esc(ROLE[acc.role] || acc.role)}</strong>${o.invited_by ? ` · ${esc(UI.inviteInvitedByLine)}: <strong>${esc(o.invited_by)}</strong>` : ''}</p>` : ''}
       <p class="muted" data-testid="invite-observe">${esc(lead)}</p>
-      ${hint ? `<p class="helpbox">${esc(UI.inviteAddressLine)}: <strong>${esc(hint)}</strong></p>` : ''}
-      ${loggedIn ? `<p class="helpbox">${esc(UI.signedInAs)}: <strong>${esc(state.me.email || '')}</strong></p>` : ''}
-      <div class="buttonrow">${actions}</div>
+      <p class="helpbox" data-testid="invite-what-happens">${esc(UI.inviteWhatHappens)}</p>
+      <p class="helpbox" data-testid="invite-identity">${identity}${hint ? ` · ${esc(UI.inviteAddressLine)}: <strong>${esc(hint)}</strong>` : ''}</p>
+      <div class="buttonrow" data-testid="invite-actions">${actions}</div>
       <p class="notice" data-testid="invite-redeem-result" hidden></p>
       <p class="authfoot" data-testid="invite-next">${esc(o.message || UI.inviteWrongAddress)}</p>
+      <div class="buttonrow" data-testid="invite-help-row">
+        <button type="button" class="plain" data-action="faq-open" data-faq="faq.invite.accept" data-testid="invite-faq">${esc(UI.inviteFaqOpen)}</button>
+        <button type="button" class="plain" data-action="tour-start" data-tour="tour.inviteAccept" data-testid="invite-tour">${esc(UI.inviteTourStart)}</button>
+      </div>
       <details class="tech"><summary>${esc(UI.technicalDetails)}</summary>
         <pre data-testid="invite-observe-json">${esc(JSON.stringify(o, null, 2))}</pre></details></div>`;
   }
@@ -2237,13 +2261,21 @@ import * as tourMod from './tour.mjs';
   async function doRedeem() {
     const r = await api('POST', '/api/invites/redeem', { token: state.inviteToken });
     if (!r.ok) { formResult('invite-redeem-result', reasonText(r.reason, r.message), 'bad'); return; }
+    // A BEMUTATÓ UTOLSÓ LÉPÉSE CSAK IGAZOLT SIKERRE ZÁRUL (P109-01 · TUR-01): a jelzés a SZERVER
+    // `ok` válasza UTÁN és a képernyő elhagyása ELŐTT megy ki — a „Tovább"/„Befejezés" gomb tehát
+    // nem fogadja el a meghívást a felhasználó helyett (KUKA-231), és egy elutasított beváltás nem
+    // zárja le a bemutatót sikeresen (KUKA-163 alakja a bemutatón).
+    tourTaskDone('invite.redeemed');
     state.inviteToken = null;
     state.invite = null;
     history.replaceState(null, '', '/');
     newContext('invite_redeemed');
     state.tabs = ['overview']; state.page = 'overview';
     await refreshMe();
-    notice(`${tpl('accountJoined', { nev: accountName() })} ${UI.inviteJoinedScopeNote}`, 'ok');
+    // A SIKER SZAVA KIMONDOTT (P109-01): mit tettél, MELYIK fiók nyílt meg, és mi következik. Külön
+    // „Fiók megnyitása" kattintást NEM teszünk be: a fiók MÁR megnyílt (fentebb `go`/`refreshMe`),
+    // egy plusz gomb csak egy kattintással több lenne ugyanahhoz az állapothoz.
+    notice(`${UI.inviteAcceptedLead} ${tpl('accountJoined', { nev: accountName() })} ${UI.inviteJoinedScopeNote}`, 'ok');
     render();
   }
 
