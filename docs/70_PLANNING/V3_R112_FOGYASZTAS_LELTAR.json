@@ -1,0 +1,211 @@
+{
+  "tool": "FGY-01/3",
+  "tool_commit": "dffde96f9dff14fcf074369439790a10c28dbb0d",
+  "tool_file": "./tools/v3_fogyasztas_meres.mjs",
+  "tool_file_sha256": "b3d09180a58477060c45983733472a5050fb8dd22bf1ef8ad2da6a7a3996a2fc",
+  "tool_dirty": false,
+  "generated_at": "2026-09-29T10:15:50.857Z",
+  "session": "217706c3-ecc2-5f7b-af35-558854c7df95",
+  "snapshot_closed_at": "2026-09-29T10:15:50.857Z",
+  "runtime_versions": [
+    "2.1.284"
+  ],
+  "window": {
+    "label": "R112 csomag",
+    "from": "2026-09-29T08:34:49.344Z",
+    "to": "2026-09-29T10:15:50Z",
+    "to_effective": "2026-09-29T10:15:50Z"
+  },
+  "coverage": {
+    "files": 2,
+    "unreadable": [],
+    "unparsable_lines": 0,
+    "assistant_without_usage": 0,
+    "invalid_timestamp_calls": 0,
+    "cross_file_duplicate_ids": 0,
+    "incomplete_usage_calls": 0,
+    "synthetic_records": 0,
+    "calls_total": 701,
+    "calls_in_window": 369,
+    "complete": true,
+    "note": "teljes: minden megtalált átirat beolvasva, minden modell-válasz usage-dzsal, azonos azonosító csak egy fájlban"
+  },
+  "whole_session": {
+    "calls": 701,
+    "synthetic_records": 0,
+    "incomplete_usage_calls": 0,
+    "totals_kind": "teljes",
+    "first_call": "2026-09-28T20:52:13.367Z",
+    "last_call": "2026-09-29T10:15:48.780Z",
+    "totals": {
+      "input": 1402,
+      "cache_write": 4051863,
+      "cache_read": 295930237,
+      "output": 840028
+    },
+    "by_kind": {
+      "main": {
+        "calls": 689,
+        "input": 1378,
+        "cache_write": 3474559,
+        "cache_read": 294409246,
+        "output": 811193
+      },
+      "subagent": {
+        "calls": 12,
+        "input": 24,
+        "cache_write": 577304,
+        "cache_read": 1520991,
+        "output": 28835
+      }
+    },
+    "by_model": {
+      "modell-1": {
+        "calls": 327,
+        "input": 654,
+        "cache_write": 1721941,
+        "cache_read": 151184169,
+        "output": 341307
+      },
+      "modell-2": {
+        "calls": 374,
+        "input": 748,
+        "cache_write": 2329922,
+        "cache_read": 144746068,
+        "output": 498721
+      }
+    },
+    "main_context": {
+      "median": 419490,
+      "max": 783787,
+      "calls_over_400k": 366
+    },
+    "main_wakeups": {
+      "user": {
+        "wakeups": 6,
+        "calls": 275,
+        "input_with_cache": 131891581
+      },
+      "hook": {
+        "wakeups": 2,
+        "calls": 42,
+        "input_with_cache": 18602416
+      },
+      "notification": {
+        "wakeups": 3,
+        "calls": 18,
+        "input_with_cache": 8572178
+      },
+      "compaction": {
+        "wakeups": 2,
+        "calls": 354,
+        "input_with_cache": 138819008
+      }
+    },
+    "agent_input_total": 2098319,
+    "agent_count": 1,
+    "thresholds": {
+      "main_context_median": {
+        "warn_limit": 300000,
+        "switch_limit": 400000,
+        "value": 419490,
+        "band": "valtas",
+        "exceeded": true
+      },
+      "agent_input_per_package": {
+        "limit": 40000000,
+        "value": 2098319,
+        "exceeded": false
+      }
+    }
+  },
+  "window_summary": {
+    "calls": 369,
+    "synthetic_records": 0,
+    "incomplete_usage_calls": 0,
+    "totals_kind": "teljes",
+    "first_call": "2026-09-29T08:37:14.414Z",
+    "last_call": "2026-09-29T10:15:48.780Z",
+    "totals": {
+      "input": 738,
+      "cache_write": 1586010,
+      "cache_read": 141665537,
+      "output": 491502
+    },
+    "by_kind": {
+      "main": {
+        "calls": 357,
+        "input": 714,
+        "cache_write": 1008706,
+        "cache_read": 140144546,
+        "output": 462667
+      },
+      "subagent": {
+        "calls": 12,
+        "input": 24,
+        "cache_write": 577304,
+        "cache_read": 1520991,
+        "output": 28835
+      }
+    },
+    "by_model": {
+      "modell-2": {
+        "calls": 369,
+        "input": 738,
+        "cache_write": 1586010,
+        "cache_read": 141665537,
+        "output": 491502
+      }
+    },
+    "main_context": {
+      "median": 355818,
+      "max": 783787,
+      "calls_over_400k": 159
+    },
+    "main_wakeups": {
+      "user": {
+        "wakeups": 1,
+        "calls": 3,
+        "input_with_cache": 2334958
+      },
+      "compaction": {
+        "wakeups": 2,
+        "calls": 354,
+        "input_with_cache": 138819008
+      }
+    },
+    "agent_input_total": 2098319,
+    "agent_count": 1,
+    "thresholds": {
+      "main_context_median": {
+        "warn_limit": 300000,
+        "switch_limit": 400000,
+        "value": 355818,
+        "band": "figyelmeztetes",
+        "exceeded": false
+      },
+      "agent_input_per_package": {
+        "limit": 40000000,
+        "value": 2098319,
+        "exceeded": false
+      }
+    }
+  },
+  "thresholds_decidable": true,
+  "input_manifest": [
+    {
+      "path": "~/.claude/projects/-home-user/217706c3-ecc2-5f7b-af35-558854c7df95.jsonl",
+      "bytes": 14620453,
+      "sha256": "381f9b1ab79a3f3dadcfa4da079109dcdcbf8adf0867bdf240d11824c0817036",
+      "kind": "main"
+    },
+    {
+      "path": "~/.claude/projects/-home-user/217706c3-ecc2-5f7b-af35-558854c7df95/subagents/agent-aa2a56eba4602c7ea.jsonl",
+      "bytes": 1132245,
+      "sha256": "8bcc1734a8c8b210eee9509f8f90966a4b02dfcc08ec50359eb9af8baf9bf726",
+      "kind": "subagent"
+    }
+  ],
+  "reproduce": "node tools/v3_fogyasztas_meres.mjs --session 217706c3-ecc2-5f7b-af35-558854c7df95 --from 2026-09-29T08:34:49.344Z --to 2026-09-29T10:15:50Z --label \"R112 csomag\" --projects ~/.claude/projects",
+  "model_ids_redacted": "A modell-azonosítók semleges címkére cserélve (modell-1, modell-2 …): a munkamenet szabálya szerint modell-azonosító nem kerül a repóba. A darabszámok és a modellenkénti bontás változatlan; a címke–azonosító leképezés nincs tárolva."
+}

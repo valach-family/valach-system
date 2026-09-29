@@ -1,0 +1,392 @@
+{
+  "schema": "v3-r112-tortenet-bizonyitek/1",
+  "measured_at": "2026-09-29T10:07:58.435Z",
+  "commit": "dffde96f9dff14fcf074369439790a10c28dbb0d",
+  "note": "A böngésző-próbák mért kimenete történetenként. Tartalom nélküli: fájl, próbacím-eleje, futás- és zöld-szám.",
+  "stories": {
+    "story.private": [
+      {
+        "spec": "tests/e2e/v3app-core-flow.spec.mjs",
+        "title": "1. Anna regisztrál",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "1. Anna regisztrál — a válasz SEMLEGES, a levél a fejlesztői levél-fogadóban áll"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-core-flow.spec.mjs",
+        "title": "2. Anna a levél-fogadó hivatkozására kattint",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "2. Anna a levél-fogadó hivatkozására kattint — megerősítve; másodszor a hivatkozás már halott"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-core-flow.spec.mjs",
+        "title": "3. Anna belép",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "3. Anna belép — rossz jelszó nevezetten elutasítva; jó jelszóval a munkamenet ROTÁL, a fejléc őt mutatja"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-acceptance.spec.mjs",
+        "title": "H01 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "H01 — Egyszerű magánfiók céges adatbekérés nélkül létrejön; csak saját adatait látja"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r91.spec.mjs",
+        "title": "R91-04/05 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R91-04/05 — belépés ELŐTT: négy nézet, nyelvválasztó, végigvihető regisztrációs bemutató, és a nyelv TÚLÉLI a frissítést"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r93.spec.mjs",
+        "title": "R93-04 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R93-04 — a belépés ELŐTT választott nyelvet az ÚJ személy első belépése MEGTARTJA"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r97.spec.mjs",
+        "title": "R97-01 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R97-01 — MINDEN bekapcsolt nyelv túléli a KIJELENTKEZÉST és az ÚJBÓLI BELÉPÉST"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r112-stories.spec.mjs",
+        "title": "R112-S1 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R112-S1 — MAGÁNSZEMÉLY németül: regisztráció → megerősítés → belépés → személyes fiók → ki/be, nyelv marad"
+        ]
+      }
+    ],
+    "story.solo": [
+      {
+        "spec": "tests/e2e/v3app-core-flow.spec.mjs",
+        "title": "4. Anna SZEMÉLYES köre",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "4. Anna SZEMÉLYES köre (magától) · saját műhely (adószám nélkül) · CÉGES munkakörnyezet (HU adószám)"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-acceptance.spec.mjs",
+        "title": "H03 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "H03 — Adószámos működési minőség társul a fiókhoz; a magán- és üzleti kör nem olvad össze"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-acceptance.spec.mjs",
+        "title": "H05 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "H05 — Azonos cégazonosítóval más jelentkező nem kap hozzáférést; saját indulása lehetséges"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r81-ux.spec.mjs",
+        "title": "UX-14 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "UX-14 — hibás adóazonosító: a hiba a mezőhöz kötött, félkész fiók és adatvesztés nélkül"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r93.spec.mjs",
+        "title": "R93-01/02/03 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R93-01/02/03 — MIND A KILENC bemutató VÉGIGVIHETŐ, a cégalapítás a fiókváltás UTÁN is lezárul"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r112-stories.spec.mjs",
+        "title": "R112-S2 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R112-S2 — EGYÉNI VÁLLALKOZÓ: vállalkozási fiók → váltás személyes és vállalkozási között, új személy nélkül"
+        ]
+      }
+    ],
+    "story.growing": [
+      {
+        "spec": "tests/e2e/v3app-core-flow.spec.mjs",
+        "title": "6. Anna meghívja Bélát",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "6. Anna meghívja Bélát (user · keszlet) — a meghívó PLAFONNAL születik, a levél a fogadóban"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-core-flow.spec.mjs",
+        "title": "8. MEGLÉVŐ FIÓK",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "8. MEGLÉVŐ FIÓK: Béla belépve megnyitja a hivatkozást → redeem_as_existing → beváltás → tagság (adat NÉLKÜL)"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-core-flow.spec.mjs",
+        "title": "10. ÚJ FIÓK",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "10. ÚJ FIÓK: Dani a meghívóból regisztrál → megerősít → belép → beváltja"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-acceptance.spec.mjs",
+        "title": "H02 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "H02 — A meglévő magánfiók alkalmazotti meghívót elfogad; jelszava, adatai és más céges jogai változatlanok"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r109-invite.spec.mjs",
+        "title": "R109-01 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R109-01 — a meghívó képernyőjén ott van a saját segítség"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r109-invite.spec.mjs",
+        "title": "R109-03 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R109-03 — a bemutató NEM fogad el helyettünk: csak a saját kattintás vált be"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r112-invite.spec.mjs",
+        "title": "R112-I1/",
+        "runs": 3,
+        "passed": 3,
+        "titles": [
+          "R112-I1/hu — ÚJ címzett: súgó → regisztráció → megerősítés → belépés → elfogadás → lezárás → helyes fiók → nyelv marad",
+          "R112-I1/en — ÚJ címzett: súgó → regisztráció → megerősítés → belépés → elfogadás → lezárás → helyes fiók → nyelv marad",
+          "R112-I1/de — ÚJ címzett: súgó → regisztráció → megerősítés → belépés → elfogadás → lezárás → helyes fiók → nyelv marad"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r112-invite.spec.mjs",
+        "title": "R112-I2/",
+        "runs": 2,
+        "passed": 2,
+        "titles": [
+          "R112-I2/en — MÁR REGISZTRÁLT címzett: a bemutató közben nyelvet vált, a lezárás az új nyelven szól",
+          "R112-I2/de — MÁR REGISZTRÁLT címzett: a bemutató közben nyelvet vált, a lezárás az új nyelven szól"
+        ]
+      }
+    ],
+    "story.multi": [
+      {
+        "spec": "tests/e2e/v3app-core-flow.spec.mjs",
+        "title": "11. MUNKAKÖRNYEZET-VÁLTÁS",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "11. MUNKAKÖRNYEZET-VÁLTÁS: a fejléc a helyes nevet/szerepet mutatja, az adat-terület ÜRÜL a lekérés előtt, a cégek nem keverednek"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-acceptance.spec.mjs",
+        "title": "H08 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "H08 — Cégváltáskor a munkamenet, a válaszok és a kliens nem keverik a cégeket; módosított paraméter nem ad idegen jogot"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r77.spec.mjs",
+        "title": "R77/F77-01 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R77/F77-01 — a másik lap váltása után NEM kerül idegen kontextus adata a régi fejléc alá"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r83.spec.mjs",
+        "title": "R83/F83-02 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R83/F83-02 — a munkalap ŐRZI a kitöltést, és a saját elhagyás megkérdez"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r85.spec.mjs",
+        "title": "R85/F85-02 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R85/F85-02 — az ELŐZŐ cég várakozó meghívása NEM marad az új cég alatt"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r89-tutor.spec.mjs",
+        "title": "R89-09 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R89-09 — a beszélgetés és a súgó-állapot NEM viszi át magát másik fiókba"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r112-stories.spec.mjs",
+        "title": "R112-S4/S5 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R112-S4/S5 — TÖBB VÁLLALKOZÁS és KEZELŐ–MUNKATÁRS: váltás, adatkör-engedély, megszüntetés — tárolt következménnyel"
+        ]
+      }
+    ],
+    "story.team": [
+      {
+        "spec": "tests/e2e/v3app-core-flow.spec.mjs",
+        "title": "12. ENGEDÉLYEZETT ADAT",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "12. ENGEDÉLYEZETT ADAT: Béla készlet-nézete az adatkör-adás ELŐTT elutasítva, UTÁNA kiadva; az ár nem következik belőle"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-core-flow.spec.mjs",
+        "title": "13. MEGVONÁS",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "13. MEGVONÁS: az ÚJ kérésen már hatályos — adat és váltás elutasítva; a megvont admin FÜGGŐ meghívója nem váltható be"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-acceptance.spec.mjs",
+        "title": "H07 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "H07 — A raktári mennyiség-nézetből ár nem következik; a külön engedélyezett olvasás működik"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-acceptance.spec.mjs",
+        "title": "H09 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "H09 — Megvonás után új kérés és függő meghívó nem használhatja a megszűnt alapot; a független jog megmarad"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r81-ux.spec.mjs",
+        "title": "UX-09…UX-13, UX-22 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "UX-09…UX-13, UX-22 — a teljes történet: Anna → vállalkozás → Béla → készletjog → hozzáférés megszüntetése"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r112-stories.spec.mjs",
+        "title": "R112-S4/S5 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R112-S4/S5 — TÖBB VÁLLALKOZÁS és KEZELŐ–MUNKATÁRS: váltás, adatkör-engedély, megszüntetés — tárolt következménnyel"
+        ]
+      }
+    ],
+    "story.invites": [
+      {
+        "spec": "tests/e2e/v3app-core-flow.spec.mjs",
+        "title": "7. ROSSZ FIÓK",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "7. ROSSZ FIÓK: Cili belépve megnyitja Béla meghívóját — semleges válasz, nincs gomb, tagság nem születik"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-acceptance.spec.mjs",
+        "title": "H06 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "H06 — Körön túli meghívás/jogadás elutasítva; visszavont, idegen címzettű, ismételt meghívó nem ad jogot; érvényes párja sikerül"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r109-invite.spec.mjs",
+        "title": "R109-04 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R109-04 — elutasítás és ÍRÁS-MENTESSÉG: a segítség nem ír tagságot"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r112-invite.spec.mjs",
+        "title": "R112-I3 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R112-I3 — SZEMÉLYVÁLTÁS + KÉSŐ VÁLASZ: a másik ember nem kapja meg az elfogadás sikerét és lezárását"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r112-invite.spec.mjs",
+        "title": "R112-I4 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R112-I4 — LEJÁRT meghívó a fejlesztői órával: hamis siker nincs, az ajánlat sora változatlan"
+        ]
+      },
+      {
+        "spec": "tests/e2e/v3app-r112-invite.spec.mjs",
+        "title": "R112-I5 —",
+        "runs": 1,
+        "passed": 1,
+        "titles": [
+          "R112-I5 — ISMÉTELT elfogadás és ISMERETLEN meghívó: többlet-tagság és -jog nincs"
+        ]
+      }
+    ]
+  }
+}
