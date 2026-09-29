@@ -78,6 +78,8 @@ ma a gépi jelük) → **`npm run verify:kuka`** (a söprés része; visszacsús
   · **400 ezer elérve/túllépve** → a FUTÓ munkablokk célzott ellenőrzéssel lezárható; a **KÖVETKEZŐ
     önálló nagy blokk** induljon friss beszélgetésben. A lezárás címén NINCS új feltárás, új funkció
     vagy opcionális teljes söprés.
+  · **A tömörítéssel folytatott beszélgetés NEM friss beszélgetés** (R114, chatgpt-v3): a „friss
+    chatben, ha már elindultál, folytasd" kivétel csak egy már ELINDÍTOTT új beszélgetésre áll.
   · **valódi környezeti korlát vagy MÉRT megbízhatósági gond** → előbb is váltunk, de KONKRÉT okkal;
     feltételezett korlát alapján nem.
   **A munkablokk a megkezdéskor meghatározott javítás/funkció**, nem korlátlanul bővíthető feladatsor.
