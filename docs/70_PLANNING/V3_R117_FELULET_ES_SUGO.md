@@ -2,7 +2,7 @@
 
 Repó: valach-system
 
-# R116 — AZ ÖT HASZNÁLATI ÚT FELÜLETE ÉS SÚGÓJA BEFEJEZVE (A KILENC DÖNTÉS ÁTVEZETVE)
+# R117 — AZ ÖT HASZNÁLATI ÚT FELÜLETE ÉS SÚGÓJA BEFEJEZVE (A KILENC DÖNTÉS ÁTVEZETVE)
 
 CMD-VS-300-002-002 R117 — REPORT (válasz az R116 SPEC-re)
 PR-VS-300 · STEP-VS-300-002 · 2026-09-29
@@ -166,9 +166,10 @@ IGAZOLT.**
 - **A két nem futott lánc** a mag mutációs battériája és a külső ellenőrző lánc. A parancs kimondja:
   „Változatlan core-ra nem kell automatikus teljes mutációs/külső söprés." A mag változatlansága
   MÉRVE: `git diff --stat ea09305..HEAD -- v3ref/` csak a boardról elmentett SPEC-lapokat mutatja, a
-  mag moduljait nem. A `verify:v3ref` ettől függetlenül elindult ebben a körben — az eredményét a
-  8. szakasz nevesíti. **Amit ez NEM jelent:** a kihagyást nem „újrahasznált bizonyítéknak" hívom;
-  a feloldó (SRU-01) nem oldott fel commitot, tehát a helyes szó a NEM IGAZOLT (KUKA-200).
+  mag moduljait nem. **A `verify:v3ref` ettől függetlenül külön lefutott ebben a körben, és ZÖLD**
+  (204/204 mutáció elkapva — a 8. szakasz részletezi); a `verify:external-checks` NEM futott.
+  **Amit ez NEM jelent:** a kihagyást nem „újrahasznált bizonyítéknak" hívom; a feloldó (SRU-01)
+  nem oldott fel commitot, tehát a helyes szó a NEM IGAZOLT (KUKA-200).
 
 ### 5.3 Amit a képernyőn olvastam el (nem gépi mérés)
 
@@ -210,8 +211,8 @@ megtettem, és a leolvasott szöveget kiírattam:
   támasztja alá, a stílust nem méri gép.
 - **A `verify:capability-witness` piros marad** (3 elavult rögzítés). A javítása a V2 repó
   board-regiszterének átírása lenne — ez a parancs V2-módosítást kizár. Nevesített, nem elfedett.
-- **A két hosszú lánc nem futott ebben a söprésben** (lásd 5.2 és 8.) — a hivatkozott állapot NEM
-  IGAZOLT, nem zöld.
+- **A külső ellenőrző lánc (`verify:external-checks`) nem futott** (lásd 5.2 és 8.) — a hivatkozott
+  állapot NEM IGAZOLT, nem zöld. (A mutációs lánc külön lefutott és zöld.)
 - **A két próbanyelv (francia, arab írásirány-próba) szándékosan hiányos marad**, és nem volt a
   hatókörben.
 - **Az élő MI-szolgáltatói mérés továbbra is nyitott** (`npm run kapcsolat:ai` ·
@@ -226,12 +227,20 @@ megtettem, és a leolvasott szöveget kiírattam:
 
 ---
 
-## 8. A NEM FUTOTT LÁNCOK ÁLLAPOTA
+## 8. A KÉT HOSSZÚ LÁNC ÁLLAPOTA
 
-A `verify:v3ref` (a mag mutációs battériája) ebben a körben KÜLÖN elindult, a söprésen kívül. Az
-eredményét a 9. szakasz zárómondata rögzíti; ha nem fejeződött be a lap lezárásáig, az itt
-NEVESÍTVE áll, és nem zöldként. A `verify:external-checks` (a külső ellenőrző lánc) **nem futott** —
-a parancs a változatlan magra nem kéri, és a mag változatlansága mérve van (5.2).
+- **`npm run verify:v3ref` — LEFUTOTT, ZÖLD.** A söprésen KÍVÜL, külön indítva: **204 mutáció · 204
+  elkapva · 0 túlélte · 0 rossz próba · 0 mérőhiba · 0 elavult horgony**; 36 egység, mind belefér az
+  idő-korlátba (legrosszabb egység 7 929 ms a 15 000 ms-os keretben), a beadvány-kapu (MRG-01)
+  BEFOGADTA, a lefedettség **204/204**, hiány és duplikátum nincs. Verdikt: *TELJES ÉS TISZTA*.
+  Gépi végeredmény: `v3ref/v3ref-mutation-result.json`. **A lánc saját kimondott korlátja megmarad:**
+  az egység-fájl nincs kriptográfiailag a futásához kötve — a forrás-lenyomat egyezése szűkít, de nem
+  bizonyít (nevesített függő: aláírt egység-tanú). A norma-lánc 135 elvárt klauzula-sorából **78 FEDETT**,
+  hiányzó és idegen sor nincs — ez a mai szerződés állapota, nem ennek a körnek a hiánya.
+- **`npm run verify:external-checks` — NEM FUTOTT, tehát NEM IGAZOLT.** A parancs a változatlan magra
+  nem kéri, és a mag változatlansága mérve van (5.2). **Nem hívom „újrahasznált bizonyítéknak":** a
+  feloldó (SRU-01) nem oldott fel commitot, ezért a helyes szó a NEM IGAZOLT (KUKA-200). Emiatt a
+  söprés ÖSSZVERDIKTJE nem zöld, akkor sem, ha a mutációs lánc külön zölden lefutott.
 
 ---
 
