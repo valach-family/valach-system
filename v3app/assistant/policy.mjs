@@ -110,8 +110,21 @@ export function availabilityOf(item, ctx = {}) {
   const needsAdmin = item.requires_role === 'admin'
     || (item.action && ACTIONS[item.action] && ACTIONS[item.action].requires_role === 'admin');
   if (needsAdmin && ctx.role !== 'admin') return { visible: false, why: 'admin_required' };
-  const personalBlocked = ['invite', 'members', 'plan'].includes(item.group || '')
-    || ['members', 'plan', 'account'].includes(item.page || '');
+  /**
+   * A SZEMÉLYES TÉRBEN NINCS FIÓK-KEZELÉS — DE A MEGHÍVÁS ELFOGADÁSA NEM FIÓK-KEZELÉS (P109-01, R109).
+   *
+   * A LELET (a saját böngészős mérésem, R109): a tiltás a `group === 'invite'` egész csoportjára
+   * szólt, ezért a SZEMÉLYES térben álló, épp MEGHÍVOTT embertől elrejtette az `invite.accept`
+   * tudását és GYIK-jét is — vagyis pont attól, akinek szól. A meghívott ember MINDIG a személyes
+   * teréből indul: nincs még tagsága abban a vállalkozásban, amibe hívták.
+   *
+   * A tiltás CÉLJA a KEZELŐI oldal elrejtése (mást meghívni · tagok · előfizetés) — nem a saját
+   * meghívásom elfogadása. Ezért a kivétel NEVEZETT és a funkción áll (`personal_space_ok`), nem egy
+   * itteni külön névsoron: a szabály egy helyen marad, a kivételt a funkció MONDJA KI (KUKA-051).
+   */
+  const personalBlocked = (['invite', 'members', 'plan'].includes(item.group || '')
+    || ['members', 'plan', 'account'].includes(item.page || ''))
+    && item.personal_space_ok !== true;
   if (ctx.personal === true && personalBlocked) return { visible: false, why: 'personal_space' };
   return { visible: true, why: null };
 }

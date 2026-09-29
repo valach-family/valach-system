@@ -95,6 +95,19 @@ check('AST02', 'a TAG nem látja a fiókkezelői funkciók tudását',
 check('AST02', 'a SZEMÉLYES fiókban nincs meghívás/tagság/előfizetés tudás',
   !visPersonal.includes('invite.send') && !visPersonal.includes('members.grant') && !visPersonal.includes('plan.change'),
   `személyes: ${visPersonal.length} látható`);
+/**
+ * … DE A MEGHÍVÁS ELFOGADÁSA IGEN (KUKA-251, R109). A fenti tiltás a KEZELŐI oldalt rejti el; a
+ * MEGHÍVOTT ember viszont MINDIG a személyes teréből indul, hiszen abban a vállalkozásban még nincs
+ * tagsága. A régi alak a `group === 'invite'` EGÉSZ csoportját tiltotta, ezért pont attól rejtette
+ * el a meghívás-elfogadás tudását és GYIK-jét, akinek szól — és NÉMÁN: a súgóban egyszerűen nem volt
+ * ilyen kérdés. A kivétel a funkción áll (`personal_space_ok`), ezért ITT mérjük vissza, a
+ * KIZÁRÁSSAL EGYÜTT: a kettő egy lélegzetvételre igaz, különben a következő kör az egyiket a
+ * másikkal „javítaná" (KUKA-002).
+ */
+check('AST02', 'a SZEMÉLYES fiókban a MEGHÍVÁS ELFOGADÁSA viszont LÁTHATÓ — annak, akinek szól (KUKA-251)',
+  visPersonal.includes('invite.accept')
+  && (FEATURES.find((f) => f.id === 'invite.accept') || {}).personal_space_ok === true,
+  `invite.accept a személyes térben: ${visPersonal.includes('invite.accept') ? 'látható' : (policy.visibleFeaturesFor(CTX.personal).find((r) => r.feature.id === 'invite.accept') || {}).why}`);
 const priceRow = policy.visibleFeaturesFor(CTX.member).find((r) => r.feature.id === 'data.price');
 check('AST02', 'az ALAP csomagnál az ár-funkció NEVEZETTEN csomag-korlátos (nem néma kihagyás)',
   priceRow && priceRow.why === 'plan_limited' && priceRow.note === 'feature_not_in_plan',

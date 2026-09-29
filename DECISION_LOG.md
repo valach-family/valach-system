@@ -16,6 +16,67 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3084 — A MEGHÍVOTT EMBER A SAJÁT KÉPERNYŐJÉRŐL KAP SEGÍTSÉGET (P109-01)
+
+> **Hatály:** V3 (`valach-system`) — `v3app/knowledge/features.mjs` (a 10. bemutató + a nevezett
+> személyes-tér kivétel), `v3app/assistant/policy.mjs`, `v3app/server.mjs`, `v3app/public/app.js`,
+> `v3app/public/i18n/{hu,en,de}.mjs`, `tools/vs_verify_assistant.mjs`,
+> `tests/e2e/v3app-r109-invite.spec.mjs` (új). Kivezetett minta: **KUKA-251**. Nincs merge,
+> telepítés, V2-módosítás, új üzleti modul, core/CMD/PR-zárás.
+
+**A parancs:** `CMD-VS-300-002-002 R109 — SPEC` (chatgpt-v3) §P109-01, ellenőrzött induló fej
+`2ce0872`.
+
+**A NEVEZETT NYITOTT TÉTEL LEZÁRVA.** Az `invite.accept` eddig `tour: null` volt, kimondott indokkal
+(R91/F91-01): a képernyője CSAK érvényes meghívó-hivatkozásból nyílik meg, tehát a súgó
+FŐOLDALÁRÓL indított bemutató nem létező célra mutatna. A megoldás NEM mesterséges meghívó és nem is
+védett adat feltárása: a bemutató **`requires_invite`**, és a SZERVER csak akkor kínálja fel, ha a
+munkamenetnek VAN meghívás-kontextusa (`resumeIntent` a `pending_intent` soron) — a felület pedig a
+meghívó-képernyőről indítja. Így a cél mindig létezik.
+
+**A döntés — négy kimondott szabály:**
+
+1. **A KÉPERNYŐ MAGA MEGMONDJA, MI TÖRTÉNIK.** A meghívó lapján ott a súgó-pont, a „mi történik az
+   elfogadással" mondat, a kapcsolódó GYIK és az innen indítható végigvezetés — mind MEGLÉVŐ
+   műveletekkel (`faq-open` · `tour-start` · `help-topic`), új út nélkül (KUKA-003).
+2. **A CÍM NÉVELŐ-FÜGGETLEN.** A régi alak egy mondatba tette a fiók nevét („Meghívás ebbe a fiókba:
+   X"), ami három nyelven három nyelvtani csapda. Mostantól a cím EGY szó, a fiók neve ALATTA áll
+   önálló sorban — a fordítás nem kényszerül ragozni egy behelyettesített nevet (KUKA-214 osztálya).
+3. **A SZEMÉLY SORA MINDIG OTT VAN.** A meghívott első kérdése az, hogy MELYIK fiókjával lép be; a
+   személyes belépés és a vállalkozáshoz csatlakozás KÉT külön lépés, és a meghívás nem hoz létre új
+   személyes fiókot, sem tulajdonosi jogot. Az állapot-független sor egyben a bemutató stabil
+   horgonya is (állapot-függő horgony hamis megszakítást adna — KUKA-228).
+4. **AZ ELFOGADÁS A FELHASZNÁLÓ KATTINTÁSA.** A bemutató utolsó lépésének feladata `invite.redeemed`:
+   a jelzés a szerver IGAZOLT `ok` válasza UTÁN megy ki. A „Tovább"/„Befejezés" gomb tehát nem fogad
+   el meghívást, és egy elutasított beváltás nem zárja le sikeresen a bemutatót (KUKA-231 · KUKA-163).
+
+**ÉS EGY ÖTÖDIK, AMIT A BÖNGÉSZŐS PRÓBA KÉNYSZERÍTETT KI (KUKA-251).** A közös elérhetőségi feloldó a
+személyes térben a `group` = `invite` EGÉSZ csoportját elrejtette — köztük az `invite.accept`
+tudását és GYIK-jét is. A meghívott ember viszont MINDIG a személyes teréből indul, tehát a segítség
+pont attól volt láthatatlan, akinek szól, és NÉMÁN: a súgóban egyszerűen nem volt ilyen kérdés (25
+kérdés, egy sem a meghívásról). A kivétel mostantól NEVEZETT és a FUNKCIÓN áll
+(`personal_space_ok: true`), a kezelői oldal tiltása pedig változatlan.
+
+**A bizonyíték.** `npx playwright test tests/e2e/v3app-r109-invite.spec.mjs` → **6/6 PASS**: a
+képernyő saját segítsége · a szerver-oldali kapu ELLENPRÓBÁVAL (meghívás-kontextus nélkül a bemutató
+NINCS a listán, vele IGEN — a különbség kizárólag a kontextus) · a bemutató végigkattintva sem vált
+be (adatbázison mérve: `redeemed_at` NULL, tagság 0), a saját kattintás után tagság VAN · két VALÓDI
+elutasítási állapot (már felhasznált · eltérő címzett) hamis siker nélkül, és a segítség
+megnyitása-bezárása-kihagyása NEM ír (sorszámlálással) · mind a három nyelven a helyes csomagból jön a
+szöveg, nyers kulcs nem szivárog ki · keskeny nézetben is használható, vízszintes túlcsordulás nélkül.
+**TELJES böngésző-regresszió:** 77 próba, benne az R91-03 („mind a kilenc bemutató elindul a saját
+képernyőjén") a 10. bemutatóval együtt zölden. Mellé `verify:assistant` **55/55** (az új AST02-vel) ·
+`verify:tutor` **78/78** · `verify:i18n` **42/42** · `verify:kuka` **487/487** · `app:selfcheck`
+**57/57**.
+
+**Amit NEM mértünk, kimondva:** a P109-02 (a teljes felület és tutor HU/EN/DE nyelvi átnézése) és a
+P109-03 kipróbálható BEMUTATÓJA ebben a körben NEM készült el — a 400 ezres chatváltási jelző
+(D-VS-3083) a P109-01 lezárása közben megszólalt, és a szabály szerint a megkezdett blokkot zárjuk
+le, új nagy munkát nem kezdünk. Ez NEVEZETT hiány, nem „részben kész". Az AI által végzett nyelvi
+átnézés amúgy sem független anyanyelvi lektorálás.
+
+---
+
 ## D-VS-3083 — A CHATVÁLTÁS HÁROM SÁVJA: a 200 ezres kötelező jelző kivezetve, a 400 ezres lép a helyébe
 
 > **Hatály:** V3 (`valach-system`) — `tools/v3_fogyasztas_meres.mjs` (a küszöbök és a sáv-feloldó),

@@ -1,0 +1,173 @@
+{
+ "tool": "FGY-01/3",
+ "tool_commit": "36bbd2dc1e55d954d3ee1c462b0f518d571dd941",
+ "tool_file": "./tools/v3_fogyasztas_meres.mjs",
+ "tool_file_sha256": "b3d09180a58477060c45983733472a5050fb8dd22bf1ef8ad2da6a7a3996a2fc",
+ "tool_dirty": false,
+ "generated_at": "2026-09-29T06:22:31.853Z",
+ "session": "217706c3-ecc2-5f7b-af35-558854c7df95",
+ "snapshot_closed_at": "2026-09-29T06:22:31.853Z",
+ "runtime_versions": [
+  "2.1.284"
+ ],
+ "window": {
+  "label": "R109 P109-01",
+  "from": "2026-09-29T05:30:00Z",
+  "to": "2026-09-29T06:22:31Z",
+  "to_effective": "2026-09-29T06:22:31Z"
+ },
+ "coverage": {
+  "files": 1,
+  "unreadable": [],
+  "unparsable_lines": 0,
+  "assistant_without_usage": 0,
+  "invalid_timestamp_calls": 0,
+  "cross_file_duplicate_ids": 0,
+  "incomplete_usage_calls": 0,
+  "synthetic_records": 0,
+  "calls_total": 319,
+  "calls_in_window": 110,
+  "complete": true,
+  "note": "teljes: minden megtalált átirat beolvasva, minden modell-válasz usage-dzsal, azonos azonosító csak egy fájlban"
+ },
+ "whole_session": {
+  "calls": 319,
+  "synthetic_records": 0,
+  "incomplete_usage_calls": 0,
+  "totals_kind": "teljes",
+  "first_call": "2026-09-28T20:52:13.367Z",
+  "last_call": "2026-09-29T06:22:29.174Z",
+  "totals": {
+   "input": 638,
+   "cache_write": 1705283,
+   "cache_read": 145216399,
+   "output": 326501
+  },
+  "by_kind": {
+   "main": {
+    "calls": 319,
+    "input": 638,
+    "cache_write": 1705283,
+    "cache_read": 145216399,
+    "output": 326501
+   }
+  },
+  "by_model": {
+   "claude-opus-5": {
+    "calls": 319,
+    "input": 638,
+    "cache_write": 1705283,
+    "cache_read": 145216399,
+    "output": 326501
+   }
+  },
+  "main_context": {
+   "median": 452703,
+   "max": 735958,
+   "calls_over_400k": 194
+  },
+  "main_wakeups": {
+   "user": {
+    "wakeups": 4,
+    "calls": 259,
+    "input_with_cache": 119747726
+   },
+   "hook": {
+    "wakeups": 2,
+    "calls": 42,
+    "input_with_cache": 18602416
+   },
+   "notification": {
+    "wakeups": 3,
+    "calls": 18,
+    "input_with_cache": 8572178
+   }
+  },
+  "agent_input_total": 0,
+  "agent_count": 0,
+  "thresholds": {
+   "main_context_median": {
+    "warn_limit": 300000,
+    "switch_limit": 400000,
+    "value": 452703,
+    "band": "valtas",
+    "exceeded": true
+   },
+   "agent_input_per_package": {
+    "limit": 40000000,
+    "value": 0,
+    "exceeded": false
+   }
+  }
+ },
+ "window_summary": {
+  "calls": 110,
+  "synthetic_records": 0,
+  "incomplete_usage_calls": 0,
+  "totals_kind": "teljes",
+  "first_call": "2026-09-29T05:46:41.242Z",
+  "last_call": "2026-09-29T06:22:29.174Z",
+  "totals": {
+   "input": 220,
+   "cache_write": 178431,
+   "cache_read": 72747054,
+   "output": 94482
+  },
+  "by_kind": {
+   "main": {
+    "calls": 110,
+    "input": 220,
+    "cache_write": 178431,
+    "cache_read": 72747054,
+    "output": 94482
+   }
+  },
+  "by_model": {
+   "claude-opus-5": {
+    "calls": 110,
+    "input": 220,
+    "cache_write": 178431,
+    "cache_read": 72747054,
+    "output": 94482
+   }
+  },
+  "main_context": {
+   "median": 667769,
+   "max": 735958,
+   "calls_over_400k": 110
+  },
+  "main_wakeups": {
+   "user": {
+    "wakeups": 1,
+    "calls": 110,
+    "input_with_cache": 72925705
+   }
+  },
+  "agent_input_total": 0,
+  "agent_count": 0,
+  "thresholds": {
+   "main_context_median": {
+    "warn_limit": 300000,
+    "switch_limit": 400000,
+    "value": 667769,
+    "band": "valtas",
+    "exceeded": true
+   },
+   "agent_input_per_package": {
+    "limit": 40000000,
+    "value": 0,
+    "exceeded": false
+   }
+  }
+ },
+ "thresholds_decidable": true,
+ "input_manifest": [
+  {
+   "path": "~/.claude/projects/-home-user/217706c3-ecc2-5f7b-af35-558854c7df95.jsonl",
+   "bytes": 5210264,
+   "sha256": "4e574adaadca1bce377576db1352a7e0a96e09e24db692423e996c992d4e307d",
+   "kind": "main"
+  }
+ ],
+ "reproduce": "node tools/v3_fogyasztas_meres.mjs --session 217706c3-ecc2-5f7b-af35-558854c7df95 --from 2026-09-29T05:30:00Z --to 2026-09-29T06:22:31Z --label \"R109 P109-01\" --projects ~/.claude/projects"
+}

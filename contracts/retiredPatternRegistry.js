@@ -10998,6 +10998,69 @@ pattern: 'sources: modelAccepted \\? \\w+\\.sources : local\\.sources',
       + 'fenti pozitív és tiltó mintái (a tiltó minta arra az alakra illeszt, amelyben az osztályozó a '
       + 'megszakítás megkérdezése nélkül esik a piros ágra).',
   }),
+  Object.freeze({
+    id: 'KUKA-251',
+    date: '2026-09-29',
+    title: 'A SZEMÉLYES TÉRRE SZÓLÓ TILTÁS ELREJTETTE A MEGHÍVÁS ELFOGADÁSÁNAK SÚGÓJÁT — pont attól, '
+      + 'akinek szól, és NÉMÁN: a súgóban egyszerűen nem volt ilyen kérdés',
+    what: 'A közös elérhetőségi feloldó (AVL-01, `availabilityOf`) a SZEMÉLYES térben elrejtette a '
+      + '`group` = `invite` EGÉSZ csoportját — köztük az `invite.accept` funkciót is. A meghívott '
+      + 'ember viszont MINDIG a személyes teréből indul: abban a vállalkozásban, amelybe hívták, még '
+      + 'nincs tagsága. Így a saját meghívása elfogadásáról szóló tudás, a hozzá tartozó GYIK '
+      + '(`faq.invite.accept` · `faq.invite.wrongAddress`) és a bemutatója attól volt láthatatlan, '
+      + 'akinek szólt. MÉRVE (saját böngészős próba, R109): a meghívó képernyőjén a GYIK-gomb '
+      + 'megnyitotta a panelt, a lista 25 kérdést hozott — és EGYETLEN meghívásról szólót sem.',
+    why_wrong: 'A tiltás CÉLJA a KEZELŐI oldal elrejtése volt (mást meghívni · tagok · előfizetés), a '
+      + 'MEGFOGALMAZÁSA viszont egy CSOPORT-NÉV — és ugyanabban a csoportban lakik a címzett saját '
+      + 'útja is. A csoport-név nem jogosultsági fogalom (KUKA-051: a hatókör szabály, nem lista). '
+      + 'És a kár NÉMA volt: nem hibaüzenet jelent meg, hanem a kérdés EGYSZERŰEN NEM VOLT OTT — a '
+      + 'hiányzó súgó úgy néz ki, mintha nem is létezne ilyen kérdés (KUKA-066 alakja a segítségen: '
+      + 'a hamis adat hibának sem látszik). A gépi őrök közben MIND zöldek voltak: a hiányt csak a '
+      + 'VÉGIGKATTINTÁS mutatta meg (D-VS-497).',
+    replaced_by: 'A kivétel NEVEZETT, és a FUNKCIÓN áll, nem egy újabb névsoron a feloldóban: '
+      + '`personal_space_ok: true` az `invite.accept` bejegyzésén (`v3app/knowledge/features.mjs`), '
+      + 'indoklással. Az `availabilityOf` ezt veszi figyelembe — a szabály tehát EGY helyen marad, a '
+      + 'kivételt maga a funkció MONDJA KI, és a következő kör a deklarációból látja, miért.',
+    replacement: 'A kezelői oldal tiltása VÁLTOZATLAN: `invite.send`, `members.grant`, `plan.change` a '
+      + 'személyes térben továbbra sem látható — ezt a gépi jel a kivétellel EGY lélegzetvételre '
+      + 'méri, hogy a következő kör ne az egyiket „javítsa" a másikkal (KUKA-002).',
+    decision: 'D-VS-3084',
+    found_by: 'SAJÁT LELET (Claude-v3, R109) — a P109-01 böngészős próbájának ELSŐ futása: a '
+      + 'meghívott ember lapján a GYIK-gomb megnyitotta a panelt, de a meghívásról szóló kérdés nem '
+      + 'volt a listában. A szintetikus őrök (verify:assistant · verify:tutor · verify:i18n) ugyanakkor '
+      + 'mind zöldek voltak.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/knowledge/features.mjs']),
+        pattern: 'personal_space_ok: true',
+        why: 'a kivétel a FUNKCIÓN áll, kimondva — nem egy újabb névsor a feloldóban' }),
+      Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
+        pattern: 'item\\.personal_space_ok !== true',
+        why: 'az EGY közös feloldó veszi figyelembe a kivételt: a szabálynak egy otthona van' }),
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_assistant.mjs']),
+        pattern: "visPersonal\\.includes\\('invite\\.accept'\\)",
+        why: 'a söprésben futó jel: a személyes térben a meghívás elfogadása LÁTHATÓ, a kezelői oldal nem' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
+        pattern: "includes\\(item\\.group \\|\\| ''\\)\\s*\\n\\s*\\|\\| \\['members', 'plan', 'account'\\]\\.includes\\(item\\.page \\|\\| ''\\);",
+        reason: 'a csoport-névre szóró, KIVÉTEL NÉLKÜLI személyes-tér tiltás — a meghívott ember saját útját is elrejti' }),
+    ]),
+    lesson: 'AKINEK A SEGÍTSÉG SZÓL, ANNAK KELL LÁTNIA. Egy jogosultsági tiltást SOHA nem a technikai '
+      + 'csoport-nevére fogalmazunk meg: ugyanabban a csoportban lakhat a KEZELŐI és a CÍMZETTI oldal, '
+      + 'és a kettőnek ellentétes a láthatósági szabálya. A kivétel a FUNKCIÓN álljon, kimondott '
+      + 'indokkal — így a következő kör látja, miért van ott. ÉS A MÉRÉSRŐL: a hiányzó súgó nem '
+      + 'hibaüzenet, hanem ÜRESSÉG — ezért a szintetikus őr zöld marad, és csak a VÉGIGKATTINTÁS '
+      + 'mutatja meg. A használat-próba (KI OLVASSA? · HOL KATTINT?) nem formalitás: ez a lelet abból '
+      + 'jött, hogy a saját munkatermékemet végigkattintottam azon az úton, ahol a felhasználó jár.',
+    guard_note: 'gépi jel: `npm run verify:assistant` AST02 — a személyes térben az `invite.accept` '
+      + 'LÁTHATÓ (és a bejegyzés `personal_space_ok` mezője kimondja), MIKÖZBEN ugyanott az '
+      + '`invite.send`, a `members.grant` és a `plan.change` továbbra sem látható: a kivétel és a '
+      + 'tiltás EGY állításban. Mellé a böngésző-tanú: `tests/e2e/v3app-r109-invite.spec.mjs` R109-01 '
+      + '(a GYIK-gomb megnyitja a panelt, és a panel TARTALMAZZA a meghívás-elfogadás kérdését — az '
+      + 'elvárást a nyelvcsomagból olvassa, nem beégetett feliratból: KUKA-237). KIMONDVA: a '
+      + 'böngésző-próba NEM része a `verify:sweep`-nek (`npm run test:e2e` külön fut), ezért a '
+      + 'söprésben futó jel az AST02.',
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

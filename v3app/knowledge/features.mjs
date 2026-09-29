@@ -208,6 +208,11 @@ export const FEATURES = Object.freeze([
   F({
     id: 'invite.accept', module: 'invite', version: '1.2.0', status: 'working',
     group: 'invite', scope: 'person', audience: 'public', screen: null, action: null, entry: 'section-invite',
+    // A SZEMÉLYES TÉRBEN IS ÉRTELMES — és ez nem kényelmi kivétel, hanem a funkció LÉNYEGE (P109-01):
+    // a meghívott ember MINDIG a személyes teréből indul, hiszen abban a vállalkozásban még nincs
+    // tagsága. A csoport-szintű személyes-tér tiltás a KEZELŐI oldalt rejti el (mást meghívni ·
+    // tagok · előfizetés); ez a funkció a MEGHÍVOTT sajátja, ezért kimondottan kivételt kap.
+    personal_space_ok: true,
     // A HORGONYOK a meghívó-képernyő MINDIG MEGLÉVŐ pontjai (P109-01). A `invite-redeem` gomb
     // állapot-függő (csak a bejelentkezett, egyező címzettnek létezik), ezért a bemutató a
     // GOMBSORRA (`invite-actions`) áll, ami minden állapotban ott van — a hiányzó cél így nem
