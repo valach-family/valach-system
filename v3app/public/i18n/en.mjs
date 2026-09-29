@@ -47,6 +47,9 @@ export const QUALITY = Object.freeze({ mert: 'Measured', becsult: 'Estimated', i
 
 export const TPL = Object.freeze({
   accountJoined: 'You have joined this account: {nev}',
+  actingAsPersonal: '{ki} · {fiok}',
+  actingAsBusiness: '{ki} · {fiok} · role: {szerep}',
+  actingAsNone: '{ki} · no account selected',
   accountLost: 'Your access to this account has ended: {nev}',
   accountOpened: 'Opened: {nev}',
   accountCreated: 'You added the business: {nev}',
@@ -94,7 +97,7 @@ export const REASON = Object.freeze({
   not_a_member: 'You do not have access to this account.',
   admin_required: 'This operation requires account manager permission.',
   role_not_delegable: 'You cannot pass on this role.',
-  scope_not_delegable: 'You cannot pass on this data scope.',
+  scope_not_delegable: 'You cannot pass on this data area.',
   authority_not_established: 'You cannot carry out this change.',
   outside_basis_operations: 'This operation is outside the scope of your authority.',
   context_mismatch: 'We did not save the change, because you switched to another account in the meantime.',
@@ -161,7 +164,7 @@ export const STATE = Object.freeze({
   kindBusiness: 'Business',
   kindShared: 'Shared account',
   kindBusinessLead: 'You work as a company: you can give the country of registration and the tax identifier.',
-  kindSharedLead: 'A shared workplace without a tax identifier. It can become a business later.',
+  kindSharedLead: 'A shared workplace without a tax identifier. A tax identifier cannot be added afterwards: if you work with company details, choose the Business kind.',
   inviteScopeQuestion: 'Which data may they be given access to?',
   inviteScopeHelp: 'You grant the actual viewing separately, after they join.',
   inviteRoleHelp: 'An account manager can manage access within their own permissions.',
@@ -169,7 +172,7 @@ export const STATE = Object.freeze({
   invitePendingEmpty: 'There are no pending invitations.',
   inviteAsk: 'Would you like to invite others as well?',
   inviteSkip: 'Skip for now',
-  revokeSectionLead: 'This affects the whole access, not a single data scope.',
+  revokeSectionLead: 'This affects the whole access, not a single data area.',
   demoItemLead: 'Demo items are marked.',
   notGiven: 'Not given',
   demoNone: 'No demo sample data belongs to this account',
@@ -305,9 +308,9 @@ export const UI = Object.freeze({
   role: 'Role',
   inviteCreate: 'Create invitation',
   inviteMailOpen: 'Open the invitation e-mail among the test messages',
-  memberRevokedNote: 'This user’s access to the business has ended, so no data scope can be granted to them either.',
+  memberRevokedNote: 'This user’s access to the business has ended, so no data area can be granted to them either.',
   dataViewing: 'Viewing data',
-  scopeToGrant: 'Data scope to grant',
+  scopeToGrant: 'Data area to grant',
   grantView: 'Grant viewing',
   accountAccess: 'Access to the account',
   revokeBusinessAccess: 'End access to the business',
@@ -383,7 +386,7 @@ export const UI = Object.freeze({
   countryDE: 'Germany',
   countrySK: 'Slovakia',
   countryRO: 'Romania',
-  planLead: 'The plan decides which FEATURES are available. The right to view data does not come from the plan.',
+  planLead: 'The plan decides which features are available. The right to view data does not come from the plan.',
   planCurrent: 'Current plan',
   planAvailableIfGranted: 'Available if the account manager has granted it',
   planNotIncluded: 'Not in the plan',
@@ -401,7 +404,7 @@ export const UI = Object.freeze({
   confirmed: 'Confirmed',
   awaitingConfirm: 'Awaiting confirmation',
   language: 'Language',
-  languageLead: 'The interface, the help and the assistant speak this language. The country, the tax regime and the currency do NOT depend on it.',
+  languageLead: 'The interface, the help and the assistant speak this language. The country, the tax regime and the currency do not depend on it.',
   profileEditPending: 'Editing the profile is not available in this package yet — that is why we do not offer a button for it.',
   securityLead: 'The data and operations belonging to your sign-in.',
   signedIn: 'Signed in',
@@ -414,7 +417,7 @@ export const UI = Object.freeze({
   personalEmptyTitle: 'You have no matters to display yet',
   personalEmptyLead: 'You reach the matters of your businesses from the account switcher in the header.',
   outboxLead: 'The outgoing e-mails of the business will be available in this place.',
-  outboxSampleTitle: 'This is a sample view for now',
+  outboxSampleTitle: 'This is a sample view',
   outboxSampleLead: 'Sign-in and invitation e-mails can be tried on the Test messages panel. This demo sends no real e-mail.',
   unsavedTitle: 'You have unsaved changes',
   unsavedLead: 'If you switch to another account now, the input you started will be lost. Account data is never mixed: we do not carry the text you typed into the new account.',
@@ -457,7 +460,7 @@ export const HELP = Object.freeze({
   statusDemo: 'Demo',
   statusPlanned: 'Planned',
   statusRetired: 'Retired',
-  statusDemoNote: 'This shows sample data for now. You cannot issue a document here yet.',
+  statusDemoNote: 'This page shows sample data; documents cannot be issued here.',
   statusPlannedNote: 'This has not been built yet. The help describes it so you know what to expect.',
   statusRetiredNote: 'We have retired this. The description names what to use instead.',
   replacedBy: 'Use this instead',
@@ -488,7 +491,7 @@ export const TOURUI = Object.freeze({
   simulationNote: 'The walkthrough does not save, does not invite anybody and does not delete anything. You do those yourself on the normal screens.',
   targetMissing: 'This step cannot continue: the element named in the walkthrough is not visible on this screen.',
   targetMissingNext: 'You can close or restart the walkthrough. The description stays readable under Help → Guides.',
-  targetPending: 'This step is not available yet: open it first with the HIGHLIGHTED button. The walkthrough does not press it for you.',
+  targetPending: 'This step is not available yet: open it first with the highlighted button. The walkthrough does not press it for you.',
   endedTitle: 'You left the walkthrough',
   endedLead: 'Not every step was completed — the summary below says what was left out. You can restart the walkthrough any time.',
   skipStep: 'Skip this step',
@@ -525,7 +528,7 @@ export const CHAT = Object.freeze({
   q3: 'How do I add a business?',
   source: 'Guide used',
   related: 'Related guides',
-  modelDiscarded: 'We did not accept the provider answer, so you see the answer of the local guide search.',
+  modelDiscarded: 'We did not accept the AI service’s answer, so you see the answer of the local guide search.',
   modelDiscardedWhy: Object.freeze({
     model_no_source: 'The answer did not mark which guide it builds on.',
     model_unknown_source: 'The answer cited a guide we did not hand to it.',
@@ -540,7 +543,7 @@ export const CHAT = Object.freeze({
     model_prose_unverified: 'The answer wrote its own text instead of the source sentences — we do not publish that as a verified answer.',
   }),
   historyNote: 'We keep the last {n} questions of the conversation — older ones drop out.',
-  singleTurnNote: 'Without a provider connection every question is answered on its own: the local search does not use the previous questions.',
+  singleTurnNote: 'Without an AI service connection every question is answered on its own: the local search does not use the previous questions.',
   nextSteps: 'Next step',
   openAction: 'Open',
   prepareAction: 'Prepare',
@@ -646,7 +649,7 @@ export const KB = Object.freeze({
     title: 'Switch account',
     purpose: 'You switch to another account from the account switcher in the header. Account data is never mixed.',
     prereq: 'You need a membership in that account.',
-    result: 'The header, the menu and the worksheets move to the new account, and the old account’s data leaves the screen at once.',
+    result: 'The header, the menu and the worksheets move to the new account, and the old account’s data leaves the screen at once. The header tells you which account you are in and with what role.',
     outcomes: Object.freeze({
       success: 'The other account is open.',
       refused: 'You have no (or no longer any) access to that account.',
@@ -660,7 +663,7 @@ export const KB = Object.freeze({
     result: 'The invitation is created and has an expiry. The link travels in the e-mail — we do not display it in the list.',
     outcomes: Object.freeze({
       success: 'The invitation is ready. You can open it among the test messages.',
-      refused: 'You have no permission, or you would give a role or data scope you cannot pass on.',
+      refused: 'You have no permission, or you would give a role or data area you cannot pass on.',
       uncertain: 'We cannot be sure it was created. Look at the Pending invitations tab.',
       error: 'The request did not get through. No invitation was created.',
     }),
@@ -679,7 +682,7 @@ export const KB = Object.freeze({
   }),
   'members.list': Object.freeze({
     title: 'Users and access',
-    purpose: 'Shows who is a member of the account and who may view which data scope. Membership and viewing permission are two separate states.',
+    purpose: 'Shows who is a member of the account and who may view which data area. Membership and viewing permission are two separate states.',
     prereq: 'Account manager permission.',
     result: 'Two tabs: the members who signed in, and the pending invitations.',
     outcomes: Object.freeze({
@@ -690,21 +693,21 @@ export const KB = Object.freeze({
     }),
   }),
   'members.grant': Object.freeze({
-    title: 'Grant viewing of a data scope',
+    title: 'Grant viewing of a data area',
     purpose: 'You give a member permission to look at the stock data or the prices.',
     prereq: 'Account manager permission, and the member’s access must be active.',
     result: 'The permission belongs to this account and does not extend to another.',
     outcomes: Object.freeze({
       success: 'The permission is granted.',
-      refused: 'You cannot pass on this data scope, or you have no authority for it.',
+      refused: 'You cannot pass on this data area, or you have no authority for it.',
       uncertain: 'We cannot be sure it was saved. The list shows today’s state.',
     }),
   }),
   'members.revoke': Object.freeze({
     title: 'End access',
-    purpose: 'You end somebody’s access to this account. This affects the WHOLE access, not a single data scope.',
+    purpose: 'You end somebody’s access to this account. This affects the whole access, not a single data area.',
     prereq: 'Account manager permission, and a confirmation on the screen.',
-    result: 'They cannot open the account’s data. Their own account and the history of past operations remain.',
+    result: 'They cannot open the account’s data: at their next click, their screen says that their access has ended. Their personal account and the history of past operations remain.',
     outcomes: Object.freeze({
       success: 'The access has ended.',
       refused: 'You have no authority for it.',
@@ -713,7 +716,7 @@ export const KB = Object.freeze({
   }),
   'plan.change': Object.freeze({
     title: 'Subscription (plan)',
-    purpose: 'The plan decides which FEATURES are available. The right to view data comes from the account manager’s permission, not from the plan.',
+    purpose: 'The plan decides which features are available. The right to view data comes from the account manager’s permission, not from the plan.',
     prereq: 'Account manager permission.',
     result: 'The plan is saved. There is no purchase and no payment in this demo.',
     outcomes: Object.freeze({
@@ -724,7 +727,7 @@ export const KB = Object.freeze({
   }),
   'data.stock': Object.freeze({
     title: 'Stock balance',
-    purpose: 'Shows quantities per warehouse. An unknown quantity is NOT zero, and it does not mean the item does not exist.',
+    purpose: 'Shows quantities per warehouse. An unknown quantity is not zero, and it does not mean the item does not exist.',
     prereq: 'Membership in the account, and the account manager’s permission for stock data.',
     result: 'The list. The same permission decides the Product card and the Stock movements too.',
     outcomes: Object.freeze({
@@ -737,8 +740,8 @@ export const KB = Object.freeze({
   }),
   'data.price': Object.freeze({
     title: 'Prices',
-    purpose: 'Viewing unit prices. TWO gates stand in front of it: the plan must include it, and the account manager must grant it.',
-    prereq: 'The Extended plan AND permission for the prices data scope.',
+    purpose: 'Viewing unit prices. Two gates stand in front of it: the plan must include it, and the account manager must grant it.',
+    prereq: 'The Extended plan and permission for the prices data area.',
     result: 'The price appears. A missing price is not 0.',
     outcomes: Object.freeze({
       success: 'The price is loaded.',
@@ -768,7 +771,7 @@ export const KB = Object.freeze({
     title: 'The interface language',
     purpose: 'You can choose the language the interface, the help, the FAQ and the assistant speak.',
     prereq: 'None.',
-    result: 'The chosen language applies immediately. The country, the tax regime, the time zone and the currency do NOT depend on it.',
+    result: 'The chosen language applies immediately. The country, the tax regime, the time zone and the currency do not depend on it.',
     outcomes: Object.freeze({ success: 'The language is set.' }),
   }),
   'shell.help': Object.freeze({
@@ -785,13 +788,13 @@ export const KB = Object.freeze({
   'shell.assistant': Object.freeze({
     title: 'Chat assistant',
     purpose: 'You can ask in free text. It answers from the verified guides, shows the source, and offers at most a few real next steps.',
-    prereq: 'You are signed in. A live model answer needs a permitted provider connection; without it the local search works.',
+    prereq: 'You are signed in. A live model answer needs a permitted AI service connection; without it the local search works.',
     result: 'A short explanation, a reference to the guide used, and — if there is one — a continuation to open or prepare. The assistant performs no write.',
     outcomes: Object.freeze({
       success: 'The answer is ready, together with its source.',
       empty: 'There is no verified guide for this yet.',
       refused: 'The question is not about this system, is too long, or you have no permission for it.',
-      error: 'The provider did not answer. You can still search the guides.',
+      error: 'The AI service did not answer. You can still search the guides.',
       uncertain: 'We cannot be sure the answer was produced. Ask again.',
     }),
   }),
@@ -808,7 +811,7 @@ export const KB = Object.freeze({
   }),
   'shell.sample_pages': Object.freeze({
     title: 'Sample pages',
-    purpose: 'Products, Partners, Warehouses, Processes, Documents — in the layout known from V2, with SAMPLE DATA. No business execution belongs to them.',
+    purpose: 'Products, Partners, Warehouses, Processes, Documents — in the layout known from V2, with sample data. No business execution belongs to them.',
     prereq: 'An account is open. The sample set is fixed to the account.',
     result: 'A searchable, filterable list; click a row for the detail panel.',
     outcomes: Object.freeze({
@@ -818,21 +821,21 @@ export const KB = Object.freeze({
   }),
   'profile.edit': Object.freeze({
     title: 'Editing the profile',
-    purpose: 'Changing your own data. THIS HAS NOT BEEN BUILT YET — that is why there is no button for it on the screen.',
+    purpose: 'Changing your own data. This has not been built yet — that is why there is no button for it on the screen.',
     prereq: '—',
     result: 'It has no result: the feature does not exist. The help describes it so you know what to expect.',
     outcomes: Object.freeze({ missing: 'This feature is not available yet. We do not offer a button for it either.' }),
   }),
   'security.password_change': Object.freeze({
     title: 'Changing the password',
-    purpose: 'Changing the sign-in password. THIS HAS NOT BEEN BUILT YET — that is why there is no button for it on the screen.',
+    purpose: 'Changing the sign-in password. This has not been built yet — that is why there is no button for it on the screen.',
     prereq: '—',
     result: 'It has no result: the feature does not exist.',
     outcomes: Object.freeze({ missing: 'This feature is not available yet. We do not offer a button for it either.' }),
   }),
   'shell.numbered_probe': Object.freeze({
     title: 'The numbered probe surface (retired)',
-    purpose: 'The earlier numbered probe surface that stood on one long page. RETIRED: the shared application frame replaced it.',
+    purpose: 'The earlier numbered probe surface that stood on one long page. Retired: the shared application frame replaced it.',
     prereq: '—',
     result: 'None: this surface no longer exists.',
     outcomes: Object.freeze({}),
@@ -846,7 +849,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.register.noMail': Object.freeze({
     q: 'The confirmation e-mail did not arrive. What should I do?',
-    a: 'Check the spam folder too. If it is not there, ask for a new e-mail with the “Ask for a new confirmation e-mail” button. The link of the MOST RECENT e-mail is always the valid one.',
+    a: 'Check the spam folder too. If it is not there, ask for a new e-mail with the “Ask for a new confirmation e-mail” button. The link of the most recent e-mail is always the valid one.',
   }),
   'faq.verify.expired': Object.freeze({
     q: 'My confirmation link expired.',
@@ -855,6 +858,10 @@ export const FAQ = Object.freeze({
   'faq.verify.used': Object.freeze({
     q: 'It says the link has already been used.',
     a: 'A confirmation link can be used once. If you have already confirmed the address, simply sign in.',
+  }),
+  'faq.logout.language': Object.freeze({
+    q: 'Does my chosen language stay after I sign out?',
+    a: 'Yes, in this browser. The browser remembers the choice tied to your sign-in: after signing in again you continue in the same language. If someone else signs in in the same browser, their setting applies, not yours.',
   }),
   'faq.login.failed': Object.freeze({
     q: 'I cannot sign in, but it does not say what is wrong.',
@@ -868,13 +875,17 @@ export const FAQ = Object.freeze({
     q: 'What is the difference between a personal account and a business?',
     a: 'The personal account is yours, it is created by itself, and it cannot disappear because a business ended your access. A business is a shared workplace: it can have several members, and the account manager grants the permissions.',
   }),
+  'faq.account.whichAccount': Object.freeze({
+    q: 'How do I know which account I am working in, and what I can do there?',
+    a: 'The account switcher in the header shows the open account. On the Sign-in and security page, the “On whose behalf you act” line also names your role: as an account manager you also see the Settings menu; as a member, the account manager grants viewing of the data. When you switch accounts, an unfinished form, the help conversation and the walkthrough do not carry over to the other account.',
+  }),
   'faq.account.unsaved': Object.freeze({
     q: 'When switching accounts it asks whether my work will be lost. Why?',
     a: 'Because account data is never mixed: what you started typing in one account is not carried over into another. Either continue editing, or discard and switch.',
   }),
   'faq.business.taxId': Object.freeze({
     q: 'Do I have to give a tax number?',
-    a: 'For a business, yes, because that identifies the company. If you want to work together without a tax identifier, choose the “Shared account” kind — it can become a business later.',
+    a: 'For a business, yes, because that identifies the company. If you want to work together without a tax identifier, choose the “Shared account” kind. A tax identifier cannot be added to a shared account afterwards.',
   }),
   'faq.business.alreadyAttached': Object.freeze({
     q: 'It says an account already exists for this tax identifier.',
@@ -882,11 +893,11 @@ export const FAQ = Object.freeze({
   }),
   'faq.business.shared': Object.freeze({
     q: 'What is a shared account?',
-    a: 'A shared workplace without a tax identifier. You can invite others into it just the same. If it later has a tax identifier, it can become a business.',
+    a: 'A shared workplace without a tax identifier. You can invite others into it just the same. A tax identifier cannot be added afterwards — for company work, create a business account.',
   }),
   'faq.invite.who': Object.freeze({
     q: 'Who can invite somebody, and into which account?',
-    a: 'The account manager, and only into the account they manage. They cannot pass on a role or data scope they do not have themselves.',
+    a: 'The account manager, and only into the account they manage. They cannot pass on a role or data area they do not have themselves.',
   }),
   'faq.invite.expiry': Object.freeze({
     q: 'How long is an invitation valid?',
@@ -894,7 +905,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.invite.link': Object.freeze({
     q: 'Where do I find the invitation link?',
-    a: 'In the e-mail. We deliberately do NOT show it in the list of pending invitations: the link is the secret of the e-mail. In the demo the Test messages panel shows it.',
+    a: 'In the e-mail. We deliberately do not show it in the list of pending invitations: the link is the secret of the e-mail. In the demo the Test messages panel shows it.',
   }),
   'faq.invite.accept': Object.freeze({
     q: 'How do I accept an invitation?',
@@ -906,23 +917,23 @@ export const FAQ = Object.freeze({
   }),
   'faq.invite.personalVsBusiness': Object.freeze({
     q: 'Does an invitation give me a new account?',
-    a: 'No. Your own sign-in and the business account are two separate things. Accepting an invitation makes you a MEMBER of that business, while your personal account stays yours, unchanged. It does not grant ownership either: you get exactly what the invitation names.',
+    a: 'No. Your own sign-in and the business account are two separate things. Accepting an invitation makes you a member of that business, while your personal account stays yours, unchanged. It does not grant ownership either: you get exactly what the invitation names.',
   }),
   'faq.members.membershipVsScope': Object.freeze({
     q: 'I joined, but I cannot see the data. Why?',
-    a: 'Membership and permission to view data are TWO separate states. After joining, the account manager separately grants which data scope you may look at.',
+    a: 'Membership and permission to view data are two separate states. After joining, the account manager separately grants which data area you may look at.',
   }),
   'faq.members.grant': Object.freeze({
     q: 'How do I grant somebody the stock data?',
-    a: 'Users → the “Access” button on the row → choose the data scope → “Grant viewing”. The permission belongs only to this account.',
+    a: 'Users → the “Access” button on the row → choose the data area → “Grant viewing”. The permission belongs only to this account.',
   }),
   'faq.members.revoke': Object.freeze({
     q: 'What happens if I end somebody’s access?',
-    a: 'They cannot open the account’s data. Their own personal account and the history of past operations remain. This affects the whole access, not a single data scope.',
+    a: 'They cannot open the account’s data. Their own personal account and the history of past operations remain. This affects the whole access, not a single data area.',
   }),
   'faq.plan.vsRight': Object.freeze({
     q: 'Does the plan give the permission?',
-    a: 'No. The plan decides which FEATURES are available to the account. Whether a person may look at a data scope is decided by the account manager’s permission. The two are separate.',
+    a: 'No. The plan decides which features are available to the account. Whether a person may look at a data area is decided by the account manager’s permission. The two are separate.',
   }),
   'faq.plan.purchase': Object.freeze({
     q: 'Do I have to pay for changing the plan?',
@@ -930,11 +941,11 @@ export const FAQ = Object.freeze({
   }),
   'faq.stock.noAccess': Object.freeze({
     q: 'Why can I not see the stock data?',
-    a: 'Because the account manager has not granted you this data scope yet. The same permission decides the Product card and the Stock movements too — that is why all three show the same thing.',
+    a: 'Because the account manager has not granted you this data area yet. The same permission decides the Product card and the Stock movements too — that is why all three show the same thing.',
   }),
   'faq.stock.unknownQty': Object.freeze({
     q: 'What does “Not known” mean for a quantity?',
-    a: 'That we do not know the quantity. This is NOT zero, and it does not mean the item does not exist. A later refinement is not a stock movement, and it never becomes a measurement retroactively.',
+    a: 'That we do not know the quantity. This is not zero, and it does not mean the item does not exist. A later refinement is not a stock movement, and it never becomes a measurement retroactively.',
   }),
   'faq.stock.loadFailed': Object.freeze({
     q: 'It says the stock data could not be loaded.',
@@ -942,7 +953,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.price.twoGates': Object.freeze({
     q: 'Why can I not see the prices when I can see the stock?',
-    a: 'Prices have TWO gates: the plan must include the feature, AND the account manager must grant the prices data scope. The screen says which one is missing.',
+    a: 'Prices have two gates: the plan must include the feature, and the account manager must grant the prices data area. The screen says which one is missing.',
   }),
   'faq.price.missing': Object.freeze({
     q: 'A product has no price. Is that zero?',
@@ -970,7 +981,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.lang.country': Object.freeze({
     q: 'If I switch to English, does the tax regime or the currency change?',
-    a: 'No. The interface language does NOT select a country, a tax regime, a time zone or a currency. Those come from the account data.',
+    a: 'No. The interface language does not select a country, a tax regime, a time zone or a currency. Those come from the account data.',
   }),
   'faq.lang.missing': Object.freeze({
     q: 'A text still appears in Hungarian. Why?',
@@ -982,14 +993,14 @@ export const FAQ = Object.freeze({
   }),
   'faq.help.noModel': Object.freeze({
     q: 'Does using the help cost anything (AI cost)?',
-    a: 'The help, the FAQ, the site map and the walkthrough work WITHOUT any model call. A model call happens only when you send a question on the Ask tab.',
+    a: 'The help, the FAQ, the site map and the walkthrough work without any model call. A model call happens only when you send a question on the Ask tab.',
   }),
   'faq.chat.source': Object.freeze({
     q: 'How do I know the assistant’s answer is trustworthy?',
     a: 'Every answer names the guide it worked from, together with that guide’s source version. If there is no verified guide for something, the assistant says so instead of inventing an answer.',
   }),
   'faq.chat.limits': Object.freeze({
-    q: 'What will the assistant NOT do for me?',
+    q: 'What will the assistant not do for me?',
     a: 'It does not save, does not invite anybody, does not grant permissions, does not delete and does not pay. At most it explains, opens a screen, or prepares a form — the approval is yours.',
   }),
   'faq.chat.secrets': Object.freeze({
@@ -998,7 +1009,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.chat.offline': Object.freeze({
     q: 'It says the chat assistant is not available.',
-    a: 'In that case the provider connection is missing or did not answer. Searching the guides, the FAQ, the site map and the walkthrough still work.',
+    a: 'In that case the AI service connection is missing or did not answer. Searching the guides, the FAQ, the site map and the walkthrough still work.',
   }),
   'faq.mail.real': Object.freeze({
     q: 'Does the system send real e-mail?',
@@ -1006,7 +1017,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.demo.whatIsReal': Object.freeze({
     q: 'Which data is real, and which is sample?',
-    a: 'The accounts, memberships, invitations and permissions are real. The product, partner, warehouse, process and document lists are SAMPLE DATA: no business execution happens on them. The screens mark this.',
+    a: 'The accounts, memberships, invitations and permissions are real. The product, partner, warehouse, process and document lists are sample data: no business execution happens on them. The screens mark this.',
   }),
   'faq.demo.noFixture': Object.freeze({
     q: 'My newly created account is empty. Is it broken?',
@@ -1031,7 +1042,7 @@ export const TOUR = Object.freeze({
     s2: Object.freeze({ title: 'Start the invitation', body: 'The “+ Invite a user” button opens a panel on the right.' }),
     s3: Object.freeze({ title: 'The invited address', body: 'Their e-mail address goes here. The invitation belongs to this address and cannot be redeemed with another.' }),
     s4: Object.freeze({ title: 'Which data they may access', body: 'This records your intention. You grant the actual viewing separately after they join.' }),
-    s5: Object.freeze({ title: 'Creating the invitation', body: 'Press “Create invitation”. This step only continues if the invitation was ACTUALLY created — pressing the button alone is not a success.' }),
+    s5: Object.freeze({ title: 'Creating the invitation', body: 'Press “Create invitation”. This step only continues if the invitation was actually created — pressing the button alone is not a success.' }),
     s6: Object.freeze({ title: 'Opening the e-mail', body: 'In the demo the e-mail opens on the Test messages panel. No real e-mail was sent.' }),
   }),
   'tour.addBusiness': Object.freeze({
@@ -1041,7 +1052,7 @@ export const TOUR = Object.freeze({
     s2: Object.freeze({ title: 'The name of the account', body: 'This will be shown in the account switcher and in the headers of the screens.' }),
     s3: Object.freeze({ title: 'The country of registration', body: 'This says what form of identifier we keep on record. It selects no tax regime and does not verify the company in an official register.' }),
     s4: Object.freeze({ title: 'The tax identifier', body: 'This is self-declared: we measure its form, not its truth. Giving it does not prove that you represent another business.' }),
-    s5: Object.freeze({ title: 'The creation', body: 'Press “Add a new account”. This step only continues after an ACTUAL creation.' }),
+    s5: Object.freeze({ title: 'The creation', body: 'Press “Add a new account”. This step only continues after an actual creation.' }),
   }),
   'tour.stock': Object.freeze({
     title: 'Viewing the stock data',
@@ -1049,21 +1060,21 @@ export const TOUR = Object.freeze({
     s1: Object.freeze({ title: 'Open the Stock balance', body: 'You find it in the Reports group.' }),
     s2: Object.freeze({ title: 'The list', body: 'Quantities per warehouse. Where the quantity is not known, we write that out — not zero.' }),
     s3: Object.freeze({ title: 'Refresh', body: 'Reads the data again. If it fails, the page says so, and nothing changes in the account.' }),
-    s4: Object.freeze({ title: 'The prices', body: 'Prices sit behind TWO gates: plan AND permission. The page says which one is missing.' }),
+    s4: Object.freeze({ title: 'The prices', body: 'Prices sit behind two gates: plan and permission. The page says which one is missing.' }),
   }),
   'tour.grant': Object.freeze({
     title: 'Granting access to a colleague',
-    lead: 'Three steps. The access is valid in THIS account only.',
+    lead: 'Three steps. The access is valid in this account only.',
     s1: Object.freeze({ title: 'Open Users', body: 'Under Settings, with account manager rights.' }),
     s2: Object.freeze({ title: 'Pick the colleague', body: 'In the list the „Access" button opens that person\'s access page.' }),
-    s3: Object.freeze({ title: 'Allow the data set', body: 'Pick the data set and press the allow button. This step only moves on after an ACTUAL save.' }),
+    s3: Object.freeze({ title: 'Allow the data set', body: 'Pick the data set and press the allow button. This step only moves on after an actual save.' }),
   }),
   'tour.plan': Object.freeze({
     title: 'Setting the plan',
     lead: 'Three steps. There is no purchase and no payment.',
     s1: Object.freeze({ title: 'Open the Subscription', body: 'In the Settings group, with account manager permission.' }),
-    s2: Object.freeze({ title: 'Choosing the plan', body: 'The plan decides the availability of FEATURES, not the permissions of people.' }),
-    s3: Object.freeze({ title: 'Saving', body: 'Press “Save the plan”. This step only continues after an ACTUAL save.' }),
+    s2: Object.freeze({ title: 'Choosing the plan', body: 'The plan decides the availability of features, not the permissions of people.' }),
+    s3: Object.freeze({ title: 'Saving', body: 'Press “Save the plan”. This step only continues after an actual save.' }),
   }),
   'tour.register': Object.freeze({
     title: 'Creating an account',
@@ -1076,7 +1087,7 @@ export const TOUR = Object.freeze({
     title: 'The interface language',
     lead: 'Two steps.',
     s1: Object.freeze({ title: 'My profile', body: 'The My profile page opens from the profile menu in the top right.' }),
-    s2: Object.freeze({ title: 'Choosing the language', body: 'The choice applies at once to the interface, the help, the FAQ and the assistant. It sets NO country, tax regime or currency.' }),
+    s2: Object.freeze({ title: 'Choosing the language', body: 'The choice applies at once to the interface, the help, the FAQ and the assistant. It sets no country, tax regime or currency.' }),
   }),
   'tour.inviteAccept': Object.freeze({
     title: 'Accepting an invitation — guided',
@@ -1097,20 +1108,48 @@ export const TOUR = Object.freeze({
 });
 
 /** Per-feature translation state: which source version this pack was written against. */
+// The five usage paths (R112 · STR-01): title and short lead; the steps reuse the existing walkthrough and help texts.
+export const STORY = Object.freeze({
+  'story.private': Object.freeze({
+    title: 'Private person: your own sign-in and personal account',
+    lead: 'You register, confirm your address, sign in and work in your personal account. After signing out and back in, the interface still speaks your language.',
+  }),
+  'story.solo': Object.freeze({
+    title: 'Sole trader: a business account next to your personal one',
+    lead: 'With your existing sign-in you add a business account with the country of registration and the tax identifier, then switch between your personal and business accounts. No new person is created.',
+  }),
+  'story.growing': Object.freeze({
+    title: 'Growing small business: inviting a second person',
+    lead: 'The account manager invites a second person. The invitee — new or already registered — signs in, accepts the invitation with the help on their own screen, and lands in the business account.',
+  }),
+  'story.multi': Object.freeze({
+    title: 'Several businesses: switching between memberships',
+    lead: 'You are a member in one business and an account manager in another. The header always tells you which account you are in and with what role; nothing carries over to the other account when you switch.',
+  }),
+  'story.team': Object.freeze({
+    title: 'Manager and colleague: granting and ending access',
+    lead: 'After membership, the account manager allows viewing the stock data, and the colleague really sees the data. After the access ends, the colleague gets a clear message and keeps their personal account.',
+  }),
+  'story.invites': Object.freeze({
+    title: 'Invitation situations: new, registered, other address, expired, used',
+    lead: 'The same invitation screen in five situations. Each shows what the screen says and what the next step is — accepting is only possible where the server allows it.',
+  }),
+});
+
 export const KB_SOURCE = Object.freeze({
   'auth.register': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
   'auth.verify': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
   'auth.login': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
   'auth.resend': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
-  'auth.logout': Object.freeze({ source_version: '1.0.0', review: 'checked' }),
+  'auth.logout': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
   'account.personal': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
   'account.add_business': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
-  'account.switch': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
+  'account.switch': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
   'invite.send': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
   'invite.accept': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
   'members.list': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
   'members.grant': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
-  'members.revoke': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
+  'members.revoke': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
   'plan.change': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
   'data.stock': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
   'data.price': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
@@ -1139,7 +1178,7 @@ export const SEARCH = Object.freeze({
   'invite.send': 'invite invitation invite somebody colleague user send invitation join request',
   'invite.accept': 'accept invitation join with invitation redeem accept the invite expired invitation my invitation invalid link wrong address',
   'members.list': 'users members who can see access list membership',
-  'members.grant': 'grant permission give access data scope allow viewing',
+  'members.grant': 'grant permission give access data area allow viewing',
   'members.revoke': 'revoke end access remove withdraw take away access',
   'plan.change': 'subscription plan change plan fee purchase basic extended',
   'data.stock': 'stock stock balance quantity warehouse cannot see stock product card movements',
@@ -1170,12 +1209,12 @@ export const SRV = Object.freeze({
   verifyTech: 'Technical details',
   reason_challenge_expired: 'The link lived for 24 hours, and that time is over.',
   reason_challenge_already_used: 'This link has already been used. If that was you, simply sign in.',
-  reason_challenge_superseded: 'A newer confirmation mail was requested for this address, so this link is no longer alive. The link in the LATEST mail works.',
+  reason_challenge_superseded: 'A newer confirmation mail was requested for this address, so this link is no longer alive. The link in the latest mail works.',
   reason_challenge_unknown: 'This link cannot be used — it may have been copied out of the mail incompletely.',
   mailVerifySubject: 'Confirm your e-mail address',
   mailVerifyBody: 'Click the link to prove this address is yours. The link lives for {ora} hours. If it expires, you can ask for a new one on the sign-in screen.',
   mailResendSubject: 'New confirmation link',
   mailResendBody: 'You asked for a new link to confirm the address. The earlier link is void from now on, this one lives for 24 hours. Your password has not changed.',
   mailInviteSubject: 'Invitation: {fiok}',
-  mailInviteBody: 'You have been invited to the {fiok} account. Opening the link lets you accept the invitation; if you have no account yet, you can create one after opening it.',
+  mailInviteBody: 'You have been invited to this account: {fiok}. Open the link: it shows what the invitation gives you, and you can accept it there. If you have no sign-in yet, you can register after opening it.',
 });

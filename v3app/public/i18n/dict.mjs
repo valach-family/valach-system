@@ -37,7 +37,8 @@ export const TEXT_GROUPS = Object.freeze([
 ]);
 
 /** A MÉLY (funkció-tudás) csoportok — külön kezeljük, mert al-objektumokat tartanak. */
-export const DEEP_GROUPS = Object.freeze(['KB', 'FAQ', 'TOUR', 'SEARCH']);
+// A `STORY` (R112 · STR-01) az öt használati út címe és bevezetője — ugyanúgy nyelvenként mérve.
+export const DEEP_GROUPS = Object.freeze(['KB', 'FAQ', 'TOUR', 'SEARCH', 'STORY']);
 
 let active = BASE_LANGUAGE;
 const merged = new Map();

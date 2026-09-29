@@ -138,17 +138,18 @@ export const FEATURES = Object.freeze([
     evidence: F(['v3app/findings_r77.mjs']),
   }),
   F({
-    id: 'auth.logout', module: 'auth', version: '1.0.0', status: 'working',
+    id: 'auth.logout', module: 'auth', version: '1.1.0', status: 'working',
     group: 'auth', scope: 'person', audience: 'signed_in', screen: 'security', action: 'open.security', entry: 'logout',
     anchors: F(['logout']),
     authority: F({ endpoint: 'POST /api/logout', decided_by: 'v3app/server.mjs (munkamenet)', reasons: F([]) }),
     outcomes: F(['success']),
     ai: F({ explain: true, open: true, prepare: false, note: null }),
-    faq: F([]),
+    // R112 (1. történet): a kijelentkezés és az újrabelépés utáni nyelv kérdése — a TUT11 őr mérte hiánynak.
+    faq: F(['faq.logout.language']),
     tour: null,
     // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
     tour_note: 'egyetlen gomb a Belépés és biztonság oldalon',
-    evidence: F(['v3app/selfcheck.mjs']),
+    evidence: F(['v3app/selfcheck.mjs', 'tests/e2e/v3app-r97.spec.mjs', 'tests/e2e/v3app-r112-stories.spec.mjs']),
   }),
   F({
     id: 'account.personal', module: 'account', version: '1.1.0', status: 'working',
@@ -178,7 +179,7 @@ export const FEATURES = Object.freeze([
     evidence: F(['v3app/findings_r77.mjs', 'tests/e2e/v3app-r85.spec.mjs']),
   }),
   F({
-    id: 'account.switch', module: 'account', version: '1.1.0', status: 'working',
+    id: 'account.switch', module: 'account', version: '1.2.0', status: 'working',
     group: 'account', scope: 'person', audience: 'signed_in', screen: null, action: null, entry: 'account-switcher',
     anchors: F(['account-switcher', 'ws-list']),
     authority: F({ endpoint: 'POST /api/session/workspace', decided_by: 'v3ref/bitemporal.mjs (membershipAsOf)',
@@ -186,11 +187,13 @@ export const FEATURES = Object.freeze([
     outcomes: F(['success', 'refused', 'uncertain']),
     ai: F({ explain: true, open: false, prepare: false,
       note: 'fiókváltást a segéd nem indít el: a nyitott szerkesztőd elveszhetne — a váltást te végzed el' }),
-    faq: F(['faq.account.unsaved']),
+    // R112 (4. történet): „mindig világos, melyik fiókban dolgozik és ott mire jogosult" — a fejléc
+    // „ki nevében" sora a szerepkört a nyelvcsomag szavával mondja, és erre külön kérdés felel.
+    faq: F(['faq.account.whichAccount', 'faq.account.unsaved']),
     tour: null,
     // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
     tour_note: 'egyetlen lenyíló a fejlécben — a héj-bemutató (`tour.shell`) első lépése ezt mutatja meg',
-    evidence: F(['tests/e2e/v3app-r81-ux.spec.mjs', 'v3app/findings_r79.mjs']),
+    evidence: F(['tests/e2e/v3app-r81-ux.spec.mjs', 'v3app/findings_r79.mjs', 'tests/e2e/v3app-r112-stories.spec.mjs']),
   }),
   F({
     id: 'invite.send', module: 'delegation', version: '1.2.0', status: 'working',
@@ -262,7 +265,7 @@ export const FEATURES = Object.freeze([
     evidence: F(['tests/e2e/v3app-acceptance.spec.mjs', 'v3app/selfcheck.mjs']),
   }),
   F({
-    id: 'members.revoke', module: 'delegation', version: '1.1.0', status: 'working',
+    id: 'members.revoke', module: 'delegation', version: '1.2.0', status: 'working',
     group: 'members', scope: 'book', audience: 'signed_in', screen: 'members', action: 'open.members', entry: 'member-revoke',
     anchors: F(['nav-members', 'members-list']),
     authority: F({ endpoint: 'POST /api/members/revoke', decided_by: 'v3ref/authz.mjs (revokeMembership)',
@@ -274,7 +277,7 @@ export const FEATURES = Object.freeze([
     tour: null,
     // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
     tour_note: 'NEVEZETT DÖNTÉS: a megszüntetés következménye azonnal érezhető a másik emberen, ezért nem építünk rá végigkattintható bemutatót — a végigvitel próba-megvonásra bátorítana. A képernyő saját szövege és a megerősítő kérdés vezeti a műveletet',
-    evidence: F(['tests/e2e/v3app-acceptance.spec.mjs']),
+    evidence: F(['tests/e2e/v3app-acceptance.spec.mjs', 'tests/e2e/v3app-r112-stories.spec.mjs']),
   }),
   F({
     id: 'plan.change', module: 'entitlement', version: '1.1.0', status: 'working',

@@ -21,7 +21,10 @@
  *          A nulla találat itt HIBA, nem „nincs alkalmazható eset" (KUKA-093);
  *   TUT09  KÖLTSÉG: a súgó, a GYIK, az oldaltérkép és a bemutató MODELLHÍVÁS NÉLKÜL fut — a kódban
  *          mérve: a rajzoló modulok nem hívnak hálózatot;
- *   TUT10  A HONOSSÁG kimondva: a szerződések (`*_CONTRACT`) megnevezik, mit NEM tesznek.
+ *   TUT10  A HONOSSÁG kimondva: a szerződések (`*_CONTRACT`) megnevezik, mit NEM tesznek;
+ *   TUT11  AZ ÖT HASZNÁLATI ÚT (R112 · STR-01): minden út funkciói működnek, van GYIK-jük, bemutatójuk
+ *          vagy indokuk, a szövegük minden bekapcsolt nyelven megvan, és minden bizonyító próba
+ *          PONTOSAN EGYSZER létezik (a kétértelmű cím is piros — KUKA-239).
  *
  * ELLENPRÓBA (`--selftest`): szintetikus, ROMLOTT regiszteren bizonyítja, hogy az őr TÜZEL.
  *
@@ -386,6 +389,23 @@ check('TUT10', 'a segéd szerződése kimondja: a védelem a ZÁRT lista, nem a 
 check('TUT10', 'a bemutató szerződése kimondja: az „átugrott" nem „elvégezett"',
   /skipped/.test(tour.TUR_CONTRACT.skipped_is_not_done), tour.TUR_CONTRACT.skipped_is_not_done);
 
+// ── TUT11: AZ ÖT HASZNÁLATI ÚT (R112 · STR-01) ─────────────────────────────────────────────
+// Egy út akkor végigvihető, ha minden lépésének van súgója, GYIK-je, bemutatója vagy nevesített
+// indoka, és a valódi alkalmazásban PRÓBA bizonyítja — a mérés a regiszter SAJÁT feloldóját hívja.
+const { STORIES, storyGaps, STR_CONTRACT } = await import(join(ROOT, 'v3app/knowledge/stories.mjs'));
+const readSpec = (rel) => { try { return readFileSync(join(ROOT, rel), 'utf8'); } catch { return null; } };
+const storyCtx = { features: FEATURES, tours: TOURS, dictFor: dict.dictFor, languages: LANGS, readSpec };
+const storyIds = STORIES.map((x) => x.id);
+check('TUT11', 'az öt használati út és a meghívó-helyzetek a regiszterben állnak',
+  ['story.private', 'story.solo', 'story.growing', 'story.multi', 'story.team', 'story.invites'].every((id) => storyIds.includes(id))
+  && storyIds.length === new Set(storyIds).size, storyIds.join(' · '));
+for (const story of STORIES) {
+  const gaps = storyGaps(story, storyCtx);
+  check('TUT11', `${story.id}: súgó · GYIK · bemutató vagy indok · ${LANGS.length} nyelv · egyértelmű bizonyíték`, gaps.length === 0,
+    gaps.length ? gaps.join(' | ') : `${story.features.length} funkció · ${story.tours.length} bemutató · ${story.evidence.length} próba`);
+}
+check('TUT10', 'STR-01 kimondja a HATÁRÁT (mit nem tesz)', Boolean(STR_CONTRACT.never && STR_CONTRACT.does_not_own), STR_CONTRACT.never);
+
 // ── ELLENPRÓBÁK ───────────────────────────────────────────────────────────────────────────────
 const counter = [];
 if (selftest) {
@@ -430,6 +450,18 @@ if (selftest) {
   // A VÁRAKOZÁS ÉS A MEGSZAKÍTÁS KÜLÖN SZÓ: ha összemosódnának, a mérés ne legyen zöld.
   t('a várakozás és a megszakítás KÉT külön kulcs', tour.TUR_CONTRACT.abort_reasons.includes('targetMissing')
     && !tour.TUR_CONTRACT.abort_reasons.includes('targetPending'), tour.TUR_CONTRACT.abort_reasons.join(' · '));
+  // A TÖRTÉNET-ŐR (TUT11) NÉGY ROMLOTT ALAKJA — ugyanazzal a feloldóval mérve.
+  const base = STORIES.find((x) => x.id === 'story.growing');
+  const romlott = [
+    ['nem létező funkció', { ...base, features: [...base.features, 'nincs.ilyen'] }],
+    ['hiányzó próba', { ...base, evidence: [{ spec: 'tests/e2e/v3app-r112-invite.spec.mjs', title: 'NINCS-ILYEN-PRÓBA' }] }],
+    ['kétértelmű próba-cím', { ...base, evidence: [{ spec: 'tests/e2e/v3app-r112-invite.spec.mjs', title: 'R112-I' }] }],
+    ['más funkció bemutatója', { ...base, tours: [...base.tours, 'tour.plan'] }],
+  ];
+  for (const [nev, sx] of romlott) {
+    const g = storyGaps(sx, storyCtx);
+    t(`a történet-őr PIROSRA vált: ${nev}`, g.length > 0, g.join(' | ') || 'NEM TÜZELT');
+  }
   // Tervezett funkció nyitó művelettel
   t('tervezett funkció nyitó művelete PIROSRA vált',
     [{ status: 'planned', ai: { open: true } }].filter((x) => ['planned', 'retired'].includes(x.status) && x.ai.open === true).length > 0, '1 elkapva');

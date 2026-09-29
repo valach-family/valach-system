@@ -114,6 +114,24 @@ export function reasonText(reason, fallback) { return reasonInner(reason, fallba
 /** A szerver ELUTASÍTÁSÁNAK mondata — a nyelvcsomagból, a mag szövege nélkül (R112 · KUKA-210). */
 export function refusalText(r) { return refusalInner(r); }
 
+/**
+ * KI VAGY, MELYIK FIÓKBAN, MILYEN SZEREPKÖRREL (R112 saját lelete · KUKA-210).
+ *
+ * A LELET: a fejléc és a Belépés és biztonság oldal a szerver `acting_as` MONDATÁT írta ki — egy
+ * magyar, kész szöveget, NYERS szerepkóddal („… · szerep: admin"), angol és német felületen is. A
+ * több vállalkozásban dolgozó ember (4. történet) épp ebből olvasná ki, hol és milyen joggal jár el.
+ * Mostantól a mondat a szerver SZERKEZETT tényeiből (cím · fiók · szerepkör) és a nyelvcsomag
+ * szavaiból áll; a szerver mondata az API-ban marad a gépi ellenőrzéseknek, a felületen nem.
+ * Itt él (nem az `app.js`-ben), hogy a gépi őr UGYANEZT a függvényt hívhassa (KUKA-207).
+ */
+export function actingAsText(me) {
+  if (!me || !me.subject_id) return '—';
+  const ki = me.email || me.subject_id;
+  if (!me.current_book_id) return tpl('actingAsNone', { ki });
+  if (me.current_personal === true) return tpl('actingAsPersonal', { ki, fiok: STATE.personalAccount });
+  return tpl('actingAsBusiness', { ki, fiok: me.current_book_name || '', szerep: ROLE[me.current_role] || me.current_role || '—' });
+}
+
 /** Dátum a FELHASZNÁLÓ időzónájában és területi alakján, ISO helyett (R81 §6). */
 export function whenText(iso) { return fmtDate(iso); }
 

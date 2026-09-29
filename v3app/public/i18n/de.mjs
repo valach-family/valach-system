@@ -43,6 +43,9 @@ export const QUALITY = Object.freeze({ mert: 'Gemessen', becsult: 'Geschätzt', 
 
 export const TPL = Object.freeze({
   accountJoined: 'Du bist diesem Konto beigetreten: {nev}',
+  actingAsPersonal: '{ki} · {fiok}',
+  actingAsBusiness: '{ki} · {fiok} · Rolle: {szerep}',
+  actingAsNone: '{ki} · kein Konto ausgewählt',
   accountLost: 'Dein Zugang zu diesem Konto ist beendet: {nev}',
   accountOpened: 'Geöffnet: {nev}',
   accountCreated: 'Du hast das Unternehmen hinzugefügt: {nev}',
@@ -157,7 +160,7 @@ export const STATE = Object.freeze({
   kindBusiness: 'Unternehmen',
   kindShared: 'Gemeinsames Konto',
   kindBusinessLead: 'Du arbeitest als Unternehmen: Land der Registrierung und Steuernummer können angegeben werden.',
-  kindSharedLead: 'Ein gemeinsamer Arbeitsplatz ohne Steuernummer. Kann später zum Unternehmen werden.',
+  kindSharedLead: 'Ein gemeinsamer Arbeitsplatz ohne Steuernummer. Eine Steuernummer kann nicht nachträglich ergänzt werden: wenn du mit Firmendaten arbeitest, wähle die Art Unternehmen.',
   inviteScopeQuestion: 'Zu welchen Daten darf Zugang gegeben werden?',
   inviteScopeHelp: 'Die tatsächliche Einsicht gibst du nach dem Beitritt separat frei.',
   inviteRoleHelp: 'Ein Kontoverwalter kann Zugänge innerhalb der eigenen Berechtigungen verwalten.',
@@ -379,7 +382,7 @@ export const UI = Object.freeze({
   countryDE: 'Deutschland',
   countrySK: 'Slowakei',
   countryRO: 'Rumänien',
-  planLead: 'Das Paket bestimmt, welche FUNKTIONEN verfügbar sind. Das Recht zur Dateneinsicht gibt nicht das Paket.',
+  planLead: 'Das Paket bestimmt, welche Funktionen verfügbar sind. Das Recht zur Dateneinsicht gibt nicht das Paket.',
   planCurrent: 'Aktuelles Paket',
   planAvailableIfGranted: 'Verfügbar, wenn der Kontoverwalter es freigegeben hat',
   planNotIncluded: 'Nicht im Paket',
@@ -397,7 +400,7 @@ export const UI = Object.freeze({
   confirmed: 'Bestätigt',
   awaitingConfirm: 'Wartet auf Bestätigung',
   language: 'Sprache',
-  languageLead: 'Die Oberfläche, die Hilfe und der Assistent sprechen diese Sprache. Land, Steuerregime und Währung hängen NICHT davon ab.',
+  languageLead: 'Die Oberfläche, die Hilfe und der Assistent sprechen diese Sprache. Land, Steuerregime und Währung hängen nicht davon ab.',
   profileEditPending: 'Das Bearbeiten des Profils ist in diesem Paket noch nicht verfügbar — deshalb bieten wir auch keine Schaltfläche dafür an.',
   securityLead: 'Die Daten und Vorgänge, die zu deiner Anmeldung gehören.',
   signedIn: 'Angemeldet',
@@ -410,7 +413,7 @@ export const UI = Object.freeze({
   personalEmptyTitle: 'Es gibt noch keinen Vorgang zum Anzeigen',
   personalEmptyLead: 'Die Vorgänge deiner Unternehmen erreichst du über die Kontoauswahl in der Kopfzeile.',
   outboxLead: 'Die ausgehenden E-Mails des Unternehmens werden an dieser Stelle verfügbar sein.',
-  outboxSampleTitle: 'Dies ist vorerst eine Beispielansicht',
+  outboxSampleTitle: 'Dies ist eine Beispielansicht',
   outboxSampleLead: 'Anmelde- und Einladungs-E-Mails lassen sich im Panel „Testnachrichten“ ausprobieren. Diese Demo sendet keine echte E-Mail.',
   unsavedTitle: 'Du hast nicht gespeicherte Änderungen',
   unsavedLead: 'Wenn du jetzt zu einem anderen Konto wechselst, geht die begonnene Eingabe verloren. Kontodaten werden nie vermischt: den eingegebenen Text übernehmen wir nicht in das neue Konto.',
@@ -453,7 +456,7 @@ export const HELP = Object.freeze({
   statusDemo: 'Demo',
   statusPlanned: 'Geplant',
   statusRetired: 'Eingestellt',
-  statusDemoNote: 'Dies zeigt vorerst Beispieldaten. Hier kannst du noch keinen Beleg ausstellen.',
+  statusDemoNote: 'Diese Seite zeigt Beispieldaten; Belege können hier nicht ausgestellt werden.',
   statusPlannedNote: 'Dies wurde noch nicht gebaut. Die Hilfe beschreibt es, damit du weißt, was zu erwarten ist.',
   statusRetiredNote: 'Dies haben wir eingestellt. Die Beschreibung nennt, was du stattdessen nutzen kannst.',
   replacedBy: 'Nutze stattdessen dies',
@@ -484,7 +487,7 @@ export const TOURUI = Object.freeze({
   simulationNote: 'Der Rundgang speichert nicht, lädt niemanden ein und löscht nichts. Das erledigst du selbst auf den normalen Bildschirmen.',
   targetMissing: 'Dieser Schritt kann nicht fortgesetzt werden: das im Rundgang genannte Element ist auf diesem Bildschirm nicht sichtbar.',
   targetMissingNext: 'Du kannst den Rundgang schließen oder neu starten. Die Beschreibung bleibt unter Hilfe → Anleitungen lesbar.',
-  targetPending: 'Dieser Schritt ist noch nicht verfügbar: öffne ihn zuerst mit der HERVORGEHOBENEN Schaltfläche. Der Rundgang drückt sie nicht für dich.',
+  targetPending: 'Dieser Schritt ist noch nicht verfügbar: öffne ihn zuerst mit der hervorgehobenen Schaltfläche. Der Rundgang drückt sie nicht für dich.',
   endedTitle: 'Du hast den Rundgang verlassen',
   endedLead: 'Nicht jeder Schritt wurde erledigt — die Übersicht unten zeigt, was ausgelassen wurde. Du kannst den Rundgang jederzeit neu starten.',
   skipStep: 'Diesen Schritt überspringen',
@@ -521,7 +524,7 @@ export const CHAT = Object.freeze({
   q3: 'Wie füge ich ein Unternehmen hinzu?',
   source: 'Verwendete Anleitung',
   related: 'Verwandte Anleitungen',
-  modelDiscarded: 'Wir haben die Antwort des Anbieters nicht akzeptiert, deshalb siehst du die Antwort der lokalen Anleitungssuche.',
+  modelDiscarded: 'Wir haben die Antwort des KI-Dienstes nicht akzeptiert, deshalb siehst du die Antwort der lokalen Anleitungssuche.',
   modelDiscardedWhy: Object.freeze({
     model_no_source: 'Die Antwort hat nicht angegeben, auf welcher Anleitung sie aufbaut.',
     model_unknown_source: 'Die Antwort berief sich auf eine Anleitung, die wir ihr nicht übergeben haben.',
@@ -536,7 +539,7 @@ export const CHAT = Object.freeze({
     model_prose_unverified: 'Die Antwort hat eigenen Text anstelle der Quellsätze formuliert — das geben wir nicht als geprüfte Antwort aus.',
   }),
   historyNote: 'Wir behalten die letzten {n} Fragen des Gesprächs — ältere fallen heraus.',
-  singleTurnNote: 'Ohne Anbieter-Verbindung wird jede Frage eigenständig beantwortet: die lokale Suche verwendet die vorherigen Fragen nicht.',
+  singleTurnNote: 'Ohne Verbindung zum KI-Dienst wird jede Frage eigenständig beantwortet: die lokale Suche verwendet die vorherigen Fragen nicht.',
   nextSteps: 'Nächster Schritt',
   openAction: 'Öffnen',
   prepareAction: 'Vorbereiten',
@@ -642,7 +645,7 @@ export const KB = Object.freeze({
     title: 'Konto wechseln',
     purpose: 'Du wechselst über die Kontoauswahl in der Kopfzeile zu einem anderen Konto. Kontodaten werden nie vermischt.',
     prereq: 'Du brauchst eine Mitgliedschaft in diesem Konto.',
-    result: 'Kopfzeile, Menü und Arbeitsblätter stellen sich auf das neue Konto um, die Daten des alten Kontos verlassen sofort den Bildschirm.',
+    result: 'Kopfzeile, Menü und Arbeitsblätter stellen sich auf das neue Konto um, die Daten des alten Kontos verlassen sofort den Bildschirm. Die Kopfzeile sagt dir, in welchem Konto du bist und mit welcher Rolle.',
     outcomes: Object.freeze({
       success: 'Das andere Konto ist geöffnet.',
       refused: 'Du hast keinen (oder keinen weiteren) Zugang zu diesem Konto.',
@@ -698,9 +701,9 @@ export const KB = Object.freeze({
   }),
   'members.revoke': Object.freeze({
     title: 'Zugang beenden',
-    purpose: 'Du beendest den Zugang einer Person zu diesem Konto. Dies betrifft den GESAMTEN Zugang, nicht einen einzelnen Datenbereich.',
+    purpose: 'Du beendest den Zugang einer Person zu diesem Konto. Dies betrifft den gesamten Zugang, nicht einen einzelnen Datenbereich.',
     prereq: 'Berechtigung als Kontoverwalter und eine Bestätigung am Bildschirm.',
-    result: 'Die Person kann die Daten des Kontos nicht öffnen. Ihr eigenes Konto und die Historie früherer Vorgänge bleiben erhalten.',
+    result: 'Die Person kann die Daten des Kontos nicht öffnen: beim nächsten Klick sagt ihr Bildschirm, dass ihr Zugang beendet ist. Ihr persönliches Konto und die Historie früherer Vorgänge bleiben erhalten.',
     outcomes: Object.freeze({
       success: 'Der Zugang ist beendet.',
       refused: 'Du hast dafür keine Befugnis.',
@@ -709,7 +712,7 @@ export const KB = Object.freeze({
   }),
   'plan.change': Object.freeze({
     title: 'Abonnement (Paket)',
-    purpose: 'Das Paket bestimmt, welche FUNKTIONEN verfügbar sind. Das Recht zur Dateneinsicht kommt von der Freigabe des Kontoverwalters, nicht vom Paket.',
+    purpose: 'Das Paket bestimmt, welche Funktionen verfügbar sind. Das Recht zur Dateneinsicht kommt von der Freigabe des Kontoverwalters, nicht vom Paket.',
     prereq: 'Berechtigung als Kontoverwalter.',
     result: 'Das Paket ist gespeichert. In dieser Demo gibt es keinen Kauf und keine Zahlung.',
     outcomes: Object.freeze({
@@ -720,7 +723,7 @@ export const KB = Object.freeze({
   }),
   'data.stock': Object.freeze({
     title: 'Bestandssaldo',
-    purpose: 'Zeigt die Mengen pro Lager. Eine unbekannte Menge ist NICHT null und bedeutet auch nicht, dass die Position nicht existiert.',
+    purpose: 'Zeigt die Mengen pro Lager. Eine unbekannte Menge ist nicht null und bedeutet auch nicht, dass die Position nicht existiert.',
     prereq: 'Mitgliedschaft im Konto und die Freigabe des Kontoverwalters für Bestandsdaten.',
     result: 'Die Liste. Dieselbe Freigabe entscheidet auch über Artikelkarte und Bestandsbewegungen.',
     outcomes: Object.freeze({
@@ -733,8 +736,8 @@ export const KB = Object.freeze({
   }),
   'data.price': Object.freeze({
     title: 'Preise',
-    purpose: 'Die Einsicht in Einzelpreise. Davor stehen ZWEI Tore: das Paket muss es enthalten, und der Kontoverwalter muss es freigeben.',
-    prereq: 'Das Paket „Erweitert“ UND die Freigabe für den Datenbereich Preise.',
+    purpose: 'Die Einsicht in Einzelpreise. Davor stehen zwei Tore: das Paket muss es enthalten, und der Kontoverwalter muss es freigeben.',
+    prereq: 'Das Paket „Erweitert“ und die Freigabe für den Datenbereich Preise.',
     result: 'Der Preis erscheint. Ein fehlender Preis ist nicht 0.',
     outcomes: Object.freeze({
       success: 'Der Preis ist geladen.',
@@ -764,7 +767,7 @@ export const KB = Object.freeze({
     title: 'Die Sprache der Oberfläche',
     purpose: 'Du kannst wählen, in welcher Sprache Oberfläche, Hilfe, häufige Fragen und Assistent sprechen.',
     prereq: 'Keine.',
-    result: 'Die gewählte Sprache gilt sofort. Land, Steuerregime, Zeitzone und Währung hängen NICHT davon ab.',
+    result: 'Die gewählte Sprache gilt sofort. Land, Steuerregime, Zeitzone und Währung hängen nicht davon ab.',
     outcomes: Object.freeze({ success: 'Die Sprache ist eingestellt.' }),
   }),
   'shell.help': Object.freeze({
@@ -781,13 +784,13 @@ export const KB = Object.freeze({
   'shell.assistant': Object.freeze({
     title: 'Chat-Assistent',
     purpose: 'Du kannst frei formuliert fragen. Er antwortet aus den geprüften Anleitungen, zeigt die Quelle und bietet höchstens einige echte nächste Schritte.',
-    prereq: 'Du bist angemeldet. Eine echte Modellantwort braucht eine erlaubte Anbieter-Verbindung; ohne sie funktioniert die lokale Suche.',
+    prereq: 'Du bist angemeldet. Eine echte Modellantwort braucht eine erlaubte Verbindung zum KI-Dienst; ohne sie funktioniert die lokale Suche.',
     result: 'Eine kurze Erklärung, ein Verweis auf die verwendete Anleitung und — falls vorhanden — eine zu öffnende oder vorzubereitende Fortsetzung. Der Assistent schreibt nichts.',
     outcomes: Object.freeze({
       success: 'Die Antwort ist fertig, samt Quelle.',
       empty: 'Dazu gibt es noch keine geprüfte Anleitung.',
       refused: 'Die Frage betrifft nicht dieses System, ist zu lang, oder du hast dafür keine Berechtigung.',
-      error: 'Der Anbieter hat nicht geantwortet. In den Anleitungen kannst du weiterhin suchen.',
+      error: 'Der KI-Dienst hat nicht geantwortet. In den Anleitungen kannst du weiterhin suchen.',
       uncertain: 'Wir wissen nicht sicher, ob die Antwort erstellt wurde. Frage erneut.',
     }),
   }),
@@ -804,7 +807,7 @@ export const KB = Object.freeze({
   }),
   'shell.sample_pages': Object.freeze({
     title: 'Beispielseiten',
-    purpose: 'Artikel, Partner, Lager, Prozesse, Belege — in der aus V2 bekannten Anordnung, mit BEISPIELDATEN. Eine geschäftliche Ausführung gehört nicht dazu.',
+    purpose: 'Artikel, Partner, Lager, Prozesse, Belege — in der aus V2 bekannten Anordnung, mit Beispieldaten. Eine geschäftliche Ausführung gehört nicht dazu.',
     prereq: 'Ein Konto ist geöffnet. Der Beispielsatz ist dem Konto fest zugeordnet.',
     result: 'Eine durchsuchbare, filterbare Liste; ein Klick auf eine Zeile öffnet das Detailpanel.',
     outcomes: Object.freeze({
@@ -814,21 +817,21 @@ export const KB = Object.freeze({
   }),
   'profile.edit': Object.freeze({
     title: 'Das Profil bearbeiten',
-    purpose: 'Das Ändern der eigenen Daten. DIES WURDE NOCH NICHT GEBAUT — deshalb gibt es auch keine Schaltfläche dafür.',
+    purpose: 'Das Ändern der eigenen Daten. Dies wurde noch nicht gebaut — deshalb gibt es auch keine Schaltfläche dafür.',
     prereq: '—',
     result: 'Es hat kein Ergebnis: die Funktion existiert nicht. Die Hilfe beschreibt sie, damit du weißt, was zu erwarten ist.',
     outcomes: Object.freeze({ missing: 'Diese Funktion ist noch nicht verfügbar. Eine Schaltfläche bieten wir dafür auch nicht an.' }),
   }),
   'security.password_change': Object.freeze({
     title: 'Das Passwort ändern',
-    purpose: 'Das Ändern des Anmeldepassworts. DIES WURDE NOCH NICHT GEBAUT — deshalb gibt es auch keine Schaltfläche dafür.',
+    purpose: 'Das Ändern des Anmeldepassworts. Dies wurde noch nicht gebaut — deshalb gibt es auch keine Schaltfläche dafür.',
     prereq: '—',
     result: 'Es hat kein Ergebnis: die Funktion existiert nicht.',
     outcomes: Object.freeze({ missing: 'Diese Funktion ist noch nicht verfügbar. Eine Schaltfläche bieten wir dafür auch nicht an.' }),
   }),
   'shell.numbered_probe': Object.freeze({
     title: 'Die numerierte Probeoberfläche (eingestellt)',
-    purpose: 'Die frühere numerierte Probeoberfläche auf einer langen Seite. EINGESTELLT: der gemeinsame Anwendungsrahmen hat sie ersetzt.',
+    purpose: 'Die frühere numerierte Probeoberfläche auf einer langen Seite. Eingestellt: der gemeinsame Anwendungsrahmen hat sie ersetzt.',
     prereq: '—',
     result: 'Keines: diese Oberfläche existiert nicht mehr.',
     outcomes: Object.freeze({}),
@@ -842,7 +845,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.register.noMail': Object.freeze({
     q: 'Die Bestätigungs-E-Mail ist nicht angekommen. Was soll ich tun?',
-    a: 'Sieh auch in den Spam-Ordner. Wenn sie dort nicht ist, fordere mit „Neue Bestätigungs-E-Mail anfordern“ eine neue an. Gültig ist immer der Link der LETZTEN E-Mail.',
+    a: 'Sieh auch in den Spam-Ordner. Wenn sie dort nicht ist, fordere mit „Neue Bestätigungs-E-Mail anfordern“ eine neue an. Gültig ist immer der Link der letzten E-Mail.',
   }),
   'faq.verify.expired': Object.freeze({
     q: 'Mein Bestätigungslink ist abgelaufen.',
@@ -851,6 +854,10 @@ export const FAQ = Object.freeze({
   'faq.verify.used': Object.freeze({
     q: 'Es steht, dass der Link bereits verwendet wurde.',
     a: 'Ein Bestätigungslink ist einmal verwendbar. Wenn du die Adresse schon bestätigt hast, melde dich einfach an.',
+  }),
+  'faq.logout.language': Object.freeze({
+    q: 'Bleibt die gewählte Sprache nach dem Abmelden erhalten?',
+    a: 'Ja, in diesem Browser. Der Browser merkt sich die Wahl zu deiner Anmeldung: nach der erneuten Anmeldung geht es in derselben Sprache weiter. Meldet sich im selben Browser jemand anderes an, gilt dessen Einstellung, nicht deine.',
   }),
   'faq.login.failed': Object.freeze({
     q: 'Ich kann mich nicht anmelden, es steht aber nicht, was falsch ist.',
@@ -864,13 +871,17 @@ export const FAQ = Object.freeze({
     q: 'Was ist der Unterschied zwischen persönlichem Konto und Unternehmen?',
     a: 'Das persönliche Konto ist deines, es entsteht von selbst und kann nicht dadurch verschwinden, dass ein Unternehmen deinen Zugang beendet. Ein Unternehmen ist ein gemeinsamer Arbeitsplatz: es kann mehrere Mitglieder haben, und der Kontoverwalter erteilt die Freigaben.',
   }),
+  'faq.account.whichAccount': Object.freeze({
+    q: 'Woran erkenne ich, in welchem Konto ich arbeite und was ich dort darf?',
+    a: 'Die Kontoauswahl in der Kopfzeile zeigt das geöffnete Konto. Auf der Seite Anmeldung und Sicherheit nennt die Zeile „In wessen Namen du handelst“ auch deine Rolle: als Kontoverwalter siehst du zusätzlich das Menü Einstellungen, als Mitglied gibt der Kontoverwalter die Einsicht in die Daten frei. Beim Kontowechsel werden ein angefangenes Formular, das Hilfegespräch und der Rundgang nicht ins andere Konto mitgenommen.',
+  }),
   'faq.account.unsaved': Object.freeze({
     q: 'Beim Kontowechsel fragt es, ob meine Arbeit verloren geht. Warum?',
     a: 'Weil Kontodaten nie vermischt werden: was du in einem Konto zu tippen begonnen hast, übernehmen wir nicht in ein anderes. Entweder bearbeitest du weiter, oder du verwirfst und wechselst.',
   }),
   'faq.business.taxId': Object.freeze({
     q: 'Muss ich eine Steuernummer angeben?',
-    a: 'Beim Unternehmen ja, denn sie identifiziert die Firma. Wenn du ohne Steuernummer gemeinsam arbeiten willst, wähle die Art „Gemeinsames Konto“ — daraus kann später ein Unternehmen werden.',
+    a: 'Beim Unternehmen ja, denn sie identifiziert die Firma. Wenn du ohne Steuernummer gemeinsam arbeiten willst, wähle die Art „Gemeinsames Konto“. Einem gemeinsamen Konto kann nachträglich keine Steuernummer hinzugefügt werden.',
   }),
   'faq.business.alreadyAttached': Object.freeze({
     q: 'Es steht, dass zu dieser Steuernummer bereits ein Konto gehört.',
@@ -878,7 +889,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.business.shared': Object.freeze({
     q: 'Was ist ein gemeinsames Konto?',
-    a: 'Ein gemeinsamer Arbeitsplatz ohne Steuernummer. Du kannst genauso andere einladen. Wenn es später eine Steuernummer hat, kann daraus ein Unternehmen werden.',
+    a: 'Ein gemeinsamer Arbeitsplatz ohne Steuernummer. Du kannst genauso andere einladen. Eine Steuernummer kann nicht nachträglich ergänzt werden — für die Arbeit als Firma lege ein Unternehmenskonto an.',
   }),
   'faq.invite.who': Object.freeze({
     q: 'Wer darf jemanden einladen, und in welches Konto?',
@@ -890,7 +901,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.invite.link': Object.freeze({
     q: 'Wo finde ich den Einladungslink?',
-    a: 'In der E-Mail. In der Liste der offenen Einladungen zeigen wir ihn absichtlich NICHT: der Link ist das Geheimnis der E-Mail. In der Demo zeigt ihn das Panel „Testnachrichten“.',
+    a: 'In der E-Mail. In der Liste der offenen Einladungen zeigen wir ihn absichtlich nicht: der Link ist das Geheimnis der E-Mail. In der Demo zeigt ihn das Panel „Testnachrichten“.',
   }),
   'faq.invite.accept': Object.freeze({
     q: 'Wie nehme ich eine Einladung an?',
@@ -902,11 +913,11 @@ export const FAQ = Object.freeze({
   }),
   'faq.invite.personalVsBusiness': Object.freeze({
     q: 'Bekomme ich mit einer Einladung ein neues Konto?',
-    a: 'Nein. Deine eigene Anmeldung und das Unternehmenskonto sind zwei verschiedene Dinge. Mit der Annahme wirst du MITGLIED in diesem Unternehmen, dein persönliches Konto bleibt unverändert deines. Eigentumsrechte gibt sie auch nicht: du erhältst genau das, was die Einladung nennt.',
+    a: 'Nein. Deine eigene Anmeldung und das Unternehmenskonto sind zwei verschiedene Dinge. Mit der Annahme wirst du mitglied in diesem Unternehmen, dein persönliches Konto bleibt unverändert deines. Eigentumsrechte gibt sie auch nicht: du erhältst genau das, was die Einladung nennt.',
   }),
   'faq.members.membershipVsScope': Object.freeze({
     q: 'Ich bin beigetreten, sehe aber die Daten nicht. Warum?',
-    a: 'Mitgliedschaft und Freigabe zur Dateneinsicht sind ZWEI getrennte Zustände. Nach dem Beitritt gibt der Kontoverwalter separat frei, welchen Datenbereich du ansehen darfst.',
+    a: 'Mitgliedschaft und Freigabe zur Dateneinsicht sind zwei getrennte Zustände. Nach dem Beitritt gibt der Kontoverwalter separat frei, welchen Datenbereich du ansehen darfst.',
   }),
   'faq.members.grant': Object.freeze({
     q: 'Wie gebe ich jemandem die Bestandsdaten frei?',
@@ -918,7 +929,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.plan.vsRight': Object.freeze({
     q: 'Gibt das Paket die Berechtigung?',
-    a: 'Nein. Das Paket bestimmt, welche FUNKTIONEN dem Konto verfügbar sind. Ob eine Person einen Datenbereich ansehen darf, entscheidet die Freigabe des Kontoverwalters. Die beiden sind getrennt.',
+    a: 'Nein. Das Paket bestimmt, welche Funktionen dem Konto verfügbar sind. Ob eine Person einen Datenbereich ansehen darf, entscheidet die Freigabe des Kontoverwalters. Die beiden sind getrennt.',
   }),
   'faq.plan.purchase': Object.freeze({
     q: 'Muss ich für den Paketwechsel bezahlen?',
@@ -930,7 +941,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.stock.unknownQty': Object.freeze({
     q: 'Was bedeutet „Nicht bekannt“ bei der Menge?',
-    a: 'Dass wir die Menge nicht kennen. Das ist NICHT null und bedeutet auch nicht, dass die Position nicht existiert. Eine spätere Präzisierung ist keine Bestandsbewegung und wird auch rückwirkend nicht zur Messung.',
+    a: 'Dass wir die Menge nicht kennen. Das ist nicht null und bedeutet auch nicht, dass die Position nicht existiert. Eine spätere Präzisierung ist keine Bestandsbewegung und wird auch rückwirkend nicht zur Messung.',
   }),
   'faq.stock.loadFailed': Object.freeze({
     q: 'Es steht, dass die Bestandsdaten nicht geladen werden konnten.',
@@ -938,7 +949,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.price.twoGates': Object.freeze({
     q: 'Warum sehe ich die Preise nicht, wenn ich den Bestand sehe?',
-    a: 'Bei Preisen gibt es ZWEI Tore: das Paket muss die Funktion enthalten, UND der Kontoverwalter muss den Datenbereich Preise freigeben. Der Bildschirm sagt, welches fehlt.',
+    a: 'Bei Preisen gibt es zwei Tore: das Paket muss die Funktion enthalten, und der Kontoverwalter muss den Datenbereich Preise freigeben. Der Bildschirm sagt, welches fehlt.',
   }),
   'faq.price.missing': Object.freeze({
     q: 'Bei einem Artikel steht kein Preis. Ist das null?',
@@ -966,7 +977,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.lang.country': Object.freeze({
     q: 'Wenn ich auf Englisch wechsle, ändern sich Steuerregime oder Währung?',
-    a: 'Nein. Die Sprache der Oberfläche wählt KEIN Land, kein Steuerregime, keine Zeitzone und keine Währung. Diese kommen aus den Kontodaten.',
+    a: 'Nein. Die Sprache der Oberfläche wählt kein Land, kein Steuerregime, keine Zeitzone und keine Währung. Diese kommen aus den Kontodaten.',
   }),
   'faq.lang.missing': Object.freeze({
     q: 'Ein Text erscheint trotzdem auf Ungarisch. Warum?',
@@ -978,14 +989,14 @@ export const FAQ = Object.freeze({
   }),
   'faq.help.noModel': Object.freeze({
     q: 'Kostet die Nutzung der Hilfe etwas (KI-Kosten)?',
-    a: 'Hilfe, häufige Fragen, Seitenübersicht und Rundgang funktionieren OHNE Modellaufruf. Ein Modellaufruf passiert nur, wenn du im Reiter „Fragen“ eine Frage sendest.',
+    a: 'Hilfe, häufige Fragen, Seitenübersicht und Rundgang funktionieren ohne Modellaufruf. Ein Modellaufruf passiert nur, wenn du im Reiter „Fragen“ eine Frage sendest.',
   }),
   'faq.chat.source': Object.freeze({
     q: 'Woran erkenne ich, dass die Antwort des Assistenten belastbar ist?',
     a: 'Jede Antwort nennt die Anleitung, aus der sie gearbeitet hat, samt deren Quellversion. Gibt es zu etwas keine geprüfte Anleitung, sagt der Assistent das, statt eine Antwort zu erfinden.',
   }),
   'faq.chat.limits': Object.freeze({
-    q: 'Was macht der Assistent NICHT für mich?',
+    q: 'Was macht der Assistent nicht für mich?',
     a: 'Er speichert nicht, lädt niemanden ein, erteilt keine Rechte, löscht nicht und zahlt nicht. Höchstens erklärt er, öffnet einen Bildschirm oder bereitet ein Formular vor — die Zustimmung liegt bei dir.',
   }),
   'faq.chat.secrets': Object.freeze({
@@ -994,7 +1005,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.chat.offline': Object.freeze({
     q: 'Es steht, dass der Chat-Assistent nicht erreichbar ist.',
-    a: 'Dann fehlt die Anbieter-Verbindung oder sie hat nicht geantwortet. Die Suche in den Anleitungen, die häufigen Fragen, die Seitenübersicht und der Rundgang funktionieren weiterhin.',
+    a: 'Dann fehlt die Verbindung zum KI-Dienst, oder er hat nicht geantwortet. Die Suche in den Anleitungen, die häufigen Fragen, die Seitenübersicht und der Rundgang funktionieren weiterhin.',
   }),
   'faq.mail.real': Object.freeze({
     q: 'Sendet das System echte E-Mails?',
@@ -1002,7 +1013,7 @@ export const FAQ = Object.freeze({
   }),
   'faq.demo.whatIsReal': Object.freeze({
     q: 'Welche Daten sind echt und welche Beispiel?',
-    a: 'Konten, Mitgliedschaften, Einladungen und Freigaben sind echt. Die Artikel-, Partner-, Lager-, Prozess- und Beleglisten sind BEISPIELDATEN: auf ihnen findet keine geschäftliche Ausführung statt. Die Bildschirme kennzeichnen das.',
+    a: 'Konten, Mitgliedschaften, Einladungen und Freigaben sind echt. Die Artikel-, Partner-, Lager-, Prozess- und Beleglisten sind Beispieldaten: auf ihnen findet keine geschäftliche Ausführung statt. Die Bildschirme kennzeichnen das.',
   }),
   'faq.demo.noFixture': Object.freeze({
     q: 'Mein neu erstelltes Konto ist leer. Ist es kaputt?',
@@ -1027,7 +1038,7 @@ export const TOUR = Object.freeze({
     s2: Object.freeze({ title: 'Einladung starten', body: 'Die Schaltfläche „+ Benutzer einladen“ öffnet rechts ein Panel.' }),
     s3: Object.freeze({ title: 'Die eingeladene Adresse', body: 'Hierhin kommt ihre E-Mail-Adresse. Die Einladung gehört zu dieser Adresse und ist mit einer anderen nicht einlösbar.' }),
     s4: Object.freeze({ title: 'Zu welchen Daten Zugang möglich ist', body: 'Das hält deine Absicht fest. Die tatsächliche Einsicht gibst du nach dem Beitritt separat frei.' }),
-    s5: Object.freeze({ title: 'Die Einladung erstellen', body: 'Drücke „Einladung erstellen“. Dieser Schritt geht nur weiter, wenn die Einladung TATSÄCHLICH erstellt wurde — das Drücken der Schaltfläche allein ist kein Erfolg.' }),
+    s5: Object.freeze({ title: 'Die Einladung erstellen', body: 'Drücke „Einladung erstellen“. Dieser Schritt geht nur weiter, wenn die Einladung tatsächlich erstellt wurde — das Drücken der Schaltfläche allein ist kein Erfolg.' }),
     s6: Object.freeze({ title: 'Die E-Mail öffnen', body: 'In der Demo öffnet sich die E-Mail im Panel „Testnachrichten“. Es wurde keine echte E-Mail gesendet.' }),
   }),
   'tour.addBusiness': Object.freeze({
@@ -1036,8 +1047,8 @@ export const TOUR = Object.freeze({
     s1: Object.freeze({ title: 'Die Art des Kontos', body: 'Unternehmen (mit Steuernummer) oder gemeinsames Konto (ohne). Das Unternehmensformular erscheint nur beim Unternehmen.' }),
     s2: Object.freeze({ title: 'Der Name des Kontos', body: 'Dieser erscheint in der Kontoauswahl und in den Kopfzeilen der Bildschirme.' }),
     s3: Object.freeze({ title: 'Das Land der Registrierung', body: 'Das sagt, welche Form der Kennung wir führen. Es wählt kein Steuerregime und prüft das Unternehmen nicht in einem amtlichen Register.' }),
-    s4: Object.freeze({ title: 'Die Steuernummer', body: 'Das ist eine Selbstangabe: wir messen ihre Form, nicht ihre Wahrheit. Ihre Angabe belegt keine Vertretung eines anderen Unternehmens.' }),
-    s5: Object.freeze({ title: 'Das Erstellen', body: 'Drücke „Neues Konto hinzufügen“. Dieser Schritt geht nur nach einem TATSÄCHLICHEN Erstellen weiter.' }),
+    s4: Object.freeze({ title: 'Die Steuernummer', body: 'Das ist eine Selbstangabe: wir messen ihre Form, nicht ihre Wahrheit. Deine Angabe belegt keine Vertretung eines anderen Unternehmens.' }),
+    s5: Object.freeze({ title: 'Das Erstellen', body: 'Drücke „Neues Konto hinzufügen“. Dieser Schritt geht nur nach einem tatsächlichen Erstellen weiter.' }),
   }),
   'tour.stock': Object.freeze({
     title: 'Die Bestandsdaten ansehen',
@@ -1045,21 +1056,21 @@ export const TOUR = Object.freeze({
     s1: Object.freeze({ title: 'Öffne den Bestandssaldo', body: 'Du findest ihn in der Gruppe Berichte.' }),
     s2: Object.freeze({ title: 'Die Liste', body: 'Die Mengen pro Lager. Wo die Menge nicht bekannt ist, schreiben wir das aus — nicht null.' }),
     s3: Object.freeze({ title: 'Aktualisieren', body: 'Fragt die Daten erneut ab. Gelingt es nicht, sagt die Seite das, und im Konto ändert sich nichts.' }),
-    s4: Object.freeze({ title: 'Die Preise', body: 'Preise stehen hinter ZWEI Toren: Paket UND Freigabe. Die Seite sagt, welches fehlt.' }),
+    s4: Object.freeze({ title: 'Die Preise', body: 'Preise stehen hinter zwei Toren: Paket und Freigabe. Die Seite sagt, welches fehlt.' }),
   }),
   'tour.grant': Object.freeze({
     title: 'Zugriff für eine Kollegin freigeben',
-    lead: 'Drei Schritte. Der Zugriff gilt NUR in diesem Konto.',
+    lead: 'Drei Schritte. Der Zugriff gilt nur in diesem Konto.',
     s1: Object.freeze({ title: 'Benutzer öffnen', body: 'Unter Einstellungen, mit Kontoverwalter-Recht.' }),
     s2: Object.freeze({ title: 'Die Kollegin auswählen', body: 'In der Liste öffnet die Schaltfläche „Zugriff" die Zugriffsseite dieser Person.' }),
-    s3: Object.freeze({ title: 'Den Datenbereich freigeben', body: 'Wähle den Datenbereich und drücke die Freigabe-Schaltfläche. Dieser Schritt geht erst nach einem TATSÄCHLICHEN Speichern weiter.' }),
+    s3: Object.freeze({ title: 'Den Datenbereich freigeben', body: 'Wähle den Datenbereich und drücke die Freigabe-Schaltfläche. Dieser Schritt geht erst nach einem tatsächlichen Speichern weiter.' }),
   }),
   'tour.plan': Object.freeze({
     title: 'Das Paket einstellen',
     lead: 'Drei Schritte. Kauf und Zahlung gibt es nicht.',
     s1: Object.freeze({ title: 'Öffne das Abonnement', body: 'In der Gruppe Einstellungen, mit der Berechtigung als Kontoverwalter.' }),
-    s2: Object.freeze({ title: 'Das Paket wählen', body: 'Das Paket bestimmt die Verfügbarkeit von FUNKTIONEN, nicht die Berechtigungen von Personen.' }),
-    s3: Object.freeze({ title: 'Das Speichern', body: 'Drücke „Paket speichern“. Dieser Schritt geht nur nach einem TATSÄCHLICHEN Speichern weiter.' }),
+    s2: Object.freeze({ title: 'Das Paket wählen', body: 'Das Paket bestimmt die Verfügbarkeit von Funktionen, nicht die Berechtigungen von Personen.' }),
+    s3: Object.freeze({ title: 'Das Speichern', body: 'Drücke „Paket speichern“. Dieser Schritt geht nur nach einem tatsächlichen Speichern weiter.' }),
   }),
   'tour.register': Object.freeze({
     title: 'Konto erstellen',
@@ -1072,7 +1083,7 @@ export const TOUR = Object.freeze({
     title: 'Die Sprache der Oberfläche',
     lead: 'Zwei Schritte.',
     s1: Object.freeze({ title: 'Mein Profil', body: 'Die Seite „Mein Profil“ öffnet sich über das Profilmenü oben rechts.' }),
-    s2: Object.freeze({ title: 'Die Sprache wählen', body: 'Die Wahl gilt sofort für Oberfläche, Hilfe, häufige Fragen und Assistent. Sie stellt KEIN Land, kein Steuerregime und keine Währung ein.' }),
+    s2: Object.freeze({ title: 'Die Sprache wählen', body: 'Die Wahl gilt sofort für Oberfläche, Hilfe, häufige Fragen und Assistent. Sie stellt kein Land, kein Steuerregime und keine Währung ein.' }),
   }),
   'tour.inviteAccept': Object.freeze({
     title: 'Einladung annehmen — Schritt für Schritt',
@@ -1092,20 +1103,48 @@ export const TOUR = Object.freeze({
   }),
 });
 
+// Die fünf Nutzungswege (R112 · STR-01): Titel und kurze Einleitung; die Schritte nutzen die vorhandenen Rundgang- und Hilfetexte.
+export const STORY = Object.freeze({
+  'story.private': Object.freeze({
+    title: 'Privatperson: eigene Anmeldung und persönliches Konto',
+    lead: 'Du registrierst dich, bestätigst deine Adresse, meldest dich an und arbeitest in deinem persönlichen Konto. Auch nach Ab- und erneuter Anmeldung spricht die Oberfläche deine Sprache.',
+  }),
+  'story.solo': Object.freeze({
+    title: 'Alleinunternehmer: ein Unternehmenskonto neben dem persönlichen',
+    lead: 'Mit deiner bestehenden Anmeldung fügst du ein Unternehmenskonto mit Registrierungsland und Steuernummer hinzu und wechselst dann zwischen persönlichem und Unternehmenskonto. Es entsteht keine neue Person.',
+  }),
+  'story.growing': Object.freeze({
+    title: 'Wachsendes Kleinunternehmen: eine zweite Person einladen',
+    lead: 'Der Kontoverwalter lädt eine zweite Person ein. Die eingeladene Person – neu oder bereits registriert – meldet sich an, nimmt die Einladung mit der Hilfe auf ihrer eigenen Seite an und landet im Unternehmenskonto.',
+  }),
+  'story.multi': Object.freeze({
+    title: 'Mehrere Unternehmen: zwischen Mitgliedschaften wechseln',
+    lead: 'In einem Unternehmen bist du Mitglied, im anderen Kontoverwalter. Die Kopfzeile sagt immer, in welchem Konto du bist und mit welcher Rolle; beim Wechsel wird nichts ins andere Konto mitgenommen.',
+  }),
+  'story.team': Object.freeze({
+    title: 'Verwalter und Mitarbeitende: Zugriff geben und beenden',
+    lead: 'Nach der Mitgliedschaft gibt der Kontoverwalter die Einsicht in die Lagerdaten frei, und die Person sieht die Daten tatsächlich. Nach dem Ende des Zugriffs bekommt sie eine verständliche Rückmeldung, und ihr persönliches Konto bleibt erhalten.',
+  }),
+  'story.invites': Object.freeze({
+    title: 'Einladungssituationen: neu, registriert, andere Adresse, abgelaufen, benutzt',
+    lead: 'Dieselbe Einladungsseite in fünf Situationen. Jeweils sichtbar: was die Seite sagt und was der nächste Schritt ist — annehmen kann man nur dort, wo der Server es erlaubt.',
+  }),
+});
+
 export const KB_SOURCE = Object.freeze({
   'auth.register': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
   'auth.verify': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
   'auth.login': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
   'auth.resend': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
-  'auth.logout': Object.freeze({ source_version: '1.0.0', review: 'checked' }),
+  'auth.logout': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
   'account.personal': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
   'account.add_business': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
-  'account.switch': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
+  'account.switch': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
   'invite.send': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
   'invite.accept': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
   'members.list': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
   'members.grant': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
-  'members.revoke': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
+  'members.revoke': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
   'plan.change': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
   'data.stock': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
   'data.price': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
@@ -1165,12 +1204,12 @@ export const SRV = Object.freeze({
   verifyTech: 'Technische Details',
   reason_challenge_expired: 'Der Link lebte 24 Stunden, und diese Zeit ist vorbei.',
   reason_challenge_already_used: 'Dieser Link wurde bereits verwendet. Wenn du das warst, melde dich einfach an.',
-  reason_challenge_superseded: 'Für diese Adresse wurde eine neuere Bestätigungsmail angefordert, deshalb lebt dieser Link nicht mehr. Der Link in der NEUESTEN Mail funktioniert.',
+  reason_challenge_superseded: 'Für diese Adresse wurde eine neuere Bestätigungsmail angefordert, deshalb lebt dieser Link nicht mehr. Der Link in der neuesten Mail funktioniert.',
   reason_challenge_unknown: 'Dieser Link kann nicht verwendet werden — vielleicht wurde er unvollständig aus der Mail kopiert.',
   mailVerifySubject: 'Bestätige deine E-Mail-Adresse',
   mailVerifyBody: 'Klicke auf den Link, um zu belegen: diese Adresse gehört dir. Der Link lebt {ora} Stunden. Läuft er ab, kannst du auf dem Anmeldebildschirm einen neuen anfordern.',
   mailResendSubject: 'Neuer Bestätigungslink',
   mailResendBody: 'Du hast einen neuen Link zur Bestätigung der Adresse angefordert. Der frühere Link ist damit ungültig, dieser lebt 24 Stunden. Dein Passwort hat sich nicht geändert.',
   mailInviteSubject: 'Einladung: {fiok}',
-  mailInviteBody: 'Du wurdest in das Konto {fiok} eingeladen. Mit dem Öffnen des Links kannst du die Einladung annehmen; wenn du noch kein Konto hast, kannst du es danach erstellen.',
+  mailInviteBody: 'Du wurdest in dieses Konto eingeladen: {fiok}. Öffne den Link: dort siehst du, was die Einladung dir gibt, und dort kannst du sie annehmen. Wenn du noch keine Anmeldung hast, kannst du dich danach registrieren.',
 });

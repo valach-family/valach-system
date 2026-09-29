@@ -14,7 +14,7 @@
 //   · a jogosultságot KIZÁRÓLAG a szerver dönti el — itt nincs kliens-oldali jog-mátrix.
 import { contextBindingVerdict, unboundMessage } from './contextBinding.mjs';
 import { PAGE, NAV_GROUPS, NAV_ADMIN, NAV_PERSONAL, ROLE, SCOPE, SCOPE_ACC, PLAN, QUALITY, STATE, UNBOUND, UI, HELP, TOURUI, CHAT,
-  reasonText, refusalText, whenText, tpl, accountLabel, setLang, currentLang, currentDir, currentEndonym, enabledLanguages,
+  reasonText, refusalText, actingAsText, whenText, tpl, accountLabel, setLang, currentLang, currentDir, currentEndonym, enabledLanguages,
   dict, decideLang, langStoreKey, LANG_CHOICE_KEY } from './texts.mjs';
 import { demoFor, demoSource } from './demoData.mjs';
 // A SEGÍTSÉG HÁROM DARABJA — mind TISZTA rajzoló/állapot-modul: lekérést egyik sem indít, azt EGY
@@ -511,10 +511,11 @@ import { inviteNextKey } from './inviteText.mjs';
     setText(byTest('header-workspace'), loggedIn ? (accountName() || UI.chooseAccount) : UI.noAccountShort);
     setText(byTest('header-subject'), loggedIn ? (me.email || me.subject_id) : UI.notSignedIn);
     setText(byTest('avatar'), loggedIn ? String(me.email || '?').slice(0, 2).toUpperCase() : '–');
-    // A SZERVER mondata arról, ki nevében járunk el, és a cím-megerősítés állapota: képernyőolvasónak
-    // mindig elérhető, a szemnek a Saját profil / Belépés és biztonság oldalon (R81 §3.3).
-    setText(byTest('header-acting-as'), loggedIn ? (me.acting_as || '—') : '—');
-    setText(byTest('channel-proven'), loggedIn ? (me.channel_proven ? 'igen' : 'nem') : '—');
+    // KI NEVÉBEN JÁRUNK EL, és a cím-megerősítés állapota: képernyőolvasónak mindig elérhető, a szemnek
+    // a Saját profil / Belépés és biztonság oldalon (R81 §3.3). A mondat a SZERVER TÉNYEIBŐL, de a
+    // NYELVCSOMAG szavaival épül (R112): a szerver kész mondata magyar volt, nyers szerepkóddal.
+    setText(byTest('header-acting-as'), loggedIn ? actingAsText(me) : '—');
+    setText(byTest('channel-proven'), loggedIn ? (me.channel_proven ? UI.yes : UI.no) : '—');
     show(byTest('account-switcher'), loggedIn);
     show(byTest('profile'), loggedIn);
 
@@ -1696,7 +1697,7 @@ import { inviteNextKey } from './inviteText.mjs';
       + `<section class="card">
         <div class="splitline"><span>${esc(UI.signedIn)}</span><strong>${esc(me.email || me.subject_id)}</strong></div>
         <div class="splitline"><span>${esc(UI.emailConfirmed)}</span><strong>${esc(me.channel_proven ? UI.yes : UI.no)}</strong></div>
-        <div class="splitline"><span>${esc(UI.actingAs)}</span><strong>${esc(me.acting_as || '—')}</strong></div>
+        <div class="splitline"><span>${esc(UI.actingAs)}</span><strong data-testid="security-acting-as">${esc(actingAsText(me))}</strong></div>
         ${me.channel_proven ? '' : `<div class="buttonrow"><button type="button" data-auth="resend">${esc(UI.resendAsk)}</button></div>`}
         <div class="divider"></div>
         <div class="buttonrow"><button type="button" data-action="logout">${esc(UI.logout)}</button></div>
