@@ -13,8 +13,10 @@ Sáv: Claude-v3 · Parancs: `CMD-VS-300-002-002 R116 — SPEC` (chatgpt-v3) · s
 „utolsó függetlenül vizsgált feje", `ea093056…`, ennek őse — gépileg ellenőrizve
 (`git merge-base --is-ancestor`); a kettő között csak az R114 és az R116 szövegének elmentése és az R115
 levele áll. A parancs szó szerint: `v3ref/source-documents/R116_board_v1.md`. A munka commitjai:
-**`1952ab4`** (a szöveg- és felület-csomag — ezen futott a mérés) · **`fd30dcc`** (a bizonyíték-lap
-újramérve a tiszta commiton) · és a záró commit ezzel a lappal. A munka a
+**`1952ab4`** (a szöveg- és felület-csomag) · **`fd30dcc`** (a bizonyíték első újramérése) ·
+**`6760cba`** (ez a lap + a francia próbanyelv átállítása) · **`116d339`** (a lap R117-re állítva és a
+mutációs battéria eredménye — **EZEN a commiton futott a végső mérés**) · és a záró commit a
+végső bizonyíték-lappal. A munka a
 `claude/cmd-vs-300-002-002-r116-b1e4no` ágra megy fel, a fenti fejről indítva. Merge, telepítés,
 V2-módosítás, új üzleti modul, jogosultsági modellváltás, core/CMD/PR-zárás nem történt.
 
@@ -128,16 +130,17 @@ teszi-e, azt az „Ellenőrzési részletek" alatt felsorolt böngészős prób�
 
 ### 5.1 Böngészős próbák (Playwright · Chromium · valódi HTTP-szerver és adatbázis)
 
-`npx playwright test` a **`1952ab4`** commiton, a munkafa TISZTA állapotában
+`npx playwright test` a **`116d339`** commiton, a munkafa TISZTA állapotában
 (`git diff --quiet HEAD -- v3app tests tools` — a mért bemenet karakterre a commit fája):
 
-**92/92 zöld, 4,5 perc.** Ebben benne van az öt történet és a meghívó-helyzetek teljes köre
+**92/92 zöld, 4,4 perc.** (A csomag közben egyszer már végigfutott, ugyancsak 92/92 zölden — a
+végső szám a fenti commité.) Ebben benne van az öt történet és a meghívó-helyzetek teljes köre
 (R112-I1…I5 · R112-S1…S5 · R112-D1…D3), a kilenc lépésenkénti útmutató végigvitele (R93-01…03), a
 három nyelv megmaradása (R97-01/02), és az R81 huszonkét UX-feltétele.
 
 **A történet-bizonyíték újramérve:** `node tools/v3_r89_bemutato.mjs --from-report <a futás
 jelentése>` → `docs/70_PLANNING/V3_R112_TORTENETEK_BIZONYITEK.json`: **41 bizonyíték-bejegyzés, 44
-próba-futás, mind zöld**, hiányzó bejegyzés nincs. Mérve `2026-09-29T16:10:29Z`, commit `1952ab4`.
+próba-futás, mind zöld**, hiányzó bejegyzés nincs. Mérve `2026-09-29T16:24:18Z`, commit `116d339`.
 Ez ugyanaz a darabszám, mint az R113-ban — bizonyíték nem veszett el.
 
 ### 5.2 Gépi őrök (a végső állapoton)

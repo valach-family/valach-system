@@ -1,7 +1,7 @@
 {
   "schema": "v3-r112-tortenet-bizonyitek/1",
-  "measured_at": "2026-09-29T16:10:29.879Z",
-  "commit": "1952ab427046016f8cb8b3dcf27628163838cf99",
+  "measured_at": "2026-09-29T16:24:18.220Z",
+  "commit": "116d33931af2719b8adf567585ada10a9b11a7d1",
   "note": "A böngésző-próbák mért kimenete történetenként. Tartalom nélküli: fájl, próbacím-eleje, futás- és zöld-szám.",
   "stories": {
     "story.private": [
