@@ -21,6 +21,10 @@ import { test, expect } from '@playwright/test';
 import {
   World, apiOf, gotoPage, createWorkspaceUI, openProfile,
 } from './helpers.mjs';
+import { dictFor } from '../../v3app/public/i18n/dict.mjs';
+
+// A MONDATOK A NYELVCSOMAGBÓL (R112 · KUKA-237): a próba a viselkedést méri, nem a megfogalmazást.
+const HU = dictFor('hu');
 
 /** A SEGÍTSÉG MEGNYITÁSA a fejléc gombjával — és a panel tényleg látszik. */
 async function openHelp(page) {
@@ -114,7 +118,7 @@ test('R89-01…04 — a Segítség elérhető, négy nézete működik, és MODE
 
     // ── OLDALTÉRKÉP: a szerver igazságából, és az OKOT is kimondja ───────────────────────────
     await helpTab(anna.page, 'sitemap');
-    await expect(anna.page.getByTestId('help-sitemap')).toContainText('a szerver mondta meg');
+    await expect(anna.page.getByTestId('help-sitemap')).toContainText(HU.HELP.sitemapLead);
     // AZ OLDALTÉRKÉP FOLYTATÁSA VALÓDI KÉPERNYŐRE VISZ, és a panel becsukódik (nem fedi el).
     await anna.page.getByTestId('sitemap-members').getByRole('button').click();
     await expect(anna.page.getByTestId('help-close')).toHaveCount(0);
@@ -157,10 +161,9 @@ test('R89-05 — a nyelvváltás a menüt, az oldalcímet, a súgót ÉS a hiba�
     expect(opts.join(',')).toContain('English');
     expect(opts.join(',')).not.toContain('français');
 
-    for (const [code, page, nav, help] of [
-      ['en', 'Stock balance', 'Reports', 'Guides'],
-      ['de', 'Bestandssaldo', 'Berichte', 'Anleitungen'],
-    ]) {
+    for (const code of ['en', 'de']) {
+      const D = dictFor(code);
+      const [page, nav, help] = [D.PAGE.stock, D.NAV.reports, D.HELP.tabGuides];
       await anna.page.getByTestId('lang-select').selectOption(code);
       expect(await anna.page.evaluate(() => document.documentElement.lang)).toBe(code);
       await closeHelp(anna.page);
@@ -325,7 +328,7 @@ test('R89-07 — a chat: kérdés → válasz forrással, valódi folytatással,
     await expect(anna.page.getByTestId('chat-answer-0')).toBeVisible();
     await expect(anna.page.getByTestId('chat-source-invite.send')).toBeVisible();
     // A HELYI válasz KIMONDJA magáról, hogy nem AI-válasz (ha nincs szolgáltató).
-    if (!configured) await expect(anna.page.getByTestId('chat-localonly-0')).toContainText('nem működő AI-válasz');
+    if (!configured) await expect(anna.page.getByTestId('chat-localonly-0')).toContainText(HU.CHAT.localOnlyNote);
     // A MÉRÉS: ismeretlen token és ár „nincs adat" — SOHA nem nulla.
     await anna.page.getByTestId('chat-turn-0').locator('details').click();
     await expect(anna.page.getByTestId('chat-usage-calls')).toHaveText(configured ? '1' : '0');

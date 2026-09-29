@@ -13,6 +13,10 @@ import {
   switchUI, setPlanUI, inviteUI, openInviteUI, redeemUI, stockUI, priceUI, grantScopeUI, revokeUI,
   memberRowText, workspaceListUI, sessionCookie, short, openSwitcher, gotoPage, openMemberPanel,
 } from './helpers.mjs';
+import { dictFor } from '../../v3app/public/i18n/dict.mjs';
+
+// A MONDATOK A NYELVCSOMAGBÓL (R112 · KUKA-237): a próba a viselkedést méri, nem a megfogalmazást.
+const HU = dictFor('hu');
 
 test.describe.configure({ mode: 'serial' });
 
@@ -80,7 +84,7 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     expect(ok.body.ok).toBe(true);
     anna.subjectId = ok.body.subject_id;
     expect(await sessionCookie(anna.ctx)).not.toBe(before);
-    await expect(anna.page.getByTestId('channel-proven')).toHaveText('igen');
+    await expect(anna.page.getByTestId('channel-proven')).toHaveText(HU.UI.yes);
     // R81: a „hol dolgozom" helye a FEJLÉC fiókválasztója (a régi „munkakörnyezet" szakasz helyett).
     await expect(anna.page.getByTestId('account-switcher')).toBeVisible();
     // A MEGERŐSÍTÉS ELSŐ KÖVETKEZMÉNYE A SZEMÉLYES KÖR (SZK-01 · R75/L11): a váltó NEM üres, és
@@ -173,8 +177,10 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     expect(o.observe.account_exists).toBeNull();
     // R81 §5/08: a lap a KÖVETKEZŐ LÉPÉST mondja ki, nem vádol — és nem árulja el, kié a cím.
     // A szerver semleges megfigyelés-üzenete változatlanul mérve (`o.observe.message`).
-    expect(o.humanText).toContain('lépj be azzal az e-mail-címmel, amelyre a meghívás érkezett');
-    expect(o.next).toContain('címzetti feltételének megfelelő azonosságával');
+    expect(o.humanText).toContain(HU.UI.inviteNeedsIdentityLead);
+    // R112: a következő lépés a FELÜLET mondata (a belépett, de más címmel bent lévő nézőnek),
+    // nem a mag magyar üzenete (KUKA-210) — és továbbra sem árulja el, kié a cím.
+    expect(o.next).toContain(HU.UI.inviteOtherPersonLead);
     expect(o.redeemVisible).toBe(false);
     const forced = await cili.api.post('/api/invites/redeem', { token: belaInvite.token });
     expect(forced.status).toBe(403);
@@ -230,7 +236,7 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     expect(login.body.pending_invite_token).toBe(ciliInvite.token);
     await expect(anon.page.getByTestId('section-invite')).toBeVisible();
     await expect(anon.page.getByTestId('invite-observe-json')).toContainText('redeem_as_existing');
-    await expect(anon.page.getByTestId('invite-observe')).toContainText('A meghívás erre a belépéshez tartozó címre szól');
+    await expect(anon.page.getByTestId('invite-observe')).toContainText(HU.UI.inviteAsExistingLead);
     await expect(anon.page.getByTestId('invite-redeem')).toBeVisible();
     const r = await redeemUI(anon.page);
     expect(r.body).toMatchObject({ ok: true, shape: 'membership_only', outcome: 'granted', book_id: companyBook });

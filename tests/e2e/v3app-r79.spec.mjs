@@ -12,8 +12,12 @@
 import { test, expect } from '@playwright/test';
 import {
   World, Db, PASSWORD, createWorkspaceUI, switchUI, header, stockUI, inviteUI, openInviteUI, redeemUI,
-  loginUI, logoutUI, withResponse, openSwitcher, openStockPage, openMemberPanel, gotoPage,
+  loginUI, logoutUI, withResponse, openSwitcher, openStockPage, openMemberPanel, gotoPage, oneOfTexts,
 } from './helpers.mjs';
+import { dictFor } from '../../v3app/public/i18n/dict.mjs';
+
+// A MONDATOK A NYELVCSOMAGBÓL (R112 · KUKA-237): a próba a viselkedést méri, nem a megfogalmazást.
+const HU = dictFor('hu');
 
 test('R79/F79-01 — hibabevitel: a kontextus-mezők nélküli SIKERES válasz nem rajzolódik ki', async ({ browser }) => {
   const w = new World(browser, 'r7901');
@@ -104,7 +108,7 @@ test('R79/F79-02 — a régi lap gombja NEM ír a közben belépett MÁSIK fiók
     // A TÁROLÓ A DÖNTŐ TANÚ: adatkör-adás NEM született.
     expect(db.count('SELECT COUNT(*) AS n FROM scope_grant WHERE book_id = ? AND subject_id = ?', C.bookId, cili.subjectId)).toBe(elotte);
     // A KÉPERNYŐ KIMONDJA, MI TÖRTÉNT, és a fejléc a VALÓDI állapotra frissül.
-    await expect(anna.page.getByTestId('global-notice')).toContainText(/másik fiókra|Másik felhasználó jelentkezett be/i);
+    await expect(anna.page.getByTestId('global-notice')).toContainText(oneOfTexts(HU.REASON.context_mismatch, HU.UNBOUND.context_mismatch, HU.UNBOUND.other_context, HU.UI.otherPersonHere));
     await expect(anna.page.getByTestId('header-subject')).toContainText(bela.email);
     expect((await anna.page.getByTestId('members-result').count()) === 0
       || !((await anna.page.getByTestId('members-result').textContent()) || '').includes('mostantól megtekintheti')).toBe(true);

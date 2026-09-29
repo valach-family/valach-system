@@ -15,6 +15,10 @@ import {
   World, Db, PASSWORD, createWorkspaceUI, switchUI, inviteUI, openInviteUI, redeemUI,
   loginUI, logoutUI, openSwitcher, gotoPage, grantScopeUI, stockUI, apiOf, registerUI, withOptionalResponse,
 } from './helpers.mjs';
+import { dictFor } from '../../v3app/public/i18n/dict.mjs';
+
+// A MONDATOK A NYELVCSOMAGBÓL (R112 · KUKA-237): a próba a viselkedést méri, nem a megfogalmazást.
+const HU = dictFor('hu');
 
 test('R85/F85-01 — a félbehagyott vállalkozás-űrlap NEM hoz létre fiókot a közben belépett MÁSIK személynek', async ({ browser }) => {
   const w = new World(browser, 'r8501'); const db = new Db();
@@ -55,7 +59,7 @@ test('R85/F85-01 — a félbehagyott vállalkozás-űrlap NEM hoz létre fiókot
     }
 
     // 4. A LAP KIMONDJA, MI TÖRTÉNT, és a régi szerkesztő érvénytelen (a kitöltés nem marad ott).
-    await expect(anna.page.getByTestId('global-notice')).toContainText(/Másik felhasználó jelentkezett be/i);
+    await expect(anna.page.getByTestId('global-notice')).toContainText(HU.STATE.otherPersonSignedIn);
     await expect(anna.page.getByTestId('ws-name')).toHaveCount(0);
 
     // 5. A TÁROLÓ VÁLTOZATLAN — sem könyv, sem tagság, sem jog, sem felhatalmazás nem született,

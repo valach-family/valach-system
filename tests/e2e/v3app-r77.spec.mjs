@@ -13,8 +13,12 @@
 import { test, expect } from '@playwright/test';
 import {
   World, Db, PASSWORD, createWorkspaceUI, switchUI, header, priceUI, stockUI, loginUI, logoutUI, withResponse,
-  openSwitcher, openStockPage, gotoPage, withOptionalResponse,
+  openSwitcher, openStockPage, gotoPage, withOptionalResponse, oneOfTexts,
 } from './helpers.mjs';
+import { dictFor } from '../../v3app/public/i18n/dict.mjs';
+
+// A MONDATOK A NYELVCSOMAGBÓL (R112 · KUKA-237): a próba a viselkedést méri, nem a megfogalmazást.
+const HU = dictFor('hu');
 
 test('R77/F77-01 — a másik lap váltása után NEM kerül idegen kontextus adata a régi fejléc alá', async ({ browser }) => {
   const w = new World(browser, 'r7701'); const db = new Db();
@@ -78,7 +82,7 @@ test('R77/F77-01 — a másik lap váltása után NEM kerül idegen kontextus ad
     await expect(anna.page.getByTestId('price-value')).toHaveCount(0);
     // A LAP KIMONDJA, MIÉRT nem rajzolt: vagy a saját, általános mondatával, vagy azzal a
     // konkrétabbal, hogy MÁSHOL váltottak — a kettő közül pontosan EGY jelenik meg.
-    await expect(anna.page.getByTestId('global-notice')).toContainText(/másik fiókra|fiókot váltottál|nem tudtuk biztonságosan/i);
+    await expect(anna.page.getByTestId('global-notice')).toContainText(oneOfTexts(HU.TPL.accountSwitchedElsewhere, HU.REASON.context_mismatch, HU.UNBOUND.context_mismatch, HU.UNBOUND.other_context, HU.UNBOUND.unsafe));
     // …és a frissítés után a fejléc már a VALÓDI kontextust mutatja.
     await expect(anna.page.getByTestId('header-workspace')).toContainText('B PRO');
     await anna.page.unroute('**/api/me');
@@ -135,7 +139,7 @@ test('R77/F77-01 — a másik lap váltása után NEM kerül idegen kontextus ad
     const stock4 = await withOptionalResponse(anna.page, { path: '/api/data/stock' },
       () => anna.page.getByTestId('data-stock-btn').click());
     // R81 §5/15: a mondat a tervé — és NEM tulajdonít bizonyítatlan okot (UX-16).
-    await expect(anna.page.getByTestId('global-notice')).toContainText('Másik felhasználó jelentkezett be ebben a böngészőben');
+    await expect(anna.page.getByTestId('global-notice')).toContainText(HU.UI.otherPersonHere);
     await expect(anna.page.getByTestId('header-subject')).toContainText(bela.email);
     // AMIT A LAP KÉRT (ha kért): SOHA nem Anna nevében. És a szerver ítélete KÖZVETLEN kéréssel is
     // mérve: ugyanazzal a sütivel már BÉLA a kiszolgált alany.
@@ -168,8 +172,8 @@ test('R77/F77-02 — hibás adószám: nevezett elutasítás a felületen, félk
     // A LAP MEGMONDJA, MI A BAJ — és nem programhibát mutat. R81 §5/14 óta a hiba A MEZŐHÖZ
     // KÖTÖTT: a mezőnél a teendő, az űrlap tetején a rövid összegzés; a belső mezőút („business.
     // tax_id") kikerült a felhasználói szövegből — a mező JELÖLÉSE hordozza ugyanazt a tényt.
-    expect(hibas.taxError).toContain('Add meg az adóazonosítót');
-    expect(hibas.resultText).toContain('A vállalkozást még nem hoztuk létre');
+    expect(hibas.taxError).toContain(HU.REASON.tax_id_value_required);
+    expect(hibas.resultText).toContain(HU.UI.wsNotCreated);
     expect(hibas.resultText).not.toMatch(/internal_error/i);
     await expect(cili.page.getByTestId('ws-tax-id')).toHaveAttribute('aria-invalid', 'true');
     const after = {

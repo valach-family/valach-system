@@ -118,7 +118,7 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>V3 használati történetek — szimuláció</title>
+<title>V3 használati történetek</title>
 <style>
   :root { --ink:#0f172a; --muted:#64748b; --line:#cbd5e1; --warn:#b45309; --warnbg:#fffbeb; --ok:#15803d; }
   * { box-sizing: border-box; }

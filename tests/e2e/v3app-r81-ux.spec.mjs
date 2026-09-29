@@ -19,8 +19,12 @@ import { fileURLToPath } from 'node:url';
 import {
   World, Db, PASSWORD, createWorkspaceUI, switchUI, header, stockUI, priceUI, inviteUI, openInviteUI,
   redeemUI, grantScopeUI, revokeUI, loginUI, logoutUI, registerUI, verifyFromMailboxUI, setPlanUI, withResponse,
-  openSwitcher, openProfile, openStockPage, openMemberPanel, openMailbox, gotoPage, ensureMemberRow,
+  openSwitcher, openProfile, openStockPage, openMemberPanel, openMailbox, gotoPage, ensureMemberRow, oneOfTexts,
 } from './helpers.mjs';
+import { dictFor } from '../../v3app/public/i18n/dict.mjs';
+
+// A MONDATOK A NYELVCSOMAGBÓL (R112 · KUKA-237): a próba a viselkedést méri, nem a megfogalmazást.
+const HU = dictFor('hu');
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const COMMITTED_COPY = 'docs/70_PLANNING/V3_R81_UX_ELFOGADAS.json';
@@ -488,8 +492,8 @@ test('UX-14 — hibás adóazonosító: a hiba a mezőhöz kötött, félkész f
     const hibas = await createWorkspaceUI(cili.page, { name: 'Hibas ceg', business: { jurisdiction: 'HU', tax_id: '---' } });
     expect(hibas.status).toBe(400);
     expect(hibas.body.reason).toBe('tax_id_value_required');
-    expect(hibas.taxError).toContain('Add meg az adóazonosítót. Csak szóköz vagy kötőjel nem elegendő.');
-    expect(hibas.resultText).toContain('A vállalkozást még nem hoztuk létre. Javítsd a jelölt mezőt.');
+    expect(hibas.taxError).toContain(HU.REASON.tax_id_value_required);
+    expect(hibas.resultText).toContain(HU.UI.wsNotCreated);
     await expect(cili.page.getByTestId('ws-tax-id')).toHaveAttribute('aria-invalid', 'true');
     await expect(cili.page.getByTestId('ws-name')).toHaveValue('Hibas ceg');
     const utana = { book: db.count('SELECT COUNT(*) AS n FROM book'), membership: db.count('SELECT COUNT(*) AS n FROM membership') };
@@ -550,7 +554,7 @@ test('UX-15, UX-16 — az R79 védelme az új felületen is áll, és a másik f
     expect(tiltott.body.wrote).toBe(false);
     expect(db.count('SELECT COUNT(*) AS n FROM scope_grant WHERE book_id = ? AND subject_id = ?', K.bookId, cili.subjectId)).toBe(elotteSor);
     await expect(anna.page.getByTestId('global-notice'))
-      .toContainText(/Másik felhasználó jelentkezett be ebben a böngészőben|másik fiókra/i);
+      .toContainText(oneOfTexts(HU.UI.otherPersonHere, HU.REASON.context_mismatch, HU.UNBOUND.context_mismatch, HU.UNBOUND.other_context));
     const kozles = (await anna.page.getByTestId('global-notice').textContent()) || '';
     // NEM TULAJDONÍTUNK BIZONYÍTATLAN OKOT: nincs „megvonták", nincs „kiléptettek", nincs vád.
     expect(kozles).not.toMatch(/megvon|kizár|kiléptet|jogosulatlan|támadás/i);

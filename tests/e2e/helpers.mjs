@@ -495,3 +495,16 @@ export async function sessionCookie(ctx) {
 /** Rövidítés az idézéshez — a bizonyíték-sor ne hordozzon teljes tokent. */
 export const short = (s) => (typeof s === 'string' && s.length > 12 ? `${s.slice(0, 8)}…` : String(s));
 export const j = (o) => JSON.stringify(o);
+
+/**
+ * A NYELVCSOMAG MONDATAI MINT ELFOGADOTT MAGYARÁZAT (R112 · KUKA-237: a próba nem ég be feliratot).
+ * A régi próbák a mondat egy-egy DARABJÁT égették be („fiókot váltottál"), ezért egy szövegjavítás
+ * után a működés helyett a megfogalmazást mérték. A minta a csomag mondataiból épül: a sablon
+ * helyőrzője (`{nev}`) előtti rész a fix szöveg, a helyőrző értékét a próba nem találja ki.
+ */
+export function oneOfTexts(...texts) {
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = texts.map((t) => String(t).split('{')[0].trim()).filter((t) => t.length > 0);
+  if (!parts.length) throw new Error('oneOfTexts: üres mondat-halmaz');
+  return new RegExp(parts.map(esc).join('|'));
+}

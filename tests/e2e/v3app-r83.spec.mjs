@@ -16,8 +16,12 @@ import { test, expect } from '@playwright/test';
 import {
   World, Db, PASSWORD, createWorkspaceUI, switchUI, header, stockUI, inviteUI, openInviteUI, redeemUI,
   loginUI, logoutUI, withResponse, withOptionalResponse, openSwitcher, openStockPage, openMemberPanel,
-  gotoPage, openMailbox, grantScopeUI,
+  gotoPage, openMailbox, grantScopeUI, oneOfTexts,
 } from './helpers.mjs';
+import { dictFor } from '../../v3app/public/i18n/dict.mjs';
+
+// A MONDATOK A NYELVCSOMAGBÓL (R112 · KUKA-237): a próba a viselkedést méri, nem a megfogalmazást.
+const HU = dictFor('hu');
 
 test('R83/F83-01 — a régi meghívó-panel MÁSODIK kattintása sem ír a közben aktívvá lett MÁSIK fiókba', async ({ browser }) => {
   const w = new World(browser, 'r8301'); const db = new Db();
@@ -54,7 +58,7 @@ test('R83/F83-01 — a régi meghívó-panel MÁSODIK kattintása sem ír a köz
     }
     // 4. A LAP A SZERVER IGAZSÁGÁHOZ IGAZODIK — és a RÉGI PANEL ÉRVÉNYTELEN: bezárul, a lap
     //    kimondja, mi történt. Régi kitöltés NEM vihető át az új fiókba.
-    await expect(anna.page.getByTestId('global-notice')).toContainText(/fiókot váltottál|Másik felhasználó|másik fiókra/i);
+    await expect(anna.page.getByTestId('global-notice')).toContainText(oneOfTexts(HU.TPL.accountSwitchedElsewhere, HU.REASON.context_mismatch, HU.UNBOUND.context_mismatch, HU.UNBOUND.other_context, HU.UI.otherPersonHere));
     await expect(anna.page.getByTestId('invite-email')).toHaveCount(0);
     await expect(anna.page.getByTestId('header-workspace')).toContainText('Második Műhely Kft');
 

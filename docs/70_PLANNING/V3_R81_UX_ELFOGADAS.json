@@ -4,10 +4,10 @@
   "lane": "Claude-v3",
   "source": "tests/e2e/v3app-r81-ux.spec.mjs",
   "command": "npm run proof:core-ux",
-  "generated_at": "2026-09-29T06:19:38.518Z",
+  "generated_at": "2026-09-29T10:11:38.598Z",
   "package_version": "3.0.0-alpha",
-  "base_url": "http://127.0.0.1:39907",
-  "db_path": "var/tmp/v3_v3.0.0-alpha_20260929_061817_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
+  "base_url": "http://127.0.0.1:42567",
+  "db_path": "var/tmp/v3_v3.0.0-alpha_20260929_100758_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
   "what_this_is": "Az R81 terv 22 elfogadási feltétele a MEGÚJÍTOTT v3app felületen, valódi böngészőből (Playwright · Chromium), feltételenként KÉT rekeszben: amit a lap mutatott (browser) és amit a szerver válaszolt / a tároló őrzött (server).",
   "verdict_vocabulary": {
     "bizonyitva": "a feltétel minden állítása a böngésző- és/vagy a szerver-rekeszből áll össze",
@@ -147,7 +147,7 @@
         "Kijelentkezve a meghívó hivatkozása ÖNÁLLÓ, középre helyezett kártyát nyit — a lap teljes látható tartalma maga a meghívás: „…\", fő gombja a bejelentkezés. A belépés UTÁN ugyanaz a hivatkozás a „Meghívás elfogadása\" gombot mutatja, tehát a felhasználó visszatér a feladatához."
       ],
       "server": [
-        "A beváltás HTTP 200, a lap üzenete: „Elfogadtad a meghívást. Csatlakoztál ehhez a fiókhoz: Családi Műhely Kft Az adatok megtekintését a fiókkezelő külön engedélyezi.\""
+        "A beváltás HTTP 200, a lap üzenete: „Elfogadtad a meghívást. Csatlakoztál ehhez a fiókhoz: „Családi Műhely Kft”. Az adatok megtekintését a fiókkezelő külön engedélyezi.\""
       ],
       "verdict": "bizonyitva",
       "note": "A függő meghívó a munkamenet-váltáson is átjön (a szerver őrzi), és a belépés a meghívó lapjára tér vissza."
@@ -180,7 +180,7 @@
       "id": "UX-12",
       "title": "Teljes tagság megszüntetése nem néz ki egyetlen olvasójog kikapcsolásának. Van névvel, fiókkal és következménnyel megerősítés.",
       "browser": [
-        "A megszüntetés a tag PANELJÉN, KÜLÖN szakaszban áll („Hozzáférés a fiókhoz\"), kimondott mondattal („Ez a teljes hozzáférést érinti, nem egyetlen adatkört\"), és MEGERŐSÍTÉST kér. A megerősítő szövegben mind a három tény ott van: a NÉV (ux9.bela@pelda.hu), a FIÓK (Családi Műhely Kft) és a KÖVETKEZMÉNY („A saját fiókja és a korábbi műveletek története megmarad\"). A súlyt a SZERKEZET hordozza — nagybetűs kiabálás nélkül (R83/F83-04)."
+        "A megszüntetés a tag PANELJÉN, KÜLÖN szakaszban áll („Hozzáférés a fiókhoz\"), kimondott mondattal („Ez a teljes tagságot megszünteti ebben a fiókban, nem csak egy adatkört\"), és MEGERŐSÍTÉST kér. A megerősítő szövegben mind a három tény ott van: a NÉV (ux9.bela@pelda.hu), a FIÓK (Családi Műhely Kft) és a KÖVETKEZMÉNY („A személyes fiókja és a korábbi műveletek története megmarad\"). A súlyt a SZERKEZET hordozza — nagybetűs kiabálás nélkül (R83/F83-04)."
       ],
       "server": [
         "A megerősítés után HTTP 200, reason=revocation_recorded. A megerősítő mező NEM ad jogot: a művelet ugyanúgy a szerver kapuján ment át."
@@ -192,7 +192,7 @@
       "id": "UX-13",
       "title": "Megszüntetett tag nem kap aktív jogadási gombot; a saját személyes fiókja továbbra elérhető.",
       "browser": [
-        "A megszüntetett tag paneljén a jogadó és a megszüntető gomb DARABSZÁMA 0, helyette a helyzet mondata áll („megszűnt a céges hozzáférése, ezért adatkört sem lehet neki engedélyezni\"). Béla oldalán a céges fiók kikerült a választóból, a SZEMÉLYES fiókja viszont megnyitható maradt."
+        "A megszüntetett tag paneljén a jogadó és a megszüntető gomb DARABSZÁMA 0, helyette a helyzet mondata áll („megszűnt a hozzáférése ehhez a fiókhoz, ezért adatkört sem lehet neki engedélyezni\"). Béla oldalán a céges fiók kikerült a választóból, a SZEMÉLYES fiókja viszont megnyitható maradt."
       ],
       "server": [
         "Béla /api/me válasza a megszüntetés után: a céges könyv nincs a listában, personal_book_id megvan (igen)."
@@ -207,7 +207,7 @@
         "A hiba A MEZŐNÉL áll („Add meg az adóazonosítót. Csak szóköz vagy kötőjel nem elegendő.\"), a mező jelölve (aria-invalid=true), és az űrlap tetején rövid összegzés („A vállalkozást még nem hoztuk létre. Javítsd a jelölt mezőt.\"). A „Vállalkozás neve\" mező értéke MEGMARADT, az aktív fiók nem változott („Személyes fiók\")."
       ],
       "server": [
-        "A szerver ÍRÁS ELŐTT utasít el: HTTP 400, reason=tax_id_value_required, field=business.tax_id, wrote=false. ADATBÁZIS: a könyvek és tagságok száma VÁLTOZATLAN (68/81) — félkész fiók nem maradt hátra. A mező javítása után UGYANAZ a gomb HTTP 201-et ad."
+        "A szerver ÍRÁS ELŐTT utasít el: HTTP 400, reason=tax_id_value_required, field=business.tax_id, wrote=false. ADATBÁZIS: a könyvek és tagságok száma VÁLTOZATLAN (117/146) — félkész fiók nem maradt hátra. A mező javítása után UGYANAZ a gomb HTTP 201-et ad."
       ],
       "verdict": "bizonyitva",
       "note": "A hiba a mezőhöz kötött, a többi kitöltés megmarad, és a sikertelen művelet nyomot sem hagy."
@@ -230,7 +230,7 @@
       "id": "UX-16",
       "title": "Másik fülön történt változásnál a közlés pontos; nem tulajdonítunk bizonyítatlan okot a változásnak.",
       "browser": [
-        "A közlés szó szerint: „Másik felhasználó jelentkezett be ebben a böngészőben. Az oldal frissült.\" — megnevezi a MÉRT tényt (ebben a böngészőben másik felhasználó lépett be), és nem állít okot, amit nem mértünk (nincs benne „megvonták\" · „kizártak\" · „kiléptettek\")."
+        "A közlés szó szerint: „Másik felhasználó lépett be ebben a böngészőben. Az oldal frissült.\" — megnevezi a MÉRT tényt (ebben a böngészőben másik felhasználó lépett be), és nem állít okot, amit nem mértünk (nincs benne „megvonták\" · „kizártak\" · „kiléptettek\")."
       ],
       "server": [],
       "verdict": "bizonyitva",

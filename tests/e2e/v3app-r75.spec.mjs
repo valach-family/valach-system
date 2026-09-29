@@ -23,8 +23,12 @@ import { test, expect } from '@playwright/test';
 import {
   World, Db, PASSWORD, registerUI, loginUI, logoutUI, header, createWorkspaceUI, switchUI,
   inviteUI, openInviteUI, redeemUI, stockUI, workspaceListUI, withResponse, openSwitcher, openStockPage, gotoPage,
-  openMailbox, openMemberPanel, revokeUI,
+  openMailbox, openMemberPanel, revokeUI, oneOfTexts,
 } from './helpers.mjs';
+import { dictFor } from '../../v3app/public/i18n/dict.mjs';
+
+// A MONDATOK A NYELVCSOMAGBÓL (R112 · KUKA-237): a próba a viselkedést méri, nem a megfogalmazást.
+const HU = dictFor('hu');
 
 const DAY = 24 * 3600 * 1000;
 
@@ -184,7 +188,7 @@ test('R75/F75-02 — KONTEXTUSVÁLTÁS: a régi cég válasza és gombja nem ér
     // A MONDAT R79 ÓTA KÉT OKOT NEVEZ MEG (munkakörnyezet VAGY belépett fiók) — a kontextus-eltérés
     // ugyanis azonos cégen belüli FIÓK-váltásból is jöhet (R79/F79-02). A próba állítása ugyanaz
     // marad: a magyarázat a globális sávban ÁLL, nem tűnik el a panel-ürítéssel.
-    await expect(anna.page.getByTestId('global-notice')).toContainText(/fiókot váltottál|Másik felhasználó|másik fiókra/);
+    await expect(anna.page.getByTestId('global-notice')).toContainText(oneOfTexts(HU.TPL.accountSwitchedElsewhere, HU.REASON.context_mismatch, HU.UNBOUND.context_mismatch, HU.UNBOUND.other_context, HU.UI.otherPersonHere));
 
     // POZITÍV ELLENPÁR: a HELYES körben ugyanez a gomb dolgozik.
     await anna.page.reload();
