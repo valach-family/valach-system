@@ -243,7 +243,7 @@ test('R75/F75-02 — KONTEXTUSVÁLTÁS: a régi cég válasza és gombja nem ér
     releaseLogout();
     await anna.page.waitForTimeout(300);
     await expect(anna.page.getByTestId('data-stock')).toHaveCount(0);
-    expect((await header(anna.page)).subject).toBe('nincs bejelentkezve');
+    expect((await header(anna.page)).subject).toBe('nincs belépve');
   } finally {
     await w.close(); db.close();
   }

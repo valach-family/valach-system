@@ -222,6 +222,8 @@ test('R91-09 — a szimulált melléklet EMBERI: nincs nyers azonosító, nincs 
   const page = await ctx.newPage();
   try {
     await page.goto(`file://${file}`);
+    // R112 ÓTA a lap KÖZÖS BELÉPŐ: alapból a Történetek nyílnak, a súgó-bemutató a második mód.
+    await page.getByTestId('mode-help').click();
     // EGY rövid jelzés a fejben — nem ismételt nagy szimulációs szövegek.
     await expect(page.locator('.simbar')).toHaveText('Bemutató — mintaadatokkal');
     // A MÉRÉSI RÉSZLETEK LENYITHATÓ szakaszban állnak, és a lektorálás módja KIMONDVA.

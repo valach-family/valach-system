@@ -16,7 +16,14 @@
  * fájl nem ír új szöveget, csak beforgatja a mérteket. Így a bemutató nem tud „szebb" lenni, mint a
  * termék (KUKA-050: a szöveg a valóságot követi).
  *
+ * R112 — A TÖRTÉNETEK BELÉPŐJE (P109-03 · R112 §3). Ugyanez a lap ma a KÖZÖS BELÉPŐ: az öt
+ * használati út és a meghívó-helyzetek kattintható lejátszója (`tools/lib/v3_tortenet_lejatszo*`),
+ * ugyanabban a keretben, ugyanazokkal a nyelvcsomagokkal. Új bemutató-platform NEM épült: a generátor
+ * és a kiadási csatorna ugyanaz (a `docs/_olvashato/` + az artifact-link).
+ *
  * Futtatás: npm run docs:r89-bemutato   ·   a kimenet útját a futtató kiírja.
+ *           npm run docs:r89-bemutato -- --from-report <e2e-jelentés.json>   ·   a bizonyíték-lapot a
+ *           böngésző-próbák MÉRT jelentéséből építi újra (`docs/70_PLANNING/V3_R112_TORTENETEK_BIZONYITEK.json`).
  */
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -29,6 +36,30 @@ const { artifactPath } = require('../contracts/artifactNaming.js');
 const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 
 const { FEATURES, TOURS, ACTIONS } = await import(join(ROOT, 'v3app/knowledge/features.mjs'));
+const { STORIES } = await import(join(ROOT, 'v3app/knowledge/stories.mjs'));
+const { STORY_STEPS, evidenceFromReport, loadEvidence } = await import(join(ROOT, 'tools/lib/v3_tortenet_lejatszo.mjs'));
+const { execFileSync } = await import('node:child_process');
+const PAGE_JS = readFileSync(join(ROOT, 'tools/lib/v3_tortenet_lejatszo.page.js'), 'utf8');
+
+/**
+ * A BIZONYÍTÉK-LAP (tartalom nélküli: fájl · próbacím-eleje · futások · zöldek). A `--from-report`
+ * a futás jelentéséből építi újra és a repóba írja; enélkül a repóban álló lapot olvassuk. A lap a
+ * MÉRÉS commitját is hordozza — a bemutató nem állíthat frissebbet, mint amit mértünk (KUKA-216).
+ */
+const EVIDENCE_PATH = 'docs/70_PLANNING/V3_R112_TORTENETEK_BIZONYITEK.json';
+const repIdx = process.argv.indexOf('--from-report');
+let EVIDENCE = null;
+if (repIdx > 0 && process.argv[repIdx + 1]) {
+  const report = JSON.parse(readFileSync(resolve(process.argv[repIdx + 1]), 'utf8'));
+  let commit = null;
+  try { commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { commit = null; }
+  EVIDENCE = { schema: 'v3-r112-tortenet-bizonyitek/1', measured_at: (report.stats && report.stats.startTime) || null,
+    commit, note: 'A böngésző-próbák mért kimenete történetenként. Tartalom nélküli: fájl, próbacím-eleje, futás- és zöld-szám.',
+    stories: evidenceFromReport(report, STORIES) };
+  writeFileSync(join(ROOT, EVIDENCE_PATH), `${JSON.stringify(EVIDENCE, null, 2)}\n`);
+} else {
+  EVIDENCE = loadEvidence(ROOT, EVIDENCE_PATH);
+}
 const dict = await import(join(ROOT, 'v3app/public/i18n/dict.mjs'));
 const { allLanguages, dirOf } = await import(join(ROOT, 'v3app/public/i18n/languages.mjs'));
 
@@ -41,6 +72,8 @@ for (const l of LANGS) {
     dir: dirOf(l.code),
     PAGE: d.PAGE, NAV: d.NAV, UI: d.UI, HELP: d.HELP, TOURUI: d.TOURUI, CHAT: d.CHAT, STATE: d.STATE, REASON: d.REASON,
     KB: d.KB, FAQ: d.FAQ, TOUR: d.TOUR,
+    // A TÖRTÉNETEK (R112) további csoportjai: szerepkör · adatkör · sablon · levél · történet-cím.
+    ROLE: d.ROLE, SCOPE: d.SCOPE, SCOPE_ACC: d.SCOPE_ACC, TPL: d.TPL, SRV: d.SRV, STORY: d.STORY,
     coverage: (() => { const c = dict.coverageOf(l.code, FEATURES); return { covered: c.covered, population: c.population, kind: c.kind, enabled: c.enabled }; })(),
   };
 }
@@ -74,7 +107,10 @@ const TOURDEF = Object.fromEntries(Object.entries(TOURS).map(([id, t]) => [id, {
   steps: t.steps.map((s) => ({ id: s.id, target: s.target, task: s.task ?? null, appears_after: s.appears_after ?? null })),
 }]));
 
-const payload = JSON.stringify({ LANGS, DATA, INDEX, TOURDEF, PAGE_ACTIONS, version: VERSION })
+const STORYDEF = STORIES.map((x) => ({ id: x.id, features: [...x.features], tours: [...x.tours],
+  evidence: x.evidence.map((e) => ({ spec: e.spec, title: e.title })) }));
+const payload = JSON.stringify({ LANGS, DATA, INDEX, TOURDEF, PAGE_ACTIONS, version: VERSION,
+  STORIES: STORYDEF, STORY_STEPS, EVIDENCE })
   .replace(/</g, '\\u003c');
 
 const html = `<!doctype html>
@@ -82,7 +118,7 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SZIMULÁCIÓ — V3 súgó, nyelvek és bemutató (R89)</title>
+<title>V3 használati történetek — szimuláció</title>
 <style>
   :root { --ink:#0f172a; --muted:#64748b; --line:#cbd5e1; --warn:#b45309; --warnbg:#fffbeb; --ok:#15803d; }
   * { box-sizing: border-box; }
@@ -116,10 +152,51 @@ const html = `<!doctype html>
   .tech { margin:16px; padding:10px 14px; border:1px solid var(--line); border-radius:10px; background:#f8fafc; }
   .tech summary { cursor:pointer; font-weight:650; }
   .simbar { font-weight:650; }
+  /* R112 — a [hidden] attribútum ERŐSEBB a keret saját display-szabályánál (a main flex volt, és látszott) */
+  [hidden] { display:none !important; }
+  /* R112 — a történetek belépője és lejátszója */
+  .modebar { display:flex; gap:8px; padding:8px 16px; background:#fff; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .modebar button.on { background:#e0e7ff; font-weight:650; }
+  #stories { padding:16px; max-inline-size:1100px; overflow-wrap:break-word; hyphens:auto; }
+  #stories h1 { font-size:clamp(20px, 5vw, 28px); }
+  .scards { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:12px; }
+  .scard { background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+  .scard h3 { margin:0 0 6px; font-size:16px; }
+  .splayer { display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; }
+  .ssteps { flex:0 1 250px; min-inline-size:200px; padding-inline-start:0; list-style:none; margin:0; }
+  .ssteps li { margin:0 0 6px; }
+  .ssteps li button { inline-size:100%; text-align:start; }
+  .ssteps li.scur button { border-color:#2549a0; font-weight:650; }
+  .ssteps li.sdone-step button { color:var(--ok); }
+  .sstage { flex:1 1 380px; min-inline-size:0; }
+  .sexplain { background:#fff; border-inline-start:4px solid #2549a0; padding:8px 12px; border-radius:6px; }
+  .shint { color:var(--muted); } .shint.ok { color:var(--ok); }
+  .sframe { border:1px solid var(--line); border-radius:12px; background:#fff; overflow:hidden; }
+  .sframe-head { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:8px 12px; background:#f1f5f9; border-bottom:1px solid var(--line); font-size:13px; }
+  .sframe-head .sacc { font-weight:650; } .sframe-head .sact { color:var(--muted); overflow-wrap:anywhere; }
+  .sframe-body { padding:12px 14px; overflow-wrap:anywhere; }
+  .sframe-body h2 { margin:0 0 8px; font-size:18px; }
+  .sact-btn { box-shadow:0 0 0 3px #93c5fd; }
+  .snote { border-radius:8px; padding:8px 10px; background:#eef2ff; }
+  .snote.ok { background:#ecfdf5; color:#065f46; } .snote.warn { background:var(--warnbg); color:var(--warn); }
+  .snext { font-weight:600; }
+  .slink { text-decoration:underline; font-weight:600; }
+  .starget { outline:3px solid #2563eb; outline-offset:2px; border-radius:6px; }
+  .sbubble { border:1px solid var(--line); border-radius:10px; padding:8px 10px; margin:8px 0; background:#f8fafc; }
+  .stable { border-collapse:collapse; } .stable td, .stable th { border:1px solid var(--line); padding:4px 8px; }
+  .simtag { margin-top:14px; padding:8px 12px; background:var(--warnbg); border:1px solid #fcd34d; border-radius:8px; color:var(--warn); }
+  .sevid, .shelp { margin-top:12px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 12px; }
+  .sevid summary, .shelp summary { cursor:pointer; font-weight:650; }
+  .evok { color:var(--ok); font-weight:650; } .evbad { color:#b91c1c; font-weight:650; } .evno { color:var(--muted); }
+  .shead { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  @media (max-width: 700px) { main { flex-direction:column; } nav { inline-size:auto; border-inline-end:0; border-bottom:1px solid var(--line); } .ssteps { flex-basis:100%; } }
 </style>
 </head>
 <body>
 <div class="simbar">Bemutató — mintaadatokkal</div>
+<div class="modebar"><button data-mode="stories" class="on" data-testid="mode-stories">Történetek</button>
+  <button data-mode="help" data-testid="mode-help">Súgó és bemutató (R89)</button>
+  <small class="muted">Szimuláció: a lap nem hív szervert és nem ír adatot — a valódi működést böngésző-próbák bizonyítják.</small></div>
 
 <header>
   <strong>VS</strong>
@@ -139,6 +216,7 @@ const html = `<!doctype html>
     <p id="pageacts"></p>
   </section>
 </main>
+<section id="stories" data-testid="stories"></section>
 <details class="tech" id="techbox">
   <summary>Technikai részletek — mit mutat és mit NEM mutat ez a lap</summary>
   <div id="tech"></div>
@@ -379,6 +457,7 @@ const html = `<!doctype html>
     else st.help = false;
     render();
   });
+${PAGE_JS}
   render();
 })();
 </script>
@@ -394,11 +473,17 @@ writeFileSync(out, html);
 const stable = resolve(ROOT, 'docs/_olvashato/V3_R89_SZIMULALT_BEMUTATO.html');
 mkdirSync(dirname(stable), { recursive: true });
 writeFileSync(stable, html);
+// R112: ugyanaz a lap a TÖRTÉNETEK nevén is — az operátor ezen a néven keresi.
+const stableStories = resolve(ROOT, 'docs/_olvashato/V3_R112_TORTENETEK_BEMUTATO.html');
+writeFileSync(stableStories, html);
 console.log('');
 console.log('R89 — SZIMULÁLT, KATTINTHATÓ BEMUTATÓ');
 console.log('='.repeat(84));
 console.log(`  időbélyeges példány: ${out}`);
 console.log(`  állandó út:         ${stable}`);
+console.log(`  történetek belépő:  ${stableStories}`);
+console.log(`  bizonyíték:         ${EVIDENCE ? `${EVIDENCE_PATH} · mérve: ${EVIDENCE.measured_at} · commit ${String(EVIDENCE.commit || '').slice(0, 7)}` : 'NINCS (a próbák nem mérték — a lap „nem mért" jelölést mutat)'}`);
+console.log(`  történetek:         ${STORIES.length} · lépés: ${Object.values(STORY_STEPS).reduce((n, x) => n + x.length, 0)}`);
 console.log(`  méret:              ${html.length} bájt · nyelv: ${LANGS.length} (ebből próba: ${LANGS.filter((l) => l.kind === 'probe').length})`);
 console.log(`  beforgatott adat:   ${FEATURES.length} funkció · ${Object.keys(TOURS).length} bemutató · MÉRT szótárból`);
 console.log('');

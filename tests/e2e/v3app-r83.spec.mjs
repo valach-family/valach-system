@@ -232,6 +232,6 @@ test('R83/F83-05 — sikertelen levélkérés NEM mutat sikeres folytatást', as
     const r = await withResponse(c.page, { path: '/api/verification/resend' },
       () => c.page.getByTestId('resend-submit').click());
     expect(r.status).toBe(200);
-    await expect(c.page.getByTestId('resend-result')).toContainText('megerősítésre váró fiók');
+    await expect(c.page.getByTestId('resend-result')).toContainText('megerősítésre váró belépés');
   } finally { await w.close(); }
 });

@@ -10,6 +10,7 @@ import { createRequire } from 'node:module';
 import { readFileSync, rmSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { startServer } from '../../v3app/server.mjs';
 
 const require = createRequire(import.meta.url);
@@ -22,6 +23,10 @@ export default async function globalSetup() {
   const evidencePath = resolve(ROOT, artifactPath({ area: 'reports', kind: 'v3app_elfogadas_helyzetek', ext: 'json', version: VERSION }));
   // Az R81 UX-feltételeinek SAJÁT bizonyíték-lapja (a két lap nem írja felül egymást).
   const uxPath = resolve(ROOT, artifactPath({ area: 'reports', kind: 'v3app_ux_elfogadas', ext: 'json', version: VERSION }));
+  // A SZIMULÁLT BEMUTATÓ-LAP (R89 · R112 történetek) AZ ELŐKÉSZÍTÉS RÉSZE (R111): a lap származtatott
+  // (`docs/_olvashato/`, gitignore), tehát friss klónban nincs meg — a próba nem bukhat a hiányán.
+  // A generátor a repóban álló bizonyíték-lapot olvassa; a futás jelentéséből NEM ír vissza.
+  execFileSync(process.execPath, [resolve(ROOT, 'tools/v3_r89_bemutato.mjs')], { cwd: ROOT, stdio: 'ignore' });
   const app = await startServer({ port: 0, dbPath });
   process.env.VS_E2E_BASE_URL = `http://127.0.0.1:${app.port}`;
   process.env.VS_E2E_DB_PATH = dbPath;

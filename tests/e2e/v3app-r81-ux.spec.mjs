@@ -358,7 +358,7 @@ test('UX-08 — lejárt megerősítő hivatkozás: új levél kérhető, a regis
     await c.page.getByTestId('resend-email').fill(email);
     const r = await withResponse(c.page, { path: '/api/verification/resend' }, () => c.page.getByTestId('resend-submit').click());
     expect(r.status).toBe(200);
-    await expect(c.page.getByTestId('resend-result')).toContainText('megerősítésre váró fiók');
+    await expect(c.page.getByTestId('resend-result')).toContainText('megerősítésre váró belépés');
     const fiokok = db.count('SELECT COUNT(*) AS n FROM external_id WHERE value_norm = ?', email);
     expect(fiokok).toBe(1);
     // A FEJLESZTŐI ÓRÁT VISSZAÁLLÍTJUK: a következő próba a KIINDULÁSI állapotot várja (KUKA-054).
@@ -437,18 +437,18 @@ test('UX-09…UX-13, UX-22 — a teljes történet: Anna → vállalkozás → B
     await openMemberPanel(anna.page, bela.subjectId);
     // A FONTOSAT SZERKEZET MONDJA KI, NEM NAGYBETŰ (R83/F83-04): külön szakasz-cím + külön mondat.
     await expect(anna.page.getByTestId('panel-body')).toContainText('Hozzáférés a fiókhoz');
-    await expect(anna.page.getByTestId('panel-body')).toContainText('Ez a teljes hozzáférést érinti, nem egyetlen adatkört');
+    await expect(anna.page.getByTestId('panel-body')).toContainText('Ez a teljes tagságot megszünteti ebben a fiókban, nem csak egy adatkört');
     await anna.page.getByTestId(`member-revoke-${bela.subjectId}`).click();
     const megerosites = (await anna.page.getByTestId('panel-body').textContent()) || '';
     expect(megerosites).toContain(bela.email);              // NÉV
     expect(megerosites).toContain('Családi Műhely Kft');    // FIÓK
-    expect(megerosites).toContain('A saját fiókja és a korábbi műveletek története megmarad'); // KÖVETKEZMÉNY
+    expect(megerosites).toContain('A személyes fiókja és a korábbi műveletek története megmarad'); // KÖVETKEZMÉNY
     const v = await withResponse(anna.page, { path: '/api/members/revoke' }, () => anna.page.getByTestId('revoke-confirm').click());
     expect(v.body.ok).toBe(true);
     u12.b(`A megszüntetés a tag PANELJÉN, KÜLÖN szakaszban áll („Hozzáférés a fiókhoz"), kimondott mondattal `
-      + `(„Ez a teljes hozzáférést érinti, nem egyetlen adatkört"), és MEGERŐSÍTÉST kér. A megerősítő szövegben `
+      + `(„Ez a teljes tagságot megszünteti ebben a fiókban, nem csak egy adatkört"), és MEGERŐSÍTÉST kér. A megerősítő szövegben `
       + `mind a három tény ott van: a NÉV (${bela.email}), a FIÓK (Családi Műhely Kft) és a KÖVETKEZMÉNY `
-      + `(„A saját fiókja és a korábbi műveletek története megmarad"). A súlyt a SZERKEZET hordozza — nagybetűs `
+      + `(„A személyes fiókja és a korábbi műveletek története megmarad"). A súlyt a SZERKEZET hordozza — nagybetűs `
       + `kiabálás nélkül (R83/F83-04).`)
       .s(`A megerősítés után HTTP ${v.status}, reason=${v.body.reason}. A megerősítő mező NEM ad jogot: a művelet ugyanúgy a szerver kapuján ment át.`)
       .verdictIs('bizonyitva', 'A teljes tagság megszüntetése külön művelet, külön mondattal és megerősítéssel — nem keverhető össze egy adatkör kikapcsolásával.');
@@ -459,7 +459,7 @@ test('UX-09…UX-13, UX-22 — a teljes történet: Anna → vállalkozás → B
     await openMemberPanel(anna.page, bela.subjectId);
     expect(await anna.page.getByTestId(`member-scope-${bela.subjectId}`).count()).toBe(0);
     expect(await anna.page.getByTestId(`member-revoke-${bela.subjectId}`).count()).toBe(0);
-    await expect(anna.page.getByTestId('panel-body')).toContainText('megszűnt a céges hozzáférése');
+    await expect(anna.page.getByTestId('panel-body')).toContainText('megszűnt a hozzáférése ehhez a fiókhoz');
     await anna.page.locator('[data-action="panel-close"]').last().click();
     // BÉLA OLDALÁN: a céges fiók eltűnik, a személyes megmarad, és a lap KIMONDJA, mi történt.
     await bela.page.reload();
@@ -468,7 +468,7 @@ test('UX-09…UX-13, UX-22 — a teljes történet: Anna → vállalkozás → B
     expect(belaMe.personal_book_id).toBeTruthy();
     await switchUI(bela.page, belaMe.personal_book_id);
     await expect(bela.page.getByTestId('header-workspace')).toContainText('Személyes fiók');
-    u13.b('A megszüntetett tag paneljén a jogadó és a megszüntető gomb DARABSZÁMA 0, helyette a helyzet mondata áll („megszűnt a céges hozzáférése, ezért adatkört sem lehet neki engedélyezni"). Béla oldalán a céges fiók kikerült a választóból, a SZEMÉLYES fiókja viszont megnyitható maradt.')
+    u13.b('A megszüntetett tag paneljén a jogadó és a megszüntető gomb DARABSZÁMA 0, helyette a helyzet mondata áll („megszűnt a hozzáférése ehhez a fiókhoz, ezért adatkört sem lehet neki engedélyezni"). Béla oldalán a céges fiók kikerült a választóból, a SZEMÉLYES fiókja viszont megnyitható maradt.')
       .s(`Béla /api/me válasza a megszüntetés után: a céges könyv nincs a listában, personal_book_id megvan (${belaMe.personal_book_id ? 'igen' : 'nem'}).`)
       .verdictIs('bizonyitva', 'A megszüntetés után nincs működőnek látszó jogadó vezérlő, és a felhasználó nem marad fiók nélkül.');
 

@@ -173,7 +173,7 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     expect(o.observe.account_exists).toBeNull();
     // R81 §5/08: a lap a KÖVETKEZŐ LÉPÉST mondja ki, nem vádol — és nem árulja el, kié a cím.
     // A szerver semleges megfigyelés-üzenete változatlanul mérve (`o.observe.message`).
-    expect(o.humanText).toContain('jelentkezz be azzal az e-mail-címmel, amelyre a meghívó érkezett');
+    expect(o.humanText).toContain('lépj be azzal az e-mail-címmel, amelyre a meghívás érkezett');
     expect(o.next).toContain('címzetti feltételének megfelelő azonosságával');
     expect(o.redeemVisible).toBe(false);
     const forced = await cili.api.post('/api/invites/redeem', { token: belaInvite.token });
@@ -219,7 +219,7 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     expect(o.observe.status).toBe('needs_invitee_identity');
     // R81 §5/08: a lap a KÖVETKEZŐ LÉPÉST mondja ki emberi szóval; hogy a folytatás tényleg
     // visszatér ide, azt a próba ALÁBB MÉRI (belépés a sima címen → a meghívás előjön).
-    expect(o.humanText).toContain('jelentkezz be azzal az e-mail-címmel, amelyre a meghívó érkezett');
+    expect(o.humanText).toContain('lépj be azzal az e-mail-címmel, amelyre a meghívás érkezett');
     expect(o.redeemVisible).toBe(false);
     // ADATBÁZIS: a szándék a SZERVEREN áll, a névtelen munkamenethez kötve.
     expect(db.count('SELECT COUNT(*) AS n FROM pending_intent WHERE invite_token = ?', ciliInvite.token)).toBeGreaterThanOrEqual(1);
@@ -249,7 +249,7 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     expect(o.observe.status).toBe('needs_invitee_identity');
     // R81 §5/08: a meghívó kártyája a KÖVETKEZŐ LÉPÉST mondja ki, és GOMBOT ad hozzá — a
     // regisztrációs űrlap önálló lap, nem a meghívó alatt lóg.
-    expect(o.humanText).toContain('jelentkezz be azzal az e-mail-címmel, amelyre a meghívó érkezett');
+    expect(o.humanText).toContain('lépj be azzal az e-mail-címmel, amelyre a meghívás érkezett');
     await dani.page.locator('[data-auth="register"]').first().click();
     await dani.page.getByTestId('register-email').fill(dani.email);
     await dani.page.getByTestId('register-password').fill(PASSWORD);
@@ -342,7 +342,7 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     await openMemberPanel(anna.page, bela.subjectId);
     expect(await anna.page.getByTestId(`member-revoke-${bela.subjectId}`).count()).toBe(0);
     expect(await anna.page.getByTestId(`member-scope-${bela.subjectId}`).count()).toBe(0);
-    await expect(anna.page.getByTestId('panel-body')).toContainText('megszűnt a céges hozzáférése');
+    await expect(anna.page.getByTestId('panel-body')).toContainText('megszűnt a hozzáférése ehhez a fiókhoz');
     await anna.page.locator('[data-action="panel-close"]').last().click();
     // R81: a RÉGI lapon a „Frissítés" ELŐBB a nézetet igazítja a szerverhez (R77/F77-01) — és mivel
     // a tagság megszűnt, a lap NEM kérdez tovább a megszűnt könyvben: a védett adat eltűnik, és a

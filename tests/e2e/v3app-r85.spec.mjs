@@ -201,7 +201,7 @@ test('R85/F85-04 — a VÉGREHAJTOTT, de elveszett válaszú levélkérésre a l
     await c.page.unroute('**/api/verification/resend');
     await api.post('/dev/clock', { advance_ms: 120000 });
     await c.page.getByTestId('resend-submit').click();
-    await expect(c.page.getByTestId('resend-result')).toContainText('megerősítésre váró fiók');
+    await expect(c.page.getByTestId('resend-result')).toContainText('megerősítésre váró belépés');
   } finally { await w.close(); }
 });
 
@@ -266,7 +266,7 @@ test('R85/F85-04/b — a kérés ÖT kimenete KÜLÖN mondat, és egyik sem áll
     await api.post('/dev/clock', { advance_ms: 120000 });
     await nyitLevelKero();
     await c.page.getByTestId('resend-submit').click();
-    await expect(c.page.getByTestId('resend-result')).toContainText('megerősítésre váró fiók');
+    await expect(c.page.getByTestId('resend-result')).toContainText('megerősítésre váró belépés');
 
     // (6) OLVASÁS, AMI EL SEM JUT: ott a hiány ELDÖNTHETŐ — semmit nem változtattunk.
     const anna = await w.person('anna');

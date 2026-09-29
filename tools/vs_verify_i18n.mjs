@@ -170,6 +170,47 @@ check('I18N07', 'a jegyzék KIMONDJA, hogy a nyelv nem választ országot/adóz�
 check('I18N07', 'a feloldó KIMONDJA, hogy a visszaesés nem lefedettség',
   /NEM LEFEDETTSÉG/i.test(dict.I18N_CONTRACT.stated_limit), dict.I18N_CONTRACT.stated_limit);
 
+// ── I18N08: A FOGALMAK SZAVAI (R112 · P109-02) ────────────────────────────────────────────────
+// A terminológiai megfeleltetés a SZAVAK OTTHONÁBAN áll (`TERMS` · `TERMS_AVOID` a csomagokban). Ez az
+// őr a felhasználói szövegeket nézi: kerülendő szó és csupa nagybetűs kiemelés nem állhat bennük. A
+// technikai részletek (a csevegés mérési sora) kivételek, NEVEZETTEN. A SEARCH (keresőszavak) szándékosan
+// kimarad: ott a szinonima a cél.
+const TERM_GROUPS = [...dict.TEXT_GROUPS, 'KB', 'FAQ', 'TOUR', 'STORY'];
+const TERM_EXEMPT = new Map([['CHAT.measuredTokens', 'a mérési sor a „Technikai részletek" lenyíló alatt áll']]);
+const CAPS_ALLOW = new Set(['ÁSZF', 'GDPR', 'GYIK', 'FAQ', 'VS', 'MI', 'KI', 'AI', 'HU', 'EN', 'DE', 'AT', 'SK', 'RO', 'EU', 'UID', 'ÁFA',
+  'URL', 'HTTP', 'HTTPS', 'API', 'CSV', 'PDF', 'RTL', 'LTR', 'ID', 'USD', 'EUR', 'HUF', 'SMTP']);
+function* walkTexts(obj, path) {
+  if (typeof obj === 'string') { yield [path, obj]; return; }
+  if (obj && typeof obj === 'object') for (const [k, v] of Object.entries(obj)) yield* walkTexts(v, path ? `${path}.${k}` : k);
+}
+/** A mérő MAGJA — a valódi csomagot és az ellenpróbát UGYANEZ méri (KUKA-068). */
+function termFindings(D, avoidList) {
+  const out = [];
+  const avoid = (avoidList || []).map((a) => ({ re: new RegExp(a.re, 'u'), why: a.why }));
+  for (const g of TERM_GROUPS) {
+    for (const [p, s] of walkTexts(D[g], g)) {
+      if (TERM_EXEMPT.has(p)) continue;
+      for (const a of avoid) if (a.re.test(s)) out.push(`${p}: ${a.why}`);
+      const caps = (s.match(/[A-ZÁÉÍÓÖŐÚÜŰÄ]{3,}/gu) || []).filter((w) => !CAPS_ALLOW.has(w));
+      if (caps.length) out.push(`${p}: csupa nagybetűs kiemelés (${caps.slice(0, 3).join(', ')})`);
+    }
+  }
+  return out;
+}
+const baseTerms = Object.keys(dict.PACKS[BASE_LANGUAGE].TERMS || {});
+check('I18N08', 'az alapnyelv kimondja a fogalmak szavait (TERMS) és a kerülendőket (TERMS_AVOID)',
+  baseTerms.length >= 10 && (dict.PACKS[BASE_LANGUAGE].TERMS_AVOID || []).length > 0, `${baseTerms.length} fogalom`);
+for (const l of enabledLanguages()) {
+  const pack = dict.PACKS[l.code] || {};
+  const keys = Object.keys(pack.TERMS || {});
+  check('I18N08', `a fogalom-kulcsok ugyanazok: ${l.code}`,
+    keys.length === baseTerms.length && baseTerms.every((k) => keys.includes(k) && typeof pack.TERMS[k] === 'string' && pack.TERMS[k]),
+    `${keys.length}/${baseTerms.length}`);
+  const found = termFindings(dict.dictFor(l.code), pack.TERMS_AVOID);
+  check('I18N08', `nincs kerülendő szó és nagybetűs kiemelés: ${l.code}`, found.length === 0,
+    found.length ? found.slice(0, 5).join(' | ') : `kivétel: ${[...TERM_EXEMPT.keys()].join(', ')}`);
+}
+
 // ── ELLENPRÓBA: az őr TÜZEL-e a visszacsúszásra? ──────────────────────────────────────────────
 const counter = [];
 if (selftest) {
@@ -203,6 +244,10 @@ if (selftest) {
     return keys.length - new Set(keys).size;
   })();
   counter.push({ label: 'kettős kulcs PIROSRA vált', ok: dupKeys > 0, detail: `ismétlődő kulcs: ${dupKeys}` });
+  // A FOGALOM-ŐR (I18N08): kerülendő szó és nagybetűs kiemelés egy szintetikus csomagon — ugyanazzal a maggal.
+  const fake = { UI: { a: 'A tenant scope-ja itt áll.', b: 'Ez KÉT külön állapot.' } };
+  const tf = termFindings(fake, dict.PACKS[BASE_LANGUAGE].TERMS_AVOID);
+  counter.push({ label: 'kerülendő szó és nagybetűs kiemelés PIROSRA vált', ok: tf.length >= 2, detail: tf.join(' | ') || 'NEM TÜZELT' });
 }
 
 const failed = checks.filter((c) => !c.ok);

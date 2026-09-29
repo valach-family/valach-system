@@ -16,6 +16,41 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3085 — AZ ÖT HASZNÁLATI ÚT EGY REGISZTERBEN, A FŐSZÖVEG A NYELVCSOMAGBÓL, A LEZÁRÁS EGY HELYEN (R112)
+
+> **Hatály:** V3 (`valach-system`) — `v3app/public/{app.js,tour.mjs,texts.mjs,inviteText.mjs}`,
+> `v3app/public/i18n/{dict,hu,en,de}.mjs`, `v3app/knowledge/{features,stories}.mjs`,
+> `tools/vs_verify_{tutor,i18n}.mjs`, `tools/v3_r89_bemutato.mjs` + `tools/lib/v3_tortenet_lejatszo*`,
+> `tests/e2e/v3app-r112-{invite,stories,demo}.spec.mjs` (új), `tests/e2e/v3app-r109-invite.spec.mjs`.
+> Kivezetett minták: **KUKA-252 · KUKA-253 · KUKA-254**. Nincs merge, telepítés, V2-módosítás, új
+> jogosultsági modell vagy üzleti modul, core/CMD/PR-zárás.
+
+**A parancs:** `CMD-VS-300-002-002 R112 — SPEC` (chatgpt-v3), benne az R111 (F111-01/02) és az R109
+(P109-01…03) teljes hátraléka.
+
+**1. A SAJÁT SIKERÉTŐL FIÓKOT VÁLTÓ ÚT EGY KÖZÖS LEZÁRÓT HÍV** (`carryTourBeforeSwitch`). A vállalkozás
+létrehozása és a meghívás elfogadása is a váltás ELŐTT készít hordozható összegzést; a pillanatkép a
+lezárás OKÁT viszi, a félbehagyott futás nem lesz „egész", és a regisztráció felé elhagyott meghívó-
+bemutató nevezetten ér véget. (KUKA-252 — a külső fél F111-01 lelete.)
+
+**2. A FELÜLET FŐSZÖVEGE MINDIG A NYELVCSOMAGBÓL JÖN.** A szerver/mag `message` mezője és kész mondata
+(`acting_as`) nem főszöveg: `refusalText` (EGY feloldó, alias-táblával), `inviteNextKey`,
+`actingAsText`. (KUKA-253 — saját lelet.) A beváltás sikere a kiszolgált alanyhoz kötött, a késve
+érkező válasz nem szól a közben belépett másik embernek. (KUKA-254 — saját lelet.)
+
+**3. AZ ÖT HASZNÁLATI ÚT A KÖZÖS REGISZTERBEN ÁLL** (STR-01, `v3app/knowledge/stories.mjs`): funkciók,
+meglévő bemutatók, GYIK, és a bizonyító próbák pontos címe. A `verify:tutor` TUT11 méri, hogy minden út
+funkciója működik, van GYIK-je és bemutatója vagy indoka, a szövege minden bekapcsolt nyelven megvan, és
+minden bizonyíték PONTOSAN egy próbát jelöl. A bemutató-lap ugyanebből a regiszterből épül.
+
+**4. A SZÓHASZNÁLAT A SZAVAK OTTHONÁBAN** (`TERMS` · `TERMS_AVOID` a csomagokban): egy fogalom, egy szó;
+az `verify:i18n` I18N08 a kerülendő szavakat és a csupa nagybetűs kiemelést pirosnak méri.
+
+**Amit ez NEM állít:** anyanyelvi lektorálást (AI-átnézés volt), kész nagyvállalati rendszert, élő AI-t,
+számlázást vagy hatósági igazolást.
+
+---
+
 ## D-VS-3084 — A MEGHÍVOTT EMBER A SAJÁT KÉPERNYŐJÉRŐL KAP SEGÍTSÉGET (P109-01)
 
 > **Hatály:** V3 (`valach-system`) — `v3app/knowledge/features.mjs` (a 10. bemutató + a nevezett

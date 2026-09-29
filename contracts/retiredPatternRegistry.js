@@ -11061,6 +11061,158 @@ pattern: 'sources: modelAccepted \\? \\w+\\.sources : local\\.sources',
       + 'böngésző-próba NEM része a `verify:sweep`-nek (`npm run test:e2e` külön fut), ezért a '
       + 'söprésben futó jel az AST02.',
   }),
+  Object.freeze({
+    id: 'KUKA-252',
+    date: '2026-09-29',
+    title: 'A MEGHÍVÁS ELFOGADÁSA A SAJÁT, MÁSODIK FIÓKVÁLTÁSÁT FUTTATTA — LEZÁRÁS NÉLKÜL: a szerver '
+      + 'igazolta a tagságot, a bemutató nyom nélkül eltűnt',
+    what: 'A meghívó képernyőjén a `doRedeem` a szerver `ok` válasza után jelezte a feladat-lépést '
+      + '(`tourTaskDone`), majd `newContext` → `refreshMe` úton átváltott a vállalkozás fiókjára. A váltás '
+      + 'nézet-ürítése (`resetViewCaches`) a futó bemutatót törölte, hordozható lezárás (`finishRun` + '
+      + '`carrySnapshot`) viszont nem készült — pedig a vállalkozás LÉTREHOZÁSÁNAK útja pontosan ezt már '
+      + 'megoldotta (F93-01), egy saját, beágyazott másolattal. A külső fél reprodukciója: tagság role=user, '
+      + 'revoked_at=null, sikerüzenet — `tour-finished` 0 db, `tour-summary` 0 db. Az R109-03 próba '
+      + 'kommentje közben azt állította, hogy a bemutató lezárul, de csak a tagságot mérte.',
+    why_wrong: 'A szabály („a saját sikerétől fiókot váltó út a váltás ELŐTT hordozható lezárást készít") '
+      + 'EGY úton élt, beágyazott másolatként — az új út nem örökölte (KUKA-003: a több helyen igaz szabály '
+      + 'több helyen élt). És a próba a NEVEZETT tényt (a lezárást) nem mérte, csak a szomszédját (a '
+      + 'tagságot): a zöld nem arról szólt, amit a címe állított (KUKA-239 alakja a próbán).',
+    replaced_by: 'EGY közös lezáró: `carryTourBeforeSwitch(via)` a `v3app/public/app.js`-ben — a '
+      + 'vállalkozás létrehozása és a meghívás elfogadása is EZT hívja, a váltás ELŐTT. A pillanatkép a '
+      + 'lezárás OKÁT is viszi (`via`), a záró lap ettől függő mondatot mond (a meghívásnak saját mondata '
+      + 'van), a félbehagyott futás nem lesz „egész", és a meghívó képernyőjéhez kötött bemutató lezárása '
+      + 'nem kínál zsákutcába vivő újraindítást. A regisztráció felé elhagyott meghívó-bemutató '
+      + 'NEVEZETTEN ér véget (`inviteSignInFirst`), a működő folytatással.',
+    replacement: 'A próba a TÉNYLEGES lezárást méri: `tour-finished` látható, `data-whole`, `data-carried`, '
+      + '`data-via="invite_redeemed"`, az összegzés 4/0/0, és a nézet az új fiók — a régi kódon '
+      + '(7385977) ugyanez a próba pontosan a lezárásnál bukik (ellenpróba).',
+    decision: 'D-VS-3085',
+    found_by: 'KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, CMD-VS-300-002-002 R111 ANALYSIS, F111-01) — saját '
+      + 'böngészős reprodukcióval, valódi szintetikus meghívóval.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "carryTourBeforeSwitch\\('invite_redeemed'\\)",
+        why: 'a meghívás elfogadása a KÖZÖS lezárót hívja, a váltás előtt' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "carryTourBeforeSwitch\\('workspace_created'\\)",
+        why: 'a vállalkozás létrehozása ugyanazt — a szabálynak egy otthona van' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r109-invite.spec.mjs']),
+        pattern: "toHaveAttribute\\('data-via', 'invite_redeemed'\\)",
+        why: 'a próba a TÉNYLEGES, hordozott lezárást méri, nem a tagságot' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'if \\(fin\\.ok\\) state\\.tourCarry = tourMod\\.carrySnapshot\\(state\\.tour\\);',
+        reason: 'a lezárás beágyazott másolata egyetlen úton — a következő fiókváltó út megint kimaradna' }),
+    ]),
+    lesson: 'AMI A SAJÁT SIKERÉTŐL FIÓKOT VÁLT, AZ UGYANAZT A LEZÁRÓT HÍVJA. Egy megoldott hiba-osztályt '
+      + 'nem beágyazott másolattal zárunk le, hanem közös függvénnyel — különben a következő, ugyanolyan '
+      + 'út a régi hibát hozza vissza. ÉS A PRÓBA AZT MÉRJE, AMIT A CÍME ÁLLÍT: a tagság létrejötte nem '
+      + 'bizonyítja a bemutató lezárását.',
+    guard_note: 'gépi jel: `npm run verify:kuka` — a pozitív minták (a két hívás és a próba állítása) és '
+      + 'a tiltott beágyazott másolat. Böngésző-tanú: `tests/e2e/v3app-r109-invite.spec.mjs` R109-03 és '
+      + '`tests/e2e/v3app-r112-invite.spec.mjs` R112-I1/I2 (három nyelven, a regisztráción át érkező úttal). '
+      + 'KIMONDVA: a böngésző-próba NEM része a `verify:sweep`-nek (`npm run test:e2e` külön fut).',
+  }),
+  Object.freeze({
+    id: 'KUKA-253',
+    date: '2026-09-29',
+    title: 'A MAG MAGYAR DIAGNOSZTIKÁJA FŐSZÖVEGKÉNT — ANGOL ÉS NÉMET FELÜLETEN IS: a meghívó „következő '
+      + 'lépés" sora, a fejléc „ki nevében" sora és tíz elutasítás-ág tartaléka',
+    what: 'Három helyen a SZERVER mezője lett felirat: (1) a meghívó lapján az `invite-next` sor a '
+      + 'megfigyelés `message` mezőjét írta ki („állíts be belépést ehhez a címhez…") — a bemutató '
+      + 'harmadik lépése épp erre a sorra mutat; (2) a fejléc és a Belépés és biztonság oldal a szerver '
+      + '`acting_as` MONDATÁT írta ki, NYERS szerepkóddal („… · szerep: admin"); (3) tíz elutasítás-ág '
+      + '`reasonText(r.reason, r.message)` alakban kért mondatot, és ha az ok nem állt a szótárban, a mag '
+      + 'magyar `message` szövege lett a főszöveg. Mellé a fejléc cím-megerősítés jelzője `igen`/`nem` '
+      + 'literálként állt a lap kódjában. A három nyelvi csomag közben teljes volt: az őrök zöldek.',
+    why_wrong: 'KUKA-210: a mag szava nem a felhasználó szava — és a TARTALÉK-ág elrejtette a hibát '
+      + '(KUKA-238 alakja: ami a szótárból hiányzott, az NÉMÁN magyarra esett). A nyelvi őr a CSOMAGOKAT '
+      + 'mérte, nem azt, amit a lap a szerver mezőiből rajzolt; a több vállalkozásban dolgozó ember épp '
+      + 'abból a sorból olvasná ki, hol és milyen szerepkörrel jár el.',
+    replaced_by: 'A felület főszövege MINDIG a nyelvcsomagból: `refusalText(r)` (EGY feloldó a '
+      + '`v3app/public/i18n/dict.mjs`-ben, `REASON_ALIAS` táblával — a `reason`, majd a kimenettel '
+      + 'pontosított `error` kódja, végül a kimondott általános mondat, a mag szövege SOHA), '
+      + '`inviteNextKey(o, loggedIn)` (`v3app/public/inviteText.mjs` — a lap és az őr ugyanazt futtatja), '
+      + '`actingAsText(me)` (`v3app/public/texts.mjs` — cím · fiók · szerepkör a csomag szavaival). A '
+      + 'szerver `acting_as` mondata az API-ban marad a gépi ellenőrzéseknek, a felületen nem.',
+    replacement: 'A felületről elérhető, eddig hiányzó okok saját mondatot kaptak (a cím több belépéshez '
+      + 'tartozik · más szerepkörrel már tag · korábban megszűnt tagság), a belső felhatalmazási okok az '
+      + 'alias-táblán a meglévő „ezt nem végezheted el" mondatra futnak.',
+    decision: 'D-VS-3085',
+    found_by: 'SAJÁT LELET (Claude-v3, R112) — a háromnyelvű meghívott-út próbájának írása közben a '
+      + 'meghívó lap szövegeit a mag válaszával összevetve, és a 4. történet („mindig világos, melyik '
+      + 'fiókban és milyen joggal") fejléc-sorának átnézésekor.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']), pattern: 'refusalText\\(r\\)',
+        why: 'az elutasítás mondata EGY feloldón át, a nyelvcsomagból' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']), pattern: 'inviteNextKey\\(o, loggedIn\\)',
+        why: 'a meghívó „következő lépés" sora a csomagból, állapotonként' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']), pattern: 'actingAsText\\(me\\)',
+        why: 'a „ki nevében" sor a szerver tényeiből, a csomag szavaival' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']), pattern: 'reasonText\\(r\\.reason, r\\.message\\)',
+        reason: 'a mag magyar `message` mezője tartalékként főszöveg lenne' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']), pattern: 'o\\.message \\|\\| UI\\.inviteWrongAddress',
+        reason: 'a megfigyelés magyar üzenete a meghívó lapján' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']), pattern: "me\\.acting_as \\|\\| '—'",
+        reason: 'a szerver kész magyar mondata nyers szerepkóddal a fejlécben' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']), pattern: "channel_proven \\? 'igen' : 'nem'",
+        reason: 'beégetett magyar felirat a lap kódjában (I18N-01)' }),
+    ]),
+    lesson: 'A SZERVER MEZŐJE ADAT, NEM FELIRAT. Ami a képernyőre kerül, az a nyelvcsomagból jön, a '
+      + 'szerver kódjából és tényeiből feloldva; a mag szövege a technikai részletekbe tartozik. A '
+      + 'tartalék-ágat ott a legnehezebb észrevenni, ahol a legtöbb a nyelv: a teljes csomag mellett is '
+      + 'átfolyhat rajta egy magyar mondat — ezért a próba a MÁSIK nyelven olvassa vissza a képernyőt.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (a négy tiltott és a három pozitív minta) és '
+      + '`npm run verify:i18n` I18N08 (kerülendő szavak a csomagokban). Böngésző-tanú: '
+      + '`tests/e2e/v3app-r112-invite.spec.mjs` R112-I1 (a „következő lépés" sor HU/EN/DE a csomagból) és '
+      + 'R112-I4 (a lejárt meghívó mondata három nyelven), `tests/e2e/v3app-r112-stories.spec.mjs` '
+      + 'R112-S1/S2/S4 (a „ki nevében" sor a csomag szavaival; a régi kódon a nyers szerepkódot mutatta).',
+  }),
+  Object.freeze({
+    id: 'KUKA-254',
+    date: '2026-09-29',
+    title: 'A KÉSVE ÉRKEZŐ ELFOGADÁS A MÁSIK EMBERNEK MONDTA, HOGY Ő CSATLAKOZOTT — a saját személyes '
+      + 'fiókját nevezve meg csatlakozottként',
+    what: 'A meghívás elfogadásának válasza KÉSVE érkezett; közben ugyanebben a böngészőben MÁSIK ember '
+      + 'lépett be. A `doRedeem` a frissítés (`refreshMe`) UTÁN a PILLANATNYI nézetből írta a sikert: az '
+      + 'új nézőnek azt mondta, „Elfogadtad a meghívást. Csatlakoztál ehhez a fiókhoz: Személyes fiók". A '
+      + 'saját kezdeményezés jele (`selfInitiated`) ráadásul a frissítés „másik felhasználó lépett be" '
+      + 'mondatát is elnyelte. Böngészőben reprodukálva (R112-I3, első futás).',
+    why_wrong: 'KUKA-204: a válasz mondja ki, kinek szolgált ki — a lap mégsem kérdezte meg. KUKA-129: a '
+      + 'nyugtának is igazat kell mondania; itt egy MÁSIK embernek állított egy műveletet, amit nem ő '
+      + 'végzett, és a saját fiókját nevezte meg idegenként.',
+    replaced_by: 'A beváltás válasza megnevezi az alanyt és a fiókot (`subject_id` · `book_id`). A '
+      + 'frissítés után a lap ezt veti össze a mai nézővel: eltérésnél NEM mond sikert, a személyváltást '
+      + 'mondja ki, és a hordozott lezárás sem száll át; egyezésnél a csatlakozott fiók nevét a '
+      + 'VÁLASZ fiókjából veszi, nem a pillanatnyi nézetből.',
+    replacement: 'A tárolt tényt a próba külön méri: az eredeti ember tagsága létrejött (a szerver ezt '
+      + 'tette), a közben belépett emberé NEM.',
+    decision: 'D-VS-3085',
+    found_by: 'SAJÁT LELET (Claude-v3, R112) — a személyváltás + késő válasz célzott próbája (R112-I3) az '
+      + 'első futáson pontosan ezt a mondatot fogta meg a másik ember képernyőjén.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'state\\.me\\.subject_id !== r\\.subject_id',
+        why: 'a siker az alanyhoz kötött: a mai néző és a kiszolgált alany összevetve' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r112-invite.spec.mjs']),
+        pattern: 'R112-I3 — SZEMÉLYVÁLTÁS \\+ KÉSŐ VÁLASZ',
+        why: 'a böngésző-tanú a visszatartott válasszal' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "tpl\\('accountJoined', \\{ nev: accountName\\(\\) \\}\\)",
+        reason: 'a csatlakozott fiók neve a PILLANATNYI nézetből — más embernél a saját fiókját mondaná' }),
+    ]),
+    lesson: 'A SIKER ANNAK SZÓL, AKINEK A SZERVER KISZOLGÁLTA. Egy késve érkező válasz után a képernyő '
+      + 'nem a mai nézőről tesz állítást a válasz alapján, hanem összeveti a kettőt; és a saját '
+      + 'kezdeményezés jele nem nyelheti el a személyváltás mondatát.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (a pozitív összevetés és a tiltott nézet-alapú név). '
+      + 'Böngésző-tanú: `tests/e2e/v3app-r112-invite.spec.mjs` R112-I3 (visszatartott válasz, közben '
+      + 'másik belépés; a tárolt tagságot is méri). KIMONDVA: a böngésző-próba NEM része a `verify:sweep`-nek.',
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

@@ -82,7 +82,7 @@ const F = (o) => Object.freeze(o);
  */
 export const FEATURES = Object.freeze([
   F({
-    id: 'auth.register', module: 'auth', version: '1.1.0', status: 'working',
+    id: 'auth.register', module: 'auth', version: '1.2.0', status: 'working',
     group: 'auth', scope: 'person', audience: 'public', screen: null, action: null, entry: 'register-form',
     anchors: F(['register-email', 'register-password', 'register-submit']),
     authority: F({ endpoint: 'POST /api/register', decided_by: 'v3ref/account.mjs',
@@ -109,7 +109,7 @@ export const FEATURES = Object.freeze([
     evidence: F(['v3app/selfcheck.mjs', 'v3app/findings_r75.mjs']),
   }),
   F({
-    id: 'auth.login', module: 'auth', version: '1.1.0', status: 'working',
+    id: 'auth.login', module: 'auth', version: '1.2.0', status: 'working',
     group: 'auth', scope: 'person', audience: 'public', screen: null, action: null, entry: 'login-form',
     anchors: F(['login-email', 'login-password', 'login-submit']),
     authority: F({ endpoint: 'POST /api/login', decided_by: 'v3ref/account.mjs',
@@ -124,7 +124,7 @@ export const FEATURES = Object.freeze([
     evidence: F(['v3app/selfcheck.mjs', 'tests/e2e/v3app-core-flow.spec.mjs']),
   }),
   F({
-    id: 'auth.resend', module: 'auth', version: '1.1.0', status: 'working',
+    id: 'auth.resend', module: 'auth', version: '1.2.0', status: 'working',
     group: 'auth', scope: 'person', audience: 'public', screen: null, action: null, entry: 'resend-form',
     anchors: F(['resend-email', 'resend-submit']),
     authority: F({ endpoint: 'POST /api/verification/resend', decided_by: 'v3ref/account.mjs',
@@ -209,7 +209,7 @@ export const FEATURES = Object.freeze([
     evidence: F(['tests/e2e/v3app-acceptance.spec.mjs', 'v3app/selfcheck.mjs']),
   }),
   F({
-    id: 'invite.accept', module: 'invite', version: '1.2.0', status: 'working',
+    id: 'invite.accept', module: 'invite', version: '1.3.0', status: 'working',
     group: 'invite', scope: 'person', audience: 'public', screen: null, action: null, entry: 'section-invite',
     // A SZEMÉLYES TÉRBEN IS ÉRTELMES — és ez nem kényelmi kivétel, hanem a funkció LÉNYEGE (P109-01):
     // a meghívott ember MINDIG a személyes teréből indul, hiszen abban a vállalkozásban még nincs
@@ -238,7 +238,7 @@ export const FEATURES = Object.freeze([
     evidence: F(['tests/e2e/v3app-acceptance.spec.mjs', 'tests/e2e/v3app-r109-invite.spec.mjs']),
   }),
   F({
-    id: 'members.list', module: 'delegation', version: '1.1.0', status: 'working',
+    id: 'members.list', module: 'delegation', version: '1.2.0', status: 'working',
     group: 'members', scope: 'book', audience: 'signed_in', screen: 'members', action: 'open.members', entry: 'members-list',
     anchors: F(['nav-members', 'members-tab-members', 'members-tab-invites']),
     authority: F({ endpoint: 'GET /api/members', decided_by: 'v3ref/authz.mjs + bitemporal.mjs',
@@ -305,7 +305,7 @@ export const FEATURES = Object.freeze([
     evidence: F(['v3app/selfcheck.mjs', 'tests/e2e/v3app-r85.spec.mjs']),
   }),
   F({
-    id: 'data.price', module: 'data', version: '1.1.0', status: 'working',
+    id: 'data.price', module: 'data', version: '1.2.0', status: 'working',
     group: 'plan', scope: 'book', audience: 'signed_in', screen: 'stock', action: 'open.stock', entry: 'data-price',
     anchors: F(['nav-stock', 'data-price-btn', 'data-price']),
     authority: F({ endpoint: 'GET /api/data/price', decided_by: 'v3ref/entitlement.mjs (twoGateVerdict) + authz.mjs',
@@ -319,7 +319,7 @@ export const FEATURES = Object.freeze([
     evidence: F(['v3app/selfcheck.mjs']),
   }),
   F({
-    id: 'shell.navigation', module: 'shell', version: '1.2.0', status: 'working',
+    id: 'shell.navigation', module: 'shell', version: '1.3.0', status: 'working',
     group: 'shell', scope: 'person', audience: 'signed_in', screen: 'overview', action: 'open.overview', entry: 'nav',
     anchors: F(['nav', 'tabs', 'account-switcher', 'profile']),
     authority: F({ endpoint: 'GET /api/me', decided_by: 'v3app/server.mjs (munkamenet) + v3ref/authz.mjs',
@@ -355,7 +355,7 @@ export const FEATURES = Object.freeze([
     evidence: F(['tools/vs_verify_i18n.mjs', 'tests/e2e/v3app-r89-tutor.spec.mjs']),
   }),
   F({
-    id: 'shell.help', module: 'shell', version: '1.0.0', status: 'working',
+    id: 'shell.help', module: 'shell', version: '1.1.0', status: 'working',
     group: 'shell', scope: 'person', audience: 'public', screen: null, action: null, entry: 'help-open',
     anchors: F(['help-open', 'help-panel', 'help-tab-ask', 'help-tab-guides', 'help-tab-faq', 'help-tab-sitemap']),
     authority: F({ endpoint: 'GET /api/assistant/knowledge', decided_by: 'v3app/assistant/policy.mjs (AST-01)',
@@ -367,7 +367,7 @@ export const FEATURES = Object.freeze([
     evidence: F(['tools/vs_verify_tutor.mjs', 'tests/e2e/v3app-r89-tutor.spec.mjs']),
   }),
   F({
-    id: 'shell.assistant', module: 'assistant', version: '1.0.0', status: 'demo',
+    id: 'shell.assistant', module: 'assistant', version: '1.1.0', status: 'demo',
     group: 'shell', scope: 'person', audience: 'signed_in', screen: null, action: null, entry: 'chat-form',
     anchors: F(['help-open', 'help-tab-ask', 'chat-input', 'chat-send']),
     authority: F({ endpoint: 'POST /api/assistant/ask', decided_by: 'v3app/assistant/policy.mjs (AST-01)',
@@ -398,7 +398,7 @@ export const FEATURES = Object.freeze([
     evidence: F(['v3app/selfcheck.mjs']),
   }),
   F({
-    id: 'shell.sample_pages', module: 'shell', version: '1.1.0', status: 'demo',
+    id: 'shell.sample_pages', module: 'shell', version: '1.2.0', status: 'demo',
     group: 'shell', scope: 'book', audience: 'signed_in', screen: 'products', action: 'open.products', entry: 'list-rows',
     anchors: F(['nav-products', 'list-search', 'list-rows']),
     authority: F({ endpoint: 'GET /api/me', decided_by: 'v3app/public/demoData.mjs (DEM-01/DEM-02)',
@@ -442,7 +442,7 @@ export const FEATURES = Object.freeze([
   // KIVEZETETT — és ez NEM elméleti eset: az R81 váltotta le a számozott próbafelületet. A súgó
   // nem hagyhatja aktív találatként (a `verify:tutor` ezt MÉRI), de a `replaced_by` továbbvezet.
   F({
-    id: 'shell.numbered_probe', module: 'shell', version: '1.0.0', status: 'retired',
+    id: 'shell.numbered_probe', module: 'shell', version: '1.1.0', status: 'retired',
     group: 'shell', scope: 'person', audience: 'signed_in', screen: null, action: null, entry: null,
     anchors: F([]),
     replaced_by: 'shell.navigation',
