@@ -14,7 +14,7 @@
 //   · a jogosultságot KIZÁRÓLAG a szerver dönti el — itt nincs kliens-oldali jog-mátrix.
 import { contextBindingVerdict, unboundMessage } from './contextBinding.mjs';
 import { PAGE, NAV_GROUPS, NAV_ADMIN, NAV_PERSONAL, ROLE, SCOPE, SCOPE_ACC, PLAN, QUALITY, STATE, UNBOUND, UI, HELP, TOURUI, CHAT,
-  reasonText, whenText, tpl, accountLabel, setLang, currentLang, currentDir, currentEndonym, enabledLanguages,
+  reasonText, refusalText, whenText, tpl, accountLabel, setLang, currentLang, currentDir, currentEndonym, enabledLanguages,
   dict, decideLang, langStoreKey, LANG_CHOICE_KEY } from './texts.mjs';
 import { demoFor, demoSource } from './demoData.mjs';
 // A SEGÍTSÉG HÁROM DARABJA — mind TISZTA rajzoló/állapot-modul: lekérést egyik sem indít, azt EGY
@@ -22,6 +22,7 @@ import { demoFor, demoSource } from './demoData.mjs';
 import { helpPanelHtml, guidesHtml, faqHtml, sitemapHtml, VIEWS } from './help.mjs';
 import { chatHtml, emptyChat } from './chat.mjs';
 import * as tourMod from './tour.mjs';
+import { inviteNextKey } from './inviteText.mjs';
 
 (() => {
   'use strict';
@@ -988,7 +989,7 @@ import * as tourMod from './tour.mjs';
     const verdict = contextBindingVerdict(r, v);
     if (!verdict.bound) { state.invites = []; render(); await contextChangedNotice(verdict.why); return; }
     state.invites = r.ok ? (r.invites || []) : [];
-    if (!r.ok) notice(reasonText(r.reason, r.message), 'bad');
+    if (!r.ok) notice(refusalText(r), 'bad');
     render();
   }
 
@@ -1347,6 +1348,29 @@ import * as tourMod from './tour.mjs';
     if (!state.tour) return;
     if (tourMod.taskDone(state.tour, taskId)) { state.tourBlocked = null; renderTour(); }
   }
+  /**
+   * A LEZÁRÁS A VÁLTÁS ELŐTT SZÜLETIK — EGY HELYEN, MINDEN FIÓKVÁLTÓ SIKERHEZ (F93-01 · F111-01).
+   *
+   * A SORRENDCSERE NEM ELÉG: a `refreshMe` → `resetViewCaches` a futó bemutatót MINDEN esetben üríti,
+   * tehát bárhová tesszük a tanúsítást, a váltás utáni takarítás elviszi. Ezért a MÁR BIZONYÍTOTT
+   * eredményről itt készül a hordozható összegzés — az új fiókban ezt látja a felhasználó, és csak
+   * ezt: se cél, se szerkesztő-állapot, se jog nem megy át.
+   *
+   * A LELET, AMI IDE HOZTA (F111-01, a külső ellenőrző fél R111-es reprodukciója): a vállalkozás
+   * létrehozása már így zárt, a MEGHÍVÁS ELFOGADÁSA viszont a saját, második példányát futtatta a
+   * váltásnak — lezárás nélkül. A szerver igazolta a tagságot, a bemutató mégis nyom nélkül eltűnt.
+   * A hiba osztálya a KUKA-003: a több helyen igaz szabály több helyen élt. Mostantól minden út, ami
+   * a saját sikerétől fiókot vált, EZT hívja.
+   *
+   * A FÉLBEHAGYOTT FUTÁS IS KAP ÖSSZEGZÉST, de nem lesz „egész": a `finishRun` csak a MOSTANI lépést
+   * zárhatja le (feladatnál csak igazolt sikerrel), a hátralévők HÁTRAVAN maradnak — így a kihagyott
+   * út nem válik elvégzetté (R111), és az összegzés mégsem tűnik el nyomtalanul.
+   */
+  function carryTourBeforeSwitch(via) {
+    if (!state.tour) return;
+    tourMod.finishRun(state.tour);
+    state.tourCarry = tourMod.carrySnapshot(state.tour, { via });
+  }
 
   /** A KÉRDÉS ELKÜLDÉSE — a nézet a küldéskor rögzül, és a késő válasz nem rajzol (KUKA-041). */
   async function doAsk(form) {
@@ -1548,7 +1572,7 @@ import * as tourMod from './tour.mjs';
       <p class="helpbox" data-testid="invite-identity">${identity}${hint ? ` · ${esc(UI.inviteAddressLine)}: <strong>${esc(hint)}</strong>` : ''}</p>
       <div class="buttonrow" data-testid="invite-actions">${actions}</div>
       <p class="notice" data-testid="invite-redeem-result" hidden></p>
-      <p class="authfoot" data-testid="invite-next">${esc(o.message || UI.inviteWrongAddress)}</p>
+      <p class="authfoot" data-testid="invite-next" data-next="${esc(inviteNextKey(o, loggedIn))}">${esc(UI[inviteNextKey(o, loggedIn)])}</p>
       <div class="buttonrow" data-testid="invite-help-row">
         <button type="button" class="plain" data-action="faq-open" data-faq="faq.invite.accept" data-testid="invite-faq">${esc(UI.inviteFaqOpen)}</button>
         <button type="button" class="plain" data-action="tour-start" data-tour="tour.inviteAccept" data-testid="invite-tour">${esc(UI.inviteTourStart)}</button>
@@ -1758,7 +1782,26 @@ import * as tourMod from './tour.mjs';
       if (b.dataset.go.startsWith('switch:')) { await switchWorkspace(b.dataset.go.slice(7)); return; }
       go(b.dataset.go); return;
     }
-    if (b.dataset.auth) { renderAuth(b.dataset.auth); return; }
+    if (b.dataset.auth) {
+      /**
+       * A MEGHÍVÓ BEMUTATÓJA A MEGHÍVÓ KÉPERNYŐJÉN JÁR (F111-01, a regisztráción át érkező út). Ha a
+       * felhasználó innen a belépésre vagy a regisztrációra lép, a bemutató célja eltűnik — és a
+       * belépés MÁS alanyt hoz a munkamenetbe, amin a futás amúgy sem élhet túl (KUKA-218). Ezért
+       * a futás itt NEVEZETTEN ér véget, a hátralévő lépések kihagyottak (nem elvégzettek), és a
+       * mondat megadja a működő folytatást: belépés után a meghívó lapja újra megnyílik, és onnan
+       * újraindítható (KUKA-201).
+       */
+      if (state.tour && state.tour.requires_invite && !state.tourAborted && b.dataset.auth !== 'invite') {
+        // A FUTÁS MEGMARAD a megszakítás mögött: az „Újraindítás" ebből tudja, mit indítson újra
+        // (a meghívó lapjára visz vissza) — a belépés pedig amúgy is üríti (`resetViewCaches`).
+        tourMod.exitRun(state.tour, 'sign_in');
+        state.tourFinished = false; state.tourBlocked = null;
+        state.tourAborted = 'inviteSignInFirst';
+      }
+      renderAuth(b.dataset.auth);
+      if (state.tourAborted === 'inviteSignInFirst') renderTour();
+      return;
+    }
     if (b.dataset.tab) { state.page = b.dataset.tab; state.notice = null; render(); loadPageData(); return; }
     if (b.dataset.closeTab) {
       state.tabs = state.tabs.filter((x) => x !== b.dataset.closeTab);
@@ -2016,7 +2059,7 @@ import * as tourMod from './tour.mjs';
     if (kind === 'register') {
       // A KÉRT NYELV A LEVÉLLEL IS MEGY (F91-02): a megerősítő levél és a lapja ezen a nyelven szól.
       const r = await api('POST', '/api/register', { email, password, lang: currentLang() });
-      if (!r.ok) { formResult('register-result', reasonText(r.reason, r.message), 'bad'); return; }
+      if (!r.ok) { formResult('register-result', refusalText(r), 'bad'); return; }
       renderAuth('sent');
       return;
     }
@@ -2057,7 +2100,7 @@ import * as tourMod from './tour.mjs';
       formResult('resend-result', STATE.uncertainWrite, 'warn');
       return;
     }
-    if (v === 'refused') { formResult('resend-result', reasonText(r.reason, r.message), 'bad'); return; }
+    if (v === 'refused') { formResult('resend-result', refusalText(r), 'bad'); return; }
     renderAuth('resent');
   }
 
@@ -2099,7 +2142,7 @@ import * as tourMod from './tour.mjs';
     const sw = byTest('account-switcher'); if (sw) sw.open = false;
     render();                       // ELŐBB ÜRÍT, aztán kér — a régi fiók adata azonnal lekerül
     const r = await api('POST', '/api/session/workspace', { book_id: id });
-    if (!r.ok) { notice(reasonText(r.reason, r.message), 'bad'); await refreshMe(); return; }
+    if (!r.ok) { notice(refusalText(r), 'bad'); await refreshMe(); return; }
     // A NEVET A SAJÁT LISTÁJÁBÓL vesszük (ott áll a `personal` tény) — a válasz nevét tartalékként.
     const cel = ((state.me && state.me.workspaces) || []).find((w) => w.book_id === id);
     notice(tpl('accountOpened', { nev: accountLabel(cel) || r.name || r.book_id }), 'ok');
@@ -2148,7 +2191,7 @@ import * as tourMod from './tour.mjs';
         if (input) { input.classList.add('fieldbad'); input.setAttribute('aria-invalid', 'true'); input.focus(); }
         formResult('ws-create-result', UI.wsNotCreated, 'bad');
       } else {
-        formResult('ws-create-result', reasonText(r.reason, r.message), 'bad');
+        formResult('ws-create-result', refusalText(r), 'bad');
       }
       return;
     }
@@ -2158,18 +2201,7 @@ import * as tourMod from './tour.mjs';
     // tudta volna befejezni a saját feladat-lépését. A szerver válasza (`r.ok`) MÁR megvan: a tanú
     // ITT keletkezik, nem a rajzolás után (KUKA-129: a nyugtának is igazat kell mondania).
     tourTaskDone('workspace.created');
-    /**
-     * ÉS A LEZÁRÁS IS ITT SZÜLETIK, A VÁLTÁS ELŐTT (F93-01, a külső fél R93-as reprodukciója).
-     *
-     * A SORRENDCSERE NEM LETT VOLNA ELÉG: a `refreshMe` → `resetViewCaches` a futó bemutatót MINDEN
-     * esetben üríti, tehát bárhová tesszük a tanúsítást, a váltás utáni takarítás elviszi. Ezért a
-     * MÁR BIZONYÍTOTT eredményről itt készül a hordozható elszámolás — az új fiókban ezt látja a
-     * felhasználó, és csak ezt: se cél, se szerkesztő-állapot, se jog nem megy át.
-     */
-    if (state.tour) {
-      const fin = tourMod.finishRun(state.tour);
-      if (fin.ok) state.tourCarry = tourMod.carrySnapshot(state.tour);
-    }
+    carryTourBeforeSwitch('workspace_created');     // A LEZÁRÁS A VÁLTÁS ELŐTT születik (F93-01)
     newContext('workspace_created');
     forgetForms();                  // A LÉTREHOZÁS LEZÁRTA A MUNKÁT: nincs mit megőrizni
     state.tabs = ['overview']; state.page = 'overview';
@@ -2187,7 +2219,7 @@ import * as tourMod from './tour.mjs';
     const r = await apiInContext('POST', '/api/workspaces/plan', { plan: form.elements.plan.value }, v);
     const verdict = contextBindingVerdict(r, v);
     if (!verdict.bound) { formResult('plan-result', unboundMessage(verdict.why, UNBOUND), 'warn'); await contextChangedNotice(verdict.why); return; }
-    if (!r.ok) { formResult('plan-result', reasonText(r.reason, r.message), 'bad'); return; }
+    if (!r.ok) { formResult('plan-result', refusalText(r), 'bad'); return; }
     // A VISSZAJELZÉS A FRISSÍTÉS UTÁN SZÜLETIK: a frissítés újrarajzolja a képernyőt, és egy
     // előbb kiírt üzenetet elmosna (ugyanaz az osztály, mint a létrehozás-kártyánál).
     forgetForm('plan');                      // elmentve ⇒ nincs mit megőrizni (és nincs mit kérdezni)
@@ -2206,7 +2238,7 @@ import * as tourMod from './tour.mjs';
     }, v);
     const verdict = contextBindingVerdict(r, v);
     if (!verdict.bound) { formResult('invite-result', unboundMessage(verdict.why, UNBOUND), 'warn'); await contextChangedNotice(verdict.why); return; }
-    if (!r.ok) { formResult('invite-result', reasonText(r.reason, r.message), 'bad'); return; }
+    if (!r.ok) { formResult('invite-result', refusalText(r), 'bad'); return; }
     formResult('invite-result', tpl('inviteReady', { mikor: whenText(r.expires_at) }), 'ok');
     // A BEMUTATÓ FELADAT-LÉPÉSE ITT LESZ IGAZOLT: a szerver TÉNYLEGESEN létrehozta a meghívót. A
     // gomb megnyomása önmagában nem siker (TUR-01 · KUKA-129).
@@ -2232,7 +2264,7 @@ import * as tourMod from './tour.mjs';
       formResult('members-result', mondat, 'ok');
       toast(mondat);
     } else {
-      formResult('members-result', reasonText(r.reason, r.message), 'bad');
+      formResult('members-result', refusalText(r), 'bad');
     }
     await loadMembers();
   }
@@ -2248,7 +2280,7 @@ import * as tourMod from './tour.mjs';
     if (gen !== state.generation) { notice(reasonText('context_mismatch'), 'warn'); render(); return; }
     const m = (state.members || []).find((x) => x.subject_id === id);
     const who = m ? (m.email || id) : id;
-    formResult('members-result', r.ok ? tpl('memberRevoked', { ki: who, nev: accountName() }) : reasonText(r.reason, r.message), r.ok ? 'ok' : 'bad');
+    formResult('members-result', r.ok ? tpl('memberRevoked', { ki: who, nev: accountName() }) : refusalText(r), r.ok ? 'ok' : 'bad');
     await loadMembers();
   }
 
@@ -2260,22 +2292,47 @@ import * as tourMod from './tour.mjs';
   }
   async function doRedeem() {
     const r = await api('POST', '/api/invites/redeem', { token: state.inviteToken });
-    if (!r.ok) { formResult('invite-redeem-result', reasonText(r.reason, r.message), 'bad'); return; }
+    if (!r.ok) { formResult('invite-redeem-result', refusalText(r), 'bad'); return; }
     // A BEMUTATÓ UTOLSÓ LÉPÉSE CSAK IGAZOLT SIKERRE ZÁRUL (P109-01 · TUR-01): a jelzés a SZERVER
     // `ok` válasza UTÁN és a képernyő elhagyása ELŐTT megy ki — a „Tovább"/„Befejezés" gomb tehát
     // nem fogadja el a meghívást a felhasználó helyett (KUKA-231), és egy elutasított beváltás nem
     // zárja le a bemutatót sikeresen (KUKA-163 alakja a bemutatón).
     tourTaskDone('invite.redeemed');
+    // ÉS A LEZÁRÁS IS ITT, A FIÓKVÁLTÁS ELŐTT (F111-01): a tagság létrejötte önmagában NEM bizonyítja
+    // a bemutató befejezését — az összegzés a szerver igazolt válaszából születik, a váltás előtt.
+    carryTourBeforeSwitch('invite_redeemed');
     state.inviteToken = null;
     state.invite = null;
     history.replaceState(null, '', '/');
     newContext('invite_redeemed');
     state.tabs = ['overview']; state.page = 'overview';
     await refreshMe();
+    /**
+     * A SIKER ANNAK SZÓL, AKINEK A SZERVER KISZOLGÁLTA (R112 saját lelete · KUKA-204).
+     *
+     * A LELET (R112-I3, böngészőben reprodukálva): az elfogadás válasza KÉSVE érkezett, közben
+     * ugyanebben a böngészőben MÁSIK ember lépett be. A lap a frissítés után a MOSTANI nézőnek írta
+     * ki, hogy „Elfogadtad a meghívást. Csatlakoztál ehhez a fiókhoz: Személyes fiók" — vagyis az
+     * ő SAJÁT fiókját nevezte meg csatlakozottként, egy olyan műveletre, amit nem ő végzett. A
+     * saját kezdeményezés jele (`selfInitiated`) ráadásul a frissítés „másik ember lépett be"
+     * mondatát is elnyelte.
+     *
+     * MOSTANTÓL: a válasz megnevezi, KINEK és MELYIK fióknak szolgált ki (`subject_id` · `book_id`).
+     * Ha a frissítés után más ül a lapnál, a siker NEM az övé — a lap a személyváltást mondja ki,
+     * és a hordozott lezárás sem száll át (a `refreshMe` a személyváltásnál üríti). A csatlakozott
+     * fiók nevét a válasz fiókjából vesszük, nem a pillanatnyi nézetből.
+     */
+    if (!state.me || (r.subject_id && state.me.subject_id !== r.subject_id)) {
+      notice(UI.otherPersonHere, 'warn');
+      render();
+      return;
+    }
+    const joined = (state.me.workspaces || []).find((x) => x.book_id === r.book_id);
     // A SIKER SZAVA KIMONDOTT (P109-01): mit tettél, MELYIK fiók nyílt meg, és mi következik. Külön
     // „Fiók megnyitása" kattintást NEM teszünk be: a fiók MÁR megnyílt (fentebb `go`/`refreshMe`),
     // egy plusz gomb csak egy kattintással több lenne ugyanahhoz az állapothoz.
-    notice(`${UI.inviteAcceptedLead} ${tpl('accountJoined', { nev: accountName() })} ${UI.inviteJoinedScopeNote}`, 'ok');
+    const nev = joined ? accountLabel({ name: joined.name, personal: joined.personal === true }) : accountName();
+    notice(`${UI.inviteAcceptedLead} ${tpl('accountJoined', { nev })} ${UI.inviteJoinedScopeNote}`, 'ok');
     render();
   }
 

@@ -33,6 +33,9 @@ export function newTourRun({ def, view, role }) {
     feature: def.feature,
     page: def.page ?? null,
     requires_role: def.requires_role ?? null,
+    // A MEGHÍVÓ KÉPERNYŐJÉHEZ KÖTÖTT bemutató (P109-01): a képernyője a beváltás után megszűnik, ezért
+    // a lezárása nem kínál újraindítást, és a belépés felé elhagyott futás NEVEZETTEN ér véget.
+    requires_invite: def.requires_invite === true,
     steps: def.steps.map((s) => ({ ...s, state: 'pending' })),
     text: def.text || null,
     at: 0,
@@ -194,7 +197,7 @@ export function finishRun(run) {
  * se jogot. Csak a MÁR MEGTÖRTÉNT lépések elszámolását, és azt is a SZEMÉLYHEZ kötve — a hívó
  * ürítni köteles, ha más ember kerül a munkamenetbe (R83/F83-01 marad érvényben).
  */
-export function carrySnapshot(run) {
+export function carrySnapshot(run, { via = null } = {}) {
   if (!run) return null;
   return {
     id: run.id,
@@ -203,9 +206,16 @@ export function carrySnapshot(run) {
     text: run.text || null,
     steps: run.steps.map((s) => ({ id: s.id, state: s.state })),
     endedBy: run.endedBy || null,
+    // MI ZÁRTA LE (F111-01): a lezárás mondata ettől függ — a meghívás elfogadása nem „a vállalkozás
+    // létrehozása". A szó a KÓDON áll, nem a feliraton (KUKA-221).
+    via: CARRIED_LEAD[via] ? via : null,
+    requires_invite: run.requires_invite === true,
     carried: true,
   };
 }
+
+/** A hordozott lezárás mondata AZ OK szerint — ismeretlen ok a régi, általános mondatot kapja. */
+const CARRIED_LEAD = Object.freeze({ workspace_created: 'carriedLead', invite_redeemed: 'carriedLeadInvite' });
 
 /** A futás ELSZÁMOLÁSA — egy helyen, mert a záró lap és a gépi mérés is ezt olvassa. */
 export function runSummary(run) {
@@ -274,17 +284,25 @@ export function tourHtml(run, { blocked, pending } = {}) {
  */
 export function finishedHtml(run) {
   const { done, skipped, pending: pendingCount, whole } = runSummary(run);
-  // A HORDOZOTT LEZÁRÁS MÁS MONDATTAL ÁLL (F93-01): kimondja, hogy az elszámolás az ELŐZŐ fiókban
-  // elvégzett lépésekről szól — a felhasználó ne higgye, hogy az ÚJ fiókban járt végig valamit.
-  const lead = run && run.carried ? (TOURUI.carriedLead || TOURUI.finishedLead)
+  const carried = Boolean(run && run.carried);
+  // A HORDOZOTT LEZÁRÁS MÁS MONDATTAL ÁLL (F93-01): kimondja, hogy az összegzés az ELŐZŐ képernyőn
+  // megtett lépésekről szól — a felhasználó ne higgye, hogy az ÚJ fiókban járt végig valamit. A
+  // mondatot a lezárás OKA választja (F111-01): a meghívás elfogadása más mondat, mint a létrehozás.
+  const lead = carried ? (TOURUI[CARRIED_LEAD[run.via] || 'carriedLead'] || TOURUI.finishedLead)
     : (whole ? TOURUI.finishedLead : TOURUI.endedLead);
+  // A HORDOZOTT, DE NEM TELJES futás nem „kilépés": a felhasználó nem lépett ki, a művelete zárta le
+  // a bemutatót — a cím ezt mondja, az összegzés pedig a kimaradt lépéseket (F111-01).
+  const title = whole ? TOURUI.finishedTitle : (carried ? TOURUI.carriedEndedTitle : TOURUI.endedTitle);
+  // AZ ÚJRAINDÍTÁS CSAK OTT, AHOL VAN MIT ÚJRAINDÍTANI: a meghívóhoz kötött bemutató képernyője a
+  // beváltással megszűnt, egy felkínált újraindítás zsákutcába vinne (KUKA-201).
+  const restartable = !(carried && run.requires_invite === true);
   return `<div class="tourhead"><small data-testid="tour-progress">${esc(run.text && run.text.title ? run.text.title : run.id)}</small>
       <button type="button" class="x" data-action="tour-exit" aria-label="${esc(TOURUI.exit)}" data-testid="tour-exit">×</button></div>
-    <h3 data-testid="tour-finished" data-whole="${whole ? 'true' : 'false'}" data-carried="${run && run.carried ? 'true' : 'false'}">${esc(whole ? TOURUI.finishedTitle : TOURUI.endedTitle)}</h3>
-    <p>${esc(lead)}</p>
-    <p data-testid="tour-summary">${esc(TOURUI.done)}: ${esc(String(done))} · ${esc(TOURUI.skipped)}: ${esc(String(skipped))} · ${esc(TOURUI.pending)}: ${esc(String(pendingCount))}</p>
-    <div class="buttonrow"><button type="button" data-action="tour-restart" data-testid="tour-restart">${esc(TOURUI.restart)}</button>
-      <button type="button" class="primary" data-action="tour-exit" data-testid="tour-close">${esc(TOURUI.exit)}</button></div>`;
+    <h3 data-testid="tour-finished" data-whole="${whole ? 'true' : 'false'}" data-carried="${carried ? 'true' : 'false'}" data-via="${esc(carried && run.via ? run.via : '')}">${esc(title)}</h3>
+    <p data-testid="tour-finished-lead">${esc(lead)}</p>
+    <p data-testid="tour-summary" data-done="${done}" data-skipped="${skipped}" data-pending="${pendingCount}">${esc(TOURUI.done)}: ${esc(String(done))} · ${esc(TOURUI.skipped)}: ${esc(String(skipped))} · ${esc(TOURUI.pending)}: ${esc(String(pendingCount))}</p>
+    <div class="buttonrow">${restartable ? `<button type="button" data-action="tour-restart" data-testid="tour-restart">${esc(TOURUI.restart)}</button>
+      ` : ''}<button type="button" class="primary" data-action="tour-exit" data-testid="tour-close">${esc(TOURUI.exit)}</button></div>`;
 }
 
 /** A MEGSZAKÍTÁS lapja — NEVEZETT ok, és működő folytatás. */
@@ -391,16 +409,16 @@ export const TUR_CONTRACT = Object.freeze({
     + 'értél", ha MINDEN lépés elvégezve — különben kimondja az átugrott és a hátralévő számot',
   skip_rule: 'a tudatos kihagyás KÜLÖN állapot és külön gomb (skipStep): a felhasználó nincs '
     + 'bezárva, de az átugrott lépés az elszámolásban is átugrottnak látszik',
-  abort_reasons: Object.freeze(['contextChanged', 'rightLost', 'targetMissing']),
+  abort_reasons: Object.freeze(['contextChanged', 'rightLost', 'targetMissing', 'inviteSignInFirst']),
   overlap_rule: 'a buborék KITÉR a kiemelt cél elől (avoidOverlap), és ha nincs szabad sarok (a cél '
     + 'egy egész lista), a kártya ÁTENGEDI a kattintást, miközben a saját gombjai működnek — a '
     + 'szerződés („a képernyő mögötte kattintható marad") így minden célméretnél igaz',
   pending_rule: 'a panelen belüli cél FELTÁRÓJA deklarált (appears_after): amíg a felhasználó meg '
     + 'nem nyitja, a bemutató VÁR (targetPending) és a FELTÁRÓT emeli ki — nem szakít meg, és nem '
     + 'kattint helyette',
-  carry_rule: 'a fiók LÉTREHOZÁSÁVAL lezárt futás elszámolása HORDOZHATÓ pillanatképként éli túl a '
-    + 'nézet-ürítést (carrySnapshot), és UGYANAZ a rajzoló írja ki (finishedHtml) — de csak az '
-    + 'elszámolás megy át, szerkesztő-állapot és jog SOHA, és a hívó üríti, ha MÁS ember kerül a '
-    + 'munkamenetbe',
+  carry_rule: 'a fiók LÉTREHOZÁSÁVAL vagy a MEGHÍVÁS ELFOGADÁSÁVAL lezárt futás összegzése HORDOZHATÓ '
+    + 'pillanatképként éli túl a nézet-ürítést (carrySnapshot, a lezárás OKÁVAL), és UGYANAZ a '
+    + 'rajzoló írja ki (finishedHtml) — de csak az összegzés megy át, szerkesztő-állapot és jog SOHA, '
+    + 'a félbehagyott futás nem lesz „egész", és a hívó üríti, ha MÁS ember kerül a munkamenetbe',
   progress: 'memóriában, személy + fiók + bemutató-verzió kötéssel; böngészőben NEM tároljuk',
 });

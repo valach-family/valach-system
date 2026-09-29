@@ -12,9 +12,12 @@
 //            (ez az ellenpróba: enélkül a zöld csak azt igazolná, hogy a lista nem üres)
 //   R109-03  A BEMUTATÓ NEM FOGAD EL HELYETTÜNK: végigkattintva a „Tovább"-ot a meghívó
 //            beváltatlan MARAD (adatbázison mérve), és csak a SAJÁT kattintás + a szerver igazolt
-//            sikere zárja le a bemutatót
-//   R109-04  ELUTASÍTÁS és ÍRÁS-MENTESSÉG: lejárt meghívó nem kap hamis sikert; a súgó/bemutató
-//            megnyitása-bezárása-kihagyása NEM ír tagságot vagy jogot (sorszámlálással mérve)
+//            sikere zárja le a bemutatót — a lezárást az ÚJ fiókban TÉNYLEGESEN mérjük (F111-01:
+//            `tour-finished` teljes, hordozott, a meghívás mondatával; nem elég a tagság)
+//   R109-04  ELUTASÍTÁS és ÍRÁS-MENTESSÉG: a MÁR FELHASZNÁLT és a MÁS CÍMZETTNEK szóló meghívó nem
+//            kap hamis sikert; a súgó/bemutató megnyitása-bezárása-kihagyása NEM ír tagságot vagy
+//            jogot (sorszámlálással mérve). A LEJÁRT meghívót ez a lap NEM méri — azt az R112-es
+//            próba (`v3app-r112-stories.spec.mjs`) a fejlesztői órával méri, az ajánlat átírása nélkül.
 //   R109-05  HÁROM NYELV: a képernyő szavai a MEGFELELŐ csomagból jönnek (a próba a csomagból
 //            olvassa az elvárást, nem beéget feliratot — KUKA-237), és nyers kulcs nem szivárog ki
 //   R109-06  KESKENY NÉZET: a képernyő elemei ott is láthatók, vízszintes túlcsordulás nélkül
@@ -136,6 +139,29 @@ test.describe('R109 — a meghívott ember végigvezetése', () => {
     expect(mem.revoked_at).toBeNull();
     // A SIKER SZAVA KIMONDJA, MIT TETTÉL (a `notice` a lezárás után is kint van).
     expect(r.notice).toContain(D.UI.inviteAcceptedLead);
+
+    // F111-01 — A BEMUTATÓ TÉNYLEGES LEZÁRÁSA. A tagság létrejötte önmagában NEM bizonyítja a
+    // bemutató befejezését (a külső fél R111-es reprodukciója: tagság igen, `tour-finished` 0 db).
+    // A lezárásnak a fiókváltás UTÁN is ott kell lennie, TELJES összegzéssel, és ki kell mondania,
+    // hogy a meghívás elfogadása zárta le — nem a vállalkozás létrehozása.
+    const fin = bea.page.getByTestId('tour-finished');
+    await expect(fin, 'F111-01: a fiókváltás után is van lezárás').toBeVisible();
+    await expect(fin).toHaveAttribute('data-whole', 'true');
+    await expect(fin).toHaveAttribute('data-carried', 'true');
+    await expect(fin).toHaveAttribute('data-via', 'invite_redeemed');
+    await expect(fin).toHaveText(D.TOURUI.finishedTitle);
+    await expect(bea.page.getByTestId('tour-finished-lead')).toHaveText(D.TOURUI.carriedLeadInvite);
+    const osszeg = bea.page.getByTestId('tour-summary');
+    await expect(osszeg).toHaveAttribute('data-done', '4');
+    await expect(osszeg).toHaveAttribute('data-skipped', '0');
+    await expect(osszeg).toHaveAttribute('data-pending', '0');
+    // …és tényleg AZ ÚJ fiókban vagyunk (a lezárás nem a váltás elmaradásából jön).
+    expect((await bea.api.get('/api/me')).body.current_book_id).toBe(biz.bookId);
+    await expect(bea.page.getByTestId('header-workspace')).toContainText('R109 Kft');
+    // A MEGHÍVÓ KÉPERNYŐJE MEGSZŰNT: a lezárás nem kínál zsákutcába vivő újraindítást (KUKA-201).
+    await expect(bea.page.getByTestId('tour-restart')).toHaveCount(0);
+    await bea.page.getByTestId('tour-close').click();
+    await expect(bea.page.getByTestId('tour')).toBeHidden();
   });
 
   test('R109-04 — elutasítás és ÍRÁS-MENTESSÉG: a segítség nem ír tagságot', async () => {

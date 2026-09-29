@@ -121,7 +121,12 @@ export const REASON = Object.freeze({
   invite_unknown: 'Ehhez a hivatkozáshoz nem tartozik beváltható meghívás.',
   invite_terms_changed: 'A meghívás feltételei időközben megváltoztak. Kérj új meghívót attól, aki meghívott.',
   issuer_right_withdrawn: 'Aki a meghívót kiadta, már nem jogosult rá. Kérj új meghívót a fiók kezelőjétől.',
-  invitee_mismatch: 'Ez a meghívás másik e-mail-címre szól. Jelentkezz be azzal a címmel, vagy kérj új meghívót a sajátodra.',
+  invitee_mismatch: 'Ez a meghívás másik e-mail-címre szól. Jelentkezz be azzal a címmel, vagy kérj új meghívást a sajátodra.',
+  // A MEGHÍVÁS BEVÁLTÁSÁNAK TOVÁBBI, FELÜLETRŐL ELÉRHETŐ OKAI (R112): eddig a mag magyar szövege állt
+  // helyettük — idegen nyelvű felületen is (KUKA-210). A kulcs-feloldás a `dict.mjs` REASON_ALIAS.
+  address_ambiguous: 'Ehhez a címhez több belépés is tartozik, ezért a meghívást így nem lehet elfogadni. Kérj segítséget attól, aki meghívott.',
+  membership_role_differs: 'Ebben a fiókban már tag vagy, más szerepkörrel. A szerepkör módosításáról a fiókkezelő dönt.',
+  membership_reopen_needs_decision: 'Ebben a fiókban korábban megszűnt a tagságod. Az újbóli csatlakozásról a fiókkezelő dönt.',
   workspace_required: 'Válassz fiókot a folytatáshoz.',
   business_identity_already_attached: 'Ehhez az adóazonosítóhoz már tartozik fiók. Ha a vállalkozásod már használja a rendszert, kérj meghívót attól, aki kezeli.',
   creator_channel_unproven: 'A folytatáshoz erősítsd meg az e-mail-címedet.',
@@ -363,12 +368,20 @@ export const UI = Object.freeze({
   // A CÍM EGY SZÓ, A FIÓK NEVE ALATTA ÁLL (P109-01): így a mondat nem múlik a névelőn, és
   // egyik nyelv sem kényszerül ragozni egy behelyettesített nevet (KUKA-214 osztálya).
   inviteGenericTitle: 'Meghívás',
-  inviteWhatHappens: 'A meghívás elfogadásával a megadott hozzáférést kapod ehhez a fiókhoz.',
+  inviteWhatHappens: 'Az elfogadással tagja leszel ennek a fióknak. Az adatok megtekintését a fiókkezelő ezután külön engedélyezi.',
   inviteNotSignedIn: 'Még nem vagy bejelentkezve.',
   inviteFaqOpen: 'Gyakori kérdések',
   inviteTourStart: 'Végigvezetlek',
   inviteAcceptedLead: 'Elfogadtad a meghívást.',
-  inviteOtherPersonLead: 'Másik fiókkal vagy bejelentkezve. Jelentkezz be azzal a fiókkal, amelyhez a meghívás tartozik.',
+  // FELTÉTELES MONDAT (R112): a más fiókkal belépett néző és az ismeretlen hivatkozás a szerver szerint
+  // megkülönböztethetetlen (KUKA-084) — a lap nem állíthatja, melyik eset áll fenn.
+  inviteOtherPersonLead: 'Ha a meghívás másik címre szól, jelentkezz ki, és lépj be azzal a címmel, amelyre a meghívás érkezett.',
+  // A „KÖVETKEZŐ LÉPÉS" SOR — állapotonként, a nyelvcsomagból (R112 · `inviteText.mjs`).
+  inviteNextAccept: 'Ha csatlakoznál, nyomd meg a „Meghívás elfogadása" gombot. Ha nem, nem kell tenned semmit — a meghívás magától lejár.',
+  inviteNextRegister: 'A regisztráció után erősítsd meg a címedet a levélben kapott hivatkozással, majd jelentkezz be — a meghívás ide tér vissza.',
+  inviteNextLogin: 'Belépés után ez a képernyő újra megnyílik, és elfogadhatod a meghívást.',
+  inviteNextUsed: 'Ha te fogadtad el, a fiókot belépés után a fejléc fiókválasztójában találod. Ha nem, kérj új meghívást attól, aki küldte.',
+  inviteNextNewInvite: 'Az új meghívás új levélben, új hivatkozással érkezik — ezt a hivatkozást már nem kell megőrizned.',
   inviteRoleLine: 'Szerepkör',
   inviteInvitedByLine: 'Meghívta',
   inviteAddressLine: 'A meghívott cím',
@@ -376,12 +389,12 @@ export const UI = Object.freeze({
   inviteAcceptButton: 'Meghívás elfogadása',
   inviteContinueLogin: 'Bejelentkezés és folytatás',
   inviteHaveAccount: 'Már van fiókom',
-  inviteAsExistingLead: 'A meghívás erre a belépéshez tartozó címre szól. Az elfogadás után a fiókkezelő külön engedélyezi az adatok megtekintését.',
-  inviteAsNewLead: 'Állíts be belépést a meghívott címhez, és a meghívás folytatódik.',
-  inviteLoginFirstLead: 'Ehhez a címhez tartozik belépés — jelentkezz be vele, és a meghívás folytatódik.',
-  inviteNeedsIdentityLead: 'A folytatáshoz jelentkezz be azzal az e-mail-címmel, amelyre a meghívó érkezett, és erősítsd meg a címet.',
+  inviteAsExistingLead: 'A meghívás a te címedre szól: elfogadhatod.',
+  inviteAsNewLead: 'Ehhez a címhez még nincs belépés: regisztrálj vele, és a meghívás folytatódik.',
+  inviteLoginFirstLead: 'Ehhez a címhez már tartozik belépés: jelentkezz be vele, és a meghívás folytatódik.',
+  inviteNeedsIdentityLead: 'A folytatáshoz jelentkezz be azzal az e-mail-címmel, amelyre a meghívás érkezett, és erősítsd meg a címet.',
   inviteUnknownLead: 'Ehhez a hivatkozáshoz most nem tartozik beváltható meghívás.',
-  inviteWrongAddress: 'Ha nem a te címedre szól, jelentkezz be a meghívott címmel.',
+  inviteWrongAddress: 'Ha van belépésed a meghívott címhez, jelentkezz be vele; ha nincs, regisztrálj ezzel a címmel.',
   inviteJoinedScopeNote: 'Az adatok megtekintését a fiókkezelő külön engedélyezi.',
   // új fiók
   newLead: 'Ugyanezzel a belépéssel kezelheted. A személyes fiókod megmarad.',
@@ -517,12 +530,12 @@ export const TOURUI = Object.freeze({
   stepList: 'A bemutató lépései',
   simulationNote: 'A bemutató nem ment, nem hív meg senkit és nem töröl semmit. Ezeket te végzed el a rendes felületen.',
   targetMissing: 'Ez a lépés most nem folytatható: a bemutatóban megnevezett elem nem látható ezen a képernyőn.',
-  targetMissingNext: 'Bezárom a bemutatót. A leírás a Súgó → Útmutatók között továbbra is elolvasható.',
+  targetMissingNext: 'A bemutatót bezárhatod vagy újraindíthatod. A leírás a Súgó → Útmutatók között továbbra is elolvasható.',
   // FELTÁRÁSRA VÁRÁS: a cél még nem jelent meg (panel · választás), a felhasználó nyitja meg.
   targetPending: 'Ez a lépés még nem érhető el: előbb nyisd meg a KIEMELT gombbal. A bemutató nem nyomja meg helyetted.',
   // A ZÁRÁS KÉT MONDATA: a „végére értél" CSAK akkor, ha semmi nem maradt ki (F91-01).
   endedTitle: 'Kiléptél a bemutatóból',
-  endedLead: 'Nem minden lépés lett elvégezve — az alábbi elszámolás megmondja, mi maradt ki. A bemutatót bármikor újraindíthatod.',
+  endedLead: 'Nem minden lépés lett elvégezve — az alábbi összegzés megmondja, mi maradt ki. A bemutatót bármikor újraindíthatod.',
   skipStep: 'Kihagyom ezt a lépést',
   notAvailable: 'Ez a bemutató most nem indítható: a képernyője ebben az állapotban nem érhető el. A leírás a Súgó → Útmutatók között továbbra is elolvasható.',
   rightLost: 'Közben megszűnt a jogosultságod ehhez a lépéshez, ezért a bemutató itt megáll.',
@@ -535,7 +548,14 @@ export const TOURUI = Object.freeze({
   // A LEZÁRÁS, AMI TÚLÉLTE A FIÓKVÁLTÁST (F93-01): a létrehozás bemutatója a SAJÁT sikerétől
   // veszítette el az elszámolását — a lap átváltott az új cégre, és a buborék mögül eltűnt az
   // állapot. A lezárás most a BIZONYÍTOTT eredményről szól, és kimondja, hol történt.
-  carriedLead: 'Ezt a bemutatót a vállalkozás létrehozásával fejezted be. Az elszámolás az előző fiókban elvégzett lépésekről szól — az új fiókod már meg is nyílt.',
+  carriedLead: 'Ezt a bemutatót a vállalkozás létrehozásával fejezted be. Az összegzés az előző fiókban megtett lépésekről szól — az új fiókod már meg is nyílt.',
+  // A MEGHÍVÁS ELFOGADÁSA IS FIÓKOT VÁLT (F111-01): a lezárás itt is túléli a váltást, de MÁS a mondata —
+  // nem vállalkozást hoztál létre, hanem csatlakoztál egy meglévő fiókhoz.
+  carriedLeadInvite: 'A bemutatót a meghívás elfogadása zárta le. Az összegzés a meghívó képernyőjén megtett lépésekről szól — a fiók, amelyhez csatlakoztál, már meg is nyílt.',
+  // A MŰVELET ZÁRTA LE, NEM A FELHASZNÁLÓ LÉPETT KI: a félbehagyott, de hordozott futás címe.
+  carriedEndedTitle: 'A bemutató véget ért',
+  // A MEGHÍVÓ BEMUTATÓJA a belépés felé elhagyva (F111-01, a regisztráción át érkező út).
+  inviteSignInFirst: 'A meghívást belépés után tudod elfogadni, ezért a bemutató itt megáll. A meghívás megmarad: belépés után ez a képernyő újra megnyílik (vagy nyisd meg újra a levélben kapott hivatkozást), és a bemutatót onnan újraindíthatod.',
   finishedTitle: 'A bemutató végére értél',
   finishedLead: 'A leírás a Súgó → Útmutatók között bármikor újra elolvasható.',
 });
@@ -1126,7 +1146,7 @@ export const TOUR = Object.freeze({
     s1: Object.freeze({ title: 'Hová hívtak', body: 'Itt látod, melyik vállalkozás fiókjába hívtak, és milyen hozzáférést ajánlanak. Csak azt írjuk ki, amit a meghívás alapján ki lehet adni.' }),
     s2: Object.freeze({ title: 'Melyik fiókkal', body: 'Ez a sor megmutatja, be vagy-e jelentkezve, és melyik címmel. A meghívás egy konkrét címhez tartozik — ha másikkal vagy bent, itt látszik.' }),
     s3: Object.freeze({ title: 'Mi a következő lépés', body: 'Ez a mondat mindig a mostani állapotra szól: bejelentkezés, regisztráció, vagy már elfogadhatod. Ha a meghívás lejárt vagy más címre szól, itt írjuk ki, mit tehetsz.' }),
-    s4: Object.freeze({ title: 'Az elfogadás a te kattintásod', body: 'A gombot te nyomd meg. A bemutató csak akkor zárul, ha a rendszer visszaigazolta a csatlakozást — a „Tovább" gomb nem fogadja el a meghívást helyetted.' }),
+    s4: Object.freeze({ title: 'Az elfogadás a te kattintásod', body: 'A „Meghívás elfogadása" gombot te nyomod meg. A bemutató csak akkor zárul, ha a rendszer visszaigazolta a csatlakozást — a „Tovább" gomb nem fogadja el a meghívást helyetted. Ha még nem vagy bejelentkezve, előbb lépj be vagy regisztrálj: a meghívás megmarad.' }),
   }),
   'tour.help': Object.freeze({
     title: 'A Segítség használata',

@@ -24,7 +24,7 @@ import * as hu from './i18n/hu.mjs';
 import {
   dict, dictFor, setLang as setLangInner, currentLang, currentDir, currentLocale, currentEndonym,
   enabledLanguages, allLanguages, languageOf, lookup, placeholdersOf, tpl as tplInner,
-  reasonText as reasonInner, plural as pluralInner, fmtNumber as fmtNumberInner, fmtDate,
+  reasonText as reasonInner, refusalText as refusalInner, plural as pluralInner, fmtNumber as fmtNumberInner, fmtDate,
   coverageOf, knowledgeText, TEXT_GROUPS, DEEP_GROUPS, PACKS, I18N_CONTRACT, resolveLanguage,
 } from './i18n/dict.mjs';
 // A NYELV-EMLÉKEZET IS EZEN A BEJÁRATON JÖN (LNG-02, F95-01): a lap egy helyről kéri a nyelvhez
@@ -110,6 +110,9 @@ export function tpl(key, vals) { return tplInner(key, vals); }
 
 /** Egy gépi ok emberi mondata; ismeretlen oknál nevezett, de érthető tartalék. */
 export function reasonText(reason, fallback) { return reasonInner(reason, fallback); }
+
+/** A szerver ELUTASÍTÁSÁNAK mondata — a nyelvcsomagból, a mag szövege nélkül (R112 · KUKA-210). */
+export function refusalText(r) { return refusalInner(r); }
 
 /** Dátum a FELHASZNÁLÓ időzónájában és területi alakján, ISO helyett (R81 §6). */
 export function whenText(iso) { return fmtDate(iso); }

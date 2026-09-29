@@ -135,6 +135,67 @@ export function reasonText(reason, fallback, code = active) {
 }
 
 /**
+ * A SZERVER ELUTASÍTÁSÁNAK MONDATA — EGY feloldó (R112 saját lelete · KUKA-210 · KUKA-003).
+ *
+ * A LELET: a lap tizenegy helyen `reasonText(r.reason, r.message)` alakban kért mondatot. Ha az ok
+ * nem állt a szótárban, a TARTALÉK a szerver `message` mezője lett — ami a MAG MAGYAR diagnosztikája.
+ * Angol és német felületen így magyar belső mondat jelent meg főszövegként; ráadásul néhány mag-válasz
+ * a `reason` mezőben is magyar mondatot visz, nem kódot, tehát a keresés eleve nem talált.
+ *
+ * A MAI SZABÁLY: a felület főszövege MINDIG a nyelvcsomagból jön. A jelöltek sorrendje: a `reason`,
+ * aztán a `error` (a kimenettel pontosítva, ahol a mag azt is megmondja), mindegyik az ALIAS-táblán
+ * át. Ha egyik sincs a szótárban, a KIMONDOTT általános mondat jön — a mag szövege sosem.
+ */
+export const REASON_ALIAS = Object.freeze({
+  // A MEGHÍVÓ BEVÁLTÁSÁNAK ALAKJAI — a felhasználónak ugyanaz a helyzet, ugyanaz a mondat.
+  invite_not_actionable: 'invite_unknown',
+  invitee_identity_required: 'invitee_mismatch',
+  account_authentication_required: 'invitee_mismatch',
+  credential_required: 'login_required',
+  prior_revocation_needs_decision: 'membership_reopen_needs_decision',
+  membership_not_granted_role_differs: 'membership_role_differs',
+  membership_not_granted: 'membership_reopen_needs_decision',
+  // A KEZELŐ SAJÁT FELHATALMAZÁSÁNAK HIÁNYA (meghívás, adatkör-adás) — a mag sok külön okot tart
+  // nyilván, a felhasználónak EGY mondat szól: ezt most nem végezheted el.
+  delegation_ceiling_empty: 'authority_not_established',
+  no_delegation_basis: 'authority_not_established',
+  membership_has_no_recorded_basis: 'authority_not_established',
+  membership_without_grant_event: 'authority_not_established',
+  grant_needs_recorded_basis: 'authority_not_established',
+  basis_version_not_in_effect: 'authority_not_established',
+  no_recorded_basis: 'authority_not_established',
+  no_authority_row: 'authority_not_established',
+  authority_revoked: 'authority_not_established',
+  basis_revoked: 'authority_not_established',
+  basis_expired: 'authority_not_established',
+  // A TAGSÁG HIÁNYA a tag oldaláról.
+  no_membership: 'not_a_member',
+  membership_revoked: 'not_a_member',
+  no_current_workspace: 'workspace_required',
+});
+
+/** A szerver-válasz jelöltjei a szótárra — kódnak látszó értékek, sorrendben. Tiszta függvény. */
+export function refusalKeys(r) {
+  const out = [];
+  const isCode = (v) => typeof v === 'string' && /^[a-z][a-z0-9_]*$/.test(v);
+  if (!r || typeof r !== 'object') return out;
+  if (isCode(r.reason)) out.push(r.reason);
+  if (isCode(r.error) && isCode(r.outcome)) out.push(`${r.error}_${r.outcome}`);
+  if (isCode(r.error)) out.push(r.error);
+  return out.flatMap((k) => (REASON_ALIAS[k] ? [k, REASON_ALIAS[k]] : [k]));
+}
+
+/** Az elutasítás mondata az AKTÍV nyelven — a szerver `message` mezője SOHA nem főszöveg. */
+export function refusalText(r, code = active) {
+  for (const key of refusalKeys(r)) {
+    const found = lookup('REASON', key, code);
+    if (typeof found.value === 'string') return found.value;
+  }
+  const generic = lookup('REASON', 'generic', code);
+  return typeof generic.value === 'string' ? generic.value : '';
+}
+
+/**
  * TÖBBES SZÁM — `Intl.PluralRules`-szal, nem `n === 1 ? … : …` alakkal (R89 §5: „Teljes mondatok,
  * paraméterezett szövegek, többesszám és helyi szám-/dátumformázás").
  * A `forms` a szótárból jön: `{ one: '…', other: '…' }` — a magyar `other`-t használ, az angol kettőt,

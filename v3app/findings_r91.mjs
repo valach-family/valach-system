@@ -183,11 +183,15 @@ try {
     && grantF.body.tour_steps.steps.some((s) => s.task === 'grant.saved')
     && grantF.body.tour_steps.steps.some((s) => s.appears_after === 'members-list'),
     grantF.body.tour_steps.steps.map((s) => `${s.id}:${s.target}${s.task ? '*' : ''}`).join(' → '));
-  const acceptF = await anna.c.get('/api/assistant/knowledge' + q({ lang: 'hu', feature: 'invite.accept' }));
+  // A PÉLDA A MAI REGISZTERBŐL (R112 saját lelete): az R91-ben a meghívás elfogadása volt a bemutató
+  // nélküli funkció, az R110 óta viszont VAN bemutatója (`tour.inviteAccept`) — ez a lépés azóta
+  // „(nincs)" indokkal piros volt, mert egy megszűnt állapotot kért számon. A szabály ugyanaz, a
+  // példa a ma is bemutató nélküli, NEVEZETT döntésű tagság-megszüntetés.
+  const revokeF = await anna.c.get('/api/assistant/knowledge' + q({ lang: 'hu', feature: 'members.revoke' }));
   step('(b) a bemutató NÉLKÜLI funkció INDOKOT visz (a `tour: null` nem teljesítés)',
-    acceptF.body.ok === true && acceptF.body.feature.tour === null
-    && typeof acceptF.body.feature.tour_note === 'string' && acceptF.body.feature.tour_note.length > 40,
-    (acceptF.body.feature.tour_note || '(nincs)').slice(0, 90) + '…');
+    revokeF.body.ok === true && revokeF.body.feature.tour === null
+    && typeof revokeF.body.feature.tour_note === 'string' && revokeF.body.feature.tour_note.length > 40,
+    (revokeF.body.feature.tour_note || '(nincs)').slice(0, 90) + '…');
 
   // ════════════════════════════════════════════════════════════════════════════════════════════
   head('D) A VÁLASZ-SZERZŐDÉS — a külső fél lelete reprodukálva, HELYI csonkkal (F91-04)');
