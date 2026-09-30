@@ -1755,6 +1755,25 @@ export const MUTATIONS = [
     from: "    if (!g.ok) refuseAndRollBack({ ok: false, changed: false, reason: g.reason, ceiling: basis.limit.scopes });",
     to: "    if (!g.ok) return frozen({ ok: false, changed: false, reason: g.reason, ceiling: basis.limit.scopes });" },
 
+  { id: 'M316', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
+    what: 'GLV-01 / R125 §F125-01 — AZ IDEMPOTENCIA-KAPU VISSZAROMLIK A PUSZTA `cur.granted` '
+      + 'VIZSGÁLATRA: a megadás ESEMÉNYSORÁT kérdezi meg, nem a mai használható jogot. MÉRT HATÁS: '
+      + 'egy LEJÁRT alapú jogra a kiadási kapu `basis_expired`-et ad, az ismételt megadás viszont '
+      + '`scope_already_granted`-et — a ma jogosult kezelő SZABÁLYOS helyreállítása elakad, és a '
+      + 'nyugta sikert mond egy használhatatlan jogra (KUKA-122: a kapu nem lehet fal · KUKA-129)',
+    file: 'delegation.mjs',
+    from: "  const cur = scopeGrantLiveAt({ store, subjectId: targetSubjectId, bookId, scope, nowIso: at, knownAt: at });\n  if (cur.allowed === true) {",
+    to: "  const cur = readScopeGrantAt({ store, subjectId: targetSubjectId, bookId, scope, validAt: at, knownAt: at });\n  if (cur.granted === true) {" },
+
+  { id: 'M317', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
+    what: 'GLV-01 / R125 §F125-01 — A JOG TÚLÉLI AZ ALAPJÁT: az „élő-e ma ez a jog" feloldó nem '
+      + 'méri a hivatkozott alap MAI állapotát. MÉRT HATÁS: megvont vagy lejárt felhatalmazás '
+      + 'mellett a belőle származó olvasási jog tovább él (ORG-N1a: a jog nem élheti túl az '
+      + 'alapját), és a képernyő is élőnek nevezi azt, ami nem él (KUKA-050)',
+    file: 'releaseScope.mjs',
+    from: "  if (state.in_effect !== true) {\n    return frozen({ ...shape, allowed: false, reason: state.reason });\n  }",
+    to: "  if (false) {\n    return frozen({ ...shape, allowed: false, reason: state.reason });\n  }" },
+
   { id: 'M315', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
     what: 'ATO-01 / R124 (saját lelet az F123-02 mellé) — A MEGHÍVÓ-KIADÁS ELVESZTI AZ ATOMI EGYSÉGÉT: '
       + 'a delegálási alap rögzítése és a meghívó kiadása újra külön sorsra jut. MÉRT HATÁS: egy '
@@ -1780,7 +1799,12 @@ export const MUTATIONS = [
       + 'MÉRT HATÁS: egy elvett jogot nem lehet visszaadni — a kapu fallá válik (KUKA-122), és a '
       + 'felület nyugtája azt mondja, minden rendben, miközben semmi nem történt',
     file: 'delegation.mjs',
-    from: "  if (cur.granted === true) {",
+    // R125 — A HORGONY KÖVETI A KÓDOT, A VÉDETT TULAJDONSÁG VÁLTOZATLAN. Az eredeti horgony a
+    // `cur.granted === true` sor volt; az R125-ös javítás (GLV-01) óta a kapu az ÍRÁSMENTES,
+    // ALAP-TUDATOS feloldót kérdezi (`cur.allowed === true`), tehát a régi horgony ELAVULT — a
+    // battéria ezt meg is mondta (STALE_ANCHOR). A rontás alanya ugyanaz: „minden, ami nem
+    // TELJESEN hiányzó jog, élőnek számít" — ettől a megvonás utáni jogos újraadás is elakad.
+    from: "  if (cur.allowed === true) {",
     to: "  if (cur.reason !== 'no_scope_grant') {" },
 
   { id: 'M300', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',

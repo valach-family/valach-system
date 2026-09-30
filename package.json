@@ -10,6 +10,7 @@
   "scripts": {
     "app:dev": "node v3app/server.mjs",
     "app:selfcheck": "node v3app/selfcheck.mjs",
+    "bemutato:onallo": "node tools/v3_bemutato_onallo.mjs",
     "docs:html": "node tools/vs_doc_html.mjs --all",
     "docs:kiprobalas-kepek": "node tools/v3_kiprobalas_kepek.mjs",
     "docs:norm-chain": "node tools/v3_norm_chain_package.mjs",
@@ -41,6 +42,7 @@
     "verify:app-findings-r95": "node v3app/findings_r95.mjs",
     "verify:app-findings-r121": "node v3app/findings_r121.mjs",
     "verify:app-findings-r123": "node v3app/findings_r123.mjs",
+    "verify:app-findings-r125": "node v3app/findings_r125.mjs",
     "verify:app-selfcheck": "node v3app/selfcheck.mjs",
     "verify:artifact-naming": "node tools/vs_verify_artifact_naming.mjs",
     "verify:assistant": "node tools/vs_verify_assistant.mjs --selftest",

@@ -1,0 +1,440 @@
+<title>Adatkörök kézről kézre</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Elrendezés: két, egymás mellé tett képernyő — balra a kezelő, jobbra a munkatárs; alatta a mért bizonyíték. */
+:root{
+  --papir:#f2f5f6; --lap:#ffffff; --tinta:#17212a; --halk:#5c6b76; --vonal:#d3dde1;
+  --jel:#0f6d75; --jel-halk:#e2eff0; --zar:#8a5a06; --zar-halk:#f6edd9; --nyit:#166534; --nyit-halk:#e3f1e6;
+  --kiemelt:#fbfdfd;
+  --cim:"Newsreader",Georgia,serif; --szoveg:"IBM Plex Sans",system-ui,sans-serif; --adat:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --papir:#0e1418; --lap:#161f25; --tinta:#e6eef2; --halk:#93a5b0; --vonal:#2a3740;
+  --jel:#5ec3cc; --jel-halk:#123134; --zar:#e0aa4a; --zar-halk:#33280f; --nyit:#7fcf96; --nyit-halk:#13291a;
+  --kiemelt:#1a242b; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --papir:#0e1418; --lap:#161f25; --tinta:#e6eef2; --halk:#93a5b0; --vonal:#2a3740;
+  --jel:#5ec3cc; --jel-halk:#123134; --zar:#e0aa4a; --zar-halk:#33280f; --nyit:#7fcf96; --nyit-halk:#13291a;
+  --kiemelt:#1a242b; color-scheme:dark;
+}
+body{background:var(--papir);color:var(--tinta);font-family:var(--szoveg);line-height:1.55;-webkit-text-size-adjust:100%}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:16px;padding-block:28px 56px}
+h1,h2,h3{font-family:var(--cim);font-weight:600;text-wrap:balance;margin:0}
+h1{font-size:clamp(1.7rem,4vw,2.5rem);letter-spacing:-.01em}
+h2{font-size:clamp(1.2rem,2.4vw,1.5rem)}
+h3{font-size:1.02rem;font-family:var(--szoveg);font-weight:600}
+p{margin:0}
+.lead{color:var(--halk);max-width:64ch;margin-top:10px}
+.eyebrow{font-family:var(--adat);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--halk)}
+.szalag{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
+  border:1px solid var(--vonal);background:var(--lap);border-radius:2px;padding:12px 14px;margin-top:22px}
+.szalag .cimke{font-family:var(--adat);font-size:.72rem;color:var(--zar);background:var(--zar-halk);
+  border:1px solid color-mix(in srgb,var(--zar) 30%,transparent);border-radius:2px;padding:3px 7px}
+.vezerlok{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit;cursor:pointer;border:1px solid var(--vonal);background:var(--lap);color:var(--tinta);
+  border-radius:2px;padding:7px 11px;font-size:.86rem}
+button:hover{border-color:var(--jel)}
+button:focus-visible{outline:2px solid var(--jel);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--jel-halk);border-color:var(--jel);color:var(--jel);font-weight:500}
+button.fo{background:var(--jel);border-color:var(--jel);color:#fff}
+button.fo:hover{filter:brightness(1.08)}
+button:disabled{opacity:.45;cursor:not-allowed}
+section{margin-top:40px}
+.szakaszfej{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;border-bottom:1px solid var(--vonal);padding-bottom:10px}
+.szinpad{margin-top:18px}
+.szinpad[data-keskeny="1"]{max-width:390px;margin-inline:auto;border:1px dashed var(--vonal);padding:10px;border-radius:2px}
+.kettos{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start}
+.szinpad[data-keskeny="1"] .kettos{grid-template-columns:1fr}
+.keret{border:1px solid var(--vonal);background:var(--lap);border-radius:2px;min-width:0;overflow:hidden}
+.keretfej{display:flex;gap:8px;align-items:baseline;justify-content:space-between;
+  padding:10px 12px;border-bottom:1px solid var(--vonal);background:var(--kiemelt)}
+.keretfej strong{font-size:.92rem}
+.keretfej span{font-family:var(--adat);font-size:.7rem;color:var(--halk)}
+.keretbel{padding:12px}
+.korok{display:flex;flex-direction:column;gap:8px}
+.kor{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  border:1px solid var(--vonal);border-radius:2px;padding:8px 10px}
+.kor .nev{display:flex;flex-direction:column;min-width:0}
+.kor .nev b{font-weight:500;font-size:.9rem}
+.kor .nev small{color:var(--halk);font-size:.74rem}
+.allapot{font-family:var(--adat);font-size:.7rem;padding:2px 6px;border-radius:2px;white-space:nowrap}
+.allapot.van{color:var(--nyit);background:var(--nyit-halk)}
+.allapot.nincs{color:var(--halk);background:var(--kiemelt);border:1px solid var(--vonal)}
+.nyugta{margin-top:12px;border-left:3px solid var(--jel);background:var(--jel-halk);padding:9px 11px;font-size:.87rem}
+.nyugta[data-fajta="valtozatlan"]{border-left-color:var(--zar);background:var(--zar-halk)}
+.nyugta .fej{font-family:var(--adat);font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--halk);display:block;margin-bottom:2px}
+.nezetek{display:flex;flex-direction:column;gap:10px}
+.nezet{border:1px solid var(--vonal);border-radius:2px;padding:10px}
+.nezet .fejsor{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
+.nezet .fejsor b{font-size:.88rem;font-weight:500}
+.nezet .kell{font-family:var(--adat);font-size:.68rem;color:var(--halk)}
+.nezet .tartalom{margin-top:8px;font-family:var(--adat);font-size:.78rem;white-space:pre-wrap;overflow-x:auto}
+.nezet[data-zart="1"] .tartalom{color:var(--zar)}
+.lepesek{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;counter-reset:l}
+.lepesek li{display:flex;gap:10px;align-items:flex-start;padding:7px 9px;border-radius:2px;font-size:.86rem}
+.lepesek li .sorszam{font-family:var(--adat);font-size:.72rem;color:var(--halk);min-width:1.6em}
+.lepesek li[data-all="most"]{background:var(--jel-halk);color:var(--jel);font-weight:500}
+.lepesek li[data-all="kesz"] .sorszam{color:var(--nyit)}
+.lepesek li[data-all="kesz"]{color:var(--halk)}
+table{border-collapse:collapse;width:100%;font-size:.84rem}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--vonal);vertical-align:top}
+th{font-family:var(--adat);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--halk);font-weight:500}
+td.szam{font-family:var(--adat);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tabla{overflow-x:auto;border:1px solid var(--vonal);background:var(--lap);border-radius:2px;margin-top:14px}
+.megj{color:var(--halk);font-size:.82rem;margin-top:12px;max-width:72ch}
+code{font-family:var(--adat);font-size:.82em;background:var(--kiemelt);border:1px solid var(--vonal);border-radius:2px;padding:1px 4px}
+.vagas{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+@media (prefers-reduced-motion: no-preference){.nyugta{animation:be .18s ease-out}}
+@keyframes be{from{opacity:.4}to{opacity:1}}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">CMD-VS-300-002-002 · R121 §4 · R123 F123-04</p>
+  <h1>Adatkörök kézről kézre</h1>
+  <p class="lead">Két ember, egy fiók. A kezelő adatkörönként adja meg és adatkörönként vonja vissza a hozzáférést —
+  a munkatárs tagsága közben érintetlen marad. Kattints végig a történeten, és figyeld, mi nyílik meg és mi zárul be a jobb oldalon.</p>
+
+  <div class="szalag">
+    <p><span class="cimke">SZINTETIKUS BEMUTATÓ</span> Ez a lap nem a rendszer. Nincs szerver, nincs adatbázis, nincs valódi üzleti adat —
+      a szabályokat a lap maga játssza el. A valódi alkalmazáson mért bizonyíték lentebb, külön szakaszban áll.</p>
+    <div class="vezerlok">
+      <button type="button" data-nyelv="hu" aria-pressed="true">Magyar</button>
+      <button type="button" data-nyelv="en" aria-pressed="false">English</button>
+      <button type="button" data-nyelv="de" aria-pressed="false">Deutsch</button>
+      <button type="button" id="keskeny" aria-pressed="false">Keskeny nézet</button>
+    </div>
+  </div>
+
+  <section>
+    <div class="szakaszfej">
+      <h2>A) A kattintható történet</h2>
+      <p class="eyebrow">szintetikus · offline</p>
+    </div>
+
+    <div class="szinpad" id="szinpad" data-keskeny="0">
+      <div class="kettos">
+        <div class="keret">
+          <div class="keretfej"><strong id="kezeloFej">Kezelő képernyője · Felhasználók</strong><span>anna@pelda.hu</span></div>
+          <div class="keretbel">
+            <h3 id="tagCim">Erika hozzáférései</h3>
+            <p class="megj" style="margin-top:4px" id="tagMegj">Minden adatkör külön sor, külön gombbal. A tagságot egyik gomb sem érinti.</p>
+            <div class="korok" id="korok"></div>
+            <div id="nyugtaHely"></div>
+            <div class="vagas">
+              <button type="button" id="ismetelt">Ugyanazt még egyszer elküldeni</button>
+              <button type="button" id="ujra">Történet újraindítása</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="keret">
+          <div class="keretfej"><strong id="tagFej">Munkatárs képernyője · Bizonylatok</strong><span>erika@pelda.hu</span></div>
+          <div class="keretbel">
+            <div class="nezetek" id="nezetek"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="keret" style="margin-top:16px">
+        <div class="keretfej"><strong>A történet</strong><span id="lepesAllas"></span></div>
+        <div class="keretbel"><ol class="lepesek" id="lepesek"></ol></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="szakaszfej">
+      <h2>B) A valódi alkalmazáson mért bizonyíték</h2>
+      <p class="eyebrow">mérés · nem szimuláció</p>
+    </div>
+    <p class="megj">Az alábbi sorok nem ennek a lapnak az állításai, hanem a repóban futtatható mérések eredményei.
+    A bemutató a szabályt <em>illusztrálja</em>; a bizonyíték a mérés. A két dolgot szándékosan nem keverjük össze.</p>
+    <div class="tabla">
+      <table>
+        <thead><tr><th>Mit mér</th><th>Parancs</th><th>Eredmény</th></tr></thead>
+        <tbody>
+          <tr><td>Az R123 három leletének ellenpróbái a valódi HTTP-héjon: írásmentes elutasítás, atomi jogkezelés, üzleti idempotencia</td>
+              <td><code>npm run verify:app-findings-r123</code></td><td class="szam">47/47</td></tr>
+          <tr><td>A böngészős tanú: a két szereplős történet, a nyugták és a keskeny nézet</td>
+              <td><code>npx playwright test tests/e2e/v3app-r123.spec.mjs</code></td><td class="szam">5/5</td></tr>
+          <tr><td>Az R121 böngészős tanúja (a §4 történet és a vegyes bizonylat)</td>
+              <td><code>npx playwright test tests/e2e/v3app-r121.spec.mjs</code></td><td class="szam">5/5</td></tr>
+          <tr><td>A magreferencia próbái (benne a szűk alapú plafon-mérés)</td>
+              <td><code>node v3ref/run.mjs</code></td><td class="szam">63/63</td></tr>
+          <tr><td>Rontás-battéria: minden kiadott állításhoz tartozik olyan rontás, ami megbuktatja</td>
+              <td><code>node v3ref/mutate.mjs</code></td><td class="szam">219/219 elkapva · 0 túlélő</td></tr>
+          <tr><td>KUKA-regiszter: az öt új tanulság gépi jele</td>
+              <td><code>npm run verify:kuka</code></td><td class="szam">514/514</td></tr>
+          <tr><td>Nyelvi kapu (a nyugta-mondatok minden bekapcsolt nyelven)</td>
+              <td><code>npm run verify:i18n</code></td><td class="szam">49/49</td></tr>
+          <tr><td>Súgó és bemutató kapu</td><td><code>npm run verify:tutor</code></td><td class="szam">88/88</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="megj">Egy mérés <strong>nem futott végig</strong> ezen a gépen, és ezt kimondjuk: a rontás-battéria hivatalos,
+    egységekre osztott útja (<code>npm run verify:v3ref</code>) a saját idő-költségvetésébe nem fért bele — a futtató szava szerint
+    „ez nem zöld és nem piros tartalom: a mérés hiányos". A tartalmi verdikt a fenti, egy hívásban lefutott battériából áll.</p>
+    <p class="megj">A bemutató egy dolgot <strong>nem</strong> tud megmutatni: a régi, kétkörös (v1) fiókot, ahol a kezelő plafonja szűkebb,
+    és a két új adatkör kimondottan tiltott. Böngészőben ma nem lehet ilyen fiókot létrehozni — ezért annak a tanúja gépi mérés
+    (<code>verify:app-findings-r123</code> A) szakasz), nem kattintás. Ezt kimondjuk, nem pipáljuk.</p>
+  </section>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var SZOTAR = {
+    hu:{
+      kezeloFej:"Kezelő képernyője · Felhasználók", tagFej:"Munkatárs képernyője · Bizonylatok",
+      tagCim:"Erika hozzáférései",
+      tagMegj:"Minden adatkör külön sor, külön gombbal. A tagságot egyik gomb sem érinti.",
+      ad:"Megadás", von:"Visszavonás", van:"megadva", nincs:"nincs megadva",
+      korok:{keszlet:"Készlet", arak:"Árak", dokumentumok:"Dokumentumok", beszallitok:"Beszállítók"},
+      korokMi:{keszlet:"mennyiség, egység, raktár", arak:"egységár, összeg, pénznem", dokumentumok:"bizonylatszám, kelt, partner", beszallitok:"beszállító neve, adószáma"},
+      targy:{keszlet:"a készletet", arak:"az árakat", dokumentumok:"a dokumentumokat", beszallitok:"a beszállítókat"},
+      nyugtaFej:"Nyugta", nyugtaFejValtozatlan:"Nyugta · nem történt változás",
+      adva:"{ki} mostantól megtekintheti {mit}.",
+      vonva:"A hozzáférést visszavontuk: {ki} mostantól nem látja {mit}.",
+      advaValtozatlan:"{ki} eddig is megtekinthette {mit} — nem változott semmi.",
+      vonvaValtozatlan:"{ki} eddig sem látta {mit} — nem változott semmi.",
+      ki:"Erika",
+      nezetek:{keszlet:"Készlet-nézet", dokumentum:"Bizonylat fejléce", beszallito:"Beszállítói kártya", vegyes:"Teljes bizonylat (vegyes)"},
+      kell:"Kell hozzá: ", kiadva:"kiadva", zarva:"zárva",
+      hianyzo:"Hiányzó hozzáférés: {korok}. Ezt a fiók kezelője adja meg.",
+      lepesAllas:"{a}/{b} lépés",
+      ismetelt:"Ugyanazt még egyszer elküldeni", ujra:"Történet újraindítása",
+      keskeny:"Keskeny nézet",
+      lepesek:[
+        "A munkatárs csak a mennyiséget látja — a többi nézet nevezetten zárva.",
+        "A kezelő megadja a bizonylat-hozzáférést.",
+        "A bizonylat fejléce megnyílik a munkatársnak.",
+        "A kezelő megadja az árat és a beszállítót is — a vegyes bizonylat összeáll.",
+        "A kezelő EGYETLEN hozzáférést visszavon: az árat.",
+        "A mennyiség továbbra is látszik; a vegyes bizonylat EGÉSZBEN zárva."
+      ]
+    },
+    en:{
+      kezeloFej:"Manager's screen · Users", tagFej:"Colleague's screen · Documents",
+      tagCim:"Erika's access",
+      tagMegj:"Each data scope is its own row with its own button. No button touches the membership.",
+      ad:"Grant", von:"Withdraw access", van:"granted", nincs:"not granted",
+      korok:{keszlet:"Stock", arak:"Prices", dokumentumok:"Documents", beszallitok:"Suppliers"},
+      korokMi:{keszlet:"quantity, unit, warehouse", arak:"unit price, total, currency", dokumentumok:"document number, date, partner", beszallitok:"supplier name, tax number"},
+      targy:{keszlet:"stock", arak:"prices", dokumentumok:"documents", beszallitok:"suppliers"},
+      nyugtaFej:"Receipt", nyugtaFejValtozatlan:"Receipt · nothing changed",
+      adva:"{ki} can now view {mit}.",
+      vonva:"Access withdrawn: {ki} can no longer see {mit}.",
+      advaValtozatlan:"{ki} could already view {mit} — nothing changed.",
+      vonvaValtozatlan:"{ki} could not see {mit} anyway — nothing changed.",
+      ki:"Erika",
+      nezetek:{keszlet:"Stock view", dokumentum:"Document header", beszallito:"Supplier card", vegyes:"Full document (mixed)"},
+      kell:"Requires: ", kiadva:"released", zarva:"closed",
+      hianyzo:"Missing access: {korok}. The account manager grants this.",
+      lepesAllas:"step {a}/{b}",
+      ismetelt:"Send the same request again", ujra:"Restart the story",
+      keskeny:"Narrow view",
+      lepesek:[
+        "The colleague sees quantity only — every other view is closed by name.",
+        "The manager grants access to documents.",
+        "The document header opens for the colleague.",
+        "The manager also grants prices and suppliers — the mixed document comes together.",
+        "The manager withdraws a SINGLE access: prices.",
+        "Quantity is still visible; the mixed document is closed as a WHOLE."
+      ]
+    },
+    de:{
+      kezeloFej:"Bildschirm der Verwaltung · Benutzer", tagFej:"Bildschirm der Kollegin · Belege",
+      tagCim:"Zugriffe von Erika",
+      tagMegj:"Jeder Datenbereich hat eine eigene Zeile mit eigener Schaltfläche. Keine berührt die Mitgliedschaft.",
+      ad:"Erteilen", von:"Zugriff entziehen", van:"erteilt", nincs:"nicht erteilt",
+      korok:{keszlet:"Bestand", arak:"Preise", dokumentumok:"Dokumente", beszallitok:"Lieferanten"},
+      korokMi:{keszlet:"Menge, Einheit, Lager", arak:"Einzelpreis, Summe, Währung", dokumentumok:"Belegnummer, Datum, Partner", beszallitok:"Name, Steuernummer"},
+      targy:{keszlet:"den Bestand", arak:"die Preise", dokumentumok:"die Dokumente", beszallitok:"die Lieferanten"},
+      nyugtaFej:"Quittung", nyugtaFejValtozatlan:"Quittung · nichts geändert",
+      adva:"{ki} kann ab jetzt {mit} einsehen.",
+      vonva:"Zugriff entzogen: {ki} sieht {mit} nun nicht mehr.",
+      advaValtozatlan:"{ki} konnte {mit} schon vorher einsehen — es hat sich nichts geändert.",
+      vonvaValtozatlan:"{ki} sah {mit} ohnehin nicht — es hat sich nichts geändert.",
+      ki:"Erika",
+      nezetek:{keszlet:"Bestandsansicht", dokumentum:"Belegkopf", beszallito:"Lieferantenkarte", vegyes:"Vollständiger Beleg (gemischt)"},
+      kell:"Erforderlich: ", kiadva:"freigegeben", zarva:"geschlossen",
+      hianyzo:"Fehlender Zugriff: {korok}. Das erteilt die Verwaltung des Kontos.",
+      lepesAllas:"Schritt {a}/{b}",
+      ismetelt:"Dieselbe Anfrage erneut senden", ujra:"Geschichte neu starten",
+      keskeny:"Schmale Ansicht",
+      lepesek:[
+        "Die Kollegin sieht nur die Menge — jede andere Ansicht ist benannt geschlossen.",
+        "Die Verwaltung erteilt den Zugriff auf Dokumente.",
+        "Der Belegkopf öffnet sich für die Kollegin.",
+        "Die Verwaltung erteilt auch Preise und Lieferanten — der gemischte Beleg entsteht.",
+        "Die Verwaltung entzieht EINEN einzigen Zugriff: die Preise.",
+        "Die Menge bleibt sichtbar; der gemischte Beleg ist GANZ geschlossen."
+      ]
+    }
+  };
+
+  var KOROK = ["keszlet","arak","dokumentumok","beszallitok"];
+  // A nézetek DEKLARÁLT adatkör-igénye — ugyanaz a szabály, amit a mag a típus sémájából old fel.
+  var NEZETEK = [
+    { id:"keszlet",     kell:["keszlet"] },
+    { id:"dokumentum",  kell:["dokumentumok"] },
+    { id:"beszallito",  kell:["beszallitok"] },
+    { id:"vegyes",      kell:["keszlet","arak","dokumentumok","beszallitok"] }
+  ];
+  var TARTALOM = {
+    keszlet:"tétel: Dió, héjas\nmennyiség: 1 240,000 kg\nraktár: Központi",
+    dokumentum:"bizonylat: BEJ-2026-0042\nkelt: 2026-03-02\npartner: Kertész Bt.",
+    beszallito:"beszállító: Kertész Bt.\nadószám: 12345678-2-42",
+    vegyes:"bizonylat: BEJ-2026-0042\npartner: Kertész Bt. (12345678-2-42)\n1 240,000 kg × 33,77 HUF = 41 880 HUF"
+  };
+
+  var nyelv = "hu";
+  var allapot = { keszlet:false, arak:false, dokumentumok:false, beszallitok:false };
+  var lepes = 0;
+  var nyugta = null;
+
+  function D(){ return SZOTAR[nyelv]; }
+  function beh(sablon, ertekek){
+    return String(sablon).replace(/\{(\w+)\}/g, function(_,k){ return ertekek[k] !== undefined ? ertekek[k] : ""; });
+  }
+  function el(tag, attr, szoveg){
+    var e = document.createElement(tag);
+    if (attr) { for (var k in attr) { if (attr[k] !== null && attr[k] !== undefined) e.setAttribute(k, attr[k]); } }
+    if (szoveg !== undefined) e.textContent = szoveg;
+    return e;
+  }
+
+  /* A történet lépései a SZABÁLYT követik, nem egy forgatókönyvet: minden lépésnek van elvárt
+     művelete, és a lépés csak akkor lép tovább, ha az állapot tényleg odaért. */
+  var TORTENET = [
+    { var:function(){ return allapot.keszlet && !allapot.dokumentumok; } },
+    { var:function(){ return allapot.dokumentumok; } },
+    { var:function(){ return allapot.dokumentumok; } },
+    { var:function(){ return allapot.arak && allapot.beszallitok && allapot.dokumentumok && allapot.keszlet; } },
+    { var:function(){ return !allapot.arak && allapot.dokumentumok && allapot.keszlet; } },
+    { var:function(){ return !allapot.arak && allapot.keszlet; } }
+  ];
+
+  function lepesFrissit(){
+    while (lepes < TORTENET.length && TORTENET[lepes].var()) lepes++;
+  }
+
+  function rajzol(){
+    var d = D();
+    document.getElementById("kezeloFej").textContent = d.kezeloFej;
+    document.getElementById("tagFej").textContent = d.tagFej;
+    document.getElementById("tagCim").textContent = d.tagCim;
+    document.getElementById("tagMegj").textContent = d.tagMegj;
+    document.getElementById("ismetelt").textContent = d.ismetelt;
+    document.getElementById("ujra").textContent = d.ujra;
+    document.getElementById("keskeny").textContent = d.keskeny;
+
+    var korok = document.getElementById("korok");
+    korok.textContent = "";
+    KOROK.forEach(function(k){
+      var sor = el("div", { class:"kor", "data-kor":k });
+      var nev = el("div", { class:"nev" });
+      nev.appendChild(el("b", null, d.korok[k]));
+      nev.appendChild(el("small", null, d.korokMi[k]));
+      sor.appendChild(nev);
+      var jobb = el("div", { class:"vezerlok" });
+      jobb.appendChild(el("span", { class:"allapot " + (allapot[k] ? "van" : "nincs") }, allapot[k] ? d.van : d.nincs));
+      var gomb = el("button", { type:"button", "data-muvelet":(allapot[k] ? "von" : "ad"), "data-kor":k }, allapot[k] ? d.von : d.ad);
+      if (!allapot[k]) gomb.className = "fo";
+      jobb.appendChild(gomb);
+      sor.appendChild(jobb);
+      korok.appendChild(sor);
+    });
+
+    var ny = document.getElementById("nyugtaHely");
+    ny.textContent = "";
+    if (nyugta) {
+      var box = el("div", { class:"nyugta", "data-fajta":(nyugta.valtozott ? "valtozott" : "valtozatlan") });
+      box.appendChild(el("span", { class:"fej" }, nyugta.valtozott ? d.nyugtaFej : d.nyugtaFejValtozatlan));
+      var sablon = nyugta.muvelet === "ad"
+        ? (nyugta.valtozott ? d.adva : d.advaValtozatlan)
+        : (nyugta.valtozott ? d.vonva : d.vonvaValtozatlan);
+      box.appendChild(el("p", null, beh(sablon, { ki:d.ki, mit:d.targy[nyugta.kor] })));
+      ny.appendChild(box);
+    }
+
+    var nezetek = document.getElementById("nezetek");
+    nezetek.textContent = "";
+    NEZETEK.forEach(function(n){
+      var hianyzo = n.kell.filter(function(k){ return !allapot[k]; });
+      var zart = hianyzo.length > 0;
+      var box = el("div", { class:"nezet", "data-zart":(zart ? "1" : "0") });
+      var fejsor = el("div", { class:"fejsor" });
+      fejsor.appendChild(el("b", null, d.nezetek[n.id]));
+      fejsor.appendChild(el("span", { class:"allapot " + (zart ? "nincs" : "van") }, zart ? d.zarva : d.kiadva));
+      box.appendChild(fejsor);
+      box.appendChild(el("p", { class:"kell" }, d.kell + n.kell.map(function(k){ return d.korok[k]; }).join(" · ")));
+      box.appendChild(el("pre", { class:"tartalom" }, zart
+        ? beh(d.hianyzo, { korok: hianyzo.map(function(k){ return d.korok[k]; }).join(" · ") })
+        : TARTALOM[n.id]));
+      nezetek.appendChild(box);
+    });
+
+    lepesFrissit();
+    var lista = document.getElementById("lepesek");
+    lista.textContent = "";
+    d.lepesek.forEach(function(szoveg, i){
+      var li = el("li", { "data-all":(i < lepes ? "kesz" : (i === lepes ? "most" : "jon")) });
+      li.appendChild(el("span", { class:"sorszam" }, (i < lepes ? "✓" : String(i + 1))));
+      li.appendChild(el("span", null, szoveg));
+      lista.appendChild(li);
+    });
+    document.getElementById("lepesAllas").textContent = beh(d.lepesAllas, { a:Math.min(lepes + 1, d.lepesek.length), b:d.lepesek.length });
+
+    var ism = document.getElementById("ismetelt");
+    ism.disabled = !nyugta;
+  }
+
+  /* A MŰVELET: a mérce a jog MAI ÁLLAPOTA, nem a kérés azonossága. Ugyanaz a szabály, amit a mag
+     követ — ezért mond igazat a nyugta arról, történt-e változás. */
+  function muvelet(kor, mit){
+    var most = allapot[kor];
+    var valtozott = (mit === "ad") ? !most : most;
+    if (valtozott) allapot[kor] = (mit === "ad");
+    nyugta = { kor:kor, muvelet:mit, valtozott:valtozott };
+    rajzol();
+  }
+
+  document.getElementById("korok").addEventListener("click", function(ev){
+    var gomb = ev.target.closest("button[data-muvelet]");
+    if (!gomb) return;
+    muvelet(gomb.getAttribute("data-kor"), gomb.getAttribute("data-muvelet"));
+  });
+
+  document.getElementById("ismetelt").addEventListener("click", function(){
+    if (!nyugta) return;
+    muvelet(nyugta.kor, nyugta.muvelet);
+  });
+
+  document.getElementById("ujra").addEventListener("click", function(){
+    allapot = { keszlet:false, arak:false, dokumentumok:false, beszallitok:false };
+    lepes = 0; nyugta = null; rajzol();
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-nyelv]"), function(b){
+    b.addEventListener("click", function(){
+      nyelv = b.getAttribute("data-nyelv");
+      Array.prototype.forEach.call(document.querySelectorAll("[data-nyelv]"), function(x){
+        x.setAttribute("aria-pressed", String(x === b));
+      });
+      rajzol();
+    });
+  });
+
+  var keskenyGomb = document.getElementById("keskeny");
+  keskenyGomb.addEventListener("click", function(){
+    var szinpad = document.getElementById("szinpad");
+    var be = szinpad.getAttribute("data-keskeny") !== "1";
+    szinpad.setAttribute("data-keskeny", be ? "1" : "0");
+    keskenyGomb.setAttribute("aria-pressed", String(be));
+  });
+
+  rajzol();
+})();
+</script>

@@ -33,6 +33,81 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-261',
+    date: '2026-09-30',
+    title: 'EGY OLVASÓ KÉRÉS ÚJRA HATÁLYOSRA ÁLLÍTOTT EGY LEJÁRT FELHATALMAZÁST — a GET írt',
+    what: 'A tag-lista (`GET /api/members`) a megadható adatkörök listáját a RÖGZÍTŐ '
+      + '`deriveDelegationBasis`-ból vette. Az a feloldó ÚJ alapverziót ír, ha a meglévő nem '
+      + 'hatályos — tehát ha a kezelő delegált alapja éppen LEJÁRT, a puszta LISTÁZÁS visszaállította '
+      + 'hatályosnak. Mérve a saját R125-ös ellenpróbámban: a fixture lejáratott alapja a tag-lista '
+      + 'lekérése UTÁN `in_effect: true`, ÚJ verzióval, `delegated-from:startup-rule…` nyommal.',
+    why_wrong: 'AZ OLVASÁS NEM VÁLTOZTATHATJA A VÉDETT NYILVÁNTARTÁST. Egy GET-nek nincs felhatalmazása '
+      + 'jogot feléleszteni — és a hatás NÉMA: a képernyő megnyitása „megjavította" a lejáratot, '
+      + 'anélkül hogy bárki döntött volna róla (KUKA-220: az elutasításnak és az olvasásnak nyoma sem '
+      + 'lehet · KUKA-002: a döntés és a könyvelés két külön tény).',
+    replaced_by: 'A GET az ÍRÁSMENTES plafon-feloldót hívja (`delegationCeilingOf`, DCE-01). A '
+      + 'rögzítő `deriveDelegationBasis` marad a MEGADÁSI úton, ahol a rögzítés a művelet része.',
+    decision: 'D-VS-3087',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R125) — az F125-01 ellenpróbájának írásakor: a lejárat-fixture '
+      + 'a tag-lista lekérése után nem hatott, és a kiírt alap-rekord mutatta meg, ki írta felül',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'const basis = delegationCeilingOf\\(\\{ store, subjectId: session\\.subject_id',
+        why: 'a tag-lista GET-je az írásmentes feloldót hívja, nem a rögzítőt' }),
+    ]),
+    lesson: 'AMI GET, AZ NE ÍRJON — ÉS EZT MÉRNI KELL. Egy „csak felolvasom az állapotot" végpont is '
+      + 'írhat, ha a mögötte álló feloldó rögzít. A mérés módja: a mért állapotot a számláló '
+      + 'pillanatképe UTÁN olvassuk, és a fixture hatását KÖZVETLEN olvasással igazoljuk — különben a '
+      + 'saját ellenőrzésünk teszi meg, amit mérni akartunk (KUKA-259).',
+    guard_note: 'gépi jel: a fenti pozitív minta (`npm run verify:kuka`) + '
+      + '`npm run verify:app-findings-r125` (C szakasz: a lejárat a tag-lista lekérése UTÁN is áll). '
+      + 'KIMONDVA: a v3app-ra a mutációs battéria nem fut, tehát ehhez rontás-kontroll NINCS — a '
+      + 'bizonyíték a HTTP-battéria.',
+  }),
+  Object.freeze({
+    id: 'KUKA-260',
+    date: '2026-09-30',
+    title: 'A MEGADÁS ESEMÉNYÉT ÉLŐ JOGNAK OLVASTAM — a lejárt alapú jog helyreállítása elakadt',
+    what: 'Az R124-es idempotencia-javításom a `readScopeGrantAt`-ot kérdezte meg: „van-e hatályos '
+      + 'megadás-esemény". Az a feloldó a megadás/megvonás ESEMÉNYSORÁT olvassa, és NEM mondja meg, '
+      + 'hogy a hivatkozott ALAP ma is érvényes-e. Mérve: egy LEJÁRT delegált alap alatt álló jogra a '
+      + 'kiadási kapu `basis_expired`-et adott, az ismételt megadás viszont `ok:true, changed:false, '
+      + 'reason:scope_already_granted`-et — `authority_basis` 4→4, `scope_grant` 9→9 —, és az ár '
+      + 'utána is zárva maradt.',
+    why_wrong: 'KÉT OLVASÓ EGY TÉNYRE, KÜLÖN VÁLASSZAL (KUKA-018). A „van-e megadás-esemény" és a '
+      + '„van-e ma használható jog" két különböző kérdés: a jogkezelés a szűkebbet kérdezte, a kiadás '
+      + 'a bővebbet. A következmény nem jogosulatlan hozzáférés, hanem a SZABÁLYOS helyreállítás '
+      + 'megakadályozása (KUKA-122: a kapu nem lehet fal) és egy FÉLREVEZETŐ sikeres nyugta egy '
+      + 'használhatatlan jogra (KUKA-129).',
+    replaced_by: 'GLV-01 — `scopeGrantLiveAt` (`v3ref/releaseScope.mjs`): hatályos esemény ÉS ma is '
+      + 'álló alap ÉS az alap MAI plafonjában lévő adatkör ÉS a tagságra átvitt korlát. Ezt hívja az '
+      + 'idempotencia-kapu, a kiadási döntés és a tag-lista állapot-oszlopa is. A TILTÁS és az '
+      + 'ELŐFIZETÉS szándékosan KÍVÜL van: azokat egy új megadás nem javítja meg, tehát nem is '
+      + 'keletkeztethetnek új grant-igényt.',
+    decision: 'D-VS-3087',
+    found_by: 'A KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R125/F125-01) — hétlépéses HTTP-reprodukcióval, '
+      + 'lejáró alapú fixture-rel, és a 62bd0cd kódon vett KONTROLL-futással',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/releaseScope.mjs']),
+        pattern: 'export function scopeGrantLiveAt',
+        why: 'az „élő-e ma ez a jog" kérdés NEVEZETT feloldóban él, egy helyen' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/delegation.mjs']),
+        pattern: 'const cur = scopeGrantLiveAt\\(',
+        why: 'az idempotencia-kapu a mai HASZNÁLHATÓ jogot kérdezi, nem csak a megadás eseményét' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'const live = scopeGrantLiveAt\\(',
+        why: 'a képernyő ugyanazt az állapotot közli, amit a kiadás' }),
+    ]),
+    lesson: 'A JOG NEM ÉLI TÚL AZ ALAPJÁT — ÉS AZ ESEMÉNY NEM AZONOS AZ ÁLLAPOTTAL. Ahol egy fogalomra '
+      + 'két olvasó van (esemény-sor és élő állapot), ott KI KELL MONDANI, melyiket kérdezi a '
+      + 'fogyasztó — és a jogkezelésnek ugyanazt kell kérdeznie, amit a kiadás. Egy idempotencia-kapu '
+      + 'soha nem nyelheti el a SZABÁLYOS helyreállítást.',
+    guard_note: 'gépi jel: a fenti három pozitív minta (`npm run verify:kuka`) + '
+      + '`npm run verify:v3ref` (M316 a visszarontásra a puszta `cur.granted` vizsgálatra, M317 az '
+      + 'alap-kapu elvesztésére — mindkettő CAUGHT) + `npm run verify:app-findings-r125` (29 mérés, '
+      + 'a régi kódúton 15/22).',
+  }),
+  Object.freeze({
     id: 'KUKA-259',
     date: '2026-09-30',
     title: 'AZ ELLENŐRZŐ OLVASÁS ELNYELTE A SAJÁT MÉRÉSÉT — a battéria a RÉGI, hibás kódon is zöld volt',

@@ -16,6 +16,55 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3087 — A LEJÁRT ALAPÚ JOG NEM ÉLŐ JOG, ÉS A GET NEM ÍR (R126)
+
+> **Hatály:** V3 (`valach-system`) — `v3ref/{releaseScope,delegation,run,manifest,mutations}.mjs`,
+> `v3app/{server,findings_r125}.mjs` (utóbbi új), `docs/bemutato/` (új),
+> `tools/v3_bemutato_onallo.mjs` (új). Kivezetett minták: **KUKA-260 · KUKA-261**.
+> Nincs merge, telepítés, V2-módosítás, új szolgáltatás, core/CMD/PR-zárás.
+
+**A parancs:** `CMD-VS-300-002-002 R125 — COMMAND` (chatgpt-v3). Az R123 három javítását a
+megismételt esetekre elfogadta; a teljes R121 csomag NEM elfogadott, mert az idempotencia ÚJ
+regressziót hozott. A REPORT: `docs/70_PLANNING/V3_R126_ELO_JOG_ES_EREDETI_ELFOGADAS.md`.
+
+**1. GLV-01 — AZ ESEMÉNY NEM AZONOS AZ ÁLLAPOTTAL** (`scopeGrantLiveAt`). Az R124-es
+idempotencia-kapum a `readScopeGrantAt`-ot kérdezte meg (a megadás/megvonás ESEMÉNYSORA), és nem
+azt, hogy a hivatkozott alap ma is érvényes-e. Mérve (chatgpt-v3): LEJÁRT delegált alap alatt a
+kiadás `basis_expired`, az ismételt megadás `scope_already_granted` — a SZABÁLYOS helyreállítás
+elakadt, a nyugta sikert mondott. Mostantól az idempotencia-kapu, a kiadási döntés és a tag-lista
+UGYANAZT a kérdést teszi fel. A TILTÁS és az ELŐFIZETÉS szándékosan kívül van: azokat egy új
+megadás nem javítja meg, tehát nem is keletkeztethetnek új grant-igényt. (KUKA-260.)
+
+**2. A GET NEM ÍR** (saját lelet). A tag-lista a megadható köröket a RÖGZÍTŐ
+`deriveDelegationBasis`-ból vette — az pedig új alapverziót ír, ha a meglévő nem hatályos. Így egy
+LEJÁRT felhatalmazást a puszta LISTÁZÁS visszaállított hatályosnak, némán. A GET mostantól az
+írásmentes `delegationCeilingOf`-ot hívja. (KUKA-261.)
+
+**3. A KÉPERNYŐ UGYANAZT AZ ÁLLAPOTOT KÖZLI, AMIT A KIADÁS.** A tag-lista `granted` mezője a
+GLV-01 feloldóból jön; a megadás ESEMÉNYÉNEK tényét külön `recorded` mező mondja ki — két külön
+tény, két külön név (KUKA-002), és a lejárt jog nem látszik élőnek (KUKA-050).
+
+**4. AZ EREDETI A121 KÖVETELMÉNYEK VISSZAKÖTVE** (R125/F125-02). Az R124-es jelentésem az A121
+azonosítókat MÁS követelményekhez rendelte. A mai tábla az R121 SPEC szó szerinti szövegét
+használja, és ahol a bizonyíték nem fedi le az EREDETI feltételt, ott RÉSZLEGES — nem az azonosító
+jelentésének módosításával zárva. Két hiányzó bizonyíték pótolva: az eljáró **lejárt/megvont
+alapja** melletti írásmentesség (A121-05) és a **régi, tárolt előfizetési profil** nem bővülése
+(A121-06).
+
+**5. A BEMUTATÓ FORRÁSA A REPÓBAN.** `docs/bemutato/V3_R121_ADATKOROK_BEMUTATO.artifact.html` a
+kanonikus forrás; `npm run bemutato:onallo` önálló, hálózat nélkül megnyitható dokumentumot ír a
+`var/reports/` alá. Egy forrás, két kimenet — kézi másolat nincs (KUKA-039).
+
+**Gépi jel:** `npm run verify:app-findings-r125` (29/29; a régi kódúton 15/22) ·
+`node v3ref/run.mjs` (63/63, +1 kiadott állítás) · `npm run verify:v3ref` (M316 · M317 CAUGHT,
+221/221 elkapva, 0 túlélő, 0 elavult horgony) · `npm run verify:kuka` (518/518).
+
+**Nevesített maradék:** a képesség-tanú V2-eltérése és a régi `external-checks` futtató hiánya
+továbbra is NEM ennek a csomagnak a javítása, és NEM zöld. A `v3app`-ra a mutációs battéria nem
+fut, tehát a GET-írás javításához rontás-kontroll nincs — a bizonyíték a HTTP-battéria.
+
+---
+
 ## D-VS-3086 — A JOGOSULTSÁGI DÖNTÉS ÍRÁSMENTES, A NEVEZETT HIBAKIMENET VISSZAGÖRGET, A MEGADÁS IDEMPOTENS (R124)
 
 > **Hatály:** V3 (`valach-system`) — `v3ref/{delegation,authority,run,manifest,mutations}.mjs`,

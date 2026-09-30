@@ -96,6 +96,42 @@ export function scopeReleaseDecision({ store, subjectId, bookId, scope, nowIso, 
   if (ban.banned) {
     return frozen({ ...base, allowed: false, basis: 'explicit_ban', reason: ban.reason, message: ban.message ?? null });
   }
+  // 2–4. A JOG MAI ÉLETE — közös feloldóban (GLV-01). Ugyanezt hívja a MEGADÁS idempotencia-kapuja
+  //      és a tag-lista állapot-oszlopa, tehát a kiadás, a jogkezelés és a képernyő nem tud
+  //      elcsúszni egymástól (KUKA-039 · KUKA-018: egy fogalomnak egy otthona).
+  return scopeGrantLiveAt({ store, subjectId, bookId, scope, nowIso, knownAt });
+}
+
+/**
+ * ÉLŐ-E MA EZ AZ ADATKÖRI JOG — AZ ESEMÉNY MELLETT AZ ALAPJÁT IS MÉRVE (GLV-01, R125/F125-01).
+ *
+ * A LELET, AMIT EZ JAVÍT (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R125/F125-01). Az
+ * R124-es idempotencia-javításom a `readScopeGrantAt`-ot kérdezte meg: az a megadás/megvonás
+ * ESEMÉNYSORÁT olvassa, és NEM mondja meg, hogy a hivatkozott ALAP ma is érvényes-e. Mérve: egy
+ * LEJÁRT delegált alap alatt álló jogra a kiadási kapu `basis_expired`-et adott, az ismételt
+ * megadás viszont `scope_already_granted`-et — vagyis a kezelő SZABÁLYOS helyreállítása elakadt,
+ * és a nyugta sikert mondott egy használhatatlan jogra.
+ *
+ * A HIBA OSZTÁLYA: KÉT OLVASÓ EGY TÉNYRE, KÜLÖN VÁLASSZAL (KUKA-018). A „van-e megadás-esemény"
+ * és a „van-e ma használható jog" két külön kérdés — és a jogkezelés a szűkebbet kérdezte meg,
+ * miközben a kiadás a bővebbet. Ahol egy fogalomnak két ábrázolása van, a kérdés az, MELYIKET
+ * olvassa a fogyasztó.
+ *
+ * AMIT EZ A FELOLDÓ ELDÖNT: van-e hatályos megadás-esemény · áll-e ma a hivatkozott alap · benne
+ * van-e az adatkör az alap MAI plafonjában · és a tagságra ÁTVITT korlát sem zárja-e ki.
+ *
+ * AMIT KIMONDVA NEM DÖNT EL: a TILTÁS (az a `scopeReleaseDecision` első kapuja, és a tiltást egy
+ * új megadás nem javítja meg), az ELŐFIZETÉS (külön kapu, ENT-02), és a TAGSÁG (könyv-kapu). Ezt
+ * az R125 kifejezetten kikötötte: „Előfizetés vagy külön tiltás miatt zárt olvasásból önmagában ne
+ * következzen új grant szükségessége" — a megadás hatályossága és a további kapuk KÉT külön tény.
+ *
+ * PURE: csak olvas, nem ír.
+ */
+export function scopeGrantLiveAt({ store, subjectId, bookId, scope, nowIso, knownAt }) {
+  const base = { scope, basis: 'none', basis_id: null, basis_version: null, weaker: false };
+  if (typeof scope !== 'string' || !scope) {
+    return frozen({ ...base, allowed: false, reason: 'scope_required' });
+  }
 
   // 2. A TÉNYLEGESEN MEGADOTT OLVASÁSI JOG (SGR-01, R49). A HIÁNY ZÁR — a „megadható" nem a
   //    „megadott", és a tiltás hiánya nem engedély. Ez a kapu NEM dönti el a TAGSÁGOT (az a

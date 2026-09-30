@@ -47,7 +47,7 @@ import {
   INVITE_ISSUE_OPERATION, requiredAxesFor, ADJUDICATION_LIMIT_OPERATIONS,
 } from './basisLimit.mjs';
 // RSB-01 (K05-DSC-c engedő ága, R47) — az adatkörönkénti olvasási döntés közös kapuja.
-import { scopeReleaseDecision, recordedScopeLimit, RSB_CONTRACT } from './releaseScope.mjs';
+import { scopeReleaseDecision, scopeGrantLiveAt, recordedScopeLimit, RSB_CONTRACT } from './releaseScope.mjs';
 // SGR-01 (R49) — a TÉNYLEGESEN megadott, adatkörönkénti olvasási jog írója és olvasója.
 import { grantReadScope, revokeReadScope, readScopeGrantAt, SCOPE_GRANT_CONTRACT } from './scopeGrant.mjs';
 import { registerAccount, authenticate, issueChannelChallenge, redeemChannelChallenge, provenEmailOf } from './account.mjs';
@@ -3254,7 +3254,9 @@ probe('P-SCR-partial-revocation', 'SCR-01 · R121 §1–§3 · K05-DSC-c · ORG-
     // ÉS A MÁSIK IRÁNY: a nyers tároló-író (revokeReadScope) hatáskört NEM kérdez. Ha egy publikus
     // út közvetlenül azt hívná, az a "bárki megvonhatná" alakja lenne (KUKA-047). Ezért a nyers
     // író BELSŐ marad, és a felhatalmazott kapu a revokeScopeFromMember.
-    const T = { d0: '2026-03-01T00:00:00.000Z', d1: '2026-03-02T00:00:00.000Z', d2: '2026-03-03T00:00:00.000Z', d3: '2026-03-04T00:00:00.000Z' };
+    const T = { d0: '2026-03-01T00:00:00.000Z', d1: '2026-03-02T00:00:00.000Z', d2: '2026-03-03T00:00:00.000Z',
+      d3: '2026-03-04T00:00:00.000Z', d4: '2026-03-06T00:00:00.000Z',
+      d4b: '2026-03-07T00:00:00.000Z', d5: '2026-03-08T00:00:00.000Z' };
     const clock = (t) => ({ now: () => t });
     const store = openStore();
     try {
@@ -3517,6 +3519,59 @@ probe('P-SCR-partial-revocation', 'SCR-01 · R121 §1–§3 · K05-DSC-c · ORG-
         && kMegvon.ok === true && kMegvon.changed === true
         && kUjra.ok === true && kUjra.changed === true && k3 === k2 + 1;
 
+      // ── (l) A LEJÁRT ALAPÚ JOG NEM ÉLŐ JOG (GLV-01 · R125/F125-01) ─────────────────────────
+      //
+      // A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R125/F125-01). Az R124-es
+      // idempotencia-kapum a `readScopeGrantAt`-ot kérdezte meg — az a megadás/megvonás
+      // ESEMÉNYSORÁT olvassa, nem az alap mai érvényességét. Mérve: LEJÁRT delegált alap alatt a
+      // kiadási kapu `basis_expired`-et adott, az ismételt megadás viszont
+      // `scope_already_granted`-et — a SZABÁLYOS helyreállítás elakadt, és a nyugta sikert mondott
+      // egy használhatatlan jogra (KUKA-122: a kapu nem lehet fal · KUKA-129: a nyugta igazat mond).
+      //
+      // A FIXTURE a delegált alap LEJÁRÓ verzióját írja be (a séma szerinti, valódi állapot; a mai
+      // termék-utakon lejáró alapot nem lehet kiadni). Az INDULÁSI alapot nem érintjük.
+      const sgL = () => Number(store.get('SELECT COUNT(*) AS n FROM scope_grant').n);
+      const lDelegId = delegationBasisId('regi', 'kezelo');
+      // A PRÓBA A SAJÁT ELŐFELTÉTELÉT TEREMTI MEG (KUKA-239 · KUKA-134): SAJÁT emberrel és olyan
+      // adatkörrel, ami a v1 fiók plafonjában BENNE van — a szomszéd mérések állapotát nem
+      // örököljük. (Az első alakom a `dokumentumok` körrel mért egy v1 fiókban, ahol az a kör
+      // fogalmilag sincs a plafonban: a mérés a saját fixture-ét buktatta el, nem a kódot.)
+      person('lejartag', 'lejartag@pelda.hu', T.d0);
+      const lInv = inviteColleague({ store, inviterSubjectId: 'kezelo', bookId: 'regi', inviteeEmail: 'lejartag@pelda.hu',
+        offeredRole: 'user', scope: 'arak', token: `tok_lejartag_${'q'.repeat(12)}`, expiresAt: '2026-12-31T00:00:00.000Z', at: T.d3 });
+      const lRd = redeemInvite({ store, token: `tok_lejartag_${'q'.repeat(12)}`, actingSubjectId: 'lejartag', clock: clock(T.d3) });
+      const lAd = grantScopeToMember({ store, granterSubjectId: 'kezelo', bookId: 'regi', targetSubjectId: 'lejartag', scope: 'arak', at: T.d4 });
+      const lEloDontes = scopeReleaseDecision({ store, subjectId: 'lejartag', bookId: 'regi', scope: 'arak', nowIso: T.d4, knownAt: T.d4 });
+      const lLejaro = recordAuthorityBasis({
+        store, basisId: lDelegId, bookId: 'regi', issuerSubject: 'kezelo',
+        effectiveAt: T.d4, recordedAt: T.d4, expiresAt: T.d4b,
+        allowedOperations: [INVITE_ISSUE_OPERATION], allowedRoles: ['admin', 'user'], allowedScopes: [...KNOWN_DATA_SCOPES],
+        evidenceRef: 'r125-fixture: a delegált alap LEJÁRÓ verziója — szintetikus',
+      });
+      // T.d5 a lejárat UTÁN van: a jog ESEMÉNYE áll, az ALAPJA nem.
+      const lKiadas = scopeReleaseDecision({ store, subjectId: 'lejartag', bookId: 'regi', scope: 'arak', nowIso: T.d5, knownAt: T.d5 });
+      const lEsemeny = readScopeGrantAt({ store, subjectId: 'lejartag', bookId: 'regi', scope: 'arak', validAt: T.d5, knownAt: T.d5 });
+      const lSorElotte = sgL();
+      const lHelyre = grantScopeToMember({ store, granterSubjectId: 'kezelo', bookId: 'regi', targetSubjectId: 'lejartag', scope: 'arak', at: T.d5 });
+      const lSorUtana = sgL();
+      const lUtanaKiadas = scopeReleaseDecision({ store, subjectId: 'lejartag', bookId: 'regi', scope: 'arak', nowIso: T.d5, knownAt: T.d5 });
+      // POZITÍV ELLENPÁR: a VALÓBAN ÉLŐ jog ismétlése továbbra is írásmentes no-op.
+      const lIsmet = grantScopeToMember({ store, granterSubjectId: 'kezelo', bookId: 'regi', targetSubjectId: 'lejartag', scope: 'arak', at: T.d5 });
+      const lSorVegul = sgL();
+      // ÉS A MÚLT SÉRTETLEN: a lejárat ELŐTTI napra a jog és az alapja is áll.
+      const lMultban = scopeReleaseDecision({ store, subjectId: 'lejartag', bookId: 'regi', scope: 'arak', nowIso: T.d4, knownAt: T.d4 });
+      // ÉS AZ ÍRÁSMENTES FELOLDÓ UGYANEZT MONDJA (a képernyő ebből él).
+      const lLive = scopeGrantLiveAt({ store, subjectId: 'lejartag', bookId: 'regi', scope: 'arak', nowIso: T.d5, knownAt: T.d5 });
+      const lOk = lInv.ok === true && lRd.ok === true && lAd.ok === true && lAd.changed === true && lEloDontes.allowed === true
+        && lLejaro.ok === true
+        && lKiadas.allowed === false && lKiadas.reason === 'basis_expired'
+        && lEsemeny.granted === true
+        && lHelyre.ok === true && lHelyre.changed === true && lSorUtana === lSorElotte + 1
+        && lUtanaKiadas.allowed === true
+        && lIsmet.ok === true && lIsmet.changed === false && lSorVegul === lSorUtana
+        && lMultban.allowed === true
+        && lLive.allowed === true;
+
       return {
         expected: 'a négy adatkör a TÍPUS deklarációjából oldható fel adat nélkül; a jogosult kezelő EGY kört '
           + 'úgy von vissza, hogy a tagság, a szerep, a többi kör, a másik ember és a másik könyv változatlan; '
@@ -3528,7 +3583,9 @@ probe('P-SCR-partial-revocation', 'SCR-01 · R121 §1–§3 · K05-DSC-c · ORG-
           + 'ugyanattól az eljárótól sikerül; a NEVEZETTEN bukott tárolás a művelet saját részleges '
           + 'írását visszagörgeti (a jogos ismétlés utána sikerül) — a megvonási, a MEGADÁSI és a '
           + 'MEGHÍVÓ-KIADÁSI úton egyaránt, és az alak-elutasítás is írásmentes; és az ismételt, AZONOS '
-          + 'megadás nem gyárt második jog-sort, míg a megvonás UTÁNI újraadás valódi új esemény',
+          + 'megadás nem gyárt második jog-sort, míg a megvonás UTÁNI újraadás valódi új esemény; és a '
+          + 'LEJÁRT alapú jog NEM élő jog: a kiadás nevezetten zár, a ma jogosult kezelő szabályos '
+          + 'újraadása FRISS eseményt ír, a valóban élő jog ismétlése viszont továbbra is írásmentes',
         actual: `(a) besorolás: fejléc=${dHeader.scopes.join('+')} beszállító=${dSupp.scopes.join('+')} `
           + `vegyes=${dFull.scopes.length} kör · ismeretlen=${dUnknown.reason} · (b) négy megadva=${negyMegvan} `
           + `(${grants.filter((g) => g.ok).length}/4) · (c) visszavonás=${rev.ok}/changed=${rev.changed} · `
@@ -3547,8 +3604,11 @@ probe('P-SCR-partial-revocation', 'SCR-01 · R121 §1–§3 · K05-DSC-c · ORG-
           + `meghívó: friss alap=${frissMeghivo.in_effect ?? null} bukott=${invDobott ? 'kivétel' : (invBukott && invBukott.reason)} `
           + `authority_basis ${abInvElotte}→${abInvUtan} · jogos kiadás=${invJogos.ok} · `
           + `alak-elutasítás=${invRosszCim.reason}/${invRosszKor.reason} alap ${abAlakElotte}→${abAlakUtan} · `
-          + `(k) scope_grant ${k0}→${k1}→${k2}→${k3} · első=${kElso.changed} második=${kMasodik.changed} újraadás=${kUjra.changed}`,
-        pass: aOk && cOk && dOk && eOk && fOk && gOk && hOk && iOk && jOk && kOk && rd.ok === true && inv.ok === true,
+          + `(k) scope_grant ${k0}→${k1}→${k2}→${k3} · első=${kElso.changed} második=${kMasodik.changed} újraadás=${kUjra.changed} · `
+          + `(l) lejárat előtt=${lEloDontes.reason} · lejárat után kiadás=${lKiadas.reason} esemény=${lEsemeny.reason} · `
+          + `helyreállítás=${lHelyre.ok}/changed=${lHelyre.changed} sorok ${lSorElotte}→${lSorUtana}→${lSorVegul} · `
+          + `utána kiadás=${lUtanaKiadas.reason} · élő jog ismétlése changed=${lIsmet.changed} · múltban=${lMultban.reason}`,
+        pass: aOk && cOk && dOk && eOk && fOk && gOk && hOk && iOk && jOk && kOk && lOk && rd.ok === true && inv.ok === true,
         asserts: {
           'A-SCR-four-scopes-from-the-declaration-without-data': aOk,
           'A-SCR-one-scope-withdrawn-membership-and-others-intact': cOk,
@@ -3560,6 +3620,7 @@ probe('P-SCR-partial-revocation', 'SCR-01 · R121 §1–§3 · K05-DSC-c · ORG-
           'A-SCR-ceiling-blocks-and-decision-writes-nothing': iOk,
           'A-SCR-failed-storage-rolls-back-its-own-partial-write': jOk,
           'A-SCR-grant-is-idempotent-in-business-terms': kOk,
+          'A-SCR-expired-basis-grant-is-not-a-live-right': lOk,
           // A FIXTÚRA ÉPSÉGE NEM NORMA-ÁLLÍTÁS, ezért NEM kiadott állítás (a bizonyíték-kötést a
           // manifest mindkét irányban méri — KUKA-039). Kapuként viszont a `pass`-ban benne van:
           // ha a fixtúra nem épült fel, a próba NEM mondhatja magát zöldnek.

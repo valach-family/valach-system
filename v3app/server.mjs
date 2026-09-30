@@ -27,12 +27,17 @@ import {
   reissueChannelChallenge, subjectByEmail, CHALLENGE_POLICY,
 } from '../v3ref/account.mjs';
 import { bootstrapOf, workspacesOf, ensurePersonalSpace, personalSpaceOf, provisionWorkspace } from '../v3ref/workspace.mjs';
-import { inviteColleague, grantScopeToMember, revokeScopeFromMember, revokeDelegationsOf, deriveDelegationBasis } from '../v3ref/delegation.mjs';
+// A RÖGZÍTŐ `deriveDelegationBasis` SZÁNDÉKOSAN NINCS ITT (R126 · KUKA-261): a HTTP-réteg egyetlen
+// útja sem hívja többé — a GET az ÍRÁSMENTES `delegationCeilingOf`-ot kérdezi, a rögzítés pedig a
+// domain-műveletek (megadás, meghívó-kiadás) belső dolga. Az import hiánya itt VÉDELEM: aki
+// visszahozná a rögzítőt egy olvasó útra, annak előbb újra be kell húznia.
+import { inviteColleague, grantScopeToMember, revokeScopeFromMember, revokeDelegationsOf,
+  delegationCeilingOf } from '../v3ref/delegation.mjs';
 import { observeInvite, redeemInvite, rememberIntent, resumeIntent } from '../v3ref/invite.mjs';
 import { rightAt, revokeMembership, KNOWN_ROLES } from '../v3ref/authz.mjs';
 import { submitCommand, readCommandResult } from '../v3ref/command.mjs';
 import { KNOWN_DATA_SCOPES, declaredScopesOfType } from '../v3ref/resultScope.mjs';
-import { scopeReleaseDecision } from '../v3ref/releaseScope.mjs';
+import { scopeReleaseDecision, scopeGrantLiveAt } from '../v3ref/releaseScope.mjs';
 import { entitlementFor, twoGateVerdict, setEntitlementProfile, PLANS } from '../v3ref/entitlement.mjs';
 import { businessIdentityOf, businessIdentityProblem, JURISDICTION_PROFILES } from '../v3ref/externalId.mjs';
 import { membershipAsOf } from '../v3ref/bitemporal.mjs';
@@ -772,10 +777,19 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
       const rows = store.all('SELECT subject_id, role FROM membership WHERE book_id = ? ORDER BY granted_at, subject_id', cur.book_id);
       const members = rows.map((row) => {
         const m = membershipAsOf({ store, subjectId: row.subject_id, bookId: cur.book_id, validAt: at, knownAt: at });
+        // A KÉPERNYŐ UGYANAZT AZ ÁLLAPOTOT KÖZLI, AMIT A KIADÁS (GLV-01 · R125/F125-01). A régi
+        // alak a megadás/megvonás ESEMÉNYSORÁT olvasta (`readScopeGrantAt`), ezért egy LEJÁRT
+        // alapú jogot „megadva"-ként mutatott, miközben az olvasás `basis_expired` miatt zárt —
+        // a lista élőnek nevezte azt, ami nem élt (KUKA-050: a szöveg a valóságot követi).
+        //
+        // A `recorded` mező KIMONDJA a másik tényt is: az esemény MEGVAN, csak nem használható.
+        // Így a képernyő nem rejt el semmit, és a diagnosztika sem a `granted` mezőt terheli
+        // (KUKA-002: két külön tény, két külön név).
         const scopes = {};
         for (const scope of KNOWN_DATA_SCOPES) {
-          const g = readScopeGrantAt({ store, subjectId: row.subject_id, bookId: cur.book_id, scope, validAt: at, knownAt: at });
-          scopes[scope] = { granted: g.granted === true, reason: g.reason };
+          const live = scopeGrantLiveAt({ store, subjectId: row.subject_id, bookId: cur.book_id, scope, nowIso: at, knownAt: at });
+          const event = readScopeGrantAt({ store, subjectId: row.subject_id, bookId: cur.book_id, scope, validAt: at, knownAt: at });
+          scopes[scope] = { granted: live.allowed === true, reason: live.reason, recorded: event.granted === true };
         }
         return { subject_id: row.subject_id, email: emailOf(row.subject_id), role: row.role, effective: m.effective === true, effective_reason: m.reason, scopes };
       });
@@ -787,11 +801,18 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
       // hogy egy kattintással átléphető a plafon (KUKA-011 · KUKA-041: a letiltott/hamis gomb
       // ugyanaz a hiba két irányból). Ezért a szerver KIMONDJA, mi adható MA — és a hiány OKÁT is.
       //
-      // A LISTA A VALÓDI ALAPBÓL JÖN (`deriveDelegationBasis`), nem a kódbeli szótárból: ez
-      // UGYANAZ a feloldó, amit a megadás és a visszavonás is hív, tehát a felület és a határ nem
-      // tud elcsúszni egymástól (KUKA-039 · KUKA-018).
-      const basis = deriveDelegationBasis({ store, subjectId: session.subject_id, bookId: cur.book_id, at });
-      const grantable = basis.ok && Array.isArray(basis.limit.scopes) ? [...basis.limit.scopes].sort() : [];
+      // A LISTA A VALÓDI ALAPBÓL JÖN, nem a kódbeli szótárból: ez UGYANAZ a feloldó, amit a
+      // megadás és a visszavonás is hív, tehát a felület és a határ nem tud elcsúszni egymástól
+      // (KUKA-039 · KUKA-018).
+      //
+      // ÉS AZ OLVASÁS NEM ÍR (DCE-01 · R125, saját lelet). A régi alak a RÖGZÍTŐ
+      // `deriveDelegationBasis`-t hívta EGY GET-ből: ha a delegált alap éppen lejárt, a puszta
+      // LISTÁZÁS új, hatályos verziót írt be — vagyis egy olvasó kérés visszaállított egy lejárt
+      // felhatalmazást. Ezt a saját R125-ös ellenpróbám fogta meg: a fixture lejáratott alapja a
+      // tag-lista lekérése után újra hatályosnak mutatkozott. A GET mostantól az ÍRÁSMENTES
+      // plafon-feloldót hívja (KUKA-220: az olvasásnak nyoma sem lehet a védett nyilvántartásban).
+      const basis = delegationCeilingOf({ store, subjectId: session.subject_id, bookId: cur.book_id, at });
+      const grantable = basis.ok && Array.isArray(basis.scopes) ? [...basis.scopes].sort() : [];
       const blocked = KNOWN_DATA_SCOPES.filter((s) => !grantable.includes(s));
       return { status: 200, body: {
         ok: true, book_id: cur.book_id, ...ctx.served, members,

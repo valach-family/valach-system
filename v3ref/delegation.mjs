@@ -31,6 +31,7 @@ import { membershipAsOf } from './bitemporal.mjs';
 import { recordAuthorityBasis, basisAsOf, revokeAuthorityBasis, INVITE_ISSUE_OPERATION } from './authorityBasis.mjs';
 import { issueInviteUnderBasis, grantBasisFor } from './basisLimit.mjs';
 import { grantReadScope, revokeReadScope, readScopeGrantAt } from './scopeGrant.mjs';
+import { scopeGrantLiveAt } from './releaseScope.mjs';
 import { effectuate, atomicOutcome, refuseAndRollBack } from './authority.mjs';
 import { KNOWN_DATA_SCOPES } from './resultScope.mjs';
 
@@ -219,9 +220,23 @@ export function grantScopeToMember({ store, granterSubjectId, bookId, targetSubj
       message: `a te adatkör-plafonod: ${ceilingOf.scopes.join(' · ') || '(üres)'} — ezen kívül nem rendelkezel`,
     });
   }
-  // ÜZLETI IDEMPOTENCIA: a MA IS HATÁLYOS jogra nem írunk új sort, és a nyugta kimondja.
-  const cur = readScopeGrantAt({ store, subjectId: targetSubjectId, bookId, scope, validAt: at, knownAt: at });
-  if (cur.granted === true) {
+  // ÜZLETI IDEMPOTENCIA — DE A MEGADÁS ESEMÉNYE NEM AZONOS A MAI HASZNÁLHATÓ JOGGAL
+  // (GLV-01 · R125/F125-01).
+  //
+  // A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R125). Az R124-es alakom a
+  // `readScopeGrantAt`-ot kérdezte meg — az a megadás/megvonás ESEMÉNYSORÁT olvassa, és nem
+  // mondja meg, hogy a hivatkozott ALAP ma is érvényes-e. Mérve: LEJÁRT delegált alap alatt a
+  // kiadási kapu `basis_expired`-et adott, ez az ág viszont `scope_already_granted`-et — a
+  // kezelő SZABÁLYOS helyreállítása elakadt, és a nyugta sikert mondott egy használhatatlan
+  // jogra. Nem jogosulatlan hozzáférés volt, hanem a javítás megakadályozása (KUKA-122: a kapu
+  // nem lehet fal) és FÉLREVEZETŐ nyugta (KUKA-129).
+  //
+  // MOSTANTÓL UGYANAZT A KÉRDÉST TESZI FEL, AMIT A KIADÁS: `scopeGrantLiveAt` — hatályos esemény
+  // ÉS ma is álló alap ÉS az alap mai plafonjában lévő adatkör. A tiltás és az előfizetés
+  // SZÁNDÉKOSAN nincs benne: azokat egy új megadás nem javítja meg, tehát nem is keletkeztethetnek
+  // új grant-igényt (az R125 kikötése).
+  const cur = scopeGrantLiveAt({ store, subjectId: targetSubjectId, bookId, scope, nowIso: at, knownAt: at });
+  if (cur.allowed === true) {
     return frozen({ ok: true, changed: false, scope, reason: 'scope_already_granted' });
   }
   // AZ ELŐKÉSZÍTŐ ÉS AZ ÉRDEMI ÍRÁS EGY EGYSÉGBEN (ATO-01): a delegálási alap rögzítése és a

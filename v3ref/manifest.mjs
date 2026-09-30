@@ -46,6 +46,9 @@ const VERSION_R121 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a
 // R123 — A JOGOSULTSÁGI DÖNTÉS ÍRÁSMENTES (DCE-01), A NEVEZETT HIBAKIMENET VISSZAGÖRGET (ATO-01),
 // ÉS A MEGADÁS ÜZLETILEG IDEMPOTENS. A külső ellenőrző fél (chatgpt-v3) három mért lelete.
 const VERSION_R123 = `${VERSION_R121} + R123/DCE-01-write-free-decision + R123/ATO-01-atomic-outcome + R123/SCR-02-grant-idempotency`;
+// R125 — A LEJÁRT ALAPÚ JOG NEM ÉLŐ JOG (GLV-01). A külső ellenőrző fél (chatgpt-v3) lelete az
+// R124-es idempotencia-javításomon: a megadás ESEMÉNYE nem azonos a mai használható joggal.
+const VERSION_R125 = `${VERSION_R123} + R125/GLV-01-live-grant-needs-live-basis`;
 const VERSION_R55 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history + R53/ORG-N1b-adjudication + R55/ORG-N1b-granted-version';
 const VERSION_R53 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history + R53/ORG-N1b-adjudication';
 const VERSION_R51 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history';
@@ -430,6 +433,10 @@ export const EXPECTED_PROBES = Object.freeze([
         contract: 'ATO-01', contract_version: VERSION_R123 }),
       Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-SCR-grant-is-idempotent-in-business-terms',
         contract: 'SCR-02', contract_version: VERSION_R123 }),
+      // R125/F125-01 — AZ IDEMPOTENCIA-KAPU A MAI HASZNÁLHATÓ JOGOT KÉRDEZI, NEM CSAK A MEGADÁS
+      // ESEMÉNYÉT. A lejárt alapú jog nem élő jog: a szabályos helyreállítást nem nyelheti el.
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-SCR-expired-basis-grant-is-not-a-live-right',
+        contract: 'GLV-01', contract_version: VERSION_R125 }),
     ]),
   }),
   Object.freeze({

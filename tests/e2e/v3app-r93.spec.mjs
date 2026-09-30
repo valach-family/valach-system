@@ -16,6 +16,7 @@
 //   R93-06  Az elavult válasz NEM oldja fel egy ÚJABB, még futó kérés küldés-állapotát.
 //   R93-07  A chat FORRÁSA megnyitható — és a megfelelő útmutatóra visz.
 import { test, expect } from '@playwright/test';
+import { dictFor } from '../../v3app/public/i18n/dict.mjs';
 import {
   World, createWorkspaceUI, openProfile, logoutUI,
   gotoPage, openInviteUI, redeemUI, ensureMemberRow, openMemberPanel, inviteUI, openMailbox,
@@ -165,15 +166,36 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
 
     // ── A HOZZÁFÉRÉS: valódi tag, valódi engedélymentés.
     await gotoPage(anna.page, 'overview');
+    /**
+     * A SOR VÉGÁLLAPOTÁRA VÁRUNK, NEM A NYUGTA-MEZŐ „NEM ÜRES" ÁLLAPOTÁRA (KUKA-228).
+     *
+     * A LELET (saját, R126): a `members-result` mező a KORÁBBI lépés mondatát viszi, tehát a
+     * `not.toHaveText('')` AZONNAL teljesül — a lépés visszatér, miközben a `loadMembers()`
+     * újrarajzolása még fut. A következő lépés gombja így a rajzolás közepébe kattint, és a
+     * Playwright „element was detached from the DOM" hibával ütközik. Párhuzamos teljes futásban
+     * ez időtúllépéssel bukott; egyedül futtatva átment — vagyis a próba a FUTÁSI SORRENDTŐL
+     * függött, nem a rendszertől (KUKA-121: a nem-várakozó ellenőrzés mint várakozás).
+     *
+     * A MÉRCE: a sor ÁTBILLENT-e. Megadás után a soron a VISSZAVONÁS gombja áll, és fordítva —
+     * ez a lista tényleges újrarajzolásához kötött, ellentétben a nyugta-mezővel.
+     */
+    const HU = dictFor('hu');
+    /** A sablon leghosszabb ÁLLANDÓ szakasza — a mérés a szótárból veszi a mondatot (KUKA-237). */
+    const allando = (tpl) => String(tpl || '').split(/\{[^}]*\}/g).map((x) => x.trim())
+      .reduce((a, b) => (b.length > a.length ? b : a), '');
+    const kattintEsMegvar = async (scope, muvelet, kulcs) => {
+      const gomb = anna.page.getByTestId(`member-scope-${muvelet}-${berta.subjectId}-${scope}`);
+      if (!await gomb.count()) { await openMemberPanel(anna.page, berta.subjectId); return; }
+      await gomb.click();
+      // A MŰVELET SAJÁT NYUGTÁJÁRA várunk, nem arra, hogy a mező „nem üres" (a mező a KORÁBBI
+      // lépés mondatát viszi, tehát az azonnal teljesülne). A mondat a szótárból jön.
+      await expect(anna.page.getByTestId('members-result')).toContainText(allando(HU.TPL[kulcs]));
+    };
+
     await startTourFor(anna.page, byId['tour.grant'].feature);
     verdict['tour.grant'] = await walkTourLogged(anna.page, 'tour.grant', {
-      s3: async () => {
-        // R121 ÓTA KÖRÖNKÉNTI GOMB: a bemutató lépése a SOR gombját nyomja meg (a közös űrlap kivezetve).
-        const gomb = anna.page.getByTestId(`member-scope-grant-${berta.subjectId}-arak`);
-        if (!await gomb.count()) { await openMemberPanel(anna.page, berta.subjectId); return; }
-        await gomb.click();
-        await expect(anna.page.getByTestId('members-result')).not.toHaveText('');
-      },
+      // R121 ÓTA KÖRÖNKÉNTI GOMB: a bemutató lépése a SOR gombját nyomja meg (a közös űrlap kivezetve).
+      s3: () => kattintEsMegvar('arak', 'grant', 'memberCanSee'),
     });
     await closeTourPanel(anna.page);
 
@@ -182,18 +204,8 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
     await gotoPage(anna.page, 'overview');
     await startTourFor(anna.page, byId['tour.scopeLifecycle'].feature);
     verdict['tour.scopeLifecycle'] = await walkTourLogged(anna.page, 'tour.scopeLifecycle', {
-      s3: async () => {
-        const gomb = anna.page.getByTestId(`member-scope-grant-${berta.subjectId}-dokumentumok`);
-        if (!await gomb.count()) { await openMemberPanel(anna.page, berta.subjectId); return; }
-        await gomb.click();
-        await expect(anna.page.getByTestId('members-result')).not.toHaveText('');
-      },
-      s4: async () => {
-        const gomb = anna.page.getByTestId(`member-scope-revoke-${berta.subjectId}-dokumentumok`);
-        if (!await gomb.count()) { await openMemberPanel(anna.page, berta.subjectId); return; }
-        await gomb.click();
-        await expect(anna.page.getByTestId('members-result')).not.toHaveText('');
-      },
+      s3: () => kattintEsMegvar('dokumentumok', 'grant', 'memberCanSee'),
+      s4: () => kattintEsMegvar('dokumentumok', 'revoke', 'scopeRevoked'),
     });
     await closeTourPanel(anna.page);
 
