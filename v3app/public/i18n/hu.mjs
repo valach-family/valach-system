@@ -75,6 +75,10 @@ export const TPL = Object.freeze({
   sampleNeeds: 'Ehhez a nézethez ezek a hozzáférések kellenek: {korok}.',
   sampleMissing: 'Hiányzó hozzáférés: {korok}. Ezt a fiók kezelője adja meg.',
   scopeRevoked: 'A hozzáférést visszavontuk: {ki} mostantól nem látja {mit}.',
+  // R123/F123-03 — A NYUGTA KIMONDJA, VÁLTOZOTT-E VALAMI. A kétszer megnyomott gomb ugyanazt a
+  // végállapotot adja, de a második nyugta NEM mondhatja, hogy most történt valami (KUKA-129).
+  scopeGrantUnchanged: '{ki} eddig is megtekinthette {mit} — nem változott semmi.',
+  scopeRevokeUnchanged: '{ki} eddig sem látta {mit} — nem változott semmi.',
   memberRevoked: '{ki} hozzáférése megszűnt ehhez a fiókhoz: {nev}',
   memberAccessTitle: '{ki} hozzáférése',
   revokeTitle: 'Megszünteted {ki} hozzáférését?',
@@ -390,7 +394,6 @@ export const UI = Object.freeze({
   scopeGrant: 'Hozzáférés megadása',
   scopeBlocked: 'Ebben a fiókban nem adható meg',
   scopeBlockedLead: 'Ez a fiók a korábbi, kétféle hozzáférést adó indulási szabállyal jött létre, ezért a két újabb hozzáférés itt nem adható meg. Ehhez új fiók kell; a meglévő fiókok változatlanul működnek.',
-  scopeUnchanged: 'Ez a hozzáférés amúgy sem volt megadva — nem változott semmi.',
   resendWaitHint: 'Két levélkérés között várj legalább egy percet. Ha több levelet kaptál, a legutóbbi hivatkozását használd.',
   backToLogin: 'Vissza a belépéshez',
   resendInProgress: 'Levélkérés folyamatban…',

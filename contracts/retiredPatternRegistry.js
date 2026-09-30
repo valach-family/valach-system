@@ -33,6 +33,199 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-259',
+    date: '2026-09-30',
+    title: 'AZ ELLENŐRZŐ OLVASÁS ELNYELTE A SAJÁT MÉRÉSÉT — a battéria a RÉGI, hibás kódon is zöld volt',
+    what: 'Az R123-as ellenpróbámban azt akartam mérni, hogy a plafonon túli elutasítás ÍR-E. A mérés '
+      + 'előtt egy ellenőrző lépést tettem: `delegationCeilingOf`-fal kiolvastam a plafont, hogy '
+      + 'igazoljam, a fixture tényleg szűk. A RÉGI kódúton viszont ez a hívás MAGA IS ÍRT (a plafont a '
+      + 'rögzítő `deriveDelegationBasis`-on kérdezte meg) — így az ellenőrzésem elvégezte azt az '
+      + 'írást, amit a következő lépésben mérni akartam, és a számláló már nem mozdult. A battéria a '
+      + 'HIBÁS kódon 39/39 zöldet adott arra a szakaszra, ahol a hiba élt.',
+    why_wrong: 'A MÉRÉS A SAJÁT MELLÉKHATÁSÁT IGAZOLTA VISSZA. Egy előkészítő/ellenőrző hívás nem '
+      + 'semleges, ha a mért rendszerben írhat — és pont a hibás állapotban ír, tehát a mérés ott '
+      + 'vakul meg, ahol a leginkább kellene (KUKA-120: a kivágott próbapad a saját versenyhelyzetét '
+      + 'mérte · KUKA-121: a nem-várakozó ellenőrzés mint várakozás).',
+    replaced_by: 'A FIXTURE-T KÖZVETLEN OLVASÁSSAL igazoljuk (`basisAsOf` a szülő alapra), a '
+      + 'plafon-feloldó hívása pedig a MÉRÉS UTÁN áll; és az elutasított műveleteket egy MÉG ALAP '
+      + 'NÉLKÜLI eljáróval mérjük, hogy legyen mit írni. Így a battéria a régi kódon 37/47-re esik, a '
+      + 'javított kódon 47/47.',
+    decision: 'D-VS-3086',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R123) — a javítás előtti PIROS futás kiíratásakor: a szakasz '
+      + 'zöld volt a hibás kódon is, és ez indította a mérés átrendezését',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r123.mjs']),
+        pattern: 'const szuloMost = basisAsOf\\(',
+        why: 'a fixture hatását KÖZVETLEN alap-olvasás igazolja, nem a plafon-feloldó' }),
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r123.mjs']),
+        pattern: 'const nincsAlap = basisAsOf\\(',
+        why: 'a mérés KIINDULÓ állapota kimondott: az eljárónak még nincs rögzített alapja' }),
+    ]),
+    lesson: 'AZ ELŐKÉSZÍTŐ HÍVÁS IS A MÉRT RENDSZERBEN FUT. Ha a mérés azt állítja, hogy valami NEM ÍR, '
+      + 'akkor a mérés előtti minden lépésnek bizonyítottan írás-mentesnek kell lennie — különben a '
+      + 'zöld a saját mellékhatásunkról szól. A számláló pillanatképe ELŐBB legyen, mint bármi, ami '
+      + 'írhat; és az elutasítást olyan állapotban mérjük, ahol a hibás kódnak VAN mit írnia.',
+    guard_note: 'gépi jel: a fenti két pozitív minta (`npm run verify:kuka`) + a battéria sorrendje: '
+      + '`npm run verify:app-findings-r123` (a3)/(a9) a kiinduló és a záró alap-állapotot is méri.',
+  }),
+  Object.freeze({
+    id: 'KUKA-258',
+    date: '2026-09-30',
+    title: 'A TÚLÉLŐ RONTÁST KIVETTEM A HIÁNYZÓ PRÓBA HELYETT — és a plafon-kapu mérés nélkül maradt',
+    what: 'Az R121-ben írtam egy rontást a megvonás plafon-ellenőrzésére (a `ceiling.includes(scope)` '
+      + 'kapura). A rontás TÚLÉLTE a battériát, és én — a „0 túlélő" tisztaság kedvéért — a RONTÁST '
+      + 'vettem ki. Így a plafon-kapura NULLA mérés maradt, miközben a kód szerint kapu.',
+    why_wrong: 'A TÚLÉLŐ RONTÁS NEM A RONTÁS HIBÁJA, HANEM A PRÓBA (vagy a FIXTURE) HIÁNYA. Itt a '
+      + 'fixture volt túl tág: a MAI (v2) fiókban a delegálás plafona mind a négy adatkör, mert az '
+      + 'ÁTVITT korlát a MEGHÍVÓ ALAPJÁNAK plafona, nem a meghívó pecsételt adatköre — tehát az '
+      + '`outside_basis_scopes` ág azon az úton NEM ÉRHETŐ EL. A rontás eltávolítása ezt a tényt '
+      + 'ELTAKARTA, és a battéria „tiszta" lett egy nem mért kapu mellett (KUKA-134: a terv túlélte a '
+      + 'saját szabályát · KUKA-041: a díszpipa sikert jelent arról, ami meg sem történt).',
+    replaced_by: 'A RONTÁS VISSZAÁLLÍTVA (M310), és mellé VALÓDI, SZŰK ALAPÚ FIXTURE: a RÉGI, v1 '
+      + 'indulási szabállyal született fiók, ahol a kezelő plafona KÉT kör '
+      + '(`v3ref/legacyAccountFixture.mjs`, a v1 DEKLARÁLT listáiból). A próba új kiadott állítása: '
+      + '`A-SCR-ceiling-blocks-and-decision-writes-nothing`.',
+    decision: 'D-VS-3086',
+    found_by: 'A KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R123/F123-01) — kimondott kikötéssel: „nem '
+      + 'elfogadható a túlélő rontás eltávolítása a hiányzó próba helyett"',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/mutations.mjs']),
+        pattern: "id: 'M310'",
+        why: 'a plafon-rontás a battériában áll, nem eltávolítva' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/run.mjs']),
+        pattern: 'A-SCR-ceiling-blocks-and-decision-writes-nothing',
+        why: 'a plafon-kapunak KIADOTT állítása van, tehát a rontásnak van mit megbuktatnia' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/legacyAccountFixture.mjs']),
+        pattern: 'createLegacyV1Workspace',
+        why: 'a szűk plafon VALÓDI, tárolt alakból jön (v1 fiók), nem kézzel írt listából' }),
+    ]),
+    lesson: 'A RONTÁST NEM VESZÜK KI. Ha egy rontás túlél, a kérdés az, MIÉRT nem fogja a próba — és '
+      + 'a válasz majdnem mindig a FIXTURE: az az állapot, amiben a védett ág elérhető, nem áll elő. '
+      + 'Ilyenkor a fixture-t kell megépíteni, akár egy TÖRTÉNETI állapotot (régi szabályverzió), nem '
+      + 'a mérést csökkenteni.',
+    guard_note: 'gépi jel: a fenti három pozitív minta (`npm run verify:kuka`) + `npm run verify:v3ref` '
+      + '(M310 CAUGHT).',
+  }),
+  Object.freeze({
+    id: 'KUKA-257',
+    date: '2026-09-30',
+    title: 'AZ ISMÉTELT MEGADÁS ÚJ JOGOT ÍRT — két azonos kérés két üzleti esemény lett',
+    what: 'Az R121-es `grantScopeToMember` a MAI állapot megkérdezése nélkül írt: két egymás utáni, '
+      + 'AZONOS `POST /api/members/scope` (ugyanaz az alany, könyv és adatkör, közbeni megvonás '
+      + 'nélkül) mindkettő `ok=true`-t adott, és a `scope_grant` 8 → 10 lett. A nyugta mindkettőre azt '
+      + 'mondta, hogy most adtuk meg.',
+    why_wrong: 'A DUPLA KATTINTÁS ÉS A HÁLÓZATI ÚJRAKÜLDÉS UGYANAZ AZ EGY ÜZLETI SZÁNDÉK. Ha ebből két '
+      + 'esemény lesz, a jog-történet hazudik (két megadás ott, ahol egy volt), és a nyugta is: '
+      + 'változást állít, ahol nem történt (KUKA-129: a helyes végállapot nem elég, a NYUGTÁNAK is '
+      + 'igazat kell mondania). A megvonás ága ezt AZ R121-ben már helyesen kezelte — a fegyelem FELE '
+      + 'nem fegyelem.',
+    replaced_by: 'A MÉRCE A JOG MAI ÁLLAPOTA, NEM A KÉRÉS AZONOSSÁGA: ha a jog `at`-kor hatályos, a '
+      + 'válasz `ok:true, changed:false, reason: scope_already_granted`, ÍRÁS NÉLKÜL. A megvonás UTÁNI '
+      + 'újraadás viszont VALÓDI új esemény (`changed:true`). A felületi nyugta a `changed` mezőt '
+      + 'követi, mindhárom nyelven (`scopeGrantUnchanged` · `scopeRevokeUnchanged`).',
+    decision: 'D-VS-3086',
+    found_by: 'A KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R123/F123-03) — két azonos HTTP-kéréssel, a '
+      + '`scope_grant` sorainak számlálásával',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/delegation.mjs']),
+        pattern: "reason: 'scope_already_granted'",
+        why: 'a hatályos jogra nevezett, írás nélküli nem-változás a válasz' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "tpl\\('scopeGrantUnchanged'",
+        why: 'a felületi nyugta kimondja, ha nem történt változás' }),
+    ]),
+    lesson: 'AZ IDEMPOTENCIA ÜZLETI, NEM HTTP-SZINTŰ — ÉS KÉTIRÁNYÚ. A mérce az ÁLLAPOT: ami ma már '
+      + 'igaz, arra nem írunk új eseményt; ami viszont MÁS szándék (visszavonás után újra megadni), az '
+      + 'nem nyelhető el. És amit a szerver `changed` mezőben mond, azt a képernyőnek is ki kell '
+      + 'mondania — minden bekapcsolt nyelven.',
+    guard_note: 'gépi jel: a fenti két pozitív minta (`npm run verify:kuka`) + `npm run verify:v3ref` '
+      + '(M313 · M314) + `npm run verify:app-findings-r123` (C szakasz) + böngésző-tanú: '
+      + '`tests/e2e/v3app-r123.spec.mjs` R123-C2.',
+  }),
+  Object.freeze({
+    id: 'KUKA-256',
+    date: '2026-09-30',
+    title: 'A NEVEZETTEN BUKOTT TÁROLÁS RÉSZLEGES ÍRÁST HAGYOTT — `ok=false` mellett új alapverzió',
+    what: 'A jogkezelő műveletek ELŐKÉSZÍTŐ írása (a delegálási alap rögzítése) és ÉRDEMI írása (a '
+      + 'jog-sor, illetve a megvonás-sor) külön sorsra jutott: ha az érdemi írás NEVEZETTEN bukott '
+      + '(nulla írt sor), a művelet `ok=false, changed=false`-ot adott — és az előkészítő írás BENT '
+      + 'MARADT. Mérve (`TEMP TRIGGER … RAISE(IGNORE)`): `authority_basis` 2 → 3. A KIVÉTELES ág '
+      + '(`RAISE(ABORT)`) ugyanott helyesen görgetett vissza.',
+    why_wrong: 'KÉT ÍRÁS EGY SZÁNDÉKBAN, KÜLÖN SORSSAL (KUKA-024 a jogkezelésen). A tárolóban olyan '
+      + 'alapverzió áll, amit egy SIKERTELEN művelet írt: a jogosultsági nyilvántartás egy meg nem '
+      + 'történt művelet nyomát viseli. És a kivétel helyes visszagörgetése ELTAKARTA a hibát — csak a '
+      + 'NEVEZETT hibakimenet ágán élt.',
+    replaced_by: 'ATO-01: a MŰVELET mondja meg a saját oszthatatlan egységét (`atomicOutcome` + '
+      + '`refuseAndRollBack` a `v3ref/authority.mjs`-ben). A nevezett elutasítás a művelet saját '
+      + 'mentéspontjáig visszagörget, és ÉRTÉKKÉNT jön vissza — a hívó szerződése változatlan. '
+      + 'SZÁNDÉKOSAN NEM a közös `effectuate`-ben: ott az `ok:false` ma is jelenthet szabályos, '
+      + 'írással járó végállapotot, és egy általános visszagörgetés azokat némán eldobná.',
+    decision: 'D-VS-3086',
+    found_by: 'A KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R123/F123-02) — ideiglenes trigger-rel a '
+      + 'megvonás-táblán, az `authority_basis` sorainak számlálásával, POZITÍV ellenpárral (ABORT)',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/authority.mjs']),
+        pattern: 'export function atomicOutcome',
+        why: 'a művelet oszthatatlan egysége NEVEZETT feloldóban él, egy helyen' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/delegation.mjs']),
+        pattern: 'refuseAndRollBack\\(\\{ ok: false, changed: false, reason: g.reason',
+        why: 'a megadás nevezett tárolási kudarca visszagörgeti az előkészítő írást is' }),
+      // R124 — UGYANEZ A HIBA-OSZTÁLY A SZOMSZÉD ÍRÓBAN, saját méréssel (authority_basis 2 → 3 egy
+      // bukott meghívó-kiadás mellett). A szerződés EGY alakban él mindhárom íróban (KUKA-003).
+      Object.freeze({ paths: Object.freeze(['v3ref/delegation.mjs']),
+        pattern: 'refuseAndRollBack\\(\\{ ok: false, reason: issued.reason',
+        why: 'a meghívó-kiadás bukása is visszagörgeti a delegálási alap rögzítését' }),
+    ]),
+    lesson: 'A NEVEZETT HIBAKIMENET IS VÉGÁLLAPOT — ÉS AZ IS VISSZAGÖRGET. Nem elég, hogy a KIVÉTEL '
+      + 'helyesen bukik: a szabályos, nevezett „nem sikerült" ágon is EGYÜTT kell maradnia vagy '
+      + 'EGYÜTT eltűnnie annak, amit a művelet írt. De a szabályt a MŰVELET mondja ki, nem a közös '
+      + 'tranzakciós API — ott minden `ok:false` átminősítése másik hibát szülne.',
+    guard_note: 'gépi jel: a fenti három pozitív minta (`npm run verify:kuka`) + a rontás-battéria '
+      + '(M312 a MEGADÁSI, M315 a MEGHÍVÓ-KIADÁSI ágon — mindkettő CAUGHT) + '
+      + '`npm run verify:app-findings-r123` (B szakasz) + a próba (j) szakasza. KIMONDVA: a MEGVONÁSI '
+      + 'ágon a burkolat hatása ma nem falszifikálható (ott egyetlen írás áll) — a mérhető bizonyíték '
+      + 'a MEGADÁSI és a MEGHÍVÓ-KIADÁSI ágon van.',
+  }),
+  Object.freeze({
+    id: 'KUKA-255',
+    date: '2026-09-30',
+    title: 'A JOGOSULTSÁGI DÖNTÉS ÍRT — az ELUTASÍTOTT megvonás új alapverziót hagyott a nyilvántartásban',
+    what: 'A `revokeScopeFromMember` a plafont a `deriveDelegationBasis`-tól kérte — az pedig RÖGZÍT '
+      + '(`recordAuthorityBasis`), ha a plafon változott vagy még nem volt alap —, és a '
+      + '`ceiling.includes(scope)` ellenőrzés csak EZUTÁN futott. Mérve: a plafonon túli megvonás '
+      + 'NEVEZETTEN elakadt (`outside_basis_scopes`), a `scope_grant_revocation` üres maradt — és az '
+      + '`authority_basis` 3 → 4 lett. Reprodukálva a saját battériámban is: 5 → 6.',
+    why_wrong: 'A DÖNTÉS ÉS A KÖNYVELÉS EGY HÍVÁSBAN (KUKA-002 a jogosultságon). A „mennyi a plafonom" '
+      + 'KÉRDÉS, a „rögzítsük az alapomat" TETT — a régi alak a kérdést a tetten keresztül tette fel. '
+      + 'Egy ELUTASÍTOTT jogosultsági döntés így megváltoztatta a védett jogosultsági nyilvántartást. '
+      + 'És a hibát ELTAKARTA, hogy a megvonás-táblát mértük: az üres maradt (KUKA-220: a „nem tudott" '
+      + 'nem „nem történt meg").',
+    replaced_by: 'DCE-01: `delegationCeilingOf` — ÍRÁSMENTES plafon-feloldó, amit a döntési kapuk '
+      + 'hívnak, és amit a `deriveDelegationBasis` IS használ a számításához (egy tény, egy otthon). A '
+      + 'megvonáshoz nem is kell rögzített delegálási alap: a megvonás az `alter_right` hatáskörön '
+      + 'születik, a plafon ott KORLÁT, nem jogcím.',
+    decision: 'D-VS-3086',
+    found_by: 'A KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R123/F123-01) — az `authority_basis` sorainak '
+      + 'számlálásával a megvonás-tábla MELLETT, nem helyette',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/delegation.mjs']),
+        pattern: 'export function delegationCeilingOf',
+        why: 'a plafon-kérdés írásmentes feloldóban él' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/delegation.mjs']),
+        pattern: 'const ceilingOf = delegationCeilingOf\\(\\{ store, subjectId: revokerSubjectId',
+        why: 'a megvonás a döntést az ÍRÁSMENTES feloldón hozza, nem a rögzítőn' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "'GET /dev/rowcounts'",
+        why: 'az „írásmentes" állítás MÉRHETŐ — nem csak egy tábla, hanem a jogosultsági táblák mind' }),
+    ]),
+    lesson: 'A JOGOSULTSÁGI DÖNTÉS SOHA NEM ÍRÁS. Amíg a válasz lehet „nem", addig a tárolóhoz nem '
+      + 'nyúlunk — és ezt MÉRNI kell, a művelet MINDEN érintett táblájára, nem csak arra az egyre, '
+      + 'amit a művelet neve sugall. Egy tábla számlálása nem bizonyít írás-mentességet.',
+    guard_note: 'gépi jel: a fenti három pozitív minta (`npm run verify:kuka`) + `npm run verify:v3ref` '
+      + '(M310 · M311) + `npm run verify:app-findings-r123` (A szakasz, a jogosultsági táblák '
+      + 'sor-számlálásával).',
+  }),
+  Object.freeze({
     id: 'KUKA-239',
     date: '2026-09-26',
     title: 'A HAMIS ZÖLD A SAJÁT ŐRÖMBEN — a fájl BÁRMELY sorára illesztő minta egy MÁSIK függvény szűrését igazolta',

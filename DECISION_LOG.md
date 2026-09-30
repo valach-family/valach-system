@@ -16,6 +16,66 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3086 — A JOGOSULTSÁGI DÖNTÉS ÍRÁSMENTES, A NEVEZETT HIBAKIMENET VISSZAGÖRGET, A MEGADÁS IDEMPOTENS (R124)
+
+> **Hatály:** V3 (`valach-system`) — `v3ref/{delegation,authority,run,manifest,mutations}.mjs`,
+> `v3ref/legacyAccountFixture.mjs` (új), `v3app/{server,httpSchema,findings_r123}.mjs` (utóbbi új),
+> `v3app/public/app.js`, `v3app/public/i18n/{hu,en,de}.mjs`,
+> `tests/e2e/v3app-r123.spec.mjs` (új). Kivezetett minták: **KUKA-255 · KUKA-256 · KUKA-257 ·
+> KUKA-258 · KUKA-259**. Nincs merge, telepítés, V2-módosítás, core/CMD/PR-zárás.
+
+**A parancs:** `CMD-VS-300-002-002 R123 — COMMAND` (chatgpt-v3) — az R121-es csomag NEM fogadva el,
+négy javítás egy csomagban. A REPORT:
+`docs/70_PLANNING/V3_R124_IRASMENTES_DONTES_ES_ATOMI_JOGKEZELES.md`.
+
+**1. DCE-01 — A PLAFON-KÉRDÉS ÍRÁSMENTES** (`delegationCeilingOf`). A megvonás eddig a plafont a
+RÖGZÍTŐ `deriveDelegationBasis`-on kérdezte meg, és csak utána ellenőrizte — így egy ELUTASÍTOTT
+döntés is új `authority_basis` verziót írt (a külső fél mérése: 3 → 4 üres megvonás-tábla mellett; a
+saját reprodukcióm: 5 → 6). A megvonáshoz nem kell rögzített delegálási alap: az `alter_right`
+hatáskörön születik, a plafon ott KORLÁT, nem jogcím. A számítás EGY feloldóban él, amit a rögzítő is
+hív. (KUKA-255.)
+
+**2. ATO-01 — A NEVEZETT HIBAKIMENET IS VISSZAGÖRGET** (`atomicOutcome` · `refuseAndRollBack`). A
+bukott tárolás eddig a művelet ELŐKÉSZÍTŐ írását bent hagyta (`ok=false` mellett új alapverzió). A
+szabályt a MŰVELET mondja ki, **nem** a közös `effectuate`: ott az `ok:false` ma is jelenthet
+szabályos, írással járó végállapotot, és egy általános visszagörgetés azokat némán eldobná (a külső
+fél kifejezett kikötése). KIMONDVA: a megvonási ágon a burkolat hatása ma nem falszifikálható (ott
+egyetlen írás áll) — a mérhető bizonyíték a MEGADÁSI ágon van. (KUKA-256.)
+
+**3. SCR-02 — A MEGADÁS ÜZLETILEG IDEMPOTENS, KÉT IRÁNYBAN.** A mérce a jog MAI ÁLLAPOTA, nem a
+kérés azonossága: hatályos jogra `changed:false` írás nélkül, a megvonás UTÁNI újraadás viszont
+VALÓDI új esemény. A felületi nyugta a `changed`-et követi mindhárom nyelven
+(`scopeGrantUnchanged` · `scopeRevokeUnchanged`); a generikus „nem változott semmi" kivezetve, mert
+nem mondta meg, KIRŐL és MELYIK körről van szó. (KUKA-257.)
+
+**4. A TÚLÉLŐ RONTÁST NEM VESZÜK KI — A FIXTURE-T ÉPÍTJÜK MEG.** Az R121-ben a plafon-rontást
+eltávolítottam, mert túlélt; a külső fél ezt elfogadhatatlannak mondta, és igaza van. MÉRT ok: a mai
+(v2) fiókban a plafon-kapu NEM ÉRHETŐ EL, mert az ÁTVITT KORLÁT (`grant_basis`) a MEGHÍVÓ ALAPJÁNAK
+plafona, nem a meghívó pecsételt adatköre. Valódi szűk plafon a RÉGI, v1 szabállyal született
+fiókban áll elő — ezt a `v3ref/legacyAccountFixture.mjs` építi fel a v1 DEKLARÁLT listáiból. A
+rontás visszaállítva (M310), és a plafon-kapunak mostantól KIADOTT állítása van. (KUKA-258.)
+
+**5. AZ ELŐKÉSZÍTŐ HÍVÁS IS A MÉRT RENDSZERBEN FUT** (saját lelet). Az első battéria-alakom egy
+ellenőrző `delegationCeilingOf` hívást tett a számláló pillanatképe ELŐTT — a régi kódúton az a
+hívás maga is írt, tehát a mérés a saját mellékhatását igazolta vissza, és a battéria a HIBÁS kódon
+is zöld volt. Javítva: a fixture igazolása KÖZVETLEN alap-olvasással, a plafon-feloldó a mérés UTÁN,
+és az elutasítás mérése MÉG ALAP NÉLKÜLI eljáróval. (KUKA-259.)
+
+**6. AZ „ÍRÁSMENTES" SZÓ MÉRHETŐ ALAKJA** (`GET /dev/rowcounts`). Az R121-es battériám egy SOHA NEM
+LÉTEZETT végpontra deklarált segédet, amit egyetlen mérés sem hívott meg — az állítás bizalom volt,
+nem mérés (KUKA-207). A végpont megépült, és **13 jogosultsági tábla** sorait számolja, nem egyet;
+csak darabszámot ad, üzleti tartalom nélkül.
+
+**Gépi jel:** `npm run verify:app-findings-r123` (47/47; a régi kódúton 37/47) · `node v3ref/run.mjs`
+(63/63, +3 kiadott állítás) · `npm run verify:v3ref` (M310…M314 mind CAUGHT) · `npm run verify:kuka`
+(513/513) · `npx playwright test` (105/105) · `verify:i18n` · `verify:tutor` · `verify:assistant`.
+
+**Nevesített maradék:** a képesség-tanú V2-eltérése és a régi `external-checks` futtató hiánya NEM
+ennek a csomagnak a javítása, és NEM zöld (a külső fél kifejezett kikötése). A teljes hosszú söprés
+nem futott — az R123 nem kérte, a célzott visszaellenőrzés az alapértelmezett (R107).
+
+---
+
 ## D-VS-3085 — AZ ÖT HASZNÁLATI ÚT EGY REGISZTERBEN, A FŐSZÖVEG A NYELVCSOMAGBÓL, A LEZÁRÁS EGY HELYEN (R112)
 
 > **Hatály:** V3 (`valach-system`) — `v3app/public/{app.js,tour.mjs,texts.mjs,inviteText.mjs}`,

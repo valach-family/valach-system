@@ -2384,9 +2384,15 @@ import { inviteNextKey } from './inviteText.mjs';
     const m = (state.members || []).find((x) => x.subject_id === id);
     const who = m ? (m.email || id) : id;
     if (r.ok) {
-      tourTaskDone('grant.saved');           // IGAZOLT mentés után (TUR-01 · F91-01)
-      const mondat = tpl('memberCanSee', { ki: who, mit: SCOPE_ACC[scope] || SCOPE[scope] || scope });
-      formResult('members-result', mondat, 'ok');
+      // A NYUGTA IGAZAT MOND ARRÓL, TÖRTÉNT-E VALAMI (R123/F123-03 · KUKA-129). A megadás üzletileg
+      // idempotens: ha a jog MA IS hatályos volt, a szerver `changed:false`-ot ad — ilyenkor a
+      // képernyő NEM mondhatja, hogy most adtuk meg, és a bemutató lépése sem teljesülhet.
+      const mit = SCOPE_ACC[scope] || SCOPE[scope] || scope;
+      const mondat = r.changed === false
+        ? tpl('scopeGrantUnchanged', { ki: who, mit })
+        : tpl('memberCanSee', { ki: who, mit });
+      if (r.changed !== false) tourTaskDone('grant.saved');   // IGAZOLT változás után (TUR-01 · F91-01)
+      formResult('members-result', mondat, r.changed === false ? 'warn' : 'ok');
       toast(mondat);
     } else {
       formResult('members-result', refusalText(r), 'bad');
@@ -2406,9 +2412,12 @@ import { inviteNextKey } from './inviteText.mjs';
     const m = (state.members || []).find((x) => x.subject_id === id);
     const who = m ? (m.email || id) : id;
     if (r.ok) {
+      const mitV = SCOPE_ACC[scope] || SCOPE[scope] || scope;
+      // A NEVESÍTETT nyugta a GENERIKUS helyén (R123/F123-03): a régi alak egy általános „nem
+      // változott semmi" mondatot adott, ami nem mondta meg, KIRŐL és MELYIK körről van szó.
       const mondat = r.changed
-        ? tpl('scopeRevoked', { ki: who, mit: SCOPE_ACC[scope] || SCOPE[scope] || scope })
-        : UI.scopeUnchanged;
+        ? tpl('scopeRevoked', { ki: who, mit: mitV })
+        : tpl('scopeRevokeUnchanged', { ki: who, mit: mitV });
       if (r.changed) tourTaskDone('scope.revoked');   // IGAZOLT változás után (TUR-01 · KUKA-129)
       formResult('members-result', mondat, r.changed ? 'ok' : 'warn');
       toast(mondat);

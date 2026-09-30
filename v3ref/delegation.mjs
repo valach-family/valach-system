@@ -31,7 +31,7 @@ import { membershipAsOf } from './bitemporal.mjs';
 import { recordAuthorityBasis, basisAsOf, revokeAuthorityBasis, INVITE_ISSUE_OPERATION } from './authorityBasis.mjs';
 import { issueInviteUnderBasis, grantBasisFor } from './basisLimit.mjs';
 import { grantReadScope, revokeReadScope, readScopeGrantAt } from './scopeGrant.mjs';
-import { effectuate } from './authority.mjs';
+import { effectuate, atomicOutcome, refuseAndRollBack } from './authority.mjs';
 import { KNOWN_DATA_SCOPES } from './resultScope.mjs';
 
 const frozen = (o) => Object.freeze(o);
@@ -70,7 +70,28 @@ const same = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].s
  * A DELEGÁLÁSI ALAP KÉPZÉSE a kiadó MAI jogából. Idempotens a plafonra: ha a meglévő verzió
  * ugyanazt a plafont hordozza és hatályos, azt adja vissza; ha a plafon változott, ÚJ verzió.
  */
-export function deriveDelegationBasis({ store, subjectId, bookId, at }) {
+/**
+ * A DELEGÁLÁSI PLAFON — ÍRÁS NÉLKÜL (DCE-01, R123/F123-01).
+ *
+ * A LELET, AMIT EZ JAVÍT (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R123/F123-01). A
+ * `revokeScopeFromMember` a plafont a `deriveDelegationBasis`-tól kérte — az pedig, ha a plafon
+ * változott vagy még nem volt alap, `recordAuthorityBasis`-szal ÍR. A plafon-ellenőrzés csak
+ * EZUTÁN futott. Mérve: a plafonon túli megvonás NEVEZETTEN elakadt, a `scope_grant_revocation`
+ * üres maradt — és az `authority_basis` 3 → 4 lett. Vagyis egy ELUTASÍTOTT jogosultsági döntés
+ * megváltoztatta a jogosultsági nyilvántartást.
+ *
+ * A HIBA OSZTÁLYA: A DÖNTÉS ÉS A KÖNYVELÉS EGY HÍVÁSBAN (KUKA-002 a jogosultságon). A „mennyi a
+ * plafonom" KÉRDÉS, a „rögzítsük az alapomat" TETT — a régi alak a kérdést a tetten keresztül
+ * tette fel. A jogosultsági döntés SOHA nem lehet írás (KUKA-220: az elutasításnak nyoma sem
+ * lehet a védett nyilvántartásban).
+ *
+ * MIÉRT NEM MÁSOLAT. A számítás UGYANEZ a feloldó, és a `deriveDelegationBasis` IS ezt hívja —
+ * tehát a döntés és a rögzítés nem tud elcsúszni egymástól (KUKA-039: egy tény, egy otthon).
+ *
+ * MIT AD: `{ ok:true, roles, scopes, parent }` vagy nevezett `{ ok:false, reason }`. Az `at`-ot
+ * KAPJA, nem olvas órát — a hatályosulási pont ugyanazt az `at`-ot adja a döntésnek (EFF-01).
+ */
+export function delegationCeilingOf({ store, subjectId, bookId, at }) {
   const t = instantMs(at);
   if (!t.ok) return frozen({ ok: false, reason: `at_${t.reason}` });
   const right = rightAt({ store, subjectId, bookId, opClass: 'own_book', nowIso: at });
@@ -86,6 +107,14 @@ export function deriveDelegationBasis({ store, subjectId, bookId, at }) {
   const roles = pRoles.length ? delegable.filter((r) => pRoles.includes(r)) : [...delegable];
   const scopes = pScopes.filter((s) => KNOWN_DATA_SCOPES.includes(s));
   if (!roles.length) return frozen({ ok: false, reason: 'delegation_ceiling_empty', parent_basis: parent.basis_id });
+  return frozen({ ok: true, role, roles: frozen([...roles]), scopes: frozen([...scopes]), parent });
+}
+
+export function deriveDelegationBasis({ store, subjectId, bookId, at }) {
+  // A PLAFON ELŐBB, ÍRÁS NÉLKÜL (DCE-01) — és UGYANABBÓL a feloldóból, amit a döntési kapuk hívnak.
+  const ceiling = delegationCeilingOf({ store, subjectId, bookId, at });
+  if (!ceiling.ok) return ceiling;
+  const { role, roles, scopes, parent } = ceiling;
 
   const basisId = delegationBasisId(bookId, subjectId);
   const existing = basisAsOf({ store, basisId, bookId, validAt: at, knownAt: at });
@@ -109,23 +138,40 @@ export function deriveDelegationBasis({ store, subjectId, bookId, at }) {
  * NEVEZETTEN elakad (`outside_basis_roles`), és nem születik meghívó (R63 §5.3/6).
  */
 export function inviteColleague({ store, inviterSubjectId, bookId, inviteeEmail, offeredRole, scope, token, expiresAt, at }) {
-  const basis = deriveDelegationBasis({ store, subjectId: inviterSubjectId, bookId, at });
-  if (!basis.ok) return frozen({ ok: false, reason: basis.reason });
+  // A DÖNTÉSI KAPUK ÍRÁS NÉLKÜL, A RÉGI SORRENDBEN (R124, saját lelet az ATO-01 mellé). A régi
+  // alak ELSŐ lépése a `deriveDelegationBasis` volt, ami RÖGZÍT — tehát MINDEN elutasított
+  // meghívás (hibás cím, ismeretlen adatkör, plafonon túli szerep) írhatott egy új alapverziót.
+  //
+  // A SORREND SZÁNDÉKOSAN VÁLTOZATLAN: a JOG kérdése előbb, az ALAK utána. Az első javításomban
+  // megcseréltem őket (alak előbb), és ezzel egy jogosulatlan hívó is megtudta volna, hogy a
+  // beírt cím alakja rossz — a nemleges válaszok PRECEDENCIÁJA is szerződés, nem stílus
+  // (KUKA-129: a nyugta pontossága; KUKA-047: a jogosulatlan nem kap több információt).
+  const ceilingOf = delegationCeilingOf({ store, subjectId: inviterSubjectId, bookId, at });
+  if (!ceilingOf.ok) return frozen({ ok: false, reason: ceilingOf.reason });
   const email = String(inviteeEmail ?? '').trim();
   if (!email.includes('@')) return frozen({ ok: false, reason: 'invitee_email_required' });
+  if (!KNOWN_DATA_SCOPES.includes(scope)) {
+    return frozen({ ok: false, reason: 'data_scope_required', message: `választható adatkörök: ${KNOWN_DATA_SCOPES.join(' · ')}` });
+  }
+  // ÉS AZ ÍRÁS OSZTHATATLAN EGYSÉGBEN (ATO-01). MÉRVE ebben a körben: a régi alakban egy bukott
+  // meghívó-kiadás (`invite` sor nem jött létre → idegen kulcs hiba) mellett az `authority_basis`
+  // 2 → 3 lett, és a kivétel a hívóig ment. UGYANAZ a hiba-osztály, mint az F123-02 — ugyanabban a
+  // fájlban, a szomszéd íróban (KUKA-039: a közös feloldó helyessége nem bizonyítja, hogy minden
+  // HÍVÓ helyesen használja; KUKA-257 tanulsága: a fegyelem FELE nem fegyelem).
+  return atomicOutcome(store, () => {
+  const basis = deriveDelegationBasis({ store, subjectId: inviterSubjectId, bookId, at });
+  if (!basis.ok) refuseAndRollBack({ ok: false, reason: basis.reason });
   // AZ ADATKÖR A MEGHÍVÓ RÉSZE, NEM UTÓGONDOLAT. A kiadó szerződése (MOP-01) az adatkör-tengelyt
   // KÖTELEZŐNEK mondja, és ez helyes: a meghívó a kiadó KIFEJEZETT döntése arról is, MILYEN adatot
   // láthat majd a címzett (R63 §5.3/7: a raktári szerep mennyiség-nézetéből ár nem következik). A
   // beváltás ebből a pecsételt adatkörből adja meg az olvasási jogot — egy sorral, alappal.
-  if (!KNOWN_DATA_SCOPES.includes(scope)) {
-    return frozen({ ok: false, reason: 'data_scope_required', message: `választható adatkörök: ${KNOWN_DATA_SCOPES.join(' · ')}` });
-  }
   const issued = issueInviteUnderBasis({
     store, token, bookId, inviteeNamespace: 'email', inviteeValue: email, offeredRole, scope,
     issuerSubject: inviterSubjectId, expiresAt, basisId: basis.basis_id, issuedAt: at,
   });
-  if (!issued.ok) return frozen({ ok: false, reason: issued.reason, basis_id: basis.basis_id, ceiling: basis.limit });
+  if (!issued.ok) refuseAndRollBack({ ok: false, reason: issued.reason, basis_id: basis.basis_id, ceiling: basis.limit });
   return frozen({ ok: true, token, basis_id: basis.basis_id, basis_version: issued.basis_version, ceiling: basis.limit });
+  });
 }
 
 /**
@@ -134,10 +180,28 @@ export function inviteColleague({ store, inviterSubjectId, bookId, inviteeEmail,
  * (R63 §5.3/7), és a helyi admin sem adhat többet, mint amennyit ő maga kapott (§5.3/10).
  */
 export function grantScopeToMember({ store, granterSubjectId, bookId, targetSubjectId, scope, at }) {
-  const basis = deriveDelegationBasis({ store, subjectId: granterSubjectId, bookId, at });
-  if (!basis.ok) return frozen({ ok: false, reason: basis.reason });
+  // ══ A DÖNTÉS ÍRÁS NÉLKÜL, ÉS AZ ÍRÁS OSZTHATATLANUL (R123/F123-01 · F123-02 · F123-03) ══════
+  //
+  // HÁROM LELET EGY MŰVELETEN (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R123):
+  //   · a régi alak ELSŐ lépése a `deriveDelegationBasis` volt, ami RÖGZÍT — tehát minden
+  //     elutasított megadás is írhatott egy új alapverziót (F123-01 osztálya a megadási úton);
+  //   · a `grantReadScope` bukása után a rögzített alap BENT MARADT (F123-02);
+  //   · és az ismételt, AZONOS megadás új jog-sort gyártott: `scope_grant` 8 → 10, közbeni
+  //     megvonás nélkül, mindkét kérés `ok=true`-val (F123-03).
+  //
+  // A SORREND MOSTANTÓL SZERZŐDÉS: (1) a plafon és a tagság KÉRDÉS — írás nélkül; (2) a MAI
+  // állapot KÉRDÉS — ha a jog már hatályos, NINCS írás és `changed:false`; (3) csak ezután, EGY
+  // atomi egységben, a rögzítés és a jog-sor együtt.
+  //
+  // MIÉRT NEM HTTP-SZINTŰ AZ IDEMPOTENCIA. A dupla kattintás és a hálózati újraküldés ugyanazt az
+  // ÜZLETI szándékot hordozza, de egy KÉSŐBBI, valódi újramegadás (megvonás UTÁN) MÁS szándék —
+  // azt nem szabad elnyelni. Ezért a mérce nem a kérés azonossága, hanem a JOG MAI ÁLLAPOTA: ha
+  // ma hatályos, nincs mit tenni; ha megvonás után kérik újra, az VALÓDI új esemény (KUKA-129: a
+  // nyugtának is igazat kell mondania arról, történt-e változás).
+  const ceilingOf = delegationCeilingOf({ store, subjectId: granterSubjectId, bookId, at });
+  if (!ceilingOf.ok) return frozen({ ok: false, changed: false, reason: ceilingOf.reason });
   const m = membershipAsOf({ store, subjectId: targetSubjectId, bookId, validAt: at, knownAt: at });
-  if (m.effective !== true) return frozen({ ok: false, reason: 'target_not_a_member', detail: m.reason });
+  if (m.effective !== true) return frozen({ ok: false, changed: false, reason: 'target_not_a_member', detail: m.reason });
   // A CÉL TAG SAJÁT PLAFONJA IS KAPU (R63 §5.3/7 · az R64 ellenséges felülvizsgálat H06/H07/H10
   // lelete): a beváltáskor átvitt korlát (a pecsételt adatkör) szűkíti, mit kaphat — a kezelő
   // tágabb alapja sem írja felül. Az indulási (bootstrap) tagságnak a teljes szabály a plafonja.
@@ -145,15 +209,33 @@ export function grantScopeToMember({ store, granterSubjectId, bookId, targetSubj
   if (target.ok && target.origin === 'grant_basis' && KNOWN_DATA_SCOPES.includes(scope)) {
     const tScopes = Array.isArray(target.limit.scopes) ? target.limit.scopes : [];
     if (!tScopes.includes(scope)) {
-      return frozen({ ok: false, reason: 'outside_transferred_limit', scope, ceiling: tScopes, message: `a tag átvitt plafonja: ${tScopes.join(' · ') || '(üres)'}` });
+      return frozen({ ok: false, changed: false, reason: 'outside_transferred_limit', scope, ceiling: frozen([...tScopes]), message: `a tag átvitt plafonja: ${tScopes.join(' · ') || '(üres)'}` });
     }
   }
-  const g = grantReadScope({
-    store, subjectId: targetSubjectId, bookId, scope, basisId: basis.basis_id, basisVersion: basis.version,
-    grantedBy: granterSubjectId, effectiveAt: at, recordedAt: at, knownAt: at,
+  // A SAJÁT PLAFON IS KAPU, ÍRÁS NÉLKÜL — ezt eddig a `deriveDelegationBasis` rögzítő ága vitte.
+  if (KNOWN_DATA_SCOPES.includes(scope) && !ceilingOf.scopes.includes(scope)) {
+    return frozen({
+      ok: false, changed: false, reason: 'outside_basis_scopes', scope, ceiling: ceilingOf.scopes,
+      message: `a te adatkör-plafonod: ${ceilingOf.scopes.join(' · ') || '(üres)'} — ezen kívül nem rendelkezel`,
+    });
+  }
+  // ÜZLETI IDEMPOTENCIA: a MA IS HATÁLYOS jogra nem írunk új sort, és a nyugta kimondja.
+  const cur = readScopeGrantAt({ store, subjectId: targetSubjectId, bookId, scope, validAt: at, knownAt: at });
+  if (cur.granted === true) {
+    return frozen({ ok: true, changed: false, scope, reason: 'scope_already_granted' });
+  }
+  // AZ ELŐKÉSZÍTŐ ÉS AZ ÉRDEMI ÍRÁS EGY EGYSÉGBEN (ATO-01): a delegálási alap rögzítése és a
+  // jog-sor EGYÜTT marad vagy EGYÜTT tűnik el — nevezett kudarcon is.
+  return atomicOutcome(store, () => {
+    const basis = deriveDelegationBasis({ store, subjectId: granterSubjectId, bookId, at });
+    if (!basis.ok) refuseAndRollBack({ ok: false, changed: false, reason: basis.reason });
+    const g = grantReadScope({
+      store, subjectId: targetSubjectId, bookId, scope, basisId: basis.basis_id, basisVersion: basis.version,
+      grantedBy: granterSubjectId, effectiveAt: at, recordedAt: at, knownAt: at,
+    });
+    if (!g.ok) refuseAndRollBack({ ok: false, changed: false, reason: g.reason, ceiling: basis.limit.scopes });
+    return frozen({ ok: true, changed: true, scope, basis_id: basis.basis_id, basis_version: basis.version });
   });
-  if (!g.ok) return frozen({ ok: false, reason: g.reason, ceiling: basis.limit.scopes });
-  return frozen({ ok: true, scope, basis_id: basis.basis_id, basis_version: basis.version });
 }
 
 /**
@@ -209,9 +291,16 @@ export function revokeScopeFromMember({ store, clock, revokerSubjectId, bookId, 
       }
       // A PLAFON A VÉGLEGESÍTÉSI PONTON (ORG-N1b): az eljáró a SAJÁT átvitt korlátján belül
       // rendelkezhet. A hiányzó alap NEM "nincs korlát", hanem nevezett elakadás (KUKA-124/2).
-      const basis = deriveDelegationBasis({ store, subjectId: revokerSubjectId, bookId, at });
-      if (!basis.ok) return frozen({ ok: false, changed: false, reason: basis.reason });
-      const ceiling = Array.isArray(basis.limit.scopes) ? basis.limit.scopes : [];
+      //
+      // ÉS A PLAFON KÉRDÉSE ÍRÁS NÉLKÜL FUT (DCE-01 · R123/F123-01). A régi alak a
+      // `deriveDelegationBasis`-t hívta — az pedig RÖGZÍT, ha a plafon változott vagy még nem
+      // volt alap —, és csak UTÁNA ellenőrizte a plafont: így a plafonon TÚLI, tehát ELUTASÍTOTT
+      // megvonás is ÚJ `authority_basis` verziót írt (mérve: 3 → 4, üres megvonás-tábla mellett).
+      // A megvonáshoz nem is kell RÖGZÍTETT delegálási alap: a megvonás nem a delegálási alap
+      // ALATT születik, hanem az `alter_right` hatáskörön — a plafon itt KORLÁT, nem jogcím.
+      const ceilingOf = delegationCeilingOf({ store, subjectId: revokerSubjectId, bookId, at });
+      if (!ceilingOf.ok) return frozen({ ok: false, changed: false, reason: ceilingOf.reason });
+      const ceiling = ceilingOf.scopes;
       if (!ceiling.includes(scope)) {
         return frozen({
           ok: false, changed: false, reason: 'outside_basis_scopes', scope, ceiling: frozen([...ceiling]),
@@ -223,14 +312,28 @@ export function revokeScopeFromMember({ store, clock, revokerSubjectId, bookId, 
       if (cur.granted !== true) {
         return frozen({ ok: true, changed: false, scope, reason: cur.reason ?? 'scope_not_granted' });
       }
-      const r = revokeReadScope({
-        store, subjectId: targetSubjectId, bookId, scope, at,
-        effectiveAt: at, recordedAt: at, actorSubjectId: revokerSubjectId,
-      });
-      if (!r.ok) return frozen({ ok: false, changed: false, reason: r.reason, scope });
-      return frozen({
-        ok: true, changed: true, scope, revocation_id: r.id,
-        effective_at: r.effective_at, recorded_at: r.recorded_at,
+      // AZ ÍRÁS OSZTHATATLAN EGYSÉGBEN (ATO-01 · R123/F123-02): ami itt születik, EGYÜTT marad
+      // vagy EGYÜTT tűnik el. A NEVEZETT tárolási kudarc (nulla írt sor) visszagörget, és
+      // ÉRTÉKKÉNT jön vissza — a hívó szerződése (`ok:false, changed:false`, nevezett ok)
+      // változatlan, de sikertelen művelet nyoma nem marad a tárolóban.
+      //
+      // AMIT EZ AZ ÁG MA NEM BIZONYÍT, KIMONDVA. A DCE-01 javítás után ezen az úton EGYETLEN írás
+      // áll (`revokeReadScope` egy sort szúr be), tehát itt nincs mit visszagörgetni: a burkolat
+      // VÉDELEM a jövőbeli hozzáadás ellen, nem MÉRT viselkedés-különbség — a rontása (M312)
+      // ezen az ágon TÚLÉLT, és ezt nem takarjuk el. Az ATO-01 mérhető bizonyítéka a MEGADÁSI
+      // ágon áll, ahol valóban KÉT írás van (alap-rögzítés + jog-sor). Ez a sor azért marad, hogy
+      // a szerződés EGY alakban éljen mindkét íróban (KUKA-003) — de a hatását itt nem
+      // állítjuk mértnek (KUKA-207: amit próba nem tud megbuktatni, azt bizalomból hisszük).
+      return atomicOutcome(store, () => {
+        const r = revokeReadScope({
+          store, subjectId: targetSubjectId, bookId, scope, at,
+          effectiveAt: at, recordedAt: at, actorSubjectId: revokerSubjectId,
+        });
+        if (!r.ok) refuseAndRollBack({ ok: false, changed: false, reason: r.reason, scope });
+        return frozen({
+          ok: true, changed: true, scope, revocation_id: r.id,
+          effective_at: r.effective_at, recorded_at: r.recorded_at,
+        });
       });
     });
 

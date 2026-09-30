@@ -52,7 +52,9 @@ import { scopeReleaseDecision, recordedScopeLimit, RSB_CONTRACT } from './releas
 import { grantReadScope, revokeReadScope, readScopeGrantAt, SCOPE_GRANT_CONTRACT } from './scopeGrant.mjs';
 import { registerAccount, authenticate, issueChannelChallenge, redeemChannelChallenge, provenEmailOf } from './account.mjs';
 import { createWorkspace, bootstrapOf, workspacesOf, STARTUP_RULE, STARTUP_RULE_V1 } from './workspace.mjs';
-import { inviteColleague, grantScopeToMember, revokeScopeFromMember, revokeDelegationsOf, deriveDelegationBasis } from './delegation.mjs';
+import { inviteColleague, grantScopeToMember, revokeScopeFromMember, revokeDelegationsOf, deriveDelegationBasis,
+  delegationCeilingOf, delegationBasisId } from './delegation.mjs';
+import { createLegacyV1Workspace } from './legacyAccountFixture.mjs';
 import { setEntitlementProfile, entitlementFor, twoGateVerdict } from './entitlement.mjs';
 import { attachBusinessIdentity, identityClaimsMatching, profileFor } from './externalId.mjs';
 
@@ -3348,13 +3350,185 @@ probe('P-SCR-partial-revocation', 'SCR-01 · R121 §1–§3 · K05-DSC-c · ORG-
         && STARTUP_RULE.version === 'v2' && STARTUP_RULE.scopes.length === 4
         && ws.ok === true && ws.rule_version === 'v2' && ws2.ok === true;
 
+      // ── (i) A PLAFON VALÓDI, SZŰK ALAPON — ÉS A DÖNTÉS ÍRÁSMENTES (R123/F123-01) ────────────
+      //
+      // A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R123/F123-01). A plafon-kaput
+      // eddig NEM mérte próba, mert a mai (v2) fiókban NEM ÉRHETŐ EL: az ÁTVITT KORLÁT a MEGHÍVÓ
+      // ALAPJÁNAK plafona, nem a meghívó pecsételt adatköre — ezért egy `keszlet` körrel hívott
+      // admin plafona is mind a négy kör. Emiatt élte túl az R121-es plafon-rontásom a battériát,
+      // és emiatt volt hiba a rontást KIVENNI a hiányzó próba helyett (KUKA-134).
+      //
+      // VALÓDI SZŰK ALAP a RÉGI, v1 szabállyal született fiókban áll elő: ott a kezelő plafona KÉT
+      // kör, a `dokumentumok` és a `beszallitok` NEM az övé. Ez egyszerre a plafon-kapu valódi
+      // mérése ÉS a „régi fiók nem tágul" VALÓDI, tárolt alakon mért tanúja.
+      //
+      // A SORREND MÉRÉSI SZERZŐDÉS: a plafon-olvasást a SZÁMLÁLÓ ELŐTT végezzük, és az elutasított
+      // műveleteket egy MÉG ALAP NÉLKÜLI eljáróval mérjük — különben a mérés a saját mellékhatását
+      // igazolná vissza (KUKA-120 · KUKA-121).
+      const abRows = () => Number(store.get('SELECT COUNT(*) AS n FROM authority_basis').n);
+      person('regitag', 'regitag@pelda.hu', T.d0);
+      person('regiadmin', 'regiadmin@pelda.hu', T.d0);
+      const legacy = createLegacyV1Workspace({ store, creatorSubjectId: 'kezelo', bookId: 'regi', name: 'Régi Kft (v1)', at: T.d0 });
+      const li1 = inviteColleague({ store, inviterSubjectId: 'kezelo', bookId: 'regi', inviteeEmail: 'regitag@pelda.hu',
+        offeredRole: 'user', scope: 'keszlet', token: 'tok_regitag_inv', expiresAt: '2026-12-31T00:00:00.000Z', at: T.d1 });
+      const lrd1 = redeemInvite({ store, token: 'tok_regitag_inv', actingSubjectId: 'regitag', clock: clock(T.d1) });
+      const li2 = inviteColleague({ store, inviterSubjectId: 'kezelo', bookId: 'regi', inviteeEmail: 'regiadmin@pelda.hu',
+        offeredRole: 'admin', scope: 'keszlet', token: 'tok_regiadmin_inv', expiresAt: '2026-12-31T00:00:00.000Z', at: T.d1 });
+      const lrd2 = redeemInvite({ store, token: 'tok_regiadmin_inv', actingSubjectId: 'regiadmin', clock: clock(T.d1) });
+      grantAdjudicationAuthority({ store, subjectId: 'regiadmin', bookId: 'regi', operation: 'alter_right', clock: clock(T.d1), basisId: legacy.basis_id });
+      // A MEGVONANDÓ JOG EXPLICIT MEGADÁSSAL: a beváltás ma CSAK tagságot ad.
+      const lg = grantScopeToMember({ store, granterSubjectId: 'kezelo', bookId: 'regi', targetSubjectId: 'regitag', scope: 'keszlet', at: T.d1 });
+      const lplafon = delegationCeilingOf({ store, subjectId: 'kezelo', bookId: 'regi', at: T.d1 });
+      const friss = basisAsOf({ store, basisId: delegationBasisId('regi', 'regiadmin'), bookId: 'regi', validAt: T.d1, knownAt: T.d1 });
+
+      const abElotte = abRows();
+      const tulVon = revokeScopeFromMember({ store, clock: clock(T.d2), revokerSubjectId: 'regiadmin',
+        bookId: 'regi', targetSubjectId: 'regitag', scope: 'dokumentumok' });
+      const abVonUtan = abRows();
+      const tulAd = grantScopeToMember({ store, granterSubjectId: 'regiadmin', bookId: 'regi',
+        targetSubjectId: 'regitag', scope: 'beszallitok', at: T.d2 });
+      const abAdUtan = abRows();
+      const plafonOkok = ['outside_basis_scopes', 'outside_transferred_limit'];
+      // POZITÍV ELLENPÁR: a plafonon BELÜLI megvonás ugyanattól az eljárótól SIKERÜL.
+      const belulVon = revokeScopeFromMember({ store, clock: clock(T.d2), revokerSubjectId: 'regiadmin',
+        bookId: 'regi', targetSubjectId: 'regitag', scope: 'keszlet' });
+      const iOk = legacy.rule_version === 'v1' && li1.ok === true && lrd1.ok === true && li2.ok === true && lrd2.ok === true && lg.ok === true
+        && lplafon.ok === true && lplafon.scopes.length === 2
+        && lplafon.scopes.includes('keszlet') && lplafon.scopes.includes('arak')
+        && friss.in_effect !== true
+        && tulVon.ok === false && tulVon.changed === false && tulVon.reason === 'outside_basis_scopes'
+        && abVonUtan === abElotte
+        && tulAd.ok === false && tulAd.changed === false && plafonOkok.includes(tulAd.reason)
+        && abAdUtan === abElotte
+        && readScopeGrantAt({ store, subjectId: 'regitag', bookId: 'regi', scope: 'keszlet', validAt: T.d1, knownAt: T.d1 }).granted === true
+        && belulVon.ok === true && belulVon.changed === true;
+
+      // ── (j) A BUKOTT TÁROLÁS NEM HAGY RÉSZLEGES ÍRÁST (ATO-01 · R123/F123-02) ───────────────
+      //
+      // A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R123/F123-02). `RAISE(IGNORE)`
+      // a megvonás-táblán: a művelet NEVEZETTEN elakadt (`ok=false, changed=false,
+      // reason=revocation_row_not_created`) — és az `authority_basis` 2 → 3 lett. A KIVÉTELES ág
+      // (`RAISE(ABORT)`) ugyanott helyesen görgetett vissza.
+      //
+      // MIT MÉRÜNK: (1) a nevezett kimenetet, (2) hogy a művelet SAJÁT írása visszagörgött,
+      // (3) hogy a jog TARTALMA változatlan, (4) POZITÍV ELLENPÁRT: a trigger nélkül ugyanez a
+      // művelet sikerül — a zöld nem a letiltásból jön (KUKA-092).
+      person('atotag', 'atotag@pelda.hu', T.d0);
+      person('atoadmin', 'atoadmin@pelda.hu', T.d0);
+      const ai1 = inviteColleague({ store, inviterSubjectId: 'kezelo', bookId: 'regi', inviteeEmail: 'atotag@pelda.hu',
+        offeredRole: 'user', scope: 'keszlet', token: 'tok_atotag_inv', expiresAt: '2026-12-31T00:00:00.000Z', at: T.d1 });
+      const ard1 = redeemInvite({ store, token: 'tok_atotag_inv', actingSubjectId: 'atotag', clock: clock(T.d1) });
+      const ai2 = inviteColleague({ store, inviterSubjectId: 'kezelo', bookId: 'regi', inviteeEmail: 'atoadmin@pelda.hu',
+        offeredRole: 'admin', scope: 'keszlet', token: 'tok_atoadmin_inv', expiresAt: '2026-12-31T00:00:00.000Z', at: T.d1 });
+      const ard2 = redeemInvite({ store, token: 'tok_atoadmin_inv', actingSubjectId: 'atoadmin', clock: clock(T.d1) });
+      grantAdjudicationAuthority({ store, subjectId: 'atoadmin', bookId: 'regi', operation: 'alter_right', clock: clock(T.d1), basisId: legacy.basis_id });
+      const ag = grantScopeToMember({ store, granterSubjectId: 'kezelo', bookId: 'regi', targetSubjectId: 'atotag', scope: 'keszlet', at: T.d1 });
+      const abAtoElotte = abRows();
+      store.db.exec('CREATE TEMP TRIGGER p_scr_ignore BEFORE INSERT ON scope_grant_revocation BEGIN SELECT RAISE(IGNORE); END');
+      const bukott = revokeScopeFromMember({ store, clock: clock(T.d2), revokerSubjectId: 'atoadmin',
+        bookId: 'regi', targetSubjectId: 'atotag', scope: 'keszlet' });
+      const abAtoUtan = abRows();
+      store.db.exec('DROP TRIGGER p_scr_ignore');
+      const jogAll = readScopeGrantAt({ store, subjectId: 'atotag', bookId: 'regi', scope: 'keszlet', validAt: T.d2, knownAt: T.d2 });
+      const jogosUtana = revokeScopeFromMember({ store, clock: clock(T.d2), revokerSubjectId: 'atoadmin',
+        bookId: 'regi', targetSubjectId: 'atotag', scope: 'keszlet' });
+      // ÉS A MEGADÁSI ÚT, AHOL VALÓBAN KÉT ÍRÁS ÁLL. A megadás ELŐKÉSZÍTŐ írása a delegálási alap
+      // rögzítése, az ÉRDEMI a jog-sor — ez a kettő egy szándék két fele (KUKA-024). Ezért a
+      // mérést FRISS (alap nélküli) eljáróval végezzük: nála az előkészítő írás VALÓBAN
+      // megtörténne, tehát van mit visszagörgetni.
+      //
+      // KIMONDVA, AMIT A MEGVONÁSI ÁG NEM BIZONYÍT: a megvonás útján a javítás után EGYETLEN írás
+      // áll (`revokeReadScope` egy sort szúr be), tehát ott az atomi egység VÉDELEM a jövőbeli
+      // hozzáadás ellen, nem MÉRT viselkedés-különbség. A bizonyíték a MEGADÁSI ágon áll.
+      person('atoadmin2', 'atoadmin2@pelda.hu', T.d0);
+      const ai3 = inviteColleague({ store, inviterSubjectId: 'kezelo', bookId: 'regi', inviteeEmail: 'atoadmin2@pelda.hu',
+        offeredRole: 'admin', scope: 'keszlet', token: 'tok_atoadmin2_inv', expiresAt: '2026-12-31T00:00:00.000Z', at: T.d1 });
+      const ard3 = redeemInvite({ store, token: 'tok_atoadmin2_inv', actingSubjectId: 'atoadmin2', clock: clock(T.d1) });
+      const frissAdo = basisAsOf({ store, basisId: delegationBasisId('regi', 'atoadmin2'), bookId: 'regi', validAt: T.d1, knownAt: T.d1 });
+      const abAdoElotte = abRows();
+      store.db.exec('CREATE TEMP TRIGGER p_scr_grant_ignore BEFORE INSERT ON scope_grant BEGIN SELECT RAISE(IGNORE); END');
+      const bukottAd = grantScopeToMember({ store, granterSubjectId: 'atoadmin2', bookId: 'regi',
+        targetSubjectId: 'atotag', scope: 'keszlet', at: T.d2 });
+      const abAdoUtan = abRows();
+      store.db.exec('DROP TRIGGER p_scr_grant_ignore');
+      const jogosAd = grantScopeToMember({ store, granterSubjectId: 'atoadmin2', bookId: 'regi',
+        targetSubjectId: 'atotag', scope: 'keszlet', at: T.d2 });
+      // ÉS A HARMADIK ÍRÓ UGYANEBBEN A FÁJLBAN: A MEGHÍVÓ-KIADÁS (R124, saját lelet az F123-02
+      // mellé). MÉRVE a régi alakon: a bukott meghívó-kiadás mellett az `authority_basis` 2 → 3
+      // lett, és a kivétel a hívóig ment — ugyanaz a hiba-osztály, a szomszéd íróban. A `regiadmin`
+      // eljárónak MÉG NINCS rögzített alapja (a megvonás a DCE-01 után nem rögzít), tehát nála az
+      // előkészítő írás valóban megtörténne.
+      const frissMeghivo = basisAsOf({ store, basisId: delegationBasisId('regi', 'regiadmin'), bookId: 'regi', validAt: T.d2, knownAt: T.d2 });
+      const abInvElotte = abRows();
+      store.db.exec('CREATE TEMP TRIGGER p_scr_inv_ignore BEFORE INSERT ON invite BEGIN SELECT RAISE(IGNORE); END');
+      let invBukott = null; let invDobott = false;
+      try {
+        invBukott = inviteColleague({ store, inviterSubjectId: 'regiadmin', bookId: 'regi', inviteeEmail: 'ujember@pelda.hu',
+          offeredRole: 'user', scope: 'keszlet', token: `tok_invmeres_${'q'.repeat(12)}`, expiresAt: '2026-12-31T00:00:00.000Z', at: T.d2 });
+      } catch { invDobott = true; }
+      const abInvUtan = abRows();
+      store.db.exec('DROP TRIGGER p_scr_inv_ignore');
+      // POZITÍV ELLENPÁR: a trigger nélkül ugyanez a kiadás SIKERÜL (a zöld nem tiltásból jön).
+      const invJogos = inviteColleague({ store, inviterSubjectId: 'regiadmin', bookId: 'regi', inviteeEmail: 'ujember@pelda.hu',
+        offeredRole: 'user', scope: 'keszlet', token: `tok_invjo_${'q'.repeat(14)}`, expiresAt: '2026-12-31T00:00:00.000Z', at: T.d2 });
+      // ÉS AZ ALAK-ELUTASÍTÁS IS ÍRÁSMENTES: hibás cím és ismeretlen adatkör, alap-írás nélkül.
+      const abAlakElotte = abRows();
+      const invRosszCim = inviteColleague({ store, inviterSubjectId: 'kezelo', bookId: 'regi', inviteeEmail: 'nincs-kukac',
+        offeredRole: 'user', scope: 'keszlet', token: `tok_invrossz_${'q'.repeat(10)}`, expiresAt: '2026-12-31T00:00:00.000Z', at: T.d2 });
+      const invRosszKor = inviteColleague({ store, inviterSubjectId: 'kezelo', bookId: 'regi', inviteeEmail: 'masik@pelda.hu',
+        offeredRole: 'user', scope: 'penzugy', token: `tok_invkor_${'q'.repeat(12)}`, expiresAt: '2026-12-31T00:00:00.000Z', at: T.d2 });
+      const abAlakUtan = abRows();
+
+      const jOk = ai1.ok === true && ard1.ok === true && ai2.ok === true && ard2.ok === true && ag.ok === true
+        && bukott.ok === false && bukott.changed === false && bukott.reason === 'revocation_row_not_created'
+        && abAtoUtan === abAtoElotte
+        && jogAll.granted === true
+        && jogosUtana.ok === true && jogosUtana.changed === true
+        && ai3.ok === true && ard3.ok === true && frissAdo.in_effect !== true
+        && bukottAd.ok === false && bukottAd.changed === false && bukottAd.reason === 'grant_row_not_created'
+        && abAdoUtan === abAdoElotte
+        && jogosAd.ok === true && jogosAd.changed === true
+        && frissMeghivo.in_effect !== true
+        && (invDobott === true || (invBukott && invBukott.ok === false))
+        && abInvUtan === abInvElotte
+        && invJogos.ok === true
+        && invRosszCim.ok === false && invRosszCim.reason === 'invitee_email_required'
+        && invRosszKor.ok === false && invRosszKor.reason === 'data_scope_required'
+        && abAlakUtan === abAlakElotte;
+
+      // ── (k) A MEGADÁS ÜZLETILEG IDEMPOTENS (SCR-02 · R123/F123-03) ─────────────────────────
+      //
+      // A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R123/F123-03). Két azonos megadás
+      // mindkettő `ok=true`-t adott, és a `scope_grant` 8 → 10 lett, közbeni megvonás nélkül.
+      // A mérce a JOG MAI ÁLLAPOTA, nem a kérés azonossága: a megvonás UTÁNI újraadás VALÓDI új
+      // esemény kell maradjon (KUKA-129: a nyugtának is igazat kell mondania).
+      const sgRows = () => Number(store.get('SELECT COUNT(*) AS n FROM scope_grant').n);
+      const k0 = sgRows();
+      const kElso = grantScopeToMember({ store, granterSubjectId: 'kezelo', bookId: 'regi', targetSubjectId: 'atotag', scope: 'arak', at: T.d2 });
+      const k1 = sgRows();
+      const kMasodik = grantScopeToMember({ store, granterSubjectId: 'kezelo', bookId: 'regi', targetSubjectId: 'atotag', scope: 'arak', at: T.d2 });
+      const k2 = sgRows();
+      const kMegvon = revokeScopeFromMember({ store, clock: clock(T.d3), revokerSubjectId: 'kezelo',
+        bookId: 'regi', targetSubjectId: 'atotag', scope: 'arak' });
+      const kUjra = grantScopeToMember({ store, granterSubjectId: 'kezelo', bookId: 'regi', targetSubjectId: 'atotag', scope: 'arak', at: T.d3 });
+      const k3 = sgRows();
+      const kOk = kElso.ok === true && kElso.changed === true && k1 === k0 + 1
+        && kMasodik.ok === true && kMasodik.changed === false && k2 === k1
+        && kMegvon.ok === true && kMegvon.changed === true
+        && kUjra.ok === true && kUjra.changed === true && k3 === k2 + 1;
+
       return {
         expected: 'a négy adatkör a TÍPUS deklarációjából oldható fel adat nélkül; a jogosult kezelő EGY kört '
           + 'úgy von vissza, hogy a tagság, a szerep, a többi kör, a másik ember és a másik könyv változatlan; '
           + 'a jogosulatlan tag SEMMIT nem ír — a saját sorára sem; az ismeretlen kör, a nem tag és az idegen '
           + 'könyv NEVEZETTEN és ÍRÁSMENTESEN zár; az ismételt visszavonás nem gyárt második üzleti változást; '
           + 'a megvonás előtti tudás-állapot a jogot MÉG ÁLLÓNAK látja és az újraadás működik; a v1 indulási '
-          + 'szabály két köre RÖGZÍTETT marad',
+          + 'szabály két köre RÖGZÍTETT marad; és egy VALÓDI, SZŰK alapú (v1) fiókban a plafonon túli '
+          + 'megvonás ÉS megadás NEVEZETTEN elakad — ÚJ alapverzió írása nélkül —, míg a plafonon belüli '
+          + 'ugyanattól az eljárótól sikerül; a NEVEZETTEN bukott tárolás a művelet saját részleges '
+          + 'írását visszagörgeti (a jogos ismétlés utána sikerül) — a megvonási, a MEGADÁSI és a '
+          + 'MEGHÍVÓ-KIADÁSI úton egyaránt, és az alak-elutasítás is írásmentes; és az ismételt, AZONOS '
+          + 'megadás nem gyárt második jog-sort, míg a megvonás UTÁNI újraadás valódi új esemény',
         actual: `(a) besorolás: fejléc=${dHeader.scopes.join('+')} beszállító=${dSupp.scopes.join('+')} `
           + `vegyes=${dFull.scopes.length} kör · ismeretlen=${dUnknown.reason} · (b) négy megadva=${negyMegvan} `
           + `(${grants.filter((g) => g.ok).length}/4) · (c) visszavonás=${rev.ok}/changed=${rev.changed} · `
@@ -3362,8 +3536,19 @@ probe('P-SCR-partial-revocation', 'SCR-01 · R121 §1–§3 · K05-DSC-c · ORG-
           + `tagság=${tagsag.effective} · (d) idegen=${idegen.reason} saját=${sajat.reason} napló-sor=${revRows()} · `
           + `(e) ismeretlen=${ismeretlen.reason} nem-tag=${nemTag.reason} más-könyv=${masKonyv.reason} · `
           + `(f) másodszor=${masodszor.ok}/changed=${masodszor.changed} · (g) múltban=${multban.granted} `
-          + `újraadás=${ujra.ok}→${ujraAll.granted} · (h) v1=${STARTUP_RULE_V1.scopes.join('+')} v2=${STARTUP_RULE.scopes.length} kör`,
-        pass: aOk && cOk && dOk && eOk && fOk && gOk && hOk && rd.ok === true && inv.ok === true,
+          + `újraadás=${ujra.ok}→${ujraAll.granted} · (h) v1=${STARTUP_RULE_V1.scopes.join('+')} v2=${STARTUP_RULE.scopes.length} kör · `
+          + `(i) v1-plafon=${lplafon.ok ? lplafon.scopes.join('+') : lplafon.reason} · friss-alap=${friss.in_effect ?? null} · `
+          + `túli megvonás=${tulVon.reason} túli megadás=${tulAd.reason} · authority_basis ${abElotte}→${abVonUtan}→${abAdUtan} · `
+          + `belüli megvonás=${belulVon.ok}/changed=${belulVon.changed} · `
+          + `(j) bukott tárolás=${bukott.reason}/changed=${bukott.changed} · authority_basis ${abAtoElotte}→${abAtoUtan} · `
+          + `jog áll=${jogAll.granted} · jogos ismétlés=${jogosUtana.ok}/changed=${jogosUtana.changed} · `
+          + `friss-adó alap=${frissAdo.in_effect ?? null} bukott megadás=${bukottAd.reason} · authority_basis ${abAdoElotte}→${abAdoUtan} · `
+          + `jogos megadás=${jogosAd.ok}/changed=${jogosAd.changed} · `
+          + `meghívó: friss alap=${frissMeghivo.in_effect ?? null} bukott=${invDobott ? 'kivétel' : (invBukott && invBukott.reason)} `
+          + `authority_basis ${abInvElotte}→${abInvUtan} · jogos kiadás=${invJogos.ok} · `
+          + `alak-elutasítás=${invRosszCim.reason}/${invRosszKor.reason} alap ${abAlakElotte}→${abAlakUtan} · `
+          + `(k) scope_grant ${k0}→${k1}→${k2}→${k3} · első=${kElso.changed} második=${kMasodik.changed} újraadás=${kUjra.changed}`,
+        pass: aOk && cOk && dOk && eOk && fOk && gOk && hOk && iOk && jOk && kOk && rd.ok === true && inv.ok === true,
         asserts: {
           'A-SCR-four-scopes-from-the-declaration-without-data': aOk,
           'A-SCR-one-scope-withdrawn-membership-and-others-intact': cOk,
@@ -3372,6 +3557,9 @@ probe('P-SCR-partial-revocation', 'SCR-01 · R121 §1–§3 · K05-DSC-c · ORG-
           'A-SCR-repeat-is-idempotent-in-business-terms': fOk,
           'A-SCR-history-kept-and-regrant-works': gOk,
           'A-SCR-old-startup-rule-does-not-widen': hOk,
+          'A-SCR-ceiling-blocks-and-decision-writes-nothing': iOk,
+          'A-SCR-failed-storage-rolls-back-its-own-partial-write': jOk,
+          'A-SCR-grant-is-idempotent-in-business-terms': kOk,
           // A FIXTÚRA ÉPSÉGE NEM NORMA-ÁLLÍTÁS, ezért NEM kiadott állítás (a bizonyíték-kötést a
           // manifest mindkét irányban méri — KUKA-039). Kapuként viszont a `pass`-ban benne van:
           // ha a fixtúra nem épült fel, a próba NEM mondhatja magát zöldnek.

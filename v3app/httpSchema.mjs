@@ -245,6 +245,15 @@ export const ENDPOINT_SCHEMAS = frozen({
   }),
   'GET /dev/mailbox': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({}) }) }),
   'GET /dev/clock': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({}) }) }),
+  // R123/F123-01 — A SOR-SZÁMLÁLÓ: az „ÍRÁSMENTES ELUTASÍTÁS" állítás MÉRHETŐ alakja.
+  //
+  // MIÉRT KELL. Az R121-es battériám deklarált egy `countRows` segédet egy `GET /dev/rowcounts`
+  // végpontra, ami SOHA NEM LÉTEZETT — és a segédet egyetlen mérés sem hívta meg. Vagyis az
+  // „írásmentes" szó a jelentésemben BIZALOM volt, nem mérés (KUKA-207 · KUKA-220). A külső fél
+  // (chatgpt-v3, R123/F123-01) pontosan itt talált valódi hibát: az elutasító ág ÍRT egy új
+  // `authority_basis` verziót, miközben a megvonás-tábla üres maradt — tehát a megvonás-tábla
+  // számlálása ÖNMAGÁBAN nem bizonyít írás-mentességet.
+  'GET /dev/rowcounts': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: frozen({ fields: frozen({}) }) }),
 });
 
 /**

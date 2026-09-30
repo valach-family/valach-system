@@ -1716,6 +1716,73 @@ export const MUTATIONS = [
   // ezt ki is mondta: „a próbához NINCS visszabontási kontroll". Az alábbi hét rontás mindegyike
   // EGY konkrét kaput vesz el, és a MÉRT HATÁS a kapu nélküli világ üzleti következménye.
 
+  // ══ R123 — A KÜLSŐ ELLENŐRZŐ FÉL HÁROM LELETÉNEK KONTROLLJAI ══════════════════════════════════
+  //
+  // M310 A VISSZAÁLLÍTOTT PLAFON-MUTÁCIÓ. Az R121-ben ezt a rontást a battériám nem fogta, és én
+  //      KIVETTEM a rontást — a külső fél kikötése szerint ez elfogadhatatlan volt: „nem elfogadható
+  //      a túlélő rontás eltávolítása a hiányzó próba helyett". Igazuk volt: nem a rontás volt hibás,
+  //      hanem a FIXTÚRA volt túl tág (a mai v2 fiókban a plafon mind a négy kör). A próba (i)
+  //      szakasza most VALÓDI, szűk alapú (v1) fiókon mér, és ez a rontás így FOGHATÓ (KUKA-134).
+
+  { id: 'M310', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
+    what: 'DCE-01 / R123 §F123-01 — A PLAFON-KAPU ELTŰNIK A MEGVONÁSBÓL: az eljáró adatkör-plafonja '
+      + 'már nem korlát. MÉRT HATÁS: egy RÉGI (v1) fiókban a helyi admin olyan adatkört is elvehet, '
+      + 'amit ő maga soha nem kaphatott meg — a delegálás plafonja (ORG-N1b · §5.3/10) megszűnik, és '
+      + 'a „nem adhat többet, mint amennyit kapott" szabály a MEGVONÁS irányában kiürül',
+    file: 'delegation.mjs',
+    from: "      if (!ceiling.includes(scope)) {",
+    to: "      if (false) {" },
+
+  { id: 'M311', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
+    what: 'DCE-01 / R123 §F123-01 — A JOGOSULTSÁGI DÖNTÉS ÚJRA ÍR: a plafont a RÖGZÍTŐ úton kérdezzük '
+      + 'meg (`deriveDelegationBasis`), nem az írásmentes feloldóval. MÉRT HATÁS: a plafonon TÚLI, '
+      + 'tehát ELUTASÍTOTT megvonás ÚJ `authority_basis` verziót ír — egy sikertelen művelet '
+      + 'megváltoztatja a jogosultsági nyilvántartást (a külső fél mérése: 3 → 4 üres megvonás-tábla '
+      + 'mellett; KUKA-220)',
+    file: 'delegation.mjs',
+    from: "      const ceilingOf = delegationCeilingOf({ store, subjectId: revokerSubjectId, bookId, at });",
+    to: "      const ceilingOf = (() => { const b = deriveDelegationBasis({ store, subjectId: revokerSubjectId, bookId, at }); return b.ok ? { ok: true, scopes: b.limit.scopes } : b; })();" },
+
+  { id: 'M312', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
+    what: 'ATO-01 / R123 §F123-02 — A NEVEZETT HIBAKIMENET NEM GÖRGET VISSZA: a bukott tárolás '
+      + 'egyszerűen visszatér, a művelet addigi írásai bent maradnak. MÉRT HATÁS: `ok=false, '
+      + 'changed=false` mellett a tárolóban olyan alapverzió áll, amit egy SIKERTELEN művelet írt '
+      + '(a külső fél mérése: `authority_basis` 2 → 3; KUKA-024: két írás egy szándékban, külön sorssal). '
+      + 'A RONTÁS A MEGADÁSI ÁGON ÁLL, mert ott VALÓBAN két írás van (alap-rögzítés + jog-sor); a '
+      + 'megvonási ágon a javítás után egyetlen írás áll, tehát ott ez a rontás viselkedésben nem '
+      + 'különbözik — a mérhető helyen mérünk (KUKA-207)',
+    file: 'delegation.mjs',
+    from: "    if (!g.ok) refuseAndRollBack({ ok: false, changed: false, reason: g.reason, ceiling: basis.limit.scopes });",
+    to: "    if (!g.ok) return frozen({ ok: false, changed: false, reason: g.reason, ceiling: basis.limit.scopes });" },
+
+  { id: 'M315', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
+    what: 'ATO-01 / R124 (saját lelet az F123-02 mellé) — A MEGHÍVÓ-KIADÁS ELVESZTI AZ ATOMI EGYSÉGÉT: '
+      + 'a delegálási alap rögzítése és a meghívó kiadása újra külön sorsra jut. MÉRT HATÁS: egy '
+      + 'bukott meghívó-kiadás (az `invite` sor nem jön létre) mellett az `authority_basis` 2 → 3 '
+      + 'lesz, és a kivétel a hívóig megy — a jogosultsági nyilvántartás egy meg nem történt '
+      + 'meghívás nyomát viseli (ugyanaz a hiba-osztály, mint az F123-02, a szomszéd íróban)',
+    file: 'delegation.mjs',
+    from: "  return atomicOutcome(store, () => {\n  const basis = deriveDelegationBasis({ store, subjectId: inviterSubjectId, bookId, at });",
+    to: "  return (() => {\n  const basis = deriveDelegationBasis({ store, subjectId: inviterSubjectId, bookId, at });" },
+
+  { id: 'M313', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
+    what: 'SCR-02 / R123 §F123-03 — A MEGADÁS ÚJRA DUPLIKÁL: a MA IS HATÁLYOS jogra is új sort írunk. '
+      + 'MÉRT HATÁS: a dupla kattintás és a hálózati újraküldés két üzleti eseményt gyárt ugyanabból '
+      + 'az EGY szándékból (a külső fél mérése: `scope_grant` 8 → 10, közbeni megvonás nélkül), és a '
+      + 'nyugta mindkettőre „megadva"-t mond (KUKA-129)',
+    file: 'delegation.mjs',
+    from: "    return frozen({ ok: true, changed: false, scope, reason: 'scope_already_granted' });",
+    to: "    void cur;" },
+
+  { id: 'M314', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
+    what: 'SCR-02 / R123 §F123-03 — AZ IDEMPOTENCIA TÚL SOKAT NYEL: a megvonás UTÁNI, JOGOS újraadás '
+      + 'is „nem változott"-ként végződik, mert a mai állapot helyett a megadás TÖRTÉNETÉRE nézünk. '
+      + 'MÉRT HATÁS: egy elvett jogot nem lehet visszaadni — a kapu fallá válik (KUKA-122), és a '
+      + 'felület nyugtája azt mondja, minden rendben, miközben semmi nem történt',
+    file: 'delegation.mjs',
+    from: "  if (cur.granted === true) {",
+    to: "  if (cur.reason !== 'no_scope_grant') {" },
+
   { id: 'M300', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
     what: 'SCR-01 / R121 §1 — A BESOROLÁS NEM MEGY MÉLYSÉGBEN: a tömb elemeinek sémáját nem járjuk '
       + 'be, tehát a tételsorokban álló ÁR és a beágyazott beszállítói blokk nem kerül a szükséges '

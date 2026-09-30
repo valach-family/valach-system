@@ -220,6 +220,60 @@ export function executableRightAt({ store, subjectId, bookId, operation, nowIso,
  * @returns {{authorized:true, at:string, right:object, value:*}
  *          | {authorized:false, at:null, right:{ok:false, reason:string, message:string}, stage:'admission'|'effectuation'}}
  */
+// ═══ ATO-01 — A NEVEZETT HIBAKIMENET IS VISSZAGÖRGET (R123/F123-02) ═════════════════════════════
+//
+// A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R123/F123-02). Mérve: egy `TEMP TRIGGER`
+// `RAISE(IGNORE)`-ral a megvonás-táblán a művelet NEVEZETTEN elakadt (`ok=false, changed=false,
+// reason=revocation_row_not_created`) — ÉS az `authority_basis` 2 → 3 lett. A KIVÉTELES ág
+// (`RAISE(ABORT)`) ugyanott helyesen görgetett vissza (2 → 2).
+//
+// A HIBA OSZTÁLYA: KÉT ÍRÁS EGY SZÁNDÉKBAN, KÜLÖN SORSSAL (KUKA-024 a jogkezelésen). A művelet
+// ELŐKÉSZÍTŐ írása (a delegálási alap rögzítése) és az ÉRDEMI írása (a jog-sor) egy üzleti
+// szándék két fele volt — de a nevezett kudarc csak a másodikat állította meg, az elsőt bent
+// hagyta. A tárolóban így olyan alapverzió áll, amit egy SIKERTELEN művelet írt.
+//
+// MIÉRT NEM AZ `effectuate`-BEN JAVÍTJUK. Kézenfekvő lenne, hogy a hatályosulási pont MINDEN
+// `ok:false` visszatérést visszagörgessen — és pontosan ezt tiltja meg az R123: „Ne adj vakon
+// minden `ok=false`-nak új jelentést a közös tranzakciós API-ban." Igazuk van: a közös API-ban az
+// `ok:false` MA is szabályos, ÍRÁSSAL JÁRÓ végállapotot jelenthet (pl. egy elutasítás-napló sor),
+// és egy általános visszagörgetés ezeket NÉMÁN eldobná — vagyis a javítás másik hibát szülne.
+//
+// EZÉRT: a MŰVELET mondja meg, mi az ő oszthatatlan egysége. Az `atomicOutcome` egy BELSŐ atomi
+// egységet nyit (beágyazva mentéspontot — `store.atomic`), és a `refuseAndRollBack` NEVEZETT
+// elutasítást dob benne: a mentéspontig visszagörgetünk, a nevezett kimenet pedig ÉRTÉKKÉNT jön
+// vissza, nem kivételként. Így a hívó szerződése (nevezett ok, `changed:false`) VÁLTOZATLAN, a
+// tároló pedig nem visel sikertelen művelet nyomát.
+//
+// AMIT EZ NEM TESZ: nem nyeli el a VALÓDI kivételt. Ami nem `OperationRefusal`, az megy tovább —
+// a hibát nem minősítjük át nemleges üzleti válaszra (KUKA-127: a „nem futott" nem „elutasítva").
+
+/** Nevezett üzleti elutasítás, ami a művelet SAJÁT atomi egységét visszagörgeti (ATO-01). */
+export class OperationRefusal extends Error {
+  constructor(payload) {
+    super(String((payload && payload.reason) || 'operation_refused'));
+    this.name = 'OperationRefusal';
+    this.payload = Object.freeze({ ...payload });
+  }
+}
+
+/** NEVEZETTEN elakad, és a művelet saját, addigi írásait visszagörgeti (ATO-01). */
+export function refuseAndRollBack(payload) {
+  throw new OperationRefusal(payload);
+}
+
+/**
+ * A MŰVELET OSZTHATATLAN EGYSÉGE. Amit `fn` ír, az EGYÜTT marad vagy EGYÜTT tűnik el; a
+ * `refuseAndRollBack` nevezett kimenete ÉRTÉKKÉNT jön vissza, minden más kivétel továbbmegy.
+ */
+export function atomicOutcome(store, fn) {
+  try {
+    return store.atomic(fn);
+  } catch (e) {
+    if (e instanceof OperationRefusal) return e.payload;
+    throw e;
+  }
+}
+
 export function effectuate({ store, clock, subjectId, bookId, operation, credentials }, effect) {
   return effectuateWith({
     store,

@@ -43,6 +43,9 @@ const VERSION_R47 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-
 // indulási alapja és a meghívó delegálási alapja a rendszer SAJÁT írásán képződik (WSP-01 · DLG-01).
 const VERSION_R63 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history + R53/ORG-N1b-adjudication + R55/ORG-N1b-granted-version + R63/CORE-UX-1-basis-closed';
 const VERSION_R121 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history + R53/ORG-N1b-adjudication + R55/ORG-N1b-granted-version + R63/CORE-UX-1-basis-closed + R121/SCR-01-partial-scope-revocation';
+// R123 — A JOGOSULTSÁGI DÖNTÉS ÍRÁSMENTES (DCE-01), A NEVEZETT HIBAKIMENET VISSZAGÖRGET (ATO-01),
+// ÉS A MEGADÁS ÜZLETILEG IDEMPOTENS. A külső ellenőrző fél (chatgpt-v3) három mért lelete.
+const VERSION_R123 = `${VERSION_R121} + R123/DCE-01-write-free-decision + R123/ATO-01-atomic-outcome + R123/SCR-02-grant-idempotency`;
 const VERSION_R55 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history + R53/ORG-N1b-adjudication + R55/ORG-N1b-granted-version';
 const VERSION_R53 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history + R53/ORG-N1b-adjudication';
 const VERSION_R51 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history';
@@ -417,6 +420,16 @@ export const EXPECTED_PROBES = Object.freeze([
         contract: 'SCR-01', contract_version: VERSION_R121 }),
       Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-SCR-old-startup-rule-does-not-widen',
         contract: 'SCR-01', contract_version: VERSION_R121 }),
+      // R123/F123-01 — A PLAFON-KAPU VALÓDI, SZŰK ALAPON, ÉS A DÖNTÉS ÍRÁSMENTES. Ez az állítás
+      // azért új, mert az R121-ben a plafon-kaput NEM mérte próba: a mai (v2) fiókban nem volt
+      // elérhető szűk plafon, ezért a rontása TÚLÉLT — és a rontást kivenni a hiányzó próba
+      // helyett maga is hiba volt (a külső fél kikötése, KUKA-134).
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-SCR-ceiling-blocks-and-decision-writes-nothing',
+        contract: 'DCE-01', contract_version: VERSION_R123 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-SCR-failed-storage-rolls-back-its-own-partial-write',
+        contract: 'ATO-01', contract_version: VERSION_R123 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-SCR-grant-is-idempotent-in-business-terms',
+        contract: 'SCR-02', contract_version: VERSION_R123 }),
     ]),
   }),
   Object.freeze({

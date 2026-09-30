@@ -61,6 +61,17 @@ const PKG_VERSION = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'ut
 
 export const DEV_MAILBOX_LABEL = 'FEJLESZTŐI LEVÉL-FOGADÓ — nem küld külső személynek';
 export const DEV_CLOCK_LABEL = 'FEJLESZTŐI ÓRA — a lejárati ágak próbájához; élesben nem létezhet';
+export const DEV_ROWCOUNT_LABEL = 'FEJLESZTŐI SOR-SZÁMLÁLÓ — csak darabszám, üzleti tartalom nélkül';
+/**
+ * A SZÁMLÁLT TÁBLÁK (R123/F123-01). A jogosultsági és jog-nyilvántartó táblák, mert az
+ * „írásmentes elutasítás" állítás ITT dől el — és NEM elég a megvonás-táblát számlálni: a valódi
+ * hiba egy ÚJ `authority_basis` verzió volt, üres megvonás-tábla mellett.
+ */
+export const ROWCOUNT_TABLES = Object.freeze([
+  'authority_basis', 'scope_grant', 'scope_grant_revocation', 'grant_basis',
+  'membership', 'membership_grant', 'membership_revocation', 'invite', 'invite_basis',
+  'access_refusal', 'disclosure', 'command', 'command_event',
+]);
 export const NEUTRAL_REGISTER = Object.freeze({ ok: true, message: 'Ha a cím szabad, megerősítő levelet küldtünk.' });
 
 const SESSION_COOKIE = 'vs_session';
@@ -1293,6 +1304,27 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
     'POST /dev/clock': ({ input }) => {
       devClockOffsetMs += input.advance_ms;
       return { status: 200, body: { ok: true, label: DEV_CLOCK_LABEL, now: clock.now(), real_now: baseClock.now(), offset_ms: devClockOffsetMs } };
+    },
+
+    /**
+     * R123/F123-01 — SOR-SZÁMLÁLÓ: AZ „ÍRÁSMENTES ELUTASÍTÁS" MÉRHETŐ ALAKJA.
+     *
+     * A LELET, AMI EZT KIKÉNYSZERÍTETTE. Az R121-es battériám írt egy `countRows` segédet erre a
+     * végpontra — a végpont NEM LÉTEZETT, és a segédet egyetlen mérés sem hívta meg. Az
+     * „írásmentes" szó tehát a jelentésemben BIZALOM volt, nem mérés (KUKA-207). A külső fél
+     * (chatgpt-v3) ugyanitt talált VALÓDI hibát: az elutasító ág ÚJ `authority_basis` verziót írt,
+     * miközben a `scope_grant_revocation` üres maradt — vagyis EGY tábla számlálása nem bizonyít
+     * írás-mentességet (KUKA-220: a „nem tudott" nem „nem történt meg").
+     *
+     * AMIT EZ NEM AD: üzleti adatot. CSAK darabszámot ad, tábla szerint — tartalom nélkül.
+     */
+    'GET /dev/rowcounts': () => {
+      const counts = {};
+      for (const t of ROWCOUNT_TABLES) {
+        const row = store.get(`SELECT COUNT(*) AS n FROM ${t}`);
+        counts[t] = row ? Number(row.n) : null;
+      }
+      return { status: 200, body: { ok: true, label: DEV_ROWCOUNT_LABEL, counts } };
     },
   };
 
