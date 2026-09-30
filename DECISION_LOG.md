@@ -16,6 +16,49 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3088 — A KÉSŐI VÁLASZ MÉRÉSÉNEK BEFEJEZÉSJELE ÉS NEGATÍV KONTROLLJA (R130)
+
+> **Hatály:** V3 (`valach-system`) — `tests/e2e/v3app-r127.spec.mjs`,
+> `contracts/{retiredPatternRegistry.js, guardHome.js, kukaArchiveBaseline.json}`,
+> `docs/KUKA_ARCHIVUM.md`. Kivezetett minták: **KUKA-262 · KUKA-263**.
+> **TERMÉKKÓD NEM VÁLTOZOTT** — mérve, hogy a védelem helyes (lásd 3. pont).
+> Nincs merge, telepítés, V2-módosítás, új szolgáltatás, core/CMD/PR-zárás.
+
+**A parancs:** `CMD-VS-300-002-002 R129 — COMMAND` (chatgpt-v3): „A késői válasz mérésének két
+hibája: befejezésjel és gyorsítótárazott kontroll". Nem a rendszert, hanem a SAJÁT MÉRÉSEMET
+minősítette hibásnak — és igaza volt. A REPORT:
+`docs/70_PLANNING/V3_R130_A_KESOI_VALASZ_MERESENEK_JAVITASA.md`.
+
+**1. A BEFEJEZÉSJEL A BEFEJEZÉS UTÁN ÁLL BE — ÉS AZ ÁTADÁS NEM A FELDOLGOZÁS** (F129-01,
+KUKA-262). Az R128-as alak a `releasedAt`-et a `route.fulfill` ELŐTT állította be, az E1–E3 erre
+várt, majd egy fiókváltás utáni ÜRES áttekintő nézeten állított hiányt; az E4 még erre sem várt.
+Mostantól HÁROM jel áll, ebben a sorrendben: `deliveredAt` a `fulfill` UTÁN · az ALKALMAZÁS saját
+`res.json()` hívása PONTOSAN ezen az úton (próbaoldali `window.fetch`-burkolat) · majd egy
+esemény-forduló. Az állítás helye is más: a fiókváltás után ELŐBB megnyílik az ÚJ fiók érintett
+mintaoldala és KIRAJZOLJA a saját friss válaszát, a régi válasz CSAK EZUTÁN érkezik. A két
+dokumentum-válasz EGYENKÉNT megy át, a tényleges átvétel megvárásával, MINDKÉT sorrendben.
+
+**2. A HATÁR-MÉRÉS IGAZOLTAN ÜRES NÉZETBŐL INDUL, ÉS ÁLLÍT, NEM NAPLÓZ** (F129-02, KUKA-263). Az
+E6 `ujraNyit`-tal indult, ami a kliens minta-állapotát nem üríti — a „most rajzolódott ki" a
+korábban is látható adatra is igaz lett volna, és a próba csak `console.log`-ba írta. Mostantól
+`page.reload()` üríti az állapotot, az ürességet várakozó állítás rögzíti, a megjelenés KONKRÉT
+állítás, és a rajzolás tényét próbaoldali DOM-figyelő is méri (mért érték: 4 DOM-változás egy
+előzőleg igazoltan üres nézeten). A jelentés általánosítása SZŰKÍTVE: a mért állítás erre az egy
+lépéssorra szól.
+
+**3. NEGATÍV KONTROLL — ÉS AMIÉRT A TERMÉKKÓD VÁLTOZATLAN.** A zöld próba magában nem bizonyítja,
+hogy a VÉDELMET méri. Ezért a próba a KISZOLGÁLT `/app.js`-t cseréli ki arra a változatra,
+amelyben a nézet-nemzedék kapuja nem áll (a repó fájlja érintetlen, a horgony darabszáma mérve),
+és a MÉRÉS UGYANAZON állításának EL KELL BUKNIA — ez a mérés. Mérve: a rontott kódon a régi fiók
+bizonylata megjelent az új nézetben, és az állítás elbukott; a szűk „a régi adat nem jelent meg"
+állítás önmagában is elbukott. A böngésző-rétegre a mutációs battéria NEM fut — ez a kontroll
+annak helyi, egy-rontásos alakja (nevesített maradék marad). **Termékhibát a mérés nem talált**:
+mindhárom végponton, mindkét sorrendben 0 DOM-változás a régi válasz FELDOLGOZÁSA után, tehát a
+`loadSamples` nemzedék- és nézet-kapuja áll; az E6-beli átmeneti állapot a MÉRT határ, aminek a
+javítása cross-tab csatornát vagy folyamatos kérdezést kívánna — azt ez a parancs kizárja.
+
+---
+
 ## D-VS-3087 — A LEJÁRT ALAPÚ JOG NEM ÉLŐ JOG, ÉS A GET NEM ÍR (R126)
 
 > **Hatály:** V3 (`valach-system`) — `v3ref/{releaseScope,delegation,run,manifest,mutations}.mjs`,

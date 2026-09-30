@@ -33,6 +33,107 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-263',
+    date: '2026-09-30',
+    title: 'A „MOST RAJZOLÓDOTT KI" A KORÁBBAN IS LÁTHATÓ KÉPRE IS IGAZ VOLT — és a próba csak NAPLÓZTA',
+    what: 'Az R127-es határ-mérésem (E6) a bizonylat-lapot `ujraNyit`-tal nyitotta meg újra, ami a '
+      + 'KLIENS minta-állapotát (`state.samples`) NEM üríti — a panel tehát a korábbi, UGYANARRA a '
+      + 'nézetre szóló adatot mutatta már az elengedés ELŐTT is. Az elengedés után vett '
+      + '`count() > 0` így a KORÁBBI képre is igaz lett volna, és a próba ezt nem is állította, '
+      + 'csak `console.log`-ba írta (`megjelent`); a mikrotaszk-sor kiürítését `waitForTimeout(0)` '
+      + 'jelezte, ami semmit nem bizonyít.',
+    why_wrong: 'EGY MÉRÉSBEN KÉT HIBA. (a) A fixture nem tudta MEGKÜLÖNBÖZTETNI a „most érkezett" és a '
+      + '„már korábban látható" adatot, tehát nem azt mérte, aminek a nevét viselte (KUKA-033: a '
+      + 'minősítés MÉRÉS, nem besorolás). (b) Amit csak NAPLÓZUNK, azt nem állítjuk: egy '
+      + '`console.log` soha nem visz pirosra egy futást, tehát a „kirajzolódott" mondat a '
+      + 'jelentésben bizonyíték nélkül állt (KUKA-215: a kimenetet MEG KELL MÉRNI · KUKA-041: a '
+      + 'díszpipa sikert jelent arról, ami meg sem történt).',
+    replaced_by: 'A helyzet IGAZOLTAN ÜRES mintanézetből indul (`page.reload()` üríti a `state.samples`-t, '
+      + 'és az üres állapot VÁRAKOZÓ állítással áll: `expectLoading`), a megjelenés KONKRÉT állítás, '
+      + 'és a rajzolás TÉNYÉT próbaoldali DOM-figyelő (MutationObserver a `main`-en) is méri — a '
+      + 'változás-darabszám > 0 és a HTML megváltozott. Szintetikus jelölő a válaszba így sem kerül: '
+      + 'a kötési és jogosultsági mezők érintetlenek.',
+    decision: 'D-VS-3088',
+    found_by: 'A KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R129/F129-02) — a próba kódjának olvasásával: '
+      + 'kimondta, hogy az `ujraNyit` nem ürít, tehát a megjelenés-állítás a gyorsítótárazott képre '
+      + 'is igaz lehetett',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r127.spec.mjs']),
+        pattern: 'await page\\.reload\\(\\);[\\s\\S]{0,600}await expectLoading\\(page, \'document\'\\);',
+        why: 'a határ-mérés IGAZOLTAN ÜRES nézetből indul, és az ürességet várakozó állítás rögzíti' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r127.spec.mjs']),
+        pattern: 'expect\\(m\\.n, \'a rajzolás MOST történt',
+        why: 'a „most rajzolódott ki" KONKRÉT állítás, próbaoldali DOM-figyelővel mérve' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r127.spec.mjs']),
+        pattern: 'const megjelent = await page',
+        reason: 'a megjelenés NAPLÓZOTT, nem állított alakja — egy log soha nem visz pirosra futást' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r127.spec.mjs']),
+        pattern: 'waitForTimeout\\(0\\)',
+        reason: 'a nulla hosszú időzítés nem bizonyítja a folytatás lefutását (F129-02)' }),
+    ]),
+    lesson: 'AMI KÉT ÁLLAPOTRA IGAZ, AZ EGYIKET SEM BIZONYÍTJA. Ha egy állítás („most jelent meg") a '
+      + 'MÉRÉS ELŐTTI állapotra is igaz, akkor a próba a saját kiindulását igazolja vissza — ezért a '
+      + 'kiindulást IGAZOLTAN a várt ellentétére kell állítani, nem feltételezni. És a napló nem '
+      + 'mérés: amit nem állítunk, az a következő körben nem véd. **Gépi jel:** `npm run verify:kuka` '
+      + '(két pozitív minta + két tiltó-minta a naplózott és az időzített alakra) + '
+      + '`npx playwright test tests/e2e/v3app-r127.spec.mjs` (R127-E6: DOM-változás 4, a HTML '
+      + 'megváltozott, majd a helyreállás konkrét állításokkal).',
+  }),
+  Object.freeze({
+    id: 'KUKA-262',
+    date: '2026-09-30',
+    title: 'A BEFEJEZÉSJEL A BEFEJEZÉS ELŐTT ÁLLT BE — és utána egy ELEVE ÜRES nézeten állítottam hiányt',
+    what: 'Az R127-es visszatartó próbám a `state.releasedAt`-et a `route.fulfill` ELŐTT állította be, '
+      + 'és az E1–E3 erre a jelre várt; az E4 még erre sem, hanem az elengedés után AZONNAL vizsgálta '
+      + 'a DOM-ot. A vizsgálat helye pedig a fiókváltás UTÁNI áttekintő nézet volt, ahol a '
+      + 'minta-szakasz eleve nincs kirajzolva — tehát a „a régi válasz nem írta felül az új nézetet" '
+      + 'állítás egy már amúgy is igaz hiányt mért, egy olyan jel után, ami az átadás befejezését '
+      + 'MEGELŐZTE.',
+    why_wrong: 'HÁROM KÜLÖN BAJ EGY SORBAN. (a) Egy jel nem előzheti meg azt az eseményt, aminek a nevét '
+      + 'viseli (KUKA-121: a nem-várakozó ellenőrzés mint várakozás). (b) A HÁLÓZATI ÁTADÁS NEM '
+      + 'AZONOS A FELDOLGOZÁSSAL: a `fulfill` befejezése azt mondja, a válasz elment a lap felé — '
+      + 'nem azt, hogy az alkalmazás beolvasta és a folytatása (`Promise.all` → nemzedék-kapu) '
+      + 'lefutott. (c) Egy ÜRES nézeten a hiány-állítás a védelemtől függetlenül igaz, tehát nem a '
+      + 'védelmet méri (KUKA-041 · KUKA-216: a verdikt nem mutathat a mérés hatókörén túl).',
+    replaced_by: 'HÁROM JEL, EBBEN A SORRENDBEN: `deliveredAt` a `fulfill` UTÁN · az ALKALMAZÁS saját '
+      + '`res.json()` hívása PONTOSAN ezen az úton (próbaoldali `window.fetch`-burkolat, a '
+      + 'termékkód érintése nélkül) · majd egy esemény-forduló, ami az esemény-sor szabálya szerint '
+      + 'kiüríti a törzs-beolvasás után sorba került mikrotaszkokat. És az állítás helye MÁS: a '
+      + 'fiókváltás után ELŐBB megnyílik az ÚJ fiók érintett mintaoldala és KIRAJZOLJA a saját friss '
+      + 'válaszát, a régi válasz CSAK EZUTÁN érkezik. A jel ELÉGSÉGESSÉGE nem feltevés: ugyanez a '
+      + 'jel-sorozat a POZITÍV KONTROLLBAN kirajzolást eredményez.',
+    decision: 'D-VS-3088',
+    found_by: 'A KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R129/F129-01) — a próba kódjának olvasásával, '
+      + 'helyzetenként megnevezve, melyik állítás melyik jelre vár és mit mér valójában',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r127.spec.mjs']),
+        pattern: 'await route\\.fulfill\\(\\{ response, body: state\\.servedBody \\}\\);[\\s\\S]{0,300}state\\.deliveredAt = Date\\.now\\(\\)',
+        why: 'a befejezésjel a `fulfill` UTÁN áll be — a sorrend a mintában is benne van' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r127.spec.mjs']),
+        pattern: 'await expect\\.poll\\(\\(\\) => bodyReads\\(page, h\\.path\\)',
+        why: 'az ALKALMAZÁS tényleges átvétele külön jel: a saját `res.json()` hívása erre az útra' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r127.spec.mjs']),
+        pattern: 'let hiba = null;[\\s\\S]{0,400}a mérés állítása a rontott kódon ELBUKIK',
+        why: 'NEGATÍV KONTROLL: a védelem kikapcsolásával a MÉRÉS UGYANAZON állítása elbukik' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r127.spec.mjs']),
+        pattern: 'releasedAt !== null',
+        reason: 'az elengedés PILLANATA nem az átadás befejezése — erre várni volt az F129-01 hibája' }),
+    ]),
+    lesson: 'A JEL NEVE KÖTELEZ — ÉS AZ ÁTADÁS NEM A FELDOLGOZÁS. Aszinkron védelem mérésekor három '
+      + 'külön tényt kell bizonyítani: az átadás BEFEJEZŐDÖTT · a mért fél TÉNYLEGESEN átvette · a '
+      + 'folytatása LEFUTOTT. És a hiány-állítást csak ott szabad felvenni, ahol a hiány NEM eleve '
+      + 'igaz: a védett nézetet előbb ki kell rajzolni. Zöld próbát rontás-kontroll nélkül nem '
+      + 'hiszünk el (KUKA-051). **Gépi jel:** `npm run verify:kuka` (három pozitív minta + tiltó-minta '
+      + 'a régi jelre) + `npx playwright test tests/e2e/v3app-r127.spec.mjs` (7/7; az R127-N1 negatív '
+      + 'kontroll a kiszolgált `/app.js` nemzedék-kapujának kikapcsolásával mutatja, hogy a mérés '
+      + 'állítása ELBUKIK, ha a régi válasz felülírhatja az új nézetet). KIMONDVA: a böngésző-rétegre '
+      + 'a mutációs battéria nem fut — ez a kontroll annak helyi, egy-rontásos alakja.',
+  }),
+  Object.freeze({
     id: 'KUKA-261',
     date: '2026-09-30',
     title: 'EGY OLVASÓ KÉRÉS ÚJRA HATÁLYOSRA ÁLLÍTOTT EGY LEJÁRT FELHATALMAZÁST — a GET írt',

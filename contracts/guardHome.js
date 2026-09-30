@@ -44,6 +44,8 @@ const GUARD_HOME_CONTRACT_ID = 'GHM-01';
 const VS_HOMED_CEILING = 92;
 
 const GUARD_HOME = Object.freeze({
+  'KUKA-263': Object.freeze({ home: 'v3', note: 'a határ-mérés fixture-e és a próbaoldali DOM-figyelő ITT él (tests/e2e/v3app-r127.spec.mjs) — a jel a verify:kuka két pozitív mintája és két tiltó-mintája, valamint az R127-E6 konkrét állításai (DOM-változás > 0, majd mért helyreállás)' }),
+  'KUKA-262': Object.freeze({ home: 'v3', note: 'a háromjeles átadás-bizonyítás és a NEGATÍV KONTROLL ITT él (tests/e2e/v3app-r127.spec.mjs) — a jel a verify:kuka három pozitív mintája (benne a fulfill → deliveredAt SORRENDJE) és az R127-N1, ami a kiszolgált /app.js nemzedék-kapujának kikapcsolásával bukásra viszi ugyanazt az állítást' }),
   'KUKA-113': Object.freeze({ home: 'v3', note: 'a jelek cél-fájljai ITT vannak — a jel FUT' }),
   'KUKA-111': Object.freeze({ home: 'v3', note: 'a jelek cél-fájljai ITT vannak — a jel FUT' }),
   'KUKA-110': Object.freeze({ home: 'v3', note: 'a jelek cél-fájljai ITT vannak — a jel FUT' }),
