@@ -216,6 +216,29 @@ mutációs bizonyíték (213/213). A két nyitott lánc egyike sem a négy adatk
 - **Mért/záró commit:** `62bd0cdc9ba4dddcc562fe0d466e11d06f6b30d5` (a kódcsomag) — a jelentés lapja
   és a söprés verdiktje az ezt követő commitban
 
+## 8/b. Fogyasztás — egy sor, a mérő kimenetéből
+
+Ablak **2026-09-30T07:48:00Z → 11:20:00Z** („R121 csomag"): **602 hívás** · cache-olvasás
+**204 052 201** · kimenet **366 948** · fő-szál kontextus **medián 488 425,5 / max 729 096** ·
+ügynök-bemenet **29 800 574 (8 ügynök)**. Tartalom nélküli leltár a repóban:
+`docs/70_PLANNING/V3_R121_FOGYASZTAS_LELTAR.json`. A chatváltási jelző **ELÉRVE** (488 425 ≥
+400 000): a megkezdett csomag befejezhető — ez megtörtént —, a **következő önálló nagy blokk friss
+beszélgetésben induljon**.
+
+**A nyolc ügynök KIMONDVA:** ezek a SPEC MEGÉRKEZÉSE ELŐTTI körben futottak, amikor az operátor első
+kérése az R121 foglaltságának ellenőrzése volt. A SPEC „egy fő végrehajtó, automatikus agentmunka
+nélkül" utasítására a futó ellenőrző kört LEÁLLÍTOTTAM, és a csomag teljes megvalósítása egyetlen
+végrehajtóval készült — ügynök-hívás nélkül. Az ügynök-bemenet tehát nem a SPEC végrehajtásának a
+költsége. *(Amit ez NEM állít: hogy a két szakasz költsége a mérőből külön-külön kiolvasható — az
+ablak egy darabban áll.)*
+
+**Amit a mérésről nem állítok:** a hívásonkénti (`v3_fogyasztas_export.mjs`) export ebben a körben
+**nem készült el** — a szerszám SAJÁT tartalom-őre állította meg, mert az export és a leltár
+összevetése hosszú, NEVEZETT eltérés-listát adott (a kettő más populációt számol: a leltár az
+ügynök-hívásokat is, az export a fő szál átiratát). Ez a szerszám korlátja, nem az adat hibája; a
+csomag-szintű leltár ettől teljes. Teendő a lánc tulajdonosának: az összevetés rövid alakja, vagy a
+populáció kimondott azonosítása.
+
 ## 9. Rövid kipróbálási sorrend
 
 1. `npm run app:dev`, majd a böngészőben: regisztráció → megerősítés a Próbaüzenetekből → belépés

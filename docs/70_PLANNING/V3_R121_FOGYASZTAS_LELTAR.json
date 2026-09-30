@@ -1,0 +1,241 @@
+{
+ "tool": "FGY-01/3",
+ "tool_commit": "4436d79aa3919b0f3f5822bf37bd3358d555349b",
+ "tool_file": "./tools/v3_fogyasztas_meres.mjs",
+ "tool_file_sha256": "b3d09180a58477060c45983733472a5050fb8dd22bf1ef8ad2da6a7a3996a2fc",
+ "tool_dirty": false,
+ "generated_at": "2026-09-30T11:20:29.598Z",
+ "session": "a8dcd237-6c02-5e39-9113-4fb71a646a2a",
+ "snapshot_closed_at": "2026-09-30T11:20:29.598Z",
+ "runtime_versions": [
+  "2.1.285"
+ ],
+ "window": {
+  "label": "R121 csomag",
+  "from": "2026-09-30T07:48:00Z",
+  "to": "2026-09-30T11:20:00Z",
+  "to_effective": "2026-09-30T11:20:00Z"
+ },
+ "coverage": {
+  "files": 10,
+  "unreadable": [],
+  "unparsable_lines": 0,
+  "assistant_without_usage": 0,
+  "invalid_timestamp_calls": 0,
+  "cross_file_duplicate_ids": 0,
+  "incomplete_usage_calls": 0,
+  "synthetic_records": 0,
+  "calls_total": 606,
+  "calls_in_window": 602,
+  "complete": true,
+  "note": "teljes: minden megtalált átirat beolvasva, minden modell-válasz usage-dzsal, azonos azonosító csak egy fájlban"
+ },
+ "whole_session": {
+  "calls": 606,
+  "synthetic_records": 0,
+  "incomplete_usage_calls": 0,
+  "totals_kind": "teljes",
+  "first_call": "2026-09-30T07:48:50.856Z",
+  "last_call": "2026-09-30T11:20:28.041Z",
+  "totals": {
+   "input": 1212,
+   "cache_write": 2191524,
+   "cache_read": 206984000,
+   "output": 368232
+  },
+  "by_kind": {
+   "main": {
+    "calls": 380,
+    "input": 760,
+    "cache_write": 869972,
+    "cache_read": 178505430,
+    "output": 344257
+   },
+   "workflow": {
+    "calls": 226,
+    "input": 452,
+    "cache_write": 1321552,
+    "cache_read": 28478570,
+    "output": 23975
+   }
+  },
+  "by_model": {
+   "claude-opus-5": {
+    "calls": 606,
+    "input": 1212,
+    "cache_write": 2191524,
+    "cache_read": 206984000,
+    "output": 368232
+   }
+  },
+  "main_context": {
+   "median": 490652.5,
+   "max": 734769,
+   "calls_over_400k": 258
+  },
+  "main_wakeups": {
+   "user": {
+    "wakeups": 2,
+    "calls": 337,
+    "input_with_cache": 150807104
+   },
+   "notification": {
+    "wakeups": 2,
+    "calls": 43,
+    "input_with_cache": 28569058
+   }
+  },
+  "agent_input_total": 29800574,
+  "agent_count": 8,
+  "thresholds": {
+   "main_context_median": {
+    "warn_limit": 300000,
+    "switch_limit": 400000,
+    "value": 490652.5,
+    "band": "valtas",
+    "exceeded": true
+   },
+   "agent_input_per_package": {
+    "limit": 40000000,
+    "value": 29800574,
+    "exceeded": false
+   }
+  }
+ },
+ "window_summary": {
+  "calls": 602,
+  "synthetic_records": 0,
+  "incomplete_usage_calls": 0,
+  "totals_kind": "teljes",
+  "first_call": "2026-09-30T07:48:50.856Z",
+  "last_call": "2026-09-30T11:19:54.878Z",
+  "totals": {
+   "input": 1204,
+   "cache_write": 2188248,
+   "cache_read": 204052201,
+   "output": 366948
+  },
+  "by_kind": {
+   "main": {
+    "calls": 376,
+    "input": 752,
+    "cache_write": 866696,
+    "cache_read": 175573631,
+    "output": 342973
+   },
+   "workflow": {
+    "calls": 226,
+    "input": 452,
+    "cache_write": 1321552,
+    "cache_read": 28478570,
+    "output": 23975
+   }
+  },
+  "by_model": {
+   "claude-opus-5": {
+    "calls": 602,
+    "input": 1204,
+    "cache_write": 2188248,
+    "cache_read": 204052201,
+    "output": 366948
+   }
+  },
+  "main_context": {
+   "median": 488425.5,
+   "max": 731493,
+   "calls_over_400k": 254
+  },
+  "main_wakeups": {
+   "user": {
+    "wakeups": 2,
+    "calls": 337,
+    "input_with_cache": 150807104
+   },
+   "notification": {
+    "wakeups": 2,
+    "calls": 39,
+    "input_with_cache": 25633975
+   }
+  },
+  "agent_input_total": 29800574,
+  "agent_count": 8,
+  "thresholds": {
+   "main_context_median": {
+    "warn_limit": 300000,
+    "switch_limit": 400000,
+    "value": 488425.5,
+    "band": "valtas",
+    "exceeded": true
+   },
+   "agent_input_per_package": {
+    "limit": 40000000,
+    "value": 29800574,
+    "exceeded": false
+   }
+  }
+ },
+ "thresholds_decidable": true,
+ "input_manifest": [
+  {
+   "path": "~/.claude/projects/-home-user/a8dcd237-6c02-5e39-9113-4fb71a646a2a.jsonl",
+   "bytes": 6094416,
+   "sha256": "566a54cdad21684855cc003c7b2ac04df110570a965721109d3cd25c7abc16f0",
+   "kind": "main"
+  },
+  {
+   "path": "~/.claude/projects/-home-user/a8dcd237-6c02-5e39-9113-4fb71a646a2a/subagents/workflows/wf_2a71c8e3-282/agent-a0d1aad911a99cf6c.jsonl",
+   "bytes": 588837,
+   "sha256": "f2bcd20da8374e28e6d615ae33a877f50159ad94ed33a97769a95a83d7cb2250",
+   "kind": "workflow"
+  },
+  {
+   "path": "~/.claude/projects/-home-user/a8dcd237-6c02-5e39-9113-4fb71a646a2a/subagents/workflows/wf_2a71c8e3-282/agent-a4339359161649d90.jsonl",
+   "bytes": 1077762,
+   "sha256": "a89ea5e4fc454e7016ff895ece2e76484b6da2415d0555e4f172d6d136d10f21",
+   "kind": "workflow"
+  },
+  {
+   "path": "~/.claude/projects/-home-user/a8dcd237-6c02-5e39-9113-4fb71a646a2a/subagents/workflows/wf_2a71c8e3-282/agent-a8f83b05650caa20f.jsonl",
+   "bytes": 618379,
+   "sha256": "f02d8607a91c632fe41a9256c936ac4a7ae4e22b282ca1db1f0bb3951c8d899e",
+   "kind": "workflow"
+  },
+  {
+   "path": "~/.claude/projects/-home-user/a8dcd237-6c02-5e39-9113-4fb71a646a2a/subagents/workflows/wf_2a71c8e3-282/agent-a93e9c7ca07397dd3.jsonl",
+   "bytes": 581348,
+   "sha256": "28672f71ca67a6715ec243e7705955f437e2234e495b5c74f628bfed17971a0c",
+   "kind": "workflow"
+  },
+  {
+   "path": "~/.claude/projects/-home-user/a8dcd237-6c02-5e39-9113-4fb71a646a2a/subagents/workflows/wf_2a71c8e3-282/agent-a947e7d68f5abd872.jsonl",
+   "bytes": 821780,
+   "sha256": "40cdf76f1f5f0f4cf54d53e7fa16de3303b1aec6f37c27f7ae7ebeddbe0a5301",
+   "kind": "workflow"
+  },
+  {
+   "path": "~/.claude/projects/-home-user/a8dcd237-6c02-5e39-9113-4fb71a646a2a/subagents/workflows/wf_2a71c8e3-282/agent-ac22c1e5fc441b6e4.jsonl",
+   "bytes": 811000,
+   "sha256": "3856c2843a0c6553fbede6f47511a8b04899d48bb2c16afe8eb4a1970b1ecf08",
+   "kind": "workflow"
+  },
+  {
+   "path": "~/.claude/projects/-home-user/a8dcd237-6c02-5e39-9113-4fb71a646a2a/subagents/workflows/wf_2a71c8e3-282/agent-adc067f8d8cfaab9a.jsonl",
+   "bytes": 552792,
+   "sha256": "4727644d3d177dc6ebae2c08b290db860bf1ddd32fc6d8856d3242a23494f6d6",
+   "kind": "workflow"
+  },
+  {
+   "path": "~/.claude/projects/-home-user/a8dcd237-6c02-5e39-9113-4fb71a646a2a/subagents/workflows/wf_2a71c8e3-282/agent-ae5b18928b192af98.jsonl",
+   "bytes": 583433,
+   "sha256": "e71cc73be9720d90e76a2c89b2f38815b1f8157d9c85b39358fecfff01a5562e",
+   "kind": "workflow"
+  },
+  {
+   "path": "~/.claude/projects/-home-user/a8dcd237-6c02-5e39-9113-4fb71a646a2a/subagents/workflows/wf_2a71c8e3-282/journal.jsonl",
+   "bytes": 66864,
+   "sha256": "48a3a4b11369f090eee2b7e8b2e0cbe26c6b9d0e3d827dab5b1020b3b113929f",
+   "kind": "workflow"
+  }
+ ],
+ "reproduce": "node tools/v3_fogyasztas_meres.mjs --session a8dcd237-6c02-5e39-9113-4fb71a646a2a --from 2026-09-30T07:48:00Z --to 2026-09-30T11:20:00Z --label \"R121 csomag\" --projects ~/.claude/projects"
+}
