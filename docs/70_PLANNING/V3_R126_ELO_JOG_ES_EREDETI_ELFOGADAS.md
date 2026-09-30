@@ -229,8 +229,14 @@ EGYETLEN dologban tér el — a HTTP-rétegből utólag kivettem egy MÁR NEM HA
 (`deriveDelegationBasis`, lásd a 2. szakaszt: az olvasó úton nem hívjuk többé). A kivétel után
 újramértem, amit az érint: modul-betöltés · `app:selfcheck` **57/57** ·
 `verify:app-findings-r125` **29/29** · `-r123` **47/47** · `-r121` **55/55** · `verify:kuka`
-**518/518**. A teljes böngésző-készlet záró, a szállított kódon vett futásának eredménye a
-board-üzenet záró sorában áll.
+**518/518**. A teljes böngésző-készlet ZÁRÓ, a SZÁLLÍTOTT kódon vett futása: **105/105**.
+
+**ÉS EGY SAJÁT MÉRŐ-HIBA, KIMONDVA:** a záró futásra várakozó figyelő-parancsaim `pgrep -f
+playwright`-tal kérdezték, fut-e még a készlet — és a minta a FIGYELŐ SAJÁT parancssorára is
+illeszkedett (abban is benne van a szó). Így a figyelők egymást (és magukat) látták „futó
+készletnek", és nem tudtak kilépni; a készlet ekkor már rég befejeződött. A mérés eredményét ez nem
+érintette (a napló-fájl a valódi futás kimenete), de a VÁRAKOZÁS hamis képet adott — ugyanaz a
+hibaosztály, mint a KUKA-259: a mérőm a saját jelenlétét mérte.
 
 ---
 
