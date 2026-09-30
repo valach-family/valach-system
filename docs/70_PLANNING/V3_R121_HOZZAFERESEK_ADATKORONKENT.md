@@ -154,6 +154,38 @@ javítása.
 
 A módosult jogosultsági mag **mutációs** kontrollja ettől független, és **teljes**: 213/213.
 
+## 6/b. A SÖPRÉS ÖSSZVERDIKTJE: NEM ZÖLD — két nevesített okkal
+
+`npm run verify:sweep -- --skip verify:external-checks,verify:v3ref --reuse 62bd0cd`
+
+```
+SÖPRÉS (27 verifier + 1 újrahasznált bizonyíték + 1 NEM IGAZOLT kihagyás, 100 s):
+  26 zöld · 0 env-kihagyás · 1 piros
+ÚJRAHASZNÁLT BIZONYÍTÉK — verify:v3ref: a 62bd0cd commit bizonyítéka ZÖLD
+  (213/213 mutáció elkapva), azonosság MÉRVE
+NEM FUTOTT — NEM IGAZOLT — verify:external-checks
+ÖSSZVERDIKT: NEM ZÖLD — 1 lánc nem futott és nem igazolt
+```
+
+**Nem mondom zöldnek, mert nem az.** A két ok, és hogy melyik kinek a dolga:
+
+1. **`verify:capability-witness` PIROS — előzetesen fennálló, MÉRVE.** A tanú három képességet
+   `present`-nek mér, a V2-oldali board-regiszter viszont `absent`-nek rögzít
+   (`v3-ui-slice` · `v3-vertical-slice` · `v3-user-facing-text`). **Bizonyíték, hogy nem az enyém:**
+   ugyanezt a lánccal az **induló commiten** (`2bdf71ac`) is lefuttattam, a V2 mellé helyezett
+   munkafán — **ott is 8/11, ugyanaz a három sor**. A három mért tulajdonság nem az én munkámból
+   fakad (`test:e2e` szkript · `v3app/server.mjs` · `v3app/public/i18n/` — mindhárom régebbi).
+   A rögzítés frissítése **V2-módosítás**, amit ez a SPEC kifejezetten nem engedélyez, és ki is
+   mondja: „A V2 capability-witness maradék nem ennek a csomagnak a javítása."
+   *(Helyesbítés a saját mérésemhez: első olvasatban az alapot 11/11-nek láttam. Az a futás a
+   scratchpadből nem érte el a V2 regiszterét — `rögzített: —` minden soron —, tehát ÜRES egyezés
+   volt, nem bizonyíték. A V2 mellé helyezett munkafán a valódi szám 8/11.)*
+2. **`verify:external-checks` NEM FUTOTT VÉGIG** — lásd a 6. szakaszt (időtúllépés ezen a
+   futtatón; az r79/U04 a commitolt eredményfájlban is bukott).
+
+**Ami ebből a csomag felelőssége, az zöld:** a 26 zöld verifier és az újrahasznált, MÉRT azonosságú
+mutációs bizonyíték (213/213). A két nyitott lánc egyike sem a négy adatkörről szól.
+
 ## 7. Nevesített nyitott tételek — amit NEM állítok
 
 1. **A delegálási plafon kapuja a részleges visszavonásban nincs mutációval falszifikálva.** A kapu
@@ -181,7 +213,8 @@ A módosult jogosultsági mag **mutációs** kontrollja ettől független, és *
 - **Induló commit:** `2bdf71ac11e9e25f2aed044982b73a2529c0f11b` (az R120-ban elfogadott R119 feje;
   a `main` R20-korszaki, ezért nem volt megfelelő alap — a kijelölt ág tiszta
   **fast-forward**dal került az igazolt V3-alapra, munka nem veszett el)
-- **Záró commit:** a jelentés melletti commit (a git-történetben)
+- **Mért/záró commit:** `62bd0cdc9ba4dddcc562fe0d466e11d06f6b30d5` (a kódcsomag) — a jelentés lapja
+  és a söprés verdiktje az ezt követő commitban
 
 ## 9. Rövid kipróbálási sorrend
 
