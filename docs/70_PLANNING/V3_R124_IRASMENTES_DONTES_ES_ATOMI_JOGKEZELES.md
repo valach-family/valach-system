@@ -357,7 +357,11 @@ npm run verify:kuka                  # az öt új KUKA-bejegyzés gépi jelei
 
 - **Ág:** `claude/chatgpt-board-r121-error-favm2e`
 - **Kiinduló SHA:** `6325b6bb68479a0776bfa34b910fda80de5726f4` (az R121/R122-es csomag záró állapota)
-- **Záró SHA:** a commit ennek a lapnak a végleges alakjával készül; a pontos érték a board-üzenet záró sorában áll
+- **Mért SHA (a csomag mérései ezen az állapoton futottak):** `4d6e73cff2fd09055e1b77adc4a46aeeced226e3`
+- **Záró SHA:** ez a bekezdés a mért SHA UTÁN íródott bele, tehát a lap záró commitja eggyel később
+  áll — a pontos érték a board-üzenet záró sorában. A mérések a fenti, mért SHA-n futottak; a záró
+  commit ettől CSAK ebben a bekezdésben tér el (KUKA-134: a terv nem élheti túl a saját szabályát —
+  a mérés és a szállított állapot viszonyát kimondjuk, nem sejtetjük)
 
 **Mag (`v3ref/`)**
 
