@@ -209,9 +209,11 @@ megtettem, és a leolvasott szöveget kiírattam:
 
 ## 7. ŐSZINTE MARADÉKLISTA — AMI NEM KÉSZÜLT EL
 
-- **Nem független anyanyelvi lektorálás.** Az angol és a német szöveget AI írta és nézte át;
-  anyanyelvi lektor nem olvasta. Az „értelmileg egyezik" állítást a kulcs- és helyőrző-mérés
-  támasztja alá, a stílust nem méri gép.
+- **Nem független anyanyelvi lektorálás.** Az angol és a német szöveget MI írta és nézte át;
+  anyanyelvi lektor nem olvasta. **HELYESBÍTÉS (R119, a külső fél F118-02-es lelete):** a kulcs- és
+  helyőrző-mérés a MEGLÉTET és az ALAKOT méri — azt, hogy nincs hiányzó kulcs és nem csúszott el egy
+  helyőrző. Az „értelmileg egyezik" TARTALMI állítást ez NEM bizonyítja; a lap eredeti mondata ezt
+  túlmondta. A tartalmi egyezés mögött ma egyetlen tanú áll: a szöveget MI írta és nézte át.
 - **A `verify:capability-witness` piros marad** (3 elavult rögzítés). A javítása a V2 repó
   board-regiszterének átírása lenne — ez a parancs V2-módosítást kizár. Nevesített, nem elfedett.
 - **A külső ellenőrző lánc (`verify:external-checks`) nem futott** (lásd 5.2 és 8.) — a hivatkozott

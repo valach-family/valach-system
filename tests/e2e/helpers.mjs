@@ -11,6 +11,7 @@
 // A jelszavak és címek PÉLDA-adatok (@pelda.hu); valódi levél nem megy ki (a levél-fogadó memóriabeli).
 import { expect } from '@playwright/test';
 import { openStoreAt } from '../../v3ref/store.mjs';
+import { dictFor } from '../../v3app/public/i18n/dict.mjs';
 
 export const PASSWORD = 'proba-jelszo-2026';
 export const ANOTHER_PASSWORD = 'masik-jelszo-2026';
@@ -156,8 +157,13 @@ export async function registerUI(page, email, password = PASSWORD) {
   const r = await withResponse(page, { path: '/api/register' }, () => page.getByTestId('register-submit').click());
   // R81 §5/01: a SEMLEGES válasz szövege a tervé — és a semlegesség maga is MÉRVE van: a válasz
   // nem árulhatja el, hogy a megadott címhez tartozik-e már fiók (K03 · KUKA-084).
-  await expect(page.getByTestId('register-result')).toContainText('folytatható a regisztráció');
-  expect((await page.getByTestId('register-result').textContent()) || '').not.toMatch(/már használ|foglalt|létezik/i);
+  //
+  // A MONDATOT A LAP SAJÁT NYELVÉN VÁRJUK (KUKA-237): a segéd korábban a MAGYAR mondatot égette be,
+  // ezért angol vagy német lapon a regisztráció MINDIG elbukott — nem a rendszer hibájától, hanem a
+  // próbáétól. A nyelvet a lap mondja meg, a mondatot a nyelvcsomag.
+  const lang = await page.evaluate(() => document.documentElement.lang || 'hu');
+  await expect(page.getByTestId('register-result')).toContainText(dictFor(lang).UI.registerSentLead);
+  expect((await page.getByTestId('register-result').textContent()) || '').not.toMatch(/már használ|foglalt|létezik|already|bereits/i);
   return { ...r, resultText: await page.getByTestId('register-result').textContent() };
 }
 

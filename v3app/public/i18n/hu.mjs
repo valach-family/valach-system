@@ -239,6 +239,12 @@ export const UI = Object.freeze({
   profileMenu: 'Saját profil menü',
   noAccountShort: 'nincs fiók',
   notSignedIn: 'nincs belépve',
+  // F118-01 — A MEGERŐSÍTETLEN, FIÓK NÉLKÜLI ÁLLAPOT SAJÁT MONDATA. Nincs mit választania: a
+  // személyes fiók a MEGERŐSÍTÉSKOR születik meg, ezért nem a fiókválasztóhoz küldjük.
+  confirmEmailFirst: 'Erősítsd meg az e-mail-címedet a folytatáshoz.',
+  confirmEmailFirstLead: 'A megerősítés után magától megszületik a személyes fiókod, és onnan vállalkozást is hozzáadhatsz.',
+  confirmEmailBoxTitle: 'A megerősítő levél',
+  confirmEmailBoxLead: 'A levelet a Próbaüzenetek panelen nyithatod meg. Ha nem találod, vagy a hivatkozás lejárt, kérj újat — mindig a legutóbbi levél érvényes.',
   chooseAccount: 'Válassz fiókot',
   groupPersonal: 'Személyes',
   groupShared: 'Vállalkozások és közös fiókok',
@@ -609,11 +615,15 @@ export const STORYUI = Object.freeze({
   noModelCall: 'modellhívás nélkül',
   panelSimNote: 'Ez a panel nem kér szervert és nem hív modellt.',
   techCoverage: 'Nyelvi lefedettség (mért)',
-  techCoverageNote: 'A kulcsok megléte nem nyelvi lektorálás: a termék-nyelvek szövegét ember nézi át, a próbanyelvek pedig szándékosan hiányosak.',
+  // F118-02 — A MONDAT NEM ÁLLÍTHAT TÖBBET A BIZONYÍTÉKNÁL. A korábbi alak azt mondta, hogy a
+  // termék-nyelvek szövegét EMBER nézi át — a szövegeket MI írta és nézte át. A kulcs- és
+  // helyőrző-egyezés a MEGLÉTET méri, nem a tartalmi fordítás-azonosságot (KUKA-216).
+  techCoverageNote: 'A kulcsok és helyőrzők ellenőrzése nem nyelvi lektorálás. A szövegeket MI írta és nézte át; független anyanyelvi lektorálás nem történt. A próbanyelvek szándékosan hiányosak.',
   techNoServer: 'Ez a lap nem hív szervert és nem hív modellt.',
   techNoServerNote: 'A nézetet (fiókkezelő, tag, belépés előtt) itt egy legördülő állítja; a valódi rendszerben a kiszolgáló dönti el.',
   techNotProven: 'Amit ez a lap nem bizonyít: a kiszolgáló jogosultsági döntését, az élő MI-választ és a valódi alkalmazás útjait.',
-  techNotProvenNote: 'Azokról külön futási bizonyíték készült: a Használati utak alatt minden út végén ott áll a mért eredmény, a mérés dátumával és forrásával.',
+  // F118-02 — a korábbi alak az ÉLŐ MI-válaszra is kész bizonyítékot sugallt, holott az nyitott.
+  techNotProvenNote: 'A vizsgált alkalmazásutak és jogosultsági esetek böngészős eredményei a Használati utak végén olvashatók, dátummal és forrással. Élő MI-szolgáltatói mérés még nem készült.',
   techEnabledLang: 'bekapcsolt termék-nyelv',
   techProbeLang: 'próbanyelv, nem kínált',
 });

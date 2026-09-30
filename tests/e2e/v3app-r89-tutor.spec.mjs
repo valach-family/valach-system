@@ -54,7 +54,9 @@ async function closeHelp(page) {
 async function gotoProfile(page) {
   await closeHelp(page);
   await openProfile(page);
-  await page.getByTestId('profile-menu').getByRole('button').first().click();
+  // A MENÜ GOMBJÁT NÉVVEL VESSZÜK, nem sorrenddel (F118-01 melléklelete): a megerősítetlen
+  // állapotban a menü ELSŐ gombja az új levél kérése — a sorrendre kötött próba ott mást nyitna.
+  await page.getByTestId('profile-menu-profile').click();
   await expect(page.getByTestId('lang-select')).toBeVisible();
 }
 const helpTab = async (page, tab) => {

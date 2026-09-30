@@ -541,8 +541,8 @@ import { inviteNextKey } from './inviteText.mjs';
         <div class="identity"><strong>${esc(me.email || me.subject_id)}</strong>
           <small data-testid="profile-menu-channel">${esc(me.channel_proven ? UI.channelProven : UI.channelPending)}</small></div>
         ${me.channel_proven ? '' : `<button type="button" data-auth="resend" data-testid="profile-menu-resend">${esc(UI.resendAsk)}</button>`}
-        <button type="button" data-go="profile">${PAGE.profile}</button>
-        <button type="button" data-go="security">${PAGE.security}</button>
+        <button type="button" data-go="profile" data-testid="profile-menu-profile">${PAGE.profile}</button>
+        <button type="button" data-go="security" data-testid="profile-menu-security">${PAGE.security}</button>
         <div class="divider"></div>
         <button type="button" data-action="logout" data-testid="logout">${esc(UI.logout)}</button>` : '';
     }
@@ -837,6 +837,12 @@ import { inviteNextKey } from './inviteText.mjs';
 
   /** A KÉSZLET a VALÓDI mag kapuján megy át; a mintatábla CSAK akkor látszik, ha a core kiadja. */
   const STOCK_PAGES = ['stock', 'stockcard', 'movements'];
+  /**
+   * A SZEMÉLYHEZ KÖTÖTT OLDALAK (F118-01). Ezek a BELÉPETT EMBERRŐL szólnak — e-mail-cím, annak
+   * állapota, nyelv, ki nevében jár el, kijelentkezés —, ezért fiók nélkül is megnyílnak. Minden
+   * MÁS oldal fiókhoz kötött marad: a lista NEM jog, csak azt mondja meg, mi nem a fiók adata.
+   */
+  const PERSON_PAGES = new Set(['profile', 'security']);
 
   /**
    * A KÉSZLET-HOZZÁFÉRÉS EGYETLEN LEKÉRÉSE (STK-01). A választ mind a három készlet-jellegű nézet
@@ -1700,7 +1706,7 @@ import { inviteNextKey } from './inviteText.mjs';
         <div class="splitline"><span>${esc(UI.signedIn)}</span><strong>${esc(me.email || me.subject_id)}</strong></div>
         <div class="splitline"><span>${esc(UI.emailConfirmed)}</span><strong>${esc(me.channel_proven ? UI.yes : UI.no)}</strong></div>
         <div class="splitline"><span>${esc(UI.actingAs)}</span><strong data-testid="security-acting-as">${esc(actingAsText(me))}</strong></div>
-        ${me.channel_proven ? '' : `<div class="buttonrow"><button type="button" data-auth="resend">${esc(UI.resendAsk)}</button></div>`}
+        ${me.channel_proven ? '' : `<div class="buttonrow"><button type="button" data-auth="resend" data-testid="security-resend">${esc(UI.resendAsk)}</button></div>`}
         <div class="divider"></div>
         <div class="buttonrow"><button type="button" data-action="logout">${esc(UI.logout)}</button></div>
         <p class="muted" style="font-size:13px">${esc(UI.passwordChangePending)}</p></section>`;
@@ -1732,11 +1738,27 @@ import { inviteNextKey } from './inviteText.mjs';
     let body = '';
     // A BEMUTATÓADAT IS A FIÓKHOZ TARTOZIK (R81 §7): fiók nélkül nincs miből táblát rajzolni —
     // a lap ezt KIMONDJA, és a választóhoz küld, nem mutat gazdátlan sorokat.
-    if (!bookId()) {
-      main.innerHTML = `<p class="notice ${n ? n.kind : ''}" data-testid="global-notice" ${n ? '' : 'hidden'}>${n ? esc(n.msg) + (n.action ? ` <button type="button" class="plain" data-go="${esc(n.action.go)}">${esc(n.action.label)}</button>` : '') : ''}</p>`
-        + head(UI.chooseAccount, UI.chooseAccountLead)
-        + emptyBox(STATE.noAccount, UI.chooseAccountBox,
-          `<button type="button" class="primary" data-go="new">${esc(PAGE.new)}</button>`);
+    //
+    // DE A SZEMÉLYHEZ KÖTÖTT OLDAL NEM A FIÓKRÓL SZÓL (F118-01, a külső fél lelete). A Saját profil
+    // és a Belépés és biztonság a BELÉPETT EMBER adata: e-mail-cím, annak állapota, nyelv, kilépés.
+    // A korábbi alak viszont EZEN az ágon tért vissza, a `switch (state.page)` ELŐTT — ezért a még
+    // meg nem erősített, fiók nélküli ember a saját adataihoz és az ÚJ LEVÉL kéréséhez sem jutott
+    // el: a fül megnyílt, de „Válassz fiókot" állt benne. Zsákutca (KUKA-201: a nemleges válasz
+    // vigye a MŰKÖDŐ folytatást). A FIÓKHOZ KÖTÖTT üzleti oldalak korlátozása VÁLTOZATLAN, és ettől
+    // fiók, jogosultság vagy megerősítés NEM keletkezik.
+    const noticeHtml = `<p class="notice ${n ? n.kind : ''}" data-testid="global-notice" ${n ? '' : 'hidden'}>${n ? esc(n.msg) + (n.action ? ` <button type="button" class="plain" data-go="${esc(n.action.go)}">${esc(n.action.label)}</button>` : '') : ''}</p>`;
+    if (!bookId() && !PERSON_PAGES.has(state.page)) {
+      // A KÉT ÁLLAPOT KÉT MONDAT: akinek a címe még nincs megerősítve, annak nincs mit választania —
+      // a személyes fiókja a MEGERŐSÍTÉSKOR születik meg. Ezért nem a fiókválasztóhoz küldjük.
+      const proven = Boolean(state.me && state.me.channel_proven);
+      main.innerHTML = noticeHtml + (proven
+        ? head(UI.chooseAccount, UI.chooseAccountLead)
+          + emptyBox(STATE.noAccount, UI.chooseAccountBox,
+            `<button type="button" class="primary" data-go="new">${esc(PAGE.new)}</button>`)
+        : head(UI.confirmEmailFirst, UI.confirmEmailFirstLead)
+          + emptyBox(UI.confirmEmailBoxTitle, UI.confirmEmailBoxLead,
+            `<button type="button" class="primary" data-auth="resend" data-testid="no-account-resend">${esc(UI.resendAsk)}</button>`
+            + ` <button type="button" data-go="profile" data-testid="no-account-profile">${esc(PAGE.profile)}</button>`));
       renderNav();
       return;
     }
@@ -1758,8 +1780,7 @@ import { inviteNextKey } from './inviteText.mjs';
           `<button type="button" data-action="mail-open">${esc(UI.demoMailButton)}</button>`); break;
       default: body = tablePage(state.page);
     }
-    const noticeAction = n && n.action ? ` <button type="button" class="plain" data-go="${esc(n.action.go)}">${esc(n.action.label)}</button>` : '';
-    main.innerHTML = `<p class="notice ${n ? n.kind : ''}" data-testid="global-notice" ${n ? '' : 'hidden'}>${n ? esc(n.msg) + noticeAction : ''}</p>${body}`;
+    main.innerHTML = noticeHtml + body;
     restoreForms();                 // …és a megkezdett kitöltés nem tűnik el a rajzolással
   }
 
