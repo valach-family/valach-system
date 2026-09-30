@@ -101,7 +101,16 @@ td.numeric{text-align:right;font-variant-numeric:tabular-nums}
 .tablebox{background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden}
 .toolbar{padding:14px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border)}
 .toolbar input{min-width:180px;width:300px;max-width:100%}
-.table-scroll{overflow-x:auto}
+/* A CSÚSZTATHATÓ TÁBLÁZAT SAJÁT POZICIONÁLÁSI ALAPOT AD (R121).
+   A LELET, MÉRVE 390 képponton: a fejléc rejtett, csak képernyőolvasónak szóló felirata
+   (`.sr-only`) ABSZOLÚT pozicionált. Pozicionált ős nélkül a KEZDETI tartalmazó blokkhoz (a
+   laphoz) igazodott, tehát KISZÖKÖTT a vízszintes csúsztatásból: a 8 oszlopos tag-táblázatnál
+   1018 képpontnál állt a jobb széle, és 628 képponttal NYÚJTOTTA a lapot — vízszintes csúszás
+   keletkezett a mobil nézetben. Két adatkör-oszloppal ez még VÉLETLENÜL beleesett a nézetbe;
+   a négy oszlop hozta ki. A javítás a hiba OSZTÁLYÁRA szól, nem erre az egy táblázatra
+   (KUKA-129): a csúsztató tároló legyen pozicionált ős, így a benne lévő abszolút elemet a
+   saját `overflow`-ja vágja. Mérve: a lap túlcsúszása 628 → 0. */
+.table-scroll{overflow-x:auto;position:relative}
 .tablefoot{padding:10px 16px;font-size:12px;color:var(--muted);background:#fbfcfd;border-top:1px solid var(--border)}
 .empty{text-align:center;background:#fff;border:1px solid var(--border);border-radius:12px;padding:44px 20px}
 .empty p{color:var(--muted);max-width:520px;margin:10px auto 18px}
@@ -268,9 +277,17 @@ dl.usage dd { margin: 0; }
 .tourbubble.tour-bottom-start { inset-inline-end: auto; inset-inline-start: 16px; }
 /* NINCS SZABAD SAROK (a cél egy egész lista): a kártya átengedi a kattintást, a gombjai nem. */
 .tourbubble.tour-passthrough { pointer-events: none; }
+/* AZ ÁTENGEDÉS CSAK AZ INTERAKTÍV RÉSZEKET VESZI VISSZA (R121 lelet).
+   A LELET, MÉRVE: a `.tourlist` is visszakapta a `pointer-events: auto`-t — pedig az egy
+   egyszerű `<ol>` lépés-lista: se gomb, se hivatkozás, se kattintás-kezelő nincs benne. Így a
+   NEM interaktív lista elfogta a kattintást a VALÓDI képernyő elől, épp azt a szerződést sértve,
+   amiért az átengedés van: „a valódi képernyő MÖGÖTTE kattintható marad". A hozzáférés-bemutató
+   3. lépése ezen bukott el: a lista `li`-je fogta el a „Hozzáférés kezelése" gombot, amit a
+   lépés megnyomni kért. A tag-táblázat R121-es szélesedése hozta ki (a művelet-oszlop a jobb
+   alsó buborék alá került), de a hiba a SZABÁLYBAN volt, nem a táblázatban (KUKA-129).
+   Ami marad: a kártya SAJÁT gombjai és hivatkozásai — azok tényleg interaktívak. */
 .tourbubble.tour-passthrough button,
-.tourbubble.tour-passthrough a,
-.tourbubble.tour-passthrough .tourlist { pointer-events: auto; }
+.tourbubble.tour-passthrough a { pointer-events: auto; }
 /* A KIEMELÉS: látható, de nem takar. Az `outline` nem tolja el az elrendezést. */
 .tourtarget { outline: 3px solid #2563eb; outline-offset: 3px; border-radius: 6px; }
 

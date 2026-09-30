@@ -44,6 +44,10 @@ import { inviteNextKey } from './inviteText.mjs';
     access: { stock: { state: 'unknown' } },
     inviteToken: null, invite: null, authView: null, search: '', members: [], notice: null, resendReason: null,
     membersTab: 'members', invites: null, processState: '',
+    // R121 — MIT TUD MA EZ A FIÓK. A négy adatkör neve, a MA megadható halmaz és a plafon oka a
+    // szerver /api/members válaszából jön: a felület nem tartja saját listát (KUKA-039).
+    scopeMeta: { known: [], grantable: [], blocked: [], reason: null, rule: null },
+    samples: { document: null, documentFull: null, supplier: null },
     // A MEGKEZDETT KITÖLTÉS ÁLLAPOT, NEM CSAK DOM (FRM-01, R83/F83-02): a munkalap-váltás
     // újrarajzol, és az újrarajzolt űrlap üres volt — a lap „megőrizte a munkát" látszatával.
     forms: {},
@@ -651,6 +655,43 @@ import { inviteNextKey } from './inviteText.mjs';
       row: (x) => [`<strong>${esc(x.code)}</strong>`, esc(x.kind), esc(x.partner), esc(whenText(x.at))] },
   });
 
+  /**
+   * EGY SZERVER-OLDALI MINTA SZAKASZA. Három állapotot tud, és MINDHÁRMAT kimondja:
+   * betöltés · kiadva · elutasítva (a HIÁNYZÓ körök NEVÉVEL, hogy a kezelő tudja, mit adjon meg).
+   * A nemleges válasz is vigye a MŰKÖDŐ folytatást (KUKA-201).
+   */
+  function samplePanel(kulcs, cim, adat) {
+    const korok = (lista) => (lista || []).map((k) => SCOPE[k] || k).join(', ');
+    let torzs;
+    if (adat === null) torzs = `<p class="muted">${esc(STATE.loading)}</p>`;
+    else if (adat.ok) {
+      torzs = `<div data-testid="sample-${kulcs}-value">${Object.entries(adat.result || {})
+        .map(([mezo, ertek]) => `<div class="splitline"><span>${esc(mezo)}</span><strong>${esc(
+          ertek !== null && typeof ertek === 'object' ? JSON.stringify(ertek) : String(ertek))}</strong></div>`).join('')}</div>`;
+    } else {
+      torzs = `<p class="notice warn" data-testid="sample-${kulcs}-denied" data-gate="${esc(adat.refused_by || '')}">${
+        esc(adat.missing_scopes && adat.missing_scopes.length
+          ? tpl('sampleMissing', { korok: korok(adat.missing_scopes) })
+          : reasonText(adat.entitlement_reason || adat.right_reason || adat.reason))}</p>`;
+    }
+    return `<section class="card" data-testid="sample-${kulcs}">
+      <h2>${esc(cim)} <span class="badge">${esc(UI.sampleBadge)}</span></h2>
+      <p class="muted">${esc(UI.sampleLead)}</p>
+      ${adat && adat.required_scopes ? `<p class="muted" data-testid="sample-${kulcs}-needs">${esc(tpl('sampleNeeds', { korok: korok(adat.required_scopes) }))}</p>` : ''}
+      ${torzs}</section>`;
+  }
+
+  /** A LAP SZERVER-OLDALI SZAKASZA — csak ott, ahol az R121 kimondottan elhelyezte. */
+  function serverSamples(page) {
+    if (page === 'documents') {
+      return `<div class="grid">${samplePanel('document', UI.sampleDocTitle, state.samples.document)}
+        ${samplePanel('document-full', UI.sampleMixedTitle, state.samples.documentFull)}</div>
+        <p class="muted" data-testid="sample-mixed-note">${esc(UI.sampleMixedNote)}</p>`;
+    }
+    if (page === 'partners') return `<div class="grid">${samplePanel('supplier', UI.sampleSupplierTitle, state.samples.supplier)}</div>`;
+    return '';
+  }
+
   function tablePage(page) {
     const def = ROW_DEF[page];
     if (!def) return head(PAGE[page] || page, UI.notBuiltLead) + emptyBox(UI.notBuiltTitle, UI.notBuiltBox);
@@ -669,6 +710,7 @@ import { inviteNextKey } from './inviteText.mjs';
         <select data-testid="process-state"><option value="">${esc(tpl('allOf', { n: all.length }))}</option>
         ${states.map((st) => `<option value="${esc(st)}" ${state.processState === st ? 'selected' : ''}>${esc(tpl('stateWithCount', { allapot: st, n: all.filter((x) => x.state === st).length }))}</option>`).join('')}</select></label>` : '';
     return head(PAGE[page], UI.demoListLeadRows)
+      + serverSamples(page)
       + `<div class="tablebox"><div class="toolbar">
           <input data-testid="list-search" aria-label="${esc(UI.searchInList)}" placeholder="${esc(UI.searchInListPlaceholder)}" value="${esc(state.search)}">
           ${szuro}${demoBadge()}</div>
@@ -774,6 +816,8 @@ import { inviteNextKey } from './inviteText.mjs';
     closeHelp();
     state.members = [];
     state.panels = { stock: null, price: null, members: null };
+    state.scopeMeta = { known: [], grantable: [], blocked: [], reason: null, rule: null };
+    state.samples = { document: null, documentFull: null, supplier: null };
     state.access = { stock: { state: 'unknown' } };
     state.invites = null;
     state.membersTab = 'members';
@@ -1010,19 +1054,26 @@ import { inviteNextKey } from './inviteText.mjs';
     if (!verdict.bound) { setPanel('members', 'members-list', `<div class="notice warn">${esc(unboundMessage(verdict.why, UNBOUND))}</div>`); await contextChangedNotice(verdict.why); return; }
     if (!r.ok) { setPanel('members', 'members-list', `<div class="empty"><h2>${esc(STATE.noAccess)}</h2><p>${esc(reasonText(r.reason))}</p></div>`); return; }
     state.members = r.members || [];
+    // A NÉGY KÖR és a MA MEGADHATÓ halmaz a válaszból (R121 §3): a felület nem ígér átléphető plafont.
+    state.scopeMeta = {
+      known: Array.isArray(r.known_scopes) ? r.known_scopes : [],
+      grantable: Array.isArray(r.grantable_scopes) ? r.grantable_scopes : [],
+      blocked: Array.isArray(r.blocked_scopes) ? r.blocked_scopes : [],
+      reason: r.grantable_reason ?? null, rule: r.startup_rule_version ?? null,
+    };
     const cell = (m, k) => (m.effective
       ? (m.scopes && m.scopes[k] && m.scopes[k].granted ? `<span class="badge ok">${esc(UI.canView)}</span>` : `<span class="badge wait">${esc(UI.notAllowed)}</span>`)
       : `<span class="badge gray">${esc(UI.noAccessBadge)}</span>`);
     const rows = state.members.map((m) => `<tr data-testid="member-${esc(m.subject_id)}">
         <td><strong>${esc(m.email || UI.unknownEmail)}</strong></td>
         <td>${esc(ROLE[m.role] || m.role)}</td>
-        <td>${cell(m, 'keszlet')}</td><td>${cell(m, 'arak')}</td>
+        ${state.scopeMeta.known.map((k) => `<td>${cell(m, k)}</td>`).join('')}
         <td>${m.effective ? `<span class="badge ok">${esc(UI.active)}</span>` : `<span class="badge gray">${esc(UI.revoked)}</span>`}</td>
         <td><button type="button" data-action="member-open" data-subject="${esc(m.subject_id)}" data-testid="member-open-${esc(m.subject_id)}">${esc(UI.accessButton)}</button></td>
       </tr>`).join('');
     setPanel('members', 'members-list', `<div class="tablebox"><div class="table-scroll"><table>
-      <thead><tr><th>${esc(UI.colUser)}</th><th>${esc(UI.colRole)}</th><th>${esc(SCOPE.keszlet)}</th><th>${esc(SCOPE.arak)}</th><th>${esc(UI.colState)}</th><th><span class="sr-only">${esc(UI.colActions)}</span></th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="6">${esc(STATE.noMembers)}</td></tr>`}</tbody></table></div>
+      <thead><tr><th>${esc(UI.colUser)}</th><th>${esc(UI.colRole)}</th>${state.scopeMeta.known.map((k) => `<th>${esc(SCOPE[k] || k)}</th>`).join('')}<th>${esc(UI.colState)}</th><th><span class="sr-only">${esc(UI.colActions)}</span></th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="${state.scopeMeta.known.length + 4}">${esc(STATE.noMembers)}</td></tr>`}</tbody></table></div>
       <div class="tablefoot">${esc(UI.membersFoot)}</div></div>`);
   }
 
@@ -1089,7 +1140,7 @@ import { inviteNextKey } from './inviteText.mjs';
         <label>${esc(UI.email)}<input type="email" name="email" required data-testid="invite-email" autocomplete="off" placeholder="pelda@example.test"></label>
         <label>${esc(UI.role)}<select name="role" data-testid="invite-role"><option value="user">${esc(ROLE.user)}</option><option value="admin">${esc(ROLE.admin)}</option></select>
           <small>${esc(STATE.inviteRoleHelp)}</small></label>
-        <label>${esc(STATE.inviteScopeQuestion)}<select name="scope" data-testid="invite-scope"><option value="keszlet">${esc(SCOPE.keszlet)}</option><option value="arak">${esc(SCOPE.arak)}</option></select>
+        <label>${esc(STATE.inviteScopeQuestion)}<select name="scope" data-testid="invite-scope">${(state.scopeMeta.grantable.length ? state.scopeMeta.grantable : ['keszlet', 'arak']).map((k) => `<option value="${esc(k)}">${esc(SCOPE[k] || k)}</option>`).join('')}</select>
           <small>${esc(STATE.inviteScopeHelp)}</small></label>
         <div class="buttonrow"><button type="submit" class="primary" data-testid="invite-submit">${esc(UI.inviteCreate)}</button>
           <button type="button" data-action="panel-close">${esc(UI.cancel)}</button></div>
@@ -1104,20 +1155,39 @@ import { inviteNextKey } from './inviteText.mjs';
     const m = (state.members || []).find((x) => x.subject_id === id);
     if (!m) return;
     const scopes = m.scopes || {};
-    const row = (k) => `<div class="splitline"><div><strong>${esc(SCOPE[k])}</strong>
-        <small>${esc(scopes[k] && scopes[k].granted ? UI.canView : UI.cannotView)}</small></div>
-      ${scopes[k] && scopes[k].granted ? `<span class="badge ok">${esc(UI.allowed)}</span>` : `<span class="badge wait">${esc(UI.notAllowed)}</span>`}</div>`;
+    const meta = state.scopeMeta;
+    // R121 §2 — MINDEN KÖR SAJÁT SORA, a MA elérhető MŰVELETTEL. A megadás és a visszavonás KÉT
+    // külön gomb, mert két külön szándék; a teljes tagság megszüntetése külön szakaszban marad.
+    // Ahol a PLAFON zár, ott NINCS gomb — és a sor megmondja, miért (KUKA-011 · KUKA-041: a hamis
+    // és a némán letiltott gomb ugyanaz a hiba két irányból).
+    const row = (k) => {
+      const van = !!(scopes[k] && scopes[k].granted);
+      const tiltott = meta.blocked.includes(k);
+      // A MEGVONT TAGSÁGÚ EMBEREN NINCS MŰVELET (a saját súgó-szövegünk előfeltétele: „a tag
+      // hozzáférése legyen aktív"). A LELET a SAJÁT regressziómra: a korábbi felületen a megadó
+      // ŰRLAP az `m.effective` kapu MÖGÖTT állt; amikor körönkénti gombokra bontottam, a gombok
+      // a kapu ELÉ kerültek — a magfolyam 13. böngésző-próbája fogta meg (3 gomb 0 helyett).
+      // Az ÁLLAPOT továbbra is látszik: a kezelőnek látnia kell, mi volt, csak nem nyúlhat hozzá.
+      const muvelet = !m.effective
+        ? ''
+        : tiltott
+        ? `<span class="badge gray" data-testid="member-scope-blocked-${esc(k)}">${esc(UI.scopeBlocked)}</span>`
+        : (van
+          ? `<button type="button" class="danger" data-action="scope-revoke" data-subject="${esc(id)}" data-scope="${esc(k)}"
+               data-testid="member-scope-revoke-${esc(id)}-${esc(k)}">${esc(UI.scopeRevoke)}</button>`
+          : `<button type="button" data-action="scope-grant" data-subject="${esc(id)}" data-scope="${esc(k)}"
+               data-testid="member-scope-grant-${esc(id)}-${esc(k)}">${esc(UI.scopeGrant)}</button>`);
+      return `<div class="splitline" data-testid="member-scope-row-${esc(k)}"><div><strong>${esc(SCOPE[k] || k)}</strong>
+          <small>${esc(van ? UI.canView : UI.cannotView)}</small></div>
+        <div>${van ? `<span class="badge ok">${esc(UI.allowed)}</span>` : `<span class="badge wait">${esc(UI.notAllowed)}</span>`} ${muvelet}</div></div>`;
+    };
     openPanel(panelHead(tpl('memberAccessTitle', { ki: m.email || m.subject_id }))
       + `<p class="identity"><strong>${esc(m.email || m.subject_id)}</strong>
           <small>${esc(ROLE[m.role] || m.role)} · ${esc(m.effective ? UI.active : UI.revoked)}</small></p>
       ${m.effective ? '' : `<div class="notice warn">${esc(UI.memberRevokedNote)}</div>`}
-      <h3>${esc(tpl('dataViewingOf', { fiok: accountName() }))}</h3>${row('keszlet')}${row('arak')}
-      ${m.effective ? `<form class="form" data-testid="member-scope-form" data-subject="${esc(id)}">
-        <label>${esc(UI.scopeToGrant)}
-          <select data-testid="member-scope-select-${esc(id)}" name="scope">
-            <option value="keszlet">${esc(SCOPE.keszlet)}</option><option value="arak">${esc(SCOPE.arak)}</option></select></label>
-        <button type="submit" class="primary" data-testid="member-scope-${esc(id)}">${esc(UI.grantView)}</button>
-        <p class="muted" style="font-size:13px">${esc(tpl('scopeOnlyHere', { nev: accountName() }))}</p></form>
+      <h3>${esc(tpl('dataViewingOf', { fiok: accountName() }))}</h3>${(meta.known.length ? meta.known : ['keszlet', 'arak']).map(row).join('')}
+      ${meta.blocked.length ? `<p class="muted" data-testid="member-scope-ceiling" style="font-size:13px">${esc(UI.scopeBlockedLead)}</p>` : ''}
+      ${m.effective ? `<p class="muted" style="font-size:13px">${esc(tpl('scopeOnlyHere', { nev: accountName() }))}</p>
       <div class="divider"></div><h3>${esc(UI.accountAccess)}</h3>
       <p class="muted">${esc(STATE.revokeSectionLead)}</p>
       <button type="button" class="danger" data-action="revoke-start" data-subject="${esc(id)}" data-testid="member-revoke-${esc(id)}">${esc(UI.revokeBusinessAccess)}</button>` : ''}
@@ -1493,6 +1563,7 @@ import { inviteNextKey } from './inviteText.mjs';
       h = `<h1>${esc(UI.resendTitle)}</h1>
         ${state.resendReason ? `<p class="notice warn" data-testid="resend-reason">${esc(state.resendReason)}</p>` : ''}
         <p class="muted">${esc(UI.resendLead)}</p>
+        <p class="muted" data-testid="resend-wait-hint">${esc(UI.resendWaitHint)}</p>
         <form class="form" data-kind="resend" data-testid="resend-form">
           <label>${esc(UI.email)}<input type="email" name="email" required autocomplete="username" data-testid="resend-email"></label>
           <button type="submit" class="primary" data-testid="resend-submit">${esc(UI.resendSubmit)}</button>
@@ -1501,6 +1572,7 @@ import { inviteNextKey } from './inviteText.mjs';
     } else if (kind === 'sent' || kind === 'resent') {
       h = `<div class="status-icon">✉</div><h1>${esc(UI.checkMailTitle)}</h1>
         <p class="muted" data-testid="${kind === 'sent' ? 'register-result' : 'resend-result'}">${esc(kind === 'sent' ? UI.registerSentLead : UI.resendSentLead)}</p>
+        ${kind === 'sent' ? '' : `<p class="muted" data-testid="resent-wait-hint">${esc(UI.resendWaitHint)}</p>`}
         <button type="button" class="primary" data-action="mail-open">${esc(UI.openMailbox)}</button>
         <p class="authfoot"><button type="button" class="plain" data-auth="login">${esc(UI.loginTitle)}</button></p>`;
     } else if (kind === 'invite') {
@@ -1796,6 +1868,34 @@ import { inviteNextKey } from './inviteText.mjs';
     if (state.page === 'members' && isAdmin()) {
       if (state.membersTab === 'invites') loadInvites(); else loadMembers();
     }
+    if (state.page === 'documents' || state.page === 'partners') loadSamples(state.page);
+  }
+
+  /**
+   * A SZERVER-OLDALI MINTÁK LEKÉRÉSE (R121 §4).
+   *
+   * A RAJZOLÁS ÉS A LEKÉRÉS KÉT KÜLÖN DÖNTÉS (KUKA-209): ez a függvény CSAK kér és állapotot ír,
+   * az újrarajzolást a `render()` végzi — így egy hibaüzenet nem indít újabb frissítési kört.
+   * A nézet-kötést a KÖZÖS feloldó adja: a kérés és a válasz UGYANARRA a nézetre kell szóljon,
+   * különben nem rajzolunk (KTX-03 · KUKA-204).
+   */
+  async function loadSamples(page) {
+    const v = view();
+    const gen = state.generation;
+    const kerd = async (ut) => {
+      const r = await api('GET', ut + readQuery(null, v));
+      return contextBindingVerdict(r, v).bound ? r : null;
+    };
+    if (page === 'documents') {
+      const [fejlec, teljes] = await Promise.all([kerd('/api/data/document'), kerd('/api/data/document-full')]);
+      if (gen !== state.generation || state.page !== page) return;
+      state.samples = { ...state.samples, document: fejlec, documentFull: teljes };
+    } else {
+      const besz = await kerd('/api/data/supplier');
+      if (gen !== state.generation || state.page !== page) return;
+      state.samples = { ...state.samples, supplier: besz };
+    }
+    render();
   }
 
   // ── ESEMÉNYEK ───────────────────────────────────────────────────────────────────────────────
@@ -1844,6 +1944,8 @@ import { inviteNextKey } from './inviteText.mjs';
       case 'members-tab': state.membersTab = b.dataset.mtab; render(); loadPageData(); break;
       case 'member-open': memberPanel(b.dataset.subject); break;
       case 'revoke-start': revokePanel(b.dataset.subject); break;
+      case 'scope-grant': doGrant(b.dataset.subject, b.dataset.scope, b); break;
+      case 'scope-revoke': doRevokeScope(b.dataset.subject, b.dataset.scope, b); break;
       case 'clear-search': state.search = ''; state.processState = ''; render(); break;
       case 'row-open': detailPanel(b.dataset.list, b.dataset.row); break;
       case 'dismiss-after-create': state.afterCreate = null; render(); break;
@@ -1940,7 +2042,6 @@ import { inviteNextKey } from './inviteText.mjs';
     if (kind === 'plan') return doPlan(f);
     if (f.dataset.testid === 'chat-form') return doAsk(f);
     if (f.dataset.testid === 'invite-form') return doInvite(f);
-    if (f.dataset.testid === 'member-scope-form') return doGrant(f.dataset.subject, f.elements.scope.value, f);
     return undefined;
   });
 
@@ -2291,6 +2392,33 @@ import { inviteNextKey } from './inviteText.mjs';
       formResult('members-result', refusalText(r), 'bad');
     }
     await loadMembers();
+  }
+
+  async function doRevokeScope(id, scope, btn) {
+    const v = stampOf(btn);
+    if (await refuseStale(v)) return;
+    const gen = state.generation;
+    const r = await apiInContext('POST', '/api/members/scope/revoke', { subject_id: id, scope }, v);
+    const verdict = contextBindingVerdict(r, v);
+    closePanel();
+    if (!verdict.bound) { await contextChangedNotice(verdict.why); return; }
+    if (gen !== state.generation) { notice(reasonText('context_mismatch'), 'warn'); render(); return; }
+    const m = (state.members || []).find((x) => x.subject_id === id);
+    const who = m ? (m.email || id) : id;
+    if (r.ok) {
+      const mondat = r.changed
+        ? tpl('scopeRevoked', { ki: who, mit: SCOPE_ACC[scope] || SCOPE[scope] || scope })
+        : UI.scopeUnchanged;
+      if (r.changed) tourTaskDone('scope.revoked');   // IGAZOLT változás után (TUR-01 · KUKA-129)
+      formResult('members-result', mondat, r.changed ? 'ok' : 'warn');
+      toast(mondat);
+    } else {
+      formResult('members-result', refusalText(r), 'bad');
+    }
+    await loadMembers();
+    // A MEGVONÁS UTÁN A KÉPERNYŐ AZ ÚJ IGAZSÁGOT MUTATJA: a mintapanelek gyorsítótárát ürítjük, és
+    // a nyitott adat-oldal újra kérdez — elavult tartalom nem maradhat kint (D-VS-497/4. kérdés).
+    state.samples = { document: null, documentFull: null, supplier: null };
   }
 
   async function doRevoke(id, btn) {

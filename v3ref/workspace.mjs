@@ -37,15 +37,66 @@ import { attachBusinessIdentity, businessIdentityProblem } from './externalId.mj
 
 const frozen = (o) => Object.freeze(o);
 
-export const STARTUP_RULE = frozen({
+// ═══ AZ INDULÁSI SZABÁLY VERZIÓI (R121 §3) ══════════════════════════════════════════════════
+//
+// A LELET, AMIT EL KELL KERÜLNI. A v1 szabály a scope-listáját a `KNOWN_DATA_SCOPES`-ból vette.
+// Amikor az R121 a szótárat kettőről NÉGYRE bővíti, ez a sor VISSZAMENŐLEG átírta volna a v1
+// jelentését: egy tavaly, két körrel született munkakörnyezet indulási szabálya hirtelen négy
+// körről szólt volna — pedig a valóságban két jogot adott. A tárolt `rule_version` így egy
+// olyan szabályra mutatna, ami már nem az, ami akkor volt (KUKA-050: a kódba írt jelentés is
+// elévül; KUKA-002: két különböző tény nem ülhet egy néven).
+//
+// EZÉRT: MINDEN VERZIÓ A SAJÁT, KIÍRT LISTÁJÁT HORDOZZA. A v1 listája SOHA nem változik többé.
+export const STARTUP_RULE_V1 = frozen({
   id: 'startup-rule',
   version: 'v1',
   local_admin_role: 'admin',
   operations: frozen([INVITE_ISSUE_OPERATION, 'alter_right']),
   roles: frozen([...KNOWN_ROLES]),
-  scopes: frozen([...KNOWN_DATA_SCOPES]),
+  // SZÁNDÉKOSAN KIÍRVA, nem a szótárból: ez a v1 TÖRTÉNETI jelentése (R121 §3).
+  scopes: frozen(['keszlet', 'arak']),
   not_granted: frozen(['suspend', 'adjudicate']),
 });
+
+// A NÉGYKÖRÖS INDULÁS — ÚJ SZABÁLYVERZIÓ. Az új munkakörnyezet létrehozójának jogai EHHEZ a
+// kifejezett indulási szabályhoz kötődnek. NINCS "mindig minden ismert scope" visszamenőleges
+// szabály: a régi fiókok a saját verziójuk szerint maradnak.
+export const STARTUP_RULE_V2 = frozen({
+  id: 'startup-rule',
+  version: 'v2',
+  local_admin_role: 'admin',
+  operations: frozen([INVITE_ISSUE_OPERATION, 'alter_right']),
+  roles: frozen([...KNOWN_ROLES]),
+  scopes: frozen(['keszlet', 'arak', 'dokumentumok', 'beszallitok']),
+  not_granted: frozen(['suspend', 'adjudicate']),
+});
+
+/** A VERZIÓK ZÁRT TÁBLÁJA — a tárolt `rule_version` ebből oldható vissza. */
+export const STARTUP_RULES = frozen({ v1: STARTUP_RULE_V1, v2: STARTUP_RULE_V2 });
+
+/** EGY TÁROLT VERZIÓ FELOLDÁSA. Ismeretlen verzió NEM "alapértelmezett", hanem `null` (KUKA-124/2). */
+export function startupRuleOf(version) {
+  return Object.hasOwn(STARTUP_RULES, String(version ?? '')) ? STARTUP_RULES[String(version)] : null;
+}
+
+/** A MA ÉRVÉNYES indulási szabály — az ÚJ munkakörnyezetek ezzel születnek. */
+export const STARTUP_RULE = STARTUP_RULE_V2;
+
+// A HIÁNYZÓ ŐR ZÖLDNEK LÁTSZIK (KUKA-051). Ha egy későbbi kör ÖTÖDIK adatkört vesz fel a
+// szótárba, de NEM nyit hozzá új szabályverziót, akkor a mai v2 jelentése csúszna el némán —
+// pontosan az a hiba, amit fent kijavítottunk. Ezért ez indulásKOR elhasal, nem futás közben:
+// a legfrissebb verzió listájának FEDNIE kell a teljes mai szótárat.
+{
+  const newest = STARTUP_RULE.scopes;
+  const missing = KNOWN_DATA_SCOPES.filter((s) => !newest.includes(s));
+  const extra = newest.filter((s) => !KNOWN_DATA_SCOPES.includes(s));
+  if (missing.length || extra.length) {
+    throw new Error(
+      `workspace: a legfrissebb indulási szabály (${STARTUP_RULE.version}) adatkör-listája nem fedi a `
+      + `mai zárt szótárat — hiányzik: [${missing.join(', ') || '—'}], fölösleg: [${extra.join(', ') || '—'}]. `
+      + 'Új adatkör ÚJ szabályverziót igényel: a régi verziók listáját visszamenőleg átírni tilos (R121 §3).');
+  }
+}
 
 export function startupBasisId(bookId) {
   return `${STARTUP_RULE.id}:${bookId}`;

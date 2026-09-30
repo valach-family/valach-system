@@ -40,8 +40,8 @@ export const NAV = Object.freeze({
 });
 
 export const ROLE = Object.freeze({ user: 'Member', admin: 'Account manager' });
-export const SCOPE = Object.freeze({ keszlet: 'Stock data', arak: 'Prices' });
-export const SCOPE_ACC = Object.freeze({ keszlet: 'stock data', arak: 'prices' });
+export const SCOPE = Object.freeze({ keszlet: 'Stock data', arak: 'Prices', dokumentumok: 'Business documents', beszallitok: 'Supplier data' });
+export const SCOPE_ACC = Object.freeze({ keszlet: 'stock data', arak: 'prices', dokumentumok: 'business documents', beszallitok: 'supplier data' });
 export const PLAN = Object.freeze({ starter: 'Basic', pro: 'Extended' });
 export const QUALITY = Object.freeze({ mert: 'Measured', becsult: 'Estimated', ismeretlen: 'Unknown' });
 
@@ -57,6 +57,9 @@ export const TPL = Object.freeze({
   accountSwitchedElsewhere: 'The account was switched in another browser tab. This account is now open: {nev}',
   scopeOnlyHere: 'This permission belongs to this account: {nev}',
   memberCanSee: '{ki} can now view {mit}.',
+  sampleNeeds: 'This view requires the following access: {korok}.',
+  sampleMissing: 'Missing access: {korok}. The manager of this account grants it.',
+  scopeRevoked: 'Access withdrawn: {ki} can no longer see {mit}.',
   memberRevoked: '{ki} no longer has access to this account: {nev}',
   memberAccessTitle: 'Access for {ki}',
   revokeTitle: 'End access for {ki}?',
@@ -337,6 +340,19 @@ export const UI = Object.freeze({
   resendAsk: 'Ask for a new confirmation e-mail',
   resendTitle: 'New confirmation e-mail',
   resendLead: 'Enter the e-mail address you used when registering.',
+  sampleBadge: 'Sample data',
+  sampleDocTitle: 'Document sample',
+  sampleMixedTitle: 'Mixed document sample',
+  sampleSupplierTitle: 'Supplier sample',
+  sampleLead: 'This section shows marked sample data requested from the server — access is decided by a real server-side check.',
+  sampleMixedNote: 'The mixed document stays closed as a whole even if only one access is missing.',
+  sampleOpen: 'Request sample',
+  scopeRevoke: 'Withdraw access',
+  scopeGrant: 'Grant access',
+  scopeBlocked: 'Cannot be granted in this account',
+  scopeBlockedLead: 'This account was created under the earlier start-up rule with two kinds of access, so the two newer ones cannot be granted here. That needs a new account; existing accounts keep working unchanged.',
+  scopeUnchanged: 'This access was not granted anyway — nothing changed.',
+  resendWaitHint: 'Wait at least one minute between two e-mail requests. If you have received several e-mails, use the link from the most recent one.',
   resendSubmit: 'Request the e-mail',
   backToLogin: 'Back to sign-in',
   resendInProgress: 'Requesting the e-mail…',
@@ -748,6 +764,43 @@ export const KB = Object.freeze({
       uncertain: 'We cannot be sure it was saved. The list shows today’s state.',
     }),
   }),
+  'members.scopeRevoke': Object.freeze({
+    title: 'Withdrawing one kind of access',
+    purpose: 'You take one kind of access away from a member while their membership and other access stay.',
+    prereq: 'Account manager permission, and the member must still be active.',
+    result: 'Only that one access ends. The member stays in the account and keeps seeing the other data.',
+    outcomes: Object.freeze({
+      success: 'The access has been withdrawn.',
+      refused: 'You have no authority for this, or the member is no longer active.',
+      uncertain: 'We cannot tell whether it was saved. The list shows today\u2019s state.',
+    }),
+  }),
+  'data.documentSample': Object.freeze({
+    title: 'Opening the document sample',
+    purpose: 'You look at the marked document sample: the header, and separately the mixed sample that also carries an amount and a supplier.',
+    prereq: 'Access to business documents; the mixed sample also needs prices and supplier data.',
+    result: 'The header alone carries no amount and no supplier. The mixed sample stays closed as a whole even if only one access is missing.',
+    outcomes: Object.freeze({
+      success: 'The sample appeared.',
+      missing: 'There is no data for this view yet.',
+      missing: 'There is no data for this view yet.',
+      refused: 'At least one access is missing; the screen names which one.',
+      error: 'The sample could not be loaded.',
+    }),
+  }),
+  'data.supplierSample': Object.freeze({
+    title: 'Opening the supplier sample',
+    purpose: 'You look at the marked supplier sample: the identifier, the name and the contact detail.',
+    prereq: 'Access to supplier data.',
+    result: 'This access on its own gives neither prices nor documents.',
+    outcomes: Object.freeze({
+      success: 'The sample appeared.',
+      missing: 'There is no data for this view yet.',
+      missing: 'There is no data for this view yet.',
+      refused: 'You have no supplier access; the screen names it.',
+      error: 'The sample could not be loaded.',
+    }),
+  }),
   'members.revoke': Object.freeze({
     title: 'End access',
     purpose: 'You end somebody’s membership in this account. This ends the whole membership, not just one data area.',
@@ -972,6 +1025,18 @@ export const FAQ = Object.freeze({
     q: 'How do I grant somebody the stock data?',
     a: 'Users → the “Access” button on the row → choose the data area → “Grant viewing”. The permission belongs only to this account.',
   }),
+  'faq.members.scopeRevoke': Object.freeze({
+    q: 'Can I take away only the prices and leave everything else?',
+    a: 'Yes. Users \u2192 \u201cManage access\u201d \u2192 the \u201cWithdraw access\u201d button in that row. Only that one access ends; membership, role and the other kinds of access stay unchanged.',
+  }),
+  'faq.data.sampleAccess': Object.freeze({
+    q: 'Why can I not see the document or supplier sample?',
+    a: 'Because these need their own access, and stock access does not include them. The screen names the missing one; the manager of this account grants it. On top of that, the plan must also contain this view.',
+  }),
+  'faq.data.mixedDocument': Object.freeze({
+    q: 'Why can I not see the mixed document when I can see the header?',
+    a: 'Because the mixed document also carries an amount and a supplier part, and those need access to prices and supplier data. A single missing access closes the whole document: we never release it in part.',
+  }),
   'faq.members.revoke': Object.freeze({
     q: 'What happens if I end somebody’s access?',
     a: 'Their membership in this account ends, so they can no longer open the account’s data. Their personal account and the history of past operations remain.',
@@ -1114,6 +1179,14 @@ export const TOUR = Object.freeze({
     s2: Object.freeze({ title: 'Pick the colleague', body: 'In the list, the “Manage access” button opens that person’s access page.' }),
     s3: Object.freeze({ title: 'Grant the data area', body: 'Choose the data area and press “Grant viewing”. This step only moves on after an actual save.' }),
   }),
+  'tour.scopeLifecycle': Object.freeze({
+    title: 'Granting and withdrawing one kind of access',
+    lead: 'Four steps. At the end the member still sees quantities, but no longer the confidential sample.',
+    s1: Object.freeze({ title: 'Open Users', body: 'In the Settings group, with account manager permission.' }),
+    s2: Object.freeze({ title: 'Pick the colleague', body: 'In the list the \u201cManage access\u201d button opens that person\u2019s access page.' }),
+    s3: Object.freeze({ title: 'Allow business documents', body: 'In the \u201cBusiness documents\u201d row press \u201cGrant access\u201d. This step moves on only after an actual save.' }),
+    s4: Object.freeze({ title: 'And withdrawing it', body: 'In the same row \u201cWithdraw access\u201d takes away only this one access \u2014 membership and the other data stay.' }),
+  }),
   'tour.plan': Object.freeze({
     title: 'Setting the plan',
     lead: 'Three steps. There is no purchase and no payment.',
@@ -1221,7 +1294,10 @@ export const KB_SOURCE = Object.freeze({
   'invite.send': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
   'invite.accept': Object.freeze({ source_version: '1.3.0', review: 'checked' }),
   'members.list': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
-  'members.grant': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
+  'members.grant': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
+  'members.scopeRevoke': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.documentSample': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.supplierSample': Object.freeze({ source_version: '1.0.0', review: 'source' }),
   'members.revoke': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
   'plan.change': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
   'data.stock': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
@@ -1252,6 +1328,9 @@ export const SEARCH = Object.freeze({
   'invite.accept': 'accept invitation join with invitation redeem accept the invite expired invitation my invitation invalid link wrong address',
   'members.list': 'users members who can see access list membership',
   'members.grant': 'grant permission give access data area allow viewing',
+  'members.scopeRevoke': 'withdraw access remove data area only prices partial withdrawal',
+  'data.documentSample': 'document sample header mixed document amount',
+  'data.supplierSample': 'supplier sample partner contact detail',
   'members.revoke': 'revoke end access remove withdraw take away access',
   'plan.change': 'subscription plan change plan fee purchase basic extended',
   'data.stock': 'stock stock balance quantity warehouse cannot see stock product card movements',

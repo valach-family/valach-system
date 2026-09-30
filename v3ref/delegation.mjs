@@ -30,7 +30,8 @@ import { rightAt, roleDelegates } from './authz.mjs';
 import { membershipAsOf } from './bitemporal.mjs';
 import { recordAuthorityBasis, basisAsOf, revokeAuthorityBasis, INVITE_ISSUE_OPERATION } from './authorityBasis.mjs';
 import { issueInviteUnderBasis, grantBasisFor } from './basisLimit.mjs';
-import { grantReadScope } from './scopeGrant.mjs';
+import { grantReadScope, revokeReadScope, readScopeGrantAt } from './scopeGrant.mjs';
+import { effectuate } from './authority.mjs';
 import { KNOWN_DATA_SCOPES } from './resultScope.mjs';
 
 const frozen = (o) => Object.freeze(o);
@@ -153,6 +154,94 @@ export function grantScopeToMember({ store, granterSubjectId, bookId, targetSubj
   });
   if (!g.ok) return frozen({ ok: false, reason: g.reason, ceiling: basis.limit.scopes });
   return frozen({ ok: true, scope, basis_id: basis.basis_id, basis_version: basis.version });
+}
+
+/**
+ * EGY ADATKÖRI JOG MEGVONÁSA EGY TAGTÓL — RÉSZLEGESEN, A TAGSÁG ÉRINTÉSE NÉLKÜL (SCR-01, R121 §2).
+ *
+ * A LELET, AMIT EZ JAVÍT. A felületen eddig EGYETLEN "visszavonás" létezett: a
+ * `/api/members/revoke`, ami a TELJES tagságot és a delegálási alapot szüntette meg. Ha a kezelő
+ * csak az ÁRAT akarta elvenni a raktári munkatárstól, a rendszer az egész céges tagságát vitte —
+ * vagyis a felhasználó szándékához (`egy jog`) a legközelebbi elérhető művelet egy NAGYSÁGRENDDEL
+ * tágabb hatás volt. Ez a KUKA-002 alakja a MŰVELETEKEN: két különböző szándék egy gombon.
+ *
+ * MIÉRT NEM ELÉG A NYERS TÁROLÓ-SEGÉD. A `revokeReadScope` (scopeGrant.mjs) ÍR, de hatáskört NEM
+ * kérdez — pontosan úgy, ahogy a `revokeMembership` sem kérdezett az R60 előtt. Egy publikus
+ * HTTP-út nem hívhatja közvetlenül: az a "bárki megvonhatná" alakja lenne (KUKA-047 · KUKA-084).
+ * Ezért a nyers író BELSŐ marad, és EZ a művelet a felhatalmazott kapu.
+ *
+ * A NÉGY KAPU, MIND A VÉGLEGESÍTÉSI PONTON (R121 §2). Az `effectuate` EGYSZER olvas órát, és
+ * ugyanazt az `at`-ot adja a döntésnek ÉS a hatásnak — tehát a jog a hatás SAJÁT bélyegén áll
+ * fenn, nem egy korábbi óraolvasáson (EFF-01 · R77/F01):
+ *   1. az eljáró `alter_right` hatásköre  — ugyanaz a művelet-név, mint a tagság-megvonásnál;
+ *   2. a CÉL aktuális tagsága             — nem tag embernek nincs mit elvenni;
+ *   3. az eljáró DELEGÁLÁSI PLAFONJA      — amit ő maga nem kaphatott meg, azon nem is rendelkezik;
+ *   4. az adatkör a ZÁRT szótárból való   — szabad szöveg némán nem oldódik fel (KUKA-236).
+ *
+ * "A JOGOSULATLAN TAG SAJÁT MAGÁNAK SEM" (R121 §2): a hatáskör-kapu nem ismer kivételt a célra —
+ * ha az eljárónak nincs `alter_right`-ja, a saját sorára sem írhat ezen az adminisztratív úton.
+ *
+ * AZ IDEMPOTENCIA ÜZLETI, NEM HTTP-SZINTŰ (R121 §2: "dupla kattintás és hálózati újraküldés ne
+ * gyártson több üzleti változást"). Ha a jog MA amúgy sincs meg, NEM írunk újabb megvonás-sort:
+ * a válasz `changed: false`, nevezett okkal. Így a kétszer megnyomott gomb ugyanazt a végállapotot
+ * adja EGY naplósorral — és a nyugta IGAZAT mond arról, hogy történt-e változás (KUKA-129).
+ *
+ * AMIT EZ A MŰVELET SOHA NEM TESZ: nem nyúl a tagsághoz, a szerephez, a többi adatkörhöz, más
+ * alanyhoz és más könyvhöz; és nem TÖRÖL korábbi eseményt — a megvonás ÚJ sor a két idő-tengelyen
+ * (R51/F51-01), tehát a történeti nézet a megvonás előtti napra továbbra is a megadást mutatja.
+ */
+export function revokeScopeFromMember({ store, clock, revokerSubjectId, bookId, targetSubjectId, scope, credentials }) {
+  if (typeof scope !== 'string' || !KNOWN_DATA_SCOPES.includes(scope)) {
+    return frozen({
+      ok: false, changed: false, reason: 'unknown_data_scope',
+      message: `a(z) ${JSON.stringify(scope)} nem a tartalom zárt adatkör-szótárából való — `
+        + `választható: ${KNOWN_DATA_SCOPES.join(' · ')}`,
+    });
+  }
+  if (!targetSubjectId || !bookId) return frozen({ ok: false, changed: false, reason: 'subject_and_book_required' });
+
+  const out = effectuate(
+    { store, clock, subjectId: revokerSubjectId, bookId, operation: 'alter_right', credentials },
+    ({ at }) => {
+      const m = membershipAsOf({ store, subjectId: targetSubjectId, bookId, validAt: at, knownAt: at });
+      if (m.effective !== true) {
+        return frozen({ ok: false, changed: false, reason: 'target_not_a_member', detail: m.reason });
+      }
+      // A PLAFON A VÉGLEGESÍTÉSI PONTON (ORG-N1b): az eljáró a SAJÁT átvitt korlátján belül
+      // rendelkezhet. A hiányzó alap NEM "nincs korlát", hanem nevezett elakadás (KUKA-124/2).
+      const basis = deriveDelegationBasis({ store, subjectId: revokerSubjectId, bookId, at });
+      if (!basis.ok) return frozen({ ok: false, changed: false, reason: basis.reason });
+      const ceiling = Array.isArray(basis.limit.scopes) ? basis.limit.scopes : [];
+      if (!ceiling.includes(scope)) {
+        return frozen({
+          ok: false, changed: false, reason: 'outside_basis_scopes', scope, ceiling: frozen([...ceiling]),
+          message: `a te adatkör-plafonod: ${ceiling.join(' · ') || '(üres)'} — ezen kívül nem rendelkezel`,
+        });
+      }
+      // ÜZLETI IDEMPOTENCIA: ha ma nincs joga, nincs mit elvenni — és nem írunk fölösleges sort.
+      const cur = readScopeGrantAt({ store, subjectId: targetSubjectId, bookId, scope, validAt: at, knownAt: at });
+      if (cur.granted !== true) {
+        return frozen({ ok: true, changed: false, scope, reason: cur.reason ?? 'scope_not_granted' });
+      }
+      const r = revokeReadScope({
+        store, subjectId: targetSubjectId, bookId, scope, at,
+        effectiveAt: at, recordedAt: at, actorSubjectId: revokerSubjectId,
+      });
+      if (!r.ok) return frozen({ ok: false, changed: false, reason: r.reason, scope });
+      return frozen({
+        ok: true, changed: true, scope, revocation_id: r.id,
+        effective_at: r.effective_at, recorded_at: r.recorded_at,
+      });
+    });
+
+  if (!out.authorized) {
+    return frozen({
+      ok: false, changed: false, reason: out.right.reason,
+      message: `${out.right.message ?? ''} Egy adatkör visszavonásához \`alter_right\` hatáskör kell — `
+        + 'ugyanaz, mint a tagság megvonásához; a puszta tagság nem elég.',
+    });
+  }
+  return out.value;
 }
 
 /** A MEGVONT TAG DELEGÁLÁSI ALAPJA IS MEGSZŰNIK — a függő meghívói nem élhetik túl (R63 §5.3/9). */

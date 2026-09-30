@@ -43,6 +43,7 @@ const dict = await import(join(ROOT, 'v3app/public/i18n/dict.mjs'));
 const { enabledLanguages } = await import(join(ROOT, 'v3app/public/i18n/languages.mjs'));
 const policy = await import(join(ROOT, 'v3app/assistant/policy.mjs'));
 const help = await import(join(ROOT, 'v3app/public/help.mjs'));
+const { KNOWN_DATA_SCOPES } = await import(join(ROOT, 'v3ref/resultScope.mjs'));
 const tour = await import(join(ROOT, 'v3app/public/tour.mjs'));
 const chat = await import(join(ROOT, 'v3app/public/chat.mjs'));
 
@@ -156,6 +157,12 @@ const GENERATED_FAMILIES = Object.freeze([
   Object.freeze({ prefix: 'members-tab-', template: 'data-testid="members-tab-${kulcs}"', values: () => ['members', 'invites'] }),
   Object.freeze({ prefix: 'member-open-', template: 'data-testid="member-open-${esc(m.subject_id)}"', values: () => [] }),
   Object.freeze({ prefix: 'member-revoke-', template: 'data-testid="member-revoke-${esc(id)}"', values: () => [] }),
+  // R121 — a tag hozzáférés-lapján KÖRÖNKÉNT egy sor; a változó rész a MAG zárt adatkör-szótára.
+  Object.freeze({ prefix: 'member-scope-row-', template: 'data-testid="member-scope-row-${esc(k)}"',
+    values: () => [...KNOWN_DATA_SCOPES] }),
+  // R121 — a szerver-oldali minta-szakaszok; a változó rész a három deklarált mintanézet kulcsa.
+  Object.freeze({ prefix: 'sample-', template: 'data-testid="sample-${kulcs}"',
+    values: () => ['document', 'document-full', 'supplier'] }),
 ]);
 for (const fam of GENERATED_FAMILIES) {
   check('TUT05', `a sablon-család TÉNYLEGESEN létezik a forrásban: ${fam.prefix}*`,

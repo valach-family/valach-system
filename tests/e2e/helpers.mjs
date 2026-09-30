@@ -454,11 +454,33 @@ export async function openMemberPanel(page, subjectId) {
   await expect(page.getByTestId('panel-body')).toBeVisible();
 }
 
+/**
+ * EGY ADATKÖR MEGADÁSA A FELÜLETRŐL (R121 §2 óta KÖRÖNKÉNTI GOMB).
+ *
+ * A régi alak egy legördülőt állított be, majd EGY közös gombot nyomott meg. Az R121 óta minden
+ * adatkörnek SAJÁT sora és saját gombja van — a próba ezért a SOR gombját nyomja meg. A viselkedést
+ * mérjük, nem a feliratot (KUKA-237).
+ */
 export async function grantScopeUI(page, subjectId, scope) {
   await openMemberPanel(page, subjectId);
-  await expect(page.getByTestId(`member-scope-select-${subjectId}`)).toBeVisible();
-  await page.getByTestId(`member-scope-select-${subjectId}`).selectOption(scope);
-  const r = await withResponse(page, { path: '/api/members/scope' }, () => page.getByTestId(`member-scope-${subjectId}`).click());
+  const gomb = page.getByTestId(`member-scope-grant-${subjectId}-${scope}`);
+  await expect(gomb).toBeVisible();
+  const r = await withResponse(page, { path: '/api/members/scope' }, () => gomb.click());
+  await expect(page.getByTestId('members-result')).not.toHaveText('');
+  return { ...r, resultText: await page.getByTestId('members-result').textContent() };
+}
+
+/**
+ * EGY ADATKÖR VISSZAVONÁSA A FELÜLETRŐL — a TAGSÁG ÉRINTÉSE NÉLKÜL (R121 §2).
+ *
+ * Szándékosan NEM a `revokeUI` mellé bújtatva: az a TELJES tagságot szünteti meg, megerősítő
+ * kérdéssel. A kettő két külön művelet, tehát két külön segéd (KUKA-002).
+ */
+export async function revokeScopeUI(page, subjectId, scope) {
+  await openMemberPanel(page, subjectId);
+  const gomb = page.getByTestId(`member-scope-revoke-${subjectId}-${scope}`);
+  await expect(gomb).toBeVisible();
+  const r = await withResponse(page, { path: '/api/members/scope/revoke' }, () => gomb.click());
   await expect(page.getByTestId('members-result')).not.toHaveText('');
   return { ...r, resultText: await page.getByTestId('members-result').textContent() };
 }

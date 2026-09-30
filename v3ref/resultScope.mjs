@@ -43,11 +43,22 @@ import { parseQuantity, formatQuantity, QUANTITY_PROFILES, DEFAULT_PROFILE_ID } 
 //
 // `Map`, nem sima objektum — az örökölt kulcs (`toString`, `constructor`) nem tud „ismert
 // adatkörré" oldódni (a Q07 tanulsága, ugyanúgy, ahogy a tiltás-fajtáknál).
-export const KNOWN_DATA_SCOPES = Object.freeze(['keszlet', 'arak']);
+// R121 — NÉGY ADATKÖR. A raktári munkatárs lássa a MENNYISÉGET anélkül, hogy automatikusan
+// megkapná az ÁRAKAT, a SZÁMLAADATOKAT és a BESZÁLLÍTÓI adatokat. A négy kör KÜLÖN adható és
+// KÜLÖN vonható vissza; egyik sem következik a másikból.
+//
+// A BŐVÍTÉS VESZÉLYE, KIMONDVA (R121 §3): ezt a listát a `workspace.mjs` indulási szabálya is
+// olvassa. Ha a szótár bővül, de a szabály VERZIÓJA nem, akkor a MÚLTBELI létrehozás jelentése
+// változik meg visszamenőleg — egy v1-ben született munkakörnyezet hirtelen négy jogot "kapott
+// volna". Ezért a v1 szabály a saját, RÖGZÍTETT listáját hordozza, és a négykörös indulás ÚJ
+// szabályverzió (v2). A bővítés itt tehát NEM elég önmagában (KUKA-002 · KUKA-039).
+export const KNOWN_DATA_SCOPES = Object.freeze(['keszlet', 'arak', 'dokumentumok', 'beszallitok']);
 
 const SCOPE_MEANING = new Map([
   ['keszlet', 'készlet-adat: mennyiség, cikkazonosító, tételsorok'],
   ['arak', 'ár-adat: egységár, listaár, árlista-hivatkozás'],
+  ['dokumentumok', 'üzleti dokumentum: a dokumentum azonosítója, fajtája, kelte és állapota'],
+  ['beszallitok', 'beszállítói adat: a beszállító azonosítója, neve és kapcsolati adata'],
 ]);
 
 // ═══ A TÍPUS DEKLARÁCIÓJA — AZ EREDMÉNY ALAKJA ÉS A LEVELEK ADATKÖRE (R79/F01) ══════════════════
@@ -117,9 +128,52 @@ const STOCK_RESULT_SHAPE = objectOf({
   price_list: leaf('string', 'arak'),
 });
 
+// ── R121: A DOKUMENTUM- ÉS BESZÁLLÍTÓI MINTÁK SÉMÁJA ────────────────────────────────────────
+//
+// A DOKUMENTUMFEJLÉC TISZTA (R121 §1, kimondott követelmény): a fejléc NEM hordozhat rejtett
+// összeget, beszállítónevet, URL-t, sem olyan megjelenítési szöveget, ami ezeket kódolja. Ezért a
+// fejlécnek NINCS szabad szöveges mezője — minden levele zárt jelentésű, és mind a
+// `dokumentumok` körbe tartozik. Ami összeg, az az `arak`; ami beszállító, az a `beszallitok`
+// — és ezek CSAK a vegyes mintában állnak, ahol a besorolás ki is mondja őket.
+const DOC_HEADER_SHAPE = objectOf({
+  doc_id: leaf('string', 'dokumentumok'),
+  doc_kind: leaf('string', 'dokumentumok'),
+  doc_date: leaf('string', 'dokumentumok'),
+  doc_status: leaf('string', 'dokumentumok'),
+});
+
+const SUPPLIER_SHAPE = objectOf({
+  supplier_id: leaf('string', 'beszallitok'),
+  supplier_name: leaf('string', 'beszallitok'),
+  supplier_contact: leaf('string', 'beszallitok'),
+});
+
+// A VEGYES, BEÁGYAZOTT DOKUMENTUM — EZ A CSOMAG LÉNYEGI PRÓBÁJA.
+//
+// Négy adatkör EGY eredményben, MÉLYEN beágyazva: a fejléc `dokumentumok`, a tételsor
+// mennyisége `keszlet`, az egységára `arak`, a beszállítói blokk `beszallitok`. A kiadás
+// EGÉSZBEN zár, ha BÁRMELYIK jog hiányzik — és épp ezért kell a besorolásnak mélységben is
+// pontosnak lennie: a felső mező címkéje nem helyettesíti a részfa sémáját (R79/F01).
+//
+// Az `amount` szándékosan a fejléc SZINTJÉN áll, de `arak` besorolással: ez mutatja meg, hogy
+// a "dokumentum" jog önmagában NEM nyitja meg a dokumentumban lévő ÖSSZEGET (R121 §1).
+const DOC_FULL_SHAPE = objectOf({
+  doc_id: leaf('string', 'dokumentumok'),
+  doc_kind: leaf('string', 'dokumentumok'),
+  doc_date: leaf('string', 'dokumentumok'),
+  doc_status: leaf('string', 'dokumentumok'),
+  amount: leaf('number', 'arak'),
+  currency: leaf('string', 'arak'),
+  lines: arrayOf(LINE_SHAPE),
+  supplier: SUPPLIER_SHAPE,
+});
+
 const RESULT_SHAPES = new Map([
   [declKey('stock.receipt', '1'), STOCK_RESULT_SHAPE],
   [declKey('stock.issue', '1'), STOCK_RESULT_SHAPE],
+  [declKey('doc.header', '1'), DOC_HEADER_SHAPE],
+  [declKey('supplier.card', '1'), SUPPLIER_SHAPE],
+  [declKey('doc.full', '1'), DOC_FULL_SHAPE],
 ]);
 
 /** A deklarált típusok listája — a nemleges válasz megnevezheti, mi közül lehet választani (KUKA-064). */
@@ -213,6 +267,39 @@ function walk(spec, value, path, scopes) {
   }
   scopes.add(spec.scope);
   return { ok: true };
+}
+
+/**
+ * MELY ADATKÖRÖKET KÖVETELHET EZ A TÍPUS — ADAT NÉLKÜL, pusztán a DEKLARÁCIÓBÓL (R121 §1).
+ *
+ * MIÉRT KELL. A `resultScopesOf` a KIADANDÓ eredményen mér — tehát csak akkor tud válaszolni, ha
+ * az adatot már kiolvastuk. A felületnek és a határnak viszont az adat MEGÉRINTÉSE ELŐTT kell
+ * tudnia, MELY jogokat kíván egy nézet: különben vagy előbb olvasna (és a mag kiadásként
+ * könyvelné — pontosan az R64/H11 lelet), vagy a végponton állna egy KÉZZEL ÍRT jog-lista, ami
+ * némán elcsúszik a sémától (KUKA-039).
+ *
+ * EZÉRT A VÁLASZ UGYANABBÓL AZ EGY FORRÁSBÓL JÖN: a séma-fa teljes bejárásából. Ha a séma új
+ * mezőt kap, ez a lista MAGÁTÓL bővül — nincs mit "elfelejteni frissíteni".
+ *
+ * @returns {{ok:true, scopes:string[]} | {ok:false, reason:string, message:string}}
+ */
+export function declaredScopesOfType({ type, typeVersion }) {
+  const shape = RESULT_SHAPES.get(declKey(type, typeVersion));
+  if (!shape) {
+    return Object.freeze({
+      ok: false, reason: 'result_scope_type_undeclared',
+      message: `a(z) "${type}" / "${typeVersion}" típus eredményének sémája nincs deklarálva. `
+        + `A ma deklarált típusok: ${DECLARED_RESULT_TYPES.join(', ')}.`,
+    });
+  }
+  const scopes = new Set();
+  (function collect(spec) {
+    if (spec.kind === 'array') return collect(spec.of);
+    if (spec.kind === 'object') { for (const sub of spec.fields.values()) collect(sub); return undefined; }
+    scopes.add(spec.scope);
+    return undefined;
+  })(shape);
+  return Object.freeze({ ok: true, scopes: Object.freeze([...scopes].sort()) });
 }
 
 /**

@@ -42,6 +42,7 @@ const VERSION_R47 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-
 // R63 — A HIÁNYZÓ ALAP ZÁR (pecsét nélküli meghívó · alap nélküli hatáskör), a saját munkakörnyezet
 // indulási alapja és a meghívó delegálási alapja a rendszer SAJÁT írásán képződik (WSP-01 · DLG-01).
 const VERSION_R63 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history + R53/ORG-N1b-adjudication + R55/ORG-N1b-granted-version + R63/CORE-UX-1-basis-closed';
+const VERSION_R121 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history + R53/ORG-N1b-adjudication + R55/ORG-N1b-granted-version + R63/CORE-UX-1-basis-closed + R121/SCR-01-partial-scope-revocation';
 const VERSION_R55 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history + R53/ORG-N1b-adjudication + R55/ORG-N1b-granted-version';
 const VERSION_R53 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history + R53/ORG-N1b-adjudication';
 const VERSION_R51 = 'R32/K01-K16 + R35/K05-DSC+K10-TYP + R37/SVR-01 + R43/K10-a-d + R45/K10-d-history + R47/K05-c-basis + R49/K05-c-grant + R51/K05-c-grant-history';
@@ -392,6 +393,30 @@ export const EXPECTED_PROBES = Object.freeze([
         contract: 'RSB-01', contract_version: VERSION_R47 }),
       Object.freeze({ clause: 'K05-DSC-d', assertion: 'A-K05-c-one-effectuation-point-for-decision-and-ledger',
         contract: 'RSB-01', contract_version: VERSION_R47 }),
+    ]),
+  }),
+  Object.freeze({
+    // SCR-01 (R121 §2) — EGY ADATKÖR VISSZAVONÁSA A TAGSÁG ÉRINTÉSE NÉLKÜL. A felületen egyetlen
+    // "visszavonás" létezett, és az a TELJES tagságot szüntette meg: a felhasználó szándékához
+    // (egy jog elvétele) a legközelebbi elérhető művelet egy nagyságrenddel tágabb hatású volt
+    // (KUKA-002 a MŰVELETEKEN). A nyers tároló-író hatáskört nem kérdez, ezért BELSŐ marad, és a
+    // felhatalmazott kapu ez a művelet (KUKA-047).
+    id: 'P-SCR-partial-revocation', assertion: 'R121-SCR-01-one-scope-withdrawn-without-touching-membership',
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-SCR-four-scopes-from-the-declaration-without-data',
+        contract: 'SCR-01', contract_version: VERSION_R121 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-SCR-one-scope-withdrawn-membership-and-others-intact',
+        contract: 'SCR-01', contract_version: VERSION_R121 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-SCR-unauthorised-member-writes-nothing-not-even-own-row',
+        contract: 'SCR-01', contract_version: VERSION_R121 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-SCR-named-and-write-free-refusals',
+        contract: 'SCR-01', contract_version: VERSION_R121 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-SCR-repeat-is-idempotent-in-business-terms',
+        contract: 'SCR-01', contract_version: VERSION_R121 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-SCR-history-kept-and-regrant-works',
+        contract: 'SCR-01', contract_version: VERSION_R121 }),
+      Object.freeze({ clause: 'K05-DSC-c', assertion: 'A-SCR-old-startup-rule-does-not-widen',
+        contract: 'SCR-01', contract_version: VERSION_R121 }),
     ]),
   }),
   Object.freeze({

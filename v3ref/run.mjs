@@ -24,7 +24,7 @@ import { ADJUDICATION_OPS, adjudicationRightAt, grantAdjudicationAuthority, subm
 import { suspensionEffectiveAt } from './suspension.mjs';
 import { issueBan, imposeBan, banEffectiveAt, banReaches, kindForCause, KNOWN_BAN_KINDS, KNOWN_BAN_CAUSES, operationScopeRef, operationScopeProblem } from './ban.mjs';
 import { executableRightAt } from './authority.mjs';
-import { resultScopesOf, KNOWN_DATA_SCOPES } from './resultScope.mjs';
+import { resultScopesOf, declaredScopesOfType, KNOWN_DATA_SCOPES } from './resultScope.mjs';
 import { measureEntryPointBinding, CONTEXT_AXES, CONTEXT_MODES, ENT_FLOOR } from './entryPoints.mjs';
 import { banMatrix } from './banMatrix.mjs';
 // MCS-2 (KAT-01 · KSZ-01 · BEM-01 · MNY-01) — az ELSŐ D-folyamat tárolási és parancs-rétege.
@@ -51,8 +51,8 @@ import { scopeReleaseDecision, recordedScopeLimit, RSB_CONTRACT } from './releas
 // SGR-01 (R49) — a TÉNYLEGESEN megadott, adatkörönkénti olvasási jog írója és olvasója.
 import { grantReadScope, revokeReadScope, readScopeGrantAt, SCOPE_GRANT_CONTRACT } from './scopeGrant.mjs';
 import { registerAccount, authenticate, issueChannelChallenge, redeemChannelChallenge, provenEmailOf } from './account.mjs';
-import { createWorkspace, bootstrapOf, workspacesOf, STARTUP_RULE } from './workspace.mjs';
-import { inviteColleague, grantScopeToMember, revokeDelegationsOf, deriveDelegationBasis } from './delegation.mjs';
+import { createWorkspace, bootstrapOf, workspacesOf, STARTUP_RULE, STARTUP_RULE_V1 } from './workspace.mjs';
+import { inviteColleague, grantScopeToMember, revokeScopeFromMember, revokeDelegationsOf, deriveDelegationBasis } from './delegation.mjs';
 import { setEntitlementProfile, entitlementFor, twoGateVerdict } from './entitlement.mjs';
 import { attachBusinessIdentity, identityClaimsMatching, profileFor } from './externalId.mjs';
 
@@ -3242,6 +3242,144 @@ probe('P-DSC-scope-basis', 'R47 · R49 · K05-DSC-c · ORG-N1a · ORG-N1b · REV
     } finally { w.store.close(); }
   });
 
+probe('P-SCR-partial-revocation', 'SCR-01 · R121 §1–§3 · K05-DSC-c · ORG-N1b · KUKA-002 · KUKA-047 · KUKA-129',
+  'EGY ADATKÖR VISSZAVONÁSA A TAGSÁG ÉRINTÉSE NÉLKÜL — négy kapuval, és a régi szabály nem bővül',
+  () => {
+    // A LELET, AMIT EZ VÉD (R121 §2). A felületen EGYETLEN "visszavonás" létezett: a TELJES tagságot
+    // szüntette meg. Ha a kezelő csak az árat akarta elvenni, a legközelebbi elérhető művelet egy
+    // nagyságrenddel tágabb hatású volt — két különböző szándék EGY gombon (KUKA-002).
+    //
+    // ÉS A MÁSIK IRÁNY: a nyers tároló-író (revokeReadScope) hatáskört NEM kérdez. Ha egy publikus
+    // út közvetlenül azt hívná, az a "bárki megvonhatná" alakja lenne (KUKA-047). Ezért a nyers
+    // író BELSŐ marad, és a felhatalmazott kapu a revokeScopeFromMember.
+    const T = { d0: '2026-03-01T00:00:00.000Z', d1: '2026-03-02T00:00:00.000Z', d2: '2026-03-03T00:00:00.000Z', d3: '2026-03-04T00:00:00.000Z' };
+    const clock = (t) => ({ now: () => t });
+    const store = openStore();
+    try {
+      const person = (id, email, at) => {
+        const r = registerAccount({ store, subjectId: id, email, secret: `${id}-jelszo-1`, at });
+        if (!r.ok) throw new Error(`fixtúra: ${id} regisztráció — ${r.reason}`);
+        const c = issueChannelChallenge({ store, subjectId: id, value: email, token: `tok_${id}_${'q'.repeat(14)}`, at });
+        redeemChannelChallenge({ store, token: c.token, at });
+      };
+      person('kezelo', 'kezelo@pelda.hu', T.d0);
+      person('munkatars', 'munkatars@pelda.hu', T.d0);
+      person('kivulallo', 'kivulallo@pelda.hu', T.d0);
+      const ws = createWorkspace({ store, creatorSubjectId: 'kezelo', bookId: 'ceg', name: 'Cég Kft', at: T.d0 });
+      // MÁSODIK KÖNYV — hogy a "nem szivárog át" állítás MÉRHETŐ legyen, ne csak remélt.
+      const ws2 = createWorkspace({ store, creatorSubjectId: 'kivulallo', bookId: 'masik', name: 'Másik Kft', at: T.d0 });
+
+      const inv = inviteColleague({ store, inviterSubjectId: 'kezelo', bookId: 'ceg', inviteeEmail: 'munkatars@pelda.hu',
+        offeredRole: 'user', scope: 'keszlet', token: 'tok_munkatars_inv', expiresAt: '2026-12-31T00:00:00.000Z', at: T.d1 });
+      const rd = redeemInvite({ store, token: 'tok_munkatars_inv', actingSubjectId: 'munkatars', clock: clock(T.d1) });
+
+      const all = (sub, book, at) => Object.fromEntries(KNOWN_DATA_SCOPES.map((s) =>
+        [s, readScopeGrantAt({ store, subjectId: sub, bookId: book, scope: s, validAt: at, knownAt: at }).granted === true]));
+      const revRows = () => Number(store.get('SELECT COUNT(*) AS n FROM scope_grant_revocation').n);
+
+      // (a) A NÉGY KÖR A DEKLARÁCIÓBÓL — ADAT NÉLKÜL. A tiszta minták EGY-EGY kört kívánnak, a
+      //     vegyes MIND A NÉGYET; az ismeretlen típus NEM "korlátozás nélküli", hanem ZÁR.
+      const dHeader = declaredScopesOfType({ type: 'doc.header', typeVersion: '1' });
+      const dSupp = declaredScopesOfType({ type: 'supplier.card', typeVersion: '1' });
+      const dFull = declaredScopesOfType({ type: 'doc.full', typeVersion: '1' });
+      const dUnknown = declaredScopesOfType({ type: 'nincs.ilyen', typeVersion: '1' });
+      const aOk = KNOWN_DATA_SCOPES.length === 4
+        && dHeader.ok && dHeader.scopes.join(',') === 'dokumentumok'
+        && dSupp.ok && dSupp.scopes.join(',') === 'beszallitok'
+        && dFull.ok && dFull.scopes.join(',') === 'arak,beszallitok,dokumentumok,keszlet'
+        && dUnknown.ok === false && dUnknown.reason === 'result_scope_type_undeclared';
+
+      // (b) A JOGOSULT KEZELŐ MIND A NÉGY KÖRT MEGADJA (a v2 indulás plafonja ennyi).
+      const grants = KNOWN_DATA_SCOPES.map((s) => grantScopeToMember({
+        store, granterSubjectId: 'kezelo', bookId: 'ceg', targetSubjectId: 'munkatars', scope: s, at: T.d1 }));
+      const negyMegvan = Object.values(all('munkatars', 'ceg', T.d2)).every((x) => x === true);
+
+      // (c) EGY KÖR VISSZAVONÁSA — és ami KÖZBEN NEM változik.
+      const elotteRev = revRows();
+      const rev = revokeScopeFromMember({ store, clock: clock(T.d2), revokerSubjectId: 'kezelo',
+        bookId: 'ceg', targetSubjectId: 'munkatars', scope: 'arak' });
+      const utana = all('munkatars', 'ceg', T.d2);
+      const tagsag = membershipAsOf({ store, subjectId: 'munkatars', bookId: 'ceg', validAt: T.d2, knownAt: T.d2 });
+      const kezeloJogai = all('kezelo', 'ceg', T.d2);
+      const cOk = rev.ok === true && rev.changed === true && rev.scope === 'arak'
+        && utana.arak === false && utana.keszlet === true && utana.dokumentumok === true && utana.beszallitok === true
+        && tagsag.effective === true
+        && Object.values(kezeloJogai).every((x) => x === true)
+        && revRows() === elotteRev + 1;
+
+      // (d) A JOGOSULATLAN TAG SEMMIT NEM ÍR — SAJÁT MAGÁNAK SEM.
+      const idegen = revokeScopeFromMember({ store, clock: clock(T.d2), revokerSubjectId: 'munkatars',
+        bookId: 'ceg', targetSubjectId: 'kezelo', scope: 'keszlet' });
+      const sajat = revokeScopeFromMember({ store, clock: clock(T.d2), revokerSubjectId: 'munkatars',
+        bookId: 'ceg', targetSubjectId: 'munkatars', scope: 'keszlet' });
+      const dOk = idegen.ok === false && idegen.changed === false
+        && sajat.ok === false && sajat.changed === false
+        && all('munkatars', 'ceg', T.d2).keszlet === true
+        && all('kezelo', 'ceg', T.d2).keszlet === true
+        && revRows() === elotteRev + 1;
+
+      // (e) NEVEZETT, ÍRÁSMENTES ELUTASÍTÁSOK: ismeretlen kör · nem tag · IDEGEN KÖNYV.
+      const ismeretlen = revokeScopeFromMember({ store, clock: clock(T.d2), revokerSubjectId: 'kezelo',
+        bookId: 'ceg', targetSubjectId: 'munkatars', scope: 'penzugy' });
+      const nemTag = revokeScopeFromMember({ store, clock: clock(T.d2), revokerSubjectId: 'kezelo',
+        bookId: 'ceg', targetSubjectId: 'kivulallo', scope: 'keszlet' });
+      const masKonyv = revokeScopeFromMember({ store, clock: clock(T.d2), revokerSubjectId: 'kezelo',
+        bookId: 'masik', targetSubjectId: 'kivulallo', scope: 'keszlet' });
+      const eOk = ismeretlen.reason === 'unknown_data_scope' && ismeretlen.changed === false
+        && nemTag.reason === 'target_not_a_member' && nemTag.changed === false
+        && masKonyv.ok === false && masKonyv.changed === false
+        && all('kivulallo', 'masik', T.d2).keszlet === true
+        && revRows() === elotteRev + 1;
+
+      // (f) ÜZLETI IDEMPOTENCIA: a második visszavonás nem gyárt második üzleti változást.
+      const masodszor = revokeScopeFromMember({ store, clock: clock(T.d2), revokerSubjectId: 'kezelo',
+        bookId: 'ceg', targetSubjectId: 'munkatars', scope: 'arak' });
+      const fOk = masodszor.ok === true && masodszor.changed === false && revRows() === elotteRev + 1;
+
+      // (g) A TÖRTÉNET MEGMARAD, ÉS AZ ÚJRAADÁS MŰKÖDIK. A megvonás ELŐTTI tudás-állapotra a jog
+      //     még ÁLL — a megvonás nem írta át a múltat (R51/F51-01).
+      const multban = readScopeGrantAt({ store, subjectId: 'munkatars', bookId: 'ceg', scope: 'arak', validAt: T.d1, knownAt: T.d1 });
+      const ujra = grantScopeToMember({ store, granterSubjectId: 'kezelo', bookId: 'ceg', targetSubjectId: 'munkatars', scope: 'arak', at: T.d3 });
+      const ujraAll = readScopeGrantAt({ store, subjectId: 'munkatars', bookId: 'ceg', scope: 'arak', validAt: T.d3, knownAt: T.d3 });
+      const gOk = multban.granted === true && ujra.ok === true && ujraAll.granted === true;
+
+      // (h) A RÉGI SZABÁLY NEM BŐVÜL. A v1 KÉT kört jelentett, és mindig azt fogja.
+      const hOk = STARTUP_RULE_V1.scopes.join(',') === 'keszlet,arak'
+        && STARTUP_RULE.version === 'v2' && STARTUP_RULE.scopes.length === 4
+        && ws.ok === true && ws.rule_version === 'v2' && ws2.ok === true;
+
+      return {
+        expected: 'a négy adatkör a TÍPUS deklarációjából oldható fel adat nélkül; a jogosult kezelő EGY kört '
+          + 'úgy von vissza, hogy a tagság, a szerep, a többi kör, a másik ember és a másik könyv változatlan; '
+          + 'a jogosulatlan tag SEMMIT nem ír — a saját sorára sem; az ismeretlen kör, a nem tag és az idegen '
+          + 'könyv NEVEZETTEN és ÍRÁSMENTESEN zár; az ismételt visszavonás nem gyárt második üzleti változást; '
+          + 'a megvonás előtti tudás-állapot a jogot MÉG ÁLLÓNAK látja és az újraadás működik; a v1 indulási '
+          + 'szabály két köre RÖGZÍTETT marad',
+        actual: `(a) besorolás: fejléc=${dHeader.scopes.join('+')} beszállító=${dSupp.scopes.join('+')} `
+          + `vegyes=${dFull.scopes.length} kör · ismeretlen=${dUnknown.reason} · (b) négy megadva=${negyMegvan} `
+          + `(${grants.filter((g) => g.ok).length}/4) · (c) visszavonás=${rev.ok}/changed=${rev.changed} · `
+          + `arak=${utana.arak} keszlet=${utana.keszlet} dok=${utana.dokumentumok} besz=${utana.beszallitok} · `
+          + `tagság=${tagsag.effective} · (d) idegen=${idegen.reason} saját=${sajat.reason} napló-sor=${revRows()} · `
+          + `(e) ismeretlen=${ismeretlen.reason} nem-tag=${nemTag.reason} más-könyv=${masKonyv.reason} · `
+          + `(f) másodszor=${masodszor.ok}/changed=${masodszor.changed} · (g) múltban=${multban.granted} `
+          + `újraadás=${ujra.ok}→${ujraAll.granted} · (h) v1=${STARTUP_RULE_V1.scopes.join('+')} v2=${STARTUP_RULE.scopes.length} kör`,
+        pass: aOk && cOk && dOk && eOk && fOk && gOk && hOk && rd.ok === true && inv.ok === true,
+        asserts: {
+          'A-SCR-four-scopes-from-the-declaration-without-data': aOk,
+          'A-SCR-one-scope-withdrawn-membership-and-others-intact': cOk,
+          'A-SCR-unauthorised-member-writes-nothing-not-even-own-row': dOk,
+          'A-SCR-named-and-write-free-refusals': eOk,
+          'A-SCR-repeat-is-idempotent-in-business-terms': fOk,
+          'A-SCR-history-kept-and-regrant-works': gOk,
+          'A-SCR-old-startup-rule-does-not-widen': hOk,
+          // A FIXTÚRA ÉPSÉGE NEM NORMA-ÁLLÍTÁS, ezért NEM kiadott állítás (a bizonyíték-kötést a
+          // manifest mindkét irányban méri — KUKA-039). Kapuként viszont a `pass`-ban benne van:
+          // ha a fixtúra nem épült fel, a próba NEM mondhatja magát zöldnek.
+        },
+      };
+    } finally { store.close(); }
+  });
+
 probe('P-DSC-scope-grant-history', 'R51/F51-01 · K05-DSC-c · K09 · REV-N2a · KUKA-002 · KUKA-124',
   'A JOG MEGADÁSA ÉS MEGVONÁSA UGYANAZON A KÉT IDŐ-TENGELYEN — a későbbi tudás nem írja át a korábbit',
   () => {
@@ -3454,7 +3592,9 @@ probe('P-CORE-startup-and-delegation', 'R63 §4 · §5.2 · §5.3 · K02 · K03 
       };
 
       // (a) A SAJÁT MUNKAKÖRNYEZET: bizonyítatlan csatornával NEM indul; bizonyítottal EGY tranzakcióban
-      //     születik a könyv, az indulási alap (v1), az admin tagság, a helyi alter_right és az adatköri jog.
+      //     születik a könyv, az indulási alap (a MAI szabályverzió), az admin tagság, a helyi alter_right
+      //     és az adatköri jog. R121: az új munkakörnyezet a NÉGYKÖRÖS v2 szabállyal születik, a v1
+      //     jelentése viszont RÖGZÍTETT marad — a kettőt egyszerre mérjük.
       const anna = person('anna', 'anna@pelda.hu', T.d0);
       const unproven = createWorkspace({ store, creatorSubjectId: 'anna', bookId: 'csalad', name: 'Családi Kft', at: T.d0 });
       anna.redeem();
@@ -3469,7 +3609,12 @@ probe('P-CORE-startup-and-delegation', 'R63 §4 · §5.2 · §5.3 · K02 · K03 
         && ws.ok === true && ws.basis_id === 'startup-rule:csalad' && ws.rule_version === STARTUP_RULE.version
         && boot && boot.creator_subject_id === 'anna' && Number(boot.grant_event_id) === Number(ws.grant_event_id)
         && startup.in_effect === true && startup.issuer_subject === 'anna'
-        && /startup-rule:v1/.test(startup.evidence_ref) && /channel=email:anna@pelda.hu:proven/.test(startup.evidence_ref)
+        && new RegExp(`startup-rule:${STARTUP_RULE.version}`).test(startup.evidence_ref)
+        && /channel=email:anna@pelda.hu:proven/.test(startup.evidence_ref)
+        // R121 — A RÉGI SZABÁLY NEM BŐVÜLHET VISSZAMENŐLEG. Ha valaki a v1 listáját a zárt szótárból
+        // képezné újra, ez a sor azonnal piros: a v1 KÉT kört jelentett, és mindig azt fogja.
+        && STARTUP_RULE_V1.scopes.join(',') === 'keszlet,arak'
+        && STARTUP_RULE.version === 'v2' && STARTUP_RULE.scopes.length === 4
         && annaRight.allowed === true && annaRight.detail && annaRight.detail.role === 'admin'
         && annaAlter.allowed === true
         && annaAdjudicate.allowed === false && annaAdjudicate.reason === 'authority_not_established'
@@ -3640,13 +3785,17 @@ probe('P-CORE-startup-and-delegation', 'R63 §4 · §5.2 · §5.3 · K02 · K03 
 
       const pass = aOk && bOk && cOk && dOk && eOk && fOk && gOk;
       return {
-        expected: 'bizonyított csatorna nélkül nincs munkakörnyezet; a saját indulás alapja v1, a helyi admin '
+        expected: 'bizonyított csatorna nélkül nincs munkakörnyezet; a saját indulás a MAI (v2, négykörös) '
+          + 'szabályverzióval születik, miközben a v1 rögzített két köre változatlan marad; a helyi admin '
           + 'alter_right-ot kap, adjudicate-et nem · a meghívó alapja a továbbadható jogból képződik, plafonnal, '
           + 'adatkör nélkül és ismeretlen szereppel nyom nélkül elakad · a beváltás tagságot ad, adatot csak a '
           + 'jogosult kezelő KÜLÖN lépése · a megvont admin delegálási alapja is megszűnik, a függő meghívó elakad, '
           + 'a többiek joga marad · bírálói önfeljogosítás nyom nélkül elutasítva · az azonosító és az előfizetés '
           + 'két külön tény, egyik sem ad jogot, és a válasz megmondja, melyik kapu zárt',
-        actual: `(a) csatorna nélkül=${unproven.reason} · munkakör=${ws.ok}/${ws.basis_id}@v${ws.basis_version} · alter_right=${annaAlter.allowed} adjudicate=${annaAdjudicate.reason}`
+        actual: `(a) csatorna nélkül=${unproven.reason} · munkakör=${ws.ok}/${ws.basis_id}@v${ws.basis_version} `
+          + `· szabályverzió=${ws.rule_version} (v1 rögzített köre: ${STARTUP_RULE_V1.scopes.join('+')} · `
+          + `v2 köre: ${STARTUP_RULE.scopes.join('+')}) · anna négy köre=${annaScopes.filter(Boolean).length}/4 `
+          + `· alter_right=${annaAlter.allowed} adjudicate=${annaAdjudicate.reason}`
           + ` · (b) adatkör nélkül=${noScope.reason} · rossz szerep=${badRole.reason} · meghívó=${inv.ok}/${inv.basis_id} · nyom=${inviteRows.join(',')}`
           + ` · (c) megfigyelés=${obsBefore.status}→${obsAfter.status} · beváltás=${red.shape}/jog=${red.read_scope_granted} · keszlet előtte=${belaStockBefore.reason} utána=${belaStock.allowed} · arak=${belaPrice.reason} · ismét=${again.ok}`
           + ` · (d) megvonás=${revoke.reason} · delegálás=${delegRevoked.reason} · cili=${ciliAfter.reason} · dániel=${danielRed.reason} · dániel megfigyelés=${danielObs.status}/${danielObs.reason} · béla=${belaAfter.allowed} · zsófi (visszavont alap, élő admin)=${zsofiRed.error}/${zsofiRed.reason} · új alap v${inv2.basis_version}=${zsofiRed2.ok}`

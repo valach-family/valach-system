@@ -97,9 +97,8 @@ test('R79/F79-02 — a régi lap gombja NEM ír a közben belépett MÁSIK fiók
     // R81: a jogosultság a tag JOBB OLDALI PANELJÉN kezelhető — a panelt a RÉGI (Anna-beli)
     // nézetben nyitjuk meg, tehát a gomb ugyanúgy „ottfelejtett gomb" marad, mint a leletben.
     await openMemberPanel(anna.page, cili.subjectId);
-    await anna.page.getByTestId(`member-scope-select-${cili.subjectId}`).selectOption('arak');
     const forced = await withResponse(anna.page, { path: '/api/members/scope' },
-      () => anna.page.getByTestId(`member-scope-${cili.subjectId}`).click());
+      () => anna.page.getByTestId(`member-scope-grant-${cili.subjectId}-arak`).click());
     expect(forced.status).toBe(409);
     expect(forced.body.reason).toBe('context_mismatch');
     expect(forced.body.expected_subject_id).toBe(anna.subjectId);
@@ -117,9 +116,8 @@ test('R79/F79-02 — a régi lap gombja NEM ír a közben belépett MÁSIK fiók
     await anna.page.reload();
     await gotoPage(anna.page, 'members');
     await openMemberPanel(anna.page, cili.subjectId);
-    await anna.page.getByTestId(`member-scope-select-${cili.subjectId}`).selectOption('arak');
     const jo = await withResponse(anna.page, { path: '/api/members/scope' },
-      () => anna.page.getByTestId(`member-scope-${cili.subjectId}`).click());
+      () => anna.page.getByTestId(`member-scope-grant-${cili.subjectId}-arak`).click());
     expect(jo.status).toBe(200);
     expect(jo.body.ok).toBe(true);
     expect(jo.body.served_subject_id).toBe(bela.subjectId);

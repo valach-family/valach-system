@@ -14,6 +14,7 @@ import {
   memberRowText, workspaceListUI, sessionCookie, short, openSwitcher, gotoPage, openMemberPanel,
 } from './helpers.mjs';
 import { dictFor } from '../../v3app/public/i18n/dict.mjs';
+import { STARTUP_RULE } from '../../v3ref/workspace.mjs';
 
 // A MONDATOK A NYELVCSOMAGBÓL (R112 · KUKA-237): a próba a viselkedést méri, nem a megfogalmazást.
 const HU = dictFor('hu');
@@ -136,7 +137,11 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     expect(db.count('SELECT COUNT(*) AS n FROM business_identity WHERE book_id = ?', companyBook)).toBe(1);
     expect(db.get('SELECT kind FROM subject WHERE id = ?', anna.subjectId).kind).toBe('person');
     expect(db.get('SELECT kind FROM subject WHERE id = ?', `ent_${companyBook}`).kind).toBe('legal_entity');
-    expect(db.get('SELECT rule_version FROM workspace_bootstrap WHERE book_id = ?', companyBook).rule_version).toBe('v1');
+    // R121 ÓTA A MAI INDULÁSI SZABÁLY A v2 (négy adatkör). A tárolt verzió a MAG egyetlen
+    // forrásából mérve — a régi „v1" állítás a szótár bővülésével elavult (D-VS-519: a szöveg a
+    // valóságot követi). A v1 JELENTÉSÉT a `P-SCR-partial-revocation` magpróba őrzi.
+    expect(db.get('SELECT rule_version FROM workspace_bootstrap WHERE book_id = ?', companyBook).rule_version)
+      .toBe(STARTUP_RULE.version);
   });
 
   test('5. Béla és Cili már regisztrált, megerősített, belépett fiók (saját böngészőben)', async () => {
@@ -347,7 +352,7 @@ test.describe('R63 magfolyam a böngészőben — Anna · Béla · Cili · Dani 
     // helyette a helyzet mondata. A „letiltott gomb" ugyanis felkínálja azt, ami nem tehető meg.
     await openMemberPanel(anna.page, bela.subjectId);
     expect(await anna.page.getByTestId(`member-revoke-${bela.subjectId}`).count()).toBe(0);
-    expect(await anna.page.getByTestId(`member-scope-${bela.subjectId}`).count()).toBe(0);
+    expect(await anna.page.locator(`[data-testid^="member-scope-grant-${bela.subjectId}-"]`).count()).toBe(0);
     await expect(anna.page.getByTestId('panel-body')).toContainText('megszűnt a hozzáférése ehhez a fiókhoz');
     await anna.page.locator('[data-action="panel-close"]').last().click();
     // R81: a RÉGI lapon a „Frissítés" ELŐBB a nézetet igazítja a szerverhez (R77/F77-01) — és mivel

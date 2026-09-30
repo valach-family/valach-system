@@ -27,11 +27,11 @@ import {
   reissueChannelChallenge, subjectByEmail, CHALLENGE_POLICY,
 } from '../v3ref/account.mjs';
 import { bootstrapOf, workspacesOf, ensurePersonalSpace, personalSpaceOf, provisionWorkspace } from '../v3ref/workspace.mjs';
-import { inviteColleague, grantScopeToMember, revokeDelegationsOf } from '../v3ref/delegation.mjs';
+import { inviteColleague, grantScopeToMember, revokeScopeFromMember, revokeDelegationsOf, deriveDelegationBasis } from '../v3ref/delegation.mjs';
 import { observeInvite, redeemInvite, rememberIntent, resumeIntent } from '../v3ref/invite.mjs';
 import { rightAt, revokeMembership, KNOWN_ROLES } from '../v3ref/authz.mjs';
 import { submitCommand, readCommandResult } from '../v3ref/command.mjs';
-import { KNOWN_DATA_SCOPES } from '../v3ref/resultScope.mjs';
+import { KNOWN_DATA_SCOPES, declaredScopesOfType } from '../v3ref/resultScope.mjs';
 import { scopeReleaseDecision } from '../v3ref/releaseScope.mjs';
 import { entitlementFor, twoGateVerdict, setEntitlementProfile, PLANS } from '../v3ref/entitlement.mjs';
 import { businessIdentityOf, businessIdentityProblem, JURISDICTION_PROFILES } from '../v3ref/externalId.mjs';
@@ -361,11 +361,46 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
     };
   }
 
-  /** A KÉT SZINTETIKUS MINTA-REKORD — minden könyv ugyanazt kapja (a jelöltsége kimondott). */
+  /**
+   * AZ ÖT SZINTETIKUS MINTA-REKORD — minden könyv ugyanazt kapja (a jelöltsége kimondott).
+   *
+   * R121 — NÉGY TISZTA MINTA + EGY VEGYES. A négy tiszta minta EGY-EGY adatkört érint, tehát
+   * mindegyik új joghoz van saját POZITÍV és NEGATÍV párja (A121-02). Az ötödik, VEGYES minta
+   * mind a négy kört érinti egyszerre — ez mutatja meg, hogy EGYETLEN hiányzó jog az EGÉSZ
+   * dokumentumot zárja (A121-03).
+   *
+   * A FEJLÉC TISZTA (R121 §1): a `doc.header` mintában nincs összeg, beszállítónév, URL, sem
+   * ezeket kódoló megjelenítési szöveg — a séma nem is ismerne ilyen mezőt.
+   *
+   * SZINTETIKUS, ÉS EZT KIMONDJUK: ezek nem valódi üzleti rekordok. Üzleti mintatartalom nem
+   * kerül a minden böngészőnek kiküldött csomagba — az adatot az ENGEDÉLYEZETT szerverválasz adja.
+   */
   function seedSamples(bookId, actorSubjectId) {
+    const cmd = (idemKey, type, resolve) => submitCommand({
+      store, idemKey, actor: actorSubjectId, bookId, type, typeVersion: '1',
+      declared: { qty: '12' }, resolve, clock,
+    });
     return {
-      stock: submitCommand({ store, idemKey: 'minta-keszlet', actor: actorSubjectId, bookId, type: 'stock.receipt', typeVersion: '1', declared: { qty: '12' }, resolve: () => ({ qty: '12' }), clock }),
-      price: submitCommand({ store, idemKey: 'minta-ar', actor: actorSubjectId, bookId, type: 'stock.receipt', typeVersion: '1', declared: { qty: '12' }, resolve: () => ({ qty: '12', unit_price: 3490 }), clock }),
+      stock: cmd('minta-keszlet', 'stock.receipt', () => ({ qty: '12' })),
+      price: cmd('minta-ar', 'stock.receipt', () => ({ qty: '12', unit_price: 3490 })),
+      document: cmd('minta-dokumentum', 'doc.header', () => ({
+        doc_id: 'BEJ-2026-0042', doc_kind: 'bejovo_szamla',
+        doc_date: '2026-09-30', doc_status: 'konyvelt',
+      })),
+      supplier: cmd('minta-beszallito', 'supplier.card', () => ({
+        supplier_id: 'BSZ-0007', supplier_name: 'Példa Beszállító Kft.',
+        supplier_contact: 'kapcsolat@pelda-beszallito.hu',
+      })),
+      documentFull: cmd('minta-dokumentum-teljes', 'doc.full', () => ({
+        doc_id: 'BEJ-2026-0042', doc_kind: 'bejovo_szamla',
+        doc_date: '2026-09-30', doc_status: 'konyvelt',
+        amount: 41880, currency: 'HUF',
+        lines: [{ qty: '12', sku: 'CIKK-001', unit_price: 3490 }],
+        supplier: {
+          supplier_id: 'BSZ-0007', supplier_name: 'Példa Beszállító Kft.',
+          supplier_contact: 'kapcsolat@pelda-beszallito.hu',
+        },
+      })),
     };
   }
 
@@ -733,7 +768,30 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
         }
         return { subject_id: row.subject_id, email: emailOf(row.subject_id), role: row.role, effective: m.effective === true, effective_reason: m.reason, scopes };
       });
-      return { status: 200, body: { ok: true, book_id: cur.book_id, ...ctx.served, members, known_scopes: [...KNOWN_DATA_SCOPES], known_roles: [...KNOWN_ROLES] } };
+      // R121 §3 — A PLAFON A FELÜLETEN IS LÁTSZIK, ÉS NEM ÍGÉRÜNK ÁTLÉPHETŐT.
+      //
+      // MIÉRT KELL. Egy RÉGI, v1 szabállyal született munkakörnyezetben a kezelő delegálási
+      // plafonja KÉT kör (keszlet · arak) — a két új kört tehát nem tudja megadni, akárhányszor
+      // kattint. Ha a felület mind a négyre kínálná a "Hozzáférés megadása" gombot, azt ígérné,
+      // hogy egy kattintással átléphető a plafon (KUKA-011 · KUKA-041: a letiltott/hamis gomb
+      // ugyanaz a hiba két irányból). Ezért a szerver KIMONDJA, mi adható MA — és a hiány OKÁT is.
+      //
+      // A LISTA A VALÓDI ALAPBÓL JÖN (`deriveDelegationBasis`), nem a kódbeli szótárból: ez
+      // UGYANAZ a feloldó, amit a megadás és a visszavonás is hív, tehát a felület és a határ nem
+      // tud elcsúszni egymástól (KUKA-039 · KUKA-018).
+      const basis = deriveDelegationBasis({ store, subjectId: session.subject_id, bookId: cur.book_id, at });
+      const grantable = basis.ok && Array.isArray(basis.limit.scopes) ? [...basis.limit.scopes].sort() : [];
+      const blocked = KNOWN_DATA_SCOPES.filter((s) => !grantable.includes(s));
+      return { status: 200, body: {
+        ok: true, book_id: cur.book_id, ...ctx.served, members,
+        known_scopes: [...KNOWN_DATA_SCOPES], known_roles: [...KNOWN_ROLES],
+        grantable_scopes: grantable,
+        blocked_scopes: blocked,
+        grantable_reason: basis.ok ? 'within_delegation_basis' : basis.reason,
+        // A SZABÁLYVERZIÓ NEVEZVE: ebből tudja a felület megmondani, MIÉRT szűkebb a plafon —
+        // "ez a munkakörnyezet még a régi, kétkörös indulási szabállyal született".
+        startup_rule_version: (bootstrapOf({ store, bookId: cur.book_id }) || {}).rule_version ?? null,
+      } };
     },
 
     'POST /api/invites': ({ session, input, body, host, acceptLanguage }) => {
@@ -906,6 +964,40 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
         message: verdict.allowed && r.ok === true ? 'az ár-nézet kiadva' : refusalMessage(),
       } };
     },
+
+    /**
+     * R121 — EGY ADATKÖR VISSZAVONÁSA EGY TAGTÓL, A TAGSÁG ÉRINTÉSE NÉLKÜL.
+     *
+     * KÜLÖN ÚT, KÜLÖN SÉMA, KÜLÖN SZÁNDÉK. A szomszédos `/api/members/revoke` a TELJES tagságot
+     * szünteti meg — a kettőt nem szabad egy végpontra vonni, mert a felhasználó szándéka is két
+     * külön dolog (KUKA-002). A cselekvő és a könyv a SZERVERES munkamenetből jön, nem a törzsből:
+     * amit a böngésző küld, az állítás, nem felhatalmazás (KUKA-121 · KUKA-217).
+     *
+     * A hatáskör-, tagság-, plafon- és célfiók-ellenőrzés a domain-műveletben, a VÉGLEGESÍTÉSI
+     * ponton fut (SCR-01) — ez a réteg csak a határt őrzi és a nyugtát adja vissza.
+     */
+    'POST /api/members/scope/revoke': ({ session, input, body }) => {
+      if (!session.subject_id) return loginRequired();
+      const cur = currentBookOf(session);
+      if (!cur.book_id) return workspaceRequired(cur);
+      const ctx = contextGate(body, session, cur.book_id);
+      if (!ctx.ok) return { status: ctx.status, body: ctx.body };
+      const r = revokeScopeFromMember({
+        store, clock, revokerSubjectId: session.subject_id, bookId: cur.book_id,
+        targetSubjectId: String(input.subject_id).trim(), scope: input.scope,
+      });
+      return { status: r.ok ? 200 : 403, body: { ...r, ...ctx.served } };
+    },
+
+    // ── R121: A DEKLARÁCIÓBÓL VEZÉRELT MINTANÉZETEK ──────────────────────────────────────────
+    'GET /api/data/document': ({ session, query }) =>
+      declaredSampleRoute({ session, query, idemKey: 'minta-dokumentum', type: 'doc.header', feature: 'document_view' }),
+
+    'GET /api/data/supplier': ({ session, query }) =>
+      declaredSampleRoute({ session, query, idemKey: 'minta-beszallito', type: 'supplier.card', feature: 'supplier_view' }),
+
+    'GET /api/data/document-full': ({ session, query }) =>
+      declaredSampleRoute({ session, query, idemKey: 'minta-dokumentum-teljes', type: 'doc.full', feature: 'document_view' }),
 
     // ── A SEGÉD (AST-01/02/03, R89 §6) ───────────────────────────────────────────────────────
     /**
@@ -1205,6 +1297,70 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
   };
 
   /** A minta-rekord kiadása: a kérő a munkamenet alanya, a cselekvő a könyv LÉTREHOZÓJA. */
+  /**
+   * R121 — EGY MINTANÉZET KIADÁSA, A TÍPUS DEKLARÁCIÓJA SZERINT.
+   *
+   * A SORREND ITT SZERZŐDÉS, NEM STÍLUS (az R64/H11 lelet alakja): a KÉT KAPU ELŐBB dönt, és a
+   * tényleges olvasás CSAK utána indul. A régi ár-úton a minta kiolvasása megelőzte az
+   * előfizetés-kérdést, ezért egy elutasított kérés is KIADÁSI nyomot hagyott a leltárban.
+   *
+   * A SZÜKSÉGES JOGOK A SÉMÁBÓL JÖNNEK (`declaredScopesOfType`), nem egy itt karbantartott
+   * listából — így a végpont nem tud elcsúszni a magtól (KUKA-039). Ezért adjuk vissza a
+   * `required_scopes` és `missing_scopes` mezőt is: a felület ebből mondja meg a kezelőnek,
+   * PONTOSAN melyik jog hiányzik — a nemleges válasz vigye a működő folytatást (KUKA-201).
+   *
+   * A VEGYES MINTA EGÉSZBEN ZÁR: a `missing_scopes` akár egyetlen eleme elég hozzá. Ez nem
+   * védelmi szigor, hanem a mag szerződése — szabályos mezővetítés ma nincs megépítve (DSC-01).
+   */
+  function declaredSampleRoute({ session, query, idemKey, type, feature }) {
+    if (!session.subject_id) return loginRequired();
+    const cur = currentBookOf(session);
+    const ctx = readContextGate(query, session, cur.book_id);
+    if (!ctx.ok) return { status: ctx.status, body: ctx.body };
+    const need = declaredScopesOfType({ type, typeVersion: '1' });
+    if (!need.ok) {
+      // A BE NEM SOROLT TÍPUS NEM "korlátozás nélküli" — zár, megnevezve (KUKA-124/2).
+      return { status: 200, body: { ok: false, result: null, refused_by: 'right', reason: need.reason,
+        required_scopes: [], missing_scopes: [], ...ctx.served, message: need.message } };
+    }
+    if (!cur.book_id) {
+      return { status: 200, body: { ok: false, result: null, refused_by: 'right', reason: cur.reason,
+        right_reason: cur.reason, entitlement_reason: null, required_scopes: [...need.scopes], missing_scopes: [],
+        ...ctx.served, message: 'nincs hatályos tagságod a kiválasztott munkakörnyezetben' } };
+    }
+    const at = clock.now();
+    const missing = [];
+    for (const scope of need.scopes) {
+      const d = scopeReleaseDecision({ store, subjectId: session.subject_id, bookId: cur.book_id, scope, nowIso: at, knownAt: at });
+      if (d.allowed !== true) missing.push({ scope, reason: d.reason === 'no_scope_grant' ? 'not_available' : d.reason });
+    }
+    const entitlement = entitlementFor({ store, bookId: cur.book_id, feature });
+    const verdict = twoGateVerdict({
+      right: { allowed: missing.length === 0, reason: missing.length ? missing[0].reason : null },
+      entitlement,
+    });
+    const r = verdict.allowed ? readSample(cur.book_id, session.subject_id, idemKey) : { ok: false, result: null, message: null };
+    const refusalMessage = () => {
+      const names = missing.map((x) => x.scope).join(', ');
+      if (verdict.refused_by === 'entitlement') return `ez a nézet nincs a mai terv (${entitlement.plan ?? '—'}) képességei között — az előfizetés-kapu zárt, a jogod megvan`;
+      if (verdict.refused_by === 'right') return `hiányzó adatkör: ${names} — ezt a munkakörnyezet kezelője adja meg külön lépésben`;
+      if (verdict.refused_by === 'both') return `két kapu is zárt: hiányzó adatkör (${names}), és a mai terv sem tartalmazza ezt a nézetet`;
+      return r.message ?? null;
+    };
+    return { status: 200, body: {
+      ok: verdict.allowed && r.ok === true,
+      result: verdict.allowed && r.ok ? r.result : null,
+      refused_by: verdict.refused_by,
+      right_reason: verdict.allowed ? null : verdict.right_reason,
+      entitlement_reason: verdict.allowed ? null : verdict.entitlement_reason,
+      entitlement: { available: entitlement.available, reason: entitlement.reason, plan: entitlement.plan },
+      required_scopes: [...need.scopes],
+      missing_scopes: missing.map((x) => x.scope),
+      ...ctx.served,
+      message: verdict.allowed && r.ok === true ? 'a mintanézet kiadva' : refusalMessage(),
+    } };
+  }
+
   function readSample(bookId, requester, idemKey) {
     const boot = bootstrapOf({ store, bookId });
     if (!boot) return { ok: false, error: 'no_bootstrap', message: 'ehhez a könyvhöz nincs indulási tény' };

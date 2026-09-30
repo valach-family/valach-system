@@ -52,8 +52,8 @@ export const NAV = Object.freeze({
 });
 
 export const ROLE = Object.freeze({ user: 'Tag', admin: 'Fiókkezelő' });
-export const SCOPE = Object.freeze({ keszlet: 'Készletadatok', arak: 'Árak' });
-export const SCOPE_ACC = Object.freeze({ keszlet: 'a készletadatokat', arak: 'az árakat' });
+export const SCOPE = Object.freeze({ keszlet: 'Készletadatok', arak: 'Árak', dokumentumok: 'Üzleti dokumentumok', beszallitok: 'Beszállítói adatok' });
+export const SCOPE_ACC = Object.freeze({ keszlet: 'a készletadatokat', arak: 'az árakat', dokumentumok: 'az üzleti dokumentumokat', beszallitok: 'a beszállítói adatokat' });
 export const PLAN = Object.freeze({ starter: 'Alap', pro: 'Bővített' });
 export const QUALITY = Object.freeze({ mert: 'Mért', becsult: 'Becsült', ismeretlen: 'Nem ismert' });
 
@@ -72,6 +72,9 @@ export const TPL = Object.freeze({
   accountSwitchedElsewhere: 'Egy másik böngészőfülön fiókváltás történt. Most ez a fiók van megnyitva: {nev}',
   scopeOnlyHere: 'Az engedély ehhez a fiókhoz tartozik: {nev}',
   memberCanSee: '{ki} mostantól megtekintheti {mit}.',
+  sampleNeeds: 'Ehhez a nézethez ezek a hozzáférések kellenek: {korok}.',
+  sampleMissing: 'Hiányzó hozzáférés: {korok}. Ezt a fiók kezelője adja meg.',
+  scopeRevoked: 'A hozzáférést visszavontuk: {ki} mostantól nem látja {mit}.',
   memberRevoked: '{ki} hozzáférése megszűnt ehhez a fiókhoz: {nev}',
   memberAccessTitle: '{ki} hozzáférése',
   revokeTitle: 'Megszünteted {ki} hozzáférését?',
@@ -376,6 +379,19 @@ export const UI = Object.freeze({
   resendTitle: 'Új megerősítő levél',
   resendLead: 'Add meg a regisztrációnál használt e-mail-címedet.',
   resendSubmit: 'Levél kérése',
+  sampleBadge: 'Mintaadatok',
+  sampleDocTitle: 'Bizonylat-minta',
+  sampleMixedTitle: 'Vegyes bizonylat-minta',
+  sampleSupplierTitle: 'Beszállítói minta',
+  sampleLead: 'Ez a szakasz a szerverről kért, jelölt mintaadat — a jogosultságot valódi szerveroldali ellenőrzés dönti el.',
+  sampleMixedNote: 'A vegyes bizonylat egyetlen hiányzó hozzáférés esetén is egészben zárva marad.',
+  sampleOpen: 'Minta lekérése',
+  scopeRevoke: 'Hozzáférés visszavonása',
+  scopeGrant: 'Hozzáférés megadása',
+  scopeBlocked: 'Ebben a fiókban nem adható meg',
+  scopeBlockedLead: 'Ez a fiók a korábbi, kétféle hozzáférést adó indulási szabállyal jött létre, ezért a két újabb hozzáférés itt nem adható meg. Ehhez új fiók kell; a meglévő fiókok változatlanul működnek.',
+  scopeUnchanged: 'Ez a hozzáférés amúgy sem volt megadva — nem változott semmi.',
+  resendWaitHint: 'Két levélkérés között várj legalább egy percet. Ha több levelet kaptál, a legutóbbi hivatkozását használd.',
   backToLogin: 'Vissza a belépéshez',
   resendInProgress: 'Levélkérés folyamatban…',
   checkMailTitle: 'Nézd meg a Próbaüzeneteket',
@@ -828,6 +844,43 @@ export const KB = Object.freeze({
       uncertain: 'Nem tudjuk biztosan, mentve lett-e. A lista megmutatja a mai állapotot.',
     }),
   }),
+  'members.scopeRevoke': Object.freeze({
+    title: 'Egy hozzáférés visszavonása',
+    purpose: 'Elveszed egy tagtól az egyik hozzáférést úgy, hogy a tagsága és a többi hozzáférése megmarad.',
+    prereq: 'Fiókkezelői jogosultság, és a tag hozzáférése legyen aktív.',
+    result: 'Csak az a hozzáférés szűnik meg. A tag ettől még tagja marad a fióknak, és a többi adatot változatlanul látja.',
+    outcomes: Object.freeze({
+      success: 'A hozzáférést visszavontuk.',
+      refused: 'Nincs hatásköröd ehhez, vagy a tag már nem aktív.',
+      uncertain: 'Nem tudjuk biztosan, mentve lett-e. A lista megmutatja a mai állapotot.',
+    }),
+  }),
+  'data.documentSample': Object.freeze({
+    title: 'Bizonylat-minta megnyitása',
+    purpose: 'Megnézed a jelölt bizonylat-mintát: a fejlécet, és külön a vegyes mintát, amelyben összeg és beszállító is szerepel.',
+    prereq: 'Az üzleti dokumentumok hozzáférés; a vegyes mintához az árak és a beszállítói adatok is kellenek.',
+    result: 'A fejléc önmagában nem tartalmaz összeget és beszállítót. A vegyes minta egyetlen hiányzó hozzáférés esetén is egészben zárva marad.',
+    outcomes: Object.freeze({
+      success: 'A minta megjelent.',
+      missing: 'Ehhez a nézethez még nincs adat.',
+      missing: 'Ehhez a nézethez még nincs adat.',
+      refused: 'Hiányzik legalább egy hozzáférés; a képernyő megnevezi, melyik.',
+      error: 'A mintát nem sikerült betölteni.',
+    }),
+  }),
+  'data.supplierSample': Object.freeze({
+    title: 'Beszállítói minta megnyitása',
+    purpose: 'Megnézed a jelölt beszállítói mintát: az azonosítót, a nevet és a kapcsolati adatot.',
+    prereq: 'A beszállítói adatok hozzáférés.',
+    result: 'Ez a hozzáférés önmagában nem ad árat és nem ad bizonylatot.',
+    outcomes: Object.freeze({
+      success: 'A minta megjelent.',
+      missing: 'Ehhez a nézethez még nincs adat.',
+      missing: 'Ehhez a nézethez még nincs adat.',
+      refused: 'Nincs beszállítói hozzáférésed; a képernyő megnevezi.',
+      error: 'A mintát nem sikerült betölteni.',
+    }),
+  }),
   'members.revoke': Object.freeze({
     title: 'Hozzáférés megszüntetése',
     purpose: 'Megszünteted valakinek a tagságát ebben a fiókban. Ez a teljes tagságot megszünteti, nem csak egy adatkört.',
@@ -1054,6 +1107,18 @@ export const FAQ = Object.freeze({
     q: 'Hogyan engedélyezem valakinek a készletadatokat?',
     a: 'Felhasználók → a sor „Hozzáférés kezelése” gombja → válaszd ki az adatkört → „Megtekintés engedélyezése”. Az engedély csak ehhez a fiókhoz tartozik.',
   }),
+  'faq.members.scopeRevoke': Object.freeze({
+    q: 'Elvehetem valakitől csak az árakat úgy, hogy a többi megmaradjon?',
+    a: 'Igen. Felhasználók → „Hozzáférés kezelése” → az adott sor „Hozzáférés visszavonása” gombja. Csak az az egy hozzáférés szűnik meg; a tagság, a szerep és a többi hozzáférés változatlan marad.',
+  }),
+  'faq.data.sampleAccess': Object.freeze({
+    q: 'Miért nem látom a bizonylat- vagy beszállítói mintát?',
+    a: 'Mert ezekhez külön hozzáférés kell, és a készlet-hozzáférés nem foglalja magában. A képernyő megnevezi, melyik hiányzik; ezt a fiók kezelője adja meg. Ezen felül a csomagnak is tartalmaznia kell ezt a nézetet.',
+  }),
+  'faq.data.mixedDocument': Object.freeze({
+    q: 'Miért nem látom a vegyes bizonylatot, ha a fejlécet látom?',
+    a: 'Mert a vegyes bizonylatban összeg és beszállítói rész is van, ezekhez pedig az árak és a beszállítói adatok hozzáférés kell. Egyetlen hiányzó hozzáférés az egész bizonylatot zárja: részlegesen nem adjuk ki.',
+  }),
   'faq.members.revoke': Object.freeze({
     q: 'Mi történik, ha megszüntetem valakinek a hozzáférését?',
     a: 'Az illető tagsága megszűnik ebben a fiókban, ezért nem nyithatja meg a fiók adatait. A személyes fiókja és a korábbi műveletek története megmarad.',
@@ -1197,6 +1262,14 @@ export const TOUR = Object.freeze({
     s2: Object.freeze({ title: 'Válaszd ki a kollégát', body: 'A listában a „Hozzáférés kezelése” gomb nyitja meg az adott ember hozzáférés-lapját.' }),
     s3: Object.freeze({ title: 'Az adatkör engedélyezése', body: 'Válaszd ki az adatkört, és nyomd meg a „Megtekintés engedélyezése” gombot. Ez a lépés csak tényleges mentés után halad tovább.' }),
   }),
+  'tour.scopeLifecycle': Object.freeze({
+    title: 'Egy hozzáférés megadása és visszavonása',
+    lead: 'Négy lépés. A végén a tag mennyiséget továbbra is lát, a bizalmas mintát már nem.',
+    s1: Object.freeze({ title: 'Nyisd meg a Felhasználókat', body: 'A Beállítások csoportban, fiókkezelői jogosultsággal.' }),
+    s2: Object.freeze({ title: 'Válaszd ki a kollégát', body: 'A listában a „Hozzáférés kezelése” gomb nyitja meg az adott ember hozzáférés-lapját.' }),
+    s3: Object.freeze({ title: 'Az üzleti dokumentumok engedélyezése', body: 'Az „Üzleti dokumentumok” sorban nyomd meg a „Hozzáférés megadása” gombot. Ez a lépés csak tényleges mentés után halad tovább.' }),
+    s4: Object.freeze({ title: 'És a visszavonás', body: 'Ugyanabban a sorban a „Hozzáférés visszavonása” gomb csak ezt az egy hozzáférést veszi el — a tagság és a többi adat megmarad.' }),
+  }),
   'tour.plan': Object.freeze({
     title: 'A csomag beállítása',
     lead: 'Három lépés. Vásárlás és díjfizetés nincs.',
@@ -1317,7 +1390,10 @@ export const KB_SOURCE = Object.freeze({
   'invite.send': Object.freeze({ source_version: '1.2.0', review: 'source' }),
   'invite.accept': Object.freeze({ source_version: '1.3.0', review: 'source' }),
   'members.list': Object.freeze({ source_version: '1.2.0', review: 'source' }),
-  'members.grant': Object.freeze({ source_version: '1.1.0', review: 'source' }),
+  'members.grant': Object.freeze({ source_version: '1.2.0', review: 'source' }),
+  'members.scopeRevoke': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.documentSample': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.supplierSample': Object.freeze({ source_version: '1.0.0', review: 'source' }),
   'members.revoke': Object.freeze({ source_version: '1.2.0', review: 'source' }),
   'plan.change': Object.freeze({ source_version: '1.1.0', review: 'source' }),
   'data.stock': Object.freeze({ source_version: '1.2.0', review: 'source' }),
@@ -1359,6 +1435,9 @@ export const SEARCH = Object.freeze({
   'invite.accept': 'meghívás elfogadása csatlakozás meghívóval beváltás elfogadom a meghívást lejárt meghívó meghívóm érvénytelen hivatkozás rossz címre szól',
   'members.list': 'felhasználók tagok kik látják hozzáférések listája tagság',
   'members.grant': 'engedélyezés jogosultság adása adatkör megtekintés engedélye hozzáférés adása',
+  'members.scopeRevoke': 'hozzáférés visszavonása adatkör elvétele csak az árakat részleges visszavonás',
+  'data.documentSample': 'bizonylat minta dokumentum fejléc vegyes bizonylat összeg',
+  'data.supplierSample': 'beszállító minta partner kapcsolati adat',
   'members.revoke': 'megszüntetés visszavonás kizárás hozzáférés elvétele eltávolítás',
   'plan.change': 'előfizetés csomag csomagváltás díj vásárlás alap bővített',
   'data.stock': 'készlet készletegyenleg mennyiség raktár nem látom a készletet termékkarton mozgások',

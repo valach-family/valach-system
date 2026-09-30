@@ -252,9 +252,9 @@ export const FEATURES = Object.freeze([
     evidence: F(['tests/e2e/v3app-acceptance.spec.mjs']),
   }),
   F({
-    id: 'members.grant', module: 'delegation', version: '1.1.0', status: 'working',
-    group: 'members', scope: 'book', audience: 'signed_in', screen: 'members', action: 'open.members', entry: 'member-scope-form',
-    anchors: F(['nav-members', 'members-list']),
+    id: 'members.grant', module: 'delegation', version: '1.2.0', status: 'working',
+    group: 'members', scope: 'book', audience: 'signed_in', screen: 'members', action: 'open.members', entry: 'member-scope-row-keszlet',
+    anchors: F(['nav-members', 'members-list', 'member-scope-row-keszlet']),
     authority: F({ endpoint: 'POST /api/members/scope', decided_by: 'v3ref/delegation.mjs + scopeGrant.mjs',
       reasons: F(['admin_required', 'scope_not_delegable', 'authority_not_established', 'context_mismatch']) }),
     outcomes: F(['success', 'refused', 'uncertain']),
@@ -263,6 +263,54 @@ export const FEATURES = Object.freeze([
     faq: F(['faq.members.grant']),
     tour: 'tour.grant',
     evidence: F(['tests/e2e/v3app-acceptance.spec.mjs', 'v3app/selfcheck.mjs']),
+  }),
+  F({
+    // R121 §2 — A RÉSZLEGES VISSZAVONÁS. Külön képesség a teljes tagság megszüntetésétől: más a
+    // szándék, más a következmény, és a felhasználónak is két külön dolgot jelent (KUKA-002).
+    id: 'members.scopeRevoke', module: 'delegation', version: '1.0.0', status: 'working',
+    group: 'members', scope: 'book', audience: 'signed_in', screen: 'members', action: 'open.members',
+    entry: 'member-scope-row-arak',
+    anchors: F(['nav-members', 'members-list', 'member-scope-row-arak']),
+    authority: F({ endpoint: 'POST /api/members/scope/revoke', decided_by: 'v3ref/delegation.mjs (SCR-01) + scopeGrant.mjs',
+      reasons: F(['admin_required', 'authority_not_established', 'target_not_a_member', 'outside_basis_scopes', 'context_mismatch']) }),
+    outcomes: F(['success', 'refused', 'uncertain']),
+    ai: F({ explain: true, open: true, prepare: false,
+      note: 'a visszavonást a segéd nem indítja el és nem készíti elő: jogot soha nem ad és nem vesz el' }),
+    faq: F(['faq.members.scopeRevoke']),
+    tour: 'tour.scopeLifecycle',
+    evidence: F(['v3app/findings_r121.mjs', 'tests/e2e/v3app-r121.spec.mjs']),
+  }),
+  F({
+    // R121 §1/§4 — A BIZONYLAT-MINTÁK. A fejléc TISZTA, a vegyes minta mind a négy kört igényli.
+    id: 'data.documentSample', module: 'data', version: '1.0.0', status: 'working',
+    group: 'plan', scope: 'book', audience: 'signed_in', screen: 'documents', action: 'open.documents',
+    entry: 'sample-document',
+    anchors: F(['nav-documents', 'sample-document', 'sample-document-full']),
+    authority: F({ endpoint: 'GET /api/data/document', decided_by: 'v3ref/resultScope.mjs (declaredScopesOfType) + entitlement.mjs',
+      reasons: F(['no_scope_grant', 'not_available', 'feature_not_in_plan', 'context_mismatch', 'network_error']) }),
+    outcomes: F(['success', 'missing', 'refused', 'error']),
+    ai: F({ explain: true, open: true, prepare: false,
+      note: 'a minta tartalmát a segéd nem továbbítja szolgáltatónak — csak a képernyő nyitható meg vele' }),
+    faq: F(['faq.data.sampleAccess', 'faq.data.mixedDocument']),
+    tour: null,
+    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
+    tour_note: 'a minta megnyitása EGY lap megnyitása: a végigvezetendő lépések a HOZZÁFÉRÉS oldalán vannak, ezért a `tour.scopeLifecycle` vezeti végig a megadást és a visszavonást — ez a lap annak a következményét mutatja',
+    evidence: F(['v3app/findings_r121.mjs', 'tests/e2e/v3app-r121.spec.mjs']),
+  }),
+  F({
+    id: 'data.supplierSample', module: 'data', version: '1.0.0', status: 'working',
+    group: 'plan', scope: 'book', audience: 'signed_in', screen: 'partners', action: 'open.partners',
+    entry: 'sample-supplier',
+    anchors: F(['nav-partners', 'sample-supplier']),
+    authority: F({ endpoint: 'GET /api/data/supplier', decided_by: 'v3ref/resultScope.mjs (declaredScopesOfType) + entitlement.mjs',
+      reasons: F(['no_scope_grant', 'not_available', 'feature_not_in_plan', 'context_mismatch', 'network_error']) }),
+    outcomes: F(['success', 'missing', 'refused', 'error']),
+    ai: F({ explain: true, open: true, prepare: false, note: null }),
+    faq: F(['faq.data.sampleAccess']),
+    tour: null,
+    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
+    tour_note: 'egyetlen jelölt minta-szakasz egy meglévő lapon: nincs több lépése; a hozzáférés útját a `tour.scopeLifecycle` vezeti végig',
+    evidence: F(['v3app/findings_r121.mjs', 'tests/e2e/v3app-r121.spec.mjs']),
   }),
   F({
     id: 'members.revoke', module: 'delegation', version: '1.2.0', status: 'working',
@@ -519,7 +567,18 @@ export const TOURS = Object.freeze({
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'nav-members', task: null }),
       Object.freeze({ id: 's2', target: 'members-list', task: null }),
-      Object.freeze({ id: 's3', target: 'member-scope-form', task: 'grant.saved', appears_after: 'members-list' }),
+      Object.freeze({ id: 's3', target: 'member-scope-row-keszlet', task: 'grant.saved', appears_after: 'members-list' }),
+    ]),
+  }),
+  // R121 — A HOZZÁFÉRÉS ÉLETCIKLUSA: megadás ÉS visszavonás, tényleges mentéshez kötve (TUR-01).
+  'tour.scopeLifecycle': Object.freeze({
+    id: 'tour.scopeLifecycle', version: '1.0.0', audience: 'signed_in', feature: 'members.scopeRevoke',
+    page: 'members', requires_role: 'admin',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-members', task: null }),
+      Object.freeze({ id: 's2', target: 'members-list', task: null }),
+      Object.freeze({ id: 's3', target: 'member-scope-row-dokumentumok', task: 'grant.saved', appears_after: 'members-list' }),
+      Object.freeze({ id: 's4', target: 'member-scope-row-dokumentumok', task: 'scope.revoked', appears_after: 'members-list' }),
     ]),
   }),
   'tour.plan': Object.freeze({

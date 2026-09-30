@@ -93,7 +93,9 @@ test('R83/F83-01/b — ugyanez a szabály a jogadásra, a megszüntetésre és a
 
     // A JOGADÁS PANELJE AZ ALFÁBAN nyílik meg…
     await openMemberPanel(anna.page, bela.subjectId);
-    await anna.page.getByTestId(`member-scope-select-${bela.subjectId}`).selectOption('keszlet');
+    // R121 ÓTA nincs legördülő: a panel MEGNYITÁSA maga a „megkezdett munka", és a sor gombja ír.
+    // A mérés ugyanaz marad: a MEGNYITÁSKORI nézethez tartozó panel nem írhat a másik fiókba.
+    await expect(anna.page.getByTestId(`member-scope-grant-${bela.subjectId}-keszlet`)).toBeVisible();
     // …közben egy másik fül a BÉTÁRA vált.
     const masik = await anna.ctx.newPage();
     await masik.goto('/');
@@ -107,10 +109,10 @@ test('R83/F83-01/b — ugyanez a szabály a jogadásra, a megszüntetésre és a
     const elotte = db.count('SELECT COUNT(*) AS n FROM scope_grant');
     const elotteB = db.count('SELECT COUNT(*) AS n FROM scope_grant WHERE book_id = ?', B.bookId);
     const r = await withOptionalResponse(anna.page, { path: '/api/members/scope', method: 'POST' },
-      () => anna.page.getByTestId(`member-scope-${bela.subjectId}`).click());
+      () => anna.page.getByTestId(`member-scope-grant-${bela.subjectId}-keszlet`).click());
     if (r) { expect(r.status).toBe(409); expect(r.body.wrote).toBe(false); }
     // A PANEL ÉRVÉNYTELEN: bezárult, és a MÁSODIK kattintás sem tud a Bétába írni.
-    await expect(anna.page.getByTestId(`member-scope-${bela.subjectId}`)).toHaveCount(0);
+    await expect(anna.page.locator(`[data-testid^="member-scope-grant-${bela.subjectId}-"]`)).toHaveCount(0);
     expect(db.count('SELECT COUNT(*) AS n FROM scope_grant')).toBe(elotte);
     expect(db.count('SELECT COUNT(*) AS n FROM scope_grant WHERE book_id = ?', B.bookId)).toBe(elotteB);
     expect(db.count('SELECT COUNT(*) AS n FROM scope_grant WHERE book_id = ? AND subject_id = ?', B.bookId, bela.subjectId)).toBe(0);

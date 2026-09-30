@@ -830,8 +830,13 @@ export const MUTATIONS = [
       + '„nincs deklarálva ez a típus" a „van egy be nem sorolt mező" nevét kapja, és a beadó a rossz '
       + 'dolgot javítja. A rossz nevű hibaüzenet elfedi az igazit (KUKA-124 · KUKA-028)',
     file: 'resultScope.mjs',
-    from: "  const shape = RESULT_SHAPES.get(declKey(type, typeVersion));\n  if (!shape) {",
-    to: "  const shape = RESULT_SHAPES.get(declKey(type, typeVersion)) || objectOf({});\n  if (!shape) {" },
+    // A HORGONY SZŰKÍTVE (R121): a séma-feloldás KÉT belépési ponton áll — a KIADÁSI besoroláson
+    // (`resultScopesOf`) és az ADAT NÉLKÜLI jog-listán (`declaredScopesOfType`). A két sor szó
+    // szerint azonos, ezért a régi, kétsoros horgony KÉT helyen illeszkedett, és a mérő helyesen
+    // mondta ki, hogy nem eldönthető, melyiket mérné. A szűkítés a KIADÁSI úthoz köt — ez M87
+    // tárgya —, nem horgonyoz át máshova.
+    from: "  const shape = RESULT_SHAPES.get(declKey(type, typeVersion));\n  if (!shape) {\n    return Object.freeze({\n      ok: false,\n      reason: 'result_scope_type_undeclared',",
+    to: "  const shape = RESULT_SHAPES.get(declKey(type, typeVersion)) || objectOf({});\n  if (!shape) {\n    return Object.freeze({\n      ok: false,\n      reason: 'result_scope_type_undeclared'," },
 
   { id: 'M88', rule: 'K09', catcher: 'P-REV-ban-paths', expect: 'probe_fail',
     what: 'REV-N5a — A HATÁSKÖR TELJES KIVÉTELE: a hatályosulási pont MINDKÉT döntése elesik '
@@ -1704,6 +1709,93 @@ export const MUTATIONS = [
     from: "    if (rec.ms > known.ms) continue;     // ezt akkor még nem tudtuk",
     to: "    if (false) continue;" },
 
+  // ── R121 / SCR-01 — A RÉSZLEGES VISSZAVONÁS ÉS A NÉGY ADATKÖR VISSZABONTÁSI KONTROLLJA ───────
+  //
+  // MIÉRT KELL. A `P-SCR-partial-revocation` próba zöld — de a zöld semmit nem bizonyít, amíg nem
+  // látjuk, hogy PIROSRA VÁLT a védelem elvételére (KUKA-092 · KUKA-127). A norma-bizonyíték kapu
+  // ezt ki is mondta: „a próbához NINCS visszabontási kontroll". Az alábbi hét rontás mindegyike
+  // EGY konkrét kaput vesz el, és a MÉRT HATÁS a kapu nélküli világ üzleti következménye.
+
+  { id: 'M300', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
+    what: 'SCR-01 / R121 §1 — A BESOROLÁS NEM MEGY MÉLYSÉGBEN: a tömb elemeinek sémáját nem járjuk '
+      + 'be, tehát a tételsorokban álló ÁR és a beágyazott beszállítói blokk nem kerül a szükséges '
+      + 'adatkörök közé. MÉRT HATÁS: a vegyes dokumentum a KÉSZLET-jogú olvasónak is kiadható lenne '
+      + 'az ÁRRAL együtt — pontosan az R79/F01 szivárgás, most a négy körön (KUKA-002)',
+    file: 'resultScope.mjs',
+    from: "    if (spec.kind === 'array') return collect(spec.of);",
+    to: "    if (spec.kind === 'array') return undefined;" },
+
+  { id: 'M301', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
+    what: 'SCR-01 / R121 §3 — A RÉGI INDULÁSI SZABÁLY VISSZAMENŐLEG BŐVÜL: a v1 a mai zárt szótárból '
+      + 'képzi a listáját. MÉRT HATÁS: egy tavaly, KÉT körrel született munkakörnyezet indulási '
+      + 'szabálya ma NÉGY körről szól — a tárolt `rule_version` olyan szabályra mutat, ami már nem '
+      + 'az, ami akkor volt; a múltbeli létrehozás jelentése változik meg (KUKA-050)',
+    file: 'workspace.mjs',
+    from: "  scopes: frozen(['keszlet', 'arak']),",
+    to: "  scopes: frozen([...KNOWN_DATA_SCOPES])," },
+
+  { id: 'M302', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
+    what: 'SCR-01 / R121 §2 — A HATÁSKÖR-KAPU ELTŰNIK: a részleges visszavonás a hatályosulási pont '
+      + 'nélkül, közvetlenül ír. MÉRT HATÁS: BÁRMELY tag elveheti BÁRKI adatköri jogát — a saját '
+      + 'jogosultsága nélkül is —, tehát a nyers tároló-író publikus felhatalmazássá válik '
+      + '(KUKA-047 · KUKA-084: a „bárki megvonhatná" alakja)',
+    file: 'delegation.mjs',
+    from: "    { store, clock, subjectId: revokerSubjectId, bookId, operation: 'alter_right', credentials },",
+    to: "    { store, clock, subjectId: revokerSubjectId, bookId, operation: INVITE_ISSUE_OPERATION, credentials }," },
+
+  { id: 'M303', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
+    what: 'SCR-01 / R121 §2 — A CÉL TAGSÁGÁT NEM KÉRDEZZÜK: nem tag emberre is írunk megvonás-sort. '
+      + 'MÉRT HATÁS: egy IDEGEN fiók alanyára keletkezik jogi nyom ebben a könyvben — a hatókör nem '
+      + 'a mérce szerint szabott (KUKA-048), és a napló olyan viszonyt állít, ami nem létezik',
+    file: 'delegation.mjs',
+    from: "      if (m.effective !== true) {",
+    to: "      if (false) {" },
+
+  { id: 'M305', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
+    what: 'SCR-01 / R121 §2 — AZ ÜZLETI IDEMPOTENCIA ELTŰNIK: a MÁR MEG NEM LÉVŐ jogra is új '
+      + 'megvonás-sort írunk. MÉRT HATÁS: a dupla kattintás és a hálózati újraküldés TÖBB üzleti '
+      + 'változást gyárt ugyanarra a szándékra, és a nyugta `changed: true`-t mond ott, ahol semmi '
+      + 'nem változott — a nyugta hazudik (KUKA-129)',
+    file: 'delegation.mjs',
+    from: "      if (cur.granted !== true) {",
+    to: "      if (false) {" },
+
+  { id: 'M306', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
+    what: 'SCR-01 / R121 §1 — AZ ADATKÖR ZÁRT SZÓTÁRA MEGSZŰNIK a visszavonás bejáratán: szabad '
+      + 'szöveges kör is átmegy. MÉRT HATÁS: egy elírt vagy kitalált adatkör-névre NÉMÁN keletkezik '
+      + 'megvonás-sor, amit utána egyetlen olvasó sem vesz figyelembe — a művelet „sikeres", a hatás '
+      + 'nulla (KUKA-236: a zárt lista a mezőkre is érvényes)',
+    file: 'delegation.mjs',
+    from: "  if (typeof scope !== 'string' || !KNOWN_DATA_SCOPES.includes(scope)) {",
+    to: "  if (false) {" },
+
+  { id: 'M307', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
+    what: 'SCR-01 / R121 §1 — A TÍPUS DEKLARÁCIÓJÁBÓL KÉPZETT JOG-LISTA ÜRESRE ESIK: a séma-fa '
+      + 'bejárása nem gyűjt levelet. MÉRT HATÁS: a mintanézetek NULLA szükséges adatkört jelentenek, '
+      + 'tehát a határ MINDEN olvasónak kiadja a bizalmas mintát — a jog-kapu névleg megvan, '
+      + 'tartalmilag eltűnik (KUKA-038: a deklaráció léte nem bizonyítja, hogy mérjük is)',
+    file: 'resultScope.mjs',
+    from: "    scopes.add(spec.scope);\n    return undefined;\n  })(shape);",
+    to: "    return undefined;\n  })(shape);" },
+
+  { id: 'M308', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
+    what: 'SCR-01 / R121 §2 — A VISSZAVONÁS MÁS ADATKÖRT VISZ, mint amit kértek: a hatás a KÉSZLET '
+      + 'körre íródik. MÉRT HATÁS: a kezelő az ÁRAT akarja elvenni, és a MENNYISÉGET veszi el — a '
+      + 'raktári munkatárs elveszti a munkájához kellő nézetet, miközben a bizalmas adat nyitva '
+      + 'marad. A hatókör nem a szándék szerint szabott (KUKA-048 · KUKA-002)',
+    file: 'delegation.mjs',
+    from: "        store, subjectId: targetSubjectId, bookId, scope, at,",
+    to: "        store, subjectId: targetSubjectId, bookId, scope: 'keszlet', at," },
+
+  { id: 'M309', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
+    what: 'SCR-01 / R121 §2 — A VISSZAVONÁS VISSZAMENŐLEG HATÁLYOS: a hatály az időszámítás '
+      + 'kezdetére kerül a MAI pillanat helyett. MÉRT HATÁS: a megvonás ÁTÍRJA A MÚLTAT — a '
+      + 'megvonás ELŐTTI napra vonatkozó kérdésre is „nincs joga" a válasz, tehát a rendszer a '
+      + 'korábbi, jogos kiadásokról hazudik utólag (R51/F51-01 alakja a részleges visszavonáson)',
+    file: 'delegation.mjs',
+    from: "        effectiveAt: at, recordedAt: at, actorSubjectId: revokerSubjectId,",
+    to: "        effectiveAt: '1970-01-01T00:00:00.000Z', recordedAt: at, actorSubjectId: revokerSubjectId," },
+
   { id: 'M184', rule: 'K05', catcher: 'P-DSC-scope-grant-history', expect: 'probe_fail',
     what: 'SGR-01 / R51 — A HATÁLY TENGELYE ELTŰNIK: minden ismert esemény AZONNAL hat, a saját '
       + 'hatályba lépése előtt is. MÉRT HATÁS: az ELŐRE ütemezett, augusztusi hatályú megvonás már '
@@ -1918,8 +2010,12 @@ export const MUTATIONS = [
   { id: 'M197', rule: 'K04', catcher: 'P-CORE-startup-and-delegation', expect: 'probe_fail',
     what: 'WSP-01 / R63 — AZ INDULÁSI SZABÁLY PLATFORMBÍRÁLÓI HATÁSKÖRT IS AD: a saját munkakörnyezet létrehozója az indulási alapra hivatkozva `adjudicate` hatáskört adhat magának. Ez pontosan a „helyi admin és platformbíráló nem olvad össze" határ átlépése (R63 §4) — a sima munkatér-létrehozás bírálói jogot szülne',
     file: 'workspace.mjs',
-    from: '  operations: frozen([INVITE_ISSUE_OPERATION, \'alter_right\']),',
-    to: '  operations: frozen([INVITE_ISSUE_OPERATION, \'alter_right\', \'adjudicate\', \'suspend\']),' },
+    // A HORGONY SZŰKÍTVE (R121). Az indulási szabály KÉT verzióban él (v1 rögzített, v2 a mai),
+    // és a művelet-sor SZÓ SZERINT azonos bennük — a régi, egysoros horgony ezért KÉT helyen
+    // illeszkedett, és a mérő helyesen mondta ki, hogy nem eldönthető, melyiket mérné. A
+    // szűkítés a MAI szabályra köt (a verzió-sorral együtt), nem újrahorgonyoz máshova.
+    from: '  version: \'v2\',\n  local_admin_role: \'admin\',\n  operations: frozen([INVITE_ISSUE_OPERATION, \'alter_right\']),',
+    to: '  version: \'v2\',\n  local_admin_role: \'admin\',\n  operations: frozen([INVITE_ISSUE_OPERATION, \'alter_right\', \'adjudicate\', \'suspend\']),' },
   { id: 'M198', rule: 'K05', catcher: 'P-CORE-startup-and-delegation', expect: 'probe_fail',
     what: 'WSP-01 / R63 — A LÉTREHOZÓ NEM KAP ADATKÖRI JOGOT: az indulás a két adatkör olvasási jogát nem adja meg. Ettől a saját munkakörnyezet gazdája a saját mintarekordját sem látja — a lánc első lépése halott, és ezt csak a kiadási kapu mondaná ki, a munkakör „sikeresen" létrejön (KUKA-025: mi viszi ki?)',
     file: 'workspace.mjs',

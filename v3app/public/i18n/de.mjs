@@ -36,8 +36,8 @@ export const NAV = Object.freeze({
 });
 
 export const ROLE = Object.freeze({ user: 'Mitglied', admin: 'Kontoverwalter' });
-export const SCOPE = Object.freeze({ keszlet: 'Bestandsdaten', arak: 'Preise' });
-export const SCOPE_ACC = Object.freeze({ keszlet: 'die Bestandsdaten', arak: 'die Preise' });
+export const SCOPE = Object.freeze({ keszlet: 'Bestandsdaten', arak: 'Preise', dokumentumok: 'Geschäftsdokumente', beszallitok: 'Lieferantendaten' });
+export const SCOPE_ACC = Object.freeze({ keszlet: 'die Bestandsdaten', arak: 'die Preise', dokumentumok: 'die Geschäftsdokumente', beszallitok: 'die Lieferantendaten' });
 export const PLAN = Object.freeze({ starter: 'Basis', pro: 'Erweitert' });
 export const QUALITY = Object.freeze({ mert: 'Gemessen', becsult: 'Geschätzt', ismeretlen: 'Nicht bekannt' });
 
@@ -53,6 +53,9 @@ export const TPL = Object.freeze({
   accountSwitchedElsewhere: 'In einem anderen Browser-Tab wurde das Konto gewechselt. Jetzt ist dieses Konto geöffnet: {nev}',
   scopeOnlyHere: 'Diese Berechtigung gehört zu diesem Konto: {nev}',
   memberCanSee: '{ki} kann ab jetzt {mit} einsehen.',
+  sampleNeeds: 'Diese Ansicht benötigt folgende Zugriffe: {korok}.',
+  sampleMissing: 'Fehlender Zugriff: {korok}. Die Verwaltung dieses Kontos erteilt ihn.',
+  scopeRevoked: 'Zugriff entzogen: {ki} sieht {mit} nun nicht mehr.',
   memberRevoked: '{ki} hat keinen Zugang mehr zu diesem Konto: {nev}',
   memberAccessTitle: 'Zugang von {ki}',
   revokeTitle: 'Zugang von {ki} beenden?',
@@ -333,6 +336,19 @@ export const UI = Object.freeze({
   resendAsk: 'Neue Bestätigungs-E-Mail anfordern',
   resendTitle: 'Neue Bestätigungs-E-Mail',
   resendLead: 'Gib die E-Mail-Adresse an, die du bei der Registrierung verwendet hast.',
+  sampleBadge: 'Beispieldaten',
+  sampleDocTitle: 'Belegbeispiel',
+  sampleMixedTitle: 'Gemischtes Belegbeispiel',
+  sampleSupplierTitle: 'Lieferantenbeispiel',
+  sampleLead: 'Dieser Abschnitt zeigt gekennzeichnete Beispieldaten vom Server — über den Zugriff entscheidet eine echte serverseitige Prüfung.',
+  sampleMixedNote: 'Der gemischte Beleg bleibt auch dann vollständig gesperrt, wenn nur ein Zugriff fehlt.',
+  sampleOpen: 'Beispiel abrufen',
+  scopeRevoke: 'Zugriff entziehen',
+  scopeGrant: 'Zugriff erteilen',
+  scopeBlocked: 'In diesem Konto nicht erteilbar',
+  scopeBlockedLead: 'Dieses Konto entstand unter der früheren Startregel mit zwei Bereichen, daher sind die zwei neueren Zugriffe hier nicht erteilbar. Dafür ist ein neues Konto nötig; bestehende Konten funktionieren unverändert.',
+  scopeUnchanged: 'Dieser Zugriff war ohnehin nicht erteilt — es hat sich nichts geändert.',
+  resendWaitHint: 'Warte zwischen zwei E-Mail-Anfragen mindestens eine Minute. Wenn du mehrere E-Mails erhalten hast, verwende den Link aus der neuesten.',
   resendSubmit: 'E-Mail anfordern',
   backToLogin: 'Zurück zur Anmeldung',
   resendInProgress: 'E-Mail wird angefordert…',
@@ -744,6 +760,43 @@ export const KB = Object.freeze({
       uncertain: 'Wir wissen nicht sicher, ob gespeichert wurde. Die Liste zeigt den heutigen Zustand.',
     }),
   }),
+  'members.scopeRevoke': Object.freeze({
+    title: 'Einen Zugriff entziehen',
+    purpose: 'Du nimmst einem Mitglied einen Zugriff weg, während seine Mitgliedschaft und die übrigen Zugriffe bleiben.',
+    prereq: 'Kontoverwaltungsrecht, und das Mitglied muss noch aktiv sein.',
+    result: 'Nur dieser eine Zugriff endet. Das Mitglied bleibt im Konto und sieht die übrigen Daten unverändert.',
+    outcomes: Object.freeze({
+      success: 'Der Zugriff wurde entzogen.',
+      refused: 'Dir fehlt die Befugnis dafür, oder das Mitglied ist nicht mehr aktiv.',
+      uncertain: 'Wir wissen nicht sicher, ob gespeichert wurde. Die Liste zeigt den heutigen Stand.',
+    }),
+  }),
+  'data.documentSample': Object.freeze({
+    title: 'Das Belegbeispiel öffnen',
+    purpose: 'Du siehst dir das gekennzeichnete Belegbeispiel an: den Kopf und getrennt davon das gemischte Beispiel mit Betrag und Lieferant.',
+    prereq: 'Zugriff auf Geschäftsdokumente; das gemischte Beispiel braucht zusätzlich Preise und Lieferantendaten.',
+    result: 'Der Kopf allein enthält weder Betrag noch Lieferant. Das gemischte Beispiel bleibt auch bei nur einem fehlenden Zugriff vollständig gesperrt.',
+    outcomes: Object.freeze({
+      success: 'Das Beispiel ist erschienen.',
+      missing: 'Für diese Ansicht gibt es noch keine Daten.',
+      missing: 'Für diese Ansicht gibt es noch keine Daten.',
+      refused: 'Mindestens ein Zugriff fehlt; der Bildschirm nennt welcher.',
+      error: 'Das Beispiel konnte nicht geladen werden.',
+    }),
+  }),
+  'data.supplierSample': Object.freeze({
+    title: 'Das Lieferantenbeispiel öffnen',
+    purpose: 'Du siehst dir das gekennzeichnete Lieferantenbeispiel an: Kennung, Name und Kontaktangabe.',
+    prereq: 'Zugriff auf Lieferantendaten.',
+    result: 'Dieser Zugriff allein gibt weder Preise noch Belege.',
+    outcomes: Object.freeze({
+      success: 'Das Beispiel ist erschienen.',
+      missing: 'Für diese Ansicht gibt es noch keine Daten.',
+      missing: 'Für diese Ansicht gibt es noch keine Daten.',
+      refused: 'Dir fehlt der Lieferantenzugriff; der Bildschirm nennt ihn.',
+      error: 'Das Beispiel konnte nicht geladen werden.',
+    }),
+  }),
   'members.revoke': Object.freeze({
     title: 'Zugang beenden',
     purpose: 'Du beendest die Mitgliedschaft einer Person in diesem Konto. Das beendet die gesamte Mitgliedschaft, nicht nur einen Datenbereich.',
@@ -968,6 +1021,18 @@ export const FAQ = Object.freeze({
     q: 'Wie gebe ich jemandem die Bestandsdaten frei?',
     a: 'Benutzer → die Schaltfläche „Zugang“ in der Zeile → Datenbereich auswählen → „Einsicht freigeben“. Die Freigabe gehört nur zu diesem Konto.',
   }),
+  'faq.members.scopeRevoke': Object.freeze({
+    q: 'Kann ich nur die Preise wegnehmen und alles andere lassen?',
+    a: 'Ja. Benutzer → „Zugriff verwalten“ → in der Zeile die Schaltfläche „Zugriff entziehen“. Nur dieser eine Zugriff endet; Mitgliedschaft, Rolle und die übrigen Zugriffe bleiben unverändert.',
+  }),
+  'faq.data.sampleAccess': Object.freeze({
+    q: 'Warum sehe ich das Beleg- oder Lieferantenbeispiel nicht?',
+    a: 'Weil dafür eigene Zugriffe nötig sind, die der Bestandszugriff nicht einschließt. Der Bildschirm nennt den fehlenden; die Verwaltung dieses Kontos erteilt ihn. Zusätzlich muss auch das Paket diese Ansicht enthalten.',
+  }),
+  'faq.data.mixedDocument': Object.freeze({
+    q: 'Warum sehe ich den gemischten Beleg nicht, obwohl ich den Kopf sehe?',
+    a: 'Weil der gemischte Beleg auch einen Betrag und einen Lieferantenteil enthält, und dafür sind Zugriffe auf Preise und Lieferantendaten nötig. Ein einziger fehlender Zugriff sperrt den ganzen Beleg: teilweise geben wir ihn nie heraus.',
+  }),
   'faq.members.revoke': Object.freeze({
     q: 'Was passiert, wenn ich jemandes Zugang beende?',
     a: 'Die Mitgliedschaft der Person in diesem Konto endet, daher kann sie die Daten des Kontos nicht mehr öffnen. Ihr persönliches Konto und die Historie früherer Vorgänge bleiben erhalten.',
@@ -1110,6 +1175,14 @@ export const TOUR = Object.freeze({
     s2: Object.freeze({ title: 'Das Mitglied auswählen', body: 'In der Liste öffnet die Schaltfläche „Zugriff verwalten“ die Zugriffsseite dieser Person.' }),
     s3: Object.freeze({ title: 'Den Datenbereich freigeben', body: 'Wähle den Datenbereich und drücke „Einsicht freigeben“. Dieser Schritt geht erst nach einem tatsächlichen Speichern weiter.' }),
   }),
+  'tour.scopeLifecycle': Object.freeze({
+    title: 'Einen Zugriff erteilen und entziehen',
+    lead: 'Vier Schritte. Am Ende sieht das Mitglied weiterhin Mengen, aber das vertrauliche Beispiel nicht mehr.',
+    s1: Object.freeze({ title: 'Öffne die Benutzer', body: 'In der Gruppe Einstellungen, mit Kontoverwaltungsrecht.' }),
+    s2: Object.freeze({ title: 'Wähle die Kollegin oder den Kollegen', body: 'In der Liste öffnet die Schaltfläche „Zugriff verwalten“ die Zugriffsseite dieser Person.' }),
+    s3: Object.freeze({ title: 'Geschäftsdokumente erlauben', body: 'Drücke in der Zeile „Geschäftsdokumente“ auf „Zugriff erteilen“. Dieser Schritt geht erst nach einer tatsächlichen Speicherung weiter.' }),
+    s4: Object.freeze({ title: 'Und das Entziehen', body: 'In derselben Zeile nimmt „Zugriff entziehen“ nur diesen einen Zugriff weg — Mitgliedschaft und die übrigen Daten bleiben.' }),
+  }),
   'tour.plan': Object.freeze({
     title: 'Das Paket einstellen',
     lead: 'Drei Schritte. Kauf und Zahlung gibt es nicht.',
@@ -1217,7 +1290,10 @@ export const KB_SOURCE = Object.freeze({
   'invite.send': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
   'invite.accept': Object.freeze({ source_version: '1.3.0', review: 'checked' }),
   'members.list': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
-  'members.grant': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
+  'members.grant': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
+  'members.scopeRevoke': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.documentSample': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.supplierSample': Object.freeze({ source_version: '1.0.0', review: 'source' }),
   'members.revoke': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
   'plan.change': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
   'data.stock': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
@@ -1248,6 +1324,9 @@ export const SEARCH = Object.freeze({
   'invite.accept': 'einladung annehmen beitreten mit einladung einlösen abgelaufene einladung meine einladung ungültiger link falsche adresse',
   'members.list': 'benutzer mitglieder wer sieht zugänge liste mitgliedschaft',
   'members.grant': 'freigeben berechtigung geben datenbereich einsicht erlauben',
+  'members.scopeRevoke': 'zugriff entziehen datenbereich wegnehmen nur preise teilweiser entzug',
+  'data.documentSample': 'belegbeispiel kopf gemischter beleg betrag',
+  'data.supplierSample': 'lieferantenbeispiel partner kontaktangabe',
   'members.revoke': 'entziehen zugang beenden entfernen zurückziehen',
   'plan.change': 'abonnement paket paketwechsel gebühr kauf basis erweitert',
   'data.stock': 'bestand bestandssaldo menge lager sehe bestand nicht artikelkarte bewegungen',

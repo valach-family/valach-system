@@ -461,7 +461,7 @@ test('UX-09…UX-13, UX-22 — a teljes történet: Anna → vállalkozás → B
     await ensureMemberRow(anna.page, bela.subjectId);
     await expect(anna.page.getByTestId(`member-${bela.subjectId}`)).toContainText('Megszüntetve');
     await openMemberPanel(anna.page, bela.subjectId);
-    expect(await anna.page.getByTestId(`member-scope-${bela.subjectId}`).count()).toBe(0);
+    expect(await anna.page.locator(`[data-testid^="member-scope-grant-${bela.subjectId}-"]`).count()).toBe(0);
     expect(await anna.page.getByTestId(`member-revoke-${bela.subjectId}`).count()).toBe(0);
     await expect(anna.page.getByTestId('panel-body')).toContainText('megszűnt a hozzáférése ehhez a fiókhoz');
     await anna.page.locator('[data-action="panel-close"]').last().click();
@@ -530,8 +530,9 @@ test('UX-15, UX-16 — az R79 védelme az új felületen is áll, és a másik f
     anna.page.on('request', (r) => {
       if (r.url().includes('/api/members/scope') && r.method() === 'POST') { try { kertTorzs = JSON.parse(r.postData() || '{}'); } catch { kertTorzs = null; } }
     });
-    await anna.page.getByTestId(`member-scope-select-${cili.subjectId}`).selectOption('keszlet');
-    const ok = await withResponse(anna.page, { path: '/api/members/scope' }, () => anna.page.getByTestId(`member-scope-${cili.subjectId}`).click());
+    // R121 ÓTA KÖRÖNKÉNTI GOMB (a legördülő + közös gomb kivezetve): a sor saját gombja ír.
+    const ok = await withResponse(anna.page, { path: '/api/members/scope' },
+      () => anna.page.getByTestId(`member-scope-grant-${cili.subjectId}-keszlet`).click());
     expect(ok.body.ok).toBe(true);
     expect(kertTorzs.expected_book_id).toBe(K.bookId);
     expect(kertTorzs.expected_subject_id).toBe(anna.subjectId);
@@ -544,9 +545,8 @@ test('UX-15, UX-16 — az R79 védelme az új felületen is áll, és a másik f
     await switchUI(masik, K.bookId);
     const elotteSor = db.count('SELECT COUNT(*) AS n FROM scope_grant WHERE book_id = ? AND subject_id = ?', K.bookId, cili.subjectId);
     await openMemberPanel(anna.page, cili.subjectId);
-    await anna.page.getByTestId(`member-scope-select-${cili.subjectId}`).selectOption('arak');
     const tiltott = await withResponse(anna.page, { path: '/api/members/scope' },
-      () => anna.page.getByTestId(`member-scope-${cili.subjectId}`).click());
+      () => anna.page.getByTestId(`member-scope-grant-${cili.subjectId}-arak`).click());
     expect(tiltott.status).toBe(409);
     expect(tiltott.body.reason).toBe('context_mismatch');
     expect(tiltott.body.expected_subject_id).toBe(anna.subjectId);
@@ -562,7 +562,7 @@ test('UX-15, UX-16 — az R79 védelme az új felületen is áll, és a másik f
     // bezárul, tehát a gomb DARABSZÁMA 0, és nincs mivel másodszor is nekifutni.
     // A VÁLASZ MEGÉRKEZÉSE ÉS A LAP REAKCIÓJA KÉT KÜLÖN PILLANAT (KUKA-120): a `withResponse` a
     // válaszra vár, a panel bezárása UTÁNA történik — ezért ÚJRAPRÓBÁLÓ állítással mérünk.
-    await expect(anna.page.getByTestId(`member-scope-${cili.subjectId}`)).toHaveCount(0);
+    await expect(anna.page.locator(`[data-testid^="member-scope-grant-${cili.subjectId}-"]`)).toHaveCount(0);
     expect(db.count('SELECT COUNT(*) AS n FROM scope_grant WHERE book_id = ? AND subject_id = ?', K.bookId, cili.subjectId)).toBe(elotteSor);
     // A LÉTREHOZÁS ÚTJA IS SZERVEROLDALI SZEMÉLY-KÖTÉST KAPOTT (R85/F85-01). A HELYES MÉRÉSI
     // PILLANAT az, amikor a régi lap MÉG NEM frissült — ebben a rekeszben viszont a lap a fenti

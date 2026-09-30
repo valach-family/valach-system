@@ -389,7 +389,9 @@ export function avoidOverlap(box, target) {
 }
 /**
  * AZ ÁTENGEDÉS ÁRA, KIMONDVA (nem elhallgatott mellékhatás): amíg a kártya átengedi a kattintást,
- * a SZÖVEG-törzse nem fogadja el a görgetést sem — a gombjai és a lépés-listája igen. Ez a
+ * a SZÖVEG-törzse nem fogadja el a görgetést sem — csak a GOMBJAI és a hivatkozásai. (A lépés-lista
+ * az R121-ig szintén fogadta, de az HIBA volt: egy nem interaktív `<ol>` fogta el a kattintást a
+ * valódi képernyő elől — lásd a `style.css` `tour-passthrough` szabályát.) Ez a
  * bemutató mai méreteinél (3–6 lépés) nem jelent elvesztett tartalmat, és csak abban a ritka
  * esetben lép életbe, amikor a cél akkora, hogy egyetlen sarok sem szabad. A választás tudatos:
  * egy nem kattintható CÉL teljesen megállítja a bemutatót, egy nem görgethető SZÖVEG-törzs nem.

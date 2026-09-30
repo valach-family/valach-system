@@ -252,15 +252,18 @@
    "id": "H07",
    "group": "elethelyzet",
    "requirement": "A raktári szerepnek adott mennyiségnézetből ár-, számla- vagy beszállítói bizalmas adat nem következik; a pozitív, külön engedélyezett olvasás működik.",
-   "works_now": "Beváltás után adat nem jár (no_scope_grant); keszlet külön megadása után a készlet olvasható, az arak továbbra sem; user a plafonon túl nem ad magának.",
+   "works_now": "Beváltás után adat nem jár (no_scope_grant); a NÉGY adatkör (keszlet · arak · dokumentumok · beszallitok) KÜLÖN adható és KÜLÖN vonható vissza, ugyanazon a scopeGrant kapun; a vegyes dokumentum EGYETLEN hiányzó jog esetén is egészben zár; user a plafonon túl nem ad magának. R121: a részleges visszavonás saját, hatáskört ellenőrző domain-művelet (SCR-01) — a tagság érintése nélkül.",
    "evidence": [
-    "v3ref/run.mjs:3436 P-CORE (c) belaStockBefore no_scope_grant · belaStock.allowed · belaPrice no_scope_grant",
-    "v3app/selfcheck.mjs:135-151 (előtte elutasítva · adatkör-adás · stock ok qty 12 · price refused both)",
-    "M198 (mutations.mjs:1923-1927)"
+    "v3ref/run.mjs P-CORE-startup-and-delegation (c) belaStockBefore no_scope_grant · belaStock.allowed · belaPrice no_scope_grant",
+    "v3ref/run.mjs P-SCR-partial-revocation (a)-(h) — a négy kör a TÍPUS deklarációjából, a részleges visszavonás négy kapuja, a v1 nem bővül",
+    "v3app/findings_r121.mjs 55/55 — valódi HTTP+DB: körönkénti pozitív/negatív pár · a vegyes dokumentum egészben zár · a négy terv×jog kombináció",
+    "tests/e2e/v3app-r121.spec.mjs R121-B1/B2 — böngészőből: a mennyiség megmarad, a bizalmas minta zárul; a tagság a tárolóban érintetlen",
+    "v3app/selfcheck.mjs 57/57 (előtte elutasítva · adatkör-adás · stock ok qty 12 · price refused both)",
+    "mutations M300 · M301 · M302 · M303 · M305 · M306 · M307 · M308 · M309 (kontroll: P-SCR-partial-revocation)"
    ],
-   "missing": "Adatkör-szótár csak keszlet és arak (resultScope KNOWN_DATA_SCOPES); számla- és beszállítói adatkör nincs nevesítve; „raktári szerep” nincs, csak user+keszlet.",
+   "missing": "A raktári szerep MINT SZEREP továbbra sincs — a szerep-szótár user+admin, a különbséget az adatkörök adják, nem egy nevesített raktári szerep. Szabályos MEZŐ-VETÍTÉS nincs: a vegyes eredmény egészben zár, részlegesen nem adjuk ki (DSC-01 kimondott korlátja). A részleges visszavonás DELEGÁLÁSI PLAFON-kapuja kódban áll, de mutáció nem falszifikálja — a próba ma nem MÉRI a plafont (nevesített mérési hiány, R121 REPORT).",
    "blocks": "mini_module_base",
-   "closes_by": "Adatkör-szótár bővítése a modulokkal együtt (számla, beszállító), ugyanazon a scopeGrant kapun, próbával.",
+   "closes_by": "Az adatkör-szótár bővítése MEGTÖRTÉNT (R121: keszlet · arak · dokumentumok · beszallitok), verziózott indulási szabállyal (v1 rögzített · v2 négykörös). Ami nyitva marad: nevesített raktári szerep, szabályos mezővetítés, és a plafon-kapu mutációs kontrollja.",
    "stale_text": ""
   },
   {

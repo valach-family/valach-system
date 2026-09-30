@@ -111,7 +111,7 @@ async function walkTourLogged(page, id, perform = {}) {
   return out;
 }
 
-test('R93-01/02/03 — MIND A KILENC bemutató VÉGIGVIHETŐ, a cégalapítás a fiókváltás UTÁN is lezárul', async ({ browser }) => {
+test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókváltás UTÁN is lezárul', async ({ browser }) => {
   const w = new World(browser, 'r9301');
   const verdict = {};
   try {
@@ -130,7 +130,7 @@ test('R93-01/02/03 — MIND A KILENC bemutató VÉGIGVIHETŐ, a cégalapítás a
     // ── A DEKLARÁLT LISTA A SZERVERTŐL JÖN — nem kézi másolat (KUKA-051).
     const status = await anna.api.get('/api/assistant/status?lang=hu');
     const tours = status.body.tours;
-    expect(tours.length, 'a fiókkezelőnek nyolc bemutató jár').toBe(8);
+    expect(tours.length, 'a fiókkezelőnek kilenc bemutató jár').toBe(9);
     const byId = Object.fromEntries(tours.map((t) => [t.id, t]));
 
     const simple = ['tour.shell', 'tour.stock', 'tour.language', 'tour.help', 'tour.plan'];
@@ -168,9 +168,30 @@ test('R93-01/02/03 — MIND A KILENC bemutató VÉGIGVIHETŐ, a cégalapítás a
     await startTourFor(anna.page, byId['tour.grant'].feature);
     verdict['tour.grant'] = await walkTourLogged(anna.page, 'tour.grant', {
       s3: async () => {
-        if (!await anna.page.getByTestId('member-scope-form').count()) { await openMemberPanel(anna.page, berta.subjectId); return; }
-        await anna.page.getByTestId(`member-scope-select-${berta.subjectId}`).selectOption('arak');
-        await anna.page.getByTestId(`member-scope-${berta.subjectId}`).click();
+        // R121 ÓTA KÖRÖNKÉNTI GOMB: a bemutató lépése a SOR gombját nyomja meg (a közös űrlap kivezetve).
+        const gomb = anna.page.getByTestId(`member-scope-grant-${berta.subjectId}-arak`);
+        if (!await gomb.count()) { await openMemberPanel(anna.page, berta.subjectId); return; }
+        await gomb.click();
+        await expect(anna.page.getByTestId('members-result')).not.toHaveText('');
+      },
+    });
+    await closeTourPanel(anna.page);
+
+    // ── R121 — A HOZZÁFÉRÉS ÉLETCIKLUSA: megadás ÉS visszavonás, MINDKETTŐ igazolt mentéshez
+    //    kötve. A lépés csak TÉNYLEGES változás után halad (TUR-01): a gomb megnyomása nem siker.
+    await gotoPage(anna.page, 'overview');
+    await startTourFor(anna.page, byId['tour.scopeLifecycle'].feature);
+    verdict['tour.scopeLifecycle'] = await walkTourLogged(anna.page, 'tour.scopeLifecycle', {
+      s3: async () => {
+        const gomb = anna.page.getByTestId(`member-scope-grant-${berta.subjectId}-dokumentumok`);
+        if (!await gomb.count()) { await openMemberPanel(anna.page, berta.subjectId); return; }
+        await gomb.click();
+        await expect(anna.page.getByTestId('members-result')).not.toHaveText('');
+      },
+      s4: async () => {
+        const gomb = anna.page.getByTestId(`member-scope-revoke-${berta.subjectId}-dokumentumok`);
+        if (!await gomb.count()) { await openMemberPanel(anna.page, berta.subjectId); return; }
+        await gomb.click();
         await expect(anna.page.getByTestId('members-result')).not.toHaveText('');
       },
     });
@@ -232,8 +253,8 @@ test('R93-01/02/03 — MIND A KILENC bemutató VÉGIGVIHETŐ, a cégalapítás a
 
     // ── AZ ELSZÁMOLÁS: MIND A KILENC végigvihető. Az „elindult" nem eredmény.
     const expected = ['tour.shell', 'tour.stock', 'tour.language', 'tour.help', 'tour.plan',
-      'tour.invite', 'tour.grant', 'tour.addBusiness', 'tour.register'];
-    expect(Object.keys(verdict).sort(), 'mind a kilenc deklarált bemutató végig lett járva').toEqual([...expected].sort());
+      'tour.invite', 'tour.grant', 'tour.scopeLifecycle', 'tour.addBusiness', 'tour.register'];
+    expect(Object.keys(verdict).sort(), 'minden deklarált bemutató végig lett járva').toEqual([...expected].sort());
     expect(verdict, 'minden bemutató BEFEJEZVE — megszakadás és elakadás nem elfogadás').toEqual(
       Object.fromEntries(expected.map((id) => [id, 'befejezve'])),
     );

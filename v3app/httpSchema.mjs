@@ -168,6 +168,20 @@ export const ENDPOINT_SCHEMAS = frozen({
     body: frozen({ fields: frozen({ subject_id: subjectRef, [CONTEXT_FIELD]: contextConfirm, [CONTEXT_SUBJECT_FIELD]: contextConfirm }) }),
     query: frozen({ fields: frozen({}) }),
   }),
+  // R121 — A RÉSZLEGES VISSZAVONÁS SAJÁT SÉMÁJA. Ugyanaz az alak, mint a megadásé: a zárt
+  // adatkör-szótár ENUM-ként kapuz, tehát szabad szöveges kör NEM jut el a domain-műveletig
+  // (KUKA-236 · KUKA-203: a kényszerítés nem ellenőrzés — itt a séma ELUTASÍT, nem normalizál).
+  'POST /api/members/scope/revoke': frozen({
+    version: '1', mutates: true,
+    body: frozen({
+      fields: frozen({
+        subject_id: subjectRef,
+        scope: frozen({ type: 'nonempty_string', required: true, enum: frozen([...KNOWN_DATA_SCOPES]) }),
+        [CONTEXT_FIELD]: contextConfirm, [CONTEXT_SUBJECT_FIELD]: contextConfirm,
+      }),
+    }),
+    query: frozen({ fields: frozen({}) }),
+  }),
   // ── FEJLESZTŐI FELÜLET — a `devSurface` kapcsoló mögött; élesben nem létezhet (lásd server.mjs).
   'POST /dev/clock': frozen({
     version: '1', mutates: true,
@@ -213,6 +227,10 @@ export const ENDPOINT_SCHEMAS = frozen({
   'GET /api/invites/waiting': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
   'GET /api/data/stock': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
   'GET /api/data/price': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
+  // R121 — a három új mintanézet. Olvasók, tehát nem MUTÁLNAK; a nézet-kötés (KTX-02) ugyanaz.
+  'GET /api/data/document': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
+  'GET /api/data/supplier': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
+  'GET /api/data/document-full': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
   // A SEGÉD ÁLLAPOTA: szolgáltatói csatlakozás (NEVEK, érték nélkül) · korlátok · a kérőre
   // ENGEDÉLYEZETT műveletek és bemutatók. A `lang` itt is csak a válasz nyelvét szűkíti.
   'GET /api/assistant/status': frozen({

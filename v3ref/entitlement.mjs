@@ -16,12 +16,29 @@
 const frozen = (o) => Object.freeze(o);
 
 /** A FUNKCIÓK ZÁRT SZÓTÁRA — ismeretlen név nem csúszhat át (KUKA-101). */
-export const KNOWN_FEATURES = frozen(['workspace', 'invite', 'stock_view', 'price_view']);
+export const KNOWN_FEATURES = frozen([
+  'workspace', 'invite', 'stock_view', 'price_view',
+  // R121 — az új mintanézetek SAJÁT funkció-neve. A dokumentum- és a beszállítói nézet KÉT külön
+  // funkció: az egyik elérhetősége nem következik a másikból (KUKA-002).
+  'document_view', 'supplier_view',
+]);
 
-/** A TERVEK ZÁRT SZÓTÁRA. A `pro` a példa arra, hogy egy funkció (ár-nézet) előfizetéshez kötött. */
+/**
+ * A TERVEK ZÁRT SZÓTÁRA. A `pro` a példa arra, hogy egy funkció (ár-nézet) előfizetéshez kötött.
+ *
+ * R121 — AZ ÚJ NÉZETEK A `pro` ÚJONNAN BEÁLLÍTOTT PROFILJÁBA kerülnek, a `starter`-ben zártak.
+ * KIMONDVA, MERT FÉLREÉRTHETŐ LENNE: ez TESZTPROFIL, nem kereskedelmi díjcsomag-döntés — azt a
+ * későbbi számlázási adapter hozza, ami itt nem épül (ENT-02 eredeti kikötése).
+ *
+ * ÉS AMIT EZ A TÁBLA NEM CSINÁL (R121 §3): a MÁR TÁROLT profilokat nem bővíti. Az
+ * `entitlementFor` a tárolóból olvassa a funkció-listát, nem ebből a kódbeli tömbből — tehát egy
+ * régi `pro` könyv attól, hogy ez a sor bővült, NEM kap dokumentum-nézetet. A tárolt profil CSAK
+ * rendes, jogosult `setEntitlementProfile` hívással változik. Ez nem mellékhatás, hanem a
+ * szerződés: a kódbetöltés nem jogforrás (KUKA-047).
+ */
 export const PLANS = frozen({
   starter: frozen(['workspace', 'invite', 'stock_view']),
-  pro: frozen(['workspace', 'invite', 'stock_view', 'price_view']),
+  pro: frozen(['workspace', 'invite', 'stock_view', 'price_view', 'document_view', 'supplier_view']),
 });
 
 export const ENTITLEMENT_CONTRACT = frozen({

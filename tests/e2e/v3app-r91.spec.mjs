@@ -82,16 +82,18 @@ test('R91-01/02 — a Befejezés nem állít hamis sikert, a kihagyás KIMONDOTT
   } finally { await w.close(); }
 });
 
-test('R91-03 — MIND A KILENC bemutató elindul a saját képernyőjén, vagy NEVEZETTEN nem indítható', async ({ browser }) => {
+test('R91-03 — MINDEN bemutató elindul a saját képernyőjén, vagy NEVEZETTEN nem indítható', async ({ browser }) => {
   const w = new World(browser, 'r9103');
   try {
     const anna = await w.person('anna');
     await createWorkspaceUI(anna.page, { name: 'Bemutató Kft', business: { jurisdiction: 'HU', tax_id: '12345678-1-42' } });
     const status = await anna.api.get('/api/assistant/status?lang=hu');
     const tours = status.body.tours.map((t) => t.id);
-    // A KILENC DEKLARÁLT BEMUTATÓBÓL a fiókkezelőnek NYOLC jár (a regisztrációs CSAK belépés előtt).
-    expect(tours.length).toBe(8);
+    // A fiókkezelőnek KILENC bemutató jár (a regisztrációs CSAK belépés előtt indítható).
+    // R121: a kilencedik a hozzáférés ÉLETCIKLUSA (megadás ÉS visszavonás) — a szám ezért nőtt.
+    expect(tours.length).toBe(9);
     expect(tours).not.toContain('tour.register');
+    expect(tours, 'az R121 hozzáférés-életciklus bemutatója a kezelőnek jár').toContain('tour.scopeLifecycle');
     const byFeature = Object.fromEntries(status.body.tours.map((t) => [t.id, t.feature]));
     for (const id of tours) {
       // A SÚGÓBÓL INDÍTJUK, ahogy a felhasználó: a funkció útmutatójából.
