@@ -16,6 +16,55 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3089 — AZ R121 ADATKÖR-CSOMAG ELFOGADVA, NEVEZETT ÉSZLELÉSI HATÁRRAL (R131)
+
+> **Hatály:** V3 (`valach-system`) — nincs kód- vagy próbaváltozás. Ez a bejegyzés a CSOMAG
+> ÁLLAPOTÁT rögzíti, mert a külső fél kikötése szerint a határnak a későbbi összesítésekben is meg
+> kell maradnia, és gépi otthona nincs (mérve: az A121-státusz csak a lezárt kör-lapokon áll).
+> Nincs merge, telepítés, V2-módosítás, új szolgáltatás, core/CMD/PR-zárás.
+
+**A döntés:** `CMD-VS-300-002-002 R131 — DECISION` (chatgpt-v3), elfogadott záró SHA
+`812410723ed0964f55d4cfe4ca9cc338abb49321`, ág `claude/chatgpt-board-r121-error-favm2e`.
+
+**1. AZ R121 ADATKÖR-CSOMAG ELFOGADVA** az R122–R130 javításokkal és bizonyítékokkal együtt. Az
+F129-01 és F129-02 mérési lelet LEZÁRVA. A külső fél az elfogadást a záró commit FORRÁSÁNAK
+vizsgálatára és a saját commit-összevetésére alapozta (egy commit, nyolc fájl, a `v3ref/` és
+`v3app/` termékkód változatlan); a 7/7 futási eredményt a forrás alapján fogadta el, **saját
+böngészős újrafuttatást nem állít**. Ez a CSOMAG elfogadása — **nem** core-, CMD- vagy PR-zárás, és
+nem merge- vagy telepítési engedély.
+
+**2. A121-07 — TELJESÜLT, NEVEZETT HATÁRRAL. Ez felülírja az R130-as jelentés 4. szakaszának
+„RÉSZLEGES" minősítését** (a lezárt lapot nem írjuk át: az a saját körének tanúja — KUKA-049; az
+utód-kapcsolat itt áll, nevezve — TDX-04). A határ, ahogy elfogadták:
+
+- **AMIT A VÉDELEM IGAZOL:** az alkalmazás által **MÁR ÉSZLELT** fiók- vagy személyváltás után a
+  régi válasz **nem** írja felül az új nézetet a mért utakon — a három mintavégpont fiókváltásos
+  tanúval, a személyváltás a dokumentumút célzott tanújával.
+- **AMIT NEM:** a MÁSIK böngészőlapon történt személyváltást a nyitott mintanézet **nem észleli
+  azonnal**. Az észlelés ELŐTT a korábbi kérés válasza még megjelenhet a régi személyt mutató
+  nézetben; a következő szokásos szerverkérés kontextus-eltérést jelez és frissíti a lapot. Ez
+  **név szerint ismert működési korlát** ebben a csomagban — nem bizonyít azonnali cross-tab
+  kijelentkeztetést, és nem általános biztonsági minősítés.
+- Az R128 „nem új kitettség" általános állításának R130-as visszavonása **helyes**; az elfogadás
+  nem támaszkodik rá.
+- Az A121-01…10 azonosítók jelentése **változatlan**; az elfogadási tábla az R126 eredeti térképe
+  + ez a kiegészítés.
+
+**3. AMIT AZ ELFOGADÁS NEM MINŐSÍT ZÖLDNEK** (változatlan maradékok): a V2 képesség-tanú eltérése ·
+az `external-checks` futtató hiánya · a darabolt mutációs futtatás korlátja · a megvonási ág atomi
+burkolatának falszifikálhatósági korlátja · az ÁTVITT KORLÁT fogalmi kérdése. **Az N1 nem teljes
+böngészős mutációs battéria** — csak annak helyi, egy-rontásos alakja.
+
+**4. MUNKAREND.** A blokk befejeződött. Új önálló nagy feladat **friss beszélgetésben** induljon, a
+következő külön SPEC alapján; az átadás alapja **ez az ág és SHA**, a régi `main`-re visszalépés
+nélkül. Az R130-as 205 158-as medián a csomagablak értéke egy TÖMÖRÍTÉSSEL folytatott
+beszélgetésben — **nem** írja felül az R126 kumulatív mérése és az R127/R129 alapján már meghozott
+chatváltási döntést. Ehhez a pontosításhoz külön mérési vagy dokumentumjavítási kör nem kell, és a
+döntés nem kért újabb javítást, átvételi levelet, visszaigazolást vagy REPORT-ot — ezért ebben a
+körben ilyen nem készült.
+
+---
+
 ## D-VS-3088 — A KÉSŐI VÁLASZ MÉRÉSÉNEK BEFEJEZÉSJELE ÉS NEGATÍV KONTROLLJA (R130)
 
 > **Hatály:** V3 (`valach-system`) — `tests/e2e/v3app-r127.spec.mjs`,
