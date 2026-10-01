@@ -202,13 +202,22 @@ export const MUTATIONS = [
     from: "  const grant = inviteGrantAt({ store, invite: inv, clock });",
     to: "  const grant = Object.freeze({ ok: true, issuer_role: 'admin' });" },
 
+  // AZ R132 ÚJRAHORGONYOZTA EZT A MUTÁCIÓT, és a KÉT szerkesztés EGYRE olvadt — kimondva, mert
+  // különben a következő olvasó fél-mutációnak látná (KUKA-039). Az R132 előtt a beváltás KÉT
+  // helyen kérdezte meg magától ugyanazt (`!outcome.grants_access` a kapu előtt, `!outcome2…` a
+  // tranzakcióban), ezért a rontás is két horgonyt kért. Az R132-ben a döntés EGY feloldóba került
+  // (`reentryDecisionFor`), amit MINDKÉT pont hív — tehát egy horgony most TÖBBET fed, nem
+  // kevesebbet. A rontás ugyanaz a VALÓDI visszacsúszás: a hozzáférést NEM adó kimenet (visszavont
+  // tagság, újranyitási döntés nélkül) némán átmegy, a meghívó elfogy, jog nem keletkezik.
+  //
+  // ÉS EGY LELET A SAJÁT KÖRÖMRŐL (R132): ez a horgony a csomag közben ELAVULT, a battéria pedig
+  // nem zöldet, hanem `STALE_ANCHOR`-t adott — a söprés ezt PIROSKÉNT mondta ki. Pontosan ezért
+  // nem elég a próbák zöldje: egy mutáció, ami nem tud illeszkedni, nem bizonyít semmit (KUKA-051).
   { id: 'M24', rule: 'K09', catcher: 'P-INVITE-authority', expect: 'probe_fail',
     what: 'Q13 — a VISSZAVONT tagság némán elnyelődik: a meghívó elfogy, hozzáférés nélkül',
     file: 'invite.mjs',
-    edits: [
-      { from: "  if (!outcome.grants_access) {", to: "  if (false) {" },
-      { from: "    if (!outcome2.grants_access) {", to: "    if (false) {" },
-    ] },
+    from: "  if (outcome.grants_access) {",
+    to: "  if (true) {" },
 
   { id: 'M25', rule: 'K03', catcher: 'P-INVITE-effect', expect: 'probe_fail',
     what: 'Q12 — az írások NEM atomiak: a megszakadt beváltás félkész jogadást hagy',
