@@ -38,6 +38,16 @@ válasz** mérés — plusz **két valódi folyamat versenye** az újranyitási 
 270. A legfontosabb: a felülvizsgálati kör kapuja az R132-ben **soha nem tüzelt** (nem létező mezőre
 illesztett feltétel), és a saját battériám a **hiányzó védelmet PASS-nak nevezte**.
 
+**És amit a teljes ellenőrzés NEM mondott zöldnek — ezt üzleti nyelven is kimondom.** A 32 ellenőrző
+lánc közül **30 zöld**, egy **örökölt** piros (egy olyan nyilvántartás, ami a V2 repóban él, és a
+javítása V2-módosítás lenne — azt ez a parancs kizárja), és egy **hosszú lánc**, a külső ellenőrző
+fél programjaival, amit külön futtattam: ott **19 programból 13 felel meg**. A hat eltérés közül
+**négy már a csomag előtti, commitolt futásban is eltért** (örökölt), **kettő viszont ebben a
+csomagban lett eltérő** — és mind a kettő IDŐKORLÁTON állt meg, nem a szerződés mondott ellent: a
+hibakereső battéria 204-ről 229 „rontásra" nőtt, és a külső program fix időkorlátja ezt ezen a gépen
+már nem engedi végigfutni. Ezt nem kerekítem zöldre: a részletek, a mért másodpercek és a lezárás
+feltétele a §7/5. és a §8 alatt állnak.
+
 ---
 
 ## 2. Az elfogadási tábla JAVÍTOTT minősítése (A132-01…10)
@@ -167,9 +177,11 @@ könyve némán üresnek látszik) · **M327** (a hiányzó azonosság néma eng
 
 ## 7. A fennmaradó bizonyíték-rés — tételesen, lezárási feltétellel
 
-Az R134 §A132-10 kérésére a `norms.mjs` ORG-N1a `remaining` szövegében (és itt) **négy** nevezett
-tétel áll; a req-5 kötelezővé emelése továbbra is külön, független döntés, de ezeket **nem a döntés
-hiánya**, hanem mérhető munka zárja le:
+Az R134 §A132-10 kérésére a `norms.mjs` ORG-N1a `remaining` szövegében **négy** nevezett tétel áll
+(1–4 alább); a req-5 kötelezővé emelése továbbra is külön, független döntés, de ezeket **nem a döntés
+hiánya**, hanem mérhető munka zárja le. Az **5. tétel MÉRÉSI-INFRASTRUKTÚRA**, nem a norma
+bizonyíték-rése — ezért a `norms.mjs` szövegében szándékosan NINCS benne, itt viszont áll, mert
+ebben a körben mértem meg:
 
 1. **Alap nélküli történeti sorok** — a `basis_id`-t nem hordozó hatáskör- és jog-sorok ma a
    HASZNÁLATNÁL zárnak, de a tárolóban maradnak. *Lezárás:* mért migrációs/felülvizsgálati út, a
@@ -182,6 +194,18 @@ hiánya**, hanem mérhető munka zárja le:
    referencián és KÉT valódi folyamaton áll. *Lezárás:* ugyanezek a próbák üzemi tárolón (OB-1).
 4. **A szervezeti képviselet (ORG-N3)** — vagylagos jogalap-út ma nincs, tehát az ORG-N1a „nevezett
    delegáló" fogalma csak a tagság-alapú úton bizonyított. *Lezárás:* az ORG-N3a/b megépülése.
+5. **A KÜLSŐ TANÚ DARABOLÁSA — új tétel, EBBEN a körben mérve (lásd §8).** A külső ellenőrző
+   programok a battéria darabszámát a MUTÁCIÓK SZÁMÁBÓL képzik (`max(6, ceil(N/24))`), a korlát
+   viszont, amibe bele kell férnie, **falióra** (15 000 ms egységenként, r83core-nál 300 000 ms az
+   egész battériára). A csomagban a battéria 204 → **229** mutációra nőtt, és MÉRVE egy 1/10 szelet
+   ezen a futtatón **25 110 ms** — a saját 12 000 ms-os költségvetés és a külső 15 000 ms-os korlát
+   fölött. A repóbeli battéria ezért zöld (`--units-auto` addig finomít, amíg minden egység MÉRVE
+   belefér), a külső programé viszont nem tud finomítani. **Így a saját adaptációnkban álló mondat
+   („a hívó a battéria növekedésével magától finomodik") MÉRVE nem áll** — mutáció-számra finomodik,
+   nem faliórára. *Lezárás:* a darabolás falióra-vezéreltté tétele a külső fél adaptációs
+   hozzájárulásával (ugyanazon az úton, ahogy az r57a/r59a megkapta a darabolt hívást), plusz
+   tanulság-bejegyzés a regiszterbe; a programok lenyomata a bizonyíték identitásának része, ezért
+   ebben a körben hozzá NEM nyúltam.
 
 **Változatlan határok:** nincs merge, éles telepítés, V2-módosítás, új fizetős szolgáltatás, külső
 levélküldés, és nincs core-/CMD-/PR-zárás. A req-5 **nem** lépett életbe.
@@ -205,6 +229,42 @@ levélküldés, és nincs core-/CMD-/PR-zárás. A req-5 **nem** lépett életbe
 | `npm run app:selfcheck` | **57/57** | friss |
 | `npm run verify:decision-numbers` | **4/4** (a következő szabad szám: D-VS-3092) | friss |
 | `npm run verify:capability-witness` | **PIROS — ÖRÖKÖLT és nevezett**: a képesség-regiszter a V2 repóban él, a javítása V2-módosítás volna, amit a SPEC §8 kizár (R131 döntése) | örökölt |
+| **`npm run verify:sweep`** (teljes, a commitolt fán) | **32 verifier · 1377 s · 30 ZÖLD · 0 env-kihagyás · 1 NEM FEJEZŐDÖTT BE · 1 PIROS** — tehát az ÖSSZVERDIKT NEM ZÖLD | friss |
+| `npm run verify:external-checks` (a söprésben 900 s-nál elvágva) | KÜLÖN futtatva **PIROS: 13/19 program MEGFELEL** — ebből **4 ÖRÖKÖLT**, **2 ÚJ**, mindkettő falióra-korláton (lásd a tábla alatti bekezdést) | friss futás, vegyes eredet |
+
+**A söprés összverdiktje NEM zöld, és ezt nem mossuk el.** Két tétel nem zöld, mindkettő nevezve:
+a `verify:capability-witness` ÖRÖKÖLT piros (fenti sor), a `verify:external-checks` pedig a söprés
+900 másodperces türelmén belül **NEM FEJEZŐDÖTT BE** (901 s) — ez sem kihagyás, sem zöld. A szabály
+szerint (KUKA-200) ezt KÜLÖN futtattam, és az eredménye a saját futásából származik:
+
+**A külön futás eredménye, MÉRVE (nyers kimenet: `var/tmp/r134_extchecks.log`):**
+`RESULT: 13/19 program MEGFELEL — ELTÉRÉS: r83core · r79 · r59a · r57a · r59 · r57`, hatókör **full**
+(minden nyilvántartott program lefutott). **A hat eltérés szétválasztva, és a szétválasztás MÉRT, nem
+becsült:** a lánc eredmény-fájljai a repóban KÖVETETTEK, tehát a legutóbbi commitolt futás
+(2026-09-26, a csomag ELŐTT) összevethető a maival:
+
+| program | a commitolt alapvonalon (2026-09-26) | ma (a csomag commitján) | eredet |
+|---|---|---|---|
+| r79 · r59a · r59 · r57 | **már eltérő** | eltérő | **ÖRÖKÖLT** |
+| r83core | megfelelt | **eltérő** — `spawnSync ETIMEDOUT` a saját 300 000 ms-os korlátján, eset-lista nélkül | **ÚJ** |
+| r57a | megfelelt | **eltérő** — két eset (E02 · E03) VERDIKT NÉLKÜL: `ETIMEDOUT` a saját `runBatteryUnits` 15 000 ms-os egység-korlátján | **ÚJ** |
+
+**A két ÚJ eltérés MECHANIZMUSA mérve, és nem a szerződés mondott ellent:** a külső programok a
+battéria darabszámát a mutációk SZÁMÁBÓL képzik (`max(6, ceil(229/24))` = 10 egység), a korlát
+viszont FALIÓRA. Ezen a futtatón egy 1/10 szelet **25 110 ms** — a `mutate.mjs` saját 12 000 ms-os
+költségvetése (`RESULT (EGYSÉG 1/10): a szelet TISZTA · belefér a korlátba: NEM`) és a külső
+15 000 ms fölött. A repóbeli battéria ezért marad zöld: a `--units-auto` addig finomít (36, majd 40
+egység), amíg minden szelet MÉRVE belefér. A battéria ebben a csomagban 204 → **229** mutációra nőtt.
+Az r57a KÜLÖN, versenytárs nélküli futásában ugyanez a két eset állt meg, a többi **hét eset zöld**
+(a lánc „5/9 zöld" számolása a két hiányzó esetet kétszer veszi le — ezért az esetek számát a
+részletes artefaktumból közlöm).
+
+**És amit ez NEM bizonyít, kimondva:** nem tudom, a két új eltérésből mennyi a battéria 12%-os
+növekedése és mennyi ennek a futtatónak a sebessége — ez MÉRHETŐ, de nem mértem. A finomabb
+darabolású ellenpróbát (`VS_BATTERY_UNITS=30`) elindítottam, és a lezáró blokkra szánt időn belül
+**NEM futott végig: ELAKADT MÉRÉS** — tehát arról, hogy a két eset finomabb szeleteléssel átmegy-e,
+semmit nem állítok. A programok LENYOMATA a bizonyíték identitásának része, ezért a külső program
+darabolási szabályához ebben a körben nem nyúltam; a tétel a §7/5. pontban áll, lezárási feltétellel.
 
 A mérések nyers kimenete a `var/` alatt (nem a repóban: generált). A reprodukálható PIROS alapmérés
 (javítás előtti futás) a `var/tmp/r134_red_baseline.txt` fájlban keletkezett, és a §3–§5 számai ebből
@@ -216,8 +276,12 @@ származnak.
 
 - **Ág:** `claude/cmd-vs-300-002-002-r134-srjxnp`
 - **Induló fej (az R134-ben ellenőrzött):** `b8c80b68e2d1dac02ff82ca318c43bf0522826cc`
-- **Mért SHA a termékkódra:** a csomag commitja (lásd a kör üzenetét) — a fenti mérések ezen a
-  munkafán futottak, tiszta indexszel a jelentés commitja előtt.
+- **MÉRT SHA (a termékkód):** `5cfa67a7b4f8f4b7850bde03c4cb710fc6748f5a` — **minden** fenti mérés
+  ezen futott, tiszta munkafán; a külső lánc a saját kimenetében is ezt a kötést írta ki
+  (`kötés: 5cfa67a7b4f8…`), tehát a bizonyíték és a SHA egymáshoz van mérve, nem az emlékezetemhez.
+- **ZÁRÓ SHA (ez a jelentés + a futás-artefaktumok):** a jelentés commitja, amit a kör üzenete
+  nevez meg. Ez a commit a mért SHA UTÁN keletkezett, és **termékkódot nem változtat** —
+  a jelentés-lapot, a fogyasztás-leltárt és a külső lánc eredmény-fájljait viszi.
 - **Bemutató (megnyitható):** a kör válaszában álló artifact-hivatkozás; a repóbeli forrás és a
   generálási parancs a §6-ban.
 
@@ -254,9 +318,26 @@ hálózati újraküldés ugyanazt az ajánlatot adja vissza (a nyugta ezt ki is 
 
 ## 11. Munkamenet-mérés
 
-`npm run meres:fogyasztas -- --session auto --from <az R134 board-időbélyege> --quick`:
-**ablak** 2026-10-01T15:42:43Z → a csomag vége · **hívás** 279 · **fő-szál kontextus medián**
-499 048 (max 764 030) · **ügynök-bemenet** 0 (nulla al-ügynök) · **lefedettség: teljes**.
+A csomag záró mérése (`npm run meres:fogyasztas -- --session auto --from 2026-10-01T15:42:43Z
+--to <a csomag vége> --label "R134 javito-befejezo csomag"`), tartalom nélküli leltárral a repóban
+(`docs/70_PLANNING/V3_R134_FOGYASZTAS_LELTAR.json`):
+
+| | **A CSOMAG ABLAKA** (R134) | **A TELJES MUNKAMENET** (kumulatív) |
+|---|---|---|
+| ablak | 2026-10-01T15:42:43Z → 17:33:16Z | 2026-10-01T16:10:30Z → 17:33:16Z |
+| hívás | 305 | 305 |
+| cache-olvasás · kimenet | 150 787 819 · 276 052 | 150 787 819 · 276 052 |
+| ügynök-bemenet | 0 (nulla al-ügynök) | 0 |
+| lefedettség | teljes (1 átirat, minden válasz usage-dzsal) | teljes |
+
+**A két sor itt SZÁNDÉKOSAN azonos, és ezt ki kell mondani:** ez a beszélgetés EGYETLEN csomagot
+szolgált ki, tehát a csomag-ablak és a kumulatív munkamenet ugyanazt a hívás-halmazt fedi — a
+különválasztás alakja megvan, a különbség nulla. Az átirat kezdete (16:10:30Z) KÉSŐBBI, mint a
+parancs board-időbélyege (15:42:43Z): a parancs beérkezése és a végrehajtás indulása közti idő nem
+hordoz hívást.
+
+**Fő-szál kontextus:** medián **509 545** · max **783 596** · 400 ezer fölött 230 hívás.
 **A chatváltási jelző ELÉRVE** (≥ 400 000): ezt a javító-befejező blokkot célzott ellenőrzéssel
-lezártam; a KÖVETKEZŐ önálló nagy blokk induljon friss beszélgetésben. A csomag-ablak és a
-kumulatív munkamenet itt KÜLÖN szerepel: a fenti számok ennek az EGY csomagnak az ablakára szólnak.
+zártam le (új feltárás és új funkció nélkül), és a KÖVETKEZŐ önálló nagy blokk induljon friss
+beszélgetésben. Egy tömörítés történt a csomag közben (1× compaction, 9 hívás) — a tömörítéssel
+folytatott beszélgetés az R114 szerint NEM friss beszélgetés.
