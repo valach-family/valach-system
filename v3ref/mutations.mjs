@@ -1743,6 +1743,49 @@ export const MUTATIONS = [
     from: "      const ceilingOf = delegationCeilingOf({ store, subjectId: revokerSubjectId, bookId, at });",
     to: "      const ceilingOf = (() => { const b = deriveDelegationBasis({ store, subjectId: revokerSubjectId, bookId, at }); return b.ok ? { ok: true, scopes: b.limit.scopes } : b; })();" },
 
+  // ── R132 — A MEGHÍVÓ VISSZAVONÁSA ÉS AZ ÚJBÓLI BELÉPÉS VISSZACSÚSZÁSAI ─────────────────────
+  //
+  // MIND A NÉGY RONTÁS AZ R132 ELŐTTI ÁLLAPOTOT ÁLLÍTJA VISSZA, nem egy kitalált hibát: ez a mérce
+  // itt, mert pontosan az a kérdés, hogy a próba a VALÓDI regressziót fogja-e el (KUKA-207: amit
+  // próba nem tud megbuktatni, azt bizalomból hisszük).
+  { id: 'M320', rule: 'K03', catcher: 'P-INVITE-revoke', expect: 'probe_fail',
+    what: 'INVR-01 / R132 §2 — A VISSZAVONÁS LÁTHATATLAN A BEVÁLTÁSI LÁNCNAK: a közös feloldó csak a '
+      + 'lejáratot és a beváltottságot nézi, a visszavonás-naplót nem. MÉRT HATÁS: a kezelő által '
+      + 'visszavont meghívó TOVÁBBRA IS tagságot ad, és a megfigyelés is folytatást ígér — a döntés '
+      + 'nyoma bent van a tárolóban, csak senki nem kérdezi meg (KUKA-069: a mező ott áll, az olvasó '
+      + 'hiányzik; KUKA-018: két olvasó egy tényre, külön válasszal)',
+    file: 'invite.mjs',
+    from: "  const rev = inviteRevocationAt({ store, token: invite.token, nowIso });\n  if (rev.revoked) {",
+    to: "  const rev = inviteRevocationAt({ store, token: invite.token, nowIso });\n  if (false) {" },
+
+  { id: 'M321', rule: 'K03', catcher: 'P-INVITE-revoke', expect: 'probe_fail',
+    what: 'INVR-01 / R132 §2 — AZ ÜZLETI IDEMPOTENCIA ELVESZIK: az ismételt visszavonás MÁSODIK '
+      + 'naplósort ír. MÉRT HATÁS: a kétszer megnyomott gomb két eseményt gyárt ugyanarra az egy '
+      + 'üzleti döntésre, és a nyugta mindkettőre „most változott"-at mond (KUKA-129: a nyugtának is '
+      + 'igazat kell mondania arról, történt-e változás)',
+    file: 'invite.mjs',
+    from: "      const already = inviteRevocationAt({ store, token: tok, nowIso: at });",
+    to: "      const already = Object.freeze({ revoked: false, reason: 'invite_not_revoked' });" },
+
+  { id: 'M322', rule: 'K05', catcher: 'P-ORG-reentry', expect: 'probe_fail',
+    what: 'SGP-01 / R132 §4 — A JOG ELSZAKAD A TAGSÁGI IDŐSZAKTÓL: az időszak-szűrő kiesik, tehát a '
+      + 'megadás/megvonás eseménysora megint PUSZTÁN alany × könyv × adatkör kulcson oldódik fel. '
+      + 'MÉRT HATÁS: az újbóli belépés MAGÁVAL HOZZA a lezárt időszak összes adatkörjogát — a '
+      + 'visszahívott munkatárs azonnal látja az árakat, amit senki nem adott meg neki újra. Ez az '
+      + 'R132 csomag MAGJA, és a spec kifejezetten tiltja',
+    file: 'scopeGrant.mjs',
+    from: "  const inPeriod = periodFiltered\n    ? grants.filter((r) => scopeGrantInPeriod(r.membership_grant_id, periodGrantEventId, firstPeriod))\n    : grants;",
+    to: "  const inPeriod = grants;" },
+
+  { id: 'M323', rule: 'K03', catcher: 'P-ORG-reentry', expect: 'probe_fail',
+    what: 'RNV-01 / R132 §3 — A CSENDES REAKTIVÁLÁS: a `revoked_needs_decision` ág TÁROLT újrahívási '
+      + 'döntés NÉLKÜL is megnyílik. MÉRT HATÁS: egy RENDES meghívó visszaadja az eltávolított '
+      + 'munkatárs tagságát, külön kezelői döntés nélkül — pontosan az a védelem szűnik meg, amit a '
+      + 'spec első mondata megtartani kér (KUKA-143: a feladáskori bizonyíték nem küldéskori engedély)',
+    file: 'invite.mjs',
+    from: "  const adm = reentryAdmission({\n    store, token, targetSubjectId: target, bookId: inv.book_id, offeredRole: inv.offered_role, at,\n  });\n  if (adm.ok !== true) {",
+    to: "  const adm = Object.freeze({ ok: true, reason: 'reentry_admitted', offer_id: 0, closed_grant_event_id: 0, closed_revocation_id: 0, decided_by: null, basis_id: null, basis_version: 0 });\n  if (adm.ok !== true) {" },
+
   { id: 'M312', rule: 'K05', catcher: 'P-SCR-partial-revocation', expect: 'probe_fail',
     what: 'ATO-01 / R123 §F123-02 — A NEVEZETT HIBAKIMENET NEM GÖRGET VISSZA: a bukott tárolás '
       + 'egyszerűen visszatér, a művelet addigi írásai bent maradnak. MÉRT HATÁS: `ok=false, '

@@ -32,15 +32,16 @@ import { bootstrapOf, workspacesOf, ensurePersonalSpace, personalSpaceOf, provis
 // domain-műveletek (megadás, meghívó-kiadás) belső dolga. Az import hiánya itt VÉDELEM: aki
 // visszahozná a rögzítőt egy olvasó útra, annak előbb újra be kell húznia.
 import { inviteColleague, grantScopeToMember, revokeScopeFromMember, revokeDelegationsOf,
-  delegationCeilingOf } from '../v3ref/delegation.mjs';
-import { observeInvite, redeemInvite, rememberIntent, resumeIntent } from '../v3ref/invite.mjs';
+  delegationCeilingOf, reinviteMember } from '../v3ref/delegation.mjs';
+import { observeInvite, redeemInvite, rememberIntent, resumeIntent,
+  revokeInvite, inviteRevocationAt, reentryOfferFor } from '../v3ref/invite.mjs';
 import { rightAt, revokeMembership, KNOWN_ROLES } from '../v3ref/authz.mjs';
 import { submitCommand, readCommandResult } from '../v3ref/command.mjs';
 import { KNOWN_DATA_SCOPES, declaredScopesOfType } from '../v3ref/resultScope.mjs';
 import { scopeReleaseDecision, scopeGrantLiveAt } from '../v3ref/releaseScope.mjs';
 import { entitlementFor, twoGateVerdict, setEntitlementProfile, PLANS } from '../v3ref/entitlement.mjs';
 import { businessIdentityOf, businessIdentityProblem, JURISDICTION_PROFILES } from '../v3ref/externalId.mjs';
-import { membershipAsOf } from '../v3ref/bitemporal.mjs';
+import { membershipAsOf, membershipPeriodsOf, closedMembershipPeriodOf } from '../v3ref/bitemporal.mjs';
 import { readScopeGrantAt } from '../v3ref/scopeGrant.mjs';
 import { representationCheck } from '../v3ref/representation.mjs';
 import { validateRequest, schemaForEndpoint, isGated, endpointsWithoutSchema, CONTEXT_FIELD, CONTEXT_SUBJECT_FIELD } from './httpSchema.mjs';
@@ -75,6 +76,11 @@ export const DEV_ROWCOUNT_LABEL = 'FEJLESZTŐI SOR-SZÁMLÁLÓ — csak darabsz�
 export const ROWCOUNT_TABLES = Object.freeze([
   'authority_basis', 'scope_grant', 'scope_grant_revocation', 'grant_basis',
   'membership', 'membership_grant', 'membership_revocation', 'invite', 'invite_basis',
+  // R132 — A KÉT ÚJ ESEMÉNY-TÁBLA IS SZÁMLÁLVA. A próbák ebből mérik az ÍRÁSMENTESSÉGET: egy
+  // elutasított visszavonás vagy újrahívás után ezeknek a számoknak VÁLTOZATLANNAK kell lenniük
+  // (KUKA-220: az elutasításnak nyoma sem lehet a védett nyilvántartásban). Ami nincs számlálva,
+  // arról nem tudunk nyilatkozni (KUKA-135: a kimaradás egyetlen számlálóba sem kerül).
+  'invite_revocation', 'membership_reentry',
   'access_refusal', 'disclosure', 'command', 'command_event',
 ]);
 export const NEUTRAL_REGISTER = Object.freeze({ ok: true, message: 'Ha a cím szabad, megerősítő levelet küldtünk.' });
@@ -791,7 +797,27 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
           const event = readScopeGrantAt({ store, subjectId: row.subject_id, bookId: cur.book_id, scope, validAt: at, knownAt: at });
           scopes[scope] = { granted: live.allowed === true, reason: live.reason, recorded: event.granted === true };
         }
-        return { subject_id: row.subject_id, email: emailOf(row.subject_id), role: row.role, effective: m.effective === true, effective_reason: m.reason, scopes };
+        // R132 §6 — „a korábban eltávolított tag legyen visszakereshető", és a kezelő lássa, hogy
+        // AZ ÚJBÓLI MEGHÍVÁS ma ajánlható-e. A szerver mondja meg, nem a böngésző: a döntés négy
+        // HATÁRON áll (felfüggesztés · tiltás · nyitott felülvizsgálat · visszamenőleges
+        // érvénytelenség), és ezeket a böngésző nem is ismeri (KUKA-041 · KUKA-011: a hamis gomb és
+        // a némán letiltott gomb ugyanaz a hiba két irányból).
+        //
+        // ÉS AZ OLVASÁS NEM ÍR (DCE-01 · KUKA-220): a `closedMembershipPeriodOf` és a
+        // `membershipPeriodsOf` TISZTA feloldók — a lista lekérése nem keletkeztet újrahívási döntést.
+        const periods = membershipPeriodsOf({ store, subjectId: row.subject_id, bookId: cur.book_id, knownAt: at });
+        const closed = m.effective === true
+          ? { ok: false, reason: 'membership_is_open' }
+          : closedMembershipPeriodOf({ store, subjectId: row.subject_id, bookId: cur.book_id, at });
+        return {
+          subject_id: row.subject_id, email: emailOf(row.subject_id), role: row.role,
+          effective: m.effective === true, effective_reason: m.reason, scopes,
+          period_count: Array.isArray(periods.periods) ? periods.periods.length : 0,
+          current_period: m.effective === true ? (m.period_grant_event_id ?? null) : null,
+          reinvitable: closed.ok === true,
+          reinvite_reason: closed.ok === true ? 'closed_period' : closed.reason,
+          removed_at: closed.ok === true ? closed.closed_at : null,
+        };
       });
       // R121 §3 — A PLAFON A FELÜLETEN IS LÁTSZIK, ÉS NEM ÍGÉRÜNK ÁTLÉPHETŐT.
       //
@@ -874,17 +900,43 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
       const rows = store.all(
         `SELECT token, invitee_namespace, invitee_value, offered_role, issuer_subject, expires_at, redeemed_at
            FROM invite WHERE book_id = ? ORDER BY expires_at DESC`, cur.book_id);
-      const invites = rows.filter((r) => !r.redeemed_at).map((r) => ({
-        // AZONOSÍTÓ A KÉPERNYŐNEK, DE NEM A TOKEN: a lista-sor jelölője a token RÖVID lenyomata,
-        // amiből a hivatkozás nem állítható vissza (a beváltás a teljes tokenhez kötött).
-        ref: shortRef(r.token),
-        email: r.invitee_namespace === 'email' ? r.invitee_value : null,
-        role: r.offered_role,
-        invited_by: emailOf(r.issuer_subject) ?? null,
-        expires_at: r.expires_at,
-        expired: Date.parse(r.expires_at) <= Date.parse(at),
-      }));
-      return { status: 200, body: { ok: true, book_id: cur.book_id, ...ctx.served, invites, at } };
+      // R132 §6 — „A kezelő lássa, mi FÜGGŐ, ELFOGADOTT, LEJÁRT vagy VISSZAVONT."
+      //
+      // A RÉGI ALAK CSAK A FÜGGŐKET ADTA (`filter(r => !r.redeemed_at)`), tehát a visszavonás
+      // EREDMÉNYE nem látszott volna: a kezelő megnyomja a gombot, a sor eltűnik — és nem tudja,
+      // visszavonás vagy hiba történt (KUKA-011/015: aki olvassa, az lássa; D-VS-497/4. kérdés: a
+      // művelet után a képernyő az ÚJ igazságot mutatja).
+      //
+      // AZ ÁLLAPOT EGY ZÁRT KÉSZLETBŐL JÖN, és a sorrend KIMONDOTT: a visszavonás erősebb, mint a
+      // lejárat (ugyanaz a precedencia, amit az `inviteOpenAt` is használ — KUKA-018).
+      const invites = rows.map((r) => {
+        const rev = inviteRevocationAt({ store, token: r.token, nowIso: at });
+        const accepted = Boolean(r.redeemed_at);
+        const expired = Date.parse(r.expires_at) <= Date.parse(at);
+        const state = rev.revoked ? 'revoked' : accepted ? 'accepted' : expired ? 'expired' : 'pending';
+        return {
+          // AZONOSÍTÓ A KÉPERNYŐNEK, DE NEM A TOKEN: a lista-sor jelölője a token RÖVID lenyomata,
+          // amiből a hivatkozás nem állítható vissza (a beváltás a teljes tokenhez kötött).
+          ref: shortRef(r.token),
+          email: r.invitee_namespace === 'email' ? r.invitee_value : null,
+          role: r.offered_role,
+          invited_by: emailOf(r.issuer_subject) ?? null,
+          expires_at: r.expires_at,
+          expired,
+          state,
+          accepted_at: r.redeemed_at ?? null,
+          revoked_at: rev.revoked ? (rev.effective_at ?? null) : null,
+          // A VISSZAVONÁS CSAK A FÜGGŐRE AJÁNLHATÓ MŰVELET — és a szerver mondja meg, nem a böngésző
+          // (KUKA-041: a hamis és a némán letiltott gomb ugyanaz a hiba két irányból).
+          revocable: state === 'pending',
+          // ÉS AZ ÚJBÓLI BELÉPÉSI AJÁNLAT TÉNYE IS LÁTSZIK: a kezelőnek tudnia kell, hogy ez a sor
+          // egy VISSZAHÍVÁS, nem egy első meghívás.
+          reentry: reentryOfferFor({ store, token: r.token }).present,
+        };
+      });
+      const states = { pending: 0, accepted: 0, expired: 0, revoked: 0 };
+      for (const i of invites) states[i.state] += 1;
+      return { status: 200, body: { ok: true, book_id: cur.book_id, ...ctx.served, invites, states, at } };
     },
 
     /**
@@ -922,6 +974,95 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
         store.run('DELETE FROM pending_intent WHERE session_id = ?', session.id);
       }
       return { status: r.ok ? 200 : 403, body: { ...r } };
+    },
+
+    /**
+     * R132 §2 — EGY FÜGGŐ MEGHÍVÓ VISSZAVONÁSA.
+     *
+     * HÁROM KÜLÖN MŰVELET, HÁROM KÜLÖN ÚT (spec §6): a meghívó visszavonása · a tagság
+     * megszüntetése (`/api/members/revoke`) · EGY adatkör visszavonása (`/api/members/scope/revoke`).
+     * Egy végpontra vonni őket pontosan az a KUKA-002, amit az R121-ben már egyszer kijavítottunk:
+     * a felhasználó szándéka három különböző dolog.
+     *
+     * A TOKEN NEM JÖN ÉS NEM MEGY (KUKA-006). A kérés a lista-sor RÖVID jelölőjét hozza, a tokent a
+     * szerver oldja fel — KIZÁRÓLAG a munkamenet SAJÁT könyvén belül. Így a felület soha nem kap
+     * beváltható hivatkozást, és egy idegen könyv jelölője sem oldható fel innen.
+     *
+     * TÖBBRE ILLŐ JELÖLŐ ⇒ FAIL-CLOSED. Lenyomat-ütközés gyakorlatilag nem fordul elő, de ha mégis,
+     * nem találgatunk: nevezetten elakadunk (KUKA-020 · KUKA-039).
+     */
+    'POST /api/invites/revoke': ({ session, input, body }) => {
+      if (!session.subject_id) return loginRequired();
+      const cur = currentBookOf(session);
+      if (!cur.book_id) return workspaceRequired(cur);
+      const ctx = contextGate(body, session, cur.book_id);
+      if (!ctx.ok) return { status: ctx.status, body: ctx.body };
+      const ref = String(input.ref).trim();
+      const matches = store.all('SELECT token FROM invite WHERE book_id = ?', cur.book_id)
+        .filter((r) => shortRef(r.token) === ref);
+      if (matches.length !== 1) {
+        // AZ ISMERETLEN ÉS AZ ÜTKÖZŐ JELÖLŐ KÉT KÜLÖN TÉNY, de a VÁLASZ ugyanaz marad kívülről
+        // (KUKA-047: a jogosulatlan ne tudja meg, létezik-e); a KÜLÖNBSÉG a nevezett okban áll.
+        return { status: 404, body: {
+          ok: false, changed: false,
+          reason: matches.length === 0 ? 'invite_unknown' : 'invite_ref_ambiguous',
+          message: 'ehhez a jelölőhöz nem tartozik visszavonható meghívás ebben a munkakörnyezetben',
+          ...ctx.served,
+        } };
+      }
+      const r = revokeInvite({
+        store, clock, token: matches[0].token, bookId: cur.book_id,
+        revokerSubjectId: session.subject_id, delegationCeilingOf,
+      });
+      return { status: r.ok ? 200 : 403, body: { ...r, ref, ...ctx.served } };
+    },
+
+    /**
+     * R132 §3 — ÚJBÓLI MEGHÍVÁS EGY ELTÁVOLÍTOTT MUNKATÁRSNAK.
+     *
+     * A HATÁR CSAK HATÁR: a hatáskör, a lezárt időszak, a plafon, a felfüggesztés/tiltás/felülvizsgálat
+     * és az idő KAPUJA MIND a domain-műveletben, a VÉGLEGESÍTÉSI ponton fut (RNV-01). Ez a réteg a
+     * nézet-kötést őrzi, és a nyugtát adja vissza — a cselekvő és a könyv a SZERVERES munkamenetből
+     * jön, nem a törzsből (KUKA-121 · KUKA-217).
+     *
+     * A LEVÉL UGYANAZON AZ EGY ÚTON MEGY, mint a rendes meghívónál: a próbaüzenet-fogadó a bemutató
+     * levél-doboza; VALÓDI külső levélküldés nincs (spec §6).
+     */
+    'POST /api/members/reinvite': ({ session, input, body, host, acceptLanguage }) => {
+      const lang = langOfRequest({ explicit: input.lang, acceptLanguage });
+      if (!session.subject_id) return loginRequired();
+      const cur = currentBookOf(session);
+      if (!cur.book_id) return workspaceRequired(cur);
+      const ctx = contextGate(body, session, cur.book_id);
+      if (!ctx.ok) return { status: ctx.status, body: ctx.body };
+      const at = clock.now();
+      const token = hex(32);
+      const expiresAt = new Date(Date.parse(at) + INVITE_TTL_MS).toISOString();
+      const r = reinviteMember({
+        store, clock, deciderSubjectId: session.subject_id, bookId: cur.book_id,
+        targetSubjectId: String(input.subject_id).trim(), offeredRole: input.role, scope: input.scope,
+        token, expiresAt,
+      });
+      if (!r.ok) {
+        return { status: 403, body: {
+          ok: false, changed: false, reason: r.reason, message: r.message ?? 'az újbóli meghívás nem adható ki',
+          ceiling: r.ceiling ?? null, next_step: r.next_step ?? null, ...ctx.served,
+        } };
+      }
+      const SRV_I = dictFor(lang).SRV;
+      const fiokNev = bookNameOf(cur.book_id) ?? cur.book_id;
+      pushMail({ to: r.invitee_value, subject: SRV_I.mailInviteSubject.replace('{fiok}', fiokNev),
+        link: `http://${host}/?invite=${token}&lang=${encodeURIComponent(lang)}`,
+        body: SRV_I.mailInviteBody.replace(/\{fiok\}/g, fiokNev) });
+      // A TOKEN NEM MEGY VISSZA A FELÜLETRE (KUKA-006) — a `ref` a lista-sor jelölője, amivel a
+      // kezelő később vissza is vonhatja ezt az ajánlatot.
+      return { status: 201, body: {
+        ok: true, changed: true, reason: r.reason, ref: shortRef(token),
+        reentry_id: r.reentry_id, offered_role: r.offered_role, scope: r.scope,
+        closed_grant_event_id: r.closed_grant_event_id, closed_revocation_id: r.closed_revocation_id,
+        requires_acceptance: r.requires_acceptance, restores_previous_scopes: r.restores_previous_scopes,
+        expires_at: expiresAt, ...ctx.served,
+      } };
     },
 
     'POST /api/members/scope': ({ session, input, body }) => {

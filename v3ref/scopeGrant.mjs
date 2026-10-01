@@ -25,6 +25,7 @@
  */
 import { instantMs } from './store.mjs';
 import { basisAsOf, withinBasis } from './authorityBasis.mjs';
+import { membershipAsOf, membershipPeriodsOf } from './bitemporal.mjs';
 import { KNOWN_DATA_SCOPES } from './resultScope.mjs';
 
 const frozen = (o) => Object.freeze(o);
@@ -45,6 +46,48 @@ export const SCOPE_GRANT_CONTRACT = Object.freeze({
     'ismeretlen vagy szabad szövegű adatkör-név néma lefordítása',
   ]),
 });
+
+/**
+ * R132 — MELYIK TAGSÁGI IDŐSZAKHOZ TARTOZIK EGY JOG-SOR (SGP-01).
+ *
+ * MIÉRT KELL. Az R132 óta egy alanynak TÖBB tagsági időszaka lehet ugyanabban a könyvben
+ * (megvonás → újbóli belépés). A spec §4 kimondja: *„Új belépéskor a régi adatkörjogok … NEM
+ * éledhetnek fel. A négy olvasási kör újra külön, kifejezett megadást igényel."* Enélkül a régi
+ * `scope_grant` sor változatlanul hatályosnak olvasódna: a megvonás a TAGSÁGOT vonta meg, a jog-sort
+ * nem — tehát az új tagság magával hozta volna a régi adatkörjogokat.
+ *
+ * A NULL JELENTÉSE KIMONDOTT, ÉS NEM DÁTUM-BECSLÉS. A már létező jog-sorokon nincs időszak-jelölés;
+ * ezek az alany × könyv ELSŐ (legkisebb azonosítójú) tagságadó eseményéhez tartoznak. A spec
+ * kifejezetten tiltja a dátum-heurisztikát (*„A »régebbi dátum ⇒ valószínűleg régi jog« heurisztika
+ * nem megfelelő"*), ezért a „melyik az első" kérdést az ESEMÉNY-REND válaszolja meg, nem az idő.
+ *
+ * ÉS A VISSZAFELÉ KOMPATIBILITÁS MÉRHETŐ: egyetlen tagsági időszaknál az ELSŐ esemény EGYBEN a MAI
+ * is, tehát a NULL-os sorok viselkedése VÁLTOZATLAN (a spec kikötése: „nincs adateldobás vagy minden
+ * jog általános újraengedélyezése").
+ *
+ * PURE: csak olvas, nem ír.
+ */
+export function firstMembershipPeriodOf({ store, subjectId, bookId, knownAt }) {
+  const all = membershipPeriodsOf({ store, subjectId, bookId, knownAt });
+  if (all.ok !== true || !Array.isArray(all.periods) || !all.periods.length) return null;
+  return all.periods[0].grant_event_id ?? null;
+}
+
+/**
+ * EHHEZ AZ IDŐSZAKHOZ TARTOZIK-E A JOG-SOR? — EGY feloldó, hogy a kiadás, a jogkezelés és a
+ * képernyő ne tudjon elcsúszni egymástól (KUKA-018 · KUKA-039).
+ *
+ * @param rowPeriod  a sor `membership_grant_id` értéke (lehet null — lásd a NULL jelentését fent)
+ * @param period     a MAI (kérdezett) időszak tagságadó esemény-azonosítója
+ * @param firstPeriod az alany × könyv ELSŐ időszakának azonosítója (a NULL feloldásához)
+ */
+export function scopeGrantInPeriod(rowPeriod, period, firstPeriod) {
+  if (period === null || period === undefined) return false;
+  if (rowPeriod === null || rowPeriod === undefined) {
+    return firstPeriod !== null && firstPeriod !== undefined && Number(firstPeriod) === Number(period);
+  }
+  return Number(rowPeriod) === Number(period);
+}
 
 /**
  * OLVASÁSI JOG MEGADÁSA — a plafon SZŰKÍT, de a jogot EZ adja.
@@ -79,13 +122,30 @@ export function grantReadScope({
   }
   const within = withinBasis(basis, { scope, required: ['scopes'] });
   if (within.ok !== true) return frozen({ ok: false, reason: within.reason, scope });
+  // R132 — AZ IDŐSZAKOT A WRITER MÉRI, NEM A HÍVÓ ADJA MEG (SGP-01). Egy paraméter, amit a hívónak
+  // kellene kitöltenie, pontosan az a fél bekötés, amit a KUKA-039 tilt: a közös feloldó helyessége
+  // nem bizonyítja, hogy minden HÍVÓ átadja. Ezért a jog-sor a MEGADÁS pillanatában hatályos tagsági
+  // időszakhoz kötődik, és ezt itt kérdezzük meg — ugyanazzal a feloldóval, amit az olvasó is hív.
+  //
+  // A HIÁNY NEM NÉMA: ha a megadás pillanatában nincs hatályos tagság, az időszak `null` marad, és a
+  // jog a NULL-szabály szerint oldódik fel (az ELSŐ időszakhoz tartozik). Ez a RÉGI viselkedés — a
+  // tagság-kaput NEM ez a függvény dönti el (azt a hívó `grantScopeToMember` és a könyv-kapu teszi),
+  // és nem is vonjuk ide: egy írót nem terhelünk rá nem tartozó döntéssel (KUKA-002).
+  const periodAt = membershipAsOf({
+    store, subjectId, bookId, validAt: eff.canonical ?? effectiveAt,
+    knownAt: rec.canonical ?? recordedAt ?? effectiveAt,
+  });
+  const periodId = periodAt.effective === true ? (periodAt.period_grant_event_id ?? null) : null;
   const res = store.run(
     `INSERT INTO scope_grant (subject_id, book_id, scope, basis_id, basis_version, granted_by,
-       recorded_at, effective_at) VALUES (?,?,?,?,?,?,?,?)`,
+       recorded_at, effective_at, membership_grant_id) VALUES (?,?,?,?,?,?,?,?,?)`,
     subjectId, bookId, scope, basisId, Number(basisVersion), grantedBy,
-    rec.canonical ?? recordedAt ?? effectiveAt, eff.canonical ?? effectiveAt);
+    rec.canonical ?? recordedAt ?? effectiveAt, eff.canonical ?? effectiveAt, periodId);
   if (res?.changes !== 1) return frozen({ ok: false, reason: 'grant_row_not_created' });
-  return frozen({ ok: true, id: Number(res.lastInsertRowid), scope, basis_id: basisId, basis_version: Number(basisVersion) });
+  return frozen({
+    ok: true, id: Number(res.lastInsertRowid), scope, basis_id: basisId,
+    basis_version: Number(basisVersion), membership_grant_id: periodId,
+  });
 }
 
 /**
@@ -131,7 +191,7 @@ export function revokeReadScope({ store, subjectId, bookId, scope, at, effective
  * A HIÁNY NEVEZETT állapot (`no_scope_grant`), nem néma nulla (KUKA-012 · KUKA-093); az
  * OLVASHATATLAN sor ZÁR, nem néma kihagyás (KUKA-020).
  */
-export function readScopeGrantAt({ store, subjectId, bookId, scope, validAt, knownAt }) {
+export function readScopeGrantAt({ store, subjectId, bookId, scope, validAt, knownAt, periodGrantEventId }) {
   const valid = instantMs(validAt);
   const known = instantMs(knownAt ?? validAt);
   if (!valid.ok) return frozen({ granted: false, reason: `valid_at_${valid.reason}` });
@@ -140,13 +200,42 @@ export function readScopeGrantAt({ store, subjectId, bookId, scope, validAt, kno
   const grants = store.all(
     'SELECT * FROM scope_grant WHERE subject_id = ? AND book_id = ? AND scope = ? ORDER BY id',
     subjectId, bookId, scope);
+
+  // ═══ R132 — AZ IDŐSZAK-SZŰRŐ, HA A HÍVÓ MEGADJA (SGP-01) ════════════════════════════════════
+  //
+  // MIÉRT OPCIONÁLIS, ÉS MIÉRT NEM ITT DÖNTJÜK EL. Ez a függvény a megadás/megvonás ESEMÉNYSORÁT
+  // olvassa, és SZÁNDÉKOSAN nem dönt tagságról — ezt a szerződése az R125 óta kimondja, és a
+  // `GET /api/members` `recorded` oszlopa pontosan erre épül („az esemény MEGVAN, csak nem
+  // használható"). Ha ide behúznánk a tagság-kaput, az a mező elvesztené a jelentését (KUKA-002).
+  //
+  // EZÉRT: az IDŐSZAK-kötést az ÉLŐ jog kapuja (`scopeGrantLiveAt`) és a jogkezelés adja át — ők
+  // amúgy is feloldják a tagságot. Amit a hívó megad, azt itt MÉRJÜK; amit nem, arra a régi,
+  // esemény-szintű válasz jön (visszafelé kompatibilis, és a különbség NEVEZETT).
+  const periodFiltered = periodGrantEventId !== undefined && periodGrantEventId !== null;
+  const firstPeriod = periodFiltered ? firstMembershipPeriodOf({ store, subjectId, bookId, knownAt: knownAt ?? validAt }) : null;
+  const inPeriod = periodFiltered
+    ? grants.filter((r) => scopeGrantInPeriod(r.membership_grant_id, periodGrantEventId, firstPeriod))
+    : grants;
+  if (periodFiltered && grants.length && !inPeriod.length) {
+    // A HIÁNY NEVEZETT, ÉS MEGMONDJA, MIT KELL TENNI (KUKA-064): van megadás-esemény, de egy MÁSIK,
+    // MÁR LEZÁRT tagsági időszakban — tehát a mai joghoz ÚJ, kifejezett megadás kell.
+    return frozen({
+      granted: false, reason: 'scope_grant_other_period',
+      period: Number(periodGrantEventId),
+      message: `a(z) "${scope}" adatkörre VAN rögzített megadás, de egy korábbi, már lezárt tagsági `
+        + 'időszakban — új belépés után a jogot ÚJRA, kifejezetten meg kell adni',
+    });
+  }
   const revocations = store.all(
     'SELECT * FROM scope_grant_revocation WHERE subject_id = ? AND book_id = ? AND scope = ? ORDER BY id',
     subjectId, bookId, scope);
-  if (!grants.length) return frozen({ granted: false, reason: 'no_scope_grant' });
+  if (!inPeriod.length) return frozen({ granted: false, reason: 'no_scope_grant' });
 
+  // A MEGVONÁSOKAT NEM SZŰRJÜK IDŐSZAKRA, ÉS EZ SZÁNDÉKOS: egy megvonás a jog ELVÉTELE, és a
+  // korábbi időszakban kiadott megvonás sem „évül el". A szűrés csak az ADÓ oldalon áll — a zárás
+  // fail-closed, az engedés nem (KUKA-012).
   const line = [];
-  for (const r of grants) line.push({ kind: 'grant', row: r });
+  for (const r of inPeriod) line.push({ kind: 'grant', row: r });
   for (const r of revocations) line.push({ kind: 'revocation', row: r });
 
   const applied = [];

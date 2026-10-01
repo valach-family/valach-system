@@ -670,24 +670,47 @@ export const ORG_BASIS_NORMS = Object.freeze([
           // R63 §4 — A „KÉT OPERÁTORI DÖNTÉS" KERET MEGSZŰNT (a külső fél helyesbítette az R61-es
           // minősítését): a jogadás alapja SZAKMAI ALAPÉRTELMEZÉS, nem operátori kérdés. A maradék
           // ezért ÁTÍRVA — a történeti alak a D-VS-3062/3064 naplóban és az R58/R62 lapokon áll.
+          // R132 — A KÉT NEVEZETT ÉLETCIKLUS-HIÁNY MEGÉPÜLT. A korábbi szöveg (1) a MEGHÍVÓ
+          // VISSZAVONÁSÁT és (2) az ÚJRA-MEGHÍVÁST nevezte meg nyitottként; mindkettő MA LÉTEZŐ,
+          // mért út. A MARADÉK-SZÖVEG EZÉRT ÁTÍRVA — a korábbi alak a rendszer egy RÉGEBBI
+          // állapotát állította volna jelen időben (KUKA-050). A történeti vállalás a naplóban és az
+          // R132 lapján áll, azt NEM írjuk át (KUKA-103).
+          //
+          // ÉS AMIT EZ KIMONDOTTAN NEM TESZ: NEM lépteti életbe a req-5-öt. A két hiány lezárása
+          // NEM azonos a klauzula teljes bizonyításával — ahhoz az ORG-N1a MINDEN vállalt
+          // állításának tényleges bizonyítéka kell, és a kötelezővé emelést az R132 §8 kifejezetten
+          // KÜLÖN, FÜGGETLEN döntésre hagyja. A „megépült két út" és a „teljes a képviseleti alap"
+          // továbbra is KÉT KÜLÖNBÖZŐ ÁLLÍTÁS (KUKA-038 · KUKA-039).
           remaining: 'A MAI ÁLLAPOT, ÚTANKÉNT megnevezve (GPR-01, `contracts/grantPathRegistry.js`). '
             + 'ALAPOT HORDOZ, MÉR ÉS HIÁNYÁRA ZÁR: GP-INVITE-ISSUE és GP-INVITE-REDEEM (a pecsét nélküli '
             + 'meghívó beváltása R63 óta `invite_without_basis` néven ZÁR) · GP-ADJUDICATION-AUTHORITY '
             + '(az alap KÖTELEZŐ a megadáskor — `basis_id_required` —, és az alap nélküli sor a '
             + 'használatkor ZÁR — `authority_without_recorded_basis`) · GP-SCOPE-GRANT (az alap feltétel, '
-            + 'a séma is zár) · GP-WORKSPACE-STARTUP (a saját munkakörnyezet indulási alapja v1, a '
+            + 'a séma is zár) · GP-WORKSPACE-STARTUP (a saját munkakörnyezet indulási alapja v1/v2, a '
             + 'rendszer saját írásán) · GP-DELEGATED-INVITE (a meghívó alapja a kiadó továbbadható '
             + 'jogából, plafonnal) · GP-PLATFORM-RULE (a platformbírálói hatáskör nevezett, védett '
-            + 'kiinduló szabálya). '
-            + 'AMI KONKRÉTAN NYITVA MARADT, LÉTEZŐ ÚTON: (1) a MEGHÍVÓ VISSZAVONÁSA mint saját esemény '
-            + '(ma a lejárat és a kiadó jogának megvonása zár; a meghívón nincs `revoked_at`) · (2) az '
-            + 'ÚJRA-MEGHÍVÁS MEGVONÁS UTÁN (a `membership` kulcsa alany × könyv, a beváltás '
-            + '`revoked_needs_decision` néven áll meg — az újranyitás külön döntés, nincs megépítve). '
+            + 'kiinduló szabálya) · ÉS R132 ÓTA: GP-MEMBERSHIP-REENTRY (az újbóli belépési ajánlat '
+            + 'tárolt döntése: ki, mikor, milyen alapon, MELYIK lezárt tagsági időszakra). '
+            + 'AZ R132 ELŐTT ITT KÉT HIÁNY ÁLLT, ÉS MINDKETTŐ MEGÉPÜLT: (1) a MEGHÍVÓ VISSZAVONÁSA '
+            + 'saját, auditálható esemény (INVR-01, `invite_revocation`) — a beváltás, a megfigyelés és '
+            + 'a belépés utáni folytatás MIND zár rá, az ismétlés nem duplikál, a már elfogadott '
+            + 'meghívó visszavonása pedig NEVEZETTEN hatásmentes (nem tagságmegvonás); (2) az '
+            + 'ÚJRA-MEGHÍVÁS MEGVONÁS UTÁN (RNV-01): a rendes meghívás `revoked_needs_decision` '
+            + 'védelme VÁLTOZATLAN, az újranyitás KÜLÖN kezelői döntés + a címzett SAJÁT elfogadása, '
+            + 'az új tagsági időszakkal a RÉGI adatkörjogok NEM élednek fel (SGP-01), és a `membership` '
+            + 'kulcsa maradt alany × könyv (a sor VETÜLET, a történet a naplókban áll). '
+            + 'Falszifikálva: M320 · M321 · M322 · M323. '
+            + 'AMI TOVÁBBRA IS NYITVA MARADT, LÉTEZŐ ÚTON: a visszahívás NEM oldja fel a '
+            + 'felfüggesztést, a tiltást, a nyitott felülvizsgálati kört és a visszamenőleges '
+            + 'érvénytelenséget — ezek NEVEZETT zárások, a meglévő jogosult eljárásra mutató '
+            + 'folytatással; és a visszahívás nem utólagos joghatás-felülvizsgálat (REV-N4). '
             + 'KÜLÖN HATÁR, NEM HIÁNY: az ÁLTALÁNOS szervezeti képviselet — szervezeti egységek, '
             + 'delegált adminisztráció hierarchiája, együttes jóváhagyás — ma NEM LÉTEZŐ képesség; a '
             + 'kétszemélyes és a növekvő vállalkozás útja ugyanazon az egy tagság-/engedélymodellen '
             + 'megy, a nagy szervezeté ennek KÉSŐBBI bővítése, nem másik motor. '
-            + 'Amíg az (1) és (2) nyitva, a klauzula RÉSZLEGES, és a req-5 NEM léphet életbe rá.',
+            + 'A KLAUZULA EZZEL NEM ZÁRULT LE, és a req-5 NEM lépett életbe rá: a kötelezővé emelés '
+            + 'KÜLÖN, független döntés (R132 §8), mert a két életciklus-hiány lezárása nem azonos az '
+            + 'ORG-N1a MINDEN vállalt állításának bizonyításával.',
         }),
         // AMI MÉG NEM ÉPÜLT MEG A KORLÁTON: az az ORG-N1b-é, és az a klauzula MEGTARTJA a saját
         // gap-jét. Az R53 óta a `basisState` KÉT külön mezőben mondja ki, hol tart: `limit_enforced`

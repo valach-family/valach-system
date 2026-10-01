@@ -16,7 +16,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { openStore, clockFrom, instantMs } from './store.mjs';
-import { observeInvite, redeemInvite, rememberIntent, resumeIntent, inviteGrantAt } from './invite.mjs';
+import { observeInvite, redeemInvite, rememberIntent, resumeIntent, inviteGrantAt,
+  revokeInvite, inviteRevocationAt, inviteOpenAt, reentryAdmission } from './invite.mjs';
 import { rightAt, revokeMembership, revocationTransition, roleGrants, KNOWN_ROLES } from './authz.mjs';
 import { ADJUDICATION_OPS, adjudicationRightAt, grantAdjudicationAuthority, submitClaim, readClaim,
   adjudicateClaim, suspendMembership, liftSuspension, intakeKeyOf, UNATTRIBUTED_INTAKE_KEY,
@@ -40,7 +41,8 @@ import { validateInput, bindQuantityProfile } from './inputSchema.mjs';
 import { submitCommand, readCommandResult, commandRef, canonicalize, CanonError, recordCommandEvent, releasedFieldPaths } from './command.mjs';
 // REV-N2a/b (BIT-01): a két idő-tengely és a felülvizsgálati kör — a próbák a TERMÉK feloldóit
 // hívják, nem a másolatukat (KUKA-009).
-import { membershipAsOf, recordRetroactiveInvalidity, reviewCircleFor, reviewCircleState, closeReviewCircle, grantMembership } from './bitemporal.mjs';
+import { membershipAsOf, recordRetroactiveInvalidity, reviewCircleFor, reviewCircleState, closeReviewCircle, grantMembership,
+  membershipPeriodsOf, closedMembershipPeriodOf } from './bitemporal.mjs';
 import { recordAuthorityBasis, basisAsOf, withinBasis, basisState, LIMIT_ENFORCED_PATHS, revokeAuthorityBasis } from './authorityBasis.mjs';
 import {
   issueInviteUnderBasis, redemptionLimitGate, inviteBasisSeal, grantBasisFor, limitVerdict,
@@ -53,7 +55,7 @@ import { grantReadScope, revokeReadScope, readScopeGrantAt, SCOPE_GRANT_CONTRACT
 import { registerAccount, authenticate, issueChannelChallenge, redeemChannelChallenge, provenEmailOf } from './account.mjs';
 import { createWorkspace, bootstrapOf, workspacesOf, STARTUP_RULE, STARTUP_RULE_V1 } from './workspace.mjs';
 import { inviteColleague, grantScopeToMember, revokeScopeFromMember, revokeDelegationsOf, deriveDelegationBasis,
-  delegationCeilingOf, delegationBasisId } from './delegation.mjs';
+  delegationCeilingOf, delegationBasisId, reinviteMember } from './delegation.mjs';
 import { createLegacyV1Workspace } from './legacyAccountFixture.mjs';
 import { setEntitlementProfile, entitlementFor, twoGateVerdict } from './entitlement.mjs';
 import { attachBusinessIdentity, identityClaimsMatching, profileFor } from './externalId.mjs';
@@ -6811,6 +6813,270 @@ probe('P-KSZ-repeat-and-error-boundary', 'R32/K10 · K10-TYP-d · KUKA-097 · KU
       },
     };
   });
+// ═══ R132 — MEGHÍVÓ VISSZAVONÁSA ÉS ÚJBÓLI BELÉPÉS ══════════════════════════════════════════════
+//
+// A VILÁG a mag SAJÁT belépési pontjain épül (nyers jogadó írás nélkül): regisztrált, bizonyított
+// csatornájú alany → `createWorkspace` → `inviteColleague` → `redeemInvite` → `grantScopeToMember`.
+// Ez SZÁNDÉKOS: a próbának a VALÓDI láncot kell mérnie, nem egy kézzel összerakott állapotot
+// (KUKA-054: amit én találok ki fixtúrának, az az előfeltevésemet igazolja vissza).
+function r132World() {
+  const store = openStore();
+  const clock = clockFrom('2026-10-01T08:00:00.000Z');
+  const person = (id, email) => {
+    store.run('INSERT INTO subject (id, kind) VALUES (?,?)', id, 'person');
+    store.run('INSERT INTO account (subject_id, credential) VALUES (?,?)', id, `pw-${id}`);
+    store.run(
+      `INSERT INTO external_id (subject_id, namespace, issuer, jurisdiction, value_raw, value_norm,
+                                cardinality, valid_from, valid_to)
+       VALUES (?,?,?,?,?,?,?,?,NULL)`,
+      id, 'email', 'self_asserted', 'n/a', email, email, 'one_to_one', clock.now());
+    store.run('INSERT INTO channel_proof (subject_id, namespace, value_norm, proven_at) VALUES (?,?,?,?)',
+      id, 'email', email, clock.now());
+  };
+  person('anna', 'anna@r132.test');
+  person('bela', 'bela@r132.test');
+  const ws = createWorkspace({ store, creatorSubjectId: 'anna', bookId: 'bk', name: 'R132 Kft', at: clock.now() });
+  if (!ws.ok) throw new Error(`r132World: a munkakörnyezet nem jött létre — ${ws.reason}`);
+  clock.advance(1000);
+  const inv = inviteColleague({
+    store, inviterSubjectId: 'anna', bookId: 'bk', inviteeEmail: 'bela@r132.test',
+    offeredRole: 'user', scope: 'keszlet', token: 'tok_p1',
+    expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(), at: clock.now(),
+  });
+  if (!inv.ok) throw new Error(`r132World: a meghívó nem adható ki — ${inv.reason}`);
+  clock.advance(1000);
+  const red = redeemInvite({ store, token: 'tok_p1', actingSubjectId: 'bela', clock });
+  if (!red.ok) throw new Error(`r132World: a beváltás elakadt — ${red.reason || red.error}`);
+  clock.advance(1000);
+  const g = grantScopeToMember({ store, granterSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'bela', scope: 'keszlet', at: clock.now() });
+  if (!g.ok) throw new Error(`r132World: az adatkör-jog nem adható — ${g.reason}`);
+  return { store, clock };
+}
+
+probe('P-INVITE-revoke', 'R132 §2 · INVR-01 · ORG-N1a · KUKA-002 · KUKA-047 · KUKA-129',
+  'A MEGHÍVÓ VISSZAVONÁSA SAJÁT ESEMÉNY: minden beváltási út zár, a tagság érintetlen, az ismétlés nem duplikál',
+  () => {
+    const w = r132World();
+    const { store, clock } = w;
+    try {
+      const rows = () => Number(store.get('SELECT COUNT(*) AS n FROM invite_revocation').n);
+      const memberships = () => Number(store.get('SELECT COUNT(*) AS n FROM membership').n);
+      const issue = (token, email) => {
+        clock.advance(1000);
+        return inviteColleague({
+          store, inviterSubjectId: 'anna', bookId: 'bk', inviteeEmail: email, offeredRole: 'user',
+          scope: 'keszlet', token, expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(),
+          at: clock.now(),
+        });
+      };
+
+      // (a) A JOGOSULATLAN ELJÁRÓ — a CÍMZETT SAJÁT magának sem vonhatja vissza (KUKA-047). Béla tag,
+      //     de nincs `alter_right` hatásköre. ÍRÁSMENTES, nevezett elutasítás.
+      issue('tok_a', 'cili@r132.test');
+      const before = rows();
+      const unauth = revokeInvite({ store, clock, token: 'tok_a', bookId: 'bk', revokerSubjectId: 'bela', delegationCeilingOf });
+      const aOk = unauth.ok === false && unauth.changed === false && rows() === before;
+
+      // (b) A JOGOSULT KEZELŐ — POZITÍV ELLENPÁR: ugyanaz a token, ugyanaz a hívás, MŰKÖDIK.
+      const ok1 = revokeInvite({ store, clock, token: 'tok_a', bookId: 'bk', revokerSubjectId: 'anna', delegationCeilingOf });
+      const bOk = ok1.ok === true && ok1.changed === true && rows() === before + 1;
+
+      // (c) MINDEN ÚT ZÁR — a MEGFIGYELÉS és a BEVÁLTÁS ugyanazt a nevezett okot adja (KUKA-018).
+      store.run('INSERT INTO subject (id, kind) VALUES (?,?)', 'cili', 'person');
+      store.run('INSERT INTO account (subject_id, credential) VALUES (?,?)', 'cili', 'pw-cili');
+      store.run('INSERT INTO channel_proof (subject_id, namespace, value_norm, proven_at) VALUES (?,?,?,?)',
+        'cili', 'email', 'cili@r132.test', clock.now());
+      const obs = observeInvite({ store, token: 'tok_a', viewerSubjectId: 'cili', clock });
+      const red = redeemInvite({ store, token: 'tok_a', actingSubjectId: 'cili', newCredential: 'uj-pw', clock });
+      const cOk = obs.status === 'not_actionable' && obs.reason === 'invite_revoked'
+        && red.ok === false && red.reason === 'invite_revoked'
+        && !store.get('SELECT 1 FROM membership WHERE subject_id = ? AND book_id = ?', 'cili', 'bk');
+
+      // (d) AZ ISMÉTLÉS NEM DUPLIKÁL, és a nyugta IGAZAT mond (KUKA-129).
+      const again = revokeInvite({ store, clock, token: 'tok_a', bookId: 'bk', revokerSubjectId: 'anna', delegationCeilingOf });
+      const dOk = again.ok === true && again.changed === false && rows() === before + 1;
+
+      // (e) MÁR ELFOGADOTT meghívó: NEVEZETT, hatásmentes — és NEM tagságmegvonás (spec §2).
+      const mBefore = memberships();
+      const accepted = revokeInvite({ store, clock, token: 'tok_p1', bookId: 'bk', revokerSubjectId: 'anna', delegationCeilingOf });
+      const belaStill = membershipAsOf({ store, subjectId: 'bela', bookId: 'bk', validAt: clock.now(), knownAt: clock.now() });
+      const eOk = accepted.ok === true && accepted.changed === false
+        && accepted.reason === 'invite_already_redeemed' && accepted.next_step === 'revoke_membership'
+        && belaStill.effective === true && memberships() === mBefore && rows() === before + 1;
+
+      // (f) IDEGEN KÖNYV meghívója: UGYANAZ a válasz, mint a nem létezőé (KUKA-047 · objektum-semleges).
+      //
+      // A MÉRÉS HATÓKÖRE SZÁNDÉKOSAN SZŰK, ÉS EZT KI IS MONDJUK. Az összehasonlítás csak akkor mér
+      // OBJEKTUM-semlegességet, ha a hatáskör-kontextus a KETTŐN AZONOS: az első alakom egy olyan
+      // könyvet adott meg, amiben Annának NINCS hatásköre, ezért a hatáskör-kapu tüzelt előbb
+      // (`authority_not_established`) — az viszont MÁS kérdés helyes válasza volt, nem ennek az
+      // állításnak a cáfolata (KUKA-120 · KUKA-216: a verdikt ne mutasson a mérés hatókörén túl).
+      // Ezért Anna SAJÁT második munkakörnyezetét használjuk: ott van hatásköre, tehát a KÜLÖNBSÉG
+      // már csak az objektum hovatartozása lehet.
+      clock.advance(1000);
+      const ws2 = createWorkspace({ store, creatorSubjectId: 'anna', bookId: 'bk2', name: 'Másik Kft', at: clock.now() });
+      const foreign = revokeInvite({ store, clock, token: 'tok_p1', bookId: 'bk2', revokerSubjectId: 'anna', delegationCeilingOf });
+      const unknown = revokeInvite({ store, clock, token: 'nincs_ilyen', bookId: 'bk2', revokerSubjectId: 'anna', delegationCeilingOf });
+      const fOk = ws2.ok === true && foreign.reason === 'invite_unknown'
+        && foreign.reason === unknown.reason && rows() === before + 1;
+
+      // (g) LEJÁRT meghívó: nincs hamis sikeres változás (spec §2).
+      issue('tok_g', 'dori@r132.test');
+      clock.advance(8 * 24 * 60 * 60 * 1000);
+      const expired = revokeInvite({ store, clock, token: 'tok_g', bookId: 'bk', revokerSubjectId: 'anna', delegationCeilingOf });
+      const gOk = expired.ok === true && expired.changed === false && expired.reason === 'invite_expired'
+        && rows() === before + 1;
+
+      const pass = aOk && bOk && cOk && dOk && eOk && fOk && gOk;
+      return {
+        expected: 'a jogosulatlan visszavonás ÍRÁSMENTESEN elakad · a jogosult MŰKÖDIK · a visszavont '
+          + 'meghívó MINDEN útja zár (megfigyelés és beváltás ugyanazzal a nevezett okkal) · az '
+          + 'ismétlés nem duplikál · a MÁR ELFOGADOTT meghívó visszavonása nem tagságmegvonás · az '
+          + 'idegen könyv meghívója a nem létezővel azonos választ kap · a LEJÁRT nem ad hamis sikert',
+        actual: `(a) jogosulatlan=${unauth.reason} sorok=${rows()} · (b) jogosult=${ok1.changed} · `
+          + `(c) megfigyelés=${obs.reason} beváltás=${red.reason} · (d) ismétlés changed=${again.changed} · `
+          + `(e) elfogadott=${accepted.reason} Béla tag=${belaStill.effective} · `
+          + `(f) idegen=${foreign.reason} nem létező=${unknown.reason} · (g) lejárt=${expired.reason}`,
+        pass,
+        asserts: {
+          'A-INVR-unauthorized-revoke-is-named-and-writes-nothing': aOk,
+          'A-INVR-authorized-revoke-works': bOk,
+          'A-INVR-revoked-invite-closes-observation-and-redemption': cOk,
+          'A-INVR-repeat-does-not-duplicate-the-event': dOk,
+          'A-INVR-already-accepted-is-effect-free-and-not-a-membership-revocation': eOk,
+          'A-INVR-foreign-book-answers-like-the-unknown-token': fOk,
+          'A-INVR-expired-shows-no-false-success': gOk,
+        },
+      };
+    } finally { store.close(); }
+  });
+
+probe('P-ORG-reentry', 'R132 §3–§5 · RNV-01 · SGP-01 · PER-01 · ORG-N1a · KUKA-033 · KUKA-122 · KUKA-143',
+  'AZ ÚJBÓLI BELÉPÉS KÜLÖN DÖNTÉS: a rendes meghívó nem reaktivál, és a RÉGI jogok NEM élednek fel',
+  () => {
+    const w = r132World();
+    const { store, clock } = w;
+    try {
+      const live = (scope) => scopeGrantLiveAt({ store, subjectId: 'bela', bookId: 'bk', scope, nowIso: clock.now(), knownAt: clock.now() });
+      const state = () => membershipAsOf({ store, subjectId: 'bela', bookId: 'bk', validAt: clock.now(), knownAt: clock.now() });
+      const grants = () => Number(store.get('SELECT COUNT(*) AS n FROM membership_grant').n);
+      const reentries = () => Number(store.get('SELECT COUNT(*) AS n FROM membership_reentry').n);
+      const p1 = state().period_grant_event_id;
+      const keszletLiveBefore = live('keszlet').allowed === true;
+
+      // (a) A TAGSÁG MEGSZÜNTETÉSE, majd a RENDES meghívó: NEM reaktivál, és a token NEM fogy el.
+      clock.advance(1000);
+      revokeMembership({ store, subjectId: 'bela', bookId: 'bk', clock, actorSubjectId: 'anna' });
+      revokeDelegationsOf({ store, subjectId: 'bela', bookId: 'bk', at: clock.now() });
+      clock.advance(1000);
+      inviteColleague({
+        store, inviterSubjectId: 'anna', bookId: 'bk', inviteeEmail: 'bela@r132.test', offeredRole: 'user',
+        scope: 'keszlet', token: 'tok_norm',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(), at: clock.now(),
+      });
+      const gBefore = grants();
+      const norm = redeemInvite({ store, token: 'tok_norm', actingSubjectId: 'bela', clock });
+      const aOk = norm.ok === false && norm.outcome === 'revoked_needs_decision'
+        && norm.reason === 'reentry_decision_required'
+        && store.get('SELECT redeemed_at FROM invite WHERE token = ?', 'tok_norm').redeemed_at === null
+        && grants() === gBefore && state().effective === false;
+
+      // (b) AZ ÚJRAHÍVÁS AJÁNLATOT ad, nem tagságot — és AZONNAL nem ad hozzáférést sem.
+      clock.advance(1000);
+      const ri = reinviteMember({
+        store, clock, deciderSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'bela',
+        offeredRole: 'user', scope: 'keszlet', token: 'tok_re',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(),
+      });
+      const bOk = ri.ok === true && ri.changed === true && reentries() === 1
+        && ri.requires_acceptance === true && ri.restores_previous_scopes === false
+        && state().effective === false && grants() === gBefore;
+
+      // (c) A CÍMZETT ELFOGADÁSA ÚJ IDŐSZAKOT ad — és a RÉGI jogok NEM élednek fel (a csomag magja).
+      clock.advance(1000);
+      const acc = redeemInvite({ store, token: 'tok_re', actingSubjectId: 'bela', clock });
+      const p2 = state().period_grant_event_id;
+      const zartak = KNOWN_DATA_SCOPES.filter((s) => live(s).allowed !== true);
+      const cOk = acc.ok === true && acc.outcome === 'regranted' && acc.reentry !== null
+        && acc.reentry.scopes_granted === false
+        && state().effective === true && p2 !== p1 && grants() === gBefore + 1
+        && zartak.length === KNOWN_DATA_SCOPES.length
+        && live('keszlet').reason === 'scope_grant_other_period'
+        && keszletLiveBefore === true;
+
+      // (d) ÚJ, KIFEJEZETT MEGADÁS után a jog ÉL — a kapu nem fal (KUKA-122).
+      clock.advance(1000);
+      const g2 = grantScopeToMember({ store, granterSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'bela', scope: 'keszlet', at: clock.now() });
+      const dOk = g2.ok === true && g2.changed === true && live('keszlet').allowed === true
+        && live('arak').allowed === false;
+
+      // (e) A TÖRTÉNET SÉRTETLEN: KÉT időszak, a RÉGI belsejére a RÉGI jog MA IS igaz (két tengely).
+      const per = membershipPeriodsOf({ store, subjectId: 'bela', bookId: 'bk', knownAt: clock.now() });
+      const P1 = per.periods[0];
+      const belso = new Date((Date.parse(P1.opened_at) + Date.parse(P1.closed_at)) / 2).toISOString();
+      const histMember = membershipAsOf({ store, subjectId: 'bela', bookId: 'bk', validAt: belso, knownAt: clock.now() });
+      const histScope = scopeGrantLiveAt({ store, subjectId: 'bela', bookId: 'bk', scope: 'keszlet', nowIso: belso, knownAt: clock.now() });
+      const eOk = per.periods.length === 2 && P1.open === false && per.periods[1].open === true
+        && histMember.effective === true && histScope.allowed === true;
+
+      // (f) A KORÁBBI MEGSZŰNÉSRE kiadott ajánlat egy KÉSŐBBI megszűnést NEM nyit újra (spec §4).
+      clock.advance(1000);
+      revokeMembership({ store, subjectId: 'bela', bookId: 'bk', clock, actorSubjectId: 'anna' });
+      clock.advance(1000);
+      const gBefore2 = grants();
+      const stale = redeemInvite({ store, token: 'tok_re', actingSubjectId: 'bela', clock });
+      const fOk = stale.ok === false && state().effective === false && grants() === gBefore2;
+
+      // (g) MA ÉLŐ tagságra nincs újrahívás, és a NULLA SOROS döntés-írás a TELJES egységet
+      //     visszagörgeti (ATO-01) — ÍRÁSMENTES, nevezett elakadás.
+      const openTarget = reinviteMember({
+        store, clock, deciderSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'anna',
+        offeredRole: 'user', scope: 'keszlet', token: 'tok_open',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(),
+      });
+      const invBefore = Number(store.get('SELECT COUNT(*) AS n FROM invite').n);
+      const basBefore = Number(store.get('SELECT COUNT(*) AS n FROM authority_basis').n);
+      const reBefore = reentries();
+      store.db.exec('CREATE TEMP TRIGGER p132_reentry_ignore BEFORE INSERT ON membership_reentry BEGIN SELECT RAISE(IGNORE); END');
+      const broken = reinviteMember({
+        store, clock, deciderSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'bela',
+        offeredRole: 'user', scope: 'keszlet', token: 'tok_broken',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(),
+      });
+      store.db.exec('DROP TRIGGER p132_reentry_ignore');
+      const gOk = openTarget.ok === false && openTarget.reason === 'reentry_target_membership_is_open'
+        && broken.ok === false && broken.reason === 'reentry_row_not_created'
+        && reentries() === reBefore
+        && Number(store.get('SELECT COUNT(*) AS n FROM invite').n) === invBefore
+        && Number(store.get('SELECT COUNT(*) AS n FROM authority_basis').n) === basBefore;
+
+      const pass = aOk && bOk && cOk && dOk && eOk && fOk && gOk;
+      return {
+        expected: 'a rendes meghívó NEM reaktivál (a token sem fogy el) · az újrahívás AJÁNLATOT ad, '
+          + 'nem tagságot · az elfogadás ÚJ időszakot nyit, és a RÉGI adatkörjogok NEM élednek fel · '
+          + 'új, kifejezett megadás után a jog ÉL · a történet két tengelyen SÉRTETLEN · egy korábbi '
+          + 'megszűnésre kiadott ajánlat nem nyit újra egy későbbit · az élő tagságra nincs újrahívás, '
+          + 'és a nulla soros döntés-írás a TELJES egységet visszagörgeti',
+        actual: `(a) rendes=${norm.outcome}/${norm.reason} · (b) ajánlat=${ri.changed} tagság=${state().effective} · `
+          + `(c) elfogadás=${acc.outcome} p1=${p1} p2=${p2} zárt körök=${zartak.length}/${KNOWN_DATA_SCOPES.length} `
+          + `(${live('keszlet').reason}) · (d) új megadás után készlet=${live('keszlet').allowed} ár=${live('arak').allowed} · `
+          + `(e) időszakok=${per.periods.length} régi nap tagság=${histMember.effective} jog=${histScope.allowed} · `
+          + `(f) elhasznált ajánlat=${stale.reason || stale.error} · (g) élő cél=${openTarget.reason} `
+          + `tárolási hiba=${broken.reason}`,
+        pass,
+        asserts: {
+          'A-RNV-ordinary-invite-does-not-reactivate-and-does-not-consume': aOk,
+          'A-RNV-decision-creates-an-offer-not-a-membership': bOk,
+          'A-RNV-acceptance-opens-a-new-period-and-old-scopes-stay-closed': cOk,
+          'A-RNV-new-explicit-grant-works-in-the-new-period': dOk,
+          'A-RNV-history-intact-on-both-axes': eOk,
+          'A-RNV-offer-of-an-earlier-closure-cannot-reopen-a-later-one': fOk,
+          'A-RNV-open-target-and-storage-failure-are-named-and-write-nothing': gOk,
+        },
+      };
+    } finally { store.close(); }
+  });
+
 
 const SOURCE_COMMIT = (() => {
   const arg = process.argv.find((a) => a.startsWith('--source-commit='));

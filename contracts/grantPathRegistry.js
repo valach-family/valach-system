@@ -55,6 +55,14 @@ const CLASSIFICATIONS = Object.freeze({
 const GRANTING_TABLES = Object.freeze([
   'membership', 'membership_grant', 'invite', 'invite_basis', 'grant_basis',
   'adjudication_authority', 'scope_grant',
+  // R132 — AZ UJRAHIVASI DONTES IS JOGADO TENY. Nem tagsagot ad, hanem AJANLATOT engedelyez egy
+  // olyan helyzetben, amit a rendszer egyebkent ZAR (`revoked_needs_decision`) — vagyis a sor
+  // meglete nelkul a bevaltas nem adna tagsagot. Ezert ide tartozik, es a modulja MERVE van.
+  //
+  // AMI VISZONT NEM KERUL IDE: az `invite_revocation`. Az a jogot ELVESZI, nem adja — ugyanaz a
+  // besorolas, mint a `membership_revocation` · `membership_suspension` · `scope_grant_revocation`
+  // tablaknal, es ugyanaz az indok: azok a SAJAT normaik alatt allnak.
+  'membership_reentry',
 ]);
 
 const PATHS = Object.freeze([
@@ -97,7 +105,11 @@ const PATHS = Object.freeze([
       + 'granted_limit) — a tagságadó eseményhez kötve, `recordGrantBasis`',
     grant_gate: 'hétlépcsős lánc: csatorna → kiadott feltételek → ablak → a kibocsátó MAI joga → '
       + 'redemptionLimitGate → idegen alany → tagsági kimenet',
-    use_gate: 'membershipAsOf / rightAt — a tagság a két idő-tengelyen oldódik fel',
+    use_gate: 'membershipAsOf / rightAt — a tagsag a ket ido-tengelyen oldodik fel. R132 ota a '
+      + 'MEGHIVO VISSZAVONASA is kapu, EGY kozos feloldoban a lejarattal es a bevaltottsaggal '
+      + '(`inviteOpenAt`), es UGYANAZT kerdezi a megfigyeles is — a ket olvaso nem tud elcsuszni '
+      + '(KUKA-018). Az UJBOLI BELEPES a `revoked_needs_decision` ag egyetlen nyitoja, es TAROLT '
+      + 'donteshez kotott (`reentryAdmission` — GP-MEMBERSHIP-REENTRY)',
     norm: 'ORG-N1a · ORG-N1b · K09 · REV-N1b',
     works: 'a korlát a KIADÁSKORI alaphoz mér, és a beváltás a korlátot is ÁTVISZI a tagságadó '
       + 'eseményre — nem csak a szerepet',
@@ -196,8 +208,47 @@ const PATHS = Object.freeze([
     use_gate: 'redemptionLimitGate (a kiadáskori alaphoz mérve; pecsét nélkül ZÁR) · a kiadó jogának megvonása a delegálási alapot is megvonja',
     norm: 'K03 · K04 · ORG-N1b · K05-DSC-c',
     works: 'a delegálási plafon megmarad (helyi admin nem adhat többet, mint amennyit kapott) · a megvont tag függő meghívója elakad · a pecsételt adatkör PLAFON, a jogot külön, kimondott lépés adja',
-    missing: 'meghívó visszavonása külön eseményként (ma csak a lejárat és a kiadó jogának megvonása zár) · több adatkör egy meghívón',
+    // HELYESBITVE (R132): a meghivo visszavonasa KULON ESEMENYKENT megepult (INVR-01,
+    // `invite_revocation`), tehat a regi maradek-szoveg MAR NEM IGAZ jelen idoben — a torteneti
+    // alakot a naplo es az R132 lapja viszi (KUKA-050: a szoveg a valosagot koveti; KUKA-103: a
+    // torteneti vallalast nem irjuk at utolag, a MAI allapotot viszont ki kell mondani).
+    missing: 'tobb adatkor EGY meghivon (ma egy meghivo egy adatkor-plafont visel) · a szervezeti '
+      + 'egysegek kozotti delegalasi plafon (a nagy szervezet utja — KESOBBI hatar). A MEGHIVO '
+      + 'VISSZAVONASA az R132 ota MEGVAN: sajat, auditalhato esemeny (INVR-01), es a bevaltas, a '
+      + 'megfigyeles es a belepes utani folytatas MIND zar ra — a kotest a GP-INVITE-REDEEM '
+      + '`use_gate` sora nevezi meg',
     probes: Object.freeze(['P-CORE-startup-and-delegation']),
+  }),
+  Object.freeze({
+    id: 'GP-MEMBERSHIP-REENTRY',
+    classification: 'internal_reference_entry_point',
+    entry_point: 'v3ref/delegation.mjs → reinviteMember',
+    module: 'v3ref/delegation.mjs',
+    delegates_to: Object.freeze(['deriveDelegationBasis', 'issueInviteUnderBasis']),
+    symbol: 'reinviteMember',
+    granted_right: 'UJBOLI BELEPESI AJANLAT egy korabban eltavolitott tagnak — meg nem tagsag, hanem '
+      + 'a `revoked_needs_decision` zaras EGYETLEN, kifejezett nyitoja',
+    basis_storage: 'membership_reentry (alany · konyv · token · a LEZART tagsagi idoszak es az azt '
+      + 'zaro megvonas esemeny-azonositoja · szerep · a dontest hozo · basis_id/basis_version · ket '
+      + 'ido-tengely) — a meghivoval es a pecsettel EGY tranzakcioban szuletik',
+    grant_gate: 'alter_right hatoskor a veglegesitesi ponton · a CEL ma LEZART idoszaka (PER-02) · a '
+      + 'donteshozo delegalasi plafonja (szerep ES adatkor, iras nelkul — DCE-01) · a hatalyosulas '
+      + 'LEGYEN kesobbi a zaro megvonasnal · es NEGY nevezett hatar: felfuggesztes · tiltas · nyitott '
+      + 'felulvizsgalati kor · visszamenoleges ervenytelenseg',
+    use_gate: 'reentryAdmission a bevaltaskor — a tokenhez tartozo dontes, a SZEMELY, a KONYV, a '
+      + 'SZEREP es a MA lezart idoszak negyes egyezese; a teljes bevaltasi lanc MINDEN kapuja all',
+    norm: 'ORG-N1a · K03 · K09 · REV-N1b',
+    works: 'a rendes meghivas `revoked_needs_decision` vedelme VALTOZATLAN (csendes reaktivalas nincs) · '
+      + 'az ajanlat NEM tagsag: azt a cimzett sajat, igazolt elfogadasa adja · az elfogadas UJ tagsagi '
+      + 'idoszakot nyit, es a REGI adatkorjogok NEM eledenek fel (SGP-01) · egy korabbi megszunesre '
+      + 'kiadott ajanlat egy kesobbit nem nyit ujra · a dontes-sor irasanak bukasa a TELJES egyseget '
+      + '(alap · meghivo · pecset) visszagorgeti. Falszifikalva: M322 · M323',
+    missing: 'a NEGY nevezett hatar (felfuggesztes · tiltas · nyitott felulvizsgalat · visszamenoleges '
+      + 'ervenytelenseg) KIMONDOTTAN nem oldhato fel ezen az uton — ez a muvelet HATOKORE, nem hianya; '
+      + 'a feloldasuk a meglevo, jogosult eljarasokon megy, es a valasz oda MUTAT (`next_step`). '
+      + 'VALODI hiany: a visszahivas NEM utolagos joghatas-felulvizsgalat es nem a REV-N4 kompenzalo '
+      + 'folyamat — azok tovabbra is nyitottak',
+    probes: Object.freeze(['P-ORG-reentry', 'P-INVITE-revoke']),
   }),
   Object.freeze({
     id: 'GP-PLATFORM-RULE',
@@ -315,6 +366,8 @@ const PATHS = Object.freeze([
  */
 const GRANT_WRITE_SITES = Object.freeze({
   'v3ref/adjudication.mjs': 1,
+  // R132 — az UJRAHIVASI DONTES sora (`membership_reentry`), a `reinviteMember` atomi egysegeben.
+  'v3ref/delegation.mjs': 1,
   'v3ref/banMatrix.mjs': 1,
   'v3ref/basisLimit.mjs': 3,
   'v3ref/bitemporal.mjs': 2,
@@ -332,7 +385,7 @@ function referenceEntryPoints() {
 }
 
 /** A PADLÓ: ennyi útnak MINDIG szerepelnie kell. Csökkenni nem szabad, nőni igen. */
-const PATH_FLOOR = 12;
+const PATH_FLOOR = 13;
 
 module.exports = {
   CLASSIFICATIONS, GRANTING_TABLES, GRANT_WRITE_SITES, PATHS, PATH_FLOOR, referenceEntryPoints,

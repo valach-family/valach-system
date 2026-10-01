@@ -44,6 +44,9 @@ const GUARD_HOME_CONTRACT_ID = 'GHM-01';
 const VS_HOMED_CEILING = 92;
 
 const GUARD_HOME = Object.freeze({
+  'KUKA-266': Object.freeze({ home: 'v3', note: 'a jel cél-fájlja ITT van (v3ref/bitemporal.mjs) — a jel FUT: egy pozitív minta (a döntés bemenete a saját írás ELŐTT olvasott állapot) és egy tiltó-minta (a mérés NEM kerülhet az esemény-beszúrás utánra); a viselkedés tanúja a P-ORG-reentry, amit az M322/M323 rontás bizonyítottan megbuktat' }),
+  'KUKA-265': Object.freeze({ home: 'v3', note: 'a jel cél-fájlja ITT van (v3app/public/app.js) — a jel FUT: a nyugta a teljes oldalt újraépítő lekérés UTÁN íródik ki; a DOM-tanú a tests/e2e/v3app-r132.spec.mjs (R132-B1)' }),
+  'KUKA-264': Object.freeze({ home: 'v3', note: 'a jel cél-fájlja ITT van (v3app/public/app.js) — a jel FUT: két pozitív minta (a fül-váltás ÉS a lista-tartalom megérkezése is újraértékeli a futó útmutatót); a tanú a tests/e2e/v3app-r93.spec.mjs, ami MIND A TIZENEGY útmutatót végig járja' }),
   'KUKA-263': Object.freeze({ home: 'v3', note: 'a határ-mérés fixture-e és a próbaoldali DOM-figyelő ITT él (tests/e2e/v3app-r127.spec.mjs) — a jel a verify:kuka két pozitív mintája és két tiltó-mintája, valamint az R127-E6 konkrét állításai (DOM-változás > 0, majd mért helyreállás)' }),
   'KUKA-262': Object.freeze({ home: 'v3', note: 'a háromjeles átadás-bizonyítás és a NEGATÍV KONTROLL ITT él (tests/e2e/v3app-r127.spec.mjs) — a jel a verify:kuka három pozitív mintája (benne a fulfill → deliveredAt SORRENDJE) és az R127-N1, ami a kiszolgált /app.js nemzedék-kapujának kikapcsolásával bukásra viszi ugyanazt az állítást' }),
   'KUKA-113': Object.freeze({ home: 'v3', note: 'a jelek cél-fájljai ITT vannak — a jel FUT' }),

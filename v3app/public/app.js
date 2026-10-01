@@ -1021,12 +1021,26 @@ import { inviteNextKey } from './inviteText.mjs';
     const list = state.invites;
     if (list === null) return `<p data-testid="invites-loading">${esc(STATE.invitesLoading)}</p>`;
     if (!list.length) return emptyBox(STATE.invitePendingEmpty, UI.inviteEmptyLead);
+    // R132 §6 — A NÉGY ÁLLAPOT KÜLÖN LÁTSZIK, és a MŰVELET csak ott jelenik meg, ahol a SZERVER
+    // megengedi (`revocable`). A böngésző nem dönt jogosultságról: ha itt saját feltételt írnánk, a
+    // képernyő és a határ elcsúszhatna egymástól (KUKA-041 · KUKA-011).
+    const allapot = (x) => (x.state === 'revoked'
+      ? `<span class="badge gray" data-testid="invite-state-revoked">${esc(UI.inviteRevokedBadge)}</span>`
+      : x.state === 'accepted'
+      ? `<span class="badge ok" data-testid="invite-state-accepted">${esc(UI.inviteAccepted)}</span>`
+      : x.state === 'expired'
+      ? `<span class="badge gray" data-testid="invite-state-expired">${esc(UI.inviteExpired)}</span>`
+      : `<span class="badge wait" data-testid="invite-state-pending">${esc(UI.inviteWaiting)}</span>`);
     return `<div class="tablebox" data-testid="invites-table"><div class="table-scroll"><table>
-      <thead><tr><th>${esc(UI.colInvitedEmail)}</th><th>${esc(UI.colRole)}</th><th>${esc(UI.colInvitedBy)}</th><th>${esc(UI.colValidUntil)}</th><th>${esc(UI.colState)}</th></tr></thead>
+      <thead><tr><th>${esc(UI.colInvitedEmail)}</th><th>${esc(UI.colRole)}</th><th>${esc(UI.colInvitedBy)}</th><th>${esc(UI.colValidUntil)}</th><th>${esc(UI.colState)}</th><th><span class="sr-only">${esc(UI.colActions)}</span></th></tr></thead>
       <tbody>${list.map((x) => `<tr data-testid="invite-row-${esc(x.ref)}">
         <td><strong>${esc(x.email || STATE.notGiven)}</strong></td><td>${esc(ROLE[x.role] || x.role)}</td>
         <td>${esc(x.invited_by || STATE.notGiven)}</td><td>${esc(whenText(x.expires_at))}</td>
-        <td>${x.expired ? `<span class="badge gray">${esc(UI.inviteExpired)}</span>` : `<span class="badge wait">${esc(UI.inviteWaiting)}</span>`}</td></tr>`).join('')}
+        <td>${allapot(x)}</td>
+        <td>${x.revocable
+          ? `<button type="button" class="danger" data-action="invite-revoke-start" data-ref="${esc(x.ref)}" data-who="${esc(x.email || '')}"
+               data-testid="invite-revoke-${esc(x.ref)}">${esc(UI.inviteRevokeAction)}</button>`
+          : ''}</td></tr>`).join('')}
       </tbody></table></div>
       <div class="tablefoot">${esc(UI.inviteTokenNote)}</div></div>`;
   }
@@ -1043,6 +1057,13 @@ import { inviteNextKey } from './inviteText.mjs';
     state.invites = r.ok ? (r.invites || []) : [];
     if (!r.ok) notice(refusalText(r), 'bad');
     render();
+    // ÉS AZ ÚTMUTATÓT A TARTALOM MEGÉRKEZÉSE UTÁN IS ÚJRA KELL ÉRTÉKELNI (R132, saját lelet).
+    // A fül-váltás pillanatában a lista még a „töltés" szöveget viseli, tehát a táblázat MÉG NINCS a
+    // lapon — egy arra mutató lépés ott még joggal „várakozik". A tartalom KÉSŐBB érkezik, és ha
+    // akkor nem szólunk az útmutatónak, az ÖRÖKRE a várakozó állapotban marad, és a buborék a saját
+    // szövegével eltakarja a műveletet (mérve: 15 s időtúllépés a sor gombján). A rajzolás és az
+    // ADAT megérkezése két külön pillanat (KUKA-209), és a buborék a MÁSODIKAT is látni akarja.
+    tourRecheck();
   }
 
   async function loadMembers() {
@@ -1068,7 +1089,7 @@ import { inviteNextKey } from './inviteText.mjs';
         <td><strong>${esc(m.email || UI.unknownEmail)}</strong></td>
         <td>${esc(ROLE[m.role] || m.role)}</td>
         ${state.scopeMeta.known.map((k) => `<td>${cell(m, k)}</td>`).join('')}
-        <td>${m.effective ? `<span class="badge ok">${esc(UI.active)}</span>` : `<span class="badge gray">${esc(UI.revoked)}</span>`}</td>
+        <td>${m.effective ? `<span class="badge ok">${esc(UI.active)}</span>` : `<span class="badge gray" data-testid="member-removed-${esc(m.subject_id)}">${esc(UI.revoked)}</span>`}</td>
         <td><button type="button" data-action="member-open" data-subject="${esc(m.subject_id)}" data-testid="member-open-${esc(m.subject_id)}">${esc(UI.accessButton)}</button></td>
       </tr>`).join('');
     setPanel('members', 'members-list', `<div class="tablebox"><div class="table-scroll"><table>
@@ -1185,12 +1206,26 @@ import { inviteNextKey } from './inviteText.mjs';
       + `<p class="identity"><strong>${esc(m.email || m.subject_id)}</strong>
           <small>${esc(ROLE[m.role] || m.role)} · ${esc(m.effective ? UI.active : UI.revoked)}</small></p>
       ${m.effective ? '' : `<div class="notice warn">${esc(UI.memberRevokedNote)}</div>`}
+      ${m.effective ? '' : (m.removed_at ? `<p class="muted" data-testid="member-removed-at" style="font-size:13px">${esc(tpl('memberRemovedAt', { mikor: whenText(m.removed_at) }))}</p>` : '')}
       <h3>${esc(tpl('dataViewingOf', { fiok: accountName() }))}</h3>${(meta.known.length ? meta.known : ['keszlet', 'arak']).map(row).join('')}
       ${meta.blocked.length ? `<p class="muted" data-testid="member-scope-ceiling" style="font-size:13px">${esc(UI.scopeBlockedLead)}</p>` : ''}
       ${m.effective ? `<p class="muted" style="font-size:13px">${esc(tpl('scopeOnlyHere', { nev: accountName() }))}</p>
       <div class="divider"></div><h3>${esc(UI.accountAccess)}</h3>
       <p class="muted">${esc(STATE.revokeSectionLead)}</p>
       <button type="button" class="danger" data-action="revoke-start" data-subject="${esc(id)}" data-testid="member-revoke-${esc(id)}">${esc(UI.revokeBusinessAccess)}</button>` : ''}
+      ${
+        // R132 §3/§6 — AZ ÚJBÓLI BELÉPÉS HARMADIK, KÜLÖN MEGNEVEZETT MŰVELET. A gomb CSAK akkor
+        // jelenik meg, ha a SZERVER szerint ma ajánlható (`reinvitable`) — a négy határ
+        // (felfüggesztés · tiltás · nyitott felülvizsgálat · visszamenőleges érvénytelenség) a
+        // magban dől el, és a böngésző nem is ismeri őket. Ahol zárt, ott a SOR MEGMONDJA, MIÉRT:
+        // a némán letiltott gomb ugyanaz a hiba, mint a hamis gomb (KUKA-011 · KUKA-041 · KUKA-201).
+        m.effective ? '' : `<div class="divider"></div><h3>${esc(UI.reentrySection)}</h3>`
+          + (m.reinvitable
+            ? `<p class="muted">${esc(tpl('reinviteConfirmLead', { ki: m.email || m.subject_id }))}</p>
+               <button type="button" class="primary" data-action="reinvite-start" data-subject="${esc(id)}"
+                 data-testid="member-reinvite-${esc(id)}">${esc(UI.reinviteAction)}</button>`
+            : `<p class="notice warn" data-testid="member-reinvite-blocked">${esc(tpl('reinviteBlocked', { ki: m.email || m.subject_id, miert: reasonText(m.reinvite_reason) }))}</p>`)
+      }
       <div class="buttonrow"><button type="button" data-action="panel-close">${esc(UI.close)}</button></div>`);
   }
 
@@ -1201,6 +1236,105 @@ import { inviteNextKey } from './inviteText.mjs';
       + `<p>${esc(tpl('revokeLead', { ki: who, nev: accountName() }))}</p>
       <div class="buttonrow"><button type="button" data-action="member-open" data-subject="${esc(id)}">${esc(UI.cancel)}</button>
         <button type="button" class="danger" data-action="revoke" data-subject="${esc(id)}" data-testid="revoke-confirm">${esc(UI.revokeConfirm)}</button></div>`, false);
+  }
+
+  /**
+   * R132 §2 — A MEGHÍVÁS VISSZAVONÁSÁNAK MEGERŐSÍTÉSE.
+   *
+   * A MONDAT KIMONDJA A HATÁST ÉS A NEM-HATÁST IS: a régi hivatkozás elhal, de más jogosultság nem
+   * változik, és senki tagsága nem szűnik meg. A „mégse" NEM ÍR (spec §6) — a panel bezárul.
+   */
+  function inviteRevokePanel(ref, who) {
+    const kit = who || UI.someUser;
+    openPanel(panelHead(UI.inviteRevokeTitle)
+      + `<p data-testid="invite-revoke-lead">${esc(tpl('inviteRevokeConfirmLead', { ki: kit }))}</p>
+      <div class="buttonrow"><button type="button" data-action="panel-close" data-testid="invite-revoke-cancel">${esc(UI.cancel)}</button>
+        <button type="button" class="danger" data-action="invite-revoke" data-ref="${esc(ref)}" data-who="${esc(kit)}"
+          data-testid="invite-revoke-confirm">${esc(UI.inviteRevokeConfirm)}</button></div>`, false);
+  }
+
+  /**
+   * R132 §3 — AZ ÚJBÓLI MEGHÍVÁS MEGERŐSÍTÉSE.
+   *
+   * A spec §6 két dolgot KÖTELEZŐEN kimondat: „a címzettnek el kell fogadnia, és a régi adatjogai
+   * nem állnak vissza". Mindkettő a megerősítő mondatban áll, a `reinviteConfirmLead` kulcson —
+   * tehát a három nyelv magától megvan, és a szöveg nem égethető a sablonba (I18N-01 · KUKA-210).
+   */
+  function reinvitePanel(id) {
+    const m = (state.members || []).find((x) => x.subject_id === id);
+    if (!m) return;
+    const kit = m.email || m.subject_id;
+    const korok = (state.scopeMeta && state.scopeMeta.grantable && state.scopeMeta.grantable.length)
+      ? state.scopeMeta.grantable : ['keszlet'];
+    openPanel(panelHead(UI.reinviteTitle, tpl('reinviteConfirmLead', { ki: kit }))
+      + `<form class="form" data-testid="reinvite-form">
+        <label>${esc(UI.role)}<select name="role" data-testid="reinvite-role">
+          ${Object.keys(ROLE).map((r) => `<option value="${esc(r)}"${r === (m.role || 'user') ? ' selected' : ''}>${esc(ROLE[r])}</option>`).join('')}
+        </select></label>
+        <label>${esc(STATE.inviteScopeQuestion)}<select name="scope" data-testid="reinvite-scope">
+          ${korok.map((k) => `<option value="${esc(k)}">${esc(SCOPE[k] || k)}</option>`).join('')}
+        </select></label>
+        <p class="notice" data-testid="reinvite-result" hidden></p>
+        <div class="buttonrow"><button type="button" data-action="panel-close" data-testid="reinvite-cancel">${esc(UI.cancel)}</button>
+          <button type="button" class="primary" data-action="reinvite" data-subject="${esc(id)}" data-who="${esc(kit)}"
+            data-testid="reinvite-confirm">${esc(UI.reinviteConfirm)}</button></div>
+      </form>`);
+  }
+
+  /** A MEGHÍVÁS VISSZAVONÁSA — a nyugta IGAZAT mond arról, történt-e változás (KUKA-129). */
+  async function doRevokeInvite(ref, who, btn) {
+    const v = stampOf(btn);
+    if (await refuseStale(v)) return;
+    const gen = state.generation;
+    const r = await apiInContext('POST', '/api/invites/revoke', { ref }, v);
+    const verdict = contextBindingVerdict(r, v);
+    closePanel();
+    if (!verdict.bound) { await contextChangedNotice(verdict.why); return; }
+    if (gen !== state.generation) { notice(reasonText('context_mismatch'), 'warn'); render(); return; }
+    // A LISTA FRISSÍTÉSE ELŐBB, A NYUGTA UTÁNA — ÉS EZ NEM STÍLUS (saját lelet, az R132-es
+    // böngésző-próba fogta meg). A `loadInvites()` a VÉGÉN `render()`-t hív, az pedig ÚJRAÉPÍTI a
+    // teljes oldalt — beleértve a `members-result` elemet. A régi sorrendben (nyugta, majd lekérés)
+    // a mondat tehát MEGJELENT, és a következő pillanatban NYOM NÉLKÜL eltűnt: a kezelő egy üres
+    // képernyőt látott egy sikeres művelet után. A szomszéd adatkör-út ezt azért nem mutatta, mert
+    // ott a frissítés CSAK a lista-panelt cseréli (`setPanel`), nem az egész lapot — ugyanaz a
+    // fogalom, két ábrázolás, és a fogyasztó a rosszabbikat olvasta (KUKA-018 · KUKA-209: a
+    // rajzolás és a lekérés KÉT külön döntés; KUKA-015: ha senki nem olvassa, az nem nyugta).
+    await loadInvites();
+    if (r.ok) {
+      const mondat = r.changed
+        ? tpl('inviteRevoked', { ki: who })
+        : tpl('inviteRevokeUnchanged', { miert: reasonText(r.reason) });
+      formResult('members-result', mondat, r.changed ? 'ok' : 'warn');
+      toast(mondat);
+      if (r.changed) tourTaskDone('invite.revoked');   // IGAZOLT változás után (TUR-01 · KUKA-231)
+    } else {
+      formResult('members-result', refusalText(r), 'bad');
+    }
+  }
+
+  /** AZ ÚJBÓLI MEGHÍVÁS — ajánlat, nem tagság: a nyugta is ezt mondja. */
+  async function doReinvite(id, who, btn) {
+    const v = stampOf(btn);
+    if (await refuseStale(v)) return;
+    const gen = state.generation;
+    const form = byTest('reinvite-form');
+    const role = form ? form.querySelector('[name=role]').value : 'user';
+    const scope = form ? form.querySelector('[name=scope]').value : 'keszlet';
+    const r = await apiInContext('POST', '/api/members/reinvite', { subject_id: id, role, scope, lang: currentLang() }, v);
+    const verdict = contextBindingVerdict(r, v);
+    if (!verdict.bound) { closePanel(); await contextChangedNotice(verdict.why); return; }
+    if (gen !== state.generation) { closePanel(); notice(reasonText('context_mismatch'), 'warn'); render(); return; }
+    if (!r.ok) { formResult('reinvite-result', refusalText(r), 'bad'); return; }
+    closePanel();
+    // UGYANAZ A SORREND, UGYANABBÓL AZ OKBÓL (lásd a `doRevokeInvite` magyarázatát): a teljes
+    // oldalt újraépítő lekérés ELŐBB, a nyugta UTÁNA — különben a sikeres újrahívás mondata
+    // azonnal eltűnik.
+    await loadMembers();
+    await loadInvites();
+    const mondat = tpl('reinviteSent', { ki: who });
+    formResult('members-result', mondat, 'ok');
+    toast(mondat);
+    tourTaskDone('reinvite.sent');
   }
 
   /**
@@ -1941,9 +2075,21 @@ import { inviteNextKey } from './inviteText.mjs';
       case 'mail-open': closePanel(); await mailPanel(); break;
       case 'mail-refresh': await mailPanel(); break;
       case 'invite-open': invitePanel(); break;
-      case 'members-tab': state.membersTab = b.dataset.mtab; render(); loadPageData(); break;
+      // A FÜL-VÁLTÁS IS DOM-VÁLTOZÁS, TEHÁT A FUTÓ ÚTMUTATÓT ÚJRA KELL ÉRTÉKELNI (R132, saját lelet).
+      // A `tourRecheck` eddig CSAK panel- és súgó-nyitásra/zárásra futott. Mérve: egy olyan lépés,
+      // aminek a célja a fül-váltással jelenik meg, ÖRÖKRE „még nem érhető el" állapotban maradt — és
+      // a várakozó buborék a saját szövegével eltakarta azt a gombot, amit a felhasználónak meg kell
+      // nyomnia. A `render()` a lapot újrarajzolta, a buborékot nem: egy fogalom (a mai DOM) két
+      // ábrázolása, és az útmutató a régit olvasta (KUKA-209 · KUKA-218 · KUKA-011).
+      case 'members-tab': state.membersTab = b.dataset.mtab; render(); tourRecheck(); loadPageData(); break;
       case 'member-open': memberPanel(b.dataset.subject); break;
       case 'revoke-start': revokePanel(b.dataset.subject); break;
+      // R132 — HÁROM KÜLÖN MŰVELET, HÁROM KÜLÖN ÚT (spec §6): a meghívás visszavonása · a tagság
+      // megszüntetése (`revoke-start`) · egy adatkör visszavonása (`scope-revoke`).
+      case 'invite-revoke-start': inviteRevokePanel(b.dataset.ref, b.dataset.who); break;
+      case 'invite-revoke': doRevokeInvite(b.dataset.ref, b.dataset.who, b); break;
+      case 'reinvite-start': reinvitePanel(b.dataset.subject); break;
+      case 'reinvite': doReinvite(b.dataset.subject, b.dataset.who, b); break;
       case 'scope-grant': doGrant(b.dataset.subject, b.dataset.scope, b); break;
       case 'scope-revoke': doRevokeScope(b.dataset.subject, b.dataset.scope, b); break;
       case 'clear-search': state.search = ''; state.processState = ''; render(); break;

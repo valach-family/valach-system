@@ -182,6 +182,38 @@ export const ENDPOINT_SCHEMAS = frozen({
     }),
     query: frozen({ fields: frozen({}) }),
   }),
+  // ── R132 — A MEGHÍVÓ VISSZAVONÁSA ÉS AZ ÚJBÓLI MEGHÍVÁS SÉMÁJA ─────────────────────────────
+  //
+  // A VISSZAVONÁS A RÖVID JELÖLŐT KAPJA, NEM A TOKENT (KUKA-006). A várakozó meghívások listája
+  // SZÁNDÉKOSAN nem adja ki a nyers tokent („a token a levél titka"), ezért a felületnek nem is lehet
+  // a kezében — a művelet a lista-sor `ref` jelölőjére szól, és a tokent a SZERVER oldja fel a saját
+  // könyvén belül. Ha a jelölő többre illene, a feloldás fail-closed (lásd server.mjs).
+  'POST /api/invites/revoke': frozen({
+    version: '1', mutates: true,
+    body: frozen({
+      fields: frozen({
+        ref: frozen({ type: 'nonempty_string', required: true, max_length: 64 }),
+        [CONTEXT_FIELD]: contextConfirm, [CONTEXT_SUBJECT_FIELD]: contextConfirm,
+      }),
+    }),
+    query: frozen({ fields: frozen({}) }),
+  }),
+  // AZ ÚJBÓLI MEGHÍVÁS ALAKJA A MEGHÍVÁSÉ — szerep és adatkör-plafon a ZÁRT készletekből. A CÍMET
+  // NEM a kliens adja meg (spec §3: „Címváltozás vagy másik személyhez átkerült e-mail nem lehet a
+  // korábbi személy tagságának átvételi útja") — a cím a személy TÁROLT ténye, a mag oldja fel.
+  'POST /api/members/reinvite': frozen({
+    version: '1', mutates: true,
+    body: frozen({
+      fields: frozen({
+        subject_id: subjectRef,
+        role: frozen({ type: 'nonempty_string', required: true, enum: frozen([...KNOWN_ROLES]) }),
+        scope: frozen({ type: 'nonempty_string', required: true, enum: frozen([...KNOWN_DATA_SCOPES]) }),
+        lang: langField,
+        [CONTEXT_FIELD]: contextConfirm, [CONTEXT_SUBJECT_FIELD]: contextConfirm,
+      }),
+    }),
+    query: frozen({ fields: frozen({}) }),
+  }),
   // ── FEJLESZTŐI FELÜLET — a `devSurface` kapcsoló mögött; élesben nem létezhet (lásd server.mjs).
   'POST /dev/clock': frozen({
     version: '1', mutates: true,

@@ -136,7 +136,15 @@ export function scopeGrantLiveAt({ store, subjectId, bookId, scope, nowIso, know
   // 2. A TÉNYLEGESEN MEGADOTT OLVASÁSI JOG (SGR-01, R49). A HIÁNY ZÁR — a „megadható" nem a
   //    „megadott", és a tiltás hiánya nem engedély. Ez a kapu NEM dönti el a TAGSÁGOT (az a
   //    könyv-kapu dolga, és előbb fut); azt dönti el, hogy erre az ADATKÖRRE van-e joga.
-  const grant = readScopeGrantAt({ store, subjectId, bookId, scope, validAt: nowIso, knownAt });
+  //
+  //    R132 — ÉS A JOG A TAGSÁGI IDŐSZAKHOZ TARTOZIK (SGP-01). A MAI időszak azonosítóját ITT
+  //    oldjuk fel, és ADJUK ÁT: így egy korábbi, LEZÁRT időszakban kiadott jog az új belépés után
+  //    NEM éled fel (spec §4). A tagság hiányát ez a kapu TOVÁBBRA SEM dönti el — ha nincs hatályos
+  //    időszak, az időszak-szűrőt nem kapcsoljuk be, és a válasz a RÉGI, esemény-szintű alakban jön;
+  //    a nem-tag kérését a könyv-kapu zárja, és az ELŐBB fut (KUKA-002: nem vonunk két döntést egybe).
+  const period = membershipAsOf({ store, subjectId, bookId, validAt: nowIso, knownAt: knownAt ?? nowIso });
+  const periodGrantEventId = period.effective === true ? (period.period_grant_event_id ?? null) : null;
+  const grant = readScopeGrantAt({ store, subjectId, bookId, scope, validAt: nowIso, knownAt, periodGrantEventId });
   if (grant.granted !== true) {
     return frozen({
       ...base, allowed: false, basis: 'scope_grant', reason: grant.reason,

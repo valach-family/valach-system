@@ -338,6 +338,74 @@ END;
 -- A HIANY NEM NEMA ENGEDELY, DE NEM IS FAL: ha egy meghivohoz nincs ilyen sor, a beváltás a MAI
 -- szabály szerint megy (tagsagi delegalas), es a valasz KIMONDJA, hogy a korlat nem volt
 -- kikenyszeritve ("basis_declared: false") - KUKA-041: a nem-kapuzo tenyt latni kell.
+-- ═══ R132/1 — A MEGHÍVÓ VISSZAVONÁSA SAJÁT ESEMÉNY (INVR-01) ═════════════════════════════════
+--
+-- A HIÁNY, AMIT EZ ZÁR — és nem mi találtuk ki, hanem a SAJÁT norma-szövegünk nevezte meg
+-- (norms.mjs, ORG-N1a "remaining", az R132 előtti alak): "a MEGHÍVÓ VISSZAVONÁSA mint saját
+-- esemény (ma a lejárat és a kiadó jogának megvonása zár; a meghívón nincs revoked_at)".
+--
+-- MIÉRT KÜLÖN TÁBLA, ÉS NEM OSZLOP AZ "invite"-ON. Ugyanaz a MÉRT ok, ami az "invite_basis"-nál,
+-- és ott szó szerint le is van írva: a meghívók egy része NYERS, POZICIONÁLIS, nyolc értéket
+-- felsoroló beszúrással születik (a külső fél MINDEN programjában), és egy kilencedik oszlop
+-- ezeket AZONNAL eltörné — a javítás a jogos utat zárná ki (KUKA-122: a kapu nem lehet fal).
+--
+-- A SQL-ALAKOT ITT SZÁNDÉKOSAN NEM IDÉZZÜK MÉG EGYSZER. A GP06 őr (GPR-01) a modul jogadó
+-- írás-helyeit SZÁMOLJA, és a séma-szöveg SQL-kommentjeit nem tudja prózaként felismerni — egy
+-- MÁSODIK szó szerinti idézet tehát „új jogadó utat" jelentett volna egy olyan modulban, ahol
+-- egyetlen sor kód sem változott. A helyes válasz nem a pin átírása (KUKA-045: az tanítaná be, hogy
+-- a javítás = a szám növelése), hanem az, hogy a próza ne tegyen úgy, mintha írás lenne. FOGALMI ok
+-- is van: a visszavonás ESEMÉNY, saját hatállyal, rögzítési idővel és CSELEKVŐVEL; a meghívó
+-- "redeemed_at" oszlopa ÁLLAPOT. Két külön alakú tényt nem teszünk egy sorra (KUKA-002).
+--
+-- KÉT TENGELY, mint minden más jogváltozásnál, és APPEND-ONLY. Az ismételt visszavonás NEM ír
+-- második sort (az üzleti idempotenciát a domain-művelet dönti el); ha mégis állna itt több sor, a
+-- feloldó a LEGKORÁBBI hatályút veszi — a zárás fail-closed (KUKA-012).
+CREATE TABLE invite_revocation (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  token            TEXT NOT NULL REFERENCES invite(token),
+  book_id          TEXT NOT NULL,
+  actor_subject_id TEXT,
+  recorded_at      TEXT NOT NULL,
+  effective_at     TEXT NOT NULL
+);
+CREATE INDEX invite_revocation_token ON invite_revocation (token);
+
+-- ═══ R132/2 — AZ ÚJRAHÍVÁSI DÖNTÉS (RNV-01) ══════════════════════════════════════════════════
+--
+-- A MÁSODIK NEVEZETT HIÁNY ugyanabból a norma-szövegből: "az ÚJRA-MEGHÍVÁS MEGVONÁS UTÁN (a
+-- membership kulcsa alany × könyv, a beváltás revoked_needs_decision néven áll meg — az
+-- újranyitás külön döntés, nincs megépítve)".
+--
+-- MIT TÁROL, ÉS MIÉRT ÉPP EZT. A spec kikötése: "A rendszer tárolja, ki, mikor, milyen alapon
+-- engedte az új belépési ajánlatot", és "Az új ajánlat kötődjön a kiválasztott korábbi személyhez,
+-- fiókhoz és a konkrét lezárt tagsági időszakhoz/megvonási eseményhez."
+--
+-- A KÖTÉS ESEMÉNY-AZONOSÍTÓKON ÁLL (nem dátumon): "closed_grant_event_id" = MELYIK tagsági
+-- időszak zárult le, "closed_revocation_id" = MELYIK megvonás zárta le. Ebből következik a spec
+-- másik kikötése is: "Egy megszűnésre kiadott újrahívási ajánlat nem használható egy későbbi
+-- megszűnés újranyitására" — a beváltás összeméri a MAI lezárt időszakot az ajánlatban
+-- rögzítettel, és eltérésnél NEVEZETTEN elakad.
+--
+-- A DÖNTÉS NEM TAGSÁG. Ez a sor AJÁNLATOT engedélyez; a tagságot a címzett SAJÁT, igazolt
+-- elfogadása adja, a beváltási lánc MINDEN kapuján át (KUKA-143: a feladáskori bizonyíték nem
+-- küldéskori engedély).
+CREATE TABLE membership_reentry (
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject_id            TEXT NOT NULL REFERENCES subject(id),
+  book_id               TEXT NOT NULL REFERENCES book(id),
+  token                 TEXT NOT NULL REFERENCES invite(token),
+  closed_grant_event_id INTEGER NOT NULL,
+  closed_revocation_id  INTEGER NOT NULL,
+  offered_role          TEXT NOT NULL,
+  decided_by            TEXT NOT NULL,
+  basis_id              TEXT NOT NULL,
+  basis_version         INTEGER NOT NULL,
+  recorded_at           TEXT NOT NULL,
+  effective_at          TEXT NOT NULL
+);
+CREATE UNIQUE INDEX membership_reentry_token ON membership_reentry (token);
+CREATE INDEX membership_reentry_who ON membership_reentry (subject_id, book_id);
+
 CREATE TABLE invite_basis (
   token          TEXT PRIMARY KEY REFERENCES invite(token),
   basis_id       TEXT NOT NULL,
@@ -719,6 +787,28 @@ CREATE TABLE access_refusal (
 -- KÉT TENGELY, mint minden más jogváltozásnál ("effective_at" × "recorded_at"), és a megvonás a
 -- soron "revoked_at"-ként áll. A "basis_id"/"basis_version" KÖTELEZŐ: egy olvasási jog, aminek
 -- nincs rögzített alapja, pontosan az a „bizonyítatlan engedély", amit a klauzula tilt (ORG-N1a).
+--
+-- R132 — A JOG A TAGSÁGI IDŐSZAKHOZ TARTOZIK ("membership_grant_id").
+--
+-- MIÉRT KELL. Az R132 előtt a jog kulcsa alany × könyv × adatkör volt, a tagsági IDŐSZAK nélkül.
+-- Mérve a régi forráson: egy tag megvonása után, ÚJ belépéskor a régi "scope_grant" sor
+-- változatlanul hatályosnak olvasódott (a megvonás a TAGSÁGOT vonta meg, a jog-sort nem), tehát az
+-- új tagsággal a RÉGI adatkörjogok maguktól visszatértek. A spec ezt kifejezetten tiltja: "Új
+-- belépéskor a régi adatkörjogok … NEM éledhetnek fel."
+--
+-- MIÉRT ESEMÉNY-AZONOSÍTÓ, ÉS NEM DÁTUM-ÖSSZEHASONLÍTÁS. A spec kimondja: "A »régebbi dátum ⇒
+-- valószínűleg régi jog« heurisztika nem megfelelő." Az időszakot ezért a tagságadó ESEMÉNY
+-- azonosítója jelöli — ez azonos időbélyegű eseményeknél is egyértelmű (KUKA-113: a sorrendet nem
+-- helyettesíthetjük idő-becsléssel).
+--
+-- MIÉRT NULLABLE, ÉS MIT JELENT A NULL. A már létező, EGYSZERI tagságok sorai NULL-t viselnek, és
+-- ezeknek maradnia kell reprodukálható feloldásuk (a spec kikötése: "nincs adateldobás"). A NULL
+-- jelentése KIMONDOTT: az adott alany × könyv ELSŐ (legkisebb azonosítójú) tagságadó eseményéhez
+-- tartozik — ez is esemény-rend, nem dátum-becslés.
+--
+-- OSZLOP ÉS NEM ÚJ TÁBLA: a "scope_grant" MINDEN írója NEVESÍTETT oszloplistát használ (mérve:
+-- scopeGrant.mjs és a mutáció is), tehát egy nullable oszlop egyetlen meglévő írót sem tör el — a
+-- "membership"/"invite" táblákon ez NEM lett volna igaz (ott POZICIONÁLIS írók is vannak, KUKA-122).
 CREATE TABLE scope_grant (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   subject_id    TEXT NOT NULL REFERENCES subject(id),
@@ -728,7 +818,8 @@ CREATE TABLE scope_grant (
   basis_version INTEGER NOT NULL,
   granted_by    TEXT NOT NULL,
   recorded_at   TEXT NOT NULL,
-  effective_at  TEXT NOT NULL
+  effective_at  TEXT NOT NULL,
+  membership_grant_id INTEGER
 );
 CREATE INDEX scope_grant_who ON scope_grant (subject_id, book_id, scope);
 

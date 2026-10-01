@@ -86,6 +86,15 @@ export const TPL = Object.freeze({
   helpForScreen: 'For this screen: {oldal}',
   chatSourceLine: 'Source: {cim} ({verzio})',
   chatHistoryNote: 'We keep the last {n} questions of the conversation — older ones drop out.',
+
+  // ── R132 — invitation revocation and re-entry ───────────────────────────────────────────
+  inviteRevoked: 'The invitation has been revoked: the link for {ki} can no longer be used.',
+  inviteRevokeUnchanged: 'Nothing changed on this invitation: {miert}',
+  inviteRevokeConfirmLead: 'We will revoke the invitation for {ki}. Their earlier link will no longer work. No other permission changes, and this does not end anyone\'s membership.',
+  reinviteSent: 'A new invitation has been sent to {ki}. Membership is created only when they accept it.',
+  reinviteConfirmLead: '{ki} will receive a new invitation. Membership is created only when they accept it. Their earlier data access does not come back — it has to be granted again separately.',
+  memberRemovedAt: 'Removed: {mikor}',
+  reinviteBlocked: '{ki} cannot be invited back right now: {miert}',
 });
 
 export const REASON = Object.freeze({
@@ -152,6 +161,28 @@ export const REASON = Object.freeze({
   action_not_allowed: 'The assistant cannot start this operation.',
   action_unknown: 'We do not know such an operation.',
   feature_not_working: 'This feature is not usable yet, so we do not open it either.',
+  // ── R132 — invitation revocation and re-entry ───────────────────────────────────────────
+  invite_revoked: 'This invitation has been revoked. Ask the account manager for a new one.',
+  invite_ref_ambiguous: 'We could not identify this invitation unambiguously. Refresh the page and try again.',
+  invite_not_actionable: 'This invitation cannot be used right now.',
+  membership_not_granted: 'Membership was not created. The account manager can start the next step.',
+  reentry_decision_required: 'Your membership in this account was revoked earlier. Re-entry is a separate decision: ask the account manager to invite you again.',
+  reentry_offer_period_mismatch: 'This re-invitation was issued for an earlier situation and can no longer be used. Ask the account manager for a new one.',
+  reentry_target_membership_is_open: "This colleague's membership is still active, so no re-invitation is needed.",
+  reentry_target_no_membership: 'This person has no earlier membership in this account, so they cannot be invited back. Send a regular invitation instead.',
+  reentry_target_membership_without_grant_event: 'This membership has no recorded history that re-entry could be tied to. Send a regular invitation instead.',
+  reentry_blocked_suspension: 'This membership is suspended. The suspension must be lifted first — that is a separate procedure.',
+  reentry_blocked_ban: 'This person is subject to a ban. Lifting a ban is a separate procedure.',
+  reentry_blocked_open_review_circle: 'This membership has an open review. That must be closed first.',
+  reentry_blocked_retroactive_invalidity: 'This membership was closed by a retroactive invalidity decision. Reviewing such a decision is a separate procedure, not a re-invitation.',
+  reentry_not_after_revocation: 'Re-entry cannot take effect at the same moment as the removal. Try again in a moment.',
+  reentry_target_has_no_address: 'This person has no recorded e-mail address for the new invitation.',
+  outside_basis_roles: 'You cannot pass on this role: your own authorisation is narrower.',
+  outside_basis_scopes: 'You cannot pass on this data area: your own authorisation is narrower.',
+  scope_grant_other_period: 'This access belonged to an earlier, now closed membership period. After re-entry it has to be granted again.',
+  delegation_ceiling_resolver_missing: 'The limit of the authorisation cannot be checked right now, so we are not carrying out the operation.',
+  revocation_row_not_created: 'The revocation could not be recorded, so nothing changed. Please try again.',
+  reentry_row_not_created: 'The re-invitation could not be recorded, so nothing changed. Please try again.',
   generic: 'This operation cannot be completed right now.',
 });
 
@@ -450,6 +481,17 @@ export const UI = Object.freeze({
   otherPersonHere: 'Another user signed in in this browser. The page has been refreshed.',
   personalStillUsable: 'You can still use your personal account.',
   openPersonal: 'Open the personal account',
+
+  // ── R132 — invitation revocation and re-entry ───────────────────────────────────────────
+  inviteRevokeAction: 'Revoke invitation',
+  inviteRevokeTitle: 'Revoke invitation',
+  inviteRevokeConfirm: 'Revoke the invitation',
+  inviteAccepted: 'Accepted',
+  inviteRevokedBadge: 'Revoked',
+  reinviteAction: 'Invite again',
+  reinviteTitle: 'Invite again',
+  reinviteConfirm: 'Send the new invitation',
+  reentrySection: 'Re-entry',
 });
 
 export const HELP = Object.freeze({
@@ -765,6 +807,28 @@ export const KB = Object.freeze({
       uncertain: 'We cannot be sure it was saved. The list shows today’s state.',
     }),
   }),
+  'invite.revoke': Object.freeze({
+    title: 'Revoking an invitation that was sent',
+    purpose: 'You invalidate an invitation that has not been accepted yet, so the link already sent can no longer be used to join.',
+    prereq: 'Account manager permission, and the invitation must still be awaiting acceptance.',
+    result: 'The old link no longer works. Nobody loses their membership and no other access changes. If the invitation was already accepted, revoking it does not remove membership — that is a separate operation.',
+    outcomes: Object.freeze({
+      success: 'The invitation has been revoked.',
+      refused: 'You do not have the authority for this, or this invitation can no longer be revoked.',
+      uncertain: 'We cannot be sure it was recorded. The list shows the current state.',
+    }),
+  }),
+  'members.reinvite': Object.freeze({
+    title: 'Inviting a removed colleague again',
+    purpose: 'You issue a new invitation to someone whose access to this account was ended earlier.',
+    prereq: 'Account manager permission, and the colleague must have a closed, earlier membership in this account.',
+    result: 'A new invitation is created. Membership is established only if the person accepts it themselves. Their earlier data access does not come back: it has to be granted again separately after they join. Their old membership and its history remain.',
+    outcomes: Object.freeze({
+      success: 'The new invitation has been sent.',
+      refused: 'You do not have the authority for this, or this colleague cannot be invited back right now.',
+      uncertain: 'We cannot be sure it went out. The list of pending invitations shows the current state.',
+    }),
+  }),
   'members.scopeRevoke': Object.freeze({
     title: 'Withdrawing one kind of access',
     purpose: 'You take one kind of access away from a member while their membership and other access stay.',
@@ -1026,6 +1090,18 @@ export const FAQ = Object.freeze({
     q: 'How do I grant somebody the stock data?',
     a: 'Users → the “Access” button on the row → choose the data area → “Grant viewing”. The permission belongs only to this account.',
   }),
+  'faq.invite.revoke': Object.freeze({
+    q: 'Can I revoke an invitation I already sent?',
+    a: 'Yes. Users → the "Awaiting acceptance" tab → the "Revoke invitation" button in that row. The link that was sent can no longer be used. If the invitation was already accepted, revoking it does not end the membership — use "End access in this account" for that.',
+  }),
+  'faq.members.reinvite': Object.freeze({
+    q: 'Can I invite back a colleague whose access I ended earlier?',
+    a: 'Yes, but it is a deliberate, separate decision. Users → pick the removed person in the list → "Manage access" → "Invite again". That alone does not make them a member: they receive a new invitation, and membership is created when they accept it. An ordinary new invitation does not revive the old membership.',
+  }),
+  'faq.members.reinviteScopes': Object.freeze({
+    q: 'If I invite someone back, do they get their earlier access again?',
+    a: 'No. Re-entry opens a new membership period, and no data access returns on its own in it — each one has to be granted again separately. The history of the earlier period remains, it just does not affect today’s permissions.',
+  }),
   'faq.members.scopeRevoke': Object.freeze({
     q: 'Can I take away only the prices and leave everything else?',
     a: 'Yes. Users \u2192 \u201cManage access\u201d \u2192 the \u201cWithdraw access\u201d button in that row. Only that one access ends; membership, role and the other kinds of access stay unchanged.',
@@ -1188,6 +1264,21 @@ export const TOUR = Object.freeze({
     s3: Object.freeze({ title: 'Allow business documents', body: 'In the \u201cBusiness documents\u201d row press \u201cGrant access\u201d. This step moves on only after an actual save.' }),
     s4: Object.freeze({ title: 'And withdrawing it', body: 'In the same row \u201cWithdraw access\u201d takes away only this one access \u2014 membership and the other data stay.' }),
   }),
+  'tour.inviteRevoke': Object.freeze({
+    title: 'Revoking an invitation that was sent',
+    lead: 'Three steps. At the end the link that was sent can no longer be used.',
+    s1: Object.freeze({ title: 'Open Users', body: 'In the Settings group, with account manager permission.' }),
+    s2: Object.freeze({ title: 'Switch to the "Awaiting acceptance" tab', body: 'Here you can see which invitation is waiting, which was accepted, which expired and which was revoked.' }),
+    s3: Object.freeze({ title: 'The list of pending invitations', body: 'Here you can see which invitation is waiting, which was accepted, which expired and which was revoked.' }),
+    s4: Object.freeze({ title: 'Revoke the invitation', body: 'The „Revoke invitation” button in the row, then the confirmation. The link stops working afterwards — this step only moves on after an actual revocation.' }),
+  }),
+  'tour.reentry': Object.freeze({
+    title: 'Inviting a removed colleague back',
+    lead: 'Three steps. At the end a new invitation goes out; membership is created when they accept it.',
+    s1: Object.freeze({ title: 'Open Users', body: 'In the Settings group, with account manager permission.' }),
+    s2: Object.freeze({ title: 'Find the removed person', body: 'The list also shows removed colleagues, marked "Removed". The "Manage access" button opens their page.' }),
+    s3: Object.freeze({ title: 'Send the new invitation', body: 'The "Invite again" button in the "Re-entry" section. The confirmation states that the person has to accept, and that their earlier access does not come back. This step only moves on after the invitation is actually sent.' }),
+  }),
   'tour.plan': Object.freeze({
     title: 'Setting the plan',
     lead: 'Three steps. There is no purchase and no payment.',
@@ -1296,6 +1387,8 @@ export const KB_SOURCE = Object.freeze({
   'invite.accept': Object.freeze({ source_version: '1.3.0', review: 'checked' }),
   'members.list': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
   'members.grant': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
+  'invite.revoke': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'members.reinvite': Object.freeze({ source_version: '1.0.0', review: 'source' }),
   'members.scopeRevoke': Object.freeze({ source_version: '1.0.0', review: 'source' }),
   'data.documentSample': Object.freeze({ source_version: '1.0.0', review: 'source' }),
   'data.supplierSample': Object.freeze({ source_version: '1.0.0', review: 'source' }),
@@ -1329,6 +1422,8 @@ export const SEARCH = Object.freeze({
   'invite.accept': 'accept invitation join with invitation redeem accept the invite expired invitation my invitation invalid link wrong address',
   'members.list': 'users members who can see access list membership',
   'members.grant': 'grant permission give access data area allow viewing',
+  'invite.revoke': 'revoke invitation cancel invite sent link invalidate awaiting acceptance revoked invitation',
+  'members.reinvite': 'invite again re-invite removed colleague re-entry rehire bring back',
   'members.scopeRevoke': 'withdraw access remove data area only prices partial withdrawal',
   'data.documentSample': 'document sample header mixed document amount',
   'data.supplierSample': 'supplier sample partner contact detail',

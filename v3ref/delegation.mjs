@@ -27,7 +27,11 @@
 
 import { instantMs } from './store.mjs';
 import { rightAt, roleDelegates } from './authz.mjs';
-import { membershipAsOf } from './bitemporal.mjs';
+import {
+  membershipAsOf, closedMembershipPeriodOf, reviewCircleFor, reviewCircleState, RETROACTIVE_TRANSITION,
+} from './bitemporal.mjs';
+import { suspensionEffectiveAt } from './suspension.mjs';
+import { banEffectiveAt } from './banScope.mjs';
 import { recordAuthorityBasis, basisAsOf, revokeAuthorityBasis, INVITE_ISSUE_OPERATION } from './authorityBasis.mjs';
 import { issueInviteUnderBasis, grantBasisFor } from './basisLimit.mjs';
 import { grantReadScope, revokeReadScope, readScopeGrantAt } from './scopeGrant.mjs';
@@ -254,6 +258,201 @@ export function grantScopeToMember({ store, granterSubjectId, bookId, targetSubj
 }
 
 /**
+ * R132/2 — ÚJBÓLI MEGHÍVÁS EGY ELTÁVOLÍTOTT MUNKATÁRSNAK (RNV-01, spec §3).
+ *
+ * MIT ÉPÍT, ÉS MIT NEM BONT EL. A spec §3 első mondata kikötés: *„A rendes meghívás meglévő
+ * `revoked_needs_decision` védelmét ne töröld és ne alakítsd csendes reaktiválássá."* Ezért ez EGY
+ * ÚJ, KIFEJEZETT művelet a régi MELLÉ — nem a régi kilazítása. A rendes `inviteColleague` úton egy
+ * megvont tag meghívója a beváltásnál VÁLTOZATLANUL `revoked_needs_decision`-re fut.
+ *
+ * ÉS AMIT EZ A MŰVELET SEM AD: TAGSÁGOT. Csak AJÁNLATOT hoz létre + a hozzá tartozó, tárolt
+ * DÖNTÉST. *„A címzett saját, igazolt belépéssel fogadja el"* — a tagság a beváltási lánc minden
+ * kapuján át, a címzett saját cselekvésével születik (KUKA-143).
+ *
+ * A KAPUK, MIND A VÉGLEGESÍTÉSI PONTON (EFF-01 — egy óraolvasás a döntésnek ÉS a hatásnak):
+ *   1. az eljáró `alter_right` hatásköre — a jog ÚJRANYITÁSA jogváltoztatás, ugyanaz a hatáskör,
+ *      ami a megvonáshoz kell; a puszta (akár admin) tagság nem elég;
+ *   2. a CÉL tagságának MA LEZÁRT időszaka — ez az ajánlat kötési pontja (PER-02). Ha a tagság MA
+ *      ÉL, nincs mit újranyitni (`membership_is_open`), ha sosem volt, nincs mihez kötni;
+ *   3. az eljáró DELEGÁLÁSI PLAFONJA, írás nélkül (DCE-01): az új szerep és az új adatkör-plafon a
+ *      MAI hatásköréből származik, a MAI korláton belül — *„Új szerep és új alap/verzió a mai
+ *      kezelői hatáskörből származzon"*;
+ *   4. a hatályosulási pont KÉSŐBBI a záró megvonásnál — különben az új időszak és a régi megvonás
+ *      azonos pillanaton állna, és a feloldó fail-closed szabálya (a megvonás erősebb) egy
+ *      „megszületett, de nem hatályos" tagságot adna. Ezt NEM sorrend-találgatással oldjuk meg,
+ *      hanem NEVEZETT kapuval (KUKA-171: ami megállít, annak neve is legyen).
+ *
+ * A NÉGY KIMONDOTT HATÁR (spec §3 utolsó bekezdése) — MIND NEVEZETT ELUTASÍTÁS, A MEGLÉVŐ ELJÁRÁSRA
+ * MUTATÓ FOLYTATÁSSAL (KUKA-064 · KUKA-201). *„Visszamenőleges érvénytelenségi döntés, nyitott
+ * felülvizsgálat, felfüggesztés, személy-/hitelesítő-/fióktiltás nem oldható fel ezzel."*:
+ *   · a lezárást VISSZAMENŐLEGES ÉRVÉNYTELENSÉG adta ⇒ `reentry_blocked_retroactive_invalidity`;
+ *   · NYITOTT felülvizsgálati kör ⇒ `reentry_blocked_open_review_circle`;
+ *   · FELFÜGGESZTÉS ⇒ `reentry_blocked_suspension`;
+ *   · TILTÁS ⇒ `reentry_blocked_ban`.
+ * Ezek nem „még nem építettük meg" alakok, hanem a művelet HATÓKÖRÉNEK határai: a visszahívás nem
+ * utólagos joghatás-felülvizsgálat és nem a REV-N4 kompenzáló folyamat.
+ *
+ * AZ ÍRÁS OSZTHATATLAN (ATO-01, spec §5: *„Az ajánlat, pecsét, újrahívási döntés és kapcsolódó
+ * alapírás egységben szülessen"*): a delegálási alap, a meghívó, a pecsét és a döntés-sor EGYÜTT
+ * marad vagy EGYÜTT tűnik el.
+ */
+export function reinviteMember({
+  store, clock, deciderSubjectId, bookId, targetSubjectId, offeredRole, scope, token, expiresAt, credentials,
+}) {
+  if (!targetSubjectId || !bookId) return frozen({ ok: false, changed: false, reason: 'subject_and_book_required' });
+  if (!token) return frozen({ ok: false, changed: false, reason: 'token_required' });
+  if (!KNOWN_DATA_SCOPES.includes(scope)) {
+    return frozen({
+      ok: false, changed: false, reason: 'data_scope_required',
+      message: `választható adatkörök: ${KNOWN_DATA_SCOPES.join(' · ')}`,
+    });
+  }
+
+  const out = effectuate(
+    { store, clock, subjectId: deciderSubjectId, bookId, operation: 'alter_right', credentials },
+    ({ at }) => {
+      // (2) A KÖTÉSI PONT: a MA lezárt, legutóbbi időszak (PER-02).
+      const closed = closedMembershipPeriodOf({ store, subjectId: targetSubjectId, bookId, at });
+      if (closed.ok !== true) {
+        return frozen({
+          ok: false, changed: false, reason: `reentry_target_${closed.reason}`,
+          message: closed.reason === 'membership_is_open'
+            ? 'ennek a munkatársnak MA is él a tagsága — újbóli meghívásra nincs szükség'
+            : 'ehhez a személyhez nincs olyan lezárt tagsági időszak, amire az újbóli belépés szólhatna',
+        });
+      }
+
+      // A NÉGY HATÁR — a kötési pont feloldása UTÁN, hogy a nemleges válasz NEVEZHESSE, mit látott.
+      if (closed.closed_transition === RETROACTIVE_TRANSITION) {
+        return frozen({
+          ok: false, changed: false, reason: 'reentry_blocked_retroactive_invalidity',
+          message: 'ezt a tagságot VISSZAMENŐLEGES érvénytelenség zárta le — az ilyen döntés '
+            + 'felülvizsgálata a felülvizsgálati kör lezárásának útján megy, nem újbóli meghívással',
+          next_step: 'close_review_circle',
+        });
+      }
+      const circle = reviewCircleFor({
+        store, subjectId: targetSubjectId, bookId,
+        effectiveAt: closed.closed_at, recordedAt: closed.closed_recorded_at,
+      });
+      if (circle.ok === true && circle.circle_id) {
+        const st = reviewCircleState({ store, circleId: circle.circle_id });
+        if (st.ok === true && st.state === 'open') {
+          return frozen({
+            ok: false, changed: false, reason: 'reentry_blocked_open_review_circle',
+            circle_id: circle.circle_id,
+            message: 'ehhez a tagsághoz NYITOTT felülvizsgálati kör tartozik — előbb azt kell lezárni',
+            next_step: 'close_review_circle',
+          });
+        }
+      }
+      const susp = suspensionEffectiveAt({ store, subjectId: targetSubjectId, bookId, nowIso: at });
+      if (susp && susp.suspended === true) {
+        return frozen({
+          ok: false, changed: false, reason: 'reentry_blocked_suspension',
+          message: 'ez a tagság FEL VAN FÜGGESZTVE — a felfüggesztés feloldása külön, jogosult eljárás',
+          next_step: 'lift_suspension',
+        });
+      }
+      const ban = banEffectiveAt({ store, subjectId: targetSubjectId, nowIso: at, request: { bookId } });
+      if (ban && ban.banned === true) {
+        return frozen({
+          ok: false, changed: false, reason: 'reentry_blocked_ban',
+          message: 'erre a személyre TILTÁS van érvényben — a tiltás feloldása külön, jogosult eljárás',
+          next_step: 'lift_ban',
+        });
+      }
+
+      // (4) A HATÁLYOSULÁS LEGYEN KÉSŐBBI A ZÁRÓ MEGVONÁSNÁL.
+      const atMs = instantMs(at);
+      const closedMs = instantMs(closed.closed_at);
+      if (!atMs.ok || !closedMs.ok) return frozen({ ok: false, changed: false, reason: 'reentry_time_undecidable' });
+      if (atMs.ms <= closedMs.ms) {
+        return frozen({
+          ok: false, changed: false, reason: 'reentry_not_after_revocation',
+          closed_at: closed.closed_at,
+          message: 'az újbóli belépés hatálya nem lehet a megvonással egyidejű vagy korábbi — '
+            + 'különben a két esemény ugyanazon a pillanaton állna, és a tagság nem lenne hatályos',
+        });
+      }
+
+      // (3) A PLAFON, ÍRÁS NÉLKÜL (DCE-01).
+      const ceilingOf = delegationCeilingOf({ store, subjectId: deciderSubjectId, bookId, at });
+      if (!ceilingOf.ok) return frozen({ ok: false, changed: false, reason: ceilingOf.reason });
+      if (!ceilingOf.roles.includes(offeredRole)) {
+        return frozen({
+          ok: false, changed: false, reason: 'outside_basis_roles', role: offeredRole,
+          ceiling: frozen([...ceilingOf.roles]),
+          message: `a te szerep-plafonod: ${ceilingOf.roles.join(' · ') || '(üres)'} — ezen kívül nem rendelkezel`,
+        });
+      }
+      if (!ceilingOf.scopes.includes(scope)) {
+        return frozen({
+          ok: false, changed: false, reason: 'outside_basis_scopes', scope,
+          ceiling: frozen([...ceilingOf.scopes]),
+          message: `a te adatkör-plafonod: ${ceilingOf.scopes.join(' · ') || '(üres)'} — ezen kívül nem rendelkezel`,
+        });
+      }
+
+      // AZ AJÁNLAT, A PECSÉT, AZ ALAP ÉS A DÖNTÉS EGY EGYSÉGBEN (ATO-01, spec §5).
+      return atomicOutcome(store, () => {
+        const basis = deriveDelegationBasis({ store, subjectId: deciderSubjectId, bookId, at });
+        if (!basis.ok) refuseAndRollBack({ ok: false, changed: false, reason: basis.reason });
+        const email = addressOfSubject(store, targetSubjectId);
+        if (!email) {
+          // A CÍM A SZEMÉLY TÁROLT TÉNYE, NEM KLIENS-BEMENET (spec §3: „Címváltozás vagy másik
+          // személyhez átkerült e-mail nem lehet a korábbi személy tagságának átvételi útja").
+          refuseAndRollBack({
+            ok: false, changed: false, reason: 'reentry_target_has_no_address',
+            message: 'ehhez a személyhez nincs tárolt e-mail cím, amire az új meghívás szólhatna',
+          });
+        }
+        const issued = issueInviteUnderBasis({
+          store, token, bookId, inviteeNamespace: 'email', inviteeValue: email, offeredRole, scope,
+          issuerSubject: deciderSubjectId, expiresAt, basisId: basis.basis_id, issuedAt: at,
+        });
+        if (!issued.ok) refuseAndRollBack({ ok: false, changed: false, reason: issued.reason, ceiling: basis.limit });
+        const res = store.run(
+          `INSERT INTO membership_reentry (subject_id, book_id, token, closed_grant_event_id,
+             closed_revocation_id, offered_role, decided_by, basis_id, basis_version, recorded_at, effective_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+          targetSubjectId, bookId, token, Number(closed.grant_event_id), Number(closed.revocation_id),
+          offeredRole, deciderSubjectId, basis.basis_id, Number(issued.basis_version ?? basis.version), at, at);
+        if (res?.changes !== 1) refuseAndRollBack({ ok: false, changed: false, reason: 'reentry_row_not_created' });
+        return frozen({
+          ok: true, changed: true, reason: 'reentry_offer_issued', token,
+          reentry_id: Number(res.lastInsertRowid),
+          closed_grant_event_id: Number(closed.grant_event_id),
+          closed_revocation_id: Number(closed.revocation_id),
+          basis_id: basis.basis_id, basis_version: Number(issued.basis_version ?? basis.version),
+          invitee_value: email, offered_role: offeredRole, scope,
+          // A NYUGTA KIMONDJA A KÉT DOLGOT, AMIT A KEZELŐNEK TUDNIA KELL (spec §6).
+          requires_acceptance: true, restores_previous_scopes: false,
+        });
+      });
+    });
+
+  if (!out.authorized) {
+    return frozen({
+      ok: false, changed: false, reason: out.right.reason,
+      message: `${out.right.message ?? ''} Az újbóli meghíváshoz \`alter_right\` hatáskör kell — `
+        + 'ugyanaz, mint a tagság megvonásához; a puszta tagság nem elég.',
+    });
+  }
+  return out.value;
+}
+
+/** A SZEMÉLY TÁROLT CÍME — a kliens NEM adhatja meg (spec §3). Több élő címnél fail-closed. */
+function addressOfSubject(store, subjectId) {
+  const rows = store.all(
+    `SELECT value_raw FROM external_id
+       WHERE subject_id = ? AND namespace = 'email' AND (valid_to IS NULL OR valid_to = '')
+       ORDER BY rowid`, subjectId);
+  if (rows.length !== 1) return null;
+  return rows[0].value_raw;
+}
+
+/**
  * EGY ADATKÖRI JOG MEGVONÁSA EGY TAGTÓL — RÉSZLEGESEN, A TAGSÁG ÉRINTÉSE NÉLKÜL (SCR-01, R121 §2).
  *
  * A LELET, AMIT EZ JAVÍT. A felületen eddig EGYETLEN "visszavonás" létezett: a
@@ -323,7 +522,13 @@ export function revokeScopeFromMember({ store, clock, revokerSubjectId, bookId, 
         });
       }
       // ÜZLETI IDEMPOTENCIA: ha ma nincs joga, nincs mit elvenni — és nem írunk fölösleges sort.
-      const cur = readScopeGrantAt({ store, subjectId: targetSubjectId, bookId, scope, validAt: at, knownAt: at });
+      // R132 — AZ IDEMPOTENCIA IS A MAI IDŐSZAKRA KÉRDEZ (SGP-01). Enélkül egy korábbi, LEZÁRT
+      // időszak jog-sora „megadott"-nak látszana, és a kezelő megvonása `changed:false`-ot adna egy
+      // olyan jogra, ami ma amúgy sem él — a nyugta hazudna arról, mi történt (KUKA-129).
+      const cur = readScopeGrantAt({
+        store, subjectId: targetSubjectId, bookId, scope, validAt: at, knownAt: at,
+        periodGrantEventId: m.period_grant_event_id ?? null,
+      });
       if (cur.granted !== true) {
         return frozen({ ok: true, changed: false, scope, reason: cur.reason ?? 'scope_not_granted' });
       }

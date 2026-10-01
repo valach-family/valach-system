@@ -33,6 +33,107 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-266',
+    date: '2026-10-01',
+    title: 'A DÖNTÉST A SAJÁT ÍRÁSOM UTÁN MÉRTEM — és a hatás igazolta vissza a feltételt',
+    what: 'Az R132-es újranyitás (`grantMembership`) azt a kérdést teszi fel, hogy a tagság MEGVONT-e: '
+      + 'ha igen, a MAI vetület sorát frissíti (új időszak), ha nem, a régi úton halad. Az első alakom '
+      + 'ezt a kérdést a tagságadó ESEMÉNY beszúrása UTÁN tette fel. Ekkor a frissen beírt esemény MÁR '
+      + 'a legkésőbbi alkalmazható tagságadás volt, tehát a korábbi megvonás „előző időszakként" '
+      + 'kiesett, és a feloldó `membership_effective`-et adott. Következmény, MÉRVE: az újranyitási ág '
+      + 'SOHA nem tüzelt, és a jogos beváltás `UNIQUE constraint failed: membership.subject_id, '
+      + 'membership.book_id` hibával állt meg — a visszahívott munkatárs nem tudott belépni.',
+    why_wrong: 'A FELTÉTEL A VILÁG ELŐZŐ ÁLLAPOTÁRA SZÓLT, A MÉRÉS MÁR AZ UTÁNIRA. Ahol egy döntés azt '
+      + 'kérdezi, „mi volt eddig", ott a saját hatásunk beszámítása körkörös: a hatás igazolja vissza a '
+      + 'feltételt. Nem időzítési finomság, hanem a mérés HATÓKÖRÉNEK hibája (KUKA-033: a minősítés '
+      + 'mérés, nem besorolás · KUKA-120: a próba a saját versenyhelyzetét mérte).',
+    replaced_by: 'A VETÜLET-SOR ÉS A BITEMPORÁLIS ÁLLAPOT KIOLVASÁSA AZ ESEMÉNY BESZÚRÁSA ELŐTT történik, '
+      + 'és a döntés EZT a „before" értéket használja. A feltétel NEVEZETT marad (csak `membership_revoked` '
+      + 'és `membership_retroactively_invalid` nyit újra), tehát minden más nem-hatályos alak a régi úton '
+      + 'megy, és a bukott kísérlet TOVÁBBRA SEM ír történelmet (R88/F02).',
+    decision: 'D-VS-3090',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R132) — a `findings_r132.mjs` (c8) állítása, VALÓDI HTTP-n',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/bitemporal.mjs']),
+        pattern: "const before = existing\\n      \\? membershipAsOf",
+        why: 'a döntés bemenete a saját írásunk ELŐTT olvasott állapot' }),
+    ]),
+    never: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/bitemporal.mjs']),
+        pattern: "const state = membershipAsOf\\(\\{ store, subjectId, bookId, validAt: eff, knownAt: rec \\}\\);",
+        why: 'az újranyitási döntés NEM kérdezheti újra az állapotot a saját esemény-beszúrása UTÁN' }),
+    ]),
+    lesson: 'AHOL EGY FELTÉTEL A VILÁG ELŐZŐ ÁLLAPOTÁRA SZÓL, A MÉRÉSNEK MEG KELL ELŐZNIE A HATÁST. Ha a '
+      + 'döntés a saját írásunk utáni képet olvassa, a hatás igazolja vissza a feltételt — és a védett ág '
+      + 'soha nem fut le. A „miért nem tüzel az ág" kérdést ezért a MÉRÉS SORRENDJÉN kell először feltenni.',
+    guard_note: 'gépi jel: a fenti pozitív minta + tiltó-minta (`verify:kuka`), és a viselkedés tanúja a '
+      + 'P-ORG-reentry (c) állítása, amit az M322/M323 rontás bizonyítottan megbuktat.',
+  }),
+  Object.freeze({
+    id: 'KUKA-265',
+    date: '2026-10-01',
+    title: 'A NYUGTA MEGJELENT, ÉS A KÖVETKEZŐ PILLANATBAN NYOM NÉLKÜL ELTŰNT — a teljes újrarajzolás letörölte',
+    what: 'Az R132-es meghívó-visszavonás kezelője a VÁLASZ után kiírta a nyugtát (`formResult`), majd '
+      + 'frissítette a listát (`loadInvites`). A frissítés a VÉGÉN `render()`-t hív, az pedig ÚJRAÉPÍTI a '
+      + 'teljes oldalt — beleértve azt az elemet, amibe a nyugtát épp beírtuk. MÉRVE (böngészős próba): a '
+      + 'kezelő egy SIKERES visszavonás után ÜRES képernyőt látott, a mondat nélkül.',
+    why_wrong: 'A SZOMSZÉD ÚT UGYANEZT A SORRENDET HASZNÁLTA, ÉS MŰKÖDÖTT — ezért látszott helyesnek. Ott a '
+      + 'frissítés CSAK a lista-panelt cseréli (`setPanel`), nem az egész lapot: ugyanannak a fogalomnak '
+      + '(„frissítsd a listát") KÉT ábrázolása van, és a másolt sorrend a rosszabbikra került (KUKA-018: '
+      + 'egy fogalom, egy otthon · KUKA-209: a rajzolás és a lekérés KÉT külön döntés · KUKA-015: amit '
+      + 'senki nem olvas, az nem nyugta).',
+    replaced_by: 'A TELJES OLDALT ÚJRAÉPÍTŐ LEKÉRÉS ELŐBB FUT, A NYUGTA UTÁNA — mindkét érintett kezelőben '
+      + '(visszavonás és újbóli meghívás), kimondott indoklással a kód mellett.',
+    decision: 'D-VS-3090',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R132) — a böngészős próba (R132-B1), a VALÓDI DOM-on',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "await loadInvites\\(\\);\\n    if \\(r\\.ok\\) \\{\\n      const mondat = r\\.changed",
+        why: 'a lista frissítése megelőzi a nyugta kiírását' }),
+    ]),
+    lesson: 'A NYUGTA AKKOR NYUGTA, HA A FELHASZNÁLÓ LÁTJA IS. Ha a művelet után teljes újrarajzolás '
+      + 'következik, a mondatot UTÁNA kell kiírni — és ezt nem lehet a szomszéd út sorrendjéből átvenni, '
+      + 'mert ott más a frissítés hatóköre. A nyugta meglétét DOM-on kell mérni, nem a hívási sorrendből '
+      + 'következtetni.',
+    guard_note: 'gépi jel: a fenti pozitív minta (`verify:kuka`) + a böngészős tanú (R132-B1), ami a '
+      + 'nyugta-mező TARTALMÁRA állít a visszavonás után.',
+  }),
+  Object.freeze({
+    id: 'KUKA-264',
+    date: '2026-10-01',
+    title: 'AZ ÚTMUTATÓ ÖRÖKRE „MÉG NEM ÉRHETŐ EL" ÁLLAPOTBAN MARADT — és a saját szövegével takarta el a kért gombot',
+    what: 'A lépésenkénti útmutató újraértékelője (`tourRecheck`) CSAK panel- és súgó-nyitásra/zárásra '
+      + 'futott. Az R132-ben olyan lépést építettem, aminek a célja egy FÜL-VÁLTÁSSAL és egy ASZINKRON '
+      + 'lista-betöltéssel jelenik meg a lapon. MÉRVE: a lap újrarajzolódott, az útmutató nem — a lépés '
+      + 'VÉGLEG „feltárásra vár" állapotban maradt, a várakozó kártya pedig a saját szövegével ELFOGTA a '
+      + 'kattintást attól a gombtól, amit épp megnyomni kért (a böngészős járó 15 másodperces '
+      + 'időtúllépéssel állt meg a sor gombján).',
+    why_wrong: 'KÉT HIBA EGY TÜNETBEN. (1) Az újraértékelés listája a DOM-változások EGY RÉSZÉT ismerte: '
+      + 'ami nem panel és nem súgó, arról az útmutató nem tudott (KUKA-209 · KUKA-218). (2) A várakozó '
+      + 'kártya a KIEMELT elem elől tér ki, de egy MÁS elemet eltakarhat: a „nem érhető el" állapot így '
+      + 'ÖNMAGÁT tartotta fenn — a felhasználó nem tudta megnyomni azt, amivel feloldhatta volna '
+      + '(KUKA-011: a takart gomb ugyanaz a hiba, mint a hiányzó · KUKA-122: a kapu fallá vált).',
+    replaced_by: 'AZ ÚJRAÉRTÉKELÉS A FÜL-VÁLTÁSRA ÉS A LISTA-TARTALOM MEGÉRKEZÉSÉRE IS FUT; a feladathoz '
+      + 'kötött lépés célja pedig olyan elem, ami a művelet UTÁN is ott van, a feltárója pedig akkora, '
+      + 'hogy a kártya kitérjen vagy átengedje a kattintást (`tour-passthrough`).',
+    decision: 'D-VS-3090',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R132) — a MINDEN útmutatót végigjáró böngészős próba (R93-01)',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "case 'members-tab': state\\.membersTab = b\\.dataset\\.mtab; render\\(\\); tourRecheck\\(\\);",
+        why: 'a fül-váltás is újraértékeli a futó útmutatót' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "if \\(!r\\.ok\\) notice\\(refusalText\\(r\\), 'bad'\\);\\n    render\\(\\);\\n    [\\s\\S]{0,900}?tourRecheck\\(\\);",
+        why: 'a lista-tartalom megérkezése is újraértékeli a futó útmutatót' }),
+    ]),
+    lesson: 'AMI A KÉPERNYŐT MEGVÁLTOZTATJA, ARRÓL A VEZETETT SEGÍTSÉGNEK IS TUDNIA KELL. Az „újraértékelés '
+      + 'kiváltói" listája SZABÁLY, nem felsorolás: ha a cél bármilyen úton megjelenhet, az útmutatónak '
+      + 'minden ilyen úton újra kell értékelnie magát — különben a várakozó állapot ÖNMAGÁT tartja fenn. '
+      + 'És a segítség SOHA nem takarhatja el azt, amire mutat.',
+    guard_note: 'gépi jel: a két pozitív minta (`verify:kuka`) + a böngészős tanú (R93-01), ami MIND A '
+      + 'TIZENEGY útmutatót VÉGIG járja, és csak a „befejezve" verdiktet fogadja el.',
+  }),
+  Object.freeze({
     id: 'KUKA-263',
     date: '2026-09-30',
     title: 'A „MOST RAJZOLÓDOTT KI" A KORÁBBAN IS LÁTHATÓ KÉPRE IS IGAZ VOLT — és a próba csak NAPLÓZTA',

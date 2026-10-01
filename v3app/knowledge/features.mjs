@@ -281,6 +281,43 @@ export const FEATURES = Object.freeze([
     evidence: F(['v3app/findings_r121.mjs', 'tests/e2e/v3app-r121.spec.mjs']),
   }),
   F({
+    // R132 §2 — EGY FÜGGŐ MEGHÍVÁS VISSZAVONÁSA. A HARMADIK, külön megnevezett művelet a tagság
+    // megszüntetése és az egy adatkör visszavonása MELLETT: három szándék, három gomb (KUKA-002).
+    id: 'invite.revoke', module: 'invite', version: '1.0.0', status: 'working',
+    group: 'members', scope: 'book', audience: 'signed_in', screen: 'members', action: 'open.members',
+    entry: 'members-tab-invites',
+    anchors: F(['nav-members', 'members-tab-invites', 'invites-list', 'invites-table']),
+    authority: F({ endpoint: 'POST /api/invites/revoke', decided_by: 'v3ref/invite.mjs (INVR-01) + authority.mjs',
+      reasons: F(['admin_required', 'authority_not_established', 'invite_unknown', 'invite_ref_ambiguous',
+        'invite_already_redeemed', 'invite_expired', 'outside_basis_roles', 'context_mismatch']) }),
+    outcomes: F(['success', 'refused', 'uncertain']),
+    ai: F({ explain: true, open: true, prepare: false,
+      note: 'a visszavonást a segéd nem indítja el és nem készíti elő: jogot soha nem ad és nem vesz el' }),
+    faq: F(['faq.invite.revoke']),
+    tour: 'tour.inviteRevoke',
+    evidence: F(['v3app/findings_r132.mjs', 'tests/e2e/v3app-r132.spec.mjs']),
+  }),
+  F({
+    // R132 §3 — ÚJBÓLI MEGHÍVÁS EGY ELTÁVOLÍTOTT MUNKATÁRSNAK. A művelet AJÁNLATOT ad, nem tagságot;
+    // a tagságot a címzett SAJÁT elfogadása hozza létre, és a régi adat-hozzáférések NEM állnak vissza.
+    id: 'members.reinvite', module: 'delegation', version: '1.0.0', status: 'working',
+    group: 'members', scope: 'book', audience: 'signed_in', screen: 'members', action: 'open.members',
+    entry: 'members-list',
+    anchors: F(['nav-members', 'members-list']),
+    authority: F({ endpoint: 'POST /api/members/reinvite', decided_by: 'v3ref/delegation.mjs (RNV-01) + bitemporal.mjs',
+      reasons: F(['admin_required', 'authority_not_established', 'reentry_target_membership_is_open',
+        'reentry_target_no_membership', 'reentry_blocked_suspension', 'reentry_blocked_ban',
+        'reentry_blocked_open_review_circle', 'reentry_blocked_retroactive_invalidity',
+        'reentry_not_after_revocation', 'reentry_target_has_no_address', 'outside_basis_roles',
+        'outside_basis_scopes', 'context_mismatch']) }),
+    outcomes: F(['success', 'refused', 'uncertain']),
+    ai: F({ explain: true, open: true, prepare: false,
+      note: 'a segéd elmagyarázza és megnyitja a képernyőt, de újbóli meghívást nem ad ki és meghívást nem fogad el a felhasználó helyett' }),
+    faq: F(['faq.members.reinvite', 'faq.members.reinviteScopes']),
+    tour: 'tour.reentry',
+    evidence: F(['v3app/findings_r132.mjs', 'tests/e2e/v3app-r132.spec.mjs']),
+  }),
+  F({
     // R121 §1/§4 — A BIZONYLAT-MINTÁK. A fejléc TISZTA, a vegyes minta mind a négy kört igényli.
     id: 'data.documentSample', module: 'data', version: '1.0.0', status: 'working',
     group: 'plan', scope: 'book', audience: 'signed_in', screen: 'documents', action: 'open.documents',
@@ -579,6 +616,52 @@ export const TOURS = Object.freeze({
       Object.freeze({ id: 's2', target: 'members-list', task: null }),
       Object.freeze({ id: 's3', target: 'member-scope-row-dokumentumok', task: 'grant.saved', appears_after: 'members-list' }),
       Object.freeze({ id: 's4', target: 'member-scope-row-dokumentumok', task: 'scope.revoked', appears_after: 'members-list' }),
+    ]),
+  }),
+  // R132 §6/1. TÖRTÉNET — FÜGGŐ MEGHÍVÁS → VISSZAVONÁS. A lépés-célok STABIL horgonyok: a
+  // sor-szintű gomb azonosítója a meghívó rövid jelölőjét viseli, az pedig minden fióknál más
+  // (ugyanaz az indok, amiért a `member-open-…` sem lépés-cél — KUKA-225 alakja az útmutatón).
+  'tour.inviteRevoke': Object.freeze({
+    id: 'tour.inviteRevoke', version: '1.0.0', audience: 'signed_in', feature: 'invite.revoke',
+    page: 'members', requires_role: 'admin',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-members', task: null }),
+      Object.freeze({ id: 's2', target: 'members-tab-invites', task: null }),
+      // A HARMADIK LÉPÉS A LISTÁT EMELI KI — és ez nem díszlépés: ez teszi a TÁBLÁZATOT a negyedik
+      // lépés FELTÁRÓJÁVÁ. MÉRT INDOK (az R132-es bemutató-végigvitelen): a várakozó buborék a
+      // FELTÁRÓ elem mellé kerül. Ha a feltáró egy KIS elem (a fül, közvetlenül a táblázat fölött),
+      // a buborék ELTAKARJA azt a gombot, amit a felhasználónak meg kell nyomnia — a próba ezt
+      // `tour-pending` elfogásként mérte, 15 másodperces időtúllépéssel. Egy EGÉSZ listára a buborék
+      // kitér, vagy átengedi a kattintást (`tour-passthrough`): ez a bevált alak (KUKA-011: a takart
+      // gomb ugyanaz a hiba, mint a hiányzó).
+      Object.freeze({ id: 's3', target: 'invites-table', task: null, appears_after: 'members-tab-invites' }),
+      // A NEGYEDIK LÉPÉS CÉLJA UGYANAZ A LISTA — és ez MÉRT döntés, nem lustaság. Az első alakom a
+      // MEGERŐSÍTŐ PANELRE mutatott; a művelet UTÁN viszont a panel BEZÁRUL, tehát a cél eltűnik, a
+      // lépés „feltárásra vár" állapotba esik, és a járó újra a (már visszavont) meghívó gombját
+      // keresi — a bemutató a SAJÁT sikerétől akadt el. Olyan célt kell választani, ami a művelet
+      // UTÁN is ott van: ez a lista. Ugyanez a bevált alak a `tour.scopeLifecycle` 3. és 4. lépésénél
+      // (mindkettő ugyanarra a SORRA mutat) — KUKA-228 · KUKA-218.
+      Object.freeze({ id: 's4', target: 'invites-table', task: 'invite.revoked', appears_after: 'members-tab-invites' }),
+    ]),
+  }),
+  // R132 §6/2. TÖRTÉNET — ELTÁVOLÍTOTT MUNKATÁRS → ÚJBÓLI MEGHÍVÁS. A lezárás TÉNYLEGES sikerhez
+  // kötött (`reinvite.sent`): a „Tovább" gomb nem küld meghívást a felhasználó helyett (KUKA-231).
+  'tour.reentry': Object.freeze({
+    id: 'tour.reentry', version: '1.0.0', audience: 'signed_in', feature: 'members.reinvite',
+    page: 'members', requires_role: 'admin',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-members', task: null }),
+      Object.freeze({ id: 's2', target: 'members-list', task: null }),
+      // A HARMADIK LÉPÉS CÉLJA A PANEL ŰRLAPJA, nem a lista: egy lépés nem mutathat a SAJÁT
+      // feltárójára (az őr ezt nevezetten pirosra váltotta — és igaza volt: önmagára mutató
+      // feltárás fogalmilag nem tud teljesülni, KUKA-124 alakja az útmutatón).
+      // A FELTÁRÓ A TELJES TAG-LISTA, ÉS EZ MÉRT DÖNTÉS. A várakozó buborék a KIEMELT elem (a
+      // feltáró) elől tér ki; ha a feltáró egy KIS elem (a bal menüpont), a buborék a maradék
+      // sarokba kerül — és az épp a táblázat műveleti oszlopára esik, tehát ELTAKARJA a „Hozzáférés
+      // kezelése" gombot (mérve: 15 s időtúllépés). Egy EGÉSZ listára nincs szabad sarok, ezért a
+      // kártya ÁTENGEDI a kattintást (`tour-passthrough`) — ugyanaz a bevált alak, mint a
+      // `tour.grant`-nál (KUKA-011: a takart gomb ugyanaz a hiba, mint a hiányzó).
+      Object.freeze({ id: 's3', target: 'reinvite-form', task: 'reinvite.sent', appears_after: 'members-list' }),
     ]),
   }),
   'tour.plan': Object.freeze({

@@ -19,7 +19,7 @@ import { test, expect } from '@playwright/test';
 import { dictFor } from '../../v3app/public/i18n/dict.mjs';
 import {
   World, createWorkspaceUI, openProfile, logoutUI,
-  gotoPage, openInviteUI, redeemUI, ensureMemberRow, openMemberPanel, inviteUI, openMailbox,
+  gotoPage, openInviteUI, redeemUI, ensureMemberRow, openMemberPanel, inviteUI, openMailbox, revokeUI,
 } from './helpers.mjs';
 
 const openHelp = async (page) => { await page.getByTestId('help-open').click(); await expect(page.getByTestId('help-close')).toBeVisible(); };
@@ -131,7 +131,9 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
     // ── A DEKLARÁLT LISTA A SZERVERTŐL JÖN — nem kézi másolat (KUKA-051).
     const status = await anna.api.get('/api/assistant/status?lang=hu');
     const tours = status.body.tours;
-    expect(tours.length, 'a fiókkezelőnek kilenc bemutató jár').toBe(9);
+    // R132: a tizedik a MEGHÍVÁS VISSZAVONÁSA, a tizenegyedik az ÚJBÓLI BELÉPÉS. A szám KÖVETKEZMÉNY,
+    // nem kézi pin: mind a tizenegyet VÉGIG IS VISSZÜK ebben a próbában (KUKA-045).
+    expect(tours.length, 'a fiókkezelőnek tizenegy bemutató jár').toBe(11);
     const byId = Object.fromEntries(tours.map((t) => [t.id, t]));
 
     const simple = ['tour.shell', 'tour.stock', 'tour.language', 'tour.help', 'tour.plan'];
@@ -209,6 +211,91 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
     });
     await closeTourPanel(anna.page);
 
+    // ── R132/1 — A MEGHÍVÁS VISSZAVONÁSA: a lépés CSAK tényleges visszavonás után halad (TUR-01).
+    //    A FÜGGŐ meghívó a `tour.invite` lépésében született (cili) — a próba a SAJÁT előfeltételét
+    //    használja, nem egy másik próbától örökölt állapotot (KUKA-239).
+    await gotoPage(anna.page, 'overview');
+    await startTourFor(anna.page, byId['tour.inviteRevoke'].feature);
+    verdict['tour.inviteRevoke'] = await walkTourLogged(anna.page, 'tour.inviteRevoke', {
+      // A LÉPÉS-KEZELŐ ÁLLAPOT-TUDATOS, és ez SZÁNDÉKOS: a járó a feladathoz kötött lépésen
+      // TÖBBSZÖR is meghívja (előbb a „feltárásra vár", majd a „feladat hiányzik" állapotban) —
+      // ugyanaz az alak, mint a `tour.grant` kezelőjénél. Minden hívás a MAI DOM-ból dönt, nem egy
+      // korábbi feltevésből (KUKA-228 · KUKA-209).
+      //
+      // A FELADAT A NEGYEDIK LÉPÉSEN ÁLL: a harmadik a LISTÁT emeli ki (ő a negyedik feltárója), a
+      // negyedik a megerősítő panelt. A kulcs ezért `s4` — a bemutató SAJÁT lépés-azonosítója, nem
+      // egy sorszám-tipp (a járó a buborék aria-current állapotából olvassa).
+      s4: async () => {
+        if (await anna.page.getByTestId('invite-revoke-confirm').count()) {
+          await anna.page.getByTestId('invite-revoke-confirm').click();
+          await expect(anna.page.getByTestId('members-result')).toContainText(allando(HU.TPL.inviteRevoked));
+          return;
+        }
+        if (!(await anna.page.getByTestId('invites-list').count())) {
+          await anna.page.getByTestId('members-tab-invites').click();
+          await expect(anna.page.getByTestId('invites-list')).toBeVisible();
+        }
+        const row = anna.page.locator('tr[data-testid^="invite-row-"]').filter({ hasText: w.email('cili') }).first();
+        await expect(row).toBeVisible();
+        // A GOMBOT A SORHOZ KÉPEST keressük, nem egy KORÁBBAN kiolvasott azonosítóval: a lista a
+        // fül-váltás és az adat megérkezése között ÚJRARAJZOLÓDIK, és egy előre eltett `data-testid`
+        // a régi DOM-ra mutat (KUKA-228: amit a próba nem nyom meg helyettünk, arra VÁRNI kell).
+        const gomb = row.locator('[data-action="invite-revoke-start"]');
+        // HA A SOR MÁR VISSZAVONT, A MUNKA KÉSZ: a járó a feladat-lépést többször hívja, és a
+        // művelet UTÁNI hívásban nincs több gomb — ez nem hiba, hanem a végállapot (KUKA-129).
+        if (!(await gomb.count())) {
+          await expect(row.getByTestId('invite-state-revoked')).toBeVisible();
+          return;
+        }
+        await expect(gomb).toBeVisible();
+        await gomb.click();
+        await expect(anna.page.getByTestId('invite-revoke-lead')).toBeVisible();
+      },
+    });
+    await closeTourPanel(anna.page);
+    // A LEZÁRÓ BUBORÉK ELPAKOLÁSA MÉRVE, NEM FELTÉTELEZVE. A buborék a megerősítő PÁRBESZÉDBE
+    // költözött (`hostTour`), és annak bezárása után a `tour-close` nem feltétlenül kattintható —
+    // mérve: a befejező kártya a lapon maradt, és elfogta a következő művelet kattintását. A
+    // takarítás ezért ÁLLÍT: ha a kártya még ott van, a lap újratöltésével pakolunk el (ez a
+    // felhasználó számára is kézenfekvő út). A takarítás NEM mérés — a verdiktet a `walkTour` adta
+    // (KUKA-216), de a takarítás HIÁNYA a KÖVETKEZŐ mérést rontaná el (KUKA-120).
+    if (await anna.page.getByTestId('tour').isVisible().catch(() => false)) {
+      await anna.page.reload();
+      await expect(anna.page.getByTestId('header-subject')).toContainText('@');
+    }
+    await expect(anna.page.getByTestId('tour')).toBeHidden();
+
+    // ── R132/2 — AZ ÚJBÓLI BELÉPÉS: előbb VALÓDI eltávolítás (a bemutató előfeltétele), majd a
+    //    visszahívás. A lépés CSAK tényleges elküldés után halad.
+    await gotoPage(anna.page, 'overview');
+    // VISSZA A TAG-FÜLRE: a fül-választás a lap ÁLLAPOTA, és az előző bemutató a meghívó-fülön
+    // hagyta — a `members-list` horgony (a következő bemutató 2. lépésének célja) csak a tag-fülön
+    // létezik (KUKA-218: minden nézethez kötött állapotot egy helyen kell rendezni).
+    await gotoPage(anna.page, 'members');
+    await anna.page.getByTestId('members-tab-members').click();
+    await expect(anna.page.getByTestId('members-list')).toBeVisible();
+    await revokeUI(anna.page, berta.subjectId);
+    await expect(anna.page.getByTestId(`member-removed-${berta.subjectId}`)).toBeVisible();
+    await gotoPage(anna.page, 'overview');
+    await startTourFor(anna.page, byId['tour.reentry'].feature);
+    verdict['tour.reentry'] = await walkTourLogged(anna.page, 'tour.reentry', {
+      s3: async () => {
+        if (await anna.page.getByTestId('reinvite-confirm').count()) {
+          await anna.page.getByTestId('reinvite-confirm').click();
+          // A NYUGTA A SZÓTÁRBÓL mért ÁLLANDÓ szakaszára várunk (KUKA-237).
+          await expect(anna.page.getByTestId('members-result')).toContainText(allando(HU.TPL.reinviteSent));
+          return;
+        }
+        if (!(await anna.page.getByTestId('members-list').count())) {
+          await anna.page.getByTestId('members-tab-members').click();
+        }
+        await openMemberPanel(anna.page, berta.subjectId);
+        await anna.page.getByTestId(`member-reinvite-${berta.subjectId}`).click();
+        await expect(anna.page.getByTestId('reinvite-form')).toBeVisible();
+      },
+    });
+    await closeTourPanel(anna.page);
+
     // ── A CÉGALAPÍTÁS: a bemutató a SAJÁT sikerétől vesztette el az elszámolását (F93-01).
     await gotoPage(anna.page, 'overview');
     await startTourFor(anna.page, byId['tour.addBusiness'].feature);
@@ -263,9 +350,13 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
     await expect(anon.getByTestId('auth'), 'a belépés előtti képernyőn maradtunk').toBeVisible();
     await expect(anon.getByTestId('app')).toBeHidden();
 
-    // ── AZ ELSZÁMOLÁS: MIND A KILENC végigvihető. Az „elindult" nem eredmény.
+    // ── AZ ELSZÁMOLÁS: MIND A TIZENEGY végigvihető. Az „elindult" nem eredmény.
+    //    R132: a lista a MEGHÍVÁS VISSZAVONÁSÁVAL és az ÚJBÓLI BELÉPÉSSEL bővült — és nem a szám
+    //    nőtt, hanem a VÉGIGJÁRT bemutatók halmaza (a verdikt-tábla alább mindegyikre „befejezve"-t
+    //    követel, tehát a lista bővítése nem tud üres pipává válni — KUKA-041 · KUKA-045).
     const expected = ['tour.shell', 'tour.stock', 'tour.language', 'tour.help', 'tour.plan',
-      'tour.invite', 'tour.grant', 'tour.scopeLifecycle', 'tour.addBusiness', 'tour.register'];
+      'tour.invite', 'tour.grant', 'tour.scopeLifecycle', 'tour.inviteRevoke', 'tour.reentry',
+      'tour.addBusiness', 'tour.register'];
     expect(Object.keys(verdict).sort(), 'minden deklarált bemutató végig lett járva').toEqual([...expected].sort());
     expect(verdict, 'minden bemutató BEFEJEZVE — megszakadás és elakadás nem elfogadás').toEqual(
       Object.fromEntries(expected.map((id) => [id, 'befejezve'])),

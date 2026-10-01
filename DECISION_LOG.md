@@ -16,6 +16,70 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3090 — A MEGHÍVÓ VISSZAVONÁSA ÉS AZ ÚJBÓLI BELÉPÉS (R132)
+
+> **Hatály:** V3 (`valach-system`). Nincs merge, éles telepítés, V2-módosítás, új fizetős
+> szolgáltatás, külső címzettnek levél, és nincs core/CMD/PR-zárás. A req-5 **NEM** lép életbe.
+
+**A parancs:** `CMD-VS-300-002-002 R132 — SPEC` (chatgpt-v3, 2026-10-01). Induló fej
+`d9d940fb32bc417824e5b533e7fe2cc22145d9d4` (az elfogadott `8124107` leszármazottja).
+
+**Miért most, és nem a mi választásunk:** a két megépített hiányt a SAJÁT norma-szövegünk nevezte
+meg (`v3ref/norms.mjs`, ORG-N1a `remaining`): *„(1) a MEGHÍVÓ VISSZAVONÁSA mint saját esemény … (2)
+az ÚJRA-MEGHÍVÁS MEGVONÁS UTÁN … az újranyitás külön döntés, nincs megépítve."*
+
+**1. A MEGHÍVÓ VISSZAVONÁSA SAJÁT, AUDITÁLHATÓ ESEMÉNY (INVR-01).** Új, append-only tábla
+(`invite_revocation`: token · könyv · cselekvő · két idő-tengely) — **nem** oszlop az `invite`-on,
+mert a meghívók egy része pozicionális írással születik (KUKA-122). A visszavonás állapota EGY
+feloldóban dől el (`inviteOpenAt`), és ugyanezt kérdezi a beváltás ÉS a megfigyelés is — a két
+olvasó nem tud elcsúszni (KUKA-018). A művelet `alter_right` hatáskörhöz kötött, a plafon a szerep
+tengelyén kapu, a hatály a VÉGLEGESÍTÉSI pont egyetlen óraolvasásából jön (EFF-01). Idempotens: az
+ismételt visszavonás nem duplikál. A már elfogadott meghívó visszavonása NEVEZETTEN hatásmentes, és
+**nem** tagságmegvonás — a folytatást a válasz megnevezi (`next_step: revoke_membership`).
+
+**2. AZ ÚJBÓLI BELÉPÉS KÜLÖN, KIFEJEZETT DÖNTÉS (RNV-01).** A rendes meghívás
+`revoked_needs_decision` védelme **változatlan** — csendes reaktiválás nincs. Az új művelet
+(`reinviteMember`) AJÁNLATOT ad, nem tagságot, és a döntést TÁROLJA (`membership_reentry`: ki ·
+mikor · milyen alapon · MELYIK lezárt tagsági időszakra, esemény-azonosítókkal). A tagságot a
+címzett SAJÁT, igazolt elfogadása hozza létre, a beváltási lánc MINDEN kapuján át. Négy NEVEZETT
+határ, mind a meglévő eljárásra mutató folytatással: felfüggesztés · tiltás · nyitott felülvizsgálati
+kör · visszamenőleges érvénytelenség — ezek a művelet HATÓKÖRÉNEK határai, nem hiányai.
+
+**3. A RÉGI JOGOK NEM ÉLEDNEK FEL (SGP-01) — ez a csomag MAGJA.** Az adatkörjog mostantól a tagsági
+IDŐSZAKHOZ kötött (`scope_grant.membership_grant_id`), és a kötés ESEMÉNY-AZONOSÍTÓN áll, nem
+dátumon (a spec kifejezetten tiltja a „régebbi dátum ⇒ valószínűleg régi jog" heurisztikát). Új
+belépés után mind a négy adatkör ZÁRT, nevezett okkal (`scope_grant_other_period`), és a jogot
+ÚJRA, kifejezetten meg kell adni. A NULL kötés jelentése KIMONDOTT: az ELSŐ időszakhoz tartozik —
+így a már létező, egyszeri tagságok feloldása változatlan, adateldobás nélkül.
+
+**4. A TÖRTÉNET SÉRTETLEN, KÉT TENGELYEN.** A `membership` kulcsa MARAD alany × könyv: a sor a MAI
+VETÜLET, a történet a naplókban áll (`membership_grant` · `membership_revocation`), és ott minden
+időszak megmarad. A `membershipAsOf` innentől időszak-tudatos: a LEGKÉSŐBBI alkalmazható tagságadás
+dönt, és egy megvonás a SAJÁT időszakát zárja, nem az alany egész történetét. A régi időszak
+belsejére a régi jog MA IS igaz.
+
+**5. AMIT EZ A CSOMAG KIMONDOTTAN NEM ZÁR LE.** Az ORG-N1a NEM záródott le, és a **req-5 NEM lépett
+életbe**: a két életciklus-hiány lezárása nem azonos a klauzula MINDEN vállalt állításának
+bizonyításával — a kötelezővé emelés külön, független döntés (R132 §8). Nyitva marad: a visszahívás
+nem oldja fel a felfüggesztést, a tiltást, a nyitott felülvizsgálatot és a visszamenőleges
+érvénytelenséget; nem utólagos joghatás-felülvizsgálat és nem a REV-N4 kompenzáló folyamat. Az
+általános szervezeti képviselet (ORG-N3) továbbra is KÜLÖN HATÁR, nem hiány.
+
+**6. HÁROM SAJÁT LELET, KUKA-BEJEGYZÉSSEL.** KUKA-266: a döntést a SAJÁT írásom UTÁN mértem, ezért a
+védett ág soha nem futott le (a jogos beváltás egyediségi hibára szaladt). KUKA-265: a nyugta
+megjelent, és a teljes újrarajzolás azonnal letörölte. KUKA-264: a lépésenkénti útmutató örökre
+„még nem érhető el" állapotban maradt, és a saját szövegével takarta el a kért gombot. Mindhármat a
+SAJÁT mérés fogta meg (HTTP-battéria és böngészős próba), és mindhárom gépi jelet kapott.
+
+**Bizonyíték:** `npm run verify:v3ref` (65/65 próba; a két új: P-INVITE-revoke · P-ORG-reentry, és a
+négy új rontás M320–M323 bizonyítottan megbuktatja őket) · `npm run verify:app-findings-r132`
+(63/63, valódi HTTP+DB) · `npm run proof:multiconn` (a beváltás ↔ visszavonás verseny KÉT VALÓDI
+folyamaton, MINDKÉT véglegesítési sorrenddel) · `npx playwright test` (117/117, benne az öt új
+R132-es böngészős helyzet) · `verify:kuka` 530/530 · `verify:grant-paths` 13/13 · `verify:i18n`
+49/49 · `verify:tutor` 88/88.
+
+---
+
 ## D-VS-3089 — AZ R121 ADATKÖR-CSOMAG ELFOGADVA, NEVEZETT ÉSZLELÉSI HATÁRRAL (R131)
 
 > **Hatály:** V3 (`valach-system`) — nincs kód- vagy próbaváltozás. Ez a bejegyzés a CSOMAG

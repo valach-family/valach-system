@@ -82,6 +82,15 @@ export const TPL = Object.freeze({
   helpForScreen: 'Zu diesem Bildschirm: {oldal}',
   chatSourceLine: 'Quelle: {cim} ({verzio})',
   chatHistoryNote: 'Wir behalten die letzten {n} Fragen des Gesprächs — ältere fallen heraus.',
+
+  // ── R132 — Rückzug der Einladung und Wiedereintritt ─────────────────────────────────────
+  inviteRevoked: 'Die Einladung wurde zurückgezogen: der Link für {ki} kann nicht mehr verwendet werden.',
+  inviteRevokeUnchanged: 'An dieser Einladung hat sich nichts geändert: {miert}',
+  inviteRevokeConfirmLead: 'Wir ziehen die Einladung für {ki} zurück. Der frühere Link funktioniert danach nicht mehr. Andere Berechtigungen ändern sich nicht, und niemandes Mitgliedschaft endet dadurch.',
+  reinviteSent: 'Eine erneute Einladung ist an {ki} gegangen. Die Mitgliedschaft entsteht erst mit der Annahme.',
+  reinviteConfirmLead: '{ki} erhält eine neue Einladung. Die Mitgliedschaft entsteht erst mit der Annahme. Die früheren Datenzugriffe kommen nicht zurück — sie müssen erneut eigens erteilt werden.',
+  memberRemovedAt: 'Entfernt: {mikor}',
+  reinviteBlocked: '{ki} kann derzeit nicht zurückgeholt werden: {miert}',
 });
 
 export const REASON = Object.freeze({
@@ -148,6 +157,28 @@ export const REASON = Object.freeze({
   action_not_allowed: 'Diesen Vorgang darf der Assistent nicht starten.',
   action_unknown: 'Einen solchen Vorgang kennen wir nicht.',
   feature_not_working: 'Diese Funktion ist noch nicht nutzbar, daher öffnen wir sie auch nicht.',
+  // ── R132 — Rückzug der Einladung und Wiedereintritt ─────────────────────────────────────
+  invite_revoked: 'Diese Einladung wurde zurückgezogen. Bitte den Kontoverwalter um eine neue.',
+  invite_ref_ambiguous: 'Diese Einladung konnte nicht eindeutig bestimmt werden. Seite neu laden und erneut versuchen.',
+  invite_not_actionable: 'Diese Einladung kann derzeit nicht verwendet werden.',
+  membership_not_granted: 'Die Mitgliedschaft wurde nicht angelegt. Der Kontoverwalter kann den nächsten Schritt starten.',
+  reentry_decision_required: 'Deine Mitgliedschaft in diesem Konto wurde früher entzogen. Der Wiedereintritt ist eine eigene Entscheidung: bitte den Kontoverwalter um eine erneute Einladung.',
+  reentry_offer_period_mismatch: 'Diese erneute Einladung galt für eine frühere Situation und kann nicht mehr verwendet werden. Bitte um eine neue Einladung.',
+  reentry_target_membership_is_open: 'Die Mitgliedschaft dieser Kollegin oder dieses Kollegen ist weiterhin aktiv, eine erneute Einladung ist nicht nötig.',
+  reentry_target_no_membership: 'Diese Person hatte in diesem Konto keine frühere Mitgliedschaft und kann daher nicht zurückgeholt werden. Sende eine normale Einladung.',
+  reentry_target_membership_without_grant_event: 'Zu dieser Mitgliedschaft gibt es keinen aufgezeichneten Verlauf, an den ein Wiedereintritt gebunden werden könnte. Sende eine normale Einladung.',
+  reentry_blocked_suspension: 'Diese Mitgliedschaft ist ausgesetzt. Die Aussetzung muss zuerst aufgehoben werden — das ist ein eigenes Verfahren.',
+  reentry_blocked_ban: 'Für diese Person besteht eine Sperre. Das Aufheben einer Sperre ist ein eigenes Verfahren.',
+  reentry_blocked_open_review_circle: 'Zu dieser Mitgliedschaft läuft eine offene Überprüfung. Diese muss zuerst abgeschlossen werden.',
+  reentry_blocked_retroactive_invalidity: 'Diese Mitgliedschaft wurde durch eine rückwirkende Unwirksamkeit beendet. Die Überprüfung einer solchen Entscheidung ist ein eigenes Verfahren, keine erneute Einladung.',
+  reentry_not_after_revocation: 'Der Wiedereintritt kann nicht im selben Moment wie die Beendigung wirksam werden. Versuche es gleich erneut.',
+  reentry_target_has_no_address: 'Für diese Person ist keine E-Mail-Adresse hinterlegt, an die die neue Einladung gehen könnte.',
+  outside_basis_roles: 'Diese Rolle kannst du nicht weitergeben: deine eigene Befugnis ist enger.',
+  outside_basis_scopes: 'Diesen Datenbereich kannst du nicht weitergeben: deine eigene Befugnis ist enger.',
+  scope_grant_other_period: 'Dieser Zugriff gehörte zu einem früheren, inzwischen beendeten Mitgliedschaftszeitraum. Nach einem Wiedereintritt muss er erneut erteilt werden.',
+  delegation_ceiling_resolver_missing: 'Die Grenze der Befugnis kann derzeit nicht geprüft werden, daher führen wir den Vorgang nicht aus.',
+  revocation_row_not_created: 'Der Rückzug konnte nicht aufgezeichnet werden, daher hat sich nichts geändert. Bitte erneut versuchen.',
+  reentry_row_not_created: 'Die erneute Einladung konnte nicht aufgezeichnet werden, daher hat sich nichts geändert. Bitte erneut versuchen.',
   generic: 'Dieser Vorgang kann gerade nicht abgeschlossen werden.',
 });
 
@@ -446,6 +477,17 @@ export const UI = Object.freeze({
   otherPersonHere: 'In diesem Browser hat sich ein anderer Benutzer angemeldet. Die Seite wurde aktualisiert.',
   personalStillUsable: 'Dein persönliches Konto kannst du weiterhin nutzen.',
   openPersonal: 'Persönliches Konto öffnen',
+
+  // ── R132 — Rückzug der Einladung und Wiedereintritt ─────────────────────────────────────
+  inviteRevokeAction: 'Einladung zurückziehen',
+  inviteRevokeTitle: 'Einladung zurückziehen',
+  inviteRevokeConfirm: 'Einladung zurückziehen',
+  inviteAccepted: 'Angenommen',
+  inviteRevokedBadge: 'Zurückgezogen',
+  reinviteAction: 'Erneut einladen',
+  reinviteTitle: 'Erneut einladen',
+  reinviteConfirm: 'Neue Einladung senden',
+  reentrySection: 'Wiedereintritt',
 });
 
 export const HELP = Object.freeze({
@@ -761,6 +803,28 @@ export const KB = Object.freeze({
       uncertain: 'Wir wissen nicht sicher, ob gespeichert wurde. Die Liste zeigt den heutigen Zustand.',
     }),
   }),
+  'invite.revoke': Object.freeze({
+    title: 'Eine gesendete Einladung zurückziehen',
+    purpose: 'Du machst eine noch nicht angenommene Einladung unwirksam, damit der bereits versandte Link keinen Zugang mehr gibt.',
+    prereq: 'Berechtigung als Kontoverwalter, und die Einladung muss noch auf Annahme warten.',
+    result: 'Der alte Link funktioniert nicht mehr. Niemand verliert die Mitgliedschaft, und kein anderer Zugriff ändert sich. Wurde die Einladung bereits angenommen, entzieht der Rückzug keine Mitgliedschaft — das ist ein eigener Vorgang.',
+    outcomes: Object.freeze({
+      success: 'Die Einladung wurde zurückgezogen.',
+      refused: 'Dir fehlt die Befugnis dafür, oder diese Einladung kann nicht mehr zurückgezogen werden.',
+      uncertain: 'Wir können nicht sicher sagen, ob es gespeichert wurde. Die Liste zeigt den aktuellen Stand.',
+    }),
+  }),
+  'members.reinvite': Object.freeze({
+    title: 'Eine entfernte Kollegin oder einen entfernten Kollegen erneut einladen',
+    purpose: 'Du stellst eine neue Einladung für jemanden aus, dessen Zugang zu diesem Konto früher beendet wurde.',
+    prereq: 'Berechtigung als Kontoverwalter, und die Person muss eine beendete, frühere Mitgliedschaft in diesem Konto haben.',
+    result: 'Eine neue Einladung entsteht. Die Mitgliedschaft entsteht nur, wenn die Person selbst annimmt. Die früheren Datenzugriffe kommen nicht zurück: sie müssen nach dem Beitritt erneut eigens erteilt werden. Die alte Mitgliedschaft und ihr Verlauf bleiben erhalten.',
+    outcomes: Object.freeze({
+      success: 'Die erneute Einladung wurde gesendet.',
+      refused: 'Dir fehlt die Befugnis dafür, oder diese Person kann derzeit nicht zurückgeholt werden.',
+      uncertain: 'Wir können nicht sicher sagen, ob sie hinausgegangen ist. Die Liste der offenen Einladungen zeigt den aktuellen Stand.',
+    }),
+  }),
   'members.scopeRevoke': Object.freeze({
     title: 'Einen Zugriff entziehen',
     purpose: 'Du nimmst einem Mitglied einen Zugriff weg, während seine Mitgliedschaft und die übrigen Zugriffe bleiben.',
@@ -1022,6 +1086,18 @@ export const FAQ = Object.freeze({
     q: 'Wie gebe ich jemandem die Bestandsdaten frei?',
     a: 'Benutzer → die Schaltfläche „Zugang“ in der Zeile → Datenbereich auswählen → „Einsicht freigeben“. Die Freigabe gehört nur zu diesem Konto.',
   }),
+  'faq.invite.revoke': Object.freeze({
+    q: 'Kann ich eine schon gesendete Einladung zurückziehen?',
+    a: 'Ja. Benutzer → Reiter „Wartet auf Annahme" → in der Zeile die Schaltfläche „Einladung zurückziehen". Der versandte Link ist danach nicht mehr verwendbar. Wurde die Einladung bereits angenommen, endet damit keine Mitgliedschaft — dafür gibt es „Zugang in diesem Konto beenden".',
+  }),
+  'faq.members.reinvite': Object.freeze({
+    q: 'Kann ich eine Kollegin zurückholen, deren Zugang ich früher beendet habe?',
+    a: 'Ja, aber das ist eine bewusste, eigene Entscheidung. Benutzer → in der Liste die entfernte Person wählen → „Zugriff verwalten" → „Erneut einladen". Allein dadurch wird sie noch kein Mitglied: sie erhält eine neue Einladung, und die Mitgliedschaft entsteht mit ihrer Annahme. Eine normale neue Einladung belebt die alte Mitgliedschaft nicht wieder.',
+  }),
+  'faq.members.reinviteScopes': Object.freeze({
+    q: 'Bekommt jemand bei einer erneuten Einladung die früheren Zugriffe zurück?',
+    a: 'Nein. Der Wiedereintritt öffnet einen neuen Mitgliedschaftszeitraum, und darin kommt kein Datenzugriff von selbst zurück — jeder muss erneut eigens erteilt werden. Der Verlauf des früheren Zeitraums bleibt erhalten, wirkt aber nicht auf die heutigen Berechtigungen.',
+  }),
   'faq.members.scopeRevoke': Object.freeze({
     q: 'Kann ich nur die Preise wegnehmen und alles andere lassen?',
     a: 'Ja. Benutzer → „Zugriff verwalten“ → in der Zeile die Schaltfläche „Zugriff entziehen“. Nur dieser eine Zugriff endet; Mitgliedschaft, Rolle und die übrigen Zugriffe bleiben unverändert.',
@@ -1184,6 +1260,21 @@ export const TOUR = Object.freeze({
     s3: Object.freeze({ title: 'Geschäftsdokumente erlauben', body: 'Drücke in der Zeile „Geschäftsdokumente“ auf „Zugriff erteilen“. Dieser Schritt geht erst nach einer tatsächlichen Speicherung weiter.' }),
     s4: Object.freeze({ title: 'Und das Entziehen', body: 'In derselben Zeile nimmt „Zugriff entziehen“ nur diesen einen Zugriff weg — Mitgliedschaft und die übrigen Daten bleiben.' }),
   }),
+  'tour.inviteRevoke': Object.freeze({
+    title: 'Eine gesendete Einladung zurückziehen',
+    lead: 'Drei Schritte. Am Ende ist der versandte Link nicht mehr verwendbar.',
+    s1: Object.freeze({ title: 'Öffne Benutzer', body: 'In der Gruppe Einstellungen, mit Berechtigung als Kontoverwalter.' }),
+    s2: Object.freeze({ title: 'Wechsle zum Reiter „Wartet auf Annahme"', body: 'Hier siehst du, welche Einladung wartet, welche angenommen wurde, welche abgelaufen ist und welche zurückgezogen wurde.' }),
+    s3: Object.freeze({ title: 'Die Liste der offenen Einladungen', body: 'Hier siehst du, welche Einladung wartet, welche angenommen wurde, welche abgelaufen ist und welche zurückgezogen wurde.' }),
+    s4: Object.freeze({ title: 'Zieh die Einladung zurück', body: 'Die Schaltfläche „Einladung zurückziehen“ in der Zeile, dann die Bestätigung. Der Link funktioniert danach nicht mehr — dieser Schritt geht erst nach einem tatsächlichen Rückzug weiter.' }),
+  }),
+  'tour.reentry': Object.freeze({
+    title: 'Eine entfernte Kollegin zurückholen',
+    lead: 'Drei Schritte. Am Ende geht eine neue Einladung hinaus; die Mitgliedschaft entsteht mit der Annahme.',
+    s1: Object.freeze({ title: 'Öffne Benutzer', body: 'In der Gruppe Einstellungen, mit Berechtigung als Kontoverwalter.' }),
+    s2: Object.freeze({ title: 'Finde die entfernte Person', body: 'Die Liste zeigt auch entfernte Personen, mit dem Hinweis „Entfernt". Die Schaltfläche „Zugriff verwalten" öffnet ihre Seite.' }),
+    s3: Object.freeze({ title: 'Sende die neue Einladung', body: 'Die Schaltfläche „Erneut einladen" im Abschnitt „Wiedereintritt". Die Bestätigung sagt, dass die Person annehmen muss und dass die früheren Zugriffe nicht zurückkommen. Dieser Schritt geht erst nach dem tatsächlichen Senden weiter.' }),
+  }),
   'tour.plan': Object.freeze({
     title: 'Das Paket einstellen',
     lead: 'Drei Schritte. Kauf und Zahlung gibt es nicht.',
@@ -1292,6 +1383,8 @@ export const KB_SOURCE = Object.freeze({
   'invite.accept': Object.freeze({ source_version: '1.3.0', review: 'checked' }),
   'members.list': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
   'members.grant': Object.freeze({ source_version: '1.2.0', review: 'checked' }),
+  'invite.revoke': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'members.reinvite': Object.freeze({ source_version: '1.0.0', review: 'source' }),
   'members.scopeRevoke': Object.freeze({ source_version: '1.0.0', review: 'source' }),
   'data.documentSample': Object.freeze({ source_version: '1.0.0', review: 'source' }),
   'data.supplierSample': Object.freeze({ source_version: '1.0.0', review: 'source' }),
@@ -1325,6 +1418,8 @@ export const SEARCH = Object.freeze({
   'invite.accept': 'einladung annehmen beitreten mit einladung einlösen abgelaufene einladung meine einladung ungültiger link falsche adresse',
   'members.list': 'benutzer mitglieder wer sieht zugänge liste mitgliedschaft',
   'members.grant': 'freigeben berechtigung geben datenbereich einsicht erlauben',
+  'invite.revoke': 'einladung zurückziehen widerrufen gesendeter link unwirksam wartet auf annahme zurückgezogene einladung',
+  'members.reinvite': 'erneut einladen zurückholen entfernte person wiedereintritt wiederaufnahme',
   'members.scopeRevoke': 'zugriff entziehen datenbereich wegnehmen nur preise teilweiser entzug',
   'data.documentSample': 'belegbeispiel kopf gemischter beleg betrag',
   'data.supplierSample': 'lieferantenbeispiel partner kontaktangabe',

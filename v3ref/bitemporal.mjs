@@ -94,6 +94,11 @@ export function membershipAsOf({ store, subjectId, bookId, validAt, knownAt }) {
   // A NAPLÓ NÉLKÜLI (vetített) soron NINCS esemény-azonosító — és ezt nem pótoljuk kitalált
   // értékkel: a hiány NEVEZETT marad (`null`), az olvasó pedig a `grant_axis`-ból tudja, miért.
   base.grant_event_id = grant.grant_event_id ?? null;
+  // R132 — A MAI IDŐSZAK AZONOSÍTÓJA KÜLÖN NÉVEN IS. Ugyanaz az érték, mint a `grant_event_id`;
+  // azért kap SAJÁT nevet, mert az R132 óta egy alanynak TÖBB tagsági időszaka lehet ugyanabban a
+  // könyvben, és az adatkörjog ehhez az IDŐSZAKHOZ kötődik (SGR-01 `membership_grant_id`). Egy
+  // mező két jelentéssel pontosan az a KUKA-002, amit a megvonásnál már egyszer kijavítottunk.
+  base.period_grant_event_id = grant.grant_event_id ?? null;
 
   // A KÉT SZŰRŐ KÉT KÜLÖN KÉRDÉSRE FELEL, ÉS EGYIK SEM HELYETTESÍTI A MÁSIKAT:
   //   `recorded_at <= knownAt`   — ezt az eseményt EKKOR MÁR ISMERTÜK?
@@ -102,7 +107,28 @@ export function membershipAsOf({ store, subjectId, bookId, validAt, knownAt }) {
   const events = store.all(
     'SELECT * FROM membership_revocation WHERE subject_id = ? AND book_id = ? ORDER BY id',
     subjectId, bookId);
+  // ═══ R132 — A MEGVONÁS A SAJÁT IDŐSZAKÁT ZÁRJA, NEM AZ ALANY EGÉSZ TÖRTÉNETÉT ═══════════════
+  //
+  // MI VOLT A HIÁNY. Az R132 előtt ez a hurok az alany MINDEN megvonás-eseményét a MAI kérdésre
+  // alkalmazta. Egyetlen tagsági időszaknál ez helyes volt (a `membership` kulcsa alany × könyv,
+  // tehát több időszak nem is létezhetett). Az R132 óta LÉTEZIK újbóli belépés — és a régi alak egy
+  // ÚJ, szabályos tagságot a RÉGI megvonással zárt volna le: az újrahívott munkatárs elfogadás után
+  // sem lett volna tag. Ez a KUKA-122 alakja (a kapu fallá válik) az ellenkező irányból.
+  //
+  // A SZŰRŐ A RÖGZÍTÉS TENGELYÉN ÁLL, NEM A HATÁLYON — és ez SZÁNDÉKOS. A visszamenőleges
+  // érvénytelenség (REV-N2b) hatálya a MÚLTBAN van (március), a rögzítése MA (június): ha a
+  // hatályt hasonlítanánk, egy ilyen esemény „korábbinak" látszana a tagságadásnál, és némán
+  // kiesne — pontosan az a klauzula szűnne meg, amit az R83 épített. A „mikor tudtuk meg" tengely
+  // viszont helyesen rendez: ami a mai időszak rögzítése ÓTA (vagy azzal egyszerre) került a
+  // naplóba, az erre az időszakra szól.
+  //
+  // AZONOS RÖGZÍTÉSI IDŐ ⇒ A MEGVONÁS ALKALMAZÓDIK (fail-closed, KUKA-012). A valódi újrahívási
+  // úton ez nem fordul elő: a művelet NEVEZETTEN elakad, ha a hatályosulási pontja nem KÉSŐBBI a
+  // záró megvonásnál (`reentry_not_after_revocation`) — tehát a kétértelműséget nem a sorrend-
+  // találgatás oldja meg, hanem egy kapu (KUKA-171: ami megállít, annak neve is legyen).
+  const periodRecMs = grant.recorded_ms ?? null;
   const applied = [];
+  const otherPeriod = [];
   for (const e of events) {
     const rec = instantMs(e.recorded_at);
     const eff = instantMs(e.effective_at);
@@ -113,7 +139,18 @@ export function membershipAsOf({ store, subjectId, bookId, validAt, knownAt }) {
     }
     if (rec.ms > known.ms) continue;     // ezt akkor még nem tudtuk
     if (eff.ms > valid.ms) continue;     // erre a napra még nem hatályos
+    // KORÁBBI IDŐSZAK megvonása — a MAI időszakot nem zárja. A `null` (napló nélküli, vetített
+    // sor) esetén NEM szűrünk: ott nincs mihez mérni, és a régi, engedőbb alak marad (a gyengébb
+    // tanú tényét a `grant_axis` amúgy is kimondja — KUKA-127).
+    if (periodRecMs !== null && rec.ms < periodRecMs) { otherPeriod.push(e); continue; }
     applied.push(e);
+  }
+  if (otherPeriod.length) {
+    // A KORÁBBI IDŐSZAKOK ZÁRÁSA NEM TŰNIK EL A VÁLASZBÓL: aki a történetet kérdezi, LÁTJA, hogy
+    // volt lezárt időszak — csak nem a MAI jogra alkalmazzuk (KUKA-049: a tényt nem hallgatjuk el).
+    base.earlier_period_revocations = Object.freeze(otherPeriod.map((e) => frozen({
+      id: e.id, recorded_at: e.recorded_at, effective_at: e.effective_at, transition: e.transition,
+    })));
   }
   if (!applied.length) return frozen({ ...base, effective: true, reason: 'membership_effective' });
 
@@ -167,15 +204,70 @@ export function grantMembership({ store, subjectId, bookId, role, at, effectiveA
   // A BEÁGYAZOTT HÍVÓ IS JOGOS: a meghívó-beváltás tranzakcióból hív minket, ezért `atomic` és nem
   // `tx` — különben a javítás a jogos utat törné el (KUKA-122).
   return store.atomic(() => {
+    // ═══ A DÖNTÉST A SAJÁT ÍRÁSUNK ELŐTT MÉRJÜK — KÜLÖNBEN A HATÁS DÖNTI EL A DÖNTÉST ═══════════
+    //
+    // MÉRT LELET A SAJÁT ELSŐ ALAKOMON (R132, saját próba). Az első változatom a tagságadó ESEMÉNY
+    // beszúrása UTÁN kérdezte meg a bitemporális állapotot. Ekkor a frissen beírt esemény MÁR a
+    // legkésőbbi alkalmazható tagságadás volt, tehát a korábbi megvonás „előző időszakként" kiesett,
+    // és a válasz `membership_effective` lett — vagyis a feloldó a SAJÁT írásunk hatását mérte, nem
+    // a döntés előtti világot. Következmény: az újranyitási ág SOHA nem tüzelt, és a jogos beváltás
+    // `UNIQUE constraint failed: membership.subject_id, membership.book_id`-del állt meg.
+    //
+    // A TANULSÁG ÁLTALÁNOS, ezért itt áll, nem egy kommentben a hívónál: ahol egy feltétel a VILÁG
+    // ELŐZŐ állapotára szól, ott a mérésnek meg kell előznie a hatást — különben a hatás igazolja
+    // vissza a feltételt (KUKA-033: a minősítés mérés, nem besorolás; KUKA-120: a próba a saját
+    // versenyhelyzetét mérte).
+    const existing = store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', subjectId, bookId);
+    const before = existing
+      ? membershipAsOf({ store, subjectId, bookId, validAt: eff, knownAt: rec })
+      : null;
+
     const res = store.run(
       'INSERT INTO membership_grant (subject_id, book_id, role, recorded_at, effective_at) VALUES (?,?,?,?,?)',
       subjectId, bookId, role, rec, eff);
+
+    // ═══ R132 — ÚJ IDŐSZAK A LEZÁRT UTÁN: A VETÜLET FRISSÜL, A NAPLÓ NEM ÍRÓDIK ÁT ═════════════
+    //
+    // A NEVEZETT HIÁNY, amit ez zár (norms.mjs, ORG-N1a): „a `membership` kulcsa alany × könyv, a
+    // beváltás `revoked_needs_decision` néven áll meg — az újranyitás külön döntés, nincs
+    // megépítve". A kulcs MARAD alany × könyv: a sor a MAI VETÜLET, és egy alanynak ma egy
+    // állapota van. A TÖRTÉNET a `membership_grant` / `membership_revocation` naplókban áll, és
+    // ott MINDEN időszak megmarad — ez a sor nem történelem (KUKA-018: egy fogalom, egy otthon).
+    //
+    // A DÖNTÉS MÉRT, NEM JELZŐS. Nem a hívó mondja meg, hogy „ez most újranyitás": a feloldó
+    // megkérdezi a SAJÁT bitemporális válaszát ugyanarra a két időpontra, amit az esemény visel.
+    // Egy `reopen: true` paraméter önbevalló mező lenne — kiírná magát az ellenőrzés alól, ahogy
+    // azt a `grant_basis_kind`-nál már egyszer kimondtuk (invite.mjs, Q09).
+    //
+    // ÉS CSAK MEGVONÁS UTÁN NYIT ÚJRA. A feltétel NEVEZETT: a tagság azért nem hatályos, mert
+    // MEGVONTÁK (vagy visszamenőleg érvénytelenítették). Minden MÁS nem-hatályos alak (még nem
+    // hatályos, még nem rögzített, olvashatatlan sor) a RÉGI úton megy, tehát az egyediségi
+    // kényszerbe fut és a teljes egység visszagördül — a bukott kísérlet TOVÁBBRA SEM ír
+    // történelmet (R88/F02, P-ORG-grant-atomic). A kapu így nem lesz fal, és nem lesz kiskapu sem
+    // (KUKA-122 · KUKA-039).
+    const REOPENABLE = new Set(['membership_revoked', 'membership_retroactively_invalid']);
+    if (existing) {
+      const state = before;
+      if (state.effective !== true && REOPENABLE.has(state.reason)) {
+        const upd = store.run(
+          'UPDATE membership SET role = ?, granted_at = ?, revoked_at = NULL WHERE subject_id = ? AND book_id = ?',
+          role, eff, subjectId, bookId);
+        // A NULLA ÍRT SOR NEVEZETT KUDARC, nem néma siker (KUKA-118: a hiány-jelzést nem dobjuk el).
+        if (upd.changes !== 1) throw new Error('grantMembership: az újranyitás NULLA sort írt — bekötési hiba');
+        return frozen({
+          ok: true, grant_event_id: Number(res.lastInsertRowid),
+          granted_at: eff, granted_recorded_at: rec, role,
+          reopened: true, previous_granted_at: existing.granted_at,
+          previous_revoked_at: existing.revoked_at ?? null,
+        });
+      }
+    }
     store.run(
       'INSERT INTO membership (subject_id, book_id, role, granted_at, revoked_at) VALUES (?,?,?,?,NULL)',
       subjectId, bookId, role, eff);
     return frozen({
       ok: true, grant_event_id: Number(res.lastInsertRowid),
-      granted_at: eff, granted_recorded_at: rec, role,
+      granted_at: eff, granted_recorded_at: rec, role, reopened: false,
     });
   });
 }
@@ -205,7 +297,23 @@ function grantAsOf({ store, subjectId, bookId, membershipRow, valid, known }) {
     return { effective: true, axis: 'projected_row', reason: 'membership_effective' };
   }
 
+  // ═══ R132 — A LEGKÉSŐBBI ALKALMAZHATÓ TAGSÁGADÁS DÖNT, NEM AZ ELSŐ ══════════════════════════
+  //
+  // MI VOLT AZ R132 ELŐTT, ÉS MIÉRT KELLETT MEGVÁLTOZNIA. A régi hurok az ELSŐ alkalmazható
+  // eseménynél azonnal visszatért. Egyetlen tagsági időszaknál ez ugyanazt adta (egy esemény volt);
+  // az R132 óta viszont LEHET több — és akkor a régi alak a MAI kérdésre a RÉGI, már lezárt időszak
+  // esemény-azonosítóját adta volna vissza. Abból pedig a hívók a RÉGI időszak átvitt korlátját és
+  // RÉGI adatkörjogait olvasták volna ki (`grant_basis`, `scope_grant.membership_grant_id`) —
+  // vagyis pontosan az a „régi jog feléledése", amit a spec tilt.
+  //
+  // A RENDEZÉS TELJES ÉS DETERMINISZTIKUS, és ugyanaz, mint az adatkörjognál (`readScopeGrantAt`):
+  // hatály → rögzítés → sor-azonosító. Azonos időbélyegnél tehát NEM a beolvasási sorrend dönt,
+  // hanem a sorszám (KUKA-113: a hiányzó sorszám nem deklarált sorrend).
+  //
+  // A „még nem tudtuk" és a „még nem hatályos" KÜLÖN NEVEZETT válasz marad — a két tengely két
+  // külön kérdés, és a hiányukat nem mossuk össze (KUKA-002).
   let knownAny = false;
+  let best = null;
   for (const ev of events) {
     const rec = instantMs(ev.recorded_at);
     const eff = instantMs(ev.effective_at);
@@ -214,10 +322,20 @@ function grantAsOf({ store, subjectId, bookId, membershipRow, valid, known }) {
     if (rec.ms > known.ms) continue;           // ezt akkor még nem tudtuk
     knownAny = true;
     if (eff.ms > valid.ms) continue;           // erre a napra még nem hatályos
+    const cand = { ev, effMs: eff.ms, recMs: rec.ms };
+    if (best === null) { best = cand; continue; }
+    if (cand.effMs !== best.effMs) { if (cand.effMs > best.effMs) best = cand; continue; }
+    if (cand.recMs !== best.recMs) { if (cand.recMs > best.recMs) best = cand; continue; }
+    if (cand.ev.id > best.ev.id) best = cand;
+  }
+  if (best !== null) {
     // AZ ESEMÉNY AZONOSÍTÓJA IS TÉNY (R47/RSB-01). A tagsághoz átvitt adatkör-korlát
     // (`grant_basis`) ehhez az ESEMÉNYHEZ kötött; enélkül a kiadási kapu egy MÁSODIK,
     // saját eseményválasztást írna, és a két út elcsúszhatna (KUKA-018 · KUKA-039).
-    return { effective: true, axis: 'event', reason: 'membership_effective', grant_event_id: ev.id };
+    return {
+      effective: true, axis: 'event', reason: 'membership_effective',
+      grant_event_id: best.ev.id, recorded_ms: best.recMs, role: best.ev.role,
+    };
   }
   return {
     effective: false,
@@ -242,6 +360,127 @@ export function projectedRevokedAt({ store, subjectId, bookId, knownAt }) {
     if (best === null || eff.ms < instantMs(best).ms) best = e.effective_at;
   }
   return best;
+}
+
+/**
+ * R132 — A TAGSÁGI IDŐSZAKOK LISTÁJA, A NAPLÓBÓL SZÁMÍTVA (PER-01).
+ *
+ * MIRE KELL. Három fogyasztója van, és mind a három UGYANEZT a feloldót kérdezi, hogy ne tudjanak
+ * elcsúszni egymástól (KUKA-018 · KUKA-039):
+ *   · az ÚJRAHÍVÁSI döntés — melyik LEZÁRT időszakhoz kötődik az új ajánlat;
+ *   · a BEVÁLTÁS — ugyanaz a lezárt időszak áll-e MA is, amire az ajánlatot kiadták;
+ *   · a KÉPERNYŐ — „a korábban eltávolított tag legyen visszakereshető" (spec §6).
+ *
+ * AZ IDŐSZAK HATÁRAI ESEMÉNYEK, NEM DÁTUMOK. Egy időszakot egy `membership_grant` sor NYIT, és az
+ * ÁLTALA megnyitott időszakra alkalmazható LEGKORÁBBI hatályú `membership_revocation` ZÁR. A
+ * hozzárendelés a RÖGZÍTÉS tengelyén megy — ugyanazzal a szabállyal, amit a `membershipAsOf` is
+ * használ —, mert a visszamenőleges érvénytelenség HATÁLYA a múltban van, a tudomásszerzése pedig
+ * ahhoz az időszakhoz tartozik, amelyik alatt megérkezett (REV-N2b).
+ *
+ * A VÁLASZ MINDIG MONDJA MEG, MILYEN TANÚN ÁLL. Napló nélküli (vetített) sorra NEM gyártunk
+ * időszak-listát: a hiány NEVEZETT (`axis: 'projected_row'`, egyetlen, azonosító nélküli időszak),
+ * nem kitalált esemény-azonosító (KUKA-127).
+ *
+ * PURE: csak olvas, nem ír.
+ */
+export function membershipPeriodsOf({ store, subjectId, bookId, knownAt }) {
+  const known = instantMs(knownAt);
+  if (!known.ok) return frozen({ ok: false, reason: `known_at_${known.reason}`, periods: frozen([]) });
+  const row = store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', subjectId, bookId);
+  if (!row) return frozen({ ok: true, axis: 'none', reason: 'no_membership', periods: frozen([]) });
+
+  const grants = store.all('SELECT * FROM membership_grant WHERE subject_id = ? AND book_id = ? ORDER BY id', subjectId, bookId);
+  const revocations = store.all('SELECT * FROM membership_revocation WHERE subject_id = ? AND book_id = ? ORDER BY id', subjectId, bookId);
+
+  if (!grants.length) {
+    // A GYENGÉBB TANÚ KIMONDVA: a sor ideje az EGYETLEN forrás, esemény-azonosító nincs.
+    const g = instantMs(row.granted_at);
+    if (!g.ok) return frozen({ ok: false, reason: `membership_granted_at_${g.reason}`, periods: frozen([]) });
+    return frozen({
+      ok: true, axis: 'projected_row', reason: 'membership_without_grant_event',
+      periods: frozen([frozen({
+        grant_event_id: null, role: row.role, opened_at: row.granted_at, opened_recorded_at: row.granted_at,
+        closed_at: row.revoked_at ?? null, closed_recorded_at: null, closed_revocation_id: null,
+        open: row.revoked_at === null || row.revoked_at === undefined,
+      })]),
+    });
+  }
+
+  const known_grants = [];
+  for (const ev of grants) {
+    const rec = instantMs(ev.recorded_at);
+    const eff = instantMs(ev.effective_at);
+    if (!rec.ok || !eff.ok) return frozen({ ok: false, reason: 'grant_event_undecidable', periods: frozen([]) });
+    if (rec.ms > known.ms) continue;              // ezt akkor még nem tudtuk
+    known_grants.push({ ev, recMs: rec.ms, effMs: eff.ms });
+  }
+  if (!known_grants.length) return frozen({ ok: true, axis: 'event', reason: 'membership_grant_not_yet_recorded', periods: frozen([]) });
+  // A rögzítés tengelyén rendezve: az időszakok EBBEN a sorrendben nyíltak a rendszer tudása szerint.
+  known_grants.sort((a, b) => (a.recMs - b.recMs) || (a.ev.id - b.ev.id));
+
+  const known_revs = [];
+  for (const e of revocations) {
+    const rec = instantMs(e.recorded_at);
+    const eff = instantMs(e.effective_at);
+    if (!rec.ok || !eff.ok) return frozen({ ok: false, reason: 'revocation_event_undecidable', periods: frozen([]) });
+    if (rec.ms > known.ms) continue;
+    known_revs.push({ e, recMs: rec.ms, effMs: eff.ms });
+  }
+
+  const periods = known_grants.map((g, i) => {
+    const next = known_grants[i + 1] ?? null;
+    // ERRE az időszakra az a megvonás szól, amit az időszak megnyitása ÓTA (vagy azzal egyszerre) és
+    // a KÖVETKEZŐ időszak megnyitása ELŐTT rögzítettek. Azonos rögzítésnél a megvonás a KORÁBBI
+    // időszakhoz tartozik — fail-closed (KUKA-012).
+    const mine = known_revs.filter((r) => r.recMs >= g.recMs && (next === null || r.recMs < next.recMs));
+    const closer = mine.length
+      ? mine.reduce((a, r) => (r.effMs < a.effMs ? r : a), mine[0])
+      : null;
+    return frozen({
+      grant_event_id: g.ev.id, role: g.ev.role,
+      opened_at: g.ev.effective_at, opened_recorded_at: g.ev.recorded_at,
+      closed_at: closer ? closer.e.effective_at : null,
+      closed_recorded_at: closer ? closer.e.recorded_at : null,
+      closed_revocation_id: closer ? closer.e.id : null,
+      closed_transition: closer ? closer.e.transition : null,
+      open: closer === null,
+    });
+  });
+  return frozen({ ok: true, axis: 'event', reason: 'periods_resolved', periods: frozen(periods) });
+}
+
+/**
+ * R132 — A MA LEZÁRT, LEGUTÓBBI IDŐSZAK — az újrahívás KÖTÉSI PONTJA (PER-02).
+ *
+ * MIÉRT KELL SAJÁT NÉVEN. Az újrahívási ajánlat a spec szerint „a konkrét lezárt tagsági
+ * időszakhoz/megvonási eseményhez" kötődik, és „Egy megszűnésre kiadott újrahívási ajánlat nem
+ * használható egy későbbi megszűnés újranyitására". Ehhez EGY kérdésre kell EGY válasz, és
+ * UGYANARRA a kérdésre a kiadásnak és a beváltásnak ugyanazt kell kapnia (KUKA-129: a szabály ott
+ * teljesüljön, ahol az érték születik).
+ *
+ * MIT AD: a legutóbbi, MA lezárt időszak azonosító-párja, vagy NEVEZETT elutasítás, ha a tagság ma
+ * ÉL (`membership_is_open`), ha sosem volt (`no_membership`), vagy ha a tanú gyengébb annál, hogy
+ * időszakot lehessen rá kötni (`membership_without_grant_event`) — ez utóbbi KIMONDOTT határ: napló
+ * nélküli, vetített sorra nem adunk újrahívást, mert nem tudnánk MIHEZ kötni (KUKA-012).
+ *
+ * PURE: csak olvas, nem ír.
+ */
+export function closedMembershipPeriodOf({ store, subjectId, bookId, at }) {
+  const all = membershipPeriodsOf({ store, subjectId, bookId, knownAt: at });
+  if (all.ok !== true) return frozen({ ok: false, reason: all.reason });
+  if (all.axis === 'none') return frozen({ ok: false, reason: 'no_membership' });
+  if (all.axis === 'projected_row') return frozen({ ok: false, reason: 'membership_without_grant_event' });
+  if (!all.periods.length) return frozen({ ok: false, reason: all.reason });
+  const last = all.periods[all.periods.length - 1];
+  if (last.open === true) return frozen({ ok: false, reason: 'membership_is_open', grant_event_id: last.grant_event_id });
+  return frozen({
+    ok: true, reason: 'closed_period',
+    grant_event_id: last.grant_event_id, revocation_id: last.closed_revocation_id,
+    role: last.role, opened_at: last.opened_at,
+    closed_at: last.closed_at, closed_recorded_at: last.closed_recorded_at,
+    closed_transition: last.closed_transition,
+    period_index: all.periods.length,
+  });
 }
 
 /**

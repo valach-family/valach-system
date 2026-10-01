@@ -329,6 +329,37 @@ export const EXPECTED_PROBES = Object.freeze([
     ]),
   }),
 
+  // ── R132 — A MEGHÍVÓ VISSZAVONÁSA ÉS AZ ÚJBÓLI BELÉPÉS ─────────────────────────────────────
+  //
+  // MELYIK KLAUZULÁT TÖLTI KI, ÉS MELYIKET NEM. Mindkét próba az ORG-N1a-hoz tartozik: a klauzula
+  // `remaining` szövege NÉV SZERINT ezt a két hiányt nevezte meg („a MEGHÍVÓ VISSZAVONÁSA mint saját
+  // esemény" · „az ÚJRA-MEGHÍVÁS MEGVONÁS UTÁN"). KIMONDVA: ettől a klauzula NEM záródik le, és a
+  // req-5 sem lép életbe — a teljes lezáráshoz az ORG-N1a MINDEN vállalt állításának bizonyítéka
+  // kell, és azt külön, független döntés minősíti (R132 §8).
+  Object.freeze({
+    id: 'P-INVITE-revoke', assertion: 'ORGN1a-pending-invite-can-be-revoked-as-its-own-event',
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-INVR-unauthorized-revoke-is-named-and-writes-nothing' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-INVR-authorized-revoke-works' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-INVR-revoked-invite-closes-observation-and-redemption' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-INVR-repeat-does-not-duplicate-the-event' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-INVR-already-accepted-is-effect-free-and-not-a-membership-revocation' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-INVR-foreign-book-answers-like-the-unknown-token' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-INVR-expired-shows-no-false-success' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'P-ORG-reentry', assertion: 'ORGN1a-re-entry-is-a-separate-decision-and-old-rights-do-not-revive',
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-RNV-ordinary-invite-does-not-reactivate-and-does-not-consume' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-RNV-decision-creates-an-offer-not-a-membership' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-RNV-acceptance-opens-a-new-period-and-old-scopes-stay-closed' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-RNV-new-explicit-grant-works-in-the-new-period' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-RNV-history-intact-on-both-axes' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-RNV-offer-of-an-earlier-closure-cannot-reopen-a-later-one' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-RNV-open-target-and-storage-failure-are-named-and-write-nothing' }),
+    ]),
+  }),
   Object.freeze({
     id: 'P-ORG-grant-atomic', assertion: 'REVN2-grant-write-is-one-atomic-fact',
     // R88/F02 (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL). A `grantMembership` előbb az ESEMÉNYT írta, majd a

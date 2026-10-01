@@ -89,11 +89,18 @@ test('R91-03 — MINDEN bemutató elindul a saját képernyőjén, vagy NEVEZETT
     await createWorkspaceUI(anna.page, { name: 'Bemutató Kft', business: { jurisdiction: 'HU', tax_id: '12345678-1-42' } });
     const status = await anna.api.get('/api/assistant/status?lang=hu');
     const tours = status.body.tours.map((t) => t.id);
-    // A fiókkezelőnek KILENC bemutató jár (a regisztrációs CSAK belépés előtt indítható).
-    // R121: a kilencedik a hozzáférés ÉLETCIKLUSA (megadás ÉS visszavonás) — a szám ezért nőtt.
-    expect(tours.length).toBe(9);
+    // A fiókkezelőnek TIZENEGY bemutató jár (a regisztrációs CSAK belépés előtt indítható).
+    // R121: a kilencedik a hozzáférés ÉLETCIKLUSA (megadás ÉS visszavonás).
+    // R132: a tizedik a MEGHÍVÁS VISSZAVONÁSA, a tizenegyedik az ÚJBÓLI BELÉPÉS — a szám ezért nőtt.
+    //
+    // A PIN NEM KÉZI SZÁM, HANEM KÖVETKEZMÉNY (KUKA-045): a számot akkor írjuk át, amikor ÚJ
+    // képesség VALÓBAN megszületett, és a hozzá tartozó bemutató INDÍTHATÓ is — amit ez a hurok
+    // mér. Ha a szám csak azért nőne, hogy a piros eltűnjön, a lenti ciklus azonnal elbuktatná.
+    expect(tours.length).toBe(11);
     expect(tours).not.toContain('tour.register');
     expect(tours, 'az R121 hozzáférés-életciklus bemutatója a kezelőnek jár').toContain('tour.scopeLifecycle');
+    expect(tours, 'az R132 meghívás-visszavonás bemutatója a kezelőnek jár').toContain('tour.inviteRevoke');
+    expect(tours, 'az R132 újbóli belépés bemutatója a kezelőnek jár').toContain('tour.reentry');
     const byFeature = Object.fromEntries(status.body.tours.map((t) => [t.id, t.feature]));
     for (const id of tours) {
       // A SÚGÓBÓL INDÍTJUK, ahogy a felhasználó: a funkció útmutatójából.

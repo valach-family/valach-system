@@ -12,9 +12,10 @@
 
 import { instantMs } from './store.mjs';
 import { rightAt, membershipEffectiveAt, KNOWN_ROLES, roleDelegates } from './authz.mjs';
-import { grantMembership } from './bitemporal.mjs';
+import { grantMembership, closedMembershipPeriodOf } from './bitemporal.mjs';
 import { redemptionLimitGate, recordGrantBasis } from './basisLimit.mjs';
 import { canonicalize } from './command.mjs';
+import { effectuate, atomicOutcome, refuseAndRollBack } from './authority.mjs';
 
 const norm = (s) => String(s == null ? '' : s).trim().toLowerCase();
 
@@ -39,6 +40,186 @@ export function inviteWindowAt(inv, nowIso) {
   if (!exp.ok) return Object.freeze({ open: false, reason: `invite_expires_at_${exp.reason}` });
   if (exp.ms <= now.ms) return Object.freeze({ open: false, reason: 'invite_expired' });
   return Object.freeze({ open: true, reason: 'invite_open' });
+}
+
+// ═══ R132/1 — A MEGHÍVÓ VISSZAVONÁSA (INVR-01) ══════════════════════════════════════════════════
+//
+// A NEVEZETT HIÁNY, AMIT EZ ZÁR. Nem új ötlet: a SAJÁT norma-szövegünk (norms.mjs, ORG-N1a
+// `remaining`) az R132 előtt így állt: *„a MEGHÍVÓ VISSZAVONÁSA mint saját esemény (ma a lejárat és
+// a kiadó jogának megvonása zár; a meghívón nincs `revoked_at`)"*. Eddig tehát a kezelőnek NEM volt
+// módja egy még el nem fogadott meghívást visszavonni anélkül, hogy a kiadó (gyakran önmaga) egész
+// jogát elvenné — a felhasználó szándékához („ezt az EGY ajánlatot ne lehessen beváltani") a
+// legközelebbi elérhető művelet egy NAGYSÁGRENDDEL tágabb hatás volt. Ez a KUKA-002 alakja a
+// MŰVELETEKEN, pontosan úgy, ahogy az R121-ben az adatkör-megvonásnál már egyszer kijavítottuk.
+//
+// A VISSZAVONÁS ÁLLAPOTA EGY HELYEN DŐL EL. A `redeemInvite` és az `observeInvite` UGYANEZT a
+// feloldót kérdezi, nem két másolatot: ha a megfigyelés folytatást ígérne arra, amit a beváltás
+// elutasít, a jogos címzett zsákutcába futna (KUKA-064), és a két olvasó két igazságot hordozna
+// (KUKA-018).
+
+/**
+ * A VISSZAVONÁS ÁLLAPOTA EGY IDŐPONTBAN. A napló APPEND-ONLY: ha több sor is állna, a LEGKORÁBBI
+ * hatályú dönt — a zárás fail-closed (KUKA-012). Az OLVASHATATLAN sor ZÁR, nem néma kihagyás
+ * (KUKA-020): egy értelmezhetetlen idejű visszavonásból nem lehet „valószínűleg nem érintett".
+ *
+ * PURE: csak olvas, nem ír.
+ */
+export function inviteRevocationAt({ store, token, nowIso }) {
+  const now = instantMs(nowIso);
+  if (!now.ok) return Object.freeze({ revoked: true, reason: `clock_${now.reason}` });
+  const rows = store.all('SELECT * FROM invite_revocation WHERE token = ? ORDER BY id', token);
+  if (!rows.length) return Object.freeze({ revoked: false, reason: 'invite_not_revoked' });
+  let best = null;
+  for (const r of rows) {
+    const eff = instantMs(r.effective_at);
+    const rec = instantMs(r.recorded_at);
+    if (!eff.ok || !rec.ok) return Object.freeze({ revoked: true, reason: 'invite_revocation_undecidable' });
+    if (rec.ms > now.ms) continue;                       // ezt akkor még nem tudtuk
+    if (eff.ms > now.ms) continue;                       // erre a pillanatra még nem hatályos
+    if (best === null || eff.ms < best.effMs) best = { row: r, effMs: eff.ms };
+  }
+  if (best === null) return Object.freeze({ revoked: false, reason: 'invite_revocation_not_yet_effective' });
+  return Object.freeze({
+    revoked: true, reason: 'invite_revoked', id: best.row.id,
+    effective_at: best.row.effective_at, recorded_at: best.row.recorded_at,
+    actor_subject_id: best.row.actor_subject_id ?? null,
+  });
+}
+
+/**
+ * „BEVÁLTHATÓ-E MOST EZ A MEGHÍVÓ?" — EGY FELOLDÓ, MINDEN OLVASÓNAK (INVR-01).
+ *
+ * A sorrend KIMONDOTT, és a VISSZAVONÁS AZ ELSŐ: egy visszavont meghívónál a lejárat vagy a
+ * beváltottság ténye már nem a helyes válasz — a kezelő döntése erősebb (és a nyugtának is ezt kell
+ * mondania, KUKA-129). A `redeemed_at` és a lejárat ezután, VÁLTOZATLAN szabállyal (INV-01).
+ *
+ * PURE: csak olvas, nem ír.
+ */
+export function inviteOpenAt({ store, invite, nowIso }) {
+  if (!invite) return Object.freeze({ open: false, reason: 'invite_unknown' });
+  const rev = inviteRevocationAt({ store, token: invite.token, nowIso });
+  if (rev.revoked) {
+    return Object.freeze({
+      open: false, reason: rev.reason,
+      revoked_effective_at: rev.effective_at ?? null, revoked_recorded_at: rev.recorded_at ?? null,
+    });
+  }
+  return inviteWindowAt(invite, nowIso);
+}
+
+/**
+ * EGY FÜGGŐ MEGHÍVÓ VISSZAVONÁSA — SAJÁT, AUDITÁLHATÓ ESEMÉNY (INVR-01, spec §2).
+ *
+ * A NÉGY KAPU, MIND A VÉGLEGESÍTÉSI PONTON — ugyanaz a szerkezet, mint az R121 adatkör-megvonásánál
+ * (SCR-01), mert ugyanaz a fajta döntés. Az `effectuate` EGYSZER olvas órát, és ugyanazt az `at`-ot
+ * adja a DÖNTÉSNEK és a HATÁSNAK (EFF-01 · KUKA-139):
+ *   1. az eljáró `alter_right` hatásköre — a puszta tagság nem elég;
+ *   2. a meghívó EBBEN a könyvben áll — idegen könyv meghívójához nincs köze;
+ *   3. az eljáró DELEGÁLÁSI PLAFONJA — amit ő maga nem adhatna ki, azt ne is rendezhesse… DE
+ *      KIMONDVA: a plafon-kapu itt a SZEREP tengelyén áll, nem az adatkörön, mert a visszavonás nem
+ *      ad jogot, csak elvesz (lásd alább, miért nem szigorítunk tovább);
+ *   4. az idő értelmezhetősége — eldönthetetlen alak fail-closed (KUKA-124/2).
+ *
+ * „AKKOR IS, HA MÁSIK JOGOSULT KEZELŐ ADTA KI" (spec §2). A kezelhetőség tehát NEM a kiadó
+ * személyén áll, hanem az eljáró MAI hatáskörén és plafonján. Ezért nem kérdezzük meg, hogy ő adta-e
+ * ki — ez SZÁNDÉKOS, és a spec kifejezetten így kéri.
+ *
+ * „A TOKEN BIRTOKLÁSA ÉS A MEGHÍVOTT SZEMÉLY VOLTA ÖNMAGÁBAN NEM AD KEZELŐI JOGOT" (spec §2): a
+ * hatáskör-kapu nem ismer kivételt a célra — a címzett a SAJÁT meghívóját sem vonhatja vissza ezen
+ * az adminisztratív úton, ha nincs `alter_right`-ja (KUKA-047).
+ *
+ * A HÁROM NEM-VÁLTOZÁS NEVEZETT, ÉS EGYIK SEM „SIKERES VÁLTOZÁS" (spec §2 · KUKA-129):
+ *   · MÁR ELFOGADOTT meghívó ⇒ `invite_already_redeemed`, hatásmentes — és KIMONDOTTAN NEM
+ *     tagságmegvonás: a folytatás a tagság megszüntetése, ami KÜLÖN művelet;
+ *   · LEJÁRT meghívó ⇒ `invite_expired` — nem mutatunk hamis sikeres változást;
+ *   · MÁR VISSZAVONT meghívó ⇒ `changed: false`, és NEM írunk második naplósort (az ismételt
+ *     visszavonás ugyanazt az eseményt nem duplikálja).
+ *
+ * MIÉRT „MOSTANI HATÁLYÚ" (spec §2: „a nyilvános kezelői művelet mostani hatályú; múltbeli/jövőbeli
+ * dátum nem kliensválasztás"): a hatály az `effectuate` EGYETLEN óraolvasásából jön, és a hívó nem
+ * adhat időpontot. Ez nem felejtés, hanem kapu.
+ */
+export function revokeInvite({ store, clock, token, bookId, revokerSubjectId, credentials, delegationCeilingOf }) {
+  const tok = String(token ?? '').trim();
+  if (!tok || !bookId) return Object.freeze({ ok: false, changed: false, reason: 'token_and_book_required' });
+
+  const out = effectuate(
+    { store, clock, subjectId: revokerSubjectId, bookId, operation: 'alter_right', credentials },
+    ({ at }) => {
+      // A MEGHÍVÓ A VÉGLEGESÍTÉSI HATÁRON BELÜL OLVASVA — nem a kapu előtt (R51/J2 · N10).
+      const live = store.get('SELECT * FROM invite WHERE token = ?', tok);
+      if (!live) return Object.freeze({ ok: false, changed: false, reason: 'invite_unknown' });
+      if (String(live.book_id) !== String(bookId)) {
+        // AZ IDEGEN KÖNYV MEGHÍVÓJA UGYANAZT A VÁLASZT KAPJA, MINT A NEM LÉTEZŐ (KUKA-047 ·
+        // P-AUT-object-neutral): a jogosulatlan hívó ne tudja meg, hogy a token létezik-e.
+        return Object.freeze({ ok: false, changed: false, reason: 'invite_unknown' });
+      }
+      // MÁR BEVÁLTOTT: NEVEZETT, HATÁSMENTES kimenet — és a FOLYTATÁS is megvan (KUKA-064).
+      if (live.redeemed_at !== null && live.redeemed_at !== undefined) {
+        return Object.freeze({
+          ok: true, changed: false, reason: 'invite_already_redeemed', redeemed_at: live.redeemed_at,
+          next_step: 'revoke_membership',
+          message: 'ezt a meghívást már elfogadták — a visszavonása nem szünteti meg a tagságot; '
+            + 'a tagság megszüntetése külön művelet',
+        });
+      }
+      // ÜZLETI IDEMPOTENCIA: ha MA már visszavont, nincs mit tenni, és nem írunk második sort.
+      const already = inviteRevocationAt({ store, token: tok, nowIso: at });
+      if (already.revoked === true) {
+        return Object.freeze({
+          ok: true, changed: false, reason: already.reason,
+          revocation_id: already.id ?? null, effective_at: already.effective_at ?? null,
+        });
+      }
+      // LEJÁRT: nem mutatunk hamis sikeres változást (spec §2).
+      const win = inviteWindowAt(live, at);
+      if (!win.open) return Object.freeze({ ok: true, changed: false, reason: win.reason });
+
+      // A PLAFON KÉRDÉSE ÍRÁS NÉLKÜL (DCE-01 · R123/F123-01): a `delegationCeilingOf`-ot a HÍVÓ adja
+      // át, mert a `delegation.mjs` EZT a modult importálja — a fordított irányú behúzás kört
+      // csinálna (KUKA-003, ugyanaz a szerkezeti válasz, mint az `authority.mjs`-nél). A hiánya NEM
+      // néma engedély: nevezetten elakadunk.
+      if (typeof delegationCeilingOf !== 'function') {
+        return Object.freeze({ ok: false, changed: false, reason: 'delegation_ceiling_resolver_missing' });
+      }
+      const ceiling = delegationCeilingOf({ store, subjectId: revokerSubjectId, bookId, at });
+      if (!ceiling.ok) return Object.freeze({ ok: false, changed: false, reason: ceiling.reason });
+      // A SZEREP-TENGELY A KAPU. Amit az eljáró MA ki sem adhatna, azt ne is rendezhesse — így a
+      // szűkebb plafonú helyi kezelő nem nyúl a tágabb jogú kiadó ajánlatához (R63 §5.3/10).
+      // KIMONDVA, MIT NEM MÉRÜNK ITT: az ajánlat ADATKÖR-plafonját. A visszavonás nem ad jogot,
+      // tehát az adatkör-tengely fogalmilag nem korlát rajta — ez MŰVELETI SZERZŐDÉS, nem
+      // feledékenység (ugyanaz az alak, amit az ABL-01-ben a `not_applicable` kimond).
+      if (!ceiling.roles.includes(live.offered_role)) {
+        return Object.freeze({
+          ok: false, changed: false, reason: 'outside_basis_roles', role: live.offered_role,
+          ceiling: Object.freeze([...ceiling.roles]),
+          message: `a te szerep-plafonod: ${ceiling.roles.join(' · ') || '(üres)'} — ezen kívül nem rendelkezel`,
+        });
+      }
+
+      // AZ ÍRÁS OSZTHATATLAN EGYSÉGBEN (ATO-01). Ma EGY írás áll itt; a burkolat VÉDELEM a jövőbeli
+      // hozzáadás ellen — és ezt kimondjuk, nem állítjuk MÉRT viselkedés-különbségnek (KUKA-207).
+      return atomicOutcome(store, () => {
+        const res = store.run(
+          `INSERT INTO invite_revocation (token, book_id, actor_subject_id, recorded_at, effective_at)
+             VALUES (?,?,?,?,?)`,
+          tok, bookId, revokerSubjectId ?? null, at, at);
+        if (res?.changes !== 1) refuseAndRollBack({ ok: false, changed: false, reason: 'revocation_row_not_created' });
+        return Object.freeze({
+          ok: true, changed: true, reason: 'invite_revoked', revocation_id: Number(res.lastInsertRowid),
+          effective_at: at, recorded_at: at,
+        });
+      });
+    });
+
+  if (!out.authorized) {
+    return Object.freeze({
+      ok: false, changed: false, reason: out.right.reason,
+      message: `${out.right.message ?? ''} Egy meghívó visszavonásához \`alter_right\` hatáskör kell — `
+        + 'ugyanaz, mint a tagság megvonásához; a puszta tagság és a token birtoklása nem elég.',
+    });
+  }
+  return out.value;
 }
 
 // ═══ A CÍM MÖGÖTTI EMBEREK (INV-02) — Q10/Q13 ══════════════════════════════════════════════════
@@ -209,6 +390,72 @@ export function membershipOutcome(existing, offeredRole, nowIso) {
   return Object.freeze({ outcome: 'already_active', grants_access: true });
 }
 
+// ═══ R132/2 — AZ ÚJRAHÍVÁSI AJÁNLAT BEFOGADÁSA (RNV-01) ═════════════════════════════════════════
+//
+// A SZABÁLY, AMIT EZ NEM TÖRÖL EL. A spec §3 első mondata: *„A rendes meghívás meglévő
+// `revoked_needs_decision` védelmét ne töröld és ne alakítsd csendes reaktiválássá."* Ezért a Q13-as
+// négy kimenet VÁLTOZATLAN marad, és az újranyitás NEM a `membershipOutcome` kilazítása, hanem egy
+// KÜLÖN, NEVEZETT befogadási kapu: a `revoked_needs_decision` ág csak akkor nyílik meg, ha EHHEZ a
+// tokenhez tartozik egy TÁROLT újrahívási döntés, és az a MA lezárt időszakra szól.
+//
+// NÉGY EGYEZÉST KÉRÜNK, ÉS MINDEGYIK ESEMÉNY-AZONOSÍTÓN VAGY TÁROLT TÉNYEN ÁLL (nem dátumon):
+//   · a döntés ERRE a tokenre szól (a tábla kulcsa a token, egyediségi index őrzi);
+//   · ERRE a személyre és ERRE a könyvre (a cím mögötti ember feloldása UTÁN mérve);
+//   · a MA lezárt időszak UGYANAZ, amire a döntés szólt (`closed_grant_event_id` +
+//     `closed_revocation_id`) — ebből következik a spec kikötése: *„Egy megszűnésre kiadott
+//     újrahívási ajánlat nem használható egy későbbi megszűnés újranyitására"*;
+//   · és a döntésben rögzített SZEREP egyezik a meghívó pecsételt szerepével — különben a döntés egy
+//     MÁS ajánlatot engedélyezne, mint amit beváltanak (KUKA-143: a feladáskori bizonyíték nem
+//     küldéskori engedély).
+//
+// AMIT EZ A KAPU KIMONDOTTAN NEM TESZ: nem helyettesíti a beváltási lánc EGYETLEN kapuját sem. A
+// csatorna, a pecsét, az ablak (és R132 óta a visszavonás), a kiadó MAI joga, a korlát és az idegen
+// alany őre MIND előbb fut, és MIND érvényes — az újrahívási döntés csak a TAGSÁGI KIMENET ágát
+// nyitja meg, semmi mást (spec §3: „Az elfogadáskor minden alkalmazandó kapu ismét álljon").
+
+/** AZ AJÁNLATHOZ TARTOZÓ TÁROLT DÖNTÉS. A hiány NEVEZETT állapot, nem néma nulla (KUKA-012). */
+export function reentryOfferFor({ store, token }) {
+  const row = store.get('SELECT * FROM membership_reentry WHERE token = ?', token);
+  if (!row) return Object.freeze({ present: false, reason: 'no_reentry_offer' });
+  return Object.freeze({ present: true, reason: 'reentry_offer', offer: Object.freeze({ ...row }) });
+}
+
+/**
+ * BEFOGADHATÓ-E MA EZ AZ ÚJRAHÍVÁSI AJÁNLAT? — a `revoked_needs_decision` ág EGYETLEN nyitója.
+ *
+ * Minden nemleges válasz NEVEZETT, és megmondja, mit kell javítani (KUKA-064). PURE: csak olvas.
+ */
+export function reentryAdmission({ store, token, targetSubjectId, bookId, offeredRole, at }) {
+  const found = reentryOfferFor({ store, token });
+  if (!found.present) return Object.freeze({ ok: false, reason: 'reentry_decision_required' });
+  const o = found.offer;
+  if (!targetSubjectId || String(o.subject_id) !== String(targetSubjectId)) {
+    return Object.freeze({ ok: false, reason: 'reentry_offer_subject_mismatch' });
+  }
+  if (String(o.book_id) !== String(bookId)) return Object.freeze({ ok: false, reason: 'reentry_offer_book_mismatch' });
+  if (String(o.offered_role) !== String(offeredRole)) {
+    return Object.freeze({ ok: false, reason: 'reentry_offer_role_mismatch', decided_role: o.offered_role });
+  }
+  const closed = closedMembershipPeriodOf({ store, subjectId: targetSubjectId, bookId, at });
+  if (closed.ok !== true) return Object.freeze({ ok: false, reason: `reentry_target_${closed.reason}` });
+  if (Number(closed.grant_event_id) !== Number(o.closed_grant_event_id)
+    || Number(closed.revocation_id) !== Number(o.closed_revocation_id)) {
+    // A SPEC KIKÖTÉSE, MÉRHETŐ ALAKBAN: egy KORÁBBI megszűnésre kiadott ajánlat egy KÉSŐBBI
+    // megszűnést nem nyit újra. A nemleges válasz megnevezi MIT látott és MIT várt.
+    return Object.freeze({
+      ok: false, reason: 'reentry_offer_period_mismatch',
+      offer_period: Number(o.closed_grant_event_id), offer_revocation: Number(o.closed_revocation_id),
+      current_period: Number(closed.grant_event_id), current_revocation: Number(closed.revocation_id),
+    });
+  }
+  return Object.freeze({
+    ok: true, reason: 'reentry_admitted', offer_id: Number(o.id),
+    closed_grant_event_id: Number(o.closed_grant_event_id),
+    closed_revocation_id: Number(o.closed_revocation_id),
+    decided_by: o.decided_by, basis_id: o.basis_id, basis_version: Number(o.basis_version),
+  });
+}
+
 // ═══ A KIBOCSÁTÓ MAI JOGA — Q09 ════════════════════════════════════════════════════════════════
 //
 // Ez ad OLVASÓT a halott `issuer_subject` oszlopnak — pontosan az a KUKA-069, amit a lelet
@@ -280,7 +527,12 @@ export function observeInvite({ store, token, viewerSubjectId, clock }) {
   }
 
   // Innentől a néző BIRTOKOLJA a címzetti csatornát — neki megmondani a helyes válasz (KUKA-064).
-  const win = inviteWindowAt(inv, clock.now());
+  // R132 — A VISSZAVONÁST IS EZ A FELOLDÓ NÉZI (`inviteOpenAt`), nem csak a lejáratot: ha a
+  // megfigyelés folytatást ígérne arra, amit a beváltás elutasít, a jogos címzett zsákutcába futna
+  // (KUKA-064), és a két olvasó két igazságot hordozna (KUKA-018). A spec §2 ezt kifejezetten kéri:
+  // „Visszavonás után a régi hivatkozás sem MEGFIGYELÉSBŐL, sem belépés utáni folytatásból, sem
+  // közvetlen beváltásból nem ad tagságot."
+  const win = inviteOpenAt({ store, invite: inv, nowIso: clock.now() });
   if (!win.open) {
     return Object.freeze({
       status: 'not_actionable',
@@ -363,6 +615,64 @@ export function resumeIntent({ store, sessionId }) {
 // ── A BEVÁLTÁS (K03) ────────────────────────────────────────────────────────────────────────────
 // „Meglévő fiókhoz tagságot adunk megfelelő elfogadással; NEM ÍRUNK JELSZÓT, nem törlünk második
 //  faktort vagy más céges jogot. Új fiók létrehozása és fiókhelyreállítás külön eljárás."
+/**
+ * A TAGSÁGI KIMENET ÉS AZ ÚJRAHÍVÁS EGY DÖNTÉSBEN — EGY OTTHONBAN (R132/2).
+ *
+ * MIÉRT KÖZÖS FELOLDÓ. A beváltás KÉT ponton dönt: a kapuknál és a VÉGLEGESÍTÉSI határon belül
+ * (N11). Ha ez a logika kétszer lenne leírva, a két pont elcsúszhatna — és épp a határon belüli
+ * változás a lényeg (KUKA-039: a fél őr; KUKA-018: egy fogalom, egy otthon).
+ *
+ * HÁROM KIMENET:
+ *   · `{ ok: true, reentry: null }`     — a rendes ág (granted · already_active), változatlanul;
+ *   · `{ ok: true, reentry: {...} }`    — ÚJRANYITÁS: a tagság új időszakot kap;
+ *   · `{ ok: false, refusal }`          — NEVEZETT elutasítás, a meghívó NEM fogy el.
+ */
+function reentryDecisionFor({ store, outcome, token, target, inv, at }) {
+  const refuse = (payload) => Object.freeze({ ok: false, refusal: Object.freeze(payload) });
+
+  // AZ ÚJRAHÍVÁSI AJÁNLAT CSAK A SAJÁT HELYZETÉBEN ÉRVÉNYES. Ha a tagság MA ÉL (vagy más szerepen
+  // áll), az ajánlat KÖTÉSI PONTJA (a lezárt időszak) már nem áll — ilyenkor NEVEZETTEN elakadunk,
+  // és nem nyeljük el a tokent egy „már tag vagy" nyugtával (KUKA-129: a nyugta mondjon igazat).
+  const offer = reentryOfferFor({ store, token });
+  if (outcome.grants_access) {
+    if (offer.present) {
+      const adm = reentryAdmission({
+        store, token, targetSubjectId: target, bookId: inv.book_id, offeredRole: inv.offered_role, at,
+      });
+      return refuse({
+        ok: false, error: 'membership_not_granted', outcome: outcome.outcome,
+        reason: adm.reason === 'reentry_admitted' ? 'reentry_offer_period_mismatch' : adm.reason,
+        message: 'ez egy újbóli belépésre kiadott meghívás, de a hozzá tartozó lezárt tagsági '
+          + 'időszak már nem áll — kérj új meghívót a munkakörnyezet kezelőjétől',
+      });
+    }
+    return Object.freeze({ ok: true, reentry: null });
+  }
+
+  // A MEGHÍVÓ NEM FOGY EL azon az ágon, ami nem adott hozzáférést — és a válasz NEVEZI az okot
+  // meg a továbblépést, mert a címzetti csatorna itt már bizonyított (KUKA-064).
+  if (outcome.outcome === 'role_differs') {
+    return refuse({
+      ok: false, error: 'membership_not_granted', outcome: outcome.outcome,
+      message: 'ehhez a könyvhöz már más szerepkörrel tartozol — a szerep módosítása külön eljárás',
+    });
+  }
+
+  const adm = reentryAdmission({
+    store, token, targetSubjectId: target, bookId: inv.book_id, offeredRole: inv.offered_role, at,
+  });
+  if (adm.ok !== true) {
+    return refuse({
+      ok: false, error: 'membership_not_granted', outcome: outcome.outcome, reason: adm.reason,
+      message: adm.reason === 'reentry_decision_required'
+        ? 'ehhez a könyvhöz korábban visszavont tagságod van — az újranyitás külön döntés'
+        : 'ehhez a hivatkozáshoz tartozó újbóli belépési döntés nem erre a helyzetre szól — '
+          + 'kérj új meghívót a munkakörnyezet kezelőjétől',
+    });
+  }
+  return Object.freeze({ ok: true, reentry: adm });
+}
+
 export function redeemInvite({ store, token, actingSubjectId, newCredential, clock }) {
   // A KIADOTT AJÁNLAT AZ IGAZSÁG (R53/F01). Nem az élő sort olvassuk: ha azt a kiadás óta
   // átírták, a token halott — a változtatás útja a visszavonás + ÚJ meghívó.
@@ -385,8 +695,9 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
       : 'ez a meghívó nem váltható be',
   });
 
-  // (2) A MEGHÍVÓ ABLAKA — valódi IDŐ-összehasonlítással (a kritikus élő lelete).
-  const win = inviteWindowAt(inv, clock.now());
+  // (2) A MEGHÍVÓ ABLAKA — valódi IDŐ-összehasonlítással (a kritikus élő lelete), és R132 óta a
+  //     VISSZAVONÁS is itt dől el, UGYANABBÓL a feloldóból, amit a megfigyelés hív (INVR-01).
+  const win = inviteOpenAt({ store, invite: inv, nowIso: clock.now() });
   if (!win.open) return Object.freeze({ ok: false, error: 'invite_not_actionable', reason: win.reason });
 
   // (3) A KIBOCSÁTÓ MAI JOGA (Q09) — a halott `issuer_subject` oszlop OLVASÓT kapott.
@@ -456,16 +767,9 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
     ? store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', target, inv.book_id)
     : null;
   const outcome = membershipOutcome(existingM, inv.offered_role, clock.now());
-  if (!outcome.grants_access) {
-    // A MEGHÍVÓ NEM FOGY EL azon az ágon, ami nem adott hozzáférést — és a válasz NEVEZI az okot
-    // meg a továbblépést, mert a címzetti csatorna itt már bizonyított (KUKA-064).
-    return Object.freeze({
-      ok: false, error: 'membership_not_granted', outcome: outcome.outcome,
-      message: outcome.outcome === 'role_differs'
-        ? 'ehhez a könyvhöz már más szerepkörrel tartozol — a szerep módosítása külön eljárás'
-        : 'ehhez a könyvhöz korábban visszavont tagságod van — az újranyitás külön döntés',
-    });
-  }
+  // (7/b) AZ ÚJRAHÍVÁSI AJÁNLAT — a `revoked_needs_decision` ág EGYETLEN nyitója (R132/2, RNV-01).
+  const reentry = reentryDecisionFor({ store, outcome, token, target, inv, at: clock.now() });
+  if (!reentry.ok) return reentry.refusal;
 
   // (8) AZ ÍRÁSOK ATOMI EGYSÉGBEN (Q12). Az ŐRÖK KÍVÜL maradtak: a `BEGIN IMMEDIATE` írás-zárat
   // vesz, tehát a tisztán OLVASÓ elutasítások zár-versengés alatt `database is locked` KIVÉTELT
@@ -484,7 +788,11 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
       });
     }
     const fresh = freshAuth.invite;
-    const win2 = inviteWindowAt(fresh, clock.now());
+    // A VÉGLEGESÍTÉSI HATÁRON ÚJRA — ez dönti el a BEVÁLTÁS ↔ VISSZAVONÁS versenyét (spec §2:
+    // „a véglegesítési sorrend dönt"). Ha a visszavonás véglegesült előbb, itt NEVEZETTEN elakadunk,
+    // és nem születik tagság; ha a beváltás ért előbb célba, a visszavonás nem törli utólag a
+    // tagságot — a két művelet SOHA nem ad egymással ellentétes sikeres nyugtát (KUKA-129 · KUKA-139).
+    const win2 = inviteOpenAt({ store, invite: fresh, nowIso: clock.now() });
     if (!win2.open) return Object.freeze({ ok: false, error: 'invite_not_actionable', reason: win2.reason });
     const grant2 = inviteGrantAt({ store, invite: fresh, clock });
     if (!grant2.ok) return Object.freeze({ ok: false, error: 'invite_not_actionable', reason: grant2.reason });
@@ -507,14 +815,11 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
     const outcome2 = membershipOutcome(
       target ? store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', target, fresh.book_id) : null,
       fresh.offered_role, clock.now());
-    if (!outcome2.grants_access) {
-      return Object.freeze({
-        ok: false, error: 'membership_not_granted', outcome: outcome2.outcome,
-        message: outcome2.outcome === 'role_differs'
-          ? 'ehhez a könyvhöz már más szerepkörrel tartozol — a szerep módosítása külön eljárás'
-          : 'ehhez a könyvhöz korábban visszavont tagságod van — az újranyitás külön döntés',
-      });
-    }
+    // AZ ÚJRAHÍVÁS BEFOGADÁSA IS A VÉGLEGESÍTÉSI HATÁRON BELÜL DŐL EL ÚJRA (R51/J2 · N11). Ha a
+    // döntést a két olvasás között visszavonták, vagy közben EGY ÚJABB megszűnés történt, a kapu itt
+    // zár — a tranzakción KÍVÜL eldöntött befogadás pontosan az a hiba, amit az N11 kijavított.
+    const reentry2 = reentryDecisionFor({ store, outcome: outcome2, token, target, inv: fresh, at: clock.now() });
+    if (!reentry2.ok) return reentry2.refusal;
 
     let subjectId = target;
     let readScopeGranted = null;
@@ -552,7 +857,12 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
     // RÖGZÍTÉS ideje azonos, és ezt az `at` alak biztosítja: a writer MINDKETTŐT megőrzi, nem
     // vezeti le egyiket a másikból. Enélkül a júniusi beváltás megváltoztatta a MÁRCIUSI tudás
     // szerinti képet (KUKA-129: a szabály ott teljesüljön, ahol az érték SZÜLETIK).
-    if (outcome2.outcome === 'granted') {
+    // R132 — AZ ÚJRANYITÁS UGYANAZON A TAGSÁGADÓ ÚTON MEGY (GRT-01). Nem külön író: a `granted` és a
+    // `revoked_needs_decision` + befogadott újrahívási döntés UGYANAZT a `grantMembership`-et hívja,
+    // tehát az esemény, a vetület és az átvitt korlát EGY helyen születik — két író két igazságot
+    // szülne (KUKA-003 · KUKA-018). Az ÚJ IDŐSZAK tényét a writer MÉRI, nem mi mondjuk meg neki.
+    const regranting = reentry2.reentry !== null;
+    if (outcome2.outcome === 'granted' || regranting) {
       const g = grantMembership({
         store, subjectId, bookId: fresh.book_id, role: fresh.offered_role, at: clock.now(),
       });
@@ -579,6 +889,23 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
       clock.now(), token);
     if (used.changes !== 1) throw new Error('redeemInvite: a meghívót közben már felhasználták');
 
-    return Object.freeze({ ok: true, shape, outcome: outcome2.outcome, subject_id: subjectId, book_id: fresh.book_id, read_scope_granted: readScopeGranted });
+    // R132 — A NYUGTA KIMONDJA, HOGY ÚJ IDŐSZAK NYÍLT, ÉS AZT IS, HOGY ADATJOG NEM JÁR VELE.
+    // A spec §4: „a régi adatkörjogok … NEM éledhetnek fel. A négy olvasási kör újra külön,
+    // kifejezett megadást igényel; maga az új tagság egyiket sem adja meg." A `read_scope_granted`
+    // ezért TOVÁBBRA IS `null` — és ezt a válasz KI IS MONDJA, nem hallgatja el (KUKA-012 · KUKA-041).
+    return Object.freeze({
+      ok: true, shape, outcome: regranting ? 'regranted' : outcome2.outcome,
+      subject_id: subjectId, book_id: fresh.book_id, read_scope_granted: readScopeGranted,
+      reentry: regranting
+        ? Object.freeze({
+          offer_id: reentry2.reentry.offer_id,
+          reopened_closed_period: reentry2.reentry.closed_grant_event_id,
+          reopened_closed_revocation: reentry2.reentry.closed_revocation_id,
+          decided_by: reentry2.reentry.decided_by,
+          scopes_granted: false,
+          note: 'új tagsági időszak nyílt; a korábbi adatkörjogok NEM álltak vissza',
+        })
+        : null,
+    });
   });
 }

@@ -106,6 +106,15 @@ export const TPL = Object.freeze({
   helpForScreen: 'Ehhez a képernyőhöz: {oldal}',
   chatSourceLine: 'Forrás: {cim} ({verzio})',
   chatHistoryNote: 'A beszélgetésből a legutóbbi {n} kérdést tartjuk meg — a régebbiek kiesnek.',
+
+  // ── R132 — MEGHÍVÓ VISSZAVONÁSA ÉS ÚJBÓLI BELÉPÉS ────────────────────────────────────────
+  inviteRevoked: 'A meghívást visszavontuk: {ki} hivatkozása már nem használható.',
+  inviteRevokeUnchanged: 'Ezen a meghíváson nem változott semmi: {miert}',
+  inviteRevokeConfirmLead: '{ki} meghívását visszavonjuk. A korábbi hivatkozása ezután nem használható. Más jogosultság nem változik, és ez nem szünteti meg senki tagságát.',
+  reinviteSent: 'Újbóli meghívást küldtünk: {ki}. A tagság az ő elfogadásával jön létre.',
+  reinviteConfirmLead: '{ki} új meghívást kap. A tagság csak az ő elfogadásával jön létre. A korábbi adat-hozzáférései nem állnak vissza — azokat külön, újra meg kell adni.',
+  memberRemovedAt: 'Eltávolítva: {mikor}',
+  reinviteBlocked: '{ki} most nem hívható vissza: {miert}',
 });
 
 export const REASON = Object.freeze({
@@ -177,6 +186,30 @@ export const REASON = Object.freeze({
   action_not_allowed: 'Ezt a műveletet a segéd nem indíthatja el.',
   action_unknown: 'Ilyen műveletet nem ismerünk.',
   feature_not_working: 'Ez a funkció még nem használható, ezért nem is nyitjuk meg.',
+  // ── R132 — MEGHÍVÓ VISSZAVONÁSA ÉS ÚJBÓLI BELÉPÉS ────────────────────────────────────────
+  // MINDEN NEMLEGES VÁLASZ VISZI A MŰKÖDŐ FOLYTATÁST (KUKA-201): megmondja, KI tudja elindítani
+  // a következő lépést, vagy MELYIK eljárás tartozik hozzá — nem csak azt, hogy „nem".
+  invite_revoked: 'Ezt a meghívást visszavonták. Kérj új meghívót a fiók kezelőjétől.',
+  invite_ref_ambiguous: 'Ezt a meghívást nem tudtuk egyértelműen azonosítani. Frissítsd az oldalt, és próbáld újra.',
+  invite_not_actionable: 'Ez a meghívás most nem használható.',
+  membership_not_granted: 'A tagság nem jött létre. A folytatást a fiók kezelője tudja elindítani.',
+  reentry_decision_required: 'Ehhez a fiókhoz korábban visszavont tagságod van. Az újbóli belépés külön döntés: kérd a fiók kezelőjét, hogy hívjon meg újra.',
+  reentry_offer_period_mismatch: 'Ez az újbóli meghívás egy korábbi helyzetre szólt, és már nem használható. Kérj új meghívót a fiók kezelőjétől.',
+  reentry_target_membership_is_open: 'Ennek a munkatársnak most is él a tagsága, ezért újbóli meghívásra nincs szükség.',
+  reentry_target_no_membership: 'Ehhez a személyhez nincs korábbi tagság ebben a fiókban, ezért nem hívható vissza. Küldj neki rendes meghívást.',
+  reentry_target_membership_without_grant_event: 'Ennek a tagságnak nincs olyan rögzített előzménye, amire az újbóli belépés köthető lenne. Küldj rendes meghívást.',
+  reentry_blocked_suspension: 'Ez a tagság fel van függesztve. Előbb a felfüggesztést kell feloldani — az külön eljárás.',
+  reentry_blocked_ban: 'Erre a személyre tiltás van érvényben. A tiltás feloldása külön eljárás.',
+  reentry_blocked_open_review_circle: 'Ehhez a tagsághoz nyitott felülvizsgálat tartozik. Előbb azt kell lezárni.',
+  reentry_blocked_retroactive_invalidity: 'Ezt a tagságot visszamenőleges érvénytelenség zárta le. Az ilyen döntés felülvizsgálata külön eljárás, nem újbóli meghívás.',
+  reentry_not_after_revocation: 'Az újbóli belépés nem lehet a megszüntetéssel egyidejű. Próbáld újra egy pillanat múlva.',
+  reentry_target_has_no_address: 'Ehhez a személyhez nincs rögzített e-mail-cím, amire az új meghívás szólhatna.',
+  outside_basis_roles: 'Ezt a szerepkört nem adhatod tovább: a saját felhatalmazásod ennél szűkebb.',
+  outside_basis_scopes: 'Ezt az adatkört nem adhatod tovább: a saját felhatalmazásod ennél szűkebb.',
+  scope_grant_other_period: 'Ez a hozzáférés egy korábbi, már lezárt tagsági időszakhoz tartozott. Új belépés után újra meg kell adni.',
+  delegation_ceiling_resolver_missing: 'A felhatalmazás korlátja most nem ellenőrizhető, ezért a műveletet nem végezzük el.',
+  revocation_row_not_created: 'A visszavonást nem sikerült rögzíteni, ezért semmi nem változott. Próbáld újra.',
+  reentry_row_not_created: 'Az újbóli meghívást nem sikerült rögzíteni, ezért semmi nem változott. Próbáld újra.',
   generic: 'A művelet most nem fejezhető be.',
 });
 
@@ -502,6 +535,17 @@ export const UI = Object.freeze({
   otherPersonHere: 'Másik felhasználó lépett be ebben a böngészőben. Az oldal frissült.',
   personalStillUsable: 'A személyes fiókodat továbbra is használhatod.',
   openPersonal: 'Személyes fiók megnyitása',
+
+  // ── R132 — MEGHÍVÓ VISSZAVONÁSA ÉS ÚJBÓLI BELÉPÉS ────────────────────────────────────────
+  inviteRevokeAction: 'Meghívás visszavonása',
+  inviteRevokeTitle: 'Meghívás visszavonása',
+  inviteRevokeConfirm: 'Visszavonom a meghívást',
+  inviteAccepted: 'Elfogadva',
+  inviteRevokedBadge: 'Visszavonva',
+  reinviteAction: 'Újra meghívás',
+  reinviteTitle: 'Újbóli meghívás',
+  reinviteConfirm: 'Elküldöm az új meghívást',
+  reentrySection: 'Újbóli belépés',
 });
 
 /** A SEGÍTSÉGPANEL KERETE (SEG-01, R89 §4). A témák TARTALMA a `KB`/`FAQ`/`TOUR` csoportban áll. */
@@ -847,6 +891,28 @@ export const KB = Object.freeze({
       uncertain: 'Nem tudjuk biztosan, mentve lett-e. A lista megmutatja a mai állapotot.',
     }),
   }),
+  'invite.revoke': Object.freeze({
+    title: 'Egy kiadott meghívás visszavonása',
+    purpose: 'Érvénytelenítesz egy még el nem fogadott meghívást, hogy a kiküldött hivatkozással már ne lehessen belépni.',
+    prereq: 'Fiókkezelői jogosultság, és a meghívás legyen még elfogadásra váró.',
+    result: 'A régi hivatkozás nem használható többé. Senki tagsága nem szűnik meg, és más hozzáférés nem változik. Ha a meghívást már elfogadták, a visszavonás nem von el tagságot — azt külön művelet szünteti meg.',
+    outcomes: Object.freeze({
+      success: 'A meghívást visszavontuk.',
+      refused: 'Nincs hatásköröd ehhez, vagy ez a meghívás már nem vonható vissza.',
+      uncertain: 'Nem tudjuk biztosan, rögzült-e. A lista megmutatja a mai állapotot.',
+    }),
+  }),
+  'members.reinvite': Object.freeze({
+    title: 'Eltávolított munkatárs újbóli meghívása',
+    purpose: 'Új meghívást adsz ki egy olyan embernek, akinek korábban megszüntették a hozzáférését ebben a fiókban.',
+    prereq: 'Fiókkezelői jogosultság, és a munkatársnak legyen lezárt, korábbi tagsága ebben a fiókban.',
+    result: 'Új meghívás keletkezik. A tagság csak akkor jön létre, ha az érintett maga elfogadja. A korábbi adat-hozzáférései nem állnak vissza: azokat a belépése után külön, újra meg kell adni. A régi tagsága és a róla szóló előzmények megmaradnak.',
+    outcomes: Object.freeze({
+      success: 'Az újbóli meghívást elküldtük.',
+      refused: 'Nincs hatásköröd ehhez, vagy ez a munkatárs most nem hívható vissza.',
+      uncertain: 'Nem tudjuk biztosan, kiment-e. A várakozó meghívások listája megmutatja a mai állapotot.',
+    }),
+  }),
   'members.scopeRevoke': Object.freeze({
     title: 'Egy hozzáférés visszavonása',
     purpose: 'Elveszed egy tagtól az egyik hozzáférést úgy, hogy a tagsága és a többi hozzáférése megmarad.',
@@ -1110,6 +1176,18 @@ export const FAQ = Object.freeze({
     q: 'Hogyan engedélyezem valakinek a készletadatokat?',
     a: 'Felhasználók → a sor „Hozzáférés kezelése” gombja → válaszd ki az adatkört → „Megtekintés engedélyezése”. Az engedély csak ehhez a fiókhoz tartozik.',
   }),
+  'faq.invite.revoke': Object.freeze({
+    q: 'Visszavonhatok egy kiküldött meghívást?',
+    a: 'Igen. Felhasználók → „Elfogadásra vár” fül → az adott sor „Meghívás visszavonása” gombja. A kiküldött hivatkozás ezután nem használható. Ha a meghívást már elfogadták, a visszavonás nem szünteti meg a tagságot — arra a „Hozzáférés megszüntetése ebben a fiókban” művelet szolgál.',
+  }),
+  'faq.members.reinvite': Object.freeze({
+    q: 'Visszahívhatok egy kollégát, akinek korábban megszüntettem a hozzáférését?',
+    a: 'Igen, de ez tudatos, külön döntés. Felhasználók → a listában válaszd ki az eltávolított embert → „Hozzáférés kezelése” → „Újra meghívás”. Ettől még nem lesz tagja: új meghívást kap, és a tagság az ő elfogadásával jön létre. Egy sima új meghívás nem éleszti fel a régi tagságot.',
+  }),
+  'faq.members.reinviteScopes': Object.freeze({
+    q: 'Ha visszahívok valakit, visszakapja a korábbi hozzáféréseit?',
+    a: 'Nem. Az újbóli belépés új tagsági időszakot nyit, és abban egyetlen adat-hozzáférés sem áll vissza magától — mindegyiket külön, újra meg kell adni. A korábbi időszak előzményei megmaradnak, csak a mai jogra nem hatnak.',
+  }),
   'faq.members.scopeRevoke': Object.freeze({
     q: 'Elvehetem valakitől csak az árakat úgy, hogy a többi megmaradjon?',
     a: 'Igen. Felhasználók → „Hozzáférés kezelése” → az adott sor „Hozzáférés visszavonása” gombja. Csak az az egy hozzáférés szűnik meg; a tagság, a szerep és a többi hozzáférés változatlan marad.',
@@ -1273,6 +1351,21 @@ export const TOUR = Object.freeze({
     s3: Object.freeze({ title: 'Az üzleti dokumentumok engedélyezése', body: 'Az „Üzleti dokumentumok” sorban nyomd meg a „Hozzáférés megadása” gombot. Ez a lépés csak tényleges mentés után halad tovább.' }),
     s4: Object.freeze({ title: 'És a visszavonás', body: 'Ugyanabban a sorban a „Hozzáférés visszavonása” gomb csak ezt az egy hozzáférést veszi el — a tagság és a többi adat megmarad.' }),
   }),
+  'tour.inviteRevoke': Object.freeze({
+    title: 'Egy kiadott meghívás visszavonása',
+    lead: 'Három lépés. A végén a kiküldött hivatkozás már nem használható.',
+    s1: Object.freeze({ title: 'Nyisd meg a Felhasználókat', body: 'A Beállítások csoportban, fiókkezelői jogosultsággal.' }),
+    s2: Object.freeze({ title: 'Váltsd át az „Elfogadásra vár” fülre', body: 'Itt látszik, melyik meghívás vár elfogadásra, melyiket fogadták el, melyik járt le, és melyiket vonták vissza.' }),
+    s3: Object.freeze({ title: 'A várakozó meghívások listája', body: 'Itt látszik, melyik meghívás vár elfogadásra, melyiket fogadták el, melyik járt le, és melyiket vonták vissza.' }),
+    s4: Object.freeze({ title: 'Vond vissza a meghívást', body: 'A sor „Meghívás visszavonása” gombja, majd a megerősítés. A hivatkozás ezután elhal — ez a lépés csak tényleges visszavonás után halad tovább.' }),
+  }),
+  'tour.reentry': Object.freeze({
+    title: 'Eltávolított munkatárs visszahívása',
+    lead: 'Három lépés. A végén új meghívás megy ki; a tagság az ő elfogadásával jön létre.',
+    s1: Object.freeze({ title: 'Nyisd meg a Felhasználókat', body: 'A Beállítások csoportban, fiókkezelői jogosultsággal.' }),
+    s2: Object.freeze({ title: 'Keresd meg az eltávolított embert', body: 'A lista az eltávolított munkatársakat is mutatja, „Eltávolítva” jelzéssel. A „Hozzáférés kezelése” gomb nyitja a lapját.' }),
+    s3: Object.freeze({ title: 'Küldd el az új meghívást', body: 'Az „Újbóli belépés” szakaszban az „Újra meghívás” gomb. A megerősítés kimondja: az érintettnek el kell fogadnia, és a korábbi hozzáférései nem állnak vissza. Ez a lépés csak tényleges elküldés után halad tovább.' }),
+  }),
   'tour.plan': Object.freeze({
     title: 'A csomag beállítása',
     lead: 'Három lépés. Vásárlás és díjfizetés nincs.',
@@ -1394,6 +1487,8 @@ export const KB_SOURCE = Object.freeze({
   'invite.accept': Object.freeze({ source_version: '1.3.0', review: 'source' }),
   'members.list': Object.freeze({ source_version: '1.2.0', review: 'source' }),
   'members.grant': Object.freeze({ source_version: '1.2.0', review: 'source' }),
+  'invite.revoke': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'members.reinvite': Object.freeze({ source_version: '1.0.0', review: 'source' }),
   'members.scopeRevoke': Object.freeze({ source_version: '1.0.0', review: 'source' }),
   'data.documentSample': Object.freeze({ source_version: '1.0.0', review: 'source' }),
   'data.supplierSample': Object.freeze({ source_version: '1.0.0', review: 'source' }),
@@ -1438,6 +1533,8 @@ export const SEARCH = Object.freeze({
   'invite.accept': 'meghívás elfogadása csatlakozás meghívóval beváltás elfogadom a meghívást lejárt meghívó meghívóm érvénytelen hivatkozás rossz címre szól',
   'members.list': 'felhasználók tagok kik látják hozzáférések listája tagság',
   'members.grant': 'engedélyezés jogosultság adása adatkör megtekintés engedélye hozzáférés adása',
+  'invite.revoke': 'meghívás visszavonása meghívó visszavonás kiküldött link érvénytelenítés elfogadásra vár visszavont meghívó',
+  'members.reinvite': 'újra meghívás visszahívás eltávolított munkatárs újbóli belépés visszavétel újrafelvétel',
   'members.scopeRevoke': 'hozzáférés visszavonása adatkör elvétele csak az árakat részleges visszavonás',
   'data.documentSample': 'bizonylat minta dokumentum fejléc vegyes bizonylat összeg',
   'data.supplierSample': 'beszállító minta partner kapcsolati adat',
