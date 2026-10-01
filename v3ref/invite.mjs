@@ -16,6 +16,9 @@ import { grantMembership, closedMembershipPeriodOf } from './bitemporal.mjs';
 import { redemptionLimitGate, recordGrantBasis } from './basisLimit.mjs';
 import { canonicalize } from './command.mjs';
 import { effectuate, atomicOutcome, refuseAndRollBack } from './authority.mjs';
+// R134/F134-01 (RNV-02): a VÁLTOZHATÓ kizárások (felfüggesztés · tiltás · nyitott felülvizsgálat ·
+// visszamenőleges érvénytelenség) EGY feloldóban élnek, és a KIADÁS is ugyanezt hívja.
+import { reentryExclusionsAt } from './reentryGate.mjs';
 
 const norm = (s) => String(s == null ? '' : s).trim().toLowerCase();
 
@@ -448,6 +451,23 @@ export function reentryAdmission({ store, token, targetSubjectId, bookId, offere
       current_period: Number(closed.grant_event_id), current_revocation: Number(closed.revocation_id),
     });
   }
+  // A VÁLTOZHATÓ KIZÁRÁSOK A VÉGLEGESÍTÉSNÉL IS (RNV-02, R134/F134-01). Ez a sor zárja azt a rést,
+  // amit a külső ellenőrző fél mért: a KIADÁS UTÁN rögzített felfüggesztés / tiltás / nyitott
+  // felülvizsgálat mellett a beváltás ÚJ tagsági időszakot adott és ELFOGYASZTOTTA a tokent
+  // (`membership_grant` 8→9, `grant_basis` 1→2). A kizárások UGYANABBÓL a feloldóból jönnek, amit a
+  // KIADÁS hív, és ez a függvény a beváltás TRANZAKCIÓJÁN BELÜL is lefut (`redeemInvite` (7b) →
+  // `reentryDecisionFor`), tehát a HATÁRON bekövetkező változás sem kerülhető meg (KUKA-143 ·
+  // spec §3: „Az elfogadáskor minden alkalmazandó kapu ismét álljon").
+  //
+  // A LEZÁRT IDŐSZAKOT ÁTADJUK: a visszamenőleges érvénytelenség és a felülvizsgálati kör kérdése a
+  // ZÁRÓ MEGVONÁS eseményéhez kötött — a feloldó ezt az azonosítót kapja, nem időablakot.
+  const excl = reentryExclusionsAt({ store, subjectId: targetSubjectId, bookId, closed, nowIso: at });
+  if (excl.ok !== true) {
+    return Object.freeze({
+      ok: false, reason: excl.reason, message: excl.message,
+      next_step: excl.next_step ?? null, circle_id: excl.circle_id ?? null, checked: excl.checked,
+    });
+  }
   return Object.freeze({
     ok: true, reason: 'reentry_admitted', offer_id: Number(o.id),
     closed_grant_event_id: Number(o.closed_grant_event_id),
@@ -662,12 +682,19 @@ function reentryDecisionFor({ store, outcome, token, target, inv, at }) {
     store, token, targetSubjectId: target, bookId: inv.book_id, offeredRole: inv.offered_role, at,
   });
   if (adm.ok !== true) {
+    // A NEMLEGES VÁLASZ VIGYE A MŰKÖDŐ FOLYTATÁST (KUKA-201 · KUKA-064). A kizárás-feloldó
+    // (RNV-02) NEVEZETT folytatást ad (`lift_suspension` · `lift_ban` · `close_review_circle`), és
+    // a SAJÁT mondatát is — ezeket NEM írjuk át egy általános szöveggel: a címzett csatornája itt
+    // már bizonyított, tehát neki megmondani a helyes válasz. A régi, általános mondat csak ott
+    // marad, ahol a feloldó nem adott sajátot.
     return refuse({
       ok: false, error: 'membership_not_granted', outcome: outcome.outcome, reason: adm.reason,
-      message: adm.reason === 'reentry_decision_required'
-        ? 'ehhez a könyvhöz korábban visszavont tagságod van — az újranyitás külön döntés'
-        : 'ehhez a hivatkozáshoz tartozó újbóli belépési döntés nem erre a helyzetre szól — '
-          + 'kérj új meghívót a munkakörnyezet kezelőjétől',
+      next_step: adm.next_step ?? null,
+      message: adm.message
+        ?? (adm.reason === 'reentry_decision_required'
+          ? 'ehhez a könyvhöz korábban visszavont tagságod van — az újranyitás külön döntés'
+          : 'ehhez a hivatkozáshoz tartozó újbóli belépési döntés nem erre a helyzetre szól — '
+            + 'kérj új meghívót a munkakörnyezet kezelőjétől'),
     });
   }
   return Object.freeze({ ok: true, reentry: adm });

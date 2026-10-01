@@ -25,6 +25,10 @@ import { banEffectiveAt, banRequestFor } from './banScope.mjs';
 // ORG-N1b (R53): az ítélet a SEMLEGES modulból jön — az `authorityBasis.mjs` csak a
 // `store.mjs`-t és a zárt regisztert importálja, tehát nincs kör (lásd ott a szerkezeti indoklást).
 import { adjudicationLimitVerdict } from './authorityBasis.mjs';
+// R134/F134-02 (MPR-01): a MAI tagsági időszak feloldója a SEMLEGES modulból jön. A `bitemporal.mjs`
+// EZT a modult importálja (`effectuate`), ezért a közvetlen behúzás kört csinálna — a tiszta olvasók
+// külön otthonban állnak, és onnan mindkét oldal behúzhatja (lásd `membershipPeriod.mjs` fejlécét).
+import { membershipAsOf, membershipPeriodsOf } from './membershipPeriod.mjs';
 
 export const ADJUDICATION_OPS = Object.freeze(['suspend', 'adjudicate', 'alter_right']);
 
@@ -118,7 +122,68 @@ export function authorityRowAt({ store, subjectId, bookId, operation, nowIso }) 
       };
     }
   }
-  return { ok: true, granted_at: row.granted_at };
+  // ═══ R134/F134-02 — A HATÁSKÖR A TAGSÁGI IDŐSZAKÁHOZ KÖTÖTT (APR-01) ════════════════════════
+  //
+  // A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R134). Mérve a mi kódunkon: Béla
+  // `alter_right` hatáskört kapott az ELSŐ tagsági időszakában; a tagság megszüntetése, kifejezett
+  // újrahívás és saját elfogadás után a hatáskör UGYANAZZAL a `granted_at`-tal VÉGREHAJTHATÓ
+  // maradt, új hatásköradás nélkül. Az R132 spec §4 ezt kifejezetten tiltja — és a tilalmat az
+  // R132 csak az OLVASÁSI körökre építette meg (`scope_grant.membership_grant_id`), a bírálati
+  // hatáskörre nem. Ez a KUKA-039 „fél őr" alakja: a szabály EGY jog-fajtán állt, a testvérén nem.
+  //
+  // A DÖNTÉS HELYE SZÁNDÉKOS. Ez a KÖZÖS értékelő, amin mind az öt hatáskör-igényes író és mind a
+  // három bírálati út átmegy. Ha a kapu a hívókra maradna, az első új belépési pont NÉMÁN
+  // megkerülné (KUKA-039 · KUKA-129).
+  //
+  // A HÁROM ESET NEVEZETT, ÉS A VÁLASZ KIMONDJA, MELYIKET VETTE (KUKA-012 · KUKA-049):
+  //   · `stamped`            — a soron van időszak-jelölés: EGYEZNIE kell a MAI időszakkal;
+  //   · `first_period_rule`  — nincs jelölés (régi sor): az alany × könyv ELSŐ időszakához tartozik
+  //                            (ugyanaz a NULL-szabály, mint az adatkörjognál — SGP-01);
+  //   · `not_membership_bound` — az alanynak NINCS tagsági időszaka ebben a könyvben (külső
+  //                            elbíráló): a hatáskör az ALAPJÁN áll, nem időszakon. Ez NEM kiskapu:
+  //                            a megvont tagságú elbíráló NEM ide esik, mert neki VAN időszaka.
+  //
+  // FAIL-CLOSED A KÖZTES IDŐBEN: ha az alanynak van időszaka, de MA nem áll hatályos tagság, a
+  // hatáskör nem végrehajtható (`authority_other_period`). A spec a „köztes megszűnt időre" nem
+  // mond ki engedélyt, a delegálási alap pedig ugyanitt már ma is megszűnik (R63 §5.3/9) — a
+  // kétséget nem engedélyre fordítjuk (KUKA-012).
+  {
+    const periods = membershipPeriodsOf({ store, subjectId: who, bookId, knownAt: nowIso });
+    const hasPeriods = periods.ok === true && Array.isArray(periods.periods) && periods.periods.length > 0;
+    // A GYENGÉBB TANÚ NEM KÖT, ÉS EZT KIMONDJUK (KUKA-127 · KUKA-122). Napló nélküli, VETÍTETT
+    // tagsági sornál (`axis: 'projected_row'`) nincs esemény-azonosító, amihez kötni lehetne — a
+    // „melyik időszak" kérdésre ott nincs válasz, tehát nem is tehetünk úgy, mintha lenne. Ilyenkor
+    // a mai viselkedés VÁLTOZATLAN (a hatáskör az alapján áll), és a válasz MEGNEVEZI a tanút.
+    // Ez ugyanaz a szabály, amit az adatkörjognál a `periodGrantEventId: null` jelent (SGP-01) —
+    // és ugyanaz a hiba-osztály, amit a saját söprésem itt mért: a kötés enélkül FALLÁ vált volna a
+    // közvetlenül írt tagsági sorokon (három mag-próba pirosa).
+    if (hasPeriods && periods.axis !== 'event') {
+      return { ok: true, granted_at: row.granted_at, period_binding: 'projected_row_unbound', current_period: null };
+    }
+    if (hasPeriods) {
+      const firstPeriod = periods.periods[0].grant_event_id ?? null;
+      const today = membershipAsOf({ store, subjectId: who, bookId, validAt: nowIso, knownAt: nowIso });
+      const todayPeriod = today.effective === true ? (today.period_grant_event_id ?? null) : null;
+      const rowPeriod = row.period_grant_event_id ?? null;
+      const binding = rowPeriod === null ? 'first_period_rule' : 'stamped';
+      const expects = rowPeriod === null ? firstPeriod : rowPeriod;
+      const inPeriod = todayPeriod !== null && expects !== null && Number(expects) === Number(todayPeriod);
+      if (!inPeriod) {
+        return {
+          ok: false,
+          reason: 'authority_other_period',
+          message: `"${who}" ${operation} hatásköre egy KORÁBBI tagsági időszakhoz tartozik `
+            + '(vagy ma nincs hatályos tagsága ebben a könyvben) — az új időszakhoz ÚJ, kifejezett '
+            + 'hatásköradás kell; a régi megadás történetileg érvényes marad, de ma nem jogcím',
+          period_binding: binding,
+          authority_period: rowPeriod === null ? firstPeriod : rowPeriod,
+          current_period: todayPeriod,
+        };
+      }
+      return { ok: true, granted_at: row.granted_at, period_binding: binding, current_period: todayPeriod };
+    }
+    return { ok: true, granted_at: row.granted_at, period_binding: 'not_membership_bound', current_period: null };
+  }
 }
 
 // ═══ A TELJES VÉGREHAJTHATÓSÁGI DÖNTÉS — EGY RÉTEG, AMIBŐL A KIADÁS SEM MARAD KI (R75/F01) ═════

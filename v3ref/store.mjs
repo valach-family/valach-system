@@ -199,6 +199,20 @@ CREATE TABLE authority_basis (
   PRIMARY KEY (basis_id, version)
 );
 
+-- R134/F134-02 — A HATÁSKÖR A TAGSÁGI IDŐSZAKHOZ IS KÖTŐDIK ("period_grant_event_id").
+--
+-- A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R134/F134-02). Az R132 az ADATKÖRJOGRA
+-- megépítette az időszak-kötést ("scope_grant.membership_grant_id"), a BÍRÁLATI HATÁSKÖRRE nem —
+-- holott a spec §4 ugyanabban a felsorolásban tiltja mindkettő feléledését: „Új belépéskor a régi
+-- adatkörjogok, BÍRÁLATI HATÁSKÖRÖK, delegálási alapok és korábban kiadott függő meghívók NEM
+-- éledhetnek fel." Mérve: a megvonás utáni újbóli belépés után a RÉGI "alter_right" hatáskör
+-- UGYANAZZAL a "granted_at"-tal végrehajthatónak látszott, új hatásköradás nélkül.
+--
+-- A NULL JELENTÉSE UGYANAZ, MINT AZ ADATKÖRJOGNÁL (SGP-01): a már létező sorok az alany × könyv
+-- ELSŐ tagsági időszakához tartoznak. Egyetlen időszaknál az ELSŐ EGYBEN a MAI, tehát a NULL-os
+-- sorok viselkedése VÁLTOZATLAN (a spec kikötése: „nincs adateldobás"). Aki NEM tag (külső
+-- elbíráló), annak a hatásköre nem időszakhoz, hanem az ALAPJÁHOZ kötődik — ezt a feloldó KIMONDJA
+-- ("period_binding" mező), nem hallgatja el (KUKA-012 · KUKA-049).
 CREATE TABLE adjudication_authority (
   subject_id    TEXT NOT NULL REFERENCES subject(id),
   book_id       TEXT NOT NULL REFERENCES book(id),
@@ -209,8 +223,32 @@ CREATE TABLE adjudication_authority (
   -- rögzített alap; a néma hiány ugyanaz a hazugság, mint a néma üres lista (KUKA-012).
   basis_id      TEXT,
   basis_version INTEGER,
+  period_grant_event_id INTEGER,
   PRIMARY KEY (subject_id, book_id, operation)
 );
+
+-- A HATÁSKÖRADÁS ESEMÉNY-NAPLÓJA (R134/F134-02) — ugyanaz a szerkezet, mint a tagságadásnál:
+-- a "adjudication_authority" sor a MAI VETÜLET, az igazság a napló (KUKA-003: azonos alakú tényt
+-- nem tartunk két különböző szerkezetben).
+--
+-- MIÉRT KELLETT. A vetület kulcsa (alany × könyv × művelet) EGY sort engedett, tehát egy ÚJ
+-- időszakhoz tartozó, KIFEJEZETT új megadás a régi sorba futott: mérve, nyers
+-- "UNIQUE constraint failed" hibával állt meg — vagyis az időszak-kötés önmagában FALLÁ tette volna
+-- a szabályos helyreállítást (KUKA-122: a kapu nem lehet fal). A napló megőrzi a RÉGI megadást
+-- (történeti igazság), a vetület pedig a MAI állapotot hordozza.
+CREATE TABLE adjudication_authority_grant (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject_id    TEXT NOT NULL,
+  book_id       TEXT NOT NULL,
+  operation     TEXT NOT NULL,
+  granted_at    TEXT NOT NULL,
+  recorded_at   TEXT NOT NULL,
+  basis_id      TEXT,
+  basis_version INTEGER,
+  period_grant_event_id INTEGER
+);
+CREATE INDEX adjudication_authority_grant_who
+  ON adjudication_authority_grant (subject_id, book_id, operation);
 
 -- A BEJELENTÉS. A panaszos NEM feltétlenül ismert alany (épp ez a lényeg: a még nem igazolt
 -- panaszos jelzése is befut), ezért a "claimant_ref" szabad hivatkozás, NEM "subject(id)" idegen
@@ -405,6 +443,36 @@ CREATE TABLE membership_reentry (
 );
 CREATE UNIQUE INDEX membership_reentry_token ON membership_reentry (token);
 CREATE INDEX membership_reentry_who ON membership_reentry (subject_id, book_id);
+
+-- ═══ R134/F134-03 — AZ EGYSZERI HATÁS KÖNYVE A HATÁSKÖRI MŰVELETEKEN (OON-01) ════════════════
+--
+-- A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R134/F134-03). Két azonos, egymás utáni
+-- "POST /api/members/reinvite" kérés KÉT önálló ajánlatot adott (invite 10→12 · invite_basis 10→12 ·
+-- membership_reentry 2→4), és a HTTP-út minden kéréshez ÚJ tokent gyártott. Az R132 §5 viszont
+-- SZERVERES egyszeri hatást kért: „Dupla kattintás, hálózati újraküldés, elveszett sikeres válasz és
+-- párhuzamos elfogadás ne adjon új üzleti hatást."
+--
+-- MIÉRT NEM A "command" TÁBLA. Az azonosság FELOLDÓI közösek ("commandIdentity" · "commandScope" ·
+-- "canonicalize" — KUKA-003), a TÁROLÁS viszont nem lehet ugyanaz: a "command" a TAGSÁGI jogon
+-- működő parancs-út könyve (kiadási leltárral, nyugtával, "stock_movement" őrökkel). Egy
+-- HATÁSKÖRI ("alter_right") műveletet oda írni azt jelentené, hogy a parancs-út jogosultsági
+-- modellje ("own_book") dönt egy olyan műveletről, amit a bírálati hatáskör engedélyez — vagyis a
+-- kapu fajtája csúszna el (KUKA-002: két különböző tény egy ábrázoláson).
+--
+-- A KULCS ALAKJA A PARANCS-ÚTTAL AZONOS: a hatókört a SZERVER képezi (könyv × cselekvő), az
+-- azonosságot a hívó adja ("idem_key"), és a TARTALOM kanonikus lenyomata külön oszlop — így
+-- „ugyanaz a kulcs MÁS tartalommal" NEVEZETT ÜTKÖZÉS, nem néma felülírás (K07 alakja).
+-- A "effect_json" a MÁR KIADOTT ajánlat nyugtája: az ismétlés EBBŐL felel, és nem ír semmit.
+CREATE TABLE operation_once (
+  book_id       TEXT NOT NULL,
+  actor         TEXT NOT NULL,
+  idem_key      TEXT NOT NULL,
+  operation     TEXT NOT NULL,
+  identity_hash TEXT NOT NULL,
+  effect_json   TEXT NOT NULL,
+  recorded_at   TEXT NOT NULL,
+  PRIMARY KEY (book_id, actor, idem_key)
+);
 
 CREATE TABLE invite_basis (
   token          TEXT PRIMARY KEY REFERENCES invite(token),

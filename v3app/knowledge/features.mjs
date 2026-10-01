@@ -295,7 +295,8 @@ export const FEATURES = Object.freeze([
       note: 'a visszavonást a segéd nem indítja el és nem készíti elő: jogot soha nem ad és nem vesz el' }),
     faq: F(['faq.invite.revoke']),
     tour: 'tour.inviteRevoke',
-    evidence: F(['v3app/findings_r132.mjs', 'tests/e2e/v3app-r132.spec.mjs']),
+    evidence: F(['v3app/findings_r132.mjs', 'v3app/findings_r134.mjs',
+      'tests/e2e/v3app-r132.spec.mjs', 'tests/e2e/v3app-r134.spec.mjs']),
   }),
   F({
     // R132 §3 — ÚJBÓLI MEGHÍVÁS EGY ELTÁVOLÍTOTT MUNKATÁRSNAK. A művelet AJÁNLATOT ad, nem tagságot;
@@ -309,13 +310,18 @@ export const FEATURES = Object.freeze([
         'reentry_target_no_membership', 'reentry_blocked_suspension', 'reentry_blocked_ban',
         'reentry_blocked_open_review_circle', 'reentry_blocked_retroactive_invalidity',
         'reentry_not_after_revocation', 'reentry_target_has_no_address', 'outside_basis_roles',
-        'outside_basis_scopes', 'context_mismatch']) }),
+        'outside_basis_scopes', 'context_mismatch',
+        // R134/F134-03 — AZ EGYSZERI HATÁS KÉT ÚJ NEVEZETT KIMENETE (OON-01). Az ismétlés NEM hiba:
+        // ugyanazt az ajánlatot adja vissza; az ELTÉRŐ tartalom viszont nevezett ütközés, és az
+        // azonosság HIÁNYA nevezett elutasítás — a felhasználónak mindkettőről mondatot kell látnia.
+        'operation_identity_conflict', 'operation_id_required']) }),
     outcomes: F(['success', 'refused', 'uncertain']),
     ai: F({ explain: true, open: true, prepare: false,
       note: 'a segéd elmagyarázza és megnyitja a képernyőt, de újbóli meghívást nem ad ki és meghívást nem fogad el a felhasználó helyett' }),
     faq: F(['faq.members.reinvite', 'faq.members.reinviteScopes']),
     tour: 'tour.reentry',
-    evidence: F(['v3app/findings_r132.mjs', 'tests/e2e/v3app-r132.spec.mjs']),
+    evidence: F(['v3app/findings_r132.mjs', 'v3app/findings_r134.mjs',
+      'tests/e2e/v3app-r132.spec.mjs', 'tests/e2e/v3app-r134.spec.mjs']),
   }),
   F({
     // R121 §1/§4 — A BIZONYLAT-MINTÁK. A fejléc TISZTA, a vegyes minta mind a négy kört igényli.

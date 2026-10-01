@@ -81,6 +81,12 @@ export const ROWCOUNT_TABLES = Object.freeze([
   // (KUKA-220: az elutasításnak nyoma sem lehet a védett nyilvántartásban). Ami nincs számlálva,
   // arról nem tudunk nyilatkozni (KUKA-135: a kimaradás egyetlen számlálóba sem kerül).
   'invite_revocation', 'membership_reentry',
+  // R134 — AZ ÚJ TÁBLÁK IS SZÁMLÁLVA. A hatásköradás naplója és vetülete (F134-02), az egyszeri
+  // hatás könyve (F134-03), valamint a kizárások három tárolt ténye (felfüggesztés · tiltás ·
+  // felülvizsgálati kör) — ezek nélkül az „írásmentes elutasítás" szó ezekre a táblákra nem
+  // vonatkozna, és a kimaradás egyetlen számlálóba sem kerülne (KUKA-135 · KUKA-220).
+  'adjudication_authority', 'adjudication_authority_grant', 'operation_once',
+  'membership_suspension', 'subject_ban', 'review_circle',
   'access_refusal', 'disclosure', 'command', 'command_event',
 ]);
 export const NEUTRAL_REGISTER = Object.freeze({ ok: true, message: 'Ha a cím szabad, megerősítő levelet küldtünk.' });
@@ -1041,7 +1047,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
       const r = reinviteMember({
         store, clock, deciderSubjectId: session.subject_id, bookId: cur.book_id,
         targetSubjectId: String(input.subject_id).trim(), offeredRole: input.role, scope: input.scope,
-        token, expiresAt,
+        token, expiresAt, operationId: String(input.operation_id ?? '').trim(),
       });
       if (!r.ok) {
         return { status: 403, body: {
@@ -1049,19 +1055,30 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
           ceiling: r.ceiling ?? null, next_step: r.next_step ?? null, ...ctx.served,
         } };
       }
+      // R134/F134-03 — AZ ISMÉTLÉS NEM KÜLD MÁSODIK LEVELET, ÉS NEM AD ÚJ JELÖLŐT (OON-01).
+      //
+      // A mag a TÁROLT nyugtából felel (`replayed: true`), és abban a GYŐZTES ajánlat tokenje áll —
+      // tehát a jelölőt is ABBÓL képezzük, nem a most generált, FEL NEM HASZNÁLT tokenből. Ha a
+      // levelet itt mégis kiküldenénk, az ismétlés egy MÁSODIK önálló meghívót tenne a
+      // próbaüzenet-dobozba, amit a címzett külön ajánlatként látna (R134 kikötése).
+      const effectiveToken = r.token ?? token;
       const SRV_I = dictFor(lang).SRV;
       const fiokNev = bookNameOf(cur.book_id) ?? cur.book_id;
-      pushMail({ to: r.invitee_value, subject: SRV_I.mailInviteSubject.replace('{fiok}', fiokNev),
-        link: `http://${host}/?invite=${token}&lang=${encodeURIComponent(lang)}`,
-        body: SRV_I.mailInviteBody.replace(/\{fiok\}/g, fiokNev) });
+      if (r.replayed !== true) {
+        pushMail({ to: r.invitee_value, subject: SRV_I.mailInviteSubject.replace('{fiok}', fiokNev),
+          link: `http://${host}/?invite=${effectiveToken}&lang=${encodeURIComponent(lang)}`,
+          body: SRV_I.mailInviteBody.replace(/\{fiok\}/g, fiokNev) });
+      }
       // A TOKEN NEM MEGY VISSZA A FELÜLETRE (KUKA-006) — a `ref` a lista-sor jelölője, amivel a
       // kezelő később vissza is vonhatja ezt az ajánlatot.
-      return { status: 201, body: {
-        ok: true, changed: true, reason: r.reason, ref: shortRef(token),
+      const liveInvite = store.get('SELECT expires_at FROM invite WHERE token = ?', effectiveToken);
+      return { status: r.replayed === true ? 200 : 201, body: {
+        ok: true, changed: r.changed === true, replayed: r.replayed === true, reason: r.reason,
+        ref: shortRef(effectiveToken),
         reentry_id: r.reentry_id, offered_role: r.offered_role, scope: r.scope,
         closed_grant_event_id: r.closed_grant_event_id, closed_revocation_id: r.closed_revocation_id,
         requires_acceptance: r.requires_acceptance, restores_previous_scopes: r.restores_previous_scopes,
-        expires_at: expiresAt, ...ctx.served,
+        expires_at: liveInvite ? liveInvite.expires_at : expiresAt, ...ctx.served,
       } };
     },
 

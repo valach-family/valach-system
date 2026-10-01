@@ -302,7 +302,7 @@ try {
   // AZ ÚJRAHÍVÁS: külön művelet, AJÁNLATOT ad, nem tagságot.
   await tick(1000);
   const cU = await counts();
-  const ri = await anna.post('/api/members/reinvite', { subject_id: belaId, role: 'user', scope: 'keszlet' });
+  const ri = await anna.post('/api/members/reinvite', { subject_id: belaId, role: 'user', scope: 'keszlet', operation_id: 'r132-bela-1' });
   const cV = await counts();
   step('(c4) az ÚJRAHÍVÁS ajánlatot ad (nem tagságot): döntés + meghívó + pecsét EGYÜTT születik',
     ri.body.ok === true && ri.body.requires_acceptance === true && ri.body.restores_previous_scopes === false
@@ -407,7 +407,7 @@ try {
   await tick(1000);
   await anna.post('/api/members/revoke', { subject_id: belaId });
   await tick(1000);
-  const ri2 = await anna.post('/api/members/reinvite', { subject_id: belaId, role: 'user', scope: 'keszlet' });
+  const ri2 = await anna.post('/api/members/reinvite', { subject_id: belaId, role: 'user', scope: 'keszlet', operation_id: 'r132-bela-2' });
   const tok6 = tokenFromLink(await linkFor('bela@r132.hu', 'Meghívás'));
   await tick(1000);
   const red6 = await bela.post('/api/invites/redeem', { token: tok6 });
@@ -440,7 +440,7 @@ try {
 
   // MA ÉLŐ tagságra nem adható újrahívás.
   const cAA = await counts();
-  const riOpen = await anna.post('/api/members/reinvite', { subject_id: annaId, role: 'user', scope: 'keszlet' });
+  const riOpen = await anna.post('/api/members/reinvite', { subject_id: annaId, role: 'user', scope: 'keszlet', operation_id: 'r132-anna-open' });
   const cBB = await counts();
   step('(f2) MA ÉLŐ tagságra az újrahívás nevezetten elakad, írás nélkül',
     riOpen.body.ok === false && riOpen.body.reason === 'reentry_target_membership_is_open' && unchanged(cAA, cBB),
@@ -453,7 +453,7 @@ try {
   // ALAP érvényességét ezért külön, saját fiókon mérjük (f5) — a nem mérhetőt nem nevezzük mértnek
   // (KUKA-033 · KUKA-216: a verdikt nem mutathat a mérés hatókörén túl).
   const cCC = await counts();
-  const riRole = await anna.post('/api/members/reinvite', { subject_id: belaId, role: 'owner', scope: 'keszlet' });
+  const riRole = await anna.post('/api/members/reinvite', { subject_id: belaId, role: 'owner', scope: 'keszlet', operation_id: 'r132-bela-role' });
   const cDD = await counts();
   step('(f3) a ZÁRT szerep-készleten kívüli szerep a HATÁRON zár, írás nélkül',
     riRole.body.ok === false && riRole.body.reason === 'invalid_value' && unchanged(cCC, cDD),
@@ -465,7 +465,7 @@ try {
   store.run(`INSERT INTO membership_suspension (subject_id, book_id, actor_subject_id, suspended_at, reason)
              VALUES (?,?,?,?,?)`, belaId, BOOK, annaId, now(), 'r132-fixtura: szintetikus felfüggesztés');
   const cEE = await counts();
-  const riSusp = await anna.post('/api/members/reinvite', { subject_id: belaId, role: 'user', scope: 'keszlet' });
+  const riSusp = await anna.post('/api/members/reinvite', { subject_id: belaId, role: 'user', scope: 'keszlet', operation_id: 'r132-bela-susp' });
   const cFF = await counts();
   step('(f4) FELFÜGGESZTÉS mellett az újrahívás NEVEZETTEN zár, és a MEGLÉVŐ eljárásra mutat',
     riSusp.body.ok === false && riSusp.body.reason === 'reentry_blocked_suspension'
@@ -500,14 +500,31 @@ try {
   head('G) A132-08 — EGYSZERI HATÁS (egy kapcsolaton mérve; a verseny tanúja a proof:multiconn)');
   // ══════════════════════════════════════════════════════════════════════════════════════════════
   await tick(1000);
+  // ══ AZ R132-ES (g1) ÁLLÍTÁS HELYESBÍTVE (R134/F134-03) ══════════════════════════════════════
+  //
+  // AMI ITT ÁLLT, ÉS MIÉRT VOLT TÚL ERŐS. Az eredeti (g1) két AZONOS, egymás utáni kérésre KÉT
+  // önálló ajánlatot mért (`invite` +2 · `membership_reentry` +2), és ezt „nem duplikált döntés"
+  // címen PASS-nak nevezte. A külső ellenőrző fél (chatgpt-v3, R134) kimutatta, hogy ez épp a
+  // hiányzó egyszeri hatás: a HTTP-út minden kéréshez új tokent gyártott, tartós kérés-azonosság
+  // nélkül — vagyis a „dupla kattintás ne adjon új üzleti hatást" (spec §5) NEM teljesült.
+  //
+  // A JAVÍTOTT MÉRCE (OON-01): az AZONOSSÁG dönt, nem a kérések száma. UGYANAZ az azonosság EGY
+  // ajánlatot ad (ismétlés), KÜLÖN azonosság KÉT önálló ajánlatot — mert az két tudatos döntés.
   const cGG = await counts();
-  const ri3a = await anna.post('/api/members/reinvite', { subject_id: belaId, role: 'user', scope: 'keszlet' });
-  const ri3b = await anna.post('/api/members/reinvite', { subject_id: belaId, role: 'user', scope: 'keszlet' });
+  const ri3a = await anna.post('/api/members/reinvite', { subject_id: belaId, role: 'user', scope: 'keszlet', operation_id: 'r132-bela-3a' });
+  const ri3rep = await anna.post('/api/members/reinvite', { subject_id: belaId, role: 'user', scope: 'keszlet', operation_id: 'r132-bela-3a' });
+  const cHH0 = await counts();
+  step('(g1) UGYANAZ az azonosság EGY ajánlatot ad: az ismétlés ÚJ hatás nélkül ugyanazt adja vissza',
+    ri3a.body.ok === true && ri3rep.body.ok === true && ri3rep.body.replayed === true
+    && ri3rep.body.ref === ri3a.body.ref
+    && cHH0.membership_reentry === cGG.membership_reentry + 1 && cHH0.invite === cGG.invite + 1,
+    diff(cGG, cHH0));
+  const ri3b = await anna.post('/api/members/reinvite', { subject_id: belaId, role: 'user', scope: 'keszlet', operation_id: 'r132-bela-3b' });
   const cHH = await counts();
-  step('(g1) KÉT újrahívás KÉT önálló ajánlat (nem elnyelt, nem duplikált döntés) — és ezt kimondjuk',
-    ri3a.body.ok === true && ri3b.body.ok === true
-    && cHH.membership_reentry === cGG.membership_reentry + 2 && cHH.invite === cGG.invite + 2,
-    diff(cGG, cHH));
+  step('(g1/b) KÜLÖN azonosság viszont ÚJ, tudatos ajánlat — a kapu nem fal (KUKA-122)',
+    ri3b.body.ok === true && ri3b.body.replayed !== true
+    && cHH.membership_reentry === cHH0.membership_reentry + 1 && cHH.invite === cHH0.invite + 1,
+    diff(cHH0, cHH));
   // ÉS TÖBB PÁRHUZAMOS AJÁNLATBÓL SEM LEHET KÉT ÉLŐ IDŐSZAK (spec §4).
   const tokA = tokenFromLink(await linkFor('bela@r132.hu', 'Meghívás'));
   await tick(1000);
@@ -529,7 +546,7 @@ try {
   await tick(1000);
   store.db.exec('CREATE TEMP TRIGGER r132_reentry_ignore BEFORE INSERT ON membership_reentry BEGIN SELECT RAISE(IGNORE); END');
   const cKK = await counts();
-  const bukott = await anna.post('/api/members/reinvite', { subject_id: belaId, role: 'user', scope: 'keszlet' });
+  const bukott = await anna.post('/api/members/reinvite', { subject_id: belaId, role: 'user', scope: 'keszlet', operation_id: 'r132-bela-broken' });
   const cLL = await counts();
   store.db.exec('DROP TRIGGER r132_reentry_ignore');
   step('(g4) NULLA SOROS írás: a TELJES egység visszagördül — se meghívó, se pecsét, se alap nem marad',

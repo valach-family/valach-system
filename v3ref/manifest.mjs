@@ -360,6 +360,24 @@ export const EXPECTED_PROBES = Object.freeze([
       Object.freeze({ clause: 'ORG-N1a', assertion: 'A-RNV-open-target-and-storage-failure-are-named-and-write-nothing' }),
     ]),
   }),
+  // R134 (F134-01 · F134-02 · F134-03) — A HÁROM LELET JAVÍTÁSÁNAK BIZONYÍTÉK-KÖTÉSE.
+  //
+  // MIÉRT UGYANAHHOZ A KLAUZULÁHOZ. Az ORG-N1a `remaining` szövege a MEGHÍVÓ-ÉLETCIKLUS két hiányát
+  // nevezte meg, és az R132 ezeket építette meg — a külső ellenőrző fél (chatgpt-v3) viszont MÉRTE,
+  // hogy a megépült alak HÁROM ponton nem teljesíti a spec §3–§5 kikötéseit: a kiadás utáni zárás
+  // megkerülhető volt, a RÉGI bírálati hatáskör az új időszakban feléledt, és az ajánlat kiadása nem
+  // volt ismétlésbiztos. Ezek tehát UGYANANNAK a klauzulának a vállalt állításai, nem új klauzula —
+  // és KIMONDVA: ettől az ORG-N1a továbbra sem záródik le, a req-5 nem lép életbe (R134 §A132-10).
+  Object.freeze({
+    id: 'P-ORG-reentry-gates', assertion: 'ORGN1a-reentry-gates-hold-at-finalization-and-the-offer-acts-once',
+    discharges: Object.freeze([
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-RNV2-post-issue-exclusion-blocks-at-finalization-without-consuming-the-token' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-RNV2-positive-control-after-lifting-the-exclusion' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-APR-old-authority-is-not-executable-in-a-new-period-but-history-holds' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-OON-same-identity-yields-one-offer-and-different-content-conflicts' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-OON-missing-identity-is-a-named-refusal' }),
+    ]),
+  }),
   Object.freeze({
     id: 'P-ORG-grant-atomic', assertion: 'REVN2-grant-write-is-one-atomic-fact',
     // R88/F02 (megtalálta: a KÜLSŐ TÁRGYALÓ FÉL). A `grantMembership` előbb az ESEMÉNYT írta, majd a

@@ -16,6 +16,76 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3091 — A VÉGLEGESÍTÉSI KAPUK, AZ IDŐSZAKHOZ KÖTÖTT HATÁSKÖR ÉS AZ EGYSZERI AJÁNLAT (R134)
+
+> **Hatály:** V3 (`valach-system`). Nincs merge, éles telepítés, V2-módosítás, új fizetős
+> szolgáltatás, külső címzettnek levél, és nincs core/CMD/PR-zárás. A req-5 **NEM** lép életbe.
+
+**A parancs:** `CMD-VS-300-002-002 R134 — ANALYSIS` (chatgpt-v3, 2026-10-01). Ez **javító-befejező**
+kör: a külső ellenőrző fél az R132-es csomagot NEM fogadta el, és három MÉRT ellenpéldát adott
+VALÓDI HTTP + tároló úton, plusz egy szállítási hiányt. Induló fej:
+`b8c80b68e2d1dac02ff82ca318c43bf0522826cc` (az elfogadott `8124107` leszármazottja).
+
+**A három lelet a MI kódunkon újramérve, javítás ELŐTT (reprodukálható piros):** a kiadás utáni
+felfüggesztés mellett a beváltás `ok:true, outcome:regranted` — `membership_grant 4→5`,
+`grant_basis 1→2`, a token elfogyott · a régi `alter_right` hatáskör az új tagsági időszakban
+változatlan `granted_at`-tal végrehajtható · két azonos újrahívási kérés KÉT önálló ajánlat.
+
+**1. A VÁLTOZHATÓ KIZÁRÁSOK EGY FELOLDÓBAN, KÉT KAPUN (RNV-02 · F134-01).** A felfüggesztés, a
+tiltás, a nyitott felülvizsgálati kör és a visszamenőleges érvénytelenség kérdése új, semleges
+modulba került (`v3ref/reentryGate.mjs` → `reentryExclusionsAt`), és ezt hívja a KIADÁS
+(`reinviteMember`) **és** a VÉGLEGESÍTÉS (`reentryAdmission`) is — utóbbi a beváltás tranzakcióján
+BELÜL is. A nemleges válasz neve a két helyen AZONOS, és a MEGLÉVŐ eljárásra mutató folytatást visz
+(`lift_suspension` · `lift_ban` · `close_review_circle`). A token érintetlen marad, és a tárolóban
+egyetlen sor sem keletkezik. **Ehhez tartozik egy SAJÁT lelet:** az R132-es kiadási kapu
+felülvizsgálati-kör ága SOHA nem tüzelt (nem létező mezőre illesztett feltétel) — a kör megtalálása
+mostantól ESEMÉNY-AZONOSÍTÓN megy (`reviewCircleOfRevocation`), lásd KUKA-267.
+
+**2. A BÍRÁLATI HATÁSKÖR A TAGSÁGI IDŐSZAKHOZ KÖTÖTT (APR-01 · F134-02).** Az
+`adjudication_authority` sor időszak-bélyeget kapott (`period_grant_event_id`), amit a MEGADÁS
+mér (nem a hívó adja meg), és amit a KÖZÖS értékelő (`authorityRowAt`) a MAI időszakhoz hasonlít. A
+válasz KIMONDJA, melyik szabályt vette: `stamped` · `first_period_rule` (régi, bélyeg nélküli sor) ·
+`projected_row_unbound` (napló nélküli tagsági sor — KIMONDOTTAN nem köt) · `not_membership_bound`
+(nem-tag elbíráló). A régi megadás TÖRTÉNETILEG érvényes marad: új, append-only napló
+(`adjudication_authority_grant`) őrzi, a vetület pedig a MAI állapotot hordozza — így az ÚJ
+időszakhoz tartozó, kifejezett megadás lehetséges (korábban nyers `UNIQUE constraint failed`-be
+futott, azaz a kötés önmagában FALLÁ tette volna a helyreállítást). A **MOZGATÁS KIMONDVA**: a tiszta
+időszak-olvasók semleges otthonba kerültek (`v3ref/membershipPeriod.mjs`, MPR-01), mert a
+`bitemporal.mjs` az `authority.mjs`-t importálja — a közvetlen behúzás kört csinálna. A
+`bitemporal.mjs` ugyanezeket a neveket TOVÁBB-EXPORTÁLJA, tehát egyetlen hívó behúzása sem változott;
+a mutációs horgonyok át vannak horgonyozva (M100 · M102 · M108–M111).
+
+**3. AZ AJÁNLAT KIADÁSA EGYSZERI HATÁSÚ (OON-01 · F134-03).** A megismételt SZÁNDÉK azonosságát a
+hívó adja (`operation_id`, a felületen panel-megnyitásonként egy), a HATÓKÖRÉT és a tartalom
+kanonikus lenyomatát a szerver képezi — az azonosság FELOLDÓI a parancs-útról jönnek
+(`commandIdentity` · `commandScope` · `canonicalize`), második azonosság-protokoll nem született
+(KUKA-003). A tárolás viszont külön könyv (`operation_once`), mert a `command` tábla a TAGSÁGI jogon
+működő parancs-út otthona, és egy hatásköri műveletet oda írni a kapu FAJTÁJÁT csúsztatná el.
+Ugyanaz az azonosság EGY ajánlatot ad (`replayed: true`, ugyanaz a jelölő, levél nélkül), az ELTÉRŐ
+tartalom NEVEZETT ütközés nulla hatással, a HIÁNYZÓ azonosság nevezett elutasítás. A két valódi
+kapcsolat versenyében a vesztes a GYŐZTES ajánlatát adja vissza ismétlésként. **Amit az azonosság
+nem fed, kimondva:** a lezárt tagsági IDŐSZAK — azt az ajánlat maga köti (`membership_reentry`), és
+az egyezést a BEVÁLTÁS méri.
+
+**4. A SZÁLLÍTÁS (F134-04).** Közös, kattintható bemutató mind a KÉT történettel, kanonikus
+forrással a repóban (`docs/bemutato/V3_R134_MEGHIVO_ES_UJRABELEPES_BEMUTATO.artifact.html`),
+generálási paranccsal (`npm run bemutato:onallo`, ami mostantól LISTÁT jár be) és megnyitható
+átadással; a lap maga KIMONDJA, hogy szimuláció, és megnevezi, hol áll a mért bizonyíték. A
+böngészős tanú EN/DE **teljes** utat visz (siker és nevezett elutasítás, súgóval), a két ÚJ válaszra
+pedig késői-válasz mérés áll, az R130-ban kialakított három jeles fegyelemmel — annak hat segéde
+közös otthonba költözött (`tests/e2e/lateResponse.mjs`), hogy mindkét lap UGYANAZT futtassa.
+
+**Saját leletek ebben a körben (mind KUKA-bejegyzéssel):** KUKA-267 (a néma, nem létező mezőre
+illesztett kapu) · KUKA-268 (az időszak-kötés fallá vált a gyengébb tanún — három mag-próba pirosa) ·
+KUKA-269 (a saját battériám a hiányzó védelmet PASS-nak nevezte) · KUKA-270 (a `never:` kulcs, amit a
+verifier nem olvas — a KUKA-168 ismétlődése, és most ADAT-szintű kapu fogja meg).
+
+**A FENNMARADÓ BIZONYÍTÉK-RÉS TÉTELESEN** (a R134 §A132-10 kérésére, a `norms.mjs` ORG-N1a
+`remaining` szövegében is): alap nélküli történeti sorok · az időszak-kötés gyengébb tanúja · a
+több-írós (Postgres) határ · és az ORG-N3 vagylagos jogalap-út. Ezeket NEM a döntés hiánya, hanem
+MÉRHETŐ munka zárja le; a req-5 kötelezővé emelése továbbra is külön, független döntés.
+
+---
 ## D-VS-3090 — A MEGHÍVÓ VISSZAVONÁSA ÉS AZ ÚJBÓLI BELÉPÉS (R132)
 
 > **Hatály:** V3 (`valach-system`). Nincs merge, éles telepítés, V2-módosítás, új fizetős

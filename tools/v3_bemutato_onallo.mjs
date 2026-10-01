@@ -25,27 +25,53 @@ import naming from '../contracts/artifactNaming.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..');
-const FORRAS = resolve(REPO, 'docs/bemutato/V3_R121_ADATKOROK_BEMUTATO.artifact.html');
 const VERZIO = JSON.parse(readFileSync(resolve(REPO, 'package.json'), 'utf8')).version;
 
-const toredek = readFileSync(FORRAS, 'utf8');
-const lenyomat = `sha256:${createHash('sha256').update(toredek).digest('hex')}`;
+// ── A LAPOK EGY HELYEN FELSOROLVA (R134) ────────────────────────────────────────────────────────
+//
+// MIÉRT LISTA, ÉS NEM MÁSODIK SZERSZÁM. Az R134-es csomag MÁSODIK kattintható bemutatót szállít (a
+// meghívó visszavonása és az újbóli belépés két teljes története). Egy második, külön generátor
+// ugyanazt a vágási és váz-logikát másolná le — és a két példány előbb-utóbb elcsúszna (KUKA-003).
+// Ezért a szerszám LISTÁT jár be: egy új bemutató EGY sor, kód nem változik.
+//
+// A `kind` a generált fájl nevébe megy (ART-01), a `publikalt` pedig a MEGNYITHATÓ alak — ha még
+// nincs, `null`, és a szerszám ezt KIMONDJA, nem hallgatja el (KUKA-012).
+const LAPOK = Object.freeze([
+  Object.freeze({
+    forras: 'docs/bemutato/V3_R121_ADATKOROK_BEMUTATO.artifact.html',
+    kind: 'v3app_r121_adatkorok_bemutato',
+    publikalt: 'https://claude.ai/artifact/NDfQsPZYDQ6myj9Cnf5wCo',
+  }),
+  Object.freeze({
+    forras: 'docs/bemutato/V3_R134_MEGHIVO_ES_UJRABELEPES_BEMUTATO.artifact.html',
+    kind: 'v3app_r134_meghivo_es_ujrabelepes_bemutato',
+    publikalt: 'https://claude.ai/artifact/TXyfhHTQrHopg771pSW3sV',
+  }),
+]);
 
-// A `<title>` és a `<link>` a töredék tetején áll (így kéri a közzétevő szerződése) — az önálló
-// alakban ezeket a `<head>`-be kell tenni, a többit a `<body>`-ba. A vágás a `<div class="wrap">`
-// nyitásánál van, mert az a lap első törzs-eleme.
-const vagas = toredek.indexOf('<div class="wrap">');
-if (vagas < 0) throw new Error('v3_bemutato_onallo: a forrásban nincs `<div class="wrap">` — a vágási pont megváltozott');
-const fej = toredek.slice(0, vagas).trim();
-const torzs = toredek.slice(vagas).trim();
+console.log('A BEMUTATÓK ÖNÁLLÓ ALAKJA');
+console.log('='.repeat(78));
 
-const onallo = `<!doctype html>
+for (const lap of LAPOK) {
+  const FORRAS = resolve(REPO, lap.forras);
+  const toredek = readFileSync(FORRAS, 'utf8');
+  const lenyomat = `sha256:${createHash('sha256').update(toredek).digest('hex')}`;
+
+  // A `<title>` és a `<link>` a töredék tetején áll (így kéri a közzétevő szerződése) — az önálló
+  // alakban ezeket a `<head>`-be kell tenni, a többit a `<body>`-ba. A vágás a `<div class="wrap">`
+  // nyitásánál van, mert az a lap első törzs-eleme.
+  const vagas = toredek.indexOf('<div class="wrap">');
+  if (vagas < 0) throw new Error(`v3_bemutato_onallo: a(z) ${lap.forras} forrásban nincs \`<div class="wrap">\` — a vágási pont megváltozott`);
+  const fej = toredek.slice(0, vagas).trim();
+  const torzs = toredek.slice(vagas).trim();
+
+  const onallo = `<!doctype html>
 <html lang="hu">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <!-- SZÁRMAZTATOTT FÁJL — kézzel nem szerkesztjük.
-     forrás:  docs/bemutato/V3_R121_ADATKOROK_BEMUTATO.artifact.html
+     forrás:  ${lap.forras}
      lenyomat: ${lenyomat}
      parancs: npm run bemutato:onallo -->
 ${fej}
@@ -64,16 +90,16 @@ ${torzs}
 </html>
 `;
 
-const cel = naming.artifactPath({ area: 'reports', kind: 'v3app_r121_adatkorok_bemutato', ext: 'html', version: VERZIO });
-mkdirSync(dirname(cel), { recursive: true });
-writeFileSync(cel, onallo, 'utf8');
+  const cel = naming.artifactPath({ area: 'reports', kind: lap.kind, ext: 'html', version: VERZIO });
+  mkdirSync(dirname(cel), { recursive: true });
+  writeFileSync(cel, onallo, 'utf8');
 
-console.log('A BEMUTATÓ ÖNÁLLÓ ALAKJA ELKÉSZÜLT');
-console.log('='.repeat(78));
-console.log(`  forrás:    docs/bemutato/V3_R121_ADATKOROK_BEMUTATO.artifact.html`);
-console.log(`  lenyomat:  ${lenyomat}`);
-console.log(`  kimenet:   ${cel.replace(`${REPO}/`, '')}`);
-console.log(`  méret:     ${onallo.length} bájt · hálózat nélkül megnyitható`);
-console.log('');
-console.log('  A publikált, megnyitható alak: https://claude.ai/artifact/NDfQsPZYDQ6myj9Cnf5wCo');
-console.log('  (a publikálás a saját dokumentum-vázát adja hozzá — a TARTALOM ugyanez az egy forrás)');
+  console.log(`  forrás:    ${lap.forras}`);
+  console.log(`  lenyomat:  ${lenyomat}`);
+  console.log(`  kimenet:   ${cel.replace(`${REPO}/`, '')}`);
+  console.log(`  méret:     ${onallo.length} bájt · hálózat nélkül megnyitható`);
+  console.log(`  publikált: ${lap.publikalt ?? 'MÉG NINCS — a megnyitható alakot a kör jelentése adja át'}`);
+  console.log('-'.repeat(78));
+}
+
+console.log('  (a publikálás a saját dokumentum-vázát adja hozzá — a TARTALOM ugyanaz az egy forrás)');

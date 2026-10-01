@@ -133,16 +133,26 @@ const PATHS = Object.freeze([
     grant_gate: 'adjudicationLimitVerdict(mode: grant) a beszúrás ELŐTT; nem hatályos vagy szűkebb '
       + 'alapon NEVEZETTEN és NYOM NÉLKÜL elakad',
     use_gate: 'authority.mjs → authorityRowAt — a felfüggesztés, az elbírálás és a jogváltoztatás '
-      + 'KÖZÖS ellenőrzési pontja, `mode: use`, a MEGADÁSKORI verzióhoz mérve',
+      + 'KÖZÖS ellenőrzési pontja, `mode: use`, a MEGADÁSKORI verzióhoz mérve; R134 óta a TAGSÁGI '
+      + 'IDŐSZAK egyezése is itt dől el (APR-01): a sor `period_grant_event_id` bélyegét a MAI '
+      + 'időszakhoz mérjük, és a válasz KIMONDJA, melyik szabályt vette (`stamped` · '
+      + '`first_period_rule` · `projected_row_unbound` · `not_membership_bound`)',
     norm: 'ORG-N1a · ORG-N1b · REV-N3',
     works: 'a korlát mindkét ponton kapu; a később SZŰKÜLŐ alap a már kiadott hatáskört is zárja, a '
-      + 'később TÁGULÓ alap önmagában nem szélesít; a hiányzó megadáskori verzió ZÁR',
-    missing: 'a `basisId` paraméter ma OPCIONÁLIS (alapértéke `null`), és MÉRVE: alap nélkül '
-      + 'hívva a hatáskör-sor LÉTREJÖN, `basis_id = NULL` értékkel. A régi, alap nélküli sorok a '
-      + 'régi szabály szerint mennek (`authority_without_recorded_basis`, kimondva). Ez a három '
-      + 'alap nélküli eset közül a MÁSODIK, és OPERÁTORI döntés — a meghívó-beváltástól KÜLÖN '
-      + 'kérdés, mert itt a NEVEZETT függvény engedi, ott egy megkerülő írás következménye',
-    probes: Object.freeze(['P-ORG-adjudication-basis-limit', 'P-ORG-basis', 'P-REV-authority']),
+      + 'később TÁGULÓ alap önmagában nem szélesít; a hiányzó megadáskori verzió ZÁR; és a RÉGI '
+      + 'tagsági időszak hatásköre az ÚJ időszakban NEM végrehajtható (`authority_other_period`), '
+      + 'miközben a történeti kérdésre változatlanul IGEN a válasz. A megadás a vetület MELLETT '
+      + 'NAPLÓT is ír (`adjudication_authority_grant`), tehát az új időszakhoz tartozó, kifejezett '
+      + 'megadás nem írja át a régi megadás tényét. Falszifikálva: M325',
+    missing: 'HELYESBÍTETT LEÍRÁS (R134 §A132-10 — a korábbi sor elavult állapotot állított): a '
+      + '`basisId` paraméter alakja megmaradt, de az R63 §4 óta a HIÁNYA DOB — alap nélkül ma NEM '
+      + 'jön létre hatáskör-sor ezen az úton. Alap nélküli sor így csak NYERS tárolói írásból vagy '
+      + 'TÖRTÉNETI alakból származhat, és a használata ZÁR (`authority_without_recorded_basis`). '
+      + 'VALÓDI MARADÉK: az IDŐSZAK-kötés a NULL bélyegű, történeti sorokon az ELSŐ időszak '
+      + 'szabályára támaszkodik, a napló nélküli (vetített) tagsági soron pedig KIMONDOTTAN nem '
+      + 'köt (`projected_row_unbound`) — ott a hatáskör továbbra is az alapján áll',
+    probes: Object.freeze(['P-ORG-adjudication-basis-limit', 'P-ORG-basis', 'P-REV-authority',
+      'P-ORG-reentry-gates']),
   }),
   Object.freeze({
     id: 'GP-SCOPE-GRANT',
@@ -236,19 +246,25 @@ const PATHS = Object.freeze([
       + 'LEGYEN kesobbi a zaro megvonasnal · es NEGY nevezett hatar: felfuggesztes · tiltas · nyitott '
       + 'felulvizsgalati kor · visszamenoleges ervenytelenseg',
     use_gate: 'reentryAdmission a bevaltaskor — a tokenhez tartozo dontes, a SZEMELY, a KONYV, a '
-      + 'SZEREP es a MA lezart idoszak negyes egyezese; a teljes bevaltasi lanc MINDEN kapuja all',
+      + 'SZEREP es a MA lezart idoszak negyes egyezese; a teljes bevaltasi lanc MINDEN kapuja all. '
+      + 'R134 ota a NEGY VALTOZHATO KIZARAS (felfuggesztes · tiltas · nyitott felulvizsgalat · '
+      + 'visszamenoleges ervenytelenseg) is ITT fut, UGYANABBOL a feloldobol, amit a KIADAS hiv '
+      + '(`reentryGate.mjs` → reentryExclusionsAt, RNV-02) — a bevaltas tranzakciojan BELUL is',
     norm: 'ORG-N1a · K03 · K09 · REV-N1b',
     works: 'a rendes meghivas `revoked_needs_decision` vedelme VALTOZATLAN (csendes reaktivalas nincs) · '
       + 'az ajanlat NEM tagsag: azt a cimzett sajat, igazolt elfogadasa adja · az elfogadas UJ tagsagi '
       + 'idoszakot nyit, es a REGI adatkorjogok NEM eledenek fel (SGP-01) · egy korabbi megszunesre '
       + 'kiadott ajanlat egy kesobbit nem nyit ujra · a dontes-sor irasanak bukasa a TELJES egyseget '
-      + '(alap · meghivo · pecset) visszagorgeti. Falszifikalva: M322 · M323',
+      + '(alap · meghivo · pecset) visszagorgeti · R134 ota: a KIADAS UTAN keletkezett kizaras a '
+      + 'VEGLEGESITESNEL is zar, a token erintetlen marad (RNV-02), es a kiadas EGYSZERI HATASU — '
+      + 'ugyanaz a muveleti azonossag EGY ajanlatot ad, az eltero tartalom nevezett utkozes '
+      + '(OON-01, `operation_once`). Falszifikalva: M322 · M323 · M324 · M326 · M327',
     missing: 'a NEGY nevezett hatar (felfuggesztes · tiltas · nyitott felulvizsgalat · visszamenoleges '
       + 'ervenytelenseg) KIMONDOTTAN nem oldhato fel ezen az uton — ez a muvelet HATOKORE, nem hianya; '
       + 'a feloldasuk a meglevo, jogosult eljarasokon megy, es a valasz oda MUTAT (`next_step`). '
       + 'VALODI hiany: a visszahivas NEM utolagos joghatas-felulvizsgalat es nem a REV-N4 kompenzalo '
       + 'folyamat — azok tovabbra is nyitottak',
-    probes: Object.freeze(['P-ORG-reentry', 'P-INVITE-revoke']),
+    probes: Object.freeze(['P-ORG-reentry', 'P-INVITE-revoke', 'P-ORG-reentry-gates']),
   }),
   Object.freeze({
     id: 'GP-PLATFORM-RULE',

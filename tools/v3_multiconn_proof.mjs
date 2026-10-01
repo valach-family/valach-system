@@ -76,7 +76,7 @@ import { fileURLToPath } from 'node:url';
 import { openStoreAt, instantMs } from '../v3ref/store.mjs';
 import { registerAccount, issueChannelChallenge, redeemChannelChallenge } from '../v3ref/account.mjs';
 import { createWorkspace } from '../v3ref/workspace.mjs';
-import { inviteColleague, grantScopeToMember, delegationCeilingOf } from '../v3ref/delegation.mjs';
+import { inviteColleague, grantScopeToMember, delegationCeilingOf, reinviteMember } from '../v3ref/delegation.mjs';
 import { redeemInvite, revokeInvite } from '../v3ref/invite.mjs';
 import { revokeMembership } from '../v3ref/authz.mjs';
 import { submitCommand, readCommandResult } from '../v3ref/command.mjs';
@@ -104,6 +104,11 @@ const WORLD = Object.freeze({
   member: 'sub_member', memberEmail: 'member@example.test',
   book: 'book_a', bookName: 'Próba munkakörnyezet (szintetikus)',
   token: 'inv_multiconn_0001',
+  // R134 — AZ ÚJRANYITÁSI ÁG SAJÁT TOKENJE ÉS MŰVELETI AZONOSSÁGA. A külső ellenőrző fél kikötése:
+  // „Az újrahívási BEVÁLTÁS is kapjon többkapcsolatos tanút: a jelenlegi proof:multiconn normál
+  // első tagságot adó redeem ága önmagában nem tanúja az újranyitási ágnak."
+  reentryToken: 'inv_multiconn_reentry_0001',
+  reinviteOp: 'op_multiconn_reinvite_0001',
   role: 'user', scope: 'keszlet',
   sku: 'ALMA', unit: 'db', warehouse: 'wh_1',
   preKey: 'pre', raceKey: 'race',
@@ -178,6 +183,30 @@ function observeBefore(store, job) {
         saw_open: Boolean(inv) && inv.redeemed_at === null && Number(rev.n) === 0,
       };
     }
+    // R134 — AZ ÚJRANYITÁSI AJÁNLAT BEVÁLTÁSA: a versengő tény ugyanaz (a token még beváltatlan),
+    // de a MÉRT ág más — itt a `revoked_needs_decision` kapu nyílik meg, nem az első tagság születik.
+    case 'reentryredeem': {
+      const r = store.get('SELECT redeemed_at FROM invite WHERE token = ?', job.token);
+      const g = store.get('SELECT COUNT(*) AS n FROM membership_grant WHERE subject_id = ? AND book_id = ?',
+        job.actingSubjectId, job.bookId);
+      return {
+        invite_redeemed_at: r ? r.redeemed_at : undefined,
+        grant_rows: Number(g.n),
+        saw_open: Boolean(r) && r.redeemed_at === null,
+      };
+    }
+    // R134/F134-03 — AZ AJÁNLAT KIADÁSÁNAK VERSENYE: a versengő tény az EGYSZERI HATÁS könyve (még
+    // nincs sor erre az azonosságra) ÉS az ajánlat-tábla üressége.
+    case 'reinviteissue': {
+      const o = store.get('SELECT COUNT(*) AS n FROM operation_once WHERE book_id = ? AND actor = ? AND idem_key = ?',
+        job.bookId, job.deciderSubjectId, job.operationId);
+      const re = store.get('SELECT COUNT(*) AS n FROM membership_reentry WHERE subject_id = ? AND book_id = ?',
+        job.targetSubjectId, job.bookId);
+      return {
+        once_rows: Number(o.n), reentry_rows: Number(re.n),
+        saw_open: Number(o.n) === 0 && Number(re.n) === 0,
+      };
+    }
     default:
       throw new Error(`ismeretlen munkás-szerep: ${job.role}`);
   }
@@ -194,6 +223,17 @@ function act(store, job, clock) {
       return revokeInvite({
         store, clock, token: job.token, bookId: job.bookId,
         revokerSubjectId: job.actorSubjectId, delegationCeilingOf,
+      });
+    case 'reentryredeem':
+      return redeemInvite({ store, token: job.token, actingSubjectId: job.actingSubjectId, newCredential: null, clock });
+    case 'reinviteissue':
+      // A KÉT MUNKÁS KÜLÖN TOKENT hoz (ahogy a HTTP-út is minden kéréshez újat gyárt), de UGYANAZT a
+      // MŰVELETI AZONOSSÁGOT — tehát a döntést az egyszeri-hatás könyve hozza meg, nem a token.
+      return reinviteMember({
+        store, clock, deciderSubjectId: job.deciderSubjectId, bookId: job.bookId,
+        targetSubjectId: job.targetSubjectId, offeredRole: job.offeredRole, scope: job.scope,
+        token: job.token, expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        operationId: job.operationId,
       });
     case 'command':
       // A KANONIKUS BEVÉT-ÚT: `stock.receipt` · '1' · qty kanonikus decimális SZÖVEG · VALÓDI hatás.
@@ -287,7 +327,7 @@ async function runRace({ goFile, jobs }) {
  * egy cikk. `redeemed: true` esetén a tag már beváltott, olvasási jogot kapott, és a `pre` parancsa
  * véglegesült — a POZITÍV ELLENPÁRRAL együtt (a megvonás előtt az olvasás MŰKÖDIK).
  */
-function buildWorld(dbPath, { redeemed }) {
+function buildWorld(dbPath, { redeemed, reentry = null }) {
   const store = openStoreAt(dbPath, { timeoutMs: BUSY_TIMEOUT_MS });
   const clock = wallClock();
   const must = (label, r) => {
@@ -325,6 +365,39 @@ function buildWorld(dbPath, { redeemed }) {
         throw new Error(`a világ felépítése elakadt: a megvonás előtti visszaolvasás nem a várt eredményt adta → ${JSON.stringify(control)}`);
       }
       world.control_read = { ok: true, qty: control.result.qty, effect_id: control.effect_id };
+    }
+    // ── R134 — AZ ÚJRANYITÁSI VILÁG: tagság → MEGVONÁS → (ajánlat) ────────────────────────────
+    //
+    // MIÉRT ITT, A VILÁG-ÉPÍTÉSBEN. A verseny TÁRGYA az újranyitási ág, nem az odavezető út: a
+    // megvonásnak és (az `offer` esetben) az ajánlat kiadásának a rajt ELŐTT kell megtörténnie,
+    // különben nem a mért ág versenyez (KUKA-120: a próba a saját előkészítésének versenyét mérné).
+    if (reentry) {
+      must('redeemInvite(member) — az ELSŐ tagsági időszak', redeemInvite({
+        store, token: WORLD.token, actingSubjectId: WORLD.member, newCredential: null, clock,
+      }));
+      must('revokeMembership(member)', revokeMembership({
+        store, subjectId: WORLD.member, bookId: WORLD.book, clock, actorSubjectId: WORLD.owner,
+      }));
+      // A FIXTÚRA MEGVÁRJA A KÖVETKEZŐ MEGKÜLÖNBÖZTETHETŐ PILLANATOT — és ez MÉRT szükség, nem
+      // óvatosság: valódi órán a megvonás és az ajánlat ugyanarra az ezredmásodpercre eshet, és a
+      // mag ilyenkor NEVEZETTEN elakad (`reentry_not_after_revocation` — az R132 kapuja). Mérve:
+      // 8 menetből 2 így akadt el a VILÁG FELÉPÍTÉSÉBEN. A kapu HELYES; a fixtúrának kell az időt
+      // elléptetnie, nem a kapunak engednie (KUKA-054: a mérce nem igazodik a megvalósításhoz).
+      {
+        const kezdet = clock.now();
+        while (clock.now() === kezdet) { /* szoros várakozás a következő ezredmásodpercre */ }
+      }
+      world.period1 = Number(store.get(
+        'SELECT MAX(id) AS id FROM membership_grant WHERE subject_id = ? AND book_id = ?',
+        WORLD.member, WORLD.book).id);
+      if (reentry === 'offer') {
+        must('reinviteMember — az ajánlat a rajt ELŐTT', reinviteMember({
+          store, clock, deciderSubjectId: WORLD.owner, bookId: WORLD.book, targetSubjectId: WORLD.member,
+          offeredRole: WORLD.role, scope: WORLD.scope, token: WORLD.reentryToken,
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          operationId: `${WORLD.reinviteOp}_setup`,
+        }));
+      }
     }
     return world;
   } finally {
@@ -599,6 +672,136 @@ function verifyRevokeInvite(dbPath, workers, parentPid) {
   } finally { store.close(); }
 }
 
+/**
+ * R134 — AZ ÚJRANYITÁSI AJÁNLAT BEVÁLTÁSÁNAK VERSENYE (a külső ellenőrző fél kikötése).
+ *
+ * MIÉRT NEM ELÉG AZ (1) VERSENY. Ott az ELSŐ tagság születik (`shape: birth`/`membership_only`,
+ * `outcome: granted`); itt a `revoked_needs_decision` ág nyílik meg egy TÁROLT döntés alapján, és a
+ * vetület-sor FRISSÜL (nem új sor születik). Két külön kódút, tehát két külön tanú kell (KUKA-216).
+ *
+ * AZ INVARIÁNS: pontosan EGY új tagságadó esemény (a megvonás UTÁN), EGY élő tagság, a token
+ * ELFOGYOTT, és a vesztes NEVEZETT elutasítást kap — nem összeomlást, és nem második időszakot.
+ */
+function verifyReentryRedeem(dbPath, workers, parentPid, world) {
+  const store = openStoreAt(dbPath, { timeoutMs: BUSY_TIMEOUT_MS });
+  const checks = [];
+  const check = (id, what, ok, detail = '') => checks.push({ id, what, ok: Boolean(ok), detail });
+  try {
+    const done = commonChecks('RNT', workers, parentPid, check);
+    const results = workers.map((w) => (w.final && w.final.result) || null);
+    const winners = workers.filter((w, i) => results[i] && results[i].ok === true);
+    const losers = workers.filter((w, i) => !(results[i] && results[i].ok === true));
+
+    const inv = store.get('SELECT redeemed_at FROM invite WHERE token = ?', WORLD.reentryToken);
+    const grants = store.all(
+      'SELECT id FROM membership_grant WHERE subject_id = ? AND book_id = ? ORDER BY id',
+      WORLD.member, WORLD.book);
+    const mRow = store.get('SELECT revoked_at FROM membership WHERE subject_id = ? AND book_id = ?',
+      WORLD.member, WORLD.book);
+    const reentryRows = count(store, 'SELECT COUNT(*) AS n FROM membership_reentry WHERE subject_id = ? AND book_id = ?',
+      WORLD.member, WORLD.book);
+
+    check('RNT04', 'PONTOSAN EGY beváltás sikerült (a két sikeres nyugta kizárja egymást)',
+      winners.length === 1, `nyertesek=${winners.length} (${workers.map((w, i) => `${w.name}:${results[i] && results[i].ok}`).join(' · ')})`);
+    check('RNT05', 'PONTOSAN KETTŐ tagságadó esemény áll (az első időszak + az ÚJRANYITÁS) — harmadik nincs',
+      grants.length === 2, `események=${grants.map((g) => g.id).join(',')} · első időszak=${world.period1}`);
+    check('RNT06', 'a vetület-sor ÉLŐ (az újranyitás feloldotta a megvonást), és a token ELFOGYOTT',
+      mRow && (mRow.revoked_at === null || mRow.revoked_at === undefined) && inv && inv.redeemed_at !== null,
+      `revoked_at=${mRow ? mRow.revoked_at : '?'} redeemed_at=${inv ? inv.redeemed_at : '?'}`);
+    check('RNT07', 'az ÚJRANYITÁS kimenete `regranted` volt (nem `granted`) — a mért ág VALÓBAN az újranyitási',
+      winners.length === 1 && results[workers.indexOf(winners[0])].outcome === 'regranted',
+      `kimenet=${winners.length === 1 ? results[workers.indexOf(winners[0])].outcome : '—'}`);
+    const loserRes = losers.length === 1 ? results[workers.indexOf(losers[0])] : null;
+    // A VESZTES NYUGTÁJÁNAK HÁROM IGAZ ALAKJA VAN — MÉRVE (R134, ezen a próbán):
+    //   · `invite_already_redeemed` / `invite_not_actionable` — a token fogyott el előbb;
+    //   · `reentry_target_membership_is_open` — a nyertes már ÚJRANYITOTTA a tagságot, tehát az
+    //     ajánlat kötési pontja (a LEZÁRT időszak) megszűnt. Ez nem gyengébb válasz, hanem a
+    //     helyzet pontos megnevezése: nincs mit újranyitni (KUKA-129 — a nyugta mondjon igazat).
+    // A zárt lista SZÁNDÉKOS: egy NEM nevezett vagy hamis ok itt HIBA, nem „valami más" (KUKA-020).
+    const loserNames = ['invite_already_redeemed', 'invite_not_actionable', 'reentry_target_membership_is_open'];
+    check('RNT08', 'a vesztes nyugtája NEVEZETT és igaz (a token elfogyott VAGY a tagság közben újranyílt), nem összeomlás',
+      Boolean(loserRes) && loserRes.ok === false
+      && loserNames.includes(String(loserRes.reason || loserRes.error)),
+      `vesztes: ok=${loserRes && loserRes.ok} reason=${loserRes && (loserRes.reason || loserRes.error)}`);
+    check('RNT09', 'az AJÁNLAT nem duplikálódott (egy döntés-sor maradt)', reentryRows === 1, `sorok=${reentryRows}`);
+
+    const loserWorker = losers.length === 1 ? losers[0] : null;
+    const contended = Boolean(loserWorker && loserWorker.final && loserWorker.final.observed_before
+      && loserWorker.final.observed_before.saw_open === true);
+    const lw = loserWorker && loserWorker.final && loserWorker.final.trace;
+    const ww = winners.length === 1 ? winners[0] : null;
+    const wtr = ww && ww.final && ww.final.trace;
+    return {
+      checks,
+      witness: {
+        contended, winner: ww && ww.name, loser: loserWorker && loserWorker.name,
+        ordering: 'reentry_single_effect',
+        loser_waited_for_lock: lw && lw.begin && wtr && wtr.commit ? lw.begin.t_enter < wtr.commit.t : null,
+        loser_begin_wait_ms: lw && lw.begin ? Math.round(lw.begin.wait_ms) : null,
+        done,
+      },
+    };
+  } finally { store.close(); }
+}
+
+/**
+ * R134/F134-03 — AZ AJÁNLAT KIADÁSÁNAK VERSENYE UGYANAZON A MŰVELETI AZONOSSÁGON (OON-01).
+ *
+ * AZ INVARIÁNS: a két kapcsolat UGYANAZT a szándékot küldi (azonos azonosság, azonos tartalom,
+ * KÜLÖN token — ahogy a HTTP-út is új tokent gyárt minden kéréshez), és EGY ajánlat születik: EGY
+ * `membership_reentry` sor, EGY `operation_once` sor, és a vesztes nyugtája ISMÉTLÉS (`replayed`),
+ * nem második ajánlat és nem összeomlás.
+ */
+function verifyReinviteIssue(dbPath, workers, parentPid) {
+  const store = openStoreAt(dbPath, { timeoutMs: BUSY_TIMEOUT_MS });
+  const checks = [];
+  const check = (id, what, ok, detail = '') => checks.push({ id, what, ok: Boolean(ok), detail });
+  try {
+    const done = commonChecks('RIS', workers, parentPid, check);
+    const results = workers.map((w) => (w.final && w.final.result) || null);
+    const fresh = workers.filter((w, i) => results[i] && results[i].ok === true && results[i].changed === true);
+    const replays = workers.filter((w, i) => results[i] && results[i].ok === true && results[i].replayed === true);
+
+    const onceRows = count(store, 'SELECT COUNT(*) AS n FROM operation_once WHERE book_id = ? AND actor = ? AND idem_key = ?',
+      WORLD.book, WORLD.owner, WORLD.reinviteOp);
+    const reentryRows = count(store, 'SELECT COUNT(*) AS n FROM membership_reentry WHERE subject_id = ? AND book_id = ?',
+      WORLD.member, WORLD.book);
+    const inviteRows = count(store, 'SELECT COUNT(*) AS n FROM invite WHERE book_id = ? AND invitee_value = ?',
+      WORLD.book, WORLD.memberEmail);
+
+    check('RIS04', 'PONTOSAN EGY kiadás hatott (changed:true), a másik ISMÉTLÉS (replayed:true)',
+      fresh.length === 1 && replays.length === 1,
+      workers.map((w, i) => `${w.name}: ok=${results[i] && results[i].ok} changed=${results[i] && results[i].changed} replayed=${results[i] && results[i].replayed}`).join(' · '));
+    check('RIS05', 'EGY egyszeri-hatás sor és EGY ajánlat-sor született (a második kérés nem gyártott újat)',
+      onceRows === 1 && reentryRows === 1, `operation_once=${onceRows} membership_reentry=${reentryRows}`);
+    check('RIS06', 'a két kérés közül CSAK EGY tokenje lett meghívó (az első időszak meghívója mellett)',
+      inviteRows === 2, `meghívó-sorok=${inviteRows}`);
+    const replayRes = replays.length === 1 ? results[workers.indexOf(replays[0])] : null;
+    const freshRes = fresh.length === 1 ? results[workers.indexOf(fresh[0])] : null;
+    check('RIS07', 'az ISMÉTLÉS UGYANAZT az ajánlatot adja vissza (azonos ajánlat-azonosító és token)',
+      Boolean(replayRes && freshRes) && replayRes.reentry_id === freshRes.reentry_id
+      && replayRes.token === freshRes.token,
+      `ismétlés: reentry_id=${replayRes && replayRes.reentry_id} token=${replayRes && replayRes.token} · kiadás: reentry_id=${freshRes && freshRes.reentry_id} token=${freshRes && freshRes.token}`);
+
+    const loserWorker = replays.length === 1 ? replays[0] : null;
+    const contended = Boolean(loserWorker && loserWorker.final && loserWorker.final.observed_before
+      && loserWorker.final.observed_before.saw_open === true);
+    const lw = loserWorker && loserWorker.final && loserWorker.final.trace;
+    const ww = fresh.length === 1 ? fresh[0] : null;
+    const wtr = ww && ww.final && ww.final.trace;
+    return {
+      checks,
+      witness: {
+        contended, winner: ww && ww.name, loser: loserWorker && loserWorker.name,
+        ordering: 'reinvite_once_only',
+        loser_waited_for_lock: lw && lw.begin && wtr && wtr.commit ? lw.begin.t_enter < wtr.commit.t : null,
+        loser_begin_wait_ms: lw && lw.begin ? Math.round(lw.begin.wait_ms) : null,
+        done,
+      },
+    };
+  } finally { store.close(); }
+}
+
 function cleanup(dbPath, goFile) {
   for (const p of [dbPath, `${dbPath}-wal`, `${dbPath}-shm`, goFile]) {
     try { rmSync(p, { force: true }); } catch { /* takarítási hiba nem fedheti el a mérést */ }
@@ -612,9 +815,25 @@ async function runAttempt(scenario, iteration, attempt, { keep }) {
   cleanup(dbPath, goFile);
   const record = { scenario, iteration, attempt, db: rel, verdict: null, reason: null, checks: [], witness: null, spawn_order: null };
   try {
-    const world = buildWorld(dbPath, { redeemed: scenario === 'revoke' });
+    const world = buildWorld(dbPath, {
+      redeemed: scenario === 'revoke',
+      // R134 — az újranyitási ágnak MÁS világ kell: `offer` = a megvonás UTÁN már áll az ajánlat (a
+      // verseny a BEVÁLTÁSÉ) · `revoked` = csak a megvonás áll (a verseny a KIADÁSÉ).
+      reentry: scenario === 'reentryredeem' ? 'offer' : scenario === 'reinviteissue' ? 'revoked' : null,
+    });
     let jobs;
-    if (scenario === 'redeem') {
+    if (scenario === 'reentryredeem') {
+      jobs = [
+        { name: 'A', role: 'reentryredeem', dbPath, goFile, token: WORLD.reentryToken, actingSubjectId: WORLD.member, bookId: WORLD.book },
+        { name: 'B', role: 'reentryredeem', dbPath, goFile, token: WORLD.reentryToken, actingSubjectId: WORLD.member, bookId: WORLD.book },
+      ];
+    } else if (scenario === 'reinviteissue') {
+      // A KÉT MUNKÁS KÜLÖN TOKENT visz (ahogy a HTTP-út is), de UGYANAZT a MŰVELETI AZONOSSÁGOT.
+      jobs = [
+        { name: 'A', role: 'reinviteissue', dbPath, goFile, token: `${WORLD.reentryToken}_a`, bookId: WORLD.book, deciderSubjectId: WORLD.owner, targetSubjectId: WORLD.member, operationId: WORLD.reinviteOp, offeredRole: WORLD.role, scope: WORLD.scope },
+        { name: 'B', role: 'reinviteissue', dbPath, goFile, token: `${WORLD.reentryToken}_b`, bookId: WORLD.book, deciderSubjectId: WORLD.owner, targetSubjectId: WORLD.member, operationId: WORLD.reinviteOp, offeredRole: WORLD.role, scope: WORLD.scope },
+      ];
+    } else if (scenario === 'redeem') {
       jobs = [
         { name: 'A', role: 'redeem', dbPath, goFile, token: WORLD.token, actingSubjectId: WORLD.member },
         { name: 'B', role: 'redeem', dbPath, goFile, token: WORLD.token, actingSubjectId: WORLD.member },
@@ -656,6 +875,8 @@ async function runAttempt(scenario, iteration, attempt, { keep }) {
     const workers = await runRace({ goFile, jobs });
     const v = scenario === 'redeem' ? verifyRedeem(dbPath, workers, process.pid)
       : scenario === 'revokeinvite' ? verifyRevokeInvite(dbPath, workers, process.pid)
+      : scenario === 'reentryredeem' ? verifyReentryRedeem(dbPath, workers, process.pid, world)
+      : scenario === 'reinviteissue' ? verifyReinviteIssue(dbPath, workers, process.pid)
       : verifyRevoke(dbPath, workers, process.pid, world);
     record.checks = v.checks;
     record.witness = v.witness;
@@ -698,7 +919,7 @@ async function runScenario(scenario, iterations, opts) {
 const fmtMs = (v) => (v === null || v === undefined ? '—' : `${v} ms`);
 
 function lineFor(r) {
-  const tag = `[${{ redeem: 'beváltás', revoke: 'megvonás', revokeinvite: 'meghívó-visszavonás' }[r.scenario]} #${String(r.iteration).padStart(2, '0')}]`;
+  const tag = `[${{ redeem: 'beváltás', revoke: 'megvonás', revokeinvite: 'meghívó-visszavonás', reentryredeem: 'újranyitás-beváltás', reinviteissue: 'ajánlat-kiadás' }[r.scenario]} #${String(r.iteration).padStart(2, '0')}]`;
   const verdict = { ok: 'OK', hiba: 'HIBA', elakadt: 'ELAKADT MÉRÉS', nem_versengett: 'NEM VERSENGETT' }[r.verdict];
   const w = r.witness || {};
   let detail;
@@ -707,6 +928,10 @@ function lineFor(r) {
     const ord = { revoke_before_redeem: 'a VISSZAVONÁS ért előbb célba ⇒ nincs tagság',
       redeem_before_revoke: 'a BEVÁLTÁS ért előbb célba ⇒ a tagság megvan, a visszavonás nem törli' }[w2.ordering] || '?';
     detail = `nyertes=${w2.winner ?? '?'} vesztes=${w2.loser ?? '?'} · ${ord}`;
+  } else if (r.scenario === 'reentryredeem') {
+    detail = `nyertes=${w.winner ?? '?'} vesztes=${w.loser ?? '?'} · EGY új tagsági időszak, a vesztes nevezett elutasítást kapott`;
+  } else if (r.scenario === 'reinviteissue') {
+    detail = `kiadta=${w.winner ?? '?'} ismételt=${w.loser ?? '?'} · EGY ajánlat, a második kérés ISMÉTLÉS`;
   } else if (r.scenario === 'redeem') {
     const stage = {
       inside_after_lock_wait: `a tranzakción BELÜL bukott, a zárra várt ${fmtMs(w.loser_begin_wait_ms)}`,
@@ -737,7 +962,7 @@ function tally(records, pick) {
   return out;
 }
 
-function summary(redeem, revoke, revokeinvite, iterations) {
+function summary(redeem, revoke, revokeinvite, reentryredeem, reinviteissue, iterations) {
   const line = (s) => console.log(s);
   const okOf = (rs) => rs.filter((r) => r.verdict === 'ok').length;
   const bar = '═'.repeat(96);
@@ -779,7 +1004,17 @@ function summary(redeem, revoke, revokeinvite, iterations) {
   line(`    sorrend — a VISSZAVONÁS előbb (0 tagság · 0 esemény · 1 visszavonás-sor · a beváltás: invite_revoked): ${io2.get('revoke_before_redeem') || 0} · a BEVÁLTÁS előbb (1 tagság · 1 esemény · 0 visszavonás-sor · a visszavonás: invite_already_redeemed/changed:false): ${io2.get('redeem_before_revoke') || 0}`);
   line(`    újrapróbált menet (nem versengett): ${iAttempts}`);
   line('');
-  const verdicts = tally([...redeem, ...revoke, ...revokeinvite], (r) => r.verdict);
+  const rnAttempts = reentryredeem.filter((r) => r.attempt > 1).length;
+  line('(5) ÚJRANYITÁSI AJÁNLAT BEVÁLTÁSÁNAK VERSENYE (R134) — két kapcsolat UGYANAZT az újrahívási ajánlatot váltja be');
+  line(`    invariáns tartott (EGY új tagságadó esemény · ÉLŐ vetület · a kimenet \`regranted\` · a vesztes nyugtája nevezett): ${okOf(reentryredeem)}/${reentryredeem.length}`);
+  line(`    újrapróbált menet (nem versengett): ${rnAttempts}`);
+  line('');
+  const iiAttempts = reinviteissue.filter((r) => r.attempt > 1).length;
+  line('(6) AJÁNLAT-KIADÁS VERSENYE UGYANAZON A MŰVELETI AZONOSSÁGON (R134/F134-03) — külön token, azonos szándék');
+  line(`    invariáns tartott (EGY ajánlat · EGY egyszeri-hatás sor · a vesztes ISMÉTLÉST kap, ugyanazzal az ajánlat-azonosítóval): ${okOf(reinviteissue)}/${reinviteissue.length}`);
+  line(`    újrapróbált menet (nem versengett): ${iiAttempts}`);
+  line('');
+  const verdicts = tally([...redeem, ...revoke, ...revokeinvite, ...reentryredeem, ...reinviteissue], (r) => r.verdict);
   line(`Menetek: OK ${verdicts.get('ok') || 0} · HIBA ${verdicts.get('hiba') || 0} · ELAKADT MÉRÉS ${verdicts.get('elakadt') || 0} · NEM VERSENGETT ${verdicts.get('nem_versengett') || 0}`);
   line('');
   line('AMIT EZ BIZONYÍT: két VALÓDI, külön folyamatban nyitott kapcsolat versenyén az egyszeri hatás és az aktuális szabály');
@@ -803,8 +1038,12 @@ async function main() {
   const revoke = await runScenario('revoke', iterations, { keep });
   console.log('(4) beváltás ↔ meghívó-visszavonás (R132 §2 · A132-03):');
   const revokeinvite = await runScenario('revokeinvite', iterations, { keep });
-  summary(redeem, revoke, revokeinvite, iterations);
-  const allOk = [...redeem, ...revoke, ...revokeinvite].every((r) => r.verdict === 'ok');
+  console.log('(5) ÚJRANYITÁSI ajánlat beváltásának versenye (R134 — a külső fél kikötése):');
+  const reentryredeem = await runScenario('reentryredeem', iterations, { keep });
+  console.log('(6) AJÁNLAT-KIADÁS versenye ugyanazon a műveleti azonosságon (R134/F134-03):');
+  const reinviteissue = await runScenario('reinviteissue', iterations, { keep });
+  summary(redeem, revoke, revokeinvite, reentryredeem, reinviteissue, iterations);
+  const allOk = [...redeem, ...revoke, ...revokeinvite, ...reentryredeem, ...reinviteissue].every((r) => r.verdict === 'ok');
   // MINDKÉT SORREND KÖTELEZŐ (az R64 ellenséges felülvizsgálat H14 lelete): ha a megvonás MINDIG
   // előbb ér célba, a „parancs előbb, utána a visszaolvasás elutasítva" ág mérése HIÁNYZIK, és a
   // zöld a saját gép ütemezését igazolná vissza (KUKA-054 · KUKA-093). Ilyenkor a mérés nem zöld,
@@ -824,7 +1063,8 @@ async function main() {
     console.log(`RESULT: HIÁNYOS MÉRÉS — minden menet OK, de a beváltás ↔ meghívó-visszavonás versenyben csak EGY sorrend fordult elő (${[...iOrd].join(', ') || 'egyik sem'}); a másik ág mérése hiányzik — futtasd újra (--n=<több menet>)`);
     process.exit(3);
   }
-  console.log(`RESULT: ${allOk ? 'PASS' : 'FAIL'} — ${redeem.length + revoke.length + revokeinvite.length} menet, ${[...redeem, ...revoke, ...revokeinvite].filter((r) => r.verdict === 'ok').length} OK${allOk ? ' · MINDHÁROM verseny mindkét sorrendje mérve' : ''}`);
+  const mind = [...redeem, ...revoke, ...revokeinvite, ...reentryredeem, ...reinviteissue];
+  console.log(`RESULT: ${allOk ? 'PASS' : 'FAIL'} — ${mind.length} menet, ${mind.filter((r) => r.verdict === 'ok').length} OK${allOk ? ' · a két KÉT-SORRENDŰ verseny mindkét ága mérve; az ÚJRANYITÁSI és az AJÁNLAT-KIADÁSI verseny egyszeri-hatás invariánsa minden menetben tartott' : ''}`);
   if (!allOk) console.log('A hibás menetek fájljai (verdict=HIBA) a var/tmp alatt maradnak a diagnózishoz.');
   process.exit(allOk ? 0 : 1);
 }

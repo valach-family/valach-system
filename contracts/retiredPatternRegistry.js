@@ -33,6 +33,186 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-270',
+    date: '2026-10-01',
+    title: 'A TILTÓLISTÁT `never:` KULCS ALÁ ÍRTAM — a verifier a `forbidden:`-t futtatja, tehát a lista futásidőben nem létezett',
+    what: 'Az R132-ben általam írt KUKA-266-os bejegyzés a tiltó-mintáját `never:` kulcs alatt '
+      + 'deklarálta. A `verify:kuka` viszont KIZÁROLAG a `forbidden:` kulcsot futtatja (és a '
+      + '`signalPaths` is azt nézi), tehát a deklarált tiltólista SOHA nem futott le. A bejegyzés '
+      + 'mégis „gépi jellel védettnek" látszott: a pozitív minta megvolt, az őr-otthon mérés a '
+      + 'megnevezett fájlra zöld volt. MÉRVE (R134, saját söprés): a regiszter 191 bejegyzése közül '
+      + 'EGY használt `never:` kulcsot — pontosan az, amit én írtam.',
+    why_wrong: 'EZ SZÓ SZERINT A KUKA-168 ISMÉTLŐDÉSE, csak egy réteggel följebb: ott egy második '
+      + '`never:` kulcs nyelte el az elsőt a KÓDBAN, itt a REGISZTERBEN lett néma a deklaráció. A '
+      + 'néma kulcs a legrosszabb fajta hiba: nem hibát jelez, hanem VÉDELMET MUTAT ott, ahol nincs '
+      + '(KUKA-041 · KUKA-020). És a saját bejegyzésem guard_note-ja gépi jelet állított — vagyis a '
+      + 'jelentés is többet mondott, mint a mérés (KUKA-033).',
+    replaced_by: 'A kulcs átírva `forbidden:`-re (a minta most FUT), ÉS a hiba OSZTÁLYA kapott kaput: '
+      + 'a `verify:kuka` KUK01 szakasza mostantól megköveteli, hogy MINTÁT hordozó tömböt CSAK a '
+      + 'futtatott kulcsok (`positive` · `forbidden`) alatt lehessen deklarálni — egy elgépelt vagy '
+      + 'újonnan kitalált kulcs NEVEZETTEN piros. A leíró, prózai mezők (`replacement` · `guard` · '
+      + '`narrowed_by`) érintetlenek: a mérce nem a kulcs-készlet, hanem a MINTA hordozása.',
+    decision: 'D-VS-3091',
+    found_by: 'SAJÁT SÖPRÉS (Claude-v3, R134) — a KUKA-266 pozitív/tiltó mintáinak átolvasása közben, '
+      + 'a regiszter kulcsainak megszámolásával (a `verify:kuka` forráskódjához mérve).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_kuka.mjs']),
+        pattern: "const PATTERN_KEYS = new Set\\(\\['positive', 'forbidden'\\]\\)",
+        why: 'a mintát hordozó kulcsok ZÁRT halmaza a verifierben áll, és a KUK01 méri' }),
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_kuka.mjs']),
+        pattern: 'MINTÁT csak a FUTTATOTT kulcsok hordoznak',
+        why: 'a KUK01 NEVEZETTEN méri, hogy minta-tömb csak futtatott kulcs alatt áll' }),
+    ]),
+    lesson: 'AMIT A GÉP NEM OLVAS, AZ NEM VÉDELEM — ÉS A KULCS NEVE IS DEKLARÁCIÓ. Ha egy regiszter '
+      + 'több kulcsot is elfogad, de csak néhányat futtat, akkor a nem futtatott kulcs néma '
+      + 'hazugság. A javítás nem az egy sor átírása, hanem a kapu: a nem felismert kulcsnak '
+      + 'NEVEZETTEN pirosnak kell lennie. És egy már megtanult tanulság (KUKA-168) ismétlődése '
+      + 'önmagában lelet: a hiba-osztályt a RÉTEGEN ÁT kell keresni, nem csak ott, ahol először láttuk.',
+    guard_note: 'gépi jel: `npm run verify:kuka` KUK01 — a minta-hordozó kulcsok zárt halmaza, a '
+      + 'regiszter OBJEKTUMÁN mérve (0 kilógó kulcs). KIMONDVA, MIÉRT NEM TILTÓ-MINTA: a '
+      + '`retiredPatternRegistry.js` SZÁNDÉKOSAN ki van zárva a szöveg-szkennelésből (SELF_EXCLUDE), '
+      + 'különben minden minta a SAJÁT deklarációjára illeszkedne — egy ide írt tiltó-minta tehát '
+      + 'NÉMÁN hatástalan volna, vagyis épp ezt a hibát ismételné meg. A visszacsúszást ezért az '
+      + 'ADAT-szintű kapu fogja meg: egy visszatérő `never:` kulcs a KUK01-et pirosra viszi.',
+  }),
+  Object.freeze({
+    id: 'KUKA-269',
+    date: '2026-10-01',
+    title: 'A SAJÁT BATTÉRIÁM A HIÁNYZÓ VÉDELMET PASS-NAK NEVEZTE — két azonos kérés két ajánlata „nem duplikált döntésként"',
+    what: 'Az R132-es HTTP-battériám (g1) lépése KÉT azonos, egymás utáni `POST /api/members/reinvite` '
+      + 'kérésre ezt mérte — és PASS-nak nevezte: `invite` 10→12 · `invite_basis` 10→12 · '
+      + '`membership_reentry` 2→4. A lépés neve is ezt állította: „KÉT újrahívás KÉT önálló ajánlat '
+      + '(nem elnyelt, nem duplikált döntés)". Az R132 §5 viszont SZERVERES egyszeri hatást kért: '
+      + '„Dupla kattintás, hálózati újraküldés, elveszett sikeres válasz és párhuzamos elfogadás ne '
+      + 'adjon új üzleti hatást." A HTTP-út minden kéréshez ÚJ tokent gyártott, tartós '
+      + 'kérés-azonosság nélkül — tehát a mérés a VÉDELEM HIÁNYÁT igazolta vissza sikerként.',
+    why_wrong: 'A MÉRÉS TÁRGYÁT ÚGY VÁLASZTOTTAM MEG, HOGY AMIT A KÓD TETT, AZ HELYESNEK LÁTSZOTT '
+      + '(KUKA-041: a díszpipa sikert jelent arról, ami meg sem történt · KUKA-033: a minősítés '
+      + 'mérés, nem besorolás). És a mérce is hibás volt: a SOROK SZÁMA nem idempotencia-kritérium — '
+      + 'a kritérium a megismételt SZÁNDÉK azonossága. Két azonos kérés lehet egy szándék ismétlése '
+      + 'VAGY két tudatos döntés; a kettőt a tartalom nem, csak az azonosság különbözteti meg.',
+    replaced_by: 'OON-01 (`v3ref/onceOnly.mjs` + `operation_once`): a hívó adja a SZÁNDÉK azonosságát, '
+      + 'a szerver a hatókörét (könyv × cselekvő) és a tartalom kanonikus lenyomatát — az azonosság '
+      + 'feloldói a parancs-útról jönnek (`commandIdentity` · `commandScope`), nem írtunk második '
+      + 'azonosság-protokollt (KUKA-003). A battéria lépése HELYESBÍTVE: ugyanaz az azonosság EGY '
+      + 'ajánlatot ad (ismétlés, `replayed: true`), KÜLÖN azonosság kettőt (két tudatos döntés).',
+    decision: 'D-VS-3091',
+    found_by: 'A KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R134/F134-03) — a SAJÁT 63/63-as futásom g1 sorának '
+      + 'számláló-különbségeiből, a HTTP-út token-gyártásának megnevezésével.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r132.mjs']),
+        pattern: "ri3rep\\.body\\.replayed === true",
+        why: 'a helyesbített lépés az ISMÉTLÉST méri, nem a kérések számát' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/delegation.mjs']),
+        pattern: 'onceOnlyBegin\\(\\{',
+        why: 'a kiadás a szándék azonosságát kérdezi meg az írás ELŐTT' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r132.mjs']),
+        pattern: 'KÉT újrahívás KÉT önálló ajánlat',
+        reason: 'ez a lépés-név a hiányzó egyszeri hatást nevezte sikernek' }),
+    ]),
+    lesson: 'A MÉRÉS NEVE ÁLLÍTÁS — ÉS A SZÁMLÁLÓ NEM KRITÉRIUM. Ha egy próba azt mondja ki '
+      + 'sikerként, ami a szerződés szerint hiány, akkor a battéria a kódot igazolja vissza, nem a '
+      + 'szerződést. Idempotenciát soha nem sor-számmal mérünk: a kérdés az, MI AZ A SZÁNDÉK, '
+      + 'aminek egyszer kell hatnia — és azt a hívónak kell azonosítania, nem a tartalomból kitalálni.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (a helyesbített lépés pozitív mintája + tiltó-minta a '
+      + 'régi lépés-névre) + `npm run verify:v3ref` (M326 · M327) + `node v3app/findings_r134.mjs` '
+      + '(C szakasz: ismétlés · ütközés · külön azonosság · levél-doboz).',
+  }),
+  Object.freeze({
+    id: 'KUKA-268',
+    date: '2026-10-01',
+    title: 'AZ IDŐSZAK-KÖTÉS FALLÁ VÁLT A GYENGÉBB TANÚN — a napló nélküli tagsági soron MINDEN hatáskör elakadt',
+    what: 'Az R134/F134-02 javításának ELSŐ alakja a hatáskör-sor időszak-bélyegét a MAI tagsági '
+      + 'időszakhoz mérte, és eltérésnél zárt. A napló nélküli, VETÍTETT tagsági soron (`axis: '
+      + '"projected_row"`) viszont nincs esemény-azonosító: ott a mai időszak és a sor bélyege is '
+      + '`null`, tehát az összehasonlítás ELTÉRÉST adott. MÉRVE, azonnal a változtatás után: három '
+      + 'mag-próba PIROS lett (P-REV-ban-paths · P-REV-ban-matrix · P-REV-entry-points), és a '
+      + 'kontroll-sor is hamis volt — vagyis a tiltás-mátrix MÉRÉSEI eleve zárt úton futottak.',
+    why_wrong: 'AZ ISMERETLENT ELTÉRÉSNEK OLVASTAM: a „nem tudjuk, melyik időszak" válaszból „MÁS '
+      + 'időszak" lett. Ez kétszeresen hiba: a kapu FALLÁ vált a jogos utakon (KUKA-122), és a '
+      + 'gyengébb tanú TÉNYE nem jelent meg a válaszban (KUKA-127: ha a jel gyengébb, a kötés '
+      + 'erősségét ki kell írni).',
+    replaced_by: 'A feloldó NÉGY NEVEZETT esetet ad, és a válasz KIMONDJA, melyiket vette: `stamped` '
+      + '(a soron van bélyeg — egyeznie kell) · `first_period_rule` (régi sor: az ELSŐ időszakhoz '
+      + 'tartozik, ugyanaz a NULL-szabály, mint az adatkörjognál) · `projected_row_unbound` (napló '
+      + 'nélküli tagsági sor: KIMONDOTTAN nem köt, a hatáskör az alapján áll) · '
+      + '`not_membership_bound` (az alanynak nincs tagsági időszaka ebben a könyvben — külső '
+      + 'elbíráló). A megvont tagságú tag NEM ide esik: neki VAN időszaka, tehát a köztes időre '
+      + 'fail-closed a válasz.',
+    decision: 'D-VS-3091',
+    found_by: 'SAJÁT SÖPRÉS (Claude-v3, R134) — a `npm run v3ref:run` futása a változtatás UTÁN, '
+      + 'három piros próbával és a kontroll-sor hamis értékével.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/authority.mjs']),
+        pattern: "period_binding: 'projected_row_unbound'",
+        why: 'a napló nélküli tagsági sor KIMONDOTTAN nem köt — és a válasz ezt megnevezi' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/authority.mjs']),
+        pattern: "period_binding: 'not_membership_bound'",
+        why: 'a nem-tag elbíráló hatásköre az ALAPJÁN áll, nem időszakon' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/authority.mjs']),
+        pattern: 'const hasPeriods = [^;]{0,200};\\s*if \\(hasPeriods\\) \\{',
+        reason: 'a vetített (napló nélküli) sor ága a kötés ELŐTT áll — e nélkül az ismeretlen időszak ELTÉRÉSNEK olvasódik, és a kapu fallá válik' }),
+    ]),
+    lesson: 'AZ IDŐSZAK-KÖTÉS CSAK ADDIG VÉD, AMEDDIG TUDJA, MELYIK IDŐSZAKRÓL BESZÉL. Ahol a tanú '
+      + 'gyengébb (nincs esemény-napló), ott a helyes válasz nem a zárás, hanem a KIMONDOTT '
+      + 'nem-kötés — és a kapu csak akkor kapu, ha a jogos út átmegy rajta (KUKA-122). Egy új '
+      + 'kötés bevezetésénél a KONTROLL-sort kell először megnézni: ha az is hamis, nem a tárgyat '
+      + 'mérjük, hanem a saját falunkat.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta + tiltó-minta a kötés sorrendjére) '
+      + '+ `npm run v3ref:run` (a három tiltás-próba zöldje a VETÍTETT soros fixtúrákon) + '
+      + '`npm run verify:v3ref` (M325).',
+  }),
+  Object.freeze({
+    id: 'KUKA-267',
+    date: '2026-10-01',
+    title: 'A FELÜLVIZSGÁLATI KÖR KAPUJA SOHA NEM TÜZELT — nem létező mezőre illesztett feltétel',
+    what: 'Az R132-es `reinviteMember` a nyitott felülvizsgálati kört így kérdezte meg: '
+      + '`const circle = reviewCircleFor(...); if (circle.ok === true && circle.circle_id) { ... }`. '
+      + 'A `reviewCircleFor` viszont az ÉRINTETT MŰVELETEK listáját adja egy időablakra (`ok` · '
+      + '`reason` · `window` · `members`) — `circle_id` mezőt SOHA nem ad. A feltétel tehát MINDIG '
+      + 'hamis volt: a kapu ott állt a kódban, de nem zárt. Az R133-as jelentésem ennek ellenére az '
+      + 'A132-07-et teljesítettnek minősítette.',
+    why_wrong: 'EGY NEM LÉTEZŐ MEZŐRE ILLESZTETT FELTÉTEL NÉMÁN HAMIS (KUKA-131 alakja a saját '
+      + 'kódunkon): nincs hibajelzés, nincs kivétel — csak egy soha le nem futó ág. És a két fogalom '
+      + 'ÖSSZEMOSÓDOTT: „melyik műveletek esnek a felülvizsgálati ablakba" és „van-e NYITOTT kör '
+      + 'ehhez a megvonáshoz" két különböző kérdés, az egyik feloldója nem felel a másikra '
+      + '(KUKA-002). A próbám pedig nem állította elő a helyzetet, tehát a néma hamis ág zöldnek '
+      + 'látszott (KUKA-051).',
+    replaced_by: 'NEVEZETT feloldó a kör MEGTALÁLÁSÁRA, ESEMÉNY-AZONOSÍTÓN: `reviewCircleOfRevocation` '
+      + '(a záró megvonás `id`-ja alapján) + `reviewCircleState` az állapotra — mindkettőt a KÖZÖS '
+      + 'kizárás-feloldó hívja (RNV-02, `v3ref/reentryGate.mjs`), tehát a KIADÁS és a VÉGLEGESÍTÉS '
+      + 'ugyanazt kérdezi. Az eldönthetetlen állapot ZÁR, nevezetten.',
+    decision: 'D-VS-3091',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R134) — az F134-01 közös kapu megépítése közben, a '
+      + '`findings_r134.mjs` (a8) helyzetének felállításával: a nyitott kör mellett a beváltás '
+      + 'ELŐBB átment, és a kiadási ág sem zárt.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/reentryGate.mjs']),
+        pattern: 'reviewCircleOfRevocation\\(\\{ store, revocationEventId: revocationId \\}\\)',
+        why: 'a kört a MEGVONÁSI ESEMÉNY azonosítója keresi meg, nem egy időablak' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/bitemporal.mjs']),
+        pattern: 'export function reviewCircleOfRevocation',
+        why: 'a kör megtalálása saját, nevezett feloldót kapott' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/delegation.mjs', 'v3ref/reentryGate.mjs', 'v3ref/invite.mjs']),
+        pattern: 'reviewCircleFor\\(\\{',
+        reason: 'a kizárás-kapu NEM az IDŐABLAK-feloldót hívja: az az érintett MŰVELETEKET adja, kör-azonosítót nem — erre illesztve a feltétel némán hamis' }),
+    ]),
+    lesson: 'AMI NEM LÉTEZŐ MEZŐRE ILLESZT, AZ NEM KAPU. Egy feltétel, ami egy válaszobjektum NEM '
+      + 'LÉTEZŐ mezőjét vizsgálja, csendben mindig hamis — és a kód olvasója védelmet lát ott, ahol '
+      + 'nincs. Ezért minden új kapunak LÉTEZŐ, megnevezett helyzetben kell egyszer TÜZELNIE (a '
+      + 'próba a zárást mérje, ne a jelenlétét), és a feloldónak arra a kérdésre kell felelnie, '
+      + 'amit a hívó feltesz.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta + tiltó-minta a `circle.circle_id` '
+      + 'alakra három modulon) + `node v3app/findings_r134.mjs` (a8: a nyitott kör mellett a '
+      + 'beváltás NEVEZETTEN zár, írásmentesen; a9: a kör lezárása után ugyanaz az ajánlat működik).',
+  }),
+  Object.freeze({
     id: 'KUKA-266',
     date: '2026-10-01',
     title: 'A DÖNTÉST A SAJÁT ÍRÁSOM UTÁN MÉRTEM — és a hatás igazolta vissza a feltételt',
@@ -58,7 +238,7 @@ const RETIRED_PATTERNS = Object.freeze([
         pattern: "const before = existing\\n      \\? membershipAsOf",
         why: 'a döntés bemenete a saját írásunk ELŐTT olvasott állapot' }),
     ]),
-    never: Object.freeze([
+    forbidden: Object.freeze([
       Object.freeze({ paths: Object.freeze(['v3ref/bitemporal.mjs']),
         pattern: "const state = membershipAsOf\\(\\{ store, subjectId, bookId, validAt: eff, knownAt: rec \\}\\);",
         why: 'az újranyitási döntés NEM kérdezheti újra az állapotot a saját esemény-beszúrása UTÁN' }),
@@ -209,10 +389,14 @@ const RETIRED_PATTERNS = Object.freeze([
     found_by: 'A KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3, R129/F129-01) — a próba kódjának olvasásával, '
       + 'helyzetenként megnevezve, melyik állítás melyik jelre vár és mit mér valójában',
     positive: Object.freeze([
-      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r127.spec.mjs']),
+      // R134 — ÚJRAHORGONYOZVA: a késői válasz mérésének hat segéde KÖZÖS otthonba költözött
+      // (`tests/e2e/lateResponse.mjs`), hogy az R134-es lap is UGYANAZT futtassa (KUKA-003). A
+      // tanulság és a minta VÁLTOZATLAN, csak a fájl más — az elavult horgony „nem mértünk ott"
+      // állapot, nem zöld (KUKA-200).
+      Object.freeze({ paths: Object.freeze(['tests/e2e/lateResponse.mjs']),
         pattern: 'await route\\.fulfill\\(\\{ response, body: state\\.servedBody \\}\\);[\\s\\S]{0,300}state\\.deliveredAt = Date\\.now\\(\\)',
         why: 'a befejezésjel a `fulfill` UTÁN áll be — a sorrend a mintában is benne van' }),
-      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r127.spec.mjs']),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/lateResponse.mjs']),
         pattern: 'await expect\\.poll\\(\\(\\) => bodyReads\\(page, h\\.path\\)',
         why: 'az ALKALMAZÁS tényleges átvétele külön jel: a saját `res.json()` hívása erre az útra' }),
       Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r127.spec.mjs']),
@@ -220,7 +404,7 @@ const RETIRED_PATTERNS = Object.freeze([
         why: 'NEGATÍV KONTROLL: a védelem kikapcsolásával a MÉRÉS UGYANAZON állítása elbukik' }),
     ]),
     forbidden: Object.freeze([
-      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r127.spec.mjs']),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r127.spec.mjs', 'tests/e2e/lateResponse.mjs']),
         pattern: 'releasedAt !== null',
         reason: 'az elengedés PILLANATA nem az átadás befejezése — erre várni volt az F129-01 hibája' }),
     ]),

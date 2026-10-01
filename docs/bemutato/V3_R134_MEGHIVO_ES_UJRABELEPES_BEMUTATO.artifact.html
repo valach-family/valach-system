@@ -1,0 +1,537 @@
+<title>Meghívó és újbóli belépés</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Elrendezés: iratfolyó — balra a KEZELŐ, jobbra a MUNKATÁRS képernyője, alatta a rendszer nyugtája.
+   A lépések egymás alá fűződnek, mint egy ügyirat eseménynaplója; keskeny nézetben egy hasáb. */
+:root{
+  --papir:#f3f4f1; --lap:#ffffff; --tinta:#1b2420; --halk:#5e6b64; --vonal:#d6dcd7;
+  --jel:#1d6b52; --jel-halk:#e2efe9; --zar:#8a4b12; --zar-halk:#f7ece1;
+  --nyit:#165334; --nyit-halk:#e4f0e8; --varo:#6b5a16; --varo-halk:#f5efd8;
+  --kiemelt:#fafbfa;
+  --cim:"Newsreader",Georgia,serif; --szoveg:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --adat:"IBM Plex Mono",ui-monospace,SFMono-Regular,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --papir:#10150f; --lap:#19201b; --tinta:#e7ede8; --halk:#9aa8a0; --vonal:#2c352e;
+  --jel:#6fc3a0; --jel-halk:#12291f; --zar:#e0a263; --zar-halk:#2e2314;
+  --nyit:#86cfa3; --nyit-halk:#14271b; --varo:#d8c472; --varo-halk:#2a2512;
+  --kiemelt:#1d251f; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --papir:#10150f; --lap:#19201b; --tinta:#e7ede8; --halk:#9aa8a0; --vonal:#2c352e;
+  --jel:#6fc3a0; --jel-halk:#12291f; --zar:#e0a263; --zar-halk:#2e2314;
+  --nyit:#86cfa3; --nyit-halk:#14271b; --varo:#d8c472; --varo-halk:#2a2512;
+  --kiemelt:#1d251f; color-scheme:dark;
+}
+body{background:var(--papir);color:var(--tinta);font-family:var(--szoveg);line-height:1.55;-webkit-text-size-adjust:100%}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:16px;padding-block:28px 56px}
+h1,h2,h3{font-family:var(--cim);font-weight:600;text-wrap:balance;margin:0}
+h1{font-size:clamp(1.65rem,4vw,2.4rem);letter-spacing:-.01em}
+h2{font-size:clamp(1.15rem,2.4vw,1.45rem)}
+h3{font-size:.98rem;font-family:var(--szoveg);font-weight:600}
+p{margin:0}
+.lead{color:var(--halk);max-width:64ch;margin-top:10px}
+.eyebrow{font-family:var(--adat);font-size:.69rem;letter-spacing:.13em;text-transform:uppercase;color:var(--halk)}
+.szalag{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-start;justify-content:space-between;
+  border:1px solid var(--vonal);background:var(--lap);border-radius:3px;padding:12px 14px;margin-top:22px}
+.szalag > div{min-width:0}
+.cimke{display:inline-block;font-family:var(--adat);font-size:.71rem;color:var(--zar);background:var(--zar-halk);
+  border:1px solid var(--vonal);border-radius:2px;padding:3px 7px}
+.bizonyitek{font-family:var(--adat);font-size:.74rem;color:var(--halk);margin-top:6px;word-break:break-word}
+.bizonyitek b{color:var(--tinta);font-weight:500}
+.fulek{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+button{font:inherit;cursor:pointer;border:1px solid var(--vonal);background:var(--lap);color:var(--tinta);
+  border-radius:2px;padding:8px 12px;font-size:.87rem}
+button:hover{border-color:var(--jel)}
+button:focus-visible{outline:2px solid var(--jel);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--jel-halk);border-color:var(--jel);color:var(--jel);font-weight:500}
+button[disabled]{opacity:.55;cursor:default}
+.panel{margin-top:18px}
+.panel[hidden]{display:none!important}
+.lepes{border:1px solid var(--vonal);background:var(--lap);border-radius:3px;margin-top:14px;overflow:hidden}
+.lepes > header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
+  padding:11px 14px;border-bottom:1px solid var(--vonal);background:var(--kiemelt)}
+.lepes > header > div{min-width:0}
+.sorszam{font-family:var(--adat);font-size:.72rem;color:var(--halk)}
+.kepernyok{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--vonal)}
+@media (max-width:760px){.kepernyok{grid-template-columns:1fr}}
+.kepernyo{background:var(--lap);padding:13px 14px;min-width:0}
+.kepernyo h3{display:flex;gap:8px;align-items:baseline}
+.kepernyo h3 span{font-family:var(--adat);font-size:.68rem;color:var(--halk);font-weight:400}
+.sorok{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:7px}
+.sorok li{display:flex;flex-wrap:wrap;gap:6px 9px;align-items:baseline;font-size:.86rem;min-width:0}
+.sorok .mi{color:var(--halk);min-width:9.5ch}
+.allapot{font-family:var(--adat);font-size:.72rem;border:1px solid var(--vonal);border-radius:2px;padding:2px 6px}
+.allapot.nyit{color:var(--nyit);background:var(--nyit-halk)}
+.allapot.zar{color:var(--zar);background:var(--zar-halk)}
+.allapot.varo{color:var(--varo);background:var(--varo-halk)}
+.nyugta{padding:11px 14px;border-top:1px solid var(--vonal);background:var(--kiemelt);font-size:.86rem}
+.nyugta code{font-family:var(--adat);font-size:.78rem;background:var(--lap);border:1px solid var(--vonal);
+  border-radius:2px;padding:1px 5px;word-break:break-all}
+.nyugta p + p{margin-top:6px}
+.miert{color:var(--halk);font-size:.82rem}
+.vege{border:1px solid var(--jel);background:var(--jel-halk);border-radius:3px;padding:13px 15px;margin-top:16px}
+.vege[hidden]{display:none!important}
+.vege h3{color:var(--jel)}
+.vege p{margin-top:6px;font-size:.88rem}
+.allapotsor{margin-top:10px;font-family:var(--adat);font-size:.73rem;color:var(--halk)}
+.labjegyzet{margin-top:34px;padding-top:16px;border-top:1px solid var(--vonal);color:var(--halk);font-size:.82rem}
+.labjegyzet b{color:var(--tinta);font-weight:500}
+@media (prefers-reduced-motion: no-preference){.lepes{transition:border-color .18s ease}}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Valach System · V3 · CMD-VS-300-002-002 R134</p>
+  <h1>Meghívó visszavonása és munkatárs újbóli belépése</h1>
+  <p class="lead">Két teljes történet, végigkattintva: egy még el nem fogadott meghívás visszavonása, és
+    egy eltávolított munkatárs visszahívása. A bal oldalon a kezelő, a jobb oldalon a munkatárs
+    képernyője; alatta az a nyugta, amit a rendszer tényleg visszaad.</p>
+
+  <div class="szalag">
+    <div>
+      <span class="cimke" data-testid="bemutato-jelzes">SZIMULÁCIÓ — nem élő rendszer</span>
+      <p class="miert" style="margin-top:8px">A képernyők itt rögzített mintaadaton mutatják a lépéseket.
+        A mondatok és az indok-kódok a termék nyelvcsomagjából és magjából származnak, de ezen a lapon
+        egyetlen valódi kérés sem indul.</p>
+    </div>
+    <div>
+      <p class="eyebrow">A mért bizonyíték külön áll</p>
+      <p class="bizonyitek" data-testid="bemutato-bizonyitek">
+        valódi HTTP + tároló: <b>v3app/findings_r134.mjs</b> (46/46) · <b>v3app/findings_r132.mjs</b> (64/64) ·
+        mag-próba: <b>P-ORG-reentry-gates</b> · böngésző: <b>tests/e2e/v3app-r134.spec.mjs</b> ·
+        forrás: <b>docs/bemutato/V3_R134_MEGHIVO_ES_UJRABELEPES_BEMUTATO.artifact.html</b> ·
+        parancs: <b>npm run bemutato:onallo</b>
+      </p>
+    </div>
+  </div>
+
+  <div class="fulek" role="tablist" aria-label="Történetek">
+    <button type="button" role="tab" id="ful-1" aria-controls="panel-1" aria-pressed="true"
+      data-tortenet="1" data-testid="tortenet-1">1. történet — a függő meghívás visszavonása</button>
+    <button type="button" role="tab" id="ful-2" aria-controls="panel-2" aria-pressed="false"
+      data-tortenet="2" data-testid="tortenet-2">2. történet — a munkatárs újbóli belépése</button>
+  </div>
+
+  <!-- ══ 1. TÖRTÉNET ════════════════════════════════════════════════════════════════════════ -->
+  <section class="panel" id="panel-1" role="tabpanel" aria-labelledby="ful-1">
+    <p class="allapotsor" data-testid="allapotsor-1">Kattints a lépésekre sorban — a lap semmit nem
+      nyom meg helyetted.</p>
+
+    <article class="lepes">
+      <header>
+        <div><span class="sorszam">1 / 5</span> <h3>Anna meghívja Cilit</h3></div>
+        <button type="button" data-lepes="1-1" data-testid="lepes-1-1">Lépés megtétele</button>
+      </header>
+      <div hidden data-testid="allapot-1-1">
+        <div class="kepernyok">
+          <div class="kepernyo">
+            <h3>Kezelő <span>Felhasználók → Meghívások</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">cili@…</span> <span class="allapot varo">függő</span> <span class="miert">visszavonható</span></li>
+              <li><span class="mi">bela@…</span> <span class="allapot nyit">elfogadott</span></li>
+            </ul>
+          </div>
+          <div class="kepernyo">
+            <h3>Cili <span>a levélben kapott hivatkozás</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">meghívás</span> <span class="allapot nyit">folytatható</span></li>
+              <li><span class="mi">szerep</span> munkatárs · adatkör: készlet</li>
+            </ul>
+          </div>
+        </div>
+        <div class="nyugta">
+          <p>A lista a négy állapotot külön mutatja: függő · elfogadott · lejárt · visszavont.
+            A nyers hivatkozás soha nem látszik a képernyőn — csak egy rövid jelölő.</p>
+          <p class="miert">ref: <code>a7f3…</code> · a token a levél titka</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="lepes">
+      <header>
+        <div><span class="sorszam">2 / 5</span> <h3>Anna visszavonja ezt az egy meghívást</h3></div>
+        <button type="button" data-lepes="1-2" data-testid="lepes-1-2">Lépés megtétele</button>
+      </header>
+      <div hidden data-testid="allapot-1-2">
+        <div class="kepernyok">
+          <div class="kepernyo">
+            <h3>Kezelő <span>megerősítés után</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">cili@…</span> <span class="allapot zar">visszavont</span> <span class="miert">nincs több művelet</span></li>
+              <li><span class="mi">bela@…</span> <span class="allapot nyit">elfogadott</span> <span class="miert">érintetlen</span></li>
+            </ul>
+          </div>
+          <div class="kepernyo">
+            <h3>Más jogosultságok <span>nem mozdultak</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">tagságok</span> <span class="allapot nyit">változatlan</span></li>
+              <li><span class="mi">adatkörök</span> <span class="allapot nyit">változatlan</span></li>
+            </ul>
+          </div>
+        </div>
+        <div class="nyugta">
+          <p>A visszavonás <b>saját, auditálható esemény</b>: meghívó · fiók · cselekvő · hatály- és
+            rögzítési idő. Nem tagságmegvonás, és nem a kiadó jogának elvétele.</p>
+          <p class="miert">egy új sor az <code>invite_revocation</code> naplóban — a kiadás feltételei megmaradnak</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="lepes">
+      <header>
+        <div><span class="sorszam">3 / 5</span> <h3>Cili a régi hivatkozást nyitja meg</h3></div>
+        <button type="button" data-lepes="1-3" data-testid="lepes-1-3">Lépés megtétele</button>
+      </header>
+      <div hidden data-testid="allapot-1-3">
+        <div class="kepernyok">
+          <div class="kepernyo">
+            <h3>Cili <span>a régi hivatkozás</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">megfigyelés</span> <span class="allapot zar">nem folytatható</span></li>
+              <li><span class="mi">beváltás</span> <span class="allapot zar">nem ad tagságot</span></li>
+              <li><span class="mi">belépés utáni folytatás</span> <span class="allapot zar">ugyanez</span></li>
+            </ul>
+          </div>
+          <div class="kepernyo">
+            <h3>Amit a képernyő mond</h3>
+            <ul class="sorok">
+              <li>„Ehhez a hivatkozáshoz most nem tartozik beváltható meghívás."</li>
+            </ul>
+          </div>
+        </div>
+        <div class="nyugta">
+          <p>Mindhárom út <b>ugyanazt a nevezett okot</b> adja, mert ugyanaz az egy feloldó dönt
+            róla — a megfigyelés nem ígérhet olyan folytatást, amit a beváltás elutasít.</p>
+          <p class="miert">indok: <code>invite_revoked</code></p>
+        </div>
+      </div>
+    </article>
+
+    <article class="lepes">
+      <header>
+        <div><span class="sorszam">4 / 5</span> <h3>Anna új meghívást ad ki</h3></div>
+        <button type="button" data-lepes="1-4" data-testid="lepes-1-4">Lépés megtétele</button>
+      </header>
+      <div hidden data-testid="allapot-1-4">
+        <div class="kepernyok">
+          <div class="kepernyo">
+            <h3>Kezelő <span>Meghívások</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">cili@…</span> <span class="allapot varo">függő</span> <span class="miert">új ajánlat</span></li>
+              <li><span class="mi">cili@… (régi)</span> <span class="allapot zar">visszavont</span></li>
+            </ul>
+          </div>
+          <div class="kepernyo">
+            <h3>Cili <span>az új levél</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">meghívás</span> <span class="allapot nyit">folytatható</span></li>
+            </ul>
+          </div>
+        </div>
+        <div class="nyugta">
+          <p>A kiadott feltételek változtathatatlanok: a szerep vagy a határidő módosítása
+            <b>új meghívó, új token, új pecsét</b> — a régi hivatkozás nem éled fel.</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="lepes">
+      <header>
+        <div><span class="sorszam">5 / 5</span> <h3>Cili elfogadja a saját belépésével</h3></div>
+        <button type="button" data-lepes="1-5" data-testid="lepes-1-5">Lépés megtétele</button>
+      </header>
+      <div hidden data-testid="allapot-1-5">
+        <div class="kepernyok">
+          <div class="kepernyo">
+            <h3>Kezelő <span>Felhasználók</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">cili@…</span> <span class="allapot nyit">tag</span> <span class="miert">munkatárs</span></li>
+            </ul>
+          </div>
+          <div class="kepernyo">
+            <h3>Cili <span>belépve</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">készlet</span> <span class="allapot varo">a kezelő adja meg</span></li>
+            </ul>
+          </div>
+        </div>
+        <div class="nyugta">
+          <p>A tagságot a címzett <b>saját, igazolt elfogadása</b> hozza létre. A hozzáférést ettől
+            külön, kimondott lépésben adja meg a kezelő.</p>
+        </div>
+      </div>
+    </article>
+
+    <div class="vege" hidden data-testid="tortenet-1-vege">
+      <h3>Az első történet végig van</h3>
+      <p>A kezelő egy ajánlatot vont vissza — nem egy ember jogát. A visszavont hivatkozás minden
+        úton zárt, a többi tagság és adatkör érintetlen, az új meghívás pedig a szokott úton működik.</p>
+    </div>
+  </section>
+
+  <!-- ══ 2. TÖRTÉNET ════════════════════════════════════════════════════════════════════════ -->
+  <section class="panel" id="panel-2" role="tabpanel" aria-labelledby="ful-2" hidden>
+    <p class="allapotsor" data-testid="allapotsor-2">Hét lépés: a megszüntetéstől az új tagsági
+      időszakig — és addig, amíg az adat újra látszik.</p>
+
+    <article class="lepes">
+      <header>
+        <div><span class="sorszam">1 / 7</span> <h3>Béla tag, két adatkörrel</h3></div>
+        <button type="button" data-lepes="2-1" data-testid="lepes-2-1">Lépés megtétele</button>
+      </header>
+      <div hidden data-testid="allapot-2-1">
+        <div class="kepernyok">
+          <div class="kepernyo">
+            <h3>Kezelő <span>Felhasználók → Béla</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">tagság</span> <span class="allapot nyit">élő</span> <span class="miert">1. időszak</span></li>
+              <li><span class="mi">készlet</span> <span class="allapot nyit">megadva</span></li>
+              <li><span class="mi">árak</span> <span class="allapot nyit">megadva</span></li>
+            </ul>
+          </div>
+          <div class="kepernyo">
+            <h3>Béla <span>Készletegyenleg</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">mennyiség</span> <span class="allapot nyit">látja</span></li>
+              <li><span class="mi">ár</span> <span class="allapot nyit">látja</span></li>
+            </ul>
+          </div>
+        </div>
+        <div class="nyugta">
+          <p class="miert">tagsági időszak: <code>membership_grant #1</code></p>
+        </div>
+      </div>
+    </article>
+
+    <article class="lepes">
+      <header>
+        <div><span class="sorszam">2 / 7</span> <h3>Anna megszünteti a tagságát</h3></div>
+        <button type="button" data-lepes="2-2" data-testid="lepes-2-2">Lépés megtétele</button>
+      </header>
+      <div hidden data-testid="allapot-2-2">
+        <div class="kepernyok">
+          <div class="kepernyo">
+            <h3>Kezelő <span>megerősítés után</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">tagság</span> <span class="allapot zar">megszüntetve</span></li>
+              <li><span class="mi">delegálás</span> <span class="allapot zar">megszűnt</span> <span class="miert">a függő meghívói sem élnek túl</span></li>
+            </ul>
+          </div>
+          <div class="kepernyo">
+            <h3>Béla</h3>
+            <ul class="sorok">
+              <li><span class="mi">készlet</span> <span class="allapot zar">nincs hozzáférés</span></li>
+              <li><span class="mi">múlt</span> <span class="allapot nyit">megmarad</span> <span class="miert">a régi napra ma is igaz</span></li>
+            </ul>
+          </div>
+        </div>
+        <div class="nyugta">
+          <p>A megvonás <b>új esemény</b> a két idő-tengelyen, nem a régi sor átírása: a történeti
+            kérdésre („mi volt márciusban?") a válasz változatlan.</p>
+          <p class="miert">esemény: <code>membership_revocation #1</code></p>
+        </div>
+      </div>
+    </article>
+
+    <article class="lepes">
+      <header>
+        <div><span class="sorszam">3 / 7</span> <h3>Egy rendes meghívó nem hozza vissza</h3></div>
+        <button type="button" data-lepes="2-3" data-testid="lepes-2-3">Lépés megtétele</button>
+      </header>
+      <div hidden data-testid="allapot-2-3">
+        <div class="kepernyok">
+          <div class="kepernyo">
+            <h3>Béla <span>a rendes meghívó beváltása</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">eredmény</span> <span class="allapot zar">nem ad tagságot</span></li>
+              <li><span class="mi">a token</span> <span class="allapot nyit">nem fogyott el</span></li>
+            </ul>
+          </div>
+          <div class="kepernyo">
+            <h3>Amit a képernyő mond</h3>
+            <ul class="sorok">
+              <li>„Ehhez a könyvhöz korábban visszavont tagságod van — az újranyitás külön döntés."</li>
+            </ul>
+          </div>
+        </div>
+        <div class="nyugta">
+          <p>A csendes visszakapcsolás tiltott: a visszahívás <b>kimondott kezelői döntés</b>, nem
+            egy meghívó mellékhatása.</p>
+          <p class="miert">indok: <code>reentry_decision_required</code></p>
+        </div>
+      </div>
+    </article>
+
+    <article class="lepes">
+      <header>
+        <div><span class="sorszam">4 / 7</span> <h3>Anna kifejezetten újra meghívja</h3></div>
+        <button type="button" data-lepes="2-4" data-testid="lepes-2-4">Lépés megtétele</button>
+      </header>
+      <div hidden data-testid="allapot-2-4">
+        <div class="kepernyok">
+          <div class="kepernyo">
+            <h3>Kezelő <span>Újra meghívás — megerősítés</span></h3>
+            <ul class="sorok">
+              <li>„A címzettnek el kell fogadnia."</li>
+              <li>„A korábbi adat-hozzáférései nem állnak vissza."</li>
+              <li><span class="mi">eredmény</span> <span class="allapot varo">ajánlat kiadva</span></li>
+            </ul>
+          </div>
+          <div class="kepernyo">
+            <h3>Ismétlés <span>hálózati újraküldés</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">második kérés</span> <span class="allapot nyit">ugyanaz az ajánlat</span></li>
+              <li><span class="mi">új hatás</span> <span class="allapot zar">nincs</span></li>
+            </ul>
+          </div>
+        </div>
+        <div class="nyugta">
+          <p>Az ajánlat a <b>konkrét lezárt időszakhoz</b> kötődik, és a megismételt szándék
+            azonossága a szerveren dől el: ugyanaz a szándék egy ajánlatot ad, az eltérő tartalom
+            nevezett ütközés.</p>
+          <p class="miert">döntés: <code>membership_reentry</code> · ismétlés: <code>replayed: true</code></p>
+        </div>
+      </div>
+    </article>
+
+    <article class="lepes">
+      <header>
+        <div><span class="sorszam">5 / 7</span> <h3>Közben felfüggesztés jön — az elfogadás zár</h3></div>
+        <button type="button" data-lepes="2-5" data-testid="lepes-2-5">Lépés megtétele</button>
+      </header>
+      <div hidden data-testid="allapot-2-5">
+        <div class="kepernyok">
+          <div class="kepernyo">
+            <h3>Béla <span>beváltás a kiadás UTÁNI felfüggesztéssel</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">eredmény</span> <span class="allapot zar">elakad, nevezetten</span></li>
+              <li><span class="mi">a token</span> <span class="allapot nyit">érintetlen</span></li>
+              <li><span class="mi">új időszak</span> <span class="allapot zar">nem született</span></li>
+            </ul>
+          </div>
+          <div class="kepernyo">
+            <h3>Folytatás <span>a meglévő eljárásra mutat</span></h3>
+            <ul class="sorok">
+              <li>„Ez a tagság fel van függesztve. Előbb a felfüggesztést kell feloldani — az külön eljárás."</li>
+            </ul>
+          </div>
+        </div>
+        <div class="nyugta">
+          <p>A kiadás és a <b>véglegesítés</b> ugyanazt a kizárás-készletet kérdezi meg: a kiadás
+            után keletkezett felfüggesztés, tiltás vagy nyitott felülvizsgálat sem kerülhető meg.</p>
+          <p class="miert">indok: <code>reentry_blocked_suspension</code> · folytatás: <code>lift_suspension</code></p>
+        </div>
+      </div>
+    </article>
+
+    <article class="lepes">
+      <header>
+        <div><span class="sorszam">6 / 7</span> <h3>Feloldás után Béla elfogadja — tagság van, adatjog nincs</h3></div>
+        <button type="button" data-lepes="2-6" data-testid="lepes-2-6">Lépés megtétele</button>
+      </header>
+      <div hidden data-testid="allapot-2-6">
+        <div class="kepernyok">
+          <div class="kepernyo">
+            <h3>Kezelő <span>Felhasználók → Béla</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">tagság</span> <span class="allapot nyit">élő</span> <span class="miert">2. időszak</span></li>
+              <li><span class="mi">készlet</span> <span class="allapot zar">zárva</span></li>
+              <li><span class="mi">árak</span> <span class="allapot zar">zárva</span></li>
+              <li><span class="mi">bírálati hatáskör</span> <span class="allapot zar">zárva</span></li>
+            </ul>
+          </div>
+          <div class="kepernyo">
+            <h3>Béla <span>Készletegyenleg</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">mennyiség</span> <span class="allapot zar">nem látja</span></li>
+              <li><span class="mi">a régi nap</span> <span class="allapot nyit">történetileg igaz</span></li>
+            </ul>
+          </div>
+        </div>
+        <div class="nyugta">
+          <p>Az új tagsági időszak <b>semmilyen régi jogot nem hoz magával</b>: a négy adatkör, a
+            delegálási alap, a korábbi függő meghívó és a bírálati hatáskör is új, kimondott
+            megadást igényel.</p>
+          <p class="miert">indok a zárásra: <code>scope_grant_other_period</code> · <code>authority_other_period</code></p>
+        </div>
+      </div>
+    </article>
+
+    <article class="lepes">
+      <header>
+        <div><span class="sorszam">7 / 7</span> <h3>Anna külön megadja a készlet-jogot</h3></div>
+        <button type="button" data-lepes="2-7" data-testid="lepes-2-7">Lépés megtétele</button>
+      </header>
+      <div hidden data-testid="allapot-2-7">
+        <div class="kepernyok">
+          <div class="kepernyo">
+            <h3>Kezelő <span>Béla hozzáférései</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">készlet</span> <span class="allapot nyit">megadva</span></li>
+              <li><span class="mi">árak</span> <span class="allapot zar">zárva</span></li>
+              <li><span class="mi">bizonylat</span> <span class="allapot zar">zárva</span></li>
+              <li><span class="mi">beszállító</span> <span class="allapot zar">zárva</span></li>
+            </ul>
+          </div>
+          <div class="kepernyo">
+            <h3>Béla <span>Készletegyenleg</span></h3>
+            <ul class="sorok">
+              <li><span class="mi">mennyiség</span> <span class="allapot nyit">látja</span></li>
+              <li><span class="mi">ár</span> <span class="allapot zar">nem látja</span></li>
+            </ul>
+          </div>
+        </div>
+        <div class="nyugta">
+          <p>Egy adatkör megadása <b>csak azt</b> nyitja meg: a mennyiségi nézetből nem következik ár,
+            bizonylat vagy beszállító.</p>
+        </div>
+      </div>
+    </article>
+
+    <div class="vege" hidden data-testid="tortenet-2-vege">
+      <h3>A második történet végig van</h3>
+      <p>Az eltávolított munkatárs visszatért — kimondott döntésből, a saját elfogadásával, új
+        tagsági időszakban. A régi hozzáférései nem éledtek fel, a múltja viszont sértetlen maradt.</p>
+    </div>
+  </section>
+
+  <p class="labjegyzet">Ez a lap a <b>bemutató</b>: a lépések sorrendjét és a képernyők üzenetét
+    mutatja. Amit a rendszer tényleg tesz, azt a fenti bizonyíték-sorban megnevezett futások mérik —
+    a szimuláció és a mért bizonyíték ezen a lapon szándékosan nincs összemosva.</p>
+</div>
+
+<script>
+(() => {
+  // A LÉPÉSEK EGYMÁS UTÁN NYÍLNAK, DE EGY LÉPÉS ÚJRA MEGNYOMHATÓ: a bemutatót kétszer is
+  // végig lehet kattintani (asztali és keskeny nézetben), és a második kör nem akad el.
+  const panelOf = (n) => document.getElementById(`panel-${n}`);
+  const fulek = [...document.querySelectorAll('[data-tortenet]')];
+  const valt = (n) => {
+    for (const f of fulek) f.setAttribute('aria-pressed', String(f.dataset.tortenet === String(n)));
+    for (const m of ['1', '2']) {
+      const p = panelOf(m);
+      if (p) p.hidden = m !== String(n);
+    }
+  };
+  for (const f of fulek) f.addEventListener('click', () => valt(f.dataset.tortenet));
+
+  const vegeOf = (t) => document.querySelector(`[data-testid="tortenet-${t}-vege"]`);
+  const lepesek = [...document.querySelectorAll('[data-lepes]')];
+  for (const b of lepesek) {
+    b.addEventListener('click', () => {
+      const kulcs = b.dataset.lepes;
+      const cel = document.querySelector(`[data-testid="allapot-${kulcs}"]`);
+      if (cel) cel.hidden = false;
+      b.setAttribute('aria-pressed', 'true');
+      b.textContent = 'Megtéve';
+      const t = kulcs.split('-')[0];
+      const tovabb = lepesek.filter((x) => x.dataset.lepes.startsWith(`${t}-`));
+      if (tovabb.every((x) => x.getAttribute('aria-pressed') === 'true')) {
+        const v = vegeOf(t);
+        if (v) v.hidden = false;
+      }
+    });
+  }
+  valt(1);
+})();
+</script>

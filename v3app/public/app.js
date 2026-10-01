@@ -1260,9 +1260,29 @@ import { inviteNextKey } from './inviteText.mjs';
    * nem állnak vissza". Mindkettő a megerősítő mondatban áll, a `reinviteConfirmLead` kulcson —
    * tehát a három nyelv magától megvan, és a szöveg nem égethető a sablonba (I18N-01 · KUKA-210).
    */
+  /**
+   * R134/F134-03 — A MEGISMÉTELT SZÁNDÉK AZONOSSÁGA A PANEL MEGNYITÁSAKOR SZÜLETIK (OON-01).
+   *
+   * MIÉRT ITT. A szerver a TARTALOMBÓL nem tudja megkülönböztetni az elveszett nyugta utáni
+   * ISMÉTLÉST egy ÚJ, tudatos második ajánlattól — a kettő bájtra azonos kérés. Ezért a SZÁNDÉK
+   * azonosságát a felület adja: EGY panel-megnyitás = EGY azonosság, és a hálózati újraküldés (vagy
+   * a kétszer megnyomott gomb) UGYANAZT küldi. Egy ÚJ, tudatos ajánlathoz a kezelő újra megnyitja a
+   * panelt — és az ÚJ azonosságot kap.
+   *
+   * ÉS AMIT EZ NEM HELYETTESÍT: a gomb letiltása nem szerveres védelem (R132 §5) — a kapu a
+   * szerveren áll, ez csak a KULCS forrása.
+   */
+  function newOperationId() {
+    try {
+      if (window.crypto && typeof window.crypto.randomUUID === 'function') return `op-${window.crypto.randomUUID()}`;
+    } catch { /* a tartalék-ág alább */ }
+    return `op-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+  }
+
   function reinvitePanel(id) {
     const m = (state.members || []).find((x) => x.subject_id === id);
     if (!m) return;
+    state.reinviteOperationId = newOperationId();
     const kit = m.email || m.subject_id;
     const korok = (state.scopeMeta && state.scopeMeta.grantable && state.scopeMeta.grantable.length)
       ? state.scopeMeta.grantable : ['keszlet'];
@@ -1320,7 +1340,11 @@ import { inviteNextKey } from './inviteText.mjs';
     const form = byTest('reinvite-form');
     const role = form ? form.querySelector('[name=role]').value : 'user';
     const scope = form ? form.querySelector('[name=scope]').value : 'keszlet';
-    const r = await apiInContext('POST', '/api/members/reinvite', { subject_id: id, role, scope, lang: currentLang() }, v);
+    // A MŰVELETI AZONOSSÁG A PANELHEZ TARTOZIK (OON-01): ugyanaz a szándék ugyanazt a kulcsot
+    // küldi, tehát a hálózati újraküldés nem gyárt második ajánlatot. Ha a panel azonosság nélkül
+    // nyílt volna (bekötési hiba), NEM találunk ki csendben újat: a szerver nevezetten elutasít.
+    const operationId = state.reinviteOperationId || '';
+    const r = await apiInContext('POST', '/api/members/reinvite', { subject_id: id, role, scope, operation_id: operationId, lang: currentLang() }, v);
     const verdict = contextBindingVerdict(r, v);
     if (!verdict.bound) { closePanel(); await contextChangedNotice(verdict.why); return; }
     if (gen !== state.generation) { closePanel(); notice(reasonText('context_mismatch'), 'warn'); render(); return; }
@@ -1331,7 +1355,10 @@ import { inviteNextKey } from './inviteText.mjs';
     // azonnal eltűnik.
     await loadMembers();
     await loadInvites();
-    const mondat = tpl('reinviteSent', { ki: who });
+    // A NYUGTA IGAZAT MOND ARRÓL, TÖRTÉNT-E ÚJ HATÁS (KUKA-129 · OON-01). Az ISMÉTLÉS ugyanazt az
+    // ajánlatot adja vissza, MÁSODIKAT nem gyártottunk — és ezt a mondat KI IS MONDJA, nem
+    // „elküldtük"-nek álcázza (a két kulcs mindhárom bekapcsolt nyelven megvan).
+    const mondat = r.replayed === true ? tpl('reinviteReplayed', { ki: who }) : tpl('reinviteSent', { ki: who });
     formResult('members-result', mondat, 'ok');
     toast(mondat);
     tourTaskDone('reinvite.sent');

@@ -27,11 +27,14 @@
 
 import { instantMs } from './store.mjs';
 import { rightAt, roleDelegates } from './authz.mjs';
-import {
-  membershipAsOf, closedMembershipPeriodOf, reviewCircleFor, reviewCircleState, RETROACTIVE_TRANSITION,
-} from './bitemporal.mjs';
-import { suspensionEffectiveAt } from './suspension.mjs';
-import { banEffectiveAt } from './banScope.mjs';
+import { membershipAsOf, closedMembershipPeriodOf } from './bitemporal.mjs';
+// R134/F134-01 (RNV-02) — A VÁLTOZHATÓ KIZÁRÁSOK EGY FELOLDÓBÓL. A kiadás és a véglegesítés
+// UGYANEZT hívja: a felfüggesztés, a tiltás, a nyitott felülvizsgálat és a visszamenőleges
+// érvénytelenség kérdése nem lehet két példányban (KUKA-018 · KUKA-039).
+import { reentryExclusionsAt } from './reentryGate.mjs';
+// R134/F134-03 (OON-01) — AZ EGYSZERI HATÁS: ugyanaz a szándék EGY ajánlatot ad, az elveszett
+// nyugta utáni ismétlés ugyanahhoz vezet, az ELTÉRŐ tartalom nevezett ütközés.
+import { onceOnlyBegin, onceOnlyCommit } from './onceOnly.mjs';
 import { recordAuthorityBasis, basisAsOf, revokeAuthorityBasis, INVITE_ISSUE_OPERATION } from './authorityBasis.mjs';
 import { issueInviteUnderBasis, grantBasisFor } from './basisLimit.mjs';
 import { grantReadScope, revokeReadScope, readScopeGrantAt } from './scopeGrant.mjs';
@@ -297,7 +300,8 @@ export function grantScopeToMember({ store, granterSubjectId, bookId, targetSubj
  * marad vagy EGYÜTT tűnik el.
  */
 export function reinviteMember({
-  store, clock, deciderSubjectId, bookId, targetSubjectId, offeredRole, scope, token, expiresAt, credentials,
+  store, clock, deciderSubjectId, bookId, targetSubjectId, offeredRole, scope, token, expiresAt,
+  operationId, credentials,
 }) {
   if (!targetSubjectId || !bookId) return frozen({ ok: false, changed: false, reason: 'subject_and_book_required' });
   if (!token) return frozen({ ok: false, changed: false, reason: 'token_required' });
@@ -307,10 +311,48 @@ export function reinviteMember({
       message: `választható adatkörök: ${KNOWN_DATA_SCOPES.join(' · ')}`,
     });
   }
+  // R134/F134-03 — A MŰVELETI AZONOSSÁG KÖTELEZŐ (OON-01). A hiánya NEM néma engedély: azonosság
+  // nélkül az egyszeri hatás nem kikényszeríthető, tehát NEVEZETTEN elakadunk (KUKA-041). A HTTP
+  // határ ugyanezt kéri a sémában — a mag mégis ellenőrzi, mert egy jövőbeli HÍVÓ kihagyhatná
+  // (KUKA-039: a közös feloldó helyessége nem bizonyítja, hogy minden hívó átadja).
+  const idemKey = String(operationId ?? '').trim();
+  if (!idemKey) {
+    return frozen({
+      ok: false, changed: false, reason: 'operation_id_required',
+      message: 'az újbóli meghívás kiadásához MŰVELETI AZONOSSÁG kell (egy szándék = egy azonosság), '
+        + 'hogy a hálózati újraküldés ne gyártson második ajánlatot',
+    });
+  }
 
   const out = effectuate(
     { store, clock, subjectId: deciderSubjectId, bookId, operation: 'alter_right', credentials },
     ({ at }) => {
+      // (1/b) MÁR MEGTÖRTÉNT EZ A SZÁNDÉK? — a KAPU UTÁN, az írás ELŐTT (OON-01).
+      //
+      // A SORREND SZERZŐDÉS: a hatáskör-kapu (`effectuate`) ELŐBB dönt, tehát a kulcs
+      // próbálgatása nem lesz létezés-csatorna (KUKA-084), és csak utána felel a rendszer arról,
+      // hogy ez a szándék már lefutott-e. A VÁLASZ ALAKJA mindkét ágon ugyanaz, a `replayed` mező
+      // MONDJA MEG, melyik történt (nem a forma — R50 tanulsága a parancs-úton).
+      const declared = frozen({
+        subject_id: String(targetSubjectId), offered_role: String(offeredRole ?? ''), scope: String(scope),
+      });
+      const once = onceOnlyBegin({
+        store, bookId, actor: deciderSubjectId, idemKey, operation: 'member.reinvite', declared,
+      });
+      if (once.state === 'refused') {
+        return frozen({ ok: false, changed: false, reason: once.reason, at: once.at ?? null });
+      }
+      if (once.state === 'conflict') {
+        return frozen({
+          ok: false, changed: false, reason: 'operation_identity_conflict',
+          message: 'ugyanaz a műveleti azonosság MÁS tartalommal érkezett — ez ütközés, nem ismétlés: '
+            + 'egy új, tudatos ajánlathoz ÚJ azonosság kell',
+        });
+      }
+      if (once.state === 'replay') {
+        return frozen({ ok: true, changed: false, replayed: true, reason: 'reentry_offer_replayed', ...once.effect });
+      }
+
       // (2) A KÖTÉSI PONT: a MA lezárt, legutóbbi időszak (PER-02).
       const closed = closedMembershipPeriodOf({ store, subjectId: targetSubjectId, bookId, at });
       if (closed.ok !== true) {
@@ -322,44 +364,16 @@ export function reinviteMember({
         });
       }
 
-      // A NÉGY HATÁR — a kötési pont feloldása UTÁN, hogy a nemleges válasz NEVEZHESSE, mit látott.
-      if (closed.closed_transition === RETROACTIVE_TRANSITION) {
+      // A NÉGY HATÁR — EGY FELOLDÓBÓL (RNV-02, R134/F134-01). Ugyanezt hívja a VÉGLEGESÍTÉS is
+      // (`invite.mjs` → `reentryAdmission`), tehát a kiadáskori és az elfogadáskori kizárás-készlet
+      // NEM tud elcsúszni egymástól, és a nemleges válasz NEVE is azonos (KUKA-018 · KUKA-039).
+      // A kötési pont feloldása UTÁN fut, hogy a válasz NEVEZHESSE, mit látott.
+      const excl = reentryExclusionsAt({ store, subjectId: targetSubjectId, bookId, closed, nowIso: at });
+      if (excl.ok !== true) {
         return frozen({
-          ok: false, changed: false, reason: 'reentry_blocked_retroactive_invalidity',
-          message: 'ezt a tagságot VISSZAMENŐLEGES érvénytelenség zárta le — az ilyen döntés '
-            + 'felülvizsgálata a felülvizsgálati kör lezárásának útján megy, nem újbóli meghívással',
-          next_step: 'close_review_circle',
-        });
-      }
-      const circle = reviewCircleFor({
-        store, subjectId: targetSubjectId, bookId,
-        effectiveAt: closed.closed_at, recordedAt: closed.closed_recorded_at,
-      });
-      if (circle.ok === true && circle.circle_id) {
-        const st = reviewCircleState({ store, circleId: circle.circle_id });
-        if (st.ok === true && st.state === 'open') {
-          return frozen({
-            ok: false, changed: false, reason: 'reentry_blocked_open_review_circle',
-            circle_id: circle.circle_id,
-            message: 'ehhez a tagsághoz NYITOTT felülvizsgálati kör tartozik — előbb azt kell lezárni',
-            next_step: 'close_review_circle',
-          });
-        }
-      }
-      const susp = suspensionEffectiveAt({ store, subjectId: targetSubjectId, bookId, nowIso: at });
-      if (susp && susp.suspended === true) {
-        return frozen({
-          ok: false, changed: false, reason: 'reentry_blocked_suspension',
-          message: 'ez a tagság FEL VAN FÜGGESZTVE — a felfüggesztés feloldása külön, jogosult eljárás',
-          next_step: 'lift_suspension',
-        });
-      }
-      const ban = banEffectiveAt({ store, subjectId: targetSubjectId, nowIso: at, request: { bookId } });
-      if (ban && ban.banned === true) {
-        return frozen({
-          ok: false, changed: false, reason: 'reentry_blocked_ban',
-          message: 'erre a személyre TILTÁS van érvényben — a tiltás feloldása külön, jogosult eljárás',
-          next_step: 'lift_ban',
+          ok: false, changed: false, reason: excl.reason, message: excl.message,
+          next_step: excl.next_step ?? null, circle_id: excl.circle_id ?? null,
+          checked: excl.checked,
         });
       }
 
@@ -394,8 +408,10 @@ export function reinviteMember({
         });
       }
 
-      // AZ AJÁNLAT, A PECSÉT, AZ ALAP ÉS A DÖNTÉS EGY EGYSÉGBEN (ATO-01, spec §5).
-      return atomicOutcome(store, () => {
+      // AZ AJÁNLAT, A PECSÉT, AZ ALAP, A DÖNTÉS ÉS AZ EGYSZERI-HATÁS NYUGTÁJA EGY EGYSÉGBEN
+      // (ATO-01, spec §5 · OON-01). Ha bármelyik bukik, a NYUGTA SEM marad — tehát egy bukott
+      // kiadás NEM foglalja le az azonosságot, és a jogos újrapróbálás végigmegy (KUKA-122).
+      const issue = atomicOutcome(store, () => {
         const basis = deriveDelegationBasis({ store, subjectId: deciderSubjectId, bookId, at });
         if (!basis.ok) refuseAndRollBack({ ok: false, changed: false, reason: basis.reason });
         const email = addressOfSubject(store, targetSubjectId);
@@ -419,17 +435,47 @@ export function reinviteMember({
           targetSubjectId, bookId, token, Number(closed.grant_event_id), Number(closed.revocation_id),
           offeredRole, deciderSubjectId, basis.basis_id, Number(issued.basis_version ?? basis.version), at, at);
         if (res?.changes !== 1) refuseAndRollBack({ ok: false, changed: false, reason: 'reentry_row_not_created' });
-        return frozen({
-          ok: true, changed: true, reason: 'reentry_offer_issued', token,
+        // A TÁROLT NYUGTA (OON-01): az ISMÉTLÉS EBBŐL felel, tehát ugyanazt az ajánlatot adja —
+        // ugyanazzal a tokennel, jelölővel és lezárt időszakkal, ÚJ hatás nélkül.
+        const effect = {
+          token,
           reentry_id: Number(res.lastInsertRowid),
           closed_grant_event_id: Number(closed.grant_event_id),
           closed_revocation_id: Number(closed.revocation_id),
           basis_id: basis.basis_id, basis_version: Number(issued.basis_version ?? basis.version),
           invitee_value: email, offered_role: offeredRole, scope,
-          // A NYUGTA KIMONDJA A KÉT DOLGOT, AMIT A KEZELŐNEK TUDNIA KELL (spec §6).
           requires_acceptance: true, restores_previous_scopes: false,
+        };
+        const once2 = onceOnlyCommit({
+          store, bookId, actor: deciderSubjectId, idemKey, operation: 'member.reinvite',
+          identity: once.identity, effect, at,
+        });
+        if (once2.ok !== true) refuseAndRollBack({ ok: false, changed: false, reason: once2.reason });
+        return frozen({
+          ok: true, changed: true, reason: 'reentry_offer_issued', replayed: false, ...effect,
         });
       });
+      // A KÉT VALÓDI KAPCSOLAT VERSENYE: a vesztes NEM ír másodszor, hanem a GYŐZTES ajánlatát
+      // adja vissza ISMÉTLÉSKÉNT — így a két kérésből EGY üzleti hatás lesz, és mindkét nyugta
+      // IGAZAT mond (KUKA-129 · KUKA-139: egy zár, amit a másik fél nem vesz fel, nem zár).
+      if (issue && issue.ok !== true && issue.reason === 'once_only_race') {
+        const again = onceOnlyBegin({
+          store, bookId, actor: deciderSubjectId, idemKey, operation: 'member.reinvite',
+          declared: frozen({
+            subject_id: String(targetSubjectId), offered_role: String(offeredRole ?? ''), scope: String(scope),
+          }),
+        });
+        if (again.state === 'replay') {
+          return frozen({ ok: true, changed: false, replayed: true, reason: 'reentry_offer_replayed', ...again.effect });
+        }
+        if (again.state === 'conflict') {
+          return frozen({
+            ok: false, changed: false, reason: 'operation_identity_conflict',
+            message: 'ugyanaz a műveleti azonosság MÁS tartalommal érkezett — ez ütközés, nem ismétlés',
+          });
+        }
+      }
+      return issue;
     });
 
   if (!out.authorized) {

@@ -991,7 +991,7 @@ export const MUTATIONS = [
       + 'figyelembe veszi, amikor a MÚLTBELI tudás-állapotot kérdezik. Ettől a márciusi kép '
       + 'visszamenőleg átíródik: a rendszer azt állítaná, hogy márciusban is tudtuk, amit csak '
       + 'júniusban tudtunk meg (KUKA-002: a két tengely egy oszlopra csúszik vissza)',
-    file: 'bitemporal.mjs',
+    file: 'membershipPeriod.mjs',
     from: '    if (rec.ms > known.ms) continue;     // ezt akkor még nem tudtuk',
     to: '    if (false) continue;     // ezt akkor még nem tudtuk' },
 
@@ -1011,7 +1011,7 @@ export const MUTATIONS = [
       + 'alkalmaz, akkor is, ha a hatálya a kérdezett nap UTÁN kezdődik. Ettől egy JÖVŐBELI hatályú '
       + 'helyesbítés visszamenőleg elvenné a mai jogot (KUKA-049: az ellenpár nélkül a szabály nem '
       + 'a két tengelyt mérné, csak azt, hogy „van-e esemény")',
-    file: 'bitemporal.mjs',
+    file: 'membershipPeriod.mjs',
     from: '    if (eff.ms > valid.ms) continue;     // erre a napra még nem hatályos',
     to: '    if (false) continue;     // erre a napra még nem hatályos' },
 
@@ -1062,7 +1062,7 @@ export const MUTATIONS = [
     what: 'REV-N2a — A TAGSÁGADÁS TUDÁS-TENGELYE ELTŰNIK: a feloldó a KÉSŐBB rögzített jogszerzést '
       + 'is figyelembe veszi a MÚLTBELI tudás-állapot kérdezésekor. Pontosan a külső fél R85/F01 '
       + 'lelete: a júniusi beváltás visszamenőleg átírja a márciusi képet',
-    file: 'bitemporal.mjs',
+    file: 'membershipPeriod.mjs',
     from: '    if (rec.ms > known.ms) continue;           // ezt akkor még nem tudtuk',
     to: '    if (false) continue;           // ezt akkor meg nem tudtuk' },
 
@@ -1070,7 +1070,7 @@ export const MUTATIONS = [
     what: 'REV-N2a — A TAGSÁGADÁS HATÁLY-TENGELYE ELTŰNIK: egy JÖVŐBELI hatályú jogszerzés már a '
       + 'rögzítés napján jogot adna. Ellenpár nélkül a szabály nem a két tengelyt mérné, csak azt, '
       + 'hogy van-e esemény (KUKA-049)',
-    file: 'bitemporal.mjs',
+    file: 'membershipPeriod.mjs',
     from: '    if (eff.ms > valid.ms) continue;           // erre a napra még nem hatályos',
     to: '    if (false) continue;           // erre a napra meg nem hatalyos' },
 
@@ -1078,7 +1078,7 @@ export const MUTATIONS = [
     what: 'REV-N2a — A NAPLÓ NÉLKÜLI SOR TUDÁS-TENGELYE ELTŰNIK: a gyengébb tanús ágon a feloldó '
       + 'csak a hatályt méri. Ez a RÉGI hiba a tartalék-ágba visszabújtatva — a javítás fél őr '
       + 'lenne (KUKA-039)',
-    file: 'bitemporal.mjs',
+    file: 'membershipPeriod.mjs',
     from: "    if (g.ms > known.ms) return { effective: false, axis: 'projected_row', reason: 'membership_grant_not_yet_recorded' };",
     to: "    if (false) return { effective: false, axis: 'projected_row', reason: 'membership_grant_not_yet_recorded' };" },
 
@@ -1086,7 +1086,7 @@ export const MUTATIONS = [
     what: 'REV-N2a — A GYENGÉBB TANÚ ELHALLGATVA: a napló nélküli sor ugyanazt a tengely-jelölést '
       + 'kapja, mint a valódi esemény. Az olvasó ettől erősebbnek hinné a választ, mint amilyen — a '
       + 'néma degradáció ugyanaz a hazugság, mint a néma üres lista (KUKA-127 · KUKA-012)',
-    file: 'bitemporal.mjs',
+    file: 'membershipPeriod.mjs',
     from: "    return { effective: true, axis: 'projected_row', reason: 'membership_effective' };",
     to: "    return { effective: true, axis: 'event', reason: 'membership_effective' };" },
 
@@ -1785,6 +1785,49 @@ export const MUTATIONS = [
     file: 'scopeGrant.mjs',
     from: "  const inPeriod = periodFiltered\n    ? grants.filter((r) => scopeGrantInPeriod(r.membership_grant_id, periodGrantEventId, firstPeriod))\n    : grants;",
     to: "  const inPeriod = grants;" },
+
+  // ══ R134 — A HÁROM ÚJ ŐR VISSZABONTÁSI KONTROLLJA (F134-01 · F134-02 · F134-03) ══════════════
+  //
+  // MIÉRT KELL MIND A NÉGY. A `P-NORM-evidence` kapu KÖVETELI: visszabontási kontroll nélkül a próba
+  // zöldje önmagát igazolja (KUKA-207 · KUKA-051). Mindegyik mutáció PONTOSAN azt a rést nyitja ki,
+  // amit a külső ellenőrző fél (chatgpt-v3, R134) MÉRT a javítás ELŐTT — tehát nem tetszőleges
+  // rontás: a leletet reprodukálja.
+  { id: 'M324', rule: 'K03', catcher: 'P-ORG-reentry-gates', expect: 'probe_fail',
+    what: 'RNV-02 / R134 §F134-01 — A VÉGLEGESÍTÉSI KIZÁRÁS-KAPU KIESIK: a beváltás már csak a '
+      + 'személyt, a könyvet, a szerepet és az esemény-párt nézi. MÉRT HATÁS (a külső fél '
+      + 'ellenpéldája a javítás előtt): a KIADÁS UTÁN rögzített felfüggesztés mellett a beváltás '
+      + '`ok:true, outcome:regranted` — új tagsági esemény születik és a token ELFOGY '
+      + '(KUKA-143: a feladáskori bizonyíték nem küldéskori engedély)',
+    file: 'invite.mjs',
+    from: "  const excl = reentryExclusionsAt({ store, subjectId: targetSubjectId, bookId, closed, nowIso: at });",
+    to: "  const excl = Object.freeze({ ok: true, reason: 'reentry_admissible', checked: Object.freeze([]) });" },
+
+  { id: 'M325', rule: 'K04', catcher: 'P-ORG-reentry-gates', expect: 'probe_fail',
+    what: 'APR-01 / R134 §F134-02 — A BÍRÁLATI HATÁSKÖR ELSZAKAD A TAGSÁGI IDŐSZAKTÓL: az '
+      + 'időszak-egyezés mindig igaz. MÉRT HATÁS: a megvonás utáni újbóli belépés után a RÉGI '
+      + '`alter_right` hatáskör UGYANAZZAL a `granted_at`-tal végrehajtható — a spec §4 szerint '
+      + 'tiltott feléledés, új hatásköradás nélkül',
+    file: 'authority.mjs',
+    from: "      const inPeriod = todayPeriod !== null && expects !== null && Number(expects) === Number(todayPeriod);",
+    to: "      const inPeriod = true;" },
+
+  { id: 'M326', rule: 'K07', catcher: 'P-ORG-reentry-gates', expect: 'probe_fail',
+    what: 'OON-01 / R134 §F134-03 — AZ EGYSZERI HATÁS KÖNYVE NÉMÁN ÜRESNEK LÁTSZIK: minden szándék '
+      + '„friss". MÉRT HATÁS: két azonos kérés KÉT önálló ajánlatot ad (invite +2 · '
+      + 'membership_reentry +2), az elveszett nyugta utáni ismétlés pedig MÁSODIK meghívót tesz a '
+      + 'címzett postafiókjába — a spec §5 szerveres egyszeri hatása szűnik meg',
+    file: 'onceOnly.mjs',
+    from: "  if (!prior) return frozen({ state: 'fresh', identity: id.identity });",
+    to: "  if (prior || !prior) return frozen({ state: 'fresh', identity: id.identity });" },
+
+  { id: 'M327', rule: 'K07', catcher: 'P-ORG-reentry-gates', expect: 'probe_fail',
+    what: 'OON-01 / R134 §F134-03 — A HIÁNYZÓ MŰVELETI AZONOSSÁG NÉMA ENGEDÉLY LESZ: a mag kitalál '
+      + 'egy közös kulcsot. MÉRT HATÁS: az azonosság nélkül hívó út elveszíti az egyszeri hatást, és '
+      + 'a védelem hiánya NEM látszik — se nevezett elutasítás, se mérhető nyom (KUKA-041: a néma '
+      + 'hiány sikernek látszik)',
+    file: 'delegation.mjs',
+    from: "  const idemKey = String(operationId ?? '').trim();",
+    to: "  const idemKey = String(operationId ?? '').trim() || 'nevtelen-szandek';" },
 
   { id: 'M323', rule: 'K03', catcher: 'P-ORG-reentry', expect: 'probe_fail',
     what: 'RNV-01 / R132 §3 — A CSENDES REAKTIVÁLÁS: a `revoked_needs_decision` ág TÁROLT újrahívási '

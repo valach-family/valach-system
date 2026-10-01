@@ -208,6 +208,17 @@ export const ENDPOINT_SCHEMAS = frozen({
         subject_id: subjectRef,
         role: frozen({ type: 'nonempty_string', required: true, enum: frozen([...KNOWN_ROLES]) }),
         scope: frozen({ type: 'nonempty_string', required: true, enum: frozen([...KNOWN_DATA_SCOPES]) }),
+        // R134/F134-03 — A MŰVELETI AZONOSSÁG A KÉRÉS RÉSZE, ÉS KÖTELEZŐ (OON-01).
+        //
+        // MIÉRT A KLIENS ADJA. A szerver a TARTALOMBÓL nem tudja megkülönböztetni az elveszett
+        // nyugta utáni ISMÉTLÉST egy ÚJ, tudatos második ajánlattól — a kettő bájtra azonos kérés.
+        // Ezért a megismételt SZÁNDÉK azonosságát a felület adja (egy szándék = egy azonosság, a
+        // hálózati újraküldés UGYANAZT küldi), a HATÓKÖRÉT viszont a szerver képezi (könyv × cselekvő),
+        // és a tartalom kanonikus lenyomatát is ő méri (KUKA-121: amit a hívó begépelhet, az állítás).
+        //
+        // A HIÁNY NEM NÉMA ENGEDÉLY: azonosság nélkül az egyszeri hatás nem kikényszeríthető, tehát
+        // a séma NEVEZETTEN elutasít (`missing_field`) — nem csendben lemond a védelemről (KUKA-041).
+        operation_id: frozen({ type: 'nonempty_string', required: true, min_length: 8, max_length: 128 }),
         lang: langField,
         [CONTEXT_FIELD]: contextConfirm, [CONTEXT_SUBJECT_FIELD]: contextConfirm,
       }),

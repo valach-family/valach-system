@@ -30,6 +30,9 @@ import { banEffectiveAt, banRequestFor } from './ban.mjs';
 import { executableRightAt, effectuate } from './authority.mjs';
 import { basisAsOf } from './authorityBasis.mjs';
 import { adjudicationLimitVerdict } from './authorityBasis.mjs';
+// R134/F134-02 (APR-01): a hatásköradás a MEGADÁS pillanatában hatályos tagsági időszakot BÉLYEGZI
+// a sorra — ugyanabból a feloldóból, amit az értékelő is hív (`membershipPeriod.mjs`, MPR-01).
+import { membershipAsOf } from './membershipPeriod.mjs';
 
 // R75/F05 (D-VS-3021) — A HITELESÍTETT KONTEXTUS MIND A NÉGY HATÁSKÖRI BELÉPÉSI PONTON VÉGIGMEGY.
 // A LELET: a `credentials` a `readClaim` · `adjudicateClaim` · `suspendMembership` ·
@@ -123,10 +126,45 @@ export function grantAdjudicationAuthority({ store, subjectId, bookId, operation
     basisVersion = basis.version;
   }
 
-  store.run(
-    `INSERT INTO adjudication_authority (subject_id, book_id, operation, granted_at, revoked_at, basis_id, basis_version)
-     VALUES (?,?,?,?,NULL,?,?)`,
-    subjectId, bookId, operation, at, basisId, basisVersion);
+  // ═══ R134/F134-02 — AZ IDŐSZAKOT AZ ÍRÓ MÉRI, NEM A HÍVÓ ADJA MEG (APR-01) ══════════════════
+  //
+  // UGYANAZ A SZERKEZET, MINT AZ ADATKÖRJOGNÁL (`grantReadScope`, SGP-01): egy paraméter, amit a
+  // hívónak kellene kitöltenie, pontosan az a fél bekötés, amit a KUKA-039 tilt. Ezért a hatáskör-sor
+  // a MEGADÁS pillanatában hatályos tagsági időszakhoz kötődik, és ezt UGYANAZ a feloldó mondja meg,
+  // amit az ÉRTÉKELŐ is hív (`authorityRowAt` → `membershipAsOf`).
+  //
+  // A HIÁNY NEM NÉMA: ha a megadás pillanatában nincs hatályos tagság (külső elbíráló), az időszak
+  // `null` marad, és az értékelő a KIMONDOTT szabály szerint oldja fel (`not_membership_bound` vagy
+  // `first_period_rule`) — nem mi találunk ki értéket (KUKA-012).
+  const periodAt = membershipAsOf({ store, subjectId, bookId, validAt: at, knownAt: at });
+  const periodId = periodAt.effective === true ? (periodAt.period_grant_event_id ?? null) : null;
+
+  // A NAPLÓ ÉS A VETÜLET EGY EGYSÉGBEN (ATO-01): a történet és a mai állapot együtt születik, vagy
+  // együtt tűnik el. A vetület kulcsa alany × könyv × művelet, ezért az ÚJ IDŐSZAKHOZ tartozó
+  // kifejezett megadás a sort FELÜLÍRJA — a RÉGI megadás viszont a naplóban MEGMARAD (a történeti
+  // igazság nem a vetületen áll; R134 kikötése: „a történeti igazság megőrzésével").
+  store.atomic(() => {
+    const log = store.run(
+      `INSERT INTO adjudication_authority_grant (subject_id, book_id, operation, granted_at,
+         recorded_at, basis_id, basis_version, period_grant_event_id) VALUES (?,?,?,?,?,?,?,?)`,
+      subjectId, bookId, operation, at, at, basisId, basisVersion, periodId);
+    if (log?.changes !== 1) {
+      throw new Error('grantAdjudicationAuthority: a hatásköradás NAPLÓJA nem jött létre — '
+        + 'a megadás nem rögzíthető nyom nélkül');
+    }
+    const res = store.run(
+      `INSERT INTO adjudication_authority (subject_id, book_id, operation, granted_at, revoked_at,
+         basis_id, basis_version, period_grant_event_id)
+       VALUES (?,?,?,?,NULL,?,?,?)
+       ON CONFLICT(subject_id, book_id, operation) DO UPDATE SET
+         granted_at = excluded.granted_at, revoked_at = NULL,
+         basis_id = excluded.basis_id, basis_version = excluded.basis_version,
+         period_grant_event_id = excluded.period_grant_event_id`,
+      subjectId, bookId, operation, at, basisId, basisVersion, periodId);
+    if (res?.changes !== 1) {
+      throw new Error('grantAdjudicationAuthority: a hatáskör VETÜLETE nem jött létre (nulla írt sor)');
+    }
+  });
 }
 
 // ═══ A BEJELENTÉS — NYITOTT ÚT, SEMLEGES VÁLASZ, VISSZAÉLÉS-KORLÁT (REV-N3c) ═══════════════════

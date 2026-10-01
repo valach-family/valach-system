@@ -6987,6 +6987,8 @@ probe('P-ORG-reentry', 'R132 §3–§5 · RNV-01 · SGP-01 · PER-01 · ORG-N1a 
         store, clock, deciderSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'bela',
         offeredRole: 'user', scope: 'keszlet', token: 'tok_re',
         expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(),
+        // R134/F134-03 (OON-01): a kiadás MŰVELETI AZONOSSÁGOT kér — egy szándék = egy azonosság.
+        operationId: 'p132-re-1',
       });
       const bOk = ri.ok === true && ri.changed === true && reentries() === 1
         && ri.requires_acceptance === true && ri.restores_previous_scopes === false
@@ -7033,6 +7035,7 @@ probe('P-ORG-reentry', 'R132 §3–§5 · RNV-01 · SGP-01 · PER-01 · ORG-N1a 
         store, clock, deciderSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'anna',
         offeredRole: 'user', scope: 'keszlet', token: 'tok_open',
         expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(),
+        operationId: 'p132-open-1',
       });
       const invBefore = Number(store.get('SELECT COUNT(*) AS n FROM invite').n);
       const basBefore = Number(store.get('SELECT COUNT(*) AS n FROM authority_basis').n);
@@ -7042,6 +7045,7 @@ probe('P-ORG-reentry', 'R132 §3–§5 · RNV-01 · SGP-01 · PER-01 · ORG-N1a 
         store, clock, deciderSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'bela',
         offeredRole: 'user', scope: 'keszlet', token: 'tok_broken',
         expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(),
+        operationId: 'p132-broken-1',
       });
       store.db.exec('DROP TRIGGER p132_reentry_ignore');
       const gOk = openTarget.ok === false && openTarget.reason === 'reentry_target_membership_is_open'
@@ -7072,6 +7076,150 @@ probe('P-ORG-reentry', 'R132 §3–§5 · RNV-01 · SGP-01 · PER-01 · ORG-N1a 
           'A-RNV-history-intact-on-both-axes': eOk,
           'A-RNV-offer-of-an-earlier-closure-cannot-reopen-a-later-one': fOk,
           'A-RNV-open-target-and-storage-failure-are-named-and-write-nothing': gOk,
+        },
+      };
+    } finally { store.close(); }
+  });
+
+probe('P-ORG-reentry-gates', 'R134 §F134-01..03 · RNV-02 · APR-01 · OON-01 · KUKA-039 · KUKA-143 · KUKA-122',
+  'A VÉGLEGESÍTÉSI KAPUK, A RÉGI HATÁSKÖR ÉS AZ EGYSZERI AJÁNLAT (a külső fél R134-es három lelete)',
+  () => {
+    const w = r132World();
+    const { store, clock } = w;
+    try {
+      const state = () => membershipAsOf({ store, subjectId: 'bela', bookId: 'bk', validAt: clock.now(), knownAt: clock.now() });
+      const grants = () => Number(store.get('SELECT COUNT(*) AS n FROM membership_grant').n);
+      const reentries = () => Number(store.get('SELECT COUNT(*) AS n FROM membership_reentry').n);
+      const invites = () => Number(store.get('SELECT COUNT(*) AS n FROM invite').n);
+      const p1 = state().period_grant_event_id;
+
+      // ── (a) F134-01: A KIADÁS UTÁNI FELFÜGGESZTÉS A VÉGLEGESÍTÉSNÉL IS ZÁR ───────────────────
+      // A kizárás a KIADÁS és az ELFOGADÁS KÖZÖTT keletkezik — a kiadáskori ellenőrzés tehát nem
+      // elég (KUKA-143: a feladáskori bizonyíték nem küldéskori engedély).
+      clock.advance(1000);
+      revokeMembership({ store, subjectId: 'bela', bookId: 'bk', clock, actorSubjectId: 'anna' });
+      clock.advance(1000);
+      const offer = reinviteMember({
+        store, clock, deciderSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'bela',
+        offeredRole: 'user', scope: 'keszlet', token: 'tok_g1',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(),
+        operationId: 'p134-a-1',
+      });
+      store.run(
+        `INSERT INTO membership_suspension (subject_id, book_id, actor_subject_id, suspended_at, reason)
+         VALUES (?,?,?,?,?)`, 'bela', 'bk', 'anna', clock.now(), 'p134: kiadás UTÁNI felfüggesztés');
+      clock.advance(1000);
+      const gBefore = grants();
+      const blocked = redeemInvite({ store, token: 'tok_g1', actingSubjectId: 'bela', clock });
+      const aOk = offer.ok === true
+        && blocked.ok === false && blocked.reason === 'reentry_blocked_suspension'
+        && blocked.next_step === 'lift_suspension'
+        && store.get('SELECT redeemed_at FROM invite WHERE token = ?', 'tok_g1').redeemed_at === null
+        && grants() === gBefore && state().effective === false;
+      // POZITÍV KONTROLL: a feloldás után UGYANAZ az ajánlat működik (a kapu nem fal — KUKA-122).
+      store.run('UPDATE membership_suspension SET lifted_at = ?, lifted_by = ? WHERE subject_id = ?',
+        clock.now(), 'anna', 'bela');
+      clock.advance(1000);
+      const acc = redeemInvite({ store, token: 'tok_g1', actingSubjectId: 'bela', clock });
+      const p2 = state().period_grant_event_id;
+      const bOk = acc.ok === true && acc.outcome === 'regranted' && state().effective === true && p2 !== p1;
+
+      // ── (b) F134-02: A RÉGI BÍRÁLATI HATÁSKÖR AZ ÚJ IDŐSZAKBAN NEM VÉGREHAJTHATÓ ─────────────
+      // A hatáskört a MÁSODIK időszakban adjuk, majd egy HARMADIK időszak nyílik — a régi megadás
+      // történetileg érvényes marad, de ma nem jogcím (spec §4).
+      grantAdjudicationAuthority({
+        store, subjectId: 'bela', bookId: 'bk', operation: 'alter_right', clock,
+        basisId: 'startup-rule:bk',
+      });
+      const authIn = executableRightAt({ store, subjectId: 'bela', bookId: 'bk', operation: 'alter_right', nowIso: clock.now() });
+      const authAt = clock.now();
+      clock.advance(1000);
+      revokeMembership({ store, subjectId: 'bela', bookId: 'bk', clock, actorSubjectId: 'anna' });
+      clock.advance(1000);
+      reinviteMember({
+        store, clock, deciderSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'bela',
+        offeredRole: 'user', scope: 'keszlet', token: 'tok_g2',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(),
+        operationId: 'p134-b-1',
+      });
+      clock.advance(1000);
+      redeemInvite({ store, token: 'tok_g2', actingSubjectId: 'bela', clock });
+      const authAfter = executableRightAt({ store, subjectId: 'bela', bookId: 'bk', operation: 'alter_right', nowIso: clock.now() });
+      const authHist = executableRightAt({ store, subjectId: 'bela', bookId: 'bk', operation: 'alter_right', nowIso: authAt });
+      grantAdjudicationAuthority({
+        store, subjectId: 'bela', bookId: 'bk', operation: 'alter_right', clock,
+        basisId: 'startup-rule:bk',
+      });
+      const authNew = executableRightAt({ store, subjectId: 'bela', bookId: 'bk', operation: 'alter_right', nowIso: clock.now() });
+      const cOk = authIn.ok === true
+        && authAfter.ok === false && authAfter.reason === 'authority_other_period'
+        && authHist.ok === true                      // a történeti igazság sértetlen
+        && authNew.ok === true;                      // ÚJ, kifejezett megadás MŰKÖDIK
+
+      // ── (c) F134-03: AZ AJÁNLAT KIADÁSA ISMÉTLÉSBIZTOS ──────────────────────────────────────
+      clock.advance(1000);
+      revokeMembership({ store, subjectId: 'bela', bookId: 'bk', clock, actorSubjectId: 'anna' });
+      clock.advance(1000);
+      const reBefore = reentries();
+      const invBefore = invites();
+      const once1 = reinviteMember({
+        store, clock, deciderSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'bela',
+        offeredRole: 'user', scope: 'keszlet', token: 'tok_g3',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(),
+        operationId: 'p134-c-1',
+      });
+      const once2 = reinviteMember({
+        store, clock, deciderSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'bela',
+        offeredRole: 'user', scope: 'keszlet', token: 'tok_g3b',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(),
+        operationId: 'p134-c-1',
+      });
+      const conflict = reinviteMember({
+        store, clock, deciderSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'bela',
+        offeredRole: 'admin', scope: 'keszlet', token: 'tok_g3c',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(),
+        operationId: 'p134-c-1',
+      });
+      const fresh = reinviteMember({
+        store, clock, deciderSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'bela',
+        offeredRole: 'user', scope: 'keszlet', token: 'tok_g3d',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(),
+        operationId: 'p134-c-2',
+      });
+      const dOk = once1.ok === true && once1.changed === true
+        && once2.ok === true && once2.replayed === true && once2.token === 'tok_g3'
+        && once2.reentry_id === once1.reentry_id
+        && conflict.ok === false && conflict.reason === 'operation_identity_conflict'
+        && fresh.ok === true && fresh.replayed !== true
+        && reentries() === reBefore + 2 && invites() === invBefore + 2;
+      // ÉS AZ AZONOSSÁG HIÁNYA NEM NÉMA ENGEDÉLY (KUKA-041).
+      const noId = reinviteMember({
+        store, clock, deciderSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'bela',
+        offeredRole: 'user', scope: 'keszlet', token: 'tok_g3e',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(),
+      });
+      const eOk = noId.ok === false && noId.reason === 'operation_id_required'
+        && reentries() === reBefore + 2;
+
+      const pass = aOk && bOk && cOk && dOk && eOk;
+      return {
+        expected: 'a KIADÁS UTÁN keletkezett felfüggesztés a VÉGLEGESÍTÉSNÉL is zár (nevezetten, a '
+          + 'token érintetlen), a feloldás után ugyanaz az ajánlat MŰKÖDIK · a RÉGI bírálati hatáskör '
+          + 'az ÚJ időszakban nem végrehajtható, a történeti kérdésre viszont IGEN, és ÚJ megadás '
+          + 'működik · ugyanaz a műveleti azonosság EGY ajánlatot ad, ELTÉRŐ tartalom nevezett '
+          + 'ütközés, KÜLÖN azonosság új ajánlat, az azonosság HIÁNYA nevezett elutasítás',
+        actual: `(a) kiadás=${offer.reason} beváltás=${blocked.reason}/${blocked.next_step} `
+          + `tagság=${state().effective} · (b) feloldás után=${acc.outcome} p1=${p1} p2=${p2} · `
+          + `(c) hatáskör: időszakban=${authIn.ok} új időszakban=${authAfter.reason} `
+          + `történeti=${authHist.ok} új megadás=${authNew.ok} · (d) ismétlés=${once2.replayed} `
+          + `ütközés=${conflict.reason} külön azonosság=${fresh.reason} · (e) azonosság nélkül=${noId.reason}`,
+        pass,
+        asserts: {
+          'A-RNV2-post-issue-exclusion-blocks-at-finalization-without-consuming-the-token': aOk,
+          'A-RNV2-positive-control-after-lifting-the-exclusion': bOk,
+          'A-APR-old-authority-is-not-executable-in-a-new-period-but-history-holds': cOk,
+          'A-OON-same-identity-yields-one-offer-and-different-content-conflicts': dOk,
+          'A-OON-missing-identity-is-a-named-refusal': eOk,
         },
       };
     } finally { store.close(); }

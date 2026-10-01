@@ -111,6 +111,29 @@ async function main() {
     RETIRED_PATTERNS.every((e) => signalPaths(e).length > 0 || (e.guard_note || '').length > 10),
     RETIRED_PATTERNS.filter((e) => !signalPaths(e).length && !e.guard_note).map((e) => e.id).join(', '));
   check('KUK01', 'a szerződés darabszáma egyezik', RETIRED_PATTERN_CONTRACT.entry_count === RETIRED_PATTERNS.length);
+  // ── KUK01/b: A NEM OLVASOTT KULCS NÉMA TILTÓLISTA (R134, saját lelet · KUKA-168 ismétlődése) ──
+  //
+  // A LELET. A KUKA-266-os bejegyzés (az R132 körben, ÁLTALAM írva) a tiltó-mintáit `never:` kulcs
+  // alatt deklarálta — ezt a verifier NEM olvassa (ő a `forbidden:` kulcsot futtatja). A deklarált
+  // tiltólista tehát FUTÁSIDŐBEN NEM LÉTEZETT, és a bejegyzés mégis „gépi jellel védettnek"
+  // látszott: a `signalPaths` is csak a `forbidden`/`positive` kulcsot nézi, a KUK07 otthon-mérés
+  // pedig a megnevezett fájlokra. Ez SZÓ SZERINT a KUKA-168 („a második `never:` kulcs némán
+  // elnyelte az elsőt"), csak egy réteggel följebb — a REGISZTERBEN, nem a kódban.
+  //
+  // A JAVÍTÁS NEM AZ EGY SOR ÁTÍRÁSA. Azt is megtettük, de a hiba OSZTÁLYA a néma, fel nem ismert
+  // kulcs. Ezért a bejegyzések kulcsai ZÁRT HALMAZBÓL jöhetnek: egy elgépelt vagy újonnan kitalált
+  // kulcs NEVEZETTEN piros, nem némán hatástalan (KUKA-020 · KUKA-168).
+  // A MÉRCE NEM AZ ÖSSZES KULCS, HANEM A MINTÁT HORDOZÓ KULCS. A leíró mezők (`replacement` ·
+  // `guard` · `narrowed_by` · `retired` …) PRÓZÁT vittek, és azokat soha nem futtattuk — a néma
+  // hiba kizárólag ott keletkezik, ahol a kulcs MINTÁT hordoz, mert azt a verifier csak két
+  // nevezett kulcs alatt futtatja. Ezért a kapu PONTOSAN ezt kérdezi: minta-tömböt csak `positive`
+  // vagy `forbidden` néven lehet deklarálni (KUKA-216: a verdikt ne mutasson a mérés hatókörén túl).
+  const PATTERN_KEYS = new Set(['positive', 'forbidden']);
+  const hasPattern = (v) => Array.isArray(v) && v.some((x) => x && typeof x === 'object' && typeof x.pattern === 'string');
+  const strayPatternKeys = RETIRED_PATTERNS.flatMap((e) => Object.keys(e)
+    .filter((k) => !PATTERN_KEYS.has(k) && hasPattern(e[k])).map((k) => `${e.id}.${k}`));
+  check('KUK01', 'MINTÁT csak a FUTTATOTT kulcsok hordoznak (`positive` · `forbidden`) — a nem olvasott kulcs néma tiltólista',
+    strayPatternKeys.length === 0, strayPatternKeys.join(', '));
 
   // ── KUK07: AZ ŐR-OTTHON — a némaság ellen ────────────────────────────────────────────────────
   const missingHome = RETIRED_PATTERNS.filter((e) => !GUARD_HOME[e.id]).map((e) => e.id);
