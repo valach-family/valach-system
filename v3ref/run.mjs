@@ -7091,6 +7091,8 @@ probe('P-ORG-reentry-gates', 'R134 §F134-01..03 · RNV-02 · APR-01 · OON-01 �
       const grants = () => Number(store.get('SELECT COUNT(*) AS n FROM membership_grant').n);
       const reentries = () => Number(store.get('SELECT COUNT(*) AS n FROM membership_reentry').n);
       const invites = () => Number(store.get('SELECT COUNT(*) AS n FROM invite').n);
+      // A TUDÁS TENGELYÉNEK HORGONYA (R136/F136-01): minden itt születő megadásnál KORÁBBI instans.
+      const bootAt = clock.now();
       const p1 = state().period_grant_event_id;
 
       // ── (a) F134-01: A KIADÁS UTÁNI FELFÜGGESZTÉS A VÉGLEGESÍTÉSNÉL IS ZÁR ───────────────────
@@ -7151,10 +7153,32 @@ probe('P-ORG-reentry-gates', 'R134 §F134-01..03 · RNV-02 · APR-01 · OON-01 �
         basisId: 'startup-rule:bk',
       });
       const authNew = executableRightAt({ store, subjectId: 'bela', bookId: 'bk', operation: 'alter_right', nowIso: clock.now() });
+      // ── R136/F136-01: A TÖRTÉNETI KÉRDÉS AZ ÚJ MEGADÁS UTÁN IS (AHI-01) ─────────────────────
+      //
+      // A fenti `authHist` az ÚJ megadás ELŐTT fut — tehát az új megadás HATÁSÁT nem méri. Pont ez
+      // volt a külső fél R136-os lelete a testvér-battérián, és UGYANEZ a sorrend-hiba állt ITT is:
+      // a mérés sorrendje maga is állítás (KUKA-134).
+      const authHistAfter = executableRightAt({ store, subjectId: 'bela', bookId: 'bk', operation: 'alter_right', nowIso: authAt });
+      // ── R136/F136-01: A TUDÁS TENGELYE KÜLÖN HAT ───────────────────────────────────────────
+      //
+      // MIÉRT KELL IDE. Ezt a sort a SAJÁT mutációs battériám kérte ki: az M333 rontás (a
+      // `recorded_at <= knownAt` szűrő kivétele) **SURVIVED** lett — vagyis a tudás-tengelyt
+      // EGYETLEN mag-próba sem állította, tehát a nemrég megépített őrt semmi nem védte itt
+      // (KUKA-200: a nem mért nem zöld). A `knownAt` elhagyása a mai viselkedés, ezért a
+      // tengelyt KIFEJEZETTEN szét kell vinni ahhoz, hogy a rontás megbukjon.
+      const authOldKnowledge = executableRightAt({
+        store, subjectId: 'bela', bookId: 'bk', operation: 'alter_right', nowIso: authAt, knownAt: bootAt });
+      const authSameStamp = executableRightAt({
+        store, subjectId: 'bela', bookId: 'bk', operation: 'alter_right', nowIso: authAt, knownAt: authAt });
       const cOk = authIn.ok === true
         && authAfter.ok === false && authAfter.reason === 'authority_other_period'
         && authHist.ok === true                      // a történeti igazság sértetlen
-        && authNew.ok === true;                      // ÚJ, kifejezett megadás MŰKÖDIK
+        && authNew.ok === true                       // ÚJ, kifejezett megadás MŰKÖDIK
+        && authHistAfter.ok === true                 // …és az ÚJ megadás UTÁN IS sértetlen
+        // A TUDÁS-HORIZONT ZÁR: a megadás ELŐTTI tudással a jog MÉG NEM ismert, az azonos
+        // időbélyeggel viszont igen. Ez a kettő együtt köti meg a `recorded_at <= knownAt` szűrőt.
+        && authOldKnowledge.ok === false && authOldKnowledge.reason === 'authority_not_yet_effective'
+        && authSameStamp.ok === true;
 
       // ── (c) F134-03: AZ AJÁNLAT KIADÁSA ISMÉTLÉSBIZTOS ──────────────────────────────────────
       clock.advance(1000);

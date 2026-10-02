@@ -463,7 +463,12 @@ export const MUTATIONS = [
     from: "      WHERE subject_id = ? AND book_id = ? AND operation = ?\n      ORDER BY id ASC`,\n    who, bookId, operation) || [];",
     to: "      WHERE subject_id = ? AND book_id = ?\n      ORDER BY id ASC`,\n    who, bookId) || [];" },
 
-  { id: 'M333', rule: 'K04/K09', catcher: 'P-REV-authority', expect: 'probe_fail',
+  // A FOGÓ PRÓBÁT ITT IS MÉRTEM, NEM TIPPELTEM (ugyanaz a hiba-osztály, mint az M334-nél). Ez a
+  // rontás ELSŐ futásán `SURVIVED` lett: a tudás-tengelyt EGYETLEN mag-próba sem állította — a
+  // `knownAt` elhagyása a mai viselkedés, tehát a tengelyt KIFEJEZETTEN szét kell vinni. A fedezetet
+  // a `P-ORG-reentry-gates` próba kapta meg (két állítás: a megadás előtti tudás ZÁR, az azonos
+  // időbélyeg ENGED), és a rontást MOST ez a próba bukatja meg.
+  { id: 'M333', rule: 'K04/K09', catcher: 'P-ORG-reentry-gates', expect: 'probe_fail',
     what: 'AHI-01 — a TUDÁS tengelyének kivétele: a történeti válasz olyan megadásra is épülne, '
       + 'amit a kérdés tudása MÉG NEM ISMER (a júniusi rögzítés a márciusi képet írná át)',
     file: 'authorityHistory.mjs',

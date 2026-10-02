@@ -221,6 +221,26 @@ UI-projekt nem indult, az R131 észlelési határa változatlan):
 | `app:selfcheck` | **57/57 PASS** |
 | bemutató-generálás (`npm run bemutato:onallo`) | lefut; a kimenet **két futáson azonos** (`d81fd94c…`) |
 
+**A MUTÁCIÓS BATTÉRIA — és egy SAJÁT lelet, amit ő talált meg.** A horgonyok a módosított
+`v3ref/authority.mjs` és `authorityBasis.mjs` fájlokra mutatnak, ezért a battériát le KELLETT
+futtatni (lásd alább, miért nevezett kockázat). Három dolgot mért:
+
+1. **ELAVULT HORGONY** — az `M51` a `authority.mjs`-beli hatáskör-lekérdezésre horgonyzott, ami az
+   `authorityHistory.mjs`-be költözött. **Áthorgonyozva** (a mutáció SZÁNDÉKA változatlan); elavult
+   horgonyt nem hagyunk, mert az „nem mértünk ott" állapot, nem zöld (KUKA-200).
+2. **NÉGY ÚJ RONTÁS a most épült kapukra** (KUKA-009): `M332` (a művelet-szűkítés kivétele a
+   naplóból) · `M333` (a TUDÁS tengelyének kivétele) · `M334` (az ÉLŐ generáció vetületének
+   kivétele — a KUKA-273 visszacsúszása) · `M335` (az EREDET-KAPU kivétele a beváltáson — az
+   F136-02 visszacsúszása). Az `M334` fogó próbáját **MÉRTEM, nem tippeltem**: az első alakom
+   `WRONG_CATCHER`-t kapott.
+3. **AZ `M333` TÚLÉLTE — és ez VALÓDI fedezet-hiány volt.** A tudás-tengely szűrőjének
+   (`recorded_at <= knownAt`) kivételét **egyetlen mag-próba sem buktatta meg**: a `knownAt`
+   elhagyása a mai viselkedés, tehát a tengelyt KIFEJEZETTEN szét kell vinni ahhoz, hogy a rontás
+   megbukjon — és ezt eddig csak a HTTP-battéria (b5d) tette, a mag nem. **A `P-ORG-reentry-gates`
+   mag-próba ezért megerősítve:** megkapta a történeti kérdést az ÚJ megadás UTÁN is (ott
+   UGYANAZ a sorrend-hiba állt, amit a külső fél a testvér-battérián talált meg), és megkapta a
+   tudás-horizont két állítását. **A mag-battéria ezzel is 66/66.**
+
 **A TELJES HOSSZÚ SÖPRÉS NEM FUTOTT, és ez KIMONDOTT döntés, nem feledékenység.** Az R136 így
 kötötte ki: *„Célzott domain/HTTP/történeti/érintett UI kontrollok elegendők… Teljes hosszú söprést
 csak tényleges helyi kapu vagy konkrét keresztmetszeti kockázat indokoljon."* Egy keresztmetszeti
@@ -284,31 +304,60 @@ termékről semmit nem mond. **Ez „ELAKADT MÉRÉS", nem termékhiba és nem i
 **ÉS EZ EGY SAJÁT, R135-ÖS ÁLLÍTÁS HELYESBÍTÉSE:** azt írtam, hogy *„a hívó a battéria
 növekedésével magától finomodik"*. **MÉRVE NEM ÁLL:** mutáció-számra finomodik, faliórára nem.
 
-### 8.2 Az adaptáció — mi változik, és mi NEM
+### 8.2 Az adaptáció MEGÉPÜLT, MÉRVE ROSSZABB LETT, és KIVEZETTEM (KUKA-274)
 
-| | |
-|---|---|
-| **VÁLTOZIK** | kizárólag a **SZELETELÉS**: időtúllépésen finomabbra osztunk (`n *= 2`) és újrapróbálunk, legfeljebb **4** próbálkozás |
-| **NEM változik** | egyetlen eset · állítás · mutáció · forráskötés · a **LEFEDETTSÉG** (minden mutáció lefut) |
-| **NEM változik — kiemelve** | az **IDŐKERET-ÉRVÉNYESÍTÉS**: az egy egységre jutó korlát **MARAD 15 000 ms**, a költségvetés SOHA nem tágul (KUKA-091: a javítás iránya nem az őr lazítása) |
-| **NEM NÉMA** | a plafonon túl a hiba **TOVÁBB DOBÓDIK** — a mérés HIÁNYOS marad, nem zöld (KUKA-093 · KUKA-206) |
-| **NEM idő-bukásra** | a nem-időtúllépéses hibát változatlanul továbbdobjuk — darabolással nem kerüljük meg |
+**Megépítettem**, pontosan a kapott határok között: időtúllépésen finomabbra osztunk (`n *= 2`),
+legfeljebb 4 próbálkozás; az egy egységre jutó korlát **MARAD 15 000 ms**, a lefedettség
+változatlan, és a plafonon a hiba továbbdobódik.
 
-Ez ugyanaz a szabály, amit a repó `--units-auto`-ja és az `r83core` is használ — **nem harmadik
-másolat** (KUKA-003: egy fogalom, egy otthon).
+**Aztán megmértem — és ez a lényeg:**
 
-**A VISSZAKÖVETHETŐSÉG, ahogy az R136 kérte:**
+| | futásidő | eredmény | részletes artefaktum |
+|---|---|---|---|
+| **adaptáció ELŐTT** | **180 s** | 9-ből **7 zöld**, E02 · E03 a per-egység korláton | **MEGSZÜLETETT** |
+| **adaptáció UTÁN** | **600 s** | a futtató **PROGRAM-SZINTŰ** korlátján (`run-all.mjs`, 600 000 ms); „a kimenet nem értelmezhető eset-listaként" | **NINCS** |
 
-- **eredeti forrás-lenyomat** (`r57_chatgpt-v3.mjs`, ÉRINTETLEN):
-  `5ce2ad7bafd1ca0154a580c1673259586b75e086efb53d130ada1336b6b490e5`
-- **adaptált forrás-lenyomat** (`r57_chatgpt-v3.adapted.mjs`, a csomag UTÁN):
-  `798f89cb0f8cbb7aa4dae8a6e3d165fd892f160f6be6d593c4dc0c09410d3dbc`
-- a **futási delta** a visszatérő értékben utazik: `units_used` · `refined` · `unit_cap_ms`
-- az adaptáció ténye, szerzősége, a változott és a VÁLTOZATLAN rész a
-  `v3ref/external-checks/case-manifest.mjs` `r57a` bejegyzésének `adapted` blokkjában áll
-  (`by` · `changed` · `unchanged` · **`measured_before`**) — tehát nem csak ebben a jelentésben.
+**A javításom elvitte azt a részeredményt is, ami addig megvolt.** Ezért **KIVEZETTEM**: a program a
+mért kiinduló alakjában áll — `sha256:7f54483d35b8023d1b0d408d88c3240f69607436e82c2eb538c470a00d227723`,
+**bájtra azonos a `df79358a`-val**.
 
----
+**AZ OK, kimondva.** Itt **nem egy szelet** lép túl, hanem a battéria **teljes költsége × ahány eset
+meghívja** — és az újraindításos finomítás ezt még **meg is többszörözi**. A finomítás a per-egység
+túllépést gyógyítja; a teljes költséget nem. **A hozzájárulás a szeletelés IRÁNYÁRA szólt; én ezt
+elfogadásnak vettem arra is, hogy a szeletelés MEGOLDJA a problémát — a kettő két külön állítás.**
+
+**EGY SZÁMOT ITT HELYESBÍTEK A SAJÁT MENET KÖZBENI ÉRVELÉSEMBEN IS.** Közben azt gondoltam, a
+battéria teljes költsége önmagában ~550 s. **Terhelés nélkül megmérve: 113 s** (233 mutáció,
+`--units-auto`). Tehát nem a battéria „drága" — a 600 s-ot az **újraindítás-halmozás** és a
+többszöri hívás adta. A korábbi ~550 s-os becslésem egy **terhelés alatti** részfutásból
+extrapolált, és ezért rossz volt.
+
+**AMI NYITOTT MARAD, NEVEZETTEN:** a battéria teljes költsége vs. a **FUTTATÓNK** per-program
+türelme (600 000 ms). Ez a **mi harness-paraméterünk, nem a külső fél kritériuma** — a megemelése
+külön döntés, amit ez a kör **nem hoz meg**. Az R136 kikötötte, hogy ez a mérési rész a két
+termékhiba javítását ne akassza meg: nem is akasztotta.
+
+**A VISSZAKÖVETHETŐSÉG (az R136 kérése), a kivezetéssel együtt:**
+
+- **eredeti** (`r57_chatgpt-v3.mjs`, ÉRINTETLEN): `5ce2ad7bafd1ca0154a580c1673259586b75e086efb53d130ada1336b6b490e5`
+- **adaptált, MA érvényes** (`r57_chatgpt-v3.adapted.mjs`): `7f54483d35b8023d1b0d408d88c3240f69607436e82c2eb538c470a00d227723` (= `df79358a`)
+- **a kivezetett próbálkozás** lenyomata: `798f89cb0f8cbb7aa4dae8a6e3d165fd892f160f6be6d593c4dc0c09410d3dbc`
+- a bővítés, a MÉRT oka és a nyitott maradék a `case-manifest.mjs` `r57a` →
+  **`retired_adaptation`** blokkjában áll (`what` · `granted_by` · `measured` · `why_retired` ·
+  `open_named`), gépi jellel — tehát nem csak ebben a jelentésben.
+
+### 8.3 r83core — a mért ok MÁS, és ezért nem ugyanaz a javítás
+
+Az `r83core` **már ma is falióra szerint finomít** (`UNITS *= 2` időtúllépésen) — tehát a kapott
+hozzájárulás itt nem hiányzó képességet pótolna. A MÉRT ok más: a per-egység spawn-korlát
+**300 000 ms**, tehát egy lassú szelet **300 s-ot éget el**, mielőtt a meglévő finomítás egyáltalán
+észreveszi; `UNITS_START` = 18, a futtató per-program türelme pedig 600 000 ms.
+
+**Ezért itt NEM építettem bővítést.** A KUKA-274-es tanulság közvetlenül ide is szól: ugyanaz a
+program-szintű türelem a kötő korlát, és azt egy szeletelési változás nem oldja meg. Az `r83core`
+eltérése a **KÖZVETLEN kiinduló állapot örökölt** eltérése (`df79358a`: `spawnSync ETIMEDOUT`), és
+**ebben a csomagban nem változott**. A hiányos futás **HIÁNYOS marad** — nem írom zöldre, és nem is
+magyarázom el.
 
 ## 9. A megnyitható bemutató — a link KÖZVETLENÜL itt
 

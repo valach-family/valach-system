@@ -471,20 +471,43 @@ export const PROGRAMS = Object.freeze([
       from_file: 'r57_chatgpt-v3.mjs',
       by: Object.freeze(['chatgpt-v3 (R81 §5) — a battéria darabolt hívása',
         'Claude-v3 (R8 §3, az ő kimondott hozzájárulásukkal) — a darabszám konfigurálható paraméter, alapértéke 6',
-        'Claude-v3 (R136 §„Külső tanú", az ő kimondott hozzájárulásukkal) — FALIÓRA szerinti '
-          + 'adaptív szeletelés: időtúllépésen finomabbra osztunk és újrapróbálunk, legfeljebb 4 '
-          + 'próbálkozás; a plafonon a hiba TOVÁBB DOBÓDIK (a mérés hiányos marad, nem zöld)']),
+        'Claude-v3 (R8 §3) — a darabszám a mutáció-számból származik, padló 6']),
       changed: 'KIZÁRÓLAG a battéria HÍVÁSÁNAK ALAKJA: egy hívás helyett N egység + `--merge`, '
-        + 'N alapértéke a mutáció-számból származik (felülírható: VS_BATTERY_UNITS), és '
-        + 'IDŐTÚLLÉPÉSEN N megduplázódik (R136). A megtett finomítást a visszatérő érték hordozza '
-        + '(`units_used` · `refined` · `unit_cap_ms`), tehát a futtatási DELTA visszakövethető.',
-      unchanged: 'egyetlen eset · mutáció · elvárás · forráskötés és az időkeret-ÉRVÉNYESÍTÉS sem '
-        + '(az egy egységre jutó korlát MARAD 15 000 ms, a költségvetés nem tágul), és a '
-        + 'LEFEDETTSÉG sem: minden mutáció lefut.',
-      measured_before: 'a `df79358a` könyvelt eredményében és ezen a köron ÚJRAMÉRVE is: E02 · E03 '
-        + '`spawnSync ETIMEDOUT` a `runBatteryUnits` 15 000 ms-os egység-korlátján (a 233 mutáció '
-        + '1/10 szelete ezen a futtatón a korlát fölött van) — tehát NEM ennek a csomagnak a '
-        + 'regressziója, hanem a KÖZVETLEN kiinduló állapot örökölt eltérése.',
+        + 'N a mutáció-számból származik (felülírható: VS_BATTERY_UNITS) — ugyanaz a bővítés, mint '
+        + 'az `r59a`-n.',
+      unchanged: 'egyetlen eset · mutáció · elvárás · forráskötés és az időkeret-ÉRVÉNYESÍTÉS sem.',
+      measured_before: 'a `df79358a` könyvelt eredményében és az R136-os köron ÚJRAMÉRVE is: 9-ből '
+        + '7 eset zöld, E02 · E03 `spawnSync ETIMEDOUT` a `runBatteryUnits` 15 000 ms-os '
+        + 'egység-korlátján (a 233 mutáció 1/10 szelete ezen a futtatón a korlát fölött van) — '
+        + 'tehát NEM az R136-os csomag regressziója, hanem a KÖZVETLEN kiinduló állapot örökölt '
+        + 'eltérése. Futásidő: 180 s, a részletes eredmény-artefaktum MEGSZÜLETETT.',
+      // ── R136: A FALIÓRA SZERINTI SZELETELÉS MEGÉPÜLT, MÉRVE ROSSZABB LETT, ÉS KIVEZETVE ──────
+      //
+      // Az R136 kimondott hozzájárulást adott falióra szerinti adaptív szeleteléshez. MEGÉPÍTETTEM
+      // (időtúllépésen `n *= 2`, legfeljebb 4 próbálkozás, a 15 000 ms-os egység-korlát és a
+      // lefedettség változatlanul), és MEGMÉRTEM: **600 s, a futtató PROGRAM-SZINTŰ korlátján
+      // (`run-all.mjs`, 600 000 ms), részletes eredmény-artefaktum NÉLKÜL** — vagyis rosszabb,
+      // mint a kiinduló állapot, ami 180 s alatt 7/9-et és artefaktumot adott.
+      //
+      // AZ OK, KIMONDVA: itt nem EGY SZELET lép túl, hanem a battéria TELJES költsége × ahány eset
+      // meghívja. A finomítás a per-egység túllépést gyógyítja; a TELJES költséget nem — az
+      // újraindítás még meg is többszörözi. Ezért a bővítés KIVEZETVE, a program a mért kiinduló
+      // alakjában áll (sha256:7f54483d…, bájtra azonos a `df79358a`-val).
+      //
+      // AMI MARAD NYITOTT, NEVEZETTEN: a battéria teljes költsége vs. a FUTTATÓNK per-program
+      // türelme. Ez a MI harness-paraméterünk, nem a külső fél kritériuma — a megemelése külön
+      // döntés, amit ez a kör nem hoz meg (és az R136 kikötötte, hogy ez a mérési rész a két
+      // termékhiba javítását ne akassza meg).
+      retired_adaptation: Object.freeze({
+        what: 'falióra szerinti adaptív szeletelés a `runBatteryUnits`-ben (n *= 2 időtúllépésen)',
+        granted_by: 'chatgpt-v3, R136 §„Külső tanú"',
+        measured: '600 s · a futtató program-szintű korlátján · részletes artefaktum NÉLKÜL '
+          + '(a kiinduló állapot: 180 s · 7/9 · artefaktummal)',
+        why_retired: 'a korlát itt nem per-egység, hanem a battéria TELJES költsége × a hívó esetek '
+          + 'száma; a finomítás ezen nem segít, az újraindítás pedig többszörözi',
+        open_named: 'a battéria teljes költsége vs. a `run-all.mjs` per-program türelme (600 000 ms) '
+          + '— a mi harness-paraméterünk, külön döntés',
+      }),
     }),
     what: 'ugyanaz a kilenc eset, mint az r57-nél (T01–T05 · E01–E04), de a DARABOLT battériával',
     evidence: 'r56-challenge.json',

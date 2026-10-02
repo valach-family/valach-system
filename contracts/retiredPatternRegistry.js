@@ -33,6 +33,55 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-274',
+    date: '2026-10-02',
+    title: 'A FINOMABB SZELETELÉST A TELJES KÖLTSÉG ELLEN VETETTEM BE — és a mérés ROSSZABB lett, mint javítás előtt',
+    what: 'Az R136 kimondott hozzájárulást adott az `r57a` külső tanú FALIÓRA szerinti adaptív '
+      + 'szeleteléséhez. Megépítettem (időtúllépésen `n *= 2`, legfeljebb 4 próbálkozás, a 15 000 '
+      + 'ms-os egység-korlát és a teljes lefedettség VÁLTOZATLANUL), és megmértem. A kiinduló '
+      + 'állapot: **180 s · 9-ből 7 eset zöld · a részletes eredmény-artefaktum MEGSZÜLETETT** '
+      + '(E02/E03 a per-egység korláton halt meg). Az ADAPTÁCIÓ után: **600 s · a futtató '
+      + 'PROGRAM-SZINTŰ korlátján (`run-all.mjs`, 600 000 ms) · artefaktum NÉLKÜL · a kimenet nem '
+      + 'értelmezhető eset-listaként**. Vagyis a javításom ELVITTE azt a részeredményt is, ami '
+      + 'addig megvolt.',
+    why_wrong: 'A TÜNETRE illesztettem a szabályt, nem az OKRA. A finomabb szeletelés a PER-EGYSÉG '
+      + 'túllépést gyógyítja; itt viszont a battéria TELJES költsége × ahány eset meghívja lépi túl '
+      + 'a futtató türelmét — és az újraindításos finomítás ezt még MEG IS TÖBBSZÖRÖZI. A '
+      + 'hozzájárulás a szeletelésre szólt, és én ezt elfogadásnak vettem arra is, hogy a '
+      + 'szeletelés MEGOLDJA a problémát — holott a kettő két külön állítás (KUKA-033). Ráadásul a '
+      + 'saját R135-ös mondatom („a hívó a battéria növekedésével magától finomodik") ugyanennek a '
+      + 'félreértésnek a korábbi alakja volt.',
+    replaced_by: 'A bővítés KIVEZETVE: a program a MÉRT kiinduló alakjában áll '
+      + '(sha256:7f54483d…, bájtra azonos a `df79358a`-val) — mert a kiinduló állapot MÉRVE JOBB. '
+      + 'A maradék akadály NEVEZETTEN áll a `case-manifest.mjs` `r57a` bejegyzésének '
+      + '`retired_adaptation` blokkjában: a battéria teljes költsége vs. a FUTTATÓNK per-program '
+      + 'türelme — ez a MI harness-paraméterünk, nem a külső fél kritériuma, és a megemelése KÜLÖN '
+      + 'döntés. A hiányos futás HIÁNYOS marad (az R136 kikötése).',
+    decision: 'D-VS-3092',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R136) — a `run-all.mjs --only r57a` futtatása az adaptáció '
+      + 'ELŐTT (180 s · 7/9 · artefaktummal) és UTÁN (600 s · artefaktum nélkül).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/external-checks/case-manifest.mjs']),
+        pattern: 'retired_adaptation: Object\\.freeze\\(\\{',
+        why: 'a kivezetett bővítés, a MÉRT oka és a nyitott maradék NEVEZETTEN áll a manifesztben' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/external-checks/case-manifest.mjs']),
+        pattern: 'open_named:',
+        why: 'a maradék akadály nem néma: a harness-paraméter külön döntésként ki van mondva' }),
+    ]),
+    lesson: 'A HOZZÁJÁRULÁS EGY IRÁNYRA SZÓL, NEM ARRA, HOGY AZ AZ IRÁNY MEGOLDJA A PROBLÉMÁT. '
+      + 'Mielőtt egy engedélyezett bővítést megépítek, meg kell mérni, hogy a MÉRT ok egyáltalán az-e, '
+      + 'amire a bővítés hat: per-egység túllépést a darabolás gyógyít, TELJES költséget nem. És a '
+      + 'javítás UTÁNI állapotot a javítás ELŐTTIHEZ kell mérni — ha a „javítás" elvisz egy addig '
+      + 'meglévő részeredményt, akkor az nem javítás, és a visszaállítás a helyes lépés, nem a '
+      + 'megtartása (KUKA-064: a kivezetés maga is munka, de a rosszabb állapot megtartása nem opció).',
+    guard_note: 'gépi jel: a fenti két pozitív minta (`npm run verify:kuka`) — a kivezetett bővítés '
+      + 'és a nyitott maradék deklarációja. KIMONDVA, MIÉRT NINCS TILTÓ-MINTA a visszacsúszásra: a '
+      + 'bővítés önmagában nem hibás kód-alak (a `--units-auto` ugyanazt a szabályt JOGOSAN '
+      + 'használja a repón belül, ahol nincs program-szintű türelem-korlát) — a hiba a HELY, ahova '
+      + 'tettem. Egy minta, ami a `n *= 2` alakot tiltaná, a jogos használatot is pirosra vinné '
+      + '(KUKA-092: a tiltás a megépítés helyett).',
+  }),
+  Object.freeze({
     id: 'KUKA-273',
     date: '2026-10-02',
     title: 'A JAVÍTÁSOM EGY MÁSIK ÍRÓT TETT LÁTHATATLANNÁ — a naplóra állított olvasó kinyitotta a nyers vetület-írás kiskapuját',
