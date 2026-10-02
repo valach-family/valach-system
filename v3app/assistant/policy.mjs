@@ -31,6 +31,14 @@ export const LIMITS = Object.freeze({
   // A BLOKK-VÁLASZ KORLÁTJA (AST-05, F93-03): a modell legfeljebb ennyi ellenőrzött
   // tudás-blokkot válogathat össze — a hosszú, sok forrású válasz nem segítség, hanem kivonat.
   answer_blocks: 4,
+  /**
+   * A KORLÁTOS CAPABILITY-INDEX (AST-06, R142 §6): hány ELÉRHETŐ képesség FEJLÉCE mehet át a
+   * modellnek, ha a helyi keresés nem talált. Fejléc = azonosító · cím · állapot · verzió — a
+   * TÖRZS nem. Így a modell tudja, MIRŐL lehet kérdezni, anélkül hogy a teljes kézikönyvet
+   * elküldenénk minden kérdéshez (a terv kikötése szó szerint). A megjelenő szöveget a szerver
+   * állítja össze a SAJÁT nyelvcsomagjából — az index csak a VÁLASZTÁST teszi lehetővé.
+   */
+  knowledge_index: 40,
 });
 
 /** A TALÁLAT MINIMUMA — egyetlen, a leírás testében elkapott szó nem találat (lásd `selectKnowledge`). */
@@ -466,16 +474,64 @@ export const STOPWORDS = Object.freeze([
   'hogyan', 'miert', 'mit', 'hol', 'mikor', 'lehet', 'kell', 'tudok', 'tudom', 'nem', 'igen',
   'meg', 'egy', 'van', 'nincs', 'ezt', 'azt', 'hogy', 'itt', 'ott', 'mar', 'csak', 'valami',
   'milyen', 'lesz', 'adok', 'latom', 'hozza',
+  // VISZONYSZAVAK (R142/TOK-02, MÉRVE): a „között" minden lista-leírásban előfordul, tehát semmit
+  // nem szűkít — viszont PONTOS találatként pontot adott, és ezzel egy téves témát emelt az élre.
+  // Ugyanaz a hiba-osztály, amiért ez a lista született (a „Hogyan" a jelszó-útmutatót is behozta).
+  'kozott', 'kozul', 'alatt', 'felett', 'mellett', 'szerint',
   'how', 'why', 'what', 'where', 'when', 'can', 'cannot', 'does', 'the', 'and', 'for', 'this',
   'that', 'with', 'from', 'was', 'somebody', 'anybody',
   'wie', 'warum', 'wann', 'kann', 'nicht', 'der', 'die', 'das', 'und', 'fur', 'ich', 'sie', 'sehe',
 ]);
 
-/** A szó-darabok egy kérdésből — ékezet-érzéketlen, 3 karakternél rövidebbet és stopszót nem veszünk. */
+/**
+ * A LATIN ÍRÁSON KÍVÜLI KÉRDÉS NEM „ÜRES KÉRDÉS" (R142 — TOK-01, MÉRVE a külső fél R142-es lapján).
+ *
+ * A LELET. A régi alak a normalizálás után `[^a-z0-9]`-en vágott, tehát MINDEN latin íráson kívüli
+ * karakter elválasztó volt: egy kínai meghívási kérdés **0 szó-darabot** adott, és a kereső üres
+ * kérdésként kezelte. Ez önmagában még csak annyit jelentene, hogy a helyi, latin szókincsű kereső
+ * nem talál — az viszont a szerverben KAPUVÁ lett: a modellt csak akkor hívtuk meg, ha a HELYI
+ * keresés talált legalább egy funkciót. Így az önálló helyi kereső korlátja a MODELL nyelvértésének
+ * belépési kapujává vált (a kapu megszüntetése a `server.mjs` dolga — AST-06).
+ *
+ * AMIT EZ A JAVÍTÁS TESZ: a darabolás írás-független lesz (`\p{L}` · `\p{N}`), tehát a kérdésnek
+ * LESZ mérhető tartalma akkor is, ha egy betűje sem latin. A szóhossz-padló írás-érzékeny: a
+ * szóközt nem használó írásokban (kínai · japán · koreai) egy-két jel is teljes szó, a latin
+ * oldalon viszont MARAD a 3 karakteres padló — hogy a mai, mért viselkedés ne csússzon el.
+ *
+ * AMIT EZ A JAVÍTÁS NEM TESZ, ÉS EZT KI KELL MONDANI: NEM nyelvértés és NEM tövező. Egy kínai
+ * kérdés ettől még nem fog illeszkedni a magyar/angol/német szócikkekre — a szókincs latin. A
+ * fordítást a MODELL végzi (R142 §5: „a természetes nyelv, szinonimák, elírások … a külső
+ * modell/agent feladata"), és ebbe a modulba SZÁNDÉKOSAN nem építünk nyelvenként bővülő
+ * mondatértelmezőt (R142 §1 kikötése · KUKA-169: a „minden nyelv" a FORRÁS oldaláról számol).
+ */
+const SPACELESS_SCRIPT = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}]/u;
+export const LATIN_MIN = 3;
+
+/** A szó-darabok egy kérdésből — ékezet-érzéketlen; a hossz-padló írás-érzékeny (TOK-01). */
 export function tokensOf(text, { keepStopwords = false } = {}) {
   const norm = lower(text).normalize('NFD').replace(DIACRITICS, '');
-  const all = [...new Set(norm.split(/[^a-z0-9]+/).filter((w) => w.length >= 3))];
+  // A SZÓHATÁR MINDEN, AMI NEM BETŰ ÉS NEM SZÁM — írástól függetlenül.
+  const raw = norm.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const all = [...new Set(raw.filter((w) => (SPACELESS_SCRIPT.test(w) ? w.length >= 1 : w.length >= LATIN_MIN)))];
+  // A STOPSZÓ-LISTA LATIN: a nem latin darabokra nem alkalmazzuk (nem is lenne mit levenni).
   return keepStopwords ? all : all.filter((w) => !STOPWORDS.includes(w));
+}
+
+/**
+ * A KÉRDÉS ÍRÁSAI — MÉRT TÉNY, nem nyelv-felismerés (TOK-01).
+ *
+ * A szerver ebből tudja megmondani, hogy a HELYI keresés eleve nem illeszkedhet (a szókincs latin),
+ * tehát a nulla találat NEM „nincs ilyen tudás", hanem „ezt a kérdést a helyi kereső nem tudja
+ * megfogni" — két külön mondat, két külön teendő (KUKA-093 · KUKA-171: ami megállít, annak neve is
+ * legyen). Azt NEM állítjuk, hogy melyik NYELVEN van a kérdés: az írás nem nyelv.
+ */
+export function scriptsOf(text) {
+  const s = String(text ?? '');
+  const out = [];
+  if (/\p{Script=Latin}/u.test(s)) out.push('latin');
+  if (SPACELESS_SCRIPT.test(s)) out.push('spaceless');
+  if (/\p{L}/u.test(s) && !/\p{Script=Latin}/u.test(s) && !SPACELESS_SCRIPT.test(s)) out.push('other_non_latin');
+  return Object.freeze(out);
 }
 
 /**
@@ -506,16 +562,47 @@ export const STEM_MIN = 4;
  */
 export const PREFIX_MIN = 6;
 function commonPrefixLen(a, b) { let i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i += 1; return i; }
-export function wordHit(word, hay) {
+
+/**
+ * A TALÁLAT FAJTÁJA — ÉS MIÉRT KELL KÜLÖN SZÓ A GYENGE TALÁLATRA (R142 — TOK-02, MÉRVE).
+ *
+ * A LELET, amit a külső ellenőrző fél az R142-ben megnevezett („téves témaválasztás"), és amit itt
+ * KARAKTERRE visszamértem. A „Hogyan keresek a raktárak között?" kérdésre a találati lista első
+ * helye az `auth.resend` lett, **CÍM-találattal (+4)**, mert a kérdés `keresek` szava illeszkedett
+ * a „Új megerősítő levél **kérése**" cím `kerese` darabjára: ékezet-leszedés után a `kerese` ELŐTAGJA
+ * a `keresek`-nek, tehát a TŐ-szabály (`STEM_MIN`) talált. Két teljesen más szótő — „keres" és
+ * „kér" —, amit egyetlen karakter-szabály sem tud szétválasztani.
+ *
+ * ÉS AMIT MÉG MEGMÉRTEM, mert a kézenfekvő javítás NEM javítás: a `PREFIX_MIN` 6→7 emelése ezt a
+ * találatot NEM szünteti meg (a TŐ-szabályból jön, nem az előtag-szabályból), viszont ELRONTJA az
+ * `einladen` ~ `einladung` igaz esetet (a közös előtagjuk pontosan 6). A küszöb-hangolás tehát
+ * egyszerre hatástalan és romboló — a kivezetett minta maga a FELTÉTELEZÉS, hogy egy karakter-
+ * szabály eldöntheti a TÉMÁT (KUKA-285).
+ *
+ * A MAI SZABÁLY: a szabály MEGMARAD kereső-eszköznek, de MEGMONDJA, mire támaszkodik. Az `exact`
+ * találat a felhasználó SAJÁT szava; a `stem` és a `prefix` csak hasonlóság. Ha egy funkció
+ * pontszáma KIZÁRÓLAG hasonlóságból jön, az `weak` — és a gyenge találatot a válasz nem adhatja ki
+ * biztos témaként (R142 §5: „Általános név/kód keresés maradhat adatlekérő eszköz, de nem dönthet
+ * szemantikáról"). A témát a MODELL dönti el, és hozzá a szerver AKKOR IS eljut, ha itt nincs vagy
+ * csak gyenge a találat (AST-06).
+ */
+export const HIT_KINDS = Object.freeze(['exact', 'stem', 'prefix']);
+
+/** A találat FAJTÁJA, vagy `null`. A `wordHit` ezt használja — egy feloldó, két hívó (KUKA-039). */
+export function wordHitKind(word, hay) {
+  let loose = null;
   for (const h of hay) {
-    if (h === word) return true;
+    if (h === word) return 'exact';
     const short = h.length <= word.length ? h : word;
     const long = h.length <= word.length ? word : h;
-    if (short.length >= STEM_MIN && long.startsWith(short)) return true;
-    if (short.length >= PREFIX_MIN && commonPrefixLen(h, word) >= PREFIX_MIN) return true;
+    if (short.length >= STEM_MIN && long.startsWith(short)) { loose = loose || 'stem'; continue; }
+    if (short.length >= PREFIX_MIN && commonPrefixLen(h, word) >= PREFIX_MIN) { loose = loose || 'prefix'; }
   }
-  return false;
+  return loose;
 }
+
+/** A VÁLTOZATLAN, IGAZ/HAMIS alak — a meglévő hívók és próbák ezt használják (KUKA-064). */
+export function wordHit(word, hay) { return wordHitKind(word, hay) !== null; }
 
 /**
  * CÉLZOTT TUDÁS-KIVÁLASZTÁS (R89 §3: „Nem egy folyamatosan növekvő, minden kérdéshez teljesen
@@ -541,24 +628,52 @@ export function selectKnowledge({ question, dictionary, ctx = {}, top = LIMITS.k
     const keys = tokensOf(SEARCH[feature.id] || '');
     const title = tokensOf(text.title || '');
     let score = 0;
+    // A TALÁLAT ALAPJA IS MÉRT TÉNY (TOK-02): `exact` = a felhasználó SAJÁT szava · `stem`/`prefix`
+    // = csak hasonlóság. Ha egy funkció pontszáma kizárólag hasonlóságból jön, a találat GYENGE.
+    let exact = 0; let loose = 0;
     for (const w of words) {
-      if (wordHit(w, title)) score += 4;
-      else if (wordHit(w, keys)) score += 3;
-      else if (wordHit(w, hay)) score += 1;
+      const tK = wordHitKind(w, title); const kK = wordHitKind(w, keys); const hK = wordHitKind(w, hay);
+      /**
+       * A SÚLYOZÁS VÁLTOZATLAN — ÉS EZ MÉRT DÖNTÉS, NEM TEHETETLENSÉG (TOK-02, R142).
+       *
+       * Kipróbáltam a kézenfekvő javítást: a CÍMBEN talált HASONLÓSÁG súlyát 4-ről 1-re vinni, mert
+       * a téves `kerese`~`keresek` találat a címből jött. MÉRVE ROSSZABB LETT: tizenegy nevezett
+       * kérdésből a hibás eset egy helyett HÁROM-ra nőtt. A cím ugyanis rendszerint TARTALMAZZA a
+       * kulcs-főnevet, tehát a legitim ragozási találatok is onnan jönnek — „Hol látom a
+       * KÉSZLETADATOKAT?" → „KÉSZLETEGYENLEG" és „JELSZÓT szeretnék változtatni" → „JELSZÓ
+       * megváltoztatása" mindkettő a cím-hasonlóságon állt, és a gyengítés ELVITTE őket.
+       *
+       * Amit ebből megtartunk: a súly MARAD, a téves eset okát pedig ott javítjuk, ahol valóban
+       * van: a semmit nem szűkítő VISZONYSZÓ kiesik a darabolásnál (lásd `STOPWORDS`), és a
+       * TÉMÁT nem a karakter-szabály dönti el, hanem a modell (AST-06). A kipróbált és elvetett
+       * alakot KIMONDJUK, hogy a következő kör ne futtassa újra (KUKA-033: a minősítés mérés).
+       */
+      const k = tK ? { hol: 'title', pont: 4, fajta: tK }
+        : kK ? { hol: 'keys', pont: 3, fajta: kK }
+          : hK ? { hol: 'hay', pont: 1, fajta: hK } : null;
+      if (!k) continue;
+      score += k.pont;
+      if (k.fajta === 'exact') exact += 1; else loose += 1;
     }
     // A MINIMUM PONTSZÁM: egyetlen, a leírás testében elkapott szó nem találat. A néma, gyenge
     // találat rosszabb, mint a kimondott „nincs ellenőrzött útmutató" (KUKA-050).
-    if (score >= MIN_SCORE) scored.push({ feature, score });
+    if (score >= MIN_SCORE) scored.push({ feature, score, exact, loose, confidence: exact > 0 ? 'exact' : 'weak' });
   }
-  scored.sort((a, b) => (b.score - a.score) || a.feature.id.localeCompare(b.feature.id));
+  // A RENDEZÉS ELŐBB A TALÁLAT ALAPJÁT NÉZI (TOK-02): a felhasználó SAJÁT szaván álló találat
+  // MEGELŐZI a csak hasonlóságon állót, akkor is, ha annak több pontja van. Pontosan ez a mért
+  // eset: a `kerese`~`keresek` hasonlóság CÍM-találatként (+4) megelőzte a `raktar`~`raktarak`
+  // kulcsszó-találatot (+3) — két más tő, és a hasonlóság nyert (KUKA-285).
+  scored.sort((a, b) => (a.confidence === b.confidence ? 0 : a.confidence === 'exact' ? -1 : 1)
+    || (b.score - a.score) || a.feature.id.localeCompare(b.feature.id));
   const picked = []; let chars = 0; let truncated = false;
-  for (const { feature, score } of scored) {
+  for (const row of scored) {
+    const { feature, score } = row;
     if (picked.length >= top) { truncated = true; break; }
     const text = KB[feature.id] || {};
     const size = JSON.stringify(text).length;
     if (chars + size > LIMITS.knowledge_chars) { truncated = true; break; }
     chars += size;
-    picked.push({ id: feature.id, version: feature.version, status: feature.status, score, action: feature.action, tour: feature.tour, ai: feature.ai, text });
+    picked.push({ id: feature.id, version: feature.version, status: feature.status, score, action: feature.action, tour: feature.tour, ai: feature.ai, text, confidence: row.confidence, exact_words: row.exact });
   }
   // A GYAKORI KÉRDÉSEK külön találati listája — modellhívás NÉLKÜL is ez a helyi keresés eredménye.
   const faqHits = [];
@@ -573,9 +688,40 @@ export function selectKnowledge({ question, dictionary, ctx = {}, top = LIMITS.k
     if (score >= MIN_SCORE) faqHits.push({ id, score, q: e.q, a: e.a });
   }
   faqHits.sort((a, b) => (b.score - a.score) || a.id.localeCompare(b.id));
+  /**
+   * A NULLA TALÁLAT HÁROM KÜLÖN TÉNY (R142 — TOK-01 · KUKA-093 · KUKA-171).
+   *
+   * A régi válasz csak azt mondta, hogy nincs találat — abból viszont nem derült ki, hogy (a) a
+   * kérdésnek nem volt mérhető szó-darabja, (b) volt, de a latin szókincsre nem illeszkedett, mert
+   * a kérdés más íráson van, vagy (c) volt és illeszkedhetett volna, de nincs ilyen tudás. A
+   * szerver EBBŐL dönti el, kell-e modell-oldali értelmezés (AST-06) — nem a találat-számból.
+   */
+  const reason = picked.length ? null
+    : (!words.length ? 'no_tokens'
+      : (scriptsOf(question).some((s) => s !== 'latin') ? 'non_latin_question' : 'no_match'));
   return {
     features: picked,
     faq: faqHits.slice(0, LIMITS.faq_hits),
+    // AMI MEGÁLLÍTOTT, ANNAK NEVE IS VAN. `null` = van találat.
+    reason,
+    tokens: words.length,
+    scripts: scriptsOf(question),
+    /**
+     * A TALÁLAT ERŐSSÉGE EGY SZÓVAL (TOK-02): `exact` = legalább egy találat a felhasználó SAJÁT
+     * szaván áll · `weak` = MINDEN találat csak hasonlóság (tő vagy közös előtag) · `none` = nincs
+     * találat. A szerver EBBŐL dönti el, kell-e modell-oldali értelmezés — nem a találat-számból.
+     */
+    confidence: picked.length ? (picked.some((p) => p.confidence === 'exact') ? 'exact' : 'weak') : 'none',
+    /**
+     * A KORLÁTOS CAPABILITY-INDEX (AST-06): a kérőre ELÉRHETŐ képességek FEJLÉCE — azonosító, cím,
+     * állapot, verzió. TÖRZS NÉLKÜL. Ez az, amit a modell akkor is megkap, ha a helyi keresés nem
+     * talált: tudja, MIRŐL lehet kérdezni, és a hozzá tartozó mondatot a szerver a SAJÁT
+     * nyelvcsomagjából állítja össze (AST-05 változatlan). Nem a teljes kézikönyv — fejlécek.
+     */
+    index: Object.freeze(visible.slice(0, LIMITS.knowledge_index).map(({ feature }) => Object.freeze({
+      id: feature.id, version: feature.version, status: feature.status,
+      title: (KB[feature.id] || {}).title ?? null,
+    }))),
     // AZ ALAPSOKASÁG KÉT SZÁM: a KERESHETŐ (a kérőre elérhető) és a szótár TELJES táblája — a
     // szűkebb találati lista így nem látszik hibának, és a kizárás mértéke is látható (KUKA-093).
     faq_population: searchable.length,
@@ -647,4 +793,96 @@ export const AST_CONTRACT = Object.freeze({
     + 'composeBlockAnswer): a modell BLOKKOT VÁLASZT, a szöveget a szerver adja. A modell szabad '
     + 'prózája NEVEZETT, NEM ELFOGADOTT mód (model_prose_unverified) — érvényes azonosító önmagában '
     + 'nem tartalmi bizonyíték (KUKA-235)',
+});
+
+/**
+ * AST-06 — A HELYI TALÁLAT NEM A MODELL KAPUJA (R142 §6, KIFEJEZETT új tervezői döntés).
+ *
+ * A LELET, AMIT EZ LEZÁR (a külső ellenőrző fél, chatgpt-v3, R142 §2 — és a kódban visszamérve).
+ * A szerver a modellt CSAK akkor hívta meg, ha a HELYI, latin szókincsű kereső talált legalább egy
+ * funkciót (`prov.configured && selection.features.length`). Ennek három mért következménye volt:
+ *   · a kínai meghívási kérdés 0 szó-darabot adott, tehát a modellt SEM hívtuk meg — pedig épp a
+ *     fordítás az, amihez a modell kell (TOK-01);
+ *   · az „És ezt hogyan csinálom?" alakú FOLYTATÁS 0 találatot adott, tehát az ELŐZMÉNYT értő
+ *     modellhez a kérdés el sem jutott (R142 §2);
+ *   · a csak HASONLÓSÁGON álló téves téma (`kerese`~`keresek`) viszont „találatnak" számított, és
+ *     ezzel a rossz témát vitte a modell elé (TOK-02).
+ * Vagyis egy önálló, karakter-szintű kereső korlátja lett az AI nyelvértésének BELÉPÉSI KAPUJA.
+ *
+ * A MAI SZABÁLY. A döntés NEM a találat-szám, hanem EZ a feloldó, és a válasza NEVEZETT — hogy a
+ * mérés és a felület is látja, MIÉRT hívtuk (vagy miért nem) a modellt (KUKA-171 · KUKA-127).
+ * Egyetlen eset marad, ahol nincs mit értelmezni: a kérdésben egyetlen BETŰ sincs, és előzmény sem
+ * áll mögötte — ott a modellhívás költség indok nélkül („a puszta FAQ/oldalmegnyitás ne kapjon
+ * szükségtelen többlépcsős hívást", R142 §6).
+ *
+ * AMIT EZ NEM TESZ, KIMONDVA: nem engedi el a VÉGES korlátokat. A hívás-szám, a méret és az
+ * idő-keret továbbra is a `LIMITS`-ben áll, és a modell válaszát UGYANÚGY ellenőrzi a szerver
+ * (AST-04 · AST-05) — a kapu megnyitása a HOZZÁFÉRÉSRE szól, nem az ellenőrzésre.
+ */
+export const MODEL_NEED_REASONS = Object.freeze([
+  'local_hits',           // van pontos helyi találat — a modell a megfogalmazást/válogatást végzi
+  'weak_only',            // CSAK hasonlóság-alapú találat: a témát a modell döntse el (TOK-02)
+  'no_match',             // van mérhető szó, de nincs találat — lehet, hogy más szóval kérdezte
+  'non_latin_question',   // a kérdés nem latin íráson van: a helyi szókincs eleve nem illeszkedhet
+  'no_tokens',            // nincs mérhető szó-darab, de van mit értelmezni (előzmény vagy betű)
+  'history_followup',     // előzményre utaló folytatás — a jelentés az előzményben van
+  'nothing_to_interpret', // EGYETLEN betű sincs és előzmény sincs: nincs mit értelmezni
+]);
+
+export function modelNeed({ selection, historyTurns = 0, question = '' } = {}) {
+  const sel = selection || {};
+  const betu = /\p{L}/u.test(String(question ?? ''));
+  if (!betu && historyTurns === 0) return { call: false, why: 'nothing_to_interpret' };
+  if (sel.confidence === 'exact') return { call: true, why: 'local_hits' };
+  if (sel.confidence === 'weak') return { call: true, why: 'weak_only' };
+  // Nulla találat: a SZŰKÍTŐ ok dönti el a nevet — és az előzmény erősebb magyarázat, mint a
+  // „nem találtunk", mert a folytatás jelentése az előzményben van, nem a mai szavakban.
+  if (historyTurns > 0 && (sel.reason === 'no_match' || sel.reason === 'no_tokens')) {
+    return { call: true, why: 'history_followup' };
+  }
+  return { call: true, why: sel.reason || 'no_match' };
+}
+
+/**
+ * AST-07 — A PRÓZA NEVEZETT, MEGJELÖLT MÓD; A TÉNY A VS-HEZ VAN KÖTVE (R142 §6).
+ *
+ * A LELET ELŐZMÉNYE. Az AST-05 azért zárta ki a modell szabad prózáját, mert egy érvényes
+ * forrás-azonosító DÍSZÍTÉS volt, nem bizonyíték (KUKA-235): a helyes jelölőkkel ellátott, de
+ * tartalmilag HAMIS mondat igazolt súgóválaszként jelent meg. Ez a tiltás helyes volt, de az R142
+ * kimondja, hogy TÚL SZÉLES: „A blokk-összeállítás maradhat helyi/biztos idézeti mód, de nem
+ * kizárólagos AI-válaszforma."
+ *
+ * A MAI SZABÁLY — HÁROM DARAB, SOHA NEM ÖSSZEMOSVA:
+ *   1. a TÉNYSZERŰ rész a VS-é: a szöveget a szerver a nyelvcsomagból állítja össze a modell által
+ *      hivatkozott, ELÉRHETŐ és egyező verziójú blokkokból (ugyanaz, mint az AST-05);
+ *   2. a modell PRÓZÁJA megjelenhet, de KÜLÖN, és KIMONDOTTAN következtetésként jelölve — nem
+ *      forrásszövegként;
+ *   3. ha a próza alatt NINCS ellenőrzött forrás-rész, a próza nem jelenik meg (a jelölés nem
+ *      pótolja a megalapozást).
+ *
+ * Így a felhasználó LÁTJA, mi ellenőrzött forrásszöveg és mi a segéd következtetése — a kettőt
+ * nem a jóindulat választja el, hanem a válasz ALAKJA (KUKA-127: a mérés harmadik szava).
+ */
+export function groundedAnswer({ facts, prose, labels } = {}) {
+  const tenyek = String(facts ?? '').trim();
+  const kovetkeztetes = String(prose ?? '').trim();
+  if (!tenyek) return { ok: false, reason: 'grounded_without_facts', answer: null };
+  if (!kovetkeztetes) return { ok: true, answer: tenyek, has_inference: false };
+  const L = labels || {};
+  const fejTeny = L.facts ? `${L.facts}: ` : '';
+  const fejKov = L.inference ? `${L.inference}: ` : '';
+  return { ok: true, answer: `${fejTeny}${tenyek}\n\n${fejKov}${kovetkeztetes}`, has_inference: true };
+}
+
+export const AST06_CONTRACT = Object.freeze({
+  id: 'AST-06',
+  owns: 'annak NEVEZETT eldöntése, kell-e modell-oldali értelmezés — a helyi találat-szám HELYETT',
+  never: 'a helyi, karakter-szintű kereső korlátja nem lehet a modell elérésének előfeltétele',
+  keeps: 'a VÉGES korlátok és a válasz-ellenőrzés (AST-04 · AST-05) változatlanok',
+  index_rule: 'nulla vagy gyenge helyi találatnál a modell a KORLÁTOS capability-indexet kapja '
+    + '(azonosító · cím · állapot · verzió), nem a teljes kézikönyvet — a megjelenő mondatot a '
+    + 'szerver állítja össze a saját nyelvcsomagjából',
+  stated_limit: 'a modell OLVASÓ ESZKÖZÖKKEL végzett, több-lépéses célzott kontextus-kérése (R142 '
+    + '§6 harmadik és negyedik pontja) EBBEN a körben NEM épült meg — a kapu megnyitása és a '
+    + 'korlátos index igen; a hiány NEVESÍTETT, nem néma',
 });

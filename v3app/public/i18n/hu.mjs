@@ -754,6 +754,10 @@ export const CHAT = Object.freeze({
   measuredCost: 'Költség',
   measuredUnknown: 'nincs adat',
   instructionIgnored: 'A kérdésben utasításnak látszó rész volt. Azt adatként kezelem, nem hajtom végre.',
+  // AST-07 (R142 §6): a válasz két darabja SOHA nincs összemosva — ami ellenőrzött forrásszöveg,
+  // és ami a segéd következtetése. A feliratot a nyelvcsomag adja, nem a kód (SZO-01 · KUKA-210).
+  groundedFacts: 'Ellenőrzött forrásszöveg',
+  modelInference: 'A segéd következtetése — ezt nem forrás támasztja alá',
 });
 
 /**

@@ -317,7 +317,27 @@ import { inviteNextKey } from './inviteText.mjs';
    * ugyanabban a böngészőben váltott vagy belépett), az KONTEXTUS-VÁLTÁS: új generáció, ürítés, és
    * KIMONDOTT mondat — nem néma képernyő (R77/F77-01 · R79/F79-02 · KUKA-201).
    */
-  async function refreshMe() {
+  /**
+   * `deferTourResume` — A KIVÉTELT A HÍVÓ MONDJA KI, DE AZ ALAPÁLLÁS A BIZTONSÁGOS (R142 — F142-01).
+   *
+   * A `resetViewCaches()` a DEKLARÁLT váltás-határon ÁTADJA a futó bemutatót (ACT-01), és a
+   * visszaállás ennek a PÁRJA — ezt a kód két helyen már ki is mondta („az átadás és a visszaállás
+   * EGY pár", KUKA-118). A visszaállás viszont a HÍVÓ-SORBAN élt, két kézzel beírt helyen, és
+   * ezért a HARMADIK útról kimaradt. MÉRVE (R142, böngészőben, mindkét méreten): a fejléc
+   * fiókválasztójával végzett váltás után a `handover` OTT ÁLLT a tárban, a buborék viszont
+   * REJTETT lett és SOHA nem jött vissza — a `tour.reentry` 18 lépéses történet a 9.-en meghalt,
+   * és a tárban elavult átadás maradt. Pontosan a KUKA-218 alakja: egy közös szabály annyit ér,
+   * amennyire teljes, és a kimaradt tag nem „kis hiány", hanem a szabály cáfolata.
+   *
+   * MOSTANTÓL az ALAPÁLLÁS a visszaállás, tehát egy ÚJ váltás-út nem tudja elfelejteni. Aki
+   * KÉSŐBB akar visszaállni, annak KI KELL MONDANIA — és ma pontosan két ilyen út van, mindkettő
+   * MÉRT okkal (KUKA-121: ami a kész állapot előtt fut, nem a kész állapotot méri):
+   *   · az INDULÁS — a `?invite=` képernyőt az `observeInvite()` rajzolja meg a `refreshMe` UTÁN;
+   *   · a MEGHÍVÓ BEVÁLTÁSA — ott a „más ember ült le közben" ág (R112-I3 · KUKA-204) a
+   *     `refreshMe` után dönt, és egy idegen nézőnek nem állítjuk vissza a futást.
+   * A visszaállás IDEMPOTENS: átadás nélkül azonnal visszatér, tehát a plusz hívás nem költség.
+   */
+  async function refreshMe({ deferTourResume = false } = {}) {
     const seq = (state.seq += 1);
     const me = await api('GET', '/api/me');
     if (seq !== state.seq) return;
@@ -372,6 +392,9 @@ import { inviteNextKey } from './inviteText.mjs';
     state.me = me;
     render();
     if (changed) loadPageData();      // ÚJ nézet ⇒ ÚJ adat; a rajzolás maga nem kérdez
+    // A PÁR MÁSIK FELE (F142-01). A rajzolás UTÁN: a következő lépés célja (pl. `nav-stock`) csak
+    // a kész képernyőn mérhető. Átadás nélkül ez azonnal visszatér.
+    if (!deferTourResume) await resumeTourAfterSwitch();
   }
 
   /** Létezik-e ez az oldal az ÚJ nézetben? (A tag nem lát Beállítások-oldalt — UX-09.) */
@@ -610,9 +633,64 @@ import { inviteNextKey } from './inviteText.mjs';
     if (!state.tabs.includes(page)) state.tabs.push(page);
     const sw = byTest('account-switcher'); if (sw) sw.open = false;
     const pr = byTest('profile'); if (pr) pr.open = false;
-    const nav = byTest('nav'); if (nav) nav.classList.remove('open');
+    setNavOpen(false);
     render();
     loadPageData();
+  }
+
+  /**
+   * A MOBIL MENÜ ÁLLAPOTA — EGY FELOLDÓ, HÁROM HÍVÓ (R142 — NAV-01, SAJÁT LELET MÉRVE 390 px-en).
+   *
+   * A LELET, AMI EZT KIKÉNYSZERÍTETTE. A `tour.inviteRevoke` történet a 11. lépésén BERAGADT
+   * telefonon: a lépés célja a `nav-members`, amit a csukott menü elrejt, ezért a bemutató a ☰-t
+   * KIEMELTE és VÁRT (`targetPending` — ez a helyes viselkedés, KUKA-228). A felhasználó (a tanú)
+   * meg is nyomta a ☰-t, a menü KI IS NYÍLT, és a `nav-members` MÉRHETŐEN látható lett
+   * (225×42 px, `offsetParent` megvan) — a buborék viszont TOVÁBBRA IS a ☰-on állt, ugyanazzal a
+   * „nyisd ki a menüt" mondattal. Mérve: 9 egymás utáni azonos állapot, majd a tanú megállt.
+   *
+   * AZ OK NEM A FELTÁRÁS-ÁG VOLT, hanem a VÁRAKOZÁS VÉGE: a menü nyitása DOM-változás, amit a futó
+   * bemutatónak újra kell értékelnie, és a ☰ kezelője ezt nem hívta. A `tourRecheck` eddig a
+   * panelre, a súgóra és a fül-váltásra futott — a menüre nem. Ez a KUKA-228 másik fele: megépült,
+   * hogy MIRE VÁRUNK, de nem az, hogy MIKOR NEM VÁRUNK TOVÁBB.
+   *
+   * ÉS EGY MÁSODIK, EDDIG NÉMA HIBA UGYANITT (R142/F142-04): az `aria-expanded` CSAK a ☰ saját
+   * kezelőjében állt át. A `go()` és a „bezárás" is becsukta a menüt — az `aria-expanded` viszont
+   * `true` maradt, tehát a képernyő olvasója azt állította, hogy a menü nyitva van, miközben
+   * csukva volt (KUKA-050: a szöveg a valóságot követi — az ARIA is szöveg).
+   *
+   * Ezért a nyitás/zárás MINDHÁROM pontja ezen az egy úton megy (KUKA-003 · KUKA-039), és az
+   * újraértékelés ennek a résznek a FELE, nem a hívó jóindulata (KUKA-218).
+   */
+  function setNavOpen(open) {
+    const nav = byTest('nav');
+    if (!nav) return false;
+    const volt = nav.classList.contains('open');
+    nav.classList.toggle('open', open === true);
+    const toggle = byTest('nav-toggle');
+    if (toggle) toggle.setAttribute('aria-expanded', String(open === true));
+    // CSAK VALÓDI VÁLTOZÁSRA ÉRTÉKELÜNK ÚJRA: a változatlan állapot újrarajzolása a buborékot
+    // ok nélkül mozgatná (és a `go()` minden oldalváltásnál becsukja a már csukott menüt).
+    /**
+     * ÉS AZ ÚJRAÉRTÉKELÉS A KÉSZ DOM-ON FUT — NEM EBBEN A PILLANATBAN (SAJÁT LELET, MÉRVE R142-ben).
+     *
+     * A LELET, amit a saját első alakom okozott. A `render()` NEM rajzolja a buborékot (azt csak a
+     * `renderTour`/`tourRecheck` teszi), a `go()` viszont ELŐBB csukja be a menüt, és CSAK UTÁNA
+     * rajzol. A szinkron újraértékelés ezért a RÉGI menüt mérte: a `nav-stock` még `aria-current`
+     * =„page" volt, tehát a kapu „a lépés szándéka teljesült"-et mondott, a buborék pedig pending
+     * és kiemelés NÉLKÜL maradt ott — egy MÁSIK oldalon. Mérve: `pending=null · mark=null`, pedig
+     * ugyanabban az állapotban a kapu közvetlen hívása `targetPending`-et és `nav-toggle`-t adott.
+     *
+     * Ez pontosan a KUKA-121 alakja („ami a kész állapot előtt fut, nem a kész állapotot méri"),
+     * és ugyanaz a hiba-osztály, amit a `resumeTourAfterSwitch` megjegyzése már leírt. A javítás
+     * nem az, hogy a hívókat sorrendbe kérjük — az megint a következő hívón bukna el (KUKA-218) —,
+     * hanem hogy az újraértékelés SORRENDFÜGGETLEN legyen: a mai feladat VÉGÉN fut, amikor a
+     * `render()` már lefutott, akárhonnan hívták.
+     */
+    if (volt !== (open === true)) {
+      const ujra = () => { try { tourRecheck(); } catch { /* a buborék hibája ne vigye el a menüt */ } };
+      if (typeof queueMicrotask === 'function') queueMicrotask(ujra); else setTimeout(ujra, 0);
+    }
+    return volt !== (open === true);
   }
 
   // ── OLDAL-SABLONOK ──────────────────────────────────────────────────────────────────────────
@@ -1650,7 +1728,21 @@ import { inviteNextKey } from './inviteText.mjs';
       sessionStorage.setItem(TOUR_HANDOVER_KEY, JSON.stringify({
         id: run.id, at: run.at,
         states: run.steps.map((x) => x.state),
+        /**
+         * A NÉZET PÁR — ÉS AZ ÁTADÁS IS PÁRT TÁROL (R142 — F142-05, MÉRVE).
+         *
+         * Az `actorSwitchReady` már kimondta, hogy a váltás kétfajta lehet: MÁS EMBER nézete VAGY
+         * ugyanaz az ember MÁSIK FIÓKJA — „a nézet a KETTŐ EGYÜTT: alany ÉS fiók" (KUKA-208). Az
+         * átadás viszont csak az ALANYT vitte át, a fiókot nem. MÉRVE (R142): a fiókváltás után a
+         * visszaállás a futást az ÚJ fiókhoz kötötte, tehát a váltás TÉNYE eltűnt — ugyanaz az
+         * alany, ugyanaz a (már új) fiók —, és a váltás-lépés SOHA nem záródott le. A bemutató
+         * vég nélkül újra meg újra fiókváltást kért egy MÁR MEGTÖRTÉNT váltásra (KUKA-231: a kapu
+         * ne kérje el kétszer ugyanazt · KUKA-129: a nyugtának is igazat kell mondania).
+         *
+         * Tehát amit tárolunk, az a váltás ELŐTTI nézet MINDKÉT fele.
+         */
         from_subject: run.view.subject ?? null,
+        from_book: run.view.book ?? null,
       }));
     } catch { /* a tárolás hiánya nem állíthatja meg a váltást — a bemutató elvész, a művelet nem */ }
   }
@@ -1681,7 +1773,10 @@ import { inviteNextKey } from './inviteText.mjs';
     run.steps.forEach((st, i) => { if (tourMod.STEP_STATES.includes(h.states[i])) st.state = h.states[i]; });
     run.at = h.at;
     // A FUTÁS MÉG A RÉGI NÉZŐHÖZ TARTOZIK: így a váltás TÉNYE mérhető marad (`actorSwitchReady`).
-    run.view = { book: run.view.book, subject: h.from_subject };
+    // MINDKÉT FELE (F142-05): a fiókot is a váltás ELŐTTI értékre állítjuk vissza, különben az
+    // ugyanazon ember két fiókja közti váltás mérhetetlen lenne (a `newTourRun` a MAI nézetből
+    // épít, tehát a `run.view.book` itt már az ÚJ fiók volna).
+    run.view = { book: h.from_book ?? run.view.book, subject: h.from_subject };
     state.tour = run;
     state.tourFinished = false; state.tourAborted = null; state.tourBlocked = null;
     // A LAPOT ELŐBB KIRAJZOLJUK, UTÁNA ÍTÉLÜNK (SAJÁT LELET, MÉRVE — KUKA-121 ismétlődése).
@@ -2222,7 +2317,7 @@ import { inviteNextKey } from './inviteText.mjs';
       case 'panel-close': closePanel(); break;
       case 'unsaved-keep': closePanel(); break;
       case 'unsaved-discard': closePanel(); await switchWorkspace(b.dataset.switchTo, { discarded: true }); break;
-      case 'nav-close': byTest('nav').classList.remove('open'); break;
+      case 'nav-close': setNavOpen(false); break;
       case 'mail-open': closePanel(); await mailPanel(); break;
       case 'mail-refresh': await mailPanel(); break;
       case 'invite-open': invitePanel(); break;
@@ -2458,8 +2553,9 @@ import { inviteNextKey } from './inviteText.mjs';
   const navToggle = byTest('nav-toggle');
   if (navToggle) navToggle.addEventListener('click', () => {
     const nav = byTest('nav');
-    nav.classList.toggle('open');
-    navToggle.setAttribute('aria-expanded', String(nav.classList.contains('open')));
+    // A KÖZÖS FELOLDÓ (NAV-01): az `aria-expanded` és a futó bemutató újraértékelése ITT, EGY
+    // helyen történik — nem a három hívó mindegyikében külön (KUKA-003).
+    setNavOpen(!nav.classList.contains('open'));
   });
   const brand = byTest('brand');
   if (brand) brand.addEventListener('click', () => { if (state.me && state.me.subject_id) go('overview'); });
@@ -2774,7 +2870,9 @@ import { inviteNextKey } from './inviteText.mjs';
     history.replaceState(null, '', '/');
     newContext('invite_redeemed');
     state.tabs = ['overview']; state.page = 'overview';
-    await refreshMe();
+    // KIMONDOTT KÉSLELTETÉS (F142-01): itt a visszaállás a „más ember ült le közben" ág UTÁN
+    // történik — egy idegen nézőnek nem állítjuk vissza az előző ember futását (R112-I3 · KUKA-204).
+    await refreshMe({ deferTourResume: true });
     /**
      * A SIKER ANNAK SZÓL, AKINEK A SZERVER KISZOLGÁLTA (R112 saját lelete · KUKA-204).
      *
@@ -2842,7 +2940,9 @@ import { inviteNextKey } from './inviteText.mjs';
      * nem mindig fut le mobilon.
      */
     window.addEventListener('pagehide', () => { try { saveTourHandover(); } catch { /* a mentés hiánya nem akadályozhatja az elnavigálást */ } });
-    await refreshMe();
+    // KIMONDOTT KÉSLELTETÉS (F142-01): a `?invite=` képernyőt az `observeInvite()` rajzolja meg
+    // alább — a visszaállás a KÉSZ lapra tartozik (KUKA-121).
+    await refreshMe({ deferTourResume: true });
     if (state.inviteToken) { await observeInvite(); render(); }
     /**
      * A VISSZAÁLLÁS A LAP FELÁLLÁSA UTÁN — ÉS EZ SORREND, NEM ÍZLÉS (SAJÁT LELET, MÉRVE).

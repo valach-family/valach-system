@@ -671,6 +671,8 @@ export const CHAT = Object.freeze({
   measuredCost: 'Kosten',
   measuredUnknown: 'keine Daten',
   instructionIgnored: 'Die Frage enthielt etwas, das wie eine Anweisung aussah. Das behandle ich als Daten und führe es nicht aus.',
+  groundedFacts: 'Gepr\u00fcfter Quelltext',
+  modelInference: 'Schlussfolgerung des Assistenten \u2014 nicht durch eine Quelle gest\u00fctzt',
 });
 
 /** DAS FUNKTIONSWISSEN (KB) — gleiche Schlüssel wie in der ungarischen Quelle (`hu.mjs`). */

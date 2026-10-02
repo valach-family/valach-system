@@ -16,6 +16,108 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3098 — A HELYI TALÁLAT NEM A MODELL KAPUJA, ÉS A HASONLÓSÁG NEM DÖNT TÉMÁT (R142, AST-06 · AST-07 · TOK-01 · TOK-02)
+
+> **Hatály:** V3 (`valach-system`). Nincs merge, éles telepítés, V2-módosítás, új fizetős
+> szolgáltatás, külső címzettnek levél, és nincs req-5/core/CMD/PR-zárás.
+
+**A parancs:** `CMD-VS-300-002-002 R142 — SPEC` (chatgpt-v3, 2026-10-02). Induló fej:
+`011803b4c00e180cc22dd7bee92e1f881cc8f9f1`.
+
+**A DÖNTÉS.** A külső ellenőrző fél kikötése szó szerint: *„A helyi lexical találat nem előfeltétele
+az engedélyezett provider elérésének."* Ezt négy darabban vezettük át:
+
+1. **A KAPU MEGSZŰNT (AST-06).** A modell-hívást NEVEZETT feloldó dönti el (`modelNeed`), nem a
+   találat-szám. Hét nevezett ok közül hat HÍV (`local_hits` · `weak_only` · `no_match` ·
+   `non_latin_question` · `no_tokens` · `history_followup`), és egy NEM: `nothing_to_interpret` —
+   egyetlen betű sincs és előzmény sincs. A döntés a VÁLASZBAN is megjelenik (`model_need`).
+2. **KORLÁTOS CAPABILITY-INDEX.** Nulla vagy gyenge helyi találatnál a modell az ELÉRHETŐ
+   képességek FEJLÉCÉT kapja (azonosító · cím · állapot · verzió, TÖRZS nélkül, legfeljebb 40) —
+   nem a teljes kézikönyvet. A megjelenő mondatot továbbra is a SZERVER állítja össze a saját
+   nyelvcsomagjából (AST-05 változatlan).
+3. **AZ ÍRÁS NEM KAPU (TOK-01).** A szó-darabolás írás-független (`\p{L}` · `\p{N}`), a hossz-padló
+   írás-érzékeny: a szóközt nem használó írásokban egy jel is szó, a latin oldalon MARAD a három
+   karakter. A nulla találat OKA nevezett. **Amit ez NEM:** nem nyelvértés és nem tövező — a
+   fordítás a modellé, és a VS-be SZÁNDÉKOSAN nem épül nyelvenként bővülő mondatértelmező.
+4. **A HASONLÓSÁG NEM TÉMA-DÖNTŐ (TOK-02).** A találat FAJTÁJA mért tény (`exact` · `stem` ·
+   `prefix`); a csak hasonlóságon álló találat `weak`, és a rendezés a pontos találatot előre
+   veszi. A `weak_only` ok önmagában modell-hívást indít.
+
+**AMI MEGÉPÜLT, DE ALAPBÓL KI VAN KAPCSOLVA — KIMONDVA (AST-07).** A megjelölt modell-próza
+szerződése kész és mérve van (`groundedAnswer`: ellenőrzött forrás-rész + KÜLÖN megjelölt
+következtetés; forrás-rész nélkül a próza nem jelenik meg). BEKAPCSOLVA viszont az R93-as battéria
+(b) állítása AZONNAL pirosra váltott: a külső fél ellenpéldája — a helyes jelölőkkel ellátott, de
+tartalmilag HAMIS mondat — visszakerült a képernyőre, csak felirattal. A jelölés tehát nem teszi
+ártalmatlanná a téves TÉNY-állítást (KUKA-235). Ezért a `VS_AI_GROUNDED_PROSE` kapcsoló ALAPBÓL KI,
+a régi őr ÉRVÉNYBEN marad, és MINDKÉT állás mérve van — az R142 §6 utolsó pontja szerint („ne
+pusztán töröld a piros őrt"). A bekapcsolás feltétele: élő szolgáltató + a §6 szerinti KÜLÖN
+kérdéskészlet a próza tartalmi minőségére.
+
+**AMI NEM ÉPÜLT MEG, NEVESÍTVE.** A modell OLVASÓ ESZKÖZÖKKEL végzett, több-lépéses célzott
+kontextus-kérése (R142 §6 harmadik és negyedik pontja) ebben a körben NEM épült meg. A kapu
+megnyitása és a korlátos index igen. **És ami ebben a környezetben nem is mérhető:** nincs
+engedélyezett szolgáltató (`VS_AI_PROVIDER` hiányzik — `npm run kapcsolat:ai`), tehát élő
+nyelvértésre vonatkozó állítás egyetlen itteni mérésből sem következik (KUKA-089 · KUKA-127).
+
+**Gépi jel:** `npm run verify:app-findings-r142` (23 állítás, ellenpárokkal) · `npm run verify:kuka`
+(KUKA-284 · KUKA-285, a kivezetett kapu-feltétel TILTOTT mintájával).
+
+---
+
+## D-VS-3097 — A LEFEDÉSI NÉPESSÉG A TÉNYLEGES ALKALMAZÁSBÓL JÖN (R142, LEF-01)
+
+> **Hatály:** V3 (`valach-system`). Ugyanazok a tilalmak, mint fent.
+
+**A DÖNTÉS.** A lefedést mostantól NEM a tudásjegyzék önellenőrzése jelenti. Az alapsokaság a
+FORRÁS: a szerver route-táblája, a nyelvcsomag oldal-listája (amiből a menü ÉS a fülek épülnek), a
+felületi `data-action` műveletek, az űrlapok és a belépés előtti nézetek. A regiszter EHHEZ van
+mérve, nem önmagához — a régi alak zöld maradhatott akkor is, ha egy VALÓDI oldal soha be sem került
+a regiszterbe (KUKA-051).
+
+**MÉRT KIINDULÓ ÁLLAPOT (2026-10-02):** 32 végpont · 17 oldal · 42 felületi művelet · 6 űrlap ·
+3 belépési nézet = 100 darab, szemben a 31 regiszter-bejegyzéssel. Nevezett hiány: **5 végpont ·
+10 oldal · 7 művelet · 1 űrlap**, és a bemutató-lefedésben **6 funkció** áll csak indok-szöveggel
+(az R142 óta ez nem teljesítés). A SPEC kiinduló deklarációja hat kötés nélküli oldalt nevezett meg;
+a független mérés ennél többet talált.
+
+**A PADLÓ.** Minden népességnek MÉRT padlója van: ha egy kivonatoló minta elromlik, a népesség
+némán összezsugorodna, és a lefedés „javulni" látszana attól, hogy kevesebbet mértünk (KUKA-012).
+
+**A BIZONYÍTÉK NÉGY SZINTJE, SOHA NEM ÖSSZEMOSVA** (az R142 §4 kikötése): `deklarált` ·
+`forrásból ellenőrzött` · `futtatott` · `hiányzó`. Ez a modul a két középsőt adja; a `futtatott`
+szintet a böngészős tanúk (`proof:demo-walk` · `test:e2e`).
+
+**Gépi jel:** `npm run verify:lefedes` (L1–L9, ellenpárokkal) · riport: `npm run meres:lefedes`.
+**AZ ŐR MA PIROS, és ez SZÁNDÉKOS:** a megtalált tartalmi hiányok pótlása a következő csomag
+munkája, és addig a piros őr a gépi NYOM arról, mi maradt — nem néma hiány (R142 §8).
+
+---
+
+## D-VS-3096 — A BEMUTATÓ-ÁTADÁS SZABÁLY, NEM HÍVÓ-LISTA (R142, NAV-01 · F142-01/05)
+
+> **Hatály:** V3 (`valach-system`). Ugyanazok a tilalmak, mint fent.
+
+**A DÖNTÉS.** Az R140 kimondta, hogy az átadás és a visszaállás egy pár (KUKA-279) — a javítása
+viszont KÉT, kézzel felsorolt hívóhelyen élt, és a HARMADIK útról (fejléc-fiókváltás) kimaradt.
+Mostantól:
+
+1. **A VISSZAÁLLÁS AZ ALAPÁLLÁS** ott, ahol a nézet LEÜL (`refreshMe`), és a késleltetést az a két
+   út MONDJA KI, amelyiknek kell (`deferTourResume`) — mindkettő mért okkal (KUKA-121).
+2. **AZ ÁTADÁS A NÉZET MINDKÉT FELÉT TÁROLJA** (alany ÉS könyv): a fél alakú átadás a MEGTÖRTÉNT
+   fiókváltást mérhetetlenné tette, és a bemutató vég nélkül újra váltást kért (KUKA-208 · 231).
+3. **A MOBIL MENÜ ÁLLAPOTA EGY FELOLDÓN MEGY** (`setNavOpen`), és az újraértékelés ennek a RÉSZE,
+   sorrendfüggetlenül — a várakozás VÉGE is esemény (KUKA-228 másik fele). Ugyanitt javult az
+   `aria-expanded`, ami két záró úton `true` maradt egy csukott menün (KUKA-050 az ARIA-n).
+
+**MÉRT EREDMÉNY.** A két 18 lépéses történet mindkét méreten (1280 · 390) végigvihető, reset után
+UGYANABBAN a lapban újra: `proof:demo-walk` **66 állítás, 0 piros**. A RONTÁS-ELLENPÁR mind a három
+javításra PIROS, az eredeti tünetekkel (9/18 · s9-pörgés · 390 px-es ☰-ragadás).
+
+**Gépi jel:** `npm run proof:demo-walk` (h1–h4 a javítások közvetlen mérése, ellenpárokkal) ·
+`npm run verify:kuka` (KUKA-281 · 282 · 283).
+
+---
+
 ## D-VS-3095 — A VEZETETT TÖRTÉNET ÁTÍVEL A SZEREPLŐKÖN ÉS A FIÓKOKON (R140, ACT-01)
 
 > **Hatály:** V3 (`valach-system`). Nincs merge, éles telepítés, V2-módosítás, új fizetős

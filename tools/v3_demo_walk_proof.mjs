@@ -260,9 +260,16 @@ async function walk(page, storyKey, tag, { kihagy = null } = {}) {
         const b = sajat || gombok[0];
         return b ? (b.getAttribute('data-testid') || '__first') : null;
       }, sel);
-      if (inner === 'self' || inner === null) await page.locator(sel).first().click().catch(() => {});
-      else if (inner === '__first') await page.locator(sel).first().locator('a[href],button:not([disabled])').first().click().catch(() => {});
-      else await page.locator(`[data-testid="${inner}"]`).first().click().catch(() => {});
+      // RÖVID HATÁRIDŐ A FELTÁRÓ-KATTINTÁSON IS (R142/F142-03 — KUKA-280).
+      //
+      // A fájl eleje már kimondta: „a hosszú alapértelmezett határidő nem türelem, hanem a
+      // visszajelzés elodázása". A `KATT` mégsem került rá ERRE a három kattintásra, és MÉRVE
+      // (R142): egy beragadt feltárás-lépésen a tanú kilenc körön át 30-30 másodpercet várt,
+      // tehát a 10 másodperces diagnózisból négy és fél perc lett — pontosan a KUKA-280 alakja,
+      // ugyanabban a fájlban, ami a tanulságot leírta.
+      if (inner === 'self' || inner === null) await page.locator(sel).first().click(KATT).catch(() => {});
+      else if (inner === '__first') await page.locator(sel).first().locator('a[href],button:not([disabled])').first().click(KATT).catch(() => {});
+      else await page.locator(`[data-testid="${inner}"]`).first().click(KATT).catch(() => {});
       await page.waitForLoadState('networkidle').catch(() => {});
       await page.waitForTimeout(1400);
       continue;
@@ -434,8 +441,146 @@ async function gateProbes() {
   await ctx.close();
 }
 
+/**
+ * AZ R142-ES JAVÍTÁSOK SAJÁT ELLENPÁRJA (h1–h4) — KUKA-092.
+ *
+ * MIÉRT KELL. A történet-bejárás a javítás UTÁN zöld, de „a zöld battéria a hiányról semmit nem
+ * mond": ha a javításomat visszarontanám, a 18 lépéses végigjárás pirosodna — azt viszont nem
+ * mondaná meg, MELYIK fele tört el, és egy jövőbeli átalakítás némán visszacsúszhatna. Ezért a
+ * három javított szabály KÖZVETLENÜL mérve áll itt, a VALÓDI exportált függvényt hívva
+ * (KUKA-009 · KUKA-207), és mindegyik mellé ELLENPÁR jár: a kerülő úton a védelem NEM teljesül
+ * (KUKA-068: a tükör nem ellenpár — a pozitívat a VALÓDI úton, a negatívat a kerülőn mérjük).
+ */
+async function handoverProbes() {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/demo-index.html`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(900);
+
+  // ── (h1) A NÉZET PÁR: alany ÉS fiók — az átadásnak MINDKETTŐT vinnie kell (F142-05) ─────────
+  const pair = await page.evaluate(async () => {
+    const mod = await import('./tour.mjs');
+    const run = (view) => ({ at: 0, steps: [{ id: 's', switch_actor: true, task: 'actor.switched' }], view, role: null });
+    return {
+      masFiok: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }), { view: { book: 'b2', subject: 'u1' }, role: null }),
+      masEmber: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }), { view: { book: 'b1', subject: 'u2' }, role: null }),
+      // ELLENPÁR: pontosan az az állapot, amit a RÉGI átadás előállított — a fiók elveszett, ezért
+      // a futás az ÚJ fiókhoz kötődött, és a MEGTÖRTÉNT váltás mérhetetlen lett.
+      elvesztettFiok: mod.actorSwitchReady(run({ book: 'b2', subject: 'u1' }), { view: { book: 'b2', subject: 'u1' }, role: null }),
+    };
+  });
+  A('(h1a) ugyanaz az ember MÁSIK FIÓKJA is váltás', pair.masFiok === true, `kapott=${pair.masFiok}`);
+  A('(h1b) MÁS ember nézete is váltás', pair.masEmber === true, `kapott=${pair.masEmber}`);
+  A('(h1c) ELLENPÁR: ha az átadás a FIÓKOT elveszti, a megtörtént váltás MÉRHETETLEN',
+    pair.elvesztettFiok === false, `kapott=${pair.elvesztettFiok}`);
+
+  // ── (h2–h4) A MOBIL MENÜ: a VÁRAKOZÁS VÉGE is esemény (F142-02) + az ARIA igazat mond (F142-04)
+  await page.locator('[data-testid="help-open"]').first().click(KATT).catch(() => {});
+  await page.waitForTimeout(700);
+  // A SÚGÓ A „Kérdezz" nézeten nyílik: az útmutatók a MÁSIK fülön állnak, és ott ELŐBB LISTA van —
+  // a bemutató-indító a téma MEGNYITÁSA után jelenik meg (`help-guide-…` → `help-topic-…`).
+  await page.locator('[data-testid="help-tab-guides"]').first().click(KATT).catch(() => {});
+  await page.waitForTimeout(600);
+  // A TÉMA-NYITÓ GOMBRA illesztünk, nem a sor `li`-jére: a vesszős kereső a sort találta meg
+  // előbb, és a sorra kattintás nem nyit témát (saját lelet a próba írása közben).
+  await page.locator('[data-action="help-topic"][data-topic="data.stock"]').first().click(KATT).catch(() => {});
+  await page.waitForTimeout(700);
+  const start = page.locator('[data-testid="help-tour-data.stock"]').first();
+  if (!(await start.count())) {
+    A('(h2) a mobil-menü próba alapsokasága felállt', false,
+      'ELAKADT MÉRÉS: a súgóban nincs `help-tour-data.stock` indító — a mérés nem futott, a rendszerről ez NEM mond semmit');
+    await ctx.close(); return;
+  }
+  await start.click(KATT).catch(() => {});
+  await page.waitForTimeout(1100);
+
+  /**
+   * AZ ELŐFELTÉTEL BEÁLLÍTÁSA — ÉS MIÉRT NEM ELÉG A BEMUTATÓ PUSZTA INDÍTÁSA (saját lelet, MÉRVE).
+   *
+   * Az első alakom a `tour.stock` indítása után azonnal mérni akart, és ELAKADT MÉRÉST jelentett:
+   * a bemutató indítása ODANAVIGÁL a túra saját oldalára, ezért a menü-cél `aria-current="page"`
+   * lett, a lépés szándéka TELJESÜLT, és a bemutató — helyesen — nem várt a ☰-ra (KUKA-231). A
+   * `revealerOf` saját megjegyzése ezt előre meg is mondta: a mai bemutatók menü-célja a SAJÁT
+   * oldalukra mutat, tehát ez az ág az indítás pillanatában egyikükkel sem érhető el.
+   *
+   * A VALÓDI 390 px-es elakadás útja más volt: a néző-váltás UTÁN a lap az ÁTTEKINTÉSRE töltött be,
+   * miközben a következő lépés célja egy MÁSIK menüpont. Ezt állítjuk itt elő a legrövidebb úton:
+   * elnavigálunk az Áttekintésre, és onnantól a lépés célja rejtett ÉS nem a mai oldal.
+   */
+  await page.locator('[data-testid="nav-toggle"]').first().click(KATT).catch(() => {});
+  await page.waitForTimeout(500);
+  await page.locator('[data-testid="nav-overview"]').first().click(KATT).catch(() => {});
+  await page.waitForTimeout(800);
+
+  const allapot = () => page.evaluate(() => {
+    const box = document.querySelector('[data-testid="tour"]');
+    const p = box && box.querySelector('[data-testid="tour-pending"]');
+    const nav = document.querySelector('[data-testid="nav"]');
+    const t = document.querySelector('[data-testid="nav-toggle"]');
+    // AMI MEGÁLLÍT, ANNAK NEVE IS LEGYEN (KUKA-171): a diagnózis mondja meg, van-e egyáltalán futás,
+    // melyik lépésen áll, és nem szakadt-e meg — különben a „nem a menüre vár" üzenet találgatás.
+    const li = document.querySelector('[data-testid^="tour-step-"][aria-current="step"]');
+    const ab = box && box.querySelector('[data-testid="tour-aborted"]');
+    return {
+      pending: p ? p.getAttribute('data-why') : null,
+      mark: [...document.querySelectorAll('.tourtarget')].map((e) => e.getAttribute('data-testid') || e.getAttribute('data-tour-anchor'))[0] || null,
+      navOpen: nav ? nav.classList.contains('open') : null,
+      aria: t ? t.getAttribute('aria-expanded') : null,
+      tourBox: !!box, hidden: box ? box.hidden : null,
+      sid: li ? li.getAttribute('data-testid').replace('tour-step-', '') : null,
+      state: li ? li.getAttribute('data-state') : null,
+      aborted: ab ? ab.getAttribute('data-why') : null,
+      oldal: (() => { const a = document.querySelector('[data-testid^="nav-"][aria-current="page"]'); return a ? a.getAttribute('data-testid') : null; })(),
+    };
+  });
+
+  const elotte = await allapot();
+  if (elotte.pending !== 'targetPending' || elotte.mark !== 'nav-toggle') {
+    A('(h2) a mobil-menü próba alapsokasága felállt', false,
+      `ELAKADT MÉRÉS: a bemutató nem a csukott menüre vár — ${JSON.stringify(elotte)}`);
+    await ctx.close(); return;
+  }
+  A('(h2) 390 px-en a csukott menü mögötti célnál a bemutató a ☰-ra VÁR', true, JSON.stringify(elotte));
+
+  // ELLENPÁR: a menü osztályát a KÖZÖS FELOLDÓ MEGKERÜLÉSÉVEL nyitjuk ki. A cél láthatóvá lesz,
+  // de újraértékelés nélkül a buborék ugyanazt a „nyisd ki a menüt" mondatot mutatja — pontosan
+  // ez volt a MÉRT elakadás (9 egymás utáni azonos állapot a 390 px-es végigjáráson).
+  const kerulo = await page.evaluate(() => {
+    const nav = document.querySelector('[data-testid="nav"]');
+    nav.classList.add('open');
+    const cel = document.querySelector('[data-testid="nav-stock"]');
+    const lathato = !!(cel && (cel.offsetParent !== null || cel.getClientRects().length));
+    const box = document.querySelector('[data-testid="tour"]');
+    const p = box && box.querySelector('[data-testid="tour-pending"]');
+    const out = { lathato, pending: p ? p.getAttribute('data-why') : null };
+    nav.classList.remove('open');                 // visszaállítjuk, hogy a VALÓDI út mérhető legyen
+    return out;
+  });
+  A('(h3a) ELLENPÁR: a feloldót megkerülve a cél LÁTHATÓ lesz…', kerulo.lathato === true, `kapott=${kerulo.lathato}`);
+  A('(h3b) …a buborék mégis a ☰-on marad (újraértékelés nélkül nincs vége a várakozásnak)',
+    kerulo.pending === 'targetPending', `kapott=${kerulo.pending}`);
+
+  // A VALÓDI ÚT: a felhasználó megnyomja a ☰-t. Itt a várakozásnak VÉGE kell lennie.
+  await page.locator('[data-testid="nav-toggle"]').first().click(KATT).catch(() => {});
+  await page.waitForTimeout(700);
+  const utana = await allapot();
+  A('(h3c) a ☰ megnyomása UTÁN a várakozás véget ér', utana.pending === null, `kapott=${utana.pending}`);
+  A('(h3d) …és a kiemelés a VALÓDI célra költözik', utana.mark === 'nav-stock', `kapott=${utana.mark}`);
+  A('(h4a) a nyitott menünél az `aria-expanded` IGAZAT mond', utana.aria === 'true', `kapott=${utana.aria}`);
+
+  // (h4b) A ZÁRÁS MÁSIK ÚTJA: a menüpontra kattintva a `go()` becsukja a menüt — az `aria-expanded`
+  // eddig `true` maradt, tehát a képernyő olvasója nyitott menüt állított egy csukott menüről.
+  await page.locator('[data-testid="nav-stock"]').first().click(KATT).catch(() => {});
+  await page.waitForTimeout(700);
+  const zarva = await allapot();
+  A('(h4b) a menüpontra lépés UTÁN az `aria-expanded` is csukottat mond',
+    zarva.navOpen === false && zarva.aria === 'false', JSON.stringify(zarva));
+  await ctx.close();
+}
+
 try {
   await gateProbes();
+  await handoverProbes();
   const keys = ONLY ? [ONLY] : Object.keys(STORIES);
   if (NEG) {
     // NEGATÍV KONTROLL: egy KÖTELEZŐ KÉSŐI lépés kihagyása — a tanúnak NEM szabad zöldet mondania.

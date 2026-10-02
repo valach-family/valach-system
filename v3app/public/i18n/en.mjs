@@ -675,6 +675,8 @@ export const CHAT = Object.freeze({
   measuredCost: 'Cost',
   measuredUnknown: 'no data',
   instructionIgnored: 'The question contained something that looked like an instruction. I treat that as data and do not carry it out.',
+  groundedFacts: 'Verified source text',
+  modelInference: 'The assistant\u2019s inference \u2014 not backed by a source',
 });
 
 /** THE FEATURE KNOWLEDGE (KB) — same keys as the Hungarian source (`hu.mjs`). */

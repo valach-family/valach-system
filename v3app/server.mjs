@@ -53,7 +53,9 @@ import { enabledLanguages, normalizeLanguage, dirOf, allLanguages, resolveLangua
 import {
   LIMITS as AST_LIMITS, checkQuestion, injectionFindings, visibleFeaturesFor, allowedActionsFor,
   allowedToursFor, acceptAction, selectKnowledge, localAnswer, AST_CONTRACT, verifyModelAnswer,
-  composeBlockAnswer, ANSWER_SECTIONS } from './assistant/policy.mjs';
+  composeBlockAnswer, ANSWER_SECTIONS,
+  // AST-06 · AST-07 (R142 §6): a modell-hívás NEVEZETT döntése, és a megjelölt következtetés.
+  modelNeed, groundedAnswer, BLOCK_MARKERS } from './assistant/policy.mjs';
 import { providerStatus, askProvider } from './assistant/provider.mjs';
 import { newMeter } from './assistant/meter.mjs';
 
@@ -520,8 +522,52 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
     `[[VS-LANG: ${lang}]]`,
     'CSAK a megadott tudásban szereplő azonosítót és annak PONTOS verzióját írd ide.',
     'Ha a megadott tudás nem tartalmazza a választ, a VS-BLOCKS jelölőt hagyd ÜRESEN — ne találj ki blokkot.',
+    /**
+     * A KÉT ÁTADOTT HALMAZ (AST-06, R142 §6): `detail` = a helyi keresés találatainak TÖRZSE ·
+     * `index` = az ELÉRHETŐ képességek FEJLÉCE, törzs nélkül. A modell MINDKETTŐBŐL választhat
+     * blokkot — a mondatot a szerver a saját nyelvcsomagjából állítja össze. Így a nulla találatú,
+     * más nyelvű vagy előzményre utaló kérdés sem „tudás nélkül" érkezik.
+     */
+    'A tudás KÉT részből áll: a `detail` a megtalált útmutatók TELJES szövege, az `index` az elérhető '
+    + 'képességek FEJLÉCE (azonosító · cím · állapot · verzió), törzs nélkül. Blokkot MINDKETTŐBŐL '
+    + 'hivatkozhatsz: a szöveget a rendszer teszi hozzá. Ha a kérdés nem a megadott nyelven van, vagy '
+    + 'az előzményre utal, a te dolgod eldönteni, MELYIK képességről szól.',
+    /**
+     * ÉS A PRÓZA HELYE KIMONDOTT (AST-07): megjelenhet, de KÜLÖN, következtetésként jelölve — és
+     * csak ellenőrzött forrás-rész MELLETT. A jelölés nem pótolja a megalapozást (KUKA-235).
+     */
+    'A jelölők ELŐTT írhatsz egy-két mondat magyarázatot. Ez KÖVETKEZTETÉSKÉNT jelenik meg, külön '
+    + 'megjelölve — tehát ne állíts benne olyan tényt, amit a megadott tudás nem tartalmaz.',
   ].join(' ');
   const ASSISTANT_SYSTEM_PROMPT = assistantSystemPrompt('hu');
+
+  /**
+   * A MEGJELÖLT MODELL-PRÓZA KAPCSOLÓJA — ALAPBÓL KI, ÉS EZ KIMONDOTT DÖNTÉS (AST-07, R142 §6).
+   *
+   * AZ R142 KÉRÉSE: „A blokk-összeállítás maradhat helyi/biztos idézeti mód, de nem kizárólagos
+   * AI-válaszforma. Engedett forrásokra támaszkodó modellmagyarázat … a következtetés legyen jelölt."
+   * A szerződés (`groundedAnswer`) MEGÉPÜLT és mérve van.
+   *
+   * MIÉRT NEM KAPCSOLJUK BE MOST — MÉRT OKKAL, nem óvatosságból. A bekapcsolt alak az R93-as
+   * battéria (b) állítását AZONNAL PIROSRA vitte: a külső ellenőrző fél ellenpéldája — a HELYES
+   * jelölőkkel ellátott, de tartalmilag HAMIS mondat („Der Vshop stellt bereits echte Rechnungen
+   * aus.") — visszakerült a képernyőre, csak „következtetés" felirattal. A jelölés tehát NEM teszi
+   * ártalmatlanná a téves TÉNY-állítást, és a „ne állíts nem létező tényt" prompt-mondat nem őr,
+   * hanem kérés (KUKA-235 · KUKA-203: a kényszerítés nem ellenőrzés).
+   *
+   * ÉS AMIT EBBEN A KÖRNYEZETBEN NEM IS TUDNÁNK MEGMÉRNI: ebben a konténerben NINCS engedélyezett
+   * szolgáltató (`VS_AI_PROVIDER` hiányzik — `npm run kapcsolat:ai`), tehát a próza-út VALÓDI
+   * modellen nem mérhető. Egy nem mérhető úton nem gyengítünk egy MÉRT védelmet.
+   *
+   * AZ R142 §6 UTOLSÓ PONTJA SZERINT JÁRUNK EL: „A változó V3-szerződést és a régi korlátot őrző
+   * próbákat együtt, névvel vezesd át; ne pusztán töröld a piros őrt." A régi őr ÉRVÉNYBEN marad,
+   * a kapcsoló NEVESÍTVE áll, a mindkét állású viselkedést pedig a battéria MÉRI — tehát ez nem
+   * dísz-kapcsoló (KUKA-041), és nem is néma hiány (KUKA-012).
+   *
+   * A BEKAPCSOLÁS FELTÉTELE, KIMONDVA: élő szolgáltató + a §6 szerinti KÜLÖN kérdéskészlet, ami a
+   * próza tartalmi minőségét méri. Enélkül `VS_AI_GROUNDED_PROSE=1` csak próbapadon használható.
+   */
+  const GROUNDED_PROSE = String(process.env.VS_AI_GROUNDED_PROSE || '').trim() === '1';
 
   const handlers = {
     // ── FIÓK ─────────────────────────────────────────────────────────────────────────────────
@@ -1371,8 +1417,27 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
       let model = null;
       let verified = null;
       let composed = null;
-      if (prov.configured && selection.features.length) {
-        const knowledge = JSON.stringify(selection.features.map((f) => ({ id: f.id, version: f.version, status: f.status, ...f.text })));
+      /**
+       * A MODELL-HÍVÁS DÖNTÉSE NEVEZETT FELOLDÓBÓL JÖN, NEM A TALÁLAT-SZÁMBÓL (AST-06, R142 §6).
+       *
+       * A régi feltétel `selection.features.length` volt: a helyi, latin szókincsű kereső korlátja
+       * így a modell BELÉPÉSI KAPUJA lett. A mért következmény: a nem latin íráson feltett kérdés
+       * és az előzményre utaló folytatás soha nem jutott el a modellig, a csak hasonlóságon álló
+       * téves téma viszont eljutott. A döntést most a `modelNeed` hozza, és KIMONDJA az okát.
+       */
+      // Az ELŐZMÉNY darabszáma a MÁR LEVÁGOTT listából jön (`historyKept`) — a feloldó a tényleges
+      // átadott előzményt mérje, ne a kérő állítását (F91-03 változatlan).
+      const need = modelNeed({ selection, historyTurns: historyKept.length, question: q.question });
+      if (prov.configured && need.call) {
+        /**
+         * AMIT ÁTADUNK: a helyi találatok TÖRZSE (mint eddig) ÉS a korlátos capability-INDEX
+         * (fejlécek). Így a nulla találatú kérdés sem „tudás nélkül" megy a modellhez: tudja,
+         * MIRŐL lehet kérdezni — a teljes kézikönyvet viszont nem küldjük el (R142 §6).
+         */
+        const knowledge = JSON.stringify({
+          detail: selection.features.map((f) => ({ id: f.id, version: f.version, status: f.status, ...f.text })),
+          index: selection.index,
+        });
         model = await askProvider({
           question: q.question, knowledge, systemPrompt: assistantSystemPrompt(lang),
           history: historyText, lang, env: process.env, maxTokens: 500,
@@ -1385,9 +1450,21 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
          * HELYI választ mutatja, és a válasz NEVEZETTEN kimondja, miért esett ki a modell szava.
          */
         if (model.ok) {
-          const offeredFeatures = selection.features.map((f) => ({
-            id: f.id, version: f.version, status: f.status ?? null, title: (f.text || {}).title ?? null,
-          }));
+          /**
+           * AMIRE A MODELL HIVATKOZHAT: a részletesen átadott találatok ÉS az indexben átadott
+           * fejlécek (AST-06). A megjelenő MONDAT mindkét esetben a szerver nyelvcsomagjából jön
+           * (AST-05 változatlan) — az index csak a VÁLASZTÁST teszi lehetővé, szöveget nem ad.
+           * Az azonosítók nem duplázódnak: a részletes sor nyer, mert az hordozza a címet is.
+           */
+          const detailIds = new Set(selection.features.map((f) => f.id));
+          const offeredFeatures = [
+            ...selection.features.map((f) => ({
+              id: f.id, version: f.version, status: f.status ?? null, title: (f.text || {}).title ?? null,
+            })),
+            ...selection.index.filter((x) => !detailIds.has(x.id)).map((x) => ({
+              id: x.id, version: x.version, status: x.status ?? null, title: x.title ?? null,
+            })),
+          ];
           /**
            * AZ ELFOGADOTT ÚT A BLOKK-VÁLASZ (AST-05, F93-03). A megjelenő mondatot a szerver
            * állítja össze a KÉRT NYELV csomagjából — a modell csak VÁLOGAT.
@@ -1410,6 +1487,27 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
             verified = prose.ok ? { ...prose, ok: false, reason: 'model_prose_unverified' } : prose;
           } else {
             verified = composed;
+          }
+          /**
+           * ÉS A PRÓZA MELLÉ IS JÁR A TÉNY (AST-07, R142 §6).
+           *
+           * Ha a modell BLOKKOT IS választott ÉS prózát is írt, akkor a válasz két darabból áll: a
+           * szerver által a nyelvcsomagból összeállított, ELLENŐRZÖTT forrásszövegből, és a modell
+           * KÖVETKEZTETÉSÉBŐL — kimondottan megjelölve. A próza önmagában (forrás-rész nélkül)
+           * továbbra sem jelenik meg: a jelölés nem pótolja a megalapozást (KUKA-235).
+           *
+           * A jelölő feliratok a NYELVCSOMAGBÓL jönnek, nem a kódból (SZO-01 · KUKA-210).
+           */
+          if (composed.ok && GROUNDED_PROSE) {
+            const prozaNyers = String(model.text || '').replace(BLOCK_MARKERS.strip, '').trim();
+            if (prozaNyers && prozaNyers !== composed.answer) {
+              const g = groundedAnswer({
+                facts: composed.answer,
+                prose: prozaNyers.slice(0, AST_LIMITS.answer_chars),
+                labels: { facts: (dict.CHAT || {}).groundedFacts, inference: (dict.CHAT || {}).modelInference },
+              });
+              if (g.ok && g.has_inference) { composed = { ...composed, answer: g.answer, has_inference: true }; verified = composed; }
+            }
           }
         }
       }
@@ -1442,6 +1540,8 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
           answer_kind: model ? 'model_failed' : 'local',
           model_discarded: modelDiscarded,
           conversation_id: input.conversation_id ? String(input.conversation_id) : null,
+          model_need: { call: need.call, why: need.why },
+          search: { confidence: selection.confidence, reason: selection.reason ?? null, tokens: selection.tokens, scripts: [...(selection.scripts || [])] },
           provider: { configured: prov.configured === true, missing: [...(prov.missing || [])], consequence: prov.consequence ?? null },
           sources: [], actions: [], faq: selection.faq.map((h) => ({ id: h.id, q: h.q })),
           knowledge_population: selection.feature_population, faq_population: selection.faq_population,
@@ -1454,7 +1554,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
         // A VÁLASZ FAJTÁJA KIMONDVA: a HELYI keresés NEM „működő AI" (R89 §6 · KUKA-127).
         // A VÁLASZ FAJTÁJA HÁROM SZÓ (AST-05): `model_blocks` = a modell VÁLOGATOTT, a szöveg a
         // nyelvcsomagból jött · `local` = helyi keresés · a szabad próza SOHA nem lesz fajta.
-        answer_kind: modelAccepted ? 'model_blocks' : 'local',
+        // A VÁLASZ FAJTÁJA NÉGY SZÓ (AST-07): `model_blocks` = csak ellenőrzött forrásszöveg ·
+        // `model_grounded` = forrásszöveg + KIMONDOTTAN jelölt modell-következtetés ·
+        // `local` = helyi keresés · a jelölés nélküli szabad próza SOHA nem lesz fajta.
+        answer_kind: modelAccepted ? (composed.has_inference === true ? 'model_grounded' : 'model_blocks') : 'local',
         answer: answerText,
         // AMIT A VÁLASZ HASZNÁLT — gépi alak, hogy a mérés a BLOKKOT lássa, ne csak a funkciót.
         answer_blocks: modelAccepted ? composed.blocks : [],
@@ -1479,6 +1582,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
         knowledge_population: selection.feature_population,
         faq_population: selection.faq_population,
         injection_markers: injection.length,
+        // MIÉRT HÍVTUK (VAGY NEM) A MODELLT — NEVEZVE (AST-06). A mérés és a felület is látja, hogy
+        // a döntés nem a találat-számon állt (KUKA-127: „nem futott" ≠ „nem talált").
+        model_need: { call: need.call, why: need.why },
+        search: { confidence: selection.confidence, reason: selection.reason ?? null, tokens: selection.tokens, scripts: [...(selection.scripts || [])] },
         provider: { configured: prov.configured === true, host: prov.host ?? null, missing: [...(prov.missing || [])], consequence: prov.consequence ?? null },
         usage,
         message: model && model.ok ? 'a válasz a szolgáltatótól, az útmutatókból felépített tudással' : 'helyi keresés az útmutatókban — nem modell-válasz',
