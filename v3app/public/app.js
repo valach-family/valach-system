@@ -2793,6 +2793,17 @@ import { inviteNextKey } from './inviteText.mjs';
     const nev = joined ? accountLabel({ name: joined.name, personal: joined.personal === true }) : accountName();
     notice(`${UI.inviteAcceptedLead} ${tpl('accountJoined', { nev })} ${UI.inviteJoinedScopeNote}`, 'ok');
     render();
+    /**
+     * A FOLYTATÓDÓ TÖRTÉNET VISSZAÁLLÁSA AZ ELFOGADÁS UTÁN IS (R140 — SAJÁT LELET, MÉRVE).
+     *
+     * A LELET. Az elfogadás nem tölti újra a lapot: a `refreshMe` → `resetViewCaches` ÁTADJA a futó
+     * történetet, de a visszaállást addig csak a lap INDULÁSA végezte. Egy olyan történetben, ahol
+     * az elfogadás a KÖZEPE, a bemutató így némán eltűnt az utolsó lépés előtt: a végigjárás
+     * 18-ból 17 lépést ért el, és a végállapotot (a tagság a fiókváltóban) már nem mutatta meg.
+     * Az átadás és a visszaállás EGY pár — ahol az egyik megtörténik, ott a másiknak is kell
+     * (KUKA-118 alakja: a mag szerződése kész volt, a hívó nem adta át).
+     */
+    await resumeTourAfterSwitch();
   }
 
   // ── INDULÁS ─────────────────────────────────────────────────────────────────────────────────

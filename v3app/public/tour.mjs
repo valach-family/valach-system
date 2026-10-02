@@ -288,7 +288,19 @@ export function advance(run) {
   // a mondat megmondja a folytatást, KUKA-201) VAGY a cél eltűnt (a rajzolás NEVEZETTEN megszakít).
   // MIÉRT NEM LÉPÜNK TOVÁBB egyszerűen: a régi alak a nem létező célú lépést `done`-ra állította és
   // átugrotta — vagyis „elvégzett"-nek könyvelt egy lépést, ami meg sem történhetett (KUKA-129).
-  if (!targetOf(run)) {
+  /**
+   * AZ ELVÉGZETT LÉPÉSNEK NINCS SZÜKSÉGE A CÉLJÁRA (R140 — SAJÁT LELET, MÉRVE).
+   *
+   * A LELET. A meghívás elfogadása UTÁN a meghívó képernyője megszűnik, tehát a lépés célja
+   * (`invite-actions`) eltűnik a lapról. A lépés viszont IGAZOLTAN elvégzett — a szerver nyugtázta.
+   * A továbblépés mégis `targetMissing`-gel elakadt, és a 18 lépéses történet a 17.-en állt meg,
+   * közvetlenül a végeredmény előtt.
+   *
+   * UGYANAZ A SZABÁLY, KÉT HELYEN. Ezt a kivételt a `checkRun`-ba már betettem (R138), ide nem —
+   * és pontosan ez a hiba-osztály ismétlődött meg, amire a KUKA-003/KUKA-039 figyelmeztet: ha egy
+   * szabály két ágon igaz, az egyik ág előbb-utóbb kimarad. Most mindkettő ugyanazt mondja.
+   */
+  if (step.state !== 'done' && !targetOf(run)) {
     if (isPending(run)) return { moved: false, why: 'targetPending' };
     // A TELJESÜLT NAVIGÁCIÓS LÉPÉS HALAD — de a lezárást a lenti rendes út végzi, tehát a
     // feladathoz kötött lépés továbbra is csak igazolt szerver-válasszal zárul.
