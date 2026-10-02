@@ -1,8 +1,8 @@
 {
  "status": {
   "ok": true,
-  "served_book_id": "ws_97b90ba7",
-  "served_subject_id": "sub_c8c3c121c9afd2f9",
+  "served_book_id": "ws_938f0d44",
+  "served_subject_id": "sub_4241b08d1a34694e",
   "lang": "hu",
   "dir": "ltr",
   "languages": [
@@ -50,7 +50,8 @@
    "answer_chars": 1200,
    "model_calls_per_question": 1,
    "faq_hits": 5,
-   "answer_blocks": 4
+   "answer_blocks": 4,
+   "knowledge_index": 40
   },
   "actions": [
    {
@@ -1283,8 +1284,8 @@
  },
  "knowledge": {
   "ok": true,
-  "served_book_id": "ws_97b90ba7",
-  "served_subject_id": "sub_c8c3c121c9afd2f9",
+  "served_book_id": "ws_938f0d44",
+  "served_subject_id": "sub_4241b08d1a34694e",
   "lang": "hu",
   "population": 31,
   "visible_count": 30,
