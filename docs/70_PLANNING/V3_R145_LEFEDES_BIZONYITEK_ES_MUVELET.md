@@ -227,7 +227,10 @@ implementációnak, a tartalom-pótlásnak vagy a szintetikus szerződés-prób�
 ## 8. Forrás, mért és záró SHA · fogyasztás · és egy NEM TELJESÜLT kikötés
 
 - **induló fej:** `3fb0f6ab982dbea953deafe088a90e62a181428a` (a SPEC által ellenőrzött fej)
-- **záró fej:** `a95ce76e6b2999e0c5ea14045590097160e26505` (ág: `claude/eager-wright-3hwupf`)
+- **a MUNKA commitja (minden fenti mérés EZEN a fán futott):** `a95ce76e6b2999e0c5ea14045590097160e26505`
+- **záró fej:** `74b8f75` — ez a jelentés, a bemutató újragenerált tudás-csomagja és a
+  fogyasztás-leltár; kód nem változott benne (a jelentés nem tudhatja a SAJÁT commitjának
+  azonosítóját, ezért a kettő KÜLÖN áll, nem egybemosva). Ág: `claude/eager-wright-3hwupf`.
 - **döntés:** `D-VS-3099` · **tanulságok:** `KUKA-286` · `287` · `288` · `289`
 - **fogyasztás** (`npm run meres:fogyasztas`, FGY-01): ablak 2026-10-02T00:00:00Z → 21:39Z ·
   **374 hívás** · fő-szál kontextus **medián 448 921 / max 782 016** · 400 ezer fölött **209 hívás**
