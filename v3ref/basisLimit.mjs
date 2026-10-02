@@ -36,7 +36,7 @@
 import {
   basisAsOf, withinBasis, basisVersionLimit, BASIS_LIMIT_AXES,
   INVITE_ISSUE_OPERATION, ADJUDICATION_LIMIT_OPERATIONS, OPERATION_LIMIT_CONTRACT,
-  requiredAxesFor, limitVerdict, adjudicationLimitVerdict,
+  requiredAxesFor, limitVerdict, adjudicationLimitVerdict, basisOriginOfVersion,
 } from './authorityBasis.mjs';
 
 // A MEGHÍVÓ-ÚT TOVÁBBRA IS INNEN LÁTJA A SZERZŐDÉST ÉS AZ ÍTÉLETET — a behúzók nem tudnak arról,
@@ -156,6 +156,46 @@ export function redemptionLimitGate({ store, invite, knownAt }) {
   const nowB = basisAsOf({ store, basisId: s.basis_id, bookId: invite.book_id, validAt: knownAt, knownAt });
   if (nowB.in_effect !== true) {
     return frozen({ ok: false, basis_declared: true, reason: 'basis_not_in_effect_at_redemption', detail: nowB.reason, limit: verdict.limit, seal: s });
+  }
+  // ═══ R136/F136-02 — AZ ÚJ ALAP NEM IGAZOLJA A RÉGI IDŐSZAK AJÁNLATÁT (AOR-01) ════════════════
+  //
+  // A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R136). A fenti két mérés EGYÜTT sem
+  // zárta a feléledést: a KIADÁSKORI mérés a pecsételt (régi) verziót találja meg és el is fogadja,
+  // a MAI mérés pedig azt kérdezi, hogy az AZONOSÍTÓ ma hatályos-e — és az igen, mert a megszűnt
+  // tagság után ÚJRA megszerzett tagság UGYANAZT az azonosítót képzi újra
+  // (`delegationBasisId` = alany × könyv). Mérve: a (b7)-ben helyesen elutasított régi token az új
+  // alap megszületése után `ok:true · membership_only · granted` lett.
+  //
+  // A MEGKÜLÖNBÖZTETŐ TÉNY AZ EREDET, NEM A VERZIÓ. Ugyanazon a tagsági időszakon belüli
+  // újra-rögzítés (jogos bővítés, R64/H06–H07) ugyanazt az eredetet viszi — azt tehát ÁT KELL
+  // engednünk, különben a kapuból fal lesz (KUKA-122). Az időszak-határon átnyúló ÚJRA-KÉPZÉS
+  // viszont MÁS eredetet visz, és azt zárjuk. Dátum-heurisztika nincs: a tény a tárolóban áll.
+  //
+  // A RÉGI PECSÉTET NEM ÍRJUK ÁT (az R136 kikötése): az eredetet a PECSÉTELT VERZIÓ saját,
+  // MÁR LÉTEZŐ sorából olvassuk ki, nem a pecsétből.
+  {
+    const sealedOrigin = basisOriginOfVersion({ store, basisId: s.basis_id, version: s.basis_version });
+    if (sealedOrigin.known !== true) {
+      // A PECSÉTELT VERZIÓ SORA NINCS MEG → nem tudjuk, honnan származik a jog. A kétséget nem
+      // engedélyre fordítjuk (KUKA-012): a nevezett elutasítás a `detail`-ben megmondja, mi hiányzik.
+      return frozen({ ok: false, basis_declared: true, reason: 'basis_origin_undecidable', detail: sealedOrigin.reason, limit: verdict.limit, seal: s });
+    }
+    const liveOrigin = nowB.origin_grant_event_id ?? null;
+    const sameOrigin = sealedOrigin.origin === null && liveOrigin === null
+      ? true
+      : (sealedOrigin.origin !== null && liveOrigin !== null && Number(sealedOrigin.origin) === Number(liveOrigin));
+    if (!sameOrigin) {
+      // IDE ESIK A VEGYES ESET IS (a pecsételt generációnak nincs eredete, a mainak van — vagy
+      // fordítva), és ez SZÁNDÉKOSAN zár: „Ismeretlen eredetű régi aktív jog nem lesz automatikusan
+      // érvényes. Új, szabályos felhatalmazás új esemény, nem visszamenőleges igazolás." (R63 §4,
+      // ugyanaz a doktrína, amit az alap nélküli hatáskör-sornál is alkalmaztunk.)
+      return frozen({
+        ok: false, basis_declared: true, reason: 'basis_origin_changed',
+        detail: `pecsételt eredet=${sealedOrigin.origin ?? '—'} · mai eredet=${liveOrigin ?? '—'}`,
+        sealed_origin: sealedOrigin.origin, live_origin: liveOrigin,
+        limit: verdict.limit, seal: s,
+      });
+    }
   }
   // AZ ÁTVITT KORLÁT AZ ALAP PLAFONJA (a kiadó továbbadható joga a kiadás pillanatában) — NEM a
   // pecsét egyetlen adatköre. Az R64 ellenséges felülvizsgálat (H06/H07) lelete után ezt MÉRTÜK:

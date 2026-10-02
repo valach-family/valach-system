@@ -29,6 +29,10 @@ import { adjudicationLimitVerdict } from './authorityBasis.mjs';
 // EZT a modult importálja (`effectuate`), ezért a közvetlen behúzás kört csinálna — a tiszta olvasók
 // külön otthonban állnak, és onnan mindkét oldal behúzhatja (lásd `membershipPeriod.mjs` fejlécét).
 import { membershipAsOf, membershipPeriodsOf } from './membershipPeriod.mjs';
+// R136/F136-01 (AHI-01): a MÚLT forrása a NAPLÓ, nem a mai vetület. Ugyanaz a szerkezeti válasz,
+// mint az MPR-01-nél: a tiszta, csak olvasó feloldó semleges otthonban áll, és csak a `store.mjs`-t
+// importálja — tehát nincs kör (lásd `authorityHistory.mjs` fejlécét).
+import { authorityGrantAt, AUTHORITY_AXIS } from './authorityHistory.mjs';
 
 export const ADJUDICATION_OPS = Object.freeze(['suspend', 'adjudicate', 'alter_right']);
 
@@ -44,15 +48,45 @@ export const OP_MEANING = Object.freeze({
  *
  * @returns {{ok:true, granted_at:string} | {ok:false, reason:string, message:string}}
  */
-export function authorityRowAt({ store, subjectId, bookId, operation, nowIso }) {
+export function authorityRowAt({ store, subjectId, bookId, operation, nowIso, knownAt }) {
   const who = String(subjectId || '').trim();
   const now = instantMs(nowIso);
   if (!now.ok) return { ok: false, reason: `clock_${now.reason}`, message: 'az óra nem értelmezhető' };
 
-  const row = store.get(
-    'SELECT * FROM adjudication_authority WHERE subject_id = ? AND book_id = ? AND operation = ?',
-    who, bookId, operation);
-  if (!row) {
+  // ═══ R136/F136-01 — A TÖRTÉNETI KÉRDÉS A NAPLÓBÓL DŐL EL (AHI-01) ══════════════════════════
+  //
+  // A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R136). Ez a sor eddig a MAI vetületet
+  // olvasta, aminek a kulcsa alany × könyv × művelet — tehát EGY sor. Egy szabályos ÚJ megadás ezt
+  // felülírja, és ezzel a RÉGI időszakra adott válasz is megváltozott: mérve `ok:true · stamped ·
+  // 15` → `ok:false · authority_not_yet_effective`, VÁLTOZATLAN termékkódon, ugyanazon a kérdésen.
+  // Az R134 megépítette a naplót, de egyetlen olvasó sem olvasta — a bizonyíték MEGLÉTE nem
+  // bizonyíték a HASZNÁLATÁRA (KUKA-118 · KUKA-122).
+  //
+  // A TUDÁS TENGELYE KÜLÖN KÉRDÉS, ÉS ALAPBÓL A HATÁLYT KÖVETI. A `knownAt` elhagyása a mai
+  // viselkedés: „a MAI tudással kérdezzük". Így egyetlen meglévő hívó sem változott, a két tengelyt
+  // viszont a hívó SZÉT tudja vinni — ezt kérte az R136 kötelező tanúja.
+  const asked = knownAt === undefined || knownAt === null ? nowIso : knownAt;
+  const found = authorityGrantAt({ store, subjectId: who, bookId, operation, validAt: nowIso, knownAt: asked });
+  if (found.found !== true) {
+    if (found.reason === 'authority_not_yet_granted_at_that_time') {
+      return { ok: false, reason: 'authority_not_yet_effective', message: 'a hatáskör még nem hatályos' };
+    }
+    if (found.reason === 'authority_log_instant_undecidable') {
+      return { ok: false, reason: 'authority_grant_undecidable', message: 'a hatáskör keletkezésének ideje nem értelmezhető' };
+    }
+    if (found.reason === 'authority_projection_missing') {
+      // A NAPLÓ ÉS A VETÜLET AZ ÉLŐ ÁLLAPOTRÓL MOND ELLENT (nyers törlés) — a kétséget nem
+      // fordítjuk engedélyre (KUKA-012 · KUKA-013).
+      return {
+        ok: false,
+        reason: 'authority_record_diverged',
+        message: `"${who}" ${operation} hatáskörének naplója és mai vetülete nem egyezik `
+          + '(a vetület sora hiányzik) — ez nem jogcím; a hatáskört újra, szabályosan kell megadni',
+      };
+    }
+    if (String(found.reason).startsWith('known_at_')) {
+      return { ok: false, reason: `known_at_${String(found.reason).slice('known_at_'.length)}`, message: 'a kérdés TUDÁS-ideje nem értelmezhető' };
+    }
     return {
       ok: false,
       reason: 'authority_not_established',
@@ -61,6 +95,15 @@ export function authorityRowAt({ store, subjectId, bookId, operation, nowIso }) 
         + 'hatáskör MŰVELETENKÉNT adott.',
     };
   }
+  const row = found.row;
+  // A FELOLDÁS TANÚJA A VÁLASZBAN IS OTT VAN: melyik ágon állt, és felülírt megadást talált-e. A
+  // néma ág ugyanaz a hazugság, mint a néma üres lista (KUKA-012 · KUKA-049).
+  const historyWitness = {
+    authority_axis: found.axis,
+    authority_source: found.source ?? null,
+    authority_superseded: found.superseded === true,
+    revocation_known_for_event: found.revocation_known_for_event === true,
+  };
   if (row.revoked_at !== null && row.revoked_at !== undefined) {
     const rev = instantMs(row.revoked_at);
     if (!rev.ok) {
@@ -108,7 +151,7 @@ export function authorityRowAt({ store, subjectId, bookId, operation, nowIso }) 
   {
     const verdict = adjudicationLimitVerdict({
       store, basisId: row.basis_id, bookId, operation, mode: 'use',
-      grantedUnderVersion: row.basis_version ?? null, validAt: nowIso, knownAt: nowIso,
+      grantedUnderVersion: row.basis_version ?? null, validAt: nowIso, knownAt: asked,
     });
     if (verdict.ok !== true) {
       return {
@@ -148,7 +191,7 @@ export function authorityRowAt({ store, subjectId, bookId, operation, nowIso }) 
   // mond ki engedélyt, a delegálási alap pedig ugyanitt már ma is megszűnik (R63 §5.3/9) — a
   // kétséget nem engedélyre fordítjuk (KUKA-012).
   {
-    const periods = membershipPeriodsOf({ store, subjectId: who, bookId, knownAt: nowIso });
+    const periods = membershipPeriodsOf({ store, subjectId: who, bookId, knownAt: asked });
     const hasPeriods = periods.ok === true && Array.isArray(periods.periods) && periods.periods.length > 0;
     // A GYENGÉBB TANÚ NEM KÖT, ÉS EZT KIMONDJUK (KUKA-127 · KUKA-122). Napló nélküli, VETÍTETT
     // tagsági sornál (`axis: 'projected_row'`) nincs esemény-azonosító, amihez kötni lehetne — a
@@ -158,11 +201,11 @@ export function authorityRowAt({ store, subjectId, bookId, operation, nowIso }) 
     // és ugyanaz a hiba-osztály, amit a saját söprésem itt mért: a kötés enélkül FALLÁ vált volna a
     // közvetlenül írt tagsági sorokon (három mag-próba pirosa).
     if (hasPeriods && periods.axis !== 'event') {
-      return { ok: true, granted_at: row.granted_at, period_binding: 'projected_row_unbound', current_period: null };
+      return { ok: true, granted_at: row.granted_at, period_binding: 'projected_row_unbound', current_period: null, ...historyWitness };
     }
     if (hasPeriods) {
       const firstPeriod = periods.periods[0].grant_event_id ?? null;
-      const today = membershipAsOf({ store, subjectId: who, bookId, validAt: nowIso, knownAt: nowIso });
+      const today = membershipAsOf({ store, subjectId: who, bookId, validAt: nowIso, knownAt: asked });
       const todayPeriod = today.effective === true ? (today.period_grant_event_id ?? null) : null;
       const rowPeriod = row.period_grant_event_id ?? null;
       const binding = rowPeriod === null ? 'first_period_rule' : 'stamped';
@@ -178,11 +221,12 @@ export function authorityRowAt({ store, subjectId, bookId, operation, nowIso }) 
           period_binding: binding,
           authority_period: rowPeriod === null ? firstPeriod : rowPeriod,
           current_period: todayPeriod,
+          ...historyWitness,
         };
       }
-      return { ok: true, granted_at: row.granted_at, period_binding: binding, current_period: todayPeriod };
+      return { ok: true, granted_at: row.granted_at, period_binding: binding, current_period: todayPeriod, ...historyWitness };
     }
-    return { ok: true, granted_at: row.granted_at, period_binding: 'not_membership_bound', current_period: null };
+    return { ok: true, granted_at: row.granted_at, period_binding: 'not_membership_bound', current_period: null, ...historyWitness };
   }
 }
 
@@ -207,7 +251,7 @@ export function authorityRowAt({ store, subjectId, bookId, operation, nowIso }) 
 /**
  * @returns {{ok:true, granted_at:string} | {ok:false, reason:string, message:string}}
  */
-export function executableRightAt({ store, subjectId, bookId, operation, nowIso, credentials }) {
+export function executableRightAt({ store, subjectId, bookId, operation, nowIso, knownAt, credentials }) {
   if (!ADJUDICATION_OPS.includes(operation)) {
     return {
       ok: false,
@@ -239,7 +283,7 @@ export function executableRightAt({ store, subjectId, bookId, operation, nowIso,
         || `"${who}" ellen célzott tiltás van hatályban, ezért hatásköri művelet nem végezhető`,
     };
   }
-  return authorityRowAt({ store, subjectId: who, bookId, operation, nowIso });
+  return authorityRowAt({ store, subjectId: who, bookId, operation, nowIso, knownAt });
 }
 
 // ═══ EFF-01 — A HATÁLYOSULÁS PONTJA: A DÖNTÉS ÉS A RÖGZÍTETT HATÁS EGY IDŐPONTON (R77/F01) ══════

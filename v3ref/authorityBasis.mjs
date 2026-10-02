@@ -58,6 +58,10 @@ const parseList = (raw) => {
 export function recordAuthorityBasis({
   store, basisId, bookId, issuerSubject, effectiveAt, recordedAt,
   expiresAt = null, allowedOperations = [], allowedRoles = [], allowedScopes = [], evidenceRef,
+  // R136/F136-02 (AOR-01) — MELYIK TAGSÁGI IDŐSZAKBÓL származik ez a generáció. A delegálási alap
+  // képzője ADJA (`deriveDelegationBasis` → `parent.grant_event_id`); az időszakhoz nem kötött
+  // alapoknál (indulási szabály, munkatér-alapítás) `null` MARAD, és ez KIMONDOTT eset, nem hiány.
+  originGrantEventId = null,
 }) {
   const eff = instantMs(effectiveAt);
   const rec = instantMs(recordedAt);
@@ -83,11 +87,13 @@ export function recordAuthorityBasis({
   const version = Number(prev && prev.v ? prev.v : 0) + 1;
   store.run(
     `INSERT INTO authority_basis (basis_id, version, book_id, issuer_subject, effective_at,
-       recorded_at, expires_at, revoked_at, allowed_operations, allowed_roles, allowed_scopes, evidence_ref)
-     VALUES (?,?,?,?,?,?,?,NULL,?,?,?,?)`,
+       recorded_at, expires_at, revoked_at, allowed_operations, allowed_roles, allowed_scopes, evidence_ref,
+       origin_grant_event_id)
+     VALUES (?,?,?,?,?,?,?,NULL,?,?,?,?,?)`,
     basisId, version, bookId, issuerSubject, effectiveAt, recordedAt, expiresAt,
     JSON.stringify([...allowedOperations]), JSON.stringify([...allowedRoles]),
-    JSON.stringify([...allowedScopes]), evidenceRef);
+    JSON.stringify([...allowedScopes]), evidenceRef,
+    originGrantEventId === null || originGrantEventId === undefined ? null : Number(originGrantEventId));
   return frozen({ ok: true, basis_id: basisId, version, effective_at: effectiveAt, recorded_at: recordedAt });
 }
 
@@ -147,7 +153,9 @@ export function basisAsOf({ store, basisId, bookId, validAt, knownAt }) {
   }
   if (best === null) return frozen({ ...base, in_effect: false, reason: 'no_basis_version_in_effect' });
 
-  const shape = { ...base, version: best.version, issuer_subject: best.issuer_subject, evidence_ref: best.evidence_ref, effective_at: best.effective_at, recorded_at: best.recorded_at };
+  // R136/F136-02 (AOR-01): az EREDET a válaszban is ott van, hogy a beváltási kapu ne egy MÁSODIK
+  // lekérdezésből vezesse le ugyanazt a tényt (KUKA-003: egy fogalom, egy otthon).
+  const shape = { ...base, version: best.version, issuer_subject: best.issuer_subject, evidence_ref: best.evidence_ref, effective_at: best.effective_at, recorded_at: best.recorded_at, origin_grant_event_id: best.origin_grant_event_id ?? null };
   if (best.revoked_at !== null && best.revoked_at !== undefined) {
     const rv = instantMs(best.revoked_at);
     if (!rv.ok) return frozen({ ...shape, in_effect: false, reason: 'basis_revoked_at_undecidable' });
@@ -170,6 +178,27 @@ export function basisAsOf({ store, basisId, bookId, validAt, knownAt }) {
     reason: 'basis_in_effect',
     limit: frozen({ operations: frozen([...ops]), roles: frozen([...roles]), scopes: frozen([...scopes]) }),
   });
+}
+
+/**
+ * EGY KONKRÉT GENERÁCIÓ EREDETE (AOR-01, R136/F136-02).
+ *
+ * A beváltási kapu a PECSÉTELT verzió eredetét a MA hatályos generáció eredetéhez méri. A pecsét a
+ * verziót hordozza (`basis_version`), az eredetet nem — és a RÉGI PECSÉTET NEM ÍRJUK ÁT (az R136
+ * kikötése). Ezért az eredetet a pecsételt verzió SAJÁT sorából olvassuk ki, ami már létezik.
+ *
+ * @returns {{known:true, origin:number|null} | {known:false, reason:string}}
+ *
+ * A HIÁNYZÓ SOR NEM `null` EREDET: a „nincs ilyen verzió" és a „van, de időszakhoz nem kötött"
+ * KÉT KÜLÖN tény, és összemosva a hívó az elsőt a másodiknak olvasná (KUKA-124/2).
+ */
+export function basisOriginOfVersion({ store, basisId, version }) {
+  const v = Number(version);
+  if (!Number.isInteger(v)) return frozen({ known: false, reason: 'basis_version_not_an_integer' });
+  const row = store.get('SELECT origin_grant_event_id FROM authority_basis WHERE basis_id = ? AND version = ?', basisId, v);
+  if (!row) return frozen({ known: false, reason: 'basis_version_absent' });
+  const o = row.origin_grant_event_id;
+  return frozen({ known: true, origin: o === null || o === undefined ? null : Number(o) });
 }
 
 /**
@@ -596,6 +625,46 @@ export function adjudicationLimitVerdict({
         + `a verzió a(z) "${operation}" műveletet nem engedte meg — egy KÉSŐBBI, tágabb verzió `
         + 'önmagában nem szélesíti ki a MÁR KIADOTT jogot',
     });
+  }
+  // ═══ R136/F136-02 — UGYANAZ AZ EREDET-KAPU A BÍRÁLATI ÚTON IS (AOR-01) ══════════════════════
+  //
+  // AZ R136 KIKÖTÉSE: „A régi alapra hivatkozó további jogosultságok feléledését ugyanazon
+  // eredetkapun vizsgáld." A fenti két mérés (mai korlát + megadáskori verzió korlátja) a
+  // MŰVELETET méri, az EREDETET nem — tehát egy MEGSZŰNT és ÚJRA KÉPZETT alap ugyanúgy
+  // feléleszthetné a RÁ HIVATKOZÓ hatásköröket, ahogy a meghívót feléleszthette. Ez a KUKA-039
+  // „fél őr": a kapu EGY jog-fajtán állna, a testvérén nem.
+  //
+  // MIÉRT NEM FEDI EZT AZ APR-01 IDŐSZAK-KÖTÉS. Az időszak-kötés az ALANY saját tagsági
+  // időszakát méri. Itt viszont a KIADÓ alapjának eredete változik: egy harmadik személy
+  // hatásköre, amit a kiadó RÉGI delegált alapja alatt adtak, az alany SAJÁT időszakának
+  // változása nélkül is feléledhetne. Két különböző tény, két külön kapu.
+  {
+    const sealedOrigin = basisOriginOfVersion({ store, basisId, version: grantedUnderVersion });
+    const liveOrigin = basisOriginOfVersion({ store, basisId, version: today.basis_version });
+    if (sealedOrigin.known !== true || liveOrigin.known !== true) {
+      return frozen({
+        ok: false, reason: 'basis_origin_undecidable', checked: 'granted_version',
+        basis_version: today.basis_version, limit: today.limit,
+        granted_under_version: grantedUnderVersion, granted_limit: granted.limit,
+        message: `a(z) ${basisId} alap eredete nem olvasható ki (${sealedOrigin.reason || liveOrigin.reason}) `
+          + '— ismeretlen eredetből engedély nem következhet',
+      });
+    }
+    const same = sealedOrigin.origin === null && liveOrigin.origin === null
+      ? true
+      : (sealedOrigin.origin !== null && liveOrigin.origin !== null
+        && Number(sealedOrigin.origin) === Number(liveOrigin.origin));
+    if (!same) {
+      return frozen({
+        ok: false, reason: 'basis_origin_changed', checked: 'granted_version',
+        basis_version: today.basis_version, limit: today.limit,
+        granted_under_version: grantedUnderVersion, granted_limit: granted.limit,
+        sealed_origin: sealedOrigin.origin, live_origin: liveOrigin.origin,
+        message: `a hatáskört a(z) ${basisId} alap olyan generációja alatt adták, ami MÁS tagsági `
+          + 'időszakból származik, mint a ma hatályos — az új alap nem igazolja újra a régi jogot; '
+          + 'új, kifejezett megadás kell',
+      });
+    }
   }
   return frozen({
     ok: true, reason: 'within_basis', checked: 'today_and_granted_version',

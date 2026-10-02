@@ -33,6 +33,151 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-273',
+    date: '2026-10-02',
+    title: 'A JAVÍTÁSOM EGY MÁSIK ÍRÓT TETT LÁTHATATLANNÁ — a naplóra állított olvasó kinyitotta a nyers vetület-írás kiskapuját',
+    what: 'Az F136-01 javításának ELSŐ alakja az `authorityRowAt`-ot MINDIG a hatásköradás '
+      + 'append-only naplójából szolgálta ki, és a mai vetületet (`adjudication_authority`) '
+      + 'teljesen kihagyta. A történeti lelet ezzel zöld lett — de a mag SAJÁT próbája, a '
+      + '`P-ORG-adjudication-basis-limit`, PIROSRA váltott: az NYERS '
+      + '`UPDATE adjudication_authority SET basis_version = NULL | 999 | \'nem-szam\'` írásokkal '
+      + 'ellenőrzi, hogy a HASZNÁLATI kapu a megcsonkított alap-hivatkozást elutasítja. A napló '
+      + 'ezeket a nyers írásokat nem látja, tehát a kapu NÉMÁN átengedte volna mindhárom alakot.',
+    why_wrong: 'EZ A KUKA-013 ISMÉTLŐDÉSE A JAVÍTÁS OLDALÁN: „az őr, ami csak az egyik írót ismeri, '
+      + 'nem őr" — és én egy MŰKÖDŐ őrt vakítottam meg azzal, hogy a döntés forrását egyetlen '
+      + 'íróra szűkítettem. A két követelmény (a MÚLT forrása a napló · a NYERS írás ne kerülhesse '
+      + 'meg a kaput) nem ütközik egymással; én mostam össze őket azzal, hogy egy forrást '
+      + 'VÁLASZTOTTAM a kettő helyett. És ami ebből a legfontosabb: a cél-lelet zöldje ELFEDTE a '
+      + 'szomszéd-regressziót — pontosan ezért nem elég a cél-verifier (D-VS-406 · KUKA-200).',
+    replaced_by: 'A hatókör KIMONDOTT lett, generációnként: ha a megtalált napló-esemény UGYANAZ a '
+      + 'generáció, amit a vetület hordoz, akkor a VETÜLET sora az operatív (így a nyers írás és a '
+      + 'megvonás LÁTSZIK); ha a megtalált esemény egy KORÁBBI, felülírt generáció, akkor a NAPLÓ '
+      + 'sora az operatív (ez az F136-01 lelete). A válasz MEGNEVEZI, melyiken állt '
+      + '(`source`: `projection_live_generation` · `grant_log_superseded_generation` · '
+      + '`projection_only_no_log`). A harmadik eset sem néma: ha a naplóban van illeszkedő esemény, '
+      + 'de vetület EGYÁLTALÁN nincs, a kettő az ÉLŐ állapotról mond ellent — `authority_record_diverged`, '
+      + 'és ZÁR (KUKA-012).',
+    decision: 'D-VS-3092',
+    found_by: 'SAJÁT SÖPRÉS (Claude-v3, R136) — a mag-battéria (`node v3ref/run.mjs`) '
+      + '`P-ORG-adjudication-basis-limit` próbája, közvetlenül az F136-01 javítása után. '
+      + 'A cél-battéria (findings_r134) ekkor már ZÖLD volt.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/authorityHistory.mjs']),
+        pattern: 'projMatches \\? projection :',
+        why: 'az ÉLŐ generációnál a VETÜLET sora az operatív — a nyers írás nem tűnik el a napló mögött' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/authorityHistory.mjs']),
+        pattern: "reason: 'authority_projection_missing'",
+        why: 'a napló és a vetület ellentmondása NEVEZETTEN zár, nem engedély' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/authority.mjs']),
+        pattern: "reason: 'authority_record_diverged'",
+        why: 'a hívó a divergenciát nevezett elutasításra fordítja' }),
+    ]),
+    lesson: 'A FORRÁS MEGVÁLTOZTATÁSA HATÓKÖR-DÖNTÉS, NEM TECHNIKAI RÉSZLET. Amikor egy döntés '
+      + 'forrását átállítom (vetület → napló), MEG KELL KERESNI, ki MÁS írja ugyanazt a tényt — '
+      + 'különben a javítás egy meglévő őrt vakít meg. A kérdés nem „melyik a helyes forrás", hanem '
+      + '„melyik tény melyik hatókörön az operatív". És a cél-lelet zöldje SOHA nem a csomag '
+      + 'verdiktje: a szomszéd-battériát UGYANABBAN a körben le kell futtatni.',
+    guard_note: 'gépi jel: a fenti pozitív minták (`npm run verify:kuka`) + a MÉRŐ próba maga: '
+      + '`node v3ref/run.mjs` → `P-ORG-adjudication-basis-limit` (a három nyers verzió-alak), ami a '
+      + 'visszacsúszásra BIZONYÍTOTTAN pirosra vált — ezen a köron MÉRVE is ezt tette.',
+  }),
+  Object.freeze({
+    id: 'KUKA-272',
+    date: '2026-10-02',
+    title: 'AZ ÚJ DELEGÁLT ALAP FELÉLESZTETTE A RÉGI IDŐSZAK MEGHÍVÓJÁT — az alap AZONOSSÁGA időszak nélküli volt',
+    what: 'A `delegationBasisId` az alapot alany × könyv azonosságon képzi (`deleg:<könyv>:<alany>`). '
+      + 'Mérve (chatgpt-v3, R136/F136-02), változatlan termékkódon: Béla az ELSŐ időszakban meghívta '
+      + 'Hannát; Béla tagságát megvontuk, újrahívtuk, elfogadta; a régi token beváltása ekkor '
+      + 'HELYESEN elakadt (b7). Amint Béla a MÁSODIK időszakban kiadott egy ÚJ meghívót (b9) — ami '
+      + 'ugyanazt az azonosítót képzi újra —, UGYANAZ a régi token `ok:true · shape:membership_only · '
+      + 'outcome:granted` választ adott: `membership` 15→16 · `membership_grant` 19→20 · '
+      + '`grant_basis` 10→11. A beváltási kapu két mérése EGYÜTT sem zárta: a kiadáskori mérés a '
+      + 'pecsételt RÉGI verziót találja és elfogadja, a mai mérés pedig csak azt kérdezi, hogy az '
+      + 'AZONOSÍTÓ ma hatályos-e — és az igen volt, egy MÁS eredetű generáció miatt.',
+    why_wrong: 'Az R132 §4 és az A132-05 kifejezetten tiltja: „Új belépéskor a régi adatkörjogok, '
+      + 'bírálati hatáskörök, delegálási alapok és korábban kiadott FÜGGŐ MEGHÍVÓK nem éledhetnek '
+      + 'fel." A hiba osztálya a KUKA-039 „fél őr": az időszak-kötést az R132 az adatkörjogra, az '
+      + 'R134 a bírálati hatáskörre megépítette — a DELEGÁLÁSI ALAP azonossága viszont időszak '
+      + 'nélkül maradt. És a (b7) tanú azért volt zöld, mert az ÚJ alap kiadása ELŐTT futott: a '
+      + 'mérés sorrendje rejtette el a leletet (KUKA-134).',
+    replaced_by: 'AZ EREDET-KÖTÉS (AOR-01): az `authority_basis` generáció mostantól hordozza, MELYIK '
+      + 'tagsági időszakból származik (`origin_grant_event_id`, a képző `deriveDelegationBasis` '
+      + 'adja a `parent.grant_event_id`-ből). A beváltási kapu a PECSÉTELT verzió eredetét a MA '
+      + 'hatályos generáció eredetéhez méri (`basisOriginOfVersion`), és eltérésnél `basis_origin_changed` '
+      + 'okkal zár, írásmentesen. A RÉGI PECSÉTET NEM ÍRTUK ÁT: az eredet a pecsételt verzió MÁR '
+      + 'LÉTEZŐ sorából olvasódik. A képző újrahasználati ága is az eredetet hasonlítja, nem csak a '
+      + 'korlátot — a két oldal UGYANAZT a tényt nézi.',
+    decision: 'D-VS-3092',
+    found_by: 'A KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), CMD-VS-300-002-002 R136/F136-02 — a (b9) utáni '
+      + 'megismételt beváltással, amit az eredeti battéria nem mért.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/basisLimit.mjs']),
+        pattern: "reason: 'basis_origin_changed'",
+        why: 'az időszak-határon átnyúló ÚJRA-KÉPZÉS nevezetten zár a beváltáskor' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/authorityBasis.mjs']),
+        pattern: 'export function basisOriginOfVersion',
+        why: 'a pecsételt generáció eredete a MÁR LÉTEZŐ sorából jön — a pecsétet nem írjuk át' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/delegation.mjs']),
+        pattern: 'originGrantEventId: origin',
+        why: 'az eredetet a KÉPZŐ rögzíti, nem a hívó adja meg' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/store.mjs']),
+        pattern: 'origin_grant_event_id INTEGER',
+        why: 'az eredet TÁROLT tény, nem levezetés' }),
+    ]),
+    lesson: 'AZ AZONOSSÁG MAGA IS SZABÁLY. Ha egy jogalap azonosítóját újra lehet képezni, akkor a '
+      + 'rá hivatkozó RÉGI pecsétek egy ÚJ jogot fognak igazolni — anélkül, hogy bárki írt volna '
+      + 'egy sort is a régi pecsétbe. A megkülönböztető tény itt NEM a verzió (a jogos bővítés is '
+      + 'verziót emel, és azt át KELL engedni — KUKA-122), hanem az EREDET. És a mérés SORRENDJE '
+      + 'is állítás: egy tanú, ami a változás ELŐTT fut, a változás hatásáról semmit nem mond.',
+    guard_note: 'gépi jel: a fenti pozitív minták (`npm run verify:kuka`) + `npm run verify:app-findings-r134` '
+      + '(b7b · b7c · b7d · b7e · b7e2 · b7f), ami a javítás ELŐTT MÉRVE piros volt.',
+  }),
+  Object.freeze({
+    id: 'KUKA-271',
+    date: '2026-10-02',
+    title: 'AZ APPEND-ONLY NAPLÓ PUSZTA LÉTÉT A TÖRTÉNETI IGAZSÁG MEGŐRZÉSÉNEK NEVEZTEM — miközben egyetlen olvasó sem olvasta',
+    what: 'Az R134-ben megépítettem a hatásköradás append-only naplóját '
+      + '(`adjudication_authority_grant`), és a jelentésem azt írta: „A régi megadás TÖRTÉNETILEG '
+      + 'érvényes marad (új, append-only napló)". A naplót viszont EGYETLEN OLVASÓ SEM olvasta: az '
+      + '`authorityRowAt` továbbra is a MAI vetületből indult, aminek a kulcsa alany × könyv × '
+      + 'művelet — tehát EGY sor. Mérve (chatgpt-v3, R136/F136-01), változatlan termékkódon, '
+      + 'UGYANAZON a történeti kérdésen: az új megadás ELŐTT `ok:true · period_binding:stamped · '
+      + 'current_period:15`, az új megadás UTÁN `ok:false · reason:authority_not_yet_effective`. '
+      + 'A naplóban ekkor MINDKÉT megadás ott állt, 15-es és 16-os időszakkal.',
+    why_wrong: 'A BIZONYÍTÉK MEGLÉTE NEM BIZONYÍTÉK A HASZNÁLATÁRA (KUKA-122) — és ez a KUKA-118 '
+      + 'alakja is: „a mag szerződése kész volt, a hívó nem adta át". Egy append-only tábla '
+      + 'önmagában nem őriz meg semmit, ha a döntés nem belőle jön; a saját jelentésem tehát '
+      + 'TÖBBET állított, mint amit a kód tett (KUKA-033). A (b5) tanú azért volt zöld, mert az új '
+      + 'megadás ELŐTT futott — a mérés sorrendje rejtette el a leletet (KUKA-134).',
+    replaced_by: 'AHI-01 — a történeti feloldás (`authorityGrantAt`, `v3ref/authorityHistory.mjs`) a '
+      + 'NAPLÓBÓL választja ki a kérdezett időpontra illeszkedő megadást, KÉT tengelyen '
+      + '(`granted_at <= validAt` ÉS `recorded_at <= knownAt`), és az `authorityRowAt` ezt hívja. A '
+      + 'mai vetület GYORSÍTÓTÁR maradt, de nem a múlt egyetlen forrása. A napló nélküli, CSAK '
+      + 'vetületben álló történeti sor KIMONDOTT kompatibilitási ág (`projection_only_no_log`), nem '
+      + 'néma nyelő tartalék (KUKA-117). A KÉSŐBBI jog megvonása nem nyúlik vissza a korábbi '
+      + 'időszakra; a hatókört a `source` mező nevezi meg.',
+    decision: 'D-VS-3092',
+    found_by: 'A KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), CMD-VS-300-002-002 R136/F136-01 — a (b5) kérdés '
+      + 'megismétlésével KÖZVETLENÜL a (b6) új megadás után.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/authority.mjs']),
+        pattern: 'authorityGrantAt\\(\\{ store, subjectId: who, bookId, operation, validAt: nowIso',
+        why: 'a hatáskör-értékelő a TÖRTÉNETI feloldót hívja, nem a vetületet olvassa közvetlenül' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/authorityHistory.mjs']),
+        pattern: 'g.ms <= valid.ms && r.ms <= known.ms',
+        why: 'a kiválasztás MINDKÉT tengelyen mér (hatály ÉS tudás)' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/authorityHistory.mjs']),
+        pattern: "PROJECTION_ONLY: 'projection_only'",
+        why: 'a napló nélküli történeti sor KIMONDOTT ág, nem néma tartalék' }),
+    ]),
+    lesson: 'AMIT MEGÉPÍTETTÜNK, DE NEM OLVASUNK, AZ NEM VÉDELEM — ÉS A JELENTÉS NE ÁLLÍTSON TÖBBET, '
+      + 'MINT AMIT A KÓD TESZ. Egy új táblához TARTOZIK egy olvasó, különben a tábla csak adat. '
+      + 'Amikor „a történeti igazság megőrzését" írom le, a bizonyíték nem a tábla LÉTE, hanem egy '
+      + 'MÉRÉS, ami a történeti kérdést a változás UTÁN teszi fel.',
+    guard_note: 'gépi jel: a fenti pozitív minták (`npm run verify:kuka`) + '
+      + '`npm run verify:app-findings-r134` (b5b · b5c · b5d · b5e · b5f), ami a javítás ELŐTT MÉRVE piros volt.',
+  }),
+  Object.freeze({
     id: 'KUKA-270',
     date: '2026-10-01',
     title: 'A TILTÓLISTÁT `never:` KULCS ALÁ ÍRTAM — a verifier a `forbidden:`-t futtatja, tehát a lista futásidőben nem létezett',

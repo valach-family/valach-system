@@ -196,6 +196,20 @@ CREATE TABLE authority_basis (
   allowed_roles      TEXT NOT NULL,
   allowed_scopes     TEXT NOT NULL,
   evidence_ref   TEXT NOT NULL,
+  -- R136/F136-02 — AZ ALAP EREDETE: MELYIK TAGSÁGI IDŐSZAKBÓL SZÁRMAZIK (AOR-01).
+  --
+  -- A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R136/F136-02). A delegálási alap
+  -- AZONOSSÁGA alany × könyv ("deleg:<könyv>:<alany>"), tehát egy megszűnt és ÚJRA megszerzett
+  -- tagság ugyanazt az azonosítót képzi újra. Mérve: a RÉGI időszakból kiadott, (b7)-ben HELYESEN
+  -- elutasított meghívó az ÚJ alap megszületése után "ok:true · membership_only · granted"
+  -- választ adott — a JELEN IDEJŰ új alap IGAZOLTA a régi időszak ajánlatát.
+  --
+  -- MIÉRT NEM A VERZIÓ-EGYENLŐSÉG A VÁLASZ. A beváltási kapu a verziót a KIADÁS idejére méri, és
+  -- ez szándékos: az R64 (H06/H07) kimondta, hogy az alap későbbi, JOGOS bővítése ne zárja a már
+  -- kiadott meghívót. A verzió MAI egyenlőségének követelése tehát falat csinálna a kapuból
+  -- (KUKA-122). A megkülönböztető tény nem a verzió, hanem az EREDET: ugyanazon a tagsági
+  -- időszakon belüli újra-rögzítés (bővítés) VAGY időszak-határon átnyúló ÚJRA-KÉPZÉS.
+  origin_grant_event_id INTEGER,
   PRIMARY KEY (basis_id, version)
 );
 

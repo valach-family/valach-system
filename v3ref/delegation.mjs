@@ -125,20 +125,28 @@ export function deriveDelegationBasis({ store, subjectId, bookId, at }) {
   const { role, roles, scopes, parent } = ceiling;
 
   const basisId = delegationBasisId(bookId, subjectId);
+  // R136/F136-02 (AOR-01) — AZ EREDET A MAI TAGSÁGI IDŐSZAK, és a MEGLÉVŐ generáció újrahasználata
+  // ettől is függ. A régi alak CSAK a korlátot hasonlította: egy MÁS időszakból származó, azonos
+  // korlátú, még hatályos generációt tehát NÉMÁN újrahasznált volna — pontosan az a feléledés, amit
+  // a beváltási kapu oldalán most zárunk (a két oldalnak ugyanazt a tényt kell nézni; KUKA-039).
+  const origin = parent.grant_event_id ?? null;
   const existing = basisAsOf({ store, basisId, bookId, validAt: at, knownAt: at });
   if (existing.in_effect === true
     && same(existing.limit.operations, [INVITE_ISSUE_OPERATION])
-    && same(existing.limit.roles, roles) && same(existing.limit.scopes, scopes)) {
-    return frozen({ ok: true, recorded: false, basis_id: basisId, version: existing.version, limit: existing.limit, parent });
+    && same(existing.limit.roles, roles) && same(existing.limit.scopes, scopes)
+    && Number(existing.origin_grant_event_id ?? -1) === Number(origin ?? -1)) {
+    return frozen({ ok: true, recorded: false, basis_id: basisId, version: existing.version, limit: existing.limit, parent, origin_grant_event_id: existing.origin_grant_event_id ?? null });
   }
   const r = recordAuthorityBasis({
     store, basisId, bookId, issuerSubject: subjectId, effectiveAt: at, recordedAt: at,
     allowedOperations: [INVITE_ISSUE_OPERATION], allowedRoles: roles, allowedScopes: scopes,
     evidenceRef: `delegated-from:${parent.basis_id}@v${parent.basis_version} · membership_grant#${parent.grant_event_id} · role=${role}`,
+    originGrantEventId: origin,
   });
   if (!r.ok) return frozen({ ok: false, reason: r.reason });
   return frozen({ ok: true, recorded: true, basis_id: basisId, version: r.version,
-    limit: frozen({ operations: frozen([INVITE_ISSUE_OPERATION]), roles: frozen(roles), scopes: frozen(scopes) }), parent });
+    limit: frozen({ operations: frozen([INVITE_ISSUE_OPERATION]), roles: frozen(roles), scopes: frozen(scopes) }), parent,
+    origin_grant_event_id: origin });
 }
 
 /**

@@ -32,7 +32,7 @@ import { scopeGrantLiveAt } from '../v3ref/releaseScope.mjs';
 import { executableRightAt } from '../v3ref/authority.mjs';
 import { reinviteMember } from '../v3ref/delegation.mjs';
 import { grantAdjudicationAuthority } from '../v3ref/adjudication.mjs';
-import { basisAsOf } from '../v3ref/authorityBasis.mjs';
+import { basisAsOf, recordAuthorityBasis } from '../v3ref/authorityBasis.mjs';
 import { dictFor } from './public/i18n/dict.mjs';
 import { enabledLanguages } from './public/i18n/languages.mjs';
 
@@ -237,6 +237,9 @@ try {
   // A FIXTÚRA TÉNYE KIMONDOTT: a bírálati hatáskör megadására ma NINCS HTTP-út, ezért a mag saját
   // íróját hívjuk (`grantAdjudicationAuthority`), a könyv INDULÁSI szabályára alapozva — pontosan
   // úgy, ahogy a külső ellenőrző fél az R134-es ellenpéldáját felállította.
+  // A TUDÁS TENGELYÉNEK HORGONYA (R136/F136-01): egy instans, ami MINDEN ebben a szakaszban
+  // születő megadásnál KORÁBBI — ezzel kérdezhető meg a „még nem ismertük" eset.
+  const bootIso = now();
   const bela = new Client(base, 'bela@r134.hu');
   const b = await joinAsMember(bela, 'bela@r134.hu', 'bela-titok-1', 'admin', 'keszlet');
   await anna.post('/api/members/scope', { subject_id: b.id, scope: 'keszlet' });
@@ -296,6 +299,80 @@ try {
   step('(b6) POZITÍV KONTROLL: ÚJ, kifejezett megadás után a hatáskör az ÚJ időszakban működik',
     authP2b.ok === true, { reason: authP2b.reason });
 
+  // (b5b) F136-01 — A TÖRTÉNET AZ ÚJ MEGADÁS UTÁN IS UGYANAZ (megtalálta: chatgpt-v3, R136).
+  //
+  // A LELET. A (b5) tanú a (b6) ÚJ megadás ELŐTT futott, tehát a történeti kérdést az új megadás
+  // UTÁN senki nem tette fel. Mérve ugyanezen a kódon: ELŐTTE `ok:true · stamped · 15`, UTÁNA
+  // `ok:false · authority_not_yet_effective` — vagyis az ÚJ megadás MEGHAMISÍTOTTA a régi időszakra
+  // adott választ. Ez a KUKA-122 alakja: az append-only napló PUSZTA LÉTE nem őrzi meg a történeti
+  // feloldás igazságát, ha az olvasó a MAI vetületből indul.
+  const authHistAfter = executableRightAt({ store, subjectId: b.id, bookId: BOOK, operation: 'alter_right', nowIso: belsoP1 });
+  step('(b5b) F136-01: az ÚJ megadás UTÁN a RÉGI időszakra adott válasz VÁLTOZATLAN',
+    authHistAfter.ok === true,
+    { at: belsoP1, elotte: authHist.ok, utana: authHistAfter.ok, reason: authHistAfter.reason ?? null,
+      elotte_binding: authHist.period_binding ?? null, utana_binding: authHistAfter.period_binding ?? null });
+
+  // (b5c) …ÉS AZ ÚJ JOG MEGVONÁSA UTÁN IS VÁLTOZATLAN A MÚLT (az R136 kötelező tanújának zárása).
+  // A megvonás a vetületen történik (termék-út ma nincs rá) — épp ezért jó tanú: a KÉSŐBBI jog
+  // megvonása nem nyúlhat vissza a KORÁBBI időszakra.
+  store.run('UPDATE adjudication_authority SET revoked_at = ? WHERE subject_id = ? AND book_id = ? AND operation = ?',
+    now(), b.id, BOOK, 'alter_right');
+  const authTodayRevoked = executableRightAt({ store, subjectId: b.id, bookId: BOOK, operation: 'alter_right', nowIso: now() });
+  const authHistAfterRevoke = executableRightAt({ store, subjectId: b.id, bookId: BOOK, operation: 'alter_right', nowIso: belsoP1 });
+  step('(b5c) F136-01: az ÚJ jog MEGVONÁSA után a MA zár, a RÉGI időszak válasza VÁLTOZATLAN',
+    authTodayRevoked.ok === false && authHistAfterRevoke.ok === true,
+    { ma: authTodayRevoked.ok, ma_reason: authTodayRevoked.reason, regi: authHistAfterRevoke.ok,
+      regi_source: authHistAfterRevoke.authority_axis ?? null, superseded: authHistAfterRevoke.authority_superseded ?? null });
+
+  // (b5d) KÜLÖN HATÁLY- ÉS TUDÁSIDŐ, AZONOS IDŐBÉLYEGGEL. A régi időszak hatályára kérdezünk, de
+  // a RÉGI megadás ELŐTTI tudással: az akkor még nem ismert megadás NEM igazolhat jogot.
+  const authOldKnowledge = executableRightAt({
+    store, subjectId: b.id, bookId: BOOK, operation: 'alter_right', nowIso: belsoP1, knownAt: bootIso });
+  const authSameStamp = executableRightAt({
+    store, subjectId: b.id, bookId: BOOK, operation: 'alter_right', nowIso: belsoP1, knownAt: belsoP1 });
+  step('(b5d) F136-01: a TUDÁS tengelye külön hat — a megadás előtti tudás NEM ad jogot, az azonos időbélyeg IGEN',
+    authOldKnowledge.ok === false && authSameStamp.ok === true,
+    { regi_tudas: authOldKnowledge.ok, regi_tudas_reason: authOldKnowledge.reason,
+      azonos_idobelyeg: authSameStamp.ok });
+
+  // (b5e) NEGATÍV KONTROLL — A VETÜLETBŐL TÖRTÉNETI FELOLDÁS HIBÁJÁT FOGJA MEG. Ez a lépés a
+  // MEGHAMISÍTOTT választ írja le pozitívan: a MAI vetület `granted_at`-ja KÉSŐBBI, mint a
+  // kérdezett régi időpont — tehát aki a vetületből oldaná fel a múltat, az NEM-et kapna. Ha a
+  // kontroll-feltétel maga nem áll (a vetület nem későbbi), a lépés ELAKADT MÉRÉS, nem zöld.
+  const projNow = store.get('SELECT granted_at, period_grant_event_id FROM adjudication_authority WHERE subject_id = ? AND book_id = ? AND operation = ?', b.id, BOOK, 'alter_right');
+  const projLater = projNow && Date.parse(projNow.granted_at) > Date.parse(belsoP1);
+  // A MAI TUDÁSSAL kérdezünk a RÉGI hatályra: így az ÚJ megadás MÁR ISMERT, tehát a felülírt
+  // generáció ága az, ami válaszol. Ez a lelet ÉLES alakja — a `knownAt` nélküli kérdés a régi
+  // megadás tudás-horizontján áll, és ott az új megadás még nem is létezik.
+  const authHistTodayKnown = executableRightAt({
+    store, subjectId: b.id, bookId: BOOK, operation: 'alter_right', nowIso: belsoP1, knownAt: now() });
+  step('(b5e) F136-01 NEGATÍV KONTROLL: a vetület KÉSŐBBI megadást hordoz és MA ismert, a történeti válasz mégis a RÉGI megadást adja',
+    projLater === true && authHistTodayKnown.ok === true
+    && authHistTodayKnown.authority_superseded === true
+    && authHistTodayKnown.authority_source === 'grant_log_superseded_generation'
+    && String(authHistTodayKnown.granted_at) === String(belsoP1)
+    && String(projNow.granted_at) !== String(authHistTodayKnown.granted_at),
+    { vetulet_granted_at: projNow?.granted_at ?? null, kerdezett: belsoP1, vetulet_kesobbi: projLater,
+      valasz_granted_at: authHistTodayKnown.granted_at ?? null, source: authHistTodayKnown.authority_source ?? null,
+      felulirt_generacio: authHistTodayKnown.authority_superseded ?? null });
+
+  // (b5f) A TÖRTÉNETI KOMPATIBILITÁSI ÁG CÉLZOTTAN: napló nélküli, CSAK a vetületben álló megadás
+  // (R134 ELŐTTI alak). A naplót ÜRESRE állítjuk egy MÁSIK alanyon, és a válasznak ki kell
+  // mondania, hogy a vetület az EGYETLEN tanú — nem elakadni, és nem is elhallgatni.
+  const cili = new Client(base, 'cili@r134.hu');
+  const cl = await joinAsMember(cili, 'cili@r134.hu', 'cili-titok-1', 'admin', 'keszlet');
+  grantAdjudicationAuthority({
+    store, subjectId: cl.id, bookId: BOOK, operation: 'alter_right', clock: app.clock,
+    basisId: `startup-rule:${BOOK}`,
+  });
+  store.run('DELETE FROM adjudication_authority_grant WHERE subject_id = ?', cl.id);
+  const authLegacy = executableRightAt({ store, subjectId: cl.id, bookId: BOOK, operation: 'alter_right', nowIso: now() });
+  step('(b5f) F136-01: a napló nélküli, CSAK vetületben álló történeti megadás MŰKÖDIK, és a válasz KIMONDJA a tanút',
+    authLegacy.ok === true && authLegacy.authority_axis === 'projection_only'
+    && authLegacy.authority_source === 'projection_only_no_log',
+    { ok: authLegacy.ok, axis: authLegacy.authority_axis ?? null, source: authLegacy.authority_source ?? null,
+      binding: authLegacy.period_binding ?? null });
+
   // (b7) A RÉGI KIADÓ MÁSNAK KIADOTT FÜGGŐ MEGHÍVÓJA sem éled fel.
   const hannaId = await signUp(hanna, 'hanna@r134.hu', 'hanna-titok-1');
   await hanna.post('/api/invites/pending', { token: hannaTok });
@@ -321,6 +398,140 @@ try {
     belaInvite2.status === 201 && irenRedeem.body.ok === true
     && membershipAsOf({ store, subjectId: irenId, bookId: BOOK, validAt: now(), knownAt: now() }).effective === true,
     { ok: irenRedeem.body.ok, outcome: irenRedeem.body.outcome });
+
+  // (b7b) F136-02 — A RÉGI TOKEN AZ ÚJ ALAP UTÁN SEM ÉLED FEL (megtalálta: chatgpt-v3, R136).
+  //
+  // A LELET. A (b7) tanú az ÚJ alap kiadása ELŐTT futott. A (b9) viszont ÚJ delegált alapot képez a
+  // MÁSODIK időszakban — és mérve ugyanezen a kódon ezután a KORÁBBAN HELYESEN ELUTASÍTOTT régi
+  // token `ok:true · shape:membership_only · outcome:granted` választ adott. Az ok a forrásban: a
+  // `delegationBasisId` alany × könyv azonosságú, tehát a JELEN IDEJŰ új alap IGAZOLJA a RÉGI
+  // időszakból kiadott ajánlatot. Ez az A132-05 és az R132 §4 sérülése.
+  const cHa = await counts();
+  const hannaRedeem2 = await hanna.post('/api/invites/redeem', { token: hannaTok });
+  const cHb = await counts();
+  step('(b7b) F136-02: a RÉGI token az ÚJ alap és ÚJ meghívó MŰKÖDÉSE UTÁN sem ad tagságot',
+    hannaRedeem2.body.ok === false
+    && membershipAsOf({ store, subjectId: hannaId, bookId: BOOK, validAt: now(), knownAt: now() }).effective === false
+    && unchanged(cHa, cHb),
+    { ok: hannaRedeem2.body.ok, reason: hannaRedeem2.body.reason ?? hannaRedeem2.body.error,
+      shape: hannaRedeem2.body.shape ?? null, outcome: hannaRedeem2.body.outcome ?? null, delta: diff(cHa, cHb) });
+
+  // (b7c) …ÉS A TOKEN NEM FOGYOTT EL. A hibás tokenfogyasztás ugyanolyan kár, mint a hamis
+  // tagságadás: a címzett elveszítené a jogos ajánlatát. A tanú: UGYANAZ a kérés UGYANAZT a
+  // nevezett okot adja (nem `invite_already_redeemed`), és a tárolóban megint nulla új sor.
+  const cHc = await counts();
+  const hannaRedeem3 = await hanna.post('/api/invites/redeem', { token: hannaTok });
+  const cHd = await counts();
+  const hannaInviteRow = store.get('SELECT redeemed_at FROM invite WHERE token = ?', hannaTok);
+  step('(b7c) F136-02: a régi token NEM fogyott el (az ok változatlan, nincs „már beváltva"), és nincs MÁS jog sem',
+    hannaRedeem3.body.ok === false
+    && String(hannaRedeem3.body.reason ?? hannaRedeem3.body.error) === String(hannaRedeem2.body.reason ?? hannaRedeem2.body.error)
+    && (hannaInviteRow?.redeemed_at ?? null) === null
+    && scopeGrantLiveAt({ store, subjectId: hannaId, bookId: BOOK, scope: 'keszlet', nowIso: now(), knownAt: now() }).allowed === false
+    && unchanged(cHc, cHd),
+    { reason: hannaRedeem3.body.reason ?? hannaRedeem3.body.error, redeemed_at: hannaInviteRow?.redeemed_at ?? null,
+      mas_jog: scopeGrantLiveAt({ store, subjectId: hannaId, bookId: BOOK, scope: 'keszlet', nowIso: now(), knownAt: now() }).allowed,
+      delta: diff(cHc, cHd) });
+
+  // (b7d) A RÉGI ALAPRA HIVATKOZÓ MÁS JOG SEM ÉLED FEL — UGYANAZON AZ EREDET-KAPUN (R136 kikötése).
+  //
+  // A HATÓKÖR ELŐBB, MÉRVE. A delegálási alap korlátja KIZÁRÓLAG `invite_issue` — ezért a BÍRÁLATI
+  // úton ugyanez az alap fogalmilag nem is használható (`outside_basis_operations` zár előbb). Ezt
+  // MÉRTÜK, nem feltételeztük: a (b7d) első alakja épp ezen akadt el. Tehát a MAI termékben
+  // `adjudicate`-et engedő, EREDETHEZ KÖTÖTT alap nem keletkezik — a bírálati úton az eredet-kapu
+  // ELŐVIGYÁZATOSSÁG arra a résre, amit az R136 megnevezett, nem egy ma elérhető élő hiba. Ezt
+  // KIMONDJUK, nem mossuk össze a két állítást (KUKA-033 · KUKA-216).
+  //
+  // A FIXTÚRA TÉNYE KIMONDOTT: a kaput a termék SAJÁT alap-íróján (`recordAuthorityBasis`)
+  // állítjuk fel, két generációval és KÜLÖNBÖZŐ eredettel; HTTP-út ehhez nincs.
+  const belaOrigins = store.all(
+    'SELECT version, origin_grant_event_id FROM authority_basis WHERE basis_id = ? ORDER BY version', belaBasisId);
+  // A MÉRÉSNEK TÁRGY KELL: a hatáskör-sor a RÉGI delegált generációra hivatkozik, és ÚGY kérdezünk.
+  // (A sor nélküli kérdés `authority_not_established`-et ad — az a hatókörről semmit nem mond.)
+  const belaOldVersion = belaOrigins.length ? belaOrigins[0].version : null;
+  store.run(
+    `INSERT INTO adjudication_authority (subject_id, book_id, operation, granted_at, revoked_at,
+       basis_id, basis_version, period_grant_event_id)
+     VALUES (?,?,?,?,NULL,?,?,?)
+     ON CONFLICT(subject_id, book_id, operation) DO UPDATE SET
+       granted_at = excluded.granted_at, revoked_at = NULL, basis_id = excluded.basis_id,
+       basis_version = excluded.basis_version, period_grant_event_id = excluded.period_grant_event_id`,
+    hannaId, BOOK, 'adjudicate', now(), belaBasisId, belaOldVersion, period(hannaId) ?? null);
+  const delegOnlyInvite = executableRightAt({ store, subjectId: hannaId, bookId: BOOK, operation: 'adjudicate', nowIso: now() });
+  const TANU = `tanu-eredet:${BOOK}`;
+  const r1 = recordAuthorityBasis({
+    store, basisId: TANU, bookId: BOOK, issuerSubject: b.id, effectiveAt: now(), recordedAt: now(),
+    allowedOperations: ['adjudicate'], allowedRoles: ['user'], allowedScopes: ['keszlet'],
+    evidenceRef: 'fixtura:R136-eredet-kapu-1', originGrantEventId: bP1,
+  });
+  store.run(
+    `INSERT INTO adjudication_authority (subject_id, book_id, operation, granted_at, revoked_at,
+       basis_id, basis_version, period_grant_event_id)
+     VALUES (?,?,?,?,NULL,?,?,?)
+     ON CONFLICT(subject_id, book_id, operation) DO UPDATE SET
+       granted_at = excluded.granted_at, revoked_at = NULL, basis_id = excluded.basis_id,
+       basis_version = excluded.basis_version, period_grant_event_id = excluded.period_grant_event_id`,
+    hannaId, BOOK, 'adjudicate', now(), TANU, r1.version, period(hannaId) ?? null);
+  const tanuBefore = executableRightAt({ store, subjectId: hannaId, bookId: BOOK, operation: 'adjudicate', nowIso: now() });
+  step('(b7d) F136-02 ELŐFELTÉTEL: a delegálási alap a BÍRÁLATI úton fogalmilag sem használható, a tanú-alap alatt viszont a jog ÉL',
+    delegOnlyInvite.ok === false && delegOnlyInvite.reason === 'outside_basis_operations'
+    && r1.ok === true && tanuBefore.ok === true,
+    { deleg_reason: delegOnlyInvite.reason, deleg_eredetek: belaOrigins.map((r) => `v${r.version}=${r.origin_grant_event_id ?? '—'}`).join(' · '),
+      tanu_v1: r1.version, tanu_jog: tanuBefore.ok });
+
+  // …és most UGYANAZ az alap ÚJ generációt kap MÁS eredettel: a RÁ HIVATKOZÓ jog ZÁR.
+  const r2 = recordAuthorityBasis({
+    store, basisId: TANU, bookId: BOOK, issuerSubject: b.id, effectiveAt: now(), recordedAt: now(),
+    allowedOperations: ['adjudicate'], allowedRoles: ['user'], allowedScopes: ['keszlet'],
+    evidenceRef: 'fixtura:R136-eredet-kapu-2', originGrantEventId: bP2,
+  });
+  const tanuAfter = executableRightAt({ store, subjectId: hannaId, bookId: BOOK, operation: 'adjudicate', nowIso: now() });
+  step('(b7e) F136-02: a RÉGI generáció alatt adott MÁS jog sem éled fel az ÚJ, MÁS EREDETŰ generációtól',
+    r2.ok === true && r2.version > r1.version
+    && tanuAfter.ok === false && tanuAfter.reason === 'basis_origin_changed',
+    { v1: r1.version, v1_eredet: bP1, v2: r2.version, v2_eredet: bP2,
+      ok: tanuAfter.ok, reason: tanuAfter.reason });
+
+  // …POZITÍV ELLENPÁR UGYANAZON A KAPUN: a MAI generáció alatt adott ugyanaz a jog MŰKÖDIK.
+  // Enélkül a fenti zöld attól is jöhetne, hogy a kapu MINDENT zár (KUKA-122: a kapu nem fal).
+  store.run('UPDATE adjudication_authority SET basis_version = ? WHERE subject_id = ? AND book_id = ? AND operation = ?',
+    r2.version, hannaId, BOOK, 'adjudicate');
+  const tanuRegranted = executableRightAt({ store, subjectId: hannaId, bookId: BOOK, operation: 'adjudicate', nowIso: now() });
+  step('(b7e2) F136-02 POZITÍV ELLENPÁR: a MAI generáció alatt adott ugyanaz a jog VÉGREHAJTHATÓ',
+    tanuRegranted.ok === true,
+    { ok: tanuRegranted.ok, reason: tanuRegranted.reason ?? null, verzio: r2.version });
+
+  // (b7f) MÁSODIK CIKLUS: a megszüntetés → újrahívás → elfogadás MÉGEGYSZER, és a MÁSODIK
+  // időszakból kiadott ajánlat a HARMADIK időszakban sem éled fel. Egy ciklus zöldje nem
+  // bizonyítja, hogy a kötés ciklus-független (az R136 kikötése: „Ismételd meg második ciklusban is").
+  const jolan = new Client(base, 'jolan@r134.hu');
+  const belaInvite3 = await bela.post('/api/invites', { email: 'jolan@r134.hu', role: 'user', scope: 'keszlet' });
+  const jolanTok = belaInvite3.body.token;
+  const jolanId = await signUp(jolan, 'jolan@r134.hu', 'jolan-titok-1');
+  await jolan.post('/api/invites/pending', { token: jolanTok });
+  const bOffer3 = await revokeAndOffer(bela, b.id, 'admin', 'keszlet', 'bela-3');
+  await tick(1000);
+  await bela.post('/api/invites/redeem', { token: bOffer3.tok });
+  const bP3 = period(b.id);
+  // …és Béla a HARMADIK időszakban ÚJ alapot képez (ÚJ meghívóval), ahogy a (b9) tette.
+  const kata = new Client(base, 'kata@r134.hu');
+  const belaInvite4 = await bela.post('/api/invites', { email: 'kata@r134.hu', role: 'user', scope: 'keszlet' });
+  await kata.post('/api/invites/pending', { token: belaInvite4.body.token });
+  const kataId = await signUp(kata, 'kata@r134.hu', 'kata-titok-1');
+  const kataRedeem = await kata.post('/api/invites/redeem', { token: belaInvite4.body.token });
+  const cHe = await counts();
+  const jolanRedeem = await jolan.post('/api/invites/redeem', { token: jolanTok });
+  const cHf = await counts();
+  step('(b7f) F136-02 MÁSODIK CIKLUS: a 2. időszakból kiadott ajánlat a 3. időszakban sem éled fel, az ÚJ pedig MŰKÖDIK',
+    bP3 !== bP2 && bP3 !== bP1
+    && kataRedeem.body.ok === true
+    && membershipAsOf({ store, subjectId: kataId, bookId: BOOK, validAt: now(), knownAt: now() }).effective === true
+    && jolanRedeem.body.ok === false
+    && membershipAsOf({ store, subjectId: jolanId, bookId: BOOK, validAt: now(), knownAt: now() }).effective === false
+    && unchanged(cHe, cHf),
+    { p1: bP1, p2: bP2, p3: bP3, uj_mukodik: kataRedeem.body.ok,
+      regi_zar: jolanRedeem.body.ok, regi_reason: jolanRedeem.body.reason ?? jolanRedeem.body.error,
+      delta: diff(cHe, cHf) });
 
   // (b10) ÉS A RÉGI ADATKÖRJOG SEM: a négy kör zárva, nevezett okkal (az R132 állítása, újramérve).
   step('(b10) a RÉGI adatkörjog sem éled fel az ÚJ időszakban',
