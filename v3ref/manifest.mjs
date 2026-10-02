@@ -383,6 +383,13 @@ export const EXPECTED_PROBES = Object.freeze([
       // mert a magban semmi nem állította ezt (KUKA-200). Ettől az ORG-N1a továbbra sem záródik
       // le, és a req-5 nem lép életbe.
       Object.freeze({ clause: 'ORG-N1a', assertion: 'A-AOR-new-delegation-basis-does-not-revive-the-old-period-offer' }),
+      // R138/F138-01 (AHI-02) — ugyanennek a klauzulának KÉT új vállalt állítása. A spec §4 a
+      // hatáskör ÉLETCIKLUSÁT kéri egyben: megadás · a SAJÁT generáció megvonása · új megadás · a
+      // csak-vetületi sor megőrzése. A bizonyíték-kötést a SAJÁT mutációs battériám kérte ki (az
+      // M336 `SURVIVED` lett). Ettől az ORG-N1a továbbra sem záródik le, és a req-5 nem lép életbe.
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-AHI2-a-revoked-generation-stays-revoked-after-a-new-grant' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-AHI2-without-the-close-fact-there-is-no-silent-historical-yes' }),
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-AHI2-the-projection-only-row-survives-the-first-new-grant' }),
     ]),
   }),
   Object.freeze({

@@ -74,6 +74,16 @@ export function authorityRowAt({ store, subjectId, bookId, operation, nowIso, kn
     if (found.reason === 'authority_log_instant_undecidable') {
       return { ok: false, reason: 'authority_grant_undecidable', message: 'a hatáskör keletkezésének ideje nem értelmezhető' };
     }
+    if (found.reason === 'authority_generation_close_unknown') {
+      // R138/F138-01: a felülírt generáció végállapotát nem ismerjük (nincs zárás-bizonyíték) —
+      // ebből nem lesz történeti igen. A kétséget nem fordítjuk engedélyre (KUKA-012).
+      return {
+        ok: false,
+        reason: 'authority_generation_close_unknown',
+        message: `"${who}" ${operation} hatáskörének egy KORÁBBI, felülírt megadásáról nem tudjuk, `
+          + 'mi volt a végállapota (megvonták-e) — ismeretlen történeti tényből nem következik jog',
+      };
+    }
     if (found.reason === 'authority_projection_missing') {
       // A NAPLÓ ÉS A VETÜLET AZ ÉLŐ ÁLLAPOTRÓL MOND ELLENT (nyers törlés) — a kétséget nem
       // fordítjuk engedélyre (KUKA-012 · KUKA-013).
@@ -110,7 +120,13 @@ export function authorityRowAt({ store, subjectId, bookId, operation, nowIso, kn
       return { ok: false, reason: 'authority_revocation_undecidable', message: 'a hatáskör megvonásának ideje nem értelmezhető' };
     }
     if (rev.ms <= now.ms) {
-      return { ok: false, reason: 'authority_revoked', message: `"${who}" ${operation} hatásköre vissza lett vonva` };
+      // A TANÚ A NEMLEGES VÁLASZON IS OTT VAN (R138): a bizonyíték akkor ér valamit, ha megmondja,
+      // MELYIK generációból és MELYIK forrásból dőlt el — a néma elutasítás nem mérhető vissza.
+      return {
+        ok: false, reason: 'authority_revoked',
+        message: `"${who}" ${operation} hatásköre vissza lett vonva`,
+        revoked_at: row.revoked_at, ...historyWitness,
+      };
     }
   }
   const from = instantMs(row.granted_at);

@@ -16,6 +16,128 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3094 — A BEMUTATÓ HARMADIK ÁLLAPOTA, ÉS A HORGONYZOTT SZÖVEG-MÉRÉS (R138 §1–§3)
+
+> **Hatály:** V3 (`valach-system`). Nincs merge, éles telepítés, V2-módosítás, új fizetős
+> szolgáltatás, külső címzettnek levél, és nincs core/CMD/PR-zárás.
+
+**A parancs:** `CMD-VS-300-002-002 R138 — SPEC` (chatgpt-v3, 2026-10-02), §1–§3: a bemutató a
+VALÓDI felületen vezessen végig, és a SZÁLLÍTOTT előnézet legyen végigjárható asztali gépen ÉS
+~390 px-en, mindkét történet kétszer újraindítva.
+
+**A LELET (SAJÁT, a végigjárásból — KUKA-276).** 390 px-en MINDKÉT történet AZONNAL megszakadt egy
+teljesen ép képernyőn: „az útmutatóban megnevezett elem nem látható ezen a képernyőn". A csukott
+mobil menü miatt a `nav-members` rejtett (`targetOf` → `null`, helyesen), ugyanakkor a bemutató
+ezen az oldalon INDUL, tehát nincs mit feltárni (`revealerOf` → `null`, szintén helyesen). A
+`checkRun` viszont KÉT szót ismert, és a maradékot a legsúlyosabb névvel minősítette.
+
+**A DÖNTÉS.** A harmadik állapot NEVET kap: `navIntentFulfilled` (`v3app/public/tour.mjs`) — a
+REJTETT, bal menüben álló, `aria-current="page"` célú NAVIGÁCIÓS lépés TELJESÜLT. A kapu szűk: a
+feladathoz kötött lépést SOHA nem igazolja (azt kizárólag a szerver válasza zárja), deklarált
+feltáró mellett nem lép közbe, nem létező célt nem nevez teljesültnek, látható célnál a rendes út
+érvényes. A „látszik" szava EGY feloldóba került (`isShown`) a korábbi NÉGY másolat helyett.
+
+**MÉRT KÖVETKEZMÉNY, AMIT KI KELL MONDANI.** A `revealerOf` menü-feltáró ága MA egyetlen szállított
+bemutatóval sem érhető el: mindegyik bemutató nav-célja a SAJÁT oldalára mutat (mérve a
+`v3app/knowledge/features.mjs`-ből), tehát a cél mindig `aria-current="page"`. Ezért ez az ág
+NEVEZETTEN előre szól, és a viselkedését a tanú KÖZVETLENÜL hívja meg (g6–g8, KUKA-207). Ugyanezen
+mérés miatt **két korábbi `app.js`-módosításom VISSZAVONVA**: a nav-nyitáshoz kötött újrarajzolás és
+a kész elrendezésen ismételt kitérés-mérés egyike sem volt load-bearing (a próba nélkülük is
+87/87), és az indoklásuk egy olyan diagnózisra hivatkozott, ami tévesnek bizonyult — a buborék nem
+„elavult elrendezés" miatt nem tért ki, hanem mert a bemutató MEGSZAKADT, így nem volt kiemelt cél.
+
+**A MÁSODIK LELET (SAJÁT, a rontás-próbából — KUKA-277).** A saját elfogadási tanúm azt állította,
+hogy „a megerősítés kimondja: a korábbi hozzáférések nem állnak vissza" — a TELJES panel szövegében
+keresett töredékkel. A rontás-próbán a mondatot kicseréltem a nyelvcsomagban (a panelen már
+`RONTAS_JELZO` állt), és az állítás MÉGIS zöld maradt: a töredék a szomszéd mondatra illeszkedett.
+Ugyanebben a körben a rontás ELSŐ alakja észrevétlenül NO-OP volt. A mondat-állítás ezért KÉT
+horgonyzott állításra vált — TARTALOM (a szállított csomag `TPL.reinviteConfirmLead` mondata) és
+SZÁLLÍTÁS (pontosan ez a mondat a panel fejlécében) —, és a rontás-próba mostantól igazolja, hogy a
+rontás beíródott.
+
+**A BEMUTATÓ KEZDŐÁLLAPOTA IS MÉRÉS.** A visszatérés-történetben Béla tagsága a kezdőállapotban
+MEGSZŰNT (`effective: false`), mert a bemutató harmadik lépése az „Újbóli belépés" szakasz gombjára
+mutat, és az CSAK megszűnt tagságnál létezik. A régi adatkörjog SZÁNDÉKOSAN ott marad a régi
+időszakon: ez teszi mérhetővé a megerősítés mondatát.
+
+**Gépi jel:** `npm run verify:kuka` (567/567) · **ÉLŐ tanú:** `npm run proof:demo-walk` — a két
+történet MINDEN lépése 1280 px-en ÉS 390 px-en, kétszeri újraindítással, nyolc kapu-ellenpárral:
+**87 zöld, 0 piros**. Rontás-próbával mérve: a kapu kivezetése 9 pirosat ad, a feladat-kapu
+kivétele a (g2)-t, a csomag mondatának megrontása az (a10a)-t, a panel-fejléc elhagyása az
+(a10b)-t váltja pirosra. **KIMONDVA:** a `proof:demo-walk` böngészőt igényel, ezért NEM része a
+`verify:sweep`-nek; és a bemutató háttere a jelölt `demo-adapter.mjs` csonk — **ebből HTTP- vagy
+adatbázis-bizonyíték NEM következik**.
+
+---
+
+## D-VS-3093 — A HATÁSKÖR ÉLETCIKLUSÁNAK TÖRTÉNETI FORRÁSA: A GENERÁCIÓ ZÁRÁSA (R138, AHI-02)
+
+> **Hatály:** V3 (`valach-system`). Nincs merge, éles telepítés, V2-módosítás, új fizetős
+> szolgáltatás, külső címzettnek levél, és nincs core/CMD/PR-zárás. A req-5 **NEM** lép életbe.
+
+**A parancs:** `CMD-VS-300-002-002 R138 — SPEC` (chatgpt-v3, 2026-10-02). Induló fej:
+`75e6112d892e6f8b343675e806417bcb4cef2d67` (a `df79358a` leszármazottja).
+
+**A LELET (F138-01, megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL).** Az R136-os alak a KÉSŐBBI jog megvonását
+mérte a korábbi megadáshoz képest; a KORÁBBI jog SAJÁT megvonásának megőrzését nem. Mérve,
+változatlan termékkódon, UGYANARRA az időpontra: `false/authority_revoked` → `true/stamped`. A
+megadó út `DO UPDATE SET revoked_at = NULL` ága a tényt TÖRÖLTE, a napló pedig nem hordozta.
+
+**A DÖNTÉS: A GENERÁCIÓT ZÁRJUK, NEM ELDOBJUK.** Egy új megadás a vetület felülírása ELŐTT a
+naplóba menti a lezáruló generáció végállapotát: a SAJÁT megvonását (`revoked_at`) és a zárás
+tényét (`superseded_at`). A csak-vetületi (R134 előtti) sor ilyenkor KAP naplót — enélkül a
+`projection_only_no_log` kompatibilitási ág pontosan az első új megadásnál szakadna el. A három
+írás EGY atomi egységben áll.
+
+**ÉS AHOL A ZÁRÁS TÉNYE NINCS MEG, OTT NINCS NÉMA IGEN:** a felülírt, de `superseded_at` nélküli
+napló-sor NEVEZETTEN elakad (`authority_generation_close_unknown`), nem engedély és nem tiltás.
+
+**KIMONDOTT KORLÁT:** a MEGVONÁSNAK nincs tudás-ideje a sémában (a megadásnak van: `recorded_at`).
+A megvonást ezért MINDIG ismertnek vesszük — ez a fail-closed irány, a hiányzó tudás-időből nem lesz
+engedély. Oszlop most nem épült rá, mert a hatáskör-megvonásra ma NINCS termék-író (csak nyers
+`UPDATE`), tehát a mező soha nem lenne kitöltve — az a KUKA-270-es néma kulcs alakja volna. **Ez
+NEVEZETT maradék:** a megvonás tudás-tengelye a termék-úttal EGYÜTT születik meg.
+
+**Bizonyíték:** `findings_r134` **G szakasz (g1)–(g13)** — a teljes életciklus a kötelező tanú
+sorrendjében, a napló nélküli sor ÁTMENETÉVEL, két ciklussal, a két időtengellyel és NEGATÍV
+kontrollal (a megőrzés kiesése mérhetően visszahozza a hibát). Gépi jel: `verify:app-findings-r134`
++ a mutációs battéria új rontásai. **KUKA-275.**
+
+---
+
+## D-VS-3092 — A TÖRTÉNETI HATÁSKÖR ÉS AZ ALAP EREDET-KÖTÉSE (R136, AHI-01 · AOR-01)
+
+> **Hatály:** V3 (`valach-system`). Nincs merge, éles telepítés, V2-módosítás, új fizetős
+> szolgáltatás, külső címzettnek levél, és nincs core/CMD/PR-zárás. A req-5 **NEM** lép életbe.
+
+**UTÓLAG RÖGZÍTVE (R138).** Ezt a számot az R136-os csomag KUKA-bejegyzései (271–274) már
+hivatkozták, a naplóba viszont nem került be — a `verify:decision-numbers` ezt az R138-ban mérte ki
+(„a legmagasabb kiadott: D-VS-3091"). A hiány pótolva; a szám nem változik, mert a kódban már
+hivatkozott (KUKA-130: a sorszám a FORRÁSHOZ tapad, nem a beérkezéshez).
+
+**A parancs:** `CMD-VS-300-002-002 R136 — ANALYSIS` (chatgpt-v3, 2026-10-01). Induló fej:
+`df79358a729583e089e99ee29a3b67ebafca7098`.
+
+**AHI-01 (F136-01) — a múlt forrása a NAPLÓ, nem a mai vetület.** Az `authorityRowAt` a vetületből
+indult, amit egy szabályos új megadás felülír; ezzel a RÉGI időszakra adott válasz is megváltozott
+(`ok:true · stamped · 15` → `ok:false · authority_not_yet_effective`). A történeti feloldás
+mostantól a hatásköradás append-only naplójából választ, KÉT tengelyen (hatály ÉS tudás); a
+vetület gyorsítótár maradt. A hatókör generációnként KIMONDOTT (`projection_live_generation` ·
+`grant_log_superseded_generation` · `projection_only_no_log`).
+
+**AOR-01 (F136-02) — az alap EREDET-kötése.** A `delegationBasisId` alany × könyv azonosságú volt,
+így egy megszűnt és újra megszerzett tagság ugyanazt az azonosítót képezte újra, és a RÉGI időszak
+ajánlata feléledt. Az `authority_basis` generáció mostantól hordozza, melyik tagsági időszakból
+származik; a kapu a PECSÉTELT verzió eredetét a MA hatályos generáció eredetéhez méri, MINDKÉT úton
+(beváltás és bírálat). Verzió-egyenlőséget szándékosan NEM követelünk: az R64 (H06/H07) szerint az
+a jogos bővítést zárta volna.
+
+**Saját leletek:** KUKA-271 (a megépített napló, amit senki nem olvasott) · KUKA-272 (az időszak
+nélküli alap-azonosság) · KUKA-273 (a javításom megvakított egy működő őrt) · KUKA-274 (a falióra-
+szeletelés mérve rosszabb lett, kivezetve).
+
+---
+
 ## D-VS-3091 — A VÉGLEGESÍTÉSI KAPUK, AZ IDŐSZAKHOZ KÖTÖTT HATÁSKÖR ÉS AZ EGYSZERI AJÁNLAT (R134)
 
 > **Hatály:** V3 (`valach-system`). Nincs merge, éles telepítés, V2-módosítás, új fizetős

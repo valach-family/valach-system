@@ -259,7 +259,27 @@ CREATE TABLE adjudication_authority_grant (
   recorded_at   TEXT NOT NULL,
   basis_id      TEXT,
   basis_version INTEGER,
-  period_grant_event_id INTEGER
+  period_grant_event_id INTEGER,
+  -- R138/F138-01 — A GENERÁCIÓ ZÁRÓ ÁLLAPOTA (AHI-02).
+  --
+  -- A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R138/F138-01). Az R136-os alak a
+  -- felülírt generációhoz "revoked_at: null" sort képzett, a vetület régi "revoked_at"-ját pedig a
+  -- következő megadás "DO UPDATE SET revoked_at = NULL" ága TÖRÖLTE. Következmény, MÉRVE: egy
+  -- VALÓBAN megvont régi jogot a rendszer az új megadás után történetileg ENGEDÉLYNEK olvasott
+  -- ("false/authority_revoked" → "true/stamped"). A "revocation_known_for_event:false" kísérőmező
+  -- a tényt nem pótolta: a bizonytalanság MEGNEVEZÉSE nem megőrzés.
+  --
+  -- EZÉRT A GENERÁCIÓT ZÁRJUK, NEM ELDOBJUK. Amikor egy új megadás felülírja a vetületet, a
+  -- felülírás ELŐTT ide mentjük a lezáruló generáció végállapotát:
+  --   · "revoked_at"    — a generáció SAJÁT megvonása (ha volt), a vetületből átvéve;
+  --   · "superseded_at" — mikor zárta le egy későbbi megadás. NULL = még ez az ÉLŐ generáció.
+  --
+  -- A "superseded_at" KIMONDOTT bizonyíték arra, hogy a zárás MEGTÖRTÉNT. Egy felülírt, de nem
+  -- lezárt sor (ilyet csak a javítás ELŐTTI adat vagy nyers írás hagyhat) NEM kap néma történeti
+  -- igent — a feloldó nevezetten elakad (R138 §4: „Amihez nincs elég történeti tény, ne legyen
+  -- néma történeti igen").
+  revoked_at    TEXT,
+  superseded_at TEXT
 );
 CREATE INDEX adjudication_authority_grant_who
   ON adjudication_authority_grant (subject_id, book_id, operation);

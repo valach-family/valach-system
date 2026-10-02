@@ -33,6 +33,58 @@ const CONTRACT_ID = 'RPR-01';
 
 const RETIRED_PATTERNS = Object.freeze([
   Object.freeze({
+    id: 'KUKA-275',
+    date: '2026-10-02',
+    title: 'MEGTALÁLTAM A RÉST, ÉS NEM MONDTAM KI — a megvont régi jog történeti IGEN-t kapott, a kísérőmezőt elég védelemnek vettem',
+    what: 'Az R136-os körben, a történeti hatáskör-feloldó (AHI-01) tervezése közben a saját '
+      + 'gondolatmenetemben MEGÁLLAPÍTOTTAM: „a revocation history isn\'t recorded per event" — '
+      + 'vagyis ha egy generációt megvonnak, majd egy ÚJ megadás felülírja a vetületet, a megvonás '
+      + 'TÉNYE elveszik. Ezt a rést a szállításban NEM mondtam ki: a felülírt generációhoz '
+      + '`revoked_at: null` sort képeztem, és a `revocation_known_for_event:false` kísérőmezőt '
+      + 'tekintettem elég védelemnek. MÉRVE (chatgpt-v3, R138/F138-01), változatlan termékkódon, '
+      + 'UGYANARRA az időpontra: `false/authority_revoked` → `true/stamped/current_period:15`. A '
+      + 'rendszer egy VALÓBAN megvont jogot az új megadás után történetileg ENGEDÉLYNEK olvasott.',
+    why_wrong: 'A BIZONYTALANSÁG MEGNEVEZÉSE NEM A TÉNY MEGŐRZÉSE. Egy kísérőmező, ami azt mondja '
+      + '„ezt nem tudjuk", nem semlegesíti a VÉGSŐ választ: az `ok:true` engedély marad, akármit ír '
+      + 'mellé a szomszéd mező. A hívók a verdiktet olvassák, nem a lábjegyzetet (KUKA-012: a '
+      + 'kétséget nem fordítjuk engedélyre · KUKA-033: a minősítés mérés, nem besorolás). És a '
+      + 'súlyosabb rész a SAJÁT folyamatomról szól: a rést a tervezés közben MEGTALÁLTAM, tehát nem '
+      + 'tudás hiányzott, hanem a KIMONDÁS — a saját jelentésem maradék-szakaszába nem került be, és '
+      + 'így a külső félnek kellett megtalálnia azt, amit én már láttam.',
+    replaced_by: 'AHI-02 — A GENERÁCIÓT ZÁRJUK, NEM ELDOBJUK. Egy új megadás a vetület felülírása '
+      + 'ELŐTT a naplóba menti a lezáruló generáció végállapotát: a SAJÁT megvonását (`revoked_at`) '
+      + 'és a zárás tényét (`superseded_at`); a csak-vetületi (R134 előtti) sor ilyenkor KAP naplót. '
+      + 'A három írás EGY atomi egységben áll. A történeti feloldó a lezárt generáció megvonását a '
+      + 'NAPLÓBÓL olvassa. És ahol a zárás TÉNYE nincs meg, ott NINCS néma igen: '
+      + '`authority_generation_close_unknown` — nevezett elakadás, nem engedély és nem tiltás.',
+    decision: 'D-VS-3093',
+    found_by: 'A KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3), CMD-VS-300-002-002 R138/F138-01 — a KORÁBBI jog '
+      + 'SAJÁT megvonásával, amit az R136-os (b5c) tanú nem mért (az a KÉSŐBBI jog megvonását vizsgálta).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/adjudication.mjs']),
+        pattern: 'UPDATE adjudication_authority_grant SET revoked_at = \\?, superseded_at = \\?',
+        why: 'a lezáruló generáció végállapota a FELÜLÍRÁS ELŐTT a naplóba kerül' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/authorityHistory.mjs']),
+        pattern: "reason: 'authority_generation_close_unknown'",
+        why: 'a zárás ténye nélkül NINCS néma történeti igen' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/authorityHistory.mjs']),
+        pattern: 'revoked_at: chosen\\.revoked_at \\?\\? null',
+        why: 'a lezárt generáció megvonása a NAPLÓBÓL jön, nem nulla' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/store.mjs']),
+        pattern: 'superseded_at TEXT',
+        why: 'a zárás ténye TÁROLT, nem levezetés' }),
+    ]),
+    lesson: 'AMIT A TERVEZÉS KÖZBEN MEGTALÁLOK, AZT KI KELL MONDANI — A MARADÉK-SZAKASZ NEM '
+      + 'DÍSZ. Ha egy javítás közben észreveszem, hogy egy tény elveszik, annak HÁROM útja van: '
+      + 'megépítem a megőrzését, VAGY fail-closed-ra fordítom, VAGY NEVEZETT maradékként kiírom a '
+      + 'jelentésbe. A negyedik — „megjegyeztem magamnak és továbbmentem" — pontosan az, amiből a '
+      + 'következő kör lelete lesz. És egy kísérőmező soha nem semlegesíti a verdiktet: ha a '
+      + 'válasz `ok:true`, akkor az ENGEDÉLY, akármi áll mellette.',
+    guard_note: 'gépi jel: a fenti NÉGY pozitív minta (`npm run verify:kuka`) + '
+      + '`npm run verify:app-findings-r134` G szakasz (g1)–(g13), benne a (g12) NEGATÍV kontroll, '
+      + 'ami MÉRHETŐEN visszahozza a hibát, ha a megőrzés kiesik.',
+  }),
+  Object.freeze({
     id: 'KUKA-274',
     date: '2026-10-02',
     title: 'A FINOMABB SZELETELÉST A TELJES KÖLTSÉG ELLEN VETETTEM BE — és a mérés ROSSZABB lett, mint javítás előtt',
@@ -12060,6 +12112,113 @@ pattern: 'sources: modelAccepted \\? \\w+\\.sources : local\\.sources',
     guard_note: 'gépi jel: `npm run verify:kuka` (a pozitív összevetés és a tiltott nézet-alapú név). '
       + 'Böngésző-tanú: `tests/e2e/v3app-r112-invite.spec.mjs` R112-I3 (visszatartott válasz, közben '
       + 'másik belépés; a tárolt tagságot is méri). KIMONDVA: a böngésző-próba NEM része a `verify:sweep`-nek.',
+  }),
+  Object.freeze({
+    id: 'KUKA-276',
+    date: '2026-10-02',
+    title: 'KÉT IGAZ TAGADÁSBÓL HIBÁRA KÖVETKEZTETTEM — a MÁR TELJESÜLT navigációs lépésre azt írta a bemutató, hogy „az elem nem látható ezen a képernyőn\" (390 px-en MINDKÉT történet a 0. lépésen megszakadt)',
+    what: 'A bemutató-motor `checkRun`-ja a hiányzó célra KÉT szót ismert: FELTÁRÁSRA VÁR (`revealerOf` '
+      + 'talál feltárót) vagy ELTŰNT (`targetMissing`). Keskeny képernyőn a bal menü a ☰ mögé csukódik, '
+      + 'tehát a `nav-members` OTT VAN, de REJTETT — a `targetOf` helyesen `null`-t ad. A bemutató viszont '
+      + 'a tagok képernyőjén INDUL, tehát ugyanaz a menüpont `aria-current="page"`-dzsel áll, és a '
+      + '„ne kérjük el kétszer ugyanazt" szabály miatt a `revealerOf` is helyesen `null`-t ad (nincs mit '
+      + 'feltárni, a felhasználó MÁR ezen az oldalon van). A maradékot a `checkRom` hibának minősítette. '
+      + 'MÉRVE: 390 px-en mindkét történet AZONNAL megszakadt egy teljesen ép képernyőn, 1280 px-en '
+      + 'mindkettő hibátlanul végigment.',
+    why_wrong: 'A két javításom EGYMÁSNAK feszült, és a hiba abból keletkezett, hogy a maradék-ágat '
+      + '„a többi eset hiba\" alakban hagytam. Két igaz tagadás („nem cél\" + „nincs feltáró\") HÁROM '
+      + 'helyzetet takar: a cél eltűnt · a célt fel kell tárni · a cél DOLGA MÁR MEGTÖRTÉNT. A harmadiknak '
+      + 'nem volt saját szava, ezért a legsúlyosabb nevét kapta — és a képernyő egy HAMIS mondatot írt ki '
+      + '(KUKA-171: ami megállít, annak neve is legyen; KUKA-201: a nemleges válasz vigye a MŰKÖDŐ folytatást).',
+    replaced_by: 'A harmadik állapot NEVET kapott: `navIntentFulfilled(run)` (`v3app/public/tour.mjs`) — a '
+      + 'REJTETT, bal menüben álló, `aria-current="page"` célú NAVIGÁCIÓS lépés TELJESÜLTNEK számít, és a '
+      + '`checkRun` ekkor `ok: true, pending: null`-t ad, az `advance` pedig haladni engedi. A láthatóság '
+      + 'szava is EGY feloldóba került (`isShown`, a korábbi NÉGY szó szerinti másolat helyett), mert a '
+      + '`targetOf` és a `revealerOf` döntése EGYMÁSHOZ van mérve.',
+    replacement: 'A kapu SZŰK, szándékosan: `step.task` esetén SOHA nem igazol (a feladatot kizárólag a '
+      + 'szerver válasza zárja le, `taskDone`), deklarált `appears_after` mellett nem lép közbe, a lapon nem '
+      + 'létező célt nem nevezi teljesültnek, és LÁTHATÓ célnál a rendes út érvényes.',
+    decision: 'D-VS-3094',
+    found_by: 'SAJÁT LELET (Claude-v3, R138) — a szállított bemutató 390 px-es VÉGIGJÁRÁSÁN. A korábbi '
+      + 'mobil mérésem a buborék-takarást kereste, és egy MEGSZAKADT bemutató buborékját mérte: a „takarás\" '
+      + 'tünet volt, az ok a hiányzó harmadik állapot.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/tour.mjs']),
+        pattern: 'if \\(navIntentFulfilled\\(run\\)\\) return \\{ ok: true, why: null, pending: null \\};',
+        why: 'a harmadik állapot NEM megszakítás: a bemutató mehet tovább' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/tour.mjs']),
+        pattern: 'if \\(step\\.task\\) return false;',
+        why: 'a feladathoz kötött lépést EZ a kapu soha nem igazolja — csak a szerver' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/tour.mjs']),
+        pattern: 'function isShown\\(el\\)',
+        why: 'a „látszik" EGY szó, nem négy másolat — a két döntés egymáshoz mérhető' }),
+      Object.freeze({ paths: Object.freeze(['tools/v3_demo_walk_proof.mjs']),
+        pattern: 'a FELADAT-lépést a kapu SOHA nem igazolja',
+        why: 'a kapu MÉRVE van, a VALÓDI függvényt hívva (KUKA-207) — a történet-bejárás nem fedi' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/tour.mjs']),
+        pattern: "return \\{ moved: false, why: isPending\\(run\\) \\? 'targetPending' : 'targetMissing' \\};",
+        reason: 'a KÉT-állapotú maradék-ág: a teljesült lépést is „eltűnt elemnek" mondaná' }),
+    ]),
+    lesson: 'AMI MEGÁLLÍT, ANNAK NEVE IS LEGYEN — ÉS A MARADÉK-ÁG NEM A LEGSÚLYOSABB NÉV. Ha egy döntés '
+      + 'két tagadásból áll, előbb SZÁMOLD MEG, hány helyzetet takarnak: a „minden más hiba" alak a '
+      + 'hiányzó esetre HAMIS mondatot ír ki egy ép képernyőn. És két javítás ütközését csak a '
+      + 'VÉGIGJÁRÁS mutatja meg — a tünetet mérő próba (itt: a takarás) a megszakadt állapotot méri.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (a három pozitív minta és a tiltott két-állapotú ág). '
+      + 'ÉLŐ tanú: `npm run proof:demo-walk` — a két történet MINDEN lépése 1280 px-en ÉS 390 px-en, '
+      + 'kétszeri újraindítással, és a kapu négy ellenpárja a VALÓDI függvényt hívva. '
+      + 'RONTÁS-PRÓBÁVAL MÉRVE: a kapu kivezetése 9 pirosat ad (mindkét történet a 0. lépésen elakad), '
+      + 'a feladat-kapu kivétele a (g2) ellenpárt váltja pirosra. KIMONDVA: a `proof:demo-walk` '
+      + 'böngészőt igényel, ezért NEM része a `verify:sweep`-nek.',
+  }),
+  Object.freeze({
+    id: 'KUKA-277',
+    date: '2026-10-02',
+    title: 'A RONTÁS-PRÓBÁM ZÖLD MARADT — a hatókör nélküli minta a SZOMSZÉD mondatra illeszkedett, és magát a RONTÁST sem ellenőriztem (a néma no-op csere)',
+    what: 'A bemutató elfogadási tanújában azt állítottam, hogy „a megerősítés kimondja: a korábbi '
+      + 'hozzáférések nem állnak vissza\" — a mérés a TELJES panel szövegében keresett egy szó-töredéket '
+      + '(`/nem állnak vissza/.test(panel)`). A rontás-próbán KICSERÉLTEM a mondatot a nyelvcsomagban: a '
+      + 'panelen már `RONTAS_JELZO` állt, és az állítás MÉGIS zöld maradt — a töredék a panel egy MÁSIK '
+      + 'szövegére illeszkedett. Ugyanebben a körben a rontás ELSŐ alakja észrevétlenül NO-OP volt (a '
+      + 'csere-minta nem illeszkedett a fájlra), és a „zöld maradt\" eredményt a VÉDELEM bizonyítékának '
+      + 'olvastam — miközben a rontás meg sem történt.',
+    why_wrong: 'Két hiba egy helyen. (1) A hatókör nélküli minta nem azt méri, aminek a nevét viseli: egy '
+      + 'egész részfa szövegében keresett töredék a szomszéd sort igazolja (KUKA-239 alakja a felületen, '
+      + 'KUKA-215: a választ MEG KELL MÉRNI). (2) A rontás-próba MAGA is mérés, tehát a tanúja is mérce: '
+      + 'ha nem igazolom, hogy a rontás BEÍRÓDOTT, akkor a zöld eredmény „nem tudtuk megmérni\", nem '
+      + '„a védelem fogta meg\" (KUKA-126: a rontás visszaállítása némán elakadt · KUKA-127: a piros nem '
+      + 'a védelem miatt volt · KUKA-094: a tanú maga is mérce).',
+    replaced_by: 'A mondat-állítás KÉT külön, HORGONYZOTT állításra vált: (a10a) a SZÁLLÍTOTT nyelvcsomag '
+      + '`TPL.reinviteConfirmLead` mondata tartalmazza-e a jog-figyelmeztetést — a kulcs helyét MÉRVE '
+      + 'állapítottuk meg, tartalék-ág nélkül (KUKA-238); (a10b) pontosan EZ a mondat áll-e a megerősítő '
+      + 'panel FEJLÉCÉBEN (`[data-testid="panel"] .dialoghead p.muted`), a helyőrző körüli részeire mérve. '
+      + 'Az elvárás a CSOMAGBÓL jön, nem beégetett feliratból (KUKA-237).',
+    replacement: 'A rontás-próba mostantól ELŐBB igazolja, hogy a célpont egyedi és megvan '
+      + '(`assert s.count(a)==1`), és csak utána ír; a néma no-op csere kizárva.',
+    decision: 'D-VS-3094',
+    found_by: 'SAJÁT LELET (Claude-v3, R138) — a saját elfogadási tanúm rontás-próbáján: a harmadik rontás '
+      + 'zöld maradt, és a „miért zöld\" kérdés vezetett mindkét hibára.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_demo_walk_proof.mjs']),
+        pattern: 'pack\\.TPL && pack\\.TPL\\.reinviteConfirmLead',
+        why: 'az elvárt mondat a SZÁLLÍTOTT csomagból, MÉRT kulcson, tartalék-ág nélkül' }),
+      Object.freeze({ paths: Object.freeze(['tools/v3_demo_walk_proof.mjs']),
+        pattern: '\\.dialoghead p\\.muted',
+        why: 'a mondatot a HORDOZÓ elemen mérjük, nem az egész részfa szövegében' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_demo_walk_proof.mjs']),
+        pattern: 'test\\(panel\\)',
+        reason: 'a teljes panel-szövegre illesztett töredék: a szomszéd mondat igazolja vissza' }),
+    ]),
+    lesson: 'A RONTÁS-PRÓBA TANÚJA IS MÉRCE — igazold, hogy a rontás BEÍRÓDOTT, különben a zöld azt '
+      + 'jelenti, hogy nem mértél. És minden szöveg-állítást a HORDOZÓ elemen mérj: egy részfa '
+      + 'szövegében keresett töredék akkor is zöld, ha a keresett mondat eltűnt.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (a két horgonyzott pozitív minta és a tiltott, hatókör '
+      + 'nélküli illesztés). ÉLŐ tanú: `npm run proof:demo-walk` (a10a + a10b). RONTÁS-PRÓBÁVAL MÉRVE, '
+      + 'EGYEDISÉG-ELLENŐRZÉSSEL: a csomag mondatának megrontása az (a10a)-t, a panel-fejléc elhagyása az '
+      + '(a10b)-t váltja pirosra.',
   }),
 ]);
 

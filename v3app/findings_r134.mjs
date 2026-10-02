@@ -771,6 +771,142 @@ try {
     step(`(f) a "${key}" INDOK-szöveg minden bekapcsolt nyelven megvan`, hol.length === langs.length, { megvan: hol, kell: langs });
   }
 
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  head('G) F138-01 — A MEGVONT RÉGI HATÁSKÖR MEGVONÁSA MEGMARAD AZ ÚJ MEGADÁS UTÁN IS');
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R138/F138-01). Az R136-os alak a
+  // KÉSŐBBI jog megvonását vizsgálta a korábbi megadáshoz képest (b5c) — a KORÁBBI jog SAJÁT
+  // megvonásának megőrzését NEM. Mérve, változatlan termékkódon, UGYANARRA az időpontra:
+  // `false/authority_revoked` → `true/stamped`. A rendszer egy VALÓBAN megvont jogot történetileg
+  // ENGEDÉLYNEK olvasott; a `revocation_known_for_event:false` kísérőmező ezt nem pótolta.
+  //
+  // EZ A SZAKASZ KÜLÖN TÖRTÉNETET VISZ, nem a B-t módosítja: a B-ben a megvonás a (b6) UTÁN áll, és
+  // ha oda tennénk a saját megvonást, a (b4) tanú TÁRGYA változna meg (`authority_other_period`
+  // helyett `authority_revoked`). Egy meglévő tanú jelentését nem írjuk át egy új lelet kedvéért.
+  //
+  // A FIXTÚRA TÉNYE KIMONDOTT: a hatáskör-megvonásra ma NINCS termék-út, ezért a séma szerinti
+  // VALÓDI sort nyers `UPDATE`-tel állítjuk be — ugyanazon az úton, amit az R137 (b5c) is használt,
+  // és amit az R138 §4 is nevesít (KUKA-033).
+  const geza = new Client(base, 'geza@r134.hu');
+  const gz = await joinAsMember(geza, 'geza@r134.hu', 'geza-titok-1', 'admin', 'keszlet');
+  const gAsk = (nowIso, knownAt) => executableRightAt({
+    store, subjectId: gz.id, bookId: BOOK, operation: 'alter_right', nowIso,
+    ...(knownAt ? { knownAt } : {}) });
+  const gRawRevoke = (at) => store.run(
+    'UPDATE adjudication_authority SET revoked_at = ? WHERE subject_id = ? AND book_id = ? AND operation = ?',
+    at, gz.id, BOOK, 'alter_right');
+  const gCycle = async (suffix) => {
+    const off = await revokeAndOffer(geza, gz.id, 'admin', 'keszlet', suffix);
+    await tick(1000);
+    await geza.post('/api/invites/redeem', { token: off.tok });
+  };
+  const gGrant = () => grantAdjudicationAuthority({
+    store, subjectId: gz.id, bookId: BOOK, operation: 'alter_right', clock: app.clock,
+    basisId: `startup-rule:${BOOK}` });
+
+  // A TUDÁS-TENGELY MÉRÉSÉHEZ A TUDÁSNAK VALÓBAN KORÁBBINAK KELL LENNIE (saját lelet, R138).
+  //
+  // Az első alakom a `gBoot`-ot közvetlenül a megadás ELŐTT vette, ÓRA-LÉPTETÉS NÉLKÜL — így a
+  // megadás `recorded_at`-ja PONTOSAN `gBoot` lett, a `recorded_at <= knownAt` pedig egyenlőségnél
+  // IGAZ. A (g7) tehát nem azt mérte, aminek a nevét viseli: a „megadás előtti tudás" ugyanaz a
+  // pillanat volt, mint a rögzítés. A termék válasza HELYES volt, a PRÓBA alapsokasága hibás
+  // (KUKA-094: a tanú maga is mérce · KUKA-121: a nem-várakozó ellenőrzés mint várakozás).
+  const gBoot = now();
+  await tick(1000);
+  gGrant();
+  const G1 = now();
+  step('(g1) a RÉGI megadás után a hatáskör VÉGREHAJTHATÓ', gAsk(G1).ok === true, { at: G1 });
+
+  await tick(1000);
+  const T1 = now();
+  gRawRevoke(T1);
+  const gRev1 = gAsk(T1);
+  step('(g2) a RÉGI jog SAJÁT megvonása után NEM végrehajtható, nevezett okkal',
+    gRev1.ok === false && gRev1.reason === 'authority_revoked', { ok: gRev1.ok, reason: gRev1.reason });
+
+  await gCycle('geza-1');
+  await tick(1000);
+  gGrant();
+  const G2 = now();
+  const atG1 = gAsk(G1); const atT1 = gAsk(T1);
+  step('(g3) F138-01: az ÚJ megadás után MINDKÉT korábbi időpontra VÁLTOZATLAN a válasz',
+    atG1.ok === true && atT1.ok === false && atT1.reason === 'authority_revoked',
+    { G1: atG1.ok, T1: `${atT1.ok}/${atT1.reason ?? '-'}`, source: atT1.authority_source ?? null,
+      rev_known: atT1.revocation_known_for_event ?? null });
+  step('(g4) …és az ÚJ jog MA végrehajtható (pozitív ellenpár)', gAsk(G2).ok === true, { at: G2 });
+
+  await tick(1000);
+  const T2 = now();
+  gRawRevoke(T2);
+  const gRev2 = gAsk(T2);
+  step('(g5) az ÚJ jog SAJÁT megvonása után sem végrehajtható',
+    gRev2.ok === false && gRev2.reason === 'authority_revoked', { ok: gRev2.ok, reason: gRev2.reason });
+
+  // MÁSODIK CIKLUS: egy ÚJABB megadás a KÖZTES tiltott időt sem élesztheti fel.
+  await gCycle('geza-2');
+  await tick(1000);
+  gGrant();
+  const c1 = gAsk(T1); const c2 = gAsk(T2); const c0 = gAsk(G1);
+  step('(g6) MÁSODIK CIKLUS: az ÚJABB megadás a KÖZTES tiltott időt sem éleszti fel',
+    c1.ok === false && c2.ok === false && c0.ok === true,
+    { T1: `${c1.ok}/${c1.reason ?? '-'}`, T2: `${c2.ok}/${c2.reason ?? '-'}`, G1: c0.ok });
+
+  // A KÉT IDŐTENGELY KÜLÖN — és a megvonás tudás-ideje KIMONDOTT korlát.
+  const gPreGrant = gAsk(G1, gBoot);
+  step('(g7) a MEGADÁS tudás-tengelye: a megadás ELŐTTI tudással nincs jog',
+    gPreGrant.ok === false && gPreGrant.reason === 'authority_not_yet_effective',
+    { ok: gPreGrant.ok, reason: gPreGrant.reason });
+  const gPreRev = gAsk(T1, G1);
+  step('(g8) a MEGVONÁS tudás-ideje NINCS tárolva ⇒ KIMONDOTTAN ismertnek vesszük (fail-closed)',
+    gPreRev.ok === false && gPreRev.reason === 'authority_revoked',
+    { ok: gPreRev.ok, reason: gPreRev.reason,
+      korlat: 'a séma a megvonás tudás-idejét nem tárolja; a hiányból NEM lesz engedély' });
+
+  // AZ R134 ELŐTTI, NAPLÓ NÉLKÜLI SOR ÁTMENETE — és az ÁTMENETET mérjük, nem a napló törlését.
+  const hedi = new Client(base, 'hedi@r134.hu');
+  const hd = await joinAsMember(hedi, 'hedi@r134.hu', 'hedi-titok-1', 'admin', 'keszlet');
+  const hAsk = (nowIso) => executableRightAt({ store, subjectId: hd.id, bookId: BOOK, operation: 'alter_right', nowIso });
+  grantAdjudicationAuthority({ store, subjectId: hd.id, bookId: BOOK, operation: 'alter_right', clock: app.clock, basisId: `startup-rule:${BOOK}` });
+  const H1 = now();
+  // A FIXTÚRA az R134 ELŐTTI alakot állítja elő: napló-sor nélküli, CSAK vetületben álló megadás.
+  store.run('DELETE FROM adjudication_authority_grant WHERE subject_id = ?', hd.id);
+  const hLegacy = hAsk(H1);
+  step('(g9) a napló nélküli, CSAK vetületi történeti sor MŰKÖDIK, és a válasz megnevezi a tanút',
+    hLegacy.ok === true && hLegacy.authority_axis === 'projection_only',
+    { ok: hLegacy.ok, axis: hLegacy.authority_axis ?? null });
+  await tick(1000);
+  const HT = now();
+  store.run('UPDATE adjudication_authority SET revoked_at = ? WHERE subject_id = ? AND book_id = ? AND operation = ?', HT, hd.id, BOOK, 'alter_right');
+  step('(g10) …és a SAJÁT megvonása ezen az ágon is ZÁR',
+    hAsk(HT).ok === false && hAsk(HT).reason === 'authority_revoked', { reason: hAsk(HT).reason });
+  // AZ ÁTMENET: egy ÚJ megadás naplót hoz létre ÉS felülírja a régi vetületet.
+  const hOff = await revokeAndOffer(hedi, hd.id, 'admin', 'keszlet', 'hedi-1');
+  await tick(1000);
+  await hedi.post('/api/invites/redeem', { token: hOff.tok });
+  await tick(1000);
+  grantAdjudicationAuthority({ store, subjectId: hd.id, bookId: BOOK, operation: 'alter_right', clock: app.clock, basisId: `startup-rule:${BOOK}` });
+  const hAfterG = hAsk(H1); const hAfterT = hAsk(HT);
+  step('(g11) F138-01 ÁTMENET: a csak-vetületi generáció MEGADÁSA és MEGVONÁSA is megmaradt az új megadás után',
+    hAfterG.ok === true && hAfterT.ok === false && hAfterT.reason === 'authority_revoked',
+    { H1: `${hAfterG.ok}/${hAfterG.reason ?? '-'}`, HT: `${hAfterT.ok}/${hAfterT.reason ?? '-'}`,
+      source: hAfterT.authority_source ?? null });
+
+  // NEGATÍV KONTROLL — a megőrzés KIESÉSE mérhetően visszahozza a hibát, a zárás TÉNYE nélkül
+  // pedig NINCS néma történeti igen.
+  const kBefore = gAsk(T1);
+  store.run('UPDATE adjudication_authority_grant SET revoked_at = NULL WHERE subject_id = ? AND superseded_at IS NOT NULL', gz.id);
+  const kForgot = gAsk(T1);
+  step('(g12) NEGATÍV KONTROLL: a megvonás ELFELEJTÉSE mérhetően VISSZAHOZZA a hibát',
+    kBefore.ok === false && kForgot.ok === true,
+    { elotte: `${kBefore.ok}/${kBefore.reason ?? '-'}`, elfelejtve: kForgot.ok,
+      megj: 'ez igazolja, hogy a (g3) zöldjét a MEGŐRZÉS adja, nem valami más' });
+  store.run('UPDATE adjudication_authority_grant SET superseded_at = NULL WHERE subject_id = ? AND superseded_at IS NOT NULL', gz.id);
+  const kUnknown = gAsk(T1);
+  step('(g13) a ZÁRÁS TÉNYE nélkül NINCS néma történeti igen, hanem nevezett elakadás',
+    kUnknown.ok === false && kUnknown.reason === 'authority_generation_close_unknown',
+    { ok: kUnknown.ok, reason: kUnknown.reason });
+
 } finally {
   await app.close();
   if (existsSync(dbPath)) rmSync(dbPath, { force: true });

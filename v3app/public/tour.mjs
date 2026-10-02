@@ -46,6 +46,20 @@ export function newTourRun({ def, view, role }) {
   };
 }
 
+/**
+ * LÁTSZIK-E AZ ELEM — EGY FELOLDÓ, NÉGY HÍVÓ (KUKA-003 · KUKA-039).
+ *
+ * Ugyanez a feltétel eddig NÉGY helyen állt szó szerint lemásolva (`targetOf`, az `appears_after`
+ * ág, a menü-cél és a ☰ vizsgálata). A másolat azért veszélyes, mert a `revealerOf` és a
+ * `targetOf` döntése EGYMÁSHOZ van mérve: ha a kettő nem UGYANAZT a szót használja a
+ * „látszik"-ra, akkor keletkezik olyan állapot, amiben a cél nem cél, de feltárni sem kell —
+ * és a bemutató egy ÉP képernyőn áll meg. Ezért innentől egy név.
+ */
+function isShown(el) {
+  if (!el) return false;
+  return !(el.hidden || (el.offsetParent === null && el.getClientRects().length === 0));
+}
+
 /** A célelem a MAI képernyőn — `null`, ha nem látható (akkor a bemutató nevezetten megáll). */
 export function targetOf(run) {
   if (!run) return null;
@@ -54,7 +68,7 @@ export function targetOf(run) {
   const el = document.querySelector(`[data-testid="${step.target}"]`);
   if (!el) return null;
   // A REJTETT ELEM NEM CÉL: egy `hidden` gombra mutatni ugyanolyan hazugság, mint a nem létezőre.
-  if (el.hidden || (el.offsetParent === null && el.getClientRects().length === 0)) return null;
+  if (!isShown(el)) return null;
   return el;
 }
 
@@ -71,11 +85,84 @@ export function targetOf(run) {
 export function revealerOf(run) {
   if (!run) return null;
   const step = run.steps[run.at];
-  if (!step || !step.appears_after) return null;
-  const el = document.querySelector(`[data-testid="${step.appears_after}"]`);
-  if (!el) return null;
-  if (el.hidden || (el.offsetParent === null && el.getClientRects().length === 0)) return null;
-  return el;
+  if (!step) return null;
+  if (step.appears_after) {
+    const el = document.querySelector(`[data-testid="${step.appears_after}"]`);
+    if (!el) return null;
+    if (!isShown(el)) return null;
+    return el;
+  }
+  // ── A MOBIL MENÜ UGYANEZ A FOGALOM (R138, MÉRVE 390 px-en) ─────────────────────────────────
+  //
+  // A LELET (saját mérés a bemutató átvételi bejárásán): keskeny képernyőn a bal menü a ☰ gomb
+  // mögé csukódik, tehát a `nav-members` a lapon OTT VAN, de NEM LÁTHATÓ. A bemutató emiatt
+  // `targetMissing`-gel MEGÁLLT — „az útmutatóban megnevezett elem nem látható ezen a képernyőn" —,
+  // és a KÉT történet EGYIKE SEM volt végigvihető telefonon. A felület ép volt: a cél nem eltűnt.
+  //
+  // AZ OK VISZONT NEM EZ AZ ÁG VOLT, ÉS EZT KI KELL MONDANI (saját mérés, ugyanaz a kör). A MA
+  // szállított bemutatók MINDEGYIKÉNEK a menü-célja a SAJÁT oldalára mutat (`tour.invite` ·
+  // `tour.stock` · `tour.grant` · `tour.scopeLifecycle` · `tour.inviteRevoke` · `tour.reentry` ·
+  // `tour.plan` — mérve a `v3app/knowledge/features.mjs`-ből), tehát a cél MINDIG
+  // `aria-current="page"`, és a lenti kilépés miatt ez az ág egyetlen mai bemutatóval sem érhető el.
+  // A 390 px-es megszakadást a HARMADIK ÁLLAPOT hiánya okozta (`navIntentFulfilled`, lentebb).
+  //
+  // EZ AZ ÁG EZÉRT NEVEZETTEN ELŐRE SZÓL: akkor lép működésbe, ha egy bemutató MÁS oldal
+  // menüpontjára mutat. Mivel a történet-bejárás nem fedi, a viselkedését a tanú KÖZVETLENÜL hívja
+  // meg (`proof:demo-walk` g6–g8) — amit próba nem tud MEGHÍVNI, azt bizalomból hinnénk (KUKA-207).
+  // A hiba-osztály ugyanaz, amire az `appears_after` született (KUKA-228), csak itt a feltáró nem a
+  // lépésben deklarált gomb, hanem a menü-nyitó.
+  //
+  // ÉS AZ ŐR SZELLEME VÁLTOZATLAN: a bemutató a menüt sem nyitja ki a felhasználó helyett — a ☰-t
+  // KIEMELI, és MEGVÁRJA. A meglévő mondat (`targetPending`) szó szerint ezt mondja ki.
+  const target = document.querySelector(`[data-testid="${step.target}"]`);
+  if (!target) return null;                       // tényleg nincs a lapon: ez nem feltárás-eset
+  if (isShown(target)) return null;               // látszik: nincs mit feltárni
+  if (!target.closest('[data-testid="nav"]')) return null;   // nem a bal menüben van
+  // AMI MÁR MEGTÖRTÉNT, AZT NEM KÉRJÜK EL ÚJRA (saját lelet, 390 px-en MÉRVE). A menüpontra mutató
+  // lépés CÉLJA az, hogy a felhasználó ODAJUSSON. Telefonon a menü a navigálás UTÁN BECSUKÓDIK,
+  // tehát a menüpont megint rejtett lesz — az első alakom emiatt ÚJRA feltárást kért, és a lépés
+  // SOHA nem volt lezárható: a „Tovább" minden körben visszaesett a ☰-re. Mérve: a bemutató az
+  // 1/4-nél ragadt, akárhányszor nyomták. Ha a menüpont a MAI oldalt jelöli (`aria-current="page"`),
+  // a lépés szándéka teljesült — nincs mit feltárni (KUKA-231: a kapu ne kérje el kétszer ugyanazt).
+  if (target.getAttribute('aria-current') === 'page') return null;
+  const toggle = document.querySelector('[data-testid="nav-toggle"]');
+  if (!toggle) return null;
+  return isShown(toggle) ? toggle : null;
+}
+
+/**
+ * A LÉPÉS SZÁNDÉKA MÁR TELJESÜLT — A HARMADIK ÁLLAPOT (R138, 390 px-en MÉRVE, SAJÁT LELET).
+ *
+ * A LELET. A mobil menü-feltárás és a „ne kérjük el kétszer ugyanazt" szabály EGYMÁSNAK FESZÜLT,
+ * és a bemutató emiatt telefonon AZONNAL megállt — a MÁSODIK lépésig sem jutott el. A bemutató a
+ * tagok képernyőjén indul, tehát a `nav-members` ott áll `aria-current="page"`-dzsel, viszont a
+ * csukott menü miatt REJTETT. Így: `targetOf` → `null` (rejtett, helyesen), `revealerOf` → `null`
+ * (nincs mit feltárni, hiszen a felhasználó MÁR ezen az oldalon van — ez is helyes). A `checkRun`
+ * viszont csak KÉT szót ismert, ezért a maradékot `targetMissing`-nek minősítette, és azt a
+ * HAMIS mondatot írta ki, hogy „az útmutatóban megnevezett elem nem látható ezen a képernyőn".
+ * MÉRVE: 390 px-en mindkét történet a 0. lépésen megszakadt, 1280 px-en mindkettő hibátlan volt.
+ *
+ * A TANULSÁG, amiért ez külön NÉV és nem egy `||`: két igaz tagadásból nem következik a hiba.
+ * A „nem cél" és a „nincs feltáró" együtt HÁROM helyzetet takar — a cél eltűnt · a célt fel kell
+ * tárni · a cél DOLGA MÁR MEGTÖRTÉNT —, és a harmadiknak is kell SAJÁT szava (KUKA-171: ami
+ * megállít, annak neve is legyen; KUKA-201: a nemleges válasz vigye a MŰKÖDŐ folytatást).
+ *
+ * ÉS AMIT EZ NEM IGAZOL — ez a kapu szűk, szándékosan: csak NAVIGÁCIÓS lépésre áll
+ * (`step.task` nélkül). A feladathoz kötött lépést EZ SOHA nem viszi `done`-ra: azt kizárólag a
+ * szerver igazolt válasza teheti (`taskDone`) — különben pont azt a hibát építenénk újra, amiért a
+ * „Tovább" nem helyettesítheti a visszavonást (KUKA-129 · KUKA-231).
+ */
+export function navIntentFulfilled(run) {
+  if (!run) return false;
+  const step = run.steps[run.at];
+  if (!step) return false;
+  if (step.task) return false;                    // feladatot EZ nem igazol — csak a szerver
+  if (step.appears_after) return false;           // deklarált feltáró van: az az út, nem ez
+  const el = document.querySelector(`[data-testid="${step.target}"]`);
+  if (!el) return false;                          // tényleg nincs a lapon: ez nem teljesülés
+  if (isShown(el)) return false;                  // látszik: a rendes út érvényes, nem ez
+  if (!el.closest('[data-testid="nav"]')) return false;
+  return el.getAttribute('aria-current') === 'page';
 }
 
 /** A lépés VÁRAKOZIK-e a feltárásra: a cél még nincs, de a feltáró elem ott van a lapon. */
@@ -94,6 +181,9 @@ export function checkRun(run, { view, role }) {
   // meg) VAGY valóban eltűnt (a bemutató megáll). A kettőt nem mossuk össze (KUKA-228).
   if (!targetOf(run)) {
     if (revealerOf(run)) return { ok: true, why: null, pending: 'targetPending' };
+    // A HARMADIK ÁLLAPOT: a lépés dolga már megtörtént (a menüpont a mai oldalt jelöli, csak a
+    // csukott mobil menü rejti el). Ez NEM megszakítás — a bemutató mehet tovább.
+    if (navIntentFulfilled(run)) return { ok: true, why: null, pending: null };
     return { ok: false, why: 'targetMissing' };
   }
   return { ok: true, why: null, pending: null };
@@ -110,7 +200,12 @@ export function advance(run) {
   // a mondat megmondja a folytatást, KUKA-201) VAGY a cél eltűnt (a rajzolás NEVEZETTEN megszakít).
   // MIÉRT NEM LÉPÜNK TOVÁBB egyszerűen: a régi alak a nem létező célú lépést `done`-ra állította és
   // átugrotta — vagyis „elvégzett"-nek könyvelt egy lépést, ami meg sem történhetett (KUKA-129).
-  if (!targetOf(run)) return { moved: false, why: isPending(run) ? 'targetPending' : 'targetMissing' };
+  if (!targetOf(run)) {
+    if (isPending(run)) return { moved: false, why: 'targetPending' };
+    // A TELJESÜLT NAVIGÁCIÓS LÉPÉS HALAD — de a lezárást a lenti rendes út végzi, tehát a
+    // feladathoz kötött lépés továbbra is csak igazolt szerver-válasszal zárul.
+    if (!navIntentFulfilled(run)) return { moved: false, why: 'targetMissing' };
+  }
   if (step.task && step.state !== 'done') return { moved: false, why: 'taskNotDone' };
   if (!step.task) step.state = 'done';
   if (run.at + 1 >= run.steps.length) return { moved: false, why: 'finished' };

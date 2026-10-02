@@ -101,6 +101,8 @@ export function authorityGrantAt({ store, subjectId, bookId, operation, validAt,
     // felülírt megadást talált, ott a megvonás TÉNYÉT erre az eseményre nem ismerjük — és ezt
     // KIMONDJUK (`revocation_known_for_event: false`), nem engedélyre és nem tiltásra fordítjuk.
     const revocationApplies = projMatches && !laterKnownGrant;
+    // A MEGVONÁS TÉNYE MOSTANTÓL A FELÜLÍRT GENERÁCIÓRA IS ISMERT, ha a zárás megtörtént (AHI-02).
+    const closeKnown = projMatches || (chosen.superseded_at !== null && chosen.superseded_at !== undefined);
 
     // ═══ MELYIK SOR AZ OPERATÍV: A VETÜLET VAGY A NAPLÓ-ESEMÉNY ════════════════════════════════
     //
@@ -127,12 +129,45 @@ export function authorityGrantAt({ store, subjectId, bookId, operation, validAt,
     if (!projection) {
       return frozen({ found: false, reason: 'authority_projection_missing' });
     }
+    // ═══ R138/F138-01 — A FELÜLÍRT GENERÁCIÓ SAJÁT MEGVONÁSA MEGMARAD (AHI-02) ═════════════════
+    //
+    // AZ R136-OS ALAK ITT `revoked_at: null`-T ÍRT, és ez VOLT a hiba: a megvonás tényét elvesztette,
+    // tehát egy VALÓBAN megvont régi jog az új megadás után történetileg ENGEDÉLY lett. A megadó út
+    // mostantól a felülírás ELŐTT lezárja a generációt (`revoked_at` + `superseded_at`), így a tény
+    // a naplóban áll — és ITT azt olvassuk, nem nullát.
+    //
+    // ÉS AHOL A ZÁRÁS TÉNYE NINCS MEG, OTT NINCS NÉMA IGEN. Egy felülírt, de `superseded_at` nélküli
+    // napló-sor (ilyet csak a javítás ELŐTTI adat vagy nyers írás hagyhat) azt jelenti: nem tudjuk,
+    // mi volt a generáció végállapota. Ez NEM engedély és nem is tiltás — NEVEZETTEN elakad, és a
+    // hívó zárja (R138 §4 · KUKA-012 · KUKA-020).
+    if (!projMatches && (chosen.superseded_at === null || chosen.superseded_at === undefined)) {
+      return frozen({ found: false, reason: 'authority_generation_close_unknown' });
+    }
     const operative = projMatches ? projection : {
       subject_id: chosen.subject_id,
       book_id: chosen.book_id,
       operation: chosen.operation,
       granted_at: chosen.granted_at,
-      revoked_at: null,
+      // A LEZÁRT generáció SAJÁT megvonása — a naplóból, nem a mai vetületből.
+      revoked_at: chosen.revoked_at ?? null,
+      // ── KIMONDOTT KORLÁT: A MEGVONÁSNAK NINCS TUDÁS-IDEJE (R138/F138-01) ───────────────────
+      //
+      // A megadásnak KÉT tengelye van (`granted_at` hatály + `recorded_at` tudás), a MEGVONÁSNAK
+      // viszont CSAK hatálya (`revoked_at`) — a séma nem tárolja, MIKOR rögzítették. Ezért egy
+      // `knownAt`-tal szűkített kérdésre a megvonást nem tudjuk a tudás-tengelyen elhelyezni.
+      //
+      // A VÁLASZTÁS, ÉS MIÉRT EZ: a megvonást MINDIG ISMERTNEK vesszük (hat, ha a hatálya beállt).
+      // Ez a FAIL-CLOSED irány — a hiányzó tudás-időből nem lesz engedély (KUKA-012 · KUKA-020 ·
+      // R138 §4: „Amihez nincs elég történeti tény, ne legyen néma történeti igen"). A fordított
+      // választás (ismeretlen tudás ⇒ a megvonás nem hat) pontosan azt a hamis történeti IGEN-t
+      // adná vissza, amit ez a javítás megszüntet.
+      //
+      // MIÉRT NEM ÉPÜLT MOST OSZLOP A MEGVONÁS TUDÁS-IDEJÉRE: a hatáskör-megvonásra ma NINCS
+      // termék-író (csak nyers `UPDATE` — ezt az R138 §4 is kimondja), tehát egy `revoked_recorded_at`
+      // oszlopot SENKI nem töltene ki: deklarált, de soha nem írt mező — pontosan a KUKA-270-es
+      // néma kulcs alakja. Ez NEVEZETT maradék: amikor a megvonás termék-utat kap, a tudás-tengelye
+      // AZZAL EGYÜTT születik meg.
+      revocation_knowledge_axis: 'not_recorded_treated_as_known',
       basis_id: chosen.basis_id ?? null,
       basis_version: chosen.basis_version ?? null,
       period_grant_event_id: chosen.period_grant_event_id ?? null,
@@ -144,7 +179,7 @@ export function authorityGrantAt({ store, subjectId, bookId, operation, validAt,
       row: operative,
       superseded: laterKnownGrant,
       revocation_applies: revocationApplies,
-      revocation_known_for_event: projMatches,
+      revocation_known_for_event: closeKnown,
     });
   }
 

@@ -7292,7 +7292,116 @@ probe('P-ORG-reentry-gates', 'R134 §F134-01..03 · RNV-02 · APR-01 · OON-01 �
         && membershipAsOf({ store, subjectId: 'hanna', bookId: 'bk', validAt: clock.now(), knownAt: clock.now() }).effective === false
         && mAfter === mBefore && gbAfter === gbBefore;
 
-      const pass = aOk && bOk && cOk && dOk && eOk && fOk;
+      // ── (g) R138/F138-01: A MEGVONT GENERÁCIÓ MEGVONÁSA MEGMARAD (AHI-02) ───────────────────
+      //
+      // MIÉRT KELL IDE. A SAJÁT mutációs battériám kérte ki: az M336 rontás (a lezáruló generáció
+      // `revoked_at`-jának eldobása a megőrzésnél) **SURVIVED** lett — vagyis az F138-01 javítását a
+      // MAGBAN semmi nem mérte, csak a HTTP-battéria (G szakasz). A nem mért nem zöld (KUKA-200).
+      //
+      // A TÖRTÉNET: megadás → a SAJÁT megvonása → új időszak → ÚJ megadás. A két KORÁBBI időpontra
+      // adott válasz ettől NEM változhat.
+      clock.advance(1000);
+      person('gezu', 'gezu@r132.test');
+      const gInv = inviteColleague({
+        store, inviterSubjectId: 'anna', bookId: 'bk', inviteeEmail: 'gezu@r132.test',
+        offeredRole: 'admin', scope: 'keszlet', token: 'tok_ahi0',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(), at: clock.now() });
+      clock.advance(1000);
+      redeemInvite({ store, token: 'tok_ahi0', actingSubjectId: 'gezu', clock });
+      const gRight = (nowIso) => executableRightAt({ store, subjectId: 'gezu', bookId: 'bk', operation: 'alter_right', nowIso });
+      clock.advance(1000);
+      grantAdjudicationAuthority({ store, subjectId: 'gezu', bookId: 'bk', operation: 'alter_right', clock, basisId: 'startup-rule:bk' });
+      const gG1 = clock.now();
+      const gAfterGrant = gRight(gG1);
+      // A SAJÁT MEGVONÁSA. A FIXTÚRA TÉNYE KIMONDOTT: termék-út ma nincs rá, ezért nyers, séma
+      // szerinti `UPDATE` — ugyanaz az út, amit az R138 §4 is nevesít (KUKA-033).
+      clock.advance(1000);
+      const gT1 = clock.now();
+      store.run('UPDATE adjudication_authority SET revoked_at = ? WHERE subject_id = ? AND book_id = ? AND operation = ?',
+        gT1, 'gezu', 'bk', 'alter_right');
+      const gRevoked = gRight(gT1);
+      // ÚJ IDŐSZAK, majd ÚJ, KIFEJEZETT megadás.
+      clock.advance(1000);
+      revokeMembership({ store, subjectId: 'gezu', bookId: 'bk', clock, actorSubjectId: 'anna' });
+      clock.advance(1000);
+      reinviteMember({
+        store, clock, deciderSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'gezu',
+        offeredRole: 'admin', scope: 'keszlet', token: 'tok_ahi1',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(),
+        operationId: 'p138-g-1' });
+      clock.advance(1000);
+      redeemInvite({ store, token: 'tok_ahi1', actingSubjectId: 'gezu', clock });
+      clock.advance(1000);
+      grantAdjudicationAuthority({ store, subjectId: 'gezu', bookId: 'bk', operation: 'alter_right', clock, basisId: 'startup-rule:bk' });
+      const gG2 = clock.now();
+      const gHistGrant = gRight(gG1);     // a RÉGI megadás pillanata: VÁLTOZATLANUL igen
+      const gHistRevoked = gRight(gT1);   // a RÉGI megvonás pillanata: VÁLTOZATLANUL nem
+      const gToday = gRight(gG2);         // az ÚJ jog MA: igen (POZITÍV ellenpár)
+      const gOk = gInv.ok === true
+        && gAfterGrant.ok === true
+        && gRevoked.ok === false && gRevoked.reason === 'authority_revoked'
+        && gHistGrant.ok === true
+        && gHistRevoked.ok === false && gHistRevoked.reason === 'authority_revoked'
+        && gToday.ok === true;
+
+      // ── (h) R138/F138-01: A ZÁRÁS TÉNYE NÉLKÜL NINCS NÉMA TÖRTÉNETI IGEN ────────────────────
+      // NEGATÍV KONTROLL: ha a megőrzés KIESIK, a régi alak hibája MÉRHETŐEN visszatér; ha a zárás
+      // TÉNYE esik ki, a válasz nevezetten elakad — nem engedély és nem tiltás.
+      store.run('UPDATE adjudication_authority_grant SET revoked_at = NULL WHERE subject_id = ? AND superseded_at IS NOT NULL', 'gezu');
+      const gForgot = gRight(gT1);
+      store.run('UPDATE adjudication_authority_grant SET superseded_at = NULL WHERE subject_id = ? AND superseded_at IS NOT NULL', 'gezu');
+      const gUnknown = gRight(gT1);
+      const hOk = gForgot.ok === true
+        && gUnknown.ok === false
+        && gUnknown.reason === 'authority_generation_close_unknown';
+
+      // ── (i) R138/F138-01: A CSAK-VETÜLETI (R134 ELŐTTI) SOR ÁTMENETE ────────────────────────
+      //
+      // MIÉRT KELL IDE IS. Az M338 rontás (a csak-vetületi sor megőrzésének kivétele) a (g)/(h)
+      // mellett is SURVIVED volt: azok a szakaszok a NAPLÓS úton mennek. Az R138 §4 kifejezetten
+      // ezt az ÁTMENETET kéri — „ne a napló puszta törlésével helyettesítsd": a napló nélküli sort
+      // egy ÚJ megadásnak kell felülírnia, és a megadásnak ÉS a megvonásnak ezt túl kell élnie.
+      clock.advance(1000);
+      person('hedu', 'hedu@r132.test');
+      inviteColleague({
+        store, inviterSubjectId: 'anna', bookId: 'bk', inviteeEmail: 'hedu@r132.test',
+        offeredRole: 'admin', scope: 'keszlet', token: 'tok_ahi2',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(), at: clock.now() });
+      clock.advance(1000);
+      redeemInvite({ store, token: 'tok_ahi2', actingSubjectId: 'hedu', clock });
+      const hRight = (nowIso) => executableRightAt({ store, subjectId: 'hedu', bookId: 'bk', operation: 'alter_right', nowIso });
+      clock.advance(1000);
+      grantAdjudicationAuthority({ store, subjectId: 'hedu', bookId: 'bk', operation: 'alter_right', clock, basisId: 'startup-rule:bk' });
+      const hH1 = clock.now();
+      // A FIXTÚRA az R134 ELŐTTI alakot állítja elő: napló NÉLKÜLI, csak vetületben álló megadás.
+      store.run('DELETE FROM adjudication_authority_grant WHERE subject_id = ?', 'hedu');
+      const hLegacyLive = hRight(hH1);
+      clock.advance(1000);
+      const hT = clock.now();
+      store.run('UPDATE adjudication_authority SET revoked_at = ? WHERE subject_id = ? AND book_id = ? AND operation = ?',
+        hT, 'hedu', 'bk', 'alter_right');
+      const hLegacyRevoked = hRight(hT);
+      // AZ ÁTMENET: új időszak + ÚJ megadás — ez hoz létre naplót ÉS írja felül a régi vetületet.
+      clock.advance(1000);
+      revokeMembership({ store, subjectId: 'hedu', bookId: 'bk', clock, actorSubjectId: 'anna' });
+      clock.advance(1000);
+      reinviteMember({
+        store, clock, deciderSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'hedu',
+        offeredRole: 'admin', scope: 'keszlet', token: 'tok_ahi3',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(),
+        operationId: 'p138-i-1' });
+      clock.advance(1000);
+      redeemInvite({ store, token: 'tok_ahi3', actingSubjectId: 'hedu', clock });
+      clock.advance(1000);
+      grantAdjudicationAuthority({ store, subjectId: 'hedu', bookId: 'bk', operation: 'alter_right', clock, basisId: 'startup-rule:bk' });
+      const hAfterGrant = hRight(hH1);    // a csak-vetületi MEGADÁS pillanata: VÁLTOZATLANUL igen
+      const hAfterRevoke = hRight(hT);    // …és a MEGVONÁSA is ÁLL
+      const iOk = hLegacyLive.ok === true && hLegacyLive.authority_axis === 'projection_only'
+        && hLegacyRevoked.ok === false && hLegacyRevoked.reason === 'authority_revoked'
+        && hAfterGrant.ok === true
+        && hAfterRevoke.ok === false && hAfterRevoke.reason === 'authority_revoked';
+
+      const pass = aOk && bOk && cOk && dOk && eOk && fOk && gOk && hOk && iOk;
       return {
         expected: 'a KIADÁS UTÁN keletkezett felfüggesztés a VÉGLEGESÍTÉSNÉL is zár (nevezetten, a '
           + 'token érintetlen), a feloldás után ugyanaz az ajánlat MŰKÖDIK · a RÉGI bírálati hatáskör '
@@ -7300,14 +7409,21 @@ probe('P-ORG-reentry-gates', 'R134 §F134-01..03 · RNV-02 · APR-01 · OON-01 �
           + 'működik · ugyanaz a műveleti azonosság EGY ajánlatot ad, ELTÉRŐ tartalom nevezett '
           + 'ütközés, KÜLÖN azonosság új ajánlat, az azonosság HIÁNYA nevezett elutasítás · a RÉGI '
           + 'időszakból kiadott ajánlat az ÚJ delegált alap megszületése után sem éled fel '
-          + '(`basis_origin_changed`, írásmentesen), az ÚJ időszak ajánlata viszont MŰKÖDIK',
+          + '(`basis_origin_changed`, írásmentesen), az ÚJ időszak ajánlata viszont MŰKÖDIK · a '
+          + 'MEGVONT generáció megvonása az ÚJ megadás után is ÁLL, és a zárás TÉNYE nélkül nincs '
+          + 'néma történeti igen',
         actual: `(a) kiadás=${offer.reason} beváltás=${blocked.reason}/${blocked.next_step} `
           + `tagság=${state().effective} · (b) feloldás után=${acc.outcome} p1=${p1} p2=${p2} · `
           + `(c) hatáskör: időszakban=${authIn.ok} új időszakban=${authAfter.reason} `
           + `történeti=${authHist.ok} új megadás=${authNew.ok} · (d) ismétlés=${once2.replayed} `
           + `ütközés=${conflict.reason} külön azonosság=${fresh.reason} · (e) azonosság nélkül=${noId.reason} · `
           + `(f) cili p1=${cP1} p2=${cP2} eredetek=${basisGens.map((r) => `v${r.version}=${r.origin_grant_event_id}`).join(',')} `
-          + `új ajánlat=${newRedeem.ok} régi token=${oldRedeem.reason}`,
+          + `új ajánlat=${newRedeem.ok} régi token=${oldRedeem.reason} · `
+          + `(g) megadás=${gAfterGrant.ok} saját megvonás=${gRevoked.reason} `
+          + `történeti megadás=${gHistGrant.ok} történeti megvonás=${gHistRevoked.reason} ma=${gToday.ok} · `
+          + `(h) elfelejtve=${gForgot.ok} zárás nélkül=${gUnknown.reason} · `
+          + `(i) csak-vetületi=${hLegacyLive.authority_axis} megvonva=${hLegacyRevoked.reason} `
+          + `átmenet után megadás=${hAfterGrant.ok} megvonás=${hAfterRevoke.reason}`,
         pass,
         asserts: {
           'A-RNV2-post-issue-exclusion-blocks-at-finalization-without-consuming-the-token': aOk,
@@ -7316,6 +7432,9 @@ probe('P-ORG-reentry-gates', 'R134 §F134-01..03 · RNV-02 · APR-01 · OON-01 �
           'A-OON-same-identity-yields-one-offer-and-different-content-conflicts': dOk,
           'A-OON-missing-identity-is-a-named-refusal': eOk,
           'A-AOR-new-delegation-basis-does-not-revive-the-old-period-offer': fOk,
+          'A-AHI2-a-revoked-generation-stays-revoked-after-a-new-grant': gOk,
+          'A-AHI2-without-the-close-fact-there-is-no-silent-historical-yes': hOk,
+          'A-AHI2-the-projection-only-row-survives-the-first-new-grant': iOk,
         },
       };
     } finally { store.close(); }

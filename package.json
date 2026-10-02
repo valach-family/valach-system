@@ -19,6 +19,7 @@
     "meres:fogyasztas": "node tools/v3_fogyasztas_meres.mjs",
     "proof:assistant-live": "node tools/v3_assistant_live_proof.mjs",
     "proof:core-ux": "playwright test",
+    "proof:demo-walk": "node tools/v3_demo_walk_proof.mjs",
     "proof:mny01-form": "node v3ref/external-checks/mny01_form_counterexample.mjs",
     "proof:multiconn": "node tools/v3_multiconn_proof.mjs",
     "proof:norm-chain-package": "node tools/v3_norm_chain_package_proof.mjs",

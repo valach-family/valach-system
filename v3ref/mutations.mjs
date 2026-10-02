@@ -489,6 +489,43 @@ export const MUTATIONS = [
   // nem deklarálni). Ez a rontás az első futásán `SURVIVED` lett — a magban semmi nem állította az
   // eredet-kaput —, a `P-ORG-reentry-gates` (f) szakaszának megépítése után pedig `WRONG_CATCHER`,
   // mert a fedezetet AZ a próba kapta meg, nem a `P-ORG-basis-limit`.
+  // ── R138/F138-01 — A GENERÁCIÓ-ZÁRÁS RONTÁSAI (AHI-02, KUKA-275) ─────────────────────────────
+  //
+  // A FOGÓ PRÓBÁT MÉRVE állítottam be, nem tippelve: az R136-os körben HÁROMSZOR kaptam
+  // `WRONG_CATCHER`-t, mert a catchert deklaráltam a mérés helyett. A zárás tanúja a
+  // `P-ORG-reentry-gates` (f)/(g) környéke — a hatáskör életciklusa ott áll.
+  { id: 'M336', rule: 'K04/K09', catcher: 'P-ORG-reentry-gates', expect: 'probe_fail',
+    what: 'AHI-02 — a lezáruló generáció MEGVONÁSÁNAK eldobása: a felülírás előtt nem őrizzük meg a '
+      + 'régi `revoked_at`-ot, tehát egy VALÓBAN megvont jog az új megadás után történeti ENGEDÉLY lesz',
+    file: 'adjudication.mjs',
+    from: "          prior.revoked_at ?? null, at, priorLog.id);",
+    to: "          null, at, priorLog.id);" },
+
+  { id: 'M337', rule: 'K04/K09', catcher: 'P-ORG-reentry-gates', expect: 'probe_fail',
+    what: 'AHI-02 — a lezárt generáció megvonásának ELHALLGATÁSA az olvasó oldalán: a napló-beli '
+      + '`revoked_at` helyett nullát adunk vissza (ez az R136-os hibás alak)',
+    file: 'authorityHistory.mjs',
+    from: '      revoked_at: chosen.revoked_at ?? null,',
+    to: '      revoked_at: null,' },
+
+  { id: 'M338', rule: 'K04/K09', catcher: 'P-ORG-reentry-gates', expect: 'probe_fail',
+    what: 'AHI-02 — a CSAK-VETÜLETI történeti sor átmenetének kivétele: napló nélküli generáció '
+      + 'felülírásnál nyom nélkül tűnik el (a `projection_only_no_log` ág az első új megadásnál elszakad)',
+    file: 'adjudication.mjs',
+    // A RONTÁS HELYES ALAKJA: a megőrzés KIMARAD, de a kód NEM OMLIK ÖSSZE. Az első alakom az
+    // `if (priorLog)` feltételt írta `true`-ra, és ezzel `priorLog.id`-n TypeError-t dobott — a
+    // battéria JOGGAL mondta, hogy a KIVÉTEL nem szerződés szerinti bizonyíték (a próbának az
+    // ÁLLÍTÁSÁT kell bukatnia, nem elhasalnia). Most a csak-vetületi ág no-op lesz: a sor NÉMÁN
+    // eltűnik, és pont ezt a némaságot kell a tanúnak megfognia.
+    from: '      } else {\n        // A CSAK-VETÜLETI (R134 ELŐTTI) TÖRTÉNETI SOR ÁTMENETE.',
+    to: '      } else if (false) {\n        // A CSAK-VETÜLETI (R134 ELŐTTI) TÖRTÉNETI SOR ÁTMENETE.' },
+
+  { id: 'M339', rule: 'K04/K09', catcher: 'P-ORG-reentry-gates', expect: 'probe_fail',
+    what: 'AHI-02 — a ZÁRÁS TÉNYE nélküli generáció NÉMA történeti IGEN-t kap (a fail-closed ág kivétele)',
+    file: 'authorityHistory.mjs',
+    from: "    if (!projMatches && (chosen.superseded_at === null || chosen.superseded_at === undefined)) {",
+    to: '    if (false) {' },
+
   { id: 'M335', rule: 'K04/K09', catcher: 'P-ORG-reentry-gates', expect: 'probe_fail',
     what: 'AOR-01 — az EREDET-KAPU kivétele a BEVÁLTÁSON: a jelen idejű új delegált alap újra '
       + 'igazolná a régi időszakból kiadott ajánlatot (az F136-02 visszacsúszása)',

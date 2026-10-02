@@ -144,6 +144,52 @@ export function grantAdjudicationAuthority({ store, subjectId, bookId, operation
   // kifejezett megadás a sort FELÜLÍRJA — a RÉGI megadás viszont a naplóban MEGMARAD (a történeti
   // igazság nem a vetületen áll; R134 kikötése: „a történeti igazság megőrzésével").
   store.atomic(() => {
+    // ═══ R138/F138-01 — A LEZÁRULÓ GENERÁCIÓT A FELÜLÍRÁS ELŐTT MEGŐRIZZÜK (AHI-02) ════════════
+    //
+    // A LELET (megtalálta: a KÜLSŐ ELLENŐRZŐ FÉL, chatgpt-v3, R138). Az alábbi `DO UPDATE SET
+    // revoked_at = NULL` ág a RÉGI generáció SAJÁT megvonását TÖRÖLTE a vetületből, a napló pedig
+    // nem hordozta — tehát a tény ELTŰNT. Mérve, változatlan termékkódon, UGYANARRA az időpontra:
+    // `false/authority_revoked` → `true/stamped`. A rendszer egy VALÓBAN megvont jogot
+    // történetileg engedélynek olvasott.
+    //
+    // ÉS EZ A SAJÁT MULASZTÁSOM IS: az R136-os körben a gondolatmenetemben MEGTALÁLTAM ezt a rést
+    // („a revocation history isn't recorded per event"), és NEM mondtam ki a szállításban — a
+    // kísérőmezőt (`revocation_known_for_event:false`) elég védelemnek vettem. Nem az:
+    // a bizonytalanság MEGNEVEZÉSE nem a tény MEGŐRZÉSE (KUKA-275).
+    //
+    // A ZÁRÁS SORRENDJE KÖTÖTT: ELŐBB a régi generáció végállapotát őrizzük meg, UTÁNA írjuk az új
+    // naplósort, és CSAK AZUTÁN írjuk felül a vetületet. A három írás EGY atomi egységben áll — a
+    // fél-zárt generáció ugyanaz a hazugság volna, mint a törölt tény (ATO-01 · KUKA-205).
+    const prior = store.get(
+      'SELECT * FROM adjudication_authority WHERE subject_id = ? AND book_id = ? AND operation = ?',
+      subjectId, bookId, operation) || null;
+    if (prior) {
+      // A lezáruló generáció NAPLÓ-SORA: a vetület `granted_at` + időszak PÁRJÁRA illesztve.
+      const priorLog = store.get(
+        `SELECT id FROM adjudication_authority_grant
+          WHERE subject_id = ? AND book_id = ? AND operation = ? AND granted_at = ?
+            AND ((period_grant_event_id IS NULL AND ? IS NULL) OR period_grant_event_id = ?)
+          ORDER BY id DESC LIMIT 1`,
+        subjectId, bookId, operation, prior.granted_at,
+        prior.period_grant_event_id ?? null, prior.period_grant_event_id ?? null) || null;
+      if (priorLog) {
+        store.run(
+          'UPDATE adjudication_authority_grant SET revoked_at = ?, superseded_at = ? WHERE id = ?',
+          prior.revoked_at ?? null, at, priorLog.id);
+      } else {
+        // A CSAK-VETÜLETI (R134 ELŐTTI) TÖRTÉNETI SOR ÁTMENETE. Napló-sora nincs, és a következő
+        // pillanatban a vetülete is eltűnik — ezért ITT, a felülírás ELŐTT kap naplót, a SAJÁT
+        // `granted_at`-jával és a SAJÁT megvonásával. Enélkül a `projection_only_no_log`
+        // kompatibilitási ág pontosan az első új megadásnál szakadna el (R138 §4 kikötése).
+        store.run(
+          `INSERT INTO adjudication_authority_grant (subject_id, book_id, operation, granted_at,
+             recorded_at, basis_id, basis_version, period_grant_event_id, revoked_at, superseded_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?)`,
+          subjectId, bookId, operation, prior.granted_at, prior.granted_at,
+          prior.basis_id ?? null, prior.basis_version ?? null,
+          prior.period_grant_event_id ?? null, prior.revoked_at ?? null, at);
+      }
+    }
     const log = store.run(
       `INSERT INTO adjudication_authority_grant (subject_id, book_id, operation, granted_at,
          recorded_at, basis_id, basis_version, period_grant_event_id) VALUES (?,?,?,?,?,?,?,?)`,

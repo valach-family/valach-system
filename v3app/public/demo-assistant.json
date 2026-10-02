@@ -1,0 +1,838 @@
+{
+ "status": {
+  "ok": true,
+  "lang": "hu",
+  "dir": "ltr",
+  "languages": [
+   {
+    "code": "hu",
+    "endonym": "magyar",
+    "dir": "ltr"
+   },
+   {
+    "code": "en",
+    "endonym": "English",
+    "dir": "ltr"
+   },
+   {
+    "code": "de",
+    "endonym": "Deutsch",
+    "dir": "ltr"
+   }
+  ],
+  "probe_languages": [
+   {
+    "code": "fr",
+    "dir": "ltr"
+   },
+   {
+    "code": "ar-x-proba",
+    "dir": "rtl"
+   }
+  ],
+  "provider": {
+   "configured": false,
+   "provider": null,
+   "host": null,
+   "model": null,
+   "missing": [
+    "VS_AI_PROVIDER"
+   ],
+   "consequence": "élő modell-válasz NEM indítható; a helyi keresés, a gyakori kérdések, az oldaltérkép és a bemutató modellhívás nélkül működik"
+  },
+  "limits": {
+   "question_chars": 500,
+   "knowledge_features": 3,
+   "knowledge_chars": 4000,
+   "history_turns": 6,
+   "answer_chars": 1200,
+   "model_calls_per_question": 1,
+   "faq_hits": 5,
+   "answer_blocks": 4
+  },
+  "actions": [
+   {
+    "id": "open.overview",
+    "audience": "signed_in",
+    "scope": "person",
+    "kind": "open_page",
+    "page": "overview",
+    "writes": false
+   },
+   {
+    "id": "open.stock",
+    "audience": "signed_in",
+    "scope": "book",
+    "kind": "open_page",
+    "page": "stock",
+    "writes": false
+   },
+   {
+    "id": "open.movements",
+    "audience": "signed_in",
+    "scope": "book",
+    "kind": "open_page",
+    "page": "movements",
+    "writes": false
+   },
+   {
+    "id": "open.stockcard",
+    "audience": "signed_in",
+    "scope": "book",
+    "kind": "open_page",
+    "page": "stockcard",
+    "writes": false
+   },
+   {
+    "id": "open.members",
+    "audience": "signed_in",
+    "scope": "book",
+    "kind": "open_page",
+    "page": "members",
+    "writes": false,
+    "requires_role": "admin"
+   },
+   {
+    "id": "open.plan",
+    "audience": "signed_in",
+    "scope": "book",
+    "kind": "open_page",
+    "page": "plan",
+    "writes": false,
+    "requires_role": "admin"
+   },
+   {
+    "id": "open.account",
+    "audience": "signed_in",
+    "scope": "book",
+    "kind": "open_page",
+    "page": "account",
+    "writes": false,
+    "requires_role": "admin"
+   },
+   {
+    "id": "open.profile",
+    "audience": "signed_in",
+    "scope": "person",
+    "kind": "open_page",
+    "page": "profile",
+    "writes": false
+   },
+   {
+    "id": "open.security",
+    "audience": "signed_in",
+    "scope": "person",
+    "kind": "open_page",
+    "page": "security",
+    "writes": false
+   },
+   {
+    "id": "open.new",
+    "audience": "signed_in",
+    "scope": "person",
+    "kind": "open_page",
+    "page": "new",
+    "writes": false
+   },
+   {
+    "id": "open.products",
+    "audience": "signed_in",
+    "scope": "book",
+    "kind": "open_page",
+    "page": "products",
+    "writes": false
+   },
+   {
+    "id": "open.partners",
+    "audience": "signed_in",
+    "scope": "book",
+    "kind": "open_page",
+    "page": "partners",
+    "writes": false
+   },
+   {
+    "id": "open.warehouses",
+    "audience": "signed_in",
+    "scope": "book",
+    "kind": "open_page",
+    "page": "warehouses",
+    "writes": false
+   },
+   {
+    "id": "open.processes",
+    "audience": "signed_in",
+    "scope": "book",
+    "kind": "open_page",
+    "page": "processes",
+    "writes": false
+   },
+   {
+    "id": "open.documents",
+    "audience": "signed_in",
+    "scope": "book",
+    "kind": "open_page",
+    "page": "documents",
+    "writes": false
+   },
+   {
+    "id": "open.outbox",
+    "audience": "signed_in",
+    "scope": "person",
+    "kind": "open_page",
+    "page": "outbox",
+    "writes": false
+   },
+   {
+    "id": "open.personal",
+    "audience": "signed_in",
+    "scope": "person",
+    "kind": "open_page",
+    "page": "personal",
+    "writes": false
+   },
+   {
+    "id": "prepare.invite",
+    "audience": "signed_in",
+    "scope": "book",
+    "kind": "open_panel",
+    "page": "members",
+    "panel": "invite",
+    "writes": false,
+    "requires_role": "admin"
+   },
+   {
+    "id": "prepare.plan",
+    "audience": "signed_in",
+    "scope": "book",
+    "kind": "open_page",
+    "page": "plan",
+    "focus": "plan-select",
+    "writes": false,
+    "requires_role": "admin"
+   },
+   {
+    "id": "prepare.business",
+    "audience": "signed_in",
+    "scope": "person",
+    "kind": "open_page",
+    "page": "new",
+    "focus": "ws-name",
+    "writes": false
+   },
+   {
+    "id": "open.mailbox",
+    "audience": "signed_in",
+    "scope": "person",
+    "kind": "open_panel",
+    "page": null,
+    "panel": "mailbox",
+    "writes": false
+   }
+  ],
+  "tours": [
+   {
+    "id": "tour.inviteRevoke",
+    "version": "1.0.0",
+    "feature": "invite.revoke",
+    "page": "members",
+    "requires_role": "admin",
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-members",
+      "task": null,
+      "appears_after": null
+     },
+     {
+      "id": "s2",
+      "target": "members-tab-invites",
+      "task": null,
+      "appears_after": null
+     },
+     {
+      "id": "s3",
+      "target": "invites-table",
+      "task": null,
+      "appears_after": "members-tab-invites"
+     },
+     {
+      "id": "s4",
+      "target": "invites-table",
+      "task": "invite.revoked",
+      "appears_after": "members-tab-invites"
+     }
+    ],
+    "text": {
+     "title": "Egy kiadott meghívás visszavonása",
+     "lead": "Három lépés. A végén a kiküldött hivatkozás már nem használható.",
+     "s1": {
+      "title": "Nyisd meg a Felhasználókat",
+      "body": "A Beállítások csoportban, fiókkezelői jogosultsággal."
+     },
+     "s2": {
+      "title": "Váltsd át az „Elfogadásra vár” fülre",
+      "body": "Itt látszik, melyik meghívás vár elfogadásra, melyiket fogadták el, melyik járt le, és melyiket vonták vissza."
+     },
+     "s3": {
+      "title": "A várakozó meghívások listája",
+      "body": "Itt látszik, melyik meghívás vár elfogadásra, melyiket fogadták el, melyik járt le, és melyiket vonták vissza."
+     },
+     "s4": {
+      "title": "Vond vissza a meghívást",
+      "body": "A sor „Meghívás visszavonása” gombja, majd a megerősítés. A hivatkozás ezután elhal — ez a lépés csak tényleges visszavonás után halad tovább."
+     }
+    }
+   },
+   {
+    "id": "tour.reentry",
+    "version": "1.0.0",
+    "feature": "members.reinvite",
+    "page": "members",
+    "requires_role": "admin",
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-members",
+      "task": null,
+      "appears_after": null
+     },
+     {
+      "id": "s2",
+      "target": "members-list",
+      "task": null,
+      "appears_after": null
+     },
+     {
+      "id": "s3",
+      "target": "reinvite-form",
+      "task": "reinvite.sent",
+      "appears_after": "members-list"
+     }
+    ],
+    "text": {
+     "title": "Eltávolított munkatárs visszahívása",
+     "lead": "Három lépés. A végén új meghívás megy ki; a tagság az ő elfogadásával jön létre.",
+     "s1": {
+      "title": "Nyisd meg a Felhasználókat",
+      "body": "A Beállítások csoportban, fiókkezelői jogosultsággal."
+     },
+     "s2": {
+      "title": "Keresd meg az eltávolított embert",
+      "body": "A lista az eltávolított munkatársakat is mutatja, „Eltávolítva” jelzéssel. A „Hozzáférés kezelése” gomb nyitja a lapját."
+     },
+     "s3": {
+      "title": "Küldd el az új meghívást",
+      "body": "Az „Újbóli belépés” szakaszban az „Újra meghívás” gomb. A megerősítés kimondja: az érintettnek el kell fogadnia, és a korábbi hozzáférései nem állnak vissza. Ez a lépés csak tényleges elküldés után halad tovább."
+     }
+    }
+   }
+  ],
+  "no_model_call": [
+   "help",
+   "faq",
+   "sitemap",
+   "tour",
+   "guide_search"
+  ]
+ },
+ "knowledge": {
+  "ok": true,
+  "lang": "hu",
+  "population": 31,
+  "visible_count": 30,
+  "index": [
+   {
+    "id": "auth.register",
+    "status": "working",
+    "group": "auth",
+    "screen": null,
+    "version": "1.2.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.register",
+    "faq": [
+     "faq.register.neutral",
+     "faq.register.noMail"
+    ],
+    "title": "Fiók létrehozása"
+   },
+   {
+    "id": "auth.verify",
+    "status": "working",
+    "group": "auth",
+    "screen": null,
+    "version": "1.1.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.verify.expired",
+     "faq.verify.used"
+    ],
+    "title": "E-mail-cím megerősítése"
+   },
+   {
+    "id": "auth.login",
+    "status": "working",
+    "group": "auth",
+    "screen": null,
+    "version": "1.2.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.login.failed"
+    ],
+    "title": "Belépés"
+   },
+   {
+    "id": "auth.resend",
+    "status": "working",
+    "group": "auth",
+    "screen": null,
+    "version": "1.2.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.resend.why"
+    ],
+    "title": "Új megerősítő levél kérése"
+   },
+   {
+    "id": "auth.logout",
+    "status": "working",
+    "group": "auth",
+    "screen": "security",
+    "version": "1.1.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.logout.language"
+    ],
+    "title": "Kijelentkezés"
+   },
+   {
+    "id": "account.personal",
+    "status": "working",
+    "group": "account",
+    "screen": "overview",
+    "version": "1.1.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.account.personalVsBusiness"
+    ],
+    "title": "Személyes fiók"
+   },
+   {
+    "id": "account.add_business",
+    "status": "working",
+    "group": "account",
+    "screen": "new",
+    "version": "1.2.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.addBusiness",
+    "faq": [
+     "faq.business.taxId",
+     "faq.business.alreadyAttached",
+     "faq.business.shared"
+    ],
+    "title": "Vállalkozás vagy közös fiók hozzáadása"
+   },
+   {
+    "id": "account.switch",
+    "status": "working",
+    "group": "account",
+    "screen": null,
+    "version": "1.2.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.account.whichAccount",
+     "faq.account.unsaved"
+    ],
+    "title": "Fiókváltás"
+   },
+   {
+    "id": "invite.send",
+    "status": "working",
+    "group": "invite",
+    "screen": "members",
+    "version": "1.2.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.invite",
+    "faq": [
+     "faq.invite.who",
+     "faq.invite.expiry",
+     "faq.invite.link"
+    ],
+    "title": "Felhasználó meghívása"
+   },
+   {
+    "id": "invite.accept",
+    "status": "working",
+    "group": "invite",
+    "screen": null,
+    "version": "1.3.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.inviteAccept",
+    "faq": [
+     "faq.invite.accept",
+     "faq.invite.wrongAddress",
+     "faq.invite.personalVsBusiness"
+    ],
+    "title": "Meghívás elfogadása"
+   },
+   {
+    "id": "members.list",
+    "status": "working",
+    "group": "members",
+    "screen": "members",
+    "version": "1.2.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.members.membershipVsScope"
+    ],
+    "title": "Felhasználók és hozzáférések"
+   },
+   {
+    "id": "members.grant",
+    "status": "working",
+    "group": "members",
+    "screen": "members",
+    "version": "1.2.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.grant",
+    "faq": [
+     "faq.members.grant"
+    ],
+    "title": "Adatkör megtekintésének engedélyezése"
+   },
+   {
+    "id": "members.scopeRevoke",
+    "status": "working",
+    "group": "members",
+    "screen": "members",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.scopeLifecycle",
+    "faq": [
+     "faq.members.scopeRevoke"
+    ],
+    "title": "Egy hozzáférés visszavonása"
+   },
+   {
+    "id": "invite.revoke",
+    "status": "working",
+    "group": "members",
+    "screen": "members",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.inviteRevoke",
+    "faq": [
+     "faq.invite.revoke"
+    ],
+    "title": "Egy kiadott meghívás visszavonása"
+   },
+   {
+    "id": "members.reinvite",
+    "status": "working",
+    "group": "members",
+    "screen": "members",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.reentry",
+    "faq": [
+     "faq.members.reinvite",
+     "faq.members.reinviteScopes"
+    ],
+    "title": "Eltávolított munkatárs újbóli meghívása"
+   },
+   {
+    "id": "data.documentSample",
+    "status": "working",
+    "group": "plan",
+    "screen": "documents",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.data.sampleAccess",
+     "faq.data.mixedDocument"
+    ],
+    "title": "Bizonylat-minta megnyitása"
+   },
+   {
+    "id": "data.supplierSample",
+    "status": "working",
+    "group": "plan",
+    "screen": "partners",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.data.sampleAccess"
+    ],
+    "title": "Beszállítói minta megnyitása"
+   },
+   {
+    "id": "members.revoke",
+    "status": "working",
+    "group": "members",
+    "screen": "members",
+    "version": "1.2.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.members.revoke"
+    ],
+    "title": "Hozzáférés megszüntetése"
+   },
+   {
+    "id": "plan.change",
+    "status": "working",
+    "group": "plan",
+    "screen": "plan",
+    "version": "1.1.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.plan",
+    "faq": [
+     "faq.plan.vsRight",
+     "faq.plan.purchase"
+    ],
+    "title": "Előfizetés (csomag)"
+   },
+   {
+    "id": "data.stock",
+    "status": "working",
+    "group": "plan",
+    "screen": "stock",
+    "version": "1.2.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.stock",
+    "faq": [
+     "faq.stock.noAccess",
+     "faq.stock.unknownQty",
+     "faq.stock.loadFailed"
+    ],
+    "title": "Készletegyenleg"
+   },
+   {
+    "id": "data.price",
+    "status": "working",
+    "group": "plan",
+    "screen": "stock",
+    "version": "1.2.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.price.twoGates",
+     "faq.price.missing"
+    ],
+    "title": "Árak"
+   },
+   {
+    "id": "shell.navigation",
+    "status": "working",
+    "group": "shell",
+    "screen": "overview",
+    "version": "1.3.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.shell",
+    "faq": [
+     "faq.shell.tabs",
+     "faq.shell.menuMissing"
+    ],
+    "title": "Az alkalmazás kerete"
+   },
+   {
+    "id": "shell.profile",
+    "status": "working",
+    "group": "shell",
+    "screen": "profile",
+    "version": "1.1.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.profile.edit"
+    ],
+    "title": "Saját profil és belépés"
+   },
+   {
+    "id": "shell.language",
+    "status": "working",
+    "group": "shell",
+    "screen": "profile",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.language",
+    "faq": [
+     "faq.lang.which",
+     "faq.lang.country",
+     "faq.lang.missing"
+    ],
+    "title": "A felület nyelve"
+   },
+   {
+    "id": "shell.help",
+    "status": "working",
+    "group": "shell",
+    "screen": null,
+    "version": "1.1.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.help",
+    "faq": [
+     "faq.help.where",
+     "faq.help.noModel"
+    ],
+    "title": "Súgó"
+   },
+   {
+    "id": "shell.assistant",
+    "status": "demo",
+    "group": "shell",
+    "screen": null,
+    "version": "1.1.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.chat.source",
+     "faq.chat.limits",
+     "faq.chat.secrets",
+     "faq.chat.offline"
+    ],
+    "title": "Chates segéd"
+   },
+   {
+    "id": "shell.demo_mail",
+    "status": "demo",
+    "group": "shell",
+    "screen": "outbox",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.mail.real"
+    ],
+    "title": "Próbaüzenetek"
+   },
+   {
+    "id": "shell.sample_pages",
+    "status": "demo",
+    "group": "shell",
+    "screen": "products",
+    "version": "1.2.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.demo.whatIsReal",
+     "faq.demo.noFixture"
+    ],
+    "title": "Mintaoldalak"
+   },
+   {
+    "id": "profile.edit",
+    "status": "planned",
+    "group": "shell",
+    "screen": "profile",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.profile.edit"
+    ],
+    "title": "A profil szerkesztése"
+   },
+   {
+    "id": "security.password_change",
+    "status": "planned",
+    "group": "auth",
+    "screen": "security",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.security.password"
+    ],
+    "title": "Jelszó megváltoztatása"
+   },
+   {
+    "id": "shell.numbered_probe",
+    "status": "retired",
+    "group": "shell",
+    "screen": null,
+    "version": "1.1.0",
+    "visible": false,
+    "why": "retired",
+    "replaced_by": "shell.navigation",
+    "tour": null,
+    "faq": [],
+    "title": "A korábbi egyoldalas próbalap (kivezetve)"
+   }
+  ]
+ }
+}

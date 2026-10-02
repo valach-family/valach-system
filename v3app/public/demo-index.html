@@ -1,0 +1,192 @@
+<!doctype html>
+<!-- v3app/public/demo-index.html — A BEMUTATÓ LAPJA (DMA-01, R138 §1–§3).
+     EZ A LAP A VALÓDI FELÜLETET TÖLTI BE. Az `app.js`, `tour.mjs`, `texts.mjs`, `style.css` és az
+     `i18n/` csomagok UGYANAZOK, mint az alkalmazásban — egyetlen soruk sem változik. A különbség
+     KETTŐ, és mindkettő kimondott:
+       1. `<meta name="vs-demo" content="on">` — ez a jel kapcsolja be a bemutató-adaptert; a repó
+          saját `index.html`-jében ez a meta NINCS, tehát az adapter oda nem telepszik (R138 §3);
+       2. a lap tetején egy INDÍTÓ sáv áll a két történettel. Az indítás az app SAJÁT útján megy
+          (`data-action="tour-start"`), nem párhuzamos bemutató-motorral.
+     Az utak RELATÍVAK (`./app.js`), mert a lap nem a gyökérből szolgál ki. -->
+<html lang="hu" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="vs-demo" content="on">
+  <title>VS — bemutató</title>
+  <link rel="stylesheet" href="./style.css">
+  <style>
+    /* AZ INDÍTÓ SÁV. Szándékosan szűk: a lap többi része a VALÓDI felület, és azon nem változtatunk.
+       A sáv a `.layout` FÖLÖTT áll, tehát az app újrarajzolása nem törli (KUKA-209). */
+    .demolaunch { border-bottom: 1px solid var(--line, #d9d9e3); padding: 10px 16px;
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+      background: var(--panel, #fff); font: inherit; }
+    .demolaunch .lead { font-weight: 600; }
+    .demolaunch .note { color: var(--muted, #666); font-size: 13px; }
+    .demolaunch button { font: inherit; padding: 7px 12px; border-radius: 8px;
+      border: 1px solid var(--line, #d9d9e3); background: var(--panel, #fff); cursor: pointer; }
+    .demolaunch button.primary { background: var(--accent, #1f3b73); color: #fff; border-color: transparent; }
+    .demolaunch .spacer { flex: 1 1 auto; }
+    @media (max-width: 560px) {
+      .demolaunch { gap: 6px; padding: 8px 12px; }
+      .demolaunch .spacer { flex-basis: 100%; height: 0; }
+      .demolaunch button { flex: 1 1 auto; }
+    }
+  </style>
+</head>
+<body>
+  <!-- A BEMUTATÓ-JELÖLÉS: a háttér FAJTÁJA kimondva, nem elrejtve (R138 §3). -->
+  <div class="demobar" data-testid="demo-marker">
+    <strong data-testid="demo-bar-title"></strong>
+    <span class="muted" data-testid="demo-bar-lead"></span>
+    <span class="spacer"></span>
+    <button type="button" class="plain" data-testid="demo-mail-open"></button>
+  </div>
+
+  <div class="demolaunch" data-testid="demo-launch">
+    <span class="lead">Válassz történetet:</span>
+    <button type="button" class="primary" data-action="tour-start" data-tour="tour.inviteRevoke"
+      data-testid="demo-story-invite-revoke">1 · Meghívás visszavonása</button>
+    <button type="button" class="primary" data-action="tour-start" data-tour="tour.reentry"
+      data-testid="demo-story-reentry">2 · Munkatárs visszatérése</button>
+    <span class="spacer"></span>
+    <button type="button" data-testid="demo-switch-viewer">Váltás Béla nézetére</button>
+    <button type="button" data-testid="demo-restart">Újrakezdés</button>
+    <span class="note" data-testid="demo-viewer-note"></span>
+  </div>
+
+  <header class="top" data-testid="header">
+    <button type="button" class="mobile-toggle" data-testid="nav-toggle" aria-expanded="false">☰</button>
+    <button type="button" class="brand" data-testid="brand">VS</button>
+
+    <details class="switcher" data-testid="account-switcher">
+      <summary data-testid="account-switcher-summary">
+        <span class="label" data-testid="ws-label"></span>
+        <span class="value" data-testid="header-workspace"></span>
+        <span aria-hidden="true">⌄</span>
+      </summary>
+      <div class="menu" data-testid="ws-list"></div>
+    </details>
+
+    <span class="spacer"></span>
+    <span class="sr-only" data-testid="header-acting-as">—</span>
+    <span class="sr-only" data-testid="channel-proven">—</span>
+
+    <button type="button" class="plain help-open" data-testid="help-open" data-action="help-open"></button>
+
+    <details class="profile" data-testid="profile">
+      <summary>
+        <span class="avatar" data-testid="avatar">–</span>
+        <span class="personname" data-testid="header-subject"></span>
+        <span aria-hidden="true">⌄</span>
+      </summary>
+      <div class="menu" data-testid="profile-menu"></div>
+    </details>
+  </header>
+
+  <section class="auth" data-testid="auth" hidden></section>
+
+  <div class="layout" data-testid="app" hidden>
+    <nav class="sidebar" data-testid="nav"></nav>
+    <div class="workspace">
+      <div class="tabs" data-testid="tabs"></div>
+      <main class="content" data-testid="main" tabindex="-1"></main>
+    </div>
+  </div>
+
+  <dialog data-testid="panel"><div data-testid="panel-body"></div></dialog>
+  <dialog data-testid="help-panel" class="drawer help"><div data-testid="help-body"></div></dialog>
+  <div class="tourbubble" data-testid="tour" role="dialog" aria-modal="false" hidden></div>
+  <div class="toast" data-testid="toast" role="status" hidden></div>
+  <noscript><p style="padding:24px" data-testid="noscript">JavaScript · Please enable JavaScript · Bitte JavaScript aktivieren · Engedélyezd a JavaScriptet</p></noscript>
+
+  <!-- AZ ADAPTER AZ APP ELŐTT: a `fetch`-elfogónak a lap első kérése ELŐTT készen kell állnia.
+       A modulok DOKUMENTUM-SORRENDBEN futnak, tehát ez a sor garantálja a sorrendet. -->
+  <script type="module" src="./demo-adapter.mjs"></script>
+  <script type="module" src="./app.js"></script>
+
+  <!-- A BEMUTATÓ SAJÁT KEZELŐI: a néző-váltás és az újrakezdés. MINDKETTŐ az app SAJÁT útján megy
+       (kilépés → belépés), tehát VALÓDI munkamenet-váltás, nem képernyő-átcímkézés (R138 §2). -->
+  <script type="module">
+    const byTest = (t) => document.querySelector(`[data-testid="${t}"]`);
+    const note = byTest('demo-viewer-note');
+    const PEOPLE = { anna: 'anna@mintamuhely.hu', bela: 'bela@mintamuhely.hu' };
+
+    function paint() {
+      const who = (window.VS_DEMO && window.VS_DEMO.actor()) || 'anna';
+      const other = who === 'anna' ? 'bela' : 'anna';
+      const btn = byTest('demo-switch-viewer');
+      if (btn) btn.textContent = other === 'bela' ? 'Váltás Béla nézetére' : 'Váltás Anna nézetére';
+      if (note) {
+        note.textContent = who === 'anna'
+          ? 'Most Anna (fiókkezelő) nézetében vagy.'
+          : 'Most Béla nézetében folytatod — ő a munkatárs.';
+      }
+    }
+
+    /** VALÓDI munkamenet-váltás: kilépés, majd belépés a másik szereplővel, az app saját útján. */
+    async function switchViewer() {
+      const who = (window.VS_DEMO && window.VS_DEMO.actor()) || 'anna';
+      const other = who === 'anna' ? 'bela' : 'anna';
+      await fetch('/api/logout', { method: 'POST' });
+      await fetch('/api/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: PEOPLE[other], password: 'bemutato' }),
+      });
+      paint();
+      window.location.reload();
+    }
+
+    async function restart() {
+      const story = (window.VS_DEMO && window.VS_DEMO.story()) || 'inviteRevoke';
+      if (window.VS_DEMO) window.VS_DEMO.restart(story);
+      window.location.reload();
+    }
+
+    /**
+     * A TÖRTÉNET INDÍTÁSA — ÉS AMIT A BEMUTATÓ ITT SOHA NEM TESZ MEG.
+     *
+     * A választott történethez tartozó KEZDŐÁLLAPOT kell (Béla az egyikben függő meghívóval áll, a
+     * másikban meglévő tagként — a kettő egyszerre nem állhat). Ha váltani kell, a lap újratölt, és
+     * utána a bemutatót az app SAJÁT `tour-start` útja indítja el.
+     *
+     * A HATÁR KIMONDOTT: a bemutató elindítása a bemutató dolga; a MEGHÍVÁST, az ELFOGADÁST, a
+     * VISSZAVONÁST és a JOGADÁST viszont SOHA nem végzi el a felhasználó helyett (R138 §1–§2).
+     * Ez a kód ezért kizárólag az útmutató INDÍTÓ gombját nyomja meg, üzleti műveletet nem.
+     */
+    const AUTOSTART = 'vs-demo-autostart';
+    for (const [testid, story] of [['demo-story-invite-revoke', 'inviteRevoke'], ['demo-story-reentry', 'reentry']]) {
+      const b = byTest(testid);
+      if (!b) continue;
+      b.addEventListener('click', (ev) => {
+        const cur = window.VS_DEMO && window.VS_DEMO.story();
+        if (cur === story) return;              // már ebben a történetben állunk: az app indítja
+        ev.preventDefault(); ev.stopPropagation();
+        if (window.VS_DEMO) window.VS_DEMO.restart(story);
+        sessionStorage.setItem(AUTOSTART, testid);
+        window.location.reload();
+      }, { capture: true });
+    }
+
+    const sw = byTest('demo-switch-viewer');
+    if (sw) sw.addEventListener('click', switchViewer);
+    const rs = byTest('demo-restart');
+    if (rs) rs.addEventListener('click', restart);
+    paint();
+
+    // ÚJRATÖLTÉS UTÁN: ha a néző történetet választott, az app saját indító gombját nyomjuk meg.
+    // Megvárjuk, hogy a felület felálljon (a bemutató-lista a segéd-csomagból jön).
+    const auto = sessionStorage.getItem(AUTOSTART);
+    if (auto) {
+      sessionStorage.removeItem(AUTOSTART);
+      const deadline = Date.now() + 8000;
+      const tryStart = () => {
+        const appUp = byTest('app') && !byTest('app').hidden;
+        if (appUp && window.VS_DEMO) { byTest(auto).click(); return; }
+        if (Date.now() < deadline) setTimeout(tryStart, 120);
+      };
+      setTimeout(tryStart, 200);
+    }
+  </script>
+</body>
+</html>
