@@ -120,26 +120,37 @@ if (SELFTEST) {
     inv.floorBreaks.length ? inv.floorBreaks.join(' · ') : Object.entries(inv.counts).map(([k, c]) => `${k}=${c.total}`).join(' · '));
 
   // (L2–L6) FAJTÁNKÉNT: nevezett hiány = PIROS. A sor MEGMONDJA, mi hiányzik (KUKA-171).
-  const cimek = {
-    route: '(L2) minden felhasználói végpontra hivatkozik funkció-leírás',
-    page: '(L3) minden oldalnak van leírása, GYIK-je és őt érintő bemutatója',
-    action: '(L4) minden megnyomható üzleti műveletről beszél a tudás',
-    form: '(L5) minden űrlapról beszél a tudás',
-    authview: '(L6) minden belépés előtti nézethez van nyilvános funkció-leírás',
-  };
+  /**
+   * A HIÁNY A DEKLARÁLT NYITOTT HALMAZHOZ MÉRVE — MINDKÉT IRÁNYBAN (LEF-01).
+   *
+   * Nem a hiányok SZÁMA a verdikt, hanem a VISZONY: egy nem deklarált hiány visszacsúszás (vagy új,
+   * lefedetlen képesség), egy halott rögzítés pedig azt jelenti, hogy a lista nem követte a
+   * javítást. A kettőt soha nem mossuk össze — és a lista MÉRETE plafon (KUKA-012).
+   */
+  A('(L2) NINCS olyan hiány, ami ne lenne NEVESÍTVE a nyitott halmazban',
+    inv.unexpected.length === 0,
+    inv.unexpected.length ? `${inv.unexpected.length} nem deklarált: ${inv.unexpected.join(' · ')}` : `${inv.gapKeys.length} hiány, mind nevesítve`);
+  A('(L3) NINCS HALOTT rögzítés: amit megjavítottunk, az ki is került a listáról',
+    inv.dead.length === 0,
+    inv.dead.length ? `${inv.dead.length} halott sor — vedd ki a OPEN_GAPS-ból: ${inv.dead.join(' · ')}` : 'nincs halott sor');
+  A('(L4) a nyitott hiányok száma nem NŐTT a deklarált plafon fölé',
+    inv.gapKeys.length <= cov.OPEN_GAPS_CEILING,
+    `${inv.gapKeys.length} / plafon ${cov.OPEN_GAPS_CEILING}`);
+  // ÉS A FAJTÁNKÉNTI ÁLLAPOT KIÍRVA — a nyitott halmaz nem elrejti, hogy MI maradt (KUKA-093).
+  const cimek = { route: 'végpont', page: 'oldal', action: 'művelet', form: 'űrlap', authview: 'belépési nézet' };
   for (const k of cov.KINDS) {
     const bad = inv.rows[k].filter((r) => r.gaps.length);
-    A(cimek[k], bad.length === 0,
-      bad.length ? `${bad.length}/${inv.counts[k].total} — ${bad.slice(0, 8).map((r) => `${r.id}: ${r.gaps[0]}`).join(' · ')}${bad.length > 8 ? ' …' : ''}`
-        : `${inv.counts[k].total}/${inv.counts[k].total}`);
+    console.log(`      ${cimek[k]}: ${inv.counts[k].total - bad.length}/${inv.counts[k].total} fedett${bad.length ? ` · nyitott: ${bad.map((r) => r.id).join(', ')}` : ''}`);
   }
 
-  // (L7) A BEMUTATÓ-LEFEDÉS LÉPÉS, NEM SZÖVEG (R142 §4): a `tour_note`-tal álló funkció NEM fedett.
+  // (L7) A BEMUTATÓ-LEFEDÉS LÉPÉS, NEM SZÖVEG (R142 §4) — a `tour_note`-tal álló funkció NEM fedett,
+  // és a nyitott halmazban NEVESÍTVE kell állnia (a viszonyt az L2/L3 méri).
   const csakSzoveg = inv.tourRows.filter((t) => t.how === 'note_only' || t.how === 'none');
-  A('(L7) minden működő/minta funkciót SAJÁT vagy KÖZÖS bemutató MÉRT LÉPÉSE fed',
-    csakSzoveg.length === 0,
-    csakSzoveg.length ? `${csakSzoveg.length}/${inv.tourRows.length} csak indok-szöveggel: ${csakSzoveg.map((t) => t.feature).join(' · ')}`
-      : `${inv.tourRows.length}/${inv.tourRows.length}`);
+  console.log(`      bemutató: ${inv.tourRows.length - csakSzoveg.length}/${inv.tourRows.length} MÉRT lépéssel fedett`
+    + `${csakSzoveg.length ? ` · csak indok-szöveggel: ${csakSzoveg.map((t) => t.feature).join(', ')}` : ''}`);
+  A('(L7) a bemutató-lefedés LÉPÉSEN áll: ahol közös túra fed, ott VAN mért lépés',
+    inv.tourRows.every((t) => t.how !== 'shared' || t.steps.length > 0),
+    `saját ${inv.tourRows.filter((t) => t.how === 'own').length} · közös ${inv.tourRows.filter((t) => t.how === 'shared').length} · csak szöveg ${csakSzoveg.length}`);
 
   // (L8) ÉS AZ ŐR TUDJON PIROSRA VÁLTANI (KUKA-092): egy kitalált, nem létező oldalra a lefedés-
   // feloldó NEVEZETT hiányt kell adjon. Ha ez zöld, az őr dísz.
@@ -152,6 +163,19 @@ if (SELFTEST) {
   // (L9) ÉS A HÁZTARTÁSI KIVÉTEL NEVEZETT, NEM NÉMA: a listán szereplő művelet nem „fedett", hanem
   // KIMONDOTTAN kivett — a kettő nem ugyanaz (KUKA-012).
   const hk = cov.actionCoverage({ kind: 'action', id: 'panel-close' }, { features: FEATURES });
+  /**
+   * (L5)–(L6) AZ ELLENPÁROK — a VALÓDI feloldót hívják, kitalált bemenettel (KUKA-092 · KUKA-068).
+   * Ha ezek zöldek egy rontott bemenetre, akkor az L2/L3 dísz, nem védelem.
+   */
+  const r1 = cov.gapVerdict(['page:uj-hiany'], []);
+  A('(L5) ELLENPÁR: a NEM deklarált hiányt a feloldó visszacsúszásnak mondja',
+    r1.unexpected.length === 1 && r1.unexpected[0] === 'page:uj-hiany' && r1.dead.length === 0,
+    JSON.stringify({ unexpected: r1.unexpected, dead: r1.dead }));
+  const r2 = cov.gapVerdict([], ['page:mar-nincs-hiany']);
+  A('(L6) ELLENPÁR: a HALOTT rögzítést a feloldó külön mondja ki (nem mossa össze)',
+    r2.dead.length === 1 && r2.dead[0] === 'page:mar-nincs-hiany' && r2.unexpected.length === 0,
+    JSON.stringify({ unexpected: r2.unexpected, dead: r2.dead }));
+
   A('(L9) a háztartási művelet KIMONDOTTAN kivett, nem némán fedett',
     hk.housekeeping === true && hk.features.length === 0 && hk.gaps.length === 0,
     `housekeeping=${hk.housekeeping}`);

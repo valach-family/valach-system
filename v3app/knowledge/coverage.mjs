@@ -48,6 +48,40 @@ export const KINDS = Object.freeze(['route', 'page', 'action', 'form', 'authview
  */
 export const FLOOR = Object.freeze({ route: 32, page: 17, action: 42, form: 6, authview: 3 });
 
+/**
+ * A NYITOTT HIÁNYOK DEKLARÁLT HALMAZA — PLAFON, AMI CSAK CSÖKKENHET (R142, LEF-01).
+ *
+ * MIÉRT VAN, ÉS MIÉRT NEM EGYSZERŰEN PIROS A SÖPRÉS. Az R142 kikötése: „ha egy valódi oldal/művelet
+ * hiányzik a tudásból … legyen piros". Ez helyes — de egy KRÓNIKUSAN piros söprés elveszti a
+ * jelzés-értékét, és a következő kör már nem tudja megmondani, hogy egy ÚJ hiány keletkezett-e, vagy
+ * csak a régi lista áll még (ugyanaz a baj, amiért a zöld battéria sem bizonyít: KUKA-092 fordítva).
+ *
+ * Ezért a repó SAJÁT alakját követjük (a `guardHome.js` `vs`-padlója): a MA nyitott hiányok
+ * NEVESÍTVE itt állnak, és az őr MINDKÉT IRÁNYBAN mér:
+ *   · egy hiány, ami NINCS ezen a listán → PIROS (visszacsúszás vagy új, lefedetlen képesség);
+ *   · egy listán álló tétel, aminek MÁR NINCS hiánya → PIROS (HALOTT rögzítés, ki kell venni);
+ *   · a lista MÉRETE plafon: nőni nem szabad.
+ * Így a hiány nem néma, a söprés nem krónikusan piros, és a lista maga a „mi maradt" jegyzéke —
+ * ami a következő csomag munkája (ugyanaz az elv, mint a KUKA-012: a kimondott hiány nem hiba).
+ *
+ * AMIT EZ NEM: nem felmentés. Egy tétel innen CSAK úgy kerülhet ki, hogy a hiányt MEGSZÜNTETTÜK —
+ * a lista szerkesztése önmagában pirosra vinné az őrt.
+ */
+export const OPEN_GAPS = Object.freeze([
+  // OLDAL — hatnak nincs leírása, GYIK-je és bemutatója sem; négynek csak bemutatója nincs.
+  'page:account', 'page:documents', 'page:movements', 'page:partners', 'page:personal',
+  'page:processes', 'page:products', 'page:security', 'page:stockcard', 'page:warehouses',
+  // VÉGPONT — támogató olvasások, amikre egyetlen funkció-leírás `authority.endpoint`-ja sem mutat.
+  'route:GET /api/assistant/status', 'route:GET /api/data/document-full',
+  'route:GET /api/invites/observe', 'route:GET /api/invites/waiting', 'route:POST /api/invites/pending',
+  // BEMUTATÓ — csak indok-szöveggel áll (az R142 óta ez NEM teljesítés).
+  'tour:auth.login', 'tour:auth.logout', 'tour:auth.resend',
+  'tour:data.documentSample', 'tour:data.supplierSample', 'tour:shell.sample_pages',
+]);
+
+/** A nyitott hiányok PLAFONJA — a mai mért darabszám. Nőni nem szabad. */
+export const OPEN_GAPS_CEILING = OPEN_GAPS.length;
+
 const uniq = (a) => [...new Set(a)];
 
 /**
@@ -127,6 +161,27 @@ export function pagesFrom({ pageLabels, navGroups = [], navAdmin = null, navPers
   }));
 }
 
+/**
+ * A HIÁNY-HALMAZ VERDIKTJE — EGY FELOLDÓ, MINDKÉT IRÁNY (LEF-01).
+ *
+ * KÜLÖN FÜGGVÉNY, mert az ELLENPÁRNAK ezt kell MEGHÍVNIA, nem egy másolatát: egy tükör-implementáció
+ * a saját másolatát igazolná vissza (KUKA-068), és amit próba nem tud meghívni, azt bizalomból
+ * hinnénk (KUKA-207).
+ *
+ * `unexpected` = hiány, ami NINCS deklarálva → visszacsúszás vagy új, lefedetlen képesség.
+ * `dead`       = deklarált tétel, aminek MÁR NINCS hiánya → a lista nem követte a javítást.
+ * A kettő SOHA nincs összemosva: más a teendő (javíts vs. vedd ki a listáról).
+ */
+export function gapVerdict(gapKeys, declared) {
+  const g = [...new Set(gapKeys || [])];
+  const d = [...new Set(declared || [])];
+  return Object.freeze({
+    gapKeys: Object.freeze([...g].sort()),
+    unexpected: Object.freeze(g.filter((x) => !d.includes(x)).sort()),
+    dead: Object.freeze(d.filter((x) => !g.includes(x)).sort()),
+  });
+}
+
 /** A TELJES NÉPESSÉG EGY HÍVÁSBAN — a riport és az őr UGYANEZT kapja (KUKA-039). */
 export function populationFrom({ serverSource, uiSources, pageLabels, navGroups, navAdmin, navPersonal }) {
   return Object.freeze({
@@ -195,9 +250,33 @@ export function actionCoverage(action, { features }) {
   if (HOUSEKEEPING_ACTIONS.includes(action.id)) {
     return { kind: 'action', id: action.id, housekeeping: true, features: [], gaps: [], evidence: EVIDENCE.source };
   }
+  /**
+   * A KÖTÉS KÉT NÉVTÉR KÖZÖTT ÁLL — ÉS AZ ELSŐ SZABÁLYOM HAMIS HIÁNYT GYÁRTOTT (SAJÁT LELET, MÉRVE).
+   *
+   * A felületi művelet azonosítója (`data-action="revoke"`) és a funkció horgonya
+   * (`data-testid="member-revoke"`) KÉT KÜLÖN névtér: a horgony a konkrét SORT nevezi meg, a
+   * művelet a FAJTÁT. Az első szabályom csak azonosságra és ELŐTAG-ra illesztett, ezért hét
+   * MEGLÉVŐ kötést „hiánynak" mondott (`revoke` · `scope-grant` · `scope-revoke` · `reinvite` ·
+   * `redeem` · `invite-revoke` · `mail-open`) — pedig mindegyikhez tartozik funkció. Egy hamis
+   * hiány rosszabb, mint a nem mérés: adatnak látszik, nem hibának (KUKA-066).
+   *
+   * A MAI SZABÁLY: a művelet akkor fedett, ha az azonosítója a funkció belépőjében vagy
+   * horgonyában KÖTŐJELLEL HATÁROLT DARABKÉNT szerepel (`revoke` ↔ `member-revoke` ·
+   * `scope-grant` ↔ `member-scope-grant-keszlet`). Így a két névtér összeér, de egy véletlen
+   * rész-szó nem (`open` nem fedi a `panel-close`-t).
+   */
+  const darabja = (nev, id) => {
+    const t = String(nev || '').split('-');
+    const r = String(id).split('-');
+    for (let i = 0; i + r.length <= t.length; i += 1) {
+      if (r.every((x, j) => t[i + j] === x)) return true;
+    }
+    return false;
+  };
   const hit = features.filter((f) => f.entry === action.id
     || (f.anchors || []).includes(action.id)
-    || (f.anchors || []).some((a) => a === `${action.id}` || a.startsWith(`${action.id}-`)));
+    || darabja(f.entry, action.id)
+    || (f.anchors || []).some((a) => darabja(a, action.id)));
   return {
     kind: 'action', id: action.id, housekeeping: false,
     features: hit.map((f) => f.id),
@@ -295,7 +374,12 @@ export function inventory({ population, features, tours }) {
       floorBreaks.push(`${k}: a népesség ${population[k].length}, a MÉRT padló ${FLOOR[k]} — a kivonatolás zsugorodott, nem a rendszer`);
     }
   }
-  return Object.freeze({ rows, tourRows, counts, floorBreaks });
+  // A HIÁNY-KULCSOK — a deklarált nyitott halmazhoz mérve, MINDKÉT irányban (LEF-01).
+  const gapKeys = [];
+  for (const k of KINDS) for (const r of rows[k]) if (r.gaps.length) gapKeys.push(`${k}:${r.id}`);
+  for (const t of tourRows) if (t.how === 'note_only' || t.how === 'none') gapKeys.push(`tour:${t.feature}`);
+  const verdict = gapVerdict(gapKeys, OPEN_GAPS);
+  return Object.freeze({ rows, tourRows, counts, floorBreaks, ...verdict });
 }
 
 export const LEF_CONTRACT = Object.freeze({

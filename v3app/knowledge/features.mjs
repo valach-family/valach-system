@@ -254,7 +254,8 @@ export const FEATURES = Object.freeze([
   F({
     id: 'members.grant', module: 'delegation', version: '1.2.0', status: 'working',
     group: 'members', scope: 'book', audience: 'signed_in', screen: 'members', action: 'open.members', entry: 'member-scope-row-keszlet',
-    anchors: F(['nav-members', 'members-list', 'member-scope-row-keszlet']),
+    // R142/LEF-01: a JOGADÓ gomb is horgony — eddig csak a sor szerepelt.
+    anchors: F(['nav-members', 'members-list', 'member-scope-row-keszlet', 'member-scope-grant-']),
     authority: F({ endpoint: 'POST /api/members/scope', decided_by: 'v3ref/delegation.mjs + scopeGrant.mjs',
       reasons: F(['admin_required', 'scope_not_delegable', 'authority_not_established', 'context_mismatch']) }),
     outcomes: F(['success', 'refused', 'uncertain']),
@@ -270,7 +271,8 @@ export const FEATURES = Object.freeze([
     id: 'members.scopeRevoke', module: 'delegation', version: '1.0.0', status: 'working',
     group: 'members', scope: 'book', audience: 'signed_in', screen: 'members', action: 'open.members',
     entry: 'member-scope-row-arak',
-    anchors: F(['nav-members', 'members-list', 'member-scope-row-arak']),
+    // R142/LEF-01: a MEGVONÓ gomb is horgony — eddig csak a sor szerepelt.
+    anchors: F(['nav-members', 'members-list', 'member-scope-row-arak', 'member-scope-revoke-']),
     authority: F({ endpoint: 'POST /api/members/scope/revoke', decided_by: 'v3ref/delegation.mjs (SCR-01) + scopeGrant.mjs',
       reasons: F(['admin_required', 'authority_not_established', 'target_not_a_member', 'outside_basis_scopes', 'context_mismatch']) }),
     outcomes: F(['success', 'refused', 'uncertain']),
@@ -286,7 +288,9 @@ export const FEATURES = Object.freeze([
     id: 'invite.revoke', module: 'invite', version: '1.0.0', status: 'working',
     group: 'members', scope: 'book', audience: 'signed_in', screen: 'members', action: 'open.members',
     entry: 'members-tab-invites',
-    anchors: F(['nav-members', 'members-tab-invites', 'invites-list', 'invites-table']),
+    // A MŰVELETET VÉGZŐ GOMB IS HORGONY (R142/LEF-01 lelete, KUKA-011 „hol kattint?"): a
+    // lefedési mérés megmondta, hogy a `invite-revoke` műveletről a tudás nem beszélt.
+    anchors: F(['nav-members', 'members-tab-invites', 'invites-list', 'invites-table', 'invite-revoke-confirm']),
     authority: F({ endpoint: 'POST /api/invites/revoke', decided_by: 'v3ref/invite.mjs (INVR-01) + authority.mjs',
       reasons: F(['admin_required', 'authority_not_established', 'invite_unknown', 'invite_ref_ambiguous',
         'invite_already_redeemed', 'invite_expired', 'outside_basis_roles', 'context_mismatch']) }),
@@ -304,7 +308,8 @@ export const FEATURES = Object.freeze([
     id: 'members.reinvite', module: 'delegation', version: '1.0.0', status: 'working',
     group: 'members', scope: 'book', audience: 'signed_in', screen: 'members', action: 'open.members',
     entry: 'members-list',
-    anchors: F(['nav-members', 'members-list']),
+    // R142/LEF-01: az újra-meghívás GOMBJA és a megerősítő űrlap is horgony.
+    anchors: F(['nav-members', 'members-list', 'member-reinvite-', 'reinvite-form', 'reinvite-confirm']),
     authority: F({ endpoint: 'POST /api/members/reinvite', decided_by: 'v3ref/delegation.mjs (RNV-01) + bitemporal.mjs',
       reasons: F(['admin_required', 'authority_not_established', 'reentry_target_membership_is_open',
         'reentry_target_no_membership', 'reentry_blocked_suspension', 'reentry_blocked_ban',

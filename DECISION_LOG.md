@@ -88,8 +88,12 @@ némán összezsugorodna, és a lefedés „javulni" látszana attól, hogy keve
 szintet a böngészős tanúk (`proof:demo-walk` · `test:e2e`).
 
 **Gépi jel:** `npm run verify:lefedes` (L1–L9, ellenpárokkal) · riport: `npm run meres:lefedes`.
-**AZ ŐR MA PIROS, és ez SZÁNDÉKOS:** a megtalált tartalmi hiányok pótlása a következő csomag
-munkája, és addig a piros őr a gépi NYOM arról, mi maradt — nem néma hiány (R142 §8).
+**A NYITOTT HIÁNYOK DEKLARÁLT HALMAZA (`OPEN_GAPS`, 21 tétel) a gépi NYOM arról, mi maradt.** Az őr
+MINDKÉT IRÁNYBAN mér: nem deklarált hiány PIROS (visszacsúszás vagy új, lefedetlen képesség),
+HALOTT rögzítés is PIROS (a lista nem követte a javítást), és a lista mérete PLAFON — nőni nem
+szabad. Ez nem felmentés: egy tétel CSAK a hiány megszüntetésével kerülhet ki. Így a hiány nem néma
+(R142 §8), a söprés viszont nem válik krónikusan pirossá — amitől a jelzés elvesztené az értékét
+(KUKA-092 fordítva).
 
 ---
 

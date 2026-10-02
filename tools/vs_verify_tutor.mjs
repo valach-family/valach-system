@@ -167,6 +167,14 @@ const GENERATED_FAMILIES = Object.freeze([
   // R121 — a szerver-oldali minta-szakaszok; a változó rész a három deklarált mintanézet kulcsa.
   Object.freeze({ prefix: 'sample-', template: 'data-testid="sample-${kulcs}"',
     values: () => ['document', 'document-full', 'supplier'] }),
+  // R142 — A MŰVELETET VÉGZŐ GOMB IS HORGONY (KUKA-011 „hol kattint?"). A tag-soron a jog-adás és
+  // -megvonás, a visszatérés újra-meghívása és a meghívó visszavonása MIND dinamikus azonosítón áll
+  // (ember + adatkör, illetve meghívó-hivatkozás). A család nélkül ezek a gombok nem deklarálhatók
+  // horgonyként — és a lefedési mérés (LEF-01) joggal mondta, hogy a tudás nem beszél róluk.
+  Object.freeze({ prefix: 'member-scope-grant-', template: 'data-testid="member-scope-grant-${esc(id)}-${esc(k)}"', values: () => [] }),
+  Object.freeze({ prefix: 'member-scope-revoke-', template: 'data-testid="member-scope-revoke-${esc(id)}-${esc(k)}"', values: () => [] }),
+  Object.freeze({ prefix: 'member-reinvite-', template: 'data-testid="member-reinvite-${esc(id)}"', values: () => [] }),
+  Object.freeze({ prefix: 'invite-revoke-', template: 'data-testid="invite-revoke-${esc(x.ref)}"', values: () => [] }),
 ]);
 for (const fam of GENERATED_FAMILIES) {
   check('TUT05', `a sablon-család TÉNYLEGESEN létezik a forrásban: ${fam.prefix}*`,
