@@ -6850,7 +6850,10 @@ function r132World() {
   clock.advance(1000);
   const g = grantScopeToMember({ store, granterSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'bela', scope: 'keszlet', at: clock.now() });
   if (!g.ok) throw new Error(`r132World: az adatkör-jog nem adható — ${g.reason}`);
-  return { store, clock };
+  // A SZEMÉLY-KÉPZŐT KIADJUK (R136): a további szereplőket igénylő próbák NE másolják le ezt a négy
+  // beszúrást — egy fogalom, egy otthon (KUKA-003). A `person` ugyanazt a TELJES azonosságot képzi
+  // (alany + fiók + e-mail külső azonosító + csatorna-bizonyíték), amit a világ maga is használ.
+  return { store, clock, person };
 }
 
 probe('P-INVITE-revoke', 'R132 §2 · INVR-01 · ORG-N1a · KUKA-002 · KUKA-047 · KUKA-129',
@@ -7085,7 +7088,7 @@ probe('P-ORG-reentry-gates', 'R134 §F134-01..03 · RNV-02 · APR-01 · OON-01 �
   'A VÉGLEGESÍTÉSI KAPUK, A RÉGI HATÁSKÖR ÉS AZ EGYSZERI AJÁNLAT (a külső fél R134-es három lelete)',
   () => {
     const w = r132World();
-    const { store, clock } = w;
+    const { store, clock, person } = w;
     try {
       const state = () => membershipAsOf({ store, subjectId: 'bela', bookId: 'bk', validAt: clock.now(), knownAt: clock.now() });
       const grants = () => Number(store.get('SELECT COUNT(*) AS n FROM membership_grant').n);
@@ -7225,18 +7228,86 @@ probe('P-ORG-reentry-gates', 'R134 §F134-01..03 · RNV-02 · APR-01 · OON-01 �
       const eOk = noId.ok === false && noId.reason === 'operation_id_required'
         && reentries() === reBefore + 2;
 
-      const pass = aOk && bOk && cOk && dOk && eOk;
+      // ── (f) R136/F136-02: AZ ÚJ DELEGÁLT ALAP NEM IGAZOLJA ÚJRA A RÉGI AJÁNLATOT (AOR-01) ───
+      //
+      // MIÉRT KELL IDE. Ezt a szakaszt a SAJÁT mutációs battériám kérte ki: az M335 rontás (az
+      // eredet-kapu kivétele a beváltáson) **SURVIVED** lett — vagyis az F136-02 javítását a magban
+      // SEMMI nem védte, csak a HTTP-battéria (b7b). A nem mért nem zöld (KUKA-200).
+      //
+      // A TÖRTÉNET UGYANAZ, mint a külső fél ellenpéldájában: a kiadó az ELSŐ időszakában meghív
+      // valakit, utána a SAJÁT tagsága megszűnik és újra megszületik, majd a MÁSODIK időszakban ÚJ
+      // meghívót ad — ami ugyanazt az alap-azonosítót képzi újra. A RÉGI tokennek ettől NEM szabad
+      // feléledni; az ÚJ ajánlatnak viszont MŰKÖDNIE kell (KUKA-122: a kapu nem lehet fal).
+      clock.advance(1000);
+      person('cili', 'cili@r132.test');
+      person('hanna', 'hanna@r132.test');
+      person('iren', 'iren@r132.test');
+      const cInv = inviteColleague({
+        store, inviterSubjectId: 'anna', bookId: 'bk', inviteeEmail: 'cili@r132.test',
+        offeredRole: 'admin', scope: 'keszlet', token: 'tok_f0',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(), at: clock.now() });
+      clock.advance(1000);
+      redeemInvite({ store, token: 'tok_f0', actingSubjectId: 'cili', clock });
+      const cPeriod = () => membershipAsOf({ store, subjectId: 'cili', bookId: 'bk', validAt: clock.now(), knownAt: clock.now() }).period_grant_event_id;
+      const cP1 = cPeriod();
+      clock.advance(1000);
+      const oldOffer = inviteColleague({
+        store, inviterSubjectId: 'cili', bookId: 'bk', inviteeEmail: 'hanna@r132.test',
+        offeredRole: 'user', scope: 'keszlet', token: 'tok_f_old',
+        expiresAt: new Date(Date.parse(clock.now()) + 30 * 864e5).toISOString(), at: clock.now() });
+      clock.advance(1000);
+      revokeMembership({ store, subjectId: 'cili', bookId: 'bk', clock, actorSubjectId: 'anna' });
+      clock.advance(1000);
+      reinviteMember({
+        store, clock, deciderSubjectId: 'anna', bookId: 'bk', targetSubjectId: 'cili',
+        offeredRole: 'admin', scope: 'keszlet', token: 'tok_f1',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(),
+        operationId: 'p136-f-1' });
+      clock.advance(1000);
+      redeemInvite({ store, token: 'tok_f1', actingSubjectId: 'cili', clock });
+      const cP2 = cPeriod();
+      clock.advance(1000);
+      const newOffer = inviteColleague({
+        store, inviterSubjectId: 'cili', bookId: 'bk', inviteeEmail: 'iren@r132.test',
+        offeredRole: 'user', scope: 'keszlet', token: 'tok_f_new',
+        expiresAt: new Date(Date.parse(clock.now()) + 7 * 864e5).toISOString(), at: clock.now() });
+      clock.advance(1000);
+      const newRedeem = redeemInvite({ store, token: 'tok_f_new', actingSubjectId: 'iren', clock });
+      const mBefore = Number(store.get('SELECT COUNT(*) AS n FROM membership').n);
+      const gbBefore = Number(store.get('SELECT COUNT(*) AS n FROM grant_basis').n);
+      const oldRedeem = redeemInvite({ store, token: 'tok_f_old', actingSubjectId: 'hanna', clock });
+      const mAfter = Number(store.get('SELECT COUNT(*) AS n FROM membership').n);
+      const gbAfter = Number(store.get('SELECT COUNT(*) AS n FROM grant_basis').n);
+      const basisGens = store.all(
+        'SELECT version, origin_grant_event_id FROM authority_basis WHERE basis_id = ? ORDER BY version',
+        delegationBasisId('bk', 'cili'));
+      const fOk = cInv.ok === true && oldOffer.ok === true && newOffer.ok === true
+        && cP2 !== cP1
+        && basisGens.length === 2
+        && Number(basisGens[0].origin_grant_event_id) === Number(cP1)
+        && Number(basisGens[1].origin_grant_event_id) === Number(cP2)
+        && newRedeem.ok === true
+        && oldRedeem.ok === false
+        && oldRedeem.reason === 'basis_origin_changed'
+        && membershipAsOf({ store, subjectId: 'hanna', bookId: 'bk', validAt: clock.now(), knownAt: clock.now() }).effective === false
+        && mAfter === mBefore && gbAfter === gbBefore;
+
+      const pass = aOk && bOk && cOk && dOk && eOk && fOk;
       return {
         expected: 'a KIADÁS UTÁN keletkezett felfüggesztés a VÉGLEGESÍTÉSNÉL is zár (nevezetten, a '
           + 'token érintetlen), a feloldás után ugyanaz az ajánlat MŰKÖDIK · a RÉGI bírálati hatáskör '
           + 'az ÚJ időszakban nem végrehajtható, a történeti kérdésre viszont IGEN, és ÚJ megadás '
           + 'működik · ugyanaz a műveleti azonosság EGY ajánlatot ad, ELTÉRŐ tartalom nevezett '
-          + 'ütközés, KÜLÖN azonosság új ajánlat, az azonosság HIÁNYA nevezett elutasítás',
+          + 'ütközés, KÜLÖN azonosság új ajánlat, az azonosság HIÁNYA nevezett elutasítás · a RÉGI '
+          + 'időszakból kiadott ajánlat az ÚJ delegált alap megszületése után sem éled fel '
+          + '(`basis_origin_changed`, írásmentesen), az ÚJ időszak ajánlata viszont MŰKÖDIK',
         actual: `(a) kiadás=${offer.reason} beváltás=${blocked.reason}/${blocked.next_step} `
           + `tagság=${state().effective} · (b) feloldás után=${acc.outcome} p1=${p1} p2=${p2} · `
           + `(c) hatáskör: időszakban=${authIn.ok} új időszakban=${authAfter.reason} `
           + `történeti=${authHist.ok} új megadás=${authNew.ok} · (d) ismétlés=${once2.replayed} `
-          + `ütközés=${conflict.reason} külön azonosság=${fresh.reason} · (e) azonosság nélkül=${noId.reason}`,
+          + `ütközés=${conflict.reason} külön azonosság=${fresh.reason} · (e) azonosság nélkül=${noId.reason} · `
+          + `(f) cili p1=${cP1} p2=${cP2} eredetek=${basisGens.map((r) => `v${r.version}=${r.origin_grant_event_id}`).join(',')} `
+          + `új ajánlat=${newRedeem.ok} régi token=${oldRedeem.reason}`,
         pass,
         asserts: {
           'A-RNV2-post-issue-exclusion-blocks-at-finalization-without-consuming-the-token': aOk,
@@ -7244,6 +7315,7 @@ probe('P-ORG-reentry-gates', 'R134 §F134-01..03 · RNV-02 · APR-01 · OON-01 �
           'A-APR-old-authority-is-not-executable-in-a-new-period-but-history-holds': cOk,
           'A-OON-same-identity-yields-one-offer-and-different-content-conflicts': dOk,
           'A-OON-missing-identity-is-a-named-refusal': eOk,
+          'A-AOR-new-delegation-basis-does-not-revive-the-old-period-offer': fOk,
         },
       };
     } finally { store.close(); }

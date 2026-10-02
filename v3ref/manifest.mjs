@@ -376,6 +376,13 @@ export const EXPECTED_PROBES = Object.freeze([
       Object.freeze({ clause: 'ORG-N1a', assertion: 'A-APR-old-authority-is-not-executable-in-a-new-period-but-history-holds' }),
       Object.freeze({ clause: 'ORG-N1a', assertion: 'A-OON-same-identity-yields-one-offer-and-different-content-conflicts' }),
       Object.freeze({ clause: 'ORG-N1a', assertion: 'A-OON-missing-identity-is-a-named-refusal' }),
+      // R136/F136-02 (AOR-01) — UGYANENNEK a klauzulának az ÚJ vállalt állítása, nem új klauzula.
+      // A spec §4 a RÉGI delegálási alapok és a korábban kiadott FÜGGŐ MEGHÍVÓK feléledését egy
+      // felsorolásban tiltja; eddig a hatáskör-ág volt lekötve, a delegálási alap ága nem. A
+      // bizonyíték-kötést a SAJÁT mutációs battériám kérte ki: az M335 rontás `SURVIVED` lett,
+      // mert a magban semmi nem állította ezt (KUKA-200). Ettől az ORG-N1a továbbra sem záródik
+      // le, és a req-5 nem lép életbe.
+      Object.freeze({ clause: 'ORG-N1a', assertion: 'A-AOR-new-delegation-basis-does-not-revive-the-old-period-offer' }),
     ]),
   }),
   Object.freeze({
