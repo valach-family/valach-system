@@ -16,6 +16,89 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3099 — A LEFEDÉS BIZONYÍTÉKA DEKLARÁLT KÖTÉS, A TELJESSÉG PIROS, ÉS A MODELL TÉMÁJÁBÓL MŰVELET LESZ (R144, LEF-01 · SMP-01 · AST-08 · AST-09)
+
+> **Hatály:** V3 (`valach-system`). Nincs merge, éles telepítés, V2-módosítás, új fizetős
+> szolgáltatás, külső címzettnek levél, és nincs req-5/core/CMD/PR-zárás.
+
+**A parancs:** `CMD-VS-300-002-002 R144 — SPEC` (chatgpt-v3, 2026-10-02). Induló fej:
+`3fb0f6ab982dbea953deafe088a90e62a181428a` (az R143 leszármazottja, a kijelölt ágon).
+
+**A DÖNTÉS HÁROM TÉTELE — a külső ellenőrző fél három NEVEZETT leletére.**
+
+1. **A LEFEDÉS BIZONYÍTÉKA EXPLICIT KÖTÉS, nem az első egyező horgony (F144-01 · KUKA-286).** A
+   bemutató-kötés a FUNKCIÓ oldalán áll (`shared_tour: { tour, steps }`), és akkor ér, ha legalább
+   egy deklarált lépés VALÓDI: `task`-ot hordoz, VAGY a funkció kimondott MUNKAFELÜLETÉRE mutat
+   (`surface`) — ami nem menüpont és nem megnyitó gomb. A művelet-kötés ugyanígy deklarált
+   (`ui_actions`): a kötőjeles rész-szó-egyezés KIVEZETVE. A deklaráció MINDKÉT iránya mért: nem
+   létező bemutatóra, lépésre vagy műveletre hivatkozó tudás PIROS
+   (`declaredActionsNotInSource` · `declaredReadsNotInSource` · `how: 'declared_invalid'`).
+2. **AZ OLDALTÉRKÉP A LAP SAJÁT FELOLDÓJÁBÓL MÉRT (F144-02 · KUKA-287 · SMP-01).** A menü-szerkezet
+   a TÉNYLEGES forrásból jön (`v3app/public/texts.mjs`), az oldaltérkép népességét a súgó SAJÁT
+   feloldója adja (`sitemapPages`) — a képernyő és a mérés ugyanazt futtatja (KUKA-018). Az
+   elérhetőség HÁROM külön mért tény (menü · oldaltérkép · belépő), a hiány csak mindhárom
+   egyidejű hiányánál áll be, és a NEM MÉRT (`null`) nem azonos a HIÁNYZÓVAL (`false`).
+3. **A MODELL TÉMÁJÁBÓL MŰVELET LESZ (F144-03 · KUKA-288 · AST-08).** A felajánlás-képzés EGY
+   nevezett feloldó (`offersFor`), és KÉT hívója van: a helyi találat ÉS a modell IGAZOLT
+   forrás-listája. A HATÁR változatlan: a műveletet a FUNKCIÓ deklarálja, a modell csak a
+   funkciót VÁLASZTJA a neki ÁTADOTT, igazolt halmazból (AST-05), és minden felajánlás az
+   `acceptAction`-on megy át a MAI kontextussal, a bemutató pedig az `allowedToursFor`-on. A
+   modell így sem írhat route-ot, azonosítót vagy űrlapmezőt a kliensnek, és a felajánlás
+   ELŐKÉSZÍT, nem ment.
+
+**A TELJESSÉG ÉS A REGRESSZIÓ KÉT KÜLÖN MÉRÉS — az önmagát növelő plafon kivezetve.** A SPEC
+kikötése: *„A teljesség legyen piros, amíg alkalmazható, tényleges hiány marad."* Ezért az
+`OPEN_GAPS` / `OPEN_GAPS_CEILING` pár megszűnt (abban az alakban egy ÚJ kivétel MAGA emelte a
+plafont, tehát az őr a saját tanúja volt — KUKA-033 · KUKA-122). Helyette:
+
+- **TELJESSÉG (LT):** minden alkalmazható, tényleges hiány PIROS. Ma **20 hiány** (10 oldal ·
+  10 bemutató) — tehát a `verify:lefedes` SZÁNDÉKOSAN PIROS, és ez nem „ismert kivétel", hanem a
+  hátralévő tartalmi munka kimondása. A végső cél nulla ilyen hiány.
+- **REGRESSZIÓ (LR1 · LR2):** a `GAP_BASELINE` VÁLTOZATLAN, verziózott pillanatkép
+  (`R144-indulo`, 2026-10-02, 20 kulcs) — nem plafon és nem engedély. ÚJ hiány (`unexpected`)
+  piros; a megszűnt hiány (`dead`) is piros, hogy a javítás a pillanatképből KIKERÜLJÖN.
+- A technikai műveletek listája **34 néma sorról 2 indokolt sorra** szűkült: minden felhasználói
+  művelet (keresés, sor-megnyitás, új chat) a SZÜLŐ funkció sorában kap lefedést, de nem tűnik el
+  a vizsgálatból.
+
+**SAJÁT LELET UGYANEBBEN A KÖRBEN (AST-09 · KUKA-289).** A joghiány-eset próbáját írva mértem,
+hogy a cégbe meghívott, NEM admin tag a meghívási kérdésre SEMMIT nem kapott (`ok: false`, nulla
+hosszú válasz). A kiválasztó mostantól a KIZÁRT, de illeszkedő funkciókat is megnevezi a kizárás
+OKÁVAL (`blocked`), és ha nincs kiadható tudás-válasz, a szerver AZ OKOT adja vissza SAJÁT
+válasz-fajtával (`answer_kind: 'access'`), a nyelvcsomag `REASON` csoportjából. A kimondható okok
+listája ZÁRT (`BLOCK_REASONS_TOLD`): csak olyan ok kerül bele, amit a tudás-index végpontja
+ugyanennek a kérőnek amúgy is megmond — a chat nem fed fel újat.
+
+**AMI MEGÉPÜLT, MÉRVE.** Route-hiány 5 → **0**, művelet-hiány 7 → **0**, űrlap-hiány 1 → **0**
+(deklarált `reads` · `ui_actions` kötésekkel, nem dokumentálással). `verify:app-findings-r144`:
+**30/30** — benne a SPEC által kért negatív kontrollok (a tagság-megszüntetés kötésének
+eltávolítása PIROS akkor is, ha a meghívó- és hatáskör-visszavonás létezik; a csak
+`help-open`/`nav-members` egyezés NEM bizonyít más feladatot; a szótáras menü-bemenet 0-vs-16
+lelete reprodukálva). `verify:lefedes`: 12 zöld · 1 piros (a teljesség, 20 hiánnyal).
+
+**AMI NEM ÉPÜLT MEG, NEVESÍTVE — ez a kör NEM teljesíti az R142-t.** A SPEC hat hátralévő tétele
+közül ebben a csomagban az 1. RÉSZBEN (a mérés javítása és a route/művelet/űrlap-hiányok pótlása
+igen, a 20 tartalmi hiány NEM), a 2. · 4. · 5. · 6. pedig **NEM** épült meg: a korlátos modell →
+engedélyezett olvasó eszköz → kontextusos előnézet menet, a diós kontextusos példák és
+ellenpárjaik, a valódi többfordulós chat, és a fiókváltás/jogvesztés/késői válasz
+adat-keveredésének mérése. **Az ok KIMONDVA, nem indok:** a MÉRT kontextus-sáv a csomag közben
+átlépte a 400 ezres határt (fő-szál medián 725 999), és a `CLAUDE.md` szabálya szerint a futó
+munkablokk célzott ellenőrzéssel lezárható, a KÖVETKEZŐ önálló nagy blokk pedig friss
+beszélgetésben indul — a lezárás címén pedig nincs új feltárás vagy új funkció.
+
+**ÉS EGY KIKÖTÉS, AMI NEM TELJESÜLT — kimondva.** A SPEC azt kérte, hogy FRISS Claude-v3
+beszélgetésben folytassam, és *„az induló mérés igazolja az új munkamenetet"*. A mérő a futó
+folyamat saját azonosítóját látja (`CLAUDE_CODE_SESSION_ID`), és az AZONOS az R143-ban mérttel
+(`33dbd005…`) — tehát ez a csomag a MÉRÉS SZERINT nem új munkamenetben készült, és ezt nem
+állítom másnak. Ami ebből következik: a fenti négy tételt a következő, bizonyíthatóan friss
+beszélgetés viszi.
+
+**ELŐZMÉNY ÉS HATÁS.** A D-VS-3096/3097/3098 érvényben; ez a döntés a lefedés-mérés
+BIZONYÍTÉK-fogalmát és a felajánlás-képzés bemenetét pontosítja. Gépi jelek: `npm run verify:kuka`
+· `npm run verify:lefedes` · `npm run verify:app-findings-r144` · `npm run verify:app-findings-r142`.
+
+---
+
 ## D-VS-3098 — A HELYI TALÁLAT NEM A MODELL KAPUJA, ÉS A HASONLÓSÁG NEM DÖNT TÉMÁT (R142, AST-06 · AST-07 · TOK-01 · TOK-02)
 
 > **Hatály:** V3 (`valach-system`). Nincs merge, éles telepítés, V2-módosítás, új fizetős

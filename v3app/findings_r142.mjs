@@ -255,13 +255,17 @@ try {
     pop.route.length + pop.page.length + pop.action.length > FEATURES.length,
     { forras: pop.route.length + pop.page.length + pop.action.length, regiszter: FEATURES.length });
   const hamisOldal = COV.pageCoverage({ kind: 'page', id: 'nincs-ilyen-oldal', label: 'x', menu: null, group: null }, { features: FEATURES, tours: TOURS });
+  // A DARABSZÁM NEM ELVÁRÁS (KUKA-237): az R144-ben az elérhetőség is bekerült a hiányok közé, és a
+  // `=== 3` egy HELYESEBB mérés mellett váltott pirosra. A NEVEZETT hiányokra illesztünk.
+  const e3szoveg = hamisOldal.gaps.join(' | ');
   step('(e3) ELLENPÁR: nem létező oldalra a feloldó NEVEZETT hiányt ad, nem zöldet',
-    hamisOldal.gaps.length === 3 && hamisOldal.evidence === COV.EVIDENCE.missing,
-    { hianyok: hamisOldal.gaps.length });
+    hamisOldal.evidence === COV.EVIDENCE.missing
+    && /funkció-leírás/.test(e3szoveg) && /gyakori kérdés/.test(e3szoveg) && /bemutató/.test(e3szoveg),
+    { hianyok: hamisOldal.gaps.length, elso: hamisOldal.gaps[0] });
   step('(e4) a bemutató-lefedés LÉPÉSEN áll, nem a `tour_note` hosszán',
     inven.tourRows.some((t) => t.how === 'shared' && t.steps.length > 0)
     && inven.tourRows.every((t) => t.how !== 'shared' || t.steps.length > 0),
-    { sajat: inven.tourRows.filter((t) => t.how === 'own').length, kozos: inven.tourRows.filter((t) => t.how === 'shared').length, csak_szoveg: inven.tourRows.filter((t) => t.how === 'note_only').length });
+    { sajat: inven.tourRows.filter((t) => t.how === 'own').length, kozos: inven.tourRows.filter((t) => t.how === 'shared').length, nincs: inven.tourRows.filter((t) => t.how === 'none' || t.how === 'declared_invalid').length });
 
   // ── ÖSSZEGZÉS ───────────────────────────────────────────────────────────────────────────────
   const fail = results.filter((r) => !r.pass);

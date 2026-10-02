@@ -102,6 +102,34 @@ export function topicHtml({ row, tours, actions }) {
  * dönt jogról: megmutatja, mi érhető el, és ami nem, annál KIMONDJA az OKOT — a „miért nem látom"
  * kérdés így nem marad válasz nélkül (a KUKA-011 alakja az oldaltérképen).
  */
+/**
+ * AZ OLDALTÉRKÉP NÉPESSÉGE — EGY FELOLDÓ, KÉT HÍVÓ (R144 — SMP-01, F144-02).
+ *
+ * MIÉRT SZÜLETETT. Az R143-as lefedési mérésem a menü-csoportokat a NYELVCSOMAGBÓL olvasta, ahol
+ * azok NEM LÉTEZNEK (`hu.NAV_GROUPS === undefined`) — a tényleges forrásuk a `texts.mjs`. MÉRVE
+ * (a külső ellenőrző fél, chatgpt-v3, R144/F144-02, és itt visszamérve): a szótárral 17 oldalból
+ * **0 menütalálat**, a tényleges forrással **16**. Ráadásul a `sitemap:false` SOHA nem került a
+ * hiányok közé, tehát az oldaltérkép ellenőrzése nem volt igazolt (KUKA-051: a mérés alapsokasága
+ * nem lehet egy másik fájl emlékezete · KUKA-238: a tartalék-ágas feloldó elrejti a hibás hívást —
+ * itt a `|| []` némán ÜRES menüt adott).
+ *
+ * Ezért a lap ÉS a mérés UGYANEBBŐL kapja a népességet. Az `extra` lista is ide tartozik: az „Új
+ * fiók hozzáadása" és a két személyes lap NEM a főmenüben, hanem külön szakaszban érhető el — a
+ * valós elérési út számít, nem a főmenüben szereplés (R144/F144-02 kikötése).
+ */
+export function sitemapPages({ personal = false } = {}) {
+  const groups = personal ? NAV_PERSONAL : [...NAV_GROUPS, NAV_ADMIN];
+  const extra = personal ? [] : ['profile', 'security', 'new'];
+  const inMenu = []; const inExtra = [];
+  for (const g of groups) for (const p of g.pages) if (!inMenu.includes(p)) inMenu.push(p);
+  for (const p of extra) if (!inMenu.includes(p) && !inExtra.includes(p)) inExtra.push(p);
+  return Object.freeze({
+    menu: Object.freeze(inMenu),
+    extra: Object.freeze(inExtra),
+    all: Object.freeze([...inMenu, ...inExtra]),
+  });
+}
+
 export function sitemapHtml({ me }) {
   const personal = me && me.current_personal === true;
   const admin = me && me.current_role === 'admin';
@@ -116,7 +144,7 @@ export function sitemapHtml({ me }) {
     ? `<button type="button" data-action="help-go" data-page="${esc(p)}">${esc(PAGE[p])}</button>`
     : `<span class="muted">${esc(PAGE[p])}</span> <small>${esc(HELP.sitemapNotAvailable)} — ${esc(why || '')}</small>`}</li>`;
   };
-  const extra = personal ? [] : ['profile', 'security', 'new'];
+  const extra = [...sitemapPages({ personal }).extra];   // UGYANAZ a feloldó (SMP-01)
   return `<div data-testid="help-sitemap">
     <p class="muted">${esc(HELP.sitemapLead)}</p>
     ${groups.map((g) => `<section><h4>${esc(g.group || PAGE.overview)}</h4>

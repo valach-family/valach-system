@@ -33,11 +33,21 @@ function A(name, cond, extra = '') {
   if (!JSON_ONLY) console.log(`${cond ? 'ZÖLD ' : 'PIROS'} ${line}`);
 }
 
-let cov; let FEATURES; let TOURS; let HU;
+let cov; let FEATURES; let TOURS; let HU; let TEXTS; let HELPMOD;
 try {
   cov = await import('../v3app/knowledge/coverage.mjs');
   ({ FEATURES, TOURS } = await import('../v3app/knowledge/features.mjs'));
   HU = await import('../v3app/public/i18n/hu.mjs');
+  /**
+   * A MENÜ-CSOPORTOK ÉS AZ OLDALTÉRKÉP A TÉNYLEGES FORRÁSBÓL (R144 — F144-02).
+   *
+   * A régi alak a nyelvcsomagból kérte a `NAV_GROUPS`-ot, ahol az NEM LÉTEZIK — a nyelvcsomagban
+   * csak a csoport-FELIRATOK állnak (`NAV`), a csoport-SZERKEZET a `texts.mjs`-ben. MÉRVE: a
+   * szótárral 17 oldalból 0 menütalálat, a tényleges forrással 16. A `|| []` tartalék-ág ezt
+   * NÉMÁN üres menüvé alakította (KUKA-238), és a lefedés „javulni" látszott tőle.
+   */
+  TEXTS = await import('../v3app/public/texts.mjs');
+  HELPMOD = await import('../v3app/public/help.mjs');
 } catch (e) {
   console.error('ELAKADT MÉRÉS: a regiszterek nem olvashatók. Ok:', e && e.message);
   process.exit(2);
@@ -64,9 +74,16 @@ const population = cov.populationFrom({
   serverSource,
   uiSources: uiSources.map((x) => x.src),
   pageLabels: dict.PAGE,
-  navGroups: dict.NAV_GROUPS,
-  navAdmin: dict.NAV_ADMIN,
-  navPersonal: dict.NAV_PERSONAL,
+  navGroups: TEXTS.NAV_GROUPS,
+  navAdmin: TEXTS.NAV_ADMIN,
+  navPersonal: TEXTS.NAV_PERSONAL,
+  // AZ OLDALTÉRKÉP NÉPESSÉGE A LAP SAJÁT FELOLDÓJÁBÓL (SMP-01): üzleti ÉS személyes nézet együtt —
+  // egy oldal akkor is elérhető, ha csak a személyes menüben áll.
+  sitemap: (() => {
+    const u = HELPMOD.sitemapPages({ personal: false });
+    const sz = HELPMOD.sitemapPages({ personal: true });
+    return { all: [...new Set([...u.all, ...sz.all])] };
+  })(),
 });
 const inv = cov.inventory({ population, features: FEATURES, tours: TOURS });
 
@@ -127,15 +144,23 @@ if (SELFTEST) {
    * lefedetlen képesség), egy halott rögzítés pedig azt jelenti, hogy a lista nem követte a
    * javítást. A kettőt soha nem mossuk össze — és a lista MÉRETE plafon (KUKA-012).
    */
-  A('(L2) NINCS olyan hiány, ami ne lenne NEVESÍTVE a nyitott halmazban',
+  /**
+   * KÉT KÜLÖN VERDIKT (R144 — F144-01(c)): a TELJESSÉG és a REGRESSZIÓ nem ugyanaz a kérdés, és a
+   * második soha nem teheti zölddé az elsőt. Az R143-as alakom összemosta őket egy önmagát növelő
+   * plafonnal — attól egy huszonegy hiányos lefedés is zöld volt.
+   */
+  A('(LT) TELJESSÉG: nincs egyetlen valódi, alkalmazható lefedési hiány sem',
+    inv.gapKeys.length === 0,
+    inv.gapKeys.length
+      ? `${inv.gapKeys.length} hiány — a cél NULLA. Soronként lentebb; a regresszió-irány külön áll (LR1/LR2).`
+      : 'nulla hiány');
+  A('(LR1) REGRESSZIÓ: nem jelent meg olyan hiány, ami a(z) ' + cov.GAP_BASELINE.version + ' alapvonalban nem volt',
     inv.unexpected.length === 0,
-    inv.unexpected.length ? `${inv.unexpected.length} nem deklarált: ${inv.unexpected.join(' · ')}` : `${inv.gapKeys.length} hiány, mind nevesítve`);
-  A('(L3) NINCS HALOTT rögzítés: amit megjavítottunk, az ki is került a listáról',
+    inv.unexpected.length ? `${inv.unexpected.length} ÚJ: ${inv.unexpected.join(' · ')}` : `${inv.gapKeys.length} hiány, mind örökölt`);
+  A('(LR2) REGRESSZIÓ: amit megjavítottunk, az ki is került az alapvonalból (nincs HALOTT sor)',
     inv.dead.length === 0,
-    inv.dead.length ? `${inv.dead.length} halott sor — vedd ki a OPEN_GAPS-ból: ${inv.dead.join(' · ')}` : 'nincs halott sor');
-  A('(L4) a nyitott hiányok száma nem NŐTT a deklarált plafon fölé',
-    inv.gapKeys.length <= cov.OPEN_GAPS_CEILING,
-    `${inv.gapKeys.length} / plafon ${cov.OPEN_GAPS_CEILING}`);
+    inv.dead.length ? `${inv.dead.length} halott sor — vedd ki a GAP_BASELINE.keys-ből: ${inv.dead.join(' · ')}` : 'nincs halott sor');
+
   // ÉS A FAJTÁNKÉNTI ÁLLAPOT KIÍRVA — a nyitott halmaz nem elrejti, hogy MI maradt (KUKA-093).
   const cimek = { route: 'végpont', page: 'oldal', action: 'művelet', form: 'űrlap', authview: 'belépési nézet' };
   for (const k of cov.KINDS) {
@@ -156,13 +181,16 @@ if (SELFTEST) {
   // feloldó NEVEZETT hiányt kell adjon. Ha ez zöld, az őr dísz.
   const hamis = cov.pageCoverage({ kind: 'page', id: 'nincs-ilyen-oldal-sehol', label: 'x', menu: null, group: null },
     { features: FEATURES, tours: TOURS });
+  // A DARABSZÁM NEM ELVÁRÁS (KUKA-237): az első alakom `gaps.length === 3`-ra illesztett, és az
+  // F144-02 javítása (az elérhetőség bekerült a hiányok közé) PIROSRA vitte egy HELYESEBB mérés
+  // mellett. A próba azt mérje, hogy a NEVEZETT hiányok ott vannak-e, ne azt, hogy hányan vannak.
+  const hamisSzoveg = hamis.gaps.join(' | ');
   A('(L8) ELLENPÁR: egy nem létező oldalra a feloldó NEVEZETT hiányt ad',
-    hamis.gaps.length === 3 && hamis.evidence === cov.EVIDENCE.missing,
+    hamis.evidence === cov.EVIDENCE.missing
+    && /funkció-leírás/.test(hamisSzoveg) && /gyakori kérdés/.test(hamisSzoveg)
+    && /bemutató/.test(hamisSzoveg) && /nem érhető el/.test(hamisSzoveg),
     `hiányok=${hamis.gaps.length} szint=${hamis.evidence}`);
 
-  // (L9) ÉS A HÁZTARTÁSI KIVÉTEL NEVEZETT, NEM NÉMA: a listán szereplő művelet nem „fedett", hanem
-  // KIMONDOTTAN kivett — a kettő nem ugyanaz (KUKA-012).
-  const hk = cov.actionCoverage({ kind: 'action', id: 'panel-close' }, { features: FEATURES });
   /**
    * (L5)–(L6) AZ ELLENPÁROK — a VALÓDI feloldót hívják, kitalált bemenettel (KUKA-092 · KUKA-068).
    * Ha ezek zöldek egy rontott bemenetre, akkor az L2/L3 dísz, nem védelem.
@@ -176,9 +204,40 @@ if (SELFTEST) {
     r2.dead.length === 1 && r2.dead[0] === 'page:mar-nincs-hiany' && r2.unexpected.length === 0,
     JSON.stringify({ unexpected: r2.unexpected, dead: r2.dead }));
 
-  A('(L9) a háztartási művelet KIMONDOTTAN kivett, nem némán fedett',
-    hk.housekeeping === true && hk.features.length === 0 && hk.gaps.length === 0,
-    `housekeeping=${hk.housekeeping}`);
+  // (L9)–(L12) A MŰVELET- ÉS BEMUTATÓ-KÖTÉS MINDKÉT IRÁNYA (R144 — F144-01).
+  const tech = cov.actionCoverage({ kind: 'action', id: 'panel-close' }, { features: FEATURES });
+  A('(L9) a TISZTÁN TECHNIKAI művelet kimondva kivett, INDOKKAL — nem némán fedett',
+    tech.technical === true && tech.features.length === 0 && tech.gaps.length === 0
+    && typeof tech.why === 'string' && tech.why.length > 10,
+    `technical=${tech.technical} indok=${String(tech.why).slice(0, 60)}`);
+  const hamisOlvasas = cov.declaredReadsNotInSource(FEATURES, population.route);
+  A('(L13) nincs olyan DEKLARÁLT támogató olvasás, ami a route-táblában nem létezik',
+    hamisOlvasas.length === 0, hamisOlvasas.length ? hamisOlvasas.join(' · ') : `${population.route.length} végpont mérve`);
+  const hamisKotes = cov.declaredActionsNotInSource(FEATURES, population.action);
+  A('(L10) nincs olyan DEKLARÁLT művelet, ami a forrásban nem létezik (elírás · kivezetett gomb)',
+    hamisKotes.length === 0, hamisKotes.length ? hamisKotes.join(' · ') : `${population.action.length} művelet mérve`);
+  /**
+   * (L11) ELLENPÁR a MŰVELET-kötésre — a SPEC által kért negatív kontroll (R144/F144-01):
+   * „a tényleges tagságmegszüntetési kötés eltávolítása legyen piros akkor is, ha meghívó- és
+   * hatáskör-visszavonás létezik". Az R143-as rész-szó-egyezés itt ZÖLD maradt (mérve).
+   */
+  const nelkule = FEATURES.filter((f) => f.id !== 'members.revoke');
+  const r11 = cov.actionCoverage({ kind: 'action', id: 'revoke' }, { features: nelkule });
+  A('(L11) ELLENPÁR: a tagság-megszüntetés kötése nélkül a `revoke` HIÁNY — a meghívó- és '
+    + 'hatáskör-visszavonás NEM bizonyít más feladatot',
+    r11.gaps.length === 1 && r11.features.length === 0,
+    `gaps=${r11.gaps.length} fedi=${JSON.stringify(r11.features)}`);
+  /**
+   * (L12) ELLENPÁR a BEMUTATÓ-kötésre: a MENÜPONTRA mutató, task nélküli lépés nem bizonyít —
+   * ez volt az R143 három hamis pozitívjának a közös alakja (help-open · nav-members · levélablak).
+   */
+  const hamisTura = cov.tourCoverage(
+    { id: 'proba.feature', tour: null, entry: 'nav-members', anchors: ['nav-members'],
+      surface: 'proba-munkafelulet', shared_tour: { tour: 'tour.invite', steps: ['s1'] } },
+    { tours: TOURS });
+  A('(L12) ELLENPÁR: a MENÜPONTRA mutató, task nélküli lépés nem fedi a funkciót',
+    hamisTura.how === 'declared_invalid' && hamisTura.problems.length > 0,
+    `how=${hamisTura.how} indok=${String(hamisTura.problems[0] || '').slice(0, 70)}`);
 
   console.log(`\nZÖLD=${green.length} · PIROS=${red.length}`);
   console.log(`Gépi alak: ${jsonPath}`);

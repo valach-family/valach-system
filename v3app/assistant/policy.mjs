@@ -44,6 +44,15 @@ export const LIMITS = Object.freeze({
 /** A TALÁLAT MINIMUMA — egyetlen, a leírás testében elkapott szó nem találat (lásd `selectKnowledge`). */
 export const MIN_SCORE = 3;
 
+/**
+ * AZOK A KIZÁRÁSI OKOK, AMIKET A SEGÉD KIMONDHAT (AST-09). Mindegyikre igaz, hogy a tudás-index
+ * végpontja ugyanennek a kérőnek MÁR MA is megmondja — tehát a chat nem fed fel újat. A `retired`
+ * SZÁNDÉKOSAN nincs itt: annak saját útja van (`replaced_by`), és nem jog-kérdés.
+ */
+export const BLOCK_REASONS_TOLD = Object.freeze([
+  'admin_required', 'not_a_member', 'workspace_required', 'personal_space', 'login_required',
+]);
+
 /** A funkció-állapotok, amikről a segéd KÉSZ szolgáltatásként beszélhet. */
 export const TEACHABLE_STATUS = Object.freeze(['working', 'demo']);
 
@@ -619,6 +628,32 @@ export function selectKnowledge({ question, dictionary, ctx = {}, top = LIMITS.k
   const FAQ = (dictionary && dictionary.FAQ) || {};
   const SEARCH = (dictionary && dictionary.SEARCH) || {};
   const scored = [];
+  /**
+   * AST-09 — A NEMLEGES VÁLASZ VIGYE A VALÓDI OKOT (R144, SAJÁT LELET a joghiány-próbán).
+   *
+   * A LELET. A nem admin CÉGES tag a „Hogyan hívok meg valakit?" kérdésre SEMMIT nem kapott:
+   * `ok: false`, nulla hosszú válasz. A meghívás ADMIN-művelet, ezért a funkció ki van zárva a
+   * látható halmazból — a kérdésre viszont van IGAZ válasz: „Ehhez a művelethez fiókkezelői
+   * jogosultság kell." A hallgatás zsákutca (KUKA-201: a nemleges válasz vigye a MŰKÖDŐ
+   * folytatást · R142 §8: „miért nem érem el / mi hiányzik").
+   *
+   * AMIT EZ NEM FED FEL: semmit, amit a rendszer ne mondana el ugyanennek az embernek. A
+   * tudás-index végpontja egy KONKRÉT funkcióra MÁR MA is `ok: false` + NEVEZETT okot ad
+   * ugyanebben a szerepkörben — tehát a funkció LÉTE és a kizárás OKA nem titok. A szöveg a
+   * nyelvcsomag `REASON` csoportjából jön (nincs új kulcs, nincs beégetett felirat).
+   */
+  const blocked = [];
+  for (const row of visibleFeaturesFor(ctx)) {
+    if (row.visible) continue;
+    if (!BLOCK_REASONS_TOLD.includes(row.why)) continue;
+    const text = KB[row.feature.id] || {};
+    const keys = tokensOf(SEARCH[row.feature.id] || '');
+    const title = tokensOf(text.title || '');
+    let sc = 0;
+    for (const w of words) { if (wordHit(w, title)) sc += 4; else if (wordHit(w, keys)) sc += 3; }
+    if (sc >= MIN_SCORE) blocked.push({ feature: row.feature.id, why: row.why, score: sc });
+  }
+  blocked.sort((a, b) => (b.score - a.score) || a.feature.localeCompare(b.feature));
   for (const { feature } of visible) {
     const text = KB[feature.id] || {};
     const faqText = (feature.faq || []).map((id) => { const e = FAQ[id] || {}; return `${e.q || ''} ${e.a || ''}`; }).join(' ');
@@ -712,6 +747,8 @@ export function selectKnowledge({ question, dictionary, ctx = {}, top = LIMITS.k
      * találat. A szerver EBBŐL dönti el, kell-e modell-oldali értelmezés — nem a találat-számból.
      */
     confidence: picked.length ? (picked.some((p) => p.confidence === 'exact') ? 'exact' : 'weak') : 'none',
+    // A KIZÁRT, de ILLESZKEDŐ funkciók — nevezett okkal, VÉGES számban (AST-09).
+    blocked: Object.freeze(blocked.slice(0, 2).map((b) => Object.freeze({ feature: b.feature, why: b.why }))),
     /**
      * A KORLÁTOS CAPABILITY-INDEX (AST-06): a kérőre ELÉRHETŐ képességek FEJLÉCE — azonosító, cím,
      * állapot, verzió. TÖRZS NÉLKÜL. Ez az, amit a modell akkor is megkap, ha a helyi keresés nem
@@ -739,15 +776,71 @@ export function selectKnowledge({ question, dictionary, ctx = {}, top = LIMITS.k
  * mondatai, a FORRÁSA (funkció + verzió), és — ha van — engedélyezett folytatás. Ha nincs találat,
  * azt KIMONDJA (`assistant_no_knowledge`), nem talál ki választ (KUKA-050).
  */
-export function localAnswer({ selection, dictionary, ctx = {} }) {
+/**
+ * AST-08 — A FELAJÁNLÁSOK EGY FELOLDÓBÓL, ÉS A MODELL VÁLASZTÁSÁRA IS (R144 — F144-03, MÉRVE).
+ *
+ * A LELET, AMIT EZ LEZÁR. A külső ellenőrző fél (chatgpt-v3, R144/F144-03) szintetikus providerrel
+ * megmérte, és itt karakterre visszamértem: a kínai meghívási kérdésre a szerver
+ * `answer_kind: 'model_blocks'`, `sources: ['invite.send']` választ adott — **`actions: []`**.
+ * Ugyanarra a funkcióra a magyar parafrázis MEGKAPTA az előkészítő gombot és a bemutatót. Az ok: a
+ * gombokat KIZÁRÓLAG a HELYI találatból képeztük (`local.actions`), tehát nulla helyi találatnál
+ * nem volt gomb — a modell jogszerűen megtalálta a tudást, a felhasználó mégsem tudott vele mit
+ * tenni (KUKA-011 alakja a segéden: amit nem lehet megnyomni, az nincs · KUKA-025: a mentéshez út
+ * is kell).
+ *
+ * A MAI SZABÁLY. A felajánlás-képzés EGY feloldó, és KÉT hívója van: a helyi találat és a modell
+ * IGAZOLT forrás-listája. Amit ez a feloldó SOHA nem tesz:
+ *   · nem fogad el a modelltől route-ot, művelet-azonosítót vagy űrlap-mezőt — a műveletet a
+ *     FUNKCIÓ deklarálja (`FEATURES.action`), a modell csak a FUNKCIÓT választja ki, és azt is
+ *     csak az ÁTADOTT, igazolt halmazból (AST-05);
+ *   · nem dönt jogról: minden felajánlás az `acceptAction`-on megy át a MAI kontextussal (friss
+ *     szerveroldali jogosultság), a bemutató pedig az `allowedToursFor`-on;
+ *   · nem ír és nem ment: `writes: false` minden műveletnél, a mentés a felhasználóé.
+ *
+ * ÉS EGY MÁSODIK, EDDIG NÉMA HIBA UGYANITT: a bemutató-felajánlás eddig NEM ment át az
+ * `allowedToursFor` kapun — tehát a segéd olyan bemutatót is felkínálhatott, amit a mai nézetben
+ * nem lehet elindítani (`requires_demo` · `requires_invite` · `requires_anonymous`). Most átmegy.
+ */
+export function offersFor({ rows, dictionary, ctx = {} }) {
   const HELPT = (dictionary && dictionary.HELP) || {};
   const CHATT = (dictionary && dictionary.CHAT) || {};
+  const tourOk = allowedToursFor(ctx);
+  const out = [];
+  const latott = new Set();
+  for (const row of rows || []) {
+    // A SORBÓL CSAK AZ AZONOSÍTÓ KELL: a szerződést a REGISZTER adja, nem a hívó (és nem a modell).
+    const f = FEATURES.find((x) => x.id === (row && (row.id || row.feature)));
+    if (!f) continue;
+    const ai = f.ai || {};
+    const prepareAction = String(f.action || '').startsWith('prepare.');
+    const mayPrepare = ai.prepare === true && prepareAction;
+    const mayOpen = ai.open === true && !prepareAction;
+    if (f.action && (mayPrepare || mayOpen)) {
+      const acc = acceptAction(f.action, ctx);
+      const kulcs = `a:${f.action}`;
+      if (acc.ok && !latott.has(kulcs)) {
+        latott.add(kulcs);
+        out.push({ ...acc.action, label: (mayPrepare ? CHATT.prepareAction : CHATT.openAction) || 'open', feature: f.id });
+      }
+    }
+    if (f.tour && ai.explain === true && tourOk.includes(f.tour)) {
+      const kulcs = `t:${f.tour}`;
+      if (!latott.has(kulcs)) {
+        latott.add(kulcs);
+        out.push({ id: null, kind: 'tour', tour: f.tour, label: HELPT.startTour || 'tour', feature: f.id });
+      }
+    }
+  }
+  return out;
+}
+
+export function localAnswer({ selection, dictionary, ctx = {} }) {
+  const HELPT = (dictionary && dictionary.HELP) || {};
   if (!selection || (!selection.features.length && !selection.faq.length)) {
     return { ok: false, reason: 'assistant_no_knowledge', kind: 'local', sources: [], actions: [] };
   }
   const parts = [];
   const sources = [];
-  const actions = [];
   for (const f of selection.features) {
     const t = f.text || {};
     if (t.purpose) parts.push(t.purpose);
@@ -757,20 +850,9 @@ export function localAnswer({ selection, dictionary, ctx = {} }) {
     // kész szolgáltatásként nem tanítunk (R89 §3).
     if (f.status === 'demo' && HELPT.statusDemoNote) parts.push(HELPT.statusDemoNote);
     if (f.status === 'planned' && HELPT.statusPlannedNote) parts.push(HELPT.statusPlannedNote);
-    // A FUNKCIÓ SAJÁT AI-SZERZŐDÉSE DÖNT (R89 §6: minden funkciónál magyarázat/megnyitás/előkészítés
-    // VAGY indokolt „nincs AI-művelet"). A korábbi alakom ezt ÁTLÉPTE: a jelszó-változtatás
-    // (`open: false`) mellé is odatette a „Belépés és biztonság" gombot — a szerződés a
-    // REGISZTERBEN élt, a KÓDBAN nem (KUKA-038).
-    const ai = f.ai || {};
-    const prepareAction = String(f.action || '').startsWith('prepare.');
-    const mayPrepare = ai.prepare === true && prepareAction;
-    const mayOpen = ai.open === true && !prepareAction;
-    if (f.action && (mayPrepare || mayOpen)) {
-      const acc = acceptAction(f.action, ctx);
-      if (acc.ok) actions.push({ ...acc.action, label: (mayPrepare ? CHATT.prepareAction : CHATT.openAction) || 'open', feature: f.id });
-    }
-    if (f.tour && ai.explain === true) actions.push({ id: null, kind: 'tour', tour: f.tour, label: HELPT.startTour || 'tour', feature: f.id });
   }
+  // A FELAJÁNLÁSOK A KÖZÖS FELOLDÓBÓL (AST-08) — ugyanaz a szerződés, mint a modell választásánál.
+  const actions = offersFor({ rows: selection.features, dictionary, ctx });
   for (const hit of selection.faq.slice(0, 2)) { parts.push(hit.a); sources.push({ faq: hit.id }); }
   let answer = parts.join(' ');
   let truncated = false;

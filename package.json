@@ -48,6 +48,7 @@
     "verify:app-findings-r132": "node v3app/findings_r132.mjs",
     "verify:app-findings-r134": "node v3app/findings_r134.mjs",
     "verify:app-findings-r142": "node v3app/findings_r142.mjs",
+    "verify:app-findings-r144": "node v3app/findings_r144.mjs",
     "verify:lefedes": "node tools/v3_funkcio_leltar.mjs --selftest",
     "meres:lefedes": "node tools/v3_funkcio_leltar.mjs",
     "verify:app-selfcheck": "node v3app/selfcheck.mjs",

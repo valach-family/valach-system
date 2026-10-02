@@ -49,38 +49,39 @@ export const KINDS = Object.freeze(['route', 'page', 'action', 'form', 'authview
 export const FLOOR = Object.freeze({ route: 32, page: 17, action: 42, form: 6, authview: 3 });
 
 /**
- * A NYITOTT HIÁNYOK DEKLARÁLT HALMAZA — PLAFON, AMI CSAK CSÖKKENHET (R142, LEF-01).
+ * A REGRESSZIÓ-ALAPVONAL — FIX, NEVESÍTETT, ÉS NEM A TELJESSÉG MÉRCÉJE (R144 — F144-01(c)).
  *
- * MIÉRT VAN, ÉS MIÉRT NEM EGYSZERŰEN PIROS A SÖPRÉS. Az R142 kikötése: „ha egy valódi oldal/művelet
- * hiányzik a tudásból … legyen piros". Ez helyes — de egy KRÓNIKUSAN piros söprés elveszti a
- * jelzés-értékét, és a következő kör már nem tudja megmondani, hogy egy ÚJ hiány keletkezett-e, vagy
- * csak a régi lista áll még (ugyanaz a baj, amiért a zöld battéria sem bizonyít: KUKA-092 fordítva).
+ * MI VOLT A BAJ. Az R143-as alakom `OPEN_GAPS_CEILING = OPEN_GAPS.length` volt: a plafon ÖNMAGÁT
+ * növelte, mert egy új kivétel felvétele egyszerre emelte a listát ÉS a plafont. A külső ellenőrző
+ * fél (chatgpt-v3, R144) ezt nevezte meg: „Az ismert eltéréseket engedő regresszióőr nem azonos a
+ * teljességvizsgálattal." Igaza van: a zöld őr azt a látszatot adta, hogy a lefedés rendben van,
+ * miközben huszonegy valódi hiány állt (KUKA-041 alakja a mérőn).
  *
- * Ezért a repó SAJÁT alakját követjük (a `guardHome.js` `vs`-padlója): a MA nyitott hiányok
- * NEVESÍTVE itt állnak, és az őr MINDKÉT IRÁNYBAN mér:
- *   · egy hiány, ami NINCS ezen a listán → PIROS (visszacsúszás vagy új, lefedetlen képesség);
- *   · egy listán álló tétel, aminek MÁR NINCS hiánya → PIROS (HALOTT rögzítés, ki kell venni);
- *   · a lista MÉRETE plafon: nőni nem szabad.
- * Így a hiány nem néma, a söprés nem krónikusan piros, és a lista maga a „mi maradt" jegyzéke —
- * ami a következő csomag munkája (ugyanaz az elv, mint a KUKA-012: a kimondott hiány nem hiba).
+ * A MAI SZABÁLY — KÉT KÜLÖN VERDIKT, SOHA NEM ÖSSZEMOSVA:
+ *   · **TELJESSÉG**: PIROS, amíg EGY valódi, alkalmazható hiány is van. Nincs kivétel-lista, nincs
+ *     plafon. A cél NULLA hiány. Ezt a `verify:lefedes` külön állítása mondja ki.
+ *   · **REGRESSZIÓ**: az alábbi alapvonal FIX szöveges verzióhoz van kötve (nem a lista hosszához),
+ *     és csak egyet mér: jelent-e meg OLYAN hiány, ami ekkor még nem volt. Ez diagnosztika —
+ *     megmondja, hogy egy piros ÚJ-e vagy örökölt —, és SOHA nem tesz zölddé egy hiányos lefedést.
  *
- * AMIT EZ NEM: nem felmentés. Egy tétel innen CSAK úgy kerülhet ki, hogy a hiányt MEGSZÜNTETTÜK —
- * a lista szerkesztése önmagában pirosra vinné az őrt.
+ * Az alapvonal szerkesztése önmagában NEM javítás: a teljesség tőle nem lesz zöld.
  */
-export const OPEN_GAPS = Object.freeze([
-  // OLDAL — hatnak nincs leírása, GYIK-je és bemutatója sem; négynek csak bemutatója nincs.
-  'page:account', 'page:documents', 'page:movements', 'page:partners', 'page:personal',
-  'page:processes', 'page:products', 'page:security', 'page:stockcard', 'page:warehouses',
-  // VÉGPONT — támogató olvasások, amikre egyetlen funkció-leírás `authority.endpoint`-ja sem mutat.
-  'route:GET /api/assistant/status', 'route:GET /api/data/document-full',
-  'route:GET /api/invites/observe', 'route:GET /api/invites/waiting', 'route:POST /api/invites/pending',
-  // BEMUTATÓ — csak indok-szöveggel áll (az R142 óta ez NEM teljesítés).
-  'tour:auth.login', 'tour:auth.logout', 'tour:auth.resend',
-  'tour:data.documentSample', 'tour:data.supplierSample', 'tour:shell.sample_pages',
-]);
-
-/** A nyitott hiányok PLAFONJA — a mai mért darabszám. Nőni nem szabad. */
-export const OPEN_GAPS_CEILING = OPEN_GAPS.length;
+export const GAP_BASELINE = Object.freeze({
+  version: 'R144-indulo',
+  at: '2026-10-02',
+  note: 'az R144 SPEC beérkezésekor MÉRT hiány-halmaz — a javított (nem hamis pozitívos) mérés szerint',
+  keys: Object.freeze([
+    // OLDAL — hatnak nincs leírása, GYIK-je és bemutatója sem; négynek csak bemutatója nincs.
+    'page:account', 'page:documents', 'page:movements', 'page:partners', 'page:personal',
+    'page:processes', 'page:products', 'page:security', 'page:stockcard', 'page:warehouses',
+    // VÉGPONT — AZ R144-BEN MEGSZÜNTETVE (a `reads` deklarációval), ezért innen KIKERÜLT. A sorok
+    // törlése önmagában nem javítás: az `LR2` állítás PIROS lenne, ha a hiány még állna.
+    // BEMUTATÓ — a JAVÍTOTT mérés szerint (az R143-as négy hamis „shared" is ide került).
+    'tour:account.personal', 'tour:auth.login', 'tour:auth.logout', 'tour:auth.resend',
+    'tour:auth.verify', 'tour:data.documentSample', 'tour:data.supplierSample',
+    'tour:shell.assistant', 'tour:shell.profile', 'tour:shell.sample_pages',
+  ]),
+});
 
 const uniq = (a) => [...new Set(a)];
 
@@ -148,16 +149,40 @@ export function authViewsFrom(sources) {
  * A MENÜ-CSOPORT is jön: a lefedési sor meg tudja mondani, HOL találja a felhasználó az oldalt, és
  * hogy a menüből egyáltalán elérhető-e (a `new` például külön belépőből is nyílik).
  */
-export function pagesFrom({ pageLabels, navGroups = [], navAdmin = null, navPersonal = [] }) {
+export function pagesFrom({ pageLabels, navGroups = [], navAdmin = null, navPersonal = [], sitemap = null, uiSources = [] }) {
   const inMenu = new Map();
-  const add = (group, pages, which) => { for (const p of pages || []) inMenu.set(p, { group: group || null, menu: which }); };
+  const add = (group, pages, which) => { for (const p of pages || []) if (!inMenu.has(p)) inMenu.set(p, { group: group || null, menu: which }); };
   for (const g of navGroups) add(g.group, g.pages, 'business');
   if (navAdmin) add(navAdmin.group, navAdmin.pages, 'admin');
   for (const g of navPersonal) add(g.group, g.pages, 'personal');
+  /**
+   * AZ ELÉRHETŐSÉG HÁROM KÜLÖN TÉNY (R144 — F144-02). A régi alak EGYET mért (benne van-e a
+   * menüben), és abból vont következtetést az oldaltérképre — ráadásul a menü-listát a NYELVCSOMAGBÓL
+   * kérte, ahol nincs is (mérve: 0 menütalálat 17 oldalon). A SPEC kikötése: „A külön belépőből
+   * elérhető `new` oldal nem lesz hibás pusztán attól, hogy nincs főmenüben; a valós elérési út
+   * számít. A menüben szereplés önmagában sem bizonyít működő oldaltérkép-linket."
+   *
+   * Ezért három MÉRT tény, soha nem összemosva:
+   *   · `menu`    — benne van-e valamelyik menü-csoportban (és melyikben);
+   *   · `sitemap` — benne van-e a SÚGÓ oldaltérképének népességében (ezt a `help.mjs` SAJÁT
+   *     feloldója adja — `sitemapPages`, SMP-01 —, tehát a mérés nem tud elcsúszni a lapétól);
+   *   · `entry`   — van-e rá a felületen belépő (`data-go="<oldal>"`), a menün kívül is.
+   * Az oldal akkor ELÉRHETETLEN, ha mindhárom hiányzik.
+   */
+  const smp = sitemap && Array.isArray(sitemap.all) ? new Set(sitemap.all) : null;
+  const goTargets = new Set();
+  for (const src of uiSources) {
+    const re = /data-go="([a-z]+)"/g;
+    let m;
+    while ((m = re.exec(String(src || ''))) !== null) goTargets.add(m[1]);
+  }
   return Object.keys(pageLabels || {}).map((id) => ({
     kind: 'page', id, label: pageLabels[id],
     menu: inMenu.has(id) ? inMenu.get(id).menu : null,
     group: inMenu.has(id) ? inMenu.get(id).group : null,
+    // `null` = nem MÉRTÜK (nem adtak oldaltérkép-népességet) — ez NEM azonos a `false`-szal (KUKA-093).
+    sitemap: smp ? smp.has(id) : null,
+    entry: goTargets.has(id),
   }));
 }
 
@@ -183,10 +208,10 @@ export function gapVerdict(gapKeys, declared) {
 }
 
 /** A TELJES NÉPESSÉG EGY HÍVÁSBAN — a riport és az őr UGYANEZT kapja (KUKA-039). */
-export function populationFrom({ serverSource, uiSources, pageLabels, navGroups, navAdmin, navPersonal }) {
+export function populationFrom({ serverSource, uiSources, pageLabels, navGroups, navAdmin, navPersonal, sitemap }) {
   return Object.freeze({
     route: Object.freeze(routesFrom(serverSource)),
-    page: Object.freeze(pagesFrom({ pageLabels, navGroups, navAdmin, navPersonal })),
+    page: Object.freeze(pagesFrom({ pageLabels, navGroups, navAdmin, navPersonal, sitemap, uiSources })),
     action: Object.freeze(actionsFrom(uiSources)),
     form: Object.freeze(formsFrom(uiSources)),
     authview: Object.freeze(authViewsFrom(uiSources)),
@@ -210,16 +235,29 @@ export function pageCoverage(page, { features, tours }) {
   const anchors = new Set(own.flatMap((f) => f.anchors || []));
   const touring = Object.values(tours).filter((t) => (t.steps || []).some((s) => s.target === `nav-${page.id}` || anchors.has(s.target))
     || t.page === page.id);
+  /**
+   * AZ ELÉRHETŐSÉG MOST MÁR A HIÁNYOK KÖZÉ IS BEKERÜL (R144 — F144-02). A régi alak kiírta a
+   * `sitemap` mezőt, de SOHA nem tette a `gaps`-be — tehát az oldaltérkép ellenőrzése nem volt
+   * igazolt: egy elérhetetlen oldal is zöldnek látszott (KUKA-012: a kimondatlan hiány néma).
+   * A három tény külön szerepel, és a hiány CSAK akkor áll be, ha MINDHÁROM út hiányzik.
+   * A NEM MÉRT (`null`) oldaltérkép nem „hiányzik": azt nevezetten kimondjuk.
+   */
+  const elerheto = page.menu !== null || page.sitemap === true || page.entry === true;
+  const smpMert = page.sitemap !== null && page.sitemap !== undefined;
   return {
     kind: 'page', id: page.id, label: page.label, menu: page.menu, group: page.group,
     screen_feature: own.length ? own.map((f) => f.id) : [],
     faq: uniq(faq),
     tour: touring.map((t) => t.id),
-    sitemap: page.menu !== null,
+    sitemap: page.sitemap ?? null,
+    entry: page.entry === true,
+    reachable: elerheto,
     gaps: [
       ...(own.length ? [] : ['nincs funkció-leírás erre a képernyőre (FEATURES.screen)']),
       ...(faq.length ? [] : ['nincs hozzá kötött gyakori kérdés']),
       ...(touring.length ? [] : ['nincs bemutató, ami ezt az oldalt érinti']),
+      ...(elerheto ? [] : ['az oldal SEHONNAN nem érhető el: nincs a menüben, nincs az oldaltérképen, és nincs rá belépő']),
+      ...(smpMert ? [] : ['az oldaltérkép-népesség NEM volt megmérve (a hívó nem adta át) — ez nem hiány, hanem ELAKADT MÉRÉS']),
     ],
     evidence: own.length ? EVIDENCE.source : EVIDENCE.missing,
   };
@@ -234,56 +272,79 @@ export function pageCoverage(page, { features, tours }) {
  * beszél. Azt NEM állítja, hogy a gomb rossz: lehet, hogy a tudásnak nincs is róla mondandója (a
  * `panel-close` ilyen). Ezért a modul a HÁZTARTÁSI műveleteket NEVEZETTEN kiveszi, nem némán.
  */
-export const HOUSEKEEPING_ACTIONS = Object.freeze([
-  // Ezek a felület SAJÁT kezelő-mozdulatai: nem üzleti képességek, hanem a panel/súgó/bemutató
-  // nyitása-zárása és a lista-kezelés. A tudásnak nincs róluk külön mondandója, és ezt KIMONDJUK —
-  // a néma kihagyás ugyanaz a hazugság, mint a néma felülírás (KUKA-012).
-  'panel-close', 'help-close', 'help-open', 'help-view', 'help-topic', 'help-go', 'faq-open',
-  'clear-search', 'row-open', 'member-open', 'members-tab', 'nav-close', 'dismiss-after-create',
-  'tour-start', 'tour-next', 'tour-back', 'tour-exit', 'tour-finish', 'tour-restart', 'tour-skip',
-  'unsaved-keep', 'unsaved-discard', 'reload-stock', 'reload-price', 'mail-refresh',
-  'chat-new', 'chat-clear', 'chat-suggest', 'chat-do',
-  'invite-revoke-start', 'revoke-start', 'reinvite-start', 'invite-open', 'invite-from-create',
+/**
+ * A TISZTÁN TECHNIKAI MŰVELETEK — KIMONDVA, NEM NÉMÁN KIVÉVE (R144 — F144-01).
+ *
+ * MI VOLT A BAJ. A régi `HOUSEKEEPING_ACTIONS` harmincnégy műveletet vett ki a vizsgálatból, és
+ * köztük VALÓDI FELHASZNÁLÓI mozdulatok is voltak — keresés, sor- és részlet-megnyitás, új chat.
+ * A SPEC kikötése: ezek „a szülőfunkció sorában kaphatnak lefedést, de ne tűnjenek el a
+ * vizsgálatból. Belső technikai művelethez nem kell külön súgóoldal."
+ *
+ * MOSTANTÓL KÉT KÜLÖN OSZTÁLY, és mindkettő LÁTSZIK:
+ *   · a felületi mozdulatok a SZÜLŐFUNKCIÓ deklarációjából kapnak kötést (`FEATURES.ui_actions`),
+ *     tehát a funkció sorában elszámolva, nem kivéve;
+ *   · és CSAK az alábbi kettő tisztán technikai — a panel és a menü bezárása nem képesség.
+ * Ami egyikbe sem esik, az HIÁNY (nem „valószínűleg rendben").
+ */
+export const TECHNICAL_ACTIONS = Object.freeze([
+  Object.freeze({ id: 'panel-close', why: 'a modális panel bezárása — a panelt megnyitó KÉPESSÉG sorában számol el' }),
+  Object.freeze({ id: 'nav-close', why: 'a mobil menü bezárása — a menü maga a héj navigációja (shell.navigation)' }),
 ]);
+export const TECHNICAL_ACTION_IDS = Object.freeze(TECHNICAL_ACTIONS.map((x) => x.id));
 
+/**
+ * EGY FELÜLETI MŰVELET LEFEDÉSE — KIZÁRÓLAG DEKLARÁCIÓBÓL (R144 — F144-01, MÉRVE).
+ *
+ * A KIVEZETETT ALAK ÉS A MÉRT KÁR. Az R143-ban kötőjellel határolt rész-szóra illesztettem
+ * (`revoke` ↔ `member-revoke`), hogy egy hamis hiányt megszüntessek. A külső ellenőrző fél
+ * (chatgpt-v3, R144/F144-01) ezt ELLENPÁRRAL megfogta, és itt visszamértem:
+ * `actionCoverage({id:'revoke'}, { features: FEATURES.filter(f => f.id !== 'members.revoke') })`
+ * **továbbra is `gaps: []`-t adott** — a `members.scopeRevoke` (`member-scope-revoke-`) és az
+ * `invite.revoke` (`invite-revoke-confirm`) horgonyai alapján. Vagyis a tagság-megszüntetés
+ * kötésének ELTÁVOLÍTÁSA zöld maradt, mert két MÁS visszavonás létezik: a rész-szó összekeverte a
+ * külön műveleteket. Egy hamis negatívot hamis pozitívra cseréltem (KUKA-066 · KUKA-285 rokona:
+ * amit egy karakter-szabály mér, az hasonlóság, nem azonosság).
+ *
+ * A MAI SZABÁLY: a kötést a FUNKCIÓ MONDJA KI (`ui_actions`), és a mérés CSAK ezt fogadja el. Így a
+ * művelet → képesség kötés pontos és forrásból ellenőrizhető: a művelet-azonosítók a FORRÁSBÓL
+ * jönnek (`data-action`), a kötés a REGISZTERBŐL, és a verifier MINDKÉT irányban mér — egy
+ * deklarált, de nem létező művelet ugyanúgy piros, mint egy nem deklarált létező.
+ */
 export function actionCoverage(action, { features }) {
-  if (HOUSEKEEPING_ACTIONS.includes(action.id)) {
-    return { kind: 'action', id: action.id, housekeeping: true, features: [], gaps: [], evidence: EVIDENCE.source };
+  const tech = TECHNICAL_ACTIONS.find((x) => x.id === action.id);
+  if (tech) {
+    return {
+      kind: 'action', id: action.id, technical: true, why: tech.why,
+      features: [], gaps: [], evidence: EVIDENCE.source,
+    };
   }
-  /**
-   * A KÖTÉS KÉT NÉVTÉR KÖZÖTT ÁLL — ÉS AZ ELSŐ SZABÁLYOM HAMIS HIÁNYT GYÁRTOTT (SAJÁT LELET, MÉRVE).
-   *
-   * A felületi művelet azonosítója (`data-action="revoke"`) és a funkció horgonya
-   * (`data-testid="member-revoke"`) KÉT KÜLÖN névtér: a horgony a konkrét SORT nevezi meg, a
-   * művelet a FAJTÁT. Az első szabályom csak azonosságra és ELŐTAG-ra illesztett, ezért hét
-   * MEGLÉVŐ kötést „hiánynak" mondott (`revoke` · `scope-grant` · `scope-revoke` · `reinvite` ·
-   * `redeem` · `invite-revoke` · `mail-open`) — pedig mindegyikhez tartozik funkció. Egy hamis
-   * hiány rosszabb, mint a nem mérés: adatnak látszik, nem hibának (KUKA-066).
-   *
-   * A MAI SZABÁLY: a művelet akkor fedett, ha az azonosítója a funkció belépőjében vagy
-   * horgonyában KÖTŐJELLEL HATÁROLT DARABKÉNT szerepel (`revoke` ↔ `member-revoke` ·
-   * `scope-grant` ↔ `member-scope-grant-keszlet`). Így a két névtér összeér, de egy véletlen
-   * rész-szó nem (`open` nem fedi a `panel-close`-t).
-   */
-  const darabja = (nev, id) => {
-    const t = String(nev || '').split('-');
-    const r = String(id).split('-');
-    for (let i = 0; i + r.length <= t.length; i += 1) {
-      if (r.every((x, j) => t[i + j] === x)) return true;
-    }
-    return false;
-  };
-  const hit = features.filter((f) => f.entry === action.id
-    || (f.anchors || []).includes(action.id)
-    || darabja(f.entry, action.id)
-    || (f.anchors || []).some((a) => darabja(a, action.id)));
+  const hit = features.filter((f) => (f.ui_actions || []).includes(action.id));
   return {
-    kind: 'action', id: action.id, housekeeping: false,
+    kind: 'action', id: action.id, technical: false,
     features: hit.map((f) => f.id),
-    gaps: hit.length ? [] : ['megnyomható művelet, amiről a tudás nem beszél'],
+    gaps: hit.length ? [] : ['megnyomható művelet, amit egyetlen funkció sem mond a magáénak (FEATURES.ui_actions)'],
     evidence: hit.length ? EVIDENCE.source : EVIDENCE.missing,
   };
 }
+
+/**
+ * A DEKLARÁCIÓ MÁSIK IRÁNYA (R144): deklarált művelet, ami a FORRÁSBAN nem létezik. Elírás vagy
+ * kivezetett gomb — mindkettő azt jelenti, hogy a tudás nem létező dologról beszél (KUKA-050).
+ */
+export function declaredReadsNotInSource(features, population) {
+  const letezo = new Set((population || []).map((r) => r.id));
+  const out = [];
+  for (const f of features) for (const e of f.reads || []) if (!letezo.has(e)) out.push(`${f.id} → ${e}`);
+  return Object.freeze(out.sort());
+}
+
+export function declaredActionsNotInSource(features, population) {
+  const letezo = new Set((population || []).map((a) => a.id));
+  const out = [];
+  for (const f of features) for (const a of f.ui_actions || []) if (!letezo.has(a)) out.push(`${f.id} → ${a}`);
+  return Object.freeze(out.sort());
+}
+
 
 /**
  * EGY VÉGPONT LEFEDÉSE. A kötés a funkció `authority.endpoint` mezője — ez mondja meg, HOL dől el a
@@ -293,7 +354,14 @@ export function routeCoverage(route, { features }) {
   if (route.dev) {
     return { kind: 'route', id: route.id, dev: true, features: [], gaps: [], evidence: EVIDENCE.source };
   }
-  const hit = features.filter((f) => f.authority && String(f.authority.endpoint || '').startsWith(route.id));
+  /**
+   * A KÖTÉS KÉT HELYRŐL JÖHET (R144): az `authority.endpoint` azt mondja meg, HOL DŐL EL a jog (egy
+   * végpont), a `reads` pedig a funkciót kiszolgáló TÁMOGATÓ olvasásokat. A felület több végpontot
+   * hív, mint amennyit a jog-kérdés megnevez — a mérés joggal mondta, hogy ezekről a tudás nem
+   * beszél, de a megoldás NEM egy második jog-forrás, hanem a kiszolgáló hívások KIMONDÁSA.
+   */
+  const hit = features.filter((f) => (f.authority && String(f.authority.endpoint || '').startsWith(route.id))
+    || (f.reads || []).includes(route.id));
   return {
     kind: 'route', id: route.id, dev: false,
     features: hit.map((f) => f.id),
@@ -323,33 +391,61 @@ export function authViewCoverage(view, { features }) {
 }
 
 /**
- * A KÖZÖS TÚRA LEFEDÉSE NEM SZÖVEG, HANEM LÉPÉS (R142 §4 kikötése).
+ * A BEMUTATÓ-LEFEDÉS: EXPLICIT KÖTÉS, ÉS CSAK A VALÓDI LÉPÉS SZÁMÍT (R144 — F144-01(a), MÉRVE).
  *
- * „A »mindenhez tutor« nem 31 egymást ismétlő túrát jelent: közös út elfogadható, ha a funkció
- * valóban benne van és indítható. … puszta »tour_note kellően hosszú« többé nem teljesítési
- * feltétel. A közös túra lefedését gépi hivatkozás és tényleges lépés bizonyítsa."
+ * A KIVEZETETT ALAK ÉS A MÉRT KÁR. Az R143-as alakom AZ ELSŐ egyező horgonyból minősített „shared"-nek,
+ * és a külső ellenőrző fél (chatgpt-v3, R144) három hamis pozitívot mutatott, amiket itt visszamértem:
+ *   · `shell.assistant` → `tour.shell` s5, cél `help-open` — a SÚGÓGOMB kiemelése nem chat-használat;
+ *   · `members.revoke` → `tour.invite` s1, cél `nav-members` — a Felhasználók MENÜPONTJA nem tagság-megszüntetés;
+ *   · `auth.verify` → `tour.inviteRevoke` demólevél-lépések — a LEVÉLABLAK nem az e-mail-azonosítás tanítása.
+ * Mindhárom MENÜ- vagy MEGNYITÓ-horgonyon állt: a lépés a funkció KÖZELÉBE vitt, de nem végezte el és
+ * nem is tanította (KUKA-041: a díszpipa sikert jelent arról, ami meg sem történt).
  *
- * Ezért minden funkcióra megmondjuk, MELYIK bemutató melyik LÉPÉSE fedi — a saját `tour`-ja, vagy
- * egy olyan közös túra, aminek EGY LÉPÉSE a funkció belépőjére/horgonyára mutat. Ami csak
- * `tour_note`-tal áll, az `note_only` — és az R142 óta ez NEM teljesítés, hanem nevezett hiány.
+ * A MAI SZABÁLY — HÁROM FELTÉTEL, MIND KIMONDOTT:
+ *   1. a kötést a FUNKCIÓ deklarálja (`shared_tour: { tour, steps }`) — nincs találgatás;
+ *   2. a bemutató és MINDEN deklarált lépés LÉTEZIK (elírás és kivezetett lépés egyformán piros);
+ *   3. és legalább egy deklarált lépés VALÓDI: vagy `task`-ot hordoz (TÉNYLEGESEN elvégzi a műveletet),
+ *      vagy a funkció kimondott MUNKAFELÜLETÉRE mutat (`surface`) — ami nem menü és nem megnyitó.
+ *
+ * MIÉRT KELL a `surface`, és miért nem elég a `task`: egy OLVASÓ képességnél (ár-panel, tag-lista,
+ * levél-fogadó) nincs task, a megtekintés MAGA a használat. A `surface` ezt KIMONDJA, a funkció
+ * oldalán — így ugyanaz a lépés a `shell.demo_mail`-t fedi (a levélablak a funkciója), az
+ * `auth.verify`-t viszont NEM (annak a munkafelülete a levélben lévő hivatkozás).
+ *
+ * AMIT EZ NEM: nem „31 túra" (az R142 kikötése). A közös út továbbra is elfogadható — csak
+ * KIMONDOTTAN és valódi lépéssel.
  */
 export function tourCoverage(feature, { tours }) {
   if (feature.tour && tours[feature.tour]) {
-    return { feature: feature.id, how: 'own', tour: feature.tour, steps: (tours[feature.tour].steps || []).map((s) => s.id), evidence: EVIDENCE.source };
+    return { feature: feature.id, how: 'own', tour: feature.tour, steps: (tours[feature.tour].steps || []).map((s) => s.id), evidence: EVIDENCE.source, problems: Object.freeze([]) };
   }
-  const anchors = new Set([feature.entry, ...(feature.anchors || [])].filter(Boolean));
-  for (const t of Object.values(tours)) {
-    const steps = (t.steps || []).filter((s) => anchors.has(s.target));
-    if (steps.length) {
-      return { feature: feature.id, how: 'shared', tour: t.id, steps: steps.map((s) => s.id), evidence: EVIDENCE.source };
-    }
+  const d = feature.shared_tour || null;
+  if (!d) {
+    return { feature: feature.id, how: 'none', tour: null, steps: [], evidence: EVIDENCE.missing, problems: Object.freeze([]) };
   }
-  const note = typeof feature.tour_note === 'string' && feature.tour_note.length > 20;
-  return {
-    feature: feature.id, how: note ? 'note_only' : 'none', tour: null, steps: [],
-    evidence: EVIDENCE.missing,
-  };
+  const t = tours[d.tour];
+  const problems = [];
+  if (!t) problems.push(`a deklarált bemutató nem létezik: ${d.tour}`);
+  const steps = [];
+  const surface = feature.surface || null;
+  let valodi = null;
+  for (const id of d.steps || []) {
+    const st = t ? (t.steps || []).find((x) => x.id === id) : null;
+    if (!st) { problems.push(`a deklarált lépés nem létezik: ${d.tour}/${id}`); continue; }
+    steps.push(id);
+    if (st.task) { valodi = valodi || `task:${st.task}`; continue; }
+    if (surface && st.target === surface) { valodi = valodi || `surface:${st.target}`; continue; }
+  }
+  if (!problems.length && !valodi) {
+    problems.push('a deklarált lépések egyike sem VALÓDI: nincs köztük task-ot hordozó, és egyik sem a '
+      + `kimondott munkafelületre mutat (surface: ${surface || 'NINCS deklarálva'})`);
+  }
+  if (problems.length) {
+    return { feature: feature.id, how: 'declared_invalid', tour: d.tour, steps, evidence: EVIDENCE.missing, problems: Object.freeze(problems) };
+  }
+  return { feature: feature.id, how: 'shared', tour: d.tour, steps: Object.freeze(steps), proof: valodi, evidence: EVIDENCE.source, problems: Object.freeze([]) };
 }
+
 
 /**
  * A TELJES LEFEDÉSI LELTÁR. A hívó a forrásokat és a regisztereket adja; a modul a SOROKAT.
@@ -378,7 +474,7 @@ export function inventory({ population, features, tours }) {
   const gapKeys = [];
   for (const k of KINDS) for (const r of rows[k]) if (r.gaps.length) gapKeys.push(`${k}:${r.id}`);
   for (const t of tourRows) if (t.how === 'note_only' || t.how === 'none') gapKeys.push(`tour:${t.feature}`);
-  const verdict = gapVerdict(gapKeys, OPEN_GAPS);
+  const verdict = gapVerdict(gapKeys, GAP_BASELINE.keys);
   return Object.freeze({ rows, tourRows, counts, floorBreaks, ...verdict });
 }
 

@@ -139,6 +139,9 @@ export const FEATURES = Object.freeze([
   }),
   F({
     id: 'auth.logout', module: 'auth', version: '1.1.0', status: 'working',
+    // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
+    // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
+    ui_actions: F(['logout']),
     group: 'auth', scope: 'person', audience: 'signed_in', screen: 'security', action: 'open.security', entry: 'logout',
     anchors: F(['logout']),
     authority: F({ endpoint: 'POST /api/logout', decided_by: 'v3app/server.mjs (munkamenet)', reasons: F([]) }),
@@ -166,6 +169,9 @@ export const FEATURES = Object.freeze([
   }),
   F({
     id: 'account.add_business', module: 'account', version: '1.2.0', status: 'working',
+    // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
+    // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
+    ui_actions: F(['dismiss-after-create']),
     group: 'account', scope: 'person', audience: 'signed_in', screen: 'new', action: 'prepare.business', entry: 'ws-form',
     anchors: F(['nav-new', 'ws-kind-business', 'ws-name', 'ws-tax-id', 'ws-create']),
     authority: F({ endpoint: 'POST /api/workspaces', decided_by: 'v3ref/workspace.mjs + externalId.mjs (REP-01)',
@@ -180,6 +186,13 @@ export const FEATURES = Object.freeze([
   }),
   F({
     id: 'account.switch', module: 'account', version: '1.2.0', status: 'working',
+    // R144/F144-01: a MUNKAFELÜLET kimondva (nem menü, nem megnyitó) és a KÖZÖS bemutató
+    // EXPLICIT kötése. Indok: a reentry 9. lépése TÉNYLEGESEN elvégzi a fiókváltást (task: actor.switched) — ez a funkció művelete
+    surface: 'account-switcher',
+    shared_tour: F({ tour: 'tour.reentry', steps: F(['s9']) }),
+    // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
+    // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
+    ui_actions: F(['unsaved-keep', 'unsaved-discard']),
     group: 'account', scope: 'person', audience: 'signed_in', screen: null, action: null, entry: 'account-switcher',
     anchors: F(['account-switcher', 'ws-list']),
     authority: F({ endpoint: 'POST /api/session/workspace', decided_by: 'v3ref/bitemporal.mjs (membershipAsOf)',
@@ -197,6 +210,9 @@ export const FEATURES = Object.freeze([
   }),
   F({
     id: 'invite.send', module: 'delegation', version: '1.2.0', status: 'working',
+    // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
+    // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
+    ui_actions: F(['invite-open', 'invite-from-create']),
     group: 'invite', scope: 'book', audience: 'signed_in', screen: 'members', action: 'prepare.invite', entry: 'invite-form',
     anchors: F(['nav-members', 'invite-open', 'invite-email', 'invite-role', 'invite-scope', 'invite-submit']),
     authority: F({ endpoint: 'POST /api/invites', decided_by: 'v3ref/delegation.mjs + authz.mjs',
@@ -210,6 +226,13 @@ export const FEATURES = Object.freeze([
   }),
   F({
     id: 'invite.accept', module: 'invite', version: '1.3.0', status: 'working',
+    // R144: a funkciót kiszolgáló TÁMOGATÓ OLVASÁSOK. Az `authority.endpoint` EGY végpontot
+    // nevez meg (ahol a jog dől el); a felület viszont többet is hív — és a lefedési mérés joggal
+    // mondta, hogy ezekről a tudás nem beszél. A kötés a HÍVÓ forrásából ellenőrizve.
+    reads: F(['GET /api/invites/observe', 'POST /api/invites/pending']),
+    // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
+    // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
+    ui_actions: F(['redeem']),
     group: 'invite', scope: 'person', audience: 'public', screen: null, action: null, entry: 'section-invite',
     // A SZEMÉLYES TÉRBEN IS ÉRTELMES — és ez nem kényelmi kivétel, hanem a funkció LÉNYEGE (P109-01):
     // a meghívott ember MINDIG a személyes teréből indul, hiszen abban a vállalkozásban még nincs
@@ -239,6 +262,13 @@ export const FEATURES = Object.freeze([
   }),
   F({
     id: 'members.list', module: 'delegation', version: '1.2.0', status: 'working',
+    // R144/F144-01: a MUNKAFELÜLET kimondva (nem menü, nem megnyitó) és a KÖZÖS bemutató
+    // EXPLICIT kötése. Indok: a reentry 2. lépése a TAG-LISTÁT nyitja meg, ami maga a funkció (olvasó képesség: a megtekintés a használat)
+    surface: 'members-list',
+    shared_tour: F({ tour: 'tour.reentry', steps: F(['s2']) }),
+    // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
+    // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
+    ui_actions: F(['member-open', 'members-tab']),
     group: 'members', scope: 'book', audience: 'signed_in', screen: 'members', action: 'open.members', entry: 'members-list',
     anchors: F(['nav-members', 'members-tab-members', 'members-tab-invites']),
     authority: F({ endpoint: 'GET /api/members', decided_by: 'v3ref/authz.mjs + bitemporal.mjs',
@@ -253,6 +283,9 @@ export const FEATURES = Object.freeze([
   }),
   F({
     id: 'members.grant', module: 'delegation', version: '1.2.0', status: 'working',
+    // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
+    // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
+    ui_actions: F(['scope-grant']),
     group: 'members', scope: 'book', audience: 'signed_in', screen: 'members', action: 'open.members', entry: 'member-scope-row-keszlet',
     // R142/LEF-01: a JOGADÓ gomb is horgony — eddig csak a sor szerepelt.
     anchors: F(['nav-members', 'members-list', 'member-scope-row-keszlet', 'member-scope-grant-']),
@@ -269,6 +302,9 @@ export const FEATURES = Object.freeze([
     // R121 §2 — A RÉSZLEGES VISSZAVONÁS. Külön képesség a teljes tagság megszüntetésétől: más a
     // szándék, más a következmény, és a felhasználónak is két külön dolgot jelent (KUKA-002).
     id: 'members.scopeRevoke', module: 'delegation', version: '1.0.0', status: 'working',
+    // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
+    // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
+    ui_actions: F(['scope-revoke']),
     group: 'members', scope: 'book', audience: 'signed_in', screen: 'members', action: 'open.members',
     entry: 'member-scope-row-arak',
     // R142/LEF-01: a MEGVONÓ gomb is horgony — eddig csak a sor szerepelt.
@@ -286,6 +322,13 @@ export const FEATURES = Object.freeze([
     // R132 §2 — EGY FÜGGŐ MEGHÍVÁS VISSZAVONÁSA. A HARMADIK, külön megnevezett művelet a tagság
     // megszüntetése és az egy adatkör visszavonása MELLETT: három szándék, három gomb (KUKA-002).
     id: 'invite.revoke', module: 'invite', version: '1.0.0', status: 'working',
+    // R144: a funkciót kiszolgáló TÁMOGATÓ OLVASÁSOK. Az `authority.endpoint` EGY végpontot
+    // nevez meg (ahol a jog dől el); a felület viszont többet is hív — és a lefedési mérés joggal
+    // mondta, hogy ezekről a tudás nem beszél. A kötés a HÍVÓ forrásából ellenőrizve.
+    reads: F(['GET /api/invites/waiting']),
+    // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
+    // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
+    ui_actions: F(['invite-revoke', 'invite-revoke-start']),
     group: 'members', scope: 'book', audience: 'signed_in', screen: 'members', action: 'open.members',
     entry: 'members-tab-invites',
     // A MŰVELETET VÉGZŐ GOMB IS HORGONY (R142/LEF-01 lelete, KUKA-011 „hol kattint?"): a
@@ -306,6 +349,9 @@ export const FEATURES = Object.freeze([
     // R132 §3 — ÚJBÓLI MEGHÍVÁS EGY ELTÁVOLÍTOTT MUNKATÁRSNAK. A művelet AJÁNLATOT ad, nem tagságot;
     // a tagságot a címzett SAJÁT elfogadása hozza létre, és a régi adat-hozzáférések NEM állnak vissza.
     id: 'members.reinvite', module: 'delegation', version: '1.0.0', status: 'working',
+    // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
+    // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
+    ui_actions: F(['reinvite', 'reinvite-start']),
     group: 'members', scope: 'book', audience: 'signed_in', screen: 'members', action: 'open.members',
     entry: 'members-list',
     // R142/LEF-01: az újra-meghívás GOMBJA és a megerősítő űrlap is horgony.
@@ -331,6 +377,10 @@ export const FEATURES = Object.freeze([
   F({
     // R121 §1/§4 — A BIZONYLAT-MINTÁK. A fejléc TISZTA, a vegyes minta mind a négy kört igényli.
     id: 'data.documentSample', module: 'data', version: '1.0.0', status: 'working',
+    // R144: a funkciót kiszolgáló TÁMOGATÓ OLVASÁSOK. Az `authority.endpoint` EGY végpontot
+    // nevez meg (ahol a jog dől el); a felület viszont többet is hív — és a lefedési mérés joggal
+    // mondta, hogy ezekről a tudás nem beszél. A kötés a HÍVÓ forrásából ellenőrizve.
+    reads: F(['GET /api/data/document-full']),
     group: 'plan', scope: 'book', audience: 'signed_in', screen: 'documents', action: 'open.documents',
     entry: 'sample-document',
     anchors: F(['nav-documents', 'sample-document', 'sample-document-full']),
@@ -362,6 +412,13 @@ export const FEATURES = Object.freeze([
   }),
   F({
     id: 'members.revoke', module: 'delegation', version: '1.2.0', status: 'working',
+    // R144/F144-01: a MUNKAFELÜLET kimondva (nem menü, nem megnyitó) és a KÖZÖS bemutató
+    // EXPLICIT kötése. Indok: a reentry 3. lépése TÉNYLEGESEN megszünteti a tagságot (task: member.revoked) — a SPEC által nevesített valódi lépés
+    surface: 'member-revoke',
+    shared_tour: F({ tour: 'tour.reentry', steps: F(['s3']) }),
+    // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
+    // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
+    ui_actions: F(['revoke', 'revoke-start']),
     group: 'members', scope: 'book', audience: 'signed_in', screen: 'members', action: 'open.members', entry: 'member-revoke',
     anchors: F(['nav-members', 'members-list']),
     authority: F({ endpoint: 'POST /api/members/revoke', decided_by: 'v3ref/authz.mjs (revokeMembership)',
@@ -390,6 +447,9 @@ export const FEATURES = Object.freeze([
   }),
   F({
     id: 'data.stock', module: 'data', version: '1.2.0', status: 'working',
+    // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
+    // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
+    ui_actions: F(['reload-stock']),
     group: 'plan', scope: 'book', audience: 'signed_in', screen: 'stock', action: 'open.stock', entry: 'data-stock',
     anchors: F(['nav-stock', 'data-stock-btn', 'data-stock']),
     authority: F({ endpoint: 'GET /api/data/stock', decided_by: 'v3ref/authz.mjs + resultScope.mjs (STK-01)',
@@ -402,6 +462,13 @@ export const FEATURES = Object.freeze([
   }),
   F({
     id: 'data.price', module: 'data', version: '1.2.0', status: 'working',
+    // R144/F144-01: a MUNKAFELÜLET kimondva (nem menü, nem megnyitó) és a KÖZÖS bemutató
+    // EXPLICIT kötése. Indok: a készlet-bemutató 4. lépése az ÁR-panelt nyitja meg, ami maga a funkció munkafelülete
+    surface: 'data-price',
+    shared_tour: F({ tour: 'tour.stock', steps: F(['s4']) }),
+    // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
+    // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
+    ui_actions: F(['reload-price']),
     group: 'plan', scope: 'book', audience: 'signed_in', screen: 'stock', action: 'open.stock', entry: 'data-price',
     anchors: F(['nav-stock', 'data-price-btn', 'data-price']),
     authority: F({ endpoint: 'GET /api/data/price', decided_by: 'v3ref/entitlement.mjs (twoGateVerdict) + authz.mjs',
@@ -452,6 +519,9 @@ export const FEATURES = Object.freeze([
   }),
   F({
     id: 'shell.help', module: 'shell', version: '1.1.0', status: 'working',
+    // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
+    // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
+    ui_actions: F(['help-open', 'help-close', 'help-view', 'help-topic', 'help-go', 'faq-open', 'tour-start', 'tour-next', 'tour-back', 'tour-exit', 'tour-finish', 'tour-restart', 'tour-skip']),
     group: 'shell', scope: 'person', audience: 'public', screen: null, action: null, entry: 'help-open',
     anchors: F(['help-open', 'help-panel', 'help-tab-ask', 'help-tab-guides', 'help-tab-faq', 'help-tab-sitemap']),
     authority: F({ endpoint: 'GET /api/assistant/knowledge', decided_by: 'v3app/assistant/policy.mjs (AST-01)',
@@ -464,6 +534,13 @@ export const FEATURES = Object.freeze([
   }),
   F({
     id: 'shell.assistant', module: 'assistant', version: '1.1.0', status: 'demo',
+    // R144: a funkciót kiszolgáló TÁMOGATÓ OLVASÁSOK. Az `authority.endpoint` EGY végpontot
+    // nevez meg (ahol a jog dől el); a felület viszont többet is hív — és a lefedési mérés joggal
+    // mondta, hogy ezekről a tudás nem beszél. A kötés a HÍVÓ forrásából ellenőrizve.
+    reads: F(['GET /api/assistant/status']),
+    // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
+    // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
+    ui_actions: F(['chat-new', 'chat-clear', 'chat-suggest', 'chat-do']),
     group: 'shell', scope: 'person', audience: 'signed_in', screen: null, action: null, entry: 'chat-form',
     anchors: F(['help-open', 'help-tab-ask', 'chat-input', 'chat-send']),
     authority: F({ endpoint: 'POST /api/assistant/ask', decided_by: 'v3app/assistant/policy.mjs (AST-01)',
@@ -481,6 +558,13 @@ export const FEATURES = Object.freeze([
   }),
   F({
     id: 'shell.demo_mail', module: 'shell', version: '1.0.0', status: 'demo',
+    // R144/F144-01: a MUNKAFELÜLET kimondva (nem menü, nem megnyitó) és a KÖZÖS bemutató
+    // EXPLICIT kötése. Indok: a levél-fogadó ABLAKA maga a funkció — itt a levélablak NEM megnyitó, hanem a munkafelület (szemben az auth.verify-vel, aminek a munkafelülete a levélben lévő HIVATKOZÁS)
+    surface: 'mailbox',
+    shared_tour: F({ tour: 'tour.inviteRevoke', steps: F(['s8']) }),
+    // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
+    // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
+    ui_actions: F(['mail-open', 'mail-refresh']),
     group: 'shell', scope: 'person', audience: 'signed_in', screen: 'outbox', action: 'open.mailbox', entry: 'demo-mail-open',
     anchors: F(['demo-mail-open', 'mailbox']),
     authority: F({ endpoint: 'GET /dev/mailbox', decided_by: 'v3app/server.mjs (devSurface kapcsoló)',
@@ -495,6 +579,9 @@ export const FEATURES = Object.freeze([
   }),
   F({
     id: 'shell.sample_pages', module: 'shell', version: '1.2.0', status: 'demo',
+    // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
+    // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
+    ui_actions: F(['clear-search', 'row-open']),
     group: 'shell', scope: 'book', audience: 'signed_in', screen: 'products', action: 'open.products', entry: 'list-rows',
     anchors: F(['nav-products', 'list-search', 'list-rows']),
     authority: F({ endpoint: 'GET /api/me', decided_by: 'v3app/public/demoData.mjs (DEM-01/DEM-02)',

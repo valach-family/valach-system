@@ -55,7 +55,9 @@ import {
   allowedToursFor, acceptAction, selectKnowledge, localAnswer, AST_CONTRACT, verifyModelAnswer,
   composeBlockAnswer, ANSWER_SECTIONS,
   // AST-06 · AST-07 (R142 §6): a modell-hívás NEVEZETT döntése, és a megjelölt következtetés.
-  modelNeed, groundedAnswer, BLOCK_MARKERS } from './assistant/policy.mjs';
+  modelNeed, groundedAnswer, BLOCK_MARKERS,
+  // AST-08 (R144 §F144-03): a felajánlások KÖZÖS feloldója — a modell IGAZOLT választására is.
+  offersFor } from './assistant/policy.mjs';
 import { providerStatus, askProvider } from './assistant/provider.mjs';
 import { newMeter } from './assistant/meter.mjs';
 
@@ -1525,12 +1527,49 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
         : null;
       if (modelDiscarded) meter.record({ kind: 'model_discarded', ok: false, reason: modelDiscarded.reason });
       const answerText = modelAccepted ? composed.answer : (local.ok ? local.answer : null);
-      // A FOLYTATÁS MINDIG a szerver által elfogadott műveletekből jön — a modell javaslatát NEM
-      // fogadjuk el nyersen (AST-01 `acceptAction`).
-      const actions = (local.actions || []).map((a) => (a.kind === 'tour'
-        ? { kind: 'tour', tour: a.tour, label: a.label, feature: a.feature }
-        : { ...acceptAction(a.id, who).action, label: a.label, feature: a.feature }))
-        .filter((a) => a && (a.kind === 'tour' || a.id));
+      /**
+       * A FOLYTATÁS — A MODELL IGAZOLT VÁLASZTÁSÁRA IS (AST-08, R144/F144-03).
+       *
+       * MI VOLT A BAJ, MÉRVE. A gombokat kizárólag a HELYI találatból képeztük, ezért a kínai
+       * meghívási kérdésre a válasz helyes volt (`invite.send`), a felhasználó viszont NEM kapott
+       * műveletet (`actions: []`). A modell megtalálta a tudást, a felületen mégsem lehetett vele
+       * mit tenni.
+       *
+       * MOSTANTÓL a felajánlás a HELYI találat ÉS a modell IGAZOLT forrás-listája alapján születik,
+       * UGYANAZON a feloldón (`offersFor`). A határ változatlan: a műveletet a FUNKCIÓ deklarálja,
+       * minden felajánlás az `acceptAction`-on megy át a MAI kontextussal, a bemutató az
+       * `allowedToursFor`-on — a modell sem route-ot, sem művelet-azonosítót, sem űrlap-mezőt nem
+       * írhat a kliensnek, és a megnyitás/előkészítés NEM mentés (AST-01 változatlan).
+       */
+      const modelRows = modelAccepted ? (composed.sources || []).map((x) => ({ id: x.feature })) : [];
+      const actions = offersFor({ rows: [...(selection.features || []), ...modelRows], dictionary: dict, ctx: who });
+      /**
+       * A NEMLEGES VÁLASZ HELYETT A VALÓDI OK, HA VAN (AST-09, R144 — SAJÁT LELET).
+       *
+       * Ha nincs kiadható tudás-válasz, DE a kérdés illeszkedik egy olyan funkcióra, amit a kérő
+       * szerepköre/tagsága zár ki, akkor a válasz AZ OK. Ez nem tudás-válasz, ezért SAJÁT fajtát
+       * kap (`access`) — a mérés így nem tudja összemosni a kettőt (KUKA-127), és a felület is
+       * látja, hogy jog-kérdésről van szó. A mondat a nyelvcsomag `REASON` csoportjából jön.
+       */
+      const blokkolt = (!answerText && (selection.blocked || []).length) ? selection.blocked[0] : null;
+      const blokkSzoveg = blokkolt ? ((dict.REASON || {})[blokkolt.why] || null) : null;
+      if (blokkolt && blokkSzoveg) {
+        const u0 = meter.finish();
+        return { status: 200, body: {
+          ok: true, ...served, lang,
+          answer_kind: 'access',
+          answer: blokkSzoveg,
+          // A FUNKCIÓT MEGNEVEZZÜK, de NEM forrásként: nem tudás-választ adtunk ki róla.
+          blocked: [{ feature: blokkolt.feature, why: blokkolt.why }],
+          sources: [], related: [], actions: [], faq: [],
+          model_need: { call: need.call, why: need.why },
+          search: { confidence: selection.confidence, reason: selection.reason ?? null, tokens: selection.tokens, scripts: [...(selection.scripts || [])] },
+          provider: { configured: prov.configured === true, missing: [...(prov.missing || [])], consequence: prov.consequence ?? null },
+          knowledge_population: selection.feature_population, faq_population: selection.faq_population,
+          injection_markers: injection.length, usage: u0,
+          message: 'a kérdés olyan képességre illeszkedik, amit a mai szerepköröd vagy tagságod zár ki — az OKOT adtuk vissza',
+        } };
+      }
       const usage = meter.finish();
       if (!answerText) {
         return { status: 200, body: {
