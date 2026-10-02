@@ -485,7 +485,11 @@ export const MUTATIONS = [
     from: '    const operative = projMatches ? projection : {',
     to: '    const operative = false ? projection : {' },
 
-  { id: 'M335', rule: 'K04/K09', catcher: 'P-ORG-basis-limit', expect: 'probe_fail',
+  // A FOGÓ PRÓBA ITT IS MÉRVE (harmadszor ugyanaz a mintám ebben a körben: a kötést MÉRNI kell,
+  // nem deklarálni). Ez a rontás az első futásán `SURVIVED` lett — a magban semmi nem állította az
+  // eredet-kaput —, a `P-ORG-reentry-gates` (f) szakaszának megépítése után pedig `WRONG_CATCHER`,
+  // mert a fedezetet AZ a próba kapta meg, nem a `P-ORG-basis-limit`.
+  { id: 'M335', rule: 'K04/K09', catcher: 'P-ORG-reentry-gates', expect: 'probe_fail',
     what: 'AOR-01 — az EREDET-KAPU kivétele a BEVÁLTÁSON: a jelen idejű új delegált alap újra '
       + 'igazolná a régi időszakból kiadott ajánlatot (az F136-02 visszacsúszása)',
     file: 'basisLimit.mjs',

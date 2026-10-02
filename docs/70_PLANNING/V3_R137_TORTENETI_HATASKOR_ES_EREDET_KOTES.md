@@ -233,13 +233,23 @@ futtatni (lásd alább, miért nevezett kockázat). Három dolgot mért:
    kivétele — a KUKA-273 visszacsúszása) · `M335` (az EREDET-KAPU kivétele a beváltáson — az
    F136-02 visszacsúszása). Az `M334` fogó próbáját **MÉRTEM, nem tippeltem**: az első alakom
    `WRONG_CATCHER`-t kapott.
-3. **AZ `M333` TÚLÉLTE — és ez VALÓDI fedezet-hiány volt.** A tudás-tengely szűrőjének
-   (`recorded_at <= knownAt`) kivételét **egyetlen mag-próba sem buktatta meg**: a `knownAt`
-   elhagyása a mai viselkedés, tehát a tengelyt KIFEJEZETTEN szét kell vinni ahhoz, hogy a rontás
-   megbukjon — és ezt eddig csak a HTTP-battéria (b5d) tette, a mag nem. **A `P-ORG-reentry-gates`
-   mag-próba ezért megerősítve:** megkapta a történeti kérdést az ÚJ megadás UTÁN is (ott
-   UGYANAZ a sorrend-hiba állt, amit a külső fél a testvér-battérián talált meg), és megkapta a
-   tudás-horizont két állítását. **A mag-battéria ezzel is 66/66.**
+3. **KÉT RONTÁS TÚLÉLTE — és mind a kettő VALÓDI fedezet-hiány volt a MAGBAN.** Ez a kör legfontosabb
+   SAJÁT lelete, mert azt mutatja meg, hogy a két most megépített őrt a mag-battéria **nem mérte**:
+   · **`M333`** — a tudás-tengely szűrőjének (`recorded_at <= knownAt`) kivételét egyetlen mag-próba
+     sem buktatta meg. A `knownAt` elhagyása a mai viselkedés, tehát a tengelyt KIFEJEZETTEN szét
+     kell vinni ahhoz, hogy a rontás megbukjon — ezt eddig csak a HTTP-battéria (b5d) tette.
+   · **`M335`** — az eredet-kapu kivételét a beváltáson ugyanígy semmi nem állította a magban, csak
+     a HTTP-battéria (b7b).
+
+   **Mindkettőhöz MAG-SZINTŰ tanú épült a `P-ORG-reentry-gates` próbába:**
+   · a történeti kérdés az ÚJ megadás UTÁN is — ott **UGYANAZ a sorrend-hiba** állt, amit a külső
+     fél a testvér-battérián talált meg (KUKA-134) —, és a tudás-horizont két állítása;
+   · egy ÚJ **(f) szakasz** a külső fél ellenpéldájának történetével. A MÉRT értékek:
+     `cili p1=5 · p2=6 · eredetek v1=5,v2=6 · új ajánlat=true · régi token=basis_origin_changed`,
+     írásmentesen (`membership` és `grant_basis` változatlan). A pozitív ellenpár itt is áll: a
+     kapuból **nem lett fal** (KUKA-122).
+
+   **A mag-battéria ezzel is 66/66, és a `run.mjs` kilépési kódja 0.**
 
 **A TELJES HOSSZÚ SÖPRÉS NEM FUTOTT, és ez KIMONDOTT döntés, nem feledékenység.** Az R136 így
 kötötte ki: *„Célzott domain/HTTP/történeti/érintett UI kontrollok elegendők… Teljes hosszú söprést
@@ -265,6 +275,25 @@ ennek a csomagnak a műve**. *(Közben egy MÉRÉSI csapdába is beléptem: az e
 tettem, ahonnan a `../vs` NEM látszik, és ott a verifier zöldet adott — mert a három tételt
 „gépileg nem mérhetőnek" sorolta. Egy zöld, ami a mérés HATÓKÖRÉNEK szűküléséből jön, nem zöld
 (KUKA-216); ezért kellett a sibling-munkafa.)*
+
+### 7/b. A SAJÁT MINTÁM, amit ez a kör HÁROMSZOR megmutatott
+
+**A KÖTÉST MÉRNI KELL, NEM DEKLARÁLNI.** Ugyanaz a hiba három alakban, egy körön belül:
+
+1. az **`M334`** fogó próbáját `P-REV-authority`-nak deklaráltam → `WRONG_CATCHER`; a nyers
+   vetület-írást a `P-ORG-adjudication-basis-limit` fogja meg;
+2. az **`M333`** és az **`M335`** fogó próbáját szintén tippeltem → mindkettő `WRONG_CATCHER`, amíg
+   a catcher nem a VALÓBAN állító próbára mutatott;
+3. egy **nem deklarált állítás-azonosítót** adtam ki, ezért a `run.mjs` **exit 2**-vel zárt, és a
+   battéria alapvonal-kapuja pirosat adott. A repó szövege pontos volt: *„kiadott egy
+   állítás-azonosítót, amit a manifest nem deklarál — a bizonyíték-kötés fél maradt (KUKA-039)"*.
+   Felvettem a `manifest.mjs`-be ugyanannak a klauzulának (ORG-N1a) a vállalt állításaként, és
+   KIMONDVA, hogy **ettől a klauzula NEM záródik le, és a req-5 NEM lép életbe**.
+
+**És egy negyedik, szerkesztési hiba, amit szintén a gép fogott meg:** az (f) szakaszt először ROSSZ
+próbába illesztettem (a cserém az ELSŐ találatra ült), és a battéria azonnal `THREW`-val bukott
+(`cP1 is not defined`). Visszaállítottam, és sor-határhoz kötve, egyediségre ELLENŐRZÖTT horgonnyal
+illesztettem újra.
 
 **ÖRÖKÖLT — a KÖZVETLEN kiinduló állapothoz mérve (az R136 kikötése):** a `df79358a` commitban
 KÖNYVELT `external-checks-result.json` (mérve 2026-10-01T18:26:28Z) verdiktje
