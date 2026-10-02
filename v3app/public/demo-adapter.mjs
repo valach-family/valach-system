@@ -415,7 +415,22 @@ function install() {
       const period = prev ? prev.period + 2 : 2;
       S.memberships[row.who] = { role: row.role, effective: true, period, removed_at: null };
       // A RÉGI ADATKÖRJOGOK NEM ÁLLNAK VISSZA: az új időszakhoz ÚJ, kifejezett megadás kell.
-      return J(200, { ok: true, outcome: prev ? 'regranted' : 'granted', shape: 'membership_only', reentry: row.reentry ? S.seq : null });
+      /**
+       * A VÁLASZ MEGNEVEZI AZ ALANYT ÉS A FIÓKOT (KUKA-254 · KUKA-172 — SAJÁT LELET, KÉPEN LÁTVA).
+       *
+       * A LELET. A végigjárás képén a nyugta ezt írta: „Csatlakoztál ehhez a fiókhoz: Személyes
+       * fiók" — pedig a CÉGHEZ csatlakozott. A felület oldalán a javítás megvolt (KUKA-254: a
+       * siker annak szól, akinek a szerver kiszolgálta, és a fiók nevét a VÁLASZ fiókjából kell
+       * venni), csak a próbafelület válasza NEM HORDOZTA a két mezőt, amire az a javítás épül —
+       * ezért a lap a pillanatnyi nézetre esett vissza. A szintetikus háttér ALAKJA is állítás:
+       * ha egy mezőt elhagy, a termék javítását teszi hatástalanná, és a bemutató valótlant mond.
+       */
+      return J(200, {
+        ok: true, outcome: prev ? 'regranted' : 'granted', shape: 'membership_only',
+        reentry: row.reentry ? S.seq : null,
+        subject_id: S.subjects[row.who] && S.subjects[row.who].id,
+        book_id: BOOK, name: COMPANY,
+      });
     },
 
     // TAGSÁG MEGSZÜNTETÉSE

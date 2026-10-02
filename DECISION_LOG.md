@@ -16,6 +16,68 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3095 — A VEZETETT TÖRTÉNET ÁTÍVEL A SZEREPLŐKÖN ÉS A FIÓKOKON (R140, ACT-01)
+
+> **Hatály:** V3 (`valach-system`). Nincs merge, éles telepítés, V2-módosítás, új fizetős
+> szolgáltatás, külső címzettnek levél, és nincs req-5/core/CMD/PR-zárás.
+
+**A parancs:** `CMD-VS-300-002-002 R140 — SPEC` (chatgpt-v3, 2026-10-02). Induló fej:
+`0d9e75d50aff485bdaba4b4fdd1e0df1dc0e68f3`.
+
+**A DÖNTÉS.** Egy végigvezetés mostantól ÁTÍVELHET a szereplőkön és a fiókokon. Három új fogalom,
+mind a meglévő motorban (párhuzamos bemutató-motor nem épült):
+
+1. **A SZEREP A LÉPÉSÉ, NEM A BEMUTATÓÉ.** A lépés kimondhatja, ki végzi (`role`); a tour szintű
+   `requires_role` az INDÍTÁS feltétele marad. Visszaesés NINCS: a meghívott ember a saját
+   lépéseinél MÉG NEM TAG, tehát semmilyen cégbeli szerepe nincs.
+2. **A VÁLTÁS SAJÁT LÉPÉS-FAJTA** (`switch_actor`), és FELADATHOZ KÖTÖTT (`actor.switched`): a
+   „Tovább" nem vált nézetet a felhasználó helyett, a lépés csak TÉNYLEGES váltás után zárul. Az
+   alany-váltás őre MINDEN MÁS lépésen változatlan — ez az ág csak ott nyílik ki, ahol a lépés
+   maga deklarálja a határt.
+3. **A NÉZET A KETTŐ EGYÜTT: ALANY ÉS FIÓK.** Mérve: a meghívás elfogadása után a belépő a SAJÁT
+   személyes körében marad; a cég képernyőihez külön át kell váltania. Ha a váltás fogalma csak
+   az alanyra állna, ez a lépés sosem teljesülne (KUKA-208).
+
+**AZ ÁTADÁS.** A kereszt-szereplős futás túléli az oldal elhagyását (`pagehide`) és a nézet-váltást.
+Átvisszük: a bemutató azonosítóját, a lépések állapotát, hol tartunk, kitől váltunk. NEM visszük át:
+üzleti adatot, listát, panelt, szerkesztő-állapotot, beszélgetést — azokat a `resetViewCaches`
+változatlanul üríti, tehát a következő ember SEM lát semmit az előzőéből (KUKA-218 sértetlen).
+
+**A KÉT TÖRTÉNET A TERMÉK REGISZTERÉBŐL JÖN** (`v3app/knowledge/features.mjs`): A = 18 lépés,
+B = 18 lépés. Mindkettő `requires_demo`: két élő munkamenetet kíván, ezért éles üzemben NEM
+kínáljuk fel — amit nem lehet végigvinni, azt nem szabad felkínálni (KUKA-041 · F91-01). A
+`demo-assistant.json` mostantól SZÁRMAZTATOTT: `npm run demo:knowledge` a VALÓDI szerverből írja.
+
+**AZ ŐRÖK TANULTAK, NEM LAZULTAK.** A `verify:tutor` hossz-korlátja két műfajra vált (2–7, illetve
+a szereplőkön átívelő, próbafelülethez kötött történetre 2–20, NEVEZETT indokkal); a szemantikus
+horgony (`data-tour-anchor`) érvényes célalak, de CSAK ha a lap tényleg kimondja; a próbafelület
+lapja is forrás.
+
+**LÁTHATÓ ELRENDEZÉS, a KÖZÖS felületen** (R140 §Látható hibák): a `.badge` `overflow-wrap:anywhere`
+miatt az „Árak" oszlop jelvénye 1280 px-en KARAKTERENKÉNT tördelt — a jelvény nem törik, a táblázat
+a saját tárolójában gördül; ugyanaz a mondat kétszer jelent meg (lapon + lebegő nyugta), és 390
+px-en a lebegő ráült az eredményre — a nyugta nem ismétli a lapon MÁR LÁTHATÓ mondatot; és az
+útmutató kártyája SOHA nem fog el kattintást (mérve: a tag-lista gombját a buborék lépés-listája
+nyelte el).
+
+**HÁROM ÚJ TANULSÁG:** KUKA-278 (a kivételt másodszor is csak az egyik döntési pontra tettem be) ·
+KUKA-279 (az átadás és a visszaállás EGY pár) · KUKA-280 (a némán elakadó tanú).
+
+**ÉS EGY MÉRT ESET, AMIÉRT A REGISZTER VAN:** a tanú átírásakor ELVESZTEK az R138-as mérések (a
+`navIntentFulfilled` nyolc ellenpárja és a megerősítő mondat két horgonyzott állítása). A
+`verify:kuka` pirosra váltott, mert a KUKA-276/277 pozitív mintái eltűntek — mindkét mérés
+visszakerült. Egy regiszter-bejegyzés nem dokumentáció: ez fogta meg, hogy egy saját átírás
+csendben levetkőzze a korábbi védelmet.
+
+**Gépi jel:** `verify:kuka` 574/574 · `verify:tutor` 88/88 · `verify:i18n` 49/49 ·
+`verify:app-findings` 73/73 · r77 34/34 · r79 49/49 · `app:selfcheck` 57/57.
+**ÉLŐ tanú:** `npm run proof:demo-walk` — a részletes állás és a NEVESÍTETT hiány a kör
+jelentésében. **KIMONDVA:** a tanú böngészőt igényel, ezért NEM része a `verify:sweep`-nek; és a
+próbafelület háttere a jelölt `demo-adapter.mjs` csonk — ebből HTTP- vagy adatbázis-bizonyíték
+NEM következik.
+
+---
+
 ## D-VS-3094 — A BEMUTATÓ HARMADIK ÁLLAPOTA, ÉS A HORGONYZOTT SZÖVEG-MÉRÉS (R138 §1–§3)
 
 > **Hatály:** V3 (`valach-system`). Nincs merge, éles telepítés, V2-módosítás, új fizetős
