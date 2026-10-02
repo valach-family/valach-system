@@ -295,16 +295,24 @@ kimenettel 1-es kódot adott — ezt egy pillanatra visszacsúszásnak olvastam.
 
 | Mérés | Érték |
 |---|---|
-| hívás | 216 (a záró pillanatképnél) |
-| fő-szál kontextus **medián** | 344 704,5 |
-| fő-szál kontextus **max** | 550 069 |
+| hívás | **277** |
+| fő-szál kontextus **medián** | **410 049** |
+| fő-szál kontextus **max** | **636 652** |
+| 400 ezer fölötti hívás | 144 |
 | **ügynök-bemenet** | **0 (0 ügynök)** — a SPEC „egy fő végrehajtó, automatikus alügynök nélkül" kikötése szerint |
-| cache-olvasás | 74 241 168 [teljes összeg] |
-| lefedettség | teljes |
-| kontextus-sáv | **FIGYELMEZTETÉS** (344 704 a 300 000–400 000 sávban) |
-| modellhívás a SEGÉDBEN | **0 valódi** (nincs provider); a battériában 4 csonk-hívás |
-| sikertelen hívás | a mérés nem jelzett sikertelen szolgáltatói hívást (nem is volt valódi) |
-| latencia | a csonk-hívásokon nem értelmes mérés; valódi végponti latencia **nincs mérve** |
+| friss bemenet | 554 |
+| cache-írás · cache-olvasás | 593 511 · 110 676 459 |
+| kimenet | 267 504 |
+| lefedettség | **teljes** (1 átirat, 277 hívás, minden modell-válasz usage-dzsal) |
+| kontextus-sáv | **CHATVÁLTÁSI JELZŐ ELÉRVE** (410 049 ≥ 400 000) |
+| modellhívás a SEGÉDBEN | **0 valódi** (nincs provider); a battériában csonk-hívások |
+| sikertelen szolgáltatói hívás | nem volt — valódi hívás sem volt |
+| latencia | valódi végponti latencia **NINCS mérve** (nincs provider); a csonk-hívásokon nem értelmes |
+
+**Gépi alak a repóban** (a következő munkamenet ezt olvassa, nem újraméri):
+`docs/70_PLANNING/V3_R143_FOGYASZTAS_LELTAR.json` — tartalom nélküli: ellenőrizve, hogy
+`prompt` · `content` · `text` · `message` · `question` · `answer` · `email` · `token` mező
+EGYETLEN példányban sem szerepel benne.
 
 **A sávból következő döntés:** a FUTÓ munkablokk lezárva; a **következő önálló nagy blokk** (a 2/d
 szerinti tartalmi pótlás és az 5/c szerinti diós kontextusos út) **friss beszélgetésben induljon**
