@@ -177,6 +177,22 @@ export function checkRun(run, { view, role }) {
   if ((view.book ?? null) !== run.view.book || (view.subject ?? null) !== run.view.subject) return { ok: false, why: 'contextChanged' };
   if (run.requires_role === 'admin' && role !== 'admin') return { ok: false, why: 'rightLost' };
   if (!run.steps[run.at]) return { ok: false, why: 'no_run' };
+
+  // AMI MÁR ELVÉGZETT, AZ NEM VÁR SEMMIRE (saját lelet, R138 — a VIZUÁLIS tanú fogta meg).
+  //
+  // A LELET. A visszatérés-történet 3. lépése a megerősítő űrlapra mutat (`reinvite-form`), amit a
+  // tag-sor gombja tár fel. A küldés UTÁN a panel BECSUKÓDIK, tehát az űrlap eltűnik a lapról — a
+  // cél-vizsgálat ezért újra „feltárásra vár"-t adott egy MÁR ELVÉGZETT lépésre. A buborék így
+  // EGYSZERRE írta ki, hogy „3. Küldd el az új meghívást — Elvégezve" ÉS hogy „Ez a lépés még nem
+  // érhető el: előbb nyisd meg a kiemelt gombbal". A két mondat egymásnak mond ellent ugyanazon a
+  // képernyőn (D-VS-519: a szöveg a valóságot követi · KUKA-201).
+  //
+  // MIÉRT CSAK A KÉPERNYŐKÉP MUTATTA MEG. A saját elfogadási tanúm az ÁLLAPOTOT mérte
+  // (`data-state="done"`) és a záró lapot („Hátravan: 0") — mindkettő helyesen zöld volt. Azt nem
+  // mérte, hogy a buborék SZÖVEGE mit állít az elvégzett lépésről. Ez a KUKA-215 alakja: a választ
+  // meg kell mérni, nem csak a belső állapotot. A mérés azóta kiegészült (a13).
+  if (run.steps[run.at].state === 'done') return { ok: true, why: null, pending: null };
+
   // A HIÁNYZÓ CÉL KÉT KÜLÖN HELYZET, és a felhasználó teendője is más: FELTÁRÁSRA VÁR (ő nyitja
   // meg) VAGY valóban eltűnt (a bemutató megáll). A kettőt nem mossuk össze (KUKA-228).
   if (!targetOf(run)) {

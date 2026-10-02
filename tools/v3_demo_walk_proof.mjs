@@ -273,6 +273,10 @@ async function walk(storyKey, width, height, { label }) {
     A(`${tag} (a12/${step.id}) a lépés a SZERVER igazolása után lett elvégezve`,
       !!(after.step && after.step.state === 'done') || after.hasFinish,
       `állapot=${after.step && after.step.state} hasFinish=${after.hasFinish}`);
+    // ÉS A BUBORÉK SZÖVEGE IS EZT MONDJA. Az elvégzett lépés mellett nem állhat ott, hogy „még nem
+    // érhető el" — a belső állapot zöldje nem bizonyítja, hogy a KÉPERNYŐ igazat mond (KUKA-215).
+    A(`${tag} (a13/${step.id}) az ELVÉGZETT lépés mellett NINCS „még nem érhető el" mondat`,
+      !after.pending && !after.blocked, `pending=${after.pending} blocked=${after.blocked}`);
   }
 
   s = await bubble();
