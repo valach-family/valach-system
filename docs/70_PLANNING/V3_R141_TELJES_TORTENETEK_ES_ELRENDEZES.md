@@ -105,7 +105,7 @@ nem is minősítem.
 | `verify:app-findings-r77` | 34/34 | friss |
 | `verify:app-findings-r79` | 49/49 | friss |
 | `app:selfcheck` | 57/57 | friss |
-| `proof:demo-walk` | **A @1280: 18/18 (kétszer) · A @390: 11/18 · B: 9/18** | friss |
+| `proof:demo-walk` | **22 zöld · 6 piros** — A @1280: 18/18 (kétszer) · A @390: 11/18 · B: 9/18 | friss |
 
 **Teljes söprés NEM futott** (az R140 célzott próbát kért) — ez **nem igazolt**, nem zöld. A
 `findings_r134`, a core és a mutációs battéria ebben a körben **NEM futott újra**: ezek a V3 magját
@@ -123,7 +123,8 @@ mérik, amit ez a kör nem érintett — **örökölt** eredmény az R139-ből (
   lépéses történet a 17.-en akadt el.
 - **KUKA-279** — az átadás és a visszaállás EGY pár: a mentést megépítettem, a visszaállást csak a
   lap indulásához kötöttem, és a futás némán eltűnt a történet közepén.
-- **KUKA-280** — a némán elakadó tanú: nem mondta meg, hol tart, és 30 másodperces
+- **KUKA-280** — a némán elakadó tanú (és a pörgés-őr a záró mérésen MEGFOGTA a mobil kört,
+  névvel: `s11/pending·targetPending` · `nav-toggle` — pontosan ezért épült): nem mondta meg, hol tart, és 30 másodperces
   kattintás-határidőkön futott; tíz másodperces diagnózisból negyven perces találgatás lett.
 - **ÉS AMIÉRT A REGISZTER VAN:** a tanú átírásakor ELVESZTEK az R138-as mérések (a kapu nyolc
   ellenpárja és a megerősítő mondat két horgonyzott állítása). A `verify:kuka` pirosra váltott —
@@ -135,9 +136,14 @@ mérik, amit ez a kör nem érintett — **örökölt** eredmény az R139-ből (
 
 1. **A B történet 9. lépése (fiókváltás a cégre) nem megy végig** — a történet hátralévő kilenc
    lépése ezért nincs mérve. Ez a kör LEGFONTOSABB nyitott tétele.
-2. **Az A történet 390 px-en a 11. lépésen áll meg** (a mobil menü feltárása után a Felhasználók
-   újra-megnyitása). Asztali gépen ugyanez a lépés hibátlanul megy, tehát a lelet a MOBIL úthoz
-   tartozik — a pontos okot NEM mértem meg, ezért nem is minősítem.
+2. **Az A történet 390 px-en a 11. lépésen áll meg.** A tanú PÖRGÉS-ŐRE nevezte meg az állapotot:
+   `s11/pending·targetPending`, kiemelve a `nav-toggle`. Vagyis a lépés a mobil menü feltárását
+   kéri, a feltárás megtörténik, és utána ÚJRA feltárást kér — kör. A VALÓSZÍNŰ ok (de **nem
+   mértem meg**, ezért hipotézis): a 11. lépés a MÁSODIK `nav-members` lépés, és a szereplő-váltás
+   után a lap az áttekintésen áll, tehát a menüpont rejtett ÉS nem jelöli a mai oldalt; a ☰
+   megnyitása után a menüpontra kattintva a lap navigál, a fiók becsukódik, a menüpont megint
+   rejtett lesz. A KUKA-276-os `aria-current="page"` kijárat csak akkor old, ha a lap MÁR a
+   Felhasználókon áll. A következő kör ezzel kezdjen — a lelet helye és alakja pontosan megvan.
 3. A `proof:demo-walk` böngészőt igényel, ezért nem része a `verify:sweep`-nek.
 4. A próbafelület háttere jelölt csonk — HTTP/adatbázis-bizonyíték nem következik belőle.
 5. A fogyasztás-jelző a chatváltási sávban áll (fő-szál kontextusmedián **599 765** ≥ 400 000):
