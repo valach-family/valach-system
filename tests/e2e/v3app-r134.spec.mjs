@@ -259,9 +259,28 @@ test.describe('R134 — a véglegesítési kapuk, az egyszeri ajánlat és a nye
     await anna.page.keyboard.press('Escape');
     await switchUI(anna.page, masodik.bookId);
     await atad(anna.page, h, 'visszavonás');
-    // A TANÚ: a MÁSIK fiók képernyőjén NEM jelent meg a régi nézet nyugtája.
+    // A TANÚ A KONKRÉT RÉGI NYUGTA ÉS AZ ÚJ KONTEXTUS VÁLTOZATLANSÁGA (R136 kikötése).
+    //
+    // MI VOLT KEVÉS. A régi alak csak azt nézte, hogy a cél e-mail-címe nincs benne a `main`
+    // szövegében. Ez ANNÁL IS igaz, ha a nyugta egyáltalán nem született meg, vagy ha egy MÁS
+    // mondat jelent meg — tehát az állítás nem a tárgyát mérte (KUKA-033 · KUKA-215: a választ MEG
+    // KELL MÉRNI). Mostantól a NEVEZETT régi nyugtát keressük, és azt is kimondjuk, hogy az ÚJ
+    // nézet a SAJÁT igazságát mutatja.
+    const B3HU = dictFor('hu');
+    const regiNyugta = B3HU.TPL.inviteRevoked.replace('{ki}', cel.email);
+    const nyugtaElem = anna.page.getByTestId('members-result');
+    // A KONKRÉT régi nyugta nincs kint — se a nyugta-elemben, se a lap szövegében.
+    if (await nyugtaElem.count() > 0) {
+      const nyugtaSzoveg = (await nyugtaElem.textContent()) || '';
+      expect(nyugtaSzoveg).not.toContain(regiNyugta);
+      expect(nyugtaSzoveg).not.toContain(cel.email);
+    }
     const masodikSzoveg = (await anna.page.locator('main').textContent()) || '';
+    expect(masodikSzoveg).not.toContain(regiNyugta);
     expect(masodikSzoveg).not.toContain(cel.email);
+    // AZ ÚJ KONTEXTUS VÁLTOZATLAN: a MÁSODIK fiók van kiválasztva, és a lap a MÁSODIK fiók nevét
+    // mutatja — a késői válasz nem vitte vissza a kezelőt a régi nézetbe.
+    await expect(anna.page.getByTestId('header-workspace')).toHaveText('R134 B3 Másik Kft');
     await anna.page.unroute('**/api/invites/revoke').catch(() => {});
 
     // ── (b) POZITÍV KONTROLL: VÁLTOZATLAN nézetben a késleltetve elengedett válasz MEGJELENIK ──
@@ -276,7 +295,10 @@ test.describe('R134 — a véglegesítési kapuk, az egyszeri ajánlat és a nye
     await anna.page.getByTestId('invite-revoke-confirm').click();
     await inFlight(h2, 'visszavonás (pozitív kontroll)');
     await atad(anna.page, h2, 'visszavonás (pozitív kontroll)');
-    await expect(anna.page.getByTestId('members-result')).not.toHaveText('');
+    // A POZITÍV KONTROLL A VÁRT ÚJ NYUGTÁT IGAZOLJA, nem csak a „nem üres" tényt (R136 kikötése):
+    // egy üres-ellenes állítás egy HIBAÜZENETRE is zöld volna (KUKA-215).
+    await expect(anna.page.getByTestId('members-result'))
+      .toHaveText(B3HU.TPL.inviteRevoked.replace('{ki}', world.email('b3cili')));
     await anna.page.unroute('**/api/invites/revoke').catch(() => {});
 
     // ── (c) AZ ÚJRAHÍVÁS VÁLASZA KÉSIK, és közben a nézet VÁLTOZIK ────────────────────────────
@@ -298,8 +320,15 @@ test.describe('R134 — a véglegesítési kapuk, az egyszeri ajánlat és a nye
     await anna.page.keyboard.press('Escape');
     await switchUI(anna.page, masodik.bookId);
     await atad(anna.page, h3, 'újrahívás');
+    // UGYANAZ A KÉT TANÚ AZ ÚJRAHÍVÁSON: a KONKRÉT régi nyugta (mindkét alakja — küldött ÉS
+    // ismételt) nincs kint, és az ÚJ kontextus változatlan.
+    const regiReinvite = B3HU.TPL.reinviteSent.replace('{ki}', bela2.email);
+    const regiReinviteRep = B3HU.TPL.reinviteReplayed.replace('{ki}', bela2.email);
     const utanaSzoveg = (await anna.page.locator('main').textContent()) || '';
+    expect(utanaSzoveg).not.toContain(regiReinvite);
+    expect(utanaSzoveg).not.toContain(regiReinviteRep);
     expect(utanaSzoveg).not.toContain(bela2.email);
+    await expect(anna.page.getByTestId('header-workspace')).toHaveText('R134 B3 Másik Kft');
     await anna.page.unroute('**/api/members/reinvite').catch(() => {});
 
     // ── (d) POZITÍV KONTROLL az ÚJRAHÍVÁSRA: változatlan nézetben a késői válasz MEGJELENIK ────
@@ -311,7 +340,20 @@ test.describe('R134 — a véglegesítési kapuk, az egyszeri ajánlat és a nye
     await anna.page.getByTestId('reinvite-confirm').click();
     await inFlight(h4, 'újrahívás (pozitív kontroll)');
     await atad(anna.page, h4, 'újrahívás (pozitív kontroll)');
-    await expect(anna.page.getByTestId('members-result')).not.toHaveText('');
+    // A VÁRT ÚJ NYUGTA, NEVEZETTEN. A két MEGENGEDETT alak kimondott: ÚJ ajánlat (`reinviteSent`)
+    // VAGY ugyanannak az azonosságnak az ISMÉTLÉSE (`reinviteReplayed`, OON-01) — bármelyik a
+    // helyes üzleti válasz, de MÁS mondat egyik sem lehet (KUKA-215).
+    // ÉS A MÉRÉS VÁR A NYUGTÁRA. Az első alakom egyszeri `textContent()`-tel olvasott, és ÜRES
+    // sztringet kapott: a nyugta a kiolvasás pillanatában még nem volt kirajzolva. Ez a KUKA-228
+    // alakja a próba oldalán — amit a felület nem rajzolt ki még, arra VÁRNI kell; a régi, üres-
+    // ellenes állítás épp azért nem bukott el, mert automatikusan újrapróbálkozott.
+    const vartReinvite = [
+      B3HU.TPL.reinviteSent.replace('{ki}', bela2.email),
+      B3HU.TPL.reinviteReplayed.replace('{ki}', bela2.email),
+    ];
+    const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    await expect(anna.page.getByTestId('members-result'))
+      .toHaveText(new RegExp(`^(${vartReinvite.map(esc).join('|')})$`));
     await anna.page.unroute('**/api/members/reinvite').catch(() => {});
   });
 

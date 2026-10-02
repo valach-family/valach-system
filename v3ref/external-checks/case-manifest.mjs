@@ -470,10 +470,21 @@ export const PROGRAMS = Object.freeze([
       from: 'r57',
       from_file: 'r57_chatgpt-v3.mjs',
       by: Object.freeze(['chatgpt-v3 (R81 §5) — a battéria darabolt hívása',
-        'Claude-v3 (R8 §3, az ő kimondott hozzájárulásukkal) — a darabszám konfigurálható paraméter, alapértéke 6']),
+        'Claude-v3 (R8 §3, az ő kimondott hozzájárulásukkal) — a darabszám konfigurálható paraméter, alapértéke 6',
+        'Claude-v3 (R136 §„Külső tanú", az ő kimondott hozzájárulásukkal) — FALIÓRA szerinti '
+          + 'adaptív szeletelés: időtúllépésen finomabbra osztunk és újrapróbálunk, legfeljebb 4 '
+          + 'próbálkozás; a plafonon a hiba TOVÁBB DOBÓDIK (a mérés hiányos marad, nem zöld)']),
       changed: 'KIZÁRÓLAG a battéria HÍVÁSÁNAK ALAKJA: egy hívás helyett N egység + `--merge`, '
-        + 'N alapértéke 6 (felülírható: VS_BATTERY_UNITS) — ugyanaz a bővítés, mint az `r59a`-n.',
-      unchanged: 'egyetlen eset · mutáció · elvárás · forráskötés és az időkeret-ÉRVÉNYESÍTÉS sem.',
+        + 'N alapértéke a mutáció-számból származik (felülírható: VS_BATTERY_UNITS), és '
+        + 'IDŐTÚLLÉPÉSEN N megduplázódik (R136). A megtett finomítást a visszatérő érték hordozza '
+        + '(`units_used` · `refined` · `unit_cap_ms`), tehát a futtatási DELTA visszakövethető.',
+      unchanged: 'egyetlen eset · mutáció · elvárás · forráskötés és az időkeret-ÉRVÉNYESÍTÉS sem '
+        + '(az egy egységre jutó korlát MARAD 15 000 ms, a költségvetés nem tágul), és a '
+        + 'LEFEDETTSÉG sem: minden mutáció lefut.',
+      measured_before: 'a `df79358a` könyvelt eredményében és ezen a köron ÚJRAMÉRVE is: E02 · E03 '
+        + '`spawnSync ETIMEDOUT` a `runBatteryUnits` 15 000 ms-os egység-korlátján (a 233 mutáció '
+        + '1/10 szelete ezen a futtatón a korlát fölött van) — tehát NEM ennek a csomagnak a '
+        + 'regressziója, hanem a KÖZVETLEN kiinduló állapot örökölt eltérése.',
     }),
     what: 'ugyanaz a kilenc eset, mint az r57-nél (T01–T05 · E01–E04), de a DARABOLT battériával',
     evidence: 'r56-challenge.json',

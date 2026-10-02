@@ -60,14 +60,50 @@
 // korábbi alapérték (6), és a hívás ALAKJA sem változik: N egység + `--merge`, egységenként 15 000 ms.
 const BATTERY_UNITS=(()=>{const v=Number(process.env.VS_BATTERY_UNITS);if(Number.isInteger(v)&&v>=1&&v<=64)return v;return Math.max(6,Math.ceil(MUTATIONS.length/24));})();
 function batteryArgs(n){const a=[];for(let i=1;i<=n;i++)a.push(`--unit=${i}/${n}`);a.push('--merge');return a;}
+// ADAPTÁCIÓ, FALIÓRA SZERINT (chatgpt-v3 R136 §„Külső tanú" kimondott hozzájárulásával).
+//
+// A MÉRT HIBA. A darabszám a MUTÁCIÓK SZÁMÁBÓL képződik (`max(6, ceil(233/24))`), a korlát viszont
+// FALIÓRA (15 000 ms/egység). Ez a kettő nem ugyanaz a mérce: ezen a futtatón a 229 mutációs
+// battéria 1/10 szelete 25 110 ms-ot kért, és a program E02/E03 esete `spawnSync ETIMEDOUT`-tal
+// halt meg — MÉRVE, a `df79358a` könyvelt eredményében is (tehát nem ennek a csomagnak a
+// regressziója). Az R135-ös saját mondatom — „a hívó a battéria növekedésével magától finomodik" —
+// MÉRVE NEM ÁLLT: mutáció-számra finomodik, faliórára nem.
+//
+// MI VÁLTOZIK, ÉS MI NEM — KIMONDVA. Változik KIZÁRÓLAG a SZELETELÉS: időtúllépésen FINOMABBRA
+// osztunk és újrapróbálunk. NEM változik egyetlen eset · állítás · mutáció · forráskötés, a
+// lefedettség (minden mutáció lefut), és **az IDŐKERET-ÉRVÉNYESÍTÉS SEM**: az egy egységre jutó
+// korlát MARAD 15 000 ms, a költségvetés SOHA nem tágul (KUKA-091: a javítás iránya nem az őr
+// lazítása). Ez ugyanaz a szabály, amit a repó `--units-auto`-ja és az `r83core` is használ
+// (KUKA-003: egy fogalom, egy otthon).
+//
+// ÉS A FINOMÍTÁS NEM NÉMA: a plafonon (`REFINE_MAX_ATTEMPTS`) túl a hiba TOVÁBB DOBÓDIK, tehát a
+// mérés HIÁNYOS marad, nem zöld (KUKA-093 · KUKA-206). A megtett finomítást a visszatérő érték
+// hordozza (`units_used` · `refined`), hogy a futtatási DELTA visszakövethető legyen.
+const UNIT_CAP_MS=15000;
+const REFINE_MAX_ATTEMPTS=4;
+function isTimeout(err){return !!err&&(err.code==='ETIMEDOUT'||/ETIMEDOUT/.test(String(err.message||'')));}
 function runBatteryUnits(dir){
-  const unitsDir=join(dir,'v3ref','units');rmSync(unitsDir,{recursive:true,force:true});
-  const runs=[];
-  for(const arg of batteryArgs(BATTERY_UNITS)){
-    const r=spawnSync(process.execPath,[join(dir,'v3ref','mutate.mjs'),arg],{cwd:dir,encoding:'utf8',timeout:15000,maxBuffer:32*1024*1024});
-    if(r.error)throw r.error;runs.push({arg,exit:r.status,stdout:r.stdout,stderr:r.stderr});
+  const unitsDir=join(dir,'v3ref','units');
+  let n=BATTERY_UNITS;
+  for(let attempt=1;;attempt+=1){
+    rmSync(unitsDir,{recursive:true,force:true});
+    const runs=[];
+    let tooSlow=null;
+    for(const arg of batteryArgs(n)){
+      const r=spawnSync(process.execPath,[join(dir,'v3ref','mutate.mjs'),arg],{cwd:dir,encoding:'utf8',timeout:UNIT_CAP_MS,maxBuffer:32*1024*1024});
+      if(isTimeout(r.error)){
+        // IDŐ-BUKÁS: a darabolás ezen SEGÍT — de csak a plafonig. A plafonon a hiba megy tovább.
+        if(attempt<REFINE_MAX_ATTEMPTS){tooSlow={arg,n};break;}
+        throw r.error;
+      }
+      if(r.error)throw r.error;   // NEM idő-bukás: darabolással nem kerüljük meg
+      runs.push({arg,exit:r.status,stdout:r.stdout,stderr:r.stderr});
+    }
+    if(!tooSlow){
+      return {exit:runs.some(r=>r.exit!==0)?(runs.find(r=>r.exit!==0).exit??2):0,stdout:runs.map(r=>r.stdout).join('\n'),stderr:runs.map(r=>r.stderr).join('\n'),units:runs,units_used:n,refined:n!==BATTERY_UNITS,unit_cap_ms:UNIT_CAP_MS};
+    }
+    n*=2;                        // a KÖLTSÉGVETÉS nem tágul — a szelet lesz kisebb
   }
-  return {exit:runs.some(r=>r.exit!==0)?(runs.find(r=>r.exit!==0).exit??2):0,stdout:runs.map(r=>r.stdout).join('\n'),stderr:runs.map(r=>r.stderr).join('\n'),units:runs};
 }
 import {readFileSync,writeFileSync,cpSync,mkdtempSync,rmSync} from 'node:fs';
 import {join} from 'node:path';

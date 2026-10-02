@@ -441,12 +441,51 @@ export const MUTATIONS = [
     from: "    { store, clock, subjectId: actorSubjectId, bookId, operation: 'alter_right', credentials },",
     to: "    { store, clock, subjectId: actorSubjectId, bookId, operation: 'suspend' }," },
 
+  // ÁTHORGONYOZVA (R136/F136-01): a hatáskör-sor lekérdezése az `authorityHistory.mjs`-be költözött
+  // (a MÚLT forrása a napló, a vetület gyorsítótár). A mutáció SZÁNDÉKA változatlan — a
+  // művelet-szűkítés kivétele —, csak a horgony fájlja más. Elavult horgonyt nem hagyunk: az
+  // „nem mértünk ott" állapot, nem zöld (KUKA-200).
   { id: 'M51', rule: 'K04/K09', catcher: 'P-REV-authority', expect: 'probe_fail',
     what: 'REV-N3a — a MŰVELET-SZŰKÍTÉS kivétele: bármelyik hatáskör megteszi (a legszűkebb '
       + 'felhatalmazás a legtágabb hatást adná)',
-    file: 'authority.mjs',
-    from: "    'SELECT * FROM adjudication_authority WHERE subject_id = ? AND book_id = ? AND operation = ?',\n    who, bookId, operation);",
-    to: "    'SELECT * FROM adjudication_authority WHERE subject_id = ? AND book_id = ?',\n    who, bookId);" },
+    file: 'authorityHistory.mjs',
+    from: "    'SELECT * FROM adjudication_authority WHERE subject_id = ? AND book_id = ? AND operation = ?',\n    who, bookId, operation) || null;",
+    to: "    'SELECT * FROM adjudication_authority WHERE subject_id = ? AND book_id = ?',\n    who, bookId) || null;" },
+
+  // ── R136/F136-01 · F136-02 — AZ ÚJ KAPUK SAJÁT RONTÁSAI (KUKA-009) ───────────────────────────
+  //
+  // Az új őr gépi jelet kap, különben a visszacsúszás némán kinyitja a két most zárt leletet. Mind
+  // a négy rontás a NEVEZETT próba NEVEZETT állítását bukatja meg.
+  { id: 'M332', rule: 'K04/K09', catcher: 'P-REV-authority', expect: 'probe_fail',
+    what: 'AHI-01 — a MŰVELET-SZŰKÍTÉS kivétele a hatásköradás NAPLÓJÁBÓL: a történeti feloldás '
+      + 'bármelyik művelet megadását elfogadná',
+    file: 'authorityHistory.mjs',
+    from: "      WHERE subject_id = ? AND book_id = ? AND operation = ?\n      ORDER BY id ASC`,\n    who, bookId, operation) || [];",
+    to: "      WHERE subject_id = ? AND book_id = ?\n      ORDER BY id ASC`,\n    who, bookId) || [];" },
+
+  { id: 'M333', rule: 'K04/K09', catcher: 'P-REV-authority', expect: 'probe_fail',
+    what: 'AHI-01 — a TUDÁS tengelyének kivétele: a történeti válasz olyan megadásra is épülne, '
+      + 'amit a kérdés tudása MÉG NEM ISMER (a júniusi rögzítés a márciusi képet írná át)',
+    file: 'authorityHistory.mjs',
+    from: '    if (g.ms <= valid.ms && r.ms <= known.ms) { chosen = log[i]; chosenIdx = i; }',
+    to: '    if (g.ms <= valid.ms) { chosen = log[i]; chosenIdx = i; }' },
+
+  // A FOGÓ PRÓBÁT MÉRTEM, NEM TIPPELTEM: az első alakom `P-REV-authority`-t deklarált, és a
+  // battéria `WRONG_CATCHER`-t adott — a nyers vetület-írást a `P-ORG-adjudication-basis-limit`
+  // fogja meg (ugyanaz a próba, ami a KUKA-273-as saját leletemet is MÉRTE).
+  { id: 'M334', rule: 'K04/K09', catcher: 'P-ORG-adjudication-basis-limit', expect: 'probe_fail',
+    what: 'AHI-01 — az ÉLŐ generáció vetületének kivétele: a nyers vetület-írás (megcsonkított '
+      + 'alap-hivatkozás, megvonás) láthatatlanná válik a napló mögött — ez a KUKA-273 visszacsúszása',
+    file: 'authorityHistory.mjs',
+    from: '    const operative = projMatches ? projection : {',
+    to: '    const operative = false ? projection : {' },
+
+  { id: 'M335', rule: 'K04/K09', catcher: 'P-ORG-basis-limit', expect: 'probe_fail',
+    what: 'AOR-01 — az EREDET-KAPU kivétele a BEVÁLTÁSON: a jelen idejű új delegált alap újra '
+      + 'igazolná a régi időszakból kiadott ajánlatot (az F136-02 visszacsúszása)',
+    file: 'basisLimit.mjs',
+    from: '    if (!sameOrigin) {',
+    to: '    if (false) {' },
 
   { id: 'M52', rule: 'K05/K15', catcher: 'P-REV-authority', expect: 'probe_fail',
     what: 'REV-N3c — a JELZÉS-ÚT HATÁSKÖRHÖZ KÖTÉSE: a még nem igazolt panaszos jelzése elakad '
