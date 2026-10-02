@@ -266,7 +266,17 @@ export function actorSwitchReady(run, { view, role }) {
   if (!step || step.switch_actor !== true) return false;
   const wantRole = step.role ?? null;   // ugyanaz a szabály, mint a checkRun-ban
   if (wantRole && role !== wantRole) return false;
-  return (view.subject ?? null) !== run.view.subject;
+  /**
+   * A VÁLTÁS KÉT FAJTA NÉZET-VÁLTÁS (R140 — SAJÁT LELET, MÉRVE).
+   *
+   * Nemcsak MÁSIK EMBER nézetére lehet váltani, hanem UGYANAZ az ember másik FIÓKJÁRA is. A
+   * meghívás elfogadása után a belépő a SAJÁT személyes körében marad (mérve: `current_book_name`
+   * = „béla személyes köre", és a bal menü a személyes menü) — a cég képernyőihez külön át kell
+   * váltania. Ha a váltás fogalma csak az alanyra állna, ez a lépés sosem teljesülne, a
+   * fiók-váltást pedig az alany-váltás őre MEGSZAKÍTÁSNAK minősítené. A nézet a KETTŐ EGYÜTT:
+   * alany ÉS fiók (KUKA-208: a kontextus PÁR).
+   */
+  return (view.subject ?? null) !== run.view.subject || (view.book ?? null) !== run.view.book;
 }
 
 /**

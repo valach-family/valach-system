@@ -97,20 +97,18 @@ function seed(story) {
     });
     base.mails.push(mail(PEOPLE.bela.email, 'Meghívás', 'demo-token-a1'));
   } else {
-    // „B" — BÉLA TAGSÁGA MÁR MEGSZŰNT, és innen indul a VISSZATÉRÉS.
+    // „B" — BÉLA ÉLŐ TAG, ÉS A KÉSZLET-JOGA ÁLL. Innen indul a történet: Anna megszünteti a
+    // tagságát, újra meghívja, Béla elfogadja — és akkor derül ki, hogy a RÉGI adat-hozzáférése
+    // NEM jött vissza vele.
     //
-    // MIÉRT EZ A KEZDŐÁLLAPOT, ÉS MIÉRT NEM AZ ÉLŐ TAGSÁG (saját lelet, a bejárás mérte meg). Az
-    // első alakom élő tagként ültette le Bélát, mert a történet „az eltávolítástól" indul. A
-    // bemutató HARMADIK lépése viszont szó szerint az „Újbóli belépés" szakasz „Újra meghívás"
-    // gombjára mutat — az a gomb pedig CSAK megszűnt tagságnál létezik. Mérve: a lépés nem volt
-    // végigvihető egyetlen képernyő-méreten sem, mert a megnevezett gomb nem volt a lapon. A
-    // bemutató lépés-listája a termék DEKLARÁCIÓJA (`v3app/knowledge/features.mjs`), tehát a
-    // kezdőállapotot KELL hozzá igazítani, nem fordítva (KUKA-011: hol kattint? · KUKA-160: amit a
-    // képernyő felkínál, annak végig kell mennie).
-    base.memberships.bela = { role: 'user', effective: false, period: 2, removed_at: '2026-09-25T09:00:00.000Z' };
-    // A RÉGI ADATKÖRJOG A RÉGI IDŐSZAKHOZ TAPAD, és SZÁNDÉKOSAN itt marad: ez teszi MÉRHETŐVÉ a
-    // megerősítés mondatát („a korábbi hozzáférései nem állnak vissza"). Ha a régi jogot
-    // kitörölnénk a kezdőállapotból, az állítás igaz LÁTSZANA anélkül, hogy bármit bizonyítanánk.
+    // AZ R138-BAN EZ FORDÍTVA VOLT, ÉS AZ IS MÉRT DÖNTÉS VOLT A MAGA IDEJÉN: akkor a bemutató
+    // HÁROM lépésből állt, és rögtön az „Újbóli belépés" gombjára mutatott — ahhoz megszűnt
+    // tagság kellett. Az R140-ben a megszüntetés MAGA is vezetett lépés lett, tehát a
+    // kezdőállapotnak is a történet elejére kell állnia. A kezdőállapot a TÖRTÉNET része, nem
+    // díszlet: ha nem oda állítjuk, ahonnan a történet indul, az első lépés nem végezhető el.
+    base.memberships.bela = { role: 'user', effective: true, period: 2, removed_at: null };
+    // A RÉGI ADATKÖRJOG A RÉGI IDŐSZAKHOZ TAPAD — ez teszi mérhetővé a történet tanulságát:
+    // az új időszakban a jog NEM él, amíg külön meg nem adják.
     base.scopes.bela = { keszlet: 2 };
   }
   return base;

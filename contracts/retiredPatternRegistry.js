@@ -12220,6 +12220,122 @@ pattern: 'sources: modelAccepted \\? \\w+\\.sources : local\\.sources',
       + 'EGYEDISÉG-ELLENŐRZÉSSEL: a csomag mondatának megrontása az (a10a)-t, a panel-fejléc elhagyása az '
       + '(a10b)-t váltja pirosra.',
   }),
+  Object.freeze({
+    id: 'KUKA-278',
+    date: '2026-10-02',
+    title: 'A KIVÉTELT MÁSODSZOR IS CSAK AZ EGYIK DÖNTÉSI PONTRA TETTEM BE — a már ELVÉGZETT lépés a továbblépésnél megint „eltűnt célnak" számított',
+    what: 'A bemutató-motorban KÉT döntési pont kérdezi meg ugyanazt: a rajzolás (`checkRun`) és a '
+      + 'továbblépés (`advance`). Az R138-ban kimondtam a kivételt — „ami már elvégzett, annak nincs '
+      + 'szüksége a céljára" —, de CSAK a `checkRun`-ba tettem be. Az R140-es teljes történetben a '
+      + 'meghívás elfogadása UTÁN a meghívó képernyője megszűnik, tehát a lépés célja eltűnik a '
+      + 'lapról; a lépés viszont IGAZOLTAN elvégzett (a szerver nyugtázta). A továbblépés mégis '
+      + '`targetMissing`-gel elakadt: a 18 lépéses történet a 17.-en állt meg, közvetlenül a '
+      + 'végeredmény előtt. UGYANEBBEN A KÖRBEN ugyanez megismétlődött a `checkRun`-on belül is: a '
+      + 'kivétel a rendes ág elé került, a szereplő-váltás ága elé nem, és a kész váltás-lépés vég '
+      + 'nélkül újra váltást kért.',
+    why_wrong: 'A KUKA-003/KUKA-039 pontosan erről szól: ha egy szabály több ágon igaz, EGY helyen '
+      + 'álljon — különben a következő ág kimarad. Itt nem egy új szabályt felejtettem el, hanem egy '
+      + 'MÁR KIMONDOTT kivételt nem vittem végig minden döntési pontra. A hiba ráadásul a történet '
+      + 'VÉGÉN jelentkezett, ahol a tanulság van: a félbemaradt bemutató pont azt veszítette el, '
+      + 'amiért létezik.',
+    replaced_by: 'Mindkét döntési pont ugyanazt mondja: `checkRun` a lépés-állapotot MINDKÉT ág ELŐTT '
+      + 'nézi meg, az `advance` pedig a cél-követelményt `step.state !== \'done\'` mellett érvényesíti. '
+      + 'A két hely egymáshoz mérve áll, és a tanú a történet VÉGÉIG megy, nem a közepéig.',
+    replacement: 'A végigjárás tanúja ezért nem a lépés-deklarációból vezeti le a teljesítést: a '
+      + 'VÉGÁLLAPOT önálló elvárás (tagság · régi/új meghívó · a végső látható adat).',
+    decision: 'D-VS-3095',
+    found_by: 'SAJÁT LELET (Claude-v3, R140) — a két teljes történet élő végigjárásán, miután a '
+      + 'tanúba haladás-naplót tettem: a napló mutatta meg, hogy a futás a 17. lépésen áll.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/tour.mjs']),
+        pattern: "if \\(step\\.state !== 'done' && !targetOf\\(run\\)\\) \\{",
+        why: 'a továbblépés sem kéri a célt egy már elvégzett lépéstől' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/tour.mjs']),
+        pattern: "if \\(step\\.state === 'done'\\) return \\{ ok: true, why: null, pending: null \\};",
+        why: 'a rajzolás ugyanezt mondja, MINDKÉT ág előtt' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/tour.mjs']),
+        pattern: "  if \\(!targetOf\\(run\\)\\) \\{\n    if \\(isPending",
+        reason: 'a továbblépés cél-követelménye az elvégzett lépésre is állna', flags: 'm' }),
+    ]),
+    lesson: 'AMIKOR EGY SZABÁLYHOZ KIVÉTELT ÍRSZ, KERESD MEG AZ ÖSSZES DÖNTÉSI PONTOT, AMI AZT A '
+      + 'SZABÁLYT MEGKÉRDEZI — és a próbának azt az utat is végig kell járnia, amelyik a MÁSIK ágat '
+      + 'használja. Egy kivétel, ami csak az egyik helyen áll, nem kivétel: időzített hiba.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (a két döntési pont pozitív mintája és a tiltott, '
+      + 'kivétel nélküli alak). ÉLŐ tanú: `npm run proof:demo-walk` — a két TELJES történet minden '
+      + 'lépése, a végállapot önálló mérésével. KIMONDVA: böngészőt igényel, ezért NEM része a '
+      + '`verify:sweep`-nek.',
+  }),
+  Object.freeze({
+    id: 'KUKA-279',
+    date: '2026-10-02',
+    title: 'AZ ÁTADÁS ÉS A VISSZAÁLLÁS EGY PÁR — a felét építettem meg, és a futás némán eltűnt a nézet-váltásnál',
+    what: 'A szereplőkön átívelő történethez a futó végigvezetésnek túl kell élnie a néző-váltást. '
+      + 'Megépítettem az ÁTADÁST (a nézethez kötött tárak ürítése előtt elmentjük a haladást), és a '
+      + 'VISSZAÁLLÁST is — de a visszaállást csak a lap INDULÁSÁHOZ kötöttem. A meghívás elfogadása '
+      + 'viszont NEM tölti újra a lapot: ott az átadás lefutott, a visszaállás nem, és a bemutató '
+      + 'nyom nélkül eltűnt a történet közepén.',
+    why_wrong: 'KUKA-118 alakja: a mag szerződése kész volt, a hívó nem adta át. Egy mentés, aminek '
+      + 'nincs minden úton párja, nem megőrzés — csak az adatvesztés elhalasztása. És a hiány NÉMA '
+      + 'volt: sem hibaüzenet, sem nevezett megszakítás, csak egy üres doboz.',
+    replaced_by: 'A visszaállás MINDEN olyan úton lefut, ahol az átadás keletkezhet: a lap indulásán '
+      + '(a kész állapot UTÁN) és a beváltás befejezésekor is. Az átadás feltétele pedig a DEKLARÁLT '
+      + 'kereszt-szereplős futás, nem egy konkrét gomb — így nem lehet egy új úton kifelejteni.',
+    replacement: 'Az átadás az OLDAL ELHAGYÁSÁHOZ is kötve van (`pagehide`), tehát egy kézi frissítés '
+      + 'sem veszi el a történet közepét.',
+    decision: 'D-VS-3095',
+    found_by: 'SAJÁT LELET (Claude-v3, R140) — a teljes történet élő végigjárásán: a bemutató a '
+      + 'nézet-váltás után egyszerűen nem volt sehol.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "window\\.addEventListener\\('pagehide'",
+        why: 'az oldal elhagyása is átadási határ — nem csak egy konkrét gomb' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'await resumeTourAfterSwitch\\(\\);',
+        why: 'a visszaállás minden olyan úton lefut, ahol az átadás keletkezhet' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'A MENTÉS ÉS A VISSZAÁLLÁS EGY PÁR: ahol az egyik megtörténhet, ott a másiknak is kell. '
+      + 'Ne a GOMBHOZ kösd, hanem az ÁLLAPOTHOZ (itt: az oldal elhagyásához és a nézet-váltáshoz) — '
+      + 'különben a következő új út megint kimarad, és a hiány néma lesz.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (a két pozitív minta). ÉLŐ tanú: `proof:demo-walk` — '
+      + 'a történet a nézet-váltások UTÁN is folytatódik, és a végállapotot is méri.',
+  }),
+  Object.freeze({
+    id: 'KUKA-280',
+    date: '2026-10-02',
+    title: 'A NÉMÁN ELAKADÓ TANÚ — tíz másodperces diagnózisból negyven perces találgatás lett',
+    what: 'A végigjárás tanúja csak a VÉGÉN írt ki bármit (az állításait), menet közben semmit. '
+      + 'Amikor a bemutató elakadt, a tanú percekig csak futott, majd egyetlen sorral közölte, hogy '
+      + '„látott lépések: 17/18" — azt nem, hogy MELYIKEN állt meg és miért. Ráadásul a kattintások '
+      + 'az alapértelmezett 30 másodperces határidőn futottak, tehát EGY elérhetetlen gomb '
+      + 'önmagában félórásra nyújtotta a mérést.',
+    why_wrong: 'KUKA-171: ami megállít, annak NEVE is legyen. Egy mérő-eszköz, ami nem mondja meg, '
+      + 'hol tart, a saját hibakeresését teszi lehetetlenné — és közben a hosszú futás azt a '
+      + 'látszatot kelti, hogy „dolgozik", miközben egy helyben áll.',
+    replaced_by: 'A tanú minden ÁLLAPOTVÁLTOZÁSNÁL kiír egy sort (lépés · állapot · mire vár · mit '
+      + 'emel ki), és a kattintás-határidő 5 másodperc: ami ennél lassabb egy helyi lapon, az nem '
+      + 'lassú, hanem ELÉRHETETLEN — és azt AZONNAL akarjuk tudni.',
+    replacement: 'A sor csak VÁLTOZÁSKOR íródik ki, tehát a napló nem lesz zaj.',
+    decision: 'D-VS-3095',
+    found_by: 'SAJÁT LELET (Claude-v3, R140) — a saját tanúm hibakeresése közben, miután három '
+      + 'futásból sem derült ki, hol akad el a végigvezetés.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_demo_walk_proof.mjs']),
+        pattern: 'if \\(jel !== walk\\.utolso\\)',
+        why: 'a haladás látható, és csak változáskor ír' }),
+      Object.freeze({ paths: Object.freeze(['tools/v3_demo_walk_proof.mjs']),
+        pattern: 'const KATT = \\{ timeout: 5000 \\};',
+        why: 'az elérhetetlen gomb AZONNAL kiderül, nem fél óra múlva' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'A MÉRŐ-ESZKÖZ IS FELÜLET: ha nem mondja meg, hol tart és mire vár, akkor a hibakeresés '
+      + 'találgatás. És a hosszú alapértelmezett határidő nem türelem, hanem a visszajelzés '
+      + 'elodázása — helyi méréshez rövid határidő való.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (a haladás-napló és a rövid határidő mintája). '
+      + 'KIMONDVA: ez a tanú böngészőt igényel, ezért nem része a `verify:sweep`-nek.',
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

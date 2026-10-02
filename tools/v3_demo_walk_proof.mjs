@@ -80,12 +80,40 @@ const srv = await serve();
 const BASE = `http://127.0.0.1:${srv.address().port}`;
 console.log(`A SZÁLLÍTOTT lap kiszolgálva: ${BASE}/demo-index.html  (forrás: v3app/public)`);
 const browser = await chromium.launch();
+// RÖVID KATTINTÁS-HATÁRIDŐ (KUKA-280): az alapértelmezett 30 s egyetlen elérhetetlen gombnál
+// percekre nyújtja a mérést, és a VÉGÉN derül ki, hogy elakadt. 5 s elég egy helyi lapon — ami
+// ennél lassabb, az nem lassú, hanem ELÉRHETETLEN, és azt MOST akarjuk tudni.
+const KATT = { timeout: 5000 };
 
 /** A VALÓDI MŰVELETEK. A végigvezetés ezeket SOHA nem végzi el — a FELHASZNÁLÓ igen, és itt a tanú az. */
-async function doTask(page, task) {
+async function doTask(page, task, step = {}) {
   const T = (t) => page.locator(`[data-testid="${t}"]`).first();
   const has = async (sel) => (await page.locator(sel).count()) > 0;
   if (task === 'actor.switched') {
+    /**
+     * A VÁLTÁS KÉT ÚTJA. A szereplő-váltás a próbafelület sávjában megy (valódi ki- és belépés), a
+     * FIÓK-váltás viszont a fejléc saját fiókválasztójában — ugyanaz az ember, másik fiók. A tanú
+     * azt az utat járja, amit a lépés KIEMEL, nem egy előre eldöntöttet.
+     */
+    // A DÖNTÉST A LÉPÉS DEKLARÁLT CÉLJA ADJA, nem a pillanatnyi kiemelés (az lehet a feltáró is).
+    if (step.target === 'account-switcher') {
+      await page.locator('[data-testid="account-switcher-summary"]').first().click(KATT).catch(() => {});
+      await page.waitForTimeout(500);
+      const ceg = await page.evaluate(() => {
+        const lista = document.querySelector('[data-testid="ws-list"]');
+        if (!lista) return null;
+        const b2 = [...lista.querySelectorAll('button')].find((x) => /Minta Műhely/.test(x.textContent || ''));
+        return b2 ? (b2.getAttribute('data-testid') || '__ws') : null;
+      });
+      if (ceg) { await page.locator(`[data-testid="${ceg}"]`).first().click(KATT).catch(() => {}); return 'fiók-váltás'; }
+      // AMI NEM MEGY, ANNAK NEVE LEGYEN (KUKA-171/280): kiírjuk, MIT látott a tanú a listán.
+      const latott = await page.evaluate(() => {
+        const l = document.querySelector('[data-testid="ws-list"]');
+        return l ? [...l.querySelectorAll('button')].map((x) => `${x.getAttribute('data-testid')}:${(x.textContent || '').trim().slice(0, 24)}`) : ['nincs ws-list'];
+      });
+      console.log(`     !! a fiókválasztóban NINCS cég-bejegyzés — látott: ${JSON.stringify(latott)}`);
+      return null;
+    }
     // MODÁLIS PANEL MELLETT A SÁV NEM ELÉRHETŐ — a felhasználó előbb bezárja (ezt a lépés szövege is mondja).
     if (await page.evaluate(() => { const d = document.querySelector('[data-testid="panel"]'); return !!(d && d.open); })) {
       await page.locator('[data-testid="panel"] [data-action="panel-close"]').first().click().catch(() => {});
@@ -105,8 +133,37 @@ async function doTask(page, task) {
     await page.waitForTimeout(400);
     if (await has('[data-testid="revoke-confirm"]')) { await T('revoke-confirm').click(); return 'tagság megszüntetve'; }
   }
-  if (task === 'reinvite.sent' && await has('[data-testid="reinvite-confirm"]')) {
-    await T('reinvite-confirm').click(); return 'újra meghívás elküldve';
+  if (task === 'reinvite.sent') {
+    // KÉT KATTINTÁS, AHOGY A LÉPÉS SZÖVEGE MONDJA: előbb az „Újra meghívás" gomb nyitja az űrlapot,
+    // utána a megerősítés küldi el. A tanú a FELHASZNÁLÓ útját járja, nem rövidít.
+    if (!(await has('[data-testid="reinvite-confirm"]')) && await has('[data-testid^="member-reinvite-"]')) {
+      await page.locator('[data-testid^="member-reinvite-"]').first().click(KATT);
+      await page.waitForTimeout(600);
+    }
+    if (await has('[data-testid="reinvite-confirm"]')) {
+      /**
+       * A MEGERŐSÍTÉS MONDATA — KÉT KÜLÖN, HORGONYZOTT ÁLLÍTÁS (R138/KUKA-277).
+       * (a10a) TARTALOM: a SZÁLLÍTOTT nyelvcsomag mondata kimondja-e a jog-figyelmeztetést;
+       * (a10b) SZÁLLÍTÁS: pontosan EZ a mondat áll-e a megerősítő panel fejlécében.
+       * A felirat nem égethető a próbába: az elvárást a CSOMAGBÓL olvassuk (KUKA-237).
+       */
+      const lead = await page.evaluate(async () => {
+        const pack = await import('./i18n/hu.mjs');
+        const sentence = pack.TPL && pack.TPL.reinviteConfirmLead;
+        const head = document.querySelector('[data-testid="panel"] .dialoghead p.muted');
+        return { sentence: sentence || null, shown: head ? head.textContent.trim() : null };
+      });
+      if (!lead.sentence) A('(a10a) a nyelvcsomag mondata MÉRHETŐ', false, 'ELAKADT MÉRÉS: a `reinviteConfirmLead` kulcs nem olvasható');
+      else {
+        A('(a10a) a csomag mondata KIMONDJA: a korábbi hozzáférések nem állnak vissza',
+          /nem állnak vissza/.test(lead.sentence), lead.sentence.slice(0, 110));
+        const parts = lead.sentence.split('{ki}').map((x) => x.trim()).filter((x) => x.length > 3);
+        const shown = String(lead.shown || '');
+        A('(a10b) EZ a mondat áll a megerősítő panel fejlécében',
+          parts.length > 0 && parts.every((x) => shown.includes(x)), shown.slice(0, 110) || 'nincs fejléc-mondat');
+      }
+      await T('reinvite-confirm').click(KATT); return 'újra meghívás elküldve';
+    }
   }
   if (task === 'grant.saved' && await has('[data-testid^="member-scope-grant-"]')) {
     await page.locator('[data-testid^="member-scope-grant-"]').first().click(); return 'készlet-jog megadva';
@@ -155,24 +212,52 @@ async function walk(page, storyKey, tag, { kihagy = null } = {}) {
     // A HALADÁS LÁTHATÓ: egy némán elakadó tanú maga is hiba — nem mondja meg, HOL állt meg
     // (KUKA-171: ami megállít, annak neve is legyen).
     const jel = `${s.sid}/${s.state}${s.pending ? `·${s.pending}` : ''}${s.blocked ? '·blokkolt' : ''}`;
-    if (jel !== walk.utolso) { console.log(`     ${tag} ${jel} → ${s.marked[0] || '—'}`); walk.utolso = jel; }
+    if (jel !== walk.utolso) { console.log(`     ${tag} ${jel} → ${s.marked[0] || '—'}`); walk.utolso = jel; walk.ismetles = 0; }
+    else {
+      // PÖRGÉS-ŐR (KUKA-280): ha ugyanaz az állapot sokadszor jön vissza, a tanú NEVEZETTEN áll meg.
+      walk.ismetles = (walk.ismetles || 0) + 1;
+      if (walk.ismetles > 8) {
+        A(`${tag} a végigvezetés HALAD (nem pörög ugyanazon a lépésen)`, false,
+          `beragadt: ${jel} · kiemelve: ${s.marked[0] || '—'}`);
+        return false;
+      }
+    }
 
     // A NEGATÍV KONTROLL: egy KÖTELEZŐ KÉSŐI lépést szándékosan kihagyunk, és a tanúnak pirosnak kell lennie.
     if (kihagy && s.sid === kihagy) { A(`${tag} (negatív kontroll) a(z) ${kihagy} lépést SZÁNDÉKOSAN kihagyjuk`, true); return false; }
 
     if (s.state !== 'done' && step.task) {
-      const did = await doTask(page, step.task);
+      const did = await doTask(page, step.task, step);
       if (did) { elvegzett += 1; await page.waitForTimeout(1500); continue; }
     }
     if (s.pending) {
       const m = s.marked[0];
       if (!m) { A(`${tag} a feltárásra váró lépés megnevezi a feltárót`, false, `lépés=${s.sid}`); return false; }
       const sel = `[data-testid="${m}"],[data-tour-anchor="${m}"]`;
+      /**
+       * A FELTÁRÓN BELÜL A TÖRTÉNET SZEREPLŐJÉNEK SORÁT KERESSÜK (SAJÁT LELET, MÉRVE).
+       *
+       * Az első alakom `<tr>`-ekben kereste a szereplőt — a tag-lista viszont NEM táblázat, hanem
+       * dobozokból áll, tehát a keresés nem talált semmit, és a TARTALÉK ág a konténer ELSŐ gombját
+       * nyomta meg: Anna sorát, nem Béláét. A tanú így egy MÁSIK emberrel kezdte volna a történetet,
+       * és a hiba a végén derült volna ki, rossz néven. Ezért a sor-fogalmat a SZÖVEG adja: az a
+       * legszűkebb doboz, amelyik a szereplő címét tartalmazza, a másikét viszont nem.
+       */
       const inner = await page.evaluate((q) => {
         const c = document.querySelector(q);
         if (!c) return null;
         if (c.tagName === 'BUTTON' || c.tagName === 'A') return 'self';
-        const b = c.querySelector('a[href],button:not([disabled])');
+        const gombok = [...c.querySelectorAll('a[href],button:not([disabled])')];
+        const sajat = gombok.find((b2) => {
+          let n = b2;
+          while (n && n !== c) {
+            const t = (n.innerText || '');
+            if (/bela@/.test(t) && !/anna@/.test(t)) return true;
+            n = n.parentElement;
+          }
+          return false;
+        });
+        const b = sajat || gombok[0];
         return b ? (b.getAttribute('data-testid') || '__first') : null;
       }, sel);
       if (inner === 'self' || inner === null) await page.locator(sel).first().click().catch(() => {});
@@ -293,7 +378,64 @@ async function story(storyKey, width, height, { ismetles = false, kihagy = null 
   return { vege };
 }
 
+/**
+ * A KAPU-PRÓBÁK: a VALÓDI exportált függvényt hívják (KUKA-207 · KUKA-276).
+ * A történet-bejárás ezeket NEM fedi — egy nem mért kapu bizalom, nem védelem.
+ */
+async function gateProbes() {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/demo-index.html`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(700);
+  await page.locator('[data-testid="nav-toggle"]').first().click(KATT).catch(() => {});
+  await page.waitForTimeout(400);
+  const r = await page.evaluate(async () => {
+    const mod = await import('./tour.mjs');
+    const nav = document.querySelector('[data-testid="nav"]');
+    if (!nav) return { setupFailed: 'nincs [data-testid="nav"] a lapon' };
+    const el = document.createElement('button');
+    el.setAttribute('data-testid', 'kapu-proba-cel');
+    el.setAttribute('aria-current', 'page');
+    el.hidden = true;
+    nav.appendChild(el);
+    const run = (step) => ({ at: 0, steps: [step], view: { book: null, subject: null } });
+    const out = {
+      navStep: mod.navIntentFulfilled(run({ id: 's', target: 'kapu-proba-cel' })),
+      taskStep: mod.navIntentFulfilled(run({ id: 's', target: 'kapu-proba-cel', task: 'invite.revoked' })),
+      revealerStep: mod.navIntentFulfilled(run({ id: 's', target: 'kapu-proba-cel', appears_after: 'nav-toggle' })),
+      missingTarget: mod.navIntentFulfilled(run({ id: 's', target: 'nincs-ilyen-elem-sehol' })),
+      revealerWithCurrent: (() => { const e = mod.revealerOf(run({ id: 's', target: 'kapu-proba-cel' })); return e ? e.getAttribute('data-testid') : null; })(),
+    };
+    el.removeAttribute('aria-current');
+    const rev = mod.revealerOf(run({ id: 's', target: 'kapu-proba-cel' }));
+    out.revealerNoCurrent = rev ? rev.getAttribute('data-testid') : null;
+    out.pendingNoCurrent = mod.isPending(run({ id: 's', target: 'kapu-proba-cel' }));
+    el.remove();
+    const shown = document.createElement('button');
+    shown.setAttribute('data-testid', 'kapu-proba-latszik');
+    shown.setAttribute('aria-current', 'page');
+    shown.textContent = 'x';
+    nav.appendChild(shown);
+    out.shownSetup = !(shown.hidden || (shown.offsetParent === null && shown.getClientRects().length === 0));
+    out.shownTarget = mod.navIntentFulfilled(run({ id: 's', target: 'kapu-proba-latszik' }));
+    shown.remove();
+    return out;
+  });
+  if (r.setupFailed) { A('(g0) a kapu-próba alapsokasága felállt', false, r.setupFailed); await ctx.close(); return; }
+  A('(g1) a REJTETT, mai oldalt jelölő menü-cél TELJESÜLTNEK számít', r.navStep === true, `kapott=${r.navStep}`);
+  A('(g2) a FELADAT-lépést a kapu SOHA nem igazolja (csak a szerver)', r.taskStep === false, `kapott=${r.taskStep}`);
+  A('(g3) deklarált feltáró esetén a kapu NEM lép közbe', r.revealerStep === false, `kapott=${r.revealerStep}`);
+  A('(g4) a lapon NEM létező cél nem „teljesült"', r.missingTarget === false, `kapott=${r.missingTarget}`);
+  A('(g6) a mai oldalt jelölő REJTETT menü-célnál NINCS feltárás-kérés', r.revealerWithCurrent === null, `kapott=${r.revealerWithCurrent}`);
+  A('(g7) MÁS oldal rejtett menü-célja a ☰-t adja feltárónak', r.revealerNoCurrent === 'nav-toggle', `kapott=${r.revealerNoCurrent}`);
+  A('(g8) …és a lépés ekkor FELTÁRÁSRA VÁRÓNAK számít', r.pendingNoCurrent === true, `kapott=${r.pendingNoCurrent}`);
+  if (!r.shownSetup) A('(g5) a LÁTHATÓ cél esete MÉRHETŐ volt', false, 'ELAKADT MÉRÉS: a próba-elem nem lett látható');
+  else A('(g5) a LÁTHATÓ cél a rendes úton megy, nem ezen', r.shownTarget === false, `kapott=${r.shownTarget}`);
+  await ctx.close();
+}
+
 try {
+  await gateProbes();
   const keys = ONLY ? [ONLY] : Object.keys(STORIES);
   if (NEG) {
     // NEGATÍV KONTROLL: egy KÖTELEZŐ KÉSŐI lépés kihagyása — a tanúnak NEM szabad zöldet mondania.

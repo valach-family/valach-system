@@ -286,6 +286,16 @@ dl.usage dd { margin: 0; }
 .tourbubble.tour-top-start { inset-block-end: auto; inset-block-start: 16px; inset-inline-end: auto; inset-inline-start: 16px; }
 .tourbubble.tour-bottom-start { inset-inline-end: auto; inset-inline-start: 16px; }
 /* NINCS SZABAD SAROK (a cél egy egész lista): a kártya átengedi a kattintást, a gombjai nem. */
+/* AZ ÚTMUTATÓ KÁRTYÁJA SOHA NEM FOG EL KATTINTÁST (R140 — SAJÁT LELET, MÉRVE).
+   A buborék szerződése eddig is azt mondta, hogy „a valódi képernyő MÖGÖTTE kattintható marad"
+   (`aria-modal="false"`), de ez csak a KIEMELT elemre volt megmérve: a kitérés (`avoidOverlap`) a
+   cél elől tért ki, a felhasználónak kellő MÁS gombokat viszont nyugodtan eltakarta. MÉRVE: a
+   tag-lista gombját a buborék LÉPÉS-LISTÁJÁNAK egy `li`-je fogta el, és a végigjárás ott megállt.
+   Mostantól a kártya maga átengedi a kattintást, és csak a SAJÁT vezérlői fogadják — így a
+   takarás a legrosszabb esetben is csak látvány, nem akadály (KUKA-011: a takart gomb ugyanaz a
+   hiba, mint a hiányzó). A kitérés megmarad, de már csak az OLVASHATÓSÁGÉRT felel. */
+.tourbubble { pointer-events: none; }
+.tourbubble button, .tourbubble a, .tourbubble input, .tourbubble select, .tourbubble textarea { pointer-events: auto; }
 .tourbubble.tour-passthrough { pointer-events: none; }
 /* AZ ÁTENGEDÉS CSAK AZ INTERAKTÍV RÉSZEKET VESZI VISSZA (R121 lelet).
    A LELET, MÉRVE: a `.tourlist` is visszakapta a `pointer-events: auto`-t — pedig az egy

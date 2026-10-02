@@ -1,8 +1,8 @@
 {
  "status": {
   "ok": true,
-  "served_book_id": "ws_1f8a663b",
-  "served_subject_id": "sub_d717968e9993ad58",
+  "served_book_id": "ws_97b90ba7",
+  "served_subject_id": "sub_c8c3c121c9afd2f9",
   "lang": "hu",
   "dir": "ltr",
   "languages": [
@@ -912,11 +912,11 @@
      },
      {
       "id": "s3",
-      "target": "members-list",
+      "target": "member-revoke",
       "task": "member.revoked",
       "role": "admin",
       "switch_actor": false,
-      "appears_after": null
+      "appears_after": "members-list"
      },
      {
       "id": "s4",
@@ -960,15 +960,15 @@
      },
      {
       "id": "s9",
-      "target": "nav-stock",
-      "task": null,
+      "target": "account-switcher",
+      "task": "actor.switched",
       "role": null,
-      "switch_actor": false,
+      "switch_actor": true,
       "appears_after": null
      },
      {
       "id": "s10",
-      "target": "data-stock",
+      "target": "nav-stock",
       "task": null,
       "role": null,
       "switch_actor": false,
@@ -976,6 +976,14 @@
      },
      {
       "id": "s11",
+      "target": "data-stock",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s12",
       "target": "actor-switch",
       "task": "actor.switched",
       "role": "admin",
@@ -983,7 +991,7 @@
       "appears_after": null
      },
      {
-      "id": "s12",
+      "id": "s13",
       "target": "nav-members",
       "task": null,
       "role": "admin",
@@ -991,7 +999,7 @@
       "appears_after": null
      },
      {
-      "id": "s13",
+      "id": "s14",
       "target": "member-scope-row-keszlet",
       "task": "grant.saved",
       "role": "admin",
@@ -999,7 +1007,7 @@
       "appears_after": "members-list"
      },
      {
-      "id": "s14",
+      "id": "s15",
       "target": "actor-switch",
       "task": "actor.switched",
       "role": null,
@@ -1007,7 +1015,7 @@
       "appears_after": null
      },
      {
-      "id": "s15",
+      "id": "s16",
       "target": "nav-stock",
       "task": null,
       "role": null,
@@ -1015,7 +1023,7 @@
       "appears_after": null
      },
      {
-      "id": "s16",
+      "id": "s17",
       "target": "data-stock-btn",
       "task": null,
       "role": null,
@@ -1023,7 +1031,7 @@
       "appears_after": null
      },
      {
-      "id": "s17",
+      "id": "s18",
       "target": "data-price",
       "task": null,
       "role": null,
@@ -1067,38 +1075,42 @@
       "body": "Béla saját műveletével. A tagság ettől jön létre — és csak a tagság."
      },
      "s9": {
+      "title": "Válts át a cég fiókjára",
+      "body": "Az elfogadás után Béla a saját személyes körében áll. A fejléc fiókválasztójában válaszd a Minta Műhely Kft.-t — a cég képernyői csak ott érhetők el."
+     },
+     "s10": {
       "title": "Nyisd meg a Készletegyenleget",
       "body": "Béla már tag, tehát a cég képernyői elérhetők neki."
      },
-     "s10": {
+     "s11": {
       "title": "Tagság van, készletadat nincs",
       "body": "A képernyő kimondja, hogy nincs hozzáférés. A régi jog nem jött vissza a tagsággal együtt."
      },
-     "s11": {
+     "s12": {
       "title": "Válts vissza Anna nézetére",
       "body": "Az adatkört a fiókkezelő adja meg, külön művelettel."
      },
-     "s12": {
+     "s13": {
       "title": "Nyisd meg újra a Felhasználókat",
       "body": "A váltás után az áttekintésen állsz. A jogadás a Felhasználók képernyőről megy."
      },
-     "s13": {
+     "s14": {
       "title": "Add meg a készletadatok jogát",
       "body": "Béla sorában a „Készletadatok” kör engedélyezése. Ez a lépés csak tényleges megadás után halad tovább."
      },
-     "s14": {
+     "s15": {
       "title": "Válts át újra Béla nézetére",
       "body": "Most már látnia kell a készletet — de csak azt, amire jogot kapott."
      },
-     "s15": {
+     "s16": {
       "title": "Nyisd meg újra a Készletegyenleget",
       "body": "Ugyanaz a képernyő, mint az előbb — csak most van hozzá jog."
      },
-     "s16": {
+     "s17": {
       "title": "A mennyiség látszik",
       "body": "Kérd le a készletet: a képernyő kiírja a mennyiséget. A most megadott jog hatályos."
      },
-     "s17": {
+     "s18": {
       "title": "Az ár viszont nem",
       "body": "Az árak külön adatkör, és azt nem adtuk meg. A képernyő kimondja a hiányt — nem üres mezőt mutat."
      }
@@ -1271,8 +1283,8 @@
  },
  "knowledge": {
   "ok": true,
-  "served_book_id": "ws_1f8a663b",
-  "served_subject_id": "sub_d717968e9993ad58",
+  "served_book_id": "ws_97b90ba7",
+  "served_subject_id": "sub_c8c3c121c9afd2f9",
   "lang": "hu",
   "population": 31,
   "visible_count": 30,

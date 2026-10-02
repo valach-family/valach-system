@@ -1244,7 +1244,8 @@ import { inviteNextKey } from './inviteText.mjs';
       ${m.effective ? `<p class="muted" style="font-size:13px">${esc(tpl('scopeOnlyHere', { nev: accountName() }))}</p>
       <div class="divider"></div><h3>${esc(UI.accountAccess)}</h3>
       <p class="muted">${esc(STATE.revokeSectionLead)}</p>
-      <button type="button" class="danger" data-action="revoke-start" data-subject="${esc(id)}" data-testid="member-revoke-${esc(id)}">${esc(UI.revokeBusinessAccess)}</button>` : ''}
+      <button type="button" class="danger" data-action="revoke-start" data-subject="${esc(id)}"
+        data-tour-anchor="member-revoke" data-testid="member-revoke-${esc(id)}">${esc(UI.revokeBusinessAccess)}</button>` : ''}
       ${
         // R132 §3/§6 — AZ ÚJBÓLI BELÉPÉS HARMADIK, KÜLÖN MEGNEVEZETT MŰVELET. A gomb CSAK akkor
         // jelenik meg, ha a SZERVER szerint ma ajánlható (`reinvitable`) — a négy határ
@@ -1683,6 +1684,14 @@ import { inviteNextKey } from './inviteText.mjs';
     run.view = { book: run.view.book, subject: h.from_subject };
     state.tour = run;
     state.tourFinished = false; state.tourAborted = null; state.tourBlocked = null;
+    // A LAPOT ELŐBB KIRAJZOLJUK, UTÁNA ÍTÉLÜNK (SAJÁT LELET, MÉRVE — KUKA-121 ismétlődése).
+    //
+    // A visszaállás a `loadHelpData()` miatt aszinkron: mire visszatér, a nézet már más fiókot
+    // mutat (a meghívott belépett a cégbe), de a lap még a régi tartalommal áll. A következő lépés
+    // célja (`nav-stock`) így „hiányzónak" látszott, és a bemutató NEVEZETTEN megszakadt egy ép
+    // képernyőn — a 17 lépéses történet a 9.-en. Ami a kész állapot ELŐTT fut, nem a kész
+    // állapotot méri.
+    render();
     tourRecheck();
   }
   /**
