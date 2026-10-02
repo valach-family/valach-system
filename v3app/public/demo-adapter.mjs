@@ -116,8 +116,21 @@ function seed(story) {
   return base;
 }
 
+/**
+ * A BEMUTATÓ LEVELÉNEK HIVATKOZÁSA A SAJÁT LAPJÁRA MUTAT (SAJÁT LELET, böngészőben MÉRVE).
+ *
+ * Az első alakom kitalált, külső címet írt a levélbe (`https://bemutato.vs/?invite=…`). Amíg a
+ * levelet csak NÉZTÜK, ez nem tűnt fel; a teljes történetben viszont a meghívottnak MEG KELL
+ * NYITNIA a hivatkozást — és a bemutató ilyenkor elnavigált egy nem létező címre, ahonnan nincs
+ * visszaút. Mérve: a lap soha nem állt fel újra, a végigjárás a 8. lépésen elhalt. Egy hivatkozás,
+ * amit a saját bemutatónk kínál fel, MŰKÖDJÖN (KUKA-011 · KUKA-160: amit a képernyő felkínál,
+ * annak végig kell mennie).
+ */
 function mail(to, subject, token) {
-  return { to, subject, link: `https://bemutato.vs/?invite=${token}`, at: '2026-10-02T09:00:00.000Z' };
+  const base = (() => {
+    try { return `${window.location.origin}${window.location.pathname}`; } catch { return ''; }
+  })();
+  return { to, subject, link: `${base}?invite=${token}`, at: '2026-10-02T09:00:00.000Z' };
 }
 
 // ══ A TELEPÍTÉS ════════════════════════════════════════════════════════════════════════════════
@@ -358,6 +371,31 @@ function install() {
 
     'POST /api/invites/pending': () => J(200, { ok: true }),
 
+    /**
+     * A MEGHÍVÓ MEGFIGYELÉSE — A MAG SZERZŐDÉSÉHEZ MÉRVE, NEM KITALÁLVA (KUKA-172).
+     *
+     * A visszavont meghívóra a mag `not_actionable` / `invite_revoked` választ ad (mérve:
+     * `v3ref/run.mjs` P-INVITE-revoke), tehát a képernyőn ELFOGADÁS-GOMB SINCS: a lap a megfigyelés
+     * mondatával mondja ki, hogy a hivatkozás elhalt. Ha itt „elfogadható" állapotot adnánk vissza,
+     * a bemutató a TERMÉKRŐL állítana valótlant — a szintetikus háttér ALAKJA is állítás.
+     */
+    'GET /api/invites/observe': (_b, q) => {
+      const token = q && q.get ? q.get('token') : null;
+      const row = S.invites.find((i) => i.token === token) || null;
+      if (!row) return J(200, { ok: true, status: 'not_actionable', reason: 'invite_unknown' });
+      if (row.state === 'revoked') return J(200, { ok: true, status: 'not_actionable', reason: 'invite_revoked' });
+      if (row.state === 'accepted') return J(200, { ok: true, status: 'not_actionable', reason: 'invite_already_redeemed' });
+      // A CÍMZETT CSATORNÁJA BIZONYÍTOTT: a bemutatóban a levél a sajátja, tehát a fiók neve kiadható.
+      const existing = Boolean(S.subjects[row.who]);
+      return J(200, {
+        ok: true,
+        status: existing ? 'redeem_as_existing' : 'redeem_as_new',
+        account: { name: COMPANY, role: row.role },
+        invited_by: row.invited_by,
+        continue_as: { hint: row.email },
+      });
+    },
+
     // A BEVÁLTÁS — a CÍMZETT saját műveletével. A bemutató SOHA nem fogadja el helyette.
     'POST /api/invites/redeem': (b) => {
       const row = S.invites.find((i) => i.token === (b && b.token))
@@ -487,8 +525,11 @@ function install() {
 
   window.fetch = async (input, init) => {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
-    let path;
-    try { path = new URL(url, window.location.href).pathname; } catch { path = String(url); }
+    let path; let query = new URLSearchParams();
+    // A LEKÉRDEZÉS IS A KÉRÉS RÉSZE: a meghívó megfigyelése a tokent a CÍMBŐL kapja. A régi alak
+    // csak az útvonalat adta át, ezért a megfigyelés nem tudta, MELYIK meghívóról kérdezünk.
+    try { const u = new URL(url, window.location.href); path = u.pathname; query = u.searchParams; }
+    catch { path = String(url); }
     if (!path.startsWith('/api/') && !path.startsWith('/dev/')) return realFetch(input, init);
     const method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase();
     let body = null;
@@ -498,7 +539,7 @@ function install() {
     if (route && method !== 'GET') {
       // MINDEN ÁLLAPOTVÁLTOZTATÓ VÁLASZ UTÁN MENTÜNK — egy helyen, hogy ne lehessen kifelejteni
       // egyetlen útnál sem (KUKA-039: a több helyen igaz szabály ne éljen több példányban).
-      const out = route(body);
+      const out = route(body, query);
       save();
       return out;
     }
@@ -507,7 +548,7 @@ function install() {
       return J(501, { ok: false, reason: 'demo_route_not_implemented',
         message: `Ez az út a bemutatóban nincs kiszolgálva: ${method} ${path}` });
     }
-    return route(body);
+    return route(body, query);
   };
 
   // A SEGÉD-CSOMAG BETÖLTÉSE a `fetch`-elfogó FELÁLLÍTÁSA UTÁN, a VALÓDI `fetch`-csel — különben a

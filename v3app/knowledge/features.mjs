@@ -628,46 +628,66 @@ export const TOURS = Object.freeze({
   // sor-szintű gomb azonosítója a meghívó rövid jelölőjét viseli, az pedig minden fióknál más
   // (ugyanaz az indok, amiért a `member-open-…` sem lépés-cél — KUKA-225 alakja az útmutatón).
   'tour.inviteRevoke': Object.freeze({
-    id: 'tour.inviteRevoke', version: '1.0.0', audience: 'signed_in', feature: 'invite.revoke',
+    id: 'tour.inviteRevoke', version: '2.0.0', audience: 'signed_in', feature: 'invite.revoke',
     page: 'members', requires_role: 'admin',
+    // A TELJES TÖRTÉNET ÁTÍVEL A SZEREPLŐKÖN (R140 — ACT-01), ÉS EZÉRT BEMUTATÓ-KÖTÖTT.
+    //
+    // A visszavonás TANULSÁGA nem a visszavonásnál van, hanem ott, hogy a CÍMZETT hivatkozása
+    // tényleg elhal, és hogy utána ÚJ meghívás kell. Ezt egy ember a saját gépén nem tudja
+    // végigjárni: KÉT élő munkamenet kell hozzá. Éles üzemben a meghívott a SAJÁT eszközén lép be,
+    // tehát „váltás a másik nézetére" vezérlő nincs és nem is lenne értelme — ezért a bemutató
+    // `requires_demo`, és éles üzemben NEM kínáljuk fel. Nem azért, mert elrejtjük: azért, mert
+    // amit nem lehet végigvinni, azt nem szabad felkínálni (KUKA-041 · F91-01). A funkció leírása,
+    // súgója és GYIK-je éles üzemben is a helyén marad.
+    requires_demo: true,
     steps: Object.freeze([
-      Object.freeze({ id: 's1', target: 'nav-members', task: null }),
-      Object.freeze({ id: 's2', target: 'members-tab-invites', task: null }),
-      // A HARMADIK LÉPÉS A LISTÁT EMELI KI — és ez nem díszlépés: ez teszi a TÁBLÁZATOT a negyedik
-      // lépés FELTÁRÓJÁVÁ. MÉRT INDOK (az R132-es bemutató-végigvitelen): a várakozó buborék a
-      // FELTÁRÓ elem mellé kerül. Ha a feltáró egy KIS elem (a fül, közvetlenül a táblázat fölött),
-      // a buborék ELTAKARJA azt a gombot, amit a felhasználónak meg kell nyomnia — a próba ezt
-      // `tour-pending` elfogásként mérte, 15 másodperces időtúllépéssel. Egy EGÉSZ listára a buborék
-      // kitér, vagy átengedi a kattintást (`tour-passthrough`): ez a bevált alak (KUKA-011: a takart
-      // gomb ugyanaz a hiba, mint a hiányzó).
-      Object.freeze({ id: 's3', target: 'invites-table', task: null, appears_after: 'members-tab-invites' }),
-      // A NEGYEDIK LÉPÉS CÉLJA UGYANAZ A LISTA — és ez MÉRT döntés, nem lustaság. Az első alakom a
-      // MEGERŐSÍTŐ PANELRE mutatott; a művelet UTÁN viszont a panel BEZÁRUL, tehát a cél eltűnik, a
-      // lépés „feltárásra vár" állapotba esik, és a járó újra a (már visszavont) meghívó gombját
-      // keresi — a bemutató a SAJÁT sikerétől akadt el. Olyan célt kell választani, ami a művelet
-      // UTÁN is ott van: ez a lista. Ugyanez a bevált alak a `tour.scopeLifecycle` 3. és 4. lépésénél
-      // (mindkettő ugyanarra a SORRA mutat) — KUKA-228 · KUKA-218.
-      Object.freeze({ id: 's4', target: 'invites-table', task: 'invite.revoked', appears_after: 'members-tab-invites' }),
+      Object.freeze({ id: 's1', target: 'nav-members', task: null, role: 'admin' }),
+      Object.freeze({ id: 's2', target: 'members-tab-invites', task: null, role: 'admin' }),
+      Object.freeze({ id: 's3', target: 'invites-table', task: null, appears_after: 'members-tab-invites', role: 'admin' }),
+      Object.freeze({ id: 's4', target: 'invites-table', task: 'invite.revoked', appears_after: 'members-tab-invites', role: 'admin' }),
+      Object.freeze({ id: 's5', target: 'invites-table', task: null, appears_after: 'members-tab-invites', role: 'admin' }),
+      Object.freeze({ id: 's6', target: 'actor-switch', task: 'actor.switched', switch_actor: true }),
+      Object.freeze({ id: 's7', target: 'demo-mail-open', task: null }),
+      Object.freeze({ id: 's8', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
+      Object.freeze({ id: 's9', target: 'invite-observe', task: null, appears_after: 'mailbox' }),
+      Object.freeze({ id: 's10', target: 'actor-switch', task: 'actor.switched', role: 'admin', switch_actor: true }),
+      Object.freeze({ id: 's11', target: 'nav-members', task: null, role: 'admin' }),
+      Object.freeze({ id: 's12', target: 'invite-open', task: null, role: 'admin' }),
+      Object.freeze({ id: 's13', target: 'invite-submit', task: 'invite.created', appears_after: 'invite-open', role: 'admin' }),
+      Object.freeze({ id: 's14', target: 'actor-switch', task: 'actor.switched', switch_actor: true }),
+      Object.freeze({ id: 's15', target: 'demo-mail-open', task: null }),
+      Object.freeze({ id: 's16', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
+      Object.freeze({ id: 's17', target: 'invite-actions', task: 'invite.redeemed', appears_after: 'mailbox' }),
+      Object.freeze({ id: 's18', target: 'account-switcher', task: null }),
     ]),
   }),
   // R132 §6/2. TÖRTÉNET — ELTÁVOLÍTOTT MUNKATÁRS → ÚJBÓLI MEGHÍVÁS. A lezárás TÉNYLEGES sikerhez
   // kötött (`reinvite.sent`): a „Tovább" gomb nem küld meghívást a felhasználó helyett (KUKA-231).
   'tour.reentry': Object.freeze({
-    id: 'tour.reentry', version: '1.0.0', audience: 'signed_in', feature: 'members.reinvite',
+    id: 'tour.reentry', version: '2.0.0', audience: 'signed_in', feature: 'members.reinvite',
     page: 'members', requires_role: 'admin',
+    // UGYANAZ AZ OK, MINT AZ „A" TÖRTÉNETNÉL (R140 — ACT-01): a visszatérés tanulsága a VÉGÉN van
+    // (tagság igen, adat nem; és a külön jogadás UTÁN mennyiség igen, ár nem), és ehhez két élő
+    // munkamenet kell. Éles üzemben nem kínáljuk fel, mert nem volna végigvihető.
+    requires_demo: true,
     steps: Object.freeze([
-      Object.freeze({ id: 's1', target: 'nav-members', task: null }),
-      Object.freeze({ id: 's2', target: 'members-list', task: null }),
-      // A HARMADIK LÉPÉS CÉLJA A PANEL ŰRLAPJA, nem a lista: egy lépés nem mutathat a SAJÁT
-      // feltárójára (az őr ezt nevezetten pirosra váltotta — és igaza volt: önmagára mutató
-      // feltárás fogalmilag nem tud teljesülni, KUKA-124 alakja az útmutatón).
-      // A FELTÁRÓ A TELJES TAG-LISTA, ÉS EZ MÉRT DÖNTÉS. A várakozó buborék a KIEMELT elem (a
-      // feltáró) elől tér ki; ha a feltáró egy KIS elem (a bal menüpont), a buborék a maradék
-      // sarokba kerül — és az épp a táblázat műveleti oszlopára esik, tehát ELTAKARJA a „Hozzáférés
-      // kezelése" gombot (mérve: 15 s időtúllépés). Egy EGÉSZ listára nincs szabad sarok, ezért a
-      // kártya ÁTENGEDI a kattintást (`tour-passthrough`) — ugyanaz a bevált alak, mint a
-      // `tour.grant`-nál (KUKA-011: a takart gomb ugyanaz a hiba, mint a hiányzó).
-      Object.freeze({ id: 's3', target: 'reinvite-form', task: 'reinvite.sent', appears_after: 'members-list' }),
+      Object.freeze({ id: 's1', target: 'nav-members', task: null, role: 'admin' }),
+      Object.freeze({ id: 's2', target: 'members-list', task: null, role: 'admin' }),
+      Object.freeze({ id: 's3', target: 'members-list', task: 'member.revoked', role: 'admin' }),
+      Object.freeze({ id: 's4', target: 'reinvite-form', task: 'reinvite.sent', appears_after: 'members-list', role: 'admin' }),
+      Object.freeze({ id: 's5', target: 'actor-switch', task: 'actor.switched', switch_actor: true }),
+      Object.freeze({ id: 's6', target: 'demo-mail-open', task: null }),
+      Object.freeze({ id: 's7', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
+      Object.freeze({ id: 's8', target: 'invite-actions', task: 'invite.redeemed', appears_after: 'mailbox' }),
+      Object.freeze({ id: 's9', target: 'nav-stock', task: null }),
+      Object.freeze({ id: 's10', target: 'data-stock', task: null }),
+      Object.freeze({ id: 's11', target: 'actor-switch', task: 'actor.switched', role: 'admin', switch_actor: true }),
+      Object.freeze({ id: 's12', target: 'nav-members', task: null, role: 'admin' }),
+      Object.freeze({ id: 's13', target: 'member-scope-row-keszlet', task: 'grant.saved', appears_after: 'members-list', role: 'admin' }),
+      Object.freeze({ id: 's14', target: 'actor-switch', task: 'actor.switched', switch_actor: true }),
+      Object.freeze({ id: 's15', target: 'nav-stock', task: null }),
+      Object.freeze({ id: 's16', target: 'data-stock-btn', task: null }),
+      Object.freeze({ id: 's17', target: 'data-price', task: null }),
     ]),
   }),
   'tour.plan': Object.freeze({

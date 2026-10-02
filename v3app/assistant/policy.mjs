@@ -210,6 +210,14 @@ export function allowedToursFor(ctx = {}) {
     // a kontextust a SZERVER mondja meg (`resumeIntent`), nem a böngésző feltevése. A súgó
     // főoldaláról így nem kínálódik fel, mesterséges meghívót pedig nem gyártunk hozzá.
     if (t.requires_invite === true && ctx.invite_context !== true) continue;
+    // A KÉT ÉLŐ MUNKAMENETET IGÉNYLŐ BEMUTATÓ (R140 — ACT-01). Egy teljes történet, ami ÁTÍVEL a
+    // szereplőkön (a fiókkezelő visszavon, a meghívott elfogad), CSAK ott járható végig, ahol
+    // mindkét ember munkamenete elérhető — ez az elkülönített bemutató. Éles üzemben a meghívott a
+    // SAJÁT eszközén lép be, tehát nincs és nem is lenne értelme „váltás a másik nézetére"
+    // vezérlőnek. Amit nem lehet végigvinni, azt nem kínáljuk fel (KUKA-041 · F91-01): NEVEZETT
+    // kizárás, nem `targetMissing`-gel megszakadó bemutató. A funkció leírása, súgója és GYIK-je
+    // éles üzemben is a helyén marad — csak a VÉGIGVEZETÉS nem indítható.
+    if (t.requires_demo === true && ctx.demo !== true) continue;
     // A BEMUTATÓ SAJÁT KÖZÖNSÉGE. Nem a funkcióé: a nyelvváltás ELMAGYARÁZHATÓ belépés előtt is
     // (a funkció `public`), de a bemutatója az alkalmazás-héjban jár, tehát belépés kell hozzá.
     if (!availabilityOf({ audience: t.audience || 'signed_in', scope: 'person' }, ctx).visible) continue;

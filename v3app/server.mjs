@@ -474,6 +474,11 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
       // kínáljuk fel: a tényt a MAG mondja meg (`resumeIntent` a `pending_intent` soron), nem a
       // böngésző feltevése — és NEM a meghívó tartalma, tehát védett adat nem szivárog ki vele.
       invite_context: Boolean(resumeIntent({ store, sessionId: session.id })),
+      // A BEMUTATÓ-KÖRNYEZET (R140 — ACT-01). A doktrína három környezetet nevez meg
+      // (production · staging · demo); a `demo` az, ahol a bemutató-szereplők munkamenete
+      // együtt elérhető, és csak ott kínálunk fel KÉT ÉLŐ MUNKAMENETET igénylő végigvezetést.
+      // A jel KÖRNYEZETI, nem kérésből jövő: egy kérés nem állíthatja magáról, hogy bemutató.
+      demo: String(process.env.VS_DEMO || '').trim() === '1',
       book_id: bookId,
       member: Boolean(ws),
       role: ws ? ws.role : null,
@@ -1238,6 +1243,11 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
           requires_invite: TOURS[id].requires_invite === true,
           steps: TOURS[id].steps.map((st) => ({
             id: st.id, target: st.target, task: st.task ?? null,
+            // A LÉPÉS SZEREPE ÉS A SZEREPLŐ-VÁLTÁS (R140 — ACT-01): a teljes történet átível a
+            // szereplőkön, és a lap ebből tudja, melyik lépést KI végzi, illetve hol vár váltásra.
+            // Ha ezt a válasz nem vinné, a lap a saját feltevéséből dolgozna (AST-01).
+            role: st.role ?? null,
+            switch_actor: st.switch_actor === true,
             // MI TÁRJA FEL a célt (panel · választás · navigáció). A lap ebből tudja, hogy a
             // hiányzó cél VÁRAKOZÁS-e vagy valódi megszakítás (TUR-01 · KUKA-228).
             appears_after: st.appears_after ?? null,

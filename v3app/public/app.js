@@ -274,12 +274,36 @@ import { inviteNextKey } from './inviteText.mjs';
     el.className = `notice ${kind || ''}`;
     el.hidden = !msg;
   }
+  /**
+   * A LEBEGŐ NYUGTA — ÉS AMIKOR NEM KELL (R140, 390 px-en MÉRVE).
+   *
+   * A LELET. Ugyanaz a mondat KÉTSZER jelent meg: a lapon, a művelet helyén (`formResult`), ÉS
+   * lebegő nyugtaként. Telefonon a lebegő doboz ráült a táblázat sorára, amit épp meg kellett
+   * nézni — tehát a visszajelzés ELTAKARTA azt az eredményt, amiről szólt. Két baj egyszerre:
+   * fölösleges ismétlés, és a saját eredményünk eltakarása (KUKA-011 alakja a visszajelzésen).
+   *
+   * A SZABÁLY: ha UGYANAZ a mondat MÁR OTT ÁLL a lapon, LÁTHATÓAN, akkor a lebegő nyugta nem kell.
+   * Ha nem látszik (lentebb gördült, vagy nincs ilyen hely), a lebegő nyugta marad — az volt az
+   * eredeti rendeltetése. A döntést MÉRJÜK (a mondat ott van-e, és látszik-e), nem feltételezzük.
+   */
   function toast(msg) {
     const el = byTest('toast');
     if (!el) return;
+    const szoveg = String(msg || '').trim();
+    if (szoveg && mondatMarLathato(szoveg)) { el.hidden = true; return; }
     el.textContent = msg; el.hidden = false;
     clearTimeout(toast.timer);
     toast.timer = setTimeout(() => { el.hidden = true; }, 6000);
+  }
+  /** OTT ÁLL-E MÁR UGYANEZ A MONDAT A LAPON, LÁTHATÓAN? (a `.notice` dobozok a művelet helyén) */
+  function mondatMarLathato(szoveg) {
+    for (const n of document.querySelectorAll('.notice')) {
+      if (n.hidden) continue;
+      if (String(n.textContent || '').trim() !== szoveg) continue;
+      const r = n.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < window.innerHeight) return true;
+    }
+    return false;
   }
   /** EGY HELYZET — EGY MONDAT: ha a frissítés már kimondta, nem írjuk felül általánosabbal. */
   async function contextChangedNotice(why) {
@@ -810,6 +834,8 @@ import { inviteNextKey } from './inviteText.mjs';
     state.chat = emptyChat();
     state.astStatus = null;
     state.helpIndex = null;
+    // A DEKLARÁLT VÁLTÁS-HATÁRON a futás ÁTADÓDIK (ACT-01) — minden máson ugyanúgy elvész.
+    saveTourHandover();
     state.tour = null; state.tourBlocked = null; state.tourFinished = false; state.tourAborted = null;
     state.help = { open: false, view: 'ask', topic: null, search: '', faqSearch: '', faqOpen: null };
     tourMod.clearHighlight();
@@ -1117,7 +1143,13 @@ import { inviteNextKey } from './inviteText.mjs';
    */
   // A HORDOZOTT LEZÁRÁS IS ÚJRARAJZOLANDÓ (F93-01): ha közben modális panel nyílik, a buboréknak
   // oda kell költöznie — különben a lezárás a párbeszéd MÖGÖTT ragad, ahol nem kattintható.
-  function tourRecheck() { if (state.tour || state.tourCarry) renderTour(); }
+  function tourRecheck() {
+    // A VÁLTÁS MEGFIGYELÉSE A RAJZOLÁS ELŐTT (ACT-01): a néző-váltás után az app rajzol újra, és a
+    // lépés ekkor igazolódik — nem egy gomb megnyomásakor. A megfigyelés IDEMPOTENS: ha nincs futó
+    // váltás-lépés, vagy a néző nem lett más, nem történik semmi.
+    tourObserveActorSwitch();
+    if (state.tour || state.tourCarry) renderTour();
+  }
   /**
    * A BUBORÉK OTTHONA — ha MODÁLIS panel van nyitva, a buborék ANNAK a gyereke lesz.
    *
@@ -1581,6 +1613,89 @@ import { inviteNextKey } from './inviteText.mjs';
     if (!def) { state.tourAborted = 'notAvailable'; state.tour = null; renderTour(); return; }
     state.tour.text = def.text || null;
     renderTour();
+  }
+  /**
+   * A SZEREPLŐ-VÁLTÁST TÚLÉLŐ FUTÁS (R140 — ACT-01).
+   *
+   * A HELYZET. A teljes történet ÁTÍVEL a szereplőkön: a fiókkezelő visszavon, a MEGHÍVOTT elfogad,
+   * a fiókkezelő jogot ad, a végeredményt megint a meghívott látja. A váltás viszont VALÓDI ki- és
+   * belépés, az pedig két dolgot tesz: a `resetViewCaches` üríti a nézethez kötött tárakat
+   * (KUKA-218), a bemutató lapja pedig újratölt. Mindkettő elvinné a futást.
+   *
+   * MIT VISZÜNK ÁT, ÉS MIT NEM — ez a lényeg, mert a takarítás szabálya VÉDELEM, nem kényelmetlenség.
+   * Átvisszük: a bemutató AZONOSÍTÓJÁT, a lépések ÁLLAPOTÁT, azt, hányadiknál tartunk, és KITŐL
+   * váltunk. Ezek a saját haladásunk tényei. NEM visszük át: üzleti adatot, listát, panelt,
+   * szerkesztő-állapotot, beszélgetést — azokat a `resetViewCaches` változatlanul üríti, tehát a
+   * következő ember SEM lát semmit az előzőéből (R89 §6 · KUKA-218 szelleme sértetlen).
+   *
+   * ÉS CSAK A DEKLARÁLT HATÁRON: az átadás kizárólag akkor keletkezik, ha a futó lépés MAGA mondja
+   * ki, hogy itt szereplő-váltás jön (`switch_actor`). Minden más ponton a váltás ugyanúgy megállítja
+   * a bemutatót, mint eddig (KTX-03 · KUKA-204 · KUKA-211) — a védelem nem tűnt el, NEVEZETT határt
+   * kapott. A visszaállás pedig nem hisz a tárolt adatnak: a lépés-listát és a szöveget a SZERVER
+   * mai válaszából veszi (AST-01), és ha a bemutató ma nem indítható, NEVEZETTEN elenged.
+   */
+  const TOUR_HANDOVER_KEY = 'vs3.tour.handover';
+  function saveTourHandover() {
+    const run = state.tour;
+    if (!run) return;
+    // A KERESZT-SZEREPLŐS FUTÁS az, amelyik DEKLARÁLTAN átível a szereplőkön. Csak ez adódik át —
+    // a hagyományos, egy-szereplős bemutató a nézet-váltáskor ugyanúgy elvész, mint eddig.
+    // A FELTÉTEL NEM a „most épp váltás-lépésen állunk": a MEGHÍVÁS ELFOGADÁSA is nézet-váltással
+    // jár (a címzett belép a cégbe), és az is a történet KÖZEPE — a régi, szűkebb feltétel ott
+    // elvesztette volna a futást (saját lelet a végigjáráson).
+    if (!run.steps.some((x) => x.switch_actor === true)) return;
+    if (run.endedBy) return;                       // lezárt futást nem adunk át
+    try {
+      sessionStorage.setItem(TOUR_HANDOVER_KEY, JSON.stringify({
+        id: run.id, at: run.at,
+        states: run.steps.map((x) => x.state),
+        from_subject: run.view.subject ?? null,
+      }));
+    } catch { /* a tárolás hiánya nem állíthatja meg a váltást — a bemutató elvész, a művelet nem */ }
+  }
+  function takeTourHandover() {
+    try {
+      const raw = sessionStorage.getItem(TOUR_HANDOVER_KEY);
+      if (!raw) return null;
+      sessionStorage.removeItem(TOUR_HANDOVER_KEY);
+      const o = JSON.parse(raw);
+      return (o && typeof o.id === 'string' && Number.isInteger(o.at) && Array.isArray(o.states)) ? o : null;
+    } catch { return null; }
+  }
+  /** A VÁLTÁS UTÁNI VISSZAÁLLÁS. A lépés lezárását NEM ez adja — az a `tourTaskDone` dolga. */
+  async function resumeTourAfterSwitch() {
+    const h = takeTourHandover();
+    if (!h) return;
+    await loadHelpData();
+    const defs = (state.astStatus && state.astStatus.tours) || [];
+    const def = defs.find((t) => t.id === h.id);
+    // A SZERVER MA NEM KÍNÁLJA: nem erőltetjük vissza, és nem is hallgatunk róla (KUKA-050).
+    if (!def) { state.tour = null; state.tourAborted = 'notAvailable'; renderTour(); return; }
+    const run = tourMod.newTourRun({ def, view: view(), role: state.me && state.me.current_role });
+    if (!run) return;
+    // A TÁROLT ÁLLAPOT CSAK AKKOR ÉRVÉNYES, HA UGYANARRA A LÉPÉS-LISTÁRA ILLIK.
+    if (h.states.length !== run.steps.length || h.at >= run.steps.length) {
+      state.tour = null; state.tourAborted = 'notAvailable'; renderTour(); return;
+    }
+    run.steps.forEach((st, i) => { if (tourMod.STEP_STATES.includes(h.states[i])) st.state = h.states[i]; });
+    run.at = h.at;
+    // A FUTÁS MÉG A RÉGI NÉZŐHÖZ TARTOZIK: így a váltás TÉNYE mérhető marad (`actorSwitchReady`).
+    run.view = { book: run.view.book, subject: h.from_subject };
+    state.tour = run;
+    state.tourFinished = false; state.tourAborted = null; state.tourBlocked = null;
+    tourRecheck();
+  }
+  /**
+   * A VÁLTÁS IGAZOLÁSA (ACT-01). A lépés csak akkor zárul, ha a néző TÉNYLEGESEN más lett, és épp
+   * az a szerep, amit a lépés kér — a „Tovább" gomb nem vált nézetet a felhasználó helyett
+   * (KUKA-231), és egy helyben állás nem váltás (KUKA-129).
+   */
+  function tourObserveActorSwitch() {
+    if (!state.tour) return;
+    const role = state.me && state.me.current_role;
+    if (!tourMod.actorSwitchReady(state.tour, { view: view(), role })) return;
+    tourMod.rebindView(state.tour, { view: view(), role });
+    tourTaskDone('actor.switched');
   }
   /** A FELADAT IGAZOLÁSA — a SZERVER válasza után hívjuk, nem a kattintás után (TUR-01). */
   function tourTaskDone(taskId) {
@@ -2614,6 +2729,9 @@ import { inviteNextKey } from './inviteText.mjs';
     if (gen !== state.generation) { notice(reasonText('context_mismatch'), 'warn'); render(); return; }
     const m = (state.members || []).find((x) => x.subject_id === id);
     const who = m ? (m.email || id) : id;
+    // A BEMUTATÓ LÉPÉSE A SZERVER IGAZOLT VÁLASZÁRA ZÁRUL (TUR-01 · KUKA-231): a „Tovább" gomb nem
+    // szünteti meg senki tagságát a felhasználó helyett.
+    if (r.ok) tourTaskDone('member.revoked');
     formResult('members-result', r.ok ? tpl('memberRevoked', { ki: who, nev: accountName() }) : refusalText(r), r.ok ? 'ok' : 'bad');
     await loadMembers();
   }
@@ -2634,7 +2752,14 @@ import { inviteNextKey } from './inviteText.mjs';
     tourTaskDone('invite.redeemed');
     // ÉS A LEZÁRÁS IS ITT, A FIÓKVÁLTÁS ELŐTT (F111-01): a tagság létrejötte önmagában NEM bizonyítja
     // a bemutató befejezését — az összegzés a szerver igazolt válaszából születik, a váltás előtt.
-    carryTourBeforeSwitch('invite_redeemed');
+    //
+    // KIVÉVE, HA A TÖRTÉNET ITT NEM ÉR VÉGET (R140 — ACT-01). A teljes történetben az elfogadás a
+    // KÖZEPE: utána még meg kell nézni, mit lát a belépett ember (tagság igen, adat nem), és a
+    // fiókkezelőnek külön jogot kell adnia. Ilyenkor nem „lezárt bemutatót" hordozunk tovább —
+    // az hamis összegzés volna egy futó történetről (KUKA-129) —, hanem a futást ADJUK ÁT.
+    const tovabbVan = Boolean(state.tour) && state.tour.steps.some((x) => x.switch_actor === true)
+      && state.tour.at + 1 < state.tour.steps.length;
+    if (!tovabbVan) carryTourBeforeSwitch('invite_redeemed');
     state.inviteToken = null;
     state.invite = null;
     history.replaceState(null, '', '/');
@@ -2683,7 +2808,31 @@ import { inviteNextKey } from './inviteText.mjs';
       state.resendReason = reasonText(megerosites, reasonText('challenge_not_found'));
       state.authView = 'resend';
     }
+    /**
+     * AZ ÚJRATÖLTÉS IS ÁTADÁSI HATÁR (R140 — ACT-01, SAJÁT LELET a végigjáráson).
+     *
+     * A LELET. A bemutatóban a néző-váltás VALÓDI ki- és belépés, és a lap utána ÚJRATÖLT. A
+     * takarításhoz kötött átadásom ezért nem futott le: a váltás nem az app belső útján ment, hanem
+     * a lap töltött be elölről — a futás a 6. lépésnél nyom nélkül eltűnt. Mérve: a váltás után
+     * `tour` doboz üres, lépés nincs.
+     *
+     * ÉS EZ NEM CSAK A BEMUTATÓ ÜGYE: a felhasználó BÁRMIKOR frissíthet (F5), és egy fél úton lévő
+     * végigvezetést nem veszíthet el emiatt. Ezért az átadás az OLDAL ELHAGYÁSÁHOZ kötődik, nem egy
+     * konkrét gombhoz — a `pagehide` a visszafelé-gyorsítótárral is helyesen jár, a `beforeunload`
+     * nem mindig fut le mobilon.
+     */
+    window.addEventListener('pagehide', () => { try { saveTourHandover(); } catch { /* a mentés hiánya nem akadályozhatja az elnavigálást */ } });
     await refreshMe();
     if (state.inviteToken) { await observeInvite(); render(); }
+    /**
+     * A VISSZAÁLLÁS A LAP FELÁLLÁSA UTÁN — ÉS EZ SORREND, NEM ÍZLÉS (SAJÁT LELET, MÉRVE).
+     *
+     * Az első alakom a `refreshMe` után, de a meghívó-képernyő megrajzolása ELŐTT állt vissza. A
+     * bemutató ilyenkor olyan célt keresett (`invite-observe`), amit a lap még meg sem rajzolt, és
+     * `targetMissing`-gel NEVEZETTEN megszakadt egy ép képernyőn. A visszaállás tehát a lap KÉSZ
+     * állapotához tartozik — ugyanaz a hiba-osztály, mint a kész elrendezés előtt futó mérés
+     * (KUKA-121: ami a kész állapot előtt fut, nem a kész állapotot méri).
+     */
+    await resumeTourAfterSwitch();
   })();
 })();

@@ -50,7 +50,7 @@
     <button type="button" class="primary" data-action="tour-start" data-tour="tour.reentry"
       data-testid="demo-story-reentry">2 · Munkatárs visszatérése</button>
     <span class="spacer"></span>
-    <button type="button" data-testid="demo-switch-viewer">Váltás Béla nézetére</button>
+    <button type="button" data-testid="demo-switch-viewer" data-tour-anchor="actor-switch">Váltás Béla nézetére</button>
     <button type="button" data-testid="demo-restart">Újrakezdés</button>
     <span class="note" data-testid="demo-viewer-note"></span>
   </div>
@@ -134,13 +134,18 @@
         body: JSON.stringify({ email: PEOPLE[other], password: 'bemutato' }),
       });
       paint();
-      window.location.reload();
+      // TISZTA CÍMRE TÉRÜNK VISSZA (saját lelet, MÉRVE). A történet közben a néző megnyithat egy
+      // meghívó-hivatkozást (`?invite=…`), és onnan váltana nézőt. Az egyszerű `reload()` a
+      // MEGHÍVÓ CÍMÉT tartotta meg, ezért a másik szereplő is a meghívó-képernyőre érkezett —
+      // a bemutató pedig azon a lépésen akadt el, aminek a cége képernyőjén lett volna a célja.
+      // A nézőváltás nem meghívás-kontextus: a cím is ezt mondja.
+      window.location.href = window.location.pathname;
     }
 
     async function restart() {
       const story = (window.VS_DEMO && window.VS_DEMO.story()) || 'inviteRevoke';
       if (window.VS_DEMO) window.VS_DEMO.restart(story);
-      window.location.reload();
+      window.location.href = window.location.pathname;
     }
 
     /**

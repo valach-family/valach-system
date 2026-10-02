@@ -24,6 +24,14 @@ p{margin:8px 0 16px}
 small,.muted{color:var(--muted)}
 small{font-size:13px}
 table{border-collapse:collapse;width:100%;font-size:14px}
+/* HA A TÁBLÁZAT NEM FÉR EL, A SAJÁT TÁROLÓJA GÖRDÜL — A LAP NEM (R140).
+   A sok oszlopos tag-táblázat 1280 px-en is szűk: az oszlopok a saját tartalmuk alá nyomódtak.
+   Mostantól a tábla megtartja a természetes szélességét, és a KÖRÜLÖTTE lévő doboz gördül
+   vízszintesen; a lap törzse továbbra sem gördül oldalra. */
+[data-testid="members-list"], [data-testid="invites-list"], [data-testid="stock-table"],
+[data-testid="stockcard-table"], .tablewrap { overflow-x: auto; max-inline-size: 100%; }
+[data-testid="members-list"] table, [data-testid="invites-list"] table,
+.tablewrap table { min-inline-size: max-content; }
 th{text-align:left;font-size:12px;font-weight:600;color:var(--muted);background:#f8f9fb;white-space:nowrap}
 td,th{padding:13px 16px;border-bottom:1px solid #e8ebf0}
 tr:last-child td{border-bottom:0}
@@ -146,7 +154,9 @@ dialog.drawer{height:100vh;max-height:100vh;margin:0 0 0 auto;border-radius:0;ma
 .dialoghead{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:18px}
 dialog h2{font-size:20px}
 .dialoghead .x{min-height:32px;padding:2px 10px;font-size:20px}
-.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);padding:12px 20px;color:#174a2b;background:var(--ok-bg);border:1px solid #b7d8c3;border-radius:10px;box-shadow:0 5px 20px #10234220;z-index:50;max-width:92vw}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);padding:12px 20px;color:#174a2b;background:var(--ok-bg);border:1px solid #b7d8c3;border-radius:10px;box-shadow:0 5px 20px #10234220;z-index:50;max-width:92vw;pointer-events:none}
+/* A LEBEGŐ NYUGTA SOHA NEM FOGHAT EL KATTINTÁST (R140): ha mégis egy célgomb fölé kerül, a
+   kattintás ÁTMEGY rajta. A takarás így a legrosszabb esetben is csak látvány, nem akadály. */
 .mobile-toggle{display:none}
 
 @media(max-width:1000px){
@@ -310,7 +320,13 @@ dl.usage dd { margin: 0; }
   .pagehead { flex-wrap: wrap; }
 }
 /* A HOSSZABB FORDÍTÁS NEM LÓGHAT KI (R89 §4): a feliratok törnek, nem vágódnak. */
-.navitem, .tab button, .badge, .helpbody button, .tourbubble button { white-space: normal; overflow-wrap: anywhere; }
+.navitem, .tab button, .helpbody button, .tourbubble button { white-space: normal; overflow-wrap: anywhere; }
+/* A JELVÉNY NEM TÖRIK KARAKTERENKÉNT (R140, MÉRVE 1280 px-en).
+   A LELET: a tag-táblázat sok oszlopa 1280 px-en összenyomódott, és az „Árak" cella jelvénye
+   („Megtekintheti") BETŰNKÉNT tördelve, egy karakter szélesen jelent meg — olvashatatlanul. Az ok
+   ez a sor volt: az `overflow-wrap: anywhere` a jelvényre is vonatkozott, tehát a szó bárhol
+   eltörhetett. A jelvény RÖVID állapot-szó: ha nem fér el, nem eltörni kell, hanem helyet adni. */
+.badge { white-space: nowrap; overflow-wrap: normal; }
 
 /* A BELÉPÉS ELŐTTI NYELVSÁV (F91-02): a választó és a Segítség a kártya fejében, sorban. */
 .langbar{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-bottom:14px}

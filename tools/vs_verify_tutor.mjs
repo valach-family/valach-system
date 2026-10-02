@@ -49,10 +49,14 @@ const chat = await import(join(ROOT, 'v3app/public/chat.mjs'));
 
 const APP_SRC = readFileSync(join(ROOT, 'v3app/public/app.js'), 'utf8');
 const HTML_SRC = readFileSync(join(ROOT, 'v3app/public/index.html'), 'utf8');
+// A PRÓBAFELÜLET LAPJA IS FORRÁS (R140 — ACT-01): a szereplő-váltás vezérlője ott áll, és a
+// szereplőkön átívelő útmutató arra mutat. Ha ezt a lapot nem olvasnánk, az őr egy LÉTEZŐ pontot
+// mondana hiánynak (KUKA-049), vagy — rosszabb — a hiányzó pontot nem venné észre.
+const DEMO_HTML_SRC = readFileSync(join(ROOT, 'v3app/public/demo-index.html'), 'utf8');
 const HELP_SRC = readFileSync(join(ROOT, 'v3app/public/help.mjs'), 'utf8');
 const TOUR_SRC = readFileSync(join(ROOT, 'v3app/public/tour.mjs'), 'utf8');
 const CHAT_SRC = readFileSync(join(ROOT, 'v3app/public/chat.mjs'), 'utf8');
-const UI_SOURCES = `${APP_SRC}\n${HTML_SRC}\n${HELP_SRC}\n${TOUR_SRC}\n${CHAT_SRC}`;
+const UI_SOURCES = `${APP_SRC}\n${HTML_SRC}\n${DEMO_HTML_SRC}\n${HELP_SRC}\n${TOUR_SRC}\n${CHAT_SRC}`;
 
 const checks = [];
 const check = (id, label, cond, detail = '') => checks.push({ id, label, ok: Boolean(cond), detail });
@@ -170,6 +174,11 @@ for (const fam of GENERATED_FAMILIES) {
 }
 function anchorExists(id) {
   if (UI_SOURCES.includes(`data-testid="${id}"`) || UI_SOURCES.includes(`'${id}'`) || UI_SOURCES.includes(`"${id}"`)) return true;
+  // A SZEMANTIKUS HORGONY (R140 — ACT-01): van olyan cél, ami nem EGY konkrét elem, hanem SZEREP —
+  // „az a vezérlő, amivel a néző átvált a másik szereplőre". Ezt a LAP mondja meg magáról
+  // (`data-tour-anchor`), mert felületenként más elem tölti be. A mérés nem lazul: a horgonynak
+  // TÉNYLEGESEN ott kell lennie valamelyik forrásban, különben ugyanúgy piros.
+  if (UI_SOURCES.includes(`data-tour-anchor="${id}"`)) return true;
   for (const fam of GENERATED_FAMILIES) {
     if (!id.startsWith(fam.prefix)) continue;
     if (!UI_SOURCES.includes(fam.template)) continue;
@@ -259,9 +268,26 @@ const tourRefBad = FEATURES.filter((f) => f.tour && !Object.prototype.hasOwnProp
 check('TUT05', 'minden hivatkozott bemutató létezik', tourRefBad.length === 0, tourRefBad.map((f) => `${f.id}→${f.tour}`).join(' · ') || `${Object.keys(TOURS).length} bemutató`);
 const tourOrphan = Object.values(TOURS).filter((t) => !FEATURES.some((f) => f.tour === t.id));
 check('TUT05', 'nincs árva bemutató (mindegyikhez tartozik funkció)', tourOrphan.length === 0, tourOrphan.map((t) => t.id).join(' · ') || 'mind kötött');
-const tooLong = Object.values(TOURS).filter((t) => t.steps.length < 2 || t.steps.length > 7);
-check('TUT05', 'a bemutatók 2–7 lépésesek (a hosszú bemutató nem bemutató)', tooLong.length === 0,
-  tooLong.map((t) => `${t.id}:${t.steps.length}`).join(' · ') || Object.values(TOURS).map((t) => `${t.id}:${t.steps.length}`).join(' · '));
+/**
+ * A HOSSZ-KORLÁT KÉT FAJTA ÚTMUTATÓRA (R140 — ACT-01).
+ *
+ * A 2–7 lépéses korlát egy EGY KÉPERNYŐS funkció bemutatására szól, és érvényben marad: ott a
+ * hosszú lista tényleg azt jelenti, hogy nem sikerült a lényeget kiemelni.
+ *
+ * A SZEREPLŐKÖN ÁTÍVELŐ TÖRTÉNET viszont más műfaj: a tanulsága a VÉGÉN van (a visszavont
+ * hivatkozás tényleg elhal; a visszatérő tag adat nélkül jön vissza), és a felére vágva éppen azt
+ * veszítené el, amiért létezik — a félbehagyott történet az a hiba, amire az R140 rámutatott. Az
+ * ilyen útmutató KIMONDOTTAN `requires_demo`, mert két élő munkamenetet kíván.
+ *
+ * A KORLÁT NEM TŰNT EL, CSAK MÁS SZÁM: 20 lépés. Ha egy ilyen történet ennél is hosszabbra nőne,
+ * az megint azt jelenti, hogy több történet van benne — és az őr PIROSRA vált.
+ */
+const stepCap = (t) => (t.requires_demo === true ? 20 : 7);
+const tooLong = Object.values(TOURS).filter((t) => t.steps.length < 2 || t.steps.length > stepCap(t));
+check('TUT05', 'az útmutatók 2–7 lépésesek (a szereplőkön átívelő, próbafelülethez kötött történet: 2–20)',
+  tooLong.length === 0,
+  tooLong.map((t) => `${t.id}:${t.steps.length} (plafon ${stepCap(t)})`).join(' · ')
+    || Object.values(TOURS).map((t) => `${t.id}:${t.steps.length}`).join(' · '));
 check('TUT05', 'a bemutató SOHA nem kattint: a modul nem aktivál DOM-elemet',
   !/\.click\(\)/.test(TOUR_SRC) && !/dispatchEvent\(/.test(TOUR_SRC),
   'tour.mjs: nincs .click() és nincs dispatchEvent');

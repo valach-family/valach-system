@@ -1,6 +1,8 @@
 {
  "status": {
   "ok": true,
+  "served_book_id": "ws_1f8a663b",
+  "served_subject_id": "sub_d717968e9993ad58",
   "lang": "hu",
   "dir": "ltr",
   "languages": [
@@ -231,8 +233,428 @@
   ],
   "tours": [
    {
-    "id": "tour.inviteRevoke",
+    "id": "tour.shell",
     "version": "1.0.0",
+    "feature": "shell.navigation",
+    "page": "overview",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "account-switcher",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s2",
+      "target": "nav",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s3",
+      "target": "tabs",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s4",
+      "target": "profile",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s5",
+      "target": "help-open",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     }
+    ],
+    "text": {
+     "title": "Körbevezetés a felületen",
+     "lead": "Öt lépés: mi hol van. Semmit nem mentünk el közben.",
+     "s1": {
+      "title": "A fiókválasztó",
+      "body": "Itt látod, melyik fiók van megnyitva, és itt tudsz másikra váltani. A személyes fiókod és a vállalkozásaid egy listán állnak."
+     },
+     "s2": {
+      "title": "A menü",
+      "body": "A bal oldali menü csoportokba rendezi a képernyőket. Csak az látszik, amit használni is tudsz."
+     },
+     "s3": {
+      "title": "A lapok",
+      "body": "A megnyitott képernyők fülként itt sorakoznak. Ugyanaz a lap nem nyílik meg kétszer."
+     },
+     "s4": {
+      "title": "A saját profil",
+      "body": "A jobb felső menüben a saját adataid, a nyelv és a kijelentkezés."
+     },
+     "s5": {
+      "title": "A Súgó",
+      "body": "Innen nyílik a súgó: kérdezhetsz, leírást olvashatsz, kereshetsz a gyakori kérdésekben, vagy megnézheted az oldaltérképet."
+     }
+    }
+   },
+   {
+    "id": "tour.invite",
+    "version": "1.0.0",
+    "feature": "invite.send",
+    "page": "members",
+    "requires_role": "admin",
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-members",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s2",
+      "target": "invite-open",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s3",
+      "target": "invite-email",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "invite-open"
+     },
+     {
+      "id": "s4",
+      "target": "invite-scope",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "invite-open"
+     },
+     {
+      "id": "s5",
+      "target": "invite-submit",
+      "task": "invite.created",
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "invite-open"
+     },
+     {
+      "id": "s6",
+      "target": "invite-mail-open",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "invite-submit"
+     }
+    ],
+    "text": {
+     "title": "Hogyan hívj meg valakit",
+     "lead": "Hat lépés. A meghívót te hozod létre — az útmutató nem kattint helyetted.",
+     "s1": {
+      "title": "Nyisd meg a Felhasználókat",
+      "body": "A Beállítások csoportban találod. Ez a menüpont fiókkezelői jogosultsághoz kötött."
+     },
+     "s2": {
+      "title": "Meghívás indítása",
+      "body": "A „+ Felhasználó meghívása” gomb jobb oldali panelt nyit."
+     },
+     "s3": {
+      "title": "A meghívott címe",
+      "body": "Ide az ő e-mail-címe kerül. A meghívó ehhez a címhez tartozik, más címmel nem váltható be."
+     },
+     "s4": {
+      "title": "Mely adatokhoz kaphat hozzáférést",
+      "body": "Ez a szándékod rögzítése. A tényleges megtekintést a csatlakozás után külön engedélyezed."
+     },
+     "s5": {
+      "title": "A meghívó létrehozása",
+      "body": "Nyomd meg a „Meghívó létrehozása” gombot. Ez a lépés csak akkor halad tovább, ha a meghívó ténylegesen elkészült — a gomb megnyomása önmagában nem siker."
+     },
+     "s6": {
+      "title": "A levél megnyitása",
+      "body": "A próbafelületen a levél a Próbaüzenetek panelen nyílik meg. Valódi levelet nem küldtünk."
+     }
+    }
+   },
+   {
+    "id": "tour.addBusiness",
+    "version": "1.0.0",
+    "feature": "account.add_business",
+    "page": "new",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "ws-kind-business",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s2",
+      "target": "ws-name",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s3",
+      "target": "ws-jurisdiction",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "ws-kind-business"
+     },
+     {
+      "id": "s4",
+      "target": "ws-tax-id",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "ws-kind-business"
+     },
+     {
+      "id": "s5",
+      "target": "ws-create",
+      "task": "workspace.created",
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     }
+    ],
+    "text": {
+     "title": "Vállalkozás hozzáadása",
+     "lead": "Öt lépés. A mentést te végzed el.",
+     "s1": {
+      "title": "A fiók fajtája",
+      "body": "Vállalkozás (adóazonosítóval) vagy közös fiók (adóazonosító nélkül). A céges adatlap csak a vállalkozásnál jelenik meg."
+     },
+     "s2": {
+      "title": "A fiók neve",
+      "body": "Ez látszik majd a fiókválasztóban és a képernyők fejlécében."
+     },
+     "s3": {
+      "title": "A nyilvántartás országa",
+      "body": "Ez azt mondja meg, milyen alakú azonosítót tartunk nyilván. Nem választ adózási rendet és nem ellenőrzi a céget hatósági nyilvántartásban."
+     },
+     "s4": {
+      "title": "Az adóazonosító",
+      "body": "Ez önbevallott adat: az alakját ellenőrizzük, a valódiságát nem. Megadása nem igazolja más vállalkozás képviseletét."
+     },
+     "s5": {
+      "title": "A létrehozás",
+      "body": "Nyomd meg az „Új fiók hozzáadása” gombot. Ez a lépés csak tényleges létrehozás után halad tovább."
+     }
+    }
+   },
+   {
+    "id": "tour.stock",
+    "version": "1.0.0",
+    "feature": "data.stock",
+    "page": "stock",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-stock",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s2",
+      "target": "data-stock",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s3",
+      "target": "data-stock-btn",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s4",
+      "target": "data-price",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     }
+    ],
+    "text": {
+     "title": "A készletadatok megtekintése",
+     "lead": "Négy lépés. Csak megnézzük az adatokat, semmit nem mentünk és nem módosítunk.",
+     "s1": {
+      "title": "Nyisd meg a Készletegyenleget",
+      "body": "A Riportok csoportban találod."
+     },
+     "s2": {
+      "title": "A lista",
+      "body": "A mennyiségek raktáranként. Ahol a mennyiség nem ismert, ott ezt írjuk ki — nem nullát."
+     },
+     "s3": {
+      "title": "Frissítés",
+      "body": "Újra lekérdezi az adatot. Ha nem sikerül, a lap kimondja, és semmi nem változik a fiókban."
+     },
+     "s4": {
+      "title": "Az árak",
+      "body": "Az árak két feltételhez kötöttek: csomag és engedély. A lap megmondja, melyik hiányzik."
+     }
+    }
+   },
+   {
+    "id": "tour.grant",
+    "version": "1.0.0",
+    "feature": "members.grant",
+    "page": "members",
+    "requires_role": "admin",
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-members",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s2",
+      "target": "members-list",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s3",
+      "target": "member-scope-row-keszlet",
+      "task": "grant.saved",
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "members-list"
+     }
+    ],
+    "text": {
+     "title": "Hozzáférés adása egy kollégának",
+     "lead": "Három lépés. A hozzáférés csak ebben a fiókban érvényes.",
+     "s1": {
+      "title": "Nyisd meg a Felhasználókat",
+      "body": "A Beállítások csoportban, fiókkezelői jogosultsággal."
+     },
+     "s2": {
+      "title": "Válaszd ki a kollégát",
+      "body": "A listában a „Hozzáférés kezelése” gomb nyitja meg az adott ember hozzáférés-lapját."
+     },
+     "s3": {
+      "title": "Az adatkör engedélyezése",
+      "body": "Válaszd ki az adatkört, és nyomd meg a „Megtekintés engedélyezése” gombot. Ez a lépés csak tényleges mentés után halad tovább."
+     }
+    }
+   },
+   {
+    "id": "tour.scopeLifecycle",
+    "version": "1.0.0",
+    "feature": "members.scopeRevoke",
+    "page": "members",
+    "requires_role": "admin",
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-members",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s2",
+      "target": "members-list",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s3",
+      "target": "member-scope-row-dokumentumok",
+      "task": "grant.saved",
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "members-list"
+     },
+     {
+      "id": "s4",
+      "target": "member-scope-row-dokumentumok",
+      "task": "scope.revoked",
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "members-list"
+     }
+    ],
+    "text": {
+     "title": "Egy hozzáférés megadása és visszavonása",
+     "lead": "Négy lépés. A végén a tag mennyiséget továbbra is lát, a bizalmas mintát már nem.",
+     "s1": {
+      "title": "Nyisd meg a Felhasználókat",
+      "body": "A Beállítások csoportban, fiókkezelői jogosultsággal."
+     },
+     "s2": {
+      "title": "Válaszd ki a kollégát",
+      "body": "A listában a „Hozzáférés kezelése” gomb nyitja meg az adott ember hozzáférés-lapját."
+     },
+     "s3": {
+      "title": "Az üzleti dokumentumok engedélyezése",
+      "body": "Az „Üzleti dokumentumok” sorban nyomd meg a „Hozzáférés megadása” gombot. Ez a lépés csak tényleges mentés után halad tovább."
+     },
+     "s4": {
+      "title": "És a visszavonás",
+      "body": "Ugyanabban a sorban a „Hozzáférés visszavonása” gomb csak ezt az egy hozzáférést veszi el — a tagság és a többi adat megmarad."
+     }
+    }
+   },
+   {
+    "id": "tour.inviteRevoke",
+    "version": "2.0.0",
     "feature": "invite.revoke",
     "page": "members",
     "requires_role": "admin",
@@ -244,30 +666,150 @@
       "id": "s1",
       "target": "nav-members",
       "task": null,
+      "role": "admin",
+      "switch_actor": false,
       "appears_after": null
      },
      {
       "id": "s2",
       "target": "members-tab-invites",
       "task": null,
+      "role": "admin",
+      "switch_actor": false,
       "appears_after": null
      },
      {
       "id": "s3",
       "target": "invites-table",
       "task": null,
+      "role": "admin",
+      "switch_actor": false,
       "appears_after": "members-tab-invites"
      },
      {
       "id": "s4",
       "target": "invites-table",
       "task": "invite.revoked",
+      "role": "admin",
+      "switch_actor": false,
       "appears_after": "members-tab-invites"
+     },
+     {
+      "id": "s5",
+      "target": "invites-table",
+      "task": null,
+      "role": "admin",
+      "switch_actor": false,
+      "appears_after": "members-tab-invites"
+     },
+     {
+      "id": "s6",
+      "target": "actor-switch",
+      "task": "actor.switched",
+      "role": null,
+      "switch_actor": true,
+      "appears_after": null
+     },
+     {
+      "id": "s7",
+      "target": "demo-mail-open",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s8",
+      "target": "mailbox",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "demo-mail-open"
+     },
+     {
+      "id": "s9",
+      "target": "invite-observe",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "mailbox"
+     },
+     {
+      "id": "s10",
+      "target": "actor-switch",
+      "task": "actor.switched",
+      "role": "admin",
+      "switch_actor": true,
+      "appears_after": null
+     },
+     {
+      "id": "s11",
+      "target": "nav-members",
+      "task": null,
+      "role": "admin",
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s12",
+      "target": "invite-open",
+      "task": null,
+      "role": "admin",
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s13",
+      "target": "invite-submit",
+      "task": "invite.created",
+      "role": "admin",
+      "switch_actor": false,
+      "appears_after": "invite-open"
+     },
+     {
+      "id": "s14",
+      "target": "actor-switch",
+      "task": "actor.switched",
+      "role": null,
+      "switch_actor": true,
+      "appears_after": null
+     },
+     {
+      "id": "s15",
+      "target": "demo-mail-open",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s16",
+      "target": "mailbox",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "demo-mail-open"
+     },
+     {
+      "id": "s17",
+      "target": "invite-actions",
+      "task": "invite.redeemed",
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "mailbox"
+     },
+     {
+      "id": "s18",
+      "target": "account-switcher",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
      }
     ],
     "text": {
-     "title": "Egy kiadott meghívás visszavonása",
-     "lead": "Három lépés. A végén a kiküldött hivatkozás már nem használható.",
+     "title": "Egy kiadott meghívás visszavonása — és ami utána jön",
+     "lead": "Végigviszed mind a két oldalról: visszavonod a meghívást, a címzett nézetében látod, hogy a régi hivatkozás már nem jó, majd új meghívást adsz, amit ő elfogad.",
      "s1": {
       "title": "Nyisd meg a Felhasználókat",
       "body": "A Beállítások csoportban, fiókkezelői jogosultsággal."
@@ -277,18 +819,74 @@
       "body": "Itt látszik, melyik meghívás vár elfogadásra, melyiket fogadták el, melyik járt le, és melyiket vonták vissza."
      },
      "s3": {
-      "title": "A várakozó meghívások listája",
-      "body": "Itt látszik, melyik meghívás vár elfogadásra, melyiket fogadták el, melyik járt le, és melyiket vonták vissza."
+      "title": "Keresd meg a függő meghívást",
+      "body": "Béla sora „Elfogadásra vár” állapotban áll. A sor végén van a visszavonás gombja."
      },
      "s4": {
       "title": "Vond vissza a meghívást",
-      "body": "A sor „Meghívás visszavonása” gombja, majd a megerősítés. A hivatkozás ezután elhal — ez a lépés csak tényleges visszavonás után halad tovább."
+      "body": "A sor „Meghívás visszavonása” gombja, majd a megerősítés. Ez a lépés csak tényleges visszavonás után halad tovább."
+     },
+     "s5": {
+      "title": "Nézd meg a megváltozott állapotot",
+      "body": "A sor most „Visszavonva”, és a művelet oszlopa üres: ugyanazt a meghívást másodszor nem lehet visszavonni."
+     },
+     "s6": {
+      "title": "Válts át Béla nézetére",
+      "body": "A próbafelület sávjában a „Váltás Béla nézetére” gomb. Ez valódi ki- és belépés: innentől az ő munkamenetében vagy. Ha panel van nyitva, előbb zárd be — a sáv csak akkor érhető el."
+     },
+     "s7": {
+      "title": "Nyisd meg a próbaüzeneteket",
+      "body": "Itt állnak a próbafelület levelei. A korábban kiküldött meghívó is köztük van."
+     },
+     "s8": {
+      "title": "Nyisd meg a korábbi meghívó hivatkozását",
+      "body": "Ez az a hivatkozás, amit Béla korábban megkapott. Kattints rá: a meghívó képernyője nyílik meg."
+     },
+     "s9": {
+      "title": "A régi meghívó megnyitva",
+      "body": "A képernyő kimondja: ezt a meghívást visszavonták, ezért nem fogadható el. Elfogadás gomb sincs — a hivatkozás elhalt."
+     },
+     "s10": {
+      "title": "Válts vissza Anna nézetére",
+      "body": "A fiókkezelőnek új meghívást kell kiadnia — a régi hivatkozás már nem éleszthető fel."
+     },
+     "s11": {
+      "title": "Nyisd meg újra a Felhasználókat",
+      "body": "A váltás után az áttekintésen állsz. A meghívás a Felhasználók képernyőről indul."
+     },
+     "s12": {
+      "title": "Nyisd meg a meghívás űrlapját",
+      "body": "A „Felhasználó meghívása” gomb a képernyő tetején."
+     },
+     "s13": {
+      "title": "Adj ki új meghívást Bélának",
+      "body": "A „Felhasználó meghívása” gomb, majd a cím és az adatkör megadása után az elküldés. Ez a lépés csak tényleges elküldés után halad tovább."
+     },
+     "s14": {
+      "title": "Válts át újra Béla nézetére",
+      "body": "Most már az új meghívó várja. A tagságot továbbra is az ő elfogadása hozza létre."
+     },
+     "s15": {
+      "title": "Nyisd meg újra a próbaüzeneteket",
+      "body": "Az új meghívó levele is ide érkezett."
+     },
+     "s16": {
+      "title": "Nyisd meg az új meghívó hivatkozását",
+      "body": "A legfrissebb levél hivatkozása. Ez már az új meghívásra szól."
+     },
+     "s17": {
+      "title": "Fogadd el az új meghívást",
+      "body": "Béla saját műveletével. Az útmutató ezt soha nem végzi el helyette."
+     },
+     "s18": {
+      "title": "Nézd meg az eredményt",
+      "body": "A fiókváltóban ott a cég: Béla mostantól tag. A régi, visszavont meghívó ettől nem éledt fel — ez egy új meghívás eredménye."
      }
     }
    },
    {
     "id": "tour.reentry",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "feature": "members.reinvite",
     "page": "members",
     "requires_role": "admin",
@@ -300,35 +898,365 @@
       "id": "s1",
       "target": "nav-members",
       "task": null,
+      "role": "admin",
+      "switch_actor": false,
       "appears_after": null
      },
      {
       "id": "s2",
       "target": "members-list",
       "task": null,
+      "role": "admin",
+      "switch_actor": false,
       "appears_after": null
      },
      {
       "id": "s3",
+      "target": "members-list",
+      "task": "member.revoked",
+      "role": "admin",
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s4",
       "target": "reinvite-form",
       "task": "reinvite.sent",
+      "role": "admin",
+      "switch_actor": false,
       "appears_after": "members-list"
+     },
+     {
+      "id": "s5",
+      "target": "actor-switch",
+      "task": "actor.switched",
+      "role": null,
+      "switch_actor": true,
+      "appears_after": null
+     },
+     {
+      "id": "s6",
+      "target": "demo-mail-open",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s7",
+      "target": "mailbox",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "demo-mail-open"
+     },
+     {
+      "id": "s8",
+      "target": "invite-actions",
+      "task": "invite.redeemed",
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "mailbox"
+     },
+     {
+      "id": "s9",
+      "target": "nav-stock",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s10",
+      "target": "data-stock",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s11",
+      "target": "actor-switch",
+      "task": "actor.switched",
+      "role": "admin",
+      "switch_actor": true,
+      "appears_after": null
+     },
+     {
+      "id": "s12",
+      "target": "nav-members",
+      "task": null,
+      "role": "admin",
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s13",
+      "target": "member-scope-row-keszlet",
+      "task": "grant.saved",
+      "role": "admin",
+      "switch_actor": false,
+      "appears_after": "members-list"
+     },
+     {
+      "id": "s14",
+      "target": "actor-switch",
+      "task": "actor.switched",
+      "role": null,
+      "switch_actor": true,
+      "appears_after": null
+     },
+     {
+      "id": "s15",
+      "target": "nav-stock",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s16",
+      "target": "data-stock-btn",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s17",
+      "target": "data-price",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
      }
     ],
     "text": {
-     "title": "Eltávolított munkatárs visszahívása",
-     "lead": "Három lépés. A végén új meghívás megy ki; a tagság az ő elfogadásával jön létre.",
+     "title": "Munkatárs visszatérése — a tagságtól a készletadatig",
+     "lead": "Megszünteted Béla tagságát, majd újra meghívod. A tagság az ő elfogadásával jön létre, de a régi adat-hozzáférései nem állnak vissza: azokat külön kell megadni.",
      "s1": {
       "title": "Nyisd meg a Felhasználókat",
       "body": "A Beállítások csoportban, fiókkezelői jogosultsággal."
      },
      "s2": {
-      "title": "Keresd meg az eltávolított embert",
-      "body": "A lista az eltávolított munkatársakat is mutatja, „Eltávolítva” jelzéssel. A „Hozzáférés kezelése” gomb nyitja a lapját."
+      "title": "Nézd meg Béla mai állapotát",
+      "body": "A listán látszik a tagsága és az is, mely adatkörökhöz fér hozzá. Jegyezd meg: a készletadatokat most látja."
      },
      "s3": {
+      "title": "Szüntesd meg a tagságát",
+      "body": "Nyisd meg a sorát a „Hozzáférés kezelése” gombbal, majd szüntesd meg a hozzáférést. Ez a lépés csak tényleges megszüntetés után halad tovább."
+     },
+     "s4": {
       "title": "Küldd el az új meghívást",
-      "body": "Az „Újbóli belépés” szakaszban az „Újra meghívás” gomb. A megerősítés kimondja: az érintettnek el kell fogadnia, és a korábbi hozzáférései nem állnak vissza. Ez a lépés csak tényleges elküldés után halad tovább."
+      "body": "Az „Újbóli belépés” szakaszban az „Újra meghívás” gomb. A megerősítés kimondja: a korábbi adat-hozzáférései nem állnak vissza."
+     },
+     "s5": {
+      "title": "Válts át Béla nézetére",
+      "body": "A próbafelület sávjában a „Váltás Béla nézetére” gomb. Ez valódi ki- és belépés. Ha panel van nyitva, előbb zárd be — a sáv csak akkor érhető el."
+     },
+     "s6": {
+      "title": "Nyisd meg a próbaüzeneteket",
+      "body": "Az újbóli meghívás levele ide érkezett."
+     },
+     "s7": {
+      "title": "Nyisd meg a meghívó hivatkozását",
+      "body": "A levélben lévő hivatkozás a meghívó képernyőjére visz."
+     },
+     "s8": {
+      "title": "Fogadd el a meghívást",
+      "body": "Béla saját műveletével. A tagság ettől jön létre — és csak a tagság."
+     },
+     "s9": {
+      "title": "Nyisd meg a Készletegyenleget",
+      "body": "Béla már tag, tehát a cég képernyői elérhetők neki."
+     },
+     "s10": {
+      "title": "Tagság van, készletadat nincs",
+      "body": "A képernyő kimondja, hogy nincs hozzáférés. A régi jog nem jött vissza a tagsággal együtt."
+     },
+     "s11": {
+      "title": "Válts vissza Anna nézetére",
+      "body": "Az adatkört a fiókkezelő adja meg, külön művelettel."
+     },
+     "s12": {
+      "title": "Nyisd meg újra a Felhasználókat",
+      "body": "A váltás után az áttekintésen állsz. A jogadás a Felhasználók képernyőről megy."
+     },
+     "s13": {
+      "title": "Add meg a készletadatok jogát",
+      "body": "Béla sorában a „Készletadatok” kör engedélyezése. Ez a lépés csak tényleges megadás után halad tovább."
+     },
+     "s14": {
+      "title": "Válts át újra Béla nézetére",
+      "body": "Most már látnia kell a készletet — de csak azt, amire jogot kapott."
+     },
+     "s15": {
+      "title": "Nyisd meg újra a Készletegyenleget",
+      "body": "Ugyanaz a képernyő, mint az előbb — csak most van hozzá jog."
+     },
+     "s16": {
+      "title": "A mennyiség látszik",
+      "body": "Kérd le a készletet: a képernyő kiírja a mennyiséget. A most megadott jog hatályos."
+     },
+     "s17": {
+      "title": "Az ár viszont nem",
+      "body": "Az árak külön adatkör, és azt nem adtuk meg. A képernyő kimondja a hiányt — nem üres mezőt mutat."
+     }
+    }
+   },
+   {
+    "id": "tour.plan",
+    "version": "1.0.0",
+    "feature": "plan.change",
+    "page": "plan",
+    "requires_role": "admin",
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-plan",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s2",
+      "target": "plan-select",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s3",
+      "target": "plan-submit",
+      "task": "plan.saved",
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     }
+    ],
+    "text": {
+     "title": "A csomag beállítása",
+     "lead": "Három lépés. Vásárlás és díjfizetés nincs.",
+     "s1": {
+      "title": "Nyisd meg az Előfizetést",
+      "body": "A Beállítások csoportban, fiókkezelői jogosultsággal."
+     },
+     "s2": {
+      "title": "A csomag kiválasztása",
+      "body": "A csomag a funkciók elérhetőségét szabja meg, nem az emberek jogosultságát."
+     },
+     "s3": {
+      "title": "A mentés",
+      "body": "Nyomd meg a „Csomag mentése” gombot. Ez a lépés csak tényleges mentés után halad tovább."
+     }
+    }
+   },
+   {
+    "id": "tour.language",
+    "version": "1.0.0",
+    "feature": "shell.language",
+    "page": "profile",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "profile",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s2",
+      "target": "lang-select",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     }
+    ],
+    "text": {
+     "title": "A felület nyelve",
+     "lead": "Két lépés.",
+     "s1": {
+      "title": "A saját profil",
+      "body": "A jobb felső profilmenüből nyílik a Saját profil oldal."
+     },
+     "s2": {
+      "title": "A nyelv kiválasztása",
+      "body": "A választás azonnal érvényes a felületre, a súgóra, a gyakori kérdésekre és a segédre. Országot, adózási rendet és pénznemet nem állít."
+     }
+    }
+   },
+   {
+    "id": "tour.help",
+    "version": "1.0.0",
+    "feature": "shell.help",
+    "page": null,
+    "requires_role": null,
+    "audience": "public",
+    "requires_anonymous": false,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "help-open",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s2",
+      "target": "help-tab-guides",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "help-open"
+     },
+     {
+      "id": "s3",
+      "target": "help-tab-faq",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "help-open"
+     },
+     {
+      "id": "s4",
+      "target": "help-tab-sitemap",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": "help-open"
+     }
+    ],
+    "text": {
+     "title": "A Súgó használata",
+     "lead": "Négy lépés. Egyik sem indít modellhívást.",
+     "s1": {
+      "title": "A Súgó megnyitása",
+      "body": "A fejléc „Súgó” gombja. A panel magától soha nem nyílik ki."
+     },
+     "s2": {
+      "title": "Leírások",
+      "body": "Az adott képernyőhöz tartozó témák kerülnek előre. Minden téma megmondja, mire való, mi kell hozzá, és mi lehet a kimenete."
+     },
+     "s3": {
+      "title": "Gyakori kérdések",
+      "body": "Kereshető kérdés–válasz lista. MI-szolgáltató nélkül működik."
+     },
+     "s4": {
+      "title": "Oldaltérkép",
+      "body": "Megmutatja, mely menüpontok érhetők el neked ebben a fiókban — a listát a rendszer a jogosultságaid alapján állítja össze."
      }
     }
    }
@@ -343,6 +1271,8 @@
  },
  "knowledge": {
   "ok": true,
+  "served_book_id": "ws_1f8a663b",
+  "served_subject_id": "sub_d717968e9993ad58",
   "lang": "hu",
   "population": 31,
   "visible_count": 30,

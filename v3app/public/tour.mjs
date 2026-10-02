@@ -47,6 +47,22 @@ export function newTourRun({ def, view, role }) {
 }
 
 /**
+ * A LÉPÉS CÉLJÁNAK FELOLDÁSA — EGY HELYEN (R140, ACT-01).
+ *
+ * A felületi pontok túlnyomó része `data-testid`-del áll, és ez marad az alapeset. Van viszont
+ * olyan cél, ami NEM egyetlen konkrét elem, hanem SZEREP: „az a vezérlő, amivel a néző átvált a
+ * másik szereplőre". Ezt a lap mondja meg magáról (`data-tour-anchor`), mert felületenként MÁS
+ * elem tölti be — a bemutató lapján a váltó gomb, éles üzemben pedig nincs ilyen vezérlő, mert
+ * ott a másik ember a SAJÁT eszközén lép be. A szemantikus horgony tehát nem kibúvó a testid alól:
+ * a cél NEVE a szerződés, a megvalósítója a lapé. Egy feloldó, négy hívó (KUKA-003 · KUKA-039).
+ */
+function elementFor(name) {
+  if (!name) return null;
+  return document.querySelector(`[data-testid="${name}"]`)
+    || document.querySelector(`[data-tour-anchor="${name}"]`);
+}
+
+/**
  * LÁTSZIK-E AZ ELEM — EGY FELOLDÓ, NÉGY HÍVÓ (KUKA-003 · KUKA-039).
  *
  * Ugyanez a feltétel eddig NÉGY helyen állt szó szerint lemásolva (`targetOf`, az `appears_after`
@@ -65,7 +81,7 @@ export function targetOf(run) {
   if (!run) return null;
   const step = run.steps[run.at];
   if (!step) return null;
-  const el = document.querySelector(`[data-testid="${step.target}"]`);
+  const el = elementFor(step.target);
   if (!el) return null;
   // A REJTETT ELEM NEM CÉL: egy `hidden` gombra mutatni ugyanolyan hazugság, mint a nem létezőre.
   if (!isShown(el)) return null;
@@ -87,7 +103,7 @@ export function revealerOf(run) {
   const step = run.steps[run.at];
   if (!step) return null;
   if (step.appears_after) {
-    const el = document.querySelector(`[data-testid="${step.appears_after}"]`);
+    const el = elementFor(step.appears_after);
     if (!el) return null;
     if (!isShown(el)) return null;
     return el;
@@ -114,7 +130,7 @@ export function revealerOf(run) {
   //
   // ÉS AZ ŐR SZELLEME VÁLTOZATLAN: a bemutató a menüt sem nyitja ki a felhasználó helyett — a ☰-t
   // KIEMELI, és MEGVÁRJA. A meglévő mondat (`targetPending`) szó szerint ezt mondja ki.
-  const target = document.querySelector(`[data-testid="${step.target}"]`);
+  const target = elementFor(step.target);
   if (!target) return null;                       // tényleg nincs a lapon: ez nem feltárás-eset
   if (isShown(target)) return null;               // látszik: nincs mit feltárni
   if (!target.closest('[data-testid="nav"]')) return null;   // nem a bal menüben van
@@ -158,7 +174,7 @@ export function navIntentFulfilled(run) {
   if (!step) return false;
   if (step.task) return false;                    // feladatot EZ nem igazol — csak a szerver
   if (step.appears_after) return false;           // deklarált feltáró van: az az út, nem ez
-  const el = document.querySelector(`[data-testid="${step.target}"]`);
+  const el = elementFor(step.target);
   if (!el) return false;                          // tényleg nincs a lapon: ez nem teljesülés
   if (isShown(el)) return false;                  // látszik: a rendes út érvényes, nem ez
   if (!el.closest('[data-testid="nav"]')) return false;
@@ -174,24 +190,58 @@ export function isPending(run) { return !targetOf(run) && Boolean(revealerOf(run
  */
 export function checkRun(run, { view, role }) {
   if (!run) return { ok: false, why: 'no_run' };
-  if ((view.book ?? null) !== run.view.book || (view.subject ?? null) !== run.view.subject) return { ok: false, why: 'contextChanged' };
-  if (run.requires_role === 'admin' && role !== 'admin') return { ok: false, why: 'rightLost' };
   if (!run.steps[run.at]) return { ok: false, why: 'no_run' };
+  const step = run.steps[run.at];
 
-  // AMI MÁR ELVÉGZETT, AZ NEM VÁR SEMMIRE (saját lelet, R138 — a VIZUÁLIS tanú fogta meg).
+  /**
+   * A SZEREP A LÉPÉSÉ, NEM A BEMUTATÓÉ (R140 — ACT-01).
+   *
+   * MIÉRT VÁLTOZOTT. Egy teljes történet ÁTÍVEL a szereplőkön: a fiókkezelő visszavon, a MEGHÍVOTT
+   * elfogad, a fiókkezelő jogot ad, és a végeredményt megint a meghívott látja. A régi alak a
+   * szerepet a bemutatóra kötötte (`requires_role`), ezért egy ilyen történet a második
+   * szereplőnél `rightLost`-tal szakadt volna meg — pedig éppen AZ a lépés dolga, hogy más
+   * nézzen. A tour szintű `requires_role` MEGMARAD: az az INDÍTÁS feltétele, és a lépés-szint
+   * csak ott írja felül, ahol a lépés kimondja.
+   */
+  // A LÉPÉS SZEREPE CSAK AZ, AMIT A LÉPÉS KIMOND — nincs visszaesés a bemutató szintjére.
   //
-  // A LELET. A visszatérés-történet 3. lépése a megerősítő űrlapra mutat (`reinvite-form`), amit a
-  // tag-sor gombja tár fel. A küldés UTÁN a panel BECSUKÓDIK, tehát az űrlap eltűnik a lapról — a
-  // cél-vizsgálat ezért újra „feltárásra vár"-t adott egy MÁR ELVÉGZETT lépésre. A buborék így
-  // EGYSZERRE írta ki, hogy „3. Küldd el az új meghívást — Elvégezve" ÉS hogy „Ez a lépés még nem
-  // érhető el: előbb nyisd meg a kiemelt gombbal". A két mondat egymásnak mond ellent ugyanazon a
-  // képernyőn (D-VS-519: a szöveg a valóságot követi · KUKA-201).
-  //
-  // MIÉRT CSAK A KÉPERNYŐKÉP MUTATTA MEG. A saját elfogadási tanúm az ÁLLAPOTOT mérte
-  // (`data-state="done"`) és a záró lapot („Hátravan: 0") — mindkettő helyesen zöld volt. Azt nem
-  // mérte, hogy a buborék SZÖVEGE mit állít az elvégzett lépésről. Ez a KUKA-215 alakja: a választ
-  // meg kell mérni, nem csak a belső állapotot. A mérés azóta kiegészült (a13).
-  if (run.steps[run.at].state === 'done') return { ok: true, why: null, pending: null };
+  // SAJÁT LELET a végigjáráson. Az első alakom a `run.requires_role`-ra esett vissza, ha a lépés nem
+  // mondott szerepet. Egy ÁTÍVELŐ történetben ez hamis: a meghívott ember a saját lépéseinél MÉG NEM
+  // TAG (épp azért hívjuk meg), tehát semmilyen cégbeli szerepe nincs — a visszaesés viszont
+  // „fiókkezelőt" követelt volna tőle, és a bemutató a váltás-lépésen OSZCILLÁLT (MÉRVE: oda-vissza
+  // váltott `actorPending` és `actorWrongRole` között, vég nélkül). A `requires_role` az INDÍTÁS
+  // feltétele (ezt az `allowedToursFor` érvényesíti), nem minden lépésé.
+  const wantRole = step.role ?? null;
+  const sameView = (view.book ?? null) === run.view.book && (view.subject ?? null) === run.view.subject;
+
+  /**
+   * A VÁLTÁS-LÉPÉS: ITT A NÉZET VÁLTOZÁSA A FELADAT (ACT-01).
+   *
+   * Az alany-váltás őre (KTX-03 · KUKA-204 · KUKA-211) VÁLTOZATLANUL érvényes minden MÁS lépésen:
+   * ha a néző menet közben mást választ, a bemutató megáll. Ez az ág CSAK ott nyílik ki, ahol a
+   * lépés MAGA deklarálja a váltást — tehát a védelem nem tűnik el, hanem NEVEZETT határt kap.
+   * A lépés lezárását innen sem ez adja: a `switch_actor` lépés feladathoz kötött (`actor.switched`),
+   * és az `app.js` csak a TÉNYLEGES váltás megfigyelése után igazolja (KUKA-231).
+   */
+  /**
+   * AMI MÁR ELVÉGZETT, AZ NEM VÁR SEMMIRE — MINDKÉT ÁGRA (R138 lelete, R140-ben KITERJESZTVE).
+   *
+   * Az R138-ban ezt a szabályt csak a rendes ágra tettem be, a váltás-ág elé nem. SAJÁT LELET a
+   * végigjáráson: a váltás-lépés az ÚJ nézőhöz újrakötve megint „azonos nézetet" látott, ezért egy
+   * MÁR ELVÉGZETT lépésre újra váltást kért — a bemutató vég nélkül ugyanazon a lépésen állt.
+   * Ugyanaz a hiba-osztály, mint az R138-ban: ha egy szabály két ágon igaz, EGY helyen álljon
+   * (KUKA-003 · KUKA-039), különben a következő ág megint kimarad.
+   */
+  if (step.state === 'done') return { ok: true, why: null, pending: null };
+
+  if (step.switch_actor === true) {
+    if (sameView) return { ok: true, why: null, pending: 'actorPending' };
+    if (wantRole && role !== wantRole) return { ok: true, why: null, pending: 'actorWrongRole' };
+    return { ok: true, why: null, pending: null };
+  }
+
+  if (!sameView) return { ok: false, why: 'contextChanged' };
+  if (wantRole === 'admin' && role !== 'admin') return { ok: false, why: 'rightLost' };
 
   // A HIÁNYZÓ CÉL KÉT KÜLÖN HELYZET, és a felhasználó teendője is más: FELTÁRÁSRA VÁR (ő nyitja
   // meg) VAGY valóban eltűnt (a bemutató megáll). A kettőt nem mossuk össze (KUKA-228).
@@ -206,9 +256,31 @@ export function checkRun(run, { view, role }) {
 }
 
 /**
- * TOVÁBBLÉPÉS. A feladathoz kötött lépésen CSAK akkor halad, ha az `app.js` már IGAZOLTA a
- * műveletet (`taskDone`). Egyébként nevezetten megmondja, mi hiányzik.
+ * A VÁLTÁS MEGTÖRTÉNT-E (ACT-01). Az `app.js` ezzel dönti el, igazolhatja-e a váltás-lépést.
+ * NEM elég, hogy a szerep stimmel: az ALANYNAK is másnak kell lennie, különben a „váltás" egy
+ * helyben állás volna (KUKA-129: a nyugtának is igazat kell mondania).
  */
+export function actorSwitchReady(run, { view, role }) {
+  if (!run) return false;
+  const step = run.steps[run.at];
+  if (!step || step.switch_actor !== true) return false;
+  const wantRole = step.role ?? null;   // ugyanaz a szabály, mint a checkRun-ban
+  if (wantRole && role !== wantRole) return false;
+  return (view.subject ?? null) !== run.view.subject;
+}
+
+/**
+ * A FUTÁS ÚJRAKÖTÉSE AZ ÚJ NÉZŐHÖZ (ACT-01) — KIZÁRÓLAG igazolt váltás után hívható.
+ * Ettől kezdve az alany-váltás őre az ÚJ nézőhöz mér, tehát a védelem a következő lépéstől
+ * ugyanúgy éles, mint korábban.
+ */
+export function rebindView(run, { view, role }) {
+  if (!run) return null;
+  run.view = { book: view.book ?? null, subject: view.subject ?? null };
+  run.role = role ?? null;
+  return run;
+}
+
 export function advance(run) {
   const step = run.steps[run.at];
   if (!step) return { moved: false, why: 'no_run' };
@@ -369,7 +441,7 @@ export function tourHtml(run, { blocked, pending } = {}) {
       <button type="button" class="x" data-action="tour-exit" aria-label="${esc(TOURUI.exit)}" data-testid="tour-exit">×</button></div>
     <h3 data-testid="tour-step-title">${esc(title)}</h3>
     <p data-testid="tour-step-body">${esc(body)}</p>
-    ${pending ? `<p class="notice" data-testid="tour-pending" data-why="${esc(pending)}">${esc(TOURUI.targetPending)}</p>` : ''}
+    ${pending ? `<p class="notice" data-testid="tour-pending" data-why="${esc(pending)}">${esc(TOURUI[pending] || TOURUI.targetPending)}</p>` : ''}
     ${blocked ? `<p class="notice warn" data-testid="tour-blocked">${esc(TOURUI[blocked] || blocked)}</p>` : ''}
     <ol class="tourlist" data-testid="tour-steps" aria-label="${esc(TOURUI.stepList)}">
       ${run.steps.map((s, i) => `<li data-testid="tour-step-${esc(s.id)}" data-state="${esc(s.state)}" ${i === run.at ? 'aria-current="step"' : ''}>
