@@ -251,6 +251,11 @@ futtatni (lásd alább, miért nevezett kockázat). Három dolgot mért:
 
    **A mag-battéria ezzel is 66/66, és a `run.mjs` kilépési kódja 0.**
 
+   **A MUTÁCIÓS BATTÉRIA ZÁRÓ VERDIKTJE (terhelés nélkül, egyetlen futásban):**
+   **233 mutáció · 233 elkapva · 0 túlélte · 0 rossz próba · 0 mérőhiba · 0 elavult horgony** ·
+   kilépési kód **0** · 80 egység · 701 s. Mind az öt érintett rontás **CAUGHT**: `M51` (az
+   áthorgonyozott) · `M332` · `M333` · `M334` · `M335`.
+
 **A TELJES HOSSZÚ SÖPRÉS NEM FUTOTT, és ez KIMONDOTT döntés, nem feledékenység.** Az R136 így
 kötötte ki: *„Célzott domain/HTTP/történeti/érintett UI kontrollok elegendők… Teljes hosszú söprést
 csak tényleges helyi kapu vagy konkrét keresztmetszeti kockázat indokoljon."* Egy keresztmetszeti
