@@ -1,0 +1,178 @@
+{
+  "tool": "FGY-01/3",
+  "tool_commit": "dab79bce92b16f9bd549b80c4e61572d1b40ba09",
+  "tool_file": "./tools/v3_fogyasztas_meres.mjs",
+  "tool_file_sha256": "b3d09180a58477060c45983733472a5050fb8dd22bf1ef8ad2da6a7a3996a2fc",
+  "tool_dirty": false,
+  "generated_at": "2026-10-04T16:24:06.343Z",
+  "session": "f22ef580-e81f-5d66-82f2-6dde87f01af0",
+  "snapshot_closed_at": "2026-10-04T16:24:06.343Z",
+  "runtime_versions": [
+    "2.1.289"
+  ],
+  "window": {
+    "label": "R152 csomag (R152 SPEC → R153 REPORT)",
+    "from": "2026-10-04T15:28:00Z",
+    "to": "2026-10-04T16:25:00Z",
+    "to_effective": "2026-10-04T16:25:00Z"
+  },
+  "coverage": {
+    "files": 1,
+    "unreadable": [],
+    "unparsable_lines": 0,
+    "assistant_without_usage": 0,
+    "invalid_timestamp_calls": 0,
+    "cross_file_duplicate_ids": 0,
+    "incomplete_usage_calls": 0,
+    "synthetic_records": 0,
+    "calls_total": 417,
+    "calls_in_window": 72,
+    "complete": true,
+    "note": "teljes: minden megtalált átirat beolvasva, minden modell-válasz usage-dzsal, azonos azonosító csak egy fájlban"
+  },
+  "whole_session": {
+    "calls": 417,
+    "synthetic_records": 0,
+    "incomplete_usage_calls": 0,
+    "totals_kind": "teljes",
+    "first_call": "2026-10-04T10:44:45.601Z",
+    "last_call": "2026-10-04T16:24:05.578Z",
+    "totals": {
+      "input": 834,
+      "cache_write": 1433119,
+      "cache_read": 179715482,
+      "output": 419786
+    },
+    "by_kind": {
+      "main": {
+        "calls": 417,
+        "input": 834,
+        "cache_write": 1433119,
+        "cache_read": 179715482,
+        "output": 419786
+      }
+    },
+    "by_model": {
+      "claude-opus-5": {
+        "calls": 417,
+        "input": 834,
+        "cache_write": 1433119,
+        "cache_read": 179715482,
+        "output": 419786
+      }
+    },
+    "main_context": {
+      "median": 445428,
+      "max": 778404,
+      "calls_over_400k": 244
+    },
+    "main_wakeups": {
+      "user": {
+        "wakeups": 3,
+        "calls": 396,
+        "input_with_cache": 176156967
+      },
+      "notification": {
+        "wakeups": 1,
+        "calls": 6,
+        "input_with_cache": 3059628
+      },
+      "compaction": {
+        "wakeups": 1,
+        "calls": 15,
+        "input_with_cache": 1932840
+      }
+    },
+    "agent_input_total": 0,
+    "agent_count": 0,
+    "thresholds": {
+      "main_context_median": {
+        "warn_limit": 300000,
+        "switch_limit": 400000,
+        "value": 445428,
+        "band": "valtas",
+        "exceeded": true
+      },
+      "agent_input_per_package": {
+        "limit": 40000000,
+        "value": 0,
+        "exceeded": false
+      }
+    }
+  },
+  "window_summary": {
+    "calls": 72,
+    "synthetic_records": 0,
+    "incomplete_usage_calls": 0,
+    "totals_kind": "teljes",
+    "first_call": "2026-10-04T16:00:43.466Z",
+    "last_call": "2026-10-04T16:24:05.578Z",
+    "totals": {
+      "input": 144,
+      "cache_write": 816126,
+      "cache_read": 42841113,
+      "output": 89715
+    },
+    "by_kind": {
+      "main": {
+        "calls": 72,
+        "input": 144,
+        "cache_write": 816126,
+        "cache_read": 42841113,
+        "output": 89715
+      }
+    },
+    "by_model": {
+      "claude-opus-5": {
+        "calls": 72,
+        "input": 144,
+        "cache_write": 816126,
+        "cache_read": 42841113,
+        "output": 89715
+      }
+    },
+    "main_context": {
+      "median": 721769.5,
+      "max": 778404,
+      "calls_over_400k": 57
+    },
+    "main_wakeups": {
+      "user": {
+        "wakeups": 1,
+        "calls": 57,
+        "input_with_cache": 41724543
+      },
+      "compaction": {
+        "wakeups": 1,
+        "calls": 15,
+        "input_with_cache": 1932840
+      }
+    },
+    "agent_input_total": 0,
+    "agent_count": 0,
+    "thresholds": {
+      "main_context_median": {
+        "warn_limit": 300000,
+        "switch_limit": 400000,
+        "value": 721769.5,
+        "band": "valtas",
+        "exceeded": true
+      },
+      "agent_input_per_package": {
+        "limit": 40000000,
+        "value": 0,
+        "exceeded": false
+      }
+    }
+  },
+  "thresholds_decidable": true,
+  "input_manifest": [
+    {
+      "path": "~/.claude/projects/-home-user/f22ef580-e81f-5d66-82f2-6dde87f01af0.jsonl",
+      "bytes": 7251062,
+      "sha256": "0399fd6b79f50b783da1f9e110e33cfbf735cf6636f1de77fc242ccbbaa7330a",
+      "kind": "main"
+    }
+  ],
+  "reproduce": "node tools/v3_fogyasztas_meres.mjs --session f22ef580-e81f-5d66-82f2-6dde87f01af0 --from 2026-10-04T15:28:00Z --to 2026-10-04T16:25:00Z --label \"R152 csomag (R152 SPEC → R153 REPORT)\" --projects ~/.claude/projects"
+}
