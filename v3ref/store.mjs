@@ -1088,6 +1088,15 @@ export function openStoreAt(path, { timeoutMs = 2000 } = {}) {
     atomic: (fn) => atomically(db, fn),
     all(sql, ...params) { return db.prepare(sql).all(...params); },
     get(sql, ...params) { return db.prepare(sql).get(...params); },
+    /**
+     * SOR-ZÁR (LCK-01) — AZ SQLITE-ÚTON KIMONDOTT NO-OP, NEM FELEDÉKENYSÉG.
+     *
+     * A `BEGIN IMMEDIATE` az SQLite-ban a tranzakció ELEJÉN ÍRÁS-ZÁRAT vesz az EGÉSZ
+     * adatbázisra, tehát két író eleve SOROSAN fut — nincs mit külön zárni, és sor-szintű zár
+     * nem is létezik. A metódus azért van itt, hogy a HÍVÓ egy ajtót lásson (KUKA-003): a
+     * domain-kód ugyanazt a sort írja mindkét tárolóra, és nem ágazik el tároló szerint.
+     */
+    lockRows() { return 0; },
   };
 }
 
@@ -1139,6 +1148,15 @@ export function openStore() {
     atomic(fn) { return atomically(db, fn); },
     all(sql, ...params) { return db.prepare(sql).all(...params); },
     get(sql, ...params) { return db.prepare(sql).get(...params); },
+    /**
+     * SOR-ZÁR (LCK-01) — AZ SQLITE-ÚTON KIMONDOTT NO-OP, NEM FELEDÉKENYSÉG.
+     *
+     * A `BEGIN IMMEDIATE` az SQLite-ban a tranzakció ELEJÉN ÍRÁS-ZÁRAT vesz az EGÉSZ
+     * adatbázisra, tehát két író eleve SOROSAN fut — nincs mit külön zárni, és sor-szintű zár
+     * nem is létezik. A metódus azért van itt, hogy a HÍVÓ egy ajtót lásson (KUKA-003): a
+     * domain-kód ugyanazt a sort írja mindkét tárolóra, és nem ágazik el tároló szerint.
+     */
+    lockRows() { return 0; },
   };
 }
 

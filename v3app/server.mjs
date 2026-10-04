@@ -222,6 +222,29 @@ export function isHttpsRequest(req, env = process.env) {
  * (nincs Redis, és az R146 §7 kimondottan nem is engedélyez újat); a staging egy példányon fut,
  * ott ez a korlát VALÓDI. Ha a production több példányra nő, ez a sor a kiadási lap függője lesz.
  */
+/**
+ * A KÉRÉSKORLÁT HATÓKÖRE KIMONDOTT (NET-03).
+ *
+ * MÉRT REGRESSZIÓ, a sajátom: az R148-ban a korlátot MINDEN környezetben bekapcsoltam
+ * (240 kérés / 60 s / cím). A helyi lelet-battériák ennél jóval több kérést küldenek egyetlen
+ * címről — az `app-findings-r134` 300 kérésből 60-at `429`-cel kapott vissza, és a próba egy
+ * `undefined` levelesládán hasalt el. A védelem tehát a FEJLESZTÉST akasztotta meg, miközben
+ * ott nincs mitől védeni (KUKA-092: a tiltás a megépítés helyett).
+ *
+ * A SZABÁLY: a kéréskorlát TELEPÍTETT környezet védelme (R146 §5 ott is kérte). Helyben alapból
+ * KI, és mindkét irányban kifejezetten felülírható (`VS_APP_RATE_MAX=0` kikapcsol).
+ */
+export function rateLimitConfig(env = process.env) {
+  const deployed = DEPLOYED_ENVS.includes(String(env.VS_APP_ENV || '').trim().toLowerCase());
+  const explicit = String(env.VS_APP_RATE_MAX || '').trim();
+  const max = explicit === '' ? (deployed ? 240 : 0) : Number(explicit);
+  return {
+    enabled: Number.isFinite(max) && max > 0,
+    max,
+    windowMs: Number(env.VS_APP_RATE_WINDOW_MS || 60000),
+  };
+}
+
 export function makeRateLimiter({ windowMs = 60000, max = 240 } = {}) {
   const hits = new Map();
   return function take(key, now = Date.now()) {
@@ -410,10 +433,8 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     try { return requiredMigrations(join(REPO_ROOT, 'migrations')); } catch { return []; }
   })();
 
-  const rateLimit = makeRateLimiter({
-    windowMs: Number(process.env.VS_APP_RATE_WINDOW_MS || 60000),
-    max: Number(process.env.VS_APP_RATE_MAX || 240),
-  });
+  const rateCfg = rateLimitConfig();
+  const rateLimit = rateCfg.enabled ? makeRateLimiter(rateCfg) : null;
   const gate = accessGateConfig();
   if (!gate.ok) {
     try { store.close(); } catch { /* a tároló bontása nem fedheti el az indulási okot */ }
@@ -2027,7 +2048,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     // ── 1/b. KÉRÉSKORLÁT (NET-02) — az ÉLETJEL UTÁN, a kapu ELŐTT ──────────────────────────────
     // Az életjelet és a készenlétet NEM korlátozzuk: azokat a TELEPÍTŐ kérdezi, sűrűn, és egy
     // kizárt életjel újraindítási hurkot okozna — a védelem okozná az üzemzavart (KUKA-092).
-    {
+    if (rateLimit) {
       const verdict = rateLimit(clientIpOf(req));
       if (!verdict.allowed) {
         res.writeHead(429, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Retry-After': String(verdict.retry_after_s) });
@@ -2206,7 +2227,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     // cím, a felhasználónév és a jelszó SOHA (ÁLLANDÓ: kulcs nem kerül naplóba).
     const where = app.host === '0.0.0.0' ? `a konténer PORT-ján (${app.port})` : `http://${app.host}:${app.port}/`;
     console.log(`[v3app] fut: ${where}  · tároló: ${app.store.dialect === 'postgres' ? 'PostgreSQL (tartós)' : `SQLite — ${app.dbPath}`}`);
-    console.log(`[v3app] környezet: ${process.env.VS_APP_ENV || '(helyi)'} · hozzáférés-védelem: ${gate.enabled ? 'BE' : 'KI'} · fejlesztői felület: ${app.devSurface ? 'BE' : 'KI'}`);
+    const rl = accessGateConfig && rateLimitConfig();
+    console.log(`[v3app] környezet: ${process.env.VS_APP_ENV || '(helyi)'} · hozzáférés-védelem: ${gate.enabled ? 'BE' : 'KI'} · fejlesztői felület: ${app.devSurface ? 'BE' : 'KI'} · kéréskorlát: ${rl.enabled ? `${rl.max}/${Math.round(rl.windowMs / 1000)} s` : 'KI'}`);
     if (app.devSurface) console.log(`[v3app] ${DEV_MAILBOX_LABEL}: /dev/mailbox`);
   }).catch((e) => { console.error('[v3app] nem indult el:', e.message); process.exit(1); });
 }

@@ -135,6 +135,28 @@ export function openPgStore(url, opts = {}) {
       }
     },
 
+    /**
+     * SOR-ZÁR A TRANZAKCIÓ VÉGÉIG (LCK-01).
+     *
+     * MIÉRT KELL, MÉRVE (R150 §4 / F150-03). READ COMMITTED mellett két tranzakció UGYANAZT a
+     * meghívó-sort olvashatja „még nem beváltott"-nak, aztán MINDKETTŐ ír: a beváltás tagságot
+     * ad, a visszavonás pedig visszavonás-sort ír ugyanarra a meghívóra. Mérve, két külön
+     * folyamattal, determinisztikus megállítási ponttal: a végállapot `beváltva=true` ÉS
+     * `visszavonás-sor=1` ÉS `tagság=1` lett — az operátor „visszavontam"-ot lát, a munkatárs
+     * viszont BENT VAN. A helyes végállapot hiánya mellett a NYUGTA is hazudott (KUKA-129).
+     *
+     * A ZÁR SOROSÍT: aki előbb veszi fel, az dönt, a másik a COMMIT után FRISS állapotot olvas.
+     * Ez nem új üzleti motor és nem elkülönítési szint váltás — a meglévő írók UGYANAZT a
+     * szabályt alkalmazzák, csak immár sorosítva (a parancs kikötése: „ne új üzleti motort
+     * építs", és „minden érintett íróra vonatkozzon").
+     *
+     * A tábla és a feltétel KÓD-ÁLLANDÓ, soha nem felhasználói bemenet; az ÉRTÉK paraméter.
+     */
+    lockRows(table, whereSql, ...params) {
+      if (depth === 0) throw new Error('lockRows: sor-zár csak TRANZAKCIÓN BELÜL vehető fel');
+      return exec(`SELECT 1 FROM ${table} WHERE ${whereSql} FOR UPDATE`, params).rows.length;
+    },
+
     close() { bridge.close(); },
     /** Érvénytelen-e a kapcsolat (eldönthetetlen szállítási hiba után) — ÚJ kapcsolat kell. */
     get poisoned() { return bridge.poisoned; },

@@ -328,6 +328,11 @@ export function revokeMembership({ store, subjectId, bookId, clock, actorSubject
   const out = effectuate(
     { store, clock, subjectId: actorSubjectId, bookId, operation: 'alter_right', credentials },
     ({ at }) => {
+      // SOR-ZÁR ELŐSZÖR (LCK-01 · R150/F150-03). A megvonás és a rá TÁMASZKODÓ írók (pl. a
+      // hatáskör-adás) ugyanazt a tagság-sort veszik fel — így aki előbb ér oda, az dönt, a
+      // másik pedig a COMMIT után FRISS állapotot olvas. Enélkül MÉRVE: a megvont tag ÉLŐ
+      // adatkört kapott, mert a hatáskör-adás a megvonás ELŐTTI tagságot látta.
+      store.lockRows('membership', 'subject_id = ? AND book_id = ?', subjectId, bookId);
       const m = store.get('SELECT * FROM membership WHERE subject_id = ? AND book_id = ?', subjectId, bookId);
       if (!m) return Object.freeze({ ok: false, changed: false, reason: 'no_membership' });
       const t = revocationTransition(m.revoked_at, at);

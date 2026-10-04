@@ -149,6 +149,13 @@ export function revokeInvite({ store, clock, token, bookId, revokerSubjectId, cr
   const out = effectuate(
     { store, clock, subjectId: revokerSubjectId, bookId, operation: 'alter_right', credentials },
     ({ at }) => {
+      // SOR-ZÁR ELŐSZÖR (LCK-01 · R150/F150-03). A döntés a meghívó ÁLLAPOTÁN áll (beváltott-e,
+      // visszavont-e) — ezt a tényt tehát a MIÉNK alatt kell olvasni, különben egy párhuzamos
+      // beváltás a mi olvasásunk UTÁN, az írásunk ELŐTT véglegesülhet. MÉRVE (két külön
+      // folyamat, determinisztikus megállítási pont): enélkül a visszavonás egy MÁR ELFOGADOTT
+      // meghívóra írt visszavonás-sort, miközben a tagság létrejött — az operátor
+      // „visszavontam"-ot látott, a munkatárs viszont BENT VOLT.
+      store.lockRows('invite', 'token = ?', tok);
       // A MEGHÍVÓ A VÉGLEGESÍTÉSI HATÁRON BELÜL OLVASVA — nem a kapu előtt (R51/J2 · N10).
       const live = store.get('SELECT * FROM invite WHERE token = ?', tok);
       if (!live) return Object.freeze({ ok: false, changed: false, reason: 'invite_unknown' });
@@ -809,6 +816,12 @@ export function redeemInvite({ store, token, actingSubjectId, newCredential, clo
   // vesz, tehát a tisztán OLVASÓ elutasítások zár-versengés alatt `database is locked` KIVÉTELT
   // adnának — a valódi „nem"-ből programhiba lenne (KUKA-020).
   return store.tx(() => {
+    // SOR-ZÁR ELŐSZÖR (LCK-01 · R150/F150-03). A véglegesítési kapu ÚJRAOLVAS — de az
+    // újraolvasás csak akkor dönt, ha közben senki nem ír. A zár UGYANARRA a sorra megy, amit a
+    // visszavonás is felvesz: a két író így SOROSÍTVA dönt, és nem a szerencsén múlik, melyikük
+    // olvasott frissebbet. A zár a tranzakción BELÜL van, tehát a tisztán olvasó elutasítások
+    // változatlanul kívül maradnak — az ott kimondott indok érvényes.
+    store.lockRows('invite', 'token = ?', token);
     // VÉGLEGESÍTÉSI KAPU — a változható tények ÚJRAOLVASVA, az ÍRÁS határán belül.
     // A VÉGLEGESÍTÉSI HATÁRON ÚJRA a KIADOTT ajánlatot oldjuk fel: így egyszerre méri a
     // pecsét-eltérést (F01) és a két olvasás közötti változást (R51/J2 · N10).

@@ -257,6 +257,22 @@ export function grantScopeToMember({ store, granterSubjectId, bookId, targetSubj
   // AZ ELŐKÉSZÍTŐ ÉS AZ ÉRDEMI ÍRÁS EGY EGYSÉGBEN (ATO-01): a delegálási alap rögzítése és a
   // jog-sor EGYÜTT marad vagy EGYÜTT tűnik el — nevezett kudarcon is.
   return atomicOutcome(store, () => {
+    // SOR-ZÁR + A TAGSÁG ÚJRAELLENŐRZÉSE A ZÁRON BELÜL (LCK-01 · R150/F150-03).
+    //
+    // A `membershipAsOf` fentebb, a tranzakción KÍVÜL dönt — és ez MÉRVE kevés volt: két külön
+    // folyamattal, determinisztikus megállítási ponttal a hatáskör-adás a tagság megvonása
+    // ELŐTTI képet látta, a megvonás közben véglegesült, és a MEGVONT tag ÉLŐ „arak" adatkört
+    // kapott. Néma jogosultság-szivárgás: a nyugta sikert mondott, a tag pedig bent maradt az
+    // adatkörben (KUKA-129 · KUKA-204).
+    //
+    // A DÖNTÉS SZABÁLYA VÁLTOZATLAN: UGYANAZT a feloldót (`membershipAsOf`) kérdezzük újra,
+    // UGYANAZZAL az elutasítási okkal — nem születik második üzleti motor, csak a döntés kerül
+    // a zár mögé (a parancs kikötése: „ne új üzleti motort építs").
+    store.lockRows('membership', 'subject_id = ? AND book_id = ?', targetSubjectId, bookId);
+    const mFresh = membershipAsOf({ store, subjectId: targetSubjectId, bookId, validAt: at, knownAt: at });
+    if (mFresh.effective !== true) {
+      refuseAndRollBack({ ok: false, changed: false, reason: 'target_not_a_member', detail: mFresh.reason });
+    }
     const basis = deriveDelegationBasis({ store, subjectId: granterSubjectId, bookId, at });
     if (!basis.ok) refuseAndRollBack({ ok: false, changed: false, reason: basis.reason });
     const g = grantReadScope({
