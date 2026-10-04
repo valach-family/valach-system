@@ -21,8 +21,21 @@
  */
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadRepoEnv } from './lib/vs_tool_env.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+// A `.env` BETÖLTÉSE MINDEN KONFIGURÁCIÓ-OLVASÁS ELŐTT (ENV-01, R146 §6).
+//
+// A LELET: ez az eszköz a `process.env`-ből olvasott, de a repó közös `loadRepoEnv`-jét NEM
+// hívta — tehát a `.env`-ben álló `VS_AI_*` beállítás helyi fejlesztésen LÁTHATATLAN volt, és az
+// eszköz „nincs beállítva"-t mondott egy olyan gépen, ahol a beállítás ott volt (KUKA-040).
+//
+// A SORREND SZÁMÍT: a betöltés a `provider.mjs` BEHÚZÁSA ELŐTT áll. A modul ugyan a hívás
+// pillanatában olvas környezetet (alapértelmezett paraméterben), de erre nem ÉPÍTÜNK — a
+// betöltés akkor is helyes marad, ha a modul egyszer modul-szinten olvasna. A `verify:env-loading`
+// ezt MÉRI, nem az emlékezetünk.
+const ENV = loadRepoEnv(ROOT);
 const asJson = process.argv.includes('--json');
 
 const { providerStatus, askProvider } = await import(join(ROOT, 'v3app/assistant/provider.mjs'));

@@ -174,6 +174,15 @@ CREATE TABLE subject_ban (
   lifted_by        text
 );
 
+-- ═══ REV-N3 — A HATÁSKÖR ÉS A BEJELENTÉS (R60 req-2 · R65 §7) ═══════════════════════════════
+--
+-- A REV-N3 KÉT dolgot mond ki egyszerre, és a saját gap-szövegünk szerint EGYÜTT kell megépülniük:
+-- hatáskör nélkül a bejelentés jogot mozdítana, bejelentés nélkül a hatáskör elfojtja a jelzést.
+--
+-- A HATÁSKÖR MŰVELETENKÉNT áll ("operation"), nem egy általános „bíráló" jelölésként: a legszűkebb
+-- felhatalmazás nem adhat tágabb hatást. A megvonás KÜLÖN esemény marad (K09), a hatáskör pedig
+-- nem a tagságból jön — egy admin tagság nem tesz senkit elbírálóvá.
+-- A FELHATALMAZÁS ALAPJA (ORG-N1a). A régi alak CSAK azt tárolta, KI kapta a hatáskört és MIKORTÓL;
 -- azt nem, hogy MI ALAPJÁN. A határozatnak SAJÁT azonosítója, VERZIÓJA és HATÁLYA van, és a róla
 -- szerzett tudomás KÉSŐBB is érkezhet — ezért itt is a KÉT TENGELY áll (effective_at × recorded_at),
 -- ugyanaz a szerkezet, amit a tagságadás és a megvonás már használ (KUKA-003: azonos alakú tényt
@@ -270,8 +279,7 @@ CREATE TABLE adjudication_authority_grant (
   -- EZÉRT A GENERÁCIÓT ZÁRJUK, NEM ELDOBJUK. Amikor egy új megadás felülírja a vetületet, a
   -- felülírás ELŐTT ide mentjük a lezáruló generáció végállapotát:
   --   · "revoked_at"    — a generáció SAJÁT megvonása (ha volt), a vetületből átvéve;
-
---   · "superseded_at" — mikor zárta le egy későbbi megadás. NULL = még ez az ÉLŐ generáció.
+  --   · "superseded_at" — mikor zárta le egy későbbi megadás. NULL = még ez az ÉLŐ generáció.
   --
   -- A "superseded_at" KIMONDOTT bizonyíték arra, hogy a zárás MEGTÖRTÉNT. Egy felülírt, de nem
   -- lezárt sor (ilyet csak a javítás ELŐTTI adat vagy nyers írás hagyhat) NEM kap néma történeti
@@ -336,6 +344,44 @@ CREATE TABLE invite (
   redeemed_at       text
 );
 
+-- A KIADOTT MEGHÍVÓ FELTÉTELEINEK PECSÉTJE (R53/F01 — a külső fél F01 esete).
+--
+-- Az R52-es alak a beváltás KÉT OLVASÁSA KÖZÖTTI változást fogta meg. Ha a sort KORÁBBAN írták át,
+-- mindkét olvasás már az átírt értéket látta: a szabályos "user" meghívóból "admin" tagság lett.
+-- Ez TOCTOU-védelem volt, nem a KIADOTT ajánlat változtathatatlansága.
+--
+-- MIÉRT TRIGGER, ÉS NEM ALKALMAZÁS-OLDALI KIADÁS-FÜGGVÉNY. A meghívók egy része NYERS pozicionális
+-- INSERT-tel születik (a külső fél MINDEN próbájában így), tehát bármilyen általunk írt kiadás-
+-- függvényt megkerülnének — és a pecsét pont ott hiányozna, ahol a támadás történik. A tároló
+-- viszont nem kerülhető meg: aki sort ír, pecsétet is ír (KUKA-013).
+--
+-- R55/F01 — A HATÁR MEGERŐSÍTVE, ÉS A KORÁBBI INDOKOM VISSZAVONVA.
+--
+-- Az R54-ben azt írtam, hogy az élő sor UPDATE-jét SZÁNDÉKOSAN nem tiltjuk, mert a külső fél saját
+-- F01/N10 próbája nyers UPDATE-tel dolgozik, és kivételt nem vár. A külső fél ezt VISSZAVONTA:
+-- "Nem indokolt gyengébb termékhatárt választani azért, hogy a régi F01/N10 ne dobjon kivételt."
+-- Igaza van, és a saját szabályunk is ezt mondja: a próbát a HATÁRHOZ igazítjuk, nem fordítva.
+--
+-- ÉS A KÉT ŐR ÖNMAGÁBAN NEM VOLT APPEND-ONLY TÁROLÓ. Az R55 S01/S02 esete ezt mérve mutatta meg:
+--   S01 - INSERT OR REPLACE INTO invite_terms ... : a REPLACE a régi sort TÖRLI és újat ír, a
+--         törlés BEFORE DELETE triggerét viszont az SQLite csak bekapcsolt rekurzív triggerek
+--         mellett futtatja (a kapcsolat alapértéke: KI). A pecsét átíródott.
+--   S02 - INSERT OR REPLACE INTO invite ... ugyanazzal a tokennel, admin szereppel: a kiadott
+--         ajánlat helyére új ajánlat került. Egyik esetben sem kellett sémát vagy triggert tiltani.
+-- Mindkét beváltás SIKERES volt, és ADMIN tagságot adott.
+--
+-- A TANULSÁG A VÉDELEM ALAKJÁRÓL: az UPDATE és a DELETE TILTÁSA nem ugyanaz, mint a sor
+-- VÁLTOZTATHATATLANSÁGA - a köztük lévő rést a tároló saját konfliktus-feloldása nyitotta ki. A
+-- védelmet ezért a MŰVELETEK teljes halmazára kell szabni (UPDATE - DELETE - REPLACE - UPSERT -
+-- ugyanazon token újra-beillesztése), és a kapcsolati beállítást az ADAPTER kényszerítse ki, ne a
+-- környezet alapértéke döntse el (lásd openStore: a recursive_triggers BE, és VISSZA IS OLVASSUK).
+--
+-- A NÉGY ŐR EGYÜTT (mindegyik a MŰVELET oldaláról zár, nem a szándék oldaláról):
+--   invite_terms_no_update / no_delete  - a pecsét sorát átírni vagy törölni nem lehet;
+--   invite_terms_no_reseal              - ugyanarra a tokenre MÁSODIK pecsét nem születhet (ez
+--                                         zárja a REPLACE-t a pecsét-táblán, pragmától FÜGGETLENÜL);
+--   invite_no_change_sealed             - az élő meghívó KIADOTT mezői nem módosulhatnak; a
+--                                         redeemed_at (az ÉLETCIKLUS mezője) igen;
 --   invite_no_reissue / no_delete_sealed - lepecsételt tokent újra beilleszteni vagy törölni nem
 --                                         lehet (ez zárja a REPLACE-t az élő táblán is).
 --
@@ -715,6 +761,30 @@ CREATE TABLE disclosure (
   at            text NOT NULL
 );
 
+-- A NYUGTA-KÖNYV (R50 — a külső fél cáfolatára). KÉT KÜLÖN KÉRDÉS, KÉT KÜLÖN OTTHON (KUKA-002):
+--   · a disclosure arra felel, MILYEN VÉDETT TARTALMAT ENGEDETT KI a rendszer, KINEK, MILYEN
+--     ALAPON — beleértve a kérés közben FRISSEN ELŐÁLLÓ tartalmat is (R51/J4 pontosítás);
+--   · a command_event arra, MIT KÖTELEZETT EL A SZERVER ebben a kérésben.
+--
+-- Az R47-es alakunk azt állította, hogy a befogadás válasza „nem közöl új tényt, tehát nincs mit
+-- leltározni". A külső fél ezt megcáfolta, és IGAZA VAN: a hívó a saját bemeneteit adta, de azt,
+-- hogy a parancs VÉGLEGESÜLT-E, nem ő adta — az a szerver oldalán keletkezett új tény.
+--
+-- PONTOSÍTVA (R51/J4): az R50-ben azt írtuk ide, hogy a tény „SEHOL nem hagyott nyomot". Ez TÚL
+-- ERŐS volt, és a külső fél helyesbítette: a a parancs sor a végleges állapotot MÁR RÖGZÍTETTE.
+-- Az eseménykönyv ettől még hasznos — de KÜLÖN MEGNEVEZETT szerződésként, nem egy nemlétező
+-- hiány pótlásaként. A valódi hiba az volt, hogy a véglegesítés tényéhez nem tartozott NEVEZETT,
+-- a hatással atomi nyugta, amire a rá épülő mini modulok építhetnének.
+--
+-- A sor a HATÁSSAL EGY TRANZAKCIÓBAN születik. Ez a KUKA-026 ellenpárja, és fordított előjelű:
+-- a KUDARC nyoma nem utazhat a visszagördülő tranzakcióban, a SIKER nyugtája viszont KÖTELEZŐEN
+-- azzal utazik — különben nyugtát adnánk olyan hatásról, ami nem történt meg.
+-- A NYUGTA INVARIÁNSAI A SÉMÁBAN, NEM A JÓINDULATBAN (R51/J3 — a külső fél N03/N04 esete).
+-- Az R50-es alak csak egy ZÁRT ESEMÉNY-NÉVLISTÁT védett, és ezt „a regiszter zárt" mondattal
+-- készre is jelentettük. A név csak az EGYIK feltétel: megengedett névvel is lehetett ÁRVA nyugtát
+-- írni (nem létező parancsra) és MÁSODIK nyugtát ugyanarra a parancsra.
+--   · IDEGEN KULCS a parancs elsődleges kulcsára ⇒ árva sor lehetetlen (a foreign_keys pragma BE
+--     van kapcsolva a nyitáskor — enélkül a kényszer néma dísz volna, KUKA-041);
 --   · EGYEDISÉG a (parancs × esemény) páron ⇒ egy véglegesítéshez EGY nyugta.
 -- Amit a séma nem tud (a nyugta ÁLLAPOTA és HATÁSAZONOSÍTÓJA egyezzen a parancséval, és a hívás
 -- a véglegesítés tranzakciójából jöjjön), azt az író recordCommandEvent kényszeríti ki.
@@ -892,6 +962,19 @@ $trg$ LANGUAGE plpgsql;
 CREATE TRIGGER stock_movement_no_delete BEFORE DELETE ON stock_movement
 FOR EACH ROW EXECUTE FUNCTION stock_movement_no_delete_fn();
 
+-- ═══ AUT-01 — A HOZZÁFÉRÉS-MEGTAGADÁS BELSŐ NAPLÓJA (R16/F16-01) ════════════════════════════
+--
+-- MIÉRT SAJÁT TÁBLA. A külső fél mérése (R16 §2) kimutatta, hogy a bevét-út a CIKKET a jogosultsági
+-- döntés ELŐTT oldotta fel: a tagság nélküli hívó a nem létező cikkre "unknown_item", a MÁSIK
+-- könyvben létezőre "item_belongs_to_another_book" választ kapott, a részlet pedig megnevezte a
+-- másik könyvet. Két szivárgás egyszerre: a hibakód KÜLÖNBSÉGE és a részlet TARTALMA.
+--
+-- A javítás EGYFORMÁVÁ teszi a kifelé menő választ. Ettől viszont az üzemeltető is vak lenne, ha
+-- nem írnánk le sehol, MI történt valójában — és a néma tiltás ugyanaz a hazugság, mint a néma üres
+-- lista (KUKA-058: ahol a válasz SZÁNDÉKOSAN egyforma, ott a NAPLÓNAK kell beszélnie).
+--
+-- KÉT KÜLÖN SZERZŐDÉS, KÉT KÜLÖN OTTHON (KUKA-002):
+--   · a KIADHATÓ válasz nem mond semmit a védett objektumról — se kóddal, se részlettel;
 --   · ez a sor BEFELÉ nevezi meg a valódi okot (a jogosultsági döntés indokát), és SOHA nem kerül
 --     kiadásra — nincs olvasója a kiadási úton.
 --

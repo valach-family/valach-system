@@ -41,7 +41,13 @@ export function splitStatements(sql) {
       if (/^END;/i.test(t)) { out.push(buf.trim()); buf = ''; inTriggerBody = false; }
       continue;
     }
-    if (/;\s*$/.test(t)) { if (buf.trim()) out.push(buf.trim()); buf = ''; }
+    // A PONTOSVESSZŐ CSAK KÓD-SOR VÉGÉN ZÁR. MÉRT LELET: az `adjudication_authority_grant`
+    // tábla törzsében áll egy MAGYARÁZÓ sor, ami pontosvesszővel végződik
+    // („… a vetületből átvéve;"). A vak vágás ott KETTÉSZEDTE a táblát — a kimenet véletlenül
+    // érvényes maradt (a `;` a kommentben a PostgreSQL-nek sem zár), de a besorolás és a
+    // paritás-mérés már a FÉL táblát látta. Ez a KUKA-239 alakja: a hatókör nélküli minta a
+    // szomszéd sort igazolja.
+    if (!/^\s*--/.test(line) && /;\s*$/.test(t)) { if (buf.trim()) out.push(buf.trim()); buf = ''; }
   }
   if (buf.trim()) out.push(buf.trim());
   return out.filter((s) => s && !/^--/.test(s.split('\n').filter((l) => !/^\s*--/.test(l)).join('\n').trim() || '--'));

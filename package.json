@@ -74,7 +74,11 @@
     "verify:unit-admission": "node tools/vs_verify_unit_admission.mjs",
     "verify:v3ref": "node v3ref/run.mjs && npm run --silent v3ref:mutate:units",
     "db:migrate": "node tools/v3_db_migrate.mjs",
-    "proof:pg-parity": "node tools/v3_pg_parity_proof.mjs"
+    "proof:pg-parity": "node tools/v3_pg_parity_proof.mjs",
+    "proof:pg-concurrency": "node tools/v3_pg_concurrency_proof.mjs",
+    "proof:pg-durability": "node tools/v3_pg_durability_proof.mjs",
+    "verify:env-loading": "node tools/vs_verify_env_loading.mjs",
+    "verify:pg-schema-parity": "node tools/vs_verify_pg_schema_parity.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0"
