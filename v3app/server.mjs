@@ -24,6 +24,7 @@ import { createRequire } from 'node:module';
 import { openStoreAt } from '../v3ref/store.mjs';
 import { openPgStore } from '../v3ref/pgStore.mjs';
 import { loadRepoEnv } from '../tools/lib/vs_tool_env.mjs';
+import { requiredMigrations, schemaReadiness } from './schemaReadiness.mjs';
 import {
   registerAccount, authenticate, issueChannelChallenge, redeemChannelChallenge, provenEmailOf,
   reissueChannelChallenge, subjectByEmail, CHALLENGE_POLICY,
@@ -151,6 +152,15 @@ export const CLIENT_AUTHORITY_PARAMS = Object.freeze(['book_id', 'workspace_id',
 // sem indul jelszó nélkül. Egy „majd beállítjuk" állapot pontosan az az ígéret, amit a KUKA-050
 // tilt — a nyitott staging egyetlen elfelejtett kapcsoló lenne.
 export const PUBLIC_PATHS = Object.freeze(['/health', '/ready']);
+
+/** A készenlét NEVEZETT állapotainak egy mondata — titok nélkül, a telepítőnek és az embernek. */
+const READINESS_MESSAGES = Object.freeze({
+  ready: 'a séma a kiadott kódhoz illik',
+  store_unreachable: 'a tároló nem érhető el',
+  migration_ledger_missing: 'a migrációs nyilvántartás nem létezik — a séma még nem épült fel',
+  migration_missing: 'a kiadott kód által elvárt migráció(k) NEM futottak le',
+  migration_checksum_mismatch: 'lefutott migráció(k) tartalma ELTÉR a kiadott kódétól',
+});
 
 export function accessGateConfig(env = process.env) {
   const user = String(env.VS_APP_ACCESS_USER || 'vs').trim();
@@ -394,6 +404,12 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
 
   // A KAPU AZ INDULÁSKOR DŐL EL, NEM KÉRÉSENKÉNT: telepített környezetben jelszó nélkül a
   // szolgáltatás EL SEM INDUL (ACC-01).
+  // A KIADOTT KÓD ELVÁRT MIGRÁCIÓS KÉSZLETE — EGYSZER, indulásnál (RDY-01). A telepített
+  // csomagban ez rögzített; kérésenként újraolvasni felesleges lemez-munka volna.
+  const REQUIRED_MIGRATIONS = (() => {
+    try { return requiredMigrations(join(REPO_ROOT, 'migrations')); } catch { return []; }
+  })();
+
   const rateLimit = makeRateLimiter({
     windowMs: Number(process.env.VS_APP_RATE_WINDOW_MS || 60000),
     max: Number(process.env.VS_APP_RATE_MAX || 240),
@@ -1991,21 +2007,21 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       return sendJson(res, 200, { ok: true, service: 'v3app', version: PKG_VERSION, uptime_s: Math.round(process.uptime()) });
     }
     if (url.pathname === '/ready') {
-      try {
-        const applied = dialect === 'postgres'
-          ? store.all('SELECT version FROM schema_migration ORDER BY version').map((r) => r.version)
-          : null;
-        store.get('SELECT 1 AS ok');
-        return sendJson(res, 200, {
-          ok: true, store: dialect, schema_versions: applied,
-          schema_head: applied ? (applied[applied.length - 1] ?? null) : null,
-          dev_surface: devSurface,
-        });
-      } catch (e) {
-        // A KÉSZENLÉT HIÁNYÁNAK NEVE VAN. A 503 a telepítőnek szól: ne irányíts ide forgalmat.
-        return sendJson(res, 503, { ok: false, reason: 'store_not_ready', store: dialect,
-          message: String(e && e.message || e).slice(0, 200) });
-      }
+      // A KÉSZENLÉT A KIADOTT KÓDHOZ MÉRVE DŐL EL (RDY-01) — nem egy `SELECT 1`-en.
+      //
+      // A VÁLASZ NEVEZETT ÉS TITOKMENTES. A korábbi alak a nyers adatbázis-hibaüzenetet adta
+      // vissza (`e.message` 200 karakteren), és ez a végpont a hozzáférés-kapu ELŐTT áll, tehát
+      // bárki olvashatná: egy kapcsolati hiba így kiszivárogtathatná a hosztot vagy a
+      // felhasználónevet. Innentől CSAK a nevezett állapot megy ki.
+      const verdict = schemaReadiness(store, dialect, REQUIRED_MIGRATIONS);
+      return sendJson(res, verdict.http, {
+        ok: verdict.ready,
+        reason: verdict.reason,
+        message: READINESS_MESSAGES[verdict.reason] || verdict.reason,
+        ...verdict.detail,
+        dev_surface: devSurface,
+        version: PKG_VERSION,
+      });
     }
 
     // ── 1/b. KÉRÉSKORLÁT (NET-02) — az ÉLETJEL UTÁN, a kapu ELŐTT ──────────────────────────────

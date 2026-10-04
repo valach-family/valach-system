@@ -43,6 +43,10 @@ Atomics.store(ctl, 1, 1);
 // `Atomics.wait`-ben — egy határidőtlen várakozás pedig néma hét perc (KUKA-121). Ezért minden
 // kimeneti út (siker, hiba, váratlan kivétel) UGYANAZON a kapun megy ki.
 function answer(payload) {
+  // A VÁLASZ VISZI A KÉRÉS AZONOSÍTÓJÁT (PGB-04). Enélkül a hívó nem tudja megmondani, hogy a
+  // portból kivett üzenet az ŐT illető válasz-e, vagy egy KORÁBBI, időtúllépés után beérkezett
+  // válasz. Mérve (a külső fél F150-01 reprodukciója): a második lekérdezés az ELSŐ sorát kapta
+  // vissza — vagyis egy kérés MÁS kérés adatát olvasta volna.
   chan.postMessage(payload);
   Atomics.store(ctl, 0, 1);
   Atomics.notify(ctl, 0);
@@ -51,6 +55,8 @@ function answer(payload) {
 let client = null;
 
 chan.on('message', async (msg) => {
+  const id = msg && msg.id;
+  const reply = (p) => answer({ ...p, id });
   try {
     if (msg.op === 'connect') {
       client = new pg.Client({ connectionString: url, application_name: 'v3app' });
@@ -60,21 +66,21 @@ chan.on('message', async (msg) => {
       if (Number.isFinite(statementTimeoutMs) && statementTimeoutMs > 0) {
         await client.query(`SET statement_timeout = ${Math.floor(statementTimeoutMs)}`);
       }
-      return answer({ ok: true, connected: true });
+      return reply({ ok: true, connected: true });
     }
     if (msg.op === 'end') {
       if (client) { try { await client.end(); } catch { /* a bontás hibája nem fed el korábbit */ } }
       client = null;
-      return answer({ ok: true, ended: true });
+      return reply({ ok: true, ended: true });
     }
-    if (!client) return answer({ ok: false, message: 'pgBridge: nincs kapcsolat', code: 'PG_NO_CONNECTION' });
+    if (!client) return reply({ ok: false, message: 'pgBridge: nincs kapcsolat', code: 'PG_NO_CONNECTION' });
     const r = await client.query(msg.sql, msg.params);
-    return answer({ ok: true, rows: r.rows, rowCount: r.rowCount, command: r.command });
+    return reply({ ok: true, rows: r.rows, rowCount: r.rowCount, command: r.command });
   } catch (e) {
     // A HIBA ADATAI ÁTMENNEK, NEM CSAK A SZÖVEGE. A `code` (pl. '23505' egyediség-sértés) és a
     // `constraint` a hívó döntésének a bemenete — ha csak a mondat menne át, a hívó a saját
     // szövegegyezésére kényszerülne (KUKA-020: a nyelt ok).
-    return answer({
+    return reply({
       ok: false,
       message: String(e && e.message || e),
       code: e && e.code, constraint: e && e.constraint, detail: e && e.detail,

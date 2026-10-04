@@ -146,6 +146,12 @@ if (!url) {
 console.log('TÁROLÓ-PARITÁS — ugyanaz az út, két tárolón');
 console.log('='.repeat(78));
 
+// A FUTÁS-JELÖLŐ EGYEDI (PAR-02). Az első alak rögzített jelölőt használt ('sq'/'pg'), ezért a
+// MÁSODIK futás ugyanazokra a címekre regisztrált volna — a rendszer (helyesen) semleges választ
+// ad egy foglalt címre, a lánc pedig a csatorna-bizonyításnál elakadt. A próba így NEM volt
+// ismételhető ugyanazon az adatbázison, és a lefedés-kapu ezt KI IS MONDTA (ez a kapu dolga).
+// A jelölő mostantól futásonként egyedi — a mérés nem a tároló múltjától függ (KUKA-134).
+const RUN = Date.now().toString(36);
 const sqliteApp = await startServer({ port: 0, host: '127.0.0.1', dbPath: sqlitePath, devSurface: true });
 const pgApp = await startServer({ port: 0, host: '127.0.0.1', devSurface: true });
 if (pgApp.store.dialect !== 'postgres') {
@@ -155,8 +161,8 @@ if (pgApp.store.dialect !== 'postgres') {
 
 let a; let b;
 try {
-  a = await journey(`http://127.0.0.1:${sqliteApp.port}`, 'sq');
-  b = await journey(`http://127.0.0.1:${pgApp.port}`, 'pg');
+  a = await journey(`http://127.0.0.1:${sqliteApp.port}`, `sq${RUN}`);
+  b = await journey(`http://127.0.0.1:${pgApp.port}`, `pg${RUN}`);
 } catch (e) {
   console.error(`  ELAKADT MÉRÉS: ${e.message}`);
   await sqliteApp.close(); await pgApp.close();

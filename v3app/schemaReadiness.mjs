@@ -1,0 +1,99 @@
+// V3 — KÉSZENLÉT A KIADOTT KÓDHOZ MÉRVE (RDY-01).
+//
+// A LELET (a külső ellenőrző fél F150-02 esete, saját kézzel is reprodukálva). A korábbi `/ready`
+// kiolvasta a `schema_migration` verzióit, lefuttatott egy `SELECT 1`-et, és MINDIG 200-at adott.
+// Mérve, a forrásból változtatás nélkül kiemelt kezelővel:
+//   · `versions=[]`      → HTTP 200 · ok:true · schema_head:null
+//   · `versions=['000']` → HTTP 200 · ok:true · schema_head:'000'
+// Vagyis egy ÜRES vagy IDEGEN sémájú adatbázisra a kiadás-kapu ZÖLDET mondott volna, és a
+// telepítő ráirányította volna a forgalmat. Ez a KUKA-049 alakja a készenléten: a zöld nem a
+// valóságot mondta, hanem azt, hogy a kérdést fel sem tettük.
+//
+// A MÉRCE MOSTANTÓL A KIADOTT KÓD ELVÁRÁSA. A csomag `migrations/` könyvtára MAGA a szerződés:
+// ami ott van, annak le kell futnia, UGYANAZZAL az ellenőrzőösszeggel. Nem a legnagyobb verziót
+// hasonlítjuk — egy KIMARADT köztes migráció ugyanúgy bukik, mint egy hiányzó utolsó (KUKA-039:
+// a fél őr a negyediken némán hibázik).
+//
+// A JÖVŐBELI BŐVÍTÉS KIMONDOTT SZABÁLYA. Ha az adatbázison a kiadott készleten FELÜL is van
+// migráció (mert egy újabb kiadás már lefuttatta, és most visszagörgettünk), az NEM készenlét-
+// hiba: a bővítő migrációk előre-kompatibilisek, és a visszagörgetés útja épp ez. Az ilyen
+// többletet NEVESÍTVE jelezzük (`ahead_versions`), nem némán elnyeljük — a kiadás lássa, hogy
+// régebbi kód fut egy újabb sémán.
+import { readFileSync, readdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { join } from 'node:path';
+
+/** A KIADOTT csomag elvárt migrációs készlete — a lemezről, a kód mellől. */
+export function requiredMigrations(dir) {
+  return readdirSync(dir)
+    .filter((f) => /^\d{3}_[a-z0-9_]+\.sql$/.test(f))
+    .sort()
+    .map((f) => ({
+      version: f.slice(0, 3),
+      file: f,
+      sha256: createHash('sha256').update(readFileSync(join(dir, f), 'utf8')).digest('hex'),
+    }));
+}
+
+/** A készenlét NEVEZETT állapotai. A szöveg a telepítőnek és az embernek szól, titok nélkül. */
+export const READINESS_REASONS = Object.freeze({
+  ready: 'a séma a kiadott kódhoz illik',
+  store_unreachable: 'a tároló nem érhető el',
+  migration_ledger_missing: 'a migrációs nyilvántartás nem létezik — a séma még nem épült fel',
+  migration_missing: 'a kiadott kód által elvárt migráció(k) NEM futottak le',
+  migration_checksum_mismatch: 'lefutott migráció(k) tartalma ELTÉR a kiadott kódétól',
+});
+
+/**
+ * Készenlét-ítélet. SOHA nem ad vissza nyers adatbázis-hibaüzenetet: a kifelé menő válasz
+ * NEVEZETT állapot, mert a `/ready` a publikus URL-en is elérhető (a kapu előtt áll).
+ *
+ * @param {{all:Function,get:Function}} store
+ * @param {string} dialect
+ * @param {{version:string,sha256:string}[]} required
+ */
+export function schemaReadiness(store, dialect, required) {
+  // Az SQLite-út fejlesztői, eldobható tároló: ott a séma a tároló NYITÁSAKOR épül fel, nincs
+  // migrációs nyilvántartás, és nincs mihez mérni. Ezt KIMONDJUK, nem hallgatólagosan zöldezzük.
+  if (dialect !== 'postgres') {
+    try { store.get('SELECT 1 AS ok'); } catch {
+      return { ready: false, reason: 'store_unreachable', http: 503, detail: { store: dialect } };
+    }
+    return { ready: true, reason: 'ready', http: 200, detail: { store: dialect, schema_managed_by: 'store_open', migrations: 'nincs alkalmazható eset (fejlesztői SQLite)' } };
+  }
+
+  let applied;
+  try {
+    applied = store.all('SELECT version, sha256 FROM schema_migration ORDER BY version');
+  } catch (e) {
+    // A KÉT OK KÜLÖNBÖZŐ (KUKA-171): a NYILVÁNTARTÁS hiánya nem ugyanaz, mint az elérhetetlen
+    // adatbázis. Az előbbit egy lefuttatatlan migráció okozza, az utóbbit a hálózat vagy a
+    // kiszolgáló. A telepítő mindkettőre 503-at kap, de a NEVE más, mert a teendő is más.
+    const missingTable = String(e && e.code) === '42P01' || /schema_migration/.test(String(e && e.message));
+    return missingTable
+      ? { ready: false, reason: 'migration_ledger_missing', http: 503, detail: { store: dialect } }
+      : { ready: false, reason: 'store_unreachable', http: 503, detail: { store: dialect } };
+  }
+
+  const have = new Map(applied.map((r) => [String(r.version), String(r.sha256)]));
+  const missing = required.filter((m) => !have.has(m.version)).map((m) => m.version);
+  if (missing.length) {
+    return { ready: false, reason: 'migration_missing', http: 503,
+      detail: { store: dialect, missing_versions: missing, required_count: required.length } };
+  }
+  const mismatched = required.filter((m) => have.get(m.version) !== m.sha256).map((m) => m.version);
+  if (mismatched.length) {
+    return { ready: false, reason: 'migration_checksum_mismatch', http: 503,
+      detail: { store: dialect, mismatched_versions: mismatched } };
+  }
+  const requiredSet = new Set(required.map((m) => m.version));
+  const ahead = applied.map((r) => String(r.version)).filter((v) => !requiredSet.has(v));
+  return { ready: true, reason: 'ready', http: 200,
+    detail: {
+      store: dialect,
+      schema_head: required.length ? required[required.length - 1].version : null,
+      required_count: required.length,
+      // ELŐRE-KOMPATIBILIS TÖBBLET: nem hiba, de NEVESÍTVE látszik.
+      ahead_versions: ahead,
+    } };
+}

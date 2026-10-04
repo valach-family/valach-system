@@ -93,7 +93,17 @@ export function openPgStore(url, opts = {}) {
         // A ROLLBACK CSAK FUTÓ TRANZAKCIÓRA MEGY, és a HIBÁJA nem nyelheti el az EREDETIT
         // (KUKA-026): egy bukott COMMIT után a vak visszagörgetés MÁSODIK kivétele eltüntetné
         // a valódi okot.
-        if (depth > 0) { try { exec('ROLLBACK', []); } catch { /* az EREDETI hiba megy tovább */ } }
+        //
+        // ÉS EGY HARMADIK ESET, amit a hídjavítás hozott felszínre (PGB-04): ha a kapcsolat
+        // ELDÖNTHETETLEN szállítási hiba miatt érvénytelen, akkor a visszagörgetés nemcsak
+        // hiábavaló — HAZUG is volna. A `PG_COMMIT_OUTCOME_UNKNOWN` azt jelenti, hogy a
+        // tranzakció a kiszolgálón VÉGLEGESÜLHETETT; egy „visszagörgettük" látszat pont azt a
+        // hamis bizonyosságot adná, amit a hiba neve tilt. Ilyenkor hozzá sem nyúlunk a
+        // kapcsolathoz, és az EREDETI, nevezett kimenet megy tovább.
+        const undecidable = e && (e.code === 'PG_COMMIT_OUTCOME_UNKNOWN'
+          || e.code === 'PG_BRIDGE_TIMEOUT' || e.code === 'PG_BRIDGE_UNUSABLE'
+          || e.code === 'PG_BRIDGE_DESYNC' || e.code === 'PG_BRIDGE_EMPTY');
+        if (depth > 0 && !undecidable) { try { exec('ROLLBACK', []); } catch { /* az EREDETI hiba megy tovább */ } }
         depth = 0;
         throw e;
       }
@@ -111,14 +121,23 @@ export function openPgStore(url, opts = {}) {
         depth -= 1;
         return out;
       } catch (e) {
-        try { exec(`ROLLBACK TO SAVEPOINT ${name}`, []); exec(`RELEASE SAVEPOINT ${name}`, []); }
-        catch { /* az EREDETI hiba megy tovább */ }
+        // UGYANAZ A SZABÁLY A MENTÉSPONTON (PGB-04): érvénytelen kapcsolaton a mentéspont
+        // visszagörgetése sem jelent semmit — az eredeti, nevezett kimenet megy tovább.
+        const undecidable = e && (e.code === 'PG_COMMIT_OUTCOME_UNKNOWN'
+          || e.code === 'PG_BRIDGE_TIMEOUT' || e.code === 'PG_BRIDGE_UNUSABLE'
+          || e.code === 'PG_BRIDGE_DESYNC' || e.code === 'PG_BRIDGE_EMPTY');
+        if (!undecidable) {
+          try { exec(`ROLLBACK TO SAVEPOINT ${name}`, []); exec(`RELEASE SAVEPOINT ${name}`, []); }
+          catch { /* az EREDETI hiba megy tovább */ }
+        }
         depth -= 1;
         throw e;
       }
     },
 
     close() { bridge.close(); },
+    /** Érvénytelen-e a kapcsolat (eldönthetetlen szállítási hiba után) — ÚJ kapcsolat kell. */
+    get poisoned() { return bridge.poisoned; },
   };
   return store;
 }

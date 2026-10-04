@@ -79,40 +79,111 @@ export function openPgBridge(url, { waitMs = 30000, statementTimeoutMs = 15000 }
   });
 
   let closed = false;
+  let seq = 0;
+  // ── AZ ÉRVÉNYTELENÍTÉS ÁLLAPOTA (PGB-04) ──────────────────────────────────────────────────────
+  //
+  // A LELET (a külső ellenőrző fél F150-01 esete, SAJÁT reprodukcióval igazolva): időtúllépés
+  // után a híd NYITVA maradt, és a KÉSŐN beérkező választ a KÖVETKEZŐ kérés vette ki a portból.
+  // Mérve, a két fájl változtatás nélküli futtatásával, szintetikus késleltetéssel:
+  //   waitMs=500 · a válasz 750 ms múlva jön · 'A' → PG_BRIDGE_TIMEOUT · closed=false ·
+  //   a KÖVETKEZŐ 'B' lekérdezés sora: {marker:'A'}
+  // Vagyis egy kérés MÁS kérés adatát kapta volna vissza. Többbérlős rendszerben ez nem
+  // kényelmi hiba, hanem adat-átszivárgás két kérés között.
+  //
+  // A JAVÍTÁS KÉT RÉTEGŰ, és ez SZÁNDÉKOS (KUKA-039: a fél őr a negyediken némán hibázik):
+  //   (1) PÁROSÍTÁS: minden kérés sorszámot visz, a válasz visszahozza. Ami nem az ÉN
+  //       sorszámomra jön, azt soha nem adjuk ki.
+  //   (2) ÉRVÉNYTELENÍTÉS: egy ELDÖNTHETETLEN szállítási hiba után a kapcsolat nem használható
+  //       tovább megbízható tranzakcióként — mérgezzük, a munkást leállítjuk, a portot lezárjuk.
+  //       Az (1) önmagában kevés volna: a hídon TÚL, a kiszolgálón futó lekérdezés sorsa is
+  //       ismeretlen marad (futhat, zárolhat, commitálhat), tehát a kapcsolat állapota nem
+  //       ismert — egy ismeretlen állapotú kapcsolaton pedig nem folytatunk tranzakciót.
+  let poison = null;
 
-  /** Egy kör: üzenet a munkásnak → BLOKKOLÓ várakozás → a válasz szinkron kivétele. */
+  function hardClose() {
+    if (closed) return;
+    closed = true;
+    try { port1.close(); } catch { /* a takarítás hibája nem fedhet el korábbit */ }
+    try { worker.terminate(); } catch { /* ugyanaz */ }
+  }
+
+  /** Érvénytelenítés + nevezett kivétel. A kapcsolat innentől NEM használható. */
+  function poisonAndThrow(code, message) {
+    if (!poison) poison = { code, message };
+    hardClose();
+    const e = new Error(message);
+    e.code = code;
+    throw e;
+  }
+
+  /**
+   * A COMMIT IDŐTÚLLÉPÉSE KÜLÖN FOGALOM — se nem visszagörgetés, se nem siker.
+   * Ha a COMMIT válasza nem érkezik meg, a tranzakció a kiszolgálón ATTÓL MÉG VÉGLEGESÜLHETETT.
+   * „Nem jött válasz" ⇒ „nem történt meg" az a hiba, ami duplikált hatást szül az első
+   * újrapróbálkozáson. Ezért a kimenet NEVEZETTEN bizonytalan, és a hívónak az alkalmazás
+   * meglévő egyszeriség-szabályával (operation_once) kell rendeznie — nem vak ismétléssel.
+   */
+  const isCommit = (sql) => /^\s*COMMIT\b/i.test(String(sql || ''));
+
+  /** Egy kör: üzenet a munkásnak → BLOKKOLÓ várakozás → a SAJÁT válasz szinkron kivétele. */
   function roundTrip(msg) {
+    if (poison) {
+      const e = new Error(`pgBridge: a kapcsolat ÉRVÉNYTELEN egy korábbi eldönthetetlen hiba után `
+        + `(${poison.code}) — új kapcsolat kell; ezen a kapcsolaton semmit nem folytatunk`);
+      e.code = 'PG_BRIDGE_UNUSABLE';
+      e.cause_code = poison.code;
+      throw e;
+    }
     if (closed) { const e = new Error('pgBridge: a kapcsolat már zárva'); e.code = 'PG_CLOSED'; throw e; }
     if (fatal) throw fatal;
+    const id = ++seq;
     Atomics.store(ctl, 0, 0);
-    port1.postMessage(msg);
+    port1.postMessage({ ...msg, id });
     const res = Atomics.wait(ctl, 0, 0, waitMs);
     if (res === 'timed-out') {
       // A KÉT OK KÜLÖNBÖZŐ, ÉS A NEVÜK IS LEGYEN AZ (KUKA-171). Ha a munkás INDULÁSI JELE
       // sincs meg, akkor nem a lekérdezés lassú: a szál el sem indult.
       if (Atomics.load(ctl, 1) !== 1) {
-        const e = new Error('pgBridge: a munkás szál EL SEM INDULT (modul-betöltési hiba) — '
-          + 'a futás NEM eldönthető; a PostgreSQL-ről ez semmit nem állít');
-        e.code = 'PG_BRIDGE_WORKER_NOT_STARTED';
-        throw e;
+        poisonAndThrow('PG_BRIDGE_WORKER_NOT_STARTED',
+          'pgBridge: a munkás szál EL SEM INDULT (modul-betöltési hiba) — a futás NEM eldönthető; '
+          + 'a PostgreSQL-ről ez semmit nem állít');
       }
-      const e = new Error(`pgBridge: a válasz ${waitMs} ms alatt nem érkezett meg — a futás NEM eldönthető`);
-      e.code = 'PG_BRIDGE_TIMEOUT';
-      throw e;
+      if (isCommit(msg.sql)) {
+        poisonAndThrow('PG_COMMIT_OUTCOME_UNKNOWN',
+          `pgBridge: a COMMIT válasza ${waitMs} ms alatt nem érkezett meg. A tranzakció a `
+          + 'kiszolgálón VÉGLEGESÜLHETETT is — ez NEM visszagörgetés és NEM ismételhető siker. '
+          + 'A kimenet NEVEZETTEN bizonytalan; a rendezés az egyszeriség-szabály dolga.');
+      }
+      poisonAndThrow('PG_BRIDGE_TIMEOUT',
+        `pgBridge: a válasz ${waitMs} ms alatt nem érkezett meg — a futás NEM eldönthető, és a `
+        + 'kapcsolat állapota ismeretlen, ezért érvénytelenítve lett');
     }
-    if (fatal) throw fatal;
+    if (fatal) { const f = fatal; hardClose(); throw f; }
     const got = receiveMessageOnPort(port1);
     if (!got) {
-      const e = new Error('pgBridge: a munkás jelzett, de üzenet nem érkezett — a futás NEM eldönthető');
-      e.code = 'PG_BRIDGE_EMPTY';
-      throw e;
+      poisonAndThrow('PG_BRIDGE_EMPTY',
+        'pgBridge: a munkás jelzett, de üzenet nem érkezett — a futás NEM eldönthető');
     }
     const payload = got.message;
+    // A PÁROSÍTÁS ELLENŐRZÉSE. Ide a mérgezés mellett elvileg nem juthatunk — de pont ez az a
+    // feltételezés, amit nem hiszünk el: ha MÉGIS idegen válasz jönne, azt SOHA nem adjuk ki.
+    if (payload.id !== id) {
+      poisonAndThrow('PG_BRIDGE_DESYNC',
+        `pgBridge: IDEGEN válasz érkezett (várt sorszám ${id}, kapott ${payload.id}) — a `
+        + 'kapcsolat érvénytelenítve; egy kérés SOHA nem kaphatja meg másik kérés adatát');
+    }
     if (!payload.ok) throw new PgBridgeError(payload);
     return payload;
   }
 
-  roundTrip({ op: 'connect' });
+  // A KAPCSOLATFELVÉTEL HIBÁJA IS TAKARÍT: enélkül egy sosem csatlakozott híd munkás szála és
+  // portja ott maradna a folyamatban (R150 §2 kikötése).
+  try {
+    roundTrip({ op: 'connect' });
+  } catch (e) {
+    hardClose();
+    throw e;
+  }
 
   return {
     /** Nyers lekérdezés MÁR `$n` alakú helyőrzőkkel. */
@@ -120,10 +191,10 @@ export function openPgBridge(url, { waitMs = 30000, statementTimeoutMs = 15000 }
     close() {
       if (closed) return;
       try { roundTrip({ op: 'end' }); } catch { /* a bontás hibája nem fed el korábbit */ }
-      closed = true;
-      port1.close();
-      worker.terminate();
+      hardClose();
     },
     get closed() { return closed; },
+    /** A kapcsolat érvénytelen-e, és miért — a hívó ebből tudja, hogy ÚJ kapcsolat kell. */
+    get poisoned() { return poison ? { ...poison } : null; },
   };
 }

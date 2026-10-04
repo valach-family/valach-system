@@ -15,8 +15,8 @@
   "deploy": {
     "preDeployCommand": "npm run db:migrate",
     "startCommand": "node v3app/server.mjs",
-    "healthcheckPath": "/health",
-    "healthcheckTimeout": 30,
+    "healthcheckPath": "/ready",
+    "healthcheckTimeout": 60,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3,
     "numReplicas": 1
