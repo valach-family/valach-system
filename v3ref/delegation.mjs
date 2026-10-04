@@ -259,11 +259,23 @@ export function grantScopeToMember({ store, granterSubjectId, bookId, targetSubj
   return atomicOutcome(store, () => {
     // SOR-ZÁR + A TAGSÁG ÚJRAELLENŐRZÉSE A ZÁRON BELÜL (LCK-01 · R150/F150-03).
     //
-    // A `membershipAsOf` fentebb, a tranzakción KÍVÜL dönt — és ez MÉRVE kevés volt: két külön
-    // folyamattal, determinisztikus megállítási ponttal a hatáskör-adás a tagság megvonása
-    // ELŐTTI képet látta, a megvonás közben véglegesült, és a MEGVONT tag ÉLŐ „arak" adatkört
-    // kapott. Néma jogosultság-szivárgás: a nyugta sikert mondott, a tag pedig bent maradt az
-    // adatkörben (KUKA-129 · KUKA-204).
+    // AZ ATTRIBÚCIÓ HELYESBÍTVE (R152/F152-02 — a külső ellenőrző fél jogos kifogása erre a
+    // kommentre). Az első alakom itt azt állította, hogy a megvont tag ÉLŐ adatkört kapott, és
+    // ezt „néma jogosultság-szivárgásnak" nevezte. **EZ NEM IGAZ, és a saját jelentésem (R151)
+    // meg is cáfolta** — a kommentet viszont elfelejtettem utána igazítani, így a kód
+    // SÚLYOSABBAT állított, mint amit a mérés kibír (a szöveg a valóságot követi — KUKA-050).
+    //
+    // AMIT A MÉRÉS VALÓJÁBAN MUTATOTT:
+    //   · a kiadás KÉT KAPUN áll (tagság ÉS adatkör, külön mérve — ENT-02), és a kettő EGYÜTT
+    //     helyesen tagad; a valódi HTTP-úton a megvont tag `not_a_member`-t kap;
+    //   · a NEGATÍV KONTROLL (ugyanaz a két művelet SORBAN, verseny nélkül) ugyanazt adta,
+    //     tehát a jelenség nem is versenyfüggő;
+    //   · szivárgás tehát NEM volt mérve — sem versennyel, sem anélkül.
+    //
+    // AKKOR MIÉRT MARAD ITT A ZÁR? Mert a parancs kikötése szerint a közös zárolási rend MINDEN
+    // érintett íróra vonatkozik, nem csak arra, amelyiken a hibát megtaláltuk — és mert a
+    // későbbi hívók nem támaszkodhatnak arra, hogy éppen két kapu áll a sorban. Ez MEGELŐZÉS,
+    // kimondottan: nem egy mért szivárgás javítása.
     //
     // A DÖNTÉS SZABÁLYA VÁLTOZATLAN: UGYANAZT a feloldót (`membershipAsOf`) kérdezzük újra,
     // UGYANAZZAL az elutasítási okkal — nem születik második üzleti motor, csak a döntés kerül

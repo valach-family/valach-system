@@ -83,7 +83,8 @@
     "verify:mutation-anchors": "node tools/vs_verify_mutation_anchors.mjs",
     "proof:pg-bridge-transport": "node tools/v3_pg_bridge_transport_proof.mjs",
     "proof:pg-readiness": "node tools/v3_pg_readiness_proof.mjs",
-    "proof:pg-domain-race": "node tools/v3_pg_domain_race_proof.mjs"
+    "proof:pg-domain-race": "node tools/v3_pg_domain_race_proof.mjs",
+    "verify:domain-race-judge": "node tools/v3_pg_domain_race_proof.mjs --selftest"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0"

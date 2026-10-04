@@ -10,6 +10,7 @@
 // élt: a feloldó helyessége nem bizonyítja, hogy a végpont tényleg azt kérdezi (KUKA-207 — amit
 // próba nem tud MEGHÍVNI, azt bizalomból hisszük).
 import { execFileSync } from 'node:child_process';
+import { renameSync, mkdirSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadRepoEnv } from './lib/vs_tool_env.mjs';
@@ -118,6 +119,40 @@ try {
   check('R7', 'ELÉRHETETLEN adatbázis → nem indul el / 503, és a válasz TITOKMENTES',
     (r.status === 503 || r.status === null) && !leaks,
     `${r.status === null ? `indulási hiba: ${r.startupError}` : `HTTP ${r.status} · ${r.body.reason}`} · szivárgás: ${leaks ? 'IGEN' : 'nincs'}`);
+  // ── 8-9. A KIADOTT CSOMAG MIGRÁCIÓS KÉSZLETE MAGA HIBÁS (F152-01) ───────────────────────────
+  //
+  // A VALÓDI SZERVER-BEKÖTÉSEN mérve, nem modul-szinten: a `migrations/` könyvtárat
+  // ELTÁVOLÍTJUK, illetve KIÜRÍTJÜK, és a FUTÓ szervert kérdezzük. A visszaállítás `finally`-ben
+  // van, és a próba VÉGÉN VISSZA IS OLVASSUK — egy próba, ami a repót csonkán hagyja, rosszabb,
+  // mint a hiba, amit keres (KUKA-012).
+  const MIG = resolve(ROOT, 'migrations');
+  const PARK = resolve(ROOT, 'migrations.__proof_park__');
+  const filesBefore = readdirSync(MIG).length;
+  try {
+    renameSync(MIG, PARK);
+    r = await ask(target.toString());
+    check('R8', 'HIÁNYZÓ migrációs könyvtár → 503, NEM zöld (fail-closed)',
+      (r.status === 503 && r.body.reason === 'migration_set_unreadable') || r.status === null,
+      r.status === null ? `indulási hiba: ${r.startupError}` : `HTTP ${r.status} · ${r.body && r.body.reason}`);
+
+    mkdirSync(MIG, { recursive: true });
+    r = await ask(target.toString());
+    check('R9', 'ÜRES migrációs készlet → 503, NEM zöld (fail-closed)',
+      (r.status === 503 && r.body.reason === 'migration_set_empty') || r.status === null,
+      r.status === null ? `indulási hiba: ${r.startupError}` : `HTTP ${r.status} · ${r.body && r.body.reason}`);
+  } finally {
+    try { if (existsSync(PARK)) { rmSync(MIG, { recursive: true, force: true }); renameSync(PARK, MIG); } } catch { /* lásd R10 */ }
+  }
+  // R10 — A PRÓBA NEM HAGYHATJA CSONKÁN A REPÓT. Ezt MEGMÉRJÜK, nem feltételezzük.
+  const filesAfter = existsSync(MIG) ? readdirSync(MIG).length : -1;
+  check('R10', 'a próba a `migrations/` könyvtárat ÉPEN visszaállította',
+    filesAfter === filesBefore && !existsSync(PARK), `előtte ${filesBefore} fájl · utána ${filesAfter}`);
+
+  // ── 11. POZITÍV KONTROLL A FAIL-CLOSED UTÁN ─────────────────────────────────────────────────
+  // E nélkül a 8-10 akkor is zöld lenne, ha a szerver MINDIG 503-at adna (KUKA-122).
+  r = await ask(target.toString());
+  check('R11', 'POZITÍV KONTROLL: a visszaállított készlettel ismét 200 ready',
+    r.status === 200 && r.body.reason === 'ready', `HTTP ${r.status} · ${r.body && r.body.reason}`);
 } finally {
   try { sh(['-d', admin.toString(), '-q', '-c', `DROP DATABASE IF EXISTS ${DB} WITH (FORCE)`]); } catch { /* takarítás */ }
 }

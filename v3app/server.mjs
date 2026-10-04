@@ -24,7 +24,7 @@ import { createRequire } from 'node:module';
 import { openStoreAt } from '../v3ref/store.mjs';
 import { openPgStore } from '../v3ref/pgStore.mjs';
 import { loadRepoEnv } from '../tools/lib/vs_tool_env.mjs';
-import { requiredMigrations, schemaReadiness } from './schemaReadiness.mjs';
+import { loadMigrationSet, schemaReadiness } from './schemaReadiness.mjs';
 import {
   registerAccount, authenticate, issueChannelChallenge, redeemChannelChallenge, provenEmailOf,
   reissueChannelChallenge, subjectByEmail, CHALLENGE_POLICY,
@@ -160,6 +160,8 @@ const READINESS_MESSAGES = Object.freeze({
   migration_ledger_missing: 'a migrációs nyilvántartás nem létezik — a séma még nem épült fel',
   migration_missing: 'a kiadott kód által elvárt migráció(k) NEM futottak le',
   migration_checksum_mismatch: 'lefutott migráció(k) tartalma ELTÉR a kiadott kódétól',
+  migration_set_unreadable: 'a kiadott csomag migrációs készlete NEM OLVASHATÓ — a kód nem tudja, milyen sémát vár',
+  migration_set_empty: 'a kiadott csomag migrációs készlete ÜRES — PostgreSQL-üzemben ez nem elfogadható elvárás',
 });
 
 export function accessGateConfig(env = process.env) {
@@ -429,9 +431,18 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
   // szolgáltatás EL SEM INDUL (ACC-01).
   // A KIADOTT KÓD ELVÁRT MIGRÁCIÓS KÉSZLETE — EGYSZER, indulásnál (RDY-01). A telepített
   // csomagban ez rögzített; kérésenként újraolvasni felesleges lemez-munka volna.
-  const REQUIRED_MIGRATIONS = (() => {
-    try { return requiredMigrations(join(REPO_ROOT, 'migrations')); } catch { return []; }
-  })();
+  //
+  // FAIL-CLOSED (RDY-03 · F152-01). A korábbi alak `catch { return []; }`-t írt, és az ÜRES
+  // készletre a készenlét ÜRES adatbázison is zöldet mondott — a kiadás-kapu épp akkor engedett,
+  // amikor a kód nem tudta, milyen sémát vár. A hiba OKA mostantól megmarad, a kifelé menő válasz
+  // viszont NEVEZETT és titokmentes, a készenlét pedig 503.
+  const MIGRATION_SET = loadMigrationSet(join(REPO_ROOT, 'migrations'));
+  if (!MIGRATION_SET.ok) {
+    // A NAPLÓ NEVÉN NEVEZI AZ OKOT (a kifelé menő 503 nem). Ez nem titok: a saját csomagunk
+    // könyvtárának olvasási hibája — és enélkül az üzemeltető vakon keresné.
+    console.error(`[v3app] A MIGRÁCIÓS KÉSZLET NEM OLVASHATÓ: ${MIGRATION_SET.cause}`);
+    console.error('[v3app] a készenlét (/ready) ezért 503 marad — a kiadás NEM kap forgalmat');
+  }
 
   const rateCfg = rateLimitConfig();
   const rateLimit = rateCfg.enabled ? makeRateLimiter(rateCfg) : null;
@@ -2034,7 +2045,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       // vissza (`e.message` 200 karakteren), és ez a végpont a hozzáférés-kapu ELŐTT áll, tehát
       // bárki olvashatná: egy kapcsolati hiba így kiszivárogtathatná a hosztot vagy a
       // felhasználónevet. Innentől CSAK a nevezett állapot megy ki.
-      const verdict = schemaReadiness(store, dialect, REQUIRED_MIGRATIONS);
+      const verdict = schemaReadiness(store, dialect, MIGRATION_SET);
       return sendJson(res, verdict.http, {
         ok: verdict.ready,
         reason: verdict.reason,

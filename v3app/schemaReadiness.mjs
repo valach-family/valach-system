@@ -42,7 +42,37 @@ export const READINESS_REASONS = Object.freeze({
   migration_ledger_missing: 'a migrációs nyilvántartás nem létezik — a séma még nem épült fel',
   migration_missing: 'a kiadott kód által elvárt migráció(k) NEM futottak le',
   migration_checksum_mismatch: 'lefutott migráció(k) tartalma ELTÉR a kiadott kódétól',
+  migration_set_unreadable: 'a kiadott csomag migrációs készlete NEM OLVASHATÓ — a kód nem tudja, milyen sémát vár',
+  migration_set_empty: 'a kiadott csomag migrációs készlete ÜRES — PostgreSQL-üzemben ez nem elfogadható elvárás',
 });
+
+/**
+ * A KÉSZLET BETÖLTÉSE FAIL-CLOSED (RDY-03).
+ *
+ * A LELET (a külső ellenőrző fél F152-01 esete, saját méréssel igazolva). A szerver így húzta be
+ * az elvárt készletet:
+ *
+ *     try { return requiredMigrations(dir); } catch { return []; }
+ *
+ * Az ÜRES készletre pedig a `schemaReadiness` nem talál hiányzó migrációt — tehát egy olvasási
+ * hiba vagy egy hiányzó `migrations/` könyvtár mellett a készenlét **ÜRES adatbázison is
+ * `ready: true`, HTTP 200** lett. MÉRVE: `required=[]` + üres nyilvántartás → 200 · `ready` ·
+ * `schema_head: null`. Vagyis a kiadás-kapu épp akkor mondott zöldet, amikor a kód **nem tudja,
+ * milyen sémát vár**. Ez a KUKA-020 alakja: a nyelt hiba „nincs elvárás"-sá változott.
+ *
+ * A SZABÁLY: „nem tudom, mit várok" SOHA nem jelenti azt, hogy „semmit nem várok". A hiba OKÁT
+ * megőrizzük (nem tüntetjük el), és a készlet NEM kézi verziólistából jön — továbbra is a kiadott
+ * csomagból (a parancs kikötése: „ne új kézi verziólista legyen").
+ */
+export function loadMigrationSet(dir) {
+  try {
+    const list = requiredMigrations(dir);
+    return Object.freeze({ ok: true, list: Object.freeze(list) });
+  } catch (e) {
+    // AZ OK MEGMARAD — a naplóban nevén nevezzük; a KIFELÉ menő válaszba nem tesszük bele.
+    return Object.freeze({ ok: false, cause_code: e && e.code, cause: String(e && e.message || e) });
+  }
+}
 
 /**
  * Készenlét-ítélet. SOHA nem ad vissza nyers adatbázis-hibaüzenetet: a kifelé menő válasz
@@ -52,14 +82,29 @@ export const READINESS_REASONS = Object.freeze({
  * @param {string} dialect
  * @param {{version:string,sha256:string}[]} required
  */
-export function schemaReadiness(store, dialect, required) {
+export function schemaReadiness(store, dialect, requiredSet) {
+  // A BEMENET LEHET NYERS LISTA (visszafelé) VAGY a `loadMigrationSet` eredménye.
+  const set = Array.isArray(requiredSet) ? { ok: true, list: requiredSet } : (requiredSet || { ok: false, cause: 'nincs készlet' });
+  const required = set.ok ? set.list : null;
   // Az SQLite-út fejlesztői, eldobható tároló: ott a séma a tároló NYITÁSAKOR épül fel, nincs
   // migrációs nyilvántartás, és nincs mihez mérni. Ezt KIMONDJUK, nem hallgatólagosan zöldezzük.
+  // AZ SQLITE-ÚT A KÉSZLETTŐL FÜGGETLEN, és ezt a SORREND tartja: ott a séma a tároló
+  // nyitásakor épül fel, migrációs készlet fogalmilag nincs — egy olvasási hiba tehát nem
+  // minősítheti nem-késszé a fejlesztői tárolót.
   if (dialect !== 'postgres') {
     try { store.get('SELECT 1 AS ok'); } catch {
       return { ready: false, reason: 'store_unreachable', http: 503, detail: { store: dialect } };
     }
     return { ready: true, reason: 'ready', http: 200, detail: { store: dialect, schema_managed_by: 'store_open', migrations: 'nincs alkalmazható eset (fejlesztői SQLite)' } };
+  }
+
+  // FAIL-CLOSED A KÉSZLETRE (RDY-03) — a tároló megkérdezése ELŐTT. Ha a kód nem tudja, milyen
+  // sémát vár, akkor nincs mihez mérni: a készenlét NEM eldönthető, tehát NEM zöld.
+  if (!set.ok) {
+    return { ready: false, reason: 'migration_set_unreadable', http: 503, detail: { store: dialect } };
+  }
+  if (required.length === 0) {
+    return { ready: false, reason: 'migration_set_empty', http: 503, detail: { store: dialect } };
   }
 
   let applied;
@@ -86,8 +131,8 @@ export function schemaReadiness(store, dialect, required) {
     return { ready: false, reason: 'migration_checksum_mismatch', http: 503,
       detail: { store: dialect, mismatched_versions: mismatched } };
   }
-  const requiredSet = new Set(required.map((m) => m.version));
-  const ahead = applied.map((r) => String(r.version)).filter((v) => !requiredSet.has(v));
+  const requiredVersions = new Set(required.map((m) => m.version));
+  const ahead = applied.map((r) => String(r.version)).filter((v) => !requiredVersions.has(v));
   return { ready: true, reason: 'ready', http: 200,
     detail: {
       store: dialect,
@@ -95,5 +140,14 @@ export function schemaReadiness(store, dialect, required) {
       required_count: required.length,
       // ELŐRE-KOMPATIBILIS TÖBBLET: nem hiba, de NEVESÍTVE látszik.
       ahead_versions: ahead,
+      // ÉS AMIT A TÖBBLET NEM BIZONYÍT (F152-02 kikötése). A többlet elfogadása NEM a mi
+      // ellenőrzésünkön áll — a futó kód ezeket a migrációkat NEM IS SZÁLLÍTJA, tehát a
+      // tartalmukat nem tudja megnézni. Az elfogadás a KIADÁSI RENDEN nyugszik
+      // (`contracts/releaseOrder.js`: BŐVÍTÉS → ÁTÁLLÁS → SZŰKÍTÉS, és a bontó migráció
+      // `-- KIVEZETVE:` fejléce KORÁBBI a mainál). Ha az a rend sérül, ez a sor NEM véd meg —
+      // ezért mondjuk ki, ahelyett hogy a puszta számot bizonyítéknak látszanánk (KUKA-049).
+      ahead_note: ahead.length
+        ? 'a többlet elfogadása a kiadási rend (bővítés-először) szerződésén nyugszik, NEM a futó kód ellenőrzésén — a nem szállított migrációk tartalmát ez a példány nem látja'
+        : null,
     } };
 }
