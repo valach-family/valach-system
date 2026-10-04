@@ -163,3 +163,77 @@ export function openPgStore(url, opts = {}) {
   };
   return store;
 }
+
+// ── RENDEZETT ÚJRACSATLAKOZÁS EGY ELDÖNTHETETLEN SZÁLLÍTÁSI HIBA UTÁN (PGR-01) ─────────────────
+//
+// A LELET (a külső ellenőrző fél R152 §5 kikötése). A hídjavítás (PGB-04) helyesen ÉRVÉNYTELENÍTI
+// a kapcsolatot, ha a válasz sorsa eldönthetetlen — de a szerver EGYSZER nyit tárolót, tehát a
+// `poisoned` jelző önmagában nem állít helyre semmit: az első ilyen hiba után a példány MINDEN
+// további kérésre `PG_BRIDGE_UNUSABLE`-t adna, amíg valaki újra nem indítja. A zárás tehát
+// megvolt, a FOLYTATÁS nem (KUKA-201: a nemleges válasz vigye a MŰKÖDŐ folytatást).
+//
+// A HELYREÁLLÍTÁS KÉT SZABÁLYA, és a második a fontosabb:
+//
+//   1. ÚJ KAPCSOLAT, NEM ÚJRAÉLESZTETT. A mérgezett hidat eldobjuk, és FRISSET nyitunk. A régi
+//      kapcsolat állapota ismeretlen — nem „gyógyítjuk meg", hanem elhagyjuk.
+//
+//   2. A HELYREÁLLÍTÁS NEM ISMÉTLI MEG A MŰVELETET. A megbukott hívás a SAJÁT nevezett hibájával
+//      száll el, és ott is marad: egy `PG_COMMIT_OUTCOME_UNKNOWN` után a tranzakció a
+//      kiszolgálón VÉGLEGESÜLHETETT, tehát a vak újrapróbálás DUPLIKÁLT HATÁST szülne. Az
+//      ismétlésről a hívó dönt, az alkalmazás meglévő egyszeriség-szerződése szerint
+//      (`operation_once`) — nem ez a réteg.
+//
+// MIKOR SZABAD ÚJRACSATLAKOZNI — ÉS MIÉRT NEM BÁRMIKOR. CSAK olyan ponton, ahol BIZTOSAN nem fut
+// tranzakció: a kérés HATÁRÁN. Ha egy `tx(fn)` törzsének közepén cserélnénk kapcsolatot, a
+// callback további mondatai egy ÚJ kapcsolaton, tranzakción KÍVÜL futnának — a hívó azt hinné,
+// atomi egységben van, holott már nincs. Az ilyen „segítőkész" helyreállítás rosszabb volna a
+// hibánál (KUKA-026). Ezért a csere KIZÁRÓLAG a `recoverIfNeeded()` kimondott hívásán történik,
+// amit a héj a kérés elején hív — és ott a szinkron híd miatt bizonyosan nincs nyitott tranzakció.
+export function openResilientPgStore(url, opts = {}) {
+  let inner = openPgStore(url, opts);
+  let generation = 1;
+  let recoveries = 0;
+  let lastCause = null;
+
+  const api = {
+    get dialect() { return inner.dialect; },
+    get durable() { return inner.durable; },
+    get inTransaction() { return inner.inTransaction; },
+    get poisoned() { return inner.poisoned; },
+    /** Hányadik kapcsolaton járunk, és hányszor kellett helyreállni — a jelentés ebből mér. */
+    get generation() { return generation; },
+    get recoveries() { return recoveries; },
+    get lastRecoveryCause() { return lastCause; },
+
+    run(sql, ...p) { return inner.run(sql, ...p); },
+    all(sql, ...p) { return inner.all(sql, ...p); },
+    get(sql, ...p) { return inner.get(sql, ...p); },
+    tx(fn) { return inner.tx(fn); },
+    atomic(fn) { return inner.atomic(fn); },
+    lockRows(t, w, ...p) { return inner.lockRows(t, w, ...p); },
+    close() { inner.close(); },
+
+    /**
+     * A KÉRÉS HATÁRÁN hívandó. Ha a kapcsolat érvénytelen, ELDOBJA és ÚJAT nyit.
+     * A megbukott műveletet NEM ismétli meg — arról a hívó dönt.
+     * @returns {{recovered:boolean, generation:number, cause?:string, failed?:string}}
+     */
+    recoverIfNeeded() {
+      const p = inner.poisoned;
+      if (!p) return { recovered: false, generation };
+      lastCause = p.code;
+      try { inner.close(); } catch { /* a mérgezett hidat amúgy is eldobjuk */ }
+      try {
+        inner = openPgStore(url, opts);
+        generation += 1;
+        recoveries += 1;
+        return { recovered: true, generation, cause: p.code };
+      } catch (e) {
+        // AZ ÚJRACSATLAKOZÁS IS BUKHAT (a kiszolgáló tényleg elérhetetlen). Ez NEM elrejtendő:
+        // a készenlét ettől marad 503, és a telepítő nem küld ide forgalmat.
+        return { recovered: false, generation, cause: p.code, failed: String(e && e.code || e.message) };
+      }
+    },
+  };
+  return api;
+}

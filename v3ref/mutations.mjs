@@ -363,7 +363,12 @@ export const MUTATIONS = [
   { id: 'M41', rule: 'K05', catcher: 'P-CMD-receipt-integrity', expect: 'probe_fail',
     what: 'R51/J3 — a nyugta megint írható a véglegesítés tranzakcióján KÍVÜLRŐL',
     file: 'command.mjs',
-    from: "  if (!store.db?.isTransaction) fail('RECEIPT_OUTSIDE_TX'",
+    // ÚJRA-HORGONYOZVA (R152 · TXS-01): a nyugta-őr kérdése a tároló HORDOZHATÓ
+    // `inTransaction`-jére került (a régi `store.db?.isTransaction` az SQLite-illesztő saját
+    // mezője volt, és PostgreSQL-en mindig hamisat adott). A mutáció JELENTÉSE változatlan:
+    // kikapcsolja az őrt. Ezt a horgony-elcsúszást a `verify:mutation-anchors` fogta meg —
+    // pontosan arra épült (R148).
+    from: "  if (!inTx) fail('RECEIPT_OUTSIDE_TX'",
     to: "  if (false) fail('RECEIPT_OUTSIDE_TX'" },
 
   { id: 'M42', rule: 'K05', catcher: 'P-CMD-receipt-integrity', expect: 'probe_fail',

@@ -68,9 +68,20 @@ async function journey(base, mark) {
   const signUp = async (c, email, pw) => {
     const reg = await c.post('/api/register', { email, password: pw });
     const link = await linkFor(email, 'Erősítsd meg');
-    if (link) { const u = new URL(link); await c.get(u.pathname + u.search); }
+    // A MEGERŐSÍTŐ HIVATKOZÁS VÁLASZÁT IS RÖGZÍTJÜK (R152 tanulsága a SAJÁT mérőmön).
+    //
+    // Az előző alak csak azt nézte, LÉTEZIK-E a hivatkozás (`verified: Boolean(link)`), a
+    // VÁLASZT eldobta. Emiatt a mérő NEM vette észre, hogy a `/api/verify` PostgreSQL-en
+    // 500-at adott — a lánc attól még továbbment, a belépés sikerült, és a paritás „0 eltérést"
+    // mutatott. Egy nem rögzített válasz nem mérés (KUKA-215: a választ MEG KELL MÉRNI).
+    let verifyStatus = null;
+    if (link) { const u = new URL(link); verifyStatus = (await c.get(u.pathname + u.search)).status; }
     const r = await c.post('/api/login', { email, password: pw });
-    return { reg_status: reg.status, reg_ok: reg.body?.ok, verified: Boolean(link), login_ok: r.body?.ok, has_subject: Boolean(r.body?.subject_id) };
+    return {
+      reg_status: reg.status, reg_ok: reg.body?.ok,
+      verify_status: verifyStatus,
+      login_ok: r.body?.ok, has_subject: Boolean(r.body?.subject_id),
+    };
   };
 
   // ── 1. FIÓK ÉS CSATORNA ────────────────────────────────────────────────────────────────────
@@ -173,7 +184,7 @@ try {
 // elakad, a „0 eltérés" igaz, de SEMMIT nem bizonyít a tárolóváltásról — két egyforma kudarc is
 // egyezik. Ezért a próba megköveteli, hogy a lánc KULCS-LÉPÉSEI tényleg sikerüljenek.
 const REQUIRED_OK = Object.freeze([
-  ['register+verify+login (anna)', (v) => v && v.verified === true && v.login_ok === true],
+  ['register+verify+login (anna)', (v) => v && v.verify_status === 200 && v.login_ok === true],
   ['create workspace', (v) => v && v.ok === true && v.has_book === true],
   ['issue invite', (v) => v && v.ok === true && v.has_token === true],
   ['redeem invite', (v) => v && v.ok === true],

@@ -1097,6 +1097,17 @@ export function openStoreAt(path, { timeoutMs = 2000 } = {}) {
      * domain-kód ugyanazt a sort írja mindkét tárolóra, és nem ágazik el tároló szerint.
      */
     lockRows() { return 0; },
+    /**
+     * FUT-E TRANZAKCIÓ — HORDOZHATÓ ALAK (TXS-01).
+     *
+     * MÉRT LELET: a `command.mjs` nyugta-őre `store.db?.isTransaction`-t kérdezett. Ez az
+     * SQLite-illesztő SAJÁT tulajdonsága — a PostgreSQL-tárolón nincs `.db`, tehát a kifejezés
+     * MINDIG hamis lett, és a nyugta-írás PG-n KIVÉTEL NÉLKÜL elbukott
+     * (`RECEIPT_OUTSIDE_TX`). Következmény: a csatorna-megerősítés `/api/verify` útja
+     * PostgreSQL-en 500-at adott. A tároló ÁLLAPOTÁT ezért a tároló mondja meg, nem a hívó
+     * találgatja a belső mezőiből (KUKA-003 · KUKA-018).
+     */
+    get inTransaction() { return Boolean(db.isTransaction); },
   };
 }
 
@@ -1157,6 +1168,17 @@ export function openStore() {
      * domain-kód ugyanazt a sort írja mindkét tárolóra, és nem ágazik el tároló szerint.
      */
     lockRows() { return 0; },
+    /**
+     * FUT-E TRANZAKCIÓ — HORDOZHATÓ ALAK (TXS-01).
+     *
+     * MÉRT LELET: a `command.mjs` nyugta-őre `store.db?.isTransaction`-t kérdezett. Ez az
+     * SQLite-illesztő SAJÁT tulajdonsága — a PostgreSQL-tárolón nincs `.db`, tehát a kifejezés
+     * MINDIG hamis lett, és a nyugta-írás PG-n KIVÉTEL NÉLKÜL elbukott
+     * (`RECEIPT_OUTSIDE_TX`). Következmény: a csatorna-megerősítés `/api/verify` útja
+     * PostgreSQL-en 500-at adott. A tároló ÁLLAPOTÁT ezért a tároló mondja meg, nem a hívó
+     * találgatja a belső mezőiből (KUKA-003 · KUKA-018).
+     */
+    get inTransaction() { return Boolean(db.isTransaction); },
   };
 }
 

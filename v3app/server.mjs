@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 import { openStoreAt } from '../v3ref/store.mjs';
-import { openPgStore } from '../v3ref/pgStore.mjs';
+import { openResilientPgStore } from '../v3ref/pgStore.mjs';
 import { loadRepoEnv } from '../tools/lib/vs_tool_env.mjs';
 import { loadMigrationSet, schemaReadiness } from './schemaReadiness.mjs';
 import {
@@ -417,7 +417,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
   let store; let path;
   if (target.kind === 'postgres') {
     path = null;
-    store = openPgStore(String(process.env.DATABASE_URL).trim(), {
+    store = openResilientPgStore(String(process.env.DATABASE_URL).trim(), {
       statementTimeoutMs: Number(process.env.VS_APP_DB_STATEMENT_TIMEOUT_MS || 15000),
     });
   } else {
@@ -2024,6 +2024,16 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
   // ── A KÉRÉS-CIKLUS ───────────────────────────────────────────────────────────────────────────
   async function handle(req, res) {
     const url = new URL(req.url, 'http://x');
+
+    // ── 0. RENDEZETT ÚJRACSATLAKOZÁS A KÉRÉS HATÁRÁN (PGR-01) ──────────────────────────────────
+    //
+    // Ez az EGYETLEN pont, ahol a tároló-kapcsolat kicserélhető: itt bizonyosan nincs nyitott
+    // tranzakció (a szinkron híd miatt a kérések egy folyamaton belül sorosak). A megbukott
+    // műveletet NEM ismételjük meg — a helyreállítás a KÖVETKEZŐ kérést szolgálja ki.
+    if (typeof store.recoverIfNeeded === 'function') {
+      const rec = store.recoverIfNeeded();
+      if (rec.recovered) console.warn(`[v3app] a tároló-kapcsolat helyreállt (${rec.cause}) — ${rec.generation}. kapcsolat`);
+    }
 
     // ── 1. ÉLETJEL ÉS KÉSZENLÉT — TITOKÉRTÉK NÉLKÜL, KAPU ELŐTT (HLT-01) ────────────────────────
     //

@@ -217,7 +217,14 @@ export function recordCommandEvent({ store, event, scope, effectId, state, clock
   // (2) A NYUGTÁZÓ FELÜLET CSAK A VÉGLEGESÍTÉS TRANZAKCIÓJÁBÓL HASZNÁLHATÓ (N03). Tranzakción
   // kívül hívva a sor a hatás sorsától FÜGGETLENÜL maradna meg — épp az ellenkezője annak, amit a
   // nyugta jelent (a KUKA-026 ellenpárja: a siker nyugtája a hatással utazik).
-  if (!store.db?.isTransaction) fail('RECEIPT_OUTSIDE_TX', 'a nyugta csak a véglegesítés tranzakciójából írható');
+  // A KÉRDÉST A TÁROLÓ VÁLASZOLJA MEG, NEM A BELSŐ MEZŐI (TXS-01). A korábbi alak
+  // `store.db?.isTransaction`-t olvasott — az SQLite-illesztő saját tulajdonságát. A
+  // PostgreSQL-tárolón nincs `.db`, tehát a feltétel MINDIG teljesült, és a nyugta-írás PG-n
+  // kivétel nélkül elbukott; emiatt a `/api/verify` út 500-at adott. A tartalék-ág megmarad a
+  // nyers `DatabaseSync`-et átadó, beadott próbaprogramok kedvéért — de a KIMONDOTT kérdés az
+  // első (KUKA-117: a nyelő tartalék-ág elrejti a hibás hívást).
+  const inTx = typeof store.inTransaction === 'boolean' ? store.inTransaction : Boolean(store.db?.isTransaction);
+  if (!inTx) fail('RECEIPT_OUTSIDE_TX', 'a nyugta csak a véglegesítés tranzakciójából írható');
 
   // (3) A NYUGTA A PARANCS TÉNYÉHEZ KÖTŐDIK, NEM A HÍVÓ SZAVÁHOZ (N03 · N05). Az árva sort az
   // idegen kulcs is megfogná, de a HAMIS TARTALMÚ sort (más hatásazonosító, lehetetlen állapot)
