@@ -1,9 +1,9 @@
 {
   "program": "r67_chatgpt-v3.core.adapted.mjs",
   "variant": "adapted",
-  "source_commit": "4ba80566caf29bd01fa46548f484e53546ce138a",
+  "source_commit": "325e071511075de165e590762d9290bd4baf3653",
   "node": "v22.22.0",
-  "at": "2026-10-04T13:49:14.397Z",
+  "at": "2026-10-04T13:55:31.323Z",
   "verbatim": true,
   "scope": "isolated reference functions and SQLite, no HTTP or production claim",
   "results": [

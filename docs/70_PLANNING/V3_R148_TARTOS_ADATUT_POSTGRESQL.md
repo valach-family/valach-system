@@ -246,11 +246,13 @@ javítás után:
 | `r83core` | 7/7 MEGFELEL | 3/7 — ELTÉRÉS | **7/7 zöld** |
 | `r57` · `r57a` · `r59` · `r59a` · `r79` | **a bázison is ELTÉRÉS** | ELTÉRÉS | ebben a körben nem érintve |
 
-> **KIMONDVA, mert a „nem futott" nem „zöld" (KUKA-200):** a TELJES battéria záró újrafuttatása a
-> jelentés írásakor **még FUT** (19 programból 9 ért véget, mind MEGFELEL, köztük a javított
-> `r67`). A fenti három sor viszont NEM ebből a futásból való: mindhármat külön, `--only`
-> kapcsolóval, üres gépen mértem meg — az ő állapotuk IGAZOLT. A maradék tíz programra a jelen lap
-> **nem állít** záró eredményt; a bázison piros öt viszont a bázison is piros volt.
+> **KIMONDVA, mert a „nem futott" nem „zöld" (KUKA-200):** a TELJES battéria záró újrafuttatása
+> **NEM FUTOTT VÉGIG** — 19 programból 9 ért véget (mind MEGFELEL, köztük a javított `r67`), majd a
+> futás megszakadt, mert a saját takarításom lőtte ki a folyamatot. Ez tehát **elakadt mérés**, nem
+> eredmény, és nem is rejtjük el. A fenti három sor viszont NEM ebből a futásból való: mindhármat
+> külön, `--only` kapcsolóval, ÜRES gépen mértem meg — az ő állapotuk IGAZOLT. A maradék tíz
+> programra a jelen lap **nem állít** záró eredményt; közülük ötről (a `r57` · `r57a` · `r59` ·
+> `r59a` · `r79`) azt tudjuk, hogy a BÁZISON is piros volt.
 
 ---
 
