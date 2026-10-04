@@ -231,8 +231,26 @@ visszajött. *A nem próbált mentés nem mentés (KUKA-038).*
 
 `verify:release-order` **37/37** · `verify:pg-schema-parity` **PASS** (mindkét irányban) ·
 `verify:env-loading` **7/7** · `verify:kuka` **600/600** · `verify:artifact-naming` **28/28** ·
-`verify:decision-numbers` **4/4** · `app:selfcheck` és az app-lelet-battériák (R75 · R121 · R144)
-**PASS**.
+`verify:decision-numbers` **4/4** · `verify:mutation-anchors` **231/231** ·
+`app:selfcheck` és az app-lelet-battériák (R75 · R121 · R144) **PASS**.
+
+**A külső ellenőrző fél programjai (`verify:external-checks`) — attribúcióval.** A battéria
+MINDEN eltérését a BÁZIS commithoz (`0705f911`) mérve soroltam be, nem a saját ágamhoz
+(KUKA-122). A három eltérést, amit ez a kör okozott, EGYENKÉNT, EGYEDÜL futtatva mértem újra a
+javítás után:
+
+| program | bázis | HEAD a javítás előtt | HEAD a javítás után |
+|---|---|---|---|
+| `r67` | MEGFELEL | 7/8 — ELTÉRÉS | **8/8 zöld** |
+| `r81core` | *elakadt mérés* (600 s időtúllépés) | 7/15 — ELTÉRÉS | **15/15 zöld** |
+| `r83core` | 7/7 MEGFELEL | 3/7 — ELTÉRÉS | **7/7 zöld** |
+| `r57` · `r57a` · `r59` · `r59a` · `r79` | **a bázison is ELTÉRÉS** | ELTÉRÉS | ebben a körben nem érintve |
+
+> **KIMONDVA, mert a „nem futott" nem „zöld" (KUKA-200):** a TELJES battéria záró újrafuttatása a
+> jelentés írásakor **még FUT** (19 programból 9 ért véget, mind MEGFELEL, köztük a javított
+> `r67`). A fenti három sor viszont NEM ebből a futásból való: mindhármat külön, `--only`
+> kapcsolóval, üres gépen mértem meg — az ő állapotuk IGAZOLT. A maradék tíz programra a jelen lap
+> **nem állít** záró eredményt; a bázison piros öt viszont a bázison is piros volt.
 
 ---
 
