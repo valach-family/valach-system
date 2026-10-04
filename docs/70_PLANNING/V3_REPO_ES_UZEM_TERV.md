@@ -87,6 +87,17 @@ Utánanéztem a Railway mai képességeinek, nem emlékezetből:
 okból: nem kerül külön pénzbe, és a valódi több-cégteres működést gyakorolja — ami épp a rendszer
 lényege. Ha később kell külön demo-környezet, egy kattintás.
 
+> **AZ ELLENTMONDÁS FELOLDVA (R150 §6).** A fenti táblázat a CÉL-képet írja le, nem a mait, és a
+> két mondat („három környezet" ↔ „a demo cégtér a stagingben") együtt félreolvasható volt. A MAI
+> állapot kimondva:
+> · **MA EGYETLEN környezet épül: a `staging`** (azonosító `2d24bcb4-0fa0-4432-8fa4-dc17eeca6355`).
+> · **A `production` és a külön `demo` NEM működik, és nem is állítható működőnek** — a táblázat
+>   rájuk nézve TERV, nem üzem.
+> · A **demo** továbbra is a stagingen belüli CÉGTÉR; külön, folyamatosan fizetett demo-környezet
+>   csak nyilvános/önkiszolgáló bemutató előtt jön, és akkor sem kaphat hozzáférést a belső
+>   staginghez.
+> A három környezet CÉLJA tehát változatlan; a FIZIKAI kiépítés lépcsőzött.
+
 ### A fejlesztői és a teszt-tároló NEM a Railway
 
 A magpróba ma is saját, eldobható fájl-tárolón fut, felhő nélkül. **Ez marad.** Az automata
@@ -204,11 +215,19 @@ Ez a repó-nyitás valódi munkája — nem a `git init`.
    A repó megnyitva, a nyitó csomag benne (D-VS-3000).
 2. ~~**Három környezet rendben van-e**~~ → **igen** *(„a három környezet is jó")*. Eldöntve;
    a tényleges felállításuk még hátra van.
-3. ~~**PITR be van-e kapcsolva**~~ → **IGEN**, a `valach-system` projekten (2026-09-09).
+3. ~~**PITR be van-e kapcsolva**~~ → **A VÁLASZ AZONOSÍTÓHOZ KÖTVE, HELYESBÍTVE (R148/R150).**
+   A 2026-09-09-i „igen" akkor a **`valach-system` NEVŰ** projektre vonatkozott — csakhogy azóta a
+   nevek elmozdultak, és **a név nem azonosító**. A 2026-10-04-i leltár szerint:
+   · a megfigyelt projekt ma **`vs`** (a V2 üzeme), azonosító **`d84106d1-0a25-43e2-bf26-19fffc946683`**;
+   · a V3 **ÚJ** projektje szintén `valach-system`, de azonosítója **`307c5e09-03de-4b7f-8056-72aa5ff94853`**,
+     és ott **nincs PITR, mert adatbázis sincs még**.
+   Tehát a PITR-állítás **a V2-ről szól, nem a V3-ról** — a V3 mentési rendje nevesített függő, és
+   csak a staging felállása után mérhető.
 
 ### Amit a 3. válasz lezár, és amit nem
 
-**Lezárja a §4 első számát:** a legrosszabb esetben elveszíthető adat **másodperc-nagyságrend**.
+**Lezárja a §4 első számát — DE CSAK A V2-RE:** a megfigyelt (ma `vs` nevű) projekten a
+legrosszabb esetben elveszíthető adat **másodperc-nagyságrend**. **A V3-ra ez semmit nem állít.**
 
 **Nem lezárva, és ez kimondott:**
 

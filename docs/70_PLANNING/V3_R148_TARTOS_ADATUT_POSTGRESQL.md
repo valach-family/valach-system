@@ -356,11 +356,24 @@ séma saját elvét követi: a kanonikus séma kimondja, hogy az invariánst **a
 megkerülhet"* (KUKA-047). A kulcs-ütközés `READ COMMITTED` mellett is kulcs-ütközés, és a vesztes
 nevezett kimenetet kap — ezt az 5.3 **meg is mérte**.
 
-**Amit ez NEM állít:** hogy minden „olvass, aztán írj" minta sorosítva van. Az SQLite
-`BEGIN IMMEDIATE`-je a tranzakció elejétől írás-zárat fog; PostgreSQL-en ennek pontos megfelelője
-`SERIALIZABLE` lenne, ami viszont sorosítási hibákat (`40001`) ad vissza, és a mag ma nem ismétel.
-Ahol tehát egy invariánst ma NEM kulcs tart, ott a két tároló viselkedése elvben eltérhet. A mért
-utakon eltérés nem volt; a nem mért utakra **nem állítunk semmit**.
+**Amit ez NEM állít:** hogy minden „olvass, aztán írj" minta sorosítva van.
+
+> **HELYESBÍTVE AZ R150 §4 NYOMÁN — két pontatlanság a fenti bekezdés korábbi alakjában.**
+>
+> **(1) A `SERIALIZABLE` nem a `BEGIN IMMEDIATE` „pontos megfelelője".** Az SQLite írás-zárat vesz
+> a tranzakció elején, tehát az ÍRÓKAT sorosítja; a PostgreSQL `SERIALIZABLE` ezzel szemben
+> optimista: fut, és a végén sorosítási hibával (`40001`) VISSZADOBHAT. A kettő más mechanizmus,
+> más meghibásodási alakkal — és a `SERIALIZABLE` nem puszta kapcsoló: **teljes tranzakciós
+> újrapróbálás és mellékhatás-kezelés** tartozna hozzá, ami a magban ma nincs.
+> *(Hivatalos alap: https://www.postgresql.org/docs/16/transaction-iso.html)*
+>
+> **(2) A döntő tényező nem a szálak száma, hanem a KAPCSOLATOK ÉS TRANZAKCIÓK ÁTFEDÉSE.** Az a
+> korábbi mondatom, hogy „egy egyszálú async szerveren a legtöbb ütközés fel sem lépne", téves:
+> egy egyszálú async szerver is tarthat sok nyitott kapcsolatot egyidejűleg.
+>
+> **ÉS AMIT AZ R150 ÓTA MÉRTÜNK IS:** a „jogot olvasok, majd hatást írok" utak közül a
+> **beváltás ↔ visszavonás** páron a hiány VALÓDI volt — a javítás **sor-zár** (LCK-01), nem
+> elkülönítési szint váltás. A részletek és a mérés: `V3_R151_…` jelentés.
 
 ---
 

@@ -27,6 +27,14 @@ A szám nem díszítés: **megmondja a használónak, mire számítson.**
   már továbbment. Amíg egyetlen telepítés van, erre nincs szükség — de a rend készen áll.
 - **A v4 ugyanebben a repóban lesz.** Ha akkor a v3 még él valakinél, az a `release/3.x` ágon kap
   javításokat, a `main` pedig a v4-et viszi. „Párhuzamos v3 és v4" = egy repó + egy karbantartott ág.
+- **ÉS UGYANEBBEN A TERMÉK-OTTHONBAN, ÜZEMI SZINTEN IS (R150 §6).** A `valach-family/valach-system`
+  repó ÉS a `valach-system` nevű Railway-projekt
+  (`307c5e09-03de-4b7f-8056-72aa5ff94853`) a V3 után is MEGMARAD. A v4 **normál esetben git-kiadás
+  és migrációs fejlődés** — **nem** automatikusan új repó, új projekt vagy üres éles adatbázis.
+  **Kivétel, kimondva:** ha a v3 és a v4 HOSSZAN, párhuzamosan üzemel, akkor indokolt külön
+  szolgáltatás/környezet, és szükség esetén külön adatbázis — **explicit adatgazdával és kimondott
+  átállási menettel**. A határ ilyenkor is kemény: **inkompatibilis írók nem írhatnak
+  ellenőrizetlenül közös adatbázisba.**
 
 ## 3. Migráció — a három kiadás
 

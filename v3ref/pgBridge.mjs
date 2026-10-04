@@ -25,8 +25,15 @@
 //     A párhuzamosságot ezért NEM a szálak adják, hanem a FOLYAMATOK (Railway-n a példányok) —
 //     és a párhuzamos írást pontosan így is mérjük: külön OS-folyamatokkal, külön kapcsolaton
 //     (lásd `tools/v3_pg_concurrency_proof.mjs`). Ez nem kerülőút: az adatbázis-szintű verseny
-//     (sor-zár, egyediség-ütközés, soros végrehajtás) EZEN a módon valódi, míg egy egyszálú
-//     async szerveren a legtöbb ütközés fel sem lépne.
+//     (sor-zár, egyediség-ütközés, soros végrehajtás) EZEN a módon valódi.
+//
+//     HELYESBÍTÉS (R150 §4). Korábban azt írtam ide, hogy „egy egyszálú async szerveren a
+//     legtöbb ütközés fel sem lépne". Ez PONTATLAN volt: nem a szálak száma dönt, hanem az,
+//     hogy KÉT ADATBÁZIS-KAPCSOLAT TRANZAKCIÓJA ÁTFED-E IDŐBEN. Egy egyszálú async szerver is
+//     tarthat sok nyitott kapcsolatot egyszerre, tehát ott az ütközések ugyanúgy fellépnek.
+//     Amit a szinkron híd valóban okoz, az szűkebb és kimondható: EGY FOLYAMATON BELÜL a
+//     kérések sorosak, tehát egy példány önmagával nem versenyez — a példányok és a külön
+//     kapcsolatok viszont igen, és a mérés is így készül.
 //   · A várakozásnak HATÁRA van (`statement_timeout` a kiszolgálón + `waitMs` a hídon). Határidő
 //     nélküli blokkolás néma akadás volna (KUKA-121).
 import { Worker, receiveMessageOnPort, MessageChannel } from 'node:worker_threads';
