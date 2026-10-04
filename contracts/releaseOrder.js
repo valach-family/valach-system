@@ -100,6 +100,10 @@ const RESTRICTIVE_PATTERNS = Object.freeze([
     re: /\bADD\s+CONSTRAINT\b[\s\S]*\bNOT\s+VALID\b/i },
   { name: 'CREATE UNIQUE INDEX (a múltbeli duplikátumon megbukik)',
     re: /\bCREATE\s+(?:UNIQUE\s+INDEX|INDEX\s+CONCURRENTLY\s+UNIQUE)\b|\bCREATE\s+UNIQUE\b/i },
+  // CREATE TRIGGER: szerkezetileg új objektum, de a HATÁSA a cél-tábla ÍRÓIRA szól — egy őr-trigger
+  // a VÁLTOZATLAN régi kód írását innentől visszautasíthatja. Ezért szorító, és kimondott
+  // besorolást kíván: a szerzőnek meg kell mondania, miért marad kompatibilis a régi író.
+  { name: 'CREATE TRIGGER (a cél-tábla régi íróját korlátozhatja)', re: /^\s*CREATE\s+(?:CONSTRAINT\s+)?TRIGGER\b/i },
   { name: 'ADD COLUMN … NOT NULL (a meglévő sorok és a régi író)',
     re: /\bADD\s+(?:COLUMN\s+)?[A-Za-z_][\w]*\b[\s\S]{0,120}?\bNOT\s+NULL\b/i },
 ]);
@@ -111,6 +115,9 @@ const EXPAND_PATTERNS = Object.freeze([
   { name: 'DROP DEFAULT / DROP NOT NULL', re: /\bALTER\s+COLUMN\b[\s\S]{0,120}?\bDROP\s+(?:DEFAULT|NOT\s+NULL)\b/i },
   { name: 'COMMENT', re: /^\s*COMMENT\s+ON\b/i },
   { name: 'CREATE SCHEMA/TYPE/SEQUENCE', re: /^\s*CREATE\s+(?:SCHEMA|TYPE|SEQUENCE|EXTENSION)\b/i },
+  // CREATE FUNCTION: objektum születik. A TÖRZSE a migráció futásakor NEM fut le — a benne álló
+  // írás a trigger tüzelésekor történik, és AZT a `CREATE TRIGGER` szorító besorolása fedi.
+  { name: 'CREATE FUNCTION/PROCEDURE', re: /^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\b/i },
 ]);
 
 // A kommentek nem számítanak: a szabály a VÉGREHAJTOTT mondatokról szól, nem arról, amit
@@ -171,7 +178,34 @@ function declaredRetiredIn(sql) {
 // A migráció MONDATOKRA bontva. Nem SQL-értelmező: a pontosvessző mentén vágunk, és ha egy
 // mondat felismerhetetlen, az `unknown` — tehát a durva vágás a BIZTONSÁG felé téved.
 function statementsOf(sql) {
-  return sqlWithoutComments(sql).split(';').map((x) => x.trim()).filter(Boolean);
+  // A DOLLÁR-IDÉZÉS EGYBEN MARAD (R146/R147 — az első PostgreSQL-migráció lelete).
+  //
+  // A korábbi alak a `;` mentén vágott. Ez SQLite-on elég volt, de a PostgreSQL trigger-őrei
+  // FÜGGVÉNY-TÖRZSBEN élnek (`AS $trg$ … $trg$`), és a törzs MAGA IS pontosvesszőket tartalmaz.
+  // A vak vágás ezért a függvényt TÖREDÉKEKRE szedte (`RETURN NULL` · `END` · `END IF`), amiket
+  // az őr — helyesen — `unknown`-nak minősített: az első PG-migráció így NEM a tartalma miatt
+  // bukott meg, hanem mert a vágás összetörte. A törzsben álló `INSERT` ráadásul MIGRÁCIÓ-KORI
+  // adatváltozásnak látszott, holott az csak a trigger tüzelésekor fut.
+  //
+  // A vágás tehát mostantól ismeri a `$tag$ … $tag$` párt. Ami NEM változik: a durva vágás
+  // továbbra is a BIZTONSÁG felé téved, és a fel nem ismert alak továbbra is `unknown`.
+  const src = sqlWithoutComments(sql);
+  const out = [];
+  let buf = '';
+  let i = 0;
+  while (i < src.length) {
+    const dq = /^\$([A-Za-z_][A-Za-z0-9_]*)?\$/.exec(src.slice(i));
+    if (dq) {
+      const tag = dq[0];
+      const close = src.indexOf(tag, i + tag.length);
+      const end = close === -1 ? src.length : close + tag.length;
+      buf += src.slice(i, end); i = end; continue;
+    }
+    if (src[i] === ';') { if (buf.trim()) out.push(buf.trim()); buf = ''; i += 1; continue; }
+    buf += src[i]; i += 1;
+  }
+  if (buf.trim()) out.push(buf.trim());
+  return out;
 }
 
 // A szerző KIMONDOTT besorolása az `unknown`/`data_change` alakokra:
@@ -190,6 +224,20 @@ const RANK = { expand: 0, restrictive: 1, contract: 2, data_change: 3, unknown: 
 
 function classifyStatement(st) {
   const hit = (list) => list.filter((p) => p.re.test(st)).map((p) => p.name);
+  // A FÜGGVÉNY-LÉTREHOZÁS A TÖRZSE ELŐTT DŐL EL. Egy `CREATE FUNCTION` törzsében álló `INSERT`
+  // nem migráció-kori adatváltozás: a függvény a migrációkor csak MEGSZÜLETIK. Ha ezt nem itt
+  // döntenénk el, a törzs mintái „adatváltozásnak" minősítenék a puszta létrehozást.
+  if (/^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\b/i.test(st)) {
+    return { shape: 'expand', operations: ['CREATE FUNCTION/PROCEDURE'] };
+  }
+  // A TRIGGER LÉTREHOZÁSA SZORÍTÓ — ÉS EZT A SZÓ SZERINTI `UPDATE`/`DELETE` ELŐTT KELL ELDÖNTENI.
+  // A `CREATE TRIGGER x BEFORE UPDATE ON y` mondat tartalmazza az `UPDATE` szót, ezért az
+  // adatváltozás-minta illeszkedett rá, és a trigger-létrehozás „adatváltozásnak" minősült. A
+  // mondat ALAKJÁT az ELSŐ szava dönti el, nem egy benne álló kulcsszó (KUKA-239: a hatókör
+  // nélküli minta a szomszéd sort igazolja).
+  if (/^\s*CREATE\s+(?:CONSTRAINT\s+)?TRIGGER\b/i.test(st)) {
+    return { shape: 'restrictive', operations: ['CREATE TRIGGER (a cél-tábla régi íróját korlátozhatja)'] };
+  }
   const contract = hit(CONTRACTION_PATTERNS);
   if (contract.length) return { shape: 'contract', operations: contract };
   const data = hit(DATA_CHANGE_PATTERNS);

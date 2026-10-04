@@ -328,13 +328,17 @@ export function submitClaim({ store, clock, claimantRef, bookId, statement, inta
   store.tx(() => {
     store.run('INSERT INTO claim_intake (intake_key, claimant_ref, submitted_at) VALUES (?,?,?)',
       intakeKey, ref, nowIso);
+    // HORDOZHATÓ ALAK (SQL-02). A korábbi `INSERT OR IGNORE` az SQLite SAJÁT bővítése — a
+    // PostgreSQL nem ismeri, ott SZINTAKTIKAI HIBA. Az `ON CONFLICT DO NOTHING` a szabványos
+    // alak, amit MINDKÉT illesztő végrehajt, tehát nem fordítunk és nem ágazunk el tároló
+    // szerint: EGY mondat, két motoron (KUKA-003).
     store.run(
-      `INSERT OR IGNORE INTO claim (id, book_id, claimant_ref, submitted_at, statement_digest, state)
-       VALUES (?,?,?,?,?,'received')`,
+      `INSERT INTO claim (id, book_id, claimant_ref, submitted_at, statement_digest, state)
+       VALUES (?,?,?,?,?,'received') ON CONFLICT DO NOTHING`,
       id, String(bookId == null ? '' : bookId), ref, nowIso, digest);
     // R67/F03: A TARTALOM IS MEGMARAD — különben az elbírálónak nincs mit elolvasnia. A lenyomat
     // innentől INTEGRITÁS-ellenőrzés, nem tartalom-helyettesítő.
-    store.run('INSERT OR IGNORE INTO claim_content (claim_id, content) VALUES (?,?)',
+    store.run('INSERT INTO claim_content (claim_id, content) VALUES (?,?) ON CONFLICT DO NOTHING',
       id, String(statement == null ? '' : statement));
   });
   return NEUTRAL_CLAIM_ACK;

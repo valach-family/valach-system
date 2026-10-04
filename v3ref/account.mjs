@@ -211,8 +211,12 @@ export function redeemChannelChallenge({ store, token, at }) {
   return store.atomic(() => {
     const used = store.run('UPDATE channel_challenge SET used_at = ? WHERE token = ? AND used_at IS NULL', at, row.token);
     if (used.changes !== 1) throw new Error('redeemChannelChallenge: a kihívást közben már beváltották');
+    // HORDOZHATÓ ALAK (SQL-02). A korábbi `INSERT OR IGNORE` az SQLite SAJÁT bővítése — a
+    // PostgreSQL nem ismeri, ott SZINTAKTIKAI HIBA. Az `ON CONFLICT DO NOTHING` a szabványos
+    // alak, amit MINDKÉT illesztő végrehajt, tehát nem fordítunk és nem ágazunk el tároló
+    // szerint: EGY mondat, két motoron (KUKA-003).
     store.run(
-      'INSERT OR IGNORE INTO channel_proof (subject_id, namespace, value_norm, proven_at) VALUES (?,?,?,?)',
+      'INSERT INTO channel_proof (subject_id, namespace, value_norm, proven_at) VALUES (?,?,?,?) ON CONFLICT DO NOTHING',
       row.subject_id, row.namespace, row.value_norm, at);
     return frozen({ ok: true, subject_id: row.subject_id, namespace: row.namespace, value_norm: row.value_norm, proven_at: at });
   });

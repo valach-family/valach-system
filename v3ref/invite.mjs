@@ -623,7 +623,14 @@ function subjectByExternal(store, namespace, value) {
 // EZ az, ami a mi visszavont V2-javításunkból hiányzott (D-VS-667): ott a munkamenet nélküli
 // kézi beváltás egyszerűen elutasításba futott.
 export function rememberIntent({ store, sessionId, token, clock }) {
-  store.run('INSERT OR REPLACE INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)',
+  // HORDOZHATÓ ALAK (SQL-02). Az `INSERT OR REPLACE` szintén SQLite-bővítés, és a jelentése sem
+  // azonos a beszúrás-vagy-frissítéssel: az SQLite TÖRLI a régi sort, majd beszúr — tehát DELETE
+  // triggert is tüzelne. A `pending_intent` táblán MÉRVE nincs trigger (a séma egyetlen triggere
+  // sem erre a táblára szól), ezért a két alak itt azonos hatású, az `ON CONFLICT … DO UPDATE`
+  // viszont MINDKÉT motoron fut, és nem függ a törlés-mellékhatástól.
+  store.run(`INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)
+             ON CONFLICT (session_id) DO UPDATE SET invite_token = excluded.invite_token,
+                                                    created_at   = excluded.created_at`,
     sessionId, token, clock.now());
 }
 

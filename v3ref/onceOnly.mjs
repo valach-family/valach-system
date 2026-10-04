@@ -31,6 +31,7 @@
  * PURE + NEVEZETT: a feloldó nem dob kivételt a hívóra; a verseny NEVEZETT kimenet (KUKA-020).
  */
 import { commandIdentity, commandScope, CanonError } from './command.mjs';
+import { isUniqueViolation } from './storeError.mjs';
 
 const frozen = (o) => Object.freeze(o);
 
@@ -109,7 +110,10 @@ export function onceOnlyCommit({ store, bookId, actor, idemKey, operation, ident
     // KÉT VALÓDI KAPCSOLAT VERSENYE: a vesztes NEM ír másodszor, és NEM kap programhibát — a
     // kulcs-ütközés NEVEZETT kimenet, amiből a hívó ISMÉTLÉST tud csinálni (KUKA-129: a nyugta
     // mondjon igazat arról, mi történt).
-    if (String(e && e.message).includes('UNIQUE') || String(e && e.code) === 'ERR_SQLITE_ERROR') {
+    // A FELISMERÉS EGY HELYEN ÁLL (STE-01). A korábbi alak KÉT SQLite-specifikus jelre épült,
+    // tehát PostgreSQL-en NEM illeszkedett volna — az egyszeriség pont a versenyhelyzetben bukott
+    // volna el, némán. A `isUniqueViolation` mindkét tároló jelét ismeri.
+    if (isUniqueViolation(e)) {
       return frozen({ ok: false, reason: 'once_only_race' });
     }
     throw e;

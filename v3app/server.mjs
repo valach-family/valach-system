@@ -15,13 +15,15 @@
 // FÜGGŐSÉG: NULLA új futásidejű csomag — node:http · node:crypto · node:fs · node:path · node:url
 // (+ node:module a CommonJS `artifactNaming.js` behúzásához, ahogy a feladat kimondta).
 import http from 'node:http';
-import { randomBytes, createHash } from 'node:crypto';
+import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { readFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { dirname, resolve, join, sep, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 import { openStoreAt } from '../v3ref/store.mjs';
+import { openPgStore } from '../v3ref/pgStore.mjs';
+import { loadRepoEnv } from '../tools/lib/vs_tool_env.mjs';
 import {
   registerAccount, authenticate, issueChannelChallenge, redeemChannelChallenge, provenEmailOf,
   reissueChannelChallenge, subjectByEmail, CHALLENGE_POLICY,
@@ -61,6 +63,26 @@ import {
 import { providerStatus, askProvider } from './assistant/provider.mjs';
 import { newMeter } from './assistant/meter.mjs';
 
+// ── A `.env` BETÖLTÉSE — AZ IMPORTOK UTÁN, MINDEN KONFIGURÁCIÓ-OLVASÁS ELŐTT (ENV-01) ────────────
+//
+// A LELET (R146 §6). A szerver és a két AI-eszköz NEM hívta a repó közös `loadRepoEnv`-jét, ezért a
+// `.env`-ben álló beállítás (pl. `VS_AI_API_KEY`) helyi fejlesztésen NEM látszott — az eszköz
+// „nincs beállítva"-t mondott egy olyan gépen, ahol a beállítás ott volt. Ugyanaz a hiba-osztály,
+// amit a KUKA-040 a V2-ben már egyszer megfogott: ami bemásolt blokként él, azt egy új fájl némán
+// kihagyja.
+//
+// MIÉRT PONT ITT ÁLL A SOR, ÉS MIÉRT MÉRJÜK. Az ESM az importokat a modul törzse ELŐTT futtatja le,
+// tehát egy importált modul, ami BETÖLTÉSKOR olvasna környezetet, még a betöltés előtt járna. MÉRVE
+// (R146/R147 köre): a `provider.mjs` a környezetet ALAPÉRTELMEZETT PARAMÉTERBEN olvassa
+// (`env = process.env`), ami a HÍVÁSKOR értékelődik ki — és a `server.mjs` saját modul-szintű
+// állandói sem olvasnak környezetet. Ezért ez a sor elég; az állítást a `verify:env-loading` méri,
+// nem az emlékezetünk (KUKA-009).
+//
+// KÉT KÖTELEM, amit a betöltő tart: MEGLÉVŐ környezeti változót SOHA nem ír felül (élesben a valódi
+// környezet az erősebb — Railway-n a `.env` nem is létezik), és ÉRTÉKET soha nem ad vissza, csak
+// TÉNYT (honnan jött) — a diagnosztika titokmentes.
+export const ENV_LOAD = loadRepoEnv(resolve(dirname(fileURLToPath(import.meta.url)), '..'));
+
 const require = createRequire(import.meta.url);
 const { artifactPath } = require('../contracts/artifactNaming.js');
 
@@ -95,6 +117,12 @@ export const ROWCOUNT_TABLES = Object.freeze([
 ]);
 export const NEUTRAL_REGISTER = Object.freeze({ ok: true, message: 'Ha a cím szabad, megerősítő levelet küldtünk.' });
 
+// ── A TELEPÍTETT KÖRNYEZET TÉNYE — EGY HELYEN (STG-02) ──────────────────────────────────────────
+// Ebből következik a `Secure` süti, a fejlesztői felület alapértelmezett KIKAPCSOLÁSA és a
+// hozzáférés-védelem kötelme. Egy fogalom, egy otthon (KUKA-018).
+export const DEPLOYED_ENVS = Object.freeze(['staging', 'production', 'demo']);
+export const IS_DEPLOYED = DEPLOYED_ENVS.includes(String(process.env.VS_APP_ENV || '').trim().toLowerCase());
+
 const SESSION_COOKIE = 'vs_session';
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_BODY_BYTES = 64 * 1024;
@@ -104,6 +132,48 @@ const MAX_BODY_BYTES = 64 * 1024;
 // elutasítás (`unknown_field`), olvasón NEVEZETTEN figyelmen kívül marad (`param_ignored`) — a
 // cselekvőt és a könyvet változatlanul KIZÁRÓLAG a szerveroldali munkamenet adja.
 export const CLIENT_AUTHORITY_PARAMS = Object.freeze(['book_id', 'workspace_id', 'workspace', 'current_book_id', 'actor', 'actor_id', 'role', 'subject']);
+
+// ── HOZZÁFÉRÉS-VÉDELEM A TELJES FELÜLETRE ÉS API-RA (ACC-01) ────────────────────────────────────
+//
+// AZ OPERÁTORI KIKÖTÉS SZÓ SZERINT (R146 §5): *„A távoli staging teljes UI/API-ja legyen
+// hozzáférés-védett már az első publikus URL előtt."* — és: *„az általános alkalmazásbelépés
+// önmagában nem védi az összes dev-végpontot."*
+//
+// EZÉRT NEM AZ ALKALMAZÁS BELÉPÉSE VÉDI, HANEM EGY ELŐTTE ÁLLÓ KAPU. A kettő különbsége lényeges:
+// az alkalmazás belépése a FELHASZNÁLÓT azonosítja az üzleti adathoz, ez a kapu viszont azt dönti
+// el, hogy a kérés EGYÁLTALÁN beléphet-e a staging-példányba. Egy fel nem ismert kérés így a
+// regisztrációt, a statikus lapot és a `/dev/`-et sem éri el.
+//
+// HTTP Basic, mert böngészőben (asztali és mobil) külön kód nélkül működik, és a védett
+// tesztlinket egy kattintással át lehet adni (R147: „működő, védett tesztlink kell").
+//
+// A VÉDELEM HIÁNYA TELEPÍTETT KÖRNYEZETBEN NEM FIGYELMEZTETÉS, HANEM MEGÁLLÁS: a szolgáltatás el
+// sem indul jelszó nélkül. Egy „majd beállítjuk" állapot pontosan az az ígéret, amit a KUKA-050
+// tilt — a nyitott staging egyetlen elfelejtett kapcsoló lenne.
+export const PUBLIC_PATHS = Object.freeze(['/health', '/ready']);
+
+export function accessGateConfig(env = process.env) {
+  const user = String(env.VS_APP_ACCESS_USER || 'vs').trim();
+  const pass = String(env.VS_APP_ACCESS_PASSWORD || '').trim();
+  const deployed = DEPLOYED_ENVS.includes(String(env.VS_APP_ENV || '').trim().toLowerCase());
+  if (!pass) {
+    if (deployed) {
+      return Object.freeze({ ok: false, reason: 'access_password_missing',
+        message: `VS_APP_ENV=${env.VS_APP_ENV}: a teljes felület hozzáférés-védelme KÖTELEZŐ, de `
+          + 'VS_APP_ACCESS_PASSWORD nincs beállítva — a szolgáltatás nem indul el védtelenül.' });
+    }
+    return Object.freeze({ ok: true, enabled: false });   // helyi fejlesztés: nincs kapu
+  }
+  return Object.freeze({ ok: true, enabled: true, user, pass });
+}
+
+/** Állandó idejű összehasonlítás — a jelszó hossza és előtagja se szivárogjon ki időből. */
+function sameSecret(a, b) {
+  const x = Buffer.from(String(a), 'utf8');
+  const y = Buffer.from(String(b), 'utf8');
+  if (x.length !== y.length) { timingSafeEqual(x, x); return false; }
+  return timingSafeEqual(x, y);
+}
 
 const hex = (bytes) => randomBytes(bytes).toString('hex');
 /**
@@ -119,6 +189,73 @@ export function resolveDbPath(env = process.env) {
   if (env.VS_APP_DB && String(env.VS_APP_DB).trim()) return resolve(REPO_ROOT, String(env.VS_APP_DB).trim());
   const rel = artifactPath({ area: 'tmp', kind: 'v3app_dev_tarolo', ext: 'sqlite', version: PKG_VERSION });
   return resolve(REPO_ROOT, rel);
+}
+
+// ── MELYIK TÁROLÓ FUT? — EGY NEVEZETT DÖNTÉS, NÉMA VISSZAESÉS NÉLKÜL (STG-01) ───────────────────
+//
+// AZ OPERÁTORI KIKÖTÉS SZÓ SZERINT (R146 §4): *„Hiányzó/rossz PostgreSQL-konfiguráció stagingben
+// névvel álljon meg, ne váltson vissza csendben SQLite-ra."*
+//
+// MIÉRT EZ A LEGFONTOSABB SOR A TELEPÍTÉSBEN. A néma visszaesés a legrosszabb fajta hiba: a
+// szolgáltatás ELINDULNA, a képernyők MŰKÖDNÉNEK, az adat pedig egy eldobható konténer-fájlba
+// menne — és az első újraindításkor nyomtalanul eltűnne. Zöldnek LÁTSZANA, miközben nincs
+// tartósság (KUKA-051 · KUKA-049). Ezért a döntés KIMONDOTT, és hiánynál NEVEZETTEN megáll.
+//
+// A három eset:
+//   · `VS_APP_STORE=postgres` VAGY van `DATABASE_URL`        ⇒ PostgreSQL
+//   · `VS_APP_ENV=staging|production` és NINCS `DATABASE_URL` ⇒ NEVEZETT MEGÁLLÁS
+//   · egyébként                                              ⇒ a helyi, eldobható SQLite-tároló
+//
+// A `DATABASE_URL` ÉRTÉKE sehol nem kerül naplóba vagy hibaüzenetbe — csak a TÉNYE.
+export const STORE_KINDS = Object.freeze(['postgres', 'sqlite']);
+
+/**
+ * A FEJLESZTŐI FELÜLET ALAPÉRTELMEZÉSE MEGFORDUL TELEPÍTETT KÖRNYEZETBEN (STG-03).
+ *
+ * A LELET (R146 §2, a külső fél célzott kódolvasása): *„devSurface alapból engedett"*. A korábbi
+ * alak `process.env.VS_APP_DEV !== '0'` volt, tehát a fejlesztői levél-fogadó, a fejlesztői ÓRA és
+ * a szereplőváltás minden olyan indításon ÉLT, ahol senki nem írt ki kifejezett `0`-t — vagyis egy
+ * Railway-telepítésen is. Az a felület munkamenetet vált és leveleket mutat: nyílt interneten
+ * SÚLYOS. A kikapcsolt alapértelmezés ezért nem óvatosság, hanem a KUKA-011 alakja a védelmen —
+ * ami alapból nyitva van, az előbb-utóbb nyitva is marad.
+ *
+ * MOSTANTÓL: telepített környezetben (`VS_APP_ENV=staging|production|demo`) a fejlesztői felület
+ * alapból KI, és CSAK kifejezett `VS_APP_DEV=1` kapcsolja be. Helyi fejlesztésen változatlanul be,
+ * mert ott ez a próba eszköze (a lejárati ágak böngészős bizonyítása).
+ */
+export function defaultDevSurface(env = process.env) {
+  const deployed = DEPLOYED_ENVS.includes(String(env.VS_APP_ENV || '').trim().toLowerCase());
+  const explicit = String(env.VS_APP_DEV || '').trim();
+  if (deployed) return explicit === '1';
+  return explicit !== '0';
+}
+
+export function resolveStoreTarget(env = process.env) {
+  const url = String(env.DATABASE_URL || '').trim();
+  const declared = String(env.VS_APP_STORE || '').trim().toLowerCase();
+  const deployed = ['staging', 'production'].includes(String(env.VS_APP_ENV || '').trim().toLowerCase());
+
+  if (declared && !STORE_KINDS.includes(declared)) {
+    return Object.freeze({ ok: false, reason: 'store_kind_unknown',
+      message: `VS_APP_STORE: ismeretlen érték ("${declared}") — a két ismert alak: ${STORE_KINDS.join(' · ')}` });
+  }
+  if (declared === 'postgres' && !url) {
+    return Object.freeze({ ok: false, reason: 'pg_url_missing',
+      message: 'VS_APP_STORE=postgres, de DATABASE_URL nincs beállítva — a szolgáltatás NEM indul el '
+        + 'SQLite-ra visszaesve, mert az adat egy eldobható fájlba menne.' });
+  }
+  if (declared === 'sqlite' && deployed) {
+    return Object.freeze({ ok: false, reason: 'sqlite_in_deployed_env',
+      message: `VS_APP_ENV=${env.VS_APP_ENV}: telepített környezetben az SQLite-tároló nem engedett `
+        + '(a konténer fájlrendszere újratelepítéskor eldobódik).' });
+  }
+  if (declared === 'postgres' || (!declared && url)) return Object.freeze({ ok: true, kind: 'postgres' });
+  if (deployed) {
+    return Object.freeze({ ok: false, reason: 'pg_url_missing_in_deployed_env',
+      message: `VS_APP_ENV=${env.VS_APP_ENV}, de DATABASE_URL nincs beállítva — telepített környezet `
+        + 'nem indul el tartós tároló nélkül.' });
+  }
+  return Object.freeze({ ok: true, kind: 'sqlite' });
 }
 
 /** Ugyanaz a névképző, más „mit" — a selfcheck ideiglenes tárolójához. */
@@ -137,8 +274,13 @@ function parseCookies(header) {
   return out;
 }
 
-function sessionCookie(id) {
-  return `${SESSION_COOKIE}=${id}; HttpOnly; SameSite=Strict; Path=/`;
+/**
+ * A MUNKAMENET-SÜTI. A `Secure` jelölő TELEPÍTETT környezetben KÖTELEZŐ (R146 §5): HTTPS nélkül a
+ * süti egy sima HTTP-kérésen is kimenne. Helyi fejlesztésen (http://127.0.0.1) a `Secure` sütit a
+ * böngésző ELDOBNÁ, ezért ott nem tesszük ki — a különbség a KÖRNYEZETEN múlik, nem a kedven.
+ */
+function sessionCookie(id, { secure = IS_DEPLOYED } = {}) {
+  return `${SESSION_COOKIE}=${id}; HttpOnly; SameSite=Strict; Path=/${secure ? '; Secure' : ''}`;
 }
 
 // ── VÁLASZ-SEGÉDEK ───────────────────────────────────────────────────────────────────────────────
@@ -178,10 +320,37 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
  * Létrehozza a HTTP-szervert (még nem figyel). EGY tároló folyamatonként.
  * @param {{dbPath?:string, clock?:{now:()=>string}}} opts
  */
-export function createApp({ dbPath, clock = { now: nowIso }, devSurface = process.env.VS_APP_DEV !== '0' } = {}) {
-  const path = dbPath || resolveDbPath();
-  mkdirSync(dirname(path), { recursive: true });
-  const store = openStoreAt(path, { timeoutMs: 2000 });
+export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaultDevSurface() } = {}) {
+  // A TÁROLÓ VÁLASZTÁSA NEVEZETT (STG-01). A KIFEJEZETT `dbPath` továbbra is erősebb: a próbák
+  // és a selfcheck így változatlanul a saját, eldobható fájlukon futnak.
+  const target = dbPath ? { ok: true, kind: 'sqlite' } : resolveStoreTarget();
+  if (!target.ok) {
+    const err = new Error(`[v3app] a tároló nem állítható be: ${target.message}`);
+    err.code = target.reason;
+    throw err;
+  }
+  let store; let path;
+  if (target.kind === 'postgres') {
+    path = null;
+    store = openPgStore(String(process.env.DATABASE_URL).trim(), {
+      statementTimeoutMs: Number(process.env.VS_APP_DB_STATEMENT_TIMEOUT_MS || 15000),
+    });
+  } else {
+    path = dbPath || resolveDbPath();
+    mkdirSync(dirname(path), { recursive: true });
+    store = openStoreAt(path, { timeoutMs: 2000 });
+  }
+  const dialect = store.dialect === 'postgres' ? 'postgres' : 'sqlite';
+
+  // A KAPU AZ INDULÁSKOR DŐL EL, NEM KÉRÉSENKÉNT: telepített környezetben jelszó nélkül a
+  // szolgáltatás EL SEM INDUL (ACC-01).
+  const gate = accessGateConfig();
+  if (!gate.ok) {
+    try { store.close(); } catch { /* a tároló bontása nem fedheti el az indulási okot */ }
+    const err = new Error(`[v3app] a szolgáltatás nem indul el: ${gate.message}`);
+    err.code = gate.reason;
+    throw err;
+  }
   const sessions = new Map();        // id → { id, subject_id, current_book_id, created_at }
   const mailbox = [];                // a FEJLESZTŐI LEVÉL-FOGADÓ — memóriában, kifelé soha
 
@@ -221,7 +390,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
    * EZ NEM ÜZLETI MODUL: csak a bemutató szintetikus sorainak azonosítója, üzleti végrehajtás nélkül.
    */
   const DEMO_FIXTURES = ['bemutato-A', 'bemutato-B'];
-  store.run(`CREATE TABLE IF NOT EXISTS app_demo_fixture (
+  // PostgreSQL-en a táblát a MIGRÁCIÓ hozza létre, nem a futó alkalmazás: éles sémát nem
+  // módosít az alkalmazás indulása (R146 §5 — „Build alatt nincs DB-módosítás", és a séma a
+  // kiadás pre-deploy lépéséé). Az SQLite-úton a helyi, eldobható fájl kapja meg itt.
+  if (dialect !== 'postgres') store.run(`CREATE TABLE IF NOT EXISTS app_demo_fixture (
     book_id     TEXT PRIMARY KEY REFERENCES book(id),
     fixture     TEXT NOT NULL,
     created_by  TEXT NOT NULL,
@@ -1750,6 +1922,59 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
   // ── A KÉRÉS-CIKLUS ───────────────────────────────────────────────────────────────────────────
   async function handle(req, res) {
     const url = new URL(req.url, 'http://x');
+
+    // ── 1. ÉLETJEL ÉS KÉSZENLÉT — TITOKÉRTÉK NÉLKÜL, KAPU ELŐTT (HLT-01) ────────────────────────
+    //
+    // A kettő KÜLÖN kérdés, és ezt ki kell mondani (R146 §5):
+    //   `/health` — FUT-E A FOLYAMAT. Nem kérdezi az adatbázist: ha az adatbázis esne ki, a
+    //               folyamatot NEM kell újraindítani, mert az újraindítás nem gyógyítja meg.
+    //   `/ready`  — KISZOLGÁLHAT-E. Ez MÁR kérdezi a tárolót és a séma-verziót: egy lefuttatatlan
+    //               migráció mellett a példány FUT, de NEM kész — és a kettő összemosása pont az
+    //               a néma zöld, amit a KUKA-049 tilt.
+    //
+    // Egyik sem ad vissza titkot: nincs kapcsolati cím, nincs kulcs, nincs felhasználónév.
+    if (url.pathname === '/health') {
+      return sendJson(res, 200, { ok: true, service: 'v3app', version: PKG_VERSION, uptime_s: Math.round(process.uptime()) });
+    }
+    if (url.pathname === '/ready') {
+      try {
+        const applied = dialect === 'postgres'
+          ? store.all('SELECT version FROM schema_migration ORDER BY version').map((r) => r.version)
+          : null;
+        store.get('SELECT 1 AS ok');
+        return sendJson(res, 200, {
+          ok: true, store: dialect, schema_versions: applied,
+          schema_head: applied ? (applied[applied.length - 1] ?? null) : null,
+          dev_surface: devSurface,
+        });
+      } catch (e) {
+        // A KÉSZENLÉT HIÁNYÁNAK NEVE VAN. A 503 a telepítőnek szól: ne irányíts ide forgalmat.
+        return sendJson(res, 503, { ok: false, reason: 'store_not_ready', store: dialect,
+          message: String(e && e.message || e).slice(0, 200) });
+      }
+    }
+
+    // ── 2. HOZZÁFÉRÉS-KAPU A TELJES TÖBBI FELÜLETRE (ACC-01) ───────────────────────────────────
+    if (gate.enabled && !PUBLIC_PATHS.includes(url.pathname)) {
+      const raw = String(req.headers.authorization || '');
+      const m = /^Basic\s+(.+)$/i.exec(raw);
+      let allowed = false;
+      if (m) {
+        const [u, ...rest] = Buffer.from(m[1], 'base64').toString('utf8').split(':');
+        allowed = sameSecret(u, gate.user) && sameSecret(rest.join(':'), gate.pass);
+      }
+      if (!allowed) {
+        res.writeHead(401, {
+          // A FEJLÉC ÉRTÉKE CSAK ASCII LEHET. Az első alakom gondolatjelet (—) tett a realmbe, és a
+          // Node — helyesen — ERR_INVALID_CHAR-ral elutasította: a 401 helyett 500 ment volna ki,
+          // vagyis a VÉDELEM maga lett volna a hiba (KUKA-215: a választ MEG KELL MÉRNI).
+          'WWW-Authenticate': 'Basic realm="Valach System V3 staging", charset="UTF-8"',
+          'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store',
+        });
+        return res.end(JSON.stringify({ ok: false, reason: 'access_denied' }));
+      }
+    }
+
     const cookies = parseCookies(req.headers.cookie);
     let session = sessions.get(cookies.get(SESSION_COOKIE) || '');
     let setCookie = null;
@@ -1829,26 +2054,77 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = proces
 
   const server = http.createServer((req, res) => { handle(req, res); });
   server.on('close', () => { try { store.close(); } catch { /* már zárva */ } });
-  return { server, store, mailbox, sessions, dbPath: path, clock };
+  return { server, store, mailbox, sessions, dbPath: path, clock, devSurface, dialect };
 }
 
 /** Elindítja a szervert; `port: 0` ⇒ szabad port. */
-export function startServer({ port = Number(process.env.VS_APP_PORT || 3300), dbPath, clock, devSurface } = {}) {
+/**
+ * A FIGYELT CÍM — KÉT KÜLÖNBÖZŐ VILÁG, EGY NEVEZETT DÖNTÉS (NET-01).
+ *
+ * A LELET (R146 §2): a szerver `127.0.0.1`-en és `VS_APP_PORT`-on figyelt — *„nem a Railway
+ * PORT-ja"*. Egy konténerben a hurok-címen figyelő folyamathoz a telepítő SOHA nem tud
+ * hozzákötni: a szolgáltatás elindulna, a napló zöld lenne, a cím mégsem válaszolna.
+ *
+ * A SZABÁLY: a `PORT` a telepítőé (Railway ezt adja), a külső interfész (`0.0.0.0`) pedig a
+ * konténerben KÖTELEZŐ. Helyben marad a hurok-cím, mert egy fejlesztői gépen a próba-alkalmazást
+ * nem tesszük ki a helyi hálózatra.
+ */
+export function listenTarget(env = process.env) {
+  const deployed = DEPLOYED_ENVS.includes(String(env.VS_APP_ENV || '').trim().toLowerCase());
+  const port = Number(env.PORT || env.VS_APP_PORT || 3300);
+  const host = String(env.VS_APP_HOST || '').trim() || (deployed ? '0.0.0.0' : '127.0.0.1');
+  return { port, host, deployed };
+}
+
+export function startServer({ port, host, dbPath, clock, devSurface } = {}) {
+  const t = listenTarget();
   const app = createApp({ dbPath, clock, ...(devSurface === undefined ? {} : { devSurface }) });
   return new Promise((resolveStart, reject) => {
     app.server.once('error', reject);
-    app.server.listen(port, '127.0.0.1', () => {
+    app.server.listen(port === undefined ? t.port : port, host || t.host, () => {
       const actual = app.server.address().port;
-      resolveStart({ ...app, port: actual, close: () => new Promise((r) => app.server.close(() => r())) });
+      resolveStart({
+        ...app,
+        port: actual,
+        host: host || t.host,
+        close: () => new Promise((r) => app.server.close(() => r())),
+      });
     });
   });
+}
+
+/**
+ * SZABÁLYOS LEÁLLÁS (R146 §5). A telepítő SIGTERM-et küld újratelepítéskor; kezelés nélkül a
+ * folyamat azonnal meghal, és a FÉLBEN LÉVŐ kérés válasz nélkül szakad meg. Ez itt nem elméleti:
+ * a tároló-kapcsolatot is el kell engedni, különben a PostgreSQL-oldalon árva munkamenet marad.
+ */
+export function installGracefulShutdown(app, { log = console.log, exit = (c) => process.exit(c) } = {}) {
+  let closing = false;
+  const stop = async (signal) => {
+    if (closing) return;
+    closing = true;
+    log(`[v3app] ${signal} — szabályos leállás`);
+    const hard = setTimeout(() => { log('[v3app] a leállás nem fejeződött be időben — kilépés'); exit(1); }, 10000);
+    hard.unref?.();
+    try { await app.close(); } catch { /* a leállás hibája nem akaszthatja meg a kilépést */ }
+    clearTimeout(hard);
+    exit(0);
+  };
+  process.on('SIGTERM', () => { stop('SIGTERM'); });
+  process.on('SIGINT', () => { stop('SIGINT'); });
+  return stop;
 }
 
 // KÖZVETLEN INDÍTÁS: `node v3app/server.mjs` (npm run app:dev).
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   startServer().then((app) => {
-    console.log(`[v3app] fut: http://127.0.0.1:${app.port}/  · tároló: ${app.dbPath}`);
-    console.log(`[v3app] ${DEV_MAILBOX_LABEL}: http://127.0.0.1:${app.port}/dev/mailbox`);
-    console.log(`[v3app] ismert tervek: ${Object.keys(PLANS).join(' · ')} · joghatósági profilok: ${Object.keys(JURISDICTION_PROFILES).join(' · ')} · businessIdentityOf elérhető: ${typeof businessIdentityOf === 'function'}`);
+    installGracefulShutdown(app);
+    const gate = accessGateConfig();
+    // A NAPLÓ TÉNYT ÍR, NEM TITKOT: a tároló FAJTÁJA és a védelem TÉNYE látszik — a kapcsolati
+    // cím, a felhasználónév és a jelszó SOHA (ÁLLANDÓ: kulcs nem kerül naplóba).
+    const where = app.host === '0.0.0.0' ? `a konténer PORT-ján (${app.port})` : `http://${app.host}:${app.port}/`;
+    console.log(`[v3app] fut: ${where}  · tároló: ${app.store.dialect === 'postgres' ? 'PostgreSQL (tartós)' : `SQLite — ${app.dbPath}`}`);
+    console.log(`[v3app] környezet: ${process.env.VS_APP_ENV || '(helyi)'} · hozzáférés-védelem: ${gate.enabled ? 'BE' : 'KI'} · fejlesztői felület: ${app.devSurface ? 'BE' : 'KI'}`);
+    if (app.devSurface) console.log(`[v3app] ${DEV_MAILBOX_LABEL}: /dev/mailbox`);
   }).catch((e) => { console.error('[v3app] nem indult el:', e.message); process.exit(1); });
 }

@@ -72,9 +72,14 @@
     "verify:sweep-verdict": "node tools/vs_verify_sweep_verdict.mjs",
     "verify:tutor": "node tools/vs_verify_tutor.mjs --selftest",
     "verify:unit-admission": "node tools/vs_verify_unit_admission.mjs",
-    "verify:v3ref": "node v3ref/run.mjs && npm run --silent v3ref:mutate:units"
+    "verify:v3ref": "node v3ref/run.mjs && npm run --silent v3ref:mutate:units",
+    "db:migrate": "node tools/v3_db_migrate.mjs",
+    "proof:pg-parity": "node tools/v3_pg_parity_proof.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0"
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
   }
 }
