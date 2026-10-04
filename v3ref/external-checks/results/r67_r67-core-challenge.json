@@ -1,9 +1,9 @@
 {
   "program": "r67_chatgpt-v3.core.adapted.mjs",
   "variant": "adapted",
-  "source_commit": "529dd50ee6e2f44c9797b37c8b17e934b47abb8a",
+  "source_commit": "df23abd0ef61361233ad574bd09ac99a533bec3c",
   "node": "v22.22.0",
-  "at": "2026-10-02T18:31:17.257Z",
+  "at": "2026-10-04T11:21:19.061Z",
   "verbatim": true,
   "scope": "isolated reference functions and SQLite, no HTTP or production claim",
   "results": [
@@ -33,15 +33,16 @@
     },
     {
       "id": "F04-failed-intake-is-atomic",
-      "result": "PASS"
+      "result": "FAIL",
+      "message": "Missing expected exception."
     },
     {
       "id": "F05-caller-chosen-reference-is-not-a-rate-limit-identity",
       "result": "PASS"
     }
   ],
-  "passed": 8,
-  "failed": 0,
+  "passed": 7,
+  "failed": 1,
   "cases": [
     {
       "id": "C01-unauthorized-suspension-denied",
@@ -93,10 +94,11 @@
     },
     {
       "id": "F04-failed-intake-is-atomic",
-      "pass": true,
+      "pass": false,
       "result": {
         "id": "F04-failed-intake-is-atomic",
-        "result": "PASS"
+        "result": "FAIL",
+        "message": "Missing expected exception."
       }
     },
     {

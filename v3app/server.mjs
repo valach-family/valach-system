@@ -175,6 +175,56 @@ function sameSecret(a, b) {
   return timingSafeEqual(x, y);
 }
 
+// ── A PROXY-HATÁR ÉS A KÉRÉSKORLÁT (NET-02) ─────────────────────────────────────────────────────
+//
+// A PROXY-HATÁR AZ, AMIT A LEGKÖNNYEBB ELRONTANI. Railway-n a kérés egy fordított proxyn át
+// érkezik, tehát a kapcsolat távoli címe a PROXYÉ, nem a látogatóé — a valódi címet az
+// `X-Forwarded-For` hozza. Csakhogy ezt a fejlécet BÁRKI ráírhatja a kérésére: ha vakon hinnénk
+// neki, a kéréskorlátot egyetlen hamisított fejléccel meg lehetne kerülni (minden kérés „másik"
+// címről jönne), a korlát pedig NÉMÁN hatástalan volna — zöldnek látszó védelem (KUKA-051).
+//
+// EZÉRT A BIZALOM KIMONDOTT: a fejlécet CSAK akkor olvassuk, ha a környezet azt mondja, hogy
+// proxy mögött futunk (`VS_APP_TRUST_PROXY=1`, amit a telepítés állít be) — és akkor is a
+// LÁNC ELSŐ elemét vesszük. Proxy nélkül a kapcsolat címe az igazság.
+export function clientIpOf(req, env = process.env) {
+  const trust = String(env.VS_APP_TRUST_PROXY || '').trim() === '1';
+  if (trust) {
+    const xff = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    if (xff) return xff;
+  }
+  return req.socket?.remoteAddress || 'ismeretlen';
+}
+
+/** HTTPS-en érkezett-e — a proxy mögött ezt is a fejléc mondja meg, ugyanazzal a bizalommal. */
+export function isHttpsRequest(req, env = process.env) {
+  if (String(env.VS_APP_TRUST_PROXY || '').trim() === '1') {
+    return String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https';
+  }
+  return Boolean(req.socket?.encrypted);
+}
+
+/**
+ * KÉRÉSKORLÁT — csúszó ablak, memóriában.
+ *
+ * AMIT AD: egy példányon belül megfogja a találgatást (jelszó, meghívó-token) és a véletlen
+ * elárasztást. AMIT NEM — és ezt ki kell mondani: PÉLDÁNYONKÉNT számol. Két példány mellett a
+ * tényleges korlát a kétszerese, és egy újraindítás nullázza. Elosztott korlátot nem építünk
+ * (nincs Redis, és az R146 §7 kimondottan nem is engedélyez újat); a staging egy példányon fut,
+ * ott ez a korlát VALÓDI. Ha a production több példányra nő, ez a sor a kiadási lap függője lesz.
+ */
+export function makeRateLimiter({ windowMs = 60000, max = 240 } = {}) {
+  const hits = new Map();
+  return function take(key, now = Date.now()) {
+    const arr = (hits.get(key) || []).filter((t) => now - t < windowMs);
+    arr.push(now);
+    hits.set(key, arr);
+    // A TÉRIGÉNY IS KORLÁTOS: a lejárt kulcsok kitakarítása nélkül a térkép korlátlanul nőne —
+    // egy memória-szivárgás a védelem nevében (KUKA-120).
+    if (hits.size > 5000) for (const [k, v] of hits) if (!v.length || now - v[v.length - 1] > windowMs) hits.delete(k);
+    return { allowed: arr.length <= max, count: arr.length, max, retry_after_s: Math.ceil(windowMs / 1000) };
+  };
+}
+
 const hex = (bytes) => randomBytes(bytes).toString('hex');
 /**
  * A LISTA-SOR JELÖLŐJE — EGYIRÁNYÚ lenyomat, nem a titok rövidítése (R83/F83-04). A meghívó-token
@@ -344,6 +394,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
 
   // A KAPU AZ INDULÁSKOR DŐL EL, NEM KÉRÉSENKÉNT: telepített környezetben jelszó nélkül a
   // szolgáltatás EL SEM INDUL (ACC-01).
+  const rateLimit = makeRateLimiter({
+    windowMs: Number(process.env.VS_APP_RATE_WINDOW_MS || 60000),
+    max: Number(process.env.VS_APP_RATE_MAX || 240),
+  });
   const gate = accessGateConfig();
   if (!gate.ok) {
     try { store.close(); } catch { /* a tároló bontása nem fedheti el az indulási okot */ }
@@ -1954,6 +2008,17 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       }
     }
 
+    // ── 1/b. KÉRÉSKORLÁT (NET-02) — az ÉLETJEL UTÁN, a kapu ELŐTT ──────────────────────────────
+    // Az életjelet és a készenlétet NEM korlátozzuk: azokat a TELEPÍTŐ kérdezi, sűrűn, és egy
+    // kizárt életjel újraindítási hurkot okozna — a védelem okozná az üzemzavart (KUKA-092).
+    {
+      const verdict = rateLimit(clientIpOf(req));
+      if (!verdict.allowed) {
+        res.writeHead(429, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Retry-After': String(verdict.retry_after_s) });
+        return res.end(JSON.stringify({ ok: false, reason: 'rate_limited', retry_after_s: verdict.retry_after_s }));
+      }
+    }
+
     // ── 2. HOZZÁFÉRÉS-KAPU A TELJES TÖBBI FELÜLETRE (ACC-01) ───────────────────────────────────
     if (gate.enabled && !PUBLIC_PATHS.includes(url.pathname)) {
       const raw = String(req.headers.authorization || '');
@@ -1978,7 +2043,8 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     const cookies = parseCookies(req.headers.cookie);
     let session = sessions.get(cookies.get(SESSION_COOKIE) || '');
     let setCookie = null;
-    if (!session) { session = newSession(); setCookie = sessionCookie(session.id); }   // névtelen munkamenet is létezik
+    // A `Secure` jelölő a KÉRÉSBŐL is eldőlhet: proxy mögött a HTTPS tényét a fejléc hozza.
+    if (!session) { session = newSession(); setCookie = sessionCookie(session.id, { secure: IS_DEPLOYED || isHttpsRequest(req) }); }   // névtelen munkamenet is létezik
     const host = req.headers.host || 'localhost';
     const key = `${req.method} ${url.pathname}`;
 

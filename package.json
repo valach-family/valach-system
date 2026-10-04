@@ -5,7 +5,7 @@
   "description": "Valach System (VS) — canonical implementation repository. A verzió CÍMKE a git-történetben, nem a repó neve.",
   "type": "commonjs",
   "engines": {
-    "node": ">=22.5.0"
+    "node": ">=22.5.0 <23"
   },
   "scripts": {
     "app:dev": "node v3app/server.mjs",
@@ -78,7 +78,8 @@
     "proof:pg-concurrency": "node tools/v3_pg_concurrency_proof.mjs",
     "proof:pg-durability": "node tools/v3_pg_durability_proof.mjs",
     "verify:env-loading": "node tools/vs_verify_env_loading.mjs",
-    "verify:pg-schema-parity": "node tools/vs_verify_pg_schema_parity.mjs"
+    "verify:pg-schema-parity": "node tools/vs_verify_pg_schema_parity.mjs",
+    "start": "node v3app/server.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0"
