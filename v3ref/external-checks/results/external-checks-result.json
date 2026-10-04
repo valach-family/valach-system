@@ -1,5 +1,5 @@
 {
-  "at": "2026-10-04T13:22:14.878Z",
+  "at": "2026-10-04T13:27:52.441Z",
   "node": "v22.22.0",
   "source": {
     "commit": "bbece262eeec11b7e8de6d9699fa2e605e5d4578+uncommitted",
@@ -16,7 +16,7 @@
     "complete": false,
     "scope": "partial",
     "ran": [
-      "r83core"
+      "r81core"
     ],
     "skipped": [
       "r16core",
@@ -28,7 +28,7 @@
       "r69",
       "r67",
       "r61",
-      "r81core",
+      "r83core",
       "r79core",
       "r79",
       "r59a",
@@ -49,50 +49,90 @@
   },
   "programs": [
     {
-      "id": "r83core",
-      "file": "r83_chatgpt-v3.mjs",
+      "id": "r81core",
+      "file": "r81_chatgpt-v3.mjs",
       "by": "chatgpt-v3 — KÜLSŐ, független fél",
-      "origin": "R83 (KÉT próba: a `r83_merge_chatgpt-v3.core.mjs` és a `r83_runner_chatgpt-v3.core.mjs` az ő szövegük — a program TESTE karakterre azonos, a ZÁRÓ SORTÖRÉS eltérhet, mert a markdown-kódblokkból nyertük ki; „bájtazonost\" ezért nem állítunk, az R83 §6 helyesbítése után). TESZTADAPTÁCIÓ NEM TÖRTÉNT. A két futás külön nevezve: a JAVÍTÁS ELŐTTI forráson (594f49f) ÖSSZEFŰZÉS 1 PASS / 3 FAIL és FUTTATÓ 2 PASS / 1 FAIL — pontosan az általuk közölt reprodukció —, a mai forráson ÖSSZEFŰZÉS 4/0 és FUTTATÓ 3/0.",
-      "program_digest": "a5aedac8fa7c568337c27a839a1dd725044d30ff166bb08a937bef7b198e4b5e",
+      "origin": "R81 (KÉT mag-próba: a `r81_chatgpt-v3.core.mjs` és a `r81_merge_chatgpt-v3.core.mjs` az ő szövegük — a program TESTE karakterre azonos, a ZÁRÓ SORTÖRÉS eltér az ő saját példányuktól, ahogy ők az R83 §6-ban megmérték). TESZTADAPTÁCIÓ NEM TÖRTÉNT A TÖRTÉNETI FORRÁSON, ami `VS_EXT_CORE_VARIANT=historic` alatt ma is fut. AZ AKTÍV VÁLTOZAT (`r81_chatgpt-v3.core.adapted.mjs`) KÉT, KÜLÖN ENGEDÉLYEZETT ponton tér el — a korábbi feltétlen „TESZTADAPTÁCIÓ NEM TÖRTÉNT\" mondat ezért pontosítva (KUKA-050): (1) R35 — a mennyiség-literálok kanonikus decimális szövegen (MNY-01); (2) R51 — a tesztVILÁG kimondott készlet- ÉS ár-olvasási jogot kap a rendszer saját íróján, rögzített alappal (`explicitReadFixture`). Eset, elvárás, óra és negatív ág nem változott. A futások külön nevezve: a JAVÍTÁS ELŐTTI forráson (eb4d83b) MAG 6 PASS / 1 FAIL és ÖSSZEFŰZÉS 4 PASS / 4 FAIL — pontosan az általuk közölt reprodukció —, az R50-es forráson MAG 5/2 (a `P01-pure-lines` és az `F04-release-time-before` a HIÁNYZÓ adatköri jog miatt — VALÓDI piros, amit nem nevezünk visszamenőleg zöldnek), az R51-es teszt-előfeltétellel MAG 7/0 és ÖSSZEFŰZÉS 8/0.",
+      "program_digest": "ddda87af7e42818bbdbeda0af93c2c00f06c58b00b760dc333fc480f037dcd1a",
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 322050,
+      "ms": 337293,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
+        {
+          "id": "core/P01-pure-lines",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "core/P02-second-line-price",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "core/P03-deep-unknown",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "core/P04-nonfinite",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "core/F04-release-time-before",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "core/F04-release-time-after",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "core/F04-release-time-cross",
+          "kind": "ok",
+          "why": null
+        },
         {
           "id": "merge/P01-genuine",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "merge/F01-missing-probe-status",
+          "id": "merge/P02-missing-unit",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "merge/F01-unknown-probe-status",
+          "id": "merge/P03-foreign-digest",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "merge/F02-remove-required-row",
+          "id": "merge/P04-duplicate-unit",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "runner/all-green",
+          "id": "merge/F01-empty-results",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "runner/original-real-failure",
+          "id": "merge/F01-contradictory-verdict",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "runner/original-and-sub-failure",
+          "id": "merge/F02-empty-required",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "merge/F03-wrong-contract",
           "kind": "ok",
           "why": null
         }
@@ -100,27 +140,43 @@
       "failure_witness_limit": null,
       "failure_witness_basis": null,
       "expected_cases": [
+        "core/P01-pure-lines",
+        "core/P02-second-line-price",
+        "core/P03-deep-unknown",
+        "core/P04-nonfinite",
+        "core/F04-release-time-before",
+        "core/F04-release-time-after",
+        "core/F04-release-time-cross",
         "merge/P01-genuine",
-        "merge/F01-missing-probe-status",
-        "merge/F01-unknown-probe-status",
-        "merge/F02-remove-required-row",
-        "runner/all-green",
-        "runner/original-real-failure",
-        "runner/original-and-sub-failure"
+        "merge/P02-missing-unit",
+        "merge/P03-foreign-digest",
+        "merge/P04-duplicate-unit",
+        "merge/F01-empty-results",
+        "merge/F01-contradictory-verdict",
+        "merge/F02-empty-required",
+        "merge/F03-wrong-contract"
       ],
-      "expected_from": "a külső fél R83-as lapja (a két program `plans`/`mode` listája, ahogy megérkezett; a `merge/` és `runner/` előtagot a burkoló teszi rá, mert KÉT próba ad EGY eset-listát)",
-      "evidence_file": "r83-core-challenge.json",
+      "expected_from": "a külső fél R81-es lapja (a két program `cases`/`plans` listája, ahogy megérkezett; a `core/` és `merge/` előtagot a burkoló teszi rá, mert KÉT próba ad EGY eset-listát)",
+      "evidence_file": "r81-core-challenge.json",
       "evidence_present": true,
       "evidence_pin": "bbece262eeec11b7e8de6d9699fa2e605e5d4578+uncommitted",
-      "total": 7,
+      "total": 15,
       "present": [
+        "core/P01-pure-lines",
+        "core/P02-second-line-price",
+        "core/P03-deep-unknown",
+        "core/P04-nonfinite",
+        "core/F04-release-time-before",
+        "core/F04-release-time-after",
+        "core/F04-release-time-cross",
         "merge/P01-genuine",
-        "merge/F01-missing-probe-status",
-        "merge/F01-unknown-probe-status",
-        "merge/F02-remove-required-row",
-        "runner/all-green",
-        "runner/original-real-failure",
-        "runner/original-and-sub-failure"
+        "merge/P02-missing-unit",
+        "merge/P03-foreign-digest",
+        "merge/P04-duplicate-unit",
+        "merge/F01-empty-results",
+        "merge/F01-contradictory-verdict",
+        "merge/F02-empty-required",
+        "merge/F03-wrong-contract"
       ],
       "missing": [],
       "unknown": [],
@@ -128,8 +184,11 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/home/user/valach-system/v3ref/external-checks/results/r83core_r83-core-challenge.json",
-      "stderr": [],
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r81core_r81-core-challenge.json",
+      "stderr": [
+        "(node:20264) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(Use `node --trace-warnings ...` to show where the warning was created)"
+      ],
       "error": null,
       "child_trace": null
     }

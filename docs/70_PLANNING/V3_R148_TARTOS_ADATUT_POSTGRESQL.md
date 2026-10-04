@@ -88,7 +88,7 @@ trigger-függvény született), és **nem** pótolok PostgreSQL-képességet sz�
 | migrációs futtató | `tools/v3_db_migrate.mjs` | számozott · sha256 · ismételhető · `pg_advisory_lock` |
 | kiadás | `railway.json` · `.nvmrc` · `.env.example` | pre-deploy migráció, rögzített futtató, változó-NEVEK |
 
-**Új gépi jelek:** `verify:pg-schema-parity` · `verify:env-loading`
+**Új gépi jelek:** `verify:pg-schema-parity` · `verify:env-loading` · `verify:mutation-anchors`
 **Új élő bizonyítók:** `proof:pg-parity` · `proof:pg-concurrency` · `proof:pg-durability`
 
 ---
@@ -122,6 +122,44 @@ törzsben álló `INSERT` ráadásul migráció-kori adatváltozásnak látszott
 `CREATE TRIGGER` (szorító) alakra. A migráció most **kimondott `-- BESOROLÁS: restrictive` fejlécet**
 visel, azzal az indokkal, hogy a szorító alakok kizárólag UGYANEBBEN a migrációban született
 táblákra vonatkoznak — nincs múltbeli adat és nincs régi író. `verify:release-order`: **37/37 PASS**.
+
+---
+
+## 4/b. A NEGYEDIK LELET — amit a hordozható SQL NÉMÁN magával rántott
+
+A (4/2) átírás (`INSERT OR IGNORE` → `ON CONFLICT`) **két további dolgot vitt magával**, és egyik
+sem a terméken jelentkezett. Mindkettő ugyanabból az egy okból: **ami a MEGVALÓSÍTÁS SZÖVEGÉHEZ
+köti magát, az tárolóváltáskor lecsúszik.**
+
+**(a) Két mutációs horgony (M59 · M203).** A mutációs battéria a mag FORRÁSSZÖVEGÉT írja át: minden
+bejegyzés egy `from` (a mai szöveg) és egy `to` (az elrontott szöveg) párt hordoz. Ha a `from`
+szöveg megváltozik, **a mutáció nem keletkezik** — és ez néma: nem hiba, csak *kevesebb* mutáció
+fut, a hozzá tartozó próba pedig „NEM FALSZIFIKÁLT" lesz. **Elveszítünk egy őrt anélkül, hogy
+bárki észrevenné.** A tünet három réteggel távolabb jelent meg: a külső fél `r83core` programja
+bukott el *„a 17/36 egység NEM nullával zárt — a bukás oka: content"* üzenettel.
+
+**(b) A beadott tanú befecskendezési pontja (r67/F04).** A külső fél programja a tároló-hibát a
+mondat SZÖVEGÉRE illesztve fecskendezi be (`sql.includes('INSERT OR IGNORE INTO claim')`). A termék
+viselkedése **nem változott** — a horog nem talált többé, tehát a próba nem a terméken bukott el.
+A **történeti tanú bájtazonos maradt** (KUKA-121 · 122); az adaptált nemzedék (`adapted-v4`)
+hatóköre **egyetlen karakterlánc**, és ezt a `case-manifest` és az `activeCoreProgram` ki is mondja.
+
+**ÚJ GÉPI JEL — `verify:mutation-anchors` (MUT-02).** Mind a **231** horgonyt méri: megtalálható-e a
+megnevezett forrásban, és **pontosan egyszer** szerepel-e. Ellenpróbával igazolva: egy elcsúsztatott
+horgonyra PIROS, és kiírja a nevét **meg az őrizetlenül maradt próba nevét is**. Órákkal és három
+rétegen át derült ki, amit ez az egy illesztés-ellenőrzés azonnal megmondott volna.
+
+### És egy HELYESBÍTÉS a saját attribúciómon
+
+Az első jelentés-alakomban az `r81core` eltérést *„örökölt / környezeti"*-nek minősítettem, mert a
+BÁZISON futtatva 600 másodperc után időtúllépéssel állt meg, részletes eredmény nélkül. **Ez a
+következtetés hibás volt**, és a hiba fajtája nevesíthető: egy **elakadt mérésből** olvastam ki azt,
+hogy „nem a miénk". Az elakadt mérés definíció szerint SEMMIT nem állít — sem azt, hogy jó, sem
+azt, hogy a hiba máshonnan jön (D-VS-693). A horgony-javítás után, HEAD-en, egyedül futtatva:
+**`r81core` 15/15 zöld**. Mind a három eltérés UGYANANNAK az egy oknak a következménye volt.
+
+> **A saját attribúcióm is MÉRÉS, nem besorolás (KUKA-033).** Ha a viszonyítási pont maga elakadt,
+> akkor nincs viszonyítási pont — újra kell mérni, nem értelmezni.
 
 ---
 
