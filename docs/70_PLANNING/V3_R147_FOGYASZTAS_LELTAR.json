@@ -1,0 +1,170 @@
+{
+ "tool": "FGY-01/3",
+ "tool_commit": "ea113c926478dfc43ff7ebc065aa4b8d0ac2443b",
+ "tool_file": "./tools/v3_fogyasztas_meres.mjs",
+ "tool_file_sha256": "b3d09180a58477060c45983733472a5050fb8dd22bf1ef8ad2da6a7a3996a2fc",
+ "tool_dirty": false,
+ "generated_at": "2026-10-04T10:37:34.575Z",
+ "session": "33dbd005-d110-5a1d-9f36-0bc5773d2e23",
+ "snapshot_closed_at": "2026-10-04T10:37:34.575Z",
+ "runtime_versions": [
+  "2.1.287",
+  "2.1.288",
+  "2.1.289"
+ ],
+ "window": {
+  "label": "R147 átadás",
+  "from": "2026-10-04T00:00:00Z",
+  "to": null,
+  "to_effective": "2026-10-04T10:37:34.575Z"
+ },
+ "coverage": {
+  "files": 1,
+  "unreadable": [],
+  "unparsable_lines": 0,
+  "assistant_without_usage": 0,
+  "invalid_timestamp_calls": 0,
+  "cross_file_duplicate_ids": 0,
+  "incomplete_usage_calls": 0,
+  "synthetic_records": 0,
+  "calls_total": 440,
+  "calls_in_window": 38,
+  "complete": true,
+  "note": "teljes: minden megtalált átirat beolvasva, minden modell-válasz usage-dzsal, azonos azonosító csak egy fájlban"
+ },
+ "whole_session": {
+  "calls": 440,
+  "synthetic_records": 0,
+  "incomplete_usage_calls": 0,
+  "totals_kind": "teljes",
+  "first_call": "2026-10-02T15:54:01.738Z",
+  "last_call": "2026-10-04T10:37:33.193Z",
+  "totals": {
+   "input": 880,
+   "cache_write": 1959394,
+   "cache_read": 175604095,
+   "output": 431894
+  },
+  "by_kind": {
+   "main": {
+    "calls": 440,
+    "input": 880,
+    "cache_write": 1959394,
+    "cache_read": 175604095,
+    "output": 431894
+   }
+  },
+  "by_model": {
+   "claude-opus-5": {
+    "calls": 440,
+    "input": 880,
+    "cache_write": 1959394,
+    "cache_read": 175604095,
+    "output": 431894
+   }
+  },
+  "main_context": {
+   "median": 366055.5,
+   "max": 782016,
+   "calls_over_400k": 209
+  },
+  "main_wakeups": {
+   "user": {
+    "wakeups": 5,
+    "calls": 380,
+    "input_with_cache": 167175706
+   },
+   "compaction": {
+    "wakeups": 1,
+    "calls": 60,
+    "input_with_cache": 10388663
+   }
+  },
+  "agent_input_total": 0,
+  "agent_count": 0,
+  "thresholds": {
+   "main_context_median": {
+    "warn_limit": 300000,
+    "switch_limit": 400000,
+    "value": 366055.5,
+    "band": "figyelmeztetes",
+    "exceeded": false
+   },
+   "agent_input_per_package": {
+    "limit": 40000000,
+    "value": 0,
+    "exceeded": false
+   }
+  }
+ },
+ "window_summary": {
+  "calls": 38,
+  "synthetic_records": 0,
+  "incomplete_usage_calls": 0,
+  "totals_kind": "teljes",
+  "first_call": "2026-10-04T09:44:46.526Z",
+  "last_call": "2026-10-04T10:37:33.193Z",
+  "totals": {
+   "input": 76,
+   "cache_write": 462082,
+   "cache_read": 8699867,
+   "output": 20367
+  },
+  "by_kind": {
+   "main": {
+    "calls": 38,
+    "input": 76,
+    "cache_write": 462082,
+    "cache_read": 8699867,
+    "output": 20367
+   }
+  },
+  "by_model": {
+   "claude-opus-5": {
+    "calls": 38,
+    "input": 76,
+    "cache_write": 462082,
+    "cache_read": 8699867,
+    "output": 20367
+   }
+  },
+  "main_context": {
+   "median": 241377.5,
+   "max": 268828,
+   "calls_over_400k": 0
+  },
+  "main_wakeups": {
+   "user": {
+    "wakeups": 3,
+    "calls": 38,
+    "input_with_cache": 9162025
+   }
+  },
+  "agent_input_total": 0,
+  "agent_count": 0,
+  "thresholds": {
+   "main_context_median": {
+    "warn_limit": 300000,
+    "switch_limit": 400000,
+    "value": 241377.5,
+    "band": "normal",
+    "exceeded": false
+   },
+   "agent_input_per_package": {
+    "limit": 40000000,
+    "value": 0,
+    "exceeded": false
+   }
+  }
+ },
+ "thresholds_decidable": true,
+ "input_manifest": [
+  {
+   "path": "~/.claude/projects/-home-user/33dbd005-d110-5a1d-9f36-0bc5773d2e23.jsonl",
+   "bytes": 7880529,
+   "sha256": "c3c363e0a3892380a5816093cc14eb1dce4d6f887dc288381e84e1b04eb12693",
+   "kind": "main"
+  }
+ ],
+ "reproduce": "node tools/v3_fogyasztas_meres.mjs --session 33dbd005-d110-5a1d-9f36-0bc5773d2e23 --from 2026-10-04T00:00:00Z --to 2026-10-04T10:37:34.575Z --label \"R147 átadás\" --projects ~/.claude/projects"
+}
