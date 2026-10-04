@@ -1,8 +1,8 @@
 {
   "program": "r83_merge_chatgpt-v3.core.mjs + r83_runner_chatgpt-v3.core.mjs",
-  "source_commit": "529dd50ee6e2f44c9797b37c8b17e934b47abb8a",
+  "source_commit": "bbece262eeec11b7e8de6d9699fa2e605e5d4578+uncommitted",
   "node": "v22.22.0",
-  "at": "2026-10-02T18:38:00.541Z",
+  "at": "2026-10-04T13:22:14.866Z",
   "verbatim": true,
   "genuine_units": {
     "requested": 36,

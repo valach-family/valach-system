@@ -615,7 +615,11 @@ export const MUTATIONS = [
     what: 'REV-N3b — A BEADVÁNYTARTALOM ELVESZTÉSE: csak a lenyomat marad, az elbírálónak nincs mit '
       + 'elolvasnia (sha256-ból a panasz szövege nem áll vissza) — az R67/F03 alakja',
     file: 'adjudication.mjs',
-    from: "    store.run('INSERT OR IGNORE INTO claim_content (claim_id, content) VALUES (?,?)',\n      id, String(statement == null ? '' : statement));",
+    // ÚJRA-HORGONYOZVA (R148 · R146 §4): a mutáció a FORRÁS SZÖVEGÉRE illeszt, a mondat pedig a
+    // hordozható `ON CONFLICT` alakra került. Az illeszkedés nélkül a mutáció NEM KELETKEZIK,
+    // tehát a próba „NEM FALSZIFIKÁLT" lesz — a mutációs battéria némán elveszít egy őrt
+    // (KUKA-051: a védelem SZABÁLY legyen). A mutáció JELENTÉSE változatlan: elhagyja ezt az írást.
+    from: "    store.run('INSERT INTO claim_content (claim_id, content) VALUES (?,?) ON CONFLICT DO NOTHING',\n      id, String(statement == null ? '' : statement));",
     to: "    // a tartalom eldobva — csak a lenyomat marad" },
 
   { id: 'M60', rule: 'K05/K15', catcher: 'P-REV-claim-read', expect: 'probe_fail',
@@ -2315,7 +2319,11 @@ export const MUTATIONS = [
   { id: 'M203', rule: 'K03', catcher: 'P-CORE-startup-and-delegation', expect: 'probe_fail',
     what: 'ACC-01 / R63 — A KIHÍVÁS BEVÁLTÁSA NEM BIZONYÍTJA A CSATORNÁT: a beváltás a kihívást elfogyasztja, de a `channel_proof` sort nem írja. Ettől a címzett SOHA nem lesz „bizonyított", tehát a meghívó megfigyelése és beváltása örökre `needs_invitee_identity` — a K03 lánca halott, és a kudarc néma, mert a beváltó „siker"-t mond (KUKA-012 · KUKA-025)',
     file: 'account.mjs',
-    from: '    store.run(\n      \'INSERT OR IGNORE INTO channel_proof (subject_id, namespace, value_norm, proven_at) VALUES (?,?,?,?)\',\n      row.subject_id, row.namespace, row.value_norm, at);',
+    // ÚJRA-HORGONYOZVA (R148 · R146 §4): a mutáció a FORRÁS SZÖVEGÉRE illeszt, a mondat pedig a
+    // hordozható `ON CONFLICT` alakra került. Az illeszkedés nélkül a mutáció NEM KELETKEZIK,
+    // tehát a próba „NEM FALSZIFIKÁLT" lesz — a mutációs battéria némán elveszít egy őrt
+    // (KUKA-051: a védelem SZABÁLY legyen). A mutáció JELENTÉSE változatlan: elhagyja ezt az írást.
+    from: '    store.run(\n      \'INSERT INTO channel_proof (subject_id, namespace, value_norm, proven_at) VALUES (?,?,?,?) ON CONFLICT DO NOTHING\',\n      row.subject_id, row.namespace, row.value_norm, at);',
     to: '    // (a mutáció nem írja a csatorna-bizonyítékot)' },
 
   { id: 'M204', rule: 'K05', catcher: 'P-CORE-startup-and-delegation', expect: 'probe_fail',

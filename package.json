@@ -79,7 +79,8 @@
     "proof:pg-durability": "node tools/v3_pg_durability_proof.mjs",
     "verify:env-loading": "node tools/vs_verify_env_loading.mjs",
     "verify:pg-schema-parity": "node tools/vs_verify_pg_schema_parity.mjs",
-    "start": "node v3app/server.mjs"
+    "start": "node v3app/server.mjs",
+    "verify:mutation-anchors": "node tools/vs_verify_mutation_anchors.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0"

@@ -1,3 +1,30 @@
+// ADAPTÁCIÓ R148 (verzió: adapted-v4 · forrás: CMD-VS-300-002-002 R146 §4,
+// `v3ref/source-documents/R146_board_v1.md`) — EGYETLEN KARAKTERLÁNC, A BEFECSKENDEZÉSI PONT.
+//
+// MI VÁLTOZOTT: az F04 eset a tároló-hibát a MONDAT SZÖVEGÉRE illesztve fecskendezi be
+// (`sql.includes('INSERT OR IGNORE INTO claim')`). A PostgreSQL-átvezetés során ez a mondat a
+// hordozható alakra került (`INSERT INTO claim … ON CONFLICT DO NOTHING`), mert az
+// `INSERT OR IGNORE` az SQLite SAJÁT bővítése, és PostgreSQL-en SZINTAKTIKAI HIBA. A befecskendezés
+// ezért NEM TALÁLT TÖBBÉ: a próba nem a terméken bukott el, hanem azon, hogy a horga lecsúszott.
+// Az illesztés mostantól `'INSERT INTO claim'` — UGYANARRA a mondatra, UGYANAZON a ponton.
+//
+// AMIT EZ NEM JELENT, kimondva: a termék viselkedése NEM változott, és az eset állítása sem. Az
+// F04 továbbra is azt méri, hogy egy MEGHIÚSULT beadvány nem hagy maga után könyvelt sort
+// (`claim_intake` = 0) — és ezt ma is teljesíti. Ha a befecskendezést NEM igazítottuk volna ki, a
+// piros azt állította volna, hogy az atomicitás elromlott, holott a mérés nem is futott le:
+// a hazug piros ugyanolyan rossz, mint a hazug zöld (KUKA-049 · KUKA-093 · KUKA-127).
+//
+// MIÉRT SZABAD EZT MEGTENNI, ÉS MI AZ, AMIT NEM TETTÜNK: a beadott program TANÚ, a szövegét nem
+// írjuk át (KUKA-121 · 122) — ezért a TÖRTÉNETI fájl (`r67_chatgpt-v3.core.mjs`) BÁJTAZONOS marad,
+// és `VS_EXT_CORE_VARIANT=historic` alatt változatlanul futtatható. Ez itt az ADAPTÁLT nemzedék, a
+// repó saját, erre való mechanizmusa; az adaptáció HATÓKÖRE egyetlen karakterlánc, és az eset
+// azonosítója, elvárása, órája és kilépési szerződése karakterre változatlan.
+//
+// TANULSÁG, ami túlmutat ezen a fájlon: egy próba, ami a VÉGREHAJTOTT SQL SZÖVEGÉRE illeszt, a
+// megvalósítás szövegéhez köti magát — tárolóváltáskor NÉMÁN lecsúszik. A történeti tanút nem
+// írjuk át emiatt, de az ÚJ próbáink a VISELKEDÉSRE mérjenek, ne a mondat betűire (KUKA-237).
+//
+// ───────────────────────────────────────────────────────────────────────────────────────────────
 // ADAPTÁCIÓ R63 (verzió: adapted-v3 · forrás: CMD-VS-300-002-002 R63 §4, `v3ref/source-documents/R63_board_v1.md`):
 // a próba-világ bírálói hatásköre (`judge` → suspend · adjudicate) a VÉDETT RENDSZERÜZEMELTETŐI
 // KIINDULÓ SZABÁLY alatt születik — `grantAdjudicationAuthority(…)` helyett
@@ -37,6 +64,6 @@ test('C03-claim-does-not-grant-membership',(store,clock)=>{claim(store,clock);as
 test('F01-successful-suspension-removes-current-access',(store,clock)=>{const args={store,clock,subjectId:'member',bookId:'book',opClass:'own_book'};assert.equal(rightAt(args).allowed,true);assert.equal(suspendMembership({...args,actorSubjectId:'judge'}).suspended,true);assert.equal(rightAt(args).allowed,false,'suspended:true but rightAt.allowed remains true');});
 test('F02-adjudication-denial-neutrality',(store,clock)=>{const id=claim(store,clock),args={store,clock,actorSubjectId:'outsider',decision:'review'};assert.deepEqual(adjudicateClaim({...args,claimId:id}),adjudicateClaim({...args,claimId:'missing'}));});
 test('F03-authorized-reviewer-can-retrieve-submitted-content',(store,clock)=>{const id=claim(store,clock),r=readClaim({store,clock,viewerSubjectId:'judge',claimId:id});assert.equal(r.ok,true);assert.equal(r.claim.statement,'Please investigate synthetic statement 42.','No statement or resolvable content reference is stored or returned; digest alone is not content');});
-test('F04-failed-intake-is-atomic',(store,clock)=>{const wrapper={...store,run(sql,...args){if(sql.includes('INSERT OR IGNORE INTO claim'))throw Error('injected storage failure');return store.run(sql,...args);}};assert.throws(()=>claim(wrapper,clock),/injected/);assert.equal(store.get('SELECT COUNT(*) AS n FROM claim_intake').n,0,'failed submission left intake/quota write committed');});
+test('F04-failed-intake-is-atomic',(store,clock)=>{const wrapper={...store,run(sql,...args){if(sql.includes('INSERT INTO claim'))throw Error('injected storage failure');return store.run(sql,...args);}};assert.throws(()=>claim(wrapper,clock),/injected/);assert.equal(store.get('SELECT COUNT(*) AS n FROM claim_intake').n,0,'failed submission left intake/quota write committed');});
 test('F05-caller-chosen-reference-is-not-a-rate-limit-identity',(store,clock)=>{const accepted=[];for(let i=0;i<4;i++)accepted.push(submitClaim({store,clock,claimantRef:'arbitrary-'+i,bookId:'book',statement:'same caller'}).accepted);assert.equal(accepted.filter(Boolean).length<=3,true,'four submissions accepted by changing an unverified caller-controlled reference');});
 console.log(JSON.stringify({scope:'isolated reference functions and SQLite, no HTTP or production claim',results,passed:results.filter(x=>x.result==='PASS').length,failed:results.filter(x=>x.result==='FAIL').length},null,2));process.exitCode=results.some(x=>x.result==='FAIL')?1:0;

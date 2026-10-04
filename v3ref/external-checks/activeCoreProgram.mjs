@@ -48,6 +48,21 @@ export const CORE_VARIANTS = Object.freeze({
           + 'R63-fejléccel, hogy a feloldó egy úton járjon minden burkolónál',
         programs: Object.freeze(['r67_chatgpt-v3', 'r69_chatgpt-v3', 'r75_chatgpt-v3', 'r77_chatgpt-v3',
           'r79_chatgpt-v3', 'r85_chatgpt-v3', 'r88_chatgpt-v3']) }),
+      // ADAPTED-V4 (R148 · R146 §4) — A BEFECSKENDEZÉSI PONT KARAKTERLÁNCA, EGYETLEN PROGRAMON.
+      //
+      // Az R67 F04 esete a tároló-hibát a VÉGREHAJTOTT MONDAT SZÖVEGÉRE illesztve fecskendezi be.
+      // A PostgreSQL-átvezetéskor a mondat a hordozható alakra került (`INSERT OR IGNORE INTO
+      // claim` → `INSERT INTO claim … ON CONFLICT DO NOTHING`), mert az `INSERT OR IGNORE` az
+      // SQLite saját bővítése, PostgreSQL-en pedig szintaktikai hiba. A horog ezért lecsúszott: a
+      // próba NEM a terméken bukott el, hanem azon, hogy a befecskendezés nem talált. A termék
+      // viselkedése és az eset állítása változatlan — az F04 ma is azt méri, hogy a meghiúsult
+      // beadvány nem hagy könyvelt sort.
+      Object.freeze({ version: 'adapted-v4', round: 'R148', source: 'v3ref/source-documents/R146_board_v1.md',
+        what: 'az F04 befecskendezési pontja a mondat hordozható alakjára illeszt '
+          + "('INSERT INTO claim'), mert a tároló-mondat az SQLite-bővítésről a MINDKÉT motoron "
+          + 'futó ON CONFLICT alakra került; eset-azonosító, elvárás, óra és kilépési szerződés '
+          + 'karakterre változatlan',
+        programs: Object.freeze(['r67_chatgpt-v3']) }),
     ]),
   }),
   historic: Object.freeze({
