@@ -1,8 +1,8 @@
 {
   "program": "restated.mjs",
-  "source_commit": "781bb22e11586f8b86260b0a63d1fa2715b88ad4",
+  "source_commit": "a1816310ffdf403c7d48202b2f9588ad4184ce53",
   "node": "v22.22.0",
-  "at": "2026-10-06T11:27:28.309Z",
+  "at": "2026-10-06T21:31:52.204Z",
   "cases": [
     {
       "id": "C11-restated",
@@ -122,7 +122,7 @@
           "target_assertion": false
         }
       ],
-      "final_credit_line": "FEDVE  REV-N1b → A-REV-N1b-earlier-record-and-decision-survive @ P-CMD-finalize-gate · falszifikálta: M47"
+      "final_credit_line": "FEDVE  REV-N1b → A-REV-N1b-earlier-record-and-decision-survive @ P-CMD-finalize-gate · falszifikálta: M48"
     },
     {
       "id": "D01-restated",

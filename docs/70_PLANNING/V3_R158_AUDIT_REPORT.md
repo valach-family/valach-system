@@ -15,7 +15,7 @@
 | | |
 |---|---|
 | **végső commit (fej)** | `b80d00ce31b4ff0ff6eb9e0b0453ddb58998d1e0` |
-| **a fej ideje (UTC)** | 2026-10-06 20:2x — a csomag utolsó feltolása |
+| **a fej ideje (UTC)** | lásd a 11. pontot — a záró kapu szakasza nevezi meg a VÉGSŐ commitot és az idejét |
 | **a csomag commitjai** | 5 (`392bcd2` · `2f91609` · `c37d905` · `70bbad4` · `b80d00c`) |
 | **a PR commitjai összesen** | 32 (az R154 kör 27 + az R158 kör 5) |
 | **a kiinduló alap** | `3adc8e0` leszármazottja — az R158 kikötése szerint; `main`-re NEM tértünk vissza |
@@ -162,8 +162,9 @@ A `Claude Approvals` ellenőrzés ebben a repóban nem fut.
 Az R158 kimondta: *„Az üzleti írás és a hiányzó üzleti lapok külön megvalósítási rések: sorold fel őket
 pontosan, de ez a parancs NEM indítja el a hiányzó ERP-funkciók megépítését."* Ezt tartottam.
 
-**(a) ÜZLETI ÍRÁS: NINCS.** A kiszolgáló **16** író végpontot ad, és MIND a személyhez, tagsághoz,
-jogosultsághoz, előfizetéshez vagy munkamenethez tartozik:
+**(a) ÜZLETI ÍRÁS: NINCS.** A kiszolgáló **16** író módszerű (`POST`) végpontot ad. Ebből **15** a
+személyhez, tagsághoz, jogosultsághoz, előfizetéshez vagy munkamenethez tartozik, a tizenhatodik
+(`/api/assistant/ask`) pedig a segédnek feltett kérdés — üzleti adatot az sem ír:
 
 ```
 /api/register · /api/verification/resend · /api/login · /api/logout · /api/session/workspace
@@ -176,25 +177,39 @@ jogosultsághoz, előfizetéshez vagy munkamenethez tartozik:
 lehet.** A készlet- és ár-nézetek olvasók; a tudás-regiszter szerint az üzleti lapok közül egyiknek sincs
 író végpontja.
 
-**(b) A LAPOK HIÁNYAI, mérve a mai forráson** (17 lap; a hiány három fajtája: nincs deklarált funkció ·
-nincs hozzá kötött GYIK · nincs rá végigvezetés):
+**(b) A LAPOK HIÁNYAI — A GÉPI LEFEDÉS-ŐR SAJÁT MÉRÉSE** (`verify:lefedes`, a záró söprésben futott;
+gépi alak: `var/reports/…_funkcio_lefedes.json`). A 17 képernyőből **10 érintett**; a hiány három
+fajtája: nincs funkció-leírás a képernyőre (`FEATURES.screen`) · nincs hozzá kötött gyakori kérdés ·
+nincs bemutató, ami ezt az oldalt érinti.
 
-| lap | funkció | GYIK | bemutató |
+| lap | nincs funkció-leírás | nincs GYIK | nincs bemutató |
 |---|---|---|---|
-| `processes` | — | — | — |
-| `movements` | — | — | — |
-| `stockcard` | — | — | — |
-| `warehouses` | — | — | — |
-| `account` | — | — | — |
-| `personal` | — | — | — |
-| `documents` | 1 | ✓ | — |
-| `outbox` | 1 | ✓ | — |
-| `products` | 1 | ✓ | — |
-| `partners` | 1 | ✓ | — |
-| `security` | 2 | ✓ | — |
+| `processes` | ✗ | ✗ | ✗ |
+| `movements` | ✗ | ✗ | ✗ |
+| `stockcard` | ✗ | ✗ | ✗ |
+| `warehouses` | ✗ | ✗ | ✗ |
+| `account` | ✗ | ✗ | ✗ |
+| `personal` | ✗ | ✗ | ✗ |
+| `documents` | — | — | ✗ |
+| `products` | — | — | ✗ |
+| `partners` | — | — | ✗ |
+| `security` | — | — | ✗ |
 
-**Összesen 11 lap érintett, 23 hiány-tétel** (6 lap × 3 + 5 lap × 1). A maradék hat lap (`overview` ·
-`stock` · `members` · `plan` · `profile` · `new`) mindhárom tételt teljesíti.
+**A VERDIKT SZÁMA:** az őr összegző sora **20 hiányt** mond ki (a cél nulla), és a 32 végpont, a 42
+művelet, a 6 űrlap és a 3 belépés-előtti nézet lefedése **hiánytalan** — a hiány tehát CSAK a lap-tengelyen áll.
+
+**ÉS A FONTOS MÉRÉS: `floor_breaks: []` — NINCS REGRESSZIÓ.** Az R158 köre egyetlen ÚJ lefedési hiányt
+sem hozott; a piros az R144-es alapvonalból **örökölt**, és a padló áll.
+
+**EGY KÜLÖNBSÉG KIMONDVA:** a saját, kézi számolásom **11** lapot jelzett (a `outbox`-ot is), mert én a
+bemutatókat a végigvezetés `page` mezőjéhez kötöttem; az őr viszont azt kérdezi, hogy bármely bemutató
+LÉPÉSE érinti-e a lapot. Az ŐR száma az irányadó (10 lap), a sajátom szigorúbb volt — a kettő nem
+mond ellent, csak más kérdésre válaszol.
+
+**Bemutató nélküli FUNKCIÓK (nem lapok):** 10 — `auth.verify` · `auth.login` · `auth.resend` ·
+`auth.logout` · `account.personal` · `data.documentSample` · `data.supplierSample` · `shell.profile` ·
+`shell.assistant` · `shell.sample_pages`. (A belépéshez kötött utak egy részét a `tour.shell` és a
+`tour.register` érinti; a lista a SAJÁT bemutató hiányát jelenti.)
 
 ---
 
@@ -302,3 +317,58 @@ nem hordozza, ezért a határ **behatárolt, nem a boardról olvasott** — a s�
 - **Nem** állítja, hogy a két szereplős történet az alkalmazás-héjban végigvihető (7/1. pont).
 - A lezárás NEM történt meg: a `CMD-VS-300` és a `PR-VS-300` nyitva marad, összeolvasztás és felhős
   telepítés nem volt — ahogy az R158 kikötötte.
+
+---
+
+## 11. A ZÁRÓ KAPU — A TELJES SÖPRÉS A VÉGSŐ KÓD-ÁLLAPOTON
+
+**Mit mértünk, és min.** `npm run verify:sweep` — MINDEN `verify:*` lánc, kihagyás és
+`--reuse` hivatkozás NÉLKÜL. A mért **kód**-állapot a `b80d00c` commité; az azutáni commitok kizárólag
+DOKUMENTUMOK (`docs/70_PLANNING/…`), amiktől kód-lánc nem függ — a `verify:doc-html` a végső fejen
+külön is lefutott.
+
+| | |
+|---|---|
+| futtatott lánc | **41** |
+| teljes idő | **2242 s** (37 perc) |
+| **zöld** | **39** |
+| env-kihagyás | **0** |
+| **nem fejeződött be** a 900 s türelmen belül | **1** — `verify:external-checks` (901 s) |
+| **piros** | **1** — `verify:lefedes` |
+
+A böngésző-kapu (`verify:browser-gate`) és a mag mutációs battériája (`verify:v3ref`) **a söprésen
+belül, a türelmen belül futott le, zölden**.
+
+### 11.1 A NEM BEFEJEZETT LÁNC KÜLÖN FUTTATVA — `verify:external-checks`
+
+A söprés szabálya szerint a „nem fejeződött be" NEM bukás és NEM zöld: külön kell futtatni. Megtörtént,
+végigfutott: **14/19 program MEGFELEL · kilépés 1 · ELTÉRÉS: `r79 · r59a · r57a · r59 · r57`.**
+
+**Ez ÖRÖKÖLT, és ezt MÉRÉS dönti el, nem feltevés.** Az R154 körében ugyanezt KÜLÖN MUNKAFÁBAN, az
+ÉRINTETLEN alapon (`e24860f4`) is lefuttattam: **14/19, kilépés 1, és PONTOSAN ugyanaz az öt program
+tért el** (`V3_R154_AUDIT_LEFEDETTSEG.md`, 139–140. sor). A mai fejen az eltérő programok halmaza
+**változatlan** — az R158 köre tehát egyetlen új eltérést sem hozott.
+
+Az öt eltérés jellege (a lánc saját szövegéből): a `r79` program a mutációs battéria **18 egységes**
+felosztását várja, miközben a battéria azóta nőtt és ma **40 egységre** oszlik; a `r59`/`r59a` egy
+hiányzó részletes eredmény-artefaktumon és nem nulla kilépésen akad el; a `r57`/`r57a` két esete
+(`E02`, `E03`) nem ad logikai `pass` értéket. Mind az ötöt a KÜLSŐ fél írta, és a javításuk nem a mi
+kódunkon múlik — ezért marad örökölt, és ezért NEM írom zöldnek.
+
+### 11.2 AZ EGYETLEN PIROS — `verify:lefedes`
+
+**20 hiány, kizárólag a LAP-tengelyen** (a 32 végpont, a 42 művelet, a 6 űrlap és a 3 belépés-előtti
+nézet lefedése hiánytalan). A részletes lista a 4.3(b) pontban áll.
+
+**ÉS A LÉNYEG: `floor_breaks: []` — NINCS REGRESSZIÓ.** A piros az R144-es alapvonalból örökölt, a
+padló áll, és az R158 köre egyetlen ÚJ lefedési hiányt sem hozott. A hiány a hiányzó ÜZLETI
+képességekből következik (4.3/a: üzleti író végpont nincs) — a megépítését az R158 kifejezetten NEM
+rendelte el.
+
+### 11.3 AZ ÖSSZVERDIKT, KIMONDVA
+
+**A söprés összverdiktje NEM ZÖLD** (kilépés 1), és ezt nem írom át: egy piros (örökölt) lánc és egy
+türelmen túlfutott (külön lefuttatott, szintén örökölt eltérésekkel záró) lánc áll benne.
+**Amit a kör ÚJként hozott, az mind zöld:** 39 lánc zöld, köztük a most kötelezővé tett böngésző-kapu
+(122 helyzet, 0 bukás, 0 kihagyás), a mag 69 próbája és 245 mutációja, a 173 állításos határ-battéria,
+a nyelvi, a súgó- és a segéd-láncok.
