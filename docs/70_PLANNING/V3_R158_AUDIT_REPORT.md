@@ -19,11 +19,12 @@ körhöz egy lapot engedélyez, és az R158 kör lapja a chatgpt-v3 DECISION-je 
 |---|---|
 | **a 41 láncos TELJES söprés kód-állapota** | `b80d00ce31b4ff0ff6eb9e0b0453ddb58998d1e0` |
 | **a MÁSODIK review-kör javításai** | `083b01c` · `c81b1d5` (négy lelet) |
-| **a HARMADIK review-kör javításai (a mai MÉRT kód-állapot)** | `43f3841` — F158-16 (P1) és F158-17 (P2). A targetált láncok ÉS a teljes böngésző-kapu ezen futottak (11.4) |
+| **a HARMADIK review-kör javításai** | `43f3841` — F158-16 (P1) és F158-17 (P2) |
+| **a NEGYEDIK review-kör javításai (a mai MÉRT kód-állapot)** | `6c40c31` (F158-18 · F158-19 · F158-20) + `137df3d` (F158-21). A targetált láncok, a TELJES mag-mutációs battéria és a teljes böngésző-kapu ezen futottak (11.4–11.5) |
 | **a záró kapu eredményét hordozó commit** | `0ab118edf2be6a425ccff9b4511226055acd4d03` · **2026-10-06 21:38:07 UTC** (a `b80d00c` söprése) |
 | **a VÉGSŐ fej** | a `43f3841` + a jelen lap commitja és a board-feltöltés. **Kód ettől nem változik.** A pontos fejet a `git log -1` adja. |
-| **a csomag commitjai** | 10 (`392bcd2` · `2f91609` · `c37d905` · `70bbad4` · `b80d00c` · `a181631` · `0ab118e` · `083b01c` · `c81b1d5` · `43f3841`) |
-| **a PR commitjai összesen** | 37 (az R154 kör 27 + az R158 kör 10) |
+| **a csomag commitjai** | 13 (`392bcd2` · `2f91609` · `c37d905` · `70bbad4` · `b80d00c` · `a181631` · `0ab118e` · `083b01c` · `c81b1d5` · `43f3841` · `924a08a` · `6c40c31` · `137df3d`) |
+| **a PR commitjai összesen** | 40 (az R154 kör 27 + az R158 kör 13) |
 | **a kiinduló alap** | `3adc8e0` leszármazottja — az R158 kikötése szerint; `main`-re NEM tértünk vissza |
 
 ---
@@ -126,13 +127,14 @@ tényét **különbséggel** mérjük, nem várt felirattal.
 
 | | szám |
 |---|---|
-| Codex review-kör (automata), KÜLÖN commitokon | **18** |
-| egyedi lelet (review-szál) | **48** |
+| Codex review-kör (automata), KÜLÖN commitokon | **20** |
+| egyedi lelet (review-szál) | **52** |
 | ebből P1 | **15** |
-| ebből P2 | **33** |
-| **nyitott lelet a mai fejen** | **0** — mind a 48 megválaszolva ÉS lezárva |
-| az R158 körében érkezett | 17 (4 P1 + 13 P2) — a `89f0b37a` · `392bcd28` · `c37d9059` · `b80d00c` · `a181631` · `0ebd9f84` köre |
-| javító commit a PR-ben (lelet-javítás) | 13 — a számok a 48 egyedi szálból és a válaszokban megnevezett commitokból jönnek |
+| ebből P2 | **37** |
+| **nyitott lelet a mai fejen** | **0** — mind az 52 megválaszolva ÉS lezárva |
+| az R158 körében érkezett | 21 (4 P1 + 17 P2) — a `89f0b37a` · `392bcd28` · `c37d9059` · `b80d00c` · `a181631` · `0ebd9f84` · `924a08a8` köre |
+| javító commit a PR-ben (lelet-javítás) | 15 — a számok az 52 egyedi szálból és a válaszokban megnevezett commitokból jönnek |
+| **NULLA lelettel zárt kör** | 1 — a `c81b1d5` (kód- ÉS biztonsági átolvasás): az első ilyen ebben a PR-ben |
 
 **A MÁSODIK REVIEW-KÖR A CSOMAG ALATT ÉRKEZETT, és végig is ment.** A `b80d00c`-re és az
 `a181631`-re a Codex új kört adott, **négy újabb lelettel** (egy P1 és három P2) — mind javítva és
@@ -174,6 +176,23 @@ türelmi idejének bekötése. A `?service=`/`PGDATABASE` feloldó a szerszám-o
 **A két javítás VISSZAVÉTEL-PRÓBÁJA megvan:** a `PGDATABASE`-ágat, a `PGSERVICE`-t és a származtatást
 kivéve a battéria **öt sora** (y1 · y3 · y5 · y7 · y8) pirosra vált, az ellenpárok (y2 · y4 · y6)
 helyesen zöldek maradnak.
+
+### A NEGYEDIK REVIEW-KÖR (a `924a08a` fejre) — NÉGY ÚJABB LELET, MIND JAVÍTVA
+
+| lelet | mi volt | javítás és jel |
+|---|---|---|
+| **F158-18 (P2)** | az állapot-írás kapuja a KÉRÉS ELEJI időbélyeggel kérdezte a tárat: egy lassan feltöltött törzs átvihet a tétlenségi korláton, és ilyenkor a kezelő megírta a `pending_intent` sort és **200**-at adott — a következő kérés viszont a valódi időt mérte, eldobta a munkamenetet, és a most írt sort TÖRÖLTE. **MÉRVE élő HTTP-n** (400 ms korlát, 700 ms-os darabolt törzs): `200` + egy sor → a következő kérés után NULLA sor, vagyis HAMIS SIKER | a kapu saját, FRISS időbélyeget vesz, és `touch`-csal meg is ÚJÍTJA a sort; mérve utána `409 session_gone`. **A két szabály EGYÜTT kimondva:** „egy döntés — egy idő" ≠ „egy KÉRÉS — egy idő" (`D-VS-3159` · `KUKA-351`, Z: z1–z2) |
+| **F158-19 (P2)** | a tétlenségi pászta ritkítása a HÍVÓBAN állt, ezért a plafon fölötti úton MINDEN beszúrásnál végigjárta a teljes tárat — az elutasított felvétel `O(maxSessions)`-t fizetett, a hitelesítési kapu ELŐTT. **MÉRVE:** 5 000 → 0,113 ms/kérés · 20 000 → **0,622** · 80 000 → **1,432** | a ritkítás a SÖPRÉSBEN dől el, egy helyen; a plafon változatlanul AZONNALI. Mérve utána: 20 000-es plafonnál **0,0064 ms/kérés** (≈97×). `KUKA-290` harmadszor (`D-VS-3160` · `KUKA-352`, Z: z3, z3b, z4) |
+| **F158-20 (P2)** | a `rememberIntent` szó szerint tárolta az óra kimenetét, a halmazos takarítás pedig SZÖVEGESEN vetette össze a `Z`-s határokkal: egy eltolásos alak (`…T01:00:00+02:00`) ugyanazt a pillanatot jelenti, szövegként viszont „nagyobb" — egy **FRISS** sor jövőbelinek minősült és **TÖRLŐDÖTT**. A hiba-osztályt a `P-INVITE-window` mag-próba a MEGHÍVÓRA már kivezette | az ÍRÁS kanonizál (UTC `toISOString()`), a takarítás két lépés: a kanonikus sorokon halmaz-utasítás, a nem kanonikusakon korlátos, `Date.parse`-os IDŐPILLANAT-megítélés. Mérve: négy importált sorból három megy, a friss eltolásos MARAD (`D-VS-3161` · `KUKA-353`, mag-próba (i)(j) + M220/M221/M222, Z: z5–z7) |
+| **F158-21 (P2)** | a `safePath` tisztítót csak a leltár `source.path` mezőjén vezettem át; a HIBA-ÁGAK nyers út-kiírással mentek, tehát egy repón ÉS HOME-on kívüli `--transcript` teljes abszolút útja a naplóba került | mind a NÉGY diagnosztikai kiírás a tisztítón megy, és a kétértelműség listája a `--projects` GYÖKÉRHEZ KÉPEST nevez meg — így `KUKA-319` (választható) és a tisztítás EGYÜTT áll meg (`D-VS-3162` · `KUKA-354`, Z: z8–z10) |
+
+**A VISSZAVÉTEL-PRÓBA ITT IS MEGVAN:** a három kiszolgáló-oldali javítást kivéve a battéria **öt
+sora** pirosra vált (z1 · z2 · z3 · z4 · z5), az ellenpárok (z3b · z6 · z7) helyesen zöldek maradnak; a
+negyedik javítás kivételekor a `z8` kiírja a teljes abszolút utat.
+
+**ÉS AZ F158-21 EGY SAJÁT HIBÁT IS MEGMUTATOTT A JAVÍTÁS KÖZBEN, ezt kimondom:** a puszta tisztítás
+elvette volna a `KUKA-319` választhatóságát, és a battéria `n6` sora JOGGAL lett piros. A két szabály
+ezért EGYÜTT kapott alakot, nem egymás ellenében.
 
 **Amit NEM állítok:** a LEGUTOLSÓ fejre (a jelen lap commitja) a Codex még nem adott kört — ha új
 lelet érkezik, az ugyanúgy végigmegy: javítás → mérés → feltolás. Emberi kód- és biztonsági review a
@@ -455,3 +474,22 @@ zöld áll — ÚJ bizonyíték nélkül. A változás három fájlt érintett �
 láncokat a fenti táblázat mind tartalmazza; ettől függetlenül a „nem futott" itt is **nem** jelent
 zöldet (`KUKA-200` · SRU-01: újrahasznosított bizonyítékra csak a feloldó adhat zöldet, és azt itt nem
 hívtam meg).
+
+### 11.5 A NEGYEDIK REVIEW-KÖR UTÁN — A `6c40c31` ÉS A `137df3d` KÓDJÁN
+
+| lánc | eredmény |
+|---|---|
+| `npm run verify:v3ref` (mag + TELJES mutációs battéria) a `6c40c31` magján | **TELJES ÉS TISZTA** — 69/69 próba · **252/252 mutáció elkapva**, 0 túlélte, 0 rossz próba, 0 mérőhiba, **0 elavult horgony**; 44 egység, a legrosszabb 9317 ms (korlát 15 000) |
+| `npm run verify:browser-gate` a `6c40c31` kódján | **PASS** — 122 helyzet · 0 bukás · 0 ingadozó · 0 kihagyás · 22 próba-fájl; a mérés EBBEN a futásban indult (23:28:34.622Z > 23:28:33.333Z) |
+| `npm run verify:app-findings-r154` (a `137df3d`-n) | **198/198 PASS** — a 187-hez képest a 11 új Z-sor |
+| `npm run verify:kuka` | **754/754 PASS** · alapvonal **v103** · 345 bejegyzés · `vs` padló változatlan 92 |
+| `npm run app:selfcheck` · `verify:i18n` · `verify:hash-manifeszt` | **57/57** · **49/49** · **7/7** |
+| `npm run verify:mutation-anchors` | **PASS** — 246 horgony, mind pontosan egyszer (köztük az ÚJRA-HORGONYZOTT M209/M217) |
+| `npm run verify:decision-numbers` | **4/4 PASS** — a következő szabad szám `D-VS-3163` |
+
+**Amit ez NEM állít, kimondva:**
+- a 41 láncos TELJES söprést a `137df3d`-n sem futtattam újra; a maradék láncokra a `b80d00c`-n mért
+  zöld áll, ÚJ bizonyíték nélkül — a „nem futott" itt sem jelent zöldet (`KUKA-200`).
+- a **böngésző-kapu a `137df3d`-n nem futott**, és nem is kell: az a commit a `tools/` alatti
+  exportálót és a battériát érinti, a v3app FUTTATOTT kódját nem. A `6c40c31`-en futott, zölden.
+- a `verify:lefedes` változatlanul PIROS és ÖRÖKÖLT (20 R144-es hiány, `floor_breaks: []`).
