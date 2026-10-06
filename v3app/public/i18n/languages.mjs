@@ -139,10 +139,19 @@ export function pickFromAcceptLanguage(header, opts = {}) {
    * kell rajzolni: az alapnyelv megy, de `matched: false`-szal — nem állítjuk, hogy teljesítettük a
    * kérést (KUKA-049 · KUKA-129).
    */
-  const zero = parsed.filter((x) => x.q === 0).map((x) => x.tag.toLowerCase());
-  const excluded = new Set(zero.filter((t) => t !== '*').map((t) => t.split(/[-_]/)[0]));
+  const zero = parsed.filter((x) => x.q === 0).map((x) => x.tag.toLowerCase().replace(/_/g, '-'));
+  /**
+   * A KIZÁRÁS A TELJES NYELVI TARTOMÁNYRA SZÓL, NEM AZ ELSŐ ALCÍMKÉRE (F154-43, külső review, Codex,
+   * tizedik kör). A LELET: minden `q=0` címkét az első alcímkéjére vágtam, ezért egy REGIONÁLIS
+   * kizárás az ÁLTALÁNOS nyelvet is elnémította — `Accept-Language: de-AT;q=0, de;q=1` esetén a
+   * német egésze kizártnak számított, és magyart adtunk vissza. Az RFC 4647 alap-illesztése szerint
+   * a `de-AT` tartomány a RÖVIDEBB `de` címkére NEM illeszkedik: a kizárás akkor áll, ha a kód maga
+   * a tartomány, vagy a tartomány + kötőjel kezdetű (`de` ⊄ `de-AT`, de `de-AT-x` ⊂ `de-AT`).
+   */
+  const excludedRanges = zero.filter((t) => t !== '*');
   const excludesRest = zero.includes('*');
-  const allowed = (code) => !excluded.has(String(code).toLowerCase().split(/[-_]/)[0]);
+  const inRange = (code, range) => { const c = String(code).toLowerCase().replace(/_/g, '-'); return c === range || c.startsWith(`${range}-`); };
+  const allowed = (code) => !excludedRanges.some((r) => inRange(code, r));
   const firstAllowed = () => (enabledLanguages().map((l) => l.code).find((c) => allowed(c)) || null);
 
   const wanted = parsed.filter((x) => x.q > 0).sort((a, b) => b.q - a.q);
@@ -153,10 +162,10 @@ export function pickFromAcceptLanguage(header, opts = {}) {
       if (pick) return Object.freeze({ code: pick, matched: true });
       continue;
     }
+    if (!allowed(tag)) continue;                       // UGYANEZT a tartományt máshol `q=0`-val kizárták
     const asked = String(tag).toLowerCase().split(/[-_]/)[0];
-    if (excluded.has(asked)) continue;                 // ugyanaz a nyelv máshol `q=0`-val: kizárva
     const code = normalizeLanguage(tag, opts);
-    if (!allowed(code)) continue;                      // az alapnyelvre-esés sem mehet kizárt nyelvre
+    if (!allowed(code)) continue;                      // és az alapnyelvre-esés sem mehet kizárt nyelvre
     // A `normalizeLanguage` ismeretlennél az alapnyelvet adja — ez ITT nem találat, csak ha a
     // címke TÉNYLEG erre a nyelvre mutat (különben az első idegen címke „eltalálná" a magyart).
     if (code !== BASE_LANGUAGE || asked === BASE_LANGUAGE) return Object.freeze({ code, matched: true });

@@ -311,14 +311,32 @@ export const SESSION_LIMITS = Object.freeze({ idle_ms: 12 * 60 * 60 * 1000, max_
  * korlát csak a feloldó KÖZVETLEN hívásából látszana — és amit a próba nem tud a HATÁRON meghívni,
  * azt bizalomból hisszük. Üzemeltetési haszna is van: a plafon a példány memóriájához tartozik.
  */
-export function sessionLimits(env = process.env) {
-  const num = (raw, fallback) => {
-    const n = Number(String(raw ?? '').trim());
-    return Number.isFinite(n) && n > 0 ? n : fallback;
+export function sessionLimits(env = process.env, warn = (m) => console.warn(m)) {
+  /**
+   * A DARABSZÁM EGÉSZ SZÁM (F154-41, külső review, Codex, tizedik kör).
+   *
+   * A LELET: a korábbi feloldó minden pozitív számot elfogadott, tehát `VS_APP_SESSION_MAX=0.5`
+   * ÉRVÉNYESNEK számított — az első beszúrás után viszont `map.size > maxSessions`, így a névtelen sor
+   * azonnal kiesett, a belépett pedig a végső elutasításra futott: a szolgáltatás EGYETLEN munkamenetet
+   * sem tudott megtartani, miközben a beállítás „átment az ellenőrzésen". Egy nem egész darabszám nem
+   * szigorúbb korlát, hanem MŰKÖDÉSKÉPTELEN állapot.
+   *
+   * A hibás értéket NEM nyeljük el csendben: a napló megnevezi, és az alapértelmezés áll be — mert a
+   * memória-korlát nélkül nem indulhat a kiszolgálás, egy indulás-megtagadás viszont a mai üzemben
+   * nagyobb kárt tenne, mint a kimondott visszaállás (KUKA-049).
+   */
+  const posInt = (raw, fallback, nev) => {
+    const txt = String(raw ?? '').trim();
+    if (!txt) return fallback;
+    const n = Number(txt);
+    if (Number.isSafeInteger(n) && n > 0) return n;
+    warn(`[v3app] a ${nev} értéke NEM pozitív egész szám (${Number.isFinite(n) ? 'tört vagy nem egész' : 'nem szám'}), `
+      + `ezért az alapértelmezést használom: ${fallback}`);
+    return fallback;
   };
   return {
-    idleMs: num(env.VS_APP_SESSION_IDLE_MS, SESSION_LIMITS.idle_ms),
-    maxSessions: num(env.VS_APP_SESSION_MAX, SESSION_LIMITS.max_sessions),
+    idleMs: posInt(env.VS_APP_SESSION_IDLE_MS, SESSION_LIMITS.idle_ms, 'VS_APP_SESSION_IDLE_MS'),
+    maxSessions: posInt(env.VS_APP_SESSION_MAX, SESSION_LIMITS.max_sessions, 'VS_APP_SESSION_MAX'),
   };
 }
 
@@ -533,6 +551,23 @@ export function makeSessionStore({
     const before = { ...stats };
     // A NÉVTELEN KÖRÖK: az alsó vízszintig, a beszúrt sor kivételével.
     for (const pass of [0, 1]) {
+      /**
+       * A FRISS, ÁLLAPOT NÉLKÜLI SOR ELŐBB MEGY, MINT EGY FOLYTATÁST HORDOZÓ (F154-42, külső review,
+       * Codex, tizedik kör).
+       *
+       * A LELET: a `keep` védelme a 0. körből is kivette a friss sort, ezért ha a tár csupa
+       * FOLYTATÁST HORDOZÓ névtelen sorral volt tele, a 0. kör nem talált jelöltet, és az 1. kör
+       * (a védettek) kezdett el ürítni — miközben a friss, SEMMIT nem hordozó sor bent maradt. MÉRVE
+       * `maxSessions=4` mellett: négy folytatást hordozó sor + egy friss kérés → KÉT meghívó-folytatás
+       * elveszett, a friss üres sor megmaradt. Ez szembemegy a saját osztály-sorrendünkkel: a `keep`
+       * védelme a SAJÁT OSZTÁLYÁIG tart (ez az F154-13 szabálya), tehát ha a megtartása a VÉDETT körbe
+       * lépést igényelné, akkor a friss sor megy.
+       */
+      if (pass === 1 && overCap()) {
+        const kr = keep === null ? null : map.get(keep);
+        if (kr && !kr.subject_id && !protectedAnon.has(keep) && !pins.has(keep)) drop(keep, 'evicted_cap_anonymous');
+        if (!overCap()) break;
+      }
       for (const [id, s] of order) {
         if (map.size <= lowWater) break;
         if (id === keep || !map.has(id) || pins.has(id)) continue;

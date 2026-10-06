@@ -45,38 +45,60 @@ export function restoreTargetProblem(value) {
 }
 
 /**
+ * A KAPCSOLATI CÍM QUERY-PARAMÉTEREI IS SZÁMÍTANAK (F154-39, külső review, Codex, tizedik kör, P1).
+ *
+ * A LELET: a PostgreSQL URI a kapcsolati kulcsszavakat QUERY-paraméterként is elfogadja
+ * (`?dbname=…`, `?user=…`), és a megadott paraméter FELÜLÍRJA a cím megfelelő részét. Egy
+ * `postgres://decoy@host/?user=source` cím tehát `source` felhasználóként kapcsolódik, és adatbázis-út
+ * híján a `source` adatbázist nyitja — a korábbi alak viszont a `decoy` nevet vetette össze a céllal,
+ * „eltér"-t mondott, és a lánc végén álló `DROP DATABASE "source"` a VALÓDI FORRÁST törölte volna.
+ * Ráadásul a kiszolgáló-URL-ek megtartották a `?dbname=…`-t, ami a BEÁLLÍTOTT utat is felülírta volna.
+ *
+ * Dokumentáció: PostgreSQL „Connection URIs" — a query-rész kulcsszavai, és hogy az adatbázis
+ * alapértelmezése a tényleges felhasználó.
+ */
+function queryParam(u, nev) {
+  try { const v = u.searchParams.get(nev); return v === null ? '' : String(v).trim(); } catch { return ''; }
+}
+
+/** A TÉNYLEGES adatbázis-név: query `dbname` → út → query `user` → cím-felhasználó; különben NEM TUDHATÓ. */
+export function effectiveDatabase(sourceUrl) {
+  let u;
+  try { u = new URL(String(sourceUrl)); } catch { return { name: null, basis: 'a forrás-cím nem értelmezhető' }; }
+  const qDb = queryParam(u, 'dbname');
+  if (qDb) return { name: qDb, basis: 'a cím `?dbname=` paramétere FELÜLÍRJA az utat' };
+  let path;
+  try { path = decodeURIComponent(String(u.pathname || '').replace(/^\/+/, '')); }
+  catch { return { name: null, basis: 'a forrás adatbázis-neve hibás százalék-kódolást tartalmaz' }; }
+  if (path) return { name: path, basis: 'a cím útja nevezi meg az adatbázist' };
+  const qUser = queryParam(u, 'user');
+  if (qUser) return { name: qUser, basis: 'nincs adatbázis-út, és a `?user=` paraméter adja a felhasználót — az adatbázis alapértelmezése a felhasználó neve' };
+  let user;
+  try { user = decodeURIComponent(String(u.username || '')); } catch { user = String(u.username || ''); }
+  if (user) return { name: user, basis: 'nincs adatbázis-út, ezért a FELHASZNÁLÓ neve az adatbázis' };
+  return { name: null, basis: 'sem adatbázis, sem felhasználó nincs a címben — a tényleges nevet a kliens a rendszer-felhasználóból veszi' };
+}
+
+/**
+ * EGY CÍM EGY MEGNEVEZETT ADATBÁZISRA. A `?dbname=` paramétert KIVESSZÜK, különben felülírná a
+ * beállított utat — ez a fenti lelet második fele (a kiszolgáló-URL-ek is hordozták a felülírást).
+ */
+export function withDatabase(sourceUrl, name) {
+  const u = new URL(String(sourceUrl));
+  u.pathname = `/${String(name)}`;
+  try { u.searchParams.delete('dbname'); } catch { /* nincs query */ }
+  return u;
+}
+
+/**
  * Ugyanarra az adatbázisra mutat-e a forrás-cím és a cél NÉV? A dekódolás kötelező, a bizonytalanság
  * pedig IGEN-t ad: ahol a következmény `DROP DATABASE`, ott a „nem tudom" nem lehet „nem egyezik".
  */
 export function sameDatabase(sourceUrl, restoreTarget) {
-  let u;
-  try { u = new URL(String(sourceUrl)); }
+  try { new URL(String(sourceUrl)); }
   catch { return { same: true, basis: 'a forrás-cím nem értelmezhető — ÓVATOS megállás' }; }
-  const raw = String(u.pathname || '').replace(/^\/+/, '');
-  let decoded;
-  try { decoded = decodeURIComponent(raw); }
-  catch { return { same: true, basis: 'a forrás adatbázis-neve hibás százalék-kódolást tartalmaz — NEM megállapítható, ÓVATOS megállás' }; }
-  /**
-   * AZ ÚT NÉLKÜLI CÍM IS MEGNEVEZ EGY ADATBÁZIST (F154-38, külső review, Codex, nyolcadik kör, P1).
-   *
-   * A LELET: a PostgreSQL-kliensek út nélkül a KAPCSOLÓDÓ FELHASZNÁLÓ nevét veszik adatbázis-névnek.
-   * Egy `postgres://source_user:pw@host` forrás és egy `VS_RESTORE_TEST_DB=source_user` cél tehát
-   * UGYANAZ az adatbázis — a korábbi alak viszont üres nevet látott, „eltér"-t mondott, és a lánc
-   * végén álló `DROP DATABASE "source_user"` a FORRÁST törölte volna. Ha a felhasználó sem áll a
-   * címben, a tényleges név NEM megállapítható (a kliens a futtató rendszer-felhasználóját veszi),
-   * és akkor — mert a következmény visszafordíthatatlan — ÓVATOSAN megállunk.
-   */
-  if (!decoded) {
-    let user;
-    try { user = decodeURIComponent(String(u.username || '')); } catch { user = String(u.username || ''); }
-    if (!user) return { same: true, basis: 'a forrás-cím nem nevez meg adatbázist, és felhasználót sem — a tényleges név NEM megállapítható, ÓVATOS megállás' };
-    if (user === String(restoreTarget)) {
-      return { same: true, basis: 'a forrás-cím nem nevez meg adatbázist, ezért a FELHASZNÁLÓ neve az adatbázis — és az azonos a céllal' };
-    }
-    return { same: false, basis: 'a forrás-cím nem nevez meg adatbázist; a felhasználóból adódó név eltér a céltól' };
-  }
-  if (decoded === String(restoreTarget)) {
-    return { same: true, basis: raw === decoded ? 'a két név azonos' : 'a két név a forrás DEKÓDOLÁSA után azonos' };
-  }
-  return { same: false, basis: 'a dekódolt forrás-név és a cél eltér' };
+  const eff = effectiveDatabase(sourceUrl);
+  if (!eff.name) return { same: true, basis: `${eff.basis} — NEM megállapítható, ÓVATOS megállás` };
+  if (eff.name === String(restoreTarget)) return { same: true, basis: `AZONOS a céllal: ${eff.basis}` };
+  return { same: false, basis: `a tényleges forrás-név eltér a céltól (${eff.basis})` };
 }

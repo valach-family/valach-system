@@ -23,7 +23,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import { transcriptsOf } from './v3_fogyasztas_meres.mjs';
-import { join, resolve, dirname } from 'node:path';
+import { join, resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { callOf, dedupe, windowOf, inWindow, triggerOf } from './v3_fogyasztas_meres.mjs';
 
@@ -79,6 +79,31 @@ const found = explicitFile
 if (explicitFile && !existsSync(found[0].path)) {
   console.error(`NINCS ILYEN ÁTIRAT-FÁJL: ${found[0].path.replace(homedir(), '~')} (--transcript)`);
   process.exit(2);
+}
+/**
+ * A MEGADOTT FÁJL TÉNYLEG A KÉRT MUNKAMENETÉ (F154-40, külső review, Codex, tizedik kör).
+ *
+ * A LELET: a `--transcript` BÁRMELY létező fájlt elfogadott. Egy elgépelt út egy MÁS munkamenet
+ * átiratára is mutathatott, a kimenet viszont a parancssori azonosítót írta a fejlécbe — vagyis
+ * hihetőnek látszó, de HIBÁSAN ATTRIBUÁLT fogyasztás-leltár született. A leltár átadási bizonyíték:
+ * a rossz hozzárendelés rosszabb, mint a hiányzó leltár (ugyanaz az osztály, mint a KUKA-319).
+ *
+ * KÉT JELET FOGADUNK EL: a fájlnév a `<munkamenet>.jsonl`, VAGY a tartalom első sorainak
+ * `sessionId` mezője erre a munkamenetre mutat. Egyik sem áll → nevezett elakadás.
+ */
+if (explicitFile) {
+  const nevEgyezik = basename(found[0].path) === `${session}.jsonl`;
+  let tartalomEgyezik = false;
+  if (!nevEgyezik) {
+    const elso = readFileSync(found[0].path, 'utf8').split('\n').filter((l) => l.trim()).slice(0, 50);
+    tartalomEgyezik = elso.some((l) => { try { return JSON.parse(l).sessionId === session; } catch { return false; } });
+  }
+  if (!nevEgyezik && !tartalomEgyezik) {
+    console.error(`A MEGADOTT ÁTIRAT NEM A KÉRT MUNKAMENETÉ: --session ${session}`);
+    console.error(`  a fájl: ${found[0].path.replace(homedir(), '~')} (a neve nem \`${session}.jsonl\`, és az első 50 sorában sincs ilyen \`sessionId\`)`);
+    console.error('  Ha tényleg ezt akarod exportálni, a --session értéke legyen ennek a munkamenetnek az azonosítója.');
+    process.exit(2);
+  }
 }
 /**
  * A TÖBBES TALÁLAT NEVEZETT ELAKADÁS, NEM CSENDES VÁLASZTÁS (külső review, Codex, hatodik kör, P2).

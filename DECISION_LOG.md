@@ -515,6 +515,85 @@ nincs figyelembe véve) — ezért is esik a „nem tudom" az óvatos ágra. Gé
 
 ---
 
+## D-VS-3135 — A KAPCSOLATI CÍM FELÜLÍRÁSAIT FEL KELL OLDANI, ÉS A SAJÁT URL-EKBŐL KIVENNI (R154)
+
+**A döntés.** A forrás tényleges adatbázis-nevét EGY feloldó adja (`effectiveDatabase`): query `dbname` →
+út → query `user` → cím-felhasználó; ha egyik sincs, NEM TUDHATÓ, és ott megállunk. A kiszolgáló-URL-eket
+a `withDatabase` állítja elő: beállítja az utat ÉS kiveszi a `?dbname=` felülírást.
+
+**Miért.** `postgres://decoy@host/?user=source` `source`-ként kapcsolódik, és út híján a `source`
+adatbázist nyitja — a korábbi alak a `decoy`-t vetette össze a céllal, „eltér"-t mondott, és a
+`DROP DATABASE "source"` a VALÓDI forrást törölte volna. Ez a HARMADIK eset ugyanebben az eszközben
+(D-VS-3126 a százalék-kódolás, D-VS-3134 az elhagyott út, ez a query).
+
+**Amit ez NEM állít.** Nem teljes libpq-feloldás: környezeti változók és `service` fájl nincs benne —
+ezért esik a „nem tudom" az óvatos ágra. Gépi jel: `npm run verify:kuka` (KUKA-326) ·
+`npm run verify:app-findings-r154` (R: r1–r5).
+
+---
+
+## D-VS-3136 — AZ ÚJ KÉZI BEMENET IS HATÁR: A `--transcript` A KÉRT MUNKAMENETHEZ KÖTVE (R154)
+
+**A döntés.** A `--transcript` csak akkor fogadható el, ha a fájlnév `<munkamenet>.jsonl`, VAGY a tartalom
+első 50 sorának `sessionId`-ja a kért munkamenetre mutat. Különben nevezett elakadás.
+
+**Miért.** A kapcsoló (a D-VS-3133 új kiútja) bármely létező fájlt elfogadott, a kimenet viszont a
+parancssori azonosítót írta a fejlécbe: egy elgépelt út HIHETŐ, de hibásan attribuált leltárt adott
+(mérve: régen 0-s kilépés idegen átirattal). A leltár átadási bizonyíték.
+
+**Amit ez NEM állít.** Nem ellenőrzi az átirat tartalmi épségét — csak a HOZZÁRENDELÉST. Gépi jel:
+`npm run verify:kuka` (KUKA-327) · `npm run verify:app-findings-r154` (R: r8–r9).
+
+---
+
+## D-VS-3137 — A MUNKAMENET-KORLÁTOK POZITÍV EGÉSZ SZÁMOK (R154)
+
+**A döntés.** A `VS_APP_SESSION_MAX` és a `VS_APP_SESSION_IDLE_MS` csak pozitív EGÉSZ szám
+(`Number.isSafeInteger`); a hibás értéket a napló megnevezi, és az alapértelmezés áll be.
+
+**Miért.** `0.5` korábban érvényes volt, az első beszúrás után viszont a tár azonnal a plafon fölé
+került: a névtelen sor kiesett, a belépett a végső elutasításra futott — a szolgáltatás egyetlen
+munkamenetet sem tudott megtartani, miközben a beállítás „átment az ellenőrzésen".
+
+**Amit ez NEM állít.** Nem tagadja meg az indulást: a memória-korlát nélkül nem futhatna a kiszolgálás,
+egy indulás-megtagadás pedig a mai üzemben nagyobb kárt tenne, mint a KIMONDOTT visszaállás. Gépi jel:
+`npm run verify:kuka` (KUKA-328) · `npm run verify:app-findings-r154` (R: r6–r7).
+
+---
+
+## D-VS-3138 — A FRISS, ÁLLAPOT NÉLKÜLI SOR ELŐBB ESIK KI, MINT EGY FOLYTATÁST HORDOZÓ (R154)
+
+**A döntés.** Ha a plafon betartásához a VÉDETT (folytatást hordozó) körbe kellene lépni, és a beszúrt
+sor névtelen és nem hordoz folytatást, akkor a BESZÚRT sor megy. A jövevény ilyenkor nevezett
+elutasítást kap az írásra, és egyetlen meglévő folytatás sem esik ki.
+
+**Miért.** A `keep` védelme a 0. körből is kivette a friss sort, ezért csupa folytatást hordozó táron az
+1. kör kezdett ürítni. MÉRVE (`maxSessions=4`): négy folytatást hordozó sor + egy friss kérés → **két**
+meghívó-folytatás elveszett; élő HTTP-n a jövevény **200**-at kapott, a tábla 37→38 lett. Vagyis egy
+látogató, aki semmit nem tett, mások állapotát törölte.
+
+**Amit ez NEM állít.** A `keep` védelme megmarad ott, ahol a beszúrt sor BELÉPETT (D-VS-3112), és a
+védettség továbbra is SORREND, nem mentesség (D-VS-3107). Gépi jel: `npm run verify:kuka` (KUKA-329) ·
+`npm run verify:app-findings-r154` (g7: míg van hely, a folytatás túlél · g8: telt táron a jövevény
+elutasítva).
+
+---
+
+## D-VS-3139 — A NYELVI KIZÁRÁS TARTOMÁNY-ILLESZTÉSSEL ÁLL (R154)
+
+**A döntés.** A `q=0` kizárás a TELJES nyelvi tartományra szól: akkor áll, ha a kód maga a tartomány,
+vagy a tartomány + kötőjel kezdetű. Így `de-AT;q=0` nem zárja ki az általános `de`-t.
+
+**Miért.** A D-VS-3129 megtartotta a kizárást, de az első alcímkére vágta, ezért egy regionális kizárás
+az általános nyelvet is elnémította: `de-AT;q=0, de;q=1` → **`hu`**, most `de`. Az RFC 4647 alap-illesztése
+szerint a hosszabb tartomány a rövidebb címkére nem illeszkedik.
+
+**Amit ez NEM állít.** Nem teljes RFC 4647 (nincs kiterjesztett szűrés, és a jegyzék sorrendje dönt a
+jokernél). Gépi jel: `npm run verify:kuka` (KUKA-330) · `npm run verify:app-findings-r154` (R: r10–r11) ·
+`npm run verify:i18n`.
+
+---
+
 ## D-VS-3117 — A KONFIGURÁCIÓS ÉRTÉK ALAKJA IS MÉRT, ÉS AZ AZONOSÍTÓ IDÉZŐJELEZVE MEGY (R154)
 
 **A döntés.** A `proof:pg-durability` megméri a `VS_RESTORE_TEST_DB` alakját (zárt azonosító-minta), és

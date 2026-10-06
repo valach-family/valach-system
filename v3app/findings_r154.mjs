@@ -36,7 +36,7 @@ import { validateAgainstSchema } from '../v3ref/inputSchema.mjs';
 import { validateRequest } from './httpSchema.mjs';
 import { request as httpReq } from 'node:http';
 import { transcriptsOf } from '../tools/v3_fogyasztas_meres.mjs';
-import { restoreTargetProblem, sameDatabase } from '../tools/lib/vs_pg_target.mjs';
+import { restoreTargetProblem, sameDatabase, effectiveDatabase, withDatabase } from '../tools/lib/vs_pg_target.mjs';
 import { execFileSync } from 'node:child_process';
 
 /** A `string` TÍPUS közvetlenül, a mag feloldóján — amit a próba nem tud meghívni, azt hisszük (KUKA-207). */
@@ -468,8 +468,26 @@ try {
       && loginBlock.includes('sessions.delete(session.id)'),
       'a rotáció nem szorít ki idegen munkamenetet');
 
-    // (g6) F154-11 második fele — AZ ÁRVA SOR TAKARÍTÁSA, élő HTTP-n, HITELESÍTÉS NÉLKÜL.
+    /**
+     * (g7) ELLENPÁR ELŐSZÖR, MÍG VAN HELY: a FOLYTATÁST HORDOZÓ sor túléli az ÁLLAPOT NÉLKÜLI
+     * kérések nyomását — és a takarítás nem viszi el a sorát (KUKA-297 · KUKA-315 szándéka).
+     *
+     * A SORRENDET A TIZEDIK KÖR LELETE ÍRTA ÁT (F154-42): a mérés korábban a 120-as elárasztás UTÁN
+     * futott, tehát TELT, csupa védett sorral teli táron — ott viszont ma (helyesen) a friss, semmit
+     * nem hordozó sor esik ki ELSŐKÉNT, és a jövevény nevezetten elutasítást kap. A két állítás tehát
+     * KÉT helyzet: itt a hely VAN, a `g8`-ban nincs.
+     */
     const sorok = () => app.store.get('SELECT COUNT(*) AS n FROM pending_intent').n;
+    const elo = new Client(base);
+    await elo.get('/api/me');
+    const eloValasz = await elo.post('/api/invites/pending', { token: 'elo-folytatas-154' });
+    for (let i = 0; i < 10; i++) await fetch(base + '/api/me');          // ÁLLAPOT NÉLKÜLI nyomás
+    const sajat = app.store.get("SELECT session_id FROM pending_intent WHERE invite_token = 'elo-folytatas-154'");
+    step('(g7) ELLENPÁR: a folytatást hordozó sor túléli az állapot nélküli kéréseket — és a takarítás nem viszi el',
+      eloValasz.status === 200 && Boolean(sajat) && app.sessions.has(String(sajat.session_id)) === true,
+      { irasa: eloValasz.status, sor_megvan: Boolean(sajat), munkamenet_el: sajat ? app.sessions.has(String(sajat.session_id)) : null });
+
+    // (g6) F154-11 második fele — AZ ÁRVA SOR TAKARÍTÁSA, élő HTTP-n, HITELESÍTÉS NÉLKÜL.
     const elotte = sorok();
     for (let i = 0; i < 120; i++) {
       await fetch(base + '/api/invites/pending', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -479,14 +497,19 @@ try {
     step('(g6) 120 HITELESÍTÉS NÉLKÜLI kérés után a munkamenethez kötött tábla a tárral együtt KORLÁTOS',
       utana <= SESSION_CAP + elotte + 1, { sorok: `${elotte}→${utana}`, munkamenet_plafon: SESSION_CAP, tar: app.sessions.size });
 
-    // (g7) ELLENPÁR: az ÉLŐ munkamenet sorát NEM takarítjuk el — a takarítás csak az árvát viszi.
-    const elo = new Client(base);
-    await elo.get('/api/me');
-    await elo.post('/api/invites/pending', { token: 'elo-folytatas-154' });
-    const sajat = app.store.get("SELECT session_id FROM pending_intent WHERE invite_token = 'elo-folytatas-154'");
-    step('(g7) ELLENPÁR: az ÉLŐ munkamenet folytatása MEGMARAD — a takarítás csak az árvát viszi',
-      Boolean(sajat) && app.sessions.has(String(sajat.session_id)) === true,
-      { sor_megvan: Boolean(sajat), munkamenet_el: sajat ? app.sessions.has(String(sajat.session_id)) : null });
+    /**
+     * (g8) F154-42 — TELT, CSUPA VÉDETT TÁRON A JÖVEVÉNY KAP NEVEZETT ELUTASÍTÁST, és a mÁR MEGLÉVŐ
+     * folytatások MEGMARADNAK. A LELET (külső review, Codex, tizedik kör): korábban a friss, SEMMIT
+     * nem hordozó sor bent maradt, és helyette KÉT folytatást hordozó sor esett ki — vagyis egy
+     * látogató, aki semmit nem tett, mások állapotát törölte.
+     */
+    const vedettElotte = sorok();
+    const jovevenyValasz = await fetch(base + '/api/invites/pending', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'jovevény-telt-taron' }) });
+    const vedettUtana = sorok();
+    step('(g8) telt, csupa VÉDETT táron a jövevény NEVEZETTEN elutasítva — és EGYETLEN meglévő folytatás sem esett ki (RÉGEN: 2 folytatás elveszett, a friss üres sor maradt)',
+      jovevenyValasz.status === 503 && vedettUtana >= vedettElotte - 1,
+      { status: jovevenyValasz.status, sorok: `${vedettElotte}→${vedettUtana}` });
   }
 
   // ── H) F154-14 — A SAJÁT ISC-02 JAVÍTÁSOM ELTÖRTE A SEGÉD-CHATET ───────────────────────────────
@@ -1153,6 +1176,73 @@ try {
       step('(q8) a KIVÁLASZTOTT projekt-könyvtár is kiút (RÉGEN: `NINCS ÁTIRAT` — a tanács nem működött)',
         kivalasztottDir.kod === 0, { kilepes: kivalasztottDir.kod, hiba: kivalasztottDir.hiba.slice(0, 80) });
     } finally { rmSync(tmp3, { recursive: true, force: true }); }
+  }
+
+  // ── R) F154-39…F154-43 — A TIZEDIK KÖR ÖT LELETE ────────────────────────────────
+  part('R) F154-39…F154-43 — a query-felülírás, az egész plafon, a fájl-kötés és a nyelvi tartomány');
+  {
+    // (r1–r4) F154-39 (P1): a kapcsolati cím QUERY-paraméterei is számítanak.
+    const a = sameDatabase('postgres://decoy@host/?user=source', 'source');
+    step('(r1) `?user=` felülírja a cím-felhasználót, és út híján AZ az adatbázis (RÉGEN: `decoy`-t vetette össze → a FORRÁST törölte volna)',
+      a.same === true, a);
+    const b = sameDatabase('postgres://u:p@h/vs_eles?dbname=source', 'source');
+    step('(r2) `?dbname=` FELÜLÍRJA az utat — tehát az a tényleges adatbázis',
+      b.same === true, b);
+    const c = sameDatabase('postgres://u:p@h/vs_eles', 'vs_visszatoltes_proba');
+    step('(r3) ELLENPÁR: a valóban más cél mellett a lánc továbbra is indulhat',
+      c.same === false, c);
+    const szerver = withDatabase('postgres://u:p@h/vs_eles?dbname=masik&sslmode=require', 'postgres').toString();
+    step('(r4) a kiszolgáló-URL a MEGNEVEZETT adatbázisra mutat, és a `?dbname=` felülírás KIKERÜL',
+      szerver.includes('/postgres') && !szerver.includes('dbname=') && szerver.includes('sslmode=require'), { url: szerver });
+    step('(r5) és a tényleges név feloldása KIMONDJA, MIN alapul',
+      /dbname/.test(effectiveDatabase('postgres://h/?dbname=x').basis) && effectiveDatabase('postgres://h/?dbname=x').name === 'x',
+      effectiveDatabase('postgres://h/?dbname=x'));
+
+    // (r6–r7) F154-41: a plafon pozitív EGÉSZ szám.
+    const naplo = [];
+    const tort = sessionLimits({ VS_APP_SESSION_MAX: '0.5' }, (m) => naplo.push(m));
+    step('(r6) a tört plafon NEM érvényes érték: az alapértelmezés áll be, és a napló KIMONDJA (RÉGEN: 0.5 érvényes volt, és a szolgáltatás egyetlen munkamenetet sem tartott meg)',
+      tort.maxSessions === SESSION_LIMITS.max_sessions && naplo.length === 1 && /NEM pozitív egész/.test(naplo[0]),
+      { maxSessions: tort.maxSessions, naplo: naplo.length });
+    step('(r7) ELLENPÁR: az érvényes egész érték átmegy (a szűkítés nem zár el jogos beállítást)',
+      sessionLimits({ VS_APP_SESSION_MAX: '2' }, () => {}).maxSessions === 2
+      && sessionLimits({ VS_APP_SESSION_MAX: '1e3' }, () => {}).maxSessions === 1000, {
+        ketto: sessionLimits({ VS_APP_SESSION_MAX: '2' }, () => {}).maxSessions,
+        ezer: sessionLimits({ VS_APP_SESSION_MAX: '1e3' }, () => {}).maxSessions });
+
+    // (r8–r9) F154-40: a `--transcript` a KÉRT munkamenethez kötve.
+    const tmp4 = mkdtempSync(join(tmpdir(), 'vs-kotes-'));
+    try {
+      const kert = 'ffffffff-0000-4000-8000-000000000004';
+      const masik = 'ffffffff-0000-4000-8000-000000000005';
+      mkdirSync(join(tmp4, '-pr'), { recursive: true });
+      const masikFajl = join(tmp4, '-pr', `${masik}.jsonl`);
+      writeFileSync(masikFajl, `{"type":"assistant","sessionId":"${masik}"}\n`);
+      const kertFajl = join(tmp4, '-pr', `${kert}.jsonl`);
+      writeFileSync(kertFajl, `{"type":"assistant","sessionId":"${kert}"}\n`);
+      const futtat = (sess, extra) => {
+        try {
+          execFileSync(process.execPath, [join(ROOT, 'tools/v3_fogyasztas_export.mjs'),
+            '--session', sess, '--from', '2026-01-01T00:00:00Z', '--to', '2026-01-02T00:00:00Z',
+            '--out', join(tmp4, 'kimenet'), ...extra], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+          return { kod: 0, hiba: '' };
+        } catch (e) { return { kod: e.status, hiba: String(e.stderr || '') }; }
+      };
+      const roszz = futtat(kert, ['--transcript', masikFajl]);
+      step('(r8) MÁS munkamenet átirata a `--transcript`-ben NEVEZETTEN elakad (RÉGEN: lefutott, és a KÉRT azonosítót írta a fejlécbe)',
+        roszz.kod === 2 && /NEM A KÉRT MUNKAMENETÉ/.test(roszz.hiba), { kilepes: roszz.kod });
+      const jo = futtat(kert, ['--transcript', kertFajl]);
+      step('(r9) ELLENPÁR: a HELYES fájl továbbra is átmegy',
+        jo.kod === 0, { kilepes: jo.kod, hiba: jo.hiba.slice(0, 80) });
+    } finally { rmSync(tmp4, { recursive: true, force: true }); }
+
+    // (r10–r11) F154-43: a nyelvi kizárás a TELJES tartományra szól.
+    const de = pickFromAcceptLanguage('de-AT;q=0, de;q=1');
+    step('(r10) regionális kizárás mellett az ÁLTALÁNOS nyelv megengedett (RÉGEN: `hu` — a német egésze kizártnak számított)',
+      de.code === 'de' && de.matched === true, de);
+    const deAll = pickFromAcceptLanguage('de;q=0, de-AT;q=1');
+    step('(r11) ELLENPÁR: ha az ÁLTALÁNOS nyelvet zárták ki, a regionális sem adhat németet',
+      deAll.code !== 'de', deAll);
   }
 
   const fail = results.filter((r) => !r.pass);

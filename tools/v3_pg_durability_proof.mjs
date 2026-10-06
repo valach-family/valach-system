@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { loadRepoEnv } from './lib/vs_tool_env.mjs';
-import { restoreTargetProblem, sameDatabase, qid } from './lib/vs_pg_target.mjs';
+import { restoreTargetProblem, sameDatabase, qid, withDatabase } from './lib/vs_pg_target.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 loadRepoEnv(ROOT);
@@ -87,8 +87,10 @@ if (azonos.same) {
   console.error(`proof:pg-durability — a visszatöltés célja AZONOS a forrással (${azonos.basis}). Megálltam.`);
   process.exit(2);
 }
-const admin = new URL(url); admin.pathname = '/postgres';
-const target = new URL(url); target.pathname = `/${restoreTarget}`;
+// A KISZOLGÁLÓ-URL-EK A MEGNEVEZETT ADATBÁZISRA MUTATNAK, ÉS A `?dbname=` FELÜLÍRÁST KIVESSZÜK
+// (F154-39): különben a query-paraméter felülírná a beállított utat, és a `DROP`/`CREATE` máshol futna.
+const admin = withDatabase(url, 'postgres');
+const target = withDatabase(url, restoreTarget);
 
 const PSQL = process.env.VS_PSQL || 'psql';
 const PGDUMP = process.env.VS_PGDUMP || 'pg_dump';
