@@ -1,15 +1,15 @@
 # R154 — ÖSSZESÍTŐ REPORT: a meglévő V3 auditja és a Codex-visszajelzések folyamatos javítása
 
 **Parancs:** `CMD-VS-300-002-002 R154 — SPEC` (board) · **sáv:** Claude-v3 · **dátum:** 2026-10-06
-**Repó:** `valach-system` · **alap:** `e24860f4` (a SPEC-ben megadott fej) · **ág:** `claude/r154-audit-fix`
+**Repó:** `valach-system` · **alap:** `e24860f4` (a SPEC-ben megadott fej) · **ág:** `claude/r154-audit-fix` · **fej:** `00e4251`
 **A kiinduló állapot változatlan maradt:** V2 repó, éles üzem, titkok, adat — egyiket sem érintettem.
 
 ---
 
 ## 1. A LEGRÖVIDEBB VÁLASZ, ÜZLETI NYELVEN
 
-Az auditot a **meglévő, változatlan V3-on** végeztem, nem egy új funkció tervén. Találtam **28 valós
-hibát vagy nevesített rést**, ebből **25-öt megjavítottam**, mindegyiket előbb **megmértem** (reprodukció
+Az auditot a **meglévő, változatlan V3-on** végeztem, nem egy új funkció tervén. Találtam **32 valós
+hibát vagy nevesített rést**, ebből **29-et megjavítottam**, mindegyiket előbb **megmértem** (reprodukció
 számokkal), aztán javítottam, aztán **visszavétel-próbával** igazoltam, hogy a próba tényleg fogja a
 hibát. Három tétel nevesítetten NYITVA marad, mert a javítása nem audit-javítás, hanem **döntés** — ezeket
 a 7. szakasz nevezi meg.
@@ -26,6 +26,9 @@ zöld maradt**, tehát a zöldje ezekről semmit nem mondott.
 | Egy **több soros kérdés** a segédnek küldhetetlen volt (az Enter a szövegmezőben) | a végpont **400 `invalid_type`**-ot adott |
 | Telt tárnál a **megerősítő levél hivatkozása** nem működött: a felhasználó nem tudta megnyitni a fiókját | `GET /api/verify` → **503** |
 | Egy lassú, több gépről jövő kérés-köteg **megkerülte a memória-korlátot** | 10 átfedő kérés, 2-es plafon → a köteg után is **12** tárolt munkamenet |
+| Telt tárnál a rendszer **sikert jelentett** egy meghívó-folytatásra, amit a következő kérés már nem talált | a kérés **200**-at és sütit adott, a munkamenet viszont nem volt a tárban, és a kiírt sort a takarítás törölte |
+| A mentés-visszatöltés próbája **a FORRÁS adatbázist törölte volna**, ha a neve százalékkal kódolt | `…/foo%24bar` + cél `foo$bar` → „nem egyezik", pedig UGYANAZ |
+| A visszatöltési cél hibájakor a **jelszó a naplóba került** | a hibaüzenet a teljes kapcsolati címet kiírta |
 
 ---
 
@@ -38,10 +41,11 @@ zöld maradt**, tehát a zöldje ezekről semmit nem mondott.
 
 | ki mit tesz | tényleges állapot |
 |---|---|
-| **Codex (külső ellenőrző, GitHub App)** | **MŰKÖDIK, automatikus.** Minden felküldött változatot magától átolvas, és soronkénti leleteket ír a PR-re. Mérve: **öt** teljes kör (`4fe5e02f` · `a0969896` · `624f80d3` · `88bc0d4d` · `8b185f03` · `c1d7dbb5`) |
+| **Codex (külső ellenőrző, GitHub App)** | **MŰKÖDIK, automatikus.** Minden felküldött változatot magától átolvas, és soronkénti leleteket ír a PR-re. Mérve: **hat** teljes kör (`4fe5e02f` · `a0969896` · `624f80d3` · `88bc0d4d` · `8b185f03` · `c1d7dbb5` · `0098ac4e`) |
 | **a leletek javítása** | **ÉN végzem** (Claude-v3): reprodukció → javítás → visszavétel-próba → válasz a szálon → a szál lezárása. Nem a Codex „address that feedback" gombja: azt nem használom, mert a javítást mérni kell |
-| **az utolsó review-kör SHA-ja** | **`c1d7dbb568c0e077cc436f888ff53a3eb64f665f`** (2026-10-06 13:47 UTC) — ennek mind a négy lelete javítva és a szálon megválaszolva van a `0098ac4` commitban |
-| **nyitott review-szál** | **nincs**: mind a 16 szál lezárva (12 korábbi + az ötödik kör 4 lelete) |
+| **az utolsó review-kör SHA-ja** | **`0098ac4e81c39772daf222a3aa3b6e5f005b750f`** (2026-10-06 14:16 UTC) — ennek mind a négy lelete javítva és a szálon megválaszolva van a `00e4251` commitban |
+| **nyitott review-szál** | **nincs**: mind a 20 szál lezárva (12 + az ötödik kör 4 + a hatodik kör 4 lelete) |
+| **ami ezután jöhet** | a `00e4251`-re a Codex **újabb kört futtathat** — a PR-re fel vagyok iratkozva, tehát az új lelet ide megérkezik. Ez a jelentés a `00e4251` állapotát írja le |
 | **amit az operátornak tennie kell** | **semmit.** Sem bekapcsolás, sem jogosultság, sem kulcs nem hiányzik ehhez |
 
 **Egy korrekció, amit kimondok:** a csomag közben egyszer azt írtam, hogy a Codexet be kell kapcsolni —
@@ -88,6 +92,20 @@ döntés-naplóban (`D-VS-3100`…`D-VS-3124`) és a KUKA-regiszterben (`KUKA-29
 | **F154-26 (P2)** | **a sikertelen takarítás azonosítói elvesztek** — az árva sor többé nem volt megtalálható | dobó takarítás: várólista **0**, egy azonosító elveszett → most **1**, és leadja | L: l3 · `KUKA-312` |
 | **F154-27 (P2)** | **negyedszer a költség-osztály**: a pin elengedése kérésenként a teljes pin-táblát olvasta | 4000 átfedő kérés **593 ms → 6 ms** (≈100×) | L: l4 · `KUKA-313` |
 | **F154-28 (P2)** | **a kikeresés és az érintés két külön időben történt** — a hívó egy eldobott sort hitt élőnek | a `touch` nem adott vissza semmit | L: l5, l6 · `KUKA-314` |
+| **F154-29 (P1)** | **a pin elengedésekori söprés azt vitte el, amihez a kezelő ÉPP AKKOR írt** — a kérés 200-at és sütit adott, a következő kérés viszont sem a munkamenetet, sem a folytatást nem találta | `maxSessions=2`, csupa belépett sor: **200 + süti**, a munkamenet nincs a tárban, `invite_context: null` → most **503 `at_capacity`**, süti nélkül | M: m0–m5 · L: l1 · `KUKA-316` |
+
+### 3.2b A szerszámok — a hatodik kör három lelete (ezek nem a kiszolgálóban voltak)
+
+| # | a hiba | mérve | gépi jel |
+|---|---|---|---|
+| **F154-30 (P1)** | a mentés-visszatöltés próbája a forrás adatbázis nevét **kódolt alakban** vetette össze a céllal — a lánc másik végén `DROP DATABASE` áll, tehát a FORRÁST törölte volna | `…/foo%24bar` + `foo$bar`: nyersen „nem egyezik", dekódolva azonos | N: n1–n3 · `KUKA-317` |
+| **F154-31 (P1)** | a hibás visszatöltési célt a hibaüzenet **kiírta** — a leggyakoribb hiba épp a kapcsolati cím, abban pedig **jelszó** van | a jelzés ma: hossz · kezdet-osztály · „kapcsolati cím alakú", érték NÉLKÜL | N: n4–n5 · `KUKA-318` |
+| **F154-32 (P2)** | a fogyasztás-export a **többes átirat-találatból csendben az elsőt** vette — elavult példányt is exportálhatott, sikeresnek látszó módon | két szintetikus projekt-könyvtár: régen 0-s kilépés, most **2-es**, mindkét úttal | N: n6 · `KUKA-319` |
+
+**És amit ez a három együtt mutat:** mindhárom olyan eszközben volt, amit a söprés **nem futtat** (a
+PostgreSQL-lánc valódi adatbázist kér, az export egyszeri). Ezért a két tiszta döntés átkerült egy közös,
+MEGHÍVHATÓ modulba (`tools/lib/vs_pg_target.mjs`), a harmadikat pedig az eszköz tényleges futtatásával
+mérjük — amit a próba nem tud meghívni, azt bizalomból hisszük (`KUKA-207`).
 
 ### 3.3 Saját leletek a javítás közben — ezeket a saját próbáim kapták el
 
@@ -156,9 +174,11 @@ tényleges funkció-regiszterből jön — a bemutató nem tud „szebb" lenni, 
 
 ## 7. FENNMARADÓ HIÁNYOK ÉS A HÁROM DÖNTÉSI KÉRÉS
 
-**(1) A GYÖKÉR-OK — és a javaslat, amit nem hajtok végre magamtól.** A **28 leletből 19 ugyanabban a
-munkamenet-tárban** volt, öt review-kör alatt, és az ötödik kör mind a négy lelete az előző kör
-javításának (a pin) ára. **A foltozás itt már nem konvergál.** Az ok megnevezve: **minden süti nélküli
+**(1) A GYÖKÉR-OK — és a javaslat, amit nem hajtok végre magamtól.** A **32 leletből 23 ugyanabban a
+munkamenet-tárban** volt, **hat** review-kör alatt, és az ötödik–hatodik kör leletei az előző körök
+javításainak árai. A hatodik körben **három egymást visszafordító javítás** zárult le (felvételi kapu →
+pin → utólagos söprés → a sorrend megfordítása): ott már nem negyedik őrt tettem a harmadik mellé, hanem
+a plafont a BESZÚRÁSHOZ vittem, és ezzel két mechanizmus KIKERÜLT. **A foltozás itt mégsem konvergál.** Az ok megnevezve: **minden süti nélküli
 kérésre munkamenet születik**, akkor is, ha soha nem lesz rá szükség — ebből jön a plafon, a kiszorítási
 sorrend, a védettség és az egyidejűség összes interakciója. Ha a munkamenet csak akkor kerülne a tárba,
 amikor valami TÉNYLEGESEN hozzá kötődik (belépés vagy munkamenethez kötött írás), a plafon gyakorlatilag
@@ -182,26 +202,26 @@ szerinti takarítása (`D-VS-3007`). A tábla most a tárral EGYÜTT korlátos, 
 ## 8. FOGYASZTÁS — MÉRVE, NEM BECSÜLVE
 
 Eszköz: `tools/v3_fogyasztas_meres.mjs` (FGY-01/3). Ablak: a csomag board-időbélyegétől a jelentés
-írásáig. **A nyitott ablak záró pillanatképe:** `2026-10-06T14:14:22Z` — az ez utáni hívások (ennek a
+írásáig. **A nyitott ablak záró pillanatképe:** `2026-10-06T14:47:57Z` — az ez utáni hívások (ennek a
 lapnak az írása, a HTML-előállítás, a board-feltöltés) a következő mérésben jelennek meg.
 
 | mit | mérve |
 |---|---|
-| ablak | `2026-10-06T10:30:15.916Z → 2026-10-06T14:14:22Z` |
-| modellhívás | **412** (lefedettség: teljes — 1 átirat, minden válasz usage-dzsal) |
-| cache-olvasás · kimenet | 153 631 644 · 526 941 |
+| ablak | `2026-10-06T10:30:15.916Z → 2026-10-06T14:47:57Z` |
+| modellhívás | **477** (lefedettség: teljes — 1 átirat, minden válasz usage-dzsal) |
+| cache-olvasás · kimenet | 174 674 869 · 627 739 |
 | **ügynök-bemenet** | **0 (0 ügynök)** — ebben a csomagban al-ügynököt és workflow-t nem indítottam |
-| fő szál kontextus | **medián 317 901** · max **783 400** · 400 ezer fölött **175** hívás |
+| fő szál kontextus | **medián 321 651** · max **783 400** · 400 ezer fölött **175** hívás |
 | a mérő sáv-verdiktje MOST | **FIGYELMEZTETÉS** (a 300–400 ezres sávban): megállni nem kell |
 
 **És amit ehhez kimondok, mert a szám menet közben változott:** a csomag csúcsán a kumulatív medián
 **428 946** volt, tehát a mérő a **VÁLTÁSI** jelzőt adta — ezért kezdtem a zárást. A medián azóta
-**317 901**-re ESETT, mert a beszélgetés **tömörítve folytatódott**, és a tömörítés utáni 92 hívás
+**321 651**-re ESETT, mert a beszélgetés **tömörítve folytatódott**, és a tömörítés utáni 157 hívás
 alacsonyabb kontextussal futott. A tömörítéssel folytatott beszélgetés **nem friss beszélgetés** (R114),
 ezért a javaslat áll: a **következő önálló nagy blokk** induljon friss beszélgetésben. Ez a jelző
 kísérleti, nem szolgáltatói limit, és megtakarítási ígéretet nem hordoz.
 
-A tartalom nélküli hívás-leltár (412 sor, csak számlálók — üzenet, parancs és eszköz-kimenet NEM):
+A tartalom nélküli hívás-leltár (477 sor, csak számlálók — üzenet, parancs és eszköz-kimenet NEM):
 `docs/70_PLANNING/V3_R154_FOGYASZTAS_LELTAR.json`.
 
 ---
@@ -209,8 +229,8 @@ A tartalom nélküli hívás-leltár (412 sor, csak számlálók — üzenet, pa
 ## 9. AMIT EZ A REPORT NEM ÁLLÍT
 
 * **Nem** állítja, hogy a V3 kész vagy kiadható: a 4. szakasz öt kimaradt területe kimondott hiány.
-* **Nem** állítja, hogy a munkamenet-tár most hibátlan — azt állítja, hogy **28 nevesített hibája
-  javítva van, és mindegyikre van gépi jel**. A gyökér-ok átalakítása nélkül a terület továbbra is a
+* **Nem** állítja, hogy a munkamenet-tár most hibátlan — azt állítja, hogy **a nevesített hibái javítva
+  vannak, és mindegyikre van gépi jel**. A gyökér-ok átalakítása nélkül a terület továbbra is a
   legvalószínűbb lelet-forrás.
 * **Nem** állít semmit üzleti folyamatról, élő AI-ról és felhős üzemről: ezek mérése el nem végzett
   (KUKA-216 — a verdikt nem mutathat a mérés hatókörén túl).
