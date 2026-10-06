@@ -14,10 +14,11 @@
 
 | | |
 |---|---|
-| **végső commit (fej)** | `b80d00ce31b4ff0ff6eb9e0b0453ddb58998d1e0` |
-| **a fej ideje (UTC)** | lásd a 11. pontot — a záró kapu szakasza nevezi meg a VÉGSŐ commitot és az idejét |
-| **a csomag commitjai** | 5 (`392bcd2` · `2f91609` · `c37d905` · `70bbad4` · `b80d00c`) |
-| **a PR commitjai összesen** | 32 (az R154 kör 27 + az R158 kör 5) |
+| **a MÉRT kód-állapot** | `b80d00ce31b4ff0ff6eb9e0b0453ddb58998d1e0` — a záró teljes söprés ezen futott |
+| **a záró kapu eredményét hordozó commit** | `0ab118edf2be6a425ccff9b4511226055acd4d03` · **2026-10-06 21:38:07 UTC** |
+| **a VÉGSŐ fej** | ennél legfeljebb EGGYEL több: a lap utolsó pontosítása és a board-feltöltés commitja. **Kód ettől nem változik** — a `b80d00c` utáni commitok kizárólag dokumentumok és a külső-ellenőrző lánc saját eredmény-fájljai. A pontos fejet a `git log -1` adja. |
+| **a csomag commitjai** | 7 (`392bcd2` · `2f91609` · `c37d905` · `70bbad4` · `b80d00c` · `a181631` · `0ab118e`) |
+| **a PR commitjai összesen** | 34 (az R154 kör 27 + az R158 kör 7) |
 | **a kiinduló alap** | `3adc8e0` leszármazottja — az R158 kikötése szerint; `main`-re NEM tértünk vissza |
 
 ---
