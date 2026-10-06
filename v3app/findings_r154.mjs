@@ -30,6 +30,7 @@ import { fileURLToPath } from 'node:url';
 import { rmSync } from 'node:fs';
 import { startServer, makeRateLimiter, makeSessionStore, sessionLimits, SESSION_LIMITS } from './server.mjs';
 import { dictFor } from './public/i18n/dict.mjs';
+import { resolveLanguage, parseAcceptLanguage, pickFromAcceptLanguage } from './public/i18n/languages.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const results = [];
@@ -148,6 +149,60 @@ part('C/1) F154-03 — a munkamenet-tár plafonja és tétlensége a feloldón')
     && sessionLimits({}).maxSessions === SESSION_LIMITS.max_sessions
     && sessionLimits({ VS_APP_SESSION_MAX: 'nemszam' }).maxSessions === SESSION_LIMITS.max_sessions,
     'a hibás érték az alapértékre esik, nem nullára');
+}
+
+// ── D) F154-05 + F154-06 — A NYELVI FELOLDÓ: A NYUGTA NEM HARDKÓDOLT, A q=0 KIZÁRÁS ────────────
+part('D) F154-05 · F154-06 — a kért nyelv tényét nem hardkódoljuk, és a q=0 kizárás');
+{
+  // (d1) A FŐ LELET: a fejléc-úton a `matched` HARDKÓDOLT `true` volt. MÉRVE: `fr-FR` → `hu`, és a
+  // válasz azt állította, hogy a KÉRT nyelvet adta.
+  const fr = resolveLanguage({ acceptLanguage: 'fr-FR' });
+  step('(d1) Accept-Language: fr-FR → hu, és a válasz KIMONDJA, hogy nem a kért nyelv (régen: matched=true)',
+    fr.code === 'hu' && fr.matched === false, fr);
+
+  // (d2) AZ ELLENPÁR, AMI A LELETET MEGMUTATTA: UGYANEZ a kérés a kifejezett úton HELYESEN felelt.
+  // Egy kérdésre EGY válasz — a két út nem adhat különbözőt (KUKA-003).
+  const frExplicit = resolveLanguage({ explicit: 'fr' });
+  step('(d2) a KÉT ÚT ugyanarra a kérdésre ugyanazt feleli (fejléc vs kifejezett)',
+    fr.matched === frExplicit.matched && fr.code === frExplicit.code,
+    { fejlec: fr, kifejezett: frExplicit });
+
+  // (d3) ELLENPÁR: a VALÓDI találat továbbra is találat — a javítás nem mindent hamisra állít.
+  const de = resolveLanguage({ acceptLanguage: 'de-AT' });
+  const en = resolveLanguage({ acceptLanguage: 'en-US,en;q=0.9' });
+  step('(d3) ELLENPÁR: a valódi találat MARAD találat (de-AT → de · en-US → en, matched=true)',
+    de.code === 'de' && de.matched === true && en.code === 'en' && en.matched === true,
+    { de, en });
+
+  // (d4) ELLENPÁR: a magyart KÉRŐ fejléc nem keverhető össze a magyarra VISSZAESŐVEL — pont ez a
+  // kétértelműség szülte a leletet (KUKA-238).
+  const hu = resolveLanguage({ acceptLanguage: 'hu-HU' });
+  step('(d4) ELLENPÁR: a magyart KÉRŐ fejléc matched=true, a magyarra VISSZAESŐ matched=false',
+    hu.code === 'hu' && hu.matched === true && fr.code === 'hu' && fr.matched === false,
+    { kert_hu: hu, visszaesett: fr });
+
+  // (d5) F154-06: a `q=0` az RFC 7231 §5.3.1 szerint NEM elfogadható, nem leghátsó preferencia.
+  step('(d5) Accept-Language: de;q=0 → hu, NEM de (régen MÉRVE: de — a kizárt nyelvet adta)',
+    parseAcceptLanguage('de;q=0') === 'hu', { kapott: parseAcceptLanguage('de;q=0') });
+  step('(d6) Accept-Language: en;q=0 → hu, NEM en',
+    parseAcceptLanguage('en;q=0') === 'hu', { kapott: parseAcceptLanguage('en;q=0') });
+
+  // (d7) ELLENPÁR: a q=0 KIZÁRÁS nem söpri el a többi címkét — a súlyozás változatlanul működik.
+  step('(d7) ELLENPÁR: `de;q=0, en;q=0.5` → en · `hu;q=0, en;q=0.1` → en — a súlyozás ép',
+    parseAcceptLanguage('de;q=0, en;q=0.5') === 'en' && parseAcceptLanguage('hu;q=0, en;q=0.1') === 'en',
+    { a: parseAcceptLanguage('de;q=0, en;q=0.5'), b: parseAcceptLanguage('hu;q=0, en;q=0.1') });
+
+  // (d8) A RÉGI SZERZŐDÉS NEM TÖRT EL: a `parseAcceptLanguage` továbbra is KÓDOT ad (szöveget),
+  // nem objektumot — a mai hívói érintetlenek (KUKA-130: a javítás ne legyen a következő lelet).
+  step('(d8) a `parseAcceptLanguage` szerződése változatlan: szöveget ad, nem objektumot',
+    typeof parseAcceptLanguage('de') === 'string' && parseAcceptLanguage('de') === 'de'
+    && typeof pickFromAcceptLanguage('de').matched === 'boolean',
+    { parse: parseAcceptLanguage('de'), pick: pickFromAcceptLanguage('de') });
+
+  // (d9) ÜRES FEJLÉC: nincs kérés, tehát nincs TALÁLAT sem — de a kód az alapnyelv.
+  step('(d9) üres fejléc → alapnyelv, és NEM állítja, hogy találat volt',
+    pickFromAcceptLanguage('').code === 'hu' && pickFromAcceptLanguage('').matched === false,
+    pickFromAcceptLanguage(''));
 }
 
 // ── B + C/2) A HATÁRON, ÉLŐ HTTP-N ─────────────────────────────────────────────────────────────

@@ -95,23 +95,51 @@ export function normalizeLanguage(input, { includeProbes = false } = {}) {
   return BASE_LANGUAGE;
 }
 
-/** Az `Accept-Language` fejléc első HASZNÁLHATÓ nyelve (q-súly szerint), különben az alapnyelv. */
-export function parseAcceptLanguage(header, opts = {}) {
+/**
+ * AZ `Accept-Language` FEJLÉC VÁLASZTÁSA — ÉS HOGY VOLT-E TALÁLAT (LNG-03, F154-05 · F154-06).
+ *
+ * KÉT MÉRT HIBA VOLT EBBEN AZ EGY FÜGGVÉNYBEN:
+ *
+ * F154-06 — A `q=0` ELFOGADÁSKÉNT SZÁMÍTOTT. Az RFC 7231 §5.3.1 kimondja: *„a 0 súly azt jelenti,
+ * hogy NEM elfogadható."* A régi alak a `q=0`-t egy sima, legkisebb súlyú ELŐNYBEN RÉSZESÍTÉSNEK
+ * vette, ezért MÉRVE: `Accept-Language: de;q=0` → `de`, és `en;q=0` → `en`. Vagyis aki kifejezetten
+ * KIZÁRTA a németet, pont németet kapott. A fájl fejléce szabványra hivatkozik (RFC 5646 · W3C) —
+ * egy hivatkozott szabványt viszont MEG IS KELL MÉRNI, különben csak idézet (KUKA-050).
+ *
+ * F154-05 — A TALÁLAT TÉNYE ELVESZETT. A függvény csak a KÓDOT adta vissza, és az alapnyelv
+ * kétértelmű: ugyanazt kapja a „magyart kért és magyart kapott" és a „franciát kért, nincs francia,
+ * ezért magyar". A hívó (`resolveLanguage`) ezért a `matched` mezőt HARDKÓDOLT `true`-ra tette a
+ * fejléc-úton — tehát a nyugta hazudott. Innentől a találat ténye a visszatérés RÉSZE.
+ *
+ * A `parseAcceptLanguage` szerződése NEM változik (a kódot adja), hogy a mai hívók érintetlenek
+ * maradjanak; a bővebb alakot a `pickFromAcceptLanguage` adja.
+ *
+ * @returns {{code:string, matched:boolean}} `matched` = a fejléc EGYIK címkéje tényleg erre mutatott
+ */
+export function pickFromAcceptLanguage(header, opts = {}) {
   const raw = String(header ?? '');
-  if (!raw.trim()) return BASE_LANGUAGE;
+  if (!raw.trim()) return Object.freeze({ code: BASE_LANGUAGE, matched: false });
   const tags = raw.split(',').map((part) => {
     const [tag, ...params] = part.split(';').map((s) => s.trim());
     const q = params.map((p) => /^q=([0-9.]+)$/i.exec(p)).find(Boolean);
     return { tag, q: q ? Number(q[1]) : 1 };
-  }).filter((x) => x.tag && Number.isFinite(x.q)).sort((a, b) => b.q - a.q);
+  })
+    // A `q=0` NEM ELFOGADHATÓ (RFC 7231 §5.3.1) — kizárás, nem leghátsó preferencia.
+    .filter((x) => x.tag && Number.isFinite(x.q) && x.q > 0)
+    .sort((a, b) => b.q - a.q);
   for (const { tag } of tags) {
     const wanted = normalizeLanguage(tag, opts);
     // A `normalizeLanguage` ismeretlennél az alapnyelvet adja — ez ITT nem találat, csak ha a
     // címke TÉNYLEG erre a nyelvre mutat (különben az első idegen címke „eltalálná" a magyart).
     const asked = String(tag).toLowerCase().split(/[-_]/)[0];
-    if (wanted !== BASE_LANGUAGE || asked === BASE_LANGUAGE) return wanted;
+    if (wanted !== BASE_LANGUAGE || asked === BASE_LANGUAGE) return Object.freeze({ code: wanted, matched: true });
   }
-  return BASE_LANGUAGE;
+  return Object.freeze({ code: BASE_LANGUAGE, matched: false });
+}
+
+/** Az `Accept-Language` fejléc első HASZNÁLHATÓ nyelve (q-súly szerint), különben az alapnyelv. */
+export function parseAcceptLanguage(header, opts = {}) {
+  return pickFromAcceptLanguage(header, opts).code;
 }
 
 /**
@@ -126,7 +154,12 @@ export function resolveLanguage({ explicit, stored, acceptLanguage } = {}, opts 
     return { code, source, matched: code === normalizeLanguage(raw, { includeProbes: true }) && Boolean(languageOf(raw) || languageOf(raw.toLowerCase().split(/[-_]/)[0])) };
   }
   if (String(acceptLanguage ?? '').trim()) {
-    return { code: parseAcceptLanguage(acceptLanguage, opts), source: 'accept_language', matched: true };
+    // A `matched` NEM HARDKÓDOLHATÓ (F154-05). A régi alak mindig `true`-t adott, ezért a
+    // `Accept-Language: fr-FR` → `hu` esetre is azt állította, hogy a KÉRT nyelvet kapta — miközben
+    // UGYANEZ a kérés `explicit: 'fr'`-ként helyesen `matched: false`-t adott. Egy kérdésre egy
+    // válasz: a találat tényét az oldja fel, aki a választást is (KUKA-238 · KUKA-129).
+    const got = pickFromAcceptLanguage(acceptLanguage, opts);
+    return { code: got.code, source: 'accept_language', matched: got.matched };
   }
   return { code: BASE_LANGUAGE, source: 'default', matched: true };
 }
