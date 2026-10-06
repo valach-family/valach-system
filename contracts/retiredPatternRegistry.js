@@ -12886,6 +12886,34 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (egy pozitív minta) · `npm run verify:app-findings-r154` (G: g2 a lelet, g3 az ellenpár — a négy belépett megmarad, g4 az ellenpár a kivételre — a BELÉPETTEN született friss sor sérthetetlen marad).',
   }),
 
+
+  Object.freeze({
+    id: 'KUKA-303',
+    date: '2026-10-06',
+    title: 'A SZŰKÍTÉSEM KÜLDHETETLENNÉ TETTE A JOGOS KÉRDÉST — a felület szerkesztője és a mező típusa elvált',
+    what: 'Az ISC-02 vezérlő-karakter-tiltását a `nonempty_string` típusra tettem. A segéd-chat `question` mezője ez a típus volt, a felület viszont `<textarea>`-t ad hozzá (`v3app/public/chat.mjs`), ahol az ENTER SORTÖRÉST tesz. MÉRVE: a több soros kérdés HTTP 400 `invalid_type` („vezérlő-karaktert nem tartalmazhat") lett — vagyis a felületen FELAJÁNLOTT szerkesztő tett küldhetetlenné egy teljesen jogos kérdést.',
+    why_wrong: 'A szűkítés a helyes IRÁNYBA ment, de a hatóköre nem a mező FAJTÁJÁT követte. A kockázatot a saját PR-kommentemben MEG IS NEVEZTEM (KUKA-130: „a sortörést nem vesszük el mellékhatásként"), aztán mégis elkövettem: a `type: "string"` használatait végigolvastam, a `nonempty_string`-éit NEM. A hiba a felhasználó szemszögéből a legkellemetlenebb fajta: a gomb ott van, a szerkesztő engedi beírni, a küldés mégis elutasítja.',
+    replaced_by: 'HÁROM fajta, nem kettő: AZONOSÍTÓ/NÉV (`nonempty_string` — vezérlő tilos) · NEM ÜRES SZABAD SZÖVEG (`nonempty_text` — sortörés jogos, nulla bájt tilos) · OPCIONÁLIS SZABAD SZÖVEG (`string`). A `question` a középső. A nulla bájt MINDHÁROMBAN tilos.',
+    replacement: 'A PÁROSÍTÁS MÉRVE, NEM FELTÉVE: a próba a KÉT FÁJLBÓL olvassa össze, hogy a lap `<textarea>`-t ad a kérdéshez ÉS a mező típusa szabad szöveg (h3). Így egy jövőbeli típus-szűkítés ezen a mezőn azonnal pirosra vált.',
+    decision: 'D-VS-3113',
+    found_by: 'A KÜLSŐ REVIEW (Codex, R154, P2 — `v3ref/inputSchema.mjs:69`) — a saját, EGY KÖRREL KORÁBBI szűkítésem (ISC-02) regressziója. Élő HTTP-n reprodukáltam, mielőtt javítottam.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/inputSchema.mjs']),
+        pattern: 'nonempty_text: \\(v\\) =>',
+        why: 'a NEM ÜRES SZABAD SZÖVEG önálló fajta — a sortörés jogos benne' }),
+      Object.freeze({ paths: Object.freeze(['v3app/httpSchema.mjs']),
+        pattern: "question: frozen\\(\\{ type: 'nonempty_text'",
+        why: 'a chat kérdése szabad szöveg, nem azonosító — a `<textarea>` párja' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/httpSchema.mjs']),
+        pattern: "question: frozen\\(\\{ type: 'nonempty_string'",
+        why: 'az azonosító-fajta típus a szabad szöveges kérdésen — ettől lett küldhetetlen' }),
+    ]),
+    lesson: 'EGY BEMENETI MEZŐ TÍPUSA ÉS A FELÜLETEN FELAJÁNLOTT SZERKESZTŐ EGY PÁR — ha `<textarea>`-t adsz, a típus nem lehet azonosító-fajta. Minden típus-SZŰKÍTÉS előtt listázd ki, MELY MEZŐK használják az adott típust, és mindegyikről kérdezd meg, milyen szerkesztőt kap a felületen; a „megnéztem a hasonló típus használatait" nem elég, mert a szűkítés azon a típuson hat, amit SZŰKÍTESZ. És amit egy PR-kommentben kockázatként megnevezel, azt a saját következő lépésednél ellenőrizd is le — a megnevezés nem védelem.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív + egy tiltó minta) · `npm run verify:app-findings-r154` (H: h1 a több soros kérdés, h2 a tabulátor, h3 a PÁROSÍTÁS két fájlból mérve, h4/h5/h6 az ellenpárok — a nulla bájt, az üres kérdés és a NÉV sortörése továbbra is tilos).',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

@@ -43,6 +43,8 @@ Vagyis: **a teljes söprés zöldje a lenti három leletről SEMMIT nem mondott.
 | 17 | A munkamenet-tár MÁSODIK külső review-köre | a Codex három újabb P2 lelete `a096989`-en; mindhárom REPRODUKÁLVA, utána javítva | **F154-11 · F154-12 · F154-13 — mind VALÓS**: (11) a védett-lista a TELJES `pending_intent` táblát olvasta minden söprésnél, abba viszont a `POST /api/invites/pending` HITELESÍTÉS NÉLKÜL ír — 400 kérés után a tár 19, a tábla 400 sornál; (12) a belépés ELŐBB szúrt be, aztán törölte a sajátját → telt táron IDEGEN embert léptetett ki; (13) a friss NÉVTELEN sor sérthetetlensége telt táron a BELÉPETT körre tolta a hiányt → egy hitelesítés nélküli látogató kiléptetett egy belépett embert | `verify:app-findings-r154` G: g1–g7; a visszavétel-próba mindháromra PIROS (`sorok 0→120` · a sorrend · `belepett_kileptetve: 1`) | *(e csomag 8. commitja)* | a `pending_intent` LEJÁRAT szerinti takarítása továbbra is nyitott (D-VS-3007) — a tábla most a TÁRRAL EGYÜTT korlátos, de nem időben |
 | 18 | A mag mutációs battériája a mag-változás UTÁN | `npm run verify:v3ref` újrafuttatva az ISC-02 változással | **nincs lelet** — `clean: true`, `run_state: complete`, 40 egység, **237 mért / 237 elkapott mutáció / 0 túlélő** | `v3ref/v3ref-mutation-result.json` (commitolva) | — | — |
 
+| 19 | A saját ISC-02 szűkítésem HATÓKÖRE | a Codex lelete `624f80d`-n; élő HTTP a segéd-chat végpontján, több soros · tabulátoros · nulla bájtos · üres kérdéssel, és a NÉV mezővel ellenpárként | **F154-14 — VALÓS, a SAJÁT REGRESSZIÓM**: az ISC-02 tiltását a `nonempty_string`-re tettem, a `question` mező pedig az volt — a felület viszont `<textarea>`-t ad hozzá, ahol az ENTER sortörést tesz. A több soros kérdés **400 `invalid_type`** lett: a felületen FELAJÁNLOTT szerkesztő tett küldhetetlenné egy jogos kérdést | `verify:app-findings-r154` H: h1–h6; a `h3` a PÁROSÍTÁST két fájlból olvassa össze (`<textarea>` ↔ mező-típus); visszavétel-próba: 4 FAIL | *(e csomag 9. commitja)* | — |
+
 ### A LEGFONTOSABB TANULSÁG EBBŐL A CSOMAGBÓL
 
 A KUKA-300 nem technikai apróság: **ugyanazt a hibát követtem el, amit ebben a csomagban én magam
@@ -51,9 +53,13 @@ fájlban, a védett-lista kérdése felvett egy korlátlan költséget. A saját
 mert a mintája EGY FÜGGVÉNY sorára illeszkedett, nem a hibaosztályra. Ezt a regiszter most kimondja.
 
 Ebből két dolog következik a csomag hátralévő részére: (1) a hibaosztályokat a jelekben is
-általánosítani kell, nem csak a tanulság szövegében; (2) a külső review értéke MÉRHETŐ — hat valós
-hibát talált a saját javításaimban, amelyek mindegyike olyan helyen volt, ahol a saját 52 állításos
-battériám zöld maradt.
+általánosítani kell, nem csak a tanulság szövegében; (2) a külső review értéke MÉRHETŐ — **hét valós
+hibát** talált a saját javításaimban, amelyek mindegyike olyan helyen volt, ahol a saját battériám
+zöld maradt.
+
+És van egy harmadik, kellemetlenebb: a **KUKA-303** azt mutatja, hogy egy kockázat MEGNEVEZÉSE nem
+védelem. Az ISC-02 javításakor a saját PR-kommentemben kiírtam, hogy a sortörést nem vesszük el
+mellékhatásként — és pontosan azt tettem. A megnevezés és az ELLENŐRZÉS két külön munka.
 
 ### A MÉRŐESZKÖZ, amivel a leleteket keresem — és a HATÓKÖRE
 

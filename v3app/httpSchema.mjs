@@ -239,7 +239,10 @@ export const ENDPOINT_SCHEMAS = frozen({
     version: '1', mutates: true,
     body: frozen({
       fields: frozen({
-        question: frozen({ type: 'nonempty_string', required: true, max_length: 500 }),
+        // A KÉRDÉS SZABAD SZÖVEG, NEM AZONOSÍTÓ (ISC-03, F154-14): a felületen `<textarea>`-ba írják,
+        // ahol az ENTER sortörést tesz — egy azonosító-fajta típus itt küldhetetlenné tenné a
+        // több soros kérdést. A nulla bájt ettől is tilos.
+        question: frozen({ type: 'nonempty_text', required: true, max_length: 500 }),
         lang: frozen({ type: 'nonempty_string', required: false, default: 'hu', max_length: 32 }),
         // A BESZÉLGETÉS ELŐZMÉNYE EGY SZÖVEG-MEZŐBEN (F91-03). MIÉRT így: a mag séma-motorja
         // (BEM-01) nem ismer tömb-típust, és a magot ez a csomag SZÁNDÉKOSAN nem módosítja —

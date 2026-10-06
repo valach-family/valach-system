@@ -68,6 +68,25 @@ const TYPES = Object.freeze({
     if (!v.trim()) return 'nem lehet üres';
     return CONTROL_CHARS.test(v) ? 'vezérlő-karaktert nem tartalmazhat' : null;
   },
+  /**
+   * NEM ÜRES SZABAD SZÖVEG (ISC-03, F154-14 — a külső review lelete az ISC-02-re).
+   *
+   * MIÉRT KELL KÜLÖN TÍPUS. Az ISC-02 vezérlő-karakter-tiltását a `nonempty_string`-re tettem, és
+   * MÉRVE eltörtem vele a segéd-chatet: a kérdést `<textarea>`-ba írják (`chat.mjs`), ahol az ENTER
+   * SORTÖRÉST tesz, a `question` mező pedig `nonempty_string` volt — a több soros kérdés HTTP 400
+   * `invalid_type`-ot kapott, vagyis a felületen felajánlott szerkesztő tett küldhetetlenné egy
+   * teljesen jogos kérdést. A hibát a saját kommentemben MEG IS NEVEZTEM kockázatként (KUKA-130),
+   * aztán mégis elkövettem: a `type: 'string'` használatait átnéztem, a `nonempty_string`-éit nem.
+   *
+   * A HELYES BONTÁS HÁROM FAJTA, nem kettő: AZONOSÍTÓ/NÉV (`nonempty_string` — vezérlő tilos) ·
+   * NEM ÜRES SZABAD SZÖVEG (ez — sortörés jogos, nulla bájt tilos) · OPCIONÁLIS SZABAD SZÖVEG
+   * (`string`). A nulla bájt MINDHÁROMBAN tilos, mert azt egyetlen tároló sem tartja.
+   */
+  nonempty_text: (v) => {
+    if (typeof v !== 'string') return `szöveg kell, kapott: ${describe(v)}`;
+    if (!v.trim()) return 'nem lehet üres';
+    return v.includes(NUL) ? 'nulla bájtot nem tartalmazhat' : null;
+  },
   // A SZÁM ITT VALÓDI SZÁM, és NEM VÉGES érték fail-closed: a NaN és a ±Infinity átcsúszik minden
   // összehasonlításon (NaN < x hamis, NaN > x is hamis), tehát a határ-ellenőrzés némán elenged.
   finite_number: (v) => {

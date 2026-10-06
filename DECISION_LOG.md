@@ -170,6 +170,26 @@ ELŐTT fut, mert a függő meghívó-szándékot a régi azonosítóról kell á
 
 ---
 
+## D-VS-3113 — HÁROM SZÖVEG-FAJTA, NEM KETTŐ: A SZABAD SZÖVEG ÖNÁLLÓ TÍPUS (R154, ISC-03)
+
+**A döntés.** A bemeneti típusok három szöveg-fajtát ismernek: AZONOSÍTÓ/NÉV (`nonempty_string` —
+vezérlő-karakter tilos) · NEM ÜRES SZABAD SZÖVEG (`nonempty_text` — sortörés jogos, nulla bájt tilos)
+· OPCIONÁLIS SZABAD SZÖVEG (`string`). A segéd-chat `question` mezője a középső.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére, és ez az ISC-02 (D-VS-3109) **regressziója**: a
+vezérlő-karakter-tiltást a `nonempty_string`-re tettem, a `question` mező pedig az volt — a felület
+viszont `<textarea>`-t ad hozzá, ahol az ENTER sortörést tesz. Mérve: a több soros kérdés HTTP 400
+`invalid_type`-ot kapott. A felületen FELAJÁNLOTT szerkesztő tett küldhetetlenné egy jogos kérdést.
+A kockázatot a saját PR-kommentemben megnevezte — és mégis elkövettem.
+
+**Amit ez NEM állít.** A szűkítés nem tűnt el: a nulla bájt a kérdésben is tilos, az üres kérdés is,
+és a NÉV mezőben a sortörés is — mindhárom ellenpár mérve. A PÁROSÍTÁS mostantól GÉPI: a próba a két
+fájlból olvassa össze, hogy a lap `<textarea>`-t ad ÉS a típus szabad szöveg (h3). Gépi jel:
+`npm run verify:app-findings-r154` (H: h1–h6) · `npm run verify:kuka` (KUKA-303) ·
+`npm run verify:v3ref` (237/237 elkapott mutáció a változás után).
+
+---
+
 ## D-VS-3112 — A FRISS SOR VÉDELME A SAJÁT OSZTÁLYÁIG TART (R154, a D-VS-3108 szűkítése)
 
 **A döntés.** A `keep` (a beszúrt sor sérthetetlensége) a SAJÁT OSZTÁLYÁIG tart: ha a plafon

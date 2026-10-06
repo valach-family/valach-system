@@ -480,6 +480,46 @@ try {
       { sor_megvan: Boolean(sajat), munkamenet_el: sajat ? app.sessions.has(String(sajat.session_id)) : null });
   }
 
+  // ── H) F154-14 — A SAJÁT ISC-02 JAVÍTÁSOM ELTÖRTE A SEGÉD-CHATET ───────────────────────────────
+  part('H) F154-14 — a vezérlő-karakter tiltása NEM teheti küldhetetlenné a jogos kérdést');
+  {
+    // A LELET (külső review, Codex): az ISC-02 tiltását a `nonempty_string`-re tettem, a `question`
+    // mező pedig az volt — MÉRVE: a `<textarea>`-ba ENTERREL beírt több soros kérdés HTTP 400
+    // `invalid_type`-ot kapott. A felületen felajánlott szerkesztő tett küldhetetlenné egy jogos
+    // kérdést. A kockázatot a saját kommentemben MEG IS NEVEZTEM (KUKA-130), aztán elkövettem.
+    const ask = (question) => anna.post('/api/assistant/ask', { question, lang: 'hu' });
+    const tobbSoros = await ask('Hogyan hívok meg valakit?\nÉs ha nem fogadja el?');
+    const tabos = await ask('Hogyan\thívok meg valakit?');
+    step('(h1) a TÖBB SOROS kérdés elmegy (régen MÉRVE: 400 invalid_type)',
+      tobbSoros.status === 200, { status: tobbSoros.status, reason: tobbSoros.body && tobbSoros.body.reason });
+    step('(h2) a tabulátoros kérdés is elmegy — a szabad szöveg szabad szöveg',
+      tabos.status === 200, { status: tabos.status });
+
+    // A PÁROSÍTÁS MÉRVE, NEM FELTÉVE (KUKA-207 · KUKA-237): a mező TÍPUSA és a felületen felajánlott
+    // SZERKESZTŐ együtt dönti el, mi küldhető. Ha a lap `<textarea>`-t ad, a típus nem lehet
+    // azonosító-fajta — ezt a próba a KÉT FÁJLBÓL olvassa össze, nem a jóindulatból.
+    const chatSrc = readFileSync(join(ROOT, 'v3app/public/chat.mjs'), 'utf8');
+    const schemaSrc = readFileSync(join(ROOT, 'v3app/httpSchema.mjs'), 'utf8');
+    const textarea = /<textarea[^>]*name="question"/.test(chatSrc);
+    const kerdesTipus = (/question: frozen\(\{ type: '([a-z_]+)'/.exec(schemaSrc) || [])[1] || null;
+    step('(h3) a lap `<textarea>`-t ad a kérdéshez, ÉS a mező típusa szabad szöveg — a kettő PÁR',
+      textarea === true && kerdesTipus === 'nonempty_text',
+      { textarea, kerdes_tipusa: kerdesTipus });
+
+    // ELLENPÁROK: a szűkítés NEM tűnt el, csak a mező fajtájához kötött.
+    const nullas = await ask('Hogyan\u0000hívok');
+    const ures = await ask('   ');
+    step('(h4) ELLENPÁR: a NULLA BÁJT a kérdésben is TILOS — azt egyetlen tároló sem tartja',
+      nullas.status === 400 && /nulla bájt/.test(String(nullas.body && nullas.body.message || '')),
+      { status: nullas.status, message: String(nullas.body && nullas.body.message || '').slice(0, 40) });
+    step('(h5) ELLENPÁR: az ÜRES kérdés TILOS marad',
+      ures.status === 400, { status: ures.status, reason: ures.body && ures.body.reason });
+    const nevSortores = await anna.post('/api/workspaces', { name: 'A\nB', business: { tax_id: '12345678-1-42' } });
+    step('(h6) ELLENPÁR: a NÉV mezőben a sortörés TOVÁBBRA IS tilos — a szűkítés mezőfajtához kötött',
+      nevSortores.status === 400 && /vezérlő-karakter/.test(String(nevSortores.body && nevSortores.body.message || '')),
+      { status: nevSortores.status, message: String(nevSortores.body && nevSortores.body.message || '').slice(0, 40) });
+  }
+
   const fail = results.filter((r) => !r.pass);
   console.log(`\nR154 battéria: ${results.length - fail.length}/${results.length} PASS${fail.length ? ` — ${fail.length} FAIL` : ''}`);
   console.log('A MÉRÉS HATÓKÖRE: a HTTP-határ és a két feloldó. Üzleti folyamatról, élő AI-ról és felhős');
