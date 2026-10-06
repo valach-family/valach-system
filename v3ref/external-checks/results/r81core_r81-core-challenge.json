@@ -1,9 +1,9 @@
 {
   "program": "r81_chatgpt-v3.core.adapted.mjs + r81_merge_chatgpt-v3.core.mjs",
   "variant": "adapted",
-  "source_commit": "325e071511075de165e590762d9290bd4baf3653",
+  "source_commit": "781bb22e11586f8b86260b0a63d1fa2715b88ad4",
   "node": "v22.22.0",
-  "at": "2026-10-04T14:06:56.584Z",
+  "at": "2026-10-06T11:15:43.802Z",
   "verbatim": true,
   "genuine_units": {
     "requested": 36,
@@ -143,7 +143,7 @@
         },
         "result_count": 237,
         "why": [
-          "MÁS FORRÁSRA hivatkozó egység (unit-1-of-36.json) — mai lenyomat: sha256:93b1f777d3026fdce09b07956a160eb9dfa3bf323bbcdb3526ce82d9875d1ffb",
+          "MÁS FORRÁSRA hivatkozó egység (unit-1-of-36.json) — mai lenyomat: sha256:925dcd8ea39e19a94b7007cc3fef961b3ad1addae50e4814cbc3d81d0724af7a",
           "az UNIÓ és a KANONIKUS ítélő VERDIKTBEN eltér (154): REV-N1a|A-REV-N1a-dependent-new-op-and-release-blocked|P-CMD-finalize-gate: unió=covered · kanonikus=not_falsified · REV-N1b|A-REV-N1b-earlier-record-and-decision-survive|P-CMD-finalize-gate: unió=covered · kanonikus=not_falsified · REV-N2a|A-REV-N2a-past-view-survives-later-recording|P-REV-bitemporal: unió=covered · kanonikus=not_falsified …"
         ]
       },
@@ -165,13 +165,13 @@
         "result_count": 244,
         "why": [
           "[unit-99-of-99.json] a fájlnév és a benne álló egység-jelölés KÜLÖNBÖZIK (1/36)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M1 és unit-99-of-99.json/M1 (rt_4059bac9-c672-4aa7-a101-d24122050aac)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M38 és unit-99-of-99.json/M38 (rt_00517b9f-9da3-4bc3-8840-c9669da6e83e)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M70 és unit-99-of-99.json/M70 (rt_692ab790-0140-4606-94e0-41d7180c50ba)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M104 és unit-99-of-99.json/M104 (rt_f27f2536-f3fd-4c75-8ad1-cb29c7b3d10d)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M140 és unit-99-of-99.json/M140 (rt_efc33783-2699-4967-aa64-eb775d4eac1a)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M183 és unit-99-of-99.json/M183 (rt_d7e73e04-29d7-419c-8256-0bfb0854b562)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M194 és unit-99-of-99.json/M194 (rt_e8fb1d06-d5cb-4c97-ae38-dec44e21e43e)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M1 és unit-99-of-99.json/M1 (rt_558e6da1-cfbb-486c-84a1-beee391e702b)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M38 és unit-99-of-99.json/M38 (rt_41246922-3cfb-40e4-b68b-9200a3dfe22a)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M70 és unit-99-of-99.json/M70 (rt_e7f15820-81c1-4588-a521-f5eea397962e)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M104 és unit-99-of-99.json/M104 (rt_f89c997c-0eeb-49b6-ac61-5d00ee6c38e0)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M140 és unit-99-of-99.json/M140 (rt_e6e71411-a6d6-4de3-8d84-285422dee0a4)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M183 és unit-99-of-99.json/M183 (rt_db78ca12-07f3-4ec1-acf0-e36a29759b9a)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M194 és unit-99-of-99.json/M194 (rt_4b3f3a7c-b4b0-4317-a20a-88661cb2a851)",
           "DUPLIKÁLT mutáció-eredmény: M1, M38, M70, M104, M140, M183, M194"
         ]
       },
@@ -1142,7 +1142,7 @@
         },
         "result_count": 237,
         "why": [
-          "MÁS FORRÁSRA hivatkozó egység (unit-1-of-36.json) — mai lenyomat: sha256:93b1f777d3026fdce09b07956a160eb9dfa3bf323bbcdb3526ce82d9875d1ffb",
+          "MÁS FORRÁSRA hivatkozó egység (unit-1-of-36.json) — mai lenyomat: sha256:925dcd8ea39e19a94b7007cc3fef961b3ad1addae50e4814cbc3d81d0724af7a",
           "az UNIÓ és a KANONIKUS ítélő VERDIKTBEN eltér (154): REV-N1a|A-REV-N1a-dependent-new-op-and-release-blocked|P-CMD-finalize-gate: unió=covered · kanonikus=not_falsified · REV-N1b|A-REV-N1b-earlier-record-and-decision-survive|P-CMD-finalize-gate: unió=covered · kanonikus=not_falsified · REV-N2a|A-REV-N2a-past-view-survives-later-recording|P-REV-bitemporal: unió=covered · kanonikus=not_falsified …"
         ]
       }
@@ -1168,13 +1168,13 @@
         "result_count": 244,
         "why": [
           "[unit-99-of-99.json] a fájlnév és a benne álló egység-jelölés KÜLÖNBÖZIK (1/36)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M1 és unit-99-of-99.json/M1 (rt_4059bac9-c672-4aa7-a101-d24122050aac)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M38 és unit-99-of-99.json/M38 (rt_00517b9f-9da3-4bc3-8840-c9669da6e83e)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M70 és unit-99-of-99.json/M70 (rt_692ab790-0140-4606-94e0-41d7180c50ba)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M104 és unit-99-of-99.json/M104 (rt_f27f2536-f3fd-4c75-8ad1-cb29c7b3d10d)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M140 és unit-99-of-99.json/M140 (rt_efc33783-2699-4967-aa64-eb775d4eac1a)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M183 és unit-99-of-99.json/M183 (rt_d7e73e04-29d7-419c-8256-0bfb0854b562)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M194 és unit-99-of-99.json/M194 (rt_e8fb1d06-d5cb-4c97-ae38-dec44e21e43e)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M1 és unit-99-of-99.json/M1 (rt_558e6da1-cfbb-486c-84a1-beee391e702b)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M38 és unit-99-of-99.json/M38 (rt_41246922-3cfb-40e4-b68b-9200a3dfe22a)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M70 és unit-99-of-99.json/M70 (rt_e7f15820-81c1-4588-a521-f5eea397962e)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M104 és unit-99-of-99.json/M104 (rt_f89c997c-0eeb-49b6-ac61-5d00ee6c38e0)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M140 és unit-99-of-99.json/M140 (rt_e6e71411-a6d6-4de3-8d84-285422dee0a4)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M183 és unit-99-of-99.json/M183 (rt_db78ca12-07f3-4ec1-acf0-e36a29759b9a)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-36.json/M194 és unit-99-of-99.json/M194 (rt_4b3f3a7c-b4b0-4317-a20a-88661cb2a851)",
           "DUPLIKÁLT mutáció-eredmény: M1, M38, M70, M104, M140, M183, M194"
         ]
       }
