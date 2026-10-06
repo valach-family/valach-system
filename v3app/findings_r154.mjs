@@ -1439,6 +1439,104 @@ try {
     }
   }
 
+  // ── U) R158/2 — A BEMUTATÓ-JEL BEMUTATÓT NYIT, NEM JOGOT ───────────────────────────────────────
+  //
+  // MIÉRT ÁLL ITT. A böngészős próbapadot bemutató-környezetre állítottuk (`VS_DEMO=1`), mert a két
+  // KÉT SZEREPLŐS végigvezetés csak ott kínálható fel. Az R158 ehhez kimondott feltételt adott: „a
+  // demó bekapcsolása ne kerülje meg a normál jogosultsági védelmet." Ezt NEM elhinni kell, hanem
+  // MÉRNI — ugyanazon a szerveren, ugyanazokkal a fiókokkal, CSAK a jelet átállítva: így a különbség
+  // nem lehet másé (KUKA-132: az összehasonlítás csak egyenlő feltételek mellett bizonyít).
+  part('U) R158/2 — a demó-jel a végigvezetéseket nyitja ki, jogot NEM ad');
+  {
+    const DB9 = resolve(ROOT, 'var/tmp/v3app_r158_u.sqlite');
+    try { rmSync(DB9, { force: true }); rmSync(DB9 + '-wal', { force: true }); rmSync(DB9 + '-shm', { force: true }); } catch { /* nem volt */ }
+    const demoVolt = process.env.VS_DEMO;
+    const u = await startServer({ port: 0, dbPath: DB9 });
+    try {
+      const b9 = `http://127.0.0.1:${u.server.address().port}`;
+      const fiok = async (nev) => {
+        const c = new Client(b9);
+        await c.post('/api/register', { email: `${nev}@pelda.hu`, password: PW, lang: 'hu' });
+        const m = (await c.get('/dev/mailbox')).body.mails.filter((x) => x.to === `${nev}@pelda.hu`)[0];
+        const link = new URL(m.link);
+        await c.get(link.pathname + link.search);
+        await c.post('/api/login', { email: `${nev}@pelda.hu`, password: PW });
+        return c;
+      };
+      const turak = async (c) => {
+        const r = await c.get('/api/assistant/status?lang=hu');
+        return (r.body.tours || []).map((t) => t.id);
+      };
+
+      // A FIÓKKEZELŐ: saját cég, és egy FÜGGŐ meghívó, amit vissza lehetne vonni.
+      const anna = await fiok('u-anna');
+      await anna.post('/api/workspaces', { name: 'U158 Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '12345678-1-42' } });
+      const megh = await anna.post('/api/invites', { email: 'u-cili@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+      const jelolo = String(megh.body.token || '').slice(0, 8);
+
+      // (u1) DEMÓ BE: a két szereplős végigvezetés MEGJELENIK.
+      process.env.VS_DEMO = '1';
+      const beTurak = await turak(anna);
+      step('(u1) DEMÓ BE: a KÉT ÉLŐ MUNKAMENETET igénylő végigvezetések felkínálódnak',
+        beTurak.includes('tour.inviteRevoke') && beTurak.includes('tour.reentry'),
+        { darab: beTurak.length, ketszereplos: beTurak.filter((x) => x === 'tour.inviteRevoke' || x === 'tour.reentry') });
+
+      // (u2) DEMÓ KI: ugyanazon a fiókon NEVEZETTEN eltűnnek — az ÉLES védelem érintetlen.
+      delete process.env.VS_DEMO;
+      const kiTurak = await turak(anna);
+      step('(u2) ELLENPÁR — DEMÓ KI: ugyanaz a fiók, és a két bemutató-kötött végigvezetés NINCS felkínálva (az éles kapu áll)',
+        !kiTurak.includes('tour.inviteRevoke') && !kiTurak.includes('tour.reentry')
+          && kiTurak.length === beTurak.length - 2,
+        { demoval: beTurak.length, demo_nelkul: kiTurak.length, kulonbseg: beTurak.filter((x) => !kiTurak.includes(x)) });
+
+      // (u3–u5) A JOGOSULTSÁG UGYANAZ MINDKÉT JELÁLLÁSBAN. A művelet az, amit a bemutató-kötött
+      // végigvezetés TANÍT (meghívó visszavonása) — tehát épp ott mérünk, ahol a megkerülés
+      // értelmes volna: ha a demó jogot adna, ITT adná.
+      const kivul = await fiok('u-bela');                       // belépett, de NEM tagja a cégnek
+      const mer = async () => ({
+        nevtelen: (await new Client(b9).post('/api/invites/revoke', { ref: jelolo })),
+        kivulallo: (await kivul.post('/api/invites/revoke', { ref: jelolo })),
+      });
+      process.env.VS_DEMO = '1';
+      const demoval = await mer();
+      delete process.env.VS_DEMO;
+      const nelkul = await mer();
+
+      step('(u3) a BELÉPÉS NÉLKÜLI visszavonás mindkét jelálláskor UGYANÚGY elakad',
+        demoval.nevtelen.status === nelkul.nevtelen.status && demoval.nevtelen.status === 401
+          && demoval.nevtelen.body.reason === nelkul.nevtelen.body.reason,
+        { demoval: `${demoval.nevtelen.status}/${demoval.nevtelen.body.reason}`, nelkul: `${nelkul.nevtelen.status}/${nelkul.nevtelen.body.reason}` });
+      step('(u4) a KÍVÜLÁLLÓ (belépett, de nem tag) visszavonása mindkét jelálláskor UGYANÚGY elakad — a demó NEM ad jogot',
+        demoval.kivulallo.status === nelkul.kivulallo.status
+          && demoval.kivulallo.body.reason === nelkul.kivulallo.body.reason
+          && demoval.kivulallo.status >= 400,
+        { demoval: `${demoval.kivulallo.status}/${demoval.kivulallo.body.reason}`, nelkul: `${nelkul.kivulallo.status}/${nelkul.kivulallo.body.reason}` });
+      // ÉS A MEGHÍVÓ TÉNYLEGESEN ÉL: a fenti elutasítások nem azért jöttek, mert nincs mit visszavonni.
+      const sorok = u.store.all('SELECT token, redeemed_at FROM invite');
+      const vonasok = u.store.all('SELECT token FROM invite_revocation');
+      step('(u5) a mérés ALAPSOKASÁGA igaz: a meghívó ÉL (nincs beváltás, nincs visszavonás), tehát az elutasítások a JOGRÓL szólnak, nem a hiányról',
+        sorok.length === 1 && !sorok[0].redeemed_at && vonasok.length === 0,
+        { meghivo: sorok.length, bevaltott: sorok.filter((x) => x.redeemed_at).length, visszavonas: vonasok.length });
+
+      // (u6) ÉS A JEL HATÓKÖRE A FORRÁSBÓL MÉRVE: a `demo` EGYETLEN döntést érint. Ha valaki egy
+      // jogosultsági ágba beköti, ez a sor pirosra vált — a kapu nem a szándékon áll, hanem a kódon.
+      const srvU = readFileSync(join(ROOT, 'v3app/server.mjs'), 'utf8');
+      const polU = readFileSync(join(ROOT, 'v3app/assistant/policy.mjs'), 'utf8');
+      const olvasasok = (srvU.match(/process\.env\.VS_DEMO/g) || []).length;
+      const ctxDemo = (polU.match(/ctx\.demo/g) || []).length;
+      // A FÜGGVÉNY-HATÓKÖR KIMONDVA (KUKA-239): a `ctx.demo` a végigvezetés-felkínálóban álljon.
+      const kezd = polU.indexOf('export function allowedToursFor');
+      const veg = polU.indexOf('\nexport ', kezd + 10);
+      const torzs = kezd >= 0 ? polU.slice(kezd, veg > kezd ? veg : polU.length) : '';
+      step('(u6) a demó-jel HATÓKÖRE: a kiszolgáló EGY helyen olvassa, és a döntés CSAK a végigvezetés-felkínálóban áll',
+        olvasasok === 1 && ctxDemo === 1 && /ctx\.demo !== true/.test(torzs),
+        { env_olvasas: olvasasok, ctx_demo: ctxDemo, a_felkinaloban: /ctx\.demo !== true/.test(torzs) });
+    } finally {
+      if (demoVolt === undefined) delete process.env.VS_DEMO; else process.env.VS_DEMO = demoVolt;
+      await new Promise((r) => u.server.close(r));
+    }
+  }
+
   const fail = results.filter((r) => !r.pass);
   console.log(`\nR154 battéria: ${results.length - fail.length}/${results.length} PASS${fail.length ? ` — ${fail.length} FAIL` : ''}`);
   console.log('A MÉRÉS HATÓKÖRE: a HTTP-határ és a két feloldó. Üzleti folyamatról, élő AI-ról és felhős');

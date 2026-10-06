@@ -2376,4 +2376,25 @@ export const MUTATIONS = [
     file: 'invite.mjs',
     from: "  store.run('DELETE FROM pending_intent WHERE created_at < ?', hatar);",
     to: "  // A TAKARÍTÁS KIVÉVE" },
+
+  // R158/3 — A VÉDŐ KAPUK IDŐ-IRÁNYA. A rés mindkét feloldóban külön állt, ezért KÉT mutáció rontja
+  // külön-külön (KUKA-039: egy mutáció a másik felét őrizetlenül hagyná), és egy harmadik azt
+  // rontja el, hogy a zárás a SAJÁT nevén megy (KUKA-124).
+  { id: 'M210', rule: 'K09', catcher: 'P-AUTHZ-protective-clock', expect: 'probe_fail',
+    what: 'R158/3 — AZ ELDÖNTHETETLEN KÉRÉS-ÓRA FELOLDJA A TILTÁST: egy bírósági végzéssel alany-szélesen tiltott személy kérése átmegy, ha a „most" hiányzik, üres vagy nem kanonikus (a mi SAJÁT résünk, MÉRVE az R158/3 auditban)',
+    file: 'banScope.mjs',
+    from: "      banned: true, decidable: false, reason: `clock_${now.reason}`,",
+    to: "      banned: false, decidable: true, reason: `clock_${now.reason}`," },
+
+  { id: 'M211', rule: 'K09', catcher: 'P-AUTHZ-protective-clock', expect: 'probe_fail',
+    what: 'R158/3 — UGYANAZ A RÉS A FELFÜGGESZTÉSEN: az eldönthetetlen kérés-óra feloldja a felfüggesztést (a `banScope.mjs` épp ezt a modult nevezi meg az idő-irány forrásaként)',
+    file: 'suspension.mjs',
+    from: "      suspended: true, decidable: false, reason: `clock_${now.reason}`,",
+    to: "      suspended: false, decidable: true, reason: `clock_${now.reason}`," },
+
+  { id: 'M212', rule: 'K09', catcher: 'P-AUTHZ-protective-clock', expect: 'probe_fail',
+    what: 'R158/3 — A ZÁRÁS ROSSZ NÉVEN MEGY: az eldönthetetlen óra miatti elutasítás „FEL VAN FÜGGESZTVE"-ként jelenik meg, tehát a válasz olyan tényt állít, ami nem igaz, és a valódi hibát (a hívó órája) elrejti (KUKA-124)',
+    file: 'reentryGate.mjs',
+    from: "    if (susp.decidable === false) {",
+    to: "    if (false) {" },
 ];

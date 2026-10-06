@@ -619,6 +619,8 @@ export const TOURUI = Object.freeze({
   targetMissingNext: 'Az útmutatót bezárhatod vagy újraindíthatod. A leírás a Súgó → Leírások fülön továbbra is elolvasható.',
   // FELTÁRÁSRA VÁRÁS: a cél még nem jelent meg (panel · választás), a felhasználó nyitja meg.
   targetPending: 'Ez a lépés még nem érhető el: előbb nyisd meg a kiemelt gombbal. Az útmutató nem nyomja meg helyetted.',
+  // ELVÉGZETT lépés, bezárt panel: a mondat nem állíthatja, hogy „még nem érhető el" (KUKA-050).
+  targetPendingDone: 'Ezt a lépést elvégezted. A részletei a bezárt panelben vannak — a kiemelt gombbal újra megnyithatod, vagy lépj tovább.',
   actorPending: 'Ez a lépés a másik szereplő nézetében folytatódik: válts át a kiemelt gombbal. Az útmutató nem vált helyetted.',
   actorWrongRole: 'Átváltottál, de nem arra a szereplőre, akit ez a lépés kér. Válts a kiemelt gombbal arra, akinek a nézete most következik.',
   // A ZÁRÁS KÉT MONDATA: a „végére értél" CSAK akkor, ha semmi nem maradt ki (F91-01).

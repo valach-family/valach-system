@@ -594,6 +594,111 @@ jokernél). Gépi jel: `npm run verify:kuka` (KUKA-330) · `npm run verify:app-f
 
 ---
 
+## D-VS-3145 — A VÉDŐ KAPUK MINDEN ÓRÁJA A VÉDŐ IRÁNYBA DŐL, ÉS A ZÁRÁS A SAJÁT NEVÉN MEGY (R158/3)
+
+**A döntés.** A tiltás (`banEffectiveAt`) és a felfüggesztés (`suspensionEffectiveAt`) értelmezhetetlen
+KÉRÉS-óra esetén is ZÁR: `banned: true` / `suspended: true`, `decidable: false`, `clock_*` okkal és a
+hívónak szóló mondattal. Az újbóli belépés kapuja ezt a SAJÁT nevén utasítja el
+(`reentry_undecidable_clock`, `next_step: fix_request_clock`), nem a felfüggesztés nevén.
+
+**Miért.** A `banScope.mjs` saját bevezetője kimondja: „a tiltás VÉDŐ intézkedés, tehát az eldönthetetlen
+óra nem oldhatja fel" — a kód viszont csak a TÁROLT sor óráira alkalmazta ezt, a kérés órájára nem.
+MÉRVE: egy bírósági végzéssel alany-szélesen tiltott személy `reentry_admissible`-t kapott, ha a kérés
+„most"-ja `undefined`, üres vagy nem kanonikus volt — és a `checked` lista közben felsorolta a
+`suspension`+`ban` lépést, tehát a nyom lefutott kapukat ígért.
+
+**Ki találta meg.** SAJÁT AUDIT-LELET (Claude-v3, R158/3, a jogosultsági mag átvizsgálása).
+
+**Amit ez NEM állít.** A rés a HTTP-határról MA NEM elérhető: a `nowIso` minden éles úton a kiszolgáló
+órájából jön (`clock.now()`), és az kanonikus. A lelet a NYILVÁNOS feloldó szintjén áll — ott, ahol
+minden új hívó örökölné (KUKA-227). Nem állítjuk tehát, hogy élő megkerülés történt; azt állítjuk, hogy
+a védelem féloldalas volt, és a féloldalas őr a megengedő irányba dőlt. Gépi jel: `npm run verify:v3ref`
+(`P-AUTHZ-protective-clock` + M210/M211/M212) · `npm run verify:kuka` (KUKA-337).
+
+---
+
+## D-VS-3142 — A BÖNGÉSZŐS ELLENŐRZÉS A KÖTELEZŐ KAPU RÉSZE, ÉS AZ EL SEM INDULT MÉRÉS NEM PASS (R158/2)
+
+**A döntés.** A böngészős láncok (`test:e2e` · `proof:core-ux` · `proof:demo-walk`) a KÖTELEZŐ kapu
+részei: a `npm run verify:browser-gate` a `verify:` névtérben áll, tehát a söprés név-szűrője magától
+elindítja. A kapu a SCRIPTEKET futtatja, és kimondja, ha egy script parancsa megváltozott.
+
+**Miért.** A söprés minden `verify:*`-ot lefuttat — a böngészős láncok más néven futnak, tehát SOHA nem
+kerültek a kapuba. MÉRVE: a böngészőben 3 helyzet bukott és 119 teljesült, miközben a kör-végi söprés
+zöldet jelentett. Egy ellenőrző, amit a kapu nem indít el, pontosan annyit véd, mint egy nem létező.
+
+**Három dolog KÜLÖN mérve.** (1) A böngésző nemcsak ott VAN, hanem EL IS INDUL — a hiánya **PIROS**, nem
+„env-kihagyás" (ez a kapu soha nem deklarál környezeti kihagyást). (2) A mérés EL INDULT: a JSON-jelentés
+megvan, nem nulla helyzet futott, és nincs kihagyott helyzet. (3) MINDEN próba-fájl bekerült a mérésbe —
+egy néma gyűjtés-kimaradás különben „0 bukás"-ként jelenne meg.
+
+**Ki döntötte el.** Az `R158 — DECISION` kör (chatgpt-v3, az **operátor** felhatalmazásával) szó szerint:
+„hiányzó böngésző vagy el sem indult mérés NEM PASS."
+
+**Amit ez NEM állít.** Nem állítja, hogy a böngészős bizonyíték minden pontján HTTP- vagy
+tároló-bizonyíték: a `proof:demo-walk` háttere a SZIMULÁLT bemutató-adapter, és ezt a lánc maga kimondja
+(KUKA-227). A kapu azt köti meg, hogy a mérés MEGTÖRTÉNT, és minden verdikt zöld. MÉRT futásidő a mi
+gépünkön: a Playwright-lánc 350 s, a bemutató-járás 439 s — a söprés 900 s-os türelmén belül.
+Gépi jel: `npm run verify:browser-gate` · `npm run verify:kuka` (KUKA-333).
+
+---
+
+## D-VS-3143 — A BÖNGÉSZŐS PRÓBAPAD AZ ELKÜLÖNÍTETT BEMUTATÓ-KÖRNYEZET, ÉS A DEMÓ-JEL JOGOT NEM AD (R158/2)
+
+**A döntés.** A böngészős próbapad (`tests/e2e/global-setup.mjs`) `VS_DEMO=1`-gyel indul: ez az
+elkülönített bemutató-környezet, ahol a KÉT ÉLŐ MUNKAMENETET igénylő végigvezetések felkínálódnak. A jel
+a kiszolgálón EGYETLEN döntést érint — a `requires_demo` végigvezetések felkínálását.
+
+**Miért.** Két végigvezetés (`tour.inviteRevoke` · `tour.reentry`) `requires_demo`, a próbák viszont a
+teljes, tizenegyes készletet várták: három helyzet körökön át ezen piroslott. A javítás iránya NEM az
+elvárás leszállítása 11-ről 9-re (az a próba gyengítése volna, KUKA-045), hanem a hiányzó KÖRNYEZET
+bekötése.
+
+**És a jog nem jár vele — MÉRVE** (`verify:app-findings-r154`, U csoport: u1–u6). Ugyanazon a szerveren,
+ugyanazokkal a fiókokkal, CSAK a jelet átállítva: a két végigvezetés a jellel megjelenik (11) és nélküle
+nevezetten eltűnik (9); a meghívó-visszavonás belépés nélkül mindkét jelálláskor `401/login_required`, a
+kívülállónak mindkét jelálláskor `404/invite_unknown` — és a meghívó ÉL, tehát az elutasítások a JOGRÓL
+szólnak, nem a hiányról. A jel HATÓKÖRE a forrásból mérve: a kiszolgáló EGY helyen olvassa, és a döntés
+CSAK a végigvezetés-felkínálóban áll.
+
+**Ki döntötte el.** Az `R158 — DECISION` kör kikötése: „a demó bekapcsolása ne kerülje meg a normál
+jogosultsági védelmet."
+
+**Amit ez NEM állít.** A böngésző-oldali bemutató-adapter ettől NEM kapcsol be: azt a lap `vs-demo` meta
+jele telepíti, amit a repó `index.html`-je nem hordoz. És egy ÉLES, `demo`-ra állított telepítésről ebből
+nem következik állítás: ott az alkalmazás-héj a két szereplős történetet a váltás-lépésnél NEVEZETTEN
+megállítja (lásd D-VS-3144).
+
+---
+
+## D-VS-3144 — A VÉGIGVIHETŐSÉG HATÓKÖRE KIMONDVA: TÍZ A HÉJBAN, KETTŐ A BEMUTATÓ-KÖRNYEZETBEN (R158/2)
+
+**A döntés.** A tizenkét végigvezetésből TÍZ az alkalmazás-héjban VÉGIGVIHETŐ — ott a „befejezve" a
+mérce. KETTŐ (`tour.inviteRevoke` · `tour.reentry`) DEKLARÁLTAN átível a szereplőkön (`switch_actor`), és
+két élő munkamenetet kér: ezek a héjban a VALÓDI műveleteiket lefuttatják (meghívó visszavonása · tag
+eltávolítása · visszahívás — mind igazi HTTP-művelet), és a szereplő-váltásnál NEVEZETTEN megállnak
+(`targetMissing`). A TELJES végigjárásuk tanúja a `proof:demo-walk` a bemutató-lapon, ahol a
+váltás-vezérlő létezik — és ez a lánc a kötelező kapu része (D-VS-3142).
+
+**Miért.** A héjban nincs „váltás a másik nézetére" vezérlő — ezt a `requires_demo` kapu indoklása maga
+mondja ki. A lépés-ellenőrző viszont a váltás-ágon NEM kérdezte meg, hogy a vezérlő létezik-e: a buborék
+„válts át a KIEMELT gombbal"-t írt ki, miközben semmi nem volt kiemelve (KUKA-335). Ez most nevezett
+megszakítás. Ugyanígy megszólal az ELVÉGZETT lépés is, ha a célja a becsukott panelben van — saját
+mondattal, mert a meglévő „ez a lépés még nem érhető el" egy elvégzett lépésről hazugság (KUKA-334).
+
+**Ki döntötte el.** Az `R158 — DECISION` kör: a három örökölt pirosat „a meglévő működési szerződés
+szerint" kellett javítani, és az „örökölt" sem kifogás, sem zöld eredmény.
+
+**Amit ez NEM állít — ÉS AMI NEVEZETTEN NYITVA MARAD.** NEM állítjuk, hogy a két szereplős történet az
+alkalmazás-héjban végigvihető. Ahhoz a héjnak DEKLARÁLT váltás-vezérlő kellene: a kijelentkezés ma egy
+lenyitható menüben áll, tehát a lépésnek saját `appears_after`-re volna szüksége, a váltás pedig VALÓDI
+ki- és belépés a másik emberrel (a futás-átadás ezt már ma is túléli: `vs3.tour.handover`). Ez egy
+KÉPESSÉG, nem hibajavítás — ezért nem ebben a körben épül meg, és a maradékot a REPORT nevezetten viszi.
+A `proof:demo-walk` tanúja pedig a SZIMULÁLT adapterrel mér: HTTP- és tároló-bizonyíték nem következik
+belőle. Gépi jel: `npm run verify:browser-gate` · `npm run verify:kuka` (KUKA-334 · 335 · 336).
+
+---
+
 ## D-VS-3141 — A FÜGGŐ SZÁNDÉK 24 ÓRA ALATT LEJÁR, ÉS AZ OLVASÁS IS KAPU (R158/1b)
 
 **A döntés.** A `pending_intent` sor türelmi ideje **24 óra**, nevezett állandóból

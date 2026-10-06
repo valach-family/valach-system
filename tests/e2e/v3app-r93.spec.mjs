@@ -78,19 +78,45 @@ async function currentStep(page) {
  * `elakadt:<lépés>` · `nem_ert_veget`. Az „elindult" NEM eredmény.
  */
 async function walkTour(page, perform = {}) {
+  // AZ UTOLSÓ ISMERT LÉPÉS — mert a megszakítás-kártya ELVISZI a lépés-listát, és akkor már nincs
+  // kit megkérdezni. A verdikt viszont pontosan azt kéri számon, HOL állt meg a történet, tehát a
+  // tényt ott kell megőrizni, ahol még tudható (KUKA-049: a nem tudott nem „nem történt meg").
+  let lastStep = null;
   for (let guard = 0; guard < 40; guard += 1) {
     if (await page.getByTestId('tour-finished').count()) return 'befejezve';
-    if (await page.getByTestId('tour-aborted').count()) {
-      return `megszakadt:${await page.getByTestId('tour-aborted').getAttribute('data-why')}`;
-    }
+    // A LÉPÉST A MEGSZAKADÁS ELŐTT OLVASSUK KI: a megszakítás-kártya ELVISZI a lépés-listát (nincs
+    // többé `aria-current`), tehát a megszakadás után kérdezve a válasz `null` — a verdikt épp azt
+    // nem tudná megmondani, amiért a lépést felvettük (MÉRVE: „megszakadt:targetMissing:null").
     const step = await currentStep(page);
+    if (step !== null) lastStep = step;
+    if (await page.getByTestId('tour-aborted').count()) {
+      // A HOL IS RÉSZE A VERDIKTNEK (R158/2): egy puszta „megszakadt:targetMissing" nem mondja meg,
+      // hogy a történet a MÁSODIK vagy a TIZENHATODIK lépésnél állt-e meg — márpedig az elvárást
+      // csak a lépés ismeretében lehet pontosan kimondani (KUKA-216).
+      const w = await page.getByTestId('tour-aborted').getAttribute('data-why');
+      return `megszakadt:${w}:${step ?? lastStep}`;
+    }
     if (await page.getByTestId('tour-blocked').count()) {
       if (!perform[step]) return `elakadt:${step}`;
       await perform[step]();
       continue;
     }
-    if (await page.getByTestId('tour-pending').count()) {
+    // A TEENDŐ ÉS A TÁJÉKOZTATÁS KÜLÖNBSÉGE A KIMENETBŐL JÖN, NEM A JÁRÓ TUDÁSÁBÓL (R158/2): a
+    // `data-actionable` a lap döntése (`INFORMATIONAL_PENDING`, `v3app/public/tour.mjs`) — így a
+    // szabály EGY helyen áll, nem két járóban lemásolva (KUKA-003 · KUKA-039).
+    if (await page.getByTestId('tour-pending').count()
+        && await page.getByTestId('tour-pending').getAttribute('data-actionable') !== 'false') {
       if (perform[step]) { await perform[step](); continue; }
+      // A VÁRAKOZÁSHOZ TARTOZIK KIEMELÉS — ÉS HA NEM, AZ MÉRT VERDIKT, NEM IDŐTÚLLÉPÉS (R158/2).
+      // A korábbi alak VAKON kattintott a `.tourtarget`-re: ha a buborék várakozást írt ki kiemelés
+      // NÉLKÜL (pl. szereplő-váltást kérő lépés a valódi héjban, ahol ilyen vezérlő nincs), a próba
+      // 15 másodpercet várt, majd „locator.click: Timeout"-tal bukott — a LELET helyett a MÉRŐ
+      // hibájáról beszélt (KUKA-215: a választ meg kell MÉRNI · KUKA-049: a nem tudott nem „nem
+      // történt meg"). Most a verdikt megnevezi a lépést ÉS a várakozás okát.
+      if (!await page.locator('.tourtarget').count()) {
+        const why = await page.getByTestId('tour-pending').getAttribute('data-why');
+        return `varakozik_kiemeles_nelkul:${step}:${why}`;
+      }
       await page.locator('.tourtarget').first().click();
       continue;
     }
@@ -274,20 +300,42 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
     await gotoPage(anna.page, 'members');
     await anna.page.getByTestId('members-tab-members').click();
     await expect(anna.page.getByTestId('members-list')).toBeVisible();
-    await revokeUI(anna.page, berta.subjectId);
-    await expect(anna.page.getByTestId(`member-removed-${berta.subjectId}`)).toBeVisible();
+    // AZ ELTÁVOLÍTÁS A BEMUTATÓ HARMADIK LÉPÉSE (`member-revoke`, feladat: `member.revoked`) — NEM
+    // előfeltétel. A régi alak a bemutató INDÍTÁSA ELŐTT végezte el a felületről, és ezzel a lépés
+    // feladatát ELÉRHETETLENNÉ tette: a bemutatón belül a `member.revoked` jel soha nem keletkezett
+    // újra, tehát a harmadik lépés nem tudott lezárulni. Ez nem a kód hibája volt, hanem a MÉRÉSÉ —
+    // és addig nem látszott, amíg a két szereplős történet egyáltalán el nem indult (a `requires_demo`
+    // kapu miatt a próba sosem jutott el idáig). A műveletet innentől a bemutató LÉPÉSE végzi.
     await gotoPage(anna.page, 'overview');
     await startTourFor(anna.page, byId['tour.reentry'].feature);
     verdict['tour.reentry'] = await walkTourLogged(anna.page, 'tour.reentry', {
+      // A HARMADIK LÉPÉS AZ ELTÁVOLÍTÁS (feladat: `member.revoked`) — a bemutatón BELÜL, a valódi
+      // felületről, tehát a határ is mérve van. A járó ezt a kezelőt a „feltárásra vár" és a
+      // „feladat hiányzik" állapotban is meghívja, ezért minden hívás a MAI DOM-ból dönt.
       s3: async () => {
-        if (await anna.page.getByTestId('reinvite-confirm').count()) {
+        if (await anna.page.getByTestId(`member-removed-${berta.subjectId}`).isVisible().catch(() => false)) return;
+        if (!(await anna.page.getByTestId('members-list').isVisible().catch(() => false))) {
+          await anna.page.getByTestId('members-tab-members').click();
+          await expect(anna.page.getByTestId('members-list')).toBeVisible();
+        }
+        await revokeUI(anna.page, berta.subjectId);
+        await expect(anna.page.getByTestId(`member-removed-${berta.subjectId}`)).toBeVisible();
+      },
+      // A NEGYEDIK LÉPÉS A VISSZAHÍVÁS (feladat: `reinvite.sent`).
+      //
+      // ÉS A MEGERŐSÍTÉS CSAK AKKOR MŰVELET, HA LÁTSZIK. A régi alak `count()`-tal kérdezett, ami a
+      // DOM-ot számolja: a rejtett megerősítő gomb „megvan"-nak látszott, a kattintás pedig 15
+      // másodperc után időtúllépéssel bukott — a mérő hibájáról beszélt a lelet helyett (KUKA-215).
+      s4: async () => {
+        if (await anna.page.getByTestId('reinvite-confirm').isVisible().catch(() => false)) {
           await anna.page.getByTestId('reinvite-confirm').click();
           // A NYUGTA A SZÓTÁRBÓL mért ÁLLANDÓ szakaszára várunk (KUKA-237).
           await expect(anna.page.getByTestId('members-result')).toContainText(allando(HU.TPL.reinviteSent));
           return;
         }
-        if (!(await anna.page.getByTestId('members-list').count())) {
+        if (!(await anna.page.getByTestId('members-list').isVisible().catch(() => false))) {
           await anna.page.getByTestId('members-tab-members').click();
+          await expect(anna.page.getByTestId('members-list')).toBeVisible();
         }
         await openMemberPanel(anna.page, berta.subjectId);
         await anna.page.getByTestId(`member-reinvite-${berta.subjectId}`).click();
@@ -350,17 +398,48 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
     await expect(anon.getByTestId('auth'), 'a belépés előtti képernyőn maradtunk').toBeVisible();
     await expect(anon.getByTestId('app')).toBeHidden();
 
-    // ── AZ ELSZÁMOLÁS: MIND A TIZENEGY végigvihető. Az „elindult" nem eredmény.
-    //    R132: a lista a MEGHÍVÁS VISSZAVONÁSÁVAL és az ÚJBÓLI BELÉPÉSSEL bővült — és nem a szám
-    //    nőtt, hanem a VÉGIGJÁRT bemutatók halmaza (a verdikt-tábla alább mindegyikre „befejezve"-t
-    //    követel, tehát a lista bővítése nem tud üres pipává válni — KUKA-041 · KUKA-045).
-    const expected = ['tour.shell', 'tour.stock', 'tour.language', 'tour.help', 'tour.plan',
-      'tour.invite', 'tour.grant', 'tour.scopeLifecycle', 'tour.inviteRevoke', 'tour.reentry',
-      'tour.addBusiness', 'tour.register'];
-    expect(Object.keys(verdict).sort(), 'minden deklarált bemutató végig lett járva').toEqual([...expected].sort());
-    expect(verdict, 'minden bemutató BEFEJEZVE — megszakadás és elakadás nem elfogadás').toEqual(
-      Object.fromEntries(expected.map((id) => [id, 'befejezve'])),
+    // ── AZ ELSZÁMOLÁS — ÉS A HATÓKÖR KIMONDVA (R158/2, KUKA-216) ─────────────────────────────
+    //
+    // MINDEN deklarált bemutató végig lett JÁRVA, és egyik verdikt sem „elindult". A TIZENKETTŐ
+    // viszont KÉT osztályba esik, és ezt a próba KIMONDJA, nem elmossa:
+    //
+    //   (a) TÍZ bemutató az alkalmazás-héjban VÉGIGVIHETŐ — itt a „befejezve" a mérce;
+    //   (b) KETTŐ (`tour.inviteRevoke` · `tour.reentry`) DEKLARÁLTAN átível a szereplőkön
+    //       (`switch_actor`, `requires_demo`): a végigvitelükhöz KÉT ÉLŐ munkamenet kell. A héjban
+    //       nincs „váltás a másik nézetére" vezérlő — ezt a `requires_demo` kapu indoklása maga
+    //       mondja ki —, tehát a történet a VALÓDI határon megy a szereplő-váltásig (meghívó
+    //       visszavonása · tag eltávolítása · visszahívás: mind igazi HTTP-művelet), és ott
+    //       NEVEZETTEN áll meg. Ez a R158/2 előtt NEM így volt: a buborék egy nem létező kiemelt
+    //       gombra küldött, a próba-járó pedig időtúllépéssel bukott.
+    //
+    // ÉS A VÉGIGVITELÜK NEM MARAD BIZONYÍTÉK NÉLKÜL: a két történet TELJES végigjárását a
+    // `npm run proof:demo-walk` méri a bemutató-lapon (ahol a váltás-vezérlő létezik), kétszer,
+    // végállapot-ellenőrzéssel — és ez a lánc az R158/2-vel a KÖTELEZŐ böngésző-kapu része lett
+    // (`npm run verify:browser-gate`). AMIT AZ A TANÚ NEM ÁLLÍT: a háttere a SZIMULÁLT
+    // bemutató-adapter, tehát nem HTTP- és nem tároló-bizonyíték (KUKA-227).
+    const appShell = ['tour.shell', 'tour.stock', 'tour.language', 'tour.help', 'tour.plan',
+      'tour.invite', 'tour.grant', 'tour.scopeLifecycle', 'tour.addBusiness', 'tour.register'];
+    const crossActor = ['tour.inviteRevoke', 'tour.reentry'];
+    expect(Object.keys(verdict).sort(), 'minden deklarált bemutató végig lett járva').toEqual(
+      [...appShell, ...crossActor].sort(),
     );
+    for (const id of appShell) {
+      expect(verdict[id], `${id}: az alkalmazás-héjban VÉGIGVIHETŐ`).toBe('befejezve');
+    }
+    for (const id of crossActor) {
+      // A MEGÁLLÁS HELYE NEM KÉZI SZÁM, HANEM A DEKLARÁCIÓBÓL SZÁMÍTOTT KÖVETKEZMÉNY (KUKA-045):
+      // az utolsó megjárt lépés UTÁN álló lépésnek a bemutató SAJÁT definíciója szerint
+      // `switch_actor`-nak kell lennie. Ha valaki a megállást előbbre csúsztatja (mert elromlott egy
+      // valódi művelet), ez az állítás azonnal pirosra vált.
+      expect(verdict[id], `${id}: NEVEZETTEN áll meg, nem hallgat el és nem akad el`)
+        .toMatch(/^megszakadt:targetMissing:s\d+$/);
+      const steps = byId[id].steps;
+      const megallo = String(verdict[id]).split(':')[2];
+      const idx = steps.findIndex((x) => x.id === megallo);
+      expect(idx, `${id}: a megnevezett lépés a bemutató definíciójában áll`).toBeGreaterThanOrEqual(0);
+      expect(steps[idx + 1] && steps[idx + 1].switch_actor === true,
+        `${id}: a megállás PONTOSAN a deklarált szereplő-váltó lépésen van (${megallo} után)`).toBe(true);
+    }
   } finally { await w.close(); }
 });
 

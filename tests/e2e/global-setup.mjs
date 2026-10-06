@@ -27,6 +27,22 @@ export default async function globalSetup() {
   // (`docs/_olvashato/`, gitignore), tehát friss klónban nincs meg — a próba nem bukhat a hiányán.
   // A generátor a repóban álló bizonyíték-lapot olvassa; a futás jelentéséből NEM ír vissza.
   execFileSync(process.execPath, [resolve(ROOT, 'tools/v3_r89_bemutato.mjs')], { cwd: ROOT, stdio: 'ignore' });
+  // ── A BÖNGÉSZŐS PRÓBAPAD AZ ELKÜLÖNÍTETT BEMUTATÓ-KÖRNYEZET (R158/2) ──────────────────────────
+  //
+  // MIÉRT KELL. Két végigvezetés (`tour.inviteRevoke` · `tour.reentry`) KÉT ÉLŐ MUNKAMENETET kér, és
+  // a szabály (`requires_demo`, ACT-01) ezeket CSAK a bemutató-környezetben kínálja fel. A próbapad
+  // eddig e jel NÉLKÜL futott, miközben a próbák a teljes, tizenegyes készletet várták — három
+  // helyzet (R89-06 · R91-03 · R93) ezen piroslott, KÖRÖKÖN ÁT. A javítás iránya nem az elvárás
+  // leszállítása 11-ről 9-re (az a próba GYENGÍTÉSE volna, KUKA-045), hanem a hiányzó KÖRNYEZET
+  // bekötése: a próbapad SAJÁT, eldobható tárolón futó, elkülönített bemutató — pontosan az, amire
+  // a doktrína a `demo` környezetet megnevezi (CLAUDE.md 5. szakasz).
+  //
+  // AMIT EZ NEM KAPCSOL BE — ÉS EZT MÉRJÜK IS (findings_r154 „U" csoport). A `VS_DEMO` jel a
+  // kiszolgálón EGYETLEN döntést érint: a `requires_demo` végigvezetések felkínálását
+  // (`v3app/assistant/policy.mjs` → `allowedToursFor`). NEM ad jogot, NEM kerül meg jogosultsági
+  // kaput, és NEM kapcsolja be a böngésző-oldali bemutató-adaptert sem: azt a lap `vs-demo` meta
+  // jele telepíti, amit a repó `index.html`-je nem hordoz.
+  process.env.VS_DEMO = '1';
   const app = await startServer({ port: 0, dbPath });
   process.env.VS_E2E_BASE_URL = `http://127.0.0.1:${app.port}`;
   process.env.VS_E2E_DB_PATH = dbPath;

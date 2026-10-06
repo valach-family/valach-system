@@ -24,6 +24,18 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 /** A lépés HÁROM állapota — az „átugrott" nem „elvégezett". */
 export const STEP_STATES = Object.freeze(['pending', 'done', 'skipped']);
 
+/**
+ * A TÁJÉKOZTATÓ VÁRAKOZÁS — EGY OTTHON, MERT HÁROM OLVASÓJA VAN (R158/2 · KUKA-003 · KUKA-039).
+ *
+ * A `tour-pending` eddig EGYET jelentett: „a felhasználónak tennie kell valamit". Az elvégzett lépés
+ * becsukott panelje viszont NEM teendő, csak tájékoztatás — a dolga megtörtént, a Tovább visz. Ezt a
+ * különbséget HÁROM hely olvassa: a lap (a mondat), és KÉT próba-járó (`tests/e2e/v3app-r93.spec.mjs`
+ * és `tools/v3_demo_walk_proof.mjs`). MÉRVE: amíg a különbség nem állt a DOM-ban, mindkét járó a
+ * kezelőt hívta újra meg újra, és a pörgés-őrön bukott ki — a lelet helyett a mérő hibájáról beszélt.
+ * Ezért a tény a KIMENETBEN áll (`data-actionable`), és a lista ITT, egy helyen.
+ */
+export const INFORMATIONAL_PENDING = Object.freeze(['targetPendingDone']);
+
 /** A bemutató futó állapota. `null` = nincs futó bemutató. */
 export function newTourRun({ def, view, role }) {
   if (!def || !Array.isArray(def.steps) || !def.steps.length) return null;
@@ -232,9 +244,40 @@ export function checkRun(run, { view, role }) {
    * Ugyanaz a hiba-osztály, mint az R138-ban: ha egy szabály két ágon igaz, EGY helyen álljon
    * (KUKA-003 · KUKA-039), különben a következő ág megint kimarad.
    */
-  if (step.state === 'done') return { ok: true, why: null, pending: null };
+  if (step.state === 'done') {
+    // ── DE AZ ELVÉGZETT LÉPÉS SEM HALLGAT EL (R158/2 — a SAJÁT R89-06 pirosunk, MÉRVE) ──────────
+    //
+    // A LELET. A meghívás elküldése után a lépés IGAZOLTAN elvégzett, és a felhasználó Esc-cel
+    // becsukja a panelt. A buborék ilyenkor a FELTÁRÓ gombot emelte ki (`highlight` ezt teszi), de
+    // MONDATOT nem írt hozzá: a lap némán állt egy olyan kiemelés mellett, aminek a felhasználó nem
+    // tudta az okát. „Kiemel VAGY nevezetten vár" — a némaság a harmadik, meg nem engedett válasz
+    // (KUKA-228 · KUKA-201: a nemleges válasz is vigye a MŰKÖDŐ folytatást).
+    //
+    // ÉS A MONDAT MÁS, MERT A HELYZET MÁS (KUKA-050: a szöveg a valóságot követi). A `targetPending`
+    // azt mondja, hogy „ez a lépés még nem érhető el" — egy MÁR ELVÉGZETT lépésről ez hazugság
+    // volna. Ezért külön mondat (`targetPendingDone`): elvégzett, a részlete a bezárt panelben van,
+    // és a Tovább VISZ (a `advance` a `done` lépést átengedi) — a kiút tehát kimondott.
+    if (step.switch_actor !== true && isPending(run)) {
+      return { ok: true, why: null, pending: 'targetPendingDone' };
+    }
+    return { ok: true, why: null, pending: null };
+  }
 
   if (step.switch_actor === true) {
+    // ── A VÁLTÁS-VEZÉRLŐNEK LÉTEZNIE KELL, KÜLÖNBEN A MONDAT HAZUDIK (R158/2, MÉRVE) ────────────
+    //
+    // A LELET. A `actorPending` mondata azt írja ki, hogy „válts át a KIEMELT gombbal" — a kiemelés
+    // viszont a `targetOf() || revealerOf()` elemre kerül, és ha a váltás-vezérlő nincs a lapon
+    // (az alkalmazás-héjban nincs „váltás a másik nézetére" gomb — ezt a `requires_demo` kapu
+    // indoklása maga mondja ki), akkor a buborék egy NEM LÉTEZŐ gombra küldi a felhasználót.
+    // Zsákutca, működő folytatás nélkül (KUKA-201), és a szöveg nem a valóságot követi (KUKA-050).
+    // MÉRVE: a `tour.inviteRevoke` s6 lépése a héjban pontosan ezt tette, és a próba-járó 15
+    // másodperces időtúllépéssel bukott — a LELET helyett a mérő hibájáról beszélt.
+    //
+    // A VÁLASZ: NEVEZETT megszakítás. A `targetMissing` szó szerint azt mondja, ami igaz — „az
+    // útmutatóban megnevezett elem nem látható ezen a képernyőn" —, és a lezáró lap kiírja a
+    // folytatást (a leírás a Súgóban olvasható marad).
+    if (!targetOf(run) && !revealerOf(run)) return { ok: false, why: 'targetMissing' };
     if (sameView) return { ok: true, why: null, pending: 'actorPending' };
     if (wantRole && role !== wantRole) return { ok: true, why: null, pending: 'actorWrongRole' };
     return { ok: true, why: null, pending: null };
@@ -463,7 +506,7 @@ export function tourHtml(run, { blocked, pending } = {}) {
       <button type="button" class="x" data-action="tour-exit" aria-label="${esc(TOURUI.exit)}" data-testid="tour-exit">×</button></div>
     <h3 data-testid="tour-step-title">${esc(title)}</h3>
     <p data-testid="tour-step-body">${esc(body)}</p>
-    ${pending ? `<p class="notice" data-testid="tour-pending" data-why="${esc(pending)}">${esc(TOURUI[pending] || TOURUI.targetPending)}</p>` : ''}
+    ${pending ? `<p class="notice" data-testid="tour-pending" data-why="${esc(pending)}" data-actionable="${INFORMATIONAL_PENDING.includes(pending) ? 'false' : 'true'}">${esc(TOURUI[pending] || pending)}</p>` : ''}
     ${blocked ? `<p class="notice warn" data-testid="tour-blocked">${esc(TOURUI[blocked] || blocked)}</p>` : ''}
     <ol class="tourlist" data-testid="tour-steps" aria-label="${esc(TOURUI.stepList)}">
       ${run.steps.map((s, i) => `<li data-testid="tour-step-${esc(s.id)}" data-state="${esc(s.state)}" ${i === run.at ? 'aria-current="step"' : ''}>

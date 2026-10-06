@@ -31,7 +31,19 @@ import { instantMs } from './store.mjs';
  */
 export function suspensionEffectiveAt({ store, subjectId, bookId, nowIso }) {
   const now = instantMs(nowIso);
-  if (!now.ok) return Object.freeze({ suspended: false, reason: `clock_${now.reason}` });
+  // UGYANAZ A SZABÁLY, UGYANÚGY (R158/3): a felfüggesztés is VÉDŐ intézkedés, és a SOR-szintű órái
+  // már eddig is óvatosan dőltek (`suspension_start_undecidable` · `suspension_lift_undecidable`).
+  // A KÉRÉS órája itt is kimaradt — a tiltásnál MÉRT rés párja, ugyanabban a hibaosztályban
+  // (KUKA-039: ha egy szabály két helyen igaz, az egyik hely előbb-utóbb kimarad). A `banScope.mjs`
+  // épp EZT a modult nevezi meg az irány forrásaként („az idő-kezelés IRÁNYA azonos a
+  // felfüggesztésével, SUS-01") — tehát a két javítás EGY döntés két fele (D-VS-3145).
+  if (!now.ok) {
+    return Object.freeze({
+      suspended: true, decidable: false, reason: `clock_${now.reason}`,
+      message: 'a kérés „most"-ja nem értelmezhető, ezért nem dönthető el, hatályos-e a '
+        + 'felfüggesztés. A felfüggesztés VÉDŐ intézkedés: az eldönthetetlen óra nem oldhatja fel.',
+    });
+  }
   const rows = store.all(
     'SELECT * FROM membership_suspension WHERE subject_id = ? AND book_id = ? ORDER BY id',
     subjectId, bookId);

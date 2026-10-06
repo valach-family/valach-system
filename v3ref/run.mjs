@@ -24,6 +24,7 @@ import { ADJUDICATION_OPS, adjudicationRightAt, grantAdjudicationAuthority, subm
   adjudicateClaim, suspendMembership, liftSuspension, intakeKeyOf, UNATTRIBUTED_INTAKE_KEY,
   NEUTRAL_CLAIM_ACK, CLAIM_NOT_AVAILABLE, CLAIM_RATE } from './adjudication.mjs';
 import { suspensionEffectiveAt } from './suspension.mjs';
+import { reentryExclusionsAt } from './reentryGate.mjs';
 import { issueBan, imposeBan, banEffectiveAt, banReaches, kindForCause, KNOWN_BAN_KINDS, KNOWN_BAN_CAUSES, operationScopeRef, operationScopeProblem } from './ban.mjs';
 import { executableRightAt } from './authority.mjs';
 import { resultScopesOf, declaredScopesOfType, KNOWN_DATA_SCOPES } from './resultScope.mjs';
@@ -2576,6 +2577,66 @@ probe('P-REV-ban-scope', 'R71 §8/1 · REV-N5b · K09 · K15 · KUKA-048 · KUKA
           'A-REV-N5b-request-axis-not-overridable': eOk,
           'A-REV-N5b-contradicting-record-is-not-a-measurement': fOk,
           'A-REV-N5b-unknown-stored-cause-is-not-swallowed': gOk,
+        },
+      };
+    } finally { w.store.close(); }
+  });
+
+probe('P-AUTHZ-protective-clock', 'R158/3 · REV-N5a · SUS-01 · KUKA-039 · KUKA-020 · KUKA-124',
+  'A VÉDŐ KAPUKAT AZ ELDÖNTHETETLEN ÓRA SEM OLDHATJA FEL — és a zárás a SAJÁT nevén megy',
+  () => {
+    const w = buildTwoBookWorld();
+    try {
+      // BÍRÓSÁGI VÉGZÉS: ALANY-SZÉLES tiltás. Ez a legerősebb fajta: MINDEN kérést el kell érnie,
+      // tehát ha valahol átjut, az a legsúlyosabb alak.
+      plantBanFixture(w, { subjectId: 'sub_dolgozo', cause: 'court_order_subject', kind: 'subject', targetRef: null });
+      const kérés = { bookId: 'book_a', opClass: 'own_book' };
+      const ban = (nowIso) => banEffectiveAt({ store: w.store, subjectId: 'sub_dolgozo', nowIso, request: kérés });
+
+      // (a) KONTROLL: érvényes órával a tiltás HAT. Enélkül a lenti ágak semmit nem mondanának.
+      const jo = ban(w.clock.now());
+      const aOk = jo.banned === true && jo.reason === 'ban_subject_wide';
+
+      // (b) AZ ELDÖNTHETETLEN KÉRÉS-ÓRA NEM OLDJA FEL — négy alakban, mert a hiba négyféleképpen jön:
+      //     hiányzó · üres · nem kanonikus · rossz típus. A régi alak MIND A NÉGYRE `banned: false`-t
+      //     adott (MÉRVE), holott a sor-szintű órákat már eddig is óvatosan kezelte (KUKA-039).
+      const rosszak = [undefined, '', '2026-02-01 00:00:00', 1769904000000];
+      const bOk = rosszak.every((x) => {
+        const v = ban(x);
+        return v.banned === true && v.decidable === false && String(v.reason).startsWith('clock_');
+      });
+
+      // (c) ÉS A FELFÜGGESZTÉS UGYANÚGY: a `banScope.mjs` maga nevezi meg a felfüggesztést az
+      //     idő-irány forrásaként (SUS-01), tehát a két ág egy szabály két fele.
+      w.store.run(`INSERT INTO membership_suspension (subject_id, book_id, actor_subject_id, suspended_at)
+        VALUES (?,?,?,?)`, 'sub_dolgozo', 'book_b', 'sub_adjudicator', w.clock.now());
+      const sus = (nowIso) => suspensionEffectiveAt({ store: w.store, subjectId: 'sub_dolgozo', bookId: 'book_b', nowIso });
+      const cOk = sus(w.clock.now()).suspended === true
+        && rosszak.every((x) => { const v = sus(x); return v.suspended === true && v.decidable === false && String(v.reason).startsWith('clock_'); });
+
+      // (d) AZ ÚJBÓLI BELÉPÉS KAPUJA NEM ENGED BE — és NEM a felfüggesztés nevén zár, hanem a
+      //     SAJÁTJÁN (KUKA-124: a rossz nevű hibaüzenet elrejti az igazit). MÉRVE a javítás ELŐTT:
+      //     `ok: true, reason: 'reentry_admissible'`, miközben a `checked` lista felsorolta a
+      //     `suspension`+`ban` lépést — a nyom azt állította, hogy a kapuk lefutottak (KUKA-129).
+      const kapu = (nowIso) => reentryExclusionsAt({ store: w.store, subjectId: 'sub_dolgozo', bookId: 'book_a', closed: null, nowIso });
+      const jóKapu = kapu(w.clock.now());
+      const dOk = jóKapu.ok === false && jóKapu.reason === 'reentry_blocked_ban'
+        && rosszak.every((x) => { const v = kapu(x); return v.ok === false && v.reason === 'reentry_undecidable_clock' && v.next_step === 'fix_request_clock'; });
+
+      // (e) ELLENPÁR: a javítás NEM lett „mindig tiltott". Tiltás NÉLKÜLI alanyon, ÉRVÉNYES órával a
+      //     válasz továbbra is NEM TILTOTT — különben a kapu bezárná a rendes működést is (KUKA-091).
+      const tisztaBan = banEffectiveAt({ store: w.store, subjectId: 'sub_invitee', nowIso: w.clock.now(), request: kérés });
+      const eOk = tisztaBan.banned === false && tisztaBan.reason === 'not_banned';
+
+      return {
+        pass: aOk && bOk && cOk && dOk && eOk,
+        detail: { aOk, bOk, cOk, dOk, eOk },
+        assertions: {
+          'A-REV-N5a-valid-clock-control': aOk,
+          'A-REV-N5a-undecidable-request-clock-does-not-lift-the-ban': bOk,
+          'A-SUS-01-undecidable-request-clock-does-not-lift-the-suspension': cOk,
+          'A-RNV-02-reentry-refuses-under-its-own-name': dOk,
+          'A-REV-N5a-counterpart-clean-subject-stays-allowed': eOk,
         },
       };
     } finally { w.store.close(); }

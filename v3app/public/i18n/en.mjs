@@ -562,6 +562,7 @@ export const TOURUI = Object.freeze({
   targetMissing: 'This step cannot continue: the element named in the guide is not visible on this screen.',
   targetMissingNext: 'You can close or restart the guide. The description stays readable on the Help → Topics tab.',
   targetPending: 'This step is not available yet: open it first with the highlighted button. The guide does not press it for you.',
+  targetPendingDone: 'You have completed this step. Its details are inside the closed panel — reopen it with the highlighted button, or move on.',
   actorPending: 'This step continues in the other person\u2019s view: switch with the highlighted button. The guide does not switch for you.',
   actorWrongRole: 'You switched, but not to the person this step needs. Use the highlighted button to switch to whose view comes next.',
   endedTitle: 'You closed the guide',

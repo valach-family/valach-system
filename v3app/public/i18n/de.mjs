@@ -558,6 +558,7 @@ export const TOURUI = Object.freeze({
   targetMissing: 'Dieser Schritt kann nicht fortgesetzt werden: das in der Anleitung genannte Element ist auf diesem Bildschirm nicht sichtbar.',
   targetMissingNext: 'Du kannst die Anleitung schließen oder neu starten. Die Beschreibung bleibt im Reiter Hilfe → Themen lesbar.',
   targetPending: 'Dieser Schritt ist noch nicht verfügbar: öffne ihn zuerst mit der hervorgehobenen Schaltfläche. Die Anleitung drückt sie nicht für dich.',
+  targetPendingDone: 'Diesen Schritt hast du erledigt. Seine Details liegen im geschlossenen Bereich — öffne ihn erneut mit der hervorgehobenen Schaltfläche, oder gehe weiter.',
   actorPending: 'Dieser Schritt geht in der Ansicht der anderen Person weiter: wechsle mit der hervorgehobenen Schaltfläche. Die Anleitung wechselt nicht für dich.',
   actorWrongRole: 'Du hast gewechselt, aber nicht zu der Person, die dieser Schritt braucht. Wechsle mit der hervorgehobenen Schaltfläche zu der Ansicht, die jetzt folgt.',
   endedTitle: 'Du hast die Anleitung geschlossen',

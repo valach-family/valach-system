@@ -187,7 +187,11 @@ const snap = (page) => page.evaluate(() => {
   return {
     hidden: box.hidden,
     aborted: g('tour-aborted') ? g('tour-aborted').getAttribute('data-why') : null,
-    pending: g('tour-pending') ? g('tour-pending').getAttribute('data-why') : null,
+    // A TÁJÉKOZTATÓ VÁRAKOZÁS NEM TEENDŐ (R158/2): a lap maga mondja meg a `data-actionable`-lel,
+    // hogy a mondat mögött van-e dolgunk. Az elvégzett lépés becsukott panelje csak tájékoztatás —
+    // a járó MEHET tovább. A szabály otthona a `tour.mjs` (`INFORMATIONAL_PENDING`), nem ez a fájl.
+    pending: g('tour-pending') && g('tour-pending').getAttribute('data-actionable') !== 'false'
+      ? g('tour-pending').getAttribute('data-why') : null,
     blocked: !!g('tour-blocked'),
     hasNext: !!g('tour-next'), hasFinish: !!g('tour-finish'),
     sid: li ? li.getAttribute('data-testid').replace('tour-step-', '') : null,
