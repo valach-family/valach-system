@@ -58,10 +58,28 @@ const fail = (error, detail, at) => Object.freeze({ ok: false, error, detail: de
 const NUL = '\u0000';
 const CONTROL_CHARS = /[\u0000-\u001F\u007F]/;
 
+/**
+ * A NULLA BÁJT TILALMA EGY HELYEN, MINDEN SZÖVEGES TÍPUSRA (F154-15).
+ *
+ * A LELET (külső review, Codex): az ISC-02-ben a tilalmat KÉT típusra tettem (`string` ·
+ * `nonempty_string`), az `email_address` viszont a SAJÁT ellenőrzőjét futtatja — MÉRVE: a
+ * `POST /api/register {"email":"a\u0000@b.test"}` törzsre a `validateRequest` `ok: true`-t adott.
+ * Vagyis pontosan az a tároló-eltérés maradt nyitva, aminek a megszüntetése az ISC-02 CÉLJA volt:
+ * SQLite eltárolja, PostgreSQL elutasítja.
+ *
+ * Ezért a szabály ÖNÁLLÓ feloldó, és MINDEN szöveges típus ezt hívja — nem másoljuk szét
+ * (KUKA-003 · KUKA-039: ami egy tény, annak egy otthona van).
+ *
+ * AMI KIMARAD, KIMONDVA: a `secret_string` (jelszó). Azt a rendszer SOHA nem tárolja szövegként
+ * (`scrypt` lenyomat megy a tárolóba), tehát ott nincs tároló-eltérés — egy szűkítés viszont
+ * meglévő jelszavakat tenne érvénytelenné.
+ */
+const nulCheck = (v) => (typeof v === 'string' && v.includes(NUL) ? 'nulla bájtot nem tartalmazhat' : null);
+
 const TYPES = Object.freeze({
   string: (v) => {
     if (typeof v !== 'string') return `szöveg kell, kapott: ${describe(v)}`;
-    return v.includes(NUL) ? 'nulla bájtot nem tartalmazhat' : null;
+    return nulCheck(v);
   },
   nonempty_string: (v) => {
     if (typeof v !== 'string') return `szöveg kell, kapott: ${describe(v)}`;
@@ -85,7 +103,7 @@ const TYPES = Object.freeze({
   nonempty_text: (v) => {
     if (typeof v !== 'string') return `szöveg kell, kapott: ${describe(v)}`;
     if (!v.trim()) return 'nem lehet üres';
-    return v.includes(NUL) ? 'nulla bájtot nem tartalmazhat' : null;
+    return nulCheck(v);
   },
   // A SZÁM ITT VALÓDI SZÁM, és NEM VÉGES érték fail-closed: a NaN és a ±Infinity átcsúszik minden
   // összehasonlításon (NaN < x hamis, NaN > x is hamis), tehát a határ-ellenőrzés némán elenged.
@@ -103,6 +121,9 @@ const TYPES = Object.freeze({
     if (!t) return 'nem lehet üres';
     if (!t.includes('@') || t.startsWith('@') || t.endsWith('@')) return 'e-mail cím kell (kukac a cím belsejében)';
     if (/\s/.test(t)) return 'az e-mail cím nem tartalmazhat szóközt';
+    // A CÍM IS A TÁROLÓBA MEGY (F154-15): a nulla bájt és a vezérlő-karakter itt sem engedhető —
+    // egy e-mail cím azonosító-fajta érték, nem szabad szöveg.
+    if (CONTROL_CHARS.test(v)) return 'vezérlő-karaktert nem tartalmazhat';
     return null;
   },
   secret_string: (v) => (typeof v === 'string' ? null : `szöveg kell, kapott: ${describe(v)}`),

@@ -170,6 +170,61 @@ ELŐTT fut, mert a függő meghívó-szándékot a régi azonosítóról kell á
 
 ---
 
+## D-VS-3114 — A NULLA BÁJT TILALMA EGY FELOLDÓBAN ÁLL, ÉS MINDEN SZÖVEGES TÍPUS HÍVJA (R154)
+
+**A döntés.** A nulla bájt tilalma önálló feloldó (`nulCheck`), amit mind a négy szöveges típus hív:
+`string` · `nonempty_string` · `nonempty_text` · `email_address`. Az e-mail cím azonosító-fajta érték,
+ezért ott a teljes vezérlő-karakter-tilalom áll. A `secret_string` kimarad (scrypt lenyomat).
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére: az ISC-02-ben a tilalmat KÉT típusba írtam be
+kézzel, az `email_address` viszont a saját ellenőrzőjét futtatja. Mérve: a
+`{"email":"a\u0000@b.test"}` törzsre a `validateRequest` `ok: true`-t adott — tehát pont az a
+tároló-eltérés maradt nyitva (SQLite eltárolja, PostgreSQL elutasítja), aminek a megszüntetése az
+ISC-02 CÉLJA volt. Gépi jel: `npm run verify:app-findings-r154` (I: i1–i3) · `npm run verify:kuka`
+(KUKA-304).
+
+---
+
+## D-VS-3115 — A TELT PÉLDÁNY NEVEZETTEN MOND NEMET, NEM SZOLGÁL KI MUNKAMENET NÉLKÜL (R154)
+
+**A döntés.** A `newSession` kimondja, felvette-e a tár (`admitted`). Ha nem, a kérés-ciklus
+`503 at_capacity` + `Retry-After` választ ad azokra az utakra, amiknek munkamenet kell; a statikus lap
+továbbra is kimegy, de süti nélkül.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) **P1** leletére, ami a D-VS-3112 következménye: telt, csupa belépett
+sorral teli táron a friss névtelen munkamenet azonnal kiesik — a kérés viszont lefutott, a süti
+kiment, és egy állapotíró kezelő olyan azonosítóra írt, ami nincs a tárban. Mérve: 30 süti nélküli
+állapotíró kérés → **30 árva** adatbázis-sor, és a takarítás már lefutott, mielőtt a sor megszületett.
+A rendszer sikert jelentett egy olyan hatásra, amit senki nem tud visszaolvasni.
+
+**Amit ez NEM állít.** A 503 egy VALÓDI korlát kimondása, nem hibakezelés: ha a staging rendszeresen
+ezt adja, a plafon kevés, és a `VS_APP_SESSION_MAX` emelése a válasz. Gépi jel:
+`npm run verify:app-findings-r154` (I: i7, i8) · `npm run verify:kuka` (KUKA-305).
+
+---
+
+## D-VS-3116 — A VÉDELMI DÖNTÉS KÖLTSÉGE ÁLLANDÓ (R154, a harmadik ugyanilyen eset)
+
+**A döntés.** A tár számlálja a névtelen sorokat, és ha csak a beszúrt sor vehető el, azonnal eldobja —
+rendezés és másolás nélkül. A döntés O(1).
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére: telt táron minden süti nélküli kérés lemásolta és
+rendezte a teljes térképet. Mérve 20 000 belépett sor mellett: 100 beszúrás **754 ms** → a javítás után
+**45 ms**.
+
+**És amit ebből kimondok, mert ez a csomag harmadik ilyen esete.** F154-01 (a kéréskorlát sora) ·
+F154-11 (a védett-lista teljes tábla-olvasása) · ez — mindhárom ugyanaz az osztály, és a D-VS-3100 meg
+a D-VS-3110 gépi jelei nem kapták el, mert EGY KONKRÉT sorra illeszkednek. A tanulság nem új szabály,
+hanem általánosabb jel: minden védelmi/takarító úton a döntés költsége legyen állandó vagy a DÖNTÉS
+hatókörével arányos.
+
+**Amit ez NEM állít.** A számláló helyessége FELTEVÉSEN áll (az `subject_id` a beszúrásnál áll be és
+nem változik), ezért MÉRJÜK: a battéria vegyes sorozat után összeveti a számlálót a tényleges
+tartalommal (i6). Gépi jel: `npm run verify:app-findings-r154` (I: i4–i6) · `npm run verify:kuka`
+(KUKA-306).
+
+---
+
 ## D-VS-3113 — HÁROM SZÖVEG-FAJTA, NEM KETTŐ: A SZABAD SZÖVEG ÖNÁLLÓ TÍPUS (R154, ISC-03)
 
 **A döntés.** A bemeneti típusok három szöveg-fajtát ismernek: AZONOSÍTÓ/NÉV (`nonempty_string` —

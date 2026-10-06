@@ -372,7 +372,20 @@ export function makeSessionStore({
   let nextIdleSweep = 0;
 
   const droppedNow = [];
-  const drop = (id, cause) => { map.delete(id); stats[cause] += 1; droppedNow.push(id); };
+  /**
+   * A NÉVTELEN SOROK SZÁMA O(1)-BEN (F154-17 második fele). Enélkül a „van-e egyáltalán elvehető
+   * névtelen sor?" kérdés végigolvasná a térképet MINDEN kérésnél — és ez a harmadik alkalom ebben
+   * a csomagban, hogy egy védelmi döntés lineáris költséget vett fel (F154-01 · F154-11 · ez).
+   * A számláló azért biztonságos, mert az `subject_id` a BESZÚRÁS pillanatában áll be és utána nem
+   * változik (`newSession(subjectId)`, F154-09) — ha ez megváltozik, ez a számláló romlik el, ezért
+   * a battéria külön méri (i4).
+   */
+  let anonCount = 0;
+  const drop = (id, cause) => {
+    const row = map.get(id);
+    if (row && !row.subject_id) anonCount -= 1;
+    map.delete(id); stats[cause] += 1; droppedNow.push(id);
+  };
   const expired = (s, now) => now - (s.last_seen_ms ?? 0) > idleMs;
 
   /**
@@ -414,8 +427,28 @@ export function makeSessionStore({
     if (map.size <= maxSessions) { announceDropped(); return stats; }
 
     // A JELÖLTEK: a NÉVTELEN sorok, a beszúrt kivételével — ennyit kell megkérdezni, nem többet.
-    const anonCandidates = [...map.entries()].filter(([id, x]) => id !== keep && !x.subject_id).map(([id]) => id);
-    const guarded = protectedSet(anonCandidates);
+    // KÉSLELTETVE számoljuk ki: a rövidre zárás ágán nem kell (lásd lentebb).
+    const anonCandidates = () => [...map.entries()].filter(([id, x]) => id !== keep && !x.subject_id).map(([id]) => id);
+    const keepIsAnon = keep !== null && map.has(keep) && !map.get(keep).subject_id;
+    const anonOthers = anonCount - (keepIsAnon ? 1 : 0);
+    /**
+     * RÖVIDRE ZÁRÁS: HA CSAK A BESZÚRT SOR VEHETŐ EL, NE RENDEZZÜNK (F154-17).
+     *
+     * A LELET (külső review, Codex): telt, BELÉPETT sorokkal teli táron minden süti nélküli kérés
+     * lemásolta és RENDEZTE a teljes térképet, és csak utána dobta el a friss névtelen sort. MÉRVE
+     * 20 000 belépett sor mellett: 100 süti nélküli beszúrás 754 ms. A hisztérézis ezt nem tudja
+     * amortizálni, mert minden ilyen kérés újra megfizeti — tehát elosztott névtelen forgalom a
+     * per-címes kéréskorlát mellett is korlátlanul ismételheti. Ugyanaz a hibaosztály, mint az
+     * F154-01 és az F154-11: a védelem költsége a támadással nő.
+     */
+    // A DÖNTÉS O(1): a névtelen sorok számából azonnal látszik, hogy csak a beszúrt sor vehető el.
+    if (anonOthers === 0 && keepIsAnon) {
+      drop(keep, 'evicted_cap_anonymous');
+      announceDropped();
+      return stats;
+    }
+
+    const guarded = protectedSet(anonCandidates());
     if (guarded === null) {
       // NEM TUDJUK, melyik névtelen hordoz folytatást. A memória-korlát viszont ÁLL, tehát
       // kiszorítunk — de a bizonytalanságot KIMONDJUK, nem hallgatjuk el (KUKA-049).
@@ -479,7 +512,7 @@ export function makeSessionStore({
 
   return {
     get size() { return map.size; },
-    stats: () => Object.freeze({ size: map.size, ...stats }),
+    stats: () => Object.freeze({ size: map.size, anonymous: anonCount, ...stats }),
     /**
      * AZ OLVASÁS IS KAPU (F154-07): a lejárt sort NEM adjuk vissza, és el is dobjuk — különben a
      * hívó `touch`-a feléleszti. Ezért van mellékhatása: ez egy lejárattal bíró tár, nem egy Map.
@@ -491,7 +524,11 @@ export function makeSessionStore({
       return s;
     },
     has(id, now = Date.now()) { return this.get(id, now) !== undefined; },
-    delete: (id) => map.delete(id),
+    delete(id) {
+      const row = map.get(id);
+      if (row && !row.subject_id) anonCount -= 1;
+      return map.delete(id);
+    },
     /** A lejárt sort a `touch` NEM élesztheti fel (F154-07) — ezért itt is a lejárat dönt. */
     touch(id, now = Date.now()) {
       const s = this.get(id, now);
@@ -499,6 +536,7 @@ export function makeSessionStore({
     },
     set(id, s, now = Date.now()) {
       s.last_seen_ms = now;
+      if (!map.has(id) && !s.subject_id) anonCount += 1;
       map.set(id, s);
       // A BESZÚRT SOR SÉRTHETETLEN (F154-09): a söprés `keep`-ként kapja meg.
       // A TÉTLENSÉGI SÖPRÉS AMORTIZÁLT (percenként legfeljebb egyszer), a PLAFON viszont AZONNALI:
@@ -842,6 +880,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
   function newSession(subjectId = null) {
     const s = { id: hex(32), subject_id: subjectId ?? null, current_book_id: null, created_at: clock.now() };
     sessions.set(s.id, s);
+    // A FELVÉTEL NEM MAGÁTÓL ÉRTETŐDŐ (F154-16): telt táron a friss NÉVTELEN sor az F154-13 szabálya
+    // szerint azonnal kieshet. A hívónak TUDNIA kell, hogy a munkamenet nem létezik — különben
+    // állapotot ír rá, ami senkihez nem tartozik.
+    s.admitted = sessions.has(s.id);
     return s;
   }
 
@@ -2400,7 +2442,32 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     if (session) sessions.touch(session.id);
     let setCookie = null;
     // A `Secure` jelölő a KÉRÉSBŐL is eldőlhet: proxy mögött a HTTPS tényét a fejléc hozza.
-    if (!session) { session = newSession(); setCookie = sessionCookie(session.id, { secure: IS_DEPLOYED || isHttpsRequest(req) }); }   // névtelen munkamenet is létezik
+    if (!session) {
+      session = newSession();
+      /**
+       * A TELT PÉLDÁNY NEVEZETTEN MOND NEMET (F154-16).
+       *
+       * A LELET (külső review, Codex, P1): ha a tár CSUPA belépett sorral tele van, a friss névtelen
+       * munkamenet az F154-13 szabálya szerint azonnal kiesik — a kérés viszont lefutott, a süti
+       * kimegy, és egy ÁLLAPOTÍRÓ kezelő (`POST /api/invites/pending`) olyan azonosítóra ír, ami
+       * nincs a tárban. MÉRVE: 30 süti nélküli állapotíró kérés → 30 ÁRVA adatbázis-sor, és az
+       * `onEvicted` már LEFUTOTT, mielőtt a sor megszületett, tehát a takarítás sem vitte el.
+       *
+       * A SZABÁLY: munkamenet nélkül nem szolgálunk ki olyan utat, aminek munkamenet kell. A
+       * statikus lap TOVÁBBRA IS kimegy (ahhoz nem kell munkamenet), de sütit nem adunk hozzá —
+       * egy süti, ami semmire nem mutat, csak elfedi a helyzetet.
+       */
+      if (session.admitted === false) {
+        if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/dev/')) {
+          res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Retry-After': '30' });
+          return res.end(JSON.stringify({ ok: false, reason: 'at_capacity',
+            message: 'a példány éppen minden munkamenet-helyét használja — próbáld újra kicsit később' }));
+        }
+        if (req.method === 'GET' || req.method === 'HEAD') return serveStatic(url.pathname, res, null);
+        return sendJson(res, 503, { ok: false, reason: 'at_capacity' }, null);
+      }
+      setCookie = sessionCookie(session.id, { secure: IS_DEPLOYED || isHttpsRequest(req) });
+    }   // névtelen munkamenet is létezik
     const host = req.headers.host || 'localhost';
     const key = `${req.method} ${url.pathname}`;
 

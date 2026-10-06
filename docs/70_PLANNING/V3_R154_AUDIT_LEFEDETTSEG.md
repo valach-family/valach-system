@@ -45,6 +45,35 @@ Vagyis: **a teljes söprés zöldje a lenti három leletről SEMMIT nem mondott.
 
 | 19 | A saját ISC-02 szűkítésem HATÓKÖRE | a Codex lelete `624f80d`-n; élő HTTP a segéd-chat végpontján, több soros · tabulátoros · nulla bájtos · üres kérdéssel, és a NÉV mezővel ellenpárként | **F154-14 — VALÓS, a SAJÁT REGRESSZIÓM**: az ISC-02 tiltását a `nonempty_string`-re tettem, a `question` mező pedig az volt — a felület viszont `<textarea>`-t ad hozzá, ahol az ENTER sortörést tesz. A több soros kérdés **400 `invalid_type`** lett: a felületen FELAJÁNLOTT szerkesztő tett küldhetetlenné egy jogos kérdést | `verify:app-findings-r154` H: h1–h6; a `h3` a PÁROSÍTÁST két fájlból olvassa össze (`<textarea>` ↔ mező-típus); visszavétel-próba: 4 FAIL | *(e csomag 9. commitja)* | — |
 
+| 20 | A munkamenet-tár HARMADIK külső review-köre | a Codex egy **P1** és két P2 lelete `88bc0d4`-en; mindhárom REPRODUKÁLVA | **F154-15 · F154-16 · F154-17 — mind VALÓS**: (15) a nulla bájt tilalma két típuson állt, az `email_address` a saját ellenőrzőjét futtatja — `{"email":"a\0@b.test"}` **átment**; (16, **P1**) telt táron a kiesett friss munkamenettel is lefutott az állapotíró kezelő → **30 árva** adatbázis-sor; (17) telt táron minden süti nélküli kérés RENDEZTE a teljes térképet — 20 000 soron 100 beszúrás **754 ms** | `verify:app-findings-r154` I: i1–i8; a visszavétel-próba mindháromra PIROS (`ok: true` · 30 árva · 736 ms) | *(e csomag 10. commitja)* | a 503 `at_capacity` egy VALÓDI korlát kimondása: ha a staging rendszeresen ezt adja, a plafon kevés |
+
+### A GYÖKÉR-OK, AMIT KI KELL MONDANI
+
+**A 17 leletből 10 ugyanabban a 200 soros munkamenet-tárban volt**, amit ebben a csomagban én írtam.
+Három külső review-kör, és mindegyik talált benne újabb interakciót. Ez nem véletlen, és nem is a
+review szigora: a tár mára **nyolc egymásra hatú szabályt** hordoz (tétlenségi idő · plafon · három
+kiszorítási osztály · a beszúrt sor védelme · osztályonkénti vízszint · adatbázisból vett védettség ·
+árva-takarítás · felvétel-megtagadás), és a hibák mindig a szabályok KÖZÖTT keletkeztek, nem bennük.
+
+**Három ismétlődő osztály, nevén nevezve:**
+
+1. **A védelem költsége a támadással nőtt** — háromszor (F154-01 · F154-11 · F154-17). A gépi jeleim
+   egy-egy KONKRÉT függvény-sorra illeszkedtek, ezért a szomszéd helyen újra elkövethető volt.
+2. **Egy szabály több otthonban** — kétszer (F154-14 · F154-15). Mindkettő abból jött, hogy a szabályt
+   típusonként/helyenként KÉZZEL írtam be, nem egy feloldóból hívtam.
+3. **Egy javítás mellékhatása** — háromszor (F154-13 az F154-09-ből · F154-14 az ISC-02-ből ·
+   F154-16 az F154-13-ból). Mindhárom ott keletkezett, ahol egy ÚJ szabály egy MEGLÉVŐ rangsorba
+   került, és az ütközést nem mondtam ki.
+
+**A javaslat, amit NEM hajtok végre magamtól, mert túlmutat a kérés hatókörén.** A legtöbb interakció
+abból fakad, hogy **minden süti nélküli kérésre munkamenet születik**, akkor is, ha soha nem lesz rá
+szükség. Ha a munkamenet csak akkor kerülne a tárba, amikor valami TÉNYLEGESEN hozzá kötődik (belépés,
+vagy egy munkamenethez kötött írás), akkor a plafon gyakorlatilag soha nem szorítana, és a fenti
+osztályok nagy része megszűnne — nem javítással, hanem azzal, hogy a helyzet nem áll elő. Ez viszont a
+kérés-ciklus és minden munkamenet-író kezelő átalakítása, tehát **nem egy audit-javítás, hanem terv**.
+Döntést kérek rá (operátor / chatgpt-v3), nem csinálom meg egyoldalúan — a SPEC kifejezetten kéri, hogy
+ismétlődő leletnél az OKOT vizsgáljam, és ne gyártsak végtelen munkát.
+
 ### A LEGFONTOSABB TANULSÁG EBBŐL A CSOMAGBÓL
 
 A KUKA-300 nem technikai apróság: **ugyanazt a hibát követtem el, amit ebben a csomagban én magam
@@ -53,9 +82,9 @@ fájlban, a védett-lista kérdése felvett egy korlátlan költséget. A saját
 mert a mintája EGY FÜGGVÉNY sorára illeszkedett, nem a hibaosztályra. Ezt a regiszter most kimondja.
 
 Ebből két dolog következik a csomag hátralévő részére: (1) a hibaosztályokat a jelekben is
-általánosítani kell, nem csak a tanulság szövegében; (2) a külső review értéke MÉRHETŐ — **hét valós
-hibát** talált a saját javításaimban, amelyek mindegyike olyan helyen volt, ahol a saját battériám
-zöld maradt.
+általánosítani kell, nem csak a tanulság szövegében; (2) a külső review értéke MÉRHETŐ — **tíz valós
+hibát** talált a saját javításaimban (ebből egy **P1**), és mindegyik olyan helyen volt, ahol a saját
+battériám zöld maradt.
 
 És van egy harmadik, kellemetlenebb: a **KUKA-303** azt mutatja, hogy egy kockázat MEGNEVEZÉSE nem
 védelem. Az ISC-02 javításakor a saját PR-kommentemben kiírtam, hogy a sortörést nem vesszük el

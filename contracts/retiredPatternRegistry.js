@@ -12914,6 +12914,76 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív + egy tiltó minta) · `npm run verify:app-findings-r154` (H: h1 a több soros kérdés, h2 a tabulátor, h3 a PÁROSÍTÁS két fájlból mérve, h4/h5/h6 az ellenpárok — a nulla bájt, az üres kérdés és a NÉV sortörése továbbra is tilos).',
   }),
 
+
+  Object.freeze({
+    id: 'KUKA-304',
+    date: '2026-10-06',
+    title: 'A TÁROLÓ-HORDOZHATÓSÁGI SZABÁLYT KÉT TÍPUSRA TETTEM, A HARMADIK A SAJÁT ELLENŐRZŐJÉT FUTTATTA',
+    what: 'Az ISC-02 nulla bájt-tilalmát a `string` és a `nonempty_string` típusba írtam be, külön-külön. Az `email_address` viszont a SAJÁT ellenőrzőjét futtatja (kukac · szóköz), és abba nem került bele. MÉRVE: a `POST /api/register {"email":"a\u0000@b.test"}` törzsre a `validateRequest` `ok: true`-t adott.',
+    why_wrong: 'Pontosan az a tároló-eltérés maradt nyitva, aminek a MEGSZÜNTETÉSE az ISC-02 célja volt: SQLite eltárolja a címet, PostgreSQL elutasítja. A szabály KÉT HELYEN élt, és a harmadik olvasó nem tudott róla — a klasszikus „ugyanaz a tény több otthonban" hiba (KUKA-003 · KUKA-039), amit a saját regiszterem több tucat sora tilt.',
+    replaced_by: 'A tilalom ÖNÁLLÓ feloldó (`nulCheck`), és MINDEN szöveges típus ezt hívja: `string` · `nonempty_string` · `nonempty_text` · `email_address`. Az e-mail cím azonosító-fajta érték, ezért ott a teljes vezérlő-karakter-tilalom áll, nem csak a nulla bájt.',
+    replacement: 'A `secret_string` szándékosan kimarad, és ezt a feloldó megjegyzése kimondja: a jelszó `scrypt` lenyomatként tárolódik, tehát ott nincs tároló-eltérés, egy szűkítés viszont meglévő jelszavakat tenne érvénytelenné.',
+    decision: 'D-VS-3114',
+    found_by: 'A KÜLSŐ REVIEW (Codex, R154 HARMADIK kör, P2 — `v3ref/inputSchema.mjs:64`) — a saját ISC-02 javításom hiányos hatóköre.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/inputSchema.mjs']),
+        pattern: 'const nulCheck = ',
+        why: 'a nulla bájt tilalma EGY feloldóban áll, nem típusonként másolva' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/inputSchema.mjs']),
+        pattern: "if \\(CONTROL_CHARS\\.test\\(v\\)\\) return 'vezérlő-karaktert nem tartalmazhat';\\n    return null;\\n  \\},\\n",
+        why: 'az e-mail cím is azonosító-fajta: vezérlő-karakter nélkül' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'AMIKOR EGY SZABÁLYT TÍPUSOKBA ÍRSZ, ELŐBB SOROLD FEL AZ ÖSSZES TÍPUST, ÉS CSAK AZUTÁN ÍRJ. Egy olyan szabály, ami több ellenőrzőbe KÉZZEL kerül bele, garantáltan kimarad abból, aminek saját ellenőrzője van — a szabály legyen EGY feloldó, és a típusok HÍVJÁK. Az ellenőrző kérdés: ha ennek a szabálynak a célja egy KÜLSŐ tény (itt: a tároló tűrése), akkor minden olyan értékre áll, ami oda eljut — és nem csak azokra, amiknek a típusát épp szerkesztettem.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta) · `npm run verify:app-findings-r154` (I: i1 az e-mail, i2 az ellenpár, i3 mind a NÉGY típus egy állításban).',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-305',
+    date: '2026-10-06',
+    title: 'A KÉRÉS LEFUTOTT EGY OLYAN MUNKAMENETTEL, AMIT A TÁR MÁR ELDOBOTT — és árva adatot hagyott',
+    what: 'Az F154-13 szabálya szerint telt, CSUPA BELÉPETT sorral teli táron a friss NÉVTELEN munkamenet azonnal kiesik. A kérés viszont lefutott: a süti kimen, és egy ÁLLAPOTÍRÓ kezelő (`POST /api/invites/pending`) olyan azonosítóra írt, ami NINCS a tárban. MÉRVE: 30 süti nélküli állapotíró kérés → **30 ÁRVA** adatbázis-sor, és az `onEvicted` takarítás már LEFUTOTT, mielőtt a sor megszületett.',
+    why_wrong: 'A rendszer sikert jelentett (HTTP 200) egy olyan hatásra, amit senki nem tud visszaolvasni — a következő kérés a folytatást nem találja meg (KUKA-120: a siker-jelentés nem hatás). És az árva sorok korlátlanul szaporodtak, vagyis az F154-11-ben épp lezárt rés egy MÁSIK úton újra kinyílt. A gyökér: a munkamenet LÉTEZÉSE feltevés volt, nem ellenőrzött tény.',
+    replaced_by: 'A `newSession` KIMONDJA, felvette-e a tár (`admitted`), és a kérés-ciklus telt példányon NEVEZETTEN mond nemet: `503 at_capacity` + `Retry-After` azokra az utakra, amiknek munkamenet kell.',
+    replacement: 'A statikus lap TOVÁBBRA IS kimegy (ahhoz nem kell munkamenet), de sütit nem adunk hozzá — egy süti, ami semmire nem mutat, csak elfedi a helyzetet. Ellenpár: a statikus lap telt táron is 200.',
+    decision: 'D-VS-3115',
+    found_by: 'A KÜLSŐ REVIEW (Codex, R154 HARMADIK kör, **P1** — `v3app/server.mjs:460`) — a saját, EGY KÖRREL KORÁBBI F154-13 javításom következménye.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "s\\.admitted = sessions\\.has\\(s\\.id\\)",
+        why: 'a felvétel ELLENŐRZÖTT tény, nem feltevés' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "reason: 'at_capacity'",
+        why: 'a telt példány NEVEZETTEN mond nemet, nem csendben szolgál ki' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'HA EGY ERŐFORRÁS FELVÉTELE MEGHIÚSULHAT, AKKOR A FELVÉTEL TÉNYÉT VISSZA KELL ADNI — és a hívónak ELLENŐRIZNI. Egy „létrehozom és visszaadom" feloldó, ami csendben el is dobhatja, amit létrehozott, minden hívójánál hibát szül: a hívó állapotot ír rá, nyugtát ad róla, és a kár később, máshol derül ki. És amikor egy kapacitás-korlát bevezetése után bárhol azt írod, hogy „ez mindig sikerül", kérdezd meg: mi történik a korláton?',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta) · `npm run verify:app-findings-r154` (I: i7 a 30 kérés nevezett elutasítása és a NULLA árva sor, i8 az ellenpár — a statikus lap kimegy).',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-306',
+    date: '2026-10-06',
+    title: 'HARMADSZOR UGYANAZ: a védelem költsége megint a támadással nőtt — és most a JELET is megépítettem',
+    what: 'Telt, CSUPA BELÉPETT sorral teli táron minden süti nélküli kérés lemásolta és RENDEZTE a teljes munkamenet-térképet, és csak utána dobta el a friss névtelen sort. MÉRVE 20 000 belépett sor mellett: 100 süti nélküli beszúrás **754 ms**. A hisztérézis ezt nem amortizálja, mert minden ilyen kérés újra megfizeti — elosztott névtelen forgalom a per-címes kéréskorlát mellett is korlátlanul ismételheti.',
+    why_wrong: 'EZ A HARMADIK alkalom EBBEN A CSOMAGBAN, hogy egy védelmi döntés a támadással növő költséget vett fel: F154-01 (a kéréskorlát sora) · F154-11 (a védett-lista teljes tábla-olvasása) · ez. A KUKA-290 és a KUKA-300 is pontosan ezt tiltja, és egyik gépi jele sem kapta el, mert mindkettő EGY KONKRÉT sorra illeszkedik. A hibaosztály nem függvény-specifikus, a jeleim viszont azok voltak.',
+    replaced_by: 'A döntés O(1): a tár SZÁMLÁLJA a névtelen sorokat (`anonCount`), és ha csak a beszúrt sor vehető el, azonnal eldobja — rendezés és másolás nélkül. MÉRVE: 754 ms → **45 ms**.',
+    replacement: 'A számláló azért biztonságos, mert az `subject_id` a BESZÚRÁS pillanatában áll be és utána nem változik (F154-09). Ez FELTEVÉS, tehát MÉRJÜK: a battéria vegyes sorozat (beszúrás · törlés · kiszorítás) után ÖSSZEVETI a számlálót a tényleges tartalommal — egy elcsúszott számláló a rövidre zárást csendben rosszra fordítaná.',
+    decision: 'D-VS-3116',
+    found_by: 'A KÜLSŐ REVIEW (Codex, R154 HARMADIK kör, P2 — `v3app/server.mjs:432`), saját méréssel (754 ms) megerősítve.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'if \\(anonOthers === 0 && keepIsAnon\\)',
+        why: 'a döntés O(1)-ben megy, rendezés nélkül' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'let anonCount = 0',
+        why: 'a névtelen sorok száma számlált, nem újraszámolt' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'HA EGY HIBAOSZTÁLYT MÁSODSZOR IS ELKÖVETSZ, NEM ÚJ TANULSÁG KELL, HANEM ÁLTALÁNOSABB JEL. Három eset egy csomagban ugyanabból az osztályból azt jelenti, hogy a jelem rossz szinten áll: egy konkrét függvény-sorra illeszkedő minta a szomszéd függvényt nem védi. A gyakorlati szabály, amit ez a három eset ad: MINDEN védelmi/takarító úton a döntés költsége legyen ÁLLANDÓ vagy a DÖNTÉS hatókörével arányos — és ha a döntéshez egy számlálót vezetsz be, a számláló helyességét MÉRD, mert egy elcsúszott számláló csendben rosszra fordítja a döntést.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta) · `npm run verify:app-findings-r154` (I: i4 az IDŐ 20 000 soros táron, i5 az ellenpár — a verdikt nem változott, i6 a SZÁMLÁLÓ helyessége vegyes sorozat után).',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

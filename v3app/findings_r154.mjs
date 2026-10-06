@@ -32,6 +32,7 @@ import { startServer, makeRateLimiter, makeSessionStore, sessionLimits, SESSION_
 import { dictFor } from './public/i18n/dict.mjs';
 import { resolveLanguage, parseAcceptLanguage, pickFromAcceptLanguage } from './public/i18n/languages.mjs';
 import { validateAgainstSchema } from '../v3ref/inputSchema.mjs';
+import { validateRequest } from './httpSchema.mjs';
 
 /** A `string` TÍPUS közvetlenül, a mag feloldóján — amit a próba nem tud meghívni, azt hisszük (KUKA-207). */
 const TYPES_STRING_OK = (v) => validateAgainstSchema({
@@ -40,6 +41,7 @@ const TYPES_STRING_OK = (v) => validateAgainstSchema({
 }).ok === true;
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const PW = 'proba-jelszo-2026';
 const results = [];
 let section = '';
 function part(name) { section = name; console.log(`\n── ${name} ──`); }
@@ -518,6 +520,96 @@ try {
     step('(h6) ELLENPÁR: a NÉV mezőben a sortörés TOVÁBBRA IS tilos — a szűkítés mezőfajtához kötött',
       nevSortores.status === 400 && /vezérlő-karakter/.test(String(nevSortores.body && nevSortores.body.message || '')),
       { status: nevSortores.status, message: String(nevSortores.body && nevSortores.body.message || '').slice(0, 40) });
+  }
+
+  // ── I) A KÜLSŐ REVIEW HARMADIK KÖRE (Codex, R154) — EGY P1 ÉS KÉT P2 ──────────────────────────
+  part('I) F154-15 · F154-16 · F154-17 — a külső review HARMADIK körének leletei');
+  {
+    // (i1) F154-15 (P2) — A NULLA BÁJT TILALMA KÉT TÍPUSON ÁLLT, AZ E-MAIL SAJÁT ELLENŐRZŐJÉN NEM.
+    // MÉRVE a régi alakon: a `POST /api/register {"email":"a\u0000@b.test"}` törzsre a
+    // `validateRequest` `ok: true`-t adott — tehát pont az a tároló-eltérés maradt nyitva, aminek a
+    // megszüntetése az ISC-02 CÉLJA volt.
+    const reg = (email) => validateRequest({ key: 'POST /api/register', body: { email, password: 'proba-jelszo-2026', lang: 'hu' } });
+    step('(i1) a NULLA BÁJT az E-MAIL mezőn is elakad (régen MÉRVE: ok: true)',
+      reg('a\u0000@b.test').ok === false, { ok: reg('a\u0000@b.test').ok, error: reg('a\u0000@b.test').error });
+    step('(i2) ELLENPÁR: a rendes e-mail cím változatlanul átmegy',
+      reg('anna@pelda.hu').ok === true, { ok: reg('anna@pelda.hu').ok });
+
+    // A SZABÁLY EGY OTTHONBAN: mind a NÉGY szöveges típus ugyanazt a nulla bájt-tilalmat futtatja.
+    const tip = (type, v) => validateAgainstSchema({
+      schema: { version: '1', fields: { t: { type, required: true, max_length: 200 } } }, input: { t: v } }).ok;
+    step('(i3) a nulla bájt MIND A NÉGY szöveges típuson tilos — a szabály egy otthonban áll',
+      tip('string', 'a\u0000b') === false && tip('nonempty_string', 'a\u0000b') === false
+      && tip('nonempty_text', 'a\u0000b') === false && tip('email_address', 'a\u0000@b.test') === false,
+      { string: tip('string', 'a\u0000b'), nonempty_string: tip('nonempty_string', 'a\u0000b'),
+        nonempty_text: tip('nonempty_text', 'a\u0000b'), email_address: tip('email_address', 'a\u0000@b.test') });
+
+    // (i4) F154-17 (P2) — A TELJES TÉRKÉP RENDEZÉSE ELUTASÍTOTT NÉVTELEN BESZÚRÁSNÁL.
+    // MÉRVE a régi alakon 20 000 belépett sor mellett: 100 süti nélküli beszúrás 754 ms.
+    const nagy = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 20000, warn: () => {} });
+    for (let i = 0; i < 20000; i++) nagy.set('u' + i, { id: 'u' + i, subject_id: 'S' + i }, 1_000_000 + i);
+    const t0 = Date.now();
+    for (let i = 0; i < 100; i++) nagy.set('anon' + i, { id: 'anon' + i, subject_id: null }, 2_000_000 + i);
+    const ms = Date.now() - t0;
+    step('(i4) 100 süti nélküli beszúrás 20 000 belépett sor mellett 200 ms alatt (régen MÉRVE: 754 ms)',
+      ms < 200, { ms, regi_mert_ms: 754 });
+    step('(i5) ELLENPÁR: a verdikt nem változott — a 20 000 belépett sor MIND megmaradt',
+      [0, 9999, 19999].every((i) => nagy.has('u' + i, 2_000_100)) && nagy.stats().evicted_cap_signed_in === 0,
+      { size: nagy.size, stat: nagy.stats() });
+
+    // (i6) A SZÁMLÁLÓ HELYESSÉGE. A rövidre zárás O(1) döntése a névtelen sorok SZÁMÁN áll; ha a
+    // számláló elcsúszik, a döntés csendben rosszra fordul. Ezért VEGYES sorozat után a számlálót
+    // ÖSSZEVETJÜK a tényleges tartalommal (KUKA-207: a próba hívja meg, ne higgye el).
+    const vegyes = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 50, warn: () => {} });
+    const ids = [];
+    for (let i = 0; i < 20; i++) { vegyes.set('u' + i, { id: 'u' + i, subject_id: 'S' + i }, 1_000_000 + i); ids.push(['u' + i, false]); }
+    for (let i = 0; i < 40; i++) { vegyes.set('a' + i, { id: 'a' + i, subject_id: null }, 1_100_000 + i); ids.push(['a' + i, true]); }
+    vegyes.delete('a0'); vegyes.delete('u0');
+    vegyes.set('a5', { id: 'a5', subject_id: null }, 1_200_000);
+    const T = 1_200_000;
+    const tenyleges = ids.filter(([id, anon]) => anon && vegyes.has(id, T)).length;
+    step('(i6) a névtelen-számláló EGYEZIK a tényleges tartalommal vegyes sorozat után is',
+      vegyes.stats().anonymous === tenyleges,
+      { szamlalo: vegyes.stats().anonymous, tenyleges, size: vegyes.size });
+
+    // (i7) F154-16 (P1) — A KIESETT FRISS MUNKAMENETTEL IS LEFUTOTT AZ ÁLLAPOTÍRÓ KEZELŐ.
+    // MÉRVE a régi alakon: 30 süti nélküli állapotíró kérés → 30 ÁRVA adatbázis-sor, és az
+    // `onEvicted` már LEFUTOTT, mielőtt a sor megszületett.
+    //
+    // A mérés SAJÁT szervert kér, mert csupa BELÉPETT sorral teli tár kell hozzá.
+    const DB2 = resolve(ROOT, 'var/tmp/v3app_r154_i7.sqlite');
+    try { rmSync(DB2, { force: true }); rmSync(DB2 + '-wal', { force: true }); rmSync(DB2 + '-shm', { force: true }); } catch { /* nem volt */ }
+    const elozoMax = process.env.VS_APP_SESSION_MAX;
+    process.env.VS_APP_SESSION_MAX = '4';
+    const tele = await startServer({ port: 0, dbPath: DB2 });
+    try {
+      const b2 = `http://127.0.0.1:${tele.server.address().port}`;
+      for (let i = 0; i < 4; i++) {
+        const c = new Client(b2);
+        await c.post('/api/register', { email: `tele${i}@pelda.hu`, password: PW, lang: 'hu' });
+        const m = (await c.get('/dev/mailbox')).body.mails.filter((x) => x.to === `tele${i}@pelda.hu`)[0];
+        const l = new URL(m.link);
+        await c.get(l.pathname + l.search);
+        await c.post('/api/login', { email: `tele${i}@pelda.hu`, password: PW });
+      }
+      const sorokOf = () => tele.store.get('SELECT COUNT(*) AS n FROM pending_intent').n;
+      const kodok = {};
+      for (let i = 0; i < 30; i++) {
+        const r = await fetch(b2 + '/api/invites/pending', { method: 'POST',
+          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'arva-' + i }) });
+        kodok[r.status] = (kodok[r.status] || 0) + 1;
+      }
+      const arvak = tele.store.all('SELECT session_id FROM pending_intent')
+        .filter((r) => !tele.sessions.has(String(r.session_id))).length;
+      step('(i7) telt táron az ÁLLAPOTÍRÓ kérés NEVEZETTEN elakad, és NEM hagy árva sort (régen: 30 árva)',
+        kodok['503'] === 30 && arvak === 0 && sorokOf() === 0, { kodok, arva_sor: arvak, pending_intent: sorokOf() });
+      const statikus = await fetch(b2 + '/index.html');
+      step('(i8) ELLENPÁR: a statikus lap telt táron is kimegy — ahhoz nem kell munkamenet',
+        statikus.status === 200, { status: statikus.status });
+    } finally {
+      await new Promise((r) => tele.server.close(r));
+      if (elozoMax === undefined) delete process.env.VS_APP_SESSION_MAX; else process.env.VS_APP_SESSION_MAX = elozoMax;
+    }
   }
 
   const fail = results.filter((r) => !r.pass);
