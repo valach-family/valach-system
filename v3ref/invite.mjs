@@ -670,8 +670,22 @@ export function resumeIntent({ store, sessionId, clock, ttlMs = PENDING_INTENT_T
   }
   const row = store.get('SELECT invite_token, created_at FROM pending_intent WHERE session_id = ?', sessionId);
   if (!row) return null;
-  const kor = Date.parse(clock.now()) - Date.parse(row.created_at);
-  if (Number.isFinite(kor) && kor > ttlMs) {
+  // ── A NEM ÉRTELMEZHETŐ IDŐBÉLYEG NEM „NEM JÁRT LE" (F158-04, külső review, Codex, P2) ───────────
+  //
+  // A LELET, ÉS MIÉRT FÁJ. Az első alakom `Number.isFinite(kor) && kor > ttlMs`-t írt: ha a tárolt
+  // `created_at` vagy az óra értelmezhetetlen, a `kor` NaN lesz, az őr NEM tüzel, és a szándék
+  // FOLYTATÓDIK — időkorlát nélkül, örökre. A `created_at` oszlop puszta `TEXT NOT NULL`, tehát egy
+  // import vagy sérülés pont ezt hozza. Ez PONTOSAN az a hiba-osztály, amit ugyanebben a körben
+  // KUKA-337-ként magam vezettem ki a tiltás feloldójából („a védő szabály MINDEN órájára érvényes,
+  // nem csak a tárolt soréra") — és a következő függvényben megismételtem. A tanulság kimondása
+  // tehát nem védelem; a jelnek a KÓDON kell állnia (KUKA-303 rokona).
+  //
+  // A VÁLASZ: a nem értelmezhető idő LEJÁRTNAK számít. A folytatás elmarad, a sor törlődik — mert
+  // egy olyan szándékról, aminek a korát nem tudjuk, nem állíthatjuk, hogy még friss (KUKA-020).
+  const most = Date.parse(clock.now());
+  const szuletett = Date.parse(row.created_at);
+  const kor = most - szuletett;
+  if (!Number.isFinite(kor) || kor > ttlMs) {
     store.run('DELETE FROM pending_intent WHERE session_id = ?', sessionId);
     return null;
   }

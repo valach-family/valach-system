@@ -153,12 +153,29 @@ export function pickFromAcceptLanguage(header, opts = {}) {
   const inRange = (code, range) => { const c = String(code).toLowerCase().replace(/_/g, '-'); return c === range || c.startsWith(`${range}-`); };
   const allowed = (code) => !excludedRanges.some((r) => inRange(code, r));
   const firstAllowed = () => (enabledLanguages().map((l) => l.code).find((c) => allowed(c)) || null);
+  // A KIFEJEZETTEN MEGNEVEZETT TARTOMÁNYOK (a joker hatóköréhez, F158-09): minden `*`-tól eltérő
+  // címke, SÚLYTÓL FÜGGETLENÜL — a `q=0` kizárás és a kisebb súlyú pozitív említés EGYARÁNT „említés".
+  const mentionedRanges = parsed.filter((x) => x.tag !== '*').map((x) => x.tag.toLowerCase().replace(/_/g, '-'));
+  const mentioned = (code) => mentionedRanges.some((r) => inRange(code, r));
 
   const wanted = parsed.filter((x) => x.q > 0).sort((a, b) => b.q - a.q);
   for (const { tag } of wanted) {
     if (tag === '*') {
-      // A JOKER: bármi elfogadható, amit nem zártak ki — a jegyzék sorrendje dönt.
-      const pick = allowed(BASE_LANGUAGE) ? BASE_LANGUAGE : firstAllowed();
+      /**
+       * A JOKER A NEM EMLÍTETT NYELVEKRE SZÓL (F158-09, külső review, Codex, P2 — RFC 9110 §12.4.3).
+       *
+       * A LELET: a korábbi alak a jokerre az ALAPNYELVET adta, ha az nem volt `q=0`-val kizárva —
+       * akkor is, ha a kérés az alapnyelvet KIFEJEZETTEN kisebb súllyal nevezte meg.
+       * `Accept-Language: hu;q=0.5, *;q=1` esetén tehát magyart adtunk, holott a joker az EMLÍTÉS
+       * NÉLKÜLI nyelvekre szól: egy elérhető `en`/`de` 1-es súllyal megelőzi a 0,5-es magyart.
+       * Az előző kör (F154-43) csak a `q=0` kizárásokat vette számba — a POZITÍV, kisebb súlyú
+       * említést nem; ugyanaz a fél őr, egy lépéssel beljebb (KUKA-039).
+       *
+       * A joker jelöltje ezért MINDEN kifejezetten megnevezett tartományt kihagy. Ha így nem marad
+       * jelölt, a joker nem talál — és a sorozat a kisebb súlyú, KIFEJEZETT címkékkel folytatódik.
+       */
+      const jelolt = enabledLanguages().map((l) => l.code).filter((c) => allowed(c) && !mentioned(c));
+      const pick = jelolt.includes(BASE_LANGUAGE) ? BASE_LANGUAGE : (jelolt.length ? jelolt[0] : null);
       if (pick) return Object.freeze({ code: pick, matched: true });
       continue;
     }

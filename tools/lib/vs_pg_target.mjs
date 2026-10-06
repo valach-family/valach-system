@@ -57,14 +57,39 @@ export function restoreTargetProblem(value) {
  * Dokumentáció: PostgreSQL „Connection URIs" — a query-rész kulcsszavai, és hogy az adatbázis
  * alapértelmezése a tényleges felhasználó.
  */
+/**
+ * EGY KAPCSOLATI KULCSSZÓ ÉRTÉKE — libpq SZEMANTIKÁVAL (F158-01, külső review, Codex, P1).
+ *
+ * A LELET: `URLSearchParams.get()` az ELSŐ előfordulást adja, a libpq viszont az UTOLSÓ, nem üres
+ * ismétlést veszi. Egy `postgres://u@host/decoy?dbname=decoy&dbname=source` cím tehát a `source`
+ * adatbázist nyitja, a régi alak mégis `decoy`-t mondott — így a `VS_RESTORE_TEST_DB=source`
+ * átment a biztonsági kapun, és a lánc végén álló `DROP DATABASE "source"` a VALÓDI forrást
+ * törölte volna. Dokumentáció: PostgreSQL „libpq — Connection Strings" (ismételt kulcs: az
+ * utolsó, nem üres érték győz).
+ */
 function queryParam(u, nev) {
-  try { const v = u.searchParams.get(nev); return v === null ? '' : String(v).trim(); } catch { return ''; }
+  try {
+    const all = u.searchParams.getAll(nev).map((v) => String(v).trim()).filter((v) => v !== '');
+    return all.length ? all[all.length - 1] : '';
+  } catch { return ''; }
 }
 
 /** A TÉNYLEGES adatbázis-név: query `dbname` → út → query `user` → cím-felhasználó; különben NEM TUDHATÓ. */
 export function effectiveDatabase(sourceUrl) {
   let u;
   try { u = new URL(String(sourceUrl)); } catch { return { name: null, basis: 'a forrás-cím nem értelmezhető' }; }
+  // ── A SZOLGÁLTATÁS-FÁJL OLVASHATATLAN INNEN (F158-02, külső review, Codex, P1) ──────────────────
+  //
+  // A LELET: `?service=prod` esetén a libpq a `pg_service.conf`-ból vesz további paramétereket —
+  // köztük `dbname`-et —, amit a kapcsolati cím NEM tartalmaz. Egy út nélküli
+  // `postgres://decoy@host/?service=prod` cím tehát a szolgáltatás `dbname`-ét nyitja, a régi alak
+  // mégis a cím FELHASZNÁLÓJÁT (`decoy`) mondta forrásnak — és a `DROP DATABASE` a valódi forrást
+  // vitte volna. A fájl tartalma itt elvileg sem tudható (más gépen, más engedélyekkel áll), ezért
+  // a válasz NEM találgatás, hanem NEVEZETT „nem megállapítható" — ott, ahol a következmény
+  // adatbázis-törlés, a nem tudás MEGÁLLÁST jelent (KUKA-049 · KUKA-203).
+  if (queryParam(u, 'service')) {
+    return { name: null, basis: 'a cím `?service=` paramétert hordoz — a szolgáltatás-fájl `dbname`-et is adhat, amit innen NEM látunk' };
+  }
   const qDb = queryParam(u, 'dbname');
   if (qDb) return { name: qDb, basis: 'a cím `?dbname=` paramétere FELÜLÍRJA az utat' };
   let path;

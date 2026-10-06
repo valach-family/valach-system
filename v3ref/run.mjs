@@ -740,11 +740,22 @@ probe('P-K03-intent-expiry', 'R32/K03 · D-VS-3141 (a D-VS-3007 nevezett függő
       try { resumeIntent({ store: w.store, sessionId: 'sess_most' }); }
       catch (e) { nevezett = /clock/.test(String(e && e.message)); }
 
+      // (e) A NEM ÉRTELMEZHETŐ IDŐBÉLYEG LEJÁRTNAK SZÁMÍT (F158-04, külső review, Codex, P2).
+      //     A `created_at` puszta `TEXT NOT NULL`: egy import vagy sérülés értelmezhetetlen értéket
+      //     hoz, és az első alakom `Number.isFinite(kor) && …` őre ilyenkor NEM tüzelt — a szándék
+      //     időkorlát nélkül folytatódott. Amiről nem tudjuk, milyen öreg, arról nem állítjuk, hogy
+      //     friss (KUKA-020), és a sort el is dobjuk.
+      w.store.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)',
+        'sess_romlott', 'tok_x', 'nem-egy-idopont');
+      const romlott = resumeIntent({ store: w.store, sessionId: 'sess_romlott', clock: w.clock });
+      const romlottEltunt = !w.store.get('SELECT 1 AS x FROM pending_intent WHERE session_id = ?', 'sess_romlott');
+
       const ok = friss === 'tok_1' && lejart === null && sorEltunt
-        && takaritas.purged === 1 && maradt.join(',') === 'sess_friss,sess_most' && nevezett === true;
+        && takaritas.purged === 1 && maradt.join(',') === 'sess_friss,sess_most' && nevezett === true
+        && romlott === null && romlottEltunt === true;
       return {
-        expected: 'friss=tok_1 · lejárt=null és a sor eltűnt · takarítás=1 lejárt sor, a friss marad · óra nélkül NEVEZETT hiba',
-        actual: `friss=${friss} · lejárt=${lejart} · sor_eltunt=${sorEltunt} · takaritva=${takaritas.purged} · maradt=${maradt.join(',')} · nevezett_hiba=${nevezett}`,
+        expected: 'friss=tok_1 · lejárt=null és a sor eltűnt · takarítás=1 lejárt sor, a friss marad · óra nélkül NEVEZETT hiba · ROMLOTT időbélyeg = lejárt, a sor eltűnik',
+        actual: `friss=${friss} · lejárt=${lejart} · sor_eltunt=${sorEltunt} · takaritva=${takaritas.purged} · maradt=${maradt.join(',')} · nevezett_hiba=${nevezett} · romlott=${romlott} · romlott_eltunt=${romlottEltunt}`,
         pass: ok,
       };
     } finally { w.store.close(); }

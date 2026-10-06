@@ -29,7 +29,7 @@ import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rmSync, readFileSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { startServer, makeRateLimiter, makeSessionStore, sessionLimits, SESSION_LIMITS } from './server.mjs';
+import { startServer, makeRateLimiter, makeSessionStore, sessionLimits, SESSION_LIMITS, rateLimitConfig } from './server.mjs';
 import { dictFor } from './public/i18n/dict.mjs';
 import { resolveLanguage, parseAcceptLanguage, pickFromAcceptLanguage } from './public/i18n/languages.mjs';
 import { validateAgainstSchema } from '../v3ref/inputSchema.mjs';
@@ -577,13 +577,28 @@ try {
 
     // (i4) F154-17 (P2) — A TELJES TÉRKÉP RENDEZÉSE ELUTASÍTOTT NÉVTELEN BESZÚRÁSNÁL.
     // MÉRVE a régi alakon 20 000 belépett sor mellett: 100 süti nélküli beszúrás 754 ms.
-    const nagy = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 20000, warn: () => {} });
-    for (let i = 0; i < 20000; i++) nagy.set('u' + i, { id: 'u' + i, subject_id: 'S' + i }, 1_000_000 + i);
-    const t0 = Date.now();
-    for (let i = 0; i < 100; i++) nagy.set('anon' + i, { id: 'anon' + i, subject_id: null }, 2_000_000 + i);
-    const ms = Date.now() - t0;
-    step('(i4) 100 süti nélküli beszúrás 20 000 belépett sor mellett 200 ms alatt (régen MÉRVE: 754 ms)',
-      ms < 200, { ms, regi_mert_ms: 754 });
+    //
+    // A MÉRCE SKÁLA-FÜGGETLEN, NEM GÉPSEBESSÉG (F158-03, külső review, Codex, P2). Az első alakom
+    // `ms < 200`-at kért: ez a GÉP sebességét méri, nem a rövidre zárást — a reviewer gépén a helyes
+    // viselkedés 219 ms-ot kapott, és a lánc PIROS lett regresszió NÉLKÜL. Ugyanaz a hiba-osztály,
+    // amit a söprés türelménél már egyszer kijavítottunk (KUKA-045: az őr ne egy kézi számon álljon).
+    // A VALÓDI állítás: a költség NEM NŐ a tár méretével. Ezért KÉT méretet mérünk, és az ARÁNYT
+    // kötjük meg; a nagyvonalú absztrakt plafon csak a végtelen hurkot fogja meg.
+    const mer = (meret) => {
+      const st = makeSessionStore({ idleMs: 10 ** 9, maxSessions: meret, warn: () => {} });
+      for (let i = 0; i < meret; i++) st.set('u' + i, { id: 'u' + i, subject_id: 'S' + i }, 1_000_000 + i);
+      const t = Date.now();
+      for (let i = 0; i < 100; i++) st.set('anon' + i, { id: 'anon' + i, subject_id: null }, 2_000_000 + i);
+      return { st, ms: Date.now() - t };
+    };
+    const kicsi = mer(2000);
+    const { st: nagy, ms } = mer(20000);
+    // A TŰRÉS KIMONDVA: a tízszeres tárméret legfeljebb NÉGYSZERES időt hozhat (a konstans út
+    // mérési zaját a +50 ms fedi) — a régi, rendező alak ennél nagyságrenddel többet adott
+    // (MÉRVE a régi alakon: 754 ms 20 000 sor mellett).
+    const hatar = Math.max(kicsi.ms * 4, kicsi.ms + 50);
+    step('(i4) a süti nélküli beszúrás költsége NEM nő a tár méretével: tízszeres tár, legfeljebb négyszeres idő',
+      ms <= hatar && ms < 5000, { kis_tar_ms: kicsi.ms, nagy_tar_ms: ms, hatar, regi_mert_ms: 754 });
     step('(i5) ELLENPÁR: a verdikt nem változott — a 20 000 belépett sor MIND megmaradt',
       [0, 9999, 19999].every((i) => nagy.has('u' + i, 2_000_100)) && nagy.stats().evicted_cap_signed_in === 0,
       { size: nagy.size, stat: nagy.stats() });
@@ -1655,6 +1670,130 @@ try {
     } finally {
       if (demoVolt2 === undefined) delete process.env.VS_DEMO; else process.env.VS_DEMO = demoVolt2;
       await new Promise((r) => nyelv.server.close(r));
+    }
+  }
+
+  // ── W) R158 — A KÜLSŐ REVIEW TIZENEGY LELETE, MIND GÉPI JELLEL ─────────────────────────────────
+  //
+  // Ebben a csoportban az R158 köre alatt érkezett Codex-leletek regressziói állnak. Ami mag-próbával
+  // vagy mutációval mérhető volt (F158-04: a NaN korú szándék), az OTT áll — ide a HATÁR és a
+  // feloldók kerülnek. Minden sor NEVEZI a leletet, hogy a javítás és a bizonyíték ne csúszhasson el.
+  part('W) R158 — a külső review leleteinek regressziói (F158-01 … F158-10)');
+  {
+    // (w1–w2) F158-01/02 — A VISSZATÖLTÉSI CÉL AZONOSSÁGA: ismételt kulcs és szolgáltatás-fájl.
+    step('(w1) F158-01: az ISMÉTELT `dbname` kulcsból az UTOLSÓ, nem üres érték dönt (libpq) — a `decoy&source` cím forrása `source`',
+      effectiveDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source').name === 'source'
+        && effectiveDatabase('postgres://u@host/decoy?dbname=source&dbname=').name === 'source'
+        && sameDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source', 'source').same === true,
+      { ismetelt: effectiveDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source').name,
+        utolso_ures: effectiveDatabase('postgres://u@host/decoy?dbname=source&dbname=').name });
+    step('(w2) F158-02: a `?service=` paraméter mellett a forrás NEM megállapítható — és a döntés ÓVATOS megállás',
+      effectiveDatabase('postgres://decoy@host/?service=prod').name === null
+        && sameDatabase('postgres://decoy@host/?service=prod', 'source').same === true,
+      { nev: effectiveDatabase('postgres://decoy@host/?service=prod').name,
+        alap: effectiveDatabase('postgres://decoy@host/?service=prod').basis.slice(0, 48) });
+
+    // (w3) F158-07 — A KÉRÉSKORLÁT BEÁLLÍTÁSÁNAK ALAKJA. A hibás érték NEM kapcsolhatja ki a védelmet.
+    const naplo = [];
+    const cfg = (env) => rateLimitConfig(env, (m) => naplo.push(m));
+    const romlott = [{ VS_APP_RATE_WINDOW_MS: 'bogus' }, { VS_APP_RATE_WINDOW_MS: '0' }, { VS_APP_RATE_WINDOW_MS: '-1' }];
+    const tortMax = cfg({ VS_APP_RATE_MAX: '0.5', VS_APP_ENV: 'staging' });
+    step('(w3) F158-07: a hibás ablak-hossz az ALAPÉRTELMEZÉSRE esik vissza (nem NaN, nem 0), a tört korlát sem megy át, és a napló MEGNEVEZI',
+      romlott.every((e) => cfg(e).windowMs === 60000)
+        && tortMax.max === 240 && tortMax.enabled === true
+        && cfg({ VS_APP_RATE_MAX: '0', VS_APP_ENV: 'staging' }).enabled === false
+        && cfg({ VS_APP_RATE_MAX: '100', VS_APP_RATE_WINDOW_MS: '30000' }).max === 100
+        && naplo.length >= 4,
+      { ablakok: romlott.map((e) => cfg(e).windowMs), tort_max: tortMax.max, naplosorok: naplo.length });
+
+    // (w4) F158-08 — A KULCS-TÉRKÉP KEMÉNY PLAFONJA. A régi alak CSAK a lejártakat vitte; friss
+    //      kulcsokkal a térkép a forgalommal nőtt. A csere kimondva: a LEGRÉGEBBEN látott kulcs
+    //      számlálója újraindul — ezt MÉRJÜK, nem feltételezzük (KUKA-207).
+    let figyelmeztetes = 0;
+    const take = makeRateLimiter({ windowMs: 10 ** 9, max: 3, keyCap: 50, warn: () => { figyelmeztetes += 1; } });
+    take('regi', 1_000_000); take('regi', 1_000_001);           // a „régi" cím kétszer kért
+    for (let i = 0; i < 200; i += 1) take('uj' + i, 1_000_100 + i);
+    const regiUjra = take('regi', 1_000_400);
+    step('(w4) F158-08: 200 FRISS kulcs 50-es plafonnal — a térkép korlátos marad, és a legrégebben látott cím számlálója újraindul (KIMONDOTT csere)',
+      figyelmeztetes > 0 && regiUjra.count === 1,
+      { figyelmeztetes, regi_szamlalo_ujra: regiUjra.count });
+
+    // (w5) F158-09 — A JOKER CSAK A NEM EMLÍTETT NYELVEKRE SZÓL (RFC 9110 §12.4.3).
+    const nyelvEsetek = [
+      ['hu;q=0.5, *;q=1', 'en'], ['*;q=1', 'hu'], ['hu;q=0, *;q=1', 'en'],
+      ['en;q=0.8, hu;q=0.5, *;q=1', 'de'], ['hu;q=1, *;q=1', 'hu'],
+      ['hu;q=0.5, en;q=0.5, de;q=0.5, *;q=1', 'hu'], ['de-AT;q=0, *;q=1', 'hu'],
+    ];
+    const nyelvRossz = nyelvEsetek.filter(([h, v]) => pickFromAcceptLanguage(h).code !== v);
+    step('(w5) F158-09: a kisebb súllyal KIFEJEZETTEN megnevezett nyelvet a joker NEM választja ki',
+      nyelvRossz.length === 0,
+      { hibas: nyelvRossz.map(([h, v]) => `${h} → ${pickFromAcceptLanguage(h).code} (elvárt: ${v})`) });
+
+    // (w6) F158-10 — AZ ÁTIRAT ÚTJA A KÖZÖS TISZTÍTÓN MEGY. A `--transcript` bármilyen abszolút utat
+    //      hozhat, a leltár pedig megosztásra/commitra készül. A kötés a KÓDON áll, nem ígéreten.
+    const expSrc = readFileSync(join(ROOT, 'tools/v3_fogyasztas_export.mjs'), 'utf8');
+    step('(w6) F158-10: az exportált `source.path` a `safePath` tisztítón megy át (nem nyers `replace(homedir())`)',
+      /source: \{ path: safePath\(file\)/.test(expSrc) && !/path: file\.replace\(homedir/.test(expSrc),
+      { safePath: /source: \{ path: safePath\(file\)/.test(expSrc) });
+
+    // (w7–w8) F158-06 és F158-05 — ÉLŐ HATÁRON, KÉT KÜLÖN SZERVERREL.
+    const DB11 = resolve(ROOT, 'var/tmp/v3app_r158_w.sqlite');
+    try { rmSync(DB11, { force: true }); rmSync(DB11 + '-wal', { force: true }); rmSync(DB11 + '-shm', { force: true }); } catch { /* nem volt */ }
+    const idleVolt = process.env.VS_APP_SESSION_IDLE_MS;
+    process.env.VS_APP_SESSION_IDLE_MS = '150';          // rövid tétlenségi idő, hogy a lejárat MÉRHETŐ legyen
+    const lej2 = await startServer({ port: 0, dbPath: DB11 });
+    try {
+      const b11 = `http://127.0.0.1:${lej2.server.address().port}`;
+      const c11 = new Client(b11);
+      await c11.post('/api/invites/pending', { token: 'w-lejarat' });   // névtelen sor + folytatás
+      const sorokElotte = lej2.store.all('SELECT session_id FROM pending_intent').length;
+      await new Promise((r) => setTimeout(r, 300));                     // a tétlenségi idő FÖLÉ
+      await c11.get('/api/me');                                        // a LEJÁRT sütit bemutatjuk
+      const sorokUtana = lej2.store.all('SELECT session_id FROM pending_intent').length;
+      step('(w7) F158-06: a LEJÁRT munkamenet eldobását is BEJELENTI a tár — az árva folytatás-sor takarítása nem marad el',
+        sorokElotte === 1 && sorokUtana === 0, { sorok_elotte: sorokElotte, sorok_utana: sorokUtana });
+    } finally {
+      if (idleVolt === undefined) delete process.env.VS_APP_SESSION_IDLE_MS; else process.env.VS_APP_SESSION_IDLE_MS = idleVolt;
+      await new Promise((r) => lej2.server.close(r));
+    }
+
+    const DB12 = resolve(ROOT, 'var/tmp/v3app_r158_w2.sqlite');
+    try { rmSync(DB12, { force: true }); rmSync(DB12 + '-wal', { force: true }); rmSync(DB12 + '-shm', { force: true }); } catch { /* nem volt */ }
+    const race = await startServer({ port: 0, dbPath: DB12 });
+    try {
+      const b12 = `http://127.0.0.1:${race.server.address().port}`;
+      const c12 = new Client(b12);
+      await c12.post('/api/register', { email: 'w-anna@pelda.hu', password: PW, lang: 'hu' });
+      const m12 = (await c12.get('/dev/mailbox')).body.mails.filter((x) => x.to === 'w-anna@pelda.hu')[0];
+      const u12 = new URL(m12.link);
+      await c12.get(u12.pathname + u12.search);
+      await c12.post('/api/login', { email: 'w-anna@pelda.hu', password: PW });
+      const suti = c12.cookie;
+      const port12 = race.server.address().port;
+      const arvaOf = () => race.store.all('SELECT session_id FROM pending_intent')
+        .filter((r) => !race.sessions.has(String(r.session_id))).length;
+      const arvaElotte2 = arvaOf();
+      // A LASSÚ, DARABOLT POST a TARTÓS munkamenettel megy, és közben UGYANAZT a sort KIJELENTKEZÉS
+      // törli. A tűzés a KISZORÍTÁS ellen véd, a KIMONDOTT törlés ellen nem — ezért kell a
+      // használat pillanatában újraellenőrizni (F158-05).
+      const lassu2 = await new Promise((resolve3) => {
+        const rq = httpReq({ host: '127.0.0.1', port: port12, path: '/api/invites/pending', method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Transfer-Encoding': 'chunked', Cookie: suti } }, (res) => {
+          let b = ''; res.on('data', (ch) => { b += ch; });
+          res.on('end', () => resolve3({ status: res.statusCode, body: (() => { try { return JSON.parse(b); } catch { return null; } })() }));
+        });
+        rq.on('error', () => resolve3({ status: 0, body: null }));
+        rq.write('{"token":"w-ver');
+        setTimeout(async () => {
+          await fetch(b12 + '/api/logout', { method: 'POST', headers: { Cookie: suti, 'Content-Type': 'application/json' }, body: '{}' });
+          rq.end('seny"}');
+        }, 150);
+      });
+      step('(w8) F158-05: a törzs olvasása közben TÖRÖLT tartós munkamenet nem írhat — a válasz a SAJÁT nevén mond nemet (409 `session_gone`, nem „tár megtelt"), és nem keletkezik ÁRVA sor',
+        lassu2.status === 409 && lassu2.body && lassu2.body.reason === 'session_gone' && arvaOf() === arvaElotte2,
+        { status: lassu2.status, reason: lassu2.body && lassu2.body.reason, arva_elotte: arvaElotte2, arva_utana: arvaOf() });
+    } finally {
+      await new Promise((r) => race.server.close(r));
     }
   }
 

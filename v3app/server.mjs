@@ -236,14 +236,38 @@ export function isHttpsRequest(req, env = process.env) {
  * A SZABÁLY: a kéréskorlát TELEPÍTETT környezet védelme (R146 §5 ott is kérte). Helyben alapból
  * KI, és mindkét irányban kifejezetten felülírható (`VS_APP_RATE_MAX=0` kikapcsol).
  */
-export function rateLimitConfig(env = process.env) {
+export function rateLimitConfig(env = process.env, warn = (m) => console.warn(m)) {
+  /**
+   * A BEÁLLÍTÁS ALAKJA IS MÉRT (F158-07, külső review, Codex, P2) — UGYANAZ A SZABÁLY, MINT A
+   * MUNKAMENET-KORLÁTNÁL (F154-41 · KUKA-328). Ott már egyszer kijavítottuk, ide nem jutott el:
+   * klasszikus fél őr (KUKA-039).
+   *
+   * MÉRVE a régi alakon: `VS_APP_RATE_WINDOW_MS=bogus` → `NaN` ablak, tehát `now - t < NaN` MINDIG
+   * hamis: minden kérés eldobta az előző bélyegeket, és a korlát CSENDBEN kikapcsolt. A `0` és a
+   * `-1` ugyanide vezet. Fordítva: `VS_APP_RATE_MAX=0.5` „engedélyezett" korlátot adott, de
+   * `arr.length <= 0.5` SOHA nem teljesül — a teljes alkalmazás 429-et adott volna.
+   *
+   * A HIBÁS ÉRTÉK NEM NÉMA: a napló megnevezi, és az alapértelmezés áll be. A KIMONDOTT kivétel
+   * marad: a `VS_APP_RATE_MAX=0` KIKAPCSOLÁS (dokumentált érték), nem hibás alak.
+   */
+  const posInt = (raw, fallback, nev) => {
+    const txt = String(raw ?? '').trim();
+    if (!txt) return fallback;
+    const n = Number(txt);
+    if (Number.isSafeInteger(n) && n > 0) return n;
+    warn(`[v3app] a ${nev} értéke NEM pozitív egész szám (${Number.isFinite(n) ? 'tört vagy nem pozitív' : 'nem szám'}), `
+      + `ezért az alapértelmezést használom: ${fallback}`);
+    return fallback;
+  };
   const deployed = DEPLOYED_ENVS.includes(String(env.VS_APP_ENV || '').trim().toLowerCase());
   const explicit = String(env.VS_APP_RATE_MAX || '').trim();
-  const max = explicit === '' ? (deployed ? 240 : 0) : Number(explicit);
+  // A NULLA KIMONDOTT KIKAPCSOLÁS, minden más értéknek pozitív EGÉSZNEK kell lennie.
+  const max = explicit === '' ? (deployed ? 240 : 0)
+    : (explicit === '0' ? 0 : posInt(explicit, deployed ? 240 : 0, 'VS_APP_RATE_MAX'));
   return {
-    enabled: Number.isFinite(max) && max > 0,
+    enabled: Number.isSafeInteger(max) && max > 0,
     max,
-    windowMs: Number(env.VS_APP_RATE_WINDOW_MS || 60000),
+    windowMs: posInt(env.VS_APP_RATE_WINDOW_MS, 60000, 'VS_APP_RATE_WINDOW_MS'),
   };
 }
 
@@ -264,7 +288,8 @@ export function rateLimitConfig(env = process.env) {
  * ÉS A SZÁM IGAZAT MOND (KUKA-129): vágás után a `count` már ALSÓ KORLÁT, nem pontos darabszám —
  * ezért a válasz ezt `capped`-ként KIMONDJA, nem hallgatja el.
  */
-export function makeRateLimiter({ windowMs = 60000, max = 240 } = {}) {
+export const RATE_LIMIT_KEY_CAP = 5000;
+export function makeRateLimiter({ windowMs = 60000, max = 240, keyCap = RATE_LIMIT_KEY_CAP, warn = () => {} } = {}) {
   const hits = new Map();
   const keep = Math.max(1, max + 1);
   return function take(key, now = Date.now()) {
@@ -274,9 +299,33 @@ export function makeRateLimiter({ windowMs = 60000, max = 240 } = {}) {
     const capped = arr.length > keep;
     if (capped) arr.splice(0, arr.length - keep);
     hits.set(key, arr);
-    // A TÉRIGÉNY IS KORLÁTOS: a lejárt kulcsok kitakarítása nélkül a térkép korlátlanul nőne —
-    // egy memória-szivárgás a védelem nevében (KUKA-120).
-    if (hits.size > 5000) for (const [k, v] of hits) if (!v.length || now - v[v.length - 1] > windowMs) hits.delete(k);
+    /**
+     * A KULCSOK SZÁMA IS KEMÉNY KORLÁT (F158-08, külső review, Codex, P2).
+     *
+     * A LELET: a korábbi takarítás CSAK a LEJÁRT kulcsokat vitte el — ha egy ablakon belül 5000-nél
+     * több KÜLÖNBÖZŐ cím érkezik, egyik sem lejárt, tehát a takarítás nullát törölt, és a térkép a
+     * forgalommal egyenesen nőtt. A megjegyzés közben „korlátos térigényt" állított: a szöveg a
+     * valóság előtt járt (KUKA-050). A kéréskorlát a hitelesítés ELŐTT fut, tehát ezt a költséget
+     * hitelesítés nélküli, cím-rotáló forgalom közvetlenül ránk tudja terhelni.
+     *
+     * A VÁLASZ KÉT LÉPÉS: előbb a lejártak (olcsó és ingyenes), és ha a plafon még így is áll, a
+     * LEGRÉGEBBEN LÁTOTT kulcsok mennek — akkor is, ha frissek. A csere KIMONDVA: egy eldobott kulcs
+     * számlálója újraindul, tehát a korlát a LEGCSENDESEBB címekre nézve lazul. Ez tudatos: aki épp
+     * nem küld kérést, annak a védelme ér a legkevesebbet, és a memória-korlát nélkül az EGÉSZ
+     * kiszolgálás esik el (KUKA-091: a javítás iránya nem az őr lazítása, hanem a kár kisebb fele).
+     */
+    if (hits.size > keyCap) {
+      for (const [k, v] of hits) if (!v.length || now - v[v.length - 1] > windowMs) hits.delete(k);
+      if (hits.size > keyCap) {
+        const sorrend = [...hits.entries()]
+          .map(([k, v]) => [k, v.length ? v[v.length - 1] : 0])
+          .sort((a, b) => a[1] - b[1]);
+        const vinni = hits.size - keyCap;
+        for (let i = 0; i < vinni; i += 1) if (sorrend[i][0] !== key) hits.delete(sorrend[i][0]);
+        warn(`[v3app] a kéréskorlát kulcs-plafonja (${keyCap}) betelt FRISS kulcsokkal: ${vinni} legrégebben `
+          + 'látott cím számlálója újraindul — a térigény korlátos marad');
+      }
+    }
     return { allowed: arr.length <= max, count: arr.length, max, capped, retry_after_s: Math.ceil(windowMs / 1000) };
   };
 }
@@ -640,7 +689,13 @@ export function makeSessionStore({
     get(id, now = Date.now()) {
       const s = map.get(id);
       if (!s) return undefined;
-      if (expired(s, now)) { drop(id, 'evicted_idle'); return undefined; }
+      // A LEJÁRT SOR ELDOBÁSÁT IS BE KELL JELENTENI (F158-06, külső review, Codex, P2). A LELET: a
+      // kiszorítási söprés hívta az `announceDropped`-et, EZ az út nem — tehát egy lejárt süti
+      // bemutatása törölte a munkamenetet, de a hozzá tartozó `pending_intent` sor takarítása
+      // elmaradt, és ha a folyamat előbb újraindult, az azonosító a várólistából is elveszett: a sor
+      // ELÉRHETETLENÜL a táblában maradt. Ugyanaz a hiba-osztály, mint a KUKA-300 (a tábla a tárral
+      // együtt korlátos) — csak egy MÁSIK úton (KUKA-039: ha egy szabály két ágon igaz…).
+      if (expired(s, now)) { drop(id, 'evicted_idle'); announceDropped(); return undefined; }
       return s;
     },
     has(id, now = Date.now()) { return this.get(id, now) !== undefined; },
@@ -1871,12 +1926,20 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      * AMIT EZ A 503 JELENT, KIMONDVA: valódi korlát kimondása, nem hibakezelés. Ha a staging
      * rendszeresen ezt adja, a plafon kevés, és a `VS_APP_SESSION_MAX` emelése a válasz.
      */
-    'POST /api/invites/pending': ({ session, input, materialize }) => {
+    'POST /api/invites/pending': ({ session, input, materialize, materializeWhy }) => {
       // EZ AZ EGYETLEN ÚT, AMI NÉVTELENÜL IS TARTÓS ÁLLAPOTOT KÖT A MUNKAMENETHEZ (SES-02 · SES-04):
       // ezért itt KÉRJÜK a tárolt sort, és a tár válasza dönt. Telt táron NEVEZETT elutasítás —
       // írás NÉLKÜL, tehát nincs félig végrehajtott művelet és nincs árva sor.
       const s = materialize ? materialize() : (sessions.has(session.id) ? session : null);
       if (!s) {
+        const miert = (materializeWhy && materializeWhy()) || 'at_capacity';
+        if (miert === 'session_gone') {
+          // A munkamenet a kérés kiszolgálása KÖZBEN tűnt el (kilépés vagy azonosság-váltás egy
+          // másik fülön). Nem a tár telt meg: a nézet alatt változott meg a kiszolgált személy.
+          return { status: 409, body: { ok: false, reason: 'session_gone', refused_by: 'session_store',
+            message: 'a kérés közben kiléptek ebből a munkamenetből (vagy másik fiókra váltottak), '
+              + 'ezért a meghívó-folytatást nem őriztük meg — lépj be újra, és nyisd meg ismét a meghívót' } };
+        }
         return { status: 503, body: { ok: false, reason: 'at_capacity', refused_by: 'session_store',
           message: 'a munkamenet-tár megtelt, ezért a meghívó-folytatást nem tudjuk megőrizni — próbáld újra' } };
       }
@@ -2756,10 +2819,27 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      * Telt táron `null` a válasz, és akkor a kezelő NEVEZETTEN mond nemet: nincs hamis siker, nincs
      * érvénytelen sikersüti, és nincs félig végrehajtott tartós művelet (R158/1).
      */
+    // MIÉRT NEM SIKERÜLT — A VÁLASZ NEM MOSHATJA ÖSSZE A KETTŐT (R158, a saját w8 mérésünk lelete).
+    // A „tár megtelt" és a „közben törölték a munkamenetet" KÉT KÜLÖN tény, és a felhasználó teendője
+    // is más: az első várakozás, a második ÚJRA-BELÉPÉS. Egy közös `at_capacity` üzenet a második
+    // esetben valótlant állít, és a valódi okot elrejti (KUKA-124 · KUKA-050).
+    let materializeWhy = null;
     const materialize = () => {
-      if (!session.transient) return session;
+      // ── A TARTÓS SOR IS ELTŰNHET A KÉRÉS KÖZBEN (F158-05, külső review, Codex, P1) ──────────────
+      //
+      // A LELET: a `POST /api/invites/pending` a törzs beolvasása közben VÁR, és eközben egy másik
+      // kérés (kilépés vagy belépés-rotáció) TÖRÖLHETI ugyanezt a sort. A tűzés (`pin`) a KISZORÍTÁS
+      // ellen véd, a KIMONDOTT törlés ellen nem — a lassú kérés tehát egy már nem létező
+      // azonosítóra írt `pending_intent` sort, és 200-at adott. Ugyanaz a hiba-osztály, mint a
+      // KUKA-305 (felvétel-ellenőrzés), csak a másik végén: ott a sor meg sem SZÜLETETT, itt közben
+      // ELTŰNT. A kapu ezért a HASZNÁLAT pillanatában áll, nem a kérés elején (KUKA-202).
+      if (!session.transient) {
+        if (sessions.has(session.id, requestNow)) return session;
+        materializeWhy = 'session_gone';
+        return null;
+      }
       const fresh = newSession(null, pinToken);
-      if (!sessions.has(fresh.id, requestNow)) return null;
+      if (!sessions.has(fresh.id, requestNow)) { materializeWhy = 'at_capacity'; return null; }
       session = fresh;
       setCookie = sessionCookie(fresh.id, { secure: IS_DEPLOYED || isHttpsRequest(req) });
       return fresh;
@@ -2799,7 +2879,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
         // A KEZELŐ LEHET ASZINKRON (a segéd szolgáltatói hívása az), ezért MINDIG megvárjuk. A
         // korábbi alak a Promise-t `out`-nak vette volna, és a boríték NÉMÁN üres lett volna —
         // pontosan az a fajta hiba, amit a próbák csak a FUTÁSON kapnak el (KUKA-207).
-        const out = await handler({ session, pinToken, materialize,
+        const out = await handler({ session, pinToken, materialize, materializeWhy: () => materializeWhy,
           body: (body && typeof body === 'object' && !Array.isArray(body)) ? body : {},
           input: checked.value, query: checked.query, url, host,
           // A BÖNGÉSZŐ NYELVI KÉRÉSE is bemenet: a szerver által rajzolt lap és a próbaüzenet a

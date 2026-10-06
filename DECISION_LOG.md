@@ -594,6 +594,87 @@ jokernél). Gépi jel: `npm run verify:kuka` (KUKA-330) · `npm run verify:app-f
 
 ---
 
+## D-VS-3147 — A FÜGGŐ SZÁNDÉK NEM ÉRTELMEZHETŐ IDŐBÉLYEGE LEJÁRTNAK SZÁMÍT (R158, KUKA-339)
+
+**A döntés.** A `resumeIntent` a NaN korú sort (romlott `created_at` vagy óra) LEJÁRTNAK veszi: a
+folytatás elmarad, és a sor törlődik. **Miért.** A `Number.isFinite(kor) && …` alak a nem tudást a
+MEGENGEDŐ irányba oldotta fel — egy importált sor időkorlát nélkül folytatódott volna. **Ki találta
+meg.** Külső review (Codex, F158-04). **Amit ez NEM állít.** A `created_at` alakját sémában nem
+kényszerítjük; a romlott sort az OLVASÁS dobja el, a halmazos takarítás string-összehasonlítással
+nem talál rá. KIMONDVA: ugyanezt a hiba-osztályt a KUKA-337 EBBEN a körben vezette ki — a tanulság
+kimondása nem védett meg a megismétléstől.
+
+---
+
+## D-VS-3148 — A KÉRÉSKORLÁT BEÁLLÍTÁSA MÉRT ALAK, A KULCS-TÉRKÉPE KEMÉNY PLAFON (R158, KUKA-340)
+
+**A döntés.** A `rateLimitConfig` ugyanazt a `posInt` szabályt használja, mint a `sessionLimits`
+(hibás érték → nevezett naplósor + alapértelmezés), és a kulcs-térkép plafonja FRISS kulcsokra is
+áll: előbb a lejártak mennek, aztán a legrégebben láttak. **Miért.** `VS_APP_RATE_WINDOW_MS=bogus|0|-1`
+csendben KIKAPCSOLTA a védelmet, `VS_APP_RATE_MAX=0.5` pedig mindent 429-re vitt; a térkép pedig egy
+ablakon belül korlátlanul nőtt. **Ki találta meg.** Külső review (Codex, F158-07 · F158-08). **Amit ez
+NEM állít.** A plafon nem ingyenes: egy eldobott kulcs számlálója ÚJRAINDUL, tehát a korlát a
+legcsendesebb címekre nézve lazul. A `VS_APP_RATE_MAX=0` továbbra is KIMONDOTT kikapcsolás.
+
+---
+
+## D-VS-3149 — A KAPCSOLATI CÍM OLVASATA libpq SZEMANTIKÁVAL MEGY (R158, KUKA-341)
+
+**A döntés.** Ismételt kulcsnál az UTOLSÓ, nem üres érték dönt; `?service=` jelenlétében a forrás NEM
+MEGÁLLAPÍTHATÓ, és a `sameDatabase` óvatosan megáll. **Miért.** A régi alak az ELSŐ értéket vette, és
+út nélküli címnél a felhasználót — mindkét úton `DROP DATABASE` fenyegette a VALÓDI forrást. **Ki
+találta meg.** Külső review (Codex, F158-01 · F158-02, mindkettő P1), dokumentációs hivatkozással.
+**Amit ez NEM állít.** A szolgáltatás-fájl tartalmát nem olvassuk be — nem is tudnánk; a válasz a
+bizonytalanság kimondása.
+
+---
+
+## D-VS-3150 — A JOKER A KIFEJEZETTEN MEGNEVEZETT NYELVEKET KIHAGYJA (R158, KUKA-342)
+
+**A döntés.** Az `Accept-Language` `*` jokere csak az EMLÍTÉS NÉLKÜLI nyelvekre szól — súlytól
+függetlenül (RFC 9110 §12.4.3). **Miért.** `hu;q=0.5, *;q=1` esetén magyart adtunk, holott egy
+elérhető `en`/`de` 1-es súllyal megelőzi. **Ki találta meg.** Külső review (Codex, F158-09). **Amit ez
+NEM állít.** A jegyzék sorrendje továbbra is dönt a jelöltek között; a szabály hét határesetre van
+kötve, nem egy példára.
+
+---
+
+## D-VS-3151 — A KAPU A HASZNÁLAT PILLANATÁBAN ÁLL, ÉS A NEMLEGES VÁLASZ A SAJÁT NEVÉN MEGY (R158, KUKA-343)
+
+**A döntés.** A `materialize` a tartós munkamenet LÉTÉT is ellenőrzi; a lejárat-eldobás bejelenti
+magát (`announceDropped`); az exportált út a közös tisztítón megy. A kiszolgálás közben eltűnt
+munkamenet válasza `409 session_gone` — nem a „tár megtelt" neve. **Miért.** A tűzés a kiszorítás ellen
+véd, a KIMONDOTT törlés ellen nem: egy lassú, darabolt POST egy már törölt azonosítóra írt, és 200-at
+adott. **Ki találta meg.** Külső review (Codex, F158-05 (P1) · F158-06 · F158-10). **Amit ez NEM
+állít.** A már korábban árván maradt sorok visszamenőleges takarítását nem végezzük el.
+
+---
+
+## D-VS-3152 — A KÖLTSÉG-REGRESSZIÓ MÉRCÉJE SKÁLA-FÜGGETLEN (R158, KUKA-344)
+
+**A döntés.** A „nem nő a költség" állítást KÉT tárméret ARÁNYA méri (tízszeres tár ⇒ legfeljebb
+négyszeres idő), nem absztrakt millisekundum. **Miért.** A `ms < 200` őr a reviewer gépén 219 ms-ot
+mért HELYES viselkedés mellett, és pirosat jelzett regresszió nélkül. **Ki találta meg.** Külső review
+(Codex, F158-03). **Amit ez NEM állít.** Az arány-tűrés (négyszeres, +50 ms) a mi gépünkön mért zajhoz
+van szabva; a nagyvonalú 5 s-os plafon csak a végtelen hurkot fogja meg.
+
+---
+
+## D-VS-3153 — AZ ŐR-OTTHON A MAI MECHANIZMUST NEVEZI MEG (R158, KUKA-345)
+
+**A döntés.** A KUKA-311 őr-otthona a BESZÚRÁSNÁL álló felvételi döntést nevezi meg, és a bejegyzés
+`replaced_by` mondata ELÖL jelöli, hogy a felülírt alakot írja le. **Miért.** A régi szöveg a pin
+elengedésekor álló söprésre mutatott, ami az R154 hatodik köre óta nem létezik — a regiszter rosszat
+tanított, miközben lefedést állított. **Ki találta meg.** Külső review (Codex, F158-11). **Amit ez NEM
+állít.** Ennek NINCS gépi jele: a `verify:kuka` a regisztert és az őr-otthon fájlt szándékosan kizárja
+a minta-illesztésből, különben a regiszter a saját szövegén teljesítené a saját őreit.
+
+**A hét döntés közös tanulsága, kimondva:** a tizenegy review-lelet közül EGY SEM volt új funkció
+hibája — mind egy MÁR KIJAVÍTOTT szabály másik előfordulása, vagy a MÉRÉS (próba, regiszter) és a kód
+közti elcsúszás. A javítások fele a saját előző javításaim mellékhatása volt.
+
+---
+
 ## D-VS-3146 — AZ ÜRES ÁTVITT KORLÁT KORLÁT, A SÉRÜLT ALAK PEDIG NEM MEGÁLLAPÍTHATÓ (R158/3)
 
 **A döntés.** A delegálási plafon mindkét tengelye UGYANÚGY olvassa a tárolt korlátot: az ÜRES lista

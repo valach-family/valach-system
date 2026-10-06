@@ -2368,7 +2368,7 @@ export const MUTATIONS = [
   { id: 'M208', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
     what: 'R158/1b — AZ OLVASÁS NEM KAPU: a `resumeIntent` lejárat nélkül adja vissza a tokent, tehát egy régi függő szándék a következő belépéskor feléled (az a hiba, amit a D-VS-3007 nevezett függőként hagyott nyitva)',
     file: 'invite.mjs',
-    from: "  const kor = Date.parse(clock.now()) - Date.parse(row.created_at);\n  if (Number.isFinite(kor) && kor > ttlMs) {\n    store.run('DELETE FROM pending_intent WHERE session_id = ?', sessionId);\n    return null;\n  }",
+    from: "  if (!Number.isFinite(kor) || kor > ttlMs) {\n    store.run('DELETE FROM pending_intent WHERE session_id = ?', sessionId);\n    return null;\n  }",
     to: "  // LEJÁRAT NÉLKÜL" },
 
   { id: 'M209', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
@@ -2412,4 +2412,10 @@ export const MUTATIONS = [
     file: 'delegation.mjs',
     from: "  const pRoles = Array.isArray(parent.limit && parent.limit.roles) ? parent.limit.roles : null;",
     to: "  const pRoles = Array.isArray(parent.limit && parent.limit.roles) ? parent.limit.roles : [];" },
+
+  { id: 'M215', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158/3 — A NEM ÉRTELMEZHETŐ IDŐBÉLYEG ISMÉT „NEM JÁRT LE": a NaN korú (import vagy sérülés) függő szándék időkorlát nélkül folytatódik (F158-04, külső review, Codex — ugyanaz a hiba-osztály, amit a KUKA-337 ugyanebben a körben vezetett ki a tiltásból)',
+    file: 'invite.mjs',
+    from: "  if (!Number.isFinite(kor) || kor > ttlMs) {",
+    to: "  if (Number.isFinite(kor) && kor > ttlMs) {" },
 ];

@@ -253,7 +253,7 @@ const self = readFileSync(fileURLToPath(import.meta.url));
 const out = {
   export: 'V3_R71_FOGYASZTAS_EXPORT — egyszeri, célzott, tartalom nélküli (R71)',
   generated_at: new Date().toISOString(), session, window: { from: flag('--from'), to: flag('--to') },
-  source: { path: file.replace(homedir(), '~'), bytes_now: Buffer.byteLength(raw, 'utf8'), sha256_now: sha(raw), lines: lines.length, note: 'az átirat az export idejéig bővülhetett — a teljes fájl-hash jogosan tér el a korábbi pillanatképétől; az ablak zárt' },
+  source: { path: safePath(file), bytes_now: Buffer.byteLength(raw, 'utf8'), sha256_now: sha(raw), lines: lines.length, note: 'az átirat az export idejéig bővülhetett — a teljes fájl-hash jogosan tér el a korábbi pillanatképétől; az ablak zárt' },
   exporter: { file: 'tools/v3_fogyasztas_export.mjs', sha256: sha(self), meter: 'FGY-01/3 (callOf · dedupe · inWindow · triggerOf)' },
   mit_nem_tartalmaz: 'parancsszöveg · argumentum · felhasználói szöveg · eszközválasz-tartalom · rendszer-utasítás szövege · tokenbontás bájtból',
   bajt_nem_token: 'a blokk-bájtok UTF-8 méretek; tokent csak a usage-mezők hordoznak; a rejtett gondolkodás hiánya nem nulla',
