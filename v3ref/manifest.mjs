@@ -93,6 +93,7 @@ export const EXPECTED_PROBES = Object.freeze([
     ]),
   }),
   Object.freeze({ id: 'P-INVITE-effect', assertion: 'Q11Q12-real-effect-and-atomicity' }),
+  Object.freeze({ id: 'P-K03-intent-expiry', assertion: 'K03-pending-intent-expires-and-purges' }),
   Object.freeze({ id: 'P-AUTHZ-revoke-now', assertion: 'K09-immediate-revocation-pulls-forward' }),
 
   // ── A HAT HIÁNYZÓ ŐR (R49 · D-VS-3008) ───────────────────────────────────────────────────────

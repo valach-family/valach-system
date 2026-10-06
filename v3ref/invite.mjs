@@ -641,9 +641,58 @@ export function rememberIntent({ store, sessionId, token, clock }) {
     sessionId, token, clock.now());
 }
 
-export function resumeIntent({ store, sessionId }) {
-  const row = store.get('SELECT invite_token FROM pending_intent WHERE session_id = ?', sessionId);
-  return row ? row.invite_token : null;
+/**
+ * A FÜGGŐ SZÁNDÉK ÉLETTARTAMA (K03 · D-VS-3141 — a D-VS-3007 nevezett függőjének lezárása).
+ *
+ * MI VOLT A HIÁNY, KIMONDVA: a `pending_intent` sor IDŐBEN korlátlan volt. A `resumeIntent` nem
+ * nézett lejáratot, tehát egy belépés előtti folytatás ÉVEKKEL később is „visszatért" volna egy
+ * meghívóhoz — miközben maga a meghívó 7 nap után lejár. A tábla a tárral EGYÜTT korlátos volt
+ * (KUKA-300), időben viszont nem (D-VS-3007 nevezett függője, az R42 óta nyitott maradék).
+ *
+ * A VÁLASZTOTT ÉRTÉK ÉS AZ OKA: 24 óra. A függő szándék egy FOLYTATÁS, nem a meghívó maga: a
+ * felhasználó épp belép vagy regisztrál, és a rendszer visszaviszi a meghíváshoz. Ez a művelet
+ * percek-órák kérdése; a 24 óra ugyanaz a nagyságrend, mint a megerősítő hivatkozás élettartama,
+ * és biztosan RÖVIDEBB a meghívó 7 napjánál — tehát a folytatás nem élheti túl azt, amire mutat.
+ */
+export const PENDING_INTENT_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * A LEJÁRATOT AZ OLVASÁS IS ÉRVÉNYESÍTI (KUKA-296): a takarítás amortizált, tehát egy lejárt sor
+ * KÖZBEN is olvasható lenne — ezért a `resumeIntent` maga is kapu, és a lejárt sort el is dobja.
+ *
+ * AZ ÓRA KÖTELEZŐ, ÉS EZ SZÁNDÉKOS (KUKA-238): ha elhagyható lenne, egy óra nélküli hívó NÉMÁN
+ * kikapcsolná a lejáratot — pontosan az a fajta tartalék-ág, ami a hibát elrejti. Óra nélkül
+ * NEVEZETT hiba jön, nem „nincs lejárat".
+ */
+export function resumeIntent({ store, sessionId, clock, ttlMs = PENDING_INTENT_TTL_MS }) {
+  if (!clock || typeof clock.now !== 'function') {
+    throw new Error('resumeIntent: `clock` kötelező — a függő szándék lejárata nem opcionális (D-VS-3141)');
+  }
+  const row = store.get('SELECT invite_token, created_at FROM pending_intent WHERE session_id = ?', sessionId);
+  if (!row) return null;
+  const kor = Date.parse(clock.now()) - Date.parse(row.created_at);
+  if (Number.isFinite(kor) && kor > ttlMs) {
+    store.run('DELETE FROM pending_intent WHERE session_id = ?', sessionId);
+    return null;
+  }
+  return row.invite_token;
+}
+
+/**
+ * A LEJÁRT SOROK TAKARÍTÁSA — EGY utasításban, halmazon (D-VS-3141).
+ *
+ * MIÉRT ÍGY: a hívó ezt AMORTIZÁLTAN futtatja (legfeljebb percenként egyszer), és a törlés EGY
+ * halmaz-utasítás — tehát nem hoz vissza kérésenkénti teljes bejárást és korlátlan memória-növekedést
+ * (ez az R158 kifejezett kikötése, és a KUKA-290/300/306/313 költség-osztálya).
+ */
+export function purgeExpiredIntents({ store, clock, ttlMs = PENDING_INTENT_TTL_MS }) {
+  if (!clock || typeof clock.now !== 'function') {
+    throw new Error('purgeExpiredIntents: `clock` kötelező (D-VS-3141)');
+  }
+  const hatar = new Date(Date.parse(clock.now()) - ttlMs).toISOString();
+  const elotte = store.get('SELECT COUNT(*) AS n FROM pending_intent WHERE created_at < ?', hatar);
+  store.run('DELETE FROM pending_intent WHERE created_at < ?', hatar);
+  return { purged: elotte ? Number(elotte.n) : 0, before: hatar };
 }
 
 // ── A BEVÁLTÁS (K03) ────────────────────────────────────────────────────────────────────────────

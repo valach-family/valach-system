@@ -13523,6 +13523,38 @@ Object.freeze({
     lesson: 'ÁLLAPOTOT CSAK OTT TARTUNK, AHOL VAN ÁLLAPOT. Ha egy erőforrást MINDEN kérésre létrehozunk, akkor a korlátozása, a kiszorítása és a versenyhelyzetei MIND a mi dolgunkká válnak — holott a kérések többségének nem is kellett volna. Tíz review-kör és 26 lelet után a tanulság nem egy újabb szabály, hanem a helyzet megszüntetése: a foltozás akkor nem konvergál, amikor a MEGLÉVŐ állapot maga a hiba forrása.',
     guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív + egy tiltó minta) · `npm run verify:app-findings-r154` (S csoport: s1–s11 — köztük s9/s10 az ellenpár, hogy a PLAFON továbbra is áll, és s11 az ÁLLAPOT-IGÉNY LELTÁRA, ami új kötő utat nem engedi be csendben) · `npm run app:selfcheck` (a belépés előtti olvasás süti nélkül).',
   }),
+  Object.freeze({
+    id: 'KUKA-332',
+    date: '2026-10-06',
+    title: 'A FÜGGŐ SZÁNDÉK IDŐBEN KORLÁTLAN VOLT — egy évekkel korábbi meghívó a következő belépéskor feléledt',
+    what: 'A `pending_intent` sor `created_at`-ot tárolt, de SENKI nem nézte: a `resumeIntent` a tokent lejárattól függetlenül visszaadta, és takarítás sem volt. Aki egyszer rákattintott egy meghívóra, majd belépés nélkül otthagyta, annál a következő belépés — akár évekkel később — folytatta a régi szándékot; a lejárt sorok pedig korlátlanul gyűltek a táblában. A hiányt a D-VS-3007 köre maga NEVEZTE meg (a maradék-mondat szó szerint: „a pending_intent csak created_at-ot tárol, a resumeIntent nem ellenőriz lejáratot"), és NYITOTT maradt.',
+    why_wrong: 'A nevezett függő nem javítás: amíg nyitva van, a rendszer egy olyan ígéretet tart életben, amiről nem tudja, mikor járt le. A kár nem a tábla mérete, hanem a VISELKEDÉS: a felhasználó egy régen elfelejtett szándékot kap vissza, miközben a meghívó jogosultsági háttere (kibocsátó joga, tagság, tilalom) közben bármit változhatott.',
+    replaced_by: 'LEJÁRAT A `created_at`-BÓL, KÉT HELYEN (D-VS-3141): az OLVASÁS maga kapu — a `resumeIntent` a 24 órán túli sort nem adja vissza, és TÖRLI (ott áll az őr, ahol a kár keletkezik, KUKA-202 · KUKA-296); a TAKARÍTÁS pedig HALMAZON megy (`purgeExpiredIntents`: egyetlen `DELETE … WHERE created_at < ?`, megszámolva).',
+    replacement: 'ÉS A TAKARÍTÁS AMORTIZÁLT, NEM IDŐZÍTŐS: a kérés útján fut, de percenként legfeljebb egyszer (`nextIntentPurge`). Ezért nem hoz vissza kérésenkénti teljes bejárást (az R158 kifejezett feltétele), és nem tart nyitva időzítőt a próbákban. Óra nélkül MINDKÉT belépő NEVEZETTEN elakad — nincs néma „lejárat kikapcsolva" ág (KUKA-238).',
+    decision: 'D-VS-3141',
+    found_by: 'A SAJÁT KÖRÜNK NEVEZETT FÜGGŐJE (D-VS-3007, R49 maradék-mondat), amit az R158 — DECISION kör (chatgpt-v3, az operátor felhatalmazásával) MOST rendelt megépíteni. A `limit` mezőt a VISSZAVONÁS-PRÓBA pontosította: a `resumeIntent` órájának kivétele a `purgeExpiredIntents` ellenpár-sorát ZÖLDEN hagyta, tehát a két belépőnek külön sora kell (KUKA-216 · KUKA-239).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/invite.mjs']),
+        pattern: 'export const PENDING_INTENT_TTL_MS',
+        why: 'a türelmi idő NEVEZETT állandó, nem szétszórt szám' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/invite.mjs']),
+        pattern: 'if \\(Number\\.isFinite\\(kor\\) && kor > ttlMs\\) \\{',
+        why: 'és az OLVASÁS maga a kapu: a lejárt szándék nem folytatódik' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'nextIntentPurge = now \\+ 60_000',
+        why: 'a takarítás amortizált: percenként legfeljebb egyszer' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/invite.mjs']),
+        pattern: 'return row \\? row\\.invite_token : null;',
+        why: 'az IDŐTLEN olvasás nem jöhet vissza' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'setInterval\\(',
+        why: 'a takarítás a kérés útján fut, nem időzítőn' }),
+    ]),
+    lesson: 'A NEVEZETT FÜGGŐ IS TARTOZÁS, ÉS AZ IDŐ IS KAPU. Ha egy sor „majd folytatódik", akkor meg kell mondani, MEDDIG — különben a rendszer határozatlan ideig ígér. És a lejáratot ott kell ellenőrizni, ahol a FOLYTATÁS eldől (az olvasásnál), nem csak a takarításnál: a takarítás késhet, az olvasás nem.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (három pozitív + két tiltó minta) · `npm run verify:v3ref` (P-K03-intent-expiry, és az M208/M209 mutáció mindkét felet külön rontja) · `npm run verify:app-findings-r154` (T csoport: t1–t6, köztük t5/t5b az ellenpárok).',
+  }),
 
 ]);
 

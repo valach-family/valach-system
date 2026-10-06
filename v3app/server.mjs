@@ -36,7 +36,7 @@ import { bootstrapOf, workspacesOf, ensurePersonalSpace, personalSpaceOf, provis
 // visszahozná a rögzítőt egy olvasó útra, annak előbb újra be kell húznia.
 import { inviteColleague, grantScopeToMember, revokeScopeFromMember, revokeDelegationsOf,
   delegationCeilingOf, reinviteMember } from '../v3ref/delegation.mjs';
-import { observeInvite, redeemInvite, rememberIntent, resumeIntent,
+import { observeInvite, redeemInvite, rememberIntent, resumeIntent, purgeExpiredIntents,
   revokeInvite, inviteRevocationAt, reentryOfferFor } from '../v3ref/invite.mjs';
 import { rightAt, revokeMembership, KNOWN_ROLES } from '../v3ref/authz.mjs';
 import { submitCommand, readCommandResult } from '../v3ref/command.mjs';
@@ -949,6 +949,28 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       }
     },
   });
+  /**
+   * A LEJÁRT FÜGGŐ SZÁNDÉKOK AMORTIZÁLT TAKARÍTÁSA (D-VS-3141 · R158/1b).
+   *
+   * MIÉRT AMORTIZÁLT ÉS MIÉRT NEM IDŐZÍTŐ: kérésenkénti takarítás pont azt a költség-osztályt hozná
+   * vissza, amit a KUKA-290/300/306/313 kivezetett; egy `setInterval` viszont a próbákban nyitva
+   * maradó folyamatot hagyna (a szerver bezárása után is élne). Ezért: legfeljebb PERCENKÉNT egyszer,
+   * EGY halmaz-utasítással, a kérés útján.
+   *
+   * A LEJÁRATOT AZ OLVASÁS IS ÉRVÉNYESÍTI (`resumeIntent`), tehát a két takarítás KÖZÖTT sem lehet
+   * lejárt szándékot folytatni — a periodikus törlés a TÁBLA méretéről szól, nem a helyességről.
+   */
+  let nextIntentPurge = 0;
+  function purgeIntentsIfDue(now = Date.now()) {
+    if (now < nextIntentPurge) return null;
+    nextIntentPurge = now + 60_000;
+    try { return purgeExpiredIntents({ store, clock }); }
+    catch (e) {
+      console.warn(`[v3app] a lejárt függő szándékok takarítása nem sikerült: ${e && e.message}`);
+      return null;
+    }
+  }
+
   const mailbox = [];                // a FEJLESZTŐI LEVÉL-FOGADÓ — memóriában, kifelé soha
 
   // ── FEJLESZTŐI ÓRA (DEV-CLOCK, R75 §3/6) ────────────────────────────────────────────────────
@@ -1274,7 +1296,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       // VAN-E MEGHÍVÁS-KONTEXTUS (P109-01, R109). A meghívó-képernyőhöz kötött bemutatót csak így
       // kínáljuk fel: a tényt a MAG mondja meg (`resumeIntent` a `pending_intent` soron), nem a
       // böngésző feltevése — és NEM a meghívó tartalma, tehát védett adat nem szivárog ki vele.
-      invite_context: Boolean(resumeIntent({ store, sessionId: session.id })),
+      invite_context: Boolean(session.transient ? null : resumeIntent({ store, sessionId: session.id, clock })),
       // A BEMUTATÓ-KÖRNYEZET (R140 — ACT-01). A doktrína három környezetet nevez meg
       // (production · staging · demo); a `demo` az, ahol a bemutató-szereplők munkamenete
       // együtt elérhető, és csak ott kínálunk fel KÉT ÉLŐ MUNKAMENETET igénylő végigvezetést.
@@ -1472,7 +1494,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       if (!r.ok) return { status: 401, body: { ok: false, reason: r.reason, message: 'a belépés nem sikerült — ellenőrizd a címet és a jelszót' } };
       // A FÜGGŐ MEGHÍVÓ-SZÁNDÉK A RÉGI munkamenet-azonosítón áll — átvisszük az ÚJRA (K03).
       // ÁTMENETI munkamenetnek nincs azonosítója, tehát függő szándéka sem lehet (SES-04).
-      const pending = session.transient ? null : resumeIntent({ store, sessionId: session.id });
+      const pending = session.transient ? null : resumeIntent({ store, sessionId: session.id, clock });
       // A SAJÁT RÉGI SOR ELŐBB MEGY, AZTÁN JÖN AZ ÚJ (F154-12). A korábbi sorrend ELŐBB szúrt be:
       // telt táron ez IDEGEN belépett munkamenetet szorított ki, a saját régi sor törlése pedig
       // utána mégis felszabadított egy helyet — tehát egy embert feleslegesen léptettünk ki.
@@ -2676,6 +2698,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      * vesszük: a kérés friss munkamenetet kap, nem egy lejártat használ tovább.
      */
     const requestNow = Date.now();
+    purgeIntentsIfDue(requestNow);     // a lejárt függő szándékok takarítása, percenként legfeljebb egyszer
     const cookieId = cookies.get(SESSION_COOKIE) || '';
     let session = cookieId ? sessions.get(cookieId, requestNow) : undefined;
     // AZ ÉLŐ MUNKAMENET NEM TÉTLEN (SES-01): a kiszorítás a LEGRÉGEBBEN LÁTOTTAT veszi, tehát az

@@ -594,6 +594,36 @@ jokernél). Gépi jel: `npm run verify:kuka` (KUKA-330) · `npm run verify:app-f
 
 ---
 
+## D-VS-3141 — A FÜGGŐ SZÁNDÉK 24 ÓRA ALATT LEJÁR, ÉS AZ OLVASÁS IS KAPU (R158/1b)
+
+**A döntés.** A `pending_intent` sor türelmi ideje **24 óra**, nevezett állandóból
+(`PENDING_INTENT_TTL_MS`). A lejáratot KÉT helyen érvényesítjük: az OLVASÁS (`resumeIntent`) a
+határon túli sort nem adja vissza, és TÖRLI; a TAKARÍTÁS (`purgeExpiredIntents`) pedig halmazon megy,
+egyetlen `DELETE … WHERE created_at < ?`-tel, megszámolva. A takarítás a kérés útján fut, de
+**percenként legfeljebb egyszer** — így nem hoz vissza kérésenkénti teljes bejárást, és nem tart
+nyitva időzítőt. Óra nélkül mindkét belépő NEVEZETTEN elakad.
+
+**Miért.** Ez a D-VS-3007 kimondott, NEVEZETT függője volt (a maradék-mondat szó szerint: „a
+pending_intent csak created_at-ot tárol, a resumeIntent nem ellenőriz lejáratot"). Amíg nyitva volt, egy
+régen elfelejtett meghívó-kattintás a KÖVETKEZŐ belépéskor — akár évekkel később — folytatta a
+szándékot, miközben a meghívó jogosultsági háttere (kibocsátói jog, tagság, tilalom) közben bármit
+változhatott; a lejárt sorok pedig korlátlanul gyűltek.
+
+**Ki döntötte el.** Az `R158 — DECISION` kör (chatgpt-v3, az **operátor** felhatalmazásával) kifejezetten
+ezt kérte: „A lejárt pending_intent takarítása is kapjon meghatározott időbeli szabályt a meglévő döntés
+szerint. A takarítás ne hozzon vissza kérésenkénti teljes bejárást vagy korlátlan memória-növekedést."
+
+**Amit ez NEM állít.** A tábla ALAKJA nem változott (ma is három oszlop: `session_id`, `invite_token`,
+`created_at`) — a lejárat ebből a `created_at`-ból számol, külön lejárat-oszlop nincs. A 24 óra FIX
+kiszolgáló-oldali állandó: nem meghívónként állítható, és nem az eredeti meghívó saját lejáratát követi.
+A takarítás AMORTIZÁLT, tehát egy lejárt sor legfeljebb egy percig még a táblában állhat — folytatni
+azonban nem lehet, mert az olvasás is kapu. A mérés HELYI tárakon (`node:sqlite` és PostgreSQL 16.15)
+óra-előretolással fut, nem 24 órás valós várakozással. Gépi jel: `npm run verify:v3ref`
+(`P-K03-intent-expiry` + az M208/M209 mutáció) · `npm run verify:kuka` (KUKA-332) ·
+`npm run verify:app-findings-r154` (T: t1–t6).
+
+---
+
 ## D-VS-3140 — IGÉNY SZERINTI MUNKAMENET: ÁLLAPOT NÉLKÜL NINCS SOR ÉS NINCS SÜTI (R158/1)
 
 **A döntés.** Süti nélküli kérés ÁTMENETI munkamenetet kap: nincs a tárban, nem jár sütivel. Tárolt sor

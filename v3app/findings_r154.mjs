@@ -33,6 +33,7 @@ import { startServer, makeRateLimiter, makeSessionStore, sessionLimits, SESSION_
 import { dictFor } from './public/i18n/dict.mjs';
 import { resolveLanguage, parseAcceptLanguage, pickFromAcceptLanguage } from './public/i18n/languages.mjs';
 import { validateAgainstSchema } from '../v3ref/inputSchema.mjs';
+import { purgeExpiredIntents, resumeIntent } from '../v3ref/invite.mjs';
 import { validateRequest } from './httpSchema.mjs';
 import { request as httpReq } from 'node:http';
 import { transcriptsOf } from '../tools/v3_fogyasztas_meres.mjs';
@@ -1367,6 +1368,74 @@ try {
       await new Promise((r) => lazy.server.close(r));
       if (elozoMax === undefined) delete process.env.VS_APP_SESSION_MAX; else process.env.VS_APP_SESSION_MAX = elozoMax;
       if (elozoIdle === undefined) delete process.env.VS_APP_SESSION_IDLE_MS; else process.env.VS_APP_SESSION_IDLE_MS = elozoIdle;
+    }
+  }
+
+  // ── T) R158/1b — A FÜGGŐ SZÁNDÉK LEJÁR: ÉLŐ HTTP-N, A FEJLESZTŐI ÓRÁVAL ─────────────
+  //
+  // A D-VS-3007 nevezett függője: a `pending_intent` sor IDŐBEN korlátlan volt. A mag most 24 órás
+  // élettartamot érvényesít (D-VS-3141), és a lejáratot az OLVASÁS is kapu. Itt a HATÁRON mérjük,
+  // a fejlesztői órával — mert a lejárati ágat böngészőből is ki kell tudni próbálni.
+  part('T) R158/1b — a függő szándék lejár, és a takarítás halmazon megy');
+  {
+    const DB8 = resolve(ROOT, 'var/tmp/v3app_r158_t.sqlite');
+    try { rmSync(DB8, { force: true }); rmSync(DB8 + '-wal', { force: true }); rmSync(DB8 + '-shm', { force: true }); } catch { /* nem volt */ }
+    const lej = await startServer({ port: 0, dbPath: DB8 });
+    try {
+      const b8 = `http://127.0.0.1:${lej.server.address().port}`;
+      const sorok = () => lej.store.get('SELECT COUNT(*) AS n FROM pending_intent').n;
+      const fiok = async (nev) => {
+        const c = new Client(b8);
+        await c.post('/api/register', { email: `${nev}@pelda.hu`, password: PW, lang: 'hu' });
+        const m = (await c.get('/dev/mailbox')).body.mails.filter((x) => x.to === `${nev}@pelda.hu`)[0];
+        const u = new URL(m.link);
+        await c.get(u.pathname + u.search);
+        return c;
+      };
+
+      // (t1–t2) A FRISS SZÁNDÉK FOLYTATÓDIK — ez a felhasználó által LÁTOTT tulajdonság.
+      const a = await fiok('t-anna');
+      const irtA = await a.post('/api/invites/pending', { token: 'folytatas-ANNA' });
+      const belepA = await a.post('/api/login', { email: 't-anna@pelda.hu', password: PW });
+      step('(t1) a FRISS függő szándék a belépés után FOLYTATÓDIK (a határ visszaadja a tokent)',
+        irtA.status === 200 && belepA.status === 200 && belepA.body.pending_invite_token === 'folytatas-ANNA',
+        { iras: irtA.status, belepes: belepA.status, token: belepA.body.pending_invite_token });
+
+      // (t3–t4) A LEJÁRT SZÁNDÉK NEM folytatódik — és a sora eltûnik (az olvasás is kapu).
+      const b = await fiok('t-bela');
+      await b.post('/api/invites/pending', { token: 'folytatas-BELA' });
+      const sorokElotte = sorok();
+      await b.post('/dev/clock', { advance_ms: 25 * 60 * 60 * 1000 });     // a 24 órás élettartam FÖLÉ
+      const belepB = await b.post('/api/login', { email: 't-bela@pelda.hu', password: PW });
+      step('(t2) a LEJÁRT függő szándék NEM folytatódik: a belépés sikerül, de token NÉLKÜL (RÉGEN: időben korlátlan volt, és évekkel később is visszatért volna)',
+        belepB.status === 200 && belepB.body.pending_invite_token === null,
+        { belepes: belepB.status, token: belepB.body.pending_invite_token });
+      step('(t3) és a lejárt sor a TÁBLÁBÓL is eltűnt — az OLVASÁS is kapu (KUKA-296)',
+        sorok() < sorokElotte, { sorok: `${sorokElotte}→${sorok()}` });
+
+      // (t4) A TAKARÍTÁS halmazon: a lejártakat viszi, a FRISSET meghagyja.
+      const c1 = await fiok('t-cili'); await c1.post('/api/invites/pending', { token: 'folytatas-CILI' });
+      const c2 = await fiok('t-dora'); await c2.post('/api/invites/pending', { token: 'folytatas-DORA' });
+      const elotteT = sorok();
+      const kesoiOra = { now: () => new Date(Date.now() + 50 * 60 * 60 * 1000).toISOString() };
+      const takaritas = purgeExpiredIntents({ store: lej.store, clock: kesoiOra });
+      step('(t4) a takarítás a lejárt sorokat EGY halmaz-utasításban viszi, és megszámolja, mennyit',
+        takaritas.purged === elotteT && sorok() === 0, { elotte: elotteT, takaritva: takaritas.purged, utana: sorok() });
+      // A VERDIKT A MÉRÉS HATÓKÖRÉN BELÜL MARAD (KUKA-216 · KUKA-239): a két belépőnek KÜLÖN sora van,
+      // mert a visszavonás-próba megmutatta, hogy a `resumeIntent` órájának kivétele a `purgeExpiredIntents`
+      // sorát ZÖLDEN hagyja — egy összevont „a mag" sor tehát a szomszéd függvényt igazolta volna.
+      step('(t5) ELLENPÁR: a TAKARÍTÁS óra nélkül NEVEZETTEN elakad — nincs néma „lejárat kikapcsolva" ág (KUKA-238)',
+        (() => { try { purgeExpiredIntents({ store: lej.store }); return false; } catch (e) { return /clock/.test(String(e && e.message)); } })(), 'nevezett hiba');
+      step('(t5b) ELLENPÁR: az OLVASÁS (resumeIntent) óra nélkül szintén NEVEZETTEN elakad — a lejárat nem opcionális',
+        (() => { try { resumeIntent({ store: lej.store, sessionId: 'barmi' }); return false; } catch (e) { return /clock/.test(String(e && e.message)); } })(), 'nevezett hiba');
+      const srcT = readFileSync(join(ROOT, 'v3app/server.mjs'), 'utf8');
+      step('(t6) a takarítás AMORTIZÁLT és nem időzítős: percenként legfeljebb egyszer, a kérés útján',
+        // A TILTÓ minta HÍVÁSRA illeszkedik (`setInterval(`), nem a szóra: a saját megjegyzésem
+        // IDÉZI a `setInterval`-t, és egy szó-szintű minta a PRÓZÁT igazolta volna (KUKA-239).
+        /nextIntentPurge = now \+ 60_000/.test(srcT) && /purgeIntentsIfDue\(requestNow\)/.test(srcT) && !/setInterval\(/.test(srcT),
+        { amortizalt: true, idozito_hivas: /setInterval\(/.test(srcT) });
+    } finally {
+      await new Promise((r) => lej.server.close(r));
     }
   }
 

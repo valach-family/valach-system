@@ -38,10 +38,14 @@ export const MUTATIONS = [
     from: "  return (row.credential === null || row.credential === undefined || row.credential === '')\n    ? 'credential_missing' : 'credential_set';",
     to: "  return 'credential_missing';" },
 
+  // R158/1b ÚJRA-HORGONYOZVA. A lejárat-ellenőrzés bevezetése átírta a visszatérés sorát
+  // (`row ? row.invite_token : null` → korai `if (!row) return null;` + `return row.invite_token;`),
+  // és ezt NEM én vettem észre, hanem a horgony-őr (MUT-02) — pontosan ezért áll ott: egy elcsúszott
+  // horgony MUTÁCIÓ NÉLKÜL hagyja a próbát, és az őrizetlen próba zöldnek LÁTSZIK (KUKA-051).
   { id: 'M3', rule: 'K03', catcher: 'P-K03-intent', expect: 'probe_fail',
     what: 'a függő szándék elvész, tehát a kézi beváltás zsákutcába fut (a mi D-VS-667-es hibánk)',
     file: 'invite.mjs',
-    from: "  return row ? row.invite_token : null;",
+    from: "  return row.invite_token;",
     to: "  return null;" },
 
   // R51: az M4 ÚJRA-HORGONYOZVA. A J1 javítás óta a kiadás védelme KÉTRÉTEGŰ: a tranzakción kívüli
@@ -2356,4 +2360,20 @@ export const MUTATIONS = [
     file: 'invite.mjs',
     from: "  const issuer = inviteGrantAt({ store, invite: inv, clock });\n  if (!issuer.ok) {",
     to: "  const issuer = { ok: true };\n  if (!issuer.ok) {" },
+
+  // R158/1b — A FÜGGŐ SZÁNDÉK LEJÁRATA. A D-VS-3007 nevezett függője volt: a `pending_intent` sor
+  // időben KORLÁTLAN volt, tehát egy évekkel korábbi meghívó a következő belépéskor visszatért volna.
+  // A javításnak KÉT fele van, ezért KÉT mutáció: az OLVASÁS maga kapu (a lejártat nem adja vissza,
+  // és törli), ÉS a takarítás HALMAZON megy. Egy mutáció a másik felét őrizetlenül hagyná (KUKA-039).
+  { id: 'M208', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158/1b — AZ OLVASÁS NEM KAPU: a `resumeIntent` lejárat nélkül adja vissza a tokent, tehát egy régi függő szándék a következő belépéskor feléled (az a hiba, amit a D-VS-3007 nevezett függőként hagyott nyitva)',
+    file: 'invite.mjs',
+    from: "  const kor = Date.parse(clock.now()) - Date.parse(row.created_at);\n  if (Number.isFinite(kor) && kor > ttlMs) {\n    store.run('DELETE FROM pending_intent WHERE session_id = ?', sessionId);\n    return null;\n  }",
+    to: "  // LEJÁRAT NÉLKÜL" },
+
+  { id: 'M209', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158/1b — A TAKARÍTÁS NEM VISZ SEMMIT: a lejárt sorok a táblában maradnak, tehát a tár korlátlanul nő (a korlátlan memória-növekedés a KUKA-328/330 hiba-osztálya)',
+    file: 'invite.mjs',
+    from: "  store.run('DELETE FROM pending_intent WHERE created_at < ?', hatar);",
+    to: "  // A TAKARÍTÁS KIVÉVE" },
 ];

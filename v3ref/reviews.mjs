@@ -300,13 +300,22 @@ export const RESIDUAL_RESOLUTIONS = Object.freeze([
   Object.freeze({
     probe_id: 'P-K03-intent',
     clause: 'a pending_intent csak created_at-ot tárol, a resumeIntent nem ellenőriz lejáratot',
-    state: 'open',
-    since: null,
-    probe: null,
-    note: 'MÉRVE a mai forráson (D-VS-3007): a `pending_intent` tábla ma is három oszlop '
-      + '(session_id, invite_token, created_at), és a `resumeIntent` továbbra sem néz lejáratot — '
-      + 'a Q01–Q15 kör ezt NEM érintette',
-    limit: '',
+    state: 'measured',
+    since: 'D-VS-3141',
+    probe: 'P-K03-intent-expiry',
+    note: 'R158/1b: a `resumeIntent` MOST lejáratot néz — a 24 órán túli függő szándék nem '
+      + 'folytatódik, és az OLVASÁS maga törli a sort (a kapu ott áll, ahol a kár keletkezik, '
+      + 'KUKA-296 · KUKA-202); a halmazos takarítás (`purgeExpiredIntents`) egy UTASÍTÁSSAL viszi '
+      + 'a lejárt sorokat, és a kérés útján legfeljebb percenként fut, tehát nem hoz vissza '
+      + 'kérésenkénti teljes bejárást; óra nélkül mindkét belépő NEVEZETTEN elakad (nincs néma '
+      + '„lejárat kikapcsolva" ág, KUKA-238)',
+    limit: 'A tábla ALAKJA nem változott — ma is három oszlop (session_id, invite_token, '
+      + 'created_at); a lejárat ebből a `created_at`-ból számol, külön lejárat-oszlop nincs. '
+      + 'A türelmi idő FIX kiszolgáló-oldali állandó (PENDING_INTENT_TTL_MS = 24 óra), nem '
+      + 'meghívónként állítható, és nem az eredeti meghívó saját lejáratát követi. A takarítás '
+      + 'AMORTIZÁLT: egy lejárt sor legfeljebb egy percig még a táblában állhat — folytatni '
+      + 'azonban nem lehet, mert az olvasás is kapu. A mérés HELYI PostgreSQL és `node:sqlite` '
+      + 'tárakon fut, ÓRA-ELŐRETOLÁSSAL (nem 24 órás valós várakozással).',
   }),
   Object.freeze({
     probe_id: 'P-K03-intent',
@@ -495,6 +504,11 @@ export const PROBE_CLOSES = new Map([
     "a másik fiók",
     "a kibocsátói jog",
     "a régi/visszavont tagság",
+  ])],
+  // R158/1b: a KÖTÉS KÉTIRÁNYÚ — a próba maga mondja ki, melyik maradék-mondatot zárja. A mondat
+  // SZÓ SZERINT áll itt, mert a gép ezt veti össze a vallomás `residual` szövegével (KUKA-036).
+  ["P-K03-intent-expiry", Object.freeze([
+    "a pending_intent csak created_at-ot tárol, a resumeIntent nem ellenőriz lejáratot",
   ])],
   ["P-CMD-namespace", Object.freeze([
     "más könyv",

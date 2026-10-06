@@ -17,7 +17,8 @@ import { dirname, join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { openStore, clockFrom, instantMs } from './store.mjs';
 import { observeInvite, redeemInvite, rememberIntent, resumeIntent, inviteGrantAt,
-  revokeInvite, inviteRevocationAt, inviteOpenAt, reentryAdmission } from './invite.mjs';
+  revokeInvite, inviteRevocationAt, inviteOpenAt, reentryAdmission,
+  purgeExpiredIntents, PENDING_INTENT_TTL_MS } from './invite.mjs';
 import { rightAt, revokeMembership, revocationTransition, roleGrants, KNOWN_ROLES } from './authz.mjs';
 import { ADJUDICATION_OPS, adjudicationRightAt, grantAdjudicationAuthority, submitClaim, readClaim,
   adjudicateClaim, suspendMembership, liftSuspension, intakeKeyOf, UNATTRIBUTED_INTAKE_KEY,
@@ -290,7 +291,8 @@ probe('P-K03-intent', 'R32/K03 · D-VS-667',
       w.store.run('INSERT INTO channel_proof (subject_id, namespace, value_norm, proven_at) VALUES (?,?,?,?)',
         'sub_invitee', 'email', 'kovacs@pelda.hu', w.clock.now());
       // 3. A rendszer visszatér UGYANAHHOZ a meghívóhoz.
-      const resumed = resumeIntent({ store: w.store, sessionId: 'sess_1' });
+      // AZ ÓRA ITT IS KÖTELEZŐ (D-VS-3141): a függő szándék lejárata nem opcionális.
+      const resumed = resumeIntent({ store: w.store, sessionId: 'sess_1', clock: w.clock });
       const r = redeemInvite({ store: w.store, token: resumed, actingSubjectId: 'sub_invitee', clock: w.clock });
       const ok = anon.status === 'needs_invitee_identity' && resumed === 'tok_1' && r.ok && r.shape === 'membership_only';
       return {
@@ -702,6 +704,46 @@ probe('P-AUTHZ-revoke-now', 'R32/K09',
       return {
         expected: 'utemezett=elorehozva · mar hatalyos=valtozatlan · elozmeny megorizve · a feloldo hivva',
         actual: `elorehozas=${pulled.reason} · alice=${aliceNow.reason} · mar hatalyos=${already.reason} · carol=${carolDate} · elozmeny=${hist && hist.previous_effective_at}`,
+        pass: ok,
+      };
+    } finally { w.store.close(); }
+  });
+
+probe('P-K03-intent-expiry', 'R32/K03 · D-VS-3141 (a D-VS-3007 nevezett függője)',
+  'A FÜGGŐ SZÁNDÉK LEJÁR: az olvasás is kapu, a takarítás halmazon megy, és óra nélkül NEVEZETT hiba',
+  () => {
+    const w = buildWorld({ inviteeHasAccount: true });
+    try {
+      // (a) FRISS szándék: visszaadható.
+      rememberIntent({ store: w.store, sessionId: 'sess_friss', token: 'tok_1', clock: w.clock });
+      const friss = resumeIntent({ store: w.store, sessionId: 'sess_friss', clock: w.clock });
+
+      // (b) LEJÁRT szándék: NEM adható vissza, ÉS a sor el is tűnik (az olvasás is kapu).
+      rememberIntent({ store: w.store, sessionId: 'sess_lejart', token: 'tok_1', clock: w.clock });
+      w.clock.advance(PENDING_INTENT_TTL_MS + 60_000);
+      const lejart = resumeIntent({ store: w.store, sessionId: 'sess_lejart', clock: w.clock });
+      const sorEltunt = !w.store.get('SELECT 1 AS x FROM pending_intent WHERE session_id = ?', 'sess_lejart');
+
+      // (c) A TAKARÍTÁS: a lejárt sort elviszi, a FRISSET meghagyja — EGY halmaz-utasításban.
+      // Az `sess_friss` sora az (a) pont óta MAGA IS lejárt (előre tekertük az órát), ezért újra
+      // rögzítjük: ez egyben azt is méri, hogy az ÚJRA-rögzítés FRISSÍTI a `created_at`-ot.
+      rememberIntent({ store: w.store, sessionId: 'sess_friss', token: 'tok_1', clock: w.clock });
+      rememberIntent({ store: w.store, sessionId: 'sess_most', token: 'tok_1', clock: w.clock });
+      w.store.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)',
+        'sess_regi', 'tok_1', new Date(Date.parse(w.clock.now()) - PENDING_INTENT_TTL_MS - 1000).toISOString());
+      const takaritas = purgeExpiredIntents({ store: w.store, clock: w.clock });
+      const maradt = w.store.all('SELECT session_id FROM pending_intent').map((r) => r.session_id).sort();
+
+      // (d) ÓRA NÉLKÜL NEVEZETT HIBA (KUKA-238): nem csendes „nincs lejárat".
+      let nevezett = false;
+      try { resumeIntent({ store: w.store, sessionId: 'sess_most' }); }
+      catch (e) { nevezett = /clock/.test(String(e && e.message)); }
+
+      const ok = friss === 'tok_1' && lejart === null && sorEltunt
+        && takaritas.purged === 1 && maradt.join(',') === 'sess_friss,sess_most' && nevezett === true;
+      return {
+        expected: 'friss=tok_1 · lejárt=null és a sor eltűnt · takarítás=1 lejárt sor, a friss marad · óra nélkül NEVEZETT hiba',
+        actual: `friss=${friss} · lejárt=${lejart} · sor_eltunt=${sorEltunt} · takaritva=${takaritas.purged} · maradt=${maradt.join(',')} · nevezett_hiba=${nevezett}`,
         pass: ok,
       };
     } finally { w.store.close(); }
