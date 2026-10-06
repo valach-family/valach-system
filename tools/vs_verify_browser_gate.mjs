@@ -29,7 +29,7 @@
 //
 // Kilépési kód: 0 = minden lánc zöld és a mérés igazoltan elindult · 1 = MÉRT hiba.
 
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
@@ -112,6 +112,20 @@ if (browserOk) {
   // az első alakom `--reporter=list`-et adott hozzá, ami FELÜLÍRJA a konfiguráció jelentő-listáját —
   // a JSON-jelentés meg sem született, tehát a kapu épp azt a tanút lőtte ki, amiért létezik. A
   // lelet a kapu SAJÁT pirosából jött: „a futás JSON-jelentése megszületett — NINCS" (MÉRVE).
+  /**
+   * A KORÁBBI JELENTÉST ELŐBB ELTAKARÍTJUK (F158-15, külső review, Codex, P2).
+   *
+   * A LELET: a kapu csak azt kérdezte, hogy a jelentés-fájl LÉTEZIK-E. Ha egy korábbi futás fájlja ott
+   * állt, és a MOSTANI Playwright-hívás JSON nélkül zárt nullával (mert valaki kivette vagy elrontotta
+   * a jelentőt), akkor a kapu a RÉGI fájlt olvasta be, és annak kezdő időpontját, helyzet-számát és
+   * zöldjeit a MOSTANI futásnak írta be. Pontosan azt a célt ejtette el, amiért létezik.
+   *
+   * KÉT ZÁR EGYSZERRE: (1) a fájl a futtatás ELŐTT törlődik; (2) a jelentés kezdő időpontjának a
+   * MOSTANI futás indulása UTÁN kell lennie — így egy menet közben visszacsempészett régi fájl sem
+   * mehet át. A másodperc-tűrés 2000 ms, mert a jelentő a saját óráját írja.
+   */
+  try { rmSync(REPORT, { force: true }); } catch { /* nem volt mit törölni */ }
+  const futasIndult = Date.now();
   const pwRun = await futtat(`npm run --silent ${pw[0].script}`, egyPlaywrightFutas ? 'test:e2e + proof:core-ux' : 'test:e2e',
     { VS_E2E_REPORT_PATH: REPORT });
 
@@ -123,7 +137,10 @@ if (browserOk) {
     try { rep = JSON.parse(readFileSync(REPORT, 'utf8')); } catch (e) { P(false, 'a jelentés olvasható', e.message); }
     if (rep) {
       const st = rep.stats || {};
-      P(Boolean(st.startTime), 'a mérés EL INDULT (a jelentés kezdő időpontja megvan)', st.startTime || 'nincs');
+      const indulasMs = Date.parse(String(st.startTime || ''));
+      P(Boolean(st.startTime) && Number.isFinite(indulasMs) && indulasMs >= futasIndult - 2000,
+        'a mérés EBBEN a futásban indult el (a jelentés kezdő időpontja a futtatás UTÁN van)',
+        `${st.startTime || 'nincs'} · a futtatás indult: ${new Date(futasIndult).toISOString()}`);
       P(Number(st.expected || 0) > 0, 'a mérés NEM nulla helyzetet futtatott', `teljesült: ${st.expected ?? '?'}`);
       P(Number(st.unexpected || 0) === 0, 'egy helyzet sem bukott', `bukott: ${st.unexpected ?? '?'}`);
       P(Number(st.flaky || 0) === 0, 'egy helyzet sem volt ingadozó', `ingadozó: ${st.flaky ?? '?'}`);

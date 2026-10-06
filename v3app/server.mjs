@@ -292,12 +292,17 @@ export const RATE_LIMIT_KEY_CAP = 5000;
 export function makeRateLimiter({ windowMs = 60000, max = 240, keyCap = RATE_LIMIT_KEY_CAP, warn = () => {} } = {}) {
   const hits = new Map();
   const keep = Math.max(1, max + 1);
+  let lastKeyWarn = null;                        // a kulcs-plafon figyelmeztetése ablakonként EGYSZER
   return function take(key, now = Date.now()) {
     const arr = (hits.get(key) || []).filter((t) => now - t < windowMs);
     arr.push(now);
     // ELŐBB VÁGUNK, AZTÁN TÁROLUNK: így a KÖVETKEZŐ kérés szűrése is rövid soron fut.
     const capped = arr.length > keep;
     if (capped) arr.splice(0, arr.length - keep);
+    // A TÉRKÉP SORRENDJE MAGA A LRU-LISTA (F158-12): a `Map` a BESZÚRÁSI sorrendet tartja, tehát ha a
+    // kulcsot minden találatnál ÚJRA beszúrjuk, az elején mindig a LEGRÉGEBBEN látott kulcs áll —
+    // rendezés NÉLKÜL. A törlés+beszúrás két `Map`-művelet, vagyis állandó költség.
+    hits.delete(key);
     hits.set(key, arr);
     /**
      * A KULCSOK SZÁMA IS KEMÉNY KORLÁT (F158-08, külső review, Codex, P2).
@@ -308,22 +313,36 @@ export function makeRateLimiter({ windowMs = 60000, max = 240, keyCap = RATE_LIM
      * valóság előtt járt (KUKA-050). A kéréskorlát a hitelesítés ELŐTT fut, tehát ezt a költséget
      * hitelesítés nélküli, cím-rotáló forgalom közvetlenül ránk tudja terhelni.
      *
-     * A VÁLASZ KÉT LÉPÉS: előbb a lejártak (olcsó és ingyenes), és ha a plafon még így is áll, a
-     * LEGRÉGEBBEN LÁTOTT kulcsok mennek — akkor is, ha frissek. A csere KIMONDVA: egy eldobott kulcs
-     * számlálója újraindul, tehát a korlát a LEGCSENDESEBB címekre nézve lazul. Ez tudatos: aki épp
-     * nem küld kérést, annak a védelme ér a legkevesebbet, és a memória-korlát nélkül az EGÉSZ
-     * kiszolgálás esik el (KUKA-091: a javítás iránya nem az őr lazítása, hanem a kár kisebb fele).
+     * A VÁLASZ: a LEGRÉGEBBEN LÁTOTT kulcsok mennek — akkor is, ha frissek. A csere KIMONDVA: egy
+     * eldobott kulcs számlálója újraindul, tehát a korlát a LEGCSENDESEBB címekre nézve lazul. Ez
+     * tudatos: aki épp nem küld kérést, annak a védelme ér a legkevesebbet, és a memória-korlát nélkül
+     * az EGÉSZ kiszolgálás esik el (KUKA-091: a javítás iránya nem az őr lazítása, hanem a kár kisebb
+     * fele).
+     *
+     * ── ÉS A TAKARÍTÁS ÁLLANDÓ KÖLTSÉGŰ (F158-12, külső review, Codex, P1) ───────────────────────
+     *
+     * AZ ELSŐ JAVÍTÁSOM EBBE A CSAPDÁBA ESETT: telt plafonnál MINDEN új kulcs lemásolta, leképezte és
+     * RENDEZTE a teljes térképet, és közben naplósort is írt — tehát a VÉDELEM maga lett a támadás
+     * erősítője, pontosan az a hiba-osztály (KUKA-290), amit ebben a PR-ben én magam vezettem ki a
+     * kéréskorlát sorából. MÉRVE a reviewer gépén: 20 000 különböző kulcs ~9,5 s CPU ebben az egy
+     * függvényben. A javítás nem újabb ellenőrzés, hanem a SORREND kihasználása: a `Map` iterációja
+     * már LRU-sorrendben jön (lásd a `delete`+`set` fentebb), tehát az ELEJÉRŐL törlünk annyit,
+     * amennyi a plafon fölött van — rendezés nélkül, kérésenként tipikusan EGY törlés.
+     *
+     * ÉS A NAPLÓ SEM ERŐSÍTŐ: a figyelmeztetés ablakonként LEGFELJEBB EGYSZER megy ki.
      */
     if (hits.size > keyCap) {
-      for (const [k, v] of hits) if (!v.length || now - v[v.length - 1] > windowMs) hits.delete(k);
-      if (hits.size > keyCap) {
-        const sorrend = [...hits.entries()]
-          .map(([k, v]) => [k, v.length ? v[v.length - 1] : 0])
-          .sort((a, b) => a[1] - b[1]);
-        const vinni = hits.size - keyCap;
-        for (let i = 0; i < vinni; i += 1) if (sorrend[i][0] !== key) hits.delete(sorrend[i][0]);
-        warn(`[v3app] a kéréskorlát kulcs-plafonja (${keyCap}) betelt FRISS kulcsokkal: ${vinni} legrégebben `
-          + 'látott cím számlálója újraindul — a térigény korlátos marad');
+      let vinni = hits.size - keyCap;
+      let dobott = 0;
+      for (const k of hits.keys()) {
+        if (vinni <= 0) break;
+        if (k === key) continue;                 // a MOSTANI kérés kulcsát nem dobjuk el
+        hits.delete(k); vinni -= 1; dobott += 1;
+      }
+      if (dobott > 0 && (lastKeyWarn === null || now - lastKeyWarn >= windowMs)) {
+        lastKeyWarn = now;
+        warn(`[v3app] a kéréskorlát kulcs-plafonja (${keyCap}) betelt: a legrégebben látott címek `
+          + 'számlálója újraindul — a térigény korlátos marad (ez a figyelmeztetés ablakonként egyszer megy ki)');
       }
     }
     return { allowed: arr.length <= max, count: arr.length, max, capped, retry_after_s: Math.ceil(windowMs / 1000) };

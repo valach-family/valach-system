@@ -750,12 +750,31 @@ probe('P-K03-intent-expiry', 'R32/K03 · D-VS-3141 (a D-VS-3007 nevezett függő
       const romlott = resumeIntent({ store: w.store, sessionId: 'sess_romlott', clock: w.clock });
       const romlottEltunt = !w.store.get('SELECT 1 AS x FROM pending_intent WHERE session_id = ?', 'sess_romlott');
 
+      // (f) A JÖVŐBELI IDŐBÉLYEG SEM FRISS (F158-13): a negatív kor VÉGES, tehát az előző alakon
+      //     átment — egy 2099-es sor 2099-ig folytatódott volna, megkerülve a 24 órás türelmi időt.
+      w.store.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)',
+        'sess_jovo', 'tok_j', '2099-01-01T00:00:00.000Z');
+      const jovo = resumeIntent({ store: w.store, sessionId: 'sess_jovo', clock: w.clock });
+      const jovoEltunt = !w.store.get('SELECT 1 AS x FROM pending_intent WHERE session_id = ?', 'sess_jovo');
+
+      // (g) ÉS A HALMAZOS TAKARÍTÁS IS VISZI A ROMLOTT ÉS A JÖVŐBELI SORT (F158-14). Ezek ÁRVÁK is
+      //     lehetnek (a munkamenetük már nincs), tehát az OLVASÁS soha nem hívódna meg rájuk — a
+      //     táblában maradnának örökre.
+      w.store.run('DELETE FROM pending_intent');
+      w.store.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)', 'arva_romlott', 'tok_a', 'bogus');
+      w.store.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)', 'arva_jovo', 'tok_b', '2099-01-01T00:00:00.000Z');
+      w.store.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)', 'arva_friss', 'tok_c', w.clock.now());
+      const halmaz = purgeExpiredIntents({ store: w.store, clock: w.clock });
+      const halmazMaradt = w.store.all('SELECT session_id FROM pending_intent').map((r) => r.session_id).sort().join(',');
+
       const ok = friss === 'tok_1' && lejart === null && sorEltunt
         && takaritas.purged === 1 && maradt.join(',') === 'sess_friss,sess_most' && nevezett === true
-        && romlott === null && romlottEltunt === true;
+        && romlott === null && romlottEltunt === true
+        && jovo === null && jovoEltunt === true
+        && halmaz.purged === 2 && halmazMaradt === 'arva_friss';
       return {
-        expected: 'friss=tok_1 · lejárt=null és a sor eltűnt · takarítás=1 lejárt sor, a friss marad · óra nélkül NEVEZETT hiba · ROMLOTT időbélyeg = lejárt, a sor eltűnik',
-        actual: `friss=${friss} · lejárt=${lejart} · sor_eltunt=${sorEltunt} · takaritva=${takaritas.purged} · maradt=${maradt.join(',')} · nevezett_hiba=${nevezett} · romlott=${romlott} · romlott_eltunt=${romlottEltunt}`,
+        expected: 'friss=tok_1 · lejárt=null és a sor eltűnt · takarítás=1 lejárt sor, a friss marad · óra nélkül NEVEZETT hiba · ROMLOTT és JÖVŐBELI időbélyeg = lejárt · a HALMAZOS takarítás az árva romlott és jövőbeli sort is viszi, a frisset nem',
+        actual: `friss=${friss} · lejárt=${lejart} · sor_eltunt=${sorEltunt} · takaritva=${takaritas.purged} · maradt=${maradt.join(',')} · nevezett_hiba=${nevezett} · romlott=${romlott} · romlott_eltunt=${romlottEltunt} · jovo=${jovo} · jovo_eltunt=${jovoEltunt} · halmaz_takaritva=${halmaz.purged} · halmaz_maradt=${halmazMaradt}`,
         pass: ok,
       };
     } finally { w.store.close(); }

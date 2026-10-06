@@ -1797,6 +1797,75 @@ try {
     }
   }
 
+  // ── X) R158 MÁSODIK REVIEW-KÖR — a négy újabb lelet regressziói (F158-12 … F158-15) ─────────────
+  part('X) R158 — a második review-kör leletei: a védelem költsége, a jövőbeli idő, az árva sor, a kapu tanúja');
+  {
+    // (x1) F158-12 (P1) — A KULCS-TAKARÍTÁS NE LEGYEN ERŐSÍTŐ. Az első javításom telt plafonnál MINDEN
+    //      új kulcsra RENDEZTE a teljes térképet (a reviewer gépén 20 000 kulcs ~9,5 s), és naplósort is
+    //      írt. A mérce SKÁLA-FÜGGETLEN (KUKA-344): négyszeres kulcs-szám legfeljebb ~nyolcszoros idő —
+    //      vagyis a költség LINEÁRIS marad, nem négyzetes.
+    let naploSor = 0;
+    const mer = (db) => {
+      const t = makeRateLimiter({ windowMs: 60000, max: 240, keyCap: 5000, warn: () => { naploSor += 1; } });
+      const t0 = Date.now();
+      for (let i = 0; i < db; i += 1) t('cim' + i, 1_000_000 + i);
+      return Date.now() - t0;
+    };
+    const KAPACITAS = 5000;
+    const kicsiDb = 20000; const nagyDb = 80000;      // 15 000 és 75 000 KISZORÍTÁS — a munka egysége ez
+    const kicsiMs = mer(kicsiDb); const nagyMs = mer(nagyDb);
+    const egysegre = (ms, db) => Math.max(ms, 1) / (db - KAPACITAS);   // a nullára mért idő a mérés alsó határa
+    const pKicsi = egysegre(kicsiMs, kicsiDb); const pNagy = egysegre(nagyMs, nagyDb);
+    step('(x1) F158-12: a kulcs-plafon takarítása KISZORÍTÁSONKÉNT ÁLLANDÓ költségű (négyszeres munka mellett a kiszorításonkénti idő nem nő kétszeresére) — a védelem nem lett a támadás erősítője',
+      pNagy <= pKicsi * 2, { kulcs_kicsi: kicsiDb, ms_kicsi: kicsiMs, kulcs_nagy: nagyDb, ms_nagy: nagyMs,
+        kiszoritasonkent_kicsi_ms: Number(pKicsi.toFixed(5)), kiszoritasonkent_nagy_ms: Number(pNagy.toFixed(5)),
+        kapacitas: KAPACITAS, reviewer_merese_regi_alakon: '20 000 kulcs ~9500 ms' });
+    const kiszoritasok = (kicsiDb - KAPACITAS) + (nagyDb - KAPACITAS);
+    step('(x2) F158-12 második fele: a figyelmeztetés sem erősítő — a naplósorok száma a KISZORÍTÁSOKHOZ képest elhanyagolható (ablakonként legfeljebb egy, nem kérésenként)',
+      naploSor <= 5 && naploSor * 1000 < kiszoritasok,
+      { naplosor_osszesen: naploSor, kiszoritasok, kerésenkenti_naplo_lett_volna: kiszoritasok });
+    // ELLENPÁR: a verdikt nem változott — egy címről a korlát ugyanúgy fog.
+    const egyCim = makeRateLimiter({ windowMs: 60000, max: 3, keyCap: 5000, warn: () => {} });
+    const sorozat = [0, 1, 2, 3, 4].map((i) => egyCim('egy', 2_000_000 + i).allowed);
+    step('(x3) ELLENPÁR: a kulcs-plafon nem lazította a korlátot — egy címről 3-as korláttal a negyedik kérés ELAKAD',
+      JSON.stringify(sorozat) === JSON.stringify([true, true, true, false, false]), { sorozat });
+
+    // (x4–x5) F158-13 és F158-14 — a JÖVŐBELI és az ÁRVA, ROMLOTT sor. A tár szintjén mérjük, mert a
+    //      két eset épp az, amit a HATÁR nem tud előállítani (import, óra-visszaállítás, sérülés).
+    const DB13 = resolve(ROOT, 'var/tmp/v3app_r158_x.sqlite');
+    try { rmSync(DB13, { force: true }); rmSync(DB13 + '-wal', { force: true }); rmSync(DB13 + '-shm', { force: true }); } catch { /* nem volt */ }
+    const xsrv = await startServer({ port: 0, dbPath: DB13 });
+    try {
+      const xclock = { now: () => '2026-10-06T12:00:00.000Z' };
+      const be = (sid, at) => xsrv.store.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)', sid, 'tok_' + sid, at);
+      be('x_jovo', '2099-01-01T00:00:00.000Z');
+      const jovoToken = resumeIntent({ store: xsrv.store, sessionId: 'x_jovo', clock: xclock });
+      const jovoSor = xsrv.store.get('SELECT 1 AS x FROM pending_intent WHERE session_id = ?', 'x_jovo');
+      step('(x4) F158-13: a JÖVŐBELI időbélyegű szándék NEM folytatódik (a negatív kor is lejárt), és a sor eltűnik',
+        jovoToken === null && !jovoSor, { token: jovoToken, sor_megvan: Boolean(jovoSor) });
+
+      xsrv.store.run('DELETE FROM pending_intent');
+      be('x_arva_romlott', 'bogus'); be('x_arva_jovo', '2099-01-01T00:00:00.000Z'); be('x_friss', '2026-10-06T11:30:00.000Z');
+      const xpurge = purgeExpiredIntents({ store: xsrv.store, clock: xclock });
+      const xmaradt = xsrv.store.all('SELECT session_id FROM pending_intent').map((r) => r.session_id).sort().join(',');
+      step('(x5) F158-14: a HALMAZOS takarítás az ÁRVA, romlott és jövőbeli időbélyegű sort is viszi — a frisset nem',
+        xpurge.purged === 2 && xmaradt === 'x_friss', { takaritva: xpurge.purged, maradt: xmaradt });
+    } finally {
+      await new Promise((r) => xsrv.server.close(r));
+    }
+
+    // (x6) F158-15 — A KAPU TANÚJA A MOSTANI FUTÁSHOZ KÖTÖTT. A viselkedés teljes mérése egy TELJES
+    //      böngésző-kapu futás (~13 perc), ezért itt a KÖTÉST mérjük a kódon: a jelentés a futtatás
+    //      ELŐTT törlődik, ÉS a kezdő időpontját a futás indulásához hasonlítjuk. KIMONDVA: ez
+    //      szerkezeti kötés, nem a viselkedés mérése (KUKA-216).
+    const gateSrc = readFileSync(join(ROOT, 'tools/vs_verify_browser_gate.mjs'), 'utf8');
+    step('(x6) F158-15: a böngésző-kapu a RÉGI jelentést törli a futtatás előtt, és a kezdő időpontot a MOSTANI futáshoz köti (szerkezeti kötés, nem viselkedés-mérés)',
+      /rmSync\(REPORT, \{ force: true \}\)/.test(gateSrc)
+        && /const futasIndult = Date\.now\(\);/.test(gateSrc)
+        && /indulasMs >= futasIndult - 2000/.test(gateSrc),
+      { torles: /rmSync\(REPORT/.test(gateSrc), futashoz_kotve: /indulasMs >= futasIndult/.test(gateSrc) });
+  }
+
   const fail = results.filter((r) => !r.pass);
   console.log(`\nR154 battéria: ${results.length - fail.length}/${results.length} PASS${fail.length ? ` — ${fail.length} FAIL` : ''}`);
   console.log('A MÉRÉS HATÓKÖRE: a HTTP-határ és a két feloldó. Üzleti folyamatról, élő AI-ról és felhős');

@@ -2368,13 +2368,13 @@ export const MUTATIONS = [
   { id: 'M208', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
     what: 'R158/1b — AZ OLVASÁS NEM KAPU: a `resumeIntent` lejárat nélkül adja vissza a tokent, tehát egy régi függő szándék a következő belépéskor feléled (az a hiba, amit a D-VS-3007 nevezett függőként hagyott nyitva)',
     file: 'invite.mjs',
-    from: "  if (!Number.isFinite(kor) || kor > ttlMs) {\n    store.run('DELETE FROM pending_intent WHERE session_id = ?', sessionId);\n    return null;\n  }",
+    from: "  if (!Number.isFinite(kor) || kor < 0 || kor > ttlMs) {\n    store.run('DELETE FROM pending_intent WHERE session_id = ?', sessionId);\n    return null;\n  }",
     to: "  // LEJÁRAT NÉLKÜL" },
 
   { id: 'M209', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
     what: 'R158/1b — A TAKARÍTÁS NEM VISZ SEMMIT: a lejárt sorok a táblában maradnak, tehát a tár korlátlanul nő (a korlátlan memória-növekedés a KUKA-328/330 hiba-osztálya)',
     file: 'invite.mjs',
-    from: "  store.run('DELETE FROM pending_intent WHERE created_at < ?', hatar);",
+    from: "  store.run(`DELETE FROM pending_intent WHERE ${WHERE}`, hatar, most, MINTA);",
     to: "  // A TAKARÍTÁS KIVÉVE" },
 
   // R158/3 — A VÉDŐ KAPUK IDŐ-IRÁNYA. A rés mindkét feloldóban külön állt, ezért KÉT mutáció rontja
@@ -2416,6 +2416,19 @@ export const MUTATIONS = [
   { id: 'M215', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
     what: 'R158/3 — A NEM ÉRTELMEZHETŐ IDŐBÉLYEG ISMÉT „NEM JÁRT LE": a NaN korú (import vagy sérülés) függő szándék időkorlát nélkül folytatódik (F158-04, külső review, Codex — ugyanaz a hiba-osztály, amit a KUKA-337 ugyanebben a körben vezetett ki a tiltásból)',
     file: 'invite.mjs',
-    from: "  if (!Number.isFinite(kor) || kor > ttlMs) {",
+    from: "  if (!Number.isFinite(kor) || kor < 0 || kor > ttlMs) {",
     to: "  if (Number.isFinite(kor) && kor > ttlMs) {" },
+
+  // R158 második review-kör — a KÉT ÚJ ág KÜLÖN rontva (KUKA-039).
+  { id: 'M216', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158 — A JÖVŐBELI IDŐBÉLYEG ISMÉT „FRISS": a negatív kor VÉGES, tehát egy 2099-es `created_at` 2099-ig folytatódó szándékot adna, megkerülve a 24 órás türelmi időt (F158-13, külső review, Codex)',
+    file: 'invite.mjs',
+    from: "  if (!Number.isFinite(kor) || kor < 0 || kor > ttlMs) {",
+    to: "  if (!Number.isFinite(kor) || kor > ttlMs) {" },
+
+  { id: 'M217', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158 — A HALMAZOS TAKARÍTÁS ISMÉT CSAK A SZÖVEGESEN KISEBB SORT VISZI: az árva, romlott vagy jövőbeli időbélyegű sor örökre a táblában marad, mert a munkamenete nincs, tehát az olvasás sem hívódik meg rá (F158-14, külső review, Codex)',
+    file: 'invite.mjs',
+    from: "  const WHERE = 'created_at < ? OR created_at > ? OR created_at NOT LIKE ?';",
+    to: "  const WHERE = 'created_at < ?' + (0 ? ' OR created_at > ? OR created_at NOT LIKE ?' : ' AND ? IS NOT NULL AND ? IS NOT NULL');" },
 ];

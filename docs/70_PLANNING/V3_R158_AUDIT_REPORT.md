@@ -123,17 +123,31 @@ tényét **különbséggel** mérjük, nem várt felirattal.
 
 | | szám |
 |---|---|
-| Codex review-kör (automata), KÜLÖN commitokon | **15** |
-| egyedi lelet (review-szál) | **42** |
-| ebből P1 | **13** |
-| ebből P2 | **29** |
-| **nyitott lelet a mai fejen** | **0** — mind a 42 megválaszolva ÉS lezárva |
-| az R158 körében érkezett | 11 (2 P1 + 9 P2) — a `89f0b37a`, `392bcd28` és `c37d9059` köre |
+| Codex review-kör (automata), KÜLÖN commitokon | **17** |
+| egyedi lelet (review-szál) | **46** |
+| ebből P1 | **14** |
+| ebből P2 | **32** |
+| **nyitott lelet a mai fejen** | **0** — mind a 46 megválaszolva ÉS lezárva |
+| az R158 körében érkezett | 15 (3 P1 + 12 P2) — a `89f0b37a` · `392bcd28` · `c37d9059` · `b80d00c` · `a181631` köre |
 
-**A mai fej (`b80d00c`) review-állapota, kimondva:** a tizenegy utolsó leletre adott javítás a
-`b80d00c`-ben van, a válaszok a szálakon állnak, és a szálak lezártak. **A `b80d00c`-re MAGÁRA a Codex
-még nem adott új kört** a lap zárásakor — tehát NEM állítom, hogy a mai fejet a külső fél már
-átvizsgálta. Ha új kör érkezik, az ugyanúgy végigmegy: javítás → mérés → feltolás.
+**A MÁSODIK REVIEW-KÖR A CSOMAG ALATT ÉRKEZETT, és végig is ment.** A `b80d00c`-re és az
+`a181631`-re a Codex új kört adott, **négy újabb lelettel** (egy P1 és három P2) — mind javítva és
+mérve ebben a csomagban:
+
+| lelet | mi volt | javítás és jel |
+|---|---|---|
+| **F158-12 (P1)** | a kulcs-plafon javításom telt plafonnál MINDEN kérésre RENDEZTE a teljes térképet (20 000 kulcs ~9,5 s a reviewer gépén), és kérésenként naplózott — a védelem lett a támadás erősítője | LRU-sorrend rendezés nélkül, ablakonként EGY naplósor; **MÉRVE: 20 000 kulcs 66–86 ms** (`KUKA-346`, X: x1–x3) |
+| **F158-13 (P2)** | a JÖVŐBELI `created_at` negatív kort ad, az pedig VÉGES — egy 2099-es sor 2099-ig folytatódott volna | a negatív kor is lejárt (`KUKA-347`, mag-próba (f) + M216) |
+| **F158-14 (P2)** | a halmazos takarítás szöveges `<`-sel nem éri el a romlott ÁRVA sort, és az olvasás sem hívódik rá | három eset egy utasításban (lejárt · jövőbeli · nem kanonikus), tároló-függetlenül (`KUKA-347`, mag-próba (g) + M217) |
+| **F158-15 (P2)** | a kapu egy KORÁBBI futás jelentését is elfogadta volna (létezés-ellenőrzés) | a jelentés a futtatás előtt törlődik, és az ideje a futáshoz kötött (`KUKA-348`, X: x6) |
+
+**A kapu újra lefutott a javított kóddal:** `verify:browser-gate` → **PASS**; a jelentés kezdő
+időpontja (21:53:46.067Z) a futtatás indulása (21:53:45.077Z) UTÁN van — a tanú tehát EBBEN a futásban
+keletkezett. 122 helyzet · 0 bukás · 0 kihagyás · 22 próba-fájl · bemutató-járás zöld.
+
+**Amit NEM állítok:** a LEGUTOLSÓ fejre (a jelen lap commitja) a Codex még nem adott kört — ha új
+lelet érkezik, az ugyanúgy végigmegy: javítás → mérés → feltolás. Emberi kód- és biztonsági review a
+PR-en nem történt.
 
 **Emberi kód-review és biztonsági review a mai fejen: NEM történt.** A PR-en emberi jóváhagyás nincs.
 A `Claude Approvals` ellenőrzés ebben a repóban nem fut.
@@ -264,9 +278,10 @@ szereplő-váltásnál a héj NEVEZETTEN megáll, mert ott nincs „váltás a m
 4. **Belső próba-fiók, felhős mentés/visszatöltés** — az R158 szerint ezek nem tekinthetők megoldottnak,
    és ebben a körben nem is nyúltunk hozzájuk.
 5. **Az üzleti írás és a 11 lap 23 hiánya** (4.3) — pontosan felsorolva, megépítés NÉLKÜL.
-6. **A romlott `created_at` sorok halmazos takarítása**: a lejárt sorokat egy `DELETE … WHERE
-   created_at < ?` viszi; egy nem értelmezhető érték erre nem illeszkedik. A romlott sort az OLVASÁS
-   dobja el — egy sosem visszaolvasott romlott sor a táblában marad.
+6. ~~A romlott `created_at` sorok halmazos takarítása~~ — **JAVÍTVA ebben a csomagban** (`D-VS-3155` ·
+   `KUKA-347`): a halmazos takarítás a lejárt, a JÖVŐBELI és a nem kanonikus alakú sort is viszi, egy
+   utasításban, tároló-függetlenül. A reviewer épp erre a — általam nevezett hiányként kimondott —
+   résre mutatott rá, és igaza volt: a kimondás nem váltja ki a javítást.
 7. **A már korábban árván maradt `pending_intent` sorok** visszamenőleges takarítása nem történt meg; a
    javítások az ÚJ árva sorok keletkezését zárják el.
 

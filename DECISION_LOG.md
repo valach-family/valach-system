@@ -594,6 +594,41 @@ jokernél). Gépi jel: `npm run verify:kuka` (KUKA-330) · `npm run verify:app-f
 
 ---
 
+## D-VS-3154 — A VÉDELEM KÖLTSÉGÉT A JAVÍTÁS UTÁN IS MEG KELL MÉRNI (R158, KUKA-346)
+
+**A döntés.** A kéréskorlát kulcs-kiszorítása a `Map` beszúrási sorrendjét használja LRU-listaként
+(`delete`+`set` minden találatnál), és az ELEJÉRŐL dob annyit, amennyi a plafon fölött van — rendezés
+NÉLKÜL; a figyelmeztetés ablakonként legfeljebb egyszer megy ki. **Miért.** Az első javításom telt
+plafonnál minden kérésnél RENDEZTE a teljes térképet (a reviewer gépén 20 000 kulcs ~9,5 s), és
+kérésenként naplózott — vagyis a KUKA-290 hiba-osztályát, amit ebben a PR-ben magam vezettem ki,
+visszaépítettem a megoldásba. **Ki találta meg.** Külső review (Codex, F158-12, P1). **Amit ez NEM
+állít.** A kiszorítás nem ingyenes: egy eldobott kulcs számlálója újraindul (ez a KIMONDOTT csere), és
+a mérce skála-független — a kiszorításonkénti költség négyszeres munkánál sem nő kétszeresére.
+
+---
+
+## D-VS-3155 — AZ IDŐ-KORLÁT KÉT IRÁNYÚ, ÉS A TAKARÍTÁS AZ ÁRVA SORT IS ELÉRI (R158, KUKA-347)
+
+**A döntés.** A `resumeIntent` a NEGATÍV kort (jövőbeli `created_at`) is lejártnak veszi, és a halmazos
+takarítás három esetet visz egy utasításban, tároló-függetlenül: a türelmi időn túli · a jövőbeli · és a
+nem kanonikus alakú sort (`created_at NOT LIKE '____-__-__T%'`). **Miért.** A negatív kor VÉGES, tehát
+átment a frissességi ellenőrzésen (egy 2099-es sor 2099-ig folytatódott volna); a romlott időbélyegű
+ÁRVA sorhoz pedig sem a szöveges `<` összehasonlítás, sem az olvasás nem ér el. **Ki találta meg.**
+Külső review (Codex, F158-13 · F158-14). **Amit ez NEM állít.** A `created_at` alakját sémában továbbra
+sem kényszerítjük — a védelem az olvasó és a takarító oldalon áll.
+
+---
+
+## D-VS-3156 — A KAPU TANÚJA A FUTÁSHOZ KÖTÖTT (R158, KUKA-348)
+
+**A döntés.** A böngésző-kapu a jelentést a futtatás ELŐTT törli, és a jelentés kezdő időpontjának a
+mostani futás indulása UTÁN kell lennie (2000 ms tűrés). **Miért.** A létezés-ellenőrzés egy korábbi
+futás fájlját is elfogadta volna — pontosan az a helyzet, ami a kapu első futásánál elő is állt.
+**Ki találta meg.** Külső review (Codex, F158-15). **Amit ez NEM állít.** A tűrés a jelentő saját
+órájából következik; a kötés szerkezeti, és a battéria `x6` sora ezt KIMONDJA (nem viselkedés-mérés).
+
+---
+
 ## D-VS-3147 — A FÜGGŐ SZÁNDÉK NEM ÉRTELMEZHETŐ IDŐBÉLYEGE LEJÁRTNAK SZÁMÍT (R158, KUKA-339)
 
 **A döntés.** A `resumeIntent` a NaN korú sort (romlott `created_at` vagy óra) LEJÁRTNAK veszi: a

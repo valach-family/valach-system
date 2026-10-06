@@ -685,7 +685,12 @@ export function resumeIntent({ store, sessionId, clock, ttlMs = PENDING_INTENT_T
   const most = Date.parse(clock.now());
   const szuletett = Date.parse(row.created_at);
   const kor = most - szuletett;
-  if (!Number.isFinite(kor) || kor > ttlMs) {
+  // A JÖVŐBELI IDŐBÉLYEG SEM „FRISS" (F158-13, külső review, Codex, P2). A LELET: a NaN-ág javítása
+  // után egy 2099-es `created_at` NEGATÍV kort ad — a kor így VÉGES, tehát átment a frissességi
+  // ellenőrzésen, és a szándék a 24 órás türelmi időt megkerülve 2099-ig folytatódott volna
+  // (óra-visszaállítás vagy import). Amiről nem tudjuk, HOGY LEHET a jövőben, arról nem állítjuk,
+  // hogy friss: a negatív kor is LEJÁRT (KUKA-020 · a KUKA-339 tanulságának harmadik fele).
+  if (!Number.isFinite(kor) || kor < 0 || kor > ttlMs) {
     store.run('DELETE FROM pending_intent WHERE session_id = ?', sessionId);
     return null;
   }
@@ -703,9 +708,25 @@ export function purgeExpiredIntents({ store, clock, ttlMs = PENDING_INTENT_TTL_M
   if (!clock || typeof clock.now !== 'function') {
     throw new Error('purgeExpiredIntents: `clock` kötelező (D-VS-3141)');
   }
+  /**
+   * A HALMAZOS TAKARÍTÁS IS VISZI A ROMLOTT ÉS A JÖVŐBELI SORT (F158-14, külső review, Codex, P2).
+   *
+   * A LELET. Az előző alak csak `created_at < hatar`-t törölt — ez a MAI, kanonikus ISO-sorokra igaz,
+   * de egy `created_at = 'bogus'` ÁRVA sor (import vagy sérülés, és a munkamenete már nincs) soha nem
+   * illeszkedik rá, mert a szöveges összehasonlítás szerint nem kisebb; és mivel a munkamenet nincs,
+   * a `resumeIntent` sem hívódik meg rá soha. A sor tehát ÖRÖKRE a táblában maradt. Ezt a REPORT-ban
+   * nevezett hiányként ki is mondtam — a reviewer joggal kérte, hogy ne hiány legyen, hanem javítás.
+   *
+   * A HÁROM ESET EGY UTASÍTÁSBAN, és mindhárom TÁROLÓ-FÜGGETLEN SQL-lel (`node:sqlite` és PostgreSQL
+   * egyaránt): a türelmi időn túli · a JÖVŐBELI (óra-visszaállítás, import) · és a NEM KANONIKUS
+   * alakú (`LIKE '____-__-__T%'` nem illeszkedik). A `_` egyetlen karakter mindkét tárolóban.
+   */
   const hatar = new Date(Date.parse(clock.now()) - ttlMs).toISOString();
-  const elotte = store.get('SELECT COUNT(*) AS n FROM pending_intent WHERE created_at < ?', hatar);
-  store.run('DELETE FROM pending_intent WHERE created_at < ?', hatar);
+  const most = new Date(Date.parse(clock.now())).toISOString();
+  const MINTA = '____-__-__T%';
+  const WHERE = 'created_at < ? OR created_at > ? OR created_at NOT LIKE ?';
+  const elotte = store.get(`SELECT COUNT(*) AS n FROM pending_intent WHERE ${WHERE}`, hatar, most, MINTA);
+  store.run(`DELETE FROM pending_intent WHERE ${WHERE}`, hatar, most, MINTA);
   return { purged: elotte ? Number(elotte.n) : 0, before: hatar };
 }
 
