@@ -247,16 +247,132 @@ export function rateLimitConfig(env = process.env) {
   };
 }
 
+/**
+ * A SOR HOSSZA IS KORLÁTOS — A VÉDELEM NEM LEHET A TÁMADÁS ERŐSÍTŐJE (NET-04, F154-01).
+ *
+ * A LELET, MÉRVE (saját, R154): a korábbi alak MINDEN bélyeget megtartott egy címhez, és minden
+ * kérésnél VÉGIGSZŰRTE a sort. Egyetlen címről 60 000 kérés `count=60000`-t adott 240-es korlát
+ * mellett, és **29,0 másodperc** tiszta CPU-t kért; 120 000 kérés 225,3 másodpercet — négyszeres
+ * kérésre 7,8-szoros idő, vagyis a költség a kérések SZÁMÁNAK KVADRATIKUS függvénye. Egy
+ * egyszálú folyamatban ez azt jelenti, hogy az elárasztást a KÉRÉSKORLÁT maga váltja üzemzavarra:
+ * a jóhiszemű kérések is megállnak, miközben a napló „megfogtuk" állapotot mutat.
+ *
+ * A JAVÍTÁS: a verdikthez a LEGFRISSEBB `max + 1` bélyeg ELÉG — ha ennyi mind az ablakban van, a
+ * kérés már biztosan túl van a korláton; ha nincs, akkor nem. A régebbieket nem a döntés miatt
+ * tartottuk, hanem mert senki nem dobta el őket. A verdikt BETŰRE ugyanaz marad.
+ *
+ * ÉS A SZÁM IGAZAT MOND (KUKA-129): vágás után a `count` már ALSÓ KORLÁT, nem pontos darabszám —
+ * ezért a válasz ezt `capped`-ként KIMONDJA, nem hallgatja el.
+ */
 export function makeRateLimiter({ windowMs = 60000, max = 240 } = {}) {
   const hits = new Map();
+  const keep = Math.max(1, max + 1);
   return function take(key, now = Date.now()) {
     const arr = (hits.get(key) || []).filter((t) => now - t < windowMs);
     arr.push(now);
+    // ELŐBB VÁGUNK, AZTÁN TÁROLUNK: így a KÖVETKEZŐ kérés szűrése is rövid soron fut.
+    const capped = arr.length > keep;
+    if (capped) arr.splice(0, arr.length - keep);
     hits.set(key, arr);
     // A TÉRIGÉNY IS KORLÁTOS: a lejárt kulcsok kitakarítása nélkül a térkép korlátlanul nőne —
     // egy memória-szivárgás a védelem nevében (KUKA-120).
     if (hits.size > 5000) for (const [k, v] of hits) if (!v.length || now - v[v.length - 1] > windowMs) hits.delete(k);
-    return { allowed: arr.length <= max, count: arr.length, max, retry_after_s: Math.ceil(windowMs / 1000) };
+    return { allowed: arr.length <= max, count: arr.length, max, capped, retry_after_s: Math.ceil(windowMs / 1000) };
+  };
+}
+
+/**
+ * A MUNKAMENET-TÁR KORLÁTOS (SES-01, F154-03).
+ *
+ * A LELET, MÉRVE (saját, R154): a tár egy sima `Map` volt, és MINDEN süti nélküli kérés új sort
+ * tett bele; törölni egyedül a be- és kilépés törölt. 10 000 süti nélküli `GET /api/me` után a tár
+ * 10 000 sort tartott — vagyis egy robot, egy süti nélküli figyelő vagy egy elárasztás korlátlanul
+ * növeli a folyamat memóriáját, és a növekedés SOHA nem áll meg magától.
+ *
+ * KÉT KIMONDOTT KORLÁT, mert egy nem elég:
+ *   · TÉTLENSÉGI IDŐ — amit `idleMs`-ig nem érintettek, az elenyészik. Ez egyúttal azt is
+ *     megszünteti, hogy egy munkamenet-süti ÖRÖKKÉ érvényes legyen.
+ *   · PLAFON — a sorok száma `maxSessions` fölé nem megy. Fölötte a LEGRÉGEBBEN LÁTOTT sorok
+ *     mennek előbb, és a NÉVTELENEK ELŐBB, mint a belépettek: az elárasztás névtelen sorokat
+ *     gyárt, tehát a kár ott keletkezik, és az őr ott áll (KUKA-202).
+ *
+ * A PLAFON ALÁ ALSÓ VÍZSZINTIG söprünk, nem pontosan a plafonig: különben tartós terhelés mellett
+ * MINDEN kérés egy rendezést fizetne — az a javítás lenne a következő F154-01 (KUKA-130).
+ *
+ * A KISZORÍTÁS NEM NÉMA: a belépett munkamenet kiesése NAPLÓBAN nevezett sor, mert az a
+ * felhasználónak kiléptetés — és egy néma kiléptetés megmagyarázhatatlan hibajelentést szül.
+ */
+export const SESSION_LIMITS = Object.freeze({ idle_ms: 12 * 60 * 60 * 1000, max_sessions: 20000 });
+
+/**
+ * A KÉT KORLÁT A KÖRNYEZETBŐL ÁLLÍTHATÓ — és ezért MÉRHETŐ (KUKA-207).
+ *
+ * Nem kényelmi kapcsoló: egy 20 000-es plafont élő HTTP-n nem lehet próbában megtölteni, tehát a
+ * korlát csak a feloldó KÖZVETLEN hívásából látszana — és amit a próba nem tud a HATÁRON meghívni,
+ * azt bizalomból hisszük. Üzemeltetési haszna is van: a plafon a példány memóriájához tartozik.
+ */
+export function sessionLimits(env = process.env) {
+  const num = (raw, fallback) => {
+    const n = Number(String(raw ?? '').trim());
+    return Number.isFinite(n) && n > 0 ? n : fallback;
+  };
+  return {
+    idleMs: num(env.VS_APP_SESSION_IDLE_MS, SESSION_LIMITS.idle_ms),
+    maxSessions: num(env.VS_APP_SESSION_MAX, SESSION_LIMITS.max_sessions),
+  };
+}
+
+export function makeSessionStore({
+  idleMs = SESSION_LIMITS.idle_ms,
+  maxSessions = SESSION_LIMITS.max_sessions,
+  warn = (m) => console.warn(m),
+} = {}) {
+  const map = new Map();                       // id → munkamenet (a `last_seen_ms` házi mező rajta áll)
+  const lowWater = Math.max(1, Math.floor(maxSessions * 0.9));
+  const stats = { evicted_idle: 0, evicted_cap_anonymous: 0, evicted_cap_signed_in: 0 };
+  let nextIdleSweep = 0;
+
+  const drop = (id, cause) => { map.delete(id); stats[cause] += 1; };
+
+  function sweep(now = Date.now()) {
+    for (const [id, s] of map) if (now - (s.last_seen_ms ?? 0) > idleMs) drop(id, 'evicted_idle');
+    if (map.size <= maxSessions) return stats;
+    // A NÉVTELENEK ELŐBB, és mindkét körben a LEGRÉGEBBEN LÁTOTT az első.
+    const order = [...map.entries()].sort((a, b) => (a[1].last_seen_ms ?? 0) - (b[1].last_seen_ms ?? 0));
+    const before = { ...stats };
+    for (const anonFirst of [true, false]) {
+      for (const [id, s] of order) {
+        if (map.size <= lowWater) break;
+        if (!map.has(id)) continue;
+        const anon = !s.subject_id;
+        if (anon === anonFirst) drop(id, anon ? 'evicted_cap_anonymous' : 'evicted_cap_signed_in');
+      }
+    }
+    const loggedOut = stats.evicted_cap_signed_in - before.evicted_cap_signed_in;
+    if (loggedOut > 0) {
+      warn(`[v3app] a munkamenet-tár plafonja (${maxSessions}) BELÉPETT munkamenetet is kiszorított: `
+        + `${loggedOut} felhasználó kiléptetve — ennyi egyidejű munkamenetre a plafon kevés`);
+    }
+    return stats;
+  }
+
+  return {
+    get size() { return map.size; },
+    stats: () => Object.freeze({ size: map.size, ...stats }),
+    get: (id) => map.get(id),
+    has: (id) => map.has(id),
+    delete: (id) => map.delete(id),
+    touch: (id, now = Date.now()) => { const s = map.get(id); if (s) s.last_seen_ms = now; },
+    set(id, s, now = Date.now()) {
+      s.last_seen_ms = now;
+      map.set(id, s);
+      // A TÉTLENSÉGI SÖPRÉS AMORTIZÁLT (percenként legfeljebb egyszer), a PLAFON viszont AZONNALI:
+      // a plafon a memória-korlát, azon nem lehet késni.
+      if (map.size > maxSessions) sweep(now);
+      else if (now >= nextIdleSweep) { nextIdleSweep = now + 60000; sweep(now); }
+      return this;
+    },
+    sweep,
   };
 }
 
@@ -453,7 +569,8 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     err.code = gate.reason;
     throw err;
   }
-  const sessions = new Map();        // id → { id, subject_id, current_book_id, created_at }
+  // A MUNKAMENET-TÁR KORLÁTOS (SES-01, F154-03) — nem sima Map: tétlenségi idő + plafon.
+  const sessions = makeSessionStore(sessionLimits());   // id → { …, last_seen_ms }
   const mailbox = [];                // a FEJLESZTŐI LEVÉL-FOGADÓ — memóriában, kifelé soha
 
   // ── FEJLESZTŐI ÓRA (DEV-CLOCK, R75 §3/6) ────────────────────────────────────────────────────
@@ -2100,6 +2217,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
 
     const cookies = parseCookies(req.headers.cookie);
     let session = sessions.get(cookies.get(SESSION_COOKIE) || '');
+    // AZ ÉLŐ MUNKAMENET NEM TÉTLEN (SES-01): a kiszorítás a LEGRÉGEBBEN LÁTOTTAT veszi, tehát az
+    // „utoljára látva" bélyeget minden kérésnél frissíteni KELL — enélkül egy aktív felhasználót is
+    // kiléptetne a söprés.
+    if (session) sessions.touch(session.id);
     let setCookie = null;
     // A `Secure` jelölő a KÉRÉSBŐL is eldőlhet: proxy mögött a HTTPS tényét a fejléc hozza.
     if (!session) { session = newSession(); setCookie = sessionCookie(session.id, { secure: IS_DEPLOYED || isHttpsRequest(req) }); }   // névtelen munkamenet is létezik
@@ -2165,7 +2286,19 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
   }
 
   function serveStatic(pathname, res, setCookie) {
-    const rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname.replace(/^\/+/, ''));
+    // A HIBÁS SZÁZALÉK-ESCAPE NEVEZETT ELUTASÍTÁS, NEM PROGRAMHIBA (F154-02).
+    //
+    // A LELET, MÉRVE (saját, R154): `GET /%`, `GET /%zz`, `GET /a%E0%A4%A` mind **500
+    // `internal_error`**-t adott — a `decodeURIComponent` `URIError`-t dobott, és azt a kérés-ciklus
+    // programhibaként fogta el. Egy ennyire hétköznapi hibás kérés 5xx-et váltott: a hibakeret és a
+    // felügyelet szerint a SZOLGÁLTATÁS volt hibás, miközben a KÉRÉS volt az. A határ szerződése
+    // (HTP-01) nevezett elutasítást ír elő, nem programhibát (KUKA-203 · KUKA-215).
+    let rel;
+    try {
+      rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname.replace(/^\/+/, ''));
+    } catch {
+      return sendJson(res, 400, { ok: false, reason: 'path_malformed', refused_by: 'static_path' }, setCookie);
+    }
     const target = resolve(PUBLIC_DIR, rel);
     // ÚTVONAL-ÁTLÉPÉS TILOS: a feloldott út a public mappán BELÜL kell álljon.
     if (target !== PUBLIC_DIR && !target.startsWith(PUBLIC_DIR + sep)) return sendJson(res, 403, { ok: false, reason: 'path_rejected' }, setCookie);

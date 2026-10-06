@@ -1,0 +1,237 @@
+// v3app/findings_r154.mjs — AZ R154 AUDIT ÉLŐ BATTÉRIÁJA (CMD-VS-300-002-002 R154).
+//
+// MIÉRT KÜLÖN BATTÉRIA. Az R154 a MEGLÉVŐ, VÁLTOZATLAN V3 auditját kérte — nem egy PR-diff
+// átolvasását. Az első csomag három MÉRT leletet talált a HTTP-határon, és mind a három olyan
+// helyen volt, ahol a teljes söprés ZÖLD maradt (37 verifier), tehát a zöldje ezekről semmit nem
+// mondott:
+//   · F154-01 — A KÉRÉSKORLÁT A TÁMADÁS ERŐSÍTŐJE VOLT. A `makeRateLimiter` egy címhez MINDEN
+//     bélyeget megtartott, és kérésenként végigszűrte a sort. MÉRVE: 60 000 kérés egy címről
+//     `count=60000` (240-es korlát mellett!) és 29,0 s tiszta CPU; 120 000 kérés 225,3 s — azaz
+//     négyszeres kérésre 7,8-szoros idő. Egyszálú folyamatban a kéréskorlát maga állítja meg a
+//     szolgáltatást, miközben a napló „megfogtuk"-ot mutat.
+//   · F154-02 — HIBÁS SZÁZALÉK-ESCAPE → 500. `GET /%`, `GET /%zz`, `GET /a%E0%A4%A` mind
+//     **500 `internal_error`** volt: a `decodeURIComponent` `URIError`-ja programhibaként esett ki.
+//     A határ szerződése nevezett elutasítást ír elő (HTP-01 · KUKA-203 · KUKA-215).
+//   · F154-03 — A MUNKAMENET-TÁR KORLÁTLAN VOLT. Sima `Map`, amibe MINDEN süti nélküli kérés új
+//     sort tett, és egyedül a ki-/belépés törölt. MÉRVE: 10 000 süti nélküli `GET /api/me` után a
+//     tár 10 000 sort tartott. Egy robot vagy egy elárasztás korlátlanul növeli a memóriát — és egy
+//     munkamenet-süti amúgy is ÖRÖKKÉ érvényes volt.
+//
+// AMIT MÉR, ÉS HOGYAN (KUKA-092: a próba a JAVÍTÁS KIVÉTELÉRE pirosra kell váltson):
+//   A) F154-01 — a sor hossza korlátos, a verdikt BETŰRE ugyanaz, és a vágott szám KIMONDJA, hogy
+//      alsó korlát (`capped`) — nem hallgatja el (KUKA-129);
+//   B) F154-02 — a három hibás út NEVEZETT 400, ÉLŐ HTTP-n, és az ellenpróbák változatlanok;
+//   C) F154-03 — a plafon és a tétlenség a feloldón MÉRVE, ÉS a HATÁRON: egy névtelen elárasztás
+//      NEM lépteti ki a belépett felhasználót (ez a felhasználó által LÁTOTT tulajdonság).
+//
+// Kilépési kód: 0 = minden állítás PASS · 1 = MÉRT hibát talált · 2 = a mérés elakadt.
+import { resolve, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { rmSync } from 'node:fs';
+import { startServer, makeRateLimiter, makeSessionStore, sessionLimits, SESSION_LIMITS } from './server.mjs';
+import { dictFor } from './public/i18n/dict.mjs';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const results = [];
+let section = '';
+function part(name) { section = name; console.log(`\n── ${name} ──`); }
+function step(name, cond, detail) {
+  const pass = !!cond;
+  results.push({ section, name, pass });
+  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail !== undefined ? '  — ' + (typeof detail === 'string' ? detail : JSON.stringify(detail)) : ''}`);
+  return pass;
+}
+
+class Client {
+  constructor(base) { this.base = base; this.cookie = null; }
+  async call(method, path, body) {
+    const headers = {};
+    if (this.cookie) headers.Cookie = this.cookie;
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    const res = await fetch(this.base + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), redirect: 'manual' });
+    const sc = res.headers.get('set-cookie');
+    if (sc) this.cookie = sc.split(';')[0];
+    const ct = res.headers.get('content-type') || '';
+    return { status: res.status, body: ct.includes('application/json') ? await res.json() : await res.text() };
+  }
+  get(p) { return this.call('GET', p); }
+  post(p, b) { return this.call('POST', p, b ?? {}); }
+}
+
+// ── A) F154-01 — A KÉRÉSKORLÁT NEM LEHET A TÁMADÁS ERŐSÍTŐJE ────────────────────────────────────
+part('A) F154-01 — a kéréskorlát sora korlátos, a verdikt változatlan');
+
+const MAX = 240;
+const FLOOD = 60000;
+{
+  const take = makeRateLimiter({ windowMs: 60000, max: MAX });
+  const t0 = Date.now();
+  let last = null;
+  for (let i = 0; i < FLOOD; i++) last = take('1.2.3.4', t0 + Math.floor(i / 1000));
+  const ms = Date.now() - t0;
+
+  // (a1) A TÉRIGÉNY: a megtartott sor a VERDIKTHEZ szükséges hosszon áll. A javítás kivételével ez
+  // a szám 60 000 lenne — a régi alak MÉRT értéke.
+  step('(a1) 60 000 kérés egy címről a sort `max + 1`-en tartja (régen: 60 000)',
+    last.count <= MAX + 1, { count: last.count, keep: MAX + 1, ms });
+
+  // (a2) AZ IDŐ: a régi alak MÉRT 28 987 ms-ot kért ugyanerre. A plafon nagyvonalú (5 s), mert ez
+  // nem teljesítmény-próba: a KVADRATIKUS nagyságrendet zárja ki, nem a gépet méri.
+  step('(a2) ugyanaz a 60 000 kérés 5 másodperc alatt lefut (régen MÉRVE: 28 987 ms)',
+    ms < 5000, { ms, regi_mert_ms: 28987 });
+
+  // (a3) A SZÁM IGAZAT MOND (KUKA-129): vágás után a `count` ALSÓ KORLÁT, és ezt a válasz kimondja.
+  step('(a3) a vágott darabszám KIMONDVA alsó korlát (`capped: true`), nem néma',
+    last.capped === true && last.allowed === false, { capped: last.capped, allowed: last.allowed });
+}
+{
+  // (a4) A VERDIKT BETŰRE UGYANAZ. Ez az ELLENPÁR: a gyorsítás nem lehet a védelem elrontása —
+  // egy „mindig engedünk" vagy „mindig tiltunk" alak az (a1)/(a2)-t is teljesítené (KUKA-120).
+  const take = makeRateLimiter({ windowMs: 1000, max: 5 });
+  const t = 10_000_000;
+  const alatt = [0, 1, 2, 3, 4].map((i) => take('x', t + i).allowed);
+  const felett = [5, 6, 7].map((i) => take('x', t + i).allowed);
+  step('(a4) ELLENPÁR: a korlátig ENGED, utána TILT — a verdikt nem változott',
+    alatt.every((v) => v === true) && felett.every((v) => v === false), { alatt, felett });
+
+  // (a5) ÉS AZ ABLAK CSÚSZIK: a kiürült ablak után újra engedni KELL — különben a „javítás" egy
+  // örök kizárás lenne (az a hiba, amit a KUKA-092 néven ismerünk: a zöld a rossz okból jön).
+  step('(a5) ELLENPÁR: az ablak lejárta után ugyanaz a cím ÚJRA engedélyt kap',
+    take('x', t + 5000).allowed === true, 'a csúszó ablak nem vált örök kizárássá');
+}
+{
+  // (a6) A `capped` NEM mindig igaz: a korlát alatt a darabszám PONTOS. Ennek az ellenpárnak a
+  // hiányában egy „capped: true mindig" alak is átmenne az (a3)-on.
+  const take = makeRateLimiter({ windowMs: 60000, max: 240 });
+  const v = take('tiszta', 5_000_000);
+  step('(a6) ELLENPÁR: a korlát ALATT a darabszám PONTOS (`capped: false`)',
+    v.capped === false && v.count === 1 && v.allowed === true, v);
+}
+
+// ── C/1) F154-03 — A FELOLDÓ KÖZVETLENÜL (a HATÁR mérése lentebb, élő HTTP-n) ───────────────────
+part('C/1) F154-03 — a munkamenet-tár plafonja és tétlensége a feloldón');
+{
+  const st = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 100, warn: () => {} });
+  for (let i = 0; i < 500; i++) st.set('a' + i, { id: 'a' + i, subject_id: null }, 1_000_000 + i);
+  step('(c1) 500 névtelen sor 100-as plafonon NEM nő 500-ra (régen: korlátlan)',
+    st.size <= 100, { size: st.size, plafon: 100 });
+
+  const st2 = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 10, warn: () => {} });
+  for (let i = 0; i < 9; i++) st2.set('u' + i, { id: 'u' + i, subject_id: 'S' + i }, 1_000_000 + i);
+  for (let i = 0; i < 40; i++) st2.set('n' + i, { id: 'n' + i, subject_id: null }, 2_000_000 + i);
+  const belepett = [...Array(9).keys()].filter((i) => st2.has('u' + i)).length;
+  step('(c2) a NÉVTELENEK esnek ki ELŐBB — a 9 belépett mind megmaradt (KUKA-202)',
+    belepett === 9, { belepett_megmaradt: belepett, size: st2.size, stat: st2.stats() });
+
+  const st3 = makeSessionStore({ idleMs: 1000, maxSessions: 10 ** 6, warn: () => {} });
+  st3.set('reg', { id: 'reg', subject_id: null }, 1_000_000);
+  st3.sweep(1_002_000);
+  step('(c3) a TÉTLENSÉGI idő is kiszorít — a munkamenet-süti nem örök érvényű',
+    st3.has('reg') === false, { stat: st3.stats() });
+
+  const st4 = makeSessionStore({ idleMs: 1000, maxSessions: 10 ** 6, warn: () => {} });
+  st4.set('elo', { id: 'elo', subject_id: null }, 1_000_000);
+  st4.touch('elo', 1_001_800);
+  st4.sweep(1_002_000);
+  step('(c4) ELLENPÁR: az ÉRINTETT (aktív) munkamenet NEM esik ki',
+    st4.has('elo') === true, 'az „utoljára látva" bélyeg hat');
+
+  let naplo = null;
+  const st5 = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 4, warn: (m) => { naplo = m; } });
+  for (let i = 0; i < 20; i++) st5.set('s' + i, { id: 's' + i, subject_id: 'S' + i }, 1_000_000 + i);
+  step('(c5) a BELÉPETT munkamenet kiszorítása NAPLÓBAN nevezett — nem néma kiléptetés',
+    typeof naplo === 'string' && /kiléptetve/.test(naplo), naplo ? naplo.slice(0, 96) : null);
+
+  step('(c6) a környezeti felülírás MŰKÖDIK, és az alapérték a deklarált (sessionLimits)',
+    sessionLimits({ VS_APP_SESSION_MAX: '50', VS_APP_SESSION_IDLE_MS: '900' }).maxSessions === 50
+    && sessionLimits({ VS_APP_SESSION_IDLE_MS: '900' }).idleMs === 900
+    && sessionLimits({}).maxSessions === SESSION_LIMITS.max_sessions
+    && sessionLimits({ VS_APP_SESSION_MAX: 'nemszam' }).maxSessions === SESSION_LIMITS.max_sessions,
+    'a hibás érték az alapértékre esik, nem nullára');
+}
+
+// ── B + C/2) A HATÁRON, ÉLŐ HTTP-N ─────────────────────────────────────────────────────────────
+const DB = resolve(ROOT, 'var/tmp/v3app_r154_findings.sqlite');
+try { rmSync(DB, { force: true }); rmSync(DB + '-wal', { force: true }); rmSync(DB + '-shm', { force: true }); } catch { /* nem volt */ }
+
+const SESSION_CAP = 40;
+process.env.VS_APP_SESSION_MAX = String(SESSION_CAP);
+process.env.VS_APP_SESSION_IDLE_MS = String(10 ** 9);
+let app = null;
+try {
+  app = await startServer({ port: 0, dbPath: DB });
+  const base = `http://127.0.0.1:${app.server.address().port}`;
+
+  part('B) F154-02 — a hibás százalék-escape NEVEZETT 400, nem 500');
+  for (const p of ['/%', '/%zz', '/a%E0%A4%A']) {
+    const r = await fetch(base + p);
+    let b = null; try { b = await r.json(); } catch { b = null; }
+    step(`(b1) GET ${p} → 400 \`path_malformed\` (régen MÉRVE: 500 internal_error)`,
+      r.status === 400 && b && b.reason === 'path_malformed', { status: r.status, reason: b && b.reason });
+  }
+  {
+    const ok = await fetch(base + '/index.html');
+    const nf = await fetch(base + '/nincs-ilyen-lap.html');
+    const tr = await fetch(base + '/..%2F..%2Fpackage.json');
+    step('(b2) ELLENPÁR: a LÉTEZŐ lap változatlanul 200 — a javítás nem zárta be a kiszolgálást',
+      ok.status === 200, { status: ok.status });
+    step('(b3) ELLENPÁR: a NEM létező lap továbbra is 404 `not_found` — nem mosódott össze',
+      nf.status === 404 && (await nf.json()).reason === 'not_found', { status: nf.status });
+    step('(b4) ELLENPÁR: az ÚTVONAL-ÁTLÉPÉS továbbra is elutasítva (nem 200)',
+      tr.status !== 200, { status: tr.status });
+  }
+
+  part('C/2) F154-03 a HATÁRON — a névtelen elárasztás NEM lépteti ki a belépettet');
+  // A BELÉPETT FELHASZNÁLÓ. A levél a fejlesztői levél-fogadóba megy, valódi levél nem indul.
+  const email = 'audit154@pelda.hu';
+  const password = 'proba-jelszo-2026';
+  const anna = new Client(base);
+  await anna.post('/api/register', { email, password, lang: 'hu' });
+  const S = dictFor('hu').SRV;
+  const mails = (await anna.get('/dev/mailbox')).body.mails;
+  const mail = mails.filter((x) => x.to === email && String(x.subject).startsWith(S.mailVerifySubject))[0];
+  if (!mail) throw new Error('a megerősítő levél nem jött meg — a mérés alapsokasága nem áll fel');
+  const link = new URL(mail.link);
+  await anna.get(link.pathname + link.search);
+  const be = await anna.post('/api/login', { email, password });
+  if (!be.body || be.body.ok !== true) throw new Error(`a belépés nem sikerült: ${JSON.stringify(be.body).slice(0, 160)}`);
+
+  const elotte = (await anna.get('/api/me')).body;
+  step('(c7) alapsokaság: a felhasználó BE VAN LÉPVE (különben a mérés nem jelent semmit)',
+    elotte && elotte.ok === true && elotte.subject_id, { subject_id: elotte && elotte.subject_id });
+
+  // AZ ELÁRASZTÁS: süti nélküli kérések, a plafon tízszerese.
+  const arasztas = SESSION_CAP * 10;
+  for (let i = 0; i < arasztas; i++) await fetch(base + '/api/me');   // SÜTI NÉLKÜL
+  // A MÉRÉS NEM TÁMASZKODHAT A TÁR BELSŐ FELSZÍNÉRE (KUKA-092, SAJÁT LELET a visszavétel-próbán):
+  // az első alakom a `stats()`-ot a RÉSZLETBEN hívta, ezért a bekötés kivételekor a battéria
+  // ELAKADT MÉRÉST (kilépési kód 2) jelzett — az pedig „a próba bukott el", nem „a rendszer hibás".
+  // A `size` MINDEN alakon (sima `Map`-en is) létezik, tehát a KORLÁTOSSÁG mindig MÉRHETŐ.
+  const statOf = () => (typeof app.sessions.stats === 'function' ? app.sessions.stats() : null);
+  step(`(c8) ${arasztas} süti nélküli kérés után a tár a plafon ALATT áll (régen: ${arasztas} sor)`,
+    app.sessions.size <= SESSION_CAP, { size: app.sessions.size, plafon: SESSION_CAP, stat: statOf() });
+
+  const utana = (await anna.get('/api/me')).body;
+  step('(c9) és a BELÉPETT felhasználó ettől NEM lett kiléptetve — ez a látott tulajdonság',
+    utana && utana.ok === true && utana.subject_id === elotte.subject_id,
+    { subject_id: utana && utana.subject_id, ok: utana && utana.ok });
+
+  // A KISZORÍTÁS NEM NÉMA — és ez is MÉRT állítás: ha a tár nem ad számlálót, akkor a kiszorítás
+  // megmagyarázhatatlan kiléptetéseket szülne, tehát a számláló HIÁNYA maga a hiba (nem elakadás).
+  const st = statOf();
+  step('(c10) a kiszorítás NEVEZETT, és a NÉVTELENEKET vitte (a belépett nem került sorra)',
+    st !== null && st.evicted_cap_signed_in === 0,
+    st === null ? 'a tár NEM ad kiszorítás-számlálót — a kiszorítás NÉMA volna' : st);
+
+  const fail = results.filter((r) => !r.pass);
+  console.log(`\nR154 battéria: ${results.length - fail.length}/${results.length} PASS${fail.length ? ` — ${fail.length} FAIL` : ''}`);
+  console.log('A MÉRÉS HATÓKÖRE: a HTTP-határ és a két feloldó. Üzleti folyamatról, élő AI-ról és felhős');
+  console.log('üzemről ebből NEM következik állítás (KUKA-216).');
+  if (fail.length) { console.log('\nFAIL-ek:'); fail.forEach((f) => console.log(` - [${f.section}] ${f.name}`)); }
+  await new Promise((r) => app.server.close(r));
+  process.exit(fail.length ? 1 : 0);
+} catch (e) {
+  console.error('\nELAKADT MÉRÉS (a battéria bukott el; a rendszerről ez NEM mond semmit):', e && e.message);
+  try { if (app) await new Promise((r) => app.server.close(r)); } catch { /* már zárva */ }
+  process.exit(2);
+}
