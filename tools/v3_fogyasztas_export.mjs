@@ -55,7 +55,31 @@ const session = flag('--session'); const w = windowOf(flag('--from'), flag('--to
  * mellett nem látszott.
  */
 const projectsDir = flag('--projects') || join(homedir(), '.claude', 'projects');
-const found = transcriptsOf(projectsDir, session).filter((f) => f.kind === 'main');
+/**
+ * A FELOLDÁS HÁROM ÚTJA, ÉS MINDHÁROM HASZNÁLHATÓ (F154-37, külső review, Codex, kilencedik kör).
+ *
+ * A LELET: a kétértelműség hibaüzenete azt tanácsolta, hogy „add meg a PROJEKT-GYÖKERET pontosan:
+ * --projects <út>" — csakhogy a `transcriptsOf` a kapott utat a projekt-könyvtárak SZÜLŐJÉNEK veszi.
+ * Ha az operátor a KIVÁLASZTOTT projekt-könyvtárat adta meg, az eszköz annak a TARTALMÁT kezdte
+ * projektekként nézni, és `NINCS ÁTIRAT`-tal elhasalt — tehát a nevezett elakadásnak NEM volt
+ * használható kiútja. Egy hibaüzenet, ami olyan megoldást ajánl, ami nem működik, rosszabb, mint
+ * a hallgatás (KUKA-201: a nemleges válasz vigye a MŰKÖDŐ folytatást).
+ *
+ * MOSTANTÓL: (1) `--transcript <fájl>` közvetlenül megadja az átiratot; (2) a `--projects` lehet a
+ * KIVÁLASZTOTT projekt-könyvtár is (ha `<út>/<munkamenet>.jsonl` ott van, az a találat); (3) különben
+ * a szülő-könyvtár minden projektje. A hibaüzenet mind a hármat megnevezi.
+ */
+const explicitFile = flag('--transcript');
+const directHit = join(projectsDir, `${session}.jsonl`);
+const found = explicitFile
+  ? [{ path: resolve(explicitFile), kind: 'main' }]
+  : (existsSync(directHit)
+    ? [{ path: directHit, kind: 'main' }]
+    : transcriptsOf(projectsDir, session).filter((f) => f.kind === 'main'));
+if (explicitFile && !existsSync(found[0].path)) {
+  console.error(`NINCS ILYEN ÁTIRAT-FÁJL: ${found[0].path.replace(homedir(), '~')} (--transcript)`);
+  process.exit(2);
+}
 /**
  * A TÖBBES TALÁLAT NEVEZETT ELAKADÁS, NEM CSENDES VÁLASZTÁS (külső review, Codex, hatodik kör, P2).
  *
@@ -69,7 +93,10 @@ const found = transcriptsOf(projectsDir, session).filter((f) => f.kind === 'main
 if (found.length > 1) {
   console.error(`KÉTÉRTELMŰ ÁTIRAT: ${session} — ${found.length} projekt-könyvtárban van fő átirat ehhez az azonosítóhoz.`);
   for (const f of found) console.error(`  · ${f.path.replace(homedir(), '~')}`);
-  console.error('  Add meg a PROJEKT-GYÖKERET pontosan: --projects <út> (a mérő MINDET beolvassa, az export EGY fájlhoz tartozik).');
+  console.error('  VÁLASZD KI, melyiket exportáljuk — és MINDKÉT út működik:');
+  console.error('    · --transcript <a fenti utak egyike>   (a legpontosabb: pont azt a fájlt exportálja)');
+  console.error('    · --projects <a KIVÁLASZTOTT projekt-könyvtár>   (ott közvetlenül keresi a <munkamenet>.jsonl-t)');
+  console.error('  (a mérő MINDET beolvassa; az export hívás-sorai EGY fájlhoz tartoznak, ezért itt választani kell)');
   process.exit(2);
 }
 if (!found.length) {

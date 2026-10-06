@@ -814,14 +814,21 @@ try {
     for (let i = 0; i < C; i++) {
       const jel = Symbol(`p${i}`);
       jelek3.push(jel);
-      st3.pin(`p${i}`, jel);
+      // ELŐBB BESZÚRÁS, AZTÁN PIN (F154-36, külső review, Codex, kilencedik kör): az F154-29 óta a
+      // `pin()` nem létező sorra NEM pinel — a régi sorrenddel ez a mérés NULLA pint hozott létre,
+      // tehát ÜRES volt, és a kvadratikus alak visszatérését sem kapta volna el (KUKA-207 · KUKA-239).
       st3.set(`p${i}`, { id: `p${i}`, subject_id: `u${i}` }, t0);
+      st3.pin(`p${i}`, jel);
     }
+    // AZ ALAPSOKASÁGOT KIMONDJUK ÉS MEGMÉRJÜK: e nélkül a következő állítás semmit nem jelent.
+    const pinekSzama = st3.stats().pinned;
+    step(`(l4a) ALAPSOKASÁG: mind a ${C} átfedő kérés sora TÉNYLEG pinelve van (régen: 0 pin, üres mérés)`,
+      pinekSzama === C, { pinek: pinekSzama, C });
     const kezdet = Date.now();
-    for (const jel of jelek3) st3.unpinAll(jel, t0 + 1);
+    for (const jel of jelek3) st3.unpinAll(jel);
     const ms = Date.now() - kezdet;
     step(`(l4) ${C} átfedő kérés pinjeinek elengedése ÁLLANDÓ költségű lépésekben megy (a KVADRATIKUS alak kizárva)`,
-      ms < 300 && st3.stats().pinned === 0, { ms, C, pinned_utana: st3.stats().pinned, regi_alak: 'kérésenként a TELJES pin-tábla → O(C²)' });
+      ms < 300 && st3.stats().pinned === 0, { ms, C, pinek_elotte: pinekSzama, pinned_utana: st3.stats().pinned, regi_alak: 'kérésenként a TELJES pin-tábla → O(C²)' });
 
     // (l5) F154-28 (P2): a `touch` megmondja, ha a sor lejárt — és a kérés-ciklus EGY időt használ.
     const st4 = makeSessionStore({ idleMs: 1_000, maxSessions: 10, warn: () => {} });
@@ -1096,6 +1103,56 @@ try {
       await new Promise((r) => egy.server.close(r));
       if (elozoP === undefined) delete process.env.VS_APP_SESSION_MAX; else process.env.VS_APP_SESSION_MAX = elozoP;
     }
+  }
+
+  // ── Q) F154-37 · F154-38 — A KILENCEDIK KÖR: MŰKÖDŐ KIÚT ÉS AZ ÚT NÉLKÜLI CÍM ──────────
+  part('Q) F154-37 · F154-38 — a hibának MŰKÖDŐ kiútja van, és az út nélküli cím is megnevez adatbázist');
+  {
+    // (q1–q4) F154-38 (P1): út nélküli PostgreSQL-cím → a FELHASZNÁLÓ neve az adatbázis.
+    const a = sameDatabase('postgres://source_user:pw@host', 'source_user');
+    step('(q1) út nélküli cím: a felhasználó neve az adatbázis — tehát AZONOS a céllal (RÉGEN: „eltér” → a FORRÁST törölte volna)',
+      a.same === true, a);
+    const b = sameDatabase('postgres://source_user:pw@host', 'vs_visszatoltes_proba');
+    step('(q2) ELLENPÁR: más cél mellett a lánc továbbra is indulhat',
+      b.same === false, b);
+    const c = sameDatabase('postgres://host/', 'barmi');
+    step('(q3) sem adatbázis, sem felhasználó: NEM megállapítható → ÓVATOS megállás',
+      c.same === true && /NEM megállapítható/i.test(c.basis), c);
+    const d = sameDatabase('postgres://source%5Fuser:pw@host', 'source_user');
+    step('(q4) a felhasználó-név százalék-kódolása is dekódolva számít',
+      d.same === true, d);
+
+    // (q5–q6) F154-37 (P2): a kétértelműség hibaüzenete MŰKÖDŐ kiútat ajánl.
+    const tmp3 = mkdtempSync(join(tmpdir(), 'vs-kiut-'));
+    try {
+      const sess3 = 'ffffffff-0000-4000-8000-000000000003';
+      const utak = [];
+      for (const nev of ['-pr-egy', '-pr-ketto']) {
+        mkdirSync(join(tmp3, nev), { recursive: true });
+        const ut = join(tmp3, nev, `${sess3}.jsonl`);
+        writeFileSync(ut, '{"type":"assistant"}\n');
+        utak.push({ dir: join(tmp3, nev), file: ut });
+      }
+      const futtat = (extra) => {
+        try {
+          execFileSync(process.execPath, [join(ROOT, 'tools/v3_fogyasztas_export.mjs'),
+            '--session', sess3, '--from', '2026-01-01T00:00:00Z', '--to', '2026-01-02T00:00:00Z',
+            '--out', join(tmp3, 'kimenet'), ...extra], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+          return { kod: 0, hiba: '' };
+        } catch (e) { return { kod: e.status, hiba: String(e.stderr || '') }; }
+      };
+      const ketert = futtat(['--projects', tmp3]);
+      step('(q5) ALAPSOKASÁG: a két projekt-könyvtár miatt az export NEVEZETTEN elakad',
+        ketert.kod === 2 && /KÉTÉRTELMŰ ÁTIRAT/.test(ketert.hiba), { kilepes: ketert.kod });
+      step('(q6) és a hiba MINDKÉT ajánlott kiutat megnevezi (--transcript és --projects)',
+        /--transcript/.test(ketert.hiba) && /--projects/.test(ketert.hiba), { transcript: /--transcript/.test(ketert.hiba) });
+      const valasztott = futtat(['--transcript', utak[0].file]);
+      step('(q7) a `--transcript` kiút MŰKÖDIK — pont azt a fájlt exportálja',
+        valasztott.kod === 0, { kilepes: valasztott.kod, hiba: valasztott.hiba.slice(0, 80) });
+      const kivalasztottDir = futtat(['--projects', utak[1].dir]);
+      step('(q8) a KIVÁLASZTOTT projekt-könyvtár is kiút (RÉGEN: `NINCS ÁTIRAT` — a tanács nem működött)',
+        kivalasztottDir.kod === 0, { kilepes: kivalasztottDir.kod, hiba: kivalasztottDir.hiba.slice(0, 80) });
+    } finally { rmSync(tmp3, { recursive: true, force: true }); }
   }
 
   const fail = results.filter((r) => !r.pass);

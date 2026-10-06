@@ -13339,6 +13339,66 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta) · `npm run verify:app-findings-r154` (P: p1–p2 a tár szintjén, p3 az ellenpár a változatlan szabályra, p4–p6 élő HTTP-n, p7 az ellenpár: az elutasítás ÁTMENETI).',
   }),
 
+  Object.freeze({
+    id: 'KUKA-323',
+    date: '2026-10-06',
+    title: 'A SAJÁT JAVÍTÁSOM ÜRESSÉ TETTE A SAJÁT MÉRÉSEMET — a próba zöld maradt, de nulla pint mért',
+    what: 'A KUKA-313 teljesítmény-mérése (`l4`) a pint a BESZÚRÁS ELŐTT tette, mert akkor a kérés-ciklus is így működött. Az F154-29 (KUKA-316) viszont megfordította a sorrendet, és a `pin()` innentől NEM pinel nem létező sorra — a mérés tehát NULLA pint hozott létre, az `unpinAll` nem végzett munkát, és az állítás akkor is zöld lett volna, ha a kvadratikus alak visszatér. MÉRVE: a javított próba 4000 pint hoz létre, és a kvadratikus alak visszatételével 452 ms-mal PIROS; a hibás alak 2 ms-mal zöld maradt.',
+    why_wrong: 'Egy mérés, aminek az ALAPSOKASÁGA elfogyott, nem mér semmit — de ugyanúgy zöldet ad, mint a jó mérés. Ez a KUKA-293 családja, egy fokkal rosszabb változatban: nem a próba volt rossz, hanem a MÁSIK javításom tette üressé, és semmi nem jelezte.',
+    replaced_by: 'A próba a kérés-ciklus MAI sorrendjét követi (beszúrás, aztán pin), és az ALAPSOKASÁGOT KIMONDOTTAN MÉRI (`l4a`: a pinek száma tényleg C) — mielőtt bármit állítana a költségről.',
+    decision: 'D-VS-3132',
+    found_by: 'A KÜLSŐ REVIEW (Codex, R154 KILENCEDIK kör — P2 `v3app/findings_r154.mjs:817`).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r154.mjs']),
+        pattern: 'ALAPSOKAS\u00c1G: mind a \\$\\{C\\}',
+        why: 'a mérés kimondja és megméri a saját alapsokaságát' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'MINDEN MÉRÉS MÉRJE MEG A SAJÁT ALAPSOKASÁGÁT. Ha egy próba feltételez egy állapotot (van pin, tele a tár, létezik a sor), azt ÁLLÍTSA is — különben egy másik javítás csendben kiütheti alóla, és a zöld onnantól semmit nem jelent. A sorrend-változás mindig átnézi a RÁ ÉPÜLŐ próbákat is.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (egy pozitív minta) · `npm run verify:app-findings-r154` (l4a az alapsokaság, l4 a költség — a kvadratikus alak visszatételével l4 PIROS).',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-324',
+    date: '2026-10-06',
+    title: 'A HIBAÜZENET OLYAN KIUTAT AJÁNLOTT, AMI NEM MŰKÖDÖTT',
+    what: 'A kétértelmű átirat-találat nevezett elakadása (KUKA-319) azt tanácsolta: „add meg a PROJEKT-GYÖKERET pontosan: `--projects <út>`". Csakhogy a feloldó a kapott utat a projekt-könyvtárak SZÜLŐJÉNEK veszi — ha az operátor a KIVÁLASZTOTT projekt-könyvtárat adta meg, az eszköz annak a TARTALMÁT nézte projektekként, és `NINCS ÁTIRAT`-tal elhasalt. MÉRVE: a régi alakon a kiválasztott könyvtárral 2-es kilépés, `NINCS ÁTIRAT` üzenettel.',
+    why_wrong: 'Egy nevezett elutasítás annyit ér, amennyit a FOLYTATÁSA: ha a tanács nem működik, akkor a hiba csak elakadás, nem segítség (KUKA-201 — a nemleges válasz vigye a MŰKÖDŐ folytatást). És itt a hibát éppen az előző kör javítása hozta be, tehát a javításhoz tartozó üzenetet NEM próbáltam ki.',
+    replaced_by: 'Három feloldási út, és MIND a három működik: `--transcript <fájl>` (pont azt a fájlt), `--projects <a kiválasztott projekt-könyvtár>` (ott közvetlenül keresi a `<munkamenet>.jsonl`-t), különben a szülő-könyvtár minden projektje. A hibaüzenet mind a hármat megnevezi.',
+    decision: 'D-VS-3133',
+    found_by: 'A KÜLSŐ REVIEW (Codex, R154 NYOLCADIK kör — P2 `tools/v3_fogyasztas_export.mjs:72`) — a saját KUKA-319 javításom ára.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_fogyasztas_export.mjs']),
+        pattern: "const explicitFile = flag\\('--transcript'\\)",
+        why: 'a közvetlen fájl-megadás mint működő kiút' }),
+      Object.freeze({ paths: Object.freeze(['tools/v3_fogyasztas_export.mjs']),
+        pattern: 'existsSync\\(directHit\\)',
+        why: 'és a KIVÁLASZTOTT projekt-könyvtár is kiút' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'A HIBAÜZENET TANÁCSÁT KI KELL PRÓBÁLNI. Ha egy elutasítás megoldást ajánl, a megoldást MÉRNI kell — különben a „nevezett elutasítás" csak szebb elakadás. És amikor egy javítás új hibaüzenetet ír, a benne ajánlott út is a javítás része.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta) · `npm run verify:app-findings-r154` (Q: q5 az alapsokaság, q6 az üzenet, q7–q8 a két kiút TÉNYLEGES futtatással; a visszavétel q7/q8-at pirosra váltja).',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-325',
+    date: '2026-10-06',
+    title: 'AZ ÚT NÉLKÜLI KAPCSOLATI CÍMET ÜRES ADATBÁZIS-NÉVNEK VETTÜK — és a DROP a forrásra mutatott volna',
+    what: 'A PostgreSQL-kliensek út nélkül a KAPCSOLÓDÓ FELHASZNÁLÓ nevét veszik adatbázis-névnek. A `sameDatabase` viszont az üres útból üres nevet képzett: egy `postgres://source_user:pw@host` forrás és egy `VS_RESTORE_TEST_DB=source_user` cél „eltér"-nek számított, holott UGYANAZ az adatbázis — a lánc végén pedig `DROP DATABASE "source_user"` áll. MÉRVE a feloldón: a régi alak `same: false`, a mostani `same: true`.',
+    why_wrong: 'Ugyanaz a hibaosztály, mint a KUKA-317 (ott a százalék-kódolás, itt az elhagyott út): a KÜLSŐ alakból olvasott azonosságnál a NORMALIZÁLÁS az összehasonlítás része — és ha a kliens-oldali ALAPÉRTELMEZÉST nem ismerjük, a két oldal ugyanarra a dologra két nevet lát.',
+    replaced_by: 'Üres út mellett a felhasználó neve (dekódolva) az adatbázis-név; ha felhasználó sincs, a tényleges név NEM megállapítható (a kliens a rendszer-felhasználót veszi), és ott — mert a következmény visszafordíthatatlan — ÓVATOSAN megállunk.',
+    decision: 'D-VS-3134',
+    found_by: 'A KÜLSŐ REVIEW (Codex, R154 NYOLCADIK kör — P1 `tools/lib/vs_pg_target.mjs:53`) — a saját KUKA-317 javításom maradék éle.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_pg_target.mjs']),
+        pattern: 'if \\(!decoded\\) \\{',
+        why: 'az üres út külön eset: a felhasználó neve az adatbázis' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'A KLIENS ALAPÉRTELMEZÉSE IS A SZERZŐDÉS RÉSZE. Ha egy azonosságot külső címből olvasunk ki, nem elég a megadott részeket összevetni: azt is tudni kell, MIT tesz a kliens, amikor valami NINCS megadva — különben ugyanarra a dologra két nevet látunk. És ahol a következmény visszafordíthatatlan, a „nem tudom" az ÓVATOS ágra esik.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (egy pozitív minta) · `npm run verify:app-findings-r154` (Q: q1 az eset, q2 az ellenpár, q3 a nem megállapítható, q4 a kódolt felhasználó-név).',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

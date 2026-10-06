@@ -8,8 +8,8 @@
 
 ## 1. A LEGRÖVIDEBB VÁLASZ, ÜZLETI NYELVEN
 
-Az auditot a **meglévő, változatlan V3-on** végeztem, nem egy új funkció tervén. Találtam **35 valós
-hibát vagy nevesített rést**, ebből **32-t megjavítottam**, mindegyiket előbb **megmértem** (reprodukció
+Az auditot a **meglévő, változatlan V3-on** végeztem, nem egy új funkció tervén. Találtam **38 valós
+hibát vagy nevesített rést**, ebből **35-öt megjavítottam**, mindegyiket előbb **megmértem** (reprodukció
 számokkal), aztán javítottam, aztán **visszavétel-próbával** igazoltam, hogy a próba tényleg fogja a
 hibát. Három tétel nevesítetten NYITVA marad, mert a javítása nem audit-javítás, hanem **döntés** — ezeket
 a 7. szakasz nevezi meg.
@@ -44,10 +44,10 @@ zöld maradt**, tehát a zöldje ezekről semmit nem mondott.
 
 | ki mit tesz | tényleges állapot |
 |---|---|
-| **Codex (külső ellenőrző, GitHub App)** | **MŰKÖDIK, automatikus.** Minden felküldött változatot magától átolvas, és soronkénti leleteket ír a PR-re. Mérve: **nyolc** teljes kör (`4fe5e02f` · `a0969896` · `624f80d3` · `88bc0d4d` · `8b185f03` · `c1d7dbb5` · `0098ac4e` · `1704a5fc`, és a nyolcadik `00e4251`-en), és a Codex **külön biztonsági** átolvasást is futtat minden commitra |
+| **Codex (külső ellenőrző, GitHub App)** | **MŰKÖDIK, automatikus.** Minden felküldött változatot magától átolvas, és soronkénti leleteket ír a PR-re. Mérve: **kilenc** teljes kör, `4fe5e02f`-től `424c45a9`-ig — és a Codex minden commitra **külön biztonsági** átolvasást is futtat, és a Codex **külön biztonsági** átolvasást is futtat minden commitra |
 | **a leletek javítása** | **ÉN végzem** (Claude-v3): reprodukció → javítás → visszavétel-próba → válasz a szálon → a szál lezárása. Nem a Codex „address that feedback" gombja: azt nem használom, mert a javítást mérni kell |
-| **az utolsó review-kör SHA-ja** | **`00e4251e6b6096c80b79f2e2d0964508141b3cf5`** (2026-10-06 14:56 UTC) — ennek mind a két **P1** lelete javítva és a szálon megválaszolva |
-| **nyitott review-szál** | **nincs**: mind a 23 szál lezárva (12 + 4 + 4 + 1 + 2) |
+| **az utolsó review-kör SHA-ja** | **`424c45a90981d700d38e2baedf963707a902cda0`** (2026-10-06 15:10 UTC) — ennek lelete is javítva és a szálon megválaszolva |
+| **nyitott review-szál** | **nincs**: mind a 26 szál lezárva |
 | **ami ezután jöhet** | a `00e4251` és a `1ae404a` átolvasása a jelentés írásakor még FUTOTT — a PR-re fel vagyok iratkozva, tehát az új lelet megérkezik hozzám. Ez a jelentés a legutóbbi felküldött állapotot írja le |
 | **amit az operátornak tennie kell** | **semmit.** Sem bekapcsolás, sem jogosultság, sem kulcs nem hiányzik ehhez |
 
@@ -131,6 +131,14 @@ figyelembe venni. Különben a javítás a hiba egyik felét orvosolja, a másik
 ahány kérés fut*) **megszűnt**. A plafon a `set` után MINDIG áll; a felvétel elutasítható, de
 kiléptetés nincs — és az elutasítás ÁTMENETI (amint a futó kérések elengedik a sorukát, a belépés
 sikerül).
+
+### 3.2e A nyolcadik-kilencedik kör maradéka — és egy ÜRES MÉRÉS
+
+| # | a hiba | mérve | gépi jel |
+|---|---|---|---|
+| **F154-36 (P2)** | **a saját javításom ÜRESSÉ tette a saját mérésemet**: az F154-27 teljesítmény-próbája a pint a beszúrás ELŐTT tette, az F154-29 viszont megfordította a sorrendet — a mérés NULLA pint hozott létre | a hibás alak 2 ms-mal zöld maradt; a javított próba 4000 pinnel mér, és a kvadratikus alak visszatételével **452 ms**-mal PIROS | l4a + l4 · `KUKA-323` |
+| **F154-37 (P2)** | a kétértelműség hibaüzenete olyan kiutat ajánlott, ami **nem működött** (a feloldó a kapott utat a projekt-könyvtárak SZÜLŐJÉNEK veszi) | a kiválasztott könyvtárral `NINCS ÁTIRAT`, 2-es kilépés → most **mind a két** ajánlott út működik | Q: q5–q8 · `KUKA-324` |
+| **F154-38 (P1)** | az ÚT NÉLKÜLI kapcsolati címet üres adatbázis-névnek vettük, holott a kliensek ilyenkor a FELHASZNÁLÓ nevét veszik — tehát a `DROP DATABASE` megint a FORRÁSRA mutathatott | `postgres://source_user:pw@host` + cél `source_user` → régen „eltér”, most AZONOS (megállás) | Q: q1–q4 · `KUKA-325` |
 
 ### 3.3 Saját leletek a javítás közben — ezeket a saját próbáim kapták el
 

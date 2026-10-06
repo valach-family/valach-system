@@ -49,12 +49,32 @@ export function restoreTargetProblem(value) {
  * pedig IGEN-t ad: ahol a következmény `DROP DATABASE`, ott a „nem tudom" nem lehet „nem egyezik".
  */
 export function sameDatabase(sourceUrl, restoreTarget) {
-  let raw;
-  try { raw = String(new URL(String(sourceUrl)).pathname || '').replace(/^\/+/, ''); }
+  let u;
+  try { u = new URL(String(sourceUrl)); }
   catch { return { same: true, basis: 'a forrás-cím nem értelmezhető — ÓVATOS megállás' }; }
+  const raw = String(u.pathname || '').replace(/^\/+/, '');
   let decoded;
   try { decoded = decodeURIComponent(raw); }
   catch { return { same: true, basis: 'a forrás adatbázis-neve hibás százalék-kódolást tartalmaz — NEM megállapítható, ÓVATOS megállás' }; }
+  /**
+   * AZ ÚT NÉLKÜLI CÍM IS MEGNEVEZ EGY ADATBÁZIST (F154-38, külső review, Codex, nyolcadik kör, P1).
+   *
+   * A LELET: a PostgreSQL-kliensek út nélkül a KAPCSOLÓDÓ FELHASZNÁLÓ nevét veszik adatbázis-névnek.
+   * Egy `postgres://source_user:pw@host` forrás és egy `VS_RESTORE_TEST_DB=source_user` cél tehát
+   * UGYANAZ az adatbázis — a korábbi alak viszont üres nevet látott, „eltér"-t mondott, és a lánc
+   * végén álló `DROP DATABASE "source_user"` a FORRÁST törölte volna. Ha a felhasználó sem áll a
+   * címben, a tényleges név NEM megállapítható (a kliens a futtató rendszer-felhasználóját veszi),
+   * és akkor — mert a következmény visszafordíthatatlan — ÓVATOSAN megállunk.
+   */
+  if (!decoded) {
+    let user;
+    try { user = decodeURIComponent(String(u.username || '')); } catch { user = String(u.username || ''); }
+    if (!user) return { same: true, basis: 'a forrás-cím nem nevez meg adatbázist, és felhasználót sem — a tényleges név NEM megállapítható, ÓVATOS megállás' };
+    if (user === String(restoreTarget)) {
+      return { same: true, basis: 'a forrás-cím nem nevez meg adatbázist, ezért a FELHASZNÁLÓ neve az adatbázis — és az azonos a céllal' };
+    }
+    return { same: false, basis: 'a forrás-cím nem nevez meg adatbázist; a felhasználóból adódó név eltér a céltól' };
+  }
   if (decoded === String(restoreTarget)) {
     return { same: true, basis: raw === decoded ? 'a két név azonos' : 'a két név a forrás DEKÓDOLÁSA után azonos' };
   }

@@ -467,6 +467,54 @@ belépés sikerül (mérve: `p7`). És ha a staging rendszeresen ezt adja, a pla
 
 ---
 
+## D-VS-3132 — MINDEN MÉRÉS MÉRJE MEG A SAJÁT ALAPSOKASÁGÁT (R154)
+
+**A döntés.** A teljesítmény- és viselkedés-mérések KIMONDOTTAN állítják a saját előfeltételüket (itt:
+`l4a` — a pinek száma tényleg annyi, amennyit a mérés feltételez), mielőtt bármit állítanának.
+
+**Miért.** A KUKA-313 mérése a pint a beszúrás ELŐTT tette; az F154-29 megfordította a sorrendet, és a
+`pin()` nem létező sorra már nem pinel — a mérés NULLA pint hozott létre, tehát akkor is zöld lett
+volna, ha a kvadratikus alak visszatér. MÉRVE: a javított próba 4000 pinnel, a kvadratikus alak
+visszatételével **452 ms**-mal piros; a hibás alak 2 ms-mal zöld maradt.
+
+**Amit ez NEM állít.** Nem állítja, hogy a battéria MINDEN mérése kimondja az alapsokaságát — ez EGY
+mérés javítása és EGY szabály kimondása. Gépi jel: `npm run verify:kuka` (KUKA-323) ·
+`npm run verify:app-findings-r154` (l4a, l4).
+
+---
+
+## D-VS-3133 — A NEVEZETT ELUTASÍTÁSNAK MŰKÖDŐ KIÚTJA VAN (R154)
+
+**A döntés.** A fogyasztás-export kétértelműségénél három feloldási út van, és MIND a három működik:
+`--transcript <fájl>`, `--projects <a KIVÁLASZTOTT projekt-könyvtár>`, vagy a szülő-könyvtár minden
+projektje. A hibaüzenet mind a hármat megnevezi.
+
+**Miért.** A korábbi üzenet a projekt-gyökér megadását tanácsolta, de a feloldó a kapott utat a
+projekt-könyvtárak SZÜLŐJÉNEK veszi — a kiválasztott könyvtárral tehát `NINCS ÁTIRAT`-tal elhasalt
+(mérve: 2-es kilépés). Egy nevezett elutasítás annyit ér, amennyit a folytatása (KUKA-201).
+
+**Amit ez NEM állít.** Nem fűzi össze a több átiratot — az továbbra is a mérő dolga, és ezt az üzenet
+kimondja. Gépi jel: `npm run verify:kuka` (KUKA-324) · `npm run verify:app-findings-r154` (Q: q5–q8).
+
+---
+
+## D-VS-3134 — AZ ÚT NÉLKÜLI KAPCSOLATI CÍM ADATBÁZIS-NEVE A FELHASZNÁLÓ (R154)
+
+**A döntés.** Ha a `DATABASE_URL` nem nevez meg adatbázist, az adatbázis-név a kapcsolódó FELHASZNÁLÓ
+neve (dekódolva) — ezt vetjük össze a visszatöltési céllal. Ha felhasználó sincs, a tényleges név NEM
+megállapítható, és ott ÓVATOSAN megállunk.
+
+**Miért.** A PostgreSQL-kliensek alapértelmezése ez. A korábbi alak üres nevet képzett, így egy
+`postgres://source_user:pw@host` forrás és egy `VS_RESTORE_TEST_DB=source_user` cél „eltér"-nek
+számított, holott UGYANAZ az adatbázis — a lánc végén pedig `DROP DATABASE` áll. Ugyanaz a hibaosztály,
+mint a D-VS-3126 (ott a százalék-kódolás, itt az elhagyott út).
+
+**Amit ez NEM állít.** Nem teljes libpq-kompatibilis feloldás (környezeti változók, `.pgpass`, `PGDATABASE`
+nincs figyelembe véve) — ezért is esik a „nem tudom" az óvatos ágra. Gépi jel: `npm run verify:kuka`
+(KUKA-325) · `npm run verify:app-findings-r154` (Q: q1–q4).
+
+---
+
 ## D-VS-3117 — A KONFIGURÁCIÓS ÉRTÉK ALAKJA IS MÉRT, ÉS AZ AZONOSÍTÓ IDÉZŐJELEZVE MEGY (R154)
 
 **A döntés.** A `proof:pg-durability` megméri a `VS_RESTORE_TEST_DB` alakját (zárt azonosító-minta), és
