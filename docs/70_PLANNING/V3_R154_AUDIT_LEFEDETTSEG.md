@@ -57,11 +57,14 @@ Vagyis: **a teljes söprés zöldje a lenti három leletről SEMMIT nem mondott.
 
 | 27 | A munkamenet-tár NEGYEDIK külső review-köre | a Codex egy **P1** és egy P2 lelete `8b185f0`-on; mindkettő REPRODUKÁLVA | **F154-21 (P1) · F154-22 (P2) — mind VALÓS, és mindkettő a SAJÁT előző javításom ára**: (21) a felvétel ellenőrzése EGYSZERI volt, a kérés viszont `await readBody`-n megszakad — a lassú, darabolt POST **200**-at adott és ÁRVA sort hagyott (TOCTOU); (22) az átfogó `503 at_capacity` a `GET /api/verify`-t is elzárta, ami munkamenetet nem is használ — **a megerősítő levél hivatkozása nem volt megnyitható** | `verify:app-findings-r154` J: j1–j5; a HŰ visszavétel 3 pirosat ad (`j2`-n pontosan az 1 árva sor) | *(e csomag 12. commitja)* | a plafon nem pontos korlát: a tár annyival lóghat túl, ahány kérés ÉPP FUT, és a plafon a KÖVETKEZŐ beszúrásnál érvényesül — kimondott tűrés |
 | 28 | **F154-23 — a SAJÁT visszavétel-próbám hiányos volt** | a pin kivétele a `drop`-ból (egy hatás), majd a `pin()` feloldónál (a forrás) | **VALÓS, mérés-minőségi**: a pin KÉT ponton hat (a `drop` védelmében ÉS a plafon-számításban); az elsőt kivéve a battéria joggal maradt 76/76 zöld — én viszont arra következtettem, hogy a próbáim nem védenek, és **feleslegesen újraírtam egy jó próbát**. A forrásnál hatástalanítva azonnal 3 piros | a két visszavétel eredménye egymás mellett | *(e csomag 12. commitja — a `j` csoport megtartva)* | ennek NINCS gépi jele: a visszavétel-próba kézi lépés, a tanulság helye a munkarend (KUKA-309) |
+| 29 | **F154-24 — az ÁTADÁSI leltárt egy beégetett út blokkolta** | a csomag zárásakor, a tartalom nélküli fogyasztás-leltár írásakor | **VALÓS, saját lelet**: a `tools/v3_fogyasztas_export.mjs` BEÉGETVE a `-home-user` projekt-könyvtárban kereste az átiratot, a mérő (`transcriptsOf`) viszont MINDEN projekt-könyvtárat végignéz. Itt a projekt `-home-user-valach-system`: a mérő 315 hívást olvasott be ugyanabból az átiratból, amire az export `NINCS ÁTIRAT`-tal elhasalt — és ezzel a csomagváltáshoz KÖTELEZŐ leltárt állította meg | `verify:kuka` (KUKA-310) · `verify:app-findings-r154` K: k1–k2; a visszavétel a k2-t pirosra váltja | `8bc46e5` | egyetlen verifier sem jelezte, mert az export EGYSZERI eszköz, nem része a söprésnek — a hibája csak HASZNÁLAT közben látszik |
+| 30 | A munkamenet-tár **ÖTÖDIK** külső review-köre | a Codex egy **P1** és három P2 lelete `c1d7dbb`-en; mind a négy REPRODUKÁLVA a megadott számokkal | **F154-25 (P1) · F154-26 · F154-27 · F154-28 — mind VALÓS, és mind a NÉGY az előző körben bevezetett pin ára**: (25) a pin a PLAFON alól is kivette a sort, az elengedés viszont nem söpört — 10 ÁTFEDŐ kérés után a tár 2-es plafonon **12 sornál** állt (tár szintjén ÉS élő HTTP-n); (26) dobó takarításnál a kiszorított azonosítók ELVESZTEK, a sorok többé nem voltak megtalálhatók; (27) **negyedszer** a költség-osztály: a pin elengedése kérésenként a teljes pin-táblát olvasta — 4000 átfedő kérés **593 ms → 6 ms**; (28) a kikeresés és az érintés KÉT külön időben történt, a hívó egy eldobott sort hitt élőnek | `verify:app-findings-r154` L: l1–l8; a visszavétel MINDEGYIKNÉL a mechanizmus SAJÁT forrásánál piros (l1/l7 12 sorral, l3 0 várólistával, l4 593 ms-mal, l5/l6) | `0098ac4` | **és egy SAJÁT hiba, commit előtt elkapva**: az F154-25 javításának első alakja a védettséget nem kérdezte meg, és egy ÉLŐ munkamenet folytatását vitte el — a saját `g7` ellenpárom buktatta el (KUKA-315: az ÚJ út nem örökölte a régi út őrét) |
 
 ### A GYÖKÉR-OK, AMIT KI KELL MONDANI
 
-**A 23 leletből 15 ugyanabban a munkamenet-tárban volt**, amit ebben a csomagban én írtam.
-NÉGY külső review-kör, és mindegyik talált benne újabb interakciót. A negyedik kör után a
+**A 28 leletből 19 ugyanabban a munkamenet-tárban volt**, amit ebben a csomagban én írtam.
+ÖT külső review-kör, és mindegyik talált benne újabb interakciót — az ötödik egyedül NÉGYET, és mind a
+négy az előző kör javításának (a pin) ára. A negyedik kör után a
 foltozás helyett a FELTEVÉST tettem igazzá (a kiszolgálás idejére védett munkamenet), és ezzel KÉT
 mechanizmust vontam ki (`admitted` + `503 at_capacity`) egy helyett — tehát a terület bonyolultsága
 először CSÖKKENT, nem nőtt. Ez a helyes irány, de a lenti javaslatot nem váltja ki. Ez nem véletlen, és nem is a
@@ -71,13 +74,15 @@ kiszorítási osztály · a beszúrt sor védelme · osztályonkénti vízszint 
 
 **Három ismétlődő osztály, nevén nevezve:**
 
-1. **A védelem költsége a támadással nőtt** — háromszor (F154-01 · F154-11 · F154-17). A gépi jeleim
-   egy-egy KONKRÉT függvény-sorra illeszkedtek, ezért a szomszéd helyen újra elkövethető volt.
+1. **A védelem költsége a támadással nőtt** — NÉGYSZER (F154-01 · F154-11 · F154-17 · F154-27). A gépi
+   jeleim egy-egy KONKRÉT függvény-sorra illeszkedtek, ezért a szomszéd helyen újra elkövethető volt.
 2. **Egy szabály több otthonban** — kétszer (F154-14 · F154-15). Mindkettő abból jött, hogy a szabályt
    típusonként/helyenként KÉZZEL írtam be, nem egy feloldóból hívtam.
-3. **Egy javítás mellékhatása** — háromszor (F154-13 az F154-09-ből · F154-14 az ISC-02-ből ·
-   F154-16 az F154-13-ból). Mindhárom ott keletkezett, ahol egy ÚJ szabály egy MEGLÉVŐ rangsorba
-   került, és az ütközést nem mondtam ki.
+3. **Egy javítás mellékhatása** — HÉTSZER (F154-13 az F154-09-ből · F154-14 az ISC-02-ből · F154-16 az
+   F154-13-ból · és az ÖTÖDIK kör MIND A NÉGY lelete a pinből, azaz az F154-21/22 javításából).
+   Mindegyik ott keletkezett, ahol egy ÚJ szabály egy MEGLÉVŐ rangsorba vagy mechanizmusba került, és az
+   ütközést nem mondtam ki. **Ez a legerősebb érv a lenti átalakítás mellett: a foltozás itt már nem
+   konvergál** — minden kör javítása hozza a következő kör leleteit.
 
 **A javaslat, amit NEM hajtok végre magamtól, mert túlmutat a kérés hatókörén.** A legtöbb interakció
 abból fakad, hogy **minden süti nélküli kérésre munkamenet születik**, akkor is, ha soha nem lesz rá
@@ -96,8 +101,8 @@ fájlban, a védett-lista kérdése felvett egy korlátlan költséget. A saját
 mert a mintája EGY FÜGGVÉNY sorára illeszkedett, nem a hibaosztályra. Ezt a regiszter most kimondja.
 
 Ebből két dolog következik a csomag hátralévő részére: (1) a hibaosztályokat a jelekben is
-általánosítani kell, nem csak a tanulság szövegében; (2) a külső review értéke MÉRHETŐ — **tíz valós
-hibát** talált a saját javításaimban (ebből egy **P1**), és mindegyik olyan helyen volt, ahol a saját
+általánosítani kell, nem csak a tanulság szövegében; (2) a külső review értéke MÉRHETŐ — **tizennégy valós
+hibát** talált a saját javításaimban (ebből KETTŐ **P1**), és mindegyik olyan helyen volt, ahol a saját
 battériám zöld maradt.
 
 És van egy harmadik, kellemetlenebb: a **KUKA-303** azt mutatja, hogy egy kockázat MEGNEVEZÉSE nem
