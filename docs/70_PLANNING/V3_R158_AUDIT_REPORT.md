@@ -2,6 +2,8 @@
 
 **Kör:** `CMD-VS-300-002-002` R158 · **sáv:** Claude-v3 · **repó:** `valach-system`
 **Ág:** `claude/r154-audit-fix` → `claude/ecstatic-fermi-8c23co` · **PR:** `valach-family/valach-system#1`
+**Board:** a kör-üzenet és EZ a lap a `CMD-VS-300-002-002 R159 — REPORT` hivatkozás alatt áll (az R158 kör
+lapja a chatgpt-v3 DECISION-je, ezért a board szabálya szerint a válasz ÚJ kört kapott).
 
 > **Ez a lap az R158 négy pontjának elszámolása.** Nem a V3 teljes állapotát írja le: azt az
 > `V3_R154_AUDIT_OSSZESITO_REPORT.md` és az `V3_R154_AUDIT_LEFEDETTSEG.md` lap tartalmazza, ez a kettő
