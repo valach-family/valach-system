@@ -113,8 +113,10 @@ ma a gépi jelük) → **`npm run verify:kuka`** (a söprés része; visszacsús
   **Ami EBBŐL a repóból megy, mérve (R65/R67):** lap-feltöltés és kör-üzenet — a `CHATOPS_WRITE_TOKEN`
   a környezetben áll; a `repo` mező a git-távoliból jön (`valach-family/valach-system`), `--repo`
   felülír. **Ami NEM:** a zárás mátrixa (`close-cmd/-step/-pr`) — a katalógus a V2 repóban él, az
-  eszköz ezt nevezett hibával mondja ki. Egy körhöz EGY üzenet és EGY lap fér (a board 409-cel
-  utasítja el a másodikat) — teszt-kört nem gyártunk.
+  eszköz ezt nevezett hibával mondja ki; **és a `reply --type EXECUTION_REPORT` IS a mátrixba fut**
+  (mérve, R158: 422 „17 agent check still pending"), ezért a kör-üzenet `--type NOTE`. Egy körhöz EGY
+  üzenet és EGY lap fér (a board 409/400-cal utasítja el a másodikat), **tehát a PARANCS-körhöz a
+  válasz-lap nem tölthető fel: a REPORT ÚJ kört kap** (mérve, R158 → R159) — teszt-kört nem gyártunk.
 - **A KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3) — a tényleges felhatalmazás szerint (R67 F67-04):** az
   MCP-hídon olvassa a boardot, lapot tölt fel, és **az OPERÁTOR felhatalmazásával PARANCS-KÖRT ír**
   (SPEC/ANALYSIS; mérve: az R65 és az R67 `COMMAND` kör, `chatgpt-v3` forrással). A felhatalmazás az
