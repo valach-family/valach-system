@@ -311,8 +311,11 @@ export const RESIDUAL_RESOLUTIONS = Object.freeze([
       + '„lejárat kikapcsolva" ág, KUKA-238)',
     limit: 'A tábla ALAKJA nem változott — ma is három oszlop (session_id, invite_token, '
       + 'created_at); a lejárat ebből a `created_at`-ból számol, külön lejárat-oszlop nincs. '
-      + 'A türelmi idő FIX kiszolgáló-oldali állandó (PENDING_INTENT_TTL_MS = 24 óra), nem '
-      + 'meghívónként állítható, és nem az eredeti meghívó saját lejáratát követi. A takarítás '
+      + 'A türelmi idő FIX kiszolgáló-oldali szabály, nem meghívónként állítható, és nem az '
+      + 'eredeti meghívó saját lejáratát követi. A kimondott 24 óra PLAFON, nem a tényleges '
+      + 'élettartam: a sor EGYETLEN kulcsa a munkamenet, ezért a ténylegesen kiszolgálható idő a '
+      + 'plafon és a munkamenet tétlenségi korlátjának KISEBBIKE (`intentTtlMs`) — a mai '
+      + 'alapértéken 12 óra (F158-17, külső review). A takarítás '
       + 'AMORTIZÁLT: egy lejárt sor legfeljebb egy percig még a táblában állhat — folytatni '
       + 'azonban nem lehet, mert az olvasás is kapu. A mérés HELYI PostgreSQL és `node:sqlite` '
       + 'tárakon fut, ÓRA-ELŐRETOLÁSSAL (nem 24 órás valós várakozással).',

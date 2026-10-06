@@ -18,7 +18,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { openStore, clockFrom, instantMs } from './store.mjs';
 import { observeInvite, redeemInvite, rememberIntent, resumeIntent, inviteGrantAt,
   revokeInvite, inviteRevocationAt, inviteOpenAt, reentryAdmission,
-  purgeExpiredIntents, PENDING_INTENT_TTL_MS } from './invite.mjs';
+  purgeExpiredIntents, PENDING_INTENT_TTL_MS, intentTtlMs } from './invite.mjs';
 import { rightAt, revokeMembership, revocationTransition, roleGrants, KNOWN_ROLES } from './authz.mjs';
 import { ADJUDICATION_OPS, adjudicationRightAt, grantAdjudicationAuthority, submitClaim, readClaim,
   adjudicateClaim, suspendMembership, liftSuspension, intakeKeyOf, UNATTRIBUTED_INTAKE_KEY,
@@ -767,14 +767,25 @@ probe('P-K03-intent-expiry', 'R32/K03 · D-VS-3141 (a D-VS-3007 nevezett függő
       const halmaz = purgeExpiredIntents({ store: w.store, clock: w.clock });
       const halmazMaradt = w.store.all('SELECT session_id FROM pending_intent').map((r) => r.session_id).sort().join(',');
 
+      // (h) A FOLYTATÁS NEM ÉLHETI TÚL A KULCSÁT (F158-17, külső review, Codex, P2). A kimondott 24 óra
+      //     PLAFON: a sor egyetlen kulcsa a munkamenet, ezért a ténylegesen kiszolgálható idő a plafon
+      //     és a munkamenet tétlenségi korlátjának KISEBBIKE. A hiányzó korlát NEVEZETTEN elakad —
+      //     különben a hívó NÉMÁN visszakapná a 24 órát, vagyis pont a javított hibát (KUKA-238).
+      const ORA = 60 * 60 * 1000;
+      const ttlRovid = intentTtlMs({ sessionIdleMs: 12 * ORA });
+      const ttlHosszu = intentTtlMs({ sessionIdleMs: 48 * ORA });
+      let ttlNevezett = false;
+      try { intentTtlMs({}); } catch (e) { ttlNevezett = /tétlenségi korlátja KÖTELEZŐ/.test(String(e && e.message)); }
+
       const ok = friss === 'tok_1' && lejart === null && sorEltunt
         && takaritas.purged === 1 && maradt.join(',') === 'sess_friss,sess_most' && nevezett === true
         && romlott === null && romlottEltunt === true
         && jovo === null && jovoEltunt === true
-        && halmaz.purged === 2 && halmazMaradt === 'arva_friss';
+        && halmaz.purged === 2 && halmazMaradt === 'arva_friss'
+        && ttlRovid === 12 * ORA && ttlHosszu === PENDING_INTENT_TTL_MS && ttlNevezett === true;
       return {
-        expected: 'friss=tok_1 · lejárt=null és a sor eltűnt · takarítás=1 lejárt sor, a friss marad · óra nélkül NEVEZETT hiba · ROMLOTT és JÖVŐBELI időbélyeg = lejárt · a HALMAZOS takarítás az árva romlott és jövőbeli sort is viszi, a frisset nem',
-        actual: `friss=${friss} · lejárt=${lejart} · sor_eltunt=${sorEltunt} · takaritva=${takaritas.purged} · maradt=${maradt.join(',')} · nevezett_hiba=${nevezett} · romlott=${romlott} · romlott_eltunt=${romlottEltunt} · jovo=${jovo} · jovo_eltunt=${jovoEltunt} · halmaz_takaritva=${halmaz.purged} · halmaz_maradt=${halmazMaradt}`,
+        expected: 'friss=tok_1 · lejárt=null és a sor eltűnt · takarítás=1 lejárt sor, a friss marad · óra nélkül NEVEZETT hiba · ROMLOTT és JÖVŐBELI időbélyeg = lejárt · a HALMAZOS takarítás az árva romlott és jövőbeli sort is viszi, a frisset nem · a türelmi idő a PLAFON és a munkamenet KISEBBIKE, korlát nélkül NEVEZETT hiba',
+        actual: `friss=${friss} · lejárt=${lejart} · sor_eltunt=${sorEltunt} · takaritva=${takaritas.purged} · maradt=${maradt.join(',')} · nevezett_hiba=${nevezett} · romlott=${romlott} · romlott_eltunt=${romlottEltunt} · jovo=${jovo} · jovo_eltunt=${jovoEltunt} · halmaz_takaritva=${halmaz.purged} · halmaz_maradt=${halmazMaradt} · ttl_12h=${ttlRovid / ORA}h · ttl_48h=${ttlHosszu / ORA}h · ttl_korlat_nelkul_nevezett=${ttlNevezett}`,
         pass: ok,
       };
     } finally { w.store.close(); }

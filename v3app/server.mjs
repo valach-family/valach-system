@@ -37,7 +37,7 @@ import { bootstrapOf, workspacesOf, ensurePersonalSpace, personalSpaceOf, provis
 import { inviteColleague, grantScopeToMember, revokeScopeFromMember, revokeDelegationsOf,
   delegationCeilingOf, reinviteMember } from '../v3ref/delegation.mjs';
 import { observeInvite, redeemInvite, rememberIntent, resumeIntent, purgeExpiredIntents,
-  revokeInvite, inviteRevocationAt, reentryOfferFor } from '../v3ref/invite.mjs';
+  intentTtlMs, revokeInvite, inviteRevocationAt, reentryOfferFor } from '../v3ref/invite.mjs';
 import { rightAt, revokeMembership, KNOWN_ROLES } from '../v3ref/authz.mjs';
 import { submitCommand, readCommandResult } from '../v3ref/command.mjs';
 import { KNOWN_DATA_SCOPES, declaredScopesOfType } from '../v3ref/resultScope.mjs';
@@ -1009,8 +1009,11 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     }
     return out;
   };
+  // A FELOLDOTT KORLÁTOK NEVET KAPNAK: a folytatás türelmi ideje a TÉTLENSÉGI korlátból származik
+  // (F158-17), tehát a feloldó eredményére később is hivatkozunk — nem hívjuk meg kétszer.
+  const limits = sessionLimits();
   const sessions = makeSessionStore({
-    ...sessionLimits(),
+    ...limits,
     protectedIds: (candidates) => new Set(
       sessionStateIn(candidates, (q) => `SELECT session_id FROM pending_intent WHERE session_id IN (${q})`)
         .map((r) => String(r.session_id))),
@@ -1034,11 +1037,22 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
    * A LEJÁRATOT AZ OLVASÁS IS ÉRVÉNYESÍTI (`resumeIntent`), tehát a két takarítás KÖZÖTT sem lehet
    * lejárt szándékot folytatni — a periodikus törlés a TÁBLA méretéről szól, nem a helyességről.
    */
+  /**
+   * A FOLYTATÁS TÜRELMI IDEJE EGY HELYEN (F158-17, külső review, Codex, P2 · D-VS-3157).
+   *
+   * A kimondott plafon 24 óra, a sor EGYETLEN kulcsa viszont a munkamenet — ami a tétlenségi korlát
+   * után kiesik, és magával viszi a sort. A ténylegesen kiszolgálható idő tehát a KETTŐ KISEBBIKE, és
+   * ezt a MAG feloldója adja meg. MINDEN olvasó és a takarítás is EZEN a kapun megy: ha egy új hívó
+   * közvetlenül hívná a magot, megint a 24 órát kapná (KUKA-227 · KUKA-039).
+   */
+  const intentTtl = intentTtlMs({ sessionIdleMs: limits.idleMs });
+  const folytatasa = (sessionId) => resumeIntent({ store, sessionId, clock, ttlMs: intentTtl });
+
   let nextIntentPurge = 0;
   function purgeIntentsIfDue(now = Date.now()) {
     if (now < nextIntentPurge) return null;
     nextIntentPurge = now + 60_000;
-    try { return purgeExpiredIntents({ store, clock }); }
+    try { return purgeExpiredIntents({ store, clock, ttlMs: intentTtl }); }
     catch (e) {
       console.warn(`[v3app] a lejárt függő szándékok takarítása nem sikerült: ${e && e.message}`);
       return null;
@@ -1370,7 +1384,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       // VAN-E MEGHÍVÁS-KONTEXTUS (P109-01, R109). A meghívó-képernyőhöz kötött bemutatót csak így
       // kínáljuk fel: a tényt a MAG mondja meg (`resumeIntent` a `pending_intent` soron), nem a
       // böngésző feltevése — és NEM a meghívó tartalma, tehát védett adat nem szivárog ki vele.
-      invite_context: Boolean(session.transient ? null : resumeIntent({ store, sessionId: session.id, clock })),
+      invite_context: Boolean(session.transient ? null : folytatasa(session.id)),
       // A BEMUTATÓ-KÖRNYEZET (R140 — ACT-01). A doktrína három környezetet nevez meg
       // (production · staging · demo); a `demo` az, ahol a bemutató-szereplők munkamenete
       // együtt elérhető, és csak ott kínálunk fel KÉT ÉLŐ MUNKAMENETET igénylő végigvezetést.
@@ -1568,7 +1582,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       if (!r.ok) return { status: 401, body: { ok: false, reason: r.reason, message: 'a belépés nem sikerült — ellenőrizd a címet és a jelszót' } };
       // A FÜGGŐ MEGHÍVÓ-SZÁNDÉK A RÉGI munkamenet-azonosítón áll — átvisszük az ÚJRA (K03).
       // ÁTMENETI munkamenetnek nincs azonosítója, tehát függő szándéka sem lehet (SES-04).
-      const pending = session.transient ? null : resumeIntent({ store, sessionId: session.id, clock });
+      const pending = session.transient ? null : folytatasa(session.id);
       // A SAJÁT RÉGI SOR ELŐBB MEGY, AZTÁN JÖN AZ ÚJ (F154-12). A korábbi sorrend ELŐBB szúrt be:
       // telt táron ez IDEGEN belépett munkamenetet szorított ki, a saját régi sor törlése pedig
       // utána mégis felszabadított egy helyet — tehát egy embert feleslegesen léptettünk ki.
@@ -2955,7 +2969,9 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
 
   const server = http.createServer((req, res) => { handle(req, res); });
   server.on('close', () => { try { store.close(); } catch { /* már zárva */ } });
-  return { server, store, mailbox, sessions, dbPath: path, clock, devSurface, dialect };
+  // Az `intentTtlMs` KIFELÉ IS LÁTSZIK: a próba így MEG TUDJA MÉRNI, hogy a kiszolgáló tényleg a
+  // származtatott türelmi időt használja, nem a mag 24 órás plafonját (KUKA-207 · F158-17).
+  return { server, store, mailbox, sessions, dbPath: path, clock, devSurface, dialect, intentTtlMs: intentTtl };
 }
 
 /** Elindítja a szervert; `port: 0` ⇒ szabad port. */

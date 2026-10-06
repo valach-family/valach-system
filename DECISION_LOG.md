@@ -16,6 +16,68 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3157 — A FOLYTATÁS TÜRELMI IDEJE A MUNKAMENET ÉLETÉBŐL SZÁRMAZIK, A 24 ÓRA PLAFON (R158, K03)
+
+**A döntés.** A függő meghívó-szándék ténylegesen kiszolgálható türelmi idejét EGY feloldó adja:
+`intentTtlMs({ sessionIdleMs, ceilingMs })` = a kimondott PLAFON (24 óra) és a munkamenet tétlenségi
+korlátjának KISEBBIKE. A kiszolgáló a sajátját adja át (`sessionIdleMs: limits.idleMs`), és MINDEN
+olvasó, valamint a halmazos takarítás is EZEN a kapun megy (`folytatasa(sessionId)`). A hiányzó
+tétlenségi korlát NEVEZETTEN elakad — nincs néma visszaesés a plafonra.
+
+**Miért.** A `pending_intent` sort KIZÁRÓLAG a munkamenet azonosítója találja meg, a munkamenet pedig
+12 óra tétlenség után kiesik, és a kiesés a sort is törli (`onEvicted`). A kimondott 24 óra tehát a
+MÁSODIK 12 órában elvileg sem teljesülhetett: aki 13 óra múlva tért vissza, annak a belépése
+folytatás NÉLKÜL sikerült, miközben a kódban és a szerződés `limit` szövegében is „24 óra" állt.
+MÉRVE a javítás előtt és után: a 13 órás ÁRVA sort a régi, 24 órás mérce a táblában hagyta
+(`takarítva: 0`), a mostani elviszi (`takarítva: 1`), a 11 órás pedig marad. A HATÁRON mérve mindkét
+irány: 12 órás munkamenetnél a tényleges érték 12 óra, egy 48 órásnál a 24 órás plafon fog.
+
+**A választott irány, és a VESZTESE.** A reviewer két irányt ajánlott; a munkamenet megnyújtása
+helyett a RÖVIDÍTÉST választottam. Ok: a `pending_intent` sort belépés ELŐTT, NÉVTELENÜL is létre
+lehet hozni, tehát a hosszabb munkamenet-élet egy látogató szerver-oldali helyét duplázná — pont azt
+a felületet növelve, amit a KUKA-300/302/329 szűkített —, és a tétlenségi söprésnek munkamenetenként
+a tárolót is kérdeznie kellene (KUKA-290). A rövidítés VESZTESE: a folytatás a 12. óra után nem
+él tovább. Ez eddig sem élt — most a SZÖVEG mondja ezt, nem az ellenkezőjét.
+
+**Amit ez NEM állít.** Nem hosszabbítja meg egyetlen folytatást sem, és nem takarítja ki
+visszamenőleg a korábban keletkezett árva sorokat. Gépi jel: `npm run verify:v3ref`
+(P-K03-intent-expiry (h) ág + M218/M219 mutáció) · `npm run verify:app-findings-r154` (Y: y6–y8) ·
+`npm run verify:kuka` (KUKA-350).
+
+---
+
+## D-VS-3158 — A KAPCSOLATI CÍM JELENTÉSÉHEZ A KÖRNYEZET IS HOZZÁTARTOZIK (R158, a visszatöltési kapu)
+
+**A döntés.** A forrás adatbázis nevét a `tools/lib/vs_pg_target.mjs` feloldója a libpq TELJES
+sorrendjében adja meg, és a CÍM megelőzi a KÖRNYEZETET: query `dbname` → út → `PGDATABASE` → query
+`user` → cím-felhasználó → `PGUSER`. Ha egyik sem nevez meg, a név NEM TUDHATÓ (a kliens a
+rendszer-felhasználóból veszi), tehát a `sameDatabase` óvatosan megáll. A szolgáltatást a környezet
+is megnevezheti (`PGSERVICE`): erre ugyanaz a válasz, mint a `?service=`-re. A környezet INJEKTÁLHATÓ
+paraméter, az alapértelmezése a futó folyamat környezete.
+
+**Miért.** A `pg_dump` a környezetet ÖRÖKLI. MÉRVE a reviewer példáján: `postgres://decoy@host` +
+`PGDATABASE=source` esetén a régi alak `decoy`-t mondott forrásnak, tehát a `VS_RESTORE_TEST_DB=source`
+„eltér"-t kapott, a lánc elindult, és a végén álló `DROP DATABASE "source"` a VALÓDI forrást
+törölte volna. Most ugyanez `source` → `same: true` → megállás; az ellenpár (ugyanaz a cím környezet
+nélkül) továbbra is jogosan indul.
+
+**Amit kimondok, mert nem jó irányba tévedni: a KORÁBBI mondatom nem volt igaz.** A KUKA-341-ben azt
+írtam, hogy a környezeti változók „nincsenek benne, és pont ezért esik minden bizonytalanság az
+óvatos ágra". Nem esett: a felhasználó-alapú tartalék NEVET adott, a név pedig ELDÖNTÖTT válasz —
+a kapu nem megállt, hanem továbbengedett. Egy kimondott hiány csak akkor védelem, ha a kód tényleg
+megáll (KUKA-020 · KUKA-050).
+
+**Amit ez NEM állít, és ami TUDATOSAN óvatosabb a kelleténél.** Ez nem teljes libpq-feloldás: a
+szolgáltatás-fájl tartalmát NEM olvassuk (más gépen, más engedélyekkel áll, és a `PGSERVICEFILE`
+is átállítható), és a rendszer-felhasználó nevét sem tippeljük meg. Ezért `?service=` vagy
+`PGSERVICE` jelenlétében a lánc akkor is megáll, ha a cím KIMONDOTTAN megnevezi az adatbázist (ott a
+szolgáltatás-fájl már nem szólhatna bele) — ez a tévedés a NEM TÖRLÉS irányába esik, és így
+szándékos. Gépi jel: `npm run verify:app-findings-r154` (Y: y1–y5) · `npm run verify:kuka`
+(KUKA-349). A `proof:pg-durability` lánc valódi PostgreSQL-t kér, ezért a söprésben nem fut
+(KUKA-307).
+
+---
+
 ## D-VS-3100 — A VÉDELEM KÖLTSÉGE KORLÁTOS: A KÉRÉSKORLÁT SORA VÁGOTT, A DARABSZÁM KIMONDVA ALSÓ KORLÁT (R154, NET-04)
 
 **A döntés.** A `makeRateLimiter` egy címhez a LEGFRISSEBB `max + 1` kérés-bélyeget tartja meg, és a

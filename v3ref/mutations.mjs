@@ -2431,4 +2431,18 @@ export const MUTATIONS = [
     file: 'invite.mjs',
     from: "  const WHERE = 'created_at < ? OR created_at > ? OR created_at NOT LIKE ?';",
     to: "  const WHERE = 'created_at < ?' + (0 ? ' OR created_at > ? OR created_at NOT LIKE ?' : ' AND ? IS NOT NULL AND ? IS NOT NULL');" },
+
+  // R158 HARMADIK review-kör — a folytatás élettartama. A KÉT ág KÜLÖN rontva (KUKA-039): a
+  // származtatás maga, és a hiányzó bemenet néma tartaléka.
+  { id: 'M218', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158 — A FOLYTATÁS ISMÉT TÚLÉLHETI A KULCSÁT: a türelmi idő a kimondott 24 órás PLAFON lesz, nem a munkamenet tétlenségi korlátjával vett kisebbik — a 12 óra utáni órákra a szerződés olyat ígér, amit a mechanizmus elvileg sem tud teljesíteni (F158-17, külső review, Codex · KUKA-050)',
+    file: 'invite.mjs',
+    from: "  return Math.min(plafon, tetlen);",
+    to: "  return plafon;" },
+
+  { id: 'M219', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158 — A HIÁNYZÓ TÉTLENSÉGI KORLÁT NÉMÁN A PLAFONRA ESIK: egy új hívó, aki nem adja át a munkamenet korlátját, visszakapja a 24 órát — vagyis pont a most javított hibát, csak csendben (KUKA-238: a tartalék-ág elrejti a hibás hívást)',
+    file: 'invite.mjs',
+    from: "    throw new Error('intentTtlMs: a munkamenet tétlenségi korlátja KÖTELEZŐ — a folytatás élettartama ebből származik (D-VS-3157)');",
+    to: "    return plafon;" },
 ];

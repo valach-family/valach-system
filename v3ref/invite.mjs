@@ -653,8 +653,47 @@ export function rememberIntent({ store, sessionId, token, clock }) {
  * felhasználó épp belép vagy regisztrál, és a rendszer visszaviszi a meghíváshoz. Ez a művelet
  * percek-órák kérdése; a 24 óra ugyanaz a nagyságrend, mint a megerősítő hivatkozás élettartama,
  * és biztosan RÖVIDEBB a meghívó 7 napjánál — tehát a folytatás nem élheti túl azt, amire mutat.
+ *
+ * ÉS EZ EGY PLAFON, NEM A TÉNYLEGES ÉLETTARTAM (F158-17, külső review, Codex, P2). A sor EGYETLEN
+ * kulcsa a munkamenet; ha az kiesik, a sor elérhetetlen, és a takarítás törli. A ténylegesen
+ * kiszolgálható türelmi időt ezért az `intentTtlMs` adja meg — lentebb, kimondva.
  */
 export const PENDING_INTENT_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * A FOLYTATÁS NEM ÉLHETI TÚL A KULCSÁT (F158-17, külső review, Codex, P2 · D-VS-3157).
+ *
+ * A LELET, ÉS MIÉRT A SZÖVEGRŐL SZÓL. A `pending_intent` sort KIZÁRÓLAG a munkamenet azonosítója
+ * találja meg, a munkamenet pedig 12 óra tétlenség után kiesik — és a kiesés a hozzá kötött sort is
+ * TÖRLI (`onEvicted`). A kimondott 24 óra tehát a MÁSODIK 12 órában elvileg sem teljesülhetett: aki
+ * 13 óra múlva tért vissza, annak a belépése folytatás NÉLKÜL sikerült, miközben a kódban és a
+ * szerződésben is „24 óra" állt. Ez a `KUKA-050` osztálya: a szöveg a valóság előtt járt.
+ *
+ * MIÉRT A RÖVIDÍTÉS, ÉS NEM A MUNKAMENET MEGHOSSZABBÍTÁSA. A reviewer mindkét irányt felajánlotta.
+ * A munkamenet életének megnyújtása azt jelentené, hogy egy NÉVTELEN látogató (a `pending_intent`
+ * sort belépés ELŐTT is létre tudja hozni) kétszer annyi ideig foglal szerver-oldali helyet — pont
+ * azt a felületet növelve, amit a KUKA-300/302/329 szűkített —, és a tétlenségi söprésnek a tárolót
+ * is kérdeznie kellene munkamenetenként (KUKA-290: a védelem költsége nem nőhet azzal, amit védünk).
+ * A rövidítés viszont semmibe nem kerül, és IGAZZÁ teszi a kimondott szabályt.
+ *
+ * MIÉRT FELOLDÓ, ÉS NEM EGY ÁTÍRT ÁLLANDÓ: két szám egy szabályt ad, tehát EGY helyen dőljön el
+ * (KUKA-003 · KUKA-039). A tétlenségi korlát a kiszolgálóban állítható (`VS_APP_SESSION_IDLE_MS`),
+ * tehát egy kézzel beírt „12 óra" a következő átállításnál MEGINT hazudna (KUKA-045).
+ *
+ * A HIÁNYZÓ BEMENET NEVEZETTEN ELAKAD (KUKA-238): ha a tétlenségi korlát elhagyható lenne, egy hívó
+ * NÉMÁN visszakapná a 24 órát — vagyis pont a most javított hibát.
+ */
+export function intentTtlMs({ sessionIdleMs, ceilingMs = PENDING_INTENT_TTL_MS } = {}) {
+  const plafon = Number(ceilingMs);
+  const tetlen = Number(sessionIdleMs);
+  if (!Number.isFinite(plafon) || plafon <= 0) {
+    throw new Error('intentTtlMs: a kimondott plafon pozitív szám legyen (D-VS-3157)');
+  }
+  if (!Number.isFinite(tetlen) || tetlen <= 0) {
+    throw new Error('intentTtlMs: a munkamenet tétlenségi korlátja KÖTELEZŐ — a folytatás élettartama ebből származik (D-VS-3157)');
+  }
+  return Math.min(plafon, tetlen);
+}
 
 /**
  * A LEJÁRATOT AZ OLVASÁS IS ÉRVÉNYESÍTI (KUKA-296): a takarítás amortizált, tehát egy lejárt sor

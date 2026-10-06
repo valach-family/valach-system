@@ -74,8 +74,40 @@ function queryParam(u, nev) {
   } catch { return ''; }
 }
 
-/** A TÉNYLEGES adatbázis-név: query `dbname` → út → query `user` → cím-felhasználó; különben NEM TUDHATÓ. */
-export function effectiveDatabase(sourceUrl) {
+/**
+ * EGY KAPCSOLATI KULCSSZÓ A KÖRNYEZETBŐL (F158-16, külső review, Codex, P1).
+ *
+ * Az üres érték NEM érték: a libpq a `dbname`-et üres sztring esetén is az alapértelmezésre
+ * (a felhasználó nevére) oldja fel, ezért a levágás utáni üres értéket NEM MEGADOTTNAK vesszük.
+ */
+function envValue(env, nev) {
+  try {
+    const v = env ? env[nev] : undefined;
+    return v == null ? '' : String(v).trim();
+  } catch { return ''; }
+}
+
+/**
+ * A TÉNYLEGES adatbázis-név. A SORREND a libpq feloldási sorrendje: a kapcsolati CÍM megelőzi a
+ * KÖRNYEZETET, a környezet a beépített alapértelmezést — query `dbname` → út → `PGDATABASE` →
+ * query `user` → cím-felhasználó → `PGUSER`; ha egyik sincs, NEM TUDHATÓ.
+ *
+ * A KÖRNYEZET IS A BEMENET RÉSZE (F158-16, külső review, Codex, P1).
+ *
+ * A LELET: egy út nélküli `postgres://decoy@host` cím mellett `PGDATABASE=source` esetén a kliens a
+ * `source` adatbázist nyitja — a korábbi alak mégis a cím FELHASZNÁLÓJÁT (`decoy`) mondta forrásnak,
+ * tehát a `VS_RESTORE_TEST_DB=source` „eltér"-t kapott, a lánc elindult, és a `DROP DATABASE "source"`
+ * a VALÓDI forrást törölte volna. A `pg_dump` a környezetet ÖRÖKLI, a kapu viszont nem nézte.
+ *
+ * ÉS AMIT EZ A SAJÁT KORÁBBI MONDATOMRÓL ÁLLÍT: a `KUKA-341`-ben kimondtam, hogy a környezeti
+ * változók „nincsenek benne, és ezért minden bizonytalanság az óvatos ágra esik" — ez NEM volt igaz.
+ * A felhasználó-alapú tartalék NEVET adott, a név pedig ELDÖNTÖTT válasz: a kapu nem megállt, hanem
+ * TOVÁBBENGEDETT. Egy kimondott hiány csak akkor védelem, ha a kód tényleg megáll (KUKA-020 · KUKA-050).
+ *
+ * Dokumentáció: PostgreSQL „libpq — Environment Variables" (`PGDATABASE` ≡ `dbname`, `PGUSER` ≡ `user`,
+ * `PGSERVICE` ≡ `service`) és „Connection Strings" (a cím paraméterei megelőzik a környezetet).
+ */
+export function effectiveDatabase(sourceUrl, env = process.env) {
   let u;
   try { u = new URL(String(sourceUrl)); } catch { return { name: null, basis: 'a forrás-cím nem értelmezhető' }; }
   // ── A SZOLGÁLTATÁS-FÁJL OLVASHATATLAN INNEN (F158-02, külső review, Codex, P1) ──────────────────
@@ -87,8 +119,13 @@ export function effectiveDatabase(sourceUrl) {
   // vitte volna. A fájl tartalma itt elvileg sem tudható (más gépen, más engedélyekkel áll), ezért
   // a válasz NEM találgatás, hanem NEVEZETT „nem megállapítható" — ott, ahol a következmény
   // adatbázis-törlés, a nem tudás MEGÁLLÁST jelent (KUKA-049 · KUKA-203).
-  if (queryParam(u, 'service')) {
-    return { name: null, basis: 'a cím `?service=` paramétert hordoz — a szolgáltatás-fájl `dbname`-et is adhat, amit innen NEM látunk' };
+  // A SZOLGÁLTATÁST A KÖRNYEZET IS MEGNEVEZHETI (`PGSERVICE` ≡ `service`, F158-16) — ugyanaz a
+  // következmény, tehát ugyanaz a válasz: NEM megállapítható.
+  if (queryParam(u, 'service') || envValue(env, 'PGSERVICE')) {
+    const honnan = queryParam(u, 'service')
+      ? 'a cím `?service=` paramétert hordoz'
+      : 'a környezet `PGSERVICE`-t ad meg';
+    return { name: null, basis: `${honnan} — a szolgáltatás-fájl \`dbname\`-et is adhat, amit innen NEM látunk` };
   }
   const qDb = queryParam(u, 'dbname');
   if (qDb) return { name: qDb, basis: 'a cím `?dbname=` paramétere FELÜLÍRJA az utat' };
@@ -96,12 +133,17 @@ export function effectiveDatabase(sourceUrl) {
   try { path = decodeURIComponent(String(u.pathname || '').replace(/^\/+/, '')); }
   catch { return { name: null, basis: 'a forrás adatbázis-neve hibás százalék-kódolást tartalmaz' }; }
   if (path) return { name: path, basis: 'a cím útja nevezi meg az adatbázist' };
+  // A CÍM NEM NEVEZI MEG — innentől a KLIENS alapértékei döntenek, és azok a KÖRNYEZETBEN állnak.
+  const envDb = envValue(env, 'PGDATABASE');
+  if (envDb) return { name: envDb, basis: 'a cím nem nevez meg adatbázist, ezért a környezet `PGDATABASE` értéke dönt' };
   const qUser = queryParam(u, 'user');
   if (qUser) return { name: qUser, basis: 'nincs adatbázis-út, és a `?user=` paraméter adja a felhasználót — az adatbázis alapértelmezése a felhasználó neve' };
   let user;
   try { user = decodeURIComponent(String(u.username || '')); } catch { user = String(u.username || ''); }
   if (user) return { name: user, basis: 'nincs adatbázis-út, ezért a FELHASZNÁLÓ neve az adatbázis' };
-  return { name: null, basis: 'sem adatbázis, sem felhasználó nincs a címben — a tényleges nevet a kliens a rendszer-felhasználóból veszi' };
+  const envUser = envValue(env, 'PGUSER');
+  if (envUser) return { name: envUser, basis: 'sem adatbázis, sem felhasználó a címben — a környezet `PGUSER` értéke lesz a felhasználó, és egyben az adatbázis neve' };
+  return { name: null, basis: 'sem a cím, sem a környezet nem nevezi meg — a tényleges nevet a kliens a RENDSZER-felhasználóból veszi, ami innen nem tudható' };
 }
 
 /**
@@ -119,10 +161,10 @@ export function withDatabase(sourceUrl, name) {
  * Ugyanarra az adatbázisra mutat-e a forrás-cím és a cél NÉV? A dekódolás kötelező, a bizonytalanság
  * pedig IGEN-t ad: ahol a következmény `DROP DATABASE`, ott a „nem tudom" nem lehet „nem egyezik".
  */
-export function sameDatabase(sourceUrl, restoreTarget) {
+export function sameDatabase(sourceUrl, restoreTarget, env = process.env) {
   try { new URL(String(sourceUrl)); }
   catch { return { same: true, basis: 'a forrás-cím nem értelmezhető — ÓVATOS megállás' }; }
-  const eff = effectiveDatabase(sourceUrl);
+  const eff = effectiveDatabase(sourceUrl, env);
   if (!eff.name) return { same: true, basis: `${eff.basis} — NEM megállapítható, ÓVATOS megállás` };
   if (eff.name === String(restoreTarget)) return { same: true, basis: `AZONOS a céllal: ${eff.basis}` };
   return { same: false, basis: `a tényleges forrás-név eltér a céltól (${eff.basis})` };

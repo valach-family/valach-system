@@ -33,12 +33,22 @@ import { startServer, makeRateLimiter, makeSessionStore, sessionLimits, SESSION_
 import { dictFor } from './public/i18n/dict.mjs';
 import { resolveLanguage, parseAcceptLanguage, pickFromAcceptLanguage } from './public/i18n/languages.mjs';
 import { validateAgainstSchema } from '../v3ref/inputSchema.mjs';
-import { purgeExpiredIntents, resumeIntent } from '../v3ref/invite.mjs';
+import { purgeExpiredIntents, resumeIntent, intentTtlMs, PENDING_INTENT_TTL_MS } from '../v3ref/invite.mjs';
 import { validateRequest } from './httpSchema.mjs';
 import { request as httpReq } from 'node:http';
 import { transcriptsOf } from '../tools/v3_fogyasztas_meres.mjs';
 import { restoreTargetProblem, sameDatabase, effectiveDatabase, withDatabase } from '../tools/lib/vs_pg_target.mjs';
+
 import { execFileSync } from 'node:child_process';
+/**
+ * A CÍM SZEMANTIKÁJÁT MÉRŐ SOROK KIMONDOTTAN ÜRES KÖRNYEZETET ADNAK (F158-16).
+ *
+ * A feloldó MOST a libpq teljes sorrendjét követi, tehát a `PGDATABASE`/`PGUSER`/`PGSERVICE` is
+ * dönthet. Ha ezek a sorok a futtató környezetét kapnák, a mérés a GAZDAGÉPET mérné, nem a kódot —
+ * egy beállított `PGDATABASE` pirosra váltana regresszió nélkül (ez a `KUKA-344` hiba-osztálya).
+ * A környezet-érzékeny ágakat a lenti Y csoport méri, kimondott környezettel.
+ */
+const PG_ENV_NELKUL = Object.freeze({});
 
 /** A `string` TÍPUS közvetlenül, a mag feloldóján — amit a próba nem tud meghívni, azt hisszük (KUKA-207). */
 const TYPES_STRING_OK = (v) => validateAgainstSchema({
@@ -1150,16 +1160,16 @@ try {
   part('Q) F154-37 · F154-38 — a hibának MŰKÖDŐ kiútja van, és az út nélküli cím is megnevez adatbázist');
   {
     // (q1–q4) F154-38 (P1): út nélküli PostgreSQL-cím → a FELHASZNÁLÓ neve az adatbázis.
-    const a = sameDatabase('postgres://source_user:pw@host', 'source_user');
+    const a = sameDatabase('postgres://source_user:pw@host', 'source_user', PG_ENV_NELKUL);
     step('(q1) út nélküli cím: a felhasználó neve az adatbázis — tehát AZONOS a céllal (RÉGEN: „eltér” → a FORRÁST törölte volna)',
       a.same === true, a);
-    const b = sameDatabase('postgres://source_user:pw@host', 'vs_visszatoltes_proba');
+    const b = sameDatabase('postgres://source_user:pw@host', 'vs_visszatoltes_proba', PG_ENV_NELKUL);
     step('(q2) ELLENPÁR: más cél mellett a lánc továbbra is indulhat',
       b.same === false, b);
-    const c = sameDatabase('postgres://host/', 'barmi');
+    const c = sameDatabase('postgres://host/', 'barmi', PG_ENV_NELKUL);
     step('(q3) sem adatbázis, sem felhasználó: NEM megállapítható → ÓVATOS megállás',
       c.same === true && /NEM megállapítható/i.test(c.basis), c);
-    const d = sameDatabase('postgres://source%5Fuser:pw@host', 'source_user');
+    const d = sameDatabase('postgres://source%5Fuser:pw@host', 'source_user', PG_ENV_NELKUL);
     step('(q4) a felhasználó-név százalék-kódolása is dekódolva számít',
       d.same === true, d);
 
@@ -1200,7 +1210,7 @@ try {
   part('R) F154-39…F154-43 — a query-felülírás, az egész plafon, a fájl-kötés és a nyelvi tartomány');
   {
     // (r1–r4) F154-39 (P1): a kapcsolati cím QUERY-paraméterei is számítanak.
-    const a = sameDatabase('postgres://decoy@host/?user=source', 'source');
+    const a = sameDatabase('postgres://decoy@host/?user=source', 'source', PG_ENV_NELKUL);
     step('(r1) `?user=` felülírja a cím-felhasználót, és út híján AZ az adatbázis (RÉGEN: `decoy`-t vetette össze → a FORRÁST törölte volna)',
       a.same === true, a);
     const b = sameDatabase('postgres://u:p@h/vs_eles?dbname=source', 'source');
@@ -1864,6 +1874,110 @@ try {
         && /const futasIndult = Date\.now\(\);/.test(gateSrc)
         && /indulasMs >= futasIndult - 2000/.test(gateSrc),
       { torles: /rmSync\(REPORT/.test(gateSrc), futashoz_kotve: /indulasMs >= futasIndult/.test(gateSrc) });
+  }
+
+  part('Y) R158 — a harmadik review-kör leletei: a KÖRNYEZET is bemenet, és a folytatás nem élheti túl a kulcsát');
+  {
+    // ── (y1–y5) F158-16 (P1) — A LIBPQ KÖRNYEZETI ALAPÉRTÉKEI A TÖRLÉS ELŐTT ─────────────────────
+    // A LELET: út nélküli cím + `PGDATABASE=source` esetén a kliens a `source` adatbázist nyitja, a
+    // feloldó mégis a cím FELHASZNÁLÓJÁT mondta forrásnak — tehát a kapu „eltér"-t mondott, a lánc
+    // elindult, és a `DROP DATABASE "source"` a VALÓDI forrást vitte volna. A környezetet a `pg_dump`
+    // ÖRÖKLI, a kapu nem nézte.
+    const y1env = { PGDATABASE: 'source' };
+    const y1 = effectiveDatabase('postgres://decoy@host', y1env);
+    const y1s = sameDatabase('postgres://decoy@host', 'source', y1env);
+    const y1ellen = sameDatabase('postgres://decoy@host', 'source', PG_ENV_NELKUL);
+    step('(y1) F158-16: `PGDATABASE` dönt, ha a cím nem nevez meg adatbázist — a kapu MEGÁLL (RÉGEN: a cím felhasználója lett a „forrás", és a lánc elindult)',
+      y1.name === 'source' && y1s.same === true && y1ellen.same === false,
+      { nev: y1.name, megall: y1s.same, ellenpar_env_nelkul: y1ellen.same });
+
+    const y2a = effectiveDatabase('postgres://u@h/vs_eles', { PGDATABASE: 'source' });
+    const y2b = effectiveDatabase('postgres://u@h/?dbname=a', { PGDATABASE: 'b' });
+    step('(y2) F158-16 ELLENPÁR: a CÍM megelőzi a környezetet (libpq sorrend) — út és `?dbname=` mellett a `PGDATABASE` nem szól bele',
+      y2a.name === 'vs_eles' && y2b.name === 'a', { uttal: y2a.name, dbname_parameterrel: y2b.name });
+
+    const y3 = effectiveDatabase('postgres://decoy@host/vs_eles', { PGSERVICE: 'prod' });
+    const y3s = sameDatabase('postgres://decoy@host/vs_eles', 'source', { PGSERVICE: 'prod' });
+    step('(y3) F158-16: a szolgáltatást a KÖRNYEZET is megnevezheti (`PGSERVICE`) — a válasz ugyanaz, mint a `?service=`-re: NEM megállapítható, tehát megállás',
+      y3.name === null && y3s.same === true && /PGSERVICE/.test(y3.basis), { nev: y3.name, megall: y3s.same });
+
+    const y4a = effectiveDatabase('postgres://host/', { PGUSER: 'source' });
+    const y4b = effectiveDatabase('postgres://host/', PG_ENV_NELKUL);
+    const y4c = effectiveDatabase('postgres://decoy@host', { PGDATABASE: '   ' });
+    step('(y4) F158-16: `PGUSER` az utolsó jelölt; ha sem a cím, sem a környezet nem nevez meg, a név NEM TUDHATÓ — és az ÜRES érték nem érték',
+      y4a.name === 'source' && y4b.name === null && y4c.name === 'decoy',
+      { pguser: y4a.name, semmi: y4b.name, ures_pgdatabase: y4c.name });
+
+    // (y5) A KÖTÉS: a VALÓDI lánc (`proof:pg-durability`) a feloldót MÁSODIK paraméter nélkül hívja,
+    //      tehát az alapértelmezésnek a futó folyamat környezetének kell lennie. Ezt VISELKEDÉSSEL
+    //      mérjük, nem a kód szövegéből (KUKA-207): átmenetileg beállítjuk, majd visszaállítjuk.
+    const y5volt = Object.prototype.hasOwnProperty.call(process.env, 'PGDATABASE') ? process.env.PGDATABASE : null;
+    let y5nev = null;
+    try {
+      process.env.PGDATABASE = 'vs_y5_forras';
+      y5nev = effectiveDatabase('postgres://decoy@host').name;
+    } finally {
+      if (y5volt === null) delete process.env.PGDATABASE; else process.env.PGDATABASE = y5volt;
+    }
+    step('(y5) F158-16: a feloldó alapértelmezése a FUTÓ folyamat környezete — a valódi lánc (`proof:pg-durability`) így örökli, amit a `pg_dump` is',
+      y5nev === 'vs_y5_forras' && effectiveDatabase('postgres://decoy@host').name === 'decoy',
+      { beallitott_kornyezettel: y5nev, visszaallitas_utan: effectiveDatabase('postgres://decoy@host').name });
+
+    // ── (y6–y8) F158-17 (P2) — A FOLYTATÁS NEM ÉLHETI TÚL A KULCSÁT ──────────────────────────────
+    // A LELET: a kimondott 24 óra a MÁSODIK 12 órában elvileg sem teljesülhetett, mert a sor egyetlen
+    // kulcsa a munkamenet, ami 12 óra tétlenség után kiesik — és a kiesés a sort is törli. A szöveg
+    // tehát a valóság előtt járt (KUKA-050).
+    const ORA = 60 * 60 * 1000;
+    let y6hiba = null;
+    try { intentTtlMs({}); } catch (e) { y6hiba = String(e && e.message); }
+    step('(y6) F158-17: a tényleges türelmi idő a PLAFON és a munkamenet tétlenségi korlátjának KISEBBIKE — és a tétlenségi korlát nélkül NEVEZETTEN elakad (KUKA-238)',
+      intentTtlMs({ sessionIdleMs: SESSION_LIMITS.idle_ms }) === SESSION_LIMITS.idle_ms
+        && intentTtlMs({ sessionIdleMs: 48 * ORA }) === PENDING_INTENT_TTL_MS
+        && /tétlenségi korlátja KÖTELEZŐ/.test(y6hiba || ''),
+      { mai_ertek_ora: intentTtlMs({ sessionIdleMs: SESSION_LIMITS.idle_ms }) / ORA,
+        hosszu_munkamenettel_ora: intentTtlMs({ sessionIdleMs: 48 * ORA }) / ORA,
+        plafon_ora: PENDING_INTENT_TTL_MS / ORA, korlat_nelkul: (y6hiba || '').slice(0, 56) });
+
+    // (y7) A KISZOLGÁLÓ TÉNYLEG EZT HASZNÁLJA, nem a mag plafonját — a határon mérve (KUKA-207), és
+    //      MINDKÉT irányban. A tétlenségi korlátot kimondottan állítjuk be, mert a battéria futásához
+    //      a fő kiszolgáló korlátja szándékosan nagyon magas (337–338. sor): a mérés a VISELKEDÉST
+    //      mérje, ne azt, hogy épp milyen környezetben fut.
+    const YDB = resolve(ROOT, 'var/tmp/v3app_r158_y.sqlite');
+    try { rmSync(YDB, { force: true }); rmSync(YDB + '-wal', { force: true }); rmSync(YDB + '-shm', { force: true }); } catch { /* nem volt */ }
+    const yElozoIdle = process.env.VS_APP_SESSION_IDLE_MS;
+    let ysrv = null; let yHosszu = null;
+    try {
+      process.env.VS_APP_SESSION_IDLE_MS = String(SESSION_LIMITS.idle_ms);   // az ÜZEMI alapérték: 12 óra
+      ysrv = await startServer({ port: 0, dbPath: YDB });
+      process.env.VS_APP_SESSION_IDLE_MS = String(48 * ORA);                 // és egy HOSSZABB munkamenet
+      yHosszu = await startServer({ port: 0, dbPath: ':memory:' });
+    } finally {
+      if (yElozoIdle === undefined) delete process.env.VS_APP_SESSION_IDLE_MS;
+      else process.env.VS_APP_SESSION_IDLE_MS = yElozoIdle;
+    }
+    try {
+      step('(y7) F158-17: a kiszolgáló a SZÁRMAZTATOTT türelmi időt használja — 12 órás munkamenetnél a TÉTLENSÉGI korlát fog (nem a mag 24 órás plafonja), 48 órásnál a PLAFON',
+        ysrv.intentTtlMs === SESSION_LIMITS.idle_ms && ysrv.intentTtlMs !== PENDING_INTENT_TTL_MS
+          && yHosszu.intentTtlMs === PENDING_INTENT_TTL_MS,
+        { rovid_munkamenet_ora: ysrv.intentTtlMs / ORA, hosszu_munkamenet_ora: yHosszu.intentTtlMs / ORA,
+          plafon_ora: PENDING_INTENT_TTL_MS / ORA });
+
+      // (y8) A VISELKEDÉS: egy 13 ÓRÁS ÁRVA sor (a munkamenete már nincs) a RÉGI mércével a táblában
+      //      maradt — pedig folytatni már nem lehetett —, a mostanival elmegy; a 11 órás marad.
+      const yclock = { now: () => '2026-10-06T22:00:00.000Z' };
+      const ybe = (sid, ora) => ysrv.store.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)',
+        sid, 'tok_' + sid, new Date(Date.parse(yclock.now()) - ora * ORA).toISOString());
+      ybe('y_13h', 13); ybe('y_11h', 11);
+      const yregi = purgeExpiredIntents({ store: ysrv.store, clock: yclock, ttlMs: PENDING_INTENT_TTL_MS });
+      const yuj = purgeExpiredIntents({ store: ysrv.store, clock: yclock, ttlMs: ysrv.intentTtlMs });
+      const ymaradt = ysrv.store.all('SELECT session_id FROM pending_intent').map((r) => r.session_id).sort().join(',');
+      step('(y8) F158-17: a 13 ÓRÁS árva folytatás (a munkamenete már nincs) a RÉGI 24 órás mércével BENT MARADT, a mostanival elmegy — a 11 órás marad',
+        yregi.purged === 0 && yuj.purged === 1 && ymaradt === 'y_11h',
+        { regi_mercevel_takaritva: yregi.purged, mostani_mercevel_takaritva: yuj.purged, maradt: ymaradt });
+    } finally {
+      await new Promise((r) => ysrv.server.close(r));
+      await new Promise((r) => yHosszu.server.close(r));
+    }
   }
 
   const fail = results.filter((r) => !r.pass);
