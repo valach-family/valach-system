@@ -242,6 +242,26 @@ KUKA-293 is kimondja), a tanulság helye a munkarend. Gépi jel: nincs — kimon
 
 ---
 
+## D-VS-3120 — AZ ÁTIRAT HELYÉT A MÉRŐ FELOLDÓJA ADJA, AZ EXPORT NEM RAK ÖSSZE SAJÁT UTAT (R154)
+
+**A döntés.** A `tools/v3_fogyasztas_export.mjs` a mérő közös feloldóját hívja
+(`transcriptsOf(projectsDir, session)`), a projekt-gyökér `--projects`-szel felülírható, és a hiba
+kimondja, hol keresett. Saját projekt-utat az export nem állít össze.
+
+**Miért.** A korábbi alak BEÉGETVE a `-home-user` projekt-könyvtárat kereste. MÉRVE (R154 zárás):
+ugyanabból az átiratból a mérő **315 hívást** olvasott be — a projekt itt `-home-user-valach-system`
+—, az export viszont `NINCS ÁTIRAT`-tal elhasalt. Egy tény (hol van az átirat) két helyen élt, és a
+hibás példány éppen a csomagváltáshoz KÖTELEZŐ tartalom nélküli fogyasztás-leltár írását állította
+meg (CLAUDE.md 1. szakasz). A beégetett út a saját környezetében zöldnek látszott — ez a KUKA-051
+családja —, és mert az export nem része a söprésnek, egyetlen verifier sem jelezte.
+
+**Amit ez NEM állít.** Nem állítja, hogy a többi egyszeri eszköz át van vizsgálva: ez EGY eszköz EGY
+környezet-függő útja. Gépi jel: `npm run verify:kuka` (KUKA-310: egy pozitív + egy tiltó minta) ·
+`npm run verify:app-findings-r154` (K: k1 a feloldó viselkedése szintetikus projekt-néven, k2 a
+forrás-kötés).
+
+---
+
 ## D-VS-3117 — A KONFIGURÁCIÓS ÉRTÉK ALAKJA IS MÉRT, ÉS AZ AZONOSÍTÓ IDÉZŐJELEZVE MEGY (R154)
 
 **A döntés.** A `proof:pg-durability` megméri a `VS_RESTORE_TEST_DB` alakját (zárt azonosító-minta), és

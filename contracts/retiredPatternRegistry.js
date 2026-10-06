@@ -13059,6 +13059,29 @@ Object.freeze({
     guard_note: 'gépi jel: NINCS — ez a VISSZAVÉTEL-PRÓBA elvégzésének módjáról szól, ami kézi lépés (ahogy a KUKA-293 is kimondja). A tanulság helye a munkarend, nem a kód; ezt kimondjuk.',
   }),
 
+  Object.freeze({
+    id: 'KUKA-310',
+    date: '2026-10-06',
+    title: 'AZ ÁTIRAT HELYE KÉT HELYEN ÉLT — és a hibás példány pont az ÁTADÁST blokkolta',
+    what: 'A fogyasztás-export (`tools/v3_fogyasztas_export.mjs`) BEÉGETVE a `-home-user` projekt-könyvtárban kereste a munkamenet átiratát, miközben a mérő (`transcriptsOf`, FGY-01/3) MINDEN projekt-könyvtárat végignéz. MÉRVE (R154 zárás): a mérő ugyanabból az átiratból 315 hívást olvasott be (a projekt itt `-home-user-valach-system`), az export viszont `NINCS ÁTIRAT`-tal elhasalt. Ugyanaz a tény — hol van az átirat — két helyen élt, és csak az egyik volt helyes.',
+    why_wrong: 'A tartalom nélküli fogyasztás-leltár ÁTADÁSI kötelezettség (CLAUDE.md 1. szakasz: csomagváltás előtt a leltár a repóba kerül), tehát ez a hiba nem egy kényelmi üt volt, hanem a csomag-zárás kapuja. És csak addig volt láthatatlan, amíg a repó pontosan `/home/user` alatt állt: a beégetett út a saját környezetében zöldnek látszott (KUKA-051 családja). A mérő és az export EGY tényre két választ adott (KUKA-003 · KUKA-039).',
+    replaced_by: 'Az export a mérő KÖZÖS feloldóját hívja (`transcriptsOf(projectsDir, session)`), a projekt-gyökér pedig `--projects`-szel felülírható; saját projekt-utat az export nem rak össze.',
+    decision: 'D-VS-3120',
+    found_by: 'SAJÁT LELET (Claude-v3, R154) — a csomag-zárás közben, az átadási leltár írásakor bukott ki; egyetlen verifier sem jelezte, mert az export nem része a söprésnek (egyszeri, célzott eszköz).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_fogyasztas_export.mjs']),
+        pattern: 'transcriptsOf\\(projectsDir, session\\)',
+        why: 'az átirat helyét a mérő feloldója adja, nem az export' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_fogyasztas_export.mjs']),
+        pattern: 'join\\([^)]*-home-user',
+        why: 'a beégetett projekt-könyvtár — ez buktatta el az átadási leltárt' }),
+    ]),
+    lesson: 'AMI EGY TÉNY, AZ EGY FELOLDÓBÓL JÖN — és a környezet-függő út a SAJÁT környezetben mindig zöldnek látszik. Ha egy eszköz nem része a söprésnek, akkor a hibája csak HASZNÁLAT kozben látszik: az átadási kötelezettséget kiszolgáló eszköznek is van gépi jele, vagy kimondjuk, hogy nincs.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (egy pozitív + egy tiltó minta) · `npm run verify:app-findings-r154` (K csoport: k1 a feloldó viselkedése szintetikus projekt-néven, k2 a forrás-kötés).',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

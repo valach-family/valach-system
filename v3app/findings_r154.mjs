@@ -27,13 +27,15 @@
 // Kilépési kód: 0 = minden állítás PASS · 1 = MÉRT hibát talált · 2 = a mérés elakadt.
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { rmSync, readFileSync } from 'node:fs';
+import { rmSync, readFileSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { startServer, makeRateLimiter, makeSessionStore, sessionLimits, SESSION_LIMITS } from './server.mjs';
 import { dictFor } from './public/i18n/dict.mjs';
 import { resolveLanguage, parseAcceptLanguage, pickFromAcceptLanguage } from './public/i18n/languages.mjs';
 import { validateAgainstSchema } from '../v3ref/inputSchema.mjs';
 import { validateRequest } from './httpSchema.mjs';
 import { request as httpReq } from 'node:http';
+import { transcriptsOf } from '../tools/v3_fogyasztas_meres.mjs';
 
 /** A `string` TÍPUS közvetlenül, a mag feloldóján — amit a próba nem tud meghívni, azt hisszük (KUKA-207). */
 const TYPES_STRING_OK = (v) => validateAgainstSchema({
@@ -734,6 +736,31 @@ try {
       await new Promise((r) => kis.server.close(r));
       if (elozo === undefined) delete process.env.VS_APP_SESSION_MAX; else process.env.VS_APP_SESSION_MAX = elozo;
     }
+  }
+
+  // ── K) F154-24 — AZ ÁTIRAT HELYE EGY FELOLDÓBÓL (az átadást blokkoló hiba) ──────────────
+  // MI VOLT: a tartalom nélküli fogyasztás-leltár ÁTADÁSI kötelezettség (CLAUDE.md 1. szakasz), és az
+  // exportáló a projekt-könyvtárat BEÉGETVE kereste (`-home-user`), miközben a mérő ugyanazt a tényt
+  // végignézéssel oldja fel. MÉRVE: a mérő megtalálta és 315 hívást olvasott be ugyanabból az átiratból,
+  // amire az export `NINCS ÁTIRAT`-tal elhasalt — vagyis EGY tény KÉT helyen élt (KUKA-003 · KUKA-039).
+  part('K) F154-24 — az átirat helyét EGY feloldó adja (a tartalom nélküli leltár az ÁTADÁS kapuja)');
+  {
+    const tmp = mkdtempSync(join(tmpdir(), 'vs-fgy-r154-'));
+    try {
+      const proj = join(tmp, '-valami-mas-projekt-nev');
+      mkdirSync(proj, { recursive: true });
+      const sess = 'ffffffff-0000-4000-8000-000000000001';
+      writeFileSync(join(proj, `${sess}.jsonl`), '{"type":"assistant"}\n');
+      const got = transcriptsOf(tmp, sess).filter((f) => f.kind === 'main');
+      step('(k1) a feloldó MINDEN projekt-könyvtárat végignéz — nem csak a `-home-user`-t (MÉRVE: ez buktatta el az exportot)',
+        got.length === 1 && got[0].path.startsWith(proj + '/'), { talalat: got.length, konyvtar: '-valami-mas-projekt-nev' });
+
+      const expSrc = readFileSync(join(ROOT, 'tools/v3_fogyasztas_export.mjs'), 'utf8');
+      const hasznalja = /transcriptsOf\(projectsDir, session\)/.test(expSrc);
+      const sajatUt = /join\([^)]*-home-user/.test(expSrc);
+      step('(k2) az export a KÖZÖS feloldót hívja, és nem rak össze saját projekt-utat',
+        hasznalja && !sajatUt, { hasznalja, sajat_ut: sajatUt });
+    } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
 
   const fail = results.filter((r) => !r.pass);

@@ -22,6 +22,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
+import { transcriptsOf } from './v3_fogyasztas_meres.mjs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { callOf, dedupe, windowOf, inWindow, triggerOf } from './v3_fogyasztas_meres.mjs';
@@ -39,8 +40,27 @@ const safePath = (p) => {
 };
 
 const session = flag('--session'); const w = windowOf(flag('--from'), flag('--to'));
-const file = join(homedir(), '.claude', 'projects', '-home-user', `${session}.jsonl`);
-if (!existsSync(file)) { console.error(`NINCS ÁTIRAT: ${file.replace(homedir(), '~')}`); process.exit(2); }
+
+/**
+ * AZ ÁTIRAT HELYÉT A MÉRŐVEL EGY FELOLDÓ ADJA (F154-24).
+ *
+ * A LELET, MÉRVE (saját, R154): ez a sor BEÉGETVE a `-home-user` projekt-könyvtárat kereste, a mérő
+ * (`transcriptsOf`) viszont VÉGIGNÉZI az összes projekt-könyvtárat. Ebben a környezetben a projekt
+ * `-home-user-valach-system`, ezért az export `NINCS ÁTIRAT`-tal elhasalt — miközben a mérő UGYANAZT
+ * az átiratot megtalálta és 315 hívást olvasott be belőle. Vagyis ugyanaz a tény (hol van az átirat)
+ * KÉT helyen élt, és csak az egyik volt helyes (KUKA-003 · KUKA-039).
+ *
+ * MIÉRT FONTOS: a tartalom nélküli fogyasztás-leltár ÁTADÁSI kötelezettség (CLAUDE.md 1. szakasz) —
+ * tehát ez a hiba pont az átadást blokkolta, és csak a repó egyetlen, `/home/user` alatti elhelyezése
+ * mellett nem látszott.
+ */
+const projectsDir = flag('--projects') || join(homedir(), '.claude', 'projects');
+const found = transcriptsOf(projectsDir, session).filter((f) => f.kind === 'main');
+if (!found.length) {
+  console.error(`NINCS ÁTIRAT: ${session} (keresve: ${projectsDir.replace(homedir(), '~')} minden projekt-könyvtárában)`);
+  process.exit(2);
+}
+const file = found[0].path;
 const raw = readFileSync(file, 'utf8');
 const lines = raw.split('\n').filter((l) => l.trim());
 const recs = lines.map((l) => { try { return JSON.parse(l); } catch { return null; } });
