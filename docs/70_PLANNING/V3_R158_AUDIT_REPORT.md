@@ -17,11 +17,13 @@ körhöz egy lapot engedélyez, és az R158 kör lapja a chatgpt-v3 DECISION-je 
 
 | | |
 |---|---|
-| **a MÉRT kód-állapot** | `b80d00ce31b4ff0ff6eb9e0b0453ddb58998d1e0` — a záró teljes söprés ezen futott |
-| **a záró kapu eredményét hordozó commit** | `0ab118edf2be6a425ccff9b4511226055acd4d03` · **2026-10-06 21:38:07 UTC** |
-| **a VÉGSŐ fej** | ennél legfeljebb EGGYEL több: a lap utolsó pontosítása és a board-feltöltés commitja. **Kód ettől nem változik** — a `b80d00c` utáni commitok kizárólag dokumentumok és a külső-ellenőrző lánc saját eredmény-fájljai. A pontos fejet a `git log -1` adja. |
-| **a csomag commitjai** | 7 (`392bcd2` · `2f91609` · `c37d905` · `70bbad4` · `b80d00c` · `a181631` · `0ab118e`) |
-| **a PR commitjai összesen** | 34 (az R154 kör 27 + az R158 kör 7) |
+| **a 41 láncos TELJES söprés kód-állapota** | `b80d00ce31b4ff0ff6eb9e0b0453ddb58998d1e0` |
+| **a MÁSODIK review-kör javításai** | `083b01c` · `c81b1d5` (négy lelet) |
+| **a HARMADIK review-kör javításai (a mai MÉRT kód-állapot)** | `43f3841` — F158-16 (P1) és F158-17 (P2). A targetált láncok ÉS a teljes böngésző-kapu ezen futottak (11.4) |
+| **a záró kapu eredményét hordozó commit** | `0ab118edf2be6a425ccff9b4511226055acd4d03` · **2026-10-06 21:38:07 UTC** (a `b80d00c` söprése) |
+| **a VÉGSŐ fej** | a `43f3841` + a jelen lap commitja és a board-feltöltés. **Kód ettől nem változik.** A pontos fejet a `git log -1` adja. |
+| **a csomag commitjai** | 10 (`392bcd2` · `2f91609` · `c37d905` · `70bbad4` · `b80d00c` · `a181631` · `0ab118e` · `083b01c` · `c81b1d5` · `43f3841`) |
+| **a PR commitjai összesen** | 37 (az R154 kör 27 + az R158 kör 10) |
 | **a kiinduló alap** | `3adc8e0` leszármazottja — az R158 kikötése szerint; `main`-re NEM tértünk vissza |
 
 ---
@@ -124,12 +126,13 @@ tényét **különbséggel** mérjük, nem várt felirattal.
 
 | | szám |
 |---|---|
-| Codex review-kör (automata), KÜLÖN commitokon | **17** |
-| egyedi lelet (review-szál) | **46** |
-| ebből P1 | **14** |
-| ebből P2 | **32** |
-| **nyitott lelet a mai fejen** | **0** — mind a 46 megválaszolva ÉS lezárva |
-| az R158 körében érkezett | 15 (3 P1 + 12 P2) — a `89f0b37a` · `392bcd28` · `c37d9059` · `b80d00c` · `a181631` köre |
+| Codex review-kör (automata), KÜLÖN commitokon | **18** |
+| egyedi lelet (review-szál) | **48** |
+| ebből P1 | **15** |
+| ebből P2 | **33** |
+| **nyitott lelet a mai fejen** | **0** — mind a 48 megválaszolva ÉS lezárva |
+| az R158 körében érkezett | 17 (4 P1 + 13 P2) — a `89f0b37a` · `392bcd28` · `c37d9059` · `b80d00c` · `a181631` · `0ebd9f84` köre |
+| javító commit a PR-ben (lelet-javítás) | 13 — a számok a 48 egyedi szálból és a válaszokban megnevezett commitokból jönnek |
 
 **A MÁSODIK REVIEW-KÖR A CSOMAG ALATT ÉRKEZETT, és végig is ment.** A `b80d00c`-re és az
 `a181631`-re a Codex új kört adott, **négy újabb lelettel** (egy P1 és három P2) — mind javítva és
@@ -145,6 +148,32 @@ mérve ebben a csomagban:
 **A kapu újra lefutott a javított kóddal:** `verify:browser-gate` → **PASS**; a jelentés kezdő
 időpontja (21:53:46.067Z) a futtatás indulása (21:53:45.077Z) UTÁN van — a tanú tehát EBBEN a futásban
 keletkezett. 122 helyzet · 0 bukás · 0 kihagyás · 22 próba-fájl · bemutató-járás zöld.
+
+### A HARMADIK REVIEW-KÖR (a `0ebd9f84` fejre) — KÉT ÚJABB LELET, MINDKETTŐ JAVÍTVA
+
+| lelet | mi volt | javítás és jel |
+|---|---|---|
+| **F158-16 (P1)** | a visszatöltési kapu a forrás adatbázis nevét CSAK a kapcsolati címből olvasta; a libpq viszont a címben nem megadott paramétereket a KÖRNYEZETBŐL veszi (`PGDATABASE` · `PGUSER` · `PGSERVICE`), és a `pg_dump` a környezetet ÖRÖKLI. Egy út nélküli `postgres://decoy@host` + `PGDATABASE=source` mellett a kapu a cím felhasználóját mondta forrásnak → „eltér" → a lánc indult, és a `DROP DATABASE "source"` a VALÓDI forrást vitte volna. **És ez a saját, KIMONDOTT hiányom volt, ami nem védett** (`KUKA-341`: „ezért minden bizonytalanság az óvatos ágra esik" — nem esett: a tartalék NEVET adott) | a feloldó a libpq TELJES sorrendjét követi, a CÍM megelőzi a KÖRNYEZETET; ha egyik sem nevez meg, a név NEM TUDHATÓ → megállás. **MÉRVE:** a reviewer címe most `same: true` (megállás), az ellenpár (ugyanaz környezet nélkül) `same: false` (`D-VS-3158` · `KUKA-349`, Y: y1–y5) |
+| **F158-17 (P2)** | a függő folytatás türelmi idejét 24 órára mondtam ki, a sor EGYETLEN kulcsa viszont a munkamenet, ami 12 óra tétlenség után kiesik — és a kiesés a sort is törli. A második 12 órában a kimondott szabály ELVILEG sem teljesülhetett (`KUKA-050`) | a tényleges idő EGY feloldóból: `intentTtlMs` = min(plafon, munkamenet tétlenségi korlátja) = ma **12 óra**; a kiszolgáló EGY kapun olvas, a hiányzó korlát nevezetten elakad. **MÉRVE a határon mindkét irány** (12 órás munkamenet → 12 óra; 48 órás → a 24 órás plafon), és a viselkedés az árva soron (`D-VS-3157` · `KUKA-350`, Y: y6–y8 + mag-próba (h) + M218/M219) |
+
+**A BÖNGÉSZŐ-KAPU ÚJRA LEFUTOTT a `43f3841` kódon, és ZÖLD:**
+
+```
+ZÖLD  a mérés EBBEN a futásban indult el (a jelentés kezdő időpontja a futtatás UTÁN van)
+      — 2026-10-06T22:36:25.552Z · a futtatás indult: 2026-10-06T22:36:24.588Z
+ZÖLD  a mérés NEM nulla helyzetet futtatott — teljesült: 122
+ZÖLD  egy helyzet sem bukott · egy helyzet sem volt ingadozó · egy helyzetet sem hagytunk ki
+ZÖLD  MINDEN próba-fájl bekerült a mérésbe — 22 fájl
+ZÖLD  a `test:e2e + proof:core-ux` lánc 335 s · a `proof:demo-walk` lánc 438 s
+RESULT: PASS
+```
+
+Ez azért kellett, mert a javítás a v3app **FUTTATOTT** kódját érintette (`server.mjs`): a folytatás
+türelmi idejének bekötése. A `?service=`/`PGDATABASE` feloldó a szerszám-oldalon áll, azt a battéria méri.
+
+**A két javítás VISSZAVÉTEL-PRÓBÁJA megvan:** a `PGDATABASE`-ágat, a `PGSERVICE`-t és a származtatást
+kivéve a battéria **öt sora** (y1 · y3 · y5 · y7 · y8) pirosra vált, az ellenpárok (y2 · y4 · y6)
+helyesen zöldek maradnak.
 
 **Amit NEM állítok:** a LEGUTOLSÓ fejre (a jelen lap commitja) a Codex még nem adott kört — ha új
 lelet érkezik, az ugyanúgy végigmegy: javítás → mérés → feltolás. Emberi kód- és biztonsági review a
@@ -285,6 +314,15 @@ szereplő-váltásnál a héj NEVEZETTEN megáll, mert ott nincs „váltás a m
    résre mutatott rá, és igaza volt: a kimondás nem váltja ki a javítást.
 7. **A már korábban árván maradt `pending_intent` sorok** visszamenőleges takarítása nem történt meg; a
    javítások az ÚJ árva sorok keletkezését zárják el.
+8. **A `created_at` oszlop alakját a séma nem kényszeríti** (`TEXT NOT NULL` marad): a védelem két oldalon
+   áll (olvasás + takarítás), de séma-szintű kényszer nincs — a migrációs lánc ebben a körben nem nyílt ki.
+9. **A visszatöltési kapu TUDATOSAN óvatosabb a kelleténél**: `?service=` vagy `PGSERVICE` jelenlétében
+   akkor is megáll, ha a cím KIMONDOTTAN megnevezi az adatbázist (ott a szolgáltatás-fájl már nem
+   szólhatna bele). A szolgáltatás-fájl tartalmát nem olvassuk — más gépen, más engedélyekkel áll. A
+   tévedés így a NEM TÖRLÉS irányába esik (`D-VS-3158`).
+10. **A folytatás 12 óra tétlenség után nem él tovább** (`D-VS-3157`). Eddig sem élt; most a SZÖVEG is ezt
+   mondja. Ha a jövőben 24 órás folytatás kell, a munkamenet tétlenségi korlátját kell megnyújtani — annak
+   a költségét a döntés kimondja.
 
 ---
 
@@ -391,3 +429,29 @@ türelmen túlfutott (külön lefuttatott, szintén örökölt eltérésekkel z�
 **Amit a kör ÚJként hozott, az mind zöld:** 39 lánc zöld, köztük a most kötelezővé tett böngésző-kapu
 (122 helyzet, 0 bukás, 0 kihagyás), a mag 69 próbája és 245 mutációja, a 173 állításos határ-battéria,
 a nyelvi, a súgó- és a segéd-láncok.
+
+### 11.4 A HARMADIK REVIEW-KÖR UTÁN — MI FUTOTT A `43f3841` KÓDON, ÉS MI NEM
+
+**Kimondom elöl: a 41 láncos TELJES söprést a `43f3841`-en NEM futtattam újra.** Ami ezen a kódon
+futott, az CÉLZOTT — de a két érintett terület MINDEN hosszú láncát tartalmazza (a mag mutációs
+battériáját és a böngésző-kaput is), nem csak a gyors próbákat:
+
+| lánc | eredmény a `43f3841` kódon |
+|---|---|
+| `npm run verify:v3ref` (mag + TELJES mutációs battéria) | **TELJES ÉS TISZTA** — 69/69 próba · **249/249 mutáció elkapva**, 0 túlélte, 0 rossz próba, 0 mérőhiba, 0 elavult horgony; 44 egység, a legrosszabb egység 9870 ms (korlát 15 000) |
+| `npm run verify:browser-gate` (`test:e2e` + `proof:core-ux` + `proof:demo-walk`) | **PASS** — 122 helyzet · 0 bukás · 0 ingadozó · 0 kihagyás · 22 próba-fájl; a mérés EBBEN a futásban indult (22:36:25.552Z > 22:36:24.588Z) |
+| `npm run verify:app-findings-r154` | **187/187 PASS** (a 179-hez képest a 8 új Y-sor) |
+| `npm run app:selfcheck` | **57/57 PASS** |
+| `npm run verify:kuka` | **740/740 PASS** · alapvonal v101 · 341 bejegyzés · `vs` padló változatlan 92 |
+| `npm run verify:mutation-anchors` | **PASS** — 243 horgony, mind pontosan egyszer illeszkedik |
+| `npm run verify:i18n` | **49/49 PASS** · ellenpróba 6/6 |
+| `npm run verify:decision-numbers` | **4/4 PASS** — a következő szabad szám `D-VS-3159` |
+| `npm run verify:unit-admission` · `npm run verify:hash-manifeszt` | **ZÖLD** · **7/7** |
+| `npm run verify:lefedes` | **PIROS — változatlanul ÖRÖKÖLT** (20 R144-es hiány, `floor_breaks: []`) |
+
+**Amit ez NEM állít:** a többi 30 lánc a `43f3841`-en nem futott újra, tehát azokra a `b80d00c`-n mért
+zöld áll — ÚJ bizonyíték nélkül. A változás három fájlt érintett érdemben
+(`tools/lib/vs_pg_target.mjs` · `v3ref/invite.mjs` · `v3app/server.mjs`), és a hozzájuk tartozó
+láncokat a fenti táblázat mind tartalmazza; ettől függetlenül a „nem futott" itt is **nem** jelent
+zöldet (`KUKA-200` · SRU-01: újrahasznosított bizonyítékra csak a feloldó adhat zöldet, és azt itt nem
+hívtam meg).
