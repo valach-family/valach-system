@@ -1537,6 +1537,127 @@ try {
     }
   }
 
+  // ── V) R158/3 — A HÁROM BEKAPCSOLT NYELV A HATÁRON, TARTALOMMAL ────────────────────────────────
+  //
+  // MIT MÉR, ÉS MIÉRT NEM A SZÓTÁRBÓL. Az R158 kimondott kérése: „ellenőrizd a HU/EN/DE i18n-t, a
+  // segédet/chatet, a GYIK-et, a súgót, az oldaltérképet és a végigvezetés-elérhetőséget — ÉS a
+  // TARTALMAT a meglévő funkciókra." A statikus oldalt a `verify:tutor` és a `verify:i18n` már
+  // végigjárja MINDEN bekapcsolt nyelven; ami eddig NEM volt mérve, az a HATÁR: amit a kiszolgáló
+  // TÉNYLEGESEN kiad `?lang=` szerint. Ezért itt ÉLŐ HTTP-n kérdezünk, és a nyelv tényét úgy
+  // mérjük, hogy a HÁROM válasz EGYMÁSTÓL különbözik — nem úgy, hogy egy várt feliratot keresünk
+  // (KUKA-237: a próba se égessen be szöveget; KUKA-223: a keresést a NYELVEN kell mérni).
+  part('V) R158/3 — a három bekapcsolt nyelv a HATÁRON: súgó-tartalom, GYIK, végigvezetés-szöveg');
+  {
+    const DB10 = resolve(ROOT, 'var/tmp/v3app_r158_v.sqlite');
+    try { rmSync(DB10, { force: true }); rmSync(DB10 + '-wal', { force: true }); rmSync(DB10 + '-shm', { force: true }); } catch { /* nem volt */ }
+    const demoVolt2 = process.env.VS_DEMO;
+    process.env.VS_DEMO = '1';           // hogy a bemutató-kötött végigvezetések is a mérésben legyenek
+    const nyelv = await startServer({ port: 0, dbPath: DB10 });
+    try {
+      const b10 = `http://127.0.0.1:${nyelv.server.address().port}`;
+      const c = new Client(b10);
+      await c.post('/api/register', { email: 'v-anna@pelda.hu', password: PW, lang: 'hu' });
+      const mail = (await c.get('/dev/mailbox')).body.mails.filter((x) => x.to === 'v-anna@pelda.hu')[0];
+      const u10 = new URL(mail.link);
+      await c.get(u10.pathname + u10.search);
+      await c.post('/api/login', { email: 'v-anna@pelda.hu', password: PW });
+      await c.post('/api/workspaces', { name: 'V158 Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '12345678-1-42' } });
+
+      const LANGS = ['hu', 'en', 'de'];
+      const idx = {}; const stat = {};
+      for (const l of LANGS) {
+        idx[l] = (await c.get(`/api/assistant/knowledge?lang=${l}`)).body;
+        stat[l] = (await c.get(`/api/assistant/status?lang=${l}`)).body;
+      }
+
+      // (v1) MINDHÁROM NYELVEN UGYANANNYI FUNKCIÓ LÁTSZIK — a nyelv nem jogosultság (KUKA-233).
+      step('(v1) a látható funkciók köre nyelvtől FÜGGETLEN (a nyelv nem jogosultsági tengely)',
+        LANGS.every((l) => idx[l].ok === true && idx[l].visible_count === idx.hu.visible_count && idx[l].population === idx.hu.population)
+          && idx.hu.visible_count > 0,
+        Object.fromEntries(LANGS.map((l) => [l, `${idx[l].visible_count}/${idx[l].population}`])));
+
+      // (v2) ÉS MINDEN LÁTHATÓ FUNKCIÓNAK VAN CÍME MINDHÁROM NYELVEN — nem üres, nem null.
+      const cimHiany = {};
+      for (const l of LANGS) {
+        cimHiany[l] = idx[l].index.filter((r) => r.visible && !(typeof r.title === 'string' && r.title.trim())).map((r) => r.id);
+      }
+      step('(v2) minden LÁTHATÓ funkciónak van címe mindhárom nyelven',
+        LANGS.every((l) => cimHiany[l].length === 0), Object.fromEntries(LANGS.map((l) => [l, cimHiany[l].length])));
+
+      // (v3) A NYELV TÉNYE: a címek a három nyelven KÜLÖNBÖZNEK. Ha egy nyelv némán alapnyelvre
+      //      esne (KUKA-238), ez a sor pirosra vált — és NEM egy várt felirat keresésével.
+      const cim = (l) => idx[l].index.filter((r) => r.visible).map((r) => r.title).join('|');
+      const kulonbozo = new Set(LANGS.map(cim)).size;
+      step('(v3) a három nyelv válasza TÉNYLEGESEN különbözik (nincs néma alapnyelvre esés)',
+        kulonbozo === 3, { kulonbozo_valaszok: kulonbozo, hu_elso: idx.hu.index.find((r) => r.visible).title, en_elso: idx.en.index.find((r) => r.visible).title, de_elso: idx.de.index.find((r) => r.visible).title });
+
+      // (v4) A TARTALOM FUNKCIÓNKÉNT: súgó-szöveg + GYIK-szöveg MINDEN látható funkcióra, MINDEN
+      //      nyelven. Ez az ÁTADÁSI KAPU (D-VS-3075/3076) határ-oldali ellenőrzése: nem a regiszter
+      //      állítását olvassuk, hanem amit a kiszolgáló TÉNYLEGESEN kiad.
+      const hiany = { text: [], faq: [] };
+      for (const l of LANGS) {
+        for (const r of idx[l].index.filter((x) => x.visible)) {
+          const d = (await c.get(`/api/assistant/knowledge?lang=${l}&feature=${encodeURIComponent(r.id)}`)).body;
+          const t = d.text;
+          const KB_MEZOK = ['title', 'purpose', 'prereq', 'result'];
+          if (!(t && KB_MEZOK.every((m) => typeof t[m] === 'string' && t[m].trim()))) hiany.text.push(`${l}:${r.id}`);
+          const faqIds = (d.feature && d.feature.faq) || [];
+          for (const fid of faqIds) {
+            const ft = (d.faq_text || {})[fid];
+            if (!(ft && typeof ft.q === 'string' && ft.q.trim() && typeof ft.a === 'string' && ft.a.trim())) hiany.faq.push(`${l}:${r.id}:${fid}`);
+          }
+        }
+      }
+      step('(v4) MINDEN látható funkció súgó-szövege megvan mindhárom nyelven (cím · cél · előfeltétel · eredmény — a `verify:tutor` szerződése)',
+        hiany.text.length === 0, { hianyzo: hiany.text.slice(0, 6), darab: hiany.text.length });
+      step('(v5) és MINDEN hozzá kötött GYIK-tétel is (kérdés + válasz, nem üres)',
+        hiany.faq.length === 0, { hianyzo: hiany.faq.slice(0, 6), darab: hiany.faq.length });
+
+      // (v6) A VÉGIGVEZETÉSEK: ugyanannyi mindhárom nyelven, és a LÉPÉS-SZÖVEG is megvan — a
+      //      bemutató nem indulhat el néma buborékkal egy másik nyelven (KUKA-210).
+      const turaHiany = {};
+      for (const l of LANGS) {
+        turaHiany[l] = (stat[l].tours || []).filter((t) => {
+          const txt = t.text || {};
+          return !(t.steps || []).every((st) => txt[st.id] && String(txt[st.id].title || '').trim() && String(txt[st.id].body || '').trim());
+        }).map((t) => t.id);
+      }
+      step('(v6) a végigvezetések száma nyelvtől független, és MINDEN lépésnek van címe+törzse mindhárom nyelven',
+        LANGS.every((l) => (stat[l].tours || []).length === (stat.hu.tours || []).length && turaHiany[l].length === 0)
+          && (stat.hu.tours || []).length > 0,
+        Object.fromEntries(LANGS.map((l) => [l, `${(stat[l].tours || []).length} túra · ${turaHiany[l].length} hiányos`])));
+
+      // (v7) AZ OLDALTÉRKÉP a funkciók KÉPERNYŐ-mezőjéből áll: minden látható funkció megnevez egy
+      //      lapot, és a lap-lista mindhárom nyelven UGYANAZ (a lapok azonosítója nem fordul le).
+      const lapok = (l) => [...new Set(idx[l].index.filter((r) => r.visible).map((r) => r.screen))].sort().join(',');
+      step('(v7) az oldaltérkép alapja (a funkciók képernyői) mindhárom nyelven ugyanaz, és nem üres',
+        LANGS.every((l) => lapok(l) === lapok('hu')) && lapok('hu').length > 0,
+        { lapok: lapok('hu').split(',').length });
+
+      // (v8) A SEGÉD (chat) HELYI VÁLASZT AD MINDHÁROM NYELVEN — modellhívás nélkül, és a válasz
+      //      nyelve a KÉRÉS nyelve. A szolgáltatói csonkot KIMONDVA nem használjuk itt: ez a HELYI
+      //      út mérése (KUKA-235: amit nem ellenőriztünk, ahhoz nem teszünk igazolás-jelzést).
+      const valasz = {};
+      for (const l of LANGS) {
+        // A kérdés a MEGHÍVÁS funkció SAJÁT címe az adott nyelven — így a kérdés nyelve és a keresés
+        // nyelve egybeesik, és egyetlen felirat sincs beégetve a próbába.
+        const cel = idx[l].index.find((r) => r.id === 'invite.send' && r.visible) || idx[l].index.find((r) => r.visible);
+        const r = await c.post('/api/assistant/ask', { question: String(cel.title), lang: l });
+        valasz[l] = r.body;
+      }
+      step('(v8) a segéd mindhárom nyelven VÁLASZOL a saját nyelvén feltett kérdésre, és a deklarált nyelv a KÉRÉS nyelve',
+        LANGS.every((l) => valasz[l] && valasz[l].ok === true && valasz[l].lang === l
+          && typeof valasz[l].answer === 'string' && valasz[l].answer.trim().length > 0),
+        Object.fromEntries(LANGS.map((l) => [l, valasz[l] && `${valasz[l].ok}/${valasz[l].lang}/${String(valasz[l].answer || '').length} karakter`])));
+      step('(v9) és a három válasz SZÖVEGE különbözik (a nyelv nem csak a mezőben áll)',
+        new Set(LANGS.map((l) => String((valasz[l] || {}).answer || ''))).size === 3,
+        { kulonbozo: new Set(LANGS.map((l) => String((valasz[l] || {}).answer || ''))).size });
+    } finally {
+      if (demoVolt2 === undefined) delete process.env.VS_DEMO; else process.env.VS_DEMO = demoVolt2;
+      await new Promise((r) => nyelv.server.close(r));
+    }
+  }
+
   const fail = results.filter((r) => !r.pass);
   console.log(`\nR154 battéria: ${results.length - fail.length}/${results.length} PASS${fail.length ? ` — ${fail.length} FAIL` : ''}`);
   console.log('A MÉRÉS HATÓKÖRE: a HTTP-határ és a két feloldó. Üzleti folyamatról, élő AI-ról és felhős');

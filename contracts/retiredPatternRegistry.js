@@ -13698,6 +13698,32 @@ Object.freeze({
     lesson: 'A VÉDŐ SZABÁLY MINDEN ÓRÁJÁRA ÉRVÉNYES, NEM CSAK A TÁROLT SORÉRA. Ha egy döntés több időpontot olvas, a „nem tudom" irányát MINDEGYIKRE ki kell mondani — különben a legszigorúbb védelem a legártatlanabb hibán (egy formázatlan időbélyegen) nyílik ki. És ha a kapu zár, de rossz néven, az ugyanaz a kár, mint a néma átengedés: a hívó a nem létező problémát javítja.',
     guard_note: 'gépi jel: `npm run verify:v3ref` (P-AUTHZ-protective-clock + M210/M211/M212 — a két feloldót és a nevet KÜLÖN rontja) · `npm run verify:kuka` (három pozitív + két tiltó minta).',
   }),
+  Object.freeze({
+    id: 'KUKA-338',
+    date: '2026-10-06',
+    title: 'AZ ÜRES ÁTVITT KORLÁT „NINCS KORLÁT"-NAK SZÁMÍTOTT — a sérült sor ADMIN továbbadására jogosított',
+    what: 'A delegálási plafon KÉT tengelye UGYANERRE a tárolt alakra ELLENTÉTES választ adott: a szerep-tengely `pRoles.length ? szűrés : [...delegable]` alakban olvasta (az ÜRES lista „nincs korlát"), az adatkör-tengely viszont `pScopes.filter(...)`-rel (az ÜRES lista „semmi"). MÉRVE (visszavonás-próbával, a javítás előtti alakon): egy `roles: []` átvitt korláttal a plafon `["admin","user"]` lett — és ugyanez történt, ha a `roles` mező HIÁNYZOTT vagy nem tömb volt (`roles: "admin"`), mert az `Array.isArray(...) ? ... : []` tartalék a hiányt is üresre fordította. A tagságra átvitt korlát a `grant_basis.granted_limit` JSON-ja, amit a beolvasó `JSON.parse`-szal vesz át, szerkezet-vizsgálat NÉLKÜL.',
+    why_wrong: 'A plafon a jogosultság FELSŐ határa: ha az üres vagy sérült alak „nincs korlát"-ot jelent, akkor a legszigorúbb tárolt érték a leglazább viselkedést adja — pontosan fordítva, mint ahogy egy korlátnak működnie kell. A hiányzó mező pedig nem üres lista, hanem NEM MEGÁLLAPÍTHATÓ, és a nem tudást nem oldjuk fel a kedvezőbb irányba (KUKA-020 · KUKA-236: a zárt lista a MEZŐKRE is érvényes). Ugyanaz a bemenet két tengelyen két olvasat = fél őr (KUKA-039).',
+    replaced_by: 'MINDKÉT TENGELY UGYANAZT OLVASSA (D-VS-3146): az ÜRES lista KORLÁT — a szerep-tengely szűrése feltétel nélkül lefut, tehát az üres korlát `delegation_ceiling_empty`-t ad, nem szabadságot.',
+    replacement: 'ÉS A HIÁNYZÓ VAGY NEM-TÖMB ALAK NEVEZETTEN ELAKAD: `parent_limit_undecidable`, a szülő-alap megnevezésével. A normál úton ilyen sor nem keletkezik (a plafon kiszámítása üres szerep-listánál elakad, mielőtt írna) — de egy sérült, migrált vagy importált sor pontosan ezt hozza, és az OLVASÓ-oldali ellenőrzés ugyanaz a válasz, amit a tiltásnál már egyszer megépítettünk (R73/C-F05).',
+    decision: 'D-VS-3146',
+    found_by: 'SAJÁT AUDIT-LELET (Claude-v3, R158/3 — a jogosultsági mag átvizsgálása). A HTTP-határról ma NEM elérhető: a rendes út nem ír üres szerep-korlátot. A lelet az OLVASÓ oldalán áll, ahol a sérült sor hatása eldől (KUKA-227).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/delegation.mjs']),
+        pattern: 'const roles = delegable\\.filter\\(\\(r\\) => pRoles\\.includes\\(r\\)\\);',
+        why: 'az üres szerep-korlát KORLÁT: a szűrés feltétel nélkül lefut' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/delegation.mjs']),
+        pattern: "reason: 'parent_limit_undecidable'",
+        why: 'a hiányzó vagy nem-tömb alak pedig NEVEZETTEN elakad' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/delegation.mjs']),
+        pattern: 'pRoles\\.length \\? delegable\\.filter',
+        why: 'az „üres = szabadság" olvasat nem jöhet vissza' }),
+    ]),
+    lesson: 'A KORLÁT ÜRES ALAKJA A LEGSZIGORÚBB ÁLLÍTÁS, NEM A LEGLAZÁBB. Ha egy döntés több tengelyen ugyanazt a tárolt alakot olvassa, a tengelyeknek UGYANAZT kell érteniük rajta — különben a kódban két ellentétes „magától értetődő" olvasat él egymás mellett, és a megengedőbb győz ott, ahol a legkevesebbet próbáltuk. És amit JSON-ból veszünk át, annak az ALAKJÁT is ellenőrizni kell, nem csak az értékét.',
+    guard_note: 'gépi jel: `npm run verify:v3ref` (P-AUTHZ-parent-limit + M213/M214 — az üres és a sérült alakot KÜLÖN rontja) · `npm run verify:kuka` (két pozitív + egy tiltó minta).',
+  }),
 
 ]);
 

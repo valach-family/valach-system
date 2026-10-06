@@ -2397,4 +2397,19 @@ export const MUTATIONS = [
     file: 'reentryGate.mjs',
     from: "    if (susp.decidable === false) {",
     to: "    if (false) {" },
+
+  // R158/3 — AZ ÁTVITT KORLÁT ALAKJA. A rés KÉT alakban nyílt (üres lista · nem-tömb/hiányzó mező),
+  // ezért KÉT mutáció rontja külön: az egyik visszateszi az „üres = szabadság" olvasatot, a másik a
+  // nem megállapítható alakot engedi át némán (KUKA-039: egy mutáció a másik felét hagyná őrizetlenül).
+  { id: 'M213', rule: 'K07', catcher: 'P-AUTHZ-parent-limit', expect: 'probe_fail',
+    what: 'R158/3 — AZ ÜRES SZEREP-KORLÁT ISMÉT „NINCS KORLÁT": egy `roles: []` átvitt korláttal a plafon ADMIN továbbadására jogosít (a mi SAJÁT résünk, MÉRVE az R158/3 auditban)',
+    file: 'delegation.mjs',
+    from: "  const roles = delegable.filter((r) => pRoles.includes(r));",
+    to: "  const roles = pRoles.length ? delegable.filter((r) => pRoles.includes(r)) : [...delegable];" },
+
+  { id: 'M214', rule: 'K07', catcher: 'P-AUTHZ-parent-limit', expect: 'probe_fail',
+    what: 'R158/3 — A HIÁNYZÓ VAGY NEM-TÖMB ALAKÚ KORLÁT NÉMÁN ÜRESNEK SZÁMÍT: a sérült sor nem nevezett elutasítást kap, hanem beolvad a rendes útba (KUKA-020: a nem tudást nem oldjuk fel a kedvezőbb irányba)',
+    file: 'delegation.mjs',
+    from: "  const pRoles = Array.isArray(parent.limit && parent.limit.roles) ? parent.limit.roles : null;",
+    to: "  const pRoles = Array.isArray(parent.limit && parent.limit.roles) ? parent.limit.roles : [];" },
 ];

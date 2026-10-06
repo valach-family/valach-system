@@ -2642,6 +2642,66 @@ probe('P-AUTHZ-protective-clock', 'R158/3 · REV-N5a · SUS-01 · KUKA-039 · KU
     } finally { w.store.close(); }
   });
 
+probe('P-AUTHZ-parent-limit', 'R158/3 · ORG-N1b · KUKA-020 · KUKA-236 · KUKA-039',
+  'AZ ÁTVITT KORLÁT ÜRES VAGY HIBÁS ALAKJA NEM „NINCS KORLÁT" — a plafon nem nyílhat ki egy sérült soron',
+  () => {
+    const T = '2026-03-01T00:00:00.000Z';
+    const AT = '2026-04-01T00:00:00.000Z';
+    // A TAGSÁGRA ÁTVITT korlát a `grant_basis.granted_limit` JSON-ja, és az ALAKJÁT senki nem
+    // ellenőrzi (`JSON.parse`, szerkezet-vizsgálat nélkül) — tehát a sérült alak VALÓDI bemenet.
+    const vilag = (grantedLimit) => {
+      const store = openStore();
+      store.run("INSERT INTO book (id, name) VALUES ('book_a','A')");
+      store.run("INSERT INTO subject (id, kind) VALUES ('sub_admin','person')");
+      store.run("INSERT INTO account (subject_id, credential) VALUES ('sub_admin','cred_a')");
+      store.run("INSERT INTO membership (subject_id, book_id, role, granted_at) VALUES ('sub_admin','book_a','admin',?)", T);
+      const g = store.run(`INSERT INTO membership_grant (subject_id, book_id, role, recorded_at, effective_at)
+        VALUES ('sub_admin','book_a','admin',?,?)`, T, T);
+      store.run(`INSERT INTO authority_basis (basis_id, version, book_id, issuer_subject, effective_at, recorded_at,
+          expires_at, revoked_at, allowed_operations, allowed_roles, allowed_scopes, evidence_ref)
+        VALUES ('deleg:book_a:sub_fonok',1,'book_a','sub_admin',?,?,NULL,NULL,?,?,?,'proof')`,
+        T, T, JSON.stringify(['invite_issue', 'alter_right']), JSON.stringify(['admin', 'user']), JSON.stringify(['keszlet']));
+      store.run(`INSERT INTO grant_basis (grant_event_id, token, basis_id, basis_version, granted_limit)
+        VALUES (?, 'tok', 'deleg:book_a:sub_fonok', 1, ?)`, Number(g.lastInsertRowid), JSON.stringify(grantedLimit));
+      return store;
+    };
+    const plafon = (lim) => {
+      const store = vilag(lim);
+      try { return delegationCeilingOf({ store, subjectId: 'sub_admin', bookId: 'book_a', at: AT }); }
+      finally { store.close(); }
+    };
+
+    // (a) KONTROLL: a RENDES korlát szűkít — enélkül a lenti ágak semmit nem mondanának.
+    const jo = plafon({ roles: ['user'], scopes: ['keszlet'] });
+    const aOk = jo.ok === true && JSON.stringify([...jo.roles]) === JSON.stringify(['user']);
+
+    // (b) AZ ÜRES SZEREP-LISTA KORLÁT, NEM SZABADSÁG. MÉRVE a javítás ELŐTT: a plafon
+    //     `["admin","user"]` lett, vagyis egy ÜRES korlát ADMIN továbbadására jogosított.
+    const ures = plafon({ roles: [], scopes: ['keszlet'] });
+    const bOk = ures.ok === false && ures.reason === 'delegation_ceiling_empty';
+
+    // (c) A HIÁNYZÓ ÉS A NEM-TÖMB ALAK NEM MEGÁLLAPÍTHATÓ — nem „nincs korlát" (KUKA-020 · KUKA-236:
+    //     a zárt lista a MEZŐKRE is érvényes). Három alak, mert háromféleképpen sérül egy sor.
+    const cOk = [{ scopes: ['keszlet'] }, { roles: 'admin', scopes: ['keszlet'] }, { roles: ['user'], scopes: 'keszlet' }]
+      .every((lim) => { const v = plafon(lim); return v.ok === false && v.reason === 'parent_limit_undecidable'; });
+
+    // (d) ÉS A KÉT TENGELY UGYANAZT OLVASSA (KUKA-039): az ÜRES adatkör-lista eddig is „semmit"
+    //     jelentett — a szerep-tengely most ugyanígy viselkedik, tehát nincs többé ellentétes olvasat.
+    const uresScope = plafon({ roles: ['user'], scopes: [] });
+    const dOk = uresScope.ok === true && uresScope.scopes.length === 0;
+
+    return {
+      pass: aOk && bOk && cOk && dOk,
+      detail: { aOk, bOk, cOk, dOk },
+      assertions: {
+        'A-ORG-N1b-normal-limit-narrows': aOk,
+        'A-ORG-N1b-empty-role-limit-is-a-limit-not-freedom': bOk,
+        'A-ORG-N1b-missing-or-malformed-limit-is-undecidable': cOk,
+        'A-ORG-N1b-both-axes-read-the-same-shape-the-same-way': dOk,
+      },
+    };
+  });
+
 probe('P-REV-ban-paths', 'R71 §8/1 · REV-N5a · K09 · K15 · KUKA-039',
   'A TILTÁS MINDEN ENGEDŐ ÚTON HAT — nem csak azon, amelyiken bevezették',
   () => {

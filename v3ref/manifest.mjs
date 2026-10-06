@@ -95,6 +95,7 @@ export const EXPECTED_PROBES = Object.freeze([
   Object.freeze({ id: 'P-INVITE-effect', assertion: 'Q11Q12-real-effect-and-atomicity' }),
   Object.freeze({ id: 'P-K03-intent-expiry', assertion: 'K03-pending-intent-expires-and-purges' }),
   Object.freeze({ id: 'P-AUTHZ-protective-clock', assertion: 'REV-N5a-SUS-01-undecidable-request-clock-does-not-lift-protection' }),
+  Object.freeze({ id: 'P-AUTHZ-parent-limit', assertion: 'ORG-N1b-empty-or-malformed-carried-limit-is-not-unlimited' }),
   Object.freeze({ id: 'P-AUTHZ-revoke-now', assertion: 'K09-immediate-revocation-pulls-forward' }),
 
   // ── A HAT HIÁNYZÓ ŐR (R49 · D-VS-3008) ───────────────────────────────────────────────────────

@@ -110,9 +110,24 @@ export function delegationCeilingOf({ store, subjectId, bookId, at }) {
   if (!delegable.length) return frozen({ ok: false, reason: 'role_not_delegable', role });
   const parent = parentBasisOfMembership({ store, subjectId, bookId, at });
   if (!parent.ok) return frozen({ ok: false, reason: parent.reason });
-  const pRoles = Array.isArray(parent.limit.roles) ? parent.limit.roles : [];
-  const pScopes = Array.isArray(parent.limit.scopes) ? parent.limit.scopes : [];
-  const roles = pRoles.length ? delegable.filter((r) => pRoles.includes(r)) : [...delegable];
+  // ── AZ ÜRES KORLÁT NEM „NINCS KORLÁT" — ÉS A KÉT TENGELY UGYANAZT OLVASSA (R158/3, MÉRVE) ──────
+  //
+  // A LELET. A két tengely UGYANERRE a tárolt alakra ELLENTÉTES választ adott:
+  //   roles:  `pRoles.length ? szűrés : [...delegable]`  → az ÜRES lista „nincs korlát" (ENGEDŐ)
+  //   scopes: `pScopes.filter(...)`                      → az ÜRES lista „semmi"      (ZÁRÓ)
+  // MÉRVE: egy `allowed_roles: []` szülő-korláttal a plafon `["admin","user"]` lett, vagyis az
+  // ÜRES korlát ADMIN továbbadására jogosított. A normál úton ilyen sor nem keletkezik (a plafon
+  // kiszámítása `delegation_ceiling_empty`-vel elakad, mielőtt írna), de egy sérült, migrált vagy
+  // importált sor pontosan ezt hozza — és az OLVASÓ-oldali ellenőrzés hiánya ugyanaz a hiba-osztály,
+  // amit a tiltásnál már egyszer kijavítottunk (R73/C-F05: a séma-kényszer a migrációt köti, a már
+  // bent lévő sort nem). A hiányzó/nem-tömb alak sem „nincs korlát": az NEM MEGÁLLAPÍTHATÓ, és a
+  // nem tudást nem oldjuk fel a kedvezőbb irányba (KUKA-020 · KUKA-236: a zárt lista a MEZŐKRE is).
+  const pRoles = Array.isArray(parent.limit && parent.limit.roles) ? parent.limit.roles : null;
+  const pScopes = Array.isArray(parent.limit && parent.limit.scopes) ? parent.limit.scopes : null;
+  if (pRoles === null || pScopes === null) {
+    return frozen({ ok: false, reason: 'parent_limit_undecidable', parent_basis: parent.basis_id ?? null });
+  }
+  const roles = delegable.filter((r) => pRoles.includes(r));
   const scopes = pScopes.filter((s) => KNOWN_DATA_SCOPES.includes(s));
   if (!roles.length) return frozen({ ok: false, reason: 'delegation_ceiling_empty', parent_basis: parent.basis_id });
   return frozen({ ok: true, role, roles: frozen([...roles]), scopes: frozen([...scopes]), parent });

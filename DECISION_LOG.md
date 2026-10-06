@@ -594,6 +594,28 @@ jokernél). Gépi jel: `npm run verify:kuka` (KUKA-330) · `npm run verify:app-f
 
 ---
 
+## D-VS-3146 — AZ ÜRES ÁTVITT KORLÁT KORLÁT, A SÉRÜLT ALAK PEDIG NEM MEGÁLLAPÍTHATÓ (R158/3)
+
+**A döntés.** A delegálási plafon mindkét tengelye UGYANÚGY olvassa a tárolt korlátot: az ÜRES lista
+KORLÁT (semmi nem adható tovább), a hiányzó vagy nem-tömb alak pedig NEVEZETTEN elakad
+(`parent_limit_undecidable`). A szerep-tengely szűrése feltétel nélkül lefut.
+
+**Miért.** A két tengely ELLENTÉTESEN olvasta ugyanazt az alakot: a szerepeknél az üres lista „nincs
+korlát"-ot jelentett, az adatköröknél „semmit". MÉRVE (visszavonás-próbával, a javítás előtti alakon):
+`roles: []` átvitt korláttal a plafon `["admin","user"]` lett — az ÜRES korlát tehát ADMIN továbbadására
+jogosított; és ugyanez történt, ha a mező HIÁNYZOTT vagy nem tömb volt (`roles: "admin"`). A tagságra
+átvitt korlát a `grant_basis.granted_limit` JSON-ja, amit a beolvasó szerkezet-vizsgálat NÉLKÜL vesz át.
+
+**Ki találta meg.** SAJÁT AUDIT-LELET (Claude-v3, R158/3).
+
+**Amit ez NEM állít.** A HTTP-határról ma NEM elérhető: a rendes út nem ír üres szerep-korlátot (a
+számítás `delegation_ceiling_empty`-vel elakad, mielőtt írna). A lelet az OLVASÓ oldalán áll — ott, ahol
+egy sérült, migrált vagy importált sor hatása eldől; ugyanaz a válasz, amit a tiltásnál már egyszer
+megépítettünk (R73/C-F05: a séma-kényszer a migrációt köti, a már bent lévő sort nem). Gépi jel:
+`npm run verify:v3ref` (`P-AUTHZ-parent-limit` + M213/M214) · `npm run verify:kuka` (KUKA-338).
+
+---
+
 ## D-VS-3145 — A VÉDŐ KAPUK MINDEN ÓRÁJA A VÉDŐ IRÁNYBA DŐL, ÉS A ZÁRÁS A SAJÁT NEVÉN MEGY (R158/3)
 
 **A döntés.** A tiltás (`banEffectiveAt`) és a felfüggesztés (`suspensionEffectiveAt`) értelmezhetetlen
