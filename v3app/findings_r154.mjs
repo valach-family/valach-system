@@ -763,6 +763,116 @@ try {
     } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
 
+  // ── L) F154-25…F154-28 — AZ ÖTÖDIK KÜLSŐ KÖR: A PIN NÉGY ÁRA ──────────────────────
+  //
+  // MIND A NÉGY LELET AZ ELŐZŐ KÖRBEN BEVEZETETT PIN-MECHANIZMUSRA MUTAT (F154-21/22). Nem új
+  // terület: UGYANAZ a munkamenet-tár, és ez a csomagban a hetedik kör ugyanitt — a GYÖKÉR-OKOT
+  // (minden süti nélküli kérés szerver-oldali sort nyit) a lefedettségi lap nevezi meg, és a
+  // átalakítását döntésre tettem fel, nem egyoldalúan.
+  part('L) F154-25…F154-28 — a pin négy ára (ötödik Codex-kör)');
+  {
+    const t0 = 1_000_000;
+
+    // (l1) F154-25 (P1): a pin a PLAFON alól is kivette a sort, az ELENGEDÉS viszont nem söpört.
+    const st = makeSessionStore({ idleMs: 600_000, maxSessions: 2, warn: () => {} });
+    st.set('b1', { id: 'b1', subject_id: 'u1' }, t0);
+    st.set('b2', { id: 'b2', subject_id: 'u2' }, t0);
+    const jelek = [];
+    for (let i = 0; i < 10; i++) {
+      const jel = Symbol(`kérés-${i}`);
+      jelek.push(jel);
+      st.pin(`n${i}`, jel);                                   // a kérés-ciklus a BESZÚRÁS ELŐTT pinel
+      st.set(`n${i}`, { id: `n${i}`, subject_id: null }, t0 + i);
+    }
+    const csucs = st.size;
+    for (const jel of jelek) st.unpinAll(jel, t0 + 100);
+    step('(l1) 10 ÁTFEDŐ kérés után a tár visszatér a plafonra (RÉGEN MÉRVE: 12 sor maradt 2-es plafonon)',
+      st.size <= 2, { csucs_kozben: csucs, utana: st.size, plafon: 2 });
+    step('(l2) ELLENPÁR: és a két BELÉPETT sor megmaradt — a takarítás nem rájuk száll',
+      st.stats().evicted_cap_signed_in === 0 && st.has('b1', t0 + 100) && st.has('b2', t0 + 100),
+      { b1: st.has('b1', t0 + 100), b2: st.has('b2', t0 + 100), kileptetve: st.stats().evicted_cap_signed_in });
+
+    // (l3) F154-26 (P2): a SIKERTELEN takarítás azonosítói várólistán maradnak.
+    let tarolo_hiba = true;
+    const leadva = [];
+    const st2 = makeSessionStore({ idleMs: 600_000, maxSessions: 1, warn: () => {},
+      onEvicted: (ids) => { if (tarolo_hiba) throw new Error('a tároló nem elérhető'); leadva.push(...ids); } });
+    st2.set('x1', { id: 'x1', subject_id: null }, t0);
+    st2.set('x2', { id: 'x2', subject_id: null }, t0 + 1);     // ez kiszorítja x1-et → onEvicted DOB
+    const varolista = st2.stats().cleanup_pending;
+    tarolo_hiba = false;
+    st2.set('x3', { id: 'x3', subject_id: null }, t0 + 2);     // a következő bejelentés már sikerül
+    step('(l3) a kiesett tisztítás azonosítói NEM vesznek el — a következő bejelentés leadja őket (RÉGEN: elvesztek)',
+      varolista >= 1 && leadva.includes('x1'), { varolista_a_hiba_utan: varolista, kesobb_leadva: leadva });
+
+    // (l4) F154-27 (P2): a pin elengedése a SAJÁT azonosítóit ismeri — nem olvassa végig a táblát.
+    const C = 4000;
+    const st3 = makeSessionStore({ idleMs: 600_000, maxSessions: C * 2, warn: () => {} });
+    const jelek3 = [];
+    for (let i = 0; i < C; i++) {
+      const jel = Symbol(`p${i}`);
+      jelek3.push(jel);
+      st3.pin(`p${i}`, jel);
+      st3.set(`p${i}`, { id: `p${i}`, subject_id: `u${i}` }, t0);
+    }
+    const kezdet = Date.now();
+    for (const jel of jelek3) st3.unpinAll(jel, t0 + 1);
+    const ms = Date.now() - kezdet;
+    step(`(l4) ${C} átfedő kérés pinjeinek elengedése ÁLLANDÓ költségű lépésekben megy (a KVADRATIKUS alak kizárva)`,
+      ms < 300 && st3.stats().pinned === 0, { ms, C, pinned_utana: st3.stats().pinned, regi_alak: 'kérésenként a TELJES pin-tábla → O(C²)' });
+
+    // (l5) F154-28 (P2): a `touch` megmondja, ha a sor lejárt — és a kérés-ciklus EGY időt használ.
+    const st4 = makeSessionStore({ idleMs: 1_000, maxSessions: 10, warn: () => {} });
+    st4.set('s', { id: 's', subject_id: 'u' }, t0);
+    const erintes = st4.touch('s', t0 + 5_000);
+    step('(l5) a `touch` MEGMONDJA, ha a sor lejárt (régen: csendben eldobta, a hívó meg belépettnek hitte)',
+      erintes === false && st4.has('s', t0 + 5_000) === false, { touch: erintes });
+    const srcL = readFileSync(join(ROOT, 'v3app/server.mjs'), 'utf8');
+    const egyIdo = /const requestNow = Date\.now\(\);[\s\S]{0,1200}?sessions\.get\(cookies\.get\(SESSION_COOKIE\) \|\| '', requestNow\)[\s\S]{0,600}?!sessions\.touch\(session\.id, requestNow\)/.test(srcL);
+    step('(l6) a kérés-ciklus EGY időbélyeget ad a kikeresésnek és az érintésnek, és a hamis érintést munkamenet-hiánynak veszi',
+      egyIdo, { minta: egyIdo });
+
+    // (l7) ELLENPÁR ÉLŐ HTTP-N: az átfedő köteg a HATÁRON sem hagyja a plafon fölött a tárat.
+    const DB4 = resolve(ROOT, 'var/tmp/v3app_r154_l.sqlite');
+    try { rmSync(DB4, { force: true }); rmSync(DB4 + '-wal', { force: true }); rmSync(DB4 + '-shm', { force: true }); } catch { /* nem volt */ }
+    const elozoL = process.env.VS_APP_SESSION_MAX;
+    process.env.VS_APP_SESSION_MAX = '2';
+    const lap = await startServer({ port: 0, dbPath: DB4 });
+    try {
+      const b4 = `http://127.0.0.1:${lap.server.address().port}`;
+      for (let i = 0; i < 2; i++) {
+        const c = new Client(b4);
+        await c.post('/api/register', { email: `l${i}@pelda.hu`, password: PW, lang: 'hu' });
+        const m = (await c.get('/dev/mailbox')).body.mails.filter((x) => x.to === `l${i}@pelda.hu`)[0];
+        const l = new URL(m.link);
+        await c.get(l.pathname + l.search);
+        await c.post('/api/login', { email: `l${i}@pelda.hu`, password: PW });
+      }
+      const port4 = lap.server.address().port;
+      // TÍZ ÁTFEDŐ, LASSAN érkező POST — mind nyitva van, amíg az utolsó el nem indul.
+      const kotes = [];
+      for (let i = 0; i < 10; i++) {
+        kotes.push(new Promise((resolve2) => {
+          const rq = httpReq({ host: '127.0.0.1', port: port4, path: '/api/invites/pending', method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Transfer-Encoding': 'chunked' } }, (res) => {
+            res.on('data', () => {}); res.on('end', () => resolve2(res.statusCode));
+          });
+          rq.on('error', () => resolve2(0));
+          rq.write(`{"token":"koteg-${i}-`);
+          setTimeout(() => rq.end('proba"}'), 250);
+        }));
+      }
+      const valaszok = await Promise.all(kotes);
+      step('(l7) ÉLŐ HTTP: 10 átfedő lassú POST után a tár a plafon közelében áll (RÉGEN: a köteg mérete hozzáadódott)',
+        lap.sessions.size <= 2 + 1, { size: lap.sessions.size, plafon: 2, valaszok: valaszok.filter((x) => x === 200).length });
+      step('(l8) ELLENPÁR: a köteg egyetlen BELÉPETT munkamenetet sem léptetett ki',
+        lap.sessions.stats().evicted_cap_signed_in === 0, lap.sessions.stats());
+    } finally {
+      await new Promise((r) => lap.server.close(r));
+      if (elozoL === undefined) delete process.env.VS_APP_SESSION_MAX; else process.env.VS_APP_SESSION_MAX = elozoL;
+    }
+  }
+
   const fail = results.filter((r) => !r.pass);
   console.log(`\nR154 battéria: ${results.length - fail.length}/${results.length} PASS${fail.length ? ` — ${fail.length} FAIL` : ''}`);
   console.log('A MÉRÉS HATÓKÖRE: a HTTP-határ és a két feloldó. Üzleti folyamatról, élő AI-ról és felhős');

@@ -262,6 +262,79 @@ forrás-kötés).
 
 ---
 
+## D-VS-3121 — A PLAFON A VÉDELEM MEGSZŰNÉSEKOR IS ÁLL, ÉS AZ ELENGEDÉSI ÚT IS MEGKÉRDEZI A VÉDETTSÉGET (R154)
+
+**A döntés.** A kérés végén az `unpinAll` nem csak elengedi a pint: ha a tár a plafon fölé került, a
+MOST elengedett, folytatást NEM hordozó névtelen sorok mennek elsőként, és ha a plafon utána is
+sérül, a rendes söprés dönt a maga osztály-sorrendjével. A védettséget az elengedési út is
+megkérdezi — de CSAK a most elengedett azonosítókra.
+
+**Miért.** A pin (D-VS-3118) a plafon-számításból is kivonta a sort, ezért egy ÁTFEDŐ kérés-köteg
+minden tagja felvételt nyert, az elengedés viszont nem söpört. MÉRVE `maxSessions=2` mellett 10
+átfedő kéréssel: a tár a köteg lefutása után is **12 sornál** állt — a tár szintjén és ÉLŐ HTTP-n
+egyaránt. A javítás után **2**. A saját soros próbám (`j5`) ezt nem kapta el: átfedés nélkül a hiba
+elő sem áll. A javítás ELSŐ alakja viszont a védettséget nem kérdezte meg, és egy ÉLŐ munkamenet
+meghívó-folytatását vitte el — ezt a saját `g7` ellenpárom kapta el, commit előtt (KUKA-315).
+
+**Amit ez NEM állít.** A tár továbbra is annyival lóghat túl a plafonon, ahány kérés ÉPP FUT — ez
+korlátos és kimondott tűrés, nem „majdnem jó". Gépi jel: `npm run verify:kuka` (KUKA-311 · KUKA-315)
+· `npm run verify:app-findings-r154` (L: l1, l7, l2, l8 · g7).
+
+---
+
+## D-VS-3122 — A SIKERTELEN TAKARÍTÁS AZONOSÍTÓI VÁRÓLISTÁN MARADNAK, A VÁRÓLISTA KORLÁTOS (R154)
+
+**A döntés.** Ha a kiszorított munkamenetek szerver-oldali állapotának takarítása elhasal, az
+azonosítók várólistára kerülnek, és a következő bejelentés leadja őket. A várólista 10 000
+azonosítónál korlátos, és a túlfolyást a napló megnevezi.
+
+**Miért.** A korábbi alak az azonosítókat a hiba előtt kivette a listából, és csak naplózott. A
+munkamenet a tárból eltűnt, tehát a jelölt-listába sem kerülhet vissza: a `pending_intent` sorai
+SOHA többé nem lettek volna megtalálhatók. MÉRVE: dobó takarítás után a várólista 0 volt, és az
+első azonosító elveszett; a javítás után a várólista 1, és a következő bejelentés mind a kettőt
+leadja.
+
+**Amit ez NEM állít.** A `pending_intent` sorok LEJÁRAT szerinti takarítása továbbra is nyitott
+(D-VS-3007 nevezett függője). Gépi jel: `npm run verify:kuka` (KUKA-312) ·
+`npm run verify:app-findings-r154` (L: l3).
+
+---
+
+## D-VS-3123 — A PINEK JEL SZERINTI FORDÍTOTT INDEXE: A KÉRÉS A SAJÁT PINJEIT ENGEDI EL (R154)
+
+**A döntés.** A pinek azonosító szerint ÉS a kérés jele szerint is indexeltek; az elengedés a saját
+azonosítókat járja be, nem a teljes pin-táblát.
+
+**Miért.** MÉRVE: 4000 átfedő kérés pinjeinek elengedése **593 ms** → **6 ms** (≈100×). Ez a
+NEGYEDIK eset ugyanabból a hibaosztályból ebben a csomagban (D-VS-3100 a kéréskorlát sora ·
+D-VS-3110 a teljes tábla-olvasás · D-VS-3116 a rendezés telt táron · ez): a védelem költsége azzal
+nő, amivel szemben véd.
+
+**Amit ez NEM állít.** Nem teljesítmény-hangolás: a próba korlátja a KVADRATIKUS nagyságrendet zárja
+ki, nem a gépet méri. Gépi jel: `npm run verify:kuka` (KUKA-313) ·
+`npm run verify:app-findings-r154` (L: l4).
+
+---
+
+## D-VS-3124 — A KÉRÉSNEK EGY IDEJE VAN, ÉS AZ ÉRINTÉS MEGMONDJA, SIKERÜLT-E (R154)
+
+**A döntés.** A kérés-ciklus egyetlen időbélyeget (`requestNow`) ad a munkamenet kikeresésének és az
+érintésének, a `touch` pedig logikai értéket ad vissza. A hamis érintés munkamenet-hiánynak számít:
+a kérés friss munkamenetet kap, nem használ tovább egy lejártat.
+
+**Miért.** A két külön `Date.now()` rést nyitott: ha a sor a két hívás között lépte át a tétlenségi
+határt, a `get` még visszaadta, a `touch` eldobta — a helyi `session` változó viszont továbbra is
+belépettnek látszott, és a pin egy már nem létező sorra került. A kérés így nem követett
+munkamenettel futott le, és árva szerver-oldali állapotot hagyhatott. Ez a D-VS-3115 alakja a
+`touch`-ra alkalmazva: egy feloldó, ami csendben el is dobhatja, amit a hívó használni akar, minden
+hívójánál hibát szül.
+
+**Amit ez NEM állít.** Nem állítja, hogy a kérés-ciklus minden más idő-használata át van vizsgálva:
+ez EGY pár (kikeresés + érintés). Gépi jel: `npm run verify:kuka` (KUKA-314) ·
+`npm run verify:app-findings-r154` (L: l5, l6).
+
+---
+
 ## D-VS-3117 — A KONFIGURÁCIÓS ÉRTÉK ALAKJA IS MÉRT, ÉS AZ AZONOSÍTÓ IDÉZŐJELEZVE MEGY (R154)
 
 **A döntés.** A `proof:pg-durability` megméri a `VS_RESTORE_TEST_DB` alakját (zárt azonosító-minta), és

@@ -372,6 +372,9 @@ export function makeSessionStore({
   let nextIdleSweep = 0;
 
   const droppedNow = [];
+  /** A BEJELENTÉS, ami nem sikerült — újrapróbálásra vár (F154-26). Korlátos; a túlfolyást kimondjuk. */
+  const cleanupQueue = [];
+  const CLEANUP_QUEUE_MAX = 10000;
   /**
    * A NÉVTELEN SOROK SZÁMA O(1)-BEN (F154-17 második fele). Enélkül a „van-e egyáltalán elvehető
    * névtelen sor?" kérdés végigolvasná a térképet MINDEN kérésnél — és ez a harmadik alkalom ebben
@@ -399,6 +402,14 @@ export function makeSessionStore({
    * a félig kiszolgált kérés viszont nem veszít állapotot.
    */
   const pins = new Map();                      // id → a pin-ek tokenjei (Set)
+  /**
+   * ÉS A JEL SZERINTI FORDÍTOTT INDEX (F154-27). A LELET (külső review, Codex, ötödik kör): a pinek
+   * CSAK azonosító szerint voltak indexelve, ezért minden befejeződő kérés lemásolta és végigolvasta
+   * a TELJES pin-táblát, hogy megtalálja a saját jelét — C átfedő kérésnél O(C²). Ez NEGYEDSZER
+   * ugyanaz a hibaosztály ebben a csomagban (F154-01 · F154-11 · F154-17 · ez): a védelem költsége
+   * azzal nő, amivel szemben véd. A kérés most a SAJÁT azonosítóit engedi el, nem keresi meg őket.
+   */
+  const pinsByToken = new Map();               // a kérés jele → az általa védett azonosítók (Set)
   const pinnedCount = () => pins.size;
   const drop = (id, cause) => {
     if (pins.has(id)) return false;            // a KISZOLGÁLÁS ALATT ÁLLÓ sort nem dobjuk el
@@ -435,11 +446,30 @@ export function makeSessionStore({
    * tár nem ismeri a táblákat, a hívó viszont igen (egy tény egy otthon).
    */
   function announceDropped() {
-    if (!droppedNow.length) return;
-    const ids = droppedNow.splice(0, droppedNow.length);
-    if (typeof onEvicted !== 'function') return;
+    if (typeof onEvicted !== 'function') { droppedNow.length = 0; return; }
+    if (!droppedNow.length && !cleanupQueue.length) return;
+    const ids = [...cleanupQueue.splice(0, cleanupQueue.length), ...droppedNow.splice(0, droppedNow.length)];
+    if (!ids.length) return;
     try { onEvicted(ids); } catch (e) {
-      warn(`[v3app] a kiszorított munkamenetek szerver-oldali állapotát nem sikerült takarítani: ${e && e.message}`);
+      /**
+       * A SIKERTELEN TAKARÍTÁS AZONOSÍTÓI NEM VESZHETNEK EL (F154-26). A LELET (külső review,
+       * Codex, ötödik kör): ha a tároló épp nem elérhető, az `onEvicted` KIVÉTELT dob — a korábbi
+       * alak viszont az azonosítókat már kivette a listából, és csak naplózott. A munkamenet a
+       * tárból eltűnt, tehát a `protectedIds` jelölt-listájába sem kerülhet vissza: azok a sorok
+       * SOHA többé nem lettek volna megtalálhatók, és ismétlődő rövid kiesések megint korlátlanul
+       * növelték volna a táblát. Innentől a kiesett azonosítók VÁRÓLISTÁRA kerülnek, és a következő
+       * bejelentés leadja őket.
+       *
+       * A VÁRÓLISTA IS KORLÁTOS, és a vesztést KIMONDJA: egy soha meg nem javuló tároló mellett a
+       * lista maga lenne korlátlan növekedés (ugyanaz a hibaosztály, amit az F154-11-ben vezettünk
+       * ki). A plafon fölött a LEGRÉGEBBI azonosítók esnek ki, és a napló megnevezi, hányan.
+       */
+      const kept = ids.slice(-CLEANUP_QUEUE_MAX);
+      const lost = ids.length - kept.length;
+      cleanupQueue.push(...kept);
+      warn(`[v3app] a kiszorított munkamenetek szerver-oldali állapotát nem sikerült takarítani: ${e && e.message}`
+        + ` — ${kept.length} azonosító ÚJRAPRÓBÁLÁSRA VÁR`
+        + (lost > 0 ? `, ${lost} azonosító pedig KIESETT a várólistából (plafon: ${CLEANUP_QUEUE_MAX}) — ezekhez árva sor maradhat` : ''));
     }
   }
 
@@ -537,7 +567,7 @@ export function makeSessionStore({
 
   return {
     get size() { return map.size; },
-    stats: () => Object.freeze({ size: map.size, anonymous: anonCount, ...stats }),
+    stats: () => Object.freeze({ size: map.size, anonymous: anonCount, pinned: pins.size, cleanup_pending: cleanupQueue.length, ...stats }),
     /**
      * AZ OLVASÁS IS KAPU (F154-07): a lejárt sort NEM adjuk vissza, és el is dobjuk — különben a
      * hívó `touch`-a feléleszti. Ezért van mellékhatása: ez egy lejárattal bíró tár, nem egy Map.
@@ -554,10 +584,20 @@ export function makeSessionStore({
       if (row && !row.subject_id) anonCount -= 1;
       return map.delete(id);
     },
-    /** A lejárt sort a `touch` NEM élesztheti fel (F154-07) — ezért itt is a lejárat dönt. */
+    /**
+     * A lejárt sort a `touch` NEM élesztheti fel (F154-07) — ezért itt is a lejárat dönt. ÉS MEGMONDJA,
+     * SIKERÜLT-E (F154-28): a LELET (külső review, Codex, ötödik kör) szerint a kérés-ciklus a `get`
+     * után KÜLÖN időbélyeggel `touch`-olt, és ha a sor a két hívás között lépte át a tétlenségi
+     * határt, a `touch` eldobta — a hívó viszont a helyi `session` változót továbbra is belépettnek
+     * hitte, és egy MÁR NEM LÉTEZŐ munkamenettel szolgált ki (árva szerver-oldali állapot). Egy
+     * feloldó, ami csendben el is dobhatja, amit a hívó épp használni akar, minden hívójánál hibát
+     * szül (ez a KUKA-305 tanulsága — itt a `touch`-ra alkalmazva).
+     */
     touch(id, now = Date.now()) {
       const s = this.get(id, now);
-      if (s) s.last_seen_ms = now;
+      if (!s) return false;
+      s.last_seen_ms = now;
+      return true;
     },
     set(id, s, now = Date.now()) {
       s.last_seen_ms = now;
@@ -574,10 +614,54 @@ export function makeSessionStore({
     pin(id, token) {
       const t = pins.get(id) || new Set();
       t.add(token); pins.set(id, t);
+      const mine = pinsByToken.get(token) || new Set();
+      mine.add(id); pinsByToken.set(token, mine);
     },
-    /** A KÉRÉS MINDEN PINJE elenged — a `finally`-ben hívjuk, tehát hibán és kivételen is lefut. */
-    unpinAll(token) {
-      for (const [id, t] of [...pins]) { t.delete(token); if (!t.size) pins.delete(id); }
+    /**
+     * A KÉRÉS MINDEN PINJE elenged — a `finally`-ben hívjuk, tehát hibán és kivételen is lefut.
+     *
+     * ÉS A PLAFON AZ ELENGEDÉSKOR IS ÁLL (F154-25, külső review, Codex, ötödik kör, P1). A LELET: a
+     * pin a plafon alól is kivonta a sort (`overCap()` a NEM védett sorokra áll), tehát egy ÁTFEDŐ
+     * köteg MINDEN kérése felvételt nyert — az elengedés viszont nem söpört. MÉRVE `maxSessions=2`
+     * mellett 10 átfedő kéréssel: a tár a köteg után is 12 sornál állt, kérés nélkül. Vagyis egy
+     * elosztott, lassú kérés-köteg a memória-korlátot korlátlanul megkerülhette. A korábbi `i13`/`j5`
+     * próbám ezt NEM kapta el, mert SOROS kéréseket mért: ott minden kérés elengedte a pinjét, mire
+     * a következő beszúrt — átfedés nélkül a hiba elő sem áll (KUKA-293: a próba azt mérje, amit
+     * állít).
+     *
+     * A SORREND SZÁNDÉKOS: elsőként a MOST elengedett NÉVTELEN sorok mennek, mert ezek pontosan
+     * azok, amiket csak a futó kérés tartott bent (ez az F154-13 szabálya: a friss névtelen sor nem
+     * szoríthat ki belépett embert). BELÉPETT sort a pin elengedése NEM dönt el — ha a plafon utána
+     * is sérül, a rendes söprés dönt, a maga osztály-sorrendjével.
+     */
+    unpinAll(token, now = Date.now()) {
+      const mine = pinsByToken.get(token);
+      if (!mine) return;
+      pinsByToken.delete(token);
+      for (const id of mine) {
+        const t = pins.get(id);
+        if (!t) continue;
+        t.delete(token);
+        if (!t.size) pins.delete(id);
+      }
+      if (!overCap()) return;
+      /**
+       * ÉS A FOLYTATÁST HORDOZÓ NÉVTELEN SOR ITT SEM SZEMÉT (KUKA-297). A saját `g7` ellenpárom
+       * kapta el: az első alakom a most elengedett névtelen sorokat a VÉDETTSÉG MEGKÉRDEZÉSE NÉLKÜL
+       * dobta el, és így egy ÉLŐ munkamenet meghívó-folytatását vitte el — pontosan az a hiba, amit
+       * az F154-08-ban vezettem ki, csak az ÚJ úton. A kérdést a most elengedett azonosítókra tesszük
+       * fel (ez néhány azonosító, nem a tábla), és ha nem megállapítható, NEM döntünk itt: a rendes
+       * söprés dönt, a maga osztály-sorrendjével.
+       */
+      const sajat = [...mine].filter((id) => !pins.has(id) && map.has(id) && !map.get(id).subject_id);
+      const vedett = protectedSet(sajat);
+      for (const id of sajat) {
+        if (!overCap()) break;
+        if (vedett === null || vedett.has(id)) continue;   // folytatást hordoz vagy nem tudható
+        drop(id, 'evicted_cap_anonymous');
+      }
+      announceDropped();
+      if (overCap()) sweep(now);
     },
     pinned: (id) => pins.has(id),
     sweep,
@@ -2475,11 +2559,22 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     // A KÉRÉS JELE: ehhez tartoznak a pinek, és a `finally` ezt engedi el (SES-03).
     const pinToken = Symbol('kérés');
     const cookies = parseCookies(req.headers.cookie);
-    let session = sessions.get(cookies.get(SESSION_COOKIE) || '');
+    /**
+     * EGY IDŐBÉLYEG A KIKERESÉSRE ÉS AZ ÉRINTÉSRE (F154-28, külső review, Codex, ötödik kör).
+     *
+     * A LELET: a `get` és a `touch` KÜLÖN hívta a `Date.now()`-ot. Ha a sor a két hívás között lépte
+     * át a tétlenségi határt, a `get` még visszaadta, a `touch` viszont eldobta — a helyi `session`
+     * változó pedig TOVÁBBRA IS belépettnek látszott, és a pin egy már nem létező sorra került. A
+     * kérés így egy nem követett munkamenettel futott le, és megint árva szerver-oldali állapotot
+     * hagyhatott. Innentől a kérésnek EGY ideje van, és a hamis érintést munkamenet-hiánynak
+     * vesszük: a kérés friss munkamenetet kap, nem egy lejártat használ tovább.
+     */
+    const requestNow = Date.now();
+    let session = sessions.get(cookies.get(SESSION_COOKIE) || '', requestNow);
     // AZ ÉLŐ MUNKAMENET NEM TÉTLEN (SES-01): a kiszorítás a LEGRÉGEBBEN LÁTOTTAT veszi, tehát az
     // „utoljára látva" bélyeget minden kérésnél frissíteni KELL — enélkül egy aktív felhasználót is
     // kiléptetne a söprés.
-    if (session) sessions.touch(session.id);
+    if (session && !sessions.touch(session.id, requestNow)) session = undefined;
     let setCookie = null;
     // A `Secure` jelölő a KÉRÉSBŐL is eldőlhet: proxy mögött a HTTPS tényét a fejléc hozza.
     /**
