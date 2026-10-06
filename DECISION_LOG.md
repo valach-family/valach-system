@@ -16,6 +16,84 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3159 — AZ ÁLLAPOT-ÍRÁS KAPUJA A HASZNÁLAT PILLANATÁT OLVASSA, ÉS MEG IS ÚJÍTJA A SORT (R158, SES-01)
+
+**A döntés.** A `materialize` saját, FRISS időbélyeget vesz (`hasznalatkor`), azzal kérdezi a
+munkamenet-tárat, és `touch`-csal meg is újítja a sort. A kérés BELÉPŐ kikeresés+érintés párja
+változatlanul a kérés egyetlen idejét (`requestNow`) használja — azt a `KUKA-314` kötötte meg.
+
+**Miért.** A kapu a kérés ELEJI pillanattal kérdezett. Egy lassan feltöltött törzs átvihet a
+tétlenségi korláton: a tár a RÉGI pillanatra még élőnek mondta a sort, a kezelő megírta a
+`pending_intent` sort, és **200**-at adott — a következő kérés viszont a VALÓDI időt mérte, eldobta a
+munkamenetet, és a most írt sort törölte. MÉRVE élő HTTP-n (400 ms korlát, 700 ms-os törzs):
+`200 {"ok":true}` + egy sor, majd a következő kérés után NULLA sor. Ez pontosan az, amit az R158/1
+tiltott: nincs hamis siker, és nincs félig végrehajtott tartós művelet. A javítás után ugyanez a
+kérés `409 session_gone`-t kap, és nem keletkezik sor.
+
+**A KÉT SZABÁLY EGYÜTT, kimondva.** „EGY DÖNTÉS — EGY IDŐ" (`KUKA-314`) NEM azt jelenti, hogy „egy
+KÉRÉS — egy idő". Egy várakozó kérés KÉT döntést hoz KÉT pillanatban: a belépő kikeresés a kérés
+elejéhez tartozik, az állapot-írás kapuja a HASZNÁLAT pillanatához. A két javítás tehát nem
+fordítja vissza egymást; a közös szabály: **minden döntés a SAJÁT pillanatát olvassa, és azon belül
+csak egyet.**
+
+**Amit ez NEM állít.** Nem ad új toleranciát a tétlenségi korlátnak: a korláton túlvivő kérés
+NEVEZETTEN elakad. A `touch` csak azt a sort újítja meg, amelyik a kapun át is ment. Gépi jel:
+`npm run verify:app-findings-r154` (Z: z1, z2) · `npm run verify:kuka` (KUKA-351).
+
+---
+
+## D-VS-3160 — A TÉTLENSÉGI PÁSZTA RITKÍTÁSA A SÖPRÉSBEN DŐL EL, EGY HELYEN (R158, SES-01)
+
+**A döntés.** A tétlenségi pászta a `sweep`-en belül dönti el, hogy esedékes-e
+(`now >= nextIdleSweep`, percenként egyszer), és a hívó már csak azt mondja meg, hogy VAN ok söpörni
+(plafon VAGY esedékes pászta). A PLAFON változatlanul azonnali.
+
+**Miért.** A ritkítás eddig a HÍVÓBAN állt, ezért csak a plafon alatti úton érvényesült: a plafon
+fölötti úton a pászta MINDIG végigjárta a teljes tárat — azon az ágon is, ahol az O(1) rövidre zárás
+(`F154-17`) rögtön utána eldobja a jövevényt. Az ELUTASÍTOTT felvétel így `O(maxSessions)`-t
+fizetett, alapértéken 20 000 sort, és mindezt a hitelesítési kapu ELŐTT, tehát cím-rotáló,
+hitelesítés nélküli forgalom közvetlenül ránk tudta terhelni. MÉRVE 300 elutasított felvétellel:
+5 000-es plafon **0,113 ms/kérés** · 20 000-es **0,622** · 80 000-es **1,432**. A javítás után
+20 000-es plafonnál **0,0064 ms/kérés**, és a kérésenkénti költség négyszeres táron sem nő
+négyszeresére.
+
+**Amit ez VESZÍT, kimondva.** Egy percen belül a kiszorítás olyan névtelen sort is választhat, amit a
+pászta amúgy lejártként elvitt volna. A kár elhanyagolható, mert az áldozat-sorrend a LEGRÉGEBBEN
+LÁTOTT sort veszi előbb — a lejárt sor pedig épp a legrégebben látott —, és a tétlenségi korlát
+helyességét az OLVASÁS is érvényesíti (`KUKA-296`). Gépi jel: `npm run verify:app-findings-r154`
+(Z: z3 a viselkedés idő-mérés nélkül, z3b az ellenpár a plafonra, z4 a skála-független költség-arány)
+· `npm run verify:kuka` (KUKA-352).
+
+---
+
+## D-VS-3161 — AZ IDŐBÉLYEG KANONIKUS UTC ALAKBAN SZÜLETIK, ÉS A NEM KANONIKUS SORT IDŐPILLANATKÉNT ÍTÉLJÜK MEG (R158, K03)
+
+**A döntés.** A `rememberIntent` a pillanatot UTC `toISOString()` alakban tárolja, és a nem
+értelmezhető órára NEVEZETTEN elakad. A `purgeExpiredIntents` két lépésben dolgozik: a KANONIKUS
+(`____-__-__T__:__:__.___Z`) sorokon egy halmaz-utasítás (ott a szöveges rendezés AZONOS alakot
+hasonlít, tehát érvényes), a NEM kanonikus sorokat pedig korlátos darabszámban (`LIMIT`) kiolvassa és
+`Date.parse`-szal, IDŐPILLANATKÉNT ítéli meg.
+
+**Miért.** Az előző alak MINDEN sort szövegesen vetett össze a `Z`-s határokkal. Egy eltolásos alak
+(`2026-10-06T01:00:00+02:00`) ugyanazt a PILLANATOT jelenti, mint a `…T23:00:00.000Z`, szövegként
+viszont „nagyobb" — ezért egy FRISS sor JÖVŐBELINEK minősült, és a takarítás TÖRÖLTE. MÉRVE ugyanazzal
+az órával írva és takarítva: a sor azonnal eltűnt. A javítás után ugyanez a sor megmarad, és négy
+importált sorból a romlott, a lejárt és a jövőbeli megy, a friss eltolásos marad.
+
+**Amit kimondok a saját munkámról.** Ezt a hiba-osztályt a repó MÁR egyszer kivezette: a
+`P-INVITE-window` mag-próba épp azt méri, hogy a MEGHÍVÓ lejárata IDŐ-összehasonlítással dől el, nem
+szöveggel. A `KUKA-347` javításomban ugyanazt a szöveges összevetést vittem be a szomszéd táblára —
+és a kár itt a legrosszabb fajta volt: nem elmaradt védelem, hanem TÖRLÉS.
+
+**Amit ez NEM állít.** A `created_at` oszlop alakját a séma továbbra sem kényszeríti (`TEXT NOT
+NULL`): a kanonizálás az ÍRÁS oldalán áll, a tárolóban nincs megkötés — a migrációs lánc ebben a
+körben nem nyílt ki. A korlátos (`LIMIT`) második lépés egy importált, csupa nem kanonikus sorból álló
+táblát több takarítási körben visz el, nem egyben. Gépi jel: `npm run verify:v3ref`
+(P-K03-intent-expiry (i) és (j) ág + M220/M221/M222 + az újra-horgonyzott M209/M217) ·
+`npm run verify:app-findings-r154` (Z: z5–z7) · `npm run verify:kuka` (KUKA-353).
+
+---
+
 ## D-VS-3157 — A FOLYTATÁS TÜRELMI IDEJE A MUNKAMENET ÉLETÉBŐL SZÁRMAZIK, A 24 ÓRA PLAFON (R158, K03)
 
 **A döntés.** A függő meghívó-szándék ténylegesen kiszolgálható türelmi idejét EGY feloldó adja:

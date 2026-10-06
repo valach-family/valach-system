@@ -635,10 +635,26 @@ export function rememberIntent({ store, sessionId, token, clock }) {
   // triggert is tüzelne. A `pending_intent` táblán MÉRVE nincs trigger (a séma egyetlen triggere
   // sem erre a táblára szól), ezért a két alak itt azonos hatású, az `ON CONFLICT … DO UPDATE`
   // viszont MINDKÉT motoron fut, és nem függ a törlés-mellékhatástól.
+  //
+  // AZ IDŐBÉLYEG KANONIKUS UTC ALAKBAN MEGY A TÁBLÁBA (F158-20, külső review, Codex, P2).
+  //
+  // A LELET: a korábbi alak az óra kimenetét SZÓ SZERINT tárolta. Egy eltolásos alak
+  // (`2026-10-06T01:00:00+02:00`) ugyanazt a PILLANATOT jelenti, mint a `…T23:00:00.000Z` — a
+  // halmazos takarítás viszont SZÖVEGESEN vetette össze a `Z`-s határokkal, és a friss sort
+  // JÖVŐBELINEK minősítette. MÉRVE ugyanazzal az órával: a sor azonnal ELTŰNT (adatvesztés).
+  // Ezért a tároláskor EGY alak van: UTC, `toISOString()`. A nem értelmezhető óra NEVEZETTEN
+  // elakad — nem tárolunk olyan időbélyeget, amit magunk sem tudunk megítélni (KUKA-020 · KUKA-238).
+  if (!clock || typeof clock.now !== 'function') {
+    throw new Error('rememberIntent: `clock` kötelező — a függő szándék kora nem opcionális (D-VS-3161)');
+  }
+  const szuletett = Date.parse(clock.now());
+  if (!Number.isFinite(szuletett)) {
+    throw new Error('rememberIntent: az óra nem értelmezhető időpontot adott — a függő szándékot nem tároljuk megítélhetetlen korral (D-VS-3161)');
+  }
   store.run(`INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)
              ON CONFLICT (session_id) DO UPDATE SET invite_token = excluded.invite_token,
                                                     created_at   = excluded.created_at`,
-    sessionId, token, clock.now());
+    sessionId, token, new Date(szuletett).toISOString());
 }
 
 /**
@@ -743,7 +759,7 @@ export function resumeIntent({ store, sessionId, clock, ttlMs = PENDING_INTENT_T
  * halmaz-utasítás — tehát nem hoz vissza kérésenkénti teljes bejárást és korlátlan memória-növekedést
  * (ez az R158 kifejezett kikötése, és a KUKA-290/300/306/313 költség-osztálya).
  */
-export function purgeExpiredIntents({ store, clock, ttlMs = PENDING_INTENT_TTL_MS }) {
+export function purgeExpiredIntents({ store, clock, ttlMs = PENDING_INTENT_TTL_MS, maxOddRows = 1000 }) {
   if (!clock || typeof clock.now !== 'function') {
     throw new Error('purgeExpiredIntents: `clock` kötelező (D-VS-3141)');
   }
@@ -760,13 +776,48 @@ export function purgeExpiredIntents({ store, clock, ttlMs = PENDING_INTENT_TTL_M
    * egyaránt): a türelmi időn túli · a JÖVŐBELI (óra-visszaállítás, import) · és a NEM KANONIKUS
    * alakú (`LIKE '____-__-__T%'` nem illeszkedik). A `_` egyetlen karakter mindkét tárolóban.
    */
-  const hatar = new Date(Date.parse(clock.now()) - ttlMs).toISOString();
-  const most = new Date(Date.parse(clock.now())).toISOString();
-  const MINTA = '____-__-__T%';
-  const WHERE = 'created_at < ? OR created_at > ? OR created_at NOT LIKE ?';
-  const elotte = store.get(`SELECT COUNT(*) AS n FROM pending_intent WHERE ${WHERE}`, hatar, most, MINTA);
-  store.run(`DELETE FROM pending_intent WHERE ${WHERE}`, hatar, most, MINTA);
-  return { purged: elotte ? Number(elotte.n) : 0, before: hatar };
+  const mostMs = Date.parse(clock.now());
+  if (!Number.isFinite(mostMs)) {
+    throw new Error('purgeExpiredIntents: az óra nem értelmezhető időpontot adott — a takarítás nem találgat (D-VS-3161)');
+  }
+  const hatar = new Date(mostMs - ttlMs).toISOString();
+  const most = new Date(mostMs).toISOString();
+  /**
+   * A SZÖVEGES ÖSSZEVETÉS CSAK AZONOS ALAKON ÉRVÉNYES (F158-20, külső review, Codex, P2).
+   *
+   * A LELET: az előző alak MINDEN sort szövegesen vetett össze a `Z`-s határokkal. Egy eltolásos
+   * időbélyeg (`…T01:00:00+02:00`) ugyanazt a pillanatot jelenti, szövegként viszont „nagyobb" —
+   * ezért egy FRISS sor jövőbelinek minősült, és a takarítás TÖRÖLTE. Ugyanaz a hiba-osztály, amit a
+   * `P-INVITE-window` mag-próba a MEGHÍVÓ lejáratára már egyszer kivezetett (szöveg helyett
+   * idő-összehasonlítás) — most a `pending_intent` sorra ismételtem meg.
+   *
+   * A VÁLASZ KÉT LÉPÉS, és a költsége KORLÁTOS (R158 kikötése):
+   *   1. a KANONIKUS (UTC, `…T__:__:__.___Z`) sorokon a szöveges rendezés AZONOS alakot hasonlít,
+   *      tehát érvényes — ez egy halmaz-utasítás, és az írás óta minden SAJÁT sorunk ilyen;
+   *   2. ami NEM kanonikus (import, sérülés, eltolásos alak), azt szövegesen MEGÍTÉLNI SEM lehet:
+   *      ezeket korlátos darabszámban kiolvassuk, és IDŐPILLANATKÉNT ítéljük meg (`Date.parse`) —
+   *      a nem értelmezhető, a lejárt és a jövőbeli megy, a FRISS MARAD. Normál üzemben ez a halmaz
+   *      üres, mert az írás kanonizál; a `LIMIT` arra kell, hogy egy importált tábla se hozzon vissza
+   *      korlátlan bejárást (KUKA-290).
+   */
+  const KANONIKUS = '____-__-__T__:__:__.___Z';
+  const korlat = Number.isSafeInteger(maxOddRows) && maxOddRows > 0 ? maxOddRows : 1000;
+  const WHERE = 'created_at LIKE ? AND (created_at < ? OR created_at > ?)';
+  const elotte = store.get(`SELECT COUNT(*) AS n FROM pending_intent WHERE ${WHERE}`, KANONIKUS, hatar, most);
+  store.run(`DELETE FROM pending_intent WHERE ${WHERE}`, KANONIKUS, hatar, most);
+  const kanonikusTakaritva = elotte ? Number(elotte.n) : 0;
+
+  const furcsak = store.all(`SELECT session_id, created_at FROM pending_intent WHERE created_at NOT LIKE ? LIMIT ${korlat}`, KANONIKUS);
+  const dobando = [];
+  for (const r of furcsak) {
+    const kor = mostMs - Date.parse(r.created_at);
+    if (!Number.isFinite(kor) || kor < 0 || kor > ttlMs) dobando.push(r.session_id);
+  }
+  if (dobando.length) {
+    store.run(`DELETE FROM pending_intent WHERE session_id IN (${dobando.map(() => '?').join(',')})`, ...dobando);
+  }
+  return { purged: kanonikusTakaritva + dobando.length, before: hatar,
+    odd_rows: furcsak.length, odd_purged: dobando.length };
 }
 
 // ── A BEVÁLTÁS (K03) ────────────────────────────────────────────────────────────────────────────

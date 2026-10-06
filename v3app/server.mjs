@@ -455,6 +455,8 @@ export function makeSessionStore({
   const map = new Map();                       // id → munkamenet (a `last_seen_ms` házi mező rajta áll)
   const lowWater = Math.max(1, Math.floor(maxSessions * 0.9));
   const stats = { evicted_idle: 0, evicted_cap_anonymous: 0, evicted_cap_signed_in: 0, refused_cap: 0 };
+  /** A TÉTLENSÉGI PÁSZTA RITKÍTÁSA — EGY helyen, mert EGY szabály (F158-19). */
+  const IDLE_SWEEP_MS = 60_000;
   let nextIdleSweep = 0;
 
   const droppedNow = [];
@@ -574,7 +576,29 @@ export function makeSessionStore({
   const overCap = () => map.size > maxSessions;
 
   function sweep(now = Date.now(), { keep = null } = {}) {
-    for (const [id, s] of map) if (id !== keep && expired(s, now)) drop(id, 'evicted_idle');
+    /**
+     * A TÉTLENSÉGI PÁSZTA AMORTIZÁLT — A PLAFON AZONNALI (F158-19, külső review, Codex, P2).
+     *
+     * A LELET: ez a pászta a TELJES tárat végigjárta MINDEN hívásnál — tehát minden plafon-beszúrásnál
+     * is, azon az úton is, ahol az O(1) rövidre zárás (F154-17) rögtön utána eldobja a jövevényt. Az
+     * elutasított felvétel így `O(maxSessions)`-t fizetett, alapértéken 20 000 sort, és mindezt a
+     * hitelesítési kapu ELŐTT: cím-rotáló, hitelesítés nélküli forgalom közvetlenül ránk tudta
+     * terhelni. MÉRVE 300 elutasított felvétellel: 5 000-es plafon 0,113 ms/kérés · 20 000-es 0,622 ·
+     * 80 000-es 1,432 — a költség a TÁRRAL nő. Ez a KUKA-290 osztálya, ebben a PR-ben HARMADSZOR.
+     *
+     * A VÁLASZ: az amortizálást EGY helyen döntjük el (itt), nem a hívóban — így nem lehet olyan
+     * hívási út, ami kihagyja (KUKA-039 · KUKA-227). A plafon-logika érintetlen: a memória-korláton
+     * nem lehet késni.
+     *
+     * AMIT EZ VESZÍT, KIMONDVA: egy percen belül a kiszorítás olyan névtelen sort is választhat, amit
+     * a pászta amúgy lejártként elvitt volna. A kár elhanyagolható, mert az áldozat-sorrend a
+     * LEGRÉGEBBEN LÁTOTT sort veszi előbb (lentebb, `order`) — a lejárt sor pedig épp a legrégebben
+     * látott. A tétlenségi korlát helyességét ettől függetlenül az OLVASÁS is érvényesíti (KUKA-296).
+     */
+    if (now >= nextIdleSweep) {
+      nextIdleSweep = now + IDLE_SWEEP_MS;
+      for (const [id, s] of map) if (id !== keep && expired(s, now)) drop(id, 'evicted_idle');
+    }
     if (!overCap()) { announceDropped(); return stats; }
 
     // A JELÖLTEK: a NÉVTELEN sorok, a beszúrt kivételével — ennyit kell megkérdezni, nem többet.
@@ -745,8 +769,9 @@ export function makeSessionStore({
       // A BESZÚRT SOR SÉRTHETETLEN (F154-09): a söprés `keep`-ként kapja meg.
       // A TÉTLENSÉGI SÖPRÉS AMORTIZÁLT (percenként legfeljebb egyszer), a PLAFON viszont AZONNALI:
       // a plafon a memória-korlát, azon nem lehet késni.
-      if (overCap()) sweep(now, { keep: id });
-      else if (now >= nextIdleSweep) { nextIdleSweep = now + 60000; sweep(now, { keep: id }); }
+      // A SÖPRÉS MAGA dönti el, kell-e tétlenségi pászta (F158-19) — itt csak azt mondjuk meg, hogy
+      // VAN ok söpörni: vagy a plafon (azonnali), vagy az esedékes pászta.
+      if (overCap() || now >= nextIdleSweep) sweep(now, { keep: id });
       return this;
     },
     /** PIN: a kérés idejére védett sor. Beszúrás ELŐTT is hívható (a `newSession` ezt teszi). */
@@ -2866,13 +2891,33 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       // azonosítóra írt `pending_intent` sort, és 200-at adott. Ugyanaz a hiba-osztály, mint a
       // KUKA-305 (felvétel-ellenőrzés), csak a másik végén: ott a sor meg sem SZÜLETETT, itt közben
       // ELTŰNT. A kapu ezért a HASZNÁLAT pillanatában áll, nem a kérés elején (KUKA-202).
+      /**
+       * ── ÉS A KAPU A HASZNÁLAT PILLANATÁT OLVASSA, NEM A KÉRÉS ELEJÉT (F158-18, külső review, Codex, P2)
+       *
+       * A LELET: a kapu a KÉRÉS ELEJI `requestNow`-t adta a tárnak. Egy lassan feltöltött törzs (vagy
+       * bármilyen várakozás) átvihet a tétlenségi korláton — ilyenkor a tár a RÉGI pillanatra még
+       * élőnek mondta a sort, a kezelő megírta a `pending_intent` sort, és 200-at adott; a KÖVETKEZŐ
+       * kérés viszont a VALÓDI időt mérte, eldobta a munkamenetet, és a most írt sort törölte.
+       * MÉRVE élő HTTP-n (400 ms korlát, 700 ms-os törzs): `200 {"ok":true}` + egy sor, majd a
+       * következő kérés után NULLA sor — vagyis HAMIS SIKER (R158/1 kifejezett kikötése).
+       *
+       * A KÖZÖS SZABÁLY, amit ez a KUKA-314-gyel EGYÜTT ad: „EGY DÖNTÉS — EGY IDŐ" nem azt jelenti,
+       * hogy „egy KÉRÉS — egy idő". Egy várakozó kérés KÉT döntést hoz két pillanatban: a belépő
+       * kikeresés+érintés párja a kérés elejéhez tartozik (`requestNow`, KUKA-314 — azt NEM bántjuk),
+       * az állapot-írás kapuja pedig a HASZNÁLAT pillanatához.
+       *
+       * ÉS `touch`, NEM `has`: a kapu egyben meg is ÚJÍTJA a sort, különben a most elfogadott írás
+       * után a sor másodperceken belül kiesne — a reviewer második javaslata („refresh the session
+       * when the active request completes").
+       */
+      const hasznalatkor = Date.now();
       if (!session.transient) {
-        if (sessions.has(session.id, requestNow)) return session;
+        if (sessions.touch(session.id, hasznalatkor)) return session;
         materializeWhy = 'session_gone';
         return null;
       }
       const fresh = newSession(null, pinToken);
-      if (!sessions.has(fresh.id, requestNow)) { materializeWhy = 'at_capacity'; return null; }
+      if (!sessions.has(fresh.id, hasznalatkor)) { materializeWhy = 'at_capacity'; return null; }
       session = fresh;
       setCookie = sessionCookie(fresh.id, { secure: IS_DEPLOYED || isHttpsRequest(req) });
       return fresh;

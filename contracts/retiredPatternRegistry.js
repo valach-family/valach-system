@@ -14029,6 +14029,91 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:v3ref` (P-K03-intent-expiry (h) ág + M218/M219 mutáció) · `npm run verify:kuka` (három pozitív + egy tiltó) · `npm run verify:app-findings-r154` (Y: y6–y8 — y7 a HATÁRON méri mindkét irányt, y8 a viselkedést az árva soron).',
   }),
 
+  // ── R158 NEGYEDIK REVIEW-KÖR ────────────────────────────────────────────────────────────────────
+  Object.freeze({
+    id: 'KUKA-351',
+    date: '2026-10-06',
+    title: 'EGY VÁRAKOZÓ KÉRÉS KÉT DÖNTÉST HOZ KÉT PILLANATBAN — A KÉRÉS ELEJI IDŐBÉLYEGGEL NYITOTT KAPU HAMIS SIKERT AD',
+    what: 'Az állapot-írás kapuja (`materialize`) a KÉRÉS ELEJI `requestNow` időbélyeggel kérdezte meg a munkamenet-tárat. Egy lassan feltöltött törzs (vagy bármilyen várakozás) átvihet a tétlenségi korláton: a tár a RÉGI pillanatra még élőnek mondta a sort, a kezelő megírta a `pending_intent` sort, és **200**-at adott — a KÖVETKEZŐ kérés viszont a VALÓDI időt mérte, eldobta a munkamenetet, és a most írt sort törölte. MÉRVE élő HTTP-n (400 ms tétlenségi korlát, 700 ms-os törzs): `200 {"ok":true}` és egy sor, majd a következő kérés után NULLA sor.',
+    why_wrong: 'Ez pontosan az, amit az R158/1 tiltott: „nincs hamis siker, és nincs félig végrehajtott tartós művelet". A felhasználó azt a választ kapta, hogy a meghívás szándékát megőriztük, és a rendszer a következő másodpercben eldobta. ÉS EZ A SAJÁT, EGY KÖRREL KORÁBBI JAVÍTÁSOM ÉLE (KUKA-343): a kaput odatettem a használat helyére, de a RÉGI pillanattal kérdeztem — a kapu helye jó volt, az ideje nem.',
+    replaced_by: 'A KAPU A HASZNÁLAT PILLANATÁT OLVASSA: a `materialize` saját, friss időbélyeget vesz (`hasznalatkor = Date.now()`), és azzal kérdezi a tárat.',
+    replacement: 'ÉS `touch`, NEM `has`: a kapu a sort meg is ÚJÍTJA, különben a most elfogadott írás után másodperceken belül kiesne (a reviewer második javaslata). MÉRVE: a korláton átvivő lassú kérés `409 session_gone`-t kap, és egy a korláton BELÜL maradó lassú kérés után a munkamenet a kérés VÉGÉTŐL számol — tehát él.',
+    decision: 'D-VS-3159',
+    found_by: 'KÜLSŐ REVIEW (Codex, R158 negyedik kör — F158-18, P2).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'const hasznalatkor = Date\\.now\\(\\);',
+        why: 'a kapu a HASZNÁLAT pillanatát olvassa, nem a kérés elejét' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'if \\(sessions\\.touch\\(session\\.id, hasznalatkor\\)\\) return session;',
+        why: 'és a sort meg is újítja, tehát a most elfogadott írás nem esik ki azonnal' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'if \\(sessions\\.has\\(session\\.id, requestNow\\)\\) return session;',
+        why: 'a kérés eleji pillanattal kérdező kapu nem jöhet vissza' }),
+    ]),
+    lesson: 'EGY DÖNTÉS — EGY IDŐ, DE EGY KÉRÉS NEM EGY DÖNTÉS. A KUKA-314 szabálya („ami egy döntésről dönt, az ugyanazt az időbélyeget használja") NEM azt jelenti, hogy egy kérésnek egy ideje van: egy várakozó kérés KÉT pillanatban hoz két döntést — a belépő kikeresés a kérés elejéhez, az állapot-írás kapuja a HASZNÁLAT pillanatához tartozik. És egy kapu, ami átenged egy tartós írást, újítsa is meg azt, amire az írás támaszkodik.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív + egy tiltó minta) · `npm run verify:app-findings-r154` (Z: z1 élő HTTP-n darabolt kéréssel, z2 a megújításra).',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-352',
+    date: '2026-10-06',
+    title: 'AZ AMORTIZÁLÁST A HÍVÓBAN DÖNTÖTTÜK EL — ÉS A MÁSIK HÍVÁSI ÚT MINDEN KÉRÉSNÉL VÉGIGJÁRTA A TÁRAT',
+    what: 'A munkamenet-tár tétlenségi pásztája a TELJES tárat végigjárta MINDEN `sweep` hívásnál. A ritkítás (`nextIdleSweep`, percenként egyszer) a HÍVÓBAN állt, és csak a plafon alatti úton érvényesült — a plafon fölötti úton a pászta mindig lefutott, azon az ágon is, ahol az O(1) rövidre zárás (F154-17) rögtön utána eldobja a jövevényt. Az ELUTASÍTOTT felvétel így `O(maxSessions)`-t fizetett, alapértéken 20 000 sort, és mindezt a hitelesítési kapu ELŐTT. MÉRVE 300 elutasított felvétellel: 5 000-es plafon 0,113 ms/kérés · 20 000-es **0,622** · 80 000-es **1,432** — a költség a TÁRRAL nő.',
+    why_wrong: 'Ez a KUKA-290 osztálya (a védelem költsége nem nőhet azzal, amivel szemben véd), ebben a PR-ben HARMADSZOR — és most nem a védelem maga volt a hiba, hanem hogy a RITKÍTÁST a hívóban döntöttük el: az egyik hívási út megkapta, a másik nem. Egy szabály, ami a hívón múlik, a következő hívási úton hiányozni fog (KUKA-227).',
+    replaced_by: 'A RITKÍTÁS A SÖPRÉSBEN DŐL EL, EGY HELYEN: a pászta akkor fut, ha esedékes (`now >= nextIdleSweep`), függetlenül attól, melyik hívó indította. A hívó már csak azt mondja meg, hogy VAN ok söpörni (plafon VAGY esedékes pászta).',
+    replacement: 'A PLAFON VÁLTOZATLANUL AZONNALI: a memória-korláton nem lehet késni, és ezt önálló ellenpár méri. MÉRVE a javítás után: 20 000-es plafonnál 0,0064 ms/kérés (97-szeres javulás), és a kérésenkénti költség négyszeres táron sem nő négyszeresére.',
+    decision: 'D-VS-3160',
+    found_by: 'KÜLSŐ REVIEW (Codex, R158 negyedik kör — F158-19, P2).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'if \\(now >= nextIdleSweep\\) \\{\\n      nextIdleSweep = now \\+ IDLE_SWEEP_MS;',
+        why: 'a tétlenségi pászta ritkítása a SÖPRÉSBEN dől el, egy helyen' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'if \\(overCap\\(\\) \\|\\| now >= nextIdleSweep\\) sweep\\(now, \\{ keep: id \\}\\);',
+        why: 'és a hívó csak azt mondja meg, hogy VAN ok söpörni' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'else if \\(now >= nextIdleSweep\\) \\{ nextIdleSweep = now \\+ 60000; sweep',
+        why: 'a hívóban eldöntött ritkítás nem jöhet vissza' }),
+    ]),
+    lesson: 'A RITKÍTÁST OTT KELL ELDÖNTENI, AHOL A KÖLTSÉG KELETKEZIK — NEM A HÍVÓBAN. Ha egy drága pászta amortizálását a hívó szabályozza, akkor minden új hívási út újra megnyitja a költséget, és a „percenként egyszer" ígéret csak az egyik úton igaz. A jel pedig a KÖLTSÉGET mérje, ne a kódformát: a kérésenkénti költség ARÁNYÁT két tárméret között (KUKA-344).',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív + egy tiltó) · `npm run verify:app-findings-r154` (Z: z3 a ritkítás VISELKEDÉSE idő-mérés nélkül, z3b az ellenpár a plafonra, z4 a skála-független költség-arány).',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-353',
+    date: '2026-10-06',
+    title: 'IDŐT SZÖVEGKÉNT HASONLÍTOTTUNK ÖSSZE — ÉS A HALMAZOS TAKARÍTÁS EGY FRISS SORT TÖRÖLT',
+    what: 'A `rememberIntent` az óra kimenetét SZÓ SZERINT tárolta, a `purgeExpiredIntents` pedig SZÖVEGESEN vetette össze a `Z`-s (UTC) határokkal. Egy eltolásos alakú időbélyeg (`2026-10-06T01:00:00+02:00`) ugyanazt a PILLANATOT jelenti, mint a `2026-10-05T23:00:00.000Z`, szövegként viszont „nagyobb" — ezért egy FRISS sor JÖVŐBELINEK minősült, és a takarítás TÖRÖLTE. MÉRVE ugyanazzal az órával írva és takarítva: a sor azonnal eltűnt.',
+    why_wrong: 'ÉS EZT A HIBA-OSZTÁLYT A REPÓ MÁR EGYSZER KIVEZETTE: a `P-INVITE-window` mag-próba pontosan azt méri, hogy a MEGHÍVÓ lejárata IDŐ-összehasonlítással dől el, nem szöveggel („09:00+02:00 === 07:00Z, az óra 08:00Z ⇒ VALÓSAN LEJÁRT; szövegként viszont nagyobb"). A saját, egy körrel korábbi javításom (KUKA-347) ugyanezt a szöveges összevetést vitte be a `pending_intent` sorra — a tanulság megvolt, a szomszéd táblára nem vittem át. És a kár itt a LEGROSSZABB fajta: nem elmaradt védelem, hanem TÖRLÉS.',
+    replaced_by: 'AZ ÍRÁS KANONIZÁL: a `rememberIntent` a pillanatot UTC `toISOString()` alakban tárolja, és a nem értelmezhető órára NEVEZETTEN elakad — nem tárolunk olyan időbélyeget, amit magunk sem tudunk megítélni.',
+    replacement: 'A TAKARÍTÁS KÉT LÉPÉS, ÉS A KÖLTSÉGE KORLÁTOS: (1) a KANONIKUS (`____-__-__T__:__:__.___Z`) sorokon a szöveges rendezés AZONOS alakot hasonlít, tehát érvényes — egy halmaz-utasítás; (2) ami nem kanonikus (import, sérülés, eltolásos alak), azt korlátos darabszámban (`LIMIT`) kiolvassuk, és `Date.parse`-szal IDŐPILLANATKÉNT ítéljük meg: a nem értelmezhető, a lejárt és a jövőbeli megy, a FRISS MARAD. MÉRVE: négy importált sorból három megy, a friss eltolásos marad.',
+    decision: 'D-VS-3161',
+    found_by: 'KÜLSŐ REVIEW (Codex, R158 negyedik kör — F158-20, P2).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/invite.mjs']),
+        pattern: 'sessionId, token, new Date\\(szuletett\\)\\.toISOString\\(\\)\\);',
+        why: 'az írás kanonikus UTC alakot tárol' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/invite.mjs']),
+        pattern: "const KANONIKUS = '____-__-__T__:__:__\\.___Z';",
+        why: 'és a szöveges összevetés CSAK a kanonikus alakra érvényes' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/invite.mjs']),
+        pattern: 'const kor = mostMs - Date\\.parse\\(r\\.created_at\\);',
+        why: 'a nem kanonikus sort IDŐPILLANATKÉNT ítéljük meg' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/invite.mjs']),
+        pattern: "const WHERE = 'created_at < \\? OR created_at > \\? OR created_at NOT LIKE \\?';",
+        why: 'a MINDEN alakot szövegesen megítélő takarítás nem jöhet vissza' }),
+    ]),
+    lesson: 'AZ IDŐT IDŐPILLANATKÉNT KELL ÖSSZEVETNI — SZÖVEGESEN CSAK AZONOS ALAKON LEHET. Ha egy oszlop alakját semmi nem kényszeríti, akkor a szöveges rendezés nem időrend: vagy az ÍRÁS kanonizál (és akkor a szöveg használható), vagy az összevetés parse-ol. És ha egy tanulság már ki van vezetve a szomszéd táblán, azt ÍRÁS ELŐTT kell megkérdezni (KUKA-205) — különben a legrosszabb fajta kárt okozza: nem elmaradt védelmet, hanem törlést.',
+    guard_note: 'gépi jel: `npm run verify:v3ref` (P-K03-intent-expiry (i) és (j) ág + M220/M221/M222 mutáció, és az ÚJRA-HORGONYZOTT M209/M217) · `npm run verify:kuka` (három pozitív + egy tiltó) · `npm run verify:app-findings-r154` (Z: z5, z6, z7).',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

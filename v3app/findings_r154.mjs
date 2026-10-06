@@ -33,7 +33,7 @@ import { startServer, makeRateLimiter, makeSessionStore, sessionLimits, SESSION_
 import { dictFor } from './public/i18n/dict.mjs';
 import { resolveLanguage, parseAcceptLanguage, pickFromAcceptLanguage } from './public/i18n/languages.mjs';
 import { validateAgainstSchema } from '../v3ref/inputSchema.mjs';
-import { purgeExpiredIntents, resumeIntent, intentTtlMs, PENDING_INTENT_TTL_MS } from '../v3ref/invite.mjs';
+import { purgeExpiredIntents, resumeIntent, rememberIntent, intentTtlMs, PENDING_INTENT_TTL_MS } from '../v3ref/invite.mjs';
 import { validateRequest } from './httpSchema.mjs';
 import { request as httpReq } from 'node:http';
 import { transcriptsOf } from '../tools/v3_fogyasztas_meres.mjs';
@@ -1977,6 +1977,159 @@ try {
     } finally {
       await new Promise((r) => ysrv.server.close(r));
       await new Promise((r) => yHosszu.server.close(r));
+    }
+  }
+
+  part('Z) R158 — a NEGYEDIK review-kör leletei: a használat pillanata, az amortizált pászta, az IDŐPILLANAT');
+  {
+    const ORA2 = 60 * 60 * 1000;
+
+    // ── (z1–z2) F158-18 (P2) — A KAPU A HASZNÁLAT PILLANATÁT OLVASSA ─────────────────────────────
+    // A LELET: a kapu a KÉRÉS ELEJI időbélyeggel kérdezte a tárat, ezért egy lassan feltöltött törzs
+    // átvihetett a tétlenségi korláton: a tár a RÉGI pillanatra élőnek mondta a sort, a kezelő írt, és
+    // 200-at adott — a következő kérés viszont a valódi időt mérte, és a most írt sort TÖRÖLTE.
+    const ZDB = resolve(ROOT, 'var/tmp/v3app_r158_z.sqlite');
+    try { rmSync(ZDB, { force: true }); rmSync(ZDB + '-wal', { force: true }); rmSync(ZDB + '-shm', { force: true }); } catch { /* nem volt */ }
+    const zElozoIdle = process.env.VS_APP_SESSION_IDLE_MS;
+    let zsrv = null;
+    try {
+      process.env.VS_APP_SESSION_IDLE_MS = '400';       // RÖVID korlát, hogy a lejárat mérhető legyen
+      zsrv = await startServer({ port: 0, dbPath: ZDB });
+    } finally {
+      if (zElozoIdle === undefined) delete process.env.VS_APP_SESSION_IDLE_MS;
+      else process.env.VS_APP_SESSION_IDLE_MS = zElozoIdle;
+    }
+    try {
+      const zport = zsrv.server.address().port;
+      const zbase = `http://127.0.0.1:${zport}`;
+      const zsorok = () => zsrv.store.all('SELECT session_id, invite_token FROM pending_intent');
+      // Egy LASSÚ, darabolt POST: a törzs második fele a tétlenségi korlát UTÁN érkezik.
+      const zlassu = (suti, keses) => new Promise((res) => {
+        const rq = httpReq({ host: '127.0.0.1', port: zport, path: '/api/invites/pending', method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Transfer-Encoding': 'chunked', Cookie: suti || '' } }, (r) => {
+          let b = ''; r.on('data', (ch) => { b += ch; });
+          r.on('end', () => res({ status: r.statusCode, body: (() => { try { return JSON.parse(b); } catch { return null; } })(),
+            suti: (r.headers['set-cookie'] || [''])[0].split(';')[0] }));
+        });
+        rq.on('error', () => res({ status: 0, body: null, suti: '' }));
+        rq.write('{"token":"z-ver');
+        setTimeout(() => rq.end('seny"}'), keses);
+      });
+      // (a) a NYITÓ kérés: tartós munkamenet és egy folytatás-sor
+      const zelso = await zlassu('', 5);
+      const zsuti = zelso.suti;
+      const zelotte = zsorok().length;
+      // (b) a LASSÚ kérés: a 700 ms a 400 ms-os korlát FÖLÖTT van
+      const zkeso = await zlassu(zsuti, 700);
+      step('(z1) F158-18: a tétlenségi korláton ÁTVIVŐ lassú kérés NEM ír (409 `session_gone`) — RÉGEN 200-at adott, és a most írt sort a következő kérés törölte',
+        zelso.status === 200 && zkeso.status === 409 && zkeso.body && zkeso.body.reason === 'session_gone'
+          && zsorok().length === zelotte,
+        { nyito: zelso.status, lassu: zkeso.status, ok: zkeso.body && zkeso.body.reason,
+          sorok_elotte: zelotte, sorok_utana: zsorok().length });
+
+      // (z2) ÉS A KAPU MEG IS ÚJÍTJA A SORT: egy a korláton BELÜL maradó kérés után a munkamenet a
+      //      kérés VÉGÉTŐL számol — tehát egy 300 ms-os törzs + 300 ms várakozás után MÉG ÉL.
+      //      A régi alakban a két 300 ms a kérés ELEJÉTŐL összeadódott (600 > 400), és a sor kiesett.
+      const zfriss = await zlassu('', 5);
+      const zsuti2 = zfriss.suti;
+      const zbelul = await zlassu(zsuti2, 300);
+      await new Promise((r) => setTimeout(r, 300));
+      const zme = await fetch(`${zbase}/api/me`, { headers: { Cookie: zsuti2 } });
+      const zujSuti = (zme.headers.get('set-cookie') || '').includes('vs_session');
+      step('(z2) F158-18 második fele: a kapu a HASZNÁLAT pillanatában meg is ÚJÍTJA a sort — a korláton belüli lassú kérés után a munkamenet ÉL (nem kap új sütit)',
+        zbelul.status === 200 && zme.status === 200 && zujSuti === false,
+        { lassu_de_belul: zbelul.status, kovetkezo_keres: zme.status, uj_sutit_kapott: zujSuti });
+    } finally {
+      await new Promise((r) => zsrv.server.close(r));
+    }
+
+    // ── (z3–z4) F158-19 (P2) — AZ ELUTASÍTOTT FELVÉTEL NEM JÁRJA VÉGIG A TÁRAT ───────────────────
+    // (z3) A VISELKEDÉS, idő-mérés NÉLKÜL: a tétlenségi pászta percenként legfeljebb egyszer fut, tehát
+    //      ugyanazon a percen belüli második beszúrás NEM söpri újra a lejárt sorokat; a perc után IGEN.
+    {
+      const t = makeSessionStore({ maxSessions: 100, idleMs: 1000, warn: () => {} });
+      // Az ELSŐ beszúrás pászta-jogot használ el (a `nextIdleSweep` nullából indul), és a következő
+      // percben már NEM söpör — tehát a lejárt sorok ott maradnak, a tárat nem járjuk végig újra.
+      t.set('regi1', { id: 'regi1', subject_id: null }, 1_000_000);
+      t.set('regi2', { id: 'regi2', subject_id: null }, 1_000_000);
+      t.set('uj1', { id: 'uj1', subject_id: null }, 1_010_000);      // regi1/regi2 ekkor már LEJÁRT
+      const percenBelul1 = t.size;
+      t.set('uj2', { id: 'uj2', subject_id: null }, 1_010_100);
+      t.set('uj3', { id: 'uj3', subject_id: null }, 1_030_000);      // uj1/uj2 ekkor már LEJÁRT
+      const percenBelul2 = t.size;
+      // A perc UTÁN egyetlen pászta MINDET elviszi — tehát nem „sosem söpör", hanem RITKÍTVA söpör.
+      t.set('uj4', { id: 'uj4', subject_id: null }, 1_075_000);
+      const percUtan = t.size;
+      step('(z3) F158-19: a tétlenségi pászta AMORTIZÁLT — a percen belüli beszúrások nem járják végig a tárat (a lejárt sorok maradnak), a perc után EGY pászta mindet elviszi',
+        percenBelul1 === 3 && percenBelul2 === 5 && percUtan === 1,
+        { percen_belul_1: percenBelul1, percen_belul_2: percenBelul2, perc_utan: percUtan });
+
+      // (z3b) ELLENPÁR: a PLAFON NEM amortizált — a memória-korláton nem lehet késni. Ugyanazon a
+      //       percen belül, pászta-jog nélkül is azonnal érvényesül.
+      const c = makeSessionStore({ maxSessions: 3, idleMs: 60 * ORA2, warn: () => {} });
+      for (let i = 0; i < 3; i += 1) c.set('be' + i, { id: 'be' + i, subject_id: 'sub' + i }, 2_000_000 + i);
+      const capElotte = c.size;
+      c.set('nv', { id: 'nv', subject_id: null }, 2_000_010);        // ugyanazon a percen belül
+      step('(z3b) F158-19 ELLENPÁR: a PLAFON nem amortizált — ugyanazon a percen belül is AZONNAL érvényesül (a memória-korláton nem lehet késni)',
+        capElotte === 3 && c.size === 3 && c.has('nv', 2_000_010) === false,
+        { plafon_elotte: capElotte, plafon_utana: c.size, jovevenyt_felvette: c.has('nv', 2_000_010) });
+
+      // (z4) ÉS A KÖLTSÉG NEM NŐ A TÁRRAL (skála-független mérce, KUKA-344): telt, csupa BELÉPETT
+      //      táron a jövevény névtelen sort az O(1) rövidre zárás dobja el — a pászta ezt nem
+      //      terhelheti újra. A mércét a KÉRÉSENKÉNTI költség ARÁNYA adja, nem egy kézi ms-szám.
+      const perKeres = (n, db) => {
+        const st = makeSessionStore({ maxSessions: n, idleMs: 60 * ORA2, warn: () => {} });
+        for (let i = 0; i < n; i += 1) st.set('be' + i, { id: 'be' + i, subject_id: 'sub' + i }, 1_000_000 + i);
+        const t0 = process.hrtime.bigint();
+        for (let i = 0; i < db; i += 1) st.set('nv' + i, { id: 'nv' + i, subject_id: null }, 2_000_000 + i);
+        return Number(process.hrtime.bigint() - t0) / 1e6 / db;
+      };
+      const DBZ = 2000;
+      const pKicsi = perKeres(20000, DBZ);
+      const pNagy = perKeres(80000, DBZ);
+      step('(z4) F158-19: az ELUTASÍTOTT felvétel költsége nem nő a tár méretével — négyszeres táron sem lehet négyszeres a kérésenkénti költség (régen: 0,62 → 1,43 ms)',
+        pNagy <= Math.max(pKicsi * 4, pKicsi + 0.05) && pNagy < 0.1,
+        { kerésenkent_20e_ms: Number(pKicsi.toFixed(5)), kerésenkent_80e_ms: Number(pNagy.toFixed(5)),
+          regi_alakon_mert: '20 000 → 0,6217 ms · 80 000 → 1,4320 ms' });
+    }
+
+    // ── (z5–z7) F158-20 (P2) — AZ IDŐT IDŐPILLANATKÉNT VETJÜK ÖSSZE ──────────────────────────────
+    {
+      const zsrv2 = await startServer({ port: 0, dbPath: ':memory:' });
+      try {
+        const eltolt = { now: () => '2026-10-06T01:00:00+02:00' };   // UGYANAZ a pillanat, MÁS alak
+        rememberIntent({ store: zsrv2.store, sessionId: 'z_eltolas', token: 'tok_friss', clock: eltolt });
+        const tarolt = zsrv2.store.get('SELECT created_at FROM pending_intent WHERE session_id = ?', 'z_eltolas').created_at;
+        const p1 = purgeExpiredIntents({ store: zsrv2.store, clock: eltolt });
+        step('(z5) F158-20: az ÍRÁS kanonikus UTC alakot tárol, és a friss, eltolásos órával írt sor NEM tűnik el — RÉGEN a takarítás jövőbelinek minősítette és TÖRÖLTE',
+          tarolt === '2026-10-05T23:00:00.000Z' && p1.purged === 0
+            && zsrv2.store.all('SELECT session_id FROM pending_intent').length === 1,
+          { tarolt_alak: tarolt, takaritva: p1.purged });
+
+        // (z6) IMPORTÁLT sorok: a nem kanonikus alakot IDŐPILLANATKÉNT ítéljük meg — a FRISS marad.
+        zsrv2.store.run('DELETE FROM pending_intent');
+        const zbe = (sid, at) => zsrv2.store.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)', sid, 'tok', at);
+        zbe('z_import_friss_eltolas', '2026-10-06T01:00:00+02:00');
+        zbe('z_import_romlott', 'bogus');
+        zbe('z_import_jovo', '2099-01-01T00:00:00.000Z');
+        zbe('z_import_regi', '2026-10-04T00:00:00.000Z');
+        const p2 = purgeExpiredIntents({ store: zsrv2.store, clock: eltolt });
+        const maradt = zsrv2.store.all('SELECT session_id FROM pending_intent').map((r) => r.session_id).sort().join(',');
+        step('(z6) F158-20: a NEM kanonikus sort időpillanatként ítéljük meg — a romlott, a jövőbeli és a lejárt megy, a FRISS eltolásos MARAD',
+          p2.purged === 3 && p2.odd_purged === 1 && maradt === 'z_import_friss_eltolas',
+          { takaritva: p2.purged, nem_kanonikus_sor: p2.odd_rows, abbol_takaritva: p2.odd_purged, maradt });
+
+        // (z7) ELLENPÁR: a nem értelmezhető óra NEVEZETTEN elakad — nem tárolunk megítélhetetlen kort.
+        let zhiba = null;
+        try { rememberIntent({ store: zsrv2.store, sessionId: 'z_rossz', token: 't', clock: { now: () => 'nem-egy-idopont' } }); }
+        catch (e) { zhiba = String(e && e.message); }
+        step('(z7) F158-20 ELLENPÁR: a nem értelmezhető órával az ÍRÁS nevezetten elakad — nincs néma, megítélhetetlen korú sor (KUKA-238)',
+          /nem értelmezhető időpontot adott/.test(zhiba || '')
+            && !zsrv2.store.get('SELECT 1 AS x FROM pending_intent WHERE session_id = ?', 'z_rossz'),
+          { hiba: (zhiba || '').slice(0, 64), sor_keletkezett: Boolean(zsrv2.store.get('SELECT 1 AS x FROM pending_intent WHERE session_id = ?', 'z_rossz')) });
+      } finally {
+        await new Promise((r) => zsrv2.server.close(r));
+      }
     }
   }
 
