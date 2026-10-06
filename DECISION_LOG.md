@@ -135,6 +135,62 @@ Gépi jel: `npm run verify:app-findings-r154` (E: e6–e9) · `npm run verify:ku
 
 ---
 
+## D-VS-3110 — A VÉDELMI KÉRDÉS HATÓKÖRÉT A DÖNTÉS SZABJA MEG, ÉS AZ ÁRVA ÁLLAPOT TAKARÍTÓDIK (R154)
+
+**A döntés.** A munkamenet-tár védett-lista kérdése a JELÖLTEKRE szűkítve, 500-as darabokban megy
+(`protectedIds(candidates)`), és a tár BEJELENTI a kiszorított azonosítókat (`onEvicted`), amire a
+hívó törli az árván maradt `pending_intent` sorokat. A tár nem ismeri a táblákat — a takarítás a hívóé.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére, és ez a csomag egyik legfontosabb tanulsága:
+**ugyanazt a hibát követtem el, amit ebben a csomagban én magam vezettem ki.** A D-VS-3100 (KUKA-290)
+kimondta, hogy a védelem költsége nem nőhet azzal, amivel szemben véd — hat javítással később,
+ugyanabban a fájlban, a védett-lista a TELJES `pending_intent` táblát olvasta be minden söprésnél.
+Abba pedig a `POST /api/invites/pending` HITELESÍTÉS NÉLKÜL ír. Mérve: 400 hitelesítés nélküli kérés
+után a tár 19 sornál állt, a tábla 400-nál. A javítás után: 120 kérés → a tábla 36 sornál áll.
+
+**Amit ez NEM állít.** A `pending_intent` sorok LEJÁRAT szerinti takarítása továbbra is nyitott
+(D-VS-3007 nevezett függője); ez a döntés annyit ér el, hogy a tábla a TÁRRAL EGYÜTT korlátos. Gépi
+jel: `npm run verify:app-findings-r154` (G: g1, g6, g7) · `npm run verify:kuka` (KUKA-300).
+
+---
+
+## D-VS-3111 — A ROTÁCIÓ ELŐBB ADJA VISSZA A HELYÉT, AZTÁN FOGLAL (R154)
+
+**A döntés.** A belépés a függő szándék kiolvasása után TÖRLI a saját régi munkamenetét, és csak
+azután születik a rotált azonosító.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére: a korábbi sorrend előbb szúrt be, és telt táron a
+beszúrás egy IDEGEN belépett munkamenetet szorított ki — a saját régi sor törlése pedig utána mégis
+felszabadított egy helyet. Mérve: 4 belépett sor 4-es plafonon, újra-belépés → egy idegen kiesett, a
+tár 3-nál állt. Egy embert feleslegesen léptettünk ki.
+
+**Amit ez NEM állít.** A kiolvasás sorrendje nem változott: a `resumeIntent` továbbra is a törlés
+ELŐTT fut, mert a függő meghívó-szándékot a régi azonosítóról kell áthozni. Gépi jel:
+`npm run verify:app-findings-r154` (G: g5) · `npm run verify:kuka` (KUKA-301).
+
+---
+
+## D-VS-3112 — A FRISS SOR VÉDELME A SAJÁT OSZTÁLYÁIG TART (R154, a D-VS-3108 szűkítése)
+
+**A döntés.** A `keep` (a beszúrt sor sérthetetlensége) a SAJÁT OSZTÁLYÁIG tart: ha a plafon
+betartásához belépett sort kellene elvenni, és a beszúrt sor NÉVTELEN, akkor a BESZÚRT sor megy.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére, ami a D-VS-3108 mellékhatása: telt táron EGY süti
+nélküli kérés a hiányt a belépett körre tolta. Mérve: 4 belépett sor 4-es plafonon, egy névtelen
+beszúrás → `evicted_cap_signed_in: 1`, és a friss névtelen BENT maradt. Vagyis egy hitelesítés nélküli
+látogató kiléptetett egy belépett embert — a javítás új támadási utat nyitott. Két helyes szabály
+(az új sor sérthetetlen · a névtelen esik előbb) ütközött, és az ütközést nem mondtam ki.
+
+**A tudatos csere, kimondva.** Telt táron a névtelen látogató olyan sütit kaphat, ami a következő
+kérésnél új munkamenetet nyit. Ez rosszabb neki, de egy névtelen látogató kényelme nem ér fel egy
+belépett ember kiléptetésével.
+
+**Amit ez NEM állít.** A D-VS-3108 garanciája nem veszett el: a BELÉPETTEN született friss sor
+továbbra is sérthetetlen (ellenpár mérve). Gépi jel: `npm run verify:app-findings-r154` (G: g2, g3, g4)
+· `npm run verify:kuka` (KUKA-302).
+
+---
+
 ## D-VS-3109 — A VEZÉRLŐ-KARAKTER A HATÁRON AKAD EL, TÁROLÓTÓL FÜGGETLENÜL (R154, ISC-02)
 
 **A döntés.** A bemeneti típusok zárják a vezérlő-karaktereket, két szinten: a NULLA BÁJT minden

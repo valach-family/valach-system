@@ -40,6 +40,21 @@ Vagyis: **a teljes söprés zöldje a lenti három leletről SEMMIT nem mondott.
 | 15 | ugyanaz · vezérlő-karakterek | ugyanaz a sorozat, külön a nulla bájttal, MINDKÉT tárolón | **F154-10 — VALÓS, JAVÍTVA**: a `nonempty_string` nem zárta a vezérlő-karaktereket, ezért a kimenet a TÁROLÓTÓL függött — SQLite: **201**, a munkakörnyezet létrejött `A\0B` névvel · PostgreSQL 16.15: **400 `provision_failed`**, nincs írás. A javítás után MINDKÉT tároló ugyanazt a nevezett 400-at adja (`invalid_type` · „vezérlő-karaktert nem tartalmazhat"), írás nélkül | élő HTTP MINDKÉT tárolón, javítás előtt és után; a PostgreSQL-oldali ok közvetlenül is mérve: `22021 invalid byte sequence for encoding "UTF8": 0x00`; `verify:app-findings-r154` F: f1–f4; visszavétel-próba: 3 FAIL (`könyv 1→4`) | *(e csomag 7. commitja)* | a `secret_string` (jelszó) szándékosan érintetlen — `scrypt` lenyomatként tárolódik, ott nincs tároló-eltérés |
 | 16 | PostgreSQL-üzem (a SPEC 3. területe, RÉSZBEN) | elkülönített helyi **PostgreSQL 16.15** felállítva (`initdb` + saját port + saját socket); `npm run db:migrate` lefuttatva; az alkalmazás PG mögött indítva és kérésekkel mérve | **nincs lelet** a mért úton: a séma felépült (`001` alkalmazva, 119 ms), a tároló-feloldó `postgres`-t mondott, a regisztráció · megerősítés · belépés · munkakörnyezet-létrehozás végigment | `db:migrate` kimenete; az élő kérés-sorozat válaszai; `SELECT version()` | — | **a verzió NEM a Railway 18-asa, hanem 16.15** — ezt kimondom, mert a SPEC a 18-hoz igazítást kérte; a `proof:pg-*` láncok (tranzakció · zárolás · párhuzamosság · kapcsolatvesztés · helyreállás) ebben a körben MÉG NEM futottak |
 
+| 17 | A munkamenet-tár MÁSODIK külső review-köre | a Codex három újabb P2 lelete `a096989`-en; mindhárom REPRODUKÁLVA, utána javítva | **F154-11 · F154-12 · F154-13 — mind VALÓS**: (11) a védett-lista a TELJES `pending_intent` táblát olvasta minden söprésnél, abba viszont a `POST /api/invites/pending` HITELESÍTÉS NÉLKÜL ír — 400 kérés után a tár 19, a tábla 400 sornál; (12) a belépés ELŐBB szúrt be, aztán törölte a sajátját → telt táron IDEGEN embert léptetett ki; (13) a friss NÉVTELEN sor sérthetetlensége telt táron a BELÉPETT körre tolta a hiányt → egy hitelesítés nélküli látogató kiléptetett egy belépett embert | `verify:app-findings-r154` G: g1–g7; a visszavétel-próba mindháromra PIROS (`sorok 0→120` · a sorrend · `belepett_kileptetve: 1`) | *(e csomag 8. commitja)* | a `pending_intent` LEJÁRAT szerinti takarítása továbbra is nyitott (D-VS-3007) — a tábla most a TÁRRAL EGYÜTT korlátos, de nem időben |
+| 18 | A mag mutációs battériája a mag-változás UTÁN | `npm run verify:v3ref` újrafuttatva az ISC-02 változással | **nincs lelet** — `clean: true`, `run_state: complete`, 40 egység, **237 mért / 237 elkapott mutáció / 0 túlélő** | `v3ref/v3ref-mutation-result.json` (commitolva) | — | — |
+
+### A LEGFONTOSABB TANULSÁG EBBŐL A CSOMAGBÓL
+
+A KUKA-300 nem technikai apróság: **ugyanazt a hibát követtem el, amit ebben a csomagban én magam
+vezettem ki.** Az F154-01 (a kéréskorlát mint a támadás erősítője) után hat javítással, ugyanabban a
+fájlban, a védett-lista kérdése felvett egy korlátlan költséget. A saját gépi jelem ezt NEM kapta el,
+mert a mintája EGY FÜGGVÉNY sorára illeszkedett, nem a hibaosztályra. Ezt a regiszter most kimondja.
+
+Ebből két dolog következik a csomag hátralévő részére: (1) a hibaosztályokat a jelekben is
+általánosítani kell, nem csak a tanulság szövegében; (2) a külső review értéke MÉRHETŐ — hat valós
+hibát talált a saját javításaimban, amelyek mindegyike olyan helyen volt, ahol a saját 52 állításos
+battériám zöld maradt.
+
 ### A MÉRŐESZKÖZ, amivel a leleteket keresem — és a HATÓKÖRE
 
 A három első lelet mindegyike olyan feloldóban volt, amit **egyetlen próba sem hívott meg

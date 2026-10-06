@@ -416,6 +416,70 @@ try {
   }
 
 
+  // ── G) A KÜLSŐ REVIEW MÁSODIK KÖRE (Codex, R154) — HÁROM ÚJABB P2 A SAJÁT JAVÍTÁSOMBAN ────────
+  part('G) F154-11 · F154-12 · F154-13 — a külső review MÁSODIK körének leletei');
+  {
+    // (g1) F154-11 — A KORLÁTOS TÁR ŐRZÉSE KORLÁTLAN KÖLTSÉGET VETT FEL. A védett lista a TELJES
+    // `pending_intent` táblát beolvasta minden söprésnél, abba viszont a `POST /api/invites/pending`
+    // HITELESÍTÉS NÉLKÜL ír. Ugyanaz a hibaalak, amit az F154-01-ben kivezettünk.
+    let kerdezett = -1;
+    const st1 = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 4, warn: () => {},
+      protectedIds: (c) => { kerdezett = c.length; return new Set(); } });
+    for (let i = 0; i < 12; i++) st1.set('a' + i, { id: 'a' + i, subject_id: null }, 1_000_000 + i);
+    step('(g1) a védett lista kérdése a JELÖLTEKRE szűkítve megy (nem a teljes táblára)',
+      kerdezett >= 0 && kerdezett <= 4 + 1, { kerdezett_azonosito: kerdezett, plafon: 4 });
+
+    // (g4) F154-13 — EGY NÉVTELEN LÁTOGATÓ KILÉPTETETT EGY BELÉPETT EMBERT. MÉRVE a régi alakon:
+    // 4 belépett sor 4-es plafonon, majd EGY névtelen beszúrás → `evicted_cap_signed_in: 1`, és a
+    // névtelen bent maradt.
+    const st2 = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 4, warn: () => {} });
+    for (let i = 0; i < 4; i++) st2.set('u' + i, { id: 'u' + i, subject_id: 'S' + i }, 1_000_000 + i);
+    st2.set('anon', { id: 'anon', subject_id: null }, 1_100_000);
+    step('(g2) egy süti nélküli kérés NEM léptet ki belépett embert telt táron (régen MÉRVE: kiléptetett)',
+      st2.stats().evicted_cap_signed_in === 0 && st2.has('anon', 1_100_000) === false,
+      { belepett_kileptetve: st2.stats().evicted_cap_signed_in, friss_nevtelen_bent: st2.has('anon', 1_100_000) });
+    step('(g3) ELLENPÁR: a négy belépett MIND megmaradt — a hiány a névtelen oldalán rendeződött',
+      [0, 1, 2, 3].every((i) => st2.has('u' + i, 1_100_000)), { size: st2.size });
+
+    // (g4) ELLENPÁR a `keep`-re: a BELÉPETTEN született friss sor viszont SÉRTHETETLEN marad
+    // (az F154-09 garanciája nem veszett el) — a védelem a SAJÁT OSZTÁLYÁIG tart.
+    const st3 = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 4, warn: () => {} });
+    for (let i = 0; i < 4; i++) st3.set('u' + i, { id: 'u' + i, subject_id: 'S' + i }, 1_000_000 + i);
+    st3.set('belepo', { id: 'belepo', subject_id: 'UJ' }, 1_100_000);
+    step('(g4) ELLENPÁR: a BELÉPETTEN született friss sor SÉRTHETETLEN (F154-09 nem veszett el)',
+      st3.has('belepo', 1_100_000) === true, { size: st3.size, stat: st3.stats() });
+
+    // (g5) F154-12 — AZ ÚJRA-BELÉPÉS IDEGEN EMBERT LÉPTETETT KI. A régi sorrend ELŐBB szúrt be,
+    // és csak UTÁNA törölte a saját régi sorát: telt táron ez idegen belépett sort vitt el, a
+    // saját törlés pedig mégis felszabadított egy helyet.
+    const srvSrc2 = readFileSync(join(ROOT, 'v3app/server.mjs'), 'utf8');
+    const loginBlock = srvSrc2.slice(srvSrc2.indexOf("'POST /api/login'"), srvSrc2.indexOf("'POST /api/logout'"));
+    step('(g5) a belépés ELŐBB törli a saját régi sorát, AZTÁN szúr be (a sorrend a kódban áll)',
+      loginBlock.indexOf('sessions.delete(session.id)') < loginBlock.indexOf('newSession(r.subject_id)')
+      && loginBlock.includes('sessions.delete(session.id)'),
+      'a rotáció nem szorít ki idegen munkamenetet');
+
+    // (g6) F154-11 második fele — AZ ÁRVA SOR TAKARÍTÁSA, élő HTTP-n, HITELESÍTÉS NÉLKÜL.
+    const sorok = () => app.store.get('SELECT COUNT(*) AS n FROM pending_intent').n;
+    const elotte = sorok();
+    for (let i = 0; i < 120; i++) {
+      await fetch(base + '/api/invites/pending', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: 'arasztas-' + i }) });
+    }
+    const utana = sorok();
+    step('(g6) 120 HITELESÍTÉS NÉLKÜLI kérés után a munkamenethez kötött tábla a tárral együtt KORLÁTOS',
+      utana <= SESSION_CAP + elotte + 1, { sorok: `${elotte}→${utana}`, munkamenet_plafon: SESSION_CAP, tar: app.sessions.size });
+
+    // (g7) ELLENPÁR: az ÉLŐ munkamenet sorát NEM takarítjuk el — a takarítás csak az árvát viszi.
+    const elo = new Client(base);
+    await elo.get('/api/me');
+    await elo.post('/api/invites/pending', { token: 'elo-folytatas-154' });
+    const sajat = app.store.get("SELECT session_id FROM pending_intent WHERE invite_token = 'elo-folytatas-154'");
+    step('(g7) ELLENPÁR: az ÉLŐ munkamenet folytatása MEGMARAD — a takarítás csak az árvát viszi',
+      Boolean(sajat) && app.sessions.has(String(sajat.session_id)) === true,
+      { sor_megvan: Boolean(sajat), munkamenet_el: sajat ? app.sessions.has(String(sajat.session_id)) : null });
+  }
+
   const fail = results.filter((r) => !r.pass);
   console.log(`\nR154 battéria: ${results.length - fail.length}/${results.length} PASS${fail.length ? ` — ${fail.length} FAIL` : ''}`);
   console.log('A MÉRÉS HATÓKÖRE: a HTTP-határ és a két feloldó. Üzleti folyamatról, élő AI-ról és felhős');

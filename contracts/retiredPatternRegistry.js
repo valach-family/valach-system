@@ -12818,6 +12818,74 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (három pozitív minta) · `npm run verify:app-findings-r154` (F: f1 a nulla bájt, f2 a többi vezérlő, f3 az ellenpár — ékezet és nem latin betű, f4 a szabad szöveg mezőfajta-kötése a MAG feloldóján közvetlenül hívva).',
   }),
 
+
+  Object.freeze({
+    id: 'KUKA-300',
+    date: '2026-10-06',
+    title: 'A KUKA-290-ET HAT JAVÍTÁSSAL KÉSŐBB ÚJRA ELKÖVETTEM — a korlátos tár őrzése korlátlan költséget vett fel',
+    what: 'A KUKA-292-es munkamenet-tár védett-lista kérdése a TELJES `pending_intent` táblát beolvasta minden plafon-söprésnél. Abba viszont a `POST /api/invites/pending` HITELESÍTÉS NÉLKÜL ír, és a kiszorított munkamenetek sorait semmi nem törölte. MÉRVE: 400 hitelesítés nélküli kérés után a munkamenet-tár 19 sornál állt (a plafon tartotta), a `pending_intent` viszont 400-nál — és azt SEMMI nem tartotta.',
+    why_wrong: 'EZ UGYANAZ A HIBAALAK, AMIT EBBEN A CSOMAGBAN ÉN MAGAM VEZETTEM KI (KUKA-290: „a védelem költsége nem nőhet azzal, amivel szemben véd"), és a KUKA-292 második fele is ide tartozik („ami kérésre nő, annak kell egy hely, ahol fogy"). Hat javítással később, ugyanabban a fájlban, ugyanabban a csomagban megismételtem. A KUKA-290 gépi jele ezt NEM kapta el, mert a mintája a `makeRateLimiter` sorára illeszkedik — tehát a tanulság EGY FÜGGVÉNYRE volt kikötve, a hibaosztály viszont nem függvény-specifikus.',
+    replaced_by: 'A kérdés a JELÖLTEKRE szűkítve, DARABOKBAN megy (`protectedIds(candidates)` + `WHERE session_id IN (...)` 500-as darabokban), tehát a költség a tár méretével korlátos. ÉS a tár MEGMONDJA, mit dobott el (`onEvicted`), a hívó pedig takarítja az árván maradt sorokat — így a tábla a tárral EGYÜTT korlátos. MÉRVE: 120 hitelesítés nélküli kérés után a tábla 36 sornál áll (régen 120-nál).',
+    replacement: 'A tár NEM ismeri a táblákat (egy tény egy otthon): csak bejelenti a kiszorított azonosítókat, a takarítás a hívóé. Az ÉLŐ munkamenet sorát a takarítás nem viszi — ezt ellenpár méri (g7).',
+    decision: 'D-VS-3110',
+    found_by: 'A KÜLSŐ REVIEW (Codex, R154 MÁSODIK kör, P2 — `v3app/server.mjs:657`) — a saját javításomban, a saját KUKA-290-es tanulságom ellenére.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'function protectedSet\\(candidates\\)',
+        why: 'a kérdés a JELÖLTEKRE szűkítve megy, nem a teljes táblára' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'onEvicted',
+        why: 'a kiszorított sorok árva szerver-oldali állapota takarítódik — a tábla a tárral együtt korlátos' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "store\\.all\\('SELECT session_id FROM pending_intent'\\)",
+        why: 'a teljes tábla kötés nélküli beolvasása' }),
+    ]),
+    lesson: 'EGY TANULSÁG GÉPI JELE NE EGY FÜGGVÉNY SORÁRA ILLESZKEDJEN, HANEM A HIBAOSZTÁLYRA — különben a következő helyen újra elkövethető, és a saját regiszterem zöld marad rá. ÉS: ha egy védelmi döntéshez ADATBÁZISBÓL kérdezel, a kérdés hatókörét a DÖNTÉS hatóköre szabja meg (itt: a jelöltek), nem a tábla; egy kötés nélküli `SELECT` egy forró úton akkor is korlátlan, ha ma kevés sor van benne. Ellenőrző kérdés minden ilyen lekérésnél: ki ÍRHAT ebbe a táblába, és kell-e hozzá hitelesítés?',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív + egy tiltó minta) · `npm run verify:app-findings-r154` (G: g1 a kérdés hatóköre a feloldón, g6 a tábla korlátossága ÉLŐ HTTP-n hitelesítés nélkül, g7 az ellenpár — az élő folytatás megmarad).',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-301',
+    date: '2026-10-06',
+    title: 'A ROTÁCIÓ ELŐBB FOGLALT, AZTÁN ADTA VISSZA A HELYÉT — és közben IDEGEN embert léptetett ki',
+    what: 'A belépés (`POST /api/login`) ÚJ munkamenetet szúrt be a rotált azonosítóval, és CSAK UTÁNA törölte a sajátját. Telt táron a beszúrás plafon-söprést indított, ami egy IDEGEN belépett munkamenetet vitt el — a saját régi sor törlése pedig utána mégis felszabadított egy helyet. MÉRVE: 4 belépett sor 4-es plafonon, újra-belépés → egy idegen sor kiesett, és a tár a törlés után 3-nál állt.',
+    why_wrong: 'Egy embert feleslegesen léptettünk ki: a helyet, amire a beszúrás „szorult", a hívó MAGA adta volna vissza egy sorral később. A hiba csak telt táron jelentkezik, tehát éppen a legnagyobb terhelés alatt, ahol a legnehezebb diagnosztizálni, és az érintett felhasználó semmilyen összefüggést nem lát a saját tevékenysége és a kiléptetése között.',
+    replaced_by: 'A sorrend megfordítva: a függő szándék KIOLVASÁSA után a SAJÁT régi sor törlődik, és CSAK AZUTÁN születik az új. Így a rotáció nettó nulla helyet fogyaszt, és nem indít kiszorítást.',
+    replacement: 'A kiolvasás sorrendje nem változott (`resumeIntent` a törlés ELŐTT fut): a függő meghívó-szándékot a régi azonosítóról kell áthozni, tehát azt előbb kell megkérdezni, mint ahogy a sor eltűnik.',
+    decision: 'D-VS-3111',
+    found_by: 'A KÜLSŐ REVIEW (Codex, R154 MÁSODIK kör, P2 — `v3app/server.mjs:1159`) — a saját javításomban. Reprodukáltam a megadott helyzettel.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'sessions\\.delete\\(session\\.id\\);\\n      const fresh = newSession\\(r\\.subject_id\\)',
+        why: 'a rotáció ELŐBB adja vissza a helyét, aztán foglal' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'AMI EGY HELYET CSERÉL, AZ ELŐBB ADJA VISSZA A RÉGIT, AZTÁN FOGLALJA AZ ÚJAT. Minden rotációnál (munkamenet-azonosító, kulcs, foglalás, zárolás) kérdezd meg: a két művelet KÖZÖTT hányan férnek el? Ha a tár közben korlátba fut, a csere úgy viselkedik, mint egy ÚJ igény — és a kárt harmadik fél fizeti meg, aki semmit nem tett.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (egy pozitív minta a sorrendre) · `npm run verify:app-findings-r154` (G: g5 — a sorrend a KÓDBAN mérve, nem a megjegyzésben).',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-302',
+    date: '2026-10-06',
+    title: 'A „NE DOBD EL, AMIT MOST HOZTÁL LÉTRE" VÉDELEM TÚLNYÚLT A SAJÁT OSZTÁLYÁN — egy névtelen látogató kiléptetett egy belépett embert',
+    what: 'Az F154-09 javítása a frissen beszúrt sort SÉRTHETETLENNÉ tette a saját beszúrása által indított söprésben. Telt táron viszont ez azt is jelentette, hogy EGY süti nélküli kérés a hiányt a BELÉPETT körre tolta. MÉRVE: 4 belépett sor 4-es plafonon, majd EGY névtelen beszúrás → `evicted_cap_signed_in: 1`, és a friss névtelen sor BENT maradt.',
+    why_wrong: 'Ez SZEMBEMENT a saját kiszorítási sorrendemmel (névtelen előbb, KUKA-297), és egy hitelesítés nélküli látogató ezzel kiléptethetett egy belépett embert — tehát a védelem egy ÚJ támadási utat nyitott (KUKA-092 alakja: a javítás lett a baj). A két szabály (az új sor sérthetetlen · a névtelen esik előbb) ÜTKÖZÖTT, és az ütközést nem mondtam ki, ezért a kód csendben az egyiket választotta.',
+    replaced_by: 'A `keep` védelme a SAJÁT OSZTÁLYÁIG tart: ha a plafon betartásához belépett sort kellene elvenni, és a beszúrt sor NÉVTELEN, akkor a BESZÚRT sor megy. A hívó legrosszabb esetben olyan sütit kap, ami a következő kérésnél új munkamenetet nyit — ez tudatos csere, és kimondva: egy névtelen látogató kényelme nem ér fel egy belépett ember kiléptetésével.',
+    replacement: 'Az F154-09 garanciája NEM veszett el: a BELÉPETTEN született friss sor továbbra is sérthetetlen (a belépés a legmagasabb osztály, ott a csere nem jár kárral). Ezt ellenpár méri (g4).',
+    decision: 'D-VS-3112',
+    found_by: 'A KÜLSŐ REVIEW (Codex, R154 MÁSODIK kör, P2 — `v3app/server.mjs:410`) — a saját, EGY KÖRREL KORÁBBI javításom (F154-09) mellékhatása. Reprodukáltam a megadott számokkal (4 belépett, plafon 4, egy névtelen beszúrás).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'keepRow && !keepRow\\.subject_id',
+        why: 'a friss NÉVTELEN sor nem szoríthat ki belépettet — a védelem a saját osztályáig tart' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'KÉT HELYES SZABÁLY ÜTKÖZHET — ÉS AMIT NEM MONDUNK KI, AZT A KÓD CSENDBEN ELDÖNTI. Amikor egy kivételt (itt: „az új sor sérthetetlen") egy rangsorolt rendszerbe teszel, írd le, MEDDIG tart a kivétel: a kivétel és a rangsor találkozásánál vagy kimondod a győztest, vagy a megvalósítás sorrendje dönt helyetted. És ha egy védelem azt eredményezi, hogy egy HITELESÍTÉS NÉLKÜLI kérő kárt tehet egy hitelesítettben, az nem védelem, hanem új támadási út.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (egy pozitív minta) · `npm run verify:app-findings-r154` (G: g2 a lelet, g3 az ellenpár — a négy belépett megmarad, g4 az ellenpár a kivételre — a BELÉPETTEN született friss sor sérthetetlen marad).',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

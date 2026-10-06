@@ -364,29 +364,58 @@ export function makeSessionStore({
   maxSessions = SESSION_LIMITS.max_sessions,
   warn = (m) => console.warn(m),
   protectedIds = null,
+  onEvicted = null,
 } = {}) {
   const map = new Map();                       // id → munkamenet (a `last_seen_ms` házi mező rajta áll)
   const lowWater = Math.max(1, Math.floor(maxSessions * 0.9));
   const stats = { evicted_idle: 0, evicted_cap_anonymous: 0, evicted_cap_signed_in: 0 };
   let nextIdleSweep = 0;
 
-  const drop = (id, cause) => { map.delete(id); stats[cause] += 1; };
+  const droppedNow = [];
+  const drop = (id, cause) => { map.delete(id); stats[cause] += 1; droppedNow.push(id); };
   const expired = (s, now) => now - (s.last_seen_ms ?? 0) > idleMs;
 
-  /** A SZERVER-OLDALI FOLYTATÁST HORDOZÓ azonosítók — `null` = NEM TUDHATÓ (nem „nincs ilyen"). */
-  function protectedSet() {
+  /**
+   * A SZERVER-OLDALI FOLYTATÁST HORDOZÓ azonosítók — `null` = NEM TUDHATÓ (nem „nincs ilyen").
+   *
+   * A KÉRDÉST A JELÖLTEKRE SZŰKÍTVE TESSZÜK FEL (F154-11). A korábbi alak a TELJES `pending_intent`
+   * táblát beolvasta minden söprésnél — csakhogy abba a `POST /api/invites/pending`
+   * HITELESÍTÉS NÉLKÜL ír, és a kiszorított munkamenetek sorait semmi nem törölte. MÉRVE: 400
+   * hitelesítés nélküli kérés után a munkamenet-tár 19 sornál állt (a plafon tartotta), a
+   * `pending_intent` viszont 400-nál — és azt SEMMI nem tartotta. Vagyis a KORLÁTOS tár őrzése
+   * KORLÁTLAN költséget vett fel: pontosan az a hibaalak, amit az F154-01-ben kivezettünk.
+   */
+  function protectedSet(candidates) {
     if (typeof protectedIds !== 'function') return new Set();
+    if (!candidates.length) return new Set();
     try {
-      const got = protectedIds();
+      const got = protectedIds(candidates);
       return got instanceof Set ? got : (Array.isArray(got) ? new Set(got.map(String)) : null);
     } catch { return null; }
   }
 
+  /**
+   * A KISZORÍTOTT SOROK BEJELENTÉSE (F154-11 második fele). A `pending_intent` sorokat a kiszorítás
+   * ÁRVÁN hagyta: a munkamenet eltűnt, a sor pedig elérhetetlenül ott maradt, és a tábla így
+   * korlátlanul nőtt. Innentől a tár MEGMONDJA, mit dobott el, és a takarítás a hívó dolga — a
+   * tár nem ismeri a táblákat, a hívó viszont igen (egy tény egy otthon).
+   */
+  function announceDropped() {
+    if (!droppedNow.length) return;
+    const ids = droppedNow.splice(0, droppedNow.length);
+    if (typeof onEvicted !== 'function') return;
+    try { onEvicted(ids); } catch (e) {
+      warn(`[v3app] a kiszorított munkamenetek szerver-oldali állapotát nem sikerült takarítani: ${e && e.message}`);
+    }
+  }
+
   function sweep(now = Date.now(), { keep = null } = {}) {
     for (const [id, s] of map) if (id !== keep && expired(s, now)) drop(id, 'evicted_idle');
-    if (map.size <= maxSessions) return stats;
+    if (map.size <= maxSessions) { announceDropped(); return stats; }
 
-    const guarded = protectedSet();
+    // A JELÖLTEK: a NÉVTELEN sorok, a beszúrt kivételével — ennyit kell megkérdezni, nem többet.
+    const anonCandidates = [...map.entries()].filter(([id, x]) => id !== keep && !x.subject_id).map(([id]) => id);
+    const guarded = protectedSet(anonCandidates);
     if (guarded === null) {
       // NEM TUDJUK, melyik névtelen hordoz folytatást. A memória-korlát viszont ÁLL, tehát
       // kiszorítunk — de a bizonytalanságot KIMONDJUK, nem hallgatjuk el (KUKA-049).
@@ -403,15 +432,43 @@ export function makeSessionStore({
     const order = [...map.entries()].sort((a, b) => (a[1].last_seen_ms ?? 0) - (b[1].last_seen_ms ?? 0));
     const classOf = (id, s) => (s.subject_id ? 2 : (protectedAnon.has(id) ? 1 : 0));
     const before = { ...stats };
-    for (const pass of [0, 1, 2]) {
-      const target = pass === 2 ? maxSessions : lowWater;
+    // A NÉVTELEN KÖRÖK: az alsó vízszintig, a beszúrt sor kivételével.
+    for (const pass of [0, 1]) {
       for (const [id, s] of order) {
-        if (map.size <= target) break;
+        if (map.size <= lowWater) break;
         if (id === keep || !map.has(id)) continue;
         if (classOf(id, s) !== pass) continue;
-        drop(id, s.subject_id ? 'evicted_cap_signed_in' : 'evicted_cap_anonymous');
+        drop(id, 'evicted_cap_anonymous');
       }
     }
+    /**
+     * A FRISS NÉVTELEN SOR NEM SZORÍTHAT KI BELÉPETT EMBERT (F154-13).
+     *
+     * A LELET (külső review, Codex): a `keep` védelme az F154-09-ből jött — ott az volt a hiba, hogy
+     * a beszúrás a SAJÁT sorát dobta el. Csakhogy telt táron a `keep` kivétele azt is jelentette,
+     * hogy egy EGYETLEN süti nélküli kérés a belépett körre tolta a hiányt. MÉRVE: 4 belépett sor
+     * 4-es plafonon, majd EGY névtelen beszúrás → `evicted_cap_signed_in: 1`, és a névtelen bent
+     * maradt. Vagyis egy hitelesítés nélküli látogató kiléptetett egy belépett embert.
+     *
+     * A SZABÁLY: a `keep` védelme a SAJÁT OSZTÁLYÁIG tart. Ha a plafon betartásához belépett sort
+     * kellene elvenni, és a beszúrt sor NÉVTELEN, akkor a BESZÚRT sor megy — a hívó legrosszabb
+     * esetben olyan sütit kap, ami a következő kérésnél új munkamenetet nyit. Ez tudatos csere: egy
+     * névtelen látogató kényelme nem ér fel egy belépett ember kiléptetésével.
+     */
+    const keepRow = keep === null ? null : map.get(keep);
+    if (map.size > maxSessions && keepRow && !keepRow.subject_id) {
+      drop(keep, 'evicted_cap_anonymous');
+    }
+    // A BELÉPETT KÖR: CSAK a plafonig, és a beszúrt (belépett) sor sérthetetlen.
+    if (map.size > maxSessions) {
+      for (const [id, s] of order) {
+        if (map.size <= maxSessions) break;
+        if (id === keep || !map.has(id)) continue;
+        if (classOf(id, s) !== 2) continue;
+        drop(id, 'evicted_cap_signed_in');
+      }
+    }
+    announceDropped();
     const loggedOut = stats.evicted_cap_signed_in - before.evicted_cap_signed_in;
     if (loggedOut > 0) {
       warn(`[v3app] a munkamenet-tár plafonja (${maxSessions}) BELÉPETT munkamenetet is kiszorított: `
@@ -652,9 +709,38 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
   // jön (F154-08): a `pending_intent` tábla az EGYETLEN, munkamenet-azonosítóra kulcsolt szerver-
   // oldali állapot (`session_id text PRIMARY KEY`, 001-es migráció). Ha egy ÚJ ilyen tábla születik,
   // ide kell bekötni — ezt a `verify:app-findings-r154` E csoportja méri, nem a jóindulat.
+  /**
+   * A MUNKAMENETHEZ KÖTÖTT SZERVER-OLDALI ÁLLAPOT EGY HELYEN (SES-02). A `pending_intent` az
+   * EGYETLEN, munkamenet-azonosítóra kulcsolt tábla (`session_id text PRIMARY KEY`, 001-es
+   * migráció). Ha ÚJ ilyen tábla születik, MINDKÉT feloldót itt kell bővíteni — a kérdezőt és a
+   * takarítót —, és ezt a `verify:app-findings-r154` G csoportja méri, nem a jóindulat.
+   *
+   * A KÉRDÉS JELÖLTEKRE SZŰKÍTVE, DARABOKBAN megy (F154-11): a teljes tábla beolvasása korlátlan
+   * költség volt egy korlátos tár őrzésére. A darab-méret mindkét tároló paraméter-korlátja alatt
+   * marad.
+   */
+  const SESSION_STATE_CHUNK = 500;
+  const sessionStateIn = (ids, sql) => {
+    const out = [];
+    for (let i = 0; i < ids.length; i += SESSION_STATE_CHUNK) {
+      const part = ids.slice(i, i + SESSION_STATE_CHUNK);
+      out.push(...store.all(sql(part.map(() => '?').join(',')), ...part));
+    }
+    return out;
+  };
   const sessions = makeSessionStore({
     ...sessionLimits(),
-    protectedIds: () => new Set(store.all('SELECT session_id FROM pending_intent').map((r) => String(r.session_id))),
+    protectedIds: (candidates) => new Set(
+      sessionStateIn(candidates, (q) => `SELECT session_id FROM pending_intent WHERE session_id IN (${q})`)
+        .map((r) => String(r.session_id))),
+    // AZ ÁRVA SOR NEM MARAD OTT: ha a munkamenet elment, a hozzá kötött sor elérhetetlen, tehát a
+    // törlése nem adatvesztés, hanem a takarítás elmaradásának a javítása.
+    onEvicted: (ids) => {
+      for (let i = 0; i < ids.length; i += SESSION_STATE_CHUNK) {
+        const part = ids.slice(i, i + SESSION_STATE_CHUNK);
+        store.run(`DELETE FROM pending_intent WHERE session_id IN (${part.map(() => '?').join(',')})`, ...part);
+      }
+    },
   });
   const mailbox = [];                // a FEJLESZTŐI LEVÉL-FOGADÓ — memóriában, kifelé soha
 
@@ -1155,8 +1241,11 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       if (!r.ok) return { status: 401, body: { ok: false, reason: r.reason, message: 'a belépés nem sikerült — ellenőrizd a címet és a jelszót' } };
       // A FÜGGŐ MEGHÍVÓ-SZÁNDÉK A RÉGI munkamenet-azonosítón áll — átvisszük az ÚJRA (K03).
       const pending = resumeIntent({ store, sessionId: session.id });
-      const fresh = newSession(r.subject_id);            // ROTÁLT azonosító, BELÉPETTEN születik
+      // A SAJÁT RÉGI SOR ELŐBB MEGY, AZTÁN JÖN AZ ÚJ (F154-12). A korábbi sorrend ELŐBB szúrt be:
+      // telt táron ez IDEGEN belépett munkamenetet szorított ki, a saját régi sor törlése pedig
+      // utána mégis felszabadított egy helyet — tehát egy embert feleslegesen léptettünk ki.
       sessions.delete(session.id);
+      const fresh = newSession(r.subject_id);            // ROTÁLT azonosító, BELÉPETTEN születik
       if (pending) {
         rememberIntent({ store, sessionId: fresh.id, token: pending, clock });
         store.run('DELETE FROM pending_intent WHERE session_id = ?', session.id);
