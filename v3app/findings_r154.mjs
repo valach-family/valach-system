@@ -860,7 +860,9 @@ try {
     step('(l5) a `touch` MEGMONDJA, ha a sor lejárt (régen: csendben eldobta, a hívó meg belépettnek hitte)',
       erintes === false && st4.has('s', t0 + 5_000) === false, { touch: erintes });
     const srcL = readFileSync(join(ROOT, 'v3app/server.mjs'), 'utf8');
-    const egyIdo = /const requestNow = Date\.now\(\);[\s\S]{0,1200}?sessions\.get\(cookies\.get\(SESSION_COOKIE\) \|\| '', requestNow\)[\s\S]{0,600}?!sessions\.touch\(session\.id, requestNow\)/.test(srcL);
+    // A MINTA A MAI ALAKOT KÖVETI: az igény szerinti munkamenet (SES-04) óta a kikeresés CSAK sütire
+    // történik (`cookieId`), de a KÖTÉS ugyanaz: EGY időbélyeg a kikeresésnek és az érintésnek.
+    const egyIdo = /const requestNow = Date\.now\(\);[\s\S]{0,1200}?sessions\.get\(cookieId, requestNow\)[\s\S]{0,600}?!sessions\.touch\(session\.id, requestNow\)/.test(srcL);
     step('(l6) a kérés-ciklus EGY időbélyeget ad a kikeresésnek és az érintésnek, és a hamis érintést munkamenet-hiánynak veszi',
       egyIdo, { minta: egyIdo });
 
@@ -1243,6 +1245,129 @@ try {
     const deAll = pickFromAcceptLanguage('de;q=0, de-AT;q=1');
     step('(r11) ELLENPÁR: ha az ÁLTALÁNOS nyelvet zárták ki, a regionális sem adhat németet',
       deAll.code !== 'de', deAll);
+  }
+
+  // ── S) R158/1 — IGÉNY SZERINTI MUNKAMENET (SES-04): ÉLŐ HTTP-N MÉRVE ─────────────────
+  //
+  // A GYÖKÉR-OK JAVÍTÁSA (az operátor és a chatgpt-v3 döntése, R158): süti nélküli, állapotot nem
+  // igénylő kérés NEM nyit tárolt munkamenetet és nem ad sütit. A plafon TOVÁBBRA IS kell: az
+  // állapotot KÉRŐ forgalom változatlanul sort nyit — ezt az `s8` méri.
+  part('S) R158/1 — igény szerinti munkamenet: állapot nélkül nincs sor és nincs süti');
+  {
+    const DB7 = resolve(ROOT, 'var/tmp/v3app_r158_s.sqlite');
+    try { rmSync(DB7, { force: true }); rmSync(DB7 + '-wal', { force: true }); rmSync(DB7 + '-shm', { force: true }); } catch { /* nem volt */ }
+    const elozoMax = process.env.VS_APP_SESSION_MAX; const elozoIdle = process.env.VS_APP_SESSION_IDLE_MS;
+    process.env.VS_APP_SESSION_MAX = '20';
+    process.env.VS_APP_SESSION_IDLE_MS = '1000';
+    const lazy = await startServer({ port: 0, dbPath: DB7 });
+    try {
+      const b7 = `http://127.0.0.1:${lazy.server.address().port}`;
+      const sorok = () => lazy.store.get('SELECT COUNT(*) AS n FROM pending_intent').n;
+
+      const lap = await fetch(b7 + '/');
+      const olvas = await fetch(b7 + '/api/me');
+      step('(s1) statikus lap ÉS olvasó végpont kiszolgálva — NINCS tárolt munkamenet és NINCS süti (RÉGEN: mindkettő nyitott egyet)',
+        lap.status === 200 && olvas.status === 200 && lazy.sessions.size === 0
+        && !lap.headers.get('set-cookie') && !olvas.headers.get('set-cookie'),
+        { lap: lap.status, api: olvas.status, tar: lazy.sessions.size, suti: Boolean(olvas.headers.get('set-cookie')) });
+
+      for (let i = 0; i < 200; i++) await fetch(b7 + '/api/me');
+      step('(s2) 200 süti nélküli olvasás után a tár ÜRES (RÉGEN: 200 sor, a plafonig telve és kiszorításokkal)',
+        lazy.sessions.size === 0, { tar: lazy.sessions.size, keresek: 200 });
+
+      // (s3) AZ ÁLLAPOTOT KÉRŐ ÚT MATERIALIZÁL — és a folytatás a KÖVETKEZŐ kérésből visszaolvasható.
+      const elotteSorok = sorok();
+      const iro = await fetch(b7 + '/api/invites/pending', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'lazy-folytatas' }) });
+      const kapottSuti = (iro.headers.get('set-cookie') || '').split(';')[0];
+      step('(s3) a meghívó-folytatás írása MATERIALIZÁL: 200, süti, EGY új sor a tárban és EGY a táblában',
+        iro.status === 200 && Boolean(kapottSuti) && lazy.sessions.size === 1 && sorok() === elotteSorok + 1,
+        { status: iro.status, suti: Boolean(kapottSuti), tar: lazy.sessions.size, sorok: `${elotteSorok}→${sorok()}` });
+      const visszaOlvas = await fetch(b7 + '/api/me', { headers: { cookie: kapottSuti } });
+      step('(s4) és a KÖVETKEZŐ kérés ugyanazzal a sütivel UGYANAZT a munkamenetet kapja (nem új sort)',
+        visszaOlvas.status === 200 && !visszaOlvas.headers.get('set-cookie') && lazy.sessions.size === 1,
+        { status: visszaOlvas.status, uj_suti: Boolean(visszaOlvas.headers.get('set-cookie')), tar: lazy.sessions.size });
+
+      // (s5–s6) BELÉPÉS ÁTMENETI munkamenetből, majd KILÉPÉS: a süti törlődik, új sor nem nyílik.
+      const c = new Client(b7);
+      await c.post('/api/register', { email: 's-anna@pelda.hu', password: PW, lang: 'hu' });
+      const mail = (await c.get('/dev/mailbox')).body.mails.filter((x) => x.to === 's-anna@pelda.hu')[0];
+      const l = new URL(mail.link);
+      await c.get(l.pathname + l.search);
+      const tarBelepesElott = lazy.sessions.size;
+      const belep = await c.post('/api/login', { email: 's-anna@pelda.hu', password: PW });
+      const me = await c.get('/api/me');
+      step('(s5) BELÉPÉS átmeneti munkamenetből is működik — és a regisztráció/megerősítés nem nyitott sort',
+        belep.status === 200 && me.body.subject_id && lazy.sessions.size === tarBelepesElott + 1,
+        { belepes: belep.status, subject: Boolean(me.body.subject_id), tar: `${tarBelepesElott}→${lazy.sessions.size}` });
+      const kilep = await c.post('/api/logout');
+      const utanaMe = await c.get('/api/me');
+      step('(s6) KILÉPÉS: a sor törlődik, ÚJ sort NEM nyitunk, és a süti törlődik (RÉGEN: a kilépés is nyitott egy névtelen sort)',
+        kilep.status === 200 && lazy.sessions.size === tarBelepesElott && utanaMe.body.subject_id === null,
+        { kilepes: kilep.status, tar: lazy.sessions.size, me_subject: utanaMe.body.subject_id });
+
+      // (s7) LEJÁRAT: a lejárt süti ÁTMENETI munkamenetet ad, a sütit TÖRÖLJÜK, és NEM nyílik új sor.
+      const lejaro = await fetch(b7 + '/api/invites/pending', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'lazy-lejaro' }) });
+      const lejaroSuti = (lejaro.headers.get('set-cookie') || '').split(';')[0];
+      const tarLejaratElott = lazy.sessions.size;
+      await new Promise((r) => setTimeout(r, 1300));                      // a 1000 ms-os tétlenségi korlát fölött
+      const lejartKeres = await fetch(b7 + '/api/me', { headers: { cookie: lejaroSuti } });
+      const torloSuti = lejartKeres.headers.get('set-cookie') || '';
+      const lejartTest = await lejartKeres.json();
+      step('(s8) LEJÁRT süti: átmeneti munkamenet (nincs belépve), a süti TÖRÖLVE (Max-Age=0), és NEM nyílik új sor',
+        lejartKeres.status === 200 && lejartTest.subject_id === null
+        && /Max-Age=0/.test(torloSuti) && lazy.sessions.size <= tarLejaratElott,
+        { status: lejartKeres.status, subject_id: lejartTest.subject_id, torlo_suti: /Max-Age=0/.test(torloSuti), tar: `${tarLejaratElott}→${lazy.sessions.size}` });
+
+      // (s9) ELLENPÁR — A PLAFON TOVÁBBRA IS KELL: az ÁLLAPOTOT KÉRŐ forgalom sort nyit, és a tár
+      // KORLÁTOS marad. Ezt az R158 kifejezetten kéri: az igény szerinti létrehozás nem helyettesíti.
+      for (let i = 0; i < 120; i++) {
+        await fetch(b7 + '/api/invites/pending', { method: 'POST',
+          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'lazy-arasztas-' + i }) });
+      }
+      step('(s9) ELLENPÁR: 120 ÁLLAPOTOT KÉRŐ hívás sort nyit, de a tár a PLAFONNÁL marad — a plafon továbbra is kell',
+        lazy.sessions.size <= 20 + 1, { tar: lazy.sessions.size, plafon: 20 });
+      step('(s10) és a munkamenethez kötött tábla is a tárral együtt korlátos marad',
+        sorok() <= 20 + 2, { sorok: sorok(), plafon: 20 });
+
+      /**
+       * (s11) AZ ÁLLAPOT-IGÉNY LELTÁRA GÉPI ŐR (R158/1 · KUKA-227).
+       *
+       * Az R158 azt kéri, hogy ELŐBB rögzítsük, melyik út mikor igényel állapotot. Ha ezt csak
+       * szövegben rögzítenénk, az ELAVULNA az első új végponttal — ezért a leltár ITT áll, és a
+       * próba a FORRÁSBÓL számolja ki. Ha egy ÚJ kezelő munkamenet-állapotot kezd használni, ez a
+       * sor pirosra vált, és az írónak döntenie kell: olvassa-e csak a belépettséget (akkor az
+       * átmeneti sor is elég), vagy tartós állapotot köt (akkor `materialize()` kell).
+       */
+      const srvS = readFileSync(join(ROOT, 'v3app/server.mjs'), 'utf8');
+      const kulcsok = [...srvS.matchAll(/^    '([A-Z]+ [^']+)':/gm)].map((x) => ({ key: x[1], at: x.index }));
+      // A TÉRKÉP VÉGE: az UTOLSÓ kezelő törzse NEM a fájl végéig tart (különben a kérés-ciklus kódja
+      // is beleszámítana, és a mérés idegen találatot adna — KUKA-239: a hatókör nélküli minta a
+      // szomszéd sort igazolja).
+      const terkepVege = srvS.indexOf('\n  };\n', kulcsok[kulcsok.length - 1].at);
+      const vegeOf = (i) => (i + 1 < kulcsok.length ? kulcsok[i + 1].at : terkepVege);
+      const allapotIgeny = [];
+      for (let i = 0; i < kulcsok.length; i++) {
+        const torzs = srvS.slice(kulcsok[i].at, vegeOf(i));
+        if (/session\.subject_id|session\.current_book_id|session\.id|session\.transient|materialize/.test(torzs)) allapotIgeny.push(kulcsok[i].key);
+      }
+      // A KIMONDOTT LELTÁR: ami tartós állapotot KÖT (materializál vagy rotál), és ami csak OLVASSA
+      // a belépettséget. A második csoportnak NEM kell tárolt sor — ezért működik az átmeneti alak.
+      const KOT = ['POST /api/login', 'POST /api/logout', 'POST /api/invites/pending', 'POST /api/invites/redeem', 'POST /api/session/workspace'];
+      const hianyzo = KOT.filter((k) => !allapotIgeny.includes(k));
+      const ujKoto = allapotIgeny.filter((k) => {
+        const i = kulcsok.findIndex((x) => x.key === k);
+        return !KOT.includes(k) && /session\.id|materialize|session\.transient/.test(srvS.slice(kulcsok[i].at, vegeOf(i)));
+      });
+      step('(s11) AZ ÁLLAPOT-IGÉNY LELTÁRA ÁLL: a tartós állapotot KÖTŐ utak pontosan a kimondottak — új ilyen út nem kerülhet be csendben',
+        hianyzo.length === 0 && ujKoto.length === 0,
+        { allapotot_olvas: allapotIgeny.length, kimondott_koto: KOT.length, hianyzo, varatlan_koto: ujKoto });
+    } finally {
+      await new Promise((r) => lazy.server.close(r));
+      if (elozoMax === undefined) delete process.env.VS_APP_SESSION_MAX; else process.env.VS_APP_SESSION_MAX = elozoMax;
+      if (elozoIdle === undefined) delete process.env.VS_APP_SESSION_IDLE_MS; else process.env.VS_APP_SESSION_IDLE_MS = elozoIdle;
+    }
   }
 
   const fail = results.filter((r) => !r.pass);

@@ -822,6 +822,11 @@ function sessionCookie(id, { secure = IS_DEPLOYED } = {}) {
 }
 
 // ── VÁLASZ-SEGÉDEK ───────────────────────────────────────────────────────────────────────────────
+/** A SÜTI TÖRLÉSE (SES-04): azonos attribútumok, lejárt élettartam — különben a böngésző megtartaná. */
+function clearSessionCookie({ secure = false } = {}) {
+  return `${SESSION_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure ? '; Secure' : ''}`;
+}
+
 function sendJson(res, status, body, setCookie) {
   const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
   if (setCookie) headers['Set-Cookie'] = setCookie;
@@ -1047,6 +1052,15 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
    * munkamenet LÉTEZÉSE nem feltevés, hanem a kiszolgálás ideje alatt FENNÁLLÓ tény — nem kell se
    * felvétel-ellenőrzés, se újraellenőrzés a törzs olvasása után (F154-21).
    */
+  /**
+   * ÁTMENETI MUNKAMENET (SES-04): NINCS a tárban, és nem jár sütivel. A kezelők döntő része csak azt
+   * kérdezi, be van-e lépve a hívó — arra ez is elég. Az `id: null` SZÁNDÉKOS: aki azonosítót akar
+   * használni (tartós állapotot kötni), annak előbb `materialize()`-t kell hívnia.
+   */
+  function transientSession() {
+    return { id: null, subject_id: null, current_book_id: null, created_at: clock.now(), transient: true };
+  }
+
   function newSession(subjectId = null, token = null) {
     const s = { id: hex(32), subject_id: subjectId ?? null, current_book_id: null, created_at: clock.now() };
     /**
@@ -1457,11 +1471,12 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       const r = authenticate({ store, email: input.email, secret: input.password });
       if (!r.ok) return { status: 401, body: { ok: false, reason: r.reason, message: 'a belépés nem sikerült — ellenőrizd a címet és a jelszót' } };
       // A FÜGGŐ MEGHÍVÓ-SZÁNDÉK A RÉGI munkamenet-azonosítón áll — átvisszük az ÚJRA (K03).
-      const pending = resumeIntent({ store, sessionId: session.id });
+      // ÁTMENETI munkamenetnek nincs azonosítója, tehát függő szándéka sem lehet (SES-04).
+      const pending = session.transient ? null : resumeIntent({ store, sessionId: session.id });
       // A SAJÁT RÉGI SOR ELŐBB MEGY, AZTÁN JÖN AZ ÚJ (F154-12). A korábbi sorrend ELŐBB szúrt be:
       // telt táron ez IDEGEN belépett munkamenetet szorított ki, a saját régi sor törlése pedig
       // utána mégis felszabadított egy helyet — tehát egy embert feleslegesen léptettünk ki.
-      sessions.delete(session.id);
+      if (!session.transient) sessions.delete(session.id);
       const fresh = newSession(r.subject_id, pinToken);  // ROTÁLT azonosító, BELÉPETTEN születik, a kérés idejére védve
       /**
        * A FELVÉTEL MEGHIÚSULHAT, ÉS AKKOR NEM ADUNK SÜTIT (F154-35). Ha a tár telt, és minden sort épp
@@ -1484,10 +1499,16 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       return { status: 200, body: { ok: true, subject_id: r.subject_id, pending_invite_token: pending || null, personal_book_id: personal ? personal.book_id : null }, setCookie: sessionCookie(fresh.id), session: fresh };
     },
 
-    'POST /api/logout': ({ session, pinToken }) => {
+    /**
+     * A KILÉPÉS NEM NYIT ÚJ SORT (SES-04). A korábbi alak azonnal létrehozott egy friss NÉVTELEN
+     * munkamenetet, és sütit is adott rá — vagyis a kilépés maga is terhelte a tárat. Mostantól a
+     * kilépés TÖRLI a sort és a SÜTIT: a következő kérés átmeneti munkamenetet kap, és ha állapot
+     * kell neki, akkor nyit sort.
+     */
+    'POST /api/logout': ({ session }) => {
+      if (session.transient) return { status: 200, body: { ok: true } };
       sessions.delete(session.id);
-      const fresh = newSession(null, pinToken);
-      return { status: 200, body: { ok: true }, setCookie: sessionCookie(fresh.id), session: fresh };
+      return { status: 200, body: { ok: true }, setCookie: clearSessionCookie({ secure: IS_DEPLOYED }) };
     },
 
     'GET /api/me': ({ session }) => {
@@ -1828,12 +1849,16 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      * AMIT EZ A 503 JELENT, KIMONDVA: valódi korlát kimondása, nem hibakezelés. Ha a staging
      * rendszeresen ezt adja, a plafon kevés, és a `VS_APP_SESSION_MAX` emelése a válasz.
      */
-    'POST /api/invites/pending': ({ session, input }) => {
-      if (!sessions.has(session.id)) {
+    'POST /api/invites/pending': ({ session, input, materialize }) => {
+      // EZ AZ EGYETLEN ÚT, AMI NÉVTELENÜL IS TARTÓS ÁLLAPOTOT KÖT A MUNKAMENETHEZ (SES-02 · SES-04):
+      // ezért itt KÉRJÜK a tárolt sort, és a tár válasza dönt. Telt táron NEVEZETT elutasítás —
+      // írás NÉLKÜL, tehát nincs félig végrehajtott művelet és nincs árva sor.
+      const s = materialize ? materialize() : (sessions.has(session.id) ? session : null);
+      if (!s) {
         return { status: 503, body: { ok: false, reason: 'at_capacity', refused_by: 'session_store',
           message: 'a munkamenet-tár megtelt, ezért a meghívó-folytatást nem tudjuk megőrizni — próbáld újra' } };
       }
-      rememberIntent({ store, sessionId: session.id, token: String(input.token).trim(), clock });
+      rememberIntent({ store, sessionId: s.id, token: String(input.token).trim(), clock });
       return { status: 200, body: { ok: true } };
     },
 
@@ -2651,7 +2676,8 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      * vesszük: a kérés friss munkamenetet kap, nem egy lejártat használ tovább.
      */
     const requestNow = Date.now();
-    let session = sessions.get(cookies.get(SESSION_COOKIE) || '', requestNow);
+    const cookieId = cookies.get(SESSION_COOKIE) || '';
+    let session = cookieId ? sessions.get(cookieId, requestNow) : undefined;
     // AZ ÉLŐ MUNKAMENET NEM TÉTLEN (SES-01): a kiszorítás a LEGRÉGEBBEN LÁTOTTAT veszi, tehát az
     // „utoljára látva" bélyeget minden kérésnél frissíteni KELL — enélkül egy aktív felhasználót is
     // kiléptetne a söprés.
@@ -2675,19 +2701,46 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      * sora VÉDETT. Így nem kell se felvétel-ellenőrzés, se újraellenőrzés, se kapu — a `503
      * at_capacity` ág ezzel KIKERÜLT, és egyetlen végpont sem záródik el a plafon miatt.
      */
-    if (!session) {
-      session = newSession(null, pinToken);
-      /**
-       * A SÜTI CSAK AKKOR MEGY KI, HA A TÁR MEG IS TARTOTTA A SORT (F154-29). Telt táron a friss
-       * névtelen sor kiesik (F154-13: nem léptetünk ki érte belépett embert), és egy süti, ami semmire
-       * nem mutat, csak elfedi a helyzetet — a következő kérésnél amúgy is új munkamenet nyílna.
-       */
-      if (sessions.has(session.id, requestNow)) {
-        setCookie = sessionCookie(session.id, { secure: IS_DEPLOYED || isHttpsRequest(req) });
-      }
-    } else {
+    /**
+     * IGÉNY SZERINTI MUNKAMENET (SES-04, R158/1 — az operátor és a chatgpt-v3 döntése).
+     *
+     * A GYÖKÉR-OK, amit ez megszüntet: eddig MINDEN süti nélküli kérés nyitott egy tárolt sort és
+     * kiadott egy sütit — akkor is, ha a kérésnek soha nem lett volna szüksége rá (statikus lap,
+     * olvasó végpont, belépés előtti út). Ebből jött a plafon-szorítás, a kiszorítási sorrend, a
+     * védettség és az egyidejűség ÖSSZES interakciója: az R154 43 leletéből 26 ebben az egy
+     * területben volt, tíz review-kör alatt.
+     *
+     * A MAI ALAK: süti nélküli kérés ÁTMENETI munkamenetet kap — ez egy sima objektum, NINCS a
+     * tárban, és NEM jár sütivel. A tárba csak akkor kerül sor, amikor a kérés TÉNYLEGESEN állapotot
+     * kötne hozzá: belépéskor (ott rotálunk), vagy a `materialize()` hívásakor (ma egyetlen ilyen út
+     * van: a meghívó-folytatás írása). MÉRVE a kezelőkön: 32 kezelőből 11 a munkamenetet SEM olvassa,
+     * a többi döntő része csak azt kérdezi, BE VAN-E LÉPVE a hívó — arra az átmeneti sor is elég.
+     *
+     * AMIT EZ NEM OLD MEG, KIMONDVA: a plafon TOVÁBBRA IS kell, mert az állapotot KÉRŐ forgalom
+     * (meghívó-folytatás írása, belépés) változatlanul sort nyit — az igény szerinti létrehozás
+     * önmagában nem védi a tárat a szándékos terheléstől (R158).
+     */
+    if (session) {
       sessions.pin(session.id, pinToken);
-    }   // névtelen munkamenet is létezik
+    } else {
+      session = transientSession();
+      // AZ ÉRVÉNYTELEN SÜTIT TÖRÖLJÜK: egy lejárt vagy kiszorított azonosítót a böngésző különben
+      // minden kérésnél újra elküldene, és a felhasználó „félig bejelentkezettnek" látszana.
+      if (cookieId) setCookie = clearSessionCookie({ secure: IS_DEPLOYED || isHttpsRequest(req) });
+    }
+    /**
+     * A MATERIALIZÁLÁS: a kezelő MONDJA MEG, hogy állapot kell — és a tár mondja meg, sikerült-e.
+     * Telt táron `null` a válasz, és akkor a kezelő NEVEZETTEN mond nemet: nincs hamis siker, nincs
+     * érvénytelen sikersüti, és nincs félig végrehajtott tartós művelet (R158/1).
+     */
+    const materialize = () => {
+      if (!session.transient) return session;
+      const fresh = newSession(null, pinToken);
+      if (!sessions.has(fresh.id, requestNow)) return null;
+      session = fresh;
+      setCookie = sessionCookie(fresh.id, { secure: IS_DEPLOYED || isHttpsRequest(req) });
+      return fresh;
+    };
     const host = req.headers.host || 'localhost';
     const key = `${req.method} ${url.pathname}`;
 
@@ -2723,7 +2776,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
         // A KEZELŐ LEHET ASZINKRON (a segéd szolgáltatói hívása az), ezért MINDIG megvárjuk. A
         // korábbi alak a Promise-t `out`-nak vette volna, és a boríték NÉMÁN üres lett volna —
         // pontosan az a fajta hiba, amit a próbák csak a FUTÁSON kapnak el (KUKA-207).
-        const out = await handler({ session, pinToken,
+        const out = await handler({ session, pinToken, materialize,
           body: (body && typeof body === 'object' && !Array.isArray(body)) ? body : {},
           input: checked.value, query: checked.query, url, host,
           // A BÖNGÉSZŐ NYELVI KÉRÉSE is bemenet: a szerver által rajzolt lap és a próbaüzenet a

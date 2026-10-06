@@ -13497,6 +13497,33 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (egy pozitív minta) · `npm run verify:app-findings-r154` (R: r10 az eset, r11 az ellenpár) · `npm run verify:i18n`.',
   }),
 
+  Object.freeze({
+    id: 'KUKA-331',
+    date: '2026-10-06',
+    title: 'MINDEN KÉRÉS MUNKAMENETET NYITOTT — ez volt a tíz review-kör GYÖKÉR-OKA',
+    what: 'A kérés-ciklus MINDEN süti nélküli kéréshez tárolt munkamenetet hozott létre és sütit adott — statikus laphoz, olvasó végponthoz, belépés előtti úthoz, sőt a kilépés is nyitott egy újat. Ebből jött a plafon-szorítás, a kiszorítási sorrend, a védettség és az egyidejűség ÖSSZES interakciója: az R154 43 leletéből 26 ebben az egy területben volt, TÍZ review-kör alatt, és a körök leletei rendre az előző kör javításaiból fakadtak. MÉRVE az új alakkal: 200 süti nélküli olvasás után a tár ÜRES (régen 200 sorral indult és a plafonig telve, kiszorításokkal), a statikus lap és az olvasó végpont sütit sem kap.',
+    why_wrong: 'A foltozás nem konvergált: minden kör javítása hozta a következő kör leleteit (felvételi kapu → pin → utólagos söprés → a sorrend megfordítása → a friss sor osztálya…). A gyökér-ok kimondva: ÁLLAPOTOT TARTOTTUNK OTT, AHOL NEM VOLT ÁLLAPOT — a terület nem azért volt hibás, mert a szabályai rosszak voltak, hanem mert a HELYZET elő sem állhatott volna.',
+    replaced_by: 'IGÉNY SZERINTI MUNKAMENET (SES-04): süti nélküli kérés ÁTMENETI munkamenetet kap (nincs a tárban, nincs süti), és a tárba csak akkor kerül sor, amikor a kérés TÉNYLEGESEN állapotot kötne hozzá — belépéskor (rotáció) vagy `materialize()`-szal (ma egyetlen ilyen út: a meghívó-folytatás írása). A lejárt/kiszorított süti TÖRLŐDIK, a kilépés pedig nem nyit új sort.',
+    replacement: 'A PLAFON TOVÁBBRA IS KELL, és ezt mérjük: az állapotot KÉRŐ forgalom (120 hitelesítés nélküli folytatás-írás) változatlanul sort nyit, a tár viszont a plafonnál marad (s9–s10). Az igény szerinti létrehozás nem helyettesíti a memória-korlátot — ezt az R158 kifejezetten kimondja.',
+    decision: 'D-VS-3140',
+    found_by: 'SAJÁT LELET és NEVESÍTETT JAVASLAT (Claude-v3, R154 — a lefedettségi lap gyökér-ok szakasza), amit az OPERÁTOR és a chatgpt-v3 az R158 — DECISION körben engedélyezett. A javítás nem egyoldalú: a terv döntésre volt feltéve.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'function transientSession\\(\\)',
+        why: 'az átmeneti munkamenet: nincs a tárban, nem jár sütivel' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'const materialize = \\(\\) => \\{',
+        why: 'és a tárolt sor csak akkor születik, amikor a kezelő KÉRI' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "'POST \\/api\\/logout': \\(\\{ session, pinToken \\}\\) => \\{\\n      sessions\\.delete",
+        why: 'a kilépés sem nyithat új névtelen sort' }),
+    ]),
+    lesson: 'ÁLLAPOTOT CSAK OTT TARTUNK, AHOL VAN ÁLLAPOT. Ha egy erőforrást MINDEN kérésre létrehozunk, akkor a korlátozása, a kiszorítása és a versenyhelyzetei MIND a mi dolgunkká válnak — holott a kérések többségének nem is kellett volna. Tíz review-kör és 26 lelet után a tanulság nem egy újabb szabály, hanem a helyzet megszüntetése: a foltozás akkor nem konvergál, amikor a MEGLÉVŐ állapot maga a hiba forrása.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív + egy tiltó minta) · `npm run verify:app-findings-r154` (S csoport: s1–s11 — köztük s9/s10 az ellenpár, hogy a PLAFON továbbra is áll, és s11 az ÁLLAPOT-IGÉNY LELTÁRA, ami új kötő utat nem engedi be csendben) · `npm run app:selfcheck` (a belépés előtti olvasás süti nélkül).',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

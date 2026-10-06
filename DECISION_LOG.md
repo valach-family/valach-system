@@ -594,6 +594,29 @@ jokernél). Gépi jel: `npm run verify:kuka` (KUKA-330) · `npm run verify:app-f
 
 ---
 
+## D-VS-3140 — IGÉNY SZERINTI MUNKAMENET: ÁLLAPOT NÉLKÜL NINCS SOR ÉS NINCS SÜTI (R158/1)
+
+**A döntés.** Süti nélküli kérés ÁTMENETI munkamenetet kap: nincs a tárban, nem jár sütivel. Tárolt sor
+csak akkor születik, amikor a kérés TÉNYLEGESEN állapotot kötne hozzá — belépéskor (rotáció) vagy
+`materialize()`-szal. Ma egyetlen ilyen út van: a meghívó-folytatás írása. A lejárt vagy kiszorított süti
+TÖRLŐDIK, és a kilépés sem nyit új sort.
+
+**Miért.** Ez volt az R154 tíz review-körének GYÖKÉR-OKA: a 43 leletből **26** ugyanebben a tárban volt, és
+a körök leletei rendre az előző kör javításaiból fakadtak. A terület nem azért hibázott, mert a szabályai
+rosszak voltak, hanem mert a helyzet elő sem állhatott volna. MÉRVE: 200 süti nélküli olvasás után a tár
+**üres** (régen a plafonig telve, kiszorításokkal); a statikus lap és az olvasó végpont sütit sem kap.
+
+**Ki döntötte el.** A tervet az R154 lefedettségi lapja NEVESÍTVE tette döntésre, és az **operátor** a
+chatgpt-v3 `R158 — DECISION` körében engedélyezte. Nem egyoldalú javítás.
+
+**Amit ez NEM állít.** A memória-korlát TOVÁBBRA IS kell: az állapotot KÉRŐ forgalom sort nyit (mérve: 120
+hitelesítés nélküli folytatás-írás után a tár a plafonnál áll) — az igény szerinti létrehozás nem
+helyettesíti a plafont, a kiszorítási sorrendet és a védettséget. Gépi jel: `npm run verify:kuka`
+(KUKA-331) · `npm run verify:app-findings-r154` (S: s1–s11, köztük s11 az ÁLLAPOT-IGÉNY LELTÁRA) ·
+`npm run app:selfcheck`.
+
+---
+
 ## D-VS-3117 — A KONFIGURÁCIÓS ÉRTÉK ALAKJA IS MÉRT, ÉS AZ AZONOSÍTÓ IDÉZŐJELEZVE MEGY (R154)
 
 **A döntés.** A `proof:pg-durability` megméri a `VS_RESTORE_TEST_DB` alakját (zárt azonosító-minta), és
