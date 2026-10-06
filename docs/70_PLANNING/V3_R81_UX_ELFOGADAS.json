@@ -4,10 +4,10 @@
   "lane": "Claude-v3",
   "source": "tests/e2e/v3app-r81-ux.spec.mjs",
   "command": "npm run proof:core-ux",
-  "generated_at": "2026-10-01T17:05:23.689Z",
+  "generated_at": "2026-10-06T13:11:03.476Z",
   "package_version": "3.0.0-alpha",
-  "base_url": "http://127.0.0.1:42221",
-  "db_path": "var/tmp/v3_v3.0.0-alpha_20261001_170101_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
+  "base_url": "http://127.0.0.1:41337",
+  "db_path": "var/tmp/v3_v3.0.0-alpha_20261006_130638_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
   "what_this_is": "Az R81 terv 22 elfogadási feltétele a MEGÚJÍTOTT v3app felületen, valódi böngészőből (Playwright · Chromium), feltételenként KÉT rekeszben: amit a lap mutatott (browser) és amit a szerver válaszolt / a tároló őrzött (server).",
   "verdict_vocabulary": {
     "bizonyitva": "a feltétel minden állítása a böngésző- és/vagy a szerver-rekeszből áll össze",
@@ -240,7 +240,7 @@
       "id": "UX-17",
       "title": "390×844 és 1440×900 képernyőn használható; a menü, profil, fiókváltás és fő művelet nem takaródik el.",
       "browser": [
-        "1440×900: a bal menü, a fiókválasztó, a profil és a fő művelet EGYSZERRE látszik; vízszintes görgetés nincs (true). 390×844: a menü gombbá csukódik (nem tűnik el), a fiókválasztó és a profil a fejlécben marad, a fő művelet gombja a képernyőn belül áll (x=14…256 a 390-ből), vízszintes görgetés nincs (true)."
+        "1440×900: a bal menü, a fiókválasztó, a profil és a fő művelet EGYSZERRE látszik; vízszintes görgetés nincs (true). 390×844: a menü gombbá csukódik (nem tűnik el), a fiókválasztó és a profil a fejlécben marad, a fő művelet gombja a képernyőn belül áll (x=14…225 a 390-ből), vízszintes görgetés nincs (true)."
       ],
       "server": [],
       "verdict": "bizonyitva",
