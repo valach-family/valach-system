@@ -36,6 +36,8 @@ import { validateAgainstSchema } from '../v3ref/inputSchema.mjs';
 import { validateRequest } from './httpSchema.mjs';
 import { request as httpReq } from 'node:http';
 import { transcriptsOf } from '../tools/v3_fogyasztas_meres.mjs';
+import { restoreTargetProblem, sameDatabase } from '../tools/lib/vs_pg_target.mjs';
+import { execFileSync } from 'node:child_process';
 
 /** A `string` TÍPUS közvetlenül, a mag feloldóján — amit a próba nem tud meghívni, azt hisszük (KUKA-207). */
 const TYPES_STRING_OK = (v) => validateAgainstSchema({
@@ -781,13 +783,13 @@ try {
     for (let i = 0; i < 10; i++) {
       const jel = Symbol(`kérés-${i}`);
       jelek.push(jel);
-      st.pin(`n${i}`, jel);                                   // a kérés-ciklus a BESZÚRÁS ELŐTT pinel
-      st.set(`n${i}`, { id: `n${i}`, subject_id: null }, t0 + i);
+      st.set(`n${i}`, { id: `n${i}`, subject_id: null }, t0 + i);   // a kérés-ciklus ELŐBB szúr be…
+      st.pin(`n${i}`, jel);                                         // … és CSAK UTÁNA pinel (F154-29)
     }
     const csucs = st.size;
-    for (const jel of jelek) st.unpinAll(jel, t0 + 100);
-    step('(l1) 10 ÁTFEDŐ kérés után a tár visszatér a plafonra (RÉGEN MÉRVE: 12 sor maradt 2-es plafonon)',
-      st.size <= 2, { csucs_kozben: csucs, utana: st.size, plafon: 2 });
+    for (const jel of jelek) st.unpinAll(jel);
+    step('(l1) 10 ÁTFEDŐ kérés a plafont KÖZBEN SEM lépi túl (RÉGEN MÉRVE: 12 sor, közben és utána is)',
+      csucs <= 2 && st.size <= 2, { csucs_kozben: csucs, utana: st.size, plafon: 2 });
     step('(l2) ELLENPÁR: és a két BELÉPETT sor megmaradt — a takarítás nem rájuk száll',
       st.stats().evicted_cap_signed_in === 0 && st.has('b1', t0 + 100) && st.has('b2', t0 + 100),
       { b1: st.has('b1', t0 + 100), b2: st.has('b2', t0 + 100), kileptetve: st.stats().evicted_cap_signed_in });
@@ -871,6 +873,107 @@ try {
       await new Promise((r) => lap.server.close(r));
       if (elozoL === undefined) delete process.env.VS_APP_SESSION_MAX; else process.env.VS_APP_SESSION_MAX = elozoL;
     }
+  }
+
+  // ── M) F154-29 — AMIT A TÁR NEM TUD MEGTARTANI, AZT FEL SEM VESSZÜK (hatodik Codex-kör, P1) ───
+  //
+  // A LELET: az ötödik kör javítása (a pin elengedésekori söprés) azt a sort vitte el, amelyhez a
+  // kezelő ÉPP AKKOR írt szerver-oldali állapotot: a kérés 200-at és sütit adott, a következő kérés
+  // pedig sem a munkamenetet, sem a meghívó-folytatást nem találta. HÁROM egymást visszafordító kör
+  // után (felvételi kapu → pin → utólagos söprés) a hiba nem a lépésekben volt, hanem a SORRENDBEN.
+  // Ezért a plafon a BESZÚRÁSHOZ került, és a munkamenethez kötött ÍRÁS mond nevezetten nemet.
+  part('M) F154-29 — a plafon a BESZÚRÁSNÁL dönt, és a munkamenethez kötött írás nevezetten nemet mond');
+  {
+    const DB5 = resolve(ROOT, 'var/tmp/v3app_r154_m.sqlite');
+    try { rmSync(DB5, { force: true }); rmSync(DB5 + '-wal', { force: true }); rmSync(DB5 + '-shm', { force: true }); } catch { /* nem volt */ }
+    const elozoM = process.env.VS_APP_SESSION_MAX;
+    process.env.VS_APP_SESSION_MAX = '2';
+    const tele2 = await startServer({ port: 0, dbPath: DB5 });
+    try {
+      const b5 = `http://127.0.0.1:${tele2.server.address().port}`;
+      for (let i = 0; i < 2; i++) {
+        const c = new Client(b5);
+        await c.post('/api/register', { email: `m${i}@pelda.hu`, password: PW, lang: 'hu' });
+        const mail = (await c.get('/dev/mailbox')).body.mails.filter((x) => x.to === `m${i}@pelda.hu`)[0];
+        const lnk = new URL(mail.link);
+        await c.get(lnk.pathname + lnk.search);
+        await c.post('/api/login', { email: `m${i}@pelda.hu`, password: PW });
+      }
+      step('(m0) ALAPSOKASÁG: a tár CSUPA BELÉPETT sorral tele — e nélkül a mérés semmit nem jelent',
+        tele2.sessions.stats().anonymous === 0 && tele2.sessions.size >= 2,
+        { size: tele2.sessions.size, nevtelen: tele2.sessions.stats().anonymous, plafon: 2 });
+
+      const sorok = () => tele2.store.get('SELECT COUNT(*) AS n FROM pending_intent').n;
+      const elotte = sorok();
+      const v = await fetch(b5 + '/api/invites/pending', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'telt-tar-proba' }) });
+      const vb = await v.json();
+      step('(m1) telt táron a munkamenethez kötött írás NEVEZETTEN elutasít (RÉGEN: 200 + süti, majd a következő kérés mindent elvesztett)',
+        v.status === 503 && vb.reason === 'at_capacity', { status: v.status, reason: vb.reason });
+      step('(m2) és NEM ír sort: a tábla változatlan (RÉGEN: ÁRVA sor keletkezett)',
+        sorok() === elotte, { sorok: `${elotte}→${sorok()}` });
+      step('(m3) és NEM ad sütit sem — egy süti, ami semmire nem mutat, csak elfedi a helyzetet',
+        !v.headers.get('set-cookie'), { set_cookie: v.headers.get('set-cookie') });
+
+      const ver2 = await fetch(b5 + '/api/verify?token=nemletezo&lang=hu');
+      const reg2 = await fetch(b5 + '/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'm-telt@pelda.hu', password: PW, lang: 'hu' }) });
+      step('(m4) ELLENPÁR (F154-22 érvényben): a belépés ELŐTTI utak telt táron sem záródnak el',
+        ver2.status !== 503 && reg2.status !== 503, { verify: ver2.status, register: reg2.status });
+      step('(m5) ELLENPÁR: és közben egyetlen BELÉPETT munkamenet sem esett ki',
+        tele2.sessions.stats().evicted_cap_signed_in === 0, tele2.sessions.stats());
+    } finally {
+      await new Promise((r) => tele2.server.close(r));
+      if (elozoM === undefined) delete process.env.VS_APP_SESSION_MAX; else process.env.VS_APP_SESSION_MAX = elozoM;
+    }
+  }
+
+  // ── N) F154-30…F154-32 — A SZERSZÁMOK HÁROM LELETE (hatodik Codex-kör: két P1 és egy P2) ────
+  //
+  // MINDHÁROM OLYAN ESZKÖZBEN volt, amit a söprés nem futtat (a PostgreSQL-lánc VALÓDI adatbázist
+  // kér, az export egyszeri) — ezért a két tiszta döntés most külön modulban él és MEGHÍVHATÓ
+  // (KUKA-207), a harmadikat pedig az eszköz tényleges futtatásával mérjük.
+  part('N) F154-30…F154-32 — a szerszámok három lelete (döntések külön modulban, meghívva)');
+  {
+    // (n1) F154-30 (P1): a százalék-kódolt forrás-név UGYANAZ az adatbázis — és a lánc végén DROP áll.
+    const kodolt = sameDatabase('postgres://u:p@h:5432/foo%24bar', 'foo$bar');
+    step('(n1) a százalék-kódolt forrás-név a DEKÓDOLÁS után azonosnak számít (RÉGEN: különböző → a forrást törölte volna)',
+      kodolt.same === true, kodolt);
+    const mas = sameDatabase('postgres://u:p@h:5432/vs_eles', 'vs_visszatoltes_proba');
+    step('(n2) ELLENPÁR: a valóban MÁS cél továbbra is megengedett (a javítás nem zárja le a láncot)',
+      mas.same === false, mas);
+    const rossz = sameDatabase('postgres://u:p@h:5432/foo%E0%A4%A', 'barmi');
+    step('(n3) a hibás százalék-kódolás NEM MEGÁLLAPÍTHATÓ — és ott ÓVATOSAN megállunk, nem törlünk',
+      rossz.same === true && /NEM megállapítható/i.test(rossz.basis), rossz);
+
+    // (n4) F154-31 (P1): a hibás érték JELSZÓT tartalmazhat — a naplóba sem kerülhet.
+    const titkos = 'postgres://felhasznalo:NAGYON-TITKOS-JELSZO@host:5432/vs';
+    const baj = restoreTargetProblem(titkos);
+    const kiirt = JSON.stringify(baj);
+    step('(n4) a hibás cél jelzése az ÉRTÉKET NEM hordozza (RÉGEN: a teljes kapcsolati cím a naplóba került)',
+      baj !== null && !kiirt.includes('TITKOS') && !kiirt.includes('felhasznalo') && !kiirt.includes(titkos)
+        && baj.looks_like_url === true && baj.length === titkos.length, baj);
+    step('(n5) ELLENPÁR: a HELYES adatbázis-név átmegy (a szűkítés nem zár el jogos értéket)',
+      restoreTargetProblem('vs_visszatoltes_proba') === null, { ertek: 'vs_visszatoltes_proba' });
+
+    // (n6) F154-32 (P2): KÉT projekt-könyvtárban ugyanaz az azonosító → NEVEZETT elakadás, nem választás.
+    const tmp2 = mkdtempSync(join(tmpdir(), 'vs-ketert-'));
+    try {
+      const sess2 = 'ffffffff-0000-4000-8000-000000000002';
+      for (const nev of ['-projekt-egy', '-projekt-ketto']) {
+        mkdirSync(join(tmp2, nev), { recursive: true });
+        writeFileSync(join(tmp2, nev, `${sess2}.jsonl`), '{"type":"assistant"}\n');
+      }
+      let kod = 0; let hiba = '';
+      try {
+        execFileSync(process.execPath, [join(ROOT, 'tools/v3_fogyasztas_export.mjs'),
+          '--session', sess2, '--projects', tmp2, '--from', '2026-01-01T00:00:00Z', '--to', '2026-01-02T00:00:00Z'],
+          { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      } catch (e) { kod = e.status; hiba = String(e.stderr || ''); }
+      step('(n6) két projekt-könyvtárban ugyanaz az átirat → NEVEZETT elakadás (RÉGEN: csendben az elsőt exportálta)',
+        kod === 2 && /KÉTÉRTELMŰ ÁTIRAT/.test(hiba) && /projekt-egy/.test(hiba) && /projekt-ketto/.test(hiba),
+        { kilepes: kod, megnevezte_mindkettot: /projekt-egy/.test(hiba) && /projekt-ketto/.test(hiba) });
+    } finally { rmSync(tmp2, { recursive: true, force: true }); }
   }
 
   const fail = results.filter((r) => !r.pass);

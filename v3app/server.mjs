@@ -473,8 +473,19 @@ export function makeSessionStore({
     }
   }
 
-  /** A PLAFON a NEM védett sorokra áll — a kiszolgálás alatt állók átmenetiek. */
-  const overCap = () => (map.size - pinnedCount()) > maxSessions;
+  /**
+   * A PLAFON A TÁR MÉRETÉRE ÁLL (F154-29). A pin NEM mentesít a számolás alól — csak az ÁLDOZAT-
+   * választásból zárja ki a sort.
+   *
+   * MIÉRT VÁLTOZOTT (külső review, Codex, hatodik kör, P1): a korábbi alak a védett sorokat kivonta a
+   * plafonból, ezért egy ÁTFEDŐ köteg minden tagja felvételt nyert, és a plafont utólag, a pin
+   * elengedésekor kellett helyreállítani. Az utólagos söprés viszont azt a sort vitte el, amelyhez a
+   * kezelő ÉPP AKKOR írt szerver-oldali állapotot: a kérés 200-at és sütit adott, a következő kérés
+   * pedig sem a munkamenetet, sem a meghívó-folytatást nem találta. Két egymást visszafordító javítás
+   * után (felvételi kapu → pin → utólagos söprés) a hiba nem a lépésekben volt, hanem a sorrendben:
+   * ami nem tartható meg, azt NEM VESZÜK FEL — nem pedig felvesszük, majd elvesszük.
+   */
+  const overCap = () => map.size > maxSessions;
 
   function sweep(now = Date.now(), { keep = null } = {}) {
     for (const [id, s] of map) if (id !== keep && expired(s, now)) drop(id, 'evicted_idle');
@@ -523,7 +534,7 @@ export function makeSessionStore({
     // A NÉVTELEN KÖRÖK: az alsó vízszintig, a beszúrt sor kivételével.
     for (const pass of [0, 1]) {
       for (const [id, s] of order) {
-        if ((map.size - pinnedCount()) <= lowWater) break;
+        if (map.size <= lowWater) break;
         if (id === keep || !map.has(id) || pins.has(id)) continue;
         if (classOf(id, s) !== pass) continue;
         drop(id, 'evicted_cap_anonymous');
@@ -612,29 +623,27 @@ export function makeSessionStore({
     },
     /** PIN: a kérés idejére védett sor. Beszúrás ELŐTT is hívható (a `newSession` ezt teszi). */
     pin(id, token) {
+      // AMIT A TÁR NEM VETT FEL, AZT NEM VÉDJÜK (F154-29) — és nem is számoljuk védettnek: egy
+      // nem létező sorra tett pin csendben elrontaná a plafon-számítást.
+      if (!map.has(id)) return false;
       const t = pins.get(id) || new Set();
       t.add(token); pins.set(id, t);
       const mine = pinsByToken.get(token) || new Set();
       mine.add(id); pinsByToken.set(token, mine);
+      return true;
     },
     /**
      * A KÉRÉS MINDEN PINJE elenged — a `finally`-ben hívjuk, tehát hibán és kivételen is lefut.
      *
-     * ÉS A PLAFON AZ ELENGEDÉSKOR IS ÁLL (F154-25, külső review, Codex, ötödik kör, P1). A LELET: a
-     * pin a plafon alól is kivonta a sort (`overCap()` a NEM védett sorokra áll), tehát egy ÁTFEDŐ
-     * köteg MINDEN kérése felvételt nyert — az elengedés viszont nem söpört. MÉRVE `maxSessions=2`
-     * mellett 10 átfedő kéréssel: a tár a köteg után is 12 sornál állt, kérés nélkül. Vagyis egy
-     * elosztott, lassú kérés-köteg a memória-korlátot korlátlanul megkerülhette. A korábbi `i13`/`j5`
-     * próbám ezt NEM kapta el, mert SOROS kéréseket mért: ott minden kérés elengedte a pinjét, mire
-     * a következő beszúrt — átfedés nélkül a hiba elő sem áll (KUKA-293: a próba azt mérje, amit
-     * állít).
-     *
-     * A SORREND SZÁNDÉKOS: elsőként a MOST elengedett NÉVTELEN sorok mennek, mert ezek pontosan
-     * azok, amiket csak a futó kérés tartott bent (ez az F154-13 szabálya: a friss névtelen sor nem
-     * szoríthat ki belépett embert). BELÉPETT sort a pin elengedése NEM dönt el — ha a plafon utána
-     * is sérül, a rendes söprés dönt, a maga osztály-sorrendjével.
+     * ÉS ITT NINCS SÖPRÉS (F154-29). Egy körrel korábban itt állítottam helyre a plafont, mert a pin a
+     * számolás alól is mentesített. Az utólagos söprés viszont azt a sort vitte el, amelyhez a kezelő
+     * ÉPP AKKOR írt állapotot (külső review, Codex, hatodik kör, P1) — és a védettség megkérdezése sem
+     * segített: telt, BELÉPETT sorokkal teli táron a folytatást hordozó névtelen sor a helyes
+     * osztály-sorrend szerint is ELŐBB esik ki, mint bármely belépett (KUKA-297: a védettség sorrend,
+     * nem mentesség). Ezért a plafon oda került, ahol a döntés VALÓDI: a BESZÚRÁSHOZ. Amit a tár nem
+     * tud megtartani, azt fel sem veszi — így nincs mit utólag elvenni.
      */
-    unpinAll(token, now = Date.now()) {
+    unpinAll(token) {
       const mine = pinsByToken.get(token);
       if (!mine) return;
       pinsByToken.delete(token);
@@ -644,24 +653,6 @@ export function makeSessionStore({
         t.delete(token);
         if (!t.size) pins.delete(id);
       }
-      if (!overCap()) return;
-      /**
-       * ÉS A FOLYTATÁST HORDOZÓ NÉVTELEN SOR ITT SEM SZEMÉT (KUKA-297). A saját `g7` ellenpárom
-       * kapta el: az első alakom a most elengedett névtelen sorokat a VÉDETTSÉG MEGKÉRDEZÉSE NÉLKÜL
-       * dobta el, és így egy ÉLŐ munkamenet meghívó-folytatását vitte el — pontosan az a hiba, amit
-       * az F154-08-ban vezettem ki, csak az ÚJ úton. A kérdést a most elengedett azonosítókra tesszük
-       * fel (ez néhány azonosító, nem a tábla), és ha nem megállapítható, NEM döntünk itt: a rendes
-       * söprés dönt, a maga osztály-sorrendjével.
-       */
-      const sajat = [...mine].filter((id) => !pins.has(id) && map.has(id) && !map.get(id).subject_id);
-      const vedett = protectedSet(sajat);
-      for (const id of sajat) {
-        if (!overCap()) break;
-        if (vedett === null || vedett.has(id)) continue;   // folytatást hordoz vagy nem tudható
-        drop(id, 'evicted_cap_anonymous');
-      }
-      announceDropped();
-      if (overCap()) sweep(now);
     },
     pinned: (id) => pins.has(id),
     sweep,
@@ -1004,8 +995,16 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
    */
   function newSession(subjectId = null, token = null) {
     const s = { id: hex(32), subject_id: subjectId ?? null, current_book_id: null, created_at: clock.now() };
-    if (token) sessions.pin(s.id, token);
+    /**
+     * A SORREND: BESZÚRÁS, AZTÁN PIN (F154-29). A `set` a plafont AZONNAL érvényesíti, és ha a sort nem
+     * lehet megtartani (telt tár, és a megtartása belépett embert léptetne ki — F154-13), akkor a sor
+     * ott helyben kiesik. A pin ezután már csak a MEGTARTOTT sort védi a kiszolgálás idejére.
+     *
+     * A FELVÉTEL TÉNYÉT A HÍVÓ A TÁRBÓL KÉRDEZI MEG (`sessions.has`), nem egy mezőből: egy bélyeg
+     * elavulhat, a tár viszont a tény kanonikus otthona (KUKA-305 tanulsága, bélyeg nélkül).
+     */
     sessions.set(s.id, s);
+    if (token) sessions.pin(s.id, token);
     return s;
   }
 
@@ -1751,7 +1750,24 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
         invited_by: emailOf(inv.issuer_subject) ?? null } };
     },
 
+    /**
+     * A MUNKAMENETHEZ KÖTÖTT ÍRÁS AZ EGYETLEN HELY, AHOL A PLAFON NEMET MONDHAT (F154-29, SES-02).
+     *
+     * MIÉRT ITT, ÉS MIÉRT NEM ÁTFOGÓ KAPUVAL: az átfogó `/api/` kapu a `GET /api/verify`-t is elzárta,
+     * ami munkamenetet nem is használ (F154-22) — egy VÉGPONT-LISTA pedig a következő író felületnél
+     * elavulna (KUKA-227). Ezért az őr ott áll, AHOL A KÁR KELETKEZIK (KUKA-202): ez az egyetlen út,
+     * ami a `pending_intent` táblába ír, és a tábla a munkamenet azonosítójára van kulcsolva. Ha a
+     * sort a tár nem tartotta meg, az írás ÁRVA sort hagyna, a válasz pedig olyan hatást ígérne, amit
+     * a következő kérés nem tud visszaolvasni (KUKA-305) — ezért NEVEZETTEN nemet mondunk.
+     *
+     * AMIT EZ A 503 JELENT, KIMONDVA: valódi korlát kimondása, nem hibakezelés. Ha a staging
+     * rendszeresen ezt adja, a plafon kevés, és a `VS_APP_SESSION_MAX` emelése a válasz.
+     */
     'POST /api/invites/pending': ({ session, input }) => {
+      if (!sessions.has(session.id)) {
+        return { status: 503, body: { ok: false, reason: 'at_capacity', refused_by: 'session_store',
+          message: 'a munkamenet-tár megtelt, ezért a meghívó-folytatást nem tudjuk megőrizni — próbáld újra' } };
+      }
       rememberIntent({ store, sessionId: session.id, token: String(input.token).trim(), clock });
       return { status: 200, body: { ok: true } };
     },
@@ -2596,7 +2612,14 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      */
     if (!session) {
       session = newSession(null, pinToken);
-      setCookie = sessionCookie(session.id, { secure: IS_DEPLOYED || isHttpsRequest(req) });
+      /**
+       * A SÜTI CSAK AKKOR MEGY KI, HA A TÁR MEG IS TARTOTTA A SORT (F154-29). Telt táron a friss
+       * névtelen sor kiesik (F154-13: nem léptetünk ki érte belépett embert), és egy süti, ami semmire
+       * nem mutat, csak elfedi a helyzetet — a következő kérésnél amúgy is új munkamenet nyílna.
+       */
+      if (sessions.has(session.id, requestNow)) {
+        setCookie = sessionCookie(session.id, { secure: IS_DEPLOYED || isHttpsRequest(req) });
+      }
     } else {
       sessions.pin(session.id, pinToken);
     }   // névtelen munkamenet is létezik

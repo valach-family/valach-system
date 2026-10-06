@@ -335,6 +335,83 @@ ez EGY pár (kikeresés + érintés). Gépi jel: `npm run verify:kuka` (KUKA-314
 
 ---
 
+## D-VS-3125 — A PLAFON A BESZÚRÁSNÁL DÖNT: AMIT A TÁR NEM TUD MEGTARTANI, AZT FEL SEM VESSZÜK (R154)
+
+**A döntés.** A munkamenet-tár plafonja a TÁR MÉRETÉRE áll (a pin nem mentesít a számolás alól, csak az
+áldozat-választásból zárja ki a sort), a munkamenet ELŐBB kerül be és CSAK UTÁNA kap pint, a süti pedig
+csak akkor megy ki, ha a tár meg is tartotta a sort. A munkamenethez kötött ÍRÁS — az egyetlen ilyen út,
+a `POST /api/invites/pending` — NEVEZETTEN nemet mond (`503 at_capacity`), ha a sort a tár nem tartotta meg.
+
+**Miért.** A D-VS-3121 a plafont a pin ELENGEDÉSEKOR állította helyre. Telt, BELÉPETT sorokkal teli táron
+viszont a friss névtelen sor a helyes osztály-sorrend szerint is előbb esik ki, mint bármely belépett
+(D-VS-3107: a védettség sorrend, nem mentesség) — így az utólagos söprés pontosan azt a sort vitte el,
+amelyhez a kezelő ÉPP AKKOR írt. MÉRVE (`maxSessions=2`, csupa belépett sor): a süti nélküli
+`POST /api/invites/pending` **200**-at ÉS sütit adott, a munkamenet NEM volt a tárban, a kiírt
+`pending_intent` sort az árva-takarítás törölte, és a következő kérés ugyanazzal a sütivel ÚJ
+munkamenetet kapott, `invite_context: null`-lal. A javítás után ugyanaz a kérés: **503 `at_capacity`**,
+süti nélkül, nulla sorral — és 10 átfedő kérés mellett a tár a plafont KÖZBEN sem lépi túl (régen 11–12).
+
+**Ez HÁROM egymást visszafordító kör vége, és ezt kimondjuk.** Felvételi kapu (D-VS-3115) → pin
+(D-VS-3118) → utólagos söprés (D-VS-3121) → most a sorrend megfordítása. Ha három kör egymást fordítja
+vissza ugyanazon a helyen, nem a lépések hibásak, hanem a SORREND.
+
+**Amit ez NEM állít.** Nem oldja meg a gyökér-okot: minden süti nélküli kérésre továbbra is munkamenet
+SZÜLETIK, csak már nem marad bent, ha nincs hely. A lusta munkamenet átalakítása továbbra is DÖNTÉSRE
+vár (a lefedettségi lap gyökér-ok szakasza). Gépi jel: `npm run verify:kuka` (KUKA-316) ·
+`npm run verify:app-findings-r154` (M: m0–m5 · L: l1).
+
+---
+
+## D-VS-3126 — AZ AZONOSSÁG-VIZSGÁLAT DEKÓDOLJA A FORRÁS ADATBÁZIS NEVÉT (R154)
+
+**A döntés.** A `proof:pg-durability` a forrás adatbázis nevét a `DATABASE_URL`-ből DEKÓDOLVA veti össze
+a visszatöltési céllal; a hibás százalék-kódolás „nem megállapítható", és ott ÓVATOSAN megállunk. A két
+tiszta döntés (alak-ellenőrzés, azonosság) külön modulba került — `tools/lib/vs_pg_target.mjs` —, hogy a
+battéria MEGHÍVHASSA őket.
+
+**Miért.** A `URL.pathname` nyers, kódolt alakot ad: egy `postgres://…/foo%24bar` forrás és egy
+`VS_RESTORE_TEST_DB=foo$bar` cél UGYANAZ az adatbázis, a nyers összehasonlítás szerint viszont
+különböző — a lánc másik végén pedig `DROP DATABASE` áll. A próba tehát a FORRÁST törölte volna, amit
+ígérete szerint soha nem ír felül. MÉRVE a feloldón: nyersen `same: false`, dekódolva `same: true`.
+
+**Amit ez NEM állít.** A lánc továbbra is VALÓDI PostgreSQL-t kér, tehát a söprésben nem fut; a két
+döntés viszont mostantól a battériából mérve van (KUKA-207). Gépi jel: `npm run verify:kuka` (KUKA-317 ·
+a KUKA-307 két mintája az új otthonra) · `npm run verify:app-findings-r154` (N: n1–n3).
+
+---
+
+## D-VS-3127 — A HIBÁS VISSZATÖLTÉSI CÉLT AZ ÉRTÉK NÉLKÜL JELEZZÜK (R154)
+
+**A döntés.** A `VS_RESTORE_TEST_DB` alak-hibája a MÉRT TÉNYEKET mondja el — hossz, kezdet-osztály,
+kapcsolati-cím alak —, az ÉRTÉKET nem írjuk ki.
+
+**Miért.** A leggyakoribb hiba éppen az, hogy valaki kapcsolati CÍMET ad meg adatbázis-név helyett; abban
+felhasználónév és JELSZÓ van. A korábbi alak `JSON.stringify`-jal a naplóba tette — terminálba és
+CI-naplóba egyaránt. Ebben a rendszerben a szabály nem tűr kivételt: `DATABASE_URL` és bármely kulcs
+soha nem kerül chatbe, és ugyanígy naplóba sem. MÉRVE: a jelzés egy jelszavas kapcsolati címre sem
+tartalmazza az értéket, de kimondja, hogy „kapcsolati cím alakú".
+
+**Amit ez NEM állít.** Nem állítja, hogy minden eszköz hibaága át van vizsgálva — ez EGY hibaág. Gépi
+jel: `npm run verify:kuka` (KUKA-318) · `npm run verify:app-findings-r154` (N: n4–n5).
+
+---
+
+## D-VS-3128 — A TÖBBES ÁTIRAT-TALÁLAT NEVEZETT ELAKADÁS (R154)
+
+**A döntés.** Ha ugyanaz a munkamenet-azonosító több projekt-könyvtárban is szerepel, a fogyasztás-export
+MEGÁLL (2-es kilépés), felsorolja a talált utakat, és a `--projects` megadását kéri.
+
+**Miért.** A D-VS-3120 javítása után az export minden projekt-könyvtárat végignéz, de a találatok közül
+csendben az elsőt vette — így ELAVULT példányt is exportálhatott, miközben sikeresnek látszott, és a
+leltár ÁTADÁSI bizonyíték. MÉRVE két szintetikus projekt-könyvtárral: a régi alak 0-s kilépéssel
+exportált, a mostani 2-essel megnevezi mindkét utat.
+
+**Amit ez NEM állít.** A mérő (FGY-01/3) továbbra is MINDET beolvassa — a két viselkedés különbségét nem
+elrejtjük, hanem kimondjuk. Gépi jel: `npm run verify:kuka` (KUKA-319) ·
+`npm run verify:app-findings-r154` (N: n6 — az eszköz tényleges futtatásával).
+
+---
+
 ## D-VS-3117 — A KONFIGURÁCIÓS ÉRTÉK ALAKJA IS MÉRT, ÉS AZ AZONOSÍTÓ IDÉZŐJELEZVE MEGY (R154)
 
 **A döntés.** A `proof:pg-durability` megméri a `VS_RESTORE_TEST_DB` alakját (zárt azonosító-minta), és

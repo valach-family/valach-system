@@ -24,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { loadRepoEnv } from './lib/vs_tool_env.mjs';
+import { restoreTargetProblem, sameDatabase, qid } from './lib/vs_pg_target.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 loadRepoEnv(ROOT);
@@ -65,18 +66,25 @@ if (!restoreTarget) {
  * A JAVÍTÁS KÉT SZINTŰ: a név ALAKJA mérve (zárt minta), ÉS a beillesztés IDÉZŐJELEZVE — mert ahol
  * a következmény `DROP DATABASE`, ott egy őr nem elég.
  */
-const DB_NAME = /^[A-Za-z_][A-Za-z0-9_$]{0,62}$/;
-if (!DB_NAME.test(restoreTarget)) {
-  console.error(`proof:pg-durability — a VS_RESTORE_TEST_DB értéke nem adatbázis-NÉV: ${JSON.stringify(restoreTarget)}`);
+/**
+ * A KÉT DÖNTÉS EGY OTTHONBAN ÉS MEGHÍVHATÓAN: `tools/lib/vs_pg_target.mjs` (KUKA-207 · KUKA-003).
+ * Mindkettőt a hatodik külső review-kör leletei hozták ide, és mindkettő P1 volt:
+ *   · a hiba NEM írhatja ki az értéket (jelszót tartalmazhat — a naplóba sem);
+ *   · az azonosság-vizsgálat DEKÓDOLJA a forrás nevét, mert a `pathname` nyers alakot ad.
+ */
+const problem = restoreTargetProblem(restoreTarget);
+if (problem) {
+  console.error(`proof:pg-durability — a VS_RESTORE_TEST_DB értéke ${problem.reason}. AZ ÉRTÉKET NEM ÍRJUK KI`
+    + ' (kapcsolati cím esetén jelszót tartalmazhat, és a titok naplóba sem kerül).');
+  console.error(`  amit mértünk: hossz ${problem.length} · kezdet: ${problem.starts}`
+    + (problem.looks_like_url ? ' · KAPCSOLATI CÍM alakú (`://` vagy `@`)' : ''));
   console.error('  ADATBÁZIS-NEVET kér, nem kapcsolati címet. Helyes: VS_RESTORE_TEST_DB=vs_visszatoltes_proba');
-  console.error('  (betű vagy alulvonás kezdet, utána betű/szám/alulvonás, legfeljebb 63 karakter)');
+  console.error('  (betű vagy alulvonás kezdet, utána betű/szám/alulvonás/dollár, legfeljebb 63 karakter)');
   process.exit(2);
 }
-/** PostgreSQL azonosító idézőjelezése — a belső idézőjel duplázódik. */
-const qid = (name) => `"${String(name).replace(/"/g, '""')}"`;
-const u = new URL(url);
-if ((u.pathname || '').replace(/^\//, '') === restoreTarget) {
-  console.error('proof:pg-durability — a visszatöltés célja AZONOS a forrással. Megálltam.');
+const azonos = sameDatabase(url, restoreTarget);
+if (azonos.same) {
+  console.error(`proof:pg-durability — a visszatöltés célja AZONOS a forrással (${azonos.basis}). Megálltam.`);
   process.exit(2);
 }
 const admin = new URL(url); admin.pathname = '/postgres';

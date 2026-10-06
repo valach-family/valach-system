@@ -56,6 +56,22 @@ const session = flag('--session'); const w = windowOf(flag('--from'), flag('--to
  */
 const projectsDir = flag('--projects') || join(homedir(), '.claude', 'projects');
 const found = transcriptsOf(projectsDir, session).filter((f) => f.kind === 'main');
+/**
+ * A TÖBBES TALÁLAT NEVEZETT ELAKADÁS, NEM CSENDES VÁLASZTÁS (külső review, Codex, hatodik kör, P2).
+ *
+ * A LELET: ha ugyanaz a munkamenet-azonosító KÉT projekt-könyvtárban is szerepel (áthelyezett vagy
+ * átmásolt projekt), a `found[0]` azt exportálta, amit a könyvtár-bejárás épp előbb adott — a leltár
+ * tehát ELAVULT példányt is exportálhatott, miközben sikeresnek látszott. A mérő (FGY-01/3) ilyenkor
+ * MINDET beolvassa; itt viszont a hívás-sorok EGY fájlhoz tartoznak, és a kettő összefűzése más
+ * kérdés. Ezért a kétértelműség itt NEM eldönthető, és nem is döntjük el: megállunk, és megmondjuk,
+ * melyik utak között kell választani (KUKA-049 — a bizonytalanságot kimondjuk, nem elrejtjük).
+ */
+if (found.length > 1) {
+  console.error(`KÉTÉRTELMŰ ÁTIRAT: ${session} — ${found.length} projekt-könyvtárban van fő átirat ehhez az azonosítóhoz.`);
+  for (const f of found) console.error(`  · ${f.path.replace(homedir(), '~')}`);
+  console.error('  Add meg a PROJEKT-GYÖKERET pontosan: --projects <út> (a mérő MINDET beolvassa, az export EGY fájlhoz tartozik).');
+  process.exit(2);
+}
 if (!found.length) {
   console.error(`NINCS ÁTIRAT: ${session} (keresve: ${projectsDir.replace(homedir(), '~')} minden projekt-könyvtárában)`);
   process.exit(2);
