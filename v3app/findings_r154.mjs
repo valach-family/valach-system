@@ -2123,6 +2123,57 @@ try {
         let zhiba = null;
         try { rememberIntent({ store: zsrv2.store, sessionId: 'z_rossz', token: 't', clock: { now: () => 'nem-egy-idopont' } }); }
         catch (e) { zhiba = String(e && e.message); }
+        // ── (z8–z9) F158-21 (P2) — A DIAGNOSZTIKA IS A TISZTÍTÓN MEGY ──────────────────────────
+        // A LELET: a `source.path`-ot átvezettem a tisztítón (F158-10), a HIBA-ÁGAK viszont nyers
+        // `replace(homedir(), '~')`-szal írták ki az utat — egy repón ÉS HOME-on kívüli
+        // `--transcript` teljes abszolút útja a terminálra és a CI-naplóba került.
+        const zt = mkdtempSync(join(tmpdir(), 'vs-kulso-'));
+        try {
+          const titkos = join(zt, 'telepites', 'ugyfel_titkos_nev');
+          mkdirSync(titkos, { recursive: true });
+          const futtatZ = (extra) => {
+            try {
+              execFileSync(process.execPath, [join(ROOT, 'tools/v3_fogyasztas_export.mjs'),
+                '--session', 'ffffffff-0000-4000-8000-00000000000a', '--from', '2026-01-01T00:00:00Z',
+                '--to', '2026-01-02T00:00:00Z', '--out', join(zt, 'kimenet'), ...extra],
+                { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+              return { kod: 0, hiba: '' };
+            } catch (e) { return { kod: e.status, hiba: String(e.stderr || '') }; }
+          };
+          const kulso = futtatZ(['--transcript', join(titkos, 'nincs.jsonl')]);
+          step('(z8) F158-21: a HIBA-ÁG útja is a tisztítón megy — a repón ÉS HOME-on kívüli út NEM kerül a naplóba (RÉGEN a teljes abszolút út kiíródott)',
+            kulso.kod === 2 && !kulso.hiba.includes('ugyfel_titkos_nev') && !kulso.hiba.includes(titkos)
+              && /ELREJTVE/.test(kulso.hiba),
+            { kilepes: kulso.kod, titkos_konyvtarnev_a_naploban: kulso.hiba.includes('ugyfel_titkos_nev'),
+              uzenet: kulso.hiba.split('\n')[0].slice(0, 72) });
+
+          // ELLENPÁR: a REPÓN BELÜLI út továbbra is LÁTSZIK — a tisztítás nem teszi használhatatlanná
+          // a hibaüzenetet (KUKA-201: a nemleges válasz vigye a működő folytatást).
+          const belso = futtatZ(['--transcript', 'var/tmp/nincs_ilyen_atirat.jsonl']);
+          step('(z9) F158-21 ELLENPÁR: a repón BELÜLI út a hibaüzenetben továbbra is LÁTSZIK — a tisztítás nem teszi használhatatlanná a hibát',
+            belso.kod === 2 && /var\/tmp\/nincs_ilyen_atirat\.jsonl/.test(belso.hiba),
+            { kilepes: belso.kod, uzenet: belso.hiba.split('\n')[0].slice(0, 80) });
+          // (z10) ÉS A KÉT SZABÁLY EGYÜTT (KUKA-319 + F158-21): a kétértelműség listája MEGNEVEZI a
+          //       jelölteket (különben nem lehet választani), de a `--projects` GYÖKERET nem írja ki.
+          const ketert = join(zt, 'ketertelmu');
+          for (const nev of ['-projekt-egy', '-projekt-ketto']) {
+            mkdirSync(join(ketert, nev), { recursive: true });
+            writeFileSync(join(ketert, nev, 'ffffffff-0000-4000-8000-00000000000b.jsonl'), '{"type":"assistant"}\n');
+          }
+          let kk = { kod: 0, hiba: '' };
+          try {
+            execFileSync(process.execPath, [join(ROOT, 'tools/v3_fogyasztas_export.mjs'),
+              '--session', 'ffffffff-0000-4000-8000-00000000000b', '--projects', ketert,
+              '--from', '2026-01-01T00:00:00Z', '--to', '2026-01-02T00:00:00Z', '--out', join(zt, 'ki2')],
+              { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+          } catch (e) { kk = { kod: e.status, hiba: String(e.stderr || '') }; }
+          step('(z10) F158-21 + KUKA-319 EGYÜTT: a kétértelműség listája MEGNEVEZI a jelölteket (választható marad), de a `--projects` GYÖKERET nem írja ki',
+            kk.kod === 2 && /KÉTÉRTELMŰ ÁTIRAT/.test(kk.hiba)
+              && /projekt-egy/.test(kk.hiba) && /projekt-ketto/.test(kk.hiba) && !kk.hiba.includes(ketert),
+            { kilepes: kk.kod, megnevezte_mindkettot: /projekt-egy/.test(kk.hiba) && /projekt-ketto/.test(kk.hiba),
+              gyoker_a_naploban: kk.hiba.includes(ketert) });
+        } finally { rmSync(zt, { recursive: true, force: true }); }
+
         step('(z7) F158-20 ELLENPÁR: a nem értelmezhető órával az ÍRÁS nevezetten elakad — nincs néma, megítélhetetlen korú sor (KUKA-238)',
           /nem értelmezhető időpontot adott/.test(zhiba || '')
             && !zsrv2.store.get('SELECT 1 AS x FROM pending_intent WHERE session_id = ?', 'z_rossz'),

@@ -31,12 +31,42 @@ const HERE = dirname(fileURLToPath(import.meta.url)); const ROOT = resolve(HERE,
 const flag = (n) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : null; };
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 const bytes = (s) => Buffer.byteLength(typeof s === 'string' ? s : JSON.stringify(s ?? ''), 'utf8');
-const safePath = (p) => {
+const safePath = (p, kivul = '(repón kívüli út — nem exportált)') => {
   if (typeof p !== 'string') return null;
   const abs = p.startsWith('/') ? p : join(ROOT, p);
   if (abs.startsWith(ROOT + '/')) return abs.slice(ROOT.length + 1);
   if (abs.startsWith(homedir())) return '~' + abs.slice(homedir().length);
-  return '(repón kívüli út — nem exportált)';
+  return kivul;
+};
+/**
+ * A DIAGNOSZTIKA IS A TISZTÍTÓN MEGY (F158-21, külső review, Codex, P2).
+ *
+ * A LELET: a `source.path`-ot átvezettem a tisztítón (F158-10), a HIBA-ÁGAK viszont nyers
+ * `replace(homedir(), '~')`-szal írták ki az utat — egy repón ÉS HOME-on kívüli `--transcript`
+ * teljes abszolút útja így a terminálra és a CI-naplóba került (telepítési, ügyfél- vagy
+ * munkaterületi könyvtárnév). Ugyanaz a szabály a MÁSIK úton: egy tisztító, amit csak az egyik
+ * olvasó használ, nem tisztító (KUKA-003 · KUKA-039 · KUKA-227).
+ *
+ * MIÉRT KÜLÖN SZÖVEG: az exportban a „nem exportált" a helyes mondat, egy HIBA-ÜZENETBEN viszont
+ * az, hogy az utat ELREJTETTÜK — a döntés ugyanaz, a megnevezése más. EGY feloldó, egy paraméter.
+ */
+const safeErrPath = (p) => safePath(p, '(repón és HOME-on kívüli út — ELREJTVE)');
+/**
+ * ÉS A KÉTÉRTELMŰSÉG LISTÁJÁNAK VÁLASZTHATÓNAK IS KELL LENNIE (KUKA-319 + F158-21 EGYÜTT).
+ *
+ * A `KUKA-319` azt kéri, hogy a kétértelmű átirat hibája NEVEZZE MEG a jelölteket — különben az
+ * operátor nem tud választani (KUKA-201: a nemleges válasz vigye a MŰKÖDŐ folytatást). Az F158-21
+ * viszont azt kéri, hogy a repón és HOME-on kívüli út ne kerüljön a naplóba. A kettő EGYÜTT: a
+ * jelöltet a `--projects` GYÖKÉRHEZ KÉPEST nevezzük meg — azt az utat a HÍVÓ adta meg, tehát nem
+ * mond neki újat, a választás viszont ettől működik.
+ */
+const pickPath = (p) => {
+  const biztonsagos = safePath(p, '');
+  if (biztonsagos) return biztonsagos;
+  const abs = String(p);
+  return abs.startsWith(projectsDir + '/')
+    ? `<--projects>/${abs.slice(projectsDir.length + 1)}`
+    : '(repón és HOME-on kívüli út — ELREJTVE)';
 };
 
 const session = flag('--session'); const w = windowOf(flag('--from'), flag('--to'));
@@ -77,7 +107,7 @@ const found = explicitFile
     ? [{ path: directHit, kind: 'main' }]
     : transcriptsOf(projectsDir, session).filter((f) => f.kind === 'main'));
 if (explicitFile && !existsSync(found[0].path)) {
-  console.error(`NINCS ILYEN ÁTIRAT-FÁJL: ${found[0].path.replace(homedir(), '~')} (--transcript)`);
+  console.error(`NINCS ILYEN ÁTIRAT-FÁJL: ${safeErrPath(found[0].path)} (--transcript)`);
   process.exit(2);
 }
 /**
@@ -100,7 +130,7 @@ if (explicitFile) {
   }
   if (!nevEgyezik && !tartalomEgyezik) {
     console.error(`A MEGADOTT ÁTIRAT NEM A KÉRT MUNKAMENETÉ: --session ${session}`);
-    console.error(`  a fájl: ${found[0].path.replace(homedir(), '~')} (a neve nem \`${session}.jsonl\`, és az első 50 sorában sincs ilyen \`sessionId\`)`);
+    console.error(`  a fájl: ${safeErrPath(found[0].path)} (a neve nem \`${session}.jsonl\`, és az első 50 sorában sincs ilyen \`sessionId\`)`);
     console.error('  Ha tényleg ezt akarod exportálni, a --session értéke legyen ennek a munkamenetnek az azonosítója.');
     process.exit(2);
   }
@@ -117,7 +147,7 @@ if (explicitFile) {
  */
 if (found.length > 1) {
   console.error(`KÉTÉRTELMŰ ÁTIRAT: ${session} — ${found.length} projekt-könyvtárban van fő átirat ehhez az azonosítóhoz.`);
-  for (const f of found) console.error(`  · ${f.path.replace(homedir(), '~')}`);
+  for (const f of found) console.error(`  · ${pickPath(f.path)}`);
   console.error('  VÁLASZD KI, melyiket exportáljuk — és MINDKÉT út működik:');
   console.error('    · --transcript <a fenti utak egyike>   (a legpontosabb: pont azt a fájlt exportálja)');
   console.error('    · --projects <a KIVÁLASZTOTT projekt-könyvtár>   (ott közvetlenül keresi a <munkamenet>.jsonl-t)');
@@ -125,7 +155,7 @@ if (found.length > 1) {
   process.exit(2);
 }
 if (!found.length) {
-  console.error(`NINCS ÁTIRAT: ${session} (keresve: ${projectsDir.replace(homedir(), '~')} minden projekt-könyvtárában)`);
+  console.error(`NINCS ÁTIRAT: ${session} (keresve: ${safeErrPath(projectsDir)} minden projekt-könyvtárában)`);
   process.exit(2);
 }
 const file = found[0].path;

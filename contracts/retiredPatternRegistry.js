@@ -14114,6 +14114,36 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:v3ref` (P-K03-intent-expiry (i) és (j) ág + M220/M221/M222 mutáció, és az ÚJRA-HORGONYZOTT M209/M217) · `npm run verify:kuka` (három pozitív + egy tiltó) · `npm run verify:app-findings-r154` (Z: z5, z6, z7).',
   }),
 
+  Object.freeze({
+    id: 'KUKA-354',
+    date: '2026-10-06',
+    title: 'A TISZTÍTÓT CSAK AZ EGYIK OLVASÓRA VEZETTEM ÁT — A HIBA-ÁGAK NYERSEN ÍRTÁK KI AZ UTAT',
+    what: 'A fogyasztás-exportáló `safePath` tisztítóját az előző körben átvezettem a leltár `source.path` mezőjén (F158-10 · KUKA-343), a HIBA-ÁGAK viszont nyers `replace(homedir(), \'~\')`-szal írták ki az utat. Egy repón ÉS HOME-on kívüli `--transcript` (vagy `--projects`) teljes abszolút útja így a terminálra és a CI-naplóba került — telepítési, ügyfél- vagy munkaterületi könyvtárnévvel együtt. MÉRVE: a régi alak kiírta a `…/telepites/ugyfel_titkos_nev/nincs.jsonl` teljes útját, a mostani csak az ELREJTVE jelzést.',
+    why_wrong: 'Egy tisztító, amit csak az egyik olvasó használ, nem tisztító (KUKA-003 · KUKA-039). És a hiba-ág épp az az út, ami akkor szólal meg, amikor valami NEM sikerült — tehát pont akkor beszél a legtöbbet, amikor a legkevésbé figyelünk rá. Ez a MÁSODIK alkalom ugyanebben a fájlban: az előző körben a `source.path`-ot javítottam, a szomszéd négy kiírást nem (KUKA-227).',
+    replaced_by: 'MIND A NÉGY diagnosztikai kiírás a tisztítón megy (`safeErrPath`), és a tisztító EGY feloldó marad, egy paraméterrel: az exportban „nem exportált", a hiba-üzenetben „ELREJTVE" — a döntés ugyanaz, a megnevezése más.',
+    replacement: 'ÉS A KÉT SZABÁLY EGYÜTT ÁLL MEG: a kétértelműség listájának VÁLASZTHATÓNAK is kell lennie (KUKA-319 · KUKA-201), ezért ott a jelöltet a `--projects` GYÖKÉRHEZ KÉPEST nevezzük meg — azt az utat a HÍVÓ adta meg, tehát nem mond neki újat, a választás viszont ettől működik. MÉRVE: a lista megnevezi mindkét jelöltet, a gyökeret nem írja ki.',
+    decision: 'D-VS-3162',
+    found_by: 'KÜLSŐ REVIEW (Codex, R158 negyedik kör — F158-21, P2). A reviewer kimondta, hogy ez „fresh evidence beyond the prior `source.path` finding" — vagyis UGYANAZ a szabály a másik úton.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_fogyasztas_export.mjs']),
+        pattern: 'const safeErrPath = \\(p\\) => safePath\\(p,',
+        why: 'a diagnosztikának is van tisztítója, és az UGYANAZ a feloldó' }),
+      Object.freeze({ paths: Object.freeze(['tools/v3_fogyasztas_export.mjs']),
+        pattern: 'NINCS ILYEN ÁTIRAT-FÁJL: \\$\\{safeErrPath\\(found\\[0\\]\\.path\\)\\}',
+        why: 'és a hiba-ág tényleg azon megy' }),
+      Object.freeze({ paths: Object.freeze(['tools/v3_fogyasztas_export.mjs']),
+        pattern: '\\$\\{pickPath\\(f\\.path\\)\\}',
+        why: 'a kétértelműség listája a `--projects` gyökérhez képest nevez meg — biztonságos ÉS választható' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_fogyasztas_export.mjs']),
+        pattern: '\\$\\{found\\[0\\]\\.path\\.replace\\(homedir\\(\\)',
+        why: 'a nyers, tisztítás nélküli út-kiírás nem jöhet vissza a hiba-ágon' }),
+    ]),
+    lesson: 'EGY TISZTÍTÓ, AMIT CSAK AZ EGYIK OLVASÓ HASZNÁL, NEM TISZTÍTÓ — ÉS A HIBA-ÁG IS KIMENET. Ha egy szabály a kimenetre szól, akkor MINDEN kimenetre szól: a siker-ágra, a hiba-ágra és a diagnosztikára egyaránt. A javítás után pedig meg kell kérdezni, nem vesz-e el egy MÁSIK kimondott szabályt: itt a kétértelműség listájának választhatónak kell maradnia, ezért a két szabály EGYÜTT kapott alakot, nem egymás ellenében.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (három pozitív + egy tiltó minta) · `npm run verify:app-findings-r154` (Z: z8 a repón és HOME-on kívüli út, z9 az ellenpár a repón belüli útra, z10 a két szabály EGYÜTT; és az N: n6 továbbra is a KUKA-319-et méri).',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

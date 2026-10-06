@@ -16,6 +16,34 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3162 — A DIAGNOSZTIKAI UTAK IS A TISZTÍTÓN MENNEK, ÉS A KÉTÉRTELMŰSÉG LISTÁJA VÁLASZTHATÓ MARAD (R158, a fogyasztás-export)
+
+**A döntés.** A fogyasztás-exportáló MIND A NÉGY diagnosztikai út-kiírása a `safePath` tisztítón megy
+(`safeErrPath`), és a tisztító EGY feloldó marad, egy paraméterrel: az exportban „nem exportált", a
+hiba-üzenetben „ELREJTVE". A kétértelműség listája a jelöltet a `--projects` GYÖKÉRHEZ KÉPEST nevezi
+meg (`pickPath`).
+
+**Miért.** Az előző körben a leltár `source.path` mezőjét vezettem át a tisztítón (`KUKA-343`), a
+hiba-ágak viszont nyers út-kiírással mentek. MÉRVE: egy repón ÉS HOME-on kívüli `--transcript` esetén
+a régi alak kiírta a teljes abszolút utat (a mérésben `…/telepites/ugyfel_titkos_nev/nincs.jsonl`), a
+mostani csak az ELREJTVE jelzést. A hiba-ág épp az az út, ami akkor szólal meg, amikor valami nem
+sikerült — tehát pont akkor beszél a legtöbbet, amikor a legkevésbé figyelünk rá.
+
+**A KÉT SZABÁLY EGYÜTT, mert ütköztek.** A `KUKA-319` azt kéri, hogy a kétértelmű átirat hibája
+NEVEZZE MEG a jelölteket — különben az operátor nem tud választani (`KUKA-201`). A puszta tisztítás
+ezt elvette volna (mindkét jelölt „ELREJTVE"-ként jelent meg, és a `verify:app-findings-r154` n6 sora
+JOGGAL lett piros). A megoldás nem az egyik szabály feladása: a jelölt a `--projects` gyökérhez képest
+van megnevezve — azt az utat a HÍVÓ adta meg, tehát nem mond neki újat, a választás viszont működik.
+MÉRVE: a lista megnevezi mindkét jelöltet, a gyökeret nem írja ki.
+
+**Amit ez NEM állít.** Nem titkos-őr: a `safePath` három esetet ismer (repón belül · HOME-on belül ·
+azon kívül), és a HOME-on belüli utat `~`-os alakban továbbra is kiírja — az operátor saját gépén ez
+szándékos. Gépi jel: `npm run verify:app-findings-r154` (Z: z8–z10) · `npm run verify:kuka`
+(KUKA-354). A böngésző-kapu ehhez a javításhoz NEM futott újra, és nem is kell: a változás a
+`tools/` alatti exportálóban van, a v3app FUTTATOTT kódját nem érinti.
+
+---
+
 ## D-VS-3159 — AZ ÁLLAPOT-ÍRÁS KAPUJA A HASZNÁLAT PILLANATÁT OLVASSA, ÉS MEG IS ÚJÍTJA A SORT (R158, SES-01)
 
 **A döntés.** A `materialize` saját, FRISS időbélyeget vesz (`hasznalatkor`), azzal kérdezi a
