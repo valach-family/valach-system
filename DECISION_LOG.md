@@ -16,6 +16,84 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3100 — A VÉDELEM KÖLTSÉGE KORLÁTOS: A KÉRÉSKORLÁT SORA VÁGOTT, A DARABSZÁM KIMONDVA ALSÓ KORLÁT (R154, NET-04)
+
+**A döntés.** A `makeRateLimiter` egy címhez a LEGFRISSEBB `max + 1` kérés-bélyeget tartja meg, és a
+vágás után a verdikt kimondja (`capped: true`), hogy a darabszám ALSÓ KORLÁT, nem pontos szám.
+
+**Miért.** A korábbi alak MINDEN bélyeget megtartott, és kérésenként végigszűrte a sort. MÉRVE:
+60 000 kérés egy címről `count=60000` 240-es korlát mellett és **28 987 ms** tiszta CPU; 120 000
+kérés **225 327 ms** — négyszeres kérésre 7,8-szoros idő, vagyis a költség KVADRATIKUS. Egyszálú
+folyamatban a kéréskorlát maga állítja meg a szolgáltatást, miközben a 429-ek helyesen mennek ki,
+tehát a napló „megfogtuk"-ot mutat. A javítás után ugyanaz a 60 000 kérés **105 ms** (276×), a
+verdikt pedig BETŰRE ugyanaz: a korlátig engedünk, utána tiltunk, és a lejárt ablak után újra
+engedünk.
+
+**Amit ez NEM állít.** Nem elosztott kéréskorlát (továbbra is példányonként számol), és nem
+teljesítmény-hangolás: a próba 5 másodperces plafonja a KVADRATIKUS nagyságrendet zárja ki, nem a
+gépet méri. Gépi jel: `npm run verify:app-findings-r154` (A: a1–a6) · `npm run verify:kuka`
+(KUKA-290).
+
+---
+
+## D-VS-3101 — A HIBÁS BEMENET NEVEZETT 4xx, NEM 500: A HIBÁS SZÁZALÉK-ESCAPE (R154, HTP-01)
+
+**A döntés.** A statikus kiszolgáló útfeloldása `try`-ban áll, és a hibás százalék-escape NEVEZETT
+`400 path_malformed` + `refused_by: "static_path"` választ kap.
+
+**Miért.** MÉRVE: `GET /%`, `GET /%zz`, `GET /a%E0%A4%A` mind **500 `internal_error`** volt, mert a
+`decodeURIComponent` `URIError`-ja a kérés-ciklus programhiba-ágára esett. A hiba a KÉRÉSBEN volt, a
+válasz mégis a SZOLGÁLTATÁST mondta hibásnak: ez terheli a hibakeretet, riaszt, és elrejti a valódi
+5xx-eket. A határ szerződése nevezett elutasítást ír elő.
+
+**Amit ez NEM állít.** A kiszolgálás nem szűkült: a létező lap 200, a nem létező 404 `not_found`, az
+útvonal-átlépés 403 `path_rejected` — mindhárom ellenpár mérve. Gépi jel:
+`npm run verify:app-findings-r154` (B: b1–b4) · `npm run verify:kuka` (KUKA-291).
+
+---
+
+## D-VS-3102 — A MUNKAMENET-TÁR KORLÁTOS: TÉTLENSÉGI IDŐ ÉS PLAFON, A NÉVTELEN ESIK ELŐBB (R154, SES-01)
+
+**A döntés.** A munkamenet-tár NEVEZETT feloldó (`makeSessionStore`) két kimondott korláttal:
+TÉTLENSÉGI IDŐ (alap 12 óra) és PLAFON (alap 20 000 sor). A plafon fölött a LEGRÉGEBBEN LÁTOTT sorok
+mennek előbb, és a NÉVTELENEK ELŐBB, mint a belépettek; a belépett munkamenet kiszorítása NAPLÓBAN
+nevezett sor. Mindkét korlát környezetből állítható (`VS_APP_SESSION_MAX` ·
+`VS_APP_SESSION_IDLE_MS`).
+
+**Miért.** A korábbi alak sima `Map` volt: MINDEN süti nélküli kérés új sort tett bele, és törölni
+egyedül a be- és kilépés törölt. MÉRVE: 10 000 süti nélküli `GET /api/me` után a tár 10 000 sort
+tartott — a növekedés soha nem áll meg magától. Lejárat SEMMILYEN nem volt, tehát egy ellopott
+munkamenet-süti időkorlát nélkül használható volt. A kiszorítás sorrendje azért jogosultsági döntés,
+mert az elárasztás NÉVTELEN sorokat gyárt: a kár ott keletkezik, tehát az őr ott áll.
+
+**Amit ez NEM állít.** Nem osztott munkamenet-tár (példányonkénti, memóriabeli — újraindítás
+nullázza), és a 12 órás tétlenségi idő nem mért optimum, hanem kimondott alapérték. A környezeti
+felülírás NEM kényelmi kapcsoló: egy 20 000-es plafont élő HTTP-n másképp nem lehet MEGMÉRNI
+(KUKA-207). Gépi jel: `npm run verify:app-findings-r154` (C/1: c1–c6 · C/2: c7–c10) ·
+`npm run verify:kuka` (KUKA-292).
+
+---
+
+## D-VS-3103 — A VISSZAVÉTEL-PRÓBA VERDIKTJE IS MÉRCE: AZ ELAKADÁS NEM FAIL (R154)
+
+**A döntés.** Egy lelet-battéria minden állítása olyan tulajdonságon áll, ami a javítás NÉLKÜL is
+létezik; a javítással SZÜLETETT belső felszínt csak védett olvasó nézi, és annak hiánya FAIL, nem
+kivétel. A feloldó közvetlen mérése mellé kell egy olyan állítás, amit a BEKÖTÉS eltávolítása
+elbuktat.
+
+**Miért.** Az R154 battériájának első alakját a KUKA-092 szerinti visszavétel-próbán mértem: a
+javítás kivételekor a feloldó-csoport (c1–c6) VÁLTOZATLANUL ZÖLD maradt — helyesen, mert a feloldó
+megvolt, csak nem volt bekötve —, a határ-mérés viszont `app.sessions.stats is not a function`
+kivétellel elhasalt, és a battéria KILÉPÉSI KÓD 2-t adott: „ELAKADT MÉRÉS — a rendszerről ez NEM
+mond semmit". A bekötés eltávolítása tehát pont annak a jelzésnek a köntösében jelent meg, amit
+instabilitásnak szokás nézni. A javított alak ugyanerre `size: 407` a 40-es plafon ellen, kilépési
+kód 1.
+
+**Amit ez NEM állít.** A visszavétel-próba MAGA nem automatizált: kézi lépés, és ezt kimondjuk. Gépi
+jel: `npm run verify:kuka` (KUKA-293, a battéria fájlján).
+
+---
+
 ## D-VS-3099 — A LEFEDÉS BIZONYÍTÉKA DEKLARÁLT KÖTÉS, A TELJESSÉG PIROS, ÉS A MODELL TÉMÁJÁBÓL MŰVELET LESZ (R144, LEF-01 · SMP-01 · AST-08 · AST-09)
 
 > **Hatály:** V3 (`valach-system`). Nincs merge, éles telepítés, V2-módosítás, új fizetős
