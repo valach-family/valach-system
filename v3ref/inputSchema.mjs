@@ -32,11 +32,41 @@ const fail = (error, detail, at) => Object.freeze({ ok: false, error, detail: de
 //
 // Mindegyik a KONVERZIÓ NÉLKÜLI kérdést teszi fel. A `quantity` külön fajta, mert a mennyiség
 // szerződése SAJÁT hibakód-sorrendet visz (MNY-01), és azt nem szabad `invalid_type`-ra lapítani.
+/**
+ * VEZÉRLŐ-KARAKTEREK A HATÁRON (ISC-02, F154-10).
+ *
+ * A LELET, MÉRVE (saját, R154): a `POST /api/workspaces {"name":"A\u0000B"}` kérés ÁTMENT a
+ * bemeneti kapun, és onnantól a kimenet a TÁROLÓTÓL függött:
+ *   · SQLite (helyi fejlesztés) → **HTTP 201**, a munkakörnyezet létrejött `A\0B` névvel;
+ *   · PostgreSQL 16.15 (staging/éles alakja) → **HTTP 400 `provision_failed`**, írás nélkül.
+ * A PostgreSQL-es kimenet a jobb, de VÉLETLENÜL az: nem a szerződés utasítja el, hanem a
+ * tárolómotor (`22021 invalid byte sequence for encoding "UTF8": 0x00`, közvetlenül is mérve), és
+ * a felhasználó félrevezető okot kap — „nem sikerült létrehozni" helyett „érvénytelen karakter"
+ * kellene. Egy határ-szerződés, aminek a kimenete attól függ, melyik tároló fut, nem szerződés.
+ *
+ * A SZABÁLY KÉT SZINTŰ, és a határ a MEZŐ FAJTÁJA, nem a kényelem:
+ *   · a NULLA BÁJT MINDEN szöveges mezőben tilos — nincs olyan tároló, amelyik tartani tudná,
+ *     tehát ami átmegy, az máshol fog elhasalni (`string` és `nonempty_string` egyaránt);
+ *   · a TÖBBI C0 vezérlő (és a DEL) a NÉV- és AZONOSÍTÓ-fajta mezőkben tilos (`nonempty_string`),
+ *     de a SZABAD SZÖVEGBEN megengedett (`string`) — a `history_text` 4000 karakteres mezőjében a
+ *     sortörés jogos tartalom, és azt nem tiltjuk el egy mellékhatásként (KUKA-130).
+ *
+ * AMIT EZ NEM ÉRINT: a `secret_string` (jelszó). Azt a rendszer SOHA nem tárolja szövegként —
+ * `scrypt` lenyomat megy a tárolóba —, tehát ott nincs tároló-eltérés, egy szűkítés viszont
+ * meglévő jelszavakat tenne érvénytelenné.
+ */
+const NUL = '\u0000';
+const CONTROL_CHARS = /[\u0000-\u001F\u007F]/;
+
 const TYPES = Object.freeze({
-  string: (v) => (typeof v === 'string' ? null : `szöveg kell, kapott: ${describe(v)}`),
+  string: (v) => {
+    if (typeof v !== 'string') return `szöveg kell, kapott: ${describe(v)}`;
+    return v.includes(NUL) ? 'nulla bájtot nem tartalmazhat' : null;
+  },
   nonempty_string: (v) => {
     if (typeof v !== 'string') return `szöveg kell, kapott: ${describe(v)}`;
-    return v.trim() ? null : 'nem lehet üres';
+    if (!v.trim()) return 'nem lehet üres';
+    return CONTROL_CHARS.test(v) ? 'vezérlő-karaktert nem tartalmazhat' : null;
   },
   // A SZÁM ITT VALÓDI SZÁM, és NEM VÉGES érték fail-closed: a NaN és a ±Infinity átcsúszik minden
   // összehasonlításon (NaN < x hamis, NaN > x is hamis), tehát a határ-ellenőrzés némán elenged.

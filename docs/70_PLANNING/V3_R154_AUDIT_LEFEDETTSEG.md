@@ -36,6 +36,10 @@ Vagyis: **a teljes söprés zöldje a lenti három leletről SEMMIT nem mondott.
 | 12 | Nyelvi feloldó · súly-szemantika | ugyanaz a mérés, `q=0` · `q=abc` · `q=5` · `q=1.2.3` fejlécekkel | **F154-06 — VALÓS**: a `q=0` elfogadásként számított — `de;q=0` → `de`, `en;q=0` → `en` (RFC 7231 §5.3.1 szerint a 0 súly = NEM elfogadható) | `verify:app-findings-r154` D: d5–d7; visszavétel-próba: 2 FAIL | *(e csomag 4. commitja)* | a `q=abc` → `q=1` és a tartományon kívüli `q=5` továbbra is megengedő olvasás — kimondott, nem mért optimum |
 | 13 | Jogosultsági döntések a magban (részleges) | `v3ref/authz.mjs`: `membershipEffectiveAt` · `evidenceStandingAt` · a zárt szerep-regiszter — kód-olvasás | **nincs lelet** — a három tengely (kor · hatály · megvonás) külön áll, a jövőbeli dátum nem frissesség, az ismeretlen mező nevezetten elakad | a mutációs battéria: **237/237 mutáció elkapva, 0 túlélő** (`verify:v3ref`) | — | `delegation.mjs` · `membershipPeriod.mjs` · `banScope.mjs` MÉG NEM olvasva soronként |
 
+| 14 | A BEMENETI SÉMA-KAPU (HTP-01) tartalmi auditja | élő HTTP, `POST /api/workspaces` (kapuzó végpont): **14 támadó bemenet** — `__proto__` · `constructor` · nulla bájt · tömb a beágyazott objektum helyén · kitalált mező a beágyazottban · tömb/szám/`null` a `name` helyén · mély beágyazás · 5000 karakteres név · tömb/szöveg/szám/`null` a TÖRZS helyén | **13-ból nincs lelet**: mind nevezett 400-at kapott (`unknown_field` · `invalid_type` · `value_too_long` · `invalid_body`), **nulla írás**, és prototípus-szennyezés nem történt (`({}).polluted === undefined`) | a próba kimenete soronként; a könyv-számot minden eset ELŐTT és UTÁN mértem | — | — |
+| 15 | ugyanaz · vezérlő-karakterek | ugyanaz a sorozat, külön a nulla bájttal, MINDKÉT tárolón | **F154-10 — VALÓS, JAVÍTVA**: a `nonempty_string` nem zárta a vezérlő-karaktereket, ezért a kimenet a TÁROLÓTÓL függött — SQLite: **201**, a munkakörnyezet létrejött `A\0B` névvel · PostgreSQL 16.15: **400 `provision_failed`**, nincs írás. A javítás után MINDKÉT tároló ugyanazt a nevezett 400-at adja (`invalid_type` · „vezérlő-karaktert nem tartalmazhat"), írás nélkül | élő HTTP MINDKÉT tárolón, javítás előtt és után; a PostgreSQL-oldali ok közvetlenül is mérve: `22021 invalid byte sequence for encoding "UTF8": 0x00`; `verify:app-findings-r154` F: f1–f4; visszavétel-próba: 3 FAIL (`könyv 1→4`) | *(e csomag 7. commitja)* | a `secret_string` (jelszó) szándékosan érintetlen — `scrypt` lenyomatként tárolódik, ott nincs tároló-eltérés |
+| 16 | PostgreSQL-üzem (a SPEC 3. területe, RÉSZBEN) | elkülönített helyi **PostgreSQL 16.15** felállítva (`initdb` + saját port + saját socket); `npm run db:migrate` lefuttatva; az alkalmazás PG mögött indítva és kérésekkel mérve | **nincs lelet** a mért úton: a séma felépült (`001` alkalmazva, 119 ms), a tároló-feloldó `postgres`-t mondott, a regisztráció · megerősítés · belépés · munkakörnyezet-létrehozás végigment | `db:migrate` kimenete; az élő kérés-sorozat válaszai; `SELECT version()` | — | **a verzió NEM a Railway 18-asa, hanem 16.15** — ezt kimondom, mert a SPEC a 18-hoz igazítást kérte; a `proof:pg-*` láncok (tranzakció · zárolás · párhuzamosság · kapcsolatvesztés · helyreállás) ebben a körben MÉG NEM futottak |
+
 ### A MÉRŐESZKÖZ, amivel a leleteket keresem — és a HATÓKÖRE
 
 A három első lelet mindegyike olyan feloldóban volt, amit **egyetlen próba sem hívott meg
@@ -46,6 +50,27 @@ nevét egyetlen próba-fájl (`tests/` · `findings_r*` · `tools/vs_verify*` ·
 bizalomból hisszük (KUKA-207). **Amit NEM jelent:** nem azt, hogy tesztelve sincsenek — sok közülük
 ÉLŐ HTTP-n keresztül mérve van, csak nem a nevén. A szám tehát **prioritási sor**, nem hibaszám
 (KUKA-216: a verdikt ne mutasson a mérés hatókörén túl). Az F154-05 és az F154-06 ebből a sorból jött.
+
+### A KÜLSŐ-ELLENŐRZÉSI LÁNC PIROSA — A KÉRDÉS ELDÖNTVE, MÉRÉSSEL
+
+A `npm run verify:external-checks` **nem nullával zárt**: 19 programból 14 felel meg, 5 eltér
+(`r79 · r59a · r57a · r59 · r57`). A kérdés az volt, hogy ez az ÉN változásom következménye-e.
+Nem következtetéssel döntöttem el, hanem megmértem: ugyanazt a láncot lefuttattam az **érintetlen
+`e24860f4` alapon**, külön git-munkafában, saját `npm install`-lal.
+
+| | eredmény | eltérő programok |
+|---|---|---|
+| **érintetlen alap** (`e24860f4`) | 14/19 · kilépés 1 | `r79 · r59a · r57a · r59 · r57` |
+| **a mi fejünk** (javításokkal) | 14/19 | `r79 · r59a · r57a · r59 · r57` |
+
+**Programonként is azonos:** ugyanaz a 14 MEGFELEL program mindkét oldalon, és ugyanaz az 5 eltérő,
+ugyanazokkal az okokkal (hiányzó temp-fájl: `ENOENT /tmp/r79-*/v3ref/units/unit-2-of-18.json` ·
+hiányzó részletes artefaktum · nem értelmezhető kimenet · hiányzó `E02`/`E03` esetek).
+
+**A verdikt tehát: ÖRÖKÖLT, nem regresszió** — és ez most mérés, nem érv. Ami ebből KÖVETKEZIK és
+amit nem: nem állítom, hogy az 5 eltérés „rendben van". Azok VALÓDI nyitott hiányok a láncban (a
+jellegük futtatási), csak nem ebben a csomagban keletkeztek. A **külső fél (chatgpt-v3) MIND A 12
+mag-próbája MEGFELEL** mindkét oldalon.
 
 ### Egyéb megfigyelés, ami nem hiba, de rögzítendő
 

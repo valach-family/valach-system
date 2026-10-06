@@ -31,6 +31,13 @@ import { rmSync, readFileSync } from 'node:fs';
 import { startServer, makeRateLimiter, makeSessionStore, sessionLimits, SESSION_LIMITS } from './server.mjs';
 import { dictFor } from './public/i18n/dict.mjs';
 import { resolveLanguage, parseAcceptLanguage, pickFromAcceptLanguage } from './public/i18n/languages.mjs';
+import { validateAgainstSchema } from '../v3ref/inputSchema.mjs';
+
+/** A `string` TÍPUS közvetlenül, a mag feloldóján — amit a próba nem tud meghívni, azt hisszük (KUKA-207). */
+const TYPES_STRING_OK = (v) => validateAgainstSchema({
+  schema: { version: '1', fields: { t: { type: 'string', required: true, max_length: 100 } } },
+  input: { t: v },
+}).ok === true;
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const results = [];
@@ -374,6 +381,40 @@ try {
   step('(c10) a kiszorítás NEVEZETT, és a NÉVTELENEKET vitte (a belépett nem került sorra)',
     st !== null && st.evicted_cap_signed_in === 0,
     st === null ? 'a tár NEM ad kiszorítás-számlálót — a kiszorítás NÉMA volna' : st);
+
+  // ── F) F154-10 — A VEZÉRLŐ-KARAKTER A HATÁRON AKAD EL, NEM A TÁROLÓBAN ──────────────────────
+  part('F) F154-10 — a vezérlő-karakter a HATÁRON akad el, tárolótól függetlenül');
+  {
+    // A LELET, MÉRVE a régi alakon: `{"name":"A\u0000B"}` ÁTMENT a kapun, és onnantól a kimenet a
+    // TÁROLÓTÓL függött — SQLite: 201 (a könyv létrejött `A\0B` névvel) · PostgreSQL 16.15: 400
+    // `provision_failed`. Egy határ-szerződés, aminek a kimenete attól függ, melyik tároló fut,
+    // nem szerződés.
+    const ws = (name) => anna.call('POST', '/api/workspaces', { name, business: { tax_id: '12345678-1-42' } });
+    const elotte = app.store.get('SELECT COUNT(*) AS n FROM book').n;
+    const nul = await ws('A\u0000B');
+    const nl = await ws('A\nB');
+    const tab = await ws('A\tB');
+    const utana = app.store.get('SELECT COUNT(*) AS n FROM book').n;
+    step('(f1) a NULLA BÁJT a névben NEVEZETT 400, ÍRÁS NÉLKÜL (régen SQLite-on MÉRVE: 201)',
+      nul.status === 400 && /vezérlő-karakter/.test(String(nul.body && nul.body.message || '')) && utana === elotte,
+      { status: nul.status, message: String(nul.body && nul.body.message || '').slice(0, 60), konyv: `${elotte}→${utana}` });
+    step('(f2) és a TÖBBI vezérlő is (sortörés · tabulátor) — a NÉV nem szabad szöveg',
+      nl.status === 400 && tab.status === 400,
+      { sortores: nl.status, tabulator: tab.status });
+
+    // ELLENPÁR: a rendes név ÉS a nem-latin betű továbbra is MEGY — a szűkítés nem vágta le a
+    // valódi tartalmat (KUKA-130 · és a nyelvi jegyzék bővül, tehát az ékezet/írásjel nem gyanús).
+    const jo = await ws('Árvíztűrő Tükörfúrógép Kft. — 北京');
+    step('(f3) ELLENPÁR: az ékezetes és NEM LATIN betűs név változatlanul MEGY',
+      jo.status === 201, { status: jo.status });
+
+    // ÉS A SZABAD SZÖVEG MÁS FAJTA: a `string` típus a sortörést ENGEDI (history_text 4000 karakter),
+    // csak a nulla bájtot zárja — a szűkítés mezőfajtához kötött, nem mindenre kimondott.
+    step('(f4) a SZABAD SZÖVEG típusa a sortörést ENGEDI, a nulla bájtot ZÁRJA — a határ a mező fajtája',
+      TYPES_STRING_OK('A\nB') === true && TYPES_STRING_OK('A\u0000B') === false,
+      'string: sortörés igen · nulla bájt nem');
+  }
+
 
   const fail = results.filter((r) => !r.pass);
   console.log(`\nR154 battéria: ${results.length - fail.length}/${results.length} PASS${fail.length ? ` — ${fail.length} FAIL` : ''}`);

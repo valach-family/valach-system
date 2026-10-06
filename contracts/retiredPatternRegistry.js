@@ -12791,6 +12791,33 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív + egy tiltó minta) · `npm run verify:app-findings-r154` (E: e4 a beszúrt sor megmaradása, e5 a gyökér-ok — a belépés belépetten születik, e10 az osztályonkénti hisztérézis).',
   }),
 
+
+  Object.freeze({
+    id: 'KUKA-299',
+    date: '2026-10-06',
+    title: 'A HATÁR-SZERZŐDÉS KIMENETE A TÁROLÓTÓL FÜGGÖTT — a vezérlő-karaktert a tárolómotor fogta meg, nem a kapu',
+    what: 'A `nonempty_string` és a `string` típus nem zárta a vezérlő-karaktereket. MÉRVE: a `POST /api/workspaces {"name":"A\u0000B"}` kérés ÁTMENT a bemeneti kapun, és onnantól a kimenet a TÁROLÓTÓL függött — SQLite-on (helyi fejlesztés) HTTP **201**, és a munkakörnyezet létrejött `A\0B` névvel; elkülönített helyi PostgreSQL 16.15-en HTTP **400 `provision_failed`**, írás nélkül. A PostgreSQL okát közvetlenül is megmértem: `22021 invalid byte sequence for encoding "UTF8": 0x00`.',
+    why_wrong: 'Egy határ-szerződés, aminek a KIMENETE attól függ, melyik tároló fut, nem szerződés. A PostgreSQL-es eredmény a jobb, de VÉLETLENÜL az: nem a szerződés utasítja el, hanem a tárolómotor — és a felhasználó félrevezető okot kap („nem sikerült létrehozni" helyett „érvénytelen karakter" kellene), a hibát kereső fejlesztő pedig a létrehozást vizsgálja, nem a bemenetet. A 14 támadó bemenetes próbámból ez volt az EGYETLEN, ami átment: a többi mind nevezett 400-at kapott.',
+    replaced_by: 'A szabály KÉT SZINTŰ, és a határ a MEZŐ FAJTÁJA: a NULLA BÁJT MINDEN szöveges mezőben tilos (nincs olyan tároló, amelyik tartani tudná), a TÖBBI C0 vezérlő és a DEL pedig a NÉV- és AZONOSÍTÓ-fajta mezőkben (`nonempty_string`). MÉRVE a javítás után: mindkét tároló UGYANAZT a nevezett 400-at adja, írás nélkül.',
+    replacement: 'A SZABAD SZÖVEG (`string`, pl. a 4000 karakteres `history_text`) a sortörést ENGEDI — egy mellékhatásként elvett sortörés ugyanúgy hiba volna (KUKA-130). A `secret_string` (jelszó) érintetlen: azt a rendszer SOHA nem tárolja szövegként (`scrypt` lenyomat megy a tárolóba), tehát ott nincs tároló-eltérés, egy szűkítés viszont meglévő jelszavakat tenne érvénytelenné. Ellenpár: az ékezetes és NEM LATIN betűs név változatlanul megy.',
+    decision: 'D-VS-3109',
+    found_by: 'SAJÁT LELET (Claude-v3, R154) — a bemeneti séma-kapu TARTALMI auditján, 14 támadó bemenettel; a tároló-eltérést elkülönített helyi PostgreSQL 16.15 felállításával MÉRTEM meg, nem következtetéssel.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/inputSchema.mjs']),
+        pattern: 'const CONTROL_CHARS = ',
+        why: 'a vezérlő-karakterek zárt tiltása a TÍPUSBAN, nem a hívóknál szétszórva' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/inputSchema.mjs']),
+        pattern: "'vezérlő-karaktert nem tartalmazhat'",
+        why: 'a kimondott ok — a felhasználó nem „nem sikerült létrehozni"-t kap' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/inputSchema.mjs']),
+        pattern: "'nulla bájtot nem tartalmazhat'",
+        why: 'a nulla bájt a SZABAD szövegben is tilos — egyetlen tároló sem tartja' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'AMIT A HATÁR ÁTENGED, AZT A TÁROLÓ FOGJA MEGFOGNI — ÉS AKKOR MÁR A ROSSZ OKOT MONDJA. Egy bemeneti típusnál ne csak a JAVASCRIPT-fajtát kérdezd meg (szöveg-e), hanem azt is, hogy az érték ÁTMEGY-E AZON A TÁROLÓN, amin élesben futunk — különben a fejlesztői tároló elfogadja, az éles nem, és ugyanaz a kérés két környezetben mást tesz. A szűkítést pedig a MEZŐ FAJTÁJÁHOZ kösd: ami egy névben szemét, az egy szabad szöveges leírásban jogos tartalom.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (három pozitív minta) · `npm run verify:app-findings-r154` (F: f1 a nulla bájt, f2 a többi vezérlő, f3 az ellenpár — ékezet és nem latin betű, f4 a szabad szöveg mezőfajta-kötése a MAG feloldóján közvetlenül hívva).',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

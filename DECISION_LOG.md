@@ -135,6 +135,29 @@ Gépi jel: `npm run verify:app-findings-r154` (E: e6–e9) · `npm run verify:ku
 
 ---
 
+## D-VS-3109 — A VEZÉRLŐ-KARAKTER A HATÁRON AKAD EL, TÁROLÓTÓL FÜGGETLENÜL (R154, ISC-02)
+
+**A döntés.** A bemeneti típusok zárják a vezérlő-karaktereket, két szinten: a NULLA BÁJT minden
+szöveges mezőben tilos (`string` és `nonempty_string`), a többi C0 vezérlő és a DEL pedig a NÉV- és
+AZONOSÍTÓ-fajta mezőkben (`nonempty_string`). A SZABAD SZÖVEG (`string`) a sortörést engedi. A
+`secret_string` érintetlen.
+
+**Miért.** Mérve: `POST /api/workspaces {"name":"A\u0000B"}` ÁTMENT a kapun, és onnantól a kimenet a
+tárolótól függött — SQLite: **201**, a munkakörnyezet létrejött `A\0B` névvel; elkülönített helyi
+PostgreSQL 16.15: **400 `provision_failed`**, írás nélkül (a PG oka közvetlenül is mérve:
+`22021 invalid byte sequence for encoding "UTF8": 0x00`). Egy határ-szerződés, aminek a kimenete attól
+függ, melyik tároló fut, nem szerződés — és a PG-s elutasítás FÉLREVEZETŐ okot adott: nem a bemenetet
+nevezte meg, hanem a létrehozást. A javítás után mindkét tároló UGYANAZT a nevezett 400-at adja.
+
+**Amit ez NEM állít.** Nem a teljes PostgreSQL-paritás igazolása: egyetlen mező-fajtát mértem végig két
+tárolón. A használt PostgreSQL **16.15**, NEM a Railway 18-asa — a SPEC a 18-hoz igazítást kérte, ez
+kimondott eltérés. A `secret_string` szűkítése szándékosan kimaradt (a jelszó `scrypt` lenyomatként
+tárolódik, tehát ott nincs tároló-eltérés; egy szűkítés meglévő jelszavakat tenne érvénytelenné).
+Gépi jel: `npm run verify:app-findings-r154` (F: f1–f4) · `npm run verify:kuka` (KUKA-299) ·
+`npm run verify:v3ref` (a mag mutációs battériája).
+
+---
+
 ## D-VS-3108 — A BESZÚRT SOR SÉRTHETETLEN, ÉS A BELÉPÉS MUNKAMENETE BELÉPETTEN SZÜLETIK (R154)
 
 **A döntés.** A plafon-söprés a beszúrt sort soha nem veszi el (`keep`), a `newSession(subjectId)`
