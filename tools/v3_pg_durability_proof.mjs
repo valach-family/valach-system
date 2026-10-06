@@ -43,8 +43,37 @@ const restoreTarget = String(process.env.VS_RESTORE_TEST_DB || '').trim();
 if (!restoreTarget) {
   console.error('proof:pg-durability — nincs VS_RESTORE_TEST_DB: a visszatöltés célját KI KELL MONDANI.');
   console.error('  Kapu nélkül nem töltünk vissza: a gyakorlás nem írhatja felül a forrást.');
+  console.error('  AZ ÉRTÉK ADATBÁZIS-NÉV, nem kapcsolati cím — például: VS_RESTORE_TEST_DB=vs_visszatoltes_proba');
   process.exit(2);
 }
+
+/**
+ * A CÉL NEVE AZONOSÍTÓ, ÉS EZT MEG IS KELL MÉRNI (F154-18).
+ *
+ * A LELET, MÉRVE (saját, R154): a `VS_RESTORE_TEST_DB`-t kapcsolati CÍMMEL adtam meg — ami kézenfekvő
+ * tévedés, hiszen a `DATABASE_URL` is cím —, és a lánc a `3b` lépésen `ERROR: syntax error at or
+ * near ":"` üzenettel bukott el. Két hiba egyszerre:
+ *
+ *   1. AZ ÉRTÉK KÖZVETLENÜL EGY `DROP DATABASE` UTASÍTÁSBA KERÜLT, szöveg-összefűzéssel. Egy
+ *      elgépelt vagy rosszindulatú érték (pontosvessző, idézőjel) így a GAZDA adatbázison futó
+ *      utasítássá válik — és a másik végén `DROP DATABASE` áll. Ilyen minta nem létezhet, akkor sem,
+ *      ha az érték „csak" a saját környezetünkből jön.
+ *   2. A HIBA NYERS SQL-ÜZENET VOLT, nem nevezett elutasítás. A mentés-visszatöltés GYAKORLÁSA
+ *      kiadási függő (lásd a CLAUDE.md 5. szakaszát); ha az operátor egy érthetetlen SQL-hibán
+ *      elakad, a gyakorlás nem történik meg (KUKA-291 · KUKA-215).
+ *
+ * A JAVÍTÁS KÉT SZINTŰ: a név ALAKJA mérve (zárt minta), ÉS a beillesztés IDÉZŐJELEZVE — mert ahol
+ * a következmény `DROP DATABASE`, ott egy őr nem elég.
+ */
+const DB_NAME = /^[A-Za-z_][A-Za-z0-9_$]{0,62}$/;
+if (!DB_NAME.test(restoreTarget)) {
+  console.error(`proof:pg-durability — a VS_RESTORE_TEST_DB értéke nem adatbázis-NÉV: ${JSON.stringify(restoreTarget)}`);
+  console.error('  ADATBÁZIS-NEVET kér, nem kapcsolati címet. Helyes: VS_RESTORE_TEST_DB=vs_visszatoltes_proba');
+  console.error('  (betű vagy alulvonás kezdet, utána betű/szám/alulvonás, legfeljebb 63 karakter)');
+  process.exit(2);
+}
+/** PostgreSQL azonosító idézőjelezése — a belső idézőjel duplázódik. */
+const qid = (name) => `"${String(name).replace(/"/g, '""')}"`;
 const u = new URL(url);
 if ((u.pathname || '').replace(/^\//, '') === restoreTarget) {
   console.error('proof:pg-durability — a visszatöltés célja AZONOS a forrással. Megálltam.');
@@ -121,7 +150,7 @@ let restored = false;
 if (dumped) {
   try {
     sh(PSQL, ['-d', admin.toString(), '-v', 'ON_ERROR_STOP=1', '-q',
-      '-c', `DROP DATABASE IF EXISTS ${restoreTarget}`, '-c', `CREATE DATABASE ${restoreTarget}`]);
+      '-c', `DROP DATABASE IF EXISTS ${qid(restoreTarget)}`, '-c', `CREATE DATABASE ${qid(restoreTarget)}`]);
     // A `pg_restore` figyelmeztethet (pl. tulajdonos) — a MÉRCE a visszaolvasás, nem a némaság.
     try { sh(process.env.VS_PGRESTORE || 'pg_restore', ['-d', target.toString(), '--no-owner', dumpPath]); }
     catch (e) { if (!/warning/i.test(String(e.stderr || ''))) throw e; }

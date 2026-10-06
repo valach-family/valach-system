@@ -203,6 +203,30 @@ ezt adja, a plafon kevés, és a `VS_APP_SESSION_MAX` emelése a válasz. Gépi 
 
 ---
 
+## D-VS-3117 — A KONFIGURÁCIÓS ÉRTÉK ALAKJA IS MÉRT, ÉS AZ AZONOSÍTÓ IDÉZŐJELEZVE MEGY (R154)
+
+**A döntés.** A `proof:pg-durability` megméri a `VS_RESTORE_TEST_DB` alakját (zárt azonosító-minta), és
+az értéket idézőjelezve illeszti az utasításba. A rossz alak NEVEZETT elutasítás, ami megmondja a
+helyes alakot.
+
+**Miért.** Mérve (saját lelet): az értéket kapcsolati címmel adtam meg — kézenfekvő tévedés, hiszen a
+`DATABASE_URL` is cím —, és a lánc a `3b` lépésen `ERROR: syntax error at or near ":"` üzenettel bukott
+el. A „cél nem azonos a forrással" kapu ezt átengedte, mert a cím nem egyezett a forrás *nevével*. Két
+hiba egy helyen: szöveg-összefűzéssel épített SQL, aminek a másik végén `DROP DATABASE` áll a gazda
+adatbázison; és egy nyers SQL-üzenet olyan eszközben, aminek a FELADATA a gyakorlás.
+
+**És amit ez a lánc ezzel IGAZOLT.** A helyes névvel a `proof:pg-durability` **végig zöld**, 7 mért
+lépéssel: írás a futó alkalmazáson át · ÚJRAINDÍTÁS után a fiók megvan és ugyanazzal a jelszóval belép ·
+`pg_dump` · visszatöltés ELKÜLÖNÍTETT célra · a sor-számok egyeznek (alany 19/19 · könyv 19/19) · a
+séma-verzió egyezik (`001`) · a konkrét bizonyított csatorna visszajött.
+
+**Amit ez NEM állít.** Ez **helyi** PostgreSQL **16.15**, nem a Railway 18-asa, és nem a FELHŐS
+mentés-visszatöltés igazolása — azt a SPEC külön nevezi meg, és továbbra is NINCS igazolva. Amit igazol:
+a mechanizmus működik, és a gyakorlás elvégezhető. Gépi jel: `npm run verify:kuka` (KUKA-307) ·
+`npm run proof:pg-durability` (valódi PostgreSQL kell hozzá).
+
+---
+
 ## D-VS-3116 — A VÉDELMI DÖNTÉS KÖLTSÉGE ÁLLANDÓ (R154, a harmadik ugyanilyen eset)
 
 **A döntés.** A tár számlálja a névtelen sorokat, és ha csak a beszúrt sor vehető el, azonnal eldobja —

@@ -12984,6 +12984,34 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta) · `npm run verify:app-findings-r154` (I: i4 az IDŐ 20 000 soros táron, i5 az ellenpár — a verdikt nem változott, i6 a SZÁMLÁLÓ helyessége vegyes sorozat után).',
   }),
 
+
+  Object.freeze({
+    id: 'KUKA-307',
+    date: '2026-10-06',
+    title: 'A VISSZATÖLTÉS CÉLJÁT SZÖVEG-ÖSSZEFŰZÉSSEL TETTÜK EGY `DROP DATABASE` UTASÍTÁSBA',
+    what: 'A `proof:pg-durability` a `VS_RESTORE_TEST_DB` környezeti értéket KÖZVETLENÜL illesztette be a `DROP DATABASE IF EXISTS ${...}` és `CREATE DATABASE ${...}` utasításokba, a GAZDA adatbázison futtatva — ellenőrzés és idézőjelezés nélkül. MÉRVE (saját, R154): az értéket kapcsolati CÍMMEL adtam meg (kézenfekvő tévedés, hiszen a `DATABASE_URL` is cím), és a lánc a `3b` lépésen `ERROR: syntax error at or near ":"` üzenettel bukott el. A „cél nem azonos a forrással" kapu ezt ÁTENGEDTE, mert a cím nem egyezett a forrás adatbázis-nevével.',
+    why_wrong: 'KÉT hiba egy helyen. (1) Szöveg-összefűzéssel épített SQL, aminek a másik végén `DROP DATABASE` áll: egy elgépelt vagy pontosvesszőt tartalmazó érték a gazda adatbázison futó utasítássá válik. Ilyen minta nem létezhet, akkor sem, ha az érték a saját környezetünkből jön. (2) A hiba NYERS SQL-üzenet volt, nem nevezett elutasítás — és a mentés-visszatöltés GYAKORLÁSA kiadási függő: ha az operátor egy érthetetlen SQL-hibán elakad, a gyakorlás NEM TÖRTÉNIK MEG (KUKA-291 · KUKA-215).',
+    replaced_by: 'A név ALAKJA mérve (zárt minta: betű/alulvonás kezdet, legfeljebb 63 karakter), és az elutasítás KIMONDJA, mi a helyes alak — „ADATBÁZIS-NEVET kér, nem kapcsolati címet", példával. A hiányzó érték üzenete is megmondja az alakot, nem csak azt, hogy kell.',
+    replacement: 'A beillesztés IDÉZŐJELEZVE is van (`qid`, a belső idézőjel duplázódik) — mert ahol a következmény `DROP DATABASE`, ott egy őr nem elég. A javítás után a lánc a helyes névvel VÉGIG ZÖLD: 7 mért lépés, a mentés vissza is olvasható.',
+    decision: 'D-VS-3117',
+    found_by: 'SAJÁT LELET (Claude-v3, R154) — a PostgreSQL-láncok futtatásakor elkülönített helyi PostgreSQL 16.15-en; a hibát a saját elgépelésem hozta elő, és a NYERS SQL-üzenet mutatta meg, hogy itt nincs se ellenőrzés, se idézőjelezés.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_pg_durability_proof.mjs']),
+        pattern: 'const DB_NAME = ',
+        why: 'a cél neve zárt mintán mérve — a kapcsolati cím nevezetten elakad' }),
+      Object.freeze({ paths: Object.freeze(['tools/v3_pg_durability_proof.mjs']),
+        pattern: 'const qid = ',
+        why: 'az azonosító idézőjelezve kerül az utasításba — ahol DROP DATABASE a vég, egy őr nem elég' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_pg_durability_proof.mjs']),
+        pattern: 'DROP DATABASE IF EXISTS \\$\\{restoreTarget\\}',
+        why: 'a nyers, idézőjelezés nélküli beillesztés' }),
+    ]),
+    lesson: 'AMI EGY `DROP`/`CREATE` UTASÍTÁSBA KERÜL, AZ SOHA NE SZÖVEG-ÖSSZEFŰZÉSBŐL JÖJJÖN — még akkor sem, ha „csak" a saját környezeti változónk, és még akkor sem, ha fejlesztői eszköz. És egy KONFIGURÁCIÓS érték alakját ugyanúgy meg kell mérni, mint egy HTTP-bemenetét: ha rossz alakot kap, a válasz NEVEZETT elutasítás legyen, ami megmondja a helyes alakot — nem a mögötte lévő rendszer nyers hibája. Egy gyakorló eszköz, ami érthetetlen hibán elakad, nem gyakorlás.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív + egy tiltó minta) · `npm run proof:pg-durability` (valódi PostgreSQL kell hozzá; a rossz alakra 2-es kilépés nevezett üzenettel, a helyesre 7 mért lépés zölden).',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({
