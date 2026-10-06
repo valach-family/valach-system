@@ -27,7 +27,7 @@
 // Kilépési kód: 0 = minden állítás PASS · 1 = MÉRT hibát talált · 2 = a mérés elakadt.
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { rmSync } from 'node:fs';
+import { rmSync, readFileSync } from 'node:fs';
 import { startServer, makeRateLimiter, makeSessionStore, sessionLimits, SESSION_LIMITS } from './server.mjs';
 import { dictFor } from './public/i18n/dict.mjs';
 import { resolveLanguage, parseAcceptLanguage, pickFromAcceptLanguage } from './public/i18n/languages.mjs';
@@ -114,13 +114,18 @@ part('C/1) F154-03 — a munkamenet-tár plafonja és tétlensége a feloldón')
 {
   const st = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 100, warn: () => {} });
   for (let i = 0; i < 500; i++) st.set('a' + i, { id: 'a' + i, subject_id: null }, 1_000_000 + i);
+  void 0;
   step('(c1) 500 névtelen sor 100-as plafonon NEM nő 500-ra (régen: korlátlan)',
     st.size <= 100, { size: st.size, plafon: 100 });
 
+  // AZ IDŐT MINDENHOL KIMONDJUK. A tár az F154-07 óta IDŐ-TUDATOS (`get`/`has` lejáratot mér), tehát
+  // szimulált bélyegek mellett a valódi `Date.now()` MINDENT lejártnak látna — a próba így jó vagy
+  // rossz okból lenne zöld, de nem azt mérné, amit állít (KUKA-127).
+  const T2 = 2_000_100;
   const st2 = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 10, warn: () => {} });
   for (let i = 0; i < 9; i++) st2.set('u' + i, { id: 'u' + i, subject_id: 'S' + i }, 1_000_000 + i);
   for (let i = 0; i < 40; i++) st2.set('n' + i, { id: 'n' + i, subject_id: null }, 2_000_000 + i);
-  const belepett = [...Array(9).keys()].filter((i) => st2.has('u' + i)).length;
+  const belepett = [...Array(9).keys()].filter((i) => st2.has('u' + i, T2)).length;
   step('(c2) a NÉVTELENEK esnek ki ELŐBB — a 9 belépett mind megmaradt (KUKA-202)',
     belepett === 9, { belepett_megmaradt: belepett, size: st2.size, stat: st2.stats() });
 
@@ -128,14 +133,16 @@ part('C/1) F154-03 — a munkamenet-tár plafonja és tétlensége a feloldón')
   st3.set('reg', { id: 'reg', subject_id: null }, 1_000_000);
   st3.sweep(1_002_000);
   step('(c3) a TÉTLENSÉGI idő is kiszorít — a munkamenet-süti nem örök érvényű',
-    st3.has('reg') === false, { stat: st3.stats() });
+    st3.has('reg', 1_002_000) === false, { stat: st3.stats() });
 
+  // AZ ÉRINTÉS A LEJÁRAT ELŐTT TÖRTÉNIK — különben nem az aktív munkamenetet mérnénk, hanem az
+  // F154-07 FELÉLESZTÉSÉT (azt az e2 méri, és ott a helyes válasz az, hogy NEM éled fel).
   const st4 = makeSessionStore({ idleMs: 1000, maxSessions: 10 ** 6, warn: () => {} });
   st4.set('elo', { id: 'elo', subject_id: null }, 1_000_000);
-  st4.touch('elo', 1_001_800);
-  st4.sweep(1_002_000);
+  st4.touch('elo', 1_000_800);                      // a korláton BELÜL
+  st4.sweep(1_001_500);                             // 1_001_500 − 1_000_800 = 700 < 1000
   step('(c4) ELLENPÁR: az ÉRINTETT (aktív) munkamenet NEM esik ki',
-    st4.has('elo') === true, 'az „utoljára látva" bélyeg hat');
+    st4.has('elo', 1_001_500) === true, 'az „utoljára látva" bélyeg hat');
 
   let naplo = null;
   const st5 = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 4, warn: (m) => { naplo = m; } });
@@ -203,6 +210,96 @@ part('D) F154-05 · F154-06 — a kért nyelv tényét nem hardkódoljuk, és a 
   step('(d9) üres fejléc → alapnyelv, és NEM állítja, hogy találat volt',
     pickFromAcceptLanguage('').code === 'hu' && pickFromAcceptLanguage('').matched === false,
     pickFromAcceptLanguage(''));
+}
+
+// ── E) A KÜLSŐ REVIEW (Codex, R154) HÁROM LELETE A SAJÁT JAVÍTÁSOMBAN ──────────────────────────
+part('E) F154-07 · F154-08 · F154-09 — a külső review leletei, reprodukálva és javítva');
+{
+  // (e1) F154-07 — A LEJÁRT SORT AZ OLVASÁS FELÉLESZTETTE. MÉRVE a régi alakon: `get` VISSZAADTA a
+  // 5 s-ig tétlen sort 1 s-os korlát mellett, és a `touch` után a söprés MEGHAGYTA.
+  const st = makeSessionStore({ idleMs: 1000, maxSessions: 10 ** 6, warn: () => {} });
+  st.set('s', { id: 's', subject_id: 'SUB' }, 1_000_000);
+  const kesobb = 1_005_000;
+  step('(e1) a LEJÁRT munkamenetet a `get` NEM adja vissza (régen MÉRVE: visszaadta)',
+    st.get('s', kesobb) === undefined, { lejart_ido_ms: 5000, korlat_ms: 1000 });
+
+  const st2 = makeSessionStore({ idleMs: 1000, maxSessions: 10 ** 6, warn: () => {} });
+  st2.set('s', { id: 's', subject_id: 'SUB' }, 1_000_000);
+  st2.touch('s', kesobb);           // a kérés-ciklus ezt teszi
+  st2.sweep(kesobb);
+  step('(e2) és a `touch` sem ÉLESZTI FEL (régen MÉRVE: feléledt, a korlát hatástalan volt)',
+    st2.has('s', kesobb) === false, 'az ellopott süti nem újítható meg korlátlanul');
+
+  // (e3) ELLENPÁR: a korlát ALATT tétlen sor MEGMARAD, és a `touch` MEGHOSSZABBÍTJA — különben a
+  // „javítás" mindenkit kiléptetne (KUKA-130).
+  const st3 = makeSessionStore({ idleMs: 10_000, maxSessions: 10 ** 6, warn: () => {} });
+  st3.set('s', { id: 's', subject_id: 'SUB' }, 1_000_000);
+  const elo = st3.get('s', 1_005_000) !== undefined;
+  st3.touch('s', 1_009_000);
+  const meg = st3.get('s', 1_015_000) !== undefined;   // 1_009_000 + 10_000 > 1_015_000
+  step('(e3) ELLENPÁR: a korlát ALATT a sor MEGMARAD, és az érintés MEGHOSSZABBÍTJA',
+    elo === true && meg === true, { korlat_alatt: elo, erintes_utan: meg });
+
+  // (e4) F154-09 — A FRISSEN BESZÚRT SOR A SAJÁT BESZÚRÁSÁTÓL ESETT KI. MÉRVE a régi alakon: 37
+  // belépett + 3 névtelen 40-es plafonon, és az ÚJ sor beszúrása MAGÁT is elvitte.
+  const T = 1_200_000;
+  const st4 = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 40, warn: () => {} });
+  for (let i = 0; i < 37; i++) st4.set('u' + i, { id: 'u' + i, subject_id: 'S' + i }, 1_000_000 + i);
+  for (let i = 0; i < 3; i++) st4.set('a' + i, { id: 'a' + i, subject_id: null }, 1_100_000 + i);
+  st4.set('UJ', { id: 'UJ', subject_id: null }, T);
+  step('(e4) a FRISSEN beszúrt munkamenet MEGMARAD a plafon-söprésben (régen MÉRVE: kiesett)',
+    st4.has('UJ', T) === true, { size: st4.size, stat: st4.stats() });
+
+  // (e5) A GYÖKÉR-OK IS JAVÍTVA: a belépés munkamenete BELÉPETTEN születik, nem utólag kap alanyt —
+  // különben a beszúrás pillanatában még névtelennek számít, és a söprés szemétnek veszi.
+  const srvSrc = readFileSync(join(ROOT, 'v3app/server.mjs'), 'utf8');
+  step('(e5) a belépés munkamenete BELÉPETTEN születik (`newSession(r.subject_id)`)',
+    /newSession\(r\.subject_id\)/.test(srvSrc) && !/fresh\.subject_id = r\.subject_id/.test(srvSrc),
+    'a beszúrás pillanatában már belépett — nem utólag kap alanyt');
+
+  // (e6) F154-08 — A SZERVER-OLDALI FOLYTATÁST HORDOZÓ NÉVTELEN SOR VÉDETT. A tényt a KANONIKUS
+  // otthona mondja meg, ezért a próba is ONNAN adja (nem bélyegből).
+  const vedett = new Set(['meghivott']);
+  const st5 = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 10, warn: () => {}, protectedIds: () => vedett });
+  st5.set('meghivott', { id: 'meghivott', subject_id: null }, 1_000_000);
+  for (let i = 0; i < 40; i++) st5.set('f' + i, { id: 'f' + i, subject_id: null }, 1_100_000 + i);
+  step('(e6) a FOLYTATÁST hordozó névtelen munkamenet TÚLÉLI a névtelen elárasztást',
+    st5.has('meghivott', 1_200_000) === true, { size: st5.size, stat: st5.stats() });
+
+  // (e7) ELLENPÁR: a folytatást NEM hordozó névtelen sor továbbra is ELŐBB esik ki — a védelem nem
+  // tette korlátlanná a tárat.
+  step('(e7) ELLENPÁR: a folytatást NEM hordozó névtelen sorok ESNEK ki (a tár korlátos maradt)',
+    st5.size <= 10 && st5.stats().evicted_cap_anonymous > 0, st5.stats());
+
+  // (e8) ÉS A BIZONYTALANSÁG NEM NÉMA: ha a védett lista NEM megállapítható (a tároló nem válaszol),
+  // a kiszorítás lefut (a memória-korlát áll), de a naplóban KIMONDVA (KUKA-049).
+  let naplo = '';
+  const st6 = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 4,
+    warn: (m) => { naplo += m + '\n'; },
+    protectedIds: () => { throw new Error('a tároló nem válaszol'); } });
+  for (let i = 0; i < 12; i++) st6.set('x' + i, { id: 'x' + i, subject_id: null }, 1_000_000 + i);
+  step('(e8) a NEM megállapítható védett lista NAPLÓBAN nevezett — nem néma',
+    /NEM tudta megállapítani/.test(naplo) && st6.size <= 4,
+    { size: st6.size, naplo: naplo.slice(0, 90) });
+
+  // (e9) A VÉDETTSÉG NEM MENTESSÉG — ÉS EZ BIZTONSÁGI ÁLLÍTÁS. A védett listát a `pending_intent`
+  // adja, abba viszont a `POST /api/invites/pending` HITELESÍTÉS NÉLKÜL ír: ha a védettség kivonna
+  // a plafon alól, egy elárasztó MINDEN sorát védetté tehetné, és a memória-korlát megkerülhető
+  // lenne — a védelem nyitná a kaput (KUKA-092). Ezért: minden sor védett ⇒ a plafon MÉGIS áll.
+  const mind = new Set([...Array(12).keys()].map((i) => 'p' + i));
+  const st7 = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 4, warn: () => {}, protectedIds: () => mind });
+  for (let i = 0; i < 12; i++) st7.set('p' + i, { id: 'p' + i, subject_id: null }, 1_000_000 + i);
+  step('(e9) ha MINDEN sor „védett", a plafon MÉGIS áll — a védettség nem plafon-megkerülés',
+    st7.size <= 4, { size: st7.size, plafon: 4, stat: st7.stats() });
+
+  // (e10) ELLENPÁR a c2 leletére: a BELÉPETTEKBŐL csak a plafonig veszünk el, nem az alsó vízszintig.
+  // 9 belépett + névtelen elárasztás 10-es plafonon: a 9 ember MIND megmarad.
+  const st8 = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 10, warn: () => {} });
+  for (let i = 0; i < 9; i++) st8.set('u' + i, { id: 'u' + i, subject_id: 'S' + i }, 1_000_000 + i);
+  for (let i = 0; i < 40; i++) st8.set('n' + i, { id: 'n' + i, subject_id: null }, 2_000_000 + i);
+  step('(e10) a BELÉPETTEKBŐL csak a plafonig veszünk el — a hisztérézis nem léptet ki embert',
+    [...Array(9).keys()].every((i) => st8.has('u' + i, 2_000_100)),
+    { belepett_megmaradt: [...Array(9).keys()].filter((i) => st8.has('u' + i, 2_000_100)).length, stat: st8.stats() });
 }
 
 // ── B + C/2) A HATÁRON, ÉLŐ HTTP-N ─────────────────────────────────────────────────────────────

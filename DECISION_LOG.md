@@ -93,6 +93,67 @@ de a mező pont erre a kérdésre való, és a következő fogyasztó némán ka
 
 ---
 
+## D-VS-3106 — AZ OLVASÁS IS KAPU: A LEJÁRT MUNKAMENET NEM ADHATÓ VISSZA (R154, SES-01 javítása)
+
+**A döntés.** A munkamenet-tár `get`-je (és rajta keresztül a `has` és a `touch`) lejáratot MÉR: a
+lejárt sort nem adja vissza, és el is dobja. Tudatosan mellékhatásos olvasó — a tár lejárattal bíró
+tár, nem `Map`.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére: a `get` lejárat nélkül adta vissza a sort, a
+kérés-ciklus rögtön `touch`-olta, és a tétlenségi söprés csak ÚJ sor beszúrásakor futott. Mérve (1 s
+korlát, 5 s tétlenség): a `get` visszaadta, a `touch` után a sor megmaradt. Egy csendes példányon a
+korlát SOHA nem lépett működésbe, egy ellopott süti pedig korlátlanul megújítható volt — pont az az
+eset, amiért a D-VS-3102 a korlátot bevezette.
+
+**Amit ez NEM állít.** A korlát ALATT semmi nem változott: a sor megmarad, és az érintés
+meghosszabbítja (ellenpár mérve). Gépi jel: `npm run verify:app-findings-r154` (E: e1–e3) ·
+`npm run verify:kuka` (KUKA-296).
+
+---
+
+## D-VS-3107 — A FOLYTATÁST HORDOZÓ NÉVTELEN MUNKAMENET KÜLÖN OSZTÁLY — DE NEM MENTESÜL (R154)
+
+**A döntés.** A kiszorítás HÁROM osztályt ismer: (0) folytatást nem hordozó névtelen · (1) folytatást
+hordozó névtelen · (2) belépett — ebben a sorrendben. A tényt a kanonikus otthona adja
+(`SELECT session_id FROM pending_intent`), nem egy kézzel tett bélyeg. **A védettség SORRENDET ad,
+mentességet NEM:** a plafon minden osztályra áll.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére: a belépés előtti meghívó-szándék a munkamenet
+azonosítójához kötött, és a kiszorítás minden névtelen sort szemétnek vett. Mérve élő HTTP-n: 300
+névtelen kérés után a meghívott munkamenete kiesett, a böngésző új azonosítót kapott, a DB-sor pedig
+elérhetetlenül ott maradt.
+
+**Miért nem mentesség.** A `POST /api/invites/pending` HITELESÍTÉS NÉLKÜL ír a `pending_intent`
+táblába. Ha a védettség kivonna a plafon alól, egy elárasztó minden saját sorát védetté tehetné, és a
+memória-korlát megkerülhető lenne — a védelem nyitná a kaput. Ezt a BIZTONSÁGI ellenpár méri (e9):
+minden sor „védett" mellett a plafon mégis áll.
+
+**Amit ez NEM állít.** Az árva `pending_intent` sorok takarítása (lejárat szerint) továbbra is nyitott
+kérdés — a tábla ma csak `created_at`-ot tárol, és a `resumeIntent` nem ellenőriz lejáratot
+(D-VS-3007 nevezett függője). Ez a döntés annyit ér el, hogy ÚJ árva sort a kiszorítás nem gyárt.
+Gépi jel: `npm run verify:app-findings-r154` (E: e6–e9) · `npm run verify:kuka` (KUKA-297).
+
+---
+
+## D-VS-3108 — A BESZÚRT SOR SÉRTHETETLEN, ÉS A BELÉPÉS MUNKAMENETE BELÉPETTEN SZÜLETIK (R154)
+
+**A döntés.** A plafon-söprés a beszúrt sort soha nem veszi el (`keep`), a `newSession(subjectId)`
+pedig a BESZÚRÁS pillanatában állítja be az alanyt. A hisztérézis osztályonként más: a névtelenekből
+az alsó vízszintig söprünk, a belépettekből csak a plafonig.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére: 37 belépett + 3 névtelen 40-es plafonon, és az ÚJ sor
+beszúrása négy névtelent vitt el, köztük MAGÁT. A `newSession()` így olyan objektumot adott vissza,
+ami nincs a tárban — a belépés 200-at és sütit adott, a következő kérés viszont kiléptetett: siker-
+jelentés hatás nélkül (KUKA-120). A belépés ráadásul az alanyt utólag tette rá, tehát a beszúrás
+pillanatában még névtelennek számított.
+
+**Amit ez NEM állít.** Az osztályonkénti hisztérézis nem mért optimum (a 90%-os alsó vízszint
+kimondott alapérték); annyit garantál, hogy egy lassú névtelen elárasztás nem léptet ki embert
+pusztán a hisztérézis kedvéért. Gépi jel: `npm run verify:app-findings-r154` (E: e4, e5, e10) ·
+`npm run verify:kuka` (KUKA-298).
+
+---
+
 ## D-VS-3105 — A `q=0` KIZÁRÁS, NEM LEGHÁTSÓ PREFERENCIA (R154, RFC 7231 §5.3.1)
 
 **A döntés.** Az `Accept-Language` súly-szűrője a `q=0`-s címkét KIZÁRJA. Ha minden címke kiesik, a
