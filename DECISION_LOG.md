@@ -74,6 +74,41 @@ felülírás NEM kényelmi kapcsoló: egy 20 000-es plafont élő HTTP-n máské
 
 ---
 
+## D-VS-3104 — A TALÁLAT TÉNYE A FELOLDÓBÓL JÖN, MINDEN BEMENETI ÚTON (R154, LNG-03)
+
+**A döntés.** Az `Accept-Language` fejléc választását és a TALÁLAT TÉNYÉT egy feloldó adja
+(`pickFromAcceptLanguage` → `{ code, matched }`); a `resolveLanguage` ezt HASZNÁLJA, nem pótolja. A
+`parseAcceptLanguage` szerződése szándékosan változatlan (a kódot adja, szövegként).
+
+**Miért.** A `matched` mező egyetlen dolga megmondani, hogy a hívó a KÉRT nyelvet kapta-e, és a
+fejléc-úton HARDKÓDOLT `true` volt. MÉRVE: `Accept-Language: fr-FR` → `code: hu, matched: true`,
+miközben UGYANEZ a kérés `explicit: 'fr'`-ként helyesen `matched: false`. Egy kérdés két úton két
+választ adott. Az ok egy szinttel lejjebb volt: az alapnyelv visszatérése kétértelmű — ugyanaz a
+„magyart kért és magyart kapott" és a „franciát kért, nincs francia, ezért magyar".
+
+**Amit ez NEM állít.** Nem fordítás-minőségi állítás, és a nyelvjegyzék nem változott. A hiba
+felhasználói hatása MA nulla, mert a `matched`-et továbbadó `langMemory.mjs`-re ma nincs fogyasztó —
+de a mező pont erre a kérdésre való, és a következő fogyasztó némán kapott volna hamisat. Gépi jel:
+`npm run verify:app-findings-r154` (D: d1–d4, d8) · `npm run verify:kuka` (KUKA-294).
+
+---
+
+## D-VS-3105 — A `q=0` KIZÁRÁS, NEM LEGHÁTSÓ PREFERENCIA (R154, RFC 7231 §5.3.1)
+
+**A döntés.** Az `Accept-Language` súly-szűrője a `q=0`-s címkét KIZÁRJA. Ha minden címke kiesik, a
+válasz az alapnyelv, `matched: false`-szal.
+
+**Miért.** A régi alak a `q=0`-t a legkisebb előnyben részesítésnek vette. MÉRVE: `de;q=0` → `de`,
+`en;q=0` → `en` — aki kifejezetten kizárta a nyelvet, pont azt kapta. A fájl fejléce közben
+szabványokra hivatkozik (RFC 5646 · W3C), a súly-szemantikát viszont nem mérte senki.
+
+**Amit ez NEM állít.** A súlyozás működése nem változott: `de;q=0, en;q=0.5` továbbra is `en`, és
+`hu;q=0, en;q=0.1` is `en` — a kizárás nem söpri el a többi címkét (ezt az ellenpár méri). A
+`q=abc` és a tartományon kívüli `q=5` továbbra is megengedő olvasás; ez kimondott, nem mért optimum.
+Gépi jel: `npm run verify:app-findings-r154` (D: d5–d7) · `npm run verify:kuka` (KUKA-295).
+
+---
+
 ## D-VS-3103 — A VISSZAVÉTEL-PRÓBA VERDIKTJE IS MÉRCE: AZ ELAKADÁS NEM FAIL (R154)
 
 **A döntés.** Egy lelet-battéria minden állítása olyan tulajdonságon áll, ami a javítás NÉLKÜL is

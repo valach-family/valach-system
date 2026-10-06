@@ -31,6 +31,28 @@ Vagyis: **a teljes söprés zöldje a lenti három leletről SEMMIT nem mondott.
 | 8 | Bemeneti séma a határon (HTP-01) | `validateRequest` kapu-szerepe állapotváltoztató végponton; a kezelő feloldása saját kulcson (`hasOwnProperty`) | **nincs lelet** ebben a körben | kód-olvasás; a meglévő `verify:app-selfcheck` és a 38-as söprés | — | a séma-motor TARTALMI auditja (mezőnként) még nem történt meg |
 | 9 | Egyszeri hatás (OON-01) | `onceOnly*` feloldók: azonosság · hatókör · verseny; a zárt művelet-készlet | **nincs lelet** — a verseny nevezett kimenet, a tároló-jel egy helyen áll (`isUniqueViolation`) | kód-olvasás | — | a készlet MA egyetlen műveletet fed (`member.reinvite`) — lásd a 2. szakasz |
 
+| 10 | Munkaterek közötti elválasztás · nézet-kötés (KTX-01 · KTX-02 · KTX-03) | `contextGate` / `readContextGate` kód-olvasás; a séma kötelezőség-mezői; a felület MINDEN író hívása (`apiInContext` vs `api`) végigkövetve, a cégtér-létrehozás külön | **nincs lelet** — a felület a MEGNYITÁSKORI bélyeggel köt (PNL-01), a cégtér-létrehozás is viszi az alanyt, és a válasz MINDIG kimondja a tényleges kontextust | kód-olvasás + a `v3app/public/app.js` író útjainak felsorolása | — | **megfigyelés** (nem hiba): a `contextGate` kiszámolja a `confirmed: { book, subject }` értéket, de azt SEMMI nem használja — holt érték |
+| 11 | Nyelvi feloldó · `Accept-Language` (LANG-01) | `resolveLanguage` és `parseAcceptLanguage` KÖZVETLEN mérése hat fejléccel és három kifejezett választással | **F154-05 — VALÓS**: a `matched` a fejléc-úton HARDKÓDOLT `true`; `fr-FR` → `hu`, és a válasz azt állította, hogy a kért nyelvet adta (ugyanez `explicit: 'fr'`-ként helyesen `false`) | `verify:app-findings-r154` D: d1–d4, d8; visszavétel-próba: 3 FAIL | *(e csomag 4. commitja)* | felhasználói hatás MA nulla: a `matched`-nek nincs fogyasztója — a mező mégis erre a kérdésre való |
+| 12 | Nyelvi feloldó · súly-szemantika | ugyanaz a mérés, `q=0` · `q=abc` · `q=5` · `q=1.2.3` fejlécekkel | **F154-06 — VALÓS**: a `q=0` elfogadásként számított — `de;q=0` → `de`, `en;q=0` → `en` (RFC 7231 §5.3.1 szerint a 0 súly = NEM elfogadható) | `verify:app-findings-r154` D: d5–d7; visszavétel-próba: 2 FAIL | *(e csomag 4. commitja)* | a `q=abc` → `q=1` és a tartományon kívüli `q=5` továbbra is megengedő olvasás — kimondott, nem mért optimum |
+| 13 | Jogosultsági döntések a magban (részleges) | `v3ref/authz.mjs`: `membershipEffectiveAt` · `evidenceStandingAt` · a zárt szerep-regiszter — kód-olvasás | **nincs lelet** — a három tengely (kor · hatály · megvonás) külön áll, a jövőbeli dátum nem frissesség, az ismeretlen mező nevezetten elakad | a mutációs battéria: **237/237 mutáció elkapva, 0 túlélő** (`verify:v3ref`) | — | `delegation.mjs` · `membershipPeriod.mjs` · `banScope.mjs` MÉG NEM olvasva soronként |
+
+### A MÉRŐESZKÖZ, amivel a leleteket keresem — és a HATÓKÖRE
+
+A három első lelet mindegyike olyan feloldóban volt, amit **egyetlen próba sem hívott meg
+közvetlenül**. Ezért ezt MEGMÉRTEM: a `v3app` exportált feloldói közül **117** olyan van, amelynek a
+nevét egyetlen próba-fájl (`tests/` · `findings_r*` · `tools/vs_verify*` · `selfcheck`) sem említi.
+
+**Amit ez a szám JELENT:** ennyi feloldót a próba nem tud KÖZVETLENÜL meghívni, tehát a viselkedésüket
+bizalomból hisszük (KUKA-207). **Amit NEM jelent:** nem azt, hogy tesztelve sincsenek — sok közülük
+ÉLŐ HTTP-n keresztül mérve van, csak nem a nevén. A szám tehát **prioritási sor**, nem hibaszám
+(KUKA-216: a verdikt ne mutasson a mérés hatókörén túl). Az F154-05 és az F154-06 ebből a sorból jött.
+
+### Egyéb megfigyelés, ami nem hiba, de rögzítendő
+
+A repó **nyilvános** (`visibility: public`, mérve a GitHub API-ból). Ezért a CLAUDE.md szabálya, hogy
+üzleti adat (törzs, árak, bolti válaszok) nem kerül a repóba, nem rendszeretet, hanem **kemény
+biztonsági határ**. Ebben a csomagban üzleti adat nem került be.
+
 ---
 
 ## 2. MÉG NEM VIZSGÁLT TERÜLETEK (a SPEC listája szerint) — KIMONDOTT HIÁNY
@@ -71,4 +93,12 @@ felhős deployt, secret-módosítást és adatváltoztatást nem végzünk.
 - Söprés a javítások után: `npm run verify:sweep -- --skip verify:external-checks,verify:v3ref` →
   **38 verifier, 37 zöld, 1 piros** (`verify:lefedes`, ugyanaz a 20 ÖRÖKÖLT hiány — új nem keletkezett).
   A két kihagyott lánc a söprés szabálya szerint **„NEM FUTOTT — NEM IGAZOLT"**, tehát az
-  **összverdikt NEM ZÖLD**; a két láncot külön futtatom, az eredményük a záró REPORT-ban áll.
+  **összverdikt NEM ZÖLD**; ezért külön futtattam őket:
+  - `npm run verify:v3ref` → **LEFUTOTT, `clean: true`**, `run_state: complete`, 40 egység,
+    **237 mért / 237 elkapott mutáció / 0 túlélő**, 375 s. A bizonyíték-fájl commitolva
+    (`v3ref/v3ref-mutation-result.json`, `base_digest: sha256:925dcd8e…`).
+  - `npm run verify:external-checks` → **futása folyamatban**, az eredménye a záró REPORT-ba kerül.
+    Amíg nem végzett, a bizonyíték-fájljait NEM commitolom: egy félbe-ért futás állapota nem
+    bizonyíték (KUKA-206).
+- A lelet-battéria a csomag végén: `npm run verify:app-findings-r154` → **31/31 PASS**, és mind az
+  **öt** javításra lefutott a visszavétel-próba (KUKA-092): a javítás kivételével a battéria PIROS.

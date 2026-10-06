@@ -12668,6 +12668,58 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív + egy tiltó minta a battéria fájlján) · maga a `npm run verify:app-findings-r154` (c8/c10), aminek a visszavétel-próbáját ez a bejegyzés írja le; a visszavétel-próba MAGA nem automatizált — ezt kimondjuk.',
   }),
 
+
+  Object.freeze({
+    id: 'KUKA-294',
+    date: '2026-10-06',
+    title: 'A NYUGTA HARDKÓDOLT IGAZ VOLT A TARTALÉK-ÚTON — ugyanarra a kérdésre két válasz',
+    what: 'A `resolveLanguage` a `matched` mezőt (azt, hogy a KÉRT nyelvet kapta-e a hívó) a kifejezett és a tárolt választás útján KISZÁMOLTA, az `Accept-Language` fejléc útján viszont HARDKÓDOLT `true`-ra tette. MÉRVE: `Accept-Language: fr-FR` → `code: hu, matched: true` — vagyis a válasz azt állította, hogy a felhasználó a kért nyelvet kapta, holott franciát kért és magyart kapott. UGYANEZ a kérés `explicit: "fr"`-ként helyesen `matched: false`-t adott. Az ok egy szinttel lejjebb volt: a `parseAcceptLanguage` CSAK a kódot adta vissza, és az alapnyelv kétértelmű — ugyanazt kapja a „magyart kért és magyart kapott" és a „franciát kért, nincs francia, ezért magyar".',
+    why_wrong: 'A `matched` mező EGYETLEN dolga, hogy erről a kérdésről igazat mondjon, és a tartalék-úton épp arról hallgatott, amiért létezik — pontosan a KUKA-238 alakja, csak a feloldó MÁSIK ágán. Egy fogyasztó (`langMemory.mjs` továbbadja) nem tudta volna megkülönböztetni a valódi magyar választást a néma visszaeséstől, tehát a „nincs meg a nyelved" mondat SOHA nem jelent volna meg a fejléc-úton. És ugyanaz a kérdés két úton két választ adott, ami önmagában azt jelenti, hogy nem két dolog (KUKA-003).',
+    replaced_by: 'A választást és a TALÁLAT TÉNYÉT egy feloldó adja: `pickFromAcceptLanguage` → `{ code, matched }`, ahol `matched` akkor igaz, ha a fejléc EGYIK címkéje tényleg erre a nyelvre mutatott. A `resolveLanguage` ezt HASZNÁLJA, nem pótolja.',
+    replacement: 'A `parseAcceptLanguage` szerződése SZÁNDÉKOSAN nem változott (továbbra is a kódot adja, szövegként), hogy a mai hívói érintetlenek maradjanak — a bővebb alak új néven áll. A próba ezt külön méri (d8), mert egy javítás, ami a hívóit törné el, a következő lelet lenne (KUKA-130).',
+    decision: 'D-VS-3104',
+    found_by: 'SAJÁT LELET (Claude-v3, R154) — nem olvasásból: előbb MEGMÉRTEM, mely v3app-feloldókat nem tud EGYETLEN próba sem közvetlenül meghívni (117 db), és a listát prioritási sorként használtam. Az első célpont a támadó által írt fejléc elemzése volt.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/languages.mjs']),
+        pattern: 'export function pickFromAcceptLanguage',
+        why: 'a választás ÉS a találat ténye EGY feloldóból jön' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/languages.mjs']),
+        pattern: "matched: got\\.matched",
+        why: 'a nyugtát a feloldó adja, nem a hívó hardkódolja' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/languages.mjs']),
+        pattern: "source: 'accept_language', matched: true",
+        why: 'a hardkódolt nyugta a tartalék-úton' }),
+    ]),
+    lesson: 'AMI AZT HIVATOTT MEGMONDANI, HOGY IGAZAT KAPTÁL-E, AZT EGYETLEN ÁGON SEM SZABAD HARDKÓDOLNI. Ha egy feloldónak több bemeneti útja van (kifejezett · tárolt · fejléc · alapérték), akkor a nyugta-mezőt MINDEGYIK úton ugyanaz a szabály adja — különben a legkevésbé figyelt úton lesz hamis. És ha egy visszatérési érték KÉTÉRTELMŰ (az alapnyelv itt jelentett „ezt kérte" és „ezt nem tudtuk" is), akkor nem a hívónál kell kitalálni a különbséget, hanem a feloldónak kell KIMONDANIA.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív + egy tiltó minta) · `npm run verify:app-findings-r154` (D: d1 a leletet, d2 a két út azonosságát, d3/d4 az ellenpárokat — a valódi találat marad találat, és a magyart KÉRŐ fejléc nem mosódik össze a magyarra VISSZAESŐVEL, d8 a régi szerződés épségét).',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-295',
+    date: '2026-10-06',
+    title: 'A HIVATKOZOTT SZABVÁNYT NEM MÉRTÜK MEG — a `q=0` elfogadásként számított',
+    what: 'A `parseAcceptLanguage` a `q=0` súlyt a legkisebb ELŐNYBEN RÉSZESÍTÉSNEK vette, holott az RFC 7231 §5.3.1 szerint a 0 súly azt jelenti: NEM elfogadható. MÉRVE: `Accept-Language: de;q=0` → `de`, és `en;q=0` → `en` — vagyis aki kifejezetten KIZÁRTA a németet, pont németet kapott.',
+    why_wrong: 'A fájl fejléce szabványokra hivatkozik (RFC 5646 nyelvazonosító · W3C írásirány), a súly-szemantikát viszont senki nem mérte meg — egy hivatkozott szabvány, amiből nincs gépi jel, csak IDÉZET (KUKA-050: a szöveg a valóságot kövesse). A hiba a felhasználó szándékának az ELLENKEZŐJÉT hajtotta végre, és némán: a válasz formailag helyes nyelvkódot adott.',
+    replaced_by: 'A súly-szűrő KIZÁRÁST is jelent: `.filter((x) => x.tag && Number.isFinite(x.q) && x.q > 0)`. A `q=0`-s címke nem jelölt, és ha minden címke kiesik, a válasz az alapnyelv — `matched: false`-szal, tehát kimondva, hogy nem a kért nyelv.',
+    replacement: 'A súlyozás MŰKÖDÉSE változatlan: `de;q=0, en;q=0.5` továbbra is `en`, és `hu;q=0, en;q=0.1` is `en` — a kizárás nem söpri el a többi címkét. Ezt az ellenpár külön méri (d7), mert egy túl széles szűrő ugyanúgy hiba volna.',
+    decision: 'D-VS-3105',
+    found_by: 'SAJÁT LELET (Claude-v3, R154) — ugyanabból a prioritási sorból, mint a KUKA-294: a fejléc-elemzőt egyetlen próba sem hívta meg közvetlenül.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/languages.mjs']),
+        pattern: 'Number\\.isFinite\\(x\\.q\\) && x\\.q > 0',
+        why: 'a q=0 KIZÁRÁS, nem leghátsó preferencia (RFC 7231 §5.3.1)' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/languages.mjs']),
+        pattern: 'filter\\(\\(x\\) => x\\.tag && Number\\.isFinite\\(x\\.q\\)\\)',
+        why: 'a kizárást nem ismerő régi szűrő' }),
+    ]),
+    lesson: 'AMIRE A FÁJL SZABVÁNYKÉNT HIVATKOZIK, ABBÓL LEGYEN GÉPI JEL — különben a hivatkozás csak dísz. És egy súly- vagy rangsor-mező olvasásakor mindig kérdezd meg, van-e NULLA vagy NEGATÍV értéknek KÜLÖN jelentése: ha van, az nem a lista vége, hanem kizárás, és a kettő összemosása a felhasználó szándékának az ellenkezőjét hajtja végre.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (egy pozitív + egy tiltó minta) · `npm run verify:app-findings-r154` (D: d5/d6 a két kizárt nyelv, d7 az ellenpár — a súlyozás épsége).',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({
