@@ -203,6 +203,45 @@ ezt adja, a plafon kevés, és a `VS_APP_SESSION_MAX` emelése a válasz. Gépi 
 
 ---
 
+## D-VS-3118 — A KISZOLGÁLÁS IDEJÉRE VÉDETT MUNKAMENET, A KAPU HELYETT (R154, SES-03)
+
+**A döntés.** Amíg egy kérés egy munkamenetet kiszolgál, annak a sora VÉDETT (`sessions.pin(id, token)`),
+és a kérés végén minden pinje elenged (`unpinAll` a `finally` ágon). Az `admitted` mező és a
+`503 at_capacity` ág KIKERÜLT — egy mechanizmus kettő helyett.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) két újabb leletére, amik a D-VS-3115 ÁRAI voltak:
+· **P1:** a felvétel ellenőrzése egyszeri volt, a kérés viszont `await readBody`-n megszakad. Mérve
+`maxSessions=2` mellett: a lassú, darabolt POST **200**-at adott, és ÁRVA `pending_intent` sort hagyott.
+· **P2:** az átfogó `503` a `GET /api/verify`-t is elzárta, ami munkamenetet nem is használ. Mérve
+csupa belépett sorral teli táron: a megerősítő levél hivatkozása **503** — a felhasználó nem tudta
+megerősíteni a fiókját, és a token közben lejárhat.
+
+A tanulság nem „hiányzott egy ellenőrzés", hanem hogy a munkamenet létezését FELTEVÉSKÉNT kezeltem, és
+a feltevést előbb ellenőrzéssel, aztán kapuval akartam pótolni.
+
+**Amit ez NEM állít.** A plafon nem pontos korlát: a tár a plafon fölött lehet annyival, ahány kérés
+ÉPP FUT, és a plafon a KÖVETKEZŐ beszúrásnál érvényesül — tehát egy sorral túl is lóghat, amíg új kérés
+nem jön. Ez korlátos és kimondott tűrés. A pin elengedését külön ellenpár méri. Gépi jel:
+`npm run verify:app-findings-r154` (J: j1–j5, I: i7) · `npm run verify:kuka` (KUKA-308).
+
+---
+
+## D-VS-3119 — A VISSZAVÉTEL-PRÓBA A MECHANIZMUS FORRÁSÁNÁL TÖRTÉNIK (R154)
+
+**A döntés.** A KUKA-092 szerinti visszavétel-próbát a mechanizmus SAJÁT FORRÁSÁNÁL végezzük, nem a
+hatásai egyikénél; ha a mechanizmus több ponton hat, a lista a visszavétel ELŐTT készül el.
+
+**Miért.** A pin bevezetése után a `drop` védelmét vettem ki, és a battéria joggal maradt 76/76 zöld —
+mert a pin a plafon-számításban is hat, és az még megakadályozta a söprést. Ebből azt a HAMIS
+következtetést vontam le, hogy a próbáim nem védenek, és feleslegesen újraírtam egy jó próbát. Amikor a
+pint a `pin()` feloldónál tettem hatástalanná, a battéria azonnal 3 pirosat adott, és a `j2` pontosan
+azt az 1 árva sort mérte, amit kézzel reprodukáltam.
+
+**Amit ez NEM állít.** Ennek a döntésnek NINCS gépi jele: a visszavétel-próba kézi lépés (ahogy a
+KUKA-293 is kimondja), a tanulság helye a munkarend. Gépi jel: nincs — kimondva.
+
+---
+
 ## D-VS-3117 — A KONFIGURÁCIÓS ÉRTÉK ALAKJA IS MÉRT, ÉS AZ AZONOSÍTÓ IDÉZŐJELEZVE MEGY (R154)
 
 **A döntés.** A `proof:pg-durability` megméri a `VS_RESTORE_TEST_DB` alakját (zárt azonosító-minta), és

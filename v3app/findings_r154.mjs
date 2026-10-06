@@ -33,6 +33,7 @@ import { dictFor } from './public/i18n/dict.mjs';
 import { resolveLanguage, parseAcceptLanguage, pickFromAcceptLanguage } from './public/i18n/languages.mjs';
 import { validateAgainstSchema } from '../v3ref/inputSchema.mjs';
 import { validateRequest } from './httpSchema.mjs';
+import { request as httpReq } from 'node:http';
 
 /** A `string` TÍPUS közvetlenül, a mag feloldóján — amit a próba nem tud meghívni, azt hisszük (KUKA-207). */
 const TYPES_STRING_OK = (v) => validateAgainstSchema({
@@ -263,7 +264,9 @@ part('E) F154-07 · F154-08 · F154-09 — a külső review leletei, reprodukál
   // különben a beszúrás pillanatában még névtelennek számít, és a söprés szemétnek veszi.
   const srvSrc = readFileSync(join(ROOT, 'v3app/server.mjs'), 'utf8');
   step('(e5) a belépés munkamenete BELÉPETTEN születik (`newSession(r.subject_id)`)',
-    /newSession\(r\.subject_id\)/.test(srvSrc) && !/fresh\.subject_id = r\.subject_id/.test(srvSrc),
+    // A MINTA A TULAJDONSÁGRA ILLESZKEDIK, NEM AZ ARGUMENTUM-LISTÁRA (KUKA-239): a `pinToken`
+    // hozzáadása nem változtat azon, hogy a munkamenet BELÉPETTEN születik.
+    /newSession\(r\.subject_id\b/.test(srvSrc) && !/fresh\.subject_id = r\.subject_id/.test(srvSrc),
     'a beszúrás pillanatában már belépett — nem utólag kap alanyt');
 
   // (e6) F154-08 — A SZERVER-OLDALI FOLYTATÁST HORDOZÓ NÉVTELEN SOR VÉDETT. A tényt a KANONIKUS
@@ -457,7 +460,7 @@ try {
     const srvSrc2 = readFileSync(join(ROOT, 'v3app/server.mjs'), 'utf8');
     const loginBlock = srvSrc2.slice(srvSrc2.indexOf("'POST /api/login'"), srvSrc2.indexOf("'POST /api/logout'"));
     step('(g5) a belépés ELŐBB törli a saját régi sorát, AZTÁN szúr be (a sorrend a kódban áll)',
-      loginBlock.indexOf('sessions.delete(session.id)') < loginBlock.indexOf('newSession(r.subject_id)')
+      loginBlock.indexOf('sessions.delete(session.id)') < loginBlock.indexOf('newSession(r.subject_id')
       && loginBlock.includes('sessions.delete(session.id)'),
       'a rotáció nem szorít ki idegen munkamenetet');
 
@@ -601,14 +604,135 @@ try {
       }
       const arvak = tele.store.all('SELECT session_id FROM pending_intent')
         .filter((r) => !tele.sessions.has(String(r.session_id))).length;
-      step('(i7) telt táron az ÁLLAPOTÍRÓ kérés NEVEZETTEN elakad, és NEM hagy árva sort (régen: 30 árva)',
-        kodok['503'] === 30 && arvak === 0 && sorokOf() === 0, { kodok, arva_sor: arvak, pending_intent: sorokOf() });
+      // A MÉRT TULAJDONSÁG: telt táron az állapotíró kérés NEM hagy ÁRVA sort. A mechanizmus az
+      // F154-21/F154-22 óta MÁS (a kiszolgálás idejére VÉDETT munkamenet a `503 at_capacity` kapu
+      // helyett), a TULAJDONSÁG viszont ugyanaz — és az számít (KUKA-216: a verdikt a mérthez
+      // szóljon, ne a megvalósításhoz).
+      step('(i7) telt táron az ÁLLAPOTÍRÓ kérés NEM hagy ÁRVA sort (régen MÉRVE: 30 árva)',
+        arvak === 0, { kodok, arva_sor: arvak, pending_intent: sorokOf() });
       const statikus = await fetch(b2 + '/index.html');
       step('(i8) ELLENPÁR: a statikus lap telt táron is kimegy — ahhoz nem kell munkamenet',
         statikus.status === 200, { status: statikus.status });
+
+      // ── F154-22: EGYETLEN VÉGPONT SEM ZÁRÓDIK EL A PLAFON MIATT ─────────────────────────────
+      // A LELET (külső review, Codex, P2): az átfogó `503` a `GET /api/verify`-t is elzárta, ami
+      // munkamenetet NEM is használ (a saját egyszeri tokenje hitelesíti). MÉRVE: csupa belépett
+      // sorral teli táron a megerősítő levél hivatkozása 503-at kapott — a felhasználó nem tudta
+      // megerősíteni a fiókját, és a token közben lejárhat.
+      const ver = await fetch(b2 + '/api/verify?token=nemletezo&lang=hu');
+      const reg = await fetch(b2 + '/api/register', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'teltvolt@pelda.hu', password: PW, lang: 'hu' }) });
+      step('(i9) telt táron a MEGERŐSÍTŐ hivatkozás NEM záródik el (régen MÉRVE: 503 at_capacity)',
+        ver.status !== 503, { status: ver.status });
+      step('(i10) és a REGISZTRÁCIÓ sem — a plafon nem zár el végpontot',
+        reg.status !== 503, { status: reg.status });
+      step('(i11) ELLENPÁR: és közben BELÉPETT munkamenetet sem léptettünk ki',
+        tele.sessions.stats().evicted_cap_signed_in === 0, tele.sessions.stats());
+
+      // ── F154-21: IDŐ-ELLENŐRZÉS / IDŐ-HASZNÁLAT (TOCTOU) A TÖRZS OLVASÁSA KÖZBEN ────────────
+      // A LELET (külső review, Codex, P1): a felvétel ellenőrzése EGYSZERI volt, a kérés viszont
+      // `await readBody`-n megszakad — és közben befutó kérések kiszorították a munkamenetet.
+      // MÉRVE: a lassú, darabolt POST 200-at adott, és ÁRVA sort hagyott.
+      const arvaElotte = tele.store.all('SELECT session_id FROM pending_intent')
+        .filter((r) => !tele.sessions.has(String(r.session_id))).length;
+      const port2 = tele.server.address().port;
+      const lassu = await new Promise((resolve) => {
+        const rq = httpReq({ host: '127.0.0.1', port: port2, path: '/api/invites/pending', method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Transfer-Encoding': 'chunked' } }, (res) => {
+          let b = ''; res.on('data', (c) => { b += c; }); res.on('end', () => resolve({ status: res.statusCode }));
+        });
+        rq.on('error', () => resolve({ status: 0 }));
+        rq.write('{"token":"toctou-');
+        setTimeout(async () => {
+          await fetch(b2 + '/api/me'); await fetch(b2 + '/api/me'); await fetch(b2 + '/api/me');
+          rq.end('proba"}');
+        }, 150);
+      });
+      const arvaUtana = tele.store.all('SELECT session_id FROM pending_intent')
+        .filter((r) => !tele.sessions.has(String(r.session_id))).length;
+      step('(i12) a LASSÚ, darabolt POST sem hagy ÁRVA sort — a munkamenet a kiszolgálás idejére VÉDETT',
+        arvaUtana === arvaElotte, { status: lassu.status, arva_elotte: arvaElotte, arva_utana: arvaUtana });
+
+      /**
+       * ELLENPÁR: A PIN ELENGED. Egy elfelejtett pin csendben elrontaná a plafont — a sor ÖRÖKRE
+       * védett maradna, és a tár kérésenként nőne. Ezt 50 kéréssel mérjük: ha a pin szivárogna, a
+       * tár ~50-re nőne.
+       *
+       * ÉS AMIT A MÉRÉS KIMOND: a plafon a KÖVETKEZŐ beszúrásnál érvényesül, ezért a tár ÁTMENETILEG
+       * egy sorral túllóghat (a most kiszolgált kérés sora, amíg új kérés nem jön). Ez a pin
+       * bekötött következménye, és korlátos — nem „majdnem jó", hanem kimondott tűrés.
+       */
+      for (let i = 0; i < 50; i++) await fetch(b2 + '/api/me');
+      step('(i13) ELLENPÁR: a PIN ELENGED — 50 kérés után a tár a plafon + 1 alatt marad (szivárgó pin esetén ~50 lenne)',
+        tele.sessions.size <= 4 + 1, { size: tele.sessions.size, plafon: 4, tures: '+1 az épp kiszolgált sor' });
     } finally {
       await new Promise((r) => tele.server.close(r));
       if (elozoMax === undefined) delete process.env.VS_APP_SESSION_MAX; else process.env.VS_APP_SESSION_MAX = elozoMax;
+    }
+  }
+
+  // ── J) F154-21 · F154-22 — A KISZOLGÁLÁS IDEJÉRE VÉDETT MUNKAMENET ────────────────────────────
+  //
+  // SAJÁT SERVER, SAJÁT PLAFON. Az első alakom a meglévő (4-es plafonú) szerveren mérte a TOCTOU-t,
+  // és a PIN KIVÉTELÉVEL IS ZÖLD MARADT — mert a 4-es plafon és a négy belépett sor mellett a
+  // párhuzamos kérések nem gyakoroltak elég szorítást. Vagyis a próba JÓ OKBÓL volt zöld, de nem
+  // azt mérte, amit állított (KUKA-293 · KUKA-127). Itt a feltételt KIMONDOTTAN előállítjuk:
+  // plafon = 2, és a tárat KÉT BELÉPETT sor tölti meg.
+  part('J) F154-21 · F154-22 — a kiszolgálás idejére VÉDETT munkamenet (saját plafon: 2)');
+  {
+    const DB3 = resolve(ROOT, 'var/tmp/v3app_r154_j.sqlite');
+    try { rmSync(DB3, { force: true }); rmSync(DB3 + '-wal', { force: true }); rmSync(DB3 + '-shm', { force: true }); } catch { /* nem volt */ }
+    const elozo = process.env.VS_APP_SESSION_MAX;
+    process.env.VS_APP_SESSION_MAX = '2';
+    const kis = await startServer({ port: 0, dbPath: DB3 });
+    try {
+      const b3 = `http://127.0.0.1:${kis.server.address().port}`;
+      for (let i = 0; i < 2; i++) {
+        const c = new Client(b3);
+        await c.post('/api/register', { email: `j${i}@pelda.hu`, password: PW, lang: 'hu' });
+        const m = (await c.get('/dev/mailbox')).body.mails.filter((x) => x.to === `j${i}@pelda.hu`)[0];
+        const l = new URL(m.link);
+        await c.get(l.pathname + l.search);
+        await c.post('/api/login', { email: `j${i}@pelda.hu`, password: PW });
+      }
+      step('(j1) alapsokaság: a tár CSUPA BELÉPETT sorral tele (különben a mérés nem jelent semmit)',
+        kis.sessions.stats().anonymous === 0 && kis.sessions.size >= 2,
+        { size: kis.sessions.size, nevtelen: kis.sessions.stats().anonymous, plafon: 2 });
+
+      const arvaOf = () => kis.store.all('SELECT session_id FROM pending_intent')
+        .filter((r) => !kis.sessions.has(String(r.session_id))).length;
+      const elotte = arvaOf();
+      const port3 = kis.server.address().port;
+      const lassu = await new Promise((resolve2) => {
+        const rq = httpReq({ host: '127.0.0.1', port: port3, path: '/api/invites/pending', method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Transfer-Encoding': 'chunked' } }, (res) => {
+          let b = ''; res.on('data', (c) => { b += c; }); res.on('end', () => resolve2({ status: res.statusCode }));
+        });
+        rq.on('error', () => resolve2({ status: 0 }));
+        rq.write('{"token":"toctou-');
+        setTimeout(async () => {
+          await fetch(b3 + '/api/me'); await fetch(b3 + '/api/me'); await fetch(b3 + '/api/me');
+          rq.end('proba"}');
+        }, 150);
+      });
+      step('(j2) a LASSÚ, darabolt POST NEM hagy ÁRVA sort (régen MÉRVE: 1 árva — a sor kiesett a törzs olvasása közben)',
+        arvaOf() === elotte, { status: lassu.status, arva_elotte: elotte, arva_utana: arvaOf() });
+
+      const ver = await fetch(b3 + '/api/verify?token=nemletezo&lang=hu');
+      step('(j3) telt táron a MEGERŐSÍTŐ hivatkozás NEM záródik el (régen MÉRVE: 503 at_capacity)',
+        ver.status !== 503, { status: ver.status });
+      step('(j4) ELLENPÁR: és közben BELÉPETT munkamenetet sem léptettünk ki',
+        kis.sessions.stats().evicted_cap_signed_in === 0, kis.sessions.stats());
+
+      // ELLENPÁR: A PIN ELENGED. Szivárgó pin esetén a tár kérésenként nőne — 50 kérés után ~50 lenne.
+      // ÉS KIMONDVA: a plafon a KÖVETKEZŐ beszúrásnál érvényesül, ezért egy sorral túllóghat.
+      for (let i = 0; i < 50; i++) await fetch(b3 + '/api/me');
+      step('(j5) ELLENPÁR: a PIN ELENGED — 50 kérés után a tár a plafon + 1 alatt marad (szivárgó pin: ~50)',
+        kis.sessions.size <= 2 + 1, { size: kis.sessions.size, plafon: 2, tures: '+1 az épp kiszolgált sor' });
+    } finally {
+      await new Promise((r) => kis.server.close(r));
+      if (elozo === undefined) delete process.env.VS_APP_SESSION_MAX; else process.env.VS_APP_SESSION_MAX = elozo;
     }
   }
 

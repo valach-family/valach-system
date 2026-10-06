@@ -381,10 +381,31 @@ export function makeSessionStore({
    * a battéria külön méri (i4).
    */
   let anonCount = 0;
+  /**
+   * A KÉRÉST KISZOLGÁLÓ MUNKAMENET A KÉRÉS IDEJÉRE VÉDETT (SES-03, F154-21/F154-22).
+   *
+   * A LELET (külső review, Codex, P1): a felvétel ELLENŐRZÉSE egyszeri volt, a kérés viszont
+   * `await`-el (`readBody`) megszakad — és közben BEFUTÓ kérések kiszorították a munkamenetet. MÉRVE
+   * `maxSessions=2` mellett: egy lassú, darabolt POST 200-at adott, és ÁRVA `pending_intent` sort
+   * hagyott. Ez idő-ellenőrzés / idő-használat (TOCTOU) rés: amit egyszer megnéztünk, az a használat
+   * pillanatára már nem igaz.
+   *
+   * A MEGOLDÁS NEM ÚJABB ELLENŐRZÉS, HANEM A FELTEVÉS IGAZZÁ TÉTELE: amíg egy kérés egy
+   * munkamenetet kiszolgál, az a sor NEM esik ki. A pin a KÉRÉSHEZ tartozik (`token`), és a kérés
+   * végén MINDEN pinje elenged (`unpinAll` a `finally`-ben) — így nem szivároghat.
+   *
+   * AMIT EZ A PLAFONRÓL JELENT, KIMONDVA: a tár a plafon FÖLÖTT lehet annyival, ahány kérés ÉPP
+   * FUT. Az egyidejű kérések száma a folyamat sajátja és kicsi; a memória-korlát így marad értelmes,
+   * a félig kiszolgált kérés viszont nem veszít állapotot.
+   */
+  const pins = new Map();                      // id → a pin-ek tokenjei (Set)
+  const pinnedCount = () => pins.size;
   const drop = (id, cause) => {
+    if (pins.has(id)) return false;            // a KISZOLGÁLÁS ALATT ÁLLÓ sort nem dobjuk el
     const row = map.get(id);
     if (row && !row.subject_id) anonCount -= 1;
     map.delete(id); stats[cause] += 1; droppedNow.push(id);
+    return true;
   };
   const expired = (s, now) => now - (s.last_seen_ms ?? 0) > idleMs;
 
@@ -422,9 +443,12 @@ export function makeSessionStore({
     }
   }
 
+  /** A PLAFON a NEM védett sorokra áll — a kiszolgálás alatt állók átmenetiek. */
+  const overCap = () => (map.size - pinnedCount()) > maxSessions;
+
   function sweep(now = Date.now(), { keep = null } = {}) {
     for (const [id, s] of map) if (id !== keep && expired(s, now)) drop(id, 'evicted_idle');
-    if (map.size <= maxSessions) { announceDropped(); return stats; }
+    if (!overCap()) { announceDropped(); return stats; }
 
     // A JELÖLTEK: a NÉVTELEN sorok, a beszúrt kivételével — ennyit kell megkérdezni, nem többet.
     // KÉSLELTETVE számoljuk ki: a rövidre zárás ágán nem kell (lásd lentebb).
@@ -447,6 +471,7 @@ export function makeSessionStore({
       announceDropped();
       return stats;
     }
+    // A VÉDETT (kiszolgálás alatt álló) sorokat a jelöltekből is kivesszük — nem a `keep` dönt róluk.
 
     const guarded = protectedSet(anonCandidates());
     if (guarded === null) {
@@ -468,8 +493,8 @@ export function makeSessionStore({
     // A NÉVTELEN KÖRÖK: az alsó vízszintig, a beszúrt sor kivételével.
     for (const pass of [0, 1]) {
       for (const [id, s] of order) {
-        if (map.size <= lowWater) break;
-        if (id === keep || !map.has(id)) continue;
+        if ((map.size - pinnedCount()) <= lowWater) break;
+        if (id === keep || !map.has(id) || pins.has(id)) continue;
         if (classOf(id, s) !== pass) continue;
         drop(id, 'evicted_cap_anonymous');
       }
@@ -489,14 +514,14 @@ export function makeSessionStore({
      * névtelen látogató kényelme nem ér fel egy belépett ember kiléptetésével.
      */
     const keepRow = keep === null ? null : map.get(keep);
-    if (map.size > maxSessions && keepRow && !keepRow.subject_id) {
+    if (overCap() && keepRow && !keepRow.subject_id) {
       drop(keep, 'evicted_cap_anonymous');
     }
     // A BELÉPETT KÖR: CSAK a plafonig, és a beszúrt (belépett) sor sérthetetlen.
-    if (map.size > maxSessions) {
+    if (overCap()) {
       for (const [id, s] of order) {
-        if (map.size <= maxSessions) break;
-        if (id === keep || !map.has(id)) continue;
+        if (!overCap()) break;
+        if (id === keep || !map.has(id) || pins.has(id)) continue;
         if (classOf(id, s) !== 2) continue;
         drop(id, 'evicted_cap_signed_in');
       }
@@ -541,10 +566,20 @@ export function makeSessionStore({
       // A BESZÚRT SOR SÉRTHETETLEN (F154-09): a söprés `keep`-ként kapja meg.
       // A TÉTLENSÉGI SÖPRÉS AMORTIZÁLT (percenként legfeljebb egyszer), a PLAFON viszont AZONNALI:
       // a plafon a memória-korlát, azon nem lehet késni.
-      if (map.size > maxSessions) sweep(now, { keep: id });
+      if (overCap()) sweep(now, { keep: id });
       else if (now >= nextIdleSweep) { nextIdleSweep = now + 60000; sweep(now, { keep: id }); }
       return this;
     },
+    /** PIN: a kérés idejére védett sor. Beszúrás ELŐTT is hívható (a `newSession` ezt teszi). */
+    pin(id, token) {
+      const t = pins.get(id) || new Set();
+      t.add(token); pins.set(id, t);
+    },
+    /** A KÉRÉS MINDEN PINJE elenged — a `finally`-ben hívjuk, tehát hibán és kivételen is lefut. */
+    unpinAll(token) {
+      for (const [id, t] of [...pins]) { t.delete(token); if (!t.size) pins.delete(id); }
+    },
+    pinned: (id) => pins.has(id),
     sweep,
   };
 }
@@ -877,13 +912,16 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
    * ÚJ MUNKAMENET. Az alany a SZÜLETÉSKOR áll be (F154-09): ha utólag kapná meg, a tárba
    * NÉVTELENKÉNT kerülne be, és a plafon-söprés a belépés pillanatában szemétnek vehetné.
    */
-  function newSession(subjectId = null) {
+  /**
+   * ÚJ MUNKAMENET. Az alany a SZÜLETÉSKOR áll be (F154-09), és a sor a KÉRÉS idejére VÉDETT
+   * (SES-03): a `token` a kiszolgáló kérés jele, amit a kérés-ciklus a végén elenged. Így a
+   * munkamenet LÉTEZÉSE nem feltevés, hanem a kiszolgálás ideje alatt FENNÁLLÓ tény — nem kell se
+   * felvétel-ellenőrzés, se újraellenőrzés a törzs olvasása után (F154-21).
+   */
+  function newSession(subjectId = null, token = null) {
     const s = { id: hex(32), subject_id: subjectId ?? null, current_book_id: null, created_at: clock.now() };
+    if (token) sessions.pin(s.id, token);
     sessions.set(s.id, s);
-    // A FELVÉTEL NEM MAGÁTÓL ÉRTETŐDŐ (F154-16): telt táron a friss NÉVTELEN sor az F154-13 szabálya
-    // szerint azonnal kieshet. A hívónak TUDNIA kell, hogy a munkamenet nem létezik — különben
-    // állapotot ír rá, ami senkihez nem tartozik.
-    s.admitted = sessions.has(s.id);
     return s;
   }
 
@@ -1278,7 +1316,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       return { status: ok ? 200 : 400, html };
     },
 
-    'POST /api/login': ({ session, input }) => {
+    'POST /api/login': ({ session, input, pinToken }) => {
       const r = authenticate({ store, email: input.email, secret: input.password });
       if (!r.ok) return { status: 401, body: { ok: false, reason: r.reason, message: 'a belépés nem sikerült — ellenőrizd a címet és a jelszót' } };
       // A FÜGGŐ MEGHÍVÓ-SZÁNDÉK A RÉGI munkamenet-azonosítón áll — átvisszük az ÚJRA (K03).
@@ -1287,7 +1325,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       // telt táron ez IDEGEN belépett munkamenetet szorított ki, a saját régi sor törlése pedig
       // utána mégis felszabadított egy helyet — tehát egy embert feleslegesen léptettünk ki.
       sessions.delete(session.id);
-      const fresh = newSession(r.subject_id);            // ROTÁLT azonosító, BELÉPETTEN születik
+      const fresh = newSession(r.subject_id, pinToken);  // ROTÁLT azonosító, BELÉPETTEN születik, a kérés idejére védve
       if (pending) {
         rememberIntent({ store, sessionId: fresh.id, token: pending, clock });
         store.run('DELETE FROM pending_intent WHERE session_id = ?', session.id);
@@ -1298,9 +1336,9 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       return { status: 200, body: { ok: true, subject_id: r.subject_id, pending_invite_token: pending || null, personal_book_id: personal ? personal.book_id : null }, setCookie: sessionCookie(fresh.id), session: fresh };
     },
 
-    'POST /api/logout': ({ session }) => {
+    'POST /api/logout': ({ session, pinToken }) => {
       sessions.delete(session.id);
-      const fresh = newSession();
+      const fresh = newSession(null, pinToken);
       return { status: 200, body: { ok: true }, setCookie: sessionCookie(fresh.id), session: fresh };
     },
 
@@ -2434,6 +2472,8 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       }
     }
 
+    // A KÉRÉS JELE: ehhez tartoznak a pinek, és a `finally` ezt engedi el (SES-03).
+    const pinToken = Symbol('kérés');
     const cookies = parseCookies(req.headers.cookie);
     let session = sessions.get(cookies.get(SESSION_COOKIE) || '');
     // AZ ÉLŐ MUNKAMENET NEM TÉTLEN (SES-01): a kiszorítás a LEGRÉGEBBEN LÁTOTTAT veszi, tehát az
@@ -2442,31 +2482,28 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     if (session) sessions.touch(session.id);
     let setCookie = null;
     // A `Secure` jelölő a KÉRÉSBŐL is eldőlhet: proxy mögött a HTTPS tényét a fejléc hozza.
+    /**
+     * A KISZOLGÁLÁS IDEJÉRE VÉDETT MUNKAMENET (SES-03) — ÉS AZ ADMISSION-KORI 503 KIVEZETVE.
+     *
+     * KÉT LELET egy helyen (külső review, Codex):
+     *   · F154-21 (P1): a felvétel ELLENŐRZÉSE egyszeri volt, a kérés viszont `await readBody`-n
+     *     megszakad, és közben befutó kérések kiszorították a munkamenetet. MÉRVE `maxSessions=2`
+     *     mellett: a lassú, darabolt POST 200-at adott, és ÁRVA `pending_intent` sort hagyott.
+     *   · F154-22 (P2): a `/api/` útra adott ÁTFOGÓ 503 a `GET /api/verify`-t is elzárta, ami
+     *     munkamenetet NEM is használ (a saját egyszeri tokenje hitelesíti). MÉRVE: csupa belépett
+     *     sorral teli táron a megerősítő levél hivatkozása **503**-at kapott — a felhasználó nem
+     *     tudta megerősíteni a fiókját, és a token közben lejárhat.
+     *
+     * A KETTŐ EGY GYÖKÉRRE MEGY VISSZA: a munkamenet LÉTEZÉSE feltevés volt, és a feltevést
+     * ellenőrzéssel (majd kapuval) próbáltam pótolni. Innentől a feltevés IGAZ: amíg a kérés fut, a
+     * sora VÉDETT. Így nem kell se felvétel-ellenőrzés, se újraellenőrzés, se kapu — a `503
+     * at_capacity` ág ezzel KIKERÜLT, és egyetlen végpont sem záródik el a plafon miatt.
+     */
     if (!session) {
-      session = newSession();
-      /**
-       * A TELT PÉLDÁNY NEVEZETTEN MOND NEMET (F154-16).
-       *
-       * A LELET (külső review, Codex, P1): ha a tár CSUPA belépett sorral tele van, a friss névtelen
-       * munkamenet az F154-13 szabálya szerint azonnal kiesik — a kérés viszont lefutott, a süti
-       * kimegy, és egy ÁLLAPOTÍRÓ kezelő (`POST /api/invites/pending`) olyan azonosítóra ír, ami
-       * nincs a tárban. MÉRVE: 30 süti nélküli állapotíró kérés → 30 ÁRVA adatbázis-sor, és az
-       * `onEvicted` már LEFUTOTT, mielőtt a sor megszületett, tehát a takarítás sem vitte el.
-       *
-       * A SZABÁLY: munkamenet nélkül nem szolgálunk ki olyan utat, aminek munkamenet kell. A
-       * statikus lap TOVÁBBRA IS kimegy (ahhoz nem kell munkamenet), de sütit nem adunk hozzá —
-       * egy süti, ami semmire nem mutat, csak elfedi a helyzetet.
-       */
-      if (session.admitted === false) {
-        if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/dev/')) {
-          res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Retry-After': '30' });
-          return res.end(JSON.stringify({ ok: false, reason: 'at_capacity',
-            message: 'a példány éppen minden munkamenet-helyét használja — próbáld újra kicsit később' }));
-        }
-        if (req.method === 'GET' || req.method === 'HEAD') return serveStatic(url.pathname, res, null);
-        return sendJson(res, 503, { ok: false, reason: 'at_capacity' }, null);
-      }
+      session = newSession(null, pinToken);
       setCookie = sessionCookie(session.id, { secure: IS_DEPLOYED || isHttpsRequest(req) });
+    } else {
+      sessions.pin(session.id, pinToken);
     }   // névtelen munkamenet is létezik
     const host = req.headers.host || 'localhost';
     const key = `${req.method} ${url.pathname}`;
@@ -2503,7 +2540,8 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
         // A KEZELŐ LEHET ASZINKRON (a segéd szolgáltatói hívása az), ezért MINDIG megvárjuk. A
         // korábbi alak a Promise-t `out`-nak vette volna, és a boríték NÉMÁN üres lett volna —
         // pontosan az a fajta hiba, amit a próbák csak a FUTÁSON kapnak el (KUKA-207).
-        const out = await handler({ session, body: (body && typeof body === 'object' && !Array.isArray(body)) ? body : {},
+        const out = await handler({ session, pinToken,
+          body: (body && typeof body === 'object' && !Array.isArray(body)) ? body : {},
           input: checked.value, query: checked.query, url, host,
           // A BÖNGÉSZŐ NYELVI KÉRÉSE is bemenet: a szerver által rajzolt lap és a próbaüzenet a
           // KÉRT nyelven készül, nem beégetett magyarral (F91-02).
@@ -2526,6 +2564,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       if (e && e.code === 'body_too_large') return sendJson(res, 413, { ok: false, reason: 'body_too_large' }, setCookie);
       // PROGRAMHIBA — nem üzleti elutasítás; a mag nevezett válaszai ide nem jutnak (KUKA-020).
       return sendJson(res, 500, { ok: false, reason: 'internal_error', message: String(e && e.message || e) }, setCookie);
+    } finally {
+      // A PIN MINDIG ELENGED — hibán, kivételen és korai visszatérésen is (különben a plafon
+      // elromlana: egy elfelejtett pin örökre védené a sort).
+      sessions.unpinAll(pinToken);
     }
   }
 
