@@ -1,9 +1,9 @@
 {
-  "baseline_version": 86,
+  "baseline_version": 87,
   "generated_from": "docs/KUKA_ARCHIVUM.md",
-  "row_count": 310,
-  "archive_sha256": "ab1f9240daf83e8934f7368669fe386a0c1a36c2f71ac7fc3de685cdbe32176c",
-  "archive_bytes": 459447,
+  "row_count": 311,
+  "archive_sha256": "ebbbd8d0af8cbbe7bca2c417584e9d2a067db7440b4f498e3e05978a7a0039e3",
+  "archive_bytes": 460382,
   "duplicates": [],
   "rows": {
     "KUKA-001": {
@@ -997,6 +997,10 @@
     "KUKA-319": {
       "sha256": "3aa02fa5c9bfa9bbc529698e9482df039a02fedc30d7c632c2e15c612ceb94ff",
       "chars": 744
+    },
+    "KUKA-320": {
+      "sha256": "42dca2a48b271c8d9aeab33aab33a974875fcbb3a6707f2214e85f11a9dac5c8",
+      "chars": 858
     },
     "KUKA-280": {
       "sha256": "5f6ed87c52f799120e8b4f3d895f2ae084355af05543773d4875f1ab0f16c92b",

@@ -119,20 +119,53 @@ export function normalizeLanguage(input, { includeProbes = false } = {}) {
 export function pickFromAcceptLanguage(header, opts = {}) {
   const raw = String(header ?? '');
   if (!raw.trim()) return Object.freeze({ code: BASE_LANGUAGE, matched: false });
-  const tags = raw.split(',').map((part) => {
+  const parsed = raw.split(',').map((part) => {
     const [tag, ...params] = part.split(';').map((s) => s.trim());
     const q = params.map((p) => /^q=([0-9.]+)$/i.exec(p)).find(Boolean);
     return { tag, q: q ? Number(q[1]) : 1 };
-  })
-    // A `q=0` NEM ELFOGADHATÓ (RFC 7231 §5.3.1) — kizárás, nem leghátsó preferencia.
-    .filter((x) => x.tag && Number.isFinite(x.q) && x.q > 0)
-    .sort((a, b) => b.q - a.q);
-  for (const { tag } of tags) {
-    const wanted = normalizeLanguage(tag, opts);
+  }).filter((x) => x.tag && Number.isFinite(x.q));
+
+  /**
+   * A KIZÁRÁST MEG IS KELL TARTANI, ÉS A JOKERT IS ÉRTENI (F154-33, külső review, Codex, hetedik kör).
+   *
+   * A LELET a SAJÁT F154-06 javításom ára: a `q=0`-t kiszűrtem a listából — ezzel a kizárás TÉNYE
+   * elveszett. MÉRVE: `Accept-Language: hu;q=0, *;q=1` → `hu`, vagyis pont azt a nyelvet adtuk, amit
+   * a kérő KIFEJEZETTEN kizárt; és a `*` jokert sem vettük figyelembe, holott az mondja ki, hogy
+   * bármely más nyelv jó lenne. A szűrés tehát a hiba egyik felét javította, a másikat elrejtette.
+   *
+   * A MAI SZABÁLY: a `q=0` címkék KIZÁRÁST képeznek (`*;q=0` = minden más kizárva), a pozitív
+   * címkéket súly szerint járjuk be, a `*` a JEGYZÉK SORRENDJÉBEN ad egy nem kizárt nyelvet, és
+   * kizárt nyelvre még az alapnyelvre-esés sem vezethet. Ha MINDENT kizártak, a lapot akkor is ki
+   * kell rajzolni: az alapnyelv megy, de `matched: false`-szal — nem állítjuk, hogy teljesítettük a
+   * kérést (KUKA-049 · KUKA-129).
+   */
+  const zero = parsed.filter((x) => x.q === 0).map((x) => x.tag.toLowerCase());
+  const excluded = new Set(zero.filter((t) => t !== '*').map((t) => t.split(/[-_]/)[0]));
+  const excludesRest = zero.includes('*');
+  const allowed = (code) => !excluded.has(String(code).toLowerCase().split(/[-_]/)[0]);
+  const firstAllowed = () => (enabledLanguages().map((l) => l.code).find((c) => allowed(c)) || null);
+
+  const wanted = parsed.filter((x) => x.q > 0).sort((a, b) => b.q - a.q);
+  for (const { tag } of wanted) {
+    if (tag === '*') {
+      // A JOKER: bármi elfogadható, amit nem zártak ki — a jegyzék sorrendje dönt.
+      const pick = allowed(BASE_LANGUAGE) ? BASE_LANGUAGE : firstAllowed();
+      if (pick) return Object.freeze({ code: pick, matched: true });
+      continue;
+    }
+    const asked = String(tag).toLowerCase().split(/[-_]/)[0];
+    if (excluded.has(asked)) continue;                 // ugyanaz a nyelv máshol `q=0`-val: kizárva
+    const code = normalizeLanguage(tag, opts);
+    if (!allowed(code)) continue;                      // az alapnyelvre-esés sem mehet kizárt nyelvre
     // A `normalizeLanguage` ismeretlennél az alapnyelvet adja — ez ITT nem találat, csak ha a
     // címke TÉNYLEG erre a nyelvre mutat (különben az első idegen címke „eltalálná" a magyart).
-    const asked = String(tag).toLowerCase().split(/[-_]/)[0];
-    if (wanted !== BASE_LANGUAGE || asked === BASE_LANGUAGE) return Object.freeze({ code: wanted, matched: true });
+    if (code !== BASE_LANGUAGE || asked === BASE_LANGUAGE) return Object.freeze({ code, matched: true });
+  }
+  // NINCS TALÁLAT. Az alapnyelv megy — kivéve, ha azt (vagy a `*`-gal mindent) kizárták.
+  if (allowed(BASE_LANGUAGE) && !excludesRest) return Object.freeze({ code: BASE_LANGUAGE, matched: false });
+  if (!excludesRest) {
+    const pick = firstAllowed();
+    if (pick) return Object.freeze({ code: pick, matched: false });
   }
   return Object.freeze({ code: BASE_LANGUAGE, matched: false });
 }

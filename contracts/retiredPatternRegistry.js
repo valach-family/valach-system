@@ -12708,13 +12708,13 @@ Object.freeze({
     found_by: 'SAJÁT LELET (Claude-v3, R154) — ugyanabból a prioritási sorból, mint a KUKA-294: a fejléc-elemzőt egyetlen próba sem hívta meg közvetlenül.',
     positive: Object.freeze([
       Object.freeze({ paths: Object.freeze(['v3app/public/i18n/languages.mjs']),
-        pattern: 'Number\\.isFinite\\(x\\.q\\) && x\\.q > 0',
-        why: 'a q=0 KIZÁRÁS, nem leghátsó preferencia (RFC 7231 §5.3.1)' }),
+        pattern: 'parsed\\.filter\\(\\(x\\) => x\\.q === 0\\)',
+        why: 'a q=0 KIZÁRÁS, nem leghátsó preferencia (RFC 7231 §5.3.1) — a nulla súlyú címkéket külön gyűjtjük' }),
     ]),
     forbidden: Object.freeze([
       Object.freeze({ paths: Object.freeze(['v3app/public/i18n/languages.mjs']),
-        pattern: 'filter\\(\\(x\\) => x\\.tag && Number\\.isFinite\\(x\\.q\\)\\)',
-        why: 'a kizárást nem ismerő régi szűrő' }),
+        pattern: 'filter\\(\\(x\\) => x\\.tag && Number\\.isFinite\\(x\\.q\\)\\)\\.sort',
+        why: 'a kizárást nem ismerő régi szűrő, közvetlenül a súly-rendezéssel — ez volt a hiba alakja (a jel a HIBAOSZTÁLYRA illeszkedik, nem egy sor alakjára: KUKA-313)' }),
     ]),
     lesson: 'AMIRE A FÁJL SZABVÁNYKÉNT HIVATKOZIK, ABBÓL LEGYEN GÉPI JEL — különben a hivatkozás csak dísz. És egy súly- vagy rangsor-mező olvasásakor mindig kérdezd meg, van-e NULLA vagy NEGATÍV értéknek KÜLÖN jelentése: ha van, az nem a lista vége, hanem kizárás, és a kettő összemosása a felhasználó szándékának az ellenkezőjét hajtja végre.',
     guard_note: 'gépi jel: `npm run verify:kuka` (egy pozitív + egy tiltó minta) · `npm run verify:app-findings-r154` (D: d5/d6 a két kizárt nyelv, d7 az ellenpár — a súlyozás épsége).',
@@ -13270,6 +13270,32 @@ Object.freeze({
     forbidden: Object.freeze([]),
     lesson: 'AMIBŐL KETTŐ VAN, ARRÓL NEM AZ ELSŐ DÖNT. Ha egy feloldó több találatot adhat és a hívó csak egyet tud használni, a többes találat NEVEZETT elakadás — a csendes választás olyan hibát szül, ami sikeresnek látszik.',
     guard_note: 'gépi jel: `npm run verify:kuka` (egy pozitív minta) · `npm run verify:app-findings-r154` (N: n6 — az eszköz TÉNYLEGES futtatásával mérve).',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-320',
+    date: '2026-10-06',
+    title: 'A KIZÁRÁST KISZŰRTEM — és a visszaesés pont a kizárt nyelvet adta',
+    what: 'A `q=0` kezelésének javításakor (KUKA-295) a nulla súlyú címkéket egyszerűen KISZŰRTEM a listából. Ezzel a kizárás TÉNYE elveszett: `Accept-Language: hu;q=0, *;q=1` esetén a lista üres lett, a függvény pedig a visszaesési ágon az ALAPNYELVET adta — vagyis MÉRVE `hu`-t, pont azt, amit a kérő KIFEJEZETTEN kizárt. A `*` jokert sem értelmeztem, holott az mondja ki, hogy bármely más nyelv jó lenne.',
+    why_wrong: 'A szűrés a hiba egyik felét javította (a kizárt nyelv nem nyer a POZITÍV ágon), a másikat viszont elrejtette (a kizárt nyelv nyer a VISSZAESÉSI ágon). Egy kizárás nem „nem-preferencia": információ, amit a döntés MINDEN ágán figyelembe kell venni.',
+    replaced_by: 'A `q=0` címkék kizárást képeznek (`*;q=0` = minden más kizárva); a pozitív címkéket súly szerint járjuk be; a `*` a jegyzék sorrendjében ad egy NEM kizárt nyelvet; és kizárt nyelvre az alapnyelvre-esés sem vezethet. Ha MINDENT kizártak, a lap akkor is kirajzolódik — alapnyelven, de `matched: false`-szal, tehát nem állítunk teljesítést.',
+    decision: 'D-VS-3129',
+    found_by: 'A KÜLSŐ REVIEW (Codex, R154 HETEDIK kör — P2 `v3app/public/i18n/languages.mjs:128`) — a saját KUKA-295 javításom ára.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/languages.mjs']),
+        pattern: "const excludesRest = zero\\.includes\\('\\*'\\)",
+        why: 'a `*;q=0` kizárás ténye megmarad' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/languages.mjs']),
+        pattern: "if \\(tag === '\\*'\\)",
+        why: 'és a joker is döntés, nem elnyelt címke' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/languages.mjs']),
+        pattern: 'Number\\.isFinite\\(x\\.q\\) && x\\.q > 0\\)\\n    \\.sort',
+        why: 'a kizárás KISZŰRÉSE — ez vesztette el a negatív információt' }),
+    ]),
+    lesson: 'A SZŰRÉS INFORMÁCIÓT DOB EL. Ha egy bemenet NEGATÍV információt hordoz (kizárás, tilalom, „ezt ne"), azt nem kiszűrni kell, hanem MEGTARTANI és a döntés minden ágán — a pozitív választáson ÉS a visszaesésen — figyelembe venni. Különben a javítás a hiba egyik felét orvosolja, a másikat elrejti.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív + egy tiltó minta) · `npm run verify:app-findings-r154` (O: o1–o7, benne az ellenpár a korábbi mért esetekre és a `resolveLanguage` egy-feloldó kötése).',
   }),
 
 ]);

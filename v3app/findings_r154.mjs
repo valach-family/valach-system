@@ -976,6 +976,39 @@ try {
     } finally { rmSync(tmp2, { recursive: true, force: true }); }
   }
 
+  // ── O) F154-33 — A KIZÁRÁST MEG IS KELL TARTANI, ÉS A JOKERT IS ÉRTENI (hetedik Codex-kör) ───
+  //
+  // A LELET a SAJÁT F154-06 javításom ára: a `q=0` címkéket KISZŰRTEM, ezzel a KIZÁRÁS ténye
+  // elveszett — a visszaesés pedig pont azt a nyelvet adta, amit a kérő kizárt.
+  part('O) F154-33 — a `q=0` KIZÁRÁS, és a `*` joker is számít');
+  {
+    const p = (h) => pickFromAcceptLanguage(h);
+    const a = p('hu;q=0, *;q=1');
+    step('(o1) a kizárt alapnyelv helyett a joker ad más nyelvet (RÉGEN MÉRVE: `hu` — pont a kizárt)',
+      a.code !== 'hu' && a.matched === true, a);
+    const b = p('hu;q=0');
+    step('(o2) kizárt alapnyelv joker NÉLKÜL sem jön vissza — és a nyugta nem állít teljesítést (RÉGEN: `hu`)',
+      b.code !== 'hu' && b.matched === false, b);
+    const c = p('hu;q=0, de;q=0.5');
+    step('(o3) a pozitív címke továbbra is nyer — a kizárás nem borítja fel a sorrendet',
+      c.code === 'de' && c.matched === true, c);
+    const d = p('*;q=0');
+    step('(o4) ha MINDENT kizártak, a lap akkor is kiíródik — alapnyelv, de NEM teljesítésként',
+      d.code === 'hu' && d.matched === false, d);
+    const e = p('hu;q=0, de;q=0, en;q=0');
+    step('(o5) minden bekapcsolt nyelv kizárva: ugyanaz a kimondott vége (alapnyelv, matched: false)',
+      e.code === 'hu' && e.matched === false, e);
+    step('(o6) ELLENPÁR: a korábbi mért esetek NEM változtak (F154-06 és F154-05 érvényben)',
+      p('de;q=0').code === 'hu' && p('de;q=0').matched === false
+      && p('de-AT').code === 'de' && p('de-AT').matched === true
+      && p('fr-FR').code === 'hu' && p('fr-FR').matched === false
+      && p('de;q=0.8, en;q=0.9').code === 'en',
+      { 'de;q=0': p('de;q=0'), 'de-AT': p('de-AT').code, 'fr-FR': p('fr-FR'), 'suly': p('de;q=0.8, en;q=0.9').code });
+    const f = resolveLanguage({ acceptLanguage: 'hu;q=0, *;q=1' });
+    step('(o7) és a KÉRÉS nyelve is ezt kapja — a feloldó EGY (a `resolveLanguage` nem másol szabályt)',
+      f.code !== 'hu' && f.source === 'accept_language' && f.matched === true, f);
+  }
+
   const fail = results.filter((r) => !r.pass);
   console.log(`\nR154 battéria: ${results.length - fail.length}/${results.length} PASS${fail.length ? ` — ${fail.length} FAIL` : ''}`);
   console.log('A MÉRÉS HATÓKÖRE: a HTTP-határ és a két feloldó. Üzleti folyamatról, élő AI-ról és felhős');

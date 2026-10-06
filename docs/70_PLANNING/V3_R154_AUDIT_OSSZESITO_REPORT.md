@@ -8,8 +8,8 @@
 
 ## 1. A LEGRÖVIDEBB VÁLASZ, ÜZLETI NYELVEN
 
-Az auditot a **meglévő, változatlan V3-on** végeztem, nem egy új funkció tervén. Találtam **32 valós
-hibát vagy nevesített rést**, ebből **29-et megjavítottam**, mindegyiket előbb **megmértem** (reprodukció
+Az auditot a **meglévő, változatlan V3-on** végeztem, nem egy új funkció tervén. Találtam **33 valós
+hibát vagy nevesített rést**, ebből **30-at megjavítottam**, mindegyiket előbb **megmértem** (reprodukció
 számokkal), aztán javítottam, aztán **visszavétel-próbával** igazoltam, hogy a próba tényleg fogja a
 hibát. Három tétel nevesítetten NYITVA marad, mert a javítása nem audit-javítás, hanem **döntés** — ezeket
 a 7. szakasz nevezi meg.
@@ -29,6 +29,7 @@ zöld maradt**, tehát a zöldje ezekről semmit nem mondott.
 | Telt tárnál a rendszer **sikert jelentett** egy meghívó-folytatásra, amit a következő kérés már nem talált | a kérés **200**-at és sütit adott, a munkamenet viszont nem volt a tárban, és a kiírt sort a takarítás törölte |
 | A mentés-visszatöltés próbája **a FORRÁS adatbázist törölte volna**, ha a neve százalékkal kódolt | `…/foo%24bar` + cél `foo$bar` → „nem egyezik", pedig UGYANAZ |
 | A visszatöltési cél hibájakor a **jelszó a naplóba került** | a hibaüzenet a teljes kapcsolati címet kiírta |
+| Aki a böngészőjében **kizárta a magyart**, mégis magyart kapott | `Accept-Language: hu;q=0, *;q=1` → **`hu`** |
 
 ---
 
@@ -41,11 +42,11 @@ zöld maradt**, tehát a zöldje ezekről semmit nem mondott.
 
 | ki mit tesz | tényleges állapot |
 |---|---|
-| **Codex (külső ellenőrző, GitHub App)** | **MŰKÖDIK, automatikus.** Minden felküldött változatot magától átolvas, és soronkénti leleteket ír a PR-re. Mérve: **hat** teljes kör (`4fe5e02f` · `a0969896` · `624f80d3` · `88bc0d4d` · `8b185f03` · `c1d7dbb5` · `0098ac4e`) |
+| **Codex (külső ellenőrző, GitHub App)** | **MŰKÖDIK, automatikus.** Minden felküldött változatot magától átolvas, és soronkénti leleteket ír a PR-re. Mérve: **hét** teljes kör (`4fe5e02f` · `a0969896` · `624f80d3` · `88bc0d4d` · `8b185f03` · `c1d7dbb5` · `0098ac4e` · `1704a5fc`), és a Codex **külön biztonsági** átolvasást is futtat minden commitra |
 | **a leletek javítása** | **ÉN végzem** (Claude-v3): reprodukció → javítás → visszavétel-próba → válasz a szálon → a szál lezárása. Nem a Codex „address that feedback" gombja: azt nem használom, mert a javítást mérni kell |
-| **az utolsó review-kör SHA-ja** | **`0098ac4e81c39772daf222a3aa3b6e5f005b750f`** (2026-10-06 14:16 UTC) — ennek mind a négy lelete javítva és a szálon megválaszolva van a `00e4251` commitban |
-| **nyitott review-szál** | **nincs**: mind a 20 szál lezárva (12 + az ötödik kör 4 + a hatodik kör 4 lelete) |
-| **ami ezután jöhet** | a `00e4251`-re a Codex **újabb kört futtathat** — a PR-re fel vagyok iratkozva, tehát az új lelet ide megérkezik. Ez a jelentés a `00e4251` állapotát írja le |
+| **az utolsó review-kör SHA-ja** | **`1704a5fc417593452c7d84d6f63b001ff4572926`** (2026-10-06 14:26 UTC) — ennek egyetlen lelete (`F154-33`) javítva és a szálon megválaszolva |
+| **nyitott review-szál** | **nincs**: mind a 21 szál lezárva (12 + 4 + 4 + 1) |
+| **ami ezután jöhet** | a `00e4251` és a `1ae404a` átolvasása a jelentés írásakor még FUTOTT — a PR-re fel vagyok iratkozva, tehát az új lelet megérkezik hozzám. Ez a jelentés a legutóbbi felküldött állapotot írja le |
 | **amit az operátornak tennie kell** | **semmit.** Sem bekapcsolás, sem jogosultság, sem kulcs nem hiányzik ehhez |
 
 **Egy korrekció, amit kimondok:** a csomag közben egyszer azt írtam, hogy a Codexet be kell kapcsolni —
@@ -106,6 +107,16 @@ döntés-naplóban (`D-VS-3100`…`D-VS-3124`) és a KUKA-regiszterben (`KUKA-29
 PostgreSQL-lánc valódi adatbázist kér, az export egyszeri). Ezért a két tiszta döntés átkerült egy közös,
 MEGHÍVHATÓ modulba (`tools/lib/vs_pg_target.mjs`), a harmadikat pedig az eszköz tényleges futtatásával
 mérjük — amit a próba nem tud meghívni, azt bizalomból hisszük (`KUKA-207`).
+
+### 3.2c A hetedik kör — a saját nyelvi javításom ára
+
+| # | a hiba | mérve | gépi jel |
+|---|---|---|---|
+| **F154-33 (P2)** | a `q=0` KIZÁRÁST kiszűrtem a listából, ezzel a kizárás ténye elveszett: a visszaesés pont a kizárt nyelvet adta, és a `*` jokert sem értettük | `Accept-Language: hu;q=0, *;q=1` → **`hu`** (a kizárt!) → most `en`; `hu;q=0` → `hu` → most `en`, `matched: false`-szal | O: o1–o7 · `KUKA-320` |
+
+**A tanulság, amit ez hozott:** *a szűrés információt dob el.* Ha egy bemenet NEGATÍV információt hordoz
+(kizárás, tilalom, „ezt ne"), azt nem kiszűrni kell, hanem megtartani — és a döntés MINDEN ágán
+figyelembe venni. Különben a javítás a hiba egyik felét orvosolja, a másikat elrejti.
 
 ### 3.3 Saját leletek a javítás közben — ezeket a saját próbáim kapták el
 

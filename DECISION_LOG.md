@@ -412,6 +412,25 @@ elrejtjük, hanem kimondjuk. Gépi jel: `npm run verify:kuka` (KUKA-319) ·
 
 ---
 
+## D-VS-3129 — A `q=0` KIZÁRÁS A DÖNTÉS MINDEN ÁGÁN SZÁMÍT, ÉS A `*` JOKER IS (R154)
+
+**A döntés.** Az `Accept-Language` feloldásában a `q=0` címkék KIZÁRÁST képeznek (`*;q=0` = minden más
+kizárva), a `*` joker a nyelvi jegyzék sorrendjében ad egy NEM kizárt nyelvet, és kizárt nyelvre az
+alapnyelvre-esés sem vezethet. Ha minden elfogadható nyelvet kizártak, a lap akkor is kirajzolódik —
+alapnyelven, de `matched: false`-szal.
+
+**Miért.** A D-VS-3105 javításakor a nulla súlyú címkéket KISZŰRTEM, ezzel a kizárás ténye elveszett.
+MÉRVE: `Accept-Language: hu;q=0, *;q=1` → **`hu`**, vagyis pont a kizárt nyelv; a javítás után `en`.
+A szűrés tehát a hiba egyik felét orvosolta (a kizárt nyelv nem nyer a pozitív ágon), a másikat
+elrejtette (a visszaesési ágon mégis nyert).
+
+**Amit ez NEM állít.** Nem teljes RFC 4647-es nyelvi-tartomány illesztés (nincs `en-*` mintázat-kezelés
+a nyelv-alcímkén túl); a jegyzék sorrendje dönt a joker esetében, és ezt kimondjuk. Gépi jel:
+`npm run verify:kuka` (KUKA-320) · `npm run verify:app-findings-r154` (O: o1–o7) ·
+`npm run verify:i18n`.
+
+---
+
 ## D-VS-3117 — A KONFIGURÁCIÓS ÉRTÉK ALAKJA IS MÉRT, ÉS AZ AZONOSÍTÓ IDÉZŐJELEZVE MEGY (R154)
 
 **A döntés.** A `proof:pg-durability` megméri a `VS_RESTORE_TEST_DB` alakját (zárt azonosító-minta), és
