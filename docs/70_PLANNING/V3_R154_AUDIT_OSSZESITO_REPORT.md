@@ -8,8 +8,8 @@
 
 ## 1. A LEGRÖVIDEBB VÁLASZ, ÜZLETI NYELVEN
 
-Az auditot a **meglévő, változatlan V3-on** végeztem, nem egy új funkció tervén. Találtam **33 valós
-hibát vagy nevesített rést**, ebből **30-at megjavítottam**, mindegyiket előbb **megmértem** (reprodukció
+Az auditot a **meglévő, változatlan V3-on** végeztem, nem egy új funkció tervén. Találtam **35 valós
+hibát vagy nevesített rést**, ebből **32-t megjavítottam**, mindegyiket előbb **megmértem** (reprodukció
 számokkal), aztán javítottam, aztán **visszavétel-próbával** igazoltam, hogy a próba tényleg fogja a
 hibát. Három tétel nevesítetten NYITVA marad, mert a javítása nem audit-javítás, hanem **döntés** — ezeket
 a 7. szakasz nevezi meg.
@@ -30,6 +30,8 @@ zöld maradt**, tehát a zöldje ezekről semmit nem mondott.
 | A mentés-visszatöltés próbája **a FORRÁS adatbázist törölte volna**, ha a neve százalékkal kódolt | `…/foo%24bar` + cél `foo$bar` → „nem egyezik", pedig UGYANAZ |
 | A visszatöltési cél hibájakor a **jelszó a naplóba került** | a hibaüzenet a teljes kapcsolati címet kiírta |
 | Aki a böngészőjében **kizárta a magyart**, mégis magyart kapott | `Accept-Language: hu;q=0, *;q=1` → **`hu`** |
+| Érvényes jelszóval **a memória-korlát megkerülhető** volt (minden sort „épp kiszolgálunk”) | 2-es plafon, két védett sor + egy belépés → **3 sor**, és ott is maradt |
+| **A saját próbám felülírta egy korábbi kör bizonyíték-fájlját** (és commitoltam is) | a könyvelt R71-es export JSON/CSV kiürült — visszaállítva a SPEC-alappal BÁJTRA AZONOS alakra |
 
 ---
 
@@ -42,10 +44,10 @@ zöld maradt**, tehát a zöldje ezekről semmit nem mondott.
 
 | ki mit tesz | tényleges állapot |
 |---|---|
-| **Codex (külső ellenőrző, GitHub App)** | **MŰKÖDIK, automatikus.** Minden felküldött változatot magától átolvas, és soronkénti leleteket ír a PR-re. Mérve: **hét** teljes kör (`4fe5e02f` · `a0969896` · `624f80d3` · `88bc0d4d` · `8b185f03` · `c1d7dbb5` · `0098ac4e` · `1704a5fc`), és a Codex **külön biztonsági** átolvasást is futtat minden commitra |
+| **Codex (külső ellenőrző, GitHub App)** | **MŰKÖDIK, automatikus.** Minden felküldött változatot magától átolvas, és soronkénti leleteket ír a PR-re. Mérve: **nyolc** teljes kör (`4fe5e02f` · `a0969896` · `624f80d3` · `88bc0d4d` · `8b185f03` · `c1d7dbb5` · `0098ac4e` · `1704a5fc`, és a nyolcadik `00e4251`-en), és a Codex **külön biztonsági** átolvasást is futtat minden commitra |
 | **a leletek javítása** | **ÉN végzem** (Claude-v3): reprodukció → javítás → visszavétel-próba → válasz a szálon → a szál lezárása. Nem a Codex „address that feedback" gombja: azt nem használom, mert a javítást mérni kell |
-| **az utolsó review-kör SHA-ja** | **`1704a5fc417593452c7d84d6f63b001ff4572926`** (2026-10-06 14:26 UTC) — ennek egyetlen lelete (`F154-33`) javítva és a szálon megválaszolva |
-| **nyitott review-szál** | **nincs**: mind a 21 szál lezárva (12 + 4 + 4 + 1) |
+| **az utolsó review-kör SHA-ja** | **`00e4251e6b6096c80b79f2e2d0964508141b3cf5`** (2026-10-06 14:56 UTC) — ennek mind a két **P1** lelete javítva és a szálon megválaszolva |
+| **nyitott review-szál** | **nincs**: mind a 23 szál lezárva (12 + 4 + 4 + 1 + 2) |
 | **ami ezután jöhet** | a `00e4251` és a `1ae404a` átolvasása a jelentés írásakor még FUTOTT — a PR-re fel vagyok iratkozva, tehát az új lelet megérkezik hozzám. Ez a jelentés a legutóbbi felküldött állapotot írja le |
 | **amit az operátornak tennie kell** | **semmit.** Sem bekapcsolás, sem jogosultság, sem kulcs nem hiányzik ehhez |
 
@@ -117,6 +119,18 @@ mérjük — amit a próba nem tud meghívni, azt bizalomból hisszük (`KUKA-20
 **A tanulság, amit ez hozott:** *a szűrés információt dob el.* Ha egy bemenet NEGATÍV információt hordoz
 (kizárás, tilalom, „ezt ne"), azt nem kiszűrni kell, hanem megtartani — és a döntés MINDEN ágán
 figyelembe venni. Különben a javítás a hiba egyik felét orvosolja, a másikat elrejti.
+
+### 3.2d A nyolcadik kör — két P1, és az egyik a SAJÁT próbám kára
+
+| # | a hiba | mérve | gépi jel |
+|---|---|---|---|
+| **F154-34 (P1)** | **a saját próbám felülírta egy korábbi kör bizonyíték-fájlját**: az exportálót `--out` nélkül futtatta, az eszköz alapértelmezett kimenete pedig a KÖNYVELT R71-es export | a JSON a szintetikus munkamenetet nevezte meg nulla hívással, a CSV kiürült — és a kár a `00e4251` commitban fel is ment | `KUKA-321` (a próba most ideiglenes útra ír; a fájlok visszaállítva **bájtra azonosan**) |
+| **F154-35 (P1)** | ha MINDEN sort épp kiszolgálnak, a plafon nem állt: a `set` a plafon FÖLÖTT tért vissza, és a többlet **ott maradt** — érvényes jelszóval ismételhetően | plafon 2, két védett sor + belépés → **3 sor**, állandósulva; élő HTTP-n 1-es plafonnal ugyanez → most a felvétel NEVEZETTEN elutasítva, a bent lévők maradnak | P: p1–p7 · `KUKA-322` |
+
+**Amit az F154-35 a korábbi szövegemből töröl:** a „kimondott tűrés” (*a tár annyival lóghat túl,
+ahány kérés fut*) **megszűnt**. A plafon a `set` után MINDIG áll; a felvétel elutasítható, de
+kiléptetés nincs — és az elutasítás ÁTMENETI (amint a futó kérések elengedik a sorukát, a belépés
+sikerül).
 
 ### 3.3 Saját leletek a javítás közben — ezeket a saját próbáim kapták el
 

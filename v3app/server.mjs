@@ -368,7 +368,7 @@ export function makeSessionStore({
 } = {}) {
   const map = new Map();                       // id → munkamenet (a `last_seen_ms` házi mező rajta áll)
   const lowWater = Math.max(1, Math.floor(maxSessions * 0.9));
-  const stats = { evicted_idle: 0, evicted_cap_anonymous: 0, evicted_cap_signed_in: 0 };
+  const stats = { evicted_idle: 0, evicted_cap_anonymous: 0, evicted_cap_signed_in: 0, refused_cap: 0 };
   let nextIdleSweep = 0;
 
   const droppedNow = [];
@@ -566,6 +566,25 @@ export function makeSessionStore({
         if (classOf(id, s) !== 2) continue;
         drop(id, 'evicted_cap_signed_in');
       }
+    }
+    /**
+     * VÉGSŐ ESET: HA MINDEN ÁLDOZAT VÉDETT, A BESZÚRT SOR NEM VEHETŐ FEL (F154-35).
+     *
+     * A LELET (külső review, Codex, nyolcadik kör, P1): ha MINDEN sort épp kiszolgálnak (pin), a
+     * belépett kör minden jelöltet kihagy, a beszúrt BELÉPETT sort pedig a `keep` védte — így a `set`
+     * a plafon FÖLÖTT tért vissza, és mivel az elengedés már nem söpör (F154-29), a többlet ott
+     * maradt. Egy érvényes jelszóval rendelkező kérő ezt ISMÉTELHETTE: a memória-korlát megkerülhető.
+     *
+     * A VÁLASZ UGYANAZ, MINT AZ F154-29-BEN: amit nem tudunk megtartani, azt nem vesszük fel. Tehát a
+     * beszúrt sor megy — akkor is, ha BELÉPETT —, és a hívó a tárból tudja meg (`sessions.has`), hogy
+     * a felvétel nem sikerült. Így a plafon a `set` után MINDIG áll, nincs „kimondott tűrés" sem.
+     * Ez NEM kiléptetés: a már bent lévőket nem bántjuk, a kérő kap nevezett elutasítást.
+     */
+    if (overCap() && keep !== null && map.has(keep)) {
+      drop(keep, 'refused_cap');
+      warn(`[v3app] a munkamenet-tár plafonja (${maxSessions}) betelt, és minden sort ÉPP KISZOLGÁLUNK: `
+        + 'az új munkamenet felvétele ELUTASÍTVA (a bent lévőket nem léptetjük ki) — ennyi egyidejű '
+        + 'munkamenetre a plafon kevés');
     }
     announceDropped();
     const loggedOut = stats.evicted_cap_signed_in - before.evicted_cap_signed_in;
@@ -1409,6 +1428,17 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       // utána mégis felszabadított egy helyet — tehát egy embert feleslegesen léptettünk ki.
       sessions.delete(session.id);
       const fresh = newSession(r.subject_id, pinToken);  // ROTÁLT azonosító, BELÉPETTEN születik, a kérés idejére védve
+      /**
+       * A FELVÉTEL MEGHIÚSULHAT, ÉS AKKOR NEM ADUNK SÜTIT (F154-35). Ha a tár telt, és minden sort épp
+       * kiszolgálunk, a rotált sor nem kerül be — ilyenkor a belépés NEVEZETTEN nem sikerül, mert egy
+       * „sikeres" belépés egy nem létező munkamenettel a következő kérésnél kiléptetéssel végződne
+       * (KUKA-305). A régi sort már töröltük: a hívó ettől nem lesz rosszabb helyzetben, mint
+       * belépés előtt, és a `pending_intent` sorát sem visszük át egy nem létező munkamenetre.
+       */
+      if (!sessions.has(fresh.id)) {
+        return { status: 503, body: { ok: false, reason: 'at_capacity', refused_by: 'session_store',
+          message: 'a munkamenet-tár megtelt, és minden munkamenetet épp kiszolgálunk — próbáld újra pár másodperc múlva' } };
+      }
       if (pending) {
         rememberIntent({ store, sessionId: fresh.id, token: pending, clock });
         store.run('DELETE FROM pending_intent WHERE session_id = ?', session.id);

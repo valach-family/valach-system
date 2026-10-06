@@ -13298,6 +13298,47 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív + egy tiltó minta) · `npm run verify:app-findings-r154` (O: o1–o7, benne az ellenpár a korábbi mért esetekre és a `resolveLanguage` egy-feloldó kötése).',
   }),
 
+  Object.freeze({
+    id: 'KUKA-321',
+    date: '2026-10-06',
+    title: 'A PRÓBÁM FELÜLÍRTA EGY KORÁBBI KÖR BIZONYÍTÉK-FÁJLJÁT — és commitoltam is',
+    what: 'A KUKA-319 próbája (`n6`) az exportálót `--out` NÉLKÜL futtatta. Az eszköz alapértelmezett kimenete a KÖNYVELT `docs/70_PLANNING/V3_R71_FOGYASZTAS_EXPORT.json`/`.csv` — így a próba, és KÜLÖNÖSEN a visszavétel-próba (ahol az őr szándékosan nincs ott), felülírta egy KORÁBBI kör bizonyítékát: a JSON a szintetikus `ffffffff-…` munkamenetet nevezte meg nulla hívással, a CSV kiürült. Ez a kár a `00e4251` commitban fel is ment.',
+    why_wrong: 'A bizonyíték-fájl azért van, hogy egy KORÁBBI mérés visszakereshető legyen; ha egy próba felülírhatja, akkor a repó története hazudik — és éppen a hiba-visszatérés mérésekor, amikor senki nem figyel a mellékhatásra. Egy próba SOHA nem írhat oda, ahol a repó bizonyítékot őriz.',
+    replaced_by: 'A próba IDEIGLENES útra irányítja a kimenetet (`--out <tmp>/kimenet`), és a könyvelt R71-es fájlokat visszaállítottuk a SPEC-alappal (`e24860f4`) bájtra azonos alakra.',
+    decision: 'D-VS-3130',
+    found_by: 'A KÜLSŐ REVIEW (Codex, R154 NYOLCADIK kör — P1 `v3app/findings_r154.mjs:970`), ami a kárt is megnevezte a diffben. A saját söprésem ezt NEM kapta el: a `verify:artifact-naming` a nevekre áll, nem arra, hogy ki írja őket.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r154.mjs']),
+        pattern: "'--out', join\\(tmp2, 'kimenet'\\)",
+        why: 'a próba kimenete ideiglenes útra megy, nem a könyvelt bizonyítékra' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'A PRÓBA NEM ÍRHAT A BIZONYÍTÉKRA. Ha egy eszköznek van ALAPÉRTELMEZETT kimeneti útja a repóban, akkor minden próba KIMONDOTTAN adja meg a sajátját — és a visszavétel-próbánál ez kétszeresen igaz, mert ott az őr szándékosan nincs ott. Az alapértelmezés kényelme itt kárt termel.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (egy pozitív minta a próba-fájlon). A VISSZAVÉTEL-PRÓBÁT ennél NEM végezzük el, és az okát kimondjuk: az éppen a könyvelt bizonyítékot írná felül — a hibát a külső review és a `git diff` mutatta meg, a jel pedig az ismétlést zárja ki.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-322',
+    date: '2026-10-06',
+    title: 'HA MINDEN ÁLDOZAT VÉDETT, A PLAFON NEM ÁLLT — és érvényes jelszóval ismételhető volt',
+    what: 'Az F154-29 után a plafont a BESZÚRÁS érvényesíti, az elengedés már nem söpör. Csakhogy ha MINDEN sort épp kiszolgálnak (pin), a belépett kör minden jelöltet kihagy, a beszúrt BELÉPETT sort pedig a `keep` védte — a `set` tehát a plafon FÖLÖTT tért vissza, és a többlet ott maradt. MÉRVE (plafon 2, két belépett sor PINELVE, majd egy belépés): a tár 3 sornál állt és ott is maradt; élő HTTP-n 1-es plafonnal ugyanez. Egy érvényes jelszóval rendelkező kérő ezt ismételhette: a memória-korlát megkerülhető volt.',
+    why_wrong: 'A „kimondott tűrés" (a tár annyival lóghat túl, ahány kérés fut) csak akkor tűrés, ha KORLÁTOS és MÚLÓ. Itt nem múlt el: az elengedés nem söpör, a következő beszúrás pedig a saját sorát védi — tehát a többlet állandósult, és nem a párhuzamosság, hanem a KÉRŐ szabta meg a méretét.',
+    replaced_by: 'VÉGSŐ ESET: ha a plafon a két kör után is sérül, a BESZÚRT sor megy — akkor is, ha belépett —, és a hívó a tárból tudja meg (`sessions.has`), hogy a felvétel nem sikerült. A belépés ilyenkor NEVEZETTEN nem sikerül (`503 at_capacity`), süti nélkül. A plafon így a `set` után MINDIG áll, és ez NEM kiléptetés: a bent lévőket nem bántjuk.',
+    decision: 'D-VS-3131',
+    found_by: 'A KÜLSŐ REVIEW (Codex, R154 NYOLCADIK kör — P1 `v3app/server.mjs:620`) — az EGY KÖRREL korábbi saját javításom (KUKA-316) maradék éle, pont azon az úton, amit a névtelen-felvételi próbáim nem jártak be.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "drop\\(keep, 'refused_cap'\\);",
+        why: 'a beszúrás elutasítása a végső eset' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'if \\(!sessions\\.has\\(fresh\\.id\\)\\)',
+        why: 'és a belépés nem ad sütit nem létező munkamenetre' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'A „KIMONDOTT TŰRÉS" CSAK AKKOR TŰRÉS, HA MÚLÓ. Ha egy korlát megsértését azzal indokoljuk, hogy „átmeneti", akkor meg kell mutatni, MI szünteti meg — és ha a megszüntetőt közben kivezettük, a tűrés állandósult réssé vált. Amit nem tudunk megtartani, azt minden osztályban el kell utasítani, nem csak abban, amire a próbák véletlenül ránéztek.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta) · `npm run verify:app-findings-r154` (P: p1–p2 a tár szintjén, p3 az ellenpár a változatlan szabályra, p4–p6 élő HTTP-n, p7 az ellenpár: az elutasítás ÁTMENETI).',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

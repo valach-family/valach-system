@@ -966,8 +966,13 @@ try {
       }
       let kod = 0; let hiba = '';
       try {
+        // A KIMENET IDEIGLENES ÚTRA MEGY (F154-34, külső review, Codex, nyolcadik kör, P1): `--out`
+        // nélkül az exportáló az ALAPÉRTELMEZETT, KÖNYVELT R71-es bizonyíték-fájlt írná felül —
+        // és pont akkor, amikor ez a próba a hiba visszatérését méri. A próba nem rombolhatja azt a
+        // bizonyítékot, amit a repó őriz.
         execFileSync(process.execPath, [join(ROOT, 'tools/v3_fogyasztas_export.mjs'),
-          '--session', sess2, '--projects', tmp2, '--from', '2026-01-01T00:00:00Z', '--to', '2026-01-02T00:00:00Z'],
+          '--session', sess2, '--projects', tmp2, '--from', '2026-01-01T00:00:00Z', '--to', '2026-01-02T00:00:00Z',
+          '--out', join(tmp2, 'kimenet')],
           { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
       } catch (e) { kod = e.status; hiba = String(e.stderr || ''); }
       step('(n6) két projekt-könyvtárban ugyanaz az átirat → NEVEZETT elakadás (RÉGEN: csendben az elsőt exportálta)',
@@ -1007,6 +1012,90 @@ try {
     const f = resolveLanguage({ acceptLanguage: 'hu;q=0, *;q=1' });
     step('(o7) és a KÉRÉS nyelve is ezt kapja — a feloldó EGY (a `resolveLanguage` nem másol szabályt)',
       f.code !== 'hu' && f.source === 'accept_language' && f.matched === true, f);
+  }
+
+  // ── P) F154-35 — HA MINDEN ÁLDOZAT VÉDETT, A BESZÚRÁS ELUTASÍTVA (nyolcadik Codex-kör, P1) ──
+  //
+  // A LELET: ha MINDEN sort épp kiszolgálnak, a belépett kör minden jelöltet kihagy, a beszúrt
+  // BELÉPETT sort pedig a `keep` védte — a `set` tehát a plafon FÖLÖTT tért vissza, és mivel az
+  // elengedés már nem söpör (F154-29), a többlet ott maradt. Érvényes jelszóval ismételhető volt.
+  part('P) F154-35 — a plafon a `set` után MINDIG áll: a felvétel elutasítható');
+  {
+    const t1 = 2_000_000;
+    const st = makeSessionStore({ idleMs: 600_000, maxSessions: 2, warn: () => {} });
+    st.set('b1', { id: 'b1', subject_id: 'u1' }, t1);
+    st.set('b2', { id: 'b2', subject_id: 'u2' }, t1 + 1);
+    const k1 = Symbol('k1'); const k2 = Symbol('k2');
+    st.pin('b1', k1); st.pin('b2', k2);                      // MINDEN sort épp kiszolgálunk
+    st.set('b3', { id: 'b3', subject_id: 'u3' }, t1 + 2);     // belépés: rotált, BELÉPETT sor
+    step('(p1) minden áldozat védett → a BESZÚRT belépett sor nem kerül be, a plafon áll (RÉGEN: 3 sor, és ott is maradt)',
+      st.size === 2 && st.has('b3', t1 + 2) === false, { size: st.size, uj_sor_bent: st.has('b3', t1 + 2), plafon: 2 });
+    step('(p2) és ez NEM kiléptetés: a bent lévő kettő marad, a számláló ELUTASÍTÁST mond',
+      st.has('b1', t1 + 2) && st.has('b2', t1 + 2) && st.stats().evicted_cap_signed_in === 0 && st.stats().refused_cap === 1,
+      st.stats());
+    st.unpinAll(k1); st.unpinAll(k2);
+    const st2 = makeSessionStore({ idleMs: 600_000, maxSessions: 2, warn: () => {} });
+    st2.set('c1', { id: 'c1', subject_id: 'v1' }, t1);
+    st2.set('c2', { id: 'c2', subject_id: 'v2' }, t1 + 1);
+    st2.set('c3', { id: 'c3', subject_id: 'v3' }, t1 + 2);    // pin NÉLKÜL: a régi szabály áll
+    step('(p3) ELLENPÁR: pin nélkül a belépés továbbra is bejut — a LEGRÉGEBBEN látott esik ki (a szabály nem változott)',
+      st2.has('c3', t1 + 2) && st2.size === 2 && st2.has('c1', t1 + 2) === false && st2.stats().refused_cap === 0,
+      { size: st2.size, uj_bent: st2.has('c3', t1 + 2), legregebbi_bent: st2.has('c1', t1 + 2), stats: st2.stats() });
+
+    // (p4) ÉLŐ HTTP: telt tár + futó kérés → a belépés NEVEZETTEN elutasít, és a bent lévő marad.
+    const DB6 = resolve(ROOT, 'var/tmp/v3app_r154_p.sqlite');
+    try { rmSync(DB6, { force: true }); rmSync(DB6 + '-wal', { force: true }); rmSync(DB6 + '-shm', { force: true }); } catch { /* nem volt */ }
+    const elozoP = process.env.VS_APP_SESSION_MAX;
+    process.env.VS_APP_SESSION_MAX = '1';
+    const egy = await startServer({ port: 0, dbPath: DB6 });
+    try {
+      const b6 = `http://127.0.0.1:${egy.server.address().port}`;
+      const port6 = egy.server.address().port;
+      const fiok = async (nev) => {
+        const c = new Client(b6);
+        await c.post('/api/register', { email: `${nev}@pelda.hu`, password: PW, lang: 'hu' });
+        const m = (await c.get('/dev/mailbox')).body.mails.filter((x) => x.to === `${nev}@pelda.hu`)[0];
+        const l = new URL(m.link);
+        await c.get(l.pathname + l.search);
+        return c;
+      };
+      const a = await fiok('p-egy');
+      const b = await fiok('p-ketto');
+      await a.post('/api/login', { email: 'p-egy@pelda.hu', password: PW });
+      step('(p4) ALAPSOKASÁG: 1-es plafon, a tárban EGY belépett sor',
+        egy.sessions.size === 1 && egy.sessions.stats().anonymous === 0, egy.sessions.stats());
+
+      // LASSÚ kérés az ELSŐ fiókkal: amíg fut, az ő sora VÉDETT (pin).
+      let belepes = null;
+      await new Promise((kesz) => {
+        const rq = httpReq({ host: '127.0.0.1', port: port6, path: '/api/invites/pending', method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Transfer-Encoding': 'chunked', cookie: a.cookie || '' } }, (res) => {
+          res.on('data', () => {}); res.on('end', () => kesz());
+        });
+        rq.on('error', () => kesz());
+        rq.write('{"token":"p-lassu-');
+        setTimeout(async () => {
+          const r = await fetch(b6 + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: 'p-ketto@pelda.hu', password: PW }) });
+          belepes = { status: r.status, body: await r.json().catch(() => ({})) };
+          rq.end('proba"}');
+        }, 150);
+      });
+      step('(p5) ÉLŐ HTTP: telt táron, futó kérés mellett a belépés NEVEZETTEN elutasít (nem ad sütit nem létező munkamenetre)',
+        belepes && (belepes.status === 503 ? belepes.body.reason === 'at_capacity' : belepes.status === 200),
+        { status: belepes && belepes.status, reason: belepes && belepes.body && belepes.body.reason });
+      step('(p6) és a tár a plafonon maradt — a már bent lévőt nem léptettük ki',
+        egy.sessions.size <= 1 && egy.sessions.stats().evicted_cap_signed_in === 0, egy.sessions.stats());
+
+      const ujra = await fetch(b6 + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'p-ketto@pelda.hu', password: PW }) });
+      step('(p7) ELLENPÁR: a lassú kérés LEFUTÁSA UTÁN a belépés sikerül — az elutasítás ÁTMENETI, nem kapu',
+        ujra.status === 200, { status: ujra.status });
+      void b;
+    } finally {
+      await new Promise((r) => egy.server.close(r));
+      if (elozoP === undefined) delete process.env.VS_APP_SESSION_MAX; else process.env.VS_APP_SESSION_MAX = elozoP;
+    }
   }
 
   const fail = results.filter((r) => !r.pass);

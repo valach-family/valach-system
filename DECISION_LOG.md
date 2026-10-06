@@ -431,6 +431,42 @@ a nyelv-alcímkén túl); a jegyzék sorrendje dönt a joker esetében, és ezt 
 
 ---
 
+## D-VS-3130 — A PRÓBA KIMENETE SOHA NEM A KÖNYVELT BIZONYÍTÉK ÚTJA (R154)
+
+**A döntés.** Minden próba, ami egy repó-eszközt futtat, KIMONDOTTAN megadja a saját kimeneti útját
+(ideiglenes könyvtár). Az eszközök alapértelmezett, könyvelt kimeneti útjára próba nem írhat.
+
+**Miért.** A KUKA-319 próbája `--out` nélkül futtatta az exportálót, és ezzel — különösen a
+visszavétel-próbában, ahol az őr szándékosan nincs ott — felülírta a KÖNYVELT
+`V3_R71_FOGYASZTAS_EXPORT.json`/`.csv` bizonyítékot: a JSON a szintetikus munkamenetet nevezte meg
+nulla hívással, a CSV kiürült, és a kár a `00e4251` commitban fel is ment. A fájlokat visszaállítottam
+a SPEC-alappal (`e24860f4`) **bájtra azonos** alakra.
+
+**Amit ez NEM állít.** Nem állítja, hogy a többi próba át van vizsgálva erre — ez EGY próba EGY
+mellékhatása; a `verify:artifact-naming` a NEVEKRE áll, nem arra, hogy ki írja őket. Gépi jel:
+`npm run verify:kuka` (KUKA-321).
+
+---
+
+## D-VS-3131 — A PLAFON A `set` UTÁN MINDIG ÁLL: A FELVÉTEL ELUTASÍTHATÓ, DE KILÉPTETÉS NINCS (R154)
+
+**A döntés.** Ha a plafon a két kiszorítási kör után is sérül (mert minden áldozat épp kiszolgálás
+alatt áll), akkor a BESZÚRT sor megy — akkor is, ha belépett. A belépés ilyenkor NEVEZETTEN nem
+sikerül (`503 at_capacity`), süti nélkül. A már bent lévőket nem léptetjük ki.
+
+**Miért.** A D-VS-3125 után a plafont a beszúrás érvényesíti, az elengedés nem söpör. MÉRVE (plafon 2,
+két belépett sor PINELVE, majd egy belépés): a tár **3 sornál** állt és ott is maradt; élő HTTP-n
+1-es plafonnal ugyanez. Vagyis a „kimondott tűrés" nem volt múló: egy érvényes jelszóval rendelkező
+kérő ismételhette, és a memória-korlát megkerülhető volt. A javítás után: a tár a plafonon marad, a
+számláló pedig ELUTASÍTÁST mond (`refused_cap`), nem kiléptetést (`evicted_cap_signed_in: 0`).
+
+**Amit ez NEM állít.** Az elutasítás ÁTMENETI, nem kapu: amint a futó kérések elengedik a sorukat, a
+belépés sikerül (mérve: `p7`). És ha a staging rendszeresen ezt adja, a plafon kevés — a
+`VS_APP_SESSION_MAX` emelése a válasz, nem az elutasítás elrejtése. Gépi jel:
+`npm run verify:kuka` (KUKA-322) · `npm run verify:app-findings-r154` (P: p1–p7).
+
+---
+
 ## D-VS-3117 — A KONFIGURÁCIÓS ÉRTÉK ALAKJA IS MÉRT, ÉS AZ AZONOSÍTÓ IDÉZŐJELEZVE MEGY (R154)
 
 **A döntés.** A `proof:pg-durability` megméri a `VS_RESTORE_TEST_DB` alakját (zárt azonosító-minta), és
