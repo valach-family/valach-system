@@ -46,7 +46,7 @@ import { transcriptsOf } from '../tools/v3_fogyasztas_meres.mjs';
 import { restoreTargetProblem, sameDatabase, effectiveDatabase, withDatabase, freshTargetName,
   restoreTargetDecision, restoreOutcome, redactConnStrings, acquireFreshTarget, localOnlyVerdict,
   effectiveHost, RESTORE_TARGET_PREFIX, PROTECTED_DB_NAMES,
-  cliEnvFor } from '../tools/lib/vs_pg_target.mjs';
+  cliEnvFor, pgUrlShape, PG_URL_SHAPES } from '../tools/lib/vs_pg_target.mjs';
 
 import { execFileSync } from 'node:child_process';
 /**
@@ -1231,9 +1231,16 @@ try {
     const szerver = withDatabase('postgres://u:p@h/vs_eles?dbname=masik&sslmode=require', 'postgres').toString();
     step('(r4) a kiszolgáló-URL a MEGNEVEZETT adatbázisra mutat, és a `?dbname=` felülírás KIKERÜL',
       szerver.includes('/postgres') && !szerver.includes('dbname=') && szerver.includes('sslmode=require'), { url: szerver });
-    step('(r5) és a tényleges név feloldása KIMONDJA, MIN alapul',
-      /dbname/.test(effectiveDatabase('postgres://h/?dbname=x').basis) && effectiveDatabase('postgres://h/?dbname=x').name === 'x',
-      effectiveDatabase('postgres://h/?dbname=x'));
+    // PONTOSÍTVA az R166/P1-ben: a `?dbname=`-et a libpq VESZI, a node-postgres NEM — ahol a kettő
+    // mást ad (itt: a node-olvasat neve nem is tudható), a válasz MEGÁLLÁS, nem a libpq-érték. A
+    // feloldó TOVÁBBRA IS kimondja, min alapul — ez a pin eredeti állítása — csak most az
+    // ELTÉRÉST mondja ki. (És a környezetet kimondottan ürítjük: a valódi `PGDATABASE` különben a
+    // gazdagépet mérné, nem a kódot — KUKA-344.)
+    const r5 = effectiveDatabase('postgres://h/?dbname=x', PG_ENV_NELKUL);
+    step('(r5) és a tényleges név feloldása KIMONDJA, MIN alapul — a `?dbname=` felülírás mellett a KÉT FOGYASZTÓ eltérése MEGÁLLÁS (R166/P1; régen a libpq-érték lett az eldöntött név)',
+      r5.name === null && /node-postgres pedig NEM/.test(r5.basis)
+      && sameDatabase('postgres://h/?dbname=x', 'x', PG_ENV_NELKUL).same === true,
+      { nev: r5.name, alap: r5.basis.slice(0, 80) });
 
     // (r6–r7) F154-41: a plafon pozitív EGÉSZ szám.
     const naplo = [];
@@ -1743,11 +1750,18 @@ try {
     // `source`. Az F158-01 köre az „utolsó, NEM ÜRES érték győz" olvasatot vette alapul; a biztonsági
     // átolvasás kimutatta, hogy az üres érték a libpq-ban AKTÍV felülírás. Ahol a két olvasat MÁST ad,
     // ott megállunk — a lelet eredeti kárát (a `decoy&source` cím `decoy`-nak látszott) ez nem oldja.
-    step('(w1) F158-01: az ISMÉTELT `dbname` kulcsból az UTOLSÓ érték dönt (libpq) — a `decoy&source` cím forrása `source`; és az ÜRES utolsó érték MEGÁLLÁST ad (F158-22)',
-      effectiveDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source', PG_ENV_NELKUL).name === 'source'
+    // ÉS MÁSODSZOR IS PONTOSÍTVA (R166/P1): az „utolsó, nem üres érték győz" a libpq olvasata, a
+    // node-postgres viszont a `?dbname=`-et EGYÁLTALÁN nem veszi, hanem az UTAT (`decoy`). A két
+    // fogyasztó tehát MÁS adatbázist nyit — ezért a név itt sem `source`, hanem NEM MEGÁLLAPÍTHATÓ.
+    // A lelet eredeti kára (a cím `decoy`-nak LÁTSZOTT, és a `source`-ra menő `DROP` átment) ezzel
+    // ERŐSEBBEN zárva: MOST EGYIK név sem engedi el a kaput.
+    const w1 = effectiveDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source', PG_ENV_NELKUL);
+    step('(w1) F158-01 + R166/P1: az ISMÉTELT `dbname` kulcsot a libpq veszi (az utolsó, nem üres értéket), a node-postgres viszont az UTAT — a kettő MÁST nyit, tehát a név NEM megállapítható, és a kapu MINDKÉT névre megáll; az ÜRES utolsó érték is MEGÁLLÁS (F158-22)',
+      w1.name === null && /KÉT FOGYASZTÓ MÁST olvas/.test(w1.basis)
         && effectiveDatabase('postgres://u@host/decoy?dbname=source&dbname=', PG_ENV_NELKUL).name === null
-        && sameDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source', 'source', PG_ENV_NELKUL).same === true,
-      { ismetelt: effectiveDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source', PG_ENV_NELKUL).name,
+        && sameDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source', 'source', PG_ENV_NELKUL).same === true
+        && sameDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source', 'decoy', PG_ENV_NELKUL).same === true,
+      { ismetelt: w1.name,
         utolso_ures: effectiveDatabase('postgres://u@host/decoy?dbname=source&dbname=', PG_ENV_NELKUL).name });
     step('(w2) F158-02: a `?service=` paraméter mellett a forrás NEM megállapítható — és a döntés ÓVATOS megállás',
       effectiveDatabase('postgres://decoy@host/?service=prod').name === null
@@ -1945,8 +1959,11 @@ try {
 
     const y2a = effectiveDatabase('postgres://u@h/vs_eles', { PGDATABASE: 'source' });
     const y2b = effectiveDatabase('postgres://u@h/?dbname=a', { PGDATABASE: 'b' });
-    step('(y2) F158-16 ELLENPÁR: a CÍM megelőzi a környezetet (libpq sorrend) — út és `?dbname=` mellett a `PGDATABASE` nem szól bele',
-      y2a.name === 'vs_eles' && y2b.name === 'a', { uttal: y2a.name, dbname_parameterrel: y2b.name });
+    step('(y2) F158-16 ELLENPÁR: a CÍM megelőzi a környezetet (libpq sorrend) — az ÚT mellett a `PGDATABASE` nem szól bele; a `?dbname=` mellett viszont a node-postgres ÉPP a `PGDATABASE`-re esik, a libpq a paraméterre: a kettő eltérése MEGÁLLÁS (R166/P1)',
+      y2a.name === 'vs_eles' && y2b.name === null && /KÉT FOGYASZTÓ MÁST olvas/.test(y2b.basis)
+      && sameDatabase('postgres://u@h/?dbname=a', 'a', { PGDATABASE: 'b' }).same === true
+      && sameDatabase('postgres://u@h/?dbname=a', 'b', { PGDATABASE: 'b' }).same === true,
+      { uttal: y2a.name, dbname_parameterrel: y2b.name });
 
     const y3 = effectiveDatabase('postgres://decoy@host/vs_eles', { PGSERVICE: 'prod' });
     const y3s = sameDatabase('postgres://decoy@host/vs_eles', 'source', { PGSERVICE: 'prod' });
@@ -2249,8 +2266,8 @@ try {
         && effectiveDatabase('postgres://u@host/decoy?dbname=source&dbname=', PG_ENV_NELKUL).name === null,
       { nev: aa1.name, megall: aa1s.same, ismetelt_utolso_ures: effectiveDatabase('postgres://u@host/decoy?dbname=source&dbname=', PG_ENV_NELKUL).name });
 
-    step('(aa2) F158-22 ELLENPÁROK: a JOGOS esetek változatlanok — a két nem üres ismétlésből az utolsó dönt, a `?user=` adja a nevet, az út pedig a lánc jogos indulását',
-      effectiveDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source', PG_ENV_NELKUL).name === 'source'
+    step('(aa2) F158-22 ELLENPÁROK: a JOGOS esetek változatlanok — a `?user=` adja a nevet, és az ÚT továbbra is a lánc jogos indulását; a két nem üres `dbname` ismétlés viszont az R166/P1 óta MEGÁLLÁS, mert a node-postgres az UTAT nyitja',
+      effectiveDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source', PG_ENV_NELKUL).name === null
         && effectiveDatabase('postgres://decoy@host/?user=source', PG_ENV_NELKUL).name === 'source'
         && sameDatabase('postgres://u:p@h/vs_eles', 'vs_visszatoltes_proba', PG_ENV_NELKUL).same === false
         && effectiveDatabase('postgres://source_user:pw@host/?user=', PG_ENV_NELKUL).name === null,
@@ -2820,6 +2837,120 @@ try {
     step('(ab7) F164-01: a kiírt szövegből a kapcsolati cím ÉS a jelszó is eltűnik, a titokmentes szöveg viszont változatlan',
       !/TITKOS|MASIK/.test(ab_t) && /elrejtve/.test(ab_t) && ab_t2 === 'rendben, nincs benne titok',
       { tisztitott: ab_t.slice(0, 80) });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  // AC — AZ R166 NYITOTT P1: A SÉMA DÖNTI EL, HOL ÁLL AZ ADATBÁZIS (`#discussion_r4207213198`)
+  //
+  // A LELET SZÖVEGE a `postgres://…?db=…` felülírást állította. MEGMÉRVE a kitűzött könyvtáron
+  // (`pg-connection-string` 2.14.1) **az a konkrét eset NEM áll elő** — a hálózati sémán az ÚT
+  // feltétel nélkül győz. A MECHANIZMUS viszont létezik, csak a `socket:` sémán: ott a `?db=` AZ
+  // adatbázis, az ÚT pedig a SOCKET-KÖNYVTÁR. A leletet tehát NEM zárom le „nem reprodukálható"
+  // címen (a checkpoint kikötése) — a rés valódi, és a kár NÉMA volt:
+  //
+  //   MÉRVE, a régi feloldóval, `socket:/var/run/postgresql?db=eles` mellett:
+  //     · `effectiveDatabase` → `var/run/postgresql` (az ÚT!), nem `eles`;
+  //     · ezért `sameDatabase(cím, 'eles')` → „ELTÉR" → a kapu ÁTENGEDTE a célt,
+  //       és a lánc végén álló `DROP DATABASE "eles"` a VALÓDI adatbázist vitte volna.
+  //
+  // Ezek a sorok TISZTA függvényeket hívnak, tehát a söprésben futnak (KUKA-207); a valódi
+  // kiszolgálón mért ellenpár a `proof:pg-restore-safety` (RS) csoportjában áll.
+  {
+    part('AC) R166 — a `socket:` séma és a KÉT FOGYASZTÓ olvasata (a nyolcadik review-kör P1-je)');
+    const SOCK = 'socket:/var/run/postgresql?db=eles&user=app';
+
+    // ── (ac1) A SÉMA ZÁRT LISTÁJA — ami nincs rajta, az NEM tipp, hanem nevezett megállás ────────
+    const ac_halozati = pgUrlShape('postgres://u@localhost/original');
+    const ac_hosszu = pgUrlShape('postgresql://u@localhost/original');
+    const ac_socket = pgUrlShape(SOCK);
+    const ac_idegen = pgUrlShape('mysql://u@localhost/original');
+    const ac_dummy = pgUrlShape('socket://u@/var/run/postgresql?db=eles');
+    const ac_perjel = pgUrlShape('/var/run/postgresql eles');
+    step('(ac1) R166/P1: a séma ZÁRT listán áll (`postgres:` · `postgresql:` · `socket:`), és a listán kívüli alak NEVEZETT megállás — a kliens által elfogadott, de WHATWG URL-lel nem értelmezhető két alak is nevezetten áll meg, nem némán',
+      ac_halozati.shape === 'halozati' && ac_hosszu.shape === 'halozati' && ac_socket.shape === 'socket'
+      && ac_idegen.shape === null && /zárt listán/.test(ac_idegen.basis)
+      && ac_dummy.shape === null && /PÓT-gazdagéppel/.test(ac_dummy.basis)
+      && ac_perjel.shape === null && /SZÓKÖZ adatbázis/.test(ac_perjel.basis)
+      && Object.keys(PG_URL_SHAPES).length === 3,
+      { halozati: ac_halozati.shape, socket: ac_socket.shape, idegen: ac_idegen.shape,
+        dummy: ac_dummy.shape, perjel: ac_perjel.shape });
+
+    // ── (ac2) A SOCKET-CÍMEN A `?db=` AZ ADATBÁZIS, AZ ÚT A SOCKET-KÖNYVTÁR ──────────────────────
+    const ac_nev = effectiveDatabase(SOCK, PG_ENV_NELKUL);
+    const ac_ures = effectiveDatabase('socket:/var/run/postgresql?db=', PG_ENV_NELKUL);
+    const ac_nincs = effectiveDatabase('socket:/var/run/postgresql', PG_ENV_NELKUL);
+    const ac_ketto = effectiveDatabase('socket:/var/run/postgresql?db=egyik&db=masik', PG_ENV_NELKUL);
+    step('(ac2) R166/P1: a `socket:` címen a `?db=` nevezi meg az adatbázist, és NEM az út (RÉGEN: az ÚT lett a „név", tehát a kapu a socket-könyvtárat vetette össze a céllal) — az üres, a hiányzó és a KÉT eltérő `?db=` mind NEM megállapítható',
+      ac_nev.name === 'eles' && !/var\/run/.test(String(ac_nev.name))
+      && ac_ures.name === null && ac_nincs.name === null && ac_ketto.name === null
+      && /ELTÉRŐ/.test(ac_ketto.basis),
+      { nev: ac_nev.name, ures: ac_ures.name, nincs: ac_nincs.name, ketto: ac_ketto.name });
+
+    // ── (ac3) A KAPU — EZ A NÉMA KÁR HELYE ──────────────────────────────────────────────────────
+    const ac_kapu_azonos = sameDatabase(SOCK, 'eles', PG_ENV_NELKUL);
+    const ac_kapu_ut = sameDatabase(SOCK, 'var/run/postgresql', PG_ENV_NELKUL);
+    const ac_kapu_mas = sameDatabase(SOCK, 'vs_restore_proba_x', PG_ENV_NELKUL);
+    step('(ac3) R166/P1: a kapu a `?db=` adatbázissal AZONOS célon MEGÁLL (régen ÁTENGEDTE, és a `DROP DATABASE` a valódi adatbázist vitte volna), az ÚT nevével egyező célon pedig NEM azonosságot mond — a friss, saját cél viszont továbbra is átmegy',
+      ac_kapu_azonos.same === true && ac_kapu_ut.same === false && ac_kapu_mas.same === false,
+      { azonos_db_vel: ac_kapu_azonos.same, azonos_uttal: ac_kapu_ut.same, friss_cel: ac_kapu_mas.same });
+
+    // ── (ac4) AZ ÁTIRÁNYÍTÁS — AZ ÚT ÉRINTETLEN, A `?db=` KAPJA A NEVET ─────────────────────────
+    const ac_at = withDatabase(SOCK, 'vs_restore_proba_uj');
+    const ac_at_halozati = withDatabase('postgres://u@localhost/original?dbname=a&db=b&database=c', 'vs_restore_proba_uj');
+    step('(ac4) R166/P1: `socket:` címen az átirányítás az ÚTAT (a socket-könyvtárat) ÉRINTETLENÜL hagyja és a `?db=`-t írja át, PONTOSAN egy előfordulással (RÉGEN: az utat írta át, a `?db=`-t érintetlenül hagyta — vagyis a kapcsolat az EREDETI adatbázisra ment volna); a hálózati címről MINDHÁROM adatbázis-megnevező kulcs kimegy',
+      ac_at.pathname === '/var/run/postgresql'
+      && ac_at.searchParams.getAll('db').length === 1
+      && ac_at.searchParams.get('db') === 'vs_restore_proba_uj'
+      && effectiveDatabase(ac_at.toString(), PG_ENV_NELKUL).name === 'vs_restore_proba_uj'
+      && ac_at_halozati.pathname === '/vs_restore_proba_uj'
+      && !ac_at_halozati.searchParams.has('dbname') && !ac_at_halozati.searchParams.has('db')
+      && !ac_at_halozati.searchParams.has('database'),
+      { socket_ut: ac_at.pathname, socket_db: ac_at.searchParams.get('db'),
+        halozati_ut: ac_at_halozati.pathname, halozati_query: ac_at_halozati.search || '(üres)' });
+
+    // ── (ac5) ISMERETLEN SÉMÁN AZ ÁTIRÁNYÍTÁS MEGÁLL, NEM TIPPEL ────────────────────────────────
+    let ac_dobott = null;
+    try { withDatabase('mysql://u@localhost/original', 'vs_x'); } catch (e) { ac_dobott = e; }
+    step('(ac5) R166/P1: a zárt listán nem szereplő sémán az átirányítás NEVEZETT hibával megáll (fail-closed), nem ad vissza csendben egy félig átírt címet',
+      ac_dobott instanceof TypeError && /NEM biztonságos/.test(ac_dobott.message),
+      { hiba: ac_dobott ? ac_dobott.message.slice(0, 70) : 'NEM DOBOTT' });
+
+    // ── (ac6) A HÁLÓZATI SÉMA EGYETLEN DIVERGENCIÁJA: a `?dbname=` ──────────────────────────────
+    //
+    // Mérve: a libpq VESZI a `?dbname=`-et, a node-postgres az utat írja a `database`-re FELTÉTEL
+    // NÉLKÜL. Ahol a kettő mást ad, ott a név NEM megállapítható — különben a kapu egy olyan célt
+    // engedne át, amit a másik fogyasztó ÉPPEN HASZNÁL.
+    const ac_div = effectiveDatabase('postgres://u@localhost/original?dbname=source', PG_ENV_NELKUL);
+    const ac_egyez = effectiveDatabase('postgres://u@localhost/original?dbname=original', PG_ENV_NELKUL);
+    const ac_db_nem = effectiveDatabase('postgres://u@localhost/original?db=source', PG_ENV_NELKUL);
+    const ac_div_kapu = sameDatabase('postgres://u@localhost/original?dbname=source', 'original', PG_ENV_NELKUL);
+    step('(ac6) R166/P1: a hálózati címen a `?dbname=` és az út ELTÉRÉSE NEM megállapítható (régen a libpq-olvasat lett az eldöntött név, és a kapu átengedte a node-postgres által ÉPPEN HASZNÁLT adatbázist), egyezésnél viszont megadott a név; a `?db=` a hálózati ágon egyik fogyasztónál sem írja felül az utat',
+      ac_div.name === null && /KÉT FOGYASZTÓ MÁST olvas/.test(ac_div.basis)
+      && ac_egyez.name === 'original'
+      && ac_db_nem.name === 'original'
+      && ac_div_kapu.same === true,
+      { eltero: ac_div.name, egyezo: ac_egyez.name, db_parameter: ac_db_nem.name, kapu_megall: ac_div_kapu.same });
+
+    // ── (ac7) A GAZDAGÉP IS A SÉMÁTÓL FÜGG — ÉS A HELYI KAPU EZEN ÁLL ───────────────────────────
+    const ac_gazda = effectiveHost(SOCK, PG_ENV_NELKUL);
+    const ac_gazda_rel = effectiveHost('socket:var/run/postgresql?db=eles', PG_ENV_NELKUL);
+    const ac_gazda_utkozo = effectiveHost('socket:/var/run/postgresql?db=eles&host=masik.pelda.hu', PG_ENV_NELKUL);
+    const ac_helyi = localOnlyVerdict(SOCK, PG_ENV_NELKUL);
+    step('(ac7) R166/P1: a `socket:` címen az ÚT a gazdagép (a socket-könyvtár), ezért a helyi kapu HELYI-t mond; a NEM abszolút út és az úttal ütköző `?host=` viszont NEM eldönthető, tehát a destruktív kapu zárva marad',
+      ac_gazda.host === '/var/run/postgresql' && ac_gazda.decidable === true
+      && ac_gazda_rel.decidable === false && /ABSZOLÚT/.test(ac_gazda_rel.basis)
+      && ac_gazda_utkozo.decidable === false
+      && ac_helyi.allowed === true && ac_helyi.host === '/var/run/postgresql',
+      { gazdagep: ac_gazda.host, relativ_eldontheto: ac_gazda_rel.decidable,
+        utkozo_eldontheto: ac_gazda_utkozo.decidable, helyi: ac_helyi.allowed });
+
+    // ── (ac8) ÉS A CLI-KÖRNYEZET IS: a gyermek a SOCKET-KÖNYVTÁRAT kapja gazdagépnek ────────────
+    const ac_cli = cliEnvFor({ sourceUrl: SOCK, database: 'vs_restore_proba_uj', env: PG_ENV_NELKUL });
+    step('(ac8) R166/P1: a CLI-gyermek (`pg_dump`/`psql`) a `socket:` címről a SOCKET-KÖNYVTÁRAT kapja `PGHOST`-nak és a MEGNEVEZETT célt `PGDATABASE`-nek — a libpq a `socket:` URI-t nem értelmezi, ezért a cím SOHA nem mehet át neki kapcsolati sztringként',
+      ac_cli.ok === true && ac_cli.env.PGHOST === '/var/run/postgresql'
+      && ac_cli.env.PGDATABASE === 'vs_restore_proba_uj' && ac_cli.env.PGUSER === 'app',
+      { ok: ac_cli.ok, host: ac_cli.ok ? ac_cli.env.PGHOST : ac_cli.reason,
+        db: ac_cli.ok ? ac_cli.env.PGDATABASE : null, user: ac_cli.ok ? ac_cli.env.PGUSER : null });
   }
 
   const fail = results.filter((r) => !r.pass);

@@ -16,6 +16,76 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3201 — A KAPCSOLATI CÍM SÉMÁJA ZÁRT LISTA, ÉS A KÉT FOGYASZTÓ ELTÉRÉSE MEGÁLLÁS (R166/P1)
+
+> **Hatály:** V3 — a visszatöltési/mentési szerszámlánc (`tools/lib/vs_pg_target.mjs`). **V2-módosítás
+> nem történt, és nincs rá engedély.**
+
+**Dátum:** 2026-10-07 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R166 (a nyolcadik review-kör
+nyitott P1-je, `#discussion_r4207213198`) · **KUKA-393**
+
+**A döntés — három tétel.**
+
+1. **A SÉMA ZÁRT LISTÁN ÁLL, EGY OTTHONBAN.** A `PG_URL_SHAPES` + `pgUrlShape` adja meg, hol áll az
+   adatbázis és hol a gazdagép: `postgres:` és `postgresql:` → **hálózati** (az ÚT az adatbázis),
+   `socket:` → **socket** (az ÚT a socket-KÖNYVTÁR, az adatbázist a `?db=` nevezi meg). Mind a négy
+   feloldó — `effectiveDatabase` · `withDatabase` · `effectiveHost` · és rajtuk keresztül a
+   `cliEnvFor` — **erre ágazik**, nem a saját feltevésére. Ami nincs a listán, az **nevezett
+   megállás**, nem tipp (`KUKA-236`).
+2. **AHOL A KÉT FOGYASZTÓ MÁST OLVAS, A NÉV NEM MEGÁLLAPÍTHATÓ.** A lánc **két** klienst futtat:
+   node-postgres a kódban, libpq a `pg_dump`/`psql` gyermekben. A hálózati sémán a `?dbname=`-et a
+   libpq **veszi**, a node-postgres pedig az utat írja a `database`-re **feltétel nélkül** — ezért a
+   feloldó a két olvasatot **összeveti**, és eltérésnél **megáll**. Nincs „helyes érték", ahol a lánc
+   végén `DROP DATABASE` áll (`KUKA-049` · `KUKA-203`).
+3. **A `socket:` CÍMET A CLI-GYERMEK SOHA NEM KAPJA MEG KAPCSOLATI SZTRINGKÉNT** — a libpq ezt az
+   URI-t nem értelmezi. A gyermek a `cliEnvFor` **környezetét** kapja: `PGHOST` a socket-könyvtár,
+   `PGDATABASE` a megnevezett cél.
+
+**Miért — és mi volt a KÁR.** A lelet szövege a `postgres://…?db=…` felülírást állította. A kitűzött
+könyvtáron (`pg-connection-string` **2.14.1**) **megmérve ez az eset nem áll elő**: a hálózati sémán
+az út feltétel nélkül győz, mind a négy mért cím `original`-t adott. **A mechanizmus viszont létezik,
+csak a `socket:` sémán** — és ott a kár **néma** volt:
+
+| | RÉGI alak | ÚJ alak |
+|---|---|---|
+| `effectiveDatabase('socket:/var/run/postgresql?db=eles')` | **`var/run/postgresql`** (az ÚT!) | **`eles`** |
+| `sameDatabase(…, 'eles')` → a biztonsági kapu | **ÁTENGED** → `DROP DATABASE "eles"` a **valódi** adatbázison | **MEGÁLL** |
+| `withDatabase(…, friss_cél)` | az **ÚTAT** írja át (a socket-könyvtárat rontja el), a `?db=` **érintetlen** → az átirányítás nem irányít át | az **ÚT érintetlen**, a `?db=` kapja a nevet |
+
+**A LELETET NEM ZÁRTAM LE „NEM REPRODUKÁLHATÓ" CÍMEN.** A mért tény az, hogy a *leírt* eset nem áll
+elő a kitűzött könyvtáron — a *mechanizmus* viszont valódi, és a safety-kritikus feloldóban nyitva
+volt. Egy lelet leírt esetének megdőlése nem a lelet megdőlése.
+
+**A bizonyíték — és az ellenpár a KÁRRA, nem a listára.**
+
+- **`verify:app-findings-r154` AC csoport (ac1–ac8), a söprésben:** a zárt lista · a név · a kapu · az
+  átirányítás · a fail-closed dobás ismeretlen sémán · a hálózati divergencia · a gazdagép · a
+  CLI-környezet. A battéria **250/250 PASS**.
+- **`proof:pg-restore-safety` E10a–E10e, VALÓDI kiszolgálón, Unix-socketen:** a régi alak kapcsolata
+  nem a friss célra ment · az új alak **a friss célra** ment · az **eredeti adatbázis érintetlen**
+  (0 nyom) · a nyom **a friss célban** áll · és a CLI-környezet a socket-könyvtárat kapja. A lánc
+  **48/48** (korábban 43/43). A socket-könyvtár a **kiszolgálótól** jött
+  (`SHOW unix_socket_directories`), nem tippből; ha a kiszolgáló nem hallgat Unix-socketen, a lépés
+  **NEM MÉRT** — nevezetten, nem néma zöldként (`KUKA-093` · `KUKA-363`).
+- **VISSZACSÚSZÁS-PRÓBA MÉRVE:** a séma-sort és a divergencia-blokkot visszaállítva a battéria **11
+  pinje piros**, köztük az `ac3` — a kapu újra átengedte volna a valódi adatbázis eldobását.
+- A három pg-lánc **újramérve** az új feloldóval: `proof:pg-intent` **10 állítás / 0 eltérés** ·
+  `proof:pg-restore-safety` **48/48** · `proof:pg-durability` **13/13**, valódi PostgreSQL **16.15**-en.
+
+**A SAJÁT PINJEIM NÉGY ÁLLÍTÁSÁT ÁT KELLETT ÍRNI, ÉS EZT KIMONDOM.** Az `r5` · `w1` · `y2` · `aa2` a
+`?dbname=` **libpq-olvasatát** állította eldöntött névnek (`F158-01` · `F158-16` · `F158-22` körei).
+Ez **fél igazság volt**: a másik fogyasztó ugyanazt a címet máshogy olvassa. A négy pin ma az
+**eltérést** állítja, tehát **erősebb** — a leletek eredeti kára (a cím félreolvasott neve átengedte a
+kaput) ezzel **mindkét** névre zárva. A `KUKA-326` gépi jele is a mai alakra igazítva (a `dbname`
+törlése háromkulcsos hurokban áll; a védő erő megmarad: a kulcslista eltűnése piros).
+
+**Amit ez NEM állít.** Nem a libpq teljes utánzata, és nem PostgreSQL 18-kompatibilitás. A kliens
+által elfogadott két alakot (`socket://u@/út` pót-gazdagéppel, és a perjellel kezdődő
+„gazdagép SZÓKÖZ adatbázis") a feloldó **szándékosan nem** utánozza le: ott nevezetten megáll — a
+második értelmezési szabály a második hibalehetőség lenne.
+
+---
+
 ## D-VS-3200 — A SZEMÉLYES TÉR LAP-LISTÁJA A KLIENS TELJES SZABÁLYÁBÓL JÖN, NEM A MENÜBŐL (R164 review, P2)
 
 **A döntés.** A személyes körben elérhető lapok listája (`PERSONAL_SCREENS`) a **mindig elérhető lapok**

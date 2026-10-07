@@ -584,6 +584,86 @@ console.log('\nE9 — a verdikt-feloldó határesetei és a titok-tisztító');
   step('E9e. a tisztító a kapcsolati címet ÉS a jelszót is elrejti', !/titkos|masik/.test(t) && /elrejtve/.test(t), t.slice(0, 90));
 }
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// E10 — A `socket:` SÉMA ÁTIRÁNYÍTÁSA VALÓDI KISZOLGÁLÓN (R166/P1, `#discussion_r4207213198`)
+//
+// MIÉRT ÉPP ÍGY. A lelet a `?db=` felülírást állította, és a kitűzött könyvtáron (`pg-connection-string`)
+// MÉRVE a HÁLÓZATI sémán ez nem áll elő. A mechanizmus viszont a `socket:` sémán LÉTEZIK, ott pedig az
+// ÚT a socket-KÖNYVTÁR. A tiszta függvények pinjei a söprésben állnak (`verify:app-findings-r154`, AC
+// csoport) — ez a lépés a KÁRT méri: az átirányítás UTÁN tényleg a FRISS célra megy-e az írás, és
+// marad-e érintetlen az EREDETI adatbázis. A régi alakot ugyanitt, egymás mellett futtatjuk.
+//
+// A SOCKET-KÖNYVTÁR A KISZOLGÁLÓTÓL JÖN, NEM TIPPBŐL. Ha a kiszolgáló nem hallgat Unix-socketen, ez a
+// lépés NEM MÉRT — és nevezetten az, nem néma zöld (KUKA-093 · KUKA-363).
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+console.log('\nE10 — a `socket:` séma átirányítása (R166/P1)');
+const nemMert = [];
+{
+  const sockDir = psql(['-c', 'SHOW unix_socket_directories']).out.trim().split(',')[0].trim();
+  const port = psql(['-c', 'SHOW port']).out.trim();
+  const user = psql(['-c', 'SELECT current_user']).out.trim();
+  if (!sockDir || !sockDir.startsWith('/')) {
+    nemMert.push('E10 — a kiszolgáló nem hallgat Unix-socketen (`unix_socket_directories` üres vagy nem abszolút), ezért a `socket:` séma ellenpárja NEM MÉRT');
+    console.log(`  KIH E10 — ${nemMert[nemMert.length - 1]}`);
+  } else {
+    const sockCim = (db) => `socket:${sockDir}?port=${encodeURIComponent(port)}&user=${encodeURIComponent(user)}&db=${encodeURIComponent(db)}`;
+    /** A RÉGI alak, karakterre az R166 előtti kódból: az ÚT kapja a nevet, a `?db=` érintetlen marad. */
+    const withDatabaseREGI = (sourceUrl, name) => {
+      const u = new URL(String(sourceUrl));
+      u.pathname = `/${String(name)}`;
+      try { u.searchParams.delete('dbname'); } catch { /* nincs query */ }
+      return u;
+    };
+    // A lánc SAJÁT, friss „eredetije" és „friss célja" — a megadott adatbázist itt sem írjuk.
+    const e10eredeti = freshTargetName();
+    const e10cel = freshTargetName();
+    let elokeszult = true;
+    for (const n of [e10eredeti, e10cel]) {
+      const c = psql(['-v', 'ON_ERROR_STOP=1', '-c', `CREATE DATABASE ${qid(n)}`]);
+      if (c.code !== 0) { elokeszult = false; break; }
+      sajatDb.add(n);
+    }
+    if (!elokeszult) {
+      nemMert.push('E10 — a két saját adatbázis nem jött létre, ezért a `socket:` ellenpár NEM MÉRT');
+      console.log(`  KIH E10 — ${nemMert[nemMert.length - 1]}`);
+    } else {
+      // Nyomot HAGYÓ írás mindkét alakkal, ÉLŐ kapcsolaton, a socketen keresztül.
+      const ir = (cim, jel) => {
+        try {
+          const s = openPgStore(cim);
+          const hova = String(s.get('SELECT current_database() AS db').db);
+          s.run('CREATE TABLE IF NOT EXISTS vs_r166_nyom (jel text)');
+          s.run(`INSERT INTO vs_r166_nyom VALUES ('${jel}')`);
+          s.close();
+          return { hova };
+        } catch (e) { return { hiba: redactConnStrings(String(e.message || e)).slice(0, 90) }; }
+      };
+      const nyomok = (db) => {
+        const r = psql(['-c', 'SELECT jel FROM vs_r166_nyom ORDER BY jel'], db);
+        return r.code === 0 ? r.out.trim().split('\n').filter(Boolean) : [];
+      };
+      const forrasCim = sockCim(e10eredeti);
+      const regi = ir(withDatabaseREGI(forrasCim, e10cel).toString(), 'regi');
+      const uj = ir(withDatabase(forrasCim, e10cel).toString(), 'uj');
+
+      step('E10a. a RÉGI alak az ÚTAT (a socket-könyvtárat) írta át, ezért a kapcsolat NEM a friss célra ment — a `?db=` érintetlen maradt',
+        regi.hova !== e10cel,
+        regi.hiba ? `a régi alak kapcsolata elbukott: ${regi.hiba}` : `a régi alak ide ment: ${regi.hova}`);
+      step('E10b. az ÚJ alak átirányítása a FRISS CÉLRA megy — valódi kiszolgálón, Unix-socketen',
+        uj.hova === e10cel, `mérve: ${uj.hova ?? uj.hiba} · szándék: ${e10cel}`);
+      step('E10c. és az EREDETI adatbázis ÉRINTETLEN: nincs benne a mérés nyoma',
+        nyomok(e10eredeti).length === 0, `az eredetiben talált nyomok: ${nyomok(e10eredeti).length}`);
+      step('E10d. a nyom a FRISS CÉLBAN áll (az írás tényleg megtörtént, nem csak „nem hibázott")',
+        nyomok(e10cel).join(',') === 'uj', `a célban talált nyomok: ${nyomok(e10cel).join(',') || '(nincs)'}`);
+      step('E10e. a `socket:` cím a CLI-gyermeknek környezetként megy át (a libpq a `socket:` URI-t nem értelmezi)',
+        (() => { const r = cliEnvFor({ sourceUrl: forrasCim, database: e10cel, env: process.env });
+          return r.ok && r.env.PGHOST === sockDir && r.env.PGDATABASE === e10cel; })(),
+        `PGHOST a socket-könyvtár · PGDATABASE a megnevezett cél`);
+      tény(`a mért socket-könyvtár a KISZOLGÁLÓTÓL jött (\`SHOW unix_socket_directories\`), nem tippből`);
+    }
+  }
+}
+
 // ── ZÁRÁS: a mérés saját szemetét MI takarítjuk (eldobható környezet) ──────────────────────────
 psql(['-c', `DROP DATABASE ${qid(idegen)} WITH (FORCE)`]);
 step('Z. a mérés saját idegen-maradéka eldobva (a mérés nem hagy szemetet)', !letezik(idegen), idegen);
@@ -591,6 +671,8 @@ step('Z. a mérés saját idegen-maradéka eldobva (a mérés nem hagy szemetet)
 console.log('='.repeat(94));
 const bad = marks.filter((m) => !m.ok);
 console.log(`ALAPSOKASÁG: ${marks.length} mért ellenpróba-lépés.`);
+// A NEM MÉRT LÉPÉS NEVEZETTEN ÁLL, NEM NÉMA ZÖLDKÉNT (KUKA-093 · KUKA-363).
+if (nemMert.length) { console.log(`NEM MÉRT (${nemMert.length}) — nevezve:`); for (const x of nemMert) console.log(`  · ${x}`); }
 if (bad.length === 0) {
   console.log('RENDBEN — a kapu a ROSSZ esetekben is megáll, a forrás és az idegen adat sértetlen,');
   console.log('          a hibás visszatöltés nem lesz PASS, és a megszakadt futás nem hagy szemetet.');

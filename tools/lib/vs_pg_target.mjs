@@ -133,9 +133,102 @@ function envValue(env, nev) {
  * Dokumentáció: PostgreSQL „libpq — Environment Variables" (`PGDATABASE` ≡ `dbname`, `PGUSER` ≡ `user`,
  * `PGSERVICE` ≡ `service`) és „Connection Strings" (a cím paraméterei megelőzik a környezetet).
  */
+/**
+ * A SÉMA DÖNTI EL, HOL ÁLL AZ ADATBÁZIS ÉS HOL A GAZDAGÉP — ZÁRT LISTÁVAL
+ * (R166/P1, külső review, Codex, nyolcadik kör: „Strip node-postgres `db` overrides when retargeting",
+ * `#discussion_r4207213198`).
+ *
+ * A LELET SZÖVEGE ÉS A MÉRÉS. A lelet azt állította, hogy `postgres://u@localhost/original?db=source`
+ * mellett a node-postgres a FORRÁS adatbázisra kapcsolódik. **A KITŰZÖTT KÖNYVTÁRON MEGMÉRVE
+ * (`pg-connection-string` 2.14.1) EZ AZ ESET NEM ÁLL ELŐ:** a hálózati sémánál a könyvtár az utat
+ * FELTÉTEL NÉLKÜL írja a `database`-re, tehát sem `db=`, sem `dbname=`, sem `database=` nem írhatja
+ * felül — mind a négy mért cím `original`-t adott.
+ *
+ * A MECHANIZMUS VISZONT LÉTEZIK, CSAK MÁS SÉMÁN — ÉS EZ A VALÓDI RÉS. A könyvtárban a `db=`
+ * felülírás KIZÁRÓLAG a `socket:` séma ágán áll, és ott az ÚT a SOCKET-KÖNYVTÁR, nem adatbázis
+ * (`config.host = decodeURI(result.pathname); config.database = result.searchParams.get('db')`).
+ * A régi alak tehát `socket://u@/var/run/pg?db=eles` mellett
+ *   · `effectiveDatabase`-ben az ÚTAT (`var/run/pg`) mondta adatbázis-névnek — a kapu így egy
+ *     `eles` nevű célt „eltér"-nek látott, és a `DROP DATABASE "eles"` a VALÓDI adatbázist vitte volna;
+ *   · `withDatabase`-ben az ÚTAT írta át a friss cél nevére — vagyis a SOCKET-KÖNYVTÁRAT rontotta el,
+ *     a `db=`-t pedig érintetlenül hagyta: az átirányítás UTÁN is az EREDETI adatbázisra ment volna,
+ *     miközben a takarítás a saját, üres célt dobja el.
+ *
+ * MIÉRT EGY HELYEN. Mert a séma-feltevés NÉGY feloldóban élt (`effectiveDatabase` · `withDatabase` ·
+ * `effectiveHost` · és rajta keresztül a `cliEnvFor`), és egy szabály négy háza az a hiba, amit a
+ * `KUKA-003` és a `KUKA-129` nevez meg. A lista ZÁRT: ami nincs rajta, az NEM tipp, hanem nevezett
+ * megállás (`KUKA-236` — a zárt lista a mezőkre is érvényes).
+ *
+ * Dokumentáció: `pg-connection-string` README, „Unix domain socket" szakasz — amire maga a lelet is
+ * hivatkozik.
+ */
+export const PG_URL_SHAPES = Object.freeze({
+  'postgres:': 'halozati',
+  'postgresql:': 'halozati',
+  'socket:': 'socket',
+});
+
+export function pgUrlShape(sourceUrl) {
+  const nyers = String(sourceUrl);
+  let url;
+  try { url = new URL(nyers); } catch {
+    // ── KÉT ALAK, AMIT A KLIENS ELFOGAD, A WHATWG URL VISZONT NEM — ÉS EZÉRT MEGÁLLUNK ────────────
+    //
+    // Mérve (`pg-connection-string` 2.14.1): a `socket://u@/út?db=x` címet a könyvtár egy PÓT-gazdagép
+    // behelyezésével (`@/` → `@___DUMMY___/`) mégis elfogadja, a perjellel kezdődő sztringet pedig
+    // egyáltalán nem URL-ként, hanem „gazdagép SZÓKÖZ adatbázis" alakban olvassa. Mindkettő VALÓDI,
+    // működő bemenet a kliensnek — a mi feloldónk mégsem utánozza le, mert ahol a lánc végén
+    // `DROP DATABASE` áll, a második értelmezési szabály a második hibalehetőség (KUKA-020 · KUKA-203).
+    // A válasz tehát NEVEZETT megállás, nem néma „nem értelmezhető".
+    if (nyers.startsWith('/')) {
+      return { shape: null, url: null,
+        basis: 'a cím PERJELLEL kezdődik — ezt a kliens nem URL-ként, hanem „gazdagép SZÓKÖZ adatbázis" alakban olvassa; ezt a feloldó szándékosan NEM utánozza, tehát NEM megállapítható' };
+    }
+    if (/^socket:/i.test(nyers)) {
+      return { shape: null, url: null,
+        basis: 'a `socket:` cím `@/` alakú (üres autoritás-gazdagép) — a kliens egy PÓT-gazdagéppel elfogadja, a WHATWG URL nem értelmezi; a feloldó itt NEM tippel, tehát NEM megállapítható' };
+    }
+    return { shape: null, url: null, basis: 'a forrás-cím nem értelmezhető' };
+  }
+  if (!Object.prototype.hasOwnProperty.call(PG_URL_SHAPES, url.protocol)) {
+    return { shape: null, url,
+      basis: `a cím sémája nincs a zárt listán (\`${Object.keys(PG_URL_SHAPES).join('` · `')}\`) — a kliens máshol keresheti az adatbázist és a gazdagépet, tehát NEM megállapítható` };
+  }
+  const shape = PG_URL_SHAPES[url.protocol];
+  return { shape, url,
+    basis: shape === 'socket'
+      ? 'a cím `socket:` sémájú — az ÚT a socket-KÖNYVTÁR, az adatbázist a `?db=` nevezi meg'
+      : 'a cím hálózati sémájú — az ÚT nevezi meg az adatbázist' };
+}
+
+/**
+ * A `socket:` SÉMA ADATBÁZIS-NEVE. Itt NINCS két olvasat, mert a libpq a `socket:` URI-t nem is
+ * értelmezi — a CLI-eszközök ezért SOHA nem a címet kapják, hanem a `cliEnvFor` környezetét. A
+ * node-postgres az ELSŐ `?db=` előfordulást veszi (`searchParams.get`), a mi libpq-szabályunk az
+ * UTOLSÓ, nem üreset (F158-01) — ahol a kettő MÁST adna, a név NEM megállapítható.
+ */
+function socketDatabase(u) {
+  let all;
+  try { all = u.searchParams.getAll('db').map((v) => String(v).trim()); } catch { all = []; }
+  if (!all.length) {
+    return { name: null, basis: 'a `socket:` cím nem hordoz `?db=` paramétert — az adatbázist a kliens a felhasználóból vagy a környezetből venné, ami innen nem tudható' };
+  }
+  const elso = all[0];
+  if (elso === '') {
+    return { name: null, basis: 'a `socket:` cím `?db=` paramétere ÜRES — a kliens az alapértelmezésre esne, tehát a név NEM megállapítható' };
+  }
+  if (all.some((v) => v !== '' && v !== elso)) {
+    return { name: null, basis: 'a `socket:` cím TÖBB, egymástól ELTÉRŐ `?db=` értéket hordoz — a node-postgres az ELSŐT veszi, a libpq-szabály az UTOLSÓT; a kettő MÁST ad, tehát NEM megállapítható' };
+  }
+  return { name: elso, basis: 'a `socket:` cím `?db=` paramétere nevezi meg az adatbázist (az ÚT a socket-könyvtár, nem adatbázis)' };
+}
+
 export function effectiveDatabase(sourceUrl, env = process.env) {
-  let u;
-  try { u = new URL(String(sourceUrl)); } catch { return { name: null, basis: 'a forrás-cím nem értelmezhető' }; }
+  const alak = pgUrlShape(sourceUrl);
+  if (!alak.shape) return { name: null, basis: alak.basis };
+  const u = alak.url;
+  // A `socket:` SÉMÁNÁL AZ ÚT NEM ADATBÁZIS (R166/P1) — a név a `?db=`-ben áll, külön feloldóban.
+  if (alak.shape === 'socket') return socketDatabase(u);
   // ── A SZOLGÁLTATÁS-FÁJL OLVASHATATLAN INNEN (F158-02, külső review, Codex, P1) ──────────────────
   //
   // A LELET: `?service=prod` esetén a libpq a `pg_service.conf`-ból vesz további paramétereket —
@@ -157,7 +250,30 @@ export function effectiveDatabase(sourceUrl, env = process.env) {
   if (qDbLast.jelen && qDbLast.ertek === '') {
     return { name: null, basis: 'a cím ÜRES `?dbname=` felülírást hordoz — a libpq ezt AKTÍV felülírásként tárolja, és a nevet a felhasználóra oldja fel; a kettő MÁST adhat, tehát NEM megállapítható' };
   }
-  if (qDbLast.ertek) return { name: qDbLast.ertek, basis: 'a cím `?dbname=` paramétere FELÜLÍRJA az utat' };
+  // ── A KÉT FOGYASZTÓ OLVASATÁT ÖSSZE KELL VETNI (R166/P1 — lásd a `pgUrlShape` fejét) ─────────────
+  //
+  // A `?dbname=` az EGYETLEN pont a hálózati sémában, ahol a két fogyasztó MÁST olvas: a libpq veszi,
+  // a node-postgres pedig az utat írja a `database`-re FELTÉTEL NÉLKÜL (mérve: `pg-connection-string`
+  // 2.14.1, `config.database = pathname ? decodeURI(pathname) : null`). A régi alak itt a libpq
+  // olvasatát adta ELDÖNTÖTT névnek — és ezzel a kapu egy olyan célt engedhetett át, amit a
+  // node-postgres-oldali lánc ÉPPEN HASZNÁL (KUKA-039: a szabály egyik végén javítva).
+  const kozos = sharedDatabase(u, env);
+  if (!qDbLast.jelen) return kozos;
+  if (!kozos.name) {
+    return { name: null, basis: `a cím \`?dbname=\` felülírást hordoz, amit a libpq VESZ, a node-postgres pedig NEM — és a node-olvasat neve sem tudható (${kozos.basis}), tehát NEM megállapítható` };
+  }
+  if (kozos.name !== qDbLast.ertek) {
+    return { name: null, basis: `a KÉT FOGYASZTÓ MÁST olvas: a libpq (\`pg_dump\`/\`psql\`) a cím \`?dbname=\` paraméterét veszi, a node-postgres viszont ${kozos.basis} — ahol a lánc végén \`DROP DATABASE\` áll, a kétértelműség MEGÁLLÁS (KUKA-049 · KUKA-203)` };
+  }
+  return { name: kozos.name, basis: `a cím \`?dbname=\` paramétere és a node-olvasat UGYANAZT nevezi meg (${kozos.basis})` };
+}
+
+/**
+ * A KÉT FOGYASZTÓ KÖZÖS olvasata a hálózati sémában: út → `PGDATABASE` → `?user=` → cím-felhasználó
+ * → `PGUSER`. Ebben a láncban a libpq és a node-postgres MEGEGYEZIK (az út nélküli címnél mindkettőnél
+ * a FELHASZNÁLÓ neve lesz az adatbázis — a node-postgres oldalán a kiszolgáló oldja fel így).
+ */
+function sharedDatabase(u, env) {
   let path;
   try { path = decodeURIComponent(String(u.pathname || '').replace(/^\/+/, '')); }
   catch { return { name: null, basis: 'a forrás adatbázis-neve hibás százalék-kódolást tartalmaz' }; }
@@ -180,13 +296,32 @@ export function effectiveDatabase(sourceUrl, env = process.env) {
 }
 
 /**
- * EGY CÍM EGY MEGNEVEZETT ADATBÁZISRA. A `?dbname=` paramétert KIVESSZÜK, különben felülírná a
- * beállított utat — ez a fenti lelet második fele (a kiszolgáló-URL-ek is hordozták a felülírást).
+ * EGY CÍM EGY MEGNEVEZETT ADATBÁZISRA — A SÉMÁHOZ IGAZÍTVA (R166/P1).
+ *
+ * A HÁLÓZATI sémánál az ÚT nevezi meg az adatbázist, és a `?dbname=` felülírást KIVESSZÜK, különben a
+ * libpq-oldali fogyasztó (`pg_dump`/`psql`) a RÉGI nevet olvasná a frissen beállított út mellett. A
+ * `?db=` és a `?database=` ugyanebből az okból megy ki: egyik fogyasztó sem veszi őket a hálózati
+ * ágon, de egy ottmaradt kulcs a KÖVETKEZŐ olvasót megtéveszti (KUKA-050).
+ *
+ * A `socket:` SÉMÁNÁL AZ ÚT A SOCKET-KÖNYVTÁR — ha azt írjuk át, a KAPCSOLATOT rontjuk el, az
+ * adatbázis pedig a `?db=`-ben marad, vagyis az átirányítás NEM irányít át. Ezért itt az ÚT
+ * ÉRINTETLEN, és a `?db=` kapja a nevet, PONTOSAN EGY előfordulással.
+ *
+ * ÉS AMI NINCS A ZÁRT LISTÁN: `TypeError`-ral MEGÁLLUNK. Egy ismeretlen sémán nem tudjuk, hol áll az
+ * adatbázis — ott a néma „átirányítás" a legrosszabb válasz (KUKA-020 · KUKA-236).
  */
 export function withDatabase(sourceUrl, name) {
-  const u = new URL(String(sourceUrl));
+  const alak = pgUrlShape(sourceUrl);
+  if (!alak.shape) throw new TypeError(`withDatabase — az átirányítás NEM biztonságos: ${alak.basis}`);
+  const u = alak.url;
+  for (const kulcs of ['dbname', 'db', 'database']) {
+    try { u.searchParams.delete(kulcs); } catch { /* nincs query */ }
+  }
+  if (alak.shape === 'socket') {
+    u.searchParams.set('db', String(name));
+    return u;
+  }
   u.pathname = `/${String(name)}`;
-  try { u.searchParams.delete('dbname'); } catch { /* nincs query */ }
   return u;
 }
 
@@ -394,8 +529,30 @@ export function redactConnStrings(text) {
  * Mindegyik válasza: `decidable: false` — és a hívó ilyenkor MEGÁLL (KUKA-020 · KUKA-203).
  */
 export function effectiveHost(sourceUrl, env = process.env) {
-  let u;
-  try { u = new URL(String(sourceUrl)); } catch { return { host: null, decidable: false, basis: 'a forrás-cím nem értelmezhető' }; }
+  const alak = pgUrlShape(sourceUrl);
+  if (!alak.shape) return { host: null, decidable: false, basis: alak.basis };
+  const u = alak.url;
+  // ── A `socket:` SÉMÁNÁL AZ ÚT A GAZDAGÉP (R166/P1) ───────────────────────────────────────────────
+  //
+  // A könyvtár itt a `?host=` paramétert FELÜLÍRJA az úttal (`config.host = decodeURI(pathname)` a
+  // korai visszatérés előtt), tehát a gazdagép az ÚT — és ha a cím mégis `?host=`-ot hordoz, a két
+  // érték MÁST mond: ott nem tippelünk. A PostgreSQL csak az ABSZOLÚT utat kezeli socketként, ezért a
+  // relatív út itt NEM eldönthető (a helyi kapu `KUKA-377` szabálya ugyanez a mérce).
+  if (alak.shape === 'socket') {
+    let utvonal;
+    try { utvonal = decodeURI(String(u.pathname || '')); } catch { utvonal = String(u.pathname || ''); }
+    if (!utvonal) {
+      return { host: null, decidable: false, basis: 'a `socket:` cím nem hordoz utat — a socket-könyvtár nem eldönthető' };
+    }
+    if (!utvonal.startsWith('/')) {
+      return { host: null, decidable: false, basis: 'a `socket:` cím útja nem ABSZOLÚT — a PostgreSQL csak a perjellel kezdődő gazdagépet kezeli socketként, tehát nem eldönthető' };
+    }
+    const qHostSocket = queryLast(u, 'host');
+    if (qHostSocket.jelen && qHostSocket.ertek !== utvonal) {
+      return { host: null, decidable: false, basis: 'a `socket:` cím ÚTJA és a `?host=` paramétere MÁST mond — a node-postgres az utat veszi, de a kétértelműség itt nem tippelhető' };
+    }
+    return { host: utvonal, decidable: true, basis: 'a `socket:` cím ÚTJA a socket-könyvtár (ez a gazdagép)' };
+  }
   if (queryParam(u, 'service') || envValue(env, 'PGSERVICE')) {
     return { host: null, decidable: false,
       basis: 'a cím vagy a környezet SZOLGÁLTATÁST nevez meg (`service`/`PGSERVICE`) — a szolgáltatás-fájl gazdagépet is adhat, amit innen NEM látunk' };
