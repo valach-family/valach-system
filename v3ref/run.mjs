@@ -798,6 +798,21 @@ probe('P-K03-intent-expiry', 'R32/K03 · D-VS-3141 (a D-VS-3007 nevezett függő
       const impTakaritas = purgeExpiredIntents({ store: w.store, clock: eltolt });
       const impMaradt = w.store.all('SELECT session_id FROM pending_intent').map((r) => r.session_id).sort().join(',');
 
+      // (k) ÉS A KANONIKUS ALAK VIZSGÁLATA BETŰ-ÉRZÉKENY (F158-24, külső review, Codex, P2). A LELET:
+      //     az SQLite `LIKE`-ja ASCII-ra kis/nagybetű-érzéketlen, ezért egy FRISS, értelmezhető
+      //     `…t…z` alakú sor kanonikusnak LÁTSZOTT, és a szöveges összevetés a kisbetűs `t`-t (0x74)
+      //     a nagybetűs `T`-nél (0x54) nagyobbnak látta — vagyis jövőbelinek minősítette és TÖRÖLTE;
+      //     PostgreSQL-en ugyanaz a sor megmaradt. A takarítás viselkedése a TÁROLÓTÓL függött.
+      w.store.run('DELETE FROM pending_intent');
+      const mostIso = new Date(Date.parse(w.clock.now())).toISOString();
+      const regiIso = new Date(Date.parse(w.clock.now()) - PENDING_INTENT_TTL_MS - 1000).toISOString();
+      beSor('betu_kis_friss', mostIso.toLowerCase());
+      beSor('betu_kis_lejart', regiIso.toLowerCase());
+      beSor('betu_nagy_friss', mostIso);
+      beSor('betu_nagy_lejart', regiIso);
+      const betuTakaritas = purgeExpiredIntents({ store: w.store, clock: w.clock });
+      const betuMaradt = w.store.all('SELECT session_id FROM pending_intent').map((r) => r.session_id).sort().join(',');
+
       const ok = friss === 'tok_1' && lejart === null && sorEltunt
         && takaritas.purged === 1 && maradt.join(',') === 'sess_friss,sess_most' && nevezett === true
         && romlott === null && romlottEltunt === true
@@ -805,10 +820,11 @@ probe('P-K03-intent-expiry', 'R32/K03 · D-VS-3141 (a D-VS-3007 nevezett függő
         && halmaz.purged === 2 && halmazMaradt === 'arva_friss'
         && ttlRovid === 12 * ORA && ttlHosszu === PENDING_INTENT_TTL_MS && ttlNevezett === true
         && kanonikusAlak === '2026-10-05T23:00:00.000Z' && eltoltTakaritas.purged === 0 && eltoltMegvan === true
-        && impTakaritas.purged === 2 && impTakaritas.odd_purged === 1 && impMaradt === 'imp_friss_eltolas';
+        && impTakaritas.purged === 2 && impTakaritas.odd_purged === 1 && impMaradt === 'imp_friss_eltolas'
+        && betuMaradt === 'betu_kis_friss,betu_nagy_friss' && betuTakaritas.purged === 2 && betuTakaritas.odd_purged === 1;
       return {
-        expected: 'friss=tok_1 · lejárt=null és a sor eltűnt · takarítás=1 lejárt sor, a friss marad · óra nélkül NEVEZETT hiba · ROMLOTT és JÖVŐBELI időbélyeg = lejárt · a HALMAZOS takarítás az árva romlott és jövőbeli sort is viszi, a frisset nem · a türelmi idő a PLAFON és a munkamenet KISEBBIKE, korlát nélkül NEVEZETT hiba · az ÍRÁS kanonikus UTC alakot tárol, az eltolásos FRISS sor megmarad, és a nem kanonikus árva sort IDŐPILLANATKÉNT ítéljük meg',
-        actual: `friss=${friss} · lejárt=${lejart} · sor_eltunt=${sorEltunt} · takaritva=${takaritas.purged} · maradt=${maradt.join(',')} · nevezett_hiba=${nevezett} · romlott=${romlott} · romlott_eltunt=${romlottEltunt} · jovo=${jovo} · jovo_eltunt=${jovoEltunt} · halmaz_takaritva=${halmaz.purged} · halmaz_maradt=${halmazMaradt} · ttl_12h=${ttlRovid / ORA}h · ttl_48h=${ttlHosszu / ORA}h · ttl_korlat_nelkul_nevezett=${ttlNevezett} · tarolt_alak=${kanonikusAlak} · eltolasos_friss_megvan=${eltoltMegvan} · import_takaritva=${impTakaritas.purged}/nem_kanonikusbol=${impTakaritas.odd_purged} · import_maradt=${impMaradt}`,
+        expected: 'friss=tok_1 · lejárt=null és a sor eltűnt · takarítás=1 lejárt sor, a friss marad · óra nélkül NEVEZETT hiba · ROMLOTT és JÖVŐBELI időbélyeg = lejárt · a HALMAZOS takarítás az árva romlott és jövőbeli sort is viszi, a frisset nem · a türelmi idő a PLAFON és a munkamenet KISEBBIKE, korlát nélkül NEVEZETT hiba · az ÍRÁS kanonikus UTC alakot tárol, az eltolásos FRISS sor megmarad, és a nem kanonikus árva sort IDŐPILLANATKÉNT ítéljük meg · a KISBETŰS friss sor is megmarad (az alak-vizsgálat betű-érzékeny)',
+        actual: `friss=${friss} · lejárt=${lejart} · sor_eltunt=${sorEltunt} · takaritva=${takaritas.purged} · maradt=${maradt.join(',')} · nevezett_hiba=${nevezett} · romlott=${romlott} · romlott_eltunt=${romlottEltunt} · jovo=${jovo} · jovo_eltunt=${jovoEltunt} · halmaz_takaritva=${halmaz.purged} · halmaz_maradt=${halmazMaradt} · ttl_12h=${ttlRovid / ORA}h · ttl_48h=${ttlHosszu / ORA}h · ttl_korlat_nelkul_nevezett=${ttlNevezett} · tarolt_alak=${kanonikusAlak} · eltolasos_friss_megvan=${eltoltMegvan} · import_takaritva=${impTakaritas.purged}/nem_kanonikusbol=${impTakaritas.odd_purged} · import_maradt=${impMaradt} · betu_maradt=${betuMaradt} · betu_takaritva=${betuTakaritas.purged}/nem_kanonikusbol=${betuTakaritas.odd_purged}`,
         pass: ok,
       };
     } finally { w.store.close(); }

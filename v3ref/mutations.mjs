@@ -2374,8 +2374,8 @@ export const MUTATIONS = [
   { id: 'M209', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
     what: 'R158/1b — A TAKARÍTÁS NEM VISZ SEMMIT: a lejárt sorok a táblában maradnak, tehát a tár korlátlanul nő (a korlátlan memória-növekedés a KUKA-328/330 hiba-osztálya)',
     file: 'invite.mjs',
-    from: "  store.run(`DELETE FROM pending_intent WHERE ${WHERE}`, KANONIKUS, hatar, most);",
-    to: "  // A TAKARÍTÁS KIVÉVE (ÚJRA-HORGONYZVA az F158-20-ban: a takarítás két lépésre vált, az állítás változatlan)" },
+    from: "  store.run(`DELETE FROM pending_intent WHERE ${WHERE}`, ...ALAK_ERTEKEK, hatar, most);",
+    to: "  // A TAKARÍTÁS KIVÉVE (ÚJRA-HORGONYZVA az F158-20-ban, majd az F158-24-ben: az alak-vizsgálat betű-érzékeny lett; az állítás változatlan)" },
 
   // R158/3 — A VÉDŐ KAPUK IDŐ-IRÁNYA. A rés mindkét feloldóban külön állt, ezért KÉT mutáció rontja
   // külön-külön (KUKA-039: egy mutáció a másik felét őrizetlenül hagyná), és egy harmadik azt
@@ -2429,8 +2429,8 @@ export const MUTATIONS = [
   { id: 'M217', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
     what: 'R158 — A HALMAZOS TAKARÍTÁS ISMÉT CSAK A SZÖVEGESEN KISEBB SORT VISZI: az árva, romlott vagy jövőbeli időbélyegű sor örökre a táblában marad, mert a munkamenete nincs, tehát az olvasás sem hívódik meg rá (F158-14, külső review, Codex)',
     file: 'invite.mjs',
-    from: "  const WHERE = 'created_at LIKE ? AND (created_at < ? OR created_at > ?)';",
-    to: "  const WHERE = 'created_at LIKE ? AND (created_at < ? OR ? IS NOT NULL AND 1 = 0)';" },
+    from: "  const WHERE = `${ALAK} AND (created_at < ? OR created_at > ?)`;",
+    to: "  const WHERE = `${ALAK} AND (created_at < ? OR (? IS NOT NULL AND 1 = 0))`;" },
 
   // R158 HARMADIK review-kör — a folytatás élettartama. A KÉT ág KÜLÖN rontva (KUKA-039): a
   // származtatás maga, és a hiányzó bemenet néma tartaléka.
@@ -2463,4 +2463,10 @@ export const MUTATIONS = [
     file: 'invite.mjs',
     from: "  const KANONIKUS = '____-__-__T__:__:__.___Z';",
     to: "  const KANONIKUS = '____-__-__T%';" },
+  // R158 ÖTÖDIK review-kör — a kanonikus alak BETŰ-érzékenysége (F158-24).
+  { id: 'M223', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158 — A KANONIKUS ALAK VIZSGÁLATA ISMÉT BETŰ-ÉRZÉKETLEN: a `node:sqlite` LIKE-ja ASCII-ra kis/nagybetű-érzéketlen, ezért egy FRISS, értelmezhető `…t…z` alakú sor kanonikusnak látszik, és a szöveges összevetés jövőbelinek minősítve TÖRLI — PostgreSQL-en ugyanaz a sor megmaradna, vagyis a takarítás a TÁROLÓTÓL függ (F158-24, külső review, Codex)',
+    file: 'invite.mjs',
+    from: "  const ALAK = 'created_at LIKE ? AND substr(created_at, 11, 1) = ? AND substr(created_at, 24, 1) = ?';",
+    to: "  const ALAK = 'created_at LIKE ? AND ? IS NOT NULL AND ? IS NOT NULL';" },
 ];

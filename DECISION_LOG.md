@@ -16,6 +16,74 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3163 — AZ ÜRES KAPCSOLATI-KULCS FELÜLÍRÁS MEGÁLLÁST AD (R158, a visszatöltési kapu)
+
+**A döntés.** A kapcsolati cím kulcsainál a JELENLÉT és az ÉRTÉK két külön tény (`queryLast`): ha a
+`dbname` kulcs jelen van, és az UTOLSÓ előfordulása ÜRES, a forrás neve **NEM MEGÁLLAPÍTHATÓ**, tehát
+a lánc megáll. Ugyanez a felhasználóra: egy üres `?user=` felülírja a cím felhasználóját, tehát az
+innentől nem jelölt.
+
+**Miért.** A libpq az üres felülírást IS eltárolja, és az üres `dbname`-et a FELHASZNÁLÓ nevére oldja
+fel. MÉRVE: `postgres://source@host/decoy?dbname=` + `VS_RESTORE_TEST_DB=source` → a régi alak
+`decoy`-t mondott forrásnak (`same: false`), tehát a lánc elindult, és a `DROP DATABASE "source"` a
+VALÓDI forrást törölte volna; a mostani alak megáll.
+
+**Amit kimondok: a válasz nem a libpq pontos utánzása, hanem a megállás.** Az ismételt-kulcs
+szabályról (F158-01) azt vettem alapul, hogy az UTOLSÓ, NEM ÜRES érték győz; ez a lelet azt mutatja,
+hogy az üres érték AKTÍV. A két olvasat ott válik el, ahol a `DROP DATABASE` áll — ezért ahol MÁST
+adnának, a név nem tudható. A `w1` battéria-sort ennek megfelelően PONTOSÍTOTTAM (az üres utolsó érték
+most megállás), nem töröltem: az F158-01 eredeti kárát (`dbname=decoy&dbname=source` → `decoy`) ez nem
+oldja vissza.
+
+**Amit ez NEM állít.** Továbbra sem teljes libpq-feloldás: a szolgáltatás-fájl tartalmát nem olvassuk,
+és a rendszer-felhasználót nem tippeljük. Gépi jel: `npm run verify:app-findings-r154` (AA: aa1, aa2
+· W: w1) · `npm run verify:kuka` (KUKA-355).
+
+---
+
+## D-VS-3164 — A JOKER JOGOSULTSÁGÁNÁL A POZITÍV TARTOMÁNY A FELOLDOTT NYELVRE IS „EMLÍTÉS" (R158, LNG-03)
+
+**A döntés.** A `*` joker jelöltjeiből kimaradnak azok a nyelvek is, amelyekre egy KIFEJEZETTEN,
+pozitív súllyal megnevezett REGIONÁLIS tartomány feloldódik (`hu-HU` → `hu`). A `q=0` KIZÁRÁSOK
+pontossága változatlan: azokat továbbra is a szigorú RFC 4647 tartomány-illesztés dönti el.
+
+**Miért.** MÉRVE: `Accept-Language: hu-HU;q=0.5, *;q=1` → a régi alak `hu`-t adott. A joker az
+EMLÍTÉS NÉLKÜLI nyelvekre szól, tehát egy elérhető `en` 1-es súllyal megelőzi a 0,5-es magyart — a
+régi alak NÉMÁN felminősítette a kérő alacsonyabb preferenciáját. A javítás után `en`.
+
+**És csak a TÉNYLEGES feloldás számít.** A `normalizeLanguage` ismeretlen címkére az ALAPNYELVRE esik
+vissza; ha azt említésnek vennénk, egy ismeretlen `xx-YY` „említené" a magyart, és a joker elnémulna.
+MÉRVE: `xx-YY;q=0.5, *;q=1` → `hu` (változatlan), `de-AT;q=0, de;q=1` → `de` (a KUKA-330 szabálya áll).
+
+**Amit ez NEM állít.** Nem teljes RFC 4647 kiterjesztett szűrés, és a joker jelöltjei között továbbra
+is a nyelvi jegyzék sorrendje dönt. Gépi jel: `npm run verify:i18n` ·
+`npm run verify:app-findings-r154` (AA: aa3 — hat eset, köztük négy ellenpár) · `npm run verify:kuka`
+(KUKA-356).
+
+---
+
+## D-VS-3165 — A KANONIKUS IDŐBÉLYEG-ALAK VIZSGÁLATA BETŰRE PONTOS, NEM `LIKE`-ON ÁLL (R158, K03 · SQL-02)
+
+**A döntés.** A `pending_intent` takarításában a kanonikus alak két betűjét (`T` és `Z`) BÁJTRA
+hasonlítjuk (`substr(created_at, 11, 1) = 'T'`, `substr(created_at, 24, 1) = 'Z'`); a `LIKE` innentől
+csak az ALAKOT szűri. Ami így nem kanonikus, az az időpillanat-ágra kerül, és `Date.parse` ítéli meg.
+
+**Miért.** A `node:sqlite` `LIKE`-ja ASCII-ra kis/nagybetű-ÉRZÉKETLEN, a PostgreSQL-é nem. MÉRVE: egy
+importált, FRISS és értelmezhető `2026-10-06t12:00:00.000z` sor SQLite-on KANONIKUSNAK számított, és a
+szöveges összevetés a kisbetűs `t`-t (0x74) a nagybetűs `T`-nél (0x54) nagyobbnak látta — jövőbelinek
+minősítette és TÖRÖLTE (`purged: 1`); PostgreSQL-en ugyanaz a sor az időpillanat-ágra ment és
+megmaradt. A takarítás viselkedése tehát a TÁROLÓTÓL függött, és a folytatás CSAK SQLite-on veszett el.
+
+**Mérve a javítás után, öt soron:** a két FRISS (kis- és nagybetűs) marad, a két lejárt és a romlott
+megy — `purged: 3`, ebből a nem kanonikus ágról 2.
+
+**Amit ez NEM állít.** A mérés `node:sqlite` tárolón fut; a PostgreSQL-oldali viselkedést a `proof:pg-*`
+láncok mérnék, azok valódi kiszolgálót kérnek (`KUKA-307`). A `created_at` oszlop alakját a séma
+továbbra sem kényszeríti. Gépi jel: `npm run verify:v3ref` (P-K03-intent-expiry (k) ág + M223) ·
+`npm run verify:app-findings-r154` (AA: aa4) · `npm run verify:kuka` (KUKA-357).
+
+---
+
 ## D-VS-3162 — A DIAGNOSZTIKAI UTAK IS A TISZTÍTÓN MENNEK, ÉS A KÉTÉRTELMŰSÉG LISTÁJA VÁLASZTHATÓ MARAD (R158, a fogyasztás-export)
 
 **A döntés.** A fogyasztás-exportáló MIND A NÉGY diagnosztikai út-kiírása a `safePath` tisztítón megy

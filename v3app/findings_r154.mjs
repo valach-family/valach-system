@@ -1691,12 +1691,16 @@ try {
   part('W) R158 — a külső review leleteinek regressziói (F158-01 … F158-10)');
   {
     // (w1–w2) F158-01/02 — A VISSZATÖLTÉSI CÉL AZONOSSÁGA: ismételt kulcs és szolgáltatás-fájl.
-    step('(w1) F158-01: az ISMÉTELT `dbname` kulcsból az UTOLSÓ, nem üres érték dönt (libpq) — a `decoy&source` cím forrása `source`',
-      effectiveDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source').name === 'source'
-        && effectiveDatabase('postgres://u@host/decoy?dbname=source&dbname=').name === 'source'
-        && sameDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source', 'source').same === true,
-      { ismetelt: effectiveDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source').name,
-        utolso_ures: effectiveDatabase('postgres://u@host/decoy?dbname=source&dbname=').name });
+    // PONTOSÍTVA az F158-22-ben: az ÜRES utolsó érték MOST „nem megállapítható" (megállás), nem
+    // `source`. Az F158-01 köre az „utolsó, NEM ÜRES érték győz" olvasatot vette alapul; a biztonsági
+    // átolvasás kimutatta, hogy az üres érték a libpq-ban AKTÍV felülírás. Ahol a két olvasat MÁST ad,
+    // ott megállunk — a lelet eredeti kárát (a `decoy&source` cím `decoy`-nak látszott) ez nem oldja.
+    step('(w1) F158-01: az ISMÉTELT `dbname` kulcsból az UTOLSÓ érték dönt (libpq) — a `decoy&source` cím forrása `source`; és az ÜRES utolsó érték MEGÁLLÁST ad (F158-22)',
+      effectiveDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source', PG_ENV_NELKUL).name === 'source'
+        && effectiveDatabase('postgres://u@host/decoy?dbname=source&dbname=', PG_ENV_NELKUL).name === null
+        && sameDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source', 'source', PG_ENV_NELKUL).same === true,
+      { ismetelt: effectiveDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source', PG_ENV_NELKUL).name,
+        utolso_ures: effectiveDatabase('postgres://u@host/decoy?dbname=source&dbname=', PG_ENV_NELKUL).name });
     step('(w2) F158-02: a `?service=` paraméter mellett a forrás NEM megállapítható — és a döntés ÓVATOS megállás',
       effectiveDatabase('postgres://decoy@host/?service=prod').name === null
         && sameDatabase('postgres://decoy@host/?service=prod', 'source').same === true,
@@ -2181,6 +2185,65 @@ try {
       } finally {
         await new Promise((r) => zsrv2.server.close(r));
       }
+    }
+  }
+
+  part('AA) R158 — az ÖTÖDIK review-kör leletei: az üres felülírás, a regionális említés, a betű-érzékeny alak');
+  {
+    // ── (aa1–aa2) F158-22 (P1, BIZTONSÁGI) — AZ ÜRES ÉRTÉK IS FELÜLÍRÁS ──────────────────────────
+    // A LELET: a libpq az ÜRES `?dbname=` felülírást IS eltárolja, és a nevet a FELHASZNÁLÓRA oldja
+    // fel. A feloldóm az üres értéket kiszűrte, tehát az ÚTRA (`decoy`) esett vissza — a `pg_dump`
+    // viszont a `source`-ot olvasta volna, és a `DROP DATABASE "source"` a VALÓDI forrást viszi.
+    const aa1 = effectiveDatabase('postgres://source@host/decoy?dbname=', PG_ENV_NELKUL);
+    const aa1s = sameDatabase('postgres://source@host/decoy?dbname=', 'source', PG_ENV_NELKUL);
+    step('(aa1) F158-22: az ÜRES `?dbname=` felülírás mellett a név NEM megállapítható — a kapu MEGÁLL (RÉGEN: az útra esett vissza, és a lánc elindult)',
+      aa1.name === null && aa1s.same === true && /ÜRES/.test(aa1.basis)
+        && effectiveDatabase('postgres://u@host/decoy?dbname=source&dbname=', PG_ENV_NELKUL).name === null,
+      { nev: aa1.name, megall: aa1s.same, ismetelt_utolso_ures: effectiveDatabase('postgres://u@host/decoy?dbname=source&dbname=', PG_ENV_NELKUL).name });
+
+    step('(aa2) F158-22 ELLENPÁROK: a JOGOS esetek változatlanok — a két nem üres ismétlésből az utolsó dönt, a `?user=` adja a nevet, az út pedig a lánc jogos indulását',
+      effectiveDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source', PG_ENV_NELKUL).name === 'source'
+        && effectiveDatabase('postgres://decoy@host/?user=source', PG_ENV_NELKUL).name === 'source'
+        && sameDatabase('postgres://u:p@h/vs_eles', 'vs_visszatoltes_proba', PG_ENV_NELKUL).same === false
+        && effectiveDatabase('postgres://source_user:pw@host/?user=', PG_ENV_NELKUL).name === null,
+      { ismetelt: effectiveDatabase('postgres://u@host/decoy?dbname=decoy&dbname=source', PG_ENV_NELKUL).name,
+        user_parameterrel: effectiveDatabase('postgres://decoy@host/?user=source', PG_ENV_NELKUL).name,
+        ures_user_felulirja_a_cim_felhasznalojat: effectiveDatabase('postgres://source_user:pw@host/?user=', PG_ENV_NELKUL).name });
+
+    // ── (aa3) F158-23 (P2) — A POZITÍV TARTOMÁNY ARRA IS „EMLÍTÉS", AMIRE FELOLDÓDIK ─────────────
+    const nyelvEsetek = [
+      ['hu-HU;q=0.5, *;q=1', 'en'],          // A LELET: régen `hu` — a joker felminősítette a 0,5-es kérést
+      ['en-GB;q=0.3, *;q=1', 'hu'],          // ellenpár: a `hu` tényleg EMLÍTÉS NÉLKÜLI
+      ['hu;q=0.5, *;q=1', 'en'],             // a korábbi kör (F158-09) esete változatlan
+      ['xx-YY;q=0.5, *;q=1', 'hu'],          // ellenpár: ISMERETLEN címke NEM „említi" az alapnyelvet
+      ['de-AT;q=0, de;q=1', 'de'],           // ellenpár: a KIZÁRÁS pontossága változatlan (KUKA-330)
+      ['hu;q=1, *;q=1', 'hu'],               // ellenpár: egyenlő súlynál a kifejezett előbb
+    ];
+    const nyelvHibas = nyelvEsetek.filter(([h, v]) => pickFromAcceptLanguage(h).code !== v)
+      .map(([h, v]) => `${h} → ${pickFromAcceptLanguage(h).code} (várt: ${v})`);
+    step('(aa3) F158-23: a joker a REGIONÁLIS alakban megnevezett nyelvet sem választja ki (a pozitív tartomány arra is említés, amire feloldódik) — és a kizárás pontossága változatlan',
+      nyelvHibas.length === 0, { hibas: nyelvHibas });
+
+    // ── (aa4) F158-24 (P2) — A KANONIKUS ALAK VIZSGÁLATA BETŰ-ÉRZÉKENY ───────────────────────────
+    // A LELET: a `node:sqlite` `LIKE`-ja kis/nagybetű-érzéketlen, ezért egy `…t…z` alakú FRISS,
+    // értelmezhető sor kanonikusnak látszott, és a szöveges összevetés jövőbelinek minősítve TÖRÖLTE
+    // — PostgreSQL-en ugyanaz a sor megmaradt. A takarítás viselkedése a TÁROLÓTÓL függött.
+    const aasrv = await startServer({ port: 0, dbPath: ':memory:' });
+    try {
+      const aaclock = { now: () => '2026-10-06T22:00:00.000Z' };
+      const aabe = (sid, at) => aasrv.store.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)', sid, 'tok', at);
+      aabe('aa_kisbetus_friss', '2026-10-06t21:30:00.000z');
+      aabe('aa_kisbetus_lejart', '2026-10-04t00:00:00.000z');
+      aabe('aa_nagybetus_friss', '2026-10-06T21:30:00.000Z');
+      aabe('aa_nagybetus_lejart', '2026-10-04T00:00:00.000Z');
+      aabe('aa_romlott', 'bogus');
+      const aap = purgeExpiredIntents({ store: aasrv.store, clock: aaclock });
+      const aamaradt = aasrv.store.all('SELECT session_id FROM pending_intent').map((r) => r.session_id).sort().join(',');
+      step('(aa4) F158-24: a KISBETŰS, FRISS sor MEGMARAD (az időpillanat-ágra kerül), a kisbetűs LEJÁRT elmegy — a takarítás viselkedése nem függ a tároló `LIKE`-jának betű-érzékenységétől',
+        aamaradt === 'aa_kisbetus_friss,aa_nagybetus_friss' && aap.purged === 3 && aap.odd_rows === 3 && aap.odd_purged === 2,
+        { maradt: aamaradt, takaritva: aap.purged, nem_kanonikus_sor: aap.odd_rows, abbol_takaritva: aap.odd_purged });
+    } finally {
+      await new Promise((r) => aasrv.server.close(r));
     }
   }
 

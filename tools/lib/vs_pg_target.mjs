@@ -75,6 +75,29 @@ function queryParam(u, nev) {
 }
 
 /**
+ * AZ ÜRES ÉRTÉK IS FELÜLÍRÁS (F158-22, külső review, Codex, BIZTONSÁGI átolvasás, P1).
+ *
+ * A LELET: a `queryParam` az üres értékeket KISZŰRI, tehát egy `postgres://source@host/decoy?dbname=`
+ * címnél az ÚTRA (`decoy`) esett vissza. A libpq viszont az üres felülírást IS eltárolja, és az üres
+ * `dbname`-et a FELHASZNÁLÓ nevére oldja fel — tehát a `pg_dump` a `source` adatbázist olvassa, a
+ * kapu mégis `decoy`-t mondott, és a lánc végén álló `DROP DATABASE "source"` a VALÓDI forrást
+ * törölte volna.
+ *
+ * A VÁLASZ NEM A LIBPQ PONTOS UTÁNZÁSA, HANEM A MEGÁLLÁS — és ezt kimondom. A libpq ismételt-kulcs
+ * szabályáról (F158-01) azt vettem alapul, hogy az UTOLSÓ, NEM ÜRES érték győz; ez a lelet azt
+ * mutatja, hogy az üres érték AKTÍV. A két olvasat ott válik el, ahol a `DROP DATABASE` áll — ezért
+ * ahol a kettő MÁST adna, a név NEM MEGÁLLAPÍTHATÓ, és megállunk (KUKA-020 · KUKA-049).
+ *
+ * A szabály tehát: ha a kulcs JELEN VAN, és az UTOLSÓ előfordulása ÜRES, a név nem tudható.
+ */
+function queryLast(u, nev) {
+  try {
+    const all = u.searchParams.getAll(nev).map((v) => String(v).trim());
+    return all.length ? { jelen: true, ertek: all[all.length - 1] } : { jelen: false, ertek: '' };
+  } catch { return { jelen: false, ertek: '' }; }
+}
+
+/**
  * EGY KAPCSOLATI KULCSSZÓ A KÖRNYEZETBŐL (F158-16, külső review, Codex, P1).
  *
  * Az üres érték NEM érték: a libpq a `dbname`-et üres sztring esetén is az alapértelmezésre
@@ -127,8 +150,11 @@ export function effectiveDatabase(sourceUrl, env = process.env) {
       : 'a környezet `PGSERVICE`-t ad meg';
     return { name: null, basis: `${honnan} — a szolgáltatás-fájl \`dbname\`-et is adhat, amit innen NEM látunk` };
   }
-  const qDb = queryParam(u, 'dbname');
-  if (qDb) return { name: qDb, basis: 'a cím `?dbname=` paramétere FELÜLÍRJA az utat' };
+  const qDbLast = queryLast(u, 'dbname');
+  if (qDbLast.jelen && qDbLast.ertek === '') {
+    return { name: null, basis: 'a cím ÜRES `?dbname=` felülírást hordoz — a libpq ezt AKTÍV felülírásként tárolja, és a nevet a felhasználóra oldja fel; a kettő MÁST adhat, tehát NEM megállapítható' };
+  }
+  if (qDbLast.ertek) return { name: qDbLast.ertek, basis: 'a cím `?dbname=` paramétere FELÜLÍRJA az utat' };
   let path;
   try { path = decodeURIComponent(String(u.pathname || '').replace(/^\/+/, '')); }
   catch { return { name: null, basis: 'a forrás adatbázis-neve hibás százalék-kódolást tartalmaz' }; }
@@ -136,11 +162,15 @@ export function effectiveDatabase(sourceUrl, env = process.env) {
   // A CÍM NEM NEVEZI MEG — innentől a KLIENS alapértékei döntenek, és azok a KÖRNYEZETBEN állnak.
   const envDb = envValue(env, 'PGDATABASE');
   if (envDb) return { name: envDb, basis: 'a cím nem nevez meg adatbázist, ezért a környezet `PGDATABASE` értéke dönt' };
-  const qUser = queryParam(u, 'user');
-  if (qUser) return { name: qUser, basis: 'nincs adatbázis-út, és a `?user=` paraméter adja a felhasználót — az adatbázis alapértelmezése a felhasználó neve' };
+  // ÉS UGYANEZ A FELHASZNÁLÓRA (F158-22): egy ÜRES `?user=` felülírja a cím felhasználóját, tehát a
+  // cím-felhasználó innentől nem jelölt — a kliens a környezetből vagy a rendszer-felhasználóból veszi.
+  const qUserLast = queryLast(u, 'user');
+  if (qUserLast.ertek) return { name: qUserLast.ertek, basis: 'nincs adatbázis-út, és a `?user=` paraméter adja a felhasználót — az adatbázis alapértelmezése a felhasználó neve' };
   let user;
   try { user = decodeURIComponent(String(u.username || '')); } catch { user = String(u.username || ''); }
-  if (user) return { name: user, basis: 'nincs adatbázis-út, ezért a FELHASZNÁLÓ neve az adatbázis' };
+  if (user && !(qUserLast.jelen && qUserLast.ertek === '')) {
+    return { name: user, basis: 'nincs adatbázis-út, ezért a FELHASZNÁLÓ neve az adatbázis' };
+  }
   const envUser = envValue(env, 'PGUSER');
   if (envUser) return { name: envUser, basis: 'sem adatbázis, sem felhasználó a címben — a környezet `PGUSER` értéke lesz a felhasználó, és egyben az adatbázis neve' };
   return { name: null, basis: 'sem a cím, sem a környezet nem nevezi meg — a tényleges nevet a kliens a RENDSZER-felhasználóból veszi, ami innen nem tudható' };

@@ -802,12 +802,29 @@ export function purgeExpiredIntents({ store, clock, ttlMs = PENDING_INTENT_TTL_M
    */
   const KANONIKUS = '____-__-__T__:__:__.___Z';
   const korlat = Number.isSafeInteger(maxOddRows) && maxOddRows > 0 ? maxOddRows : 1000;
-  const WHERE = 'created_at LIKE ? AND (created_at < ? OR created_at > ?)';
-  const elotte = store.get(`SELECT COUNT(*) AS n FROM pending_intent WHERE ${WHERE}`, KANONIKUS, hatar, most);
-  store.run(`DELETE FROM pending_intent WHERE ${WHERE}`, KANONIKUS, hatar, most);
+  /**
+   * A KANONIKUS ALAK VIZSGÁLATA BETŰ-ÉRZÉKENY (F158-24, külső review, Codex, P2).
+   *
+   * A LELET: a `node:sqlite` `LIKE`-ja ASCII-ra kis/nagybetű-ÉRZÉKETLEN, a PostgreSQL-é nem. Egy
+   * importált, FRISS és értelmezhető `2026-10-06t12:00:00.000z` sor tehát SQLite-on KANONIKUSNAK
+   * számított, és a szöveges összevetés a kisbetűs `t`-t (0x74) a nagybetűs `T`-nél (0x54) NAGYOBBNAK
+   * látta — vagyis jövőbelinek minősítette, és a sort AZONNAL TÖRÖLTE; PostgreSQL-en ugyanaz a sor az
+   * időpillanat-ágra ment, és megmaradt. A takarítás viselkedése így a TÁROLÓTÓL függött, és a
+   * folytatás CSAK SQLite-on veszett el. MÉRVE: a kisbetűs friss sor eltűnt (`purged: 1`).
+   *
+   * A VÁLASZ: a `T` és a `Z` BÁJTRA egyezzen. A `substr(...) = '...'` összehasonlítás MINDKÉT tárolón
+   * betű-érzékeny (a `=` a szöveges oszlopon bináris összevetés), tehát ez hordozható — a `LIKE` csak
+   * az ALAKOT szűri, a két betűt a `substr` dönti el. Ami így NEM kanonikus, az az időpillanat-ágra
+   * kerül, és `Date.parse` ítéli meg.
+   */
+  const ALAK = 'created_at LIKE ? AND substr(created_at, 11, 1) = ? AND substr(created_at, 24, 1) = ?';
+  const ALAK_ERTEKEK = [KANONIKUS, 'T', 'Z'];
+  const WHERE = `${ALAK} AND (created_at < ? OR created_at > ?)`;
+  const elotte = store.get(`SELECT COUNT(*) AS n FROM pending_intent WHERE ${WHERE}`, ...ALAK_ERTEKEK, hatar, most);
+  store.run(`DELETE FROM pending_intent WHERE ${WHERE}`, ...ALAK_ERTEKEK, hatar, most);
   const kanonikusTakaritva = elotte ? Number(elotte.n) : 0;
 
-  const furcsak = store.all(`SELECT session_id, created_at FROM pending_intent WHERE created_at NOT LIKE ? LIMIT ${korlat}`, KANONIKUS);
+  const furcsak = store.all(`SELECT session_id, created_at FROM pending_intent WHERE NOT (${ALAK}) LIMIT ${korlat}`, ...ALAK_ERTEKEK);
   const dobando = [];
   for (const r of furcsak) {
     const kor = mostMs - Date.parse(r.created_at);

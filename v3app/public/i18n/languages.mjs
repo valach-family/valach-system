@@ -156,7 +156,33 @@ export function pickFromAcceptLanguage(header, opts = {}) {
   // A KIFEJEZETTEN MEGNEVEZETT TARTOMÁNYOK (a joker hatóköréhez, F158-09): minden `*`-tól eltérő
   // címke, SÚLYTÓL FÜGGETLENÜL — a `q=0` kizárás és a kisebb súlyú pozitív említés EGYARÁNT „említés".
   const mentionedRanges = parsed.filter((x) => x.tag !== '*').map((x) => x.tag.toLowerCase().replace(/_/g, '-'));
-  const mentioned = (code) => mentionedRanges.some((r) => inRange(code, r));
+  /**
+   * A POZITÍV TARTOMÁNY ARRA A NYELVRE IS „EMLÍTÉS", AMIRE FELOLDÓDIK (F158-23, külső review, Codex, P2).
+   *
+   * A LELET: egy `hu-HU;q=0.5, *;q=1` fejlécnél a normalizálás a `hu-HU`-t a bekapcsolt `hu`-ra oldja
+   * fel, a `mentioned('hu')` viszont csak az `inRange('hu', 'hu-hu')`-t vizsgálta — ami az RFC 4647
+   * szerint HAMIS (a rövidebb címke nem illeszkedik a hosszabb tartományra). A joker ezért a
+   * KIFEJEZETTEN 0,5-es súllyal kért magyart választotta 1-es súllyal, vagyis NÉMÁN felminősítette a
+   * kérő alacsonyabb preferenciáját. Ez ugyanaz a fél őr, mint az F158-09-ben, egy lépéssel beljebb.
+   *
+   * A VÁLASZ a reviewer megfogalmazása szerint: a joker jogosultságánál a POZITÍV tartományokat a
+   * bekapcsolt megfelelőjükre képezzük le — a `q=0` KIZÁRÁSOK pontossága (KUKA-330) VÁLTOZATLAN,
+   * azokat továbbra is a szigorú tartomány-illesztés dönti el.
+   *
+   * ÉS CSAK A TÉNYLEGES FELOLDÁS SZÁMÍT: a `normalizeLanguage` ismeretlen címkére az ALAPNYELVRE esik
+   * vissza — ha azt említésnek vennénk, egy ismeretlen `xx-YY` „említené" a magyart, és a joker
+   * elnémulna. Ezért itt csak a bekapcsolt jegyzékben MEGLÉVŐ kódot fogadjuk el (KUKA-238).
+   */
+  const feloldasa = (tag) => {
+    const t = String(tag).toLowerCase().replace(/_/g, '-');
+    const kodok = enabledLanguages().map((l) => l.code);
+    if (kodok.includes(t)) return t;
+    const primary = t.split('-')[0];
+    return kodok.includes(primary) ? primary : null;
+  };
+  const mentionedCodes = new Set(parsed.filter((x) => x.tag !== '*' && x.q > 0)
+    .map((x) => feloldasa(x.tag)).filter(Boolean));
+  const mentioned = (code) => mentionedRanges.some((r) => inRange(code, r)) || mentionedCodes.has(code);
 
   const wanted = parsed.filter((x) => x.q > 0).sort((a, b) => b.q - a.q);
   for (const { tag } of wanted) {
