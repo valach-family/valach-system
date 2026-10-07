@@ -16,6 +16,47 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3195 — A SÉRTETLENSÉG MINDEN TÁBLÁRA MÉRVE, ÉS AZ ÁLLÍTÁS A PONTOS ALAKJÁBAN (R164 review, P2)
+
+**A döntés.** A forrás pillanatképe **minden** `public` séma-táblát visz, a teljes sor szövegével, és a
+tábla-lista maga is összevetésre kerül. Az állítás a pontos alakjában szól: amit mérünk, az az
+**eltűnés** — és a **módosítás is eltűnésként** jelenik meg, mert a sor szövege megváltozik.
+
+**Miért.** A `D-VS-3188` a mérce **alakját** javította (tartalmazás helyett három osztály), a
+**hatókörét** nem: a kép csak két táblát vitt, miközben a gyermek előkészítése hitelesítőt,
+azonosítót, csatorna-igazolást, tagságot és engedélyt is ír. Egy nem szánt törlés a többi táblában
+**zölden** maradt volna.
+
+**Miért így mérjük.** Így nem kell tudnunk, melyik az elsődleges kulcs: a teljes sor szövege minden
+táblán egyformán működik. A hozzáadást (a gyermek előkészítése) kimondjuk és a mért mértékhez kötjük.
+
+**Gépi jel.** `npm run proof:pg-restore-safety` (E2 · E2c · E6d — a kiírt sor megmondja, hány táblát
+mértünk) · `npm run verify:kuka` (KUKA-387).
+
+---
+
+## D-VS-3194 — A BIZTONSÁGI LÁNC A SAJÁT FORRÁSÁN DOLGOZIK (R164 review, P2)
+
+**A döntés.** A `proof:pg-restore-safety` **saját, friss** forrás-adatbázist hoz létre, a repó
+migrációs eszközével építi fel, a gyermekeket erre állítja, és a végén eldobja. A megadott
+`DATABASE_URL` innentől a **kiszolgálót** jelöli, nem a forrást — a megadott adatbázist a lánc **nem
+írja**.
+
+**Miért.** A lánc minden esete elindítja a tartóssági próbát, aminek az előkészítése fiókot regisztrál
+és vállalkozást hoz létre a forrásban. A helyi kapu csak azt mondta ki, hogy a kiszolgáló **helyi** —
+a helyi viszont nem jelenti az **eldobhatót**: egy mindennapi fejlesztői adatbázis maradandó sorokat
+kapott volna, pedig a lánc szerződése épp a sértetlenség. Két külön kérdést mostam össze: **hol** fut
+és **mit** szabad elrontani.
+
+**A tulajdon itt is a létrehozás.** Ugyanaz az `acquireFreshTarget` hurok dönt, mint a célnál: már
+létező adatbázist nem veszünk át, névütközésre új nevet generálunk. A takarítás kilépésre **és** jelre
+is fut, és ami marad, azt nevezetten kiírjuk.
+
+**Gépi jel.** `npm run proof:pg-restore-safety` (a futás a saját forrást nevezetten kiírja és eldobja) ·
+`npm run verify:kuka` (KUKA-386).
+
+---
+
 ## D-VS-3193 — A MEGŐRZÉS VÁLASZÁT MEGMÉRJÜK, ÉS A KUDARCOT KIMONDJUK (R164 review, P2)
 
 **A döntés.** A meghívó-képernyő megmérte a folytatás-megőrzés válaszát, és ha az elutasítás, a lap

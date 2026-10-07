@@ -14815,7 +14815,7 @@ Object.freeze({
         why: 'a CLI-környezet feloldója EGY otthonban áll' }),
       Object.freeze({ paths: Object.freeze(['tools/v3_pg_durability_proof.mjs', 'tools/v3_pg_intent_proof.mjs',
         'tools/v3_pg_restore_safety_proof.mjs']),
-        pattern: 'cliEnvFor\\(\\{ sourceUrl: url',
+        pattern: 'cliEnvFor\\(\\{ sourceUrl: (url|bazisUrl)',
         why: 'és MIND A HÁROM próba ezt hívja, nem saját másolatot — a harmadik másolatot a reviewer találta meg, miután a kettőt összevontam (KUKA-003: a javítás annyi házat ér el, amennyit megkerestem)' }),
     ]),
     forbidden: Object.freeze([]),
@@ -14970,6 +14970,54 @@ Object.freeze({
     forbidden: Object.freeze([]),
     lesson: 'EGY NEVEZETT ELUTASÍTÁS ANNYIT ÉR, AMENNYIT A HÍVÓ ELOLVAS BELŐLE. A szerver helyes válasza nem védelem, ha a kliens eldobja: a felhasználó szempontjából a hiba NÉMA, és a kár jellemzően KÉSŐBB, egy másik képernyőn jelentkezik. A választ MÉRJÜK meg, a kudarcot MONDJUK KI, és a mondat legyen VALÓDI — a tartalék-ág elrejti a hiányzó kulcsot.',
     guard_note: 'gépi jel: `npm run verify:kuka` (három pozitív minta) · `npm run verify:app-findings-r154` (AF: af1 a két ok MINDEN nyelven valódi mondat és nem a generikus · af2 a végponton tényleg csak a lefordított okok állnak — egy új, le nem fordított ok azonnal piros) · `npm run verify:i18n`. KIMONDVA, AMIT NEM MÉRÜNK: a telt tár böngészős előállítása nincs a kapuban — a kliens-ág javítása a forrás-mintán és a szótár-mérésen áll, nem egy élő 503-as képernyőn (KUKA-207).',
+  }),
+
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  // R164 negyedik review-kör — A HELYI NEM JELENTI AZ ELDOBHATÓT, ÉS A PILLANATKÉP CSAK KÉT TÁBLÁT MÉRT.
+  Object.freeze({
+    id: 'KUKA-386',
+    date: '2026-10-07',
+    title: 'A BIZTONSÁGI LÁNC A MEGADOTT ADATBÁZIST HASZNÁLTA FORRÁSKÉNT — ÉS BELE IS ÍRT',
+    what: 'A `proof:pg-restore-safety` a `DATABASE_URL`-ben megadott adatbázist használta forrásként. Csakhogy minden esete elindítja a tartóssági próbát, aminek az ELŐKÉSZÍTÉSE fiókot regisztrál és vállalkozást hoz létre EBBEN az adatbázisban — és ezt minden eset megismétli. A lánc tehát MARADANDÓ sorokat írt egy olyan adatbázisba, amiről épp azt állította, hogy sértetlen. A helyi kapu (`localOnlyVerdict`) csak azt mondta ki, hogy a kiszolgáló HELYI.',
+    why_wrong: 'A HELYI NEM JELENTI AZ ELDOBHATÓT. Egy mindennapi fejlesztői adatbázis a saját gépen is helyi — a kapu tehát igazat mondott, de nem azt, amire a lánc szerződése épült. Két külön kérdést mostam össze: HOL fut (hálózati kérdés) és MIT szabad elrontani (tulajdon-kérdés).',
+    replaced_by: 'A LÁNC SAJÁT, FRISS FORRÁS-ADATBÁZIST hoz létre, a repó migrációs eszközével építi fel, a gyermekeket ERRE állítja, és a végén eldobja. A megadott adatbázist NEM írja — a megadott cím innentől a KISZOLGÁLÓT jelöli, nem a forrást.',
+    replacement: 'ÉS A TULAJDON ITT IS A LÉTREHOZÁS: ugyanaz az `acquireFreshTarget` hurok dönt, mint a célnál — már létező adatbázist nem veszünk át, névütközésre új nevet generálunk. A takarítás kilépésre ÉS jelre is fut, és ami marad, azt nevezetten kiírjuk.',
+    decision: 'D-VS-3194',
+    found_by: 'KÜLSŐ REVIEW (Codex, R164 — P2).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_pg_restore_safety_proof.mjs']),
+        pattern: 'a lánc SAJÁT, friss forrása',
+        why: 'a lánc a saját forrás-adatbázisán dolgozik, nem a megadotton' }),
+      Object.freeze({ paths: Object.freeze(['tools/v3_pg_restore_safety_proof.mjs']),
+        pattern: 'DATABASE_URL: url, \\.\\.\\.env',
+        why: 'és a gyermekek is ERRE mennek — a megadott adatbázisba egyetlen eset sem ír' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'A HELY NEM TULAJDON. „Helyi kiszolgáló" és „eldobható adat" KÉT kérdés: az elsőre a hálózat válaszol, a másodikra csak az, hogy KI hozta létre az adatot. Egy destruktív próba ne a hívó adatán dolgozzon, hanem a SAJÁTJÁN — akkor a sértetlenségi állítása sem igényel bizalmat.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta) · `npm run proof:pg-restore-safety` (a futás a saját forrást NEVEZETTEN kiírja és a végén eldobja — valódi, eldobható PostgreSQL kell hozzá: KUKA-307).',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-387',
+    date: '2026-10-07',
+    title: 'A SÉRTETLENSÉGET CSAK KÉT TÁBLÁN MÉRTÜK, ÉS AZ EGÉSZ FORRÁSRA ÁLLÍTOTTUK',
+    what: 'A forrás pillanatképe — már a `KUKA-380` utáni, teljes sor-tartalmat vivő alakban is — CSAK két tábla (`subject` · `book`) sorait vitte. A gyermek előkészítése viszont hitelesítőt, külső azonosítót, csatorna-igazolást, tagságot és engedélyt is ír, és a visszatöltés bármelyik táblába írhatna: egy NEM SZÁNT törlés vagy módosítás a többi táblában ZÖLDEN maradt volna, miközben a lépés azt mondta, hogy „a forrás változatlan".',
+    why_wrong: 'MÁSODSZOR UGYANAZ A HIBAOSZTÁLY EGY HELYEN (KUKA-380 után): a verdikt a mérés hatókörén TÚL mutatott (KUKA-216). Az előző körben a mérce alakját javítottam (tartalmazás helyett három osztály), a HATÓKÖRÉT nem — pedig az állítás az EGÉSZ forrásra szól.',
+    replaced_by: 'A pillanatkép MINDEN `public` séma-táblát visz, a teljes sor szövegével (`x::text` halmazként), és a tábla-lista maga is összevetésre kerül: eltűnt vagy új tábla is PIROS.',
+    replacement: 'ÉS AZ ÁLLÍTÁS A PONTOS ALAKJÁBAN SZÓL: amit mérünk, az az ELTŰNÉS — és a MÓDOSÍTÁS is eltűnésként jelenik meg, mert a sor szövege megváltozik. Így nem kell tudnunk, melyik az elsődleges kulcs, és a mérés minden táblára egyformán érvényes. A HOZZÁADÁST (a gyermek előkészítése) kimondjuk és a mért mértékhez kötjük.',
+    decision: 'D-VS-3195',
+    found_by: 'KÜLSŐ REVIEW (Codex, R164 — P2, a KUKA-380-as javításom FELETT).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_pg_restore_safety_proof.mjs']),
+        pattern: "table_schema = 'public' AND table_type = 'BASE TABLE'",
+        why: 'a pillanatkép MINDEN táblát visz, nem egy kézi névsort' }),
+      Object.freeze({ paths: Object.freeze(['tools/v3_pg_restore_safety_proof.mjs']),
+        pattern: 'SELECT x::text AS sor FROM',
+        why: 'és a teljes SOR szövegét — bármely mező változása más szöveget ad' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'A MÉRÉS HATÓKÖRE IS AZ ÁLLÍTÁS RÉSZE. Egy „változatlan" mondat annyi táblára igaz, amennyit megnéztünk — a kézi névsor pedig pont azokat hagyja ki, amiket nem jutottak eszünkbe. A hatókör a séma-katalógusból jöjjön, és az állítás NEVEZZE MEG, mit mér: itt az ELTŰNÉST, amibe a módosítás is beleesik.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta) · `npm run proof:pg-restore-safety` (E2 · E2c · E6d — a kiírt sor megmondja, hány táblát mértünk; valódi PostgreSQL kell hozzá: KUKA-307).',
   }),
 
 

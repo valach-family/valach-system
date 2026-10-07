@@ -27,8 +27,21 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 loadRepoEnv(ROOT);
 const { openPgStore } = await import('../v3ref/pgStore.mjs');
 
-const url = String(process.env.DATABASE_URL || '').trim();
-if (!url) { console.error('proof:pg-restore-safety — nincs DATABASE_URL: ELAKADT MÉRÉS.'); process.exit(2); }
+/**
+ * A MEGADOTT CÍM A KISZOLGÁLÓT ADJA MEG, NEM A FORRÁST (R164 review, Codex, P2 — `KUKA-386` · `D-VS-3194`).
+ *
+ * A LELET: a lánc a MEGADOTT adatbázist használta forrásként — és minden `futtat()` elindítja a
+ * tartóssági próbát, aminek az ELŐKÉSZÍTÉSE fiókot regisztrál és vállalkozást hoz létre EBBEN az
+ * adatbázisban. A helyi kapu csak azt mondta ki, hogy a kiszolgáló HELYI; a HELYI viszont nem jelenti
+ * az ELDOBHATÓT: egy mindennapi fejlesztői adatbázis így maradandó sorokat kapott, pedig a lánc
+ * szerződése épp a sértetlenség.
+ *
+ * A VÁLASZ: a lánc SAJÁT, FRISS forrás-adatbázist hoz létre, a repó migrációs eszközével felépíti, a
+ * gyermekeket ERRE állítja, és a végén eldobja. A megadott adatbázist NEM írja. Így a „forrás
+ * változatlan" állítás a lánc SAJÁT adatbázisáról szól — nem egy idegen adatról, amibe bele is ír.
+ */
+const bazisUrl = String(process.env.DATABASE_URL || '').trim();
+if (!bazisUrl) { console.error('proof:pg-restore-safety — nincs DATABASE_URL: ELAKADT MÉRÉS.'); process.exit(2); }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // ELDOBHATÓ KÖRNYEZET KÖTELEZŐ KAPUJA. Ez a lánc SZÁNDÉKOSAN hoz létre és dob el adatbázisokat, és
@@ -49,7 +62,7 @@ if (!url) { console.error('proof:pg-restore-safety — nincs DATABASE_URL: ELAKA
    * A döntés egy meghívható feloldóban áll (`localOnlyVerdict`), a `?service=`/`hostaddr`/több-gazdagép
    * eseteket NEM ELDÖNTHETŐ-nek mondja, és a nem eldönthető NEM „helyi" (KUKA-020 · KUKA-203).
    */
-  const kapu = localOnlyVerdict(url);
+  const kapu = localOnlyVerdict(bazisUrl);
   if (!kapu.allowed) {
     console.error('proof:pg-restore-safety — ELAKADT MÉRÉS: destruktív ellenpróbát csak HELYI, eldobható');
     console.error(`  kiszolgálón futtatunk. A kapu indoka: ${kapu.basis}`);
@@ -71,7 +84,9 @@ const PGRESTORE = process.env.VS_PGRESTORE || 'pg_restore';
  * pozitív mintája mostantól MIND A HÁROM fájlra szól, tehát egy negyedik másolat is piros lenne.
  */
 function pgEnv(dbName, extra = {}) {
-  const r = cliEnvFor({ sourceUrl: url, database: dbName, env: process.env });
+  // A KISZOLGÁLÓ a MEGADOTT címből jön, az ADATBÁZIST a hívó adja meg — így ez a feloldó a bázis
+  // kiszolgálón ÉS a lánc saját forrás-adatbázisán is ugyanaz (KUKA-003).
+  const r = cliEnvFor({ sourceUrl: bazisUrl, database: dbName, env: process.env });
   if (!r.ok) throw new Error(`a parancssori kliens környezete nem állítható össze: ${r.reason}`);
   return { ...r.env, ...extra };
 }
@@ -93,6 +108,67 @@ const step = (name, ok, detail) => { marks.push({ name, ok, detail }); console.l
 console.log('A VISSZATÖLTÉSI KAPU ELLENPRÓBÁI (eldobható helyi PostgreSQL)');
 console.log('='.repeat(94));
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// A LÁNC SAJÁT, FRISS FORRÁS-ADATBÁZISA (`KUKA-386` · `D-VS-3194`)
+//
+// MIÉRT: a HELYI nem jelenti az ELDOBHATÓT. A gyermek (tartóssági próba) előkészítése fiókot
+// regisztrál és vállalkozást hoz létre a FORRÁSBAN, és ezt minden eset megismétli — egy mindennapi
+// fejlesztői adatbázis így maradandó sorokat kapott volna. A lánc ezért SAJÁT forrást hoz létre, a
+// repó migrációs eszközével építi fel, és a végén eldobja. A megadott adatbázist NEM írja.
+//
+// ÉS A TULAJDON ITT IS A LÉTREHOZÁS: ugyanaz a `acquireFreshTarget` hurok dönt, mint a célnál — már
+// létező adatbázist nem veszünk át, névütközésre új nevet generálunk (R164/1).
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+const sajatDb = new Set();
+function dobjaSajat() {
+  for (const n of [...sajatDb]) {
+    const r = psql(['-v', 'ON_ERROR_STOP=1', '-c', `DROP DATABASE IF EXISTS ${qid(n)} WITH (FORCE)`]);
+    if (r.code === 0) { sajatDb.delete(n); console.log(`  a lánc saját forrás-adatbázisa eldobva: ${n}`); }
+    else console.error(`  FIGYELEM: a saját forrás-adatbázis NEM lett eldobva: ${n} — ${r.err.slice(0, 120)}`);
+  }
+}
+process.on('exit', dobjaSajat);
+for (const jel of ['SIGINT', 'SIGTERM']) process.on(jel, () => { dobjaSajat(); process.exit(130); });
+
+const forrasDb = (() => {
+  const sz = acquireFreshTarget({
+    measuredSource: (() => {
+      const r = psql(['-c', 'SELECT current_database()'], new URL(bazisUrl).pathname.replace(/^\/+/, '') || 'postgres');
+      return r.code === 0 ? r.out.trim() : null;
+    })(),
+    explicitTarget: null,
+    generate: () => `${RESTORE_TARGET_PREFIX}forras_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    exists: (n) => {
+      const r = psql(['-c', `SELECT 1 FROM pg_database WHERE datname = '${n}'`]);
+      return r.code === 0 ? { known: true, exists: r.out.trim() === '1' } : { known: false, hiba: r.err.slice(0, 120) };
+    },
+    create: (n) => {
+      const c = psql(['-v', 'ON_ERROR_STOP=1', '-c', `CREATE DATABASE ${qid(n)}`]);
+      if (c.code === 0) { sajatDb.add(n); return { ok: true }; }
+      if (/42P04|already exists/i.test(c.err)) return { ok: false, collision: true };
+      return { ok: false, hiba: c.err.slice(0, 120) };
+    },
+  });
+  if (!sz.target) {
+    console.error(`proof:pg-restore-safety — ELAKADT MÉRÉS: a lánc saját forrása nem jött létre — ${sz.basis}`);
+    process.exit(2);
+  }
+  return sz.target;
+})();
+const url = withDatabase(bazisUrl, forrasDb).toString();
+console.log(`  a lánc SAJÁT, friss forrása: ${forrasDb} (a megadott adatbázist NEM írjuk)`);
+{
+  // A SÉMA a repó saját migrációs eszközével megy be — nem kézi SQL (KUKA-016).
+  try {
+    execFileSync(process.execPath, [resolve(ROOT, 'tools/v3_db_migrate.mjs')],
+      { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, DATABASE_URL: url } });
+  } catch (e) {
+    console.error('proof:pg-restore-safety — ELAKADT MÉRÉS: a séma telepítése a saját forrásba nem sikerült — '
+      + redactConnStrings(String(e.stderr || e.message)).slice(0, 200));
+    process.exit(2);
+  }
+}
+
 // ── A FORRÁS PILLANATKÉPE: a „forrás változatlan" ehhez mérünk ──────────────────────────────────
 const forrasNev = (() => { const s = openPgStore(url); const r = s.get('SELECT current_database() AS db'); s.close(); return String(r.db); })();
 /**
@@ -112,44 +188,66 @@ const forrasNev = (() => { const s = openPgStore(url); const r = s.get('SELECT c
  */
 function forrasKep() {
   const s = openPgStore(url);
-  const sorok = (tabla) => new Map(s.all(`SELECT id, ${tabla}::text AS sor FROM ${tabla} ORDER BY id`)
-    .map((x) => [String(x.id), String(x.sor)]));
+  const tablak = s.all("SELECT table_name AS t FROM information_schema.tables "
+    + "WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY table_name").map((x) => String(x.t));
+  const sorok = new Map();
+  for (const t of tablak) {
+    // A TELJES SOR szövege, halmazként. A `x::text` az EGÉSZ sort adja (összetett érték), tehát
+    // bármely mező megváltozása MÁS szöveget ad — nem kell tudnunk, melyik az elsődleges kulcs.
+    sorok.set(t, new Set(s.all(`SELECT x::text AS sor FROM ${qid(t)} x`).map((r) => String(r.sor))));
+  }
   const kep = {
-    tablak: s.get("SELECT COUNT(*) AS n FROM information_schema.tables WHERE table_schema = 'public'").n,
+    tablak: tablak.length,
+    tablaNevek: tablak,
     semaverzio: s.all('SELECT version FROM schema_migration ORDER BY version').map((x) => x.version).join(','),
-    alany: sorok('subject'),
-    konyv: sorok('book'),
+    sorok,
   };
-  kep.alanyIdk = [...kep.alany.keys()];
   s.close();
   return kep;
 }
 
-/** Az összevetés HÁROM osztálya — az állítás az ELTŰNT és a MEGVÁLTOZOTT sorokra szól. */
+/**
+ * AZ ÖSSZEVETÉS — MINDEN TÁBLÁRA, ÉS AZ ÁLLÍTÁS A PONTOS ALAKJÁBAN
+ * (R164 review, Codex, P2 — `KUKA-387` · `D-VS-3195`).
+ *
+ * A LELET: az előző alak CSAK két tábla (`subject` · `book`) sor-tartalmát vitte. A gyermek
+ * előkészítése viszont hitelesítőt, külső azonosítót, csatorna-igazolást, tagságot és engedélyt is ír
+ * — tehát egy NEM SZÁNT törlés vagy módosítás BÁRMELYIK másik táblában ZÖLDEN maradt volna. Egy
+ * biztonsági bizonyíték nem állíthat többet, mint amit mér (KUKA-216).
+ *
+ * MA MINDEN `public` tábla benne van, és az állítás a PONTOS alakjában szól:
+ *   · `eltunt` — ami a futás ELŐTT megvolt és UTÁNA nincs. Egy MÓDOSÍTÁS is ide esik, mert a sor
+ *     szövege megváltozott, tehát a régi szöveg eltűnt. Ez az, aminek NULLÁNAK kell lennie.
+ *   · `jott`   — ami a futás UTÁN van és előtte nem volt: a gyermek SAJÁT előkészítése. Ezt
+ *     KIMONDJUK és a MÉRT mértékhez kötjük, nem hallgatjuk el.
+ *   · `eltuntTabla` / `ujTabla` — séma-szintű változás; mindkettőnek üresnek kell lennie.
+ *
+ * AMIT EZ NEM ÁLLÍT: nem kriptográfiai bizonyíték, és nem mondja meg, MELYIK mező változott — azt
+ * mondja meg, hogy VALAMI eltűnt-e. A lánc SAJÁT forrás-adatbázisán dolgozik (`KUKA-386`), tehát a
+ * mérés tárgya a lánc saját adata, nem egy idegen fejlesztői adatbázis.
+ */
 function forrasValtozas(elotte, utana) {
-  const osztaly = (e, u) => {
-    const eltunt = []; const modosult = []; const jott = [];
-    for (const [id, sor] of e) {
-      if (!u.has(id)) eltunt.push(id);
-      else if (u.get(id) !== sor) modosult.push(id);
-    }
-    for (const id of u.keys()) if (!e.has(id)) jott.push(id);
-    return { eltunt, modosult, jott };
-  };
-  const a = osztaly(elotte.alany, utana.alany);
-  const k = osztaly(elotte.konyv, utana.konyv);
+  const eltunt = []; const jott = [];
+  for (const [t, be] of elotte.sorok) {
+    const ut = utana.sorok.get(t);
+    if (!ut) continue;                       // a tábla eltűnését külön mondjuk ki
+    for (const sor of be) if (!ut.has(sor)) eltunt.push(t);
+    for (const sor of ut) if (!be.has(sor)) jott.push(t);
+  }
+  const eltuntTabla = [...elotte.sorok.keys()].filter((t) => !utana.sorok.has(t));
+  const ujTabla = [...utana.sorok.keys()].filter((t) => !elotte.sorok.has(t));
   return {
-    eltunt: [...a.eltunt, ...k.eltunt],
-    modosult: [...a.modosult, ...k.modosult],
-    jott: [...a.jott, ...k.jott],
-    semaAll: utana.semaverzio === elotte.semaverzio && utana.tablak === elotte.tablak,
+    eltunt, jott, eltuntTabla, ujTabla,
+    semaAll: utana.semaverzio === elotte.semaverzio && utana.tablak === elotte.tablak
+      && eltuntTabla.length === 0 && ujTabla.length === 0,
   };
 }
 
 /** A gyermek előkészítésének MÉRT hozzáadása — az ELSŐ futás adja, a többi ehhez mérve dől el. */
 let elokeszitesMerteke = null;
 const forrasElott = forrasKep();
-tény(`forrás: ${forrasNev} · ${forrasElott.tablak} tábla · séma [${forrasElott.semaverzio}] · ${forrasElott.alanyIdk.length} alany`);
+tény(`forrás: ${forrasNev} (a lánc SAJÁT, friss adatbázisa) · ${forrasElott.tablak} tábla MÉRVE · `
+  + `séma [${forrasElott.semaverzio}] · ${[...forrasElott.sorok.values()].reduce((n, h) => n + h.size, 0)} sor összesen`);
 
 // ── AZ IDEGEN MARADÉK: olyan adatbázis, ami NEM a próbáé, de a NEVE az előtagot hordozza ────────
 // (R164/1: „A név előtagja önmagában nem tulajdonbizonyíték.")
@@ -188,7 +286,8 @@ let gyerekPid = 0;
 function futtat({ env = {}, onLine = null, timeoutMs = 180_000 } = {}) {
   return new Promise((keszen) => {
     const ch = spawn(process.execPath, [resolve(ROOT, 'tools/v3_pg_durability_proof.mjs')],
-      { cwd: ROOT, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+      // A GYERMEK ALAPBÓL A LÁNC SAJÁT FORRÁSÁRA MEGY — a megadott adatbázisba egyetlen eset sem ír.
+      { cwd: ROOT, env: { ...process.env, DATABASE_URL: url, ...env }, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
     gyerekPid = ch.pid;
     let ki = '';
     /**
@@ -244,11 +343,13 @@ console.log('\nE4 — SIKERTELEN RESTORE: a „warning" jelenléte NEM oldja fel
   const utan = forrasKep();
   const v = forrasValtozas(e4Elott, utan);
   elokeszitesMerteke = v.jott.length;
-  step('E2. a FORRÁS egyetlen sora sem TŰNT EL és egyetlen sora sem VÁLTOZOTT MEG (a teljes sor-tartalomra mérve)',
-    v.semaAll && v.eltunt.length === 0 && v.modosult.length === 0,
-    `${utan.tablak}/${e4Elott.tablak} tábla · séma [${utan.semaverzio}] · eltűnt: ${v.eltunt.length} · megváltozott: ${v.modosult.length}`);
+  step('E2. a FORRÁS egyetlen sora sem TŰNT EL — MINDEN `public` táblára, a teljes sor-tartalomra mérve (a módosítás is eltűnésként jelenik meg)',
+    v.semaAll && v.eltunt.length === 0,
+    `${utan.tablak}/${e4Elott.tablak} tábla MÉRVE · séma [${utan.semaverzio}] · eltűnt sor: ${v.eltunt.length}`
+    + ` · eltűnt tábla: ${v.eltuntTabla.length} · új tábla: ${v.ujTabla.length}`);
   step('E2c. ÉS A GYERMEK SAJÁT ELŐKÉSZÍTÉSE KIMONDOTT: a hozzáadott sorok száma MÉRVE, nem elhallgatva',
-    v.jott.length >= 0, `a tartóssági próba előkészítése ${v.jott.length} sort adott a forráshoz (fiók + vállalkozás) — ez a MÉRCE a további futásokhoz`);
+    v.jott.length >= 0, `a tartóssági próba előkészítése ${v.jott.length} ÚJ sort adott a lánc saját forrásához `
+    + '— ez a MÉRCE a további futásokhoz (a sorok a fiók-, azonosító-, tagság- és vállalkozás-táblákban állnak)');
   step('E2b. az idegen adatbázis ebben a futásban is ÉRINTETLEN', idegenEl(), idegen);
 }
 
@@ -393,7 +494,7 @@ console.log('\nE6 — MEGSZAKADT FUTÁS (SIGTERM a visszatöltés közben)');
   step('E6d. a FORRÁS a megszakítás után is áll: semmi nem tűnt el, semmi nem változott, és a hozzáadás a MÉRT előkészítésnél nem több',
     (() => {
       const v = forrasValtozas(e6Elott, forrasKep());
-      return v.semaAll && v.eltunt.length === 0 && v.modosult.length === 0
+      return v.semaAll && v.eltunt.length === 0
         && (elokeszitesMerteke === null || v.jott.length <= elokeszitesMerteke);
     })(), forrasNev);
 }
