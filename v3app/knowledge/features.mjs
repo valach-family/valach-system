@@ -266,7 +266,10 @@ export const FEATURES = Object.freeze([
     // R144: a funkciót kiszolgáló TÁMOGATÓ OLVASÁSOK. Az `authority.endpoint` EGY végpontot
     // nevez meg (ahol a jog dől el); a felület viszont többet is hív — és a lefedési mérés joggal
     // mondta, hogy ezekről a tudás nem beszél. A kötés a HÍVÓ forrásából ellenőrizve.
-    reads: F(['GET /api/invites/observe', 'POST /api/invites/pending']),
+    // A FELEJTÉS IS TÁMOGATÓ OLVASÁS (R166 §1): a visszalépés nemleges ága a szerver-oldali
+    // szándékot is törli, mert a jegy nem vihető át a KÖVETKEZŐ emberre (KUKA-218 — minden
+    // nézethez kötött tár EGY helyen ürül). Kimondva, különben a lefedés fedetlen végpontot mér.
+    reads: F(['GET /api/invites/observe', 'POST /api/invites/pending', 'POST /api/invites/pending/forget']),
     // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
     // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
     // ÉS A FOLYTATÁS VEZÉRLŐJE IS EHHEZ A FUNKCIÓHOZ TARTOZIK (R166 §1): a visszalépés az
@@ -1034,7 +1037,9 @@ export const TOURS = Object.freeze({
   // (`tour.stockcard` · `tour.movements`) a megnyíló táblát csak kiadott készlet-engedéllyel
   // rajzolja — a jogadás a `tour.grant` útja, és ez a bemutató NEM ad jogot a felhasználó helyett.
   'tour.verify': Object.freeze({
-    id: 'tour.verify', version: '1.0.0', audience: 'public', feature: 'auth.verify', page: null,
+    // A LEVÉL-FOGADÓ a `devSurface` mögött él — telepített környezetben nincs cél (R166 P2).
+    id: 'tour.verify', version: '1.0.0', audience: 'public', requires_dev_mailbox: true,
+    feature: 'auth.verify', page: null,
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'demo-mail-open', task: null }),
       Object.freeze({ id: 's2', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
@@ -1123,21 +1128,25 @@ export const TOURS = Object.freeze({
     ]),
   }),
   'tour.stockcard': Object.freeze({
-    id: 'tour.stockcard', version: '1.0.0', audience: 'signed_in', feature: 'data.stockcard', page: 'stockcard',
+    // A TÁBLA csak kiadott készlet-adatkörrel rajzol: a felkínálás az ÉLŐ jogon áll (R166 P2).
+    id: 'tour.stockcard', version: '1.0.0', audience: 'signed_in', requires_stock_access: true,
+    feature: 'data.stockcard', page: 'stockcard',
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'nav-stockcard', task: null }),
       Object.freeze({ id: 's2', target: 'stockcard-table', task: null }),
     ]),
   }),
   'tour.movements': Object.freeze({
-    id: 'tour.movements', version: '1.0.0', audience: 'signed_in', feature: 'data.movements', page: 'movements',
+    id: 'tour.movements', version: '1.0.0', audience: 'signed_in', requires_stock_access: true,
+    feature: 'data.movements', page: 'movements',
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'nav-movements', task: null }),
       Object.freeze({ id: 's2', target: 'movements-table', task: null }),
     ]),
   }),
   'tour.outbox': Object.freeze({
-    id: 'tour.outbox', version: '1.0.0', audience: 'signed_in', feature: 'shell.demo_mail', page: 'outbox',
+    id: 'tour.outbox', version: '1.0.0', audience: 'signed_in', requires_dev_mailbox: true,
+    feature: 'shell.demo_mail', page: 'outbox',
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'nav-outbox', task: null }),
       // A FELTÁRÓ CSAK KORÁBBI LÉPÉS CÉLJA LEHET — a `verify:tutor` jogosan szólt: a megnyitó

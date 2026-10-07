@@ -14,10 +14,11 @@ RÉGI munkamenet zárása volt; ez a lap az ÚJ munkamenet eredménye.
 | | |
 |---|---|
 | **Kód-SHA (a csomag feje)** | lásd a lap alján: `git log -1` ezen az ágon |
-| **A review által FEDETT SHA** | `3fea359` — az azóta született **összes** munka (a nyitott P1 javítása, az R166 §1 és §3) **NEM fedett**: a mai fejre nincs független review-bizonyíték |
+| **A review által FEDETT SHA** | `3747c12` — a LEGUTÓBBI átolvasás eddig jutott (ez adta a 2.1 és a 2.2 leleteit). Az azóta született munka — maguk a **javítások** (`f5d0c2d` és a jelen commit) — **NEM fedett**: a mai fejre nincs független review-bizonyíték. (A korábbi, nyolcadik kör `3fea359`-et fedte.) |
 | **R166 §0 átadás** | **KÉSZ** — a checkpoint ellenőrizve, a régi író leállt, a munka a PR aktuális fejére épült (force-push nélkül) |
 | **R166/P1 (a nyitott review-szál)** | **KÉSZ és MÉRVE** — `D-VS-3201` · `KUKA-393` |
 | **A 3747c12 fejre jött ÚJ P2** | **KÉSZ és MÉRVE** — a titok-tisztító határa (`D-VS-3203` · `KUKA-395`); lásd a 2.1 pontot |
+| **A 3747c12 fejre jött TOVÁBBI HÁROM P2** | **KÉSZ és MÉRVE** — mind a három a SAJÁT, ebben a körben épített munkám felett: a szerver-oldali folytatás a visszalépés után, és két végigvihetetlenül felkínált útmutató-csoport (`D-VS-3204` · `KUKA-396` · `KUKA-397`); lásd a 2.2 pontot |
 | **R166 §1 (meghívóképernyő)** | **KÉSZ és MÉRVE** — a böngészős mérés, ami eddig **bejárhatatlan** volt, lefutott |
 | **R166 §3 (19 pótolható lefedési hiány)** | **KÉSZ** — elfogadási cél: pótolható **0** · osztályozatlan **0** (`LT2` ZÖLD); `D-VS-3202` · `KUKA-394` |
 | **R166 §2 (valódi két szereplős bejárás)** | **NEM KÉSZÜLT EL** — átadva, lásd a 6. szakaszt. Nem állítom késznek |
@@ -96,6 +97,61 @@ visszaállítására **három pin piros**. A pg-láncok újramérve: `proof:pg-r
 
 **És a `KUKA-371` gépi jele a mai otthonra igazítva** — a jele egy kommentsorra mutatott, amit a
 javítás elvitt; a szabály nem változott, csak erősebb lett. Rögzítve: `D-VS-3203` · `KUKA-395`.
+
+---
+
+### 2.2 ÉS JÖTT MÉG HÁROM P2 — A SAJÁT, EBBEN A KÖRBEN ÉPÍTETT MUNKÁM FELETT
+
+A `3747c12` fejen lefutó átolvasás **három további P2**-t hozott elő, és mind a három **az ebben a
+körben megépített funkciómra** mutatott. Egyiket sem hittem el szövegre: mindhármat **megmértem**,
+és mind a három **valódi** volt.
+
+**(1) A „vissza" csak a böngészőt ürítette.** A §1-ben megépített visszalépés a meghívó-jegyet a
+közös böngésző-oldali elfelejtővel vitte el. A névtelen látogató jegyét viszont a kiszolgáló a
+**munkamenethez kötve TÁROLJA**, és a belépés visszaolvassa: aki kimondottan elhagyta a meghívót,
+majd belépett, azt a tárolt folytatás **visszavitte ugyanarra a meghívóra**. A „vissza" gomb tehát
+nem vitt vissza. **És a saját lapom zöld volt rá** — mert csak a böngésző állapotát és a címsort
+mérte, a tárolt sort nem kérdezte meg.
+**A javítás:** az elfelejtés a **magban** él (`forgetIntent` — ott, ahol a sort írjuk és olvassuk),
+és a felhasználó egy **nevezett úton** mondja ki (`POST /api/invites/pending/forget`, **törzs
+nélkül**: jegyet nem fogad el, tehát más munkamenet folytatását nem lehet vele elvinni). A sorrend
+szándékos: **előbb a tárolt állapot, utána a böngészőé** — ha a hálózat elvágja a kérést, a
+felhasználó a meghívó-képernyőn marad, nem egy olyanon, ami azt ígéri, hogy elhagyta.
+**Az ellenpár is mérve:** visszalépés **nélkül** a folytatás **továbbra is megmarad** — a szűkítés
+nem vitt el mást.
+
+**(2–3) A felkínálást a környezetre és a tagságra alapoztam, nem az élő feltételre.** A §3-ban
+pótolt tizenkét útmutató közül **négy** feltételhez kötött célra áll: kettő a fejlesztői
+levél-fogadóra, kettő a megnyíló készlet-táblára. Telepített környezetben a levél-fogadó **nincs**,
+és akinek a készlet adatkörét nem adták ki, annak a lap a **megtagadó panelt** rajzolja — az
+útmutató tehát a **második lépésén megszakadt volna**. A legrosszabb: a készlet-karton bevezetőjébe
+**magam írtam be**, hogy engedélyhez kötött — egy felirat viszont **nem kapu** (`KUKA-221`). Ez
+pontosan a `KUKA-391`, amit **ebben a körben idéztem**: amit nem lehet végigvinni, azt nem kínáljuk
+fel.
+**A javítás:** az útmutató **deklarálja** a feltételét, a tényt a **kiszolgáló méri** — a
+levél-fogadót a kapcsoló állásából, a készlet-jogot **a mag válaszából**, vagyis **ugyanabból a
+döntésből**, amit a lap kapuja is tükröz (`KUKA-233` — egy kérdés, egy válasz).
+
+**A BIZONYÍTÉK, SORONKÉNT:**
+
+| állítás | gépi jel | verdikt |
+|---|---|---|
+| a két kapu **mindkét irányban** zár és nyit, és CSAK a sajátjait zárja (a többi 18 útmutató betűre változatlan) | `verify:app-findings-r154` **AG csoport (ag1–ag4)** | **ZÖLD — 259/259** |
+| az új út az állapotot **KÖTŐ** utak kimondott leltárában áll | ugyanott, `s11` — **ez fogta meg** | **ZÖLD** |
+| a visszalépés UTÁNI belépés **nem visz vissza** a meghívóra | `test:e2e` → `v3app-r166-invite-leave` **M6** | **ZÖLD** |
+| a tizenkét útmutató **élő bejárása** ott, ahol a feltételek teljesülnek | `verify:browser-gate` | **ZÖLD — 134/0/0/0** |
+
+**VISSZACSÚSZÁS-PRÓBA MÉRVE, MIND A HÁROMRA:** a két kaput kivéve `ag1`+`ag2` **piros**; a törlő
+hívást kivéve az **M6 piros**.
+
+**ÉS AZ ŐR ELKAPTA A SAJÁT REGRESSZIÓMAT.** Az új végpont **fedetlenül** jelent meg a lefedési
+mérésben (`LT2` piros: pótolható **1**, `LR1`: **1 ÚJ az alapvonalhoz képest**). Nem az őrt
+gyengítettem és nem az alapvonalat írtam át: **kimondtam a kötést** — az út a meghívó-elfogadás
+funkció **támogató olvasása** —, amire a mérés visszatért **33/33 fedett végpontra**, `LT2` és
+`LR1` **ZÖLD**. A `LT` szándékosan piros marad: az a nevesített fejlesztési rést (`page:personal`)
+is számolja, és **az eredeti őrt nem gyengítjük zöld eredményért**.
+
+Rögzítve: `D-VS-3204` · `KUKA-396` · `KUKA-397`.
 
 ---
 
@@ -203,18 +259,18 @@ megszakítást bukásnak** veszi, nem „nincs is baj"-nak.
 
 | lánc | verdikt |
 |---|---|
-| `verify:app-findings-r154` (a HTTP-határ és a pg-feloldók) | **ZÖLD — 255/255** (AC csoport ac1–ac8 és AE csoport ae1–ae7 új) |
+| `verify:app-findings-r154` (a HTTP-határ és a pg-feloldók) | **ZÖLD — 259/259** (AC ac1–ac8 · AE ae1–ae7 · AG ag1–ag4 új) |
 | `proof:pg-intent` | **ZÖLD** — 10 állítás, mindkét tárolón, **0 eltérés**, valódi PostgreSQL 16.15 |
 | `proof:pg-restore-safety` | **ZÖLD — 48/48** (E10a–E10e új, Unix-socketen) |
 | `proof:pg-durability` | **ZÖLD — 13/13** |
-| `verify:kuka` | **ZÖLD — 870/870** (KUKA-393 · KUKA-394 · KUKA-395 új) |
+| `verify:kuka` | **ZÖLD — 877/877** (KUKA-393 · 394 · 395 · 396 · 397 új) |
 | `verify:tutor` | **ZÖLD — 94/94** (két új állítás: a zárt listás `auth_view`, és hogy a nézet-nevek a felület forrásában is megvannak) |
 | `verify:i18n` | **ZÖLD — 49/49** · ellenpróba 6/6 (809 → **821** kulcs, mind a három bekapcsolt nyelven) |
 | `verify:assistant` | **ZÖLD — 55/55** |
 | `app:selfcheck` | **ZÖLD — 57/57** |
 | `verify:decision-numbers` | **ZÖLD — 4/4** |
-| `verify:lefedes` | **17 ZÖLD / 1 PIROS** — a `LT` a nevesített fejlesztési résen (`LT2` ZÖLD: pótolható 0) |
-| `verify:browser-gate` (`test:e2e` + `proof:core-ux` + `proof:demo-walk`) | **ZÖLD** — `test:e2e + proof:core-ux` **368 s**, `proof:demo-walk` **440 s** · **133 helyzet teljesült / 0 bukott / 0 ingadozó / 0 kihagyott** |
+| `verify:lefedes` | **17 ZÖLD / 1 PIROS** — a `LT` a nevesített fejlesztési résen (`LT2` és `LR1` ZÖLD: pótolható 0 · osztályozatlan 0 · **33/33 fedett végpont**) |
+| `verify:browser-gate` (`test:e2e` + `proof:core-ux` + `proof:demo-walk`) | **ZÖLD** — `test:e2e + proof:core-ux` **366 s**, `proof:demo-walk` **440 s** · **134 helyzet teljesült / 0 bukott / 0 ingadozó / 0 kihagyott** (a három P2-javítás UTÁN újramérve) |
 | `verify:external-checks` | **PIROS / NEM TELJES** — a hat hiányzó program **nem futott** (R166 §4, átadva) |
 
 ---
@@ -323,3 +379,6 @@ nélkül; titok-minta ellenőrzéssel **0 találat**).
 | **KUKA-394** | amiből egy példa van, abból nem szabad szabályt olvasni — és a regiszter zöldje nem bejárhatóság |
 | **D-VS-3203** | a titok végét a shell-szó határa adja, nem az első záró idézőjel |
 | **KUKA-395** | egy titok-tisztító határát az a nyelvtan adja, ami a szöveget előállította |
+| **D-VS-3204** | a visszalépés szándéka a szerverig megy, és a felkínálás az ÉLŐ feltételen áll |
+| **KUKA-396** | egy „elfelejtő" annyit felejt, ahány tárolót megkérdez — a böngésző-oldali ürítő a szerver állapotát nem éri el |
+| **KUKA-397** | amit egy útmutató bevezetőjében leírok, az nem kapu: a feltételt a darab deklarálja, a tényt a kiszolgáló méri |

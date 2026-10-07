@@ -16,6 +16,55 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3204 — AMIT NEM LEHET VÉGIGVINNI, AZT NEM KÍNÁLJUK FEL — ÉS A „VISSZA" A SZERVERIG MEGY (R166, három P2)
+
+> **Hatály:** V3 — a meghívó-folytatás és az útmutatók felkínálása. **V2-módosítás nem történt.**
+
+**Dátum:** 2026-10-07 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R166 (a kód-review HÁROM
+P2-je a `3747c12` fejen, mind az ebben a körben épített SAJÁT munkám felett) · **KUKA-396 · 397**
+
+**A döntés — három tétel.**
+
+1. **A MEGHÍVÓ ELHAGYÁSA A SZERVERIG MEGY.** A visszalépés a **tárolt** folytatást is elviszi:
+   `forgetIntent` a magban (ahol a sort írjuk és olvassuk — egy otthon) és egy **nevezett** út, amin
+   a felhasználó kimondja (`POST /api/invites/pending/forget`, **törzs nélkül**: jegyet nem fogad el,
+   tehát más munkamenet folytatását nem lehet vele elvinni). A sorrend kimondott: **előbb a tárolt
+   állapot, utána a böngészőé**.
+2. **A FELKÍNÁLÁS AZ ÉLŐ FELTÉTELHEZ KÖTÖTT.** `requires_dev_hozzáférés` helyett a tények:
+   **`dev_mailbox`** (a `devSurface` kapcsolóból) és **`stock_access`** (a **mag** válaszából a
+   minta-készlet olvasására — ugyanaz a döntés, amit a lap kapuja tükröz). Az útmutató **deklarálja**
+   a feltételét (`requires_dev_mailbox` · `requires_stock_access`), a kapu a deklarációt kérdezi, és
+   a mezők a **határon is** átmennek.
+3. **A KAPUT MINDKÉT IRÁNYBAN MÉRJÜK** (`KUKA-091`): zárva nem kínál, nyitva igen — és egy ellenpár
+   kimondja, hogy a két kapu **csak a sajátjait** zárja (a többi 18 útmutató készlete betűre
+   változatlan).
+
+**Miért — és ez mind a saját munkám feletti lelet.**
+
+| lelet | a kár, mérve |
+|---|---|
+| a „vissza" csak a böngészőt ürítette | aki **kimondottan** elhagyta a meghívót, majd belépett, azt a tárolt folytatás **visszavitte** ugyanarra a meghívóra. A saját lapom (`M1`) **zöld** volt rá, mert csak a böngésző állapotát és a címsort mérte |
+| a megerősítés és a Próbaüzenetek útmutatója | telepített környezetben a `devSurface` hamis → a `/dev/mailbox` **404**, a `mailbox` cél nem létezik → a második lépésen nevezett megszakítás |
+| a két készlet-nézet útmutatója | kiadott `keszlet` adatkör nélkül a lap a **megtagadó** panelt rajzolja a tábla helyett → azonnali megszakítás. **És a bevezető szövegébe magam írtam be, hogy engedélyhez kötött — egy felirat viszont nem kapu** (`KUKA-221`) |
+
+A második és a harmadik pontosan a **`KUKA-391`**, amit **ebben a körben idéztem** — és három körön
+belül másodszor buktam el ugyanazon: a feltételt a környezet jeléből vagy a tagságból vezettem le,
+pedig a kérdés az, hogy a **cél ott van-e a lapon**.
+
+**A bizonyíték.** `verify:app-findings-r154` **259/259** — az új **AG csoport** (`ag1`–`ag4`) a két
+kaput **mindkét** irányban, az ellenpárral és a deklaráció kétirányú mérésével; az **`s11`** őr
+(az állapotot **kötő** utak kimondott leltára) pedig **elkapta** az új végpontot, mielőtt a csomag
+lezárult — ezért van. Élő tanú: `tests/e2e/v3app-r166-invite-leave.spec.mjs` **M6** — a visszalépés
+utáni belépés **nem visz vissza**, és az **ellenpár**: visszalépés **nélkül** a folytatás továbbra is
+megmarad (a `KUKA-297` ígérete nem veszett el). **Visszacsúszás-próba mérve, mind a háromra:** a két
+kaput kivéve `ag1`+`ag2` piros; a törlő hívást kivéve az `M6` piros. `verify:kuka` **877/877**.
+
+**Amit ez NEM állít.** Nem állítja, hogy minden útmutató minden környezetben végigvihető: azt
+állítja, hogy ahol nem, ott **nem is kínálódik fel** — és a kizárás **nevezett**, nem néma
+megszakadás.
+
+---
+
 ## D-VS-3203 — A TITOK VÉGÉT A SHELL-SZÓ HATÁRA ADJA (R166, külső review P2)
 
 > **Hatály:** V3 — a mentési/visszatöltési szerszámlánc titok-tisztítója

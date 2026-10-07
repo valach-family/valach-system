@@ -147,6 +147,14 @@ export const ENDPOINT_SCHEMAS = frozen({
     body: frozen({ fields: frozen({ token }) }),
     query: frozen({ fields: frozen({}) }),
   }),
+  // A MEGHÍVÓ ELHAGYÁSA (R166, külső review P2): a SAJÁT munkamenet tárolt folytatását törli.
+  // Törzs NÉLKÜL: a munkamenetet a süti azonosítja, és egy jegyet NEM fogad el — így nem lehet vele
+  // MÁS munkamenet folytatását elvinni (KUKA-236: a zárt lista a mezőkre is érvényes).
+  'POST /api/invites/pending/forget': frozen({
+    version: '1', mutates: true,
+    body: frozen({ fields: frozen({}) }),
+    query: frozen({ fields: frozen({}) }),
+  }),
   'POST /api/invites/redeem': frozen({
     version: '1', mutates: true,
     body: frozen({ fields: frozen({ token }) }),

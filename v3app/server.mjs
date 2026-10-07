@@ -36,7 +36,7 @@ import { bootstrapOf, workspacesOf, ensurePersonalSpace, personalSpaceOf, provis
 // visszahozná a rögzítőt egy olvasó útra, annak előbb újra be kell húznia.
 import { inviteColleague, grantScopeToMember, revokeScopeFromMember, revokeDelegationsOf,
   delegationCeilingOf, reinviteMember } from '../v3ref/delegation.mjs';
-import { observeInvite, redeemInvite, rememberIntent, resumeIntent, purgeExpiredIntents,
+import { observeInvite, redeemInvite, rememberIntent, resumeIntent, forgetIntent, purgeExpiredIntents,
   intentTtlMs, revokeInvite, inviteRevocationAt, reentryOfferFor } from '../v3ref/invite.mjs';
 import { rightAt, revokeMembership, KNOWN_ROLES } from '../v3ref/authz.mjs';
 import { submitCommand, readCommandResult } from '../v3ref/command.mjs';
@@ -1690,6 +1690,27 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       // A FELÜLET HORGONYAI (R164/3). A kérés a felületét NEVEZI MEG, a készletet a kiszolgáló MÉRI
       // a lap fájljából — így a felkínálás a VEZÉRLŐ létéhez kötött, nem a környezet jeléhez.
       surface_anchors: surfaceAnchors(opts.surface),
+      /**
+       * A FEJLESZTŐI LEVÉL-FOGADÓ LÉTE (R166, külső review, Codex, P2).
+       *
+       * A LELET: a megerősítés és a Próbaüzenetek útmutatója a `demo-mail-open`/`mailbox` pontokra
+       * áll, azok viszont a `devSurface` kapcsoló mögött élnek. Telepített környezetben (staging ·
+       * production) a `/dev/mailbox` 404-et ad, a panel a tiltó figyelmeztetést rajzolja, és a
+       * `mailbox` cél NEM létezik — az útmutató tehát ott NEVEZETTEN megszakadt volna. Amit nem
+       * lehet végigvinni, azt nem kínáljuk fel (KUKA-391 · KUKA-232).
+       */
+      dev_mailbox: devSurface === true,
+      /**
+       * A KÉSZLET-ADATKÖR ÉLŐ VERDIKTJE (R166, külső review, Codex, P2).
+       *
+       * A LELET: a tagság NEM jog. A két készlet-nézet útmutatója a megnyíló TÁBLÁRA áll, a tábla
+       * viszont csak kiadott `keszlet` adatkörrel rajzol — egy soha nem kapott vagy visszavont
+       * engedély mellett az útmutató azonnal megszakadt volna. A felkínálás ezért UGYANAZON a
+       * döntésen áll, mint a lap: a MAG válasza a minta-készlet olvasására (nem a tagság, és nem a
+       * felirat — KUKA-227: a határ zöldje nem a felület zöldje).
+       */
+      stock_access: Boolean(bookId && session.subject_id
+        && readSample(bookId, session.subject_id, 'minta-keszlet').ok === true),
       book_id: bookId,
       member: Boolean(ws),
       role: ws ? ws.role : null,
@@ -2283,6 +2304,27 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       return { status: 200, body: { ok: true } };
     },
 
+    /**
+     * A MEGHÍVÓ ELHAGYÁSA — A TÁROLT FOLYTATÁST IS ELVISZI (R166, külső review, Codex, P2).
+     *
+     * A LELET: az R166 §1 visszalépése csak a böngésző állapotát ürítette. A névtelen látogató
+     * meghívó-jegyét viszont a `POST /api/invites/pending` a MUNKAMENETHEZ kötve TÁROLJA, és a
+     * belépés (`POST /api/login`) ezt visszaolvassa — tehát aki kimondottan elhagyta a meghívót, a
+     * belépés után VISSZAKERÜLT rá. A „vissza" tehát nem vitt vissza.
+     *
+     * EZ AZ ÚT NEM OLVAS ÉS NEM AD KI SEMMIT a meghívóról: csak a SAJÁT munkamenet folytatását
+     * törli, tehát névtelenül is biztonságos (védett adat nem szivárog vele — KUKA-084). Telt táron
+     * sincs mit megőrizni: ha a munkamenet nincs a tárban, nincs is sora, és a válasz ezt KIMONDJA
+     * (nem hallgat, és nem is hibázik — a felhasználó szándéka teljesült).
+     */
+    'POST /api/invites/pending/forget': ({ session }) => {
+      const s = sessions.has(session.id) ? session : null;
+      if (!s) return { status: 200, body: { ok: true, existed: false, reason: 'session_gone' } };
+      const r = forgetIntent({ store, sessionId: s.id });
+      sessions.clearIntent(s.id);        // a VÉDETT-INDEX növekményes — a törlésről is szólunk
+      return { status: 200, body: { ok: true, existed: r.existed === true } };
+    },
+
     'POST /api/invites/redeem': ({ session, input }) => {
       if (!session.subject_id) return loginRequired();
       const token = String(input.token).trim();
@@ -2559,6 +2601,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
            * a felület a saját feltevéséből dolgozik (`KUKA-227`: a határ zöldje nem a felület zöldje).
            */
           auth_view: TOURS[id].auth_view ?? null,
+          // A KÉT ÚJ KAPU-FELTÉTEL IS ÁTMEGY (R166 P2): a lap ebből tudja, miért nem indítható egy
+          // útmutató — és egy itt át nem vitt mező a böngészőben `undefined` (KUKA-394 tanulsága).
+          requires_dev_mailbox: TOURS[id].requires_dev_mailbox === true,
+          requires_stock_access: TOURS[id].requires_stock_access === true,
           // A MEGHÍVÓ-KÉPERNYŐHÖZ KÖTÖTT BEMUTATÓ: a lap ebből tudja, hogy nem egy belső oldalra
           // kell vinnie, hanem a meghívó lapján kell maradnia (P109-01).
           requires_invite: TOURS[id].requires_invite === true,

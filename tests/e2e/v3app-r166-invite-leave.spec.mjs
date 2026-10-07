@@ -279,6 +279,39 @@ test('R166-M4 — MINDEN meghívó-állapot kap folytatást: beváltott · vissz
     'MIND az öt meghívó-állapot folytatást kapott').toBe('bevaltott,ismeretlen,lejart,mas_szemelynek,visszavont');
 });
 
+test('R166-M6 — a visszalépés a TÁROLT folytatást is elviszi: a belépés NEM visz vissza a meghívóra', async () => {
+  /**
+   * A KÜLSŐ REVIEW P2-JE (R166, Codex) — a SAJÁT funkcióm felett, és a kár a felhasználót érte.
+   *
+   * A LELET: az `observeInvite()` a névtelen látogató jegyét a MUNKAMENETHEZ kötve tárolja
+   * (`POST /api/invites/pending`), a belépés pedig visszaolvassa (`pending_invite_token`). Az első
+   * alakom csak a böngésző állapotát ürítette — tehát aki KIMONDOTTAN elhagyta a meghívót, a
+   * belépés után VISSZAKERÜLT rá. A „vissza" nem vitt vissza.
+   */
+  const c = await world.context();
+  const o = await openInviteUI(c.page, link);          // névtelenül: a jegy a munkamenethez TÁROLVA
+  expect(o.observe.status).toBeTruthy();
+
+  await c.page.getByTestId('invite-back').click();
+  await expect(c.page.getByTestId('login-email')).toBeVisible();
+  expect(await inviteInUrl(c.page), 'a jegy a címsorból elment').toBe(false);
+
+  // ÉS MOST A BELÉPÉS — ITT BUKOTT A RÉGI ALAK: a tárolt folytatás visszavitte a meghívóra.
+  const r = await loginUI(c.page, bela.email, PASSWORD);
+  expect(r.body.ok, 'a belépés sikerült').toBe(true);
+  expect(r.body.pending_invite_token ?? null,
+    'a belépés válasza NEM hordoz folytatást — a tárolt sort a visszalépés elvitte').toBe(null);
+  await expect(c.page.getByTestId('app'), 'a belépő a HÉJBAN landol, nem az elhagyott meghívón').toBeVisible();
+  await expect(c.page.getByTestId('section-invite')).toHaveCount(0);
+
+  // ELLENPÁR — A GARANCIA NEM VESZETT EL (KUKA-297): aki NEM lépett vissza, annak a folytatása MEGMARAD.
+  const c2 = await world.context();
+  await openInviteUI(c2.page, link);
+  const r2 = await loginUI(c2.page, bela.email, PASSWORD);
+  expect(r2.body.pending_invite_token, 'visszalépés NÉLKÜL a folytatás megmarad — a szűkítés nem vitt el mást').toBeTruthy();
+  await expect(c2.page.getByTestId('section-invite'), 'és a meghívó lapja jön vissza').toBeVisible();
+});
+
 for (const code of ENABLED) {
   test(`R166-M5/${code} — a folytatás feliratai a KÖZÖS nyelvi forrásból jönnek (${code})`, async () => {
     const D = dictFor(code);

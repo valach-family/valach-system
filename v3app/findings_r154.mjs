@@ -39,6 +39,7 @@ import { purgeExpiredIntents, resumeIntent, rememberIntent, intentTtlMs, PENDING
 import { validateRequest } from './httpSchema.mjs';
 import { adaptiveUnitPlan } from '../v3ref/external-checks/batteryUnits.mjs';
 import { allowedToursFor, availabilityOf, allowedActionsFor } from './assistant/policy.mjs';
+import { TOURS } from './knowledge/features.mjs';
 import { PERSONAL_SCREENS, ALWAYS_AVAILABLE_SCREENS } from './knowledge/features.mjs';
 import { NAV_PERSONAL } from './public/texts.mjs';
 import { request as httpReq } from 'node:http';
@@ -1396,7 +1397,12 @@ try {
       }
       // A KIMONDOTT LELTÁR: ami tartós állapotot KÖT (materializál vagy rotál), és ami csak OLVASSA
       // a belépettséget. A második csoportnak NEM kell tárolt sor — ezért működik az átmeneti alak.
-      const KOT = ['POST /api/login', 'POST /api/logout', 'POST /api/invites/pending', 'POST /api/invites/redeem', 'POST /api/session/workspace'];
+      // A `…/pending/forget` az R166 P2-jével került be, és KIMONDOTTAN ide tartozik: a SAJÁT
+      // munkamenet tartós sorát TÖRLI (`forgetIntent` + `clearIntent`), tehát a munkamenet
+      // azonosítóját használja. Ez az őr épp arra van, hogy egy ilyen út ne kerülhessen be csendben —
+      // és meg is fogta, mielőtt a csomag lezárult (R166, külső review P2).
+      const KOT = ['POST /api/login', 'POST /api/logout', 'POST /api/invites/pending',
+        'POST /api/invites/pending/forget', 'POST /api/invites/redeem', 'POST /api/session/workspace'];
       const hianyzo = KOT.filter((k) => !allapotIgeny.includes(k));
       const ujKoto = allapotIgeny.filter((k) => {
         const i = kulcsok.findIndex((x) => x.key === k);
@@ -2990,6 +2996,52 @@ try {
     step('(ae7) R166/P2: a kapcsolati cím és a jelszó EGYÜTT is eltűnik (a két passzus nem rontja el egymást)',
       !/TITKOS|MASIK/.test(ae7) && /«kapcsolati cím elrejtve»/.test(ae7) && /«elrejtve»$/.test(ae7),
       { tisztitott: ae7 });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  // AG — AMIT NEM LEHET VÉGIGVINNI, AZT NEM KÍNÁLJUK FEL (R166, külső review, Codex, két P2)
+  //
+  // A KÉT LELET: (1) a megerősítés és a Próbaüzenetek útmutatója a fejlesztői levél-fogadóra áll,
+  // ami a `devSurface` kapcsoló mögött él — telepített környezetben a cél NEM létezik; (2) a két
+  // készlet-nézet útmutatója a megnyíló TÁBLÁRA áll, ami csak kiadott `keszlet` adatkörrel rajzol —
+  // a tagság NEM jog. Mindkettő a `KUKA-391` osztálya: a felkínálás volt a hibás állítás.
+  //
+  // A MÉRÉS MINDKÉT IRÁNYBAN megy: a kapu zárva NEM kínál, nyitva IGEN — különben a javítás
+  // „mindent elrejtek" is lehetne (KUKA-091).
+  {
+    part('AG) R166 — a felkínálás az ÉLŐ feltételhez kötött: levél-fogadó és készlet-jog (külső review, P2)');
+    const alap = { signed_in: true, book_id: 'b_firm', member: true, role: 'admin', personal: false, demo: true };
+    const levelNelkul = allowedToursFor({ ...alap, dev_mailbox: false, stock_access: true });
+    const levellel = allowedToursFor({ ...alap, dev_mailbox: true, stock_access: true });
+    const jogNelkul = allowedToursFor({ ...alap, dev_mailbox: true, stock_access: false });
+    const joggal = levellel;
+    const LEVEL = ['tour.verify', 'tour.outbox'];
+    const KESZLET = ['tour.stockcard', 'tour.movements'];
+
+    step('(ag1) R166/P2: a fejlesztői levél-fogadó NÉLKÜL a megerősítés és a Próbaüzenetek útmutatója NEM kínálódik fel (RÉGEN: felkínálódott, és a második lépésén nevezetten megszakadt)',
+      LEVEL.every((t) => !levelNelkul.includes(t)) && LEVEL.every((t) => levellel.includes(t)),
+      { kapu_zarva: LEVEL.filter((t) => levelNelkul.includes(t)).join(',') || 'egyik sem',
+        kapu_nyitva: LEVEL.filter((t) => levellel.includes(t)).length });
+
+    step('(ag2) R166/P2: kiadott készlet-adatkör NÉLKÜL a két készlet-nézet útmutatója NEM kínálódik fel — a tagság nem jog (RÉGEN: a tagság alapján felkínálódott, és a táblán megszakadt)',
+      KESZLET.every((t) => !jogNelkul.includes(t)) && KESZLET.every((t) => joggal.includes(t)),
+      { kapu_zarva: KESZLET.filter((t) => jogNelkul.includes(t)).join(',') || 'egyik sem',
+        kapu_nyitva: KESZLET.filter((t) => joggal.includes(t)).length });
+
+    // ELLENPÁR: a két kapu CSAK a sajátjait zárja — a többi útmutató készlete VÁLTOZATLAN.
+    const maradek = (lista) => lista.filter((t) => !LEVEL.includes(t) && !KESZLET.includes(t)).sort().join(',');
+    step('(ag3) R166/P2 ELLENPÁR: a két kapu CSAK a saját útmutatóit zárja — a többi felkínált készlet betűre változatlan',
+      maradek(levelNelkul) === maradek(levellel) && maradek(jogNelkul) === maradek(joggal)
+      && maradek(levellel).length > 0,
+      { tobbi_darab: maradek(levellel).split(',').length });
+
+    // ÉS A FELTÉTELT A REGISZTER MONDJA KI, nem a kapu találja ki (a deklaráció mindkét irányban mérve).
+    const deklaralt = Object.values(TOURS).filter((t) => t.requires_dev_mailbox === true).map((t) => t.id).sort();
+    const deklaraltJog = Object.values(TOURS).filter((t) => t.requires_stock_access === true).map((t) => t.id).sort();
+    step('(ag4) R166/P2: a feltételt az ÚTMUTATÓ deklarálja (a kapu nem névsorból dönt), és a deklaráció pontosan a négy érintettre áll',
+      deklaralt.join(',') === LEVEL.slice().sort().join(',')
+      && deklaraltJog.join(',') === KESZLET.slice().sort().join(','),
+      { level_fogado: deklaralt.join(','), keszlet_jog: deklaraltJog.join(',') });
   }
 
   const fail = results.filter((r) => !r.pass);

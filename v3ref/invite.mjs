@@ -753,6 +753,26 @@ export function resumeIntent({ store, sessionId, clock, ttlMs = PENDING_INTENT_T
 }
 
 /**
+ * A FOLYTATÁS KIMONDOTT ELFELEJTÉSE (R166, külső review, Codex, P2).
+ *
+ * A LELET: a `pending_intent` sort eddig CSAK a lejárat, a beváltás és a halmazos takarítás vitte el
+ * — nem volt út, amin a FELHASZNÁLÓ mondhatja ki, hogy elhagyta a meghívót. Az R166 §1
+ * visszalépése ezért csak a BÖNGÉSZŐ állapotát ürítette: a következő belépés a tárolt sort
+ * visszaolvasta (`resumeIntent`), és a látogatót visszavitte arra a meghívóra, amit épp elhagyott.
+ *
+ * MIÉRT A MAGBAN: a sort a mag írja (`rememberIntent`) és a mag olvassa (`resumeIntent`) — a
+ * törlésnek ugyanott az otthona, különben a tábla három házból kapna írást (KUKA-003 · KUKA-018).
+ * A visszatérés KIMONDJA, volt-e sor: a hívó (a munkamenet-tár védett indexe) ebből tudja, hogy
+ * jelentenie kell-e a változást.
+ */
+export function forgetIntent({ store, sessionId }) {
+  const sid = String(sessionId);
+  const volt = store.get('SELECT 1 AS n FROM pending_intent WHERE session_id = ?', sid);
+  store.run('DELETE FROM pending_intent WHERE session_id = ?', sid);
+  return { existed: Boolean(volt) };
+}
+
+/**
  * A LEJÁRT SOROK TAKARÍTÁSA — EGY utasításban, halmazon (D-VS-3141).
  *
  * MIÉRT ÍGY: a hívó ezt AMORTIZÁLTAN futtatja (legfeljebb percenként egyszer), és a törlés EGY

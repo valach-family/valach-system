@@ -2026,7 +2026,22 @@ import { inviteNextKey } from './inviteText.mjs';
    * hurok sem: a `render()` a jegyet nézi először, és a címsorban már nincs mit újraolvasni egy
    * frissítésnél — akkor sem, ha a meghívó lejárt vagy érvénytelen.
    */
-  function doInviteLeave() {
+  async function doInviteLeave() {
+    /**
+     * A TÁROLT FOLYTATÁST IS EL KELL VINNI (R166, külső review, Codex, P2 — SAJÁT funkcióm felett).
+     *
+     * A LELET: az első alakom csak a BÖNGÉSZŐ állapotát ürítette (`forgetInvite`). A névtelen
+     * látogató meghívó-jegyét viszont az `observeInvite()` a MUNKAMENETHEZ kötve tárolja
+     * (`POST /api/invites/pending`), és a belépés ezt visszaolvassa — tehát aki kimondottan
+     * elhagyta a meghívót, a belépés UTÁN visszakerült rá. A „vissza" nem vitt vissza.
+     *
+     * A SORREND KIMONDOTT: előbb a TÁROLT állapot, utána a böngészőé. Így ha a hálózat elvágja a
+     * kérést, a felhasználó a meghívó-képernyőn marad — ott, ahol a gombja még ott van —, nem pedig
+     * egy olyan képernyőn, ami azt ígéri, hogy elhagyta a meghívót, miközben a szerver szerint nem.
+     * A `pending_invite_token` útja ettől változatlan: aki NEM lépett vissza, annak a folytatása
+     * továbbra is megmarad (ez a `KUKA-297` garanciája).
+     */
+    await api('POST', '/api/invites/pending/forget', {});
     forgetInvite();
     if (state.me && state.me.subject_id) {
       // A HÉJBA VISSZA: a lapot a saját nézetére állítjuk, nem hagyjuk a meghívó-képernyő lapján.
@@ -2501,7 +2516,7 @@ import { inviteNextKey } from './inviteText.mjs';
       case 'revoke': await doRevoke(b.dataset.subject, b); break;
       case 'redeem': await doRedeem(); break;
       // A MEGHÍVÓ-KÉPERNYŐ VISSZALÉPÉSE (R166 §1): nem fogad el meghívást, nem módosít tagságot.
-      case 'invite-leave': doInviteLeave(); break;
+      case 'invite-leave': await doInviteLeave(); break;
       default: break;
     }
   });

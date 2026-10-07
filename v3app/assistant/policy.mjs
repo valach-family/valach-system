@@ -258,6 +258,23 @@ export function allowedToursFor(ctx = {}) {
     // éles üzemben is a helyén marad — csak a VÉGIGVEZETÉS nem indítható.
     if (t.requires_demo === true && ctx.demo !== true) continue;
     /**
+     * A FEJLESZTŐI LEVÉL-FOGADÓHOZ KÖTÖTT ÚTMUTATÓ (R166, külső review, Codex, P2).
+     *
+     * A megerősítés és a Próbaüzenetek útmutatója a levél-fogadóra áll, ami a `devSurface` kapcsoló
+     * mögött él: telepített környezetben a `/dev/mailbox` 404, a cél nem létezik, és az útmutató
+     * NEVEZETTEN megszakadt volna. NEVEZETT kizárás, nem `targetMissing`-gel megszakadó útmutató
+     * (F91-01 · KUKA-391: amit nem lehet végigvinni, azt nem kínáljuk fel).
+     */
+    if (t.requires_dev_mailbox === true && ctx.dev_mailbox !== true) continue;
+    /**
+     * AZ ENGEDÉLYHEZ KÖTÖTT KÉSZLET-NÉZETEK (R166, külső review, Codex, P2).
+     *
+     * A tagság NEM jog: a készlet-karton és a mozgások TÁBLÁJA csak kiadott `keszlet` adatkörrel
+     * rajzol. A felkínálás ezért UGYANAZON az ÉLŐ döntésen áll, mint a lap (`stock_access`), nem a
+     * tagságon és nem az útmutató bevezető szövegén — egy felirat nem kapu (KUKA-221).
+     */
+    if (t.requires_stock_access === true && ctx.stock_access !== true) continue;
+    /**
      * …ÉS A VEZÉRLŐ IS KELL HOZZÁ, NEM CSAK A KÖRNYEZET (R164/3 — a külső review lelete).
      *
      * A fenti `requires_demo` kapu a KISZOLGÁLÓ környezetét kérdezi. Az viszont nem mondja meg, hogy
