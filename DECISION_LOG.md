@@ -16,6 +16,74 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3169 — A LEFEDÉST KIZÁRÓLAGOS JEL MÉRI, ÉS A HÉJ VEZÉRLŐI NEM AZONOSÍTANAK LAPOT (R164/3)
+
+**A döntés.** A lefedési őrben egy HORGONY csak akkor azonosít lapot, ha más lap funkciói **nem**
+deklarálják; a héj vezérlői (profil-menü · kijelentkezés · fiókválasztó · súgó-nyitó · menü-kapcsoló ·
+levél-nyitó) pedig **kimondottan kivett halmaz** (`SHELL_ANCHORS`). A menüpont (`nav-<lap>`) és a
+bemutató kimondott lapja változatlanul azonosít.
+
+**Miért.** A `list-rows`/`list-search` horgonyt öt lap funkciói deklarálják. MÉRVE: egy új raktár-útmutató
+lépése a termékek, a partnerek, a bizonylatok és az `outbox` lapját is „bejártnak" minősítette.
+
+**És amit ez visszamenőleg javít.** Az R158 jelentésemben a „10 lap (gépi) kontra 11 lap (kézi)" eltérést
+úgy zártam le, hogy „az ŐR száma az irányadó". A mérés megmutatta: a **kézi szám volt a helyes**, az
+őrnek volt hamis zöldje. A hiány-alapvonal mindkét irányban frissült, indokkal.
+
+**Amit ez NEM állít.** A hiány nem lett kevesebb: a 20 hiány-kulcs marad, csak az ÖSSZETÉTELE igaz.
+Gépi jel: `npm run verify:kuka` (KUKA-361) · `npm run verify:lefedes` (LR1 · LR2).
+
+---
+
+## D-VS-3170 — A KILÉPÉS A KÖZÖS ÜRÍTŐN MEGY ÁT, ÉS A MEGHÍVÓ JEGYE IS ODA TARTOZIK (R164/3)
+
+**A döntés.** A kijelentkezés nem végez saját, részleges ürítést: a `resetViewCaches()`-t hívja, és a
+meghívó **jegyét** (`state.inviteToken`) is törli.
+
+**Miért.** A rajzolás legelső döntése a jegy. MÉRVE: a meghívott megnyitja a meghívó-képernyőt, kilép,
+és a következő belépő — **más ember** — ugyanazon a meghívó-képernyőn érkezik meg, héj-nézet nélkül.
+A nézethez kötött tárak sem ürültek a kilépéskor, és a futó útmutató sem adódott át ott — ezért hamis
+„eltűnt az elem" üzenettel szakadt meg egy ép átadás közepén.
+
+**Amit ez NEM állít.** Viselkedés-szintű böngészős mérés erre a konkrét szivárgásra ma nincs: a két
+szereplős történet mai útja (rövidítő gomb + újratöltés) nem járja be ezt az ágat. NEVESÍTETT hiány,
+az R158 7/1. tételében megy tovább. Gépi jel: `npm run verify:kuka` (KUKA-362).
+
+---
+
+## D-VS-3171 — AZ IDŐKERET MÉRÉSBŐL JÖN, ÉS A NEM FUTOTT NEM „NEM FELEL MEG" (R164/3)
+
+**A döntés.** A külső-ellenőrző futtató program-kerete **1 800 000 ms** (két battéria-pass + a program
+saját munkája), a saját újrafogalmazásunk mag-próba-kerete **180 000 ms**, és a battéria darabszáma
+**mérésből** jön (`adaptiveUnitPlan`: időtúllépésre finomabbra oszt). A külső fél 15 000 ms-os
+EGYSÉG-korlátját nem lazítjuk — az az ő szava.
+
+**Miért.** A 600 s-os keret egy feltevésen állt. MÉRVE: 253 mutáció és 69 mag-próba mellett egy teljes
+battéria-pass ~8 perc (40 egység × 11 960 ms), és a két passzt futtató `r81core`/`r83core` a kereten
+HALT MEG (`kilépés null · 600 107 ms`) — a lánc IDŐ-okból mondott eltérést olyan programra, aminek a
+tartalmáról semmit nem mért. A kézzel tartott darabszám ÖTÖDSZÖR avult el.
+
+**Amit kimondok: a két korlát egymásnak feszül.** A finomabb darabolás betartja az egység-korlátot, de
+NÖVELI a teljes időt (egységenkénti indulási költség). Ez nem „gyorsabb lett" — ezért hosszú a lánc, és
+ezért nem fut a söprésben. Gépi jel: `npm run verify:kuka` (KUKA-363) · `npm run verify:external-checks`.
+
+---
+
+## D-VS-3172 — A PRÓBA DIAGNOSZTIKÁJA A PRÓBA RÉSZE (R164/3)
+
+**A döntés.** A böngészős tanú a modális panelt bezárja (egy otthonban, a zárás **tényét megmérve**), a
+váltás és a belépés utáni rajzolást **megvárja**, és minden megszakadást a KÉPERNYŐ állapotával együtt
+nevez meg: fiók · menü-elemek · panel nyitva-e · belépési űrlap · meghívó-lap · a következő lépés célja.
+
+**Miért.** Három egymást követő néma elakadás után a napló csak Playwright-belső sorokat írt; a
+`(null)` lépés-azonosító miatt a hiba helye kitalálás kérdése volt. A diagnosztika beépítése után
+EGY futásból kiderült a valódi ok (az előző ember meghívó-képernyője).
+
+**Amit ez NEM állít.** A tanú nem lett szigorúbb: ugyanazt méri, csak megmondja, hol állt meg.
+Gépi jel: `npm run verify:kuka` (KUKA-364) · `npm run proof:demo-walk`.
+
+---
+
 ## D-VS-3166 — A VISSZATÖLTÉS CÉLJA FRISS, SAJÁT ADATBÁZIS: A TULAJDONT A LÉTREHOZÁS ADJA (R164/1)
 
 **A döntés.** A `proof:pg-durability` célja alapértelmezésben **generált, egyedi név**, amit a futás

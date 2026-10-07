@@ -146,8 +146,11 @@ npm run docs:html
 Miért mind: **checkout** = lehet, hogy egy korábbi ág van kint · **fetch+pull** = a sávok ugyanazt a
 main-t tolják, friss kód nélkül a RÉGI állapotot nézné · **verify:sweep** = nem hisszük el,
 ellenőrizzük · **docs:html** = a friss lapok OLVASHATÓ alakja (`docs/_olvashato/index.html`). Ha egy
-lépés éppen no-op, **akkor is bent marad**. **Adatbázis-sor még NINCS, kimondva:** a V3-ban nulla
-migráció áll; az `npm run db:migrate` az ELSŐ migrációval kerül ide (`verify:release-order` őrzi).
+lépés éppen no-op, **akkor is bent marad**. **AZ ADATBÁZIS-SOR MOST MÁR IDE TARTOZIK** (javítva R164,
+KUKA-050): az ELSŐ migráció megvan (`migrations/001_v3_mag_sema.sql`), és a parancs is áll. A terminál-blokk
+ezért a `npm run verify:sweep` ELŐTT egy sorral bővül, ha az operátor PostgreSQL-lel próbál:
+`DATABASE_URL=… npm run db:migrate` (`verify:release-order` őrzi a sorrendet). Üres `DATABASE_URL` mellett
+a rendszer SQLite-on fut, és a migráció nem kell — ezért a sor FELTÉTELES, nem fix.
 
 ### 3. FORRÁSINDEX — feladathoz kötve olvasd, ne előre
 
@@ -163,6 +166,7 @@ migráció áll; az `npm run db:migrate` az ELSŐ migrációval kerül ide (`ver
 | **kiadás / migráció** | e fájl 5. szakasza · `contracts/releaseOrder.js` · `migrations/LEDGER.json` |
 | **generált fájlt írsz** | `contracts/artifactNaming.js` (`artifactPath`) · a `var/` rend (5. szakasz) |
 | **fogyasztást mérsz** | `tools/v3_fogyasztas_meres.mjs` (`--selftest` az ellenpróbák) · `docs/70_PLANNING/V3_R64_FOGYASZTAS_SZABALYOK_LEVEL.md` |
+| **MENTÉST / VISSZATÖLTÉST vagy PostgreSQL-t érintesz** | a cél-döntések `tools/lib/vs_pg_target.mjs` (friss SAJÁT cél · soronkénti verdikt · titok-tisztító · `acquireFreshTarget`) · `npm run proof:pg-durability` (13 lépés) · `npm run proof:pg-restore-safety` (39 ellenpróba — ELDOBHATÓ helyi kiszolgáló kell) · `npm run proof:pg-intent` · a tiszta döntések a söprésben: `verify:app-findings-r154` AB csoport |
 | **hosszú láncot hagysz ki a söprésből** | `tools/lib/vs_sweep_reuse.mjs` (SRU-01) · `npm run verify:sweep-reuse` |
 | **boardra töltesz** | `tools/vs_board_doc.mjs` · `tools/vs_board_round.mjs` (1. szakasz) |
 | **döntést rögzítesz** | `DECISION_LOG.md` feje (a szám a `verify:decision-numbers`-ből) |
