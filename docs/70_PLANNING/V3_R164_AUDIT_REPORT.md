@@ -46,7 +46,7 @@ korábbi körök számai **történeti adatok**, nem végállapot — ahol elté
 | `proof:pg-restore-safety` | **ZÖLD** | **43/43** ellenpróba-lépés (ÚJ lánc; a második review-kör után `E2c`-vel bővült) |
 | `proof:pg-intent` | **ZÖLD** | **10 állítás, MINDKÉT tárolón, 0 eltérés** — saját, friss adatbázisban |
 | `verify:lefedes` | **PIROS (nevesített)** | 15 ZÖLD / 1 PIROS — a piros maga a **20 hiány-kulcs**; a kettéosztás és a regresszió-irány (LR1 · LR2 · LC1–LC4) ZÖLD. A részletek az 1.2–1.3 pontban |
-| `verify:browser-gate` | *(a záró kapuban)* | lásd 9. szakasz |
+| `verify:browser-gate` | **ZÖLD** | **805 s** · `test:e2e` + `proof:core-ux` 364 s · `proof:demo-walk` 441 s · **122 helyzet teljesült, 0 bukott, 0 ingadozó, 0 kihagyott, 22 próba-fájl** — és a kapu azt is méri, hogy a jelentés EBBEN a futásban készült (nem egy korábbi bizonyíték) |
 | `verify:v3ref` (mag-mutációs battéria) | *(a záró kapuban)* | lásd 9. szakasz |
 | `verify:external-checks` | *(a záró kapuban)* | lásd 5.3 és 9. szakasz |
 
