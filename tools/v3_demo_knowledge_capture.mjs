@@ -59,7 +59,11 @@ try {
   await call('POST', '/api/workspaces', { name: 'Minta Műhely Kft.', plan: 'pro',
     business: { jurisdiction: 'HU', tax_id: '62345676-2-42' } });
 
-  const st = await call('GET', '/api/assistant/status?lang=hu');
+  // A FELÜLET MEGNEVEZÉSE (R164/3). A csomag a BEMUTATÓ LAPJÁHOZ készül (`demo-index.html`), és a
+  // szereplő-váltó végigvezetéseket a kiszolgáló ahhoz a felülethez köti — a vezérlő létét a lap
+  // FÁJLJÁBÓL méri, nem ebből a megnevezésből. Ha a váltó horgony kiesne a bemutató lapjáról, a
+  // lenti `hiany` ellenőrzés nevezetten elakad: a csomag nem születik meg hamis listával.
+  const st = await call('GET', '/api/assistant/status?lang=hu&surface=demo');
   const kn = await call('GET', '/api/assistant/knowledge?lang=hu');
   if (!st.body || st.body.ok !== true) throw new Error(`a segéd állapota nem jött meg (${st.status})`);
   if (!kn.body || kn.body.ok !== true) throw new Error(`a tudás-index nem jött meg (${kn.status})`);

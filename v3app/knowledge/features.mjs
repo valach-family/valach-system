@@ -85,6 +85,21 @@ export const ACTIONS = Object.freeze({
  * AMIT EZ NEM ÁLLÍT: nem jogosultság és nem menü-lista. Csak azt mondja meg, mely vezérlők NEM
  * azonosítanak lapot — a lap azonosítója a menüpontja (`nav-<lap>`) vagy a saját, kizárólagos horgonya.
  */
+/**
+ * A SZEMÉLYES TÉR LAPJAI — EGY DEKLARÁLT HELYEN (R164 review, Codex, P2 — `KUKA-390` · `D-VS-3198`).
+ *
+ * MIÉRT KELL. A személyes körben a menü CSAK ezeket a lapokat tartalmazza; minden más lap ÜZLETI, és
+ * oda a személyes térből nincs út. Az elérhetőségi feloldónak ezt tudnia kell, különben olyan
+ * bemutatót kínál fel, aminek a célja nincs a lapon (`targetMissing`), vagy egy nem létező lapra
+ * próbál navigálni.
+ *
+ * MIÉRT ITT, ÉS NEM A FELÜLET SZÖVEGEI KÖZÖTT. A menü FELIRATAI a nyelvcsomagokból jönnek, a LAP-LISTA
+ * viszont DÖNTÉS — és a döntés a kódon áll, nem a feliraton (KUKA-221). A feloldó szerver-oldalon is
+ * fut, ezért nem húzhatja be a böngésző szöveg-moduljait. A két lista szétcsúszását GÉP őrzi:
+ * `verify:app-findings-r154` (AH csoport) összeveti ezt a `NAV_PERSONAL` lapjaival.
+ */
+export const PERSONAL_SCREENS = Object.freeze(['overview', 'personal', 'profile', 'security']);
+
 export const SHELL_ANCHORS = Object.freeze(['profile', 'logout', 'account-switcher', 'help-open',
   'nav-toggle', 'brand', 'demo-mail-open', 'mailbox', 'actor-switch']);
 
@@ -1013,6 +1028,21 @@ export const TOURS = Object.freeze({
     ]),
   }),
 });
+
+/**
+ * A SZEREPLŐ-VÁLTÓ LÉPÉSEK — A DEFINÍCIÓBÓL, NEM KÉZI LISTÁBÓL (R164/3 · KUKA-045).
+ *
+ * MIÉRT VAN EZ. Két bemutató ÁTÍVEL a szereplőkön: a felkínálásuk NEM attól függ, hogy a kiszolgáló
+ * bemutató-környezetben áll (`requires_demo` — az ADAT feltétele), hanem attól, hogy a BETÖLTÖTT
+ * FELÜLET ad-e „váltás a másik nézetére" vezérlőt (a VEZÉRLŐ feltétele). A kettő nem ugyanaz: az
+ * alkalmazás-héj bemutató-környezetben is a VALÓDI héj, amiben ilyen vezérlő nincs. Ezért a kapu a
+ * lépés SAJÁT `switch_actor` jelét olvassa, és a lépés `target`-jét kéri a felülettől — kézzel írt
+ * bemutató-azonosító-lista nincs, tehát egy ÚJ szereplő-váltó bemutató sem maradhat ki a kapuból.
+ */
+export function actorSwitchSteps(tour) {
+  const steps = tour && Array.isArray(tour.steps) ? tour.steps : [];
+  return steps.filter((s) => s && s.switch_actor === true);
+}
 
 export const TUD_CONTRACT = Object.freeze({
   id: 'TUD-01',

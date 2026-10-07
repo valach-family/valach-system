@@ -29,19 +29,24 @@ export default async function globalSetup() {
   execFileSync(process.execPath, [resolve(ROOT, 'tools/v3_r89_bemutato.mjs')], { cwd: ROOT, stdio: 'ignore' });
   // ── A BÖNGÉSZŐS PRÓBAPAD AZ ELKÜLÖNÍTETT BEMUTATÓ-KÖRNYEZET (R158/2) ──────────────────────────
   //
-  // MIÉRT KELL. Két végigvezetés (`tour.inviteRevoke` · `tour.reentry`) KÉT ÉLŐ MUNKAMENETET kér, és
-  // a szabály (`requires_demo`, ACT-01) ezeket CSAK a bemutató-környezetben kínálja fel. A próbapad
-  // eddig e jel NÉLKÜL futott, miközben a próbák a teljes, tizenegyes készletet várták — három
-  // helyzet (R89-06 · R91-03 · R93) ezen piroslott, KÖRÖKÖN ÁT. A javítás iránya nem az elvárás
-  // leszállítása 11-ről 9-re (az a próba GYENGÍTÉSE volna, KUKA-045), hanem a hiányzó KÖRNYEZET
-  // bekötése: a próbapad SAJÁT, eldobható tárolón futó, elkülönített bemutató — pontosan az, amire
-  // a doktrína a `demo` környezetet megnevezi (CLAUDE.md 5. szakasz).
+  // MIÉRT KELL. A próbapad a doktrína `demo` környezete: SAJÁT, eldobható tárolón futó, elkülönített
+  // bemutató (CLAUDE.md 5. szakasz). A jel ezt a környezetet mondja ki.
   //
-  // AMIT EZ NEM KAPCSOL BE — ÉS EZT MÉRJÜK IS (findings_r154 „U" csoport). A `VS_DEMO` jel a
+  // AMIT EZ A JEL ÖNMAGÁBAN NEM NYIT KI — ÉS EZ A R164/3 JAVÍTÁSA. Két végigvezetés
+  // (`tour.inviteRevoke` · `tour.reentry`) KÉT ÉLŐ MUNKAMENETET kér, tehát „váltás a másik nézetére"
+  // vezérlőt. A R158/2-ben ezeket a KÖRNYEZET jele kapuzta — csak hogy ez a próbapad a VALÓDI
+  // alkalmazás-héjat futtatja, amiben ilyen vezérlő NINCS: a két bemutató felkínálódott, és a hatodik
+  // lépésén megszakadt, miközben a próba épp ezt a megszakadást írta elő ELVÁRT eredménynek. Ez hamis
+  // zöld volt a kötelező böngésző-kapuban (KUKA-227). A felkínálás ma a BETÖLTÖTT FELÜLET horgonyaihoz
+  // kötött (`surface_anchors`), tehát itt a két történet NEVEZETTEN nem kínálódik fel — a
+  // végigvitelüket a bemutató LAPJÁN mérjük (`npm run proof:demo-walk`, a kötelező kapu része).
+  //
+  // AMIT EZ NEM KAPCSOL BE — ÉS EZT MÉRJÜK IS (findings_r154 „U" csoport, u1–u9). A `VS_DEMO` jel a
   // kiszolgálón EGYETLEN döntést érint: a `requires_demo` végigvezetések felkínálását
-  // (`v3app/assistant/policy.mjs` → `allowedToursFor`). NEM ad jogot, NEM kerül meg jogosultsági
-  // kaput, és NEM kapcsolja be a böngésző-oldali bemutató-adaptert sem: azt a lap `vs-demo` meta
-  // jele telepíti, amit a repó `index.html`-je nem hordoz.
+  // (`v3app/assistant/policy.mjs` → `allowedToursFor`), és ott is CSAK a felület-feltétellel EGYÜTT.
+  // NEM ad jogot, NEM kerül meg jogosultsági kaput, és NEM kapcsolja be a böngésző-oldali
+  // bemutató-adaptert sem: azt a lap `vs-demo` meta jele telepíti, amit a repó `index.html`-je nem
+  // hordoz.
   process.env.VS_DEMO = '1';
   const app = await startServer({ port: 0, dbPath });
   process.env.VS_E2E_BASE_URL = `http://127.0.0.1:${app.port}`;

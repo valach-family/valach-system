@@ -17,7 +17,8 @@
 //
 // TISZTA MODUL: se hálózat, se tároló, se óra. A végpont hívja, és a `verify:assistant` UGYANEZT
 // (KUKA-207).
-import { FEATURES, ACTIONS, ACTION_PARAMS, TOURS } from '../knowledge/features.mjs';
+import { FEATURES, ACTIONS, ACTION_PARAMS, TOURS, PERSONAL_SCREENS, actorSwitchSteps }
+  from '../knowledge/features.mjs';
 
 /** A VÉGES KORLÁTOK — külön szám minden tengelyre (R89 §6 „Költség és adatkezelés"). */
 export const LIMITS = Object.freeze({
@@ -139,8 +140,29 @@ export function availabilityOf(item, ctx = {}) {
    * meghívásom elfogadása. Ezért a kivétel NEVEZETT és a funkción áll (`personal_space_ok`), nem egy
    * itteni külön névsoron: a szabály egy helyen marad, a kivételt a funkció MONDJA KI (KUKA-051).
    */
+  /**
+   * A LAP NEVE EGY FELOLDÓBÓL (R164 review, Codex, P2 — `KUKA-390` · `D-VS-3198`).
+   *
+   * A LELET: a regiszter KÉT néven hívja ugyanazt — a FUNKCIÓK `screen`-t, a BEMUTATÓK `page`-et
+   * deklarálnak —, ez a szűrő pedig csak a `page`-et olvasta. Az R164/3-ban szállított három ÚJ,
+   * `scope: 'book'` funkció `screen`-t deklarál és `group: 'shell'`-t, tehát MINDKÉT régi listából
+   * kimaradt: a személyes térben is felkínáltuk a bemutatójukat, pedig a személyes menüben a lapjuk
+   * NINCS BENNE. A felhasználó így vagy egy nem létező lapra navigált, vagy a bemutató azonnal
+   * `targetMissing`-gel megállt.
+   *
+   * A VÁLASZ KÉT RÉSZBŐL ÁLL, és a második az, ami az OSZTÁLYT zárja:
+   *   1. a lap neve EGY feloldóból jön (`screen` VAGY `page`) — a két mezőnév egy fogalom;
+   *   2. a szabály nem egy kézi tiltó-névsor, hanem a TÉNYLEGES menü: ami a személyes tér lapjai
+   *      között NINCS, az a személyes térben NEM elérhető. Így egy NEGYEDIK ilyen funkció is
+   *      magától helyesen viselkedik — nem kell hozzá a névsort bővíteni (KUKA-045).
+   * A régi tiltó-névsor BENT MARAD: szűkebb, de igaz, és a `personal_space_ok` kivételt továbbra is
+   * ő hordozza (KUKA-091: az őrt nem lazítjuk, csak bővítjük).
+   */
+  const lapja = item.screen ?? item.page ?? null;
+  const idegenLap = typeof lapja === 'string' && lapja !== '' && !PERSONAL_SCREENS.includes(lapja);
   const personalBlocked = (['invite', 'members', 'plan'].includes(item.group || '')
-    || ['members', 'plan', 'account'].includes(item.page || ''))
+    || ['members', 'plan', 'account'].includes(item.page || '')
+    || idegenLap)
     && item.personal_space_ok !== true;
   if (ctx.personal === true && personalBlocked) return { visible: false, why: 'personal_space' };
   return { visible: true, why: null };
@@ -235,6 +257,23 @@ export function allowedToursFor(ctx = {}) {
     // kizárás, nem `targetMissing`-gel megszakadó bemutató. A funkció leírása, súgója és GYIK-je
     // éles üzemben is a helyén marad — csak a VÉGIGVEZETÉS nem indítható.
     if (t.requires_demo === true && ctx.demo !== true) continue;
+    /**
+     * …ÉS A VEZÉRLŐ IS KELL HOZZÁ, NEM CSAK A KÖRNYEZET (R164/3 — a külső review lelete).
+     *
+     * A fenti `requires_demo` kapu a KISZOLGÁLÓ környezetét kérdezi. Az viszont nem mondja meg, hogy
+     * a BETÖLTÖTT FELÜLETEN van-e „váltás a másik nézetére" vezérlő: bemutató-környezetben futó
+     * VALÓDI alkalmazás-héjban nincs, tehát a bemutató ott felkínálódott, és a hatodik lépésén
+     * NEVEZETTEN megszakadt — a felkínálás maga volt a hibás állítás (KUKA-227: a határ zöldje nem a
+     * felület zöldje). Mostantól a felület MONDJA MEG, milyen horgonyokat ad (`surface_anchors`), és
+     * a kapu a lépés SAJÁT `target`-jét kéri tőle. Nyilatkozat nélkül ZÁRVA (fail-closed): aki nem
+     * mond semmit a felületéről, annak nem kínálunk végig nem vihető bemutatót.
+     */
+    const valtoLepesek = actorSwitchSteps(t);
+    if (valtoLepesek.length > 0) {
+      const ad = ctx.surface_anchors;
+      const horgonyok = ad instanceof Set ? ad : (Array.isArray(ad) ? new Set(ad) : null);
+      if (!horgonyok || !valtoLepesek.every((s) => horgonyok.has(s.target))) continue;
+    }
     // A BEMUTATÓ SAJÁT KÖZÖNSÉGE. Nem a funkcióé: a nyelvváltás ELMAGYARÁZHATÓ belépés előtt is
     // (a funkció `public`), de a bemutatója az alkalmazás-héjban jár, tehát belépés kell hozzá.
     if (!availabilityOf({ audience: t.audience || 'signed_in', scope: 'person' }, ctx).visible) continue;

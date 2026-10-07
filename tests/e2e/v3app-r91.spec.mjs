@@ -24,7 +24,7 @@ import {
   World, createWorkspaceUI, openProfile, setPlanUI, logoutUI, registerUI, verifyFromMailboxUI, loginUI,
 } from './helpers.mjs';
 import { dictFor } from '../../v3app/public/i18n/dict.mjs';
-import { TOURS } from '../../v3app/knowledge/features.mjs';
+import { TOURS, actorSwitchSteps } from '../../v3app/knowledge/features.mjs';
 
 const HU = dictFor('hu');
 
@@ -104,25 +104,31 @@ test('R91-03 — MINDEN bemutató elindul a saját képernyőjén, vagy NEVEZETT
      * mindkét irányban. Egy NÉMÁN kiesett bemutatót a szám nem fogott volna meg (ha közben egy új
      * születik, az összeg akár stimmelhet is); egy KITALÁLT azonosítót sem.
      *
-     * A KÉT KIZÁRÁS NEVEZETT, és a regiszter adatából jön, nem itteni névsorból:
+     * A HÁROM KIZÁRÁS NEVEZETT, és mind a regiszter adatából jön, nem itteni névsorból:
      *   · `requires_anonymous` — a belépés ELŐTTI képernyőn fut (regisztráció), belépve nincs célja;
-     *   · `requires_invite`    — a meghívó-képernyőhöz kötött, meghívás nélkül a célja nem létezik.
-     * A `requires_role: 'admin'` nem kizárás, mert ez az ember a vállalkozás LÉTREHOZÓJA; a
-     * `requires_demo` sem, mert a próbapadot a `global-setup.mjs` bemutató-környezetre állítja
-     * (`VS_DEMO=1`) — mindkét előfeltételt EZ a próba-készlet teremti meg, nem feltevés.
+     *   · `requires_invite`    — a meghívó-képernyőhöz kötött, meghívás nélkül a célja nem létezik;
+     *   · `switch_actor`       — „váltás a másik nézetére" vezérlőt kér, ami az ALKALMAZÁS-HÉJBAN
+     *     nincs. R164/3-ig ez a kettő felkínálódott (a kapu a `VS_DEMO` KÖRNYEZET-jelét kérdezte), és
+     *     a végigjárásuk a hatodik lépésen megszakadt — a külső review hatodik körének lelete. A kapu
+     *     ma a BETÖLTÖTT FELÜLET horgonyaihoz kötött, tehát a héj ezt a kettőt nem kapja meg; a
+     *     végigvitelüket a bemutató LAPJÁN mérjük (`npm run proof:demo-walk`).
+     * A `requires_role: 'admin'` nem kizárás, mert ez az ember a vállalkozás LÉTREHOZÓJA.
      */
     const DEKLARALT = Object.keys(TOURS);
     const nevezettenKizart = DEKLARALT.filter((id) => TOURS[id].requires_anonymous === true
-      || TOURS[id].requires_invite === true);
+      || TOURS[id].requires_invite === true || actorSwitchSteps(TOURS[id]).length > 0);
     const vart = DEKLARALT.filter((id) => !nevezettenKizart.includes(id));
     expect(tours.slice().sort(), 'a határ PONTOSAN a regiszter deklarált készletét adja ki — se néma kiesés, se kitalált azonosító')
       .toEqual(vart.slice().sort());
     expect(nevezettenKizart.slice().sort(), 'és a kizártak LISTÁJA is a regiszterből jön, nem itteni névsorból')
-      .toEqual(['tour.inviteAccept', 'tour.register']);
+      .toEqual(['tour.inviteAccept', 'tour.inviteRevoke', 'tour.reentry', 'tour.register'].sort());
     expect(tours).not.toContain('tour.register');
     expect(tours, 'az R121 hozzáférés-életciklus bemutatója a kezelőnek jár').toContain('tour.scopeLifecycle');
-    expect(tours, 'az R132 meghívás-visszavonás bemutatója a kezelőnek jár').toContain('tour.inviteRevoke');
-    expect(tours, 'az R132 újbóli belépés bemutatója a kezelőnek jár').toContain('tour.reentry');
+    // A KÉT SZEREPLŐ-VÁLTÓ TÖRTÉNET ITT NEVEZETTEN NEM JÁR (R164/3): nem jogosultsági okból — a
+    // FELÜLET nem ad váltó vezérlőt, tehát végig sem lehetne vinni őket. Amit nem lehet végigvinni,
+    // azt nem kínáljuk fel (KUKA-041 · F91-01).
+    expect(tours, 'a meghívás-visszavonás KÉT szereplős története nem az alkalmazás-héjban jár').not.toContain('tour.inviteRevoke');
+    expect(tours, 'az újbóli belépés KÉT szereplős története nem az alkalmazás-héjban jár').not.toContain('tour.reentry');
     const byFeature = Object.fromEntries(status.body.tours.map((t) => [t.id, t.feature]));
     for (const id of tours) {
       // A SÚGÓBÓL INDÍTJUK, ahogy a felhasználó: a funkció útmutatójából.

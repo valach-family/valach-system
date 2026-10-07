@@ -16,6 +16,54 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3199 — AMIT NEM LEHET VÉGIGVINNI, AZT NEM KÍNÁLJUK FEL: A BEMUTATÓ A FELÜLET VEZÉRLŐJÉHEZ KÖTÖTT (R164 review, P2)
+
+**A döntés.** A szereplő-váltó végigvezetéseket (`tour.inviteRevoke` · `tour.reentry`) **nem a
+kiszolgáló környezete** kapuzza, hanem a **betöltött felület**: a kérés megnevezi a felületét (zárt
+lista: `app` · `demo`), a kiszolgáló pedig a lap **fájljából MÉRI** a horgonyokat
+(`data-testid` · `data-tour-anchor`), és a bemutató **saját** `switch_actor` lépéseinek célját kéri
+tőle. Nyilatkozat nélkül, nem ismert névre, hiányzó horgonyra: **zárva**.
+
+**Miért.** A `VS_DEMO` környezet-jel nem mondja meg, hogy a lapon van-e „váltás a másik nézetére"
+vezérlő. A böngészős próbapad a **valódi** alkalmazás-héjat futtatja bemutató-környezetben, ahol ilyen
+vezérlő nincs — a kiszolgáló mégis felkínálta a két végigvezetést, és azok a váltó lépésen
+megszakadtak. A próba pedig éppen ezt a megszakadást írta elő **elvárt** eredménynek, tehát a kötelező
+böngésző-kapu zöldje a hibás felkínálást igazolta.
+
+**Mi lett a bizonyíték.** A két történetet a bemutató **lapján** visszük végig (`proof:demo-walk`, a
+kötelező kapu része), és az a lap a **valódi** kiszolgálótól kapja a listát (`demo:knowledge`,
+`surface=demo`) — amit tehát a termék a bemutató-felületnek felkínál, azt ott végig is viszik. A héj
+próbája a három **valódi** műveletet (meghívó visszavonása · tag eltávolítása · visszahívás) bemutató
+nélkül, a nyugtáikkal együtt mérve tartja meg: a hiba-elkapó erő nem csökkent.
+
+**Amit ez NEM állít.** A kérés megnevezheti a felületét, de **képességet nem állíthat magáról**: a
+horgony-készlet mérésből születik. Egy hamis felület-megnevezés így legfeljebb magának kínál végig nem
+vihető bemutatót — jogot nem ad, jogosultsági kaput nem kerül meg (mérve: `U` csoport, u3–u5).
+
+**Gépi jel.** `npm run verify:app-findings-r154` (U csoport: u1 · u2 · u6–u9) ·
+`npm run verify:browser-gate` (a héj próbája a KIZÁRÁST méri, a bemutató lapja a VÉGIGVITELT) ·
+`npm run verify:kuka` (KUKA-391).
+
+---
+
+## D-VS-3198 — A SZEMÉLYES TÉR ZÁRT LAP-LISTÁBÓL DÖNT, ÉS A LAPOT MINDKÉT MEZŐRŐL OLVASSA (R164 review, P2)
+
+**A döntés.** A személyes térben elérhető képességet **zárt lap-lista** dönti el
+(`PERSONAL_SCREENS`, a tudás-regiszterben, a személyes menü mellett), és a feloldó a lapot
+**mindkét** deklarált mezőről olvassa: `item.screen ?? item.page`. Ami nincs a listán, az a személyes
+térben nem elérhető — hacsak nevezetten nem kivétel (`personal_space_ok`).
+
+**Miért.** Az alapértelmezett személyes térben a `book_id` és a `member` is áll, tehát a
+`scope: 'book'` nem zár. A szűrő `item.page`-et olvasott, a három új útmutató viszont `screen`-t
+deklarál, és a `shell` csoport sem volt tiltott — így a `tour.warehouses` · `tour.processes` ·
+`tour.accountSettings` a személyes térben is felkínálódott, pedig a személyes menü egyik lapjukat sem
+tartalmazza. A csoport-nevek tiltásán álló szűrő tehát **nyitva hagyta az új alakot**.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (AH csoport: ah1 a két tér, ah2 a lista-azonosság a
+menüvel, ah3 a nevezett kivétel ellenpárja) · `npm run verify:kuka` (KUKA-390).
+
+---
+
 ## D-VS-3197 — AMI TÖRÖL, AZ ÍRÁS: A LEJÁRAT OLVASÁSI KAPUJA IS KÖVETI AZ INDEXET (R164 review, P2)
 
 **A döntés.** Ha a függő folytatás feloldója **nem ad** folytatást, a munkamenet azonosítója kikerül a

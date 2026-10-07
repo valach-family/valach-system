@@ -13644,19 +13644,19 @@ Object.freeze({
     what: 'A két szereplős történetek kezelői (`tests/e2e/v3app-r93.spec.mjs`) ÉVEK óta ott álltak, de SOHA nem futottak le: a `requires_demo` kapu miatt a bemutatók fel sem kínálódtak, és a próba egy korábbi állításon bukott. Amikor a bemutató-környezet bekötésével először elindultak, HÁROM hibájuk derült ki egyszerre: (1) a `count()`-tal kérdezett megerősítő gomb a DOM-ban „megvolt", de rejtve — a kattintás 15 s időtúllépéssel bukott; (2) a próba a bemutató SAJÁT lépését (a tag eltávolítását) a bemutató INDÍTÁSA ELŐTT végezte el, és ezzel a lépés feladatát elérhetetlenné tette; (3) a megszakadás verdiktje a lépést a megszakítás UTÁN kérdezte meg — a kártya viszont elviszi a lépés-listát, tehát a válasz `null` lett.',
     why_wrong: 'Egy sosem lefutott próba-ág ugyanaz, mint egy nem létező próba — csak rosszabb, mert ZÖLDNEK látszik a fájlban. És a bukásai nem a termékről beszéltek, hanem a MÉRŐRŐL: egy időtúllépés nem lelet (KUKA-215), és amit a mérő nem tudott megőrizni, azt nem nevezhetjük „nem történt meg"-nek (KUKA-049).',
     replaced_by: 'MINDHÁROM JAVÍTVA ÉS MÉRVE: a megerősítés LÁTHATÓSÁGRA mérünk (`isVisible`), a bemutató lépéseit a BEMUTATÓ végzi (a kezelő s3 = eltávolítás, s4 = visszahívás, mindkettő valódi HTTP-művelet), és az utolsó ismert lépést ott őrizzük meg, ahol még tudható (`lastStep`).',
-    replacement: 'ÉS A VERDIKT A DEKLARÁCIÓBÓL SZÁMÍT, NEM KÉZI SZÁMBÓL (KUKA-045): a megállás helyét a próba a bemutató saját lépés-listájából ellenőrzi — a megnevezett lépés UTÁN álló lépésnek `switch_actor`-nak kell lennie. Ha a megállás előbbre csúszik (mert elromlott egy valódi művelet), az állítás azonnal pirosra vált.',
+    replacement: 'ÉS A VERDIKT A DEKLARÁCIÓBÓL SZÁMÍT, NEM KÉZI SZÁMBÓL (KUKA-045). EZ A RÉSZ R164/3-BAN ÁTKERÜLT, mert a megállás MEGSZŰNT: a két szereplő-váltó bemutatót a felület horgony-kapuja már fel sem kínálja az alkalmazás-héjban (KUKA-391), tehát nincs „elvárt megszakadás", amit a lépés-listához kellene mérni. A deklarációból számított elvárás innentől a KIZÁRANDÓK halmaza (`actorSwitchSteps`), a három valódi műveletet (visszavonás · eltávolítás · visszahívás) pedig a próba bemutató NÉLKÜL, a nyugtáikkal együtt mérve tartja meg.',
     decision: 'D-VS-3144',
     found_by: 'SAJÁT LELET (R158/2): mindhárom hiba csak azután látszott, hogy a letiltott bemutatók elindultak — tehát nem kódolvasásból jött, hanem abból, hogy a MÉRÉS ELINDULT.',
     positive: Object.freeze([
       Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r93.spec.mjs']),
-        pattern: "getByTestId\\('reinvite-confirm'\\)\\.isVisible\\(\\)",
+        pattern: "expect\\(anna\\.page\\.getByTestId\\('reinvite-confirm'\\)\\)\\.toBeVisible\\(\\)",
         why: 'a megerősítés csak akkor művelet, ha LÁTSZIK' }),
       Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r93.spec.mjs']),
         pattern: 'let lastStep = null;',
         why: 'és a megállás helye ott marad meg, ahol még tudható' }),
       Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r93.spec.mjs']),
-        pattern: "steps\\[idx \\+ 1\\] && steps\\[idx \\+ 1\\]\\.switch_actor === true",
-        why: 'a megállás helye a DEKLARÁCIÓBÓL számít, nem kézi számból' }),
+        pattern: "const valtosBemutato = \\(id\\) => actorSwitchSteps\\(TOURS\\[id\\]\\)\\.length > 0;",
+        why: 'az elvárás a DEKLARÁCIÓBÓL számít, nem kézi névsorból — R164/3 óta a KIZÁRANDÓK halmaza ez (KUKA-391), mert megállás már nincs' }),
     ]),
     forbidden: Object.freeze([
       Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r93.spec.mjs']),
@@ -14582,7 +14582,7 @@ Object.freeze({
         pattern: 'tour\\.warehouses',
         why: 'az új útmutatók a TÉNYLEGES bejárásban és a várt halmazban is ott vannak' }),
       Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r93.spec.mjs']),
-        pattern: 'minden deklarált bemutató végig lett járva',
+        pattern: 'minden bejárandó bemutató végig lett járva',
         why: 'és a mondatot a halmaz-egyenlőség tartja igazzá' }),
     ]),
     forbidden: Object.freeze([
@@ -15067,6 +15067,58 @@ Object.freeze({
 
 
 
+
+  Object.freeze({
+    id: 'KUKA-390',
+    date: '2026-10-07',
+    title: 'A SZEMÉLYES TÉRBEN FELKÍNÁLT ÜZLETI BEMUTATÓ — MERT A SZŰRŐ MÁS MEZŐT OLVASOTT, MINT AMIT A DEKLARÁCIÓ ÍR',
+    what: 'Az alapértelmezett SZEMÉLYES térben a `ctx.book_id` és a `ctx.member` is áll, tehát a `scope: \'book\'` nem zár. A személyes-tér szűrője `item.page`-et olvasott, a három új útmutató viszont `screen`-t deklarál, és a `shell` csoport sem volt tiltott — így az `allowedToursFor` a SZEMÉLYES térben is felkínálta a `tour.warehouses` · `tour.processes` · `tour.accountSettings` bemutatót, pedig a személyes menü (`NAV_PERSONAL`) egyik lapjukat sem tartalmazza.',
+    why_wrong: 'A SZŰRŐ A DEKLARÁCIÓ EGYIK MEZŐJÉT OLVASTA, A MÁSIKAT NEM (KUKA-238 · KUKA-003). Két mező ugyanazt a dolgot nevezi meg (`page` · `screen`), tehát a kapu csak az egyik alakra állt — és a hiányzó alak NÉMÁN átment, nem nevezett elutasítással.',
+    replaced_by: 'A LAP FELOLDÁSA EGY HELYEN, MINDKÉT MEZŐRE: `item.screen ?? item.page`, és a személyes lapok ZÁRT listája a regiszterből (`PERSONAL_SCREENS`) — ami nincs a listán, az a személyes térben nem elérhető, hacsak nevezetten nem kivétel (`personal_space_ok`).',
+    replacement: 'ÉS A LISTÁNAK EGY OTTHONA VAN: a `PERSONAL_SCREENS` a tudás-regiszterben áll, a személyes menü (`NAV_PERSONAL`) mellett — a próba a kettőt EGYMÁSHOZ méri, nem egy beírt névsorhoz.',
+    decision: 'D-VS-3198',
+    found_by: 'KÜLSŐ REVIEW (Codex, R164 — P2, a R164/3-ban általam szállított három új útmutató FELETT).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
+        pattern: 'item\\.screen \\?\\? item\\.page',
+        why: 'a lap feloldása MINDKÉT deklarált mezőre áll' }),
+      Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
+        pattern: 'PERSONAL_SCREENS\\.includes\\(lapja\\)',
+        why: 'a személyes tér ZÁRT lap-listából dönt, nem csoport-nevekből' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'HA EGY DOLGOT KÉT MEZŐ NEVEZHET MEG, A KAPU MINDKETTŐT OLVASSA — vagy a deklaráció engedjen csak egyet. A „csoport-nevek tiltása" alapú szűrő nyitva hagyja az ÚJ alakot: zárt lista kell, és a listát a saját otthonában tartjuk, hogy a menü és a kapu ne csúszhasson szét.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta) · `npm run verify:app-findings-r154` (AH csoport: ah1 a két tér, ah2 a lista-azonosság a menüvel, ah3 a nevezett kivétel ellenpárja).',
+  }),
+  Object.freeze({
+    id: 'KUKA-391',
+    date: '2026-10-07',
+    title: 'A KÖRNYEZET JELE FELKÍNÁLTA, A FELÜLET NEM TUDTA VÉGIGVINNI — ÉS A PRÓBA A MEGSZAKADÁST ÍRTA ELŐ ELVÁRT EREDMÉNYNEK',
+    what: 'A két szereplő-váltó bemutatót (`tour.inviteRevoke` · `tour.reentry`) a KÖRNYEZET jele kapuzta (`requires_demo` + `VS_DEMO`). A böngészős próbapad viszont a VALÓDI alkalmazás-héjat futtatja bemutató-környezetben: ott nincs „váltás a másik nézetére" vezérlő, tehát a kiszolgáló felkínált két olyan végigvezetést, amit az a felület nem tud végigvinni — és a próba (`v3app-r93`) a `megszakadt:targetMissing` verdiktet írta elő ELVÁRT eredménynek. A kötelező böngésző-kapu emellett zöld maradt.',
+    why_wrong: 'A KAPU A ROSSZ KÉRDÉST TETTE FEL (KUKA-202 · KUKA-227). Nem a kiszolgáló környezete dönti el, végigvihető-e egy bemutató, hanem a BETÖLTÖTT FELÜLET vezérlői. És amikor a próba a hibás állapotot írja le elvárásként, a hiba a kapuban INTÉZMÉNYESÜL: a zöld kapu éppen azt igazolta, hogy a felkínálás rossz.',
+    replaced_by: 'A FELKÍNÁLÁS A FELÜLET HORGONYAIHOZ KÖTÖTT: a kérés MEGNEVEZI a felületét (zárt lista), a kiszolgáló pedig a lap FÁJLJÁBÓL MÉRI a horgonyokat (`data-testid` · `data-tour-anchor`), és a bemutató SAJÁT `switch_actor` lépéseinek `target`-jét kéri tőle. Nyilatkozat nélkül, nem ismert névre, hiányzó horgonyra: ZÁRVA.',
+    replacement: 'ÉS A BIZONYÍTÉK NEM VESZETT EL, HANEM A HELYÉRE KERÜLT: a két történetet a bemutató LAPJÁN visszük végig (`proof:demo-walk`, a kötelező kapu része), és az a lap a VALÓDI kiszolgálótól kapja a listát (`demo:knowledge`, `surface=demo`) — tehát amit a termék a bemutató-felületnek felkínál, azt ott végig is viszik. A héj próbája a három VALÓDI műveletet (visszavonás · eltávolítás · visszahívás) bemutató nélkül, a nyugtáikkal együtt mérve tartja meg.',
+    decision: 'D-VS-3199',
+    found_by: 'KÜLSŐ REVIEW (Codex, R164 — P2, az R158/2-ben általam bekötött bemutató-környezet FELETT).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
+        pattern: 'const valtoLepesek = actorSwitchSteps\\(t\\);',
+        why: 'a szereplő-váltó lépések a DEFINÍCIÓBÓL jönnek, nem kézi bemutató-listából' }),
+      Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
+        pattern: 'ctx\\.surface_anchors',
+        why: 'és a felkínálás a FELÜLET horgonyaihoz kötött, nem a környezet jeléhez' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "readFileSync\\(join\\(PUBLIC_DIR, f\\), 'utf8'\\)",
+        why: 'a horgony-készlet a lap FÁJLJÁBÓL mérve születik, nem a kérés állításából' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r93.spec.mjs', 'tests/e2e/v3app-r91.spec.mjs']),
+        pattern: 'toMatch\\(/\\^megszakadt:targetMissing',
+        why: 'a próba NEM írhatja elő elvárt eredménynek a bemutató megszakadását: ami nem vihető végig, azt nem kínáljuk fel' }),
+    ]),
+    lesson: 'AMIT NEM LEHET VÉGIGVINNI, AZT NEM KÍNÁLJUK FEL — ÉS A FELTÉTELT OTT KÉRDEZZÜK MEG, AHOL A VÁLASZ VAN. A kiszolgáló környezete nem helyettesíti a felület vezérlőjét; a felület MONDJA MEG, mit ad, de a KÉPESSÉGET a kiszolgáló MÉRI, nem elhiszi. És ha egy próba a hibás viselkedést írja le elvárásként, akkor a zöld kapu a hibát igazolja: a próba elvárását a HELYES állapothoz kell kötni, nem a mérthez.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (három pozitív, egy tiltó minta) · `npm run verify:app-findings-r154` (U csoport: u1 bemutató-felület, u7 alkalmazás-héj, u8 kitalált név, u2 demó ki, u6 a két feltétel otthona, u9 a fájlból mérés) · `npm run verify:browser-gate` (a héj próbája a KIZÁRÁST méri, a bemutató lapja a VÉGIGVITELT).',
+  }),
 
 ]);
 

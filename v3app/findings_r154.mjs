@@ -38,6 +38,9 @@ import { validateAgainstSchema } from '../v3ref/inputSchema.mjs';
 import { purgeExpiredIntents, resumeIntent, rememberIntent, intentTtlMs, PENDING_INTENT_TTL_MS } from '../v3ref/invite.mjs';
 import { validateRequest } from './httpSchema.mjs';
 import { adaptiveUnitPlan } from '../v3ref/external-checks/batteryUnits.mjs';
+import { allowedToursFor, availabilityOf } from './assistant/policy.mjs';
+import { PERSONAL_SCREENS } from './knowledge/features.mjs';
+import { NAV_PERSONAL } from './public/texts.mjs';
 import { request as httpReq } from 'node:http';
 import { transcriptsOf } from '../tools/v3_fogyasztas_meres.mjs';
 import { restoreTargetProblem, sameDatabase, effectiveDatabase, withDatabase, freshTargetName,
@@ -1494,9 +1497,12 @@ try {
         await c.post('/api/login', { email: `${nev}@pelda.hu`, password: PW });
         return c;
       };
-      const turak = async (c) => {
-        const r = await c.get('/api/assistant/status?lang=hu');
-        return (r.body.tours || []).map((t) => t.id);
+      // A FELÜLET MEGNEVEZÉSE A MÉRÉS RÉSZE (R164/3): a két szereplős végigvezetés felkínálása KÉT
+      // feltételhez kötött — a KÖRNYEZET bemutató-jele ÉS a BETÖLTÖTT FELÜLET váltó vezérlője —, és
+      // a válasz ki is mondja, melyik felületet mérte (`surface`).
+      const turak = async (c, surface) => {
+        const r = await c.get(`/api/assistant/status?lang=hu${surface ? `&surface=${surface}` : ''}`);
+        return { ids: (r.body.tours || []).map((t) => t.id), surface: r.body.surface ?? null };
       };
 
       // A FIÓKKEZELŐ: saját cég, és egy FÜGGŐ meghívó, amit vissza lehetne vonni.
@@ -1505,20 +1511,43 @@ try {
       const megh = await anna.post('/api/invites', { email: 'u-cili@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
       const jelolo = String(megh.body.token || '').slice(0, 8);
 
-      // (u1) DEMÓ BE: a két szereplős végigvezetés MEGJELENIK.
-      process.env.VS_DEMO = '1';
-      const beTurak = await turak(anna);
-      step('(u1) DEMÓ BE: a KÉT ÉLŐ MUNKAMENETET igénylő végigvezetések felkínálódnak',
-        beTurak.includes('tour.inviteRevoke') && beTurak.includes('tour.reentry'),
-        { darab: beTurak.length, ketszereplos: beTurak.filter((x) => x === 'tour.inviteRevoke' || x === 'tour.reentry') });
+      const KETSZEREPLOS = ['tour.inviteRevoke', 'tour.reentry'];
+      const vanE = (r) => KETSZEREPLOS.filter((x) => r.ids.includes(x));
 
-      // (u2) DEMÓ KI: ugyanazon a fiókon NEVEZETTEN eltűnnek — az ÉLES védelem érintetlen.
+      // (u1) DEMÓ BE + A BEMUTATÓ FELÜLETE: a két szereplős végigvezetés MEGJELENIK.
+      process.env.VS_DEMO = '1';
+      const beTurak = await turak(anna, 'demo');
+      step('(u1) DEMÓ BE + a BEMUTATÓ felülete: a KÉT ÉLŐ MUNKAMENETET igénylő végigvezetések felkínálódnak',
+        vanE(beTurak).length === 2 && beTurak.surface === 'demo',
+        { darab: beTurak.ids.length, felulet: beTurak.surface, ketszereplos: vanE(beTurak) });
+
+      // (u7) ELLENPÁR A MÁSIK FELTÉTELRE (R164/3 — a külső review hatodik körének lelete). A
+      // KÖRNYEZET jele BE van kapcsolva, de az ALKALMAZÁS-HÉJ nem ad „váltás a másik nézetére"
+      // vezérlőt — tehát a két történet ott NEM vihető végig, és ezért fel sem kínálódik. Eddig
+      // felkínálódott, és a hatodik lépésén megszakadt; a böngésző-kapu mellette zöld maradt, mert a
+      // próba ÉPP EZT a megszakadást írta elő elvárt eredménynek (KUKA-227).
+      const hejTurak = await turak(anna);          // nincs `surface` → az alapértelmezett héj
+      step('(u7) ELLENPÁR — DEMÓ BE, de az ALKALMAZÁS-HÉJ felülete: a két szereplős végigvezetés NINCS felkínálva (nincs váltó vezérlő)',
+        vanE(hejTurak).length === 0 && hejTurak.surface === 'app'
+          && hejTurak.ids.length === beTurak.ids.length - 2,
+        { felulet: hejTurak.surface, darab: hejTurak.ids.length, bemutato_felulettel: beTurak.ids.length,
+          kulonbseg: beTurak.ids.filter((x) => !hejTurak.ids.includes(x)) });
+
+      // (u8) ELLENPÁR A ZÁRT LISTÁRA (KUKA-236): nem ismert felület-névre a kiszolgáló ÜRES
+      // horgony-készletet ad, és a válasz `surface: null`-t mond — nem némán „bemutatót".
+      const kitalaltTurak = await turak(anna, 'kitalalt-felulet');
+      step('(u8) ELLENPÁR — KITALÁLT felület-név: a kapu ZÁR, és a válasz NEVEZETTEN `null` felületet mond',
+        vanE(kitalaltTurak).length === 0 && kitalaltTurak.surface === null
+          && kitalaltTurak.ids.length === hejTurak.ids.length,
+        { felulet: kitalaltTurak.surface, darab: kitalaltTurak.ids.length });
+
+      // (u2) DEMÓ KI: ugyanazon a fiókon, UGYANAZZAL a bemutató-felülettel is eltűnnek — az ÉLES
+      // védelem érintetlen. A két feltétel tehát ÉS-kapcsolatban áll, nem helyettesíti egymást.
       delete process.env.VS_DEMO;
-      const kiTurak = await turak(anna);
-      step('(u2) ELLENPÁR — DEMÓ KI: ugyanaz a fiók, és a két bemutató-kötött végigvezetés NINCS felkínálva (az éles kapu áll)',
-        !kiTurak.includes('tour.inviteRevoke') && !kiTurak.includes('tour.reentry')
-          && kiTurak.length === beTurak.length - 2,
-        { demoval: beTurak.length, demo_nelkul: kiTurak.length, kulonbseg: beTurak.filter((x) => !kiTurak.includes(x)) });
+      const kiTurak = await turak(anna, 'demo');
+      step('(u2) ELLENPÁR — DEMÓ KI (a bemutató felületével is): a két bemutató-kötött végigvezetés NINCS felkínálva (az éles kapu áll)',
+        vanE(kiTurak).length === 0 && kiTurak.ids.length === beTurak.ids.length - 2,
+        { demoval: beTurak.ids.length, demo_nelkul: kiTurak.ids.length, kulonbseg: beTurak.ids.filter((x) => !kiTurak.ids.includes(x)) });
 
       // (u3–u5) A JOGOSULTSÁG UGYANAZ MINDKÉT JELÁLLÁSBAN. A művelet az, amit a bemutató-kötött
       // végigvezetés TANÍT (meghívó visszavonása) — tehát épp ott mérünk, ahol a megkerülés
@@ -1559,9 +1588,22 @@ try {
       const kezd = polU.indexOf('export function allowedToursFor');
       const veg = polU.indexOf('\nexport ', kezd + 10);
       const torzs = kezd >= 0 ? polU.slice(kezd, veg > kezd ? veg : polU.length) : '';
-      step('(u6) a demó-jel HATÓKÖRE: a kiszolgáló EGY helyen olvassa, és a döntés CSAK a végigvezetés-felkínálóban áll',
-        olvasasok === 1 && ctxDemo === 1 && /ctx\.demo !== true/.test(torzs),
-        { env_olvasas: olvasasok, ctx_demo: ctxDemo, a_felkinaloban: /ctx\.demo !== true/.test(torzs) });
+      // ÉS A MÁSODIK FELTÉTEL OTTHONA IS MÉRVE (R164/3 · KUKA-003): a felület-horgony kapu UGYANEBBEN
+      // a felkínálóban áll, a lista pedig a bemutató SAJÁT `switch_actor` lépéseiből jön — nincs
+      // kézzel írt bemutató-azonosító lista, amiből egy ÚJ szereplő-váltó történet kimaradhatna.
+      const horgonyKapu = /ctx\.surface_anchors/.test(torzs) && /actorSwitchSteps\(t\)/.test(torzs);
+      const ctxHorgony = (polU.match(/ctx\.surface_anchors/g) || []).length;
+      step('(u6) a demó-jel HATÓKÖRE: a kiszolgáló EGY helyen olvassa, és a döntés CSAK a végigvezetés-felkínálóban áll — a FELÜLET-feltétellel EGYÜTT',
+        olvasasok === 1 && ctxDemo === 1 && /ctx\.demo !== true/.test(torzs)
+          && horgonyKapu && ctxHorgony === 1,
+        { env_olvasas: olvasasok, ctx_demo: ctxDemo, a_felkinaloban: /ctx\.demo !== true/.test(torzs),
+          felulet_kapu: horgonyKapu, ctx_surface_anchors: ctxHorgony });
+      // (u9) ÉS A HORGONY-KÉSZLET MÉRT, NEM ELHITT: a kiszolgáló a lap FÁJLJÁBÓL olvassa. Ha valaki a
+      // kérésnek engedné megállítani a képességet, ez a sor pirosra vált (KUKA-217 · KUKA-227).
+      const merve = /readFileSync\(join\(PUBLIC_DIR, f\), 'utf8'\)/.test(srvU)
+        && /data-\(\?:testid\|tour-anchor\)=/.test(srvU);
+      step('(u9) a felület horgony-készlete a LAP FÁJLJÁBÓL mérve születik, nem a kérés állításából',
+        merve, { fajlbol_mert: merve });
     } finally {
       if (demoVolt === undefined) delete process.env.VS_DEMO; else process.env.VS_DEMO = demoVolt;
       await new Promise((r) => u.server.close(r));
@@ -2518,6 +2560,42 @@ try {
             kurzor_nelkul_megmaradt: kurzorNelkulMegvan });
       } finally { await ae6.close(); }
     }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  // AH — A SZEMÉLYES TÉRBEN NINCS ÜZLETI BEMUTATÓ (F164-18, külső review, Codex, P2)
+  //
+  // A LELET: a regiszter KÉT néven hívja ugyanazt — a FUNKCIÓK `screen`-t, a BEMUTATÓK `page`-et
+  // deklarálnak —, a személyes-tér szűrő pedig csak a `page`-et olvasta. Az R164/3 három ÚJ funkciója
+  // `screen`-t és `group: 'shell'`-t deklarál, tehát MINDKÉT régi listából kimaradt: a személyes
+  // térben is felkínáltuk a bemutatójukat, pedig a lapjuk a személyes menüben NINCS BENNE.
+  //
+  // A MÉRÉS A FELOLDÓN MEGY, és a két irányt EGYÜTT nézi: a személyes térben NEM elérhető, a céges
+  // térben IGEN — különben a javítás „mindent elrejtek" is lehetne (KUKA-091).
+  {
+    const UZLETI = ['tour.warehouses', 'tour.processes', 'tour.accountSettings'];
+    const szemelyes = { signed_in: true, book_id: 'b_personal', member: true, role: 'admin', personal: true, demo: true };
+    const ceges = { signed_in: true, book_id: 'b_firm', member: true, role: 'admin', personal: false, demo: true };
+    const szTour = allowedToursFor(szemelyes);
+    const cTour = allowedToursFor(ceges);
+    step('(ah1) F164-18: a SZEMÉLYES térben egyetlen ÜZLETI bemutató sem elérhető — a CÉGES térben mind a három igen',
+      UZLETI.every((t) => !szTour.includes(t)) && UZLETI.every((t) => cTour.includes(t)),
+      { szemelyes_terben: UZLETI.filter((t) => szTour.includes(t)).join(',') || 'egyik sem',
+        ceges_terben: UZLETI.filter((t) => cTour.includes(t)).length });
+
+    // (ah2) A KÉT LISTA NEM CSÚSZHAT SZÉT: a feloldó lap-listája = a személyes menü lapjai.
+    const menuLapok = NAV_PERSONAL.flatMap((g) => [...g.pages]).sort();
+    step('(ah2) F164-18: a feloldó személyes lap-listája PONTOSAN a személyes menü lapjai — a két lista nem csúszhat szét (KUKA-003)',
+      [...PERSONAL_SCREENS].sort().join(',') === menuLapok.join(','),
+      { feloldo: [...PERSONAL_SCREENS].sort().join(','), menu: menuLapok.join(',') });
+
+    // (ah3) ELLENPÁR: a NEVEZETT kivétel (`personal_space_ok`) továbbra is átmegy — a javítás nem
+    // „mindent elrejtek" (a meghívás elfogadása a személyes térből indul, P109-01).
+    const kivetel = availabilityOf({ audience: 'public', scope: 'person', screen: 'members', personal_space_ok: true }, szemelyes);
+    const nelkul = availabilityOf({ audience: 'public', scope: 'person', screen: 'members' }, szemelyes);
+    step('(ah3) F164-18 ELLENPÁR: a NEVEZETT kivétel (`personal_space_ok`) a személyes térben is látható marad, nélküle viszont nem',
+      kivetel.visible === true && nelkul.visible === false && nelkul.why === 'personal_space',
+      { kivetellel: kivetel.visible, kivetel_nelkul: `${nelkul.visible} (${nelkul.why})` });
   }
 
   // ══════════════════════════════════════════════════════════════════════════════════════════════

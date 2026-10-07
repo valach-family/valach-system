@@ -1632,7 +1632,46 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
    * Ez NEM új jogosultsági motor: a tagságot a `currentBookOf` (mag `membershipAsOf`), a szerepet a
    * `roleIn` (mag `workspacesOf`), a csomagot az előfizetés-profil adja. A segéd ezekre HIVATKOZIK.
    */
-  function requesterContext(session, cur) {
+  /**
+   * MILYEN HORGONYOKAT AD A BETÖLTÖTT FELÜLET — MÉRVE, NEM ELHITT (R164/3 · KUKA-207 · KUKA-227).
+   *
+   * MIÉRT KELL. A szereplő-váltó bemutatókat eddig a KÖRNYEZET jele (`VS_DEMO`) kapuzta. Az viszont
+   * nem mondja meg, hogy a betöltött lapon VAN-E „váltás a másik nézetére" vezérlő: bemutató-
+   * környezetben az alkalmazás-héj ugyanaz a VALÓDI héj, amiben ilyen nincs — a bemutató mégis
+   * felkínálódott, és a váltó lépésén megszakadt.
+   *
+   * MIT HISZÜNK EL A KÉRÉSNEK, ÉS MIT NEM. A kérés csak MEGNEVEZHETI a felületét, ZÁRT listából
+   * (`app` · `demo`); a KÉPESSÉGET nem állíthatja magáról — azt a kiszolgáló a lap FÁJLJÁBÓL méri
+   * (`data-testid` és `data-tour-anchor`), a `tour.mjs` feloldójával egyező két attribútumból. Nem
+   * ismert név vagy olvashatatlan fájl → ÜRES készlet, tehát a kapu zár (fail-closed, KUKA-236).
+   *
+   * MIÉRT A HÉJ-FÁJL ÉS AZ `app.js` EGYÜTT. A horgonyt vagy a héj HTML-je, vagy a MINDKÉT héjban
+   * futó közös szkript rajzolja; ha az `app.js` kezdi rajzolni, akkor a valódi héj TÉNYLEGESEN ad
+   * váltó vezérlőt, és akkor a bemutató ott helyesen fel is kínálódik.
+   */
+  const SURFACE_FILES = Object.freeze({ app: ['index.html', 'app.js'], demo: ['demo-index.html', 'app.js'] });
+  const surfaceAnchorCache = new Map();
+  /** A FELÜLET NEVE a zárt listából, vagy `null`. EGY feloldó, két hívó (KUKA-003). */
+  function knownSurface(name) {
+    const kulcs = name === undefined || name === null || name === '' ? 'app' : String(name);
+    return Object.prototype.hasOwnProperty.call(SURFACE_FILES, kulcs) ? kulcs : null;
+  }
+  function surfaceAnchors(name) {
+    const kulcs = knownSurface(name);
+    if (kulcs === null) return new Set();
+    if (surfaceAnchorCache.has(kulcs)) return surfaceAnchorCache.get(kulcs);
+    const keszlet = new Set();
+    for (const f of SURFACE_FILES[kulcs]) {
+      let szoveg = null;
+      try { szoveg = readFileSync(join(PUBLIC_DIR, f), 'utf8'); } catch { szoveg = null; }
+      if (szoveg === null) continue;
+      for (const m of szoveg.matchAll(/data-(?:testid|tour-anchor)="([^"${}]+)"/g)) keszlet.add(m[1]);
+    }
+    surfaceAnchorCache.set(kulcs, keszlet);
+    return keszlet;
+  }
+
+  function requesterContext(session, cur, opts = {}) {
     const bookId = cur && cur.book_id ? cur.book_id : null;
     const at = clock.now();
     const ws = bookId ? workspacesOf({ store, subjectId: session.subject_id, at }).find((w) => w.book_id === bookId) : null;
@@ -1648,6 +1687,9 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       // együtt elérhető, és csak ott kínálunk fel KÉT ÉLŐ MUNKAMENETET igénylő végigvezetést.
       // A jel KÖRNYEZETI, nem kérésből jövő: egy kérés nem állíthatja magáról, hogy bemutató.
       demo: String(process.env.VS_DEMO || '').trim() === '1',
+      // A FELÜLET HORGONYAI (R164/3). A kérés a felületét NEVEZI MEG, a készletet a kiszolgáló MÉRI
+      // a lap fájljából — így a felkínálás a VEZÉRLŐ létéhez kötött, nem a környezet jeléhez.
+      surface_anchors: surfaceAnchors(opts.surface),
       book_id: bookId,
       member: Boolean(ws),
       role: ws ? ws.role : null,
@@ -2474,10 +2516,14 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       const ctx = readContextGate(query, session, cur.book_id);
       if (!ctx.ok) return { status: ctx.status, body: ctx.body };
       const lang = normalizeLanguage(query.lang);
-      const who = requesterContext(session, cur);
+      const who = requesterContext(session, cur, { surface: query.surface });
       const prov = providerStatus(process.env);
       return { status: 200, body: {
         ok: true, ...ctx.served, lang, dir: dirOf(lang),
+        // MELYIK FELÜLETNEK SZOLGÁLTUNK KI (R164/3 · KUKA-204). A bemutató-lista a felület
+        // horgonyaihoz kötött, ezért a válasz KIMONDJA, melyik felületet mérte — a `surface_anchors`
+        // ÜRES készlete nem néma: a nem ismert név itt `null`-ként látszik.
+        surface: knownSurface(query.surface),
         languages: enabledLanguages().map((l) => ({ code: l.code, endonym: l.endonym, dir: l.dir })),
         // A PRÓBA-NYELVEK KIMONDVA, de NEM kínálva: a felület a `languages` listát ajánlja fel,
         // a `probe_languages` csak azt mondja meg, hogy létezik negyedik nyelv és RTL próba (R89 §5).

@@ -279,9 +279,12 @@ export const ENDPOINT_SCHEMAS = frozen({
   'GET /api/data/document-full': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
   // A SEGÉD ÁLLAPOTA: szolgáltatói csatlakozás (NEVEK, érték nélkül) · korlátok · a kérőre
   // ENGEDÉLYEZETT műveletek és bemutatók. A `lang` itt is csak a válasz nyelvét szűkíti.
+  // A `surface` A BETÖLTÖTT FELÜLET NEVE (R164/3). A kérés csak MEGNEVEZ, nem állít képességet: a
+  // szereplő-váltó vezérlő létét a kiszolgáló a lap fájljából MÉRI, és nem ismert névre ÜRES
+  // készletet ad (fail-closed). Ezért elég `nonempty_string` — a zárt lista a kiszolgálóban áll.
   'GET /api/assistant/status': frozen({
     version: '1', mutates: false, body: frozen({ fields: frozen({}) }),
-    query: frozen({ fields: frozen({ ...readContextQuery.fields, lang: frozen({ type: 'nonempty_string', required: false, max_length: 32, confirm_only: true }) }) }),
+    query: frozen({ fields: frozen({ ...readContextQuery.fields, lang: frozen({ type: 'nonempty_string', required: false, max_length: 32, confirm_only: true }), surface: frozen({ type: 'nonempty_string', required: false, max_length: 32, confirm_only: true }) }) }),
   }),
   // A TUDÁS-INDEX (és egy funkció célzott lekérése). A teljes kézikönyvet SOHA nem adjuk ki egyben:
   // a `feature` paraméter EGY funkció szerződését kéri (R89 §3: célzottan lekérhető tartalom).
