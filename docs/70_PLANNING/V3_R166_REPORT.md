@@ -267,13 +267,23 @@ socket-könyvtár · a binárisok útja) az átadási checkpoint 4. pontjában �
 
 ---
 
-## 9. A FOGYASZTÁS
+## 9. A FOGYASZTÁS — MÉRVE, ÉS A SZÁM PONTOSAN
 
-A csomag ablakán (`--from` a parancs board-időbélyege, `2026-10-07T13:40Z`): **310 hívás** ·
-fő-szál kontextusmedián **396 717,5** · max **599 020** · **ügynök-bemenet 0** (nulla al-ügynök) ·
-lefedettség **teljes**. A mérő sávja **FIGYELMEZTETÉS** (300–400 ezer), a medián a sáv **felső
-határán** — ezért zártam a futó munkablokkot célzott ellenőrzéssel, és ezért megy a §2 és a §4
-**friss beszélgetésbe** (`D-VS-3083`). A tartalom nélküli leltár a zárásnál készül.
+A csomag ablakán (`--from` a parancs board-időbélyegéhez igazítva, `2026-10-07T13:40Z` →
+`16:04:59Z`): **322 hívás** · fő-szál kontextusmedián **402 476,5** · max **617 414** ·
+**400 ezer fölött 165 hívás** · **ügynök-bemenet 0** (nulla al-ügynök) · lefedettség **teljes**.
+
+**A CHATVÁLTÁSI JELZŐ ELÉRVE** (402 476,5 ≥ 400 000). A `D-VS-3083` szabálya szerint: a **futó**
+munkablokk célzott ellenőrzéssel lezárható — ez meg is történt (a kötelező böngésző-kapu és a
+tizenhat rövid lánc lefutott) —, a **következő önálló nagy blokk** pedig **friss beszélgetésben**
+induljon. A §2 és a §4 mindkettő önálló nagy blokk, ezért nem kezdtem el őket: a lezárás címén
+**nincs új feltárás, nincs új funkció és nincs opcionális teljes söprés**.
+
+A tartalom nélküli leltár a repóban: `docs/70_PLANNING/V3_R166_FOGYASZTAS_LELTAR.json`
+(hívás-szám, blokk- és eszköz-összesítők, bájtszámok — tartalom, kapcsolati cím, kulcs és e-mail
+nélkül; titok-minta ellenőrzéssel **0 találat**).
+
+**Amit ez a szám NEM:** nem szolgáltatói limit, nem kimért optimum és nem megtakarítási ígéret.
 
 ---
 
