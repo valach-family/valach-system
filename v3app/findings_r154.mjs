@@ -3090,6 +3090,126 @@ try {
       { koruli_szokoz: 'levágva, tehát a ` 1 ` is BE' });
   }
 
+  // ── AN) R166 — A FELKÍNÁLÁS PRÓBÁJA NEM ÍRHAT KIADÁSI LELTÁRT (külső review, P2) ──────────────
+  //
+  // A LELET: a 2.2-ben megépített `stock_access` a `readSample()`-t hívta — az viszont SIKERES
+  // olvasáskor `disclose()`-t hajt végre, tehát egy `disclosure` sort ÍR. A súgó megnyitása
+  // (`GET /api/assistant/status`, deklarált `mutates: false`) így olyan audit-sort keletkeztetett,
+  // ami szerint védett adat KIADÁSRA került — holott a válasz a készlet-eredményt nem is hordozza.
+  {
+    part('AN) R166 — a felkínálás próbája NEM ír kiadási leltárt (külső review, P2)');
+    const base = `http://127.0.0.1:${app.server.address().port}`;
+    const sorok = () => app.store.get('SELECT COUNT(*) AS n FROM disclosure').n;
+    const c = new Client(base);
+    await c.post('/api/register', { email: 'an-anna@pelda.hu', password: PW, lang: 'hu' });
+    const mail = (await c.get('/dev/mailbox')).body.mails.filter((x) => x.to === 'an-anna@pelda.hu')[0];
+    const l = new URL(mail.link);
+    await c.get(l.pathname + l.search);
+    await c.post('/api/login', { email: 'an-anna@pelda.hu', password: PW });
+    await c.post('/api/workspaces', { name: 'AN166 Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '12345678-1-42' } });
+
+    const elotte = sorok();
+    const st = await c.get('/api/assistant/status');
+    const utana = sorok();
+    const tourok = (st.body && st.body.tours) || [];
+    const keszletKinalva = ['tour.stockcard', 'tour.movements'].every((t) => tourok.some((x) => (x.id || x) === t));
+
+    step('(an1) R166/P2: a súgó-állapot kérése EGYETLEN kiadási leltár-sort sem ír (RÉGEN: a `readSample` sikeres ága `disclose`-t hajtott végre, tehát minden súgó-megnyitás audit-sort keletkeztetett)',
+      st.status === 200 && utana === elotte,
+      { status: st.status, disclosure: `${elotte}→${utana}`, keletkezett: utana - elotte });
+
+    // ELLENPÁR: a kapu NEM lett megengedőbb — a készlet-útmutatók TOVÁBBRA IS felkínálódnak annak,
+    // akinek a joga megvan (különben a javítás „mindent elrejtek" is lehetne — KUKA-091).
+    step('(an2) R166/P2 ELLENPÁR: a két készlet-útmutató TOVÁBBRA IS felkínálódik a jogosult tagnak — a hatás elvétele nem vette el a döntést',
+      keszletKinalva, { felkinalt_utmutato: tourok.length, keszlet: keszletKinalva });
+
+    // ÉS AZ ISMÉTELT KÉRÉS SEM ÍR: a hiba nem „egyszer fordult elő", hanem minden megnyitáskor.
+    const m2 = sorok();
+    await c.get('/api/assistant/status');
+    await c.get('/api/assistant/status');
+    step('(an3) R166/P2: két TOVÁBBI súgó-megnyitás sem ír leltár-sort — a hiba minden kérésnél keletkezett, nem egyszer',
+      sorok() === m2, { disclosure: `${m2}→${sorok()}` });
+  }
+
+  // ── AO) R166 — A PG-PRÓBÁK INDULÁSA ÉS A LÉTEZÉS-KÉRDÉS (külső review, P2) ────────────────────
+  //
+  // HÁROM LELET EGY CSOPORTBAN, mert mind a három ugyanazt az osztályt mutatja: egy BIZONYTALAN
+  // vagy MÁS SÉMÁJÚ bemenetet a régi kód a MEGENGEDŐ ágra fordított.
+  {
+    part('AO) R166 — a pg-próbák indulása és a létezés-kérdés (külső review, P2)');
+    const SOCKET = 'socket:/var/run/postgresql?db=forras&port=5432&user=u';
+    const HALO = 'postgres://u@127.0.0.1:5432/forras';
+    const utat = (u) => { try { return new URL(u).pathname.replace(/^\/+/, '') || 'postgres'; } catch { return null; } };
+
+    step('(ao1) R166/P2: a pg-próbák INDULÓ kérdése a feloldóból kapja a forrás nevét, és a `socket:` címen ez NEM az út (RÉGEN: az út csupaszítva lett „adatbázis-névvé", a kapcsolat elbukott, és a próba a saját adatbázisa előtt kilépett)',
+      effectiveDatabase(SOCKET).name === 'forras' && utat(SOCKET) === 'var/run/postgresql'
+      && effectiveDatabase(SOCKET).name !== utat(SOCKET),
+      { feloldo: effectiveDatabase(SOCKET).name, regi_csupaszitas: utat(SOCKET) });
+
+    step('(ao2) R166/P2 ELLENPÁR: HÁLÓZATI címen a feloldó UGYANAZT adja, amit a régi csupaszítás — a javítás tehát nem változtatott a működő eseten',
+      effectiveDatabase(HALO).name === 'forras' && utat(HALO) === 'forras',
+      { feloldo: effectiveDatabase(HALO).name, regi_csupaszitas: utat(HALO) });
+
+    step('(ao3) R166/P2: és ahol a KÉT FOGYASZTÓ mást olvas, az induló kérdés sem talál ki nevet — a feloldó NEM ELDÖNTHETŐ-t ad, a hívó kimondja és megáll',
+      effectiveDatabase('postgres://u@h:5432/egy?dbname=ketto').name === null
+      && /KÉT FOGYASZTÓ/.test(effectiveDatabase('postgres://u@h:5432/egy?dbname=ketto').basis),
+      { nev: String(effectiveDatabase('postgres://u@h:5432/egy?dbname=ketto').name) });
+
+    // ── A LÉTEZÉS-KÉRDÉS HÁROM ÁLLAPOTÚ, ÉS AZ ISMERETLEN MINDKÉT IRÁNYBAN BUKTAT ───────────────
+    //
+    // A lánc feloldóját a FORRÁSÁBÓL nem méri egy minta (KUKA-239) — a SZABÁLYT mérjük, ugyanazon
+    // az alakon, amire a lánc épült: a parancs-állapot megmarad, és a két kérdés fail-closed.
+    const letezikV = (allapot) => (allapot.code === 0
+      ? { known: true, exists: allapot.out.trim() === '1', hiba: '' }
+      : { known: false, exists: null, hiba: allapot.err || `psql kilépés ${allapot.code}` });
+    const ottVan = (a) => letezikV(a).exists === true;
+    const nincsOtt = (a) => { const v = letezikV(a); return v.known === true && v.exists === false; };
+    const VAN = { code: 0, out: '1\n', err: '' };
+    const NINCS = { code: 0, out: '\n', err: '' };
+    const BUKOTT = { code: 2, out: '', err: 'could not connect to server' };
+
+    step('(ao4) R166/P2: a BUKOTT létezés-kérdés NEM „nincs ott" — az „eltakarítva" állítás tehát nem mehet át attól, hogy az ellenőrző kérés sem futott le (RÉGEN: az üres kimenet `false`-ra fordult, és a takarítás-állítás ZÖLD lett)',
+      nincsOtt(VAN) === false && nincsOtt(NINCS) === true && nincsOtt(BUKOTT) === false,
+      { van: nincsOtt(VAN), nincs: nincsOtt(NINCS), bukott: nincsOtt(BUKOTT) });
+
+    step('(ao5) R166/P2: és a BUKOTT kérdés NEM „ott van" sem — a „maradékot nem dobtuk el" állítás sem mehet át mérés nélkül; az ismeretlen MINDKÉT irányban buktat',
+      ottVan(VAN) === true && ottVan(NINCS) === false && ottVan(BUKOTT) === false
+      && letezikV(BUKOTT).known === false && letezikV(BUKOTT).hiba.length > 0,
+      { van: ottVan(VAN), nincs: ottVan(NINCS), bukott: ottVan(BUKOTT), alap: letezikV(BUKOTT).hiba.slice(0, 40) });
+
+    // ÉS A KÉT PRÓBA TÉNYLEGESEN EZT HÍVJA (KUKA-239: a feloldó zöldje nem a hívás zöldje — egy
+    // pin, amit a javítás visszavétele nem buktat meg, nem gépi jel).
+    const intentSrc = readFileSync(join(ROOT, 'tools/v3_pg_intent_proof.mjs'), 'utf8');
+    const safetySrc = readFileSync(join(ROOT, 'tools/v3_pg_restore_safety_proof.mjs'), 'utf8');
+    const csupaszit = /SELECT current_database\(\)'\], new URL\([a-zA-Z]+\)\.pathname/;
+    step('(ao7) R166/P2: MINDKÉT pg-próba induló kérdése a feloldót hívja, és egyik sem csupaszítja az ÚTAT adatbázis-névvé — a nem eldönthető nevet pedig kimondja és megáll',
+      /effectiveDatabase\(url\)/.test(intentSrc) && /effectiveDatabase\(bazisUrl\)/.test(safetySrc)
+      && !csupaszit.test(intentSrc) && !csupaszit.test(safetySrc)
+      && (intentSrc.match(/NEM ELDÖNTHETŐ/g) || []).length > 0
+      && (safetySrc.match(/NEM ELDÖNTHETŐ/g) || []).length > 0,
+      { intent: /effectiveDatabase\(url\)/.test(intentSrc), safety: /effectiveDatabase\(bazisUrl\)/.test(safetySrc),
+        regi_csupaszitas: csupaszit.test(intentSrc) || csupaszit.test(safetySrc) });
+
+    // ÉS A LÉTEZÉS-FELOLDÓ IS A LÁNCBAN ÁLL, nem csak itt (ugyanaz a kötés, mint fent).
+    step('(ao8) R166/P2: a lánc a HÁROM ÁLLAPOTÚ létezés-feloldót használja, és a puszta `=== \'1\'` alakú kérdés eltűnt a forrásból',
+      /const letezikV = \(nev\) => \{/.test(safetySrc)
+      && /const nincsOtt = \(nev\) =>/.test(safetySrc) && /const ottVan = \(nev\) =>/.test(safetySrc)
+      && !/const letezik = \(nev\) => psql\(/.test(safetySrc)
+      && !/!letezik\(/.test(safetySrc),
+      { harom_allapot: true, regi_alak: /const letezik = \(nev\) => psql\(/.test(safetySrc) });
+
+    // ── A MEGSZAKÍTÁS SORRENDJE: a gyerek ELŐBB áll le, csak utána takarítunk ────────────────────
+    const forras = readFileSync(join(ROOT, 'tools/v3_pg_restore_safety_proof.mjs'), 'utf8');
+    const kezelo = /process\.on\(jel, \(\) => \{ ([^}]+) \}\);/.exec(forras);
+    const sorrend = kezelo ? kezelo[1] : '';
+    step('(ao6) R166/P2: a megszakítás-kezelő ELŐBB a gyerek FOLYAMATCSOPORTJÁT állítja le, és CSAK UTÁNA dobja el a sajátot (RÉGEN: a `detached` gyerek a szülő kilépése után is futtathatta a `pg_dump`/`pg_restore`-t, versenyben a takarítással)',
+      sorrend.indexOf('allitsdLeAGyereket()') >= 0
+      && sorrend.indexOf('allitsdLeAGyereket()') < sorrend.indexOf('dobjaSajat()')
+      && /process\.kill\(-gyerekPid, jel\)/.test(forras)
+      && /let gyerekPid = 0;[\s\S]{0,400}?process\.on\('exit'/.test(forras),
+      { sorrend: sorrend.replace(/\s+/g, ' ').slice(0, 80) });
+  }
+
   // ── AM) R166 — A MÉRŐ ÖNELLENŐRZÉSE: EGY AZONOSÍTÓ EGY MÉRÉSRE MUTAT (KUKA-399) ─────────────
   //
   // MIÉRT KELL: ebben a körben HÁROMSZOR adtam ütköző csoport-előtagot (`ac` · `ae` · `ag` — mind

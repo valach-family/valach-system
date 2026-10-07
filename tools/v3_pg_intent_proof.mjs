@@ -32,7 +32,7 @@ loadRepoEnv(ROOT);
 
 const { startServer } = await import('../v3app/server.mjs');
 const { localOnlyVerdict, acquireFreshTarget, freshTargetName, qid, withDatabase, redactConnStrings,
-  cliEnvFor } = await import('./lib/vs_pg_target.mjs');
+  cliEnvFor, effectiveDatabase } = await import('./lib/vs_pg_target.mjs');
 const { execFileSync } = await import('node:child_process');
 const { rememberIntent, resumeIntent, purgeExpiredIntents, intentTtlMs, PENDING_INTENT_TTL_MS } =
   await import('../v3ref/invite.mjs');
@@ -111,7 +111,14 @@ for (const jel of ['SIGINT', 'SIGTERM']) process.on(jel, () => { dobjaSajat(); p
 const meresDb = (() => {
   const sz = acquireFreshTarget({
     measuredSource: (() => {
-      const r = psqlTry(['-c', 'SELECT current_database()'], new URL(url).pathname.replace(/^\/+/, '') || 'postgres');
+      /**
+       * A BOOTSTRAP-KÉRDÉS IS A FELOLDÓT HÍVJA (R166, külső review, Codex, P2 · KUKA-402).
+       * A `socket:` címen az ÚT a socket-könyvtár, nem adatbázis — a csupaszított út nevére a
+       * kapcsolat elbukott, és a próba a saját mérési adatbázisa előtt kilépett.
+       */
+      const fel = effectiveDatabase(url);
+      if (!fel.name) { console.error(`  FIGYELEM: a forrás adatbázis-neve NEM ELDÖNTHETŐ — ${fel.basis}`); return null; }
+      const r = psqlTry(['-c', 'SELECT current_database()'], fel.name);
       return r.code === 0 ? r.out.trim() : null;
     })(),
     explicitTarget: null,

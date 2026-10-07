@@ -39,7 +39,7 @@ import { inviteColleague, grantScopeToMember, revokeScopeFromMember, revokeDeleg
 import { observeInvite, redeemInvite, rememberIntent, resumeIntent, forgetIntent, purgeExpiredIntents,
   intentTtlMs, revokeInvite, inviteRevocationAt, reentryOfferFor } from '../v3ref/invite.mjs';
 import { rightAt, revokeMembership, KNOWN_ROLES } from '../v3ref/authz.mjs';
-import { submitCommand, readCommandResult } from '../v3ref/command.mjs';
+import { submitCommand, readCommandResult, commandResultReadable } from '../v3ref/command.mjs';
 import { KNOWN_DATA_SCOPES, declaredScopesOfType } from '../v3ref/resultScope.mjs';
 import { scopeReleaseDecision, scopeGrantLiveAt } from '../v3ref/releaseScope.mjs';
 import { entitlementFor, twoGateVerdict, setEntitlementProfile, PLANS } from '../v3ref/entitlement.mjs';
@@ -1710,7 +1710,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
        * felirat — KUKA-227: a határ zöldje nem a felület zöldje).
        */
       stock_access: Boolean(bookId && session.subject_id
-        && readSample(bookId, session.subject_id, 'minta-keszlet').ok === true),
+        && sampleReadable(bookId, session.subject_id, 'minta-keszlet')),
       book_id: bookId,
       member: Boolean(ws),
       role: ws ? ws.role : null,
@@ -3051,6 +3051,21 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     const boot = bootstrapOf({ store, bookId });
     if (!boot) return { ok: false, error: 'no_bootstrap', message: 'ehhez a könyvhöz nincs indulási tény' };
     return readCommandResult({ store, idemKey, requester, bookId, actor: boot.creator_subject_id, clock });
+  }
+
+  /**
+   * UGYANAZ A KÉRDÉS, HATÁS NÉLKÜL (R166, külső review, Codex, P2 · KUKA-400).
+   *
+   * A felkínálás kapujának azt kell tudnia, hogy a tag a készlet-táblát MEGNYITNÁ-e — nem azt,
+   * hogy mi van benne. A `readSample` viszont KIADÁS: sikeres ágán leltár-sort ír. Ez a próba a
+   * MAG hatás nélküli feloldóját hívja, tehát a súgó megnyitása nem keletkeztet audit-sort.
+   */
+  function sampleReadable(bookId, requester, idemKey) {
+    const boot = bootstrapOf({ store, bookId });
+    if (!boot) return false;
+    return commandResultReadable({
+      store, idemKey, requester, bookId, actor: boot.creator_subject_id, clock,
+    }).readable === true;
   }
 
   // A MEZŐ-SZERZŐDÉS OTTHONA A SÉMA-REGISZTER (HTP-01, `v3app/httpSchema.mjs`) — itt nincs második

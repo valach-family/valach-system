@@ -16,6 +16,49 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3206 — A DÖNTÉST ÉS A HATÁST KÜLÖN KELL TUDNI MEGHÍVNI, ÉS A BIZONYTALAN BEMENET NEM A MEGENGEDŐ ÁG (R166, négy külső P2)
+
+**A NÉGY LELET EGY OSZTÁLYT MUTAT:** egy bizonytalan vagy más sémájú bemenetet, illetve egy hatásos
+feloldót a kód a **kényelmes** ágra fordított. Mind a négy javítva, mért visszacsúszás-próbával.
+
+**(1) A jog-kérdésre kiadást hívtam** (`KUKA-400`). Az R166 §3-ban a felkínálás kapuja a
+`readSample()`-t hívta — annak a sikeres ága `disclose()`-t hajt végre. A súgó megnyitása (`GET
+/api/assistant/status`, deklaráltan `mutates: false`) így **minden alkalommal** olyan kiadási
+leltár-sort írt, ami szerint védett adat kiadásra került. **Mérve: három kérés három sor.** Egy
+kiadási leltár, amibe a súgó megnyitása is bekerül, használhatatlan. A javítás: a kérdés **hatás
+nélküli** alakja a **magban, a kiadó mellett** (`commandResultReadable`) — ugyanaz a két döntés,
+ugyanazon az egy óraolvasáson, `disclose` nélkül. Nem a hívónál, mert ott két szabály keletkezne
+egy kérdésre.
+
+**(2) A bukott ellenőrző kérdés „nincs ott"-ra fordult** (`KUKA-401`). Az „eltakarítva" állítások
+attól is átmentek, hogy az ellenőrző kérés maga nem futott le. Mostantól három állapot, és a
+hiány–jelenlét **két külön, fail-closed** kérdés: az ismeretlen **mindkettőt** megbuktatja, és a sor
+kimondja az okot.
+
+**(3) A feloldót csak az átirányításba kötöttem be, az indulásba nem** (`KUKA-402`). Az R166/P1
+javításom a `socket:` sémát mind a négy cél-feloldóban rendbe tette, a két pg-próba **induló**
+kérdése viszont tovább csupaszította az utat „adatbázis-névvé" — vagyis a helyi-kapu által
+**befogadott** cím-alakon mindkét próba el sem indult. A bekötés listáját a szabály **régi**
+olvasóiból vezettem le (`KUKA-227` osztálya).
+
+**(4) A megszakítás takarított, de a leváló gyereknek nem szólt** (`KUKA-403`). A gyerek a szülő
+kilépése után is futtathatta a `pg_dump`/`pg_restore`-t, versenyben a takarítással — a kezelő tehát
+a saját mérésének az állítását tudta aláírni. Mostantól kötött sorrend: előbb a **folyamatcsoport**
+áll le, utána a takarítás.
+
+**Gépi jel:** `npm run verify:app-findings-r154` — **AN csoport** (an1–an3) és **AO csoport**
+(ao1–ao8) · `npm run verify:kuka` · `npm run proof:pg-restore-safety` · `npm run proof:pg-intent`.
+**Élő tanú:** mindkét pg-lánc **`socket:` címmel végigfut** (10 állítás / 0 eltérés, illetve 48/48).
+**Visszacsúszás-próba mérve, mind a négyre:** a javításokat visszavéve **öt pin piros**
+(`an1` · `an3` · `ao6` · `ao7` · `ao8`).
+
+**Amit ez NEM állít:** a mérés a feloldókra, a határ-végpontra és a próba-láncokra áll. Üzleti
+folyamatról, felhős üzemről és a PG 18-ról ebből nem következik állítás.
+
+**KUKA-400** · **KUKA-401** · **KUKA-402** · **KUKA-403**
+
+---
+
 ## D-VS-3205 — A KAPCSOLÓ-OLVASÁSNAK EGY OTTHONA VAN, ÉS EGY PIN-AZONOSÍTÓ EGY MÉRÉSRE MUTAT (R166, külső review P2 + saját lelet)
 
 **A DÖNTÉS KÉT RÉSZE.**

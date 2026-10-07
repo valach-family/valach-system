@@ -21,7 +21,7 @@ import { mkdirSync, writeFileSync, chmodSync } from 'node:fs';
 import { loadRepoEnv } from './lib/vs_tool_env.mjs';
 import { qid, withDatabase, freshTargetName, acquireFreshTarget, restoreTargetDecision,
   restoreOutcome, redactConnStrings, localOnlyVerdict, RESTORE_TARGET_PREFIX, PROTECTED_DB_NAMES,
-  cliEnvFor } from './lib/vs_pg_target.mjs';
+  cliEnvFor, effectiveDatabase } from './lib/vs_pg_target.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 loadRepoEnv(ROOT);
@@ -99,7 +99,26 @@ function psql(args, dbName = 'postgres') {
     return { code: Number(e.status ?? 1), out: String(e.stdout || ''), err: redactConnStrings(String(e.stderr || e.message || '')) };
   }
 }
-const letezik = (nev) => psql(['-c', `SELECT 1 FROM pg_database WHERE datname = '${nev}'`]).out.trim() === '1';
+/**
+ * A LÉTEZÉS HÁROM ÁLLAPOTÚ, ÉS AZ ISMERETLEN NEM „NINCS OTT" (R166, KÜLSŐ REVIEW, Codex, P2 · `KUKA-401`).
+ *
+ * A LELET: a régi alak a `psql` BUKÁSÁT `false`-ra fordította (üres kimenet → nem `'1'`), ezért az
+ * „eltakarítva" állítások (E4d · E4e4 · E3b · E6b · Z) attól is ÁTMENTEK, hogy az ellenőrző kérés
+ * maga nem tudott lefutni. Egy ott maradt adatbázist így sikeres takarításként jelentettünk volna.
+ *
+ * MOSTANTÓL a feloldó MEGTARTJA a parancs állapotát, és a két kérdésnek KÜLÖN, FAIL-CLOSED alakja
+ * van: a `nincsOtt` csak BIZONYÍTOTT hiányra igaz, az `ottVan` csak BIZONYÍTOTT jelenlétre. Az
+ * ismeretlen tehát MINDKETTŐT megbuktatja — a bizonytalanság nem a megengedő ág (`KUKA-200`).
+ */
+const letezikV = (nev) => {
+  const r = psql(['-c', `SELECT 1 FROM pg_database WHERE datname = '${nev}'`]);
+  return r.code === 0
+    ? { known: true, exists: r.out.trim() === '1', hiba: '' }
+    : { known: false, exists: null, hiba: r.err.slice(0, 120) || `psql kilépés ${r.code}` };
+};
+const ottVan = (nev) => letezikV(nev).exists === true;
+const nincsOtt = (nev) => { const v = letezikV(nev); return v.known === true && v.exists === false; };
+const letezesAlap = (nev) => { const v = letezikV(nev); return v.known ? (v.exists ? 'a kiszolgálón VAN' : 'a kiszolgálón NINCS') : `NEM ELDÖNTHETŐ — ${v.hiba}`; };
 
 const marks = [];
 const tény = (t) => console.log(`  TÉNY ${t}`);
@@ -127,13 +146,51 @@ function dobjaSajat() {
     else console.error(`  FIGYELEM: a saját forrás-adatbázis NEM lett eldobva: ${n} — ${r.err.slice(0, 120)}`);
   }
 }
+// A GYEREK AZONOSÍTÓJA A JEL-KEZELŐ ELŐTT ÁLL: egy KORAI jel különben a deklaráció előtt olvasná
+// (TDZ-hiba), és a kezelő pont akkor bukna el, amikor a legnagyobb szükség van rá (KUKA-360).
+let gyerekPid = 0;
 process.on('exit', dobjaSajat);
-for (const jel of ['SIGINT', 'SIGTERM']) process.on(jel, () => { dobjaSajat(); process.exit(130); });
+
+/**
+ * A MEGSZAKÍTÁS ELŐBB A GYEREKET ÁLLÍTJA LE, CSAK UTÁNA TAKARÍT (R166, KÜLSŐ REVIEW, Codex, P2 · `KUKA-403`).
+ *
+ * A LELET: a jel-kezelő eldobta a saját adatbázisokat és kilépett — a `detached: true`-val indított
+ * gyerek-folyamatcsoportnak viszont NEM szólt. A gyerek így a szülő kilépése UTÁN is futtathatta a
+ * `pg_dump`/`pg_restore`-t, versenyben a takarítással: a már eldobott forrásra írt, vagy a SAJÁT
+ * generált célját hagyta ott — pontosan az a szemét, amit ez a lánc mér.
+ *
+ * MOSTANTÓL a sorrend KÖTÖTT: (1) a gyerek FOLYAMATCSOPORTJA megáll (`-pid`, tehát a `psql`/`pg_dump`
+ * unokák is), (2) csak azután dobjuk el a sajátot. A `SIGKILL` a `SIGTERM` után jön, rövid türelmi
+ * idővel — mert egy `pg_restore` közbeni azonnali halál pont azt a félbehagyott állapotot
+ * keletkezteti, amit a takarítás még nem lát (`KUKA-360`: a megszakítás-kezelőt meg kell tudni hívni).
+ */
+function allitsdLeAGyereket() {
+  if (!gyerekPid) return;
+  for (const jel of ['SIGTERM', 'SIGKILL']) {
+    try { process.kill(-gyerekPid, jel); } catch { return; /* már véget ért a csoport */ }
+    const hatarido = Date.now() + (jel === 'SIGTERM' ? 1500 : 500);
+    // SZINKRON várakozás: a jel-kezelőben nincs esemény-ciklus, amire várhatnánk.
+    while (Date.now() < hatarido) {
+      try { process.kill(-gyerekPid, 0); } catch { return; /* elment */ }
+    }
+  }
+}
+for (const jel of ['SIGINT', 'SIGTERM']) {
+  process.on(jel, () => { allitsdLeAGyereket(); dobjaSajat(); process.exit(130); });
+}
 
 const forrasDb = (() => {
   const sz = acquireFreshTarget({
     measuredSource: (() => {
-      const r = psql(['-c', 'SELECT current_database()'], new URL(bazisUrl).pathname.replace(/^\/+/, '') || 'postgres');
+      /**
+       * A BOOTSTRAP-KÉRDÉS IS A FELOLDÓT HÍVJA (R166, külső review, Codex, P2 · KUKA-402).
+       * A régi alak az ÚTAT csupaszította névre — a `socket:` címen viszont az út a SOCKET-KÖNYVTÁR,
+       * nem adatbázis (`socket:/var/run/postgresql?db=forras` → „var/run/postgresql"). A kapcsolat
+       * elbukott, a `measuredSource` null lett, és a próba a saját adatbázisa előtt kilépett.
+       */
+      const fel = effectiveDatabase(bazisUrl);
+      if (!fel.name) { console.error(`  FIGYELEM: a forrás adatbázis-neve NEM ELDÖNTHETŐ — ${fel.basis}`); return null; }
+      const r = psql(['-c', 'SELECT current_database()'], fel.name);
       return r.code === 0 ? r.out.trim() : null;
     })(),
     explicitTarget: null,
@@ -258,7 +315,7 @@ const JELZO = `idegen-adat-${Date.now()}`;
   if (c.code !== 0) { console.error(`  ELAKADT MÉRÉS: az idegen próba-adatbázis nem jött létre — ${c.err.slice(0, 160)}`); process.exit(2); }
   psql(['-v', 'ON_ERROR_STOP=1', '-c', 'CREATE TABLE idegen_jelzo (v text)', '-c', `INSERT INTO idegen_jelzo VALUES ('${JELZO}')`], idegen);
 }
-const idegenEl = () => letezik(idegen) && psql(['-c', 'SELECT v FROM idegen_jelzo'], idegen).out.trim() === JELZO;
+const idegenEl = () => ottVan(idegen) && psql(['-c', 'SELECT v FROM idegen_jelzo'], idegen).out.trim() === JELZO;
 tény(`idegen maradék létrehozva (az ELŐTAGOT hordozza, mégsem a próbáé): ${idegen}`);
 
 // ── A SZÁNDÉKOS KLIENS-HELYETTESÍTŐK (var/, gitignore) ─────────────────────────────────────────
@@ -282,7 +339,6 @@ const CSAK_FIGYELMEZTET = wrapper('pg_restore_figyelmeztet.sh',
 const LASSU = wrapper('pg_restore_lassu.sh', `sleep 8\nexec ${valodiRestore} "$@"`);
 
 // ── A GYEREK-FUTÁS: a VALÓDI láncot futtatjuk, nem utánozzuk (KUKA-207) ────────────────────────
-let gyerekPid = 0;
 function futtat({ env = {}, onLine = null, timeoutMs = 180_000 } = {}) {
   return new Promise((keszen) => {
     const ch = spawn(process.execPath, [resolve(ROOT, 'tools/v3_pg_durability_proof.mjs')],
@@ -339,7 +395,8 @@ console.log('\nE4 — SIKERTELEN RESTORE: a „warning" jelenléte NEM oldja fel
     (r.out.match(/HIBA-sor a kimenetben[^\n]*/) || ['nem jelent meg'])[0].slice(0, 110));
   step('E4c. a bukott visszatöltés UTÁN sem állít tartalmi egyezést', !/4a\. a sor-számok egyeznek/.test(r.out),
     'a visszaolvasás lépései el sem indultak — nincs mire zöldet mondani');
-  step('E4d. a saját, FRISS célt a bukás után is ELTAKARÍTOTTA', cel !== null && !letezik(cel), cel ? `${cel} nincs a kiszolgálón` : 'nem jött létre cél');
+  step('E4d. a saját, FRISS célt a bukás után is ELTAKARÍTOTTA', cel !== null && nincsOtt(cel),
+    cel ? `${cel} — ${letezesAlap(cel)}` : 'nem jött létre cél');
   const utan = forrasKep();
   const v = forrasValtozas(e4Elott, utan);
   elokeszitesMerteke = v.jott.length;
@@ -378,7 +435,8 @@ console.log('\nE4e — NEM NULLA KILÉPÉS felismert hiba-sor NÉLKÜL: ez is BU
     /NEM NULLA kilépés/.test(r.out), 'a próba kimondja, hogy a diagnosztika lehet üres vagy más nyelvű');
   step('E4e3. és a tartalmi visszaolvasás EL SEM INDUL a bukott visszatöltés után',
     !/4a\. a sor-számok egyeznek/.test(r.out), 'nincs mire zöldet mondani');
-  step('E4e4. a saját cél eltakarítva a bukás után is', cel !== null && !letezik(cel), cel || 'nem jött létre cél');
+  step('E4e4. a saját cél eltakarítva a bukás után is', cel !== null && nincsOtt(cel),
+    cel ? `${cel} — ${letezesAlap(cel)}` : 'nem jött létre cél');
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -393,7 +451,8 @@ console.log('\nE3 — SIKERES FRISS CÉL  ·  E8 — a kapcsolati cím és a jel
   const r = await futtat({ env: { DATABASE_URL: u.toString(), VS_RESTORE_TEST_DB: '' } });
   const cel = sajatCelNev(r.out);
   step('E3a. a próba VÉGIG zöld a friss, saját célon', r.code === 0 && /RENDBEN/.test(r.out), `kilépés ${r.code} · ${(r.out.match(/ALAPSOKASÁG: \d+ mért lépés/) || [''])[0]}`);
-  step('E3b. a cél FRISS, a futás hozta létre, és a végén eltakarítva', cel !== null && !letezik(cel), cel || 'nem jelent meg generált cél');
+  step('E3b. a cél FRISS, a futás hozta létre, és a végén eltakarítva', cel !== null && nincsOtt(cel),
+    cel ? `${cel} — ${letezesAlap(cel)}` : 'nem jelent meg generált cél');
   step('E8a. a JELSZÓ egyetlen kimeneti sorban sem jelenik meg', !r.out.includes(TITOK), r.out.includes(TITOK) ? 'MEGJELENT' : 'nem jelenik meg');
   step('E8b. kapcsolati cím (`postgres://…`) sem jelenik meg', !/postgres(?:ql)?:\/\//i.test(r.out), 'a hibákban és a lépés-sorokban sem');
 }
@@ -415,7 +474,9 @@ console.log('\nE5 — PÁRHUZAMOS NÉVÜTKÖZÉS (a mérés és a CREATE közé 
     explicitTarget: null,
     generate: () => freshTargetName(),
     exists: (nev) => {
-      const van = letezik(nev);
+      const v = letezikV(nev);
+      const van = v.exists === true;
+      if (v.known === false) return v;
       if (!van && versenyzoNevek.length === 0) {
         // A VERSENYZŐ: a mérés UTÁN, a `CREATE` ELŐTT létrehozza ugyanazt a nevet, és beír egy jelzőt.
         versenyJelzo = `versenyzo-${Date.now()}`;
@@ -437,7 +498,7 @@ console.log('\nE5 — PÁRHUZAMOS NÉVÜTKÖZÉS (a mérés és a CREATE közé 
     sz.log.map((x) => x.replace(/^\d+\. /, '')).join(' → ').slice(0, 150));
   step('E5b. a hurok NEM vette át a másik futás adatbázisát', sz.target !== versenyzo && sz.target !== null,
     `megszerzett cél: ${sz.target} · a versenyzőé: ${versenyzo}`);
-  const versenyzoEp = versenyzo !== null && letezik(versenyzo)
+  const versenyzoEp = versenyzo !== null && ottVan(versenyzo)
     && psql(['-c', 'SELECT v FROM versenyzo'], versenyzo).out.trim() === versenyJelzo;
   step('E5c. a versenyző adatbázisa ÉS adata érintetlen (nem töröltük, nem írtuk felül)', versenyzoEp, versenyzo || '—');
   step('E5d. a megszerzett cél a MÁSODIK kísérletből lett (új név, nem átvétel)', sz.attempts === 2 && sz.created === true, `${sz.attempts} kísérlet`);
@@ -488,7 +549,7 @@ console.log('\nE6 — MEGSZAKADT FUTÁS (SIGTERM a visszatöltés közben)');
   const megszakitott = /MEGSZAKÍTÁS \(SIGTERM\)/.test(r.out);
   step('E6a. a megszakítás VALÓBAN a futás közben érte el (nem a vége után)', megszakitott && r.code === 130,
     `kilépés ${r.code} · ${megszakitott ? 'a megszakítás-ág lefutott' : 'a megszakítás-ág NEM futott le — a mérés nem ítélhető'}`);
-  step('E6b. a saját, félbehagyott cél ELTAKARÍTVA (nem maradt szemét)', celNev !== null && !letezik(celNev),
+  step('E6b. a saját, félbehagyott cél ELTAKARÍTVA (nem maradt szemét)', celNev !== null && nincsOtt(celNev),
     celNev ? `${celNev} nincs a kiszolgálón` : 'nem sikerült kiolvasni a cél nevét');
   step('E6c. az idegen adatbázis a megszakítás alatt sem sérült', idegenEl(), idegen);
   step('E6d. a FORRÁS a megszakítás után is áll: semmi nem tűnt el, semmi nem változott, és a hozzáadás a MÉRT előkészítésnél nem több',
@@ -525,12 +586,13 @@ console.log('\nE6e — KEZELHETETLEN MEGSZAKÍTÁS (SIGKILL): a maradék megneve
   clearInterval(figyelo);
   step('E6e1. a futás VALÓBAN kezelhetetlenül szakadt meg (SIGKILL, nincs takarítás-ág)',
     (r.signal === 'SIGKILL' || r.code === 137) && !/MEGSZAKÍTÁS/.test(r.out), `kilépés ${r.code} · jel ${r.signal}`);
-  step('E6e2. a félbehagyott cél ott maradt (nem hazudunk takarítást)', maradek !== null && letezik(maradek), maradek || 'nem sikerült kiolvasni');
+  step('E6e2. a félbehagyott cél ott maradt (nem hazudunk takarítást)', maradek !== null && ottVan(maradek),
+  maradek ? `${maradek} — ${letezesAlap(maradek)}` : 'nem sikerült kiolvasni');
   // ÉS MOST A KÖVETKEZŐ FUTÁS: megnevezi-e, és hozzányúl-e?
   const kov = await futtat({ env: { VS_RESTORE_TEST_DB: '' } });
   step('E6e3. a KÖVETKEZŐ futás a maradékot MEGNEVEZI a kimenetében', maradek !== null && kov.out.includes(maradek),
     maradek !== null && kov.out.includes(maradek) ? 'a maradék neve megjelent a jelentésben' : 'NEM nevezte meg');
-  step('E6e4. és NEM dobta el (a név nem tulajdonbizonyíték)', maradek !== null && letezik(maradek)
+  step('E6e4. és NEM dobta el (a név nem tulajdonbizonyíték)', maradek !== null && ottVan(maradek)
     && /NEM dobjuk el őket/.test(kov.out), 'a maradék a kiszolgálón van, és a próba kimondja, miért nem nyúl hozzá');
   step('E6e5. a következő futás ettől függetlenül ZÖLD a saját friss célján', kov.code === 0 && /RENDBEN/.test(kov.out), `kilépés ${kov.code}`);
   if (maradek) psql(['-c', `DROP DATABASE ${qid(maradek)} WITH (FORCE)`]);  // a MÉRÉS takarítja a saját szemetét
@@ -546,7 +608,7 @@ console.log('\nE7 — VÉDETT RENDSZER-ADATBÁZIS és a FORRÁS neve célként')
   const eredmenyek = tiltott.map((nev) => acquireFreshTarget({
     measuredSource: forrasNev, explicitTarget: nev,
     generate: () => freshTargetName(),
-    exists: (n) => ({ known: true, exists: letezik(n) }),
+    exists: (n) => letezikV(n),
     create: () => { hivottCreate += 1; return { ok: true }; },
   }));
   step('E7a. MINDEGYIK tiltott célon megáll', eredmenyek.every((e) => e.target === null), tiltott.join(', '));
@@ -666,7 +728,7 @@ const nemMert = [];
 
 // ── ZÁRÁS: a mérés saját szemetét MI takarítjuk (eldobható környezet) ──────────────────────────
 psql(['-c', `DROP DATABASE ${qid(idegen)} WITH (FORCE)`]);
-step('Z. a mérés saját idegen-maradéka eldobva (a mérés nem hagy szemetet)', !letezik(idegen), idegen);
+step('Z. a mérés saját idegen-maradéka eldobva (a mérés nem hagy szemetet)', nincsOtt(idegen), `${idegen} — ${letezesAlap(idegen)}`);
 
 console.log('='.repeat(94));
 const bad = marks.filter((m) => !m.ok);
