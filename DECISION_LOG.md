@@ -16,6 +16,23 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3173 — AZ EGYEDI AZONOSÍTÓ SAJÁT SZÁMLÁLÓT KÉR (R164/4)
+
+**A döntés.** Az olvashatóvá tett lapokon a fejezet-azonosító **saját, monoton számlálóból** jön
+(`headingSeq`), nem a tartalomjegyzék hosszából. A tartalomjegyzék továbbra is csak a két felső
+szintet listázza — a két fogalom szétválasztva.
+
+**Miért.** Az azonosító `sz-${toc.length + 1}` volt, a tartalomjegyzék viszont csak a 2. szintig nő.
+MÉRVE az R164-es jelentés lapján: **öt ismétlődő azonosító** 25 fejezetre, és a tartalomjegyzék
+kattintása az ELSŐ egyezésre vitt — egy alfejezetre, nem a megnevezett fejezetre. Az operátor EZT a
+lapot olvassa (KUKA-079), tehát ez a lap funkciójának elvesztése, nem szépséghiba.
+
+**Amit kimondok.** Az ismétlődő azonosítót a `verify:doc-html` ma **nem** kérdezi meg — a
+visszacsúszást a `verify:kuka` tiltó mintája fogja meg (KUKA-365). A hiba nem őrön derült ki, hanem
+azon, hogy a feltöltés előtt **átolvastam** az operátornak szánt lapot.
+
+---
+
 ## D-VS-3169 — A LEFEDÉST KIZÁRÓLAGOS JEL MÉRI, ÉS A HÉJ VEZÉRLŐI NEM AZONOSÍTANAK LAPOT (R164/3)
 
 **A döntés.** A lefedési őrben egy HORGONY csak akkor azonosít lapot, ha más lap funkciói **nem**

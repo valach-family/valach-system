@@ -14414,6 +14414,34 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta) · `npm run proof:demo-walk` (a tanú kimenete maga; a diagnosztikát a megszakadás-ágak írják ki, és a lánc a böngészős kapu része — `verify:browser-gate`).',
   }),
 
+  Object.freeze({
+    id: 'KUKA-365',
+    date: '2026-10-07',
+    title: 'AZ OLVASHATÓ LAP FEJEZET-AZONOSÍTÓIT A TARTALOMJEGYZÉK HOSSZÁBÓL VEZETTÜK LE, ÉS ÜTKÖZTEK',
+    what: 'A Markdown-ból HTML-t készítő rajzoló a fejezet-azonosítót így adta: `const id = `sz-${toc.length + 1}`` — a tartalomjegyzék viszont CSAK a második szintig nő (`if (level <= 2) toc.push(...)`). Minden h3-as és mélyebb fejezet ezért UGYANAZT az azonosítót kapta, amit a KÖVETKEZŐ h2 is. MÉRVE az R164-es jelentés lapján: ÖT azonosító ismétlődött (25 fejezetre), és a tartalomjegyzék kattintása az ELSŐ egyezésre vitt — vagyis egy alfejezetre, nem a megnevezett fejezetre.',
+    why_wrong: 'AZ AZONOSÍTÓT EGY MÁS CÉLÚ SZÁMLÁLÓBÓL VEZETTÜK LE. A tartalomjegyzék hossza a MEGJELENÍTETT bejegyzések száma — az azonosítónak viszont MINDEN fejezetre egyedinek kell lennie; a két fogalom csak addig egyezik, amíg nincs h3. És a kár nem szépséghiba: az operátor EZT a lapot olvassa (KUKA-079 — minden neki szánt lapból HTML is kell), tehát a hibás navigáció a lap funkcióját veszi el. Az őr (`verify:doc-html`) zölden állt, mert az ismétlődő azonosítót nem kérdezte meg (KUKA-049 alakja: az őr jelét meg kell mérni).',
+    replaced_by: 'SAJÁT, MONOTON SZÁMLÁLÓ MINDEN FEJEZETRE (`headingSeq`), a tartalomjegyzéktől függetlenül. A tartalomjegyzék továbbra is csak a két felső szintet listázza — a két fogalom szétválasztva.',
+    replacement: 'MÉRVE a javítás után: 25 fejezet-azonosító, ISMÉTLŐDÉS NÉLKÜL, és a tartalomjegyzék kilenc hivatkozása mind létező, EGYEDI célra mutat.',
+    decision: 'D-VS-3173',
+    found_by: 'SAJÁT LELET (Claude-v3, R164/4) — az operátornak szánt lap átolvasásakor, a feltöltés előtt.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/chatops-board/src/mdRender.js']),
+        pattern: 'let headingSeq = 0;',
+        why: 'az azonosító SAJÁT számlálóból jön' }),
+      Object.freeze({ paths: Object.freeze(['tools/chatops-board/src/mdRender.js']),
+        pattern: 'sz-\\$\\{headingSeq\\}',
+        why: 'és nem a tartalomjegyzék hosszából' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/chatops-board/src/mdRender.js']),
+        pattern: 'sz-\\$\\{toc\\.length',
+        why: 'a tartalomjegyzék hossza nem azonosító-számláló: h3-tól ütközik' }),
+    ]),
+    lesson: 'AZ EGYEDI AZONOSÍTÓ SAJÁT SZÁMLÁLÓT KÉR. Ha egy azonosítót egy MÁS célú számlálóból vezetünk le, akkor addig működik, amíg a két fogalom véletlenül egybeesik — és pontosan akkor romlik el, amikor a dokumentum bonyolultabb lesz. És amit az operátor olvas, azt a feltöltés ELŐTT át kell nézni: ez a hiba egy átolvasáson derült ki, nem egy őrön.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív + egy tiltó minta) · `npm run verify:doc-html` (9/9). KIMONDVA: az ismétlődő azonosítót a `verify:doc-html` ma NEM kérdezi meg — a visszacsúszást a tiltó minta fogja meg.',
+  }),
+
+
 
 
 ]);
