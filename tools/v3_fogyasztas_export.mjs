@@ -258,7 +258,23 @@ if (flag('--leltar') && existsSync(flag('--leltar'))) {
   const mine = { calls: rows.length, input: rows.reduce((s, r) => s + r.input, 0), cache_write: rows.reduce((s, r) => s + r.cache_write, 0), cache_read: rows.reduce((s, r) => s + r.cache_read, 0), output: rows.reduce((s, r) => s + r.output, 0) };
   const theirs = { calls: ws.calls, ...(ws.totals || {}) };
   const diffs = Object.keys(mine).filter((k) => mine[k] !== theirs[k]).map((k) => `${k}: export ${mine[k]} ≠ leltár ${theirs[k]}`);
-  compare = { leltar: flag('--leltar'), leltar_window: L.window, export: mine, leltar_values: theirs, status: diffs.length ? `NEVEZETT ELTÉRÉS: ${diffs.join(' · ')}` : 'egyezik (hívás és a négy összeg)' };
+  /**
+   * A VERDIKT SZERKEZET, NEM EGY HOSSZÚ MONDAT (R164/4 — SAJÁT LELET, MÉRVE).
+   *
+   * A LELET. Az eltéréseket EGY sztringbe fűztem össze (`diffs.join(' · ')`), és a kimeneten futó
+   * TARTALOM-ŐR — ami helyesen tiltja a 200 karakternél hosszabb szöveges mezőt — ezen a SAJÁT
+   * verdikten bukott el: `túl hosszú szöveg: export.compare_with_leltar.status`. Vagyis az export
+   * NEM KÉSZÜLT EL, és nem azért, mert tartalom szivárgott, hanem mert a saját összegzésem nőtt
+   * hosszúra. Egy őr, ami a saját jelentésünket tiltja ki, a mérést akadályozza meg (KUKA-091
+   * fordítottja: nem az őrt lazítjuk, hanem a jelentést tesszük mérhető alakúra).
+   *
+   * A MEGOLDÁS NEM KIVÉTEL AZ ŐR ALÓL: az eltérések LISTA lesznek (mezőnként egy rövid elem), a
+   * `status` pedig rövid, gépi szó. Így az őr VÁLTOZATLAN szigorral áll, és a verdikt olvasható is.
+   */
+  compare = { leltar: flag('--leltar'), leltar_window: L.window, export: mine, leltar_values: theirs,
+    status: diffs.length ? 'NEVEZETT_ELTERES' : 'EGYEZIK',
+    status_note: diffs.length ? 'mezőnként lentebb (differences)' : 'hívás és a négy összeg egyezik',
+    differences: diffs };
 }
 
 // ── 6. ÖSSZESÍTŐ ──
