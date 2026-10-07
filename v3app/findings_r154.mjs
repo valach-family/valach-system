@@ -2953,6 +2953,45 @@ try {
         db: ac_cli.ok ? ac_cli.env.PGDATABASE : null, user: ac_cli.ok ? ac_cli.env.PGUSER : null });
   }
 
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  // AE — A TITOK VÉGE A SHELL-SZÓ HATÁRA (R166, külső review, Codex, P2)
+  //
+  // A LELET pontos esete: egy gyermek-diagnosztika shell-idézett jelszót ír ki, amiben APOSZTRÓF
+  // van — a shell ezt `'pa'\''ss'` alakban adja, és EGY szónak olvassa. A korábbi alak az ELSŐ záró
+  // idézőjelnél megállt, tehát a jelszó MARADÉKA a naplóba került. Mérve, javítás előtt:
+  // `PGPASSWORD='pa'\''ss'` → `PGPASSWORD=«elrejtve»''ss'`.
+  {
+    part('AE) R166 — a titok-tisztító határa: shell-szó, nem az első idézőjel (külső review, P2)');
+    const glued = String.raw`PGPASSWORD='pa'\''ss' psql -h /tmp`;
+    const ae1 = redactConnStrings(glued);
+    const escQuote = String.raw`PGPASSWORD="pa\"ss" psql`;
+    const ae2 = redactConnStrings(escQuote);
+    step('(ae1) R166/P2: az APOSZTRÓFOT tartalmazó, shell-idézett jelszó TELJESEN eltűnik — a glued `\'…\'\\\'\'…\'` szó is egy érték (RÉGEN: az első záró idézőjelnél megállt, és a maradék a naplóba került)',
+      !/ss/.test(ae1.replace(/PGPASSWORD|«elrejtve»/g, '')) && /«elrejtve»/.test(ae1) && / psql -h \/tmp$/.test(ae1),
+      { tisztitott: ae1 });
+    step('(ae2) R166/P2: a dupla idézeten belüli `\\"` sem zárja a titkot',
+      !/ss/.test(ae2.replace(/PGPASSWORD|«elrejtve»/g, '')) && /«elrejtve» psql$/.test(ae2),
+      { tisztitott: ae2 });
+    // A ZÁRATLAN IDÉZET A SOR VÉGÉIG TART: ahol a határ nem tudható, TÖBBET rejtünk el (KUKA-049).
+    const ae3 = redactConnStrings("PGPASSWORD='nyitva marad a sor vegeig");
+    step('(ae3) R166/P2: a ZÁRATLAN idézet a sor végéig tart — a bizonytalanság nem a megengedő ág',
+      ae3 === 'PGPASSWORD=«elrejtve»', { tisztitott: ae3 });
+    // ÉS AZ ELLENPÁROK: a jogos esetek változatlanok, és a szomszéd szöveg NEM esik áldozatul.
+    const ae4 = redactConnStrings("PGPASSWORD='top secret' password=\"más titok\" pwd=egyszeru");
+    const ae5 = redactConnStrings('rendben, nincs benne titok');
+    const ae6 = redactConnStrings('PGPASSWORD=TITOK; PGUSER=lathato');
+    step('(ae4) R166/P2 ELLENPÁROK: a három jogos alak továbbra is PONTOSAN háromszor rejtőzik el, a titokmentes szöveg változatlan, és a `;` utáni NEM titkos mező megmarad',
+      (ae4.match(/«elrejtve»/g) || []).length === 3 && !/top secret|más titok|egyszeru/.test(ae4)
+      && ae5 === 'rendben, nincs benne titok'
+      && ae6 === 'PGPASSWORD=«elrejtve»; PGUSER=lathato',
+      { harom: ae4, hatarral: ae6 });
+    // ÉS A KAPCSOLATI CÍM ÚTJA VÁLTOZATLAN (a tisztító első passzusa).
+    const ae7 = redactConnStrings('pg_restore: error: connection to postgres://u:TITKOS@gep:5432/db failed; PGPASSWORD=MASIK');
+    step('(ae7) R166/P2: a kapcsolati cím és a jelszó EGYÜTT is eltűnik (a két passzus nem rontja el egymást)',
+      !/TITKOS|MASIK/.test(ae7) && /«kapcsolati cím elrejtve»/.test(ae7) && /«elrejtve»$/.test(ae7),
+      { tisztitott: ae7 });
+  }
+
   const fail = results.filter((r) => !r.pass);
   console.log(`\nR154 battéria: ${results.length - fail.length}/${results.length} PASS${fail.length ? ` — ${fail.length} FAIL` : ''}`);
   console.log('A MÉRÉS HATÓKÖRE: a HTTP-határ és a két feloldó. Üzleti folyamatról, élő AI-ról és felhős');

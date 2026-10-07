@@ -16,6 +16,51 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3203 — A TITOK VÉGÉT A SHELL-SZÓ HATÁRA ADJA (R166, külső review P2)
+
+> **Hatály:** V3 — a mentési/visszatöltési szerszámlánc titok-tisztítója
+> (`tools/lib/vs_pg_target.mjs`). **V2-módosítás nem történt.**
+
+**Dátum:** 2026-10-07 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R166 (a biztonsági
+átolvasás P2-je, `#discussion_r4207550936`) · **KUKA-395**
+
+**A döntés.** A jelszó-érték végét **nem** az első záró idézőjel adja, hanem a **shell-szó** határa:
+a `shellWordEnd` letapogató az értéket egy szóként fogyasztja (aposztróf-idézett szakasz ·
+idézőjel-idézett szakasz `\x` escape-ekkel · escape-elt karakter · sima karakter), amíg idézeten
+**kívüli** szóköz, `&` vagy `;` nem jön. A három korábbi minta helyére **egy** szabály lép. A
+**záratlan** idézet a sor végéig tart.
+
+**Miért — és ez a saját javításom feletti lelet.** Az `R164` köre (`KUKA-371`) azt javította, hogy az
+idézett érték egyáltalán eltűnjön; a határt viszont az első záró idézőjelnél húztam meg. A shell
+máshol húzza: egy **aposztrófot tartalmazó** jelszót `'pa'\''ss'` alakban ír ki, és azt **egy szónak**
+olvassa. Mérve, javítás előtt:
+
+| bemenet | RÉGI kimenet |
+|---|---|
+| `PGPASSWORD='pa'\''ss' psql` | `PGPASSWORD=«elrejtve»''ss' psql` — a **maradék kiszivárgott** |
+| `PGPASSWORD='nyitva marad a sor vegeig` | **változatlan** — a *teljes* jelszó a naplóba |
+
+Ez a `KUKA-203` osztálya a legrosszabb alakjában: a fél-tisztító **bizalmat ad**, miközben
+szivárog — és épp a próba-naplókba, amiket bizonyítékként commitolunk.
+
+**A bizonyíték.** `verify:app-findings-r154` **AE csoport (ae1–ae7)**, a söprésben: a glued aposztróf ·
+az escape-elt idézőjel · a záratlan idézet · **és az ellenpárok a jogos esetekre** (a három megszokott
+alak pontosan háromszor rejtőzik el, a titokmentes szöveg változatlan, a `;` utáni nem-titkos mező
+megmarad, és a kapcsolati címmel együtt is helyes). A battéria **255/255**. **Visszacsúszás-próba
+mérve:** a három régi minta visszaállítására **három pin piros**, köztük a záratlan idézet.
+`proof:pg-restore-safety` **48/48** (E9e), `proof:pg-intent` **10/0 eltérés**,
+`proof:pg-durability` **13/13** — mind valódi PostgreSQL 16.15-en. `verify:kuka` **870/870**.
+
+**És a `KUKA-371` gépi jele a mai otthonra igazítva:** a jele egy kommentsorra mutatott, amit a
+javítás elvitt. A szabály nem változott (az idézett érték teljesen eltűnik), csak **erősebb** lett,
+ezért a minta mostantól a `shellWordEnd` letapogatóra áll — a védő erő megmarad: ha a letapogató
+eltűnik, a jel piros.
+
+**Amit ez NEM állít.** Nem teljes shell-elemző, és nem állítja, hogy minden naplózó út át van
+vizsgálva: ez a feloldó a pg-láncok gyermek-diagnosztikáját tisztítja, és a hatóköre ennyi.
+
+---
+
 ## D-VS-3202 — A TIZENKILENC PÓTOLHATÓ LEFEDÉSI HIÁNY LEZÁRVA, ÉS AZ ELFOGADÁSI CÉL KÜLÖN MÉRVE (R166 §3)
 
 > **Hatály:** V3 — a tudás-regiszter, a felület útmutatói és a lefedési őr. **V2-módosítás nem történt.**

@@ -17,6 +17,7 @@ RÉGI munkamenet zárása volt; ez a lap az ÚJ munkamenet eredménye.
 | **A review által FEDETT SHA** | `3fea359` — az azóta született **összes** munka (a nyitott P1 javítása, az R166 §1 és §3) **NEM fedett**: a mai fejre nincs független review-bizonyíték |
 | **R166 §0 átadás** | **KÉSZ** — a checkpoint ellenőrizve, a régi író leállt, a munka a PR aktuális fejére épült (force-push nélkül) |
 | **R166/P1 (a nyitott review-szál)** | **KÉSZ és MÉRVE** — `D-VS-3201` · `KUKA-393` |
+| **A 3747c12 fejre jött ÚJ P2** | **KÉSZ és MÉRVE** — a titok-tisztító határa (`D-VS-3203` · `KUKA-395`); lásd a 2.1 pontot |
 | **R166 §1 (meghívóképernyő)** | **KÉSZ és MÉRVE** — a böngészős mérés, ami eddig **bejárhatatlan** volt, lefutott |
 | **R166 §3 (19 pótolható lefedési hiány)** | **KÉSZ** — elfogadási cél: pótolható **0** · osztályozatlan **0** (`LT2` ZÖLD); `D-VS-3202` · `KUKA-394` |
 | **R166 §2 (valódi két szereplős bejárás)** | **NEM KÉSZÜLT EL** — átadva, lásd a 6. szakaszt. Nem állítom késznek |
@@ -70,6 +71,31 @@ fogyasztó** (node-postgres a kódban, libpq a `pg_dump`/`psql` gyermekben) **m�
 tehát erősebbek: a kapu **mindkét** névre megáll. A `KUKA-326` gépi jele is a mai alakra igazítva.
 
 A szálra a PR-on **válaszoltam**, a mérésekkel együtt.
+
+### 2.1 ÉS A FELTOLT FEJRE JÖTT EGY ÚJ P2 — MEGMÉRVE ÉS JAVÍTVA
+
+A `3747c12` fejen induló biztonsági átolvasás egy **meg nem válaszolt P2**-t hozott elő, amit a
+korábbi körök nem láttak (`#discussion_r4207550936`): a titok-tisztító (`redactConnStrings`) az
+**escape-elt idézőjelet** nem fogyasztja el. **Nem hittem el — megmértem**, és a lelet **valódi**:
+
+| bemenet | RÉGI kimenet |
+|---|---|
+| `PGPASSWORD='pa'\''ss' psql` | `PGPASSWORD=«elrejtve»''ss' psql` — a jelszó **maradéka kiszivárgott** |
+| `PGPASSWORD='nyitva marad a sor vegeig` | **változatlan** — a *teljes* jelszó a naplóba |
+
+A shell az aposztrófot tartalmazó jelszót **egy szónak** olvassa; a határt tehát nem egy
+idézőjel-pár adja. A javítás a lelet saját javaslata szerint: a titkot a **megbízható szó-határig**
+rejtjük el (`shellWordEnd`), és ahol a határ nem tudható (záratlan idézet), a **sor végéig** —
+titoknál a bizonytalanság nem a megengedő ág.
+
+**A bizonyíték:** `verify:app-findings-r154` **AE csoport (ae1–ae7)** a söprésben, az ellenpárokkal
+együtt (a három megszokott alak továbbra is pontosan háromszor rejtőzik el, a titokmentes szöveg
+változatlan) → a battéria **255/255**. **Visszacsúszás-próba mérve:** a három régi minta
+visszaállítására **három pin piros**. A pg-láncok újramérve: `proof:pg-restore-safety` **48/48**
+(E9e) · `proof:pg-intent` **10/0** · `proof:pg-durability` **13/13**.
+
+**És a `KUKA-371` gépi jele a mai otthonra igazítva** — a jele egy kommentsorra mutatott, amit a
+javítás elvitt; a szabály nem változott, csak erősebb lett. Rögzítve: `D-VS-3203` · `KUKA-395`.
 
 ---
 
@@ -177,11 +203,11 @@ megszakítást bukásnak** veszi, nem „nincs is baj"-nak.
 
 | lánc | verdikt |
 |---|---|
-| `verify:app-findings-r154` (a HTTP-határ és a pg-feloldók) | **ZÖLD — 250/250** (AC csoport: ac1–ac8 új) |
+| `verify:app-findings-r154` (a HTTP-határ és a pg-feloldók) | **ZÖLD — 255/255** (AC csoport ac1–ac8 és AE csoport ae1–ae7 új) |
 | `proof:pg-intent` | **ZÖLD** — 10 állítás, mindkét tárolón, **0 eltérés**, valódi PostgreSQL 16.15 |
 | `proof:pg-restore-safety` | **ZÖLD — 48/48** (E10a–E10e új, Unix-socketen) |
 | `proof:pg-durability` | **ZÖLD — 13/13** |
-| `verify:kuka` | **ZÖLD — 867/867** (KUKA-393 · KUKA-394 új) |
+| `verify:kuka` | **ZÖLD — 870/870** (KUKA-393 · KUKA-394 · KUKA-395 új) |
 | `verify:tutor` | **ZÖLD — 94/94** (két új állítás: a zárt listás `auth_view`, és hogy a nézet-nevek a felület forrásában is megvannak) |
 | `verify:i18n` | **ZÖLD — 49/49** · ellenpróba 6/6 (809 → **821** kulcs, mind a három bekapcsolt nyelven) |
 | `verify:assistant` | **ZÖLD — 55/55** |
@@ -295,3 +321,5 @@ nélkül; titok-minta ellenőrzéssel **0 találat**).
 | **D-VS-3202** | a 19 pótolható lefedési hiány lezárva, és az elfogadási cél külön mérve |
 | **KUKA-393** | egy címet annyiféleképpen olvasnak, ahány fogyasztó futtatja |
 | **KUKA-394** | amiből egy példa van, abból nem szabad szabályt olvasni — és a regiszter zöldje nem bejárhatóság |
+| **D-VS-3203** | a titok végét a shell-szó határa adja, nem az első záró idézőjel |
+| **KUKA-395** | egy titok-tisztító határát az a nyelvtan adja, ami a szöveget előállította |

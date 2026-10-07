@@ -487,25 +487,72 @@ export function restoreOutcome({ exitCode = 0, stderr = '' } = {}) {
  * pedig jelszó áll. A szabály ebben a rendszerben nem tűr kivételt: `DATABASE_URL` és bármely kulcs
  * soha nem kerül naplóba (CLAUDE.md 1. szakasz) — ezért minden kiírt szöveg ezen a tisztítón megy át.
  */
+/**
+ * A TITOK VÉGÉT A SHELL-SZÓ HATÁRA ADJA, NEM AZ ELSŐ ZÁRÓ IDÉZŐJEL (R166, külső review, Codex, P2).
+ *
+ * A LELET: a korábbi alak az idézett értéket az ELSŐ záró idézőjelig vitte
+ * (`'[^']*'` · `"[^"]*"`). A shell viszont a `'pa'\''ss'` alakot EGY SZÓNAK olvassa (aposztróf a
+ * jelszóban), és a dupla idézeten belül a `\"` sem zár. MÉRVE a lelet pontos esetén:
+ * `PGPASSWORD='pa'\''ss'` → `PGPASSWORD=«elrejtve»''ss'` — a jelszó MARADÉKA a naplóba került.
+ *
+ * A VÁLASZ A LELET SAJÁT JAVASLATA: a titkot a megbízható FIELD-HATÁRIG rejtjük el, és azt a határt
+ * a shell szabálya adja — nem egy idézőjel-pár. Ez a letapogató az értéket EGY szóként fogyasztja:
+ * aposztróf-idézett szakasz (abban nincs escape) · idézőjel-idézett szakasz (`\x` escape-ekkel) ·
+ * escape-elt karakter · sima karakter — amíg IDÉZETEN KÍVÜLI szóköz, `&` vagy `;` nem jön. A nyitott,
+ * záratlan idézet a sor VÉGÉIG tart: ahol a határ nem tudható, a többet rejtünk el, nem a kevesebbet
+ * (KUKA-049 — a titoknál a bizonytalanság nem a megengedő ág).
+ */
+function shellWordEnd(s, i) {
+  let k = i;
+  while (k < s.length) {
+    const c = s[k];
+    if (c === '\\') { k += 2; continue; }
+    if (c === "'") {
+      const z = s.indexOf("'", k + 1);
+      if (z < 0) return s.length;                       // záratlan idézet: a sor végéig
+      k = z + 1; continue;
+    }
+    if (c === '"') {
+      let z = k + 1;
+      while (z < s.length) {
+        if (s[z] === '\\') { z += 2; continue; }        // `\"` NEM zár
+        if (s[z] === '"') break;
+        z += 1;
+      }
+      if (z >= s.length) return s.length;               // záratlan idézet: a sor végéig
+      k = z + 1; continue;
+    }
+    if (c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '&' || c === ';') return k;
+    k += 1;
+  }
+  return s.length;
+}
+
 export function redactConnStrings(text) {
   let s = String(text ?? '');
   s = s.replace(/\b(postgres(?:ql)?|pg):\/\/[^\s'"]*/gi, '«kapcsolati cím elrejtve»');
   /**
-   * AZ IDÉZŐJELES ÉRTÉK IS TELJESEN ELTŰNIK (R164, KÜLSŐ REVIEW, Codex, P2).
+   * EGY HELYEN, HÁROM ALAK HELYETT EGY SZABÁLY (R164 P2 → R166 P2).
    *
-   * A LELET: az első alakom érték-osztálya KIZÁRTA az idézőjelet (`[^\s&'";]+`), ezért a
-   * megszokott `PGPASSWORD='top secret'` és `password="top secret"` alakra EGYÁLTALÁN nem illett —
-   * a jelszó változatlanul a naplóba került volna. Idézőjel nélküli, szóközt tartalmazó értéknél
-   * pedig csak az ELSŐ szó tűnt el. A szabály nem tűr kivételt: titok sem naplóba, sem parancssorba.
-   *
-   * MOSTANTÓL három alak, EGY helyen: aposztróf-idézett · idézőjel-idézett · idézet nélküli (a
-   * sor/elválasztó végéig). Az idézett alaknál a ZÁRÓ idézőjelig megyünk, tehát a belső szóköz is
-   * eltűnik.
+   * Az R164-es köre három külön mintát adott (aposztróf-idézett · idézőjel-idézett · idézet nélküli),
+   * és a kettő közül az idézett kettő az első záró idézőjelnél megállt. Mostantól a kulcsot keressük
+   * meg, az ÉRTÉK végét pedig a `shellWordEnd` letapogató adja — tehát a belső szóköz, az
+   * escape-elt idézőjel és a `'pa'\''ss'` alakú glued szó is TELJESEN eltűnik.
    */
-  s = s.replace(/\b(PGPASSWORD|PGPASSFILE|password|passwd|pwd)(\s*=\s*)'[^']*'/gi, '$1$2«elrejtve»');
-  s = s.replace(/\b(PGPASSWORD|PGPASSFILE|password|passwd|pwd)(\s*=\s*)"[^"]*"/gi, '$1$2«elrejtve»');
-  s = s.replace(/\b(PGPASSWORD|PGPASSFILE|password|passwd|pwd)(\s*=\s*)[^\s&;'"]+/gi, '$1$2«elrejtve»');
-  return s;
+  const kulcs = /\b(PGPASSWORD|PGPASSFILE|password|passwd|pwd)(\s*=\s*)/gi;
+  let ki = '';
+  let pos = 0;
+  let m;
+  while ((m = kulcs.exec(s)) !== null) {
+    const ertekKezd = m.index + m[0].length;
+    const vege = shellWordEnd(s, ertekKezd);
+    if (vege <= ertekKezd) { kulcs.lastIndex = ertekKezd; continue; }  // nincs érték: nincs mit elrejteni
+    ki += s.slice(pos, ertekKezd) + '«elrejtve»';
+    pos = vege;
+    kulcs.lastIndex = vege;
+  }
+  ki += s.slice(pos);
+  return ki;
 }
 
 /**
