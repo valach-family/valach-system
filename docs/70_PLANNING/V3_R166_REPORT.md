@@ -545,6 +545,7 @@ megszakítást bukásnak** veszi, nem „nincs is baj"-nak.
 | `verify:decision-numbers` | **ZÖLD — 4/4** |
 | `verify:lefedes` | **17 ZÖLD / 1 PIROS** — a `LT` a nevesített fejlesztési résen (`LT2` és `LR1` ZÖLD: pótolható 0 · osztályozatlan 0 · **33/33 fedett végpont**) |
 | `verify:browser-gate` (`test:e2e` + `proof:core-ux` + `proof:demo-walk`) | **ZÖLD** — `test:e2e + proof:core-ux` **378 s**, `proof:demo-walk` **440 s** · **134 helyzet teljesült / 0 bukott / 0 ingadozó / 0 kihagyott** · **24 próba-fájl**, mind a mérésben (a NYOLC P2-javítás UTÁN, a mai fejen újramérve) |
+| `verify:v3ref` (mag-mutációs battéria) | **ZÖLD — 253/253 elkapva, 0 túlélte** · *TELJES ÉS TISZTA*, **a MAI fejen újramérve** (a mag két új függvénye miatt — lásd a 6.4 pontot) |
 | `verify:external-checks` | **PIROS / NEM TELJES** — a hat hiányzó program **nem futott** (R166 §4, átadva) |
 
 ---
@@ -594,6 +595,30 @@ program tartalmi verdiktje hiányzik. Amit az átvevőnek tudnia kell:
   `c2cccd1` fejen) **NEM fedi** ezt a két új, exportált függvényt, és a hat külső program sem a
   `3fea359`-es magot méri. Ezért a §4 futtatása ELŐTT a mag battériája is futtatandó a mai fejen
   (`npm run verify:v3ref`) — ezt **elindítottam**, a verdiktje a 6.4 pontban áll.
+
+### 6.4 A MAG MUTÁCIÓS BATTÉRIÁJA — ÚJRAMÉRVE A MAI FEJEN
+
+A 6.2 pontban kimondtam, hogy a mag kódja **igenis változott** (`forgetIntent` és
+`commandResultReadable`), tehát a korábbi zöld nem fedi a két új függvényt. Ezért a battériát
+lefuttattam a mai fejen:
+
+| | |
+|---|---|
+| **verdikt** | **TELJES ÉS TISZTA** |
+| mutáció | **253 · 253 elkapva · 0 túlélte** |
+| mérőhiba · rossz próba · elavult horgony | **0 · 0 · 0** |
+| lefedettség a részletes eredményből | **253/253** · hiány 0 · duplikátum 0 |
+| egység-darabolás | **88 egység** (a futtató saját mérésére finomítva; a költségvetés változatlan) |
+| legrosszabb egység falióra | **9 586 ms** · a korlát **15 000 ms** · minden egység belefér |
+| norma-lánc | **169/169** elvárt klauzula-sor, hiányzó 0 · idegen 0 |
+
+**Tehát a két új mag-függvény nem rontotta el a battériát** — és ezt most már a mai fejen mért
+bizonyíték mondja, nem egy korábbi futás.
+
+**AMIT A FUTTATÓ MAGA MOND KI, ÉS ÁTVESZEM:** *„az egység-fájl nincs kriptográfiailag a futásához
+kötve — kézzel írt egység-fájl is beolvadna; a forrás-lenyomat egyezése szűkít, de nem bizonyít"*
+(nevesített függő: aláírt egység-tanú). Ez a korlát nem ebben a körben keletkezett, és nem is ebben
+a körben szűnik meg.
 
 ### 6.3 Ami korábbról nyitott, és most sem változott
 
