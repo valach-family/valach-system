@@ -17,8 +17,8 @@ korábbi körök számai **történeti adatok**, nem végállapot — ahol elté
 | **MÉRÉS IDEJE** | 2026-10-07, 04:40 UTC → a csomag zárása (a `--from` a parancs board-időbélyege). A hosszú láncok: a böngészős kapu 09:35 és (újra) 11:50 UTC · a mag-battéria 09:49 UTC · a külső-ellenőrző 10:04 UTC |
 | **A REVIEW ÁLTAL FEDETT SHA** | `76378f3` — a külső fél **hét körben** mért, eddig a fejig. **A mai fejnek NINCS új, független review-bizonyítéka** |
 | **FÜGGETLEN REVIEW ÁLLAPOTA** | **FÜGGŐ a mai fejre.** A korábbi limit feloldódott; a limit időszaka és visszaállása az üzenetből **nem bizonyított**, ezért nem nevezem meg (6. szakasz). A **hét kör 31 megjegyzése** mind javítva, mért bizonyítékkal, és **mind a 31 szál megválaszolva és lezárva** — a PR-on ma **nincs nyitott review-szál** (7. szakasz) |
-| **ÖSSZVERDIKT** | **helyi ellenőrzések kész / független review FÜGGŐ**, EGY nevezett piros lánccal (a külső-ellenőrző: lásd lentebb és az 5.3 pontot). Ez **NEM merge-készség** — nincs merge, nincs lezárás |
-| **A MARADÉK RÉS** | **A külső-ellenőrző lánc NEM teljes.** A 19 program közül 14 futott le (13 MEGFELEL · 1 ELTÉRÉS: `r59a`, időtúllépés), **5 NEM FUTOTT** (`r57a` · `r59` · `r57` · `r55` · `r53`) — tehát NEM IGAZOLT, nem zöld (KUKA-200 · KUKA-206). A `verify:lefedes` 20 hiány-kulcsa nevesítve áll (1.2–1.3). Az ÁTÁLLÁSI alapállás-mentés és a valódi szolgáltatói AI-mérés továbbra is nyitott (8. szakasz) |
+| **ÖSSZVERDIKT** | **RÉSZLEGES — és a „helyi ellenőrzések kész" megfogalmazás NEM helyes** (R166 javítása, és igaza van). Három tétel miatt: (a) a külső-ellenőrző lánc **hiányos** — HAT program tartalmi verdiktje nincs meg (öt nem futott + az `r59a` időtúllépett); (b) a `verify:lefedes` **PIROS** (20 hiány-kulcs); (c) az R164-ben kért **valódi** két szereplős bejárás **NINCS befejezve** — a `D-VS-3199` felületfüggő elrejtés hasznos védelem, de nem teljesíti az eredeti kérést. Független review: **FÜGGŐ**. Ez **NEM merge-készség** — nincs merge, nincs lezárás |
+| **A MARADÉK RÉS** | **HAT program tartalmi verdiktje hiányzik, nem öt** (R166 javítása): `r57a` · `r59` · `r57` · `r55` · `r53` **nem futott**, az `r59a` pedig **időtúllépéssel** zárt, tehát a tartalmáról sincs mért állítás — mind a hat NEM IGAZOLT, nem zöld (KUKA-200 · KUKA-206). Ezen kívül: a `verify:lefedes` **20 hiány-kulcsa** (1.2–1.3), az R164-ben kért **valódi két szereplős bejárás**, a meghívóképernyő vissza/kilépés útja, az ÁTÁLLÁSI alapállás-mentés és a valódi szolgáltatói AI-mérés (8. szakasz) |
 | **FOGYASZTÁS (a csomag ablakán)** | **992 hívás** · fő-szál kontextusmedián **388 389,5** (max 783 667) · ügynök-bemenet **0** (nulla al-ügynök) · lefedettség: **teljes** (1 átirat, 2408 hívás, minden válasz usage-dzsal). A mérő sávja a záráskor: **FIGYELMEZTETÉS** (`300–400 ezer`). **DE a határt a munkablokk KÖZBEN átléptük**, és ezt kimondom: **483 hívás futott 400 ezer fölött**, és egy korábbi, ugyanerre az ablakra mért pillanatkép **407 559**-et adott (VÁLTÁS). A medián tehát a sávhatáron áll. A **következtetést a szigorúbb olvasat szerint** vontam le: a lezárás **célzott** ellenőrzés, új feltárás és opcionális teljes söprés nélkül, és a **következő önálló nagy blokk friss beszélgetésben induljon** (`D-VS-3083`) |
 
 ### 1.1 A LÁNCOK ÉS A VERDIKTEK — EZEN A FEJEN MÉRVE
@@ -107,7 +107,7 @@ hogy a kapcsolat oda megy, ahová hittük. A kapcsolat adatai **környezeti vál
 | **előre létező cél változatlan** | E1: jelző-sorral előre létrehozott, az ELŐTAGOT hordozó adatbázis célként → a próba 3-as kilépéssel megáll, a jelző sor megvan, és helyette mást sem generál |
 | **forrás változatlan** | E2: a bukott visszatöltés után a séma és a tábla-szám azonos (41/41), és a **teljes sor-tartalomra** mérve **egyetlen sor sem tűnt el és egyetlen sor sem változott meg**. E2c: a próba saját előkészítésének hozzáadása **kimondott és mért** (4 sor) — a második review-kör leletére (`KUKA-380`) |
 | **sikeres friss cél** | E3: a próba végig zöld a generált célon, és a végén eltakarítja |
-| **sikertelen restore** | E4: `warning` ÉS `error` EGYÜTT, 1-es kilépés → **FAIL**, nevezett indokkal; a visszaolvasás lépései el sem indulnak. E4e: csak figyelmeztetés + 1-es kilépés → PASS, de a tartalmi visszaolvasás TÉNYLEG lefut |
+| **sikertelen restore** | E4: `warning` ÉS `error` EGYÜTT, 1-es kilépés → **FAIL**, nevezett indokkal; a visszaolvasás lépései el sem indulnak. **E4e (JAVÍTOTT SZÖVEG, R166 lelete): csak figyelmeztetés + NEM NULLA kilépés → szintén FAIL** — a kilépési kód dönt, nem a kimenet szavai, és a tartalmi visszaolvasás **el sem indul**; a saját cél a bukás után is eltakarítva (mérve: `E4e1`–`E4e4` és `E9b`). *A korábbi „→ PASS" megfogalmazás a lánc egy KORÁBBI alakját írta le, és a mai kódra NEM igaz — történeti téves állítás volt, nem mai bizonyíték.* |
 | **párhuzamos névütközés** | E5: a VALÓDI hurokban (`acquireFreshTarget`), beadott versenyzővel: a mérés és a `CREATE` közé befér egy másik futás → 42P04 → a hurok **nem veszi át**, új nevet generál, és a versenyző adata érintetlen |
 | **megszakadt futás** | E6: SIGTERM a visszatöltés közben → kilépés **130**, a megszakítás-ág lefut, a saját cél eltakarítva, a forrás és az idegen adatbázis érintetlen. E6e: **SIGKILL** → a maradék OTT marad, a KÖVETKEZŐ futás **megnevezi**, de nem dobja el |
 | *(ráadás)* titok a naplóban | E8: a jelszó és a `postgres://…` cím egyetlen kimeneti sorban sem jelenik meg |
@@ -539,8 +539,12 @@ saját levezetésem felé. Ez a két bejegyzés együtt a csomag legdrágább ta
 - **Nem** állítja, hogy a mai fejet (`76378f3`) független fél elfogadta — és a **válaszolt vagy lezárt
   szál nem egyenlő az elfogadással**. A hat kör mind a 30 szálát megválaszoltam és lezártam, tehát a
   PR-on ma nincs nyitott review-szál; ez **nem** független elfogadás.
-- **Nem** állítja, hogy a külső-ellenőrző lánc zöld. **Nem teljes**: 5 program nem futott, egy
-  (`r59a`) időtúllépéssel zárt. A nem futott **nem „részben"**, és nem zöld (KUKA-200 · KUKA-206).
+- **Nem** állítja, hogy a külső-ellenőrző lánc zöld, és **nem** állítja, hogy csak öt tétel hiányzik:
+  **HAT** program tartalmi verdiktje nincs meg (öt nem futott + az `r59a` időtúllépett). A nem futott
+  **nem „részben"**, és nem zöld (KUKA-200 · KUKA-206).
+- **Nem** állítja, hogy a helyi ellenőrzések KÉSZEK. A `D-VS-3199` felületfüggő elrejtés **nem**
+  teljesíti az R164-ben kért VALÓDI két szereplős bejárást, és a lefedési lánc piros — az összverdikt
+  ezért **RÉSZLEGES** (1. szakasz).
 - **Nem** állítja, hogy a hosszú láncok a MAI fejen futottak, az egy újramért böngészős kapun kívül: a
   mag-mutációs battéria és a külső-ellenőrző a `c2cccd1` fejen futott, és a különbség nevezett (1. szakasz).
 - **Nem** állítja, hogy a PostgreSQL-mérés a Railway üzemére vagy a 18-as verzióra érvényes.
