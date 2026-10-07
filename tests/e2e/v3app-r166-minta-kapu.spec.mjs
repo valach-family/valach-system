@@ -102,10 +102,31 @@ test('R166-MK2 — ÁLTALÁNOS ŐR: minta nélkül MINDEN felkínált útmutató
       continue;
     }
     const r = await walkTour(anna.page, t);
-    jelentes.push(r.bajok.length ? `${t}: MEGSZAKADT — ${r.bajok.join(' · ')}` : `${t}: ${r.lepes}/${r.lepes} OK`);
+    /**
+     * HÁROM KIMENET, ÉS CSAK AZ EGYIK BUKÁS (`KUKA-216`):
+     *   · végigvihető                → `OK`
+     *   · a FELHASZNÁLÓ műveletére vár (`task`) → `TASK-IG` — MÉRT tény, nem bukás: a bejáró nem
+     *     tud meghívót létrehozni vagy jogot kiadni, tehát a lépésen TÚL nem tud mérni;
+     *   · NEVEZETT megszakadás vagy nem létező cél → `MEGSZAKADT` — EZ a bukás.
+     */
+    if (r.bajok.length) jelentes.push(`${t}: MEGSZAKADT — ${r.bajok.join(' · ')}`);
+    else if (r.taskStop) jelentes.push(`${t}: TASK-IG ${r.elert}/${r.lepes} — a felhasználó műveletére vár (${r.taskStop})`);
+    else jelentes.push(`${t}: ${r.lepes}/${r.lepes} OK`);
     if (await anna.page.getByTestId('tour-exit').count()) await anna.page.getByTestId('tour-exit').click();
   }
   const megszakadt = jelentes.filter((x) => /MEGSZAKADT/.test(x));
   expect(megszakadt.join(' | ') || 'egy sem szakadt meg',
-    `minta nélkül minden felkínált útmutató végigvihető — mérve: ${jelentes.join(' | ')}`).toBe('egy sem szakadt meg');
+    `minta nélkül minden felkínált útmutató végigvihető a felhasználó műveletét NEM igénylő lépéseken — mérve: ${jelentes.join(' | ')}`).toBe('egy sem szakadt meg');
+
+  /**
+   * ÉS A MÉRÉS NEM LEHET ÜRES: ha minden útmutató már az ELSŐ lépésén task-ra várna, a fenti
+   * állítás üresen is zöld lenne. Ezért kimondjuk, hogy VAN teljesen bejárt útmutató — és hogy a
+   * MINTÁHOZ KÖTÖTT hét közül egy sem hordoz task-ot, tehát a lelet osztálya tényleg mérve van.
+   */
+  const teljes = jelentes.filter((x) => / OK$/.test(x));
+  expect(teljes.length, `van teljesen bejárt útmutató ebben a fiókban — mérve: ${jelentes.join(' | ')}`).toBeGreaterThan(4);
+  const mintasTask = Object.values(TOURS).filter((t) => t.requires_demo_fixture === true)
+    .filter((t) => t.steps.some((l) => l.task !== null && l.task !== undefined)).map((t) => t.id);
+  expect(mintasTask.join(' · ') || 'egyik sem',
+    'a mintához kötött útmutatók közül EGY SEM vár a felhasználó műveletére — tehát a task-megállás nem fedi el ezt az osztályt').toBe('egyik sem');
 });

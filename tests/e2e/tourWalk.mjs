@@ -127,6 +127,24 @@ export async function walkTour(page, tourId) {
      * Ha a cél nem megnyomható (szöveg, tábla, panel), a kattintás elmarad: nem a próba dönti el,
      * mi vezérlő, hanem a lap.
      */
+    /**
+     * ÉS AHOL A LÉPÉS A FELHASZNÁLÓ SAJÁT MŰVELETÉRE VÁR, OTT A BEJÁRÁS MEGÁLL — MÉRT TÉNYKÉNT, NEM
+     * BUKÁSKÉNT (R166, hetedik kör · SAJÁT LELET, a minta-kapu viselkedés-őre mérte ki).
+     *
+     * A LELET: az általános őröm a `tour.invite` és a `tour.scopeLifecycle` bejárását MEGSZAKADÁSNAK
+     * írta. Megmértem: mindkettőnél a megálló lépés `task`-ot DEKLARÁL (`invite.created` ·
+     * `grant.saved`), tehát az útmutató SZÁNDÉKOSAN vár — a `KUKA-228` szabálya szerint amit a
+     * bemutató nem nyom meg helyettünk, arra VÁRNI kell. A bejáró nem tud meghívót létrehozni és
+     * jogot kiadni, tehát a lépésen TÚL nem tud mérni: a „Tovább" megnyomása ilyenkor HAMIS
+     * megszakadást gyártott volna, és a mérés a saját korlátját mondta volna a rendszer hibájának
+     * (`KUKA-216`: a verdikt nem mutathat a mérés hatókörén túl).
+     *
+     * A MEGÁLLÁS NEM NÉMA (`KUKA-012`): a visszatérés megnevezi a lépést, tehát a jelentésben
+     * látszik, meddig jutott a mérés — és a hívó dönti el, hogy az elég-e neki.
+     */
+    if (steps[i].task !== null && steps[i].task !== undefined) {
+      return { bajok, lepes: steps.length, elert: i + 1, taskStop: `${steps[i].id} (${steps[i].task})` };
+    }
     if (i + 1 < steps.length) {
       const cel = page.getByTestId(steps[i].target).first();
       if (await cel.count() > 0 && await cel.isVisible()) {
@@ -158,6 +176,6 @@ export async function walkTour(page, tourId) {
       await page.getByTestId('tour-next').click();
     }
   }
-  return { bajok, lepes: steps.length };
+  return { bajok, lepes: steps.length, elert: steps.length, taskStop: null };
 }
 

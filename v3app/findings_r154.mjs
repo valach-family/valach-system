@@ -3572,10 +3572,31 @@ try {
     const viselkedesProba = join(ROOT, 'tests/e2e/v3app-r166-minta-kapu.spec.mjs');
     const vanProba = existsSync(viselkedesProba);
     const probaSzoveg = vanProba ? readFileSync(viselkedesProba, 'utf8') : '';
-    step('(ar8) KUKA-414: a DINAMIKUS horgonyra VISELKEDÉS-mérés áll (a minta nélküli vállalkozásban MINDAZ, amit a kiszolgáló felkínál, végigvihető) — és a próba a KÖZÖS bejárót futtatja',
+    step('(ar8) KUKA-414: a DINAMIKUS horgonyra VISELKEDÉS-mérés áll (a minta nélküli vállalkozásban MINDAZ, amit a kiszolgáló felkínál, végigvihető) — és a próba a KÖZÖS bejárót futtatja, ELLENPÁRRAL a minta LÉTÉRE',
       vanProba && /requires_demo_fixture/.test(probaSzoveg) && /from '\.\/tourWalk\.mjs'/.test(probaSzoveg)
       && /switchUI\(anna\.page, elsoBook\)/.test(probaSzoveg),
       { proba: vanProba ? 'tests/e2e/v3app-r166-minta-kapu.spec.mjs' : 'NINCS' });
+
+    /**
+     * ÉS A VISELKEDÉS-MÉRÉS HÁROM KIMENETŰ, ÉS NEM TUD ÜRESEN ZÖLD LENNI (SAJÁT LELET, a kapu mérte
+     * ki · `KUKA-215` · `KUKA-216`).
+     *
+     * AZ ELSŐ ALAKOM BUKÁSNAK ÍRTA azt is, amikor az útmutató a FELHASZNÁLÓ műveletére vár
+     * (`task`) — a bejáró nem tud meghívót létrehozni vagy jogot kiadni, tehát a mérés a SAJÁT
+     * korlátját mondta volna a rendszer hibájának. Mostantól: végigvihető · TASK-IG (mért tény) ·
+     * MEGSZAKADT (bukás). ÉS hogy a task-megállás ne tudja kiüresíteni az állítást, a lap kimondja,
+     * hogy VAN teljesen bejárt útmutató, és hogy a mintához kötöttek közül EGY SEM hordoz task-ot.
+     */
+    step('(ar9) KUKA-414: a viselkedés-mérés HÁROM kimenetű (OK · TASK-IG · MEGSZAKADT), és csak a harmadik bukás — a bejáró korlátja nem a rendszer hibája',
+      /taskStop/.test(probaSzoveg) && /TASK-IG/.test(probaSzoveg)
+      && /tests\/e2e\/tourWalk\.mjs/.test('tests/e2e/tourWalk.mjs')
+      && /steps\[i\]\.task !== null/.test(readFileSync(join(ROOT, 'tests/e2e/tourWalk.mjs'), 'utf8')));
+
+    step('(ar10) KUKA-215: és az állítás NEM tud üresen zöld lenni — a lap kimondja, hogy VAN teljesen bejárt útmutató, és hogy a mintához kötöttek közül egy sem vár a felhasználóra',
+      /toBeGreaterThan\(4\)/.test(probaSzoveg) && /mintasTask/.test(probaSzoveg)
+      && Object.values(TOURS).filter((t) => t.requires_demo_fixture === true)
+        .every((t) => t.steps.every((l) => l.task === null || l.task === undefined)),
+      { mintahoz_kotott: Object.values(TOURS).filter((t) => t.requires_demo_fixture === true).length });
   }
 
   const fail = results.filter((r) => !r.pass);

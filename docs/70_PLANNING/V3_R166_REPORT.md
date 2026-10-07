@@ -721,7 +721,7 @@ A javítás a kérdés **irányát** fordítja meg: nem „megvan-e a kért", ha
 | a négy további útmutató deklarálja a feltételt | `ar6` | **ZÖLD** |
 | a letapogató MINDEN üres-állapotos lap-függvényt olvas | `ar7` | **ZÖLD** |
 | **a dinamikus horgonyra VISELKEDÉS-mérés áll** | **`ar8`** + `R166-MK0…MK2` | **ZÖLD** |
-| a teljes battéria | `verify:app-findings-r154` | **ZÖLD — 305/305** |
+| a teljes battéria | `verify:app-findings-r154` | **ZÖLD — 307/307** |
 | a tanulságok gépi jelei | `verify:kuka` | **ZÖLD — 931/931** |
 | a három pg-lánc | `proof:pg-restore-safety` · `-intent` · `-durability` | **ZÖLD — 49/49 · 10/0 · 13/13** |
 | a fogyasztás-mérő ellenpróbái | `verify:fogyasztas-meres` | **ZÖLD — 18/18** |
@@ -740,6 +740,50 @@ A javítás a kérdés **irányát** fordítja meg: nem „megvan-e a kért", ha
 állítja és a régit **tiltja**; az `aq6`/`aq7` kapuzott készlete a **regiszterből** jön, nem három
 leírt névből (`KUKA-045`); az `al2` jelenete megkapta a **minta tényét** (az a csoport a készlet-jog
 kapuját méri, nem a mintáét); az `ap9` és a `KUKA-404`/`KUKA-407` gépi jele a **mai otthonra** mutat.
+
+#### ÉS A KAPU PIROSSAL KEZDTE — A SAJÁT ŐRÖM VOLT TÚL ERŐS
+
+A viselkedés-őr első futása **PIROS** volt: a 137 helyzetből **1 bukott**, és a bukó a saját, most írt
+`R166-MK2`. Két útmutató bejárását „MEGSZAKADT"-nak írta — `tour.invite` és `tour.scopeLifecycle`.
+
+**NEM HITTEM EL, MEGMÉRTEM — ÉS A HIBA AZ ENYÉM VOLT:**
+
+| útmutató | a megálló lépés | mit deklarál |
+|---|---|---|
+| `tour.invite` | `s5` → `invite-submit` | **`task: "invite.created"`** |
+| `tour.scopeLifecycle` | `s3` → `member-scope-row-dokumentumok` | **`task: "grant.saved"`** |
+
+Vagyis mindkettő olyan lépésen áll meg, ami **a felhasználó saját műveletére vár** — a `KUKA-228`
+szabálya szerint joggal: *amit a bemutató nem nyom meg helyettünk, arra VÁRNI kell.* A bejáró nem tud
+meghívót létrehozni és jogot kiadni, tehát a lépésen **túl nem tud mérni**. Az első alakom a saját
+korlátját mondta volna a rendszer hibájának (`KUKA-216`: a verdikt nem mutathat a mérés hatókörén túl).
+
+**A JAVÍTÁS — HÁROM KIMENET, ÉS CSAK AZ EGYIK BUKÁS:**
+
+| kimenet | mit jelent | bukás? |
+|---|---|---|
+| `OK` | minden lépés végigvihető | nem |
+| **`TASK-IG n/m`** | a felhasználó műveletére vár — **mért tény**, a lépés megnevezve | **nem** |
+| `MEGSZAKADT` | nevezett megszakítás vagy nem létező cél | **IGEN** |
+
+**ÉS A TASK-MEGÁLLÁS NEM TUDJA KIÜRESÍTENI AZ ÁLLÍTÁST** (`KUKA-215`): a lap kimondja, hogy **van**
+teljesen bejárt útmutató (mérve: **tíz** darab), és hogy a **mintához kötött hét közül EGYIK SEM**
+hordoz `task`-ot — tehát a lelet osztálya tényleg mérve van, nem a megállás mögé rejtve.
+
+**ÉS AZ ŐR TUD PIROSRA FORDULNI — MÉRVE.** A `tour.partners` deklarációját kivéve a lap **bukik**, és
+pontosan a **dinamikus** horgonyt nevezi meg:
+
+> `tour.partners: MEGSZAKADT — s2 · cél(sample-supplier): 0 · „Ez a lépés most nem folytatható: az
+> útmutatóban megnevezett elem nem látható ezen a képernyőn"`
+
+**Ezt a horgonyt a statikus letapogató SOHA nem látta volna** — ez a bizonyíték arra, hogy a
+viselkedés-mérés nem dísz. Gépi jel a saját leletre: `ar9` (a három kimenet) · `ar10` (az állítás nem
+tud üresen zöld lenni).
+
+**ÉS EGY TÉVES GYANÚT IS KIMONDOK:** a kapu kimenetét először úgy láttam, hogy `RESULT: FAIL` mellett
+**0-s** kilépést ad — ami kötelező kapunál súlyos hiba lenne. **Megmértem: nem így van.** A kapu a
+piros ágon `process.exit(1)`-et hív; a 0 az én `| tail` csővezetékem kilépése volt. A gyanú az enyém
+volt, a hiba nem a kapué — és ezt itt írom le, nem a javítás listáján.
 
 Rögzítve: `D-VS-3209` · `KUKA-414` · `KUKA-415`.
 
@@ -849,7 +893,7 @@ megszakítást bukásnak** veszi, nem „nincs is baj"-nak.
 
 | lánc | verdikt |
 |---|---|
-| `verify:app-findings-r154` (a HTTP-határ és a pg-feloldók) | **ZÖLD — 305/305** (AJ · AK · AL · AI · AM · AN · AO · AP · AQ · **AR ar1–ar8** új) |
+| `verify:app-findings-r154` (a HTTP-határ és a pg-feloldók) | **ZÖLD — 307/307** (AJ · AK · AL · AI · AM · AN · AO · AP · AQ · **AR ar1–ar10** új) |
 | `proof:pg-intent` | **ZÖLD** — 10 állítás, mindkét tárolón, **0 eltérés**, valódi PostgreSQL 16.15 · újramérve, **és `socket:` címmel is végigfut** |
 | `proof:pg-restore-safety` | **ZÖLD — 49/49** (E10a–E10e és az `Y.` takarítás-lépés új) · `socket:` címmel is végigfut |
 | `proof:pg-durability` | **ZÖLD — 13/13** · a takarító kapcsoló **mind a négy állásán** újramérve (lásd 2.3) |
