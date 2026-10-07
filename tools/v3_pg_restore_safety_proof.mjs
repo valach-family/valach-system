@@ -91,16 +91,59 @@ console.log('='.repeat(94));
 
 // ── A FORRÁS PILLANATKÉPE: a „forrás változatlan" ehhez mérünk ──────────────────────────────────
 const forrasNev = (() => { const s = openPgStore(url); const r = s.get('SELECT current_database() AS db'); s.close(); return String(r.db); })();
+/**
+ * A FORRÁS PILLANATKÉPE — A TELJES SOR-TARTALOMMAL (R164 review, Codex, P1 — `KUKA-380` · `D-VS-3188`).
+ *
+ * A LELET. A korábbi kép csak az alany-AZONOSÍTÓKAT vitte, és a „forrás változatlan" állítás
+ * `every(… includes …)` alakban állt: tehát BÁRMENNYI ÚJ sort elfogadott, és egy MEGVÁLTOZTATOTT sort
+ * egyáltalán nem látott. Márpedig minden `futtat()` elindítja a tartóssági próbát, ami a saját
+ * előkészítésében fiókot regisztrál és vállalkozást hoz létre a FORRÁS adatbázisban — vagyis a forrás
+ * TÉNYLEGESEN változott, miközben a lépés „változatlan"-t írt. Egy biztonsági bizonyíték nem
+ * állíthat olyat, amit nem mér (KUKA-216).
+ *
+ * A VÁLASZ: a kép a teljes SOR-TARTALMAT viszi (`subject::text` · `book::text`), az összevetés pedig
+ * HÁROM osztályt ad vissza — ELTŰNT · MEGVÁLTOZOTT · JÖTT —, és az állítás az első kettőre szól. A
+ * harmadikat (a gyermek saját előkészítése) NEM elhallgatjuk, hanem KIMONDJUK és KORLÁTOZZUK: minden
+ * futás UGYANANNYI sort tehet hozzá, különben egy nem szánt írás is „előkészítésnek" látszana.
+ */
 function forrasKep() {
   const s = openPgStore(url);
+  const sorok = (tabla) => new Map(s.all(`SELECT id, ${tabla}::text AS sor FROM ${tabla} ORDER BY id`)
+    .map((x) => [String(x.id), String(x.sor)]));
   const kep = {
     tablak: s.get("SELECT COUNT(*) AS n FROM information_schema.tables WHERE table_schema = 'public'").n,
     semaverzio: s.all('SELECT version FROM schema_migration ORDER BY version').map((x) => x.version).join(','),
-    alanyIdk: s.all('SELECT id FROM subject ORDER BY id').map((x) => String(x.id)),
+    alany: sorok('subject'),
+    konyv: sorok('book'),
   };
+  kep.alanyIdk = [...kep.alany.keys()];
   s.close();
   return kep;
 }
+
+/** Az összevetés HÁROM osztálya — az állítás az ELTŰNT és a MEGVÁLTOZOTT sorokra szól. */
+function forrasValtozas(elotte, utana) {
+  const osztaly = (e, u) => {
+    const eltunt = []; const modosult = []; const jott = [];
+    for (const [id, sor] of e) {
+      if (!u.has(id)) eltunt.push(id);
+      else if (u.get(id) !== sor) modosult.push(id);
+    }
+    for (const id of u.keys()) if (!e.has(id)) jott.push(id);
+    return { eltunt, modosult, jott };
+  };
+  const a = osztaly(elotte.alany, utana.alany);
+  const k = osztaly(elotte.konyv, utana.konyv);
+  return {
+    eltunt: [...a.eltunt, ...k.eltunt],
+    modosult: [...a.modosult, ...k.modosult],
+    jott: [...a.jott, ...k.jott],
+    semaAll: utana.semaverzio === elotte.semaverzio && utana.tablak === elotte.tablak,
+  };
+}
+
+/** A gyermek előkészítésének MÉRT hozzáadása — az ELSŐ futás adja, a többi ehhez mérve dől el. */
+let elokeszitesMerteke = null;
 const forrasElott = forrasKep();
 tény(`forrás: ${forrasNev} · ${forrasElott.tablak} tábla · séma [${forrasElott.semaverzio}] · ${forrasElott.alanyIdk.length} alany`);
 
@@ -185,6 +228,7 @@ console.log('\nE1 — ELŐRE LÉTEZŐ CÉL (a próba NEM törli és NEM írja fe
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 console.log('\nE4 — SIKERTELEN RESTORE: a „warning" jelenléte NEM oldja fel a hibát  ·  E2 — a FORRÁS változatlan');
 {
+  const e4Elott = forrasKep();            // a MÉRÉS a FUTÁS ELŐTTI állapothoz szól, nem a globálishoz
   const r = await futtat({ env: { VS_PGRESTORE: HIBAS, VS_RESTORE_TEST_DB: '' } });
   const cel = sajatCelNev(r.out);
   step('E4a. a verdikt FAIL, nem PASS', r.code !== 0 && !/RENDBEN/.test(r.out), `kilépés ${r.code}`);
@@ -194,10 +238,13 @@ console.log('\nE4 — SIKERTELEN RESTORE: a „warning" jelenléte NEM oldja fel
     'a visszaolvasás lépései el sem indultak — nincs mire zöldet mondani');
   step('E4d. a saját, FRISS célt a bukás után is ELTAKARÍTOTTA', cel !== null && !letezik(cel), cel ? `${cel} nincs a kiszolgálón` : 'nem jött létre cél');
   const utan = forrasKep();
-  const forrasAll = utan.semaverzio === forrasElott.semaverzio && utan.tablak === forrasElott.tablak
-    && forrasElott.alanyIdk.every((id) => utan.alanyIdk.includes(id));
-  step('E2. a FORRÁS változatlan: séma, táblák és MINDEN korábbi sor megvan', forrasAll,
-    `${utan.tablak}/${forrasElott.tablak} tábla · séma [${utan.semaverzio}] · a ${forrasElott.alanyIdk.length} korábbi alany közül megvan: ${forrasElott.alanyIdk.filter((id) => utan.alanyIdk.includes(id)).length}`);
+  const v = forrasValtozas(e4Elott, utan);
+  elokeszitesMerteke = v.jott.length;
+  step('E2. a FORRÁS egyetlen sora sem TŰNT EL és egyetlen sora sem VÁLTOZOTT MEG (a teljes sor-tartalomra mérve)',
+    v.semaAll && v.eltunt.length === 0 && v.modosult.length === 0,
+    `${utan.tablak}/${e4Elott.tablak} tábla · séma [${utan.semaverzio}] · eltűnt: ${v.eltunt.length} · megváltozott: ${v.modosult.length}`);
+  step('E2c. ÉS A GYERMEK SAJÁT ELŐKÉSZÍTÉSE KIMONDOTT: a hozzáadott sorok száma MÉRVE, nem elhallgatva',
+    v.jott.length >= 0, `a tartóssági próba előkészítése ${v.jott.length} sort adott a forráshoz (fiók + vállalkozás) — ez a MÉRCE a további futásokhoz`);
   step('E2b. az idegen adatbázis ebben a futásban is ÉRINTETLEN', idegenEl(), idegen);
 }
 
@@ -313,6 +360,7 @@ console.log('\nE6 — MEGSZAKADT FUTÁS (SIGTERM a visszatöltés közben)');
   const elotte = alapLista();
   let celNev = null;
   let jelKuldve = false;
+  const e6Elott = forrasKep();            // a megszakítás mérése is a FUTÁS ELŐTTI állapothoz szól
   const futas = futtat({ env: { VS_PGRESTORE: LASSU, VS_RESTORE_TEST_DB: '' } });
   const figyelo = setInterval(() => {
     if (jelKuldve) return;
@@ -338,7 +386,12 @@ console.log('\nE6 — MEGSZAKADT FUTÁS (SIGTERM a visszatöltés közben)');
   step('E6b. a saját, félbehagyott cél ELTAKARÍTVA (nem maradt szemét)', celNev !== null && !letezik(celNev),
     celNev ? `${celNev} nincs a kiszolgálón` : 'nem sikerült kiolvasni a cél nevét');
   step('E6c. az idegen adatbázis a megszakítás alatt sem sérült', idegenEl(), idegen);
-  step('E6d. a FORRÁS a megszakítás után is áll', (() => { const u = forrasKep(); return u.semaverzio === forrasElott.semaverzio && forrasElott.alanyIdk.every((id) => u.alanyIdk.includes(id)); })(), forrasNev);
+  step('E6d. a FORRÁS a megszakítás után is áll: semmi nem tűnt el, semmi nem változott, és a hozzáadás a MÉRT előkészítésnél nem több',
+    (() => {
+      const v = forrasValtozas(e6Elott, forrasKep());
+      return v.semaAll && v.eltunt.length === 0 && v.modosult.length === 0
+        && (elokeszitesMerteke === null || v.jott.length <= elokeszitesMerteke);
+    })(), forrasNev);
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════

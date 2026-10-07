@@ -25,7 +25,7 @@ import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { loadRepoEnv } from './lib/vs_tool_env.mjs';
 import { restoreTargetProblem, sameDatabase, qid, withDatabase, effectiveDatabase, freshTargetName,
-  acquireFreshTarget, restoreOutcome, redactConnStrings, RESTORE_TARGET_PREFIX } from './lib/vs_pg_target.mjs';
+  acquireFreshTarget, restoreOutcome, redactConnStrings, RESTORE_TARGET_PREFIX, cliEnvFor } from './lib/vs_pg_target.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 loadRepoEnv(ROOT);
@@ -113,19 +113,18 @@ const PGRESTORE = process.env.VS_PGRESTORE || 'pg_restore';
  * (CLAUDE.md 1. szakasz · R164/1). Ezért a kapcsolat adatai KÖRNYEZETI változókban mennek, és a
  * CÉL is ott áll — így „a kliens számára átadott cél és a végrehajtás környezete következetes".
  */
+/**
+ * A CLI-KÖRNYEZET A KÖZÖS OTTHONBÓL JÖN (R164 review, P2 — `KUKA-379`).
+ *
+ * RÉGEN itt egy saját másolat állt, ami a cím AUTORITÁS-gazdagépéből épített — a `?host=` felülírást
+ * tehát ELDOBTA, és a parancssori kliensek MÁS klaszterre mehettek, mint az alkalmazás. Ma ugyanaz a
+ * feloldó adja a gazdagépet, mint a helyi kapunak (`effectiveHost`), és ha az nem eldönthető, ez a
+ * hívás MEGÁLL — nem tippel.
+ */
 function pgEnv(dbName) {
-  const u = new URL(url);
-  const e = { ...process.env };
-  if (u.hostname) e.PGHOST = decodeURIComponent(u.hostname);
-  if (u.port) e.PGPORT = u.port;
-  if (u.username) e.PGUSER = decodeURIComponent(u.username);
-  if (u.password) e.PGPASSWORD = decodeURIComponent(u.password);
-  e.PGDATABASE = String(dbName);
-  const ssl = u.searchParams.get('sslmode');
-  if (ssl) e.PGSSLMODE = ssl;
-  // A gyermek NEM kaphat `service`-t: a szolgáltatás-fájl felülírhatná a kimondott célt (KUKA-349).
-  delete e.PGSERVICE; delete e.PGSERVICEFILE;
-  return e;
+  const r = cliEnvFor({ sourceUrl: url, database: dbName, env: process.env });
+  if (!r.ok) throw new Error(`a parancssori kliens környezete nem állítható össze: ${r.reason}`);
+  return r.env;
 }
 /** Futtatás NEVEZETT eredménnyel: kilépési kód + TISZTÍTOTT kimenet (titok nélkül). */
 function shTry(cmd, args, dbName) {

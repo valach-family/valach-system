@@ -16,6 +16,121 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3192 — A HIÁNY-OSZTÁLYOZÁS A GÉPI ARTEFAKTUMBAN ÁLL (R164 review, P2)
+
+**A döntés.** A lefedési leltár gépi JSON-ja viszi a `gap_classes` blokkot: a három osztály
+darabszámát és teljes listáját, kulccsal és indokkal. Az önpróba pedig a **kiírt fájlt** olvassa
+vissza (LC4), nem a memóriában lévő objektumot.
+
+**Miért.** A kettéosztás eddig kizárólag az önpróba konzol-állításaiban létezett, a `--json` út pedig
+a nyomtatás **előtt** kilép. Ami nincs a fájlban, az a következő körben **nem létezik** — ebben a
+repóban a memória a repó.
+
+**Gépi jel.** `npm run verify:lefedes` (LC4) · `npm run verify:kuka` (KUKA-384).
+
+---
+
+## D-VS-3191 — A MEGHÍVÓ-JEGYET A CÍMSORRÓL IS ELVISSZÜK (R164 review, P2)
+
+**A döntés.** Egy közös elfelejtő (`forgetInvite`) viszi el a belső jegyet **és** a címsor-paramétert,
+és **mindkét** ág ezt hívja: a kilépés és a sikeres beváltás is. Csak a meghívó paramétert visszük el
+— a többi (például a nyelvválasztás) a címsorban marad.
+
+**Miért.** A kilépés a belső jegyet ürítette, a címsort nem: egy frissítés — vagy ugyanannak a
+történet-bejegyzésnek az újbóli megnyitása **más ember** által — újra beolvasta a jegyet, és a felület
+visszatért az előző ember meghívó-folyamatára. A címsor is állapot.
+
+**Gépi jel.** `npm run verify:browser-gate` · `npm run verify:kuka` (KUKA-383).
+
+---
+
+## D-VS-3190 — A KORLÁTOZOTT PÁSZTA KULCS-KURZORON HALAD (R164 review, P2)
+
+**A döntés.** A nem kanonikus sorok pásztája **kulcs-kurzorral** megy: minden pászta a kurzor utáni
+sorokkal folytatja, és ha a köteg nem lett tele, a kurzor visszaáll az elejére. A kurzor az időbélyeg
+és a munkamenet-azonosító **párja** — egy csak időbélyeg-alapú kurzor az egyező sorokat átlépné.
+
+**Miért.** A rendezés önmagában **nem** ad előrehaladást: egy friss, érvényes eltolásos időbélyeg
+számmal kezdődik, egy romlott érték betűvel, tehát mögé kerül. Korlátnyi friss sor mögött a romlott
+sor határtalanul ott maradt. A `D-VS-3180` tehát **szűkül**: a sorrend szükséges, de nem elégséges.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (ae6, ellenpárral) · `npm run verify:kuka` (KUKA-382).
+
+---
+
+## D-VS-3189 — A FUTTATÓ KÖLTSÉGVETÉS-TÚLLÉPÉSE KÜLÖN JEL (R164 review, P2)
+
+**A döntés.** A mutációs futtató **stabil gépi jelet** ír ki, ha egy egység a saját költségvetését
+lépte túl, és az adaptív daraboló ezt a jelet a gyermek kimenetéből **maga** olvassa ki — tehát
+finomít rá. A **tartalmi** bukás viszont nem indít finomítást.
+
+**Miért.** A nem nulla kilépésnek két független oka lehet (idő vagy tartalom). A terv eddig csak a
+külső időtúllépésre finomított, tehát a saját költségvetés túllépését „beleférésnek" olvasta — és a
+lánc tartalmi bukásként adta tovább azt, amit a finomítás oldott volna meg.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (ae5, ellenpárral) · `npm run verify:kuka` (KUKA-381).
+
+---
+
+## D-VS-3188 — A FORRÁS VÁLTOZATLANSÁGA HÁROM OSZTÁLYON DŐL EL (R164 review, P1)
+
+**A döntés.** A forrás pillanatképe a **teljes sor-tartalmat** viszi, és az összevetés három osztályt
+ad: **eltűnt · megváltozott · jött**. Az állítás az első kettőre szól; a harmadikat (a próba saját
+előkészítése) **kimondjuk** és a mért mértékhez **kötjük**. A pillanatkép minden futás **előtt** újra
+készül.
+
+**Miért.** A korábbi mérés tartalmazás-vizsgálat volt: bármennyi új sort elfogadott, a megváltozott
+sort pedig egyáltalán nem látta — miközben minden futás tényleg írt a forrásba. Egy biztonsági
+bizonyíték nem állíthat többet, mint amit mér.
+
+**Gépi jel.** `npm run proof:pg-restore-safety` (E2 · E2c · E6d) · `npm run verify:kuka` (KUKA-380).
+
+---
+
+## D-VS-3187 — A PARANCSSORI KLIENSEK KÖRNYEZETE EGY OTTHONBÓL JÖN (R164 review, 2× P2)
+
+**A döntés.** Egy feloldó (`cliEnvFor`) állítja össze a `psql`/`pg_dump`/`pg_restore` környezetét,
+**ugyanazzal a gazdagép-feloldóval**, amit a helyi kapu használ — és ha a tényleges gazdagép nem
+eldönthető, **nem ad környezetet**: a hívó megáll.
+
+**Miért.** A két pg-próba egymás másolatát jelentő feloldóval a cím **autoritás**-gazdagépéből
+épített, tehát a `?host=` felülírást eldobta. A kaput ugyanebben a csomagban javítottam, a tényleges
+végrehajtást nem — a bizonyíték így nem arra a klaszterre szólt, amit mértünk.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (ae2 · ae3) · `npm run verify:kuka` (KUKA-379).
+
+---
+
+## D-VS-3186 — A SOR-ELTÁVOLÍTÁS KÖNYVELÉSE EGY HELYEN ÁLL (R164 review, P1)
+
+**A döntés.** A munkamenet-tárban egy könyvelő (`forget`) viszi el a névtelen számlálót, a
+védett-indexet és a térkép-sort — és a **kilépés** útja is ezt hívja, nem saját másolatot.
+
+**Miért.** A kiszorítás leszedte a védett-indexet, a kilépés nem. A folytatás–kilépés ismétlése így a
+tár plafonján **kívül** növelte a memóriát, és az elavult azonosítók végül azt is elhitették a
+rövidre zárással, hogy a tár csupa védett sorral telt: egy új munkamenet felvétele elutasításra
+futott. Ez a `D-VS-3182` növekményes indexének hiányzó fele.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (ae4) · `npm run verify:kuka` (KUKA-378).
+
+---
+
+## D-VS-3185 — CSAK AZ ABSZOLÚT ÚT SOCKET (R164 review, P1)
+
+**A döntés.** A destruktív pg-próbák helyi-kapuja a nevesített helyi gazdagépeket és az **abszolút,
+perjellel kezdődő** utat fogadja el helyinek. A ponttal kezdődő érték **nem** socket.
+
+**Miért.** A PostgreSQL kizárólag az abszolút path-szerű gazdagépet kezeli Unix-socketként; minden
+más hálózati gazdagép-név. Egy `?host=.belso.pelda.hu` alakú, a telepítési környezetben feloldódó cím
+így átment a kapun — a kimondott felülírás nélkül, oda, ahol a próba ír és töröl.
+
+**Amit ez NEM állít.** Nem mértem meg élő távoli kiszolgálón: a mérés a kapu **döntésére** szól
+(ae1), nem egy valódi távoli kapcsolatra. Ezt szándékosan nem is próbáltam ki.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (ae1) · `npm run verify:kuka` (KUKA-377).
+
+---
+
 ## D-VS-3184 — A LÁTOGATÓ CÍMÉT HORDOZÓ FEJLÉCET A TELEPÍTÉS DEKLARÁLJA (R164, külső review, P1)
 
 **A döntés.** A bízott proxy mögött a látogató címét **deklarált** fejlécből olvassuk

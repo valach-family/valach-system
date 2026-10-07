@@ -2622,6 +2622,34 @@ import { inviteNextKey } from './inviteText.mjs';
     renderAuth('resent');
   }
 
+  /**
+   * A MEGHÍVÓ JEGY ELFELEJTÉSE — A CÍMSORRÓL IS, EGY HELYEN (R164 review, Codex, P2 —
+   * `KUKA-383` · `D-VS-3191`).
+   *
+   * A LELET. A kilépés a belső jegyet (`state.inviteToken`) kiürítette, a CÍMSORT viszont nem: a lap
+   * `/?invite=<jegy>` alakban nyílt meg, és ott is maradt. Egy FRISSÍTÉS — vagy ugyanannak a
+   * történet-bejegyzésnek az újbóli megnyitása, miután MÁS EMBER ült le a böngészőhöz — az indulásnál
+   * újra beolvasta a jegyet a címsorból, és a felület visszatért az ELŐZŐ ember meghívó-folyamatára.
+   * Vagyis pontosan az az elkülönítés bukott meg, amit a `KUKA-362`-es javítás állított.
+   *
+   * MIÉRT EGY HELYEN: a sikeres beváltás útja a címsort MÁR eddig is tisztította, a kilépés nem — két
+   * ág, egy szabály, és az egyiken elmaradt (KUKA-003 · KUKA-218). Innentől mindkettő EZT hívja.
+   *
+   * ÉS CSAK A MEGHÍVÓ PARAMÉTERT VISSZÜK EL: a nyelvválasztás vagy bármely más paraméter a címsorban
+   * marad (a korábbi alak az EGÉSZ címsort `/`-re írta, tehát azokat is elvitte).
+   */
+  function forgetInvite() {
+    state.inviteToken = null;
+    state.invite = null;
+    try {
+      const u = new URL(window.location.href);
+      if (!u.searchParams.has('invite')) return;
+      u.searchParams.delete('invite');
+      const q = u.searchParams.toString();
+      history.replaceState(null, '', `${u.pathname}${q ? `?${q}` : ''}${u.hash || ''}`);
+    } catch { /* a címsor nem írható (pl. próbakörnyezet) — a belső állapot akkor is ürült */ }
+  }
+
   async function doLogout() {
     newContext('logout');
     /**
@@ -2658,12 +2686,12 @@ import { inviteNextKey } from './inviteText.mjs';
      * Ez a KUKA-218 osztálya („minden nézethez kötött tár EGY helyen ürül") és a KUKA-217-é is: egy
      * MÁSIK ember belépése nem örökölheti az előző ember állapotát.
      */
-    state.inviteToken = null;
+    forgetInvite();
     // AZ ELŐZŐ EMBER VÁLASZTÁSA NEM A KÖVETKEZŐ EMBERÉ (F93-02, a külső fél kikötése): a tárolt
     // választás személyhez kötve megmarad, de az ÚTON tett választást itt eldobjuk — különben egy
     // kijelentkezés után belépő MÁSIK ember örökölné.
     rememberChoice(null);
-    state.tabs = ['overview']; state.page = 'overview'; state.notice = null; state.invite = null;
+    state.tabs = ['overview']; state.page = 'overview'; state.notice = null;
     closePanel();
     renderAuth('login');
   }
@@ -2898,9 +2926,7 @@ import { inviteNextKey } from './inviteText.mjs';
     const tovabbVan = Boolean(state.tour) && state.tour.steps.some((x) => x.switch_actor === true)
       && state.tour.at + 1 < state.tour.steps.length;
     if (!tovabbVan) carryTourBeforeSwitch('invite_redeemed');
-    state.inviteToken = null;
-    state.invite = null;
-    history.replaceState(null, '', '/');
+    forgetInvite();
     newContext('invite_redeemed');
     state.tabs = ['overview']; state.page = 'overview';
     // KIMONDOTT KÉSLELTETÉS (F142-01): itt a visszaállás a „más ember ült le közben" ág UTÁN

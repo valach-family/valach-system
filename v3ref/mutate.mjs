@@ -1299,6 +1299,15 @@ if (UNIT) {
   }
   console.log(`RESULT (EGYSÉG ${UNIT.k}/${UNIT.n}): ${runComplete ? (clean ? 'a szelet TISZTA' : `a szelet NEM tiszta — ${why.join(' · ')}`) : `NEM FUTOTT VÉGIG — ${why.join(' · ') || 'ismeretlen ok'}`}`
     + ` · belefér a korlátba: ${portable ? 'igen' : 'NEM'}`);
+  /**
+   * STABIL GÉPI JEL AZ EGYSÉG KÖLTSÉGVETÉS-TÚLLÉPÉSÉRE (R164 review, Codex, P2 — `KUKA-381`).
+   *
+   * MIÉRT KELL: a túllépő egység NEM NULLÁVAL lép ki, de a KÜLSŐ `spawnSync` korlátjába (15 000 ms)
+   * belefér — tehát `timedOut: false`. Az adaptív daraboló ezt eddig „belefért"-nek olvasta, és NEM
+   * finomított: a lánc tartalmi bukásként jelentette azt, amit épp a finomítás gyógyított volna meg.
+   * A jel ASCII és rövid, hogy a burkolók prózára ne illesszenek (KUKA-237).
+   */
+  if (!portable) console.log('  GEPI-JEL: unit_over_budget');
   if (!portable) console.log(`  ${portableWhy}`);
   console.log('  AZ EGYSÉG NEM TELJES ÖSSZEFOGLALÓ. Teljeset csak a `--merge` adhat (RUN-02).');
   process.exit(runComplete ? (clean && portable ? 0 : 1) : 2);

@@ -99,6 +99,27 @@ writeFileSync(jsonPath, JSON.stringify({
   floor_breaks: inv.floorBreaks,
   rows: inv.rows,
   tour_rows: inv.tourRows,
+  /**
+   * A HIÁNY-OSZTÁLYOK A GÉPI ALAKBAN IS BENNE VANNAK (R164 review, Codex, P2 —
+   * `KUKA-384` · `D-VS-3192`).
+   *
+   * A LELET: a kettéosztás (`classifyGaps`) a csomag KÖZPONTI új kimenete volt, de CSAK az
+   * ÖNPRÓBA ágában jelent meg, konzol-állításokban — a gépi artefaktum, amit a KÖVETKEZŐ kör olvas,
+   * nem vitte. Sőt: a `--json` út a nyomtatás ELŐTT kilép, tehát ott az osztályozás egyáltalán nem
+   * látszott. Így a leltár nem tudta megmondani, mely hiány PÓTOLHATÓ és mely NEVESÍTETT FEJLESZTÉSI
+   * RÉS — pontosan azt nem, amiért készült (KUKA-126: amit senki nem olvas vissza, az nem kötés).
+   */
+  gap_classes: {
+    total: inv.classes.total,
+    counts: {
+      fillable: inv.classes.fillable.length,
+      capability_missing: inv.classes.capability_missing.length,
+      unclassified: inv.classes.unclassified.length,
+    },
+    fillable: inv.classes.fillable,
+    capability_missing: inv.classes.capability_missing,
+    unclassified: inv.classes.unclassified,
+  },
 }, null, 2));
 
 if (JSON_ONLY) { console.log(jsonPath); process.exit(0); }
@@ -190,6 +211,31 @@ if (SELFTEST) {
     const hamisFeatures = FEATURES.map((f) => (f.screen === 'personal' && f.status === 'planned'
       ? { ...f, missing_capability: undefined } : f));
     const hamis = cov.classifyGaps({ rows: inv.rows, tourRows: inv.tourRows, features: hamisFeatures });
+    /**
+     * (LC4) ÉS AZ OSZTÁLYOZÁS A GÉPI ARTEFAKTUMBAN IS OTT VAN (R164 review, Codex, P2 — `KUKA-384`).
+     *
+     * A LELET: a kettéosztás CSAK itt, az önpróba konzol-állításaiban létezett; a JSON — amit a
+     * KÖVETKEZŐ kör olvas, és amiért ez a lap készült — nem vitte. A `--json` út pedig a nyomtatás
+     * ELŐTT kilép, tehát ott egyáltalán nem látszott. Ezért most a kiírt FÁJLT olvassuk vissza: ami
+     * nincs a fájlban, az a következő körben nem létezik (KUKA-126 · CLAUDE.md: a repó a memória).
+     */
+    const kiirt = JSON.parse(readFileSync(jsonPath, 'utf8'));
+    A('(LC4) A GÉPI ARTEFAKTUM VISZI a hiány-osztályokat — a visszaolvasott fájl számai EGYEZNEK a mérttel',
+      Boolean(kiirt.gap_classes)
+      && kiirt.gap_classes.counts.fillable === cls.fillable.length
+      && kiirt.gap_classes.counts.capability_missing === cls.capability_missing.length
+      && kiirt.gap_classes.counts.unclassified === cls.unclassified.length
+      && kiirt.gap_classes.total === cls.total
+      && Array.isArray(kiirt.gap_classes.capability_missing)
+      && kiirt.gap_classes.capability_missing.every((x) => typeof x.key === 'string' && typeof x.reason === 'string'),
+      kiirt.gap_classes
+        ? `a fájlban: pótolható ${kiirt.gap_classes.counts.fillable} · fejlesztési rés ${kiirt.gap_classes.counts.capability_missing} · osztályozatlan ${kiirt.gap_classes.counts.unclassified}`
+        : 'a fájlban NINCS `gap_classes` — a következő kör nem tudja, melyik rés melyik');
+  }
+  {
+    const hamisFeatures2 = FEATURES.map((f) => (f.screen === 'personal' && f.status === 'planned'
+      ? { ...f, missing_capability: undefined } : f));
+    const hamis = cov.classifyGaps({ rows: inv.rows, tourRows: inv.tourRows, features: hamisFeatures2 });
     A('(LC3) ELLENPÁR: a MEGNEVEZÉS NÉLKÜLI tervezett bejegyzés OSZTÁLYOZATLAN-ra vált (nem lesz némán „fejlesztési rés")',
       hamis.unclassified.some((x) => x.key === 'page:personal') && hamis.capability_missing.length === 0,
       `osztályozatlan: ${hamis.unclassified.map((x) => x.key).join(', ') || 'nincs'}`);

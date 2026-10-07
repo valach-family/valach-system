@@ -22,6 +22,9 @@
 //      ÓVATOS: azonosnak vesszük, tehát megállunk (KUKA-049 · KUKA-203).
 
 /** A megengedett adatbázis-NÉV alakja (idézőjel nélkül használható azonosító). */
+// A NÉVADÁS KÖZÖS OTTHONA — az idő-rész innen jön, nem kézi vágásból (`ART05` · KUKA-003).
+import naming from '../../contracts/artifactNaming.js';
+
 export const DB_NAME = /^[A-Za-z_][A-Za-z0-9_$]{0,62}$/;
 
 /** PostgreSQL azonosító idézőjelezése — a belső idézőjel duplázódik. */
@@ -222,7 +225,17 @@ export const RESTORE_TARGET_PREFIX = 'vs_restore_proba_';
  * második futás vagy ütközik, vagy töröl.
  */
 export function freshTargetName({ now = Date.now(), rand = Math.random() } = {}) {
-  const t = new Date(Number(now)).toISOString().replace(/[^0-9]/g, '').slice(0, 14);
+  /**
+   * AZ IDŐ-RÉSZ A NÉVADÁS KÖZÖS OTTHONÁBÓL JÖN (`contracts/artifactNaming.js` · `stampParts`).
+   *
+   * MIÉRT: az első alakom KÉZZEL vágta az ISO-időbélyeget, és ezt az `ART05` őr NEVEZETTEN tiltja —
+   * a V2-ben MÉRVE 40 szerszám gyártott így nevet, legalább három különböző alakban (KUKA-003). Az
+   * őrt NEM lazítottam (KUKA-091): a kézi vágás helyére a közös feloldó lépett. SAJÁT LELET, és
+   * kimondom: a pirosat a csomag korábbi szakasza okozta, és a lánc visszamérésén derült ki — nem
+   * az írás pillanatában.
+   */
+  const { date, time } = naming.stampParts(new Date(Number(now)));
+  const t = `${date}${time}`;
   const r = Math.floor(Number(rand) * 0xffffff).toString(16).padStart(6, '0');
   const name = `${RESTORE_TARGET_PREFIX}${t}_${r}`;
   if (!DB_NAME.test(name)) throw new Error('freshTargetName: a generált név nem adatbázis-NÉV alakú');
@@ -432,7 +445,17 @@ export function localOnlyVerdict(sourceUrl, env = process.env) {
       basis: 'KIMONDOTT felülírás (`VS_SAFETY_ALLOW_REMOTE=1`) — a helyi kapu szándékosan kikapcsolva' };
   }
   if (!h.decidable) return { allowed: false, host: null, decidable: false, override: false, basis: h.basis };
-  const local = LOCAL_HOSTS.includes(h.host) || h.host.startsWith('/') || h.host.startsWith('.');
+  /**
+   * CSAK AZ ABSZOLÚT ÚT SOCKET (R164 review, Codex, P1 — `KUKA-377` · `D-VS-3185`).
+   *
+   * A LELET: a feltétel a PONTTAL kezdődő értéket is helyinek vette („relatív socket-könyvtár"). A
+   * PostgreSQL viszont KIZÁRÓLAG az ABSZOLÚT, perjellel kezdődő gazdagépet kezeli Unix-socketként;
+   * minden más érték HÁLÓZATI gazdagép-név. Egy `.belso.pelda.hu` alakú — a telepítési környezetben
+   * FELOLDÓDÓ — név így átment a destruktív próbák helyi-kapuján, a kimondott felülírás NÉLKÜL.
+   *
+   * A nem eldönthető eset már korábban is ZÁRÁS; itt a tévesen ELDÖNTÖTT eset szűnik meg.
+   */
+  const local = LOCAL_HOSTS.includes(h.host) || h.host.startsWith('/');
   return { allowed: local, host: h.host, decidable: true, override: false,
     basis: local ? `a tényleges gazdagép HELYI (${h.basis})` : `a tényleges gazdagép NEM helyi (${h.basis})` };
 }
@@ -486,4 +509,61 @@ export function acquireFreshTarget({ measuredSource, explicitTarget = null, exis
     break;
   }
   return { target: null, created: false, attempts: log.length, log, basis: last.basis };
+}
+
+/**
+ * A PARANCSSORI KLIENSEK KÖRNYEZETE — EGY OTTHON, A KAPUVAL AZONOS FELOLDÁSSAL
+ * (R164 review, Codex, 2× P2 — `KUKA-379` · `D-VS-3187`).
+ *
+ * A LELET. A két pg-próba (`proof:pg-durability` és `proof:pg-intent`) SAJÁT, egymás másolatát jelentő
+ * `pgEnv` függvénnyel állította össze a `psql`/`pg_dump`/`pg_restore` környezetét — és mindkettő a cím
+ * AUTORITÁS-gazdagépéből építette (`new URL(url).hostname`). A node-postgres viszont a `?host=`
+ * paramétert FELÜLÍRÓNAK kezeli. Egy
+ * `postgres://u@localhost/forras?host=/var/run/postgresql-alt` címnél tehát az ALKALMAZÁS és a
+ * forrás-azonosság ellenőrzése az EGYIK klaszterre ment, a `pg_dump`, a cél létrehozása, a
+ * visszatöltés és a takarítás pedig egy MÁSIKRA. A bizonyíték így nem arról szólt, amiről állította —
+ * és a próba egy NEM SZÁNT helyi PostgreSQL-példányt módosíthatott.
+ *
+ * MIÉRT EGY HELYEN. Mert a hiba épp abból jött, hogy a szabály KÉT házban élt, és a gazdagép-kapu
+ * javításakor (`KUKA-366`) csak az EGYIKET — a kaput — javítottam, a tényleges CLI-környezetet nem
+ * (KUKA-003 · KUKA-129: a szabály egyik végén javítva, a másikon változatlanul).
+ *
+ * ÉS FAIL-CLOSED. Ha a tényleges gazdagép nem eldönthető (`service` · `hostaddr` · több gazdagép ·
+ * üres felülírás), ez a függvény NEM ad környezetet: `{ ok: false, reason }`. A hívó megáll — nem
+ * tippelünk (KUKA-020).
+ *
+ * AMIT EZ NEM ÁLLÍT: nem a libpq teljes utánzata. Azt a négy értéket viszi át, amit a próbák
+ * használnak (gazdagép · port · felhasználó · jelszó + `sslmode`), és a `service`/`hostaddr`
+ * változókat a gyermektől ELVESZI, hogy egy szolgáltatás-fájl ne írhassa felül a kimondott célt.
+ */
+export function cliEnvFor({ sourceUrl, database, env = process.env } = {}) {
+  const h = effectiveHost(sourceUrl, env);
+  if (!h.decidable) return { ok: false, reason: `a tényleges gazdagép NEM eldönthető — ${h.basis}` };
+  let u;
+  try { u = new URL(String(sourceUrl)); } catch { return { ok: false, reason: 'a forrás-cím nem értelmezhető' }; }
+  const e = { ...env };
+  e.PGHOST = h.host;
+  /** Egy felülíró paraméter: JELEN van-e, és mi az ÉRTÉKE — az ÜRES érték AKTÍV felülírás (F158-22). */
+  const felulir = (nev, alap) => {
+    const q = queryLast(u, nev);
+    if (!q.jelen) return { ok: true, ertek: alap };
+    if (q.ertek === '') return { ok: false };
+    return { ok: true, ertek: q.ertek };
+  };
+  const dec = (x) => { try { return decodeURIComponent(String(x || '')); } catch { return String(x || ''); } };
+  const port = felulir('port', u.port);
+  if (!port.ok) return { ok: false, reason: 'a cím ÜRES `?port=` felülírást hordoz — a tényleges port nem eldönthető' };
+  const user = felulir('user', dec(u.username));
+  if (!user.ok) return { ok: false, reason: 'a cím ÜRES `?user=` felülírást hordoz — a tényleges felhasználó nem eldönthető' };
+  const pass = felulir('password', dec(u.password));
+  if (!pass.ok) return { ok: false, reason: 'a cím ÜRES `?password=` felülírást hordoz — a tényleges jelszó nem eldönthető' };
+  if (port.ertek) e.PGPORT = String(port.ertek);
+  if (user.ertek) e.PGUSER = String(user.ertek);
+  if (pass.ertek) e.PGPASSWORD = String(pass.ertek);
+  const ssl = queryLast(u, 'sslmode');
+  if (ssl.jelen && ssl.ertek) e.PGSSLMODE = ssl.ertek;
+  if (database !== undefined && database !== null) e.PGDATABASE = String(database);
+  // A gyermek NEM kaphat `service`-t és `hostaddr`-t: felülírhatnák a kimondott célt (KUKA-349).
+  delete e.PGSERVICE; delete e.PGSERVICEFILE; delete e.PGHOSTADDR;
+  return { ok: true, env: e, host: h.host, basis: h.basis };
 }

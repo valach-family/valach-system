@@ -605,12 +605,31 @@ export function makeSessionStore({
    */
   const intentAnon = new Set();                // névtelen azonosítók, amelyekről TUDJUK, hogy folytatást hordoznak
   let intentIndexTrusted = intentIndex === true;   // CSAK deklarált bejelentés mellett, és amíg minden változásról tudunk
-  const drop = (id, cause) => {
-    if (pins.has(id)) return false;            // a KISZOLGÁLÁS ALATT ÁLLÓ sort nem dobjuk el
+  /**
+   * A SOR ELTÁVOLÍTÁSÁNAK KÖNYVELÉSE — EGY HELYEN (R164 review, Codex, P1 — `KUKA-378` · `D-VS-3186`).
+   *
+   * A LELET: a könyvelés KÉT úton élt. A `drop` leszedte a névtelen számlálót ÉS a védett-indexet, a
+   * publikus `delete` viszont — amit a KILÉPÉS használ — csak a számlálót. Egy névtelen munkamenet
+   * tehát feljegyezhetett folytatást, majd kiléphetett, és az azonosítója BENNE MARADT az indexben:
+   * a `folytatás → kilépés` ismétlése a tár PLAFONJÁN KÍVÜL növelte a memóriát, és az elavult
+   * azonosítók végül azt is elhitették a rövidre zárással, hogy a tár CSUPA védett sorral telt — így
+   * egy ÚJ munkamenet felvétele elutasításra futott, pedig volt nem védett áldozat.
+   *
+   * MIÉRT EGY HELY, ÉS NEM EGY HARMADIK SOR A `delete`-BEN: mert a hiba maga abból keletkezett, hogy
+   * két eltávolító út külön könyvelt (KUKA-003 · KUKA-218 — a nézethez kötött tár EGY helyen ürül).
+   * A `drop` extra tudása (a kiszolgálás alatti sor védelme és a statisztika) az ő dolga marad.
+   */
+  const forget = (id) => {
     const row = map.get(id);
     if (row && !row.subject_id) anonCount -= 1;
     intentAnon.delete(id);
-    map.delete(id); stats[cause] += 1; droppedNow.push(id);
+    intentAnon.delete(String(id));
+    return map.delete(id);
+  };
+  const drop = (id, cause) => {
+    if (pins.has(id)) return false;            // a KISZOLGÁLÁS ALATT ÁLLÓ sort nem dobjuk el
+    forget(id);
+    stats[cause] += 1; droppedNow.push(id);
     return true;
   };
   const expired = (s, now) => now - (s.last_seen_ms ?? 0) > idleMs;
@@ -898,11 +917,8 @@ export function makeSessionStore({
       return s;
     },
     has(id, now = Date.now()) { return this.get(id, now) !== undefined; },
-    delete(id) {
-      const row = map.get(id);
-      if (row && !row.subject_id) anonCount -= 1;
-      return map.delete(id);
-    },
+    /** A KILÉPÉS ÚTJA — UGYANAZT KÖNYVELI, mint a kiszorítás (`forget`): a védett-index is követi. */
+    delete(id) { return forget(id); },
     /**
      * A lejárt sort a `touch` NEM élesztheti fel (F154-07) — ezért itt is a lejárat dönt. ÉS MEGMONDJA,
      * SIKERÜLT-E (F154-28): a LELET (külső review, Codex, ötödik kör) szerint a kérés-ciklus a `get`
@@ -1237,11 +1253,23 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
   const folytatasa = (sessionId) => resumeIntent({ store, sessionId, clock, ttlMs: intentTtl });
 
   let nextIntentPurge = 0;
+  /**
+   * A NEM KANONIKUS SOROK PÁSZTÁJÁNAK KURZORA (R164 review, P2 — `KUKA-382`).
+   *
+   * A pászta `maxOddRows` soronként dolgozik, és a kurzor nélkül mindig UGYANAZT a köteget látta: egy
+   * friss, érvényes eltolásos időbélyeg SZÁMMAL kezdődik, egy romlott érték BETŰVEL, tehát a szöveges
+   * rendezésben mögé kerül — a romlott sor határtalanul ott maradhatott. A kurzor pásztánként
+   * TOVÁBBLÉP, és a tábla végén visszaáll az elejére, tehát minden sor VÉGES számú pászta alatt sorra
+   * kerül. A kurzor a FOLYAMAT élettartamára szól; újraindulás után az elejéről kezdünk, ami nem
+   * kiéheztetés, csak egy újabb teljes kör.
+   */
+  let intentOddCursor = null;
   function purgeIntentsIfDue(now = Date.now()) {
     if (now < nextIntentPurge) return null;
     nextIntentPurge = now + 60_000;
     try {
-      const r = purgeExpiredIntents({ store, clock, ttlMs: intentTtl });
+      const r = purgeExpiredIntents({ store, clock, ttlMs: intentTtl, oddCursor: intentOddCursor });
+      intentOddCursor = r ? (r.odd_cursor ?? null) : null;
       // A HALMAZOS TAKARÍTÁS NEM NEVEZI MEG, MIT TÖRÖLT — az index innentől nem bízható, és a
       // következő felvétel a RÉGI, adatbázist kérdező úton megy (ami visszaállítja a bizalmat).
       if (r && (r.purged > 0 || r.odd_capped)) sessions.intentsPurged();

@@ -31,8 +31,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 loadRepoEnv(ROOT);
 
 const { startServer } = await import('../v3app/server.mjs');
-const { localOnlyVerdict, acquireFreshTarget, freshTargetName, qid, withDatabase, redactConnStrings } =
-  await import('./lib/vs_pg_target.mjs');
+const { localOnlyVerdict, acquireFreshTarget, freshTargetName, qid, withDatabase, redactConnStrings,
+  cliEnvFor } = await import('./lib/vs_pg_target.mjs');
 const { execFileSync } = await import('node:child_process');
 const { rememberIntent, resumeIntent, purgeExpiredIntents, intentTtlMs, PENDING_INTENT_TTL_MS } =
   await import('../v3ref/invite.mjs');
@@ -73,16 +73,19 @@ if (!url) {
 }
 
 const PSQL = process.env.VS_PSQL || 'psql';
+/**
+ * A CLI-KÖRNYEZET A KÖZÖS OTTHONBÓL JÖN (R164 review, P2 — `KUKA-379`).
+ *
+ * RÉGEN itt a `v3_pg_durability_proof.mjs` MÁSOLATA állt, és a cím AUTORITÁS-gazdagépéből épített — a
+ * `?host=` felülírást tehát eldobta. A `localOnlyVerdict` és a `startServer` viszont tiszteli, ezért a
+ * mérés egyik fele az EGYIK, a másik fele egy MÁSIK helyi klaszterre mehetett: a paritás-bizonyíték
+ * vagy hamisan bukott, vagy egy NEM SZÁNT klasztert módosított. Ma ugyanaz a feloldó adja a
+ * gazdagépet mindkét oldalnak, és ha az nem eldönthető, ez a hívás MEGÁLL — nem tippel.
+ */
 function pgEnv(dbName) {
-  const u = new URL(url);
-  const e = { ...process.env };
-  if (u.hostname) e.PGHOST = decodeURIComponent(u.hostname);
-  if (u.port) e.PGPORT = u.port;
-  if (u.username) e.PGUSER = decodeURIComponent(u.username);
-  if (u.password) e.PGPASSWORD = decodeURIComponent(u.password);
-  e.PGDATABASE = String(dbName);
-  delete e.PGSERVICE; delete e.PGSERVICEFILE;
-  return e;
+  const r = cliEnvFor({ sourceUrl: url, database: dbName, env: process.env });
+  if (!r.ok) throw new Error(`a parancssori kliens környezete nem állítható össze: ${r.reason}`);
+  return r.env;
 }
 function psqlTry(args, dbName = 'postgres') {
   try {

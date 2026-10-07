@@ -9,7 +9,8 @@
 // MIT MÉR:
 //   R91-01  A BEFEJEZÉS nem állít hamis sikert: függő feladatnál elakad, és ott a KIMONDOTT kihagyás.
 //   R91-02  A KILÉPÉS is ELSZÁMOL: a záró lap három számot ír ki, és MÁS mondattal.
-//   R91-03  MIND A KILENC bemutató elindul és a saját képernyőjén kiemel — vagy NEVEZETTEN nem indítható.
+//   R91-03  MINDEN deklarált bemutató elindul és a saját képernyőjén kiemel — vagy NEVEZETTEN nem
+//           indítható. A várt KÉSZLET a regiszterből jön, nem beírt darabszámból (KUKA-045).
 //   R91-04  A BELÉPÉS ELŐTTI segítség: a panel négy nézete és a regisztrációs bemutató VÉGIGVIHETŐ.
 //   R91-05  A NYELV a belépés előtt is választható, és TÚLÉLI a lapfrissítést.
 //   R91-06  A NYELV a SZEMÉLYHEZ tartozik: másik ember belépése nem viszi át az előző beállítását.
@@ -23,6 +24,7 @@ import {
   World, createWorkspaceUI, openProfile, setPlanUI, logoutUI, registerUI, verifyFromMailboxUI, loginUI,
 } from './helpers.mjs';
 import { dictFor } from '../../v3app/public/i18n/dict.mjs';
+import { TOURS } from '../../v3app/knowledge/features.mjs';
 
 const HU = dictFor('hu');
 
@@ -89,14 +91,34 @@ test('R91-03 — MINDEN bemutató elindul a saját képernyőjén, vagy NEVEZETT
     await createWorkspaceUI(anna.page, { name: 'Bemutató Kft', business: { jurisdiction: 'HU', tax_id: '12345678-1-42' } });
     const status = await anna.api.get('/api/assistant/status?lang=hu');
     const tours = status.body.tours.map((t) => t.id);
-    // A fiókkezelőnek TIZENEGY bemutató jár (a regisztrációs CSAK belépés előtt indítható).
-    // R121: a kilencedik a hozzáférés ÉLETCIKLUSA (megadás ÉS visszavonás).
-    // R132: a tizedik a MEGHÍVÁS VISSZAVONÁSA, a tizenegyedik az ÚJBÓLI BELÉPÉS — a szám ezért nőtt.
-    //
-    // A PIN NEM KÉZI SZÁM, HANEM KÖVETKEZMÉNY (KUKA-045): a számot akkor írjuk át, amikor ÚJ
-    // képesség VALÓBAN megszületett, és a hozzá tartozó bemutató INDÍTHATÓ is — amit ez a hurok
-    // mér. Ha a szám csak azért nőne, hogy a piros eltűnjön, a lenti ciklus azonnal elbuktatná.
-    expect(tours.length).toBe(11);
+    /**
+     * A VÁRT KÉSZLET A REGISZTERBŐL JÖN, NEM KÉZI SZÁMBÓL (R164/3 — KUKA-045 harmadszor).
+     *
+     * A RÉGI ALAK egy beírt szám volt (`toBe(11)`), és ez a csomagban KÉTSZER bukott el pusztán
+     * attól, hogy új útmutató született — egyszer itt, egyszer az `v3app-r93` lapon. A szám átírása
+     * önmagában HAMIS ZÖLD lett volna (ezt a külső review `F164-05`-ként ki is mondta), a szám
+     * MEGTARTÁSA pedig piros egy ÉP rendszeren. Egy előre beírt darabszám tehát sosem lehet a
+     * szabály.
+     *
+     * A SZABÁLY, AMIT EZ MÉR: a határ PONTOSAN azt a készletet adja ki, amit a regiszter deklarál —
+     * mindkét irányban. Egy NÉMÁN kiesett bemutatót a szám nem fogott volna meg (ha közben egy új
+     * születik, az összeg akár stimmelhet is); egy KITALÁLT azonosítót sem.
+     *
+     * A KÉT KIZÁRÁS NEVEZETT, és a regiszter adatából jön, nem itteni névsorból:
+     *   · `requires_anonymous` — a belépés ELŐTTI képernyőn fut (regisztráció), belépve nincs célja;
+     *   · `requires_invite`    — a meghívó-képernyőhöz kötött, meghívás nélkül a célja nem létezik.
+     * A `requires_role: 'admin'` nem kizárás, mert ez az ember a vállalkozás LÉTREHOZÓJA; a
+     * `requires_demo` sem, mert a próbapadot a `global-setup.mjs` bemutató-környezetre állítja
+     * (`VS_DEMO=1`) — mindkét előfeltételt EZ a próba-készlet teremti meg, nem feltevés.
+     */
+    const DEKLARALT = Object.keys(TOURS);
+    const nevezettenKizart = DEKLARALT.filter((id) => TOURS[id].requires_anonymous === true
+      || TOURS[id].requires_invite === true);
+    const vart = DEKLARALT.filter((id) => !nevezettenKizart.includes(id));
+    expect(tours.slice().sort(), 'a határ PONTOSAN a regiszter deklarált készletét adja ki — se néma kiesés, se kitalált azonosító')
+      .toEqual(vart.slice().sort());
+    expect(nevezettenKizart.slice().sort(), 'és a kizártak LISTÁJA is a regiszterből jön, nem itteni névsorból')
+      .toEqual(['tour.inviteAccept', 'tour.register']);
     expect(tours).not.toContain('tour.register');
     expect(tours, 'az R121 hozzáférés-életciklus bemutatója a kezelőnek jár').toContain('tour.scopeLifecycle');
     expect(tours, 'az R132 meghívás-visszavonás bemutatója a kezelőnek jár').toContain('tour.inviteRevoke');

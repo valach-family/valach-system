@@ -759,7 +759,8 @@ export function resumeIntent({ store, sessionId, clock, ttlMs = PENDING_INTENT_T
  * halmaz-utasítás — tehát nem hoz vissza kérésenkénti teljes bejárást és korlátlan memória-növekedést
  * (ez az R158 kifejezett kikötése, és a KUKA-290/300/306/313 költség-osztálya).
  */
-export function purgeExpiredIntents({ store, clock, ttlMs = PENDING_INTENT_TTL_MS, maxOddRows = 1000 }) {
+export function purgeExpiredIntents({ store, clock, ttlMs = PENDING_INTENT_TTL_MS, maxOddRows = 1000,
+  oddCursor = null }) {
   if (!clock || typeof clock.now !== 'function') {
     throw new Error('purgeExpiredIntents: `clock` kötelező (D-VS-3141)');
   }
@@ -845,9 +846,36 @@ export function purgeExpiredIntents({ store, clock, ttlMs = PENDING_INTENT_TTL_M
    * AMIT EZ NEM ÁLLÍT: nem garantál egyetlen pásztán teljes takarítást. Azt állítja, hogy MINDEN
    * romlott sor VÉGES számú pászta után sorra kerül, és hogy a részlegességet kimondjuk.
    */
+  /**
+   * ÉS A SORREND ÖNMAGÁBAN NEM AD ELŐREHALADÁST — KURZOR KELL (R164 review, Codex, P2 —
+   * `KUKA-382` · `D-VS-3190`).
+   *
+   * A LELET (a `KUKA-372`-es javításom FELETT). A `created_at` növekvő sorrendje a legrégebbi sorokat
+   * hozza előre — ez jó —, de a köteg ettől még ÁLLANDÓ lehet: egy ÉRVÉNYES, FRISS eltolásos
+   * időbélyeg (`2026-…+02:00`) SZÁMMAL kezdődik, egy romlott érték (`bogus`) viszont BETŰVEL, ami a
+   * szöveges rendezésben MÖGÉ kerül. Ha legalább `maxOddRows` ilyen friss, érvényes sor áll a romlott
+   * sor ELŐTT, akkor minden pászta UGYANAZT a köteget nézi meg és tartja meg — a romlott sor pedig
+   * határtalanul ott marad, miközben friss sorok folyamatosan érkeznek. A rendezés tehát a
+   * KIÉHEZTETÉST nem oldotta meg, csak elmozdította.
+   *
+   * A VÁLASZ: KULCS-KURZOR (`created_at`, `session_id` páron), ami pásztánként TOVÁBBLÉP. Minden
+   * pászta a kurzor UTÁNI sorokkal folytatja; ha a köteg nem lett tele, a pászta a tábla VÉGÉRE ért,
+   * és a kurzor visszaáll az elejére. Így minden nem kanonikus sor VÉGES számú pászta alatt sorra
+   * kerül, akármilyen a rendezése — és a költség továbbra is `maxOddRows` soronként (KUKA-290).
+   *
+   * A PÁR AZÉRT KELL, mert több sor időbélyege LEHET AZONOS: egy csak `created_at > ?` alakú kurzor az
+   * egyezőket ÁTLÉPNÉ, és pont a kihagyás volna a hiba. A `session_id` a tábla kulcsa, tehát a pár
+   * egyedi és teljes rendezést ad. Mindkét tároló érti (`node:sqlite` és PostgreSQL — SQL-02).
+   */
+  const kurzor = oddCursor && typeof oddCursor === 'object'
+    && typeof oddCursor.created_at === 'string' && typeof oddCursor.session_id === 'string'
+    ? oddCursor : null;
+  const KURZOR_SZURO = kurzor ? ' AND (created_at > ? OR (created_at = ? AND session_id > ?))' : '';
+  const KURZOR_ERTEKEK = kurzor ? [kurzor.created_at, kurzor.created_at, kurzor.session_id] : [];
   const furcsak = store.all(
-    `SELECT session_id, created_at FROM pending_intent WHERE NOT (${ALAK}) ORDER BY created_at ASC LIMIT ${korlat}`,
-    ...ALAK_ERTEKEK);
+    `SELECT session_id, created_at FROM pending_intent WHERE NOT (${ALAK})${KURZOR_SZURO}`
+    + ` ORDER BY created_at ASC, session_id ASC LIMIT ${korlat}`,
+    ...ALAK_ERTEKEK, ...KURZOR_ERTEKEK);
   const dobando = [];
   for (const r of furcsak) {
     const kor = mostMs - Date.parse(r.created_at);
@@ -856,10 +884,18 @@ export function purgeExpiredIntents({ store, clock, ttlMs = PENDING_INTENT_TTL_M
   if (dobando.length) {
     store.run(`DELETE FROM pending_intent WHERE session_id IN (${dobando.map(() => '?').join(',')})`, ...dobando);
   }
+  /**
+   * A KÖVETKEZŐ KURZOR. Tele köteg → a LEGUTOLSÓ megnézett sor a kurzor (ott folytatjuk). Nem tele
+   * köteg → a pászta a tábla végére ért, a kurzor visszaáll az elejére (`null`). A hívó ezt
+   * ADJA VISSZA a következő pásztán; aki nem tárolja, az a mai viselkedést kapja (az elejéről indul).
+   */
+  const tele = furcsak.length >= korlat;
+  const utolso = tele ? furcsak[furcsak.length - 1] : null;
   return { purged: kanonikusTakaritva + dobando.length, before: hatar,
     odd_rows: furcsak.length, odd_purged: dobando.length,
     // A KÖTEG TELÍTÉSE KIMONDOTT: ilyenkor a nem kanonikus sorok vizsgálata RÉSZLEGES volt.
-    odd_capped: furcsak.length >= korlat };
+    odd_capped: tele,
+    odd_cursor: utolso ? { created_at: String(utolso.created_at), session_id: String(utolso.session_id) } : null };
 }
 
 // ── A BEVÁLTÁS (K03) ────────────────────────────────────────────────────────────────────────────

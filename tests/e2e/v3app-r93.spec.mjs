@@ -17,6 +17,7 @@
 //   R93-07  A chat FORRÁSA megnyitható — és a megfelelő útmutatóra visz.
 import { test, expect } from '@playwright/test';
 import { dictFor } from '../../v3app/public/i18n/dict.mjs';
+import { TOURS } from '../../v3app/knowledge/features.mjs';
 import {
   World, createWorkspaceUI, openProfile, logoutUI,
   gotoPage, openInviteUI, redeemUI, ensureMemberRow, openMemberPanel, inviteUI, openMailbox, revokeUI,
@@ -157,15 +158,24 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
     // ── A DEKLARÁLT LISTA A SZERVERTŐL JÖN — nem kézi másolat (KUKA-051).
     const status = await anna.api.get('/api/assistant/status?lang=hu');
     const tours = status.body.tours;
-    // R132: a tizedik a MEGHÍVÁS VISSZAVONÁSA, a tizenegyedik az ÚJBÓLI BELÉPÉS. A szám KÖVETKEZMÉNY,
-    // nem kézi pin: MINDET VÉGIG IS VISSZÜK ebben a próbában (KUKA-045).
-    //
-    // R164 (KÜLSŐ REVIEW, Codex, P1): a szám 11-ről 14-re nőtt, mert az R164/3 három ÚJ útmutatót
-    // szállított (`tour.warehouses` · `tour.processes` · `tour.accountSettings`). A reviewer
-    // NEVESÍTETTE, hogy a szám átírása önmagában HAMIS ZÖLD volna: a próba azt állítja, hogy MINDEN
-    // deklarált bemutatót végigvisz, tehát a három újat is BE KELL JÁRNI — különben a mondat
-    // („minden deklarált bemutató végig lett járva") nem igaz (KUKA-216 · KUKA-038).
-    expect(tours.length, 'a fiókkezelőnek tizennégy bemutató jár').toBe(14);
+    /**
+     * A VÁRT KÉSZLET A REGISZTERBŐL JÖN, NEM BEÍRT DARABSZÁMBÓL (R164/3 — KUKA-045).
+     *
+     * A RÉGI ALAK egy pin volt (`toBe(11)`, majd `toBe(14)`), és a külső review `F164-05`-ként
+     * kimondta a csapdát: a szám ÁTÍRÁSA önmagában hamis zöld, a MEGTARTÁSA viszont piros egy ép
+     * rendszeren. A szám így kétszer bukott el ebben a csomagban, pusztán attól, hogy új útmutató
+     * született.
+     *
+     * A MÉRCE MOST A KÉSZLET, MINDKÉT IRÁNYBAN: a határ pontosan azt adja ki, amit a regiszter
+     * deklarál. Egy némán kiesett bemutatót a darabszám nem fogott volna meg (ha közben új születik,
+     * az összeg akár stimmelhet is), egy kitalált azonosítót sem. A két kizárás a regiszter ADATÁBÓL
+     * jön: `requires_anonymous` (belépés előtti képernyő) és `requires_invite` (meghívó-képernyő).
+     */
+    const DEKLARALT = Object.keys(TOURS);
+    const kiszolgalt = DEKLARALT.filter((id) => TOURS[id].requires_anonymous !== true
+      && TOURS[id].requires_invite !== true);
+    expect(tours.map((t) => t.id).sort(), 'a határ PONTOSAN a regiszter deklarált készletét adja ki')
+      .toEqual(kiszolgalt.slice().sort());
     const byId = Object.fromEntries(tours.map((t) => [t.id, t]));
 
     const simple = ['tour.shell', 'tour.stock', 'tour.language', 'tour.help', 'tour.plan',
@@ -433,8 +443,22 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
       // VÉGIGVIHETŐ — nem elég felvenni a listára, a verdiktjük is `befejezve` kell legyen.
       'tour.warehouses', 'tour.processes', 'tour.accountSettings'];
     const crossActor = ['tour.inviteRevoke', 'tour.reentry'];
+    /**
+     * A „MINDEN DEKLARÁLT BEMUTATÓ VÉGIG LETT JÁRVA" MONDAT A REGISZTERHEZ MÉRVE DŐL EL (R164/3).
+     *
+     * Eddig a két kézi lista ÖNMAGÁHOZ volt mérve: ha egy új bemutató se a listára, se a bejárásba
+     * nem került, ez az állítás ZÖLD maradt — a mondat mégsem volt igaz (KUKA-216). Mostantól a
+     * bejárandó készlet a regiszterből jön, és a két listának EGYÜTT pontosan azt kell lefednie.
+     *
+     * AZ EGYETLEN NEVEZETT KIVÉTEL: a `requires_invite` bemutató (a meghívás elfogadása) ebben a
+     * próbában nem indítható, mert érvényes meghívó-hivatkozás kell hozzá — a kizárás a regiszter
+     * adata, nem itteni döntés. Mesterséges meghívót nem gyártunk hozzá.
+     */
+    const bejarando = DEKLARALT.filter((id) => TOURS[id].requires_invite !== true);
+    expect([...appShell, ...crossActor].sort(), 'a két bejárási lista EGYÜTT a regiszter készletét fedi — új bemutató nem maradhat ki némán')
+      .toEqual(bejarando.slice().sort());
     expect(Object.keys(verdict).sort(), 'minden deklarált bemutató végig lett járva').toEqual(
-      [...appShell, ...crossActor].sort(),
+      bejarando.slice().sort(),
     );
     for (const id of appShell) {
       expect(verdict[id], `${id}: az alkalmazás-héjban VÉGIGVIHETŐ`).toBe('befejezve');

@@ -37,11 +37,13 @@ import { resolveLanguage, parseAcceptLanguage, pickFromAcceptLanguage } from './
 import { validateAgainstSchema } from '../v3ref/inputSchema.mjs';
 import { purgeExpiredIntents, resumeIntent, rememberIntent, intentTtlMs, PENDING_INTENT_TTL_MS } from '../v3ref/invite.mjs';
 import { validateRequest } from './httpSchema.mjs';
+import { adaptiveUnitPlan } from '../v3ref/external-checks/batteryUnits.mjs';
 import { request as httpReq } from 'node:http';
 import { transcriptsOf } from '../tools/v3_fogyasztas_meres.mjs';
 import { restoreTargetProblem, sameDatabase, effectiveDatabase, withDatabase, freshTargetName,
   restoreTargetDecision, restoreOutcome, redactConnStrings, acquireFreshTarget, localOnlyVerdict,
-  effectiveHost, RESTORE_TARGET_PREFIX, PROTECTED_DB_NAMES } from '../tools/lib/vs_pg_target.mjs';
+  effectiveHost, RESTORE_TARGET_PREFIX, PROTECTED_DB_NAMES,
+  cliEnvFor } from '../tools/lib/vs_pg_target.mjs';
 
 import { execFileSync } from 'node:child_process';
 /**
@@ -2392,6 +2394,130 @@ try {
       clientIpOf(kerés({ 'x-real-ip': '198.51.100.22' }), BIZALOM) === ad2.key
       && clientIpOf(kerés({}), BIZALOM) === ad6.key,
       { egyezik: true });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  // AE — AZ R164 MÁSODIK REVIEW-KÖRÉNEK TISZTA DÖNTÉSEI (F164-09 … F164-14)
+  //
+  // Hat lelet, aminek a döntése TISZTA függvény — tehát a söprésben is piros lesz, nem csak kézi
+  // futtatáson (KUKA-207). A hetediket (a forrás-pillanatkép) a `proof:pg-restore-safety` méri valódi
+  // PostgreSQL-en, a nyolcadikat (a címsor) a böngészős kapu.
+  {
+    // ── (ae1) CSAK AZ ABSZOLÚT ÚT SOCKET — a PONTTAL kezdődő gazdagép NEM helyi (F164-09, P1) ─────
+    const ae_pont = localOnlyVerdict('postgres://u@localhost/db?host=.belso.pelda.hu', {});
+    const ae_socket = localOnlyVerdict('postgres://u@localhost/db?host=/var/run/postgresql', {});
+    const ae_hurok = localOnlyVerdict('postgres://u@127.0.0.1:5432/db', {});
+    const ae_tavoli = localOnlyVerdict('postgres://u@db.pelda.hu/db', {});
+    step('(ae1) F164-09: a PONTTAL kezdődő gazdagép NEM helyi (a PostgreSQL csak az ABSZOLÚT utat kezeli socketként) — a destruktív próbák kapuja zár',
+      ae_pont.allowed === false && ae_socket.allowed === true && ae_hurok.allowed === true && ae_tavoli.allowed === false,
+      { pontos: ae_pont.allowed, socket: ae_socket.allowed, hurok: ae_hurok.allowed, tavoli: ae_tavoli.allowed });
+
+    // ── (ae2) A CLI-KÖRNYEZET TISZTELI A `?host=` FELÜLÍRÁST (F164-10, 2× P2) ─────────────────────
+    const ae_url = 'postgres://u:p@localhost:5432/forras?host=/var/run/pg-alt';
+    // A `PGSERVICE` NEM ide tartozik: azt a gazdagép-feloldó már NEM ELDÖNTHETŐ-nek mondja (ae3) —
+    // ez SAJÁT lelet a mérés írásán: az első alakom ezt adta be, és a próba a FAIL-CLOSED ágra esett,
+    // vagyis a rendszer volt helyes, a mérés nem (KUKA-216). A törlést a `PGSERVICEFILE` méri.
+    const ae_env = cliEnvFor({ sourceUrl: ae_url, database: 'cel', env: { PGSERVICEFILE: 'y', PGSERVICE: undefined } });
+    const ae_regi = new URL(ae_url).hostname;          // a JAVÍTÁS ELŐTTI feloldó, szó szerint
+    step('(ae2) F164-10: a parancssori kliens a `?host=` FELÜLÍRÁST kapja, nem a cím autoritás-gazdagépét — és a `service` változókat NEM kapja meg',
+      ae_env.ok === true && ae_env.env.PGHOST === '/var/run/pg-alt' && ae_regi === 'localhost'
+      && ae_env.env.PGDATABASE === 'cel' && ae_env.env.PGSERVICEFILE === undefined
+      && ae_env.env.PGPORT === '5432' && ae_env.env.PGUSER === 'u' && ae_env.env.PGPASSWORD === 'p',
+      { ma: ae_env.ok ? ae_env.env.PGHOST : ae_env.reason, regen: ae_regi });
+
+    // ── (ae3) ÉS FAIL-CLOSED: ami nem eldönthető, arra NEM ad környezetet ────────────────────────
+    const ae_service = cliEnvFor({ sourceUrl: 'postgres://u@localhost/db?service=prod', env: {} });
+    const ae_uresPort = cliEnvFor({ sourceUrl: 'postgres://u@localhost:5432/db?port=', env: {} });
+    const ae_tobb = cliEnvFor({ sourceUrl: 'postgres://u@localhost/db?host=a,b', env: {} });
+    step('(ae3) F164-10: a nem eldönthető cím NEM kap környezetet (szolgáltatás · ÜRES port-felülírás · több gazdagép) — a hívó megáll, nem tippel',
+      ae_service.ok === false && ae_uresPort.ok === false && ae_tobb.ok === false
+      && [ae_service, ae_uresPort, ae_tobb].every((r) => typeof r.reason === 'string' && r.reason.length > 20),
+      { service: ae_service.ok, ures_port: ae_uresPort.ok, tobb_gazdagep: ae_tobb.ok });
+
+    // ── (ae4) A KILÉPÉS IS LESZEDI A VÉDETT-INDEXET (F164-11, P1) ────────────────────────────────
+    const ae_st = makeSessionStore({ maxSessions: 50, idleMs: 10 ** 9, warn: () => {}, intentIndex: true,
+      protectedIds: (ids) => new Set(ids.map(String)) });
+    ae_st.set('anon_1', { id: 'anon_1', subject_id: null }, 1000);
+    ae_st.markIntent('anon_1');
+    const ae_indexelve = ae_st.stats().intent_indexed;
+    ae_st.delete('anon_1');
+    const ae_indexUtan = ae_st.stats().intent_indexed;
+    // ELLENPÁR: a kiszorítási út (`drop`) eddig is helyesen könyvelt — a kettő MOST UGYANAZT teszi.
+    ae_st.set('anon_2', { id: 'anon_2', subject_id: null }, 2000);
+    ae_st.markIntent('anon_2');
+    ae_st.intentsPurged();                       // hogy a rövidre zárás ne szóljon közbe
+    step('(ae4) F164-11: a KILÉPÉS útja (`delete`) is leszedi a sort a védett-indexről — nem csak a kiszorítás (`drop`)',
+      ae_indexelve === 1 && ae_indexUtan === 0,
+      { kilepes_elott: ae_indexelve, kilepes_utan: ae_indexUtan });
+
+    // ── (ae5) AZ EGYSÉG-KÖLTSÉGVETÉS TÚLLÉPÉSE IS FINOMÍTÁST KÉR (F164-12, P2) ───────────────────
+    {
+      const JEL = '  GEPI-JEL: unit_over_budget\n';
+      const hivasok = [];
+      const terv = adaptiveUnitPlan({
+        startUnits: 4, maxUnits: 32, maxAttempts: 4,
+        spawnUnits: (n) => {
+          hivasok.push(n);
+          // 4 egységnél a futtató a SAJÁT költségvetését lépi túl (nem nulla kilépés, NINCS
+          // időtúllépés); 8-nál belefér. A régi alak a 4-et „belefért"-nek olvasta.
+          return n < 8
+            ? { timedOut: false, exit: 1, runs: [{ arg: `--unit=1/${n}`, stdout: `RESULT…${JEL}`, stderr: '' }] }
+            : { timedOut: false, exit: 0, runs: [{ arg: `--unit=1/${n}`, stdout: 'RESULT: tiszta', stderr: '' }] };
+        },
+      });
+      // ELLENPÁR: TARTALMI bukás (nem nulla kilépés, de NINCS költségvetés-jel) → NEM finomítunk,
+      // mert a finomítás egy tartalmi hibát nem gyógyít, viszont elvinné a külső program-keretet.
+      const tartalmi = [];
+      const terv2 = adaptiveUnitPlan({
+        startUnits: 4, maxUnits: 32, maxAttempts: 4,
+        spawnUnits: (n) => { tartalmi.push(n); return { timedOut: false, exit: 1, runs: [{ arg: `--unit=1/${n}`, stdout: 'RESULT: a szelet NEM tiszta', stderr: '' }] }; },
+      });
+      step('(ae5) F164-12: a futtató SAJÁT költségvetés-túllépése FINOMÍTÁST kér (nem „belefért"), a TARTALMI bukás viszont NEM — két külön ok, két külön válasz',
+        terv.fitted === true && terv.units === 8 && hivasok.join(',') === '4,8'
+        && terv2.fitted === true && tartalmi.join(',') === '4',
+        { koltsegvetes_hivasok: hivasok.join(','), koltsegvetes_vegso: terv.units,
+          tartalmi_hivasok: tartalmi.join(','), tartalmi_finomitott: tartalmi.length > 1 });
+    }
+
+    // ── (ae6) A PÁSZTA KURZORA ELŐRE HALAD (F164-13, P2) ────────────────────────────────────────
+    {
+      const DB5 = resolve(ROOT, 'var/tmp/v3app_r154_ae6.sqlite');
+      try { rmSync(DB5, { force: true }); rmSync(DB5 + '-wal', { force: true }); rmSync(DB5 + '-shm', { force: true }); } catch { /* nem volt */ }
+      const ae6 = await startServer({ port: 0, dbPath: DB5 });
+      try {
+        const st = ae6.store;
+        const be = (sid, at) => st.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)', sid, 'tok', at);
+        const ora = { now: () => new Date().toISOString() };
+        const alap = Date.parse(ora.now());
+        /**
+         * HÁROM friss, ÉRVÉNYES eltolásos sor (SZÁMMAL kezdődik → előre rendeződik) és EGY romlott
+         * (BETŰVEL kezdődik → mögé). A köteg háromra korlátozva: a romlott sor így az ELSŐ pásztán
+         * meg sem jelenik — ez maga a lelet.
+         */
+        const feltolt = () => {
+          st.run('DELETE FROM pending_intent');
+          for (let i = 0; i < 3; i += 1) {
+            be(`friss_${i}`, new Date(alap - (3 - i) * 1000).toISOString().replace('Z', '+00:00'));
+          }
+          be('romlott', 'bogus');
+        };
+        feltolt();
+        const p1 = purgeExpiredIntents({ store: st, clock: ora, maxOddRows: 3 });
+        const p2 = purgeExpiredIntents({ store: st, clock: ora, maxOddRows: 3, oddCursor: p1.odd_cursor });
+        const romlottElfogyott = !st.get('SELECT 1 AS x FROM pending_intent WHERE session_id = ?', 'romlott');
+        // ELLENPÁR: kurzor NÉLKÜL a második pászta UGYANAZT a köteget látja, és a romlott sor MARAD.
+        feltolt();
+        purgeExpiredIntents({ store: st, clock: ora, maxOddRows: 3 });
+        purgeExpiredIntents({ store: st, clock: ora, maxOddRows: 3 });
+        const kurzorNelkulMegvan = Boolean(st.get('SELECT 1 AS x FROM pending_intent WHERE session_id = ?', 'romlott'));
+        step('(ae6) F164-13: a pászta KURZORA továbblép, ezért a romlott sor a MÁSODIK pásztán sorra kerül — kurzor NÉLKÜL ugyanaz a köteg ismétlődik, és a sor MARAD',
+          p1.odd_capped === true && p1.odd_cursor !== null && p1.odd_purged === 0
+          && p2.odd_purged === 1 && romlottElfogyott === true && kurzorNelkulMegvan === true,
+          { elso_paszta: `${p1.odd_rows} sor, tele: ${p1.odd_capped}, takarítva: ${p1.odd_purged}`,
+            masodik_paszta_kurzorral: `takarítva: ${p2.odd_purged}`,
+            kurzor_nelkul_megmaradt: kurzorNelkulMegvan });
+      } finally { await ae6.close(); }
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════════════════════════

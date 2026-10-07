@@ -354,6 +354,21 @@ test('H06 — Körön túli meghívás/jogadás elutasítva; visszavont, idegen 
     ev.b(`Béla ÚJRA megnyitja a már beváltott hivatkozást: „${reopen.observe.status}" (${reopen.observe.reason}); a lap: „${reopen.next}"; gomb: ${reopen.redeemVisible}`);
     ev.s(`ISMÉTELT beváltás → ${again.status} ${again.body.error}/${again.body.reason}; ADATBÁZIS tagság-sor Bélának: ${db.count('SELECT COUNT(*) AS n FROM membership WHERE subject_id = ? AND book_id = ?', bela.subjectId, K.bookId)} (nem duplázódott)`);
     expect(again.body.reason).toBe('invite_already_redeemed'); expect(reopen.redeemVisible).toBe(false);
+    /**
+     * A KILÉPÉS A CÍMSORRÓL IS ELVISZI A MEGHÍVÓ JEGYET (R164 review, Codex, P2 — `KUKA-383`).
+     *
+     * A LELET: a lap `/?invite=<jegy>` alakban nyílt meg, és a kilépés csak a BELSŐ jegyet ürítette —
+     * a címsorban ott maradt. Egy FRISSÍTÉS (vagy ugyanannak a történet-bejegyzésnek az újbóli
+     * megnyitása, miután MÁS EMBER ült le a böngészőhöz) az indulásnál újra beolvasta, és a felület
+     * visszatért az ELŐZŐ ember meghívó-folyamatára. A mérés ezért KÉT dolgot néz: a címsort, és azt,
+     * hogy a frissítés UTÁN a belépő képernyő áll ott — nem a meghívó.
+     */
+    await logoutUI(bela.page);
+    const cimsorKilepesUtan = new URL(bela.page.url());
+    await bela.page.reload();
+    await expect(bela.page.getByTestId('login-email'), 'frissítés után a BELÉPŐ képernyő áll ott, nem az előző ember meghívója').toBeVisible();
+    ev.b(`Kilépés után a címsor: „${cimsorKilepesUtan.pathname}${cimsorKilepesUtan.search}" — a meghívó jegy nincs benne: ${!cimsorKilepesUtan.searchParams.has('invite')}; a frissítés a belépő képernyőre érkezik`);
+    expect(cimsorKilepesUtan.searchParams.has('invite'), 'a kilépés a CÍMSORRÓL is elviszi a meghívó jegyet').toBe(false);
     // IDEGEN CÍMZETT: Cili megnyitja Dani meghívóját; utána Dani érvényesen beváltja.
     const dani = await w.person('dani'); const cili = await w.person('cili');
     const invD = await inviteUI(anna.page, { email: dani.email, role: 'user', scope: 'keszlet' });

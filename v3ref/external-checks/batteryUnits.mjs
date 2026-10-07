@@ -145,16 +145,43 @@ export function unitsScriptLineIsHomed(line) {
  *   A hívó adja: n egységet futtat, és megmondja, volt-e IDŐTÚLLÉPÉS. A modul nem spawn-ol — így
  *   próbából is hívható, valódi gyermek nélkül (KUKA-207).
  */
+/**
+ * A FUTTATÓ SAJÁT KÖLTSÉGVETÉS-TÚLLÉPÉSÉNEK JELE (R164 review, Codex, P2 — `KUKA-381` · `D-VS-3189`).
+ *
+ * A LELET: ha egy egység a `mutate.mjs` SAJÁT 12 000 ms-os költségvetését lépi túl, de a külső
+ * 15 000 ms-os `spawnSync` korlátba még belefér, akkor NEM NULLÁVAL lép ki, miközben `timedOut: false`.
+ * Az adaptív terv eddig csak az IDŐTÚLLÉPÉSRE finomított, tehát ezt az ágat „belefért"-nek jelentette,
+ * és azonnal visszatért — vagyis a lánc TARTALMI bukásként adta tovább azt, amit épp a finomítás
+ * oldott volna meg. És ez nem elméleti: a fenti bekezdés maga dokumentál egy 12 487 ms-os egységet a
+ * 32-es bontáson, tehát egy kicsit lassabb futtatón (vagy `VS_BATTERY_UNITS=32` mellett) pontosan ez
+ * az eset áll elő.
+ *
+ * A JEL A FUTTATÓ SAJÁT KIMENETÉBŐL JÖN, és a terv MAGA olvassa ki — nem egy új, beadandó mezőből.
+ * Így egy hívó nem tudja ELFELEJTENI bejelenteni (KUKA-227: az új út bélyeg nélkül születik).
+ */
+export const UNIT_OVER_BUDGET_MARK = 'GEPI-JEL: unit_over_budget';
+
+/** Mely egységek lépték túl a futtató SAJÁT költségvetését — a kimenetük gépi jele alapján. */
+export function unitsOverBudget(runs = []) {
+  return (Array.isArray(runs) ? runs : [])
+    .filter((r) => String(r?.stdout ?? '').includes(UNIT_OVER_BUDGET_MARK))
+    .map((r) => String(r?.arg ?? '?'));
+}
+
 export function adaptiveUnitPlan({ spawnUnits, startUnits = batteryUnits(), maxUnits = 256, maxAttempts = 5 }) {
   const log = [];
   let n = Math.max(1, Math.min(Number(startUnits) || 1, maxUnits));
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const r = spawnUnits(n);
-    if (!r.timedOut) {
+    const tulLepte = unitsOverBudget(r.runs);
+    if (!r.timedOut && tulLepte.length === 0) {
       log.push(`${attempt}. ${n} egység — belefért a ${EXTERNAL_CAP_MS} ms-os korlátba`);
       return { units: n, attempts: attempt, fitted: true, log: Object.freeze(log), result: r };
     }
-    log.push(`${attempt}. ${n} egység — IDŐTÚLLÉPÉS a ${EXTERNAL_CAP_MS} ms-os korláton, finomítás`);
+    log.push(r.timedOut
+      ? `${attempt}. ${n} egység — IDŐTÚLLÉPÉS a ${EXTERNAL_CAP_MS} ms-os korláton, finomítás`
+      : `${attempt}. ${n} egység — a futtató SAJÁT költségvetését (${UNIT_BUDGET_MS} ms) lépte túl `
+        + `${tulLepte.length} egységben (${tulLepte.slice(0, 3).join(', ')}${tulLepte.length > 3 ? ' …' : ''}), finomítás`);
     /**
      * A PLAFONON NEM FUTTATJUK ÚJRA UGYANAZT (R164, KÜLSŐ REVIEW, Codex, P2).
      *
@@ -173,6 +200,10 @@ export function adaptiveUnitPlan({ spawnUnits, startUnits = batteryUnits(), maxU
   }
   // A kísérlet-korlát elfogyott, de a plafon még nem: EGY utolsó, FINOMABB bontást adunk.
   const r = spawnUnits(n);
-  log.push(`záró: ${n} egység — ${r.timedOut ? 'NEM FÉRT BELE (a kísérlet-korlát elfogyott)' : 'belefért'}`);
-  return { units: n, attempts: maxAttempts + 1, fitted: !r.timedOut, log: Object.freeze(log), result: r };
+  const tulLepte = unitsOverBudget(r.runs);
+  const belefert = !r.timedOut && tulLepte.length === 0;
+  log.push(`záró: ${n} egység — ${belefert ? 'belefért'
+    : (r.timedOut ? 'NEM FÉRT BELE (a kísérlet-korlát elfogyott)'
+      : `NEM FÉRT BELE: a futtató SAJÁT költségvetését lépte túl ${tulLepte.length} egységben`)}`);
+  return { units: n, attempts: maxAttempts + 1, fitted: belefert, log: Object.freeze(log), result: r };
 }
