@@ -16,6 +16,36 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3183 — AZ ÁLLÍTÁS NEVEZZE MEG AZ UTAT, ÉS AZ IDŐ-BUKÁS NEM TARTALMI ZÖLD (R164/3, saját lelet)
+
+**A döntés.** Ahol két külön kódág **ugyanabba az összegbe** dolgozik, ott az állítás ne az összeget
+mérje, hanem az **utat**. A függő szándék takarításának próbája (`P-K03-intent-expiry`) ezért mostantól
+kimondja, hogy a csak a **fejében** kanonikus romlott sor az **értelmező** ágon tűnik el
+(`odd_rows = 1` és `odd_purged = 1`), nem a szövegesen — a puszta „eltűnt" (`purged = 1`) ezt nem
+mondta meg, mert mindkét ág ugyanabba a számba számol.
+
+**Miért.** A battéria **saját, deklarált** M222 mutációja (a kanonikus alak-minta farkát `%`-ra
+engedi) **túlélt**: a próba zöld maradt rajta. A mutált alakon egy romlott sor, aminek csak a feje
+kanonikus, a szöveges ágra kerül, az időablakon belülre esik — tehát **soha nem törlődik** —, és az
+értelmező ág sem látja, mert az a nem kanonikus sorokat kéri. A sor **örökéletű és láthatatlan**:
+egyetlen jelentésben sem jelenik meg.
+
+**És a mérés rendje.** A túlélést mind a négy külső-ellenőrző lánc jelezte, de a lánc az **időkorláton**
+bukott el a tartalom kimondása **előtt**, a söprés pedig „nem fejeződött be"-ként sorolta. Ezért: a
+nem-nulla kilépés **okát** (idő vagy tartalom) ki kell mondani, mert a „nem futott le" csendben
+„nincs is baj"-ra fordul (KUKA-093). A/B összevetés a korábbi `4a308da` fejen ugyancsak `SURVIVED`-et
+adott — tehát **örökölt, méretlen** állapot, nem a mostani javítások regressziója.
+
+**Amit ez NEM állít.** Nem állítja, hogy a takarítás kódja hibás volt: a hossz-kötött alak-minta
+mindvégig a helyes alakban állt. Azt állítja, hogy **nem volt megmérve**, és hogy egy méretlen
+állítás nem véd.
+
+**Gépi jel.** `npm run verify:v3ref` (az M222 mutáció `CAUGHT`) · `npm run verify:kuka` (KUKA-375:
+három pozitív és egy tiltó minta) · `npm run verify:external-checks` (r79/U04 · r59a/P01 · r81core ·
+r83core pozitív ellenpárjai).
+
+---
+
 ## D-VS-3182 — A VÉDETT NÉVTELEN SOROK NYILVÁNTARTÁSA A TÁRBAN ÁLL, NÖVEKMÉNYESEN (R164, külső review, P1)
 
 **A döntés.** A munkamenet-tár maga tartja nyilván, mely **névtelen** sorok hordoznak szerver-oldali

@@ -14692,6 +14692,38 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (négy pozitív minta) · `npm run verify:app-findings-r154` (AC: ac1 a nulla adatbázis-kérdés · ac2 az ELLENPÁR bejelentő nélkül · ac3 a védett sorok túlélése · ac4 a halmazos takarítás utáni bizalom-vesztés). A jel a HÍVÁS-SZÁM, nem az óra (KUKA-344).',
   }),
 
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  // R164/3 — A SAJÁT MAG-BATTÉRIÁNK EGY DEKLARÁLT MUTÁCIÓJA TÚLÉLT, ÉS EZT AZ IDŐ-BUKÁS FEDTE EL.
+  Object.freeze({
+    id: 'KUKA-375',
+    date: '2026-10-07',
+    title: 'A KANONIKUS IDŐBÉLYEG-ALAK VIZSGÁLATA NEM VOLT HOSSZ-KÖTÖTTEN MÉRVE — AZ M222 MUTÁCIÓ TÚLÉLT',
+    what: 'A `pending_intent` takarításának alak-szűrője (`v3ref/invite.mjs` · `ALAK`) a KANONIKUS minta mellett két betűt is ellenőriz (`T` a 11., `Z` a 24. helyen — F158-24). A `P-K03-intent-expiry` próba ezt a BETŰ-érzékenységet és az IDŐPILLANAT-összevetést mérte, a minta HOSSZ-KÖTÖTTSÉGÉT viszont NEM. Ezért a battéria SAJÁT, deklarált M222 mutációja (`____-__-__T__:__:__.___Z` → `____-__-__T%`) ÚGY ment át, hogy a próba ZÖLD maradt: SURVIVED. A kár konkrét: a mutált alakon egy ROMLOTT sor, aminek csak a FEJE kanonikus (`…Z` + szemét), „kanonikusnak" minősül, a SZÖVEGES ágra kerül, ott az ablakon BELÜLRE esik — tehát soha nem törlődik —, és az ÉRTELMEZŐ ág sem látja, mert az a `NOT (ALAK)` sorokat kéri. A sor ÖRÖKÉLETŰ ÉS LÁTHATATLAN: se `odd_rows`, se `odd_purged` nem számol vele.',
+    why_wrong: 'ÉS AMIÉRT EZ EDDIG NEM DERÜLT KI, AZ A SÚLYOSABB FELE: a túlélést a külső-ellenőrző láncok (r79/U04 · r59a/P01 · r81core · r83core) mind jelezték, de a lánc az IDŐ-korláton bukott el a TARTALOM kimondása ELŐTT, a söprés pedig „NEM FEJEZŐDÖTT BE"-ként sorolta. A nem-nulla kilépés OKA (idő vs tartalom) nem volt megnevezve, így a MÉRETLEN tartalmi maradék a jelentésekben nem jelent meg hiányként. MÉRVE (R164): amint a darabolás és a költségvetés javult, mind a négy lánc UGYANERRE az EGY gyökér-okra mutatott — és az A/B összevetés a korábbi `4a308da` fejen is SURVIVED-et adott, tehát a piros NEM a mostani javításaim regressziója, hanem egy addig MÉRETLEN, örökölt állapot.',
+    replaced_by: 'A PRÓBA MOST AZ UTAT IS MÉRI, NEM CSAK AZ EREDMÉNYT: beír egy olyan romlott sort, aminek a FEJE kanonikus (`<friss ISO>xyz`), és azt állítja, hogy az az ÉRTELMEZŐ ágon tűnik el — `odd_rows === 1` ÉS `odd_purged === 1` —, nem a szövegesen. A puszta „eltűnt" (`purged === 1`) ezt NEM mondta volna meg, mert a két ág ugyanabba az összegbe számol.',
+    replacement: 'ÉS A LÁNC IDŐ-BUKÁSA ELVÁLT A TARTALMI BUKÁSTÓL: a darabszám deklarált otthona (`v3ref/external-checks/batteryUnits.mjs`) 40 egységre mért, az `adaptiveUnitPlan` a korlát-bukásra finomít, a plafonon pedig a MÁR MEGMÉRT eredményt adja vissza újrafuttatás helyett — így a lánc eljut a tartalmi verdiktig.',
+    decision: 'D-VS-3183',
+    found_by: 'SAJÁT LELET (Claude-v3, R164/3) — a külső-ellenőrző láncok idő-korlátjának javítása után, az első olyan futáson, amelyik a TARTALMI verdiktig eljutott. A mutációt magát az R158 ötödik review-köre (Codex) írta elő.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/run.mjs']),
+        pattern: "beSor\\('hossz_romlott_fej'",
+        why: 'a próba beír egy olyan romlott sort, aminek CSAK A FEJE kanonikus' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/run.mjs']),
+        pattern: 'hosszTakaritas\\.odd_rows === 1 && hosszTakaritas\\.odd_purged === 1',
+        why: 'és azt állítja, hogy az ÉRTELMEZŐ ágon tűnik el, nem a szövegesen' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/invite.mjs']),
+        pattern: "const KANONIKUS = '____-__-__T__:__:__\\.___Z';",
+        why: 'a kanonikus alak HOSSZ-KÖTÖTT marad: a minta farkán nincs `%`' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/invite.mjs']),
+        pattern: "KANONIKUS = '[^']*%'",
+        why: 'a `%`-ra engedő alak-minta nem alak-ellenőrzés: ami csak a FEJÉBEN hasonlít, az is „kanonikus" lenne' }),
+    ]),
+    lesson: 'AMIT A PRÓBA CSAK AZ ÖSSZEGEN MÉR, AZT AZ ÚTJÁN NEM MÉRI. Ha két külön ág ugyanabba a számba dolgozik (`purged`), akkor az összeg zöldje nem bizonyítja, hogy a sor a HELYES ágon ment el — az állítás nevezze meg az utat. ÉS: egy lánc IDŐ-bukása nem semleges esemény, mert a tartalmi verdikt MÉRETLEN marad; a nem-nulla kilépés OKÁT (idő vs tartalom) ki kell mondani, különben a „nem futott le" csendben „nincs is baj"-ra fordul (KUKA-093).',
+    guard_note: 'gépi jel: `npm run verify:kuka` (három pozitív + egy tiltó minta) · `npm run verify:v3ref` (az M222 mutáció CAUGHT — a battéria maga a jel) · `npm run verify:external-checks` (r79/U04 · r59a/P01 · r81core · r83core pozitív ellenpárjai).',
+  }),
+
 
 
 

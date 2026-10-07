@@ -813,6 +813,23 @@ probe('P-K03-intent-expiry', 'R32/K03 · D-VS-3141 (a D-VS-3007 nevezett függő
       const betuTakaritas = purgeExpiredIntents({ store: w.store, clock: w.clock });
       const betuMaradt = w.store.all('SELECT session_id FROM pending_intent').map((r) => r.session_id).sort().join(',');
 
+      // (l) ÉS A KANONIKUS ALAK HOSSZ-KÖTÖTT: AMI CSAK A FEJÉBEN HASONLÍT, AZ AZ ÉRTELMEZŐ ÁGRA MEGY
+      //     (R164 — a SAJÁT mag-battériánk M222 mutációja TÚLÉLT, és ezt a külső-ellenőrző lánc
+      //     IDŐ-bukása fedte el: a tartalmi maradék MÉRETLEN volt, nem zöld. KUKA-093 alakja.)
+      //     A LELET ALAKJA. Ha az alak-minta farka `%`-ra enged (`____-__-__T%` a hossz-kötött
+      //     `____-__-__T__:__:__.___Z` helyett), akkor egy ROMLOTT sor, aminek a FEJE kanonikusnak
+      //     látszik (`…Z` + szemét), „kanonikusnak" minősül, és a SZÖVEGES ágra kerül. Ott az
+      //     összevetés az ABLAKON BELÜLRE esik, tehát NEM törlődik — és az ÉRTELMEZŐ ág sem látja,
+      //     mert az a `NOT (ALAK)` sorokat kéri. A romlott sor így ÖRÖKÉLETŰ ÉS LÁTHATATLAN: egyetlen
+      //     jelentésben sem jelenik meg (se `odd_rows`, se `odd_purged`).
+      //     EZÉRT NEM ELÉG AZT MÉRNI, HOGY ELTŰNT-E: azt is mérjük, MELYIK ÁGON tűnt el (KUKA-216 — a
+      //     verdikt ne mutasson a mérés hatókörén túl; a „purged=1" magában NEM mondja meg az utat).
+      w.store.run('DELETE FROM pending_intent');
+      const fejHasonlo = `${new Date(Date.parse(mostIso) - 60 * 60 * 1000).toISOString()}xyz`;
+      beSor('hossz_romlott_fej', fejHasonlo);
+      const hosszTakaritas = purgeExpiredIntents({ store: w.store, clock: w.clock });
+      const hosszMaradt = w.store.all('SELECT session_id FROM pending_intent').length;
+
       const ok = friss === 'tok_1' && lejart === null && sorEltunt
         && takaritas.purged === 1 && maradt.join(',') === 'sess_friss,sess_most' && nevezett === true
         && romlott === null && romlottEltunt === true
@@ -821,10 +838,12 @@ probe('P-K03-intent-expiry', 'R32/K03 · D-VS-3141 (a D-VS-3007 nevezett függő
         && ttlRovid === 12 * ORA && ttlHosszu === PENDING_INTENT_TTL_MS && ttlNevezett === true
         && kanonikusAlak === '2026-10-05T23:00:00.000Z' && eltoltTakaritas.purged === 0 && eltoltMegvan === true
         && impTakaritas.purged === 2 && impTakaritas.odd_purged === 1 && impMaradt === 'imp_friss_eltolas'
-        && betuMaradt === 'betu_kis_friss,betu_nagy_friss' && betuTakaritas.purged === 2 && betuTakaritas.odd_purged === 1;
+        && betuMaradt === 'betu_kis_friss,betu_nagy_friss' && betuTakaritas.purged === 2 && betuTakaritas.odd_purged === 1
+        && hosszTakaritas.odd_rows === 1 && hosszTakaritas.odd_purged === 1
+        && hosszTakaritas.purged === 1 && hosszMaradt === 0;
       return {
-        expected: 'friss=tok_1 · lejárt=null és a sor eltűnt · takarítás=1 lejárt sor, a friss marad · óra nélkül NEVEZETT hiba · ROMLOTT és JÖVŐBELI időbélyeg = lejárt · a HALMAZOS takarítás az árva romlott és jövőbeli sort is viszi, a frisset nem · a türelmi idő a PLAFON és a munkamenet KISEBBIKE, korlát nélkül NEVEZETT hiba · az ÍRÁS kanonikus UTC alakot tárol, az eltolásos FRISS sor megmarad, és a nem kanonikus árva sort IDŐPILLANATKÉNT ítéljük meg · a KISBETŰS friss sor is megmarad (az alak-vizsgálat betű-érzékeny)',
-        actual: `friss=${friss} · lejárt=${lejart} · sor_eltunt=${sorEltunt} · takaritva=${takaritas.purged} · maradt=${maradt.join(',')} · nevezett_hiba=${nevezett} · romlott=${romlott} · romlott_eltunt=${romlottEltunt} · jovo=${jovo} · jovo_eltunt=${jovoEltunt} · halmaz_takaritva=${halmaz.purged} · halmaz_maradt=${halmazMaradt} · ttl_12h=${ttlRovid / ORA}h · ttl_48h=${ttlHosszu / ORA}h · ttl_korlat_nelkul_nevezett=${ttlNevezett} · tarolt_alak=${kanonikusAlak} · eltolasos_friss_megvan=${eltoltMegvan} · import_takaritva=${impTakaritas.purged}/nem_kanonikusbol=${impTakaritas.odd_purged} · import_maradt=${impMaradt} · betu_maradt=${betuMaradt} · betu_takaritva=${betuTakaritas.purged}/nem_kanonikusbol=${betuTakaritas.odd_purged}`,
+        expected: 'friss=tok_1 · lejárt=null és a sor eltűnt · takarítás=1 lejárt sor, a friss marad · óra nélkül NEVEZETT hiba · ROMLOTT és JÖVŐBELI időbélyeg = lejárt · a HALMAZOS takarítás az árva romlott és jövőbeli sort is viszi, a frisset nem · a türelmi idő a PLAFON és a munkamenet KISEBBIKE, korlát nélkül NEVEZETT hiba · az ÍRÁS kanonikus UTC alakot tárol, az eltolásos FRISS sor megmarad, és a nem kanonikus árva sort IDŐPILLANATKÉNT ítéljük meg · a KISBETŰS friss sor is megmarad (az alak-vizsgálat betű-érzékeny) · és a csak a FEJÉBEN kanonikus romlott sor az ÉRTELMEZŐ ágon tűnik el, nem a szövegesen (odd_rows=1 · odd_purged=1)',
+        actual: `friss=${friss} · lejárt=${lejart} · sor_eltunt=${sorEltunt} · takaritva=${takaritas.purged} · maradt=${maradt.join(',')} · nevezett_hiba=${nevezett} · romlott=${romlott} · romlott_eltunt=${romlottEltunt} · jovo=${jovo} · jovo_eltunt=${jovoEltunt} · halmaz_takaritva=${halmaz.purged} · halmaz_maradt=${halmazMaradt} · ttl_12h=${ttlRovid / ORA}h · ttl_48h=${ttlHosszu / ORA}h · ttl_korlat_nelkul_nevezett=${ttlNevezett} · tarolt_alak=${kanonikusAlak} · eltolasos_friss_megvan=${eltoltMegvan} · import_takaritva=${impTakaritas.purged}/nem_kanonikusbol=${impTakaritas.odd_purged} · import_maradt=${impMaradt} · betu_maradt=${betuMaradt} · betu_takaritva=${betuTakaritas.purged}/nem_kanonikusbol=${betuTakaritas.odd_purged} · fej_hasonlo_ag=odd_rows:${hosszTakaritas.odd_rows}/odd_purged:${hosszTakaritas.odd_purged}/purged:${hosszTakaritas.purged}/maradt:${hosszMaradt}`,
         pass: ok,
       };
     } finally { w.store.close(); }
