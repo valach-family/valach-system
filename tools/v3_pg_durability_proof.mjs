@@ -25,7 +25,8 @@ import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { loadRepoEnv } from './lib/vs_tool_env.mjs';
 import { restoreTargetProblem, sameDatabase, qid, withDatabase, effectiveDatabase, freshTargetName,
-  acquireFreshTarget, restoreOutcome, redactConnStrings, RESTORE_TARGET_PREFIX, cliEnvFor } from './lib/vs_pg_target.mjs';
+  acquireFreshTarget, restoreOutcome, redactConnStrings, RESTORE_TARGET_PREFIX, cliEnvFor,
+  explicitSwitch } from './lib/vs_pg_target.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 loadRepoEnv(ROOT);
@@ -397,7 +398,8 @@ if (restored) {
 }
 
 // ── 6. TAKARÍTÁS: CSAK A SAJÁT, IGAZOLTAN LÉTREHOZOTT ERŐFORRÁS ─────────────────────────────────
-if (restoreTarget !== null && process.env.VS_KEEP_RESTORE_TARGET) {
+const megtart = explicitSwitch(process.env, 'VS_KEEP_RESTORE_TARGET');
+if (restoreTarget !== null && megtart.on) {
   /**
    * A MEGTARTÁS TÉNYLEGES MEGTARTÁS (R164, KÜLSŐ REVIEW, Codex, P2).
    *
@@ -409,12 +411,18 @@ if (restoreTarget !== null && process.env.VS_KEEP_RESTORE_TARGET) {
    */
   sajatCelok.delete(restoreTarget);
   step('6. a SAJÁT cél MEGTARTVA (kimondott kérésre)', true,
-    `${restoreTarget} a kiszolgálón marad — VS_KEEP_RESTORE_TARGET; kézzel kell eldobni`);
+    `${restoreTarget} a kiszolgálón marad — ${megtart.basis}; kézzel kell eldobni`);
 } else if (restoreTarget !== null) {
   const d = dropOwn(restoreTarget);
   takaritasJelentes = d;
+  /**
+   * A FIGYELMEN KÍVÜL HAGYOTT KAPCSOLÓ NEM NÉMA (R166 review, Codex, P2 — `KUKA-398`).
+   * Ha a kapcsoló be van állítva, de nem a pontos `1`, az ELÍRÁS: a sor KIMONDJA, különben
+   * a futtató azt hiszi, megtartást kért, holott eldobtuk (`KUKA-238`).
+   */
+  const eliras = megtart.recognised ? '' : ` · FIGYELEM: ${megtart.basis}`;
   step('6. a SAJÁT cél eldobva (idegenhez nem nyúlunk)', d.ok,
-    d.ok ? `${restoreTarget} eldobva` : `MARADÉK: ${restoreTarget} — ${d.basis}`);
+    `${d.ok ? `${restoreTarget} eldobva` : `MARADÉK: ${restoreTarget} — ${d.basis}`}${eliras}`);
 }
 // MARADÉK-JELENTÉS: a korábbi futások előtagos adatbázisait MEGNEVEZZÜK, de SOHA nem dobjuk el — a
 // név nem tulajdonbizonyíték, és nem tudjuk, ki futtatja épp (R164/1).

@@ -18,6 +18,7 @@ RÉGI munkamenet zárása volt; ez a lap az ÚJ munkamenet eredménye.
 | **R166 §0 átadás** | **KÉSZ** — a checkpoint ellenőrizve, a régi író leállt, a munka a PR aktuális fejére épült (force-push nélkül) |
 | **R166/P1 (a nyitott review-szál)** | **KÉSZ és MÉRVE** — `D-VS-3201` · `KUKA-393` |
 | **A 3747c12 fejre jött ÚJ P2** | **KÉSZ és MÉRVE** — a titok-tisztító határa (`D-VS-3203` · `KUKA-395`); lásd a 2.1 pontot |
+| **A feltolt fejre jött NEGYEDIK P2** | **KÉSZ és MÉRVE** — a takarító kapcsoló a puszta igaz-értéken állt, és a szabály MÁR MEGVOLT (R164), csak nem szabályként; a javítás közben a SAJÁT battériámban találtam három ütköző pin-azonosítót (`D-VS-3205` · `KUKA-398` · `KUKA-399`); lásd a 2.3 pontot |
 | **A 3747c12 fejre jött TOVÁBBI HÁROM P2** | **KÉSZ és MÉRVE** — mind a három a SAJÁT, ebben a körben épített munkám felett: a szerver-oldali folytatás a visszalépés után, és két végigvihetetlenül felkínált útmutató-csoport (`D-VS-3204` · `KUKA-396` · `KUKA-397`); lásd a 2.2 pontot |
 | **R166 §1 (meghívóképernyő)** | **KÉSZ és MÉRVE** — a böngészős mérés, ami eddig **bejárhatatlan** volt, lefutott |
 | **R166 §3 (19 pótolható lefedési hiány)** | **KÉSZ** — elfogadási cél: pótolható **0** · osztályozatlan **0** (`LT2` ZÖLD); `D-VS-3202` · `KUKA-394` |
@@ -57,13 +58,13 @@ fogyasztó** (node-postgres a kódban, libpq a `pg_dump`/`psql` gyermekben) **m�
 
 **A bizonyíték — ellenpár a KÁRRA, nem a listára:**
 
-- `verify:app-findings-r154` **AC csoport (ac1–ac8)**, a söprésben → a battéria **250/250 PASS**;
+- `verify:app-findings-r154` **AJ csoport (aj1–aj8)**, a söprésben → a battéria **268/268 PASS** (a mai fejen újramérve);
 - `proof:pg-restore-safety` **E10a–E10e**, VALÓDI kiszolgálón, Unix-socketen: a régi alak kapcsolata
   nem a friss célra ment · az új alak **a friss célra** ment · az **eredeti adatbázis érintetlen**
   (0 nyom) · a nyom **a friss célban** áll · a CLI-környezet a socket-könyvtárat kapja. A lánc
   **48/48** (volt 43/43); a socket-könyvtár a **kiszolgálótól** jött, nem tippből;
 - **visszacsúszás-próba mérve:** a séma-sort és a divergencia-blokkot visszaállítva a battéria **11
-  pinje piros**, köztük az `ac3` — a kapu újra átengedte volna a valódi adatbázist;
+  pinje piros**, köztük az `aj3` — a kapu újra átengedte volna a valódi adatbázist;
 - a három pg-lánc **újramérve**: `proof:pg-intent` **10 állítás / 0 eltérés** ·
   `proof:pg-restore-safety` **48/48** · `proof:pg-durability` **13/13**, valódi PostgreSQL **16.15**-en.
 
@@ -89,9 +90,9 @@ idézőjel-pár adja. A javítás a lelet saját javaslata szerint: a titkot a *
 rejtjük el (`shellWordEnd`), és ahol a határ nem tudható (záratlan idézet), a **sor végéig** —
 titoknál a bizonytalanság nem a megengedő ág.
 
-**A bizonyíték:** `verify:app-findings-r154` **AE csoport (ae1–ae7)** a söprésben, az ellenpárokkal
+**A bizonyíték:** `verify:app-findings-r154` **AK csoport (ak1–ak5)** a söprésben, az ellenpárokkal
 együtt (a három megszokott alak továbbra is pontosan háromszor rejtőzik el, a titokmentes szöveg
-változatlan) → a battéria **255/255**. **Visszacsúszás-próba mérve:** a három régi minta
+változatlan) → a battéria **268/268**. **Visszacsúszás-próba mérve:** a három régi minta
 visszaállítására **három pin piros**. A pg-láncok újramérve: `proof:pg-restore-safety` **48/48**
 (E9e) · `proof:pg-intent` **10/0** · `proof:pg-durability` **13/13**.
 
@@ -136,12 +137,12 @@ döntésből**, amit a lap kapuja is tükröz (`KUKA-233` — egy kérdés, egy 
 
 | állítás | gépi jel | verdikt |
 |---|---|---|
-| a két kapu **mindkét irányban** zár és nyit, és CSAK a sajátjait zárja (a többi 18 útmutató betűre változatlan) | `verify:app-findings-r154` **AG csoport (ag1–ag4)** | **ZÖLD — 259/259** |
+| a két kapu **mindkét irányban** zár és nyit, és CSAK a sajátjait zárja (a többi 18 útmutató betűre változatlan) | `verify:app-findings-r154` **AL csoport (al1–al4)** | **ZÖLD — 268/268** |
 | az új út az állapotot **KÖTŐ** utak kimondott leltárában áll | ugyanott, `s11` — **ez fogta meg** | **ZÖLD** |
 | a visszalépés UTÁNI belépés **nem visz vissza** a meghívóra | `test:e2e` → `v3app-r166-invite-leave` **M6** | **ZÖLD** |
 | a tizenkét útmutató **élő bejárása** ott, ahol a feltételek teljesülnek | `verify:browser-gate` | **ZÖLD — 134/0/0/0** |
 
-**VISSZACSÚSZÁS-PRÓBA MÉRVE, MIND A HÁROMRA:** a két kaput kivéve `ag1`+`ag2` **piros**; a törlő
+**VISSZACSÚSZÁS-PRÓBA MÉRVE, MIND A HÁROMRA:** a két kaput kivéve `al1`+`al2` **piros**; a törlő
 hívást kivéve az **M6 piros**.
 
 **ÉS AZ ŐR ELKAPTA A SAJÁT REGRESSZIÓMAT.** Az új végpont **fedetlenül** jelent meg a lefedési
@@ -152,6 +153,84 @@ funkció **támogató olvasása** —, amire a mérés visszatért **33/33 fedet
 is számolja, és **az eredeti őrt nem gyengítjük zöld eredményért**.
 
 Rögzítve: `D-VS-3204` · `KUKA-396` · `KUKA-397`.
+
+---
+
+### 2.3 ÉS EGY NEGYEDIK P2 — AMI EGY RÉGI TANULSÁG MEG NEM TÖRTÉNT TERJEDÉSE VOLT
+
+A negyedik lelet (`#discussion_r4211157857`) a tartósság-lánc **takarító kapcsolójára** mutatott:
+a megtartás a **puszta igaz-értéken** állt (`if (process.env.VS_KEEP_RESTORE_TARGET)`). A
+JavaScriptben minden nem üres szöveg igaz, ezért a **kikapcsolásnak szánt** `0` és `false`
+is **bekapcsolta** a megtartást — a lánc futásonként egy generált adatbázist hagyott a kiszolgálón,
+pontosan annál a futtatónál, aki a megtartást kikapcsolva állította be.
+
+**ÉS A SZABÁLY MÁR MEGVOLT.** Pontosan ezt a hibát javította az **R164** a testvér-kapcsolón
+(`VS_SAFETY_ALLOW_REMOTE`), ugyanebben a fájlban — de a **helyszínen** javította, nem szabályként.
+A testvér-kapcsoló ezért a régi alakban maradt, és a tanulság nem terjedt. Ez a `KUKA-003`
+osztálya: **egy szabály, egy otthon**.
+
+**Ezért nem a sort javítottam, hanem otthont adtam neki:** a kapcsoló-olvasás egy feloldó
+(`explicitSwitch`, a cél-döntések fájljában), és **mindkét** fogyasztó ezt hívja. A bekapcsolás
+csak a pontos `1` — ez a repó házi szabálya, amit **megmértem**: öt másik kapcsoló már így olvas, és
+`VS_KEEP_RESTORE_TARGET` volt az **egyetlen** kivétel.
+
+**ÉS A FIGYELMEN KÍVÜL HAGYOTT KAPCSOLÓ NEM NÉMA** (`KUKA-238`): a beállított, de nem `1` érték
+nevezetten „nem felismert", és a takarító sor **kiírja** — különben a futtató azt hinné, megtartást
+kért, holott eldobtuk.
+
+**ÉLŐ TANÚ, VALÓDI PostgreSQL 16.15-en, mind a négy kapcsoló-álláson:**
+
+| kapcsoló | a lánc 6. lépése |
+|---|---|
+| `=0` | **eldobva** · *„FIGYELEM: a `VS_KEEP_RESTORE_TARGET` értéke "0", a bekapcsolás viszont CSAK a pontos `1`"* |
+| `=false` | **eldobva** + ugyanaz a nevezett figyelmeztetés |
+| `=igen` | **eldobva** + ugyanaz a nevezett figyelmeztetés |
+| `=1` | **MEGTARTVA**, és a sor kimondja, miért (a maradékot a mérés után kézzel dobtam el) |
+
+**VISSZACSÚSZÁS-PRÓBA MÉRVE:** a puszta igaz-értékes olvasás visszatételére **három pin piros**
+(`ai1` · `ai3` · `ai4`) — és a harmadik a **testvér-kapcsolóé**, ami bizonyítja, hogy tényleg EGY
+otthon lett, nem két egymás mellé írt javítás.
+
+#### 2.3.1 ÉS A JAVÍTÁS KÖZBEN A SAJÁT MUNKÁMBAN TALÁLTAM EGY HIBÁT — KIMONDOM
+
+A visszacsúszás-próba kimenete leleplezte, hogy **ebben a körben háromszor adtam ütköző
+csoport-előtagot** a söprés-battériában: az `ac`, az `ae` és az `ag` **mind a három már élt** az
+F164-es pinekben. A battéria így **két külön mérésben** futtatott `ac1`-et, `ae1`-et és `ag1`-et —
+és a jelentés, a döntés-napló, az őr-otthon **és a review-válaszaim is** ezekre a puszta
+azonosítókra hivatkoztak. Aki rákeresett volna, a **másik** mérést találja meg. Egy bizonyíték,
+amire nem lehet egyértelműen mutatni, nem bizonyíték (`KUKA-121`).
+
+**A hibát nem a szemem fogta meg.** Kétszer „ellenőriztem" az előtagot, és mindkétszer rosszul
+(a keresőm a soron belüli azonosítót nem látta). Amit a szem kétszer elnézett, azt harmadszor sem
+a szem fogja megfogni — **ezért most mér**: a battéria a saját gyűjtött eredményeiből nézi, hogy
+egyetlen pin-azonosító sem szerepel **két külön mérésben**, hogy minden pin a kötött alakban
+nevezi meg magát, és hogy két pin szó szerint azonos nevet sem visz.
+
+**ÉS A MÉRCE PONTOS, NEM CSAK SZIGORÚ** (`KUKA-216`). Az azonosító ismétlődése önmagában nem hiba:
+a `(b1)` **háromszor** fut egy hurokban, **ugyanabban** a mérésben, három bemenettel, és a neve
+megnevezi, melyikről van szó. Egy tiltás, ami ezt is megfogná, **jó kódot íratna át** zöld
+eredményért. A hiba a **két külön mérés közti** ütközés — azt mérem, és csak azt. Az ellenpár egy
+**beültetett** kétlaki azonosítót megtalál, az egy-otthonút viszont nem jelzi.
+
+**A NÉGY R166-OS CSOPORT ÁTNEVEZVE**, és a hivatkozások mindenhol igazítva (regiszter · őr-otthon ·
+archívum · döntés-napló · jelentés):
+
+| eddig | mostantól | mit mér |
+|---|---|---|
+| `ac1–ac8` | **`aj1–aj8`** | a `socket:` séma és a két fogyasztó olvasata (R166/P1) |
+| `ae1–ae7` | **`ak1–ak5`** | a titok-tisztító shell-szó határa (2.1) |
+| `ag1–ag4` | **`al1–al4`** | a felkínálás élő feltétele (2.2) |
+| — | **`ai1–ai5`** | a kapcsoló-olvasás egy otthona (2.3) |
+| — | **`am1–am4`** | **a mérő önellenőrzése** (új) |
+
+**VISSZACSÚSZÁS-PRÓBA MÉRVE:** egy R166-os pint visszanevezve a régi, ütköző azonosítóra az
+**`am1` piros**.
+
+**ÉS EGY RÉGI ŐR JELE A MAI OTTHONRA IGAZÍTVA:** a `KUKA-369` (az R164-es kapcsoló-lelet) gépi jele
+arra a sorra mutatott, amit a közös feloldó elvitt. A szabály nem változott — **erősebb lett**, mert
+most a testvér-kapcsoló is ugyanazt hívja.
+
+Rögzítve: `D-VS-3205` · `KUKA-398` · `KUKA-399`.
 
 ---
 
@@ -259,11 +338,11 @@ megszakítást bukásnak** veszi, nem „nincs is baj"-nak.
 
 | lánc | verdikt |
 |---|---|
-| `verify:app-findings-r154` (a HTTP-határ és a pg-feloldók) | **ZÖLD — 259/259** (AC ac1–ac8 · AE ae1–ae7 · AG ag1–ag4 új) |
-| `proof:pg-intent` | **ZÖLD** — 10 állítás, mindkét tárolón, **0 eltérés**, valódi PostgreSQL 16.15 |
-| `proof:pg-restore-safety` | **ZÖLD — 48/48** (E10a–E10e új, Unix-socketen) |
-| `proof:pg-durability` | **ZÖLD — 13/13** |
-| `verify:kuka` | **ZÖLD — 877/877** (KUKA-393 · 394 · 395 · 396 · 397 új) |
+| `verify:app-findings-r154` (a HTTP-határ és a pg-feloldók) | **ZÖLD — 268/268** (AJ aj1–aj8 · AK ak1–ak5 · AL al1–al4 · AI ai1–ai5 · **AM am1–am4** új) |
+| `proof:pg-intent` | **ZÖLD** — 10 állítás, mindkét tárolón, **0 eltérés**, valódi PostgreSQL 16.15 · újramérve |
+| `proof:pg-restore-safety` | **ZÖLD — 48/48** (E10a–E10e új, Unix-socketen) · újramérve a kapcsoló-javítás után |
+| `proof:pg-durability` | **ZÖLD — 13/13** · a takarító kapcsoló **mind a négy állásán** újramérve (lásd 2.3) |
+| `verify:kuka` | **ZÖLD — 884/884** (KUKA-393 · 394 · 395 · 396 · 397 · **398** · **399** új) |
 | `verify:tutor` | **ZÖLD — 94/94** (két új állítás: a zárt listás `auth_view`, és hogy a nézet-nevek a felület forrásában is megvannak) |
 | `verify:i18n` | **ZÖLD — 49/49** · ellenpróba 6/6 (809 → **821** kulcs, mind a három bekapcsolt nyelven) |
 | `verify:assistant` | **ZÖLD — 55/55** |
@@ -361,6 +440,18 @@ tizenhat rövid lánc lefutott) —, a **következő önálló nagy blokk** pedi
 induljon. A §2 és a §4 mindkettő önálló nagy blokk, ezért nem kezdtem el őket: a lezárás címén
 **nincs új feltárás, nincs új funkció és nincs opcionális teljes söprés**.
 
+**ÉS A NÉGY TOVÁBBI P2 UTÁN ÚJRAMÉRVE** (a teljes csomag-ablak, `2026-10-07T11:00Z` → a
+pillanatkép zárása `20:19:36Z`): **522 hívás** · fő-szál kontextusmedián **372 583** · max
+**784 112** · **400 ezer fölött 240 hívás** · **ügynök-bemenet 0** (nulla al-ügynök) · lefedettség
+**teljes** (1 átirat, minden modell-válasz usage-dzsal) → a mérő sávja: **FIGYELMEZTETÉS** (a
+300–400 ezres sávban). Az ablak **nyitott**, ezért ez a zárásnál készült pillanatkép.
+
+**ÉS EZ NEM VONJA VISSZA A LEZÁRÁST.** A medián azért alacsonyabb a korábbi 402 476,5-nél, mert a
+beszélgetés **tömörítésen** ment át — a `R114` viszont kimondja: **a tömörítéssel folytatott
+beszélgetés NEM friss beszélgetés**. A négy P2 javítása a **futó** munkablokk célzott lezárása volt
+(review-szálak megválaszolása és a hozzá tartozó mérés), nem új blokk. A §2 és a §4 továbbra is
+**friss beszélgetésben** induljon.
+
 A tartalom nélküli leltár a repóban: `docs/70_PLANNING/V3_R166_FOGYASZTAS_LELTAR.json`
 (hívás-szám, blokk- és eszköz-összesítők, bájtszámok — tartalom, kapcsolati cím, kulcs és e-mail
 nélkül; titok-minta ellenőrzéssel **0 találat**).
@@ -382,3 +473,6 @@ nélkül; titok-minta ellenőrzéssel **0 találat**).
 | **D-VS-3204** | a visszalépés szándéka a szerverig megy, és a felkínálás az ÉLŐ feltételen áll |
 | **KUKA-396** | egy „elfelejtő" annyit felejt, ahány tárolót megkérdez — a böngésző-oldali ürítő a szerver állapotát nem éri el |
 | **KUKA-397** | amit egy útmutató bevezetőjében leírok, az nem kapu: a feltételt a darab deklarálja, a tényt a kiszolgáló méri |
+| **D-VS-3205** | a kapcsoló-olvasásnak EGY otthona van, és egy pin-azonosító EGY mérésre mutat |
+| **KUKA-398** | a környezeti kapcsoló nem igaz-érték, hanem szöveg — és amikor a lelet OSZTÁLYT ír le, a javítás a feloldó, nem a sor |
+| **KUKA-399** | a mérőeszköz is mérés tárgya — ami hivatkozási alap, annak egyértelműségét MÉRJÜK, ne nézzük |

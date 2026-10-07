@@ -47,7 +47,7 @@ import { transcriptsOf } from '../tools/v3_fogyasztas_meres.mjs';
 import { restoreTargetProblem, sameDatabase, effectiveDatabase, withDatabase, freshTargetName,
   restoreTargetDecision, restoreOutcome, redactConnStrings, acquireFreshTarget, localOnlyVerdict,
   effectiveHost, RESTORE_TARGET_PREFIX, PROTECTED_DB_NAMES,
-  cliEnvFor, pgUrlShape, PG_URL_SHAPES } from '../tools/lib/vs_pg_target.mjs';
+  cliEnvFor, pgUrlShape, PG_URL_SHAPES, explicitSwitch, SWITCH_ON } from '../tools/lib/vs_pg_target.mjs';
 
 import { execFileSync } from 'node:child_process';
 /**
@@ -2862,7 +2862,7 @@ try {
   // Ezek a sorok TISZTA függvényeket hívnak, tehát a söprésben futnak (KUKA-207); a valódi
   // kiszolgálón mért ellenpár a `proof:pg-restore-safety` (RS) csoportjában áll.
   {
-    part('AC) R166 — a `socket:` séma és a KÉT FOGYASZTÓ olvasata (a nyolcadik review-kör P1-je)');
+    part('AJ) R166 — a `socket:` séma és a KÉT FOGYASZTÓ olvasata (a nyolcadik review-kör P1-je)');
     const SOCK = 'socket:/var/run/postgresql?db=eles&user=app';
 
     // ── (ac1) A SÉMA ZÁRT LISTÁJA — ami nincs rajta, az NEM tipp, hanem nevezett megállás ────────
@@ -2872,7 +2872,7 @@ try {
     const ac_idegen = pgUrlShape('mysql://u@localhost/original');
     const ac_dummy = pgUrlShape('socket://u@/var/run/postgresql?db=eles');
     const ac_perjel = pgUrlShape('/var/run/postgresql eles');
-    step('(ac1) R166/P1: a séma ZÁRT listán áll (`postgres:` · `postgresql:` · `socket:`), és a listán kívüli alak NEVEZETT megállás — a kliens által elfogadott, de WHATWG URL-lel nem értelmezhető két alak is nevezetten áll meg, nem némán',
+    step('(aj1) R166/P1: a séma ZÁRT listán áll (`postgres:` · `postgresql:` · `socket:`), és a listán kívüli alak NEVEZETT megállás — a kliens által elfogadott, de WHATWG URL-lel nem értelmezhető két alak is nevezetten áll meg, nem némán',
       ac_halozati.shape === 'halozati' && ac_hosszu.shape === 'halozati' && ac_socket.shape === 'socket'
       && ac_idegen.shape === null && /zárt listán/.test(ac_idegen.basis)
       && ac_dummy.shape === null && /PÓT-gazdagéppel/.test(ac_dummy.basis)
@@ -2886,7 +2886,7 @@ try {
     const ac_ures = effectiveDatabase('socket:/var/run/postgresql?db=', PG_ENV_NELKUL);
     const ac_nincs = effectiveDatabase('socket:/var/run/postgresql', PG_ENV_NELKUL);
     const ac_ketto = effectiveDatabase('socket:/var/run/postgresql?db=egyik&db=masik', PG_ENV_NELKUL);
-    step('(ac2) R166/P1: a `socket:` címen a `?db=` nevezi meg az adatbázist, és NEM az út (RÉGEN: az ÚT lett a „név", tehát a kapu a socket-könyvtárat vetette össze a céllal) — az üres, a hiányzó és a KÉT eltérő `?db=` mind NEM megállapítható',
+    step('(aj2) R166/P1: a `socket:` címen a `?db=` nevezi meg az adatbázist, és NEM az út (RÉGEN: az ÚT lett a „név", tehát a kapu a socket-könyvtárat vetette össze a céllal) — az üres, a hiányzó és a KÉT eltérő `?db=` mind NEM megállapítható',
       ac_nev.name === 'eles' && !/var\/run/.test(String(ac_nev.name))
       && ac_ures.name === null && ac_nincs.name === null && ac_ketto.name === null
       && /ELTÉRŐ/.test(ac_ketto.basis),
@@ -2896,14 +2896,14 @@ try {
     const ac_kapu_azonos = sameDatabase(SOCK, 'eles', PG_ENV_NELKUL);
     const ac_kapu_ut = sameDatabase(SOCK, 'var/run/postgresql', PG_ENV_NELKUL);
     const ac_kapu_mas = sameDatabase(SOCK, 'vs_restore_proba_x', PG_ENV_NELKUL);
-    step('(ac3) R166/P1: a kapu a `?db=` adatbázissal AZONOS célon MEGÁLL (régen ÁTENGEDTE, és a `DROP DATABASE` a valódi adatbázist vitte volna), az ÚT nevével egyező célon pedig NEM azonosságot mond — a friss, saját cél viszont továbbra is átmegy',
+    step('(aj3) R166/P1: a kapu a `?db=` adatbázissal AZONOS célon MEGÁLL (régen ÁTENGEDTE, és a `DROP DATABASE` a valódi adatbázist vitte volna), az ÚT nevével egyező célon pedig NEM azonosságot mond — a friss, saját cél viszont továbbra is átmegy',
       ac_kapu_azonos.same === true && ac_kapu_ut.same === false && ac_kapu_mas.same === false,
       { azonos_db_vel: ac_kapu_azonos.same, azonos_uttal: ac_kapu_ut.same, friss_cel: ac_kapu_mas.same });
 
     // ── (ac4) AZ ÁTIRÁNYÍTÁS — AZ ÚT ÉRINTETLEN, A `?db=` KAPJA A NEVET ─────────────────────────
     const ac_at = withDatabase(SOCK, 'vs_restore_proba_uj');
     const ac_at_halozati = withDatabase('postgres://u@localhost/original?dbname=a&db=b&database=c', 'vs_restore_proba_uj');
-    step('(ac4) R166/P1: `socket:` címen az átirányítás az ÚTAT (a socket-könyvtárat) ÉRINTETLENÜL hagyja és a `?db=`-t írja át, PONTOSAN egy előfordulással (RÉGEN: az utat írta át, a `?db=`-t érintetlenül hagyta — vagyis a kapcsolat az EREDETI adatbázisra ment volna); a hálózati címről MINDHÁROM adatbázis-megnevező kulcs kimegy',
+    step('(aj4) R166/P1: `socket:` címen az átirányítás az ÚTAT (a socket-könyvtárat) ÉRINTETLENÜL hagyja és a `?db=`-t írja át, PONTOSAN egy előfordulással (RÉGEN: az utat írta át, a `?db=`-t érintetlenül hagyta — vagyis a kapcsolat az EREDETI adatbázisra ment volna); a hálózati címről MINDHÁROM adatbázis-megnevező kulcs kimegy',
       ac_at.pathname === '/var/run/postgresql'
       && ac_at.searchParams.getAll('db').length === 1
       && ac_at.searchParams.get('db') === 'vs_restore_proba_uj'
@@ -2917,7 +2917,7 @@ try {
     // ── (ac5) ISMERETLEN SÉMÁN AZ ÁTIRÁNYÍTÁS MEGÁLL, NEM TIPPEL ────────────────────────────────
     let ac_dobott = null;
     try { withDatabase('mysql://u@localhost/original', 'vs_x'); } catch (e) { ac_dobott = e; }
-    step('(ac5) R166/P1: a zárt listán nem szereplő sémán az átirányítás NEVEZETT hibával megáll (fail-closed), nem ad vissza csendben egy félig átírt címet',
+    step('(aj5) R166/P1: a zárt listán nem szereplő sémán az átirányítás NEVEZETT hibával megáll (fail-closed), nem ad vissza csendben egy félig átírt címet',
       ac_dobott instanceof TypeError && /NEM biztonságos/.test(ac_dobott.message),
       { hiba: ac_dobott ? ac_dobott.message.slice(0, 70) : 'NEM DOBOTT' });
 
@@ -2930,7 +2930,7 @@ try {
     const ac_egyez = effectiveDatabase('postgres://u@localhost/original?dbname=original', PG_ENV_NELKUL);
     const ac_db_nem = effectiveDatabase('postgres://u@localhost/original?db=source', PG_ENV_NELKUL);
     const ac_div_kapu = sameDatabase('postgres://u@localhost/original?dbname=source', 'original', PG_ENV_NELKUL);
-    step('(ac6) R166/P1: a hálózati címen a `?dbname=` és az út ELTÉRÉSE NEM megállapítható (régen a libpq-olvasat lett az eldöntött név, és a kapu átengedte a node-postgres által ÉPPEN HASZNÁLT adatbázist), egyezésnél viszont megadott a név; a `?db=` a hálózati ágon egyik fogyasztónál sem írja felül az utat',
+    step('(aj6) R166/P1: a hálózati címen a `?dbname=` és az út ELTÉRÉSE NEM megállapítható (régen a libpq-olvasat lett az eldöntött név, és a kapu átengedte a node-postgres által ÉPPEN HASZNÁLT adatbázist), egyezésnél viszont megadott a név; a `?db=` a hálózati ágon egyik fogyasztónál sem írja felül az utat',
       ac_div.name === null && /KÉT FOGYASZTÓ MÁST olvas/.test(ac_div.basis)
       && ac_egyez.name === 'original'
       && ac_db_nem.name === 'original'
@@ -2942,7 +2942,7 @@ try {
     const ac_gazda_rel = effectiveHost('socket:var/run/postgresql?db=eles', PG_ENV_NELKUL);
     const ac_gazda_utkozo = effectiveHost('socket:/var/run/postgresql?db=eles&host=masik.pelda.hu', PG_ENV_NELKUL);
     const ac_helyi = localOnlyVerdict(SOCK, PG_ENV_NELKUL);
-    step('(ac7) R166/P1: a `socket:` címen az ÚT a gazdagép (a socket-könyvtár), ezért a helyi kapu HELYI-t mond; a NEM abszolút út és az úttal ütköző `?host=` viszont NEM eldönthető, tehát a destruktív kapu zárva marad',
+    step('(aj7) R166/P1: a `socket:` címen az ÚT a gazdagép (a socket-könyvtár), ezért a helyi kapu HELYI-t mond; a NEM abszolút út és az úttal ütköző `?host=` viszont NEM eldönthető, tehát a destruktív kapu zárva marad',
       ac_gazda.host === '/var/run/postgresql' && ac_gazda.decidable === true
       && ac_gazda_rel.decidable === false && /ABSZOLÚT/.test(ac_gazda_rel.basis)
       && ac_gazda_utkozo.decidable === false
@@ -2952,7 +2952,7 @@ try {
 
     // ── (ac8) ÉS A CLI-KÖRNYEZET IS: a gyermek a SOCKET-KÖNYVTÁRAT kapja gazdagépnek ────────────
     const ac_cli = cliEnvFor({ sourceUrl: SOCK, database: 'vs_restore_proba_uj', env: PG_ENV_NELKUL });
-    step('(ac8) R166/P1: a CLI-gyermek (`pg_dump`/`psql`) a `socket:` címről a SOCKET-KÖNYVTÁRAT kapja `PGHOST`-nak és a MEGNEVEZETT célt `PGDATABASE`-nek — a libpq a `socket:` URI-t nem értelmezi, ezért a cím SOHA nem mehet át neki kapcsolati sztringként',
+    step('(aj8) R166/P1: a CLI-gyermek (`pg_dump`/`psql`) a `socket:` címről a SOCKET-KÖNYVTÁRAT kapja `PGHOST`-nak és a MEGNEVEZETT célt `PGDATABASE`-nek — a libpq a `socket:` URI-t nem értelmezi, ezért a cím SOHA nem mehet át neki kapcsolati sztringként',
       ac_cli.ok === true && ac_cli.env.PGHOST === '/var/run/postgresql'
       && ac_cli.env.PGDATABASE === 'vs_restore_proba_uj' && ac_cli.env.PGUSER === 'app',
       { ok: ac_cli.ok, host: ac_cli.ok ? ac_cli.env.PGHOST : ac_cli.reason,
@@ -2967,33 +2967,33 @@ try {
   // idézőjelnél megállt, tehát a jelszó MARADÉKA a naplóba került. Mérve, javítás előtt:
   // `PGPASSWORD='pa'\''ss'` → `PGPASSWORD=«elrejtve»''ss'`.
   {
-    part('AE) R166 — a titok-tisztító határa: shell-szó, nem az első idézőjel (külső review, P2)');
+    part('AK) R166 — a titok-tisztító határa: shell-szó, nem az első idézőjel (külső review, P2)');
     const glued = String.raw`PGPASSWORD='pa'\''ss' psql -h /tmp`;
     const ae1 = redactConnStrings(glued);
     const escQuote = String.raw`PGPASSWORD="pa\"ss" psql`;
     const ae2 = redactConnStrings(escQuote);
-    step('(ae1) R166/P2: az APOSZTRÓFOT tartalmazó, shell-idézett jelszó TELJESEN eltűnik — a glued `\'…\'\\\'\'…\'` szó is egy érték (RÉGEN: az első záró idézőjelnél megállt, és a maradék a naplóba került)',
+    step('(ak1) R166/P2: az APOSZTRÓFOT tartalmazó, shell-idézett jelszó TELJESEN eltűnik — a glued `\'…\'\\\'\'…\'` szó is egy érték (RÉGEN: az első záró idézőjelnél megállt, és a maradék a naplóba került)',
       !/ss/.test(ae1.replace(/PGPASSWORD|«elrejtve»/g, '')) && /«elrejtve»/.test(ae1) && / psql -h \/tmp$/.test(ae1),
       { tisztitott: ae1 });
-    step('(ae2) R166/P2: a dupla idézeten belüli `\\"` sem zárja a titkot',
+    step('(ak2) R166/P2: a dupla idézeten belüli `\\"` sem zárja a titkot',
       !/ss/.test(ae2.replace(/PGPASSWORD|«elrejtve»/g, '')) && /«elrejtve» psql$/.test(ae2),
       { tisztitott: ae2 });
     // A ZÁRATLAN IDÉZET A SOR VÉGÉIG TART: ahol a határ nem tudható, TÖBBET rejtünk el (KUKA-049).
     const ae3 = redactConnStrings("PGPASSWORD='nyitva marad a sor vegeig");
-    step('(ae3) R166/P2: a ZÁRATLAN idézet a sor végéig tart — a bizonytalanság nem a megengedő ág',
+    step('(ak3) R166/P2: a ZÁRATLAN idézet a sor végéig tart — a bizonytalanság nem a megengedő ág',
       ae3 === 'PGPASSWORD=«elrejtve»', { tisztitott: ae3 });
     // ÉS AZ ELLENPÁROK: a jogos esetek változatlanok, és a szomszéd szöveg NEM esik áldozatul.
     const ae4 = redactConnStrings("PGPASSWORD='top secret' password=\"más titok\" pwd=egyszeru");
     const ae5 = redactConnStrings('rendben, nincs benne titok');
     const ae6 = redactConnStrings('PGPASSWORD=TITOK; PGUSER=lathato');
-    step('(ae4) R166/P2 ELLENPÁROK: a három jogos alak továbbra is PONTOSAN háromszor rejtőzik el, a titokmentes szöveg változatlan, és a `;` utáni NEM titkos mező megmarad',
+    step('(ak4) R166/P2 ELLENPÁROK: a három jogos alak továbbra is PONTOSAN háromszor rejtőzik el, a titokmentes szöveg változatlan, és a `;` utáni NEM titkos mező megmarad',
       (ae4.match(/«elrejtve»/g) || []).length === 3 && !/top secret|más titok|egyszeru/.test(ae4)
       && ae5 === 'rendben, nincs benne titok'
       && ae6 === 'PGPASSWORD=«elrejtve»; PGUSER=lathato',
       { harom: ae4, hatarral: ae6 });
     // ÉS A KAPCSOLATI CÍM ÚTJA VÁLTOZATLAN (a tisztító első passzusa).
     const ae7 = redactConnStrings('pg_restore: error: connection to postgres://u:TITKOS@gep:5432/db failed; PGPASSWORD=MASIK');
-    step('(ae7) R166/P2: a kapcsolati cím és a jelszó EGYÜTT is eltűnik (a két passzus nem rontja el egymást)',
+    step('(ak5) R166/P2: a kapcsolati cím és a jelszó EGYÜTT is eltűnik (a két passzus nem rontja el egymást)',
       !/TITKOS|MASIK/.test(ae7) && /«kapcsolati cím elrejtve»/.test(ae7) && /«elrejtve»$/.test(ae7),
       { tisztitott: ae7 });
   }
@@ -3009,7 +3009,7 @@ try {
   // A MÉRÉS MINDKÉT IRÁNYBAN megy: a kapu zárva NEM kínál, nyitva IGEN — különben a javítás
   // „mindent elrejtek" is lehetne (KUKA-091).
   {
-    part('AG) R166 — a felkínálás az ÉLŐ feltételhez kötött: levél-fogadó és készlet-jog (külső review, P2)');
+    part('AL) R166 — a felkínálás az ÉLŐ feltételhez kötött: levél-fogadó és készlet-jog (külső review, P2)');
     const alap = { signed_in: true, book_id: 'b_firm', member: true, role: 'admin', personal: false, demo: true };
     const levelNelkul = allowedToursFor({ ...alap, dev_mailbox: false, stock_access: true });
     const levellel = allowedToursFor({ ...alap, dev_mailbox: true, stock_access: true });
@@ -3018,19 +3018,19 @@ try {
     const LEVEL = ['tour.verify', 'tour.outbox'];
     const KESZLET = ['tour.stockcard', 'tour.movements'];
 
-    step('(ag1) R166/P2: a fejlesztői levél-fogadó NÉLKÜL a megerősítés és a Próbaüzenetek útmutatója NEM kínálódik fel (RÉGEN: felkínálódott, és a második lépésén nevezetten megszakadt)',
+    step('(al1) R166/P2: a fejlesztői levél-fogadó NÉLKÜL a megerősítés és a Próbaüzenetek útmutatója NEM kínálódik fel (RÉGEN: felkínálódott, és a második lépésén nevezetten megszakadt)',
       LEVEL.every((t) => !levelNelkul.includes(t)) && LEVEL.every((t) => levellel.includes(t)),
       { kapu_zarva: LEVEL.filter((t) => levelNelkul.includes(t)).join(',') || 'egyik sem',
         kapu_nyitva: LEVEL.filter((t) => levellel.includes(t)).length });
 
-    step('(ag2) R166/P2: kiadott készlet-adatkör NÉLKÜL a két készlet-nézet útmutatója NEM kínálódik fel — a tagság nem jog (RÉGEN: a tagság alapján felkínálódott, és a táblán megszakadt)',
+    step('(al2) R166/P2: kiadott készlet-adatkör NÉLKÜL a két készlet-nézet útmutatója NEM kínálódik fel — a tagság nem jog (RÉGEN: a tagság alapján felkínálódott, és a táblán megszakadt)',
       KESZLET.every((t) => !jogNelkul.includes(t)) && KESZLET.every((t) => joggal.includes(t)),
       { kapu_zarva: KESZLET.filter((t) => jogNelkul.includes(t)).join(',') || 'egyik sem',
         kapu_nyitva: KESZLET.filter((t) => joggal.includes(t)).length });
 
     // ELLENPÁR: a két kapu CSAK a sajátjait zárja — a többi útmutató készlete VÁLTOZATLAN.
     const maradek = (lista) => lista.filter((t) => !LEVEL.includes(t) && !KESZLET.includes(t)).sort().join(',');
-    step('(ag3) R166/P2 ELLENPÁR: a két kapu CSAK a saját útmutatóit zárja — a többi felkínált készlet betűre változatlan',
+    step('(al3) R166/P2 ELLENPÁR: a két kapu CSAK a saját útmutatóit zárja — a többi felkínált készlet betűre változatlan',
       maradek(levelNelkul) === maradek(levellel) && maradek(jogNelkul) === maradek(joggal)
       && maradek(levellel).length > 0,
       { tobbi_darab: maradek(levellel).split(',').length });
@@ -3038,10 +3038,110 @@ try {
     // ÉS A FELTÉTELT A REGISZTER MONDJA KI, nem a kapu találja ki (a deklaráció mindkét irányban mérve).
     const deklaralt = Object.values(TOURS).filter((t) => t.requires_dev_mailbox === true).map((t) => t.id).sort();
     const deklaraltJog = Object.values(TOURS).filter((t) => t.requires_stock_access === true).map((t) => t.id).sort();
-    step('(ag4) R166/P2: a feltételt az ÚTMUTATÓ deklarálja (a kapu nem névsorból dönt), és a deklaráció pontosan a négy érintettre áll',
+    step('(al4) R166/P2: a feltételt az ÚTMUTATÓ deklarálja (a kapu nem névsorból dönt), és a deklaráció pontosan a négy érintettre áll',
       deklaralt.join(',') === LEVEL.slice().sort().join(',')
       && deklaraltJog.join(',') === KESZLET.slice().sort().join(','),
       { level_fogado: deklaralt.join(','), keszlet_jog: deklaraltJog.join(',') });
+  }
+
+  // ── AI) R166 — A KAPCSOLÓ-OLVASÁS EGY OTTHONA (külső review, Codex, P2 · KUKA-398) ──────────
+  //
+  // A LELET: a `VS_KEEP_RESTORE_TARGET` a PUSZTA igaz-értéken állt, ezért a kikapcsolásnak szánt
+  // `0` és `false` BEKAPCSOLTA a megtartást — futásonként egy maradék adatbázis a kiszolgálón.
+  //
+  // ÉS A SZABÁLY MÁR MEGVOLT: pontosan ezt javította az R164 a `VS_SAFETY_ALLOW_REMOTE`-on, de a
+  // HELYSZÍNEN, nem szabályként (KUKA-003 · KUKA-129). Ezért a mérés NEM csak a javított kapcsolót
+  // nézi: az ELLENPÁR a testvér-kapcsolót is méri, hogy az egy otthonba húzás nem vitt el semmit.
+  {
+    part('AI) R166 — a kapcsoló-olvasás EGY otthon: a `0`/`false` KI, nem BE (külső review, P2)');
+    const KI = ['0', 'false', 'nem', 'off', 'no', 'true', 'igen', 'ON', '2'];
+
+    step('(ai1) R166/P2: a megtartás-kapcsoló CSAK a pontos `1`-re áll BE (RÉGEN: `VS_KEEP_RESTORE_TARGET=0` és `=false` is bekapcsolta, mert nem üres sztring)',
+      KI.every((v) => explicitSwitch({ VS_KEEP_RESTORE_TARGET: v }, 'VS_KEEP_RESTORE_TARGET').on === false)
+      && explicitSwitch({ VS_KEEP_RESTORE_TARGET: '1' }, 'VS_KEEP_RESTORE_TARGET').on === true,
+      { be_kapcsolo_ertek: SWITCH_ON,
+        ki_marad: KI.filter((v) => explicitSwitch({ VS_KEEP_RESTORE_TARGET: v }, 'VS_KEEP_RESTORE_TARGET').on === false).length });
+
+    step('(ai2) R166/P2: a nem beállított és az ÜRES kapcsoló KI — és ez FELISMERT állapot, nem elírás',
+      ['', '   '].every((v) => { const r = explicitSwitch({ VS_KEEP_RESTORE_TARGET: v }, 'VS_KEEP_RESTORE_TARGET'); return r.on === false && r.recognised === true; })
+      && explicitSwitch({}, 'VS_KEEP_RESTORE_TARGET').recognised === true
+      && explicitSwitch({}, 'VS_KEEP_RESTORE_TARGET').on === false,
+      { ures_es_nincs: 'KI, felismert' });
+
+    // A NÉMA TARTALÉK-ÁG ELREJTENÉ AZ ELÍRÁST (KUKA-238): a be-nem-álló, NEM üres érték KIMONDVA.
+    step('(ai3) R166/P2: a beállított, de nem `1` érték NEVEZETTEN nem felismert — a hívó ki tudja mondani, hogy a kapcsolót figyelmen kívül hagyta',
+      KI.every((v) => explicitSwitch({ VS_KEEP_RESTORE_TARGET: v }, 'VS_KEEP_RESTORE_TARGET').recognised === false)
+      && KI.every((v) => explicitSwitch({ VS_KEEP_RESTORE_TARGET: v }, 'VS_KEEP_RESTORE_TARGET').basis.includes(JSON.stringify(v))),
+      { nem_felismert: KI.length });
+
+    // ELLENPÁR: a testvér-kapcsoló VÁLTOZATLAN — az egy otthonba húzás nem lazított a helyi kapun.
+    const tavoli = 'postgres://u@10.0.0.9:5432/x';
+    step('(ai4) R166/P2 ELLENPÁR: a testvér-kapcsoló (`VS_SAFETY_ALLOW_REMOTE`) viselkedése BETŰRE változatlan — a távoli cél csak a pontos `1`-re engedett',
+      localOnlyVerdict(tavoli, {}).allowed === false
+      && ['0', 'false', 'true', 'igen'].every((v) => localOnlyVerdict(tavoli, { VS_SAFETY_ALLOW_REMOTE: v }).allowed === false)
+      && localOnlyVerdict(tavoli, { VS_SAFETY_ALLOW_REMOTE: '1' }).allowed === true
+      && localOnlyVerdict(tavoli, { VS_SAFETY_ALLOW_REMOTE: '1' }).override === true,
+      { helyi_kapu: 'zárva marad minden nem-`1` értékre' });
+
+    // ÉS A PRÓBA A MEGHÍVHATÓ FELOLDÓT HÍVJA, nem a forrás szövegét olvassa (KUKA-207 · KUKA-239).
+    step('(ai5) R166/P2: a megtartás-ág a MEGHÍVHATÓ feloldóból dönt — a próba ugyanazt futtatja, amit a lánc',
+      typeof explicitSwitch === 'function' && SWITCH_ON === '1'
+      && explicitSwitch({ VS_KEEP_RESTORE_TARGET: ' 1 ' }, 'VS_KEEP_RESTORE_TARGET').on === true,
+      { koruli_szokoz: 'levágva, tehát a ` 1 ` is BE' });
+  }
+
+  // ── AM) R166 — A MÉRŐ ÖNELLENŐRZÉSE: EGY AZONOSÍTÓ EGY MÉRÉSRE MUTAT (KUKA-399) ─────────────
+  //
+  // MIÉRT KELL: ebben a körben HÁROMSZOR adtam ütköző csoport-előtagot (`ac` · `ae` · `ag` — mind
+  // a három ÉLT már az F164-es pinekben), és csak a visszacsúszás-próba kimenete buktatta le a
+  // harmadikat. A hivatkozás ilyenkor NÉMÁN kétértelmű: a jelentés és a KUKA-jegy „ag1"-re mutat,
+  // a battéria viszont KÉT KÜLÖN mérésben futtat `ag1`-et. Egy bizonyíték, amire nem lehet
+  // egyértelműen MUTATNI, nem bizonyíték (KUKA-121).
+  //
+  // ÉS A MÉRCE PONTOS, NEM CSAK SZIGORÚ (KUKA-216). Az azonosító ISMÉTLŐDÉSE önmagában NEM hiba:
+  // a `(b1)` háromszor fut, egy `for`-hurokban, UGYANABBAN a mérésben, három bemenettel — a név
+  // megnevezi, melyikről van szó. A hiba a KÉT KÜLÖN MÉRÉS (`part`) közti ütközés: ott a puszta
+  // azonosító nem dönti el, melyikre mutat a jelentés. Ezt mérjük, és csak ezt.
+  //
+  // A SZEMRE NÉZÉS NEM MŰKÖDÖTT — ezért MÉR. A battéria a SAJÁT gyűjtött eredményeiből dolgozik,
+  // nem a forrás szövegéből (KUKA-207 · KUKA-239: a hatókör nélküli minta a szomszéd sort igazolja).
+  {
+    part('AM) R166 — a MÉRŐ önellenőrzése: egy azonosító EGY mérésre mutat (KUKA-399)');
+    const ALAK = /^\(([a-z]{1,3}\d+[a-z]?)\)/;
+    const otthon = new Map();
+    for (const r of results) {
+      const m = ALAK.exec(r.name);
+      if (!m) continue;
+      if (!otthon.has(m[1])) otthon.set(m[1], new Set());
+      otthon.get(m[1]).add(r.section);
+    }
+    const ketlaki = [...otthon.entries()].filter(([, sz]) => sz.size > 1)
+      .map(([id, sz]) => `${id}: ${[...sz].map((x) => String(x).slice(0, 18)).join(' ⇄ ')}`);
+
+    step('(am1) KUKA-399: egyetlen pin-azonosító sem szerepel KÉT KÜLÖN mérésben — a jelentés hivatkozása egyértelmű (RÉGEN: `ac1` · `ae1` · `ag1` kétlaki volt, mérés nélkül)',
+      ketlaki.length === 0,
+      { azonosito: otthon.size, ketlaki: ketlaki.join(' | ') || 'egy sincs' });
+
+    // ELLENPÁR: a mérő TUD kétlakiságot találni — különben a zöldje a néma nullát is jelenthetné.
+    const beultetett = new Map([['zz1', new Set(['A) elso meres', 'B) masodik meres'])],
+      ['zz2', new Set(['A) elso meres'])]]);
+    step('(am2) KUKA-399 ELLENPÁR: a mérő egy BEÜLTETETT kétlaki azonosítót megtalál, az egy-otthonút viszont NEM jelzi — a zöldje tehát nem a néma nulla',
+      [...beultetett.entries()].filter(([, sz]) => sz.size > 1).map(([id]) => id).join(',') === 'zz1'
+      && otthon.size > 200,
+      { beultetett: 'zz1 kétlaki, zz2 nem', valodi_azonosito: otthon.size });
+
+    // ÉS AZ AZONOSÍTÓ ALAKJA IS KÖTÖTT: ami nem nevezi meg magát, arra nem lehet hivatkozni.
+    const alaktalan = results.filter((r) => !ALAK.test(r.name)).map((r) => r.name.slice(0, 40));
+    step('(am3) KUKA-399: MINDEN pin a kötött alakban nevezi meg magát (`(xxN)` vagy `(xxNa)` a név elején) — különben a jelentés nem tud rá mutatni',
+      alaktalan.length === 0, { alak_nelkul: alaktalan.length ? alaktalan.join(' | ') : 'egy sincs' });
+
+    // ÉS AZ ISMÉTLŐDŐ AZONOSÍTÓ NEVE MEGKÜLÖNBÖZTET (a hurkos pin a bemenetét írja ki).
+    const nevek = results.map((r) => r.name);
+    const nevSzam = new Map();
+    for (const n of nevek) nevSzam.set(n, (nevSzam.get(n) || 0) + 1);
+    const egyezoNev = [...nevSzam.entries()].filter(([, n]) => n > 1).map(([n]) => n.slice(0, 50));
+    step('(am4) KUKA-399: két pin SZÓ SZERINT azonos nevet sem visz — az ismétlődő azonosító (pl. a hurkos `(b1)`) a BEMENETÉT írja a nevébe',
+      egyezoNev.length === 0, { pin: nevek.length, egyezo_nev: egyezoNev.join(' | ') || 'egy sincs' });
   }
 
   const fail = results.filter((r) => !r.pass);

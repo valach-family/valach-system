@@ -1,9 +1,9 @@
 {
-  "baseline_version": 133,
+  "baseline_version": 134,
   "generated_from": "docs/KUKA_ARCHIVUM.md",
-  "row_count": 388,
-  "archive_sha256": "2b1cdee8555fabbf5a2c661c079ec513b81318dbb61d780cfde2a63ce963b736",
-  "archive_bytes": 538513,
+  "row_count": 390,
+  "archive_sha256": "e87abc78821297b7234f7d9e3e7295d97a8f1e87f1153eaa210b81f5e96535f2",
+  "archive_bytes": 540428,
   "duplicates": [],
   "rows": {
     "KUKA-001": {
@@ -1463,7 +1463,7 @@
       "chars": 676
     },
     "KUKA-374": {
-      "sha256": "8c5cd595fe57b867bfd74727c33aad3cfed74be8d177601f5238648b4020d1af",
+      "sha256": "18722e3604e0ad050b3567a3a14483c763553618f9d245d5e8784e4f75e49997",
       "chars": 979
     },
     "KUKA-375": {
@@ -1475,15 +1475,15 @@
       "chars": 949
     },
     "KUKA-377": {
-      "sha256": "3fbfcfcfcde65a87b699682d125e1137d5e6181f8b5c3dd35350ef3421a34497",
+      "sha256": "36e5c6a51c4b307516fc6c659d331b89edbe923328d89f706efe2edd46b65093",
       "chars": 658
     },
     "KUKA-378": {
-      "sha256": "7bc07ac9ab163911411b94689723b9877cd2b511849b6693427383e2f201e3df",
+      "sha256": "92a1ca1f2f6b4eb51886ccfa2020aa9681dc0033b5273a1e7b0fe0ec1b0e0c4f",
       "chars": 701
     },
     "KUKA-379": {
-      "sha256": "0b48770d314d6f4e4c7cecf15a8e64eaecaac0cfea618fcd080207978b3d00fe",
+      "sha256": "2d94f2281932d0c921c59fe3bd90dd9e0c014906f2c63137d3dde4188ad9e236",
       "chars": 759
     },
     "KUKA-380": {
@@ -1491,11 +1491,11 @@
       "chars": 702
     },
     "KUKA-381": {
-      "sha256": "2787b3faeefe76e8f9e118dd35941ced15c8e7c9f40ed605604aa9b37d630042",
+      "sha256": "cf60214190b42d796719448d72eaa701c594b528fbc28f0005ddd51453f6c822",
       "chars": 705
     },
     "KUKA-382": {
-      "sha256": "85943b33932f3c09ab9f84b070112f4bbc4951df29660ec7724a9b34dc488a87",
+      "sha256": "ea86d78f3ed84a668a06dc6a45d2572976591a6eeb87ca76235f9149d26784ec",
       "chars": 706
     },
     "KUKA-383": {
@@ -1519,11 +1519,11 @@
       "chars": 822
     },
     "KUKA-388": {
-      "sha256": "eb4e73fd217c26c1f157cbd885c08b76e6b5ba2099d14661f8b3ae914afa37f0",
+      "sha256": "624484423e310d09e245220f3a562a71eb415d83a5c90ecdbd11a68c7b7b9122",
       "chars": 790
     },
     "KUKA-389": {
-      "sha256": "a07b9fb7f197c890c7aa20f4cb3449875833040fdcd901e9cd282c4fb09bbe2d",
+      "sha256": "d36627359cea8ed53138a354a1d84237b9ac64f45cf1e6c73bc80c38c73dad95",
       "chars": 744
     },
     "KUKA-390": {
@@ -1539,7 +1539,7 @@
       "chars": 926
     },
     "KUKA-393": {
-      "sha256": "99d0ddac2e1bb23aaad250820fe711deb3fe9e58c3215bf36272ddf0a83018a6",
+      "sha256": "e3a8df0f027122467317b5572b1833ef241c5b06a752d3e1b66ebb96d425a83c",
       "chars": 1196
     },
     "KUKA-394": {
@@ -1547,7 +1547,7 @@
       "chars": 1327
     },
     "KUKA-395": {
-      "sha256": "8912cd69e4a841c75af0014f72bb0f3f0c5ca8d20d2d91b9ed3e96e95e185fcf",
+      "sha256": "de163b5bad8a0d66108ede6b48f3ff60afa3a50c570624a0909be82dc8656747",
       "chars": 1034
     },
     "KUKA-396": {
@@ -1555,8 +1555,16 @@
       "chars": 1035
     },
     "KUKA-397": {
-      "sha256": "a305e12948b91e2a3f173e63990acd0d98111cb19f43feea4ebfc4a8ba75e6e5",
+      "sha256": "986d7d81cdd15994c55a69e3609b7d53764565b729d02e0de41e73a39a638118",
       "chars": 940
+    },
+    "KUKA-398": {
+      "sha256": "907a052c3a86e1317cbe4c886b91d27264d1a9bb56db2c0c2a4347c9f4ac425f",
+      "chars": 927
+    },
+    "KUKA-399": {
+      "sha256": "e35dd75c53d06fae596b3e8b44dc79a3e62dde554ab7baa14c0ca203c1582bb6",
+      "chars": 836
     }
   }
 }

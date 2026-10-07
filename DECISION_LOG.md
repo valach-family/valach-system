@@ -16,6 +16,48 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3205 — A KAPCSOLÓ-OLVASÁSNAK EGY OTTHONA VAN, ÉS EGY PIN-AZONOSÍTÓ EGY MÉRÉSRE MUTAT (R166, külső review P2 + saját lelet)
+
+**A DÖNTÉS KÉT RÉSZE.**
+
+**(1) A kapcsoló-olvasás EGY feloldó, és a bekapcsolás CSAK a pontos `1`.** A külső átolvasás (Codex,
+P2) kimutatta, hogy a `VS_KEEP_RESTORE_TARGET` a PUSZTA igaz-értéken állt (`if (process.env.X)`),
+ezért a kikapcsolásnak szánt `VS_KEEP_RESTORE_TARGET=0` vagy `=false` **bekapcsolta** a megtartást —
+futásonként egy maradék adatbázis a kiszolgálón, pontosan azért, amiért a futtató ki akarta kapcsolni.
+
+**És a szabály már megvolt.** Pontosan ezt a hibát javította az R164 a `VS_SAFETY_ALLOW_REMOTE`
+kapcsolón — de a HELYSZÍNEN javította, nem szabályként. A testvér-kapcsoló így a régi alakban maradt.
+Mostantól **egy feloldó** (`explicitSwitch`, a cél-döntések otthonában), mindkét fogyasztó ezt hívja,
+és a beállított-de-nem-`1` érték **nevezetten nem felismert** — a néma tartalék-ág elrejtené az
+elírást (KUKA-238). A takarító sor ezt kiírja, tehát a futtató látja, hogy a kapcsolóját figyelmen
+kívül hagytuk.
+
+**Amit ez NEM állít:** a mérés a feloldóra és a takarító ágra áll. Hogy a korábbi futások hagytak-e
+maradékot az operátor kiszolgálóján, arról ebből nem következik állítás — a maradék-jelentés
+megnevezi őket, de eldobni SOHA nem dobjuk el (nem a mi tulajdonunk).
+
+**(2) Egy pin-azonosító EGY mérésre mutat.** A javítás közben kiderült, hogy ebben a körben
+**háromszor** adtam ütköző csoport-előtagot a söprés-battériában (`ac` · `ae` · `ag` — mind a három
+ÉLT már az F164-es pinekben), és a harmadikat csak a visszacsúszás-próba kimenete buktatta le. A
+hivatkozás ilyenkor NÉMÁN kétértelmű: a jelentés és a KUKA-jegy `ag1`-re mutat, a battéria viszont
+két KÜLÖN mérésben futtat `ag1`-et. A négy R166-os csoport átnevezve (`aj` · `ak` · `al` · `ai`),
+a hivatkozások a regiszterben, az őr-otthonban, az archívumban és a jelentésben igazítva.
+
+**A mérce PONTOS, nem csak szigorú** (KUKA-216): az azonosító ismétlődése önmagában nem hiba — a
+`(b1)` háromszor fut egy hurokban, UGYANABBAN a mérésben, három bemenettel, és a neve megnevezi,
+melyikről van szó. A hiba a **két külön mérés közti** ütközés. Ezt méri az új őr, és csak ezt.
+
+**Gépi jel:** `npm run verify:app-findings-r154` — **AI csoport** (ai1–ai5: a kapcsoló mindkét
+irányban, az üres és a nem felismert érték, az ellenpár a testvér-kapcsolóra) és **AM csoport**
+(am1–am4: a kétlaki azonosító, a beültetett ellenpár, a kötött alak, a szó szerinti név-egyezés) ·
+`npm run verify:kuka` · `npm run proof:pg-durability`. **Visszacsúszás-próba mérve:** a puszta
+igaz-értékes olvasás visszatételére **három pin piros** (köztük a testvér-kapcsolóé — ez bizonyítja,
+hogy tényleg EGY otthon); az ütközés visszatételére az **am1 piros**.
+
+**KUKA-398** · **KUKA-399**
+
+---
+
 ## D-VS-3204 — AMIT NEM LEHET VÉGIGVINNI, AZT NEM KÍNÁLJUK FEL — ÉS A „VISSZA" A SZERVERIG MEGY (R166, három P2)
 
 > **Hatály:** V3 — a meghívó-folytatás és az útmutatók felkínálása. **V2-módosítás nem történt.**
@@ -51,13 +93,13 @@ A második és a harmadik pontosan a **`KUKA-391`**, amit **ebben a körben idé
 belül másodszor buktam el ugyanazon: a feltételt a környezet jeléből vagy a tagságból vezettem le,
 pedig a kérdés az, hogy a **cél ott van-e a lapon**.
 
-**A bizonyíték.** `verify:app-findings-r154` **259/259** — az új **AG csoport** (`ag1`–`ag4`) a két
+**A bizonyíték.** `verify:app-findings-r154` **259/259** — az új **AL csoport** (`al1`–`al4`) a két
 kaput **mindkét** irányban, az ellenpárral és a deklaráció kétirányú mérésével; az **`s11`** őr
 (az állapotot **kötő** utak kimondott leltára) pedig **elkapta** az új végpontot, mielőtt a csomag
 lezárult — ezért van. Élő tanú: `tests/e2e/v3app-r166-invite-leave.spec.mjs` **M6** — a visszalépés
 utáni belépés **nem visz vissza**, és az **ellenpár**: visszalépés **nélkül** a folytatás továbbra is
 megmarad (a `KUKA-297` ígérete nem veszett el). **Visszacsúszás-próba mérve, mind a háromra:** a két
-kaput kivéve `ag1`+`ag2` piros; a törlő hívást kivéve az `M6` piros. `verify:kuka` **877/877**.
+kaput kivéve `al1`+`al2` piros; a törlő hívást kivéve az `M6` piros. `verify:kuka` **877/877**.
 
 **Amit ez NEM állít.** Nem állítja, hogy minden útmutató minden környezetben végigvihető: azt
 állítja, hogy ahol nem, ott **nem is kínálódik fel** — és a kizárás **nevezett**, nem néma
@@ -92,7 +134,7 @@ olvassa. Mérve, javítás előtt:
 Ez a `KUKA-203` osztálya a legrosszabb alakjában: a fél-tisztító **bizalmat ad**, miközben
 szivárog — és épp a próba-naplókba, amiket bizonyítékként commitolunk.
 
-**A bizonyíték.** `verify:app-findings-r154` **AE csoport (ae1–ae7)**, a söprésben: a glued aposztróf ·
+**A bizonyíték.** `verify:app-findings-r154` **AK csoport (ak1–ak7)**, a söprésben: a glued aposztróf ·
 az escape-elt idézőjel · a záratlan idézet · **és az ellenpárok a jogos esetekre** (a három megszokott
 alak pontosan háromszor rejtőzik el, a titokmentes szöveg változatlan, a `;` utáni nem-titkos mező
 megmarad, és a kapcsolati címmel együtt is helyes). A battéria **255/255**. **Visszacsúszás-próba
@@ -207,7 +249,7 @@ volt. Egy lelet leírt esetének megdőlése nem a lelet megdőlése.
 
 **A bizonyíték — és az ellenpár a KÁRRA, nem a listára.**
 
-- **`verify:app-findings-r154` AC csoport (ac1–ac8), a söprésben:** a zárt lista · a név · a kapu · az
+- **`verify:app-findings-r154` AJ csoport (aj1–aj8), a söprésben:** a zárt lista · a név · a kapu · az
   átirányítás · a fail-closed dobás ismeretlen sémán · a hálózati divergencia · a gazdagép · a
   CLI-környezet. A battéria **250/250 PASS**.
 - **`proof:pg-restore-safety` E10a–E10e, VALÓDI kiszolgálón, Unix-socketen:** a régi alak kapcsolata
@@ -217,7 +259,7 @@ volt. Egy lelet leírt esetének megdőlése nem a lelet megdőlése.
   (`SHOW unix_socket_directories`), nem tippből; ha a kiszolgáló nem hallgat Unix-socketen, a lépés
   **NEM MÉRT** — nevezetten, nem néma zöldként (`KUKA-093` · `KUKA-363`).
 - **VISSZACSÚSZÁS-PRÓBA MÉRVE:** a séma-sort és a divergencia-blokkot visszaállítva a battéria **11
-  pinje piros**, köztük az `ac3` — a kapu újra átengedte volna a valódi adatbázis eldobását.
+  pinje piros**, köztük az `aj3` — a kapu újra átengedte volna a valódi adatbázis eldobását.
 - A három pg-lánc **újramérve** az új feloldóval: `proof:pg-intent` **10 állítás / 0 eltérés** ·
   `proof:pg-restore-safety` **48/48** · `proof:pg-durability` **13/13**, valódi PostgreSQL **16.15**-en.
 
@@ -320,7 +362,7 @@ folytatásokat utasított volna el, pedig volt nem védett áldozat.
 **A legszűkebb igaz állítás.** Nem kellett a magot új visszajelzéssel bővíteni: a „nincs folytatás"
 mindkét esetben igaz, és az index-törlés nem létező bejegyzésre is biztonságos.
 
-**Gépi jel.** `npm run verify:app-findings-r154` (ag2 — fejlesztői órával, várakozás nélkül) ·
+**Gépi jel.** `npm run verify:app-findings-r154` (al2 — fejlesztői órával, várakozás nélkül) ·
 `npm run verify:kuka` (KUKA-389).
 
 ---
@@ -337,7 +379,7 @@ adatbázis-állapotot, miközben a munkamenet-tár **üres** maradt: a tár plaf
 meg. Ez a `D-VS-3186` hiányzó fele — ott a **memória** könyvelését vittem egy helyre, a **tároló**
 oldala külön maradt.
 
-**Gépi jel.** `npm run verify:app-findings-r154` (ag1 — a határon mérve) · `npm run verify:kuka`
+**Gépi jel.** `npm run verify:app-findings-r154` (al1 — a határon mérve) · `npm run verify:kuka`
 (KUKA-388).
 
 ---
@@ -451,7 +493,7 @@ sorokkal folytatja, és ha a köteg nem lett tele, a kurzor visszaáll az elejé
 számmal kezdődik, egy romlott érték betűvel, tehát mögé kerül. Korlátnyi friss sor mögött a romlott
 sor határtalanul ott maradt. A `D-VS-3180` tehát **szűkül**: a sorrend szükséges, de nem elégséges.
 
-**Gépi jel.** `npm run verify:app-findings-r154` (ae6, ellenpárral) · `npm run verify:kuka` (KUKA-382).
+**Gépi jel.** `npm run verify:app-findings-r154` (ak6, ellenpárral) · `npm run verify:kuka` (KUKA-382).
 
 ---
 
@@ -465,7 +507,7 @@ finomít rá. A **tartalmi** bukás viszont nem indít finomítást.
 külső időtúllépésre finomított, tehát a saját költségvetés túllépését „beleférésnek" olvasta — és a
 lánc tartalmi bukásként adta tovább azt, amit a finomítás oldott volna meg.
 
-**Gépi jel.** `npm run verify:app-findings-r154` (ae5, ellenpárral) · `npm run verify:kuka` (KUKA-381).
+**Gépi jel.** `npm run verify:app-findings-r154` (ak5, ellenpárral) · `npm run verify:kuka` (KUKA-381).
 
 ---
 
@@ -494,7 +536,7 @@ eldönthető, **nem ad környezetet**: a hívó megáll.
 épített, tehát a `?host=` felülírást eldobta. A kaput ugyanebben a csomagban javítottam, a tényleges
 végrehajtást nem — a bizonyíték így nem arra a klaszterre szólt, amit mértünk.
 
-**Gépi jel.** `npm run verify:app-findings-r154` (ae2 · ae3) · `npm run verify:kuka` (KUKA-379).
+**Gépi jel.** `npm run verify:app-findings-r154` (ak2 · ak3) · `npm run verify:kuka` (KUKA-379).
 
 ---
 
@@ -508,7 +550,7 @@ tár plafonján **kívül** növelte a memóriát, és az elavult azonosítók v
 rövidre zárással, hogy a tár csupa védett sorral telt: egy új munkamenet felvétele elutasításra
 futott. Ez a `D-VS-3182` növekményes indexének hiányzó fele.
 
-**Gépi jel.** `npm run verify:app-findings-r154` (ae4) · `npm run verify:kuka` (KUKA-378).
+**Gépi jel.** `npm run verify:app-findings-r154` (ak4) · `npm run verify:kuka` (KUKA-378).
 
 ---
 
@@ -522,9 +564,9 @@ más hálózati gazdagép-név. Egy `?host=.belso.pelda.hu` alakú, a telepíté
 így átment a kapun — a kimondott felülírás nélkül, oda, ahol a próba ír és töröl.
 
 **Amit ez NEM állít.** Nem mértem meg élő távoli kiszolgálón: a mérés a kapu **döntésére** szól
-(ae1), nem egy valódi távoli kapcsolatra. Ezt szándékosan nem is próbáltam ki.
+(ak1), nem egy valódi távoli kapcsolatra. Ezt szándékosan nem is próbáltam ki.
 
-**Gépi jel.** `npm run verify:app-findings-r154` (ae1) · `npm run verify:kuka` (KUKA-377).
+**Gépi jel.** `npm run verify:app-findings-r154` (ak1) · `npm run verify:kuka` (KUKA-377).
 
 ---
 
@@ -608,7 +650,7 @@ indexet, és három battéria-állítás azonnal pirosra ment.
 **MÉRVE (a jel a HÍVÁS-SZÁM, nem az óra — KUKA-344):** 200 védett sorral telt táron 50 felvétel
 **nulla** védett-lista kérdést futtat; bejelentő nélkül ugyanaz a forgalom **50** kérdést; mind a 200
 védett sor **túléli**; és a halmazos takarítás után a következő felvétel **megkérdezi** a listát.
-Gépi jel: `verify:kuka` (KUKA-374) · `verify:app-findings-r154` (AC: ac1–ac4).
+Gépi jel: `verify:kuka` (KUKA-374) · `verify:app-findings-r154` (AC: aj1–aj4).
 
 ---
 

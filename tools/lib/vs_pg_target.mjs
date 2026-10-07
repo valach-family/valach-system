@@ -640,11 +640,43 @@ export function effectiveHost(sourceUrl, env = process.env) {
  * beírt `0` vagy `false` IGAZ értékű sztring, és a régi alakom ezeket is felülírásnak vette
  * (R164, KÜLSŐ REVIEW, Codex, P1).
  */
+/**
+ * EGY KAPCSOLÓ-OLVASÓ, EGY OTTHON (R166 — KÜLSŐ REVIEW, Codex, P2 · `KUKA-398`).
+ *
+ * A LELET: a `VS_KEEP_RESTORE_TARGET` a PUSZTA igaz-értéken állt (`if (process.env.X)`), ezért a
+ * környezet-kezelő által beírt `VS_KEEP_RESTORE_TARGET=0` vagy `=false` BEKAPCSOLTA a megtartást —
+ * vagyis a kikapcsolásnak szánt érték hagyott maradék adatbázist a kiszolgálón, futásonként egyet.
+ *
+ * ÉS A SZABÁLY MÁR MEGVOLT. Pontosan ezt a hibát javította az R164 a `VS_SAFETY_ALLOW_REMOTE`-on —
+ * de a HELYSZÍNEN javította, nem szabályként (`KUKA-003` · `KUKA-129`: egy szabály, egy otthon). A
+ * testvér-kapcsoló így a régi alakban maradt. Ezért a kapcsoló-olvasás mostantól EGY feloldó, és
+ * mindkét fogyasztó ezt hívja; a következő kapcsoló nem tud elcsúszni.
+ *
+ * A BEKAPCSOLÁS CSAK A PONTOS `1` — ez a repó házi szabálya (`VS_APP_TRUST_PROXY`, `VS_DEMO`,
+ * `VS_AI_GROUNDED_PROSE`, `VS_KEPEK_JPEG`, `VS_EXT_*`). Ami nem `1`, az KI — de ha nem üres és
+ * mégsem `1`, azt a feloldó KIMONDJA (`recognised: false`), mert a néma tartalék-ág elrejti az
+ * elírást (`KUKA-238`). A hívó ezt a sorába írja: a kapcsoló NEM lesz csendben figyelmen kívül hagyva.
+ */
+export const SWITCH_ON = '1';
+export function explicitSwitch(env, name) {
+  const raw = envValue(env, name);
+  if (raw === '') {
+    return { on: false, raw, recognised: true,
+      basis: `a(z) \`${name}\` nincs beállítva (vagy üres) — a kapcsoló KI` };
+  }
+  if (raw === SWITCH_ON) {
+    return { on: true, raw, recognised: true,
+      basis: `a(z) \`${name}=${SWITCH_ON}\` KIMONDOTT bekapcsolás` };
+  }
+  return { on: false, raw, recognised: false,
+    basis: `a(z) \`${name}\` értéke ${JSON.stringify(raw)}, a bekapcsolás viszont CSAK a pontos \`${SWITCH_ON}\` — a kapcsoló KI. (A puszta igaz-érték alapú olvasás a \`0\` és a \`false\` sztringet is bekapcsolásnak vette.)` };
+}
+
 export const LOCAL_HOSTS = Object.freeze(['127.0.0.1', 'localhost', '::1', '[::1]', '0:0:0:0:0:0:0:1']);
 export function localOnlyVerdict(sourceUrl, env = process.env) {
-  const override = String(envValue(env, 'VS_SAFETY_ALLOW_REMOTE') ?? '').trim();
+  const override = explicitSwitch(env, 'VS_SAFETY_ALLOW_REMOTE');
   const h = effectiveHost(sourceUrl, env);
-  if (override === '1') {
+  if (override.on) {
     return { allowed: true, host: h.host, decidable: h.decidable, override: true,
       basis: 'KIMONDOTT felülírás (`VS_SAFETY_ALLOW_REMOTE=1`) — a helyi kapu szándékosan kikapcsolva' };
   }
