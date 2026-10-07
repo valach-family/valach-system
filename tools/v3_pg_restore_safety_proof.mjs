@@ -55,11 +55,8 @@ if (!url) { console.error('proof:pg-restore-safety — nincs DATABASE_URL: ELAKA
     console.error('  (a gépnevet nem írjuk ki; kimondott felülírás: VS_SAFETY_ALLOW_REMOTE=1)');
     process.exit(2);
   }
-  tény(`a helyi kapu: ${kapu.basis}`);
+  console.log(`  TÉNY a helyi kapu: ${kapu.basis}`);
 }
-
-const marks = [];
-const tény = (t) => console.log(`  TÉNY ${t}`);
 
 const PSQL = process.env.VS_PSQL || 'psql';
 const PGRESTORE = process.env.VS_PGRESTORE || 'pg_restore';
@@ -85,6 +82,8 @@ function psql(args, dbName = 'postgres') {
 }
 const letezik = (nev) => psql(['-c', `SELECT 1 FROM pg_database WHERE datname = '${nev}'`]).out.trim() === '1';
 
+const marks = [];
+const tény = (t) => console.log(`  TÉNY ${t}`);
 const step = (name, ok, detail) => { marks.push({ name, ok, detail }); console.log(`  ${ok ? 'OK ' : 'NEM'} ${name}${detail ? `  — ${detail}` : ''}`); };
 
 console.log('A VISSZATÖLTÉSI KAPU ELLENPRÓBÁI (eldobható helyi PostgreSQL)');
