@@ -139,12 +139,25 @@ console.log('='.repeat(94));
 // létező adatbázist nem veszünk át, névütközésre új nevet generálunk (R164/1).
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 const sajatDb = new Set();
+/**
+ * A TAKARÍTÁS EREDMÉNYE VISSZATÉR, MERT A VERDIKT HASZNÁLJA (R166, KÜLSŐ REVIEW, Codex, P2 · `KUKA-405`).
+ *
+ * A LELET: ez a függvény csak a `process.on('exit')` horogról futott — vagyis a verdikt és a
+ * kilépési kód MÁR megvolt, mire kiderült, hogy egy `DROP DATABASE` elbukott. A lánc így
+ * „RENDBEN"-t írt és 0-val lépett ki, miközben a SAJÁT generált adatbázisai ott maradtak a
+ * kiszolgálón — és ismételt futásokon halmozódtak. Egy figyelmeztetés nem verdikt.
+ */
 function dobjaSajat() {
+  const maradt = [];
   for (const n of [...sajatDb]) {
     const r = psql(['-v', 'ON_ERROR_STOP=1', '-c', `DROP DATABASE IF EXISTS ${qid(n)} WITH (FORCE)`]);
     if (r.code === 0) { sajatDb.delete(n); console.log(`  a lánc saját forrás-adatbázisa eldobva: ${n}`); }
-    else console.error(`  FIGYELEM: a saját forrás-adatbázis NEM lett eldobva: ${n} — ${r.err.slice(0, 120)}`);
+    else {
+      maradt.push(`${n} — ${r.err.slice(0, 120) || `psql kilépés ${r.code}`}`);
+      console.error(`  FIGYELEM: a saját forrás-adatbázis NEM lett eldobva: ${n} — ${r.err.slice(0, 120)}`);
+    }
   }
+  return maradt;
 }
 // A GYEREK AZONOSÍTÓJA A JEL-KEZELŐ ELŐTT ÁLL: egy KORAI jel különben a deklaráció előtt olvasná
 // (TDZ-hiba), és a kezelő pont akkor bukna el, amikor a legnagyobb szükség van rá (KUKA-360).
@@ -730,15 +743,38 @@ const nemMert = [];
 psql(['-c', `DROP DATABASE ${qid(idegen)} WITH (FORCE)`]);
 step('Z. a mérés saját idegen-maradéka eldobva (a mérés nem hagy szemetet)', nincsOtt(idegen), `${idegen} — ${letezesAlap(idegen)}`);
 
+/**
+ * A SAJÁT ERŐFORRÁS TAKARÍTÁSA A VERDIKT ELŐTT FUT (R166, KÜLSŐ REVIEW, Codex, P2 · `KUKA-405`).
+ * Így a maradék egy MÉRT lépés, nem egy figyelmeztetés a kilépési horogban. A horog BENT marad
+ * biztonsági hálóként a rendellenes kilépésre — de a verdiktet nem ő dönti el.
+ */
+const maradekSajat = dobjaSajat();
+step('Y. a lánc MINDEN saját adatbázisa eldobva (a maradék BUKTAT, nem csak figyelmeztet)',
+  maradekSajat.length === 0,
+  maradekSajat.length ? `MARADÉK: ${maradekSajat.join(' · ')}` : 'nem maradt saját adatbázis');
+
 console.log('='.repeat(94));
 const bad = marks.filter((m) => !m.ok);
 console.log(`ALAPSOKASÁG: ${marks.length} mért ellenpróba-lépés.`);
 // A NEM MÉRT LÉPÉS NEVEZETTEN ÁLL, NEM NÉMA ZÖLDKÉNT (KUKA-093 · KUKA-363).
 if (nemMert.length) { console.log(`NEM MÉRT (${nemMert.length}) — nevezve:`); for (const x of nemMert) console.log(`  · ${x}`); }
-if (bad.length === 0) {
+if (bad.length === 0 && nemMert.length === 0) {
   console.log('RENDBEN — a kapu a ROSSZ esetekben is megáll, a forrás és az idegen adat sértetlen,');
   console.log('          a hibás visszatöltés nem lesz PASS, és a megszakadt futás nem hagy szemetet.');
   process.exit(0);
+}
+/**
+ * A NEM MÉRT ESET NEM LEHET „RENDBEN" (R166, KÜLSŐ REVIEW, Codex, P2 · `KUKA-406`).
+ *
+ * A LELET: a siker-feltétel csak a bukott lépéseket nézte. Egy TCP-only kiszolgálón az E10
+ * (`socket:` séma ellenpárja) a `nemMert` listába került és KIMARADT — a lánc mégis „RENDBEN"-t
+ * írt és 0-val lépett ki, vagyis a söprés és a jelentés a NEM TÁMOGATOTT socket-átirányítást
+ * BIZONYÍTOTTNAK vehette. A nem futott nem „részben", és nem zöld (`KUKA-200` · `KUKA-206`).
+ */
+if (bad.length === 0) {
+  console.log('NEM TELJES — minden MÉRT ellenpróba zöld, DE nevezett eset NEM MÉRT (lásd fentebb).');
+  console.log('             A lánc verdiktje ezért NEM „RENDBEN": a nem futott nem „részben", és nem zöld.');
+  process.exit(4);
 }
 console.log('LELET:'); for (const m of bad) console.log(`  · ${m.name} — ${m.detail || ''}`);
 process.exit(3);

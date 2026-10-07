@@ -97,12 +97,22 @@ function psqlTry(args, dbName = 'postgres') {
   }
 }
 const sajatDb = new Set();
+/**
+ * A TAKARÍTÁS EREDMÉNYE VISSZATÉR, MERT A VERDIKT HASZNÁLJA (R166, KÜLSŐ REVIEW, Codex, P2 · `KUKA-405`).
+ * Ugyanaz a hiba-osztály, mint a visszatöltési láncban: a kilépési horogról futó takarítás bukása
+ * csak egy sor a naplóban, a verdikt és a kilépési kód már megvolt.
+ */
 function dobjaSajat() {
+  const maradt = [];
   for (const n of [...sajatDb]) {
     const r = psqlTry(['-v', 'ON_ERROR_STOP=1', '-c', `DROP DATABASE ${qid(n)} WITH (FORCE)`]);
     if (r.code === 0) { sajatDb.delete(n); console.log(`  a saját mérési adatbázis eldobva: ${n}`); }
-    else console.log(`  MARADÉK: ${n} — kézzel nézd meg (${r.err.slice(0, 120)})`);
+    else {
+      maradt.push(`${n} — ${r.err.slice(0, 120) || `psql kilépés ${r.code}`}`);
+      console.log(`  MARADÉK: ${n} — kézzel nézd meg (${r.err.slice(0, 120)})`);
+    }
   }
+  return maradt;
 }
 process.on('exit', dobjaSajat);
 for (const jel of ['SIGINT', 'SIGTERM']) process.on(jel, () => { dobjaSajat(); process.exit(130); });
@@ -337,7 +347,17 @@ try {
   console.log('AMIT NEM BIZONYÍT (kimondva): nem a HTTP-határ (azt a verify:app-findings-r154 Z/AA csoportja méri),');
   console.log('  nem terhelés, és NEM PostgreSQL 18 — a futó verzió a fejlécben áll, a 18-as kompatibilitás külön');
   console.log('  NEM IGAZOLT marad.');
-  console.log(`RESULT: ${kilepes === 0 ? 'PASS' : 'FAIL'} — ${ALLITASOK.length} állítás, ${eltero.length} eltérés`);
+  /**
+   * A SAJÁT ERŐFORRÁS TAKARÍTÁSA A VERDIKT ELŐTT FUT (R166 P2 · `KUKA-405`). A maradék BUKTAT:
+   * a próba nem írhat PASS-t, miközben a saját generált adatbázisa a kiszolgálón marad.
+   */
+  const maradekSajat = dobjaSajat();
+  if (maradekSajat.length) {
+    console.log(`MARADÉK a SAJÁT erőforrásból (${maradekSajat.length}) — a verdikt ezért FAIL:`);
+    for (const x of maradekSajat) console.log(`  · ${x}`);
+    kilepes = kilepes === 0 ? 5 : kilepes;
+  }
+  console.log(`RESULT: ${kilepes === 0 ? 'PASS' : 'FAIL'} — ${ALLITASOK.length} állítás, ${eltero.length} eltérés${maradekSajat.length ? ` · MARADÉK ${maradekSajat.length} saját adatbázis` : ''}`);
 } catch (e) {
   console.error('ELAKADT MÉRÉS (a próba bukott el; a rendszerről ez NEM mond semmit):', e && e.message);
   kilepes = 2;

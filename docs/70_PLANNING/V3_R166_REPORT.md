@@ -14,10 +14,11 @@ RÉGI munkamenet zárása volt; ez a lap az ÚJ munkamenet eredménye.
 | | |
 |---|---|
 | **Kód-SHA (a csomag feje)** | lásd a lap alján: `git log -1` ezen az ágon |
-| **A review által FEDETT SHA** | `d570f54` — a LEGUTÓBBI átolvasás eddig jutott (ez adta a 2.4 négy leletét; a `3747c12` adta a 2.1–2.3-at). Az azóta született munka — maguk a **javítások** — **NEM fedett**: a mai fejre nincs független review-bizonyíték. |
+| **A review által FEDETT SHA** | `d570f54` — a LEGUTÓBBI átolvasás eddig jutott (ez adta a 2.4 **és** a 2.5 leleteit; a `3747c12` adta a 2.1–2.3-at). Az azóta született munka — maguk a **javítások** — **NEM fedett**: a mai fejre nincs független review-bizonyíték. |
 | **R166 §0 átadás** | **KÉSZ** — a checkpoint ellenőrizve, a régi író leállt, a munka a PR aktuális fejére épült (force-push nélkül) |
 | **R166/P1 (a nyitott review-szál)** | **KÉSZ és MÉRVE** — `D-VS-3201` · `KUKA-393` |
 | **A 3747c12 fejre jött ÚJ P2** | **KÉSZ és MÉRVE** — a titok-tisztító határa (`D-VS-3203` · `KUKA-395`); lásd a 2.1 pontot |
+| **A d570f54 fejre jött ÖT TOVÁBBI P2** | **KÉSZ és MÉRVE** — három osztály: a szomszéd passzus ugyanazon a téves feltevésen állt (a kapcsolati cím elrejtése szivárgott), a próba a SAJÁT kimondott hiányát nem számolta be a verdiktbe (két helyen), és a nemleges ág romot hagyott, a bemutató pedig elnavigált a céljától — **a saját bejáróm pedig átlépett a kattintás felett** (`D-VS-3207` · `KUKA-404`…`408`); lásd a 2.5 pontot |
 | **A d570f54 fejre jött NÉGY TOVÁBBI P2** | **KÉSZ és MÉRVE** — egy osztály négy helyen: a jog-kérdésre kiadást hívtam (a súgó megnyitása hamis audit-sort írt), a bukott ellenőrző kérdés „nincs ott"-ra fordult, a `socket:` séma bekötése az INDULÁSBÓL kimaradt, és a megszakítás a leváló gyereknek nem szólt (`D-VS-3206` · `KUKA-400`…`403`); lásd a 2.4 pontot |
 | **A feltolt fejre jött NEGYEDIK P2** | **KÉSZ és MÉRVE** — a takarító kapcsoló a puszta igaz-értéken állt, és a szabály MÁR MEGVOLT (R164), csak nem szabályként; a javítás közben a SAJÁT battériámban találtam három ütköző pin-azonosítót (`D-VS-3205` · `KUKA-398` · `KUKA-399`); lásd a 2.3 pontot |
 | **A 3747c12 fejre jött TOVÁBBI HÁROM P2** | **KÉSZ és MÉRVE** — mind a három a SAJÁT, ebben a körben épített munkám felett: a szerver-oldali folytatás a visszalépés után, és két végigvihetetlenül felkínált útmutató-csoport (`D-VS-3204` · `KUKA-396` · `KUKA-397`); lásd a 2.2 pontot |
@@ -59,7 +60,7 @@ fogyasztó** (node-postgres a kódban, libpq a `pg_dump`/`psql` gyermekben) **m�
 
 **A bizonyíték — ellenpár a KÁRRA, nem a listára:**
 
-- `verify:app-findings-r154` **AJ csoport (aj1–aj8)**, a söprésben → a battéria **279/279 PASS** (a mai fejen újramérve);
+- `verify:app-findings-r154` **AJ csoport (aj1–aj8)**, a söprésben → a battéria **288/288 PASS** (a mai fejen újramérve);
 - `proof:pg-restore-safety` **E10a–E10e**, VALÓDI kiszolgálón, Unix-socketen: a régi alak kapcsolata
   nem a friss célra ment · az új alak **a friss célra** ment · az **eredeti adatbázis érintetlen**
   (0 nyom) · a nyom **a friss célban** áll · a CLI-környezet a socket-könyvtárat kapja. A lánc
@@ -93,7 +94,7 @@ titoknál a bizonytalanság nem a megengedő ág.
 
 **A bizonyíték:** `verify:app-findings-r154` **AK csoport (ak1–ak5)** a söprésben, az ellenpárokkal
 együtt (a három megszokott alak továbbra is pontosan háromszor rejtőzik el, a titokmentes szöveg
-változatlan) → a battéria **279/279**. **Visszacsúszás-próba mérve:** a három régi minta
+változatlan) → a battéria **288/288**. **Visszacsúszás-próba mérve:** a három régi minta
 visszaállítására **három pin piros**. A pg-láncok újramérve: `proof:pg-restore-safety` **48/48**
 (E9e) · `proof:pg-intent` **10/0** · `proof:pg-durability` **13/13**.
 
@@ -138,7 +139,7 @@ döntésből**, amit a lap kapuja is tükröz (`KUKA-233` — egy kérdés, egy 
 
 | állítás | gépi jel | verdikt |
 |---|---|---|
-| a két kapu **mindkét irányban** zár és nyit, és CSAK a sajátjait zárja (a többi 18 útmutató betűre változatlan) | `verify:app-findings-r154` **AL csoport (al1–al4)** | **ZÖLD — 279/279** |
+| a két kapu **mindkét irányban** zár és nyit, és CSAK a sajátjait zárja (a többi 18 útmutató betűre változatlan) | `verify:app-findings-r154` **AL csoport (al1–al4)** | **ZÖLD — 288/288** |
 | az új út az állapotot **KÖTŐ** utak kimondott leltárában áll | ugyanott, `s11` — **ez fogta meg** | **ZÖLD** |
 | a visszalépés UTÁNI belépés **nem visz vissza** a meghívóra | `test:e2e` → `v3app-r166-invite-leave` **M6** | **ZÖLD** |
 | a tizenkét útmutató **élő bejárása** ott, ahol a feltételek teljesülnek | `verify:browser-gate` | **ZÖLD — 134/0/0/0** |
@@ -318,7 +319,7 @@ olvasná, és a kezelő pont akkor bukna el, amikor a legnagyobb szükség van r
 | a `socket:` cím induló kérdése a feloldóból jön, és **mindkét** próba ezt hívja | `ao1`–`ao3` · **`ao7`** (a hívás, nem a feloldó) | **ZÖLD** |
 | a **bukott** létezés-kérdés sem „nincs ott", sem „ott van" | `ao4` · `ao5` · **`ao8`** (a hívás a láncban) | **ZÖLD** |
 | a megszakítás **sorrendje** kötött, és a gyerek-azonosító a kezelő előtt áll | `ao6` | **ZÖLD** |
-| a teljes battéria | `verify:app-findings-r154` | **ZÖLD — 279/279** |
+| a teljes battéria | `verify:app-findings-r154` | **ZÖLD — 288/288** |
 | a **kötelező böngésző-kapu** a mag és a határ érintése után | `verify:browser-gate` | **ZÖLD — 134 / 0 / 0 / 0**, 24 próba-fájl |
 
 **VISSZACSÚSZÁS-PRÓBA MÉRVE, MIND A NÉGYRE:** a javításokat visszavéve **öt pin piros** — `an1` ·
@@ -330,6 +331,101 @@ függvény*): egy pin, amit a visszacsúszás nem tesz pirossá, **nem gépi jel
 `ao7` és az `ao8`, ami a **hívást** méri a két próba forrásában.
 
 Rögzítve: `D-VS-3206` · `KUKA-400` · `KUKA-401` · `KUKA-402` · `KUKA-403`.
+
+---
+
+### 2.5 ÉS EGY ÖTÖDIK KÖR: ÖT TOVÁBBI P2 — HÁROM OSZTÁLY
+
+A `d570f54` fejre lefutott átolvasás **öt további P2**-t hozott. Mind az öt valódi; négy közülük
+közvetlenül a saját, ebben a körben épített munkámban.
+
+#### (1) A SZOMSZÉD PASSZUS UGYANAZON A TÉVES FELTEVÉSEN ÁLLT
+
+A 2.1-ben megdöntöttem, hogy *„az idézőjel a titok határa"* — de **csak azt a passzust írtam át,
+amire a lelet mutatott**. A kapcsolati cím elrejtése **ugyanabban a fájlban**, néhány sorral lentebb,
+karakter-kizárásos mintával zárt:
+
+| bemenet | RÉGI kimenet |
+|---|---|
+| `postgres://u:pa'ss@host/db` | `«kapcsolati cím elrejtve»'ss@host/db` — a jelszó **maradéka** és a **gazdagép** |
+| `psql "postgres://u:pa\"ss@host/db"` | ugyanaz: `ss@host/db` a naplóba |
+
+**A javítás:** a cím vége is a **shell-szó** határa. A szöveget **szavakra bontjuk**, és a címet a
+saját szaván belül rejtjük el — a szó végéig, de nem tovább.
+
+**És a szavakra bontás nem dísz:** a sémától indítva a letapogató egy `'postgres://…'` alakú,
+**idézett** szó belsejéből indult volna, ahol a nyitó idézőjelet már nem látja, a zárót pedig nyitónak
+veszi — és a **sor végéig** rejtett volna, elvéve a hasznos részt (`-f ki.dump`). Ezt is megmértem,
+mindkét irányban: a titok eltűnik, a hasznos szöveg **megmarad**, a titokmentes sor betűre változatlan.
+
+#### (2) A PRÓBA A SAJÁT SZAVÁT NEM HALLGATTA MEG — KÉT HELYEN
+
+**(a) A nem mért eset mellett is „RENDBEN"-t írt a lánc.** A siker-feltétel csak a bukott lépéseket
+nézte; a `nemMert` listát — a **nevezetten kimaradt** eseteket — csak kiírta. Egy Unix-socket nélküli
+kiszolgálón a `socket:` séma ellenpárja kimaradt, és a lánc **mégis 0-val lépett ki**: a söprés, a
+jelentés és a külső fél a nem támogatott átirányítást **bizonyítottnak** vehette. Ez pontosan a
+`KUKA-200`/`KUKA-206` — és **én magam írtam be** a `nemMert` listát, majd kihagytam a verdiktből.
+
+**Mostantól három verdikt van:** `RENDBEN` (0) · **`NEM TELJES`** (4) · `LELET` (3).
+
+**(b) A takarítás a kilépési horogról futott.** Mindkét pg-próba a saját generált adatbázisait a
+`process.on('exit')` horogról dobta el — az pedig **akkor** fut, amikor a verdikt és a kilépési kód
+már eldőlt. A `DROP DATABASE` bukása így csak egy figyelmeztető sor volt: a lánc **zöldet írt**,
+miközben a saját adatbázisai a kiszolgálón maradtak, és ismételt futásokon halmozódtak. Egy lánc,
+ami épp azt méri, hogy *„a megszakadt futás nem hagy szemetet"*, a **sajátjáról hallgatott**.
+
+**Mostantól** a takarítás a verdikt **előtt** fut, és a maradék **mért lépés** (`Y.`) — mindkét
+próbában, nem csak abban, amire a lelet mutatott.
+
+#### (3) A NEMLEGES ÁG ROMOT HAGYOTT, A BEMUTATÓ PEDIG ELNAVIGÁLT A CÉLJÁTÓL
+
+**(a) A telt tárból jövő `503` nem vette vissza, amit lebontott.** A belépés **előbb** törli a régi,
+névtelen munkamenetet (ez az `F154-12` szándékos sorrendje), és vele a `pending_intent` sort is
+(`KUKA-388`). Ha a rotált sor felvétele meghiúsul, a kezelő `503`-at adott — **és egyik sem került
+vissza**. A meghívó-jegy a normál úton **csak a szerveren** létezik, a címsorban nincs: az
+újrapróbálás tehát már nem tudta folytatni a meghívást, a szándék **némán elveszett**. A kód melletti
+megjegyzésem viszont azt állította, hogy a hívó *„nem lesz rosszabb helyzetben, mint belépés előtt"* —
+a munkamenetre igaz volt, a hozzá kötött **szándékra nem**.
+
+**Mostantól** a nemleges ág helyreállít: a régi sor visszakerül a tárba a **saját azonosítóján** (a
+hívó sütije arra mutat), és a függő szándék is újraíródik rá. **És ha a visszavétel is elbukik**, azt
+a válasz **kimondja** — más üzenet és egy nevezett mező (`KUKA-050`).
+
+**(b) A kijelentkezés-útmutató közepe navigált, és elvitte a saját célját.** A `go()` navigáláskor
+**bezárja a profil-menüt**, a `data-testid="logout"` horgony pedig **csak ott** létezik (a biztonsági
+lap kijelentkezés-gombján nincs). Aki a kiemelt gombot megnyomta — ami egy kiemelésnél természetes —,
+annak a **harmadik lépés nevezetten megszakadt**.
+
+**ÉS A SAJÁT BEJÁRÓM NEM FOGTA MEG.** A feltáró vezérlőt **csak akkor** nyomtam meg, ha a lépés célja
+még nem létezett; itt a cél **létezett**, tehát a bejárás egyszerűen továbblépett, és soha nem
+aktiválta. **A próbám egy olyan utat mért, amit ember nem jár be** (`KUKA-237`).
+
+**A javítás kettős:** az útmutató **két lépés, egy helyen** (menű megnyitása → kijelentkezés), navigáló
+lépés nélkül; és a bejáró **minden lépés saját célját megnyomja** — az utolsót kivéve, mert az a CÉL.
+Ahol a cél nem megnyomható (szöveg, tábla, panel), a kattintás elmarad: **nem a próba dönti el, mi
+vezérlő, hanem a lap**.
+
+#### A BIZONYÍTÉK, SORONKÉNT
+
+| állítás | gépi jel | verdikt |
+|---|---|---|
+| az aposztrófos kapcsolati cím **teljesen** eltűnik, és a hasznos szöveg megmarad | `ap1` · `ap2` · `ap3` | **ZÖLD** |
+| a **nem mért** eset mellett nincs „RENDBEN" (a `NEM TELJES` ág és a 4-es kód) | `ap4` | **ZÖLD** |
+| a takarítás a **verdikt előtt** fut, a maradék mért lépés — **mindkét** próbában | `ap5` | **ZÖLD** |
+| az `503` **visszaveszi** a munkamenetet és a szándékot, a kudarcot **kimondja** | `ap6` · `ap7` | **ZÖLD** |
+| az útmutató nem navigál el a céljától, és a bejáró **megnyomja** a kiemelt vezérlőt | `ap8` · `ap9` | **ZÖLD** |
+| a teljes battéria | `verify:app-findings-r154` | **ZÖLD — 288/288** |
+| a tanulságok gépi jelei | `verify:kuka` | **ZÖLD — 911/911** |
+| a visszatöltési ellenpróbák (az `Y.` lépéssel) | `proof:pg-restore-safety` | **ZÖLD — 49/49** |
+| az írás-szándék a két tárolón | `proof:pg-intent` | **ZÖLD — 10 állítás / 0 eltérés** |
+
+**VISSZACSÚSZÁS-PRÓBA MÉRVE, MIND AZ ÖTRE:** a javításokat visszavéve **hat pin piros** — `ap1` ·
+`ap4` · `ap5` · `ap6` · `ap8` · `ap9`.
+
+**AMIT EZ NEM ÁLLÍT:** a telt tár **élő, böngészős** előállítása nincs a kapuban (kimondva); a
+megszakítás-kezelő versenyét a **forrásból** mérem, nem élő jelből.
+
+Rögzítve: `D-VS-3207` · `KUKA-404` … `KUKA-408`.
 
 ---
 
@@ -437,11 +533,11 @@ megszakítást bukásnak** veszi, nem „nincs is baj"-nak.
 
 | lánc | verdikt |
 |---|---|
-| `verify:app-findings-r154` (a HTTP-határ és a pg-feloldók) | **ZÖLD — 279/279** (AJ · AK · AL · AI · AM · **AN an1–an3** · **AO ao1–ao8** új) |
+| `verify:app-findings-r154` (a HTTP-határ és a pg-feloldók) | **ZÖLD — 288/288** (AJ · AK · AL · AI · AM · AN · AO · **AP ap1–ap9** új) |
 | `proof:pg-intent` | **ZÖLD** — 10 állítás, mindkét tárolón, **0 eltérés**, valódi PostgreSQL 16.15 · újramérve, **és `socket:` címmel is végigfut** |
-| `proof:pg-restore-safety` | **ZÖLD — 48/48** (E10a–E10e új, Unix-socketen) · újramérve, **és `socket:` címmel is végigfut** |
+| `proof:pg-restore-safety` | **ZÖLD — 49/49** (E10a–E10e és az `Y.` takarítás-lépés új) · `socket:` címmel is végigfut |
 | `proof:pg-durability` | **ZÖLD — 13/13** · a takarító kapcsoló **mind a négy állásán** újramérve (lásd 2.3) |
-| `verify:kuka` | **ZÖLD — 898/898** (KUKA-393…**403** új, 11 bejegyzés ebben a körben) |
+| `verify:kuka` | **ZÖLD — 911/911** (KUKA-393…**408** új, **16** bejegyzés ebben a körben) |
 | `verify:tutor` | **ZÖLD — 94/94** (két új állítás: a zárt listás `auth_view`, és hogy a nézet-nevek a felület forrásában is megvannak) |
 | `verify:i18n` | **ZÖLD — 49/49** · ellenpróba 6/6 (809 → **821** kulcs, mind a három bekapcsolt nyelven) |
 | `verify:assistant` | **ZÖLD — 55/55** |
@@ -591,3 +687,9 @@ nélkül; titok-minta ellenőrzéssel **0 találat**).
 | **KUKA-401** | egy ellenőrző kérdés bukása nem válasz: az ismeretlen mindkét irányban buktat |
 | **KUKA-402** | egy új séma támogatása nem a feloldóval készül el, hanem az utolsó hívóval |
 | **KUKA-403** | aki leváló gyereket indít, az a kilépésével nem állítja meg |
+| **D-VS-3207** | a javítás hatókörét a hiba-osztály adja, és a próba a saját szavát is meghallgatja |
+| **KUKA-404** | amikor egy hiba-osztályt javítok, a szomszéd passzust is meg kell kérdezni |
+| **KUKA-405** | egy takarítás, ami a verdikt után fut, nem tud verdikt lenni |
+| **KUKA-406** | aki kimondja a hiányt, de nem számolja be a verdiktbe, az elhallgatta |
+| **KUKA-407** | egy útmutató nem navigálhat el a saját céljától — és a bejárás nyomja meg, amit az ember |
+| **KUKA-408** | egy nemleges válasz nem hagyhat maga után romot |

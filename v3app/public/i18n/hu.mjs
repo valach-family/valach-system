@@ -1599,10 +1599,9 @@ export const TOUR = Object.freeze({
   }),
   'tour.logout': Object.freeze({
     title: 'Kilépés',
-    lead: 'Három lépés. A kilépés a saját eszközödön zárja a munkamenetet.',
+    lead: 'Két lépés. A kilépés a saját eszközödön zárja a munkamenetet.',
     s1: Object.freeze({ title: 'Nyisd meg a profil-menüt', body: 'A fejléc jobb szélén, a címed alatt. Ez a menü minden fiókban ott van — a személyes és a vállalkozási nézetben is.' }),
-    s2: Object.freeze({ title: 'A Belépés és biztonság lap', body: 'Innen nyílik. A lap megmutatja, melyik címmel vagy belépve, és hogy a cím meg van-e erősítve.' }),
-    s3: Object.freeze({ title: 'Kilépés', body: 'A profil-menüben találod. A kilépés után a böngészőben nem marad a fiókodhoz tartozó adat — a következő belépő nem a te nézetedet látja.' }),
+    s2: Object.freeze({ title: 'Kilépés', body: 'A profil-menüben találod. A kilépés után a böngészőben nem marad a fiókodhoz tartozó adat — a következő belépő nem a te nézetedet látja.' }),
   }),
   'tour.personalAccount': Object.freeze({
     title: 'A személyes fiókod',

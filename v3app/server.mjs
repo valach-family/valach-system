@@ -1917,8 +1917,33 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
        * belépés előtt, és a `pending_intent` sorát sem visszük át egy nem létező munkamenetre.
        */
       if (!sessions.has(fresh.id)) {
+        /**
+         * ÉS A 503 ÁGON VISSZAÁLLÍTJUK, AMIT LEBONTOTTUNK (R166, KÜLSŐ REVIEW, Codex, P2 · KUKA-408).
+         *
+         * A LELET: a fenti megjegyzés azt állította, hogy „a hívó ettől nem lesz rosszabb
+         * helyzetben, mint belépés előtt". A FÜGGŐ MEGHÍVÓ-SZÁNDÉKRA EZ NEM IGAZ: a `delete` a
+         * `pending_intent` sort is elvitte (KUKA-388), a jegy pedig a NORMÁL úton csak a
+         * SZERVEREN létezik — a címsorban nincs. Egy telt tárból jövő 503 után tehát az
+         * újrapróbálás már NEM tudta folytatni a meghívást: a szándék némán elveszett.
+         *
+         * MOSTANTÓL a nemleges ág helyreállít: a régi sor visszakerül a tárba a SAJÁT azonosítóján
+         * (a hívó sütije arra mutat), és a függő szándék is újraíródik rá. Ha a visszavétel is
+         * elbukik (a tár tényleg telt), azt KIMONDJUK a válaszban — nem hallgatjuk el (KUKA-050).
+         */
+        let helyreallt = true;
+        if (!session.transient) {
+          sessions.set(session.id, session);
+          helyreallt = sessions.has(session.id);
+          if (helyreallt && pending) {
+            rememberIntent({ store, sessionId: session.id, token: pending, clock });
+            sessions.markIntent(session.id);
+          }
+        }
         return { status: 503, body: { ok: false, reason: 'at_capacity', refused_by: 'session_store',
-          message: 'a munkamenet-tár megtelt, és minden munkamenetet épp kiszolgálunk — próbáld újra pár másodperc múlva' } };
+          intent_preserved: pending ? helyreallt : null,
+          message: helyreallt
+            ? 'a munkamenet-tár megtelt, és minden munkamenetet épp kiszolgálunk — próbáld újra pár másodperc múlva'
+            : 'a munkamenet-tár megtelt, és a korábbi munkamenetet sem sikerült visszavenni — nyisd meg újra a hivatkozást' } };
       }
       if (pending) {
         rememberIntent({ store, sessionId: fresh.id, token: pending, clock });

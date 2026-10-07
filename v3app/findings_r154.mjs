@@ -3210,6 +3210,78 @@ try {
       { sorrend: sorrend.replace(/\s+/g, ' ').slice(0, 80) });
   }
 
+  // ── AP) R166 — AZ ÖTÖDIK REVIEW-KÖR ÖT P2-JE (külső review) ──────────────────────────────────
+  //
+  // ÖT LELET, HÁROM OSZTÁLY: (a) a titok határa megint egy IDÉZŐJEL volt, (b) a próba verdiktje
+  // nem vette figyelembe, amit maga mondott ki (nem mért eset · bukott takarítás), (c) a nemleges
+  // ág nem állította vissza, amit lebontott.
+  {
+    part('AP) R166 — az ötödik review-kör öt P2-je (külső review)');
+
+    // (a) A KAPCSOLATI CÍM VÉGE IS SHELL-SZÓ, nem az első aposztróf.
+    const cimAposztrof = redactConnStrings("postgres://u:pa'ss@host/db");
+    const cimIdezett = redactConnStrings("pg_dump 'postgres://u:titok@host/db' -f ki.dump");
+    const cimKetto = redactConnStrings('ket: postgres://a:x@h1/d es postgres://b:y@h2/d vege');
+    step("(ap1) R166/P2: az APOSZTRÓFOT tartalmazó kapcsolati cím TELJESEN eltűnik (RÉGEN: a minta `[^\\s'\\\"]*`-gal zárt, ezért a `pa` után megállt, és a jelszó MARADÉKA meg a GAZDAGÉP kiszivárgott)",
+      !cimAposztrof.includes('ss@host') && !cimAposztrof.includes('pa') && cimAposztrof.includes('«kapcsolati cím elrejtve»'),
+      { tisztitott: cimAposztrof });
+
+    step('(ap2) R166/P2: és a rejtés a SAJÁT szaván belül marad — a sor hasznos része megmarad (nem rejtünk a sor végéig, ha a szó határa tudható)',
+      !cimIdezett.includes('titok') && !cimIdezett.includes('host') && cimIdezett.includes('-f ki.dump')
+      && cimKetto.includes('vege') && (cimKetto.match(/«kapcsolati cím elrejtve»/g) || []).length === 2,
+      { idezett: cimIdezett, ketto: cimKetto });
+
+    step('(ap3) R166/P2 ELLENPÁR: a titokmentes szöveg VÁLTOZATLAN, és a cím+jelszó együtt is eltűnik',
+      redactConnStrings('semmi titok nincs itt, csak sima szoveg') === 'semmi titok nincs itt, csak sima szoveg'
+      && !redactConnStrings('PGPASSWORD=titok psql postgres://u:x@h/d').includes('titok')
+      && !redactConnStrings('PGPASSWORD=titok psql postgres://u:x@h/d').includes('x@h'),
+      { valtozatlan: true });
+
+    // (b) A PRÓBA VERDIKTJE AZT IS NÉZZE, AMIT MAGA MONDOTT KI.
+    const safetySrc2 = readFileSync(join(ROOT, 'tools/v3_pg_restore_safety_proof.mjs'), 'utf8');
+    const intentSrc2 = readFileSync(join(ROOT, 'tools/v3_pg_intent_proof.mjs'), 'utf8');
+    step('(ap4) R166/P2: a NEM MÉRT eset nem lehet „RENDBEN" — a siker-feltétel a `nemMert` listát is nézi (RÉGEN: csak a bukott lépéseket, így egy TCP-only kiszolgálón a kimaradt `socket:` ellenpár mellett is 0-val lépett ki)',
+      /bad\.length === 0 && nemMert\.length === 0/.test(safetySrc2)
+      && /NEM TELJES/.test(safetySrc2) && /process\.exit\(4\)/.test(safetySrc2),
+      { siker_feltetel: 'bad === 0 ÉS nemMert === 0' });
+
+    step('(ap5) R166/P2: a SAJÁT erőforrás takarítása a VERDIKT ELŐTT fut, és a maradék MÉRT lépés — mindkét pg-próbában (RÉGEN: csak a kilépési horog figyelmeztetett, a verdikt és a kilépési kód már megvolt)',
+      /const maradekSajat = dobjaSajat\(\);/.test(safetySrc2)
+      && /step\('Y\. a lánc MINDEN saját adatbázisa eldobva/.test(safetySrc2)
+      && /const maradekSajat = dobjaSajat\(\);/.test(intentSrc2)
+      && /return maradt;/.test(safetySrc2) && /return maradt;/.test(intentSrc2),
+      { mindkét_proba: true });
+
+    // (c) A NEMLEGES ÁG ÁLLÍTSA VISSZA, AMIT LEBONTOTT.
+    const srvSrc3 = readFileSync(join(ROOT, 'v3app/server.mjs'), 'utf8');
+    step('(ap6) R166/P2: a telt tárból jövő 503 VISSZAVESZI a régi munkamenetet és ÚJRAÍRJA a függő meghívó-szándékot (RÉGEN: a `delete` a `pending_intent` sort is elvitte, a jegy pedig a normál úton csak a szerveren él — az újrapróbálás nem tudta folytatni a meghívást)',
+      /sessions\.set\(session\.id, session\);/.test(srvSrc3)
+      && /helyreallt && pending/.test(srvSrc3)
+      && /rememberIntent\(\{ store, sessionId: session\.id, token: pending, clock \}\)/.test(srvSrc3)
+      && /intent_preserved/.test(srvSrc3),
+      { visszavetel: 'a saját azonosítóján, a szándékkal együtt' });
+
+    step('(ap7) R166/P2: és ha a VISSZAVÉTEL is elbukik, azt a válasz KIMONDJA — nem hallgatjuk el (KUKA-050)',
+      /helyreallt = sessions\.has\(session\.id\)/.test(srvSrc3)
+      && /a korábbi munkamenetet sem sikerült visszavenni/.test(srvSrc3),
+      { kimondva: true });
+
+    // (d) A KIJELENTKEZÉS-ÚTMUTATÓ NEM VESZÍTI EL A CÉLJÁT, és a BEJÁRÓ azt nyomja, amit az ember.
+    const logoutTour = TOURS['tour.logout'];
+    const logoutCelok = logoutTour.steps.map((x) => x.target);
+    const jaroSrc = readFileSync(join(ROOT, 'tests/e2e/v3app-r166-utmutatok.spec.mjs'), 'utf8');
+    step('(ap8) R166/P2: a kijelentkezés-útmutató NEM lép ki a profil-menüből — nincs benne navigáló lépés, ami elvinné a `logout` horgonyt (RÉGEN: a középső lépés a biztonsági lapra vitt, a `go()` bezárta a menüt, és a harmadik lépés nevezetten megszakadt)',
+      logoutCelok.join(',') === 'profile,logout'
+      && !logoutCelok.includes('profile-menu-security'),
+      { lepesek: logoutCelok.join(' → ') });
+
+    step('(ap9) R166/P2: és a BEJÁRÓ megnyomja minden lépés SAJÁT célját (az utolsót nem, mert az a CÉL) — a mérés így a VISELKEDÉST méri, nem egy olyan utat, amit ember nem jár be (KUKA-237)',
+      /const cel = page\.getByTestId\(steps\[i\]\.target\)\.first\(\);/.test(jaroSrc)
+      && /if \(megnyomhato\) await cel\.click/.test(jaroSrc)
+      && /if \(i \+ 1 < steps\.length\) \{/.test(jaroSrc),
+      { bejaro: 'a kiemelt vezérlőt is megnyomja' });
+  }
+
   // ── AM) R166 — A MÉRŐ ÖNELLENŐRZÉSE: EGY AZONOSÍTÓ EGY MÉRÉSRE MUTAT (KUKA-399) ─────────────
   //
   // MIÉRT KELL: ebben a körben HÁROMSZOR adtam ütköző csoport-előtagot (`ac` · `ae` · `ag` — mind

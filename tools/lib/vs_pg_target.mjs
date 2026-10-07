@@ -530,7 +530,40 @@ function shellWordEnd(s, i) {
 
 export function redactConnStrings(text) {
   let s = String(text ?? '');
-  s = s.replace(/\b(postgres(?:ql)?|pg):\/\/[^\s'"]*/gi, '«kapcsolati cím elrejtve»');
+  /**
+   * A CÍM VÉGÉT IS A SHELL-SZÓ HATÁRA ADJA (R166, KÜLSŐ REVIEW, Codex, P2 · `KUKA-404`).
+   *
+   * A LELET: a régi alak `[^\s'"]*`-gal zárt, vagyis az IDÉZŐJEL volt a határ. Egy aposztrófot
+   * tartalmazó jelszónál (`postgres://u:pa'ss@host/db`) a minta a `pa` után megállt, és a
+   * `«elrejtve»'ss@host/db` alakban a jelszó MARADÉKA és a GAZDAGÉP kiszivárgott.
+   *
+   * MIÉRT UGYANAZ A HIBA, MINT A JELSZÓ-KULCSNÁL (2.1): az idézőjel a shellben NEM szó-határ —
+   * `'pa'\''ss'` EGY szó. A cím végét tehát ugyanaz a letapogató adja (`shellWordEnd`), és ahol a
+   * határ nem tudható (záratlan idézet), a SOR VÉGÉIG rejtünk: titoknál a bizonytalanság nem a
+   * megengedő ág. A javítást a jelszó-kulcs passzusával EGY otthonba hoztuk (KUKA-003).
+   */
+  {
+    /**
+     * A LETAPOGATÓ A SZÓ ELEJÉRŐL MŰKÖDIK, ezért a sémától indítani HIBA lett volna: egy
+     * `'postgres://…'` alakú, idézett szó belsejéből indulva a nyitó idézőjelet már nem látjuk,
+     * a záró pedig „nyitónak" tűnik — és a rejtés a sor végéig futott volna, elvéve a sor
+     * hasznos részét (`-f ki.dump`). Ezért SZAVAKRA bontunk, és a címet a SAJÁT szaván belül
+     * rejtjük el: a szó végéig, de nem tovább.
+     */
+    const SEMA = /(postgres(?:ql)?|pg):\/\//i;
+    const SEPARATOR = /[ \t\n\r&;]/;
+    let ki = '';
+    let i = 0;
+    while (i < s.length) {
+      if (SEPARATOR.test(s[i])) { ki += s[i]; i += 1; continue; }
+      const vege = shellWordEnd(s, i);
+      const szo = s.slice(i, vege);
+      const t = SEMA.exec(szo);
+      ki += t ? szo.slice(0, t.index) + '«kapcsolati cím elrejtve»' : szo;
+      i = vege;
+    }
+    s = ki;
+  }
   /**
    * EGY HELYEN, HÁROM ALAK HELYETT EGY SZABÁLY (R164 P2 → R166 P2).
    *

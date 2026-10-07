@@ -1507,10 +1507,9 @@ export const TOUR = Object.freeze({
   }),
   'tour.logout': Object.freeze({
     title: 'Signing out',
-    lead: 'Three steps. Signing out closes the session on your own device.',
+    lead: 'Two steps. Signing out closes the session on your own device.',
     s1: Object.freeze({ title: 'Open the profile menu', body: 'At the right edge of the header, under your address. This menu is there in every account — in the personal and the business view alike.' }),
-    s2: Object.freeze({ title: 'The Sign-in and security page', body: 'It opens from here. The page shows which address you are signed in with and whether that address is confirmed.' }),
-    s3: Object.freeze({ title: 'Sign out', body: 'You find it in the profile menu. After signing out no data belonging to your account stays in the browser — the next person to sign in does not see your view.' }),
+    s2: Object.freeze({ title: 'Sign out', body: 'You find it in the profile menu. After signing out no data belonging to your account stays in the browser — the next person to sign in does not see your view.' }),
   }),
   'tour.personalAccount': Object.freeze({
     title: 'Your personal account',

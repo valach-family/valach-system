@@ -16,6 +16,48 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3207 — A JAVÍTÁS HATÓKÖRÉT A HIBA-OSZTÁLY ADJA, ÉS A PRÓBA A SAJÁT SZAVÁT IS MEGHALLGATJA (R166, öt külső P2)
+
+**AZ ÖT LELET HÁROM OSZTÁLYT MUTAT**, és mind az öt javítva, mért visszacsúszás-próbával.
+
+**(1) A szomszéd passzus ugyanazon a téves feltevésen állt** (`KUKA-404`). A `KUKA-395` megdöntötte,
+hogy „az idézőjel a titok határa" — de én csak azt a passzust írtam át, amire a lelet mutatott. A
+kapcsolati cím elrejtése ugyanabban a fájlban, néhány sorral lentebb, karakter-kizárásos mintával
+zárt: egy aposztrófos jelszónál a napló a jelszó **maradékát** és a **gazdagép** nevét hordozta.
+Mostantól a cím is **szavakra bontva**, a szó határáig rejtve — és a hasznos szöveg megmarad.
+
+**(2) A próba a saját kimondott hiányát nem számolta be a verdiktbe** (`KUKA-406`), és a **saját
+takarítását a verdikt után** futtatta (`KUKA-405`). Mindkettő ugyanaz: a lánc ZÖLDET írhatott,
+miközben maga mondta ki, hogy valamit nem mért, illetve hogy a saját adatbázisait nem sikerült
+eldobni. Mostantól **három verdikt** van (bizonyítva · **nem teljes** · lelet), és a takarítás a
+verdikt **előtt** fut, mért lépésként — mindkét pg-próbában.
+
+**(3) A nemleges ág romot hagyott, a bemutató pedig elnavigált a saját céljától**
+(`KUKA-408` · `KUKA-407`). A telt tárból jövő `503` nem vette vissza a törölt munkamenetet és a
+hozzá kötött meghívó-szándékot — a jegy a normál úton csak a szerveren él, tehát a meghívás **némán
+elveszett**. A `tour.logout` közbülső lépése navigált, a navigáció bezárta a profil-menüt, és a
+kijelentkezés horgonya **csak ott** létezik. **És a saját bejáróm nem fogta meg**: a kiemelt
+vezérlőt csak akkor nyomta meg, ha a cél még nem létezett — vagyis egy olyan utat mért, amin
+felhasználó nem megy végig.
+
+**A KÉT TANULSÁG, AMI TÚLMUTAT A LELETEKEN:**
+· **A javítás hatókörét a hiba-osztály adja, nem a lelet sorszáma** — ha egy feltevés megdőlt, a
+  szomszéd passzust is meg kell kérdezni.
+· **Amit egy kiemelés felkínál, azt a mérésnek is meg kell nyomnia** — különben a zöld csak a
+  türelmünket méri.
+
+**Gépi jel:** `npm run verify:app-findings-r154` — **AP csoport** (ap1–ap9) · `npm run verify:kuka` ·
+`npm run proof:pg-restore-safety` (49 lépés, az `Y.` új) · `npm run proof:pg-intent` ·
+`npm run verify:browser-gate` (a kattintó bejáróval). **Visszacsúszás-próba mérve, mind az ötre:**
+a javításokat visszavéve **hat pin piros** (`ap1` · `ap4` · `ap5` · `ap6` · `ap8` · `ap9`).
+
+**Amit ez NEM állít:** a telt tár **élő, böngészős** előállítása nincs a kapuban (kimondva); a
+megszakítás-kezelő versenyét a forrásból mérjük, nem élő jelből.
+
+**KUKA-404** · **KUKA-405** · **KUKA-406** · **KUKA-407** · **KUKA-408**
+
+---
+
 ## D-VS-3206 — A DÖNTÉST ÉS A HATÁST KÜLÖN KELL TUDNI MEGHÍVNI, ÉS A BIZONYTALAN BEMENET NEM A MEGENGEDŐ ÁG (R166, négy külső P2)
 
 **A NÉGY LELET EGY OSZTÁLYT MUTAT:** egy bizonytalan vagy más sémájú bemenetet, illetve egy hatásos

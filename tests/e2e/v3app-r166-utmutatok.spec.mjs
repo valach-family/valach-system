@@ -124,7 +124,32 @@ async function walkTour(page, tourId) {
       bajok.push(`${steps[i].id}: NEVEZETT megszakítás — ${((await page.getByTestId('tour-blocked').textContent()) || '').trim().slice(0, 70)}`);
       break;
     }
-    if (i + 1 < steps.length) await page.getByTestId('tour-next').click();
+    /**
+     * ÉS A FELHASZNÁLÓ A KIEMELT VEZÉRLŐT IS MEGNYOMJA (R166, külső review, Codex, P2 · KUKA-407).
+     *
+     * A MÉRŐM HIBÁJA: a feltáró vezérlőt CSAK akkor nyomtam meg, ha a lépés célja még nem létezett.
+     * A `tour.logout` közbülső lépésének célja (`profile-menu-security`) viszont LÉTEZETT — így a
+     * bejárás egyszerűen továbblépett, és soha nem aktiválta. A felhasználó megnyomja, a navigáció
+     * BEZÁRJA a profil-menüt, és a következő lépés célja (`logout`) ELTŰNIK. A próbám tehát egy
+     * olyan utat mért, amit ember nem jár be (KUKA-237: a mérés a VISELKEDÉST mérje).
+     *
+     * MOSTANTÓL a bejárás minden lépés SAJÁT célját megnyomja — az UTOLSÓT kivéve, mert az a CÉL
+     * (a kijelentkezés megnyomása véget vetne a munkamenetnek, a mentés elküldené az űrlapot).
+     * Ha a cél nem megnyomható (szöveg, tábla, panel), a kattintás elmarad: nem a próba dönti el,
+     * mi vezérlő, hanem a lap.
+     */
+    if (i + 1 < steps.length) {
+      const cel = page.getByTestId(steps[i].target).first();
+      if (await cel.count() > 0 && await cel.isVisible()) {
+        const megnyomhato = await cel.evaluate((el) => {
+          const t = el.tagName.toLowerCase();
+          return t === 'button' || t === 'a' || t === 'summary' || el.hasAttribute('data-go')
+            || el.hasAttribute('data-action') || el.hasAttribute('data-auth');
+        }).catch(() => false);
+        if (megnyomhato) await cel.click({ trial: false }).catch(() => { /* a lap elvette — a következő állítás méri */ });
+      }
+      await page.getByTestId('tour-next').click();
+    }
   }
   return { bajok, lepes: steps.length };
 }

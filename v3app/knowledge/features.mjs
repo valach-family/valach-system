@@ -1078,11 +1078,23 @@ export const TOURS = Object.freeze({
     // menü része), tehát az útmutató ott azonnal NEVEZETTEN megszakadt. A profil-menü MINDKÉT térben
     // ott van, és benne áll a lapra vezető gomb ÉS a kilépés is — így az útmutató tényleg bejárható,
     // és a lapot is TÉNYLEGESEN meglátogatja (nem puszta `page` deklaráció).
-    id: 'tour.logout', version: '1.0.0', audience: 'signed_in', feature: 'auth.logout', page: 'security',
+    id: 'tour.logout', version: '1.1.0', audience: 'signed_in', feature: 'auth.logout', page: 'security',
+    /**
+     * AZ ÚTMUTATÓ A PROFIL-MENŰBŐL NEM LÉP KI (R166, külső review, Codex, P2 · KUKA-407).
+     *
+     * A LELET: a korábbi alak középen a `profile-menu-security` vezérlőre állt. Ha a felhasználó —
+     * ahogy egy kiemelt gombnál természetes — MEGNYOMTA, a `go('security')` BEZÁRTA a profil-menüt
+     * (`pr.open = false`), a kijelentkezés horgonya (`logout`) viszont CSAK ebben a menüben
+     * létezik: a harmadik lépés nevezetten megszakadt. A biztonsági lap kijelentkezés-gombja nem
+     * hordozza ugyanazt a horgonyt, és nem is kaphat másodikat (a cél egyértelmű maradjon).
+     *
+     * EZÉRT KÉT LÉPÉS, EGY HELYEN: a menü megnyitása, majd a kijelentkezés gombja. A biztonsági lap
+     * bemutatása nem ennek az útmutatónak a dolga — a kilépés útja a profil-menű (KUKA-231: amit a
+     * bemutató nem nyom meg helyettünk, arra VÁRNI kell; és az ÚTON nem lehet elveszíteni a célt).
+     */
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'profile', task: null }),
-      Object.freeze({ id: 's2', target: 'profile-menu-security', task: null, appears_after: 'profile' }),
-      Object.freeze({ id: 's3', target: 'logout', task: null, appears_after: 'profile' }),
+      Object.freeze({ id: 's2', target: 'logout', task: null, appears_after: 'profile' }),
     ]),
   }),
   'tour.personalAccount': Object.freeze({

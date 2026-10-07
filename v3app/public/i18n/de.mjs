@@ -1503,10 +1503,9 @@ export const TOUR = Object.freeze({
   }),
   'tour.logout': Object.freeze({
     title: 'Abmelden',
-    lead: 'Drei Schritte. Das Abmelden schließt die Sitzung auf deinem eigenen Gerät.',
+    lead: 'Zwei Schritte. Das Abmelden schließt die Sitzung auf deinem eigenen Gerät.',
     s1: Object.freeze({ title: 'Öffne das Profilmenü', body: 'Am rechten Rand der Kopfzeile, unter deiner Adresse. Dieses Menü gibt es in jedem Konto — in der persönlichen und in der Unternehmensansicht.' }),
-    s2: Object.freeze({ title: 'Die Seite Anmeldung und Sicherheit', body: 'Sie öffnet sich von hier. Die Seite zeigt, mit welcher Adresse du angemeldet bist und ob diese Adresse bestätigt ist.' }),
-    s3: Object.freeze({ title: 'Abmelden', body: 'Du findest es im Profilmenü. Nach dem Abmelden bleiben im Browser keine Daten deines Kontos — die nächste Person sieht nicht deine Ansicht.' }),
+    s2: Object.freeze({ title: 'Abmelden', body: 'Du findest es im Profilmenü. Nach dem Abmelden bleiben im Browser keine Daten deines Kontos — die nächste Person sieht nicht deine Ansicht.' }),
   }),
   'tour.personalAccount': Object.freeze({
     title: 'Dein persönliches Konto',
