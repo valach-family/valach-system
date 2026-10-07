@@ -14663,6 +14663,36 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta) · `npm run verify:app-findings-r154` (N csoport: a tisztító ellenpróbái).',
   }),
 
+  Object.freeze({
+    id: 'KUKA-374',
+    date: '2026-10-07',
+    title: 'A VÉDETT NÉVTELEN SOROKKAL TELT TÁRON MINDEN FELVÉTEL VÉGIGKÉRDEZTE ÉS RENDEZTE A TELJES TÁRAT',
+    what: 'Az F154-17-ben megépített O(1)-es rövidre zárás CSAK akkor állt, ha a beszúrt soron kívül EGYETLEN névtelen sor sem volt (`anonOthers === 0`). Ha a támadó a tárat FOLYTATÁST HORDOZÓ (védett) névtelen sorokkal tölti tele — amit hitelesítés NÉLKÜL megtehet a `POST /api/invites/pending` úton —, akkor `anonOthers > 0`, a rövidre zárás nem áll, és minden további kérés (1) kigyűjti MINDEN névtelen azonosítót, (2) darabolt adatbázis-kérdéseket futtat rájuk, (3) RENDEZI a teljes térképet — a végén mégis csak a beszúrt sort dobja el. MÉRVE (a reviewer mérése): 20 000 védett sor mellett 100 felvétel ~2 s már a valódi adatbázis-kérdések NÉLKÜL is.',
+    why_wrong: 'ÖTÖDSZÖR UGYANAZ A HIBAOSZTÁLY EBBEN A CSOMAGBAN (F154-01 · F154-11 · F154-17 · F154-27 · ez): A VÉDELEM KÖLTSÉGE A TÁMADÁSSAL NŐ (KUKA-290). És a rövidre zárás pont azt az esetet hagyta ki, amit egy támadó a legkönnyebben elő tud állítani: a VÉDETT sorokat, mert azokat a kiszorítás szándékosan megtartja.',
+    replaced_by: 'A TÁR MAGA TARTJA NYILVÁN, MELY NÉVTELEN SOROK HORDOZNAK FOLYTATÁST — növekményesen, a tényleges írások pillanatában (`markIntent` · `clearIntent`), tehát a felvétel sem adatbázist nem kérdez, sem nem rendez. A döntés O(1): ha a beszúrt soron kívül nincs NEM VÉDETT névtelen sor, a beszúrt az egyetlen elvehető.',
+    replacement: 'ÉS A BIZALOM KIMONDOTT, A KÉPESSÉG PEDIG DEKLARÁLT. A halmazos takarítás nem nevezi meg, mit törölt — ilyenkor az index NEM bízható (`intentsPurged`), és a felvétel a RÉGI, adatbázist kérdező úton megy, ami visszaállítja a bizalmat. A tárat KÖZVETLENÜL használó hívó (aki nem értesít) pedig nem kapja meg az indexet: `intentIndex: false` az alapérték — SAJÁT LELET, mert az első alakom „bízhatónak\' vette az ÜRES indexet, és három battéria-állítás azonnal pirosra ment (KUKA-227: a bélyeg nem keletkezik magától).',
+    decision: 'D-VS-3182',
+    found_by: 'KÜLSŐ REVIEW (Codex, R164 — P1, az F154-17-es javításom FELETT). A deklarált-képesség része SAJÁT lelet a javítás mérésén.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'const intentAnon = new Set\\(\\)',
+        why: 'a védett névtelen sorok növekményes indexe a tárban áll' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'intentIndexTrusted && keepIsAnon',
+        why: 'és a rövidre zárás O(1): nincs adatbázis-kérdés és nincs rendezés' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'intentIndex = false',
+        why: 'a képesség DEKLARÁLT: aki nem értesít, a régi, adatbázist kérdező úton megy' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'intentsPurged\\(\\)',
+        why: 'és a halmazos takarítás után a bizalom megszűnik — a nem tudás a drágább, de IGAZ útra esik' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'EGY RÖVIDRE ZÁRÁS ANNYIT ÉR, AMENNYIT A TÁMADÓ NEM TUD MEGKERÜLNI. Ha a kivétel feltétele olyan állapot, amit a támadó könnyen előállít (itt: VÉDETT sorokkal telt tár), akkor a védelem pont a támadás alatt nem működik. A döntéshez szükséges tényt a tár maga tartsa nyilván, növekményesen — és a nyilvántartás BIZALMA legyen kimondott: aki nem értesít, ne kapja meg a gyors utat.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (négy pozitív minta) · `npm run verify:app-findings-r154` (AC: ac1 a nulla adatbázis-kérdés · ac2 az ELLENPÁR bejelentő nélkül · ac3 a védett sorok túlélése · ac4 a halmazos takarítás utáni bizalom-vesztés). A jel a HÍVÁS-SZÁM, nem az óra (KUKA-344).',
+  }),
+
+
 
 
 

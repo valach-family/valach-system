@@ -16,6 +16,32 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3182 — A VÉDETT NÉVTELEN SOROK NYILVÁNTARTÁSA A TÁRBAN ÁLL, NÖVEKMÉNYESEN (R164, külső review, P1)
+
+**A döntés.** A munkamenet-tár maga tartja nyilván, mely **névtelen** sorok hordoznak szerver-oldali
+folytatást — a tényleges írások pillanatában (`markIntent` · `clearIntent`). A felvétel döntése így
+**O(1)**: ha a beszúrt soron kívül nincs nem védett névtelen sor, a beszúrt az egyetlen elvehető —
+nincs adatbázis-kérdés és nincs rendezés.
+
+**Miért.** Az F154-17-es rövidre zárás csak `anonOthers === 0` mellett állt. A támodó **hitelesítés
+nélkül** tölthette tele a tárat védett névtelen sorokkal, és onnantól minden kérés kifizettette a
+teljes védett-lista kérdést és a teljes térkép rendezését — hogy a végén mégis csak a beszúrt sort
+dobjuk el. MÉRVE (a reviewer): 20 000 védett sor mellett 100 felvétel ~2 s. **Ötödször ugyanaz a
+hibaosztály ebben a csomagban:** a védelem költsége a támadással nő (KUKA-290).
+
+**És a bizalom kimondott, a képesség deklarált.** A halmazos takarítás nem nevezi meg, mit törölt —
+ilyenkor az index **nem bízható**, és a felvétel a régi, adatbázist kérdező úton megy (ami
+visszaállítja a bizalmat). A tárat közvetlenül használó hívó pedig **nem** kapja meg az indexet
+(`intentIndex: false` az alapérték): saját lelet, mert az első alakom „bízhatónak" vette az ÜRES
+indexet, és három battéria-állítás azonnal pirosra ment.
+
+**MÉRVE (a jel a HÍVÁS-SZÁM, nem az óra — KUKA-344):** 200 védett sorral telt táron 50 felvétel
+**nulla** védett-lista kérdést futtat; bejelentő nélkül ugyanaz a forgalom **50** kérdést; mind a 200
+védett sor **túléli**; és a halmazos takarítás után a következő felvétel **megkérdezi** a listát.
+Gépi jel: `verify:kuka` (KUKA-374) · `verify:app-findings-r154` (AC: ac1–ac4).
+
+---
+
 ## D-VS-3174 — A HELYI-KAPU A TÉNYLEGES GAZDAGÉPRE ÁLL (R164, külső review, P1)
 
 **A döntés.** A destruktív láncok „csak helyi kiszolgálón fut" kapuja a **tényleges** gazdagépet oldja

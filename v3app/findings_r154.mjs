@@ -2250,6 +2250,70 @@ try {
   }
 
   // ══════════════════════════════════════════════════════════════════════════════════════════════
+  // AC — A VÉDETT NÉVTELEN SOROKKAL TELT TÁR FELVÉTELE O(1) (R164, KÜLSŐ REVIEW, Codex, P1)
+  //
+  // A LELET: az F154-17-es rövidre zárás CSAK `anonOthers === 0` mellett állt, tehát egy támadó, aki
+  // a tárat FOLYTATÁST HORDOZÓ (védett) névtelen sorokkal tölti tele — amit hitelesítés NÉLKÜL
+  // megtehet —, minden további kérésnél kifizettette velünk a teljes védett-lista kérdést és a teljes
+  // térkép RENDEZÉSÉT, hogy a végén mégis csak a beszúrt sort dobjuk el.
+  //
+  // A MÉRÉS JELE A HÍVÁS-SZÁM, NEM AZ ÓRA (KUKA-344): azt mérjük, hányszor kérdezzük meg a védett
+  // listát. Ez a gépen és a terhelésen FÜGGETLEN jel — egy időkorlát ugyanezen a futtatón ingadozna.
+  {
+    const CAP = 200;
+    let kerdesek = 0;
+    const mk = (intentIndex) => makeSessionStore({
+      maxSessions: CAP, idleMs: 60_000, warn: () => {}, intentIndex,
+      protectedIds: (ids) => { kerdesek += 1; return new Set(ids.map(String)); },  // MINDEN jelölt védett
+    });
+    const T0 = 1_000_000;
+    const toltes = (st, jelol) => {
+      for (let i = 0; i < CAP; i += 1) {
+        st.set(`v${i}`, { id: `v${i}`, subject_id: null }, T0 + i);
+        if (jelol) st.markIntent(`v${i}`);
+      }
+    };
+    // (ac1) A BEJELENTŐS TÁR: a felvételek EGYETLEN védett-lista kérdést sem futtatnak.
+    kerdesek = 0;
+    const be = mk(true);
+    toltes(be, true);
+    const kerdesekToltesUtan = kerdesek;
+    for (let i = 0; i < 50; i += 1) be.set(`uj${i}`, { id: `uj${i}`, subject_id: null }, T0 + CAP + i);
+    const indexelt = kerdesek - kerdesekToltesUtan;
+    // (ac2) A BEJELENTŐ NÉLKÜLI TÁR: ugyanaz a forgalom MINDEN felvételnél megkérdezi a listát.
+    kerdesek = 0;
+    const ki = mk(false);
+    toltes(ki, false);
+    const kerdesekToltesUtan2 = kerdesek;
+    for (let i = 0; i < 50; i += 1) ki.set(`uj${i}`, { id: `uj${i}`, subject_id: null }, T0 + CAP + i);
+    const indexNelkul = kerdesek - kerdesekToltesUtan2;
+    step('(ac1) F164-07: VÉDETT névtelen sorokkal TELT táron az ötven felvétel EGYETLEN védett-lista kérdést sem futtat (a növekményes index O(1)-ben dönt)',
+      indexelt === 0 && be.stats().intent_index_trusted === true && be.stats().intent_indexed === CAP,
+      { kerdesek_a_felvetelekre: indexelt, indexelt_sorok: be.stats().intent_indexed, bizhato: be.stats().intent_index_trusted });
+    step('(ac2) F164-07 ELLENPÁR: bejelentő NÉLKÜL ugyanaz a forgalom MINDEN felvételnél megkérdezi a listát — tehát a javítás TÉNYLEGESEN az indexen múlik, nem más változáson',
+      indexNelkul >= 50, { kerdesek_a_felvetelekre: indexNelkul });
+    /**
+     * (ac3) ÉS A VÉDETT SOROK TÚLÉLIK: a beszúrt, ÜRES sor megy, nem egy folytatást hordozó.
+     *
+     * A SZINTETIKUS ÓRÁT AZ OLVASÁSNAK IS ÁT KELL ADNI (saját lelet a mérés írásán): a `has()` is
+     * KAPU — a lejárt sort nem adja vissza, és EL IS DOBJA (F154-07). Valós órával kérdezve a
+     * szintetikus időbélyegű sorok mind „lejártnak" látszottak, és a MÉRÉS MAGA dobta el őket
+     * (0 megmaradt védett sor) — a rendszer ép volt, a mérés nem (KUKA-216).
+     */
+    const MOSTANI = T0 + CAP + 200;
+    const megvan = Array.from({ length: CAP }, (_, i) => be.has(`v${i}`, MOSTANI)).filter(Boolean).length;
+    step('(ac3) F164-07: a folytatást hordozó sorok TÚLÉLIK az elárasztást — a beszúrt, üres sor megy el',
+      megvan === CAP && be.stats().evicted_cap_anonymous >= 50,
+      { megmaradt_vedett: megvan, kiszoritott_nevtelen: be.stats().evicted_cap_anonymous });
+    // (ac4) A HALMAZOS TAKARÍTÁS UTÁN AZ INDEX NEM BÍZHATÓ — és a következő felvétel megkérdezi a listát.
+    be.intentsPurged();
+    kerdesek = 0;
+    be.set('uj_purge_utan', { id: 'uj_purge_utan', subject_id: null }, MOSTANI + 1);
+    step('(ac4) F164-07: a halmazos takarítás után az index NEM bízható, és a következő felvétel MEGKÉRDEZI a listát (a nem tudás a drágább, de IGAZ útra esik)',
+      kerdesek >= 1, { kerdesek_a_purge_utan: kerdesek, bizhato: be.stats().intent_index_trusted });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
   // AB — AZ R164/1 VISSZATÖLTÉSI BIZTONSÁG TISZTA DÖNTÉSEI
   //
   // MIÉRT ITT: a `proof:pg-restore-safety` lánc valódi, ELDOBHATÓ PostgreSQL-t kér, ezért a söprésben

@@ -451,6 +451,18 @@ export function makeSessionStore({
   warn = (m) => console.warn(m),
   protectedIds = null,
   onEvicted = null,
+  /**
+   * A VÉDETT-INDEX HASZNÁLATA DEKLARÁLT KÉPESSÉG (R164 — SAJÁT LELET a javítás mérésén).
+   *
+   * MIÉRT NEM ALAPÉRTELMEZETT: az index CSAK akkor mond igazat, ha MINDEN `pending_intent`-írásról
+   * értesítik (`markIntent` / `clearIntent` / `intentsPurged`). A tárat közvetlenül használó hívók —
+   * például a lelet-battéria, ami a táblát maga írja — ezt nem teszik meg; nekik az index ÜRES, de
+   * „bízható" lett volna, és a védett névtelen sorok NEM VÉDETTNEK látszottak volna. MÉRVE: három
+   * battéria-állítás (e6 · e8 · g1) azonnal pirosra ment. Ez a KUKA-227 pontos osztálya: a bélyeg nem
+   * keletkezik magától — a képességet KI KELL MONDANI, és aki nem mondja ki, a régi, adatbázist
+   * kérdező úton megy (ami lassabb, de IGAZ).
+   */
+  intentIndex = false,
 } = {}) {
   const map = new Map();                       // id → munkamenet (a `last_seen_ms` házi mező rajta áll)
   const lowWater = Math.max(1, Math.floor(maxSessions * 0.9));
@@ -499,10 +511,38 @@ export function makeSessionStore({
    */
   const pinsByToken = new Map();               // a kérés jele → az általa védett azonosítók (Set)
   const pinnedCount = () => pins.size;
+  /**
+   * ════════════════════════════════════════════════════════════════════════════════════════════
+   * A VÉDETT NÉVTELEN SOROK NÖVEKMÉNYES INDEXE (R164, KÜLSŐ REVIEW, Codex, P1)
+   * ════════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * A LELET. Az F154-17-ben megépített O(1)-es rövidre zárás CSAK akkor állt, ha a beszúrt soron
+   * kívül EGYETLEN névtelen sor sem volt (`anonOthers === 0`). Ha a támadó a tárat FOLYTATÁST
+   * HORDOZÓ (tehát VÉDETT) névtelen sorokkal tölti tele — amit hitelesítés NÉLKÜL megtehet a
+   * `POST /api/invites/pending` úton —, akkor `anonOthers > 0`, a rövidre zárás nem áll, és minden
+   * további hitelesítés nélküli kérés (1) MINDEN névtelen azonosítót kigyűjt, (2) darabolt
+   * adatbázis-kérdéseket futtat rájuk, (3) RENDEZI a teljes térképet — és a végén mégis csak a
+   * beszúrt sort dobja el. MÉRVE (a reviewer mérése): 20 000 védett sor mellett 100 felvétel ~2 s
+   * már a valódi adatbázis-kérdések NÉLKÜL is. ÖTÖDSZÖR ugyanaz a hibaosztály ebben a csomagban
+   * (F154-01 · F154-11 · F154-17 · F154-27 · ez): a VÉDELEM KÖLTSÉGE A TÁMADÁSSAL NŐ (KUKA-290).
+   *
+   * A MEGOLDÁS: a tár MAGA tartja nyilván, mely NÉVTELEN sorok hordoznak folytatást — növekményesen,
+   * a tényleges írások pillanatában (`markIntent` / `clearIntent`), tehát felvételkor nem kell sem
+   * adatbázist kérdezni, sem rendezni. Ami a tárból kiesik, az az indexből is (a `drop` törli).
+   *
+   * ÉS A BIZALOM KIMONDOTT. Az index csak akkor használható osztályozásra, ha MINDEN változásról
+   * tudunk. A halmazos takarítás (`purgeExpiredIntents`) sorokat törölhet anélkül, hogy megnevezné
+   * őket — ilyenkor az index NEM BÍZHATÓ (`intentsPurged()`), és a felvétel a RÉGI, adatbázist
+   * kérdező úton megy, ami egyúttal VISSZAÁLLÍTJA a bizalmat. A nem tudás tehát nem megengedő
+   * ágra esik, hanem a drágább, de IGAZ útra (KUKA-049 · KUKA-093).
+   */
+  const intentAnon = new Set();                // névtelen azonosítók, amelyekről TUDJUK, hogy folytatást hordoznak
+  let intentIndexTrusted = intentIndex === true;   // CSAK deklarált bejelentés mellett, és amíg minden változásról tudunk
   const drop = (id, cause) => {
     if (pins.has(id)) return false;            // a KISZOLGÁLÁS ALATT ÁLLÓ sort nem dobjuk el
     const row = map.get(id);
     if (row && !row.subject_id) anonCount -= 1;
+    intentAnon.delete(id);
     map.delete(id); stats[cause] += 1; droppedNow.push(id);
     return true;
   };
@@ -622,9 +662,39 @@ export function makeSessionStore({
       announceDropped();
       return stats;
     }
+    /**
+     * ÉS UGYANEZ A RÖVIDRE ZÁRÁS AKKOR IS, HA A TÖBBI NÉVTELEN SOR MIND VÉDETT (R164, külső review,
+     * Codex, P1). Az index növekményes, tehát ez a döntés O(1): ha a beszúrt soron kívül NINCS nem
+     * védett névtelen sor, akkor a beszúrt az EGYETLEN elvehető — nem kell adatbázist kérdezni, és
+     * nem kell rendezni. A `keep` csak akkor megy, ha maga NEM védett (ez az F154-42 szabálya).
+     */
+    const intentOthers = intentAnon.size - (keep !== null && intentAnon.has(keep) ? 1 : 0);
+    if (intentIndexTrusted && keepIsAnon && !intentAnon.has(keep) && anonOthers - intentOthers <= 0) {
+      drop(keep, 'evicted_cap_anonymous');
+      announceDropped();
+      return stats;
+    }
     // A VÉDETT (kiszolgálás alatt álló) sorokat a jelöltekből is kivesszük — nem a `keep` dönt róluk.
 
-    const guarded = protectedSet(anonCandidates());
+    /**
+     * AZ OSZTÁLYOZÁS IS AZ INDEXBŐL JÖN, AMÍG AZ BÍZHATÓ — így a felvétel nem futtat darabolt
+     * adatbázis-kérdést minden névtelen azonosítóra. Ha az index NEM bízható (halmazos takarítás volt),
+     * a régi, adatbázist kérdező út megy, és az egyúttal VISSZAÁLLÍTJA a bizalmat.
+     */
+    const guarded = intentIndexTrusted
+      ? new Set([...intentAnon].filter((id) => id !== keep && map.has(id)))
+      : (() => {
+        const got = protectedSet(anonCandidates());
+        if (got instanceof Set) {
+          // A FRISS, TELJES VÁLASZ ÚJRA BÍZHATÓVÁ TESZI AZ INDEXET.
+          intentAnon.clear();
+          for (const id of got) if (map.has(id)) intentAnon.add(String(id));
+          // A BIZALOM CSAK DEKLARÁLT BEJELENTŐK MELLETT ÁLL VISSZA: aki nem értesít, annak a friss
+          // válasz is csak EBBEN a söprésben igaz (KUKA-227).
+          if (intentIndex === true) intentIndexTrusted = true;
+        }
+        return got;
+      })();
     if (guarded === null) {
       // NEM TUDJUK, melyik névtelen hordoz folytatást. A memória-korlát viszont ÁLL, tehát
       // kiszorítunk — de a bizonytalanságot KIMONDJUK, nem hallgatjuk el (KUKA-049).
@@ -724,7 +794,26 @@ export function makeSessionStore({
 
   return {
     get size() { return map.size; },
-    stats: () => Object.freeze({ size: map.size, anonymous: anonCount, pinned: pins.size, cleanup_pending: cleanupQueue.length, ...stats }),
+    stats: () => Object.freeze({ size: map.size, anonymous: anonCount, pinned: pins.size, cleanup_pending: cleanupQueue.length,
+      intent_indexed: intentAnon.size, intent_index_trusted: intentIndexTrusted, ...stats }),
+    /**
+     * A VÉDETT-INDEX BEJELENTŐI (R164, külső review, P1). A tár nem ismeri a táblákat — a HÍVÓ
+     * mondja meg, mikor keletkezik és mikor szűnik meg egy szerver-oldali folytatás. Így a felvétel
+     * O(1) döntést hoz, adatbázis-kérdés és rendezés nélkül (egy tény, egy otthon — KUKA-003).
+     *
+     * `markIntent` CSAK névtelen sorra jegyez: a belépett sorokat a kiszorítás külön osztályban
+     * kezeli, és az indexnek nincs dolga velük.
+     */
+    markIntent(id) {
+      const row = map.get(id);
+      if (row && !row.subject_id) intentAnon.add(String(id));
+    },
+    clearIntent(id) { intentAnon.delete(String(id)); },
+    /**
+     * A HALMAZOS TAKARÍTÁS NEM NEVEZI MEG, MIT TÖRÖLT — ilyenkor az index NEM BÍZHATÓ, és a
+     * következő felvétel a RÉGI, adatbázist kérdező úton megy, ami visszaállítja a bizalmat.
+     */
+    intentsPurged() { intentIndexTrusted = false; },
     /**
      * AZ OLVASÁS IS KAPU (F154-07): a lejárt sort NEM adjuk vissza, és el is dobjuk — különben a
      * hívó `touch`-a feléleszti. Ezért van mellékhatása: ez egy lejárattal bíró tár, nem egy Map.
@@ -1039,6 +1128,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
   const limits = sessionLimits();
   const sessions = makeSessionStore({
     ...limits,
+    // A SZERVER MINDEN `pending_intent`-írásról ÉRTESÍT (markIntent / clearIntent / intentsPurged),
+    // ezért használhatja a növekményes védett-indexet — enélkül a felvétel minden hitelesítés nélküli
+    // kérésnél adatbázist kérdezne és rendezne (R164, külső review, P1).
+    intentIndex: true,
     protectedIds: (candidates) => new Set(
       sessionStateIn(candidates, (q) => `SELECT session_id FROM pending_intent WHERE session_id IN (${q})`)
         .map((r) => String(r.session_id))),
@@ -1048,6 +1141,9 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       for (let i = 0; i < ids.length; i += SESSION_STATE_CHUNK) {
         const part = ids.slice(i, i + SESSION_STATE_CHUNK);
         store.run(`DELETE FROM pending_intent WHERE session_id IN (${part.map(() => '?').join(',')})`, ...part);
+        // A KISZORÍTOTT SOROK szándéka is megszűnt. (A `drop` már kivette az indexből; ez a hívás
+        // azért áll itt, hogy a takarítás ÉS az index EGY úton járjon — KUKA-003.)
+        for (const sid of part) sessions.clearIntent(sid);
       }
     },
   });
@@ -1077,7 +1173,13 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
   function purgeIntentsIfDue(now = Date.now()) {
     if (now < nextIntentPurge) return null;
     nextIntentPurge = now + 60_000;
-    try { return purgeExpiredIntents({ store, clock, ttlMs: intentTtl }); }
+    try {
+      const r = purgeExpiredIntents({ store, clock, ttlMs: intentTtl });
+      // A HALMAZOS TAKARÍTÁS NEM NEVEZI MEG, MIT TÖRÖLT — az index innentől nem bízható, és a
+      // következő felvétel a RÉGI, adatbázist kérdező úton megy (ami visszaállítja a bizalmat).
+      if (r && (r.purged > 0 || r.odd_capped)) sessions.intentsPurged();
+      return r;
+    }
     catch (e) {
       console.warn(`[v3app] a lejárt függő szándékok takarítása nem sikerült: ${e && e.message}`);
       return null;
@@ -1627,6 +1729,8 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       if (pending) {
         rememberIntent({ store, sessionId: fresh.id, token: pending, clock });
         store.run('DELETE FROM pending_intent WHERE session_id = ?', session.id);
+        // A RÉGI, NÉVTELEN sor szándéka megszűnt; a friss sor BELÉPETT, azt az index nem jegyzi.
+        sessions.clearIntent(session.id);
       }
       // A KORÁBBAN megerősített fiókok is megkapják a személyes körüket — idempotens (SZK-01).
       const personal = ensurePersonal(r.subject_id);
@@ -2002,6 +2106,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
           message: 'a munkamenet-tár megtelt, ezért a meghívó-folytatást nem tudjuk megőrizni — próbáld újra' } };
       }
       rememberIntent({ store, sessionId: s.id, token: String(input.token).trim(), clock });
+      sessions.markIntent(s.id);          // a VÉDETT-INDEX növekményes (R164, külső review, P1)
       return { status: 200, body: { ok: true } };
     },
 
@@ -2012,6 +2117,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       if (r.ok) {
         session.current_book_id = r.book_id;
         store.run('DELETE FROM pending_intent WHERE session_id = ?', session.id);
+        sessions.clearIntent(session.id);      // a folytatás elfogyott — az index követi
       }
       return { status: r.ok ? 200 : 403, body: { ...r } };
     },
