@@ -447,6 +447,12 @@ export const UI = Object.freeze({
   inviteGenericTitle: 'Meghívás',
   inviteWhatHappens: 'Az elfogadással tagja leszel ennek a fióknak. Az adatok megtekintését a fiókkezelő ezután külön engedélyezi.',
   inviteNotSignedIn: 'Még nem vagy belépve.',
+  // A FOLYTATÁS SORA — MINDEN meghívó-állapotra (R166 §1). A meghívó lapja eddig ZSÁKUTCA volt:
+  // lecseréli a teljes alkalmazás-héjat, tehát profil-menü és kilépés-vezérlő sem rajzolódott ki.
+  inviteBackToApp: 'Vissza a fiókomba',
+  inviteBackToStart: 'Vissza a kezdőlapra',
+  inviteSignOutSwitch: 'Kilépés és belépés más fiókkal',
+  inviteLeaveNote: 'A visszalépés nem fogadja el és nem veszi el a meghívást — a hivatkozás később is megnyitható.',
   inviteFaqOpen: 'Gyakori kérdések',
   inviteTourStart: 'Mutasd meg lépésről lépésre',
   inviteAcceptedLead: 'Elfogadtad a meghívást.',
@@ -877,7 +883,7 @@ export const KB = Object.freeze({
     result: 'Tagság születik, és megnyílik a fiók. Az adatok megtekintését a fiókkezelő ezután külön engedélyezi.',
     outcomes: Object.freeze({
       success: 'Csatlakoztál. A menüben megjelennek a fiók képernyői.',
-      refused: 'A meghívó lejárt, felhasználták, más címre szól, vagy időközben megváltoztak a feltételei.',
+      refused: 'A meghívó lejárt, felhasználták, más címre szól, vagy időközben megváltoztak a feltételei. A képernyőről visszalépsz a fiókodba vagy a kezdőlapra, és ki is tudsz lépni, hogy más fiókkal jelentkezz be.',
       uncertain: 'Nem tudjuk biztosan, megtörtént-e a csatlakozás. Nézd meg a fiókválasztót.',
       error: 'Ehhez a hivatkozáshoz most nem tartozik beváltható meghívás.',
     }),

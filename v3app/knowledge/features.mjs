@@ -279,7 +279,11 @@ export const FEATURES = Object.freeze([
     reads: F(['GET /api/invites/observe', 'POST /api/invites/pending']),
     // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
     // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
-    ui_actions: F(['redeem']),
+    // ÉS A FOLYTATÁS VEZÉRLŐJE IS EHHEZ A FUNKCIÓHOZ TARTOZIK (R166 §1): a visszalépés az
+    // ELFOGADÁS képernyőjének a nemleges ága (KUKA-201 — a nemleges válasz vigye a MŰKÖDŐ
+    // folytatást), nem önálló funkció. A kilépés-gombja a meglévő `logout` műveletet használja,
+    // tehát azt az `auth.logout` mondja a magáénak — egy művelet, egy otthon (KUKA-003).
+    ui_actions: F(['redeem', 'invite-leave']),
     group: 'invite', scope: 'person', audience: 'public', screen: null, action: null, entry: 'section-invite',
     // A SZEMÉLYES TÉRBEN IS ÉRTELMES — és ez nem kényelmi kivétel, hanem a funkció LÉNYEGE (P109-01):
     // a meghívott ember MINDIG a személyes teréből indul, hiszen abban a vállalkozásban még nincs
@@ -290,7 +294,7 @@ export const FEATURES = Object.freeze([
     // állapot-függő (csak a bejelentkezett, egyező címzettnek létezik), ezért a bemutató a
     // GOMBSORRA (`invite-actions`) áll, ami minden állapotban ott van — a hiányzó cél így nem
     // hamis megszakítás (KUKA-228 · KUKA-232).
-    anchors: F(['invite-observe', 'invite-identity', 'invite-actions', 'invite-next', 'invite-redeem']),
+    anchors: F(['invite-observe', 'invite-identity', 'invite-actions', 'invite-next', 'invite-redeem', 'invite-continue', 'invite-back']),
     authority: F({ endpoint: 'POST /api/invites/redeem', decided_by: 'v3ref/invite.mjs',
       reasons: F(['invite_expired', 'invite_already_redeemed', 'invite_unknown', 'invite_terms_changed',
         'issuer_right_withdrawn', 'invitee_mismatch', 'channel_not_proven']) }),

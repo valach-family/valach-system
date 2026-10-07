@@ -1,0 +1,303 @@
+// tests/e2e/v3app-r166-invite-leave.spec.mjs — A MEGHÍVÓ-KÉPERNYŐ VISSZALÉPÉSE ÉS KILÉPÉSE (R166 §1).
+//
+// MIÉRT VAN EZ A LAP, ÉS MIÉRT ÉPP MOST. Az R164 jelentés 8/7. tétele a `KUKA-362` és a `KUKA-383`
+// KILÉPÉS-ágáról azt mondta ki, hogy böngészőben NEM mérjük — és megnevezte a pontos okot: a
+// meghívó-képernyő a TELJES alkalmazás-héjat lecseréli, tehát ott nem rajzolódik ki a profil-menü,
+// és vele a kilépés-vezérlő sem. A felületen így NEM VOLT ÚT, amin a meghívó-jegy a címsorban állva
+// kilépés érné. A hiányzó mérés feltétele egy TERMÉK-DÖNTÉS volt; az R166 §1 meghozta.
+//
+// Ez a lap tehát nem egy új funkció „bemutatója": azt a mérést végzi el, ami eddig BEJÁRHATATLAN
+// volt, és amit az R164 nevezett maradék résként adott át.
+//
+//   R166-M1  NÉVTELEN néző: a meghívó lapjáról visszalépés a KEZDŐLAPRA — a jegy a címsorból is
+//            eltűnik, a FRISSÍTÉS nem hozza vissza a képernyőt (nincs visszairányítási hurok), és
+//            TAGSÁG NEM születik (adatbázisban mérve)
+//   R166-M2  BELÉPETT néző: visszalépés a SAJÁT FIÓKBA (a héj jön vissza), a gomb megnevezése a
+//            hitelesítési állapothoz igazodik
+//   R166-M3  A KILÉPÉS ÁGA — EZ A LÉNYEG (`KUKA-362` · `KUKA-383`): az előző ember a meghívó
+//            képernyőjéről LÉP KI, utána MÁS EMBER lép be UGYANABBAN a böngészőben — és nem az
+//            előző ember meghívó-képernyőjén landol, nem látja az előző ember címét, és a jegy a
+//            frissítés után sem éled újra
+//   R166-M4  MINDEN MEGHÍVÓ-ÁLLAPOT kap folytatást: BEVÁLTOTT · VISSZAVONT · LEJÁRT · ISMERETLEN ·
+//            MÁS SZEMÉLYNEK címzett — egyik sem zsákutca
+//   R166-M5  A FELIRATOK a KÖZÖS nyelvi forrásból jönnek, MINDEN BEKAPCSOLT NYELVEN (a próba a
+//            nyelvcsomagból olvas, nem éget be szöveget — KUKA-237)
+//
+// AMIT EZ A LAP NEM MÉR: a beváltás útját (az R109/R112 lapjai mérik), a jogosultsági mag döntéseit
+// (a mag-battéria méri) és a bemutató lépéseit (a `proof:demo-walk` és az R112 lapja).
+import { test, expect } from '@playwright/test';
+import { World, Db, inviteUI, openInviteUI, redeemUI, createWorkspaceUI, loginUI, withResponse,
+  gotoPage, header, PASSWORD } from './helpers.mjs';
+import { enabledLanguages } from '../../v3app/public/i18n/languages.mjs';
+import { dictFor } from '../../v3app/public/i18n/dict.mjs';
+
+test.describe.configure({ mode: 'serial' });
+
+const HU = dictFor('hu');
+const ENABLED = enabledLanguages().map((l) => l.code);
+const EIGHT_DAYS = 8 * 24 * 3600 * 1000;
+const taxOf = (tag) => `${tag.replace(/\D/g, '').slice(0, 2).padStart(2, '8')}345671-2-42`;
+
+/** A VÁRAKOZÓ MEGHÍVÁSOK füle — a valódi úton (Tagok oldal → „Várakozó" alfül). */
+async function openInvitesTab(page) {
+  await gotoPage(page, 'members');
+  await page.locator('.subtabs button', { hasText: HU.STATE.invitePending }).first().click();
+  await expect(page.getByTestId('invites-list')).toBeVisible();
+}
+
+/** A címsorban áll-e még a meghívó jegye? A `forgetInvite` szerződése szerint NEM (KUKA-383). */
+async function inviteInUrl(page) {
+  return page.evaluate(() => new URL(window.location.href).searchParams.has('invite'));
+}
+
+/**
+ * A FOLYTATÁS SORA — a MEGNEVEZÉS a hitelesítési állapothoz igazodik, és a KILÉPÉS csak belépve van.
+ * A feliratot a NYELVCSOMAGBÓL olvassuk (KUKA-237: a próba se égessen be szöveget).
+ */
+async function continueRow(page, lang = 'hu') {
+  const D = dictFor(lang);
+  await expect(page.getByTestId('invite-continue')).toBeVisible();
+  const back = page.getByTestId('invite-back');
+  await expect(back).toBeVisible();
+  await expect(back).toBeEnabled();                       // KUKA-011: az ELÉRHETŐ és ENGEDÉLYEZETT gomb
+  await expect(page.getByTestId('invite-leave-note')).toContainText(D.UI.inviteLeaveNote);
+  return {
+    backText: (await back.textContent()) || '',
+    logoutCount: await page.getByTestId('invite-logout').count(),
+    expectedBackLoggedIn: D.UI.inviteBackToApp,
+    expectedBackAnon: D.UI.inviteBackToStart,
+    expectedLogout: D.UI.inviteSignOutSwitch,
+  };
+}
+
+let world; let db; let anna; let bela; let token; let link;
+
+test.beforeAll(async ({ browser }) => {
+  world = new World(browser, 'r166');
+  db = new Db();
+  // ANNA: fiókkezelő, saját vállalkozással — ő hívja meg Bélát.
+  anna = await world.person('anna');
+  await createWorkspaceUI(anna.page, { name: 'R166 Kft', business: { jurisdiction: 'HU', tax_id: taxOf('r166') } });
+  bela = await world.person('bela');
+  const inv = await inviteUI(anna.page, { email: bela.email, role: 'user', scope: 'keszlet' });
+  expect(inv.body.ok, 'a meghívó elkészült').toBe(true);
+  token = inv.token; link = inv.link;
+});
+
+test.afterAll(async () => { if (db) db.close(); if (world) await world.close(); });
+
+test('R166-M1 — NÉVTELEN néző: visszalépés a kezdőlapra, a jegy a címsorból is eltűnik, és tagság NEM születik', async () => {
+  const c = await world.context();
+  const elott = db.count('SELECT COUNT(*) FROM membership');
+  const o = await openInviteUI(c.page, link);
+  expect(o.observe.status, 'névtelenül a lap belépésre hív').toBeTruthy();
+
+  const row = await continueRow(c.page);
+  expect(row.backText, 'a megnevezés a NÉVTELEN állapothoz igazodik').toContain(row.expectedBackAnon);
+  expect(row.logoutCount, 'belépés nélkül NINCS kilépés-gomb (a felirat igaz tartalma — KUKA-050)').toBe(0);
+
+  await c.page.getByTestId('invite-back').click();
+  // A VÁLASZ A BELÉPÉSI KÉPERNYŐ — a meghívó lapja eltűnik, nem csak elrejtve marad (KUKA-012).
+  await expect(c.page.getByTestId('login-email')).toBeVisible();
+  await expect(c.page.getByTestId('section-invite')).toHaveCount(0);
+  expect(await inviteInUrl(c.page), 'a jegy a CÍMSORBÓL is elment (KUKA-383)').toBe(false);
+
+  // ÉS NINCS VISSZAIRÁNYÍTÁSI HUROK: a frissítés nem olvassa vissza a jegyet.
+  await c.page.reload();
+  await expect(c.page.getByTestId('login-email')).toBeVisible();
+  await expect(c.page.getByTestId('section-invite')).toHaveCount(0);
+
+  expect(db.count('SELECT COUNT(*) FROM membership'),
+    'a VISSZALÉPÉS nem fogad el meghívást és nem módosít tagságot').toBe(elott);
+  /**
+   * A MÉRÉS A KONKRÉT MEGHÍVÓT NÉZI, NEM A TÁBLA ÖSSZEGÉT — SAJÁT LELET, A TELJES SOR MÉRTE KI.
+   *
+   * Az első alakom `SELECT COUNT(*) … WHERE redeemed_at IS NOT NULL` → `0`-t állított. Egyedül
+   * futtatva ZÖLD volt; a TELJES próbasorban **35**-öt adott, mert a tároló MEGOSZTOTT, és a
+   * korábbi lapok beváltott meghívókat hagytak benne. A rendszer helyes volt, a MÉRŐM nem
+   * (KUKA-094 a mérőn · KUKA-120: a próba nem mérheti a saját előkészítésének versenyét).
+   */
+  const sor = db.get('SELECT redeemed_at FROM invite WHERE token = ?', token);
+  expect(sor, 'a meghívó sora megtalálható a tárolóban').not.toBe(null);
+  expect(sor.redeemed_at, 'és EZ a meghívó beváltatlan maradt — a visszalépés nem fogadja el és nem veszi el').toBe(null);
+});
+
+test('R166-M2 — BELÉPETT néző: visszalépés a SAJÁT FIÓKBA, a héj visszajön', async () => {
+  // Béla belépve nyitja meg a SAJÁT meghívóját — innen a visszalépés a fiókjába visz.
+  const o = await openInviteUI(bela.page, link);
+  expect(o.observe.status).toBeTruthy();
+
+  const row = await continueRow(bela.page);
+  expect(row.backText, 'a megnevezés a BELÉPETT állapothoz igazodik').toContain(row.expectedBackLoggedIn);
+  expect(row.logoutCount, 'belépve OTT van a kilépés-gomb — ez az út eddig nem létezett').toBe(1);
+  await expect(bela.page.getByTestId('invite-logout')).toContainText(row.expectedLogout);
+
+  await bela.page.getByTestId('invite-back').click();
+  // A HÉJ JÖN VISSZA: alkalmazás-nézet, menü — nem a belépési űrlap.
+  await expect(bela.page.getByTestId('app')).toBeVisible();
+  await expect(bela.page.getByTestId('section-invite')).toHaveCount(0);
+  await expect(bela.page.getByTestId('login-email')).toHaveCount(0);
+  expect(await inviteInUrl(bela.page), 'a jegy a címsorból elment').toBe(false);
+  const h = await header(bela.page);
+  expect(h.subject, 'és a SAJÁT nézetében van').toContain(bela.email);
+
+  // A frissítés sem viszi vissza a meghívó-képernyőre.
+  await bela.page.reload();
+  await expect(bela.page.getByTestId('app')).toBeVisible();
+  await expect(bela.page.getByTestId('section-invite')).toHaveCount(0);
+});
+
+test('R166-M3 — A KILÉPÉS ÁGA: az előző ember meghívó-képernyőjéről kilépve MÁS EMBER lép be, és nem örökli az állapotot', async () => {
+  // EZ A MÉRÉS VOLT EDDIG BEJÁRHATATLAN (R164 jelentés 8/7.): a képernyőn nem volt kilépés-vezérlő.
+  const c = await world.context();
+  await c.page.goto('/');                                 // a friss kontextus lapja még `about:blank`
+  await loginUI(c.page, bela.email, PASSWORD);
+  const o = await openInviteUI(c.page, link);
+  expect(o.observe.status).toBeTruthy();
+  await expect(c.page.getByTestId('invite-logout')).toBeVisible();
+  expect(await inviteInUrl(c.page), 'a kilépés ELŐTT a jegy a címsorban áll — ez a KUKA-383 kiindulása').toBe(true);
+
+  // A KILÉPÉS A KÖZÖS ÜRÍTŐN MEGY (ugyanaz a `logout` művelet, mint a profil-menüben).
+  await withResponse(c.page, { path: '/api/logout' }, () => c.page.getByTestId('invite-logout').click());
+  await expect(c.page.getByTestId('login-email')).toBeVisible();
+  await expect(c.page.getByTestId('section-invite'),
+    'a kilépés UTÁN nem a meghívó-képernyő marad kint').toHaveCount(0);
+  expect(await inviteInUrl(c.page), 'és a jegy a CÍMSORBÓL is elment (KUKA-383 kilépés-ága)').toBe(false);
+
+  // MÁS EMBER lép be UGYANEBBEN a böngészőben — ez a KUKA-362 kára.
+  await loginUI(c.page, anna.email, PASSWORD);
+  await expect(c.page.getByTestId('app'), 'a MÁSIK ember a HÉJBAN landol, nem az előző ember meghívó-lapján').toBeVisible();
+  await expect(c.page.getByTestId('section-invite')).toHaveCount(0);
+  const h = await header(c.page);
+  expect(h.subject, 'a fejléc a MOSTANI emberé').toContain(anna.email);
+  expect(h.subject, 'és NEM az előző emberé').not.toContain(bela.email);
+
+  // ÉS A FRISSÍTÉS SEM ÉLESZTI ÚJRA: a jegy nincs honnan visszaolvasni.
+  await c.page.reload();
+  await expect(c.page.getByTestId('app')).toBeVisible();
+  await expect(c.page.getByTestId('section-invite')).toHaveCount(0);
+  expect((await header(c.page)).subject).toContain(anna.email);
+});
+
+test('R166-M4 — MINDEN meghívó-állapot kap folytatást: beváltott · visszavont · lejárt · ismeretlen · más személynek címzett', async () => {
+  const allapotok = [];
+
+  // (1) ISMERETLEN jegy — a lap nem tudhatja, melyik eset áll fenn (KUKA-084), de folytatást AD.
+  {
+    const c = await world.context();
+    await openInviteUI(c.page, 'nincs-ilyen-jegy-r166');
+    const row = await continueRow(c.page);
+    expect(row.backText).toContain(row.expectedBackAnon);
+    await c.page.getByTestId('invite-back').click();
+    await expect(c.page.getByTestId('login-email')).toBeVisible();
+    expect(await inviteInUrl(c.page)).toBe(false);
+    allapotok.push('ismeretlen');
+  }
+
+  // (2) MÁS SZEMÉLYNEK címzett — Anna (a meghívó) nyitja meg Béla meghívóját, belépve.
+  {
+    const o = await openInviteUI(anna.page, link);
+    expect(o.observe.status).toBeTruthy();
+    const row = await continueRow(anna.page);
+    expect(row.backText).toContain(row.expectedBackLoggedIn);
+    expect(row.logoutCount, 'és itt a KILÉPÉS is ott van — a meghívás másik címre szólhat').toBe(1);
+    await anna.page.getByTestId('invite-back').click();
+    await expect(anna.page.getByTestId('app')).toBeVisible();
+    expect(await inviteInUrl(anna.page)).toBe(false);
+    allapotok.push('mas_szemelynek');
+  }
+
+  // (3) VISSZAVONT meghívó — Anna visszavonja, majd a címzett megnyitja a hivatkozást.
+  {
+    const vissza = await inviteUI(anna.page, { email: world.email('cili'), role: 'user', scope: 'keszlet' });
+    expect(vissza.body.ok).toBe(true);
+    await openInvitesTab(anna.page);
+    const sor = anna.page.locator('tr[data-testid^="invite-row-"]').filter({ hasText: world.email('cili') }).first();
+    await expect(sor).toBeVisible();
+    const ref = (await sor.getAttribute('data-testid')).replace('invite-row-', '');
+    await anna.page.getByTestId(`invite-revoke-${ref}`).click();
+    await expect(anna.page.getByTestId('invite-revoke-confirm')).toBeVisible();
+    const r = await withResponse(anna.page, { path: '/api/invites/revoke' }, () => anna.page.getByTestId('invite-revoke-confirm').click());
+    expect(r.body.ok, 'a visszavonás megtörtént').toBe(true);
+
+    const c = await world.context();
+    const o = await openInviteUI(c.page, vissza.link);
+    expect(o.observe.status, 'a visszavont meghívó nem beváltható').not.toBe('redeem_as_existing');
+    const row = await continueRow(c.page);
+    await c.page.getByTestId('invite-back').click();
+    await expect(c.page.getByTestId('login-email')).toBeVisible();
+    expect(await inviteInUrl(c.page)).toBe(false);
+    expect(row.backText).toContain(row.expectedBackAnon);
+    allapotok.push('visszavont');
+  }
+
+  // (4) LEJÁRT meghívó — a FEJLESZTŐI ÓRÁVAL, és utána visszaállítva (az R112-I4 útja).
+  {
+    const lejart = await inviteUI(anna.page, { email: world.email('dori'), role: 'user', scope: 'keszlet' });
+    expect(lejart.body.ok).toBe(true);
+    await anna.api.post('/dev/clock', { advance_ms: EIGHT_DAYS });
+    try {
+      const c = await world.context();
+      const o = await openInviteUI(c.page, lejart.link);
+      expect(o.observe.status, 'a lejárt meghívó nem beváltható').not.toBe('redeem_as_existing');
+      const row = await continueRow(c.page);
+      expect(row.backText).toContain(row.expectedBackAnon);
+      await c.page.getByTestId('invite-back').click();
+      await expect(c.page.getByTestId('login-email')).toBeVisible();
+      expect(await inviteInUrl(c.page), 'a LEJÁRT meghívó sem okoz visszairányítási hurkot').toBe(false);
+      await c.page.reload();
+      await expect(c.page.getByTestId('login-email')).toBeVisible();
+      await expect(c.page.getByTestId('section-invite')).toHaveCount(0);
+    } finally {
+      await anna.api.post('/dev/clock', { advance_ms: -EIGHT_DAYS });
+    }
+    expect((await anna.api.get('/dev/clock')).body.offset_ms, 'az óra VISSZAÁLLT').toBe(0);
+    allapotok.push('lejart');
+  }
+
+  // (5) BEVÁLTOTT meghívó — Béla elfogadja, majd UGYANAZT a hivatkozást újra megnyitja.
+  //     Ez volt a jelentés 8/7. tételében megnevezett ZSÁKUTCA: beváltott meghívó + nincs kiút.
+  {
+    const c = await world.context();
+    await c.page.goto('/');
+    await loginUI(c.page, bela.email, PASSWORD);
+    await openInviteUI(c.page, link);
+    const rr = await redeemUI(c.page);
+    expect(rr.body.ok, 'a beváltás megtörtént').toBe(true);
+
+    await openInviteUI(c.page, link);                     // UGYANAZ a hivatkozás, MÁSODSZOR
+    const row = await continueRow(c.page);
+    expect(row.backText).toContain(row.expectedBackLoggedIn);
+    expect(row.logoutCount).toBe(1);
+    await c.page.getByTestId('invite-back').click();
+    await expect(c.page.getByTestId('app'), 'a BEVÁLTOTT meghívó lapja sem zsákutca többé').toBeVisible();
+    expect(await inviteInUrl(c.page)).toBe(false);
+    allapotok.push('bevaltott');
+  }
+
+  expect(allapotok.sort().join(','),
+    'MIND az öt meghívó-állapot folytatást kapott').toBe('bevaltott,ismeretlen,lejart,mas_szemelynek,visszavont');
+});
+
+for (const code of ENABLED) {
+  test(`R166-M5/${code} — a folytatás feliratai a KÖZÖS nyelvi forrásból jönnek (${code})`, async () => {
+    const D = dictFor(code);
+    const c = await world.context();
+    await c.page.goto(`/?invite=${encodeURIComponent(token)}`);
+    const sel = c.page.getByTestId('lang-select-public');
+    await expect(sel).toBeVisible();
+    await sel.selectOption(code);
+    await expect(c.page.locator('html')).toHaveAttribute('lang', code);
+
+    // A FELIRAT AZ AKTÍV NYELV CSOMAGJÁBÓL — a próba nem a magyart hasonlítja (KUKA-237 · KUKA-210).
+    await expect(c.page.getByTestId('invite-back')).toContainText(D.UI.inviteBackToStart);
+    await expect(c.page.getByTestId('invite-leave-note')).toContainText(D.UI.inviteLeaveNote);
+    // ÉS A SZÖVEG TÉNYLEG MÁS NYELVŰ, nem a magyar visszaesés (ahol a csomag külön szót ad).
+    if (D.UI.inviteBackToStart !== HU.UI.inviteBackToStart) {
+      await expect(c.page.getByTestId('invite-back')).not.toContainText(HU.UI.inviteBackToStart);
+    }
+    await c.page.getByTestId('invite-back').click();
+    await expect(c.page.getByTestId('login-email')).toBeVisible();
+    expect(await inviteInUrl(c.page)).toBe(false);
+  });
+}

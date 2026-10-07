@@ -1978,6 +1978,51 @@ import { inviteNextKey } from './inviteText.mjs';
   }
 
   /**
+   * A FOLYTATÁS SORA — A MEGHÍVÓ LAPJA NEM ZSÁKUTCA (R166 §1, TERMÉK-DÖNTÉS).
+   *
+   * A LELET, AMI EZT KIKÉNYSZERÍTETTE (az R164 jelentés 8/7. tétele, SAJÁT mérés): a meghívó-képernyő
+   * a TELJES alkalmazás-héjat lecseréli (`renderAuth` kiüríti a `nav`/`tabs`/`main` elemet), tehát ott
+   * **nincs profil-menü, és vele nincs kilépés-vezérlő**. Következmény: ha a meghívó már be van váltva,
+   * visszavonva, lejárt, hibás vagy MÁS SZEMÉLYNEK szól, a felhasználó a képernyőn ragad — a
+   * `KUKA-362`/`KUKA-383` kilépés-ágának böngészős mérése pedig emiatt volt bejárhatatlan.
+   *
+   * A SOR MINDEN ÁLLAPOTON OTT VAN, nem csak a hibásakon (KUKA-201: a nemleges válasz vigye a MŰKÖDŐ
+   * folytatást; KUKA-228: a bemutató horgonya nem lehet állapot-függő, különben hamis megszakítást ad).
+   *
+   * ÉS AMIT EZ A SOR NEM TEHET: nem fogad el meghívást és nem módosít tagságot — a visszalépés
+   * KIZÁRÓLAG a közös elfelejtőt (`forgetInvite`) hívja és navigál. A gombok MEGNEVEZÉSE és a
+   * következő képernyő a HITELESÍTÉSI ÁLLAPOTHOZ igazodik: belépve a saját fiókba visz, belépés nélkül
+   * a kezdőlapra — mert egy „Vissza a fiókomba" feliratnak belépés nélkül nincs igaz tartalma
+   * (KUKA-050: a szöveg a valóságot követi).
+   */
+  function inviteContinueHtml(loggedIn) {
+    const vissza = loggedIn ? UI.inviteBackToApp : UI.inviteBackToStart;
+    return `<div class="buttonrow" data-testid="invite-continue">
+      <button type="button" data-action="invite-leave" data-testid="invite-back">${esc(vissza)}</button>
+      ${loggedIn ? `<button type="button" class="plain" data-action="logout" data-testid="invite-logout">${esc(UI.inviteSignOutSwitch)}</button>` : ''}
+    </div>
+    <p class="muted" data-testid="invite-leave-note">${esc(UI.inviteLeaveNote)}</p>`;
+  }
+
+  /**
+   * A VISSZALÉPÉS. Egyetlen hatása a meghívó-jegy elfelejtése — a KÖZÖS otthonon (`forgetInvite`),
+   * tehát a belső jegy ÉS a címsor-paraméter együtt megy el (`KUKA-383`). Ezért nincs visszairányítási
+   * hurok sem: a `render()` a jegyet nézi először, és a címsorban már nincs mit újraolvasni egy
+   * frissítésnél — akkor sem, ha a meghívó lejárt vagy érvénytelen.
+   */
+  function doInviteLeave() {
+    forgetInvite();
+    if (state.me && state.me.subject_id) {
+      // A HÉJBA VISSZA: a lapot a saját nézetére állítjuk, nem hagyjuk a meghívó-képernyő lapján.
+      state.authView = null;
+      state.page = state.tabs.includes(state.page) ? state.page : 'overview';
+      render();
+      return;
+    }
+    renderAuth('login');
+  }
+
+  /**
    * A MEGHÍVÓ LAPJA. A cég NEVÉT NEM TALÁLJUK KI: a megfigyelés szándékosan nem árulja el annak,
    * aki nem bizonyította a címzetti csatornát (KUKA-084) — a lap azt mondja, ami MÉRT.
    */
@@ -2034,6 +2079,7 @@ import { inviteNextKey } from './inviteText.mjs';
       ${state.inviteNotKept ? `<p class="notice bad" data-testid="invite-not-kept">${esc(state.inviteNotKept)}</p>` : ''}
       <p class="notice" data-testid="invite-redeem-result" hidden></p>
       <p class="authfoot" data-testid="invite-next" data-next="${esc(inviteNextKey(o, loggedIn))}">${esc(UI[inviteNextKey(o, loggedIn)])}</p>
+      ${inviteContinueHtml(loggedIn)}
       <div class="buttonrow" data-testid="invite-help-row">
         <button type="button" class="plain" data-action="faq-open" data-faq="faq.invite.accept" data-testid="invite-faq">${esc(UI.inviteFaqOpen)}</button>
         <button type="button" class="plain" data-action="tour-start" data-tour="tour.inviteAccept" data-testid="invite-tour">${esc(UI.inviteTourStart)}</button>
@@ -2421,6 +2467,8 @@ import { inviteNextKey } from './inviteText.mjs';
       case 'logout': await doLogout(); break;
       case 'revoke': await doRevoke(b.dataset.subject, b); break;
       case 'redeem': await doRedeem(); break;
+      // A MEGHÍVÓ-KÉPERNYŐ VISSZALÉPÉSE (R166 §1): nem fogad el meghívást, nem módosít tagságot.
+      case 'invite-leave': doInviteLeave(); break;
       default: break;
     }
   });
