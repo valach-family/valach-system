@@ -19,7 +19,7 @@ korábbi körök számai **történeti adatok**, nem végállapot — ahol elté
 | **FÜGGETLEN REVIEW ÁLLAPOTA** | **FÜGGŐ a mai fejre.** A korábbi limit feloldódott; a limit időszaka és visszaállása az üzenetből **nem bizonyított**, ezért nem nevezem meg (6. szakasz). A **hat kör 30 megjegyzése** mind javítva, mért bizonyítékkal, és **mind a 30 szál megválaszolva és lezárva** — a PR-on ma **nincs nyitott review-szál** (7. szakasz) |
 | **ÖSSZVERDIKT** | **helyi ellenőrzések kész / független review FÜGGŐ**, EGY nevezett piros lánccal (a külső-ellenőrző: lásd lentebb és az 5.3 pontot). Ez **NEM merge-készség** — nincs merge, nincs lezárás |
 | **A MARADÉK RÉS** | **A külső-ellenőrző lánc NEM teljes.** A 19 program közül 14 futott le (13 MEGFELEL · 1 ELTÉRÉS: `r59a`, időtúllépés), **5 NEM FUTOTT** (`r57a` · `r59` · `r57` · `r55` · `r53`) — tehát NEM IGAZOLT, nem zöld (KUKA-200 · KUKA-206). A `verify:lefedes` 20 hiány-kulcsa nevesítve áll (1.2–1.3). Az ÁTÁLLÁSI alapállás-mentés és a valódi szolgáltatói AI-mérés továbbra is nyitott (8. szakasz) |
-| **FOGYASZTÁS (a csomag ablakán)** | **938 hívás** · kumulatív fő-szál kontextusmedián **407 559** (max 783 667) · ügynök-bemenet **0** (nulla al-ügynök indult) · lefedettség: **teljes**. **A mérő kimondta: CHATVÁLTÁSI JELZŐ ELÉRVE** (407 559 ≥ 400 000) — a futó munkablokk célzott ellenőrzéssel lezárható, a **KÖVETKEZŐ önálló nagy blokk friss beszélgetésben induljon**. A `300–400 ezres` figyelmeztetés sávot tehát a csomag zárása közben hagytuk el; ezért a lezárásban **nincs** új feltárás és nincs opcionális teljes söprés (D-VS-3083) |
+| **FOGYASZTÁS (a csomag ablakán)** | **992 hívás** · fő-szál kontextusmedián **388 389,5** (max 783 667) · ügynök-bemenet **0** (nulla al-ügynök) · lefedettség: **teljes** (1 átirat, 2408 hívás, minden válasz usage-dzsal). A mérő sávja a záráskor: **FIGYELMEZTETÉS** (`300–400 ezer`). **DE a határt a munkablokk KÖZBEN átléptük**, és ezt kimondom: **483 hívás futott 400 ezer fölött**, és egy korábbi, ugyanerre az ablakra mért pillanatkép **407 559**-et adott (VÁLTÁS). A medián tehát a sávhatáron áll. A **következtetést a szigorúbb olvasat szerint** vontam le: a lezárás **célzott** ellenőrzés, új feltárás és opcionális teljes söprés nélkül, és a **következő önálló nagy blokk friss beszélgetésben induljon** (`D-VS-3083`) |
 
 ### 1.1 A LÁNCOK ÉS A VERDIKTEK — EZEN A FEJEN MÉRVE
 
@@ -548,8 +548,9 @@ figyelni" — ez gépi jel.
 ### 9.1 A ZÁRÓ CÉLZOTT ELLENŐRZÉS — MI FUTOTT A MAI FEJEN
 
 Az R164/4 azt kérte: *„célzott ellenőrzések, majd EGY teljes szükséges kapu a VÉGSŐ kódállapoton."* A
-fogyasztásmérő közben elérte a 400 ezres jelzőt, ami a lezárást **célzott** ellenőrzésre szűkíti
-(`D-VS-3083`) — opcionális teljes söprést ezért nem futtattam. Ami futott:
+fogyasztásmérő a munkablokk közben átlépte a 400 ezres jelzőt (a záró medián a sávhatáron: 388 389,5 —
+lásd lentebb), és a szigorúbb olvasat a lezárást **célzott** ellenőrzésre szűkíti (`D-VS-3083`) —
+opcionális teljes söprést ezért nem futtattam. Ami futott:
 
 | lánc | hol futott | verdikt |
 |---|---|---|
@@ -577,11 +578,19 @@ rendszernek volt igaza, a mérésnek nem.)
 
 ---
 
-**ÉS EGY OPERÁTORI TUDNIVALÓ A ZÁRÁSHOZ.** A csomag ablakán a mérő **elérte a chatváltási jelzőt**
-(kumulatív fő-szál kontextusmedián **407 559** ≥ 400 000, 938 hívás, nulla al-ügynök). A szabály
-(`D-VS-3083`) szerint ez nem megállás és nem hiba: a **futó** munkablokk célzott ellenőrzéssel
-lezárható — ez történt —, a **következő önálló nagy blokk** viszont **friss beszélgetésben** induljon.
-Ezért ebben a zárásban **nem** indítottam új feltárást, nem nyitottam új funkciót, és nem futtattam
-opcionális teljes söprést; a külső-ellenőrző lánc hiányzó öt programja így **nevezett maradék rés**,
-nem elhallgatott lépés. A folytatás első teendője: ez az öt program (`--only` külön-külön), friss
-beszélgetésben.
+**ÉS EGY OPERÁTORI TUDNIVALÓ A ZÁRÁSHOZ — A SZÁM PONTOSAN.** A csomag záró mérése (teljes
+lefedettség, explicit ablak) **388 389,5** fő-szál kontextusmediánt ad 992 hívásra, nulla
+al-ügynökkel: ez a `300–400 ezres` **FIGYELMEZTETÉS** sáv, ahol a szabály szerint *„megállni NEM kell,
+új beszélgetést NEM kérünk."*
+
+**DE A HATÁRT A MUNKABLOKK KÖZBEN ÁTLÉPTÜK, ÉS EZT NEM MOSOM EL:** a mérő szerint **483 hívás futott
+400 ezer fölött**, a csúcs **783 667**, és egy korábbi, ugyanerre az ablakra mért pillanatkép
+**407 559**-et adott, tehát VÁLTÁS-t jelzett. A két szám nem mond ellent egymásnak — ugyanannak az
+ablaknak két pillanata —, de azt jelenti, hogy a medián **a sávhatáron áll**.
+
+**EZÉRT A SZIGORÚBB OLVASATOT KÖVETTEM** (`D-VS-3083`): a lezárás **célzott** ellenőrzés volt — új
+feltárás, új funkció és opcionális teljes söprés nélkül —, és a **következő önálló nagy blokk induljon
+friss beszélgetésben**. A külső-ellenőrző lánc hiányzó öt programja így **nevezett maradék rés**, nem
+elhallgatott lépés. A folytatás első teendője: ez az öt program (`--only` külön-külön), friss
+beszélgetésben. *(Amit ez NEM állít: nem szolgáltatói limit, nem kimért optimum, és nem
+megtakarítási ígéret.)*
