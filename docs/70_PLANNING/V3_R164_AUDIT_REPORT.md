@@ -12,19 +12,20 @@ korábbi körök számai **történeti adatok**, nem végállapot — ahol elté
 
 | | |
 |---|---|
-| **KÓD-SHA (a csomag feje)** | `c2cccd1` — a `b31d8c9` (R158 záró feje) LESZÁRMAZOTTJA. A csomag R164-es commitjai: `a7f8f2d` (R164/1) · `c49699c` (R164/3 lefedettség) · `9cc59e9` (R164/3 átadás + külső-ellenőrző bekötés) · `98ec598` (a lap navigációja) · `8d9800d` · `63b2a28` (az első review-kör 12 lelete) · `cb56faa` (a 13.) · `1a9fe84` (az M222 túlélése) · `8f14ca9` (a második review-kör 9 lelete) · `0cd38a2` (a KUKA-383 mérése az elérhető úton) · `c2cccd1` (az U04 darabszáma mérésből) |
-| **EREDMÉNY-HORDOZÓ FEJ** | `c2cccd1`. A jelentésben szereplő MINDEN mérés ezen a fán futott, **kivéve ahol a sor külön mást mond** — és a három hosszú lánc (böngészős kapu · mag-mutációs battéria · külső-ellenőrző) kifejezetten **ezen** a fejen futott, a csomag végén |
-| **MÉRÉS IDEJE** | 2026-10-07, 04:40 UTC → a csomag zárása (a `--from` a parancs board-időbélyege) |
-| **A REVIEW ÁLTAL FEDETT SHA** | `cb56faa` — a külső fél eddig a fejig mért, **két körben**. **Az azóta született négy fejnek NINCS új, független review-bizonyítéka**: `1a9fe84`, `8f14ca9`, `0cd38a2` és `c2cccd1` nem fedett |
-| **FÜGGETLEN REVIEW ÁLLAPOTA** | **FÜGGŐ a négy legutóbbi fejre.** A korábbi limit feloldódott; a limit időszaka és visszaállása az üzenetből **nem bizonyított**, ezért nem nevezem meg (6. szakasz). A két kör **22 megjegyzése mind javítva**, mért bizonyítékkal (7. szakasz) |
-| **ÖSSZVERDIKT** | **helyi ellenőrzések kész / független review FÜGGŐ.** Ez **NEM merge-készség** — nincs merge, nincs lezárás |
-| **FOGYASZTÁS (a csomag ablakán)** | kumulatív fő-szál kontextusmedián **367 729** → a `300–400 ezres` **FIGYELMEZTETÉS** sáv: rövid állapotmérés a munkablokk határán, megállni nem kell. Ügynök-bemenet **0** (nulla al-ügynök indult) |
+| **KÓD-SHA (a csomag feje)** | `76378f3` — a `b31d8c9` (R158 záró feje) LESZÁRMAZOTTJA. A csomag R164-es commitjai, sorban: `a7f8f2d` (R164/1) · `c49699c` (lefedettség) · `9cc59e9` (átadás + külső-ellenőrző bekötés) · `98ec598` · `8d9800d` · `63b2a28` (1. review-kör, 12 lelet) · `cb56faa` (a 13.) · `1a9fe84` (az M222 túlélése) · `8f14ca9` (2. review-kör, 9 lelet) · `0cd38a2` (a KUKA-383 mérése) · `c2cccd1` (az U04 darabszáma mérésből) · `3cb8364` (a böngészős kapu MÉRT verdiktje) · `cbaec96` (3. kör) · `def18b8` (r83core 7/7) · `1d6661f` (4. kör) · `7a78009` (r81core 15/15 · r79core 18/18) · `72aa8bd` (5. kör) · `9dc0356` (r79 4/4) · `76378f3` (6. kör) |
+| **EREDMÉNY-HORDOZÓ FEJ** | **KÉT fej, és ezt kimondjuk.** A rövid láncok verdiktjei a mai fejen (`76378f3`) frissen mérve — az 1.1 tábla sorai. A három HOSSZÚ lánc (böngészős kapu · mag-mutációs battéria · külső-ellenőrző) a `c2cccd1` fejen futott, a csomag végén, önállóan; a köztük és a mai fej közötti **különbség NEVEZETT**: a 3., 4., 5. és 6. review-kör javításai, az r83core/r81core/r79core/r79 bizonyíték-fájljai, és a lefedettség-leltár. A böngészős kaput ezért a mai fejen ÚJRA futtattam (lásd az 1.1 tábla sorát) |
+| **MÉRÉS IDEJE** | 2026-10-07, 04:40 UTC → a csomag zárása (a `--from` a parancs board-időbélyege). A hosszú láncok: a böngészős kapu 09:35 és (újra) 11:50 UTC · a mag-battéria 09:49 UTC · a külső-ellenőrző 10:04 UTC |
+| **A REVIEW ÁLTAL FEDETT SHA** | `9dc0356` — a külső fél **hat körben** mért, eddig a fejig. **A mai fejnek (`76378f3`) NINCS új, független review-bizonyítéka** |
+| **FÜGGETLEN REVIEW ÁLLAPOTA** | **FÜGGŐ a mai fejre.** A korábbi limit feloldódott; a limit időszaka és visszaállása az üzenetből **nem bizonyított**, ezért nem nevezem meg (6. szakasz). A **hat kör 30 megjegyzése** mind javítva, mért bizonyítékkal, és **mind a 30 szál megválaszolva és lezárva** — a PR-on ma **nincs nyitott review-szál** (7. szakasz) |
+| **ÖSSZVERDIKT** | **helyi ellenőrzések kész / független review FÜGGŐ**, EGY nevezett piros lánccal (a külső-ellenőrző: lásd lentebb és az 5.3 pontot). Ez **NEM merge-készség** — nincs merge, nincs lezárás |
+| **A MARADÉK RÉS** | **A külső-ellenőrző lánc NEM teljes.** A 19 program közül 14 futott le (13 MEGFELEL · 1 ELTÉRÉS: `r59a`, időtúllépés), **5 NEM FUTOTT** (`r57a` · `r59` · `r57` · `r55` · `r53`) — tehát NEM IGAZOLT, nem zöld (KUKA-200 · KUKA-206). A `verify:lefedes` 20 hiány-kulcsa nevesítve áll (1.2–1.3). Az ÁTÁLLÁSI alapállás-mentés és a valódi szolgáltatói AI-mérés továbbra is nyitott (8. szakasz) |
+| **FOGYASZTÁS (a csomag ablakán)** | **938 hívás** · kumulatív fő-szál kontextusmedián **407 559** (max 783 667) · ügynök-bemenet **0** (nulla al-ügynök indult) · lefedettség: **teljes**. **A mérő kimondta: CHATVÁLTÁSI JELZŐ ELÉRVE** (407 559 ≥ 400 000) — a futó munkablokk célzott ellenőrzéssel lezárható, a **KÖVETKEZŐ önálló nagy blokk friss beszélgetésben induljon**. A `300–400 ezres` figyelmeztetés sávot tehát a csomag zárása közben hagytuk el; ezért a lezárásban **nincs** új feltárás és nincs opcionális teljes söprés (D-VS-3083) |
 
 ### 1.1 A LÁNCOK ÉS A VERDIKTEK — EZEN A FEJEN MÉRVE
 
 | lánc | verdikt | mit mondott |
 |---|---|---|
-| `verify:kuka` | **ZÖLD** | 841/841 (a csomag **40** új bejegyzése: `KUKA-345…384`) |
+| `verify:kuka` | **ZÖLD** | **856/856** (a csomag **47** új bejegyzése: `KUKA-345…391`) |
 | `verify:i18n` | **ZÖLD** | 49/49 · ellenpróba 6/6 |
 | `verify:tutor` | **ZÖLD** | 92/92 · ellenpróba 14/14 |
 | `verify:assistant` | **ZÖLD** | 55/55 · ellenpróba 6/6 |
@@ -33,12 +34,12 @@ korábbi körök számai **történeti adatok**, nem végállapot — ahol elté
 | `verify:app-findings-r79` | **ZÖLD** | 49/49 |
 | `verify:app-findings-r91` | **ZÖLD** | 30/30 |
 | `verify:app-findings-r144` | **ZÖLD** | 30/30 |
-| `verify:app-findings-r154` | **ZÖLD** | **230/230** — az új **AB** (R164/1 döntései), **AC** (az O(1)-es felvétel hívás-számon), **AD** (a látogató-cím feloldása) és **AE** (a második review-kör hat tiszta döntése) csoporttal |
+| `verify:app-findings-r154` | **ZÖLD** | **240/240** — az új **AB** (R164/1 döntései), **AC** (az O(1)-es felvétel hívás-számon), **AD** (a látogató-cím), **AE** (a 2. kör tiszta döntései), **AF** (fordítható elutasítások), **AG** (a memória és a tároló EGY helyen ürül), **AH** (a személyes tér) csoporttal, és a **U** csoport a felület-feltétel négy ellenpárjával (u1 · u2 · u7 · u8 · u9) |
 | `app:selfcheck` | **ZÖLD** | 57/57 |
 | `verify:doc-html` | **ZÖLD** | 9/9 |
 | `verify:artifact-naming` | **ZÖLD** | **28/28** — ez a csomag alatt **PIROS volt** (a generált célnév kézzel vágta az időbélyeget); a javítás a 7.5 pontban |
 | `verify:release-order` | **ZÖLD** | 37/37 |
-| `verify:decision-numbers` | **ZÖLD** | 4/4 (a következő szabad szám: **D-VS-3193**) |
+| `verify:decision-numbers` | **ZÖLD** | 4/4 (a következő szabad szám: **D-VS-3200**) |
 | `verify:unit-admission` | **ZÖLD** | 16 ellenpélda · 1 pozitív kontroll |
 | `verify:sweep-reuse` | **ZÖLD** | 43/43 |
 | `verify:fogyasztas-meres` | **ZÖLD** | 18/18 ellenpróba |
@@ -48,7 +49,7 @@ korábbi körök számai **történeti adatok**, nem végállapot — ahol elté
 | `verify:lefedes` | **PIROS (nevesített)** | 15 ZÖLD / 1 PIROS — a piros maga a **20 hiány-kulcs**; a kettéosztás és a regresszió-irány (LR1 · LR2 · LC1–LC4) ZÖLD. A részletek az 1.2–1.3 pontban |
 | `verify:browser-gate` | **ZÖLD** | **805 s** · `test:e2e` + `proof:core-ux` 364 s · `proof:demo-walk` 441 s · **122 helyzet teljesült, 0 bukott, 0 ingadozó, 0 kihagyott, 22 próba-fájl** — és a kapu azt is méri, hogy a jelentés EBBEN a futásban készült (nem egy korábbi bizonyíték) |
 | `verify:v3ref` (mag-mutációs battéria) | **ZÖLD** | **925 s** · a 69 mag-próba 69/69 · **253 mutáció · 253 ELKAPVA · 0 TÚLÉLTE** · 0 rossz próba · 0 mérőhiba · 0 elavult horgony · lefedettség **253/253**, hiány 0, duplikátum 0 · a legrosszabb egység faliórája **10 187 ms** a 15 000 ms-os külső korláton belül. **Az M222 mutáció ELKAPVA** — az 5.2-es lelet javítása a TELJES battérián igazolva. A darabolás **mérésből**: a tool ajánlása 11 egység volt, ezen a gépen **88** kellett (11 → 22 → 44 → 88), a költségvetés nem tágult |
-| `verify:external-checks` | *(a záró kapuban)* | lásd 5.3 és 9. szakasz |
+| `verify:external-checks` | **PIROS / NEM TELJES** | 19 programból **14 futott** (13 MEGFELEL · 1 ELTÉRÉS), **5 NEM FUTOTT**. A megfordult pirosak: `r83core` · `r81core` · `r79core` · `r79` mind **MEGFELEL**. Az `r59a` **időtúllépés** a futtató 30 perces program-korlátján (1 800 117 ms, `ETIMEDOUT`) — tartalmi bukás nélkül: a saját naplója szerint a darabolás 40 → 80 egységre finomított, és a 80 **belefért** a 15 000 ms-os korlátba. A részletek az 5.3 pontban |
 
 ### 1.2 A HIÁNY-SZÁMOK — A KEVEREDÉS FELOLDVA, MÉRÉSSEL
 
@@ -189,6 +190,13 @@ L10 ellenőrzés kapta el).
 
 ### 4.2 A KÉT SZEREPLŐS BEMUTATÓ — MEGÉPÍTVE, MÉRVE, ÉS NEVEZETTEN VISSZAÁLLÍTVA
 
+> **ELŐRE-MUTATÓ, HOGY EZ A PONT NE OLVASSON FÉLRE:** ezt a szakaszt a csomag KÖZBEN írtam, és a
+> **6. review-kör másodszor is ránézett** — a végállás a 7.6 pontban és a `D-VS-3199`-ben áll. Röviden:
+> a két szereplős történetet a kiszolgáló az alkalmazás-héjban **fel sem kínálja** többé (ott nincs
+> váltó vezérlő), a végigvitelük tanúja a bemutató LAPJA. Az alábbi mérések és leletek érvényesek —
+> csak a KÖVETKEZTETÉS változott: nem „19-ből 18 lépés, a maradék blokkoló", hanem „ez a felület nem
+> ennek a történetnek a helye".
+
 Az R158 7/1. nyitott tétele ezt mondta: *„A két szereplős történet az alkalmazás-héjban nem
 végigvihető. Ahhoz DEKLARÁLT váltás-vezérlő kellene … és a váltás VALÓDI ki- és belépés a másik
 emberrel."* Az R164/3 ezt kifejezetten engedélyezte, és megépítettem.
@@ -295,11 +303,35 @@ a lánc idő-bukása fedett el — a söprés „NEM FEJEZŐDÖTT BE"-ként soro
 maradék hiányként sem jelent meg. **Ezért a nem nulla kilépés OKÁT (idő vagy tartalom) ki kell
 mondani** (KUKA-093: a kihagyás nem zöld).
 
-### 5.3 A LÁNC ZÁRÓ FUTÁSA
+### 5.3 A LÁNC ZÁRÓ FUTÁSA — MÉRVE, ÉS A HIÁNY KIMONDVA
 
 A `verify:external-checks` a csomag végén, **önállóan** (párhuzamos terhelés nélkül), a **javított**
-kódon futott. Az eredményét a 9. szakasz tartalmazza; ami **feloldatlanul** eltér, az **PIROS marad**
-— az R164/3 kikötése szerint.
+kódon (`c2cccd1`) futott. **Ez a futás NEM teljes**, és ezt itt mondom ki, nem a tábla aljára írom:
+
+| program | verdikt | mit mondott |
+|---|---|---|
+| `r16core` · `r92authz` · `r88core` · `r85core` · `r77` · `r75` · `r69` · `r67` · `r61` | **MEGFELEL** (9) | változatlanul zöldek |
+| `r83core` | **MEGFELEL** | 7/7 — a csomag ELŐTT 3/7 volt (a `KORNYEZET-3` tartalmi bukás) |
+| `r81core` | **MEGFELEL** | 15/15 — a csomag ELŐTT 7/15 |
+| `r79core` | **MEGFELEL** | 18/18 |
+| `r79` | **MEGFELEL** | 4/4 — az `U04` ZÖLD. A darabszám **mérésből**: a futtató saját naplója szerint *„1. 40 egység — a futtató SAJÁT költségvetését (12000 ms) lépte túl 18 egységben … 2. 80 egység — belefért"* |
+| `r59a` | **ELTÉRÉS** | **időtúllépés**, nem tartalmi bukás: `spawnSync … ETIMEDOUT` a futtató **30 perces** program-korlátján (1 800 117 ms). A saját naplója ugyanazt a finomítást mutatja, mint az `r79`-nél (40 → 80 egység, és a 80 **belefért** a 15 000 ms-os külső korlátba) — a program mint EGÉSZ lépte túl a 30 percet, miután a hét esete sorban végigfuttatta a battériát |
+| `r57a` · `r59` · `r57` · `r55` · `r53` | **NEM FUTOTT** | a futás a háttér-folyamat idő-korlátján állt le az `r59a` után. **Nem „részben", nem zöld: NEM IGAZOLT** (KUKA-200 · KUKA-206) |
+
+**AMIT EBBŐL ÁLLÍTOK.** Az R164/3 öt örökölt pirosa közül **az `r79` megfordult** (4/4), és a két
+tartalmi `KORNYEZET`-bukás is megszűnt (`r83core` 7/7 · `r81core` 15/15 · `r79core` 18/18). Az `r59a`
+pirosa **mérés-idő** természetű, nem tartalmi: a bizonyíték erre a saját darabolás-naplója, ami a 80
+egységet a korláton BELÜL mutatja.
+
+**AMIT NEM ÁLLÍTOK.** Hogy az `r59a` tartalma tiszta — ezen a futáson a program nem jutott el a
+verdiktjéig, tehát a tartalomról **nincs mért állításom**. És hogy a maradék öt program zöld volna:
+**nem futottak**, tehát nem igazoltak. A lánc összverdiktje ezért **PIROS**, és ez a csomag
+**nevezett maradék rése** (1. szakasz).
+
+**A 30 PERCES KORLÁT A MI VARRATUNK, NEM A KÜLSŐ FÉLÉ** — és szándékosan nem tágítottam. Az R164/3 a
+futás-bekötés javítását megengedi, de egy korlát felnyitása nem javítás: a lánc így négy-öt órássá
+válna, és a „zöld" annak a következménye volna, hogy többet vártunk, nem annak, hogy a kód jobb.
+A pontos technikai akadály **mérve** áll (KUKA-089), és nevesített függőként nyitva marad.
 
 ---
 
@@ -315,14 +347,16 @@ sem a visszaállás ideje nem bizonyított**, ezért egyiket sem nevezem meg. D�
 review-kérést **nem ismételtem**.
 
 **ÉS AMI AZÓTA TÖRTÉNT — a szöveg a valóságot követi (KUKA-050).** A limit **feloldódott**, és a
-Codex **két körben** mért: az első kör három fejen (`a7f8f2d` · `c49699c` · `8d9800d`) 13 leletet, a
-második a `cb56faa` fejen kilenc megjegyzést adott. Mind valós, mind javítva — a 7. szakasz sorolja.
-**A review tehát már NEM a `6c40c31`-ig szól**, hanem a `cb56faa`-ig; az azóta született négy fejnek
-(`1a9fe84` · `8f14ca9` · `0cd38a2` · `c2cccd1`) **nincs** új, független review-bizonyítéka.
+Codex **hat körben** mért, minden feltöltés után újra: az 1. kör három fejen
+(`a7f8f2d` · `c49699c` · `8d9800d`) 13 leletet, a 2. a `cb56faa`-n kilencet, a 3. a `3cb8364`-en kettőt,
+a 4. a `def18b8`-on kettőt, az 5. a `7a78009`-en kettőt, a 6. a `9dc0356`-on kettőt — **összesen 30
+megjegyzés**, mind valós, mind javítva, mind megválaszolva és **lezárva** (7. szakasz).
+**A review tehát már NEM a `6c40c31`-ig szól**, hanem a `9dc0356`-ig; a **mai fejnek** (`76378f3`)
+**nincs** új, független review-bizonyítéka.
 
 ---
 
-## 7. A KÉT REVIEW-KÖR — A CODEX 22 LELETE, A CSOMAG SAJÁT JAVÍTÁSAI FELETT
+## 7. A HAT REVIEW-KÖR — A CODEX 30 LELETE, A CSOMAG SAJÁT JAVÍTÁSAI FELETT
 
 A limit feloldódása után a külső fél a **mostani** csomag friss kódját mérte, **két körben**. Ez a
 legértékesebb fajta visszajelzés, és ennek megfelelően a leletek többsége **az én ebben a csomagban
@@ -387,7 +421,7 @@ a hiba-osztálynak az ismétlése** volt, amit órákkal korábban magam javíto
 | P2 | **A kilépés a címsorról nem vitte el a meghívó jegyet** (`KUKA-383` · `D-VS-3191`): egy frissítés — vagy ugyanannak a történet-bejegyzésnek az újbóli megnyitása **más ember** által — visszavitte a felületet az **előző** ember meghívó-folyamatára | **közös** elfelejtő, amit a kilépés és a beváltás is hív — és csak a meghívó paramétert viszi el, a nyelvválasztást nem |
 | P2 | **A hiány-osztályozás csak az önpróba konzolján létezett** (`KUKA-384` · `D-VS-3192`), a gépi artefaktumban nem — a `--json` út pedig a nyomtatás **előtt** kilép. A leltár így nem tudta megmondani, mely rés pótolható: pontosan azt nem, amiért készült | a JSON viszi a `gap_classes` blokkot, és az önpróba a **kiírt fájlt** olvassa vissza |
 
-**A hat tiszta döntés mérése (`verify:app-findings-r154`, új „AE" csoport — 230/230 PASS):** `ae1` a
+**A hat tiszta döntés mérése (`verify:app-findings-r154`, új „AE" csoport; a battéria mai állása 240/240 PASS):** `ae1` a
 pont nem helyi · `ae2` a felülírás, **ellenpárral** (a javítás előtti feloldó `localhost`-ot adott) ·
 `ae3` a fail-closed három alakja · `ae4` a kilépés után az index üres · `ae5` a költségvetés-túllépés
 finomít, a tartalmi bukás nem, **ellenpárral** · `ae6` a kurzor eléri a romlott sort, kurzor nélkül
@@ -416,20 +450,71 @@ bejegyzés: a `KUKA-381` kapott egy új pozitív mintát erre a helyre.
 
 ---
 
+### 7.6 A HARMADIK–HATODIK KÖR — NYOLC TOVÁBBI P2, MIND JAVÍTVA
+
+A review nem két körben állt le. A csomag minden feltöltése után ÚJ kör jött, és ez a négy kör a saját
+javításaim FÖLÉ talált — ezért tartozik ide, nem egy külön lapra (R164/4: EGY összesített jelentés).
+
+| kör | lelet | mit mondott | mi lett belőle |
+|---|---|---|---|
+| 3. | P2 | **A HARMADIK `pgEnv`-másolat** — a 2. körben KETTŐT vontam össze egy otthonba, a `v3_pg_restore_safety_proof.mjs`-ben lévő harmadikat nem találtam meg | mind a három próba a közös `cliEnvFor`-t hívja, és a `KUKA-379` pozitív mintája MIND A HÁROM fájlra szól — egy negyedik másolat is piros lenne |
+| 3. | P2 | **A folytatás megőrzésének válaszát a lap eldobta** — a szerver helyesen utasít el telt tárnál (503 `at_capacity`) és nézet-váltásnál (409 `session_gone`), a lap viszont a rendes folyamattal folytatott: NÉMA, később jelentkező kár | `KUKA-385` · `D-VS-3193` — a lap a választ ELTESZI (`inviteNotKept`), és a meghívó-nézet kimondja; a szöveg mind a három nyelven a MŰKÖDŐ folytatást nevezi meg (KUKA-201) |
+| 4. | P2 | **A hely nem tulajdon** — a visszatöltési lánc a MEGADOTT adatbázist használta forrásként, pedig minden esete fiókot és vállalkozást hoz létre benne: a „helyi" nem jelenti az „eldobhatót" | `KUKA-386` · `D-VS-3194` — a lánc SAJÁT, FRISS forrás-adatbázist hoz létre (`acquireFreshTarget`, a tulajdon a LÉTREHOZÁS), a repó migrációs eszközével építi fel, és eldobja (kilépésre ÉS jelre) |
+| 4. | P2 | **A forrás pillanatképe nem minden táblát mért** | `KUKA-387` · `D-VS-3195` — a pillanatkép MINDEN `public` alaptáblát visz, a teljes sor szövegével |
+| 5. | P2 | **A kilépés a tárolóból nem vitte a sort** — a kiszorítás bejelent, a publikus `delete` nem: a `pending_intent` sor elérhetetlenül ott maradt a teljes türelmi időre, miközben a munkamenet-tár ÜRES volt | `KUKA-388` · `D-VS-3196` — a `delete` is a BEJELENTÉS útján megy, a várólista biztosításával együtt |
+| 5. | P2 | **A lejárat olvasási törlése nem jutott el az indexhez** | `KUKA-389` · `D-VS-3197` — ami töröl, az írás: a feloldó „nincs folytatás" válaszára az index is ürül |
+| 6. | P2 | **A személyes térben felkínált üzleti bemutató** — a szűrő `item.page`-et olvasott, a három új útmutató `screen`-t deklarál, és a `shell` csoport sem volt tiltott | `KUKA-390` · `D-VS-3198` — a lap feloldása MINDKÉT mezőre áll, és a személyes tér ZÁRT lap-listából dönt (`PERSONAL_SCREENS`, a személyes menü mellett). Mérve: **AH** csoport, ah1–ah3 |
+| 6. | P2 | **A környezet jele felkínálta, a felület nem tudta végigvinni** — a két szereplő-váltó bemutatót a `VS_DEMO` kapuzta, a próbapad viszont a VALÓDI héjat futtatja, amiben nincs váltó vezérlő: a próba a `megszakadt:targetMissing` verdiktet írta elő ELVÁRT eredménynek, és a kötelező böngésző-kapu emellett ZÖLD maradt | `KUKA-391` · `D-VS-3199` — lásd lentebb |
+
+**A HATODIK KÖR MÁSODIK LELETE A LEGSÚLYOSABB A NÉGY KÖRBEN**, mert a *kapu* zöldjét érintette. Ahogy a
+reviewer írta: a mérés úgy ment át, hogy épp azt a hibát igazolta. A javítás nem a próbában van, hanem
+a felkínálásban:
+
+- a felkínálás a **betöltött felület** horgonyaihoz kötött (`ctx.surface_anchors`), nem a kiszolgáló
+  környezetéhez; a szereplő-váltó lépések a bemutató **saját** `switch_actor` deklarációjából jönnek,
+  nem kézi azonosító-listából (KUKA-045);
+- a kérés **megnevezheti** a felületét (zárt lista: `app` · `demo`), de **képességet nem állíthat
+  magáról**: a horgony-készletet a kiszolgáló a lap **fájljából MÉRI** (`data-testid` ·
+  `data-tour-anchor` — a `tour.mjs` feloldójával egyező két attribútum). Nem ismert név → üres készlet,
+  és a válasz `surface: null`-t mond;
+- **a bizonyíték a helyére került:** a két történetet a bemutató LAPJÁN visszük végig
+  (`proof:demo-walk`, a kötelező kapu része), és az a lap a VALÓDI kiszolgálótól kapja a listát
+  (`demo:knowledge`, `surface=demo`) — amit tehát a termék a bemutató-felületnek felkínál, azt ott
+  **végig is viszik**; amit a héjnak felkínál, azt az e2e viszi végig, mind `befejezve`;
+- **és ami nem veszhetett el** (az R164/3 kikötése): a bemutató lépései három VALÓDI műveletet mértek
+  — meghívó visszavonása · tag eltávolítása · visszahívás —, ezeket a próba a bemutató keretétől
+  **függetlenül**, ugyanazokkal a nyugtákkal végzi el.
+
+**AMIT EZ A NÉGY KÖR MEGMUTAT RÓLAM.** Három különböző körben UGYANAZ a mechanizmus bukott el: egy
+szabályt egy helyen javítottam, a többi házát nem kereste meg gép (`KUKA-003`). A mai állás: a
+pozitív minták **fájl-listára** szólnak, tehát egy negyedik másolat is pirosat ad. Ez nem „jobban kell
+figyelni" — ez gépi jel.
+
+---
+
 ## 8. NYITOTT TÉTELEK — NEVESÍTVE, MÉRT TÜNETTEL
 
-1. **A két szereplős történet alkalmazáson belüli (újratöltés nélküli) befejezése.** Megépítve és
-   mérve: 19-ből 18 lépés asztali szélességen. A maradék blokkoló: **a futás elvesztése a meghívás
-   elfogadása után** (a bemutató-panel eltűnik, nincs megszakítás-üzenet — tehát nem hibajelzés,
-   hanem néma eltűnés), és a **390 px-es szélességen** a fiókváltó lépése. A három megtalált
-   állapot-szivárgásból kettő javítva, a harmadik ez.
-2. **PG 18-kompatibilitás** — NEM IGAZOLT; a konkrét kísérlet és hiba a 3.4 pontban.
-3. **Élő AI-kapcsolat mérése** — szolgáltatói kulcs nélkül nem lehetséges.
-4. **Felhős mentés/visszatöltés, belső próba-fiók** — nem megoldott, és ebben a körben nem is
+1. **A két szereplős történet az ALKALMAZÁS-HÉJBAN — ez már nem nyitott rés, hanem DÖNTÉS**
+   (`D-VS-3199`, a 6. review-kör nyomán). A héjban nincs „váltás a másik nézetére" vezérlő, és éles
+   üzemben nem is lenne értelme (a meghívott a SAJÁT eszközén lép be) — ezért a kiszolgáló ott **fel sem
+   kínálja** a két történetet. A végigvitelük bizonyítéka a bemutató LAPJÁN áll
+   (`proof:demo-walk`, a kötelező kapu része), a listát pedig az a lap a VALÓDI kiszolgálótól kapja
+   (`demo:knowledge`, `surface=demo`). **AMIT EZ NEM ÁLLÍT:** a bemutató-lap háttere a SZIMULÁLT
+   adapter, tehát az a tanú nem HTTP- és nem tároló-bizonyíték (KUKA-227) — a három VALÓDI műveletet
+   (visszavonás · eltávolítás · visszahívás) a héj próbája méri, a határon.
+   *Ami ebből tényleg nyitva van:* a **390 px-es szélesség** a bemutató-lapon, és a bemutató
+   folytatásának megőrzése a meghívás elfogadása UTÁN — mindkettő a bemutató-lap kérdése, nem a héjé.
+2. **A külső-ellenőrző lánc NEM TELJES** — 19 programból 14 futott (13 MEGFELEL · 1 ELTÉRÉS), **5 nem
+   futott**. Az `r59a` eltérése **mérés-idő** természetű (30 perces program-korlát, `ETIMEDOUT`), nem
+   tartalmi bukás — de a tartalmáról ezen a futáson **nincs mért állításom**. A korlátot szándékosan nem
+   tágítottam: egy korlát felnyitása nem javítás (5.3 pont).
+3. **PG 18-kompatibilitás** — NEM IGAZOLT; a konkrét kísérlet és hiba a 3.4 pontban.
+4. **Élő AI-kapcsolat mérése** — szolgáltatói kulcs nélkül nem lehetséges.
+5. **Felhős mentés/visszatöltés, belső próba-fiók** — nem megoldott, és ebben a körben nem is
    nyúltam hozzájuk.
-5. **A 20 lefedési hiány-kulcs** — a kettéosztás MÉRVE (19 pótolható · 1 fejlesztési rés), a
+6. **A 20 lefedési hiány-kulcs** — a kettéosztás MÉRVE (19 pótolható · 1 fejlesztési rés), a
    pótolható rész ebben a csomagban hárommal csökkent. A maradék megírható munka, nem ismeretlen.
-6. **A `KUKA-362` és a `KUKA-383` KILÉPÉS-ágának böngészős mérése** — ma nincs, és most már a **pontos
+7. **A `KUKA-362` és a `KUKA-383` KILÉPÉS-ágának böngészős mérése** — ma nincs, és most már a **pontos
    okkal**: a meghívó-képernyő a teljes alkalmazás-héjat lecseréli, tehát a **profil-menü — és vele a
    kilépés-vezérlő — ott nem rajzolódik ki**. A felületen így nincs út, amin a meghívó jegy a
    címsorban állva kilépés érné. Amit mérünk: a **közös elfelejtőt** a beváltás ágán (ez bejárható);
@@ -445,9 +530,25 @@ bejegyzés: a `KUKA-381` kapott egy új pozitív mintát erre a helyre.
 
 - **Nem** állítja, hogy a csomag merge-kész. Az összverdikt: *helyi ellenőrzések kész / független
   review FÜGGŐ.*
-- **Nem** állítja, hogy a `cb56faa` utáni négy fejet (`1a9fe84` · `8f14ca9` · `0cd38a2` · `c2cccd1`)
-  független fél elfogadta — és a **válaszolt vagy lezárt szál nem egyenlő az elfogadással**. A két
-  review-kör mindkét szál-csoportját megválaszoltam és lezártam; ez **nem** független elfogadás.
+- **Nem** állítja, hogy a mai fejet (`76378f3`) független fél elfogadta — és a **válaszolt vagy lezárt
+  szál nem egyenlő az elfogadással**. A hat kör mind a 30 szálát megválaszoltam és lezártam, tehát a
+  PR-on ma nincs nyitott review-szál; ez **nem** független elfogadás.
+- **Nem** állítja, hogy a külső-ellenőrző lánc zöld. **Nem teljes**: 5 program nem futott, egy
+  (`r59a`) időtúllépéssel zárt. A nem futott **nem „részben"**, és nem zöld (KUKA-200 · KUKA-206).
+- **Nem** állítja, hogy a hosszú láncok a MAI fejen futottak, az egy újramért böngészős kapun kívül: a
+  mag-mutációs battéria és a külső-ellenőrző a `c2cccd1` fejen futott, és a különbség nevezett (1. szakasz).
 - **Nem** állítja, hogy a PostgreSQL-mérés a Railway üzemére vagy a 18-as verzióra érvényes.
-- **Nem** állítja, hogy a két szereplős történet az alkalmazás-héjban végigvihető (8/1. tétel).
+- **Nem** állítja, hogy a két szereplős történet az alkalmazás-héjban végigvihető — a kiszolgáló ott
+  **fel sem kínálja** (`D-VS-3199`), és a bemutató-lapi tanú háttere a SZIMULÁLT adapter (8/1. tétel).
 - **Nem** állítja, hogy a lefedési hiány megszűnt — 20 kulcs áll, kettéosztva és nevesítve.
+
+---
+
+**ÉS EGY OPERÁTORI TUDNIVALÓ A ZÁRÁSHOZ.** A csomag ablakán a mérő **elérte a chatváltási jelzőt**
+(kumulatív fő-szál kontextusmedián **407 559** ≥ 400 000, 938 hívás, nulla al-ügynök). A szabály
+(`D-VS-3083`) szerint ez nem megállás és nem hiba: a **futó** munkablokk célzott ellenőrzéssel
+lezárható — ez történt —, a **következő önálló nagy blokk** viszont **friss beszélgetésben** induljon.
+Ezért ebben a zárásban **nem** indítottam új feltárást, nem nyitottam új funkciót, és nem futtattam
+opcionális teljes söprést; a külső-ellenőrző lánc hiányzó öt programja így **nevezett maradék rés**,
+nem elhallgatott lépés. A folytatás első teendője: ez az öt program (`--only` külön-külön), friss
+beszélgetésben.
