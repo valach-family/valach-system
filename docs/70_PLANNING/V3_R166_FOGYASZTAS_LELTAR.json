@@ -1,21 +1,21 @@
 {
  "tool": "FGY-01/3",
- "tool_commit": "bff340fe171c907be9c3f714db00cc49817f7d5b",
+ "tool_commit": "2c9800ffe9aab5c395fdd6e2e5578ae07984b993",
  "tool_file": "./tools/v3_fogyasztas_meres.mjs",
  "tool_file_sha256": "b3d09180a58477060c45983733472a5050fb8dd22bf1ef8ad2da6a7a3996a2fc",
  "tool_dirty": false,
- "generated_at": "2026-10-07T20:19:36.601Z",
+ "generated_at": "2026-10-07T20:58:39.800Z",
  "session": "6a5edcfc-c08a-50a9-a983-e177baa37c0b",
- "snapshot_closed_at": "2026-10-07T20:19:36.601Z",
+ "snapshot_closed_at": "2026-10-07T20:58:39.800Z",
  "runtime_versions": [
   "2.1.292",
   "2.1.293"
  ],
  "window": {
-  "label": "R166 (CMD-VS-300-002-002) — az ATVEVO munkamenet, a negy P2 utan",
+  "label": "R166 (CMD-VS-300-002-002) — az ATVEVO munkamenet, a nyolc P2 utan",
   "from": "2026-10-07T11:00:00Z",
   "to": null,
-  "to_effective": "2026-10-07T20:19:36.601Z"
+  "to_effective": "2026-10-07T20:58:39.800Z"
  },
  "coverage": {
   "files": 1,
@@ -26,44 +26,44 @@
   "cross_file_duplicate_ids": 0,
   "incomplete_usage_calls": 0,
   "synthetic_records": 1,
-  "calls_total": 524,
-  "calls_in_window": 524,
+  "calls_total": 610,
+  "calls_in_window": 610,
   "complete": true,
   "note": "teljes: minden megtalált átirat beolvasva, minden modell-válasz usage-dzsal, azonos azonosító csak egy fájlban"
  },
  "whole_session": {
-  "calls": 524,
+  "calls": 610,
   "synthetic_records": 1,
   "incomplete_usage_calls": 0,
   "totals_kind": "teljes",
   "first_call": "2026-10-07T13:44:32.540Z",
-  "last_call": "2026-10-07T20:19:35.912Z",
+  "last_call": "2026-10-07T20:58:39.107Z",
   "totals": {
-   "input": 1048,
-   "cache_write": 1558646,
-   "cache_read": 198061510,
-   "output": 422490
+   "input": 1220,
+   "cache_write": 1696790,
+   "cache_read": 223819183,
+   "output": 502174
   },
   "by_kind": {
    "main": {
-    "calls": 524,
-    "input": 1048,
-    "cache_write": 1558646,
-    "cache_read": 198061510,
-    "output": 422490
+    "calls": 610,
+    "input": 1220,
+    "cache_write": 1696790,
+    "cache_read": 223819183,
+    "output": 502174
    }
   },
   "by_model": {
    "claude-opus-5": {
-    "calls": 524,
-    "input": 1048,
-    "cache_write": 1558646,
-    "cache_read": 198061510,
-    "output": 422490
+    "calls": 610,
+    "input": 1220,
+    "cache_write": 1696790,
+    "cache_read": 223819183,
+    "output": 502174
    }
   },
   "main_context": {
-   "median": 372583,
+   "median": 335945,
    "max": 784112,
    "calls_over_400k": 240
   },
@@ -80,8 +80,13 @@
    },
    "compaction": {
     "wakeups": 1,
-    "calls": 127,
-    "input_with_cache": 20168226
+    "calls": 207,
+    "input_with_cache": 43870249
+   },
+   "hook": {
+    "wakeups": 1,
+    "calls": 6,
+    "input_with_cache": 2193966
    }
   },
   "agent_input_total": 0,
@@ -90,7 +95,7 @@
    "main_context_median": {
     "warn_limit": 300000,
     "switch_limit": 400000,
-    "value": 372583,
+    "value": 335945,
     "band": "figyelmeztetes",
     "exceeded": false
    },
@@ -102,38 +107,38 @@
   }
  },
  "window_summary": {
-  "calls": 524,
+  "calls": 610,
   "synthetic_records": 1,
   "incomplete_usage_calls": 0,
   "totals_kind": "teljes",
   "first_call": "2026-10-07T13:44:32.540Z",
-  "last_call": "2026-10-07T20:19:35.912Z",
+  "last_call": "2026-10-07T20:58:39.107Z",
   "totals": {
-   "input": 1048,
-   "cache_write": 1558646,
-   "cache_read": 198061510,
-   "output": 422490
+   "input": 1220,
+   "cache_write": 1696790,
+   "cache_read": 223819183,
+   "output": 502174
   },
   "by_kind": {
    "main": {
-    "calls": 524,
-    "input": 1048,
-    "cache_write": 1558646,
-    "cache_read": 198061510,
-    "output": 422490
+    "calls": 610,
+    "input": 1220,
+    "cache_write": 1696790,
+    "cache_read": 223819183,
+    "output": 502174
    }
   },
   "by_model": {
    "claude-opus-5": {
-    "calls": 524,
-    "input": 1048,
-    "cache_write": 1558646,
-    "cache_read": 198061510,
-    "output": 422490
+    "calls": 610,
+    "input": 1220,
+    "cache_write": 1696790,
+    "cache_read": 223819183,
+    "output": 502174
    }
   },
   "main_context": {
-   "median": 372583,
+   "median": 335945,
    "max": 784112,
    "calls_over_400k": 240
   },
@@ -150,8 +155,13 @@
    },
    "compaction": {
     "wakeups": 1,
-    "calls": 127,
-    "input_with_cache": 20168226
+    "calls": 207,
+    "input_with_cache": 43870249
+   },
+   "hook": {
+    "wakeups": 1,
+    "calls": 6,
+    "input_with_cache": 2193966
    }
   },
   "agent_input_total": 0,
@@ -160,7 +170,7 @@
    "main_context_median": {
     "warn_limit": 300000,
     "switch_limit": 400000,
-    "value": 372583,
+    "value": 335945,
     "band": "figyelmeztetes",
     "exceeded": false
    },
@@ -175,10 +185,10 @@
  "input_manifest": [
   {
    "path": "~/.claude/projects/-home-user-valach-system/6a5edcfc-c08a-50a9-a983-e177baa37c0b.jsonl",
-   "bytes": 11258818,
-   "sha256": "a3eef0a529a0922ea4ffa83c41d3e3b881b21a703cab482ab35e0ba534b0d030",
+   "bytes": 12430953,
+   "sha256": "6a5c2abdca2d24ae4bbf76ab89eb646c8e9f6f94b37606b8e6f3d7f8fe1d5724",
    "kind": "main"
   }
  ],
- "reproduce": "node tools/v3_fogyasztas_meres.mjs --session 6a5edcfc-c08a-50a9-a983-e177baa37c0b --from 2026-10-07T11:00:00Z --to 2026-10-07T20:19:36.601Z --label \"R166 (CMD-VS-300-002-002) — az ATVEVO munkamenet, a negy P2 utan\" --projects ~/.claude/projects"
+ "reproduce": "node tools/v3_fogyasztas_meres.mjs --session 6a5edcfc-c08a-50a9-a983-e177baa37c0b --from 2026-10-07T11:00:00Z --to 2026-10-07T20:58:39.800Z --label \"R166 (CMD-VS-300-002-002) — az ATVEVO munkamenet, a nyolc P2 utan\" --projects ~/.claude/projects"
 }
