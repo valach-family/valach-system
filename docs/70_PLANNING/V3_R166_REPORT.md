@@ -471,6 +471,7 @@ váltó-vezérlő is automatikusan fedve van. Mérve: **5** váltó-vezérlő a 
 |---|---|---|
 | egyetlen lépés sem áll nézet-váltón, és a készlet a lap forrásából jön | `ap10` | **ZÖLD** |
 | a tizenkét útmutató élő bejárása (U0–U3), 390 px-en is | `test:e2e` → `v3app-r166-utmutatok` | **4/4 ZÖLD** |
+| a **kötelező böngésző-kapu** a javítás után | `verify:browser-gate` | **ZÖLD — 134 / 0 / 0 / 0**, 24 próba-fájl · 366 s + 440 s |
 | a teljes battéria | `verify:app-findings-r154` | **ZÖLD — 289/289** |
 | a tanulságok gépi jelei | `verify:kuka` | **ZÖLD — 913/913** |
 
@@ -600,7 +601,7 @@ megszakítást bukásnak** veszi, nem „nincs is baj"-nak.
 | `app:selfcheck` | **ZÖLD — 57/57** |
 | `verify:decision-numbers` | **ZÖLD — 4/4** |
 | `verify:lefedes` | **17 ZÖLD / 1 PIROS** — a `LT` a nevesített fejlesztési résen (`LT2` és `LR1` ZÖLD: pótolható 0 · osztályozatlan 0 · **33/33 fedett végpont**) |
-| `verify:browser-gate` (`test:e2e` + `proof:core-ux` + `proof:demo-walk`) | **ZÖLD** — `test:e2e + proof:core-ux` **378 s**, `proof:demo-walk` **440 s** · **134 helyzet teljesült / 0 bukott / 0 ingadozó / 0 kihagyott** · **24 próba-fájl**, mind a mérésben (a NYOLC P2-javítás UTÁN, a mai fejen újramérve) |
+| `verify:browser-gate` (`test:e2e` + `proof:core-ux` + `proof:demo-walk`) | **ZÖLD** — `test:e2e + proof:core-ux` **366 s**, `proof:demo-walk` **440 s** · **134 helyzet teljesült / 0 bukott / 0 ingadozó / 0 kihagyott** · **24 próba-fájl**, mind a mérésben. **A TIZENHÁROM P2-javítás UTÁN, a mai fejen** — és az előző futás PIROS volt (lásd a 2.6 pontot): a kattintó bejáró kibuktatott egy második zsákutcát, azt javítottam, és csak utána lett zöld |
 | `verify:v3ref` (mag-mutációs battéria) | **ZÖLD — 253/253 elkapva, 0 túlélte** · *TELJES ÉS TISZTA*, **a MAI fejen újramérve** (a mag két új függvénye miatt — lásd a 6.4 pontot) |
 | `verify:external-checks` | **PIROS / NEM TELJES** — a hat hiányzó program **nem futott** (R166 §4, átadva) |
 
@@ -727,11 +728,17 @@ tizenhat rövid lánc lefutott) —, a **következő önálló nagy blokk** pedi
 induljon. A §2 és a §4 mindkettő önálló nagy blokk, ezért nem kezdtem el őket: a lezárás címén
 **nincs új feltárás, nincs új funkció és nincs opcionális teljes söprés**.
 
-**ÉS A NYOLC P2 UTÁN ÚJRAMÉRVE** (a teljes csomag-ablak, `2026-10-07T11:00Z` → a pillanatkép
-zárása `20:58:39Z`): **610 hívás** · fő-szál kontextusmedián **335 945** · max **784 112** ·
-**400 ezer fölött 240 hívás** · **ügynök-bemenet 0** (nulla al-ügynök) · lefedettség **teljes**
+**ÉS A TIZENHÁROM P2 UTÁN ÚJRAMÉRVE** (a teljes csomag-ablak, `2026-10-07T11:00Z` → a pillanatkép
+zárása `22:03:42Z`): **747 hívás** · fő-szál kontextusmedián **386 118** · max **784 112** ·
+**400 ezer fölött 351 hívás** · **ügynök-bemenet 0** (nulla al-ügynök) · lefedettség **teljes**
 (1 átirat, minden modell-válasz usage-dzsal) → a mérő sávja: **FIGYELMEZTETÉS** (a 300–400 ezres
 sávban). Az ablak **nyitott**, ezért ez a zárásnál készült pillanatkép.
+
+**ÉS AMI A SZÁMOT FELVITTE, AZT KIMONDOM:** a kör nyitásakor két parancs-pont (a §2 és a §4) átadásra
+került, azóta viszont **tizenhárom külső P2** jött a csomag SAJÁT javításai felett, öt review-körben.
+Mindegyik mérést, javítást, visszacsúszás-próbát és a kötelező böngésző-kapu **újrafuttatását** kérte
+— a kapu egyszer **pirossal** is válaszolt. Ez nem a lezárás címén indított új feltárás, hanem a
+**futó** munkablokk célzott lezárása: a review-szálak megválaszolása és a hozzá tartozó mérés.
 
 **ÉS EZ NEM VONJA VISSZA A LEZÁRÁST.** A medián azért alacsonyabb a korábbi 402 476,5-nél, mert a
 beszélgetés **tömörítésen** ment át — a `R114` viszont kimondja: **a tömörítéssel folytatott
