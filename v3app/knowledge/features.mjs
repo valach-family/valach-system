@@ -1130,7 +1130,11 @@ export const TOURS = Object.freeze({
     ]),
   }),
   'tour.documents': Object.freeze({
-    id: 'tour.documents', version: '1.0.0', audience: 'signed_in', feature: 'data.documentSample', page: 'documents',
+    // ÉS A MINTAADAT IS ELŐFELTÉTEL (R166 P2, HETEDIK KÖR · `KUKA-414`): a lépés célja csak a
+    // kiosztott bemutató-mintával jön létre — a HARMADIK vállalkozásban a lap az ÜRES ÁLLAPOTOT
+    // rajzolja, és az útmutató a második lépésén nevezetten megszakadt volna.
+    id: 'tour.documents', version: '1.1.0', audience: 'signed_in', requires_demo_fixture: true,
+    feature: 'data.documentSample', page: 'documents',
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'nav-documents', task: null }),
       Object.freeze({ id: 's2', target: 'sample-document', task: null }),
@@ -1138,7 +1142,11 @@ export const TOURS = Object.freeze({
     ]),
   }),
   'tour.partners': Object.freeze({
-    id: 'tour.partners', version: '1.0.0', audience: 'signed_in', feature: 'data.supplierSample', page: 'partners',
+    // ÉS A MINTAADAT IS ELŐFELTÉTEL (R166 P2, HETEDIK KÖR · `KUKA-414`): a lépés célja csak a
+    // kiosztott bemutató-mintával jön létre — a HARMADIK vállalkozásban a lap az ÜRES ÁLLAPOTOT
+    // rajzolja, és az útmutató a második lépésén nevezetten megszakadt volna.
+    id: 'tour.partners', version: '1.1.0', audience: 'signed_in', requires_demo_fixture: true,
+    feature: 'data.supplierSample', page: 'partners',
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'nav-partners', task: null }),
       Object.freeze({ id: 's2', target: 'sample-supplier', task: null }),
@@ -1166,7 +1174,11 @@ export const TOURS = Object.freeze({
   }),
   'tour.stockcard': Object.freeze({
     // A TÁBLA csak kiadott készlet-adatkörrel rajzol: a felkínálás az ÉLŐ jogon áll (R166 P2).
-    id: 'tour.stockcard', version: '1.0.0', audience: 'signed_in', requires_stock_access: true,
+    // ÉS A MINTAADAT IS ELŐFELTÉTEL (R166 P2, HETEDIK KÖR · `KUKA-414`): a lépés célja csak a
+    // kiosztott bemutató-mintával jön létre — a HARMADIK vállalkozásban a lap az ÜRES ÁLLAPOTOT
+    // rajzolja, és az útmutató a második lépésén nevezetten megszakadt volna.
+    id: 'tour.stockcard', version: '1.1.0', audience: 'signed_in', requires_stock_access: true,
+    requires_demo_fixture: true,
     feature: 'data.stockcard', page: 'stockcard',
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'nav-stockcard', task: null }),
@@ -1174,7 +1186,11 @@ export const TOURS = Object.freeze({
     ]),
   }),
   'tour.movements': Object.freeze({
-    id: 'tour.movements', version: '1.0.0', audience: 'signed_in', requires_stock_access: true,
+    // ÉS A MINTAADAT IS ELŐFELTÉTEL (R166 P2, HETEDIK KÖR · `KUKA-414`): a lépés célja csak a
+    // kiosztott bemutató-mintával jön létre — a HARMADIK vállalkozásban a lap az ÜRES ÁLLAPOTOT
+    // rajzolja, és az útmutató a második lépésén nevezetten megszakadt volna.
+    id: 'tour.movements', version: '1.1.0', audience: 'signed_in', requires_stock_access: true,
+    requires_demo_fixture: true,
     feature: 'data.movements', page: 'movements',
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'nav-movements', task: null }),

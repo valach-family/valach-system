@@ -516,6 +516,28 @@ export function restoreOutcome({ exitCode = 0, stderr = '' } = {}) {
  * záróig vagy a sor végéig) tart — egy URL-ben nem lehet escape-elés nélküli szóköz, tehát ez a
  * pontos határ, és a bizonytalanság itt is a SZIGORÚBB ág (`KUKA-200`).
  */
+/**
+ * A REJTÉS SÉMA-KÉSZLETE A BEFOGADOTT SÉMÁK ZÁRT LISTÁJÁBÓL JÖN (R166, KÜLSŐ REVIEW, Codex, P2 ·
+ * `KUKA-414`).
+ *
+ * A LELET: a rejtés sémái BEÍRT névsorból jöttek (`postgres` · `postgresql` · `pg`), miközben a
+ * `pgUrlShape` zárt listája a `socket:` sémát is BEFOGADJA, a `cliEnvFor` pedig a `socket://` cím
+ * `user:jelszó@` részéből VALÓDI `PGPASSWORD`-öt állít a gyermeknek. MÉRVE: a
+ * `socket://u:JELSZÓ@localhost/út?db=forrás` cím a rejtésen BETŰRE VÁLTOZATLANUL ment át — tehát egy
+ * napló- vagy hibasor a jelszót kiírta volna. Ugyanaz az osztály, mint a `KUKA-227`: egy ÚJ,
+ * befogadott alak a RÉGI olvasók listájából nem vezethető le.
+ *
+ * MOSTANTÓL a készlet a `PG_URL_SHAPES` kulcsaiból épül, tehát egy jövőbeli séma a befogadásával
+ * EGYÜTT kerül a rejtésbe. ÉS A RÁADÁS SZÁNDÉKOS: a rejtés TÖBBET takar, mint amit a feloldó
+ * elfogad (`pg:` nincs a zárt listán, de egy diagnosztikai sorban megjelenhet) — a titoknál a
+ * bizonytalanság a SZIGORÚBB ág (`KUKA-049`), és az aszimmetria iránya csak EZ lehet: a rejtés soha
+ * nem szűkebb a befogadásnál.
+ */
+const REDACT_EXTRA_SEMA = Object.freeze(['pg:']);
+const REDACT_SEMA = new RegExp(
+  `(${[...new Set([...Object.keys(PG_URL_SHAPES), ...REDACT_EXTRA_SEMA])]
+    .map((x) => x.replace(/:$/, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}):\\/\\/`, 'i');
+
 const SHELL_SEPARATORS = Object.freeze([' ', '\t', '\n', '\r', '&', ';']);
 const WHITESPACE_ONLY = Object.freeze([' ', '\t', '\n', '\r']);
 function shellWordEnd(s, i, separators = SHELL_SEPARATORS) {
@@ -566,7 +588,7 @@ export function redactConnStrings(text) {
      * hasznos részét (`-f ki.dump`). Ezért SZAVAKRA bontunk, és a címet a SAJÁT szaván belül
      * rejtjük el: a szó végéig, de nem tovább.
      */
-    const SEMA = /(postgres(?:ql)?|pg):\/\//i;
+    const SEMA = REDACT_SEMA;
     const SEPARATOR = /[ \t\n\r&;]/;
     let ki = '';
     let i = 0;

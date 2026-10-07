@@ -16,6 +16,50 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3209 — EGY ŐR ADDIG ÁLTALÁNOS, AMEDDIG A HATÓKÖRE ÉR, ÉS A HALMAZT A TILTOTT ELEMRE KÉRDEZZÜK (R166, három külső P2)
+
+**MIND A HÁROM LELET A SAJÁT, EBBEN A KÖRBEN ÉPÍTETT JAVÍTÁSAIM FELETT**, és mind a három arról
+szól, hogy a javításom **őre** volt szűkebb, mint a szabály, amit őrizni kellett volna. Javítva, mért
+visszacsúszás-próbával.
+
+**(1) A rejtés séma-készlete beírt névsorból jött** (`KUKA-414` első fele). A `pgUrlShape` zárt listája
+a `socket:` sémát **befogadja**, a `cliEnvFor` pedig a `socket://u:jelszó@gazdagép/út?db=x` címből
+**valódi `PGPASSWORD`-öt** állít a gyermeknek — a rejtés sémái viszont kézzel írt listából jöttek, és
+a `socket:` nem volt köztük. **MÉRVE: a cím betűre változatlanul ment át a rejtésen**, a jelszóval
+együtt. Mostantól a készlet a `PG_URL_SHAPES` kulcsaiból épül, és **szándékosan többet takar**, mint
+amit a feloldó elfogad: a rejtés soha nem szűkebb a befogadásnál.
+
+**(2) Az „általános" őröm egy függvényre volt általános** (`KUKA-414` második fele). Az `aq8`
+a minta-függő horgonyokat a lap forrásából vezette le — de csak a `tablePage()`-ből, és csak **betű
+szerinti** egyezéssel. A `stockCardPage()` és a `movementsPage()` ugyanúgy korán tér vissza az üres
+állapottal; a `sample-document`/`-full`/`sample-supplier` horgony pedig **dinamikusan** születik
+(`data-testid="sample-${kulcs}"`) egy olyan segédben, amit a tábla-lap a korai visszatérés **után**
+hív. **Négy további útmutató** maradt deklaráció nélkül, a zöld őr mellett. A javítás kettős: a
+letapogató minden üres-állapotos lap-függvényt és a régióból hívott segédeket is olvassa, **és amit a
+forrás betű szerint nem mutat meg, azt VISELKEDÉS méri** — élő böngészőben, a minta nélküli
+vállalkozásban mindaz, amit a kiszolgáló felkínál, végigvihető.
+
+**(3) A mérce azt kérdezte, hogy a kért azonosító megvan-e — nem azt, hogy más is** (`KUKA-415`). Egy
+összefűzött átirat (a kért **és** egy idegen azonosító) így átment, az exportáló pedig `sessionId`
+szerint nem szűr: a másik munkamenet fogyasztása **némán a kért nevére** került. Mostantól a kérdés a
+**tiltott** elemre szól: van-e benne idegen.
+
+**ÉS NÉGY MEGLÉVŐ PINT IGAZÍTANI KELLETT — EGYIKET SEM GYENGÍTVE:**
+· `aq5` a **mai, erősebb** alakot állítja, és a régit kifejezetten **tiltja**;
+· `aq6`/`aq7` kapuzott készlete a **regiszterből** jön, nem három leírt névből (`KUKA-045`);
+· `al2` jelenete megkapta a **minta tényét** — az a csoport a készlet-jog kapuját méri, nem a mintáét;
+· `ap9` és a `KUKA-404`/`KUKA-407` gépi jele a **mai otthonra** mutat (a bejáró közös modulba került).
+
+**Gépi jel:** `npm run verify:app-findings-r154` — **AR csoport** (ar1–ar8) · `npm run verify:kuka` ·
+`npm run verify:browser-gate` (**R166-MK0…MK2**, a viselkedés-őr) · `npm run verify:fogyasztas-meres`.
+**Visszacsúszás-próba mérve, mind a háromra:** a séma-készletet visszaírva az `ar1`+`ar2` **piros**; a
+régi átirat-mércét visszatéve az `aq5`+`ar4` **piros**, és a vegyes átirat **0-val átmegy**; egy
+deklarációt kivéve az `ar6` **piros**; a letapogatót egy függvényre szűkítve az `aq8`+`ar7` **piros**.
+
+**KUKA-414** · **KUKA-415**
+
+---
+
 ## D-VS-3208 — EGY HATÁR CSAK A SAJÁT NYELVTANÁBAN HATÁR, ÉS AZ ELŐFELTÉTELT A DARAB DEKLARÁLJA (R166, négy külső P2)
 
 **A NÉGY LELET MIND A SAJÁT, EBBEN A KÖRBEN ÉPÍTETT MUNKÁMBAN**, és kettő **közvetlenül egy korábbi

@@ -162,9 +162,21 @@ if (explicitFile) {
    * ellenőrzés megelőzni hivatott.
    *
    * A MÉRCE HÁROM ÁLLAPOTÚ, mert a fájl nem feltétlenül hordoz azonosítót:
-   *   · a tartalom a KÉRT azonosítót hordozza  → elfogadva (a fájlnév nem is kell)
-   *   · a tartalom MÁS azonosítót hordoz, a kértet nem → ELLENTMONDÁS, elakadás (a fájlnév NEM ment föl)
+   *   · a tartalom CSAK a KÉRT azonosítót hordozza → elfogadva (a fájlnév nem is kell)
+   *   · a tartalom BÁRMILYEN MÁS azonosítót is hordoz → ELLENTMONDÁS, elakadás (a fájlnév NEM ment föl)
    *   · a tartalom EGYETLEN azonosítót sem hordoz → a fájlnév dönt (visszafelé-kompatibilitás)
+   *
+   * ÉS A VEGYES ÁTIRAT IS ELLENTMONDÁS (R166, KÜLSŐ REVIEW, Codex, HETEDIK KÖR, P2 · `KUKA-415`).
+   *
+   * A LELET: az első alakom azt kérdezte, hogy a kért azonosító MEGVAN-E — és ha megvolt, nem
+   * kérdezte meg, hogy MÁS is megvan-e. Egy ÖSSZEFŰZÖTT vagy szennyezett átiratban (a kért
+   * azonosító ÉS egy másik is szerepel) a mérce tehát átengedett, az exportáló pedig a sorokat
+   * `sessionId` szerint NEM szűri: a MÁSIK munkamenet fogyasztása némán a kért munkamenet nevére
+   * került. Ugyanaz a félre-attribuálás, egy ággal beljebb.
+   *
+   * MOSTANTÓL a halmaznak ÜRESNEK vagy PONTOSAN a kért azonosítót tartalmazónak kell lennie —
+   * a kérdés nem „megvan-e a kért", hanem „VAN-E BENNE MÁS" (`KUKA-049`: a bizonytalanság nem a
+   * megengedő ág).
    */
   const elso = readFileSync(found[0].path, 'utf8').split('\n').filter((l) => l.trim()).slice(0, 50);
   const talaltAzonositok = new Set();
@@ -173,13 +185,16 @@ if (explicitFile) {
   }
   const nevEgyezik = basename(found[0].path) === `${session}.jsonl`;
   const tartalomEgyezik = talaltAzonositok.has(session);
-  const tartalomEllentmond = !tartalomEgyezik && talaltAzonositok.size > 0;
+  const idegenAzonositok = [...talaltAzonositok].filter((x) => x !== session);
+  const tartalomEllentmond = idegenAzonositok.length > 0;
 
   if (tartalomEllentmond) {
-    console.error(`A MEGADOTT ÁTIRAT TARTALMA MÁS MUNKAMENETÉ: --session ${session}`);
-    console.error(`  a fájl: ${safeErrPath(found[0].path)}${nevEgyezik ? ' (a NEVE egyezik, a TARTALMA viszont nem — átmásolt vagy felülírt fájl)' : ''}`);
+    console.error(`A MEGADOTT ÁTIRAT ${tartalomEgyezik ? 'IDEGEN SOROKAT IS HORDOZ' : 'TARTALMA MÁS MUNKAMENETÉ'}: --session ${session}`);
+    console.error(`  a fájl: ${safeErrPath(found[0].path)}${nevEgyezik ? ' (a NEVE egyezik, a TARTALMA viszont nem csak ezé a munkamenetté — átmásolt, felülírt vagy ÖSSZEFŰZÖTT fájl)' : ''}`);
     console.error(`  az első 50 sorában talált azonosító(k): ${[...talaltAzonositok].join(' · ')}`);
-    console.error('  A fájlnév NEM ment föl: a rossz hozzárendelés rosszabb, mint a hiányzó leltár.');
+    console.error(`  ebből IDEGEN: ${idegenAzonositok.join(' · ')}`);
+    console.error('  A fájlnév NEM ment föl, és a kért azonosító JELENLÉTE sem: az exportáló a sorokat');
+    console.error('  `sessionId` szerint NEM szűri, tehát az idegen sorok a kért munkamenet nevére kerülnének.');
     process.exit(2);
   }
   if (!nevEgyezik && !tartalomEgyezik) {

@@ -27,7 +27,7 @@
 // Kilépési kód: 0 = minden állítás PASS · 1 = MÉRT hibát talált · 2 = a mérés elakadt.
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { rmSync, readFileSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { rmSync, readFileSync, mkdtempSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { startServer, makeRateLimiter, makeSessionStore, sessionLimits, SESSION_LIMITS, rateLimitConfig,
   clientAddressOf, clientIpOf, CLIENT_IP_HEADERS, PROXY_WITHOUT_ADDRESS_PREFIX,
@@ -3021,7 +3021,10 @@ try {
   // „mindent elrejtek" is lehetne (KUKA-091).
   {
     part('AL) R166 — a felkínálás az ÉLŐ feltételhez kötött: levél-fogadó és készlet-jog (külső review, P2)');
-    const alap = { signed_in: true, book_id: 'b_firm', member: true, role: 'admin', personal: false, demo: true };
+    // A JELENET MEGKAPJA A KIOSZTOTT MINTA TÉNYÉT is (R166, hetedik kör): ez a csoport a LEVÉL-FOGADÓ
+    // és a KÉSZLET-JOG kapuját méri — a minta-kapu (`KUKA-413` · `KUKA-414`) a saját csoportjában áll.
+    // A sor nem gyengül: a `stock_access: false` ág továbbra is ZÁRJA a két készlet-útmutatót.
+    const alap = { signed_in: true, book_id: 'b_firm', member: true, role: 'admin', personal: false, demo: true, demo_fixture: true };
     const levelNelkul = allowedToursFor({ ...alap, dev_mailbox: false, stock_access: true });
     const levellel = allowedToursFor({ ...alap, dev_mailbox: true, stock_access: true });
     const jogNelkul = allowedToursFor({ ...alap, dev_mailbox: true, stock_access: false });
@@ -3280,7 +3283,10 @@ try {
     // (d) A KIJELENTKEZÉS-ÚTMUTATÓ NEM VESZÍTI EL A CÉLJÁT, és a BEJÁRÓ azt nyomja, amit az ember.
     const logoutTour = TOURS['tour.logout'];
     const logoutCelok = logoutTour.steps.map((x) => x.target);
-    const jaroSrc = readFileSync(join(ROOT, 'tests/e2e/v3app-r166-utmutatok.spec.mjs'), 'utf8');
+    // A BEJÁRÓ KÖZÖS OTTHONBA KERÜLT (R166, hetedik kör · `KUKA-003`): a minta-kapu viselkedés-őre
+    // UGYANEZT futtatja, ezért a pin a MAI otthonra mutat. A szabály nem változott — ERŐSEBB lett,
+    // mert most két próba-lap ugyanazt a szigorítást használja.
+    const jaroSrc = readFileSync(join(ROOT, 'tests/e2e/tourWalk.mjs'), 'utf8');
     step('(ap8) R166/P2: a kijelentkezés-útmutató NEM lép ki a profil-menüből — nincs benne navigáló lépés, ami elvinné a `logout` horgonyt (RÉGEN: a középső lépés a biztonsági lapra vitt, a `go()` bezárta a menüt, és a harmadik lépés nevezetten megszakadt)',
       logoutCelok.join(',') === 'profile,logout'
       && !logoutCelok.includes('profile-menu-security'),
@@ -3359,24 +3365,30 @@ try {
     // (c) AZ ÁTIRAT-ELLENŐRZÉS A TARTALMAT IS MEGKÉRDEZI, HA A FÁJLNÉV EGYEZIK.
     const exportQ = readFileSync(join(ROOT, 'tools/v3_fogyasztas_export.mjs'), 'utf8');
     step('(aq5) R166/P2: az átirat-ellenőrzés HÁROM állapotú — a beágyazott azonosító ELLENTMONDÁSA elakadás akkor is, ha a FÁJLNÉV egyezik; a hiánya viszont megengedi a fájlnév-alapot (RÉGEN: a név-egyezés KIHAGYTA a tartalom-ellenőrzést, és egy átmásolt fájl MÁS munkamenet fogyasztását címkézte a kértnek)',
-      /const tartalomEllentmond = !tartalomEgyezik && talaltAzonositok\.size > 0;/.test(exportQ)
+      // A MAI, ERŐSEBB alak: az ellentmondás az IDEGEN azonosító jelenléte (a hetedik kör leletével —
+      // a vegyes átirat is ellentmondás, `KUKA-415`). A RÉGI, gyengébb alakot kifejezetten TILTJUK.
+      /const tartalomEllentmond = idegenAzonositok\.length > 0;/.test(exportQ)
+      && !/const tartalomEllentmond = !tartalomEgyezik && talaltAzonositok\.size > 0;/.test(exportQ)
       && /if \(tartalomEllentmond\) \{/.test(exportQ)
       && /TARTALMA MÁS MUNKAMENETÉ/.test(exportQ)
       && !/if \(!nevEgyezik\) \{\n    const elso/.test(exportQ),
-      { harom_allapot: 'egyezik · ellentmond · nem hordoz' });
+      { harom_allapot: 'csak a kért · idegen is (elakadás) · nem hordoz' });
 
     // (d) A MINTAADATHOZ KÖTÖTT TÁBLA-ÚTMUTATÓK KAPUJA — MINDKÉT IRÁNYBAN.
     const alapQ = { signed_in: true, book_id: 'b_firm', member: true, role: 'admin', personal: false, demo: true };
-    const TABLA = ['tour.warehouses', 'tour.processes', 'tour.products'];
+    // A KAPUZOTT KÉSZLET A REGISZTERBŐL JÖN, NEM BEÍRT NÉVSORBÓL (R166, hetedik kör · `KUKA-045`).
+    // Az első alakom három nevet írt le — a hetedik kör NÉGY TOVÁBBIT talált, és a beírt névsor
+    // ezeket nem fedte. Mostantól a lista MAGA a deklaráció: egy jövőbeli kapuzott útmutató is mérve van.
+    const TABLA = Object.values(TOURS).filter((t) => t.requires_demo_fixture === true).map((t) => t.id);
     const mintaval = allowedToursFor({ ...alapQ, demo_fixture: true, dev_mailbox: true, stock_access: true });
     const minta_nelkul = allowedToursFor({ ...alapQ, demo_fixture: false, dev_mailbox: true, stock_access: true });
-    step('(aq6) R166/P2: kiosztott bemutató-minta NÉLKÜL a három tábla-útmutató NEM kínálódik fel (RÉGEN: minden céges tagnak felkínálódott, a HARMADIK vállalkozásban viszont a lap az ÜRES ÁLLAPOTOT rajzolja, és a második lépés nevezetten megszakadt)',
+    step('(aq6) R166/P2: kiosztott bemutató-minta NÉLKÜL a MINTÁHOZ KÖTÖTT útmutatók közül EGY SEM kínálódik fel (a készlet a regiszterből) (RÉGEN: minden céges tagnak felkínálódott, a HARMADIK vállalkozásban viszont a lap az ÜRES ÁLLAPOTOT rajzolja, és a második lépés nevezetten megszakadt)',
       TABLA.every((t) => !minta_nelkul.includes(t)) && TABLA.every((t) => mintaval.includes(t)),
       { minta_nelkul: TABLA.filter((t) => minta_nelkul.includes(t)).join(',') || 'egyik sem',
         mintaval: TABLA.filter((t) => mintaval.includes(t)).length });
 
     const maradekQ = (lista) => lista.filter((t) => !TABLA.includes(t)).sort().join(',');
-    step('(aq7) R166/P2 ELLENPÁR: a minta-kapu CSAK a három tábla-útmutatót zárja — a többi felkínált készlet betűre változatlan',
+    step('(aq7) R166/P2 ELLENPÁR: a minta-kapu CSAK a mintához kötött útmutatókat zárja — a többi felkínált készlet betűre változatlan',
       maradekQ(minta_nelkul) === maradekQ(mintaval) && maradekQ(mintaval).length > 0,
       { tobbi_darab: maradekQ(mintaval).split(',').length });
 
@@ -3389,11 +3401,42 @@ try {
      * (KUKA-045), nem beírt névsorból: egy JÖVŐBELI tábla-horgony is automatikusan fedve van.
      */
     const lapQ = readFileSync(join(ROOT, 'v3app/public/app.js'), 'utf8');
-    const tpKezd = lapQ.indexOf('function tablePage(page)');
-    const tpUresAg = lapQ.indexOf('noDemoBox();', tpKezd);
-    const tpVeg = lapQ.indexOf('\n  function ', tpUresAg);
-    const mintaFuggo = new Set((lapQ.slice(tpUresAg, tpVeg > tpUresAg ? tpVeg : tpUresAg + 2000)
-      .match(/data-testid="([a-z0-9-]+)"/g) || []).map((x) => (/data-testid="([a-z0-9-]+)"/.exec(x) || [])[1]).filter(Boolean));
+    /**
+     * A LETAPOGATÓ MINDEN LAP-FÜGGVÉNYT OLVAS, ÉS A HÍVOTT SEGÉDET IS (R166, HETEDIK KÖR · `KUKA-414`).
+     *
+     * AZ ELSŐ ALAKOM CSAK a `tablePage()`-et nézte — a `stockCardPage()` és a `movementsPage()`
+     * ugyanúgy korán tér vissza az ÜRES ÁLLAPOTTAL, és azokat kihagyta (`KUKA-239`). A függvény-lista
+     * ezért a FORRÁSBÓL jön: minden `function` blokk, amiben `noDemoBox()` szerepel. ÉS a
+     * minta-függő szakaszból HÍVOTT segéd horgonyai is ide tartoznak (a `serverSamples(page)` a
+     * korai visszatérés UTÁN áll) — különben a `sample-*` horgonyok láthatatlanok maradnak.
+     *
+     * AMIT EZ A LETAPOGATÓ NEM TUD, ÉS EZT KIMONDJUK: a DINAMIKUS horgonyt
+     * (`data-testid="sample-${'$'}{kulcs}"`) betű szerint nem látja. Azt a VISELKEDÉS mérése fogja meg
+     * (`tests/e2e/v3app-r166-minta-kapu.spec.mjs` — a kiosztott minta NÉLKÜLI vállalkozásban MINDAZ,
+     * amit a kiszolgáló felkínál, végigvihető). Ez a pin tehát a KÖNNYŰ felét méri, és a `(ar6)` sor
+     * mondja ki, hogy a nehezebb felének van élő tanúja.
+     */
+    const fnPoz = [...lapQ.matchAll(/\n  function ([A-Za-z0-9_]+)\(/g)].map((m) => ({ poz: m.index, nev: m[1] }));
+    const mintaFuggo = new Set();
+    const hivottSegedek = new Set();
+    fnPoz.forEach((f, i) => {
+      const veg = i + 1 < fnPoz.length ? fnPoz[i + 1].poz : lapQ.length;
+      const test = lapQ.slice(f.poz, veg);
+      const ag = test.indexOf('noDemoBox()');
+      if (ag < 0) return;
+      const regio = test.slice(ag);
+      for (const m of regio.matchAll(/data-testid="([a-z0-9-]+)"/g)) mintaFuggo.add(m[1]);
+      // A RÉGIÓBÓL HÍVOTT SAJÁT SEGÉDEK (a lap függvényei) horgonyai is minta-függők.
+      for (const m of regio.matchAll(/([A-Za-z0-9_]+)\(/g)) {
+        if (fnPoz.some((x) => x.nev === m[1]) && m[1] !== f.nev) hivottSegedek.add(m[1]);
+      }
+    });
+    for (const nev of hivottSegedek) {
+      const i = fnPoz.findIndex((x) => x.nev === nev);
+      if (i < 0) continue;
+      const veg = i + 1 < fnPoz.length ? fnPoz[i + 1].poz : lapQ.length;
+      for (const m of lapQ.slice(fnPoz[i].poz, veg).matchAll(/data-testid="([a-z0-9-]+)"/g)) mintaFuggo.add(m[1]);
+    }
     const deklaracioNelkul = [];
     for (const t of Object.values(TOURS)) {
       for (const lep of t.steps) {
@@ -3457,6 +3500,82 @@ try {
     const egyezoNev = [...nevSzam.entries()].filter(([, n]) => n > 1).map(([n]) => n.slice(0, 50));
     step('(am4) KUKA-399: két pin SZÓ SZERINT azonos nevet sem visz — az ismétlődő azonosító (pl. a hurkos `(b1)`) a BEMENETÉT írja a nevébe',
       egyezoNev.length === 0, { pin: nevek.length, egyezo_nev: egyezoNev.join(' | ') || 'egy sincs' });
+  }
+
+  // ── AR) R166 HETEDIK KÖR — HÁROM KÜLSŐ P2 A SAJÁT JAVÍTÁSAIM FELETT ─────────────────────────────
+  {
+    part('AR) R166 hetedik kör — a befogadott séma rejtése · a vegyes átirat · a minta-kapu teljes készlete');
+
+    /**
+     * (1) A REJTÉS SÉMA-KÉSZLETE A BEFOGADOTT SÉMÁKBÓL JÖN (`KUKA-414` első fele).
+     *
+     * A LELET: a `socket://u:JELSZÓ@gazdagép/út?db=x` cím a `pgUrlShape` zárt listáján ÁT MEGY, a
+     * `cliEnvFor` VALÓDI `PGPASSWORD`-öt állít belőle a gyermeknek — a rejtés sémái viszont BEÍRT
+     * névsorból jöttek, és a `socket:` nem volt köztük. MÉRVE: a cím betűre változatlanul ment át.
+     */
+    const socketCim = 'socket://felhasznalo:TITKOS_JELSZO@localhost/var/run/postgresql?db=forras';
+    const socketSor = redactConnStrings(`psql ${socketCim} -f ki.dump`);
+    step('(ar1) KUKA-414: a BEFOGADOTT `socket:` séma kapcsolati címe is ELREJTVE (RÉGEN: betűre változatlanul ment át, a jelszóval együtt)',
+      !socketSor.includes('TITKOS_JELSZO') && socketSor.includes('«kapcsolati cím elrejtve»') && socketSor.includes('-f ki.dump'),
+      { kimenet: socketSor.replace('TITKOS_JELSZO', '<<JELSZO>>') });
+
+    /**
+     * ELLENPÁR: a készlet a ZÁRT LISTÁBÓL jön, nem beírt névsorból — tehát MINDEN befogadott séma
+     * rejtve van, és a rejtés nem szűkebb a befogadásnál (`KUKA-045`).
+     */
+    const befogadott = Object.keys(PG_URL_SHAPES);
+    const nemRejtett = befogadott.filter((sema) => redactConnStrings(`psql ${sema}//u:TITOK@h/db`).includes('TITOK'));
+    step('(ar2) KUKA-414 ELLENPÁR: a `PG_URL_SHAPES` MINDEN befogadott sémája rejtve van — a rejtés soha nem szűkebb a befogadásnál',
+      nemRejtett.length === 0 && befogadott.length >= 3,
+      { befogadott: befogadott.join(' · '), nem_rejtett: nemRejtett.join(' · ') || 'egy sincs' });
+
+    step('(ar3) KUKA-414: és a titokmentes sor BETŰRE változatlan (a szigorítás nem vitt el hasznos szöveget)',
+      redactConnStrings('psql -h /var/run/postgresql -d vs_proba -c "SELECT 1"') === 'psql -h /var/run/postgresql -d vs_proba -c "SELECT 1"');
+
+    /**
+     * (2) A VEGYES ÁTIRAT IS ELLENTMONDÁS (`KUKA-415`).
+     *
+     * A LELET: a mércém azt kérdezte, hogy a kért azonosító MEGVAN-E — nem azt, hogy MÁS is. Egy
+     * összefűzött átirat (a kért ÉS egy idegen azonosító) így átment, az exportáló pedig `sessionId`
+     * szerint NEM szűr: az idegen sorok a kért munkamenet nevére kerültek volna.
+     */
+    const expSrc = readFileSync(join(ROOT, 'tools/v3_fogyasztas_export.mjs'), 'utf8');
+    step('(ar4) KUKA-415: az átirat-mérce azt kérdezi, hogy van-e benne IDEGEN azonosító (nem azt, hogy a kért MEGVAN-E)',
+      /idegenAzonositok\s*=\s*\[\.\.\.talaltAzonositok\]\.filter\(\(x\)\s*=>\s*x\s*!==\s*session\)/.test(expSrc)
+      && /tartalomEllentmond\s*=\s*idegenAzonositok\.length\s*>\s*0/.test(expSrc)
+      && !/tartalomEllentmond\s*=\s*!tartalomEgyezik\s*&&/.test(expSrc),
+      { regi_alak_bent_maradt: /tartalomEllentmond\s*=\s*!tartalomEgyezik\s*&&/.test(expSrc) });
+
+    step('(ar5) KUKA-415: és az elakadás KIMONDJA, melyik azonosító az idegen — a „megvan a kért" nem ment föl',
+      /ebből IDEGEN/.test(expSrc) && /IDEGEN SOROKAT IS HORDOZ/.test(expSrc) && /`sessionId` szerint NEM szűri/.test(expSrc));
+
+    /**
+     * (3) A MINTA-KAPU TELJES KÉSZLETE, ÉS A NEHEZEBB FELÉNEK ÉLŐ TANÚJA (`KUKA-414` második fele).
+     *
+     * A LELET: négy TOVÁBBI útmutató (`documents` · `partners` · `stockcard` · `movements`) állt
+     * minta-függő horgonyon deklaráció nélkül. Kettőt a kiterjesztett letapogató (`aq8`) megfog, a
+     * `sample-*` kettőt NEM — azok DINAMIKUSAN születnek. Ezért a nehezebb fele VISELKEDÉS-mérés.
+     */
+    const NEGY = ['tour.documents', 'tour.partners', 'tour.stockcard', 'tour.movements'];
+    const deklaralatlan = NEGY.filter((id) => !TOURS[id] || TOURS[id].requires_demo_fixture !== true);
+    step('(ar6) KUKA-414: a hetedik kör NÉGY útmutatója is DEKLARÁLJA a `requires_demo_fixture` feltételt',
+      deklaralatlan.length === 0, { deklaralatlan: deklaralatlan.join(' · ') || 'egy sincs' });
+
+    const ures = readFileSync(join(ROOT, 'v3app/public/app.js'), 'utf8');
+    const uresAgasFn = [...ures.matchAll(/\n  function ([A-Za-z0-9_]+)\(/g)]
+      .map((m, i, arr) => ({ nev: m[1], poz: m.index, veg: i + 1 < arr.length ? arr[i + 1].index : ures.length }))
+      .filter((f) => ures.slice(f.poz, f.veg).includes('noDemoBox()')).map((f) => f.nev);
+    step('(ar7) KUKA-414: az `aq8` letapogatója MINDEN üres-állapotos lap-függvényt olvas (RÉGEN: csak a `tablePage`-et — KUKA-239)',
+      uresAgasFn.length >= 3 && /fnPoz\.forEach/.test(readFileSync(join(ROOT, 'v3app/findings_r154.mjs'), 'utf8')),
+      { ures_agas_fuggvenyek: uresAgasFn.join(' · ') });
+
+    const viselkedesProba = join(ROOT, 'tests/e2e/v3app-r166-minta-kapu.spec.mjs');
+    const vanProba = existsSync(viselkedesProba);
+    const probaSzoveg = vanProba ? readFileSync(viselkedesProba, 'utf8') : '';
+    step('(ar8) KUKA-414: a DINAMIKUS horgonyra VISELKEDÉS-mérés áll (a minta nélküli vállalkozásban MINDAZ, amit a kiszolgáló felkínál, végigvihető) — és a próba a KÖZÖS bejárót futtatja',
+      vanProba && /requires_demo_fixture/.test(probaSzoveg) && /from '\.\/tourWalk\.mjs'/.test(probaSzoveg)
+      && /switchUI\(anna\.page, elsoBook\)/.test(probaSzoveg),
+      { proba: vanProba ? 'tests/e2e/v3app-r166-minta-kapu.spec.mjs' : 'NINCS' });
   }
 
   const fail = results.filter((r) => !r.pass);
