@@ -15,8 +15,8 @@ korábbi körök számai **történeti adatok**, nem végállapot — ahol elté
 | **KÓD-SHA (a csomag feje)** | `76378f3` — a `b31d8c9` (R158 záró feje) LESZÁRMAZOTTJA. A csomag R164-es commitjai, sorban: `a7f8f2d` (R164/1) · `c49699c` (lefedettség) · `9cc59e9` (átadás + külső-ellenőrző bekötés) · `98ec598` · `8d9800d` · `63b2a28` (1. review-kör, 12 lelet) · `cb56faa` (a 13.) · `1a9fe84` (az M222 túlélése) · `8f14ca9` (2. review-kör, 9 lelet) · `0cd38a2` (a KUKA-383 mérése) · `c2cccd1` (az U04 darabszáma mérésből) · `3cb8364` (a böngészős kapu MÉRT verdiktje) · `cbaec96` (3. kör) · `def18b8` (r83core 7/7) · `1d6661f` (4. kör) · `7a78009` (r81core 15/15 · r79core 18/18) · `72aa8bd` (5. kör) · `9dc0356` (r79 4/4) · `76378f3` (6. kör) |
 | **EREDMÉNY-HORDOZÓ FEJ** | **KÉT fej, és ezt kimondjuk.** A rövid láncok verdiktjei a mai fejen (`76378f3`) frissen mérve — az 1.1 tábla sorai. A három HOSSZÚ lánc (böngészős kapu · mag-mutációs battéria · külső-ellenőrző) a `c2cccd1` fejen futott, a csomag végén, önállóan; a köztük és a mai fej közötti **különbség NEVEZETT**: a 3., 4., 5. és 6. review-kör javításai, az r83core/r81core/r79core/r79 bizonyíték-fájljai, és a lefedettség-leltár. A böngészős kaput ezért a mai fejen **ÚJRA futtattam, és ZÖLD** (836 s, 122/0/0/0) — az 1.1 tábla sora |
 | **MÉRÉS IDEJE** | 2026-10-07, 04:40 UTC → a csomag zárása (a `--from` a parancs board-időbélyege). A hosszú láncok: a böngészős kapu 09:35 és (újra) 11:50 UTC · a mag-battéria 09:49 UTC · a külső-ellenőrző 10:04 UTC |
-| **A REVIEW ÁLTAL FEDETT SHA** | `9dc0356` — a külső fél **hat körben** mért, eddig a fejig. **A mai fejnek (`76378f3`) NINCS új, független review-bizonyítéka** |
-| **FÜGGETLEN REVIEW ÁLLAPOTA** | **FÜGGŐ a mai fejre.** A korábbi limit feloldódott; a limit időszaka és visszaállása az üzenetből **nem bizonyított**, ezért nem nevezem meg (6. szakasz). A **hat kör 30 megjegyzése** mind javítva, mért bizonyítékkal, és **mind a 30 szál megválaszolva és lezárva** — a PR-on ma **nincs nyitott review-szál** (7. szakasz) |
+| **A REVIEW ÁLTAL FEDETT SHA** | `76378f3` — a külső fél **hét körben** mért, eddig a fejig. **A mai fejnek NINCS új, független review-bizonyítéka** |
+| **FÜGGETLEN REVIEW ÁLLAPOTA** | **FÜGGŐ a mai fejre.** A korábbi limit feloldódott; a limit időszaka és visszaállása az üzenetből **nem bizonyított**, ezért nem nevezem meg (6. szakasz). A **hét kör 31 megjegyzése** mind javítva, mért bizonyítékkal, és **mind a 31 szál megválaszolva és lezárva** — a PR-on ma **nincs nyitott review-szál** (7. szakasz) |
 | **ÖSSZVERDIKT** | **helyi ellenőrzések kész / független review FÜGGŐ**, EGY nevezett piros lánccal (a külső-ellenőrző: lásd lentebb és az 5.3 pontot). Ez **NEM merge-készség** — nincs merge, nincs lezárás |
 | **A MARADÉK RÉS** | **A külső-ellenőrző lánc NEM teljes.** A 19 program közül 14 futott le (13 MEGFELEL · 1 ELTÉRÉS: `r59a`, időtúllépés), **5 NEM FUTOTT** (`r57a` · `r59` · `r57` · `r55` · `r53`) — tehát NEM IGAZOLT, nem zöld (KUKA-200 · KUKA-206). A `verify:lefedes` 20 hiány-kulcsa nevesítve áll (1.2–1.3). Az ÁTÁLLÁSI alapállás-mentés és a valódi szolgáltatói AI-mérés továbbra is nyitott (8. szakasz) |
 | **FOGYASZTÁS (a csomag ablakán)** | **992 hívás** · fő-szál kontextusmedián **388 389,5** (max 783 667) · ügynök-bemenet **0** (nulla al-ügynök) · lefedettség: **teljes** (1 átirat, 2408 hívás, minden válasz usage-dzsal). A mérő sávja a záráskor: **FIGYELMEZTETÉS** (`300–400 ezer`). **DE a határt a munkablokk KÖZBEN átléptük**, és ezt kimondom: **483 hívás futott 400 ezer fölött**, és egy korábbi, ugyanerre az ablakra mért pillanatkép **407 559**-et adott (VÁLTÁS). A medián tehát a sávhatáron áll. A **következtetést a szigorúbb olvasat szerint** vontam le: a lezárás **célzott** ellenőrzés, új feltárás és opcionális teljes söprés nélkül, és a **következő önálló nagy blokk friss beszélgetésben induljon** (`D-VS-3083`) |
@@ -25,7 +25,7 @@ korábbi körök számai **történeti adatok**, nem végállapot — ahol elté
 
 | lánc | verdikt | mit mondott |
 |---|---|---|
-| `verify:kuka` | **ZÖLD** | **856/856** (a csomag **47** új bejegyzése: `KUKA-345…391`) |
+| `verify:kuka` | **ZÖLD** | **859/859** (a csomag **48** új bejegyzése: `KUKA-345…392`) |
 | `verify:i18n` | **ZÖLD** | 49/49 · ellenpróba 6/6 |
 | `verify:tutor` | **ZÖLD** | 92/92 · ellenpróba 14/14 |
 | `verify:assistant` | **ZÖLD** | 55/55 · ellenpróba 6/6 |
@@ -34,12 +34,12 @@ korábbi körök számai **történeti adatok**, nem végállapot — ahol elté
 | `verify:app-findings-r79` | **ZÖLD** | 49/49 |
 | `verify:app-findings-r91` | **ZÖLD** | 30/30 |
 | `verify:app-findings-r144` | **ZÖLD** | 30/30 |
-| `verify:app-findings-r154` | **ZÖLD** | **240/240** — az új **AB** (R164/1 döntései), **AC** (az O(1)-es felvétel hívás-számon), **AD** (a látogató-cím), **AE** (a 2. kör tiszta döntései), **AF** (fordítható elutasítások), **AG** (a memória és a tároló EGY helyen ürül), **AH** (a személyes tér) csoporttal, és a **U** csoport a felület-feltétel négy ellenpárjával (u1 · u2 · u7 · u8 · u9) |
+| `verify:app-findings-r154` | **ZÖLD** | **240/240** — az új **AB** (R164/1 döntései), **AC** (az O(1)-es felvétel hívás-számon), **AD** (a látogató-cím), **AE** (a 2. kör tiszta döntései), **AF** (fordítható elutasítások), **AG** (a memória és a tároló EGY helyen ürül), **AH** (a személyes tér: ah1–ah5) csoporttal, és a **U** csoport a felület-feltétel négy ellenpárjával (u1 · u2 · u7 · u8 · u9). A battéria mai állása: **242/242** |
 | `app:selfcheck` | **ZÖLD** | 57/57 |
 | `verify:doc-html` | **ZÖLD** | 9/9 |
 | `verify:artifact-naming` | **ZÖLD** | **28/28** — ez a csomag alatt **PIROS volt** (a generált célnév kézzel vágta az időbélyeget); a javítás a 7.5 pontban |
 | `verify:release-order` | **ZÖLD** | 37/37 |
-| `verify:decision-numbers` | **ZÖLD** | 4/4 (a következő szabad szám: **D-VS-3200**) |
+| `verify:decision-numbers` | **ZÖLD** | 4/4 (a következő szabad szám: **D-VS-3201**) |
 | `verify:unit-admission` | **ZÖLD** | 16 ellenpélda · 1 pozitív kontroll |
 | `verify:sweep-reuse` | **ZÖLD** | 43/43 |
 | `verify:fogyasztas-meres` | **ZÖLD** | 18/18 ellenpróba |
@@ -356,7 +356,7 @@ megjegyzés**, mind valós, mind javítva, mind megválaszolva és **lezárva** 
 
 ---
 
-## 7. A HAT REVIEW-KÖR — A CODEX 30 LELETE, A CSOMAG SAJÁT JAVÍTÁSAI FELETT
+## 7. A HÉT REVIEW-KÖR — A CODEX 31 LELETE, A CSOMAG SAJÁT JAVÍTÁSAI FELETT
 
 A limit feloldódása után a külső fél a **mostani** csomag friss kódját mérte, **két körben**. Ez a
 legértékesebb fajta visszajelzés, és ennek megfelelően a leletek többsége **az én ebben a csomagban
@@ -450,10 +450,11 @@ bejegyzés: a `KUKA-381` kapott egy új pozitív mintát erre a helyre.
 
 ---
 
-### 7.6 A HARMADIK–HATODIK KÖR — NYOLC TOVÁBBI P2, MIND JAVÍTVA
+### 7.6 A HARMADIK–HETEDIK KÖR — KILENC TOVÁBBI P2, MIND JAVÍTVA
 
-A review nem két körben állt le. A csomag minden feltöltése után ÚJ kör jött, és ez a négy kör a saját
-javításaim FÖLÉ talált — ezért tartozik ide, nem egy külön lapra (R164/4: EGY összesített jelentés).
+A review nem két körben állt le. A csomag minden feltöltése után ÚJ kör jött, és ez az ÖT kör a saját
+javításaim FÖLÉ talált — a hetedik éppen az eggyel korábbi javításom fölé — ezért tartozik ide, nem egy
+külön lapra (R164/4: EGY összesített jelentés).
 
 | kör | lelet | mit mondott | mi lett belőle |
 |---|---|---|---|
@@ -465,8 +466,9 @@ javításaim FÖLÉ talált — ezért tartozik ide, nem egy külön lapra (R164
 | 5. | P2 | **A lejárat olvasási törlése nem jutott el az indexhez** | `KUKA-389` · `D-VS-3197` — ami töröl, az írás: a feloldó „nincs folytatás" válaszára az index is ürül |
 | 6. | P2 | **A személyes térben felkínált üzleti bemutató** — a szűrő `item.page`-et olvasott, a három új útmutató `screen`-t deklarál, és a `shell` csoport sem volt tiltott | `KUKA-390` · `D-VS-3198` — a lap feloldása MINDKÉT mezőre áll, és a személyes tér ZÁRT lap-listából dönt (`PERSONAL_SCREENS`, a személyes menü mellett). Mérve: **AH** csoport, ah1–ah3 |
 | 6. | P2 | **A környezet jele felkínálta, a felület nem tudta végigvinni** — a két szereplő-váltó bemutatót a `VS_DEMO` kapuzta, a próbapad viszont a VALÓDI héjat futtatja, amiben nincs váltó vezérlő: a próba a `megszakadt:targetMissing` verdiktet írta elő ELVÁRT eredménynek, és a kötelező böngésző-kapu emellett ZÖLD maradt | `KUKA-391` · `D-VS-3199` — lásd lentebb |
+| 7. | P2 | **A javításom elrejtette az ELSŐ vállalkozás létrehozását** — a személyes tér lap-listáját a MENÜ lapjaival egyeztettem, pedig a `new` lap nem menüpont (a fiókváltó `ws-add` gombja nyitja): eltűnt az `account.add_business` súgója, a `prepare.business` művelete és a `tour.addBusiness` bemutató — pontosan ott, ahol az ember az ELSŐ vállalkozását létrehozza. **És a saját ellenpárom (`ah2`) a menühöz mért, tehát a hibás listát „helyesnek" MÉRTE.** | `KUKA-392` · `D-VS-3200` — a lista a kliens TELJES szabályából jön (a mindig elérhető lapok ÉS a menü uniója), a mindig elérhetők pedig a kliens **fájljából** mérve (`ah4`), és az új `ah5` a **kárra** mér, nem a listára |
 
-**A HATODIK KÖR MÁSODIK LELETE A LEGSÚLYOSABB A NÉGY KÖRBEN**, mert a *kapu* zöldjét érintette. Ahogy a
+**A HATODIK KÖR MÁSODIK LELETE A LEGSÚLYOSABB AZ ÖT KÖRBEN**, mert a *kapu* zöldjét érintette. Ahogy a
 reviewer írta: a mérés úgy ment át, hogy épp azt a hibát igazolta. A javítás nem a próbában van, hanem
 a felkínálásban:
 
@@ -485,10 +487,14 @@ a felkínálásban:
   — meghívó visszavonása · tag eltávolítása · visszahívás —, ezeket a próba a bemutató keretétől
   **függetlenül**, ugyanazokkal a nyugtákkal végzi el.
 
-**AMIT EZ A NÉGY KÖR MEGMUTAT RÓLAM.** Három különböző körben UGYANAZ a mechanizmus bukott el: egy
-szabályt egy helyen javítottam, a többi házát nem kereste meg gép (`KUKA-003`). A mai állás: a
-pozitív minták **fájl-listára** szólnak, tehát egy negyedik másolat is pirosat ad. Ez nem „jobban kell
-figyelni" — ez gépi jel.
+**AMIT EZ AZ ÖT KÖR MEGMUTAT RÓLAM — ÉS EZ A CSOMAG LEGFONTOSABB TANULSÁGA.** Három különböző körben
+UGYANAZ a mechanizmus bukott el: egy szabályt egy helyen javítottam, a többi házát nem kereste meg gép
+(`KUKA-003`). A mai állás: a pozitív minták **fájl-listára** szólnak, tehát egy újabb másolat is pirosat
+ad. Ez nem „jobban kell figyelni" — ez gépi jel.
+
+**ÉS KÉTSZER AZ ELLENPÁRAM IGAZOLTA A HIBÁT** (`KUKA-391` a próbában, `KUKA-392` a lelet-battériában):
+egy javítás ellenpárja nem az lehet, amiből a javítást levezettem — a **kár** felé kell mérni, nem a
+saját levezetésem felé. Ez a két bejegyzés együtt a csomag legdrágább tanulsága.
 
 ---
 

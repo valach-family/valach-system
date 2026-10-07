@@ -15120,6 +15120,32 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (három pozitív, egy tiltó minta) · `npm run verify:app-findings-r154` (U csoport: u1 bemutató-felület, u7 alkalmazás-héj, u8 kitalált név, u2 demó ki, u6 a két feltétel otthona, u9 a fájlból mérés) · `npm run verify:browser-gate` (a héj próbája a KIZÁRÁST méri, a bemutató lapja a VÉGIGVITELT).',
   }),
 
+  Object.freeze({
+    id: 'KUKA-392',
+    date: '2026-10-07',
+    title: 'A JAVÍTÁS ELREJTETTE AZ ELSŐ VÁLLALKOZÁS LÉTREHOZÁSÁT — MERT A LAP-LISTÁT A MENÜBŐL VEZETTEM LE, NEM A KLIENS SZABÁLYÁBÓL',
+    what: 'A KUKA-390 javításában a személyes tér elérhető lapjait a személyes MENÜ lapjaival egyeztettem (`PERSONAL_SCREENS` = `NAV_PERSONAL` lapjai). A `new` lap viszont NEM menüpont: a fiókváltó `ws-add` gombja nyitja, és a kliens `pageAvailable` feloldója NÉGY lapot ad meg MINDIG elérhetőként (`overview` · `new` · `profile` · `security`), a személyes körben is. Így a `visibleFeaturesFor`, az `allowedActionsFor` és az `allowedToursFor` elrejtette az `account.add_business` súgóját, a `prepare.business` műveletét és a `tour.addBusiness` bemutatót — PONTOSAN ott, ahol az ember az ELSŐ vállalkozását létrehozza.',
+    why_wrong: 'A MENÜ NEM A FELÜLET TELJES IGAZSÁGA (KUKA-227 · KUKA-003). A kliensnek KÉT szabálya van: a mindig elérhető lapok, ÉS a menü lapjai; én az egyiket vettem a kettő helyett. Rosszabb: az ellenpárom (`ah2`) a MENÜVEL egyeztetett, tehát a hibás listát „helyesnek" MÉRTE — a próba a hibát szentesítette, ugyanaz az alak, mint a KUKA-391-nél.',
+    replaced_by: 'A MÉRCE A KLIENS SZABÁLYA, NEM A MENÜ: `PERSONAL_SCREENS` a `ALWAYS_AVAILABLE_SCREENS` és a személyes menü lapjainak UNIÓJA. A „mindig elérhető" lista a `pageAvailable` első sorát tükrözi, és a próba a kliens FÁJLJÁBÓL olvassa ki ugyanazt a négy nevet.',
+    replacement: 'ÉS AZ ELLENPÁR A KÁRRA MÉR, NEM A LISTÁRA: a személyes körben a vállalkozás-létrehozás (`new`) elérhető, a `tour.addBusiness` felkínálódik és a `prepare.business` engedélyezett — miközben a könyv-hatókörű `members` továbbra sem elérhető.',
+    decision: 'D-VS-3200',
+    found_by: 'KÜLSŐ REVIEW (Codex, R164 — P2, a KUKA-390-es javításom FELETT, egy körrel később).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/knowledge/features.mjs']),
+        pattern: 'export const ALWAYS_AVAILABLE_SCREENS',
+        why: 'a mindig elérhető lapok NEVEZETT listája, a kliens szabályának tükre' }),
+      Object.freeze({ paths: Object.freeze(['v3app/knowledge/features.mjs']),
+        pattern: 'new Set\\(\\[\\.\\.\\.ALWAYS_AVAILABLE_SCREENS',
+        why: 'és a személyes lap-lista a KETTŐ uniója, nem csak a menü' }),
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r154.mjs']),
+        pattern: "const appJs = readFileSync\\(join\\(ROOT, 'v3app/public/app\\.js'\\), 'utf8'\\);",
+        why: 'a próba a KLIENS fájljából olvassa ki a mindig elérhető lapokat (ah4)' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'EGY JAVÍTÁS ELLENPÁRJA NEM AZ LEHET, AMIBŐL A JAVÍTÁST LEVEZETTEM. Ha a lista a menüből jön, és az ellenpár is a menühöz mér, akkor a mérés önmagát igazolja — a kár felé kell mérni: mit VESZÍT a felhasználó. És egy felület elérhetőségi szabálya ritkán EGY lista: a menün kívül is van út (keret-gomb, fiókváltó), tehát a kaput a kliens TELJES szabályához kell kötni, a kliens FÁJLJÁBÓL mérve.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (három pozitív minta) · `npm run verify:app-findings-r154` (ah2 az unió, ah4 a kliens fájljából mért lista, ah5 a kár ellenpárja: a személyes körben a vállalkozás-létrehozás elérhető).',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

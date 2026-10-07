@@ -16,6 +16,30 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3200 — A SZEMÉLYES TÉR LAP-LISTÁJA A KLIENS TELJES SZABÁLYÁBÓL JÖN, NEM A MENÜBŐL (R164 review, P2)
+
+**A döntés.** A személyes körben elérhető lapok listája (`PERSONAL_SCREENS`) a **mindig elérhető lapok**
+(`ALWAYS_AVAILABLE_SCREENS` — a kliens `pageAvailable` feloldójának első sora: `overview` · `new` ·
+`profile` · `security`) és a **személyes menü** lapjainak **uniója**. A „mindig elérhető" listát a
+próba a kliens **fájljából** olvassa ki, tehát nem lehet elhinni, csak mérni.
+
+**Miért.** A `D-VS-3198` javításban a listát a személyes MENÜ lapjaival egyeztettem. A `new` lap
+viszont nem menüpont: a fiókváltó `ws-add` gombja nyitja. Így az `account.add_business` súgója, a
+`prepare.business` művelete és a `tour.addBusiness` bemutató **eltűnt a személyes körből** — pontosan
+ott, ahol az ember az **első** vállalkozását létrehozza. A kár tehát nem elméleti: a legfontosabb
+kezdő utat rejtettem el.
+
+**És a mérés is rossz volt.** A saját ellenpárom (`ah2`) a MENÜVEL egyeztetett, tehát a hibás listát
+**helyesnek mérte**. Egy javítás ellenpárja nem az lehet, amiből a javítást levezettem: a **kár** felé
+kell mérni. Az új `ah5` ezt teszi — a személyes körben a vállalkozás-létrehozás elérhető, a
+`tour.addBusiness` felkínálódik és a `prepare.business` engedélyezett, miközben a könyv-hatókörű
+`members` továbbra sem elérhető.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (ah2 az unió · ah4 a kliens fájljából mért lista ·
+ah5 a kár ellenpárja) · `npm run verify:kuka` (KUKA-392).
+
+---
+
 ## D-VS-3199 — AMIT NEM LEHET VÉGIGVINNI, AZT NEM KÍNÁLJUK FEL: A BEMUTATÓ A FELÜLET VEZÉRLŐJÉHEZ KÖTÖTT (R164 review, P2)
 
 **A döntés.** A szereplő-váltó végigvezetéseket (`tour.inviteRevoke` · `tour.reentry`) **nem a

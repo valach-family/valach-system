@@ -95,10 +95,26 @@ export const ACTIONS = Object.freeze({
  *
  * MIÉRT ITT, ÉS NEM A FELÜLET SZÖVEGEI KÖZÖTT. A menü FELIRATAI a nyelvcsomagokból jönnek, a LAP-LISTA
  * viszont DÖNTÉS — és a döntés a kódon áll, nem a feliraton (KUKA-221). A feloldó szerver-oldalon is
- * fut, ezért nem húzhatja be a böngésző szöveg-moduljait. A két lista szétcsúszását GÉP őrzi:
- * `verify:app-findings-r154` (AH csoport) összeveti ezt a `NAV_PERSONAL` lapjaival.
+ * fut, ezért nem húzhatja be a böngésző szöveg-moduljait.
+ *
+ * ÉS A LISTA NEM A MENÜ — EZ A R164/3 HATODIK KÖRÉNEK JAVÍTÁSA (KUKA-392). Az első alak a személyes
+ * MENÜ lapjaival egyezett, és ezzel elrejtette a `account.add_business` súgóját, a `prepare.business`
+ * műveletét és a `tour.addBusiness` bemutatót — PONTOSAN ott, ahol az ember az ELSŐ vállalkozását
+ * létrehozza. A `new` lap ugyanis nem menüpont: a fiókváltó `ws-add` gombja nyitja, és a kliens
+ * `pageAvailable` feloldója NÉGY lapot ad meg mindig elérhetőként, a személyes körben is. A mérce
+ * tehát a KLIENS SZABÁLYA, nem a menü — a kettő uniója.
  */
-export const PERSONAL_SCREENS = Object.freeze(['overview', 'personal', 'profile', 'security']);
+/**
+ * A MINDIG ELÉRHETŐ LAPOK — a kliens `pageAvailable` feloldójának első sora (`v3app/public/app.js`).
+ * Ezek személyes körben is megnyílnak, mert nem a menüből, hanem a keretből érhetők el (a `new` lapot
+ * a fiókváltó `ws-add` gombja nyitja). Gépi jel: `verify:app-findings-r154` (ah4) a kliens
+ * FÁJLJÁBÓL olvassa ki ugyanezt a négy nevet — ha ott változik, ez a sor pirosra vált.
+ */
+export const ALWAYS_AVAILABLE_SCREENS = Object.freeze(['overview', 'new', 'profile', 'security']);
+
+/** A SZEMÉLYES KÖRBEN ELÉRHETŐ LAPOK: a mindig elérhetők ÉS a személyes menü lapjai (unió). */
+export const PERSONAL_SCREENS = Object.freeze([...new Set([...ALWAYS_AVAILABLE_SCREENS,
+  'overview', 'personal', 'profile', 'security'])]);
 
 export const SHELL_ANCHORS = Object.freeze(['profile', 'logout', 'account-switcher', 'help-open',
   'nav-toggle', 'brand', 'demo-mail-open', 'mailbox', 'actor-switch']);

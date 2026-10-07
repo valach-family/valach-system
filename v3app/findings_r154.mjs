@@ -38,8 +38,8 @@ import { validateAgainstSchema } from '../v3ref/inputSchema.mjs';
 import { purgeExpiredIntents, resumeIntent, rememberIntent, intentTtlMs, PENDING_INTENT_TTL_MS } from '../v3ref/invite.mjs';
 import { validateRequest } from './httpSchema.mjs';
 import { adaptiveUnitPlan } from '../v3ref/external-checks/batteryUnits.mjs';
-import { allowedToursFor, availabilityOf } from './assistant/policy.mjs';
-import { PERSONAL_SCREENS } from './knowledge/features.mjs';
+import { allowedToursFor, availabilityOf, allowedActionsFor } from './assistant/policy.mjs';
+import { PERSONAL_SCREENS, ALWAYS_AVAILABLE_SCREENS } from './knowledge/features.mjs';
 import { NAV_PERSONAL } from './public/texts.mjs';
 import { request as httpReq } from 'node:http';
 import { transcriptsOf } from '../tools/v3_fogyasztas_meres.mjs';
@@ -2583,11 +2583,41 @@ try {
       { szemelyes_terben: UZLETI.filter((t) => szTour.includes(t)).join(',') || 'egyik sem',
         ceges_terben: UZLETI.filter((t) => cTour.includes(t)).length });
 
-    // (ah2) A KÉT LISTA NEM CSÚSZHAT SZÉT: a feloldó lap-listája = a személyes menü lapjai.
+    // (ah2) A LISTÁK NEM CSÚSZHATNAK SZÉT — ÉS A MÉRCE A KLIENS SZABÁLYA, NEM A MENÜ (KUKA-392).
+    //
+    // AZ ELSŐ ALAK ITT A MENÜVEL EGYEZTETETT, és ezzel a HIBÁT szentesítette: a `new` lap nem
+    // menüpont (a fiókváltó `ws-add` gombja nyitja), mégis elérhető a személyes körben — a kliens
+    // `pageAvailable` feloldója NÉGY lapot ad meg mindig elérhetőként. A helyes mérce a kettő UNIÓJA.
     const menuLapok = NAV_PERSONAL.flatMap((g) => [...g.pages]).sort();
-    step('(ah2) F164-18: a feloldó személyes lap-listája PONTOSAN a személyes menü lapjai — a két lista nem csúszhat szét (KUKA-003)',
-      [...PERSONAL_SCREENS].sort().join(',') === menuLapok.join(','),
-      { feloldo: [...PERSONAL_SCREENS].sort().join(','), menu: menuLapok.join(',') });
+    const vartSzemelyes = [...new Set([...ALWAYS_AVAILABLE_SCREENS, ...menuLapok])].sort();
+    step('(ah2) F164-18: a feloldó személyes lap-listája PONTOSAN a MINDIG ELÉRHETŐK és a személyes menü UNIÓJA (KUKA-003 · KUKA-392)',
+      [...PERSONAL_SCREENS].sort().join(',') === vartSzemelyes.join(','),
+      { feloldo: [...PERSONAL_SCREENS].sort().join(','), elvart_unio: vartSzemelyes.join(','),
+        mindig: [...ALWAYS_AVAILABLE_SCREENS].sort().join(','), menu: menuLapok.join(',') });
+
+    // (ah4) ÉS A „MINDIG ELÉRHETŐ" LISTA A KLIENS FÁJLJÁBÓL MÉRVE (KUKA-227: a határ zöldje nem a
+    // felület zöldje). Ha valaki a `pageAvailable` első sorát átírja, ez a sor azonnal pirosra vált —
+    // nem a szándékot hisszük el, hanem a kódot olvassuk.
+    const appJs = readFileSync(join(ROOT, 'v3app/public/app.js'), 'utf8');
+    const mAlways = appJs.match(/if \(\[([^\]]*)\]\.includes\(page\)\) return true;/);
+    const kliensLista = mAlways
+      ? mAlways[1].split(',').map((x) => x.trim().replace(/^'|'$/g, '')).filter(Boolean).sort()
+      : null;
+    step('(ah4) KUKA-392: a MINDIG ELÉRHETŐ lapok listája a KLIENS `pageAvailable` feloldójából mérve egyezik',
+      kliensLista !== null && kliensLista.join(',') === [...ALWAYS_AVAILABLE_SCREENS].sort().join(','),
+      { kliensbol: kliensLista ? kliensLista.join(',') : 'NEM OLVASHATÓ KI', regiszter: [...ALWAYS_AVAILABLE_SCREENS].sort().join(',') });
+
+    // (ah5) A REGRESSZIÓ ELLENPÁRJA (a hatodik review-kör második leletére). A SZEMÉLYES körben az
+    // ELSŐ vállalkozás létrehozása a legfontosabb út — a súgója, a művelete ÉS a bemutatója is
+    // elérhető kell legyen. Ugyanakkor egy KÖNYV-hatókörű, menün KÍVÜLI lap továbbra sem az.
+    const ujLap = availabilityOf({ audience: 'signed_in', scope: 'person', screen: 'new' }, szemelyes);
+    const konyvLap = availabilityOf({ audience: 'signed_in', scope: 'book', screen: 'members' }, szemelyes);
+    step('(ah5) KUKA-392 ELLENPÁR: a SZEMÉLYES körben a vállalkozás-létrehozás (`new`) elérhető — a könyv-hatókörű `members` nem',
+      ujLap.visible === true && konyvLap.visible === false
+        && szTour.includes('tour.addBusiness') && allowedActionsFor(szemelyes).includes('prepare.business'),
+      { uj_lap: ujLap.visible, members: `${konyvLap.visible} (${konyvLap.why})`,
+        tour_addBusiness: szTour.includes('tour.addBusiness'),
+        prepare_business: allowedActionsFor(szemelyes).includes('prepare.business') });
 
     // (ah3) ELLENPÁR: a NEVEZETT kivétel (`personal_space_ok`) továbbra is átmegy — a javítás nem
     // „mindent elrejtek" (a meghívás elfogadása a személyes térből indul, P109-01).
