@@ -16,6 +16,113 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3174 — A HELYI-KAPU A TÉNYLEGES GAZDAGÉPRE ÁLL (R164, külső review, P1)
+
+**A döntés.** A destruktív láncok „csak helyi kiszolgálón fut" kapuja a **tényleges** gazdagépet oldja
+fel, a kliens sorrendjével (`effectiveHost`: `?host=` → a cím autoritása → `PGHOST`), és a kapu ebből
+dönt (`localOnlyVerdict`). Ahol a feloldás **nem eldönthető** — `?service=`/`PGSERVICE`,
+`?hostaddr=`/`PGHOSTADDR`, vesszős több-gazdagép, vagy semmi nem nevez meg —, a kapu **zár**.
+
+**Miért.** A régi alak a cím AUTORITÁS-gazdagépét olvasta, a `node-postgres` viszont a `?host=`
+paramétert felülírónak kezeli. MÉRVE: `postgres://u@localhost/db?host=production.example` → a régi
+kapu átengedte, a mai a `production.example` gazdagépet nevezi meg és **zár**.
+
+**Amit ez NEM állít.** Nem teljes libpq-feloldás. Gépi jel: `verify:kuka` (KUKA-366) ·
+`verify:app-findings-r154` (AB: ab8) · `proof:pg-restore-safety`.
+
+---
+
+## D-VS-3175 — A VISSZATÖLTÉS CSAK NULLA KILÉPÉS MELLETT SIKER (R164, külső review, P1)
+
+**A döntés.** `restoreOutcome` **csak** nulla kilépési kód mellett ad `ok: true`. A figyelmeztetés nem
+buktat, a kilépési kód igen; a hiba-sorok számolása megmarad, mert nulla kód mellett is buktat.
+
+**Miért.** A `pg_restore` diagnosztikája lehet **üres** vagy **más nyelvű**, és a PostgreSQL a
+visszatöltést az SQL-hibák **után** is folytatja, a hibák számát a végén jelenti — a nem nulla kilépés
+tehát épp a hiba jele. A részleges tartalmi visszaolvasás ezt nem pótolja (KUKA-216).
+
+**Ez SZŰKÍTI a D-VS-3167-et:** a „nevezetten tolerált nem nulla kilépés" ága **megszűnt**. Gépi jel:
+`verify:kuka` (KUKA-367) · `verify:app-findings-r154` (ab6) · `proof:pg-restore-safety` (E4e · E9b).
+
+---
+
+## D-VS-3176 — AMI ÍR VAGY TÖRÖL, AZ ELDOBHATÓ KÖRNYEZETET ÉS SAJÁT CÉLT KÉR (R164, külső review, P1)
+
+**A döntés.** A `proof:pg-intent` lánc két kapun megy át: **helyi és eldobható** kiszolgáló
+(`localOnlyVerdict`), és **saját, friss adatbázis**, amit a futás létrehoz, a séma a repó saját
+migrációs eszközével megy be, és a végén a futás eldobja — jelre és a kilépési horgon is.
+
+**Miért.** A lánc minden állítás elején korlátlan `DELETE FROM pending_intent`-et futtatott a
+megadott adatbázisban. Staging vagy éles cím mellett egy rutin párhuzam-ellenőrzés **minden**
+felhasználó függő folytatását törölte volna. Ugyanazt a hibát írtam meg máshol, amit a visszatöltési
+kapuban órákkal korábban javítottam (KUKA-227).
+
+**MÉRVE:** a lánc a saját friss adatbázisában 10 állításon **0 eltérést** ad. Gépi jel:
+`verify:kuka` (KUKA-368) · `proof:pg-intent`.
+
+---
+
+## D-VS-3177 — A BIZTONSÁGI FELÜLÍRÁS PONTOS ÉRTÉKET KÉR (R164, külső review, P1)
+
+**A döntés.** A `VS_SAFETY_ALLOW_REMOTE` **csak** a pontos, trimmelt `1` értékre nyitja a helyi kaput.
+Minden más érték — `0` · `false` · bármi — nem felülírás.
+
+**Miért.** A régi alak a felülírás **létezését** kérdezte meg. Minden nem üres sztring igaz értékű,
+tehát a szándék szerint **kikapcsolt** felülírás (`=0`) kapcsolta ki a védelmet — pont annál, aki
+kimondottan ki akarta kapcsolni. Gépi jel: `verify:kuka` (KUKA-369) · `verify:app-findings-r154` (ab8).
+
+---
+
+## D-VS-3178 — AMI „MINDENT" MÉR, ANNAK A LISTÁJA A NÉPESSÉGBŐL JÖN (R164, külső review, P1)
+
+**A döntés.** A böngészős próba három új útmutatója a **tényleges** bejárásba és a **várt
+verdikt-halmazba** is bekerült; a mondatot („minden deklarált bemutató végig lett járva") a
+halmaz-egyenlőség tartja igazzá, nem a kézi darabszám.
+
+**Miért.** A szám kézi pin volt (`toBe(11)`), a bejárási listák pedig az új útmutatókat nem
+tartalmazták — a szám átírása önmagában **hamis zöld** lett volna. Gépi jel: `verify:kuka`
+(KUKA-370) · `verify:browser-gate` → `test:e2e`.
+
+---
+
+## D-VS-3179 — A TITOK-TISZTÍTÓ AZ IDÉZETT ALAKOT IS VISZI (R164, külső review, P2)
+
+**A döntés.** Három alak, egy helyen: aposztróf-idézett · idézőjel-idézett · idézet nélküli. Az
+idézett alaknál a záró idézőjelig megyünk, tehát a belső szóköz is eltűnik; a kulcs-nevek listája
+bővült (`PGPASSWORD` · `PGPASSFILE` · `password` · `passwd` · `pwd`).
+
+**Miért.** A régi érték-osztály **kizárta** az idézőjelet, ezért a megszokott `PGPASSWORD='top secret'`
+alakra egyáltalán nem illett. Gépi jel: `verify:kuka` (KUKA-371) · `verify:app-findings-r154` (ab9).
+
+---
+
+## D-VS-3180 — A KORLÁTOZOTT PÁSZTA RENDEZETT, ÉS A RÉSZLEGESSÉG KIMONDOTT (R164, külső review, P2)
+
+**A döntés.** A nem kanonikus időbélyegű sorok vizsgálata `ORDER BY created_at ASC` szerint megy
+(a legrégebbi és a nem értelmezhető sorok előre), a korlát megmarad, és a válasz **kimondja**, ha a
+köteg tele volt (`odd_capped`).
+
+**Miért.** Rendezés nélkül a `LIMIT` ugyanazt a köteget adhatta: friss, érvényes sorok előtt a
+romlott vagy lejárt sorok **soha** nem kerültek sorra.
+
+**Amit ez NEM állít.** Nem garantál egyetlen pásztán teljes takarítást — azt állítja, hogy minden
+romlott sor **véges** számú pászta után sorra kerül, és a részlegességet kimondjuk. Gépi jel:
+`verify:kuka` (KUKA-372) · `verify:v3ref` · `proof:pg-intent` (i7–i9).
+
+---
+
+## D-VS-3181 — AZ ELŐTAG-EGYEZÉS NEM KÖNYVTÁR-TARTALMAZÁS (R164, külső review, P2)
+
+**A döntés.** Egy út csak akkor van egy könyvtáron belül, ha **azonos** vele, vagy a könyvtár + `/`
+előtaggal kezdődik (`belul`). A repó-gyökér és a HOME ág ugyanezt a feloldót hívja, a hiba-ágak is.
+
+**Miért.** A HOME-felismerés puszta szöveg-kezdetet vizsgált: `/home/user` HOME mellett a
+`/home/user-customer/private/run.jsonl` út „HOME-on belülinek" számított, és egy telepítési vagy
+**ügyfél**-könyvtár neve kikerült a naplóba. Gépi jel: `verify:kuka` (KUKA-373) ·
+`verify:app-findings-r154` (N csoport).
+
+---
+
 ## D-VS-3173 — AZ EGYEDI AZONOSÍTÓ SAJÁT SZÁMLÁLÓT KÉR (R164/4)
 
 **A döntés.** Az olvashatóvá tett lapokon a fejezet-azonosító **saját, monoton számlálóból** jön

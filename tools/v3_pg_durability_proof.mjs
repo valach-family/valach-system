@@ -398,7 +398,20 @@ if (restored) {
 }
 
 // ── 6. TAKARÍTÁS: CSAK A SAJÁT, IGAZOLTAN LÉTREHOZOTT ERŐFORRÁS ─────────────────────────────────
-if (restoreTarget !== null && !process.env.VS_KEEP_RESTORE_TARGET) {
+if (restoreTarget !== null && process.env.VS_KEEP_RESTORE_TARGET) {
+  /**
+   * A MEGTARTÁS TÉNYLEGES MEGTARTÁS (R164, KÜLSŐ REVIEW, Codex, P2).
+   *
+   * A LELET: a kapcsoló a RENDES eldobást kihagyta, de a nevet a saját-listában hagyta — a
+   * `process.on('exit')` horog pedig feltétel nélkül végigmegy a listán, és eldobta mégis. A
+   * meghirdetett „hagyd meg, megnézem" kapcsoló tehát SOHA nem tartott meg semmit (KUKA-050: a
+   * szöveg a valóságot kövesse). Mostantól a név KIKERÜL a saját-listából: így sem a záró
+   * takarítás, sem a kilépési horog nem nyúl hozzá — és a próba KIMONDJA, hogy maradékot hagy.
+   */
+  sajatCelok.delete(restoreTarget);
+  step('6. a SAJÁT cél MEGTARTVA (kimondott kérésre)', true,
+    `${restoreTarget} a kiszolgálón marad — VS_KEEP_RESTORE_TARGET; kézzel kell eldobni`);
+} else if (restoreTarget !== null) {
   const d = dropOwn(restoreTarget);
   takaritasJelentes = d;
   step('6. a SAJÁT cél eldobva (idegenhez nem nyúlunk)', d.ok,

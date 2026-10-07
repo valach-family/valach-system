@@ -306,8 +306,26 @@ export function restoreOutcome({ exitCode = 0, stderr = '' } = {}) {
       basis: `${hibak.length} HIBA-sor a kimenetben — a figyelmeztetések jelenléte ezt nem oldja fel` };
   }
   if (kod !== 0) {
-    return { ok: true, errors: 0, warnings: figyelmeztetesek.length, exitCode: kod, tolerated: true,
-      basis: `nem nulla kilépés (${kod}), de NULLA hiba-sor — tolerálva; a mérce a tartalmi visszaolvasás` };
+    /**
+     * A NEM NULLA KILÉPÉS BUKÁS — AKKOR IS, HA A KIMENETBEN NINCS HIBA-SOR (R164, KÜLSŐ REVIEW, P1).
+     *
+     * A LELET (Codex, az R164/1-es javításom FELETT): az első alakom a nem nulla kilépést
+     * TOLERÁLTA, ha egyetlen `error:`-sort sem talált. Ez két úton ad hamis zöldet:
+     *   · a `pg_restore` diagnosztikája LEHET ÜRES vagy MÁS NYELVŰ — ilyenkor az angol `error:`
+     *     jelölő nincs ott, és a soronkénti osztályozás nullát talál;
+     *   · a PostgreSQL dokumentált viselkedése szerint a visszatöltés az SQL-hibák UTÁN FOLYTATÓDIK,
+     *     és a hibák SZÁMÁT a végén jelenti — a nem nulla kilépés tehát épp azt mondja, hogy volt
+     *     hiba, nem azt, hogy „csak figyelmeztetés".
+     * És a tartalmi visszaolvasás ezt nem pótolja: az CSAK a megmért táblákat, a séma-verziót és
+     * EGY csatorna-sort nézi — egy nem mért objektum hibája így végig zöld maradt volna (KUKA-216).
+     *
+     * MOSTANTÓL: `ok` CSAK nulla kilépés mellett. A figyelmeztetés továbbra sem buktat, a kilépési
+     * kód igen. (Ez SZŰKÍTI a korábbi döntésemet — D-VS-3167 → D-VS-3174.)
+     */
+    return { ok: false, errors: hibak.length, warnings: figyelmeztetesek.length, exitCode: kod,
+      basis: `NEM NULLA kilépés (${kod}) — a visszatöltés nem sikeres, akkor sem, ha a kimenetben nincs `
+        + `felismert hiba-sor (a diagnosztika lehet üres vagy más nyelvű, és a pg_restore az SQL-hibák `
+        + `UTÁN is folytatja a munkát)` };
   }
   return { ok: true, errors: 0, warnings: figyelmeztetesek.length, exitCode: 0,
     basis: figyelmeztetesek.length ? `nulla kilépés, ${figyelmeztetesek.length} figyelmeztetés` : 'nulla kilépés, tiszta kimenet' };
@@ -324,8 +342,99 @@ export function restoreOutcome({ exitCode = 0, stderr = '' } = {}) {
 export function redactConnStrings(text) {
   let s = String(text ?? '');
   s = s.replace(/\b(postgres(?:ql)?|pg):\/\/[^\s'"]*/gi, '«kapcsolati cím elrejtve»');
-  s = s.replace(/\b(PGPASSWORD|password)\s*=\s*[^\s&'";]+/gi, '$1=«elrejtve»');
+  /**
+   * AZ IDÉZŐJELES ÉRTÉK IS TELJESEN ELTŰNIK (R164, KÜLSŐ REVIEW, Codex, P2).
+   *
+   * A LELET: az első alakom érték-osztálya KIZÁRTA az idézőjelet (`[^\s&'";]+`), ezért a
+   * megszokott `PGPASSWORD='top secret'` és `password="top secret"` alakra EGYÁLTALÁN nem illett —
+   * a jelszó változatlanul a naplóba került volna. Idézőjel nélküli, szóközt tartalmazó értéknél
+   * pedig csak az ELSŐ szó tűnt el. A szabály nem tűr kivételt: titok sem naplóba, sem parancssorba.
+   *
+   * MOSTANTÓL három alak, EGY helyen: aposztróf-idézett · idézőjel-idézett · idézet nélküli (a
+   * sor/elválasztó végéig). Az idézett alaknál a ZÁRÓ idézőjelig megyünk, tehát a belső szóköz is
+   * eltűnik.
+   */
+  s = s.replace(/\b(PGPASSWORD|PGPASSFILE|password|passwd|pwd)(\s*=\s*)'[^']*'/gi, '$1$2«elrejtve»');
+  s = s.replace(/\b(PGPASSWORD|PGPASSFILE|password|passwd|pwd)(\s*=\s*)"[^"]*"/gi, '$1$2«elrejtve»');
+  s = s.replace(/\b(PGPASSWORD|PGPASSFILE|password|passwd|pwd)(\s*=\s*)[^\s&;'"]+/gi, '$1$2«elrejtve»');
   return s;
+}
+
+/**
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ * A TÉNYLEGES GAZDAGÉP — A `?host=` FELÜLÍRJA A CÍM GAZDAGÉPÉT (R164, KÜLSŐ REVIEW, Codex, P1)
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * A LELET. A destruktív ellenpróba „csak helyi kiszolgálón fut" kapuja a kapcsolati cím AUTORITÁS-
+ * gazdagépét olvasta (`new URL(url).hostname`). A `node-postgres` viszont a QUERY `host`
+ * paraméterét FELÜLÍRÓNAK kezeli — a `pg-connection-string` ezt dokumentálja. Egy
+ * `postgres://u@localhost/db?host=production.example` cím tehát a kapun ÁTMENT („localhost"),
+ * miközben a tényleges kapcsolat a TERMELÉSI kiszolgálóra ment volna — és a próba ott végzett volna
+ * regisztrációt, munkakörnyezet-írást és adatbázis-eldobást.
+ *
+ * A SZABÁLY. A gazdagép feloldása a node-postgres sorrendjét követi: `?host=` → a cím autoritása →
+ * `PGHOST`. És ahol a felolDÁS NEM ELDÖNTHETŐ, ott NEM a megengedő ág nyer:
+ *   · `?service=` vagy `PGSERVICE` → a szolgáltatás-fájl gazdagépet is adhat, amit innen nem látunk;
+ *   · `?hostaddr=` vagy `PGHOSTADDR` → a NÉV mellett a cím is dönt, és a kettő mást mondhat;
+ *   · több `host` érték (vesszős lista) → nem egy gazdagép;
+ *   · ha egyik sem nevez meg → a libpq a helyi socketre esik, de ezt NEM tippeljük meg.
+ * Mindegyik válasza: `decidable: false` — és a hívó ilyenkor MEGÁLL (KUKA-020 · KUKA-203).
+ */
+export function effectiveHost(sourceUrl, env = process.env) {
+  let u;
+  try { u = new URL(String(sourceUrl)); } catch { return { host: null, decidable: false, basis: 'a forrás-cím nem értelmezhető' }; }
+  if (queryParam(u, 'service') || envValue(env, 'PGSERVICE')) {
+    return { host: null, decidable: false,
+      basis: 'a cím vagy a környezet SZOLGÁLTATÁST nevez meg (`service`/`PGSERVICE`) — a szolgáltatás-fájl gazdagépet is adhat, amit innen NEM látunk' };
+  }
+  if (queryParam(u, 'hostaddr') || envValue(env, 'PGHOSTADDR')) {
+    return { host: null, decidable: false,
+      basis: 'a cím vagy a környezet `hostaddr`-t ad meg — a NÉV és a numerikus cím MÁST mondhat, tehát a tényleges gazdagép nem eldönthető' };
+  }
+  const qHost = queryLast(u, 'host');
+  let host = null; let basis = null;
+  if (qHost.jelen) {
+    if (qHost.ertek === '') {
+      return { host: null, decidable: false, basis: 'a cím ÜRES `?host=` felülírást hordoz — a libpq ezt AKTÍV felülírásként tárolja, a tényleges gazdagép nem eldönthető' };
+    }
+    host = qHost.ertek; basis = 'a cím `?host=` paramétere FELÜLÍRJA a cím gazdagépét (node-postgres)';
+  } else if (u.hostname) {
+    try { host = decodeURIComponent(u.hostname); } catch { host = u.hostname; }
+    basis = 'a cím autoritás-gazdagépe';
+  } else {
+    const envHost = envValue(env, 'PGHOST');
+    if (envHost) { host = envHost; basis = 'a cím nem nevez meg gazdagépet, ezért a környezet `PGHOST` értéke dönt'; }
+  }
+  if (host === null) {
+    return { host: null, decidable: false,
+      basis: 'sem a cím, sem a környezet nem nevez meg gazdagépet — a libpq a HELYI socketre esne, de ezt nem tippeljük meg' };
+  }
+  if (host.includes(',')) {
+    return { host: null, decidable: false, basis: 'TÖBB gazdagép van megadva (vesszős lista) — nem egy kiszolgáló, tehát nem eldönthető' };
+  }
+  return { host, decidable: true, basis };
+}
+
+/**
+ * HELYI ÉS ELDOBHATÓ-E A CÉL? — a destruktív ellenpróba KAPUJA, egy helyen, meghívhatóan.
+ *
+ * A megengedő ág NEM a hiba ága: ha a gazdagép nem eldönthető, a válasz NEM „helyi". A kimondott
+ * felülírás (`VS_SAFETY_ALLOW_REMOTE`) CSAK a pontos `1` értékre áll — egy környezet-kezelő által
+ * beírt `0` vagy `false` IGAZ értékű sztring, és a régi alakom ezeket is felülírásnak vette
+ * (R164, KÜLSŐ REVIEW, Codex, P1).
+ */
+export const LOCAL_HOSTS = Object.freeze(['127.0.0.1', 'localhost', '::1', '[::1]', '0:0:0:0:0:0:0:1']);
+export function localOnlyVerdict(sourceUrl, env = process.env) {
+  const override = String(envValue(env, 'VS_SAFETY_ALLOW_REMOTE') ?? '').trim();
+  const h = effectiveHost(sourceUrl, env);
+  if (override === '1') {
+    return { allowed: true, host: h.host, decidable: h.decidable, override: true,
+      basis: 'KIMONDOTT felülírás (`VS_SAFETY_ALLOW_REMOTE=1`) — a helyi kapu szándékosan kikapcsolva' };
+  }
+  if (!h.decidable) return { allowed: false, host: null, decidable: false, override: false, basis: h.basis };
+  const local = LOCAL_HOSTS.includes(h.host) || h.host.startsWith('/') || h.host.startsWith('.');
+  return { allowed: local, host: h.host, decidable: true, override: false,
+    basis: local ? `a tényleges gazdagép HELYI (${h.basis})` : `a tényleges gazdagép NEM helyi (${h.basis})` };
 }
 
 /**

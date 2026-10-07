@@ -31,11 +31,25 @@ const HERE = dirname(fileURLToPath(import.meta.url)); const ROOT = resolve(HERE,
 const flag = (n) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : null; };
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 const bytes = (s) => Buffer.byteLength(typeof s === 'string' ? s : JSON.stringify(s ?? ''), 'utf8');
+/**
+ * A KÖNYVTÁR-HATÁRT MEG KELL KÖVETELNI (R164, KÜLSŐ REVIEW, Codex, P2).
+ *
+ * A LELET: a HOME-felismerés puszta szöveg-kezdetet vizsgált (`abs.startsWith(homedir())`). Egy
+ * `/home/user` HOME mellett a `/home/user-customer/private/run.jsonl` út tehát „HOME-on belülinek"
+ * számított, és a kimenet `~-customer/private/run.jsonl` lett a REJTETT tartalék helyett — vagyis a
+ * telepítési vagy ÜGYFÉL-könyvtár neve mégis kikerült, mind az exportált `source.path`-ban, mind a
+ * hiba-ágak diagnosztikájában. Ugyanez a repó-gyökérre: ott a `ROOT + '/'` alak már helyes volt.
+ *
+ * A SZABÁLY: egy út CSAK akkor van egy könyvtáron belül, ha AZONOS vele, vagy a könyvtár + `/`
+ * előtaggal kezdődik. A szöveg-kezdet nem könyvtár-tartalmazás (a KUKA-239 osztálya: hatókör nélküli
+ * minta a szomszédot igazolja).
+ */
+const belul = (abs, dir) => abs === dir || abs.startsWith(dir.endsWith('/') ? dir : `${dir}/`);
 const safePath = (p, kivul = '(repón kívüli út — nem exportált)') => {
   if (typeof p !== 'string') return null;
   const abs = p.startsWith('/') ? p : join(ROOT, p);
-  if (abs.startsWith(ROOT + '/')) return abs.slice(ROOT.length + 1);
-  if (abs.startsWith(homedir())) return '~' + abs.slice(homedir().length);
+  if (belul(abs, ROOT) && abs !== ROOT) return abs.slice(ROOT.length + 1);
+  if (belul(abs, homedir())) return `~${abs.slice(homedir().length)}`;
   return kivul;
 };
 /**

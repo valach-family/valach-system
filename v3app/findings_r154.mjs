@@ -38,8 +38,8 @@ import { validateRequest } from './httpSchema.mjs';
 import { request as httpReq } from 'node:http';
 import { transcriptsOf } from '../tools/v3_fogyasztas_meres.mjs';
 import { restoreTargetProblem, sameDatabase, effectiveDatabase, withDatabase, freshTargetName,
-  restoreTargetDecision, restoreOutcome, redactConnStrings, acquireFreshTarget,
-  RESTORE_TARGET_PREFIX, PROTECTED_DB_NAMES } from '../tools/lib/vs_pg_target.mjs';
+  restoreTargetDecision, restoreOutcome, redactConnStrings, acquireFreshTarget, localOnlyVerdict,
+  effectiveHost, RESTORE_TARGET_PREFIX, PROTECTED_DB_NAMES } from '../tools/lib/vs_pg_target.mjs';
 
 import { execFileSync } from 'node:child_process';
 /**
@@ -2316,11 +2316,35 @@ try {
     const ab_csak_fi = restoreOutcome({ exitCode: 1, stderr: 'pg_restore: warning: owner' });
     const ab_tiszta = restoreOutcome({ exitCode: 0, stderr: '' });
     const ab_nulla_de_hiba = restoreOutcome({ exitCode: 0, stderr: 'pg_restore: error: relation missing' });
-    step('(ab6) F164-02: hiba ÉS figyelmeztetés EGYÜTT → FAIL; csak figyelmeztetés + nem nulla kilépés → NEVEZETTEN tolerált; NULLA kilépés mellett is FAIL, ha hiba-sor van (RÉGEN: egy „warning" részsztring bármit elnyelt)',
+    const ab_ures_diag = restoreOutcome({ exitCode: 3, stderr: '' });
+    const ab_nulla_fi = restoreOutcome({ exitCode: 0, stderr: 'pg_restore: warning: owner' });
+    step('(ab6) F164-02 + F164-05: a visszatöltés CSAK nulla kilépés mellett siker — hiba+figyelmeztetés EGYÜTT FAIL, csak figyelmeztetés + NEM NULLA kilépés is FAIL, ÜRES (vagy más nyelvű) diagnosztika mellett is FAIL; nulla kilépésnél a figyelmeztetés NEM buktat, de egy hiba-sor igen',
       ab_egyutt.ok === false && ab_egyutt.errors === 1 && ab_egyutt.warnings === 1
-      && ab_csak_fi.ok === true && ab_csak_fi.tolerated === true
-      && ab_tiszta.ok === true && ab_nulla_de_hiba.ok === false,
-      { egyutt: ab_egyutt.ok, csak_figyelmeztetes: `${ab_csak_fi.ok}/tolerált:${ab_csak_fi.tolerated}`, tiszta: ab_tiszta.ok, nulla_kod_de_hiba: ab_nulla_de_hiba.ok });
+      && ab_csak_fi.ok === false && ab_ures_diag.ok === false
+      && ab_tiszta.ok === true && ab_nulla_fi.ok === true && ab_nulla_de_hiba.ok === false,
+      { egyutt: ab_egyutt.ok, csak_figyelmeztetes_nem_nulla: ab_csak_fi.ok, ures_diagnosztika: ab_ures_diag.ok,
+        tiszta: ab_tiszta.ok, nulla_plus_figyelmeztetes: ab_nulla_fi.ok, nulla_kod_de_hiba: ab_nulla_de_hiba.ok });
+
+    // ── (ab8) F164-04/06 — A TÉNYLEGES GAZDAGÉP, ÉS A KIMONDOTT FELÜLÍRÁS ────────────────────────
+    const ab_lelet = localOnlyVerdict('postgres://u@localhost/db?host=production.example', PG_ENV_NELKUL);
+    const ab_helyi = localOnlyVerdict('postgres://u@127.0.0.1:5432/db', PG_ENV_NELKUL);
+    const ab_tavoli = localOnlyVerdict('postgres://u@db.pelda.hu/db', PG_ENV_NELKUL);
+    const ab_service = localOnlyVerdict('postgres://u@localhost/db?service=prod', PG_ENV_NELKUL);
+    const ab_nulla_ov = localOnlyVerdict('postgres://u@db.pelda.hu/db', { VS_SAFETY_ALLOW_REMOTE: '0' });
+    const ab_egy_ov = localOnlyVerdict('postgres://u@db.pelda.hu/db', { VS_SAFETY_ALLOW_REMOTE: '1' });
+    step('(ab8) F164-04 + F164-06: a helyi kapu a TÉNYLEGES gazdagépre áll (a `?host=` felülírja a cím gazdagépét), a nem eldönthető NEM „helyi", és a felülírás CSAK a pontos `1` értékre nyit (RÉGEN: a `0` és a `false` is felülírásnak számított)',
+      ab_lelet.allowed === false && ab_lelet.host === 'production.example'
+      && ab_helyi.allowed === true && ab_tavoli.allowed === false
+      && ab_service.allowed === false && ab_service.decidable === false
+      && ab_nulla_ov.allowed === false && ab_egy_ov.allowed === true && ab_egy_ov.override === true,
+      { host_felulirás: ab_lelet.host, helyi: ab_helyi.allowed, tavoli: ab_tavoli.allowed,
+        service_eldontheto: ab_service.decidable, allow_0: ab_nulla_ov.allowed, allow_1: ab_egy_ov.allowed });
+
+    // ── (ab9) F164-03 — AZ IDÉZŐJELES JELSZÓ IS TELJESEN ELTŰNIK ─────────────────────────────────
+    const ab_idezo = redactConnStrings("PGPASSWORD='top secret' password=\"más titok\" pwd=egyszeru");
+    step('(ab9) F164-03: a titok-tisztító az APOSZTRÓF- és IDÉZŐJEL-idézett értéket is teljesen elrejti, a belső szóközzel együtt (RÉGEN: az érték-osztály kizárta az idézőjelet, ezért a megszokott alak érintetlen maradt)',
+      !/top secret|más titok|egyszeru/.test(ab_idezo) && (ab_idezo.match(/«elrejtve»/g) || []).length === 3,
+      { tisztitott: ab_idezo.slice(0, 90) });
 
     // ── (ab7) A TITOK NEM KERÜL A NAPLÓBA ──────────────────────────────────────────────────────
     const ab_t = redactConnStrings('pg_restore: error: connection to postgres://u:TITKOS@gep:5432/db failed; PGPASSWORD=MASIK');

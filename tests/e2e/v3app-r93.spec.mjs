@@ -158,11 +158,21 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
     const status = await anna.api.get('/api/assistant/status?lang=hu');
     const tours = status.body.tours;
     // R132: a tizedik a MEGHÍVÁS VISSZAVONÁSA, a tizenegyedik az ÚJBÓLI BELÉPÉS. A szám KÖVETKEZMÉNY,
-    // nem kézi pin: mind a tizenegyet VÉGIG IS VISSZÜK ebben a próbában (KUKA-045).
-    expect(tours.length, 'a fiókkezelőnek tizenegy bemutató jár').toBe(11);
+    // nem kézi pin: MINDET VÉGIG IS VISSZÜK ebben a próbában (KUKA-045).
+    //
+    // R164 (KÜLSŐ REVIEW, Codex, P1): a szám 11-ről 14-re nőtt, mert az R164/3 három ÚJ útmutatót
+    // szállított (`tour.warehouses` · `tour.processes` · `tour.accountSettings`). A reviewer
+    // NEVESÍTETTE, hogy a szám átírása önmagában HAMIS ZÖLD volna: a próba azt állítja, hogy MINDEN
+    // deklarált bemutatót végigvisz, tehát a három újat is BE KELL JÁRNI — különben a mondat
+    // („minden deklarált bemutató végig lett járva") nem igaz (KUKA-216 · KUKA-038).
+    expect(tours.length, 'a fiókkezelőnek tizennégy bemutató jár').toBe(14);
     const byId = Object.fromEntries(tours.map((t) => [t.id, t]));
 
-    const simple = ['tour.shell', 'tour.stock', 'tour.language', 'tour.help', 'tour.plan'];
+    const simple = ['tour.shell', 'tour.stock', 'tour.language', 'tour.help', 'tour.plan',
+      // R164/3 — AZ ÚJ, OLVASÓ NÉZETEK ÚTMUTATÓI. Mind a három engedély nélkül megnyíló lapon áll
+      // (a fiók mintaadatát, illetve a fiók saját adatait rajzolja), feladat-lépés nélkül — tehát
+      // ugyanazon az egyszerű úton járható be, mint a héj- és a készlet-bemutató.
+      'tour.warehouses', 'tour.processes', 'tour.accountSettings'];
     for (const id of simple) {
       await startTourFor(anna.page, byId[id].feature);
       verdict[id] = await walkTourLogged(anna.page, id, {
@@ -418,7 +428,10 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
     // (`npm run verify:browser-gate`). AMIT AZ A TANÚ NEM ÁLLÍT: a háttere a SZIMULÁLT
     // bemutató-adapter, tehát nem HTTP- és nem tároló-bizonyíték (KUKA-227).
     const appShell = ['tour.shell', 'tour.stock', 'tour.language', 'tour.help', 'tour.plan',
-      'tour.invite', 'tour.grant', 'tour.scopeLifecycle', 'tour.addBusiness', 'tour.register'];
+      'tour.invite', 'tour.grant', 'tour.scopeLifecycle', 'tour.addBusiness', 'tour.register',
+      // R164/3 (a külső review P1-es leletére): a három ÚJ útmutató is az alkalmazás-héjban
+      // VÉGIGVIHETŐ — nem elég felvenni a listára, a verdiktjük is `befejezve` kell legyen.
+      'tour.warehouses', 'tour.processes', 'tour.accountSettings'];
     const crossActor = ['tour.inviteRevoke', 'tour.reentry'];
     expect(Object.keys(verdict).sort(), 'minden deklarált bemutató végig lett járva').toEqual(
       [...appShell, ...crossActor].sort(),

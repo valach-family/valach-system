@@ -824,7 +824,30 @@ export function purgeExpiredIntents({ store, clock, ttlMs = PENDING_INTENT_TTL_M
   store.run(`DELETE FROM pending_intent WHERE ${WHERE}`, ...ALAK_ERTEKEK, hatar, most);
   const kanonikusTakaritva = elotte ? Number(elotte.n) : 0;
 
-  const furcsak = store.all(`SELECT session_id, created_at FROM pending_intent WHERE NOT (${ALAK}) LIMIT ${korlat}`, ...ALAK_ERTEKEK);
+  /**
+   * A KORLÁTOZOTT PÁSZTA NEM ÉHEZTETHETI KI A ROMLOTT SOROKAT (R164, KÜLSŐ REVIEW, Codex, P2).
+   *
+   * A LELET. A nem kanonikus sorok vizsgálatát `LIMIT`-tel korlátoztam (KUKA-290: a védelem költsége
+   * ne nőjön azzal, ami ellen védett) — de SORREND NÉLKÜL. A tároló ilyenkor szabadon adhatja ugyanazt
+   * a köteget: ha a korlátnál több nem kanonikus sor van, és az elsők FRISS, érvényes eltolásos
+   * alakúak (amiket szándékosan MEGTARTUNK), akkor a mögöttük álló romlott vagy LEJÁRT sorokat a
+   * pászta SOHA nem nézi meg. Példa a reviewer szavával: 1000 friss eltolásos időbélyeg után beírt
+   * `created_at='bogus'` sor minden percben érintetlen marad, amíg az élmező maga el nem öregszik.
+   *
+   * A VÁLASZ: SORREND a valószínű lejárat szerint — a `created_at` NÖVEKVŐ sorrendje a legrégebbi
+   * (tehát a legvalószínűbben lejárt) és a NEM ÉRTELMEZHETŐ sorokat hozza előre. A `korlat` megmarad
+   * (a költség nem nő), de a köteg már nem állandó: ami egyszer nem fért be, az a következő pásztán
+   * ELŐRE kerül, amint az előtte állók elfogynak. Az ÉRVÉNYES, friss sorok nem fogyasztják a helyet
+   * tartósan, mert a legrégebbiek vagy kiesnek, vagy — ha érvényesek — a rendezés szerint a végükön
+   * állnak. ÉS A KORLÁT-TELÍTÉS KIMONDOTT: a válasz jelzi, ha a köteg tele volt (`odd_capped`), tehát
+   * a hívó tudja, hogy a mérés RÉSZLEGES (KUKA-093: a kihagyás nem zöld).
+   *
+   * AMIT EZ NEM ÁLLÍT: nem garantál egyetlen pásztán teljes takarítást. Azt állítja, hogy MINDEN
+   * romlott sor VÉGES számú pászta után sorra kerül, és hogy a részlegességet kimondjuk.
+   */
+  const furcsak = store.all(
+    `SELECT session_id, created_at FROM pending_intent WHERE NOT (${ALAK}) ORDER BY created_at ASC LIMIT ${korlat}`,
+    ...ALAK_ERTEKEK);
   const dobando = [];
   for (const r of furcsak) {
     const kor = mostMs - Date.parse(r.created_at);
@@ -834,7 +857,9 @@ export function purgeExpiredIntents({ store, clock, ttlMs = PENDING_INTENT_TTL_M
     store.run(`DELETE FROM pending_intent WHERE session_id IN (${dobando.map(() => '?').join(',')})`, ...dobando);
   }
   return { purged: kanonikusTakaritva + dobando.length, before: hatar,
-    odd_rows: furcsak.length, odd_purged: dobando.length };
+    odd_rows: furcsak.length, odd_purged: dobando.length,
+    // A KÖTEG TELÍTÉSE KIMONDOTT: ilyenkor a nem kanonikus sorok vizsgálata RÉSZLEGES volt.
+    odd_capped: furcsak.length >= korlat };
 }
 
 // ── A BEVÁLTÁS (K03) ────────────────────────────────────────────────────────────────────────────

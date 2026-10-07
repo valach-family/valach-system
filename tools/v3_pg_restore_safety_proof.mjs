@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { mkdirSync, writeFileSync, chmodSync } from 'node:fs';
 import { loadRepoEnv } from './lib/vs_tool_env.mjs';
 import { qid, withDatabase, freshTargetName, acquireFreshTarget, restoreTargetDecision,
-  restoreOutcome, redactConnStrings, RESTORE_TARGET_PREFIX, PROTECTED_DB_NAMES } from './lib/vs_pg_target.mjs';
+  restoreOutcome, redactConnStrings, localOnlyVerdict, RESTORE_TARGET_PREFIX, PROTECTED_DB_NAMES } from './lib/vs_pg_target.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 loadRepoEnv(ROOT);
@@ -35,15 +35,31 @@ if (!url) { console.error('proof:pg-restore-safety — nincs DATABASE_URL: ELAKA
 // destruktív ellenpróba helye az eldobható HELYI környezet).
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 {
-  let h = '';
-  try { h = decodeURIComponent(new URL(url).hostname || ''); } catch { h = ''; }
-  const helyi = h === '127.0.0.1' || h === 'localhost' || h === '::1' || h.startsWith('/');
-  if (!helyi && !process.env.VS_SAFETY_ALLOW_REMOTE) {
-    console.error('proof:pg-restore-safety — a cél NEM helyi kiszolgáló: ELAKADT MÉRÉS (nem futtatunk');
-    console.error('  destruktív ellenpróbát ismeretlen vagy felhős adatbázison). A gépnevet nem írjuk ki.');
+  /**
+   * A KAPU A TÉNYLEGES GAZDAGÉPRE ÁLL (R164, KÜLSŐ REVIEW, Codex, P1 ×2).
+   *
+   * KÉT LELET egy helyen, és mindkettő a megengedő ágra vitt:
+   *   1. a régi alak a cím AUTORITÁS-gazdagépét olvasta — a `node-postgres` viszont a `?host=`
+   *      paramétert FELÜLÍRÓNAK kezeli, tehát egy `postgres://u@localhost/db?host=production.example`
+   *      cím ÁTMENT a kapun, miközben a kapcsolat a TERMELÉSI kiszolgálóra ment volna;
+   *   2. a `VS_SAFETY_ALLOW_REMOTE` felülírás BÁRMILYEN nem üres értékre állt — egy környezet-kezelő
+   *      által beírt `0` vagy `false` is IGAZ értékű sztring, tehát a kikapcsolt felülírás kapcsolt be.
+   *
+   * A döntés egy meghívható feloldóban áll (`localOnlyVerdict`), a `?service=`/`hostaddr`/több-gazdagép
+   * eseteket NEM ELDÖNTHETŐ-nek mondja, és a nem eldönthető NEM „helyi" (KUKA-020 · KUKA-203).
+   */
+  const kapu = localOnlyVerdict(url);
+  if (!kapu.allowed) {
+    console.error('proof:pg-restore-safety — ELAKADT MÉRÉS: destruktív ellenpróbát csak HELYI, eldobható');
+    console.error(`  kiszolgálón futtatunk. A kapu indoka: ${kapu.basis}`);
+    console.error('  (a gépnevet nem írjuk ki; kimondott felülírás: VS_SAFETY_ALLOW_REMOTE=1)');
     process.exit(2);
   }
+  tény(`a helyi kapu: ${kapu.basis}`);
 }
+
+const marks = [];
+const tény = (t) => console.log(`  TÉNY ${t}`);
 
 const PSQL = process.env.VS_PSQL || 'psql';
 const PGRESTORE = process.env.VS_PGRESTORE || 'pg_restore';
@@ -69,9 +85,7 @@ function psql(args, dbName = 'postgres') {
 }
 const letezik = (nev) => psql(['-c', `SELECT 1 FROM pg_database WHERE datname = '${nev}'`]).out.trim() === '1';
 
-const marks = [];
 const step = (name, ok, detail) => { marks.push({ name, ok, detail }); console.log(`  ${ok ? 'OK ' : 'NEM'} ${name}${detail ? `  — ${detail}` : ''}`); };
-const tény = (t) => console.log(`  TÉNY ${t}`);
 
 console.log('A VISSZATÖLTÉSI KAPU ELLENPRÓBÁI (eldobható helyi PostgreSQL)');
 console.log('='.repeat(94));
@@ -131,7 +145,19 @@ function futtat({ env = {}, onLine = null, timeoutMs = 180_000 } = {}) {
       { cwd: ROOT, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
     gyerekPid = ch.pid;
     let ki = '';
-    const t = setTimeout(() => { try { ch.kill('SIGKILL'); } catch { /* már véget ért */ } }, timeoutMs);
+    /**
+     * AZ IDŐTÚLLÉPÉS A FOLYAMATCSOPORTOT ÖLI MEG (R164, KÜLSŐ REVIEW, Codex, P2).
+     *
+     * A LELET: `ch.kill('SIGKILL')` CSAK a Node-gyereket ölte meg, a leszármazott adatbázis-klienst
+     * nem — az tovább dolgozott, és az ÖRÖKÖLT kimeneti csöveket is tartotta, tehát a `close` esemény
+     * (és vele ez az időtúllépés) a „megölt" parancs TÉNYLEGES végéig nem jött meg; a félbehagyott
+     * adatbázis pedig ott maradt, mert a SIGKILL megkerüli a takarítást. A gyerek `detached`, tehát
+     * saját folyamatcsoport-vezető: a jel a csoportnak megy (`-pid`), ahogy a megszakítás-mérésben is.
+     */
+    const t = setTimeout(() => {
+      try { process.kill(-ch.pid, 'SIGKILL'); } catch { /* már véget ért */ }
+      try { ch.kill('SIGKILL'); } catch { /* már véget ért */ }
+    }, timeoutMs);
     const fogad = (d) => {
       const sz = String(d); ki += sz;
       if (onLine) for (const l of sz.split(/\r?\n/)) if (l.trim()) onLine(l, ch);
@@ -180,15 +206,28 @@ console.log('\nE4 — SIKERTELEN RESTORE: a „warning" jelenléte NEM oldja fel
 // E4e — A SIKERES PÁR: csak FIGYELMEZTETÉS + nem nulla kilépés → tolerálva, és a TARTALOM dönt
 // (R164/1: „mérd a figyelmeztetés+valódi hiba együttesét ÉS a sikeres párt")
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-console.log('\nE4e — A SIKERES PÁR: csak figyelmeztetés, nem nulla kilépés → a TARTALMI visszaolvasás dönt');
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// E4e — A NEM NULLA KILÉPÉS AKKOR IS BUKÁS, HA A KIMENETBEN NINCS FELISMERT HIBA-SOR
+//
+// EZ A MÉRÉS MEGFORDULT (R164, KÜLSŐ REVIEW, Codex, P1). Az első alakom a „csak figyelmeztetés +
+// nem nulla kilépés" esetet TOLERÁLTA, és a tartalmi visszaolvasásra bízta a döntést. A reviewer
+// megmutatta, hogy ez két úton ad hamis zöldet: a `pg_restore` diagnosztikája lehet ÜRES vagy MÁS
+// NYELVŰ (az angol `error:` jelölő nélkül), és a PostgreSQL dokumentált viselkedése szerint a
+// visszatöltés az SQL-hibák UTÁN folytatódik, a hibák SZÁMÁT a végén jelenti — a nem nulla kilépés
+// tehát épp a hiba jele. A tartalmi visszaolvasás nem pótolja: csak a megmért táblákat, a
+// séma-verziót és EGY csatorna-sort nézi (KUKA-216).
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+console.log('\nE4e — NEM NULLA KILÉPÉS felismert hiba-sor NÉLKÜL: ez is BUKÁS (a mérés MEGFORDULT)');
 {
   const r = await futtat({ env: { VS_PGRESTORE: CSAK_FIGYELMEZTET, VS_RESTORE_TEST_DB: '' } });
   const cel = sajatCelNev(r.out);
-  step('E4e1. a verdikt PASS, de NEVEZETTEN tolerált kilépéssel', r.code === 0 && /tolerálva/.test(r.out),
-    (r.out.match(/nem nulla kilépés[^\n·]*/) || ['nem jelent meg'])[0].slice(0, 110));
-  step('E4e2. és a TARTALMI visszaolvasás tényleg lefutott (nem a némaság a mérce)',
-    /4a\. a sor-számok egyeznek/.test(r.out) && /4c\. a KONKRÉT bizonyított csatorna visszajött/.test(r.out), 'a 4a/4b/4c lépés mind mérve');
-  step('E4e3. a saját cél eltakarítva', cel !== null && !letezik(cel), cel || 'nem jött létre cél');
+  step('E4e1. a verdikt FAIL, nem „tolerált PASS"', r.code !== 0 && !/RENDBEN/.test(r.out) && !/tolerálva/.test(r.out),
+    `kilépés ${r.code} · ${(r.out.match(/NEM NULLA kilépés[^\n·]*/) || ['a nevezett indok NEM jelent meg'])[0].slice(0, 110)}`);
+  step('E4e2. az indok NEVEZETT: a kilépési kód dönt, nem a kimenet szavai',
+    /NEM NULLA kilépés/.test(r.out), 'a próba kimondja, hogy a diagnosztika lehet üres vagy más nyelvű');
+  step('E4e3. és a tartalmi visszaolvasás EL SEM INDUL a bukott visszatöltés után',
+    !/4a\. a sor-számok egyeznek/.test(r.out), 'nincs mire zöldet mondani');
+  step('E4e4. a saját cél eltakarítva a bukás után is', cel !== null && !letezik(cel), cel || 'nem jött létre cél');
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -374,7 +413,14 @@ console.log('\nE9 — a verdikt-feloldó határesetei és a titok-tisztító');
   const r3 = restoreOutcome({ exitCode: 0, stderr: '' });
   const r4 = restoreOutcome({ exitCode: 0, stderr: 'pg_restore: error: y' });
   step('E9a. hiba + figyelmeztetés EGYÜTT → FAIL', r1.ok === false && r1.errors === 1 && r1.warnings === 1, r1.basis.slice(0, 80));
-  step('E9b. csak figyelmeztetés + nem nulla kilépés → tolerálva', r2.ok === true && r2.tolerated === true, r2.basis.slice(0, 80));
+  step('E9b. csak figyelmeztetés + NEM NULLA kilépés → BUKÁS (a kilépési kód dönt)', r2.ok === false && r2.exitCode === 1, r2.basis.slice(0, 95));
+  // ÉS A SIKERES PÁR: NULLA kilépés mellett a figyelmeztetés NEM buktat.
+  const r5 = restoreOutcome({ exitCode: 0, stderr: 'pg_restore: warning: owner' });
+  step('E9b2. a SIKERES PÁR: nulla kilépés + figyelmeztetés → PASS (a figyelmeztetés nem buktat)',
+    r5.ok === true && r5.warnings === 1, r5.basis.slice(0, 80));
+  // ÉS AZ ÜRES, FELISMERHETETLEN DIAGNOSZTIKA (a reviewer pontos esete): nem nulla kód, üres kimenet.
+  const r6 = restoreOutcome({ exitCode: 3, stderr: '' });
+  step('E9b3. nem nulla kilépés ÜRES (vagy más nyelvű) diagnosztikával → BUKÁS', r6.ok === false, r6.basis.slice(0, 95));
   step('E9c. tiszta futás → PASS', r3.ok === true && r3.warnings === 0, r3.basis.slice(0, 60));
   step('E9d. NULLA kilépés mellett is FAIL, ha hiba-sor van (a kód sem elég magában)', r4.ok === false, r4.basis.slice(0, 80));
   const t = redactConnStrings('hiba: postgres://u:titkos@gep:5432/db ; PGPASSWORD=masik');

@@ -31,6 +31,9 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 loadRepoEnv(ROOT);
 
 const { startServer } = await import('../v3app/server.mjs');
+const { localOnlyVerdict, acquireFreshTarget, freshTargetName, qid, withDatabase, redactConnStrings } =
+  await import('./lib/vs_pg_target.mjs');
+const { execFileSync } = await import('node:child_process');
 const { rememberIntent, resumeIntent, purgeExpiredIntents, intentTtlMs, PENDING_INTENT_TTL_MS } =
   await import('../v3ref/invite.mjs');
 
@@ -39,6 +42,105 @@ if (!url) {
   console.error('proof:pg-intent — nincs DATABASE_URL: a PostgreSQL-oldal NEM mérhető.');
   console.error('  A próba KÉT tárolót mér össze; egy tárolóval a paritás fogalmilag nem értelmezhető.');
   process.exit(2);
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// A PÁRHUZAM-PRÓBA SAJÁT, FRISS ADATBÁZISBAN FUT (R164, KÜLSŐ REVIEW, Codex, P1)
+//
+// A LELET. Ez a lánc MINDEN állítás elején `DELETE FROM pending_intent`-et futtatott — korlátozás
+// nélkül —, és fix, szintetikus munkamenet-azonosítókat írt be. Eldobható-környezet kapuja NEM volt,
+// és saját célt sem hozott létre (szemben a visszatöltési ellenpróbával). Egy staging vagy éles
+// `DATABASE_URL` mellett tehát egy RUTIN párhuzam-ellenőrzés MINDEN felhasználó függő
+// meghívás-folytatását törölte volna. A kár osztálya ugyanaz, mint a visszatöltési kapunál: a
+// „gyakorlás" nem írhat az élesbe (KUKA-038 párja).
+//
+// A VÁLASZ KÉT KAPU:
+//   1. HELYI ÉS ELDOBHATÓ kiszolgáló kötelező (`localOnlyVerdict` — a TÉNYLEGES gazdagépre, a
+//      `?host=` felülírást is feloldva; a nem eldönthető NEM „helyi");
+//   2. a mérés SAJÁT, FRISS adatbázist hoz létre, oda telepíti a sémát, és CSAK abban dolgozik —
+//      a megadott `DATABASE_URL` adatbázisát meg sem nyitja íróként. A végén a saját adatbázisát
+//      eldobja; ami nem a sajátja, ahhoz nem nyúl (a név nem tulajdonbizonyíték).
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+{
+  const kapu = localOnlyVerdict(url);
+  if (!kapu.allowed) {
+    console.error('proof:pg-intent — ELAKADT MÉRÉS: ez a lánc TÖRÖL a `pending_intent` táblából, ezért');
+    console.error(`  csak HELYI, eldobható kiszolgálón futhat. A kapu indoka: ${kapu.basis}`);
+    console.error('  (a gépnevet nem írjuk ki; kimondott felülírás: VS_SAFETY_ALLOW_REMOTE=1)');
+    process.exit(2);
+  }
+  console.log(`  a helyi kapu: ${kapu.basis}`);
+}
+
+const PSQL = process.env.VS_PSQL || 'psql';
+function pgEnv(dbName) {
+  const u = new URL(url);
+  const e = { ...process.env };
+  if (u.hostname) e.PGHOST = decodeURIComponent(u.hostname);
+  if (u.port) e.PGPORT = u.port;
+  if (u.username) e.PGUSER = decodeURIComponent(u.username);
+  if (u.password) e.PGPASSWORD = decodeURIComponent(u.password);
+  e.PGDATABASE = String(dbName);
+  delete e.PGSERVICE; delete e.PGSERVICEFILE;
+  return e;
+}
+function psqlTry(args, dbName = 'postgres') {
+  try {
+    const out = execFileSync(PSQL, ['-X', '-A', '-t', '-q', ...args],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: pgEnv(dbName) });
+    return { code: 0, out: String(out || ''), err: '' };
+  } catch (e) {
+    return { code: Number(e.status ?? 1), out: String(e.stdout || ''), err: redactConnStrings(String(e.stderr || e.message || '')) };
+  }
+}
+const sajatDb = new Set();
+function dobjaSajat() {
+  for (const n of [...sajatDb]) {
+    const r = psqlTry(['-v', 'ON_ERROR_STOP=1', '-c', `DROP DATABASE ${qid(n)} WITH (FORCE)`]);
+    if (r.code === 0) { sajatDb.delete(n); console.log(`  a saját mérési adatbázis eldobva: ${n}`); }
+    else console.log(`  MARADÉK: ${n} — kézzel nézd meg (${r.err.slice(0, 120)})`);
+  }
+}
+process.on('exit', dobjaSajat);
+for (const jel of ['SIGINT', 'SIGTERM']) process.on(jel, () => { dobjaSajat(); process.exit(130); });
+
+// A SAJÁT, FRISS MÉRÉSI ADATBÁZIS — a `CREATE` sikere a tulajdon-bizonyíték.
+const meresDb = (() => {
+  const sz = acquireFreshTarget({
+    measuredSource: (() => {
+      const r = psqlTry(['-c', 'SELECT current_database()'], new URL(url).pathname.replace(/^\/+/, '') || 'postgres');
+      return r.code === 0 ? r.out.trim() : null;
+    })(),
+    explicitTarget: null,
+    generate: () => freshTargetName(),
+    exists: (n) => {
+      const r = psqlTry(['-c', `SELECT 1 FROM pg_database WHERE datname = '${n}'`]);
+      return r.code === 0 ? { known: true, exists: r.out.trim() === '1' } : { known: false, hiba: r.err.slice(0, 120) };
+    },
+    create: (n) => {
+      const c = psqlTry(['-v', 'ON_ERROR_STOP=1', '-c', `CREATE DATABASE ${qid(n)}`]);
+      if (c.code === 0) { sajatDb.add(n); return { ok: true }; }
+      if (/42P04|already exists/i.test(c.err)) return { ok: false, collision: true };
+      return { ok: false, hiba: c.err.slice(0, 120) };
+    },
+  });
+  if (!sz.target) {
+    console.error(`proof:pg-intent — ELAKADT MÉRÉS: a saját mérési adatbázis nem jött létre — ${sz.basis}`);
+    process.exit(2);
+  }
+  return sz.target;
+})();
+const meresUrl = withDatabase(url, meresDb).toString();
+console.log(`  a mérés SAJÁT, friss adatbázisa: ${meresDb} (a megadott adatbázist nem írjuk)`);
+{
+  // A SÉMA a repó saját migrációs eszközével megy be — nem kézi SQL (KUKA-016).
+  try {
+    execFileSync(process.execPath, [resolve(ROOT, 'tools/v3_db_migrate.mjs')],
+      { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, DATABASE_URL: meresUrl } });
+  } catch (e) {
+    console.error(`proof:pg-intent — ELAKADT MÉRÉS: a séma telepítése a saját adatbázisba nem sikerült — ${redactConnStrings(String(e.stderr || e.message)).slice(0, 200)}`);
+    process.exit(2);
+  }
 }
 
 const ORA = 60 * 60 * 1000;
@@ -171,7 +273,17 @@ for (const s of ['', '-wal', '-shm']) { try { rmSync(sqlitePath + s, { force: tr
 let sqliteApp = null; let pgApp = null; let kilepes = 0;
 try {
   sqliteApp = await startServer({ port: 0, host: '127.0.0.1', dbPath: sqlitePath });
-  pgApp = await startServer({ port: 0, host: '127.0.0.1' });
+  /**
+   * A KISZOLGÁLÓ A SAJÁT, FRISS ADATBÁZISON INDUL — nem a megadotton (lásd a fenti kaput).
+   *
+   * A `startServer` a tárolót a KÖRNYEZETBŐL dönti el (`DATABASE_URL`), paraméterként nem fogadja —
+   * ezért a mérés idejére a környezetet állítjuk át, és utána VISSZAÁLLÍTJUK. Így a szerver
+   * dönthetési útja VÁLTOZATLAN marad (nem építünk második utat a tároló megadására — KUKA-003).
+   */
+  const eredetiUrl = process.env.DATABASE_URL;
+  process.env.DATABASE_URL = meresUrl;
+  try { pgApp = await startServer({ port: 0, host: '127.0.0.1' }); }
+  finally { if (eredetiUrl === undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL = eredetiUrl; }
   if (pgApp.store.dialect !== 'postgres') {
     console.error(`ELAKADT MÉRÉS: a második tároló nem PostgreSQL (dialect=${pgApp.store.dialect}).`);
     process.exit(2);

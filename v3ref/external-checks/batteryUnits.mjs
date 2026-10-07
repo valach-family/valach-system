@@ -155,10 +155,24 @@ export function adaptiveUnitPlan({ spawnUnits, startUnits = batteryUnits(), maxU
       return { units: n, attempts: attempt, fitted: true, log: Object.freeze(log), result: r };
     }
     log.push(`${attempt}. ${n} egység — IDŐTÚLLÉPÉS a ${EXTERNAL_CAP_MS} ms-os korláton, finomítás`);
-    if (n >= maxUnits) break;
+    /**
+     * A PLAFONON NEM FUTTATJUK ÚJRA UGYANAZT (R164, KÜLSŐ REVIEW, Codex, P2).
+     *
+     * A LELET: a régi alak a plafon elérésekor KILÉPETT a hurokból, és utána MÉG EGYSZER elindította
+     * a pontosan ugyanolyan — tehát a legdrágább — bontást. Egy lassú gépen, amire ez a tartalék épp
+     * készült, ez a duplikált futás nem tud finomítani, viszont elvisz még egy nagy szeletet a KÜLSŐ
+     * program-keretből: a külső ellenőrző így bizonyíték-artefaktum NÉLKÜL fut időtúllépésbe. Vagyis
+     * a védelem költsége nőtt azzal, ami ellen védett (KUKA-290), és a verdikt az időről szólt, nem a
+     * tartalomról (KUKA-216). MA: a plafonon a MÁR MÉRT eredményt tartjuk meg, nem ismételjük.
+     */
+    if (n >= maxUnits) {
+      log.push(`záró: ${n} egység a PLAFONON — A PLAFONON SEM FÉRT BELE (a mért eredményt tartjuk, nem futtatjuk újra)`);
+      return { units: n, attempts: attempt, fitted: false, log: Object.freeze(log), result: r };
+    }
     n = Math.min(n * 2, maxUnits);
   }
+  // A kísérlet-korlát elfogyott, de a plafon még nem: EGY utolsó, FINOMABB bontást adunk.
   const r = spawnUnits(n);
-  log.push(`záró: ${n} egység — ${r.timedOut ? 'A PLAFONON SEM FÉRT BELE' : 'belefért'}`);
+  log.push(`záró: ${n} egység — ${r.timedOut ? 'NEM FÉRT BELE (a kísérlet-korlát elfogyott)' : 'belefért'}`);
   return { units: n, attempts: maxAttempts + 1, fitted: !r.timedOut, log: Object.freeze(log), result: r };
 }
