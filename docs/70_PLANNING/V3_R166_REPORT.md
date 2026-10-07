@@ -484,9 +484,20 @@ program tartalmi verdiktje hiányzik. Amit az átvevőnek tudnia kell:
   igazítását — de csak a **szervezési** keretet, a **mutációs egység** 15 000 ms-os korlátját NEM,
   és a korlát nem válhat végtelenné. Az indokot és a megszakítás utáni folytatást rögzíteni kell;
 - a részleges futás verdiktje **soha** nem a lánc összverdiktje (ezt a futtató maga mondja ki);
-- a **mag kódja ebben a csomagban nem változott** — a `v3ref/` alatt egyetlen termék-fájlt sem
-  érintettem (a változás `v3app/`, `tools/`, `contracts/`, `tests/` és `docs/` alatt áll), tehát a
-  hat program a mai fejen ugyanazt méri, mint a `3fea359`-en.
+- **JAVÍTÁS A SAJÁT KORÁBBI ÁLLÍTÁSOMHOZ: a mag kódja IGENIS változott.** Ennek a pontnak egy
+  korábbi alakja azt mondta, hogy a `v3ref/` alatt egyetlen termék-fájlt sem érintettem, és hogy a
+  hat program a mai fejen ugyanazt méri, mint a `3fea359`-en. **Ez a mai fejen nem igaz** — mérve
+  (`git diff --stat 3fea359..HEAD -- v3ref/`):
+
+  | mag-fájl | mi került bele |
+  |---|---|
+  | `v3ref/invite.mjs` | **+20 sor** — `forgetIntent` (a §1 szerver-oldali elfelejtése) |
+  | `v3ref/command.mjs` | **+58 sor** — `commandResultReadable` (a 2.4/(1) hatás nélküli jog-kérdése) |
+
+  **Ami ebből KÖVETKEZIK az átvevőre:** a mag mutációs battériájának korábbi zöldje (`253/253` a
+  `c2cccd1` fejen) **NEM fedi** ezt a két új, exportált függvényt, és a hat külső program sem a
+  `3fea359`-es magot méri. Ezért a §4 futtatása ELŐTT a mag battériája is futtatandó a mai fejen
+  (`npm run verify:v3ref`) — ezt **elindítottam**, a verdiktje a 6.4 pontban áll.
 
 ### 6.3 Ami korábbról nyitott, és most sem változott
 
