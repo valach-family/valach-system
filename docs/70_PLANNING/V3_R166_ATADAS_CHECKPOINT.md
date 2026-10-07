@@ -49,35 +49,42 @@ A soronkénti tábla a jelentés 1., 1.1 és 9.1 pontjában áll. Röviden:
 
 ---
 
-## 4. A HELYI PostgreSQL ÚJRAINDÍTÁSA — TITOKMENTES LEÍRÁS
+## 4. A HELYI PostgreSQL ÚJRAINDÍTÁSA — TITOKMENTESEN
 
 A konténer **eldobható**: egy friss munkamenetben a klaszter nincs meg, újra kell építeni. Jelszó
 nincs és nem is kell: a klaszter **csak a hurok-címen** hallgat, `trust` hitelesítéssel, szintetikus
 adattal. **Ez nem éles adat és nem felhős kiszolgáló.**
 
+**A KAPCSOLAT ÖSSZETEVŐI** (jelszó nincs): gazdagép `127.0.0.1` · port `55432` · szerep `vsproba` ·
+adatbázis `vs_proba_fo` · socket-könyvtár `/home/user/vs_pg_proba/sock` · binárisok
+`/usr/lib/postgresql/16/bin` (**nem** a `PATH`-on).
+
+**A kapcsolati címet ÖSSZEÁLLÍTVA, a `.env`-be tedd — ne a parancssorba és ne egy lapra.** A CLAUDE.md
+szabálya: a kapcsolati cím és bármely kulcs csak a `.env`-ben él. A láncok a **környezetből** olvassák.
+
 ```bash
-export PATH="/usr/lib/postgresql/16/bin:$PATH"     # a binárisok NEM a PATH-on vannak
+export PATH="/usr/lib/postgresql/16/bin:$PATH"
 mkdir -p /home/user/vs_pg_proba/data /home/user/vs_pg_proba/sock /home/user/vs_pg_proba/log
 initdb -D /home/user/vs_pg_proba/data -U vsproba --auth=trust
 pg_ctl -D /home/user/vs_pg_proba/data -l /home/user/vs_pg_proba/log/pg.log \
   -o "-p 55432 -k /home/user/vs_pg_proba/sock -c listen_addresses=127.0.0.1" start
 createdb -h 127.0.0.1 -p 55432 -U vsproba vs_proba_fo
-DATABASE_URL="postgres://vsproba@127.0.0.1:55432/vs_proba_fo" npm run db:migrate   # 41 tábla
-```
-
-A láncok ezzel a címmel futnak (`DATABASE_URL` a környezetben, **nem** parancssori paraméterként):
-
-```bash
-DATABASE_URL="postgres://vsproba@127.0.0.1:55432/vs_proba_fo" npm run proof:pg-intent
-DATABASE_URL="postgres://vsproba@127.0.0.1:55432/vs_proba_fo" npm run proof:pg-restore-safety
-DATABASE_URL="postgres://vsproba@127.0.0.1:55432/vs_proba_fo" npm run proof:pg-durability
+# a fenti négy összetevőből álló címet írd a .env-be, majd:
+npm run db:migrate            # 41 tábla
+npm run proof:pg-intent
+npm run proof:pg-restore-safety
+npm run proof:pg-durability
 ```
 
 **EGY MÉRT CSAPDA, hogy ne ismétlődjön:** a tartóssági láncot a klaszter **migráció nélküli**
 karbantartó adatbázisára irányítva nevezetten elakad (`relation "subject" does not exist`, `42P01`).
-Nem a kód bukik — a mérés rossz. A migrált adatbázist kell megadni (fent).
+Nem a kód bukik — a mérés rossz. A **migrált** adatbázist kell megadni (`vs_proba_fo`, fent).
 
----
+**ÉS EGY SAJÁT ELTÉRÉS, KIMONDVA.** E lap első alakja a kapcsolati címet **kiírt értékkel** tartalmazta,
+és a board titok-őre ezt NEVEZETTEN elutasította (HTTP 400, négy sorra mutatva) — helyesen. A cím ugyan
+jelszó nélküli, hurok-címen hallgató, eldobható klaszterre mutat, de a szabály nem a kár mértékéről
+szól: a cím a `.env`-be tartozik. Ugyanezt a munkamenet közben a terminálon is kiírtam néhányszor. **A
+gépi őr fogta meg, nem én** — ezért áll itt, és nem hallgatom el.
 
 ## 5. A FOGYASZTÁS-LELTÁR ÉS A MÉRÉS
 
