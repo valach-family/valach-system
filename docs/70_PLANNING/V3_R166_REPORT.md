@@ -345,15 +345,21 @@ A 2.1-ben megdöntöttem, hogy *„az idézőjel a titok határa"* — de **csak
 amire a lelet mutatott**. A kapcsolati cím elrejtése **ugyanabban a fájlban**, néhány sorral lentebb,
 karakter-kizárásos mintával zárt:
 
-| bemenet | RÉGI kimenet |
+> **A PÉLDÁKAT SZÁNDÉKOSAN NEM ÍRJUK LE HASZNÁLHATÓ ALAKBAN.** Az első változatuk valódi
+> kapcsolati cím **formájú** volt (séma · felhasználó · **jelszó** · gazdagép · adatbázis), és a
+> board **titok-őre elutasította a feltöltést** — joggal: a szabály az ALAKRA szól, nem a tartalom
+> eredetére. Az őr tehát a saját jelentésemen is működött. A leírás ezért szerkezetet nevez meg,
+> nem címet ad.
+
+| a bemenet szerkezete | RÉGI kimenet |
 |---|---|
-| `postgres://u:pa'ss@host/db` | `«kapcsolati cím elrejtve»'ss@host/db` — a jelszó **maradéka** és a **gazdagép** |
-| `psql "postgres://u:pa\"ss@host/db"` | ugyanaz: `ss@host/db` a naplóba |
+| kapcsolati cím, amelynek a **jelszó-részében aposztróf** van | a rejtés az aposztrófnál **megállt**: a jelszó **maradéka** és a **gazdagép** a naplóba került |
+| ugyanez, dupla idézőjelen belül, **escape-elt** idézőjellel a jelszóban | ugyanaz a maradék a naplóba |
 
 **A javítás:** a cím vége is a **shell-szó** határa. A szöveget **szavakra bontjuk**, és a címet a
 saját szaván belül rejtjük el — a szó végéig, de nem tovább.
 
-**És a szavakra bontás nem dísz:** a sémától indítva a letapogató egy `'postgres://…'` alakú,
+**És a szavakra bontás nem dísz:** a sémától indítva a letapogató egy **idézett, kapcsolati cím alakú**
 **idézett** szó belsejéből indult volna, ahol a nyitó idézőjelet már nem látja, a zárót pedig nyitónak
 veszi — és a **sor végéig** rejtett volna, elvéve a hasznos részt (`-f ki.dump`). Ezt is megmértem,
 mindkét irányban: a titok eltűnik, a hasznos szöveg **megmarad**, a titokmentes sor betűre változatlan.
