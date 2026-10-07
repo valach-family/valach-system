@@ -14,7 +14,7 @@ Ez a lap csak azt írja le, amit az **átvevő** munkamenetnek tudnia kell az in
 | **átadott fej** | lásd a `git log -1` kimenetét ezen az ágon — ez a lap ÉS a jelentés javításai együtt vannak benne |
 | **a review által fedett fej** | `3fea359` (ezt olvasta vissza az R166 is; azon a fejen a kód- és biztonsági review 12:46 UTC óta futott) |
 | **ág** | `claude/r154-audit-fix` — **ugyanaz a PR (#1), ugyanaz a javítási ág**; a célág `claude/ecstatic-fermi-8c23co` |
-| **nyitott review-szál** | **nincs.** Hét kör 31 megjegyzése megválaszolva és lezárva |
+| **nyitott review-szál** | **EGY**, és NEM lezártam: a nyolcadik kör P1-je a `withDatabase`-re (`#discussion_r4207213198`). Megmérve és a 3b. pontban leírva — a javítása az ÁTVEVŐ első teendője. A megelőző hét kör 31 megjegyzése megválaszolva és lezárva |
 | **futó mérés** | **nincs.** Minden háttér-folyamat lezárult; részleges mérés nem írt felül teljes bizonyítékot |
 
 **A RÉGI ÍRÓ EZZEL LEÁLL.** Ebben a munkamenetben több írás nem indul: sem új funkció, sem új
@@ -48,6 +48,46 @@ A soronkénti tábla a jelentés 1., 1.1 és 9.1 pontjában áll. Röviden:
 | **5. záró mérés + EGY jelentés** | a board-lap, a kör-üzenet és a PR összefoglaló ugyanazt mondja | a jelentés szerkezete áll (EGY állapottábla); az R166 nevezett szöveghibája (a 2.3 `E4e` sor) **javítva**, és az összverdikt is javítva **RÉSZLEGES**-re |
 
 ---
+
+## 3b. AZ ÁTADÁS UTÁN BEÉRKEZETT P1 — MEGMÉRVE, ÉS AZ ELSŐ TEENDŐ
+
+A nyolcadik review-kör egy **P1**-et adott a `tools/lib/vs_pg_target.mjs` `withDatabase` függvényére
+(`#discussion_r4207213198`): *„Strip node-postgres `db` overrides when retargeting"* — azt állítja,
+hogy `postgres://u@localhost/original?db=source` mellett a node-postgres a **forrás** adatbázisra
+kapcsolódik, tehát az `intent`-próba törlései és a `restore`-próba írásai az eredeti adatbázisba
+mennének, miközben a takarítás az üres ideiglenes adatbázist dobja el.
+
+**MEGMÉRTEM A KITŰZÖTT KÖNYVTÁRON (`pg-connection-string` 2.14.1), ÉS A LEÍRT ESET NEM ÁLL ELŐ:**
+
+| cím | mért `database` |
+|---|---|
+| `postgres://u@localhost/original?db=source` | **`original`** |
+| `postgres://u@localhost/original?dbname=source` | **`original`** |
+| `postgres://u@localhost/original?database=source` | **`original`** |
+| `postgres://u@localhost/original?host=/var/run/x&db=source` | **`original`** |
+
+**MIÉRT:** a könyvtár a `postgres:` sémánál az útvonalat **feltétel nélkül** írja a `database`-re
+(`config.database = pathname ? decodeURI(pathname) : null`), tehát lekérdezési paraméter ott nem
+írhatja felül. A `db=` felülírás a kódban **kizárólag** a `socket:` séma ágán áll
+(`if (result.protocol == 'socket:') { … config.database = searchParams.get('db') … }`) — ezt
+dokumentálja a README Unix-socket szakasza is, amire a lelet hivatkozik.
+
+**AMI VISZONT VALÓDI, SZŰKEBB RÉS — ÉS EZ AZ ELSŐ TEENDŐ.** Ha a `DATABASE_URL` **`socket://`**
+sémát használ, a `withDatabase` az útvonalat írná át (ami ott a **socket-könyvtár**, nem adatbázis),
+a `db=` paramétert pedig **érintetlenül hagyja** — a kapcsolat így a `db=` adatbázisára menne, az
+átirányítás ellenére. Ugyanezt a `socket:` sémát az `effectiveDatabase` feloldó sem kezeli. A lelet
+mechanizmusa tehát igaz, csak a séma más, mint ahogy a szöveg írja.
+
+**AMIT AZ ÁTVEVŐNEK EZZEL KELL TENNIE** (nem itt, mert ez munkablokk, nem átadás):
+1. a `socket:` séma kezelése **egy** helyen, és **mindkét** fogyasztóban (`withDatabase` +
+   `effectiveDatabase`) — ami nem eldönthető, ott fail-closed megállás (KUKA-003 · KUKA-236);
+2. ellenpárok a **kárra**, ne a listára: `socket://` címmel az átirányítás után TÉNYLEGESEN a friss
+   célon írjon-e a lánc — és az eredeti adatbázis maradjon érintetlen;
+3. utána a három pg-lánc újramérése (a mai zöldjük a `postgres:` sémára szól).
+
+**ÉS AMIT NEM SZABAD:** a leletet „nem reprodukálható" címen lezárni. A mért tény az, hogy a
+LEÍRT eset nem áll elő a kitűzött könyvtáron — a mechanizmus viszont létezik, és a safety-kritikus
+feloldóban nyitva van.
 
 ## 4. A HELYI PostgreSQL ÚJRAINDÍTÁSA — TITOKMENTESEN
 
