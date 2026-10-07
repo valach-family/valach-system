@@ -40,7 +40,13 @@ repóban a memória a repó.
 történet-bejegyzésnek az újbóli megnyitása **más ember** által — újra beolvasta a jegyet, és a felület
 visszatért az előző ember meghívó-folyamatára. A címsor is állapot.
 
-**Gépi jel.** `npm run verify:browser-gate` · `npm run verify:kuka` (KUKA-383).
+**Amit ez NEM mér, kimondva.** A **kilépés** ágát böngészőben nem mérjük: a meghívó-képernyőn ma
+nincs kilépés-vezérlő (a profil-menü ott nem rajzolódik ki), tehát a felületen **nincs út**, amin a
+jegy a címsorban állva kilépés érné. A böngészős kapu a **beváltás** ágán méri a közös elfelejtőt; a
+kilépés ágát az **egy otthon** viszi, nem egy második, külön mért kódrészlet (KUKA-207).
+
+**Gépi jel.** `npm run verify:browser-gate` (a beváltás után a címsorban nincs jegy) ·
+`npm run verify:kuka` (KUKA-383).
 
 ---
 

@@ -14914,7 +14914,7 @@ Object.freeze({
     ]),
     forbidden: Object.freeze([]),
     lesson: 'A CÍMSOR IS ÁLLAPOT. Egy nézethez kötött tár ürítése nem áll meg a memóriánál: ami a címből visszaolvasható, az a következő indulásnál visszajön — tehát ugyanabban az ürítésben kell elvinni. És ha az egyik ág már helyesen teszi, a javítás nem egy második másolat, hanem a KÖZÖS hívás.',
-    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta) · `npm run verify:browser-gate` (a Béla-út: kilépés után a címsorban NINCS jegy, és a frissítés a BELÉPŐ képernyőre érkezik).',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta) · `npm run verify:browser-gate` (a Béla-út: a BEVÁLTÁS után a címsorban NINCS jegy — a KÖZÖS elfelejtőt mérve). KIMONDVA, AMIT NEM MÉRÜNK: a KILÉPÉS ágát böngészőben nem mérjük, mert a meghívó-képernyőn ma nincs kilépés-vezérlő (a profil-menü ott nem rajzolódik ki), tehát a felületen nincs út, amin a jegy a címsorban állva kilépés érné; a kilépés ágát a KÖZÖS otthon viszi, nem külön kódrészlet (KUKA-207).',
   }),
 
   Object.freeze({

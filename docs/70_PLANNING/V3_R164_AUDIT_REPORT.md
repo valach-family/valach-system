@@ -12,33 +12,43 @@ korábbi körök számai **történeti adatok**, nem végállapot — ahol elté
 
 | | |
 |---|---|
-| **KÓD-SHA (a csomag feje)** | `9cc59e9` — az `b31d8c9` (R158 záró feje) LESZÁRMAZOTTJA. A csomag három commitja: `a7f8f2d` (R164/1) · `c49699c` (R164/3 lefedettség) · `9cc59e9` (R164/3 átadás + külső-ellenőrző bekötés) |
-| **EREDMÉNY-HORDOZÓ FEJ** | ugyanaz: `9cc59e9`. A jelentésben szereplő MINDEN mérés ezen a fán futott, kivéve ahol a sor külön mást mond |
-| **MÉRÉS IDEJE** | 2026-10-07, 04:50–07:30 UTC (a csomag munkamenete) |
-| **A REVIEW ÁLTAL FEDETT SHA** | `6c40c31` — a Codex legutóbbi összegzője eddig a fejig szól. **Az azóta született javításoknak NINCS új, független review-bizonyítéka**: `a7f8f2d`, `c49699c`, `9cc59e9` nem fedett |
-| **FÜGGETLEN REVIEW ÁLLAPOTA** | **FÜGGŐ.** A Codex-limit miatt új kör nem kérhető; a limit időszaka és visszaállása **nem bizonyított** (lásd 6. szakasz) |
+| **KÓD-SHA (a csomag feje)** | `8f14ca9` — a `b31d8c9` (R158 záró feje) LESZÁRMAZOTTJA. A csomag R164-es commitjai: `a7f8f2d` (R164/1) · `c49699c` (R164/3 lefedettség) · `9cc59e9` (R164/3 átadás + külső-ellenőrző bekötés) · `98ec598` (a lap navigációja) · `8d9800d` · `63b2a28` (az első review-kör 12 lelete) · `cb56faa` (a 13.) · `1a9fe84` (az M222 túlélése) · `8f14ca9` (a második review-kör 9 lelete) |
+| **EREDMÉNY-HORDOZÓ FEJ** | `8f14ca9`. A jelentésben szereplő MINDEN mérés ezen a fán futott, **kivéve ahol a sor külön mást mond** — és a három hosszú lánc (böngészős kapu · mag-mutációs battéria · külső-ellenőrző) kifejezetten **ezen** a fejen futott, a csomag végén |
+| **MÉRÉS IDEJE** | 2026-10-07, 04:40 UTC → a csomag zárása (a `--from` a parancs board-időbélyege) |
+| **A REVIEW ÁLTAL FEDETT SHA** | `cb56faa` — a külső fél eddig a fejig mért, **két körben**. **Az azóta született két fejnek NINCS új, független review-bizonyítéka**: `1a9fe84` és `8f14ca9` nem fedett |
+| **FÜGGETLEN REVIEW ÁLLAPOTA** | **FÜGGŐ a két legutóbbi fejre.** A korábbi limit feloldódott; a limit időszaka és visszaállása az üzenetből **nem bizonyított**, ezért nem nevezem meg (6. szakasz). A két kör **22 megjegyzése mind javítva**, mért bizonyítékkal (7. szakasz) |
 | **ÖSSZVERDIKT** | **helyi ellenőrzések kész / független review FÜGGŐ.** Ez **NEM merge-készség** — nincs merge, nincs lezárás |
+| **FOGYASZTÁS (a csomag ablakán)** | kumulatív fő-szál kontextusmedián **367 729** → a `300–400 ezres` **FIGYELMEZTETÉS** sáv: rövid állapotmérés a munkablokk határán, megállni nem kell. Ügynök-bemenet **0** (nulla al-ügynök indult) |
 
 ### 1.1 A LÁNCOK ÉS A VERDIKTEK — EZEN A FEJEN MÉRVE
 
 | lánc | verdikt | mit mondott |
 |---|---|---|
-| `verify:kuka` | **ZÖLD** | 785/785 |
+| `verify:kuka` | **ZÖLD** | 840/840 (a csomag **40** új bejegyzése: `KUKA-345…384`) |
 | `verify:i18n` | **ZÖLD** | 49/49 · ellenpróba 6/6 |
 | `verify:tutor` | **ZÖLD** | 92/92 · ellenpróba 14/14 |
-| `verify:app-findings-r154` | **ZÖLD** | 209/209 (az új **AB** csoport: ab1–ab7) |
-| `verify:app-findings-r144` | **ZÖLD** | 30/30 |
+| `verify:assistant` | **ZÖLD** | 55/55 · ellenpróba 6/6 |
+| `verify:app-findings` (R75) | **ZÖLD** | 73/73 |
+| `verify:app-findings-r77` | **ZÖLD** | 34/34 |
+| `verify:app-findings-r79` | **ZÖLD** | 49/49 |
 | `verify:app-findings-r91` | **ZÖLD** | 30/30 |
+| `verify:app-findings-r144` | **ZÖLD** | 30/30 |
+| `verify:app-findings-r154` | **ZÖLD** | **230/230** — az új **AB** (R164/1 döntései), **AC** (az O(1)-es felvétel hívás-számon), **AD** (a látogató-cím feloldása) és **AE** (a második review-kör hat tiszta döntése) csoporttal |
 | `app:selfcheck` | **ZÖLD** | 57/57 |
 | `verify:doc-html` | **ZÖLD** | 9/9 |
-| `verify:decision-numbers` | **ZÖLD** | 4/4 (a következő szabad szám: D-VS-3173) |
+| `verify:artifact-naming` | **ZÖLD** | **28/28** — ez a csomag alatt **PIROS volt** (a generált célnév kézzel vágta az időbélyeget); a javítás a 7.5 pontban |
+| `verify:release-order` | **ZÖLD** | 37/37 |
+| `verify:decision-numbers` | **ZÖLD** | 4/4 (a következő szabad szám: **D-VS-3193**) |
 | `verify:unit-admission` | **ZÖLD** | 16 ellenpélda · 1 pozitív kontroll |
-| `proof:demo-walk` | **ZÖLD** | **66 ZÖLD / 0 PIROS** (a böngészős kapu visszaállt) |
-| `proof:pg-durability` | **ZÖLD** | **13/13** mért lépés, valódi PostgreSQL 16.15-en |
-| `proof:pg-restore-safety` | **ZÖLD** | **39/39** ellenpróba-lépés (ÚJ lánc) |
-| `proof:pg-intent` | **ZÖLD** | 10 állítás, MINDKÉT tárolón, 0 eltérés |
-| `verify:lefedes` | **PIROS (örökölt)** | 15 ZÖLD / 1 PIROS — a piros maga a **20 hiány-kulcs**; a regresszió-irány (LR1 · LR2) ZÖLD |
-| `verify:external-checks` | **lásd 5.1** | a hosszú lánc a csomag végén, ÖNÁLLÓAN fut |
+| `verify:sweep-reuse` | **ZÖLD** | 43/43 |
+| `verify:fogyasztas-meres` | **ZÖLD** | 18/18 ellenpróba |
+| `proof:pg-durability` | **ZÖLD** | **13/13** mért lépés, valódi PostgreSQL **16.15**-en |
+| `proof:pg-restore-safety` | **ZÖLD** | **43/43** ellenpróba-lépés (ÚJ lánc; a második review-kör után `E2c`-vel bővült) |
+| `proof:pg-intent` | **ZÖLD** | **10 állítás, MINDKÉT tárolón, 0 eltérés** — saját, friss adatbázisban |
+| `verify:lefedes` | **PIROS (nevesített)** | 15 ZÖLD / 1 PIROS — a piros maga a **20 hiány-kulcs**; a kettéosztás és a regresszió-irány (LR1 · LR2 · LC1–LC4) ZÖLD. A részletek az 1.2–1.3 pontban |
+| `verify:browser-gate` | *(a záró kapuban)* | lásd 9. szakasz |
+| `verify:v3ref` (mag-mutációs battéria) | *(a záró kapuban)* | lásd 9. szakasz |
+| `verify:external-checks` | *(a záró kapuban)* | lásd 5.3 és 9. szakasz |
 
 ### 1.2 A HIÁNY-SZÁMOK — A KEVEREDÉS FELOLDVA, MÉRÉSSEL
 
@@ -311,11 +321,14 @@ született fejeknek (`63b2a28` · `cb56faa` · `1a9fe84`) **nincs** új, függet
 
 ---
 
-## 7. A REVIEW-KÖR — A CODEX 13 LELETE, A CSOMAG SAJÁT JAVÍTÁSAI FELETT
+## 7. A KÉT REVIEW-KÖR — A CODEX 22 LELETE, A CSOMAG SAJÁT JAVÍTÁSAI FELETT
 
-A limit feloldódása után a külső fél a **mostani** csomag friss kódját mérte. Ez a legértékesebb
-fajta visszajelzés, és ennek megfelelően a leletek többsége **az én ebben a körben írt javításaim
-felett** szólt. **Hat P1 és hét P2 — mind megmérve és javítva.**
+A limit feloldódása után a külső fél a **mostani** csomag friss kódját mérte, **két körben**. Ez a
+legértékesebb fajta visszajelzés, és ennek megfelelően a leletek többsége **az én ebben a csomagban
+írt javításaim felett** szólt. **Összesen 22 lelet: 9 P1 és 13 P2 — mind megmérve és javítva.**
+
+Az első kör (7.1–7.2) 13 leletet adott, a második (7.4) kilencet — ezek **nyolc** valós hibát
+neveznek meg, mert a parancssori kliensek környezetét két külön fájlban, ugyanarra a hibára jelezték.
 
 ### 7.1 A HAT P1
 
@@ -356,6 +369,37 @@ azonosító saját, monoton számlálóból jön; mérve: **25 azonosító ismé
 
 **Kimondva:** ezt a hibát **nem őr** fogta meg, hanem az, hogy a feltöltés előtt **átolvastam** a
 lapot. A visszacsúszást mostantól tiltó minta őrzi.
+
+### 7.4 A MÁSODIK KÖR — KILENC MEGJEGYZÉS, NYOLC VALÓS HIBA (3 P1)
+
+Ez a kör **kizárólag** az ebben a csomagban írt javításaim felett szólt. Három leletem **ugyanannak
+a hiba-osztálynak az ismétlése** volt, amit órákkal korábban magam javítottam — ezt nem szépítem.
+
+| # | a lelet | a javítás |
+|---|---|---|
+| **P1** | **Csak az abszolút út socket** (`KUKA-377` · `D-VS-3185`). A destruktív pg-próbák helyi-kapuja a **ponttal** kezdődő gazdagépet is „helyi socketnek" vette. A PostgreSQL viszont kizárólag az **abszolút**, perjellel kezdődő értéket kezeli socketként: egy `?host=.belso.pelda.hu` alakú, a telepítési környezetben **feloldódó** cím így átment a kapun — oda, ahol a próba **ír és töröl** | a kapu már csak a nevesített helyi gazdagépeket és az abszolút utat fogadja el; a nem eldönthető eset változatlanul zárás |
+| **P1** | **A kilépés nem szedte le a védett-indexet** (`KUKA-378` · `D-VS-3186`). A kiszorítás könyvelte a névtelen számlálót **és** az indexet, a kilépés útja csak a számlálót. A folytatás→kilépés ismétlése a tár **plafonján kívül** növelte a memóriát, és az elavult azonosítók végül azt is elhitették a rövidre zárással, hogy a tár csupa **védett** sorral telt: egy **új** munkamenet felvétele elutasításra futott | **egy** könyvelő (`forget`), amit mindkét út hív — nem egy harmadik sor a kilépésben |
+| **P1** | **A „forrás változatlan" állítás túl tág volt** (`KUKA-380` · `D-VS-3188`). A mérés tartalmazás-vizsgálat volt: **bármennyi új** sort elfogadott, a **megváltozott** sort nem is látta — miközben minden futás tényleg írt a forrásba (a gyermek saját előkészítése) | a pillanatkép a **teljes sor-tartalmat** viszi, és **három** osztály dől el: eltűnt · megváltozott · jött. A harmadikat **kimondjuk** és a **mért** mértékhez kötjük; a kép minden futás **előtt** újra készül |
+| P2 ×2 | **A parancssori kliensek környezete a cím autoritás-gazdagépéből épült**, a `?host=` felülírást eldobta — **két másolatban** (`KUKA-379` · `D-VS-3187`). A gazdagép-kaput ugyanebben a csomagban javítottam, a tényleges végrehajtást nem: a bizonyíték így nem arra a klaszterre szólt, amit mértünk | **egy otthon** (`cliEnvFor`), ugyanazzal a feloldóval, amit a kapu használ — és **fail-closed**, ha a gazdagép nem eldönthető |
+| P2 | **A futtató saját költségvetés-túllépését tartalmi bukásnak olvastuk** (`KUKA-381` · `D-VS-3189`), ezért nem finomítottunk — a lánc tartalmi bukásként adta tovább azt, amit épp a finomítás oldott volna meg | a futtató **stabil gépi jelet** ír ki, és a terv **maga** olvassa ki; a tartalmi bukás viszont nem indít finomítást |
+| P2 | **A rendezés önmagában nem adott előrehaladást** (`KUKA-382` · `D-VS-3190`): egy friss, érvényes eltolásos időbélyeg **számmal** kezdődik, egy romlott érték **betűvel** — tehát a köteg **állandó** maradt, és a romlott sor határtalanul ott maradt. A saját `KUKA-372`-es javításom csak **elmozdította** a kiéheztetést | **kulcs-kurzor** az időbélyeg és az azonosító **párján**: minden pászta továbblép, a tábla végén visszaáll az elejére |
+| P2 | **A kilépés a címsorról nem vitte el a meghívó jegyet** (`KUKA-383` · `D-VS-3191`): egy frissítés — vagy ugyanannak a történet-bejegyzésnek az újbóli megnyitása **más ember** által — visszavitte a felületet az **előző** ember meghívó-folyamatára | **közös** elfelejtő, amit a kilépés és a beváltás is hív — és csak a meghívó paramétert viszi el, a nyelvválasztást nem |
+| P2 | **A hiány-osztályozás csak az önpróba konzolján létezett** (`KUKA-384` · `D-VS-3192`), a gépi artefaktumban nem — a `--json` út pedig a nyomtatás **előtt** kilép. A leltár így nem tudta megmondani, mely rés pótolható: pontosan azt nem, amiért készült | a JSON viszi a `gap_classes` blokkot, és az önpróba a **kiírt fájlt** olvassa vissza |
+
+**A hat tiszta döntés mérése (`verify:app-findings-r154`, új „AE" csoport — 230/230 PASS):** `ae1` a
+pont nem helyi · `ae2` a felülírás, **ellenpárral** (a javítás előtti feloldó `localhost`-ot adott) ·
+`ae3` a fail-closed három alakja · `ae4` a kilépés után az index üres · `ae5` a költségvetés-túllépés
+finomít, a tartalmi bukás nem, **ellenpárral** · `ae6` a kurzor eléri a romlott sort, kurzor nélkül
+nem, **ellenpárral**. A hetediket a `proof:pg-restore-safety` méri valódi PostgreSQL-en (`E2` · `E2c`
+· `E6d`), a nyolcadikat a böngészős kapu.
+
+### 7.5 ÉS EGY SAJÁT LELET A LÁNCOK VISSZAMÉRÉSÉN
+
+A `verify:artifact-naming` **piros** volt az R164/1 óta, és eddig nem derült ki: a generált célnév
+**kézzel** vágta az ISO-időbélyeget, amit az `ART05` őr nevezetten tilt (a V2-ben mérve **40**
+szerszám tette, három különböző alakban). Az őrt **nem lazítottam**: az idő-rész mostantól a névadás
+közös otthonából jön. **Kimondom:** ezt a pirosat a csomag **korábbi** szakasza okozta, és csak a
+láncok visszamérésén jött ki — nem az írás pillanatában. Ma `28/28`.
 
 ---
 

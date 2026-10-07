@@ -201,6 +201,21 @@ test('H02 — A meglévő magánfiók alkalmazotti meghívót elfogad; jelszava,
     ev.b(`Béla (meglévő, belépett fiók) megnyitja a meghívó hivatkozását: a lap „${o.observe.status}"-t mutat, a következő lépés: „${o.next}"; a Beváltás gomb látszik: ${o.redeemVisible}`);
     expect(o.observe.status).toBe('redeem_as_existing');
     const r = await redeemUI(bela.page);
+    /**
+     * A MEGHÍVÓ JEGY A CÍMSORBÓL IS ELTŰNIK (R164 review, Codex, P2 — `KUKA-383` · `D-VS-3191`).
+     *
+     * A LELET a KILÉPÉS ágán volt: az ürítette a belső jegyet, de a címsort nem — egy frissítés így
+     * visszavitte a felületet az ELŐZŐ ember meghívó-folyamatára. A javítás egy KÖZÖS elfelejtőt tett
+     * a két ág (kilépés és beváltás) alá, és ez a mérés AZT a közös elfelejtőt méri a felületen
+     * elérhető úton: a beváltás után a címsorban nincs jegy, és a nyelvválasztás sem esik ki.
+     *
+     * AMIT EZ NEM MÉR, KIMONDVA (KUKA-207 · KUKA-216): a KILÉPÉS ágát a böngészőben nem mérjük, mert
+     * a meghívó-képernyőn ma NINCS kilépés-vezérlő (a `profile` menü ott nem rajzolódik ki), tehát a
+     * felületen nincs út, amin a jegy a címsorban állva kilépés érné. A kilépés ágát a KÖZÖS otthon
+     * viszi — nem egy második, külön mért kódrészlet.
+     */
+    const cimsorBevaltasUtan = new URL(bela.page.url());
+    expect(cimsorBevaltasUtan.searchParams.has('invite'), 'a beváltás a CÍMSORBÓL is elviszi a meghívó jegyet (a közös elfelejtő)').toBe(false);
     ev.b(`Beváltás után az értesítő: „${r.notice}"; fejléc: „${(await header(bela.page)).workspace}"; a választó: ${(await workspaceListUI(bela.page)).map((x) => line(x.text)).join(' | ')}`);
     ev.s(`POST /api/invites/redeem → ${r.status}; shape=${r.body.shape}, outcome=${r.body.outcome}, read_scope_granted=${r.body.read_scope_granted} — a beváltás CSAK tagságot ír, hitelesítőt nem`);
     expect(r.body).toMatchObject({ ok: true, shape: 'membership_only', outcome: 'granted' });
@@ -354,21 +369,6 @@ test('H06 — Körön túli meghívás/jogadás elutasítva; visszavont, idegen 
     ev.b(`Béla ÚJRA megnyitja a már beváltott hivatkozást: „${reopen.observe.status}" (${reopen.observe.reason}); a lap: „${reopen.next}"; gomb: ${reopen.redeemVisible}`);
     ev.s(`ISMÉTELT beváltás → ${again.status} ${again.body.error}/${again.body.reason}; ADATBÁZIS tagság-sor Bélának: ${db.count('SELECT COUNT(*) AS n FROM membership WHERE subject_id = ? AND book_id = ?', bela.subjectId, K.bookId)} (nem duplázódott)`);
     expect(again.body.reason).toBe('invite_already_redeemed'); expect(reopen.redeemVisible).toBe(false);
-    /**
-     * A KILÉPÉS A CÍMSORRÓL IS ELVISZI A MEGHÍVÓ JEGYET (R164 review, Codex, P2 — `KUKA-383`).
-     *
-     * A LELET: a lap `/?invite=<jegy>` alakban nyílt meg, és a kilépés csak a BELSŐ jegyet ürítette —
-     * a címsorban ott maradt. Egy FRISSÍTÉS (vagy ugyanannak a történet-bejegyzésnek az újbóli
-     * megnyitása, miután MÁS EMBER ült le a böngészőhöz) az indulásnál újra beolvasta, és a felület
-     * visszatért az ELŐZŐ ember meghívó-folyamatára. A mérés ezért KÉT dolgot néz: a címsort, és azt,
-     * hogy a frissítés UTÁN a belépő képernyő áll ott — nem a meghívó.
-     */
-    await logoutUI(bela.page);
-    const cimsorKilepesUtan = new URL(bela.page.url());
-    await bela.page.reload();
-    await expect(bela.page.getByTestId('login-email'), 'frissítés után a BELÉPŐ képernyő áll ott, nem az előző ember meghívója').toBeVisible();
-    ev.b(`Kilépés után a címsor: „${cimsorKilepesUtan.pathname}${cimsorKilepesUtan.search}" — a meghívó jegy nincs benne: ${!cimsorKilepesUtan.searchParams.has('invite')}; a frissítés a belépő képernyőre érkezik`);
-    expect(cimsorKilepesUtan.searchParams.has('invite'), 'a kilépés a CÍMSORRÓL is elviszi a meghívó jegyet').toBe(false);
     // IDEGEN CÍMZETT: Cili megnyitja Dani meghívóját; utána Dani érvényesen beváltja.
     const dani = await w.person('dani'); const cili = await w.person('cili');
     const invD = await inviteUI(anna.page, { email: dani.email, role: 'user', scope: 'keszlet' });

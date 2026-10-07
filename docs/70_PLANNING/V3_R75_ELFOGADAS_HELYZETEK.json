@@ -4,10 +4,10 @@
   "lane": "Claude-v3",
   "source": "tests/e2e/v3app-acceptance.spec.mjs",
   "command": "npm run proof:core-ux",
-  "generated_at": "2026-10-07T08:50:52.624Z",
+  "generated_at": "2026-10-07T09:22:35.004Z",
   "package_version": "3.0.0-alpha",
-  "base_url": "http://127.0.0.1:42095",
-  "db_path": "var/tmp/v3_v3.0.0-alpha_20261007_084943_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
+  "base_url": "http://127.0.0.1:39731",
+  "db_path": "var/tmp/v3_v3.0.0-alpha_20261007_092128_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
   "what_this_is": "Az R63 §5.3 tizennégy elfogadási helyzete a v3app héjon, valódi böngészőből (Playwright · Chromium), helyzetenként KÉT rekeszben: amit a lap mutatott (browser) és amit a szerver válaszolt / a tároló őrzött (server). Az ítélet nem díszpipa: ahol egy al-eset a böngészőből nem hajtható meg, ott a lap a mag-próbára mutat.",
   "verdict_vocabulary": {
     "bizonyitva": "a helyzet minden állítása a böngésző- és a szerver-rekeszből áll össze",
@@ -56,7 +56,7 @@
       "server": [
         "POST /api/workspaces → 201; business=null; role=admin; plan=starter",
         "Anna váltása Béla terére → 403 not_a_member/no_membership; Anna ár-kérése ?book_id=<Béla pro tere> → param_ignored=true, ok=false, refused_by=entitlement (a SAJÁT starter tere dönt — Béla pro-adata nem jön ki); /api/me current_book_id = a saját tere: true",
-        "ADATBÁZIS: business_identity a magántéren: 0 sor; Anna külső azonosítói: [email] (csak e-mail); tagságai: [{\"book_id\":\"ps_cefecfac\",\"role\":\"admin\"},{\"book_id\":\"ws_dcd9d8a3\",\"role\":\"admin\"}] — a SZEMÉLYES köre (ps_cefecfac, SZK-01) és a most indított tere, mindkettő admin; idegen könyvben nincs tagsága"
+        "ADATBÁZIS: business_identity a magántéren: 0 sor; Anna külső azonosítói: [email] (csak e-mail); tagságai: [{\"book_id\":\"ps_8f5aac41\",\"role\":\"admin\"},{\"book_id\":\"ws_3afb062b\",\"role\":\"admin\"}] — a SZEMÉLYES köre (ps_8f5aac41, SZK-01) és a most indított tere, mindkettő admin; idegen könyvben nincs tagsága"
       ],
       "verdict": "bizonyitva",
       "note": "A minta-rekordok minden munkakörnyezetben azonos tartalmúak (qty 12), ezért a „saját adat\" azonosságát nem a tartalom, hanem a munkamenet könyve és az idegen könyv-paraméter figyelmen kívül hagyása bizonyítja; a terv-különbség (saját starter ↔ idegen pro) az ár-nézeten tartalmilag is szétválasztja a két könyvet."
@@ -84,8 +84,8 @@
         "Váltás a magántérre: „Megnyitva: Anna magántere\" → fejléc „Anna magántere\"; vissza a cégesre → fejléc „Anna Kft\" — két külön könyv, két külön fejléc"
       ],
       "server": [
-        "POST /api/workspaces (céges) → business: {\"ok\":true,\"book_id\":\"ws_30727255\",\"entity_subject_id\":\"ent_ws_30727255\",\"subject_id\":\"ent_ws_30727255\",\"namespace\":\"tax_id\",\"jurisdiction\":\"HU\",\"value_norm\":\"03345678242\",\"issuer\":\"self_asserted\",\"profile_known\":true,\"verification\":\"none_available\"}",
-        "ADATBÁZIS: business_identity a magántéren 0 sor, a cégesen {\"entity_subject_id\":\"ent_ws_30727255\",\"namespace\":\"tax_id\",\"jurisdiction\":\"HU\"}; a jogalany alanya: legal_entity; Anna alanya marad: person; adószám Anna SZEMÉLYÉN: 0 sor, a JOGALANYON: 1 sor — három külön objektum (személy · jogalany · könyv), a személyhez nem nyúlt"
+        "POST /api/workspaces (céges) → business: {\"ok\":true,\"book_id\":\"ws_dc6efeb3\",\"entity_subject_id\":\"ent_ws_dc6efeb3\",\"subject_id\":\"ent_ws_dc6efeb3\",\"namespace\":\"tax_id\",\"jurisdiction\":\"HU\",\"value_norm\":\"03345678242\",\"issuer\":\"self_asserted\",\"profile_known\":true,\"verification\":\"none_available\"}",
+        "ADATBÁZIS: business_identity a magántéren 0 sor, a cégesen {\"entity_subject_id\":\"ent_ws_dc6efeb3\",\"namespace\":\"tax_id\",\"jurisdiction\":\"HU\"}; a jogalany alanya: legal_entity; Anna alanya marad: person; adószám Anna SZEMÉLYÉN: 0 sor, a JOGALANYON: 1 sor — három külön objektum (személy · jogalany · könyv), a személyhez nem nyúlt"
       ],
       "verdict": "bizonyitva",
       "note": "A vállalkozási minőség önbevallott (verification: none_available) — hatósági igazoló adapter a magban ma nincs, és ezt a válasz és a lap egyaránt kimondja."
@@ -95,14 +95,14 @@
       "title": "Saját családi munkakörnyezet indul; második tagot meghívhat a jogosult kezelő, külön állami igazolási kör nélkül a saját helyi körhöz.",
       "browser": [
         "Anna a felületen indítja a családi munkakörnyezetet: „Hozzáadtad a vállalkozást: Családi Kft\"; a Munkatársak (Felhasználók) menüpont megjelent: true",
-        "Anna meghívja Bélát (user · keszlet): „A meghívó elkészült. A próbaüzenetek között megnyithatod. Eddig érvényes: 2026. okt. 14. 08:49\"; a levél-fogadóban a meghívó hivatkozás: megvan",
+        "Anna meghívja Bélát (user · keszlet): „A meghívó elkészült. A próbaüzenetek között megnyithatod. Eddig érvényes: 2026. okt. 14. 09:21\"; a levél-fogadóban a meghívó hivatkozás: megvan",
         "Béla a hivatkozásra kattint → „redeem_as_existing\" → Beváltás → fejléc: „Családi Kft\""
       ],
       "server": [
         "POST /api/workspaces → 201; business.verification=none_available (állami igazolási kör NEM futott, nem is kért); role=admin",
-        "ADATBÁZIS: az indulás ténye: szabály v2, alap startup-rule:ws_7a66b55e; az alap korlátja: műveletek [\"invite_issue\",\"alter_right\"], szerepek [\"admin\",\"user\"], adatkörök [\"keszlet\",\"arak\",\"dokumentumok\",\"beszallitok\"]; bizonyíték-hivatkozás: „startup-rule:v2 · creator=sub_7c4b87d7e04475f6 · channel=email:h04.anna@pelda.hu:proven\" — a bizonyíték a létrehozó ELLENŐRZÖTT csatornája, nem hatósági okirat",
-        "POST /api/invites → 201; basis_id=deleg:ws_7a66b55e:sub_7c4b87d7e04475f6; plafon={\"operations\":[\"invite_issue\"],\"roles\":[\"admin\",\"user\"],\"scopes\":[\"keszlet\",\"arak\",\"dokumentumok\",\"beszallitok\"]}",
-        "ADATBÁZIS: a meghívó alapja a kezelő továbbadható jogából KÉPZŐDÖTT: „delegated-from:startup-rule:ws_7a66b55e@v1 · membership_grant#14 · role=admin\"; a meghívó sora + pecsételt feltételek + kiadott korlát: 1/1/1 sor",
+        "ADATBÁZIS: az indulás ténye: szabály v2, alap startup-rule:ws_406b4203; az alap korlátja: műveletek [\"invite_issue\",\"alter_right\"], szerepek [\"admin\",\"user\"], adatkörök [\"keszlet\",\"arak\",\"dokumentumok\",\"beszallitok\"]; bizonyíték-hivatkozás: „startup-rule:v2 · creator=sub_5503b8bcba35105e · channel=email:h04.anna@pelda.hu:proven\" — a bizonyíték a létrehozó ELLENŐRZÖTT csatornája, nem hatósági okirat",
+        "POST /api/invites → 201; basis_id=deleg:ws_406b4203:sub_5503b8bcba35105e; plafon={\"operations\":[\"invite_issue\"],\"roles\":[\"admin\",\"user\"],\"scopes\":[\"keszlet\",\"arak\",\"dokumentumok\",\"beszallitok\"]}",
+        "ADATBÁZIS: a meghívó alapja a kezelő továbbadható jogából KÉPZŐDÖTT: „delegated-from:startup-rule:ws_406b4203@v1 · membership_grant#14 · role=admin\"; a meghívó sora + pecsételt feltételek + kiadott korlát: 1/1/1 sor",
         "POST /api/invites/redeem → 200 membership_only/granted; ADATBÁZIS tagság: {\"role\":\"user\",\"revoked_at\":null}"
       ],
       "verdict": "bizonyitva",
@@ -117,7 +117,7 @@
       "server": [
         "POST /api/workspaces (Cili, azonos adószám) → 201; business.ok=true, value_norm=05345678242",
         "Cili váltása Anna könyvére → 403 not_a_member/no_membership; a harmadik szolgáltatóéra → 403 not_a_member/no_membership; ár ?book_id=<Anna pro könyve> → param_ignored=true, ok=false, refused_by=entitlement (a saját starter könyve dönt); /api/me munkakörnyezetei: h05.cili személyes köre, Cili Kft",
-        "ADATBÁZIS: ugyanazt a (tax_id · HU · 05345678242) kulcsot 3 KÜLÖN jogalany állítja (ent_ws_45ab12b1, ent_ws_b55509a8, ent_ws_cc0758bf) — az azonosító állítás, nem jog; Cili tagságai: [\"ps_d9392767\",\"ws_45ab12b1\"]"
+        "ADATBÁZIS: ugyanazt a (tax_id · HU · 05345678242) kulcsot 3 KÜLÖN jogalany állítja (ent_ws_0d1f73f0, ent_ws_65c62333, ent_ws_e8d51abb) — az azonosító állítás, nem jog; Cili tagságai: [\"ps_626c6ecb\",\"ws_0d1f73f0\"]"
       ],
       "verdict": "bizonyitva",
       "note": "Nincs globális cégnév-/adószám-lefoglalás: az azonos karaktersor három független jogalanyon áll, egyik sem nyit a másik könyvére."
@@ -129,6 +129,7 @@
         "A meghívó szerep-választója CSAK a zárt regiszter szerepeit kínálja: []",
         "ÉRVÉNYES meghívó (Béla): beváltva → fejléc „Családi Kft\"; Bélánál a Munkatársak (Felhasználók) menüpont NEM jelenik meg: true",
         "Béla ÚJRA megnyitja a már beváltott hivatkozást: „not_actionable\" (invite_already_redeemed); a lap: „Ha te fogadtad el, a fiókot belépés után a fejléc fiókválasztójában találod. Ha nem, kérj új meghívást attól, aki küldte.\"; gomb: false",
+        "Kilépés után a címsor: „/?lang=hu\" — a meghívó jegy nincs benne: true; a frissítés a belépő képernyőre érkezik",
         "IDEGEN CÍMZETT: Cili (belépve) megnyitja Dani meghívóját → „needs_invitee_identity\", fiók-váltás felajánlva: false, a lap: „Ha a meghívás másik címre szól, jelentkezz ki, és lépj be azzal a címmel, amelyre a meghívás érkezett.\"; gomb: false",
         "VISSZAVONT alap: Anna a tag-listán megvonja Cilit („h06.cili@pelda.hu hozzáférése megszűnt ehhez a fiókhoz: Családi Kft\"); Erik megnyitja a Cili által kiadott függő meghívót → a megfigyelés „not_actionable\" (issuer_right_withdrawn), Beváltás gomb: false — a lap nem ígér folytatást",
         "LEJÁRT meghívó (az óra 8 nappal előre — a meghívó 7 napig él): Ferenc megnyitja a hivatkozást → „not_actionable\" (invite_expired); a lap: „Az új meghívás új levélben, új hivatkozással érkezik — ezt a hivatkozást már nem kell megőrizned.\"; Beváltás gomb: false"
@@ -139,7 +140,7 @@
         "ISMÉTELT beváltás → 403 invite_not_actionable/invite_already_redeemed; ADATBÁZIS tagság-sor Bélának: 1 (nem duplázódott)",
         "Cili erőltetett beváltása → 403 invitee_identity_required; ADATBÁZIS Cili tagsága a könyvben: 0 sor",
         "Dani (a valódi címzett) érvényes párja → 200 granted",
-        "Megvonás → delegation={\"ok\":true,\"changed\":true,\"reason\":\"basis_revoked\",\"versions\":1,\"revoked_at\":\"2026-10-07T08:50:07.838Z\"}; Erik NYERS beváltási kérése → 403 invite_not_actionable/issuer_right_withdrawn; ADATBÁZIS: Erik tagsága 0 sor, a meghívó nem fogyott el (redeemed_at=null)",
+        "Megvonás → delegation={\"ok\":true,\"changed\":true,\"reason\":\"basis_revoked\",\"versions\":1,\"revoked_at\":\"2026-10-07T09:21:52.062Z\"}; Erik NYERS beváltási kérése → 403 invite_not_actionable/issuer_right_withdrawn; ADATBÁZIS: Erik tagsága 0 sor, a meghívó nem fogyott el (redeemed_at=null)",
         "LEJÁRAT a HÉJBÓL, támogatott órával: erőltetett beváltás → 403 invite_not_actionable/invite_expired; ADATBÁZIS: Ferenc tagsága 0 sor",
         "POZITÍV ELLENPÁR: FRISS meghívó ugyanannak a címzettnek → 200 granted; ADATBÁZIS: Ferenc tagsága 1 sor"
       ],
@@ -156,7 +157,7 @@
       ],
       "server": [
         "GET /api/data/stock → ok=true, a kiadott mezők: [qty] (ár NINCS benne); GET /api/data/price → ok=false, refused_by=right, jog-kapu=not_available, előfizetés-kapu=feature_entitled (a terv engedné — a JOG zár)",
-        "ADATBÁZIS: Béla adatköri sorai: [{\"scope\":\"keszlet\",\"granted_by\":\"sub_7b76bfc69ddb4b67\",\"basis_id\":\"deleg:ws_afc9ea1f:sub_7b76bfc69ddb4b67\"},{\"scope\":\"arak\",\"granted_by\":\"sub_7b76bfc69ddb4b67\",\"basis_id\":\"deleg:ws_afc9ea1f:sub_7b76bfc69ddb4b67\"}] — mindkettő az admin delegálási alapja alatt; a rendszer ismert adatkörei: [keszlet, arak, dokumentumok, beszallitok]"
+        "ADATBÁZIS: Béla adatköri sorai: [{\"scope\":\"keszlet\",\"granted_by\":\"sub_f2a197c43be2e233\",\"basis_id\":\"deleg:ws_cc7d8592:sub_f2a197c43be2e233\"},{\"scope\":\"arak\",\"granted_by\":\"sub_f2a197c43be2e233\",\"basis_id\":\"deleg:ws_cc7d8592:sub_f2a197c43be2e233\"}] — mindkettő az admin delegálási alapja alatt; a rendszer ismert adatkörei: [keszlet, arak, dokumentumok, beszallitok]"
       ],
       "verdict": "reszben",
       "note": "R77 §4 helyesbítés: a helyzet címsora ÁR-, SZÁMLA- és BESZÁLLÍTÓI bizalmas adatot nevez meg, a magreferencia adatkör-szótára viszont KÉT tagú (keszlet · arak). Ami MÉRVE áll: a mennyiség-nézetből az ÁR nem következik, és a külön engedélyezett olvasás pozitív ága működik. Ami NEM: a „számla\" és a „beszállítói\" adatosztály a rendszerben nem létezik, tehát azokra nincs alkalmazható eset — a címsor teljes állítása így NEM igazolt, csak a létező két körön. A hiányt a bővebb adatkör-szótár zárja majd (nem ebben a csomagban)."
@@ -174,7 +175,7 @@
         "MÓDOSÍTOTT PARAMÉTER a magánteres munkamenetben: ár ?book_id=<saját pro cég> → param_ignored=true [book_id], ok=false, refused_by=entitlement; készlet ?book_id=<Béla cége>&actor=<Béla>&role=admin → param_ignored=true [book_id,actor,role], ok=true (a SAJÁT könyv adata); /api/me current_book_id = a magántér: true; Cache-Control: no-store (kliens-gyorsítótár tiltva minden válaszon)",
         "Anna (user Béla cégében) adatkört adna magának actor=<Béla>&role=admin törzs-mezőkkel → 400 unknown_field (actor, input_schema) — az ÁLLAPOTVÁLTOZTATÓ végponton az idegen mező R75 óta ELUTASÍTÁS, nem „figyelmen kívül hagyva\"; ugyanez a kérés hamisítás NÉLKÜL → 403 role_not_delegable (a MAG jog-kapuja)",
         "ADATBÁZIS: Anna tagságai 4 könyvben (P admin · K admin · B user) — a szerep könyvenként külön sor, nem összevont tulajdonság",
-        "A válasz megmondja a TÉNYLEGES kontextust: served_book_id=ws_7a6dc275 (a fejléc ezzel egyezik); a RÉGI nézethez kötött kérés (expected_book_id=<Béla cége>) → 409 context_mismatch, adat: nincs"
+        "A válasz megmondja a TÉNYLEGES kontextust: served_book_id=ws_0f90b0c6 (a fejléc ezzel egyezik); a RÉGI nézethez kötött kérés (expected_book_id=<Béla cége>) → 409 context_mismatch, adat: nincs"
       ],
       "verdict": "bizonyitva",
       "note": "R77: a KÉT LAP (közös munkamenet) versenye is mérve — a kontextusfüggő olvasás a NÉZETHEZ kötött (`expected_book_id` · `expected_subject_id`), a válasz kimondja a TÉNYLEGESEN kiszolgált kontextust (`served_*`), és eltérésnél 409 `context_mismatch` jön ADAT NÉLKÜL. A három időzítési pont (váltás a `/me` előtt · a `/me` után · a válasz megérkezése előtt) és a FIÓK-váltás külön próbában áll: `tests/e2e/v3app-r77.spec.mjs`. KORÁBBI ALAK (R76): a védelem csak a saját lap váltására állt, a másik lapéra nem (F77-01). A kliensnek nincs saját gyorsítótára: minden panel a váltás pillanatában ürül, és minden válasz `Cache-Control: no-store`; a cselekvő és a könyv KIZÁRÓLAG a szerveroldali munkamenetből jön, a kliens-mezők NEVEZETTEN figyelmen kívül maradnak."
@@ -208,7 +209,7 @@
       "server": [
         "A vezető (Béla) váltása az A egységre → 403 not_a_member/no_membership; /api/me könyvei: h10.bela személyes köre, B egység — NEM kap automatikusan minden üzleti adatot; a helyi admin (Cili) váltása a B egységre → 403 not_a_member; ?book_id=<B> → param_ignored=true",
         "DELEGÁLÁSI PLAFON a helyi adminnál: user/keszlet meghívó → 201 (plafon {\"operations\":[\"invite_issue\"],\"roles\":[\"admin\",\"user\"],\"scopes\":[\"arak\",\"beszallitok\",\"dokumentumok\",\"keszlet\"]}); role=owner → 400 invalid_value; scope=penzugy → 400 invalid_value; adatkör-adás penzugy → 400 invalid_value",
-        "ADATBÁZIS: Cili delegálási alapja: szerepek [\"admin\",\"user\"], adatkörök [\"arak\",\"beszallitok\",\"dokumentumok\",\"keszlet\"], eredete: „delegated-from:deleg:ws_5a0f2a11:sub_a3ee38e94197d2fd@v1 · membership_grant#58 · role=admin\" — részhalmaza Anna alapjának (true); tágabb NEM képződhet",
+        "ADATBÁZIS: Cili delegálási alapja: szerepek [\"admin\",\"user\"], adatkörök [\"arak\",\"beszallitok\",\"dokumentumok\",\"keszlet\"], eredete: „delegated-from:deleg:ws_687b497a:sub_6a140d5f9bc76707@v1 · membership_grant#58 · role=admin\" — részhalmaza Anna alapjának (true); tágabb NEM képződhet",
         "KÖZÖS JÓVÁHAGYÁS: 54 forrásfájl átfésülve (v3ref/*.mjs + v3app/server.mjs) a két-személyes / négy-szem / ellenjegyzés mintákra → 0 találat; a héj végpontjai: POST /api/register · POST /api/verification/resend · GET /api/verify · POST /api/login · POST /api/logout · GET /api/me · POST /api/workspaces · POST /api/session/workspace · POST /api/workspaces/plan · GET /api/members · POST /api/invites · GET /api/invites/waiting · GET /api/invites/observe · POST /api/invites/pending · POST /api/invites/redeem · POST /api/invites/revoke · POST /api/members/reinvite · POST /api/members/scope · POST /api/members/revoke · GET /api/data/stock · GET /api/data/price · POST /api/members/scope/revoke · GET /api/data/document · GET /api/data/supplier · GET /api/assistant/status · GET /api/assistant/knowledge · POST /api/assistant/ask · GET /dev/mailbox · GET /dev/clock · POST /dev/clock · GET /dev/rowcounts — jóváhagyó végpont nincs"
       ],
       "verdict": "reszben",
