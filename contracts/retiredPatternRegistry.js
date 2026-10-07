@@ -14724,6 +14724,34 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (három pozitív + egy tiltó minta) · `npm run verify:v3ref` (az M222 mutáció CAUGHT — a battéria maga a jel) · `npm run verify:external-checks` (r79/U04 · r59a/P01 · r81core · r83core pozitív ellenpárjai).',
   }),
 
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  // R164 review-kör — A PROXY-HATÁR: EGYETLEN FEJLÉCRE ÉPÜLT, ÉS A VISSZAESÉS MINDENKIT EGY KOSÁRBA TETT.
+  Object.freeze({
+    id: 'KUKA-376',
+    date: '2026-10-07',
+    title: 'A LÁTOGATÓ CÍMÉT CSAK EGY FEJLÉCBŐL OLVASTUK, A VISSZAESÉS PEDIG A PROXY CÍME VOLT',
+    what: 'A `clientIpOf` a bízott proxy mögül KIZÁRÓLAG az `X-Forwarded-For`-t olvasta, és ha az nem jött, a PROXY kapcsolat-címére esett vissza. A szolgáltató viszont más fejlécben is adhatja a látogató címét (a reviewer a Railway dokumentációját idézi: `X-Real-IP`). Ilyen üzemben MINDEN látogató UGYANARRA a kulcsra esett, tehát ugyanabba a kéréskorlát-kosárba: szerény ÖSSZforgalom is kizárta az EGÉSZ szolgáltatást. A kéréskorlát nem a találgatót fogta meg, hanem a felhasználókat.',
+    why_wrong: 'A VISSZAESÉS NEM SEMLEGES DÖNTÉS. „Ha nincs fejléc, a kapcsolat címe az igazság" helyes akkor, ha NINCS proxy — de bízott proxy mögött a kapcsolat címe a PROXYÉ, tehát egyetlen közös kulcs. A hiányzó adatot így nem „nem tudomnak" vettük, hanem CSENDBEN egy rossz értékkel pótoltuk (KUKA-020), és a kár pont terhelés alatt jelentkezik — amikor a védelemnek működnie kellene.',
+    replaced_by: 'A TELEPÍTÉS DEKLARÁLJA, MELYIK FEJLÉC HORDOZZA A CÍMET (`VS_APP_CLIENT_IP_HEADER`) — mert ez az EGYETLEN dolog, amit a kérés nem tud hamisítani: konfiguráció, nem kérés-adat. Deklaráció nélkül a történelmi sorrend áll (`x-forwarded-for` → `x-real-ip`), de a feloldás ALAPJA ilyenkor kimondottan „kikövetkeztetett", nem „deklarált".',
+    replacement: 'ÉS AMIKOR SEMMILYEN CÍM-FEJLÉC SEM JÖN: a kulcs NEVEZETTEN nem látogató-cím (`proxy-cim-nelkul:` előtag), hogy a diagnosztikában ne lehessen valódinak olvasni, a döntés `decided: false`, és a szolgáltatás EGYSZER kimondja, mit kell beállítani — nem kérésenként, mert a védelem költsége ne nőjön a forgalommal (KUKA-290).',
+    decision: 'D-VS-3184',
+    found_by: 'KÜLSŐ REVIEW (Codex, R164 — P1, a `cb56faa` fejen).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "CLIENT_IP_HEADERS = Object\\.freeze\\(\\['x-forwarded-for', 'x-real-ip'\\]\\)",
+        why: 'a cím-fejlécek DEKLARÁLT sorrendben állnak, nem egyetlen beégetett névben' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'VS_APP_CLIENT_IP_HEADER',
+        why: 'és a telepítés MEGNEVEZHETI a fejlécet — azt a kérés nem hamisíthatja' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "basis: 'proxy-nincs-cim', header: null, decided: false",
+        why: 'a cím-fejléc nélküli eset NEVEZETT és NEM eldöntött — nem a proxy címe' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'A VISSZAESÉSI ÉRTÉK IS ÁLLÍTÁS. Ha egy azonosítót nem tudunk, a pótlék nem lehet olyan érték, ami MINDENKIRE ugyanaz — mert akkor a rá épülő korlát nem a támadót, hanem az összes felhasználót fogja meg. A nem tudást NEVEZZÜK MEG, és a döntéshez szükséges tényt a TELEPÍTÉS deklarálja, ne a kérés hozza.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (három pozitív minta) · `npm run verify:app-findings-r154` (AD: ad1 a régi alak megmarad · ad2 a lelet maga · ad3 a KÁR ellenpárral · ad4 a deklarált fejléc kizárólagos · ad5 az alap kimondott · ad6 a nevezett nem-tudás · ad7 bizalom nélkül a fejléc nem számít · ad8 a jelzés egyszeri · ad9 a két belépő egy válasz).',
+  }),
+
 
 
 

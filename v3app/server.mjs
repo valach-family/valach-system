@@ -198,13 +198,80 @@ function sameSecret(a, b) {
 // EZÉRT A BIZALOM KIMONDOTT: a fejlécet CSAK akkor olvassuk, ha a környezet azt mondja, hogy
 // proxy mögött futunk (`VS_APP_TRUST_PROXY=1`, amit a telepítés állít be) — és akkor is a
 // LÁNC ELSŐ elemét vesszük. Proxy nélkül a kapcsolat címe az igazság.
-export function clientIpOf(req, env = process.env) {
-  const trust = String(env.VS_APP_TRUST_PROXY || '').trim() === '1';
-  if (trust) {
-    const xff = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-    if (xff) return xff;
+//
+// ÉS AMI EBBŐL KIMARADT (R164, KÜLSŐ REVIEW, Codex, P1 — `KUKA-376` · `D-VS-3184`). Az `X-Forwarded-For`
+// nem az EGYETLEN alak: a szolgáltató más fejlécben is adhatja a látogató címét (a reviewer a Railway
+// dokumentációját idézi: ott `X-Real-IP`). Ha a bízott proxy NEM ír `X-Forwarded-For`-t, akkor a fenti
+// kód a PROXY kapcsolat-címére esett vissza — vagyis MINDEN látogató UGYANABBA a kéréskorlát-kosárba
+// került, és már szerény összforgalom is kizárta az EGÉSZ szolgáltatást. A kéréskorlát így nem a
+// találgatót fogta meg, hanem a felhasználókat.
+//
+// A VÁLASZ: A TELEPÍTÉS DEKLARÁLJA, MELYIK FEJLÉC HORDOZZA A CÍMET — mert ez az EGYETLEN dolog, amit
+// a kérés nem tud hamisítani (konfiguráció, nem kérés-adat). `VS_APP_CLIENT_IP_HEADER=<név>` esetén
+// KIZÁRÓLAG azt olvassuk. Deklaráció nélkül a történelmi sorrend áll (`x-forwarded-for` →
+// `x-real-ip`), de a feloldás ALAPJA ilyenkor „kikövetkeztetett", nem „deklarált" — a jelentés tudja,
+// hogy a bizalom gyengébb, mint amilyennek látszik (KUKA-216).
+//
+// ÉS AMIKOR A BÍZOTT PROXY MÖGÜL EGYETLEN CÍM-FEJLÉC SEM JÖN: ez KONFIGURÁCIÓS HIBA, és NEM azt
+// jelenti, hogy „a proxy a látogató". Ilyenkor a kosár kulcsa NEVEZETTEN más (`proxy-cim-nelkul:`
+// előtaggal), hogy a diagnosztikában ne lehessen valódi látogató-címnek olvasni, és a szolgáltatás
+// EGYSZER kimondja a hibát — nem kérésenként (KUKA-290: a védelem költsége ne nőjön a forgalommal).
+
+/** A látogató címét hordozó fejlécek — DEKLARÁLT sorrend, nem találgatás (NET-04). */
+export const CLIENT_IP_HEADERS = Object.freeze(['x-forwarded-for', 'x-real-ip']);
+
+/** A kéréskorlát kulcsának ELŐTAGJA, ha a bízott proxy mögül nem jött cím — nevezetten NEM cím. */
+export const PROXY_WITHOUT_ADDRESS_PREFIX = 'proxy-cim-nelkul:';
+
+/**
+ * A LÁTOGATÓ CÍMÉNEK FELOLDÁSA — ÉS AZ ALAP KIMONDVA.
+ *
+ * Visszaad: `{ key, basis, header, decided }`.
+ *   · `basis: 'kapcsolat'`              — nincs proxy-bizalom: a kapcsolat címe az igazság
+ *   · `basis: 'deklaralt-fejlec'`       — a telepítés megnevezte a fejlécet, és az hozta a címet
+ *   · `basis: 'kikovetkeztetett-fejlec'`— deklaráció nélkül, a történelmi sorrendből
+ *   · `basis: 'proxy-nincs-cim'`        — bízott proxy, de EGYETLEN cím-fejléc sem jött (`decided: false`)
+ */
+export function clientAddressOf(req, env = process.env) {
+  const socket = req?.socket?.remoteAddress || 'ismeretlen';
+  if (String(env.VS_APP_TRUST_PROXY || '').trim() !== '1') {
+    return Object.freeze({ key: socket, basis: 'kapcsolat', header: null, decided: true });
   }
-  return req.socket?.remoteAddress || 'ismeretlen';
+  const deklaralt = String(env.VS_APP_CLIENT_IP_HEADER || '').trim().toLowerCase();
+  const sorrend = deklaralt ? [deklaralt] : CLIENT_IP_HEADERS;
+  for (const fejlec of sorrend) {
+    const nyers = req?.headers?.[fejlec];
+    const ertek = String(Array.isArray(nyers) ? (nyers[0] ?? '') : (nyers ?? '')).split(',')[0].trim();
+    if (ertek) {
+      return Object.freeze({ key: ertek, header: fejlec, decided: true,
+        basis: deklaralt ? 'deklaralt-fejlec' : 'kikovetkeztetett-fejlec' });
+    }
+  }
+  return Object.freeze({ key: `${PROXY_WITHOUT_ADDRESS_PREFIX}${socket}`,
+    basis: 'proxy-nincs-cim', header: null, decided: false });
+}
+
+export function clientIpOf(req, env = process.env) { return clientAddressOf(req, env).key; }
+
+/**
+ * A KONFIGURÁCIÓS HIBA KIMONDÁSA — EGYSZER EGY FOLYAMATBAN.
+ *
+ * Kérésenkénti naplózás pont a terhelés alatt volna a legdrágább, és pont akkor hallgatna el, amikor
+ * a leginkább kellene (KUKA-290). Ezért a jelzés EGYSZERI és NEVEZETT: megmondja, mit állítson be az,
+ * aki telepít. A `resetProxyWarning` CSAK a mérésnek kell — a próba nem hiheti el a hallgatást
+ * attól, hogy egy korábbi próba már elhasználta a jelzést (KUKA-207).
+ */
+let proxyHibaKimondva = false;
+export function proxyWarningSaid() { return proxyHibaKimondva; }
+export function resetProxyWarning() { proxyHibaKimondva = false; }
+export function mondjaKiEgyszerAProxyHibat(warn = (m) => console.warn(m)) {
+  if (proxyHibaKimondva) return false;
+  proxyHibaKimondva = true;
+  warn('[v3app] VS_APP_TRUST_PROXY=1, de a kérésben EGYETLEN látogató-cím fejléc sem jött '
+    + `(${CLIENT_IP_HEADERS.join(' · ')}). A kéréskorlát így MINDEN látogatót egy kosárba tenne, `
+    + 'tehát az egész szolgáltatást korlátozná. Állítsd be a VS_APP_CLIENT_IP_HEADER értékét arra a '
+    + 'fejlécre, amit a szolgáltató ír (a Railway dokumentációja a reviewer idézete szerint: x-real-ip).');
+  return true;
 }
 
 /** HTTPS-en érkezett-e — a proxy mögött ezt is a fejléc mondja meg, ugyanazzal a bizalommal. */
@@ -2883,7 +2950,9 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     // Az életjelet és a készenlétet NEM korlátozzuk: azokat a TELEPÍTŐ kérdezi, sűrűn, és egy
     // kizárt életjel újraindítási hurkot okozna — a védelem okozná az üzemzavart (KUKA-092).
     if (rateLimit) {
-      const verdict = rateLimit(clientIpOf(req));
+      const cim = clientAddressOf(req);
+      if (!cim.decided) mondjaKiEgyszerAProxyHibat();
+      const verdict = rateLimit(cim.key);
       if (!verdict.allowed) {
         res.writeHead(429, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Retry-After': String(verdict.retry_after_s) });
         return res.end(JSON.stringify({ ok: false, reason: 'rate_limited', retry_after_s: verdict.retry_after_s }));

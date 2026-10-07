@@ -29,7 +29,9 @@ import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rmSync, readFileSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { startServer, makeRateLimiter, makeSessionStore, sessionLimits, SESSION_LIMITS, rateLimitConfig } from './server.mjs';
+import { startServer, makeRateLimiter, makeSessionStore, sessionLimits, SESSION_LIMITS, rateLimitConfig,
+  clientAddressOf, clientIpOf, CLIENT_IP_HEADERS, PROXY_WITHOUT_ADDRESS_PREFIX,
+  mondjaKiEgyszerAProxyHibat, resetProxyWarning } from './server.mjs';
 import { dictFor } from './public/i18n/dict.mjs';
 import { resolveLanguage, parseAcceptLanguage, pickFromAcceptLanguage } from './public/i18n/languages.mjs';
 import { validateAgainstSchema } from '../v3ref/inputSchema.mjs';
@@ -2311,6 +2313,85 @@ try {
     be.set('uj_purge_utan', { id: 'uj_purge_utan', subject_id: null }, MOSTANI + 1);
     step('(ac4) F164-07: a halmazos takarítás után az index NEM bízható, és a következő felvétel MEGKÉRDEZI a listát (a nem tudás a drágább, de IGAZ útra esik)',
       kerdesek >= 1, { kerdesek_a_purge_utan: kerdesek, bizhato: be.stats().intent_index_trusted });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  // AD — A PROXY-HATÁR: MELYIK FEJLÉC HORDOZZA A LÁTOGATÓ CÍMÉT (F164-08, külső review, Codex, P1)
+  //
+  // A LELET: a bízott proxy mögül CSAK az `X-Forwarded-For`-t olvastuk. Ha a szolgáltató más fejlécben
+  // adja a címet (a reviewer a Railway dokumentációját idézi: `X-Real-IP`), akkor a feloldás a PROXY
+  // kapcsolat-címére esett vissza — vagyis MINDEN látogató UGYANABBA a kéréskorlát-kosárba került, és
+  // szerény összforgalom is kizárta az EGÉSZ szolgáltatást.
+  //
+  // A MÉRÉS ALAKJA: tiszta függvényen, hamisított kérés-objektumokkal — nincs hálózat, nincs óra.
+  {
+    const kerés = (headers, socket = '10.0.0.1') =>
+      ({ headers, socket: { remoteAddress: socket } });
+    const BIZALOM = { VS_APP_TRUST_PROXY: '1' };
+
+    // (ad1) A történelmi alak VÁLTOZATLANUL működik — az `X-Forwarded-For` lánc ELSŐ eleme.
+    const ad1 = clientAddressOf(kerés({ 'x-forwarded-for': '203.0.113.7, 10.9.9.9' }), BIZALOM);
+    step('(ad1) F164-08: a bízott proxy mögül az `X-Forwarded-For` lánc ELSŐ eleme a cím (a régi viselkedés megmarad)',
+      ad1.key === '203.0.113.7' && ad1.decided === true && ad1.header === 'x-forwarded-for',
+      { kulcs: ad1.key, alap: ad1.basis, fejlec: ad1.header });
+
+    // (ad2) A LELET MAGA: `X-Forwarded-For` NÉLKÜL az `X-Real-IP` hozza a címet — nem a proxy címe.
+    const ad2 = clientAddressOf(kerés({ 'x-real-ip': '198.51.100.22' }), BIZALOM);
+    step('(ad2) F164-08: `X-Forwarded-For` NÉLKÜL az `X-Real-IP` a cím — RÉGEN itt a PROXY kapcsolat-címe jött, tehát minden látogató EGY kosárba került',
+      ad2.key === '198.51.100.22' && ad2.decided === true && ad2.header === 'x-real-ip' && ad2.key !== '10.0.0.1',
+      { kulcs: ad2.key, alap: ad2.basis, fejlec: ad2.header });
+
+    // (ad3) ÉS A KÁR MÉRÉSE: két KÜLÖN látogató két KÜLÖN kosárba kerül — a régi úton egybe estek.
+    const ad3a = clientAddressOf(kerés({ 'x-real-ip': '198.51.100.22' }), BIZALOM);
+    const ad3b = clientAddressOf(kerés({ 'x-real-ip': '198.51.100.23' }), BIZALOM);
+    const ad3regi = (r) => String(r.headers['x-forwarded-for'] || '').split(',')[0].trim()
+      || r.socket.remoteAddress;   // a JAVÍTÁS ELŐTTI feloldó, szó szerint
+    step('(ad3) F164-08: két KÜLÖN látogató két KÜLÖN kosárba kerül — a javítás ELŐTTI feloldó mindkettőt a proxy címére vitte (ellenpár ugyanazon a bemeneten)',
+      ad3a.key !== ad3b.key && ad3regi(kerés({ 'x-real-ip': '198.51.100.22' })) === ad3regi(kerés({ 'x-real-ip': '198.51.100.23' })),
+      { ma: `${ad3a.key} ≠ ${ad3b.key}`, regen: ad3regi(kerés({ 'x-real-ip': '198.51.100.22' })) });
+
+    // (ad4) A DEKLARÁLT FEJLÉC KIZÁRÓLAGOS: ami nincs megnevezve, azt nem olvassuk — a hamisítás ellen.
+    const ad4 = clientAddressOf(
+      kerés({ 'x-forwarded-for': '1.2.3.4', 'x-real-ip': '198.51.100.22' }),
+      { ...BIZALOM, VS_APP_CLIENT_IP_HEADER: 'X-Real-IP' });
+    step('(ad4) F164-08: ha a telepítés MEGNEVEZI a fejlécet, KIZÁRÓLAG azt olvassuk — a hamisított `X-Forwarded-For` nem nyer (a név kis/nagybetűre érzéketlen)',
+      ad4.key === '198.51.100.22' && ad4.basis === 'deklaralt-fejlec',
+      { kulcs: ad4.key, alap: ad4.basis });
+
+    // (ad5) ÉS AZ ALAP KIMONDOTT: deklaráció nélkül a bizalom „kikövetkeztetett", nem „deklarált".
+    step('(ad5) F164-08: deklaráció NÉLKÜL a feloldás alapja KIKÖVETKEZTETETT — a jelentés tudja, hogy a bizalom gyengébb, mint amilyennek látszik',
+      ad1.basis === 'kikovetkeztetett-fejlec' && ad2.basis === 'kikovetkeztetett-fejlec',
+      { ad1: ad1.basis, ad2: ad2.basis });
+
+    // (ad6) BÍZOTT PROXY, DE SEMMILYEN CÍM-FEJLÉC: NEVEZETTEN nem cím — és nem a puszta socket-cím.
+    const ad6 = clientAddressOf(kerés({}), BIZALOM);
+    step('(ad6) F164-08: bízott proxy mögül cím-fejléc NÉLKÜL a kulcs NEVEZETTEN nem látogató-cím (előtaggal), és a döntés NEM eldöntött',
+      ad6.decided === false && ad6.key.startsWith(PROXY_WITHOUT_ADDRESS_PREFIX) && ad6.key !== '10.0.0.1',
+      { kulcs: ad6.key, alap: ad6.basis });
+
+    // (ad7) A BIZALOM NÉLKÜLI ESET VÁLTOZATLAN: a fejléceket NEM olvassuk, akkor sem, ha ott vannak.
+    const ad7 = clientAddressOf(kerés({ 'x-forwarded-for': '9.9.9.9', 'x-real-ip': '8.8.8.8' }), {});
+    step('(ad7) F164-08 ELLENPÁR: proxy-bizalom NÉLKÜL egyik fejlécet sem olvassuk — a kapcsolat címe az igazság (a hamisítás elleni erő megmarad)',
+      ad7.key === '10.0.0.1' && ad7.basis === 'kapcsolat' && ad7.header === null,
+      { kulcs: ad7.key, alap: ad7.basis });
+
+    // (ad8) A HIBA KIMONDÁSA EGYSZERI — a költség nem nő a forgalommal (KUKA-290).
+    resetProxyWarning();
+    const naplo = [];
+    const elso = mondjaKiEgyszerAProxyHibat((m) => naplo.push(m));
+    const masodik = mondjaKiEgyszerAProxyHibat((m) => naplo.push(m));
+    const harmadik = mondjaKiEgyszerAProxyHibat((m) => naplo.push(m));
+    step('(ad8) F164-08: a konfigurációs hibát a szolgáltatás EGYSZER mondja ki, nem kérésenként — és a szöveg MEGNEVEZI a beállítandó értéket',
+      elso === true && masodik === false && harmadik === false && naplo.length === 1
+      && naplo[0].includes('VS_APP_CLIENT_IP_HEADER') && CLIENT_IP_HEADERS.every((h) => naplo[0].includes(h)),
+      { kimondva_hanyszor: naplo.length, megnevezi_a_beallitast: naplo[0].includes('VS_APP_CLIENT_IP_HEADER') });
+    resetProxyWarning();
+
+    // (ad9) ÉS A RÉGI BELÉPŐ UGYANAZT ADJA, AMIT A KULCS — a két út nem válhat szét (KUKA-003).
+    step('(ad9) F164-08: a `clientIpOf` belépő PONTOSAN a feloldó kulcsát adja — egy szabály, egy válasz',
+      clientIpOf(kerés({ 'x-real-ip': '198.51.100.22' }), BIZALOM) === ad2.key
+      && clientIpOf(kerés({}), BIZALOM) === ad6.key,
+      { egyezik: true });
   }
 
   // ══════════════════════════════════════════════════════════════════════════════════════════════

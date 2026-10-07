@@ -16,6 +16,34 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3184 — A LÁTOGATÓ CÍMÉT HORDOZÓ FEJLÉCET A TELEPÍTÉS DEKLARÁLJA (R164, külső review, P1)
+
+**A döntés.** A bízott proxy mögött a látogató címét **deklarált** fejlécből olvassuk
+(`VS_APP_CLIENT_IP_HEADER`). Deklaráció nélkül a történelmi sorrend áll
+(`x-forwarded-for` → `x-real-ip`), de a feloldás **alapja** ilyenkor kimondottan *kikövetkeztetett*,
+nem *deklarált*. Ha egyetlen cím-fejléc sem jön, a kéréskorlát kulcsa **nevezetten nem** látogató-cím
+(`proxy-cim-nelkul:` előtag, `decided: false`), és a szolgáltatás **egyszer** kimondja, mit kell
+beállítani.
+
+**Miért.** Eddig kizárólag az `X-Forwarded-For` számított, és ha az nem jött, a **proxy**
+kapcsolat-címe lett a kulcs. Olyan szolgáltatónál, amelyik más fejlécben adja a címet (a reviewer a
+Railway dokumentációját idézi: `X-Real-IP`), ez azt jelentette, hogy **minden látogató ugyanabba a
+kosárba** került — tehát szerény összforgalom is kizárta az **egész** szolgáltatást. A kéréskorlát
+nem a találgatót fogta meg, hanem a felhasználókat.
+
+**Miért a telepítés dönt.** Mert a konfiguráció az egyetlen, amit a **kérés nem tud hamisítani**. Egy
+fejléc-nevet kitalálni a kérésből lehet; a telepítés állítását nem.
+
+**Amit ez NEM állít.** Nem mértem meg a Railway tényleges fejlécét — a környezet hálózati szabálya a
+szolgáltató dokumentációjának letöltését nem engedi (mérve: `curl: (56) CONNECT tunnel failed,
+response 403`), ezért a `x-real-ip` itt a **reviewer idézete**,
+nem a saját mérésem. Ezért nem is égetem be: a sorrend tartalék, a döntés a deklaráción áll.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (AD: ad1–ad9, köztük a **kár ellenpárja**: a javítás
+előtti feloldó két külön látogatót ugyanarra a kulcsra vitt) · `npm run verify:kuka` (KUKA-376).
+
+---
+
 ## D-VS-3183 — AZ ÁLLÍTÁS NEVEZZE MEG AZ UTAT, ÉS AZ IDŐ-BUKÁS NEM TARTALMI ZÖLD (R164/3, saját lelet)
 
 **A döntés.** Ahol két külön kódág **ugyanabba az összegbe** dolgozik, ott az állítás ne az összeget

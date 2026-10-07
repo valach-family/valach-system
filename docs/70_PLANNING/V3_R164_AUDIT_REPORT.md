@@ -250,11 +250,46 @@ módosítottam. A javítás a **mi** oldalunkon történt: a futtató bekötés�
 saját újrafogalmazásunkon — pontosan amit az R164/3 megengedett („elavult darabszám, artefaktum-hivatkozás,
 eredmény-formátum és futtatási bekötés javítása … az eredeti hibafogó erő megtartásával").
 
-### 5.2 A LÁNC ZÁRÓ FUTÁSA
+### 5.2 ÉS AMIT AZ IDŐ-JAVÍTÁS FELSZÍNRE HOZOTT: EGY TARTALMI PIROS, AMI EDDIG MÉRETLEN VOLT
 
-A `verify:external-checks` a csomag végén, **önállóan** (párhuzamos terhelés nélkül) futott. Az
-eredményét a 8. szakasz tartalmazza; ami **feloldatlanul** eltér, az **PIROS marad** — az R164/3
-kikötése szerint.
+**Ez a csomag legfontosabb lelete, és SAJÁT.** Amint a láncok eljutottak a tartalmi verdiktig, mind a
+négy addig „idő-okú" eltérés **EGY** gyökér-okra mutatott: a **saját mag-battériánk egy deklarált
+mutációja túlélt**.
+
+| lánc | amit kiírt | mit jelent |
+|---|---|---|
+| `r79` / **U04** (pozitív ellenpár) | `clean: false`, miközben a lefedettség 253/253 és minden egység belefért a korlátba | az érintetlen futás nem volt tiszta — **tartalmi** ok |
+| `r59a` / **P01** (pozitív ellenpár) | a kötelező bizonyíték-készlet 11/11 teljesült, a verdikt mégis `ok: false` | ugyanaz |
+| `r81core` / `KORNYEZET-7` | „a 12/80 egység NEM nullával zárt (1) — **a bukás oka: content**" | a burkoló ki is mondta |
+| `r83core` / `KORNYEZET-3` | ugyanaz | ugyanaz |
+
+**A LELET.** A függő szándék takarításának alak-szűrője a kanonikus időbélyeg-alakot vizsgálja. A
+`P-K03-intent-expiry` próba ennek a **betű-érzékenységét** (`T` és `Z` a helyén) és az
+**időpillanat-összevetését** mérte — a minta **hossz-kötöttségét** nem. Ezért a battéria saját,
+deklarált **M222** mutációja (ami a minta farkát `%`-ra engedi) **`SURVIVED`** verdiktet kapott,
+miközben a próba zöld maradt.
+
+**ÉS A KÁR ÜZLETI ALAKJA.** A mutált alakon egy **romlott** sor, aminek csak a **feje** kanonikus
+(`…Z` + szemét), „kanonikusnak" minősül, a **szöveges** ágra kerül, ott az időablakon **belülre** esik
+— tehát **soha nem törlődik** —, és az **értelmező** ág sem látja, mert az a nem kanonikus sorokat
+kéri. A sor **örökéletű és láthatatlan**: egyetlen jelentésben sem jelenik meg.
+
+**A JAVÍTÁS (`KUKA-375` · `D-VS-3183`): az állítás NEVEZZE MEG AZ UTAT.** A próba beír egy ilyen
+sort, és azt mondja ki, hogy az az **értelmező** ágon tűnik el (`odd_rows = 1` **és**
+`odd_purged = 1`), nem a szövegesen. A puszta „eltűnt" ezt nem mondta volna meg, mert a két ág
+**ugyanabba az összegbe** számol. Mérve: az M222 verdiktje `CAUGHT`, a szelet tiszta.
+
+**A/B — ÉS EZ NEM A MOSTANI JAVÍTÁSOK REGRESSZIÓJA.** Külön munkafán megmértem ugyanezt a mutációt a
+korábbi **`4a308da`** fejen is: ott is **`SURVIVED`**. Tehát **örökölt, méretlen** állapot volt, amit
+a lánc idő-bukása fedett el — a söprés „NEM FEJEZŐDÖTT BE"-ként sorolta, és a méretlen tartalmi
+maradék hiányként sem jelent meg. **Ezért a nem nulla kilépés OKÁT (idő vagy tartalom) ki kell
+mondani** (KUKA-093: a kihagyás nem zöld).
+
+### 5.3 A LÁNC ZÁRÓ FUTÁSA
+
+A `verify:external-checks` a csomag végén, **önállóan** (párhuzamos terhelés nélkül), a **javított**
+kódon futott. Az eredményét a 9. szakasz tartalmazza; ami **feloldatlanul** eltér, az **PIROS marad**
+— az R164/3 kikötése szerint.
 
 ---
 
@@ -269,9 +304,62 @@ sem a visszaállás ideje nem bizonyított**, ezért egyiket sem nevezem meg. D�
 Új előfizetés, kredithasználat bekapcsolása és limit-megkerülés **nem történt**, és a limit alatt
 review-kérést **nem ismételtem**.
 
+**ÉS AMI AZÓTA TÖRTÉNT — a szöveg a valóságot követi (KUKA-050).** A limit **feloldódott**, és a
+Codex három fejen (`a7f8f2d` · `c49699c` · `8d9800d`) **13 leletet** adott. Mind valós, mind javítva —
+a 7. szakasz sorolja. **A review tehát már NEM a `6c40c31`-ig szól**, hanem a `8d9800d`-ig; az azóta
+született fejeknek (`63b2a28` · `cb56faa` · `1a9fe84`) **nincs** új, független review-bizonyítéka.
+
 ---
 
-## 7. NYITOTT TÉTELEK — NEVESÍTVE, MÉRT TÜNETTEL
+## 7. A REVIEW-KÖR — A CODEX 13 LELETE, A CSOMAG SAJÁT JAVÍTÁSAI FELETT
+
+A limit feloldódása után a külső fél a **mostani** csomag friss kódját mérte. Ez a legértékesebb
+fajta visszajelzés, és ennek megfelelően a leletek többsége **az én ebben a körben írt javításaim
+felett** szólt. **Hat P1 és hét P2 — mind megmérve és javítva.**
+
+### 7.1 A HAT P1
+
+| # | a lelet | a javítás |
+|---|---|---|
+| 1 | **A helyi-kapu azt a mezőt kérdezte meg, amit a kliens nem használ** (`KUKA-366` · `D-VS-3174`). A destruktív ellenpróba a cím **autoritás**-gazdagépét olvasta, a kliens viszont a `?host=` paramétert **felülírónak** kezeli: egy `…@localhost/db?host=termelesi.pelda` cím **átment** a kapun, miközben a kapcsolat a termelési kiszolgálóra ment volna — és a próba ott **írt és törölt** volna | a gazdagép a **kliens sorrendjével** oldódik fel (`effectiveHost` + `localOnlyVerdict`); a **nem eldönthető** eset (`service` · `hostaddr` · több gazdagép) nem „helyi", hanem **zárás** |
+| 2 | **A nem nulla kilépést sikernek vettem** (`KUKA-367` · `D-VS-3175`). A saját R164/1-es javításom tolerálta a nem nulla kilépést, ha nem talált hiba-sort — pedig a diagnosztika lehet **üres** vagy **más nyelvű**, és a visszatöltés az SQL-hibák **után is folytatódik** | siker **csak** nulla kilépés mellett. Ez **szűkíti** a `D-VS-3167`-et: a tolerált nem nulla kilépés ága megszűnt |
+| 3 | **A párhuzam-próbának nem volt eldobható-környezet kapuja** (`KUKA-368` · `D-VS-3176`). Korlátlan törlést futtatott a **megadott** adatbázisban — staging vagy éles cím mellett **minden** felhasználó függő folytatását elvitte volna. Ugyanazt a hibát írtam meg máshol, amit a visszatöltési kapuban **órákkal korábban** javítottam | helyi kapu + **saját, friss** adatbázis, a séma a repó migrációs eszközével, a végén eldobva. Mérve: 10 állítás, 0 eltérés |
+| 4 | **A biztonsági felülírást a `0` is bekapcsolta** (`KUKA-369` · `D-VS-3177`). A környezeti változó **létezését** kérdeztem meg, nem az **értékét** — a szándék szerint kikapcsolt felülírás kikapcsolta a védelmet | csak a pontos `1` nyit |
+| 5 | **A próba azt állította, hogy mindent bejár** (`KUKA-370` · `D-VS-3178`). A szám kézi pin volt, a bejárási listák pedig a három **új** útmutatót nem tartalmazták: a szám átírása önmagában **hamis zöld** lett volna | a három új útmutató a **tényleges** bejárásban és a várt verdikt-halmazban is |
+| 6 | **A védett névtelen sorokkal telt táron minden felvétel végigkérdezte és rendezte a teljes tárat** (`KUKA-374` · `D-VS-3182`). Az O(1)-es rövidre zárás csak akkor állt, ha a beszúrton kívül **egyetlen** névtelen sor sem volt — a támadó viszont **hitelesítés nélkül** tölthette tele a tárat **védett** sorokkal, és onnantól minden kérés kifizettette a teljes listát és a rendezést. A reviewer mérése: 20 000 védett sor mellett 100 felvétel ~2 s, már az adatbázis-kérdések nélkül is | a tár **maga** tartja nyilván növekményesen, mely névtelen sorok hordoznak folytatást. Mérve a **hívás-számon**, nem az órán: 200 védett sorral telt táron 50 felvétel → **nulla** védett-lista kérdés; az **ellenpár** bejelentő nélkül ugyanarra a forgalomra **50** kérdést ad |
+
+**Ebből öt a saját javításaim felett szól, és kettő (3. és 6.) ugyanannak a hiba-osztálynak az
+ismétlése** — a védelem költsége a támadással nő (`KUKA-290`), illetve az új író felület bélyeg
+nélkül születik (`KUKA-227`). Ez a két minta a KUKA-táblában már állt; **mégis újra megírtam**.
+
+### 7.2 A HÉT P2
+
+- a titok-tisztító érték-osztálya **kizárta az idézőjelet**, ezért a megszokott idézett jelszó-alak
+  érintetlen maradt (`KUKA-371` · `D-VS-3179`);
+- a korlátozott pászta **sorrend nélkül** kiéheztette a romlott sorokat (`KUKA-372` · `D-VS-3180`), és
+  a részlegesség most **kimondott**;
+- a **szöveg-kezdetet** könyvtár-tartalmazásnak vettem, ezért egy ügyfél-könyvtár neve kikerült a
+  naplóba (`KUKA-373` · `D-VS-3181`);
+- az időtúllépés a **gyereket** ölte meg, a folyamat**csoportot** nem;
+- a megtartás-kapcsoló **soha** nem tartott meg semmit, mert a kilépési horog eldobta;
+- a plafonon a hurok **még egyszer** lefuttatta a legdrágább bontást, elvíve a külső program-keretet;
+- az **üres vagy ismeretlen** diagnosztikájú nem nulla kilépés külön mérve.
+
+### 7.3 ÉS EGY SAJÁT LELET A FELTÖLTÉS ELŐTTI ÁTOLVASÁSON (`KUKA-365` · `D-VS-3173`)
+
+Az operátornak szánt lapokon a fejezet-azonosítót a **tartalomjegyzék hosszából** vezettük le, a
+tartalomjegyzék viszont csak a második szintig nő. Minden mélyebb fejezet ezért **ugyanazt** az
+azonosítót kapta, amit a következő főfejezet is — mérve **ennek a jelentésnek** a lapján: öt
+ismétlődő azonosító 25 fejezetre, és a tartalomjegyzék kattintása **alfejezetre** vitt. Mivel az
+operátor ezt a lapot olvassa, ez nem szépséghiba, hanem a lap funkciójának elvesztése. Ma az
+azonosító saját, monoton számlálóból jön; mérve: **25 azonosító ismétlődés nélkül**.
+
+**Kimondva:** ezt a hibát **nem őr** fogta meg, hanem az, hogy a feltöltés előtt **átolvastam** a
+lapot. A visszacsúszást mostantól tiltó minta őrzi.
+
+---
+
+## 8. NYITOTT TÉTELEK — NEVESÍTVE, MÉRT TÜNETTEL
 
 1. **A két szereplős történet alkalmazáson belüli (újratöltés nélküli) befejezése.** Megépítve és
    mérve: 19-ből 18 lépés asztali szélességen. A maradék blokkoló: **a futás elvesztése a meghívás
@@ -289,7 +377,7 @@ review-kérést **nem ismételtem**.
 
 ---
 
-## 8. A ZÁRÓ KAPU ÉS AMIT EZ A JELENTÉS NEM ÁLLÍT
+## 9. A ZÁRÓ KAPU ÉS AMIT EZ A JELENTÉS NEM ÁLLÍT
 
 **AMIT EZ A JELENTÉS NEM ÁLLÍT:**
 
@@ -298,5 +386,5 @@ review-kérést **nem ismételtem**.
 - **Nem** állítja, hogy az `a7f8f2d` · `c49699c` · `9cc59e9` javításokat független fél elfogadta — a
   review a `6c40c31`-ig szól, és a válaszolt vagy lezárt szál **nem** egyenlő az elfogadással.
 - **Nem** állítja, hogy a PostgreSQL-mérés a Railway üzemére vagy a 18-as verzióra érvényes.
-- **Nem** állítja, hogy a két szereplős történet az alkalmazás-héjban végigvihető (7/1. tétel).
+- **Nem** állítja, hogy a két szereplős történet az alkalmazás-héjban végigvihető (8/1. tétel).
 - **Nem** állítja, hogy a lefedési hiány megszűnt — 20 kulcs áll, kettéosztva és nevesítve.
