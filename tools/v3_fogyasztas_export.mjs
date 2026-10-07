@@ -84,6 +84,22 @@ const pickPath = (p) => {
 };
 
 const session = flag('--session'); const w = windowOf(flag('--from'), flag('--to'));
+/**
+ * A HIÁNYZÓ MUNKAMENET NEVEZETT ELAKADÁS, NEM NYERS KIVÉTEL (R164/4, SAJÁT LELET a záró átolvasáson).
+ *
+ * A LELET: `--session` nélkül (például `--help`-pel) az eszköz a mélyben hasalt el egy
+ * `ERR_INVALID_ARG_TYPE`-pal — a `transcriptsOf` a `null` munkamenetet útként próbálta összefűzni. Az
+ * operátor NEM fejlesztő: egy node-veremnyom neki nem információ, és nem is mondja meg, mit tegyen
+ * (KUKA-171: nevezd meg, mi állított meg · KUKA-201: a nemleges válasz vigye a MŰKÖDŐ folytatást).
+ */
+if (!session) {
+  console.error('A MUNKAMENET AZONOSÍTÓJA KÖTELEZŐ — enélkül nincs mit exportálni.');
+  console.error('Használat:');
+  console.error('  node tools/v3_fogyasztas_export.mjs --session <azonosító> [--from <ISO>] [--to <ISO>]');
+  console.error('                                      [--label <ablak neve>] [--transcript <fájl>] [--projects <út>]');
+  console.error('A futó folyamat saját azonosítója a CLAUDE_CODE_SESSION_ID környezeti értékben áll.');
+  process.exit(2);
+}
 
 /**
  * AZ ÁTIRAT HELYÉT A MÉRŐVEL EGY FELOLDÓ ADJA (F154-24).

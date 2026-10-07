@@ -12,11 +12,11 @@ korábbi körök számai **történeti adatok**, nem végállapot — ahol elté
 
 | | |
 |---|---|
-| **KÓD-SHA (a csomag feje)** | `8f14ca9` — a `b31d8c9` (R158 záró feje) LESZÁRMAZOTTJA. A csomag R164-es commitjai: `a7f8f2d` (R164/1) · `c49699c` (R164/3 lefedettség) · `9cc59e9` (R164/3 átadás + külső-ellenőrző bekötés) · `98ec598` (a lap navigációja) · `8d9800d` · `63b2a28` (az első review-kör 12 lelete) · `cb56faa` (a 13.) · `1a9fe84` (az M222 túlélése) · `8f14ca9` (a második review-kör 9 lelete) |
-| **EREDMÉNY-HORDOZÓ FEJ** | `8f14ca9`. A jelentésben szereplő MINDEN mérés ezen a fán futott, **kivéve ahol a sor külön mást mond** — és a három hosszú lánc (böngészős kapu · mag-mutációs battéria · külső-ellenőrző) kifejezetten **ezen** a fejen futott, a csomag végén |
+| **KÓD-SHA (a csomag feje)** | `c2cccd1` — a `b31d8c9` (R158 záró feje) LESZÁRMAZOTTJA. A csomag R164-es commitjai: `a7f8f2d` (R164/1) · `c49699c` (R164/3 lefedettség) · `9cc59e9` (R164/3 átadás + külső-ellenőrző bekötés) · `98ec598` (a lap navigációja) · `8d9800d` · `63b2a28` (az első review-kör 12 lelete) · `cb56faa` (a 13.) · `1a9fe84` (az M222 túlélése) · `8f14ca9` (a második review-kör 9 lelete) · `0cd38a2` (a KUKA-383 mérése az elérhető úton) · `c2cccd1` (az U04 darabszáma mérésből) |
+| **EREDMÉNY-HORDOZÓ FEJ** | `c2cccd1`. A jelentésben szereplő MINDEN mérés ezen a fán futott, **kivéve ahol a sor külön mást mond** — és a három hosszú lánc (böngészős kapu · mag-mutációs battéria · külső-ellenőrző) kifejezetten **ezen** a fejen futott, a csomag végén |
 | **MÉRÉS IDEJE** | 2026-10-07, 04:40 UTC → a csomag zárása (a `--from` a parancs board-időbélyege) |
-| **A REVIEW ÁLTAL FEDETT SHA** | `cb56faa` — a külső fél eddig a fejig mért, **két körben**. **Az azóta született két fejnek NINCS új, független review-bizonyítéka**: `1a9fe84` és `8f14ca9` nem fedett |
-| **FÜGGETLEN REVIEW ÁLLAPOTA** | **FÜGGŐ a két legutóbbi fejre.** A korábbi limit feloldódott; a limit időszaka és visszaállása az üzenetből **nem bizonyított**, ezért nem nevezem meg (6. szakasz). A két kör **22 megjegyzése mind javítva**, mért bizonyítékkal (7. szakasz) |
+| **A REVIEW ÁLTAL FEDETT SHA** | `cb56faa` — a külső fél eddig a fejig mért, **két körben**. **Az azóta született négy fejnek NINCS új, független review-bizonyítéka**: `1a9fe84`, `8f14ca9`, `0cd38a2` és `c2cccd1` nem fedett |
+| **FÜGGETLEN REVIEW ÁLLAPOTA** | **FÜGGŐ a négy legutóbbi fejre.** A korábbi limit feloldódott; a limit időszaka és visszaállása az üzenetből **nem bizonyított**, ezért nem nevezem meg (6. szakasz). A két kör **22 megjegyzése mind javítva**, mért bizonyítékkal (7. szakasz) |
 | **ÖSSZVERDIKT** | **helyi ellenőrzések kész / független review FÜGGŐ.** Ez **NEM merge-készség** — nincs merge, nincs lezárás |
 | **FOGYASZTÁS (a csomag ablakán)** | kumulatív fő-szál kontextusmedián **367 729** → a `300–400 ezres` **FIGYELMEZTETÉS** sáv: rövid állapotmérés a munkablokk határán, megállni nem kell. Ügynök-bemenet **0** (nulla al-ügynök indult) |
 
@@ -24,7 +24,7 @@ korábbi körök számai **történeti adatok**, nem végállapot — ahol elté
 
 | lánc | verdikt | mit mondott |
 |---|---|---|
-| `verify:kuka` | **ZÖLD** | 840/840 (a csomag **40** új bejegyzése: `KUKA-345…384`) |
+| `verify:kuka` | **ZÖLD** | 841/841 (a csomag **40** új bejegyzése: `KUKA-345…384`) |
 | `verify:i18n` | **ZÖLD** | 49/49 · ellenpróba 6/6 |
 | `verify:tutor` | **ZÖLD** | 92/92 · ellenpróba 14/14 |
 | `verify:assistant` | **ZÖLD** | 55/55 · ellenpróba 6/6 |
@@ -99,12 +99,12 @@ jóslatát ehhez **mérjük**, és **eltérésnél megállunk**; a cél megnyit�
 hogy a kapcsolat oda megy, ahová hittük. A kapcsolat adatai **környezeti változókban** mennek (nem
 `-d <kapcsolati cím>`), és **minden kiírt szöveg titok-tisztítón** megy át.
 
-### 2.3 A HAT KÉRT ELLENPRÓBA — MIND MÉRVE (`proof:pg-restore-safety`, 39/39 ZÖLD)
+### 2.3 A HAT KÉRT ELLENPRÓBA — MIND MÉRVE (`proof:pg-restore-safety`, **43/43** ZÖLD)
 
 | amit az R164/1 kért | hogyan mérve |
 |---|---|
 | **előre létező cél változatlan** | E1: jelző-sorral előre létrehozott, az ELŐTAGOT hordozó adatbázis célként → a próba 3-as kilépéssel megáll, a jelző sor megvan, és helyette mást sem generál |
-| **forrás változatlan** | E2: séma, tábla-szám és MINDEN korábbi sor megvan a bukott visszatöltés után is (41/41 tábla, 23/23 alany) |
+| **forrás változatlan** | E2: a bukott visszatöltés után a séma és a tábla-szám azonos (41/41), és a **teljes sor-tartalomra** mérve **egyetlen sor sem tűnt el és egyetlen sor sem változott meg**. E2c: a próba saját előkészítésének hozzáadása **kimondott és mért** (4 sor) — a második review-kör leletére (`KUKA-380`) |
 | **sikeres friss cél** | E3: a próba végig zöld a generált célon, és a végén eltakarítja |
 | **sikertelen restore** | E4: `warning` ÉS `error` EGYÜTT, 1-es kilépés → **FAIL**, nevezett indokkal; a visszaolvasás lépései el sem indulnak. E4e: csak figyelmeztetés + 1-es kilépés → PASS, de a tartalmi visszaolvasás TÉNYLEG lefut |
 | **párhuzamos névütközés** | E5: a VALÓDI hurokban (`acquireFreshTarget`), beadott versenyzővel: a mérés és a `CREATE` közé befér egy másik futás → 42P04 → a hurok **nem veszi át**, új nevet generál, és a versenyző adata érintetlen |
@@ -268,7 +268,7 @@ mutációja túlélt**.
 
 | lánc | amit kiírt | mit jelent |
 |---|---|---|
-| `r79` / **U04** (pozitív ellenpár) | `clean: false`, miközben a lefedettség 253/253 és minden egység belefért a korlátba | az érintetlen futás nem volt tiszta — **tartalmi** ok |
+| `r79` / **U04** (pozitív ellenpár) | `clean: false`, miközben a lefedettség 253/253 és minden egység belefért a **külső** 15 000 ms-os korlátba | az érintetlen futás nem volt tiszta — **tartalmi** ok. *(Ugyanezen a futáson derült ki a 7.5-ben leírt második baj is: a 40-es bontáson a mért fal 13 567 ms-ig ment, ami a futtató **saját** 12 000 ms-os költségvetése fölött van — ezért az U04 darabszáma mostantól mérésből jön.)* |
 | `r59a` / **P01** (pozitív ellenpár) | a kötelező bizonyíték-készlet 11/11 teljesült, a verdikt mégis `ok: false` | ugyanaz |
 | `r81core` / `KORNYEZET-7` | „a 12/80 egység NEM nullával zárt (1) — **a bukás oka: content**" | a burkoló ki is mondta |
 | `r83core` / `KORNYEZET-3` | ugyanaz | ugyanaz |
@@ -315,9 +315,10 @@ sem a visszaállás ideje nem bizonyított**, ezért egyiket sem nevezem meg. D�
 review-kérést **nem ismételtem**.
 
 **ÉS AMI AZÓTA TÖRTÉNT — a szöveg a valóságot követi (KUKA-050).** A limit **feloldódott**, és a
-Codex három fejen (`a7f8f2d` · `c49699c` · `8d9800d`) **13 leletet** adott. Mind valós, mind javítva —
-a 7. szakasz sorolja. **A review tehát már NEM a `6c40c31`-ig szól**, hanem a `8d9800d`-ig; az azóta
-született fejeknek (`63b2a28` · `cb56faa` · `1a9fe84`) **nincs** új, független review-bizonyítéka.
+Codex **két körben** mért: az első kör három fejen (`a7f8f2d` · `c49699c` · `8d9800d`) 13 leletet, a
+második a `cb56faa` fejen kilenc megjegyzést adott. Mind valós, mind javítva — a 7. szakasz sorolja.
+**A review tehát már NEM a `6c40c31`-ig szól**, hanem a `cb56faa`-ig; az azóta született négy fejnek
+(`1a9fe84` · `8f14ca9` · `0cd38a2` · `c2cccd1`) **nincs** új, független review-bizonyítéka.
 
 ---
 
@@ -395,11 +396,23 @@ nem, **ellenpárral**. A hetediket a `proof:pg-restore-safety` méri valódi Pos
 
 ### 7.5 ÉS EGY SAJÁT LELET A LÁNCOK VISSZAMÉRÉSÉN
 
-A `verify:artifact-naming` **piros** volt az R164/1 óta, és eddig nem derült ki: a generált célnév
+**KETTŐ volt, nem egy.**
+
+**(1) A `verify:artifact-naming` piros volt az R164/1 óta**, és eddig nem derült ki: a generált célnév
 **kézzel** vágta az ISO-időbélyeget, amit az `ART05` őr nevezetten tilt (a V2-ben mérve **40**
 szerszám tette, három különböző alakban). Az őrt **nem lazítottam**: az idő-rész mostantól a névadás
 közös otthonából jön. **Kimondom:** ezt a pirosat a csomag **korábbi** szakasza okozta, és csak a
 láncok visszamérésén jött ki — nem az írás pillanatában. Ma `28/28`.
+
+**(2) A saját futás-szerződés próbánk U04-es pozitív ellenpárja a KÉZZEL tartott darabszámot
+használta** — és ez a fájl fejkommentje **már kétszer** leírta ugyanezt a hibát. A battéria 253
+mutációra nőtt: a 40-es bontáson **mérve** az egységek faliórája 9 621 … 13 567 ms, tehát több egység
+a futtató **saját** 12 000 ms-os költségvetése fölött van, és az összefűzött eredmény `portable:
+false`-t ad — vagyis az U04 **pirosra ment volna egy ép rendszeren**, nem tartalmi hibából, hanem a
+számból. A szerződés tárgya a **darabolhatóság**, nem egy szám, ezért az U04 futása mostantól a közös
+**adaptív tervet** használja: ha egy egység nem fér bele, finomabbra oszt, a költségvetés nem tágul, és
+a terv naplója meg a végső darabszám **bekerül a jegyzőkönyvbe**. A tanulság nem új, ezért nem új
+bejegyzés: a `KUKA-381` kapott egy új pozitív mintát erre a helyre.
 
 ---
 
@@ -432,8 +445,9 @@ láncok visszamérésén jött ki — nem az írás pillanatában. Ma `28/28`.
 
 - **Nem** állítja, hogy a csomag merge-kész. Az összverdikt: *helyi ellenőrzések kész / független
   review FÜGGŐ.*
-- **Nem** állítja, hogy az `a7f8f2d` · `c49699c` · `9cc59e9` javításokat független fél elfogadta — a
-  review a `6c40c31`-ig szól, és a válaszolt vagy lezárt szál **nem** egyenlő az elfogadással.
+- **Nem** állítja, hogy a `cb56faa` utáni négy fejet (`1a9fe84` · `8f14ca9` · `0cd38a2` · `c2cccd1`)
+  független fél elfogadta — és a **válaszolt vagy lezárt szál nem egyenlő az elfogadással**. A két
+  review-kör mindkét szál-csoportját megválaszoltam és lezártam; ez **nem** független elfogadás.
 - **Nem** állítja, hogy a PostgreSQL-mérés a Railway üzemére vagy a 18-as verzióra érvényes.
 - **Nem** állítja, hogy a két szereplős történet az alkalmazás-héjban végigvihető (8/1. tétel).
 - **Nem** állítja, hogy a lefedési hiány megszűnt — 20 kulcs áll, kettéosztva és nevesítve.
