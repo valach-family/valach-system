@@ -124,6 +124,8 @@ export const REASON = Object.freeze({
   invalid_value: 'The value given cannot be selected.',
   missing_field: 'A required field is missing.',
   unknown_field: 'The data sent contained an unexpected field. Refresh the page and try again.',
+  at_capacity: 'We could not keep your invitation for later because the system is full. Try again in a few minutes, or sign in first and then open the invitation link again.',
+  session_gone: 'We did not keep your invitation for later because this session was signed out (or switched to another account) in the meantime. Sign in again and open the invitation link once more.',
   invite_expired: 'This invitation has expired. Ask the person who sent it for a new one.',
   invite_already_redeemed: 'This invitation has already been used.',
   invite_unknown: 'There is no redeemable invitation for this link.',

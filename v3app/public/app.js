@@ -2031,6 +2031,7 @@ import { inviteNextKey } from './inviteText.mjs';
       <p class="helpbox" data-testid="invite-what-happens">${esc(UI.inviteWhatHappens)}</p>
       <p class="helpbox" data-testid="invite-identity">${identity}${hint ? ` · ${esc(UI.inviteAddressLine)}: <strong>${esc(hint)}</strong>` : ''}</p>
       <div class="buttonrow" data-testid="invite-actions">${actions}</div>
+      ${state.inviteNotKept ? `<p class="notice bad" data-testid="invite-not-kept">${esc(state.inviteNotKept)}</p>` : ''}
       <p class="notice" data-testid="invite-redeem-result" hidden></p>
       <p class="authfoot" data-testid="invite-next" data-next="${esc(inviteNextKey(o, loggedIn))}">${esc(UI[inviteNextKey(o, loggedIn)])}</p>
       <div class="buttonrow" data-testid="invite-help-row">
@@ -2641,6 +2642,7 @@ import { inviteNextKey } from './inviteText.mjs';
   function forgetInvite() {
     state.inviteToken = null;
     state.invite = null;
+    state.inviteNotKept = null;
     try {
       const u = new URL(window.location.href);
       if (!u.searchParams.has('invite')) return;
@@ -2903,9 +2905,23 @@ import { inviteNextKey } from './inviteText.mjs';
   }
 
   // ── MEGHÍVÓ ─────────────────────────────────────────────────────────────────────────────────
+  /**
+   * A FOLYTATÁS MEGŐRZÉSÉNEK VÁLASZÁT MEG KELL MÉRNI (R164 review, Codex, P2 — `KUKA-385` · `D-VS-3193`).
+   *
+   * A LELET. A szerver HELYESEN utasítja el a folytatás megőrzését, ha a munkamenet-tár tele van
+   * (503 `at_capacity`) vagy ha a nézet alatt kiléptek (409 `session_gone`) — és NEVEZETT indokot ad.
+   * Ez a hívás viszont a választ ELDOBTA, és a lap úgy folytatta, mintha minden rendben lett volna.
+   * A kár ettől NÉMA és KÉSŐBB jelentkezik: a felhasználó elindul az új fiókos megerősítő levéllel, a
+   * jegy EGYETLEN példánya ott marad a kliens memóriájában, és a belépés után a szerver már nem tud
+   * `pending_invite_token`-t adni — a megígért folytatás tehát CSENDBEN eltűnik.
+   *
+   * MA: a választ megmérjük (KUKA-215), és ami nem sikerült, azt a lap KIMONDJA — a szöveg a
+   * nyelvcsomagból jön (SZO-01), nem beégetve, és megnevezi a MŰKÖDŐ folytatást (KUKA-201).
+   */
   async function observeInvite() {
     if (!state.inviteToken) return;
-    await api('POST', '/api/invites/pending', { token: state.inviteToken });
+    const keep = await api('POST', '/api/invites/pending', { token: state.inviteToken });
+    state.inviteNotKept = keep && keep.ok ? null : refusalText(keep);
     state.invite = await api('GET', `/api/invites/observe?token=${encodeURIComponent(state.inviteToken)}`);
   }
   async function doRedeem() {

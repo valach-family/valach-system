@@ -33,7 +33,7 @@ import { startServer, makeRateLimiter, makeSessionStore, sessionLimits, SESSION_
   clientAddressOf, clientIpOf, CLIENT_IP_HEADERS, PROXY_WITHOUT_ADDRESS_PREFIX,
   mondjaKiEgyszerAProxyHibat, resetProxyWarning } from './server.mjs';
 import { dictFor } from './public/i18n/dict.mjs';
-import { resolveLanguage, parseAcceptLanguage, pickFromAcceptLanguage } from './public/i18n/languages.mjs';
+import { resolveLanguage, parseAcceptLanguage, pickFromAcceptLanguage, enabledLanguages } from './public/i18n/languages.mjs';
 import { validateAgainstSchema } from '../v3ref/inputSchema.mjs';
 import { purgeExpiredIntents, resumeIntent, rememberIntent, intentTtlMs, PENDING_INTENT_TTL_MS } from '../v3ref/invite.mjs';
 import { validateRequest } from './httpSchema.mjs';
@@ -2518,6 +2518,44 @@ try {
             kurzor_nelkul_megmaradt: kurzorNelkulMegvan });
       } finally { await ae6.close(); }
     }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  // AF — A FOLYTATÁS-MEGŐRZÉS ELUTASÍTÁSA LEFORDÍTHATÓ (F164-15, külső review, Codex, P2)
+  //
+  // A LELET: a kliens ELDOBTA a `POST /api/invites/pending` válaszát, tehát egy NEVEZETT elutasítás
+  // (`at_capacity` · `session_gone`) után is úgy folytatta, mintha a jegy megmaradt volna — a megígért
+  // folytatás NÉMÁN eltűnt. A kliens-oldali javítás a választ megméri és kiírja; EZ a mérés azt
+  // zárja le, hogy a kiírt szöveg VALÓDI mondat legyen, ne a `generic` tartalékra essen.
+  //
+  // MIÉRT ÍGY MÉRJÜK: a tartalék-ágas feloldó elrejti a hiányzó kulcsot (KUKA-238) — a `refusalText`
+  // a nem talált kulcsra `REASON.generic`-et ad, tehát a felhasználó egy semmitmondó mondatot kapna,
+  // és a próba mégis „volt szöveg"-et látna. Ezért MINDEN bekapcsolt nyelven azt mérjük, hogy a kulcs
+  // TÉNYLEGESEN ott van, és a mondat NEM azonos a generikussal.
+  {
+    const OKOK = ['at_capacity', 'session_gone'];
+    const nyelvek = enabledLanguages().map((l) => l.code);
+    const hiany = [];
+    for (const kod of nyelvek) {
+      const d = dictFor(kod);
+      for (const ok of OKOK) {
+        const sz = d && d.REASON ? d.REASON[ok] : undefined;
+        const generikus = d && d.REASON ? d.REASON.generic : undefined;
+        if (typeof sz !== 'string' || sz.length < 40 || sz === generikus) hiany.push(`${kod}/${ok}`);
+      }
+    }
+    step('(af1) F164-15: a folytatás-megőrzés MINDEN nevezett elutasítása VALÓDI mondatot ad MINDEN bekapcsolt nyelven — nem a generikus tartalékra esik (KUKA-238)',
+      hiany.length === 0 && nyelvek.length >= 3,
+      { nyelvek: nyelvek.join(','), hianyzo: hiany.length ? hiany.join(' · ') : 'nincs' });
+
+    // (af2) ÉS A SZERVER TÉNYLEGESEN EZEKET AZ OKOKAT ADJA — a két lista nem válhat szét (KUKA-003).
+    const srvU = readFileSync(resolve(ROOT, 'v3app/server.mjs'), 'utf8');
+    const pendingBlokk = srvU.slice(srvU.indexOf("'POST /api/invites/pending'"),
+      srvU.indexOf("'POST /api/invites/redeem'"));
+    const srvOkok = [...new Set([...pendingBlokk.matchAll(/reason: '([a-z_]+)'/g)].map((m) => m[1]))].sort();
+    step('(af2) F164-15: a végponton TÉNYLEGESEN csak a lefordított okok állnak — egy új, le nem fordított ok azonnal pirosra vált',
+      srvOkok.length > 0 && srvOkok.every((o) => OKOK.includes(o)),
+      { a_vegponton: srvOkok.join(','), leforditva: OKOK.join(',') });
   }
 
   // ══════════════════════════════════════════════════════════════════════════════════════════════

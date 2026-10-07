@@ -16,6 +16,30 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3193 — A MEGŐRZÉS VÁLASZÁT MEGMÉRJÜK, ÉS A KUDARCOT KIMONDJUK (R164 review, P2)
+
+**A döntés.** A meghívó-képernyő megmérte a folytatás-megőrzés válaszát, és ha az elutasítás, a lap
+**kimondja** — a szöveg a nyelvcsomagból jön, és megnevezi a **működő** folytatást (lépj be először,
+majd nyisd meg újra a hivatkozást).
+
+**Miért.** A szerver helyesen utasítja el a megőrzést telt tár (503) vagy nézet-váltás (409) esetén,
+nevezett indokkal. A lap viszont a választ **eldobta**: a felhasználó elindult a megerősítő levéllel,
+a jegy egyetlen példánya a kliens memóriájában maradt, és a belépés után a folytatás **csendben
+eltűnt**. Egy nevezett elutasítás annyit ér, amennyit a hívó elolvas belőle.
+
+**És a mondat valódi.** A `refusalText` a nem talált kulcsra a generikus mondatot adná, ezért minden
+bekapcsolt nyelvre **mérjük**, hogy a két ok kulcsa megvan és **nem** egyezik a generikussal
+(KUKA-238). A végponton **tényleg** csak ez a két ok áll — ezt is mérjük, tehát egy új, le nem
+fordított ok azonnal pirosra vált.
+
+**Amit ez NEM mér, kimondva.** A telt tár **böngészős** előállítása nincs a kapuban: a kliens-ág
+javítása a forrás-mintán és a szótár-mérésen áll, nem egy élő 503-as képernyőn (KUKA-207).
+
+**Gépi jel.** `npm run verify:app-findings-r154` (AF: af1 · af2) · `npm run verify:i18n` ·
+`npm run verify:kuka` (KUKA-385).
+
+---
+
 ## D-VS-3192 — A HIÁNY-OSZTÁLYOZÁS A GÉPI ARTEFAKTUMBAN ÁLL (R164 review, P2)
 
 **A döntés.** A lefedési leltár gépi JSON-ja viszi a `gap_classes` blokkot: a három osztály

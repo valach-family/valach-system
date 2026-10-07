@@ -144,6 +144,8 @@ export const REASON = Object.freeze({
   invalid_value: 'A megadott érték nem választható.',
   missing_field: 'Egy kötelező mező hiányzik.',
   unknown_field: 'Az elküldött adatok között nem várt mező volt. Frissítsd az oldalt, és próbáld újra.',
+  at_capacity: 'A meghívó-folytatást most nem tudtuk megőrizni, mert a rendszer megtelt. Próbáld meg újra néhány perc múlva, vagy lépj be először, és utána nyisd meg újra a meghívó hivatkozását.',
+  session_gone: 'A meghívó-folytatást nem őriztük meg, mert közben kiléptek ebből a munkamenetből (vagy másik fiókra váltottak). Lépj be újra, és nyisd meg ismét a meghívó hivatkozását.',
   invite_expired: 'Ez a meghívás lejárt. Kérj új meghívót attól, aki küldte.',
   invite_already_redeemed: 'Ezt a meghívót már felhasználták.',
   invite_unknown: 'Ehhez a hivatkozáshoz nem tartozik beváltható meghívás.',

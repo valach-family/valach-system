@@ -14813,9 +14813,10 @@ Object.freeze({
       Object.freeze({ paths: Object.freeze(['tools/lib/vs_pg_target.mjs']),
         pattern: 'export function cliEnvFor',
         why: 'a CLI-környezet feloldója EGY otthonban áll' }),
-      Object.freeze({ paths: Object.freeze(['tools/v3_pg_durability_proof.mjs', 'tools/v3_pg_intent_proof.mjs']),
+      Object.freeze({ paths: Object.freeze(['tools/v3_pg_durability_proof.mjs', 'tools/v3_pg_intent_proof.mjs',
+        'tools/v3_pg_restore_safety_proof.mjs']),
         pattern: 'cliEnvFor\\(\\{ sourceUrl: url',
-        why: 'és mindkét próba ezt hívja, nem saját másolatot' }),
+        why: 'és MIND A HÁROM próba ezt hívja, nem saját másolatot — a harmadik másolatot a reviewer találta meg, miután a kettőt összevontam (KUKA-003: a javítás annyi házat ér el, amennyit megkerestem)' }),
     ]),
     forbidden: Object.freeze([]),
     lesson: 'HA EGY SZABÁLY KÉT HÁZBAN ÉL, AKKOR EGY JAVÍTÁS CSAK AZ EGYIKET ÉRI EL. A kapu és a tényleges végrehajtás nem lehet két külön feloldó: amit a kapu megenged, azt a végrehajtás UGYANÚGY értse — különben a bizonyíték nem arra a rendszerre szól, amit mértünk.',
@@ -14941,6 +14942,34 @@ Object.freeze({
     forbidden: Object.freeze([]),
     lesson: 'EGY KIMENET AKKOR LÉTEZIK, HA A GÉPI ALAKBAN IS OTT VAN. A konzolra írt mérés a futás végén elpárolog; a következő kör a FÁJLT olvassa. Ezért a visszaellenőrzés is a fájlt nézze, ne a memóriában lévő objektumot — különben azt mérjük, amit kiszámoltunk, nem amit átadtunk.',
     guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta) · `npm run verify:lefedes` (LC4: a visszaolvasott fájl számai egyeznek a mérttel).',
+  }),
+
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  // R164 harmadik review-kör — A MEGŐRZÉS VÁLASZÁT A LAP ELDOBTA.
+  Object.freeze({
+    id: 'KUKA-385',
+    date: '2026-10-07',
+    title: 'A FOLYTATÁS MEGŐRZÉSÉNEK VÁLASZÁT A LAP ELDOBTA, ÉS ÚGY MENT TOVÁBB, MINTHA SIKERÜLT VOLNA',
+    what: 'A meghívó-képernyő megnyitásakor a lap elküldi a folytatás megőrzését (`POST /api/invites/pending`). A szerver HELYESEN utasítja el, ha a munkamenet-tár tele van (503 `at_capacity`) vagy ha a nézet alatt kiléptek (409 `session_gone`) — és NEVEZETT indokot ad. A lap viszont a választ ELDOBTA, és a rendes meghívó-folyamattal folytatta. A kár NÉMA és KÉSŐBB jelentkezik: a felhasználó elindul az új fiókos megerősítő levéllel, a jegy EGYETLEN példánya ott marad a kliens memóriájában, és a belépés után a szerver már nem tud folytatást adni — a megígért folytatás CSENDBEN eltűnik.',
+    why_wrong: 'A SZERVER JÓL VÁLASZOLT, A LAP NEM MÉRTE MEG (KUKA-215). Egy nevezett elutasítás annyit ér, amennyit a hívó elolvas belőle; ha a kliens nem nézi meg, a védelem a felhasználó szempontjából nem létezik. És a hiba pont a legrosszabb pillanatban jelentkezik: terhelés alatt, amikor a tár tele van.',
+    replaced_by: 'A lap MEGMÉRI a választ, és a kudarcot KIMONDJA a meghívó-képernyőn (`invite-not-kept`) — a szöveg a nyelvcsomagból jön, nem beégetve, és megnevezi a MŰKÖDŐ folytatást (lépj be először, majd nyisd meg újra a hivatkozást — KUKA-201).',
+    replacement: 'ÉS A SZÖVEG VALÓDI MONDAT, NEM A TARTALÉK: a `refusalText` a nem talált kulcsra a generikus mondatot adná (KUKA-238), ezért MINDEN bekapcsolt nyelvre MÉRJÜK, hogy a két ok kulcsa TÉNYLEGESEN megvan, és nem egyezik a generikussal. A kilépés ezt az állapotot is felejti, a nézethez kötött tárral EGYÜTT (KUKA-218).',
+    decision: 'D-VS-3193',
+    found_by: 'KÜLSŐ REVIEW (Codex, R164 — P2, a 3cb8364 fejen).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'state\\.inviteNotKept = keep && keep\\.ok \\? null : refusalText\\(keep\\)',
+        why: 'a lap MEGMÉRI a megőrzés válaszát, nem dobja el' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "data-testid=.invite-not-kept.",
+        why: 'és a kudarcot KIMONDJA a meghívó-képernyőn' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/hu.mjs', 'v3app/public/i18n/en.mjs', 'v3app/public/i18n/de.mjs']),
+        pattern: 'at_capacity:',
+        why: 'a szöveg MINDEN bekapcsolt nyelven valódi mondat, nem a generikus tartalék' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'EGY NEVEZETT ELUTASÍTÁS ANNYIT ÉR, AMENNYIT A HÍVÓ ELOLVAS BELŐLE. A szerver helyes válasza nem védelem, ha a kliens eldobja: a felhasználó szempontjából a hiba NÉMA, és a kár jellemzően KÉSŐBB, egy másik képernyőn jelentkezik. A választ MÉRJÜK meg, a kudarcot MONDJUK KI, és a mondat legyen VALÓDI — a tartalék-ág elrejti a hiányzó kulcsot.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (három pozitív minta) · `npm run verify:app-findings-r154` (AF: af1 a két ok MINDEN nyelven valódi mondat és nem a generikus · af2 a végponton tényleg csak a lefordított okok állnak — egy új, le nem fordított ok azonnal piros) · `npm run verify:i18n`. KIMONDVA, AMIT NEM MÉRÜNK: a telt tár böngészős előállítása nincs a kapuban — a kliens-ág javítása a forrás-mintán és a szótár-mérésen áll, nem egy élő 503-as képernyőn (KUKA-207).',
   }),
 
 

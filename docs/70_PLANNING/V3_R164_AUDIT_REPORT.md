@@ -47,7 +47,7 @@ korábbi körök számai **történeti adatok**, nem végállapot — ahol elté
 | `proof:pg-intent` | **ZÖLD** | **10 állítás, MINDKÉT tárolón, 0 eltérés** — saját, friss adatbázisban |
 | `verify:lefedes` | **PIROS (nevesített)** | 15 ZÖLD / 1 PIROS — a piros maga a **20 hiány-kulcs**; a kettéosztás és a regresszió-irány (LR1 · LR2 · LC1–LC4) ZÖLD. A részletek az 1.2–1.3 pontban |
 | `verify:browser-gate` | **ZÖLD** | **805 s** · `test:e2e` + `proof:core-ux` 364 s · `proof:demo-walk` 441 s · **122 helyzet teljesült, 0 bukott, 0 ingadozó, 0 kihagyott, 22 próba-fájl** — és a kapu azt is méri, hogy a jelentés EBBEN a futásban készült (nem egy korábbi bizonyíték) |
-| `verify:v3ref` (mag-mutációs battéria) | *(a záró kapuban)* | lásd 9. szakasz |
+| `verify:v3ref` (mag-mutációs battéria) | **ZÖLD** | **925 s** · a 69 mag-próba 69/69 · **253 mutáció · 253 ELKAPVA · 0 TÚLÉLTE** · 0 rossz próba · 0 mérőhiba · 0 elavult horgony · lefedettség **253/253**, hiány 0, duplikátum 0 · a legrosszabb egység faliórája **10 187 ms** a 15 000 ms-os külső korláton belül. **Az M222 mutáció ELKAPVA** — az 5.2-es lelet javítása a TELJES battérián igazolva. A darabolás **mérésből**: a tool ajánlása 11 egység volt, ezen a gépen **88** kellett (11 → 22 → 44 → 88), a költségvetés nem tágult |
 | `verify:external-checks` | *(a záró kapuban)* | lásd 5.3 és 9. szakasz |
 
 ### 1.2 A HIÁNY-SZÁMOK — A KEVEREDÉS FELOLDVA, MÉRÉSSEL

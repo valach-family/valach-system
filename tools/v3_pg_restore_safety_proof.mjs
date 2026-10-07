@@ -20,7 +20,8 @@ import { fileURLToPath } from 'node:url';
 import { mkdirSync, writeFileSync, chmodSync } from 'node:fs';
 import { loadRepoEnv } from './lib/vs_tool_env.mjs';
 import { qid, withDatabase, freshTargetName, acquireFreshTarget, restoreTargetDecision,
-  restoreOutcome, redactConnStrings, localOnlyVerdict, RESTORE_TARGET_PREFIX, PROTECTED_DB_NAMES } from './lib/vs_pg_target.mjs';
+  restoreOutcome, redactConnStrings, localOnlyVerdict, RESTORE_TARGET_PREFIX, PROTECTED_DB_NAMES,
+  cliEnvFor } from './lib/vs_pg_target.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 loadRepoEnv(ROOT);
@@ -60,16 +61,19 @@ if (!url) { console.error('proof:pg-restore-safety — nincs DATABASE_URL: ELAKA
 
 const PSQL = process.env.VS_PSQL || 'psql';
 const PGRESTORE = process.env.VS_PGRESTORE || 'pg_restore';
+/**
+ * A CLI-KÖRNYEZET A KÖZÖS OTTHONBÓL JÖN (R164 review, Codex, P2 — `KUKA-379`, HARMADIK hely).
+ *
+ * SAJÁT TANULSÁG, KIMONDVA: az előző körben a `pgEnv` KÉT másolatát vontam össze egy otthonba — és a
+ * HARMADIKAT, ezt, nem vettem észre. A reviewer megtalálta. Pontosan ez a `KUKA-003` alakja: ha egy
+ * szabály több házban él, a javítás annyi házat ér el, amennyit MEGKERESTEM — nem annyit, ahány van.
+ * A tanulság nem az, hogy „jobban kell figyelni", hanem hogy a másolatokat GÉP keresse: a `KUKA-379`
+ * pozitív mintája mostantól MIND A HÁROM fájlra szól, tehát egy negyedik másolat is piros lenne.
+ */
 function pgEnv(dbName, extra = {}) {
-  const u = new URL(url);
-  const e = { ...process.env };
-  if (u.hostname) e.PGHOST = decodeURIComponent(u.hostname);
-  if (u.port) e.PGPORT = u.port;
-  if (u.username) e.PGUSER = decodeURIComponent(u.username);
-  if (u.password) e.PGPASSWORD = decodeURIComponent(u.password);
-  e.PGDATABASE = String(dbName);
-  delete e.PGSERVICE; delete e.PGSERVICEFILE;
-  return { ...e, ...extra };
+  const r = cliEnvFor({ sourceUrl: url, database: dbName, env: process.env });
+  if (!r.ok) throw new Error(`a parancssori kliens környezete nem állítható össze: ${r.reason}`);
+  return { ...r.env, ...extra };
 }
 function psql(args, dbName = 'postgres') {
   try {
