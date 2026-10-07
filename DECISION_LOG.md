@@ -16,6 +16,51 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3208 — EGY HATÁR CSAK A SAJÁT NYELVTANÁBAN HATÁR, ÉS AZ ELŐFELTÉTELT A DARAB DEKLARÁLJA (R166, négy külső P2)
+
+**A NÉGY LELET MIND A SAJÁT, EBBEN A KÖRBEN ÉPÍTETT MUNKÁMBAN**, és kettő **közvetlenül egy korábbi
+javításom következménye**. Mind a négy javítva, mért visszacsúszás-próbával.
+
+**(1) Shell-nyelvtant alkalmaztam egy URL-re** (`KUKA-410`). A `KUKA-404` javításom a kapcsolati cím
+végét a shell-szó letapogatójával kereste — abban a `&` és a `;` elválasztó. Egy URL-ben viszont
+**legálisak**, tehát a rejtés a jelszó közepén megállt, és a maradék meg a gazdagép a naplóba került.
+**A javításom nyitott új szivárgást.** Mostantól az elválasztó-készlet a **hívótól** jön: a cím
+csak a **fehér szóközig** tart, a kulcs=érték alak marad a shell határán.
+
+**(2) A mérés saját „idegen" adatbázisa nem volt a takarítási listán** (`KUKA-411`). Minden
+**megszakított** futás ott hagyta — a `KUKA-403` javítása után a gyerek leállítása és a forrás
+takarítása megvolt, ez mégis maradt. Az „idegen" itt **szerep, nem tulajdon**: a gyerek szemszögéből
+idegen, a szülő szemszögéből saját.
+
+**(3) A fájlnév-egyezés kihagyta a tartalom-ellenőrzést** (`KUKA-412`). Egy átmásolt átirat, aminek a
+neve véletlenül a kért munkameneté, átment akkor is, ha a sorai **kimondottan** más azonosítót
+hordoztak — a leltár más munkamenet fogyasztását címkézte a kértnek. Mostantól **három állapot**: az
+erős jel ellentmondása elakadás, a hiánya engedi a fájlnevet.
+
+**(4) A tábla-útmutatók minden céges tagnak felkínálódtak** (`KUKA-413`). A bemutató-mintából kettő
+van, tehát a **harmadik** vállalkozásban a lap az üres állapotot rajzolja, és a lépés-célok soha nem
+jönnek létre. **Harmadszor ugyanez az osztály egy körön belül** — és ez a szám a tanulság: ezért jött
+**általános őr**, a horgony-készletet a lap forrásából vezetve le, nem egy negyedik egyedi kapu.
+
+**ÉS HÁROM MEGLÉVŐ PINT IGAZÍTANI KELLETT — EGYIKET SEM GYENGÍTVE:**
+· `r8` a **pontosabb** mondatot állítja (a kilépés-kód és a nevezett elakadás követelménye változatlan);
+· `u6` mintája **pontos** lett (a `ctx.demo` részszóként az új, KÜLÖN jelet is megfogta — és most
+  mindkét jel hatóköre külön mérve);
+· `ah1` céges kontextusa megkapta a minta **tényét**, amit a sor mindig is feltételezett.
+
+**ÉS EGY LYUK A SAJÁT PINEMBEN, KIMONDVA:** az `aq3` első alakja a **kikommentelt** sort is
+elfogadta, tehát a javítás visszavétele **nem buktatta volna meg** (`KUKA-239`). Sor-kezdetre kötve
+javítva, és ellenpróbával mérve, hogy a `//`-val kezdődő sor **pirosra vált**.
+
+**Gépi jel:** `npm run verify:app-findings-r154` — **AQ csoport** (aq1–aq8) · `npm run verify:kuka` ·
+`npm run proof:pg-restore-safety` · `npm run verify:browser-gate`. **Visszacsúszás-próba mérve, mind
+a négyre:** a javításokat visszavéve **öt pin piros** (`r8` · `aq1` · `aq5` · `aq6` · `aq8`), és a
+pin-lyuk javítása után a kikommentelt sorra az **`aq3` is**.
+
+**KUKA-410** · **KUKA-411** · **KUKA-412** · **KUKA-413**
+
+---
+
 ## D-VS-3207 — A JAVÍTÁS HATÓKÖRÉT A HIBA-OSZTÁLY ADJA, ÉS A PRÓBA A SAJÁT SZAVÁT IS MEGHALLGATJA (R166, öt külső P2)
 
 **AZ ÖT LELET HÁROM OSZTÁLYT MUTAT**, és mind az öt javítva, mért visszacsúszás-próbával.

@@ -326,6 +326,22 @@ const JELZO = `idegen-adat-${Date.now()}`;
 {
   const c = psql(['-v', 'ON_ERROR_STOP=1', '-c', `CREATE DATABASE ${qid(idegen)}`]);
   if (c.code !== 0) { console.error(`  ELAKADT MÉRÉS: az idegen próba-adatbázis nem jött létre — ${c.err.slice(0, 160)}`); process.exit(2); }
+  /**
+   * ÉS A MÉRÉS SAJÁT „IDEGEN" ADATBÁZISA IS A TAKARÍTÁSI LISTÁRA KERÜL (R166, KÜLSŐ REVIEW, Codex, P2 · `KUKA-411`).
+   *
+   * A LELET: ezt az adatbázist a MÉRÉS hozta létre (a `CREATE` sikere a tulajdon-bizonyíték), de nem
+   * került a `sajatDb` listába — a jel-kezelő és a kilépési horog pedig CSAK azt a listát dobja el.
+   * Egy megszakított futás így OTT HAGYTA, minden alkalommal: a gyerek leállítása és a forrás
+   * takarítása megvolt, ez viszont maradt. Pontosan az a szemét, amit ez a lánc mér.
+   *
+   * A KÉT FOGALOM NEM UGYANAZ, ÉS EZ A LÉNYEG: „idegen" a DURABILITY-GYEREK szemszögéből — neki NEM
+   * szabad hozzányúlnia, és épp ezt mérjük (E1b · E2b). A SZÜLŐ szemszögéből viszont a SAJÁTJA, tehát
+   * a szülő takarítási listájára tartozik. A `sajatDb` kizárólag a szülő listája; a gyereknek sajátja van.
+   *
+   * A SORREND RENDBEN: a záró `Z.` lépés ELŐBB dobja el és méri a hiányt, a `dobjaSajat()` csak utána
+   * fut — a `DROP DATABASE IF EXISTS` ilyenkor no-op, és a név kikerül a listából.
+   */
+  sajatDb.add(idegen);
   psql(['-v', 'ON_ERROR_STOP=1', '-c', 'CREATE TABLE idegen_jelzo (v text)', '-c', `INSERT INTO idegen_jelzo VALUES ('${JELZO}')`], idegen);
 }
 const idegenEl = () => ottVan(idegen) && psql(['-c', 'SELECT v FROM idegen_jelzo'], idegen).out.trim() === JELZO;

@@ -1012,7 +1012,20 @@ export const TOURS = Object.freeze({
   // végigvihető — nem `requires_demo`. Feladat-lépés egyikben sem kell: a nézetek OLVASÓK, és a
   // bemutató nem kattint a felhasználó helyett (KUKA-231).
   'tour.warehouses': Object.freeze({
-    id: 'tour.warehouses', version: '1.0.0', audience: 'signed_in', feature: 'data.warehouses', page: 'warehouses',
+    /**
+     * A MINTAADATHOZ KÖTÖTT TÁBLA-ÚTMUTATÓK FELTÉTELE KIMONDVA (R166, külső review, Codex, P2 · KUKA-413).
+     *
+     * A LELET: a bemutató-mintából KETTŐ van (`bemutato-A` · `bemutato-B`), tehát egy létrehozó
+     * HARMADIK (vagy későbbi) vállalkozásánál az `assignDemoFixture()` NULL-t ad. A tábla-lap ilyenkor
+     * az ÜRES ÁLLAPOT panelt rajzolja (`demo-empty`), és a `list-rows` meg a `list-search` SOHA nem
+     * jön létre — a három útmutató viszont MINDEN céges tagnak felkínálódott, tehát a második lépésén
+     * nevezetten megszakadt. Ugyanaz az osztály, mint a KUKA-397/407/409: amit nem lehet végigvinni,
+     * azt nem kínáljuk fel.
+     *
+     * A FELTÉTELT A DARAB DEKLARÁLJA, A TÉNYT A KISZOLGÁLÓ MÉRI (`demo_fixture`) — nem a felirat,
+     * és nem a tagság.
+     */
+    id: 'tour.warehouses', version: '1.1.0', audience: 'signed_in', requires_demo_fixture: true, feature: 'data.warehouses', page: 'warehouses',
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'nav-warehouses', task: null }),
       Object.freeze({ id: 's2', target: 'list-rows', task: null }),
@@ -1020,7 +1033,7 @@ export const TOURS = Object.freeze({
     ]),
   }),
   'tour.processes': Object.freeze({
-    id: 'tour.processes', version: '1.0.0', audience: 'signed_in', feature: 'data.processes', page: 'processes',
+    id: 'tour.processes', version: '1.1.0', audience: 'signed_in', requires_demo_fixture: true, feature: 'data.processes', page: 'processes',
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'nav-processes', task: null }),
       Object.freeze({ id: 's2', target: 'list-rows', task: null }),
@@ -1144,7 +1157,7 @@ export const TOURS = Object.freeze({
     ]),
   }),
   'tour.products': Object.freeze({
-    id: 'tour.products', version: '1.0.0', audience: 'signed_in', feature: 'shell.sample_pages', page: 'products',
+    id: 'tour.products', version: '1.1.0', audience: 'signed_in', requires_demo_fixture: true, feature: 'shell.sample_pages', page: 'products',
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'nav-products', task: null }),
       Object.freeze({ id: 's2', target: 'list-rows', task: null }),

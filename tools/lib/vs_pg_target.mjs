@@ -502,7 +502,23 @@ export function restoreOutcome({ exitCode = 0, stderr = '' } = {}) {
  * záratlan idézet a sor VÉGÉIG tart: ahol a határ nem tudható, a többet rejtünk el, nem a kevesebbet
  * (KUKA-049 — a titoknál a bizonytalanság nem a megengedő ág).
  */
-function shellWordEnd(s, i) {
+/**
+ * AZ ELVÁLASZTÓ-KÉSZLET A HÍVÓTÓL JÖN (R166, KÜLSŐ REVIEW, Codex, P2 · `KUKA-410`).
+ *
+ * A LELET: a `KUKA-404` javításom a kapcsolati cím végét is ezzel a letapogatóval kereste — benne a
+ * `&` és a `;` ELVÁLASZTÓ. A shellben azok tényleg szó-határok, egy URL-ben viszont LEGÁLISAK (a
+ * jelszó-részben és a query-ben is), tehát `postgres://u:pa;ss@host/db` esetén a rejtés a `pa` után
+ * megállt, és a `;ss@host/db` — a jelszó maradéka ÉS a gazdagép — a naplóba került. Vagyis SHELL-
+ * nyelvtant alkalmaztam olyan szövegre, ami nem feltétlenül shell-parancs.
+ *
+ * MOSTANTÓL a hívó mondja meg, mi zár: a kulcs=érték alak (`PGPASSWORD=…`) SHELL-szót olvas, tehát
+ * nála a `&` és a `;` is határ; a KAPCSOLATI CÍM viszont csak a FEHÉR SZÓKÖZIG (illetve az idézet
+ * záróig vagy a sor végéig) tart — egy URL-ben nem lehet escape-elés nélküli szóköz, tehát ez a
+ * pontos határ, és a bizonytalanság itt is a SZIGORÚBB ág (`KUKA-200`).
+ */
+const SHELL_SEPARATORS = Object.freeze([' ', '\t', '\n', '\r', '&', ';']);
+const WHITESPACE_ONLY = Object.freeze([' ', '\t', '\n', '\r']);
+function shellWordEnd(s, i, separators = SHELL_SEPARATORS) {
   let k = i;
   while (k < s.length) {
     const c = s[k];
@@ -522,7 +538,7 @@ function shellWordEnd(s, i) {
       if (z >= s.length) return s.length;               // záratlan idézet: a sor végéig
       k = z + 1; continue;
     }
-    if (c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '&' || c === ';') return k;
+    if (separators.includes(c)) return k;
     k += 1;
   }
   return s.length;
@@ -556,7 +572,8 @@ export function redactConnStrings(text) {
     let i = 0;
     while (i < s.length) {
       if (SEPARATOR.test(s[i])) { ki += s[i]; i += 1; continue; }
-      const vege = shellWordEnd(s, i);
+      // A CÍM HATÁRA CSAK A FEHÉR SZÓKÖZ: a `;` és a `&` LEGÁLIS egy URL-ben (KUKA-410).
+      const vege = shellWordEnd(s, i, WHITESPACE_ONLY);
       const szo = s.slice(i, vege);
       const t = SEMA.exec(szo);
       ki += t ? szo.slice(0, t.index) + '«kapcsolati cím elrejtve»' : szo;

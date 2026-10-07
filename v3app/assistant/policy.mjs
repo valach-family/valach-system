@@ -274,6 +274,9 @@ export function allowedToursFor(ctx = {}) {
      * tagságon és nem az útmutató bevezető szövegén — egy felirat nem kapu (KUKA-221).
      */
     if (t.requires_stock_access === true && ctx.stock_access !== true) continue;
+    // A MINTAADATHOZ KÖTÖTT TÁBLA-ÚTMUTATÓ csak ott, ahol a bemutató-minta tényleg ki van osztva
+    // (KUKA-413): minta nélkül a lap az ÜRES ÁLLAPOTOT rajzolja, és a lépés célja SOHA nem jön létre.
+    if (t.requires_demo_fixture === true && ctx.demo_fixture !== true) continue;
     /**
      * …ÉS A VEZÉRLŐ IS KELL HOZZÁ, NEM CSAK A KÖRNYEZET (R164/3 — a külső review lelete).
      *

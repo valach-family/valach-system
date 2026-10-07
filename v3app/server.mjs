@@ -1711,6 +1711,15 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
        */
       stock_access: Boolean(bookId && session.subject_id
         && sampleReadable(bookId, session.subject_id, 'minta-keszlet')),
+      /**
+       * A BEMUTATÓ-MINTA ÉLŐ TÉNYE (R166, külső review, Codex, P2 · KUKA-413).
+       *
+       * A LELET: a mintából KETTŐ van, tehát egy létrehozó HARMADIK vállalkozásánál nincs kiosztva —
+       * a tábla-lap az ÜRES ÁLLAPOTOT rajzolja, és a `list-rows`/`list-search` SOHA nem jön létre.
+       * A három tábla-útmutató mégis minden céges tagnak felkínálódott. A tényt a KISZOLGÁLÓ méri a
+       * kiosztás-táblából, nem a tagságból és nem a feliratból.
+       */
+      demo_fixture: Boolean(bookId && demoFixtureOf(bookId)),
       book_id: bookId,
       member: Boolean(ws),
       role: ws ? ws.role : null,
@@ -2630,6 +2639,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
           // útmutató — és egy itt át nem vitt mező a böngészőben `undefined` (KUKA-394 tanulsága).
           requires_dev_mailbox: TOURS[id].requires_dev_mailbox === true,
           requires_stock_access: TOURS[id].requires_stock_access === true,
+          requires_demo_fixture: TOURS[id].requires_demo_fixture === true,
           // A MEGHÍVÓ-KÉPERNYŐHÖZ KÖTÖTT BEMUTATÓ: a lap ebből tudja, hogy nem egy belső oldalra
           // kell vinnie, hanem a meghívó lapján kell maradnia (P109-01).
           requires_invite: TOURS[id].requires_invite === true,

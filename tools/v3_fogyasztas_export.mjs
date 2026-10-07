@@ -152,11 +152,35 @@ if (explicitFile && !existsSync(found[0].path)) {
  * `sessionId` mezője erre a munkamenetre mutat. Egyik sem áll → nevezett elakadás.
  */
 if (explicitFile) {
+  /**
+   * ÉS A TARTALMAT AKKOR IS MEGKÉRDEZZÜK, HA A FÁJLNÉV EGYEZIK (R166, KÜLSŐ REVIEW, Codex, P2 · `KUKA-412`).
+   *
+   * A LELET: a fenti alak a fájlnév-egyezésnél KIHAGYTA a tartalom-ellenőrzést. Egy ÁTMÁSOLT,
+   * FELÜLÍRT vagy félrecímkézett fájl, aminek a neve véletlenül `<kért-munkamenet>.jsonl`, így
+   * átment — akkor is, ha a sorai KIMONDOTTAN más `sessionId`-t hordoztak. A leltár tehát MÁS
+   * munkamenet fogyasztását címkézte a kértnek: pontosan az a félre-attribuálás, amit ez az
+   * ellenőrzés megelőzni hivatott.
+   *
+   * A MÉRCE HÁROM ÁLLAPOTÚ, mert a fájl nem feltétlenül hordoz azonosítót:
+   *   · a tartalom a KÉRT azonosítót hordozza  → elfogadva (a fájlnév nem is kell)
+   *   · a tartalom MÁS azonosítót hordoz, a kértet nem → ELLENTMONDÁS, elakadás (a fájlnév NEM ment föl)
+   *   · a tartalom EGYETLEN azonosítót sem hordoz → a fájlnév dönt (visszafelé-kompatibilitás)
+   */
+  const elso = readFileSync(found[0].path, 'utf8').split('\n').filter((l) => l.trim()).slice(0, 50);
+  const talaltAzonositok = new Set();
+  for (const l of elso) {
+    try { const v = JSON.parse(l).sessionId; if (typeof v === 'string' && v) talaltAzonositok.add(v); } catch { /* nem JSON sor */ }
+  }
   const nevEgyezik = basename(found[0].path) === `${session}.jsonl`;
-  let tartalomEgyezik = false;
-  if (!nevEgyezik) {
-    const elso = readFileSync(found[0].path, 'utf8').split('\n').filter((l) => l.trim()).slice(0, 50);
-    tartalomEgyezik = elso.some((l) => { try { return JSON.parse(l).sessionId === session; } catch { return false; } });
+  const tartalomEgyezik = talaltAzonositok.has(session);
+  const tartalomEllentmond = !tartalomEgyezik && talaltAzonositok.size > 0;
+
+  if (tartalomEllentmond) {
+    console.error(`A MEGADOTT ÁTIRAT TARTALMA MÁS MUNKAMENETÉ: --session ${session}`);
+    console.error(`  a fájl: ${safeErrPath(found[0].path)}${nevEgyezik ? ' (a NEVE egyezik, a TARTALMA viszont nem — átmásolt vagy felülírt fájl)' : ''}`);
+    console.error(`  az első 50 sorában talált azonosító(k): ${[...talaltAzonositok].join(' · ')}`);
+    console.error('  A fájlnév NEM ment föl: a rossz hozzárendelés rosszabb, mint a hiányzó leltár.');
+    process.exit(2);
   }
   if (!nevEgyezik && !tartalomEgyezik) {
     console.error(`A MEGADOTT ÁTIRAT NEM A KÉRT MUNKAMENETÉ: --session ${session}`);
