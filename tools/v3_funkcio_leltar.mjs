@@ -33,10 +33,10 @@ function A(name, cond, extra = '') {
   if (!JSON_ONLY) console.log(`${cond ? 'ZÖLD ' : 'PIROS'} ${line}`);
 }
 
-let cov; let FEATURES; let TOURS; let HU; let TEXTS; let HELPMOD;
+let cov; let FEATURES; let TOURS; let SHELL_ANCHORS; let HU; let TEXTS; let HELPMOD;
 try {
   cov = await import('../v3app/knowledge/coverage.mjs');
-  ({ FEATURES, TOURS } = await import('../v3app/knowledge/features.mjs'));
+  ({ FEATURES, TOURS, SHELL_ANCHORS } = await import('../v3app/knowledge/features.mjs'));
   HU = await import('../v3app/public/i18n/hu.mjs');
   /**
    * A MENÜ-CSOPORTOK ÉS AZ OLDALTÉRKÉP A TÉNYLEGES FORRÁSBÓL (R144 — F144-02).
@@ -85,7 +85,8 @@ const population = cov.populationFrom({
     return { all: [...new Set([...u.all, ...sz.all])] };
   })(),
 });
-const inv = cov.inventory({ population, features: FEATURES, tours: TOURS });
+const inv = cov.inventory({ population, features: FEATURES, tours: TOURS,
+  shellAnchors: new Set(SHELL_ANCHORS || []) });
 
 // ── A GÉPI ALAK — a következő kör EZT olvassa, nem újraméri (CLAUDE.md: a repó a memória) ───────
 const jsonPath = join(ROOT, artifactPath({ area: 'reports', kind: 'funkcio_lefedes', ext: 'json', version: '0.1.0' }));

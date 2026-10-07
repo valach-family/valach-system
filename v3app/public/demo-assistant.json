@@ -1,8 +1,8 @@
 {
  "status": {
   "ok": true,
-  "served_book_id": "ws_938f0d44",
-  "served_subject_id": "sub_4241b08d1a34694e",
+  "served_book_id": "ws_08447228",
+  "served_subject_id": "sub_1c6bfb9fd71acc19",
   "lang": "hu",
   "dir": "ltr",
   "languages": [
@@ -1272,6 +1272,162 @@
       "body": "Megmutatja, mely menüpontok érhetők el neked ebben a fiókban — a listát a rendszer a jogosultságaid alapján állítja össze."
      }
     }
+   },
+   {
+    "id": "tour.warehouses",
+    "version": "1.0.0",
+    "feature": "data.warehouses",
+    "page": "warehouses",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-warehouses",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s2",
+      "target": "list-rows",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s3",
+      "target": "list-search",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     }
+    ],
+    "text": {
+     "title": "A Raktárak lap",
+     "lead": "Három lépés. Olvasó nézet: semmit nem mentünk el közben.",
+     "s1": {
+      "title": "Nyisd meg a Raktárakat",
+      "body": "A Törzsadatok csoportban találod. A lap a fiók mintaadatát mutatja."
+     },
+     "s2": {
+      "title": "A lista",
+      "body": "Raktár, jelleg, és hány tétel tartozik hozzá. A tételszám a termékek száma, nem mennyiség."
+     },
+     "s3": {
+      "title": "A kereső",
+      "body": "Szűkítheted a listát. Csak a megjelenített sorokra hat — a fiókban semmi nem változik."
+     }
+    }
+   },
+   {
+    "id": "tour.processes",
+    "version": "1.0.0",
+    "feature": "data.processes",
+    "page": "processes",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-processes",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s2",
+      "target": "list-rows",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s3",
+      "target": "list-search",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     }
+    ],
+    "text": {
+     "title": "A Folyamatok lap",
+     "lead": "Három lépés. Olvasó nézet: folyamatot itt ma nem lehet indítani vagy lezárni.",
+     "s1": {
+      "title": "Nyisd meg a Folyamatokat",
+      "body": "A Műveletek csoportban találod. A lap a fiók mintaadatát mutatja."
+     },
+     "s2": {
+      "title": "A lista",
+      "body": "Azonosító, megnevezés, állapot és időpont. Az állapot jelvényként látszik."
+     },
+     "s3": {
+      "title": "A kereső és a szűrő",
+      "body": "Szűkítheted a listát szövegre vagy állapotra. A fiókban semmi nem változik tőle."
+     }
+    }
+   },
+   {
+    "id": "tour.accountSettings",
+    "version": "1.0.0",
+    "feature": "account.settings",
+    "page": "account",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-account",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s2",
+      "target": "section-account",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     },
+     {
+      "id": "s3",
+      "target": "representation-note",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "appears_after": null
+     }
+    ],
+    "text": {
+     "title": "A fiók adatai",
+     "lead": "Három lépés. Olvasó nézet: itt ma nem módosítasz semmit.",
+     "s1": {
+      "title": "Nyisd meg a fiók lapját",
+      "body": "A Beállítások csoportban találod. Azt a fiókot mutatja, amelyik most meg van nyitva."
+     },
+     "s2": {
+      "title": "Mit látsz",
+      "body": "A fiók neve, a te szereped benne, az előfizetés és a megadott vállalkozási adat."
+     },
+     "s3": {
+      "title": "A kimondott határ",
+      "body": "A vállalkozási adatról kiírjuk: megadott adat, nem ellenőrzött — hatóságnál nem igazoltuk."
+     }
+    }
    }
   ],
   "no_model_call": [
@@ -1284,11 +1440,11 @@
  },
  "knowledge": {
   "ok": true,
-  "served_book_id": "ws_938f0d44",
-  "served_subject_id": "sub_4241b08d1a34694e",
+  "served_book_id": "ws_08447228",
+  "served_subject_id": "sub_1c6bfb9fd71acc19",
   "lang": "hu",
-  "population": 31,
-  "visible_count": 30,
+  "population": 37,
+  "visible_count": 36,
   "index": [
    {
     "id": "auth.register",
@@ -1775,6 +1931,101 @@
     "tour": null,
     "faq": [],
     "title": "A korábbi egyoldalas próbalap (kivezetve)"
+   },
+   {
+    "id": "data.warehouses",
+    "status": "working",
+    "group": "shell",
+    "screen": "warehouses",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.warehouses",
+    "faq": [
+     "faq.warehouses.readOnly",
+     "faq.warehouses.itemCount"
+    ],
+    "title": "Raktárak"
+   },
+   {
+    "id": "data.processes",
+    "status": "working",
+    "group": "shell",
+    "screen": "processes",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.processes",
+    "faq": [
+     "faq.processes.filter",
+     "faq.processes.readOnly"
+    ],
+    "title": "Folyamatok"
+   },
+   {
+    "id": "data.stockcard",
+    "status": "working",
+    "group": "plan",
+    "screen": "stockcard",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.stockcard.sameGate",
+     "faq.stockcard.whichProduct"
+    ],
+    "title": "Termékkarton"
+   },
+   {
+    "id": "data.movements",
+    "status": "working",
+    "group": "plan",
+    "screen": "movements",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.movements.sameGate",
+     "faq.movements.readOnly"
+    ],
+    "title": "Készletmozgások"
+   },
+   {
+    "id": "account.settings",
+    "status": "working",
+    "group": "account",
+    "screen": "account",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.accountSettings",
+    "faq": [
+     "faq.account.notChecked",
+     "faq.account.whoChanges"
+    ],
+    "title": "A fiók adatai"
+   },
+   {
+    "id": "personal.ownMatters",
+    "status": "planned",
+    "group": "shell",
+    "screen": "personal",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.personal.whyEmpty"
+    ],
+    "title": "Saját ügyek"
    }
   ]
  }

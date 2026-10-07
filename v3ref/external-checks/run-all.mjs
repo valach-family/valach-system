@@ -213,8 +213,28 @@ for (const p of selected) {
   // gyermek-korlát fölé nőttek (mérve: 14 033 … 14 905 ms, az E02/E03 időtúllépésbe futott). A
   // deklarált, MÉRT darabszámot (`batteryUnits.mjs`) ezért a futtató adja át a környezetben; a
   // program a saját `VS_BATTERY_UNITS` olvasóján veszi, a kézi felülírás továbbra is lehetséges.
+  /**
+   * A PROGRAM-KERET A MÉRT KÖLTSÉGHEZ IGAZODIK (R164/3 — SAJÁT LELET, MÉRVE).
+   *
+   * A LELET. A keret 600 000 ms volt, és ez EGY feltevésen állt: hogy egy program legfeljebb egyszer
+   * futtatja végig a mutációs battériát, és az belefér tíz percbe. MÉRVE az R164-ben: a battéria 253
+   * mutációra és 69 mag-próbára nőtt, és a 15 000 ms-os KÜLSŐ egység-korlát betartásához 40 egység
+   * kell (egység 11 960 ms) — egy TELJES battéria-pass így ~8 perc, mert minden egység újra felállítja
+   * a próba-környezetet. Az a két program, amelyik KÉT battéria-passzt futtat (`r81core` · `r83core`),
+   * ezért a kereten HALT MEG: `kilépés null · 600 107 ms`, részletes eredmény nélkül — vagyis a lánc
+   * IDŐ-okból mondott eltérést egy olyan programra, aminek a TARTALMÁRÓL semmit nem mért.
+   *
+   * A KÉT KORLÁT EGYMÁSNAK FESZÜL, ÉS EZT KI KELL MONDANI: a külső fél EGYSÉG-korlátja (15 000 ms)
+   * finomabb darabolást kér, a finomabb darabolás viszont NÖVELI a teljes időt (egységenkénti
+   * indulási költség). A helyes feloldás nem az egység-korlát lazítása (az a külső fél szava,
+   * KUKA-091), hanem a SAJÁT keretünk igazítása a MÉRT költséghez — nevezetten, nem csendben.
+   *
+   * AMIT EZ NEM ÁLLÍT: nem „gyorsabb lett". A lánc EZÉRT hosszú, és ezért nem fut a söprésben
+   * (KUKA-307). A mért keret: két battéria-pass (~16 perc) + a programok saját munkája.
+   */
+  const PROGRAM_BUDGET_MS = 1_800_000;
   const q = spawnSync(process.execPath, [join(dir, p.file)], {
-    cwd: dir, encoding: 'utf8', timeout: 600_000, maxBuffer: 64 * 1024 * 1024,
+    cwd: dir, encoding: 'utf8', timeout: PROGRAM_BUDGET_MS, maxBuffer: 64 * 1024 * 1024,
     env: { ...process.env, VS_BATTERY_UNITS: String(batteryUnits()) },
   });
   const ms = Date.now() - t0;

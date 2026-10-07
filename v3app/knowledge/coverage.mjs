@@ -327,7 +327,7 @@ export function populationFrom({ serverSource, uiSources, pageLabels, navGroups,
  * `tour`           — van-e bemutató, ami EZT az oldalt tényleg érinti (saját VAGY közös);
  * `sitemap`        — a menüből elérhető-e (az oldaltérkép a navigációból épül).
  */
-export function pageCoverage(page, { features, tours }) {
+export function pageCoverage(page, { features, tours, shellAnchors = new Set() }) {
   const own = features.filter((f) => f.screen === page.id);
   const faq = own.flatMap((f) => f.faq || []);
   // A KÖZÖS TÚRA IS LEFEDÉS — DE CSAK HA TÉNYLEG ODAVISZ (R142 §4): nem a `tour_note` hossza
@@ -351,7 +351,11 @@ export function pageCoverage(page, { features, tours }) {
     if (f.screen === page.id) continue;
     for (const h of f.anchors || []) masLapHorgonyai.add(h);
   }
-  const lapSpecifikus = new Set([...anchors].filter((h) => !masLapHorgonyai.has(h)));
+  // ÉS A HÉJ VEZÉRLŐI SEM AZONOSÍTANAK LAPOT (R164/3): a profil-menü, a kijelentkezés, a
+  // fiókválasztó és a súgó-nyitó MINDEN lapon ott áll — egy rájuk mutató lépés nem bizonyítja,
+  // hogy a bemutató EZEN a lapon volt. A lista a regiszterben, kimondva (`SHELL_ANCHORS`).
+  const lapSpecifikus = new Set([...anchors]
+    .filter((h) => !masLapHorgonyai.has(h) && !shellAnchors.has(h)));
   const touring = Object.values(tours).filter((t) => (t.steps || []).some((s) => s.target === `nav-${page.id}` || lapSpecifikus.has(s.target))
     || t.page === page.id);
   /**
@@ -570,10 +574,10 @@ export function tourCoverage(feature, { tours }) {
  * A TELJES LEFEDÉSI LELTÁR. A hívó a forrásokat és a regisztereket adja; a modul a SOROKAT.
  * `gaps` = minden nevezett hiány, fajtánként csoportosítva — ez a lefedési őr bemenete.
  */
-export function inventory({ population, features, tours }) {
+export function inventory({ population, features, tours, shellAnchors = new Set() }) {
   const rows = {
     route: population.route.map((r) => routeCoverage(r, { features })),
-    page: population.page.map((p) => pageCoverage(p, { features, tours })),
+    page: population.page.map((p) => pageCoverage(p, { features, tours, shellAnchors })),
     action: population.action.map((a) => actionCoverage(a, { features })),
     form: population.form.map((f) => formCoverage(f, { features })),
     authview: population.authview.map((v) => authViewCoverage(v, { features })),

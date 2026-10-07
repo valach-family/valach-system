@@ -72,6 +72,22 @@ export const ACTIONS = Object.freeze({
 });
 
 /** A KIMENET-FAJTÁK — a terv §3 táblájából: a nem sikeres út is érthető legyen. */
+/**
+ * A HÉJ VEZÉRLŐI — EZEK NEM EGY LAPHOZ TARTOZNAK (R164/3, SAJÁT LELET).
+ *
+ * MIÉRT KELL KIMONDANI. A lefedési őr azt kérdezi, hogy egy bemutató LÉPÉSE eljutott-e egy adott
+ * lapra, és ehhez a lap funkcióinak HORGONYAIT használja. A profil-menü, a kijelentkezés, a
+ * fiókválasztó és a súgó-nyitó viszont a HÉJ-ban áll, MINDEN lapon — ha ezeket lap-azonosítónak
+ * fogadnánk el, akkor az R164/3-ban megírt ÁTADÁS-lépés (`logout`) egyszerre „bejárná" a biztonsági
+ * lapot is, ahol a bemutató soha nem volt. Ugyanaz a hiba-osztály, mint a közös tábla-horgonyé
+ * (KUKA-239): a hatókör nélküli bizonyíték a szomszéd sort igazolja.
+ *
+ * AMIT EZ NEM ÁLLÍT: nem jogosultság és nem menü-lista. Csak azt mondja meg, mely vezérlők NEM
+ * azonosítanak lapot — a lap azonosítója a menüpontja (`nav-<lap>`) vagy a saját, kizárólagos horgonya.
+ */
+export const SHELL_ANCHORS = Object.freeze(['profile', 'logout', 'account-switcher', 'help-open',
+  'nav-toggle', 'brand', 'demo-mail-open', 'mailbox', 'actor-switch']);
+
 export const OUTCOME_KINDS = Object.freeze(['success', 'empty', 'missing', 'refused', 'error', 'uncertain']);
 
 const F = (o) => Object.freeze(o);
@@ -859,6 +875,35 @@ export const TOURS = Object.freeze({
       Object.freeze({ id: 's18', target: 'account-switcher', task: null }),
     ]),
   }),
+  // ════════════════════════════════════════════════════════════════════════════════════════════
+  // R164/3 — A VALÓDI, ALKALMAZÁSON BELÜLI ÁTADÁS: MEGÉPÍTVE, MÉRVE, ÉS NEVEZETTEN VISSZAÁLLÍTVA
+  //
+  // A MEGÁLLÁS, AMIT EZ LEZÁR (az R158 jelentés 7/1. nyitott tétele, SAJÁT nevesítés): *„A két
+  // szereplős történet az alkalmazás-héjban nem végigvihető. Ahhoz DEKLARÁLT váltás-vezérlő kellene
+  // (a kijelentkezés ma lenyitható menüben áll, tehát a lépésnek saját feltáró-mezőre volna
+  // szüksége), és a váltás VALÓDI ki- és belépés a másik emberrel."* Az R164/3 ezt kifejezetten
+  // engedélyezte: *„a túra tárja fel a szükséges menüt és adjon végrehajtható átadást … ne építs
+  // jogosultságot megkerülő szereplőváltást."*
+  //
+  // AMIT MEGÉPÍTETTEM ÉS MEGMÉRTEM. A hat váltás-lépés célját a VALÓDI kijelentkezésre állítottam
+  // (`target: 'logout'`, `appears_after: 'profile'` — a bemutató kiemeli a profil-menüt, megvárja,
+  // hogy a felhasználó megnyissa, és nem kattint helyette), és beírtam a belépés utáni FIÓKVÁLTÁS
+  // lépéseit is, mert a valódi kiszolgáló a SZEMÉLYES körbe léptet be. A végigjárás ezen az úton
+  // 19-ből 18 lépést ért el az asztali szélességen — tehát az út járható, de NEM teljes.
+  //
+  // AMIÉRT MÉGIS A BEMUTATÓ-VEZÉRLŐ ÁLL ITT MA. A bemutató-lap rövidítő gombja nem csak kilép és
+  // belép: a végén ÚJRATÖLTI a lapot tiszta címre — és az átadás ezen az újratöltésen megy át
+  // (`pagehide` → `saveTourHandover`, induláskor `resumeTourAfterSwitch`). Az alkalmazáson belüli,
+  // ÚJRATÖLTÉS NÉLKÜLI átadás más út, és azon MÉRTEN két állapot-szivárgás állt (mindkettőt
+  // JAVÍTOTTAM: a kilépés nem a közös ürítőn ment át, és az előző ember meghívó-jegyét nem törölte),
+  // a harmadik — a futás elvesztése a meghívás ELFOGADÁSA után — ebben a csomagban nem záródott le.
+  //
+  // A DÖNTÉS: egy KÖTELEZŐ kiadási kaput (`verify:browser-gate` → `proof:demo-walk`) nem hagyunk
+  // pirosan egy félig megépített képességért (KUKA-091: a javítás iránya nem az őr lazítása). A
+  // lépések ezért a mai, végigvihető útra állnak vissza, a maradék munka pedig NEVESÍTVE megy
+  // tovább a jelentésben — mért tünettel, nem érzéssel (R158 7/1. tétel marad nyitva).
+  // ════════════════════════════════════════════════════════════════════════════════════════════
+
   // R132 §6/2. TÖRTÉNET — ELTÁVOLÍTOTT MUNKATÁRS → ÚJBÓLI MEGHÍVÁS. A lezárás TÉNYLEGES sikerhez
   // kötött (`reinvite.sent`): a „Tovább" gomb nem küld meghívást a felhasználó helyett (KUKA-231).
   'tour.reentry': Object.freeze({

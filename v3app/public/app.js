@@ -2624,8 +2624,41 @@ import { inviteNextKey } from './inviteText.mjs';
 
   async function doLogout() {
     newContext('logout');
+    /**
+     * A KIJELENTKEZÉS A KÖZÖS ÜRÍTŐN MEGY ÁT (R164/3 — SAJÁT LELET, MÉRVE).
+     *
+     * A LELET. Ez a függvény eddig a SAJÁT, részleges ürítését végezte (`me` · `ctx` · `members`), a
+     * `resetViewCaches()`-t pedig nem hívta. Két következménye volt, és mindkettő mérhető:
+     *   1. A NÉZETHEZ KÖTÖTT TÁRAK nem ürültek ki a kilépéskor (beszélgetés, tudás-index, súgó,
+     *      panelek, mintaadat) — pedig a KUKA-218 szabálya szerint „minden nézethez kötött tár EGY
+     *      helyen ürül". A következő belépő `refreshMe`-je ugyan ürített, de a kilépés és a belépés
+     *      KÖZÖTTI képernyőn a régi ember adata még a memóriában állt.
+     *   2. A FUTÓ BEMUTATÓ nem adódott át ITT, és a futás a kilépés UTÁNI anonim képernyőn is élt.
+     *      Az őr ilyenkor azt mérte, hogy a lépés célja (`logout`) nincs a lapon — és NEVEZETTEN
+     *      megszakította a bemutatót egy ÉP átadás közben: „az útmutatóban megnevezett elem nem
+     *      látható ezen a képernyőn". Hamis hibaüzenet a helyes út közepén (KUKA-171 · KUKA-201).
+     *
+     * MOSTANTÓL a kilépés is a KÖZÖS ürítőn megy át: az átadás ott keletkezik (`saveTourHandover`),
+     * a futás ott szűnik meg, és a tárak ott ürülnek — egy szabály, egy otthon (KUKA-003 · KUKA-039).
+     */
     await api('POST', '/api/logout', {});
+    state.generation += 1;
+    resetViewCaches();
     state.me = null; state.ctx = { subject: null, book: null }; state.members = [];
+    /**
+     * AZ ELŐZŐ EMBER MEGHÍVÓ-JEGYE SEM ÉLHETI TÚL A KILÉPÉST (R164/3 — SAJÁT LELET, MÉRVE).
+     *
+     * A LELET. Ez a függvény a `state.invite`-ot (a megfigyelt meghívó ADATÁT) kiürítette, a
+     * `state.inviteToken`-t (magát a JEGYET) viszont nem. A `render()` pedig a jegyet nézi először:
+     * `if (state.inviteToken) { renderAuth('invite'); return; }`. Következmény, MÉRVE a két szereplős
+     * történeten: a meghívott megnyitja a meghívó-képernyőt, kilép, és a KÖVETKEZŐ belépő — egy MÁS
+     * EMBER — ugyanazon a meghívó-képernyőn landol; a héj-nézet (menü, lapok) meg sem jelenik. A
+     * bemutató ezért `targetMissing`-gel megállt, pedig a felület volt rossz állapotban, nem a lépés.
+     *
+     * Ez a KUKA-218 osztálya („minden nézethez kötött tár EGY helyen ürül") és a KUKA-217-é is: egy
+     * MÁSIK ember belépése nem örökölheti az előző ember állapotát.
+     */
+    state.inviteToken = null;
     // AZ ELŐZŐ EMBER VÁLASZTÁSA NEM A KÖVETKEZŐ EMBERÉ (F93-02, a külső fél kikötése): a tárolt
     // választás személyhez kötve megmarad, de az ÚTON tett választást itt eldobjuk — különben egy
     // kijelentkezés után belépő MÁSIK ember örökölné.

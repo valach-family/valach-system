@@ -579,6 +579,10 @@ export const PROGRAMS = Object.freeze([
   Object.freeze({
     id: 'r55',
     file: 'r55_restated.mjs',
+    // A KÖZÖS DARABSZÁM-OTTHON KÍSÉRŐ (R164/3 — KUKA-130): a futtató CSAK a `file` + `companions`
+    // fájlokat viszi az ideiglenes mappába, tehát egy nem deklarált behúzás ott `ERR_MODULE_NOT_FOUND`-dal
+    // HALNA MEG a mérés ELŐTT — és a forrás-olvasó ellenőrzés mégis zöldnek látszana (KUKA-038).
+    companions: Object.freeze(['batteryUnits.mjs']),
     by: 'Claude-v3 — a SAJÁT sávunk (önvizsgálat)',
     origin: 'R56',
     what: 'az R55 öt esete újrafogalmazva a mai szerződésre, mindegyikhez ellenpárral',

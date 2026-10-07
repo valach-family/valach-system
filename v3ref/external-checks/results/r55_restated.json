@@ -1,8 +1,8 @@
 {
   "program": "restated.mjs",
-  "source_commit": "a1816310ffdf403c7d48202b2f9588ad4184ce53",
+  "source_commit": "a7f8f2d812d02d9ae98fa040372dbcd0fc64c6eb+uncommitted",
   "node": "v22.22.0",
-  "at": "2026-10-06T21:31:52.204Z",
+  "at": "2026-10-07T06:43:50.230Z",
   "cases": [
     {
       "id": "C11-restated",
@@ -99,11 +99,11 @@
     {
       "id": "N04-restated",
       "expectation": "Az M32 futása nem buktatja az A-REV-N1b állítást; az M47/M48/M49 futása igen.",
-      "pass": true,
+      "pass": false,
       "m32": {
         "id": "M32",
-        "probe_status": "FAIL",
-        "target_assertion": true
+        "probe_status": null,
+        "target_assertion": null
       },
       "new_controls": [
         {

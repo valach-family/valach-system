@@ -85,6 +85,25 @@ const browser = await chromium.launch();
 // ennél lassabb, az nem lassú, hanem ELÉRHETETLEN, és azt MOST akarjuk tudni.
 const KATT = { timeout: 5000 };
 
+/**
+ * A MODÁLIS PANEL BEZÁRÁSA — EGY OTTHON, TÖBB HÍVÓ (KUKA-003 · KUKA-039).
+ *
+ * MÉRVE (R164/3): a nyitott levél-panel (`<dialog>`) ELFOGJA a kattintást mindenen, ami mögötte
+ * van — a fejléc profil-menüjén és a meghívó-elfogadás gombján is. A tanú 58 újrapróbálkozás után
+ * is ott állt. A felhasználó ugyanezt látja: amíg a panel nyitva, a mögötte lévő felület nem
+ * elérhető. A tanú tehát ZÁR, és a zárás tényét MEGMÉRI, nem reméli (KUKA-215).
+ */
+async function zarjaPanelt(page, KATT) {
+  for (let k = 0; k < 4; k += 1) {
+    const nyitva = await page.evaluate(() => { const d = document.querySelector('[data-testid="panel"]'); return !!(d && d.open); });
+    if (!nyitva) return true;
+    await page.locator('[data-testid="panel"] [data-action="panel-close"]').first().click(KATT).catch(() => {});
+    await page.keyboard.press('Escape').catch(() => {});
+    await page.waitForTimeout(350);
+  }
+  return !(await page.evaluate(() => { const d = document.querySelector('[data-testid="panel"]'); return !!(d && d.open); }));
+}
+
 /** A VALÓDI MŰVELETEK. A végigvezetés ezeket SOHA nem végzi el — a FELHASZNÁLÓ igen, és itt a tanú az. */
 async function doTask(page, task, step = {}) {
   const T = (t) => page.locator(`[data-testid="${t}"]`).first();
@@ -105,7 +124,23 @@ async function doTask(page, task, step = {}) {
         const b2 = [...lista.querySelectorAll('button')].find((x) => /Minta Műhely/.test(x.textContent || ''));
         return b2 ? (b2.getAttribute('data-testid') || '__ws') : null;
       });
-      if (ceg) { await page.locator(`[data-testid="${ceg}"]`).first().click(KATT).catch(() => {}); return 'fiók-váltás'; }
+      if (ceg) {
+        await page.locator(`[data-testid="${ceg}"]`).first().click(KATT).catch(() => {});
+        /**
+         * ÉS MEGVÁRJUK, HOGY A VÁLTÁS KI IS RAJZOLÓDJON (R164/3 — MÉRVE).
+         *
+         * A váltás HTTP-kérés (`POST /api/session/workspace`), utána `refreshMe` és újrarajzolás. A
+         * tanú korábban azonnal visszatért, a bemutató pedig a következő lépés célját (`nav-members`)
+         * egy MÉG régi menün kereste — `targetMissing`-gel megállt egy ép képernyőn. Ami a kész
+         * állapot ELŐTT mér, nem a kész állapotot méri (ugyanaz az osztály, mint a KUKA-121).
+         */
+        await page.waitForFunction(() => {
+          const h = document.querySelector('[data-testid="header-workspace"]');
+          return !!(h && /Minta M/.test(h.textContent || ''));
+        }, null, { timeout: 8000 }).catch(() => {});
+        await page.waitForTimeout(400);
+        return 'fiók-váltás';
+      }
       // AMI NEM MEGY, ANNAK NEVE LEGYEN (KUKA-171/280): kiírjuk, MIT látott a tanú a listán.
       const latott = await page.evaluate(() => {
         const l = document.querySelector('[data-testid="ws-list"]');
@@ -119,8 +154,22 @@ async function doTask(page, task, step = {}) {
       await page.locator('[data-testid="panel"] [data-action="panel-close"]').first().click().catch(() => {});
       await page.waitForTimeout(400);
     }
-    await page.locator('[data-tour-anchor="actor-switch"]').first().click();
-    return 'néző-váltás';
+    /**
+     * A BEMUTATÓ-LAP NÉZŐ-VÁLTÓJA: valódi ki- és belépés, majd újratöltés tiszta címre (a lap saját
+     * `switchViewer`-e). A modális panelt előbb bezárjuk — a felhasználó is azt teszi (lentebb a
+     * közös `zarjaPanelt`, KUKA-003).
+     *
+     * AZ R164/3-BAN MEGÉPÍTETT, ALKALMAZÁSON BELÜLI (újratöltés nélküli) átadás útja ettől KÜLÖNBÖZIK:
+     * ott a tanú a profil-menüt tárja fel, kijelentkezik, és a másik emberrel lép be. Az a mérés
+     * 19-ből 18 lépést ért el, két állapot-szivárgást javítottam közben, a harmadik nem záródott le —
+     * ezért a mai, végigvihető út áll itt, a maradék pedig a jelentésben NEVESÍTVE.
+     */
+    if (!(await zarjaPanelt(page, KATT))) {
+      console.log('     !! a modális panel NEM zárult be — a néző-váltás nem indulhat (nevezett megállás)');
+      return null;
+    }
+    await page.locator('[data-tour-anchor="actor-switch"]').first().click(KATT);
+    return 'néző-váltás (valódi ki- és belépés, majd újratöltés)';
   }
   if (task === 'invite.revoked' && await has('[data-testid^="invite-revoke-"]')) {
     await page.locator('[data-testid^="invite-revoke-"]').first().scrollIntoViewIfNeeded();
@@ -174,6 +223,12 @@ async function doTask(page, task, step = {}) {
     await T('invite-submit').click(); return 'új meghívó kiadva';
   }
   if (task === 'invite.redeemed' && await has('[data-testid="invite-redeem"]')) {
+    // A LEVÉL-PANEL ELŐBB BEZÁRUL: az elfogadás gombja a meghívó-képernyőn áll, a panel MÖGÖTT
+    // (mérve: „intercepts pointer events"). A felhasználó is bezárja, mielőtt elfogad.
+    if (!(await zarjaPanelt(page, KATT))) {
+      console.log('     !! a modális panel NEM zárult be — az elfogadás nem indulhat');
+      return null;
+    }
     await T('invite-redeem').click(); return 'meghívó elfogadva';
   }
   return null;
@@ -209,7 +264,34 @@ async function walk(page, storyKey, tag, { kihagy = null } = {}) {
   for (let i = 0; i < steps.length * 4 + 10; i += 1) {
     let s = await snap(page);
     if (s.nincsLap) { await page.waitForTimeout(1200); continue; }
-    if (s.aborted) { A(`${tag} a végigvezetés nem szakad meg`, false, `megszakadt: ${s.aborted} (${s.sid})`); return false; }
+    if (s.aborted) {
+      /**
+       * A MEGSZAKADÁS HELYÉT MEG KELL NEVEZNI (KUKA-171). A régi sor a MEGSZAKADÁS OKÁT kiírta, de
+       * azt nem, hogy MELYIK lépésnél és MIT látott a képernyőn — a `(null)` lépés-azonosító miatt a
+       * hiba helye kitalálás kérdése volt. A tanú ezért most a KÉPERNYŐT is kiírja.
+       */
+      const latkep = await page.evaluate(() => {
+        const nav = document.querySelector('[data-testid="nav"]');
+        const ab = document.querySelector('[data-testid="tour-aborted"]');
+        return {
+          fiok: (document.querySelector('[data-testid="header-workspace"]') || {}).textContent || '—',
+          menu: [...document.querySelectorAll('[data-testid="nav"] [data-testid^="nav-"]')].map((e) => e.getAttribute('data-testid')),
+          navBajt: nav ? nav.innerHTML.length : -1,
+          belepve: !document.querySelector('[data-testid="login-form"]'),
+          appLatszik: (() => { const a2 = document.querySelector('[data-testid="app"]'); return !!(a2 && !a2.hidden); })(),
+          mondat: ab ? (ab.textContent || '').slice(0, 70) : '—',
+          lepesek: document.querySelectorAll('[data-testid^="tour-step-"]').length,
+        };
+      });
+      const kov = steps[Math.max(0, latott.size ? [...latott].length : 0)];
+      A(`${tag} a végigvezetés nem szakad meg`, false,
+        `megszakadt: ${s.aborted} (${s.sid}) · utolsó látott lépés: ${[...latott].pop() || '—'}`
+        + ` · fiók: ${String(latkep.fiok).trim().slice(0, 28)} · belépve: ${latkep.belepve}`
+        + ` · app látszik: ${latkep.appLatszik} · menü: ${latkep.menu.join(',') || `ÜRES (${latkep.navBajt} bájt)`}`
+        + ` · lépés-lista: ${latkep.lepesek} · mondat: „${latkep.mondat}"`
+        + `${kov ? ` · a következő lépés célja: ${kov.target}` : ''}`);
+      return false;
+    }
     if (!s.sid) { await page.waitForTimeout(600); continue; }
     latott.add(s.sid);
     const step = steps.find((x) => x.id === s.sid) || {};
@@ -300,7 +382,24 @@ async function walk(page, storyKey, tag, { kihagy = null } = {}) {
     A(`${tag} minden lépésen van működő folytatás`, false, JSON.stringify(s).slice(0, 150));
     return false;
   }
-  A(`${tag} a végigvezetés befejeződik (nem ragad be)`, false, `látott lépések: ${latott.size}/${steps.length}`);
+  // A KIFOGYOTT KÖR IS NEVEZZE MEG, HOL ÁLLT MEG (KUKA-171): a puszta „8/20" nem mondja meg, mi
+  // tartotta vissza — a tanú ezért a KÉPERNYŐT és a bemutató állapotát is kiírja.
+  {
+    const v = await snap(page);
+    const lk = await page.evaluate(() => ({
+      fiok: ((document.querySelector('[data-testid="header-workspace"]') || {}).textContent || '—').trim().slice(0, 26),
+      menu: [...document.querySelectorAll('[data-testid="nav"] [data-testid^="nav-"]')].length,
+      panel: (() => { const d = document.querySelector('[data-testid="panel"]'); return !!(d && d.open); })(),
+      belepesiUrlap: !!document.querySelector('[data-testid="login-form"]'),
+      meghivoLap: !!document.querySelector('[data-testid="invite-redeem"]'),
+    }));
+    A(`${tag} a végigvezetés befejeződik (nem ragad be)`, false,
+      `látott lépések: ${latott.size}/${steps.length} · utolsó: ${[...latott].pop() || '—'}`
+      + ` · most: ${v.sid || '—'}/${v.state || '—'}${v.pending ? `·${v.pending}` : ''}${v.blocked ? '·blokkolt' : ''}`
+      + ` · kiemelve: ${v.marked[0] || '—'} · tovább-gomb: ${v.hasNext} · befejezés: ${v.hasFinish}`
+      + ` · fiók: ${lk.fiok} · menü-elem: ${lk.menu} · panel nyitva: ${lk.panel}`
+      + ` · belépési űrlap: ${lk.belepesiUrlap} · meghívó-lap: ${lk.meghivoLap}`);
+  }
   return false;
 }
 

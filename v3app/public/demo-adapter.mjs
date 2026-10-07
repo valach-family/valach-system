@@ -68,6 +68,12 @@ function seed(story) {
     story,
     now: Date.parse(t0),
     actor: 'anna',
+    // R164/3 — A KIJELENTKEZÉS VALÓDI ÁLLAPOTA. Eddig a `POST /api/logout` csak a FIÓKOT hagyta el
+    // (`inBook = false`), az ember pedig bejelentkezve maradt — miközben a fölötte álló megjegyzés
+    // azt állította, hogy „a néző váltása az app saját útján: kilépés → belépés". A szöveg többet
+    // mondott, mint amit a kód tett (KUKA-050). Mostantól a kilépés KILÉPTET: a héj az anonim
+    // állapotot rajzolja, és a folytatás VALÓDI belépés a másik emberrel.
+    signedOut: false,
     book: BOOK,
     plan: 'pro',
     subjects: {
@@ -300,7 +306,10 @@ function install() {
   // ── A MŰVELETEK ──────────────────────────────────────────────────────────────────────────────
 
   const ROUTES = {
-    'GET /api/me': () => J(200, meBody()),
+    // KILÉPVE NINCS ALANY: a héj ebből rajzolja az anonim állapotot (a belépési űrlapot).
+    'GET /api/me': () => (S.signedOut
+      ? J(401, { ok: false, reason: 'not_signed_in' })
+      : J(200, meBody())),
     'GET /api/members': () => (inBook() && isAdmin()
       ? J(200, membersBody())
       : J(403, { ok: false, reason: 'admin_required' })),
@@ -505,12 +514,24 @@ function install() {
     },
 
     // A NÉZŐ VÁLTÁSA AZ APP SAJÁT ÚTJÁN: kilépés → belépés. A bemutató nem „címkézi át" a képernyőt.
-    'POST /api/logout': () => { S.inBook = false; return J(200, { ok: true }); },
+    'POST /api/logout': () => { S.inBook = false; S.signedOut = true; return J(200, { ok: true }); },
     'POST /api/login': (b) => {
       const email = String((b && b.email) || '').trim().toLowerCase();
       const who = Object.keys(PEOPLE).find((k) => PEOPLE[k].email === email);
       if (!who) return J(401, { ok: false, reason: 'invalid_credentials' });
       S.actor = who;
+      S.signedOut = false;
+      /**
+       * A BELÉPÉS A TAGSÁG SZERINTI FIÓKBA VISZ — ÉS EZ A CSONK EGY KIMONDOTT EGYSZERŰSÍTÉSE.
+       *
+       * A VALÓDI kiszolgáló a SZEMÉLYES kört adja (`POST /api/login`: `fresh.current_book_id =
+       * personal.book_id`), és a cég képernyőihez a fejléc fiókválasztójában kell átváltani. Az
+       * R164/3-ban hűségesre állítottam, és a bemutató lépés-listáját is kiegészítettem a
+       * fiókváltással — a sor azért áll vissza, mert a bemutató-lap mai, VÉGIGVIHETŐ útja a rövidítő
+       * gomb (kilépés → belépés → újratöltés), és az a tagság szerinti fiókot várja. A különbség
+       * NEVESÍTETT: a csonk ezen a ponton nem a termék viselkedését mutatja (KUKA-050 alá eső
+       * kimondott hiány, nem néma eltérés).
+       */
       S.inBook = !!(S.memberships[who] && S.memberships[who].effective);
       const pend = S.invites.find((i) => i.who === who && i.state === 'pending');
       return J(200, { ok: true, subject_id: PEOPLE[who].id,
