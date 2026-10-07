@@ -13,7 +13,7 @@ korábbi körök számai **történeti adatok**, nem végállapot — ahol elté
 | | |
 |---|---|
 | **KÓD-SHA (a csomag feje)** | `76378f3` — a `b31d8c9` (R158 záró feje) LESZÁRMAZOTTJA. A csomag R164-es commitjai, sorban: `a7f8f2d` (R164/1) · `c49699c` (lefedettség) · `9cc59e9` (átadás + külső-ellenőrző bekötés) · `98ec598` · `8d9800d` · `63b2a28` (1. review-kör, 12 lelet) · `cb56faa` (a 13.) · `1a9fe84` (az M222 túlélése) · `8f14ca9` (2. review-kör, 9 lelet) · `0cd38a2` (a KUKA-383 mérése) · `c2cccd1` (az U04 darabszáma mérésből) · `3cb8364` (a böngészős kapu MÉRT verdiktje) · `cbaec96` (3. kör) · `def18b8` (r83core 7/7) · `1d6661f` (4. kör) · `7a78009` (r81core 15/15 · r79core 18/18) · `72aa8bd` (5. kör) · `9dc0356` (r79 4/4) · `76378f3` (6. kör) |
-| **EREDMÉNY-HORDOZÓ FEJ** | **KÉT fej, és ezt kimondjuk.** A rövid láncok verdiktjei a mai fejen (`76378f3`) frissen mérve — az 1.1 tábla sorai. A három HOSSZÚ lánc (böngészős kapu · mag-mutációs battéria · külső-ellenőrző) a `c2cccd1` fejen futott, a csomag végén, önállóan; a köztük és a mai fej közötti **különbség NEVEZETT**: a 3., 4., 5. és 6. review-kör javításai, az r83core/r81core/r79core/r79 bizonyíték-fájljai, és a lefedettség-leltár. A böngészős kaput ezért a mai fejen ÚJRA futtattam (lásd az 1.1 tábla sorát) |
+| **EREDMÉNY-HORDOZÓ FEJ** | **KÉT fej, és ezt kimondjuk.** A rövid láncok verdiktjei a mai fejen (`76378f3`) frissen mérve — az 1.1 tábla sorai. A három HOSSZÚ lánc (böngészős kapu · mag-mutációs battéria · külső-ellenőrző) a `c2cccd1` fejen futott, a csomag végén, önállóan; a köztük és a mai fej közötti **különbség NEVEZETT**: a 3., 4., 5. és 6. review-kör javításai, az r83core/r81core/r79core/r79 bizonyíték-fájljai, és a lefedettség-leltár. A böngészős kaput ezért a mai fejen **ÚJRA futtattam, és ZÖLD** (836 s, 122/0/0/0) — az 1.1 tábla sora |
 | **MÉRÉS IDEJE** | 2026-10-07, 04:40 UTC → a csomag zárása (a `--from` a parancs board-időbélyege). A hosszú láncok: a böngészős kapu 09:35 és (újra) 11:50 UTC · a mag-battéria 09:49 UTC · a külső-ellenőrző 10:04 UTC |
 | **A REVIEW ÁLTAL FEDETT SHA** | `9dc0356` — a külső fél **hat körben** mért, eddig a fejig. **A mai fejnek (`76378f3`) NINCS új, független review-bizonyítéka** |
 | **FÜGGETLEN REVIEW ÁLLAPOTA** | **FÜGGŐ a mai fejre.** A korábbi limit feloldódott; a limit időszaka és visszaállása az üzenetből **nem bizonyított**, ezért nem nevezem meg (6. szakasz). A **hat kör 30 megjegyzése** mind javítva, mért bizonyítékkal, és **mind a 30 szál megválaszolva és lezárva** — a PR-on ma **nincs nyitott review-szál** (7. szakasz) |
@@ -43,11 +43,11 @@ korábbi körök számai **történeti adatok**, nem végállapot — ahol elté
 | `verify:unit-admission` | **ZÖLD** | 16 ellenpélda · 1 pozitív kontroll |
 | `verify:sweep-reuse` | **ZÖLD** | 43/43 |
 | `verify:fogyasztas-meres` | **ZÖLD** | 18/18 ellenpróba |
-| `proof:pg-durability` | **ZÖLD** | **13/13** mért lépés, valódi PostgreSQL **16.15**-en |
-| `proof:pg-restore-safety` | **ZÖLD** | **43/43** ellenpróba-lépés (ÚJ lánc; a második review-kör után `E2c`-vel bővült) |
-| `proof:pg-intent` | **ZÖLD** | **10 állítás, MINDKÉT tárolón, 0 eltérés** — saját, friss adatbázisban |
+| `proof:pg-durability` | **ZÖLD a MAI fejen** | **13/13** mért lépés, valódi PostgreSQL **16.15**-en · a forrás a mentés-visszatöltés után is változatlan (alany 131/131 · könyv 131/131) |
+| `proof:pg-restore-safety` | **ZÖLD a MAI fejen** | **43/43** ellenpróba-lépés (ÚJ lánc; a 2. kör után `E2c`-vel bővült) · a 3–4. kör javításai (a harmadik `pgEnv`, a SAJÁT friss forrás-adatbázis, a MINDEN táblás pillanatkép) itt vannak futással igazolva |
+| `proof:pg-intent` | **ZÖLD a MAI fejen** | **10 állítás, MINDKÉT tárolón, 0 eltérés** — saját, friss adatbázisban; a kurzoros takarítás (`KUKA-382`) itt van futással igazolva |
 | `verify:lefedes` | **PIROS (nevesített)** | 15 ZÖLD / 1 PIROS — a piros maga a **20 hiány-kulcs**; a kettéosztás és a regresszió-irány (LR1 · LR2 · LC1–LC4) ZÖLD. A részletek az 1.2–1.3 pontban |
-| `verify:browser-gate` | **ZÖLD** | **805 s** · `test:e2e` + `proof:core-ux` 364 s · `proof:demo-walk` 441 s · **122 helyzet teljesült, 0 bukott, 0 ingadozó, 0 kihagyott, 22 próba-fájl** — és a kapu azt is méri, hogy a jelentés EBBEN a futásban készült (nem egy korábbi bizonyíték) |
+| `verify:browser-gate` | **ZÖLD a MAI fejen** (`76378f3`) | **836 s** · `test:e2e` + `proof:core-ux` **393 s** · `proof:demo-walk` **443 s** · **122 helyzet teljesült, 0 bukott, 0 ingadozó, 0 kihagyott, 22 próba-fájl** — és a kapu azt is méri, hogy a jelentés EBBEN a futásban készült (nem egy korábbi bizonyíték). **Ez a futás a 6. review-kör javítása UTÁN van**: a `demo-walk` zöldje tehát azt is mondja, hogy a két szereplő-váltó történet a bemutató lapján végigvihető a MAI, újragenerált tudás-csomaggal (`surface=demo`), a próba pedig a héjban a KIZÁRÁST méri, nem a megszakadást. *(A `c2cccd1` fejen mért korábbi futás: 805 s, ugyanaz a 122/0/0/0 — a csomag közbeni állapot.)* |
 | `verify:v3ref` (mag-mutációs battéria) | **ZÖLD** | **925 s** · a 69 mag-próba 69/69 · **253 mutáció · 253 ELKAPVA · 0 TÚLÉLTE** · 0 rossz próba · 0 mérőhiba · 0 elavult horgony · lefedettség **253/253**, hiány 0, duplikátum 0 · a legrosszabb egység faliórája **10 187 ms** a 15 000 ms-os külső korláton belül. **Az M222 mutáció ELKAPVA** — az 5.2-es lelet javítása a TELJES battérián igazolva. A darabolás **mérésből**: a tool ajánlása 11 egység volt, ezen a gépen **88** kellett (11 → 22 → 44 → 88), a költségvetés nem tágult |
 | `verify:external-checks` | **PIROS / NEM TELJES** | 19 programból **14 futott** (13 MEGFELEL · 1 ELTÉRÉS), **5 NEM FUTOTT**. A megfordult pirosak: `r83core` · `r81core` · `r79core` · `r79` mind **MEGFELEL**. Az `r59a` **időtúllépés** a futtató 30 perces program-korlátján (1 800 117 ms, `ETIMEDOUT`) — tartalmi bukás nélkül: a saját naplója szerint a darabolás 40 → 80 egységre finomított, és a 80 **belefért** a 15 000 ms-os korlátba. A részletek az 5.3 pontban |
 
@@ -541,6 +541,39 @@ figyelni" — ez gépi jel.
 - **Nem** állítja, hogy a két szereplős történet az alkalmazás-héjban végigvihető — a kiszolgáló ott
   **fel sem kínálja** (`D-VS-3199`), és a bemutató-lapi tanú háttere a SZIMULÁLT adapter (8/1. tétel).
 - **Nem** állítja, hogy a lefedési hiány megszűnt — 20 kulcs áll, kettéosztva és nevesítve.
+
+
+---
+
+### 9.1 A ZÁRÓ CÉLZOTT ELLENŐRZÉS — MI FUTOTT A MAI FEJEN
+
+Az R164/4 azt kérte: *„célzott ellenőrzések, majd EGY teljes szükséges kapu a VÉGSŐ kódállapoton."* A
+fogyasztásmérő közben elérte a 400 ezres jelzőt, ami a lezárást **célzott** ellenőrzésre szűkíti
+(`D-VS-3083`) — opcionális teljes söprést ezért nem futtattam. Ami futott:
+
+| lánc | hol futott | verdikt |
+|---|---|---|
+| **`verify:browser-gate`** — a KÖTELEZŐ kapu (`test:e2e` + `proof:core-ux` + `proof:demo-walk`) | **a mai fejen** | **ZÖLD** — 836 s · 393 + 443 s · **122 teljesült / 0 bukott / 0 ingadozó / 0 kihagyott** · 22 próba-fájl |
+| **`proof:pg-intent`** | **a mai fejen** | **ZÖLD** — 10 állítás, MINDKÉT tárolón, **0 eltérés**, valódi PostgreSQL **16.15**-en |
+| **`proof:pg-restore-safety`** | **a mai fejen** | **ZÖLD** — **43/43** mért ellenpróba-lépés; a lánc SAJÁT forrás-adatbázist hozott létre és dobott el |
+| **`proof:pg-durability`** | **a mai fejen** | **ZÖLD** — **13/13** mért lépés; a forrás a mentés-visszatöltés után is változatlan (alany 131/131 · könyv 131/131) |
+| a húsz rövid `verify:*` lánc (kuka · i18n · tutor · assistant · hét lelet-battéria · selfcheck · doc-html · artifact-naming · release-order · decision-numbers · unit-admission · sweep-reuse · fogyasztas-meres · capability-witness · lefedes) | **a mai fejen** | **mind ZÖLD**, a `verify:lefedes` nevezett pirosával (20 hiány-kulcs, kettéosztva) |
+| `verify:v3ref` (mag-mutációs battéria, 925 s) | a `c2cccd1` fejen | **ZÖLD** — 253 mutáció, **253 elkapva, 0 túlélte** |
+| `verify:external-checks` | a `c2cccd1` fejen | **PIROS / NEM TELJES** — 14 futott, **5 nem futott** (5.3 pont) |
+
+**MIÉRT NEM FUTTATTAM ÚJRA A MAG-BATTÉRIÁT A MAI FEJEN — ÉS EZ MÉRT TÉNY, NEM FELTEVÉS.** A mai fej és
+a `c2cccd1` között a mag KÓDJA nem változott: `git diff --name-only c2cccd1..HEAD -- v3ref/` kizárólag
+**bizonyíték-fájlokat** ad (`results/*.json` · `v3ref-mutation-result.json` · `units/`), **kód-fájlt
+nullát**. A 3–6. review-kör javításai a `v3app/`, a `tools/`, a `contracts/` és a próbák alatt vannak.
+**Amit ez NEM állít:** ez nem „újrahasznosított bizonyíték" a söprés feloldójának értelmében
+(`SRU-01` mind a négy feltételt méri) — ez egy kimondott, bárki által ellenőrizhető különbség-állítás.
+
+**ÉS EGY SAJÁT MÉRÉSI HIBA A ZÁRÁSBAN, KIMONDVA.** A tartóssági láncot először a klaszter
+**migráció nélküli** karbantartó adatbázisára irányítottam, és a lánc nevezetten elakadt
+(`relation "subject" does not exist`, `42P01`). **Nem a kód bukott, hanem a mérésem volt rossz** — a
+lánc migrált adatbázist kíván, és ezt helyesen mondta ki, nem ment át zölden. A javítás a mérésben
+volt: a migrált próba-adatbázison a lánc 13/13 ZÖLD. (Ugyanaz az alak, mint a 7.4 pont `ae2` esete: a
+rendszernek volt igaza, a mérésnek nem.)
 
 ---
 
