@@ -199,3 +199,182 @@ export function sameDatabase(sourceUrl, restoreTarget, env = process.env) {
   if (eff.name === String(restoreTarget)) return { same: true, basis: `AZONOS a céllal: ${eff.basis}` };
   return { same: false, basis: `a tényleges forrás-név eltér a céltól (${eff.basis})` };
 }
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// A VISSZATÖLTÉSI PRÓBA BIZTONSÁGI DÖNTÉSEI — TISZTA FÜGGVÉNYEKBEN, MEGHÍVHATÓAN (R164/1).
+//
+// MIÉRT ITT, ÉS MIÉRT TISZTÁN. A chatgpt-v3 az R164-ben a próba KÉT KONKRÉT kódútját nevezte meg:
+// a `DROP DATABASE IF EXISTS` a megadott célon, és a `pg_restore` hibájának elnyelése, ha a stderr
+// tartalmazza a „warning" szót. Mindkettő a próba belsejében, egyszer lefutó, nem meghívható kódban
+// állt — amit a próba nem tud MEGHÍVNI, azt bizalomból hisszük (KUKA-207). Innentől a döntés tiszta
+// függvény, a battéria közvetlenül méri, a próba pedig csak hívja.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** A próba által generált célnevek FELISMERHETŐ előtagja. FIGYELEM: az előtag NEM tulajdonbizonyíték. */
+export const RESTORE_TARGET_PREFIX = 'vs_restore_proba_';
+
+/**
+ * EGY FRISS, EGYEDI CÉLNÉV. A próba ezt HOZZA LÉTRE, nem ezt keresi meg.
+ *
+ * MIÉRT GENERÁLT: az R164 döntése szerint a próba alapértelmezett célja friss, egyedi, a futás által
+ * létrehozott adatbázis — már létező célt nem törölhet és nem használhat felülírással, akkor sem, ha
+ * a neve más, mint a forrásnak. Egy FIX név (`vs_visszatoltes_proba`) ezt fogalmilag nem tudja: a
+ * második futás vagy ütközik, vagy töröl.
+ */
+export function freshTargetName({ now = Date.now(), rand = Math.random() } = {}) {
+  const t = new Date(Number(now)).toISOString().replace(/[^0-9]/g, '').slice(0, 14);
+  const r = Math.floor(Number(rand) * 0xffffff).toString(16).padStart(6, '0');
+  const name = `${RESTORE_TARGET_PREFIX}${t}_${r}`;
+  if (!DB_NAME.test(name)) throw new Error('freshTargetName: a generált név nem adatbázis-NÉV alakú');
+  return name;
+}
+
+/**
+ * HASZNÁLHATÓ-E A CÉL? — A TULAJDON a LÉTREHOZÁS, nem a név.
+ *
+ * A LELET (R164/1): a régi próba `DROP DATABASE IF EXISTS <cél>`-t futtatott, majd `CREATE`-et. Egy
+ * ELŐRE LÉTEZŐ, akár teljesen más célra használt adatbázis így ELTŰNT, ha a neve egyezett a
+ * `VS_RESTORE_TEST_DB` értékével — a próba tehát olyan erőforrást takarított, amit nem ő hozott létre.
+ *
+ * A SZABÁLY: a próba CSAK azt az adatbázist használhatja és takaríthatja, amit ebben a futásban ő
+ * hozott létre. A `CREATE DATABASE` sikere a tulajdon-bizonyíték (PostgreSQL-ben nincs
+ * `IF NOT EXISTS`: ütközésnél 42P04 jön, tehát a siker azt jelenti, hogy ELŐTTE nem létezett).
+ * A NÉV-ELŐTAG nem bizonyíték: egy korábbi futás maradéka ugyanilyen nevű, mégsem a miénk.
+ *
+ * @param {{ measuredSource: string|null, explicitTarget: string|null, exists: boolean, generated: string }} x
+ *   measuredSource — a FORRÁS neve, a VALÓDI kapcsolatból mérve (`current_database()`), nem feloldva.
+ */
+export function restoreTargetDecision({ measuredSource, explicitTarget = null, exists = false, generated }) {
+  if (!generated || !DB_NAME.test(generated)) {
+    return { use: null, stop: true, basis: 'a generált célnév nem adatbázis-NÉV alakú — megállás' };
+  }
+  if (explicitTarget !== null && explicitTarget !== '') {
+    const problem = restoreTargetProblem(explicitTarget);
+    if (problem) return { use: null, stop: true, basis: `a megadott cél alakja hibás (${problem.reason}) — megállás`, problem };
+    if (!measuredSource) {
+      return { use: null, stop: true, basis: 'a FORRÁS neve a kapcsolatból nem mérhető — megállás (nem találgatunk a törlés előtt)' };
+    }
+    if (explicitTarget === measuredSource) {
+      return { use: null, stop: true, basis: 'a megadott cél AZONOS a MÉRT forrással — megállás' };
+    }
+    if (PROTECTED_DB_NAMES.includes(explicitTarget)) {
+      return { use: null, stop: true, basis: `a megadott cél VÉDETT rendszer-adatbázis (${explicitTarget}) — megállás` };
+    }
+    if (exists) {
+      return { use: null, stop: true,
+        basis: 'a megadott cél MÁR LÉTEZIK — a próba nem törli és nem írja felül, mert nem ő hozta létre (a név nem tulajdonbizonyíték)' };
+    }
+    return { use: explicitTarget, stop: false, basis: 'a megadott cél NEM létezik — a próba LÉTREHOZZA, tehát a sajátja lesz' };
+  }
+  if (!measuredSource) {
+    return { use: null, stop: true, basis: 'a FORRÁS neve a kapcsolatból nem mérhető — megállás' };
+  }
+  if (generated === measuredSource) {
+    return { use: null, stop: true, basis: 'a generált név AZONOS a mért forrással (gyakorlatilag lehetetlen) — megállás' };
+  }
+  if (exists) {
+    return { use: null, stop: true,
+      basis: 'a GENERÁLT név már létezik (korábbi futás maradéka vagy ütközés) — a próba nem veszi át, ÚJ nevet kell generálni' };
+  }
+  return { use: generated, stop: false, basis: 'friss, egyedi, a futás által létrehozott cél' };
+}
+
+/** A SOHA nem célként használható rendszer-adatbázisok. */
+export const PROTECTED_DB_NAMES = Object.freeze(['postgres', 'template0', 'template1']);
+
+/**
+ * A VISSZATÖLTÉS VERDIKTJE — SORONKÉNT OSZTÁLYOZVA, NEM RÉSZSZTRINGGEL (R164/1).
+ *
+ * A LELET: a régi alak `if (!/warning/i.test(stderr)) throw e;` volt — vagyis BÁRMILYEN hiba
+ * ELNYELŐDÖTT, ha a kimenet BÁRHOL tartalmazta a „warning" szót. Egy valódi hiba és egy ártalmatlan
+ * figyelmeztetés EGYÜTT érkezve tehát SIKERNEK számított, és a nem nulla kilépés általánosan PASS-szá
+ * vált. Ez a KUKA-124 osztálya (a rossz nevű válasz elrejti az igazit) és a KUKA-215-é (a választ MEG
+ * KELL MÉRNI).
+ *
+ * A SZABÁLY: a `pg_restore` a saját kimenetét OSZTÁLYOZVA írja (`pg_restore: warning:` ·
+ * `pg_restore: error:`), ezért SORONKÉNT számolunk. Nem nulla kilépés CSAK akkor tolerálható, ha
+ * NULLA hiba-sor van; egyetlen hiba-sor mellett a verdikt FAIL, akkor is, ha figyelmeztetés is jött.
+ * És a végső mérce ettől függetlenül a TARTALMI visszaolvasás (a hívó kötelezően méri).
+ */
+export function restoreOutcome({ exitCode = 0, stderr = '' } = {}) {
+  const sorok = String(stderr || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const hibak = sorok.filter((l) => /(^|:\s*)error:/i.test(l));
+  const figyelmeztetesek = sorok.filter((l) => /(^|:\s*)warning:/i.test(l));
+  const kod = Number(exitCode) || 0;
+  if (hibak.length > 0) {
+    return { ok: false, errors: hibak.length, warnings: figyelmeztetesek.length, exitCode: kod,
+      basis: `${hibak.length} HIBA-sor a kimenetben — a figyelmeztetések jelenléte ezt nem oldja fel` };
+  }
+  if (kod !== 0) {
+    return { ok: true, errors: 0, warnings: figyelmeztetesek.length, exitCode: kod, tolerated: true,
+      basis: `nem nulla kilépés (${kod}), de NULLA hiba-sor — tolerálva; a mérce a tartalmi visszaolvasás` };
+  }
+  return { ok: true, errors: 0, warnings: figyelmeztetesek.length, exitCode: 0,
+    basis: figyelmeztetesek.length ? `nulla kilépés, ${figyelmeztetesek.length} figyelmeztetés` : 'nulla kilépés, tiszta kimenet' };
+}
+
+/**
+ * TITOKMENTES SZÖVEG A NAPLÓHOZ (R164/1: „a hibákból, parancssorból és artefaktumokból se kerüljön
+ * titok a naplóba").
+ *
+ * A `pg_dump`/`pg_restore`/`psql` hibái és a parancssorok VISSZAIDÉZHETIK a kapcsolati címet, abban
+ * pedig jelszó áll. A szabály ebben a rendszerben nem tűr kivételt: `DATABASE_URL` és bármely kulcs
+ * soha nem kerül naplóba (CLAUDE.md 1. szakasz) — ezért minden kiírt szöveg ezen a tisztítón megy át.
+ */
+export function redactConnStrings(text) {
+  let s = String(text ?? '');
+  s = s.replace(/\b(postgres(?:ql)?|pg):\/\/[^\s'"]*/gi, '«kapcsolati cím elrejtve»');
+  s = s.replace(/\b(PGPASSWORD|password)\s*=\s*[^\s&'";]+/gi, '$1=«elrejtve»');
+  return s;
+}
+
+/**
+ * A CÉL MEGSZERZÉSE — A HURKOT IS MEG KELL TUDNI MÉRNI (KUKA-207).
+ *
+ * MIÉRT ITT: a „friss, saját cél" döntései ebben a fájlban élnek (KUKA-003: egy szabály, egy otthon).
+ * A megszerzés HURKA viszont a próbában volt, beágyazva a `psql`-hívások közé — vagyis egy próba nem
+ * tudta MEGHÍVNI, csak a végeredményt látta. A párhuzamos névütközés pedig pontosan a hurokban dől el:
+ * a LÉTEZÉS-MÉRÉS és a `CREATE` KÖZÉ befér egy másik futás. Ezért a hurok itt áll, TISZTÁN, a
+ * kiszolgáló-hívásokkal BEADVA (`exists` · `create` · `generate`) — így ugyanazt a kódot futtatja az
+ * éles próba és az ellenpróba, és az ütközés BEADHATÓ.
+ *
+ * A SZERZŐDÉS:
+ *   exists(nev)   → { known: boolean, exists?: boolean, hiba?: string }   (a „nem tudom" NEVEZETT)
+ *   create(nev)   → { ok: boolean, collision?: boolean, hiba?: string }   (ok = MI hoztuk létre)
+ *   generate()    → friss, egyedi név
+ *
+ * AMIT ÁLLÍT: a visszaadott `target` CSAK akkor nem null, ha a `create` SIKERRE futott rajta — tehát
+ * a tulajdon bizonyított. Ütközésnél (akár a mérésben, akár a `CREATE`-ben) ÚJ nevet kér, és SOHA nem
+ * veszi át a másik futás adatbázisát. KIMONDOTT cél esetén nem generál helyette mást: megáll.
+ */
+export function acquireFreshTarget({ measuredSource, explicitTarget = null, exists, create, generate, maxAttempts = 5 }) {
+  const log = [];
+  let last = { use: null, stop: true, basis: 'egy kísérlet sem futott' };
+  for (let k = 0; k < Math.max(1, maxAttempts); k++) {
+    const generated = generate();
+    const jelolt = explicitTarget ?? generated;
+    const l = exists(jelolt);
+    if (!l.known) {
+      last = { use: null, stop: true, basis: `a cél létezése NEM MÉRHETŐ (${l.hiba || 'nevezetlen ok'}) — megállás` };
+      log.push(`${k + 1}. ${last.basis}`);
+      break;
+    }
+    const d = restoreTargetDecision({ measuredSource, explicitTarget, exists: l.exists, generated });
+    last = d;
+    log.push(`${k + 1}. ${d.use ? `létrehozás: ${d.basis}` : `elutasítva: ${d.basis}`}`);
+    if (d.stop) { if (explicitTarget !== null) break; continue; }
+    const c = create(d.use);
+    if (c.ok) return { target: d.use, created: true, attempts: k + 1, log, basis: d.basis };
+    if (c.collision) {
+      // PÁRHUZAMOS NÉVÜTKÖZÉS: a mérés és a `CREATE` közé befért egy másik futás. A kiszolgáló atomi
+      // `CREATE`-je a döntő — nem vesszük át az övét, ÚJ nevet kérünk.
+      last = { use: null, stop: true, basis: 'párhuzamos névütközés a CREATE-ben — nem vesszük át a másik futás adatbázisát' };
+      log.push(`${k + 1}. ${last.basis}`);
+      if (explicitTarget !== null) break; continue;
+    }
+    last = { use: null, stop: true, basis: `a CREATE DATABASE elakadt: ${c.hiba || 'nevezetlen ok'}` };
+    log.push(`${k + 1}. ${last.basis}`);
+    break;
+  }
+  return { target: null, created: false, attempts: log.length, log, basis: last.basis };
+}

@@ -16,6 +16,73 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3166 — A VISSZATÖLTÉS CÉLJA FRISS, SAJÁT ADATBÁZIS: A TULAJDONT A LÉTREHOZÁS ADJA (R164/1)
+
+**A döntés.** A `proof:pg-durability` célja alapértelmezésben **generált, egyedi név**, amit a futás
+maga **létrehoz** (`freshTargetName` → `CREATE DATABASE`). A `CREATE` sikere a **tulajdon-bizonyíték**:
+PostgreSQL-ben nincs `IF NOT EXISTS`, tehát ütközésnél 42P04 jön — a siker azt jelenti, hogy a cél
+ELŐTTE nem létezett. **Már létező célhoz a próba nem nyúl**, akkor sem, ha a neve más, mint a forrásnak,
+és akkor sem, ha az előtagot hordozza. A takarítás kizárólag arra a névre áll, amin a `CREATE` sikerrel
+futott; a `VS_RESTORE_TEST_DB` megmarad kimondott választásnak, de csak akkor használható, ha **nem
+létezik** (akkor a próba létrehozza, tehát a sajátja lesz).
+
+**Miért.** A régi alak `DROP DATABASE IF EXISTS <cél>`-t futtatott, és az egyetlen kapu az volt, hogy a
+cél ne EGYEZZEN a forrással. A „nem a forrás" viszont nem azonos azzal, hogy „az enyém": e kettő között
+ott áll minden más adatbázis a kiszolgálón. **A név előtagja önmagában nem tulajdonbizonyíték**
+(chatgpt-v3 szava, R164/1).
+
+**És a feloldó nem az egyetlen védelem.** A forrás nevét a kiszolgáló mondja meg (`SELECT
+current_database()`), a libpq-utánzó feloldó jóslatát ehhez MÉRJÜK, és **eltérésnél megállunk**; a cél
+megnyitása után is visszaellenőrizzük, hogy a kapcsolat oda megy, ahová hittük. A titkok nem mennek a
+parancssorba (a kapcsolat `PG*` környezeti változókban), és minden kiírt szöveg titok-tisztítón megy át.
+
+**Amit ez NEM állít.** Nem Railway-mentés bizonyítéka és nem PITR: helyi, eldobható PostgreSQL 16.15-en
+mért viselkedés. Gépi jel: `npm run verify:kuka` (KUKA-358) · `npm run proof:pg-restore-safety` (E1 ·
+E5 · E7) — a lánc eldobható HELYI kiszolgálót kér, ezért a söprésben nem fut (KUKA-307).
+
+---
+
+## D-VS-3167 — A VISSZATÖLTÉS VERDIKTJE SORONKÉNTI OSZTÁLYOZÁS, NEM RÉSZSZTRING (R164/1)
+
+**A döntés.** A `pg_restore` kimenetét **soronként** osztályozzuk (`restoreOutcome`): a `error:`-sorok és
+a `warning:`-sorok külön számolva. **Egyetlen hiba-sor mellett a verdikt FAIL** — akkor is, ha
+figyelmeztetés is jött, és akkor is, ha a kilépési kód NULLA. Nem nulla kilépés CSAK nulla hiba-sor
+mellett tolerálható, és akkor is NEVEZETTEN. A végső mérce ettől függetlenül a **tartalmi
+visszaolvasás**, ami kötelezően lefut.
+
+**Miért.** A régi alak `if (!/warning/i.test(stderr)) throw e;` volt — bármilyen hiba elnyelődött, ha a
+kimenet bárhol tartalmazta a „warning" szót, és a nem nulla kilépés általánosan PASS-szá vált. MÉRVE
+(E4): egy `warning` ÉS egy `error` sort kiíró, 1-gyel kilépő visszatöltő-helyettesítőn a mai alak FAIL-t
+ad és megnevezi a hiba-sort; a **sikeres pár** is mérve (E4e): csak figyelmeztetés + 1-es kilépés → PASS,
+de a 4a/4b/4c visszaolvasás tényleg lefutott.
+
+**Amit ez NEM állít.** Nem minden `pg_restore`-kimenet osztályozható: ha a kliens máshogy jelöl, a
+szabály nem segít — ezért nem a némaság, hanem a TARTALOM a mérce. Gépi jel: `npm run verify:kuka`
+(KUKA-359) · `npm run proof:pg-restore-safety` (E4 · E4e · E9a–E9d).
+
+---
+
+## D-VS-3168 — A MEGSZAKÍTÁS KEZELŐJE CSAK AKKOR ŐR, HA MEG IS TUD SZÓLALNI (R164/1)
+
+**A döntés.** A próba a mért lépések KÖZÖTT **átadja a vezérlést** (`await megszakithato()` — egy
+`setImmediate`-kör), és a takarításnak **egy otthona** van: a `process.on('exit')` horog, ami MINDEN
+kilépési úton (rendes vég, kivétel, jel) eldobja, ami bizonyítottan a miénk. Amit egy kezelhetetlen
+leállás (SIGKILL) hátrahagy, azt a következő futás **megnevezi**, de nem dobja el.
+
+**Miért.** A jel-kezelőt megírtam, az ellenpróba viszont azt mérte, hogy SOHA nem szólal meg: a 3.
+szakasz végig blokkoló gyermekhívásokban áll (`execFileSync`), a Node a JS jel-kezelőt csak az
+eseményhurok következő körében futtatja, és a szakasz után a próba `process.exit`-tel zárt. A gyerek
+0-s kilépéssel, ZÖLDEN fejezte be azt a futást, amit meg kellett volna szakítani — **a KUKA-207 pontos
+osztálya**: a kezelő létezéséből a működésére következtettem. MÉRVE (E6): a visszatöltés közben a
+folyamatCSOPORTnak küldött SIGTERM után a kilépés 130, a megszakítás-ág lefutott, a saját cél
+eltakarítva, a forrás és az idegen adatbázis érintetlen.
+
+**Amit ez NEM állít.** A SIGKILL ettől sem kezelhető — ezért a maradék-jelentés, és ezért nem töröljük
+az idegen maradékot. Gépi jel: `npm run verify:kuka` (KUKA-360) · `npm run proof:pg-restore-safety`
+(E6a–E6d · E6e1–E6e5).
+
+---
+
 ## D-VS-3163 — AZ ÜRES KAPCSOLATI-KULCS FELÜLÍRÁS MEGÁLLÁST AD (R158, a visszatöltési kapu)
 
 **A döntés.** A kapcsolati cím kulcsainál a JELENLÉT és az ÉRTÉK két külön tény (`queryLast`): ha a

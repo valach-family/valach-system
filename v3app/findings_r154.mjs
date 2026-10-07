@@ -37,7 +37,9 @@ import { purgeExpiredIntents, resumeIntent, rememberIntent, intentTtlMs, PENDING
 import { validateRequest } from './httpSchema.mjs';
 import { request as httpReq } from 'node:http';
 import { transcriptsOf } from '../tools/v3_fogyasztas_meres.mjs';
-import { restoreTargetProblem, sameDatabase, effectiveDatabase, withDatabase } from '../tools/lib/vs_pg_target.mjs';
+import { restoreTargetProblem, sameDatabase, effectiveDatabase, withDatabase, freshTargetName,
+  restoreTargetDecision, restoreOutcome, redactConnStrings, acquireFreshTarget,
+  RESTORE_TARGET_PREFIX, PROTECTED_DB_NAMES } from '../tools/lib/vs_pg_target.mjs';
 
 import { execFileSync } from 'node:child_process';
 /**
@@ -2245,6 +2247,87 @@ try {
     } finally {
       await new Promise((r) => aasrv.server.close(r));
     }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
+  // AB — AZ R164/1 VISSZATÖLTÉSI BIZTONSÁG TISZTA DÖNTÉSEI
+  //
+  // MIÉRT ITT: a `proof:pg-restore-safety` lánc valódi, ELDOBHATÓ PostgreSQL-t kér, ezért a söprésben
+  // nem fut (KUKA-307). A döntések viszont TISZTA függvények — a battéria közvetlenül hívja őket, így
+  // a visszacsúszás a söprésben is piros lesz, nem csak kézi futtatáson (KUKA-207).
+  {
+    // ── (ab1) A TULAJDON A LÉTREHOZÁS, NEM A NÉV ────────────────────────────────────────────────
+    const ab_forras = 'vs_eles';
+    const ab_gen = freshTargetName({ now: Date.UTC(2026, 9, 7, 4, 50, 0), rand: 0.5 });
+    const ab_letezo = restoreTargetDecision({ measuredSource: ab_forras, explicitTarget: 'vs_regi_proba', exists: true, generated: ab_gen });
+    const ab_nemletezo = restoreTargetDecision({ measuredSource: ab_forras, explicitTarget: 'vs_regi_proba', exists: false, generated: ab_gen });
+    const ab_friss = restoreTargetDecision({ measuredSource: ab_forras, explicitTarget: null, exists: false, generated: ab_gen });
+    const ab_utkozo = restoreTargetDecision({ measuredSource: ab_forras, explicitTarget: null, exists: true, generated: ab_gen });
+    step('(ab1) F164-01: a MÁR LÉTEZŐ cél elutasítva, a NEM létező elfogadva — a tulajdont a LÉTREHOZÁS adja, nem a név (RÉGEN: `DROP DATABASE IF EXISTS` a megadott célon)',
+      ab_letezo.use === null && /MÁR LÉTEZIK/.test(ab_letezo.basis)
+      && ab_nemletezo.use === 'vs_regi_proba' && ab_friss.use === ab_gen && ab_utkozo.use === null,
+      { mar_letezo: ab_letezo.use, nem_letezo: ab_nemletezo.use, generalt: ab_friss.use, generalt_utkozo: ab_utkozo.use });
+
+    // ── (ab2) A GENERÁLT NÉV ALAKJA ÉS EGYEDISÉGE ──────────────────────────────────────────────
+    const ab_nevek = new Set();
+    for (let i = 0; i < 200; i++) ab_nevek.add(freshTargetName());
+    step('(ab2) F164-01: a generált célnév az ELŐTAGOT hordozza, adatbázis-NÉV alakú, és 200 hívásból 200 különböző',
+      ab_gen === `${RESTORE_TARGET_PREFIX}20261007045000_7fffff` && ab_nevek.size === 200
+      && [...ab_nevek].every((n) => /^[A-Za-z_][A-Za-z0-9_$]*$/.test(n) && n.length <= 63),
+      { rogzitett_mag: ab_gen, kulonbozo: ab_nevek.size });
+
+    // ── (ab3) A VÉDETT ÉS A FORRÁS NEVE SOHA NEM CÉL ───────────────────────────────────────────
+    const ab_tiltott = [...PROTECTED_DB_NAMES, ab_forras].map((n) => restoreTargetDecision({ measuredSource: ab_forras, explicitTarget: n, exists: false, generated: ab_gen }));
+    const ab_mertelen = restoreTargetDecision({ measuredSource: null, explicitTarget: 'vs_barmi', exists: false, generated: ab_gen });
+    step('(ab3) F164-01: a VÉDETT rendszer-adatbázisok és a MÉRT forrás neve célként elutasítva — és ha a forrás neve NEM mérhető, az is megállás (nem találgatunk törlés előtt)',
+      ab_tiltott.every((d) => d.use === null && d.stop === true) && ab_mertelen.use === null && /nem mérhető/.test(ab_mertelen.basis),
+      { tiltott: [...PROTECTED_DB_NAMES, ab_forras].join(','), nem_merheto_forras: ab_mertelen.use });
+
+    // ── (ab4) A MEGSZERZÉS HURKA: A PÁRHUZAMOS ÜTKÖZÉST NEM VESZI ÁT ───────────────────────────
+    // A versenyzőt BEADJUK: a létezés-mérés „nincs"-et mond, a `CREATE` mégis ütközést ad — pontosan
+    // úgy, ahogy két párhuzamos futás egymásba lépne.
+    let ab_hivas = 0;
+    const ab_atvett = [];
+    const ab_sz = acquireFreshTarget({
+      measuredSource: ab_forras, explicitTarget: null,
+      generate: () => `${RESTORE_TARGET_PREFIX}20261007045000_${String(ab_hivas).padStart(6, '0')}`,
+      exists: () => ({ known: true, exists: false }),
+      create: (n) => { ab_hivas += 1; ab_atvett.push(n); return ab_hivas === 1 ? { ok: false, collision: true } : { ok: true }; },
+    });
+    step('(ab4) F164-01: párhuzamos névütközésnél a hurok ÚJ nevet kér, és SOHA nem veszi át a másik futás adatbázisát',
+      ab_sz.target === `${RESTORE_TARGET_PREFIX}20261007045000_000001` && ab_sz.attempts === 2 && ab_sz.created === true
+      && ab_atvett[0] !== ab_sz.target && /párhuzamos névütközés/.test(ab_sz.log.join(' ')),
+      { megszerzett: ab_sz.target, utkozott: ab_atvett[0], kiserletek: ab_sz.attempts });
+
+    // ── (ab5) A „NEM MÉRHETŐ" LÉTEZÉS MEGÁLLÁS, NEM „NEM LÉTEZIK" ──────────────────────────────
+    let ab_create_hivas = 0;
+    const ab_nemtudom = acquireFreshTarget({
+      measuredSource: ab_forras, explicitTarget: null,
+      generate: () => ab_gen,
+      exists: () => ({ known: false, hiba: 'a kiszolgáló nem válaszolt' }),
+      create: () => { ab_create_hivas += 1; return { ok: true }; },
+    });
+    step('(ab5) F164-01: ha a cél LÉTEZÉSE nem mérhető, a hurok megáll, és a `CREATE` MEG SEM hívódik (a nem tudott nem „nem létezik" — KUKA-220)',
+      ab_nemtudom.target === null && ab_create_hivas === 0 && /NEM MÉRHETŐ/.test(ab_nemtudom.basis),
+      { cel: ab_nemtudom.target, create_hivas: ab_create_hivas });
+
+    // ── (ab6) A VERDIKT: A FIGYELMEZTETÉS NEM OLDJA FEL A HIBÁT ────────────────────────────────
+    const ab_egyutt = restoreOutcome({ exitCode: 1, stderr: 'pg_restore: warning: owner\npg_restore: error: relation missing' });
+    const ab_csak_fi = restoreOutcome({ exitCode: 1, stderr: 'pg_restore: warning: owner' });
+    const ab_tiszta = restoreOutcome({ exitCode: 0, stderr: '' });
+    const ab_nulla_de_hiba = restoreOutcome({ exitCode: 0, stderr: 'pg_restore: error: relation missing' });
+    step('(ab6) F164-02: hiba ÉS figyelmeztetés EGYÜTT → FAIL; csak figyelmeztetés + nem nulla kilépés → NEVEZETTEN tolerált; NULLA kilépés mellett is FAIL, ha hiba-sor van (RÉGEN: egy „warning" részsztring bármit elnyelt)',
+      ab_egyutt.ok === false && ab_egyutt.errors === 1 && ab_egyutt.warnings === 1
+      && ab_csak_fi.ok === true && ab_csak_fi.tolerated === true
+      && ab_tiszta.ok === true && ab_nulla_de_hiba.ok === false,
+      { egyutt: ab_egyutt.ok, csak_figyelmeztetes: `${ab_csak_fi.ok}/tolerált:${ab_csak_fi.tolerated}`, tiszta: ab_tiszta.ok, nulla_kod_de_hiba: ab_nulla_de_hiba.ok });
+
+    // ── (ab7) A TITOK NEM KERÜL A NAPLÓBA ──────────────────────────────────────────────────────
+    const ab_t = redactConnStrings('pg_restore: error: connection to postgres://u:TITKOS@gep:5432/db failed; PGPASSWORD=MASIK');
+    const ab_t2 = redactConnStrings('rendben, nincs benne titok');
+    step('(ab7) F164-01: a kiírt szövegből a kapcsolati cím ÉS a jelszó is eltűnik, a titokmentes szöveg viszont változatlan',
+      !/TITKOS|MASIK/.test(ab_t) && /elrejtve/.test(ab_t) && ab_t2 === 'rendben, nincs benne titok',
+      { tisztitott: ab_t.slice(0, 80) });
   }
 
   const fail = results.filter((r) => !r.pass);
