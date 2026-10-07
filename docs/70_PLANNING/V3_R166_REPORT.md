@@ -31,11 +31,13 @@ RÉGI munkamenet zárása volt; ez a lap az ÚJ munkamenet eredménye.
 | **Merge-készség** | **NEM.** Két parancs-pont nem készült el, a külső-ellenőrző lánc nem teljes, és a mai fejnek nincs független review-ja |
 
 **MIÉRT NEM KÉSZÜLT EL MINDEN, ÉS EZ NEM KIFOGÁS, HANEM A SZABÁLY ALKALMAZÁSA.** A `D-VS-3083`
-mérce szerint a fő-szál kontextusmediánja a munkablokk zárásánál **396 717,5** — a 300–400 ezres
-FIGYELMEZTETŐ sáv felső határa. A szabály kimondja: a **futó** munkablokk célzott ellenőrzéssel
-lezárható, a **következő önálló nagy blokk** pedig friss beszélgetésben induljon. A §2 (valódi
-bejárás a felületen) és a §4 (hat hosszú program) MINDKETTŐ önálló nagy blokk. Ezért zártam a
-futót, és adom át a kettőt — nem félkészen, hanem **el sem kezdve**, kimondva.
+mérce szerint a fő-szál kontextusmediánja a csomag zárásánál **421 391,5** — a **VÁLTÁSI** sáv (a
+jelző 400 000-nél). A szabály kimondja: a **futó** munkablokk célzott ellenőrzéssel lezárható, a
+**következő önálló nagy blokk** pedig friss beszélgetésben induljon. A §2 (valódi bejárás a
+felületen) és a §4 (hat hosszú program) MINDKETTŐ önálló nagy blokk. Ezért zártam a futót, és adom
+át a kettőt — nem félkészen, hanem **el sem kezdve**, kimondva. *(A mérés menete és a két
+pillanatkép a 9. szakaszban; a blokk nyitásakor a medián még a FIGYELMEZTETŐ sávban volt — a
+szám a hat review-kör alatt fordult át.)*
 
 ---
 
@@ -596,6 +598,19 @@ osztálya: a próba ne hagyjon maradékot a mért rendszerben.
 nem zöldelt és nem is hallgatott: *„a cél létezése NEM MÉRHETŐ — megállás"*. Ez a 2.5-ben épített
 `KUKA-401` fail-closed ága, élesben. Újraindítás után mindhárom lánc zöld.
 
+#### A NÉGY SZÁL MEGVÁLASZOLVA ÉS LEZÁRVA — ÉS EGY SAJÁT HIBA A VÁLASZOKBAN
+
+Mind a négy review-szálra válasz ment (a mérés · a javítás · a mért visszacsúszás-próba · a gépi
+jel), és mind a négy szál **lezárva** (`PRRT_…HtSS` · `…HtSf` · `…HtSk` · `…HtSn`).
+
+**ÉS A VÁLASZAIMBAN HÁROM NEM LÉTEZŐ DÖNTÉS-SZÁMRA HIVATKOZTAM** (`D-VS-3209` · `D-VS-3210` ·
+`D-VS-3211`). A valóság: a négy leletet **EGY** döntés fedi, a `D-VS-3208` — a
+`npm run verify:decision-numbers` szerint a legmagasabb kiadott a **3208**, a következő szabad a
+3209. **Nem nyitottam új számokat azért, hogy a szövegem igaz legyen** (a `KUKA-050` iránya: a szöveg
+követi a valóságot, nem fordítva); a három szálra **javítás ment ki** a helyes számmal. A repóban
+ilyen hivatkozás **nem** keletkezett (mérve: `grep` a `docs/` · `contracts/` · `v3app/` · `tools/` ·
+`v3ref/` fákon — **0 találat**).
+
 Rögzítve: `D-VS-3208` · `KUKA-410` … `KUKA-413`.
 
 ---
@@ -715,7 +730,7 @@ megszakítást bukásnak** veszi, nem „nincs is baj"-nak.
 | `app:selfcheck` | **ZÖLD — 57/57** |
 | `verify:decision-numbers` | **ZÖLD — 4/4** |
 | `verify:lefedes` | **17 ZÖLD / 1 PIROS** — a `LT` a nevesített fejlesztési résen (`LT2` és `LR1` ZÖLD: pótolható 0 · osztályozatlan 0 · **33/33 fedett végpont**) |
-| `verify:browser-gate` (`test:e2e` + `proof:core-ux` + `proof:demo-walk`) | **ZÖLD** — **369 s** + **440 s** · **134 helyzet teljesült / 0 bukott / 0 ingadozó / 0 kihagyott** · **24 próba-fájl**, mind a mérésben. **A TIZENHÉT P2-javítás UTÁN, a mai fejen.** Egy korábbi futás PIROS volt (2.6): a kattintó bejáró kibuktatott egy második zsákutcát, azt javítottam, és csak utána lett zöld |
+| `verify:browser-gate` (`test:e2e` + `proof:core-ux` + `proof:demo-walk`) | **ZÖLD** — **369 s** + **440 s** · **134 helyzet teljesült / 0 bukott / 0 ingadozó / 0 kihagyott** · **24 próba-fájl**, mind a mérésben. **A TIZENNYOLC P2-javítás UTÁN, a mai fejen.** Egy korábbi futás PIROS volt (2.6): a kattintó bejáró kibuktatott egy második zsákutcát, azt javítottam, és csak utána lett zöld |
 | `verify:v3ref` (mag-mutációs battéria) | **ZÖLD — 253/253 elkapva, 0 túlélte** · *TELJES ÉS TISZTA*, **a MAI fejen újramérve** (a mag két új függvénye miatt — lásd a 6.4 pontot) |
 | `verify:external-checks` | **PIROS / NEM TELJES** — a hat hiányzó program **nem futott** (R166 §4, átadva) |
 
@@ -842,7 +857,7 @@ tizenhat rövid lánc lefutott) —, a **következő önálló nagy blokk** pedi
 induljon. A §2 és a §4 mindkettő önálló nagy blokk, ezért nem kezdtem el őket: a lezárás címén
 **nincs új feltárás, nincs új funkció és nincs opcionális teljes söprés**.
 
-**ÉS A TIZENHÉT P2 UTÁN ÚJRAMÉRVE** (a teljes csomag-ablak, `2026-10-07T11:00Z` → a pillanatkép
+**ÉS A TIZENNYOLC P2 UTÁN ÚJRAMÉRVE** (a teljes csomag-ablak, `2026-10-07T11:00Z` → a pillanatkép
 zárása `22:55:41Z`): **828 hívás** · fő-szál kontextusmedián **421 391,5** · max **784 112** ·
 **ügynök-bemenet 0** (nulla al-ügynök) · lefedettség **teljes** (1 átirat, minden modell-válasz
 usage-dzsal).
@@ -854,14 +869,26 @@ P2-je a futó blokk célzott lezárása (mérés · javítás · visszacsúszás
 újrafuttatása · a szálak megválaszolása), és **a lezárás címén nincs új feltárás, nincs új funkció és
 nincs opcionális teljes söprés.**
 
-**ÉS AMI A SZÁMOT FELVITTE, AZT KIMONDOM:** a kör nyitásakor két parancs-pont (a §2 és a §4) átadásra
-került, azóta viszont **tizenhárom külső P2** jött a csomag SAJÁT javításai felett, öt review-körben.
-Mindegyik mérést, javítást, visszacsúszás-próbát és a kötelező böngésző-kapu **újrafuttatását** kérte
-— a kapu egyszer **pirossal** is válaszolt. Ez nem a lezárás címén indított új feltárás, hanem a
-**futó** munkablokk célzott lezárása: a review-szálak megválaszolása és a hozzá tartozó mérés.
+**ÉS AMI A SZÁMOT FELVITTE, AZT KIMONDOM, MÉRT SZÁMMAL:** a kör nyitásakor két parancs-pont (a §2 és
+a §4) átadásra került, azóta viszont **tizennyolc külső P2** és **egy P1** jött a csomag SAJÁT
+javításai felett, **hat** review-körben. **A szám mérve, nem emlékezetből:** a PR review-szálait
+végigolvasva a külső ellenőrző (`chatgpt-codex-connector`) megjegyzései a csomag ablakában
+(`2026-10-07T11:00Z` után) **19 + 3 = 22** darab, ebből **1 P1** és **21 P2**; ezekből **három** a
+csomag ELŐTTI munkamenet fejére jött (a céges/személyes útmutató-hatókör és a személy-hatókörű
+útvonalak — azokat a régi író zárta, lásd az átadási checkpointot), tehát **ennek** a munkamenetnek
+a mérlege **18 P2 + 1 P1**. Szakaszonként: 2.1 = 1 · 2.2 = 3 · 2.3 = 1 · 2.4 = 4 · 2.5 = 5 ·
+2.7 = 4. Mindegyik mérést, javítást, visszacsúszás-próbát és a kötelező böngésző-kapu
+**újrafuttatását** kérte — a kapu egyszer **pirossal** is válaszolt. Ez nem a lezárás címén indított
+új feltárás, hanem a **futó** munkablokk célzott lezárása: a review-szálak megválaszolása és a hozzá
+tartozó mérés.
 
-**ÉS EZ NEM VONJA VISSZA A LEZÁRÁST.** A medián azért alacsonyabb a korábbi 402 476,5-nél, mert a
-beszélgetés **tömörítésen** ment át — a `R114` viszont kimondja: **a tömörítéssel folytatott
+**ÉS EGY SAJÁT HIBÁT ITT IS KIMONDOK:** ez a szám a jelentés korábbi alakjában **tizenhét** volt (és
+egy helyen tizenhárom) — **emlékezetből**, nem mérésből. A szálak végigolvasása **tizennyolcat** ad.
+A szabály ugyanaz, mint a `KUKA-412`-nél: ami hivatkozási alap, azt MÉRJÜK, ne nézzük.
+
+**ÉS EZ NEM VONJA VISSZA A LEZÁRÁST — DE A KORÁBBI MONDATOMAT JAVÍTOM.** A jelentés egy korábbi
+alakja azt írta, hogy a medián „alacsonyabb" a korábbi 402 476,5-nél: ez **fordítva volt**, a
+421 391,5 **magasabb**. A beszélgetés közben **tömörítésen** ment át — a `R114` viszont kimondja: **a tömörítéssel folytatott
 beszélgetés NEM friss beszélgetés**. A négy P2 javítása a **futó** munkablokk célzott lezárása volt
 (review-szálak megválaszolása és a hozzá tartozó mérés), nem új blokk. A §2 és a §4 továbbra is
 **friss beszélgetésben** induljon.
