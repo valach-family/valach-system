@@ -1496,10 +1496,9 @@ export const TOUR = Object.freeze({
   }),
   'tour.resend': Object.freeze({
     title: 'Einen neuen Bestätigungsbrief anfordern',
-    lead: 'Drei Schritte. Nötig, wenn der frühere Brief abgelaufen ist oder du ihn nicht findest.',
-    s1: Object.freeze({ title: 'Öffne das erneute Senden', body: 'Du findest es unten auf dem Anmeldebildschirm. Es führt dich zu der Seite, auf der du einen neuen Brief anfordern kannst.' }),
-    s2: Object.freeze({ title: 'Die E-Mail-Adresse', body: 'Gib dieselbe Adresse an, mit der du dich registriert hast.' }),
-    s3: Object.freeze({ title: 'Senden', body: 'Verwende immer den Link aus dem neuesten Brief: ein neuer Brief macht den früheren ungültig.' }),
+    lead: 'Zwei Schritte. Nötig, wenn der frühere Brief abgelaufen ist oder du ihn nicht findest.',
+    s1: Object.freeze({ title: 'Die E-Mail-Adresse', body: 'Gib dieselbe Adresse an, mit der du dich registriert hast.' }),
+    s2: Object.freeze({ title: 'Senden', body: 'Verwende immer den Link aus dem neuesten Brief: ein neuer Brief macht den früheren ungültig.' }),
   }),
   'tour.logout': Object.freeze({
     title: 'Abmelden',

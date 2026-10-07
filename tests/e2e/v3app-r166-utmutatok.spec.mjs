@@ -116,7 +116,12 @@ async function walkTour(page, tourId) {
       await expect(page.getByTestId('tour-step-title')).toHaveText(varhatoCim, { timeout: 8000 });
     } catch {
       const kint = ((await page.getByTestId('tour-step-title').textContent().catch(() => null)) || '(nincs lépés-cím)').trim();
-      bajok.push(`${steps[i].id}: a buborék „${kint.slice(0, 50)}”, a csomag szerint „${varhatoCim}”`);
+      // DIAGNOSZTIKA: ha a cím HIÁNYZIK, a panel állapota mondja meg, miért (megszakítás vagy eltűnt panel).
+      const panelVan = await page.getByTestId('tour').count();
+      const panelSzoveg = panelVan ? ((await page.getByTestId('tour').textContent()) || '').trim().replace(/\s+/g, ' ').slice(0, 90) : '(nincs panel)';
+      const nextVan = await page.getByTestId('tour-next').count();
+      const celVan = await page.getByTestId(steps[i].target).count();
+      bajok.push(`${steps[i].id}: a buborék „${kint.slice(0, 50)}”, a csomag szerint „${varhatoCim}” [panel:${panelVan} next:${nextVan} cél(${steps[i].target}):${celVan} · ${panelSzoveg}]`);
       break;
     }
     // A NEVEZETT MEGSZAKÍTÁS a bukás: azt mondja, hogy a megnevezett elem nem látható ezen a képernyőn.
@@ -148,6 +153,24 @@ async function walkTour(page, tourId) {
         }).catch(() => false);
         if (megnyomhato) await cel.click({ trial: false }).catch(() => { /* a lap elvette — a következő állítás méri */ });
       }
+      /**
+       * ÉS A LAP ÚJRARAJZOLÁSÁRA VÁRUNK, MIELŐTT TOVÁBBLÉPÜNK (SAJÁT LELET a kattintó bejáróm első
+       * alakján, a böngészős kapu mérte ki).
+       *
+       * A LELET: a kattintás után AZONNAL nyomtam a „Tovább"-ot. A `tour.resend` első lépése a
+       * nézetet váltja (`auth-resend-open` → a megerősítés-újraküldő lap), és a következő lépés célja
+       * csak az ÚJRARAJZOLÁS után létezik. A „Tovább" így a RÉGI lapon értékelte a következő lépést,
+       * és nevezetten megszakadt — a cél a diagnosztika szerint EKKOR MÁR ott volt (`cél:1`), csak a
+       * kiértékelés pillanatában még nem. Vagyis a próba a SAJÁT türelmetlenségét mérte (KUKA-121).
+       *
+       * MOSTANTÓL megvárjuk, hogy a KÖVETKEZŐ lépés célja látható legyen — ahogy az ember is látja a
+       * változást, mielőtt továbblép. A várakozás KORLÁTOS, és a lejárata NEM bukás: ha a cél tényleg
+       * nem jelenik meg, a „Tovább" megy, és az ÚTMUTATÓ MAGA mondja ki a megszakítást — azt mérjük.
+       */
+      const kovetkezoCel = steps[i + 1].target;
+      await page.getByTestId(kovetkezoCel).first()
+        .waitFor({ state: 'visible', timeout: 3000 })
+        .catch(() => { /* nem jelent meg — a következő állítás ezt MÉRI, nem elfedi */ });
       await page.getByTestId('tour-next').click();
     }
   }

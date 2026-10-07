@@ -3280,6 +3280,30 @@ try {
       && /if \(megnyomhato\) await cel\.click/.test(jaroSrc)
       && /if \(i \+ 1 < steps\.length\) \{/.test(jaroSrc),
       { bejaro: 'a kiemelt vezérlőt is megnyomja' });
+
+    /**
+     * ÉS AZ OSZTÁLYRA ÁLTALÁNOS ŐR JÖN, NEM HARMADIK EGYEDI PIN (`KUKA-409` · KUKA-003).
+     *
+     * A kattintó bejáró a `tour.resend`-et is kibuktatta: az első lépése a NÉZET-VÁLTÓ gombra állt
+     * (`auth-resend-open`), ami CSAK a belépési nézetben létezik — megnyomva a lap átvált, a gomb
+     * MEGSZŰNIK, és a `checkRun` már az ELSŐ lépésen `targetMissing`-et ad. Ugyanaz az osztály, mint
+     * a `tour.logout`-nál: a bemutató elnavigál a saját céljától.
+     *
+     * A VÁLTÓ-KÉSZLET A LAP FORRÁSÁBÓL JÖN, nem beírt névsorból (KUKA-045): ami `data-auth=`-ot
+     * hordoz, az nézetet vált. Így egy JÖVŐBELI váltó-vezérlő is automatikusan fedve van.
+     */
+    const lapSrc = readFileSync(join(ROOT, 'v3app/public/app.js'), 'utf8');
+    const valtok = new Set([
+      ...(lapSrc.match(/data-auth="[a-z]+"[^>]*data-testid="([a-z0-9-]+)"/g) || []),
+      ...(lapSrc.match(/data-testid="([a-z0-9-]+)"[^>]*data-auth="[a-z]+"/g) || []),
+    ].map((x) => (/data-testid="([a-z0-9-]+)"/.exec(x) || [])[1]).filter(Boolean));
+    const valtoCel = [];
+    for (const t of Object.values(TOURS)) {
+      for (const lep of t.steps) if (valtok.has(lep.target)) valtoCel.push(`${t.id}/${lep.id}→${lep.target}`);
+    }
+    step('(ap10) KUKA-409: EGYETLEN útmutató-lépés sem áll NÉZET-VÁLTÓ vezérlőn — az ilyen gomb a használatával MEGSZŰNIK, és a bemutató a saját céljától navigál el (RÉGEN: a `tour.resend` első lépése az `auth-resend-open`-en állt, és a kattintó bejáró ki is buktatta)',
+      valtoCel.length === 0 && valtok.size >= 3,
+      { valto_vezerlo: valtok.size, lepes_ami_valton_all: valtoCel.join(', ') || 'egy sincs' });
   }
 
   // ── AM) R166 — A MÉRŐ ÖNELLENŐRZÉSE: EGY AZONOSÍTÓ EGY MÉRÉSRE MUTAT (KUKA-399) ─────────────

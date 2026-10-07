@@ -1064,12 +1064,24 @@ export const TOURS = Object.freeze({
     // lépés nevezi meg, a további célok `appears_after`-rel hozzá kötve: amit az útmutató nem nyom
     // meg helyettünk, arra VÁRNI kell (KUKA-228).
     // A kiinduló képernyő a BELÉPÉSI lap: onnan nyílik az újraküldés (az első lépés a feltáró gomb).
-    id: 'tour.resend', version: '1.0.0', audience: 'public', requires_anonymous: true,
-    auth_view: 'login', feature: 'auth.resend', page: null,
+    id: 'tour.resend', version: '1.1.0', audience: 'public', requires_anonymous: true,
+    /**
+     * AZ ÚTMUTATÓ OTT INDUL, AHOL A CÉLJAI VANNAK (R166, külső review nyomán MÉRT SAJÁT lelet · KUKA-409).
+     *
+     * A LELET: az előző alak `auth_view: 'login'`-ban indult, és az ELSŐ lépése a nézet-váltó gombra
+     * (`auth-resend-open`) állt. Ez a gomb CSAK a belépési nézetben létezik — megnyomva a lap átvált
+     * az újraküldő nézetre, és a gomb MEGSZŰNIK. A `checkRun` ilyenkor az ELSŐ lépésen ad
+     * `targetMissing`-et: a buborék azt írja, hogy „az útmutatóban megnevezett elem nem látható ezen a
+     * képernyőn" — egy teljesen ép lapon, pont azután, hogy a felhasználó azt tette, amit kértünk.
+     * Zsákutca működő folytatás nélkül (KUKA-201), ugyanaz az osztály, mint a `tour.logout`-nál.
+     *
+     * A kattintó bejáró MÉRTE KI (a korábbi alak átlépett a kattintás felett), és ez a bizonyíték arra,
+     * hogy a szigorítás nem formalitás volt.
+     */
+    auth_view: 'resend', feature: 'auth.resend', page: null,
     steps: Object.freeze([
-      Object.freeze({ id: 's1', target: 'auth-resend-open', task: null }),
-      Object.freeze({ id: 's2', target: 'resend-email', task: null, appears_after: 'auth-resend-open' }),
-      Object.freeze({ id: 's3', target: 'resend-submit', task: null, appears_after: 'auth-resend-open' }),
+      Object.freeze({ id: 's1', target: 'resend-email', task: null }),
+      Object.freeze({ id: 's2', target: 'resend-submit', task: null }),
     ]),
   }),
   'tour.logout': Object.freeze({

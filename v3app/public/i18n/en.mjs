@@ -1500,10 +1500,9 @@ export const TOUR = Object.freeze({
   }),
   'tour.resend': Object.freeze({
     title: 'Asking for a new confirmation letter',
-    lead: 'Three steps. You need this if the earlier letter expired or you cannot find it.',
-    s1: Object.freeze({ title: 'Open the resend page', body: 'You find it at the bottom of the sign-in screen. It takes you to the page where you can ask for a new letter.' }),
-    s2: Object.freeze({ title: 'The e-mail address', body: 'Give the same address you registered with.' }),
-    s3: Object.freeze({ title: 'Send', body: 'Always use the link from the most recent letter: a new letter invalidates the earlier one.' }),
+    lead: 'Two steps. You need this if the earlier letter expired or you cannot find it.',
+    s1: Object.freeze({ title: 'The e-mail address', body: 'Give the same address you registered with.' }),
+    s2: Object.freeze({ title: 'Send', body: 'Always use the link from the most recent letter: a new letter invalidates the earlier one.' }),
   }),
   'tour.logout': Object.freeze({
     title: 'Signing out',

@@ -15552,6 +15552,29 @@ Object.freeze({
   }),
 
   Object.freeze({
+    id: 'KUKA-409',
+    date: '2026-10-07',
+    title: 'AZ ÚTMUTATÓ ELSŐ LÉPÉSE A NÉZET-VÁLTÓ GOMBRA ÁLLT — AMIT MEGNYOMVA A GOMB MEGSZŰNIK',
+    what: 'A `tour.resend` `auth_view: \\x27login\\x27`-ban indult, és az ELSŐ lépése a nézet-váltó gombra (`auth-resend-open`) állt. Ez a gomb CSAK a belépési nézetben létezik: megnyomva a lap átvált az újraküldő nézetre, és a gomb MEGSZŰNIK.',
+    why_wrong: 'A `checkRun` ilyenkor már az ELSŐ lépésen `targetMissing`-et ad: a buborék azt írja, hogy „az útmutatóban megnevezett elem nem látható ezen a képernyőn" — egy teljesen ÉP lapon, pont azután, hogy a felhasználó azt tette, amit kértünk. Zsákutca működő folytatás nélkül (`KUKA-201`), ugyanaz az osztály, mint a `tour.logout`-nál (`KUKA-407`). ÉS CSAK A KATTINTÓ BEJÁRÓ FOGTA MEG: a korábbi alakom átlépett a kattintás felett, tehát a `KUKA-407` javítása NEM formalitás volt — azonnal talált egy második, ugyanilyen hibát.',
+    replaced_by: 'AZ ÚTMUTATÓ OTT INDUL, AHOL A CÉLJAI VANNAK: `auth_view: \\x27resend\\x27`, és a két lépés a mezőre meg a küldés gombjára áll — nézet-váltó lépés nélkül.',
+    replacement: 'ÉS AZ OSZTÁLYRA ÁLTALÁNOS ŐR JÖTT, NEM HARMADIK EGYEDI PIN (`KUKA-003`): egyetlen útmutató-lépés sem állhat nézet-váltó vezérlőn. A váltó-készlet a LAP FORRÁSÁBÓL jön (ami `data-auth=`-ot hordoz, az nézetet vált), nem beírt névsorból (`KUKA-045`) — így egy JÖVŐBELI váltó-vezérlő is automatikusan fedve van.',
+    decision: 'D-VS-3207',
+    found_by: 'Claude-v3 (saját lelet: a KUKA-407 javítása — a kattintó bejáró — mérte ki a böngészős kapuban).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/knowledge/features.mjs']),
+        pattern: "auth_view: 'resend', feature: 'auth\\.resend'",
+        why: 'az újraküldés útmutatója ott indul, ahol a céljai vannak' }),
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r154.mjs']),
+        pattern: 'ap10\\) KUKA-409',
+        why: 'és az ÁLTALÁNOS őr méri, hogy egyetlen lépés sem áll nézet-váltón' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'EGY LÉPÉS CÉLJA NEM LEHET OLYAN VEZÉRLŐ, AMI A HASZNÁLATÁVAL MEGSZŰNIK. A nézet-váltó gomb a saját nézetében él: aki megnyomja, elveszíti. A bemutató ezért ne odavigye a felhasználót, hanem INDULJON ott, ahová a váltó vezet. És a tanulság a mérésről is szól: a kattintó bejáró a bevezetése NAPJÁN talált egy második, ugyanilyen hibát — amit a szigorítás nélkül senki nem vett volna észre.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta) · `npm run verify:app-findings-r154` (ap10: a váltó-készlet a lap forrásából, és egyetlen lépés sem áll rajta) · `npm run verify:browser-gate` (az élő bejárás). Visszacsúszás-próba MÉRVE: a lépést visszatéve a váltó-gombra az ap10 PIROS.',
+  }),
+
+  Object.freeze({
     id: 'KUKA-397',
     date: '2026-10-07',
     title: 'A FELKÍNÁLÁST A TAGSÁGRA ÉS A KÖRNYEZETRE ALAPOZTAM, NEM AZ ÉLŐ FELTÉTELRE — AMIT NEM LEHET VÉGIGVINNI, AZT FELKÍNÁLTAM',

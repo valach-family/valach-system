@@ -1592,10 +1592,9 @@ export const TOUR = Object.freeze({
   }),
   'tour.resend': Object.freeze({
     title: 'Új megerősítő levél kérése',
-    lead: 'Három lépés. Akkor kell, ha a korábbi levél lejárt, vagy nem találod.',
-    s1: Object.freeze({ title: 'Nyisd meg az újraküldést', body: 'A belépési képernyő alján találod. Ez visz arra a lapra, ahol új levelet kérhetsz.' }),
-    s2: Object.freeze({ title: 'Az e-mail cím', body: 'Ugyanazt a címet add meg, amellyel regisztráltál.' }),
-    s3: Object.freeze({ title: 'Küldés', body: 'Mindig a legutóbbi levél hivatkozását használd: az új levél érvényteleníti a korábbit.' }),
+    lead: 'Két lépés. Akkor kell, ha a korábbi levél lejárt, vagy nem találod.',
+    s1: Object.freeze({ title: 'Az e-mail cím', body: 'Ugyanazt a címet add meg, amellyel regisztráltál.' }),
+    s2: Object.freeze({ title: 'Küldés', body: 'Mindig a legutóbbi levél hivatkozását használd: az új levél érvényteleníti a korábbit.' }),
   }),
   'tour.logout': Object.freeze({
     title: 'Kilépés',

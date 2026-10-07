@@ -429,6 +429,62 @@ Rögzítve: `D-VS-3207` · `KUKA-404` … `KUKA-408`.
 
 ---
 
+### 2.6 ÉS A JAVÍTÁS AZONNAL TALÁLT EGY MÁSODIK HIBÁT — A KAPU PIROSSAL KEZDTE
+
+A 2.5/(3b)-ben a bejárót arra javítottam, hogy **megnyomja a kiemelt vezérlőt**, ahogy az ember. A
+kötelező böngésző-kapu első futása erre **PIROSSAL** válaszolt: **1 bukott · 2 kihagyott**. Ezt nem
+hallgatom el, és nem is kerültem meg — **ez a javítás értelme**.
+
+#### A LELET, AMIT CSAK A SZIGORÍTÁS TALÁLT MEG
+
+A `tour.resend` első lépése a **nézet-váltó gombra** állt (`auth-resend-open`). Ez a gomb **csak a
+belépési nézetben létezik**: megnyomva a lap átvált az újraküldő nézetre, és a gomb **megszűnik**. A
+`checkRun` ilyenkor már az **első** lépésen `targetMissing`-et ad — a buborék azt írja, hogy *„az
+útmutatóban megnevezett elem nem látható ezen a képernyőn"* —, **egy teljesen ép lapon, pont azután,
+hogy a felhasználó azt tette, amit kértünk**. Zsákutca működő folytatás nélkül (`KUKA-201`), ugyanaz
+az osztály, mint a `tour.logout`-nál.
+
+**A diagnosztika mondta meg, nem a találgatás.** A bukó lépésnél a próba most kiírja a panel
+állapotát: `panel:1 next:0 cél(resend-email):1 · „Ez a lépés most nem folytatható…"` — vagyis a cél
+**ott volt**, a panel **ott volt**, de a „Tovább" eltűnt, mert az útmutató **megszakadt**. Ez zárta
+ki, hogy a cél hiányára gyanakodjak.
+
+#### ÉS EGY SAJÁT MÉRŐHIBA UGYANITT
+
+Az első kattintó alakom a kattintás után **azonnal** nyomta a „Tovább"-ot — az **újrarajzolás
+előtt**. A próba így a saját türelmetlenségét mérte (`KUKA-121`). Mostantól megvárom, hogy a
+**következő** lépés célja látható legyen; a várakozás **korlátos**, és a **lejárata nem bukás**: ha a
+cél tényleg nem jelenik meg, a „Tovább" megy, és **az útmutató maga mondja ki** a megszakítást — azt
+mérem. Így a szigorítás nem fedi el azt, amit mérnie kell.
+
+#### A JAVÍTÁS — ÉS ÁLTALÁNOS ŐR, NEM HARMADIK EGYEDI PIN
+
+A `tour.resend` **ott indul, ahol a céljai vannak**: `auth_view: 'resend'`, és a két lépés a
+címmezőre meg a küldés gombjára áll — nézet-váltó lépés nélkül.
+
+**És az osztály kapott egy általános őrt** (`KUKA-003`: egy szabály, egy otthon): **egyetlen
+útmutató-lépés sem állhat nézet-váltó vezérlőn**. A váltó-készlet a **lap forrásából** jön — ami
+`data-auth=`-ot hordoz, az nézetet vált —, nem beírt névsorból (`KUKA-045`), tehát egy **jövőbeli**
+váltó-vezérlő is automatikusan fedve van. Mérve: **5** váltó-vezérlő a lapon, **0** lépés áll rajtuk.
+
+| állítás | gépi jel | verdikt |
+|---|---|---|
+| egyetlen lépés sem áll nézet-váltón, és a készlet a lap forrásából jön | `ap10` | **ZÖLD** |
+| a tizenkét útmutató élő bejárása (U0–U3), 390 px-en is | `test:e2e` → `v3app-r166-utmutatok` | **4/4 ZÖLD** |
+| a teljes battéria | `verify:app-findings-r154` | **ZÖLD — 289/289** |
+| a tanulságok gépi jelei | `verify:kuka` | **ZÖLD — 913/913** |
+
+**VISSZACSÚSZÁS-PRÓBA MÉRVE:** a lépést visszatéve a váltó-gombra az **`ap10` piros**.
+
+**A TANULSÁG A MÉRÉSRŐL IS SZÓL.** A kattintó bejáró a **bevezetése napján** talált egy második,
+ugyanilyen zsákutcát — amit a szigorítás nélkül senki nem vett volna észre. A `KUKA-407` javítása
+tehát nem formalitás volt; és egy piros kapu, ami a saját munkámat buktatja meg, **értékesebb**, mint
+egy zöld, ami átengedi.
+
+Rögzítve: `D-VS-3207` · `KUKA-409`.
+
+---
+
 ## 3. R166 §1 — A MEGHÍVÓKÉPERNYŐ NEM ZSÁKUTCA
 
 **A termék-döntés megszületett, és a vele együtt megnyíló mérés is lefutott.** Az R164 jelentés 8/7.
@@ -533,11 +589,11 @@ megszakítást bukásnak** veszi, nem „nincs is baj"-nak.
 
 | lánc | verdikt |
 |---|---|
-| `verify:app-findings-r154` (a HTTP-határ és a pg-feloldók) | **ZÖLD — 288/288** (AJ · AK · AL · AI · AM · AN · AO · **AP ap1–ap9** új) |
+| `verify:app-findings-r154` (a HTTP-határ és a pg-feloldók) | **ZÖLD — 289/289** (AJ · AK · AL · AI · AM · AN · AO · **AP ap1–ap10** új) |
 | `proof:pg-intent` | **ZÖLD** — 10 állítás, mindkét tárolón, **0 eltérés**, valódi PostgreSQL 16.15 · újramérve, **és `socket:` címmel is végigfut** |
 | `proof:pg-restore-safety` | **ZÖLD — 49/49** (E10a–E10e és az `Y.` takarítás-lépés új) · `socket:` címmel is végigfut |
 | `proof:pg-durability` | **ZÖLD — 13/13** · a takarító kapcsoló **mind a négy állásán** újramérve (lásd 2.3) |
-| `verify:kuka` | **ZÖLD — 911/911** (KUKA-393…**408** új, **16** bejegyzés ebben a körben) |
+| `verify:kuka` | **ZÖLD — 913/913** (KUKA-393…**409** új, **17** bejegyzés ebben a körben) |
 | `verify:tutor` | **ZÖLD — 94/94** (két új állítás: a zárt listás `auth_view`, és hogy a nézet-nevek a felület forrásában is megvannak) |
 | `verify:i18n` | **ZÖLD — 49/49** · ellenpróba 6/6 (809 → **821** kulcs, mind a három bekapcsolt nyelven) |
 | `verify:assistant` | **ZÖLD — 55/55** |
@@ -718,3 +774,4 @@ nélkül; titok-minta ellenőrzéssel **0 találat**).
 | **KUKA-406** | aki kimondja a hiányt, de nem számolja be a verdiktbe, az elhallgatta |
 | **KUKA-407** | egy útmutató nem navigálhat el a saját céljától — és a bejárás nyomja meg, amit az ember |
 | **KUKA-408** | egy nemleges válasz nem hagyhat maga után romot |
+| **KUKA-409** | egy lépés célja nem lehet olyan vezérlő, ami a használatával megszűnik — és a piros kapu, ami a saját munkámat buktatja meg, értékesebb a zöldnél |
