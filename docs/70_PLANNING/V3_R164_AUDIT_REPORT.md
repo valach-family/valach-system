@@ -416,8 +416,13 @@ láncok visszamérésén jött ki — nem az írás pillanatában. Ma `28/28`.
    nyúltam hozzájuk.
 5. **A 20 lefedési hiány-kulcs** — a kettéosztás MÉRVE (19 pótolható · 1 fejlesztési rés), a
    pótolható rész ebben a csomagban hárommal csökkent. A maradék megírható munka, nem ismeretlen.
-6. **A `KUKA-362` viselkedés-szintű böngészős mérése** — ma nincs: a mai bemutató-út nem járja be ezt
-   az ágat. A mérés az 1. tétel befejezésével jön.
+6. **A `KUKA-362` és a `KUKA-383` KILÉPÉS-ágának böngészős mérése** — ma nincs, és most már a **pontos
+   okkal**: a meghívó-képernyő a teljes alkalmazás-héjat lecseréli, tehát a **profil-menü — és vele a
+   kilépés-vezérlő — ott nem rajzolódik ki**. A felületen így nincs út, amin a meghívó jegy a
+   címsorban állva kilépés érné. Amit mérünk: a **közös elfelejtőt** a beváltás ágán (ez bejárható);
+   a kilépés ága ugyanazt az **egy otthont** hívja. A hiányzó mérés feltétele egy **termék-döntés**:
+   legyen-e a meghívó-képernyőn kilépés vagy visszalépés (ez `KUKA-201` kérdése is — a nemleges válasz
+   vigye a működő folytatást), mert ma az a képernyő egy **zsákutca**, ha a meghívó már be van váltva.
 
 ---
 
