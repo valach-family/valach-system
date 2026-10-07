@@ -1626,7 +1626,23 @@ import { inviteNextKey } from './inviteText.mjs';
       // oldalra, és nem is gyárt meghívót — a szerver csak meghívás-kontextussal kínálta fel.
       if (state.authView !== 'invite') renderAuth('invite');
     } else if (def.requires_anonymous === true) {
-      if (state.authView !== 'register') renderAuth('register');
+      /**
+       * A BELÉPÉS ELŐTTI ÚTMUTATÓ A SAJÁT KÉPERNYŐJÉRE VISZ (R166 §3 — MÉRT lelet a böngészőben).
+       *
+       * A LELET: ez az ág FIXEN a regisztrációs képernyőre vitt. Amíg EGYETLEN belépés előtti
+       * útmutató volt (a regisztráció), ez igaznak LÁTSZOTT — de a cél az egyetlen akkori útmutatóból
+       * volt levezetve, nem az útmutató SAJÁT deklarációjából (`KUKA-227` osztálya). Az R166 §3 két új
+       * belépés előtti útmutatót adott (belépés · új megerősítő levél), és a régi ág mindkettőt a
+       * REGISZTRÁCIÓS lapra vitte — ahol a céljaik nem léteznek, tehát az útmutató azonnal
+       * NEVEZETTEN megszakadt. A felhasználó szemszögéből: a „mutasd meg, hogyan lépek be" a
+       * regisztrációs űrlapon ért véget.
+       *
+       * MOSTANTÓL az útmutató MONDJA MEG, melyik belépési nézetben jár (`auth_view`), és deklaráció
+       * NÉLKÜL nem navigálunk: a cél-ellenőrzés akkor NEVEZETTEN kimondja a hiányt, nem egy rossz
+       * képernyőre visz (fail-closed — KUKA-020 · KUKA-236). Gépi jel: `verify:tutor` TUT05.
+       */
+      const nezet = def.auth_view || null;
+      if (nezet && state.authView !== nezet) renderAuth(nezet);
     } else {
       const page = tourMod.pageOf(state.tour);
       if (page && state.page !== page) go(page);
@@ -1938,7 +1954,7 @@ import { inviteNextKey } from './inviteText.mjs';
         </form>
         <p class="authfoot">${esc(reg ? UI.haveAccount : UI.noAccountYet)}
           <button type="button" class="plain" data-auth="${reg ? 'login' : 'register'}">${esc(reg ? UI.loginTitle : UI.registerTitle)}</button></p>
-        ${reg ? '' : `<p class="authfoot"><button type="button" class="plain" data-auth="resend">${esc(UI.resendAsk)}</button></p>`}`;
+        ${reg ? '' : `<p class="authfoot"><button type="button" class="plain" data-auth="resend" data-testid="auth-resend-open">${esc(UI.resendAsk)}</button></p>`}`;
     } else if (kind === 'resend') {
       h = `<h1>${esc(UI.resendTitle)}</h1>
         ${state.resendReason ? `<p class="notice warn" data-testid="resend-reason">${esc(state.resendReason)}</p>` : ''}
@@ -2281,6 +2297,23 @@ import { inviteNextKey } from './inviteText.mjs';
     }
     main.innerHTML = noticeHtml + body;
     restoreForms();                 // …és a megkezdett kitöltés nem tűnik el a rajzolással
+    /**
+     * ÉS A FUTÓ ÚTMUTATÓ ÚJRAÉRTÉKELŐDIK — EGY OTTHONBAN (R166 §3 — MÉRT lelet, `KUKA-394`).
+     *
+     * A LELET: az újrarajzolás kicseréli a `main` tartalmát, és ezzel a futó útmutató KIEMELÉSE
+     * eltűnik — a buborék a helyes lépésen marad, de semmit nem mutat. Böngészőben mérve: a
+     * Bizonylatok és a Készletkarton útmutatója a lapra ért, a lépés helyes volt (`aria-current` a
+     * menüponton), a kiemelés viszont NULLA. A tagok-lap adata ezt eddig is bejelentette
+     * (`loadMembers` → `tourRecheck`), a többi nézet NEM — egy szabály, sok ház (KUKA-003 ·
+     * KUKA-039), és a hiányzó felén a felhasználó egy üresen mutogató útmutatót kapott.
+     *
+     * MIÉRT ITT, ÉS NEM A LEKÉRŐKBEN: a szabály nem az, hogy „a minta-adat megérkezett", hanem hogy
+     * „a nézet újrarajzolt" — annak pedig EZ az egy otthona. Így egy JÖVŐBELI lekérő sem tud
+     * elfelejteni bejelentkezni a listára (KUKA-159: a bekötés listája az ÚJ szabály hatóköréből jön).
+     * A rajzolás és az adat megérkezése két külön pillanat (KUKA-209), és a buborék a MÁSODIKAT is
+     * látni akarja.
+     */
+    tourRecheck();
   }
 
   /**

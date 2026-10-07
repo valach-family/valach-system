@@ -176,6 +176,22 @@ if (SELFTEST) {
     inv.gapKeys.length
       ? `${inv.gapKeys.length} hiány — a cél NULLA. Soronként lentebb; a regresszió-irány külön áll (LR1/LR2).`
       : 'nulla hiány');
+  /**
+   * (LT2) AZ ELFOGADÁSI CÉL KÜLÖN ÁLLÍTÁS — ÉS EZ NEM A `LT` LAZÍTÁSA (R166 §3).
+   *
+   * Az R166 §3 elfogadási célja SZÓ SZERINT: *„pótolható hiány 0; osztályozatlan 0"* — és külön
+   * kimondja, hogy a `personal.ownMatters` hiányzó képessége MEGMARAD nevesített fejlesztési résnek.
+   * A két kérdés tehát NEM ugyanaz: a `LT` a TELJES hiány-halmazt méri (az a cél továbbra is NULLA,
+   * és a fejlesztési rés miatt PIROS marad), ez az állítás pedig azt, hogy a PÓTOLHATÓ munka
+   * elkészült-e. A `LT` szövegén és feltételén EGY KARAKTERT sem változtattunk — különben a zöld
+   * eredmény a mérés lazításából jönne, nem a munkából (`KUKA-091` · az R166 §3 kikötése:
+   * „Az eredeti őrt ne gyengítsd pusztán zöld eredményért").
+   */
+  A('(LT2) AZ ELFOGADÁSI CÉL: PÓTOLHATÓ hiány 0 és OSZTÁLYOZATLAN 0 (a nevesített fejlesztési rés külön sor, a `LT` azt is számolja)',
+    inv.classes.fillable.length === 0 && inv.classes.unclassified.length === 0,
+    inv.classes.fillable.length || inv.classes.unclassified.length
+      ? `pótolható ${inv.classes.fillable.length} (${inv.classes.fillable.map((x) => x.key).join(' · ') || '—'}) · osztályozatlan ${inv.classes.unclassified.length}`
+      : `pótolható 0 · osztályozatlan 0 · a maradék ${inv.classes.capability_missing.length} NEVESÍTETT fejlesztési rés: ${inv.classes.capability_missing.map((x) => x.key).join(' · ') || '—'}`);
   A('(LR1) REGRESSZIÓ: nem jelent meg olyan hiány, ami a(z) ' + cov.GAP_BASELINE.version + ' alapvonalban nem volt',
     inv.unexpected.length === 0,
     inv.unexpected.length ? `${inv.unexpected.length} ÚJ: ${inv.unexpected.join(' · ')}` : `${inv.gapKeys.length} hiány, mind örökölt`);

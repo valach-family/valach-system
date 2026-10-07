@@ -120,8 +120,21 @@ test('R91-03 — MINDEN bemutató elindul a saját képernyőjén, vagy NEVEZETT
     const vart = DEKLARALT.filter((id) => !nevezettenKizart.includes(id));
     expect(tours.slice().sort(), 'a határ PONTOSAN a regiszter deklarált készletét adja ki — se néma kiesés, se kitalált azonosító')
       .toEqual(vart.slice().sort());
-    expect(nevezettenKizart.slice().sort(), 'és a kizártak LISTÁJA is a regiszterből jön, nem itteni névsorból')
-      .toEqual(['tour.inviteAccept', 'tour.inviteRevoke', 'tour.reentry', 'tour.register'].sort());
+    /**
+     * A KIZÁRTAK LISTÁJA PADLÓ, NEM PONTOS NÉVSOR (R166 §3 — KUKA-045 NEGYEDSZER).
+     *
+     * A korábbi alak egy BEÍRT négy-nevű listához mérte a kizártakat — pontosan az a hiba, amit a
+     * fenti saját megjegyzésem tilt („a kizártak LISTÁJA is a regiszterből jön, nem itteni
+     * névsorból"). Az R166 §3 két új belépés előtti útmutatót adott, és a beírt névsor azonnal
+     * pirosra vált egy ÉP rendszeren. A mérce ezért: a korábban kizártak MARADNAK kizárva (padló),
+     * és minden kizárásnak NEVEZETT indoka van a regiszterben — a halmaz mérete nőhet.
+     */
+    for (const id of ['tour.inviteAccept', 'tour.inviteRevoke', 'tour.reentry', 'tour.register']) {
+      expect(nevezettenKizart, `a korábban is kizárt ${id} TOVÁBBRA IS kizárt (padló)`).toContain(id);
+    }
+    const indokNelkul = nevezettenKizart.filter((id) => !(TOURS[id].requires_anonymous === true
+      || TOURS[id].requires_invite === true || actorSwitchSteps(TOURS[id]).length > 0));
+    expect(indokNelkul.join(',') || 'nincs', 'és MINDEN kizárásnak nevezett indoka van a regiszterben').toBe('nincs');
     expect(tours).not.toContain('tour.register');
     expect(tours, 'az R121 hozzáférés-életciklus bemutatója a kezelőnek jár').toContain('tour.scopeLifecycle');
     // A KÉT SZEREPLŐ-VÁLTÓ TÖRTÉNET ITT NEVEZETTEN NEM JÁR (R164/3): nem jogosultsági okból — a
@@ -144,7 +157,9 @@ test('R91-03 — MINDEN bemutató elindul a saját képernyőjén, vagy NEVEZETT
       const highlighted = await anna.page.locator('.tourtarget').count();
       const pending = await anna.page.getByTestId('tour-pending').count();
       const aborted = await anna.page.getByTestId('tour-aborted').count();
-      expect(highlighted + pending + aborted, `${id}: kiemel VAGY nevezetten vár/megszakít`).toBeGreaterThan(0);
+      const lepesCim = ((await anna.page.getByTestId('tour-step-title').textContent().catch(() => null)) || '(nincs)').trim();
+      expect(highlighted + pending + aborted,
+        `${id}: kiemel VAGY nevezetten vár/megszakít — kiemelt ${highlighted} · vár ${pending} · megszakadt ${aborted} · lépés „${lepesCim.slice(0, 40)}” · lap ${await anna.page.evaluate(() => (document.querySelector('[aria-current="page"]') || {}).dataset?.testid || '(nincs)')}`).toBeGreaterThan(0);
       if (aborted) await expect(anna.page.getByTestId('tour-aborted')).toHaveAttribute('data-why', /targetMissing|rightLost|contextChanged|notAvailable/);
       await anna.page.getByTestId('tour-exit').click();
       if (await anna.page.getByTestId('tour-close').count()) await anna.page.getByTestId('tour-close').click();

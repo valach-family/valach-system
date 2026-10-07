@@ -16,6 +16,61 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3202 — A TIZENKILENC PÓTOLHATÓ LEFEDÉSI HIÁNY LEZÁRVA, ÉS AZ ELFOGADÁSI CÉL KÜLÖN MÉRVE (R166 §3)
+
+> **Hatály:** V3 — a tudás-regiszter, a felület útmutatói és a lefedési őr. **V2-módosítás nem történt.**
+
+**Dátum:** 2026-10-07 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R166 §3 · **KUKA-394**
+
+**A döntés — négy tétel.**
+
+1. **A TIZENKÉT MŰKÖDŐ FUNKCIÓ SAJÁT, BEJÁRHATÓ ÚTMUTATÓT KAP** (`tour.verify` · `login` · `resend` ·
+   `logout` · `personalAccount` · `documents` · `partners` · `assistant` · `products` · `stockcard` ·
+   `movements` · `outbox`), a `shell.profile` pedig **kimondott közös utat** (`tour.language/s1`) —
+   eddig ezt csak a `tour_note` prózája állította, tehát a gép nem mérte. A hét **lap-hiány** ezekkel
+   szűnt meg, és mindegyik olyan lépésen áll, ami a **lapra** mutat, nem egy minden lapon ott álló
+   héj-horgonyon: az volt a hamis zöld, amit az R164 épp megszüntetett.
+2. **AZ ELFOGADÁSI CÉL KÜLÖN ÁLLÍTÁS, ÉS AZ EREDETI ŐR VÁLTOZATLAN.** Az R166 §3 célja szó szerint
+   „pótolható hiány 0; osztályozatlan 0" — ezt az **`LT2`** méri, és **ZÖLD**: *pótolható 0 ·
+   osztályozatlan 0*. A `LT` (teljes hiány-halmaz) **PIROS marad** az egyetlen megmaradó soron
+   (`page:personal`), és a szövegén egy karaktert sem változtattunk — különben a zöld a mérés
+   lazításából jönne, nem a munkából.
+3. **A `personal.ownMatters` MARAD NEVESÍTETT FEJLESZTÉSI RÉS** — a Saját ügyek listája mint
+   *képesség* nem létezik, tehát nem „megírható leírás" kérdése. A regiszter ezt nevesíti, az `LC2`
+   pedig megköveteli, hogy a hiányzó üzleti képességet kimondja.
+4. **A BEJÁRHATÓSÁG ÉLŐ TANÚT KAP.** A regiszter zöldje nem bejárhatóság: a
+   `tests/e2e/v3app-r166-utmutatok.spec.mjs` mind a tizenkét útmutatót **végigkattintja** a valódi
+   felületen (U0 a szövegek három nyelven · U1 a belépés előttiek · U2 a belépettek · U3 **390 px**),
+   és a **nevezett megszakítást bukásnak** veszi, nem „nincs is baj"-nak.
+
+**Miért kellett ez az élő tanú — NÉGY VALÓDI HIBA, amit csak a böngésző hozott ki.** A statikus őrök
+(lefedési leltár · tanító-őr · nyelvi őr) **mind zöldek** voltak, miközben:
+
+| lelet | mérve |
+|---|---|
+| a belépés előtti útmutató **mindig a regisztrációs lapra** vitt (a cél az egyetlen akkori ilyen útmutatóból volt általánosítva) | a „mutasd meg, hogyan lépek be" a **regisztrációs űrlapon** ért véget — `KUKA-394` |
+| a `tour.resend` célja **másik képernyőn** volt | azonnali nevezett megszakítás (`KUKA-232` osztálya) |
+| a `tour.logout` a **céges térben nem létező** `nav-security` menüpontra állt | a Belépés és biztonság csak a **személyes** menüben van; az út a **profil-menűn** megy |
+| a `tour.assistant` feltáró-lánca **pontatlan** volt | a kérdés-mezőt nem a súgó megnyitása tárja fel, hanem a **Kérdezz fül** |
+
+**És két kisebb, ugyanebben a körben javítva:** a megerősítő levél újraküldéséhez vezető gombnak
+**nem volt fogantyúja** (`auth-resend-open` — `KUKA-011`: hol kattint?), és a `tour.outbox`
+feltárója nem korábbi lépés célja volt — ezt a **`verify:tutor` fogta meg**, nem én.
+
+**Gépi jel.** `verify:lefedes` **17 ZÖLD / 1 PIROS** (a `LT` a nevesített fejlesztési résen) ·
+`LT2` **ZÖLD** · `verify:tutor` **94/94** (két új állítással: a zárt listás `auth_view`, és hogy a
+nézet-nevek a felület forrásában is megvannak) · `verify:i18n` **49/49** (a 12 útmutató szövege
+**mind a három bekapcsolt nyelven**: 809 → 821 kulcs) · `verify:assistant` **55/55** ·
+`app:selfcheck` **57/57** · `verify:kuka` **867/867**.
+
+**Amit ez NEM állít.** Nem állítja, hogy a lefedési őr zöld — **nem az**, és az ok nevesítve áll.
+Nem állítja, hogy minden funkciónak SAJÁT útmutatója van: a közös út továbbra is elfogadható, de
+**csak kimondva és valódi lépéssel** (a `shell.profile` így áll). És nem állítja, hogy a két
+engedélyhez kötött nézet (`stockcard` · `movements`) jogot ad a felhasználó helyett: az útmutató
+ott a jogadás útjára mutat, és a lap kimondja, ha nincs kiadva az adatkör.
+
+---
+
 ## D-VS-3201 — A KAPCSOLATI CÍM SÉMÁJA ZÁRT LISTA, ÉS A KÉT FOGYASZTÓ ELTÉRÉSE MEGÁLLÁS (R166/P1)
 
 > **Hatály:** V3 — a visszatöltési/mentési szerszámlánc (`tools/lib/vs_pg_target.mjs`). **V2-módosítás

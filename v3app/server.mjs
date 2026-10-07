@@ -2550,6 +2550,15 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
           // és nem a saját feltevéséből (F91-01 · AVL-01).
           audience: TOURS[id].audience ?? 'signed_in',
           requires_anonymous: TOURS[id].requires_anonymous === true,
+          /**
+           * …ÉS AZ IS, MELYIK BELÉPÉSI NÉZETBEN JÁR (R166 §3 — MÉRT lelet, `KUKA-394`).
+           *
+           * A lap a `def`-et EBBŐL a válaszból kapja, nem a regiszterből: egy itt ÁT NEM VITT mező a
+           * böngészőben `undefined`. A régi futtató ezért tudott működni hardkódolt céllal — amíg
+           * egyetlen belépés előtti útmutató volt. A mezőt tehát a HATÁRON is át kell adni, különben
+           * a felület a saját feltevéséből dolgozik (`KUKA-227`: a határ zöldje nem a felület zöldje).
+           */
+          auth_view: TOURS[id].auth_view ?? null,
           // A MEGHÍVÓ-KÉPERNYŐHÖZ KÖTÖTT BEMUTATÓ: a lap ebből tudja, hogy nem egy belső oldalra
           // kell vinnie, hanem a meghívó lapján kell maradnia (P109-01).
           requires_invite: TOURS[id].requires_invite === true,

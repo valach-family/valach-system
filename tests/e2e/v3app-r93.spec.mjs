@@ -18,6 +18,9 @@
 import { test, expect } from '@playwright/test';
 import { dictFor } from '../../v3app/public/i18n/dict.mjs';
 import { TOURS, actorSwitchSteps } from '../../v3app/knowledge/features.mjs';
+// AZ R166 §3 TIZENKÉT ÚTMUTATÓJÁNAK ÉLŐ TANÚJA EGY MÁSIK LAP — a listát ONNAN olvassuk, nem
+// írjuk ide másodszor: két névsor előbb-utóbb elcsúszik (KUKA-003 · KUKA-045).
+import { UJ_UTMUTATOK } from './r166Tours.mjs';
 import {
   World, createWorkspaceUI, openProfile, logoutUI,
   gotoPage, openInviteUI, redeemUI, ensureMemberRow, openMemberPanel, inviteUI, openMailbox, revokeUI,
@@ -414,9 +417,20 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
      *   · `switch_actor` — a szereplő-váltó történetek a bemutató LAPJÁN járhatók végig (fent).
      */
     const bejarando = DEKLARALT.filter((id) => TOURS[id].requires_invite !== true && !valtosBemutato(id));
-    expect(appShell.slice().sort(), 'a bejárási lista a regiszter készletét fedi — új bemutató nem maradhat ki némán')
+    /**
+     * A LEFEDÉS KÉT TANÚ ÖSSZEGE, ÉS MINDKETTŐ NEVEZETT (R166 §3).
+     *
+     * Az R166 §3 tizenkét pótolt útmutatót adott, és azokat SAJÁT lapja járja végig
+     * (`v3app-r166-utmutatok.spec.mjs` U0–U3: belépés előtt, belépve és 390 px-en is). A listát
+     * onnan IMPORTÁLJUK, tehát nem két névsor áll egymás mellett — ha egy új útmutató EGYIK tanúba
+     * sem kerül be, ez az állítás pirosra vált. A szabály tehát nem lazult: „új bemutató nem
+     * maradhat ki némán" továbbra is mérve, csak a tanúk SZÁMA kettő (KUKA-216: a verdikt nem
+     * mutathat a mérés hatókörén túl).
+     */
+    const masTanu = bejarando.filter((id) => UJ_UTMUTATOK.includes(id));
+    expect([...appShell, ...masTanu].slice().sort(), 'a bejárási lista a regiszter készletét fedi — új bemutató nem maradhat ki némán')
       .toEqual(bejarando.slice().sort());
-    expect(Object.keys(verdict).sort(), 'minden bejárandó bemutató végig lett járva').toEqual(
+    expect([...Object.keys(verdict), ...masTanu].sort(), 'minden bejárandó bemutató végig lett járva (a NEVEZETT másik tanúval együtt)').toEqual(
       bejarando.slice().sort(),
     );
     for (const id of appShell) {

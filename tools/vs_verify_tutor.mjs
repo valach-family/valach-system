@@ -196,6 +196,29 @@ function anchorExists(id) {
   }
   return false;
 }
+/**
+ * A BELÉPÉS ELŐTTI ÚTMUTATÓ KIMONDJA, MELYIK BELÉPÉSI NÉZETBEN JÁR (R166 §3).
+ *
+ * A LELET: a futtató FIXEN a regisztrációs nézetre vitt minden `requires_anonymous` útmutatót — a cél
+ * az EGYETLEN akkori ilyen útmutatóból volt általánosítva. Két új útmutató azonnal kibuktatta: a
+ * céljaik a BELÉPÉSI lapon vannak, nem a regisztráción. A nézet-nevek ZÁRT listán állnak: ami nincs
+ * rajta, az elírás, és piros (KUKA-236).
+ */
+const AUTH_VIEWS = Object.freeze(['login', 'register', 'resend']);
+const authViewBaj = [];
+for (const t of Object.values(TOURS)) {
+  if (t.requires_anonymous !== true) continue;
+  if (typeof t.auth_view !== 'string' || !AUTH_VIEWS.includes(t.auth_view)) {
+    authViewBaj.push(`${t.id}→${t.auth_view === undefined ? 'NINCS deklarálva' : String(t.auth_view)}`);
+  }
+}
+check('TUT05', 'MINDEN belépés előtti útmutató KIMONDJA a belépési nézetét (zárt lista: ' + AUTH_VIEWS.join(' · ') + ')',
+  authViewBaj.length === 0,
+  authViewBaj.join(' · ') || `${Object.values(TOURS).filter((t) => t.requires_anonymous === true).length} útmutató, mind deklarálja`);
+// ÉS A NÉZET-NEVEK A FORRÁSBAN IS LÉTEZNEK: a `renderAuth` ágai adják meg őket (nem feltevés).
+check('TUT05', 'a belépési nézetek nevei a FELÜLET forrásában is megvannak (renderAuth ágai)',
+  AUTH_VIEWS.every((v) => APP_SRC.includes(`'${v}'`)), AUTH_VIEWS.join(' · '));
+
 const anchorMissing = [];
 for (const f of FEATURES) for (const a of f.anchors) if (!anchorExists(a)) anchorMissing.push(`${f.id}→${a}`);
 check('TUT05', 'a funkció-horgonyok a FORRÁSBAN megvannak (szó szerint vagy nevezett sablon-családból)',

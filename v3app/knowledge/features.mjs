@@ -150,9 +150,7 @@ export const FEATURES = Object.freeze([
     outcomes: F(['success', 'refused', 'error']),
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     faq: F(['faq.verify.expired', 'faq.verify.used']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'a megerősítés EGY hivatkozás a levélből: nincs több lépése, amit végig lehetne vezetni — a levél útját a bemutató levél-fogadó (`shell.demo_mail`) mutatja meg',
+    tour: 'tour.verify',
     evidence: F(['v3app/selfcheck.mjs', 'v3app/findings_r75.mjs']),
   }),
   F({
@@ -165,9 +163,7 @@ export const FEATURES = Object.freeze([
     ai: F({ explain: true, open: false, prepare: false,
       note: 'a belépést a segéd nem végzi el és nem készíti elő: jelszó nem kerül a beszélgetésbe' }),
     faq: F(['faq.login.failed']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'egy űrlap két mezővel; a regisztrációs bemutató utolsó lépése ide vezet',
+    tour: 'tour.login',
     evidence: F(['v3app/selfcheck.mjs', 'tests/e2e/v3app-core-flow.spec.mjs']),
   }),
   F({
@@ -179,9 +175,7 @@ export const FEATURES = Object.freeze([
     outcomes: F(['success', 'refused', 'uncertain', 'error']),
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     faq: F(['faq.resend.why']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'egyetlen gomb a belépési képernyőn',
+    tour: 'tour.resend',
     evidence: F(['v3app/findings_r77.mjs']),
   }),
   F({
@@ -196,9 +190,7 @@ export const FEATURES = Object.freeze([
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     // R112 (1. történet): a kijelentkezés és az újrabelépés utáni nyelv kérdése — a TUT11 őr mérte hiánynak.
     faq: F(['faq.logout.language']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'egyetlen gomb a Belépés és biztonság oldalon',
+    tour: 'tour.logout',
     evidence: F(['v3app/selfcheck.mjs', 'tests/e2e/v3app-r97.spec.mjs', 'tests/e2e/v3app-r112-stories.spec.mjs']),
   }),
   F({
@@ -209,9 +201,7 @@ export const FEATURES = Object.freeze([
     outcomes: F(['success', 'empty']),
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     faq: F(['faq.account.personalVsBusiness']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'nem művelet, hanem ÁLLAPOT: a személyes fiók a belépéssel megvan',
+    tour: 'tour.personalAccount',
     evidence: F(['v3app/selfcheck.mjs', 'tests/e2e/v3app-r85.spec.mjs']),
   }),
   F({
@@ -441,9 +431,7 @@ export const FEATURES = Object.freeze([
     ai: F({ explain: true, open: true, prepare: false,
       note: 'a minta tartalmát a segéd nem továbbítja szolgáltatónak — csak a képernyő nyitható meg vele' }),
     faq: F(['faq.data.sampleAccess', 'faq.data.mixedDocument']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'a minta megnyitása EGY lap megnyitása: a végigvezetendő lépések a HOZZÁFÉRÉS oldalán vannak, ezért a `tour.scopeLifecycle` vezeti végig a megadást és a visszavonást — ez a lap annak a következményét mutatja',
+    tour: 'tour.documents',
     evidence: F(['v3app/findings_r121.mjs', 'tests/e2e/v3app-r121.spec.mjs']),
   }),
   F({
@@ -456,9 +444,7 @@ export const FEATURES = Object.freeze([
     outcomes: F(['success', 'missing', 'refused', 'error']),
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     faq: F(['faq.data.sampleAccess']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'egyetlen jelölt minta-szakasz egy meglévő lapon: nincs több lépése; a hozzáférés útját a `tour.scopeLifecycle` vezeti végig',
+    tour: 'tour.partners',
     evidence: F(['v3app/findings_r121.mjs', 'tests/e2e/v3app-r121.spec.mjs']),
   }),
   F({
@@ -552,6 +538,12 @@ export const FEATURES = Object.freeze([
     outcomes: F(['success']),
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     faq: F(['faq.profile.edit']),
+    // A MUNKAFELÜLET KIMONDVA, ÉS A KÖZÖS ÚT DEKLARÁLVA (R166 §3). A `tour_note` eddig PRÓZÁBAN
+    // állította, hogy a nyelv-bemutató első lépése nyitja meg a profil-oldalt — a gép ezt NEM
+    // mérte, tehát az állítás hihető volt, nem igazolt. Deklarációként a feloldó ELLENŐRZI: ha a
+    // `tour.language/s1` lépés eltűnik vagy máshová mutat, a lefedés PIROS lesz (KUKA-050 · KUKA-207).
+    surface: 'profile',
+    shared_tour: F({ tour: 'tour.language', steps: F(['s1']) }),
     tour: null,
     // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
     tour_note: 'a profil-oldalt a nyelv-bemutató (`tour.language`) első lépése nyitja meg',
@@ -602,9 +594,7 @@ export const FEATURES = Object.freeze([
       note: 'ez maga a segéd: a helyi keresés modellhívás nélkül működik, az élő modell-válasz '
         + 'engedélyezett szolgáltatói csatlakozáshoz kötött — enélkül NEVEZETTEN nem elérhető' }),
     faq: F(['faq.chat.source', 'faq.chat.limits', 'faq.chat.secrets', 'faq.chat.offline']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'a segéd MAGA a súgó Kérdezz nézete — a súgó-bemutató (`tour.help`) végigvezet rajta',
+    tour: 'tour.assistant',
     evidence: F(['tools/vs_verify_assistant.mjs', 'tools/v3_ai_kapcsolat_allapot.mjs']),
   }),
   F({
@@ -623,9 +613,7 @@ export const FEATURES = Object.freeze([
     outcomes: F(['success', 'empty', 'refused']),
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     faq: F(['faq.mail.real']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'a bemutató levél-fogadó a meghívás-bemutató (`tour.invite`) utolsó lépése',
+    tour: 'tour.outbox',
     evidence: F(['v3app/selfcheck.mjs']),
   }),
   F({
@@ -640,9 +628,7 @@ export const FEATURES = Object.freeze([
     outcomes: F(['success', 'empty']),
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     faq: F(['faq.demo.whatIsReal', 'faq.demo.noFixture']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'mintaadat-nézet: nincs benne művelet, amit végig lehetne vinni',
+    tour: 'tour.products',
     evidence: F(['tests/e2e/v3app-r85.spec.mjs']),
   }),
   F({
@@ -746,9 +732,7 @@ export const FEATURES = Object.freeze([
     outcomes: F(['success', 'empty', 'missing', 'refused', 'error']),
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     faq: F(['faq.stockcard.sameGate', 'faq.stockcard.whichProduct']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'ENGEDÉLYHEZ KÖTÖTT nézet: a karton csak akkor rajzol, ha a fiókkezelő kiadta a készletadatokat — a jogadást a `tour.grant` mutatja meg, a megnyíló nézetet a `tour.stock`. Egy saját bemutató vagy a jog nélkül állna meg (KUKA-232), vagy jogot adna a felhasználó helyett (KUKA-231)',
+    tour: 'tour.stockcard',
     evidence: F(['v3app/public/app.js (stockCardPage — stockGate)', 'tests/e2e/v3app-r85.spec.mjs']),
   }),
   F({
@@ -761,9 +745,7 @@ export const FEATURES = Object.freeze([
     outcomes: F(['success', 'empty', 'missing', 'refused', 'error']),
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     faq: F(['faq.movements.sameGate', 'faq.movements.readOnly']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'UGYANAZON a kapun áll, mint a Készletegyenleg: a mozgások csak kiadott készlet-engedéllyel rajzolnak — a jogadást a `tour.grant` mutatja, a nézetet a `tour.stock`; a `tour.reentry` 16–18. lépése pedig végig is viszi a visszatérő munkatárs útján',
+    tour: 'tour.movements',
     evidence: F(['v3app/public/app.js (movementsPage — stockGate)', 'tests/e2e/v3app-r85.spec.mjs']),
   }),
   F({
@@ -978,7 +960,10 @@ export const TOURS = Object.freeze({
     ]),
   }),
   'tour.register': Object.freeze({
-    id: 'tour.register', version: '1.0.0', audience: 'public', requires_anonymous: true, feature: 'auth.register', page: null,
+    // A belépési nézet KIMONDVA (R166 §3): eddig a futtató feltételezte, hogy a belépés előtti
+    // útmutató mindig a regisztráció — a feltételezés EGY útmutatóból általánosított (KUKA-227).
+    id: 'tour.register', version: '1.0.0', audience: 'public', requires_anonymous: true,
+    auth_view: 'register', feature: 'auth.register', page: null,
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'register-email', task: null }),
       Object.freeze({ id: 's2', target: 'register-password', task: null }),
@@ -1037,6 +1022,129 @@ export const TOURS = Object.freeze({
       Object.freeze({ id: 's1', target: 'nav-processes', task: null }),
       Object.freeze({ id: 's2', target: 'list-rows', task: null }),
       Object.freeze({ id: 's3', target: 'list-search', task: null }),
+    ]),
+  }),
+  // ── R166 §3 — A TIZENKÉT PÓTOLT BEMUTATÓ. Mindegyik VALÓDI, bejárható út egy MŰKÖDŐ funkción;
+  // egyik sem tölt ki üres tartalmat, és egyik sem minősít át pótolható tételt fejlesztési résnek.
+  // A lépés-CÉLOK a funkciók MÁR DEKLARÁLT horgonyai (a `nav-` és `sample-` sablon-családokból),
+  // tehát a `verify:tutor` TUT05 mindegyiket a FORRÁSBAN méri. Feladat-lépés egyikben sem kell: a
+  // nézetek OLVASÓK, és a bemutató nem kattint a felhasználó helyett (KUKA-231).
+  //
+  // KIMONDOTT KORLÁT, ami a `tour_note`-okból ide költözik: az ENGEDÉLYHEZ KÖTÖTT két nézet
+  // (`tour.stockcard` · `tour.movements`) a megnyíló táblát csak kiadott készlet-engedéllyel
+  // rajzolja — a jogadás a `tour.grant` útja, és ez a bemutató NEM ad jogot a felhasználó helyett.
+  'tour.verify': Object.freeze({
+    id: 'tour.verify', version: '1.0.0', audience: 'public', feature: 'auth.verify', page: null,
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'demo-mail-open', task: null }),
+      Object.freeze({ id: 's2', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
+    ]),
+  }),
+  'tour.login': Object.freeze({
+    // Belépve a célok (a belépési űrlap mezői) nincsenek a lapon — tehát NEVEZETT kizárás, nem
+    // `targetMissing`-gel megszakadó útmutató (F91-01 · KUKA-391).
+    id: 'tour.login', version: '1.0.0', audience: 'public', requires_anonymous: true,
+    auth_view: 'login', feature: 'auth.login', page: null,
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'login-email', task: null }),
+      Object.freeze({ id: 's2', target: 'login-password', task: null }),
+      Object.freeze({ id: 's3', target: 'login-submit', task: null }),
+    ]),
+  }),
+  'tour.resend': Object.freeze({
+    // AZ ÚTMUTATÓ ELŐBB ODAVISZ (R166 §3 — MÉRT lelet a böngészőben). Az első alakom a `resend-email`
+    // mezőre állt, ami a BELÉPÉSI képernyőn nem létezik: az útmutató NEVEZETTEN megszakadt („az
+    // útmutatóban megnevezett elem nem látható ezen a képernyőn"). Ez a `KUKA-232` osztálya — és
+    // pontosan az, amit az R166 §3 „ténylegesen bejárható" szava kizár. A feltáró vezérlőt az első
+    // lépés nevezi meg, a további célok `appears_after`-rel hozzá kötve: amit az útmutató nem nyom
+    // meg helyettünk, arra VÁRNI kell (KUKA-228).
+    // A kiinduló képernyő a BELÉPÉSI lap: onnan nyílik az újraküldés (az első lépés a feltáró gomb).
+    id: 'tour.resend', version: '1.0.0', audience: 'public', requires_anonymous: true,
+    auth_view: 'login', feature: 'auth.resend', page: null,
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'auth-resend-open', task: null }),
+      Object.freeze({ id: 's2', target: 'resend-email', task: null, appears_after: 'auth-resend-open' }),
+      Object.freeze({ id: 's3', target: 'resend-submit', task: null, appears_after: 'auth-resend-open' }),
+    ]),
+  }),
+  'tour.logout': Object.freeze({
+    // AZ ÚT A PROFIL-MENŰN MEGY (R166 §3 — MÉRT lelet a böngészőben). Az első alakom a `nav-security`
+    // menüpontra állt; a CÉGES térben viszont ilyen menüpont NINCS (a Belépés és biztonság a személyes
+    // menü része), tehát az útmutató ott azonnal NEVEZETTEN megszakadt. A profil-menü MINDKÉT térben
+    // ott van, és benne áll a lapra vezető gomb ÉS a kilépés is — így az útmutató tényleg bejárható,
+    // és a lapot is TÉNYLEGESEN meglátogatja (nem puszta `page` deklaráció).
+    id: 'tour.logout', version: '1.0.0', audience: 'signed_in', feature: 'auth.logout', page: 'security',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'profile', task: null }),
+      Object.freeze({ id: 's2', target: 'profile-menu-security', task: null, appears_after: 'profile' }),
+      Object.freeze({ id: 's3', target: 'logout', task: null, appears_after: 'profile' }),
+    ]),
+  }),
+  'tour.personalAccount': Object.freeze({
+    id: 'tour.personalAccount', version: '1.0.0', audience: 'signed_in', feature: 'account.personal', page: 'overview',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'header-workspace', task: null }),
+      Object.freeze({ id: 's2', target: 'account-switcher', task: null }),
+    ]),
+  }),
+  'tour.documents': Object.freeze({
+    id: 'tour.documents', version: '1.0.0', audience: 'signed_in', feature: 'data.documentSample', page: 'documents',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-documents', task: null }),
+      Object.freeze({ id: 's2', target: 'sample-document', task: null }),
+      Object.freeze({ id: 's3', target: 'sample-document-full', task: null }),
+    ]),
+  }),
+  'tour.partners': Object.freeze({
+    id: 'tour.partners', version: '1.0.0', audience: 'signed_in', feature: 'data.supplierSample', page: 'partners',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-partners', task: null }),
+      Object.freeze({ id: 's2', target: 'sample-supplier', task: null }),
+    ]),
+  }),
+  'tour.assistant': Object.freeze({
+    id: 'tour.assistant', version: '1.0.0', audience: 'signed_in', feature: 'shell.assistant', page: null,
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'help-open', task: null }),
+      // A FELTÁRÓ LÁNC PONTOS (R166 §3 — MÉRT lelet): a kérdés-mező nem a súgó megnyitásával jelenik
+      // meg, hanem a Kérdezz FÜL megnyitásával. A pontatlan feltáró-deklaráció a bejárást a már
+      // nyitott panel újbóli megnyitására küldte — vagyis a feltevés, nem a felület szerint ment.
+      Object.freeze({ id: 's2', target: 'help-tab-ask', task: null, appears_after: 'help-open' }),
+      Object.freeze({ id: 's3', target: 'chat-input', task: null, appears_after: 'help-tab-ask' }),
+      Object.freeze({ id: 's4', target: 'chat-send', task: null, appears_after: 'help-tab-ask' }),
+    ]),
+  }),
+  'tour.products': Object.freeze({
+    id: 'tour.products', version: '1.0.0', audience: 'signed_in', feature: 'shell.sample_pages', page: 'products',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-products', task: null }),
+      Object.freeze({ id: 's2', target: 'list-rows', task: null }),
+      Object.freeze({ id: 's3', target: 'list-search', task: null }),
+    ]),
+  }),
+  'tour.stockcard': Object.freeze({
+    id: 'tour.stockcard', version: '1.0.0', audience: 'signed_in', feature: 'data.stockcard', page: 'stockcard',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-stockcard', task: null }),
+      Object.freeze({ id: 's2', target: 'stockcard-table', task: null }),
+    ]),
+  }),
+  'tour.movements': Object.freeze({
+    id: 'tour.movements', version: '1.0.0', audience: 'signed_in', feature: 'data.movements', page: 'movements',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-movements', task: null }),
+      Object.freeze({ id: 's2', target: 'movements-table', task: null }),
+    ]),
+  }),
+  'tour.outbox': Object.freeze({
+    id: 'tour.outbox', version: '1.0.0', audience: 'signed_in', feature: 'shell.demo_mail', page: 'outbox',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-outbox', task: null }),
+      // A FELTÁRÓ CSAK KORÁBBI LÉPÉS CÉLJA LEHET — a `verify:tutor` jogosan szólt: a megnyitó
+      // vezérlő SAJÁT lépést kap, és a levél-fogadó utána jön (KUKA-228: amit az útmutató nem nyom
+      // meg helyettünk, arra várni kell).
+      Object.freeze({ id: 's2', target: 'demo-mail-open', task: null }),
+      Object.freeze({ id: 's3', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
     ]),
   }),
   'tour.accountSettings': Object.freeze({

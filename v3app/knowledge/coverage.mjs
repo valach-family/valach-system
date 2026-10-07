@@ -67,28 +67,24 @@ export const FLOOR = Object.freeze({ route: 32, page: 17, action: 42, form: 6, a
  * Az alapvonal szerkesztése önmagában NEM javítás: a teljesség tőle nem lesz zöld.
  */
 export const GAP_BASELINE = Object.freeze({
-  version: 'R164-potolt',
+  version: 'R166-potolt',
   at: '2026-10-07',
-  note: 'az R164/3 PÓTLÁSA UTÁN mért hiány-halmaz. HÁROM lap kikerült (fiók · folyamatok · raktárak: '
-    + 'megkapta a leírását, a GYIK-jét és a lépésenkénti útmutatóját három nyelven). EGY lap BEKERÜLT '
-    + '(`outbox`): nem új hiány, hanem egy korábbi HAMIS ZÖLD — a lefedés-őr addig a KÖZÖS tábla-horgonyt '
-    + '(`list-rows`) lap-azonosítónak fogadta el, ezért egy szomszéd lap bemutatója ezt is „bejártnak" '
-    + 'mondta (KUKA-239 osztálya, SAJÁT lelet R164). Az R158 jelentésem kézi számolása épp ezért jelzett '
-    + '11 lapot a gépi 10 helyett: a KÉZI szám volt a helyes, és most a gép is azt mondja. KÉT bemutató-sor '
-    + 'BEKERÜLT (`data.stockcard` · `data.movements`): ezek MOST kaptak leírást, tehát most lett MÉRHETŐ, '
-    + 'hogy saját útmutatójuk nincs — a hiány INDOKA a regiszterben áll (engedélyhez kötött nézet).',
+  note: 'az R166 §3 PÓTLÁSA UTÁN mért hiány-halmaz. A TIZENKILENC pótolható hiány MIND kikerült, és '
+    + 'nem a mérés lazításával: tizenkét MŰKÖDŐ funkció SAJÁT, bejárható bemutatót kapott '
+    + '(`tour.verify` · `login` · `resend` · `logout` · `personalAccount` · `documents` · `partners` · '
+    + '`assistant` · `products` · `stockcard` · `movements` · `outbox`), a `shell.profile` pedig '
+    + 'KIMONDOTT közös utat (`tour.language/s1`) — eddig ezt csak a `tour_note` PRÓZÁJA állította, '
+    + 'tehát a gép nem mérte. A hét LAP-hiány ezekkel a bemutatókkal szűnt meg: mindegyik olyan '
+    + 'lépésen áll, ami a LAPRA mutat (`nav-<lap>`), nem egy minden lapon ott álló héj-horgonyon — '
+    + 'az a HAMIS ZÖLD volt, amit az R164 épp megszüntetett (KUKA-239 osztálya). '
+    + 'EGY sor MARAD, és ez KIMONDOTT, nem feledékenység: a `page:personal` — a SAJÁT ÜGYEK listája '
+    + 'mint KÉPESSÉG nem létezik (`personal.ownMatters`), tehát nem „megírható leírás" kérdése. '
+    + 'Ezért a `LT` őr PIROS marad, és ezt NEM gyengítjük: az ELFOGADÁSI célt (pótolható 0 · '
+    + 'osztályozatlan 0) külön állítás méri (`LT2`), hogy a kettő ne mosódjon össze (R166 §3).',
   keys: Object.freeze([
-    // OLDAL — négynek nincs leírása, GYIK-je és bemutatója sem; négynek csak bemutatója nincs.
-    'page:documents', 'page:movements', 'page:outbox', 'page:partners', 'page:personal',
-    'page:products', 'page:security', 'page:stockcard',
-    // VÉGPONT — AZ R144-BEN MEGSZÜNTETVE (a `reads` deklarációval), ezért innen KIKERÜLT. A sorok
-    // törlése önmagában nem javítás: az `LR2` állítás PIROS lenne, ha a hiány még állna.
-    // BEMUTATÓ — a JAVÍTOTT mérés szerint (az R143-as négy hamis „shared" is ide került).
-    'tour:account.personal', 'tour:auth.login', 'tour:auth.logout', 'tour:auth.resend',
-    'tour:auth.verify', 'tour:data.documentSample', 'tour:data.supplierSample',
-    'tour:shell.assistant', 'tour:shell.profile', 'tour:shell.sample_pages',
-    // BEMUTATÓ — az R164/3-ban LEÍRT, engedélyhez kötött két készlet-nézet (az indok a regiszterben).
-    'tour:data.stockcard', 'tour:data.movements',
+    // A NEVESÍTETT FEJLESZTÉSI RÉS — az EGYETLEN maradék sor. Nem pótolható leírással: a képesség
+    // maga hiányzik, és a regiszter ezt NEVESÍTI (`missing_capability`).
+    'page:personal',
   ]),
 });
 

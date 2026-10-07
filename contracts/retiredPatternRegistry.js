@@ -15178,6 +15178,32 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (öt pozitív minta) · `npm run verify:app-findings-r154` (AC csoport, ac1–ac8: a zárt lista, a név, a kapu, az átirányítás, a fail-closed dobás, a divergencia, a gazdagép és a CLI-környezet) · `npm run proof:pg-restore-safety` (E10a–E10e: a kár valódi kiszolgálón — az átirányítás a friss célra megy, az eredeti érintetlen). Visszacsúszás-próba MÉRVE: a séma-sor és a divergencia-blokk visszaállítására a battéria 11 pinje piros (köztük az ac3: a kapu újra átengedte volna a valódi adatbázist).',
   }),
 
+  Object.freeze({
+    id: 'KUKA-394',
+    date: '2026-10-07',
+    title: 'A BELÉPÉS ELŐTTI ÚTMUTATÓ CÉLJA AZ EGYETLEN LÉTEZŐ PÉLDÁBÓL VOLT ÁLTALÁNOSÍTVA — MINDEN ILYEN ÚTMUTATÓT A REGISZTRÁCIÓS LAPRA VITT',
+    what: 'A `startTour` `requires_anonymous` ága FIXEN a regisztrációs nézetre navigált (`if (state.authView !== \'register\') renderAuth(\'register\')`). Amíg EGYETLEN belépés előtti útmutató volt — a regisztráció —, ez igaznak látszott, és minden próba zöld volt rá.',
+    why_wrong: 'A CÉL NEM AZ ÚTMUTATÓ SAJÁT DEKLARÁCIÓJÁBÓL JÖTT, hanem abból, hogy akkor csak egy ilyen útmutató létezett. Az R166 §3 két újat adott (belépés · új megerősítő levél), és a futtató MINDKETTŐT a regisztrációs lapra vitte — ahol a céljaik (`login-email`, az újraküldés gombja) nem léteznek, tehát az útmutató AZONNAL nevezetten megszakadt. A felhasználó szemszögéből: a „mutasd meg, hogyan lépek be” a REGISZTRÁCIÓS űrlapon ért véget. Ugyanez az osztály bukott ki három másik ponton is: a `tour.resend` célja másik képernyőn volt (`KUKA-232`), a `tour.logout` a céges térben NEM létező `nav-security` menüpontra állt, és a `tour.assistant` feltáró-lánca a súgó megnyitását mondta a kérdés-mező feltárójának. Mind a négyet a BÖNGÉSZŐS bejárás mérte ki — a regiszter és a lefedési leltár ZÖLD volt rájuk.',
+    replaced_by: 'AZ ÚTMUTATÓ MONDJA MEG, MELYIK BELÉPÉSI NÉZETBEN JÁR: `auth_view` a bemutató-regiszterben (`login` · `register` · `resend`), és a futtató ezt használja. Deklaráció NÉLKÜL nem navigálunk: a cél-ellenőrzés akkor nevezetten kimondja a hiányt, nem egy rossz képernyőre visz (fail-closed).',
+    replacement: 'ÉS A DEKLARÁCIÓT A GÉP KÉRI: `verify:tutor` TUT05 — minden `requires_anonymous` útmutatónak van `auth_view`-ja, ZÁRT listáról, és a nézet-nevek a felület forrásában is megvannak. A bejárhatóságot külön, ÉLŐ tanú méri: `tests/e2e/v3app-r166-utmutatok.spec.mjs` mind a tizenkét pótolt útmutatót végigkattintja.',
+    decision: 'D-VS-3202',
+    found_by: 'SAJÁT MÉRÉS (Claude-v3, R166 §3) — a böngészős bejárás írása közben, a statikus őrök zöldje mellett.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'const nezet = def\.auth_view \|\| null;',
+        why: 'a cél az útmutató SAJÁT deklarációjából jön, nem egy általánosításból' }),
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_tutor.mjs']),
+        pattern: 'const AUTH_VIEWS = Object\.freeze',
+        why: 'és a nézet-nevek ZÁRT listán állnak (KUKA-236)' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r166-utmutatok.spec.mjs']),
+        pattern: 'NEVEZETT megszakítás',
+        why: 'az ÉLŐ tanú a nevezett megszakítást bukásnak veszi, nem „nincs is baj”-nak' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'AMIBŐL EGY PÉLDA VAN, ABBÓL NEM SZABAD SZABÁLYT OLVASNI. Egyetlen eset mellett a hardkódolt cél és a helyes cél megkülönböztethetetlen — a második eset megjelenésekor derül ki, hogy a kód nem a SZABÁLYT írta le, hanem a példát. Ezért a cél-fajta dolgokat (melyik képernyőn jár, mi tárja fel a célját) a DARAB MONDJA MEG magáról, és a gép kérje be a deklarációt. És a második tanulság a mérésről: a regiszter zöldje nem bejárhatóság. Négy valódi, a felhasználót közvetlenül érintő hiba mellett a statikus őrök (lefedési leltár · tanító-őr · nyelvi őr) MIND zöldek voltak — a bukást a böngésző hozta.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (három pozitív minta) · `npm run verify:tutor` (TUT05: a zárt listás `auth_view` és a feltáró-lánc szabálya) · `npm run test:e2e` → `tests/e2e/v3app-r166-utmutatok.spec.mjs` (U0–U3: a tizenkét útmutató végigkattintva, 390 px-en is).',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({
