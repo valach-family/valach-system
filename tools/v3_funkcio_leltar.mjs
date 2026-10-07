@@ -161,6 +161,41 @@ if (SELFTEST) {
     inv.dead.length === 0,
     inv.dead.length ? `${inv.dead.length} halott sor — vedd ki a GAP_BASELINE.keys-ből: ${inv.dead.join(' · ')}` : 'nincs halott sor');
 
+  /**
+   * ════════════════════════════════════════════════════════════════════════════════════════════
+   * A HIÁNY KÉT CSOPORTJA — MÉRVE, NEM A JELENTÉSBEN ELMONDVA (R164/3)
+   *
+   * Az R164/3 azt kérte, hogy a réseket a VALÓDI kód szerint bontsuk kettőre, és azt is, hogy „ne
+   * állítsd, hogy minden rés ebből jön". Egy jelentés-bekezdés ezt nem tudja igazolni, ezért a
+   * csoportot a REGISZTER állapotából vezetjük le (`classifyGaps`), és itt MEGMÉRJÜK:
+   *   · minden hiány pontosan EGY csoportba esik — OSZTÁLYOZATLAN nem maradhat;
+   *   · és a „nevesített fejlesztési rés" tényleg NEVEZETT: a tervezett bejegyzés kimondja, mi hiányzik.
+   * ════════════════════════════════════════════════════════════════════════════════════════════
+   */
+  const cls = inv.classes;
+  A('(LC1) A KÉT CSOPORT TELJES: minden hiány pótolható VAGY nevesített fejlesztési rés — OSZTÁLYOZATLAN nincs',
+    cls.unclassified.length === 0 && cls.total === inv.gapKeys.length,
+    cls.unclassified.length
+      ? `${cls.unclassified.length} OSZTÁLYOZATLAN: ${cls.unclassified.map((x) => `${x.key} (${x.basis})`).join(' · ')}`
+      : `pótolható ${cls.fillable.length} · nevesített fejlesztési rés ${cls.capability_missing.length} · összesen ${cls.total} = a hiány-kulcsok száma`);
+  A('(LC2) A FEJLESZTÉSI RÉS NEVEZETT: mindegyik kimondja, MI a hiányzó üzleti képesség',
+    cls.capability_missing.every((x) => typeof x.reason === 'string' && x.reason.length > 20),
+    cls.capability_missing.length
+      ? cls.capability_missing.map((x) => `${x.key}: ${String(x.reason || '').slice(0, 70)}…`).join(' · ')
+      : 'nincs fejlesztési rés a hiányok között');
+  // ELLENPÁR: ha a tervezett bejegyzés NEM nevezi meg a hiányzó képességet, a sor OSZTÁLYOZATLAN
+  // lesz — nem csúszik némán a „fejlesztési rés" sávba (KUKA-012).
+  {
+    const hamisFeatures = FEATURES.map((f) => (f.screen === 'personal' && f.status === 'planned'
+      ? { ...f, missing_capability: undefined } : f));
+    const hamis = cov.classifyGaps({ rows: inv.rows, tourRows: inv.tourRows, features: hamisFeatures });
+    A('(LC3) ELLENPÁR: a MEGNEVEZÉS NÉLKÜLI tervezett bejegyzés OSZTÁLYOZATLAN-ra vált (nem lesz némán „fejlesztési rés")',
+      hamis.unclassified.some((x) => x.key === 'page:personal') && hamis.capability_missing.length === 0,
+      `osztályozatlan: ${hamis.unclassified.map((x) => x.key).join(', ') || 'nincs'}`);
+  }
+  console.log(`      PÓTOLHATÓ (${cls.fillable.length}): ${cls.fillable.map((x) => x.key).join(', ')}`);
+  console.log(`      NEVESÍTETT FEJLESZTÉSI RÉS (${cls.capability_missing.length}): ${cls.capability_missing.map((x) => x.key).join(', ') || 'nincs'}`);
+
   // ÉS A FAJTÁNKÉNTI ÁLLAPOT KIÍRVA — a nyitott halmaz nem elrejti, hogy MI maradt (KUKA-093).
   const cimek = { route: 'végpont', page: 'oldal', action: 'művelet', form: 'űrlap', authview: 'belépési nézet' };
   for (const k of cov.KINDS) {

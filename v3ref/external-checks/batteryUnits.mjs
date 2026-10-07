@@ -62,7 +62,16 @@ export const EXTERNAL_CAP_MS = 15_000;
  * finomított, mind a költségvetésen belül (2 perc 50 mp). A deklarált szám ezért 18 — negyedszer
  * avult el kézzel; a származtatott alak hiánya a fenti mért korlát miatt áll.
  */
-export const DECLARED_UNITS = 18;
+// R164 (253 mutáció, 69 mag-próba): a TIZENNYOLCAS bontás egysége ~19 s-ot kért, a TIZENEGYES
+// 31 326 ms-ot — mindkettő a `mutate.mjs` SAJÁT költségvetése (12 000 ms) és a külső korlát
+// (15 000 ms) fölött, ezért az `r57a`/`r59a` `spawnSync … ETIMEDOUT`-tal HALT MEG. MÉRVE ugyanezen a
+// gépen: 32 egység → 12 487 ms (a saját költségvetés FÖLÖTT), 40 egység → 11 960 ms (BELEFÉR).
+// A deklarált szám ezért 40 — ÖTÖDSZÖR avult el kézzel, ÉS a kézi avulás most már NEM a hívó-oldal
+// egyetlen védelme: a hívók az `adaptiveUnitPlan`-en mennek át, ami IDŐTÚLLÉPÉSRE finomít (lentebb).
+// A statisztika, amit ez megmutatott: az egység költsége NEM a mutáció-szám lineáris függvénye —
+// van egy ~4 s-os fix indulási költség (a teljes próbafutás), ezért a „mutáció / N" osztó önmagában
+// sosem lehet a szabály (KUKA-045).
+export const DECLARED_UNITS = 40;
 
 /** A futásidejű darabszám: környezetből felülírható, különben a deklarált érték. */
 export function batteryUnits(env = process.env) {
@@ -106,4 +115,50 @@ export function unitsScriptLineIsHomed(line) {
     why: `a sor egyik OTTHONOS alakkal sem egyezik — vagy \`${unitsScriptLineAuto()}\` (származtatott), `
       + `vagy a ${DECLARED_UNITS} egységre kiírt teljes felsorolás`,
   };
+}
+
+/**
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ * AZ ADAPTÍV DARABOLÁS — A DARABSZÁM MÉRÉSBŐL JÖN, NEM KÉZBŐL (R164/3)
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * AMIT EZ A FÁJL EDDIG MAGÁRÓL ÁLLÍTOTT, ÉS AMI IGAZ IS VOLT: a `DECLARED_UNITS` kézzel karbantartott
+ * szám, és NÉGYSZER avult el a battéria növekedésekor (lásd a fenti bekezdéseket, KUKA-045). ÖTÖDSZÖR
+ * is elavult: MÉRVE (R164) egy egység a TIZENEGYES bontáson 31 326 ms-ot kért, a külső fél bejelentett
+ * korlátja 15 000 ms — ezért az `r57a` és az `r59a` ADAPTÁLT programok `spawnSync … ETIMEDOUT`-tal
+ * haltak meg, és a lánc két örökölt pirosa ebből jött, nem tartalmi bukásból.
+ *
+ * A STATISZTIKA, AMI MEGMUTATTA: az egység költsége nem a mutációk számával nő egyedül, hanem a
+ * MUTÁCIÓNKÉNTI költséggel is (ma 69 mag-próba, 3 890 ms egy teljes próbafutás) — tehát a „mutáció
+ * / 24" osztó egy MÁSODIK, rejtett feltevést is hordozott: hogy a mutáció költsége állandó. Nem az.
+ *
+ * A SZABÁLY, AMI A SZÁM HELYÉRE LÉP — ugyanaz, amit ez a fájl eddig is kimondott, csak most GÉP is
+ * betartatja: *minden egység férjen bele a saját költségvetésébe.* Ha nem fér, FINOMABBRA osztunk —
+ * a költségvetés nem tágul (KUKA-091). A jel nem jóslat: a gyermek IDŐTÚLLÉPÉSE vagy nem-nulla
+ * kilépése. Ez ugyanaz az elv, amit a repón belüli `mutate.mjs --units-auto` már követ; itt a KÜLSŐ
+ * programok adaptációja kapja meg, mert azoknak a külső fél 15 000 ms-os korlátját KELL tartaniuk.
+ *
+ * ÉS A FINOMÍTÁS NEM NÉMA (KUKA-093): a terv minden kísérletet kiír, és ha a plafonon sem fér bele,
+ * a válasz NEM zöld, hanem nevezett „nem fért bele".
+ *
+ * @param {(n:number) => { timedOut: boolean, exit: number|null, runs: Array }} spawnUnits
+ *   A hívó adja: n egységet futtat, és megmondja, volt-e IDŐTÚLLÉPÉS. A modul nem spawn-ol — így
+ *   próbából is hívható, valódi gyermek nélkül (KUKA-207).
+ */
+export function adaptiveUnitPlan({ spawnUnits, startUnits = batteryUnits(), maxUnits = 256, maxAttempts = 5 }) {
+  const log = [];
+  let n = Math.max(1, Math.min(Number(startUnits) || 1, maxUnits));
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const r = spawnUnits(n);
+    if (!r.timedOut) {
+      log.push(`${attempt}. ${n} egység — belefért a ${EXTERNAL_CAP_MS} ms-os korlátba`);
+      return { units: n, attempts: attempt, fitted: true, log: Object.freeze(log), result: r };
+    }
+    log.push(`${attempt}. ${n} egység — IDŐTÚLLÉPÉS a ${EXTERNAL_CAP_MS} ms-os korláton, finomítás`);
+    if (n >= maxUnits) break;
+    n = Math.min(n * 2, maxUnits);
+  }
+  const r = spawnUnits(n);
+  log.push(`záró: ${n} egység — ${r.timedOut ? 'A PLAFONON SEM FÉRT BELE' : 'belefért'}`);
+  return { units: n, attempts: maxAttempts + 1, fitted: !r.timedOut, log: Object.freeze(log), result: r };
 }

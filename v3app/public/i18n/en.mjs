@@ -1012,6 +1012,72 @@ export const KB = Object.freeze({
     result: 'None: this surface no longer exists.',
     outcomes: Object.freeze({}),
   }),
+  // ── R164/3 — the filled-in descriptions. All five screens already work today; the text states that
+  // each is read-only, and what is NOT possible today (KUKA-050: the text follows reality).
+  'data.warehouses': Object.freeze({
+    title: 'Warehouses',
+    purpose: 'Shows the warehouses and, for each one, how many items belong to it. A read-only view: you cannot add, rename or remove a warehouse here today.',
+    prereq: 'An open account. No separate data permission is needed: this page shows the account’s sample data.',
+    result: 'The list of warehouses. The item count tells you how many products from the account’s sample data belong to that warehouse.',
+    outcomes: Object.freeze({
+      success: 'The list of warehouses is shown.',
+      empty: 'This account has no sample data. You can still see the layout.',
+    }),
+  }),
+  'data.processes': Object.freeze({
+    title: 'Processes',
+    purpose: 'Shows the processes: identifier, name, state and time. You can filter by state. A read-only view: you cannot start, change or close a process here today.',
+    prereq: 'An open account. No separate data permission is needed: this page shows the account’s sample data.',
+    result: 'The list of processes. The filter narrows the rows shown — nothing in the account changes because of it.',
+    outcomes: Object.freeze({
+      success: 'The list of processes is shown.',
+      empty: 'This account has no sample data. You can still see the layout.',
+    }),
+  }),
+  'data.stockcard': Object.freeze({
+    title: 'Product card',
+    purpose: 'Shows one product’s details on a single page: name, identifier, kind, quantity and warehouse. The same permission decides this as the Stock balance.',
+    prereq: 'Membership in the account, and the account manager’s permission for stock data.',
+    result: 'The product card, and a button that takes you to Stock movements. Where the quantity is not known, we say so — not zero.',
+    outcomes: Object.freeze({
+      success: 'The product card is loaded.',
+      empty: 'This account has no sample data. You can still see the layout.',
+      missing: 'Where the quantity is not known, we say so — not zero. “Not known” means nobody measured it; “Not provided” means nobody entered it.',
+      refused: 'You do not have access to this data yet. The account manager can grant it.',
+      error: 'The stock data could not be loaded. Nothing changed in the account.',
+    }),
+  }),
+  'data.movements': Object.freeze({
+    title: 'Stock movements',
+    purpose: 'Shows movements in time order: when, which product, which operation and how much. The same permission decides this as the Stock balance. A read-only view: you cannot record a movement here today.',
+    prereq: 'Membership in the account, and the account manager’s permission for stock data.',
+    result: 'The list of movements in time order, with the row count at the bottom of the page.',
+    outcomes: Object.freeze({
+      success: 'The list of movements is shown.',
+      empty: 'This account has no sample data. You can still see the layout.',
+      missing: 'Where the quantity is not known, we say so — not zero.',
+      refused: 'You do not have access to this data yet. The account manager can grant it.',
+      error: 'The stock data could not be loaded. Nothing changed in the account.',
+    }),
+  }),
+  'account.settings': Object.freeze({
+    title: 'Account details',
+    purpose: 'Shows the open account’s name, your role in it, the subscription and the business details that were provided. A read-only view: you cannot change the business details here today.',
+    prereq: 'An open account.',
+    result: 'The account page. About the business details we state it plainly: provided data, not verified — we did not check it with any authority.',
+    outcomes: Object.freeze({
+      success: 'The account details are shown.',
+    }),
+  }),
+  'personal.ownMatters': Object.freeze({
+    title: 'My matters',
+    purpose: 'This is where the matters you start in your own name will appear — not the account’s data, but yours. The capability does not exist yet: the page opens today and states that it is empty.',
+    prereq: 'Being signed in. No account is needed: this page is about you, not about the business.',
+    result: 'Today, an empty state that tells you what will appear here. It is not an error message: there is nothing to show.',
+    outcomes: Object.freeze({
+      missing: 'The list of my matters does not exist yet. This is not a fault and not a permission question: the capability has not been built.',
+    }),
+  }),
 });
 
 export const FAQ = Object.freeze({
@@ -1219,6 +1285,51 @@ export const FAQ = Object.freeze({
     q: 'My newly created account is empty. Is it broken?',
     a: 'No. The sample data is fixed to two companies; a new account deliberately starts empty. The layout can still be seen.',
   }),
+  // ── R164/3 — frequent questions for the filled-in capabilities.
+  'faq.warehouses.readOnly': Object.freeze({
+    q: 'How do I add a new warehouse?',
+    a: 'Not today: this page is a read-only view. Adding a warehouse has not been built yet — it is not a permission question, and not a fault. Until it exists, the page shows the account’s sample data.',
+  }),
+  'faq.warehouses.itemCount': Object.freeze({
+    q: 'What does the item count next to a warehouse mean?',
+    a: 'How many products from the account’s sample data belong to that warehouse. It is not a quantity and not a stock value: it counts products.',
+  }),
+  'faq.processes.filter': Object.freeze({
+    q: 'What does the state filter do on Processes?',
+    a: 'It only narrows the rows shown. Nothing in the account changes because of it, and filtering sends nothing — clear the filter and you see everything again.',
+  }),
+  'faq.processes.readOnly': Object.freeze({
+    q: 'How do I start or close a process?',
+    a: 'Not today: this page is a read-only view. Starting and closing a process has not been built yet. The page says so rather than pretending it works.',
+  }),
+  'faq.stockcard.sameGate': Object.freeze({
+    q: 'Why can I not see the Product card if I cannot see the Stock balance either?',
+    a: 'Because the same permission decides both — and Stock movements too. The account manager grants stock data in one place; from then on all three open.',
+  }),
+  'faq.stockcard.whichProduct': Object.freeze({
+    q: 'Whose product card am I looking at?',
+    a: 'The first product in the account’s sample data. Choosing a product has not been built yet; you can still see how the card is laid out.',
+  }),
+  'faq.movements.sameGate': Object.freeze({
+    q: 'Why can I not see Stock movements?',
+    a: 'Because the permission for stock data decides it — the same one as for Stock balance and the Product card. The account manager can grant it.',
+  }),
+  'faq.movements.readOnly': Object.freeze({
+    q: 'How do I record a stock movement?',
+    a: 'Not today: this page is a read-only view. Recording a movement has not been built yet, which is why the page offers no button for it.',
+  }),
+  'faq.account.notChecked': Object.freeze({
+    q: 'The account page says the business detail is “not verified”. What does that mean?',
+    a: 'That we stored what was provided, but did not confirm it with any authority. It does not mean it is wrong — it means we are not the ones claiming it is right.',
+  }),
+  'faq.account.whoChanges': Object.freeze({
+    q: 'How do I change the account’s business details?',
+    a: 'Not today: this page is a read-only view. Changing them has not been built yet. The account name and the subscription are managed by the account manager on their own pages.',
+  }),
+  'faq.personal.whyEmpty': Object.freeze({
+    q: 'Why is the My matters page empty?',
+    a: 'Because the capability does not exist yet: there is nothing you could record or request in your own name. This is not a permission question and not a fault — the page tells you what will appear here.',
+  }),
 });
 
 export const TOUR = Object.freeze({
@@ -1353,6 +1464,27 @@ export const TOUR = Object.freeze({
     s3: Object.freeze({ title: 'Common questions', body: 'A searchable question–answer list. Works without an AI service.' }),
     s4: Object.freeze({ title: 'Site map', body: 'Shows which menu items are available to you in this account — the system builds the list from your permissions.' }),
   }),
+  'tour.warehouses': Object.freeze({
+    title: 'The Warehouses page',
+    lead: 'Three steps. A read-only view: nothing is saved along the way.',
+    s1: Object.freeze({ title: 'Open Warehouses', body: 'You will find it in the Master data group. The page shows the account’s sample data.' }),
+    s2: Object.freeze({ title: 'The list', body: 'Warehouse, kind, and how many items belong to it. The item count counts products, not quantity.' }),
+    s3: Object.freeze({ title: 'The search box', body: 'You can narrow the list. It only affects the rows shown — nothing in the account changes.' }),
+  }),
+  'tour.processes': Object.freeze({
+    title: 'The Processes page',
+    lead: 'Three steps. A read-only view: you cannot start or close a process here today.',
+    s1: Object.freeze({ title: 'Open Processes', body: 'You will find it in the Operations group. The page shows the account’s sample data.' }),
+    s2: Object.freeze({ title: 'The list', body: 'Identifier, name, state and time. The state is shown as a badge.' }),
+    s3: Object.freeze({ title: 'Search and filter', body: 'You can narrow the list by text or by state. Nothing in the account changes because of it.' }),
+  }),
+  'tour.accountSettings': Object.freeze({
+    title: 'Account details',
+    lead: 'Three steps. A read-only view: you change nothing here today.',
+    s1: Object.freeze({ title: 'Open the account page', body: 'You will find it in the Settings group. It shows the account that is open right now.' }),
+    s2: Object.freeze({ title: 'What you see', body: 'The account name, your role in it, the subscription and the business detail that was provided.' }),
+    s3: Object.freeze({ title: 'The stated limit', body: 'About the business detail we write it out: provided data, not verified — we did not confirm it with any authority.' }),
+  }),
 });
 
 /** Per-feature translation state: which source version this pack was written against. */
@@ -1444,6 +1576,12 @@ export const KB_SOURCE = Object.freeze({
   'profile.edit': Object.freeze({ source_version: '1.0.0', review: 'checked' }),
   'security.password_change': Object.freeze({ source_version: '1.0.0', review: 'checked' }),
   'shell.numbered_probe': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
+  'data.warehouses': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.processes': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.stockcard': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.movements': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'account.settings': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'personal.ownMatters': Object.freeze({ source_version: '1.0.0', review: 'source' }),
 });
 
 /** Search keywords per feature — language content, same keys as the Hungarian source. */
@@ -1479,6 +1617,12 @@ export const SEARCH = Object.freeze({
   'profile.edit': 'edit profile change own data',
   'security.password_change': 'change password new password password change',
   'shell.numbered_probe': 'old surface numbered probe surface retired',
+  'data.warehouses': 'warehouse warehouses warehouselist site itemcount',
+  'data.processes': 'process processes state arrival closed progress statefilter',
+  'data.stockcard': 'productcard product card quantity warehouse stockcard',
+  'data.movements': 'stockmovement movements movementlist inbound outbound',
+  'account.settings': 'accountdetails accountsettings role subscription taxid businessdetail',
+  'personal.ownMatters': 'mymatters cases personal matters emptypage',
 });
 
 /** Server-rendered pages and demo messages — same dictionary, same fallback chain (F91-02). */

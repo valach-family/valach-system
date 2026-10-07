@@ -639,6 +639,112 @@ export const FEATURES = Object.freeze([
     tour_note: 'KIVEZETETT képesség: az utódja a `shell.sample_pages`',
     evidence: F(['docs/70_PLANNING/V3_R81_FELULET_KOZOS_KERET.md']),
   }),
+  // ════════════════════════════════════════════════════════════════════════════════════════════
+  // R164/3 — A PÓTOLHATÓ LEFEDÉSI RÉSEK: LÉTEZŐ, MA IS DOLGOZÓ KÉPERNYŐK LEÍRÁS NÉLKÜL
+  //
+  // AZ R164/3 KIKÖTÉSE: *„ahol létező felülethez/funkcióhoz tartozik hiányzó HU/EN/DE
+  // leírás/GYIK/súgó/segéd/tutor/demo, ott pótolj; ahol a mögöttes üzleti képesség még nem létezik,
+  // az maradjon nevesített fejlesztési rés."*
+  //
+  // EZ A HAT BEJEGYZÉS A KETTÉOSZTÁS EREDMÉNYE. Öt képernyő MA IS dolgozik (listát rajzol valódi
+  // oszlopokkal, szűrővel, a jogosultsági kapun át) — csak a LEÍRÁSA hiányzott, és ezt pótoljuk.
+  // A hatodik (`personal.ownMatters`) TERVEZETT: a lap létezik és megnyílik, de a mögötte álló üzleti
+  // képesség nem — ezért `status: 'planned'`, és a hiány a `missing_capability` mezőben NEVESÍTVE áll.
+  //
+  // AMIT EZEK A LEÍRÁSOK NEM ÁLLÍTANAK (KUKA-050 · KUKA-224): egyik sem ígér ÍRÁST. Mindegyik
+  // kimondja, hogy olvasó nézet, és azt is, mi az, ami MA nem lehetséges — a terv nem tanítható kész
+  // szolgáltatásként.
+  // ════════════════════════════════════════════════════════════════════════════════════════════
+  F({
+    id: 'data.warehouses', module: 'data', version: '1.0.0', status: 'working',
+    surface: 'list-rows',
+    ui_actions: F(['clear-search', 'row-open']),
+    group: 'shell', scope: 'book', audience: 'signed_in', screen: 'warehouses', action: 'open.warehouses', entry: 'list-rows',
+    anchors: F(['nav-warehouses', 'list-search', 'list-rows']),
+    authority: F({ endpoint: 'GET /api/me', decided_by: 'v3app/public/demoData.mjs (DEM-01/DEM-02)',
+      reasons: F(['workspace_required']) }),
+    outcomes: F(['success', 'empty']),
+    ai: F({ explain: true, open: true, prepare: false, note: null }),
+    faq: F(['faq.warehouses.readOnly', 'faq.warehouses.itemCount']),
+    tour: 'tour.warehouses',
+    evidence: F(['v3app/public/app.js (ROW_DEF.warehouses)', 'tests/e2e/v3app-r85.spec.mjs']),
+  }),
+  F({
+    id: 'data.processes', module: 'data', version: '1.0.0', status: 'working',
+    surface: 'list-rows',
+    // A `process-state` HORGONY, nem művelet: `data-testid`, nem `data-action` (az L10 ellenőrzés
+    // mérte meg — a két fogalmat nem mossuk össze).
+    ui_actions: F(['clear-search', 'row-open']),
+    group: 'shell', scope: 'book', audience: 'signed_in', screen: 'processes', action: 'open.processes', entry: 'list-rows',
+    anchors: F(['nav-processes', 'list-search', 'list-rows', 'process-state']),
+    authority: F({ endpoint: 'GET /api/me', decided_by: 'v3app/public/demoData.mjs (DEM-01/DEM-02)',
+      reasons: F(['workspace_required']) }),
+    outcomes: F(['success', 'empty']),
+    ai: F({ explain: true, open: true, prepare: false, note: null }),
+    faq: F(['faq.processes.filter', 'faq.processes.readOnly']),
+    tour: 'tour.processes',
+    evidence: F(['v3app/public/app.js (ROW_DEF.processes + processState szűrő)', 'tests/e2e/v3app-r85.spec.mjs']),
+  }),
+  F({
+    id: 'data.stockcard', module: 'data', version: '1.0.0', status: 'working',
+    surface: 'stockcard-table',
+    group: 'plan', scope: 'book', audience: 'signed_in', screen: 'stockcard', action: 'open.stockcard', entry: 'stockcard-table',
+    anchors: F(['nav-stockcard', 'stockcard-table']),
+    authority: F({ endpoint: 'GET /api/data/stock', decided_by: 'v3ref/authz.mjs + resultScope.mjs (STK-01)',
+      reasons: F(['no_scope_grant', 'not_available', 'not_a_member', 'context_mismatch', 'network_error']) }),
+    outcomes: F(['success', 'empty', 'missing', 'refused', 'error']),
+    ai: F({ explain: true, open: true, prepare: false, note: null }),
+    faq: F(['faq.stockcard.sameGate', 'faq.stockcard.whichProduct']),
+    tour: null,
+    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
+    tour_note: 'ENGEDÉLYHEZ KÖTÖTT nézet: a karton csak akkor rajzol, ha a fiókkezelő kiadta a készletadatokat — a jogadást a `tour.grant` mutatja meg, a megnyíló nézetet a `tour.stock`. Egy saját bemutató vagy a jog nélkül állna meg (KUKA-232), vagy jogot adna a felhasználó helyett (KUKA-231)',
+    evidence: F(['v3app/public/app.js (stockCardPage — stockGate)', 'tests/e2e/v3app-r85.spec.mjs']),
+  }),
+  F({
+    id: 'data.movements', module: 'data', version: '1.0.0', status: 'working',
+    surface: 'movements-table',
+    group: 'plan', scope: 'book', audience: 'signed_in', screen: 'movements', action: 'open.movements', entry: 'movements-table',
+    anchors: F(['nav-movements', 'movements-table']),
+    authority: F({ endpoint: 'GET /api/data/stock', decided_by: 'v3ref/authz.mjs + resultScope.mjs (STK-01)',
+      reasons: F(['no_scope_grant', 'not_available', 'not_a_member', 'context_mismatch', 'network_error']) }),
+    outcomes: F(['success', 'empty', 'missing', 'refused', 'error']),
+    ai: F({ explain: true, open: true, prepare: false, note: null }),
+    faq: F(['faq.movements.sameGate', 'faq.movements.readOnly']),
+    tour: null,
+    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
+    tour_note: 'UGYANAZON a kapun áll, mint a Készletegyenleg: a mozgások csak kiadott készlet-engedéllyel rajzolnak — a jogadást a `tour.grant` mutatja, a nézetet a `tour.stock`; a `tour.reentry` 16–18. lépése pedig végig is viszi a visszatérő munkatárs útján',
+    evidence: F(['v3app/public/app.js (movementsPage — stockGate)', 'tests/e2e/v3app-r85.spec.mjs']),
+  }),
+  F({
+    id: 'account.settings', module: 'account', version: '1.0.0', status: 'working',
+    surface: 'section-account',
+    group: 'account', scope: 'book', audience: 'signed_in', screen: 'account', action: 'open.account', entry: 'section-account',
+    anchors: F(['nav-account', 'section-account', 'representation-note']),
+    authority: F({ endpoint: 'GET /api/me', decided_by: 'v3app/server.mjs (/api/me) + v3ref/authz.mjs',
+      reasons: F(['workspace_required']) }),
+    outcomes: F(['success']),
+    ai: F({ explain: true, open: true, prepare: false, note: null }),
+    faq: F(['faq.account.notChecked', 'faq.account.whoChanges']),
+    tour: 'tour.accountSettings',
+    evidence: F(['v3app/public/app.js (accountPage)', 'tests/e2e/v3app-r81-ux.spec.mjs']),
+  }),
+  F({
+    id: 'personal.ownMatters', module: 'shell', version: '1.0.0', status: 'planned',
+    group: 'shell', scope: 'person', audience: 'signed_in', screen: 'personal', action: 'open.personal', entry: null,
+    anchors: F([]),
+    authority: F({ endpoint: null, decided_by: null, reasons: F([]) }),
+    outcomes: F(['missing']),
+    ai: F({ explain: true, open: false, prepare: false,
+      note: 'nincs AI-művelet: a képesség még nem létezik, tervet nem tanítunk kész szolgáltatásként' }),
+    faq: F(['faq.personal.whyEmpty']),
+    // A NEVESÍTETT FEJLESZTÉSI RÉS (R164/3). A `missing_capability` nem próza: a lefedési őr
+    // osztályozása EBBŐL dönti el, hogy a hiány „fejlesztési rés"-e, vagy osztályozatlan piros.
+    missing_capability: 'a SAJÁT ÜGYEK listája még nem létezik: nincs olyan adatkör, amit a belépett ember a saját nevében rögzíthetne vagy lekérhetne (sem ügy, sem kérés, sem bizonylat) — a lap ma megnyílik, és KIMONDJA, hogy üres',
+    tour: null,
+    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
+    tour_note: 'TERVEZETT képesség: a lap üres állapotot mutat, nincs mit végigkattintani — a bemutató tervet tanítana kész szolgáltatásként (KUKA-224)',
+    evidence: F(['v3app/public/app.js (case \'personal\' — emptyBox, és a lap ezt kimondja)']),
+  }),
 ]);
 
 /** A BEMUTATÓK — lépések stabil felületi pontokra. A szöveg a nyelvcsomag `TOUR` csoportjában áll. */
@@ -831,6 +937,34 @@ export const TOURS = Object.freeze({
       Object.freeze({ id: 's2', target: 'help-tab-guides', task: null, appears_after: 'help-open' }),
       Object.freeze({ id: 's3', target: 'help-tab-faq', task: null, appears_after: 'help-open' }),
       Object.freeze({ id: 's4', target: 'help-tab-sitemap', task: null, appears_after: 'help-open' }),
+    ]),
+  }),
+  // ── R164/3 — A PÓTOLT BEMUTATÓK. Mind a HÁROM olyan lapra épül, ami ENGEDÉLY NÉLKÜL is megnyílik
+  // (a fiók bemutató-adatát rajzolja, illetve a fiók saját adatait), ezért éles üzemben is
+  // végigvihető — nem `requires_demo`. Feladat-lépés egyikben sem kell: a nézetek OLVASÓK, és a
+  // bemutató nem kattint a felhasználó helyett (KUKA-231).
+  'tour.warehouses': Object.freeze({
+    id: 'tour.warehouses', version: '1.0.0', audience: 'signed_in', feature: 'data.warehouses', page: 'warehouses',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-warehouses', task: null }),
+      Object.freeze({ id: 's2', target: 'list-rows', task: null }),
+      Object.freeze({ id: 's3', target: 'list-search', task: null }),
+    ]),
+  }),
+  'tour.processes': Object.freeze({
+    id: 'tour.processes', version: '1.0.0', audience: 'signed_in', feature: 'data.processes', page: 'processes',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-processes', task: null }),
+      Object.freeze({ id: 's2', target: 'list-rows', task: null }),
+      Object.freeze({ id: 's3', target: 'list-search', task: null }),
+    ]),
+  }),
+  'tour.accountSettings': Object.freeze({
+    id: 'tour.accountSettings', version: '1.0.0', audience: 'signed_in', feature: 'account.settings', page: 'account',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-account', task: null }),
+      Object.freeze({ id: 's2', target: 'section-account', task: null }),
+      Object.freeze({ id: 's3', target: 'representation-note', task: null }),
     ]),
   }),
 });

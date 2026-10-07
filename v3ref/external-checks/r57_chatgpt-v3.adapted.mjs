@@ -59,17 +59,36 @@
 // battéria növekedésével magától finomodik. A `VS_BATTERY_UNITS` felülírás VÁLTOZATLAN, a padló a
 // korábbi alapérték (6), és a hívás ALAKJA sem változik: N egység + `--merge`, egységenként 15 000 ms.
 const BATTERY_UNITS=(()=>{const v=Number(process.env.VS_BATTERY_UNITS);if(Number.isInteger(v)&&v>=1&&v<=64)return v;return Math.max(6,Math.ceil(MUTATIONS.length/24));})();
+// A DARABSZÁM MÉRÉSBŐL, NEM KÉZBŐL (R164/3 — a KUKA-045 ötödik alakja ezen a hívó-oldalon). A
+// származtatott alak (`mutáció / 24`) egy MÁSODIK, rejtett feltevést is hordozott: hogy a mutáció
+// költsége állandó. MÉRVE: a mag-próbák száma 69-re nőtt (egy teljes próbafutás 3 890 ms), és a
+// TIZENEGYES bontás egy egysége 31 326 ms-ot kért — a külső fél 15 000 ms-os korlátja fölött, ezért
+// a hívás `spawnSync … ETIMEDOUT`-tal HALT MEG, nem tartalmi okból. A szám helyére ezért a MÉRÉS
+// lép: a hívó a deklarált bontásról indul, és ha IDŐTÚLLÉPÉS jön, FINOMABBRA oszt (a költségvetés
+// nem tágul — KUKA-091). A terv `adaptiveUnitPlan`, az EGY otthonban (`batteryUnits.mjs`), így
+// próbából is hívható, valódi gyermek nélkül (KUKA-207). A `VS_BATTERY_UNITS` felülírás VÁLTOZATLAN
+// (az indulás darabszáma), és a hívás ALAKJA sem változik: N egység + `--merge`, egységenként 15 000 ms.
 function batteryArgs(n){const a=[];for(let i=1;i<=n;i++)a.push(`--unit=${i}/${n}`);a.push('--merge');return a;}
-function runBatteryUnits(dir){
+function spawnUnitsIn(dir,n){
   const unitsDir=join(dir,'v3ref','units');rmSync(unitsDir,{recursive:true,force:true});
-  const runs=[];
-  for(const arg of batteryArgs(BATTERY_UNITS)){
-    const r=spawnSync(process.execPath,[join(dir,'v3ref','mutate.mjs'),arg],{cwd:dir,encoding:'utf8',timeout:15000,maxBuffer:32*1024*1024});
-    if(r.error)throw r.error;runs.push({arg,exit:r.status,stdout:r.stdout,stderr:r.stderr});
+  const runs=[];let timedOut=false;
+  for(const arg of batteryArgs(n)){
+    const r=spawnSync(process.execPath,[join(dir,'v3ref','mutate.mjs'),arg],{cwd:dir,encoding:'utf8',timeout:EXTERNAL_CAP_MS,maxBuffer:32*1024*1024});
+    if(r.error&&String(r.error.code||'')==='ETIMEDOUT'){timedOut=true;runs.push({arg,exit:null,stdout:'',stderr:String(r.error.message||'ETIMEDOUT')});break;}
+    if(r.error)throw r.error;
+    runs.push({arg,exit:r.status,stdout:r.stdout,stderr:r.stderr});
+    if(r.signal==='SIGTERM'){timedOut=true;break;}
   }
-  return {exit:runs.some(r=>r.exit!==0)?(runs.find(r=>r.exit!==0).exit??2):0,stdout:runs.map(r=>r.stdout).join('\n'),stderr:runs.map(r=>r.stderr).join('\n'),units:runs};
+  return {timedOut,exit:runs.some(r=>r.exit!==0)?(runs.find(r=>r.exit!==0).exit??2):0,runs};
+}
+function runBatteryUnits(dir){
+  const plan=adaptiveUnitPlan({spawnUnits:(n)=>spawnUnitsIn(dir,n),startUnits:BATTERY_UNITS});
+  for(const l of plan.log)console.error(`  [battéria-darabolás] ${l}`);
+  const runs=plan.result.runs;
+  return {exit:plan.fitted?plan.result.exit:(plan.result.exit||2),stdout:runs.map(r=>r.stdout).join('\n'),stderr:runs.map(r=>r.stderr).join('\n'),units:runs,plan};
 }
 import {readFileSync,writeFileSync,cpSync,mkdtempSync,rmSync} from 'node:fs';
+import {adaptiveUnitPlan,EXTERNAL_CAP_MS} from './batteryUnits.mjs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {spawnSync} from 'node:child_process';

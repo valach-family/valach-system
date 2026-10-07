@@ -67,21 +67,121 @@ export const FLOOR = Object.freeze({ route: 32, page: 17, action: 42, form: 6, a
  * Az alapvonal szerkesztése önmagában NEM javítás: a teljesség tőle nem lesz zöld.
  */
 export const GAP_BASELINE = Object.freeze({
-  version: 'R144-indulo',
-  at: '2026-10-02',
-  note: 'az R144 SPEC beérkezésekor MÉRT hiány-halmaz — a javított (nem hamis pozitívos) mérés szerint',
+  version: 'R164-potolt',
+  at: '2026-10-07',
+  note: 'az R164/3 PÓTLÁSA UTÁN mért hiány-halmaz. HÁROM lap kikerült (fiók · folyamatok · raktárak: '
+    + 'megkapta a leírását, a GYIK-jét és a lépésenkénti útmutatóját három nyelven). EGY lap BEKERÜLT '
+    + '(`outbox`): nem új hiány, hanem egy korábbi HAMIS ZÖLD — a lefedés-őr addig a KÖZÖS tábla-horgonyt '
+    + '(`list-rows`) lap-azonosítónak fogadta el, ezért egy szomszéd lap bemutatója ezt is „bejártnak" '
+    + 'mondta (KUKA-239 osztálya, SAJÁT lelet R164). Az R158 jelentésem kézi számolása épp ezért jelzett '
+    + '11 lapot a gépi 10 helyett: a KÉZI szám volt a helyes, és most a gép is azt mondja. KÉT bemutató-sor '
+    + 'BEKERÜLT (`data.stockcard` · `data.movements`): ezek MOST kaptak leírást, tehát most lett MÉRHETŐ, '
+    + 'hogy saját útmutatójuk nincs — a hiány INDOKA a regiszterben áll (engedélyhez kötött nézet).',
   keys: Object.freeze([
-    // OLDAL — hatnak nincs leírása, GYIK-je és bemutatója sem; négynek csak bemutatója nincs.
-    'page:account', 'page:documents', 'page:movements', 'page:partners', 'page:personal',
-    'page:processes', 'page:products', 'page:security', 'page:stockcard', 'page:warehouses',
+    // OLDAL — négynek nincs leírása, GYIK-je és bemutatója sem; négynek csak bemutatója nincs.
+    'page:documents', 'page:movements', 'page:outbox', 'page:partners', 'page:personal',
+    'page:products', 'page:security', 'page:stockcard',
     // VÉGPONT — AZ R144-BEN MEGSZÜNTETVE (a `reads` deklarációval), ezért innen KIKERÜLT. A sorok
     // törlése önmagában nem javítás: az `LR2` állítás PIROS lenne, ha a hiány még állna.
     // BEMUTATÓ — a JAVÍTOTT mérés szerint (az R143-as négy hamis „shared" is ide került).
     'tour:account.personal', 'tour:auth.login', 'tour:auth.logout', 'tour:auth.resend',
     'tour:auth.verify', 'tour:data.documentSample', 'tour:data.supplierSample',
     'tour:shell.assistant', 'tour:shell.profile', 'tour:shell.sample_pages',
+    // BEMUTATÓ — az R164/3-ban LEÍRT, engedélyhez kötött két készlet-nézet (az indok a regiszterben).
+    'tour:data.stockcard', 'tour:data.movements',
   ]),
 });
+
+/**
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ * A HIÁNY KÉT CSOPORTJA (R164/3) — ÉS A CSOPORT MÉRT ÁLLÍTÁS, NEM PRÓZA
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * AZ R164/3 KIKÖTÉSE: *„A lefedettségi réseket bontsd a VALÓDI kód szerint: ahol létező
+ * felülethez/funkcióhoz tartozik hiányzó HU/EN/DE leírás/GYIK/súgó/segéd/tutor/demo, ott pótolj;
+ * ahol a mögöttes üzleti képesség még nem létezik, az maradjon nevesített fejlesztési rés. Ne töröld
+ * a zöld szám érdekében, és ne állítsd, hogy minden rés ebből jön."*
+ *
+ * MIÉRT KÓDBAN: egy jelentés-bekezdés, ami azt mondja „ez pótolható, az fejlesztési rés", az
+ * ÁLLÍTÁS — és a KUKA-050 szerint a szöveg a valóságot követi, nem fordítva. Ezért a csoportot a
+ * REGISZTER állapotából vezetjük le:
+ *
+ *   · PÓTOLHATÓ (`fillable`) — a képernyőhöz tartozik `working` vagy `demo` állapotú funkció, tehát
+ *     a felület MA is dolgozik; ami hiányzik, az a leírás/GYIK/bemutató, és az megírható.
+ *   · NEVESÍTETT FEJLESZTÉSI RÉS (`capability_missing`) — nincs működő funkció a képernyőre, DE a
+ *     regiszterben áll `planned` bejegyzés, ami MEGNEVEZI, mi hiányzik. A hiány marad, nevesítve.
+ *   · OSZTÁLYOZATLAN (`unclassified`) — se működő funkció, se nevesített terv. EZ PIROS: egy hiányt
+ *     nem lehet „majd valahogy" sávba tenni. A kettő közül pontosan az egyikbe kell esnie.
+ *
+ * ÉS AMIT EZ NEM ÁLLÍT (KUKA-216): a „pótolható" nem azt jelenti, hogy pótolva VAN — azt a hiány
+ * eltűnése mondja meg. A csoport csak azt mondja meg, MELYIK fajta munkát kéri.
+ */
+export const GAP_CLASSES = Object.freeze(['fillable', 'capability_missing', 'unclassified']);
+
+export function classifyGaps({ rows, tourRows, features }) {
+  const byScreen = {};
+  for (const f of features) {
+    if (!f.screen) continue;
+    byScreen[f.screen] = byScreen[f.screen] || [];
+    byScreen[f.screen].push(f);
+  }
+  const byId = {};
+  for (const f of features) byId[f.id] = f;
+  const out = { fillable: [], capability_missing: [], unclassified: [] };
+
+  for (const k of KINDS) {
+    for (const r of rows[k]) {
+      if (!r.gaps.length) continue;
+      const key = `${k}:${r.id}`;
+      if (k !== 'page') {
+        // A nem-lap tengelyeken a népesség MAGA a kódból jön (végpont · művelet · űrlap · nézet),
+        // tehát a funkció létezik — ami hiányzik, az a leírás. Ezek definíció szerint pótolhatók.
+        out.fillable.push(Object.freeze({ key, gaps: r.gaps, basis: `a ${k} tengely népessége a KÓDBÓL jön, tehát a funkció létezik — a leírás pótolható` }));
+        continue;
+      }
+      const sajat = byScreen[r.id] || [];
+      const mukodo = sajat.filter((f) => f.status === 'working' || f.status === 'demo');
+      const tervezett = sajat.filter((f) => f.status === 'planned');
+      if (mukodo.length) {
+        out.fillable.push(Object.freeze({ key, gaps: r.gaps,
+          basis: `a képernyőn MŰKÖDŐ funkció áll (${mukodo.map((f) => f.id).join(', ')}) — a hiányzó leírás/GYIK/bemutató megírható` }));
+      } else if (tervezett.length && tervezett.every((f) => typeof f.missing_capability === 'string' && f.missing_capability.length > 20)) {
+        out.capability_missing.push(Object.freeze({ key, gaps: r.gaps,
+          basis: `nincs működő funkció a képernyőn; a hiány NEVESÍTVE a regiszterben (${tervezett.map((f) => f.id).join(', ')})`,
+          reason: tervezett.map((f) => f.missing_capability).join(' · ') }));
+      } else {
+        out.unclassified.push(Object.freeze({ key, gaps: r.gaps,
+          basis: tervezett.length
+            ? `TERVEZETT bejegyzés van (${tervezett.map((f) => f.id).join(', ')}), de nem NEVEZI MEG a hiányzó képességet (\`missing_capability\`)`
+            : 'se MŰKÖDŐ funkció, se NEVESÍTETT terv nem tartozik a képernyőhöz' }));
+      }
+    }
+  }
+
+  // A BEMUTATÓ-TENGELY: a hiány MŰKÖDŐ funkciókon áll (a leltár csak azokat kérdezi), tehát
+  // pótolható. A `tour_note` ettől nem lesz teljesítés (CLAUDE.md: a `tour: null` nem teljesítés) —
+  // viszont MEGKÜLÖNBÖZTETJÜK a NEVEZETT és a NÉMA hiányt: amiről nincs indok, az osztályozatlan.
+  for (const t of tourRows) {
+    if (t.how !== 'note_only' && t.how !== 'none') continue;
+    const f = byId[t.feature];
+    const indok = f && typeof f.tour_note === 'string' && f.tour_note.length > 10;
+    const key = `tour:${t.feature}`;
+    if (indok) {
+      out.fillable.push(Object.freeze({ key, gaps: Object.freeze(['nincs saját bemutató']),
+        basis: 'MŰKÖDŐ funkció, a hiány INDOKA a regiszterben áll — a bemutató pótolható (az indok nem teljesítés)', reason: f.tour_note }));
+    } else {
+      out.unclassified.push(Object.freeze({ key, gaps: Object.freeze(['nincs saját bemutató']),
+        basis: 'MŰKÖDŐ funkció bemutató NÉLKÜL, és a regiszterben nincs kimondott indok (`tour_note`)' }));
+    }
+  }
+  const total = out.fillable.length + out.capability_missing.length + out.unclassified.length;
+  return Object.freeze({
+    fillable: Object.freeze(out.fillable),
+    capability_missing: Object.freeze(out.capability_missing),
+    unclassified: Object.freeze(out.unclassified),
+    total,
+  });
+}
 
 const uniq = (a) => [...new Set(a)];
 
@@ -233,7 +333,26 @@ export function pageCoverage(page, { features, tours }) {
   // A KÖZÖS TÚRA IS LEFEDÉS — DE CSAK HA TÉNYLEG ODAVISZ (R142 §4): nem a `tour_note` hossza
   // dönt, hanem hogy egy LÉPÉS célja az oldal menüpontja vagy az oldal saját horgonya.
   const anchors = new Set(own.flatMap((f) => f.anchors || []));
-  const touring = Object.values(tours).filter((t) => (t.steps || []).some((s) => s.target === `nav-${page.id}` || anchors.has(s.target))
+  /**
+   * ÉS A HORGONYNAK LAP-SPECIFIKUSNAK KELL LENNIE (R164/3 — SAJÁT LELET, KUKA-239 osztálya).
+   *
+   * A LELET, AMIT A SAJÁT MÉRÉSEM ADOTT: a `list-rows` és a `list-search` horgonyt ÖT lap funkciói
+   * deklarálják (termékek · partnerek · bizonylatok · raktárak · folyamatok), mert mind ugyanazon a
+   * tábla-rajzolón megy át. Amikor az R164-ben megírtam a `tour.warehouses` bemutatót, és annak egy
+   * lépése a `list-rows`-ra mutatott, a régi szabály a TERMÉKEK, a PARTNEREK és a BIZONYLATOK lapját
+   * is „bejártnak" mondta — pedig a bemutató oda SOHA nem ment el. Három lap zöldült ki egy olyan
+   * bizonyítéktól, ami nem róluk szól (KUKA-239: a hatókör nélküli minta a szomszéd sort igazolja).
+   *
+   * A SZABÁLY: horgony CSAK akkor azonosít lapot, ha MÁS lap funkciói NEM deklarálják. A menüpont
+   * (`nav-<lap>`) és a bemutató kimondott lapja (`t.page`) változatlanul azonosít.
+   */
+  const masLapHorgonyai = new Set();
+  for (const f of features) {
+    if (f.screen === page.id) continue;
+    for (const h of f.anchors || []) masLapHorgonyai.add(h);
+  }
+  const lapSpecifikus = new Set([...anchors].filter((h) => !masLapHorgonyai.has(h)));
+  const touring = Object.values(tours).filter((t) => (t.steps || []).some((s) => s.target === `nav-${page.id}` || lapSpecifikus.has(s.target))
     || t.page === page.id);
   /**
    * AZ ELÉRHETŐSÉG MOST MÁR A HIÁNYOK KÖZÉ IS BEKERÜL (R144 — F144-02). A régi alak kiírta a
@@ -475,7 +594,8 @@ export function inventory({ population, features, tours }) {
   for (const k of KINDS) for (const r of rows[k]) if (r.gaps.length) gapKeys.push(`${k}:${r.id}`);
   for (const t of tourRows) if (t.how === 'note_only' || t.how === 'none') gapKeys.push(`tour:${t.feature}`);
   const verdict = gapVerdict(gapKeys, GAP_BASELINE.keys);
-  return Object.freeze({ rows, tourRows, counts, floorBreaks, ...verdict });
+  const classes = classifyGaps({ rows, tourRows, features });
+  return Object.freeze({ rows, tourRows, counts, floorBreaks, classes, ...verdict });
 }
 
 export const LEF_CONTRACT = Object.freeze({

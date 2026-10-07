@@ -1008,6 +1008,72 @@ export const KB = Object.freeze({
     result: 'Keines: diese Oberfläche existiert nicht mehr.',
     outcomes: Object.freeze({}),
   }),
+  // ── R164/3 — die nachgetragenen Beschreibungen. Alle fünf Bildschirme arbeiten heute schon; der Text
+  // sagt aus, dass es eine Lese-Ansicht ist, und auch, was heute NICHT möglich ist (KUKA-050).
+  'data.warehouses': Object.freeze({
+    title: 'Lager',
+    purpose: 'Zeigt die Lager und je Lager, wie viele Positionen dazu gehören. Eine Lese-Ansicht: Ein Lager kann hier heute nicht angelegt, umbenannt oder entfernt werden.',
+    prereq: 'Ein geöffnetes Konto. Eine eigene Datenfreigabe ist nicht nötig: Diese Seite zeigt die Beispieldaten des Kontos.',
+    result: 'Die Liste der Lager. Die Positionszahl sagt, wie viele Produkte aus den Beispieldaten des Kontos zu diesem Lager gehören.',
+    outcomes: Object.freeze({
+      success: 'Die Liste der Lager wird angezeigt.',
+      empty: 'Zu diesem Konto gehören keine Beispieldaten. Die Anordnung ist dennoch zu sehen.',
+    }),
+  }),
+  'data.processes': Object.freeze({
+    title: 'Prozesse',
+    purpose: 'Zeigt die Prozesse: Kennung, Bezeichnung, Zustand und Zeitpunkt. Nach Zustand kann gefiltert werden. Eine Lese-Ansicht: Ein Prozess kann hier heute nicht gestartet, geändert oder abgeschlossen werden.',
+    prereq: 'Ein geöffnetes Konto. Eine eigene Datenfreigabe ist nicht nötig: Diese Seite zeigt die Beispieldaten des Kontos.',
+    result: 'Die Liste der Prozesse. Der Filter schränkt nur die angezeigten Zeilen ein — im Konto ändert sich dadurch nichts.',
+    outcomes: Object.freeze({
+      success: 'Die Liste der Prozesse wird angezeigt.',
+      empty: 'Zu diesem Konto gehören keine Beispieldaten. Die Anordnung ist dennoch zu sehen.',
+    }),
+  }),
+  'data.stockcard': Object.freeze({
+    title: 'Produktkarte',
+    purpose: 'Zeigt die Daten eines Produkts auf einer Seite: Bezeichnung, Kennung, Art, Menge und Lager. Darüber entscheidet dieselbe Freigabe wie über den Bestand.',
+    prereq: 'Mitgliedschaft im Konto und die Freigabe der Kontoverwaltung für Bestandsdaten.',
+    result: 'Die Produktkarte und eine Schaltfläche, die zu den Bestandsbewegungen führt. Wo die Menge nicht bekannt ist, schreiben wir das hin — keine Null.',
+    outcomes: Object.freeze({
+      success: 'Die Produktkarte ist geladen.',
+      empty: 'Zu diesem Konto gehören keine Beispieldaten. Die Anordnung ist dennoch zu sehen.',
+      missing: 'Wo die Menge nicht bekannt ist, schreiben wir das hin — keine Null. „Nicht bekannt“ heißt: niemand hat gemessen; „Nicht angegeben“ heißt: niemand hat eingetragen.',
+      refused: 'Auf diese Daten hast du noch keinen Zugriff. Die Kontoverwaltung kann ihn freigeben.',
+      error: 'Die Bestandsdaten konnten nicht geladen werden. Im Konto hat sich nichts geändert.',
+    }),
+  }),
+  'data.movements': Object.freeze({
+    title: 'Bestandsbewegungen',
+    purpose: 'Zeigt die Bewegungen in zeitlicher Reihenfolge: wann, welches Produkt, welcher Vorgang und wie viel. Darüber entscheidet dieselbe Freigabe wie über den Bestand. Eine Lese-Ansicht: Eine Bewegung kann hier heute nicht erfasst werden.',
+    prereq: 'Mitgliedschaft im Konto und die Freigabe der Kontoverwaltung für Bestandsdaten.',
+    result: 'Die Liste der Bewegungen in zeitlicher Reihenfolge, mit der Zeilenzahl am Seitenende.',
+    outcomes: Object.freeze({
+      success: 'Die Liste der Bewegungen wird angezeigt.',
+      empty: 'Zu diesem Konto gehören keine Beispieldaten. Die Anordnung ist dennoch zu sehen.',
+      missing: 'Wo die Menge nicht bekannt ist, schreiben wir das hin — keine Null.',
+      refused: 'Auf diese Daten hast du noch keinen Zugriff. Die Kontoverwaltung kann ihn freigeben.',
+      error: 'Die Bestandsdaten konnten nicht geladen werden. Im Konto hat sich nichts geändert.',
+    }),
+  }),
+  'account.settings': Object.freeze({
+    title: 'Kontodaten',
+    purpose: 'Zeigt den Namen des geöffneten Kontos, deine Rolle darin, das Abonnement und die angegebenen Unternehmensdaten. Eine Lese-Ansicht: Die Unternehmensdaten können hier heute nicht geändert werden.',
+    prereq: 'Ein geöffnetes Konto.',
+    result: 'Die Kontoseite. Zu den Unternehmensdaten sagen wir es deutlich: angegebene Daten, nicht geprüft — bei keiner Behörde bestätigt.',
+    outcomes: Object.freeze({
+      success: 'Die Kontodaten werden angezeigt.',
+    }),
+  }),
+  'personal.ownMatters': Object.freeze({
+    title: 'Eigene Anliegen',
+    purpose: 'Hierher kommen später die Anliegen, die du in eigenem Namen anstößt — nicht die Daten des Kontos, sondern deine. Die Fähigkeit existiert noch nicht: Die Seite öffnet sich heute und sagt, dass sie leer ist.',
+    prereq: 'Angemeldet sein. Ein Konto ist nicht nötig: Diese Seite handelt von dir, nicht vom Unternehmen.',
+    result: 'Heute ein leerer Zustand, der sagt, was hierher kommen wird. Keine Fehlermeldung: Es gibt nichts anzuzeigen.',
+    outcomes: Object.freeze({
+      missing: 'Die Liste der eigenen Anliegen existiert noch nicht. Das ist kein Fehler und keine Berechtigungsfrage: Die Fähigkeit ist nicht gebaut.',
+    }),
+  }),
 });
 
 export const FAQ = Object.freeze({
@@ -1215,6 +1281,51 @@ export const FAQ = Object.freeze({
     q: 'Mein neu erstelltes Konto ist leer. Ist es kaputt?',
     a: 'Nein. Die Beispieldaten sind zwei Unternehmen fest zugeordnet; ein neues Konto startet absichtlich leer. Die Anordnung ist trotzdem sichtbar.',
   }),
+  // ── R164/3 — häufige Fragen zu den nachgetragenen Fähigkeiten.
+  'faq.warehouses.readOnly': Object.freeze({
+    q: 'Wie lege ich ein neues Lager an?',
+    a: 'Heute nicht: Diese Seite ist eine Lese-Ansicht. Das Anlegen eines Lagers ist noch nicht gebaut — keine Berechtigungsfrage und kein Fehler. Bis dahin zeigt die Seite die Beispieldaten des Kontos.',
+  }),
+  'faq.warehouses.itemCount': Object.freeze({
+    q: 'Was bedeutet die Positionszahl neben einem Lager?',
+    a: 'Wie viele Produkte aus den Beispieldaten des Kontos zu diesem Lager gehören. Keine Menge und kein Bestandswert: Es zählt Produkte.',
+  }),
+  'faq.processes.filter': Object.freeze({
+    q: 'Was macht der Zustandsfilter bei den Prozessen?',
+    a: 'Er schränkt nur die angezeigten Zeilen ein. Im Konto ändert sich dadurch nichts, und das Filtern sendet nichts — Filter leeren, und du siehst wieder alles.',
+  }),
+  'faq.processes.readOnly': Object.freeze({
+    q: 'Wie starte oder schließe ich einen Prozess ab?',
+    a: 'Heute nicht: Diese Seite ist eine Lese-Ansicht. Starten und Abschließen ist noch nicht gebaut. Die Seite sagt es, statt zu tun, als ob es ginge.',
+  }),
+  'faq.stockcard.sameGate': Object.freeze({
+    q: 'Warum sehe ich die Produktkarte nicht, wenn ich auch den Bestand nicht sehe?',
+    a: 'Weil darüber dieselbe Freigabe entscheidet — und auch über die Bestandsbewegungen. Die Kontoverwaltung gibt Bestandsdaten an einer Stelle frei; danach öffnen sich alle drei.',
+  }),
+  'faq.stockcard.whichProduct': Object.freeze({
+    q: 'Wessen Produktkarte sehe ich?',
+    a: 'Das erste Produkt aus den Beispieldaten des Kontos. Die Produktauswahl ist noch nicht gebaut; die Anordnung der Karte ist dennoch zu sehen.',
+  }),
+  'faq.movements.sameGate': Object.freeze({
+    q: 'Warum sehe ich die Bestandsbewegungen nicht?',
+    a: 'Weil die Freigabe für Bestandsdaten darüber entscheidet — dieselbe wie beim Bestand und bei der Produktkarte. Die Kontoverwaltung kann sie freigeben.',
+  }),
+  'faq.movements.readOnly': Object.freeze({
+    q: 'Wie erfasse ich eine Bestandsbewegung?',
+    a: 'Heute nicht: Diese Seite ist eine Lese-Ansicht. Das Erfassen einer Bewegung ist noch nicht gebaut, deshalb bietet die Seite dafür auch keine Schaltfläche.',
+  }),
+  'faq.account.notChecked': Object.freeze({
+    q: 'Auf der Kontoseite steht, die Unternehmensdaten seien „nicht geprüft“. Was heißt das?',
+    a: 'Dass wir das Angegebene gespeichert, aber bei keiner Behörde bestätigt haben. Es heißt nicht, dass es falsch ist — es heißt, dass nicht wir seine Richtigkeit behaupten.',
+  }),
+  'faq.account.whoChanges': Object.freeze({
+    q: 'Wie ändere ich die Unternehmensdaten des Kontos?',
+    a: 'Heute nicht: Diese Seite ist eine Lese-Ansicht. Das Ändern ist noch nicht gebaut. Den Namen des Kontos und das Abonnement verwaltet die Kontoverwaltung auf eigenen Seiten.',
+  }),
+  'faq.personal.whyEmpty': Object.freeze({
+    q: 'Warum ist die Seite „Eigene Anliegen“ leer?',
+    a: 'Weil die Fähigkeit noch nicht existiert: Es gibt nichts, was du in eigenem Namen erfassen oder abrufen könntest. Keine Berechtigungsfrage und kein Fehler — die Seite sagt, was hierher kommen wird.',
+  }),
 });
 
 export const TOUR = Object.freeze({
@@ -1349,6 +1460,27 @@ export const TOUR = Object.freeze({
     s3: Object.freeze({ title: 'Häufige Fragen', body: 'Eine durchsuchbare Frage-Antwort-Liste. Funktioniert ohne KI-Dienst.' }),
     s4: Object.freeze({ title: 'Seitenübersicht', body: 'Zeigt, welche Menüpunkte dir in diesem Konto zur Verfügung stehen — das System erstellt die Liste anhand deiner Berechtigungen.' }),
   }),
+  'tour.warehouses': Object.freeze({
+    title: 'Die Seite „Lager“',
+    lead: 'Drei Schritte. Eine Lese-Ansicht: Dabei wird nichts gespeichert.',
+    s1: Object.freeze({ title: 'Öffne die Lager', body: 'Zu finden in der Gruppe Stammdaten. Die Seite zeigt die Beispieldaten des Kontos.' }),
+    s2: Object.freeze({ title: 'Die Liste', body: 'Lager, Art, und wie viele Positionen dazu gehören. Die Positionszahl zählt Produkte, keine Menge.' }),
+    s3: Object.freeze({ title: 'Das Suchfeld', body: 'Du kannst die Liste einschränken. Es wirkt nur auf die angezeigten Zeilen — im Konto ändert sich nichts.' }),
+  }),
+  'tour.processes': Object.freeze({
+    title: 'Die Seite „Prozesse“',
+    lead: 'Drei Schritte. Eine Lese-Ansicht: Ein Prozess kann hier heute nicht gestartet oder abgeschlossen werden.',
+    s1: Object.freeze({ title: 'Öffne die Prozesse', body: 'Zu finden in der Gruppe Vorgänge. Die Seite zeigt die Beispieldaten des Kontos.' }),
+    s2: Object.freeze({ title: 'Die Liste', body: 'Kennung, Bezeichnung, Zustand und Zeitpunkt. Der Zustand erscheint als Plakette.' }),
+    s3: Object.freeze({ title: 'Suche und Filter', body: 'Du kannst die Liste nach Text oder Zustand einschränken. Im Konto ändert sich dadurch nichts.' }),
+  }),
+  'tour.accountSettings': Object.freeze({
+    title: 'Kontodaten',
+    lead: 'Drei Schritte. Eine Lese-Ansicht: Hier änderst du heute nichts.',
+    s1: Object.freeze({ title: 'Öffne die Kontoseite', body: 'Zu finden in der Gruppe Einstellungen. Sie zeigt das Konto, das gerade geöffnet ist.' }),
+    s2: Object.freeze({ title: 'Was du siehst', body: 'Der Kontoname, deine Rolle darin, das Abonnement und die angegebenen Unternehmensdaten.' }),
+    s3: Object.freeze({ title: 'Die ausgesprochene Grenze', body: 'Zu den Unternehmensdaten schreiben wir es hin: angegebene Daten, nicht geprüft — bei keiner Behörde bestätigt.' }),
+  }),
 });
 
 // Die fünf Nutzungswege (R112 · STR-01): Titel und kurze Einleitung; die Schritte nutzen die vorhandenen Rundgang- und Hilfetexte.
@@ -1440,6 +1572,12 @@ export const KB_SOURCE = Object.freeze({
   'profile.edit': Object.freeze({ source_version: '1.0.0', review: 'checked' }),
   'security.password_change': Object.freeze({ source_version: '1.0.0', review: 'checked' }),
   'shell.numbered_probe': Object.freeze({ source_version: '1.1.0', review: 'checked' }),
+  'data.warehouses': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.processes': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.stockcard': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.movements': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'account.settings': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'personal.ownMatters': Object.freeze({ source_version: '1.0.0', review: 'source' }),
 });
 
 /** Suchbegriffe pro Funktion — Sprachinhalt, gleiche Schlüssel wie die ungarische Quelle. */
@@ -1475,6 +1613,12 @@ export const SEARCH = Object.freeze({
   'profile.edit': 'profil bearbeiten eigene daten ändern',
   'security.password_change': 'passwort ändern neues passwort passwortwechsel',
   'shell.numbered_probe': 'alte oberfläche numerierte probeoberfläche eingestellt',
+  'data.warehouses': 'Lager Lagerliste Standort Lageranlage Positionszahl',
+  'data.processes': 'Prozess Prozesse Zustand Eingang abgeschlossen Zustandsfilter Prozessstart',
+  'data.stockcard': 'Produktkarte Produktdatenblatt Menge Lager Bestandskarte',
+  'data.movements': 'Bestandsbewegung Bewegungen Bewegungsliste Zugang Abgang Bewegungserfassung',
+  'account.settings': 'Kontodaten Kontoeinstellungen Rolle Abonnement Steuernummer Unternehmensdaten',
+  'personal.ownMatters': 'Anliegen Eigenanliegen Eigene Anliegen leere Seite',
 });
 
 /** Server-gezeichnete Seiten und Demo-Nachrichten — dasselbe Wörterbuch, dieselbe Kette (F91-02). */

@@ -1099,6 +1099,72 @@ export const KB = Object.freeze({
     result: 'Nincs: ez a felület nem létezik többé.',
     outcomes: Object.freeze({}),
   }),
+  // ── R164/3 — A PÓTOLT LEÍRÁSOK. Mind az öt képernyő MA IS dolgozik; a szöveg KIMONDJA, hogy olvasó
+  // nézet, és azt is, mi az, ami ma NEM lehetséges (KUKA-050: a szöveg a valóságot követi).
+  'data.warehouses': Object.freeze({
+    title: 'Raktárak',
+    purpose: 'Megmutatja a raktárakat, és raktáranként azt, hány tétel tartozik hozzájuk. Olvasó nézet: raktárat itt ma nem lehet felvenni, átnevezni vagy megszüntetni.',
+    prereq: 'Megnyitott fiók. Külön adat-engedély nem kell hozzá: ez a lap a fiók mintaadatait mutatja.',
+    result: 'A raktárak listája. A tételszám azt mondja meg, a fiók mintaadatából hány termék tartozik az adott raktárhoz.',
+    outcomes: Object.freeze({
+      success: 'A raktárak listája megjelent.',
+      empty: 'Ehhez a fiókhoz nem tartozik mintaadat. Az elrendezés így is megnézhető.',
+    }),
+  }),
+  'data.processes': Object.freeze({
+    title: 'Folyamatok',
+    purpose: 'Megmutatja a folyamatokat: azonosító, megnevezés, állapot és időpont. Állapot szerint szűrhetsz. Olvasó nézet: folyamatot itt ma nem lehet indítani, módosítani vagy lezárni.',
+    prereq: 'Megnyitott fiók. Külön adat-engedély nem kell hozzá: ez a lap a fiók mintaadatait mutatja.',
+    result: 'A folyamatok listája. A szűrő a megjelenített sorokat szűkíti — a fiókban semmi nem változik tőle.',
+    outcomes: Object.freeze({
+      success: 'A folyamatok listája megjelent.',
+      empty: 'Ehhez a fiókhoz nem tartozik mintaadat. Az elrendezés így is megnézhető.',
+    }),
+  }),
+  'data.stockcard': Object.freeze({
+    title: 'Termékkarton',
+    purpose: 'Egy termék adatait mutatja egy lapon: megnevezés, azonosító, jelleg, mennyiség és raktár. Ugyanaz az engedély dönt róla, mint a Készletegyenlegről.',
+    prereq: 'Tagság a fiókban, és a fiókkezelő engedélye a készletadatokra.',
+    result: 'A termék kartonja, és egy gomb, amely a Készletmozgásokra visz. Ahol a mennyiség nem ismert, ott ezt írjuk ki — nem nullát.',
+    outcomes: Object.freeze({
+      success: 'A termékkarton betöltve.',
+      empty: 'Ehhez a fiókhoz nem tartozik mintaadat. Az elrendezés így is megnézhető.',
+      missing: 'Ahol a mennyiség nem ismert, ott ezt írjuk ki — nem nullát. A „Nem ismert” azt jelenti, hogy senki nem mérte meg; a „Nincs megadva” azt, hogy senki nem írta be.',
+      refused: 'Ehhez az adathoz még nincs hozzáférésed. A fiókkezelő tudja engedélyezni.',
+      error: 'A készletadatokat nem sikerült betölteni. Semmi nem változott a fiókban.',
+    }),
+  }),
+  'data.movements': Object.freeze({
+    title: 'Készletmozgások',
+    purpose: 'Megmutatja a mozgásokat időrendben: mikor, melyik termék, milyen művelet és mennyi. Ugyanaz az engedély dönt róla, mint a Készletegyenlegről. Olvasó nézet: mozgást itt ma nem lehet rögzíteni.',
+    prereq: 'Tagság a fiókban, és a fiókkezelő engedélye a készletadatokra.',
+    result: 'A mozgások listája időrendben, a sorok számával a lap alján.',
+    outcomes: Object.freeze({
+      success: 'A mozgások listája megjelent.',
+      empty: 'Ehhez a fiókhoz nem tartozik mintaadat. Az elrendezés így is megnézhető.',
+      missing: 'Ahol a mennyiség nem ismert, ott ezt írjuk ki — nem nullát.',
+      refused: 'Ehhez az adathoz még nincs hozzáférésed. A fiókkezelő tudja engedélyezni.',
+      error: 'A készletadatokat nem sikerült betölteni. Semmi nem változott a fiókban.',
+    }),
+  }),
+  'account.settings': Object.freeze({
+    title: 'A fiók adatai',
+    purpose: 'Megmutatja a megnyitott fiók nevét, a te szerepedet benne, az előfizetést és a megadott vállalkozási adatokat. Olvasó nézet: a vállalkozási adatokat itt ma nem lehet módosítani.',
+    prereq: 'Megnyitott fiók.',
+    result: 'A fiók lapja. A vállalkozási adatról kimondjuk: megadott adat, nem ellenőrzött — hatóságnál nem igazoltuk.',
+    outcomes: Object.freeze({
+      success: 'A fiók adatai megjelentek.',
+    }),
+  }),
+  'personal.ownMatters': Object.freeze({
+    title: 'Saját ügyek',
+    purpose: 'Ide a saját nevedben indított ügyeid kerülnek majd — nem a fiók adatai, hanem a tieid. A képesség még nem létezik: a lap ma megnyílik, és kimondja, hogy üres.',
+    prereq: 'Belépés. Fiók nem kell hozzá: ez a lap rólad szól, nem a vállalkozásról.',
+    result: 'Ma egy üres állapot, ami megmondja, mi fog ide kerülni. Nem hibajelzés: nincs mit megjeleníteni.',
+    outcomes: Object.freeze({
+      missing: 'A saját ügyek listája még nem létezik. Ez nem hiba és nem jogosultsági kérdés: a képesség nincs megépítve.',
+    }),
+  }),
 });
 
 /** A GYAKORI KÉRDÉSEK — kereshetők, és modellhívás nélkül működnek (R89 §6). */
@@ -1308,6 +1374,51 @@ export const FAQ = Object.freeze({
     q: 'Az újonnan létrehozott fiókom üres. Elromlott?',
     a: 'Nem. A mintaadat két céghez van rögzítve; az új fiók szándékosan üresen indul. Az elrendezés így is megnézhető.',
   }),
+  // ── R164/3 — a pótolt funkciókhoz tartozó gyakori kérdések.
+  'faq.warehouses.readOnly': Object.freeze({
+    q: 'Hogyan vegyek fel új raktárat?',
+    a: 'Ma nem lehet: ez a lap olvasó nézet. A raktár-felvétel még nincs megépítve — nem engedély kérdése, és nem is hiba. Amíg nincs, a lap a fiók mintaadatát mutatja.',
+  }),
+  'faq.warehouses.itemCount': Object.freeze({
+    q: 'Mit jelent a raktár melletti tételszám?',
+    a: 'Azt, hogy a fiók mintaadatából hány termék tartozik ehhez a raktárhoz. Nem mennyiség és nem készletérték: darabszámban a termékek száma.',
+  }),
+  'faq.processes.filter': Object.freeze({
+    q: 'Mit tesz az állapot-szűrő a Folyamatoknál?',
+    a: 'Csak a megjelenített sorokat szűkíti. A fiókban semmi nem változik tőle, és a szűrés nem küld semmit — a szűrő kiürítésével újra mindent látsz.',
+  }),
+  'faq.processes.readOnly': Object.freeze({
+    q: 'Hogyan indítsak vagy zárjak le egy folyamatot?',
+    a: 'Ma nem lehet: ez a lap olvasó nézet. A folyamat indítása és lezárása még nincs megépítve. A lap ezt kimondja, nem úgy tesz, mintha menne.',
+  }),
+  'faq.stockcard.sameGate': Object.freeze({
+    q: 'Miért nem látom a Termékkartont, ha a Készletegyenleget sem látom?',
+    a: 'Mert ugyanaz az engedély dönt mind a kettőről, és a Készletmozgásokról is. A fiókkezelő egy helyen adja ki a készletadatokat — onnantól mind a három megnyílik.',
+  }),
+  'faq.stockcard.whichProduct': Object.freeze({
+    q: 'Melyik termék kartonját látom?',
+    a: 'A fiók mintaadatának első termékét. A termék-választás még nincs megépítve; a karton elrendezése így is megnézhető.',
+  }),
+  'faq.movements.sameGate': Object.freeze({
+    q: 'Miért nem látom a Készletmozgásokat?',
+    a: 'Mert a készletadatokra szóló engedély dönt róla — ugyanaz, mint a Készletegyenlegnél és a Termékkartonnál. A fiókkezelő tudja kiadni.',
+  }),
+  'faq.movements.readOnly': Object.freeze({
+    q: 'Hogyan rögzítsek egy készletmozgást?',
+    a: 'Ma nem lehet: ez a lap olvasó nézet. A mozgás-rögzítés még nincs megépítve, ezért a lap nem is kínál rá gombot.',
+  }),
+  'faq.account.notChecked': Object.freeze({
+    q: 'A fiók lapján azt írja, hogy a vállalkozási adat „nem ellenőrzött". Mit jelent ez?',
+    a: 'Azt, hogy amit megadtak, azt rögzítettük, de hatóságnál nem igazoltuk. Nem azt jelenti, hogy hibás — azt, hogy nem mi állítjuk a helyességét.',
+  }),
+  'faq.account.whoChanges': Object.freeze({
+    q: 'Hogyan módosítsam a fiók vállalkozási adatait?',
+    a: 'Ma nem lehet: ez a lap olvasó nézet. A módosítás még nincs megépítve. A fiók nevét és az előfizetést a fiókkezelő tudja kezelni a saját lapjain.',
+  }),
+  'faq.personal.whyEmpty': Object.freeze({
+    q: 'Miért üres a Saját ügyek lap?',
+    a: 'Mert a képesség még nem létezik: nincs olyan adatkör, amit a saját nevedben rögzíthetnél vagy lekérhetnél. Ez nem jogosultsági kérdés és nem hiba — a lap megmondja, mi fog ide kerülni.',
+  }),
 });
 
 /** A BEMUTATÓK LÉPÉS-SZÖVEGE. A kulcs: `<bemutató>.<lépés>` — a lépések a `TOURS` regiszterben. */
@@ -1443,6 +1554,27 @@ export const TOUR = Object.freeze({
     s3: Object.freeze({ title: 'Gyakori kérdések', body: 'Kereshető kérdés–válasz lista. MI-szolgáltató nélkül működik.' }),
     s4: Object.freeze({ title: 'Oldaltérkép', body: 'Megmutatja, mely menüpontok érhetők el neked ebben a fiókban — a listát a rendszer a jogosultságaid alapján állítja össze.' }),
   }),
+  'tour.warehouses': Object.freeze({
+    title: 'A Raktárak lap',
+    lead: 'Három lépés. Olvasó nézet: semmit nem mentünk el közben.',
+    s1: Object.freeze({ title: 'Nyisd meg a Raktárakat', body: 'A Törzsadatok csoportban találod. A lap a fiók mintaadatát mutatja.' }),
+    s2: Object.freeze({ title: 'A lista', body: 'Raktár, jelleg, és hány tétel tartozik hozzá. A tételszám a termékek száma, nem mennyiség.' }),
+    s3: Object.freeze({ title: 'A kereső', body: 'Szűkítheted a listát. Csak a megjelenített sorokra hat — a fiókban semmi nem változik.' }),
+  }),
+  'tour.processes': Object.freeze({
+    title: 'A Folyamatok lap',
+    lead: 'Három lépés. Olvasó nézet: folyamatot itt ma nem lehet indítani vagy lezárni.',
+    s1: Object.freeze({ title: 'Nyisd meg a Folyamatokat', body: 'A Műveletek csoportban találod. A lap a fiók mintaadatát mutatja.' }),
+    s2: Object.freeze({ title: 'A lista', body: 'Azonosító, megnevezés, állapot és időpont. Az állapot jelvényként látszik.' }),
+    s3: Object.freeze({ title: 'A kereső és a szűrő', body: 'Szűkítheted a listát szövegre vagy állapotra. A fiókban semmi nem változik tőle.' }),
+  }),
+  'tour.accountSettings': Object.freeze({
+    title: 'A fiók adatai',
+    lead: 'Három lépés. Olvasó nézet: itt ma nem módosítasz semmit.',
+    s1: Object.freeze({ title: 'Nyisd meg a fiók lapját', body: 'A Beállítások csoportban találod. Azt a fiókot mutatja, amelyik most meg van nyitva.' }),
+    s2: Object.freeze({ title: 'Mit látsz', body: 'A fiók neve, a te szereped benne, az előfizetés és a megadott vállalkozási adat.' }),
+    s3: Object.freeze({ title: 'A kimondott határ', body: 'A vállalkozási adatról kiírjuk: megadott adat, nem ellenőrzött — hatóságnál nem igazoltuk.' }),
+  }),
 });
 
 /**
@@ -1547,6 +1679,12 @@ export const KB_SOURCE = Object.freeze({
   'profile.edit': Object.freeze({ source_version: '1.0.0', review: 'source' }),
   'security.password_change': Object.freeze({ source_version: '1.0.0', review: 'source' }),
   'shell.numbered_probe': Object.freeze({ source_version: '1.1.0', review: 'source' }),
+  'data.warehouses': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.processes': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.stockcard': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.movements': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'account.settings': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'personal.ownMatters': Object.freeze({ source_version: '1.0.0', review: 'source' }),
 });
 
 /**
@@ -1593,6 +1731,12 @@ export const SEARCH = Object.freeze({
   'profile.edit': 'profil szerkesztése saját adatok módosítása átírás',
   'security.password_change': 'jelszó megváltoztatása jelszócsere új jelszó',
   'shell.numbered_probe': 'régi felület számozott próbafelület kivezetve',
+  'data.warehouses': 'raktár raktárak raktárlista telephely raktárfelvétel tételszám',
+  'data.processes': 'folyamat folyamatok állapot beérkezés lezárva folyamatban állapotszűrő folyamatindítás',
+  'data.stockcard': 'termékkarton karton termékadatlap mennyiség raktár készletkarton',
+  'data.movements': 'készletmozgás készletmozgások mozgáslista időrend mozgásrögzítés bevét kivét',
+  'account.settings': 'fiókadatok fiókbeállítások szerep előfizetés adószám adóazonosító vállalkozási adat',
+  'personal.ownMatters': 'saját ügyek ügyeim személyes ügyek üres lap',
 });
 
 /**
