@@ -20,11 +20,12 @@ körhöz egy lapot engedélyez, és az R158 kör lapja a chatgpt-v3 DECISION-je 
 | **a 41 láncos TELJES söprés kód-állapota** | `b80d00ce31b4ff0ff6eb9e0b0453ddb58998d1e0` |
 | **a MÁSODIK review-kör javításai** | `083b01c` · `c81b1d5` (négy lelet) |
 | **a HARMADIK review-kör javításai** | `43f3841` — F158-16 (P1) és F158-17 (P2) |
-| **a NEGYEDIK review-kör javításai (a mai MÉRT kód-állapot)** | `6c40c31` (F158-18 · F158-19 · F158-20) + `137df3d` (F158-21). A targetált láncok, a TELJES mag-mutációs battéria és a teljes böngésző-kapu ezen futottak (11.4–11.5) |
+| **a NEGYEDIK review-kör javításai** | `6c40c31` (F158-18 · F158-19 · F158-20) + `137df3d` (F158-21) |
+| **az ÖTÖDIK review-kör javításai (a mai MÉRT kód-állapot)** | `4a308da` — F158-22 (P1, biztonsági) · F158-23 · F158-24. A targetált láncok és a teljes böngésző-kapu ezen futottak (11.6) |
 | **a záró kapu eredményét hordozó commit** | `0ab118edf2be6a425ccff9b4511226055acd4d03` · **2026-10-06 21:38:07 UTC** (a `b80d00c` söprése) |
 | **a VÉGSŐ fej** | a `43f3841` + a jelen lap commitja és a board-feltöltés. **Kód ettől nem változik.** A pontos fejet a `git log -1` adja. |
-| **a csomag commitjai** | 13 (`392bcd2` · `2f91609` · `c37d905` · `70bbad4` · `b80d00c` · `a181631` · `0ab118e` · `083b01c` · `c81b1d5` · `43f3841` · `924a08a` · `6c40c31` · `137df3d`) |
-| **a PR commitjai összesen** | 40 (az R154 kör 27 + az R158 kör 13) |
+| **a csomag commitjai** | 16 — az R158 köre (`392bcd2` … `4a308da`) |
+| **a PR commitjai összesen** | 43 (az R154 kör 27 + az R158 kör 16) |
 | **a kiinduló alap** | `3adc8e0` leszármazottja — az R158 kikötése szerint; `main`-re NEM tértünk vissza |
 
 ---
@@ -127,14 +128,15 @@ tényét **különbséggel** mérjük, nem várt felirattal.
 
 | | szám |
 |---|---|
-| Codex review-kör (automata), KÜLÖN commitokon | **20** |
-| egyedi lelet (review-szál) | **52** |
-| ebből P1 | **15** |
-| ebből P2 | **37** |
-| **nyitott lelet a mai fejen** | **0** — mind az 52 megválaszolva ÉS lezárva |
-| az R158 körében érkezett | 21 (4 P1 + 17 P2) — a `89f0b37a` · `392bcd28` · `c37d9059` · `b80d00c` · `a181631` · `0ebd9f84` · `924a08a8` köre |
-| javító commit a PR-ben (lelet-javítás) | 15 — a számok az 52 egyedi szálból és a válaszokban megnevezett commitokból jönnek |
+| Codex review-kör (automata), KÜLÖN commitokon | **22** |
+| egyedi lelet (review-szál) | **55** |
+| ebből P1 | **16** (ebből 1 a BIZTONSÁGI átolvasásból) |
+| ebből P2 | **39** |
+| **nyitott lelet a mai fejen** | **0** — mind az 55 megválaszolva ÉS lezárva |
+| az R158 körében érkezett | 24 (5 P1 + 19 P2) — a `89f0b37a` · `392bcd28` · `c37d9059` · `b80d00c` · `a181631` · `0ebd9f84` · `924a08a8` · `6c40c311` köre |
+| javító commit a PR-ben (lelet-javítás) | 16 — a számok az 55 egyedi szálból és a válaszokban megnevezett commitokból jönnek |
 | **NULLA lelettel zárt kör** | 1 — a `c81b1d5` (kód- ÉS biztonsági átolvasás): az első ilyen ebben a PR-ben |
+| **A KÖVETKEZŐ KÖR NEM INDUL EL** | a Codex **kód-review havi limitje elfogyott** (a bot kiírta a PR-re, 2026-10-06 23:51 és 23:54) — a `4a308da` fejre tehát NEM jön automatikus kör, amíg a limit nem újul |
 
 **A MÁSODIK REVIEW-KÖR A CSOMAG ALATT ÉRKEZETT, és végig is ment.** A `b80d00c`-re és az
 `a181631`-re a Codex új kört adott, **négy újabb lelettel** (egy P1 és három P2) — mind javítva és
@@ -194,9 +196,21 @@ negyedik javítás kivételekor a `z8` kiírja a teljes abszolút utat.
 elvette volna a `KUKA-319` választhatóságát, és a battéria `n6` sora JOGGAL lett piros. A két szabály
 ezért EGYÜTT kapott alakot, nem egymás ellenében.
 
-**Amit NEM állítok:** a LEGUTOLSÓ fejre (a jelen lap commitja) a Codex még nem adott kört — ha új
-lelet érkezik, az ugyanúgy végigmegy: javítás → mérés → feltolás. Emberi kód- és biztonsági review a
-PR-en nem történt.
+### AZ ÖTÖDIK REVIEW-KÖR (a `6c40c31` fejre) — HÁROM ÚJABB LELET, MIND JAVÍTVA
+
+| lelet | mi volt | javítás és jel |
+|---|---|---|
+| **F158-22 (P1, BIZTONSÁGI)** | a kapcsolati cím kulcs-olvasója az ÜRES értékeket kiszűrte, ezért egy `postgres://source@host/decoy?dbname=` címnél az ÚTRA (`decoy`) esett vissza — a libpq viszont az üres felülírást IS eltárolja, és a nevet a FELHASZNÁLÓRA oldja fel, tehát a `pg_dump` a `source`-ot olvassa, és a `DROP DATABASE "source"` a VALÓDI forrást viszi. **ÖTÖDIK eset ugyanebben az eszközben** | a kulcs JELENLÉTE és az ÉRTÉKE két külön tény: üres felülírás → NEM megállapítható → megállás. A reviewer két javaslata közül az ELUTASÍTÁST választottam, mert a két olvasat ott válik el, ahol a `DROP DATABASE` áll (`D-VS-3163` · `KUKA-355`, AA: aa1–aa2; a `w1` sor PONTOSÍTVA) |
+| **F158-23 (P2)** | `Accept-Language: hu-HU;q=0.5, *;q=1` esetén a joker a kérő által 0,5-es súllyal kért magyart adta 1-es súllyal — az említés-vizsgálat szigorú tartomány-illesztéssel ment, és a `hu-HU` → `hu` feloldást nem vette számba. MÉRVE: `hu` a helyes `en` helyett | a joker jogosultságánál a POZITÍV tartomány a FELOLDOTT nyelvre is említés; a `q=0` kizárások pontossága változatlan, és csak a TÉNYLEGES feloldás számít (`D-VS-3164` · `KUKA-356`, AA: aa3 — hat eset) |
+| **F158-24 (P2)** | a kanonikus időbélyeg-alak vizsgálata `LIKE`-kal ment; a `node:sqlite` `LIKE`-ja ASCII-ra kis/nagybetű-ÉRZÉKETLEN, ezért egy importált, FRISS `…t…z` alakú sor kanonikusnak látszott, és a szöveges összevetés jövőbelinek minősítve **TÖRÖLTE** — PostgreSQL-en ugyanaz a sor megmaradt | a `T` és a `Z` BÁJTRA egyezik (`substr(...) = ?`, mindkét tárolón bináris); ami nem kanonikus, az az időpillanat-ágra kerül. MÉRVE öt soron: a két friss marad (`D-VS-3165` · `KUKA-357`, mag-próba (k) + M223, AA: aa4) |
+
+**VISSZAVÉTEL-PRÓBA:** a három javítást kivéve a battéria **négy sora** pirosra vált (w1 · aa1 · aa3 ·
+aa4), az ellenpár (aa2) helyesen zöld marad.
+
+**Amit NEM állítok:** a LEGUTOLSÓ fejre (a jelen lap commitja) a Codex nem fog kört adni, mert a
+**kód-review havi limit elfogyott** (lásd a fenti táblázat utolsó sorát) — a `4a308da` kódra tehát a
+célzott láncok és a böngésző-kapu a bizonyíték, nem egy újabb külső átolvasás. Emberi kód- és
+biztonsági review a PR-en nem történt.
 
 **Emberi kód-review és biztonsági review a mai fejen: NEM történt.** A PR-en emberi jóváhagyás nincs.
 A `Claude Approvals` ellenőrzés ebben a repóban nem fut.
@@ -493,3 +507,23 @@ hívtam meg).
 - a **böngésző-kapu a `137df3d`-n nem futott**, és nem is kell: az a commit a `tools/` alatti
   exportálót és a battériát érinti, a v3app FUTTATOTT kódját nem. A `6c40c31`-en futott, zölden.
 - a `verify:lefedes` változatlanul PIROS és ÖRÖKÖLT (20 R144-es hiány, `floor_breaks: []`).
+
+### 11.6 AZ ÖTÖDIK REVIEW-KÖR UTÁN — A `4a308da` KÓDJÁN
+
+| lánc | eredmény |
+|---|---|
+| `npm run verify:browser-gate` | **PASS** — 122 helyzet · 0 bukás · 0 ingadozó · 0 kihagyás · 22 próba-fájl; a mérés EBBEN a futásban indult (00:06:58.139Z > 00:06:57.106Z). Kellett, mert a nyelvi feloldó a v3app FUTTATOTT kódja |
+| `npm run verify:app-findings-r154` | **202/202 PASS** — a 198-hoz képest a négy új AA-sor |
+| `npm run v3ref:run` (mag-próbák) | **69/69 PASS** — a `P-K03-intent-expiry` új (k) ágával |
+| `npm run verify:mutation-anchors` | **PASS** — 247 horgony (köztük az ÚJRA-HORGONYZOTT M209/M217) |
+| `npm run verify:kuka` | **763/763 PASS** · alapvonal **v104** · 348 bejegyzés · `vs` padló változatlan 92 |
+| `npm run app:selfcheck` · `verify:i18n` · `verify:tutor` · `verify:assistant` · `verify:hash-manifeszt` | **57/57** · **49/49** · **92/92** · **55/55** · **7/7** |
+| `npm run verify:decision-numbers` | **4/4 PASS** — a következő szabad szám `D-VS-3166` |
+| a három új mutáció és a két újra-horgonyzott | **M223 · M209 · M217 — mind ELKAPVA** (szeletenként futtatva) |
+| `npm run verify:lefedes` | **PIROS — változatlanul ÖRÖKÖLT** |
+
+**Amit ez NEM állít:** a TELJES mag-mutációs battéria (`verify:v3ref`, 253 mutáció) a `4a308da`-n
+EGÉSZBEN nem futott le újra — a `6c40c31` magján futott (252/252, TELJES ÉS TISZTA), és az azutáni
+mag-változás a `created_at` alak-vizsgálata, amire a három érintett mutációt (M223 · M209 · M217)
+szeletenként külön lefuttattam, mind elkapva. A 41 láncos teljes söprés sem futott újra. A „nem
+futott" itt sem jelent zöldet (`KUKA-200` · SRU-01).
