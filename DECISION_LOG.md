@@ -16,6 +16,41 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3197 — AMI TÖRÖL, AZ ÍRÁS: A LEJÁRAT OLVASÁSI KAPUJA IS KÖVETI AZ INDEXET (R164 review, P2)
+
+**A döntés.** Ha a függő folytatás feloldója **nem ad** folytatást, a munkamenet azonosítója kikerül a
+védett-indexből — akár nem is volt sora, akár a feloldó most dobta el a lejártat.
+
+**Miért.** A feloldó olvasáskor is **kapu**: a lejárt sort nem adja vissza, és el is dobja. Ez a
+törlés eddig nem jutott el az indexhez: rövid türelmi idő vagy óra-ugrás mellett az index **bízható**
+maradt egy **elavult** azonosítóval, és elég ilyen munkamenet után a „csupa védett" rövidre zárás új
+folytatásokat utasított volna el, pedig volt nem védett áldozat.
+
+**A legszűkebb igaz állítás.** Nem kellett a magot új visszajelzéssel bővíteni: a „nincs folytatás"
+mindkét esetben igaz, és az index-törlés nem létező bejegyzésre is biztonságos.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (ag2 — fejlesztői órával, várakozás nélkül) ·
+`npm run verify:kuka` (KUKA-389).
+
+---
+
+## D-VS-3196 — A KILÉPÉS IS BEJELENT, TEHÁT A TÁROLÓ-SOR SEM MARAD OTT (R164 review, P2)
+
+**A döntés.** A munkamenet-tár publikus törlése — amit a **kilépés** használ — a **bejelentés** útján
+megy: a sort a várólistára teszi és azonnal bejelenti, tehát a hívó ugyanazt a takarítást futtatja rá,
+mint a kiszorításra. A tár továbbra sem ismeri a táblákat.
+
+**Miért.** A kiszorítás bejelentett, a kilépés nem — így az adatbázis-sor **elérhetetlenül** ott
+maradt a teljes türelmi időre. A `folytatás → kilépés` ismétlése **hitelesítés nélkül** halmozott
+adatbázis-állapotot, miközben a munkamenet-tár **üres** maradt: a tár plafonja fogalmilag sem fogta
+meg. Ez a `D-VS-3186` hiányzó fele — ott a **memória** könyvelését vittem egy helyre, a **tároló**
+oldala külön maradt.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (ag1 — a határon mérve) · `npm run verify:kuka`
+(KUKA-388).
+
+---
+
 ## D-VS-3195 — A SÉRTETLENSÉG MINDEN TÁBLÁRA MÉRVE, ÉS AZ ÁLLÍTÁS A PONTOS ALAKJÁBAN (R164 review, P2)
 
 **A döntés.** A forrás pillanatképe **minden** `public` séma-táblát visz, a teljes sor szövegével, és a

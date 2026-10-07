@@ -917,8 +917,26 @@ export function makeSessionStore({
       return s;
     },
     has(id, now = Date.now()) { return this.get(id, now) !== undefined; },
-    /** A KILÉPÉS ÚTJA — UGYANAZT KÖNYVELI, mint a kiszorítás (`forget`): a védett-index is követi. */
-    delete(id) { return forget(id); },
+    /**
+     * A KILÉPÉS ÚTJA — UGYANAZT KÖNYVELI, MINT A KISZORÍTÁS, A TÁROLÓT IS BELEÉRTVE
+     * (R164 review, Codex, P2 — `KUKA-388` · `D-VS-3196`).
+     *
+     * A LELET: az előző körben a MEMÓRIA könyvelését vittem egy helyre (`forget`), de az
+     * ADATBÁZIS-oldal külön maradt: a kiszorítás BEJELENT (`onEvicted` → a `pending_intent` sor
+     * törlése), a kilépés nem. A `folytatás → kilépés` ismétlése így ELÉRHETETLEN sorokat hagyott a
+     * táblában a teljes türelmi időre, miközben a munkamenet-tár ÜRES maradt — tehát a tár plafonja
+     * nem fogta meg, és hitelesítés NÉLKÜLI forgalom tudott adatbázis-állapotot halmozni.
+     *
+     * UGYANAZ A HIBAOSZTÁLY, HARMADSZOR (KUKA-378 · KUKA-003): két könyvelés, és a javítás az egyiket
+     * érte el. Innentől a kilépés is a BEJELENTÉS útján megy: a hívó (aki ismeri a táblákat) ugyanazt
+     * a takarítást futtatja rá, mint a kiszorításra. A tár továbbra sem ismeri a táblákat.
+     */
+    delete(id) {
+      const volt = forget(id);
+      droppedNow.push(id);
+      announceDropped();
+      return volt;
+    },
     /**
      * A lejárt sort a `touch` NEM élesztheti fel (F154-07) — ezért itt is a lejárat dönt. ÉS MEGMONDJA,
      * SIKERÜLT-E (F154-28): a LELET (külső review, Codex, ötödik kör) szerint a kérés-ciklus a `get`
@@ -1250,7 +1268,25 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
    * közvetlenül hívná a magot, megint a 24 órát kapná (KUKA-227 · KUKA-039).
    */
   const intentTtl = intentTtlMs({ sessionIdleMs: limits.idleMs });
-  const folytatasa = (sessionId) => resumeIntent({ store, sessionId, clock, ttlMs: intentTtl });
+  /**
+   * AZ OLVASÁSI KAPU TÖRLÉSE IS KÖVETI AZ INDEXET (R164 review, Codex, P2 — `KUKA-389` · `D-VS-3197`).
+   *
+   * A LELET: a `resumeIntent` OLVASÁSKOR is kapu — a lejárt sort nem adja vissza, és EL IS DOBJA
+   * (D-VS-3141). Ez a törlés viszont nem jutott el a védett-indexhez: ha a türelmi idő rövidebb, mint
+   * a takarítás percenkénti ütemezése (vagy az óra ugrik), akkor az index `bízható` maradt egy ELAVULT
+   * védett azonosítóval. Elég ilyen munkamenet után a „csupa védett" rövidre zárás ÚJ folytatásokat
+   * utasított volna el, pedig volt nem védett áldozat.
+   *
+   * A VÁLASZ A LEGSZŰKEBB IGAZ ÁLLÍTÁS: ha a feloldó NEM ad folytatást, akkor ez a munkamenet NEM
+   * hordoz folytatást — akár nem is volt sora, akár most dobta el. Mindkét esetben helyes az indexből
+   * kivenni (a `clearIntent` nem létező bejegyzésre is biztonságos). Így nem kell a magot új
+   * visszajelzéssel bővíteni, és nem is hihetjük el, hogy „volt sor, tehát maradt is".
+   */
+  const folytatasa = (sessionId) => {
+    const t = resumeIntent({ store, sessionId, clock, ttlMs: intentTtl });
+    if (!t) sessions.clearIntent(sessionId);
+    return t;
+  };
 
   let nextIntentPurge = 0;
   /**

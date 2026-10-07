@@ -14791,8 +14791,8 @@ Object.freeze({
         pattern: 'const forget = \\(id\\) =>',
         why: 'a sor-eltávolítás könyvelése EGY helyen áll' }),
       Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
-        pattern: 'delete\\(id\\) \\{ return forget\\(id\\); \\}',
-        why: 'és a KILÉPÉS útja is ezt hívja, nem saját másolatot' }),
+        pattern: 'delete\\(id\\) \\{\\n      const volt = forget\\(id\\);',
+        why: 'és a KILÉPÉS útja is ezt hívja, nem saját másolatot (a bejelentés a KUKA-388-ban került mellé)' }),
     ]),
     forbidden: Object.freeze([]),
     lesson: 'HA EGY TÉNYT NÖVEKMÉNYESEN TARTUNK NYILVÁN, AKKOR MINDEN ÚT, AMI VÁLTOZTAT RAJTA, UGYANAZT A KÖNYVELÉST HASZNÁLJA. Két külön könyvelő út esetén az index nem nyilvántartás, hanem feltevés — és a hiba nem ott jelentkezik, ahol keletkezett.',
@@ -15018,6 +15018,48 @@ Object.freeze({
     forbidden: Object.freeze([]),
     lesson: 'A MÉRÉS HATÓKÖRE IS AZ ÁLLÍTÁS RÉSZE. Egy „változatlan" mondat annyi táblára igaz, amennyit megnéztünk — a kézi névsor pedig pont azokat hagyja ki, amiket nem jutottak eszünkbe. A hatókör a séma-katalógusból jöjjön, és az állítás NEVEZZE MEG, mit mér: itt az ELTŰNÉST, amibe a módosítás is beleesik.',
     guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta) · `npm run proof:pg-restore-safety` (E2 · E2c · E6d — a kiírt sor megmondja, hány táblát mértünk; valódi PostgreSQL kell hozzá: KUKA-307).',
+  }),
+
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  // R164 ötödik review-kör — A MEMÓRIA ÉS A TÁROLÓ KÜLÖN ÜRÜLT (harmadszor ugyanaz a mechanizmus).
+  Object.freeze({
+    id: 'KUKA-388',
+    date: '2026-10-07',
+    title: 'A KILÉPÉS A MEMÓRIÁBÓL VITTE A SORT, A TÁROLÓBÓL NEM',
+    what: 'A munkamenet-tár KISZORÍTÁSA BEJELENT (`onEvicted`), és a hívó erre törli a `pending_intent` sort. A publikus `delete` — amit a KILÉPÉS használ — nem jelentett be, tehát az adatbázis-sor OTT MARADT, elérhetetlenül, a teljes türelmi időre. A `folytatás → kilépés` ismétlése így adatbázis-állapotot halmozott HITELESÍTÉS NÉLKÜL, miközben a munkamenet-tár ÜRES maradt — a tár plafonja tehát fogalmilag sem fogta meg.',
+    why_wrong: 'HARMADSZOR UGYANAZ A MECHANIZMUS (KUKA-378 → KUKA-388): két könyvelés — a memória és a tároló —, és a javítás az egyiket érte el. Az előző körben a MEMÓRIA könyvelését vittem egy helyre; a tároló-oldal külön maradt, és pontosan ugyanúgy a KILÉPÉS ágán.',
+    replaced_by: 'A `delete` is a BEJELENTÉS útján megy: a sort a várólistára teszi és azonnal bejelenti, tehát a hívó — aki ismeri a táblákat — ugyanazt a takarítást futtatja rá, mint a kiszorításra. A tár továbbra sem ismeri a táblákat (egy tény, egy otthon).',
+    replacement: 'ÉS A BEJELENTÉS VÁRÓLISTÁJA MÁR KORÁBBAN MEGÉPÜLT (F154-26): ha a tároló épp nem elérhető, az azonosítók nem veszhetnek el. A kilépés így ugyanazt a biztosítást kapja, mint a kiszorítás.',
+    decision: 'D-VS-3196',
+    found_by: 'KÜLSŐ REVIEW (Codex, R164 — P2, a KUKA-378-as javításom FELETT).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'const volt = forget\\(id\\);\\n      droppedNow\\.push\\(id\\);\\n      announceDropped\\(\\);',
+        why: 'a kilépés is BEJELENT — a tároló-sor nem marad elérhetetlenül ott' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'KÉT KÖNYVELÉS KÖZÜL AZ EGYIK JAVÍTÁSA NEM JAVÍTÁS. Ha egy tény két helyen él (memória és tároló), akkor minden eltávolító útnak MINDKETTŐT el kell érnie — és a második helyet pont ott felejtjük el, ahol az elsőt is elfelejtettük. A kérdés nem „javítottam-e", hanem „hány otthona van a ténynek, és mindegyikhez eljut-e minden út".',
+    guard_note: 'gépi jel: `npm run verify:kuka` (egy pozitív minta) · `npm run verify:app-findings-r154` (ag1: a HATÁRON mérve — felvétel után 1 sor és 1 indexelt azonosító, kilépés után 0 és 0).',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-389',
+    date: '2026-10-07',
+    title: 'A LEJÁRT SOR OLVASÁSI TÖRLÉSE NEM JUTOTT EL A VÉDETT-INDEXHEZ',
+    what: 'A függő folytatás feloldója OLVASÁSKOR is kapu: a lejárt sort nem adja vissza, és EL IS DOBJA (D-VS-3141). Ez a törlés viszont nem jutott el a növekményes védett-indexhez: ha a türelmi idő rövidebb, mint a takarítás percenkénti ütemezése — vagy ha az óra ugrik —, akkor az index BÍZHATÓ maradt egy ELAVULT védett azonosítóval. Elég ilyen munkamenet után a „csupa védett" rövidre zárás ÚJ folytatásokat utasított volna el, pedig volt nem védett áldozat.',
+    why_wrong: 'AZ INDEX CSAK AKKOR NYILVÁNTARTÁS, HA MINDEN VÁLTOZÁSRÓL TUD (KUKA-374 · KUKA-227). Az írás-utakat bekötöttem, az OLVASÁSI kaput nem — pedig az is TÖRÖL. A „csak olvas" feltevés itt hamis: a lejárat-ellenőrzés maga írás.',
+    replaced_by: 'A LEGSZŰKEBB IGAZ ÁLLÍTÁS: ha a feloldó NEM ad folytatást, akkor ez a munkamenet NEM hordoz folytatást — akár nem is volt sora, akár most dobta el. Mindkét esetben helyes kivenni az indexből.',
+    replacement: 'ÉS NEM KELLETT A MAGOT ÚJ VISSZAJELZÉSSEL BŐVÍTENI: a `clearIntent` nem létező bejegyzésre is biztonságos, tehát a hívó oldalán EGY sor elég — és nem hihetjük el, hogy „volt sor, tehát maradt is".',
+    decision: 'D-VS-3197',
+    found_by: 'KÜLSŐ REVIEW (Codex, R164 — P2, a KUKA-374/378-as javításaim FELETT).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'if \\(!t\\) sessions\\.clearIntent\\(sessionId\\);',
+        why: 'ha nincs folytatás, az index sem tart nyilván folytatást' }),
+    ]),
+    forbidden: Object.freeze([]),
+    lesson: 'AMI TÖRÖL, AZ ÍRÁS — AKKOR IS, HA „OLVASÁSNAK" HÍVJUK. Egy lejárat-ellenőrzés, ami a lejárt sort el is dobja, ugyanúgy változtatja az állapotot, mint egy írás-végpont: ha egy index minden változásról tudni akar, akkor az ilyen kapukat is be kell kötni. És ahol a visszajelzés hiányzik, ott a LEGSZŰKEBB IGAZ állítást használjuk, ne a kényelmes feltevést.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (egy pozitív minta) · `npm run verify:app-findings-r154` (ag2: a fejlesztői óra a türelmi idő FÖLÉ, majd egy olvasó hívás — az index 1-ről 0-ra megy, és bízható marad; nincs benne várakozás, KUKA-121).',
   }),
 
 

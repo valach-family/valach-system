@@ -2521,6 +2521,57 @@ try {
   }
 
   // ══════════════════════════════════════════════════════════════════════════════════════════════
+  // AG — A MEMÓRIA ÉS A TÁROLÓ EGYÜTT ÜRÜL (F164-16 · F164-17, külső review, Codex, 2× P2)
+  //
+  // KÉT LELET, EGY MECHANIZMUS — és HARMADSZOR ugyanaz a hibaosztály (KUKA-378 · KUKA-003):
+  //   · a KILÉPÉS a memóriából kivette a sort, az ADATBÁZISBÓL nem (a kiszorítás BEJELENT, a kilépés
+  //     nem) — így a `folytatás → kilépés` ismétlése ELÉRHETETLEN sorokat hagyott a táblában a teljes
+  //     türelmi időre, miközben a tár ÜRES maradt: a tár plafonja nem fogta meg;
+  //   · az OLVASÁSI kapu (`resumeIntent`) a LEJÁRT sort eldobja, de ez a törlés nem jutott el a
+  //     védett-indexhez — az index `bízható` maradt egy ELAVULT azonosítóval.
+  //
+  // A MÉRÉS A HATÁRON MEGY, nem a belső függvényen: a kilépés HTTP-úton, a lejárat a FEJLESZTŐI ÓRA
+  // előretekerésével — tehát nincs benne várakozás (KUKA-121), és a mérés azt nézi, amit a
+  // felhasználó útja tényleg kivált.
+  {
+    const DB6 = resolve(ROOT, 'var/tmp/v3app_r154_ag.sqlite');
+    try { rmSync(DB6, { force: true }); rmSync(DB6 + '-wal', { force: true }); rmSync(DB6 + '-shm', { force: true }); } catch { /* nem volt */ }
+    const ag = await startServer({ port: 0, dbPath: DB6 });
+    try {
+      const b6 = `http://127.0.0.1:${ag.server.address().port}`;
+      const sorok = () => ag.store.get('SELECT COUNT(*) AS n FROM pending_intent').n;
+
+      // ── (ag1) A KILÉPÉS A TÁROLÓBÓL IS VISZI A SORT ────────────────────────────────────────────
+      const c1 = new Client(b6);
+      await c1.get('/api/me');
+      const be1 = await c1.post('/api/invites/pending', { token: 'ag-folytatas-1' });
+      const sorokFelvetelUtan = sorok();
+      const indexFelvetelUtan = ag.sessions.stats().intent_indexed;
+      const ki1 = await c1.post('/api/logout', {});
+      step('(ag1) F164-16: a KILÉPÉS a tárolóból is viszi a függő folytatás sorát — nem csak a memóriából',
+        be1.status === 200 && sorokFelvetelUtan === 1 && indexFelvetelUtan === 1
+        && ki1.status === 200 && sorok() === 0 && ag.sessions.stats().intent_indexed === 0,
+        { felvetel: be1.status, sor_a_felvetel_utan: sorokFelvetelUtan, index_a_felvetel_utan: indexFelvetelUtan,
+          kilepes: ki1.status, sor_a_kilepes_utan: sorok(), index_a_kilepes_utan: ag.sessions.stats().intent_indexed });
+
+      // ── (ag2) A LEJÁRAT OLVASÁSI TÖRLÉSE IS KÖVETI AZ INDEXET ─────────────────────────────────
+      const c2 = new Client(b6);
+      await c2.get('/api/me');
+      const be2 = await c2.post('/api/invites/pending', { token: 'ag-folytatas-2' });
+      const index2 = ag.sessions.stats().intent_indexed;
+      // A FEJLESZTŐI ÓRA a türelmi idő FÖLÉ — a lejárat így nem valós várakozásból jön.
+      await c2.post('/dev/clock', { advance_ms: ag.intentTtlMs + 60_000 });
+      // Az OLVASÁSI kapu ezen az úton fut (`invite_context` → `resumeIntent`).
+      const all = await c2.get('/api/assistant/status?lang=hu');
+      const index2Utan = ag.sessions.stats().intent_indexed;
+      const bizhato = ag.sessions.stats().intent_index_trusted;
+      step('(ag2) F164-17: a LEJÁRT sor olvasási törlése is KIVESZI az azonosítót a védett-indexből — nem marad elavult bejegyzés',
+        be2.status === 200 && index2 === 1 && all.status === 200 && index2Utan === 0 && bizhato === true,
+        { index_a_felvetel_utan: index2, status_hivas: all.status, index_a_lejarat_utan: index2Utan, index_bizhato: bizhato });
+    } finally { await ag.close(); }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════════
   // AF — A FOLYTATÁS-MEGŐRZÉS ELUTASÍTÁSA LEFORDÍTHATÓ (F164-15, külső review, Codex, P2)
   //
   // A LELET: a kliens ELDOBTA a `POST /api/invites/pending` válaszát, tehát egy NEVEZETT elutasítás
