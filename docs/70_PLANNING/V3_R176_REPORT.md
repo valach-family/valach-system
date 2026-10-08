@@ -28,15 +28,15 @@ részben teljesült:** a hat ellenőrző programot egyenként lefuttattam a mai 
 
 | mérce | verdikt |
 |---|---|
-| **KÓD-SHA (amit mértem)** | `097b8eb` — a kötelező kapu EZEN a fejen zöld |
+| **KÓD-SHA (amit mértem)** | `9adb8d9` — a kötelező kapu EZEN a fejen zöld |
 | **a kötelező böngésző-kapu** | **ZÖLD** — `verify:browser-gate`: **144 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott**, 26 próba-fájl; `proof:demo-walk` 482 s |
 | **a két szereplős bejárás a VALÓDI felületen** | **6/6 ZÖLD** — K1 19/19 · **K2 20/20** · K3 19/19 (390 px + újraindítás) · K5 · K6 · **K7** (az átadás három őre) — és a próba a váltás-lépésen **nem** nyitja ki helyettünk a menüt, a fiókváltást pedig a történet SAJÁT lépése végzi |
-| **KUKA-regiszter** | **983/983 PASS** (`verify:kuka`) — 418 bejegyzés, **tizenkét** újjal (`KUKA-416`…`KUKA-427`) |
-| **R154 battéria** | **323/323 PASS** (`verify:app-findings-r154`) — tíz új mércével (as7–as14 · ar11–ar12) |
-| **D-VS számozás** | **4/4 PASS** — **tizenkét** új döntés: `D-VS-3210`…`D-VS-3221`; a következő szabad: `D-VS-3222` |
+| **KUKA-regiszter** | **993/993 PASS** (`verify:kuka`) — 422 bejegyzés, **tizenhat** újjal (`KUKA-416`…`KUKA-431`) |
+| **R154 battéria** | **325/325 PASS** (`verify:app-findings-r154`) — tizenkét új mércével (as7–as16 · ar11–ar12) |
+| **D-VS számozás** | **4/4 PASS** — **tizenhat** új döntés: `D-VS-3210`…`D-VS-3225`; a következő szabad: `D-VS-3226` |
 | **próba-alkalmazás önellenőrzés** | **57/57 PASS** (`app:selfcheck`) |
 | **a hat külső program** | **2 ZÖLD · 4 PIROS** — a külön verdiktek a 3. szakaszban; a teljes lánc állapota is ott |
-| **a review által FEDETT SHA** | **`30830ae`** — a korlát **FELOLDÓDOTT**, és három körben összesen **tíz P2** jött (`fb231e6`-ra négy, `4b930dd`-re kettő, `30830ae`-ra négy); **mind a tíz javítva** (lásd a 7.4 pontot). A mai, `097b8eb` fej — maguk ezek a javítások — **nem fedett** |
+| **a review által FEDETT SHA** | **`5390b7c`** — a korlát **FELOLDÓDOTT**, és négy körben összesen **tizennégy P2** jött (`fb231e6`: 4 · `4b930dd`: 2 · `30830ae`: 4 · `5390b7c`: 4); **mind a tizennégy javítva** (lásd a 7.4 pontot). A mai, `9adb8d9` fej — maguk ezek a javítások — **nem fedett** |
 
 ---
 
@@ -287,7 +287,7 @@ GITHUB-OLDALI LEZÁRÁSÁT nem végeztem el: a szál-azonosítókhoz a 112 revie
 végiglapozni, ami aránytalan — a tartalmi válasz a szálakon áll, a lezárást a következő review-kör
 amúgy is újraértékeli a mai fejen. Ezt nem hallgatom el.
 
-### 7.4 A TÍZ ÚJ KÜLSŐ P2 — mind MÉRVE és javítva
+### 7.4 A TIZENNÉGY ÚJ KÜLSŐ P2 — mind MÉRVE és javítva
 
 | # | a lelet | a mért tény | a javítás |
 |---|---|---|---|
@@ -303,6 +303,15 @@ amúgy is újraértékeli a mai fejen. Ezt nem hallgatom el.
 | 8 | az átadás a futás HELYZETÉT kérdezte, nem az ÁTMENETET | a levél-fogadó lépésén kilépve a következő ember megkapta az előző haladását | kilépésnél CSAK a váltás-lépés jogosít; élő tanú: `K7` 1. őre · `KUKA-424` · `D-VS-3218` |
 | 9 | a rekesz nem hordozta a bemutató VERZIÓJÁT | index szerinti visszaírás más verzióra kész-nek jelölhet meg nem történt feladatot | a verzió a rekeszbe, és a visszaállás összeveti; élő tanú: `K7` 2. őre · `KUKA-425` · `D-VS-3219` |
 | 10 | a visszaállás ELŐBB ürítette a rekeszt, és csak utána kérdezte a kiszolgálót | 503 mellett a haladás VÉGLEG elment volna | belenéz → a választ MÉRI → csak siker után ürít; élő tanú: `K7` 3. őre · `KUKA-426` · `D-VS-3220` |
+
+| 11 | a visszaállás megkapta a FOLYTATHATÓ listát, az **átszövegezés** nem | egy átadott futás nyelvváltáskor `notAvailable`-lel elveszett | egy feloldó (`tourDefOf`), két fogyasztó · `KUKA-428` · `D-VS-3222` |
+| 12 | az induló adatból kimaradt a meghívó **LEVELE** | újraindítás után a sor megvan, a fogadó üres — a történet az `invite-observe`-on megszakadt | a tény a levelet is megkívánja; a mérés a helyzetet ELŐÁLLÍTJA (`as15`) · `KUKA-429` · `D-VS-3223` |
+| 13 | a személyes fiók útmutatója olyannak is szólt, akinek **nincs** személyes köre | meg nem erősített címnél nincs mit választani, az útmutató mégis azt állítja, hogy létezik | az útmutató kimondja az induló adatát (`own_personal_book`), a kiszolgáló a tárból méri · `KUKA-430` · `D-VS-3224` |
+| 14 | a `revocable` jelző a **szerep-plafont** nem kérdezte | szűkebb plafonú delegált kezelő `admin` ajánlatra is gombot kapott, amit a kiszolgáló elutasít | a jelző UGYANAZT az írásmentes feloldót kérdezi, amit az írás-út · `KUKA-431` · `D-VS-3225` |
+
+**A 14. mérésének hatóköre KIMONDVA** (`KUKA-216`): a szerep-tengely szűkítésére ma **nincs API-út**,
+ezért a szűk plafonú eset **forrás-pin**, az élő ellenpár a TELJES plafon. Ez **nevesített
+mérés-hiány**, nem teljesítés.
 
 **ÉS A 7. SZIGORÍTÁSA ELŐHOZOTT EGY SAJÁT HIÁNYT** (`KUKA-427` · `D-VS-3221`): a bemutató-lap
 csonkja a belépést a *tagság* fiókjába vitte (kimondott rövidítésként), a valódi kiszolgáló viszont a
@@ -353,7 +362,14 @@ API-ból, nem tippből) a jelentés írásáig (`12:26:38Z`): **349 hívás** ·
 al-ügynök)** · cache-olvasás **149 858 549** · kimenet **318 151** · lefedettség **teljes**
 (1 átirat, minden modell-válasz usage-dzsal).
 
-**A SÁV: FIGYELMEZTETÉS** (356 605 a 300 000–400 000 sávban) — a `D-VS-3083` szerint **megállni nem
+**ZÁRÓ MÉRÉS A CSOMAG VÉGÉN** (`2026-10-08T05:57:32Z` → `16:34:47Z`): **595 hívás** · fő-szál
+kontextusmedián **541 361** · max **782 772** · 400 ezer fölött **380 hívás** · **ügynök-bemenet 0** ·
+lefedettség **teljes**. **A SÁV: VÁLTÁS** (541 361 ≥ 400 000) — a `D-VS-3083` szerint a FUTÓ
+munkablokk célzott ellenőrzéssel **lezárható**, és a KÖVETKEZŐ önálló nagy blokk **friss
+beszélgetésben** induljon. A lezárás címén nem indítottam új feltárást, új funkciót vagy opcionális
+teljes söprést — a kötelező kapu zöld, minden commit feltolva.
+
+**A csomag közbeni pillanatkép (a jelentés első változatakor): FIGYELMEZTETÉS** (356 605 a 300 000–400 000 sávban) — a `D-VS-3083` szerint **megállni nem
 kell, új beszélgetést nem kérünk**; a munkablokk határán rövid állapotmérés jár, és ez a jelentés az.
 A fő szál ébresztései: **user 2×** → 152 hívás, **tömörítés 1×** → 197 hívás (a tömörítéssel
 folytatott beszélgetés a `R114` szerint NEM friss beszélgetés — ezt nem is állítom annak).
