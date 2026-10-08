@@ -1628,6 +1628,30 @@ try {
       step('(as6) R176 §1: a váltás utáni visszaállás a FOLYTATHATÓ listából is keres (a határ mezőjét a felület TÉNYLEGESEN használja)',
         /state\.astStatus\.resumable_tours/.test(appSrc)
           && /defs\.find\(\(t\) => t\.id === h\.id\) \|\| folytathatok\.find\(\(t\) => t\.id === h\.id\)/.test(appSrc));
+
+      /**
+       * (as7–as8) R176 §1 — A FEJLÉC NYITOTT TAKARÓI A SZEMÉLY VÁLTÁSÁN IS BECSUKÓDNAK (KUKA-416).
+       *
+       * A LELET, MÉRVE 390 px-en: a profilmenü `open` állapota túlélte a kilépést ÉS a következő
+       * ember belépését, és a nyitott menü pontosan a fiókválasztó nyitója fölé ült
+       * (`elementFromPoint` → `div#profile-menu`) — a néző rá sem tudott kattintani arra, amire az
+       * útmutató mutat. Ezért a zárásnak EGY otthona van, és a KÖZÖS nézet-ürítő hívja.
+       */
+      const zarasOtthon = (appSrc.match(/function closeHeaderOverlays\(\)/g) || []).length;
+      const zarasHivas = (appSrc.match(/closeHeaderOverlays\(\);/g) || []).length;
+      const uritoZar = /closeHeaderOverlays\(\);\n    renderTour\(\);/.test(appSrc);
+      step('(as7) R176 §1: a fejléc takaróinak zárása EGY otthonban áll, és a KÖZÖS nézet-ürítő is hívja (a személy váltása után nem marad nyitott menü)',
+        zarasOtthon === 1 && zarasHivas === 3 && uritoZar,
+        { otthon: zarasOtthon, hivas: zarasHivas, urito_zar: uritoZar });
+
+      // (as8) ELLENPÁR: a NYERS zárás pontosan EGY helyen állhat (az otthonban) — a másolatból
+      // maradt ki a kilépés, és a `go()`-ba visszaírt alak nevezetten tilos.
+      const nyersProfil = (appSrc.match(/if \(pr\) pr\.open = false;/g) || []).length;
+      const nyersValto = (appSrc.match(/if \(sw\) sw\.open = false;/g) || []).length;
+      const visszairtGo = /setNavOpen\(false\);\n    render\(\);\n    loadPageData\(\);/.test(appSrc);
+      step('(as8) R176 §1 ELLENPÁR: a NYERS zárás EGYETLEN helyen áll, és a `go()`-ba visszamásolt alak nincs (a másolat volt az, ami a kilépésből kimaradt)',
+        nyersProfil === 1 && nyersValto === 1 && visszairtGo === false,
+        { nyers_profil: nyersProfil, nyers_valto: nyersValto, visszairt_go: visszairtGo });
     }
 
       // (u2) DEMÓ KI: ugyanazon a fiókon, UGYANAZZAL a bemutató-felülettel is eltűnnek — az ÉLES

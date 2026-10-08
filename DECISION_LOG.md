@@ -16,6 +16,38 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3210 — AMI A KÉPERNYŐN NYITVA MARAD, AZ IS NÉZETHEZ KÖTÖTT ÁLLAPOT (R176 §1, saját lelet 390 px-en)
+
+**A VALÓDI két szereplős bejárás 390 px-es futásán mértem.** A fejléc három lenyílóját
+(fiókválasztó · profilmenü · ☰ menü) eddig a `go()` csukta be minden oldalváltáskor — a **személy
+váltása** viszont nem: a kilépés és a következő ember belépése csak az ADATOT ürítette. A `details`
+elemek a sablonban állnak, a rajzolás pedig csak a belsejüket írja újra, tehát az `open` tulajdonság
+**átjött a kilépésen ÉS a következő belépésen**.
+
+**A kár MÉRVE, nem sejtve** (`KUKA-215`): az `elementFromPoint` a fiókválasztó nyitójának közepén
+`div#profile-menu`-t adott — vagyis a következő ember **rá sem tudott kattintani** arra a vezérlőre,
+amire az útmutató éppen mutatott, és a 19 lépéses történet **11/19-nél megállt egy ÉP felületen**.
+Asztali nézetben ugyanez csak egy kósza nyitott menü, ezért a hiba a keskeny bejárásig láthatatlan
+volt.
+
+**A DÖNTÉS:** a zárásnak **EGY otthona** van (`closeHeaderOverlays()`), és **onnan megy, ahol minden
+nézethez kötött tár ürül** (`resetViewCaches()` — `KUKA-218`). A három korábbi, kézi pont ugyanezt a
+függvényt hívja (`KUKA-003` · `KUKA-039`). Gépi jel: `verify:kuka` (négy pozitív minta + a tiltott
+kézi alak) · `verify:app-findings-r154` (as7 · as8). **Élő tanú:** `verify:browser-gate` →
+`R176-K3` — 19 lépés 390 px-en, valódi kilépéssel és belépéssel, a váltás határán újraindítással.
+
+**ÉS A PRÓBA IS A KESKENY UTAT JÁRJA:** a közös `gotoPage` segéd a menüpontra kattintott, pedig
+390 px-en a menü a ☰ mögött van — a gomb a lapon ott volt (`aria-current="page"`), de nem látható,
+és a kattintás 15 s után lejárt. A ☰ nyitása a **segédbe** került, nem a hívókba.
+
+**AMIT EZ A DÖNTÉS NEM ÁLLÍT:** a bemutató-motor harmadik állapotának (`navIntentFulfilled`)
+sorrendjét először hibának gondoltam, majd **megmértem**: a `revealerOf` pontosan akkor ad `null`-t,
+amikor az `aria-current="page"` áll, tehát a két feltétel **kizárja egymást**, és a sorrend semmit
+nem változtat. A módosítást visszaállítottam — holt kódot hamis lelettel nem szállítunk
+(`KUKA-050`). A tanulság a regiszterben: **KUKA-416**.
+
+---
+
 ## D-VS-3209 — EGY ŐR ADDIG ÁLTALÁNOS, AMEDDIG A HATÓKÖRE ÉR, ÉS A HALMAZT A TILTOTT ELEMRE KÉRDEZZÜK (R166, három külső P2)
 
 **MIND A HÁROM LELET A SAJÁT, EBBEN A KÖRBEN ÉPÍTETT JAVÍTÁSAIM FELETT**, és mind a három arról

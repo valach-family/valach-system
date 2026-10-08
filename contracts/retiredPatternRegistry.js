@@ -15759,6 +15759,39 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (három pozitív minta) · `npm run verify:app-findings-r154` (ar4 · ar5 · aq5 a mai, erősebb alakra) · `npm run verify:fogyasztas-meres`. Visszacsúszás-próba MÉRVE: a régi alakot visszaírva az aq5 és az ar4 PIROS, és a vegyes átirat 0-val átmegy.',
   }),
 
+  Object.freeze({
+    id: 'KUKA-416',
+    date: '2026-10-08',
+    title: 'A FEJLÉC NYITOTT TAKARÓI TÚLÉLTÉK A SZEMÉLY VÁLTÁSÁT — és 390 px-en pont arra ültek rá, amire az útmutató mutat',
+    what: 'A `go()` minden oldalváltásnál becsukta a három fejléc-takarót (fiókválasztó · profilmenü · ☰ menü), a SZEMÉLY váltása viszont nem: a `doLogout` és a belépés csak az ADATOT ürítette. A `details` elemek a sablonban állnak, a rajzolás pedig CSAK a belsejüket írja újra — tehát az `open` tulajdonság túlélte a kilépést ÉS a következő ember belépését.',
+    why_wrong: 'KÉT KÁR EGYSZERRE, MINDKETTŐ MÉRVE a valódi két szereplős bejáráson. (1) A NYITOTT MENÜ az ELŐZŐ ember kattintásának a nyoma a KÖVETKEZŐ ember képernyőjén — nézethez kötött állapot, ami nem ürült (`KUKA-218` saját szabálya, a KÉPÉRE alkalmazva). (2) 390 px-en a nyitott profilmenü PONTOSAN a fiókválasztó nyitója fölé ül: `document.elementFromPoint` a nyitó közepén `div#profile-menu`-t adott, tehát a következő ember RÁ SEM TUDOTT kattintani arra a vezérlőre, amire az útmutató mutat — a 19 lépéses történet 11/19-nél megállt egy ÉP felületen (`KUKA-011` · `KUKA-041`).',
+    replaced_by: 'A ZÁRÁSNAK EGY OTTHONA VAN (`closeHeaderOverlays()`, `v3app/public/app.js`), és ONNAN megy, ahol minden nézethez kötött tár ürül: a `resetViewCaches()` hívja — tehát a kilépés, a másik ember belépése és a fiókváltás MIND zár. A három korábbi, kézi pont (`go` · `switchWorkspace`) ugyanezt a függvényt hívja (`KUKA-003` · `KUKA-039`).',
+    replacement: 'ÉS A PRÓBA IS A KESKENY UTAT JÁRJA: a közös `gotoPage` segéd eddig a menüpontra kattintott, pedig 390 px-en a menü a ☰ mögött van — a gomb a lapon OTT volt (`aria-current="page"`, `class="navitem active"` — mérve), de nem látható, és a kattintás 15 s után lejárt. A ☰ nyitása a SEGÉDBE került, nem a hívókba, és az élő tanú a 390 px-es végigjárás (`R176-K3`), nem egy sejtés.',
+    decision: 'D-VS-3210',
+    found_by: 'SAJÁT LELET (Claude-v3, R176 §1) — a VALÓDI két szereplős bejárás 390 px-es futásán, `elementFromPoint`-tal mérve (a takarást nem feltételeztük: `KUKA-215`).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'function closeHeaderOverlays\\(\\)',
+        why: 'a fejléc takaróinak zárása EGY otthonban áll' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'closeHeaderOverlays\\(\\);\\n    renderTour\\(\\);',
+        why: 'a KÖZÖS ürítő is zár — a személy váltása után nem marad nyitott menü', flags: 'm' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/helpers.mjs']),
+        pattern: 'await pont\\.waitFor\\(\\{ state: .visible., timeout: 5000 \\}\\);',
+        why: 'a próba a ☰-t nyitja ki, ahogy a néző — a keskeny nézet JÁRVA van, nem feltételezve' }),
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r154.mjs']),
+        pattern: 'as7\\) R176 §1',
+        why: 'az egy otthon és a közös ürítő hívása MÉRVE van, ellenpárral' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "setNavOpen\\(false\\);\\n    render\\(\\);\\n    loadPageData\\(\\);",
+        reason: 'a kézi, pontonkénti zárás volt az, ami a kilépésből kimaradt — a másolat tilos', flags: 'm' }),
+    ]),
+    lesson: 'AMI A KÉPERNYŐN NYITVA MARAD, AZ IS NÉZETHEZ KÖTÖTT ÁLLAPOT — és a személy váltása nem csak az ADATOT üríti. Ha egy zárást HÁROM hívó maga végez, a NEGYEDIK úton (itt: a kilépésen) kimarad; és a kár nem ott jelentkezik, ahol írtuk, hanem a keskeny nézetben, ahol egy nyitott lenyíló ráül a következő lépés vezérlőjére. A takarást MÉRNI kell (`elementFromPoint`), nem sejteni.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (négy pozitív minta + a tiltott kézi alak) · `npm run verify:app-findings-r154` (as7 · as8). ÉLŐ TANÚ: `npm run verify:browser-gate` → `tests/e2e/v3app-r176-ket-szereplo.spec.mjs` R176-K3 — a 19 lépéses történet 390 px-en, a váltás határán újraindítással, VALÓDI kilépéssel és belépéssel. Visszacsúszás-próba MÉRVE: a `resetViewCaches` hívását kivéve a K3 a 11. lépésen elakad.',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({
