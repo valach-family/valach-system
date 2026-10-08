@@ -15,6 +15,7 @@ RÉGI munkamenet zárása volt; ez a lap az ÚJ munkamenet eredménye.
 |---|---|
 | **Kód-SHA (a csomag feje)** | lásd a lap alján: `git log -1` ezen az ágon |
 | **A review által FEDETT SHA** | `6110c87` — a LEGUTÓBBI átolvasás eddig jutott (ez adta a 2.8 három leletét; a `0aea8eb` a 2.7-et, a `d570f54` a 2.4–2.5-öt, a `3747c12` a 2.1–2.3-at). Az azóta született munka — maguk a **javítások** — **NEM fedett**: a mai fejre nincs független review-bizonyíték. |
+| **ÉS MIÉRT NEM — MÉRT TÉNY, NEM FELTEVÉS** | a külső ellenőrző a PR-on **kimondta**, hogy elérte a **használati korlátját** a kód-átolvasásokra (`2026-10-08T00:14Z`, a bot saját üzenete). Tehát a mai fej átolvasása nem „késik", hanem **jelenleg nem tud megtörténni** — ezt nem kerülöm meg és nem is sürgetem; a hiány kimondva marad, ahogy a `KUKA-200` kéri (a nem futott nem „részben"). |
 | **R166 §0 átadás** | **KÉSZ** — a checkpoint ellenőrizve, a régi író leállt, a munka a PR aktuális fejére épült (force-push nélkül) |
 | **R166/P1 (a nyitott review-szál)** | **KÉSZ és MÉRVE** — `D-VS-3201` · `KUKA-393` |
 | **A 3747c12 fejre jött ÚJ P2** | **KÉSZ és MÉRVE** — a titok-tisztító határa (`D-VS-3203` · `KUKA-395`); lásd a 2.1 pontot |
