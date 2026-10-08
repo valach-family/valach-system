@@ -201,9 +201,11 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
     const adat = {
       pending_invite: ((fuggo.body && fuggo.body.invites) || []).some((i) => i.state === 'pending'),
       other_member: ((tagok.body && tagok.body.members) || []).some((m) => m.email !== anna.email),
+      // R176 · `KUKA-430`: a saját személyes kör léte is induló adat (a személyes fiók útmutatójához).
+      own_personal_book: Boolean(((await anna.api.get('/api/me')).body || {}).personal_book_id),
     };
-    expect(`${adat.pending_invite} · ${adat.other_member}`,
-      'MÉRVE: függő meghívás NINCS (Berta elfogadta), másik tag viszont VAN').toBe('false · true');
+    expect(`${adat.pending_invite} · ${adat.other_member} · ${adat.own_personal_book}`,
+      'MÉRVE: függő meghívás NINCS (Berta elfogadta), másik tag VAN, és saját személyes kör is VAN').toBe('false · true · true');
     const DEKLARALT = Object.keys(TOURS);
     const valtosBemutato = (id) => actorSwitchSteps(TOURS[id]).length > 0;
     const kiszolgalt = DEKLARALT.filter((id) => TOURS[id].requires_anonymous !== true

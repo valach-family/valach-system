@@ -130,9 +130,18 @@ test('R91-03 — MINDEN bemutató elindul a saját képernyőjén, vagy NEVEZETT
     const masTag = ((tagok.body && tagok.body.members) || []).filter((m) => m.email !== anna.email);
     expect(`${vanFuggo} · ${masTag.length}`, 'MÉRVE: ebben a vállalkozásban nincs függő meghívás és nincs másik tag')
       .toBe('false · 0');
+    /**
+     * ÉS AZ INDULÓ ADAT MINDEN TÉNYÉT MÉRJÜK (R176 · `KUKA-430`): a készlet zárt, de nem minden
+     * tagja HIÁNYZIK ebben a nézetben — a saját személyes kör például MEGVAN. A kizárás ezért a
+     * MÉRT tényekből jön, nem abból, hogy a bemutató „kér-e" induló adatot.
+     */
+    const sajatKor = Boolean(((await anna.api.get('/api/me')).body || {}).personal_book_id);
+    const adat = { pending_invite: vanFuggo, other_member: masTag.length > 0, own_personal_book: sajatKor };
+    expect(`${adat.own_personal_book}`, 'MÉRVE: ennek az embernek VAN saját személyes köre (a címe megerősített)').toBe('true');
     const DEKLARALT = Object.keys(TOURS);
     const nevezettenKizart = DEKLARALT.filter((id) => TOURS[id].requires_anonymous === true
-      || TOURS[id].requires_invite === true || Boolean(TOURS[id].requires_story_data));
+      || TOURS[id].requires_invite === true
+      || (TOURS[id].requires_story_data && adat[TOURS[id].requires_story_data] !== true));
     // ÉS A KÉT VÁLTÓS TÖRTÉNET MINDEGYIKE KIMONDJA AZ INDULÓ ADATÁT — különben a horgony-változás
     // után némán felkínálódna egy végig nem vihető történet (az R176 §1 MÉRT lelete, `KUKA-417`).
     const valtos = DEKLARALT.filter((id) => actorSwitchSteps(TOURS[id]).length > 0);
@@ -155,6 +164,7 @@ test('R91-03 — MINDEN bemutató elindul a saját képernyőjén, vagy NEVEZETT
     }
     const indokNelkul = nevezettenKizart.filter((id) => !(TOURS[id].requires_anonymous === true
       || TOURS[id].requires_invite === true || Boolean(TOURS[id].requires_story_data)));
+    expect(tours, 'és a saját személyes kör útmutatója JÁR neki (az induló adata megvan)').toContain('tour.personalAccount');
     expect(indokNelkul.join(',') || 'nincs', 'és MINDEN kizárásnak nevezett indoka van a regiszterben').toBe('nincs');
     expect(tours).not.toContain('tour.register');
     expect(tours, 'az R121 hozzáférés-életciklus bemutatója a kezelőnek jár').toContain('tour.scopeLifecycle');
