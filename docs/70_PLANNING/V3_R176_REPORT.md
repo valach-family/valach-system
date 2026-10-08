@@ -14,7 +14,9 @@ Az R176 két fennmaradó feladatot kért. **Az első elkészült:** a két szere
 (meghívás visszavonása · munkatárs visszatérése) mostantól a **tényleges VS-felületen** megy végig,
 valódi HTTP-vel, valódi tárolóval és valódi ki-/belépéssel — asztali nézetben **és 390 px-en**,
 a váltás határán **újraindítással** is. A bejárás közben **öt valódi hibát** találtam és javítottam;
-kettőt közülük nem a gondolkodásom, hanem a **kötelező kapu mérése** talált meg. **A második feladat
+kettőt közülük nem a gondolkodásom, hanem a **kötelező kapu mérése** talált meg. **És a jelentés írása közben a külső
+ellenőrző korlátja feloldódott:** a review lefutott, **négy P2** jött, és mind a négy javítva —
+köztük egy olyan, amit a **saját próbám elrejtett**. **A második feladat
 részben teljesült:** a hat ellenőrző programot egyenként lefuttattam a mai fejen — **kettő zöld**
 (ebből az egyik korábban piros volt), **négy piros**, és mind a négy piros okát MÉRTEM. A négyből
 **háromnál a mi gépünk** a korlát: a program a megengedett véges keretet (30 perc) kimeríti.
@@ -26,15 +28,15 @@ részben teljesült:** a hat ellenőrző programot egyenként lefuttattam a mai 
 
 | mérce | verdikt |
 |---|---|
-| **KÓD-SHA (amit mértem)** | `fb231e66683d66774d73fab41a3e7247b3165b71` (`fb231e6`) |
-| **a kötelező böngésző-kapu** | **ZÖLD** — `verify:browser-gate`: **141 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott**, 26 próba-fájl; `test:e2e + proof:core-ux` 565 s; `proof:demo-walk` 444 s |
-| **a két szereplős bejárás a VALÓDI felületen** | **4/4 ZÖLD** — K1 19/19 · K2 18/18 · K3 19/19 (390 px + újraindítás) · K5 (a kilépés nem visz át semmit) |
-| **KUKA-regiszter** | **942/942 PASS** (`verify:kuka`) — 408 bejegyzés, két újjal (`KUKA-416` · `KUKA-417`) |
-| **R154 battéria** | **317/317 PASS** (`verify:app-findings-r154`) — négy új mércével (as7–as10) |
-| **D-VS számozás** | **4/4 PASS** — két új döntés: `D-VS-3210` · `D-VS-3211`; a következő szabad: `D-VS-3212` |
+| **KÓD-SHA (amit mértem)** | `2f731f6` — a kötelező kapu EZEN a fejen zöld |
+| **a kötelező böngésző-kapu** | **ZÖLD** — `verify:browser-gate`: **142 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott**, 26 próba-fájl; `test:e2e + proof:core-ux` 575 s; `proof:demo-walk` 446 s |
+| **a két szereplős bejárás a VALÓDI felületen** | **5/5 ZÖLD** — K1 19/19 · K2 18/18 · K3 19/19 (390 px + újraindítás) · K5 · **K6** (az új ellenpár) — és a próba a váltás-lépésen **nem** nyitja ki helyettünk a menüt |
+| **KUKA-regiszter** | **956/956 PASS** (`verify:kuka`) — 411 bejegyzés, öt újjal (`KUKA-416`…`KUKA-420`) |
+| **R154 battéria** | **319/319 PASS** (`verify:app-findings-r154`) — hat új mércével (as7–as10 · ar11–ar12) |
+| **D-VS számozás** | **4/4 PASS** — öt új döntés: `D-VS-3210`…`D-VS-3214`; a következő szabad: `D-VS-3215` |
 | **próba-alkalmazás önellenőrzés** | **57/57 PASS** (`app:selfcheck`) |
 | **a hat külső program** | **2 ZÖLD · 4 PIROS** — a külön verdiktek a 3. szakaszban; a teljes lánc állapota is ott |
-| **a review által FEDETT SHA** | `6110c87` — azóta a **javítások** (köztük a mai munka) **NEM fedettek**; az ok mért tény, lásd a 7. szakaszt |
+| **a review által FEDETT SHA** | **`fb231e6`** — a külső ellenőrző használati korlátja **FELOLDÓDOTT**, és a review ezen a fejen lefutott: **négy P2**, mind javítva (lásd a 7.4 pontot). A mai, `2f731f6` fej — maguk ezek a javítások — **nem fedett** |
 
 ---
 
@@ -270,15 +272,39 @@ csak funkcióval. A padló (`floor_breaks`) **üres** — visszacsúszás nincs.
 
 ### 7.3 A független review — KÜLÖN BLOKK, ahogy a parancs kérte
 
-**A mai fejet (`fb231e6`) független fél NEM olvasta át.** A legutóbbi átolvasás a `6110c87`-et
-fedi; az azóta született munka — az R166 javításai és a MAI kör egésze — **nem fedett**. Az ok
-**mért tény**, nem feltevés: a külső ellenőrző a PR-on kimondta, hogy elérte a **használati
-korlátját** a kód-átolvasásokra. A parancs szerint ezt nem kerülöm meg: **nem kértem újra** kézi
-review-t a jelzett korlát alatt, **nem vásároltam** keretet, és **nem kerültem meg** a korlátot.
-A hiány kimondva marad (`KUKA-200`: a nem futott nem „részben").
+**A HELYZET A JELENTÉS ÍRÁSA KÖZBEN MEGVÁLTOZOTT, és ezt kimondom.** Amikor a jelentés első
+változata elkészült, a külső ellenőrző használati korlátja még állt, és ez a blokk azt írta, hogy a
+mai fejet senki nem olvasta át. **Néhány órával később a korlát feloldódott**, a review lefutott az
+`fb231e6` fejre, és **négy P2 leletet** adott. Mind a négy valós volt; mind a négy javítva — a
+részletek a 7.4 pontban.
 
-**Tehát:** ha ezen a csomagon már csak a független review hiányzik, akkor a hiány EZ a blokk —
-minden más mért verdikt a jelentésben áll.
+**A MA érvényes állapot:** a review által fedett fej az **`fb231e6`**; a mai fej (`2f731f6`) maguk
+ezek a javítások, tehát **nem fedett**. A korlát alatt nem kértem újra átolvasást, keretet nem
+vásároltam, a korlátot nem kerültem meg (`KUKA-200`: a nem futott nem „részben").
+
+**A négy szálra a válasz kiment**, mindegyikre a mért ténnyel és a visszacsúszás-próbával. A szálak
+GITHUB-OLDALI LEZÁRÁSÁT nem végeztem el: a szál-azonosítókhoz a 112 review-szálat kellene
+végiglapozni, ami aránytalan — a tartalmi válasz a szálakon áll, a lezárást a következő review-kör
+amúgy is újraértékeli a mai fejen. Ezt nem hallgatom el.
+
+### 7.4 A NÉGY ÚJ KÜLSŐ P2 — mind MÉRVE és javítva
+
+| # | a lelet | a mért tény | a javítás |
+|---|---|---|---|
+| 1 | a `sessionId`-mérce 50 sornál megállt, az exportáló minden sort feldolgoz | 60 tiszta sor + egy idegen a végén: a régi alak ÁTENGEDTE | a mérce MINDEN sort megnéz; a jel **viselkedés** (`ar11` · `ar12`) · `KUKA-418` · `D-VS-3212` |
+| 2 | a két átívelő történet levél-fogadó lépést is tartalmaz, de csak `requires_demo`-t deklarált | telepített demóban a `/dev/mailbox` 404, a történet megszakadna | `requires_dev_mailbox: true` mindkettőn; a deklarált készlet négy tagú (`al4`) · a `KUKA-417` **visszatért** |
+| 3 | a szereplő-váltó horgony a CSUKOTT profilmenüben áll, feltárási út nélkül | a rejtett gombon: `rects=1 · box=258×42 · visibility=visible`, de `checkVisibility()=false` | a láthatóságot a **böngésző** dönti el; a csukott lenyíló nyitója **feltáró**; a mondat előbb feltárást kér · `KUKA-419` · `D-VS-3213` |
+| 4 | az átadás a történet elején is megszületett, a `K5` csak egy-szereplős ágat mért | közönséges kilépés 2/19-nél: a következő ember visszakapta a haladást | a határ az **első** váltás-lépés; új ellenpár: **`R176-K6`** · `KUKA-420` · `D-VS-3214` |
+
+**A harmadik a legfontosabb, és két okból:** (a) a gyökér nem a hiányzó deklaráció volt, hanem a
+projekt EGYETLEN láthatóság-szavának heurisztikája — egy csukott lenyíló tartalma megtartja a
+layout-keretét, tehát a bemutató egy **láthatatlan** gombra küldte a nézőt; (b) a hibát **a saját
+próbám elrejtette**, mert maga nyitotta ki a menüt. A próba mostantól a váltás-lépésen soha nem
+nyitja ki a lenyílót, és a horgonyt szemantikusan keresi — így a `K1/K2/K3` a feltárás tényét is
+méri.
+
+**Tehát:** ha ezen a csomagon már csak a független review hiányzik, akkor a hiány a mai fej
+átolvasása — minden más mért verdikt a jelentésben áll.
 
 ---
 
@@ -288,8 +314,9 @@ minden más mért verdikt a jelentésben áll.
   futás a futtató saját jelölése szerint sem a lánc bizonyítéka.
 - **Nem** állítja, hogy a két piros helyettes (`r57a` · `r59a`) tartalmilag hibás: **nem futottak
   végig**, tehát tartalmi verdiktjük NINCS. A „nem futott" nem „részben".
-- **Nem** állítja, hogy a mai fejet független fél elfogadta. A válaszolt vagy lezárt szál nem
-  elfogadás.
+- **Nem** állítja, hogy a mai fejet független fél elfogadta: a review az `fb231e6`-ot fedi, a mai
+  fej (`2f731f6`) maguk a javítások. **A válaszolt szál nem elfogadás**, és a szálak github-oldali
+  lezárását sem végeztem el (kimondva a 7.3-ban).
 - **Nem** állítja, hogy a csomag merge-kész, és **nem** végez merge-öt, force-push-t, felhős
   telepítést, titok-módosítást vagy CMD/PR-lezárást — a parancs korlátai változatlanul állnak.
 - **Nem** állítja, hogy a bemutató-lap (`demo-index.html`) zöldje a valódi felület bizonyítéka: a
