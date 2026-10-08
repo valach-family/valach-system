@@ -16,6 +16,42 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3228 — A KIJELENTKEZÉS IS CSAK IGAZOLT VÁLASZ UTÁN ÜRÍT (R176, külső P2)
+
+A `doLogout` eldobta az `api()` visszatérését, tehát a kimenet ismerete NÉLKÜL mondta ki, hogy
+kiléptünk: a kiszolgáló munkamenete élhetett tovább, a meghívó jegyét pedig — az EGYETLEN azonnali
+utat vissza a meghíváshoz — egy MÚLÓ hiba visszafordíthatatlanul elvitte. Mostantól a választ
+MEGMÉRJÜK: nem igazolt kimenetnél semmit nem ürítünk, a képernyő marad, a jegy marad, és a mondat
+NEM azt állítja, hogy a kilépés meghiúsult, hanem hogy NEM ELDÖNTHETŐ (`KUKA-220`). A hatókört a
+hiba-osztály adta, nem a lelet sorszáma (`KUKA-418`): a `KUKA-422` ugyanezt a visszalépésen javította,
+a szomszédját nem. `KUKA-434` · gépi jel: `verify:kuka` · `verify:app-findings-r154` (as23–as24) ·
+ÉLŐ tanú: `test:e2e` → `R166-M7`.
+
+---
+
+## D-VS-3227 — A KILÉPÉS ÁTADÁSI HATÁRA CSAK A SZEMÉLY-TENGELY, ÉS A DÖNTÉS MEGHÍVHATÓ (R176, külső P2)
+
+A kilépés minden váltás-lépésen átadta a futó bemutatót — a fiók-tengelyeseken is, ahol a történet
+fiókváltást kér, nem kilépést. A következő belépő így ugyanabban a fülben megkapta az előző ember
+haladását. A kilépés a SZEMÉLYT váltja, tehát csak a `subject` tengelyen átadás — és a döntés a lap
+zárt függvényéből a bemutató-szabályok közé került (`handoverBoundaryOk`), mert amit próba nem tud
+MEGHÍVNI, azt bizalomból hisszük (`KUKA-207`). A NEM kilépéses váltás határa változatlan.
+`KUKA-433` · gépi jel: `verify:kuka` · `verify:app-findings-r154` (as20–as22) · `proof:demo-walk` (h1h).
+
+---
+
+## D-VS-3226 — A VÁLTÁS A PÁR EGYIK FELÉT MOZGATJA, A MÁSIKAT HELYBEN TARTJA (R176, külső P2)
+
+A `KUKA-423` után a kapu a deklarált tengelyt kérte, de CSAK azt: a fiók-tengelyen elég volt, hogy a
+könyv más lett. Egy MÁSIK EMBER belépése viszont a könyvet is megváltoztatja (a belépő a saját
+személyes körében landol), tehát a kilépés + más ember belépése is „teljesített”-nek számított: a
+futás a ROSSZ emberhez kötődött át. A fiók-ág mostantól a pár MINDKÉT felét egy feltételben
+kérdezi. A két tengely NEM tükrös, és ez mért tény: személy-váltásnál a könyv JOGGAL más lesz.
+`KUKA-432` · gépi jel: `verify:kuka` · `verify:app-findings-r154` (as17–as19) · `proof:demo-walk`
+(h1f–h1g).
+
+---
+
 ## D-VS-3225 — AMIT A FELÜLET FELKÍNÁL, AZT A KISZOLGÁLÓNAK EL IS KELL TUDNIA VÉGEZNI (R176, külső P2)
 
 A meghívó-lista `revocable` jelzője csak a függő állapotot kérdezte, a visszavonás viszont a

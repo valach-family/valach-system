@@ -577,6 +577,14 @@ async function handoverProbes() {
       // ELLENPÁR: pontosan az az állapot, amit a RÉGI átadás előállított — a fiók elveszett, ezért
       // a futás az ÚJ fiókhoz kötődött, és a MEGTÖRTÉNT váltás mérhetetlen lett.
       elvesztettFiok: mod.actorSwitchReady(run({ book: 'b2', subject: 'u1' }, 'book'), { view: { book: 'b2', subject: 'u1' }, role: null }),
+      // R176 (`KUKA-432`): a FIÓK-tengelyen a pár NEM MOZGÓ fele (az alany) is kötve van — különben
+      // a kilépés + MÁS EMBER belépése is „teljesített"-nek számít, hiszen az ÚJ ember könyve is más.
+      fiokMindkettoMas: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'book'), { view: { book: 'b2', subject: 'u2' }, role: null }),
+      alanyMindkettoMas: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'subject'), { view: { book: 'b2', subject: 'u2' }, role: null }),
+      // R176 (`KUKA-433`): a KILÉPÉS mint átadási határ — csak a SZEMÉLY-tengelyen.
+      hatarKilepesSzemely: mod.handoverBoundaryOk({ switch_actor: true, switch_axis: 'subject' }, { kilepes: true }),
+      hatarKilepesFiok: mod.handoverBoundaryOk({ switch_actor: true, switch_axis: 'book' }, { kilepes: true }),
+      hatarFiokvaltas: mod.handoverBoundaryOk({ switch_actor: true, switch_axis: 'book' }, { kilepes: false }),
     };
   });
   A('(h1a) ugyanaz az ember MÁSIK FIÓKJA is váltás (a FIÓK tengelyén)', pair.masFiok === true, `kapott=${pair.masFiok}`);
@@ -587,6 +595,13 @@ async function handoverProbes() {
   A('(h1b) MÁS ember nézete is váltás', pair.masEmber === true, `kapott=${pair.masEmber}`);
   A('(h1c) ELLENPÁR: ha az átadás a FIÓKOT elveszti, a megtörtént váltás MÉRHETETLEN',
     pair.elvesztettFiok === false, `kapott=${pair.elvesztettFiok}`);
+  A('(h1f) R176 — a FIÓK-tengelyen a MÁSIK EMBER belépése NEM teljesítés, akkor sem, ha a könyv is más lett',
+    pair.fiokMindkettoMas === false, `kapott=${pair.fiokMindkettoMas}`);
+  A('(h1g) R176 ELLENPÁR: a két tengely NEM tükrös — a SZEMÉLY-váltás ugyanezt az átmenetet JOGGAL elfogadja',
+    pair.alanyMindkettoMas === true, `kapott=${pair.alanyMindkettoMas}`);
+  A('(h1h) R176 — a KILÉPÉS átadási határa CSAK a személy-tengely; a fiók-tengelyes kilépés nem ad át, a FIÓKVÁLTÁS viszont igen',
+    pair.hatarKilepesSzemely === true && pair.hatarKilepesFiok === false && pair.hatarFiokvaltas === true,
+    `szemely=${pair.hatarKilepesSzemely} fiok=${pair.hatarKilepesFiok} fiokvaltas=${pair.hatarFiokvaltas}`);
 
   // ── (h2–h4) A MOBIL MENÜ: a VÁRAKOZÁS VÉGE is esemény (F142-02) + az ARIA igazat mond (F142-04)
   await page.locator('[data-testid="help-open"]').first().click(KATT).catch(() => {});

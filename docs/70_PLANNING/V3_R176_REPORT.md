@@ -287,7 +287,7 @@ GITHUB-OLDALI LEZÁRÁSÁT nem végeztem el: a szál-azonosítókhoz a 112 revie
 végiglapozni, ami aránytalan — a tartalmi válasz a szálakon áll, a lezárást a következő review-kör
 amúgy is újraértékeli a mai fejen. Ezt nem hallgatom el.
 
-### 7.4 A TIZENNÉGY ÚJ KÜLSŐ P2 — mind MÉRVE és javítva
+### 7.4 A TIZENHÉT ÚJ KÜLSŐ P2 — mind MÉRVE és javítva
 
 | # | a lelet | a mért tény | a javítás |
 |---|---|---|---|
@@ -308,6 +308,10 @@ amúgy is újraértékeli a mai fejen. Ezt nem hallgatom el.
 | 12 | az induló adatból kimaradt a meghívó **LEVELE** | újraindítás után a sor megvan, a fogadó üres — a történet az `invite-observe`-on megszakadt | a tény a levelet is megkívánja; a mérés a helyzetet ELŐÁLLÍTJA (`as15`) · `KUKA-429` · `D-VS-3223` |
 | 13 | a személyes fiók útmutatója olyannak is szólt, akinek **nincs** személyes köre | meg nem erősített címnél nincs mit választani, az útmutató mégis azt állítja, hogy létezik | az útmutató kimondja az induló adatát (`own_personal_book`), a kiszolgáló a tárból méri · `KUKA-430` · `D-VS-3224` |
 | 14 | a `revocable` jelző a **szerep-plafont** nem kérdezte | szűkebb plafonú delegált kezelő `admin` ajánlatra is gombot kapott, amit a kiszolgáló elutasít | a jelző UGYANAZT az írásmentes feloldót kérdezi, amit az írás-út · `KUKA-431` · `D-VS-3225` |
+
+| 15 | a váltás-kapu a fiók-tengelyen CSAK a mozgó felet mérte | `S_bela→S_anna` **és** `B_sajat→B_anna_sajat`: a kapu `true` — tehát a kilépés + MÁS EMBER belépése is „teljesített” | a pár **mindkét** fele egy feltételben; a két tengely nem tükrös, és ez mért tény · `KUKA-432` · `D-VS-3226` |
+| 16 | a kilépés MINDEN váltás-lépésen átadott, a **fiók**-tengelyeseken is | a négy fiók-tengelyes lépésen a történet fiókváltást kér; ott kilépve a következő ember megkapta az előző haladását | a kilépés csak a **személy**-tengelyen ad át — és a döntés **MEGHÍVHATÓ** feloldóba került (`handoverBoundaryOk`) · `KUKA-433` · `D-VS-3227` |
+| 17 | a **kijelentkezés** eldobta a kiszolgáló válaszát | 5xx mellett a lap kimondta, hogy kiléptünk, és elvette a meghívó **jegyét** (memória ÉS címsor) | a választ MEGMÉRJÜK; nem igazolt kimenetnél semmit nem ürítünk, és a mondat **nem eldönthető**-t mond, nem meghiúsulást · `KUKA-434` · `D-VS-3228` · élő tanú: **`R166-M7`** |
 
 **A 14. mérésének hatóköre KIMONDVA** (`KUKA-216`): a szerep-tengely szűkítésére ma **nincs API-út**,
 ezért a szűk plafonú eset **forrás-pin**, az élő ellenpár a TELJES plafon. Ez **nevesített

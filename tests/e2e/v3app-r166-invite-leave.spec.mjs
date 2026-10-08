@@ -372,3 +372,50 @@ test('R166-M6 — A VISSZALÉPÉS CSAK IGAZOLT VÁLASZ UTÁN ÜRÍT: 5xx mellett
   await expect(cili.page.getByTestId('section-invite')).toHaveCount(0);
   expect(await inviteInUrl(cili.page), 'a jegy mostantól elment a címsorból is').toBe(false);
 });
+
+test('R166-M7 — A KILÉPÉS CSAK IGAZOLT VÁLASZ UTÁN ÜRÍT: 5xx mellett a néző a meghívó képernyőjén MARAD, és a MEGHÍVÓ JEGYE sem megy el', async () => {
+  /**
+   * A KÜLSŐ REVIEW P2-JE (R176, chatgpt-codex) — a SAJÁT javításom SZOMSZÉDJÁN, és pontosan a
+   * `KUKA-422` hiba-osztálya egy függvénnyel odébb (`KUKA-418`: a hatókört a hiba-osztály adja).
+   *
+   * A LELET: a `doLogout` eldobta az `api()` visszatérését. Az `api()` NEM dob kivételt — hálózati
+   * hibára, 5xx-re és értelmezhetetlen válaszra is objektummal tér vissza —, tehát a függvény a
+   * kimenet ISMERETE NÉLKÜL ürített: a közös ürítőn átment, ELVETTE a meghívó jegyét (memória ÉS
+   * címsor), és kirajzolta a belépő lapot. Vagyis KIMONDTA, hogy kiléptünk, miközben a kiszolgáló
+   * munkamenete élhet tovább — a meghívó képernyőjén pedig a jegy az EGYETLEN azonnali út vissza a
+   * meghíváshoz, és azt egy MÚLÓ hiba visszafordíthatatlanul elvitte.
+   *
+   * EZ A PRÓBA ELVÁGJA a kijelentkezés válaszát (`route.fulfill` 500), és azt MÉRI, hogy a lap NEM
+   * állít teljesítést: a meghívó-képernyő MARAD, a JEGY a címsorban MARAD, a mondat NEVEZETT, és a
+   * gomb újra megnyomható. A route feloldása után a kilépés TÉNYLEGESEN megtörténik (az ellenpár) —
+   * a szigorítás tehát nem vitt el működő utat (`KUKA-201`).
+   */
+  const dori = await world.person('dori-m7');
+  await dori.page.route('**/api/logout', async (route) => {
+    await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ ok: false, reason: 'server_error' }) });
+  });
+  const o = await openInviteUI(dori.page, link);
+  expect(o.observe.status, 'a meghívó képernyője felállt a BELÉPETT néző alatt').toBeTruthy();
+  await expect(dori.page.getByTestId('invite-logout')).toBeVisible();
+
+  await dori.page.getByTestId('invite-logout').click();
+
+  // A LAP NEM ÁLLÍT TELJESÍTÉST: a képernyő marad, a mondat nevezett, a JEGY megmarad.
+  await expect(dori.page.getByTestId('section-invite')).toBeVisible();
+  await expect(dori.page.getByTestId('signout-not-done')).toBeVisible();
+  const mondat = ((await dori.page.getByTestId('signout-not-done').textContent()) || '').trim();
+  expect(mondat, 'a mondat a NYELVCSOMAGBÓL jön, nem a próbából (KUKA-237)').toBe(HU.UI.signOutUncertain);
+  expect(await inviteInUrl(dori.page), 'a meghívó JEGYE a címsorban MARAD — egy múló hiba nem veheti el').toBe(true);
+  // ÉS A LAP NEM MONDJA, HOGY NINCS BELÉPVE: a belépő űrlap NEM jelenik meg.
+  await expect(dori.page.getByTestId('login-email')).toHaveCount(0);
+  await expect(dori.page.getByTestId('invite-logout'), 'a kiút működik: a gomb újra megnyomható').toBeVisible();
+
+  // ELLENPÁR — A ROUTE FELOLDÁSA UTÁN A KILÉPÉS TÉNYLEGESEN MEGTÖRTÉNIK.
+  await dori.page.unroute('**/api/logout');
+  await dori.page.getByTestId('invite-logout').click();
+  await expect(dori.page.getByTestId('login-email')).toBeVisible();
+  await expect(dori.page.getByTestId('section-invite')).toHaveCount(0);
+  expect(await inviteInUrl(dori.page), 'és MOST a jegy is elment a címsorból').toBe(false);
+  // A MONDAT IS ELTŰNT: a sikeres kilépés a közös ürítőn át viszi el (KUKA-218).
+  await expect(dori.page.getByTestId('signout-not-done')).toHaveCount(0);
+});

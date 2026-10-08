@@ -385,6 +385,24 @@ export function checkRun(run, { view, role }) {
  */
 export const SWITCH_AXES = Object.freeze(['subject', 'book']);
 
+/**
+ * A KILÉPÉS MINT ÁTADÁSI HATÁR — EGY FELOLDÓ, MÉRHETŐEN (R176, külső review P2 · `KUKA-433`).
+ *
+ * Ez a döntés eddig a lap belső `saveTourHandover`-ében, zárt függvényben állt — tehát próba nem
+ * tudta MEGHÍVNI, csak forrás-mintával hinni (`KUKA-207`). Ezért a szabály ITT áll, a többi
+ * bemutató-szabály mellett, és a lap INNEN kérdezi.
+ *
+ * MIT MOND: a NEM kilépéses nézet-váltás (belépés · fiókváltás · az elfogadás utáni frissítés)
+ * határát a hívó felsőbb feltétele adja (az ELSŐ váltás-lépés elérése, `KUKA-416`); a KILÉPÉS
+ * viszont a SZEMÉLYT váltja, tehát csak ott átadás, ahol a történet ÉPP SZEMÉLY-váltást kér.
+ * Nyilatkozat nélkül ZÁRVA (`KUKA-236`).
+ */
+export function handoverBoundaryOk(step, { kilepes = false } = {}) {
+  if (!kilepes) return true;
+  if (!step || step.switch_actor !== true) return false;
+  return step.switch_axis === 'subject';
+}
+
 export function actorSwitchReady(run, { view, role }) {
   if (!run) return false;
   const step = run.steps[run.at];
@@ -411,10 +429,29 @@ export function actorSwitchReady(run, { view, role }) {
    * A nézet továbbra is PÁR (`KUKA-208`), de hogy MELYIK felének kell változnia, azt a LÉPÉS
    * deklarálja — zárt készletből, nyilatkozat nélkül ZÁRVA (`KUKA-236`).
    */
+  /**
+   * …ÉS A PÁR NEM MOZGÓ FELÉT IS MEGMÉRJÜK (R176, külső review P2 — `KUKA-432`).
+   *
+   * A LELET, MÉRVE. A fenti alak a FIÓK-tengelyen CSAK azt kérdezte meg, hogy a könyv más lett-e.
+   * Egy másik EMBER belépése viszont a könyvet is megváltoztatja (a belépő a saját személyes
+   * körében landol) — tehát egy `switch_axis: 'book'` lépésen a KILÉPÉS + MÁS EMBER BELÉPÉSE is
+   * „teljesített”-nek számított. MÉRVE: `actorSwitchReady` = `true` arra az átmenetre, ahol
+   * `S_bela → S_anna` és `B_sajat → B_anna_sajat`. A futás ekkor a ROSSZ emberhez kötődik át
+   * (`rebindView`), az `actor.switched` elvégzettnek könyvelődik, és a történet a következő,
+   * céges képernyőn szakad meg — egy nevezett hibával, a HELYES út közepén.
+   *
+   * A SZABÁLY: a váltás a pár EGYIK felét mozgatja, a MÁSIKAT pedig HELYBEN tartja (`KUKA-208`
+   * teljes alakja). A két tengely ezért NEM tükrös, és ez mért tény, nem kényelem:
+   *   · `book`    — UGYANAZ az ember vált a SAJÁT másik fiókjára: az alanynak HELYBEN kell maradnia.
+   *     A négy fiók-tengelyes lépés (`s9` · `s10b` · `s12b` · `s15b`) mind ezt kéri: a belépés a
+   *     személyes körbe visz, a történet folytatása viszont a cég fiókjában áll.
+   *   · `subject` — MÁS ember lép be: a könyv ilyenkor JOGGAL más lesz, tehát a könyv
+   *     állandóságát NEM követeljük meg — azért lett a párból tengely (`KUKA-423`).
+   */
   const tengely = step.switch_axis ?? null;
   if (!SWITCH_AXES.includes(tengely)) return false;
   if (tengely === 'subject') return (view.subject ?? null) !== run.view.subject;
-  return (view.book ?? null) !== run.view.book;
+  return (view.book ?? null) !== run.view.book && (view.subject ?? null) === run.view.subject;
 }
 
 /**

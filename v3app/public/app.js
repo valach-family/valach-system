@@ -43,6 +43,8 @@ import { inviteNextKey } from './inviteText.mjs';
     // dönt mind a háromról — a Készletegyenlegről, a Termékkartonról és a Készletmozgásokról.
     access: { stock: { state: 'unknown' } },
     inviteToken: null, invite: null, authView: null, search: '', members: [], notice: null, resendReason: null,
+    // A NEM IGAZOLT KILÉPÉS NEVEZETT MONDATA (`KUKA-434`) — személyhez kötött, ezért a közös ürítőben szűnik meg.
+    signOutNotDone: null,
     membersTab: 'members', invites: null, processState: '',
     // R121 — MIT TUD MA EZ A FIÓK. A négy adatkör neve, a MA megadható halmaz és a plafon oka a
     // szerver /api/members válaszából jön: a felület nem tartja saját listát (KUKA-039).
@@ -950,6 +952,7 @@ import { inviteNextKey } from './inviteText.mjs';
     // kitöltését és beszélgetését").
     state.chat = emptyChat();
     state.astStatus = null;
+    state.signOutNotDone = null;   // a nem igazolt kilépés mondata is a személyhez tartozik (KUKA-218)
     state.helpIndex = null;
     // A DEKLARÁLT VÁLTÁS-HATÁRON a futás ÁTADÓDIK (ACT-01) — minden máson ugyanúgy elvész.
     saveTourHandover({ kilepes });
@@ -1854,7 +1857,22 @@ import { inviteNextKey } from './inviteText.mjs';
      * helyzetére: KILÉPÉSNÉL csak a VÁLTÁS-LÉPÉS jogosít (ott maga a történet kéri a kilépést);
      * minden más nézet-váltás (belépés · fiókváltás · az elfogadás utáni frissítés) változatlan.
      */
-    if (kilepes && run.steps[run.at] && run.steps[run.at].switch_actor !== true) return;
+    /**
+     * …ÉS CSAK A SZEMÉLY-TENGELYEN (R176, külső review P2 — `KUKA-433`).
+     *
+     * A LELET: a fenti feltétel MINDEN váltás-lépést elfogadott a kilépés jogos határának — a
+     * FIÓK-tengelyeseket is (`s9` · `s10b` · `s12b` · `s15b`). Azokon viszont a történet FIÓKVÁLTÁST
+     * kér, nem kilépést: ugyanaz az ember vált a saját másik fiókjára. Aki ott mégis kilép, az nem
+     * átad: a következő belépő UGYANABBAN a fülben megkapta az előző ember bemutató-azonosítóját
+     * és haladását (`KUKA-416` osztálya), és a történet közepén álló buborékot látott egy
+     * történetből, amit el sem indított.
+     *
+     * A KILÉPÉS A SZEMÉLYT VÁLTJA, tehát a történet csak a `subject` tengelyen kéri — a határ
+     * MAGA A DEKLARÁCIÓ. A fiók-tengelyes lépés átadása változatlan, mert az nem kilépéssel megy
+     * (`switchWorkspace` → `kilepes: false`). Ez a `KUKA-424` feltételének a második fele: nem az
+     * ÁLLAPOTRA kérdezünk, hanem az ÁTMENETRE — és most arra is, hogy MELYIK tengelyen.
+     */
+    if (!tourMod.handoverBoundaryOk(run.steps[run.at] || null, { kilepes })) return;
     if (run.endedBy) return;                       // lezárt futást nem adunk át
     try {
       sessionStorage.setItem(TOUR_HANDOVER_KEY, JSON.stringify({
@@ -2202,6 +2220,19 @@ import { inviteNextKey } from './inviteText.mjs';
    * a kezdőlapra — mert egy „Vissza a fiókomba" feliratnak belépés nélkül nincs igaz tartalma
    * (KUKA-050: a szöveg a valóságot követi).
    */
+  /**
+   * A NEM IGAZOLT KILÉPÉS MONDATA — EGY OTTHON, KÉT KÉPERNYŐ (`KUKA-434` · KUKA-039).
+   *
+   * A kilépés HÁROM helyről indulhat (fejléc · Belépés és biztonság · a meghívó képernyője), de a
+   * MONDAT egyetlen függvényből jön — különben a második képernyőn elmaradna, és a lap úgy
+   * hallgatna egy mért tényről.
+   */
+  function signOutNotDoneHtml() {
+    return state.signOutNotDone
+      ? `<p class="notice bad" data-testid="signout-not-done">${esc(state.signOutNotDone)}</p>`
+      : '';
+  }
+
   function inviteContinueHtml(loggedIn) {
     const vissza = loggedIn ? UI.inviteBackToApp : UI.inviteBackToStart;
     return `<div class="buttonrow" data-testid="invite-continue">
@@ -2323,6 +2354,7 @@ import { inviteNextKey } from './inviteText.mjs';
       <p class="helpbox" data-testid="invite-identity">${identity}${hint ? ` · ${esc(UI.inviteAddressLine)}: <strong>${esc(hint)}</strong>` : ''}</p>
       <div class="buttonrow" data-testid="invite-actions">${actions}</div>
       ${state.inviteNotKept ? `<p class="notice bad" data-testid="invite-not-kept">${esc(state.inviteNotKept)}</p>` : ''}
+      ${signOutNotDoneHtml()}
       <p class="notice" data-testid="invite-redeem-result" hidden></p>
       <p class="authfoot" data-testid="invite-next" data-next="${esc(inviteNextKey(o, loggedIn))}">${esc(UI[inviteNextKey(o, loggedIn)])}</p>
       ${inviteContinueHtml(loggedIn)}
@@ -2492,6 +2524,7 @@ import { inviteNextKey } from './inviteText.mjs';
     // vigye a MŰKÖDŐ folytatást). A FIÓKHOZ KÖTÖTT üzleti oldalak korlátozása VÁLTOZATLAN, és ettől
     // fiók, jogosultság vagy megerősítés NEM keletkezik.
     const noticeHtml = `<p class="notice ${n ? n.kind : ''}" data-testid="global-notice" ${n ? '' : 'hidden'}>${n ? esc(n.msg) + (n.action ? ` <button type="button" class="plain" data-go="${esc(n.action.go)}">${esc(n.action.label)}</button>` : '') : ''}</p>`;
+      + signOutNotDoneHtml();
     if (!bookId() && !PERSON_PAGES.has(state.page)) {
       // A KÉT ÁLLAPOT KÉT MONDAT: akinek a címe még nincs megerősítve, annak nincs mit választania —
       // a személyes fiókja a MEGERŐSÍTÉSKOR születik meg. Ezért nem a fiókválasztóhoz küldjük.
@@ -2982,7 +3015,33 @@ import { inviteNextKey } from './inviteText.mjs';
      * MOSTANTÓL a kilépés is a KÖZÖS ürítőn megy át: az átadás ott keletkezik (`saveTourHandover`),
      * a futás ott szűnik meg, és a tárak ott ürülnek — egy szabály, egy otthon (KUKA-003 · KUKA-039).
      */
-    await api('POST', '/api/logout', {});
+    /**
+     * ÉS A KILÉPÉS VÁLASZÁT MEGMÉRJÜK (R176, külső review P2 — `KUKA-434`).
+     *
+     * A LELET: ez a sor a választ ELDOBTA. Az `api()` NEM dob kivételt — hálózati hibára, 5xx-re
+     * és értelmezhetetlen válaszra is OBJEKTUMMAL tér vissza —, tehát a függvény a kimenet
+     * ISMERETE NÉLKÜL ürített, elvette a meghívó JEGYÉT (`forgetInvite`: memória ÉS címsor), és a
+     * belépő lapot rajzolta ki — vagyis KIMONDTA, hogy kiléptünk. Két kár egyszerre:
+     *   1. A kiszolgáló munkamenete ÉLHET tovább, a lap mégis azt állítja, hogy nincs belépve —
+     *      aki így adja át a gépet, az hamis állításban bízik.
+     *   2. A meghívó képernyőjén ez a jegy az EGYETLEN azonnali út vissza a meghíváshoz — egy
+     *      múló hálózati hiba tehát VISSZAFORDÍTHATATLANUL elvette azt, amit meg sem történt
+     *      művelet árán (`KUKA-422` · `KUKA-215`: a választ MEG KELL MÉRNI).
+     *
+     * ÉS A HATÓKÖR A HIBA-OSZTÁLY, NEM A LELET SORSZÁMA (`KUKA-418`): a visszalépést (`doInviteLeave`)
+     * már megmértem, a SZOMSZÉDÁT — amelyik UGYANAZT a közös ürítőt hívja — nem.
+     *
+     * AMIT EZ NEM ÁLLÍT (`KUKA-220`): a nem igazolt kimenet NEM „nem történt meg". Ezért a
+     * bizonytalan ágon sem azt mondjuk, hogy a kilépés MEGHIÚSULT, hanem hogy NEM ELDÖNTHETŐ — és
+     * a képernyő marad, ahol a felhasználó újra tudja próbálni (`KUKA-201`).
+     */
+    const r = await api('POST', '/api/logout', {});
+    const v = requestOutcome(r);
+    if (v !== 'ok') {
+      state.signOutNotDone = v === 'uncertain' ? UI.signOutUncertain : refusalText(r);
+      render();
+      return;
+    }
     state.generation += 1;
     resetViewCaches({ kilepes: true });
     state.me = null; state.ctx = { subject: null, book: null }; state.members = [];

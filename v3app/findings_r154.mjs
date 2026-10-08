@@ -1762,6 +1762,86 @@ try {
         { tengely_nelkul: tengelyNelkul.join(' · ') || 'egy sincs' });
 
       /**
+       * (as17–as18) …ÉS A PÁR NEM MOZGÓ FELE IS MÉRT (R176, külső review P2 · `KUKA-432`).
+       *
+       * A LELET a SAJÁT mérésemről is szól: az (as12) ellenpárjai mindig CSAK AZ EGYIK felet
+       * mozgatták, a „MINDKETTŐ más lett" átmenetet soha. Pedig éppen az a valódi út: a kilépés után
+       * belépő MÁS EMBER nézetében a könyv is más (a saját személyes köre) — a fiók-tengelyes lépés
+       * tehát ezt a cserét „teljesített"-nek vette, a futás a ROSSZ emberhez kötődött át, és a
+       * történet a következő céges képernyőn szakadt meg. A kapu MOST a pár nem mozgó felét is kéri.
+       *
+       * A KÉT TENGELY NEM TÜKRÖS, és ezt KÜLÖN mérjük: személy-váltásnál a könyv JOGGAL más lesz,
+       * tehát ott állandóságot NEM követelünk (különben a saját K1/K2 történetünk állna meg).
+       */
+      const p2 = {
+        fiok_mindketto_mas: keszE(fiokL, { subject: 'bela', book: 'bela-sajat' }),
+        fiok_jo_valtozatlanul: keszE(fiokL, { subject: 'anna', book: 'mas' }),
+        alany_mindketto_mas: keszE(alanyL, { subject: 'bela', book: 'bela-sajat' }),
+      };
+      step('(as17) R176/P2: FIÓK-tengelyen a MÁSIK EMBER belépése NEM teljesítés, akkor sem, ha a könyv is más lett (RÉGEN: `true` — a futás a rossz emberhez kötődött át)',
+        p2.fiok_mindketto_mas === false, p2);
+      step('(as18) R176/P2 ELLENPÁR: a két tengely NEM tükrös — a SZEMÉLY-váltás ugyanezt az átmenetet JOGGAL elfogadja (a belépő a saját személyes körében landol), és a jó fiókváltás változatlanul teljesít',
+        p2.alany_mindketto_mas === true && p2.fiok_jo_valtozatlanul === true, p2);
+      // A FORRÁS-ALAK IS KIMONDVA: a fiók-ág EGYÜTT kérdezi a két felet (a `&&` nem elhagyható).
+      const tourSrc = readFileSync(join(ROOT, 'v3app/public/tour.mjs'), 'utf8');
+      step('(as19) R176/P2: a fiók-tengely ága a pár MINDKÉT felét EGY feltételben kérdezi',
+        /return \(view\.book \?\? null\) !== run\.view\.book && \(view\.subject \?\? null\) === run\.view\.subject;/.test(tourSrc),
+        { megtalalt_alak: (tourSrc.match(/return \(view\.book[^\n]*/) || ['nincs'])[0].slice(0, 120) });
+
+      /**
+       * (as20–as21) A KILÉPÉS MINT ÁTADÁSI HATÁR (R176, külső review P2 · `KUKA-433`).
+       *
+       * A LELET: a kilépés átadási határa MINDEN váltás-lépést elfogadott, a FIÓK-tengelyeseket is.
+       * Azokon viszont a történet fiókváltást kér, nem kilépést — aki ott kilép, az nem ad át, és a
+       * következő belépő UGYANABBAN a fülben megkapta az előző ember haladását (`KUKA-416`).
+       *
+       * ÉS A DÖNTÉS MOST MEGHÍVHATÓ (`KUKA-207`): a lap zárt függvényéből a bemutató-szabályok közé
+       * került (`handoverBoundaryOk`), tehát a mérés a VALÓDI feloldót futtatja, nem forrás-mintát
+       * hisz — a pin alatta már csak azt őrzi, hogy a lap EZT kérdezi, és nem tart saját másolatot.
+       */
+      const appAs = readFileSync(join(ROOT, 'v3app/public/app.js'), 'utf8');
+      const hb = (lepes, kilepes) => tour.handoverBoundaryOk(lepes, { kilepes });
+      const h = {
+        kilepes_szemely: hb({ switch_actor: true, switch_axis: 'subject' }, true),
+        kilepes_fiok: hb({ switch_actor: true, switch_axis: 'book' }, true),
+        kilepes_kozonseges: hb({ target: 'mailbox' }, true),
+        kilepes_nyilatkozat_nelkul: hb({ switch_actor: true }, true),
+        kilepes_nincs_lepes: hb(null, true),
+        fiokvaltas_fiok: hb({ switch_actor: true, switch_axis: 'book' }, false),
+      };
+      step('(as20) R176/P2: KILÉPÉSNÉL csak a SZEMÉLY-tengelyes lépés ad át — a fiók-tengelyes NEM (RÉGEN: átadott, és a következő ember megkapta az előző haladását)',
+        h.kilepes_szemely === true && h.kilepes_fiok === false, h);
+      step('(as21) R176/P2 ELLENPÁR: a közönséges lépés és a nyilatkozat nélküli váltás is ZÁR (fail-closed), a NEM kilépéses fiókváltás viszont változatlanul átad',
+        h.kilepes_kozonseges === false && h.kilepes_nyilatkozat_nelkul === false
+        && h.kilepes_nincs_lepes === false && h.fiokvaltas_fiok === true, h);
+      step('(as22) R176/P2: és a LAP EZT a feloldót kérdezi — nem tart saját másolatot a szabályból (KUKA-039)',
+        /tourMod\.handoverBoundaryOk\(run\.steps\[run\.at\] \|\| null, \{ kilepes \}\)/.test(appAs)
+        && !/switch_axis === 'subject'/.test(appAs),
+        { lap_sajat_masolata: /switch_axis === 'subject'/.test(appAs) ? 'VAN' : 'nincs' });
+
+      /**
+       * (as23) A KILÉPÉS VÁLASZÁT MEGMÉRJÜK (R176, külső review P2 · `KUKA-434`).
+       *
+       * A LELET: a `doLogout` eldobta az `api()` visszatérését, és a kimenet ismerete NÉLKÜL ürített
+       * — elvette a meghívó JEGYÉT (memória ÉS címsor), és kirajzolta a belépő lapot, vagyis KIMONDTA,
+       * hogy kiléptünk. Az ÉLŐ tanú a böngészőben áll (`R166-M7`): ott a kérés TÉNYLEGESEN hibára fut.
+       * Ez a pin azt őrzi, hogy a forrás-alak nem csúszik vissza a mérés nélküli hívásra.
+       */
+      const logoutBlokk = (appAs.match(/async function doLogout\(\)[\s\S]*?\n  \}/) || [''])[0];
+      step('(as23) R176/P2: a kilépés MEGMÉRI a választ, és nem igazolt kimenetnél NEM ürít és NEM állítja, hogy kiléptünk',
+        /const r = await api\('POST', '\/api\/logout'/.test(logoutBlokk)
+        && /requestOutcome\(r\)/.test(logoutBlokk)
+        && /if \(v !== 'ok'\) \{[\s\S]*?return;/.test(logoutBlokk)
+        && logoutBlokk.indexOf("if (v !== 'ok')") < logoutBlokk.indexOf('forgetInvite()')
+        && /signOutNotDone = v === 'uncertain'/.test(logoutBlokk),
+        { meres_a_uritses_elott: logoutBlokk.indexOf("if (v !== 'ok')") < logoutBlokk.indexOf('forgetInvite()') });
+      step('(as24) R176/P2: a mondatnak EGY otthona van, és MINDKÉT képernyő onnan kéri (a meghívó kártya és az alkalmazás-héj)',
+        (appAs.match(/data-testid="signout-not-done"/g) || []).length === 1
+        && (appAs.match(/signOutNotDoneHtml\(\)/g) || []).length === 3,
+        { markup_hely: (appAs.match(/data-testid="signout-not-done"/g) || []).length,
+          hivas: (appAs.match(/signOutNotDoneHtml\(\)/g) || []).length });
+
+      /**
        * (as15) A LEVÉL IS INDULÓ ADAT (R176, külső review P2 · `KUKA-429`).
        *
        * A fejlesztői levél-fogadó MEMÓRIÁBAN él: egy folyamat-újraindítás után a tárban ott lehet a

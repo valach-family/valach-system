@@ -408,6 +408,7 @@ export const UI = Object.freeze({
   inviteBackToStart: 'Back to the start screen',
   inviteSignOutSwitch: 'Sign out and sign in with another account',
   inviteLeaveUncertain: 'We cannot be sure the request went through. You are still on the invitation screen — try again.',
+  signOutUncertain: 'We cannot be sure the sign-out was recorded on the server. You stay on this screen and the invitation link is still here — try again.',
   inviteLeaveNote: 'Going back does not accept or discard the invitation — the link can still be opened later.',
   inviteFaqOpen: 'Common questions',
   inviteTourStart: 'Show me step by step',
