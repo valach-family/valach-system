@@ -1917,6 +1917,54 @@ try {
        * történet, aminek a feladata (`invite.revoked`) sosem teljesülhet, mert a soron nincs gomb.
        * UGYANAZ a lecke harmadszor: a hatókört a hiba-osztály adja (`KUKA-418`).
        */
+      /**
+       * (as29–as30) A VISSZALÉPÉS NEM ÁLLÍT TELJESÍTÉST ROTÁLT MUNKAMENETRE (R176, külső review P2 · `KUKA-439`).
+       *
+       * A LELET: a `POST /api/invites/pending/forget` `ok: true`-t adott, ha a munkamenet nem volt a
+       * tárban — azzal az indoklással, hogy „akkor nincs is sora". EZ HAMIS A BELÉPÉSI ÚTON: a
+       * belépés ROTÁLJA az azonosítót, és a függő szándékot ÁTVISZI a friss sorra.
+       *
+       * A MÉRÉS A VERSENYT ÉLŐBEN ÁLLÍTJA ELŐ (ugyanaz a módszer, mint az `(i12)`/`(p5)`): a
+       * visszalépés-kérés LASSÚ, darabolt törzzsel indul, és amíg a kiszolgáló a törzset olvassa,
+       * UGYANAZZAL A SÜTIVEL belépünk — a régi sor tehát a kiszolgálás KÖZBEN szűnik meg. Nem
+       * feltevés: a mérés a választ és a TÁR állapotát is kimondja.
+       */
+      {
+        const JEGY = 'as29-rotalt-proba';
+        const c29 = new Client(b9);
+        const sorokA = () => u.store.all('SELECT session_id FROM pending_intent WHERE invite_token = ?', JEGY).length;
+        await c29.post('/api/invites/pending', { token: JEGY });
+        const elotteSorok = sorokA();
+        const port9 = u.server.address().port;
+        let valasz = null;
+        let belepes = null;
+        await new Promise((kesz) => {
+          const rq = httpReq({ host: '127.0.0.1', port: port9, path: '/api/invites/pending/forget', method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Transfer-Encoding': 'chunked', cookie: c29.cookie || '' } }, (res) => {
+            let b = ''; res.on('data', (x) => { b += x; });
+            res.on('end', () => { let j = {}; try { j = JSON.parse(b); } catch { /* nem JSON */ }
+              valasz = { status: res.statusCode, body: j }; kesz(); });
+          });
+          rq.on('error', () => { valasz = { status: 0, body: {} }; kesz(); });
+          rq.write('{');
+          setTimeout(async () => {
+            const r = await fetch(`${b9}/api/login`, { method: 'POST',
+              headers: { 'Content-Type': 'application/json', cookie: c29.cookie || '' },
+              body: JSON.stringify({ email: 'u-anna@pelda.hu', password: PW }) });
+            belepes = { status: r.status, body: await r.json().catch(() => ({})) };
+            rq.end('}');
+          }, 150);
+        });
+        const utanaSorok = sorokA();
+        step('(as29) R176/P2 ÉLŐ VERSENY: a kiszolgálás KÖZBEN rotált munkamenetre a visszalépés NEM állít teljesítést (RÉGEN: `ok: true`, és a lap elvette a jegyet)',
+          valasz && valasz.status === 409 && valasz.body.ok === false && valasz.body.reason === 'session_gone',
+          { status: valasz && valasz.status, reason: valasz && valasz.body && valasz.body.reason,
+            belepes: belepes && belepes.status, szandek_atkerult: Boolean(belepes && belepes.body && belepes.body.pending_invite_token) });
+        step('(as30) R176/P2: és a SZÁNDÉK TÉNYLEGESEN megvan — tehát a régi `ok` hamis állítás volt',
+          elotteSorok === 1 && utanaSorok === 1,
+          { sorok_elotte: elotteSorok, sorok_utana: utanaSorok });
+      }
+
       step('(as28) R176/P2: az induló adat UGYANAZT az írásmentes plafon-döntést kérdezi, amit a lista és az írás-út — és EGYSZER, nem soronként',
         /const plafon = delegationCeilingOf\(\{ store, subjectId, bookId, at \}\);/.test(srvAs)
         && /&& plafonRoles\.includes\(r\.offered_role\)/.test(srvAs)

@@ -16,6 +16,29 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3233 — A ROTÁLT MUNKAMENETRE A VISSZALÉPÉS NEVEZETTEN ELAKAD (R176, külső P2)
+
+A `POST /api/invites/pending/forget` `ok: true`-t adott, ha a munkamenet nem volt a tárban — azzal az
+indoklással, hogy „akkor nincs is sora". A belépés viszont ROTÁLJA az azonosítót, és a függő
+szándékot ÁTVISZI a friss sorra: ha egy másik fülben belépnek a kérés kiszolgálása közben, a
+szándék ÉL és folytatható — a lap mégis elvette a jegyet és a címsort. Mostantól `409
+session_gone`, ugyanabban az alakban, mint a `POST /api/invites/pending` ugyanezen ága; a lap
+viselkedése változatlan (a képernyő marad, a mondat nevezett, a jegy megmarad). ÉLŐ HTTP-VERSENYBEN
+MÉRVE. `KUKA-439` · gépi jel: `verify:kuka` · `verify:app-findings-r154` (as29–as30).
+
+---
+
+## D-VS-3232 — A NÉVTELEN RÉSBEN AZ ÁTADÁS MEGMARAD (R176, külső P2)
+
+A két szereplő között van egy névtelen állapot (az első kilépett, a második még nem lépett be). Az
+átívelő történetek csak belépve látszanak, tehát egy ottani újratöltés SIKERES kérést és ÜRES
+listát ad — az előző alak ezt „nincs ilyen bemutató"-nak vette, és az átadást VÉGLEG elvitte.
+Mostantól: belépés nélkül a kérdés fel sem tehető, a rekesz MARAD, és megszakítást sem írunk. A
+BELÉPETT nézőnél az ág változatlan. `KUKA-438` · gépi jel: `verify:kuka` · élő tanú:
+`verify:browser-gate` → `R176-K8`.
+
+---
+
 ## D-VS-3231 — A TÖRTÉNET ELŐFELTÉTELE IS A SZEREP-PLAFONT KÉRDEZI (R176, külső P2)
 
 A `D-VS-3225` a visszavonás-GOMBOT kötötte a delegált plafonhoz; a gombra MUTATÓ történet

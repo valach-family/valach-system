@@ -303,7 +303,7 @@ ez utóbbi a `page:personal` lap, a nevesített **`personal.ownMatters`** fejles
 **nem** írtam át zöldre: az őr célja a NULLA hiány, a maradék egy pedig **nem pótolható** próbával,
 csak funkcióval. A padló (`floor_breaks`) **üres** — visszacsúszás nincs.
 
-### 7.3 A független review — HAT BEFEJEZETT KÖR
+### 7.3 A független review — HÉT BEFEJEZETT KÖR
 
 **A HELYZET A CSOMAG KÖZBEN TÖBBSZÖR MEGVÁLTOZOTT, és a szöveg a valóságot követi** (`KUKA-050`).
 Amikor a jelentés első változata elkészült, a külső ellenőrző használati korlátja még állt. A korlát
@@ -316,24 +316,30 @@ Amikor a jelentés első változata elkészült, a külső ellenőrző használa
 | 3. | `30830ae` | 4 | `4ba0064` |
 | 4. | `5390b7c` | 4 | `7f11958` · `8050955` |
 | 5. | `1585079` | 2 | `23b4497` |
-| 6. | **`c5d0b63`** | 3 | **`e2e13df`** (ez a mai fej) |
+| 6. | `c5d0b63` | 3 | `e2e13df` |
+| 7. | **`cc9c1de`** | 3 | **`<a csomag feje>`** (ez a mai fej) — kettő javítva, **egy nevezetten NEM épített** |
 
-**A MA érvényes állapot:** a legfrissebb BEFEJEZETT kör a **`c5d0b63`** fejet fedi, és **három**
-további P2-t adott — mind a három a saját, ebben a körben írt kódom felett. Az azóta született
-commitok (a 18–20. javítás és ez a jelentés) **nem fedettek**. A korlát alatt nem kértem újra
+**A MA érvényes állapot:** a legfrissebb BEFEJEZETT kör a **`cc9c1de`** fejet fedi, és **három**
+további P2-t adott — mind a három a saját, ebben a körben írt kódom felett. Kettőt javítottam, a
+harmadiknál a **költséget mértem a haszonhoz**, és nevezetten NEM építettem meg (a 7.5 pont).
+Az azóta született commitok (a 21–22. javítás és ez a jelentés) **nem fedettek**. A korlát alatt nem kértem újra
 átolvasást, keretet nem vásároltam, a korlátot nem kerültem meg (`KUKA-200`: a nem futott nem
 „részben").
 
-**MIND A TIZENKILENC SZÁLRA KIMENT A VÁLASZ**, mindegyikre a mért ténnyel és a visszacsúszás-próbával.
+**MIND A HUSZONKÉT SZÁLRA KIMENT A VÁLASZ**, mindegyikre a mért ténnyel és a visszacsúszás-próbával
+— a nem épített leletnél a végigkövetett úttal és az indokkal.
 A szálak GITHUB-OLDALI LEZÁRÁSÁT nem végeztem el: a szál-azonosítókhoz a 120+ review-szálat kellene
 végiglapozni, ami aránytalan — a tartalmi válasz a szálakon áll, a lezárást a következő review-kör
 amúgy is újraértékeli a mai fejen. Ezt nem hallgatom el, és **a válaszolt szál nem elfogadás**.
 
-### 7.4 A TIZENKILENC KÜLSŐ P2 — HÚSZ JAVÍTÁS, mind MÉRVE
+### 7.4 A HUSZONKÉT KÜLSŐ P2 — HUSZONEGY LELETRE HUSZONKETTŐ JAVÍTÁS, és EGY nevezetten nem épített
 
-**Miért húsz sor tizenkilenc lelethez:** az ötödik kör ELSŐ leletének **két** javítási helye volt
-(a kapu ÉS a kilépés átadási határa) — a lelet maga nevezte meg mind a kettőt, és két külön
-tanulságot ért, mert két külön szabály csúszott el. A sorszám a JAVÍTÁST számolja, nem a szálat.
+**A pontos számtan, mert a kerekítés itt hazugság volna:** **22** P2 lelet jött hét körben. **21**-re
+született kód, és abból **22** javítás — mert az ötödik kör ELSŐ leletének **két** javítási helye volt
+(a kapu ÉS a kilépés átadási határa): a lelet maga nevezte meg mind a kettőt, és két külön tanulságot
+ért, mert két külön szabály csúszott el. A **22.** leletre nem építettem kódot: a költséget mértem a
+haszonhoz, és az indok a **7.5** pontban áll — nem elhallgatva, nem „kész"-nek könyvelve. Az alábbi
+tábla a JAVÍTÁSOKAT számolja.
 
 | # | a lelet | a mért tény | a javítás |
 |---|---|---|---|
@@ -362,6 +368,9 @@ tanulságot ért, mert két külön szabály csúszott el. A sorszám a JAVÍTÁ
 | 18 | a futás újrakötése **maradó állapotból** következtetett okozatiságra (az előző lépés `done`) | a `done` maradó: a feltétel a lépésen állva határozatlan ideig igaz · a legitim eset MÉRVE: `tour.inviteRevoke` `s17` (`invite.redeemed`) | **egyszer használható jegy**, zárt feladat-készletből (`invite.redeemed` · `workspace.created`) · `KUKA-435` · `D-VS-3229` |
 | 19 | a történet induló adata **minden** súgó-kérésnél kiszámolódott, tagonkénti lekérdezéssel | a két drága tényt KIZÁRÓLAG demó-jelhez **és** fejlesztői felülethez kötött történet kérdezi (mérve a regiszterből) | a számolás a kapuk mögé került, a tagok kérdése **korai kilépéssel** megy · `KUKA-436` · `D-VS-3230` |
 | 20 | a történet előfeltétele **nem** kérdezte a szerep-plafont, a lista már igen | a `D-VS-3225` a GOMBOT kötötte a plafonhoz; a gombra mutató történet felkínálását nem — a feladat sosem teljesülhetett | az induló adat UGYANAZT az írásmentes feloldót kérdezi, egyszer · `KUKA-437` · `D-VS-3231` |
+
+| 21 | a **névtelen** néző üres listáját „nincs ilyen bemutató"-nak vettük | a két szereplő közt ÉPP VAN egy névtelen állapot; ott egy újratöltés **végleg** elvitte az átadást (mérve: 0 folytathatót ad a kiszolgáló névtelenül) | belépés nélkül a kérdés fel sem tehető → a rekesz **marad** · `KUKA-438` · `D-VS-3232` · élő tanú: **`R176-K8`** |
+| 22 | a hiányzó munkamenetet „nincs mit törölni"-nek vettük | a belépés **rotálja** az azonosítót, és a szándékot **átviszi** — ÉLŐ HTTP-versenyben mérve: `200 ok: true`, miközben a szándék sora **megvolt** | **409 `session_gone`** — nem állítunk teljesítést, amit nem igazoltunk · `KUKA-439` · `D-VS-3233` · élő tanú: **`as29`–`as30`** |
 
 **A 14. mérésének hatóköre KIMONDVA** (`KUKA-216`): a szerep-tengely szűkítésére ma **nincs API-út**,
 ezért a szűk plafonú eset **forrás-pin**, az élő ellenpár a TELJES plafon. Ez **nevesített
@@ -436,6 +445,34 @@ méri.
 
 ---
 
+### 7.5 AMIT NEVEZETTEN NEM ÉPÍTETTEM MEG — a hetedik kör HARMADIK lelete, és miért
+
+A hetedik review-kör harmadik lelete valós utat ír le, és **nem vitatom**: a **személy-váltó** lépésen
+a kapu BÁRMELY másik belépett embert elfogadja, pedig a két átívelő történet a **megnevezett**
+résztvevőt kéri (a meghívottat, illetve a visszavont tagot). Ha ugyanabban a fülben egy **harmadik**
+fiókkal lépnek be, a visszaállás elhasználja az átadást, az `actor.switched` elvégzettnek
+könyvelődik, a futás ahhoz a fiókhoz kötődik, és később a meghívás-feladatnál elakad — a **szánt**
+résztvevő pedig már nem tudja folytatni.
+
+**AMIT VÉGIGKÖVETTEM.** A javítás ahhoz kötött, hogy a rendszer **tudja**, ki a következő szereplő.
+Ma ezt semmi nem deklarálja: a lépés nem mondja ki, a kiszolgáló nem adja át, az átadás-rekesz nem
+hordozza. A megvalósítás tehát **négy réteget** érint (lépés-deklaráció → kiszolgálói feloldás →
+HTTP-határ → rekesz + kapu), és minden réteg fail-closed: egy át nem vitt mező a böngészőben
+`undefined`, és a kapu a **saját történetünket** állítaná meg (ez a `KUKA-394` mért leckéje, és ebben
+a körben **háromszor** meg is történt — lásd a 7.4 alatti táblát).
+
+**AMIT MEGELŐZNE.** Egy demó-környezetre korlátozott bemutató megszakadását (`requires_demo` +
+`requires_dev_mailbox`, éles üzemben nem is felkínált), amit a néző újraindítással feloldhat.
+Adatvesztés nincs, jogosultsági szivárgás nincs: a lépések `role` őre és a kiszolgáló
+jogosultság-ellenőrzése **érintetlen**, és a `rightLost` változatlanul működik.
+
+**EZÉRT:** ebben a blokkban **nem építem meg**, és nem is írom be hamis zöldnek. Nevesítetten átadom
+a következő blokk **döntési kérdései** közé (10. szakasz, 5. tétel). A szál a válasszal — a
+végigkövetett úttal és ezzel az indokkal — nyitva marad: a döntés az operátoré, nem a végrehajtóé.
+**Ha azt mondja, épüljön meg, megépítem.**
+
+---
+
 ## 8. AMIT EZ A JELENTÉS NEM ÁLLÍT
 
 - **Nem** állítja, hogy a külső-ellenőrző lánc 19/19 zöld. **Négy program PIROS**, és a részleges
@@ -503,9 +540,15 @@ Két dolog maradt, és egyik sem a végrehajtón áll:
    (`23b4497`) a 11–17. javítás, és egy hatodik kör a `c5d0b63`-on még fut. A mai fej átolvasása
    tehát **nyitott tétel** — és mivel a mérő sávja **VÁLTÁS**, ez a következő, önálló blokk dolga
    (`D-VS-3083`), nem ennek a lezárásnak a része.
-3. **A `KUKA-431` nevesített mérés-hiánya.** A szűk **szerep**-plafonra nincs élő fixtúránk, mert a
-   szerep-tengely szűkítésére ma nincs API-út. Ez is döntés: vagy épül hozzá fejlesztői út, vagy a
-   forrás-pin marad, kimondva.
+3. **A `KUKA-431`/`437` nevesített mérés-hiánya.** A szűk **szerep**-plafonra nincs élő fixtúránk,
+   mert a szerep-tengely szűkítésére ma nincs API-út. Ez is döntés: vagy épül hozzá fejlesztői út,
+   vagy a forrás-pin marad, kimondva.
+4. **Az `R112-I3` mechanizmusa.** A nevesített egyszeri bukás másodszor jött elő, és a rögzítés
+   adatot adott (a lap nem rajzolt újra) — a mechanizmus viszont **mérve nincs**. A harmadik
+   előfordulásnak kell megadnia; a tétel addig NYITOTT.
+5. **A szánt résztvevő kötése a személy-váltó lépésen** (a 7.5 pont). Négy réteget érintő, fail-closed
+   szigorítás, ami egy demó-környezetre korlátozott megszakadást előzne meg. **Nem építettem meg**, a
+   végigkövetett út és az indok a 7.5-ben és a review-szálon áll. Döntési kérdés.
 
 **A csomag korlátai megtartva:** nincs merge, nincs force-push, nincs felhős telepítés, nincs
 titok-módosítás, nincs valódi üzleti adatváltoztatás, nincs V2-/production-módosítás, nincs új

@@ -735,3 +735,68 @@ test('R176-K7 — AZ ÁTADÁS HÁROM ŐRE: csak DEKLARÁLT határon születik, V
   await expect(p.getByTestId('tour-step-title')).toBeVisible({ timeout: 15000 });
   expect((await rekesz()) || 'üres', 'a SIKERES visszaállás után viszont elmegy').toBe('üres');
 });
+
+test('R176-K8 — ÚJRATÖLTÉS A KÉT SZEREPLŐ KÖZÖTT, NÉVTELEN ÁLLAPOTBAN: az átadás MEGMARAD, és a második ember folytatja', async () => {
+  /**
+   * A KÜLSŐ REVIEW P2-JE (R176, chatgpt-codex) — a SAJÁT átadás-visszaállásomon.
+   *
+   * A LELET, MÉRVE: az átívelő történetek `audience: 'signed_in'`-ek, tehát NÉVTELEN nézőnek a
+   * kiszolgáló se indíthatót, se folytathatót nem ad (`resumableToursFor` = 0). És a két szereplő
+   * között ÉPP VAN egy névtelen állapot: az első ember kilépett, a második még nem lépett be. Ha a
+   * lapot EKKOR újratöltik, a kérés SIKERES (`ok: true`), a lista viszont üres — az előző alakom
+   * ezért „a szerver ma nem adja"-nak minősítette, és a rekeszt VÉGLEG elvitte. A második ember
+   * belépése már nem tudta folytatni a történetet.
+   *
+   * A `K3` ezt NEM fogta meg, mert ott az újratöltés a MÁSODIK ember BELÉPÉSE UTÁN történik. Ez a
+   * próba a RÉS-be tölt újra — abba a pillanatba, ahol senki nincs belépve.
+   */
+  const anna8 = await world.person('anna8');
+  await createWorkspaceUI(anna8.page, { name: 'R176 Nevtelen Res Kft', business: { jurisdiction: 'HU', tax_id: '92345678-1-42' } });
+  const bela8 = await world.person('bela8');
+  const p = anna8.page;
+  await inviteUI(p, { email: bela8.email, role: 'user', scope: 'keszlet' });
+  await gotoPage(p, 'overview');
+
+  const REKESZ = 'vs3.tour.handover';
+  const rekesz = () => p.evaluate((k) => { try { return sessionStorage.getItem(k); } catch { return 'OLVASHATATLAN'; } }, REKESZ);
+
+  expect(await startTourViaHelp(p, 'tour.inviteRevoke'), 'az átívelő történet elindult').toBe(true);
+  let resUtanRekesz = null;
+  let resUtanBelepo = null;
+  const r = await vezess(p, 'tour.inviteRevoke', {
+    s4: async () => {
+      await closeModals(p);
+      const ref = await inviteRowRef(p, bela8.email);
+      await p.getByTestId(`invite-revoke-${ref}`).click();
+      await expect(p.getByTestId('invite-revoke-confirm')).toBeVisible();
+      await withResponse(p, { path: '/api/invites/revoke' }, () => p.getByTestId('invite-revoke-confirm').click());
+    },
+    s6: async () => {
+      // A VÁLTÁS-LÉPÉSEN a bemutató tárja fel a kijelentkezést — a próba a KIEMELT vezérlőt nyomja.
+      await closeModals(p);
+      const kiemelt = p.locator('.tourtarget').first();
+      if (await kiemelt.count() && await kiemelt.isVisible()) await kiemelt.click({ timeout: 2500 }).catch(() => {});
+      const logout = p.locator('[data-tour-anchor="actor-switch"]');
+      for (let k = 0; k < await logout.count(); k += 1) {
+        if (await logout.nth(k).isVisible().catch(() => false)) { await logout.nth(k).click(); break; }
+      }
+      await expect(p.getByTestId('login-email'), 'az első ember kilépett: a belépő lap áll').toBeVisible();
+
+      // ── ITT A LELET: ÚJRATÖLTÉS A RÉSBEN, amikor SENKI nincs belépve ───────────────────────
+      await p.reload();
+      await expect(p.getByTestId('login-email'), 'újratöltés után is a belépő lap áll').toBeVisible();
+      await p.waitForTimeout(500);              // a visszaállás esélyt kap lefutni
+      resUtanRekesz = await rekesz();
+      resUtanBelepo = true;
+
+      await loginUI(p, bela8.email, PASSWORD);
+    },
+  }, { megallAt: 's7' });
+
+  expect(resUtanBelepo, 'a próba tényleg eljutott a névtelen résig').toBe(true);
+  expect(resUtanRekesz === null ? 'ELVESZETT' : 'megmaradt',
+    'a NÉVTELEN újratöltés NEM viszi el az átadást (RÉGEN: a kiszolgáló üres listája „nincs ilyen bemutató"-nak látszott)')
+    .toBe('megmaradt');
+  expect(r.baj || 'eljutott', `a második ember FOLYTATJA a történetet — mérve: ${r.naplo.join('→')}`).toBe('eljutott');
+  await expect(p.getByTestId('tour-step-title')).toHaveText(HU.TOUR['tour.inviteRevoke'].s7.title);
+});

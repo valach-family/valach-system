@@ -419,3 +419,23 @@ test('R166-M7 — A KILÉPÉS CSAK IGAZOLT VÁLASZ UTÁN ÜRÍT: 5xx mellett a n
   // A MONDAT IS ELTŰNT: a sikeres kilépés a közös ürítőn át viszi el (KUKA-218).
   await expect(dori.page.getByTestId('signout-not-done')).toHaveCount(0);
 });
+
+/**
+ * —— AMIÉRT ITT NINCS `R166-M8` (R176, külső review P2 · `KUKA-439`) ——
+ *
+ * A LELET ÉLŐ TANÚJA NEM EBBEN A LAPBAN ÁLL, és ezt kimondom. A hiba feltétele az, hogy a
+ * `POST /api/invites/pending/forget` ÚGY érkezzen, hogy a munkamenete a KISZOLGÁLÁS KÖZBEN szűnik
+ * meg (a belépés rotálja az azonosítót, és a függő szándékot átviszi a friss sorra).
+ *
+ * MEGÍRTAM EGY BÖNGÉSZŐS PRÓBÁT, és a MÉRÉS megmutatta, hogy NEM állítja elő a feltételt: egy
+ * elmentett, majd visszatett „régi" süti mellett a kiszolgáló nem „eltűnt munkamenetet" lát, hanem
+ * ÚJ, érvényes névtelen munkamenetet nyit — tehát a `sessions.has(…)` IGAZ, és a lelet ága el sem
+ * érődik. A próbát ezért NEM hagytam itt álló „zöld" próbának: egy olyan állítás, ami nem azt méri,
+ * amit a neve mond, rosszabb a semminél (`KUKA-207` · `KUKA-239`).
+ *
+ * AZ ÉLŐ TANÚ: `npm run verify:app-findings-r154` → `(as29)` és `(as30)`. Ott a versenyt VALÓDI
+ * HTTP-szinten állítjuk elő (lassú, darabolt törzs + közbeni belépés UGYANAZZAL a sütivel), és a
+ * mérés kimondja mind a kettőt: a válasz **409 `session_gone`**, és a szándék sora VÁLTOZATLANUL
+ * MEGVAN (tehát a korábbi `ok: true` hamis állítás volt). A LAP oldalát az `R166-M6` méri: nemleges
+ * válasznál a meghívó-képernyő marad, a mondat nevezett, és a jegy a címsorban marad.
+ */

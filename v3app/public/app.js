@@ -2005,7 +2005,25 @@ import { inviteNextKey } from './inviteText.mjs';
     const def = tourDefOf(h.id);
     // A SZERVER MA SEM INDÍTHATÓNAK, SEM FOLYTATHATÓNAK NEM ADJA: nem erőltetjük vissza, és nem is
     // hallgatunk róla (KUKA-050).
-    // A SZERVER MA NEM ADJA (és a kérés MEGTÖRTÉNT): ez nem múló hiba, tehát a rekesz is elmegy.
+    /**
+     * …DE A NÉVTELEN NÉZŐ NEM VÁLASZ A KÉRDÉSRE (R176, külső review P2 · `KUKA-438`).
+     *
+     * A LELET, MÉRVE: az átívelő történetek `audience: 'signed_in'`-ek, tehát NÉVTELEN nézőnek a
+     * kiszolgáló se indíthatót, se folytathatót nem ad (`resumableToursFor` = 0 bejegyzés). És a
+     * két szereplő között ÉPP VAN egy névtelen állapot: az első ember kilépett, a második még nem
+     * lépett be. Ha a lapot EKKOR újratöltik, a kérés SIKERES (`ok: true`), a lista viszont üres —
+     * az előző alak tehát „a szerver ma nem adja"-nak minősítette, és a rekeszt VÉGLEG elvitte. A
+     * következő ember belépése már nem tudta folytatni a történetet.
+     *
+     * A SZABÁLY: „a kiszolgáló válaszolt" és „EZT a nézőt meg lehetett kérdezni" KÉT KÜLÖN tény
+     * (`KUKA-426` ugyanaz a lecke, egy réteggel kijjebb). Belépés nélkül a kérdés nem is tehető
+     * fel, tehát a rekesz MARAD, és nem írunk megszakítást sem: a névtelen látogatónak nincs mit
+     * mondani egy bemutatóról, amit nem ő indított (`KUKA-201` · `KUKA-416`).
+     */
+    if (!def && !(state.me && state.me.subject_id)) {
+      state.tour = null; state.tourAborted = null; renderTour(); return;
+    }
+    // A SZERVER MA NEM ADJA (és a kérés MEGTÖRTÉNT, BELÉPETT nézőnek): ez nem múló hiba, a rekesz elmegy.
     if (!def) { clearTourHandover(); state.tour = null; state.tourAborted = 'notAvailable'; renderTour(); return; }
     const run = tourMod.newTourRun({ def, view: view(), role: state.me && state.me.current_role });
     if (!run) return;

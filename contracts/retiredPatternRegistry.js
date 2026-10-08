@@ -16418,6 +16418,64 @@ Object.freeze({
     forbidden: Object.freeze([]),
   }),
 
+  // ── R176 · A KÜLSŐ REVIEW HETEDIK KÖRE — a névtelen rés és a rotált munkamenet ──
+  Object.freeze({
+    id: 'KUKA-438',
+    date: '2026-10-08',
+    title: 'A NÉVTELEN NÉZŐ ÜRES LISTÁJÁT „NINCS ILYEN BEMUTATÓ"-NAK VETTÜK, ÉS AZ ÁTADÁST VÉGLEG ELVITTÜK',
+    what: 'A `resumeTourAfterSwitch` így döntött: ha a kérés SIKERES volt (`ok: true`), de a bemutató sem az indíthatók, sem a folytathatók közt nincs, akkor „a szerver ma nem adja" — és a rekeszt `clearTourHandover()`-rel ELVITTE.',
+    why_wrong: 'A KÉT SZEREPLŐ KÖZÖTT ÉPP VAN EGY NÉVTELEN ÁLLAPOT: az első ember kilépett, a második még nem lépett be. Az átívelő történetek `audience: \'signed_in\'`-ek, tehát MÉRVE: névtelen nézőnek a kiszolgáló NULLA folytathatót ad. Ha a lapot EKKOR újratöltik, a kérés sikeres, a lista üres — a rekesz tehát VÉGLEG elment, és a második ember belépése már nem tudta folytatni a történetet. A `K3` ezt nem fogta meg, mert ott az újratöltés a BELÉPÉS UTÁN van.',
+    replaced_by: '„A KISZOLGÁLÓ VÁLASZOLT" ÉS „EZT A NÉZŐT MEG LEHETETT KÉRDEZNI" KÉT KÜLÖN TÉNY (`KUKA-426` ugyanaz a lecke, egy réteggel kijjebb). Belépés nélkül a kérdés fel sem tehető: a rekesz MARAD, és megszakítást sem írunk — a névtelen látogatónak nincs mit mondani egy bemutatóról, amit nem ő indított (`KUKA-201` · `KUKA-416`).',
+    replacement: 'A BELÉPETT nézőnél az ág VÁLTOZATLAN: ha a kiszolgáló neki sem adja, az nem múló hiba, és a rekesz elmegy — különben egy valóban megszűnt bemutató örökké visszajönne.',
+    decision: 'D-VS-3232',
+    found_by: 'KÜLSŐ REVIEW (chatgpt-codex, R176 — P2), a SAJÁT R176 §1-es visszaállásomon.',
+    lesson: 'EGY ÜRES LISTA NEM VÁLASZ, HA A KÉRDÉST NEM IS LEHETETT FELTENNI. A „sikeres kérés" és az „érvényes válasz ERRE a nézőre" két külön dolog; aki a kettőt összevonja, egy MÚLÓ állapotot véglegesnek könyvel — és itt éppen abban a résben, ami a funkció LÉNYEGE (a két szereplő közti átmenet).',
+    guard_note: 'gépi jel: `npm run verify:kuka` (a névtelen ág pozitív mintája; TILTOTT minta NINCS — a különbség egy MEGELŐZŐ ág megléte, és minden tiltó-alak a mai, helyes kódra is illeszkedett) · ÉLŐ tanú: `npm run verify:browser-gate` → `R176-K8` (újratöltés a NÉVTELEN résben: a rekesz megmarad, és a második ember folytatja). Visszacsúsztatva a próba BUKIK — mérve.',
+    home: 'v3',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'if \\(!def && !\\(state\\.me && state\\.me\\.subject_id\\)\\) \\{',
+        why: 'névtelen nézőnél a rekesz MARAD' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r176-ket-szereplo.spec.mjs']),
+        pattern: 'R176-K8',
+        why: 'élő tanú: újratöltés a névtelen résben' }),
+    ]),
+    // TILTOTT MINTA ITT NINCS, és ezt KIMONDOM: a régi alak és a mai között a különbség egy
+    // MEGELŐZŐ ÁG megléte, nem egy jellegzetes sor — minden tiltó-minta, amit a régi alakra
+    // írtam, a MAI, HELYES kódra is illeszkedett (`KUKA-239` csapdája fordítva: a tiltás a saját új
+    // otthonomat fogta meg). A visszacsúszást ezért az ÉLŐ tanú fogja meg: `R176-K8` visszacsúsztatva
+    // BUKIK — mérve.
+    forbidden: Object.freeze([]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-439',
+    date: '2026-10-08',
+    title: 'A HIÁNYZÓ MUNKAMENETET „NINCS MIT TÖRÖLNI"-NEK VETTÜK — PEDIG A SZÁNDÉK ÁTKERÜLT',
+    what: 'A `POST /api/invites/pending/forget` `{ ok: true, existed: false, reason: \'session_gone\' }`-t adott, ha a munkamenet nem volt a tárban. A saját megjegyzésem indokolta is: „ha a munkamenet nincs a tárban, nincs is sora".',
+    why_wrong: 'EZ HAMIS A BELÉPÉSI ÚTON, ÉS A SAJÁT KÓDUNK MONDJA MEG, MIÉRT: a `POST /api/login` ROTÁLJA az azonosítót, és a függő szándékot ÁTVISZI a friss sorra (`rememberIntent(fresh.id)` + `DELETE … WHERE session_id = session.id`). Ha tehát egy másik fülben belépnek, miközben ez a kérés a TÖRZSÉT olvassa, a régi azonosító eltűnik — a szándék viszont ÉL és folytatható. A lap ekkor elvette a jegyet ÉS a címsort: a felhasználó azt olvasta, hogy elhagyta a meghívást, ami egy későbbi betöltésen VISSZAJÖTT. ÉLŐ HTTP-VERSENYBEN MÉRVE: a régi alak `200 ok: true`-t adott, miközben a szándék sora változatlanul megvolt.',
+    replaced_by: 'NEM ÁLLÍTUNK TELJESÍTÉST, AMIT NEM IGAZOLTUNK (`KUKA-215` · `KUKA-422`): a válasz `409 session_gone`, ugyanabban az alakban, mint a `POST /api/invites/pending` ugyanezen ága. A lap már helyesen kezeli: a meghívó-képernyő marad, a mondat NEVEZETT, a jegy a címsorban, és a gomb újra megnyomható.',
+    replacement: 'AMIT NEM TUDUNK ELDÖNTENI, AZT NEM TALÁLJUK KI: a munkamenet eltűnhetett KILÉPÉS miatt is — ott a törlés a sort is elvitte (`KUKA-388`), tehát a szándék valóban nincs. A két esetet innen nem lehet megkülönböztetni, és a megkülönböztethetetlen kimenet NEM „siker" (`KUKA-220`).',
+    decision: 'D-VS-3233',
+    found_by: 'KÜLSŐ REVIEW (chatgpt-codex, R176 — P2), a SAJÁT R166 §1-es végpontomon.',
+    lesson: 'EGY TÁROLÓ HIÁNYA NEM BIZONYÍTJA A TARTALOM HIÁNYÁT, HA A TARTALOM ÁTKERÜLHET MÁSHOVA. A megjegyzésem egy IGAZ mondatot írt le egy HAMIS feltevésre („a sor a munkamenethez van kulcsolva, tehát vele együtt megy") — és a rotáció épp ezt a kulcsot írja át. Aki egy válasz igazságát egy másik útvonal mellékhatására bízza, annak azt az útvonalat is el kell olvasnia.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (a 409-es ág + a tiltott, `ok: true`-t adó alak) · ÉLŐ tanú: `npm run verify:app-findings-r154` → `(as29)`–`(as30)`: a versenyt VALÓDI HTTP-szinten állítjuk elő (lassú, darabolt törzs + közbeni belépés UGYANAZZAL a sütivel), és a mérés kimondja a 409-et ÉS azt, hogy a szándék sora megvan. AMIT A BÖNGÉSZŐ NEM TUD MEGMÉRNI, KIMONDVA: egy elmentett, visszatett „régi" süti mellett a kiszolgáló ÚJ, érvényes munkamenetet nyit, tehát a lelet ága el sem érődik — a megírt böngészős próbát ezért NEM hagytam állni (`KUKA-207` · `KUKA-239`), a magyarázat a próba-lapon áll.',
+    home: 'v3',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "return \\{ status: 409, body: \\{ ok: false, reason: 'session_gone', refused_by: 'session_store',",
+        why: 'a rotált munkamenet NEVEZETTEN elakad, nem „siker"' }),
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r154.mjs']),
+        pattern: 'as29\\) R176/P2 ÉLŐ VERSENY',
+        why: 'és a versenyt ÉLŐ HTTP-n állítjuk elő' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "if \\(!s\\) return \\{ status: 200, body: \\{ ok: true, existed: false, reason: 'session_gone' \\} \\};",
+        why: 'a hamis „siker": a szándék élt, a lap mégis elvette a jegyet' }),
+    ]),
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

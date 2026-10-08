@@ -2541,7 +2541,32 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      */
     'POST /api/invites/pending/forget': ({ session }) => {
       const s = sessions.has(session.id) ? session : null;
-      if (!s) return { status: 200, body: { ok: true, existed: false, reason: 'session_gone' } };
+      /**
+       * A HIÁNYZÓ MUNKAMENET NEM BIZONYÍTJA, HOGY NINCS MIT TÖRÖLNI (R176, külső review P2 · `KUKA-439`).
+       *
+       * A LELET: a fenti megjegyzés azt állította, hogy „ha a munkamenet nincs a tárban, nincs is
+       * sora". EZ HAMIS A BELÉPÉSI ÚTON: a `POST /api/login` ROTÁLJA az azonosítót, és a függő
+       * szándékot ÁTVISZI a friss sorra (`rememberIntent(fresh.id)` + `DELETE … WHERE session_id =
+       * session.id`). Ha tehát egy másik fülben belépnek, miközben EZ a kérés a testét olvassa, a
+       * régi azonosító eltűnik — a szándék viszont ÉL, és folytatható. A régi alak ilyenkor
+       * `ok: true`-t adott, a lap pedig elvette a jegyet és a címsort: a felhasználó azt olvasta,
+       * hogy elhagyta a meghívást, ami aztán egy későbbi betöltésen VISSZAJÖTT.
+       *
+       * A VÁLASZ: nem állítunk teljesítést, amit nem igazoltunk (`KUKA-215` · `KUKA-422`). A 409 a
+       * `POST /api/invites/pending` ugyanezen ágával egyező alak, és a lap már helyesen kezeli: a
+       * meghívó-képernyő marad, a mondat NEVEZETT, a jegy a címsorban és a gomb újra megnyomható.
+       *
+       * AMIT NEM TUDUNK ELDÖNTENI, AZT NEM TALÁLJUK KI: a munkamenet eltűnhetett KILÉPÉS miatt is —
+       * ott a törlés a sort is elvitte (`KUKA-388`), tehát a szándék valóban nincs. A két esetet
+       * innen nem lehet megkülönböztetni, és a megkülönböztethetetlen kimenet NEM „siker"
+       * (`KUKA-220`: a nem tudott nem „nem történt meg" — és nem is „megtörtént").
+       */
+      if (!s) {
+        return { status: 409, body: { ok: false, reason: 'session_gone', refused_by: 'session_store',
+          message: 'a kérés közben megváltozott a munkamenet (kilépés vagy belépés egy másik fülben), '
+            + 'ezért nem tudjuk igazolni, hogy a meghívó-folytatás törlődott — töltsd újra a lapot, és '
+            + 'ha a meghívó visszajön, lépj vissza még egyszer' } };
+      }
       const r = forgetIntent({ store, sessionId: s.id });
       sessions.clearIntent(s.id);        // a VÉDETT-INDEX növekményes — a törlésről is szólunk
       return { status: 200, body: { ok: true, existed: r.existed === true } };
