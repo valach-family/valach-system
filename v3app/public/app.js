@@ -1241,6 +1241,36 @@ import { inviteNextKey } from './inviteText.mjs';
    */
   // A HORDOZOTT LEZÁRÁS IS ÚJRARAJZOLANDÓ (F93-01): ha közben modális panel nyílik, a buboréknak
   // oda kell költöznie — különben a lezárás a párbeszéd MÖGÖTT ragad, ahol nem kattintható.
+  /**
+   * …ÉS AMIT AZ ELŐZŐ LÉPÉS IGAZOLT SIKERE MOZDÍTOTT EL, AZ NEM „a néző elkalandozott" (R176 §1).
+   *
+   * A LELET, MÉRVE A VALÓDI FELÜLETEN. A meghívás ELFOGADÁSA átléptet: a kiszolgáló a belépőt más
+   * könyvbe állítja, de a nézet-frissítés az igazolás UTÁN fut be. A következő lépés ezért MÁS
+   * nézetet látott, mint amihez a futás kötve volt, és az alany-váltás őre NEVEZETTEN megállította a
+   * bemutatót: „Közben másik fiókra vagy felhasználóra váltottál." A 19 lépésből 18 futott le, és a
+   * 19. — épp a végeredmény — szakadt meg. Ez az R164/3 átadási jegyzetében NEVESÍTVE nyitva hagyott
+   * harmadik állapot-szivárgás.
+   *
+   * A SZABÁLY, ÉS AMIÉRT NEM GYENGÍTÉS. Újrakötünk, de CSAK akkor, ha mind a három igaz:
+   *   · az ELŐZŐ lépés FELADATHOZ kötött volt (`task`) — tehát a szerver igazolta a sikert;
+   *   · és az az előző lépés `done` állapotban van;
+   *   · és a MOSTANI lépés nem deklarált váltás-határ (azt a `tourObserveActorSwitch` kezeli).
+   * Vagyis pontosan azt az egy esetet engedjük át, amiben a nézetet a BEMUTATÓ SAJÁT, IGAZOLT
+   * lépése mozdította el. Minden más úton a váltás ugyanúgy megállít, mint eddig (`KTX-03` ·
+   * `KUKA-204` · `KUKA-211`), és a `rebindView` ugyanaz az EGY feloldó (`KUKA-003`).
+   */
+  function tourRebindAfterOwnSuccess() {
+    const run = state.tour;
+    if (!run) return;
+    const most = view();
+    const regi = run.view || {};
+    if ((most.book ?? null) === (regi.book ?? null) && (most.subject ?? null) === (regi.subject ?? null)) return;
+    const mostani = run.steps[run.at];
+    if (!mostani || mostani.switch_actor === true) return;     // a deklarált határ nem ide tartozik
+    const elozo = run.at > 0 ? run.steps[run.at - 1] : null;
+    if (!elozo || !elozo.task || elozo.state !== 'done') return;
+    tourMod.rebindView(run, { view: most, role: state.me && state.me.current_role });
+  }
   function tourRecheck() {
     // A VÁLTÁS MEGFIGYELÉSE A RAJZOLÁS ELŐTT (ACT-01): a néző-váltás után az app rajzol újra, és a
     // lépés ekkor igazolódik — nem egy gomb megnyomásakor. A megfigyelés IDEMPOTENS: ha nincs futó
@@ -1696,6 +1726,10 @@ import { inviteNextKey } from './inviteText.mjs';
       show(box, true);
       return;
     }
+    // A VISSZAKÖTÉS A VIZSGÁLAT ELŐTT, EGY HELYEN (R176 §1 · `KUKA-003`). A `render()` közvetlenül is
+    // ide jut (nem csak a `tourRecheck`-en át), ezért a szabály ITT áll — különben a nézet-frissítés
+    // már megállapodott megszakítást talál, és a javítás elkésik (MÉRVE: a 19. lépésnél).
+    tourRebindAfterOwnSuccess();
     const check = tourMod.checkRun(state.tour, { view: view(), role: state.me && state.me.current_role });
     if (!check.ok) {
       state.tourAborted = check.why === 'no_run' ? 'targetMissing' : check.why;
@@ -1855,10 +1889,34 @@ import { inviteNextKey } from './inviteText.mjs';
     tourMod.rebindView(state.tour, { view: view(), role });
     tourTaskDone('actor.switched');
   }
-  /** A FELADAT IGAZOLÁSA — a SZERVER válasza után hívjuk, nem a kattintás után (TUR-01). */
+  /**
+   * A FELADAT IGAZOLÁSA — a SZERVER válasza után hívjuk, nem a kattintás után (TUR-01).
+   *
+   * ÉS AMIT A LÉPÉS SAJÁT SIKERE VÁLTOZTATOTT MEG, AZ NEM „a néző elkalandozott" (R176 §1, MÉRVE).
+   *
+   * A LELET. A meghívás ELFOGADÁSA átléptet: a kiszolgáló a belépőt az elfogadás után más könyvbe
+   * állítja. A következő lépés viszont nem deklarált váltás-határ, ezért az alany-váltás őre
+   * NEVEZETTEN megállította a bemutatót: „Közben másik fiókra vagy felhasználóra váltottál". MÉRVE a
+   * valódi felületen: a 19 lépésből 18 futott le, és a 19. — épp a végeredmény — szakadt meg. Ez az
+   * a harmadik állapot-szivárgás, amit az R164/3 átadási jegyzete NEVESÍTVE nyitva hagyott.
+   *
+   * A VÁLASZ, ÉS AMIÉRT NEM GYENGÍTÉS. Az őr célja (`KTX-03` · `KUKA-204` · `KUKA-211`) az, hogy a
+   * bemutató ne mutasson MÁS ember adatára, ha a NÉZŐ vált közben. Itt viszont a lépés SAJÁT,
+   * SZERVER ÁLTAL IGAZOLT sikere mozdította el a nézetet — az új nézet pontosan az, ahol a történet
+   * folytatódik. Ezért a futás ehhez a nézethez KÖTŐDIK ÚJRA, és csak akkor:
+   *   · a lépés feladata IGAZOLTAN teljesült (`taskDone` igazat adott, tehát ez az ÉPP AKTUÁLIS lépés);
+   *   · és a nézet tényleg MÁS, mint amihez a futás kötve volt.
+   * Minden más úton a váltás ugyanúgy megállítja a bemutatót, mint eddig. A `rebindView` ugyanaz az
+   * egy feloldó, amit a váltás-lépés is használ (`KUKA-003`).
+   */
   function tourTaskDone(taskId) {
     if (!state.tour) return;
-    if (tourMod.taskDone(state.tour, taskId)) { state.tourBlocked = null; renderTour(); }
+    if (!tourMod.taskDone(state.tour, taskId)) return;
+    // A NÉZET-ELMOZDULÁST NEM ITT kötjük újra: az igazolás a frissítés ELŐTT fut be (mérve), ezért a
+    // visszakötés a `tourRecheck` egy otthonában áll (`tourRebindAfterOwnSuccess`) — KUKA-003.
+    tourRebindAfterOwnSuccess();
+    state.tourBlocked = null;
+    renderTour();
   }
   /**
    * A LEZÁRÁS A VÁLTÁS ELŐTT SZÜLETIK — EGY HELYEN, MINDEN FIÓKVÁLTÓ SIKERHEZ (F93-01 · F111-01).
@@ -2053,7 +2111,8 @@ import { inviteNextKey } from './inviteText.mjs';
     const vissza = loggedIn ? UI.inviteBackToApp : UI.inviteBackToStart;
     return `<div class="buttonrow" data-testid="invite-continue">
       <button type="button" data-action="invite-leave" data-testid="invite-back">${esc(vissza)}</button>
-      ${loggedIn ? `<button type="button" class="plain" data-action="logout" data-testid="invite-logout">${esc(UI.inviteSignOutSwitch)}</button>` : ''}
+      ${loggedIn ? `<button type="button" class="plain" data-action="logout" data-testid="invite-logout"
+        data-tour-anchor="actor-switch">${esc(UI.inviteSignOutSwitch)}</button>` : ''}
     </div>
     <p class="muted" data-testid="invite-leave-note">${esc(UI.inviteLeaveNote)}</p>`;
   }

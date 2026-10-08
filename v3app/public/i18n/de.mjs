@@ -1399,6 +1399,7 @@ export const TOUR = Object.freeze({
     s8: Object.freeze({ title: 'Den früheren Einladungslink öffnen', body: 'Das ist der Link, den Béla früher erhalten hat. Klicke ihn an: der Einladungsbildschirm öffnet sich.' }),
     s9: Object.freeze({ title: 'Der frühere Einladungslink, geöffnet', body: 'Der Bildschirm sagt es: diese Einladung wurde zurückgenommen und kann nicht angenommen werden. Es gibt auch keine Schaltfläche zum Annehmen — der Link ist tot.' }),
     s10: Object.freeze({ title: 'Zurück in Annas Ansicht wechseln', body: 'Der Kontoverwalter muss eine neue Einladung ausgeben — der frühere Link lässt sich nicht wiederbeleben.' }),
+    s10b: Object.freeze({ title: 'Zum Firmenkonto wechseln', body: 'Nach der Anmeldung bist du in deinem eigenen persönlichen Bereich — der Benutzer-Bildschirm existiert nur im Firmenkonto. Wähle die Firma im Kontoauswahlfeld der Kopfzeile.' }),
     s11: Object.freeze({ title: 'Wieder Benutzer öffnen', body: 'Nach dem Wechsel stehst du auf der Übersicht. Das Einladen beginnt auf dem Bildschirm Benutzer.' }),
     s12: Object.freeze({ title: 'Das Einladungsformular öffnen', body: 'Die Schaltfläche „Benutzer einladen“ oben auf dem Bildschirm.' }),
     s13: Object.freeze({ title: 'Béla eine neue Einladung geben', body: 'Die Schaltfläche „Benutzer einladen“, dann Adresse und Datenbereich, dann senden. Dieser Schritt geht erst nach einem tatsächlichen Versand weiter.' }),

@@ -885,6 +885,22 @@ export const TOURS = Object.freeze({
       Object.freeze({ id: 's8', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
       Object.freeze({ id: 's9', target: 'invite-observe', task: null, appears_after: 'mailbox' }),
       Object.freeze({ id: 's10', target: 'actor-switch', task: 'actor.switched', role: 'admin', switch_actor: true }),
+      /**
+       * A HIÁNYZÓ LÉPÉS — A VISSZATÉRŐ FIÓKKEZELŐNEK A CÉGRE IS ÁT KELL VÁLTANIA (R176 §1, MÉRVE).
+       *
+       * A LELET. A valódi felületen a szereplő-váltás valódi KI- ÉS BELÉPÉS, és a kiszolgáló a
+       * belépőt a SZEMÉLYES körébe léptetve fogadja. A következő lépés célja (`nav-members`) viszont
+       * CSAK céges fiókban létezik — a bemutató tehát egy ÉP képernyőn, NEVEZETTEN megszakadt:
+       * „az útmutatóban megnevezett elem nem látható ezen a képernyőn". MÉRVE a valódi felületen:
+       * a 18 lépésből 10 futott le, a 11. szakadt meg. Ez az a hiány, amit az R164/3 átadási
+       * jegyzete „19-ből 18 lépés"-ként nevezett meg — egyetlen lépés volt.
+       *
+       * A VÁLASZ UGYANAZ A MÁR MEGLÉVŐ MINTA, amit a `tour.reentry` s9 lépése használ: a FIÓK-váltás
+       * is nézet-váltás (`KUKA-208`: a kontextus PÁR — alany ÉS könyv), tehát a lépés a fejléc
+       * fiókválasztójára áll, és a kiszolgáló igazolt válaszára zárul. Nem új mechanizmus: a
+       * meglévő szabályt alkalmazza ott is, ahol eddig kimaradt (`KUKA-003`).
+       */
+      Object.freeze({ id: 's10b', target: 'account-switcher', task: 'actor.switched', role: 'admin', switch_actor: true }),
       Object.freeze({ id: 's11', target: 'nav-members', task: null, role: 'admin' }),
       Object.freeze({ id: 's12', target: 'invite-open', task: null, role: 'admin' }),
       Object.freeze({ id: 's13', target: 'invite-submit', task: 'invite.created', appears_after: 'invite-open', role: 'admin' }),

@@ -1495,6 +1495,7 @@ export const TOUR = Object.freeze({
     s8: Object.freeze({ title: 'Nyisd meg a korábbi meghívó hivatkozását', body: 'Ez az a hivatkozás, amit Béla korábban megkapott. Kattints rá: a meghívó képernyője nyílik meg.' }),
     s9: Object.freeze({ title: 'A régi meghívó megnyitva', body: 'A képernyő kimondja: ezt a meghívást visszavonták, ezért nem fogadható el. Elfogadás gomb sincs — a hivatkozás elhalt.' }),
     s10: Object.freeze({ title: 'Válts vissza Anna nézetére', body: 'A fiókkezelőnek új meghívást kell kiadnia — a régi hivatkozás már nem éleszthető fel.' }),
+    s10b: Object.freeze({ title: 'Válts át a cég fiókjára', body: 'A belépés után a saját személyes körödben állsz — a Felhasználók képernyő csak a cég fiókjában létezik. A fejléc fiókválasztójában válaszd a céget.' }),
     s11: Object.freeze({ title: 'Nyisd meg újra a Felhasználókat', body: 'A váltás után az áttekintésen állsz. A meghívás a Felhasználók képernyőről indul.' }),
     s12: Object.freeze({ title: 'Nyisd meg a meghívás űrlapját', body: 'A „Felhasználó meghívása” gomb a képernyő tetején.' }),
     s13: Object.freeze({ title: 'Adj ki új meghívást Bélának', body: 'A „Felhasználó meghívása” gomb, majd a cím és az adatkör megadása után az elküldés. Ez a lépés csak tényleges elküldés után halad tovább.' }),

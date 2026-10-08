@@ -1403,6 +1403,7 @@ export const TOUR = Object.freeze({
     s8: Object.freeze({ title: 'Open the earlier invitation link', body: 'This is the link Béla received earlier. Click it: the invitation screen opens.' }),
     s9: Object.freeze({ title: 'The old invitation, opened', body: 'The screen states it: this invitation was revoked, so it cannot be accepted. There is no accept button — the link is dead.' }),
     s10: Object.freeze({ title: 'Switch back to Anna’s view', body: 'The account manager has to issue a new invitation — the old link cannot be revived.' }),
+    s10b: Object.freeze({ title: 'Switch to the company account', body: 'After signing in you are in your own personal space — the Users screen exists only in the company account. Pick the company in the header account selector.' }),
     s11: Object.freeze({ title: 'Open Users again', body: 'After the switch you are on the overview. Inviting starts from the Users screen.' }),
     s12: Object.freeze({ title: 'Open the invitation form', body: 'The “Invite user” button at the top of the screen.' }),
     s13: Object.freeze({ title: 'Issue a new invitation to Béla', body: 'The “Invite user” button, then the address and the data area, then send. This step only advances after an actual send.' }),

@@ -68,10 +68,29 @@ export function newTourRun({ def, view, role }) {
  * ott a másik ember a SAJÁT eszközén lép be. A szemantikus horgony tehát nem kibúvó a testid alól:
  * a cél NEVE a szerződés, a megvalósítója a lapé. Egy feloldó, négy hívó (KUKA-003 · KUKA-039).
  */
+/**
+ * …ÉS A SZEMANTIKUS HORGONYT TÖBB VEZÉRLŐ IS BETÖLTHETI — A LÁTHATÓ AZ ÉRVÉNYES (R176 §1, MÉRVE).
+ *
+ * A LELET. A szereplő-váltás vezérlője az alkalmazás-héjban a profil-menü kijelentkezése, a
+ * MEGHÍVÓ-KÉPERNYŐN viszont a saját „kijelentkezés és belépés más fiókkal" gombja — ugyanaz a
+ * SZEREP, két képernyő, két elem. A régi alak az ELSŐ találatot adta vissza, a `targetOf` pedig a
+ * rejtett elemre `null`-t ad: a bemutató így a meghívó-képernyőn a HÉJ (épp rejtett) gombját
+ * találta meg, és a váltás-lépés egy ÉP képernyőn vált elérhetetlenné. MÉRVE: a két szereplős
+ * történet a 9. lépésén állt meg, pont a visszaváltás előtt.
+ *
+ * A VÁLASZ: a horgony SZEREP, és egy képernyőn pontosan egy vezérlő tölti be — tehát a feloldó a
+ * LÁTHATÓT választja. Ha egy sincs látható, az ELSŐ találat jön vissza változatlanul: így a
+ * „rejtett cél" és a „nem létező cél" különbsége megmarad (`targetPending` vs `targetMissing`),
+ * és az egy-jelöltes eset viselkedése betűre ugyanaz (`KUKA-003`: egy feloldó, négy hívó).
+ */
 function elementFor(name) {
   if (!name) return null;
-  return document.querySelector(`[data-testid="${name}"]`)
-    || document.querySelector(`[data-tour-anchor="${name}"]`);
+  const jeloltek = [
+    ...document.querySelectorAll(`[data-testid="${name}"]`),
+    ...document.querySelectorAll(`[data-tour-anchor="${name}"]`),
+  ];
+  if (jeloltek.length === 0) return null;
+  return jeloltek.find((el) => isShown(el)) || jeloltek[0];
 }
 
 /**
