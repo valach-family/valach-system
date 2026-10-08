@@ -59,6 +59,31 @@ try {
   await call('POST', '/api/workspaces', { name: 'Minta Műhely Kft.', plan: 'pro',
     business: { jurisdiction: 'HU', tax_id: '62345676-2-42' } });
 
+  /**
+   * ÉS A TÖRTÉNETEK INDULÓ ADATA IS KELL (R176 · `KUKA-417` · `KUKA-421`).
+   *
+   * A két átívelő végigvezetés felkínálása ma az INDULÓ ADATHOZ kötött: a visszavonás egy FÜGGŐ
+   * meghívást kér, a visszatérés egy HATÁLYOS másik tagot. A pillanatkép tehát csak akkor születhet
+   * meg, ha a fixtúra MINDKETTŐT előállítja — különben a lenti `hiany` ellenőrzés (helyesen) elakad.
+   * Cili meghívása FÜGGŐ marad, Dóra elfogadja: így a két tény egymástól független marad.
+   */
+  const anna = cookie;
+  await call('POST', '/api/invites', { email: 'cili@demo.vs', role: 'user', scope: 'keszlet', lang: 'hu' });
+  const meghD = await call('POST', '/api/invites', { email: 'dora@demo.vs', role: 'user', scope: 'keszlet', lang: 'hu' });
+  const jegy = meghD.body && meghD.body.token;
+  if (!jegy) throw new Error('a második meghívó jegye nem jött meg — a mérés elakadt');
+  cookie = null;                                           // ÚJ munkamenet: Dóra a saját fiókjával
+  await call('POST', '/api/register', { email: 'dora@demo.vs', password: 'dora-titok-1' });
+  const dMails = (await call('GET', '/dev/mailbox')).body.mails || [];
+  const dm = dMails.find((x) => x.to === 'dora@demo.vs' && /meg/i.test(x.subject || ''));
+  if (!dm) throw new Error('Dóra megerősítő levele nem jött meg — a mérés elakadt');
+  const du = new URL(dm.link);
+  await call('GET', du.pathname + du.search);
+  await call('POST', '/api/login', { email: 'dora@demo.vs', password: 'dora-titok-1' });
+  const bevaltas = await call('POST', '/api/invites/redeem', { token: jegy });
+  if (!bevaltas.body || bevaltas.body.ok !== true) throw new Error(`Dóra beváltása nem sikerült (${bevaltas.status})`);
+  cookie = anna;                                           // vissza a fiókkezelő munkamenetére
+
   // A FELÜLET MEGNEVEZÉSE (R164/3). A csomag a BEMUTATÓ LAPJÁHOZ készül (`demo-index.html`), és a
   // szereplő-váltó végigvezetéseket a kiszolgáló ahhoz a felülethez köti — a vezérlő létét a lap
   // FÁJLJÁBÓL méri, nem ebből a megnevezésből. Ha a váltó horgony kiesne a bemutató lapjáról, a

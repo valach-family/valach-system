@@ -563,16 +563,27 @@ async function handoverProbes() {
   // ── (h1) A NÉZET PÁR: alany ÉS fiók — az átadásnak MINDKETTŐT vinnie kell (F142-05) ─────────
   const pair = await page.evaluate(async () => {
     const mod = await import('./tour.mjs');
-    const run = (view) => ({ at: 0, steps: [{ id: 's', switch_actor: true, task: 'actor.switched' }], view, role: null });
+    // R176 (`KUKA-423`): a váltás-lépés a DEKLARÁLT tengelyt kéri, tehát az ellenpárok is azon
+    // a tengelyen állnak — és külön mérjük a ROSSZ tengelyt, illetve a nyilatkozat nélküli esetet.
+    const run = (view, tengely) => ({ at: 0,
+      steps: [{ id: 's', switch_actor: true, switch_axis: tengely, task: 'actor.switched' }], view, role: null });
     return {
-      masFiok: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }), { view: { book: 'b2', subject: 'u1' }, role: null }),
-      masEmber: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }), { view: { book: 'b1', subject: 'u2' }, role: null }),
+      masFiok: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'book'), { view: { book: 'b2', subject: 'u1' }, role: null }),
+      masEmber: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'subject'), { view: { book: 'b1', subject: 'u2' }, role: null }),
+      rosszTengely: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'subject'), { view: { book: 'b2', subject: 'u1' }, role: null }),
+      nyilatkozatNelkul: mod.actorSwitchReady({ at: 0,
+        steps: [{ id: 's', switch_actor: true, task: 'actor.switched' }], view: { book: 'b1', subject: 'u1' }, role: null },
+      { view: { book: 'b2', subject: 'u2' }, role: null }),
       // ELLENPÁR: pontosan az az állapot, amit a RÉGI átadás előállított — a fiók elveszett, ezért
       // a futás az ÚJ fiókhoz kötődött, és a MEGTÖRTÉNT váltás mérhetetlen lett.
-      elvesztettFiok: mod.actorSwitchReady(run({ book: 'b2', subject: 'u1' }), { view: { book: 'b2', subject: 'u1' }, role: null }),
+      elvesztettFiok: mod.actorSwitchReady(run({ book: 'b2', subject: 'u1' }, 'book'), { view: { book: 'b2', subject: 'u1' }, role: null }),
     };
   });
-  A('(h1a) ugyanaz az ember MÁSIK FIÓKJA is váltás', pair.masFiok === true, `kapott=${pair.masFiok}`);
+  A('(h1a) ugyanaz az ember MÁSIK FIÓKJA is váltás (a FIÓK tengelyén)', pair.masFiok === true, `kapott=${pair.masFiok}`);
+  A('(h1d) R176 — a ROSSZ tengely változása NEM váltás: személy-váltó lépést a fiókváltás nem teljesít',
+    pair.rosszTengely === false, `kapott=${pair.rosszTengely}`);
+  A('(h1e) R176 — nyilatkozat nélkül a kapu ZÁR (fail-closed)',
+    pair.nyilatkozatNelkul === false, `kapott=${pair.nyilatkozatNelkul}`);
   A('(h1b) MÁS ember nézete is váltás', pair.masEmber === true, `kapott=${pair.masEmber}`);
   A('(h1c) ELLENPÁR: ha az átadás a FIÓKOT elveszti, a megtörtént váltás MÉRHETETLEN',
     pair.elvesztettFiok === false, `kapott=${pair.elvesztettFiok}`);

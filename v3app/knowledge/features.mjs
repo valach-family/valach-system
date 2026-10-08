@@ -962,9 +962,19 @@ export const TOURS = Object.freeze({
       Object.freeze({ id: 's10', target: 'nav-stock', task: null }),
       Object.freeze({ id: 's11', target: 'data-stock', task: null }),
       Object.freeze({ id: 's12', target: 'actor-switch', task: 'actor.switched', role: 'admin', switch_actor: true, switch_axis: 'subject' }),
+      /**
+       * A VISSZAVÁLTÁS UTÁN A SZEMÉLYES KÖRBEN ÁLLUNK (R176 — ugyanaz a hiány, mint a `s10b`-nél).
+       *
+       * A belépés a SZEMÉLYES körbe visz, a jogadás és a készlet képernyői viszont a cég fiókjában
+       * élnek. A fiókváltás tehát a történet SAJÁT lépése, nem a próba néma kényelme: e nélkül a
+       * következő lépés célja (`nav-members`, illetve `nav-stock`) nem létezik, és a végigvezetés
+       * `targetMissing`-gel megszakad — MÉRVE a bemutató-lap bejárásán, mindkét szélességen.
+       */
+      Object.freeze({ id: 's12b', target: 'account-switcher', task: 'actor.switched', role: 'admin', switch_actor: true, switch_axis: 'book' }),
       Object.freeze({ id: 's13', target: 'nav-members', task: null, role: 'admin' }),
       Object.freeze({ id: 's14', target: 'member-scope-row-keszlet', task: 'grant.saved', appears_after: 'members-list', role: 'admin' }),
       Object.freeze({ id: 's15', target: 'actor-switch', task: 'actor.switched', switch_actor: true, switch_axis: 'subject' }),
+      Object.freeze({ id: 's15b', target: 'account-switcher', task: 'actor.switched', switch_actor: true, switch_axis: 'book' }),
       Object.freeze({ id: 's16', target: 'nav-stock', task: null }),
       Object.freeze({ id: 's17', target: 'data-stock-btn', task: null }),
       Object.freeze({ id: 's18', target: 'data-price', task: null }),

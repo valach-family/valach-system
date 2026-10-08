@@ -496,9 +496,12 @@ test('R176-K2 — 2. TÖRTÉNET a VALÓDI felületen: a munkatárs visszatérés
       await withResponse(p, { path: '/api/invites/redeem' }, () => p.getByTestId('invite-redeem').click());
     },
     s9: async () => { await switchUI(p, cegId); },
-    s12: async () => { await valtsSzereplot(p, anna, { valtasLepes: true }); await switchUI(p, cegId); },
+    // A FIÓKVÁLTÁS MOSTANTÓL A TÖRTÉNET SAJÁT LÉPÉSE (`s12b` · `s15b`) — a próba nem végzi el némán.
+    s12: async () => { await valtsSzereplot(p, anna, { valtasLepes: true }); },
+    s12b: async () => { await valtsFiokra(p, cegId); },
     s14: async () => { await closeModals(p); await grantScopeUI(p, bela.subjectId, 'keszlet'); },
-    s15: async () => { await valtsSzereplot(p, bela, { valtasLepes: true }); await switchUI(p, cegId); },
+    s15: async () => { await valtsSzereplot(p, bela, { valtasLepes: true }); },
+    s15b: async () => { await valtsFiokra(p, cegId); },
   });
   expect(r.baj || `${r.elert}/${r.lepes} OK`, `a visszatérés-történet VÉGIG vihető a valódi felületen — mérve: ${r.naplo.join('→')}`).toBe(`${r.lepes}/${r.lepes} OK`);
 

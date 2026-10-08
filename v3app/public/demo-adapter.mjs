@@ -527,12 +527,17 @@ function install() {
        * A VALÓDI kiszolgáló a SZEMÉLYES kört adja (`POST /api/login`: `fresh.current_book_id =
        * personal.book_id`), és a cég képernyőihez a fejléc fiókválasztójában kell átváltani. Az
        * R164/3-ban hűségesre állítottam, és a bemutató lépés-listáját is kiegészítettem a
-       * fiókváltással — a sor azért áll vissza, mert a bemutató-lap mai, VÉGIGVIHETŐ útja a rövidítő
-       * gomb (kilépés → belépés → újratöltés), és az a tagság szerinti fiókot várja. A különbség
-       * NEVESÍTETT: a csonk ezen a ponton nem a termék viselkedését mutatja (KUKA-050 alá eső
-       * kimondott hiány, nem néma eltérés).
+       * fiókváltással.
+       *
+       * R176 — A KIMONDOTT EGYSZERŰSÍTÉS MEGSZŰNT, ÉS AZ OKA IS KIMONDOTT. Itt eddig a tagság
+       * szerinti fiók állt (`S.inBook = effective`), mert a bemutató-lap rövidítő gombja azt várta.
+       * A `KUKA-423` javítása után a váltás-lépés a DEKLARÁLT tengelyt kéri: a fiók-váltó lépésnek
+       * (`s10b` · `s9`) TÉNYLEGES fiókváltás kell, különben nincs mit elvégezni, és a történet
+       * megállna egy olyan ponton, ahol a VALÓDI felületen dolga van. A csonk tehát mostantól a
+       * terméket követi: a belépés a SZEMÉLYES körbe visz, és a cég képernyőihez a fejléc
+       * fiókválasztójában kell átváltani (`KUKA-050`: a szöveg és a kód ugyanazt mondja).
        */
-      S.inBook = !!(S.memberships[who] && S.memberships[who].effective);
+      S.inBook = false;
       const pend = S.invites.find((i) => i.who === who && i.state === 'pending');
       return J(200, { ok: true, subject_id: PEOPLE[who].id,
         pending_invite_token: pend ? pend.token : null, personal_book_id: PERSONAL[who] });

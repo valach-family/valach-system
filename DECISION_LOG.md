@@ -16,6 +16,18 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3221 — EGY KIMONDOTT RÖVIDÍTÉS IS ELTAKAR (R176, saját lelet a tengely-javítás után)
+
+A bemutató-lap csonkja a belépést a **tagság** fiókjába vitte, a valódi kiszolgáló viszont a
+**személyes** körbe — ez kimondott rövidítés volt a kódban. A `D-VS-3217` tengely-szigorítása után
+hűségesre állítottam, és akkor derült ki, hogy a `tour.reentry` történetéből **két fiókváltó lépés
+hiányzik** (`s12b` · `s15b`): a visszaváltás után a jogadás, illetve a készlet képernyői a cég
+fiókjában élnek. A hiányt két takarás rejtette: a csonk rövidítése és a **saját próbám** néma
+kényelme (az akció-térképében elvégezte a fiókváltást). Mindhárom javítva — a lépések a történetbe, a
+csonk hűségesre, a próba a saját lépéséhez. Tanulság: **KUKA-427**.
+
+---
+
 ## D-VS-3220 — VISSZAFORDÍTHATATLANT CSAK IGAZOLT VÁLASZ UTÁN (R176, külső P2)
 
 A bemutató-visszaállás ELŐBB elvette a tárolt haladást, és csak UTÁNA kérdezte meg a kiszolgálót —

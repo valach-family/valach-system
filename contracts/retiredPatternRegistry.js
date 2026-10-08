@@ -16099,6 +16099,39 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (három pozitív minta + a tiltott elvevő alak). ÉLŐ TANÚ: `verify:browser-gate` → `R176-K7` (3. őr: 503 mellett a rekesz marad, feloldás után visszaáll). Visszacsúszás-próba MÉRVE: a `takeTourHandover` alakot visszaírva a `K7` PIROS.',
   }),
 
+  Object.freeze({
+    id: 'KUKA-427',
+    date: '2026-10-08',
+    title: 'A BEMUTATÓ-CSONK RÖVIDÍTÉSE ELTAKARTA, HOGY A TÖRTÉNETBŐL KÉT LÉPÉS HIÁNYZIK',
+    what: 'A bemutató-lap csonkja (`demo-adapter.mjs`) a belépést a TAGSÁG szerinti fiókba vitte (`S.inBook = effective`) — a VALÓDI kiszolgáló ezzel szemben a SZEMÉLYES körbe léptet, és a cég képernyőihez a fejléc fiókválasztójában kell átváltani. A rövidítés KIMONDVA állt a kódban („a csonk ezen a ponton nem a termék viselkedését mutatja"), tehát nem néma eltérés volt.',
+    why_wrong: 'DE A KIMONDOTT RÖVIDÍTÉS IS ELTAKAR: a `tour.reentry` történetéből KÉT fiókváltó lépés hiányzott (a visszaváltás után a jogadás, illetve a készlet képernyői a cég fiókjában élnek). A csonkon ez nem derült ki, mert ott a belépés már a cégbe vitt; a VALÓDI felületen pedig a saját próbám (`K2`) NÉMÁN elvégezte a fiókváltást az akció-térképében. A hiány csak akkor bukkant elő, amikor a `KUKA-423` tengely-javítása után a csonkot HŰSÉGESRE állítottam: a bejárás mindkét szélességen `targetMissing`-gel megszakadt az s13 előtt — a felhasználó a történet közepén egy ÉP képernyőn vesztette volna el a végigvezetést.',
+    replaced_by: 'A TÖRTÉNET MEGKAPTA A SAJÁT LÉPÉSEIT (`s12b` · `s15b`, cél `account-switcher`, tengely `book`, mindhárom termék-nyelven szöveggel) — ugyanaz a javítás, mint az `s10b` az `inviteRevoke`-nál. És a CSONK HŰSÉGES: a belépés a személyes körbe visz, a kimondott rövidítés megszűnt (`KUKA-050`).',
+    replacement: 'ÉS A PRÓBA SEM VÉGZI EL NÉMÁN: a `K2` akció-térképében a fiókváltás a saját lépéséhez (`s12b` · `s15b`) került, nem a szereplő-váltás mellé. Így a bejárás azt méri, amit a néző tesz.',
+    decision: 'D-VS-3221',
+    found_by: 'SAJÁT LELET (Claude-v3, R176) — a `KUKA-423` javítása UTÁN, a bemutató-lap bejárásán: a tengely-szigorítás kényszerítette ki a csonk hűségessé tételét, és az hozta elő a hiányt. Nem átgondolásból, hanem mérésből.',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/demo-adapter.mjs']),
+        pattern: 'S\\.inBook = false;\\n      const pend = S\\.invites',
+        why: 'a csonk belépése a SZEMÉLYES körbe visz — ahogy a termék', flags: 'm' }),
+      Object.freeze({ paths: Object.freeze(['v3app/knowledge/features.mjs']),
+        pattern: "id: 's12b', target: 'account-switcher'",
+        why: 'a visszaváltás utáni fiókváltás a TÖRTÉNET lépése' }),
+      Object.freeze({ paths: Object.freeze(['v3app/knowledge/features.mjs']),
+        pattern: "id: 's15b', target: 'account-switcher'",
+        why: 'és a második visszaváltás után is' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r176-ket-szereplo.spec.mjs']),
+        pattern: 's12b: async \\(\\) => \\{ await valtsFiokra',
+        why: 'a próba a saját lépéséhez teszi a fiókváltást, nem a szereplő-váltás mellé' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/demo-adapter.mjs']),
+        pattern: 'S\\.inBook = !!\\(S\\.memberships\\[who\\] && S\\.memberships\\[who\\]\\.effective\\);',
+        reason: 'a rövidítés: a belépés a tagság fiókjába vinne, és eltakarná a hiányzó fiókváltást' }),
+    ]),
+    lesson: 'EGY KIMONDOTT RÖVIDÍTÉS IS ELTAKAR — a „nevesített hiány" nem ártalmatlan, ha a MÉRÉS a rövidített úton megy. Két takarás kellett ahhoz, hogy két lépés hiánya láthatatlan maradjon: a csonk rövidítése és a saját próbám néma kényelme. Amikor egy kapu szigorodik, a RÖVIDÍTÉSEKET is hűségesre kell állítani — a szigorítás ilyenkor nem teher, hanem a hiányok előhozója.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (négy pozitív minta + a tiltott rövidítés) · `npm run verify:i18n` (a két új lépés szövege mindhárom termék-nyelven). ÉLŐ TANÚ: `npm run proof:demo-walk` (a `reentry` 20 lépése mindkét szélességen) és `verify:browser-gate` → `R176-K2` (20/20 a VALÓDI felületen). Visszacsúszás-próba MÉRVE: a rövidítést visszaírva a bejárás az s12b-n ragad; a két lépést kivéve `targetMissing`-gel szakad meg.',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({
