@@ -252,7 +252,7 @@ export function allowedActionsFor(ctx = {}) {
  * A TÖRTÉNET INDULÓ ADATÁNAK ZÁRT KÉSZLETE (R176 §1). Egy új érték = egy új, MÉRT tény a
  * kiszolgálóban — a kapu addig zárva (KUKA-236: a zárt lista a MEZŐKRE is érvényes).
  */
-export const TOUR_STORY_DATA = Object.freeze(['pending_invite', 'other_member']);
+export const TOUR_STORY_DATA = Object.freeze(['pending_invite', 'other_member', 'own_personal_book']);
 
 const RESUME_TOLERALT_OK = Object.freeze(['admin_required', 'personal_space']);
 

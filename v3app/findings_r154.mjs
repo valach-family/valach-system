@@ -1635,9 +1635,18 @@ try {
       // (as6) A BÖNGÉSZŐ-OLDALI VISSZAÁLLÁS IS EBBŐL OLVAS — különben a határ zöldje nem a felület
       // zöldje (KUKA-227): a mező átmegy, de senki nem használja.
       const appSrc = readFileSync(join(ROOT, 'v3app/public/app.js'), 'utf8');
-      step('(as6) R176 §1: a váltás utáni visszaállás a FOLYTATHATÓ listából is keres (a határ mezőjét a felület TÉNYLEGESEN használja)',
-        /state\.astStatus\.resumable_tours/.test(appSrc)
-          && /defs\.find\(\(t\) => t\.id === h\.id\) \|\| folytathatok\.find\(\(t\) => t\.id === h\.id\)/.test(appSrc));
+      /**
+       * (as6) R176 — A FELOLDÁS EGY OTTHONBAN ÁLL, ÉS MINDKÉT FOGYASZTÓ ONNAN KÉRDEZ (`KUKA-428`).
+       *
+       * Az első alakom a visszaállásba írta be a két lista összefűzését — az ÁTSZÖVEGEZÉS viszont
+       * kimaradt, és egy visszaállított futást nyelvváltáskor elengedett. A pin ezért a FELOLDÓT és
+       * a KÉT hívóját méri, nem egy beírt kifejezést.
+       */
+      const feloldo = /function tourDefOf\(id\)[\s\S]{0,400}?resumable_tours/.test(appSrc);
+      const hivasok = (appSrc.match(/tourDefOf\(/g) || []).length;
+      step('(as6) R176 §1: a bemutató-definíció feloldása EGY otthonban áll (a folytathatókat is nézi), és a visszaállás ÉS az átszövegezés is onnan kérdez',
+        /state\.astStatus\.resumable_tours/.test(appSrc) && feloldo && hivasok >= 3,
+        { feloldo, hivasok });
 
       /**
        * (as7–as8) R176 §1 — A FEJLÉC NYITOTT TAKARÓI A SZEMÉLY VÁLTÁSÁN IS BECSUKÓDNAK (KUKA-416).
@@ -1677,7 +1686,7 @@ try {
       const tenyMasTag = (((tagokR.body || {}).members) || []).some((m) => m.email && m.email !== 'u-anna@pelda.hu');
       const kapuMert = /story_data: storyDataFacts\(bookId, session\.subject_id, clock\.now\(\)\)/.test(srvAs)
         && /function storyDataFacts\(bookId, subjectId, at\)/.test(srvAs);
-      const zartKeszlet = /TOUR_STORY_DATA = Object\.freeze\(\['pending_invite', 'other_member'\]\)/.test(polAs)
+      const zartKeszlet = /TOUR_STORY_DATA = Object\.freeze\(\['pending_invite', 'other_member', 'own_personal_book'\]\)/.test(polAs)
         && /if \(!TOUR_STORY_DATA\.includes\(t\.requires_story_data\)\) return false;/.test(polAs);
       step('(as9) R176 §1: a két szereplős történet INDULÓ adata MÉRT tény a tárból (függő meghívás ÉS másik tag), zárt készlettel — nem feltevés és nem kézi névsor',
         tenyFuggo === true && tenyMasTag === true && kapuMert && zartKeszlet,
@@ -1751,6 +1760,52 @@ try {
       step('(as14) R176/P2: MINDEN szereplő-váltó lépés kimondja a tengelyét (a regiszterből mérve), és a HATÁR át is adja',
         tengelyNelkul.length === 0 && /switch_axis: st\.switch_axis \?\? null/.test(srvAs),
         { tengely_nelkul: tengelyNelkul.join(' · ') || 'egy sincs' });
+
+      /**
+       * (as15) A LEVÉL IS INDULÓ ADAT (R176, külső review P2 · `KUKA-429`).
+       *
+       * A fejlesztői levél-fogadó MEMÓRIÁBAN él: egy folyamat-újraindítás után a tárban ott lehet a
+       * függő meghívó, a fogadó viszont ÜRES — a történet ilyenkor az `invite-observe` lépésen
+       * megszakadna. A mérés ezt a helyzetet ÁLLÍTJA ELŐ: a meghívó sorát KÖZVETLENÜL a tárba írjuk
+       * (tehát levél nem születik), és azt mérjük, hogy a felkínálás NEM történik meg.
+       */
+      {
+        const fg2 = await fiok('u-level-176');
+        const ws = await fg2.post('/api/workspaces', { name: 'U176 Level Nelkul Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '82345671-2-42' } });
+        const konyv = ws.body && (ws.body.book_id || (ws.body.workspace && ws.body.workspace.book_id));
+        const kiado = (await fg2.get('/api/me')).body.subject_id;
+        const lejar = new Date(Date.now() + 36e5).toISOString();
+        u.store.run(`INSERT INTO invite (token, book_id, invitee_namespace, invitee_value, offered_role,
+                       issuer_subject, expires_at, redeemed_at) VALUES (?,?,?,?,?,?,?,NULL)`,
+        'level-nelkuli-jegy-176', konyv, 'email', 'senki@pelda.hu', 'user', kiado, lejar);
+        const levelNelkul = await belepveT(fg2);
+        const sor = u.store.get('SELECT token FROM invite WHERE token = ?', 'level-nelkuli-jegy-176');
+        step('(as15) R176/P2: a tárban álló függő meghívó LEVÉL NÉLKÜL nem induló adat — a visszavonás-történet NEM kínálódik fel (RÉGEN: felkínálódott, és az `invite-observe` lépésen megszakadt volna)',
+          Boolean(sor) && !levelNelkul.ind.includes('tour.inviteRevoke'),
+          { a_sor_megvan: Boolean(sor), felkinalva: levelNelkul.ind.includes('tour.inviteRevoke') });
+      }
+
+      /**
+       * (as16) A `revocable` JELZŐ A SZEREP-PLAFONT IS KÉRDEZI (R176, külső review P2 · `KUKA-431`).
+       *
+       * A LELET: a jelző CSAK a függő állapotot nézte, a `revokeInvite` viszont a szerep-plafont is
+       * méri (`outside_basis_roles`) — egy szűkebb plafonú delegált kezelő így olyan ajánlatra is
+       * kapott gombot, amit a kiszolgáló biztosan elutasít (`KUKA-041`).
+       *
+       * A MÉRÉS HATÓKÖRE KIMONDVA (`KUKA-216`): a szerep-tengely szűkítése a szülő-alap
+       * `limit.roles` mezőjéből jön, és erre ma NINCS API-út — a szűk plafonú eset ezért FORRÁS-pin
+       * (a feloldó hívása és a jelző képlete), az ÉLŐ ellenpár pedig a TELJES plafon: a kezelő
+       * saját, függő meghívója változatlanul visszavonhatónak látszik, tehát a szigorítás nem vitt
+       * el jó esetet.
+       */
+      const plafonHivas = /const plafon = delegationCeilingOf\(\{ store, subjectId: session\.subject_id, bookId: cur\.book_id, at \}\);/.test(srvAs);
+      const jelzoKeplet = /revocable: state === 'pending' && plafonRoles\.includes\(r\.offered_role\),/.test(srvAs);
+      const fuggoSorok = (((await anna.get('/api/invites/waiting')).body || {}).invites || []);
+      const sajatFuggo = fuggoSorok.filter((i) => i.state === 'pending');
+      step('(as16) R176/P2: a `revocable` jelző a szerep-plafont IS kérdezi (forrás), és a TELJES plafonú kezelő függő meghívója változatlanul visszavonható (élő ellenpár)',
+        plafonHivas && jelzoKeplet && sajatFuggo.length > 0 && sajatFuggo.every((i) => i.revocable === true),
+        { plafon_hivas: plafonHivas, jelzo_keplet: jelzoKeplet, fuggo: sajatFuggo.length,
+          mind_visszavonhato: sajatFuggo.every((i) => i.revocable === true) });
 
       step('(as11) R176/P2: a MEGSZÜNTETETT tagság NEM számít induló adatnak — a visszatérés-történet felkínálása eltűnik (RÉGEN: a nyers `revoked_at IS NULL` miatt megmaradt, és a 3. lépésen megszakadt volna)',
         tagjaval.ind.includes('tour.reentry') && !tagNelkul.ind.includes('tour.reentry'),

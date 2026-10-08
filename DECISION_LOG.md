@@ -16,6 +16,43 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3225 — AMIT A FELÜLET FELKÍNÁL, AZT A KISZOLGÁLÓNAK EL IS KELL TUDNIA VÉGEZNI (R176, külső P2)
+
+A meghívó-lista `revocable` jelzője csak a függő állapotot kérdezte, a visszavonás viszont a
+**szerep-plafont** is méri — egy szűkebb plafonú, delegált kezelő így `admin` ajánlatra is
+visszavonás-gombot kapott, amit a kiszolgáló biztosan elutasít. A jelző mostantól UGYANAZT az
+írásmentes feloldót kérdezi, amit az írás-út. **Nevesített mérés-hiány:** a szerep-tengely
+szűkítésére ma nincs API-út, ezért a szűk plafonú eset forrás-pin, az élő ellenpár a teljes plafon.
+Tanulság: **KUKA-431**.
+
+---
+
+## D-VS-3224 — EGY ÚTMUTATÓ SZÖVEGE ÁLLÍTÁS A RENDSZERRŐL (R176, külső P2)
+
+A személyes fiók útmutatója minden belépettnek felkínálódott, és azt mondja, hogy a fiók már létezik
+és kiválasztható — egy meg nem erősített címnél viszont nincs személyes kör, tehát nincs mit
+választani. Az útmutató mostantól kimondja az induló adatát (`own_personal_book`), a kiszolgáló pedig
+a tárból méri. Tanulság: **KUKA-430**.
+
+---
+
+## D-VS-3223 — AZ ELŐFELTÉTELT MINDEN TÁROLÓBÓL MEG KELL KÉRDEZNI, AMIT A LÉPÉSEK HASZNÁLNAK (R176, külső P2)
+
+A függő meghívó tényét a tár sorából számoltam — a történet viszont a meghívó **levelét** is
+megnyitja, a fejlesztői fogadó pedig memóriában él. Újraindítás után a sor megvan, a levél nem, és a
+felkínált történet az `invite-observe` lépésen megszakadt. A tény mostantól a levelet is megkívánja.
+Tanulság: **KUKA-429**.
+
+---
+
+## D-VS-3222 — EGY LISTA KIEGÉSZÍTÉSÉHEZ MINDEN KÉRDEZŐJÉT MEG KELL KERESNI (R176, külső P2)
+
+A visszaállás megkapta a folytathatók listáját, az átszövegezés nem — egy átívelő, visszaállított
+futás nyelvváltáskor `notAvailable`-lel elveszett. Mostantól egy feloldó (`tourDefOf`), két fogyasztó.
+Tanulság: **KUKA-428**.
+
+---
+
 ## D-VS-3221 — EGY KIMONDOTT RÖVIDÍTÉS IS ELTAKAR (R176, saját lelet a tengely-javítás után)
 
 A bemutató-lap csonkja a belépést a **tagság** fiókjába vitte, a valódi kiszolgáló viszont a

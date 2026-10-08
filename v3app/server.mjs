@@ -1739,11 +1739,26 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
    * `policy.mjs` `TOUR_STORY_DATA`-jában áll, és MINDEN kulcsot ez a feloldó ad meg.
    */
   function storyDataFacts(bookId, subjectId, at) {
-    if (!bookId) return Object.freeze({ pending_invite: false, other_member: false });
+    if (!bookId) {
+      const kor = subjectId ? (personalSpaceOf({ store, subjectId }) || null) : null;
+      return Object.freeze({ pending_invite: false, other_member: false,
+        own_personal_book: Boolean(kor && kor.book_id) });
+    }
     const rows = store.all('SELECT token, redeemed_at, expires_at FROM invite WHERE book_id = ?', bookId);
+    /**
+     * ÉS A TÖRTÉNETHEZ A LEVÉL IS KELL (R176, külső review P2 — `KUKA-429`).
+     *
+     * A LELET: a `pending_invite` tény eddig CSAK a tár sorát kérdezte. A `tour.inviteRevoke`
+     * viszont a MEGHÍVÓ LEVELÉT is megnyitja (s7–s9), a fejlesztői levél-fogadó pedig MEMÓRIÁBAN
+     * él: egy folyamat-újraindítás után a tárban ott a függő meghívó, a fogadó viszont ÜRES — a
+     * történet tehát felkínálódott, és az `invite-observe` lépésen `targetMissing`-gel megszakadt.
+     * A felkínálás a VÉGIGVIHETŐSÉGRŐL szól (`KUKA-417` · `KUKA-421` ugyanaz a lecke, egy réteggel
+     * kijjebb), ezért a tény mostantól a LEVELET is megkívánja — a jegy a levél hivatkozásában áll.
+     */
     const pendingInvite = rows.some((r) => !r.redeemed_at
       && Date.parse(r.expires_at) > Date.parse(at)
-      && !inviteRevocationAt({ store, token: r.token, nowIso: at }).revoked);
+      && !inviteRevocationAt({ store, token: r.token, nowIso: at }).revoked
+      && mailbox.some((m) => String(m.link || '').includes(r.token)));
     /**
      * A TAGSÁG TÉNYÉT A KANONIKUS FELOLDÓ DÖNTI EL (R176, külső review P2 — `KUKA-421`).
      *
@@ -1761,7 +1776,17 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
         const t = membershipAsOf({ store, subjectId: m.subject_id, bookId, validAt: at, knownAt: at });
         return Boolean(t && t.effective === true);
       });
-    return Object.freeze({ pending_invite: pendingInvite, other_member: others.length > 0 });
+    /**
+     * ÉS A SAJÁT SZEMÉLYES KÖR LÉTE IS INDULÓ ADAT (R176, külső review P2 — `KUKA-430`).
+     *
+     * A LELET: a `tour.personalAccount` minden belépettnek felkínálódott, és azt MONDJA, hogy a
+     * személyes fiók már létezik és kiválasztható. Egy MEG NEM ERŐSÍTETT című embernél viszont az
+     * `ensurePersonal` nem hoz létre személyes kört (`provenEmailOf` nélkül `null`), tehát a
+     * fiókválasztóban nincs mit választani — az útmutató olyat állított, ami nem igaz.
+     */
+    const sajatKor = subjectId ? (personalSpaceOf({ store, subjectId }) || null) : null;
+    return Object.freeze({ pending_invite: pendingInvite, other_member: others.length > 0,
+      own_personal_book: Boolean(sajatKor && sajatKor.book_id) });
   }
 
   function requesterContext(session, cur, opts = {}) {
@@ -2343,6 +2368,9 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       const gate = adminGate(session, cur.book_id);
       if (!gate.ok) return { status: gate.status, body: { ok: false, reason: gate.reason, message: gate.message } };
       const at = clock.now();
+      // A SZEREP-PLAFON EGYSZER, ÍRÁS NÉLKÜL — a `revocable` jelző ebből is dönt (lentebb, KUKA-431).
+      const plafon = delegationCeilingOf({ store, subjectId: session.subject_id, bookId: cur.book_id, at });
+      const plafonRoles = plafon && plafon.ok && Array.isArray(plafon.roles) ? plafon.roles : [];
       const rows = store.all(
         `SELECT token, invitee_namespace, invitee_value, offered_role, issuer_subject, expires_at, redeemed_at
            FROM invite WHERE book_id = ? ORDER BY expires_at DESC`, cur.book_id);
@@ -2372,9 +2400,18 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
           state,
           accepted_at: r.redeemed_at ?? null,
           revoked_at: rev.revoked ? (rev.effective_at ?? null) : null,
-          // A VISSZAVONÁS CSAK A FÜGGŐRE AJÁNLHATÓ MŰVELET — és a szerver mondja meg, nem a böngésző
-          // (KUKA-041: a hamis és a némán letiltott gomb ugyanaz a hiba két irányból).
-          revocable: state === 'pending',
+          /**
+           * A VISSZAVONÁS CSAK A FÜGGŐRE AJÁNLHATÓ MŰVELET — ÉS CSAK A SAJÁT PLAFONON BELÜL.
+           *
+           * A szerver mondja meg, nem a böngésző (`KUKA-041`: a hamis és a némán letiltott gomb
+           * ugyanaz a hiba két irányból). R176, külső review P2 (`KUKA-431`): eddig CSAK a függő
+           * állapotot kérdezte, a `revokeInvite` viszont a SZEREP-PLAFONT is méri
+           * (`outside_basis_roles`). Egy szűkebb plafonú, delegált kezelő így olyan `admin`
+           * ajánlatra is kapott visszavonás-gombot, amit a kiszolgáló biztosan elutasít — a felület
+           * olyan műveletet hirdetett, ami nem létezik. A plafont UGYANAZZAL az írásmentes
+           * feloldóval kérdezzük, amit a visszavonás használ (`KUKA-003`: egy fogalom, egy otthon).
+           */
+          revocable: state === 'pending' && plafonRoles.includes(r.offered_role),
           // ÉS AZ ÚJBÓLI BELÉPÉSI AJÁNLAT TÉNYE IS LÁTSZIK: a kezelőnek tudnia kell, hogy ez a sor
           // egy VISSZAHÍVÁS, nem egy első meghívás.
           reentry: reentryOfferFor({ store, token: r.token }).present,

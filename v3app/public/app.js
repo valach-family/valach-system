@@ -1775,10 +1775,24 @@ import { inviteNextKey } from './inviteText.mjs';
    * váltja. Ha az új nyelvű válasz nem tartalmazza ezt a bemutatót (mert a jog közben megszűnt), a
    * bemutató NEVEZETTEN megszakad — nem marad ott régi nyelvű szöveggel (KUKA-050).
    */
+  /**
+   * A FELOLDÁS EGY HELYEN — ÉS A FOLYTATHATÓKAT IS NÉZI (R176, külső review P2 · `KUKA-428`).
+   *
+   * A LELET: a visszaállást (`resumeTourAfterSwitch`) kiegészítettem a FOLYTATHATÓ listával, az
+   * ÁTSZÖVEGEZÉST (`retextTour`) viszont nem — pedig ugyanazt a kérdést teszi fel. Egy ÁTÍVELŐ,
+   * visszaállított futás a meghívott nézetében CSAK a folytathatók közt van: ha ott NYELVET váltott,
+   * a `retextTour` nem találta a definíciót, és egy ÉP futást `notAvailable`-lel elengedett. Ugyanaz
+   * a hiba-osztály, amire a `KUKA-003`/`KUKA-039` figyelmeztet: ha egy szabály két ágon igaz, EGY
+   * helyen álljon — különben a második ág kimarad.
+   */
+  function tourDefOf(id) {
+    const defs = (state.astStatus && state.astStatus.tours) || [];
+    const folytathatok = (state.astStatus && state.astStatus.resumable_tours) || [];
+    return defs.find((t) => t.id === id) || folytathatok.find((t) => t.id === id) || null;
+  }
   function retextTour() {
     if (!state.tour) return;
-    const defs = (state.astStatus && state.astStatus.tours) || [];
-    const def = defs.find((t) => t.id === state.tour.id);
+    const def = tourDefOf(state.tour.id);
     if (!def) { state.tourAborted = 'notAvailable'; state.tour = null; renderTour(); return; }
     state.tour.text = def.text || null;
     renderTour();
@@ -1917,9 +1931,7 @@ import { inviteNextKey } from './inviteText.mjs';
      * továbbra is a SZERVERTŐL jön (AST-01) — nem a tárolt adatból —, jogot pedig nem ad: a lépések
      * saját `role` őre futás közben változatlanul érvényes (`rightLost`).
      */
-    const defs = (state.astStatus && state.astStatus.tours) || [];
-    const folytathatok = (state.astStatus && state.astStatus.resumable_tours) || [];
-    const def = defs.find((t) => t.id === h.id) || folytathatok.find((t) => t.id === h.id);
+    const def = tourDefOf(h.id);
     // A SZERVER MA SEM INDÍTHATÓNAK, SEM FOLYTATHATÓNAK NEM ADJA: nem erőltetjük vissza, és nem is
     // hallgatunk róla (KUKA-050).
     // A SZERVER MA NEM ADJA (és a kérés MEGTÖRTÉNT): ez nem múló hiba, tehát a rekesz is elmegy.

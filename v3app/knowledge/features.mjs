@@ -1149,7 +1149,7 @@ export const TOURS = Object.freeze({
     ]),
   }),
   'tour.personalAccount': Object.freeze({
-    id: 'tour.personalAccount', version: '1.0.0', audience: 'signed_in', feature: 'account.personal', page: 'overview',
+    id: 'tour.personalAccount', version: '1.0.0', requires_story_data: 'own_personal_book', audience: 'signed_in', feature: 'account.personal', page: 'overview',
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'header-workspace', task: null }),
       Object.freeze({ id: 's2', target: 'account-switcher', task: null }),
