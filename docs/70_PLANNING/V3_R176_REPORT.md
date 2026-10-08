@@ -28,15 +28,15 @@ részben teljesült:** a hat ellenőrző programot egyenként lefuttattam a mai 
 
 | mérce | verdikt |
 |---|---|
-| **KÓD-SHA (amit mértem)** | `23b4497` — a kötelező kapu EZEN a fejen zöld |
+| **KÓD-SHA (amit mértem)** | `e2e13df` — a kötelező kapu EZEN a fejen zöld |
 | **a kötelező böngésző-kapu** | **ZÖLD** — `verify:browser-gate`: **145 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott**, 26 próba-fájl; `proof:demo-walk` 483 s |
 | **a két szereplős bejárás a VALÓDI felületen** | **6/6 ZÖLD** — K1 19/19 · **K2 20/20** · K3 19/19 (390 px + újraindítás) · K5 · K6 · **K7** (az átadás három őre) — és a próba a váltás-lépésen **nem** nyitja ki helyettünk a menüt, a fiókváltást pedig a történet SAJÁT lépése végzi |
-| **KUKA-regiszter** | **1005/1005 PASS** (`verify:kuka`) — 425 bejegyzés, **tizenkilenc** újjal (`KUKA-416`…`KUKA-434`) |
-| **R154 battéria** | **333/333 PASS** (`verify:app-findings-r154`) — **húsz** új mércével (as7–as24 · ar11–ar12) |
-| **D-VS számozás** | **4/4 PASS** — **tizenkilenc** új döntés: `D-VS-3210`…`D-VS-3228`; a következő szabad: `D-VS-3229` |
+| **KUKA-regiszter** | **1017/1017 PASS** (`verify:kuka`) — 428 bejegyzés, **huszonkettő** újjal (`KUKA-416`…`KUKA-437`) |
+| **R154 battéria** | **337/337 PASS** (`verify:app-findings-r154`) — **huszonnégy** új mércével (as7–as28 · ar11–ar12) |
+| **D-VS számozás** | **4/4 PASS** — **huszonkettő** új döntés: `D-VS-3210`…`D-VS-3231`; a következő szabad: `D-VS-3232` |
 | **próba-alkalmazás önellenőrzés** | **57/57 PASS** (`app:selfcheck`) |
 | **a hat külső program** | **2 ZÖLD · 4 PIROS** — a külön verdiktek a 3. szakaszban; a teljes lánc állapota is ott |
-| **a review által FEDETT SHA** | **`1585079`** — a korlát **FELOLDÓDOTT**, és öt körben összesen **tizenhat P2** jött (`fb231e6`: 4 · `4b930dd`: 2 · `30830ae`: 4 · `5390b7c`: 4 · `1585079`: 2); **mind a tizenhat javítva**, tizenhét javítással (lásd a 7.4 pontot). A mai, `23b4497` fej — maguk ezek a javítások — **nem fedett**; egy hatodik kör a `c5d0b63`-on a jelentés írásakor még **FUT**, verdiktje tehát NINCS |
+| **a review által FEDETT SHA** | **`c5d0b63`** — a korlát **FELOLDÓDOTT**, és **hat** körben összesen **tizenkilenc P2** jött (`fb231e6`: 4 · `4b930dd`: 2 · `30830ae`: 4 · `5390b7c`: 4 · `1585079`: 2 · `c5d0b63`: 3); **mind a tizenkilenc javítva**, **húsz** javítással (lásd a 7.4 pontot). A mai, `e2e13df` fej — maguk ezek a javítások — **nem fedett** |
 
 ---
 
@@ -201,10 +201,14 @@ A munka közben **célzottan** ellenőriztem (nem teljes söpréssel), a végén
 **érintett kötelező kaput** a mai fejen:
 
 ```
-verify:browser-gate   →  RESULT: PASS        (a `23b4497` fejen, az utolsó futás)
-      test:e2e + proof:core-ux   578 s   ·  145 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott
+verify:browser-gate   →  RESULT: PASS        (az `e2e13df` fejen, az utolsó futás)
+      test:e2e + proof:core-ux   579 s   ·  145 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott
       proof:demo-walk            483 s   ·  ZÖLD
       26 próba-fájl mind bekerült a mérésbe
+
+ÉS A KAPU EBBEN A KÖRBEN KÉTSZER VOLT PIROS — mindkettő a SAJÁT, 18. javításom mechanikája
+(145 → 136/2 bukott, majd 140/1 bukott). A harmadik futás zöld. A részletek a 7.4 pont alatti
+táblában; a tanulság ott áll, ahol a kódot nézik.
 ```
 
 **A kapu PIROSSAL kezdett, és ez a jelentés lényege.** Az első futás **3 bukást** mért — mind a
@@ -214,9 +218,9 @@ héjban nincs váltó vezérlő", hanem a történet **induló adata** — és m
 vezeti le az elvárást, nem névsorból. Az ellenpár ugyanabban a próbában áll: nincs függő meghívás →
 a visszavonás nem jár; **van** másik tag → az újbóli belépés **jár**.
 
-Célzott regresszió (mért, a mai fejen): `verify:kuka` **1005/1005** · `verify:app-findings-r154`
-**333/333** · `app:selfcheck` **57/57** · `verify:i18n` **49/49** · `verify:tutor` **94/94** ·
-`verify:assistant` **55/55** · `verify:decision-numbers` **4/4**.
+Célzott regresszió (mért, a mai fejen): `verify:kuka` **1017/1017** · `verify:app-findings-r154`
+**337/337** · `app:selfcheck` **57/57** · `verify:i18n` **49/49** · `verify:tutor` **94/94** ·
+`verify:assistant` **55/55** · `verify:decision-numbers` **4/4** · `verify:doc-html` **9/9**.
 
 **A LEGUTOLSÓ KÖR KÉT P2-je ELŐTT ÉS UTÁN IS MÉRTEM** (a 15–17. tétel): a három javítás
 visszacsúsztatása `as17` · `as19` · `as20`–`as23` **PIROSRA** váltja a battériát, és az élő tanú
@@ -312,7 +316,7 @@ Amikor a jelentés első változata elkészült, a külső ellenőrző használa
 | 3. | `30830ae` | 4 | `4ba0064` |
 | 4. | `5390b7c` | 4 | `7f11958` · `8050955` |
 | 5. | `1585079` | 2 | `23b4497` |
-| 6. | **`c5d0b63`** | 3 | **`<a csomag feje>`** (ez a mai fej) |
+| 6. | **`c5d0b63`** | 3 | **`e2e13df`** (ez a mai fej) |
 
 **A MA érvényes állapot:** a legfrissebb BEFEJEZETT kör a **`c5d0b63`** fejet fedi, és **három**
 további P2-t adott — mind a három a saját, ebben a körben írt kódom felett. Az azóta született
@@ -460,21 +464,22 @@ API-ból, nem tippből) a jelentés írásáig (`12:26:38Z`): **349 hívás** ·
 al-ügynök)** · cache-olvasás **149 858 549** · kimenet **318 151** · lefedettség **teljes**
 (1 átirat, minden modell-válasz usage-dzsal).
 
-**ZÁRÓ MÉRÉS A CSOMAG VÉGÉN** (`2026-10-08T05:57:32Z` → `17:30:00Z`): **697 hívás** · fő-szál
-kontextusmedián **458 460** · max **782 772** · 400 ezer fölött **384 hívás** · **ügynök-bemenet 0
-(nulla al-ügynök)** · cache-olvasás **314 791 902** · kimenet **670 432** · lefedettség **teljes**
-(1 átirat, 1749 hívás, minden modell-válasz usage-dzsal). **A SÁV: VÁLTÁS** (458 460 ≥ 400 000) — a
+**ZÁRÓ MÉRÉS A CSOMAG VÉGÉN** (`2026-10-08T05:57:32Z` → `18:55:00Z`): **785 hívás** · fő-szál
+kontextusmedián **419 391** · max **782 772** · 400 ezer fölött **408 hívás** · **ügynök-bemenet 0
+(nulla al-ügynök)** · cache-olvasás **346 845 005** · kimenet **784 793** · lefedettség **teljes**
+(1 átirat, 1837 hívás, minden modell-válasz usage-dzsal). **A SÁV: VÁLTÁS** (419 391 ≥ 400 000) — a
 `D-VS-3083` szerint a FUTÓ munkablokk célzott ellenőrzéssel **lezárható**, és a KÖVETKEZŐ önálló nagy
 blokk **friss beszélgetésben** induljon. A lezárás címén nem indítottam új feltárást, új funkciót
 vagy opcionális teljes söprést: a két utolsó P2 javítása, a jelei és az **érintett kötelező kapu**
 tartozott bele, semmi más.
 
-**A MEDIÁN LEFELÉ MOZDULT** (541 361 → 458 460), és ez nem megtakarítási állítás: a két utolsó
-review-kör javítása **célzott** volt (három függvény, egy nyelvi kulcs, nyolc új mérce), tehát a
-hosszú ablakban a rövidebb hívások lenyomták a mediánt. A sáv ettől **nem** változott: a VÁLTÁS
-jelző áll. A fő szál ébresztései: **user 2×** → 152 hívás · **tömörítés 2×** → 220 hívás ·
-**értesítés 5×** → 325 hívás (a tömörítéssel folytatott beszélgetés az `R114` szerint NEM friss
-beszélgetés — ezt nem is állítom annak).
+**A MEDIÁN LEFELÉ MOZDULT** (541 361 → 458 460 → **419 391**), és ez nem megtakarítási állítás: az
+utolsó három review-kör javítása **célzott** volt (hat függvény, egy nyelvi kulcs, tizenkét új mérce),
+tehát a hosszú ablakban a rövidebb hívások lenyomták a mediánt. A sáv ettől **nem** változott: a
+VÁLTÁS jelző áll, és a **400 ezer fölötti hívások száma nőtt** (380 → 384 → **408**). A fő szál
+ébresztései: **user 2×** → 152 hívás · **tömörítés 2×** → 220 hívás · **értesítés 6×** → 413 hívás
+(a tömörítéssel folytatott beszélgetés az `R114` szerint NEM friss beszélgetés — ezt nem is állítom
+annak).
 
 **A csomag közbeni pillanatkép (a jelentés első változatakor): FIGYELMEZTETÉS** (356 605 a 300 000–400 000 sávban) — a `D-VS-3083` szerint **megállni nem
 kell, új beszélgetést nem kérünk**; a munkablokk határán rövid állapotmérés jár, és ez a jelentés az.
