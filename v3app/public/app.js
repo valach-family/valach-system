@@ -1813,6 +1813,23 @@ import { inviteNextKey } from './inviteText.mjs';
     // jár (a címzett belép a cégbe), és az is a történet KÖZEPE — a régi, szűkebb feltétel ott
     // elvesztette volna a futást (saját lelet a végigjáráson).
     if (!run.steps.some((x) => x.switch_actor === true)) return;
+    /**
+     * …DE AZ ELSŐ VÁLTÁS ELŐTT NINCS MIT ÁTADNI (R176, külső review P2 — MÉRVE).
+     *
+     * A LELET (chatgpt-codex, az `fb231e6` fejen): a fenti feltétel CSAK azt kérdezte, hogy a
+     * történetben VAN-E valahol váltás-lépés. Egy közönséges kijelentkezés tehát a történet ELEJÉN
+     * is átadást mentett — és a következő ember UGYANABBAN a fülben visszakapta az előző ember
+     * bemutató-azonosítóját, lépés-indexét és haladását, pedig deklarált átadás nem volt
+     * folyamatban. Ez az előző ember nyoma a következő ember képernyőjén (`KUKA-416` osztálya), és
+     * a saját R89 §6-os szabályunk ellen megy.
+     *
+     * A HATÁR MÉRHETŐ: az átadás attól a pillanattól értelmes, amikor a történet ELÉRTE az ELSŐ
+     * váltás-lépését — onnantól a folytatás MÁSIK szereplő dolga (az elfogadás is ide esik, ezért a
+     * szűk „épp váltás-lépésen állunk" feltétel kevés volt). Előtte a futás a jelen emberé, és a
+     * kilépéssel ugyanúgy elvész, mint egy egy-szereplős bemutató.
+     */
+    const elsoValtas = run.steps.findIndex((x) => x.switch_actor === true);
+    if (elsoValtas < 0 || run.at < elsoValtas) return;
     if (run.endedBy) return;                       // lezárt futást nem adunk át
     try {
       sessionStorage.setItem(TOUR_HANDOVER_KEY, JSON.stringify({

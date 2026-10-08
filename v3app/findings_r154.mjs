@@ -3181,12 +3181,33 @@ try {
     // A JELENET MEGKAPJA A KIOSZTOTT MINTA TÉNYÉT is (R166, hetedik kör): ez a csoport a LEVÉL-FOGADÓ
     // és a KÉSZLET-JOG kapuját méri — a minta-kapu (`KUKA-413` · `KUKA-414`) a saját csoportjában áll.
     // A sor nem gyengül: a `stock_access: false` ág továbbra is ZÁRJA a két készlet-útmutatót.
-    const alap = { signed_in: true, book_id: 'b_firm', member: true, role: 'admin', personal: false, demo: true, demo_fixture: true };
+    /**
+     * AZ INDULÓ ADAT IS BENNE VAN, KÜLÖNBEN A MÉRÉS ÜRES (R176 · `KUKA-417` · `KUKA-216`).
+     *
+     * A két átívelő útmutató `requires_story_data`-t is kér. Ha ezt a kiinduló nézet nem hordozza,
+     * akkor a levél-fogadó kapujának a HATÁSA sem mérhető rajtuk: már az induló adat kizárná őket,
+     * és a sor egy üres halmazt igazolna.
+     */
+    const alap = { signed_in: true, book_id: 'b_firm', member: true, role: 'admin', personal: false, demo: true, demo_fixture: true, story_data: { pending_invite: true, other_member: true } };
     const levelNelkul = allowedToursFor({ ...alap, dev_mailbox: false, stock_access: true });
     const levellel = allowedToursFor({ ...alap, dev_mailbox: true, stock_access: true });
     const jogNelkul = allowedToursFor({ ...alap, dev_mailbox: true, stock_access: false });
     const joggal = levellel;
+    /**
+     * KÉT KÉSZLET, KÉT KÉRDÉS (R176) — és a különbség KIMONDVA.
+     *
+     * A levél-fogadóhoz kötött útmutatók DEKLARÁLT készlete az R176 óta NÉGY tagú: a két átívelő
+     * történet is tartalmaz `demo-mail-open` és `mailbox` lépést, tehát telepített demóban (a
+     * fejlesztői jel nélkül) a levél-fogadó 404-et ad, és a történet megszakadna.
+     *
+     * A KAPU HATÁSÁT viszont itt csak a két eredetin tudjuk mérni: a két átívelő történetet ebben a
+     * nézet-objektumban a FELÜLET-horgony kapuja már előbb kizárja (`surface_anchors` — az a
+     * kiszolgáló belső feloldója, ezt az egység-mérés nem modellezi). Az ő levél-kapujuk ÉLŐ mérése
+     * ezért máshol áll: `as1`/`as10` (élő HTTP) és a kötelező böngésző-kapu. A verdikt tehát nem
+     * mutat a mérés hatókörén túl (`KUKA-216`).
+     */
     const LEVEL = ['tour.verify', 'tour.outbox'];
+    const LEVEL_DEKLARALT = ['tour.verify', 'tour.outbox', 'tour.inviteRevoke', 'tour.reentry'];
     const KESZLET = ['tour.stockcard', 'tour.movements'];
 
     step('(al1) R166/P2: a fejlesztői levél-fogadó NÉLKÜL a megerősítés és a Próbaüzenetek útmutatója NEM kínálódik fel (RÉGEN: felkínálódott, és a második lépésén nevezetten megszakadt)',
@@ -3209,8 +3230,8 @@ try {
     // ÉS A FELTÉTELT A REGISZTER MONDJA KI, nem a kapu találja ki (a deklaráció mindkét irányban mérve).
     const deklaralt = Object.values(TOURS).filter((t) => t.requires_dev_mailbox === true).map((t) => t.id).sort();
     const deklaraltJog = Object.values(TOURS).filter((t) => t.requires_stock_access === true).map((t) => t.id).sort();
-    step('(al4) R166/P2: a feltételt az ÚTMUTATÓ deklarálja (a kapu nem névsorból dönt), és a deklaráció pontosan a négy érintettre áll',
-      deklaralt.join(',') === LEVEL.slice().sort().join(',')
+    step('(al4) R166/P2 + R176: a feltételt az ÚTMUTATÓ deklarálja (a kapu nem névsorból dönt) — a levél-fogadóhoz kötött készlet NÉGY tagú, a készlet-joghoz kötött KETTŐ',
+      deklaralt.join(',') === LEVEL_DEKLARALT.slice().sort().join(',')
       && deklaraltJog.join(',') === KESZLET.slice().sort().join(','),
       { level_fogado: deklaralt.join(','), keszlet_jog: deklaraltJog.join(',') });
   }
@@ -3705,6 +3726,50 @@ try {
 
     step('(ar5) KUKA-415: és az elakadás KIMONDJA, melyik azonosító az idegen — a „megvan a kért" nem ment föl',
       /ebből IDEGEN/.test(expSrc) && /IDEGEN SOROKAT IS HORDOZ/.test(expSrc) && /`sessionId` szerint NEM szűri/.test(expSrc));
+
+    /**
+     * (ar6–ar7) A MÉRCE HATÓKÖRE AZ EXPORTÁLÓ HATÓKÖRE (R176, külső review P2 · `KUKA-418`).
+     *
+     * A LELET: a `KUKA-415`-es mércém csak az ELSŐ 50 nem üres sort nézte, az exportáló viszont
+     * MINDEN sort feldolgoz és `sessionId` szerint nem szűr. Egy összefűzött átirat tehát némán
+     * átment, ha az idegen azonosító KÉSŐBB állt. Ezt NEM forrás-mintával mérjük, hanem
+     * VISELKEDÉSSEL: egy 60 soros átirat, benne EGY idegen sorral a végén (`KUKA-207`).
+     */
+    {
+      const tmpA = mkdtempSync(join(tmpdir(), 'vs3-ar6-'));
+      const sessA = 'aaaaaaaa-1111-2222-3333-444444444444';
+      const idegen = 'bbbbbbbb-9999-8888-7777-666666666666';
+      const sor = (sid) => `${JSON.stringify({ type: 'assistant', sessionId: sid, timestamp: '2026-01-01T00:30:00.000Z', message: { usage: { input_tokens: 1, output_tokens: 1 } } })}\n`;
+      const tisztaUt = join(tmpA, `${sessA}.jsonl`);
+      writeFileSync(tisztaUt, sor(sessA).repeat(60));
+      const vegyesUt = join(tmpA, 'vegyes', `${sessA}.jsonl`);
+      mkdirSync(join(tmpA, 'vegyes'), { recursive: true });
+      writeFileSync(vegyesUt, sor(sessA).repeat(60) + sor(idegen));
+      const fut = (ut) => {
+        try {
+          execFileSync(process.execPath, [join(ROOT, 'tools/v3_fogyasztas_export.mjs'),
+            '--session', sessA, '--from', '2026-01-01T00:00:00Z', '--to', '2026-01-02T00:00:00Z',
+            '--transcript', ut, '--out', join(tmpA, `ki-${Math.random().toString(36).slice(2)}`)],
+          { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+          return { kod: 0, hiba: '' };
+        } catch (e) { return { kod: e.status, hiba: String(e.stderr || '') }; }
+      };
+      const tiszta = fut(tisztaUt);
+      const vegyes = fut(vegyesUt);
+      step('(ar11) R176/P2: az 50. sor UTÁN érkező IDEGEN azonosító is NEVEZETTEN elakad (RÉGEN: a mérce 50 sornál megállt, és némán átengedte)',
+        vegyes.kod === 2 && vegyes.hiba.includes(idegen) && /IDEGEN/.test(vegyes.hiba),
+        { kilepes: vegyes.kod, megnevezi_az_idegent: vegyes.hiba.includes(idegen) });
+      /**
+       * AZ ELLENPÁR HATÓKÖRE KIMONDVA (`KUKA-216`): ez az állítás az AZONOSSÁG-KAPUT méri, nem a
+       * teljes exportot. A szintetikus átirat szándékosan minimális, tehát a kapu UTÁN a feldolgozás
+       * más okból elakadhat — amit itt mérünk: a tiszta, 60 soros átirat NEM az azonosság miatt
+       * akad el (nem `2`-es kilépés, és nincs IDEGEN a diagnosztikában).
+       */
+      step('(ar12) R176/P2 ELLENPÁR: a TISZTA, 60 soros átirat az AZONOSSÁG-kapun ÁTMEGY — a szigorítás nem vitt el jó esetet',
+        tiszta.kod !== 2 && !/IDEGEN/.test(tiszta.hiba),
+        { kilepes: tiszta.kod, azonossag_miatt_akadt: tiszta.kod === 2 });
+      rmSync(tmpA, { recursive: true, force: true });
+    }
 
     /**
      * (3) A MINTA-KAPU TELJES KÉSZLETE, ÉS A NEHEZEBB FELÉNEK ÉLŐ TANÚJA (`KUKA-414` második fele).

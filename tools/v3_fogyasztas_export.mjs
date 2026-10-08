@@ -178,7 +178,21 @@ if (explicitFile) {
    * a kérdés nem „megvan-e a kért", hanem „VAN-E BENNE MÁS" (`KUKA-049`: a bizonytalanság nem a
    * megengedő ág).
    */
-  const elso = readFileSync(found[0].path, 'utf8').split('\n').filter((l) => l.trim()).slice(0, 50);
+  /**
+   * …ÉS A MÉRCE HATÓKÖRE AZ EXPORTÁLÓ HATÓKÖRE (R176, KÜLSŐ REVIEW, Codex, P2).
+   *
+   * A LELET: a `KUKA-415`-es javításom a KÉRDÉST helyre tette („van-e benne IDEGEN"), a MÉRÉS
+   * HATÓKÖRÉT viszont a régi alakból örökölte: csak az ELSŐ 50 nem üres sort nézte. Az exportáló
+   * ugyanakkor MINDEN sort feldolgoz, és `sessionId` szerint NEM szűr — egy összefűzött átirat,
+   * amiben a kért azonosító az elején áll, az idegen pedig KÉSŐBB, így némán átment, és a másik
+   * munkamenet fogyasztása a kért nevére került. Pontosan ugyanaz a félre-attribuálás, amit a
+   * `KUKA-415` megelőzni hivatott — egy ággal beljebb, a hatókörben.
+   *
+   * MOSTANTÓL a mérce MINDEN sort megnéz: amit az exportáló feldolgoz, azt az ellenőrzés is
+   * megvizsgálja (`KUKA-216`: a verdikt nem mutathat a mérés hatókörén túl · `KUKA-239`: a hatókör
+   * nélküli minta a szomszéd sort igazolja).
+   */
+  const elso = readFileSync(found[0].path, 'utf8').split('\n').filter((l) => l.trim());
   const talaltAzonositok = new Set();
   for (const l of elso) {
     try { const v = JSON.parse(l).sessionId; if (typeof v === 'string' && v) talaltAzonositok.add(v); } catch { /* nem JSON sor */ }
@@ -191,7 +205,7 @@ if (explicitFile) {
   if (tartalomEllentmond) {
     console.error(`A MEGADOTT ÁTIRAT ${tartalomEgyezik ? 'IDEGEN SOROKAT IS HORDOZ' : 'TARTALMA MÁS MUNKAMENETÉ'}: --session ${session}`);
     console.error(`  a fájl: ${safeErrPath(found[0].path)}${nevEgyezik ? ' (a NEVE egyezik, a TARTALMA viszont nem csak ezé a munkamenetté — átmásolt, felülírt vagy ÖSSZEFŰZÖTT fájl)' : ''}`);
-    console.error(`  az első 50 sorában talált azonosító(k): ${[...talaltAzonositok].join(' · ')}`);
+    console.error(`  a fájl ${elso.length} sorában talált azonosító(k): ${[...talaltAzonositok].join(' · ')}`);
     console.error(`  ebből IDEGEN: ${idegenAzonositok.join(' · ')}`);
     console.error('  A fájlnév NEM ment föl, és a kért azonosító JELENLÉTE sem: az exportáló a sorokat');
     console.error('  `sessionId` szerint NEM szűri, tehát az idegen sorok a kért munkamenet nevére kerülnének.');
@@ -199,7 +213,7 @@ if (explicitFile) {
   }
   if (!nevEgyezik && !tartalomEgyezik) {
     console.error(`A MEGADOTT ÁTIRAT NEM A KÉRT MUNKAMENETÉ: --session ${session}`);
-    console.error(`  a fájl: ${safeErrPath(found[0].path)} (a neve nem \`${session}.jsonl\`, és az első 50 sorában sincs ilyen \`sessionId\`)`);
+    console.error(`  a fájl: ${safeErrPath(found[0].path)} (a neve nem \`${session}.jsonl\`, és a ${elso.length} sora között sincs ilyen \`sessionId\`)`);
     console.error('  Ha tényleg ezt akarod exportálni, a --session értéke legyen ennek a munkamenetnek az azonosítója.');
     process.exit(2);
   }

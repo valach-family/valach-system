@@ -16,6 +16,42 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3214 — AZ ÁTADÁS FELTÉTELE NEM AZ, HOGY A TÖRTÉNET „TUD" ÁTADNI, HANEM AZ, HOGY ÉPPEN ÁTAD (R176, külső P2)
+
+A `saveTourHandover` egyetlen feltétele az volt, hogy a futó történetben **van-e valahol** váltás-lépés
+— ez viszont a történet MINDEN pillanatára igaz, tehát nem feltétel. Egy közönséges kijelentkezés így
+a történet elején is átadást mentett, és a következő ember ugyanabban a fülben **visszakapta az előző
+ember haladását**. A határ mostantól mérhető: az átadás attól a pillanattól él, amikor a futás
+**elérte az első váltás-lépését** (a meghívás elfogadása is ide esik). Ellenpár: `R176-K6` — átívelő
+történet, váltás-határ előtti kilépés, **üres** átadás-rekesz. Tanulság: **KUKA-420**.
+
+---
+
+## D-VS-3213 — A „LÁTSZIK" KÉRDÉST A BÖNGÉSZŐ DÖNTI EL, NEM HEURISZTIKA (R176, külső P2)
+
+A bemutató-motor egyetlen láthatóság-szava (`isShown`) heurisztikával döntött, és egy **csukott
+lenyíló** megcsalta: a tartalom megtartja a layout-keretét. MÉRVE a csukott profilmenü
+kijelentkezésén: `rects=1 · box=258×42 · visibility=visible`, miközben a böngésző hiteles válasza
+`checkVisibility() = false`. Következmény: a bemutató egy **láthatatlan** gombra küldte a nézőt
+(`KUKA-335` tünete, új ajtón). Mostantól a kérdést az `Element.checkVisibility` dönti el (a
+heurisztika csak tartalék), a **csukott lenyíló nyitója FELTÁRÓ**, és a mondat is a valóságot
+követi: előbb „nyisd meg a kiemelt gombbal", csak azután „válts át vele". A próba pedig a
+**váltás-lépésen** soha nem nyitja ki a lenyílót maga — épp ez rejtette el a hibát. Tanulság:
+**KUKA-419**.
+
+---
+
+## D-VS-3212 — EGY ELLENŐRZÉS HATÓKÖRE LEGYEN PONTOSAN OLYAN NAGY, MINT A FOGYASZTÓJÁÉ (R176, külső P2)
+
+A `KUKA-415`-es javításom a kérdést helyre tette („van-e benne idegen azonosító"), a **hatókörét**
+viszont a régi alakból örökölte: csak az első 50 nem üres sort nézte, miközben az exportáló **minden
+sort** feldolgoz és `sessionId` szerint nem szűr. Egy összefűzött átirat tehát némán átment, ha az
+idegen azonosító később állt. A mérce mostantól minden sort megnéz, a diagnosztika a **vizsgált**
+sorok számát írja ki, és a jel **viselkedés**: gyártott átirat (60 tiszta sor + egy idegen a végén),
+mért kilépési kód, ellenpárral. Tanulság: **KUKA-418**.
+
+---
+
 ## D-VS-3211 — A FELKÍNÁLÁS FELTÉTELE A TÖRTÉNET INDULÓ ADATA IS, ÉS A FOLYTATÁS EZT NEM KÉRI EL (R176 §1)
 
 **A leletet a KÖTELEZŐ kapu mérte, nem a gondolkodásom.** Az R176 §1-ben a szereplő-váltó vezérlőt a

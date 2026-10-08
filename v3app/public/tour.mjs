@@ -102,9 +102,31 @@ function elementFor(name) {
  * „látszik"-ra, akkor keletkezik olyan állapot, amiben a cél nem cél, de feltárni sem kell —
  * és a bemutató egy ÉP képernyőn áll meg. Ezért innentől egy név.
  */
+/**
+ * A „LÁTSZIK" EGY SZÓ — ÉS MOSTANTÓL A BÖNGÉSZŐ MONDJA KI (R176, külső review P2 — MÉRVE).
+ *
+ * A LELET. Ez a feloldó eddig HEURISZTIKÁVAL döntött (`hidden` · `offsetParent` · kliens-keret), és
+ * egy CSUKOTT `<details>` ezt megcsalja: a lenyíló tartalma MEGTARTJA a layout-keretét. MÉRVE a
+ * profilmenü kijelentkezés-gombján, csukott menü mellett: `hidden=false` · `offsetParent≠null` ·
+ * `rects=1` · `box=258×42` · `visibility=visible` — tehát a régi alak szerint „LÁTSZIK", miközben a
+ * böngésző hiteles válasza `checkVisibility() = false`, és a Playwright is `latszik=false`-ot mond.
+ *
+ * A KÁR. Az R176 §1-ben a szereplő-váltó horgony a VALÓDI kijelentkezés lett — az pedig ebben a
+ * csukott menüben áll. A `targetOf` így a REJTETT gombot adta célként, a buborék KIEMELTE, és azt
+ * írta, hogy „válts át a kiemelt gombbal" — egy olyan vezérlőre, amit a néző nem lát és nem tud
+ * megnyomni. Zsákutca, pontosan a `KUKA-335` tünetével, csak egy ÚJ ajtón. A saját bejáró próbám
+ * ELREJTETTE, mert maga nyitotta ki a menüt (`KUKA-120`).
+ *
+ * MOSTANTÓL a kérdést a BÖNGÉSZŐ dönti el (`Element.checkVisibility`), és a heurisztika csak
+ * TARTALÉK azokra a futtatókra, ahol az API nincs meg — mérni kell, nem kitalálni (`KUKA-215`).
+ */
 function isShown(el) {
   if (!el) return false;
-  return !(el.hidden || (el.offsetParent === null && el.getClientRects().length === 0));
+  if (el.hidden) return false;
+  if (typeof el.checkVisibility === 'function') {
+    return el.checkVisibility({ contentVisibilityAuto: true, opacityProperty: true, visibilityProperty: true });
+  }
+  return !(el.offsetParent === null && el.getClientRects().length === 0);
 }
 
 /** A célelem a MAI képernyőn — `null`, ha nem látható (akkor a bemutató nevezetten megáll). */
@@ -138,6 +160,32 @@ export function revealerOf(run) {
     if (!el) return null;
     if (!isShown(el)) return null;
     return el;
+  }
+  /**
+   * A CSUKOTT LENYÍLÓ NYITÓJA IS FELTÁRÓ (R176, külső review P2 — MÉRVE).
+   *
+   * A LELET (chatgpt-codex, az `fb231e6` fejen): az R176 §1-ben a szereplő-váltó horgonyt a VALÓDI
+   * kijelentkezésre tettem — az viszont a profilmenü `<details>`-ében áll, ami ALAPBÓL CSUKOTT.
+   * A `targetOf` így nem látja, a két addigi feltáró-ág (deklarált `appears_after` · bal menü) nem
+   * fogja meg, tehát a lépés `targetMissing`-gel megszakadt: a buborék egy olyan vezérlőre küldte a
+   * nézőt, ami a lapon OTT VAN, de egy csukott lenyíló belsejében — és a saját bejáró próbám ezt
+   * ELREJTETTE, mert maga nyitotta ki a menüt. MÉRVE: a próba a néző útján 15 s lejárattal bukott,
+   * pontosan a `KUKA-335` tünetével.
+   *
+   * A SZABÁLY UGYANAZ, MINT A MOBIL MENÜNÉL, csak általánosabban: ha a cél egy CSUKOTT `<details>`
+   * belsejében van, és a NYITÓJA látszik, akkor a nyitó a feltáró. Így a profilmenü, a fiókválasztó
+   * és minden későbbi lenyíló EGY szabályból kap feltárást (`KUKA-003` · `KUKA-039`), és a bemutató
+   * továbbra sem kattint a néző helyett (`KUKA-228`).
+   */
+  {
+    const t0 = elementFor(step.target);
+    if (t0 && !isShown(t0)) {
+      const d = t0.closest('details');
+      if (d && d.open !== true) {
+        const sum = d.querySelector('summary');
+        if (sum && isShown(sum)) return sum;
+      }
+    }
   }
   // ── A MOBIL MENÜ UGYANEZ A FOGALOM (R138, MÉRVE 390 px-en) ─────────────────────────────────
   //
@@ -297,6 +345,15 @@ export function checkRun(run, { view, role }) {
     // útmutatóban megnevezett elem nem látható ezen a képernyőn" —, és a lezáró lap kiírja a
     // folytatást (a leírás a Súgóban olvasható marad).
     if (!targetOf(run) && !revealerOf(run)) return { ok: false, why: 'targetMissing' };
+    /**
+     * ÉS HA A VÁLTÓ VEZÉRLŐ CSAK REJTVE VAN, A MONDAT IS MÁST MOND (R176, külső review P2).
+     *
+     * Az `actorPending` szövege: „válts át a KIEMELT gombbal". Egy csukott lenyíló nyitójára ez
+     * HAMIS volna — a nyitó nem vált, hanem feltár. Ezért amíg a vezérlő nincs kint, a már meglévő
+     * `targetPending` mondat jár („előbb nyisd meg a kiemelt gombbal"), és a váltás mondata csak
+     * akkor, amikor a vezérlő TÉNYLEGESEN ott van (`KUKA-050` · `KUKA-201`).
+     */
+    if (sameView && !targetOf(run)) return { ok: true, why: null, pending: 'targetPending' };
     if (sameView) return { ok: true, why: null, pending: 'actorPending' };
     if (wantRole && role !== wantRole) return { ok: true, why: null, pending: 'actorWrongRole' };
     return { ok: true, why: null, pending: null };

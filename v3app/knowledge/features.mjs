@@ -873,7 +873,7 @@ export const TOURS = Object.freeze({
     // `requires_demo`, és éles üzemben NEM kínáljuk fel. Nem azért, mert elrejtjük: azért, mert
     // amit nem lehet végigvinni, azt nem szabad felkínálni (KUKA-041 · F91-01). A funkció leírása,
     // súgója és GYIK-je éles üzemben is a helyén marad.
-    requires_story_data: 'pending_invite', requires_demo: true,
+    requires_dev_mailbox: true, requires_story_data: 'pending_invite', requires_demo: true,
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'nav-members', task: null, role: 'admin' }),
       Object.freeze({ id: 's2', target: 'members-tab-invites', task: null, role: 'admin' }),
@@ -948,7 +948,7 @@ export const TOURS = Object.freeze({
     // UGYANAZ AZ OK, MINT AZ „A" TÖRTÉNETNÉL (R140 — ACT-01): a visszatérés tanulsága a VÉGÉN van
     // (tagság igen, adat nem; és a külön jogadás UTÁN mennyiség igen, ár nem), és ehhez két élő
     // munkamenet kell. Éles üzemben nem kínáljuk fel, mert nem volna végigvihető.
-    requires_story_data: 'other_member', requires_demo: true,
+    requires_dev_mailbox: true, requires_story_data: 'other_member', requires_demo: true,
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'nav-members', task: null, role: 'admin' }),
       Object.freeze({ id: 's2', target: 'members-list', task: null, role: 'admin' }),
