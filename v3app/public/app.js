@@ -1934,6 +1934,10 @@ import { inviteNextKey } from './inviteText.mjs';
         // FUTÁSÉ, és a visszaállás UTÁN kell felhasználni — egy itt elvesztett jegy a legitim utat
         // buktatná meg (MÉRVE: `R176-K1` 19. lépés).
         rebind_once: state.tourRebindOnce ? { task: state.tourRebindOnce.task } : null,
+        // A TÖRTÉNET OTTHONA IS ÁTMEGY (`KUKA-441`): a fiók-váltó kapu ehhez méri a CÉLT, és a
+        // visszaállás a MAI nézetből épít — egy itt elvesztett kezdő könyv fail-closed módon
+        // megállítaná a saját történetünket (`KUKA-394` mért leckéje).
+        origin_book: run.origin_book ?? null,
         /**
          * A NÉZET PÁR — ÉS AZ ÁTADÁS IS PÁRT TÁROL (R142 — F142-05, MÉRVE).
          *
@@ -2052,6 +2056,13 @@ import { inviteNextKey } from './inviteText.mjs';
      */
     const jegyTask = h.rebind_once && typeof h.rebind_once.task === 'string' ? h.rebind_once.task : null;
     state.tourRebindOnce = tourMod.viewMovingTask(jegyTask) ? { task: jegyTask, at: run.at } : null;
+    /**
+     * ÉS A TÖRTÉNET OTTHONA IS VISSZAÁLL (`KUKA-441`). A `newTourRun` a MAI nézetből épít, tehát
+     * az ő `origin_book`-ja már az ÚJ (gyakran személyes) könyv — a rekeszből kell átvenni. Ha a
+     * rekesz nem hordozza (régi alak), a mező `null`, és a fiók-váltó kapu ZÁR: inkább
+     * nevezetten megállunk, mint hogy egy IDEGEN céget vegyünk át (`KUKA-236`).
+     */
+    run.origin_book = typeof h.origin_book === 'string' && h.origin_book ? h.origin_book : null;
     // A FUTÁS MÉG A RÉGI NÉZŐHÖZ TARTOZIK: így a váltás TÉNYE mérhető marad (`actorSwitchReady`).
     // MINDKÉT FELE (F142-05): a fiókot is a váltás ELŐTTI értékre állítjuk vissza, különben az
     // ugyanazon ember két fiókja közti váltás mérhetetlen lenne (a `newTourRun` a MAI nézetből
@@ -2610,7 +2621,16 @@ import { inviteNextKey } from './inviteText.mjs';
     // el: a fül megnyílt, de „Válassz fiókot" állt benne. Zsákutca (KUKA-201: a nemleges válasz
     // vigye a MŰKÖDŐ folytatást). A FIÓKHOZ KÖTÖTT üzleti oldalak korlátozása VÁLTOZATLAN, és ettől
     // fiók, jogosultság vagy megerősítés NEM keletkezik.
-    const noticeHtml = `<p class="notice ${n ? n.kind : ''}" data-testid="global-notice" ${n ? '' : 'hidden'}>${n ? esc(n.msg) + (n.action ? ` <button type="button" class="plain" data-go="${esc(n.action.go)}">${esc(n.action.label)}</button>` : '') : ''}</p>`;
+    const noticeHtml = `<p class="notice ${n ? n.kind : ''}" data-testid="global-notice" ${n ? '' : 'hidden'}>${n ? esc(n.msg) + (n.action ? ` <button type="button" class="plain" data-go="${esc(n.action.go)}">${esc(n.action.label)}</button>` : '') : ''}</p>`
+      /**
+       * ÉS A NEM IGAZOLT KILÉPÉS MONDATA IS IDE FŰZŐDIK (R176, külső review P2 · `KUKA-440`).
+       *
+       * A LELET: az előző alakban a sablon-szöveg PONTOSVESSZŐVEL zárult, és az alatta álló,
+       * összefűző sor ÖNÁLLÓ, előjeles kifejezés-utasítássá vált — a generált jelölő ELDOBÓDOTT. A
+       * héjban álló néző (fejléc · Belépés és biztonság) ezért SEMMIT nem látott egy nem igazolt
+       * kilépésről: a lap belépve maradt, mondat nélkül. A meghívó-képernyő ága működött (ott a
+       * kártya saját sablonjába fűzzük), és az `R166-M7` is azt mérte — ezért maradt rejtve.
+       */
       + signOutNotDoneHtml();
     if (!bookId() && !PERSON_PAGES.has(state.page)) {
       // A KÉT ÁLLAPOT KÉT MONDAT: akinek a címe még nincs megerősítve, annak nincs mit választania —

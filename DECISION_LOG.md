@@ -16,6 +16,29 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3235 — A FIÓK-VÁLTÁS CÉLJA A FUTÁS KEZDŐ KÖNYVE (R176, külső P2)
+
+A fiók-tengelyes kapu csak azt kérte, hogy a könyv MÁS legyen és az alany ugyanaz — aki több cégben
+tag, az tehát egy IDEGEN céget választva is „teljesítette" a lépést, és a bemutató ott folytatódott.
+A cél viszont deriválható, és ezt MÉRJÜK: mind a négy fiók-váltó lépés a CÉG fiókjába vezet vissza,
+abba, amelyikben a bemutató indult. A futás ezért külön őrzi a kezdő könyvet (`origin_book`), a
+rekesz átviszi, és a kapu AHHOZ mér; nyilatkozat nélkül ZÁR. A SZEMÉLY-tengelyre ugyanez NEM
+deriválható — az a lelet nevezetten NYITVA van (a jelentés 7.5 pontja). `KUKA-441` · gépi jel:
+`verify:kuka` · `verify:app-findings-r154` (as31–as33).
+
+---
+
+## D-VS-3234 — A RAJZOLÁST VISELKEDÉSSEL ŐRIZZÜK, NEM SZÁMOLÁSSAL (R176, külső P2)
+
+A héj értesítő-sorának sablon-szövege pontosvesszővel zárult, és az alatta álló összefűző sor
+ÖNÁLLÓ, előjeles kifejezés lett — a generált jelölő ELDOBÓDOTT, tehát aki a héjban lépett ki,
+és a kérés hibára futott, SEMMIT nem látott. A saját pinem átengedte, mert a hívások SZÁMÁT
+mérte: halott kód mellett is igaz volt. Mostantól a jel NYELVTANI (a pontosvesszős alak TILOS), és
+az érdemi őr a VISELKEDÉS-mérés (`R166-M9`). `KUKA-440` · gépi jel: `verify:kuka` ·
+`verify:app-findings-r154` (as34) · `verify:browser-gate` → `R166-M9`.
+
+---
+
 ## D-VS-3233 — A ROTÁLT MUNKAMENETRE A VISSZALÉPÉS NEVEZETTEN ELAKAD (R176, külső P2)
 
 A `POST /api/invites/pending/forget` `ok: true`-t adott, ha a munkamenet nem volt a tárban — azzal az

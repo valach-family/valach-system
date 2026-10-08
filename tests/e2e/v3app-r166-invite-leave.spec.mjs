@@ -26,8 +26,8 @@
 // AMIT EZ A LAP NEM MÉR: a beváltás útját (az R109/R112 lapjai mérik), a jogosultsági mag döntéseit
 // (a mag-battéria méri) és a bemutató lépéseit (a `proof:demo-walk` és az R112 lapja).
 import { test, expect } from '@playwright/test';
-import { World, Db, inviteUI, openInviteUI, redeemUI, createWorkspaceUI, loginUI, withResponse,
-  gotoPage, header, PASSWORD } from './helpers.mjs';
+import { World, Db, inviteUI, openInviteUI, redeemUI, createWorkspaceUI, loginUI, logoutUI, withResponse,
+  gotoPage, header, openProfile, PASSWORD } from './helpers.mjs';
 import { enabledLanguages } from '../../v3app/public/i18n/languages.mjs';
 import { dictFor } from '../../v3app/public/i18n/dict.mjs';
 
@@ -439,3 +439,46 @@ test('R166-M7 — A KILÉPÉS CSAK IGAZOLT VÁLASZ UTÁN ÜRÍT: 5xx mellett a n
  * MEGVAN (tehát a korábbi `ok: true` hamis állítás volt). A LAP oldalát az `R166-M6` méri: nemleges
  * válasznál a meghívó-képernyő marad, a mondat nevezett, és a jegy a címsorban marad.
  */
+
+test('R166-M9 — A NEM IGAZOLT KILÉPÉS MONDATA A HÉJBAN IS MEGJELENIK (nem csak a meghívó képernyőjén)', async () => {
+  /**
+   * A KÜLSŐ REVIEW P2-JE (R176, chatgpt-codex) — a SAJÁT `KUKA-434`-es javításom RAJZOLÓ felén.
+   *
+   * A LELET: a héj értesítő-sorát így fűztem össze:
+   *     const noticeHtml = `…</p>`;
+   *       + signOutNotDoneHtml();
+   * A sablon-szöveg PONTOSVESSZŐVEL zárult, tehát a második sor egy ÖNÁLLÓ, előjeles
+   * kifejezés-utasítás lett — a generált jelölő ELDOBÓDOTT. Aki a héjban (fejléc vagy Belépés és
+   * biztonság) lépett ki, és a kérés hibára futott, SEMMIT nem látott: a lap belépve maradt, mondat
+   * nélkül. A meghívó-képernyő ága működött, és az `R166-M7` ÉPPEN azt mérte — ezért maradt rejtve.
+   *
+   * ÉS A SAJÁT PINEM IS ÁTENGEDTE: az `(as24)` a hívások SZÁMÁT mérte (3 hívás, 1 jelölő-hely), ami
+   * HALOTT kód mellett is igaz. Egy számoló minta nem tudja megkülönböztetni az élő kódot a
+   * holttól (`KUKA-239` · `KUKA-207`) — ezért ez a próba a VISELKEDÉST méri: a mondat MEGJELENIK-e.
+   */
+  const emi = await world.person('emi-m9');
+  await createWorkspaceUI(emi.page, { name: 'R166 Hej Kilepes Kft', business: { jurisdiction: 'HU', tax_id: '72345671-2-42' } });
+  await gotoPage(emi.page, 'overview');
+  await expect(emi.page.getByTestId('app'), 'a néző a HÉJBAN áll, nem a meghívó képernyőjén').toBeVisible();
+  await expect(emi.page.getByTestId('section-invite')).toHaveCount(0);
+
+  await emi.page.route('**/api/logout', async (route) => {
+    await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ ok: false, reason: 'server_error' }) });
+  });
+  await openProfile(emi.page);
+  await emi.page.getByTestId('logout').click();
+
+  // A MONDAT A HÉJBAN IS MEGJELENIK, és a NYELVCSOMAGBÓL jön (KUKA-237).
+  await expect(emi.page.getByTestId('signout-not-done')).toBeVisible();
+  expect(((await emi.page.getByTestId('signout-not-done').textContent()) || '').trim())
+    .toBe(HU.UI.signOutUncertain);
+  // ÉS A LAP NEM ÁLLÍT KILÉPÉST: a héj marad, a belépő űrlap nem jelenik meg.
+  await expect(emi.page.getByTestId('app')).toBeVisible();
+  await expect(emi.page.getByTestId('login-email')).toHaveCount(0);
+
+  // ELLENPÁR: a route feloldása után a kilépés TÉNYLEGESEN megtörténik, és a mondat eltűnik.
+  await emi.page.unroute('**/api/logout');
+  await logoutUI(emi.page);
+  await expect(emi.page.getByTestId('login-email')).toBeVisible();
+  await expect(emi.page.getByTestId('signout-not-done')).toHaveCount(0);
+});

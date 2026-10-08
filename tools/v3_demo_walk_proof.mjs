@@ -565,8 +565,11 @@ async function handoverProbes() {
     const mod = await import('./tour.mjs');
     // R176 (`KUKA-423`): a váltás-lépés a DEKLARÁLT tengelyt kéri, tehát az ellenpárok is azon
     // a tengelyen állnak — és külön mérjük a ROSSZ tengelyt, illetve a nyilatkozat nélküli esetet.
-    const run = (view, tengely) => ({ at: 0,
-      steps: [{ id: 's', switch_actor: true, switch_axis: tengely, task: 'actor.switched' }], view, role: null });
+    // R176 (`KUKA-441`): a FIÓK-tengelyen a CÉL is kötött — a futás KEZDŐ könyve. A szintetikus
+    // futásban a cél `b2`, tehát az `origin_book` is az; a cél-feltételt a (h1i)–(h1j) méri.
+    const run = (view, tengely, origin = 'b2') => ({ at: 0,
+      steps: [{ id: 's', switch_actor: true, switch_axis: tengely, task: 'actor.switched' }],
+      view, origin_book: origin, role: null });
     return {
       masFiok: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'book'), { view: { book: 'b2', subject: 'u1' }, role: null }),
       masEmber: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'subject'), { view: { book: 'b1', subject: 'u2' }, role: null }),
@@ -585,6 +588,9 @@ async function handoverProbes() {
       hatarKilepesSzemely: mod.handoverBoundaryOk({ switch_actor: true, switch_axis: 'subject' }, { kilepes: true }),
       hatarKilepesFiok: mod.handoverBoundaryOk({ switch_actor: true, switch_axis: 'book' }, { kilepes: true }),
       hatarFiokvaltas: mod.handoverBoundaryOk({ switch_actor: true, switch_axis: 'book' }, { kilepes: false }),
+      // R176 (`KUKA-441`): egy IDEGEN cég kiválasztása NEM teljesítés, és kezdő könyv nélkül ZÁR.
+      idegenCeg: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'book'), { view: { book: 'b9', subject: 'u1' }, role: null }),
+      kezdoKonyvNelkul: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'book', null), { view: { book: 'b2', subject: 'u1' }, role: null }),
     };
   });
   A('(h1a) ugyanaz az ember MÁSIK FIÓKJA is váltás (a FIÓK tengelyén)', pair.masFiok === true, `kapott=${pair.masFiok}`);
@@ -602,6 +608,10 @@ async function handoverProbes() {
   A('(h1h) R176 — a KILÉPÉS átadási határa CSAK a személy-tengely; a fiók-tengelyes kilépés nem ad át, a FIÓKVÁLTÁS viszont igen',
     pair.hatarKilepesSzemely === true && pair.hatarKilepesFiok === false && pair.hatarFiokvaltas === true,
     `szemely=${pair.hatarKilepesSzemely} fiok=${pair.hatarKilepesFiok} fiokvaltas=${pair.hatarFiokvaltas}`);
+  A('(h1i) R176 — a FIÓK-tengelyen a CÉL is kötött: egy IDEGEN cég kiválasztása NEM teljesítés',
+    pair.idegenCeg === false, `kapott=${pair.idegenCeg}`);
+  A('(h1j) R176 ELLENPÁR: kezdő könyv NÉLKÜL a kapu ZÁR (fail-closed) — inkább megállunk, mint hogy idegen céget vegyünk át',
+    pair.kezdoKonyvNelkul === false, `kapott=${pair.kezdoKonyvNelkul}`);
 
   // ── (h2–h4) A MOBIL MENÜ: a VÁRAKOZÁS VÉGE is esemény (F142-02) + az ARIA igazat mond (F142-04)
   await page.locator('[data-testid="help-open"]').first().click(KATT).catch(() => {});

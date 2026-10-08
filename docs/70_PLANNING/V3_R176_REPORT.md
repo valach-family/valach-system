@@ -303,7 +303,7 @@ ez utóbbi a `page:personal` lap, a nevesített **`personal.ownMatters`** fejles
 **nem** írtam át zöldre: az őr célja a NULLA hiány, a maradék egy pedig **nem pótolható** próbával,
 csak funkcióval. A padló (`floor_breaks`) **üres** — visszacsúszás nincs.
 
-### 7.3 A független review — HÉT BEFEJEZETT KÖR
+### 7.3 A független review — NYOLC BEFEJEZETT KÖR
 
 **A HELYZET A CSOMAG KÖZBEN TÖBBSZÖR MEGVÁLTOZOTT, és a szöveg a valóságot követi** (`KUKA-050`).
 Amikor a jelentés első változata elkészült, a külső ellenőrző használati korlátja még állt. A korlát
@@ -317,29 +317,29 @@ Amikor a jelentés első változata elkészült, a külső ellenőrző használa
 | 4. | `5390b7c` | 4 | `7f11958` · `8050955` |
 | 5. | `1585079` | 2 | `23b4497` |
 | 6. | `c5d0b63` | 3 | `e2e13df` |
-| 7. | **`cc9c1de`** | 3 | **`8410051`** (ez a mai fej) — kettő javítva, **egy nevezetten NEM épített** |
+| 7. | `cc9c1de` | 3 | `8410051` — kettő javítva, **egy nevezetten NEM épített** |
+| 8. | **`5233afb`** | 2 | **`<a csomag feje>`** (ez a mai fej) |
 
-**A MA érvényes állapot:** a legfrissebb BEFEJEZETT kör a **`cc9c1de`** fejet fedi, és **három**
-további P2-t adott — mind a három a saját, ebben a körben írt kódom felett. Kettőt javítottam, a
-harmadiknál a **költséget mértem a haszonhoz**, és nevezetten NEM építettem meg (a 7.5 pont).
-Az azóta született commitok (a 21–22. javítás és ez a jelentés) **nem fedettek**. A korlát alatt nem kértem újra
+**A MA érvényes állapot:** a legfrissebb BEFEJEZETT kör a **`5233afb`** fejet fedi, és **két**
+további P2-t adott — mindkettő a saját, ebben a körben írt kódom felett, és mindkettő **javítva**.
+Az azóta született commitok (a 23–24. javítás és ez a jelentés) **nem fedettek**. A korlát alatt nem kértem újra
 átolvasást, keretet nem vásároltam, a korlátot nem kerültem meg (`KUKA-200`: a nem futott nem
 „részben").
 
-**MIND A HUSZONKÉT SZÁLRA KIMENT A VÁLASZ**, mindegyikre a mért ténnyel és a visszacsúszás-próbával
+**MIND A HUSZONNÉGY SZÁLRA KIMENT A VÁLASZ**, mindegyikre a mért ténnyel és a visszacsúszás-próbával
 — a nem épített leletnél a végigkövetett úttal és az indokkal.
 A szálak GITHUB-OLDALI LEZÁRÁSÁT nem végeztem el: a szál-azonosítókhoz a 120+ review-szálat kellene
 végiglapozni, ami aránytalan — a tartalmi válasz a szálakon áll, a lezárást a következő review-kör
 amúgy is újraértékeli a mai fejen. Ezt nem hallgatom el, és **a válaszolt szál nem elfogadás**.
 
-### 7.4 A HUSZONKÉT KÜLSŐ P2 — HUSZONEGY LELETRE HUSZONKETTŐ JAVÍTÁS, és EGY nevezetten nem épített
+### 7.4 A HUSZONNÉGY KÜLSŐ P2 — HUSZONHÁROM LELETRE HUSZONNÉGY JAVÍTÁS, és EGY nevezetten nem épített
 
-**A pontos számtan, mert a kerekítés itt hazugság volna:** **22** P2 lelet jött hét körben. **21**-re
-született kód, és abból **22** javítás — mert az ötödik kör ELSŐ leletének **két** javítási helye volt
-(a kapu ÉS a kilépés átadási határa): a lelet maga nevezte meg mind a kettőt, és két külön tanulságot
-ért, mert két külön szabály csúszott el. A **22.** leletre nem építettem kódot: a költséget mértem a
-haszonhoz, és az indok a **7.5** pontban áll — nem elhallgatva, nem „kész"-nek könyvelve. Az alábbi
-tábla a JAVÍTÁSOKAT számolja.
+**A pontos számtan, mert a kerekítés itt hazugság volna:** **24** P2 lelet jött **nyolc** körben.
+**23**-ra született kód, és abból **24** javítás — mert az ötödik kör ELSŐ leletének **két** javítási
+helye volt (a kapu ÉS a kilépés átadási határa): a lelet maga nevezte meg mind a kettőt, és két külön
+tanulságot ért, mert két külön szabály csúszott el. **EGY** leletre nem építettem kódot: a költséget
+mértem a haszonhoz, és az indok a **7.5** pontban áll — nem elhallgatva, nem „kész"-nek könyvelve. Az
+alábbi tábla a JAVÍTÁSOKAT számolja.
 
 | # | a lelet | a mért tény | a javítás |
 |---|---|---|---|
@@ -372,6 +372,9 @@ tábla a JAVÍTÁSOKAT számolja.
 | 21 | a **névtelen** néző üres listáját „nincs ilyen bemutató"-nak vettük | a két szereplő közt ÉPP VAN egy névtelen állapot; ott egy újratöltés **végleg** elvitte az átadást (mérve: 0 folytathatót ad a kiszolgáló névtelenül) | belépés nélkül a kérdés fel sem tehető → a rekesz **marad** · `KUKA-438` · `D-VS-3232` · élő tanú: **`R176-K8`** |
 | 22 | a hiányzó munkamenetet „nincs mit törölni"-nek vettük | a belépés **rotálja** az azonosítót, és a szándékot **átviszi** — ÉLŐ HTTP-versenyben mérve: `200 ok: true`, miközben a szándék sora **megvolt** | **409 `session_gone`** — nem állítunk teljesítést, amit nem igazoltunk · `KUKA-439` · `D-VS-3233` · élő tanú: **`as29`–`as30`** |
 
+| 23 | a javításom **jelölője eldobódott**: a sablon `;`-vel zárult, az összefűző sor önálló, előjeles kifejezés lett | aki a **héjban** lépett ki hibára futó kéréssel, **semmit** nem látott; a saját pinem a hívások SZÁMÁT mérte, ami **halott** kód mellett is igaz | az összefűzés a kifejezés része; a jel **nyelvtani**, és az érdemi őr a **viselkedés** · `KUKA-440` · `D-VS-3234` · élő tanú: **`R166-M9`** |
+| 24 | a fiók-váltás **célja** bármelyik másik cég lehetett | aki több cégben tag, egy **idegen** céget választva is „teljesített" — és a bemutató ott folytatódott, mert a készlet-célok ott is léteznek | a cél **deriválható**: a futás **kezdő** könyve (`origin_book`), a rekesz átviszi, a kapu ahhoz mér · `KUKA-441` · `D-VS-3235` |
+
 **A 14. mérésének hatóköre KIMONDVA** (`KUKA-216`): a szerep-tengely szűkítésére ma **nincs API-út**,
 ezért a szűk plafonú eset **forrás-pin**, az élő ellenpár a TELJES plafon. Ez **nevesített
 mérés-hiány**, nem teljesítés.
@@ -381,6 +384,29 @@ csonkja a belépést a *tagság* fiókjába vitte (kimondott rövidítésként),
 *személyes* körbe. Hűségesre állítva kiderült, hogy a `tour.reentry` történetéből **két fiókváltó
 lépés hiányzik** (`s12b` · `s15b`) — és a hiányt **két takarás** rejtette: a csonk rövidítése és a
 **saját próbám** néma kényelme. Mindhárom javítva; a `reentry` így 18 helyett **20** lépés.
+
+**A 23–24. TANULSÁGA — ÉS A LEGKEMÉNYEBB LECKE A JELEKRŐL.** A 23. a **saját javításom halott kódja**
+volt: a `KUKA-434` mondatát a héjba is kirajzolni akartam, és a sor egy pontosvessző miatt **önálló,
+eldobott kifejezés** lett. A mondat tehát a meghívó-képernyőn megjelent, a héjban **semmit** nem
+mutatott — és a saját mércém **átengedte**, mert a hívások SZÁMÁT mérte (3 hívás, 1 jelölő-hely), ami
+**halott kód mellett is igaz**. Ez a `KUKA-207` legélesebb alakja a csomagban: *egy számoló minta nem
+tudja megkülönböztetni az élő kódot a holttól.* A jel most nyelvtani ÉS viselkedés-mérés (`R166-M9`).
+
+**ÉS A 24. SZIGORÍTÁSA A SAJÁT MÉRÉSEIMET IS MEGBUKTATTA, KÉT HELYEN** — ezt is kimondom, mert ez
+már a negyedik alkalom ebben a körben, hogy egy kapu-szigorítás a saját jeleimen bukott el először: az
+`(as13)`/`(as18)` szintetikus futásai és a `proof:demo-walk` `(h1a)` ellenpárja **kezdő könyv nélkül**
+épültek, tehát a fail-closed kapu **őket is** bezárta. Mindkettőt a valódi alakra állítottam, és a
+cél-feltételre **új** ellenpárok születtek (`as32`–`as33` · `h1i`–`h1j`). A tanulság: *egy kapu
+szigorítása a MÉRÉSEKET is érinti — aki ezt nem nézi végig, az a saját jelein bukik el, nem a
+terméken.*
+
+A 24. a 15. tétel párja egy réteggel beljebb: a fiókváltásnál nem elég, hogy a könyv **más** — azt is
+meg kell kérdezni, **hová**. Aki több cégben tag, egy idegen céget választva is „teljesítette" a
+lépést, és a bemutató ott folytatódott, mert a készlet-célok ott is léteznek. **A cél itt
+deriválható** (a futás kezdő könyve), ezért megépítettem — ellentétben a **személy**-tengely párjával,
+ahol a következő szereplő kilétét semmi nem deklarálja, és ezért nevezetten **nyitva hagytam** (7.5).
+A két döntés együtt mutatja a szabályt: *ahol a cél deriválható, a kapu kérje meg; ahol nem, ott
+mondjuk ki, hogy nem — és ne tegyünk úgy, mintha a két tengely ugyanaz volna.*
 
 **A 18. JAVÍTÁSOM KÉTSZER ELVITTE A LEGITIM UTAT — ÉS MINDKETTŐT A KÖTELEZŐ KAPU MÉRTE.** Ezt a
 jelentés nem kerüli meg, mert ez a csomag legtanulságosabb mérése: egy szigorítás, aminek a *jelentése*
@@ -429,7 +455,7 @@ a javítás a kettő közül egy ajtót zár be. A hatókört a hiba-osztály ad
 (`KUKA-418`) — ez a csomagban **harmadszor** jött elő, és ezúttal nem a külső fél nevezte meg
 helyettem a párt: a lelet maga írta le, hogy „a logout út ugyanazt a közös ürítőt hívja".
 
-**Az 5.–10., a 15.–17. és a 18.–20. mind a SAJÁT, ebben a körben írt kódom felett jött** — az 5. éppen a `D-VS-3211`-es
+**Az 5.–10., a 15.–17., a 18.–20. és a 21.–24. mind a SAJÁT, ebben a körben írt kódom felett jött** — az 5. éppen a `D-VS-3211`-es
 kapum tényét számolta máshogy, mint a lap, a 6. pedig egy olyan függvényben, amelynek a **saját
 megjegyzése** már leírta a helyes viselkedést. A megjegyzés nem őr.
 

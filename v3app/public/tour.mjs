@@ -53,6 +53,15 @@ export function newTourRun({ def, view, role }) {
     at: 0,
     // A NÉZET, AMIBEN INDULT — a bemutató ehhez tartozik, és nézet-váltásnál MEGÁLL (KTX-03 alakja).
     view: { book: view.book ?? null, subject: view.subject ?? null },
+    /**
+     * ÉS A TÖRTÉNET OTTHONA KÜLÖN IS MEGMARAD (R176, külső review P2 · `KUKA-441`).
+     *
+     * A `view` a futás közben ÁTKÖTŐDIK (`rebindView`), tehát nem mondja meg, HOL indult a
+     * történet. A FIÓK-tengelyes lépések célja viszont mind ugyanaz: a történet CÉGE — oda tér
+     * vissza a belépő a személyes köréből. Ez a mező ezért a KEZDŐ könyvet őrzi, és SOHA nem
+     * kötődik át: a fiók-váltó kapu ehhez mér.
+     */
+    origin_book: view.book ?? null,
     role: role ?? null,
     endedBy: null,
   };
@@ -474,7 +483,27 @@ export function actorSwitchReady(run, { view, role }) {
   const tengely = step.switch_axis ?? null;
   if (!SWITCH_AXES.includes(tengely)) return false;
   if (tengely === 'subject') return (view.subject ?? null) !== run.view.subject;
-  return (view.book ?? null) !== run.view.book && (view.subject ?? null) === run.view.subject;
+  /**
+   * …ÉS A FIÓK-TENGELYEN A CÉL SEM BÁRMI (R176, külső review P2 · `KUKA-441`).
+   *
+   * A LELET: a kapu eddig csak azt kérte, hogy a könyv MÁS legyen (és az alany ugyanaz). Aki több
+   * cégben tag, az viszont a `s9` · `s10b` · `s12b` · `s15b` lépésen BÁRMELYIK másik fiókot
+   * kiválaszthatta — a `rebindView` aztán azt az IDEGEN céget vette át, és mivel a következő
+   * lépés célja (`nav-stock` · `data-stock`) ott is létezik, a bemutató a ROSSZ fiókban
+   * folytatódott — és még csak meg sem állt.
+   *
+   * A CÉL VISZONT DERIVÁLHATÓ, és ez mért tény (`as31`): mind a négy fiók-tengelyes lépés a
+   * történet CÉGÉBE vezet vissza — abba a könyvbe, amelyben a bemutató INDULT. Ezért a futás a
+   * kezdő könyvet külön őrzi (`origin_book`), és a kapu AHHOZ mér. Nyilatkozat nélkül (ha a
+   * kezdő könyv ismeretlen) a kapu ZÁR (`KUKA-236`).
+   *
+   * AMIT EZ NEM ÁLLÍT: hogy a SZEMÉLY-tengelyre is deriválható a cél. A következő SZEREPLŐ
+   * kilétét ma semmi nem deklarálja (a lelet párja NEVEZETTEN nyitva van, a jelentés 7.5 pontja).
+   */
+  if ((view.subject ?? null) !== run.view.subject) return false;
+  const cel = run.origin_book ?? null;
+  if (!cel) return false;
+  return (view.book ?? null) !== run.view.book && (view.book ?? null) === cel;
 }
 
 /**

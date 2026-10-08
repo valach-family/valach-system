@@ -1738,8 +1738,10 @@ try {
        * esetet is méri (fail-closed).
        */
       const tour = await import('./public/tour.mjs');
+      // A SZINTETIKUS FUTÁS KEZDŐ KÖNYVE A CÉL (`KUKA-441`): itt a fiók-váltás célja a `mas`
+      // könyv, tehát az `origin_book` is az — a CÉL deriválását az (as31)–(as33) méri külön.
       const futas = (lepes) => ({ id: 't', version: '2.0.0', at: 0, role: 'admin',
-        view: { subject: 'anna', book: 'ceg' }, steps: [{ ...lepes, state: 'pending' }] });
+        view: { subject: 'anna', book: 'ceg' }, origin_book: 'mas', steps: [{ ...lepes, state: 'pending' }] });
       const keszE = (r, v) => tour.actorSwitchReady(r, { view: v, role: 'admin' });
       const alanyL = futas({ id: 's1', target: 'actor-switch', switch_actor: true, switch_axis: 'subject' });
       const fiokL = futas({ id: 's1', target: 'account-switcher', switch_actor: true, switch_axis: 'book' });
@@ -1787,8 +1789,11 @@ try {
         p2.alany_mindketto_mas === true && p2.fiok_jo_valtozatlanul === true, p2);
       // A FORRÁS-ALAK IS KIMONDVA: a fiók-ág EGYÜTT kérdezi a két felet (a `&&` nem elhagyható).
       const tourSrc = readFileSync(join(ROOT, 'v3app/public/tour.mjs'), 'utf8');
-      step('(as19) R176/P2: a fiók-tengely ága a pár MINDKÉT felét EGY feltételben kérdezi',
-        /return \(view\.book \?\? null\) !== run\.view\.book && \(view\.subject \?\? null\) === run\.view\.subject;/.test(tourSrc),
+      // A PIN A `KUKA-441` UTÁN HÁROM FELTÉTELT KÉR: az alany állandó, a könyv MÁS, és a cél a
+      // KEZDŐ könyv. A jelentés változatlan (a pár nem mozgó fele is kötött), csak SZŰKEBB.
+      step('(as19) R176/P2: a fiók-tengely ága a pár MINDKÉT felét EGY feltételben kérdezi — és a CÉLT is a kezdő könyvhöz méri',
+        /if \(\(view\.subject \?\? null\) !== run\.view\.subject\) return false;/.test(tourSrc)
+        && /return \(view\.book \?\? null\) !== run\.view\.book && \(view\.book \?\? null\) === cel;/.test(tourSrc),
         { megtalalt_alak: (tourSrc.match(/return \(view\.book[^\n]*/) || ['nincs'])[0].slice(0, 120) });
 
       /**
@@ -1964,6 +1969,59 @@ try {
           elotteSorok === 1 && utanaSorok === 1,
           { sorok_elotte: elotteSorok, sorok_utana: utanaSorok });
       }
+
+      /**
+       * (as31–as33) A FIÓK-TENGELYEN A CÉL SEM BÁRMI (R176, külső review P2 · `KUKA-441`).
+       *
+       * A LELET: a kapu csak azt kérte, hogy a könyv MÁS legyen (és az alany ugyanaz). Aki több cégben
+       * tag, az viszont BÁRMELYIK másik fiókot kiválaszthatta a négy fiók-váltó lépésen — a `rebindView`
+       * azt az IDEGEN céget vette át, és mivel a következő lépés célja ott is létezik, a bemutató a
+       * ROSSZ fiókban folytatódott.
+       *
+       * A CÉL DERIVÁLHATÓ, ÉS EZT MÉRJÜK, NEM ELHISSZÜK (`as31`): mind a négy fiók-tengelyes lépés
+       * olyan történetben áll, amelyik `requires_role: 'admin'`-nal a CÉG fiókjában indul — tehát a
+       * cél a futás KEZDŐ könyve. Ha egy jövőbeli történet fiók-váltó lépést tenne egy olyan útba,
+       * ami NEM a cégben indul, ez a sor pirosra vált.
+       */
+      const fiokLepesek = Object.entries(TOURS).flatMap(([id, t]) => t.steps
+        .filter((x) => x.switch_actor === true && x.switch_axis === 'book')
+        .map((x) => ({ tura: id, lepes: x.id, audience: t.audience ?? null, demo: t.requires_demo === true })));
+      step('(as31) R176/P2: MINDEN fiók-tengelyes lépés olyan történetben áll, ami a CÉG fiókjában indul — tehát a cél a futás KEZDŐ könyve (mérve a regiszterből, nem feltételezve)',
+        fiokLepesek.length === 4 && fiokLepesek.every((x) => x.audience === 'signed_in' && x.demo === true),
+        { lepesek: fiokLepesek.map((x) => `${x.tura}/${x.lepes}`).join(' · ') });
+      const fiokCel = (startBook, now, origin) => {
+        const r = tour.newTourRun({ def: { id: 't', version: '2.0.0',
+          steps: [{ id: 's1', target: 'account-switcher', task: 'actor.switched', switch_actor: true, switch_axis: 'book' }] },
+          view: { book: startBook, subject: 'anna' }, role: 'admin' });
+        if (origin !== undefined) r.origin_book = origin;
+        r.view = { book: 'sajat-kor', subject: 'anna' };
+        return tour.actorSwitchReady(r, { view: { book: now, subject: 'anna' }, role: 'admin' });
+      };
+      const cel = {
+        vissza_a_ceghez: fiokCel('ceg', 'ceg'),
+        idegen_ceg: fiokCel('ceg', 'masik-ceg'),
+        nyilatkozat_nelkul: fiokCel('ceg', 'ceg', null),
+      };
+      step('(as32) R176/P2: a fiók-váltó kapu a KEZDŐ könyvet kéri — egy IDEGEN cég kiválasztása NEM teljesítés (RÉGEN: `true`, és a futás az idegen céghez kötődött át)',
+        cel.vissza_a_ceghez === true && cel.idegen_ceg === false, cel);
+      step('(as33) R176/P2 ELLENPÁR: kezdő könyv nélkül (régi rekesz) a kapu ZÁR — inkább nevezetten megállunk, mint hogy idegen céget vegyünk át (fail-closed)',
+        cel.nyilatkozat_nelkul === false
+        && /origin_book: run\.origin_book \?\? null,/.test(appAs)
+        && /run\.origin_book = typeof h\.origin_book === 'string' && h\.origin_book \? h\.origin_book : null;/.test(appAs), cel);
+
+      /**
+       * (as34) A NEM IGAZOLT KILÉPÉS MONDATA A HÉJBAN IS KIRAJZOLÓDIK (`KUKA-440`).
+       *
+       * A LELET: a héj értesítő-sorát `;` zárta, és a `+ signOutNotDoneHtml();` ÖNÁLLÓ, előjeles
+       * kifejezés-utasítás lett — a jelölő ELDOBÓDOTT. A `(as24)` ezt ÁTENGEDTE, mert a hívások
+       * SZÁMÁT mérte, ami HALOTT kód mellett is igaz (`KUKA-239` · `KUKA-207`). Ezért a jel most a
+       * NYELVTANI összefűzést is kéri — az ÉLŐ tanú pedig a `R166-M9` próba (a VISELKEDÉS).
+       */
+      step('(as34) R176/P2: a héj értesítő-sora TÉNYLEGESEN összefűzi a kilépés-mondatot (nem önálló, eldobott kifejezés) — és az élő tanú a VISELKEDÉST méri',
+        /<\/p>`\n(?:[^\n]*\n)*?\s{6}\+ signOutNotDoneHtml\(\);/.test(appAs)
+        && !/<\/p>`;\n\s*\+ signOutNotDoneHtml\(\);/.test(appAs)
+        && /R166-M9/.test(readFileSync(join(ROOT, 'tests/e2e/v3app-r166-invite-leave.spec.mjs'), 'utf8')),
+        { onallo_kifejezes: /<\/p>`;\n\s*\+ signOutNotDoneHtml\(\);/.test(appAs) });
 
       step('(as28) R176/P2: az induló adat UGYANAZT az írásmentes plafon-döntést kérdezi, amit a lista és az írás-út — és EGYSZER, nem soronként',
         /const plafon = delegationCeilingOf\(\{ store, subjectId, bookId, at \}\);/.test(srvAs)
