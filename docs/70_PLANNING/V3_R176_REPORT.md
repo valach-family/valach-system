@@ -28,15 +28,15 @@ részben teljesült:** a hat ellenőrző programot egyenként lefuttattam a mai 
 
 | mérce | verdikt |
 |---|---|
-| **KÓD-SHA (amit mértem)** | `8410051` — a kötelező kapu EZEN a fejen zöld |
-| **a kötelező böngésző-kapu** | **ZÖLD** — `verify:browser-gate`: **146 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott**, 26 próba-fájl; `proof:demo-walk` 482 s |
+| **KÓD-SHA (amit mértem)** | `34574ce` — a kötelező kapu EZEN a fejen zöld |
+| **a kötelező böngésző-kapu** | **ZÖLD** — `verify:browser-gate`: **147 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott**, 26 próba-fájl; `proof:demo-walk` 482 s (73 zöld) |
 | **a két szereplős bejárás a VALÓDI felületen** | **6/6 ZÖLD** — K1 19/19 · **K2 20/20** · K3 19/19 (390 px + újraindítás) · K5 · K6 · **K7** (az átadás három őre) — és a próba a váltás-lépésen **nem** nyitja ki helyettünk a menüt, a fiókváltást pedig a történet SAJÁT lépése végzi |
-| **KUKA-regiszter** | **1022/1022 PASS** (`verify:kuka`) — 430 bejegyzés, **huszonnégy** újjal (`KUKA-416`…`KUKA-439`) |
-| **R154 battéria** | **339/339 PASS** (`verify:app-findings-r154`) — **huszonhat** új mércével (as7–as30 · ar11–ar12) |
-| **D-VS számozás** | **4/4 PASS** — **huszonnégy** új döntés: `D-VS-3210`…`D-VS-3233`; a következő szabad: `D-VS-3234` |
+| **KUKA-regiszter** | **1030/1030 PASS** (`verify:kuka`) — 432 bejegyzés, **huszonhat** újjal (`KUKA-416`…`KUKA-441`) |
+| **R154 battéria** | **343/343 PASS** (`verify:app-findings-r154`) — **harminc** új mércével (as7–as34 · ar11–ar12) |
+| **D-VS számozás** | **4/4 PASS** — **huszonhat** új döntés: `D-VS-3210`…`D-VS-3235`; a következő szabad: `D-VS-3236` |
 | **próba-alkalmazás önellenőrzés** | **57/57 PASS** (`app:selfcheck`) |
 | **a hat külső program** | **2 ZÖLD · 4 PIROS** — a külön verdiktek a 3. szakaszban; a teljes lánc állapota is ott |
-| **a review által FEDETT SHA** | **`cc9c1de`** — a korlát **FELOLDÓDOTT**, és **hét** körben összesen **huszonkét P2** jött (`fb231e6`: 4 · `4b930dd`: 2 · `30830ae`: 4 · `5390b7c`: 4 · `1585079`: 2 · `c5d0b63`: 3 · `cc9c1de`: 3); ezekből **huszonegy javítva**, **huszonkettő** javítással, és **EGY nevezetten nem épült meg** (a 7.5 pont: végigkövetett út + indok, a szál nyitva). A mai, `8410051` fej **nem fedett** |
+| **a review által FEDETT SHA** | **`5233afb`** — a korlát **FELOLDÓDOTT**, és **nyolc** körben összesen **huszonnégy P2** jött (`fb231e6`: 4 · `4b930dd`: 2 · `30830ae`: 4 · `5390b7c`: 4 · `1585079`: 2 · `c5d0b63`: 3 · `cc9c1de`: 3 · `5233afb`: 2); ezekből **huszonhárom javítva**, **huszonnégy** javítással, és **EGY nevezetten nem épült meg** (a 7.5 pont: végigkövetett út + indok, a szál nyitva). A mai, `34574ce` fej **nem fedett** |
 
 ---
 
@@ -201,9 +201,9 @@ A munka közben **célzottan** ellenőriztem (nem teljes söpréssel), a végén
 **érintett kötelező kaput** a mai fejen:
 
 ```
-verify:browser-gate   →  RESULT: PASS        (a `8410051` fejen, az utolsó futás)
-      test:e2e + proof:core-ux   586 s   ·  146 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott
-      proof:demo-walk            482 s   ·  ZÖLD
+verify:browser-gate   →  RESULT: PASS        (a `34574ce` fejen, az utolsó futás)
+      test:e2e + proof:core-ux   589 s   ·  147 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott
+      proof:demo-walk            482 s   ·  ZÖLD (73 állítás, 0 piros)
       26 próba-fájl mind bekerült a mérésbe
 
 ÉS A KAPU EBBEN A KÖRBEN KÉTSZER VOLT PIROS — mindkettő a SAJÁT, 18. javításom mechanikája
@@ -218,8 +218,8 @@ héjban nincs váltó vezérlő", hanem a történet **induló adata** — és m
 vezeti le az elvárást, nem névsorból. Az ellenpár ugyanabban a próbában áll: nincs függő meghívás →
 a visszavonás nem jár; **van** másik tag → az újbóli belépés **jár**.
 
-Célzott regresszió (mért, a mai fejen): `verify:kuka` **1022/1022** · `verify:app-findings-r154`
-**339/339** · `app:selfcheck` **57/57** · `verify:i18n` **49/49** · `verify:tutor` **94/94** ·
+Célzott regresszió (mért, a mai fejen): `verify:kuka` **1030/1030** · `verify:app-findings-r154`
+**343/343** · `app:selfcheck` **57/57** · `verify:i18n` **49/49** · `verify:tutor` **94/94** ·
 `verify:assistant` **55/55** · `verify:decision-numbers` **4/4** · `verify:doc-html` **9/9**.
 
 **A LEGUTOLSÓ KÖR KÉT P2-je ELŐTT ÉS UTÁN IS MÉRTEM** (a 15–17. tétel): a három javítás
@@ -318,7 +318,7 @@ Amikor a jelentés első változata elkészült, a külső ellenőrző használa
 | 5. | `1585079` | 2 | `23b4497` |
 | 6. | `c5d0b63` | 3 | `e2e13df` |
 | 7. | `cc9c1de` | 3 | `8410051` — kettő javítva, **egy nevezetten NEM épített** |
-| 8. | **`5233afb`** | 2 | **`<a csomag feje>`** (ez a mai fej) |
+| 8. | **`5233afb`** | 2 | **`34574ce`** (ez a mai fej) |
 
 **A MA érvényes állapot:** a legfrissebb BEFEJEZETT kör a **`5233afb`** fejet fedi, és **két**
 további P2-t adott — mindkettő a saját, ebben a körben írt kódom felett, és mindkettő **javítva**.
@@ -527,20 +527,20 @@ API-ból, nem tippből) a jelentés írásáig (`12:26:38Z`): **349 hívás** ·
 al-ügynök)** · cache-olvasás **149 858 549** · kimenet **318 151** · lefedettség **teljes**
 (1 átirat, minden modell-válasz usage-dzsal).
 
-**ZÁRÓ MÉRÉS A CSOMAG VÉGÉN** (`2026-10-08T05:57:32Z` → `19:35:00Z`): **834 hívás** · fő-szál
-kontextusmedián **436 345** · max **782 772** · 400 ezer fölött **457 hívás** · **ügynök-bemenet 0
-(nulla al-ügynök)** · cache-olvasás **371 302 119** · kimenet **850 774** · lefedettség **teljes**
-(1 átirat, 1886 hívás, minden modell-válasz usage-dzsal). **A SÁV: VÁLTÁS** (436 345 ≥ 400 000) — a
+**ZÁRÓ MÉRÉS A CSOMAG VÉGÉN** (`2026-10-08T05:57:32Z` → `20:50:00Z`): **877 hívás** · fő-szál
+kontextusmedián **455 483** · max **782 772** · 400 ezer fölött **500 hívás** · **ügynök-bemenet 0
+(nulla al-ügynök)** · cache-olvasás **396 935 978** · kimenet **912 732** · lefedettség **teljes**
+(minden modell-válasz usage-dzsal). **A SÁV: VÁLTÁS** (455 483 ≥ 400 000) — a
 `D-VS-3083` szerint a FUTÓ munkablokk célzott ellenőrzéssel **lezárható**, és a KÖVETKEZŐ önálló nagy
 blokk **friss beszélgetésben** induljon. A lezárás címén nem indítottam új feltárást, új funkciót
 vagy opcionális teljes söprést: a két utolsó P2 javítása, a jelei és az **érintett kötelező kapu**
 tartozott bele, semmi más.
 
-**A MEDIÁN NEM MONOTON** (541 361 → 458 460 → 419 391 → **436 345**), és ebből nem vonok le
+**A MEDIÁN NEM MONOTON** (541 361 → 458 460 → 419 391 → 436 345 → **455 483**), és ebből nem vonok le
 megtakarítási állítást sem így, sem úgy: a célzott javítások rövidebb hívásai lenyomják, a hosszabb
 mérés-futások felnyomják. Ami **egyirányú**: a **400 ezer fölötti hívások száma** (380 → 384 → 408 →
-**457**), és a sáv is változatlanul **VÁLTÁS**. A fő szál ébresztései: **user 2×** → 152 hívás ·
-**tömörítés 2×** → 220 hívás · **értesítés 7×** → 462 hívás (a tömörítéssel folytatott beszélgetés az
+457 → **500**), és a sáv is változatlanul **VÁLTÁS**. A fő szál ébresztései: **user 2×** → 152 hívás ·
+**tömörítés 2×** → 220 hívás · **értesítés 8×** → 505 hívás (a tömörítéssel folytatott beszélgetés az
 `R114` szerint NEM friss beszélgetés — ezt nem is állítom annak).
 
 **ÉS AMIT EBBŐL KIMONDOK, MERT MÉRHETŐ:** a csomag utolsó szakaszát a review-körök hajtják, nem a
