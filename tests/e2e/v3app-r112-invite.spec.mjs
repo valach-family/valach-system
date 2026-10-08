@@ -269,6 +269,23 @@ test.describe('R112 — a meghívott ember teljes útja és elutasításai (F111
      * ismétlésben (terheléssel is) nem jött elő újra, és a „késve induló kérés régi sütivel"
      * magyarázat kísérletben NEM igazolódott. Ezért a próba bukáskor a lap ÁLLAPOTÁT rögzíti — a
      * következő előfordulás adatot hoz, nem újabb találgatást (KUKA-121: a türelem nem mérce).
+     *
+     * —— A MÁSODIK ELŐFORDULÁS, ÉS AMIT A RÖGZÍTÉS ADOTT (R176, 2026-10-08) ——
+     *
+     * A bukás ÚJRA előjött EGYSZER, a kötelező kapu egy futásán, és a rögzítés MOST adatot adott:
+     *   · `/api/me` válasza: a munkamenet MÁR DÓRÁÉ (`me_subject === dora.subjectId`);
+     *   · a látható horgonyok között ott áll a MEGHÍVÓ KÉPERNYŐ (`section-invite` · `invite-actions` ·
+     *     `invite-redeem` · `invite-next`) ÉS a héj fejléce az ELŐZŐ ember címével;
+     *   · `global-notice` SEHOL — tehát a héj fő területe nem rajzolódott újra.
+     * A jel tehát: a késő válasz megérkezése után a lap NEM RAJZOLT ÚJRA — a meghívó képernyő
+     * maradt a helyén, miközben a munkamenet már a másik emberé volt.
+     *
+     * AMIT EBBŐL ÁLLÍTUNK: a tárolt tény változatlanul helyes volt (Carl lett tag, Dóra nem), és a
+     * lezárás sem szállt át — a hiba a RAJZOLÁS elmaradása. AMIT NEM ÁLLÍTUNK: a mechanizmust.
+     * A `refreshMe` saját `seq`-őre (`if (seq !== state.seq) return;`) egy közbeni második frissítés
+     * esetén a rajzolás ELŐTT kilép — ez illeszkedik a jelre, de MÉRVE NINCS, ezért feltételezésként
+     * áll itt, nem talált hibáként (`KUKA-050`). A próba UGYANEZEN a fejen, önmagában és a teljes
+     * fájlban is ZÖLD; a következő előfordulás a mechanizmust kell, hogy megadja.
      */
     try { await expect(notice).toBeVisible(); } catch (e) {
       const visible = await carl.page.evaluate(() => [...document.querySelectorAll('[data-testid]')]

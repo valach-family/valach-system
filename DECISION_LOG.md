@@ -16,6 +16,41 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3231 — A TÖRTÉNET ELŐFELTÉTELE IS A SZEREP-PLAFONT KÉRDEZI (R176, külső P2)
+
+A `D-VS-3225` a visszavonás-GOMBOT kötötte a delegált plafonhoz; a gombra MUTATÓ történet
+felkínálását nem. Egy szűkebb plafonú kezelőnél tehát a plafonon túli ajánlat `pending_invite`-ot
+adott, a `tour.inviteRevoke` felkínálódott — és az `invite.revoked` feladat sosem teljesülhetett.
+Mostantól az induló adat UGYANAZT az írásmentes feloldót kérdezi (`delegationCeilingOf`), egyszer.
+`KUKA-437` · gépi jel: `verify:kuka` · `verify:app-findings-r154` (as28).
+
+---
+
+## D-VS-3230 — A DRÁGA INDULÓ ADAT CSAK A KAPUK MÖGÖTT SZÁMOLÓDIK (R176, külső P2)
+
+A `storyDataFacts` minden `/api/assistant/*` kérésnél lefutott — a súgó megnyitásánál kétszer —, és a
+tagokon SORONKÉNT kérdezte a `membershipAsOf`-ot. A két drága tényt kizárólag demó-jelhez ÉS
+fejlesztői felülethez kötött történet kérdezi, tehát a kihagyás a kapura nézve nem ad mérhető
+különbséget — csak kevesebb munkát. A tagok kérdése korai kilépéssel megy (a kérdés a LÉTEZÉS,
+nem a darabszám). A FELTEVÉST IS MÉRJÜK: ha egy jövőbeli bemutató drága tényt kérne demó-jel
+nélkül, a mérce pirosra vált (`KUKA-238` osztálya). `KUKA-436` · gépi jel: `verify:kuka` ·
+`verify:app-findings-r154` (as27 · u6).
+
+---
+
+## D-VS-3229 — A VISSZAKÖTÉSI ENGEDÉLY EGYSZER HASZNÁLHATÓ JEGY (R176, külső P2)
+
+A futás új nézethez kötése abból következtetett okozatisságra, hogy az előző lépés feladathoz
+kötött és `done` — az pedig MARADÓ állapot. Mostantól az engedély EGYSZER használható jegy, és
+csak az a feladat adja ki, amelynek igazolt sikere a nézetet is elmozdítja — MÉRVE pontosan kettő
+(`invite.redeemed` · `workspace.created`). **A reachabilitást kimondom:** a kárt felhasználói úton
+nem tudtam előállítani (a `refreshMe` előbb fut és lezárja a futást) — a szabály ettől nem lesz
+helyes, és a szigorítás mérten semmit nem vesz el: a legitim eset (`tour.inviteRevoke` `s17`,
+`invite.redeemed`) a zárt készletben van. `KUKA-435` · gépi jel: `verify:kuka` ·
+`verify:app-findings-r154` (as25–as26).
+
+---
+
 ## D-VS-3228 — A KIJELENTKEZÉS IS CSAK IGAZOLT VÁLASZ UTÁN ÜRÍT (R176, külső P2)
 
 A `doLogout` eldobta az `api()` visszatérését, tehát a kimenet ismerete NÉLKÜL mondta ki, hogy

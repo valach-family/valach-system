@@ -111,6 +111,29 @@ nem a hívókba.
 
 ---
 
+### 2.5 AZ R112-I3 NEVESÍTETT EGYSZERI BUKÁSA — MÁSODSZOR, ÉS MOST ADATTAL
+
+Az `R112-I3` próba a saját megjegyzésében **nevesítve** hordozott egy korábbi, meg nem magyarázott
+egyszeri bukást, és éppen azért rögzít bukáskor lap-állapotot, hogy „a következő előfordulás adatot
+hozzon, nem újabb találgatást". **A második előfordulás megjött**, a kötelező kapu egyik futásán — és
+a rögzítés adott is adatot:
+
+- az `/api/me` válasza szerint a munkamenet **már a másik emberé** volt;
+- a látható horgonyok közt ott állt a **meghívó képernyő** (`section-invite` · `invite-redeem`) ÉS a
+  héj fejléce az **előző** ember címével;
+- `global-notice` **sehol** — tehát a héj fő területe **nem rajzolódott újra**.
+
+**Amit ebből állítok:** a tárolt tény változatlanul helyes volt (a meghívott lett tag, a másik ember
+nem), a lezárás sem szállt át — a hiba a **rajzolás elmaradása**. **Amit NEM állítok:** a
+mechanizmust. A `refreshMe` saját sorszám-őre (`if (seq !== state.seq) return;`) egy közbeni második
+frissítésnél a rajzolás ELŐTT kilép — ez illeszkedik a jelre, de **mérve nincs**, ezért feltételezésként
+áll a próba megjegyzésében, nem talált hibaként (`KUKA-050`). A próba ugyanezen a fejen, önmagában és
+a teljes fájlban is **ZÖLD** (8/8). A megfigyelést a próba mellé írtam, hogy a harmadik előfordulás a
+mechanizmust adja meg.
+
+**És amit ez NEM:** nem „ingadozó próba" címke. A kapu a bukást PIROSNAK számolta, a jelentés is annak
+írja, és a tétel NYITOTT marad — nem zártam le azzal, hogy egy újrafuttatás zöld lett.
+
 ## 3. R176 §2 — A HAT KÜLSŐ ELLENŐRZŐ PROGRAM, KÜLÖN VERDIKTTEL
 
 **Ahogy a parancs kérte:** egyenként, a meglévő `--only`-val, **párhuzamos gépi terhelés nélkül**
@@ -276,7 +299,7 @@ ez utóbbi a `page:personal` lap, a nevesített **`personal.ownMatters`** fejles
 **nem** írtam át zöldre: az őr célja a NULLA hiány, a maradék egy pedig **nem pótolható** próbával,
 csak funkcióval. A padló (`floor_breaks`) **üres** — visszacsúszás nincs.
 
-### 7.3 A független review — ÖT BEFEJEZETT KÖR, A HATODIK FUT
+### 7.3 A független review — HAT BEFEJEZETT KÖR
 
 **A HELYZET A CSOMAG KÖZBEN TÖBBSZÖR MEGVÁLTOZOTT, és a szöveg a valóságot követi** (`KUKA-050`).
 Amikor a jelentés első változata elkészült, a külső ellenőrző használati korlátja még állt. A korlát
@@ -288,22 +311,23 @@ Amikor a jelentés első változata elkészült, a külső ellenőrző használa
 | 2. | `4b930dd` | 2 | `d8203c5` |
 | 3. | `30830ae` | 4 | `4ba0064` |
 | 4. | `5390b7c` | 4 | `7f11958` · `8050955` |
-| 5. | **`1585079`** | 2 | **`23b4497`** (ez a mai fej) |
+| 5. | `1585079` | 2 | `23b4497` |
+| 6. | **`c5d0b63`** | 3 | **`<a csomag feje>`** (ez a mai fej) |
 
-**A MA érvényes állapot:** a legfrissebb BEFEJEZETT kör az **`1585079`** fejet fedi. Az azóta
-született commitok — a 11–17. javítások és ez a jelentés — **nem fedettek**. Egy **hatodik** kör a
-`c5d0b63` fejen a jelentés írásakor **FUT**: verdiktje tehát NINCS, és nem is állítok ilyet. A
-korlát alatt nem kértem újra átolvasást, keretet nem vásároltam, a korlátot nem kerültem meg
-(`KUKA-200`: a nem futott nem „részben").
+**A MA érvényes állapot:** a legfrissebb BEFEJEZETT kör a **`c5d0b63`** fejet fedi, és **három**
+további P2-t adott — mind a három a saját, ebben a körben írt kódom felett. Az azóta született
+commitok (a 18–20. javítás és ez a jelentés) **nem fedettek**. A korlát alatt nem kértem újra
+átolvasást, keretet nem vásároltam, a korlátot nem kerültem meg (`KUKA-200`: a nem futott nem
+„részben").
 
-**MIND A TIZENHAT SZÁLRA KIMENT A VÁLASZ**, mindegyikre a mért ténnyel és a visszacsúszás-próbával.
+**MIND A TIZENKILENC SZÁLRA KIMENT A VÁLASZ**, mindegyikre a mért ténnyel és a visszacsúszás-próbával.
 A szálak GITHUB-OLDALI LEZÁRÁSÁT nem végeztem el: a szál-azonosítókhoz a 120+ review-szálat kellene
 végiglapozni, ami aránytalan — a tartalmi válasz a szálakon áll, a lezárást a következő review-kör
 amúgy is újraértékeli a mai fejen. Ezt nem hallgatom el, és **a válaszolt szál nem elfogadás**.
 
-### 7.4 A TIZENHAT KÜLSŐ P2 — TIZENHÉT JAVÍTÁS, mind MÉRVE
+### 7.4 A TIZENKILENC KÜLSŐ P2 — HÚSZ JAVÍTÁS, mind MÉRVE
 
-**Miért tizenhét sor tizenhat lelethez:** az ötödik kör ELSŐ leletének **két** javítási helye volt
+**Miért húsz sor tizenkilenc lelethez:** az ötödik kör ELSŐ leletének **két** javítási helye volt
 (a kapu ÉS a kilépés átadási határa) — a lelet maga nevezte meg mind a kettőt, és két külön
 tanulságot ért, mert két külön szabály csúszott el. A sorszám a JAVÍTÁST számolja, nem a szálat.
 
@@ -331,6 +355,10 @@ tanulságot ért, mert két külön szabály csúszott el. A sorszám a JAVÍTÁ
 | 16 | a kilépés MINDEN váltás-lépésen átadott, a **fiók**-tengelyeseken is | a négy fiók-tengelyes lépésen a történet fiókváltást kér; ott kilépve a következő ember megkapta az előző haladását | a kilépés csak a **személy**-tengelyen ad át — és a döntés **MEGHÍVHATÓ** feloldóba került (`handoverBoundaryOk`) · `KUKA-433` · `D-VS-3227` |
 | 17 | a **kijelentkezés** eldobta a kiszolgáló válaszát | 5xx mellett a lap kimondta, hogy kiléptünk, és elvette a meghívó **jegyét** (memória ÉS címsor) | a választ MEGMÉRJÜK; nem igazolt kimenetnél semmit nem ürítünk, és a mondat **nem eldönthető**-t mond, nem meghiúsulást · `KUKA-434` · `D-VS-3228` · élő tanú: **`R166-M7`** |
 
+| 18 | a futás újrakötése **maradó állapotból** következtetett okozatiságra (az előző lépés `done`) | a `done` maradó: a feltétel a lépésen állva határozatlan ideig igaz · a legitim eset MÉRVE: `tour.inviteRevoke` `s17` (`invite.redeemed`) | **egyszer használható jegy**, zárt feladat-készletből (`invite.redeemed` · `workspace.created`) · `KUKA-435` · `D-VS-3229` |
+| 19 | a történet induló adata **minden** súgó-kérésnél kiszámolódott, tagonkénti lekérdezéssel | a két drága tényt KIZÁRÓLAG demó-jelhez **és** fejlesztői felülethez kötött történet kérdezi (mérve a regiszterből) | a számolás a kapuk mögé került, a tagok kérdése **korai kilépéssel** megy · `KUKA-436` · `D-VS-3230` |
+| 20 | a történet előfeltétele **nem** kérdezte a szerep-plafont, a lista már igen | a `D-VS-3225` a GOMBOT kötötte a plafonhoz; a gombra mutató történet felkínálását nem — a feladat sosem teljesülhetett | az induló adat UGYANAZT az írásmentes feloldót kérdezi, egyszer · `KUKA-437` · `D-VS-3231` |
+
 **A 14. mérésének hatóköre KIMONDVA** (`KUKA-216`): a szerep-tengely szűkítésére ma **nincs API-út**,
 ezért a szűk plafonú eset **forrás-pin**, az élő ellenpár a TELJES plafon. Ez **nevesített
 mérés-hiány**, nem teljesítés.
@@ -340,6 +368,42 @@ csonkja a belépést a *tagság* fiókjába vitte (kimondott rövidítésként),
 *személyes* körbe. Hűségesre állítva kiderült, hogy a `tour.reentry` történetéből **két fiókváltó
 lépés hiányzik** (`s12b` · `s15b`) — és a hiányt **két takarás** rejtette: a csonk rövidítése és a
 **saját próbám** néma kényelme. Mindhárom javítva; a `reentry` így 18 helyett **20** lépés.
+
+**A 18. JAVÍTÁSOM KÉTSZER ELVITTE A LEGITIM UTAT — ÉS MINDKETTŐT A KÖTELEZŐ KAPU MÉRTE.** Ezt a
+jelentés nem kerüli meg, mert ez a csomag legtanulságosabb mérése: egy szigorítás, aminek a *jelentése*
+helyes, a *mechanikájában* kétszer volt rossz.
+
+| a hibás alakom | mit mért a kapu | miért volt rossz |
+|---|---|---|
+| a jegyet a **közös ürítőben** töröltem | `R176-K1` a **19. lépésnél** `contextChanged` | a futás onnan a **rekeszbe adódik át**, és a visszakötés csak a VISSZAÁLLÁS után esedékes — a jegy sosem ért oda |
+| a jegyet **„bármi legyen az ítélet"** elhasználtam, amint a nézet elmozdult | `R176-K1` ismét a 19. lépésnél | a visszaállás **még a feladat-lépésen** adja vissza a futást, tehát az ELSŐ rajzolás elvette a jegyet **használat nélkül** |
+| elhagytam a **„korábbi lépés `done`"** feltételt, mert a jegyet elégnek hittem | `R176-K2` a **10. lépésnél**, 9/20-nál ragadva | a visszakötés így **már a feladat-lépésen** megtörtént, a futás nézete előre átvette az ÚJ fiókot, és a KÖVETKEZŐ, deklarált **fiókváltó** lépés sosem teljesült |
+
+Mostantól a jegy a **rekeszben utazik** (`rebind_once`), a visszaállás a **zárt készleten átszűrve**
+veszi elő, a közös ürítő csak **átadás nélkül** törli, a jegy a **valódi** visszakötésnél fogy el, és
+a feltétel **két részű**: az előző lépés teljesítette **ÉPPEN AZT** a feladatot, amire a jegy szól.
+A jegy tehát nem **pótolja** a régi feltételt, hanem **pontosítja** — ezt a különbséget a harmadik
+mérés tanította meg.
+
+**És ami ebből a legfontosabb:** egy forrás-pin mind a **három** hibás alakot **zöldnek** látta volna
+— a jel ott volt, a kód „helyesnek nézett ki", és a hiba a VISELKEDÉSBEN állt. A böngésző mérte meg,
+háromszor. Ugyanez a lecke (`KUKA-207`), és ezúttal a saját mechanikámon.
+
+**A 18–20. TANULSÁGA — ÉS AMIT A 18.-RÓL NEM ÁLLÍTOK.** A 18. a `KUKA-420`→`424` lecke HARMADIK
+előjövése: *a feltétel az ÁTMENETRE szól, nem az ÁLLAPOTRA*. Egy `done` jelölés arról szól, hogy
+MEGTÖRTÉNT, nem arról, hogy MOST történt. **A kárt viszont felhasználói úton NEM tudtam
+előállítani**, és ezt kimondom: minden végigkövetett úton, ahol a nézet a bemutatótól függetlenül
+változik, a `refreshMe` ELŐBB fut, és `resetViewCaches()`-szel LEZÁRJA a futást — tehát nincs mit
+rosszul újrakötni. A szabály ettől nem lesz helyes, és a szigorítás **mérten semmit nem vesz el**: a
+legitim esetet (a 19 lépéses történet 18. lépése, `invite.redeemed`) a zárt készlet tartalmazza, és a
+kapu zöld maradt. Ez ugyanaz a fegyelem, amivel a bemutató-motor „harmadik állapotát" **visszavontam**
+— csak itt a javítás szigorítás, nem új kód, tehát megtartom; hamis lelettel viszont nem adom el.
+
+A 20. a **negyedik** `KUKA-418`: a `D-VS-3225`-ben a visszavonás-GOMBOT kötöttem a delegált
+plafonhoz, a gombra MUTATÓ történet felkínálását nem — a saját javításom hozta létre a hiányt. A 19.
+pedig arra emlékeztet, hogy **a kapu helyessége és a kapu KÖLTSÉGE két külön kérdés**, és a második
+is a mi dolgunk: amit senki nem tud felhasználni, azt nem számoljuk ki, és ha egy tény soronkénti
+lekérdezés, a kérdést a LÉTEZÉSRE kell feltenni, nem a darabszámra.
 
 **A 15–17. TANULSÁGA — KÉT SZINTEN.** (a) A `KUKA-423`-as szigorításom a *mozgó* felet helyre
 tette, a *nem mozgót* nem: a fiók-tengelyen elég volt, hogy a könyv más lett — és egy MÁSIK ember
@@ -352,7 +416,7 @@ a javítás a kettő közül egy ajtót zár be. A hatókört a hiba-osztály ad
 (`KUKA-418`) — ez a csomagban **harmadszor** jött elő, és ezúttal nem a külső fél nevezte meg
 helyettem a párt: a lelet maga írta le, hogy „a logout út ugyanazt a közös ürítőt hívja".
 
-**Az 5.–10. és a 15.–17. mind a SAJÁT, ebben a körben írt kódom felett jött** — az 5. éppen a `D-VS-3211`-es
+**Az 5.–10., a 15.–17. és a 18.–20. mind a SAJÁT, ebben a körben írt kódom felett jött** — az 5. éppen a `D-VS-3211`-es
 kapum tényét számolta máshogy, mint a lap, a 6. pedig egy olyan függvényben, amelynek a **saját
 megjegyzése** már leírta a helyes viselkedést. A megjegyzés nem őr.
 

@@ -45,6 +45,9 @@ import { inviteNextKey } from './inviteText.mjs';
     inviteToken: null, invite: null, authView: null, search: '', members: [], notice: null, resendReason: null,
     // A NEM IGAZOLT KILÉPÉS NEVEZETT MONDATA (`KUKA-434`) — személyhez kötött, ezért a közös ürítőben szűnik meg.
     signOutNotDone: null,
+    // EGYSZER HASZNÁLHATÓ ENGEDÉLY a futás új nézethez kötésére (`KUKA-435`): CSAK a nézetet mozdító,
+    // IGAZOLT feladat állítja be, és az első visszakötés elhasználja. ÁTMENET, nem ÁLLAPOT.
+    tourRebindOnce: null,
     membersTab: 'members', invites: null, processState: '',
     // R121 — MIT TUD MA EZ A FIÓK. A négy adatkör neve, a MA megadható halmaz és a plafon oka a
     // szerver /api/members válaszából jön: a felület nem tartja saját listát (KUKA-039).
@@ -953,10 +956,25 @@ import { inviteNextKey } from './inviteText.mjs';
     state.chat = emptyChat();
     state.astStatus = null;
     state.signOutNotDone = null;   // a nem igazolt kilépés mondata is a személyhez tartozik (KUKA-218)
+
     state.helpIndex = null;
     // A DEKLARÁLT VÁLTÁS-HATÁRON a futás ÁTADÓDIK (ACT-01) — minden máson ugyanúgy elvész.
     saveTourHandover({ kilepes });
     state.tour = null; state.tourBlocked = null; state.tourFinished = false; state.tourAborted = null;
+    /**
+     * A VISSZAKÖTÉSI JEGY A FUTÁSSAL UTAZIK, NEM A GYORSÍTÓTÁRAKKAL (R176 · `KUKA-435`, MÉRVE).
+     *
+     * A LELET A SAJÁT JAVÍTÁSOMON: a jegyet előbb ITT, a közös ürítőben töröltem — és ezzel a
+     * LEGITIM esetet buktattam meg. A mérés kimondta: a `invite.redeemed` igazolása UTÁN a
+     * `refreshMe` észleli a könyv-váltást, át­vesz ezen az ürítőn, átadja a futást a rekeszbe, és a
+     * visszakötés CSAK A VISSZAÁLLÁS UTÁN következik — egy itt törölt jegy tehát SOSEM érne oda
+     * (MÉRVE: `R176-K1` a 19. lépésnél `contextChanged`-re futott).
+     *
+     * EZÉRT: a jegy a REKESZBE kerül (`saveTourHandover`), és a visszaállás onnan veszi elő. Itt
+     * csak akkor tűnik el, ha átadás NEM született — vagyis a futás VÉGLEG elveszétt. Így a jegy
+     * soha nem éli túl azt a futást, amihez tartozik (`KUKA-218` szellemében).
+     */
+    if (!peekTourHandover()) state.tourRebindOnce = null;
     state.help = { open: false, view: 'ask', topic: null, search: '', faqSearch: '', faqOpen: null };
     tourMod.clearHighlight();
     closeHelp();
@@ -1285,13 +1303,44 @@ import { inviteNextKey } from './inviteText.mjs';
   function tourRebindAfterOwnSuccess() {
     const run = state.tour;
     if (!run) return;
+    // A JEGY NÉLKÜL NINCS VISSZAKÖTÉS (`KUKA-435`): a maradó `done` állapot nem bizonyít okozatisságot.
+    if (!state.tourRebindOnce) return;
     const most = view();
     const regi = run.view || {};
+    // MÉG NEM MOZDULT EL A NÉZET: a jegy MEGMARAD — az igazolás a frissítés ELŐTT fut be (mérve).
     if ((most.book ?? null) === (regi.book ?? null) && (most.subject ?? null) === (regi.subject ?? null)) return;
     const mostani = run.steps[run.at];
-    if (!mostani || mostani.switch_actor === true) return;     // a deklarált határ nem ide tartozik
+    // A DEKLARÁLT VÁLTÁS-HATÁR NEM IDE TARTOZIK (azt a `tourObserveActorSwitch` kezeli) — és a jegy
+    // MEGMARAD: a váltás-kapu úgyis összehangolja a nézetet, utána már nem lesz mit átkötni.
+    if (!mostani || mostani.switch_actor === true) return;
+    /**
+     * A JEGY A VALÓDI VISSZAKÖTÉSNÉL FOGY EL — NEM ELŐBB (R176, MÉRVE a saját javításomon).
+     *
+     * A LELET: az első alakom a jegyet AKKOR vette el, amikor a nézet elmozdult, bármi lett is az
+     * ítélet. A visszaállás viszont a futást MÉG a feladat-lépésen adja vissza (`run.at` = a
+     * `invite.redeemed` lépés), és a visszakötés csak a KÖVETKEZŐ rajzoláson — a léptetés után —
+     * esedékes. Az első rajzolás tehát elvette a jegyet anélkül, hogy használta volna, és a
+     * 19 lépésből a 19. ismét `contextChanged`-re futott (MÉRVE: `R176-K1`).
+     *
+     * ÉS AMIÉRT A „korábbi lépés `done`" FELTÉTEL ELMARADT: a jegy UGYANAZT mondja ki, csak
+     * pontosabban — nevezi a feladatot, és CSAK a zárt készletből adható ki. A maradó állapotra
+     * építő feltétel ettől nem lesz szigorúbb, csak tevődik — és éppen az volt a lelet.
+     */
+    /**
+     * ÉS CSAK AKKOR, HA A JEGYET SZERZŐ LÉPÉS MÁR MÖGÖTTÜNK VAN (R176, MÉRVE a saját javításomon).
+     *
+     * A LELET: a „korábbi lépés feladata `done`" feltételt elhagytam, és ezzel a visszakötés MÁR A
+     * FELADAT-LÉPÉSEN megtörtént — a visszaállás ugyanis OTT adja vissza a futást. A `run.view`
+     * így előre átvette az ÚJ fiókot, és a KÖVETKEZŐ, deklarált FIÓK-váltó lépés (`s9`) sosem
+     * teljesült: a kapu már nem látott változást (MÉRVE: `R176-K2` a 10. lépésnél, 9/20-nál ragadva).
+     *
+     * A HELYES FELTÉTEL TEHÁT KÉT RÉSZŰ, és a másodikat a jegy PONTOSÍTJA, nem pótolja: az
+     * ELŐZŐ lépés teljesítette ÉPPEN AZT a feladatot, amire a jegy szól. Egy más feladat `done`
+     * állapota nem jogosít — és amíg a léptetés nem történt meg, a jegy MEGMARAD.
+     */
     const elozo = run.at > 0 ? run.steps[run.at - 1] : null;
-    if (!elozo || !elozo.task || elozo.state !== 'done') return;
+    if (!elozo || elozo.state !== 'done' || elozo.task !== state.tourRebindOnce.task) return;
+    state.tourRebindOnce = null;
     tourMod.rebindView(run, { view: most, role: state.me && state.me.current_role });
   }
   function tourRecheck() {
@@ -1881,6 +1930,10 @@ import { inviteNextKey } from './inviteText.mjs';
         // új kiadás viszont átírhatja a lépések célját vagy feladatát UGYANANNYI lépés mellett.
         version: run.version ?? null,
         states: run.steps.map((x) => x.state),
+        // A VISSZAKÖTÉSI JEGY IS ÁTMEGY (`KUKA-435`): az igazolt, nézetet mozdító feladat engedélye a
+        // FUTÁSÉ, és a visszaállás UTÁN kell felhasználni — egy itt elvesztett jegy a legitim utat
+        // buktatná meg (MÉRVE: `R176-K1` 19. lépés).
+        rebind_once: state.tourRebindOnce ? { task: state.tourRebindOnce.task } : null,
         /**
          * A NÉZET PÁR — ÉS AZ ÁTADÁS IS PÁRT TÁROL (R142 — F142-05, MÉRVE).
          *
@@ -1973,6 +2026,14 @@ import { inviteNextKey } from './inviteText.mjs';
     clearTourHandover();
     run.steps.forEach((st, i) => { if (tourMod.STEP_STATES.includes(h.states[i])) st.state = h.states[i]; });
     run.at = h.at;
+    /**
+     * ÉS A VISSZAKÖTÉSI JEGY IS VISSZAÁLL (`KUKA-435`) — de CSAK ha a rekesz nevezett, a zárt
+     * készletben lévő feladatot hordoz. Egy kívánt név, hibás alak vagy idegen feladat NEM ad
+     * engedélyt (`KUKA-236`: nyilatkozat nélkül ZÁRVA — és a rekesz tartalma a böngésző tárából
+     * jön, tehát nem bizalmi forrás).
+     */
+    const jegyTask = h.rebind_once && typeof h.rebind_once.task === 'string' ? h.rebind_once.task : null;
+    state.tourRebindOnce = tourMod.viewMovingTask(jegyTask) ? { task: jegyTask, at: run.at } : null;
     // A FUTÁS MÉG A RÉGI NÉZŐHÖZ TARTOZIK: így a váltás TÉNYE mérhető marad (`actorSwitchReady`).
     // MINDKÉT FELE (F142-05): a fiókot is a váltás ELŐTTI értékre állítjuk vissza, különben az
     // ugyanazon ember két fiókja közti váltás mérhetetlen lenne (a `newTourRun` a MAI nézetből
@@ -2025,6 +2086,14 @@ import { inviteNextKey } from './inviteText.mjs';
   function tourTaskDone(taskId) {
     if (!state.tour) return;
     if (!tourMod.taskDone(state.tour, taskId)) return;
+    /**
+     * A VISSZAKÖTÉSI ENGEDÉLY ITT SZÜLETIK, ÉS CSAK A NÉZETET MOZDÍTÓ FELADATHOZ (`KUKA-435`).
+     *
+     * A jegy EGYSZER használható, és a kiadása a KISZOLGÁLÓ által IGAZOLT sikerhez van kötve —
+     * nem a lépés maradó `done` állapotához. Így egy későbbi, FÜGGETLEN nézet-váltás nem
+     * örökli az okozatisságot.
+     */
+    if (tourMod.viewMovingTask(taskId)) state.tourRebindOnce = { task: taskId, at: state.tour.at };
     // A NÉZET-ELMOZDULÁST NEM ITT kötjük újra: az igazolás a frissítés ELŐTT fut be (mérve), ezért a
     // visszakötés a `tourRecheck` egy otthonában áll (`tourRebindAfterOwnSuccess`) — KUKA-003.
     tourRebindAfterOwnSuccess();

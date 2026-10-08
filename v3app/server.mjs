@@ -1738,13 +1738,53 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
    * A TÖRTÉNET INDULÓ ADATÁNAK MÉRT TÉNYEI (R176 §1 · KUKA-417) — a zárt készlet a
    * `policy.mjs` `TOUR_STORY_DATA`-jában áll, és MINDEN kulcsot ez a feloldó ad meg.
    */
-  function storyDataFacts(bookId, subjectId, at) {
+  /**
+   * …ÉS CSAK AKKOR SZÁMOLJUK KI, HA A KAPUK HASZNÁLHATJÁK (R176, külső review P2 · `KUKA-436`).
+   *
+   * A LELET: ez a feloldó MINDEN `/api/assistant/status` és `/api/assistant/knowledge` kérésnél
+   * lefutott — tehát a SÚGÓ megnyitásánál kétszer —, és a tagokon SORONKÉNT kérdezte a
+   * `membershipAsOf`-ot, ami tagság-, jog- és visszavonás-lekérdezéseket is indít. Egy sok történeti
+   * tagú cégben ez N+1 szinkron adatbázis-munka a kérés-szálon — akkor is, ha a bemutatók ki vannak
+   * kapcsolva, és a tényt SENKI nem tudja felhasználni.
+   *
+   * A KÉT DRÁGA TÉNYT CSAK A FOGYASZTÓIK KÉRDEZIK: a `pending_invite` és az `other_member`
+   * KIZÁRÓLAG a két átívelő történet kapujában szerepel, és MINDKETTŐ `requires_demo: true` +
+   * `requires_dev_mailbox: true`. Ha a demó-jel vagy a fejlesztői felület nincs, azokat a
+   * történeteket a kapu amúgy is ZÁRJA — a tény kiszámítása tehát nem mérhető különbséget ad,
+   * csak munkát. Az `own_personal_book` EGY lekérdezés, és a fogyasztója (`tour.personalAccount`)
+   * nem köti demóhoz — ezért az MINDIG készül.
+   *
+   * ÉS AMIT EZ NEM TESZ: jogot nem ad és kaput nem gyengít. A `tourGateOpen` nyilatkozat nélkül
+   * továbbra is ZÁR (`KUKA-236`); a `false` tény a kapura NÉZVE ugyanaz, mint a számolás
+   * eredményeként kapott `false`.
+   */
+  function storyDataFacts(bookId, subjectId, at, { tortenetKapu = true } = {}) {
     if (!bookId) {
       const kor = subjectId ? (personalSpaceOf({ store, subjectId }) || null) : null;
       return Object.freeze({ pending_invite: false, other_member: false,
         own_personal_book: Boolean(kor && kor.book_id) });
     }
-    const rows = store.all('SELECT token, redeemed_at, expires_at FROM invite WHERE book_id = ?', bookId);
+    const sajatKorElore = subjectId ? (personalSpaceOf({ store, subjectId }) || null) : null;
+    if (!tortenetKapu) {
+      return Object.freeze({ pending_invite: false, other_member: false,
+        own_personal_book: Boolean(sajatKorElore && sajatKorElore.book_id) });
+    }
+    const rows = store.all('SELECT token, redeemed_at, expires_at, offered_role FROM invite WHERE book_id = ?', bookId);
+    /**
+     * ÉS A FELKÍNÁLÁS A VISSZAVONHATÓSÁGOT IS MEGKÍVÁNJA (R176, külső review P2 · `KUKA-437`).
+     *
+     * A LELET: a `KUKA-431`-ben a lista `revocable` jelzőjét a SZEREP-PLAFONHOZ kötöttem — de a
+     * TÖRTÉNET előfeltételét nem. Egy szűkebb plafonú, delegált kezelőnél tehát a plafonon túli
+     * ajánlat `pending_invite`-ot adott, a `tour.inviteRevoke` felkínálódott — a soron viszont NINCS
+     * visszavonás-gomb, tehát az `invite.revoked` feladat SOHA nem teljesülhet.
+     *
+     * UGYANAZ A LECKE, HARMADSZOR: a javítás hatókörét a hiba-osztály adja, nem a lelet sorszáma
+     * (`KUKA-418`) — és a felkínálás a VÉGIGVIHETŐSÉG állítása (`KUKA-417` · `KUKA-421` ·
+     * `KUKA-429` · `KUKA-430` · `KUKA-431`). A döntés UGYANAZ az írásmentes feloldó, amit a lista
+     * és az írás-út is kérdez (`delegationCeilingOf`), és EGYSZER kérdezzük meg, nem soronként.
+     */
+    const plafon = delegationCeilingOf({ store, subjectId, bookId, at });
+    const plafonRoles = plafon && plafon.ok && Array.isArray(plafon.roles) ? plafon.roles : [];
     /**
      * ÉS A TÖRTÉNETHEZ A LEVÉL IS KELL (R176, külső review P2 — `KUKA-429`).
      *
@@ -1757,6 +1797,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      */
     const pendingInvite = rows.some((r) => !r.redeemed_at
       && Date.parse(r.expires_at) > Date.parse(at)
+      && plafonRoles.includes(r.offered_role)
       && !inviteRevocationAt({ store, token: r.token, nowIso: at }).revoked
       && mailbox.some((m) => String(m.link || '').includes(r.token)));
     /**
@@ -1770,9 +1811,11 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      *
      * EGY FOGALOM, EGY OTTHON (`KUKA-003` · `KUKA-039`): ugyanazt a döntést kérdezzük, amit a lap.
      */
-    const others = store.all('SELECT subject_id FROM membership WHERE book_id = ?', bookId)
+    // KORAI KILÉPÉS (`KUKA-436`): a kérdés az, hogy VAN-E hatályos másik tag — nem az, hogy hány.
+    // A `some` az ELSŐ találatnál megáll, tehát a drága `membershipAsOf` nem fut le minden sorra.
+    const otherMember = store.all('SELECT subject_id FROM membership WHERE book_id = ?', bookId)
       .filter((m) => m.subject_id !== subjectId)
-      .filter((m) => {
+      .some((m) => {
         const t = membershipAsOf({ store, subjectId: m.subject_id, bookId, validAt: at, knownAt: at });
         return Boolean(t && t.effective === true);
       });
@@ -1784,15 +1827,19 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      * `ensurePersonal` nem hoz létre személyes kört (`provenEmailOf` nélkül `null`), tehát a
      * fiókválasztóban nincs mit választani — az útmutató olyat állított, ami nem igaz.
      */
-    const sajatKor = subjectId ? (personalSpaceOf({ store, subjectId }) || null) : null;
-    return Object.freeze({ pending_invite: pendingInvite, other_member: others.length > 0,
-      own_personal_book: Boolean(sajatKor && sajatKor.book_id) });
+    return Object.freeze({ pending_invite: pendingInvite, other_member: otherMember,
+      own_personal_book: Boolean(sajatKorElore && sajatKorElore.book_id) });
   }
 
   function requesterContext(session, cur, opts = {}) {
     const bookId = cur && cur.book_id ? cur.book_id : null;
     const at = clock.now();
     const ws = bookId ? workspacesOf({ store, subjectId: session.subject_id, at }).find((w) => w.book_id === bookId) : null;
+    // A DEMÓ-JEL EGY HELYEN OLVASÓDIK (`KUKA-003` · `KUKA-039`), és KETTŐ fogyasztója van: a ctx
+    // `demo` mezője és a történet-induló adat kiszámításának kapuja (`KUKA-436`). A gépi jel az
+    // (u6) mérce: egy MÁSODIK környezeti olvasás PIROSRA váltja — és a mérce a FORRÁS-SZÖVEGET
+    // számolja, tehát a jel nevét még megjegyzésben sem írjuk le másodszor.
+    const demoJel = String(process.env.VS_DEMO || '').trim() === '1';
     return Object.freeze({
       signed_in: Boolean(session.subject_id),
       subject_id: session.subject_id ?? null,
@@ -1804,7 +1851,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       // (production · staging · demo); a `demo` az, ahol a bemutató-szereplők munkamenete
       // együtt elérhető, és csak ott kínálunk fel KÉT ÉLŐ MUNKAMENETET igénylő végigvezetést.
       // A jel KÖRNYEZETI, nem kérésből jövő: egy kérés nem állíthatja magáról, hogy bemutató.
-      demo: String(process.env.VS_DEMO || '').trim() === '1',
+      demo: demoJel,
       // A FELÜLET HORGONYAI (R164/3). A kérés a felületét NEVEZI MEG, a készletet a kiszolgáló MÉRI
       // a lap fájljából — így a felkínálás a VEZÉRLŐ létéhez kötött, nem a környezet jeléhez.
       surface_anchors: surfaceAnchors(opts.surface),
@@ -1846,7 +1893,8 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
        * precedenciája ugyanaz, mint a meghívó-listában (visszavont > elfogadott > lejárt > függő,
        * `KUKA-018`: egy fogalomnak egy otthona van).
        */
-      story_data: storyDataFacts(bookId, session.subject_id, clock.now()),
+      story_data: storyDataFacts(bookId, session.subject_id, clock.now(),
+        { tortenetKapu: demoJel && devSurface === true }),
 
       book_id: bookId,
       member: Boolean(ws),

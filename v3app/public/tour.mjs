@@ -397,6 +397,29 @@ export const SWITCH_AXES = Object.freeze(['subject', 'book']);
  * viszont a SZEMÉLYT váltja, tehát csak ott átadás, ahol a történet ÉPP SZEMÉLY-váltást kér.
  * Nyilatkozat nélkül ZÁRVA (`KUKA-236`).
  */
+/**
+ * AZOK A FELADATOK, AMELYEK IGAZOLT SIKERE A NÉZETET IS ELMOZDÍTJA (R176, külső review P2 · `KUKA-435`).
+ *
+ * A LELET: a futás új nézethez kötése eddig abból következtetett okozatisságra, hogy az ELŐZŐ
+ * lépés feladathoz kötött volt és `done` — az pedig MARADÓ ÁLLAPOT. Egy későbbi, a bemutatótól
+ * FÜGGETLEN fiók- vagy személyváltás (például egy másik fülben) tehát úgy látszott, mintha a
+ * korábbi feladat mozdította volna el, és a bemutató a ROSSZ fiókban folytatódott — ott, ahol a
+ * következő lépés célja is létezik (`nav-stock` · `data-stock`), tehát még csak meg sem állt.
+ *
+ * A SZABÁLY: nem minden igazolt feladat mozdítja el a nézetet — MÉRVE a lapon pontosan KETTŐ:
+ *   · `invite.redeemed`     — a kiszolgáló az elfogadót a MÁSIK könyvbe állítja;
+ *   · `workspace.created`   — a `refreshMe` az ÚJ cégre vált.
+ * Minden más feladat (`invite.created` · `grant.saved` · `member.revoked` · `plan.saved` …) a
+ * nézetet HELYBEN hagyja, és az `actor.switched`-et a váltás-kapu kezeli, nem ez.
+ * Nyilatkozat nélkül a visszakötés ZÁRVA (`KUKA-236`), és a jegy EGYSZER használható (`KUKA-424`
+ * lecke: a feltétel az ÁTMENETRE szól, nem az ÁLLAPOTRA).
+ */
+export const VIEW_MOVING_TASKS = Object.freeze(['invite.redeemed', 'workspace.created']);
+
+export function viewMovingTask(taskId) {
+  return typeof taskId === 'string' && VIEW_MOVING_TASKS.includes(taskId);
+}
+
 export function handoverBoundaryOk(step, { kilepes = false } = {}) {
   if (!kilepes) return true;
   if (!step || step.switch_actor !== true) return false;

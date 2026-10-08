@@ -1684,8 +1684,11 @@ try {
       const tagokR = await anna.get('/api/members');
       const tenyFuggo = (((fuggoR.body || {}).invites) || []).some((i) => i.state === 'pending');
       const tenyMasTag = (((tagokR.body || {}).members) || []).some((m) => m.email && m.email !== 'u-anna@pelda.hu');
-      const kapuMert = /story_data: storyDataFacts\(bookId, session\.subject_id, clock\.now\(\)\)/.test(srvAs)
-        && /function storyDataFacts\(bookId, subjectId, at\)/.test(srvAs);
+      // A PIN A `KUKA-436` UTÁN A KAPUS ALAKRA MUTAT: a jelentés változatlan (a kiszolgáló méri a
+      // tényt a tárból), a feloldó viszont megkapta a „csak ha a kapuk használhatják" feltételt.
+      const kapuMert = /story_data: storyDataFacts\(bookId, session\.subject_id, clock\.now\(\),/.test(srvAs)
+        && /\{ tortenetKapu: demoJel && devSurface === true \}\)/.test(srvAs)
+        && /function storyDataFacts\(bookId, subjectId, at, \{ tortenetKapu = true \} = \{\}\)/.test(srvAs);
       const zartKeszlet = /TOUR_STORY_DATA = Object\.freeze\(\['pending_invite', 'other_member', 'own_personal_book'\]\)/.test(polAs)
         && /if \(!TOUR_STORY_DATA\.includes\(t\.requires_story_data\)\) return false;/.test(polAs);
       step('(as9) R176 §1: a két szereplős történet INDULÓ adata MÉRT tény a tárból (függő meghívás ÉS másik tag), zárt készlettel — nem feltevés és nem kézi névsor',
@@ -1835,6 +1838,92 @@ try {
         && logoutBlokk.indexOf("if (v !== 'ok')") < logoutBlokk.indexOf('forgetInvite()')
         && /signOutNotDone = v === 'uncertain'/.test(logoutBlokk),
         { meres_a_uritses_elott: logoutBlokk.indexOf("if (v !== 'ok')") < logoutBlokk.indexOf('forgetInvite()') });
+      /**
+       * (as25–as26) A VISSZAKÖTÉS ÁTMENETHEZ KÖTVE (R176, külső review P2 · `KUKA-435`).
+       *
+       * A LELET: a futás új nézethez kötése abból következtetett okozatiságra, hogy az ELŐZŐ lépés
+       * feladathoz kötött volt és `done` — az pedig MARADÓ állapot. Egy későbbi, a bemutatótól
+       * FÜGGETLEN fiók- vagy személyváltás (például egy másik fülben) tehát úgy látszott, mintha a
+       * korábbi feladat mozdította volna el, és a bemutató a ROSSZ fiókban folytatódott — ott, ahol
+       * a következő lépés célja is létezik, tehát még csak meg sem állt.
+       *
+       * A KÉSZLET ZÁRT ÉS MÉRT: a mérce nem elhiszi, hogy melyik feladat mozdítja el a nézetet,
+       * hanem a LAPBÓL olvassa ki, hogy a deklarált kettőn KÍVÜL melyik feladat jár nézet-váltással.
+       */
+      const mozdito = {
+        keszlet: tour.VIEW_MOVING_TASKS.join(','),
+        elfogadas: tour.viewMovingTask('invite.redeemed'),
+        letrehozas: tour.viewMovingTask('workspace.created'),
+        jogadas: tour.viewMovingTask('grant.saved'),
+        valtas: tour.viewMovingTask('actor.switched'),
+        kitalalt: tour.viewMovingTask('nincs.ilyen'),
+        ures: tour.viewMovingTask(null),
+      };
+      step('(as25) R176/P2: a visszakötés CSAK a nézetet mozdító, IGAZOLT feladatra jár — zárt készletből, nyilatkozat nélkül ZÁRVA',
+        mozdito.keszlet === 'invite.redeemed,workspace.created'
+        && mozdito.elfogadas === true && mozdito.letrehozas === true
+        && mozdito.jogadas === false && mozdito.valtas === false
+        && mozdito.kitalalt === false && mozdito.ures === false, mozdito);
+      // ÉS A JEGY EGYSZER HASZNÁLHATÓ: a lap kéri, és az első visszakötésnél elhasználja.
+      const jegyRend = /if \(!state\.tourRebindOnce\) return;/.test(appAs)
+        && /if \(tourMod\.viewMovingTask\(taskId\)\) state\.tourRebindOnce = \{/.test(appAs)
+        // A JEGY A VALÓDI VISSZAKÖTÉSNÉL FOGY EL — a törlés KÖZVETLENÜL a `rebindView` előtt áll.
+        // MÉRT LELET a saját javításomon: az „elhasználás bármi legyen az ítélet" alak a LEGITIM
+        // utat buktatta meg (`R176-K1` 19. lépés), mert a visszaállás még a feladat-lépésen ad
+        // vissza, és a visszakötés csak a léptetés UTÁN esedékes.
+        // ÉS CSAK AKKOR, HA A JEGYET SZERZŐ LÉPÉS MÁR MÖGÖTTÜNK VAN: az ELŐZŐ lépés ÉPPEN AZT a
+        // feladatot teljesítette, amire a jegy szól. MÉRT LELET a saját javításomon: e nélkül a
+        // visszakötés MÁR a feladat-lépésen megtörtént, a `run.view` előre átvette az ÚJ fiókot, és a
+        // következő FIÓK-váltó lépés sosem teljesült (`R176-K2` 9/20-nál ragadt).
+        && /if \(!elozo \|\| elozo\.state !== 'done' \|\| elozo\.task !== state\.tourRebindOnce\.task\) return;/.test(appAs)
+        && /state\.tourRebindOnce = null;\n    tourMod\.rebindView\(run, \{ view: most,/.test(appAs)
+        // ÉS A JEGY A FUTÁSSAL UTAZIK: a rekesz viszi át, a visszaállás a ZÁRT KÉSZLETEN átszűrve
+        // veszi elő, és a közös ürítőben csak akkor szűnik meg, ha átadás NEM született.
+        && /rebind_once: state\.tourRebindOnce \? \{ task: state\.tourRebindOnce\.task \} : null,/.test(appAs)
+        && /state\.tourRebindOnce = tourMod\.viewMovingTask\(jegyTask\) \? \{ task: jegyTask, at: run\.at \} : null;/.test(appAs)
+        && /if \(!peekTourHandover\(\)\) state\.tourRebindOnce = null;/.test(appAs);
+      step('(as26) R176/P2: a jegy ÁTMENETRE szól, nem ÁLLAPOTRA — a VALÓDI visszakötésnél fogy el, a rekesz átviszi, a visszaállás a zárt készleten átszűrve veszi elő, és átadás nélkül megszűnik',
+        jegyRend, { jegy_rend: jegyRend });
+
+      /**
+       * (as27) A TÖRTÉNET-INDULÓ ADAT CSAK AKKOR SZÁMOLÓDIK, HA A KAPUK HASZNÁLHATJÁK (`KUKA-436`).
+       *
+       * A LELET: a feloldó minden súgó-kérésnél kétszer futott le, és a tagokon SORONKÉNT kérdezte a
+       * `membershipAsOf`-ot — N+1 szinkron adatbázis-munka a kérés-szálon, akkor is, ha a bemutatók
+       * ki vannak kapcsolva. A két drága tényt CSAK a két átívelő történet kapuja kérdezi, és
+       * MINDKETTŐ `requires_demo` + `requires_dev_mailbox`.
+       *
+       * ÉS A FELTEVÉST IS MÉRJÜK, NEM ELHISSZÜK: ha egy JÖVŐBELI bemutató drága tényt kérne demó-jel
+       * nélkül, ez a sor pirosra vált — különben a tény némán `false` lenne, és a történet eltűnne a
+       * felkínálásból (`KUKA-238` osztálya: a tartalék-ág elrejti a hibás hívást).
+       */
+      const DRAGA = ['pending_invite', 'other_member'];
+      const demoNelkul = Object.entries(TOURS)
+        .filter(([, t]) => DRAGA.includes(t.requires_story_data))
+        .filter(([, t]) => !(t.requires_demo === true && t.requires_dev_mailbox === true))
+        .map(([id]) => id);
+      step('(as27) R176/P2: a drága induló adatot KIZÁRÓLAG demó-jelhez ÉS fejlesztői felülethez kötött történet kérdezi — tehát a kihagyás nem ad mérhető különbséget, csak kevesebb munkát',
+        demoNelkul.length === 0
+        && /if \(!tortenetKapu\) \{/.test(srvAs)
+        && /\.some\(\(m\) => \{/.test(srvAs),
+        { demo_nelkul_draga_tenyt_ker: demoNelkul.join(' · ') || 'egy sincs',
+          korai_kilepes: /\.some\(\(m\) => \{/.test(srvAs) });
+
+      /**
+       * (as28) A FELKÍNÁLÁS A VISSZAVONHATÓSÁGOT IS MEGKÍVÁNJA (`KUKA-437`).
+       *
+       * A LELET: a `KUKA-431`-ben a lista `revocable` jelzőjét a szerep-plafonhoz kötöttem, a
+       * TÖRTÉNET előfeltételét nem — egy szűkebb plafonú kezelőnél tehát felkínálódott egy olyan
+       * történet, aminek a feladata (`invite.revoked`) sosem teljesülhet, mert a soron nincs gomb.
+       * UGYANAZ a lecke harmadszor: a hatókört a hiba-osztály adja (`KUKA-418`).
+       */
+      step('(as28) R176/P2: az induló adat UGYANAZT az írásmentes plafon-döntést kérdezi, amit a lista és az írás-út — és EGYSZER, nem soronként',
+        /const plafon = delegationCeilingOf\(\{ store, subjectId, bookId, at \}\);/.test(srvAs)
+        && /&& plafonRoles\.includes\(r\.offered_role\)/.test(srvAs)
+        && (srvAs.match(/plafonRoles\.includes/g) || []).length === 2,
+        { plafon_a_tenyben: /&& plafonRoles\.includes\(r\.offered_role\)/.test(srvAs),
+          ket_fogyaszto: (srvAs.match(/plafonRoles\.includes/g) || []).length });
+
       step('(as24) R176/P2: a mondatnak EGY otthona van, és MINDKÉT képernyő onnan kéri (a meghívó kártya és az alkalmazás-héj)',
         (appAs.match(/data-testid="signout-not-done"/g) || []).length === 1
         && (appAs.match(/signOutNotDoneHtml\(\)/g) || []).length === 3,
