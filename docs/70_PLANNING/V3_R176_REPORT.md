@@ -28,15 +28,15 @@ részben teljesült:** a hat ellenőrző programot egyenként lefuttattam a mai 
 
 | mérce | verdikt |
 |---|---|
-| **KÓD-SHA (amit mértem)** | `718b174` — a kötelező kapu EZEN a fejen zöld |
-| **a kötelező böngésző-kapu** | **ZÖLD** — `verify:browser-gate`: **143 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott**, 26 próba-fájl; `proof:demo-walk` 445 s |
-| **a két szereplős bejárás a VALÓDI felületen** | **5/5 ZÖLD** — K1 19/19 · K2 18/18 · K3 19/19 (390 px + újraindítás) · K5 · **K6** (az új ellenpár) — és a próba a váltás-lépésen **nem** nyitja ki helyettünk a menüt |
-| **KUKA-regiszter** | **964/964 PASS** (`verify:kuka`) — 413 bejegyzés, hét újjal (`KUKA-416`…`KUKA-422`) |
-| **R154 battéria** | **320/320 PASS** (`verify:app-findings-r154`) — hét új mércével (as7–as11 · ar11–ar12) |
-| **D-VS számozás** | **4/4 PASS** — hét új döntés: `D-VS-3210`…`D-VS-3216`; a következő szabad: `D-VS-3217` |
+| **KÓD-SHA (amit mértem)** | `097b8eb` — a kötelező kapu EZEN a fejen zöld |
+| **a kötelező böngésző-kapu** | **ZÖLD** — `verify:browser-gate`: **144 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott**, 26 próba-fájl; `proof:demo-walk` 482 s |
+| **a két szereplős bejárás a VALÓDI felületen** | **6/6 ZÖLD** — K1 19/19 · **K2 20/20** · K3 19/19 (390 px + újraindítás) · K5 · K6 · **K7** (az átadás három őre) — és a próba a váltás-lépésen **nem** nyitja ki helyettünk a menüt, a fiókváltást pedig a történet SAJÁT lépése végzi |
+| **KUKA-regiszter** | **983/983 PASS** (`verify:kuka`) — 418 bejegyzés, **tizenkét** újjal (`KUKA-416`…`KUKA-427`) |
+| **R154 battéria** | **323/323 PASS** (`verify:app-findings-r154`) — tíz új mércével (as7–as14 · ar11–ar12) |
+| **D-VS számozás** | **4/4 PASS** — **tizenkét** új döntés: `D-VS-3210`…`D-VS-3221`; a következő szabad: `D-VS-3222` |
 | **próba-alkalmazás önellenőrzés** | **57/57 PASS** (`app:selfcheck`) |
 | **a hat külső program** | **2 ZÖLD · 4 PIROS** — a külön verdiktek a 3. szakaszban; a teljes lánc állapota is ott |
-| **a review által FEDETT SHA** | **`4b930dd`** — a külső ellenőrző használati korlátja **FELOLDÓDOTT**, és két körben összesen **hat P2** jött (`fb231e6`-ra négy, `4b930dd`-re kettő); **mind a hat javítva** (lásd a 7.4 pontot). A mai, `718b174` fej — maguk ezek a javítások — **nem fedett** |
+| **a review által FEDETT SHA** | **`30830ae`** — a korlát **FELOLDÓDOTT**, és három körben összesen **tíz P2** jött (`fb231e6`-ra négy, `4b930dd`-re kettő, `30830ae`-ra négy); **mind a tíz javítva** (lásd a 7.4 pontot). A mai, `097b8eb` fej — maguk ezek a javítások — **nem fedett** |
 
 ---
 
@@ -287,7 +287,7 @@ GITHUB-OLDALI LEZÁRÁSÁT nem végeztem el: a szál-azonosítókhoz a 112 revie
 végiglapozni, ami aránytalan — a tartalmi válasz a szálakon áll, a lezárást a következő review-kör
 amúgy is újraértékeli a mai fejen. Ezt nem hallgatom el.
 
-### 7.4 A HAT ÚJ KÜLSŐ P2 — mind MÉRVE és javítva
+### 7.4 A TÍZ ÚJ KÜLSŐ P2 — mind MÉRVE és javítva
 
 | # | a lelet | a mért tény | a javítás |
 |---|---|---|---|
@@ -299,7 +299,18 @@ amúgy is újraértékeli a mai fejen. Ezt nem hallgatom el.
 | 5 | az induló adat tagság-tényét **nyers** sor-feltétellel számoltam, a lap a kanonikus feloldóval | hatályos taggal felkínálódik; **megszüntetett** tagság mellett a régi alak is felkínálta volna | `membershipAsOf` — ugyanaz a döntés, amit a lap kérdez; élő mérés (`as11`) · `KUKA-421` · `D-VS-3215` |
 | 6 | a meghívó-visszalépés **eldobta** a kiszolgáló válaszát, és mindenképpen ürített | 5xx mellett a lap teljesítést állított, a tárolt folytatás a kiszolgálón maradt | a három kimenet külön mondat, ürítés **csak** igazolt `ok` után; élő tanú (`R166-M6`) · `KUKA-422` · `D-VS-3216` |
 
-**Az 5. és a 6. is a SAJÁT, ebben a körben írt kódom felett jött** — az 5. éppen a `D-VS-3211`-es
+| 7 | a váltás-kapu `(subject \|\| book)` alakja MINDEN nézet-változást minden váltásnak elfogadott | mérve mind a négy kombinációra: egy SZEMÉLY-váltó lépésen a fiókváltás is „teljesített" | a tengelyt a LÉPÉS deklarálja (`switch_axis`, zárt készlet), fail-closed, és a HATÁR átadja · `KUKA-423` · `D-VS-3217` |
+| 8 | az átadás a futás HELYZETÉT kérdezte, nem az ÁTMENETET | a levél-fogadó lépésén kilépve a következő ember megkapta az előző haladását | kilépésnél CSAK a váltás-lépés jogosít; élő tanú: `K7` 1. őre · `KUKA-424` · `D-VS-3218` |
+| 9 | a rekesz nem hordozta a bemutató VERZIÓJÁT | index szerinti visszaírás más verzióra kész-nek jelölhet meg nem történt feladatot | a verzió a rekeszbe, és a visszaállás összeveti; élő tanú: `K7` 2. őre · `KUKA-425` · `D-VS-3219` |
+| 10 | a visszaállás ELŐBB ürítette a rekeszt, és csak utána kérdezte a kiszolgálót | 503 mellett a haladás VÉGLEG elment volna | belenéz → a választ MÉRI → csak siker után ürít; élő tanú: `K7` 3. őre · `KUKA-426` · `D-VS-3220` |
+
+**ÉS A 7. SZIGORÍTÁSA ELŐHOZOTT EGY SAJÁT HIÁNYT** (`KUKA-427` · `D-VS-3221`): a bemutató-lap
+csonkja a belépést a *tagság* fiókjába vitte (kimondott rövidítésként), a valódi kiszolgáló viszont a
+*személyes* körbe. Hűségesre állítva kiderült, hogy a `tour.reentry` történetéből **két fiókváltó
+lépés hiányzik** (`s12b` · `s15b`) — és a hiányt **két takarás** rejtette: a csonk rövidítése és a
+**saját próbám** néma kényelme. Mindhárom javítva; a `reentry` így 18 helyett **20** lépés.
+
+**Az 5.–10. mind a SAJÁT, ebben a körben írt kódom felett jött** — az 5. éppen a `D-VS-3211`-es
 kapum tényét számolta máshogy, mint a lap, a 6. pedig egy olyan függvényben, amelynek a **saját
 megjegyzése** már leírta a helyes viselkedést. A megjegyzés nem őr.
 
