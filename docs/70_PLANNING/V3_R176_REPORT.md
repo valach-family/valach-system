@@ -28,15 +28,15 @@ részben teljesült:** a hat ellenőrző programot egyenként lefuttattam a mai 
 
 | mérce | verdikt |
 |---|---|
-| **KÓD-SHA (amit mértem)** | `9adb8d9` — a kötelező kapu EZEN a fejen zöld |
-| **a kötelező böngésző-kapu** | **ZÖLD** — `verify:browser-gate`: **144 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott**, 26 próba-fájl; `proof:demo-walk` 482 s |
+| **KÓD-SHA (amit mértem)** | `23b4497` — a kötelező kapu EZEN a fejen zöld |
+| **a kötelező böngésző-kapu** | **ZÖLD** — `verify:browser-gate`: **145 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott**, 26 próba-fájl; `proof:demo-walk` 483 s |
 | **a két szereplős bejárás a VALÓDI felületen** | **6/6 ZÖLD** — K1 19/19 · **K2 20/20** · K3 19/19 (390 px + újraindítás) · K5 · K6 · **K7** (az átadás három őre) — és a próba a váltás-lépésen **nem** nyitja ki helyettünk a menüt, a fiókváltást pedig a történet SAJÁT lépése végzi |
-| **KUKA-regiszter** | **993/993 PASS** (`verify:kuka`) — 422 bejegyzés, **tizenhat** újjal (`KUKA-416`…`KUKA-431`) |
-| **R154 battéria** | **325/325 PASS** (`verify:app-findings-r154`) — tizenkét új mércével (as7–as16 · ar11–ar12) |
-| **D-VS számozás** | **4/4 PASS** — **tizenhat** új döntés: `D-VS-3210`…`D-VS-3225`; a következő szabad: `D-VS-3226` |
+| **KUKA-regiszter** | **1005/1005 PASS** (`verify:kuka`) — 425 bejegyzés, **tizenkilenc** újjal (`KUKA-416`…`KUKA-434`) |
+| **R154 battéria** | **333/333 PASS** (`verify:app-findings-r154`) — **húsz** új mércével (as7–as24 · ar11–ar12) |
+| **D-VS számozás** | **4/4 PASS** — **tizenkilenc** új döntés: `D-VS-3210`…`D-VS-3228`; a következő szabad: `D-VS-3229` |
 | **próba-alkalmazás önellenőrzés** | **57/57 PASS** (`app:selfcheck`) |
 | **a hat külső program** | **2 ZÖLD · 4 PIROS** — a külön verdiktek a 3. szakaszban; a teljes lánc állapota is ott |
-| **a review által FEDETT SHA** | **`5390b7c`** — a korlát **FELOLDÓDOTT**, és négy körben összesen **tizennégy P2** jött (`fb231e6`: 4 · `4b930dd`: 2 · `30830ae`: 4 · `5390b7c`: 4); **mind a tizennégy javítva** (lásd a 7.4 pontot). A mai, `9adb8d9` fej — maguk ezek a javítások — **nem fedett** |
+| **a review által FEDETT SHA** | **`1585079`** — a korlát **FELOLDÓDOTT**, és öt körben összesen **tizenhat P2** jött (`fb231e6`: 4 · `4b930dd`: 2 · `30830ae`: 4 · `5390b7c`: 4 · `1585079`: 2); **mind a tizenhat javítva**, tizenhét javítással (lásd a 7.4 pontot). A mai, `23b4497` fej — maguk ezek a javítások — **nem fedett**; egy hatodik kör a `c5d0b63`-on a jelentés írásakor még **FUT**, verdiktje tehát NINCS |
 
 ---
 
@@ -178,9 +178,9 @@ A munka közben **célzottan** ellenőriztem (nem teljes söpréssel), a végén
 **érintett kötelező kaput** a mai fejen:
 
 ```
-verify:browser-gate   →  RESULT: PASS
-      test:e2e + proof:core-ux   565 s   ·  141 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott
-      proof:demo-walk            444 s   ·  ZÖLD
+verify:browser-gate   →  RESULT: PASS        (a `23b4497` fejen, az utolsó futás)
+      test:e2e + proof:core-ux   578 s   ·  145 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott
+      proof:demo-walk            483 s   ·  ZÖLD
       26 próba-fájl mind bekerült a mérésbe
 ```
 
@@ -191,9 +191,15 @@ héjban nincs váltó vezérlő", hanem a történet **induló adata** — és m
 vezeti le az elvárást, nem névsorból. Az ellenpár ugyanabban a próbában áll: nincs függő meghívás →
 a visszavonás nem jár; **van** másik tag → az újbóli belépés **jár**.
 
-Célzott regresszió (mért, a mai fejen): `verify:kuka` **942/942** · `verify:app-findings-r154`
-**317/317** · `app:selfcheck` **57/57** · `verify:decision-numbers` **4/4** · a két szereplős
-bejárás **4/4** · `r91` + `r93` + `r166-minta-kapu` **13/13**.
+Célzott regresszió (mért, a mai fejen): `verify:kuka` **1005/1005** · `verify:app-findings-r154`
+**333/333** · `app:selfcheck` **57/57** · `verify:i18n` **49/49** · `verify:tutor` **94/94** ·
+`verify:assistant` **55/55** · `verify:decision-numbers` **4/4**.
+
+**A LEGUTOLSÓ KÖR KÉT P2-je ELŐTT ÉS UTÁN IS MÉRTEM** (a 15–17. tétel): a három javítás
+visszacsúsztatása `as17` · `as19` · `as20`–`as23` **PIROSRA** váltja a battériát, és az élő tanú
+(`R166-M7`) is **bukik** — tehát a jelek TÜZELNEK, nem díszek (`KUKA-239`). Az `as18` ellenpár
+helyesen ZÖLD marad mindkét állapotban: az ő dolga azt mérni, hogy a szigorítás nem vitt el jó
+esetet.
 
 ---
 
@@ -270,24 +276,36 @@ ez utóbbi a `page:personal` lap, a nevesített **`personal.ownMatters`** fejles
 **nem** írtam át zöldre: az őr célja a NULLA hiány, a maradék egy pedig **nem pótolható** próbával,
 csak funkcióval. A padló (`floor_breaks`) **üres** — visszacsúszás nincs.
 
-### 7.3 A független review — KÜLÖN BLOKK, ahogy a parancs kérte
+### 7.3 A független review — ÖT BEFEJEZETT KÖR, A HATODIK FUT
 
-**A HELYZET A JELENTÉS ÍRÁSA KÖZBEN MEGVÁLTOZOTT, és ezt kimondom.** Amikor a jelentés első
-változata elkészült, a külső ellenőrző használati korlátja még állt, és ez a blokk azt írta, hogy a
-mai fejet senki nem olvasta át. **Néhány órával később a korlát feloldódott**, a review lefutott az
-`fb231e6` fejre, és **négy P2 leletet** adott. Mind a négy valós volt; mind a négy javítva — a
-részletek a 7.4 pontban.
+**A HELYZET A CSOMAG KÖZBEN TÖBBSZÖR MEGVÁLTOZOTT, és a szöveg a valóságot követi** (`KUKA-050`).
+Amikor a jelentés első változata elkészült, a külső ellenőrző használati korlátja még állt. A korlát
+**feloldódott**, és azóta **öt kör futott le**, összesen **tizenhat P2** lelettel:
 
-**A MA érvényes állapot:** a review által fedett fej az **`fb231e6`**; a mai fej (`2f731f6`) maguk
-ezek a javítások, tehát **nem fedett**. A korlát alatt nem kértem újra átolvasást, keretet nem
-vásároltam, a korlátot nem kerültem meg (`KUKA-200`: a nem futott nem „részben").
+| a review köre | a FEDETT fej | P2 | a javítás commitja |
+|---|---|---|---|
+| 1. | `fb231e6` | 4 | `2f731f6` |
+| 2. | `4b930dd` | 2 | `d8203c5` |
+| 3. | `30830ae` | 4 | `4ba0064` |
+| 4. | `5390b7c` | 4 | `7f11958` · `8050955` |
+| 5. | **`1585079`** | 2 | **`23b4497`** (ez a mai fej) |
 
-**A négy szálra a válasz kiment**, mindegyikre a mért ténnyel és a visszacsúszás-próbával. A szálak
-GITHUB-OLDALI LEZÁRÁSÁT nem végeztem el: a szál-azonosítókhoz a 112 review-szálat kellene
+**A MA érvényes állapot:** a legfrissebb BEFEJEZETT kör az **`1585079`** fejet fedi. Az azóta
+született commitok — a 11–17. javítások és ez a jelentés — **nem fedettek**. Egy **hatodik** kör a
+`c5d0b63` fejen a jelentés írásakor **FUT**: verdiktje tehát NINCS, és nem is állítok ilyet. A
+korlát alatt nem kértem újra átolvasást, keretet nem vásároltam, a korlátot nem kerültem meg
+(`KUKA-200`: a nem futott nem „részben").
+
+**MIND A TIZENHAT SZÁLRA KIMENT A VÁLASZ**, mindegyikre a mért ténnyel és a visszacsúszás-próbával.
+A szálak GITHUB-OLDALI LEZÁRÁSÁT nem végeztem el: a szál-azonosítókhoz a 120+ review-szálat kellene
 végiglapozni, ami aránytalan — a tartalmi válasz a szálakon áll, a lezárást a következő review-kör
-amúgy is újraértékeli a mai fejen. Ezt nem hallgatom el.
+amúgy is újraértékeli a mai fejen. Ezt nem hallgatom el, és **a válaszolt szál nem elfogadás**.
 
-### 7.4 A TIZENHÉT ÚJ KÜLSŐ P2 — mind MÉRVE és javítva
+### 7.4 A TIZENHAT KÜLSŐ P2 — TIZENHÉT JAVÍTÁS, mind MÉRVE
+
+**Miért tizenhét sor tizenhat lelethez:** az ötödik kör ELSŐ leletének **két** javítási helye volt
+(a kapu ÉS a kilépés átadási határa) — a lelet maga nevezte meg mind a kettőt, és két külön
+tanulságot ért, mert két külön szabály csúszott el. A sorszám a JAVÍTÁST számolja, nem a szálat.
 
 | # | a lelet | a mért tény | a javítás |
 |---|---|---|---|
@@ -323,7 +341,18 @@ csonkja a belépést a *tagság* fiókjába vitte (kimondott rövidítésként),
 lépés hiányzik** (`s12b` · `s15b`) — és a hiányt **két takarás** rejtette: a csonk rövidítése és a
 **saját próbám** néma kényelme. Mindhárom javítva; a `reentry` így 18 helyett **20** lépés.
 
-**Az 5.–10. mind a SAJÁT, ebben a körben írt kódom felett jött** — az 5. éppen a `D-VS-3211`-es
+**A 15–17. TANULSÁGA — KÉT SZINTEN.** (a) A `KUKA-423`-as szigorításom a *mozgó* felet helyre
+tette, a *nem mozgót* nem: a fiók-tengelyen elég volt, hogy a könyv más lett — és egy MÁSIK ember
+belépése a könyvet is megváltoztatja. A kapu tehát a kilépés + idegen belépés átmenetet is
+elfogadta, a futás a ROSSZ emberhez kötődött át. **És az ellenpárjaim ezt nem fogták meg**, mert
+mindig CSAK AZ EGYIK felet mozgatták — a valódi úton viszont MINDKETTŐ együtt mozdul. (b) A
+kijelentkezés ugyanabba a hibába futott, amit a `KUKA-422`-ben már javítottam — **egy függvénnyel
+odébb**. Egy közös, VISSZAFORDÍTHATATLAN ürítőt több út hív; ha csak az egyik vár igazolt válaszra,
+a javítás a kettő közül egy ajtót zár be. A hatókört a hiba-osztály adja, nem a lelet sorszáma
+(`KUKA-418`) — ez a csomagban **harmadszor** jött elő, és ezúttal nem a külső fél nevezte meg
+helyettem a párt: a lelet maga írta le, hogy „a logout út ugyanazt a közös ürítőt hívja".
+
+**Az 5.–10. és a 15.–17. mind a SAJÁT, ebben a körben írt kódom felett jött** — az 5. éppen a `D-VS-3211`-es
 kapum tényét számolta máshogy, mint a lap, a 6. pedig egy olyan függvényben, amelynek a **saját
 megjegyzése** már leírta a helyes viselkedést. A megjegyzés nem őr.
 
@@ -345,9 +374,10 @@ méri.
   futás a futtató saját jelölése szerint sem a lánc bizonyítéka.
 - **Nem** állítja, hogy a két piros helyettes (`r57a` · `r59a`) tartalmilag hibás: **nem futottak
   végig**, tehát tartalmi verdiktjük NINCS. A „nem futott" nem „részben".
-- **Nem** állítja, hogy a mai fejet független fél elfogadta: a review az `fb231e6`-ot fedi, a mai
-  fej (`2f731f6`) maguk a javítások. **A válaszolt szál nem elfogadás**, és a szálak github-oldali
-  lezárását sem végeztem el (kimondva a 7.3-ban).
+- **Nem** állítja, hogy a mai fejet független fél elfogadta: a legfrissebb BEFEJEZETT review az
+  `1585079`-et fedi, a mai fej (`23b4497`) maguk a javítások, és a hatodik kör (`c5d0b63`) a jelentés
+  írásakor **fut** — annak verdiktje NINCS. **A válaszolt szál nem elfogadás**, és a szálak
+  github-oldali lezárását sem végeztem el (kimondva a 7.3-ban).
 - **Nem** állítja, hogy a csomag merge-kész, és **nem** végez merge-öt, force-push-t, felhős
   telepítést, titok-módosítást vagy CMD/PR-lezárást — a parancs korlátai változatlanul állnak.
 - **Nem** állítja, hogy a bemutató-lap (`demo-index.html`) zöldje a valódi felület bizonyítéka: a
@@ -366,12 +396,21 @@ API-ból, nem tippből) a jelentés írásáig (`12:26:38Z`): **349 hívás** ·
 al-ügynök)** · cache-olvasás **149 858 549** · kimenet **318 151** · lefedettség **teljes**
 (1 átirat, minden modell-válasz usage-dzsal).
 
-**ZÁRÓ MÉRÉS A CSOMAG VÉGÉN** (`2026-10-08T05:57:32Z` → `16:34:47Z`): **595 hívás** · fő-szál
-kontextusmedián **541 361** · max **782 772** · 400 ezer fölött **380 hívás** · **ügynök-bemenet 0** ·
-lefedettség **teljes**. **A SÁV: VÁLTÁS** (541 361 ≥ 400 000) — a `D-VS-3083` szerint a FUTÓ
-munkablokk célzott ellenőrzéssel **lezárható**, és a KÖVETKEZŐ önálló nagy blokk **friss
-beszélgetésben** induljon. A lezárás címén nem indítottam új feltárást, új funkciót vagy opcionális
-teljes söprést — a kötelező kapu zöld, minden commit feltolva.
+**ZÁRÓ MÉRÉS A CSOMAG VÉGÉN** (`2026-10-08T05:57:32Z` → `17:30:00Z`): **697 hívás** · fő-szál
+kontextusmedián **458 460** · max **782 772** · 400 ezer fölött **384 hívás** · **ügynök-bemenet 0
+(nulla al-ügynök)** · cache-olvasás **314 791 902** · kimenet **670 432** · lefedettség **teljes**
+(1 átirat, 1749 hívás, minden modell-válasz usage-dzsal). **A SÁV: VÁLTÁS** (458 460 ≥ 400 000) — a
+`D-VS-3083` szerint a FUTÓ munkablokk célzott ellenőrzéssel **lezárható**, és a KÖVETKEZŐ önálló nagy
+blokk **friss beszélgetésben** induljon. A lezárás címén nem indítottam új feltárást, új funkciót
+vagy opcionális teljes söprést: a két utolsó P2 javítása, a jelei és az **érintett kötelező kapu**
+tartozott bele, semmi más.
+
+**A MEDIÁN LEFELÉ MOZDULT** (541 361 → 458 460), és ez nem megtakarítási állítás: a két utolsó
+review-kör javítása **célzott** volt (három függvény, egy nyelvi kulcs, nyolc új mérce), tehát a
+hosszú ablakban a rövidebb hívások lenyomták a mediánt. A sáv ettől **nem** változott: a VÁLTÁS
+jelző áll. A fő szál ébresztései: **user 2×** → 152 hívás · **tömörítés 2×** → 220 hívás ·
+**értesítés 5×** → 325 hívás (a tömörítéssel folytatott beszélgetés az `R114` szerint NEM friss
+beszélgetés — ezt nem is állítom annak).
 
 **A csomag közbeni pillanatkép (a jelentés első változatakor): FIGYELMEZTETÉS** (356 605 a 300 000–400 000 sávban) — a `D-VS-3083` szerint **megállni nem
 kell, új beszélgetést nem kérünk**; a munkablokk határán rövid állapotmérés jár, és ez a jelentés az.
@@ -391,9 +430,13 @@ Két dolog maradt, és egyik sem a végrehajtón áll:
    futtató; (b) a program-keret kimondott megemelése (és akkor mennyire); (c) a mai állapot
    elfogadása azzal, hogy ezeknek a programoknak **nincs** verdiktje. A programok átírása nem út —
    a parancs tiltja, és a rekonstrukció a saját előfeltevésünket igazolná vissza (`KUKA-054`).
-2. **A független review a mai fejre.** A külső ellenőrző használati korlátja mért tény; a korlát
-   alatt nem kérek újra átolvasást, és keretet nem vásárolok. Amikor a korlát felszabadul, a
-   `fb231e6` fej átolvasása az első teendő.
+2. **A független review a mai fejre.** A legfrissebb BEFEJEZETT kör az `1585079`-et fedi; a mai fej
+   (`23b4497`) a 11–17. javítás, és egy hatodik kör a `c5d0b63`-on még fut. A mai fej átolvasása
+   tehát **nyitott tétel** — és mivel a mérő sávja **VÁLTÁS**, ez a következő, önálló blokk dolga
+   (`D-VS-3083`), nem ennek a lezárásnak a része.
+3. **A `KUKA-431` nevesített mérés-hiánya.** A szűk **szerep**-plafonra nincs élő fixtúránk, mert a
+   szerep-tengely szűkítésére ma nincs API-út. Ez is döntés: vagy épül hozzá fejlesztői út, vagy a
+   forrás-pin marad, kimondva.
 
 **A csomag korlátai megtartva:** nincs merge, nincs force-push, nincs felhős telepítés, nincs
 titok-módosítás, nincs valódi üzleti adatváltoztatás, nincs V2-/production-módosítás, nincs új
