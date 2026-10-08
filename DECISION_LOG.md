@@ -16,6 +16,46 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3220 — VISSZAFORDÍTHATATLANT CSAK IGAZOLT VÁLASZ UTÁN (R176, külső P2)
+
+A bemutató-visszaállás ELŐBB elvette a tárolt haladást, és csak UTÁNA kérdezte meg a kiszolgálót —
+egy múló hálózati hiba így **véglegesen** elvitte a haladást, mert az újrapróbálkozásnak már nem volt
+mit visszaállítania. Mostantól belenézünk, megmérjük a választ, és csak SIKER után ürítünk; a
+„kiszolgáló ma nem adja" viszont nem múló hiba, ott ürítünk. Élő tanú: `R176-K7` harmadik őre (503
+mellett a rekesz marad, feloldás után a bemutató visszaáll). Tanulság: **KUKA-426**.
+
+---
+
+## D-VS-3219 — AMI INDEX SZERINT ÁLL VISSZA, ANNAK A DEFINÍCIÓ AZONOSSÁGÁT IS IGAZOLNI KELL (R176, külső P2)
+
+Az átadás a lépés-indexet és a lépés-állapotokat vitte, a bemutató **verzióját** nem — egy új kiadás
+ugyanannyi lépés mellett átírhatja a célokat és a feladatokat, és az index szerinti visszaírás
+kész-nek jelölhet meg nem történt feladatot. A rekesz mostantól hordozza és a visszaállás összeveti a
+verziót. Tanulság: **KUKA-425**.
+
+---
+
+## D-VS-3218 — EGY ÁTMENET SZABÁLYÁT AZ ÁTMENETRE KELL FELTENNI, NEM AZ ÁLLAPOTRA (R176, külső P2)
+
+A `D-VS-3214`-es javításom az átadást a futás helyzetéhez kötötte (`run.at >= elsoValtas`), ami a
+történet elejét kizárta, a közepét nem: egy közönséges kilépés — például a levél-fogadó lépésén —
+továbbra is átadott. Mostantól **kilépésnél csak a váltás-lépés jogosít**; minden más nézet-váltás
+(belépés · fiókváltás · az elfogadás utáni frissítés) változatlan. Élő tanú: `R176-K7` első őre.
+Tanulság: **KUKA-424**.
+
+---
+
+## D-VS-3217 — A VÁLTÁS TENGELYÉT A LÉPÉS MONDJA KI (R176, külső P2)
+
+Az `actorSwitchReady` `(subject || book)` alakja minden nézet-változást minden váltásnak elfogadott:
+egy **személy**-váltó lépésen elég volt fiókot váltani — tehát ugyanaz a fiókkezelő mehetett tovább a
+**meghívott** lépésein —, és fordítva, egy **fiók**-váltó lépésen egy belépés-csere teljesítette. A
+tengelyt mostantól a lépés deklarálja (`switch_axis`, zárt készlet: `subject` · `book`), a kapu csak
+azt fogadja el, nyilatkozat nélkül zár, és a mező a **határon** is átmegy (`KUKA-394`). Tanulság:
+**KUKA-423**.
+
+---
+
 ## D-VS-3216 — EGY ÍRÁS UTÁN A KÉPERNYŐ CSAK AZT ÁLLÍTHATJA, AMIT A VÁLASZ IGAZOL (R176, külső P2)
 
 A meghívó-visszalépés a `POST /api/invites/pending/forget` válaszát **eldobta**, és a böngésző

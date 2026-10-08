@@ -1716,6 +1716,42 @@ try {
         .find((x) => x.email === 'u-dora2@pelda.hu');
       await fg.post('/api/members/revoke', { subject_id: dora2Alany && dora2Alany.subject_id });
       const tagNelkul = await belepveT(fg);
+      /**
+       * (as12–as13) A VÁLTÁS TENGELYE (R176, külső review P2 · `KUKA-423`).
+       *
+       * A LELET: a `actorSwitchReady` „vagy" alakja MINDEN nézet-változást minden váltásnak
+       * elfogadott — egy SZEMÉLY-váltó lépésen elég volt FIÓKOT váltani, tehát ugyanaz a fiókkezelő
+       * mehetett tovább a MEGHÍVOTT lépésein. A kapu MOST a lépés által DEKLARÁLT tengelyt kéri.
+       * A mérés a VALÓDI függvényt hívja (`KUKA-207`), mindkét irányban, és a nyilatkozat nélküli
+       * esetet is méri (fail-closed).
+       */
+      const tour = await import('./public/tour.mjs');
+      const futas = (lepes) => ({ id: 't', version: '2.0.0', at: 0, role: 'admin',
+        view: { subject: 'anna', book: 'ceg' }, steps: [{ ...lepes, state: 'pending' }] });
+      const keszE = (r, v) => tour.actorSwitchReady(r, { view: v, role: 'admin' });
+      const alanyL = futas({ id: 's1', target: 'actor-switch', switch_actor: true, switch_axis: 'subject' });
+      const fiokL = futas({ id: 's1', target: 'account-switcher', switch_actor: true, switch_axis: 'book' });
+      const nincsL = futas({ id: 's1', target: 'actor-switch', switch_actor: true });
+      const m = {
+        alany_csak_fiok: keszE(alanyL, { subject: 'anna', book: 'mas' }),
+        alany_jo: keszE(alanyL, { subject: 'bela', book: 'bela-sajat' }),
+        fiok_csak_alany: keszE(fiokL, { subject: 'bela', book: 'ceg' }),
+        fiok_jo: keszE(fiokL, { subject: 'anna', book: 'mas' }),
+        nyilatkozat_nelkul: keszE(nincsL, { subject: 'bela', book: 'mas' }),
+      };
+      step('(as12) R176/P2: a váltás-lépés a DEKLARÁLT tengelyt kéri — a MÁSIK tengely változása NEM teljesíti (RÉGEN: a „vagy" alak miatt bármelyik változás elég volt)',
+        m.alany_csak_fiok === false && m.fiok_csak_alany === false, m);
+      step('(as13) R176/P2 ELLENPÁR: a HELYES tengely változása viszont teljesíti, és nyilatkozat nélkül a kapu ZÁR (fail-closed)',
+        m.alany_jo === true && m.fiok_jo === true && m.nyilatkozat_nelkul === false
+        && tour.SWITCH_AXES.join(',') === 'subject,book', m);
+      // ÉS MINDEN VÁLTÁS-LÉPÉS DEKLARÁLJA A TENGELYÉT — különben a kapu a saját történetünket zárná.
+      const tengelyNelkul = Object.values(TOURS).flatMap((t) => t.steps
+        .filter((x) => x.switch_actor === true && !tour.SWITCH_AXES.includes(x.switch_axis))
+        .map((x) => `${t.id}/${x.id}`));
+      step('(as14) R176/P2: MINDEN szereplő-váltó lépés kimondja a tengelyét (a regiszterből mérve), és a HATÁR át is adja',
+        tengelyNelkul.length === 0 && /switch_axis: st\.switch_axis \?\? null/.test(srvAs),
+        { tengely_nelkul: tengelyNelkul.join(' · ') || 'egy sincs' });
+
       step('(as11) R176/P2: a MEGSZÜNTETETT tagság NEM számít induló adatnak — a visszatérés-történet felkínálása eltűnik (RÉGEN: a nyers `revoked_at IS NULL` miatt megmaradt, és a 3. lépésen megszakadt volna)',
         tagjaval.ind.includes('tour.reentry') && !tagNelkul.ind.includes('tour.reentry'),
         { hatalyos_taggal: tagjaval.ind.includes('tour.reentry'), megszuntetes_utan: tagNelkul.ind.includes('tour.reentry') });

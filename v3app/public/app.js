@@ -942,7 +942,7 @@ import { inviteNextKey } from './inviteText.mjs';
     const pr = byTest('profile'); if (pr) pr.open = false;
     setNavOpen(false);
   }
-  function resetViewCaches() {
+  function resetViewCaches({ kilepes = false } = {}) {
     // A SEGÉD ÁLLAPOTA IS NÉZETHEZ KÖTÖTT (KUKA-218: minden nézethez kötött tár EGY helyen ürül).
     // A beszélgetés, a tudás-index, az engedélyezett műveletek és a futó bemutató MIND a megnyitáskori
     // személy + fiók párhoz tartozik — a fiókváltás vagy a másik ember belépése után egyik sem élhet
@@ -952,7 +952,7 @@ import { inviteNextKey } from './inviteText.mjs';
     state.astStatus = null;
     state.helpIndex = null;
     // A DEKLARÁLT VÁLTÁS-HATÁRON a futás ÁTADÓDIK (ACT-01) — minden máson ugyanúgy elvész.
-    saveTourHandover();
+    saveTourHandover({ kilepes });
     state.tour = null; state.tourBlocked = null; state.tourFinished = false; state.tourAborted = null;
     state.help = { open: false, view: 'ask', topic: null, search: '', faqSearch: '', faqOpen: null };
     tourMod.clearHighlight();
@@ -1804,7 +1804,7 @@ import { inviteNextKey } from './inviteText.mjs';
    * mai válaszából veszi (AST-01), és ha a bemutató ma nem indítható, NEVEZETTEN elenged.
    */
   const TOUR_HANDOVER_KEY = 'vs3.tour.handover';
-  function saveTourHandover() {
+  function saveTourHandover({ kilepes = false } = {}) {
     const run = state.tour;
     if (!run) return;
     // A KERESZT-SZEREPLŐS FUTÁS az, amelyik DEKLARÁLTAN átível a szereplőkön. Csak ez adódik át —
@@ -1830,10 +1830,24 @@ import { inviteNextKey } from './inviteText.mjs';
      */
     const elsoValtas = run.steps.findIndex((x) => x.switch_actor === true);
     if (elsoValtas < 0 || run.at < elsoValtas) return;
+    /**
+     * ÉS A KÖZÖNSÉGES KILÉPÉS CSAK A DEKLARÁLT HATÁRON AD ÁT (R176, külső review P2 — `KUKA-424`).
+     *
+     * A LELET: az előző alakom (`run.at >= elsoValtas`) a kilépést az első váltás UTÁN is átadásnak
+     * vette — például a levél-fogadó lépésén —, pedig ott NEM átadás van folyamatban: a futás épp
+     * annak az embernek szól, aki kilép. A következő ember így megkapta az előző haladását egy olyan
+     * ponton, ahol a történet nem kért váltást. A feltétel ezért az ÁTMENETRE szól, nem a futás
+     * helyzetére: KILÉPÉSNÉL csak a VÁLTÁS-LÉPÉS jogosít (ott maga a történet kéri a kilépést);
+     * minden más nézet-váltás (belépés · fiókváltás · az elfogadás utáni frissítés) változatlan.
+     */
+    if (kilepes && run.steps[run.at] && run.steps[run.at].switch_actor !== true) return;
     if (run.endedBy) return;                       // lezárt futást nem adunk át
     try {
       sessionStorage.setItem(TOUR_HANDOVER_KEY, JSON.stringify({
         id: run.id, at: run.at,
+        // A VERZIÓ IS ÁTMEGY (R176, külső review P2 · `KUKA-425`): a haladás INDEX szerint áll, egy
+        // új kiadás viszont átírhatja a lépések célját vagy feladatát UGYANANNYI lépés mellett.
+        version: run.version ?? null,
         states: run.steps.map((x) => x.state),
         /**
          * A NÉZET PÁR — ÉS AZ ÁTADÁS IS PÁRT TÁROL (R142 — F142-05, MÉRVE).
@@ -1853,20 +1867,40 @@ import { inviteNextKey } from './inviteText.mjs';
       }));
     } catch { /* a tárolás hiánya nem állíthatja meg a váltást — a bemutató elvész, a művelet nem */ }
   }
-  function takeTourHandover() {
+  function clearTourHandover() {
+    try { sessionStorage.removeItem(TOUR_HANDOVER_KEY); } catch { /* a tár nem írható — a futás akkor is elvész */ }
+  }
+  /** CSAK BELENÉZ — az ürítés a `clearTourHandover` dolga, a SIKERES visszaállás után (`KUKA-426`). */
+  function peekTourHandover() {
     try {
       const raw = sessionStorage.getItem(TOUR_HANDOVER_KEY);
       if (!raw) return null;
-      sessionStorage.removeItem(TOUR_HANDOVER_KEY);
       const o = JSON.parse(raw);
       return (o && typeof o.id === 'string' && Number.isInteger(o.at) && Array.isArray(o.states)) ? o : null;
     } catch { return null; }
   }
   /** A VÁLTÁS UTÁNI VISSZAÁLLÁS. A lépés lezárását NEM ez adja — az a `tourTaskDone` dolga. */
   async function resumeTourAfterSwitch() {
-    const h = takeTourHandover();
+    /**
+     * A REKESZT CSAK SIKERES VISSZAÁLLÁS UTÁN ÜRÍTJÜK (R176, külső review P2 — `KUKA-426`).
+     *
+     * A LELET: az előző alak ELŐBB elvette a tárolt haladást (`takeTourHandover`), és CSAK UTÁNA
+     * kérte le a lépés-listát. Ha az `/api/assistant/status` épp hálózati vagy kiszolgáló-hibába
+     * futott, a válasz ÜRES bemutató-listának látszott, a visszaállás `notAvailable`-t írt — és az
+     * újrapróbálkozásnak már nem volt mit visszaállítania: a haladás VÉGLEG elment egy MÚLÓ hiba
+     * miatt. Ezért most BELENÉZÜNK, és csak akkor ürítünk, ha a válasz MEGMÉRT (`ok`) és a
+     * visszaállás SIKERÜLT (`KUKA-215` · `KUKA-121`).
+     */
+    const h = peekTourHandover();
     if (!h) return;
     await loadHelpData();
+    /**
+     * A MÚLÓ HIBA NEM „NINCS ILYEN BEMUTATÓ": a kérés el sem jutott a kiszolgálóig (`ok: false`).
+     * Ilyenkor a rekesz MARAD, a futás nevezetten szünetel, és egy újabb betöltés visszaállítja.
+     */
+    if (!state.astStatus || state.astStatus.ok !== true) {
+      state.tour = null; state.tourAborted = 'notAvailable'; renderTour(); return;
+    }
     /**
      * A LÉPÉS-LISTA A FOLYTATHATÓ LISTÁBÓL IS JÖHET (R176 §1 — a parancs nevesített hibája:
      * „a meghívó elfogadása utáni folytatásvesztés").
@@ -1888,13 +1922,25 @@ import { inviteNextKey } from './inviteText.mjs';
     const def = defs.find((t) => t.id === h.id) || folytathatok.find((t) => t.id === h.id);
     // A SZERVER MA SEM INDÍTHATÓNAK, SEM FOLYTATHATÓNAK NEM ADJA: nem erőltetjük vissza, és nem is
     // hallgatunk róla (KUKA-050).
-    if (!def) { state.tour = null; state.tourAborted = 'notAvailable'; renderTour(); return; }
+    // A SZERVER MA NEM ADJA (és a kérés MEGTÖRTÉNT): ez nem múló hiba, tehát a rekesz is elmegy.
+    if (!def) { clearTourHandover(); state.tour = null; state.tourAborted = 'notAvailable'; renderTour(); return; }
     const run = tourMod.newTourRun({ def, view: view(), role: state.me && state.me.current_role });
     if (!run) return;
-    // A TÁROLT ÁLLAPOT CSAK AKKOR ÉRVÉNYES, HA UGYANARRA A LÉPÉS-LISTÁRA ILLIK.
-    if (h.states.length !== run.steps.length || h.at >= run.steps.length) {
+    /**
+     * A TÁROLT ÁLLAPOT CSAK AKKOR ÉRVÉNYES, HA UGYANARRA A LÉPÉS-LISTÁRA ILLIK — ÉS UGYANARRA A
+     * VERZIÓRA (R176, külső review P2 · `KUKA-425`).
+     *
+     * A haladás INDEX szerint áll. Egy új kiadás viszont átírhatja a lépések célját vagy feladatát
+     * UGYANANNYI lépés mellett — ilyenkor az index szerinti visszaírás kész-nek jelölne olyan
+     * feladatot, ami meg sem történt, és más utasításnál folytatna. A futó állapot amúgy is a
+     * verzióhoz van kötve (`newTourRun`), tehát az átadás sem lehet lazább.
+     */
+    if (h.states.length !== run.steps.length || h.at >= run.steps.length
+        || (h.version ?? null) !== (run.version ?? null)) {
+      clearTourHandover();
       state.tour = null; state.tourAborted = 'notAvailable'; renderTour(); return;
     }
+    clearTourHandover();
     run.steps.forEach((st, i) => { if (tourMod.STEP_STATES.includes(h.states[i])) st.state = h.states[i]; });
     run.at = h.at;
     // A FUTÁS MÉG A RÉGI NÉZŐHÖZ TARTOZIK: így a váltás TÉNYE mérhető marad (`actorSwitchReady`).
@@ -2926,7 +2972,7 @@ import { inviteNextKey } from './inviteText.mjs';
      */
     await api('POST', '/api/logout', {});
     state.generation += 1;
-    resetViewCaches();
+    resetViewCaches({ kilepes: true });
     state.me = null; state.ctx = { subject: null, book: null }; state.members = [];
     /**
      * AZ ELŐZŐ EMBER MEGHÍVÓ-JEGYE SEM ÉLHETI TÚL A KILÉPÉST (R164/3 — SAJÁT LELET, MÉRVE).

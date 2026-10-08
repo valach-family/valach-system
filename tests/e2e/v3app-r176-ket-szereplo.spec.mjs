@@ -45,7 +45,7 @@ async function inviteRowRef(page, email) {
  * A lépés célja (a kiemelt vezérlő) a kijelentkezés — azt nyomjuk meg, ahogy a felhasználó. A
  * belépés már a másik emberé: a bemutató a kiszolgáló igazolt válaszára zárja a lépést.
  */
-async function valtsSzereplot(page, kire, { valtasLepes = false } = {}) {
+async function valtsSzereplot(page, kire, { valtasLepes = false, atadasMeres = false } = {}) {
   /**
    * A NÉZŐ ÚTJÁT KÖVETJÜK — A PRÓBA NEM NYITJA KI HELYETTE A PROFILMENÜT (R176, külső review P2).
    *
@@ -70,6 +70,21 @@ async function valtsSzereplot(page, kire, { valtasLepes = false } = {}) {
     for (let k = 0; k < n; k += 1) if (await horgony.nth(k).isVisible().catch(() => false)) return horgony.nth(k);
     return null;
   };
+  let nyitoHiba = '';
+  /**
+   * AZ ÁTADÁS-MÉRÉS HATÓKÖRE KIMONDVA (`KUKA-216`). A `R176-K7`-ben a futó buborék a FEJLÉCBEN álló
+   * célra (`demo-mail-open`) mutat, és eltakarja a profilmenü nyitóját — ott tehát a kattintási út
+   * nem járható, miközben a mérés tárgya NEM a kattinthatóság, hanem a KILÉPÉS átadás-szabálya. Ezt
+   * az ágat ezért kimondottan kérni kell, és csak arra használjuk: a vezérlő elérhetőségét a
+   * váltás-lépéseken a `K1/K2/K3` méri a néző útján.
+   */
+  if (atadasMeres) {
+    await page.getByTestId('profile').evaluate((el) => { el.open = true; }).catch(() => {});
+    await page.getByTestId('logout').dispatchEvent('click');
+    await expect(page.getByTestId('login-email')).toBeVisible();
+    await loginUI(page, kire.email, PASSWORD);
+    return;
+  }
   let vezerlo = await lathato();
   if (!vezerlo) {
     // A FELTÁRÁS A NÉZŐ DOLGA: a buborék által KIEMELT vezérlőt nyomjuk meg (`KUKA-228`).
@@ -89,10 +104,12 @@ async function valtsSzereplot(page, kire, { valtasLepes = false } = {}) {
    * felhasználót mintázzuk: ő tudja, hol a kijelentkezés, és megnyomja a menü nyitóját.
    */
   if (!vezerlo && !valtasLepes) {
-    const nyito = page.locator('[data-tour-anchor="actor-switch"]').first()
-      .locator('xpath=ancestor::details[1]/summary');
-    if (await nyito.count() && await nyito.isVisible()) {
-      await nyito.click({ timeout: 2500 }).catch(() => {});
+    // A HÉJ PROFILMENÜJE a kijelentkezés otthona — ugyanazon az úton nyitjuk, mint a közös segédek.
+    const prof = page.getByTestId('profile');
+    if (await prof.count()) {
+      if (!(await prof.evaluate((el) => el.open).catch(() => false))) {
+        nyitoHiba = await prof.locator('summary').click({ timeout: 2500 }).then(() => '', (e) => String(e.message).split('\n')[0].slice(0, 90));
+      }
       vezerlo = await lathato();
     }
   }
@@ -103,13 +120,13 @@ async function valtsSzereplot(page, kire, { valtasLepes = false } = {}) {
       const kiemelt = [...document.querySelectorAll('.tourtarget')]
         .map((el) => el.getAttribute('data-testid') || el.tagName.toLowerCase()).join(',');
       const B = document.querySelector('[data-testid="tour"]');
-      return `panel=${Boolean(B)} lépés="${(document.querySelector('[data-testid="tour-step-title"]')?.textContent || '-').slice(0, 34)}"`
+      return `nyitoHiba=HELY panel=${Boolean(B)} lépés="${(document.querySelector('[data-testid="tour-step-title"]')?.textContent || '-').slice(0, 34)}"`
         + ` blocked="${(document.querySelector('[data-testid="tour-blocked"]')?.textContent || '-').slice(0, 50)}"`
         + ` horgonyok=[${jel || 'egy sincs'}] kiemelt=[${kiemelt}]`
         + ` profil_open=${String(document.querySelector('[data-testid="profile"]')?.open)}`
         + ` buborék="${(document.querySelector('[data-testid="tour-pending"]')?.textContent || '(nincs)').slice(0, 70)}"`;
     });
-    throw new Error(`a váltó vezérlő NEM tárult fel a néző útján — MÉRVE: ${d}`);
+    throw new Error(`a váltó vezérlő NEM tárult fel a néző útján — MÉRVE: ${d.replace('nyitoHiba=HELY', `nyitoHiba="${nyitoHiba}"`)}`);
   }
   await vezerlo.click();
   await expect(page.getByTestId('login-email')).toBeVisible();
@@ -240,7 +257,7 @@ async function nyisdMegALevelet(page, email, mod = 'barmelyik') {
  *
  * A VISSZATÉRÉS HÁROM ÁLLAPOTÚ (`KUKA-216`): meddig jutott · volt-e NEVEZETT megszakítás · mi a baj.
  */
-async function vezess(page, tourId, akciok, { lepesHatar = 4000 } = {}) {
+async function vezess(page, tourId, akciok, { lepesHatar = 4000, megallAt = null } = {}) {
   const steps = TOURS[tourId].steps;
   const D = HU.TOUR[tourId];
   const naplo = [];
@@ -282,6 +299,9 @@ async function vezess(page, tourId, akciok, { lepesHatar = 4000 } = {}) {
       const c = await page.getByTestId(st.target).count().catch(() => 0);
       naplo.push(`${st.id}${c === 0 ? '[nincs]' : (l ? '' : '[rejtett]')}`);
     }
+    // „EDDIG VEZESS": a megnevezett lépésnél MEGÁLLUNK — az akciója és a Tovább már nem fut le.
+    // (Így tudunk a történet KÖZEPÉN, egy NEM váltás-lépésen mérni — `R176-K7`.)
+    if (megallAt && st.id === megallAt) return { elert: i, lepes: steps.length, baj: null, naplo };
     if (akciok[st.id]) await akciok[st.id]();
     if (await page.getByTestId('tour-blocked').count() > 0) {
       const m = ((await page.getByTestId('tour-blocked').textContent()) || '').trim().slice(0, 90);
@@ -639,4 +659,76 @@ test('R176-K6 — ÁTÍVELŐ történet, de VÁLTÁS-HATÁR ELŐTTI kilépés: a
   const ki = await p.evaluate(async () => (await fetch('/api/me').then((r) => r.json())).subject_id || null);
   expect(ki, 'a belépett ember TÉNYLEGESEN a másik').toBe(bela4.subjectId);
   expect(ws4.bookId.length > 0, 'a próba a saját, friss vállalkozásán mért').toBe(true);
+});
+
+test('R176-K7 — AZ ÁTADÁS HÁROM ŐRE: csak DEKLARÁLT határon születik, VERZIÓ-váltáskor nem áll vissza, és MÚLÓ hibánál nem vész el', async () => {
+  /**
+   * HÁROM KÜLSŐ P2 EGY PRÓBÁBAN (chatgpt-codex, R176) — mindhárom az ebben a körben írt
+   * átadás-kódomról szól, és mindhárom ÉLŐ böngészőben mérve:
+   *
+   *   (1) `KUKA-424` — az első váltás UTÁN, de egy KÖZÖNSÉGES lépésen kilépve az előző alakom még
+   *       mentett: a következő ember megkapta az előző haladását. Most csak a VÁLTÁS-lépés jogosít.
+   *   (2) `KUKA-425` — a rekesz nem hordozta a VERZIÓT, tehát egy új kiadás lépés-listájára az index
+   *       szerinti visszaírás kész-nek jelölhetett volna meg nem történt feladatot.
+   *   (3) `KUKA-426` — a visszaállás ELŐBB ürítette a rekeszt, és csak UTÁNA kérte le a lépés-listát:
+   *       egy MÚLÓ hálózati hiba így VÉGLEG elvitte a haladást.
+   */
+  const anna5 = await world.person('anna5');
+  await createWorkspaceUI(anna5.page, { name: 'R176 Atadas-Orok Kft', business: { jurisdiction: 'HU', tax_id: '62345678-1-42' } });
+  const bela5 = await world.person('bela5');
+  const p = anna5.page;
+  await inviteUI(p, { email: bela5.email, role: 'user', scope: 'keszlet' });
+  await gotoPage(p, 'overview');
+
+  const REKESZ = 'vs3.tour.handover';
+  const rekesz = () => p.evaluate((k) => { try { return sessionStorage.getItem(k); } catch { return 'OLVASHATATLAN'; } }, REKESZ);
+
+  // ── (1) KÖZÖNSÉGES LÉPÉSEN, az ELSŐ VÁLTÁS UTÁN: nincs átadás ──────────────────────────────
+  expect(await startTourViaHelp(p, 'tour.inviteRevoke'), 'az átívelő történet elindult').toBe(true);
+  // A hetedik lépésig visszük: ez MÁR az első váltás (s6) UTÁN van, de NEM váltás-lépés.
+  const r1 = await vezess(p, 'tour.inviteRevoke', {
+    s4: async () => {
+      await closeModals(p);
+      const ref = await inviteRowRef(p, bela5.email);
+      await p.getByTestId(`invite-revoke-${ref}`).click();
+      await expect(p.getByTestId('invite-revoke-confirm')).toBeVisible();
+      await withResponse(p, { path: '/api/invites/revoke' }, () => p.getByTestId('invite-revoke-confirm').click());
+    },
+    s6: async () => { await valtsSzereplot(p, bela5, { valtasLepes: true }); },
+  }, { megallAt: 's7' });
+  expect(r1.baj || 'eljutott', `a hetedik lépésig eljutott — mérve: ${r1.naplo.join('→')}`).toBe('eljutott');
+  await expect(p.getByTestId('tour-step-title')).toHaveText(HU.TOUR['tour.inviteRevoke'].s7.title);
+
+  await valtsSzereplot(p, anna5, { atadasMeres: true });   // KÖZÖNSÉGES kilépés egy NEM váltás-lépésen
+  expect((await rekesz()) || 'üres', 'az átadás-rekesz ÜRES: a közönséges kilépés nem ad át (KUKA-424)').toBe('üres');
+  await expect(p.getByTestId('tour-step-title')).toHaveCount(0);
+
+  // ── (2) VERZIÓ-ELTÉRÉS: a tárolt haladás NEM áll vissza ────────────────────────────────────
+  await p.evaluate(([k, csomag]) => { try { sessionStorage.setItem(k, csomag); } catch { /* a tár nem írható */ } },
+    [REKESZ, JSON.stringify({ id: 'tour.inviteRevoke', at: 7, version: '0.0.1-regi',
+      states: new Array(19).fill('done'), from_subject: 'valaki-mas', from_book: null })]);
+  await p.reload();
+  await expect(p.getByTestId('app')).toBeVisible();
+  await expect(p.getByTestId('tour-step-title')).toHaveCount(0);
+  expect((await rekesz()) || 'üres', 'a VERZIÓ-eltérés miatt elvetett rekesz el is megy (KUKA-425)').toBe('üres');
+
+  // ── (3) MÚLÓ HIBA: a rekesz MEGMARAD, és egy későbbi, sikeres betöltés visszaállítja ───────
+  await p.evaluate(([k, csomag]) => { try { sessionStorage.setItem(k, csomag); } catch { /* a tár nem írható */ } },
+    // AZ INDEX EGY VALÓDI VÁLTÁS-LÉPÉSRE MUTAT (s6 = 5. index): a visszaállás a RÉGI nézőhöz köti a
+    // futást, és a váltás tényét ott méri — egy közönséges lépésen a nézet-váltás őre megállítaná.
+    [REKESZ, JSON.stringify({ id: 'tour.inviteRevoke', at: 5, version: '2.0.0',
+      states: new Array(19).fill('pending'), from_subject: 'valaki-mas', from_book: null })]);
+  await p.route('**/api/assistant/status**', async (route) => {
+    await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ ok: false, reason: 'unavailable' }) });
+  });
+  await p.reload();
+  await expect(p.getByTestId('app')).toBeVisible();
+  await p.waitForTimeout(400);
+  expect((await rekesz()) === null ? 'ELVESZETT' : 'megmaradt',
+    'MÚLÓ hiba esetén a rekesz MEGMARAD — az újrapróbálkozásnak legyen mit visszaállítania (KUKA-426)').toBe('megmaradt');
+
+  await p.unroute('**/api/assistant/status**');
+  await p.reload();
+  await expect(p.getByTestId('tour-step-title')).toBeVisible({ timeout: 15000 });
+  expect((await rekesz()) || 'üres', 'a SIKERES visszaállás után viszont elmegy').toBe('üres');
 });

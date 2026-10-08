@@ -379,6 +379,12 @@ export function checkRun(run, { view, role }) {
  * NEM elég, hogy a szerep stimmel: az ALANYNAK is másnak kell lennie, különben a „váltás" egy
  * helyben állás volna (KUKA-129: a nyugtának is igazat kell mondania).
  */
+/**
+ * A VÁLTÁS TENGELYEINEK ZÁRT KÉSZLETE (R176 · `KUKA-423`): `subject` = MÁS EMBER nézete,
+ * `book` = ugyanaz az ember MÁSIK fiókja. Egy új érték új, MÉRT szabályt kíván — addig a kapu zár.
+ */
+export const SWITCH_AXES = Object.freeze(['subject', 'book']);
+
 export function actorSwitchReady(run, { view, role }) {
   if (!run) return false;
   const step = run.steps[run.at];
@@ -395,7 +401,20 @@ export function actorSwitchReady(run, { view, role }) {
    * fiók-váltást pedig az alany-váltás őre MEGSZAKÍTÁSNAK minősítené. A nézet a KETTŐ EGYÜTT:
    * alany ÉS fiók (KUKA-208: a kontextus PÁR).
    */
-  return (view.subject ?? null) !== run.view.subject || (view.book ?? null) !== run.view.book;
+  /**
+   * …DE A LÉPÉS KIMONDJA, MELYIK TENGELYEN (R176, külső review P2 — `KUKA-423`).
+   *
+   * A LELET: a „vagy" alak MINDEN váltást minden váltásnak elfogadott. Egy SZEMÉLY-váltó lépésen
+   * (`actor-switch`) elég volt FIÓKOT váltani — tehát UGYANAZ a fiókkezelő mehetett tovább a
+   * meghívott lépésein (levél, elfogadás) a MÁSIK ember helyett; és fordítva: egy FIÓK-váltó
+   * lépésen (`account-switcher`) egy belépés-csere is teljesítette, a kért cég kiválasztása nélkül.
+   * A nézet továbbra is PÁR (`KUKA-208`), de hogy MELYIK felének kell változnia, azt a LÉPÉS
+   * deklarálja — zárt készletből, nyilatkozat nélkül ZÁRVA (`KUKA-236`).
+   */
+  const tengely = step.switch_axis ?? null;
+  if (!SWITCH_AXES.includes(tengely)) return false;
+  if (tengely === 'subject') return (view.subject ?? null) !== run.view.subject;
+  return (view.book ?? null) !== run.view.book;
 }
 
 /**

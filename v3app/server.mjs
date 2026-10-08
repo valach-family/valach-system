@@ -1716,6 +1716,15 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       // Ha ezt a válasz nem vinné, a lap a saját feltevéséből dolgozna (AST-01).
       role: st.role ?? null,
       switch_actor: st.switch_actor === true,
+      /**
+       * ÉS A VÁLTÁS TENGELYE IS ÁTMEGY (R176, külső review P2 · `KUKA-423` · `KUKA-394`).
+       *
+       * A lap dönti el, hogy a váltás MEGTÖRTÉNT-e (`actorSwitchReady`), és ehhez tudnia kell,
+       * MELYIK tengelyen kellett változnia a nézetnek: `subject` (más ember) vagy `book` (ugyanaz
+       * az ember másik fiókja). Egy itt át NEM vitt mező a böngészőben `undefined`, és a kapu
+       * fail-closed — tehát a hiánya a történetet a váltás-lépésen állítaná meg.
+       */
+      switch_axis: st.switch_axis ?? null,
       // MI TÁRJA FEL a célt (panel · választás · navigáció). A lap ebből tudja, hogy a
       // hiányzó cél VÁRAKOZÁS-e vagy valódi megszakítás (TUR-01 · KUKA-228).
       appears_after: st.appears_after ?? null,
