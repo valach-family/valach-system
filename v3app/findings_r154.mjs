@@ -1526,6 +1526,16 @@ try {
       await anna.post('/api/workspaces', { name: 'U158 Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '12345678-1-42' } });
       const megh = await anna.post('/api/invites', { email: 'u-cili@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
       const jelolo = String(megh.body.token || '').slice(0, 8);
+      /**
+       * ÉS EGY VALÓDI TAG IS KELL — A TÖRTÉNET INDULÓ ADATA ELŐFELTÉTEL (R176 §1 · KUKA-417).
+       *
+       * A visszavonás története FÜGGŐ meghívást kér (ez Cilié, aki NEM fogadja el), a visszatérés
+       * története MÁSIK TAGOT (ez Dóra, aki elfogadja). Így MIND A KÉT tény igaz ebben a fiókban,
+       * tehát a lenti állítások a KAPUT mérik, nem a fixtúra hiányát (KUKA-120).
+       */
+      const dora = await fiok('u-dora');
+      const meghD = await anna.post('/api/invites', { email: 'u-dora@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+      await dora.post('/api/invites/redeem', { token: meghD.body.token });
 
       const KETSZEREPLOS = ['tour.inviteRevoke', 'tour.reentry'];
       const vanE = (r) => KETSZEREPLOS.filter((x) => r.ids.includes(x));
@@ -1652,6 +1662,39 @@ try {
       step('(as8) R176 §1 ELLENPÁR: a NYERS zárás EGYETLEN helyen áll, és a `go()`-ba visszamásolt alak nincs (a másolat volt az, ami a kilépésből kimaradt)',
         nyersProfil === 1 && nyersValto === 1 && visszairtGo === false,
         { nyers_profil: nyersProfil, nyers_valto: nyersValto, visszairt_go: visszairtGo });
+
+      /**
+       * (as9–as10) R176 §1 — A TÖRTÉNET INDULÓ ADATA IS ELŐFELTÉTEL (KUKA-417).
+       *
+       * A LELET, amit a KÖTELEZŐ böngésző-kapu mért a saját horgony-változásom felett: a váltó
+       * vezérlő megléte KEVÉS. Mintaadat nélküli vállalkozásban a `tour.inviteRevoke` a 4. lépésen
+       * (nincs FÜGGŐ meghívás), a `tour.reentry` a 2.-on (nincs MÁSIK tag) szakadt meg — a
+       * felkínálás maga volt a hibás állítás. A tényt a KISZOLGÁLÓ méri a tárból.
+       */
+      const fuggoR = await anna.get('/api/invites/waiting');
+      const tagokR = await anna.get('/api/members');
+      const tenyFuggo = (((fuggoR.body || {}).invites) || []).some((i) => i.state === 'pending');
+      const tenyMasTag = (((tagokR.body || {}).members) || []).some((m) => m.email && m.email !== 'u-anna@pelda.hu');
+      const kapuMert = /story_data: storyDataFacts\(bookId, session\.subject_id, clock\.now\(\)\)/.test(srvAs)
+        && /function storyDataFacts\(bookId, subjectId, at\)/.test(srvAs);
+      const zartKeszlet = /TOUR_STORY_DATA = Object\.freeze\(\['pending_invite', 'other_member'\]\)/.test(polAs)
+        && /if \(!TOUR_STORY_DATA\.includes\(t\.requires_story_data\)\) return false;/.test(polAs);
+      step('(as9) R176 §1: a két szereplős történet INDULÓ adata MÉRT tény a tárból (függő meghívás ÉS másik tag), zárt készlettel — nem feltevés és nem kézi névsor',
+        tenyFuggo === true && tenyMasTag === true && kapuMert && zartKeszlet,
+        { fuggo_meghivas: tenyFuggo, mas_tag: tenyMasTag, kiszolgalo_meri: kapuMert, zart_lista: zartKeszlet });
+
+      /**
+       * (as10) AZ ELLENPÁR, ÉS EGYSZERRE A FOLYTATÁS VÉDELME. Egy ÜRES vállalkozásban (se függő
+       * meghívás, se másik tag) a kettő NEM indítható — FOLYTATHATÓ viszont mindkettő: ami már
+       * elindult, annak az INDULÓ feltétele már nem feltétel (a meghívást épp beváltják a történet
+       * közben). E nélkül a kapu visszahozná a folytatásvesztést, amit az R176 §1 javítani kért.
+       */
+      const ures = await fiok('u-ures-176');
+      await ures.post('/api/workspaces', { name: 'U176 Üres Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '10779224-2-44' } });
+      const uresT = await belepveT(ures);
+      step('(as10) R176 §1 ELLENPÁR: INDULÓ ADAT NÉLKÜL egyik két szereplős történet sem INDÍTHATÓ — de MINDKETTŐ FOLYTATHATÓ (a futó történet nem esik el a haladásától)',
+        KETSZEREPLOS.every((x) => !uresT.ind.includes(x)) && KETSZEREPLOS.every((x) => uresT.fol.includes(x)),
+        { inditható: KETSZEREPLOS.filter((x) => uresT.ind.includes(x)), folytathato: uresT.fol });
     }
 
       // (u2) DEMÓ KI: ugyanazon a fiókon, UGYANAZZAL a bemutató-felülettel is eltűnnek — az ÉLES
@@ -1684,10 +1727,19 @@ try {
           && demoval.kivulallo.body.reason === nelkul.kivulallo.body.reason
           && demoval.kivulallo.status >= 400,
         { demoval: `${demoval.kivulallo.status}/${demoval.kivulallo.body.reason}`, nelkul: `${nelkul.kivulallo.status}/${nelkul.kivulallo.body.reason}` });
-      // ÉS A MEGHÍVÓ TÉNYLEGESEN ÉL: a fenti elutasítások nem azért jöttek, mert nincs mit visszavonni.
-      const sorok = u.store.all('SELECT token, redeemed_at FROM invite');
-      const vonasok = u.store.all('SELECT token FROM invite_revocation');
-      step('(u5) a mérés ALAPSOKASÁGA igaz: a meghívó ÉL (nincs beváltás, nincs visszavonás), tehát az elutasítások a JOGRÓL szólnak, nem a hiányról',
+      /**
+       * ÉS A MEGHÍVÓ TÉNYLEGESEN ÉL: a fenti elutasítások nem azért jöttek, mert nincs mit visszavonni.
+       *
+       * A MÉRÉS A VISSZAVONANDÓ MEGHÍVÓRA SZŰKÍTVE (R176 §1 — a saját fixtúra-bővítésem mérte). Ez a
+       * sor eddig a TELJES `invite` táblát számolta; a fiókba viszont bekerült Dóra MÁSIK, beváltott
+       * meghívója is (az `other_member` tény előállítója, `KUKA-417`), tehát a tábla-szintű darabszám
+       * nem a saját állításáról beszélt volna. A hatókör a FÜGGVÉNYHEZ tartozik, nem a fájlhoz
+       * (`KUKA-239`): itt Cili meghívója az alapsokaság, és ő NEM fogadta el.
+       */
+      const sorok = u.store.all('SELECT token, redeemed_at FROM invite WHERE invitee_value = ?', 'u-cili@pelda.hu');
+      const vonasok = sorok.length
+        ? u.store.all('SELECT token FROM invite_revocation WHERE token = ?', sorok[0].token) : [];
+      step('(u5) a mérés ALAPSOKASÁGA igaz: a VISSZAVONANDÓ meghívó ÉL (nincs beváltás, nincs visszavonás), tehát az elutasítások a JOGRÓL szólnak, nem a hiányról',
         sorok.length === 1 && !sorok[0].redeemed_at && vonasok.length === 0,
         { meghivo: sorok.length, bevaltott: sorok.filter((x) => x.redeemed_at).length, visszavonas: vonasok.length });
 

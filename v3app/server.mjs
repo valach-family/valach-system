@@ -1704,6 +1704,8 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     requires_dev_mailbox: TOURS[id].requires_dev_mailbox === true,
     requires_stock_access: TOURS[id].requires_stock_access === true,
     requires_demo_fixture: TOURS[id].requires_demo_fixture === true,
+    // ÉS A TÖRTÉNET INDULÓ ADATA IS ÁTMEGY (R176 §1): a lap ebből tudja, miért nem indítható.
+    requires_story_data: TOURS[id].requires_story_data ?? null,
     // A MEGHÍVÓ-KÉPERNYŐHÖZ KÖTÖTT BEMUTATÓ: a lap ebből tudja, hogy nem egy belső oldalra
     // kell vinnie, hanem a meghívó lapján kell maradnia (P109-01).
     requires_invite: TOURS[id].requires_invite === true,
@@ -1721,6 +1723,22 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     text: (dictFor(lang).TOUR || {})[id] || null,
     text: (dictFor(lang).TOUR || {})[id] || null,
     };
+  }
+
+  /**
+   * A TÖRTÉNET INDULÓ ADATÁNAK MÉRT TÉNYEI (R176 §1 · KUKA-417) — a zárt készlet a
+   * `policy.mjs` `TOUR_STORY_DATA`-jában áll, és MINDEN kulcsot ez a feloldó ad meg.
+   */
+  function storyDataFacts(bookId, subjectId, at) {
+    if (!bookId) return Object.freeze({ pending_invite: false, other_member: false });
+    const rows = store.all('SELECT token, redeemed_at, expires_at FROM invite WHERE book_id = ?', bookId);
+    const pendingInvite = rows.some((r) => !r.redeemed_at
+      && Date.parse(r.expires_at) > Date.parse(at)
+      && !inviteRevocationAt({ store, token: r.token, nowIso: at }).revoked);
+    const others = store.all(
+      'SELECT subject_id FROM membership WHERE book_id = ? AND revoked_at IS NULL', bookId)
+      .filter((m) => m.subject_id !== subjectId);
+    return Object.freeze({ pending_invite: pendingInvite, other_member: others.length > 0 });
   }
 
   function requesterContext(session, cur, opts = {}) {
@@ -1772,6 +1790,16 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
        * kiosztás-táblából, nem a tagságból és nem a feliratból.
        */
       demo_fixture: Boolean(bookId && demoFixtureOf(bookId)),
+      /**
+       * A TÖRTÉNET INDULÓ ADATA (R176 §1 — SAJÁT LELET, a kötelező kapu mérte · KUKA-417).
+       *
+       * A két átívelő történet NEM a nulláról indul: a visszavonás egy FÜGGŐ meghívást, a
+       * visszatérés egy MÁSIK tagot kér. A tényt a kiszolgáló a TÁRBÓL méri — a függő állapot
+       * precedenciája ugyanaz, mint a meghívó-listában (visszavont > elfogadott > lejárt > függő,
+       * `KUKA-018`: egy fogalomnak egy otthona van).
+       */
+      story_data: storyDataFacts(bookId, session.subject_id, clock.now()),
+
       book_id: bookId,
       member: Boolean(ws),
       role: ws ? ws.role : null,

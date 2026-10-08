@@ -245,9 +245,15 @@ export function allowedActionsFor(ctx = {}) {
  *                         soron következő lépése épp a CÉG fiókjára váltás (`account-switcher`).
  *
  * MINDEN MÁS OK ZÁR: terv, adatkör, kivezetett funkció, nem létező sor. Ezért zárt lista, és ezért
- * NEM `ignoreRole ? true : …` — a tolerálás a MÉRT két állapotra szól, nem a kapu kikapcsolására
+ * NEM `folytatas ? true : …` — a tolerálás a MÉRT két állapotra szól, nem a kapu kikapcsolására
  * (`KUKA-091`: a javítás iránya nem az őr lazítása).
  */
+/**
+ * A TÖRTÉNET INDULÓ ADATÁNAK ZÁRT KÉSZLETE (R176 §1). Egy új érték = egy új, MÉRT tény a
+ * kiszolgálóban — a kapu addig zárva (KUKA-236: a zárt lista a MEZŐKRE is érvényes).
+ */
+export const TOUR_STORY_DATA = Object.freeze(['pending_invite', 'other_member']);
+
 const RESUME_TOLERALT_OK = Object.freeze(['admin_required', 'personal_space']);
 
 /**
@@ -258,10 +264,11 @@ const RESUME_TOLERALT_OK = Object.freeze(['admin_required', 'personal_space']);
  * (`resumableToursFor`) nem. Ha a lánc két példányban állna, a következő kapu az egyikből
  * kimaradna — pontosan az a hiba-osztály, amit a `KUKA-003` nevez meg.
  *
- * @param opts.ignoreRole a szerep-kapu kihagyása (CSAK a folytatáshoz — lásd `resumableToursFor`)
+ * @param opts.folytatas a FOLYTATÁS kapuja: a szerep- és az INDULÓ ADAT-kapu tolerálása
+ *        (CSAK a folytatáshoz — lásd `resumableToursFor`; a zárt lista ettől sem lazul)
  */
-function tourGateOpen(t, ctx, visible, { ignoreRole = false } = {}) {
-  if (!ignoreRole && t.requires_role === 'admin' && ctx.role !== 'admin') return false;
+function tourGateOpen(t, ctx, visible, { folytatas = false } = {}) {
+  if (!folytatas && t.requires_role === 'admin' && ctx.role !== 'admin') return false;
     // A BELÉPÉS ELŐTTI KÉPERNYŐN futó bemutató (regisztráció) belépve NEM indítható: a célja ott
     // nincs a lapon. Ez NEVEZETT kizárás, nem `targetMissing`-gel megszakadó bemutató (F91-01).
     if (t.requires_anonymous === true && ctx.signed_in) return false;
@@ -300,6 +307,34 @@ function tourGateOpen(t, ctx, visible, { ignoreRole = false } = {}) {
     // (KUKA-413): minta nélkül a lap az ÜRES ÁLLAPOTOT rajzolja, és a lépés célja SOHA nem jön létre.
     if (t.requires_demo_fixture === true && ctx.demo_fixture !== true) return false;
     /**
+     * …ÉS A TÖRTÉNET INDULÓ ADATA IS ELŐFELTÉTEL (R176 §1 — SAJÁT LELET, a KÖTELEZŐ KAPU mérte).
+     *
+     * A LELET. Az R176 §1-ben a szereplő-váltó vezérlőt a VALÓDI héjra horgonyoztam (a kijelentkezés
+     * az, amivel a néző a másik szereplőre vált) — ettől a két átívelő történet a héjban is
+     * felkínálódott. A kötelező kapu MÉRTE a következményt: egy MINTAADAT NÉLKÜLI vállalkozásban a
+     * `tour.inviteRevoke` a 4. lépésen (`invites-table`: nincs FÜGGŐ meghívás), a `tour.reentry` a
+     * 2.-on (`members-list`: nincs MÁSIK tag) megszakadt. A vezérlő tehát KEVÉS: a történet INDULÓ
+     * ADATA is kell hozzá — amit nem lehet végigvinni, azt nem kínáljuk fel (KUKA-391 · KUKA-413).
+     *
+     * A KÉSZLET ZÁRT, és nyilatkozat nélkül ZÁRVA (fail-closed): egy kitalált mezőnév nem esik
+     * némán „igaz"-ra, és a tényt a KISZOLGÁLÓ méri a tárból, nem a tagságból (KUKA-236 · KUKA-238).
+     */
+    if (t.requires_story_data !== undefined && t.requires_story_data !== null) {
+      // A ZÁRT LISTA A FOLYTATÁSNÁL SEM LAZUL: a kitalált mezőnév NEM esik némán „igaz"-ra.
+      if (!TOUR_STORY_DATA.includes(t.requires_story_data)) return false;
+      /**
+       * A FOLYTATÁS VISZONT NEM KÉRI EL AZ INDULÓ ADATOT (R176 §1 — MÉRVE, ugyanabban a körben).
+       *
+       * AMI MÁR ELINDULT, ANNAK AZ INDULÓ FELTÉTELE MÁR NEM FELTÉTEL — és itt ez nem elvi finomság:
+       * a visszavonás története KÖZBEN váltják be a függő meghívást, a visszatérés története KÖZBEN
+       * szűnik meg a tagság, a meghívott pedig a SAJÁT személyes körében áll, ahol egyik tény sem
+       * igaz. Ha az indítás feltételét minden lépésnél újra megkérdeznénk, a futó történet a saját
+       * haladásától esne el — pontosan az a folytatásvesztés, amit az R176 §1 javítani kért.
+       * Ugyanaz a szellem, mint a szerep-kapunál: a történet ÁTÍVEL a szereplőkön és az állapotokon.
+       */
+      if (!folytatas && (!ctx.story_data || ctx.story_data[t.requires_story_data] !== true)) return false;
+    }
+    /**
      * …ÉS A VEZÉRLŐ IS KELL HOZZÁ, NEM CSAK A KÖRNYEZET (R164/3 — a külső review lelete).
      *
      * A fenti `requires_demo` kapu a KISZOLGÁLÓ környezetét kérdezi. Az viszont nem mondja meg, hogy
@@ -327,7 +362,7 @@ function tourGateOpen(t, ctx, visible, { ignoreRole = false } = {}) {
        *
        * A `tour.inviteRevoke` funkciója (`invite.revoke`) és a `tour.reentry`-é (`members.reinvite`)
        * `admin_required`: a meghívott nézetében a SOR sem látszik. Ez UGYANAZ a szerep-kérdés, amit
-       * a folytatás szándékosan félretesz — ha itt nem engednénk, a `ignoreRole` üres ígéret volna
+       * a folytatás szándékosan félretesz — ha itt nem engednénk, a `folytatas` üres ígéret volna
        * (mérve: a szerep-kapu megnyitása után is zárva maradt).
        *
        * ÉS CSAK EZT AZ EGY OKOT FOGADJUK EL: bármely MÁS láthatósági ok (terv, adatkör, kivezetés)
@@ -335,7 +370,7 @@ function tourGateOpen(t, ctx, visible, { ignoreRole = false } = {}) {
        * (`rightLost`), tehát a folytatás nem ad jogot, csak lépés-listát (`KUKA-047`: a kapu ott
        * álljon, ahol a kár keletkezik).
        */
-      const atmeneti = ignoreRole && row && row.visible === false && RESUME_TOLERALT_OK.includes(row.why);
+      const atmeneti = folytatas && row && row.visible === false && RESUME_TOLERALT_OK.includes(row.why);
       if ((!row || !row.visible) && !atmeneti) return false;
     }
   return true;
@@ -377,7 +412,7 @@ export function resumableToursFor(ctx = {}) {
   const out = [];
   for (const t of Object.values(TOURS)) {
     if (actorSwitchSteps(t).length === 0) continue;          // csak a szereplő-váltó történetek
-    if (tourGateOpen(t, ctx, visible, { ignoreRole: true })) out.push(t.id);
+    if (tourGateOpen(t, ctx, visible, { folytatas: true })) out.push(t.id);
   }
   return Object.freeze(out);
 }

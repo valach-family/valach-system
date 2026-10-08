@@ -114,9 +114,30 @@ test('R91-03 — MINDEN bemutató elindul a saját képernyőjén, vagy NEVEZETT
      *     végigvitelüket a bemutató LAPJÁN mérjük (`npm run proof:demo-walk`).
      * A `requires_role: 'admin'` nem kizárás, mert ez az ember a vállalkozás LÉTREHOZÓJA.
      */
+    /**
+     * A HARMADIK KIZÁRÁS INDOKA AZ R176 §1-BEN MEGVÁLTOZOTT — ÉS A SZÖVEG A VALÓSÁGOT KÖVETI.
+     *
+     * A `switch_actor` lépés kizárása eddig azon állt, hogy „a héjban nincs váltó vezérlő". Az
+     * R176 §1 ezt MEGSZÜNTETTE: a váltó vezérlő a VALÓDI kijelentkezés (`data-tour-anchor`
+     * =„actor-switch"), és a két átívelő történet a VALÓDI felületen végig is megy (`R176-K1`
+     * 19/19 · `K2` 18/18 · `K3` 390 px-en). A kizárás ezért ma MÁS tényen áll: a történet INDULÓ
+     * ADATÁN (`requires_story_data` — függő meghívás, illetve másik tag), ami EBBEN a frissen
+     * létrehozott vállalkozásban nincs meg. És ezt MÉRJÜK, nem feltételezzük (`KUKA-215`).
+     */
+    const fuggo = await anna.api.get('/api/invites/waiting');
+    const tagok = await anna.api.get('/api/members');
+    const vanFuggo = ((fuggo.body && fuggo.body.invites) || []).some((i) => i.state === 'pending');
+    const masTag = ((tagok.body && tagok.body.members) || []).filter((m) => m.email !== anna.email);
+    expect(`${vanFuggo} · ${masTag.length}`, 'MÉRVE: ebben a vállalkozásban nincs függő meghívás és nincs másik tag')
+      .toBe('false · 0');
     const DEKLARALT = Object.keys(TOURS);
     const nevezettenKizart = DEKLARALT.filter((id) => TOURS[id].requires_anonymous === true
-      || TOURS[id].requires_invite === true || actorSwitchSteps(TOURS[id]).length > 0);
+      || TOURS[id].requires_invite === true || Boolean(TOURS[id].requires_story_data));
+    // ÉS A KÉT VÁLTÓS TÖRTÉNET MINDEGYIKE KIMONDJA AZ INDULÓ ADATÁT — különben a horgony-változás
+    // után némán felkínálódna egy végig nem vihető történet (az R176 §1 MÉRT lelete, `KUKA-417`).
+    const valtos = DEKLARALT.filter((id) => actorSwitchSteps(TOURS[id]).length > 0);
+    expect(valtos.filter((id) => !TOURS[id].requires_story_data).join(',') || 'nincs',
+      'MINDEN szereplő-váltó történet kimondja a saját INDULÓ adatát').toBe('nincs');
     const vart = DEKLARALT.filter((id) => !nevezettenKizart.includes(id));
     expect(tours.slice().sort(), 'a határ PONTOSAN a regiszter deklarált készletét adja ki — se néma kiesés, se kitalált azonosító')
       .toEqual(vart.slice().sort());
@@ -133,15 +154,15 @@ test('R91-03 — MINDEN bemutató elindul a saját képernyőjén, vagy NEVEZETT
       expect(nevezettenKizart, `a korábban is kizárt ${id} TOVÁBBRA IS kizárt (padló)`).toContain(id);
     }
     const indokNelkul = nevezettenKizart.filter((id) => !(TOURS[id].requires_anonymous === true
-      || TOURS[id].requires_invite === true || actorSwitchSteps(TOURS[id]).length > 0));
+      || TOURS[id].requires_invite === true || Boolean(TOURS[id].requires_story_data)));
     expect(indokNelkul.join(',') || 'nincs', 'és MINDEN kizárásnak nevezett indoka van a regiszterben').toBe('nincs');
     expect(tours).not.toContain('tour.register');
     expect(tours, 'az R121 hozzáférés-életciklus bemutatója a kezelőnek jár').toContain('tour.scopeLifecycle');
-    // A KÉT SZEREPLŐ-VÁLTÓ TÖRTÉNET ITT NEVEZETTEN NEM JÁR (R164/3): nem jogosultsági okból — a
-    // FELÜLET nem ad váltó vezérlőt, tehát végig sem lehetne vinni őket. Amit nem lehet végigvinni,
-    // azt nem kínáljuk fel (KUKA-041 · F91-01).
-    expect(tours, 'a meghívás-visszavonás KÉT szereplős története nem az alkalmazás-héjban jár').not.toContain('tour.inviteRevoke');
-    expect(tours, 'az újbóli belépés KÉT szereplős története nem az alkalmazás-héjban jár').not.toContain('tour.reentry');
+    // A KÉT SZEREPLŐ-VÁLTÓ TÖRTÉNET ITT NEVEZETTEN NEM JÁR — de MÁS okból, mint az R164/3-ban: a
+    // váltó vezérlő ma MEGVAN a héjban (R176 §1), az INDULÓ ADATA viszont nincs meg ebben a
+    // vállalkozásban (fentebb MÉRVE). Amit nem lehet végigvinni, azt nem kínáljuk fel (F91-01).
+    expect(tours, 'a meghívás-visszavonás története függő meghívás NÉLKÜL nem jár').not.toContain('tour.inviteRevoke');
+    expect(tours, 'az újbóli belépés története másik tag NÉLKÜL nem jár').not.toContain('tour.reentry');
     const byFeature = Object.fromEntries(status.body.tours.map((t) => [t.id, t.feature]));
     for (const id of tours) {
       // A SÚGÓBÓL INDÍTJUK, ahogy a felhasználó: a funkció útmutatójából.

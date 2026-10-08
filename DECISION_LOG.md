@@ -16,6 +16,35 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3211 — A FELKÍNÁLÁS FELTÉTELE A TÖRTÉNET INDULÓ ADATA IS, ÉS A FOLYTATÁS EZT NEM KÉRI EL (R176 §1)
+
+**A leletet a KÖTELEZŐ kapu mérte, nem a gondolkodásom.** Az R176 §1-ben a szereplő-váltó vezérlőt a
+VALÓDI héj kijelentkezésére horgonyoztam — ettől a két átívelő történet (`tour.inviteRevoke` ·
+`tour.reentry`) a héjban is felkínálódott. A `verify:browser-gate` ekkor **három korábban zöld
+helyzetet pirosra váltott**: egy MINTAADAT NÉLKÜLI vállalkozásban a visszavonás a 4. lépésen (nincs
+FÜGGŐ meghívás), a visszatérés a 2.-on (nincs MÁSIK tag) megszakadt. A felkínálás **maga** volt a
+hibás állítás.
+
+**A DÖNTÉS.** A regiszter kimondja a történet INDULÓ adatát (`requires_story_data`, zárt készlet:
+`pending_invite` · `other_member`), a kiszolgáló a TÁRBÓL méri (`storyDataFacts`), a kapu nyilatkozat
+nélkül ZÁRVA, és a határ átadja a mezőt a lapnak. **A FOLYTATÁS viszont nem kéri el:** ami már
+elindult, annak az induló feltétele már nem feltétel — a visszavonás története KÖZBEN váltják be a
+függő meghívást, a meghívott pedig a saját személyes körében áll, ahol egyik tény sem igaz. Ezért a
+folytatás-feloldó a `folytatas` jelzővel hívja a kaput; a zárt lista ettől sem lazul.
+
+**Ez a két irány EGY döntés:** ha csak az elsőt építettem volna meg, a felkínálás javítása elvette
+volna a folytatás javítását — pontosan azt a folytatásvesztést, amit az R176 §1 javítani kért.
+
+Gépi jel: `verify:kuka` (öt pozitív minta + a tiltott RÉGI indok a két lapon) ·
+`verify:app-findings-r154` (as9 · as10 · u1 · u2 · u7 · u8). **Élő tanú:** `verify:browser-gate` →
+`R166-MK2` · `R91-03` · `R93-01` · `R176-K1/K2/K3`. A tanulság a regiszterben: **KUKA-417**.
+
+**ÉS A SZÖVEG IS A VALÓSÁGOT KÖVETI:** két lap a RÉGI indokot írta le („a héjban nincs váltó
+vezérlő"); mindkettő a MÉRT induló adatból vezeti le az elvárást, és az ellenpár ugyanabban a
+próbában áll (nincs függő meghívás → a visszavonás nem jár; van tag → az újbóli belépés jár).
+
+---
+
 ## D-VS-3210 — AMI A KÉPERNYŐN NYITVA MARAD, AZ IS NÉZETHEZ KÖTÖTT ÁLLAPOT (R176 §1, saját lelet 390 px-en)
 
 **A VALÓDI két szereplős bejárás 390 px-es futásán mértem.** A fejléc három lenyílóját

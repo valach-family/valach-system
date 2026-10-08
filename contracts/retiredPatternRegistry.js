@@ -15792,6 +15792,42 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (négy pozitív minta + a tiltott kézi alak) · `npm run verify:app-findings-r154` (as7 · as8). ÉLŐ TANÚ: `npm run verify:browser-gate` → `tests/e2e/v3app-r176-ket-szereplo.spec.mjs` R176-K3 — a 19 lépéses történet 390 px-en, a váltás határán újraindítással, VALÓDI kilépéssel és belépéssel. Visszacsúszás-próba MÉRVE: a `resetViewCaches` hívását kivéve a K3 a 11. lépésen elakad.',
   }),
 
+  Object.freeze({
+    id: 'KUKA-417',
+    date: '2026-10-08',
+    title: 'A VEZÉRLŐ MEGVOLT, A TÖRTÉNET INDULÓ ADATA NEM — és a felkínált történet egy üres cégben a negyedik lépésen szakadt meg',
+    what: 'Az R176 §1-ben a szereplő-váltó vezérlőt a VALÓDI héjra horgonyoztam (a kijelentkezés az, amivel a néző a másik szereplőre vált), és ettől a két átívelő történet (`tour.inviteRevoke` · `tour.reentry`) a héjban is felkínálódott. A felkínálás feltétele viszont CSAK a vezérlő jelenléte volt — a BETÖLTÖTT FELÜLET horgony-készlete.',
+    why_wrong: 'A KÖTELEZŐ BÖNGÉSZŐ-KAPU MÉRTE a saját változásom következményét, HÁROM piros helyzettel: egy MINTAADAT NÉLKÜLI vállalkozásban a `tour.inviteRevoke` a 4. lépésen (`invites-table`: nincs FÜGGŐ meghívás), a `tour.reentry` a 2.-on (`members-list`: nincs MÁSIK tag) megszakadt — tehát a felkínálás MAGA volt a hibás állítás (`KUKA-391` · `KUKA-413`). Ráadásul két korábbi lap a RÉGI indokot írta le („a héjban nincs váltó vezérlő"), ami az R176 §1 után már nem igaz — a szöveg sem követte a valóságot (`KUKA-050`).',
+    replaced_by: 'A REGISZTER KIMONDJA A TÖRTÉNET INDULÓ ADATÁT (`requires_story_data`, ZÁRT készlet: `pending_invite` · `other_member`), a KISZOLGÁLÓ a TÁRBÓL méri (`storyDataFacts` — a függő állapot precedenciája ugyanaz, mint a meghívó-listában), a kapu nyilatkozat nélkül ZÁRVA (egy kitalált mezőnév nem esik némán „igaz"-ra), és a HATÁR átadja a mezőt a lapnak (`KUKA-394`).',
+    replacement: 'ÉS A FOLYTATÁS NEM KÉRI EL AZ INDULÓ ADATOT: ami már elindult, annak az induló feltétele már nem feltétel — a visszavonás története KÖZBEN váltják be a függő meghívást, a meghívott pedig a SAJÁT személyes körében áll, ahol egyik tény sem igaz. A `resumableToursFor` ezért a `folytatas` jelzővel hívja a kaput (a szerep- és az induló adat-kapu tolerálása), a ZÁRT lista viszont ettől sem lazul. E nélkül a kapu visszahozta volna azt a folytatásvesztést, amit az R176 §1 javítani kért.',
+    decision: 'D-VS-3211',
+    found_by: 'SAJÁT LELET (Claude-v3, R176 §1) — nem átgondolásból, hanem a KÖTELEZŐ `verify:browser-gate` MÉRÉSÉBŐL: a horgony-változás után három korábban zöld helyzet pirosra vált (R91-03 · R93-01 · R166-MK2).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
+        pattern: "TOUR_STORY_DATA = Object\\.freeze\\(\\['pending_invite', 'other_member'\\]\\)",
+        why: 'az induló adat ZÁRT készletből jön, nem kézi névsorból' }),
+      Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
+        pattern: 'if \\(!TOUR_STORY_DATA\\.includes\\(t\\.requires_story_data\\)\\) return false;',
+        why: 'kitalált mezőnév esetén a kapu ZÁR — a folytatásnál is' }),
+      Object.freeze({ paths: Object.freeze(['v3app/assistant/policy.mjs']),
+        pattern: 'if \\(!folytatas && \\(!ctx\\.story_data \\|\\| ctx\\.story_data\\[t\\.requires_story_data\\] !== true\\)\\) return false;',
+        why: 'az INDÍTÁS kéri az induló adatot, a FOLYTATÁS nem — egy futó történet nem esik el a haladásától' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'function storyDataFacts\\(bookId, subjectId, at\\)',
+        why: 'a tényt a kiszolgáló MÉRI a tárból, nem a tagságból és nem a feliratból' }),
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r154.mjs']),
+        pattern: 'as10\\) R176 §1 ELLENPÁR',
+        why: 'az ellenpár MÉRVE: induló adat nélkül nem indítható, de folytatható' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r93.spec.mjs', 'tests/e2e/v3app-r91.spec.mjs']),
+        pattern: 'a váltó vezérlő nincs a lapon',
+        reason: 'a RÉGI indok: az R176 §1 után a héjban VAN váltó vezérlő — a kizárás ma az induló adaton áll' }),
+    ]),
+    lesson: 'A FELKÍNÁLÁS FELTÉTELE NEM CSAK A VEZÉRLŐ, HANEM A TÖRTÉNET INDULÓ ADATA IS. Amikor egy képesség kapuját KISZÉLESÍTEM, a nyereség mellé a FELTÉTELEIT is végig kell gondolni: a vezérlő megléte még nem jelenti, hogy a történet első lépése létezik. És a kaput két irányban kell mérni: az INDÍTÁS kérje el az induló adatot, a FOLYTATÁS pedig NE — különben a javítás egyik fele (a felkínálás) elveszi a másik felét (a folytatást). A leletet nem a gondolkodásom találta meg, hanem a KÖTELEZŐ kapu: a három piros helyzet a saját változásom következménye volt.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (öt pozitív minta + a tiltott RÉGI indok a két lapon) · `npm run verify:app-findings-r154` (as9 · as10 · u1 · u2 · u7 · u8). ÉLŐ TANÚ: `npm run verify:browser-gate` → `R166-MK2` (minta nélkül MINDEN felkínált útmutató végigvihető) · `R91-03` és `R93-01` (a határ pontosan a MÉRT induló adathoz illő készletet adja ki, és a két tény KÜLÖNBÖZIK: nincs függő meghívás, de van másik tag) · `R176-K1/K2/K3` (a két történet a VALÓDI felületen). Visszacsúszás-próba MÉRVE: a `requires_story_data` kivételével az MK2 piros, a `folytatas` nélkül pedig a meghívott folytatható listája ÜRES.',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

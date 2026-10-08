@@ -183,14 +183,39 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
      * kötött, a héj ezt a kettőt NEM kapja meg, és itt a KIZÁRÁST mérjük. A kizárandók listája nem
      * kézi: a bemutató SAJÁT `switch_actor` lépéseiből számoljuk (KUKA-045).
      */
+    /**
+     * A HARMADIK KIZÁRÁS INDOKA AZ R176 §1-BEN MEGVÁLTOZOTT. A váltó vezérlő ma MEGVAN a valódi
+     * héjban (a kijelentkezés az, `data-tour-anchor="actor-switch"`), és a két átívelő történet a
+     * VALÓDI felületen végig is megy (`R176-K1/K2/K3`). A kizárás ma a történet INDULÓ ADATÁN áll
+     * (`requires_story_data`): ebben a próbában nincs függő meghívás és nincs másik tag, tehát a
+     * kiszolgáló NEVEZETTEN nem kínálja fel őket (`KUKA-417`).
+     */
+    /**
+     * ÉS AZ INDULÓ ADATOT MÉRJÜK, NEM FELTESSZÜK (`KUKA-215`). Itt a két tény KÜLÖNBÖZIK, és éppen
+     * ez az ELLENPÁR: Berta elfogadta a meghívást, tehát FÜGGŐ meghívás NINCS (a visszavonás
+     * története nem jár), MÁSIK TAG viszont VAN (az újbóli belépés története jár). Egy általános,
+     * mindkettőt kizáró szabály ezt a különbséget elrejtené.
+     */
+    const fuggo = await anna.api.get('/api/invites/waiting');
+    const tagok = await anna.api.get('/api/members');
+    const adat = {
+      pending_invite: ((fuggo.body && fuggo.body.invites) || []).some((i) => i.state === 'pending'),
+      other_member: ((tagok.body && tagok.body.members) || []).some((m) => m.email !== anna.email),
+    };
+    expect(`${adat.pending_invite} · ${adat.other_member}`,
+      'MÉRVE: függő meghívás NINCS (Berta elfogadta), másik tag viszont VAN').toBe('false · true');
     const DEKLARALT = Object.keys(TOURS);
     const valtosBemutato = (id) => actorSwitchSteps(TOURS[id]).length > 0;
     const kiszolgalt = DEKLARALT.filter((id) => TOURS[id].requires_anonymous !== true
-      && TOURS[id].requires_invite !== true && !valtosBemutato(id));
+      && TOURS[id].requires_invite !== true
+      && (!TOURS[id].requires_story_data || adat[TOURS[id].requires_story_data] === true));
     // ELLENPÁR A KIZÁRÁSHOZ: ha a regiszterből eltűnne minden `switch_actor` lépés, ez az állítás
-    // azonnal pirosra vált — a kizárás így nem lehet néma üres halmaz (KUKA-216).
+    // azonnal pirosra vált — a kizárás így nem lehet néma üres halmaz (KUKA-216). És MINDKETTŐ
+    // kimondja az induló adatát: a horgony-változás után ez tartja távol a végig nem vihetőt.
     expect(DEKLARALT.filter(valtosBemutato).sort(), 'a regiszter KÉT szereplő-váltó bemutatót deklarál')
       .toEqual(['tour.inviteRevoke', 'tour.reentry']);
+    expect(DEKLARALT.filter(valtosBemutato).filter((id) => !TOURS[id].requires_story_data).join(',') || 'nincs',
+      'és MINDKETTŐ kimondja a saját INDULÓ adatát').toBe('nincs');
     expect(tours.map((t) => t.id).sort(), 'a határ PONTOSAN a regiszter deklarált készletét adja ki')
       .toEqual(kiszolgalt.slice().sort());
     const byId = Object.fromEntries(tours.map((t) => [t.id, t]));
@@ -436,11 +461,23 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
     for (const id of appShell) {
       expect(verdict[id], `${id}: az alkalmazás-héjban VÉGIGVIHETŐ`).toBe('befejezve');
     }
-    // ÉS A KÉT SZEREPLŐ-VÁLTÓ TÖRTÉNET ITT NEM IS INDULT EL — mert a határ nem kínálta fel. Ez nem
-    // „kihagyás": a felkínálás KIZÁRÁSA a mért tény (KUKA-093 · KUKA-216).
+    /**
+     * ÉS A KÉT SZEREPLŐ-VÁLTÓ TÖRTÉNET ITT NEM INDULT EL — DE MÁS OKBÓL, MINT AZ R164/3-BAN.
+     *
+     * A váltó vezérlő ma MEGVAN a valódi héjban (az R176 §1 a kijelentkezésre horgonyozta), tehát a
+     * felkínálás ma az INDULÓ ADATON áll: a visszavonás története FÜGGŐ meghívás nélkül nem jár, az
+     * újbóli belépés története a VALÓDI tag miatt JÁR. A két tény KÜLÖNBÖZIK — ez az ellenpár.
+     *
+     * BEJÁRNI egyiket sem ITT kell: a két szereplős végigvitelnek SAJÁT, nevezett tanúja van a
+     * VALÓDI felületen (`tests/e2e/v3app-r176-ket-szereplo.spec.mjs` — K1 19/19 · K2 18/18 · K3 390
+     * px-en, újraindítással). Ez tehát nem „kihagyás", hanem KIMONDOTT hatókör (KUKA-093 · KUKA-216).
+     */
     for (const id of DEKLARALT.filter(valtosBemutato)) {
-      expect(byId[id], `${id}: a határ a VALÓDI héjnak NEM kínálja fel (a váltó vezérlő nincs a lapon)`).toBeUndefined();
-      expect(Object.prototype.hasOwnProperty.call(verdict, id), `${id}: és ezért be sem járjuk`).toBe(false);
+      const vart = adat[TOURS[id].requires_story_data] === true;
+      expect(Boolean(byId[id]),
+        `${id}: a felkínálás az INDULÓ adatot követi (${TOURS[id].requires_story_data} = ${vart})`).toBe(vart);
+      expect(Object.prototype.hasOwnProperty.call(verdict, id),
+        `${id}: a két szereplős bejárás NEM itt fut, hanem a saját tanújában (R176-K1/K2/K3)`).toBe(false);
     }
   } finally { await w.close(); }
 });
