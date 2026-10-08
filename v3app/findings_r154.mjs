@@ -1695,6 +1695,30 @@ try {
       step('(as10) R176 §1 ELLENPÁR: INDULÓ ADAT NÉLKÜL egyik két szereplős történet sem INDÍTHATÓ — de MINDKETTŐ FOLYTATHATÓ (a futó történet nem esik el a haladásától)',
         KETSZEREPLOS.every((x) => !uresT.ind.includes(x)) && KETSZEREPLOS.every((x) => uresT.fol.includes(x)),
         { inditható: KETSZEREPLOS.filter((x) => uresT.ind.includes(x)), folytathato: uresT.fol });
+
+      /**
+       * (as11) A TAGSÁG TÉNYÉT A KANONIKUS FELOLDÓ DÖNTI EL (R176, külső review P2 · `KUKA-421`).
+       *
+       * A LELET: az induló adat első alakja NYERS sor-feltételt használt (`revoked_at IS NULL`), a
+       * tagok LAPJA viszont a `membershipAsOf`-ból vezeti le a hatályosságot, és a `member-revoke`
+       * horgonyt CSAK hatályos tagnál rajzolja ki. Egy MEGSZÜNTETETT tagság mellett tehát a
+       * felkínálás igaz lett, a történet pedig a harmadik lépésén megszakadt volna.
+       *
+       * ÉLŐ MÉRÉS, SAJÁT fiókon: a tagság megszületik, majd MEGSZŰNIK — és a felkínálás eltűnik.
+       */
+      const fg = await fiok('u-fg-176');
+      await fg.post('/api/workspaces', { name: 'U176 Felfuggesztett Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '12345676-2-42' } });
+      const dora2 = await fiok('u-dora2');
+      const m2 = await fg.post('/api/invites', { email: 'u-dora2@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+      await dora2.post('/api/invites/redeem', { token: m2.body.token });
+      const tagjaval = await belepveT(fg);
+      const dora2Alany = ((await fg.get('/api/members')).body.members || [])
+        .find((x) => x.email === 'u-dora2@pelda.hu');
+      await fg.post('/api/members/revoke', { subject_id: dora2Alany && dora2Alany.subject_id });
+      const tagNelkul = await belepveT(fg);
+      step('(as11) R176/P2: a MEGSZÜNTETETT tagság NEM számít induló adatnak — a visszatérés-történet felkínálása eltűnik (RÉGEN: a nyers `revoked_at IS NULL` miatt megmaradt, és a 3. lépésen megszakadt volna)',
+        tagjaval.ind.includes('tour.reentry') && !tagNelkul.ind.includes('tour.reentry'),
+        { hatalyos_taggal: tagjaval.ind.includes('tour.reentry'), megszuntetes_utan: tagNelkul.ind.includes('tour.reentry') });
     }
 
       // (u2) DEMÓ KI: ugyanazon a fiókon, UGYANAZZAL a bemutató-felülettel is eltűnnek — az ÉLES

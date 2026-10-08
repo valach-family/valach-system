@@ -15926,6 +15926,66 @@ Object.freeze({
     guard_note: 'gépi jel: `npm run verify:kuka` (három pozitív minta). ÉLŐ TANÚ: `npm run verify:browser-gate` → `R176-K6` (átívelő történet, váltás-határ előtti kilépés: üres átadás-rekesz) és `R176-K1/K3` (a DEKLARÁLT határon viszont ÁTAD). Visszacsúszás-próba MÉRVE: a határ-ellenőrzést kivéve a K6 PIROS.',
   }),
 
+  Object.freeze({
+    id: 'KUKA-421',
+    date: '2026-10-08',
+    title: 'A TAGSÁG TÉNYÉT NYERS SOR-FELTÉTELLEL DÖNTÖTTEM EL, A LAP VISZONT A KANONIKUS FELOLDÓVAL',
+    what: 'A `KUKA-417`-ben bevezetett INDULÓ ADAT (`other_member`) tényét a kiszolgálóban nyers SQL-feltétellel számoltam: `SELECT subject_id FROM membership WHERE book_id = ? AND revoked_at IS NULL`. A tagok LAPJA ugyanakkor a `membershipAsOf` kétidős feloldóból vezeti le a `effective` tényt, és a `member-revoke` horgonyt CSAK hatályos tagnál rajzolja ki.',
+    why_wrong: 'EGY MEGSZÜNTETETT (nem hatályos) TAGSÁG MELLETT A FELKÍNÁLÁS IGAZ LETT, a történet pedig a HARMADIK lépésén megszakadt volna — pontosan az a kár, amit a `KUKA-417` megelőzni hivatott (a felkínálás a VÉGIGVIHETŐSÉGRŐL szól), a saját ÚJ kapumban. MÉRVE élő HTTP-n: hatályos taggal a `tour.reentry` felkínálódik, a tagság megszüntetése UTÁN a régi alakkal MEGMARADT volna, a maival eltűnik.',
+    replaced_by: 'UGYANAZT A DÖNTÉST KÉRDEZZÜK, AMIT A LAP: a `storyDataFacts` a `membershipAsOf`-ot hívja minden jelöltre, és csak a `effective === true` sorokat számolja. Egy fogalomnak egy otthona van (`KUKA-003` · `KUKA-039`).',
+    replacement: 'ÉS A JEL ÉLŐ MÉRÉS, NEM FORRÁS-MINTA: az `as11` felépíti a tagságot, MEGSZÜNTETI, és a felkínálás eltűnését méri — az állítás tehát nem tud üresen zöld lenni (`KUKA-216`).',
+    decision: 'D-VS-3215',
+    found_by: 'KÜLSŐ REVIEW (chatgpt-codex, R176 — P2, a SAJÁT, ugyanebben a körben írt `requires_story_data` kapum felett).',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'const t = membershipAsOf\\(\\{ store, subjectId: m\\.subject_id, bookId, validAt: at, knownAt: at \\}\\);',
+        why: 'a tagság tényét a kanonikus, kétidős feloldó dönti el' }),
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r154.mjs']),
+        pattern: 'as11\\) R176/P2',
+        why: 'és a jel ÉLŐ mérés: a tagság megszüntetése után a felkínálás eltűnik' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "'SELECT subject_id FROM membership WHERE book_id = \\? AND revoked_at IS NULL'",
+        reason: 'a nyers sor-feltétel: a lap hatályosság-döntésétől elszakadt tény' }),
+    ]),
+    lesson: 'AMIKOR EGY ÚJ KAPUHOZ TÉNYT SZÁMOLOK, AZT A FOGYASZTÓ KANONIKUS FELOLDÓJÁVAL SZÁMOLJAM — ne egy nyers lekérdezéssel, ami „nagyjából ugyanazt" adja. A kettő különbsége épp a ritka esetben nyílik ki (itt: a nem hatályos tagság), és akkor a felkínálás hamis állítás lesz. Ugyanez a lecke a saját `KUKA-417`-emből: a felkínálás a végigvihetőségről szól.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (két pozitív minta + a tiltott nyers feltétel) · `npm run verify:app-findings-r154` (as11, ÉLŐ HTTP). Visszacsúszás-próba MÉRVE: a nyers feltételt visszaírva az `as11` PIROS.',
+  }),
+
+  Object.freeze({
+    id: 'KUKA-422',
+    date: '2026-10-08',
+    title: 'A VISSZALÉPÉS A VÁLASZ MEGMÉRÉSE NÉLKÜL ÜRÍTETT — és a megjegyzésem az ELLENKEZŐJÉT ígérte',
+    what: 'A `doInviteLeave` így hívta a kiszolgálót: `await api(\'POST\', \'/api/invites/pending/forget\', {})`, majd FELTÉTEL NÉLKÜL ürítette a böngésző állapotát (`forgetInvite`) és elnavigált. Az `api()` nem dob, hanem NEMLEGES objektumot ad vissza — azt a visszatérést eldobtam.',
+    why_wrong: 'HÁLÓZATI HIBA VAGY 5xx ESETÉN A LAP TELJESÍTÉST ÁLLÍTOTT: azt mondta, hogy a felhasználó elhagyta a meghívót, miközben a TÁROLT folytatás a kiszolgálón maradt — és egy későbbi belépés ugyanabban a munkamenetben visszavitte rá. Ráadásul a függvény SAJÁT megjegyzése azt ígérte, hogy „ha a hálózat elvágja a kérést, a felhasználó a meghívó-képernyőn marad" — a kód ezt nem tette meg, tehát a szöveg sem követte a valóságot (`KUKA-050` · `KUKA-121`: a választ MEG KELL MÉRNI).',
+    replaced_by: 'A HÁROM KIMENET KÜLÖN MONDAT, ugyanazzal a szerződéssel, mint az újraküldésnél (`requestOutcome`): `ok` → ürítés és navigálás; `refused` → a kiszolgáló nevezett indoka; `network` → hálózati mondat; `uncertain` → SAJÁT mondat a visszalépésre (`inviteLeaveUncertain`, mindhárom termék-nyelven). Nem-`ok` esetén a böngésző állapota VÁLTOZATLAN, a lap a meghívó-képernyőn marad, a jegy a címsorban marad, és a gomb újra megnyomható (`KUKA-201`).',
+    replacement: 'ÉS A JEL ÉLŐ BÖNGÉSZŐ-MÉRÉS: az `R166-M6` elvágja a kérést (`route.fulfill` 500), és méri, hogy a képernyő MARAD, a mondat NEVEZETT, a jegy a címsorban van, a gomb látszik — majd a route feloldása után a visszalépés TÉNYLEGESEN megtörténik (ellenpár).',
+    decision: 'D-VS-3216',
+    found_by: 'KÜLSŐ REVIEW (chatgpt-codex, R176 — P2, a SAJÁT R166 §1-es javításom felett): „this new client path does not call `requestOutcome`".',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "const r = await api\\('POST', '/api/invites/pending/forget', \\{\\}\\);",
+        why: 'a válasz megfogva, nem eldobva' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "const v = requestOutcome\\(r\\);\\n    if \\(v !== 'ok'\\) \\{",
+        why: 'és CSAK igazolt `ok` után ürül a böngésző állapota', flags: 'm' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r166-invite-leave.spec.mjs']),
+        pattern: 'R166-M6',
+        why: 'élő böngésző-mérés: elvágott kérés mellett a képernyő marad, a mondat nevezett' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/hu.mjs']),
+        pattern: 'inviteLeaveUncertain:',
+        why: 'a bizonytalan kimenetnek SAJÁT mondata van, nem egy másik művelet szövege' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "await api\\('POST', '/api/invites/pending/forget', \\{\\}\\);\\n    forgetInvite\\(\\);",
+        reason: 'a válasz eldobása: a lap teljesítést állítana egy meg sem történt műveletre', flags: 'm' }),
+    ]),
+    lesson: 'EGY ÍRÁS UTÁN A KÉPERNYŐ CSAK AZT ÁLLÍTHATJA, AMIT A VÁLASZ IGAZOL — és ha egy segéd NEM DOB hiba esetén, akkor a visszatérését MEG KELL MÉRNI, különben a „sikeres" út a hibás úton is lefut. A megjegyzés nem őr: ez a függvény SAJÁT szövegében már le volt írva a helyes viselkedés, mégsem az futott.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (négy pozitív minta + a tiltott, választ eldobó alak) · `npm run verify:i18n` 49/49. ÉLŐ TANÚ: `npm run verify:browser-gate` → `R166-M6`. Visszacsúszás-próba MÉRVE: a mérés kivételével az `R166-M6` PIROS.',
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

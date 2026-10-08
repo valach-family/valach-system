@@ -2175,7 +2175,30 @@ import { inviteNextKey } from './inviteText.mjs';
      * A `pending_invite_token` útja ettől változatlan: aki NEM lépett vissza, annak a folytatása
      * továbbra is megmarad (ez a `KUKA-297` garanciája).
      */
-    await api('POST', '/api/invites/pending/forget', {});
+    const r = await api('POST', '/api/invites/pending/forget', {});
+    /**
+     * ÉS A VÁLASZT MEG KELL MÉRNI (R176, külső review P2 — `KUKA-422` · `KUKA-215`).
+     *
+     * A LELET: az `api()` nem dob, hanem NEMLEGES objektumot ad vissza — az első alakom viszont a
+     * visszatérést eldobta, és a böngésző állapotát MINDENKÉPPEN ürítette. Hálózati hiba vagy 5xx
+     * esetén tehát a lap azt mondta, hogy a felhasználó elhagyta a meghívót, miközben a TÁROLT
+     * folytatás a kiszolgálón maradt — és egy későbbi belépés ugyanabban a munkamenetben
+     * visszavitte rá. A fenti megjegyzésem azt ÍGÉRTE, hogy ilyenkor a meghívó-képernyőn marad;
+     * a kód ezt nem tette meg, tehát a szöveg sem követte a valóságot (`KUKA-050`).
+     *
+     * MOSTANTÓL a három kimenet KÜLÖN mondat (ugyanaz a szerződés, mint az újraküldésnél): a
+     * böngésző állapota CSAK igazolt `ok` után ürül, különben a lap a meghívó-képernyőn marad, a
+     * gomb ott van, és a nemleges válasz NEVEZETT (`KUKA-201`: a nemleges válasz vigye a MŰKÖDŐ
+     * folytatást).
+     */
+    const v = requestOutcome(r);
+    if (v !== 'ok') {
+      state.inviteNotKept = v === 'network' ? reasonText('network_error')
+        : (v === 'uncertain' ? UI.inviteLeaveUncertain : refusalText(r));
+      render();
+      return;
+    }
+    state.inviteNotKept = null;
     forgetInvite();
     if (state.me && state.me.subject_id) {
       // A HÉJBA VISSZA: a lapot a saját nézetére állítjuk, nem hagyjuk a meghívó-képernyő lapján.

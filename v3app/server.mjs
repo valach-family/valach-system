@@ -1735,9 +1735,23 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     const pendingInvite = rows.some((r) => !r.redeemed_at
       && Date.parse(r.expires_at) > Date.parse(at)
       && !inviteRevocationAt({ store, token: r.token, nowIso: at }).revoked);
-    const others = store.all(
-      'SELECT subject_id FROM membership WHERE book_id = ? AND revoked_at IS NULL', bookId)
-      .filter((m) => m.subject_id !== subjectId);
+    /**
+     * A TAGSÁG TÉNYÉT A KANONIKUS FELOLDÓ DÖNTI EL (R176, külső review P2 — `KUKA-421`).
+     *
+     * A LELET: az első alakom NYERS sor-feltételt használt (`revoked_at IS NULL`), a tagok LAPJA
+     * viszont a `membershipAsOf`-ból vezeti le a `effective` tényt, és a `member-revoke` horgonyt
+     * CSAK hatályos tagnál rajzolja ki. Egy felfüggesztett (nem hatályos) tag mellett tehát a
+     * felkínálás igaz lett, a történet pedig a harmadik lépésén megszakadt volna — a `KUKA-417`
+     * saját leckéje (a felkínálás a VÉGIGVIHETŐSÉGRŐL szól) a saját új kapumban.
+     *
+     * EGY FOGALOM, EGY OTTHON (`KUKA-003` · `KUKA-039`): ugyanazt a döntést kérdezzük, amit a lap.
+     */
+    const others = store.all('SELECT subject_id FROM membership WHERE book_id = ?', bookId)
+      .filter((m) => m.subject_id !== subjectId)
+      .filter((m) => {
+        const t = membershipAsOf({ store, subjectId: m.subject_id, bookId, validAt: at, knownAt: at });
+        return Boolean(t && t.effective === true);
+      });
     return Object.freeze({ pending_invite: pendingInvite, other_member: others.length > 0 });
   }
 

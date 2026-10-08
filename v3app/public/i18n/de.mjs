@@ -403,6 +403,7 @@ export const UI = Object.freeze({
   inviteBackToApp: 'Zurück zu meinem Konto',
   inviteBackToStart: 'Zurück zum Startbildschirm',
   inviteSignOutSwitch: 'Abmelden und mit einem anderen Konto anmelden',
+  inviteLeaveUncertain: 'Wir können nicht sicher sagen, ob die Anfrage angekommen ist. Du bist weiterhin im Einladungsbildschirm — versuche es erneut.',
   inviteLeaveNote: 'Das Zurückgehen nimmt die Einladung nicht an und verwirft sie nicht — der Link kann später erneut geöffnet werden.',
   inviteFaqOpen: 'Häufige Fragen',
   inviteTourStart: 'Zeig es mir Schritt für Schritt',

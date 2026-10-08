@@ -452,6 +452,7 @@ export const UI = Object.freeze({
   inviteBackToApp: 'Vissza a fiókomba',
   inviteBackToStart: 'Vissza a kezdőlapra',
   inviteSignOutSwitch: 'Kilépés és belépés más fiókkal',
+  inviteLeaveUncertain: 'Nem tudjuk biztosan, hogy a visszalépés rögzült. A meghívó képernyőjén maradtál — próbáld újra.',
   inviteLeaveNote: 'A visszalépés nem fogadja el és nem veszi el a meghívást — a hivatkozás később is megnyitható.',
   inviteFaqOpen: 'Gyakori kérdések',
   inviteTourStart: 'Mutasd meg lépésről lépésre',

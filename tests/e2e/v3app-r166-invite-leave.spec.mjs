@@ -334,3 +334,41 @@ for (const code of ENABLED) {
     expect(await inviteInUrl(c.page)).toBe(false);
   });
 }
+
+test('R166-M6 — A VISSZALÉPÉS CSAK IGAZOLT VÁLASZ UTÁN ÜRÍT: 5xx mellett a néző a meghívó képernyőjén MARAD, nevezett mondattal és működő gombbal', async () => {
+  /**
+   * A KÜLSŐ REVIEW LELETE (chatgpt-codex, P2): a `doInviteLeave` eldobta az `api()` NEMLEGES
+   * visszatérését, és a böngésző állapotát mindenképpen ürítette. Hálózati hiba vagy 5xx esetén
+   * tehát a lap azt mondta, hogy a felhasználó elhagyta a meghívót, miközben a TÁROLT folytatás a
+   * kiszolgálón maradt — és egy későbbi belépés visszavitte rá.
+   *
+   * EZ A PRÓBA ELVÁGJA a szerver válaszát (`route.fulfill` 500), és azt MÉRI, hogy a lap
+   * NEM állít teljesítést: a meghívó-képernyő MARAD, a jegy a címsorban MARAD, a mondat NEVEZETT,
+   * és a gomb újra megnyomható. Majd a route feloldása után a visszalépés TÉNYLEGESEN megtörténik.
+   */
+  const cili = await world.person('cili-m5');
+  await cili.page.route('**/api/invites/pending/forget', async (route) => {
+    await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ ok: false, reason: 'server_error' }) });
+  });
+  const o = await openInviteUI(cili.page, link);
+  expect(o.observe.status, 'a meghívó képernyője felállt').toBeTruthy();
+
+  await cili.page.getByTestId('invite-back').click();
+
+  // A LAP NEM ÁLLÍT TELJESÍTÉST: a képernyő marad, és a mondat nevezett.
+  await expect(cili.page.getByTestId('section-invite')).toBeVisible();
+  await expect(cili.page.getByTestId('invite-not-kept')).toBeVisible();
+  const mondat = ((await cili.page.getByTestId('invite-not-kept').textContent()) || '').trim();
+  expect(mondat.length > 10, `a nemleges válasz NEVEZETT — mérve: „${mondat.slice(0, 80)}”`).toBe(true);
+  expect(await inviteInUrl(cili.page), 'és a jegy a címsorban MARAD (nem ígérünk elhagyást)').toBe(true);
+  // A GOMB ÚJRA MEGNYOMHATÓ — a kiút működik (`KUKA-201`).
+  await expect(cili.page.getByTestId('invite-back')).toBeVisible();
+
+  // ÉS A ROUTE FELOLDÁSA UTÁN A VISSZALÉPÉS TÉNYLEGESEN MEGTÖRTÉNIK (az ellenpár).
+  await cili.page.unroute('**/api/invites/pending/forget');
+  await cili.page.getByTestId('invite-back').click();
+  // EZ A NÉZŐ BE VAN LÉPVE, tehát a saját héja jön vissza (ugyanaz az út, mint az `M2`-ben).
+  await expect(cili.page.getByTestId('app')).toBeVisible();
+  await expect(cili.page.getByTestId('section-invite')).toHaveCount(0);
+  expect(await inviteInUrl(cili.page), 'a jegy mostantól elment a címsorból is').toBe(false);
+});

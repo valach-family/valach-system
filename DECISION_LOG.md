@@ -16,6 +16,31 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3216 — EGY ÍRÁS UTÁN A KÉPERNYŐ CSAK AZT ÁLLÍTHATJA, AMIT A VÁLASZ IGAZOL (R176, külső P2)
+
+A meghívó-visszalépés a `POST /api/invites/pending/forget` válaszát **eldobta**, és a böngésző
+állapotát feltétel nélkül ürítette. Hálózati hiba vagy 5xx esetén a lap tehát **teljesítést
+állított**: azt mondta, hogy a felhasználó elhagyta a meghívót, miközben a tárolt folytatás a
+kiszolgálón maradt, és egy későbbi belépés visszavitte rá. Mostantól a három kimenet külön mondat
+(`ok` · `refused` · `network` · `uncertain` — az utolsónak saját szövege van mindhárom
+termék-nyelven), és a böngésző állapota **csak igazolt `ok` után** ürül. Élő tanú: `R166-M6` —
+elvágott kérés mellett a képernyő marad, a mondat nevezett, a gomb újra megnyomható. Tanulság:
+**KUKA-422**.
+
+---
+
+## D-VS-3215 — AZ ÚJ KAPU TÉNYÉT A FOGYASZTÓ KANONIKUS FELOLDÓJÁVAL SZÁMOLJUK (R176, külső P2)
+
+A `D-VS-3211`-ben bevezetett induló adat (`other_member`) tényét nyers sor-feltétellel számoltam
+(`revoked_at IS NULL`), a tagok lapja viszont a `membershipAsOf` kétidős feloldóból vezeti le a
+hatályosságot. Egy **megszüntetett** tagság mellett a felkínálás így igaz lett, a történet pedig a
+harmadik lépésén megszakadt volna — vagyis a `D-VS-3211` saját indoka (a felkínálás a
+végigvihetőségről szól) sérült a saját új kapumban. Mostantól ugyanazt a döntést kérdezzük, amit a
+lap. Élő mérés: `as11` — hatályos taggal felkínálódik, a megszüntetés után eltűnik. Tanulság:
+**KUKA-421**.
+
+---
+
 ## D-VS-3214 — AZ ÁTADÁS FELTÉTELE NEM AZ, HOGY A TÖRTÉNET „TUD" ÁTADNI, HANEM AZ, HOGY ÉPPEN ÁTAD (R176, külső P2)
 
 A `saveTourHandover` egyetlen feltétele az volt, hogy a futó történetben **van-e valahol** váltás-lépés
