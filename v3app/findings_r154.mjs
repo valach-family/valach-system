@@ -1537,25 +1537,98 @@ try {
         vanE(beTurak).length === 2 && beTurak.surface === 'demo',
         { darab: beTurak.ids.length, felulet: beTurak.surface, ketszereplos: vanE(beTurak) });
 
-      // (u7) ELLENPÁR A MÁSIK FELTÉTELRE (R164/3 — a külső review hatodik körének lelete). A
-      // KÖRNYEZET jele BE van kapcsolva, de az ALKALMAZÁS-HÉJ nem ad „váltás a másik nézetére"
-      // vezérlőt — tehát a két történet ott NEM vihető végig, és ezért fel sem kínálódik. Eddig
-      // felkínálódott, és a hatodik lépésén megszakadt; a böngésző-kapu mellette zöld maradt, mert a
-      // próba ÉPP EZT a megszakadást írta elő elvárt eredménynek (KUKA-227).
+      /**
+       * (u7) A VALÓDI HÉJ MOST MÁR AD VÁLTÓ VEZÉRLŐT — ÉS EZ A MAI IGAZSÁG (R176 §1).
+       *
+       * MI VOLT ITT EDDIG. Az R164/3 óta ez a sor azt állította, hogy az alkalmazás-héj NEM ad
+       * „váltás a másik nézetére" vezérlőt, tehát a két szereplős történet ott fel sem kínálódik.
+       * Akkor ez IGAZ volt — és a sor jó munkát végzett: egy végig nem vihető felkínálást fogott meg.
+       *
+       * MI VÁLTOZOTT, ÉS MIÉRT NEM GYENGÜLÉS. Az R176 §1 a történetet a TÉNYLEGES felületen kérte
+       * végigvihetőnek. A válasz NEM megszemélyesítő kapcsoló (a parancs kimondottan nem is kér
+       * ilyet), hanem a MÁR MEGLÉVŐ kijelentkezés: a szemantikus horgony szerződése szerint „az a
+       * vezérlő, amivel a néző átvált a másik szereplőre" — éles héjban ez a kilépés, utána a másik
+       * ember a SAJÁT fiókjával lép be. A képesség tehát valódi vezérlőn áll, nem új kapcsolón.
+       *
+       * ÉS A FELTÉTEL ÉL TOVÁBB: a horgony nélküli felület ZÁR — azt a (u8) méri, kitalált
+       * felület-néven (üres horgony-készlet). A kapu nem tűnt el, csak a valóság lett más.
+       */
       const hejTurak = await turak(anna);          // nincs `surface` → az alapértelmezett héj
-      step('(u7) ELLENPÁR — DEMÓ BE, de az ALKALMAZÁS-HÉJ felülete: a két szereplős végigvezetés NINCS felkínálva (nincs váltó vezérlő)',
-        vanE(hejTurak).length === 0 && hejTurak.surface === 'app'
-          && hejTurak.ids.length === beTurak.ids.length - 2,
+      const logoutSrc = readFileSync(join(ROOT, 'v3app/public/app.js'), 'utf8');
+      const valodiVezerlo = /data-action="logout" data-testid="logout"\s*\n\s*data-tour-anchor="actor-switch"/.test(logoutSrc);
+      step('(u7) R176 §1: a VALÓDI alkalmazás-héj felkínálja a két szereplős végigvezetést, mert a váltó vezérlő a MEGLÉVŐ kijelentkezés (nem megszemélyesítő kapcsoló)',
+        vanE(hejTurak).length === 2 && hejTurak.surface === 'app'
+          && hejTurak.ids.length === beTurak.ids.length && valodiVezerlo,
         { felulet: hejTurak.surface, darab: hejTurak.ids.length, bemutato_felulettel: beTurak.ids.length,
-          kulonbseg: beTurak.ids.filter((x) => !hejTurak.ids.includes(x)) });
+          a_horgony_a_kijelentkezesen: valodiVezerlo });
 
       // (u8) ELLENPÁR A ZÁRT LISTÁRA (KUKA-236): nem ismert felület-névre a kiszolgáló ÜRES
       // horgony-készletet ad, és a válasz `surface: null`-t mond — nem némán „bemutatót".
       const kitalaltTurak = await turak(anna, 'kitalalt-felulet');
       step('(u8) ELLENPÁR — KITALÁLT felület-név: a kapu ZÁR, és a válasz NEVEZETTEN `null` felületet mond',
         vanE(kitalaltTurak).length === 0 && kitalaltTurak.surface === null
-          && kitalaltTurak.ids.length === hejTurak.ids.length,
-        { felulet: kitalaltTurak.surface, darab: kitalaltTurak.ids.length });
+          && kitalaltTurak.ids.length === hejTurak.ids.length - 2,
+        { felulet: kitalaltTurak.surface, darab: kitalaltTurak.ids.length, hej: hejTurak.ids.length });
+
+    /**
+     * (as1–as5) R176 §1 — A VÁLTÁS UTÁNI FOLYTATÁS, MINDKÉT IRÁNYBAN MÉRVE.
+     *
+     * A parancs nevesített hibája: „a meghívó elfogadása utáni folytatásvesztés". A gyökér MÉRVE: a
+     * két szereplős történet ÁTÍVEL a szerepeken, a meghívott viszont nem fiókkezelő, tehát az ő
+     * nézetében a kiszolgáló a bemutatót nem kínálja fel INDÍTÁSRA — és a visszaállás EBBŐL kereste
+     * a lépés-listát. A javítás külön listát ad a FOLYTATHATÓKRÓL; a mérés mindkét irányban megy.
+     */
+    {
+      const bela = await fiok('u-bela-folyt');
+      // A FORRÁSOKAT EZ A BLOKK OLVASSA (nem a lentebbi `srvAs`/`polAs`): a mérés sorrendje nem
+      // függhet attól, melyik blokk deklarált előbb egy segéd-változót (KUKA-120).
+      const srvAs = readFileSync(join(ROOT, 'v3app/server.mjs'), 'utf8');
+      const polAs = readFileSync(join(ROOT, 'v3app/assistant/policy.mjs'), 'utf8');
+      const belepveT = async (c, surface) => {
+        const r = await c.get(`/api/assistant/status?lang=hu${surface ? `&surface=${surface}` : ''}`);
+        return { ind: (r.body.tours || []).map((t) => t.id),
+          fol: (r.body.resumable_tours || []).map((t) => t.id),
+          volt_e_mezo: Array.isArray(r.body.resumable_tours) };
+      };
+      const annaT = await belepveT(anna);
+      const belaT = await belepveT(bela);
+
+      step('(as1) R176 §1: a FIÓKKEZELŐ nézetében a két szereplős történet INDÍTHATÓ is, FOLYTATHATÓ is',
+        KETSZEREPLOS.every((x) => annaT.ind.includes(x)) && KETSZEREPLOS.every((x) => annaT.fol.includes(x)),
+        { inditható: KETSZEREPLOS.filter((x) => annaT.ind.includes(x)).length, folytathato: annaT.fol.length });
+
+      step('(as2) R176 §1: a MÁSIK szereplő nézetében NEM indítható, de FOLYTATHATÓ — ez a javítás lényege (RÉGEN: a visszaállás nem találta a lépés-listát, és a futást `notAvailable`-lel elengedte)',
+        KETSZEREPLOS.every((x) => !belaT.ind.includes(x)) && KETSZEREPLOS.every((x) => belaT.fol.includes(x)),
+        { bela_inditható: KETSZEREPLOS.filter((x) => belaT.ind.includes(x)).join(',') || 'egyik sem',
+          bela_folytathato: belaT.fol.join(',') || 'egyik sem' });
+
+      step('(as3) R176 §1: a HATÁR viszi a mezőt, és a két lista UGYANABBÓL a leképezőből jön (egy otthon)',
+        annaT.volt_e_mezo && belaT.volt_e_mezo
+          && (srvAs.match(/\.map\(\(id\) => tourPayloadOf\(id, lang\)\)/g) || []).length === 2
+          && (srvAs.match(/function tourPayloadOf\(/g) || []).length === 1,
+        { lekepezo_hivasok: (srvAs.match(/\.map\(\(id\) => tourPayloadOf\(id, lang\)\)/g) || []).length,
+          lekepezo_definicio: (srvAs.match(/function tourPayloadOf\(/g) || []).length });
+
+      // (as4) A TOLERÁLT OKOK ZÁRT LISTÁJA — nem „minden más is jó" (KUKA-236 szelleme).
+      const zartLista = /const RESUME_TOLERALT_OK = Object\.freeze\(\['admin_required', 'personal_space'\]\)/.test(polAs);
+      const csakEzek = /RESUME_TOLERALT_OK\.includes\(row\.why\)/.test(polAs);
+      step('(as4) R176 §1: a folytatásnál TOLERÁLT láthatósági okok ZÁRT listán állnak (`admin_required` · `personal_space`), és a kapu CSAK ezeket engedi',
+        zartLista && csakEzek, { zart_lista: zartLista, csak_ezek: csakEzek });
+
+      // (as5) ÉS A FOLYTATÁS SEM AD JOGOT: csak a szereplő-váltó történetek kerülnek bele, és a
+      // készlet a DEFINÍCIÓBÓL jön (KUKA-045) — kézi bemutató-lista nincs.
+      const csakValto = /if \(actorSwitchSteps\(t\)\.length === 0\) continue;/.test(polAs);
+      step('(as5) R176 §1 ELLENPÁR: a folytatható listába CSAK szereplő-váltó történet kerül (a definícióból, nem kézi névsorból), és a lista rövidebb az indíthatóknál',
+        csakValto && annaT.fol.length === KETSZEREPLOS.length && annaT.fol.length < annaT.ind.length,
+        { csak_valto: csakValto, folytathato: annaT.fol.length, inditható: annaT.ind.length });
+
+      // (as6) A BÖNGÉSZŐ-OLDALI VISSZAÁLLÁS IS EBBŐL OLVAS — különben a határ zöldje nem a felület
+      // zöldje (KUKA-227): a mező átmegy, de senki nem használja.
+      const appSrc = readFileSync(join(ROOT, 'v3app/public/app.js'), 'utf8');
+      step('(as6) R176 §1: a váltás utáni visszaállás a FOLYTATHATÓ listából is keres (a határ mezőjét a felület TÉNYLEGESEN használja)',
+        /state\.astStatus\.resumable_tours/.test(appSrc)
+          && /defs\.find\(\(t\) => t\.id === h\.id\) \|\| folytathatok\.find\(\(t\) => t\.id === h\.id\)/.test(appSrc));
+    }
 
       // (u2) DEMÓ KI: ugyanazon a fiókon, UGYANAZZAL a bemutató-felülettel is eltűnnek — az ÉLES
       // védelem érintetlen. A két feltétel tehát ÉS-kapcsolatban áll, nem helyettesíti egymást.
@@ -1605,8 +1678,16 @@ try {
       const ctxDemo = (polU.match(/ctx\.demo(?![a-z_])/g) || []).length;
       const ctxMinta = (polU.match(/ctx\.demo_fixture/g) || []).length;
       // A FÜGGVÉNY-HATÓKÖR KIMONDVA (KUKA-239): a `ctx.demo` a végigvezetés-felkínálóban álljon.
-      const kezd = polU.indexOf('export function allowedToursFor');
-      const veg = polU.indexOf('\nexport ', kezd + 10);
+      /**
+       * A KAPU-LÁNC OTTHONA ELMOZDULT, ÉS ERŐSEBB LETT (R176 §1 · `KUKA-003`).
+       *
+       * Eddig a lánc az `allowedToursFor` törzsében állt. Mostantól KÉT fogyasztója van — az
+       * INDÍTHATÓ és a VÁLTÁS UTÁN FOLYTATHATÓ lista —, ezért a lánc egy KÖZÖS feloldóba került
+       * (`tourGateOpen`), és a két lista CSAK a szerep-kapuban tér el. A hatókör-mérce ezért a
+       * közös feloldó törzsét kérdezi: ha a lánc visszamásolódna két példányba, ez a sor pirosra vált.
+       */
+      const kezd = polU.indexOf('function tourGateOpen(');
+      const veg = polU.indexOf('\n/** AZ INDÍTHATÓ', kezd + 10);
       const torzs = kezd >= 0 ? polU.slice(kezd, veg > kezd ? veg : polU.length) : '';
       // ÉS A MÁSODIK FELTÉTEL OTTHONA IS MÉRVE (R164/3 · KUKA-003): a felület-horgony kapu UGYANEBBEN
       // a felkínálóban áll, a lista pedig a bemutató SAJÁT `switch_actor` lépéseiből jön — nincs

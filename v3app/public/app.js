@@ -555,6 +555,25 @@ import { inviteNextKey } from './inviteText.mjs';
   }
 
   // ── FEJLÉC ──────────────────────────────────────────────────────────────────────────────────
+  /**
+   * A KIJELENTKEZÉS EGYBEN A SZEREPLŐ-VÁLTÓ HORGONY IS (R176 §1 — `data-tour-anchor="actor-switch"`).
+   *
+   * MIÉRT ÉPP EZ AZ ELEM. A szemantikus horgony szerződése: „az a vezérlő, amivel a néző átvált a
+   * MÁSIK szereplőre" — és felületenként MÁS elem tölti be (`elementFor` a `tour.mjs`-ben). A
+   * bemutató lapján a sáv rövidítő gombja; a VALÓDI alkalmazás-héjban a KIJELENTKEZÉS, mert itt a
+   * váltás valódi: az egyik ember kilép, a másik a SAJÁT fiókjával belép.
+   *
+   * MEGSZEMÉLYESÍTŐ KAPCSOLÓ EZZEL NEM KELETKEZIK — az R176 §1 kimondottan nem is kér ilyet. A gomb
+   * ugyanaz a kijelentkezés, ami eddig is volt; most a bemutató is meg tudja NEVEZNI. A váltás
+   * lezárását továbbra sem a kattintás adja: a `switch_actor` lépés feladathoz kötött
+   * (`actor.switched`), és csak a TÉNYLEGESEN más alany + fiók igazolja (`actorSwitchReady`).
+   *
+   * ÉS EZ NYITJA MEG A KÉT SZEREPLŐS TÖRTÉNETET A VALÓDI FELÜLETEN. A felkínálás kapuja a lépés
+   * `target`-jét kéri a felülettől (`surface_anchors`), tehát horgony nélkül a történet éles héjban
+   * NEM volt indítható — a bemutató-lapra szorult, aminek a háttere CSONK, a csonk zöldje pedig nem
+   * a határ zöldje (`KUKA-227`). A `requires_demo` kapu VÁLTOZATLAN: éles üzemben (VS_DEMO nélkül)
+   * a történet továbbra sem indítható, mert ott a két élő munkamenet nincs együtt kézben.
+   */
   function renderHeader() {
     const me = state.me;
     const loggedIn = !!(me && me.subject_id);
@@ -595,7 +614,8 @@ import { inviteNextKey } from './inviteText.mjs';
         <button type="button" data-go="profile" data-testid="profile-menu-profile">${PAGE.profile}</button>
         <button type="button" data-go="security" data-testid="profile-menu-security">${PAGE.security}</button>
         <div class="divider"></div>
-        <button type="button" data-action="logout" data-testid="logout">${esc(UI.logout)}</button>` : '';
+        <button type="button" data-action="logout" data-testid="logout"
+          data-tour-anchor="actor-switch">${esc(UI.logout)}</button>` : '';
     }
   }
 
@@ -1776,9 +1796,27 @@ import { inviteNextKey } from './inviteText.mjs';
     const h = takeTourHandover();
     if (!h) return;
     await loadHelpData();
+    /**
+     * A LÉPÉS-LISTA A FOLYTATHATÓ LISTÁBÓL IS JÖHET (R176 §1 — a parancs nevesített hibája:
+     * „a meghívó elfogadása utáni folytatásvesztés").
+     *
+     * A LELET, MÉRVE. A két szereplős történet ÁTÍVEL a szerepeken, és a MEGHÍVOTT nem fiókkezelő:
+     * a kiszolgáló az ő nézetében ezt a bemutatót joggal nem kínálja fel INDÍTÁSRA, tehát a `tours`
+     * listában nincs benne. A visszaállás viszont EBBŐL kereste a lépés-listát, nem találta, és a
+     * futást NEVEZETTEN elengedte (`notAvailable`) — a felhasználó a történet közepén, egy ÉP
+     * képernyőn vesztette el a bemutatót, pont a tanulság előtt. Ugyanez igaz az elfogadás utáni
+     * SZEMÉLYES körre is: ott a funkció sora `personal_space` miatt nem látszik.
+     *
+     * MOSTANTÓL a kiszolgáló külön listát ad a VÁLTÁS UTÁN FOLYTATHATÓKRÓL (`resumable_tours`), és a
+     * visszaállás ELŐBB az indíthatók közt keres, UTÁNA a folytathatók közt. A lépés-lista így
+     * továbbra is a SZERVERTŐL jön (AST-01) — nem a tárolt adatból —, jogot pedig nem ad: a lépések
+     * saját `role` őre futás közben változatlanul érvényes (`rightLost`).
+     */
     const defs = (state.astStatus && state.astStatus.tours) || [];
-    const def = defs.find((t) => t.id === h.id);
-    // A SZERVER MA NEM KÍNÁLJA: nem erőltetjük vissza, és nem is hallgatunk róla (KUKA-050).
+    const folytathatok = (state.astStatus && state.astStatus.resumable_tours) || [];
+    const def = defs.find((t) => t.id === h.id) || folytathatok.find((t) => t.id === h.id);
+    // A SZERVER MA SEM INDÍTHATÓNAK, SEM FOLYTATHATÓNAK NEM ADJA: nem erőltetjük vissza, és nem is
+    // hallgatunk róla (KUKA-050).
     if (!def) { state.tour = null; state.tourAborted = 'notAvailable'; renderTour(); return; }
     const run = tourMod.newTourRun({ def, view: view(), role: state.me && state.me.current_role });
     if (!run) return;

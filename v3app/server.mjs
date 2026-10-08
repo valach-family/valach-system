@@ -55,7 +55,11 @@ import { dictFor } from './public/i18n/dict.mjs';
 import { enabledLanguages, normalizeLanguage, dirOf, allLanguages, resolveLanguage } from './public/i18n/languages.mjs';
 import {
   LIMITS as AST_LIMITS, checkQuestion, injectionFindings, visibleFeaturesFor, allowedActionsFor,
-  allowedToursFor, acceptAction, selectKnowledge, localAnswer, AST_CONTRACT, verifyModelAnswer,
+  allowedToursFor,
+  // A VÁLTÁS UTÁN FOLYTATHATÓ bemutatók (R176 §1): a lépés-listát a kiszolgáló adja a
+  // visszaálláshoz is, nem csak az indításhoz — jogot viszont NEM ad (AST-01).
+  resumableToursFor,
+  acceptAction, selectKnowledge, localAnswer, AST_CONTRACT, verifyModelAnswer,
   composeBlockAnswer, ANSWER_SECTIONS,
   // AST-06 · AST-07 (R142 §6): a modell-hívás NEVEZETT döntése, és a megjelölt következtetés.
   modelNeed, groundedAnswer, BLOCK_MARKERS,
@@ -1671,6 +1675,54 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     return keszlet;
   }
 
+  /**
+   * EGY BEMUTATÓ HATÁRON ÁTMENŐ ALAKJA — EGY OTTHON, KÉT FOGYASZTÓ (R176 §1 · `KUKA-003`).
+   *
+   * Az INDÍTHATÓ (`tours`) és a VÁLTÁS UTÁN FOLYTATHATÓ (`resumable_tours`) lista UGYANEZT az alakot
+   * viszi: a lap mindkettőből ugyanúgy épít futást. Ha a leképezés két példányban állna, egy újonnan
+   * átvitt mező az egyikből kimaradna — és a böngészőben `undefined` lenne (a `KUKA-394` tanulsága).
+   */
+  function tourPayloadOf(id, lang) {
+    return {
+    id, version: TOURS[id].version, feature: TOURS[id].feature, page: TOURS[id].page ?? null,
+    requires_role: TOURS[id].requires_role ?? null,
+    // A KÖZÖNSÉG ÉS A BELÉPÉS ELŐTTI FUTÁS a válaszban áll: a lap ebből tudja, hova vigyen,
+    // és nem a saját feltevéséből (F91-01 · AVL-01).
+    audience: TOURS[id].audience ?? 'signed_in',
+    requires_anonymous: TOURS[id].requires_anonymous === true,
+    /**
+     * …ÉS AZ IS, MELYIK BELÉPÉSI NÉZETBEN JÁR (R166 §3 — MÉRT lelet, `KUKA-394`).
+     *
+     * A lap a `def`-et EBBŐL a válaszból kapja, nem a regiszterből: egy itt ÁT NEM VITT mező a
+     * böngészőben `undefined`. A régi futtató ezért tudott működni hardkódolt céllal — amíg
+     * egyetlen belépés előtti útmutató volt. A mezőt tehát a HATÁRON is át kell adni, különben
+     * a felület a saját feltevéséből dolgozik (`KUKA-227`: a határ zöldje nem a felület zöldje).
+     */
+    auth_view: TOURS[id].auth_view ?? null,
+    // A KÉT ÚJ KAPU-FELTÉTEL IS ÁTMEGY (R166 P2): a lap ebből tudja, miért nem indítható egy
+    // útmutató — és egy itt át nem vitt mező a böngészőben `undefined` (KUKA-394 tanulsága).
+    requires_dev_mailbox: TOURS[id].requires_dev_mailbox === true,
+    requires_stock_access: TOURS[id].requires_stock_access === true,
+    requires_demo_fixture: TOURS[id].requires_demo_fixture === true,
+    // A MEGHÍVÓ-KÉPERNYŐHÖZ KÖTÖTT BEMUTATÓ: a lap ebből tudja, hogy nem egy belső oldalra
+    // kell vinnie, hanem a meghívó lapján kell maradnia (P109-01).
+    requires_invite: TOURS[id].requires_invite === true,
+    steps: TOURS[id].steps.map((st) => ({
+      id: st.id, target: st.target, task: st.task ?? null,
+      // A LÉPÉS SZEREPE ÉS A SZEREPLŐ-VÁLTÁS (R140 — ACT-01): a teljes történet átível a
+      // szereplőkön, és a lap ebből tudja, melyik lépést KI végzi, illetve hol vár váltásra.
+      // Ha ezt a válasz nem vinné, a lap a saját feltevéséből dolgozna (AST-01).
+      role: st.role ?? null,
+      switch_actor: st.switch_actor === true,
+      // MI TÁRJA FEL a célt (panel · választás · navigáció). A lap ebből tudja, hogy a
+      // hiányzó cél VÁRAKOZÁS-e vagy valódi megszakítás (TUR-01 · KUKA-228).
+      appears_after: st.appears_after ?? null,
+    })),
+    text: (dictFor(lang).TOUR || {})[id] || null,
+    text: (dictFor(lang).TOUR || {})[id] || null,
+    };
+  }
+
   function requesterContext(session, cur, opts = {}) {
     const bookId = cur && cur.book_id ? cur.book_id : null;
     const at = clock.now();
@@ -2619,43 +2671,22 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
         actions: allowedActionsFor(who).map((id) => ({ id, ...ACTIONS[id], writes: ACTIONS[id].writes === true })),
         // A BEMUTATÓK TELJES ALAKJA — a lépések stabil felületi pontokra mutatnak, és a SZÖVEG a
         // nyelvcsomagból jön. Egy otthon: a lépés-lista a `features.mjs`-ben él, a lap onnan kapja.
-        tours: allowedToursFor(who).map((id) => ({
-          id, version: TOURS[id].version, feature: TOURS[id].feature, page: TOURS[id].page ?? null,
-          requires_role: TOURS[id].requires_role ?? null,
-          // A KÖZÖNSÉG ÉS A BELÉPÉS ELŐTTI FUTÁS a válaszban áll: a lap ebből tudja, hova vigyen,
-          // és nem a saját feltevéséből (F91-01 · AVL-01).
-          audience: TOURS[id].audience ?? 'signed_in',
-          requires_anonymous: TOURS[id].requires_anonymous === true,
-          /**
-           * …ÉS AZ IS, MELYIK BELÉPÉSI NÉZETBEN JÁR (R166 §3 — MÉRT lelet, `KUKA-394`).
-           *
-           * A lap a `def`-et EBBŐL a válaszból kapja, nem a regiszterből: egy itt ÁT NEM VITT mező a
-           * böngészőben `undefined`. A régi futtató ezért tudott működni hardkódolt céllal — amíg
-           * egyetlen belépés előtti útmutató volt. A mezőt tehát a HATÁRON is át kell adni, különben
-           * a felület a saját feltevéséből dolgozik (`KUKA-227`: a határ zöldje nem a felület zöldje).
-           */
-          auth_view: TOURS[id].auth_view ?? null,
-          // A KÉT ÚJ KAPU-FELTÉTEL IS ÁTMEGY (R166 P2): a lap ebből tudja, miért nem indítható egy
-          // útmutató — és egy itt át nem vitt mező a böngészőben `undefined` (KUKA-394 tanulsága).
-          requires_dev_mailbox: TOURS[id].requires_dev_mailbox === true,
-          requires_stock_access: TOURS[id].requires_stock_access === true,
-          requires_demo_fixture: TOURS[id].requires_demo_fixture === true,
-          // A MEGHÍVÓ-KÉPERNYŐHÖZ KÖTÖTT BEMUTATÓ: a lap ebből tudja, hogy nem egy belső oldalra
-          // kell vinnie, hanem a meghívó lapján kell maradnia (P109-01).
-          requires_invite: TOURS[id].requires_invite === true,
-          steps: TOURS[id].steps.map((st) => ({
-            id: st.id, target: st.target, task: st.task ?? null,
-            // A LÉPÉS SZEREPE ÉS A SZEREPLŐ-VÁLTÁS (R140 — ACT-01): a teljes történet átível a
-            // szereplőkön, és a lap ebből tudja, melyik lépést KI végzi, illetve hol vár váltásra.
-            // Ha ezt a válasz nem vinné, a lap a saját feltevéséből dolgozna (AST-01).
-            role: st.role ?? null,
-            switch_actor: st.switch_actor === true,
-            // MI TÁRJA FEL a célt (panel · választás · navigáció). A lap ebből tudja, hogy a
-            // hiányzó cél VÁRAKOZÁS-e vagy valódi megszakítás (TUR-01 · KUKA-228).
-            appears_after: st.appears_after ?? null,
-          })),
-          text: (dictFor(lang).TOUR || {})[id] || null,
-        })),
+        tours: allowedToursFor(who).map((id) => tourPayloadOf(id, lang)),
+        /**
+         * …ÉS A VÁLTÁS UTÁN FOLYTATHATÓK, UGYANEBBEN AZ ALAKBAN (R176 §1 — a parancs nevesített
+         * hibája: „a meghívó elfogadása utáni folytatásvesztés").
+         *
+         * MIÉRT KÜLÖN LISTA, MÉRT OKKAL. A két szereplős történet ÁTÍVEL a szerepeken: a meghívott
+         * NEM fiókkezelő, tehát az INDÍTHATÓ listában az ő nézetében joggal nincs ott. A váltás
+         * utáni visszaállás viszont a SZERVER mai válaszából veszi a lépés-listát (AST-01) — és
+         * enélkül nem találta meg, tehát a futást NEVEZETTEN elengedte (`notAvailable`). MÉRVE: a
+         * futás a meghívás ELFOGADÁSA után veszett el, a történet közepén, egy ÉP képernyőn.
+         *
+         * AMIT EZ A LISTA NEM AD: jogot és műveletet. Csak lépés-listát a KÉZBEN LÉVŐ átadás
+         * visszaállításához — a súgó továbbra is a `tours`-t kínálja fel, és a lépések saját `role`
+         * őre futás közben változatlanul érvényes (`rightLost`).
+         */
+        resumable_tours: resumableToursFor(who).map((id) => tourPayloadOf(id, lang)),
         // MODELLHÍVÁS NÉLKÜL MŰKÖDŐ RÉSZEK — kimondva, hogy a felület ne állítson mást (R89 §6).
         no_model_call: ['help', 'faq', 'sitemap', 'tour', 'guide_search'],
       } };
