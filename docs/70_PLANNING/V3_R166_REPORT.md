@@ -916,6 +916,13 @@ megszakítást bukásnak** veszi, nem „nincs is baj"-nak.
 
 ### 6.1 R166 §2 — a valódi két szereplős bejárás a VS-felületen
 
+> **JAVÍTVA (2026-10-08, az R176 nevesítette · az R177 jelentés 5. pontja):** az alábbi
+> „friss beszélgetésbe tartozik" követelményt az **R176 döntése FELÜLÍRTA** — a befejező csomag
+> kimondottan ebben a munkamenetben futott tovább. **És a feladat azóta ELKÉSZÜLT:** a két szereplős
+> történet a VALÓDI felületen végigmegy (`R176-K1` 19/19 · `K2` 18/18 · `K3` 390 px + újraindítás),
+> a kötelező kapu zöld. Az „EL SEM KEZDTEM" tehát a mai napon már NEM igaz; a szöveget azért nem
+> töröltem, mert az R175 állapotát rögzíti — a mai igazság az R177 lapján áll.
+
 **EL SEM KEZDTEM.** Ez önálló nagy blokk, és a `D-VS-3083` sávja szerint friss beszélgetésbe
 tartozik. Amit az átvevőnek tudnia kell:
 
@@ -1008,8 +1015,10 @@ socket-könyvtár · a binárisok útja) az átadási checkpoint 4. pontjában �
 ## 8. AMIT EZ A JELENTÉS NEM ÁLLÍT
 
 - **Nem** állítja, hogy a csomag merge-kész: két parancs-pont nem készült el.
-- **Nem** állítja, hogy a mai fejet független fél elfogadta — a review a `3fea359`-et fedi, az azóta
-  született munkát **nem**. A **válaszolt vagy lezárt szál nem elfogadás**.
+- **Nem** állítja, hogy a mai fejet független fél elfogadta — a review a **`6110c87`**-et fedi, az
+  azóta született munkát **nem**. A **válaszolt vagy lezárt szál nem elfogadás**.
+  *(JAVÍTVA 2026-10-08 — az R176 nevesítette: itt eredetileg `3fea359` állt, ami ellentmondott
+  ugyanennek a jelentésnek az 1. táblájával. A helyes érték a `6110c87`.)*
 - **Nem** állítja, hogy a külső-ellenőrző lánc zöld: **nem teljes**, hat program verdiktje hiányzik.
   A nem futott nem „részben", és nem zöld (`KUKA-200` · `KUKA-206`).
 - **Nem** állítja, hogy a lefedési őr zöld: a `LT` **PIROS**, és az ok nevesítve áll. Az elfogadási
