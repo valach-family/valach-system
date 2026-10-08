@@ -22,8 +22,8 @@
 // igazolt ÚJ nézetre zárul (`actorSwitchReady`), nem a kattintásra (`KUKA-231`).
 import { test, expect } from '@playwright/test';
 import {
-  World, PASSWORD, createWorkspaceUI, inviteUI, loginUI, logoutUI, gotoPage, withResponse,
-  openInviteUI, switchUI, Db,
+  World, PASSWORD, createWorkspaceUI, inviteUI, loginUI, gotoPage, withResponse,
+  openInviteUI, switchUI, Db, revokeUI, grantScopeUI, openMemberPanel,
 } from './helpers.mjs';
 import { TOURS } from '../../v3app/knowledge/features.mjs';
 import { dictFor } from '../../v3app/public/i18n/dict.mjs';
@@ -57,12 +57,77 @@ async function valtsSzereplot(page, kire) {
 }
 
 /**
+ * NAVIGÁCIÓ, AMI A KESKENY NÉZETET IS TUDJA (R176 §1 — a parancs 390 px-et is kér).
+ *
+ * 390 px-en a menü a ☰ mögött áll, tehát a menüpont nem kattintható addig, amíg a felhasználó
+ * ki nem nyitja — a közös `gotoPage` ezt nem teszi meg, és a próba egy nem látható gombra várt.
+ * Itt a FELHASZNÁLÓ útját követjük: ha a menüpont nem látszik, előbb a ☰-t nyomjuk meg.
+ */
+async function menjAzOldalra(page, nev) {
+  for (const id of ['account-switcher', 'profile']) {
+    const d = page.getByTestId(id);
+    if (await d.count() && await d.evaluate((el) => el.open).catch(() => false)) {
+      await d.evaluate((el) => { el.open = false; });
+    }
+  }
+  const menupont = page.getByTestId(`nav-${nev}`);
+  const toggle = page.getByTestId('nav-toggle');
+  if (!(await menupont.isVisible().catch(() => false))) {
+    if (await toggle.count() && await toggle.isVisible()) await toggle.click();
+  }
+  await menupont.click();
+  await expect(menupont).toHaveAttribute('aria-current', 'page');
+  // …és a menü-réteget be is csukjuk, ahogy a felhasználó: nyitva takarja a fejlécet.
+  if (await toggle.count() && await toggle.isVisible()
+      && (await toggle.getAttribute('aria-expanded')) === 'true') {
+    await toggle.click();
+  }
+}
+
+/**
+ * FIÓKVÁLTÁS, AMI A KESKENY NÉZETET IS TUDJA (R176 §1).
+ *
+ * 390 px-en a fejléc fiókválasztója is a ☰ mögé kerül, tehát a közös `switchUI` a nem látható
+ * összefoglalóra várt. A felhasználó útja: előbb ☰, aztán a választó.
+ */
+async function valtsFiokra(page, bookId) {
+  /**
+   * A ☰ MENÜ-RÉTEGET BE KELL ZÁRNI, NEM KINYITNI (SAJÁT LELET, MÉRVE).
+   *
+   * Önálló méréssel ellenőriztem: 390 px-en a fiókválasztó, a nyitója ÉS a fiók-sorok is LÁTSZANAK
+   * (`switcher=látszik summary=látszik sor=látszik`). A próbám mégis elakadt — mert a navigációnál
+   * kinyitott ☰ menü-réteg takarta a fejlécet, és a kattintás a mozgó/takart elemre várt. A termék
+   * tehát rendben volt; a hiba az enyém (`KUKA-120`: a próba ne a saját maradékát mérje).
+   */
+  const toggle = page.getByTestId('nav-toggle');
+  if (await toggle.count() && await toggle.isVisible()
+      && (await toggle.getAttribute('aria-expanded')) === 'true') {
+    await toggle.click();
+  }
+  // MÉRJÜK MEG, MI VAN A NYITÓ PONTJÁN — a takarást nem feltételezzük (`TUR-03` · `KUKA-215`).
+  const takaro = await page.evaluate(() => {
+    const sum = document.querySelector('[data-testid="account-switcher-summary"]')
+      || document.querySelector('[data-testid="account-switcher"] summary');
+    if (!sum) return 'a nyitó NINCS a lapon';
+    const r = sum.getBoundingClientRect();
+    const top = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
+    const ut = [];
+    for (let el = top; el && ut.length < 5; el = el.parentElement) ut.push(`${el.tagName.toLowerCase()}${el.getAttribute && el.getAttribute('data-testid') ? '#' + el.getAttribute('data-testid') : ''}`);
+    return `a ponton: ${ut.join(' < ')} · a nyitó: ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)}`;
+  });
+  if (!takaro.startsWith('a ponton: summary') && !takaro.includes('#account-switcher')) {
+    throw new Error(`a fiókválasztó nyitóját MÁS elem takarja — MÉRVE: ${takaro}`);
+  }
+  await switchUI(page, bookId);
+}
+
+/**
  * A LEVÉL MEGNYITÁSA A FEJLESZTŐI LEVÉL-FOGADÓBÓL — ahogy a címzett teszi.
  *
  * A levél-fogadó sorai `mail-<id>`/`mail-link-<id>` horgonyt kapnak; a cím szerint szűrünk, és a
  * LEGÚJABB levelet nyitjuk meg (a történet közben több is keletkezik).
  */
-async function nyisdMegALevelet(page, email) {
+async function nyisdMegALevelet(page, email, mod = 'barmelyik') {
   const lista = page.getByTestId('mailbox');
   await expect(lista).toBeVisible();
   /**
@@ -75,16 +140,37 @@ async function nyisdMegALevelet(page, email) {
   const linkek = lista.locator('li[data-testid^="mail-"]').filter({ hasText: email }).locator('a[data-testid^="mail-link-"]');
   const n = await linkek.count();
   expect(n, `a levél-fogadóban van levél ${email} címre`).toBeGreaterThan(0);
-  let megnyitva = false;
-  for (let k = n - 1; k >= 0; k -= 1) {
+  /**
+   * ÉS A SORRENDRE SEM TÁMASZKODUNK, HANEM A VISELKEDÉSRE (SAJÁT LELET, MÉRVE).
+   *
+   * Az első alakom a lista VÉGÉRŐL keresett visszafelé. A fogadó viszont a LEGÚJABBAT mutatja
+   * elöl, tehát a második történetnél a LEGRÉGEBBI (már visszavont) meghívót nyitotta meg, és
+   * ott nincs „Elfogadás" gomb — a próba a saját feltevését mérte, nem a rendszert (`KUKA-045`:
+   * a készlet a forrásból, ne a sorrendből).
+   *
+   * MOSTANTÓL a MÓD dönt: `barmelyik` → az első meghívó-hivatkozás (a visszavont állapot
+   * megtekintéséhez); `elfogadhato` → végigpróbáljuk a jelölteket, amíg olyat nem nyitunk, ahol az
+   * „Elfogadás" tényleg ott van. A címzett is így tenne: megnyitja a leveleket, és azt fogadja el,
+   * amelyik még él.
+   */
+  const jeloltek = [];
+  for (let k = 0; k < n; k += 1) {
     const href = (await linkek.nth(k).getAttribute('href')) || '';
-    if (!href.includes('invite=')) continue;
-    await linkek.nth(k).click();
-    megnyitva = true;
-    break;
+    if (href.includes('invite=')) jeloltek.push(href);
   }
-  expect(megnyitva, `a ${email} címre érkezett levelek közt VAN meghívó-hivatkozás`).toBe(true);
-  await expect(page.getByTestId('invite-observe')).toBeVisible();
+  expect(jeloltek.length, `a ${email} címre érkezett levelek közt VAN meghívó-hivatkozás`).toBeGreaterThan(0);
+  if (mod === 'barmelyik') {
+    await page.goto(jeloltek[0]);
+    await expect(page.getByTestId('invite-observe')).toBeVisible();
+    return;
+  }
+  for (const href of jeloltek) {
+    await page.goto(href);
+    await expect(page.getByTestId('invite-observe')).toBeVisible();
+    const van = await page.getByTestId('invite-redeem').count();
+    if (van > 0 && await page.getByTestId('invite-redeem').isVisible()) return;
+  }
+  throw new Error(`a ${email} címre érkezett ${jeloltek.length} meghívó közül EGYIK sem elfogadható`);
 }
 
 /**
@@ -131,7 +217,11 @@ async function vezess(page, tourId, akciok, { lepesHatar = 4000 } = {}) {
       return { elert: i, lepes: steps.length, naplo,
         baj: `${st.id}: a buborék „${kint.slice(0, 40)}”, a csomag szerint „${cim}” [panel:${panel} blocked:${blocked} · ${szoveg}] CÉL(${celAllapot.cel}): ${celAllapot.jelolt} · Tovább: ${celAllapot.tovabb} · héj-kilépés: ${celAllapot.hej} · meghívó-kilépés: ${celAllapot.meghivo} · ELŐZŐ LÉPÉS CÉLJA: ${elozo} · PANEL: ${panelTeljes.slice(0, 320)}` };
     }
-    naplo.push(st.id);
+    {
+      const l = await page.getByTestId(st.target).first().isVisible().catch(() => false);
+      const c = await page.getByTestId(st.target).count().catch(() => 0);
+      naplo.push(`${st.id}${c === 0 ? '[nincs]' : (l ? '' : '[rejtett]')}`);
+    }
     if (akciok[st.id]) await akciok[st.id]();
     if (await page.getByTestId('tour-blocked').count() > 0) {
       const m = ((await page.getByTestId('tour-blocked').textContent()) || '').trim().slice(0, 90);
@@ -158,6 +248,25 @@ async function vezess(page, tourId, akciok, { lepesHatar = 4000 } = {}) {
        * el, mi vezérlő, hanem a lap. És ahol a lépésnek SAJÁT valódi művelete van (`akciok`), azt
        * már elvégeztük feljebb.
        */
+      /**
+       * A FELTÁRÁSRA VÁRÓ LÉPÉSNÉL A NÉZŐ A KIEMELT FELTÁRÓT NYOMJA MEG (`KUKA-228`).
+       *
+       * 390 px-en a bal menü a ☰ gomb mögé csukódik, tehát a menüpontra mutató lépés célja a lapon
+       * OTT VAN, de nem látszik. A buborék ilyenkor KIEMELI a ☰-t (`.tourtarget`) és NEVEZETTEN vár:
+       * „az útmutató nem nyomja meg helyetted". A valódi néző megnyomja — a bejáró is ezt teszi,
+       * különben a SAJÁT tétlenségét mérné (`KUKA-120`), és a keskeny nézet MINDEN menü-lépésén
+       * elakadna egy ÉP felületen.
+       */
+      if (!akciok[st.id]) {
+        const cel = page.getByTestId(st.target).first();
+        if (await cel.count() > 0 && !(await cel.isVisible())) {
+          const kiemelt = page.locator('.tourtarget').first();
+          if (await kiemelt.count() > 0 && await kiemelt.isVisible()) {
+            await kiemelt.click({ timeout: 2500 }).catch(() => {});
+            await cel.waitFor({ state: 'visible', timeout: 2500 }).catch(() => {});
+          }
+        }
+      }
       if (!akciok[st.id] && !st.task) {
         const cel = page.getByTestId(st.target).first();
         if (await cel.count() > 0 && await cel.isVisible()) {
@@ -257,4 +366,157 @@ test('R176-K1 — 1. TÖRTÉNET a VALÓDI felületen: a meghívás visszavonása
   db.close();
   expect(tagsag.length, 'Béla TÉNYLEGESEN tag lett a cégben').toBe(1);
   expect(visszavont.length >= 1, 'a visszavonás a tárolóban is ott van — a régi hivatkozás nem éledt fel').toBe(true);
+});
+
+test('R176-K2 — 2. TÖRTÉNET a VALÓDI felületen: a munkatárs visszatérése a tagságtól a készletadatig', async () => {
+  const p = anna.page;
+  // A K1 VÉGÉN BÉLA NÉZETÉBEN ÁLLUNK (ő fogadta el a meghívást) — a történet a fiókkezelőé, tehát
+  // előbb valódi váltás Annára, majd a cég fiókjára. Ez nem a próba kényelme: a felhasználó is így tenné.
+  await valtsSzereplot(p, anna);
+  await switchUI(p, cegId);
+  await gotoPage(p, 'overview');
+
+  const elindult = await startTourViaHelp(p, 'tour.reentry');
+  expect(elindult === true ? 'elindult' : `NEM indult — ${elindult && elindult.nemIndult ? elindult.nemIndult : 'a súgó nem kínálta fel'}`,
+    'a VALÓDI felületen a súgó felkínálja és el is indítja a visszatérés-történetet').toBe('elindult');
+
+  const r = await vezess(p, 'tour.reentry', {
+    s3: async () => { await closeModals(p); await revokeUI(p, bela.subjectId); },
+    s4: async () => {
+      await openMemberPanel(p, bela.subjectId);
+      await p.getByTestId(`member-reinvite-${bela.subjectId}`).click();
+      await expect(p.getByTestId('reinvite-form')).toBeVisible();
+      await p.getByTestId('reinvite-role').selectOption('user');
+      await p.getByTestId('reinvite-scope').selectOption('keszlet');
+      const rr = await withResponse(p, { path: '/api/members/reinvite' }, () => p.getByTestId('reinvite-confirm').click());
+      expect(rr.body && rr.body.ok, 'az újbóli meghívás kiadva').toBe(true);
+    },
+    s5: async () => { await valtsSzereplot(p, bela); },
+    /**
+     * s8 — A CÍMZETT A LEVÉL-FOGADÓBÓL NYITJA MEG AZ ÚJBÓLI MEGHÍVÁST, ÉS ELFOGADJA.
+     *
+     * A jegy SZÁNDÉKOSAN nem megy vissza a felületre (`KUKA-006`), tehát nincs mit „beírni": a
+     * valódi út a levél megnyitása. Ez egyben azt is bizonyítja, hogy a levél TÉNYLEGESEN megérkezett.
+     */
+    s8: async () => {
+      await nyisdMegALevelet(p, bela.email, 'elfogadhato');
+      await withResponse(p, { path: '/api/invites/redeem' }, () => p.getByTestId('invite-redeem').click());
+    },
+    s9: async () => { await switchUI(p, cegId); },
+    s12: async () => { await valtsSzereplot(p, anna); await switchUI(p, cegId); },
+    s14: async () => { await closeModals(p); await grantScopeUI(p, bela.subjectId, 'keszlet'); },
+    s15: async () => { await valtsSzereplot(p, bela); await switchUI(p, cegId); },
+  });
+  expect(r.baj || `${r.elert}/${r.lepes} OK`, `a visszatérés-történet VÉGIG vihető a valódi felületen — mérve: ${r.naplo.join('→')}`).toBe(`${r.lepes}/${r.lepes} OK`);
+
+  // A VÉGÁLLAPOT: tagság VAN, és a KÉSZLET adatköre kiadva — az ÁR viszont nem (a történet tanulsága).
+  const db = new Db();
+  const tag = db.all('SELECT role FROM membership WHERE subject_id = ? AND book_id = ?', bela.subjectId, cegId);
+  // A KIADOTT ADATKÖRÖK a magban `scope_grant` néven élnek, és a visszavonás KÜLÖN táblában áll —
+  // tehát az ÉLŐ kiadás az, amire nincs visszavonás (a mag szabálya, nem a próba feltevése).
+  const korok = db.all(`SELECT g.scope FROM scope_grant g
+      WHERE g.subject_id = ? AND g.book_id = ?
+        AND NOT EXISTS (SELECT 1 FROM scope_grant_revocation r
+          WHERE r.subject_id = g.subject_id AND r.book_id = g.book_id AND r.scope = g.scope
+            AND r.id > (SELECT MAX(id) FROM scope_grant g2
+              WHERE g2.subject_id = g.subject_id AND g2.book_id = g.book_id AND g2.scope = g.scope))`,
+    bela.subjectId, cegId).map((x) => x.scope);
+  db.close();
+  expect(tag.length, 'Béla ÚJRA tag').toBe(1);
+  expect(korok.includes('keszlet'), 'a készlet adatköre KIADVA').toBe(true);
+  expect(korok.includes('ar'), 'az ÁR adatköre viszont NEM — ez a történet tanulsága').toBe(false);
+});
+
+test('R176-K3 — 390 px ÉS ÚJRAINDÍTÁS: a történet keskeny nézetben is végigvihető, és a lap újratöltése a váltás határán nem veszíti el a haladást', async () => {
+  /**
+   * FRISS SZEREPLŐK. A történet ÁLLAPOTOT ír (tagság, meghívók), ezért az asztali futás maradékára
+   * nem építünk: külön fiókkezelő és külön meghívott (`KUKA-120` — a próba ne a saját maradékát mérje).
+   */
+  const anna2 = await world.person('anna2');
+  const ws2 = await createWorkspaceUI(anna2.page, { name: 'R176 Keskeny Kft', business: { jurisdiction: 'HU', tax_id: '10779224-2-44' } });
+  const bela2 = await world.person('bela2');
+  await inviteUI(anna2.page, { email: bela2.email, role: 'user', scope: 'keszlet' });
+
+  const p = anna2.page;
+  await p.setViewportSize({ width: 390, height: 844 });
+  await menjAzOldalra(p, 'overview');
+  const elindult = await startTourViaHelp(p, 'tour.inviteRevoke');
+  expect(elindult === true ? 'elindult' : 'NEM indult', '390 px-en is felkínálja és elindítja').toBe('elindult');
+
+  let ujraindult = false;
+  let ujJegy = null;
+  const r = await vezess(p, 'tour.inviteRevoke', {
+    s4: async () => {
+      await closeModals(p);
+      const ref = await inviteRowRef(p, bela2.email);
+      await p.getByTestId(`invite-revoke-${ref}`).click();
+      await expect(p.getByTestId('invite-revoke-confirm')).toBeVisible();
+      await withResponse(p, { path: '/api/invites/revoke' }, () => p.getByTestId('invite-revoke-confirm').click());
+    },
+    s6: async () => {
+      await valtsSzereplot(p, bela2);
+      /**
+       * AZ ÚJRAINDÍTÁS ITT TÖRTÉNIK — A VÁLTÁS HATÁRÁN (R176 §1: „újraindítás után is").
+       *
+       * A váltás-határon az átadás a `sessionStorage`-ban áll, és a lap újratöltése ezen átmegy
+       * (`pagehide` → mentés, indulás → visszaállás). Ha a haladás elvesztené, a bemutató a hetedik
+       * lépés helyett az elejétől kezdődne — azt ez az állítás MÉRI, nem feltételezi.
+       */
+      await p.reload();
+      await expect(p.getByTestId('tour')).toBeVisible({ timeout: 15000 });
+      ujraindult = true;
+    },
+    s9: async () => { await nyisdMegALevelet(p, bela2.email); },
+    s10: async () => { await valtsSzereplot(p, anna2); },
+    s10b: async () => { await valtsFiokra(p, ws2.bookId); },
+    s13: async () => {
+      await closeModals(p);
+      const inv = await inviteUI(p, { email: bela2.email, role: 'user', scope: 'keszlet' });
+      ujJegy = inv.body && inv.body.token;
+    },
+    s14: async () => { await valtsSzereplot(p, bela2); },
+    s17: async () => {
+      expect(Boolean(ujJegy), 'az új meghívó jegye megszületett').toBe(true);
+      await openInviteUI(p, ujJegy);
+      await withResponse(p, { path: '/api/invites/redeem' }, () => p.getByTestId('invite-redeem').click());
+    },
+  });
+  expect(r.baj || `${r.elert}/${r.lepes} OK`, `390 px-en VÉGIG vihető — mérve: ${r.naplo.join('→')}`).toBe(`${r.lepes}/${r.lepes} OK`);
+  expect(ujraindult, 'a lap újratöltése MEGTÖRTÉNT a váltás határán').toBe(true);
+
+  const db = new Db();
+  const tag = db.all('SELECT role FROM membership WHERE subject_id = ? AND book_id = ?', bela2.subjectId, ws2.bookId);
+  db.close();
+  expect(tag.length, '390 px-en is: Béla TÉNYLEGESEN tag lett').toBe(1);
+});
+
+test('R176-K5 — A KILÉPÉS NEM VISZ ÁT SEMMIT: nem deklarált határon a bemutató elvész, és a meghívó-jegy sem kerül a következő emberhez', async () => {
+  /**
+   * AZ ŐR NEM TŰNT EL, CSAK NEVEZETT HATÁRT KAPOTT. Ezt itt MÉRJÜK: egy EGY-SZEREPLŐS bemutató
+   * (`tour.invite`) közepén kilépünk, és más ember lép be — a futás NEM adódik át, és a következő
+   * ember nem látja a korábbi haladást (`KUKA-204` · `KUKA-211` · `KUKA-218`).
+   */
+  const anna3 = await world.person('anna3');
+  await createWorkspaceUI(anna3.page, { name: 'R176 Határ Kft', business: { jurisdiction: 'HU', tax_id: '82345671-2-42' } });
+  const bela3 = await world.person('bela3');
+  const p = anna3.page;
+  await gotoPage(p, 'overview');
+  const elindult = await startTourViaHelp(p, 'tour.invite');
+  expect(elindult, 'az egy-szereplős meghívás-útmutató elindult').toBe(true);
+  await expect(p.getByTestId('tour-step-title')).toHaveText(HU.TOUR['tour.invite'].s1.title);
+
+  // …és most KILÉPÜNK, pedig a futó lépés NEM váltás-határ.
+  await valtsSzereplot(p, bela3);
+
+  // A FUTÁS ELVESZETT: a következő ember nem talál futó bemutatót a lapon.
+  await expect(p.getByTestId('tour-step-title')).toHaveCount(0);
+
+  // ÉS A MEGHÍVÓ-JEGY SEM KERÜLT ÁT: a kiszolgáló szerint sincs függő folytatás ennek az embernek.
+  const folytatas = await p.evaluate(async () => {
+    const r = await fetch('/api/me', { headers: { accept: 'application/json' } });
+    const j = await r.json();
+    return { subject: j.subject_id || null, pending: j.pending_invite || j.pending_intent || null };
+  });
+  expect(folytatas.subject, 'a belépett ember TÉNYLEGESEN a másik').toBe(bela3.subjectId);
+  expect(folytatas.pending, 'a következő embernek NINCS átvett meghívó-folytatása').toBeFalsy();
 });

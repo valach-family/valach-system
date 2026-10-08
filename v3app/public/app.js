@@ -651,9 +651,7 @@ import { inviteNextKey } from './inviteText.mjs';
     state.notice = null;
     if (page !== 'overview') state.afterCreate = null;
     if (!state.tabs.includes(page)) state.tabs.push(page);
-    const sw = byTest('account-switcher'); if (sw) sw.open = false;
-    const pr = byTest('profile'); if (pr) pr.open = false;
-    setNavOpen(false);
+    closeHeaderOverlays();
     render();
     loadPageData();
   }
@@ -923,6 +921,27 @@ import { inviteNextKey } from './inviteText.mjs';
    * okból jött nézet-változás is — új tár felvételekor itt az egyetlen hely, amit bővíteni kell
    * (KUKA-003: a több helyen igaz szabály EGY helyen él).
    */
+  /**
+   * A FEJLÉC NYITOTT TAKARÓI IS NÉZETHEZ KÖTÖTT ÁLLAPOT (R176 §1 — SAJÁT LELET, MÉRVE 390 px-en).
+   *
+   * A LELET. A `go()` eddig mindhármat becsukta (fiókválasztó · profilmenü · ☰ menü), a SZEMÉLY
+   * VÁLTÁSA viszont nem: a `doLogout` és a belépés csak az ADATOT ürítette. A `details` elemek a
+   * sablonban állnak, a rajzolás csak a BELSEJÜKET írja újra — tehát a `open` attribútum túlélte a
+   * kilépést ÉS a következő ember belépését. Asztali nézetben ez csak kósza nyitott menü; 390
+   * px-en MÉRVE kár: a nyitott profilmenü pontosan a fiókválasztó nyitója fölé ül
+   * (`elementFromPoint` → `div#profile-menu`), tehát a következő ember RÁ SEM TUD kattintani arra a
+   * vezérlőre, amire az útmutató mutat (KUKA-011 · KUKA-041 · TUR-03: a buborék és a takaró nem
+   * ülhet rá arra, amire mutat). A `details` nyitva maradása ráadásul az ELŐZŐ ember kattintásának
+   * a nyoma a KÖVETKEZŐ ember képernyőjén.
+   *
+   * Ezért a zárás ONNAN megy, ahol minden nézethez kötött tár ürül (KUKA-218), és a három meglévő
+   * pont UGYANEZT hívja — egy szabály, egy otthon (KUKA-003 · KUKA-039).
+   */
+  function closeHeaderOverlays() {
+    const sw = byTest('account-switcher'); if (sw) sw.open = false;
+    const pr = byTest('profile'); if (pr) pr.open = false;
+    setNavOpen(false);
+  }
   function resetViewCaches() {
     // A SEGÉD ÁLLAPOTA IS NÉZETHEZ KÖTÖTT (KUKA-218: minden nézethez kötött tár EGY helyen ürül).
     // A beszélgetés, a tudás-index, az engedélyezett műveletek és a futó bemutató MIND a megnyitáskori
@@ -953,6 +972,7 @@ import { inviteNextKey } from './inviteText.mjs';
      * semmit nem zár le. A rajzolás ugyanabban a lépésben történik, mint az ürítés, mert a kettő
      * EGY tény két fele (KUKA-218: minden nézethez kötött tár EGY helyen ürül — a képével együtt).
      */
+    closeHeaderOverlays();
     renderTour();
   }
 
@@ -2913,7 +2933,7 @@ import { inviteNextKey } from './inviteText.mjs';
     resetViewCaches();
     state.tabs = ['overview']; state.page = 'overview'; state.notice = null; state.afterCreate = null;
     closePanel();
-    const sw = byTest('account-switcher'); if (sw) sw.open = false;
+    closeHeaderOverlays();
     render();                       // ELŐBB ÜRÍT, aztán kér — a régi fiók adata azonnal lekerül
     const r = await api('POST', '/api/session/workspace', { book_id: id });
     if (!r.ok) { notice(refusalText(r), 'bad'); await refreshMe(); return; }
