@@ -16,6 +16,18 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3236 — AZ INDULÓ ADAT A VISSZATÉRÉSI KIZÁRÁSOKAT IS KÉRDEZI (R176, külső P2)
+
+A visszatérés-történet a másik tagot a harmadik lépésen megszünteti, a negyediken pedig ÚJRA
+meghívja. A hatályos tagság viszont nem jelenti, hogy az újbóli meghívás is lehetséges: egy élő
+felfüggesztés vagy alkalmazandó kitiltás mellett a `reinviteMember` nevezetten elutasít. Mostantól
+az induló adat UGYANAZT az írásmentes feloldót kérdezi, amit az írás-út (`reentryExclusionsAt`,
+`closed: null` — a lezáráshoz kötött ágak a lépés saját megvonásából születnének, tehát előre
+nem ismerhetők). ÉLŐ HTTP-MÉRÉSBEN igazolva. `KUKA-442` · gépi jel: `verify:kuka` ·
+`verify:app-findings-r154` (as35–as36).
+
+---
+
 ## D-VS-3235 — A FIÓK-VÁLTÁS CÉLJA A FUTÁS KEZDŐ KÖNYVE (R176, külső P2)
 
 A fiók-tengelyes kapu csak azt kérte, hogy a könyv MÁS legyen és az alany ugyanaz — aki több cégben

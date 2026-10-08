@@ -1923,6 +1923,44 @@ try {
        * UGYANAZ a lecke harmadszor: a hatókört a hiba-osztály adja (`KUKA-418`).
        */
       /**
+       * (as35–as36) A JELÖLTET ÚJRA IS MEG KELL TUDNI HÍVNI (R176, külső review P2 · `KUKA-442`).
+       *
+       * A LELET: a `tour.reentry` a másik tagot a `s3`-on megszünteti, a `s4`-en úJRA meghívja. A
+       * `membershipAsOf` viszont csak a TAGSÁGI időszakot nézi — egy élő FELFÜGGESZTÉS mellett a
+       * tag „hatályos", a `reinviteMember` viszont `reentry_blocked_suspension`-nal elutasít.
+       *
+       * A MÉRÉS ÉLŐ, ÉS ELŐ IS ÁLLÍTJA A HELYZETET: a felfüggesztés sora a TÁRBA kerül (API-út
+       * nincs rá a HTTP-határon), majd a FELKÍNÁLÁST a VALÓDI kiszolgálótól kérdezzük meg.
+       */
+      {
+        const fsz = await fiok('u-felfugg');
+        const ws = await fsz.post('/api/workspaces', { name: 'U176 Felfuggesztes Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '72345678-1-42' } });
+        const konyv = ws.body && (ws.body.book_id || (ws.body.workspace && ws.body.workspace.book_id));
+        const tag = await fiok('u-ft-tag');
+        const mv = await fsz.post('/api/invites', { email: 'u-ft-tag@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+        await tag.post('/api/invites/redeem', { token: mv.body.token });
+        const tagAlany = ((await fsz.get('/api/members')).body.members || [])
+          .find((x) => x.email === 'u-ft-tag@pelda.hu');
+        const elotte = await turak(fsz, 'app');
+        // A FELFÜGGESZTÉS a tárba (a HTTP-határon ma nincs rá út — ez a mérés hatóköre, `KUKA-216`).
+        u.store.run('INSERT INTO membership_suspension (subject_id, book_id, actor_subject_id, suspended_at, reason) VALUES (?,?,?,?,?)',
+          tagAlany && tagAlany.subject_id, konyv, 'sub_proba', '2020-01-01T00:00:00.000Z', 'as35 proba');
+        const utana = await turak(fsz, 'app');
+        const van = (r) => ((r && r.ids) || []).includes('tour.reentry');
+        step('(as35) R176/P2: FELFÜGGESZTETT jelölt mellett a visszatérés-történet NEM felkínált (RÉGEN: felkínált, és a NEGYEDIK lépésén `reentry_blocked_suspension`-nal elakadt volna)',
+          van(elotte) === true && van(utana) === false,
+          { felfuggesztes_elott: van(elotte), felfuggesztes_utan: van(utana) });
+        // ELLENPÁR: a felfüggesztés FELOLDÁSA után a felkínálás VISSZAJÖN — a szűkítés nem vitt el jó esetet.
+        u.store.run('UPDATE membership_suspension SET lifted_at = ?, lifted_by = ? WHERE subject_id = ? AND book_id = ?',
+          '2020-01-02T00:00:00.000Z', 'sub_proba', tagAlany && tagAlany.subject_id, konyv);
+        const feloldva = await turak(fsz, 'app');
+        step('(as36) R176/P2 ELLENPÁR: a felfüggesztés FELOLDÁSA után a felkínálás VISSZAJÖN — és a lap UGYANAZT az írásmentes feloldót kérdezi, amit az írás-út',
+          van(feloldva) === true
+          && /const ujra = reentryExclusionsAt\(\{ store, subjectId: m\.subject_id, bookId, closed: null, nowIso: at \}\);/.test(srvAs),
+          { feloldas_utan: van(feloldva) });
+      }
+
+      /**
        * (as29–as30) A VISSZALÉPÉS NEM ÁLLÍT TELJESÍTÉST ROTÁLT MUNKAMENETRE (R176, külső review P2 · `KUKA-439`).
        *
        * A LELET: a `POST /api/invites/pending/forget` `ok: true`-t adott, ha a munkamenet nem volt a

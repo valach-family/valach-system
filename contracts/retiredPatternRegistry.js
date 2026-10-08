@@ -16539,6 +16539,38 @@ Object.freeze({
     ]),
   }),
 
+  // ── R176 · A KÜLSŐ REVIEW KILENCEDIK KÖRE — a jelöltet újra is meg kell tudni hívni ──
+  Object.freeze({
+    id: 'KUKA-442',
+    date: '2026-10-08',
+    title: 'A TÖRTÉNET OLYAN JELÖLTET FOGADOTT EL, AKIT A KISZOLGÁLÓ NEM HÍVHAT ÚJRA',
+    what: 'Az `other_member` induló adat a `membershipAsOf`-fal mérte a HATÁLYOS másik tagot (ez a `KUKA-421` javítása), és ennyivel megállt.',
+    why_wrong: 'A `tour.reentry` a másik tagot a `s3`-on MEGSZÜNTETI, a `s4`-en pedig ÚJRA MEGHÍVJA. A `membershipAsOf` viszont CSAK a tagsági időszakot nézi: egy élő FELFÜGGESZTÉS vagy alkalmazandó KITILTÁS mellett a tag „hatályos" — a `reinviteMember` ellenben `reentry_blocked_suspension` / `reentry_blocked_ban` okkal elutasít. A történet tehát felkínálódott, és a NEGYEDIK lépésén nevezetten elakadt volna. ÉLŐ HTTP-MÉRÉSBEN igazolva: a felfüggesztés sora előtt a `tour.reentry` felkínált, utána NEM, a feloldás után ISMÉT.',
+    replaced_by: 'AZ INDULÓ ADAT UGYANAZT AZ ÍRÁSMENTES FELOLDÓT KÉRDEZI, AMIT AZ ÍRÁS-ÚT (`reentryExclusionsAt`) — `closed: null`-lal, mert a LEZÁRÁSHOZ kötött két ág (visszamenőleges érvénytelenség · nyitott felülvizsgálati kör) a lépés SAJÁT megvonásából születne, tehát előre nem ismerhető; a SZEMÉLYHEZ kötött két ág (felfüggesztés · kitiltás) viszont pontosan az, amit a lelet megnevez.',
+    replacement: 'A MÉRÉS HATÓKÖRE KIMONDVA (`KUKA-216`): ez a jelölt SZEMÉLY-oldali alkalmasságát méri, nem a jövőbeli lezárásét. És a HTTP-határon ma nincs út a felfüggesztés létrehozására, ezért a mérés a sort KÖZVETLENÜL a tárba írja — a FELKÍNÁLÁST viszont a VALÓDI kiszolgálótól kérdezi.',
+    decision: 'D-VS-3236',
+    found_by: 'KÜLSŐ REVIEW (chatgpt-codex, R176 — P2), a SAJÁT `KUKA-421`-es javításom felett.',
+    lesson: 'A FELKÍNÁLÁS A VÉGIGVIHETŐSÉG ÁLLÍTÁSA — ÖTÖDSZÖR (`KUKA-417` · `421` · `429` · `430` · `431` · `437` → itt). És a tanulság élesebb alakja: ha egy történet lépése egy MŰVELETET hív, akkor az előfeltétel annak a műveletnek MINDEN kapuját kérdezze meg, ne csak az elsőt. A `membershipAsOf` a tagságról mond igazat; a RE-INVITE-ról nem ő dönt.',
+    guard_note: 'gépi jel: `npm run verify:kuka` (a feloldó hívása + az import) · `npm run verify:app-findings-r154` (as35: ÉLŐ HTTP — a felfüggesztés előtt/után/feloldás után mért felkínálás · as36: a feloldó azonossága). NEVESÍTETT MÉRÉS-HIÁNY: a KITILTÁS ágára nincs külön mérésem — ugyanaz a feloldó dönti el, de a sort nem állítottam elő.',
+    home: 'v3',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'const ujra = reentryExclusionsAt\\(\\{ store, subjectId: m\\.subject_id, bookId, closed: null, nowIso: at \\}\\);',
+        why: 'az induló adat a visszatérési kizárásokat is kérdezi' }),
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: "import \\{ reentryExclusionsAt \\} from '\\.\\./v3ref/reentryGate\\.mjs';",
+        why: 'és UGYANAZT a magból, amit az írás-út' }),
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r154.mjs']),
+        pattern: 'as35\\) R176/P2',
+        why: 'ÉLŐ HTTP-mérés: a felfüggesztés eltünteti a felkínálást' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'return Boolean\\(t && t\\.effective === true\\);\\n      \\}\\);',
+        why: 'a félig kérdező alak: a tagság hatályos volt, az újbóli meghívás mégis lehetetlen' }),
+    ]),
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

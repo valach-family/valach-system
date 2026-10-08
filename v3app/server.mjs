@@ -45,6 +45,9 @@ import { scopeReleaseDecision, scopeGrantLiveAt } from '../v3ref/releaseScope.mj
 import { entitlementFor, twoGateVerdict, setEntitlementProfile, PLANS } from '../v3ref/entitlement.mjs';
 import { businessIdentityOf, businessIdentityProblem, JURISDICTION_PROFILES } from '../v3ref/externalId.mjs';
 import { membershipAsOf, membershipPeriodsOf, closedMembershipPeriodOf } from '../v3ref/bitemporal.mjs';
+// A VISSZATÉRÉSI KIZÁRÁSOK ÍRÁSMENTES FELOLDÓJA (`KUKA-442`): a történet-indí­tó adat UGYANEZT
+// kérdezi, amit az írás-út (`reinviteMember`) — egy fogalom, egy otthon (`KUKA-003`).
+import { reentryExclusionsAt } from '../v3ref/reentryGate.mjs';
 import { readScopeGrantAt } from '../v3ref/scopeGrant.mjs';
 import { representationCheck } from '../v3ref/representation.mjs';
 import { validateRequest, schemaForEndpoint, isGated, endpointsWithoutSchema, CONTEXT_FIELD, CONTEXT_SUBJECT_FIELD } from './httpSchema.mjs';
@@ -1811,13 +1814,32 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      *
      * EGY FOGALOM, EGY OTTHON (`KUKA-003` · `KUKA-039`): ugyanazt a döntést kérdezzük, amit a lap.
      */
-    // KORAI KILÉPÉS (`KUKA-436`): a kérdés az, hogy VAN-E hatályos másik tag — nem az, hogy hány.
-    // A `some` az ELSŐ találatnál megáll, tehát a drága `membershipAsOf` nem fut le minden sorra.
+    /**
+     * ÉS A JELÖLTET ÚJRA IS MEG KELL TUDNI HÍVNI (R176, külső review P2 · `KUKA-442`).
+     *
+     * A LELET: a `tour.reentry` története a másik tagot a `s3`-on MEGSZÜNTETI, a `s4`-en pedig
+     * ÚJRA MEGHÍVJA. A `membershipAsOf` viszont csak a TAGSÁGI időszakot nézi — egy élő
+     * FELFÜGGESZTÉS vagy alkalmazandó KITILTÁS mellett a tag „hatályos", a `reinviteMember`
+     * viszont `reentry_blocked_suspension` / `reentry_blocked_ban` okkal elutasít. A történet tehát
+     * felkínálódott, és a NEGYEDIK lépésén nevezetten elakadt volna.
+     *
+     * A VÁLASZ UGYANAZ, MINT A `KUKA-421`/`437`-nél: ugyanazt az ÍRÁSMENTES feloldót kérdezzük,
+     * amit az ÍRÁS-ÚT (`reentryExclusionsAt`). A `closed: null`-lal a LEZÁRÁSHOZ kötött két ág
+     * (visszamenőleges érvénytelenség · nyitott felülvizsgálati kör) kimarad — azokat a lépés
+     * saját megvonása hozná létre, tehát ELŐRE nem is ismerhetők —, a SZEMÉLYHEZ kötött két ág
+     * (felfüggesztés · kitiltás) viszont pontosan az, amit a lelet megnevez. A hatókört tehát
+     * KIMONDOM: ez a jelölt SZEMÉLY-oldali alkalmasságát méri, nem a jövőbeli lezárásét.
+     *
+     * ÖTÖDSZÖR UGYANAZ A LECKE: a felkínálás a VÉGIGVIHETŐSÉG állítása (`KUKA-417` · `421` ·
+     * `429` · `430` · `431` · `437`).
+     */
     const otherMember = store.all('SELECT subject_id FROM membership WHERE book_id = ?', bookId)
       .filter((m) => m.subject_id !== subjectId)
       .some((m) => {
         const t = membershipAsOf({ store, subjectId: m.subject_id, bookId, validAt: at, knownAt: at });
-        return Boolean(t && t.effective === true);
+        if (!(t && t.effective === true)) return false;
+        const ujra = reentryExclusionsAt({ store, subjectId: m.subject_id, bookId, closed: null, nowIso: at });
+        return ujra.ok === true;
       });
     /**
      * ÉS A SAJÁT SZEMÉLYES KÖR LÉTE IS INDULÓ ADAT (R176, külső review P2 — `KUKA-430`).
