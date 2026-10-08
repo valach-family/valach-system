@@ -31,14 +31,14 @@ RÉGI munkamenet zárása volt; ez a lap az ÚJ munkamenet eredménye.
 | **R166 §5 (nevezett szöveghiba)** | **KÉSZ** — az `E4e` sor már javítva volt (a régi munkamenet elvégezte), és a kód ezt mondja (`E9b`: nem nulla kilépés → BUKÁS) |
 | **Merge-készség** | **NEM.** Két parancs-pont nem készült el, a külső-ellenőrző lánc nem teljes, és a mai fejnek nincs független review-ja |
 
-**MIÉRT NEM KÉSZÜLT EL MINDEN, ÉS EZ NEM KIFOGÁS, HANEM A SZABÁLY ALKALMAZÁSA.** A `D-VS-3083`
-mérce szerint a fő-szál kontextusmediánja a csomag zárásánál **421 391,5** — a **VÁLTÁSI** sáv (a
-jelző 400 000-nél). A szabály kimondja: a **futó** munkablokk célzott ellenőrzéssel lezárható, a
-**következő önálló nagy blokk** pedig friss beszélgetésben induljon. A §2 (valódi bejárás a
-felületen) és a §4 (hat hosszú program) MINDKETTŐ önálló nagy blokk. Ezért zártam a futót, és adom
-át a kettőt — nem félkészen, hanem **el sem kezdve**, kimondva. *(A mérés menete és a két
-pillanatkép a 9. szakaszban; a blokk nyitásakor a medián még a FIGYELMEZTETŐ sávban volt — a
-szám a hat review-kör alatt fordult át.)*
+**MIÉRT NEM KÉSZÜLT EL MINDEN — ÉS A SÁVRA NEM HIVATKOZOM, MERT A MAI MÉRÉS MÁST ÍR.** A csomag
+munkablokkját **a review-lánc használta el**: **huszonegy külső P2 + egy P1**, hét körben, mindegyik
+méréssel, javítással, visszacsúszás-próbával és a kötelező böngésző-kapu újrafuttatásával (a kapu
+**kétszer pirossal** válaszolt, és mindkét piros valódi hibát fogott meg). A §2 (valódi bejárás a
+felületen) és a §4 (hat hosszú program) MINDKETTŐ **önálló nagy blokk** — el sem kezdtem őket, és
+félkésznek sem állítom. *(A `D-VS-3083` sávja a zárás pillanatában **FIGYELMEZTETÉS** — tehát a
+szabály a friss beszélgetést ma NEM kényszeríti ki; a három mért pillanatkép és a korábbi,
+visszavont indoklásom a 9.1 szakaszban áll.)*
 
 ---
 
@@ -726,6 +726,7 @@ A javítás a kérdés **irányát** fordítja meg: nem „megvan-e a kért", ha
 | a három pg-lánc | `proof:pg-restore-safety` · `-intent` · `-durability` | **ZÖLD — 49/49 · 10/0 · 13/13** |
 | a fogyasztás-mérő ellenpróbái | `verify:fogyasztas-meres` | **ZÖLD — 18/18** |
 | a rövid láncok | `tutor` 94/94 · `assistant` 55/55 · `i18n` 49/49 · `selfcheck` 57/57 · `lefedes` 17/1 | **változatlan** |
+| **a kötelező böngésző-kapu, a javítás UTÁN** | `verify:browser-gate` | **ZÖLD — 137 / 0 / 0 / 0** · 25 próba-fájl · 386 s + 439 s |
 
 **VISSZACSÚSZÁS-PRÓBA MÉRVE, MIND A HÁROMRA:**
 
@@ -904,7 +905,7 @@ megszakítást bukásnak** veszi, nem „nincs is baj"-nak.
 | `app:selfcheck` | **ZÖLD — 57/57** |
 | `verify:decision-numbers` | **ZÖLD — 4/4** (a legmagasabb kiadott: **D-VS-3209**) |
 | `verify:lefedes` | **17 ZÖLD / 1 PIROS** — a `LT` a nevesített fejlesztési résen (`LT2` és `LR1` ZÖLD: pótolható 0 · osztályozatlan 0 · **33/33 fedett végpont**) |
-| `verify:browser-gate` (`test:e2e` + `proof:core-ux` + `proof:demo-walk`) | **ZÖLD** — **369 s** + **440 s** · **134 helyzet teljesült / 0 bukott / 0 ingadozó / 0 kihagyott** · **24 próba-fájl**, mind a mérésben. **A TIZENNYOLC P2-javítás UTÁN, a mai fejen.** Egy korábbi futás PIROS volt (2.6): a kattintó bejáró kibuktatott egy második zsákutcát, azt javítottam, és csak utána lett zöld |
+| `verify:browser-gate` (`test:e2e` + `proof:core-ux` + `proof:demo-walk`) | **ZÖLD** — **386 s** + **439 s** · **137 helyzet teljesült / 0 bukott / 0 ingadozó / 0 kihagyott** · **25 próba-fájl**, mind a mérésben. **A HUSZONEGY P2-javítás UTÁN, a mai fejen.** Két korábbi futás PIROS volt: a 2.6-ban a kattintó bejáró kibuktatott egy második zsákutcát, a 2.8-ban pedig a SAJÁT viselkedés-őröm volt túl erős — mindkettőt javítottam, és csak utána lett zöld |
 | `verify:v3ref` (mag-mutációs battéria) | **ZÖLD — 253/253 elkapva, 0 túlélte** · *TELJES ÉS TISZTA*, **a MAI fejen újramérve** (a mag két új függvénye miatt — lásd a 6.4 pontot) |
 | `verify:external-checks` | **PIROS / NEM TELJES** — a hat hiányzó program **nem futott** (R166 §4, átadva) |
 
@@ -1061,12 +1062,41 @@ egy helyen tizenhárom) — **emlékezetből**, nem mérésből. A szálak végi
 **tizennyolcat** adott, a hetedik kör három leletével **huszonegyet**. A szabály ugyanaz, mint a
 `KUKA-412`-nél: ami hivatkozási alap, azt MÉRJÜK, ne nézzük.
 
-**ÉS EZ NEM VONJA VISSZA A LEZÁRÁST — DE A KORÁBBI MONDATOMAT JAVÍTOM.** A jelentés egy korábbi
-alakja azt írta, hogy a medián „alacsonyabb" a korábbi 402 476,5-nél: ez **fordítva volt**, a
-421 391,5 **magasabb**. A beszélgetés közben **tömörítésen** ment át — a `R114` viszont kimondja: **a tömörítéssel folytatott
-beszélgetés NEM friss beszélgetés**. A négy P2 javítása a **futó** munkablokk célzott lezárása volt
-(review-szálak megválaszolása és a hozzá tartozó mérés), nem új blokk. A §2 és a §4 továbbra is
-**friss beszélgetésben** induljon.
+### 9.1 ÉS A HARMADIK MÉRÉS MÁS SÁVOT ÍR — EZÉRT A KORÁBBI INDOKLÁSOMAT VISSZAVONOM
+
+A hetedik kör és a zárás után **újramértem a teljes csomag-ablakot** (`2026-10-07T11:00Z` → a
+pillanatkép zárása `2026-10-08T00:09:25Z`): **1005 hívás** · fő-szál kontextusmedián **371 658** ·
+max **784 112** · **400 ezer fölött 436 hívás** · **ügynök-bemenet 0** (nulla al-ügynök) ·
+lefedettség **teljes** (1 átirat, minden modell-válasz usage-dzsal).
+
+**A MÉRŐ SAVJA MOST: FIGYELMEZTETÉS** (371 658 a 300–400 ezres sávban). A `D-VS-3083` szövege erre a
+sávra **kimondottan ezt mondja:** *„figyelmeztetés + rövid állapotmérés a munkablokk határán;
+**megállni NEM kell, új beszélgetést NEM kérünk**."*
+
+**EZÉRT VISSZAVONOM A KORÁBBI INDOKLÁSOMAT, ÉS KIMONDOM, MI AZ IGAZSÁG:**
+
+| pillanatkép | hívás | medián | a mérő sávja |
+|---|---|---|---|
+| az első zárás | 322 | **402 476,5** | **VÁLTÁS** |
+| a tizennyolc P2 után | 828 | **421 391,5** | **VÁLTÁS** |
+| **a hetedik kör és a zárás után** | **1005** | **371 658** | **FIGYELMEZTETÉS** |
+
+A medián **futó statisztika**, nem küszöb-számla: a tömörítés után született sok kisebb kontextusú
+hívás **lefelé** húzta. Tehát **ma a szabály NEM kényszeríti ki** a friss beszélgetést — a két korábbi
+pillanatkép a maga idejében igaz volt, a mai viszont más sávot ír, és a jelentés a MAI mérést követi
+(`KUKA-050`).
+
+**AKKOR MIÉRT NINCS KÉSZ A §2 ÉS A §4? NEM A SÁV MIATT — ÉS EZT NEM TAKAROM EL.** Az ok az, hogy a
+csomag munkablokkját **a review-lánc használta el**: huszonegy külső P2 + egy P1, hét körben, mindegyik
+méréssel, javítással, visszacsúszás-próbával és a kötelező böngésző-kapu újrafuttatásával (ami
+**kétszer pirossal** válaszolt). A §2 (valódi két szereplős bejárás a felületen) és a §4 (hat hosszú
+program) mindkettő **önálló nagy blokk** — el sem kezdtem őket, és **félkésznek sem állítom** őket.
+
+**A DÖNTÉS TEHÁT AZ OPERÁTORÉ, NEM A MÉRŐÉ.** A mai sáv szerint ez a beszélgetés folytatható; amit
+mérésként hozzá tudok tenni: a kontextus **maximuma 784 112**, és **436 hívás** futott 400 ezer
+fölött — ez valódi jel, de a `D-VS-3083` mércéje a **medián**, és az most a figyelmeztető sávban van.
+A `R114` továbbra is érvényes: **a tömörítéssel folytatott beszélgetés NEM friss beszélgetés**, tehát
+ha a §2/§4 friss beszélgetésben indul, az nem ez a szál lesz.
 
 A tartalom nélküli leltár a repóban: `docs/70_PLANNING/V3_R166_FOGYASZTAS_LELTAR.json`
 (hívás-szám, blokk- és eszköz-összesítők, bájtszámok — tartalom, kapcsolati cím, kulcs és e-mail
