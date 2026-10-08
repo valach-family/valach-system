@@ -28,15 +28,15 @@ részben teljesült:** a hat ellenőrző programot egyenként lefuttattam a mai 
 
 | mérce | verdikt |
 |---|---|
-| **KÓD-SHA (amit mértem)** | `2f731f6` — a kötelező kapu EZEN a fejen zöld |
-| **a kötelező böngésző-kapu** | **ZÖLD** — `verify:browser-gate`: **142 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott**, 26 próba-fájl; `test:e2e + proof:core-ux` 575 s; `proof:demo-walk` 446 s |
+| **KÓD-SHA (amit mértem)** | `718b174` — a kötelező kapu EZEN a fejen zöld |
+| **a kötelező böngésző-kapu** | **ZÖLD** — `verify:browser-gate`: **143 teljesült · 0 bukott · 0 ingadozó · 0 kihagyott**, 26 próba-fájl; `proof:demo-walk` 445 s |
 | **a két szereplős bejárás a VALÓDI felületen** | **5/5 ZÖLD** — K1 19/19 · K2 18/18 · K3 19/19 (390 px + újraindítás) · K5 · **K6** (az új ellenpár) — és a próba a váltás-lépésen **nem** nyitja ki helyettünk a menüt |
-| **KUKA-regiszter** | **956/956 PASS** (`verify:kuka`) — 411 bejegyzés, öt újjal (`KUKA-416`…`KUKA-420`) |
-| **R154 battéria** | **319/319 PASS** (`verify:app-findings-r154`) — hat új mércével (as7–as10 · ar11–ar12) |
-| **D-VS számozás** | **4/4 PASS** — öt új döntés: `D-VS-3210`…`D-VS-3214`; a következő szabad: `D-VS-3215` |
+| **KUKA-regiszter** | **964/964 PASS** (`verify:kuka`) — 413 bejegyzés, hét újjal (`KUKA-416`…`KUKA-422`) |
+| **R154 battéria** | **320/320 PASS** (`verify:app-findings-r154`) — hét új mércével (as7–as11 · ar11–ar12) |
+| **D-VS számozás** | **4/4 PASS** — hét új döntés: `D-VS-3210`…`D-VS-3216`; a következő szabad: `D-VS-3217` |
 | **próba-alkalmazás önellenőrzés** | **57/57 PASS** (`app:selfcheck`) |
 | **a hat külső program** | **2 ZÖLD · 4 PIROS** — a külön verdiktek a 3. szakaszban; a teljes lánc állapota is ott |
-| **a review által FEDETT SHA** | **`fb231e6`** — a külső ellenőrző használati korlátja **FELOLDÓDOTT**, és a review ezen a fejen lefutott: **négy P2**, mind javítva (lásd a 7.4 pontot). A mai, `2f731f6` fej — maguk ezek a javítások — **nem fedett** |
+| **a review által FEDETT SHA** | **`4b930dd`** — a külső ellenőrző használati korlátja **FELOLDÓDOTT**, és két körben összesen **hat P2** jött (`fb231e6`-ra négy, `4b930dd`-re kettő); **mind a hat javítva** (lásd a 7.4 pontot). A mai, `718b174` fej — maguk ezek a javítások — **nem fedett** |
 
 ---
 
@@ -287,7 +287,7 @@ GITHUB-OLDALI LEZÁRÁSÁT nem végeztem el: a szál-azonosítókhoz a 112 revie
 végiglapozni, ami aránytalan — a tartalmi válasz a szálakon áll, a lezárást a következő review-kör
 amúgy is újraértékeli a mai fejen. Ezt nem hallgatom el.
 
-### 7.4 A NÉGY ÚJ KÜLSŐ P2 — mind MÉRVE és javítva
+### 7.4 A HAT ÚJ KÜLSŐ P2 — mind MÉRVE és javítva
 
 | # | a lelet | a mért tény | a javítás |
 |---|---|---|---|
@@ -295,6 +295,13 @@ amúgy is újraértékeli a mai fejen. Ezt nem hallgatom el.
 | 2 | a két átívelő történet levél-fogadó lépést is tartalmaz, de csak `requires_demo`-t deklarált | telepített demóban a `/dev/mailbox` 404, a történet megszakadna | `requires_dev_mailbox: true` mindkettőn; a deklarált készlet négy tagú (`al4`) · a `KUKA-417` **visszatért** |
 | 3 | a szereplő-váltó horgony a CSUKOTT profilmenüben áll, feltárási út nélkül | a rejtett gombon: `rects=1 · box=258×42 · visibility=visible`, de `checkVisibility()=false` | a láthatóságot a **böngésző** dönti el; a csukott lenyíló nyitója **feltáró**; a mondat előbb feltárást kér · `KUKA-419` · `D-VS-3213` |
 | 4 | az átadás a történet elején is megszületett, a `K5` csak egy-szereplős ágat mért | közönséges kilépés 2/19-nél: a következő ember visszakapta a haladást | a határ az **első** váltás-lépés; új ellenpár: **`R176-K6`** · `KUKA-420` · `D-VS-3214` |
+
+| 5 | az induló adat tagság-tényét **nyers** sor-feltétellel számoltam, a lap a kanonikus feloldóval | hatályos taggal felkínálódik; **megszüntetett** tagság mellett a régi alak is felkínálta volna | `membershipAsOf` — ugyanaz a döntés, amit a lap kérdez; élő mérés (`as11`) · `KUKA-421` · `D-VS-3215` |
+| 6 | a meghívó-visszalépés **eldobta** a kiszolgáló válaszát, és mindenképpen ürített | 5xx mellett a lap teljesítést állított, a tárolt folytatás a kiszolgálón maradt | a három kimenet külön mondat, ürítés **csak** igazolt `ok` után; élő tanú (`R166-M6`) · `KUKA-422` · `D-VS-3216` |
+
+**Az 5. és a 6. is a SAJÁT, ebben a körben írt kódom felett jött** — az 5. éppen a `D-VS-3211`-es
+kapum tényét számolta máshogy, mint a lap, a 6. pedig egy olyan függvényben, amelynek a **saját
+megjegyzése** már leírta a helyes viselkedést. A megjegyzés nem őr.
 
 **A harmadik a legfontosabb, és két okból:** (a) a gyökér nem a hiányzó deklaráció volt, hanem a
 projekt EGYETLEN láthatóság-szavának heurisztikája — egy csukott lenyíló tartalma megtartja a
