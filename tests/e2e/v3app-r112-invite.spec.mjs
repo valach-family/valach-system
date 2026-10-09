@@ -238,6 +238,22 @@ test.describe('R112 — a meghívott ember teljes útja és elutasításai (F111
     await openInviteUI(carl.page, inv.link);
     await tourToLastStep(carl.page, D);
 
+    /**
+     * A `/api/me` VÁLASZOK NAPLÓZÁSA — a MÉRÉS eszköze, a válaszon NEM változtat (R186 §4).
+     *
+     * A route csak ÁTENGEDI a kérést, és feljegyzi a sorrendet meg a kiszolgált alanyt. Így a
+     * bukás rögzítése meg tudja mondani, volt-e MÁSODIK, egyidejű frissítés — ez az egyetlen ág,
+     * ami a héj újrarajzolását némán elhagyná (`refreshMe` `seq`-őre).
+     */
+    const meNaplo = [];
+    await carl.page.route('**/api/me', async (route) => {
+      const resp = await route.fetch();
+      let alany = null;
+      try { alany = (await resp.json()).subject_id ?? null; } catch { alany = '(nem JSON)'; }
+      meNaplo.push({ n: meNaplo.length + 1, kiszolgalt_alany: alany, at: Date.now() });
+      await route.fulfill({ response: resp });
+    });
+
     // AZ ELFOGADÁS VÁLASZÁT VISSZATARTJUK: a szerver MÁR feldolgozta (Carl csatlakozott), a lap még nem tudja.
     let release; const gate = new Promise((res) => { release = res; });
     let served = null;
@@ -286,13 +302,54 @@ test.describe('R112 — a meghívott ember teljes útja és elutasításai (F111
      * esetén a rajzolás ELŐTT kilép — ez illeszkedik a jelre, de MÉRVE NINCS, ezért feltételezésként
      * áll itt, nem talált hibáként (`KUKA-050`). A próba UGYANEZEN a fejen, önmagában és a teljes
      * fájlban is ZÖLD; a következő előfordulás a mechanizmust kell, hogy megadja.
+     *
+     * —— R186 §4: CÉLZOTT VIZSGÁLAT, ÉS AMIT MÉRVE KIZÁRTUNK ——
+     *
+     * Az R186 §4 ezt kérte: *„a rögzített állapot és vezérelt válaszsorrend alapján vizsgáld …
+     * Csak mért mechanizmust javíts … Ha célzott vizsgálat után sem reprodukálható, maradjon külön
+     * nevesített bizonyítási hiány, ne gyárts feltételezett javítást."* A vizsgálat megtörtént, és
+     * KÉT jelölt mechanizmust MÉRVE kizárt:
+     *
+     *   1. ELAVULT (gyorsítótárazott) `/api/me` VÁLASZ. Ez pontosan a rögzített tünetet adná (a
+     *      héj a RÉGI embert rajzolja, a munkamenet már a másikhoz tartozik). KIZÁRVA: a kiszolgáló
+     *      MINDEN JSON-választ `Cache-Control: no-store`-ral ad (`v3app/server.mjs`), tehát a
+     *      böngésző nem szolgálhat ki régi `/api/me`-t.
+     *   2. FÓKUSZ- VAGY LÁTHATÓSÁG-VÁLTÁSRA INDULÓ MÁSODIK FRISSÍTÉS. A másik lapon történő
+     *      belépés elhomályosítja ezt a lapot, tehát egy ilyen figyelő egyidejű `refreshMe`-t
+     *      indítana — és az a `seq`-ág. KIZÁRVA: a lap EGYETLEN ablak-szintű figyelője a
+     *      `pagehide` (az átadás mentése); `focus`/`visibilitychange` figyelő NINCS, és a
+     *      `refreshMe` minden hívója NEVEZETT felhasználói művelet vagy indulás.
+     *
+     * AMI NYITVA MARAD, NEVEZETTEN: a `seq`-ág elvileg elérhető egy MÁSIK úton is (a `refreshMe`
+     * nem `await`-elt `loadPageData()` hívása → `loadStock`/`loadPrice` → `syncView()` → második
+     * `refreshMe`), de ez a sorrend a rögzített állapotot NEM adja ki: az abban az ablakban
+     * megtörtént rajzolás a MÁSIK ember héját festené, a rögzítés viszont a MEGHÍVÓ képernyőt és az
+     * ELŐZŐ ember fejlécét találta. A mechanizmus tehát MA SEM ÁLLAPÍTHATÓ MEG — feltételezett
+     * javítást nem építünk (ez a tétel NYITOTT bizonyítási hiány marad), a RÖGZÍTÉS viszont
+     * megerősödött: a `/api/me` kérések sorrendje és a kiszolgált alany is bekerül, tehát a
+     * következő előfordulás a `seq`-ágat IGAZOLJA vagy KIZÁRJA, találgatás nélkül.
      */
     try { await expect(notice).toBeVisible(); } catch (e) {
       const visible = await carl.page.evaluate(() => [...document.querySelectorAll('[data-testid]')]
         .filter((x) => x.offsetParent !== null).map((x) => x.getAttribute('data-testid')).slice(0, 40));
       const me = (await carl.api.get('/api/me')).body;
+      /**
+       * A RÖGZÍTÉS A `/api/me` VÁLASZ-SORRENDJÉT IS HOZZA (R186 §4).
+       *
+       * MIÉRT EZ KELL. A második előfordulás rögzítése megmondta a TÜNETET (a héj nem rajzolt
+       * újra), a MECHANIZMUST nem. A `refreshMe` egyetlen olyan korai kilépése, ami NEM hagy
+       * értesítő sávot, a saját `seq`-őre (`if (seq !== state.seq) return;`) — ahhoz viszont
+       * EGY MÁSODIK, egyidejű `refreshMe` kell UGYANEBBEN a lapban. Ezért a rögzítés mostantól
+       * megszámolja és sorrendben kiírja a `/api/me` kéréseket és a bennük kiszolgált alanyt: egy
+       * MÁSODIK kérés jelenléte a `seq`-ágat IGAZOLJA, a hiánya KIZÁRJA. A következő előforduláskor
+       * tehát nem kell újra találgatni (`KUKA-215`: a választ meg kell MÉRNI).
+       */
       await test.info().attach('r112-i3-allapot', { contentType: 'application/json',
-        body: JSON.stringify({ visible, me_subject: me.subject_id ?? null, dora: dora.subjectId, carl: carl.subjectId }) });
+        body: JSON.stringify({ visible, me_subject: me.subject_id ?? null, dora: dora.subjectId, carl: carl.subjectId,
+          me_kerések: meNaplo, me_kérés_db: meNaplo.length,
+          fejléc: await carl.page.getByTestId('header-subject').textContent().catch(() => null),
+          hej_van: await carl.page.getByTestId('app').count(),
+          belepes_lap_van: await carl.page.getByTestId('login-email').count() }) });
       throw e;
     }
     await expect(notice, 'a másik ember nem kapja meg Carl sikerét').not.toContainText(D.UI.inviteAcceptedLead);

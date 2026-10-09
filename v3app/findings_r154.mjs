@@ -2000,6 +2000,120 @@ try {
       }
 
       /**
+       * ════════════════════════════════════════════════════════════════════════════════════════
+       * (as40–as43) A KÉT NEVESÍTETT MÉRÉS-HIÁNY PÓTLÁSA (R186 §4)
+       * ════════════════════════════════════════════════════════════════════════════════════════
+       *
+       * AMI EDDIG HIÁNYZOTT, ÉS AMIT A CSOMAG KIMONDOTT. A `KUKA-442` bejegyzése maga nevezte meg:
+       * *„NEVESÍTETT mérés-hiány: a KITILTÁS ágára nincs külön mérés"* — a felfüggesztés ágát az
+       * `as35`/`as36` élőben mérte, a tiltás ágát semmi. A `KUKA-431`/`437` szűk szerep-plafonját
+       * pedig csak FORRÁS-PIN fedte (`as28`), az ÉLŐ ellenpár a TELJES plafonnal futott.
+       *
+       * AZ R186 §4 ENGEDÉLYE ÉS KORLÁTJA: *„engedélyezett izolált, szintetikus teszt-fixtúra
+       * létrehozása a teszt saját tárolójában/mag-API-ján, majd a tényleges szerver és felület
+       * vizsgálata. Nem szükséges és nem engedélyezett pusztán ezért éles
+       * fejlesztői/jogosultságmegkerülő HTTP-végpont. A fixtúra beállítása és a vizsgált
+       * felhasználói művelet legyen KÜLÖNVÁLASZTVA."*
+       *
+       * EZÉRT: a fixtúra a TÁRBA megy (ahogy az `as35` felfüggesztése is — a HTTP-határon nincs rá
+       * út, és nem is építünk), a VIZSGÁLT művelet pedig a VALÓDI kiszolgálótól kérdezett
+       * felkínálás. Új végpont nem születik, jogosultsági kaput nem kerülünk meg.
+       */
+      {
+        // ── (as40–as41) A KITILTÁS ÁGA, ÉLŐBEN (`KUKA-442` nevesített hiánya) ──────────────────
+        const kt = await fiok('u-kitilt');
+        const ws = await kt.post('/api/workspaces', { name: 'U186 Kitiltas Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '62345678-1-42' } });
+        const konyv = ws.body && (ws.body.book_id || (ws.body.workspace && ws.body.workspace.book_id));
+        const tag = await fiok('u-kt-tag');
+        const mv = await kt.post('/api/invites', { email: 'u-kt-tag@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+        await tag.post('/api/invites/redeem', { token: mv.body.token });
+        const tagAlany = ((await kt.get('/api/members')).body.members || [])
+          .find((x) => x.email === 'u-kt-tag@pelda.hu');
+        const van = (r) => ((r && r.ids) || []).includes('tour.reentry');
+        const elotte = await turak(kt, 'app');
+
+        // A FIXTÚRA: KÖNYV-szintű tiltás a tagra. A fajta és az ok a MAG zárt készletéből jön
+        // (`banScope.mjs`: `book` ⇄ `left_company`), nem kitalált szó — különben a tiltás-feloldó
+        // „nem ismert fajtá"-ra zárna, és a mérés a saját hibáját mérné (`KUKA-236`).
+        u.store.run(`INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)
+                     VALUES (?,?,?,?,?,?)`,
+          tagAlany && tagAlany.subject_id, 'book', 'left_company', konyv, 'sub_proba', '2020-01-01T00:00:00.000Z');
+        const utana = await turak(kt, 'app');
+        step('(as40) R186/§4: KITILTOTT jelölt mellett a visszatérés-történet NEM felkínált (a `KUKA-442` NEVESÍTETT mérés-hiánya — eddig csak a felfüggesztés ága volt élőben mérve)',
+          van(elotte) === true && van(utana) === false,
+          { kitiltas_elott: van(elotte), kitiltas_utan: van(utana) });
+
+        // ELLENPÁR: a tiltás FELOLDÁSA után a felkínálás VISSZAJÖN — a szűkítés nem vitt el jó esetet.
+        u.store.run('UPDATE subject_ban SET lifted_at = ?, lifted_by = ? WHERE subject_id = ? AND target_ref = ?',
+          '2020-01-02T00:00:00.000Z', 'sub_proba', tagAlany && tagAlany.subject_id, konyv);
+        const feloldva = await turak(kt, 'app');
+        step('(as41) R186/§4 ELLENPÁR: a tiltás FELOLDÁSA után a felkínálás VISSZAJÖN — tehát a kapu a TILTÁST méri, nem a tag létét',
+          van(feloldva) === true, { feloldas_utan: van(feloldva) });
+      }
+
+      {
+        // ── (as42–as43) A SZŰK SZEREP-PLAFON, ÉLŐBEN (`KUKA-431`/`437` forrás-pinjének élő párja) ──
+        const sz = await fiok('u-szukplafon');
+        const ws = await sz.post('/api/workspaces', { name: 'U186 Szuk Plafon Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '52345678-1-42' } });
+        const konyv = ws.body && (ws.body.book_id || (ws.body.workspace && ws.body.workspace.book_id));
+        await fiok('u-sp-admin');
+        // A FÜGGŐ MEGHÍVÓ `admin` SZEREPRE szól — a TELJES plafonon belül van, tehát a történet
+        // felkínálódik. (A címzettnek fiókja van: a két szereplős történet a belépésével folytatódik.)
+        const mv = await sz.post('/api/invites', { email: 'u-sp-admin@pelda.hu', role: 'admin', scope: 'keszlet', lang: 'hu' });
+        step('(as42a) R186/§4 — a fixtúra alapja: az `admin` szerepre szóló meghívó kiadható a TELJES plafonon',
+          mv.body && mv.body.ok === true, { kiadva: Boolean(mv.body && mv.body.ok), ok: mv.body && mv.body.reason });
+        const van = (r) => ((r && r.ids) || []).includes('tour.inviteRevoke');
+        const elotte = await turak(sz, 'app');
+
+        /**
+         * A FIXTÚRA: a KEZELŐ SAJÁT felhatalmazási alapját SZŰKÍTJÜK `user`-re. Ettől a plafon már
+         * NEM tartalmazza az `admin`-t, tehát a függő `admin`-ajánlat soron NINCS visszavonás-gomb
+         * — és a történet feladata (`invite.revoked`) SOHA nem teljesülhetne. Ezt a helyzetet a
+         * `KUKA-437` nevezte meg, de élőben eddig nem mértük.
+         *
+         * A SZŰKÍTÉS A TÁRBAN, egy ÚJ VERZIÓVAL — a `basis_id` NEM vált könyvet (`R88/F01`), és a
+         * régi verziót nem írjuk át: a kiadott alap változtathatatlan, ahogy a doktrína kéri.
+         */
+        // A PLAFON FORRÁSA NEM TIPP: a kezelő tagsága a MUNKATÉR-ALAPÍTÁS alapjára mutat
+        // (`parentBasisOfMembership` → `workspace_bootstrap`), tehát AZT az alapot szűkítjük — nem
+        // „a könyv valamelyik alapját" (`KUKA-009`: a mérés ugyanazt a sort kérdezze, amit a kapu).
+        const boot = u.store.get('SELECT basis_id FROM workspace_bootstrap WHERE book_id = ?', konyv);
+        const alap = u.store.get(
+          'SELECT MAX(version) AS v FROM authority_basis WHERE basis_id = ?', boot && boot.basis_id);
+        const minta = u.store.get(
+          'SELECT issuer_subject, allowed_operations, allowed_scopes, evidence_ref FROM authority_basis'
+          + ' WHERE basis_id = ? ORDER BY version DESC', boot && boot.basis_id);
+        // AZ ÚJ VERZIÓ MINDKÉT IDŐ-TENGELYEN A LEGFRISSEBB (`BIT-01`: hatályosulás ÉS felvétel),
+        // különben a feloldó joggal a RÉGI, bővebb verziót találná hatályosnak.
+        const most = new Date().toISOString();
+        u.store.run(
+          `INSERT INTO authority_basis (basis_id, version, book_id, issuer_subject, effective_at,
+             recorded_at, expires_at, revoked_at, allowed_operations, allowed_roles, allowed_scopes,
+             evidence_ref, origin_grant_event_id)
+           VALUES (?,?,?,?,?,?,NULL,NULL,?,?,?,?,NULL)`,
+          boot && boot.basis_id, Number(alap && alap.v) + 1, konyv, minta && minta.issuer_subject,
+          most, most, minta && minta.allowed_operations, JSON.stringify(['user']),
+          minta && minta.allowed_scopes, (minta && minta.evidence_ref) || 'as42-proba');
+        const utana = await turak(sz, 'app');
+        step('(as42) R186/§4: SZŰK szerep-plafon mellett a plafonon TÚLI függő ajánlat NEM kínálja fel a visszavonás-történetet (a `KUKA-437` élő párja — eddig csak forrás-pin fedte)',
+          van(elotte) === true && van(utana) === false,
+          { teljes_plafonon: van(elotte), szuk_plafonon: van(utana) });
+
+        /**
+         * ELLENPÁR: a SZŰK plafonon BELÜLI (`user`) ajánlat mellett a felkínálás VISSZAJÖN. Így a
+         * mérés nem azt mondja, hogy „szűk plafon ⇒ sosem", hanem azt, amit a szabály: a plafon és
+         * az AJÁNLAT viszonyát (`KUKA-216`: a verdikt a mérés hatóköréről szól).
+         */
+        const tag2 = await fiok('u-sp-user');
+        const mv2 = await sz.post('/api/invites', { email: 'u-sp-user@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+        const belul = await turak(sz, 'app');
+        step('(as43) R186/§4 ELLENPÁR: a SZŰK plafonon BELÜLI (`user`) függő ajánlat mellett a felkínálás VISSZAJÖN — a kapu a plafon és az AJÁNLAT viszonyát méri',
+          mv2.body && mv2.body.ok === true && van(belul) === true,
+          { user_ajanlat_kiadva: Boolean(mv2.body && mv2.body.ok), szuk_plafon_user_ajanlattal: van(belul),
+            tag2: Boolean(tag2) });
+      }
+
+      /**
        * (as29–as30) A VISSZALÉPÉS NEM ÁLLÍT TELJESÍTÉST ROTÁLT MUNKAMENETRE (R176, külső review P2 · `KUKA-439`).
        *
        * A LELET: a `POST /api/invites/pending/forget` `ok: true`-t adott, ha a munkamenet nem volt a
