@@ -16,6 +16,48 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3254 — AMIT A KISZOLGÁLÓ MEGMÉRT, AZT A LAP NE TALÁLJA KI ÚJRA (R186 §5)
+
+A munkatárs-lista „újrahívható" jelzője **egy** szerepre (a tag mai szerepére) szólt, a panel viszont
+**minden ismert szerepet** felkínált. Egy delegált kezelőnél a plafonon **túli** választás
+`outside_basis_roles`-szal bukik — a `tour.reentry` közben **a megvonás után**, tehát kárt hagyva.
+
+**A DÖNTÉS:** az írásmentes feloldó válaszának **minden hasznos felét** el kell juttatni a
+fogyasztóhoz: a sor hordozza a **megmért** szerep-készletet (`reinvite_roles`), és a panel **csak
+ebből** választ — egy feloldó, egy készlet, egy felkínálás (`KUKA-003`). Ha a készlet nem érkezett meg,
+a tag **mai** szerepe az egyetlen választható: pontosan az, amire a jelző kimondta, hogy működik
+(`KUKA-049`: a „nem tudom" nem „jó lesz").
+
+**A HATÓKÖR KIMONDVA** (`KUKA-207`): a panel rajzolása böngésző-oldali, ezt a battéria **forrás-pinnel**
+méri (`as80`); a **legitim** utat a kötelező kapu `R132`/`R134` próbái mérik élőben, mert azok a
+panelen **választanak** szerepet. A szűk **szerep**-plafonú delegálás előállítására ma nincs API-út —
+ez a `KUKA-431` óta **nevezett** mérés-hiány, és itt is az marad.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as79` · `as80`) · `npm run verify:kuka`.
+
+---
+
+## D-VS-3253 — A FÉL ŐR A LEGDRÁGÁBB: A FELKÍNÁLÁS A BEVÁLTÁS FELTÉTELÉT KÉRDEZI (R186 §5)
+
+A `KUKA-454`/`455`-ben a **bemutató** felkínálását már a **bizonyított csatornához** kötöttem — a
+**közönséges** munkatárs-lista útja ugyanazzal a hiánnyal maradt: a feloldó a cím **létét** mérte, a
+beváltás viszont bizonyított csatornát kíván. Egy importált vagy cserélt címnél a sor „újra meghívás"
+műveletét engedve rajzoltuk, az írás-út ki is állította a meghívót, a címzett pedig **soha nem tudta
+beváltani** — miközben a kezelő azt látta, hogy elküldte.
+
+**A DÖNTÉS:** a felkínálás feltétel-készlete a **beváltásig** megy, nem a legközelebbi kapuig, és a
+feltételt **ugyanabból** a feloldóból kérdezzük (`hasProvenChannel`). A nemleges válasz **nevezett**
+(`reentry_target_channel_unproven`), és mindhárom bekapcsolt nyelven megmondja a **teendőt** is
+(`KUKA-201` · `KUKA-465`).
+
+**ÉS AMIT EBBŐL A MUNKARENDRE RÖGZÍTÜNK:** ha egy szabály **két úton** igaz, a javítás hatóköre a
+**hiba-osztály**, nem a lelet helye (`KUKA-039` · `KUKA-418`). Ez a kör ezt most **harmadszor** mérte
+meg a saját javításaimon.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as77` · `as78` ellenpár) · `npm run verify:i18n`.
+
+---
+
 ## D-VS-3252 — AMI NEM TÖRTÉNT MEG, AZT NEM IS KEZDEMÉNYEZTÜK (R186 §5)
 
 A kilépés a művelet **előkészítésekor** beállítja a „saját kezdeményezés" jelét, és azt csak a

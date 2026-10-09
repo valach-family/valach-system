@@ -17436,6 +17436,65 @@ Object.freeze({
     ]),
   }),
 
+  Object.freeze({
+    id: 'KUKA-471',
+    date: '2026-10-09',
+    title: 'AZ ÚJBÓLI MEGHÍVÁS FELKÍNÁLÁSA A CÍM LÉTÉT KÉRDEZTE, A BIZONYÍTOTT CSATORNÁT NEM',
+    what: 'A `KUKA-458`-ban bevezetett írásmentes feloldó (`reinviteFeasibility`) a cím LÉTÉT mérte (`addressOfSubject`): pontosan egy élő e-mail azonosság kell. A munkatárs-lista `reinvitable` jelzője és a `reinviteMember` írás-út is ezen áll.',
+    why_wrong: 'A BEVÁLTÁS viszont BIZONYÍTOTT csatornát kíván (`redeemInvite` → `hasProvenChannel`, különben `invitee_identity_required`). Ha egy eltávolított munkatárs EGYETLEN élő címe importálással vagy cím-cserével került be, `channel_proof` sor NÉLKÜL, akkor a sor „újra meghívás" műveletét ENGEDVE rajzoltuk, az írás-út KI IS ÁLLÍTOTTA a meghívót — a címzett viszont SOHA nem tudta beváltani. A kezelő közben azt látta, hogy elküldte. UGYANAZ A LECKE, MINT A `KUKA-454`/`455`-BEN, csak a KÖZÖNSÉGES úton: ott a BEMUTATÓ felkínálását kötöttem a bizonyított csatornához, ide nem jutott el — klasszikus fél őr (`KUKA-039`).',
+    replaced_by: 'A feloldó a beváltás SAJÁT feltételét kérdezi: `hasProvenChannel(store, targetSubjectId, \'email\', cim)`. A nemleges válasz NEVEZETT (`reentry_target_channel_unproven`), és mindhárom bekapcsolt nyelven megmondja a TEENDŐT is (igazolja a címét a fiókjában), tehát a kezelő nem „valami nem sikerült"-et olvas (`KUKA-201` · `KUKA-465`).',
+    replacement: 'EGY FELOLDÓ, MINDEN FOGYASZTÓRA: a lista sora, az írás-út és a bemutató felkínálása ugyanazt a feltétel-készletet kérdezi — és a készlet a LEGSZŰKEBB későbbi kapuig megy, nem a legközelebbiig.',
+    decision: 'D-VS-3253',
+    found_by: 'KÜLSŐ REVIEW (Codex, P2 — `v3ref/delegation.mjs#L591`, a `0cdd0f2` fejen): „Require channel proof before offering reentry". A beváltás feltételét visszamértem a magban: a `redeemInvite` ELSŐ kapuja a bizonyított csatorna.',
+    lesson: 'A FÉL ŐR A LEGDRÁGÁBB FAJTA. Ugyanezt a feltételt két körrel korábban a BEMUTATÓ útján már kijavítottam — a KÖZÖNSÉGES út ugyanazzal a hiánnyal maradt. Ha egy szabály két úton igaz, a javítás hatóköre a HIBA-OSZTÁLY, nem a lelet helye.',
+    guard_note: 'gépi jel: `npm run verify:app-findings-r154` (`as77`: a csatorna-bizonyíték elvesztése után a sor NEM ajánl, NEVEZETT okkal, és az írás-út sem engedi · `as78` ELLENPÁR: a bizonyíték visszaállítása után a sor ÚJRA ajánl) · `npm run verify:i18n` (`as64`: a NEVEZETT ok mindhárom nyelven valódi mondatot ad).',
+    home: 'v3',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/delegation.mjs']),
+        pattern: "if \\(!hasProvenChannel\\(store, targetSubjectId, 'email', cim\\)\\) \\{",
+        why: 'a felkínálás a BEVÁLTÁS saját feltételét kérdezi, nem a cím puszta létét' }),
+      Object.freeze({ paths: Object.freeze(['v3ref/delegation.mjs']),
+        pattern: "reason: 'reentry_target_channel_unproven'",
+        why: 'és a nemleges válasz NEVEZETT, nem néma' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/hu.mjs']),
+        pattern: 'reentry_target_channel_unproven:',
+        why: 'a névhez VALÓDI mondat tartozik, a teendővel együtt (`KUKA-465`)' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3ref/delegation.mjs']),
+        pattern: 'if \\(!addressOfSubject\\(store, targetSubjectId\\)\\) \\{',
+        why: 'a KIVEZETETT alak: a cím LÉTE elég volt, a bizonyított csatorna nem kellett' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-472',
+    date: '2026-10-09',
+    title: 'A PANEL MINDEN ISMERT SZEREPET FELKÍNÁLT, MIKÖZBEN A SOR CSAK EGYET MÉRT MEG',
+    what: 'A munkatárs-lista `reinvitable` jelzője a tag MAI szerepét mérte a plafonhoz (`offeredRole: row.role`), a feloldó által visszaadott `roles` készletet viszont ELDOBTUK. Az újbóli meghívás panelja ezért `Object.keys(ROLE)`-ból rajzolta a választékot — MINDEN ismert szerepet.',
+    why_wrong: 'Egy DELEGÁLT kezelőnél, akinek a plafonja `user`-t enged, `admin`-t nem, a sor „újrahívható" lett (a tag mai szerepe `user`), a panel viszont felkínálta az `admin`-t is — és az a választás `outside_basis_roles`-szal bukik. A `tour.reentry` közben ez A MEGVONÁS UTÁN történik, tehát nem „nem megy végig", hanem KÁRT HAGY. Ez a `KUKA-041` osztálya: a hamis gomb és a némán letiltott gomb ugyanaz a hiba két irányból.',
+    replaced_by: 'A sor hordozza a MEGMÉRT készletet (`reinvite_roles`), és a panel CSAK ebből választ — egy feloldó, egy készlet, egy felkínálás (`KUKA-003`). Ha a készlet nem érkezett meg (`null`), a tag MAI szerepe az EGYETLEN választható: pontosan az, amire a sor jelzője kimondta, hogy működik (`KUKA-049`: a „nem tudom" nem „jó lesz").',
+    replacement: 'AMIT A KISZOLGÁLÓ MEGMÉRT, AZT A LAP NE TALÁLJA KI ÚJRA. Egy jelző, ami EGY esetre igaz (a mai szerep), nem hatalmazza fel a felületet, hogy MÁS eseteket is felkínáljon.',
+    decision: 'D-VS-3254',
+    found_by: 'KÜLSŐ REVIEW (Codex, P2 — `v3app/server.mjs#L2665`, a `0cdd0f2` fejen): „Restrict reentry role choices to the checked ceiling".',
+    lesson: 'A MEGMÉRT KÉSZLETET KI KELL ADNI, KÜLÖNBEN A FELÜLET A SAJÁT LISTÁJÁT RAJZOLJA. Egy írásmentes feloldó válaszának MINDEN hasznos felét el kell juttatni a fogyasztóhoz — amit eldobunk, azt a hívó kitalálja.',
+    guard_note: 'gépi jel: `npm run verify:app-findings-r154` (`as79`: a sor készlete a PLAFON feloldójának kimenete, egyezésre mérve · `as80`: a panel a kiszolgáló készletéből rajzol — FORRÁS-pin, a hatóköre kimondva) · `npm run verify:kuka` · ÉLŐ tanú a LEGITIM útra: `npm run verify:browser-gate` (`R132`/`R134` a panelen VÁLASZT szerepet).',
+    home: 'v3',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/server.mjs']),
+        pattern: 'reinvite_roles: Array\\.isArray\\(ujrahivas\\.roles\\) \\? \\[\\.\\.\\.ujrahivas\\.roles\\] : null,',
+        why: 'a megmért szerep-készlet KIMEGY a sorral' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'const szerepek = Array\\.isArray\\(m\\.reinvite_roles\\) && m\\.reinvite_roles\\.length',
+        why: 'és a panel EBBŐL választ, nem a saját listájából' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'data-testid="reinvite-role">\\n          \\$\\{Object\\.keys\\(ROLE\\)\\.map',
+        why: 'a KIVEZETETT alak: a panel MINDEN ismert szerepet felkínált, a plafonon túliakat is' }),
+    ]),
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

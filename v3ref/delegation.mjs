@@ -32,6 +32,8 @@ import { membershipAsOf, closedMembershipPeriodOf } from './bitemporal.mjs';
 // UGYANEZT hívja: a felfüggesztés, a tiltás, a nyitott felülvizsgálat és a visszamenőleges
 // érvénytelenség kérdése nem lehet két példányban (KUKA-018 · KUKA-039).
 import { reentryExclusionsAt } from './reentryGate.mjs';
+// A BEVALTAS SAJAT FELTETELE — a felkinalas ezt kerdezi, nem egy kozelito alakot (`KUKA-471`).
+import { hasProvenChannel } from './invite.mjs';
 // R134/F134-03 (OON-01) — AZ EGYSZERI HATÁS: ugyanaz a szándék EGY ajánlatot ad, az elveszett
 // nyugta utáni ismétlés ugyanahhoz vezet, az ELTÉRŐ tartalom nevezett ütközés.
 import { onceOnlyBegin, onceOnlyCommit } from './onceOnly.mjs';
@@ -587,8 +589,26 @@ export function reinviteFeasibility({ store, deciderSubjectId, bookId, targetSub
   } else if (!ceil.scopes.includes(scope)) {
     return frozen({ ok: false, reason: 'outside_basis_scopes', scope, ceiling: frozen([...ceil.scopes]) });
   }
-  if (!addressOfSubject(store, targetSubjectId)) {
+  const cim = addressOfSubject(store, targetSubjectId);
+  if (!cim) {
     return frozen({ ok: false, reason: 'reentry_target_has_no_address' });
+  }
+  /**
+   * ÉS A CÍMNEK BIZONYÍTOTTNAK IS KELL LENNIE (`KUKA-471` · külső review, Codex, P2).
+   *
+   * A LELET: ez a feloldó a cím LÉTÉT kérdezte, a beváltás viszont BIZONYÍTOTT csatornát kíván
+   * (`redeemInvite` → `hasProvenChannel`, különben `invitee_identity_required`). Ha egy eltávolított
+   * munkatárs EGYETLEN élő címe importálással vagy cím-cserével került be, `channel_proof` sor
+   * NÉLKÜL, akkor a munkatárs-lista „újra meghívás" művelete ENGEDVE látszott, az írás-út KI IS
+   * ÁLLÍTOTTA a meghívót — a címzett viszont SOHA nem tudta beváltani. A kezelő közben azt látta,
+   * hogy elküldte.
+   *
+   * UGYANAZ A LECKE, MINT A `KUKA-454`/`455`-BEN, csak a KÖZÖNSÉGES úton: ott a BEMUTATÓ
+   * felkínálását kötöttem a bizonyított csatornához, ide nem jutott el — klasszikus fél őr
+   * (`KUKA-039`). A jelenés NEVEZETT, hogy a kezelő tudja, mi a teendő (`KUKA-201`).
+   */
+  if (!hasProvenChannel(store, targetSubjectId, 'email', cim)) {
+    return frozen({ ok: false, reason: 'reentry_target_channel_unproven' });
   }
   return frozen({ ok: true, reason: 'closed_period', closed_at: closed.closed_at,
     roles: frozen([...ceil.roles]), scopes: frozen([...ceil.scopes]) });

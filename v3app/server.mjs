@@ -2697,6 +2697,21 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
           current_period: m.effective === true ? (m.period_grant_event_id ?? null) : null,
           reinvitable: ujrahivas.ok === true,
           reinvite_reason: ujrahivas.reason,
+          /**
+           * ÉS A MEGMÉRT SZEREP-KÉSZLET IS KIMEGY A SORRAL (`KUKA-472` · külső review, Codex, P2).
+           *
+           * A LELET: a feloldó a tag MAI szerepét mérte a plafonhoz, a visszakapott `roles`
+           * készletet viszont ELDOBTUK — a panel pedig MINDEN ismert szerepet felkínált. Egy
+           * delegált kezelőnél, akinek a plafonja `user`-t enged, `admin`-t nem, a sor
+           * „újrahívható" lett, a felkínált `admin` választás viszont `outside_basis_roles`-szal
+           * bukik — a `tour.reentry` közben PEDIG A MEGVONÁS UTÁN. Ez a `KUKA-041` osztálya: a
+           * hamis gomb és a némán letiltott gomb ugyanaz a hiba két irányból.
+           *
+           * A VÁLASZ: a sor hordozza a MEGMÉRT készletet (`reinvite_roles`), és a panel CSAK
+           * ebből választ — egy feloldó, egy készlet, egy felkínálás (`KUKA-003`). Ha a készlet
+           * nem állapítható meg, a mező `null`: a lap ilyenkor NEM talál ki szerepeket.
+           */
+          reinvite_roles: Array.isArray(ujrahivas.roles) ? [...ujrahivas.roles] : null,
           removed_at: closed.ok === true ? closed.closed_at : null,
         };
       });

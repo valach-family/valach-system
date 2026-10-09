@@ -185,6 +185,7 @@ export const REASON = Object.freeze({
   reentry_blocked_retroactive_invalidity: 'Diese Mitgliedschaft wurde durch eine rückwirkende Unwirksamkeit beendet. Die Überprüfung einer solchen Entscheidung ist ein eigenes Verfahren, keine erneute Einladung.',
   reentry_not_after_revocation: 'Der Wiedereintritt kann nicht im selben Moment wie die Beendigung wirksam werden. Versuche es gleich erneut.',
   reentry_target_has_no_address: 'Für diese Person ist keine E-Mail-Adresse hinterlegt, an die die neue Einladung gehen könnte.',
+  reentry_target_channel_unproven: 'Die Adresse dieser Person ist nicht bestätigt, daher könnte sie die Einladung nicht einlösen — das System sendet sie deshalb nicht. Bitte sie, zuerst ihre E-Mail-Adresse im Konto zu bestätigen; danach funktioniert die erneute Einladung.',
   outside_basis_roles: 'Diese Rolle kannst du nicht weitergeben: deine eigene Befugnis ist enger.',
   outside_basis_scopes: 'Diesen Datenbereich kannst du nicht weitergeben: deine eigene Befugnis ist enger.',
   scope_grant_other_period: 'Dieser Zugriff gehörte zu einem früheren, inzwischen beendeten Mitgliedschaftszeitraum. Nach einem Wiedereintritt muss er erneut erteilt werden.',

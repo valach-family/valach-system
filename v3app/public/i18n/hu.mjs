@@ -216,6 +216,7 @@ export const REASON = Object.freeze({
   reentry_blocked_retroactive_invalidity: 'Ezt a tagságot visszamenőleges érvénytelenség zárta le. Az ilyen döntés felülvizsgálata külön eljárás, nem újbóli meghívás.',
   reentry_not_after_revocation: 'Az újbóli belépés nem lehet a megszüntetéssel egyidejű. Próbáld újra egy pillanat múlva.',
   reentry_target_has_no_address: 'Ehhez a személyhez nincs rögzített e-mail-cím, amire az új meghívás szólhatna.',
+  reentry_target_channel_unproven: 'Ennek a személynek a címe nincs igazolva, ezért a meghívást nem tudná beváltani — a rendszer ezért nem is küldi el. Kérd meg, hogy előbb igazolja az e-mail-címét a fiókjában, utána az újbóli meghívás működik.',
   outside_basis_roles: 'Ezt a szerepkört nem adhatod tovább: a saját felhatalmazásod ennél szűkebb.',
   outside_basis_scopes: 'Ezt az adatkört nem adhatod tovább: a saját felhatalmazásod ennél szűkebb.',
   scope_grant_other_period: 'Ez a hozzáférés egy korábbi, már lezárt tagsági időszakhoz tartozott. Új belépés után újra meg kell adni.',

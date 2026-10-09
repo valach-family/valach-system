@@ -36,6 +36,8 @@ import { dictFor } from './public/i18n/dict.mjs';
 import { resolveLanguage, parseAcceptLanguage, pickFromAcceptLanguage, enabledLanguages } from './public/i18n/languages.mjs';
 import { validateAgainstSchema } from '../v3ref/inputSchema.mjs';
 import { purgeExpiredIntents, resumeIntent, rememberIntent, intentTtlMs, PENDING_INTENT_TTL_MS } from '../v3ref/invite.mjs';
+// A PLAFON FELOLDOJA: a mert keszletet NEM emlekezetbol hasonlitjuk (`KUKA-472`).
+import { delegationCeilingOf } from '../v3ref/delegation.mjs';
 import { validateRequest } from './httpSchema.mjs';
 import { adaptiveUnitPlan } from '../v3ref/external-checks/batteryUnits.mjs';
 import { allowedToursFor, availabilityOf, allowedActionsFor } from './assistant/policy.mjs';
@@ -2374,6 +2376,7 @@ try {
           'reentry_blocked_open_review_circle', 'reentry_blocked_retroactive_invalidity',
           'reentry_undecidable_clock', 'reentry_time_undecidable',
           'reentry_not_after_revocation', 'reentry_target_has_no_address',
+          'reentry_target_channel_unproven',
           'outside_basis_roles', 'outside_basis_scopes',
           'delegation_ceiling_empty', 'parent_limit_undecidable',
           'role_not_delegable', 'role_not_recognised',
@@ -2586,7 +2589,10 @@ try {
         const konyvJ = wsJ.body && (wsJ.body.book_id || (wsJ.body.workspace && wsJ.body.workspace.book_id));
         const del = await fiok('u-jog-admin');
         const meghDel = await ow.post('/api/invites', { email: 'u-jog-admin@pelda.hu', role: 'admin', scope: 'keszlet', lang: 'hu' });
-        const levDel = (await del.get('/dev/mailbox')).body.mails.filter((x) => x.to === 'u-jog-admin@pelda.hu').pop();
+        // A LEVÉL-FOGADÓ A LEGFRISSEBBET ADJA ELŐRE, ÉS A MEGHÍVÓT A HIVATKOZÁSA AZONOSÍTJA —
+        // nem a sorrend (SAJÁT LELET a mérésen: a `.pop()` a REGISZTRÁCIÓS levelet adta vissza).
+        const levDel = (await del.get('/dev/mailbox')).body.mails
+          .filter((x) => x.to === 'u-jog-admin@pelda.hu' && String(x.link || '').includes('invite='))[0];
         const jegyDel = new URL(levDel.link).searchParams.get('invite');
         await del.post('/api/invites/redeem', { token: jegyDel });
         await del.post('/api/session/workspace', { book_id: konyvJ });
@@ -2594,28 +2600,99 @@ try {
         // történet MINDEN MÁS előfeltétele teljesüljön: csak a hatáskör hiányozzon.
         await fiok('u-jog-cimzett');
         const kiadta = await del.post('/api/invites', { email: 'u-jog-cimzett@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+        // A MÉRÉS A HATÁRON ÁLL (SAJÁT LELET a mérésen): a `story_data` BELSŐ tény, a válaszban
+        // nincs benne — amit a felhasználó lát, az a FELKÍNÁLT lista, tehát azt mérjük. És a két
+        // FÉL-tényt KÜLÖN mondjuk ki: a plafon ÉRVÉNYES, a hatáskör NINCS (`KUKA-002`).
+        const atDel = new Date().toISOString();
+        const alanyDel = (await del.get('/api/me')).body.subject_id;
+        const konyvDel = (await del.get('/api/me')).body.current_book_id;
+        const plafonDel = delegationCeilingOf({ store: u.store, subjectId: alanyDel, bookId: konyvDel, at: atDel });
         const jogDel = await del.get('/api/assistant/status?lang=hu&surface=app');
-        const tenyDel = (jogDel.body.story_data) || {};
         const kinaltDel = (jogDel.body.tours || []).map((t) => t.id);
         // ÉS A MEGVONÁS ÍRÁS-ÚTJA KÖZVETLENÜL IS MÉRVE: ugyanazt mondja, amit a kapu.
         const megvonas = await del.post('/api/invites/revoke', { ref: (kiadta.body && kiadta.body.ref) || 'nincs' });
-        step('(as75) `KUKA-469` (külső review P2): a DELEGÁLT `admin` kezelőnek — érvényes plafonnal, saját kiállított meghívóval, de `alter_right` hatáskör NÉLKÜL — a romboló történet NEM felkínált, mert az első feladat-lépése MEGVONÁS',
-          kiadta.status === 201 && tenyDel.pending_invite === false && tenyDel.pending_invite_ref === null
-            && !kinaltDel.includes('tour.inviteRevoke')
+        step('(as75) `KUKA-469` (külső review P2): a DELEGÁLT `admin` kezelőnek — ÉRVÉNYES plafonnal (`admin`+`user`, `keszlet`), saját kiállított meghívóval, de `alter_right` hatáskör NÉLKÜL — a két romboló történet NEM felkínált; az írás-út ugyanezt mondja: `403 authority_not_established`',
+          kiadta.status === 201 && konyvDel === konyvJ
+            && plafonDel.ok === true && plafonDel.roles.includes('user')
+            && !kinaltDel.includes('tour.inviteRevoke') && !kinaltDel.includes('tour.reentry')
             && megvonas.status === 403 && (megvonas.body || {}).reason === 'authority_not_established',
-          { meghivo_kiadva: kiadta.status, felkinalva: kinaltDel.includes('tour.inviteRevoke'),
-            teny: tenyDel.pending_invite, jelolo: tenyDel.pending_invite_ref,
+          { meghivo_kiadva: kiadta.status, konyvben: konyvDel === konyvJ,
+            plafon: plafonDel.ok === true ? plafonDel.roles.join('+') : plafonDel.reason,
+            felkinalva_visszavonas: kinaltDel.includes('tour.inviteRevoke'),
+            felkinalva_visszateres: kinaltDel.includes('tour.reentry'),
             iras_ut: `${megvonas.status}/${(megvonas.body || {}).reason || ''}` });
         // (as76) ELLENPÁR: UGYANABBAN a könyvben a TULAJDONOSNAK — akinek VAN `alter_right`-ja —
         // a történet felkínálódik. A szigorítás tehát nem vitt el jó esetet (`KUKA-394`).
         const jogOw = await ow.get('/api/assistant/status?lang=hu&surface=app');
-        const tenyOw = (jogOw.body.story_data) || {};
         const kinaltOw = (jogOw.body.tours || []).map((t) => t.id);
-        step('(as76) `KUKA-469` ELLENPÁR: UGYANABBAN a könyvben a TULAJDONOSNAK (van `alter_right`) a történet VÁLTOZATLANUL felkínált — a kapu a HATÁSKÖRT méri, nem a tagságot',
-          tenyOw.pending_invite === true && typeof tenyOw.pending_invite_ref === 'string'
-            && tenyOw.pending_invite_ref.length > 0 && kinaltOw.includes('tour.inviteRevoke'),
-          { felkinalva: kinaltOw.includes('tour.inviteRevoke'), teny: tenyOw.pending_invite,
-            jelolo: tenyOw.pending_invite_ref });
+        step('(as76) `KUKA-469` ELLENPÁR: UGYANABBAN a könyvben a TULAJDONOSNAK (van `alter_right`) a visszavonás-történet VÁLTOZATLANUL felkínált — a kapu a HATÁSKÖRT méri, nem a tagságot vagy a plafont',
+          kinaltOw.includes('tour.inviteRevoke'),
+          { felkinalva: kinaltOw.includes('tour.inviteRevoke'), tulaj_listaja: kinaltOw.length });
+      }
+      {
+        // ── (as77–as80) A KÖZÖNSÉGES ÚT KÉT LELETE (`KUKA-471` · `KUKA-472`) ─────────────────
+        //
+        // Mind a kettő a MUNKATÁRS-LISTA sorára szól (nem a bemutatóra): az egyik a BEVÁLTÁS
+        // feltételét hagyta ki a felkínálásból, a másik a MEGMÉRT szerep-készletet dobta el.
+        const kl = await fiok('u-kozonseges');
+        await kl.post('/api/workspaces', { name: 'U186 Kozonseges Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '12345679-1-42' } });
+        const tagK = await fiok('u-k-tag');
+        await kl.post('/api/invites', { email: 'u-k-tag@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+        const levK = (await tagK.get('/dev/mailbox')).body.mails
+          .filter((x) => x.to === 'u-k-tag@pelda.hu' && String(x.link || '').includes('invite='))[0];
+        await tagK.post('/api/invites/redeem', { token: new URL(levK.link).searchParams.get('invite') });
+        const tagKAlany = (await tagK.get('/api/me')).body.subject_id;
+        // A TAGSÁG MEGSZŰNIK — innentől a sor „újra meghívható" jelzője a kérdés.
+        await kl.post('/api/members/revoke', { subject_id: tagKAlany });
+        const sorOf = async () => {
+          const r = await kl.get('/api/members');
+          return ((r.body.members) || []).find((m) => m.subject_id === tagKAlany) || null;
+        };
+        const sorElotte = await sorOf();
+
+        // ── (as77) A CSATORNA-BIZONYÍTÉK ELVESZTÉSE (import · cím-csere) ─────────────────────
+        const proof = u.store.get('SELECT * FROM channel_proof WHERE subject_id = ?', tagKAlany);
+        u.store.run('DELETE FROM channel_proof WHERE subject_id = ?', tagKAlany);
+        const sorIgazolasNelkul = await sorOf();
+        const irasNelkul = await kl.post('/api/members/reinvite', { subject_id: tagKAlany, role: 'user', scope: 'keszlet', operation_id: `u186-jog-${Date.now()}` });
+        step('(as77) `KUKA-471` (külső review P2): ha a tag EGYETLEN élő címe NEM igazolt (import · cím-csere), a munkatárs-lista sora NEM ajánlja az újbóli meghívást, és NEVEZETT okot ad — a beváltás (`redeemInvite`) ugyanezt a bizonyított csatornát kéri',
+          sorElotte && sorElotte.reinvitable === true && sorIgazolasNelkul
+            && sorIgazolasNelkul.reinvitable === false
+            && sorIgazolasNelkul.reinvite_reason === 'reentry_target_channel_unproven'
+            && irasNelkul.status !== 200,
+          { elotte: sorElotte ? sorElotte.reinvitable : 'nincs sor',
+            utana: sorIgazolasNelkul ? sorIgazolasNelkul.reinvitable : 'nincs sor',
+            ok: sorIgazolasNelkul ? sorIgazolasNelkul.reinvite_reason : null,
+            iras_ut: `${irasNelkul.status}/${(irasNelkul.body || {}).reason || ''}` });
+        // ── (as78) ELLENPÁR: a bizonyíték VISSZAÁLLÍTÁSA után a sor ÚJRA ajánl ──────────────
+        u.store.run('INSERT INTO channel_proof (subject_id, namespace, value_norm, proven_at) VALUES (?,?,?,?)',
+          proof.subject_id, proof.namespace, proof.value_norm, proof.proven_at);
+        const sorVisszaallitva = await sorOf();
+        step('(as78) `KUKA-471` ELLENPÁR: a csatorna-bizonyíték VISSZAÁLLÍTÁSA után a sor ÚJRA ajánlja az újbóli meghívást — a kapu a BIZONYÍTOTT CSATORNÁT méri, nem a tag létét',
+          sorVisszaallitva && sorVisszaallitva.reinvitable === true
+            && sorVisszaallitva.reinvite_reason === 'closed_period',
+          { utana: sorVisszaallitva ? sorVisszaallitva.reinvitable : 'nincs sor',
+            ok: sorVisszaallitva ? sorVisszaallitva.reinvite_reason : null });
+
+        // ── (as79) A MEGMÉRT SZEREP-KÉSZLET KIMEGY A SORRAL, ÉS A FELOLDÓÉ ───────────────────
+        const plafonKl = delegationCeilingOf({ store: u.store, subjectId: (await kl.get('/api/me')).body.subject_id,
+          bookId: (await kl.get('/api/me')).body.current_book_id, at: new Date().toISOString() });
+        const vart = plafonKl && plafonKl.ok && Array.isArray(plafonKl.roles) ? [...plafonKl.roles].sort() : null;
+        const kapott = sorVisszaallitva && Array.isArray(sorVisszaallitva.reinvite_roles)
+          ? [...sorVisszaallitva.reinvite_roles].sort() : null;
+        step('(as79) `KUKA-472` (külső review P2): a sor hordozza a MEGMÉRT szerep-készletet (`reinvite_roles`), és az a PLAFON feloldójának kimenete — nem a lap kitalált listája',
+          Boolean(vart) && Boolean(kapott) && JSON.stringify(vart) === JSON.stringify(kapott) && kapott.length > 0,
+          { plafon_feloldo: vart ? vart.join(',') : null, soron: kapott ? kapott.join(',') : null });
+        // (as80) ÉS A PANEL EBBŐL VÁLASZT — forrás-pin, mert a `reinvitePanel` böngésző-oldali
+        // rajzolás, amit ez a battéria nem tud MEGHÍVNI (`KUKA-207` kimondva). A LEGITIM út élő
+        // tanúja a kötelező kapuban áll: az `R132`/`R134` próbák a panelen VÁLASZTANAK szerepet.
+        const panelAs = readFileSync(join(ROOT, 'v3app/public/app.js'), 'utf8');
+        step('(as80) `KUKA-472`: a panel a KISZOLGÁLÓ készletéből rajzol (`szerepek`), és a „minden ismert szerep" alak KIVEZETVE — a hatókör kimondva: ez FORRÁS-pin, a legitim utat az `R132`/`R134` böngésző-próbák mérik',
+          /const szerepek = Array\.isArray\(m\.reinvite_roles\) && m\.reinvite_roles\.length/.test(panelAs)
+            && /\$\{szerepek\.map\(\(r\) => `<option value="\$\{esc\(r\)\}"/.test(panelAs)
+            && !/data-testid="reinvite-role">\n          \$\{Object\.keys\(ROLE\)\.map/.test(panelAs),
+          { keszletbol_rajzol: /\$\{szerepek\.map\(/.test(panelAs),
+            minden_szerep_kivezetve: !/data-testid="reinvite-role">\n          \$\{Object\.keys\(ROLE\)\.map/.test(panelAs) });
       }
 
       {
@@ -2857,7 +2934,9 @@ try {
         // A `KUKA-468` óta a választás a KÉRT célt részesíti előnyben (az alkalmasak közül), és
         // egyébként a determinisztikus sorrend első alkalmasát adja — a kiválasztás ténye változatlan.
         /const valasztottMeghivo = kertSor \|\| rows\.find\(alkalmasMeghivo\) \|\| null;/.test(srvAs)
-        && /pending_invite_ref: valasztottMeghivo \? shortRef\(valasztottMeghivo\.token\) : null,/.test(srvAs)
+        // A `KUKA-469` óta a két romboló történet jelöltje EGY hatáskör-kapun megy át, ezért a
+        // jelölő a KAPUZOTT célból jön (`celMeghivo`) — a kiválasztás ténye változatlan.
+        && /pending_invite_ref: celMeghivo \? shortRef\(celMeghivo\.token\) : null,/.test(srvAs)
         && /story: storyBindingOf\(id, who\),/.test(srvAs)
         && !/const pendingInvite = rows\.some\(/.test(srvAs)
         && !/masok\.every\(/.test(srvAs)

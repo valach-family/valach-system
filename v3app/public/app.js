@@ -1519,10 +1519,24 @@ import { inviteNextKey } from './inviteText.mjs';
     const kit = m.email || m.subject_id;
     const korok = (state.scopeMeta && state.scopeMeta.grantable && state.scopeMeta.grantable.length)
       ? state.scopeMeta.grantable : ['keszlet'];
+    /**
+     * A SZEREP-VÁLASZTÉK A KISZOLGÁLÓ MEGMÉRT KÉSZLETÉBŐL JÖN (`KUKA-472` · külső review, P2).
+     *
+     * A LELET: a panel MINDEN ismert szerepet felkínált (`Object.keys(ROLE)`), a sor
+     * „újrahívható" jelzője viszont a tag MAI szerepére szólt. Egy delegált kezelőnél a
+     * plafonon TÚLI választás `outside_basis_roles`-szal bukik — a `tour.reentry` közben a
+     * MEGVONÁS UTÁN. A lap tehát nem talál ki szerepeket: a kiszolgáló készletét rajzolja.
+     * Ha a készlet nem érkezett meg (`null`), a tag MAI szerepe az EGYETLEN választható — ez
+     * az, amire a sor jelzője ki is mondta, hogy működik (`KUKA-049`: a nem tudom nem jó lesz).
+     */
+    const szerepek = Array.isArray(m.reinvite_roles) && m.reinvite_roles.length
+      ? m.reinvite_roles.filter((r) => typeof r === 'string' && r)
+      : [m.role || 'user'];
+    const valasztott = szerepek.includes(m.role || 'user') ? (m.role || 'user') : szerepek[0];
     openPanel(panelHead(UI.reinviteTitle, tpl('reinviteConfirmLead', { ki: kit }))
       + `<form class="form" data-testid="reinvite-form">
         <label>${esc(UI.role)}<select name="role" data-testid="reinvite-role">
-          ${Object.keys(ROLE).map((r) => `<option value="${esc(r)}"${r === (m.role || 'user') ? ' selected' : ''}>${esc(ROLE[r])}</option>`).join('')}
+          ${szerepek.map((r) => `<option value="${esc(r)}"${r === valasztott ? ' selected' : ''}>${esc(ROLE[r] || r)}</option>`).join('')}
         </select></label>
         <label>${esc(STATE.inviteScopeQuestion)}<select name="scope" data-testid="reinvite-scope">
           ${korok.map((k) => `<option value="${esc(k)}">${esc(SCOPE[k] || k)}</option>`).join('')}

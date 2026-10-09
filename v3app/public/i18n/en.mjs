@@ -189,6 +189,7 @@ export const REASON = Object.freeze({
   reentry_blocked_retroactive_invalidity: 'This membership was closed by a retroactive invalidity decision. Reviewing such a decision is a separate procedure, not a re-invitation.',
   reentry_not_after_revocation: 'Re-entry cannot take effect at the same moment as the removal. Try again in a moment.',
   reentry_target_has_no_address: 'This person has no recorded e-mail address for the new invitation.',
+  reentry_target_channel_unproven: "This person's address is not verified, so they could not redeem the invitation — the system therefore does not send it. Ask them to verify their e-mail address in their account first; after that the re-invitation works.",
   outside_basis_roles: 'You cannot pass on this role: your own authorisation is narrower.',
   outside_basis_scopes: 'You cannot pass on this data area: your own authorisation is narrower.',
   scope_grant_other_period: 'This access belonged to an earlier, now closed membership period. After re-entry it has to be granted again.',
