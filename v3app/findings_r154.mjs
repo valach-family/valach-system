@@ -2743,6 +2743,42 @@ try {
           { ismert: (tagokOw2.known_roles || []).join(','),
             kiadhato: (tagokOw2.grantable_roles || []).join(','),
             tiltott: (tagokOw2.blocked_roles || []).join(',') });
+        // ── (as88–as89) A MEGVONÁS NYUGTÁJA ÉS AZ ŰRLAP KÉT KAPUJA (`KUKA-475` · `KUKA-476`) ──
+        //
+        // (as88) A MAG ÜZLETILEG IDEMPOTENS: a MÁSODIK megvonás `ok:true, changed:false`-ot ad
+        // `revocation_already_effective` okkal — a lapnak tehát VAN miből megtudnia, hogy most nem
+        // történt átmenet. A mérés a HATÁRT kérdezi: megvan-e a `revocation.changed` tény.
+        // A JELÖLT NEM LEHET A SAJÁT SORUNK (SAJÁT LELET a mérésen): az első alakom a lista ELSŐ
+        // alkalmas sorát vette, az pedig a TULAJDONOS maga volt — a mérés tehát a saját tagságát
+        // vonta meg, és a MÁSODIK hívás már `409 not_a_member`-t kapott, nem a mérni kívánt
+        // `changed: false`-ot. A fixtúra MAGA IS MÉRÉS ALATT ÁLL (`KUKA-207`).
+        const alanyOw = (await ow.get('/api/me')).body.subject_id;
+        const tagMost = sorOw.filter((m) => m.effective === true && m.rights_alterable === true
+          && m.subject_id !== alanyOw)[0] || null;
+        let elso = null; let masodik = null;
+        if (tagMost) {
+          elso = await ow.post('/api/members/revoke', { subject_id: tagMost.subject_id });
+          masodik = await ow.post('/api/members/revoke', { subject_id: tagMost.subject_id });
+        }
+        step('(as88) `KUKA-475` (külső review P2): a MÁSODIK megvonás `changed: false`-t ad (`revocation_already_effective`) — a lap ebből tudja, hogy MOST nem történt átmenet, tehát a bemutató lépése sem teljesülhet és a nyugta sem mondhatja, hogy ez a kérés szüntette meg',
+          Boolean(tagMost) && elso && elso.status === 200
+            && Boolean(elso.body.revocation) && elso.body.revocation.changed === true
+            && masodik && masodik.status === 200 && Boolean(masodik.body.revocation)
+            && masodik.body.revocation.changed === false
+            && masodik.body.revocation.reason === 'revocation_already_effective',
+          { tag: Boolean(tagMost),
+            elso: elso ? `${elso.status}/${(elso.body.revocation || {}).changed}` : 'nincs',
+            masodik: masodik ? `${masodik.status}/${(masodik.body.revocation || {}).changed}/${(masodik.body.revocation || {}).reason}` : 'nincs' });
+        const lapAs = readFileSync(join(ROOT, 'v3app/public/app.js'), 'utf8');
+        step('(as89) `KUKA-475`/`KUKA-476`: a lap a MEGVONÁS-átmenetet a `revocation.changed`-ből olvassa (a puszta `r.ok` KIVEZETVE), és a meghívó-űrlap MINDKÉT megmért készletre zár — a kitalált `keszlet`/`arak` tartalék KIVEZETVE',
+          /const megvontMost = Boolean\(r\.revocation && r\.revocation\.changed === true\);/.test(lapAs)
+            && !/if \(r\.ok\) tourTaskDone\('member\.revoked'/.test(lapAs)
+            && /if \(!szerepek\.length \|\| !korok\.length\) \{/.test(lapAs)
+            && !/data-testid="invite-scope">\$\{\(state\.scopeMeta\.grantable\.length/.test(lapAs),
+          { atmenet_a_verdiktbol: /const megvontMost = Boolean\(r\.revocation/.test(lapAs),
+            puszta_ok_kivezetve: !/if \(r\.ok\) tourTaskDone\('member\.revoked'/.test(lapAs),
+            ket_kapu: /if \(!szerepek\.length \|\| !korok\.length\) \{/.test(lapAs),
+            kitalalt_tartalek_kivezetve: !/data-testid="invite-scope">\$\{\(state\.scopeMeta\.grantable\.length/.test(lapAs) });
       }
       }
       {

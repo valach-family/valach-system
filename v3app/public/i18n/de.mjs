@@ -59,6 +59,7 @@ export const TPL = Object.freeze({
   scopeGrantUnchanged: '{ki} konnte {mit} schon vorher einsehen — es hat sich nichts geändert.',
   scopeRevokeUnchanged: '{ki} sah {mit} ohnehin nicht — es hat sich nichts geändert.',
   memberRevoked: '{ki} hat keinen Zugang mehr zu diesem Konto: {nev}',
+  memberRevokeUnchanged: '{ki} hatte bereits keinen Zugang mehr zu diesem Konto ({nev}), es hat sich also nichts geändert. Falls ein anderer Tab oder eine andere Verwaltung es inzwischen erledigt hat, aktualisiere die Liste für den aktuellen Stand.',
   memberAccessTitle: 'Zugang von {ki}',
   revokeTitle: 'Zugang von {ki} beenden?',
   revokeLead: 'Die Mitgliedschaft von {ki} in diesem Konto endet: {nev}. Danach kann die Person die Daten des Kontos nicht mehr öffnen. Ihr persönliches Konto und die Historie früherer Vorgänge bleiben erhalten.',

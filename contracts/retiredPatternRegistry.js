@@ -17569,6 +17569,59 @@ Object.freeze({
     ]),
   }),
 
+  Object.freeze({
+    id: 'KUKA-475',
+    date: '2026-10-09',
+    title: 'A TAGSÁG-MEGVONÁS NYUGTÁJA A PUSZTA `ok`-RA ZÁRULT, NEM A TÉNYLEGES ÁTMENETRE',
+    what: 'A megvonás útja (`doRevoke`) a válasz `ok` mezőjére zárta a bemutató feladat-lépését és írta ki a nyugtát: `if (r.ok) tourTaskDone(\'member.revoked\', …)` + „{ki} hozzáférése megszűnt".',
+    why_wrong: 'A megvonás ÜZLETILEG IDEMPOTENS: ha egy MÁSIK FÜL (vagy másik kezelő) a lap betöltése után már megvonta ezt a tagot, a mag `ok: true, changed: false`-ot ad `revocation_already_effective` okkal. A lap tehát MEG SEM TÖRTÉNT átmenetre állított teljesítést, és azt mondta ki, hogy „EZ a kérés" szüntette meg a hozzáférést. A szomszéd utak (adatkör-megadás, meghívó-visszavonás) MÁR ezt a szabályt követték (`KUKA-129`: a nyugta IGAZAT mond arról, történt-e változás) — klasszikus fél őr (`KUKA-039`), és egyben a `KUKA-231` elvesztése (a bemutató lépése IGAZOLT változásra zárul).',
+    replaced_by: 'Az átmenetet a mag teljes verdiktjéből olvassuk (`r.revocation.changed === true`), és csak arra zárul a lépés; változatlan állapotnál a nyugta NEVEZETTEN ezt mondja (`memberRevokeUnchanged`, mindhárom bekapcsolt nyelven, a teendővel: a lista frissítése után a mai állapot látszik).',
+    replacement: 'A NYUGTA AZ ÁTMENETRŐL SZÓL, NEM A HÍVÁS SIKERÉRŐL. Egy idempotens művelet `ok`-ja azt jelenti, hogy „a kívánt állapot áll" — nem azt, hogy „most mi állítottuk be".',
+    decision: 'D-VS-3257',
+    found_by: 'KÜLSŐ REVIEW (Codex, P2 — `v3app/public/app.js#L3548`, a `2812c58` fejen): „Do not complete the revoke task when nothing changed".',
+    lesson: 'AZ IDEMPOTENS MŰVELET KÉT TÉNYT AD VISSZA, ÉS A FELÜLET MINDKETTŐT TARTOZIK OLVASNI. Ha egy szomszéd úton már kijavítottuk ugyanezt, a javítás hatóköre a HIBA-OSZTÁLY: az összes idempotens írás nyugtáját végig kell kérdezni.',
+    guard_note: 'gépi jel: `npm run verify:app-findings-r154` (`as88`: a MÁSODIK megvonás `changed: false`-t ad `revocation_already_effective` okkal — élő HTTP-n mérve · `as89`: a lap a `revocation.changed`-ből olvas, a puszta `r.ok` KIVEZETVE) · `npm run verify:i18n` (a változatlan-nyugta mindhárom nyelven). ÉS A FIXTÚRA IS MÉRÉS ALATT ÁLL (SAJÁT LELET, kimondva): az első alakom a lista ELSŐ alkalmas sorát vette, az pedig a TULAJDONOS maga volt — a mérés a saját tagságát vonta meg, és a második hívás `409 not_a_member`-t adott, nem a mérni kívánt `changed: false`-ot.',
+    home: 'v3',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'const megvontMost = Boolean\\(r\\.revocation && r\\.revocation\\.changed === true\\);',
+        why: 'az átmenet a mag teljes verdiktjéből jön, nem a hívás sikeréből' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/hu.mjs']),
+        pattern: 'memberRevokeUnchanged:',
+        why: 'és a változatlan állapotnak NEVEZETT mondata van, a teendővel' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "if \\(r\\.ok\\) tourTaskDone\\('member\\.revoked', \\{ ref: id \\}\\);",
+        why: 'a KIVEZETETT alak: a puszta `ok` zárta a lépést, meg sem történt átmenetre is' }),
+    ]),
+  }),
+
+  Object.freeze({
+    id: 'KUKA-476',
+    date: '2026-10-09',
+    title: 'A MEGHÍVÓ-ŰRLAP KITALÁLT ADATKÖR-TARTALÉKRA ESETT, ÉS EZZEL VISSZAÁLLÍTOTTA A HAMIS GOMBOT',
+    what: 'A `KUKA-472` után az űrlap a MEGMÉRT szerep-plafonból rajzolt, és üres szerep-készletnél a nevezett mondatot adta. Az adatkör-választék viszont megmaradt a régi alakban: `(state.scopeMeta.grantable.length ? state.scopeMeta.grantable : [\'keszlet\', \'arak\'])`.',
+    why_wrong: 'Egy delegált kezelőnek lehet ÉRVÉNYES szerep-plafonja ÜRES adatkör-plafon mellett. Az űrlap ilyenkor KINYÍLT (a szerep-készlet nem volt üres), az adatkör-választék pedig a BEÉGETETT tartalékra esett — és minden beküldést az `inviteColleague` `outside_basis_scopes`-szal utasított volna el. A kitalált tartalék tehát pontosan azt a HAMIS GOMBOT állította vissza, amit a plafon-mérés megszüntetett (`KUKA-041` · `KUKA-049`: a „nem tudom" nem „jó lesz").',
+    replaced_by: 'Az űrlap MINDKÉT megmért készletre zár (`!szerepek.length || !korok.length`), az adatkör-választék a mért plafonból jön, és a kitalált tartalék KIVEZETVE — üres készletnél a nevezett mondat áll az űrlap helyén.',
+    replacement: 'A TARTALÉK-ÉRTÉK IS ÁLLÍTÁS. Egy „legyen valami a listában" alak ugyanazt a hamis felkínálást adja vissza, amit a mérés megszüntetett — a nem tudott nem „jó lesz".',
+    decision: 'D-VS-3257',
+    found_by: 'KÜLSŐ REVIEW (Codex, P2 — `v3app/public/app.js#L1406`, a `2812c58` fejen): „Block the invite form when no scope is delegable". A tartalékot a `KUKA-472` javításakor LÁTTAM, és NEM javítottam — a reviewer joggal kérte.',
+    lesson: 'AMIT EGY JAVÍTÁS KÖZBEN ÉSZREVESZEK, DE NEM JAVÍTOK, AZT NEVEZZEM MEG — különben a következő kör leletévé válik. A kitalált tartalék a hamis gomb visszacsempészése.',
+    guard_note: 'gépi jel: `npm run verify:app-findings-r154` (`as89`: az űrlap MINDKÉT megmért készletre zár, és a kitalált `keszlet`/`arak` tartalék a meghívó-űrlapról KIVEZETVE).',
+    home: 'v3',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'if \\(!szerepek\\.length \\|\\| !korok\\.length\\) \\{',
+        why: 'az űrlap MINDKÉT megmért készletre zár' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: 'data-testid="invite-scope">\\$\\{\\(state\\.scopeMeta\\.grantable\\.length',
+        why: 'a KIVEZETETT alak: üres plafon mellett a beégetett `keszlet`/`arak` tartalékra esett' }),
+    ]),
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

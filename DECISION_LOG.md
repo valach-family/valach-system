@@ -16,6 +16,35 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3257 — AZ IDEMPOTENS MŰVELET KÉT TÉNYT AD, ÉS A TARTALÉK-ÉRTÉK IS ÁLLÍTÁS (R186 §5)
+
+Két lelet, egy munkarendi tanulság-pár.
+
+**(1) A NYUGTA AZ ÁTMENETRŐL SZÓL, NEM A HÍVÁS SIKERÉRŐL** (`KUKA-475`). A megvonás üzletileg
+idempotens: ha egy **másik fül** a lap betöltése után már elvégezte, a mag `ok: true, changed: false`-ot
+ad. A lap mégis a puszta `ok`-ra zárta a bemutató lépését, és azt mondta, hogy **ez** a kérés szüntette
+meg a hozzáférést. Mostantól az átmenetet a mag **teljes verdiktjéből** olvassuk
+(`r.revocation.changed`), és változatlan állapotnál **nevezett** nyugta áll, mindhárom nyelven, a
+teendővel. A szomszéd utak már így működtek — a javítás hatóköre tehát a **hiba-osztály**: minden
+idempotens írás nyugtáját végig kell kérdezni (`KUKA-129` · `KUKA-039`).
+
+**(2) A TARTALÉK-ÉRTÉK IS ÁLLÍTÁS** (`KUKA-476`). A meghívó-űrlap adatkör-választéka üres plafon
+mellett egy **beégetett** `keszlet`/`arak` tartalékra esett — vagyis visszaállította pontosan azt a
+**hamis gombot**, amit a plafon-mérés megszüntetett. Mostantól az űrlap **mindkét** megmért készletre
+zár, és üres készletnél a nevezett mondat áll az űrlap helyén. A „nem tudom" nem „jó lesz"
+(`KUKA-049`).
+
+**ÉS AMIT MAGAMRÓL RÖGZÍTEK:** a `KUKA-476` tartalékát a `KUKA-472` javításakor **láttam**, és nem
+javítottam. **Amit egy javítás közben észreveszek, de nem javítok, azt nevezzem meg** — különben a
+következő kör leletévé válik. Ugyanígy a mérés: az `as88` első fixtúrája a lista **első** alkalmas
+sorát vette, az pedig a **tulajdonos maga** volt — a mérés a saját tagságát vonta meg, és a második
+hívás `409 not_a_member`-t adott. **A fixtúra maga is mérés alatt áll** (`KUKA-207`).
+
+Gépi jel: `npm run verify:app-findings-r154` (`as88` · `as89`) · `npm run verify:i18n` ·
+`npm run verify:kuka`.
+
+---
+
 ## D-VS-3256 — A NYILVÁNOSSÁGBA MENŐ TISZTÍTÓT A BEMENET MINDEN ALAKJÁRA MEGMÉRJÜK (R186 §5)
 
 A fogyasztás-export út-tisztítója a **relatív** utat normalizálta (a `join` ezt magától megteszi), az

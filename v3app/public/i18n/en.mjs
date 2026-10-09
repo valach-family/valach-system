@@ -63,6 +63,7 @@ export const TPL = Object.freeze({
   scopeGrantUnchanged: '{ki} could already view {mit} — nothing changed.',
   scopeRevokeUnchanged: '{ki} could not see {mit} anyway — nothing changed.',
   memberRevoked: '{ki} no longer has access to this account: {nev}',
+  memberRevokeUnchanged: '{ki} already had no access to this account ({nev}), so nothing changed now. If another tab or another manager did it in the meantime, refresh the list to see the current state.',
   memberAccessTitle: 'Access for {ki}',
   revokeTitle: 'End access for {ki}?',
   revokeLead: 'The membership of {ki} in this account ends: {nev}. After that, they can no longer open the account’s data. Their personal account and the history of past operations remain.',

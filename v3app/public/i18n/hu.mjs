@@ -80,6 +80,7 @@ export const TPL = Object.freeze({
   scopeGrantUnchanged: '{ki} eddig is megtekinthette {mit} — nem változott semmi.',
   scopeRevokeUnchanged: '{ki} eddig sem látta {mit} — nem változott semmi.',
   memberRevoked: '{ki} hozzáférése megszűnt ehhez a fiókhoz: {nev}',
+  memberRevokeUnchanged: '{ki} hozzáférése már korábban megszűnt ehhez a fiókhoz ({nev}), tehát most nem történt változás. Ha másik lapon vagy másik kezelő közben elvégezte, a lista frissítése után a mai állapotot látod.',
   memberAccessTitle: '{ki} hozzáférése',
   revokeTitle: 'Megszünteted {ki} hozzáférését?',
   revokeLead: '{ki} tagsága megszűnik ebben a fiókban: {nev}. Ezután nem nyithatja meg a fiók adatait. A személyes fiókja és a korábbi műveletek története megmarad.',

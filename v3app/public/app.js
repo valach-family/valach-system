@@ -1401,7 +1401,19 @@ import { inviteNextKey } from './inviteText.mjs';
      */
     const szerepek = (state.scopeMeta && Array.isArray(state.scopeMeta.roles) ? state.scopeMeta.roles : [])
       .filter((r) => typeof r === 'string' && r);
-    if (!szerepek.length) {
+    /**
+     * ÉS AZ ADATKÖR-KÉSZLET IS A MÉRT PLAFONBÓL JÖN, KITALÁLT TARTALÉK NÉLKÜL (`KUKA-476` ·
+     * külső review, Codex, P2).
+     *
+     * A LELET: egy delegált kezelőnek lehet ÉRVÉNYES szerep-plafonja ÜRES adatkör-plafon mellett.
+     * Az űrlap ilyenkor KINYÍLT (a szerep-készlet nem volt üres), az adatkör-választék pedig egy
+     * BEÉGETETT `keszlet`/`arak` tartalékra esett — minden beküldést az `inviteColleague`
+     * `outside_basis_scopes`-szal utasított volna el. A kitalált tartalék tehát pontosan azt a
+     * hamis gombot állította vissza, amit a plafon-mérés megszüntetett (`KUKA-041` · `KUKA-049`).
+     */
+    const korok = (state.scopeMeta && Array.isArray(state.scopeMeta.grantable) ? state.scopeMeta.grantable : [])
+      .filter((k) => typeof k === 'string' && k);
+    if (!szerepek.length || !korok.length) {
       openPanel(panelHead(UI.inviteTitle, UI.inviteLead)
         + `<p class="notice" data-testid="invite-blocked">${esc(reasonText((state.scopeMeta && state.scopeMeta.reason) || 'generic'))}</p>`);
       return;
@@ -1411,7 +1423,7 @@ import { inviteNextKey } from './inviteText.mjs';
         <label>${esc(UI.email)}<input type="email" name="email" required data-testid="invite-email" autocomplete="off" placeholder="pelda@example.test"></label>
         <label>${esc(UI.role)}<select name="role" data-testid="invite-role">${szerepek.map((r) => `<option value="${esc(r)}">${esc(ROLE[r] || r)}</option>`).join('')}</select>
           <small>${esc(STATE.inviteRoleHelp)}</small></label>
-        <label>${esc(STATE.inviteScopeQuestion)}<select name="scope" data-testid="invite-scope">${(state.scopeMeta.grantable.length ? state.scopeMeta.grantable : ['keszlet', 'arak']).map((k) => `<option value="${esc(k)}">${esc(SCOPE[k] || k)}</option>`).join('')}</select>
+        <label>${esc(STATE.inviteScopeQuestion)}<select name="scope" data-testid="invite-scope">${korok.map((k) => `<option value="${esc(k)}">${esc(SCOPE[k] || k)}</option>`).join('')}</select>
           <small>${esc(STATE.inviteScopeHelp)}</small></label>
         <div class="buttonrow"><button type="submit" class="primary" data-testid="invite-submit">${esc(UI.inviteCreate)}</button>
           <button type="button" data-action="panel-close">${esc(UI.cancel)}</button></div>
@@ -3545,8 +3557,25 @@ import { inviteNextKey } from './inviteText.mjs';
     const who = m ? (m.email || id) : id;
     // A BEMUTATÓ LÉPÉSE A SZERVER IGAZOLT VÁLASZÁRA ZÁRUL (TUR-01 · KUKA-231): a „Tovább" gomb nem
     // szünteti meg senki tagságát a felhasználó helyett.
-    if (r.ok) tourTaskDone('member.revoked', { ref: id });   // a VÁLASZTOTT tagra szól (R186 §2)
-    formResult('members-result', r.ok ? tpl('memberRevoked', { ki: who, nev: accountName() }) : refusalText(r), r.ok ? 'ok' : 'bad');
+    /**
+     * ÉS A NYUGTA IGAZAT MOND ARRÓL, TÖRTÉNT-E VÁLTOZÁS (`KUKA-475` · külső review, Codex, P2).
+     *
+     * A LELET: a megvonás ÜZLETILEG IDEMPOTENS — ha egy MÁSIK FÜL a lap betöltése után már
+     * megvonta ezt a tagot, a mag `ok: true, changed: false`-ot ad `revocation_already_effective`
+     * okkal. Ez a sor viszont a PUSZTA `r.ok`-ra zárta a bemutató lépését, és azt mondta ki, hogy
+     * „EZ a kérés" szüntette meg a hozzáférést — vagyis egy MEG SEM TÖRTÉNT átmenetre állított
+     * teljesítést (`KUKA-129` · `KUKA-231`). A szomszéd utak (adatkör-megadás, meghívó-visszavonás)
+     * már ezt a szabályt követték: fél őr volt (`KUKA-039`).
+     *
+     * AZ ÁTMENET A `r.revocation`-ben áll (a válasz a mag teljes verdiktjét átadja), tehát ONNAN
+     * kérdezzük — és változatlan állapotnál a nyugta is ezt mondja.
+     */
+    const megvontMost = Boolean(r.revocation && r.revocation.changed === true);
+    if (r.ok && megvontMost) tourTaskDone('member.revoked', { ref: id });   // a VÁLASZTOTT tagra szól (R186 §2)
+    formResult('members-result',
+      r.ok ? (megvontMost ? tpl('memberRevoked', { ki: who, nev: accountName() })
+        : tpl('memberRevokeUnchanged', { ki: who, nev: accountName() })) : refusalText(r),
+      r.ok ? (megvontMost ? 'ok' : 'warn') : 'bad');
     await loadMembers();
   }
 
