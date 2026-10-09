@@ -146,6 +146,7 @@ export const REASON = Object.freeze({
   unknown_field: 'Az elküldött adatok között nem várt mező volt. Frissítsd az oldalt, és próbáld újra.',
   at_capacity: 'A meghívó-folytatást most nem tudtuk megőrizni, mert a rendszer megtelt. Próbáld meg újra néhány perc múlva, vagy lépj be először, és utána nyisd meg újra a meghívó hivatkozását.',
   session_gone: 'A meghívó-folytatást nem őriztük meg, mert közben kiléptek ebből a munkamenetből (vagy másik fiókra váltottak). Lépj be újra, és nyisd meg ismét a meghívó hivatkozását.',
+  no_session_presented: 'Ehhez a kéréshez nem tartozott tárolt munkamenet, tehát megőrzött meghívó-folytatás sem — a meghívó képernyőjét el lehet hagyni.',
   invite_expired: 'Ez a meghívás lejárt. Kérj új meghívót attól, aki küldte.',
   invite_already_redeemed: 'Ezt a meghívót már felhasználták.',
   invite_unknown: 'Ehhez a hivatkozáshoz nem tartozik beváltható meghívás.',

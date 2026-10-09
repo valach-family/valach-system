@@ -16,6 +16,77 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3246 — AZ ÚJ KAPU A LEGITIM UTAT IS MEGMÉRI, ÉS AZ ÉRTELMEZHETETLEN A BIZTONSÁGOSABB IRÁNYBA DŐL (R186 §5)
+
+A külső ellenőrző fél (chatgpt-codex) az `5faeb5a` és a `defddc1` fejen NÉGY további P2-t adott. Az
+első a SAJÁT, egy körrel korábbi javításomat mérte meg, a negyedik pedig **biztonsági** irány.
+
+**1. EGY ÚJ KAPU A LEGITIM UTAT IS MEGMÉRI** (`KUKA-461`). A `KUKA-456` átkötés-javítása AZONOSSÁGOT
+kért a kiszolgáló választásától — a választás SORRENDJE viszont változatlan maradt, és két függő
+meghívó mellett a régebbit adta vissza. **Amíg a cél-választás „valamelyik alkalmas" volt, a sorrend
+ízlés kérdése; amint a kapu azonosságot kér, a sorrend DÖNTÉSSÉ vált.** Ezért: a történet a
+LEGFRISSEBBEN kiadott alkalmas meghívóra kötődik. A `KUKA-456` védelme nem gyengült, és a maradékot
+(két, ugyanabban a milliszekundumban kiadott meghívó) NEVEZETTEN kimondom: ott a lépés fail-closed
+megáll, nem rossz célra köt.
+
+**2. HA EGY ÚTON TÖBB FELTÉTEL ÁLL, A FELKÍNÁLÁS MINDET KÉRI** (`KUKA-462`). A `KUKA-455` a CÍM
+létét kérte, a `KUKA-454` a csatorna BIZONYÍTÁSÁT — a kettő UGYANAZON az úton áll, tehát a
+visszatérés-jelöltnél is EGYÜTT kell állnia. Kilencedszer ugyanaz a lecke, most a saját javításom
+fölött.
+
+**3. AMI SOSEM VOLT, AZT NEM KELL IGAZOLNI** (`KUKA-463`). Egy óvatos nemleges válasz is lehet
+zsákutca: a `KUKA-439` javítása a ROTÁCIÓS bizonytalanságra szólt, de ráállt arra az esetre is, ahol
+bizonytalanság NINCS (tárolt munkamenet sosem jött létre) — és ott örök elakadás lett. **Ha egy
+nemleges válasz a bizonytalanságra szól, a bizonyosság esetét ki kell venni alóla.**
+
+**4. AZ ÉRTELMEZHETETLEN A BIZTONSÁGOSABB IRÁNYBA DŐL** (`KUKA-464`). Az idő-kivonás előjeles, és a
+határ-vizsgálatok egyik irányban némán engednek: visszafelé lépő óra mellett egy lejárt (vagy
+ellopott) süti érvényes maradt, és a `touch()` meg is újította. A negatív kor mostantól LEJÁRT. A
+monoton órára váltás NEVEZETT, külön tétel — a mai javítás a KÁRT zárja el, és ezt kimondja.
+
+**ÉS AMIT A JAVÍTÁS MAGA HOZOTT KI, A SAJÁT MÉRCÉIMBŐL:** az új elutasítási ok (`no_session_presented`)
+azonnal pirosra vitte az `(af2)` mércét — a végpont nevezett okainak MINDEN bekapcsolt nyelven valódi
+mondat kell (`KUKA-238`). Megírva mindháromra; a francia PRÓBA-csomag szándékosan részleges marad.
+Két további mércém a §5 szigorításaitól avult el (`as39` a kötés-nyilatkozat alakjától, `as28` a
+plafon HARMADIK fogyasztójától) — mindkettő a mai szabályhoz igazítva, hatókör-szűkítés nélkül.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as56`–`as63`: négy élő mérés + négy ellenpár) ·
+`npm run verify:kuka` (a négy kivezetett alak tiltva) · `npm run verify:i18n`.
+
+---
+
+## D-VS-3245 — AMIT A FELÜLET AJÁNL, AZT AZ ÍRÁS-ÚTNAK EL IS KELL FOGADNIA (R186 §5)
+
+A külső ellenőrző fél (chatgpt-codex) az `e95e066` fejen HÁROM új P2-t adott, és mind a három
+ugyanaz az osztály, amit a `D-VS-3243` már egyszer kimondott — most **harmadik körben**, két új
+helyen és egy új alakban. Ezért a döntés nem eset-javítás, hanem a szabály KITERJESZTÉSE:
+
+1. **A FELKÍNÁLÁS FELTÉTELE A LEGSZŰKEBB KÉSŐBBI KAPU, NEM A LEGKÖZELEBBI** (`KUKA-458` · `459`).
+   Ha egy felület AJÁNL egy műveletet — gombbal vagy bemutatóval —, akkor az ajánlás feltétele a
+   későbbi ÍRÁS-ÚT **minden** előfeltétele, ugyanabból a feloldóból. Nem közelítés, nem másolat:
+   `reinviteFeasibility` a magban, és a nemleges válasz NEVE is az írás-útról jön.
+2. **AMI A TÖRTÉNET TARTALMÁN ÁLL, AZT A TÖRTÉNET DEKLARÁLJA** (`KUKA-459`). A `tour.reentry`
+   `story_scope`-ja mondja meg, melyik adatkör kiadásán fordul meg a tanulsága; a kiszolgáló ezt
+   méri a plafonhoz, és nyilatkozat nélkül ZÁR (`KUKA-236`).
+3. **EGY TÖRTÉNETNEK TÖBB CÉLJA IS LEHET** (`KUKA-460`). A szereplő és az általa kiállított jegy
+   két külön fogalom, tehát két külön rekesz (`STORY_SLOTS`: `ref` · `invite_ref`) — zárt
+   készletből, fail-closed, és az átadáson is átmenve.
+
+**A SÚLYOSSÁGI SORREND KIMONDVA:** a `KUKA-459` és a `KUKA-460` a drágább fajta, mert a
+megszakadás a **visszafordíthatatlan** lépés UTÁN jön (a tagság már megszűnt, illetve nem kívánt
+tagság keletkezhet). A `KUKA-458` a felületen látszó hamis ígéret.
+
+**ÉS AMIT EZ A DÖNTÉS NEM TESZ:** a hatást nem mozdítja el a magból. A `reinviteFeasibility` NEM
+lép a `reinviteMember` helyébe — az írás-út a maga teljes kapu-sorával (azonosság-kulcs, egyszeri
+hatás, atomi nyugta) változatlanul dönt. A feloldó csak azt mondja meg, érdemes-e felkínálni, és a
+két oldal EGYEZÉSÉT gépi jel méri.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as50`–`as55`: három élő mérés + három ellenpár, köztük
+a sor és az írás-út indokának EGYEZÉSE) · `npm run verify:kuka` (a három kivezetett alak tiltva) ·
+ÉLŐ tanú: `npm run verify:browser-gate`.
+
+---
+
 ## D-VS-3244 — A „FLAKE" NEM GYÖKÉR-OK: A BUKOTT KAPU-SORT ÖSSZEMÉRJÜK, NEM MINŐSÍTJÜK (R186 §5)
 
 A kötelező kapu `R176-K3` sora PIROS lett egy olyan futásban, ami a külső ellenőrző lánccal

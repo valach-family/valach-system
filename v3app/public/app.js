@@ -1596,7 +1596,11 @@ import { inviteNextKey } from './inviteText.mjs';
     const mondat = r.replayed === true ? tpl('reinviteReplayed', { ki: who }) : tpl('reinviteSent', { ki: who });
     formResult('members-result', mondat, 'ok');
     toast(mondat);
-    tourTaskDone('reinvite.sent', { ref: id });   // a VÁLASZTOTT tagra szól (R186 §2)
+    // A MŰVELET A VÁLASZTOTT TAGRA SZÓL (R186 §2), ÉS AZ ÁLTALA KIÁLLÍTOTT MEGHÍVÓ JELÖLŐJE A
+    // MÁSODIK REKESZBE KERÜL (R186 §5): a kötést a KISZOLGÁLÓ válasza adja — a `ref` és az, hogy
+    // KIRE szólt (`subject_id`) is onnan jön, nem a lap feltevéséből (`KUKA-016`).
+    tourTaskDone('reinvite.sent', { ref: id,
+      auth: { ref: r.ref ?? null, actor: (r.subject_id ?? null) || id } });
   }
 
   /**
@@ -1955,7 +1959,8 @@ import { inviteNextKey } from './inviteText.mjs';
          * egyik sem ad: a szerver saját ellenőrzése minden műveleten változatlanul lefut
          * (`KUKA-227`), a bemutató állapota nem jogosultság.
          */
-        story: run.story ? { kind: run.story.kind ?? null, ref: run.story.ref ?? null, actor: run.story.actor ?? null } : null,
+        story: run.story ? { kind: run.story.kind ?? null, ref: run.story.ref ?? null,
+          actor: run.story.actor ?? null, invite_ref: run.story.invite_ref ?? null } : null,
         origin_subject: run.origin_subject ?? null,
         /**
          * A NÉZET PÁR — ÉS AZ ÁTADÁS IS PÁRT TÁROL (R142 — F142-05, MÉRVE).
@@ -2097,6 +2102,9 @@ import { inviteNextKey } from './inviteText.mjs';
         kind: szKind,
         ref: typeof sz.ref === 'string' && sz.ref ? sz.ref : null,
         actor: typeof sz.actor === 'string' && sz.actor ? sz.actor : null,
+        // A MÁSODIK REKESZ IS ÁTMEGY (R186 §5): a váltás UTÁN a meghívott az ÉPPEN KIÁLLÍTOTT
+        // meghívót fogadja el, és a kötés enélkül a váltás határán elvesznék.
+        invite_ref: typeof sz.invite_ref === 'string' && sz.invite_ref ? sz.invite_ref : null,
       }
       : null;
     run.origin_subject = typeof h.origin_subject === 'string' && h.origin_subject ? h.origin_subject : null;

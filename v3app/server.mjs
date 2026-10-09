@@ -52,7 +52,7 @@ import { reentryExclusionsAt } from '../v3ref/reentryGate.mjs';
 // a meghívó megfigyelése BIZONYÍTOTT csatornát kíván (`hasProvenChannel`), az újbóli meghívás pedig
 // EGYETLEN tárolt címet (`addressOfSubject`) — mindkettő írás-mentes feloldó (KUKA-003 · KUKA-039).
 import { hasProvenChannel } from '../v3ref/invite.mjs';
-import { addressOfSubject } from '../v3ref/delegation.mjs';
+import { addressOfSubject, reinviteFeasibility } from '../v3ref/delegation.mjs';
 import { readScopeGrantAt } from '../v3ref/scopeGrant.mjs';
 import { representationCheck } from '../v3ref/representation.mjs';
 import { validateRequest, schemaForEndpoint, isGated, endpointsWithoutSchema, CONTEXT_FIELD, CONTEXT_SUBJECT_FIELD } from './httpSchema.mjs';
@@ -644,7 +644,23 @@ export function makeSessionStore({
     stats[cause] += 1; droppedNow.push(id);
     return true;
   };
-  const expired = (s, now) => now - (s.last_seen_ms ?? 0) > idleMs;
+  /**
+   * A VISSZAFELÉ LÉPŐ ÓRA NEM ÚJÍTHAT MEG EGY TÉTLEN MUNKAMENETET (R186 §5, külső review P2).
+   *
+   * A LELET: a kivonás ELŐJELES. Ha a gép fali órája VISSZALÉP (NTP-korrekció, VM-visszaállítás),
+   * a kor NEGATÍV lesz, tehát a feltétel hamis — és egy VALÓJÁBAN túllépett tétlen munkamenet
+   * ÉRVÉNYESNEK számít, a `touch()` pedig a KORÁBBI időre írja át a bélyegét, vagyis MEG IS
+   * ÚJÍTJA. Egy lejárt — vagy ellopott — süti ezzel a visszalépés hosszáig használható marad.
+   *
+   * A VÁLASZ A BIZTONSÁGOSABB IRÁNY: a NEGATÍV kor LEJÁRTNAK számít. Ami nem értelmezhető, az nem
+   * eshet „még érvényes"-re (`KUKA-049`: a „nem tudom" nem „jó lesz"). A monoton óra bevezeése
+   * ennél nagyobb varrat (a tár bélyegei ma fali időt hordoznak) — azt NEVEZETT, külön tételnek
+   * hagyom, a mai javítás pedig a KÁRT zárja el.
+   */
+  const expired = (s, now) => {
+    const kor = now - (s.last_seen_ms ?? 0);
+    return kor < 0 || kor > idleMs;
+  };
 
   /**
    * A SZERVER-OLDALI FOLYTATÁST HORDOZÓ azonosítók — `null` = NEM TUDHATÓ (nem „nincs ilyen").
@@ -1437,8 +1453,11 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
    * kérdezi, be van-e lépve a hívó — arra ez is elég. Az `id: null` SZÁNDÉKOS: aki azonosítót akar
    * használni (tartós állapotot kötni), annak előbb `materialize()`-t kell hívnia.
    */
-  function transientSession() {
-    return { id: null, subject_id: null, current_book_id: null, created_at: clock.now(), transient: true };
+  function transientSession(presented = false) {
+    // A `presented` KIMONDJA, hogy a kérés HOZOTT-e (már érvénytelen) munkamenet-azonosítót. KÉT
+    // KÜLÖN TÉNY (`KUKA-002`): „sosem volt" és „volt, de eltűnt" — a teendő is más a kettőnél.
+    return { id: null, subject_id: null, current_book_id: null, created_at: clock.now(),
+      transient: true, presented: Boolean(presented) };
   }
 
   function newSession(subjectId = null, token = null) {
@@ -1854,7 +1873,21 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      * listában is elöl áll.
      */
     const rows = store.all('SELECT token, redeemed_at, expires_at, offered_role, invitee_namespace, invitee_value'
-      + ' FROM invite WHERE book_id = ? ORDER BY expires_at, token', bookId);
+      /**
+       * A LEGFRISSEBBEN KIADOTT ALKALMAS MEGHÍVÓ A CÉL — ÉS EZ NEM ÍZLÉS (R186 §5, külső review P2).
+       *
+       * A LELET: a sorrend eddig a LEGKORÁBBAN LEJÁRÓ-t választotta. KÉT függő meghívó mellett a
+       * történet a régebbit vonta vissza, a 13. lépésen kiállított ÚJ meghívó után viszont a
+       * kiszolgáló újra a megmaradt RÉGEBBIT választotta — tehát az átkötés hitelesítője MÁS
+       * meghívóra mutatott, mint amit a lépés létrehozott, és a bemutató a HELYES művelet után
+       * akadt el. Ez a `KUKA-394` osztálya: a SAJÁT javításom (`KUKA-456`) zárta el a legitim utat.
+       *
+       * A VÁLASZ: a meghívó lejárata a KIADÁSKOR, fix ablakkal áll be, tehát a LEGKÉSŐBB lejáró
+       * egyben a LEGFRISSEBBEN kiadott. A rendezés ezért `expires_at DESC` — ugyanolyan
+       * reprodukálható, mint a korábbi, de a történet SAJÁT új meghívóját választja. És a más
+       * emberre szóló új meghívó továbbra sem kötődik át: ott a VÁRT RÉSZTVEVŐ nem egyezik.
+       */
+      + ' FROM invite WHERE book_id = ? ORDER BY expires_at DESC, token', bookId);
     /**
      * ÉS A FELKÍNÁLÁS A VISSZAVONHATÓSÁGOT IS MEGKÍVÁNJA (R176, külső review P2 · `KUKA-437`).
      *
@@ -1870,6 +1903,15 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      */
     const plafon = delegationCeilingOf({ store, subjectId, bookId, at });
     const plafonRoles = plafon && plafon.ok && Array.isArray(plafon.roles) ? plafon.roles : [];
+    const plafonScopes = plafon && plafon.ok && Array.isArray(plafon.scopes) ? plafon.scopes : [];
+    /**
+     * A TÖRTÉNET ÁLTAL KIADOTT ADATKÖR A REGISZTERBŐL JÖN, NEM A KÓDBÓL (`KUKA-016` · `KUKA-221`).
+     *
+     * A `tour.reentry` maga deklarálja (`story_scope`), hogy a tanulsága melyik adatkör kiadásán
+     * fordul meg — a felkínálás ezt méri a kezelő plafonjához. Nyilatkozat nélkül ZÁR (`KUKA-236`):
+     * egy kitalált vagy hiányzó mező nem eshet némán „jó lesz"-re.
+     */
+    const tortenetKor = (TOURS['tour.reentry'] && TOURS['tour.reentry'].story_scope) || null;
     /**
      * ÉS A TÖRTÉNETHEZ A LEVÉL IS KELL (R176, külső review P2 — `KUKA-429`).
      *
@@ -1989,13 +2031,26 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      * tehát reprodukálhatóan), és a hivatkozását átadja — a felkínálás pedig továbbra is EGY
      * alkalmas tagot kér, nem mindet.
      */
-    const alkalmasTag = store.all('SELECT subject_id FROM membership WHERE book_id = ? ORDER BY subject_id', bookId)
+    const alkalmasTag = store.all('SELECT subject_id, role FROM membership WHERE book_id = ? ORDER BY subject_id', bookId)
       .filter((m) => m.subject_id !== subjectId)
       .find((m) => {
         const t = membershipAsOf({ store, subjectId: m.subject_id, bookId, validAt: at, knownAt: at });
         if (!(t && t.effective === true)) return false;
         const ujra = reentryExclusionsAt({ store, subjectId: m.subject_id, bookId, closed: null, nowIso: at });
         if (ujra.ok !== true) return false;
+        /**
+         * ÉS A PLAFON IS A VÉGIGVIHETŐSÉG RÉSZE (R186 §5, külső review P2).
+         *
+         * A LELET: egy DELEGÁLT kezelő plafonja kizárhatja a tag MAI szerepét vagy a történet
+         * által kiadott adatkört. A felkínálás ezt nem kérdezte, tehát a kezelő elvégezhette a
+         * MEGVONÓ lépést, és az újbóli meghívás `outside_basis_roles`/`outside_basis_scopes`
+         * okkal utasított el — vagy a későbbi jogadás nem sikerült. Ugyanaz a sorrend-kár, mint a
+         * `KUKA-455`-nél: a megszakadás a visszafordíthatatlan lépés UTÁN jön.
+         *
+         * A PLAFON MÁR KI VAN SZÁMOLVA (`KUKA-436`): soronkénti újraszámolás nincs.
+         */
+        if (!plafonRoles.includes(m.role)) return false;
+        if (!tortenetKor || !plafonScopes.includes(tortenetKor)) return false;
         /**
          * ÉS AZ ÚJBÓLI MEGHÍVÁSNAK CÍME IS KELL — PONTOSAN EGY (R186 §5, külső review P2).
          *
@@ -2006,7 +2061,21 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
          * megszakadás a HARMADIK, MEGVONÓ lépés UTÁN jön — a tagság már megszűnt, az újbóli
          * meghívás pedig nem indul el.
          */
-        return Boolean(addressOfSubject(store, m.subject_id));
+        /**
+         * ÉS A JELÖLT CÍMÉNEK BIZONYÍTOTTNAK IS KELL LENNIE (R186 §5, külső review P2).
+         *
+         * A LELET: egy hatályos tag EGYETLEN élő címéhez tartozhat úgy, hogy `channel_proof` sor
+         * NINCS rá (importált vagy megváltozott azonosság után). Ilyenkor az `addressOfSubject`
+         * IGAZ, tehát a történet felkínálódott: a kezelő elvégezte a MEGVONÓ lépést, az újbóli
+         * meghívás is sikerült — a megfigyelés viszont `needs_invitee_identity`-vel utasítja el,
+         * tehát a meghívott SOHA nem ér el az elfogadás-lépésig. UGYANAZ a feltétel kell ide, amit
+         * a függő meghívó jelöltjénél már kérünk (`KUKA-454`) — és ugyanaz a sorrend-kár, mint a
+         * `KUKA-455`/`459`-nél: a megszakadás a visszafordíthatatlan lépés UTÁN jön.
+         */
+        const tagCim = addressOfSubject(store, m.subject_id);
+        if (!tagCim) return false;
+        if (!hasProvenChannel(store, m.subject_id, 'email', tagCim)) return false;
+        return true;
       }) || null;
     const otherMember = Boolean(alkalmasTag);
     /**
@@ -2528,13 +2597,29 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
         const closed = m.effective === true
           ? { ok: false, reason: 'membership_is_open' }
           : closedMembershipPeriodOf({ store, subjectId: row.subject_id, bookId: cur.book_id, at });
+        /**
+         * AZ AJÁNLÁS AZ ÍRÁS-ÚT SAJÁT FELTÉTELÉT KÉRDEZI (R186 §5, külső review P2).
+         *
+         * A LELET: a `reinvitable` EGYETLEN feltételt mért (van-e lezárt időszak), a `reinviteMember`
+         * viszont NÉGY továbbit is — kizárások, időrend, PLAFON, tárolt CÍM. A felület ezért
+         * ENGEDÉLYEZETT gombot rajzolt olyan soron, amin az írás-út nevezetten elutasít. Most
+         * ugyanazt a feloldót kérdezzük, és a nemleges válasz NEVE is az írás-útról jön, hogy a sor
+         * a VALÓDI okot mondhassa (`KUKA-011` · `KUKA-041` · `KUKA-201`).
+         *
+         * A `removed_at` MARAD a lezárt időszakból: az egy TÉNY a tagságról, nem ajánlás — ha a
+         * kizárás zár, a dátumot akkor sem rejtjük el (`KUKA-002`: két külön tény, két külön név).
+         */
+        const ujrahivas = closed.ok !== true
+          ? { ok: false, reason: closed.reason }
+          : reinviteFeasibility({ store, deciderSubjectId: session.subject_id, bookId: cur.book_id,
+            targetSubjectId: row.subject_id, offeredRole: row.role, scope: null, at });
         return {
           subject_id: row.subject_id, email: emailOf(row.subject_id), role: row.role,
           effective: m.effective === true, effective_reason: m.reason, scopes,
           period_count: Array.isArray(periods.periods) ? periods.periods.length : 0,
           current_period: m.effective === true ? (m.period_grant_event_id ?? null) : null,
-          reinvitable: closed.ok === true,
-          reinvite_reason: closed.ok === true ? 'closed_period' : closed.reason,
+          reinvitable: ujrahivas.ok === true,
+          reinvite_reason: ujrahivas.reason,
           removed_at: closed.ok === true ? closed.closed_at : null,
         };
       });
@@ -2796,6 +2881,27 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
        * innen nem lehet megkülönböztetni, és a megkülönböztethetetlen kimenet NEM „siker"
        * (`KUKA-220`: a nem tudott nem „nem történt meg" — és nem is „megtörtént").
        */
+      /**
+       * ÉS AMI SOSEM VOLT, AZT NEM KELL IGAZOLNI (R186 §5, külső review P2 · `KUKA-201`).
+       *
+       * A LELET: ha az ELSŐ `POST /api/invites/pending` TELT TÁRON akadt el (`at_capacity`), akkor
+       * tárolt munkamenet SEM jött létre — a meghívó-képernyő viszont kirajzolódott, a „vissza"
+       * gombjával. Az a gomb ide hív süti NÉLKÜL, tehát a munkamenet ÁTMENETI, az `s` mindig
+       * `null`, és a válasz örökre `session_gone`: a lap megőrzi a jegyet és a lapot, az
+       * újrapróbálkozás pedig ugyanazt a 409-et adja. ZSÁKUTCA — pontosan az, amit az R166 §1
+       * ezen a képernyőn kivezetett.
+       *
+       * A KÉT ESET MEGKÜLÖNBÖZTETHETŐ, ÉS EZ A LÉNYEG: a ROTÁCIÓS versenyben a kérés HOZOTT egy
+       * (már érvénytelen) azonosítót — ott a 409 marad, mert a szándék ÉLHET egy friss soron
+       * (`KUKA-439`). Ha viszont a kérés SEMMILYEN tárolt munkamenetet nem hozott, akkor nincs is
+       * mit törölni: a felhasználó szándéka TELJESÜLT, és ezt kimondjuk (`existed: false`) — nem
+       * hamis siker, hanem MÉRT tény.
+       */
+      if (!s && session.transient === true && session.presented !== true) {
+        return { status: 200, body: { ok: true, existed: false, reason: 'no_session_presented',
+          message: 'ehhez a kéréshez nem tartozott tárolt munkamenet, tehát folytatás sem — '
+            + 'a meghívó képernyőjét el lehet hagyni' } };
+      }
       if (!s) {
         return { status: 409, body: { ok: false, reason: 'session_gone', refused_by: 'session_store',
           message: 'a kérés közben megváltozott a munkamenet (kilépés vagy belépés egy másik fülben), '
@@ -2912,6 +3018,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       return { status: r.replayed === true ? 200 : 201, body: {
         ok: true, changed: r.changed === true, replayed: r.replayed === true, reason: r.reason,
         ref: shortRef(effectiveToken),
+        // A KISZOLGÁLÓ VISSZHANGOZZA, KIRE SZÓLT (R186 §5): a bemutató ebből és a `ref`-ből köti át a
+        // történet célját — a lap SAJÁT feltevése nem elegendő hozzá (`KUKA-016`). Új jel ez nem ad:
+        // a tag azonosítója a kezelő saját listájában amúgy is ott áll.
+        subject_id: String(input.subject_id).trim(),
         reentry_id: r.reentry_id, offered_role: r.offered_role, scope: r.scope,
         closed_grant_event_id: r.closed_grant_event_id, closed_revocation_id: r.closed_revocation_id,
         requires_acceptance: r.requires_acceptance, restores_previous_scopes: r.restores_previous_scopes,
@@ -3684,7 +3794,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     if (session) {
       sessions.pin(session.id, pinToken);
     } else {
-      session = transientSession();
+      session = transientSession(Boolean(cookieId));
       // AZ ÉRVÉNYTELEN SÜTIT TÖRÖLJÜK: egy lejárt vagy kiszorított azonosítót a böngésző különben
       // minden kérésnél újra elküldene, és a felhasználó „félig bejelentkezettnek" látszana.
       if (cookieId) setCookie = clearSessionCookie({ secure: IS_DEPLOYED || isHttpsRequest(req) });

@@ -81,7 +81,10 @@ export function newTourRun({ def, view, role }) {
      * (`KUKA-227`). Nyilatkozat nélkül `null`, és akkor a rá épülő kapuk ZÁRNAK (`KUKA-236`).
      */
     story: def.story && typeof def.story === 'object'
-      ? { kind: def.story.kind ?? null, ref: def.story.ref ?? null, actor: def.story.actor ?? null }
+      ? { kind: def.story.kind ?? null, ref: def.story.ref ?? null, actor: def.story.actor ?? null,
+        // A MÁSODIK KÖTÉS-REKESZ (R186 §5): a történet SAJÁT lépése által kiállított meghívó
+        // jelölője. A kiszolgáló ezt NEM adja — a futás közben születik, igazolt művelet után.
+        invite_ref: null }
       : null,
     role: role ?? null,
     endedBy: null,
@@ -677,12 +680,34 @@ export function back(run) {
  * ÉS AMIT EZ NEM VÁLLAL: nem jogosultság. A visszavonást a szerver a saját plafon-ellenőrzésével
  * engedi vagy tiltja, tőlünk függetlenül (`KUKA-227`); ez itt a BEMUTATÓ elszámolása.
  */
+/**
+ * A KÖTÉS-REKESZEK ZÁRT KÉSZLETE (R186 §5). A `true` a FŐ célt jelenti; a szöveg egy megnevezett
+ * rekeszt. Ami nincs a készletben, az NEM rekesz — és a hívó fail-closed zár (`KUKA-236`).
+ */
+export const STORY_SLOTS = Object.freeze(['ref', 'invite_ref']);
+function rekeszOf(decl) {
+  if (decl === true) return 'ref';
+  if (typeof decl === 'string' && STORY_SLOTS.includes(decl)) return decl;
+  return null;
+}
+
 export function taskDone(run, taskId, { ref = null, auth = null } = {}) {
   if (!run) return false;
   const step = run.steps[run.at];
   if (!step || step.task !== taskId) return false;
-  if (step.story_bound === true) {
-    const kell = (run.story && run.story.ref) || null;
+  /**
+   * A KÖTÉS-NYILATKOZAT REKESZT NEVEZHET MEG (R186 §5, külső review P2).
+   *
+   * `true` → a történet FŐ célja (`story.ref`); egy SZÖVEG → a megnevezett rekesz (ma:
+   * `invite_ref`, a történet saját lépése által kiállított meghívó). A visszatérés-történetben a
+   * két kötés KÜLÖN jár: a megvonás és az újbóli meghívás a TAGRA szól, az elfogadás viszont az
+   * ÉPPEN KIÁLLÍTOTT meghívóra — egy rekeszben a kettő nem fér el. Zárt készlet, fail-closed: egy
+   * kitalált rekesz-név nem esik némán engedélyre (`KUKA-236`).
+   */
+  if (step.story_bound) {
+    const rekesz = rekeszOf(step.story_bound);
+    if (!rekesz) return false;
+    const kell = (run.story && run.story[rekesz]) || null;
     if (!kell) return false;
     if (String(ref ?? '') !== String(kell)) return false;
   }
@@ -715,13 +740,18 @@ export function taskDone(run, taskId, { ref = null, auth = null } = {}) {
    * eláruló jel (`KUKA-084`). A cél-kötést a bemutató-kapu amúgy is csak a két átívelő történetnél
    * számolja ki, demó-jel és fejlesztői levélfogadó mellett.
    */
-  if (step.story_rebind === true) {
+  if (step.story_rebind) {
+    const rekesz = rekeszOf(step.story_rebind);
+    if (!rekesz) return false;
     if (!run.story) return false;
-    if (typeof ref !== 'string' || !ref) return false;
     const h = auth && typeof auth === 'object' ? auth : null;
-    if (!h || String(h.ref ?? '') !== String(ref)) return false;
+    if (!h || typeof h.ref !== 'string' || !h.ref) return false;
     if (String(h.actor ?? '') !== String(run.story.actor ?? '')) return false;
-    run.story = { ...run.story, ref };
+    // A FŐ CÉL ÁTKÖTÉSÉNÉL a lépés `ref` argumentuma MAGA az új cél, tehát a kiszolgáló
+    // választásának EGYEZNIE kell vele. A MÁSODIK rekesznél a `ref` a `story_bound`-ot szolgálja
+    // (a történet tagját), ezért ott ez az egyezés nem értelmezhető — a résztvevő kötése marad.
+    if (rekesz === 'ref' && String(h.ref) !== String(ref ?? '')) return false;
+    run.story = { ...run.story, [rekesz]: h.ref };
   }
   step.state = 'done';
   return true;

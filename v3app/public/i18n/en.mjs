@@ -126,6 +126,7 @@ export const REASON = Object.freeze({
   unknown_field: 'The data sent contained an unexpected field. Refresh the page and try again.',
   at_capacity: 'We could not keep your invitation for later because the system is full. Try again in a few minutes, or sign in first and then open the invitation link again.',
   session_gone: 'We did not keep your invitation for later because this session was signed out (or switched to another account) in the meantime. Sign in again and open the invitation link once more.',
+  no_session_presented: 'This request carried no stored session, so there was no kept invitation to forget — you can leave the invitation screen.',
   invite_expired: 'This invitation has expired. Ask the person who sent it for a new one.',
   invite_already_redeemed: 'This invitation has already been used.',
   invite_unknown: 'There is no redeemable invitation for this link.',

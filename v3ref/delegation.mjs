@@ -541,6 +541,60 @@ export function reinviteMember({
 
 /** A SZEMÉLY TÁROLT CÍME — a kliens NEM adhatja meg (spec §3). Több élő címnél fail-closed. */
 /**
+ * AZ ÚJBÓLI MEGHÍVÁS MA LEHETSÉGES-E — ÍRÁS-MENTES FELOLDÓ A FELKÍNÁLÁS SZÁMÁRA (R186 §5).
+ *
+ * A LELET (külső review, Codex, R186 — P2): a munkatárs-lista `reinvitable` mezője EGYETLEN
+ * feltételt kérdezett (van-e lezárt tagsági időszak), a `reinviteMember` viszont ennél NÉGY
+ * további határt is mér — a visszatérés-kizárásokat, a hatályosulás időrendjét, a kezelő
+ * delegálási PLAFONJÁT és a személy tárolt CÍMÉT. A felület ezért ENGEDÉLYEZETT „Újra meghívás"
+ * gombot rajzolt olyan soron, amin az írás-út NEVEZETTEN elutasít: a hamis gomb és a némán
+ * letiltott gomb ugyanaz a hiba két irányból (`KUKA-011` · `KUKA-041`).
+ *
+ * MIT TESZ: UGYANAZOKAT a feloldókat hívja, UGYANABBAN a sorrendben, amit a `reinviteMember` — és
+ * a nemleges válasz NEVE is ugyanaz, hogy a képernyő a VALÓDI okot mondhassa (`KUKA-201`:
+ * a nemleges válasz vigye a működő folytatást). Egy fogalom, egy otthon (`KUKA-003` · `KUKA-039`).
+ *
+ * MIT NEM TESZ: NEM ír (`DCE-01` · `KUKA-220`), és NEM lép a döntés helyébe: a hatást továbbra is
+ * a `reinviteMember` adja, a maga teljes kapu-sorával (azonosság-kulcs, egyszeri hatás, atomi
+ * nyugta). Ez a feloldó csak azt mondja meg, hogy MA érdemes-e felkínálni.
+ *
+ * A `scope` ELHAGYHATÓ: a lista-soron a kezelő még nem választott adatkört, ezért ott `null` megy —
+ * ilyenkor a feltétel az, hogy a plafonon LEGYEN legalább egy adatkör, különben a művelet
+ * semmilyen választással sem mehetne végig.
+ */
+export function reinviteFeasibility({ store, deciderSubjectId, bookId, targetSubjectId, offeredRole, scope, at }) {
+  if (!targetSubjectId || !bookId) return frozen({ ok: false, reason: 'subject_and_book_required' });
+  const closed = closedMembershipPeriodOf({ store, subjectId: targetSubjectId, bookId, at });
+  if (closed.ok !== true) return frozen({ ok: false, reason: `reentry_target_${closed.reason}` });
+  const excl = reentryExclusionsAt({ store, subjectId: targetSubjectId, bookId, closed, nowIso: at });
+  if (excl.ok !== true) {
+    return frozen({ ok: false, reason: excl.reason, next_step: excl.next_step ?? null,
+      circle_id: excl.circle_id ?? null, checked: excl.checked });
+  }
+  const atMs = instantMs(at);
+  const closedMs = instantMs(closed.closed_at);
+  if (!atMs.ok || !closedMs.ok) return frozen({ ok: false, reason: 'reentry_time_undecidable' });
+  if (atMs.ms <= closedMs.ms) {
+    return frozen({ ok: false, reason: 'reentry_not_after_revocation', closed_at: closed.closed_at });
+  }
+  const ceil = delegationCeilingOf({ store, subjectId: deciderSubjectId, bookId, at });
+  if (!ceil.ok) return frozen({ ok: false, reason: ceil.reason });
+  if (offeredRole !== null && offeredRole !== undefined && !ceil.roles.includes(offeredRole)) {
+    return frozen({ ok: false, reason: 'outside_basis_roles', role: offeredRole, ceiling: frozen([...ceil.roles]) });
+  }
+  if (scope === null || scope === undefined) {
+    if (!ceil.scopes.length) return frozen({ ok: false, reason: 'outside_basis_scopes', ceiling: frozen([]) });
+  } else if (!ceil.scopes.includes(scope)) {
+    return frozen({ ok: false, reason: 'outside_basis_scopes', scope, ceiling: frozen([...ceil.scopes]) });
+  }
+  if (!addressOfSubject(store, targetSubjectId)) {
+    return frozen({ ok: false, reason: 'reentry_target_has_no_address' });
+  }
+  return frozen({ ok: true, reason: 'closed_period', closed_at: closed.closed_at,
+    roles: frozen([...ceil.roles]), scopes: frozen([...ceil.scopes]) });
+}
+
+/**
  * A SZEMÉLY EGYETLEN TÁROLT CÍME — ÍRÁS-MENTES FELOLDÓ, ÉS MOSTANTÓL MEGKÉRDEZHETŐ (R186 §5).
  *
  * MIÉRT EXPORT. A `reinviteMember` ezzel dönti el, van-e cím, amire az új meghívás szólhat: HA

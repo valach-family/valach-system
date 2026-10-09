@@ -2136,6 +2136,222 @@ try {
           { kotes_nelkul: nincsOk, ref_valtozatlan: nincs.story.ref, allapot: nincs.steps[0].state });
       }
 
+      /**
+       * ══ (as50–as55) A KÜLSŐ REVIEW MÁSODIK HÁRMASA (R186 §5 · `KUKA-458` · `459` · `460`) ═════
+       *
+       * Ugyanaz az osztály, harmadik körben: AMIT A FELÜLET AJÁNL, AZT AZ ÍRÁS-ÚTNAK EL IS KELL
+       * FOGADNIA. És két esetből a megszakadás a VISSZAFORDÍTHATATLAN lépés UTÁN jött volna.
+       */
+      {
+        // ── (as50–as51) A LISTA-SOR AJÁNLÁSA ÉS AZ ÍRÁS-ÚT UGYANAZT MONDJA ───────────────
+        const aj = await fiok('u-ajanlas');
+        const ws = await aj.post('/api/workspaces', { name: 'U186 Ajanlas Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '92345678-1-42' } });
+        const konyv = ws.body && (ws.body.book_id || (ws.body.workspace && ws.body.workspace.book_id));
+        const tag = await fiok('u-aj-tag');
+        const mv = await aj.post('/api/invites', { email: 'u-aj-tag@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+        await tag.post('/api/invites/redeem', { token: mv.body.token });
+        const tagId = (((await aj.get('/api/members')).body.members || [])
+          .find((x) => x.email === 'u-aj-tag@pelda.hu') || {}).subject_id;
+        // A TAGSÁG MEGVONÁSA A VALÓDI ÚTON — ettől lesz a sor „újra meghívható".
+        await aj.post('/api/members/revoke', { subject_id: tagId });
+        const sorOf = async () => ((await aj.get('/api/members')).body.members || [])
+          .find((x) => x.subject_id === tagId) || {};
+        const tisztan = await sorOf();
+
+        // A FIXTÚRA: KÖNYV-szintű tiltás a tagra (a MAG zárt készletéből: `book` ⇄ `left_company`).
+        u.store.run(`INSERT INTO subject_ban (subject_id, kind, cause, target_ref, actor_subject_id, banned_at)
+                     VALUES (?,?,?,?,?,?)`,
+          tagId, 'book', 'left_company', konyv, 'sub_proba', '2020-01-01T00:00:00.000Z');
+        const tiltva = await sorOf();
+        // ÉS AZ ÍRÁS-ÚT UGYANEZT MONDJA — ez az EGYEZÉS a jel lényege, nem a külön-külön piros.
+        const iras = await aj.post('/api/members/reinvite', { subject_id: tagId, role: 'user', scope: 'keszlet', operation_id: 'as50-reinvite' });
+        step('(as50) R186/§5 (külső review P2): a lista-sor `reinvitable` mezője az ÍRÁS-ÚT feltételét kérdezi — TILTOTT tagnál NEM ajánl, és a NEMLEGES VÁLASZ NEVE is ugyanaz, mint amit az írás-út ad (RÉGEN: a sor CSAK a lezárt időszakot mérte, és ENGEDÉLYEZETT gombot rajzolt)',
+          tisztan.reinvitable === true && tiltva.reinvitable === false
+          && iras.body && iras.body.ok !== true
+          && String(iras.body.reason || '') === String(tiltva.reinvite_reason || ''),
+          { tisztan_ajanlva: tisztan.reinvitable, tiltva_ajanlva: tiltva.reinvitable,
+            sor_indoka: tiltva.reinvite_reason, iras_indoka: iras.body && iras.body.reason,
+            sor_datuma_megvan: tiltva.removed_at !== null });
+
+        // ELLENPÁR: a tiltás FELOLDÁSA után az ajánlás VISSZAJÖN.
+        u.store.run('UPDATE subject_ban SET lifted_at = ?, lifted_by = ? WHERE subject_id = ? AND target_ref = ?',
+          '2020-01-02T00:00:00.000Z', 'sub_proba', tagId, konyv);
+        const feloldva = await sorOf();
+        step('(as51) R186/§5 ELLENPÁR: a tiltás FELOLDÁSA után a sor ismét ajánl — tehát a mező a HATÁROKAT méri, nem a tag létét',
+          feloldva.reinvitable === true, { feloldas_utan: feloldva.reinvitable, indok: feloldva.reinvite_reason });
+      }
+
+      {
+        // ── (as52–as53) A VISSZATÉRÉS-TÖRTÉNET A PLAFONT IS KÉRDEZI ──────────────────
+        const pk = await fiok('u-plafonkor');
+        const ws = await pk.post('/api/workspaces', { name: 'U186 Plafon Kor Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '13345678-1-42' } });
+        const konyv = ws.body && (ws.body.book_id || (ws.body.workspace && ws.body.workspace.book_id));
+        const tag = await fiok('u-pk-tag');
+        const mv = await pk.post('/api/invites', { email: 'u-pk-tag@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+        await tag.post('/api/invites/redeem', { token: mv.body.token });
+        const vanR = (r) => ((r && r.ids) || []).includes('tour.reentry');
+        const teljesPlafon = await turak(pk, 'app');
+
+        const boot = u.store.get('SELECT basis_id FROM workspace_bootstrap WHERE book_id = ?', konyv);
+        const minta = u.store.get(
+          'SELECT issuer_subject, allowed_operations, allowed_roles, allowed_scopes, evidence_ref FROM authority_basis'
+          + ' WHERE basis_id = ? ORDER BY version DESC', boot && boot.basis_id);
+        const ujVerzio = (kor) => {
+          const v = u.store.get('SELECT MAX(version) AS v FROM authority_basis WHERE basis_id = ?', boot && boot.basis_id);
+          const most = new Date().toISOString();
+          u.store.run(
+            `INSERT INTO authority_basis (basis_id, version, book_id, issuer_subject, effective_at,
+               recorded_at, expires_at, revoked_at, allowed_operations, allowed_roles, allowed_scopes,
+               evidence_ref, origin_grant_event_id)
+             VALUES (?,?,?,?,?,?,NULL,NULL,?,?,?,?,NULL)`,
+            boot && boot.basis_id, Number(v && v.v) + 1, konyv, minta && minta.issuer_subject,
+            most, most, minta && minta.allowed_operations, minta && minta.allowed_roles,
+            JSON.stringify(kor), (minta && minta.evidence_ref) || 'as52-proba');
+        };
+        // A TÖRTÉNET `keszlet`-et ad ki (a regiszter `story_scope`-ja) — vegyük ki a plafonból.
+        ujVerzio(['arak']);
+        const szukKor = await turak(pk, 'app');
+        step('(as52) R186/§5 (külső review P2): ha a kezelő adatkör-PLAFONJÁN nincs a történet által kiadott adatkör (`story_scope`), a visszatérés-történet NEM felkínált — különben a MEGVONÓ lépés UTÁN akadt volna el (`outside_basis_scopes`)',
+          vanR(teljesPlafon) === true && vanR(szukKor) === false,
+          { teljes_plafonon: vanR(teljesPlafon), szuk_plafonon: vanR(szukKor) });
+
+        // ELLENPÁR: a `keszlet` VISSZATÉTELE után a felkínálás VISSZAJÖN.
+        ujVerzio(['arak', 'keszlet']);
+        const visszaKor = await turak(pk, 'app');
+        step('(as53) R186/§5 ELLENPÁR: a `keszlet` VISSZATÉTELE után a felkínálás VISSZAJÖN — a kapu a PLAFON és a TÖRTÉNET viszonyát méri, nem a tag létét',
+          vanR(visszaKor) === true, { keszlet_vissza: vanR(visszaKor) });
+      }
+
+      {
+        // ── (as54–as55) A MÁSODIK KÖTÉS-REKESZ ───────────────────────────────
+        const ketRekesz = () => ({ at: 0,
+          steps: [
+            { id: 's4', task: 'reinvite.sent', story_bound: true, story_rebind: 'invite_ref', state: 'pending' },
+            { id: 's8', task: 'invite.redeemed', story_bound: 'invite_ref', state: 'pending' },
+          ],
+          view: { book: 'b1', subject: 'u1' },
+          story: { kind: 'member', ref: 'tag-1', actor: 'tag-1', invite_ref: null }, role: null });
+        const r1 = ketRekesz();
+        const ok4 = tour.taskDone(r1, 'reinvite.sent', { ref: 'tag-1', auth: { ref: 'uj-meghivo', actor: 'tag-1' } });
+        r1.at = 1;
+        const idegen = tour.taskDone(r1, 'invite.redeemed', { ref: 'idegen-meghivo' });
+        const sajat = tour.taskDone(r1, 'invite.redeemed', { ref: 'uj-meghivo' });
+        step('(as54) R186/§5 (külső review P2): a visszatérés-történet KÉT kötést visz — a művelet a TAGRA, az ELFOGADÁS az ÉPPEN KIÁLLÍTOTT meghívóra; egy IDEGEN meghívó beváltása NEM teljesíti a lépést (RÉGEN: a lépés bármely meghívót elfogadott, és nem kívánt tagság keletkezhetett)',
+          ok4 === true && r1.story.invite_ref === 'uj-meghivo' && r1.story.ref === 'tag-1'
+          && idegen === false && sajat === true && r1.steps[1].state === 'done',
+          { negyedik_lepes: ok4, masodik_rekesz: r1.story.invite_ref, fo_cel_valtozatlan: r1.story.ref,
+            idegen_meghivoval: idegen, sajat_meghivoval: sajat });
+
+        const r2 = ketRekesz();
+        r2.steps[0].story_rebind = 'nincs_ilyen_rekesz';
+        const kitalalt = tour.taskDone(r2, 'reinvite.sent', { ref: 'tag-1', auth: { ref: 'uj-meghivo', actor: 'tag-1' } });
+        step('(as55) R186/§5 ELLENPÁR: egy KITALÁLT rekesz-név ZÁR (fail-closed) — a nyilatkozat ZART KÉSZLET, nem szabad szöveg (`KUKA-236`)',
+          kitalalt === false && r2.story.invite_ref === null && r2.steps[0].state !== 'done',
+          { kitalalt_rekesszel: kitalalt, rekesz: r2.story.invite_ref, allapot: r2.steps[0].state });
+      }
+
+      /**
+       * ══ (as56–as63) A KÜLSŐ REVIEW HARMADIK NÉGYESE (`KUKA-461`…`464` · `D-VS-3246`) ═══════
+       *
+       * Az első közülük a SAJÁT javításomat méri (a `KUKA-456` elzárta a legitim utat két függő
+       * meghívó mellett), a negyedik pedig BIZTONSÁGI irány: a visszafelé lépő óra.
+       */
+      {
+        // ── (as56–as57) A TÖRTÉNET A LEGFRISSEBBEN KIADOTT ALKALMAS MEGHÍVÓRA KÖTŐDIK ──────
+        const km = await fiok('u-ketmeghivo');
+        await km.post('/api/workspaces', { name: 'U186 Ket Meghivo Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '23345678-1-42' } });
+        await fiok('u-km-egy');
+        await fiok('u-km-ketto');
+        const elso = await km.post('/api/invites', { email: 'u-km-egy@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+        const masodik = await km.post('/api/invites', { email: 'u-km-ketto@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+        const kotesOf = async () => {
+          const r = await km.get('/api/assistant/status?lang=hu&surface=app');
+          const t = ((r.body && r.body.tours) || []).find((x) => x.id === 'tour.inviteRevoke');
+          return (t && t.story) || null;
+        };
+        const kotes = await kotesOf();
+        // A SORREND ELŐFELTÉTELE IS MÉRVE: a második kiállítás lejárata KÉSŐBBI (fix ablak).
+        const sorrendOk = Date.parse(masodik.body.expires_at) > Date.parse(elso.body.expires_at);
+        step('(as56) R186/§5 (külső review P2): KÉT függő, alkalmas meghívó mellett a kiszolgáló a LEGFRISSEBBEN kiadóttra köti a történetet (RÉGEN: a legkorábban lejáróra — és az átkötés hitelesítője MÁS meghívóra mutatott, mint amit a lépés létrehozott)',
+          sorrendOk === true && kotes !== null && kotes.ref === masodik.body.ref,
+          { sorrend_elofeltetel: sorrendOk, kotes_ref: kotes && kotes.ref,
+            masodik_ref: masodik.body.ref, elso_ref: elso.body.ref });
+
+        // ELLENPÁR: a kötés a VÁRT RÉSZTVEVŐT is viszi, tehát a másik emberre szóló meghívó
+        // jelölője ÉS alanya is MÁS — a `taskDone` ezen a páron áll meg (`as48`).
+        step('(as57) R186/§5 ELLENPÁR: a kötés a jelölő MELLETT a várt résztvevőt is megnevezi, tehát a sorrend-javítás nem gyengítette a `KUKA-456` védelmét',
+          kotes !== null && typeof kotes.actor === 'string' && kotes.actor.length > 0
+          && kotes.ref !== elso.body.ref,
+          { vart_resztvevo_megvan: Boolean(kotes && kotes.actor), nem_a_regebbi: kotes && kotes.ref !== elso.body.ref });
+      }
+
+      {
+        // ── (as58–as59) A VISSZATÉRÉS-JELÖLT CÍMÉHEZ BIZONYÍTOTT CSATORNA KELL ──────────
+        const bc = await fiok('u-bizcsatorna');
+        await bc.post('/api/workspaces', { name: 'U186 Biz Csatorna Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '33345678-1-42' } });
+        const tag = await fiok('u-bc-tag');
+        const mv = await bc.post('/api/invites', { email: 'u-bc-tag@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+        await tag.post('/api/invites/redeem', { token: mv.body.token });
+        const tagId = (((await bc.get('/api/members')).body.members || [])
+          .find((x) => x.email === 'u-bc-tag@pelda.hu') || {}).subject_id;
+        const vanR = (r) => ((r && r.ids) || []).includes('tour.reentry');
+        const bizonyitva = await turak(bc, 'app');
+
+        // A FIXTÚRA: a tag címe MEGMARAD, a BIZONYÍTÉKA eltűnik — ez pontosan az importált vagy
+        // megváltozott azonosság állapota. A teszt SAJÁT tárolójába ír (R186 §4 engedélye).
+        const proof = u.store.get("SELECT value_norm, proven_at FROM channel_proof WHERE subject_id = ? AND namespace = 'email'", tagId);
+        u.store.run("DELETE FROM channel_proof WHERE subject_id = ? AND namespace = 'email'", tagId);
+        const bizonyitekNelkul = await turak(bc, 'app');
+        step('(as58) R186/§5 (külső review P2): ha a tag EGYETLEN élő címéhez NINCS bizonyított csatorna, a visszatérés-történet NEM felkínált — különben a megvonás ÉS az új meghívás után a megfigyelés `needs_invitee_identity`-vel zárt volna, tehát a meghívott SOHA nem ér el az elfogadásig',
+          vanR(bizonyitva) === true && vanR(bizonyitekNelkul) === false,
+          { bizonyitott_cimmel: vanR(bizonyitva), bizonyitek_nelkul: vanR(bizonyitekNelkul),
+            cim_megmaradt: Boolean(proof && proof.value_norm) });
+
+        // ELLENPÁR: a bizonyíték visszatétele után a felkínálás VISSZAJÖN.
+        u.store.run("INSERT INTO channel_proof (subject_id, namespace, value_norm, proven_at) VALUES (?,?,?,?)",
+          tagId, 'email', proof && proof.value_norm, (proof && proof.proven_at) || '2020-01-01T00:00:00.000Z');
+        const ujraBizonyitva = await turak(bc, 'app');
+        step('(as59) R186/§5 ELLENPÁR: a csatorna-bizonyíték visszatétele után a felkínálás VISSZAJÖN — a kapu a BIZONYÍTÉKOT méri, nem a tag létét',
+          vanR(ujraBizonyitva) === true, { ujra_bizonyitva: vanR(ujraBizonyitva) });
+      }
+
+      {
+        // ── (as60–as61) A MEGHÍVÓ-KÉPERNYŐ ELHAGYHATÓ, HA MUNKAMENET SOSEM VOLT ─────────
+        const nincsSuti = new Client(b9);
+        const sosem = await nincsSuti.post('/api/invites/pending/forget', {});
+        step('(as60) R186/§5 (külső review P2): ha a kérés SEMMILYEN tárolt munkamenetet nem hozott, a „vissza" NEM akad el — 200, `existed: false`, nevezett indokkal (RÉGEN: örök 409 `session_gone`, tehát a meghívó-képernyő ZSÁKUTCA volt telt tár után)',
+          sosem.status === 200 && sosem.body && sosem.body.ok === true
+          && sosem.body.existed === false && sosem.body.reason === 'no_session_presented',
+          { status: sosem.status, ok: sosem.body && sosem.body.ok,
+            existed: sosem.body && sosem.body.existed, indok: sosem.body && sosem.body.reason });
+
+        // ELLENPÁR: ha a kérés HOZOTT egy (már érvénytelen) azonosítót, a 409 MARAD — ott a
+        // szándék ÉLHET egy friss soron (`KUKA-439`), tehát teljesítést nem állíthatunk.
+        const hamisSuti = new Client(b9);
+        hamisSuti.cookie = 'vs_session=nincs-ilyen-munkamenet-azonosito';
+        const volt = await hamisSuti.post('/api/invites/pending/forget', {});
+        step('(as61) R186/§5 ELLENPÁR: HOZOTT, de érvénytelen munkamenet-azonosító mellett a 409 `session_gone` MARAD — a javítás a BIZONYOSSÁG esetét vette ki, nem a bizonytalanságét',
+          volt.status === 409 && volt.body && volt.body.reason === 'session_gone',
+          { status: volt.status, indok: volt.body && volt.body.reason });
+      }
+
+      {
+        // ── (as62–as63) A VISSZAFELÉ LÉPŐ ÓRA NEM ÚJÍT MEG TÉTLEN MUNKAMENETET ─────────
+        const t0 = 1700000000000;
+        const tarOf = () => {
+          const t = makeSessionStore({ idleMs: 60000, maxSessions: 8, warn: () => {} });
+          t.set('s-ora', { id: 's-ora', subject_id: 'sub-ora', current_book_id: null }, t0);
+          return t;
+        };
+        const vissza = tarOf().has('s-ora', t0 - 10000);
+        const friss = tarOf().has('s-ora', t0 + 30000);
+        const lejart = tarOf().has('s-ora', t0 + 90000);
+        step('(as62) R186/§5 (külső review P2 · BIZTONSÁGI): VISSZAFELÉ lépő óra mellett a munkamenet LEJÁRTNAK számít — a kivonás ELŐJELES volt, tehát egy valójában túllépett (vagy ellopott) süti érvényes maradt, és a `touch()` meg is újította',
+          vissza === false, { visszafele_lepo_oraval: vissza });
+        step('(as63) R186/§5 ELLENPÁR: ELŐRE lépő óra mellett a határon BELÜL érvényes, a határon TÚL lejárt — a javítás a NEGATÍV kort zárta el, a normál működést nem',
+          friss === true && lejart === false, { hataron_belul: friss, hataron_tul: lejart });
+      }
+
       {
         // ── (as42–as43) A SZŰK SZEREP-PLAFON, ÉLŐBEN (`KUKA-431`/`437` forrás-pinjének élő párja) ──
         const sz = await fiok('u-szukplafon');
@@ -2381,7 +2597,9 @@ try {
         && /export function expectedActorOf\(run\)/.test(jaro186b)
         && /const vart = expectedActorOf\(run\);/.test(jaro186b)
         && !/if \(tengely === 'subject'\) return \(view\.subject \?\? null\) !== run\.view\.subject;/.test(jaro186b)
-        && /if \(step\.story_bound === true\) \{/.test(jaro186b)
+        // A NYILATKOZAT REKESZT NEVEZHET MEG (`KUKA-460`), ezért a mérce a FELTÉTELT kérdezi, nem a
+        // régi `=== true` alakot — a zárt készletet az `as55` ellenpárja méri.
+        && /if \(step\.story_bound\) \{/.test(jaro186b)
         && /if \(step\.story_ref === true\) \{/.test(jaro186b)
         && /const vartResztvevo = tourMod\.expectedActorOf\(run\);/.test(appAs)
         && !/clearTourHandover\(\);\n    run\.steps\.forEach/.test(appAs)
@@ -2397,9 +2615,12 @@ try {
       step('(as28) R176/P2: az induló adat UGYANAZT az írásmentes plafon-döntést kérdezi, amit a lista és az írás-út — és EGYSZER, nem soronként',
         /const plafon = delegationCeilingOf\(\{ store, subjectId, bookId, at \}\);/.test(srvAs)
         && /&& plafonRoles\.includes\(r\.offered_role\)/.test(srvAs)
-        && (srvAs.match(/plafonRoles\.includes/g) || []).length === 2,
+        // HÁROM FOGYASZTÓ A `KUKA-459` ÓTA: a meghívó-jelölt ajánlott szerepe, a visszatérés-jelölt
+        // MAI szerepe, és a tagok lapjának plafon-sora. Mind a három UGYANAZT a kiszámolt plafont
+        // kérdezi — a szám azért áll itt, hogy egy NEGYEDIK, új számolás nevezetten pirosra vigye.
+        && (srvAs.match(/plafonRoles\.includes/g) || []).length === 3,
         { plafon_a_tenyben: /&& plafonRoles\.includes\(r\.offered_role\)/.test(srvAs),
-          ket_fogyaszto: (srvAs.match(/plafonRoles\.includes/g) || []).length });
+          harom_fogyaszto: (srvAs.match(/plafonRoles\.includes/g) || []).length });
 
       step('(as24) R176/P2: a mondatnak EGY otthona van, és MINDKÉT képernyő onnan kéri (a meghívó kártya és az alkalmazás-héj)',
         (appAs.match(/data-testid="signout-not-done"/g) || []).length === 1
@@ -3644,7 +3865,10 @@ try {
   // és a próba mégis „volt szöveg"-et látna. Ezért MINDEN bekapcsolt nyelven azt mérjük, hogy a kulcs
   // TÉNYLEGESEN ott van, és a mondat NEM azonos a generikussal.
   {
-    const OKOK = ['at_capacity', 'session_gone'];
+    // A LISTA A VÉGPONT NEVEZETT ELUTASÍTÁSAIT követi — a `no_session_presented` a `KUKA-463`
+    // javításával jött (ami SOSEM volt, azt nem kell igazolni), és MINDEN bekapcsolt nyelven
+    // valódi mondatot kapott — ezt az `(af1)` méri, a két lista szétválását pedig az `(af2)`.
+    const OKOK = ['at_capacity', 'session_gone', 'no_session_presented'];
     const nyelvek = enabledLanguages().map((l) => l.code);
     const hiany = [];
     for (const kod of nyelvek) {

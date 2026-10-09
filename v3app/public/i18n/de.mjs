@@ -122,6 +122,7 @@ export const REASON = Object.freeze({
   unknown_field: 'Die gesendeten Daten enthielten ein unerwartetes Feld. Lade die Seite neu und versuche es erneut.',
   at_capacity: 'Die Einladung konnte gerade nicht für später gespeichert werden, weil das System voll ist. Versuche es in einigen Minuten erneut, oder melde dich zuerst an und öffne den Einladungslink danach noch einmal.',
   session_gone: 'Die Einladung wurde nicht für später gespeichert, weil diese Sitzung zwischenzeitlich abgemeldet (oder zu einem anderen Konto gewechselt) wurde. Melde dich erneut an und öffne den Einladungslink noch einmal.',
+  no_session_presented: 'Zu dieser Anfrage gehörte keine gespeicherte Sitzung, also auch keine aufbewahrte Einladung — du kannst den Einladungsbildschirm verlassen.',
   invite_expired: 'Diese Einladung ist abgelaufen. Bitte die Person, die sie gesendet hat, um eine neue.',
   invite_already_redeemed: 'Diese Einladung wurde bereits verwendet.',
   invite_unknown: 'Zu diesem Link gehört keine einlösbare Einladung.',

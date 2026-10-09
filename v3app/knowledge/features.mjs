@@ -949,15 +949,30 @@ export const TOURS = Object.freeze({
     // (tagság igen, adat nem; és a külön jogadás UTÁN mennyiség igen, ár nem), és ehhez két élő
     // munkamenet kell. Éles üzemben nem kínáljuk fel, mert nem volna végigvihető.
     requires_dev_mailbox: true, requires_story_data: 'other_member', requires_demo: true,
+    /**
+     * A TÖRTÉNET TANULSÁGA EGY ADATKÖR KIADÁSÁN FORDUL MEG, ÉS EZT A REGISZTER MONDJA KI (R186 §5).
+     *
+     * A felkínálás a kezelő delegálási PLAFONJÁHOZ méri: ha ez az adatkör nincs a plafonján, a
+     * történet a MEGVONÓ lépés után akadna el (`outside_basis_scopes`) — tehát a bemutató kárt
+     * hagyna maga után. A `null` vagy a hiányzó mező ZÁR (`KUKA-236`).
+     */
+    story_scope: 'keszlet',
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'nav-members', task: null, role: 'admin' }),
       Object.freeze({ id: 's2', target: 'members-list', task: null, role: 'admin' }),
       Object.freeze({ id: 's3', target: 'member-revoke', task: 'member.revoked', appears_after: 'members-list', role: 'admin', story_bound: true }),
-      Object.freeze({ id: 's4', target: 'reinvite-form', task: 'reinvite.sent', appears_after: 'members-list', role: 'admin', story_bound: true }),
+      /**
+       * A 4. LÉPÉS KÉT DOLGOT KÖT (R186 §5, külső review P2): a MŰVELET a történet TAGJÁRA szól
+       * (`story_bound` → `story.ref`), az ÁLTALA kiállított meghívó jelölőjét pedig a MÁSODIK
+       * rekeszbe írja (`story_rebind: 'invite_ref'`). A meghívott oldalán az ELFOGADÁS ERRE a
+       * jelölőre szól (`s8`) — enélkül a néző a levélfogadóban álló MÁS meghívót is beváltotta
+       * volna, és a lap mégis „elvégezve"-t írt volna (nem létező munkatér-tagság keletkezhetett).
+       */
+      Object.freeze({ id: 's4', target: 'reinvite-form', task: 'reinvite.sent', appears_after: 'members-list', role: 'admin', story_bound: true, story_rebind: 'invite_ref' }),
       Object.freeze({ id: 's5', target: 'actor-switch', task: 'actor.switched', switch_actor: true, switch_axis: 'subject', switch_to: 'story_actor' }),
       Object.freeze({ id: 's6', target: 'demo-mail-open', task: null }),
       Object.freeze({ id: 's7', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
-      Object.freeze({ id: 's8', target: 'invite-actions', task: 'invite.redeemed', appears_after: 'mailbox' }),
+      Object.freeze({ id: 's8', target: 'invite-actions', task: 'invite.redeemed', appears_after: 'mailbox', story_bound: 'invite_ref' }),
       Object.freeze({ id: 's9', target: 'account-switcher', task: 'actor.switched', switch_actor: true, switch_axis: 'book' }),
       Object.freeze({ id: 's10', target: 'nav-stock', task: null }),
       Object.freeze({ id: 's11', target: 'data-stock', task: null }),
