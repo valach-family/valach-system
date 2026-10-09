@@ -16,6 +16,25 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3237 — A BEJÁRÁS VERDIKTJE EGY OTTHONBÓL JÖN, ÉS A MÉRT SZÁMOT ÍRJA KI (R176, külső P2)
+
+A közös útmutató-bejáró a felhasználó műveletére váró lépésen szándékosan megáll, és a megállást
+nevezetten vissza is adja. A pótolt útmutatók próba-lapja viszont csak a hibákat olvasta ki, és
+minden más esetben a REGISZTER lépésszámát jelentette teljes bejárásként — a verdikt a mérés
+hatókörán túl mutatott, a kötelező böngészős kapu mellett zölden. A minta-kapu őre ugyanezt a
+visszatérést már három kimenetre választotta szét: a két hívó elcsúszott. Mostantól a verdikt
+(`walkOutcome`) és a jelentés-sor (`walkReport`) a bejáró közös otthonában áll, mind a négy hívó
+azt kérdezi, és a kiírt szám a MÉRÉSBŐL jön, nem a regiszterből.
+
+**A HATÓKÖR KIMONDVA:** a lelet LAPPANGÓ volt — a pótolt tizenkettő közül ma egyetlen lépés sem
+deklarál feladatot, tehát hamis zöld a mai fejen nem keletkezett; a javítás a csapdát zárja be.
+**Amit ez NEM állít:** a korábban jelentett kapu-zöldek nem voltak túlállítva, és ez a döntés nem
+a termék-kódot érinti, hanem a mérő saját verdiktjét. `KUKA-443` · gépi jel:
+`verify:browser-gate` (`R166-U5`, mért visszacsúszás: a régi alakkal PIROS) ·
+`verify:app-findings-r154` (as37; `ar9` átkötve a bejáró mai otthonára).
+
+---
+
 ## D-VS-3236 — AZ INDULÓ ADAT A VISSZATÉRÉSI KIZÁRÁSOKAT IS KÉRDEZI (R176, külső P2)
 
 A visszatérés-történet a másik tagot a harmadik lépésen megszünteti, a negyediken pedig ÚJRA

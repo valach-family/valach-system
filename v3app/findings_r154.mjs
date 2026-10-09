@@ -2061,6 +2061,31 @@ try {
         && /R166-M9/.test(readFileSync(join(ROOT, 'tests/e2e/v3app-r166-invite-leave.spec.mjs'), 'utf8')),
         { onallo_kifejezes: /<\/p>`;\n\s*\+ signOutNotDoneHtml\(\);/.test(appAs) });
 
+      /**
+       * (as37) A BEJÁRÁS VERDIKTJE EGY OTTHONBÓL JÖN (R176, külső review P2 · `KUKA-443`).
+       *
+       * A LELET (Codex, tizenkettedik kör): a `walkTour` a `task`-ra váró lépésen nevezetten megáll
+       * (`taskStop` · `elert < lepes`), a HÍVÓ viszont két helyen MÁSKÉNT olvasta. A minta-kapu őre
+       * a három kimenetet szétválasztotta; a pótolt útmutatók lapja csak a `bajok`-at nézte, és
+       * minden más esetben a REGISZTER számát írta ki (`lepes/lepes OK`) — a mérés HATÓKÖRÁN TÚL
+       * (`KUKA-216`), részleges futást teljesnek mondva (`KUKA-206`), a kapu mellett ZÖLDEN.
+       *
+       * A JEL KÉT DOLGOT KÉR: (1) MINDKÉT lap a KÖZÖS olvasót kérdezze (`KUKA-003`), (2) egyik se
+       * írja a regiszter számát mért szám helyett. Az ÉLŐ tanú az `R166-U5` próba (a VISELKEDÉS) —
+       * mert a hamis `OK`-ot nem az alak okozta, hanem a kiírt SZÁM (`KUKA-239` · `KUKA-207`).
+       */
+      const jaroAs = readFileSync(join(ROOT, 'tests/e2e/tourWalk.mjs'), 'utf8');
+      const utmAs = readFileSync(join(ROOT, 'tests/e2e/v3app-r166-utmutatok.spec.mjs'), 'utf8');
+      const mkAs = readFileSync(join(ROOT, 'tests/e2e/v3app-r166-minta-kapu.spec.mjs'), 'utf8');
+      step('(as37) R176/P2: MINDKÉT bejáró lap a KÖZÖS verdikt-olvasót kérdezi, és egyik sem írja ki a regiszter számát mért szám helyett (RÉGEN: a pótolt útmutatók lapja a `taskStop`-ot elhagyta, és teljesnek jelentette)',
+        /export function walkOutcome\(r\)/.test(jaroAs)
+        && /if \(r\.taskStop\) return WALK_TASK;/.test(jaroAs)
+        && /walkReport\(t, r\)/.test(utmAs) && /walkReport\(t, r\)/.test(mkAs)
+        && !/\}\/\$\{r\.lepes\}/.test(utmAs) && !/\}\/\$\{r\.lepes\}/.test(mkAs)
+        && /R166-U5/.test(utmAs),
+        { regiszter_szam_a_lapokon: /\}\/\$\{r\.lepes\}/.test(utmAs) || /\}\/\$\{r\.lepes\}/.test(mkAs),
+          elo_tanu: /R166-U5/.test(utmAs) });
+
       step('(as28) R176/P2: az induló adat UGYANAZT az írásmentes plafon-döntést kérdezi, amit a lista és az írás-út — és EGYSZER, nem soronként',
         /const plafon = delegationCeilingOf\(\{ store, subjectId, bookId, at \}\);/.test(srvAs)
         && /&& plafonRoles\.includes\(r\.offered_role\)/.test(srvAs)
@@ -4237,10 +4262,20 @@ try {
      * MEGSZAKADT (bukás). ÉS hogy a task-megállás ne tudja kiüresíteni az állítást, a lap kimondja,
      * hogy VAN teljesen bejárt útmutató, és hogy a mintához kötöttek közül EGY SEM hordoz task-ot.
      */
+    /**
+     * ÉS A JEL A HÁROM KIMENET MAI OTTHONÁRA MUTAT (R176, külső review P2 · `KUKA-443`).
+     *
+     * A régi alakom a próba-lap SZÖVEGÉBEN kereste a `taskStop`-ot és a `TASK-IG`-et — azt viszont a
+     * lap MAGYARÁZATA is kielégítette, a szétválasztás pedig átköltözött a bejáró közös otthonába.
+     * Egy megjegyzésre álló pin halott kódot is igazolna (`KUKA-239`), ezért a jel most a VERDIKT
+     * OLVASÓJÁT kéri, és azt, hogy a lap tényleg AZT hívja.
+     */
+    const jaroVerdikt = readFileSync(join(ROOT, 'tests/e2e/tourWalk.mjs'), 'utf8');
     step('(ar9) KUKA-414: a viselkedés-mérés HÁROM kimenetű (OK · TASK-IG · MEGSZAKADT), és csak a harmadik bukás — a bejáró korlátja nem a rendszer hibája',
-      /taskStop/.test(probaSzoveg) && /TASK-IG/.test(probaSzoveg)
-      && /tests\/e2e\/tourWalk\.mjs/.test('tests/e2e/tourWalk.mjs')
-      && /steps\[i\]\.task !== null/.test(readFileSync(join(ROOT, 'tests/e2e/tourWalk.mjs'), 'utf8')));
+      /export const WALK_TASK = 'TASK-IG';/.test(jaroVerdikt)
+      && /if \(r\.taskStop\) return WALK_TASK;/.test(jaroVerdikt)
+      && /steps\[i\]\.task !== null/.test(jaroVerdikt)
+      && /walkReport\(t, r\)/.test(probaSzoveg) && /walkOutcome\(r\) === WALK_BROKEN/.test(probaSzoveg));
 
     step('(ar10) KUKA-215: és az állítás NEM tud üresen zöld lenni — a lap kimondja, hogy VAN teljesen bejárt útmutató, és hogy a mintához kötöttek közül egy sem vár a felhasználóra',
       /toBeGreaterThan\(4\)/.test(probaSzoveg) && /mintasTask/.test(probaSzoveg)

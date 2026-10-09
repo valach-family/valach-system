@@ -16571,6 +16571,43 @@ Object.freeze({
     ]),
   }),
 
+  Object.freeze({
+    id: 'KUKA-443',
+    date: '2026-10-09',
+    title: 'A PRÓBA TELJES BEJÁRÁST JELENTETT OTT, AHOL A MÉRÉS A FELHASZNÁLÓ MŰVELETÉN MEGÁLLT',
+    what: 'A közös bejáró (`walkTour`) a `task`-ot deklaráló lépésen szándékosan megáll, és a megállást nevezetten vissza is adja (`taskStop` · `elert < lepes`). A pótolt útmutatók lapja viszont CSAK a `bajok` tömböt nézte, és minden más esetben a REGISZTER lépésszámát írta ki: `lepes/lepes OK`.',
+    why_wrong: 'A verdikt így a mérés HATÓKÖRÁN TÚL mutatott (`KUKA-216`), és a részleges futás a teljes mérés lapját írta volna felül (`KUKA-206`) — a KÖTELEZŐ böngészős kapu mellett, ZÖLDEN. Ugyanazt a visszatérést a MINTA-KAPU őre már helyesen, három kimenetre válaszotta szét: a két hívó ELCSÚSZOTT, pontosan úgy, ahogy a bejáró modul feje ezt előre megnevezte (`KUKA-003`). MÉRT HATÓKÖR, KIMONDVA: a lelet LAPPANGÓ volt — a pótolt tizenkettő közül MA egyetlen lépés sem deklarál `task`-ot (mérve: `R166-U5`), tehát hamis zöld a mai fejen nem keletkezett. A javítás a CSAPDÁT zárja be: az első `task`-ot kapó lépésnél a lap némán jelentett volna teljes bejárást.',
+    replaced_by: 'A VERDIKT ÉS A JELENTÉS-SOR EGY OTTHONBA KERÜLT (`walkOutcome` · `walkReport` a `tests/e2e/tourWalk.mjs`-ben), és MINDHÁROM bejárás + a minta-kapu őre AZT kérdezi. A kiírt szám a MÉRÉSBŐL jön (`r.elert`), nem a regiszterből (`r.lepes`) — így a sor nem tud olyan számot állítani, amit nem járt be.',
+    replacement: 'SAJÁT LELET A JAVÍTÁSON: a `walkOutcome` csak a BEJÁRÁST olvassa, tehát a „nem indult el" ág kiesett volna a bukás-halmazból — a régi `/OK$/` minta ezt még véletlenül elkapta. Ezért a nem induló útmutató most NEVEZETTEN kerül a bukás-listára is. Az ÉLŐ tanú az `R166-U5` próba: ugyanazt a fájlt hívja meg, amit a három bejárás (`KUKA-207`), mert a hamis `OK`-ot nem a forrás ALAKJA okozta, hanem a KIÍRT SZÁM (`KUKA-239`).',
+    decision: 'D-VS-3237',
+    found_by: 'KÜLSŐ REVIEW (chatgpt-codex, R176 — P2, tizenkettedik kör). A lelet a `tour.addBusiness`/`tour.invite` példáját nevezte meg; a MÉRÉS szerint ezeket a MINTA-KAPU lapja járja be, ahol a három kimenet már szét volt választva — a hiba a pótolt útmutatók lapján állt, lappangva.',
+    lesson: 'A MÉRŐ SAJÁT VERDIKTJE IS MÉRÉS: ha a bejáró nevezetten megmondja, meddig jutott, akkor a hívónak NEM szabad ezt elhallgatnia — és a jelentés-sor SOHA ne a tervet (regiszter) írja ki a tény (mérés) helyett. Ami EGYÜTT igaz, azt EGY egységben írjuk (`KUKA-205`): a verdikt-olvasás nem lehet két hívónál kétféle.',
+    guard_note: 'gépi jel: `npm run verify:browser-gate` (`R166-U5` — a VISELKEDÉS: a task-on megálló bejárás nem olvasható végig bejártként; mért visszacsúszás: a régi alakkal a próba PIROS) · `npm run verify:app-findings-r154` (as37: mindkét lap a közös olvasót kérdezi, és egyik sem írja a regiszter számát · ar9 átkötve a bejáró MAI otthonára, mert a régi alakját a lap MAGYARÁZATA is kielégítette).',
+    home: 'v3',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tests/e2e/tourWalk.mjs']),
+        pattern: 'export function walkOutcome\\(r\\) \\{',
+        why: 'a verdikt-olvasónak EGY otthona van' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/tourWalk.mjs']),
+        pattern: 'if \\(r\\.taskStop\\) return WALK_TASK;',
+        why: 'és a task-megállás NEM olvad bele a teljes bejárásba' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r166-utmutatok.spec.mjs']),
+        pattern: 'if \\(walkOutcome\\(r\\) !== WALK_OK\\) nemTeljes\\.push\\(sor\\);',
+        why: 'a pótolt útmutatók lapja a KÖZÖS verdiktet kérdezi' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r166-utmutatok.spec.mjs']),
+        pattern: 'R166-U5',
+        why: 'és az ÉLŐ tanú megmérte, hogy a task-megállás nem OK' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r166-utmutatok.spec.mjs', 'tests/e2e/v3app-r166-minta-kapu.spec.mjs']),
+        pattern: '\\}/\\$\\{r\\.lepes\\}',
+        why: 'a bejáró lapja a REGISZTER számát írta ki a MÉRT szám helyett' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r166-utmutatok.spec.mjs']),
+        pattern: 'jelentes\\.filter\\(\\(x\\) => !/OK\\$/\\.test\\(x\\)\\)',
+        why: 'a verdikt a jelentés SZÖVEGÉBŐL jött, nem a mérésből' }),
+    ]),
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

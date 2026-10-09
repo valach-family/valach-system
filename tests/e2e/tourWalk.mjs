@@ -179,3 +179,48 @@ export async function walkTour(page, tourId) {
   return { bajok, lepes: steps.length, elert: steps.length, taskStop: null };
 }
 
+
+/**
+ * A BEJÁRÁS VERDIKTJE ÉS JELENTÉS-SORA — EGY OTTHONBÓL (R176, külső review P2 · `KUKA-443`).
+ *
+ * A LELET (Codex, a tizenkettedik külső kör): a `walkTour` a `task`-ra váró lépésen MEGÁLL, és a
+ * megállást nevezetten vissza is adja (`taskStop` · `elert < lepes`) — a HÍVÓ viszont két helyen
+ * MÁSKÉNT olvasta. A minta-kapu őre a három kimenetet szétválasztotta; a pótolt útmutatók lapja
+ * ellenben CSAK a `bajok`-at nézte, és minden más esetben `r.lepes/r.lepes OK`-ot írt. Egy
+ * task-on megálló bejárás tehát „7/7 OK"-ként jelent volna meg: a verdikt a mérés HATÓKÖRÉN TÚL
+ * mutatott volna (`KUKA-216`), és a részleges futás a teljes mérés lapját írta volna felül
+ * (`KUKA-206`) — a kötelező kapu mellett ZÖLDEN.
+ *
+ * MÉRT HATÓKÖR, KIMONDVA: a pótolt tizenkettő közül MA egyetlen lépés sem deklarál `task`-ot
+ * (mérve: `R166-U5`), tehát a hamis `OK` ma nem keletkezik — a lelet LAPPANGÓ. A javítás ezért nem
+ * egy mai hamis zöldet szüntet meg, hanem a CSAPDÁT: az első `task`-ot kapó lépésnél a lap
+ * nevezetten mondaná ki a részleges mérést, nem némán zöldet.
+ *
+ * ÉS AZÉRT ITT ÁLL, NEM A LAPOKON (`KUKA-003` · a modul fejének saját figyelmeztetése): ha a
+ * verdikt-olvasás két helyen áll, a kettő elcsúszik — pontosan ez csúszott el. A számot is a
+ * MÉRÉS adja (`r.elert`), nem a regiszter (`r.lepes`): így a sor nem tud olyan számot kiírni,
+ * amit nem járt be.
+ */
+export const WALK_OK = 'OK';
+export const WALK_TASK = 'TASK-IG';
+export const WALK_BROKEN = 'MEGSZAKADT';
+
+export function walkOutcome(r) {
+  if (!r || typeof r !== 'object') return WALK_BROKEN;
+  if (Array.isArray(r.bajok) && r.bajok.length) return WALK_BROKEN;
+  if (r.taskStop) return WALK_TASK;
+  if (r.elert !== r.lepes) return WALK_BROKEN;   // kevesebbet járt be, és NINCS nevezett oka
+  return WALK_OK;
+}
+
+export function walkReport(tourId, r) {
+  const k = walkOutcome(r);
+  if (k === WALK_BROKEN) {
+    const miert = Array.isArray(r && r.bajok) && r.bajok.length
+      ? r.bajok.join(' · ')
+      : `elért ${r && r.elert}/${r && r.lepes}, nevezett ok nélkül`;
+    return `${tourId}: ${WALK_BROKEN} — ${miert}`;
+  }
+  if (k === WALK_TASK) return `${tourId}: ${WALK_TASK} ${r.elert}/${r.lepes} — a felhasználó műveletére vár (${r.taskStop})`;
+  return `${tourId}: ${r.elert}/${r.lepes} ${WALK_OK}`;
+}

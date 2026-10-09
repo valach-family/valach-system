@@ -22,7 +22,7 @@ import { TOURS } from '../../v3app/knowledge/features.mjs';
 import { dictFor } from '../../v3app/public/i18n/dict.mjs';
 import { UJ_UTMUTATOK } from './r166Tours.mjs';
 // A BEJÁRÓ KÖZÖS OTTHONBÓL (`tourWalk.mjs`) — a minta-kapu viselkedés-őre UGYANEZT futtatja (KUKA-003).
-import { closeModals, startTourViaHelp, walkTour } from './tourWalk.mjs';
+import { closeModals, startTourViaHelp, walkTour, walkOutcome, walkReport, WALK_OK } from './tourWalk.mjs';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -63,26 +63,36 @@ test('R166-U1 — a NÉVTELEN képernyőn felkínált útmutatók végigvihetők
   await expect(c.page.getByTestId('login-email')).toBeVisible();
   const nyilvanos = UJ_UTMUTATOK.filter((t) => KOZONSEG(t) === 'public');
   expect(nyilvanos.length, 'van nyilvános útmutató a pótoltak között').toBeGreaterThan(0);
-  const jelentes = [];
+  const jelentes = []; const nemTeljes = [];
   for (const t of nyilvanos) {
     // MINDEN ÚTMUTATÓ A SAJÁT KIINDULÓ KÉPERNYŐJÉRŐL indul — a felhasználó is a belépési lapról
     // kezd, nem egy előző bejárás végállapotából (KUKA-120: a próba ne a saját maradékát mérje).
     await c.page.goto('/');
     await expect(c.page.getByTestId('login-email')).toBeVisible();
     const elindult = await startTourViaHelp(c.page, t);
-    if (elindult !== true) { jelentes.push(`${t}: NEM indult el — ${elindult && elindult.nemIndult ? elindult.nemIndult : 'a súgó nem kínálta fel'}`); continue; }
+    // A NEM INDULÓ IS BUKÁS, ÉS A SAJÁT SORÁN LÁTSZIK (`KUKA-443` saját lelet a javításon: a
+    // `walkOutcome` csak a BEJÁRÁST olvassa, tehát a nem induló útmutatót külön kell beírni — a
+    // régi `/OK$/` minta ezt még „véletlenül" elkapta, az új verdikt nem).
+    if (elindult !== true) {
+      const sor = `${t}: NEM indult el — ${elindult && elindult.nemIndult ? elindult.nemIndult : 'a súgó nem kínálta fel'}`;
+      jelentes.push(sor); nemTeljes.push(sor); continue;
+    }
     const r = await walkTour(c.page, t);
-    jelentes.push(r.bajok.length ? `${t}: ${r.bajok.join(' · ')}` : `${t}: ${r.lepes}/${r.lepes} OK`);
+    const sor = walkReport(t, r);
+    jelentes.push(sor);
+    if (walkOutcome(r) !== WALK_OK) nemTeljes.push(sor);
     await c.page.getByTestId('tour-exit').click();
   }
-  expect(jelentes.filter((x) => !/OK$/.test(x)).join(' | ') || 'mind rendben',
+  // A VERDIKT A MÉRÉSBŐL JÖN, NEM A SZÖVEGBŐL (`KUKA-443`): a `walkOutcome` dönt, nem egy
+  // `/OK$/` minta a jelentés-soron — és a TELJES bejárás a követelmény (az R166 §3 ezt kérte).
+  expect(nemTeljes.join(' | ') || 'mind rendben',
     `a nyilvános útmutatók végigvihetők — mérve: ${jelentes.join(' | ')}`).toBe('mind rendben');
 });
 
 test('R166-U2 — a BELÉPETT nézetben felkínált útmutatók végigvihetők', async () => {
   const belepett = UJ_UTMUTATOK.filter((t) => KOZONSEG(t) === 'signed_in');
   expect(belepett.length).toBeGreaterThan(0);
-  const jelentes = [];
+  const jelentes = []; const nemTeljes = [];
   for (const t of belepett) {
     // A SEGÉD útmutatója NYITVA hagyja a súgó-panelt (a célja ott van) — a következő útmutató előtt
     // a felhasználó is becsukja. Modális panel mellett a menü nem kattintható, és a próba a saját
@@ -91,12 +101,17 @@ test('R166-U2 — a BELÉPETT nézetben felkínált útmutatók végigvihetők',
     await closeModals(anna.page);
     await gotoPage(anna.page, 'overview');
     const elindult = await startTourViaHelp(anna.page, t);
-    if (elindult !== true) { jelentes.push(`${t}: NEM indult el — ${elindult && elindult.nemIndult ? elindult.nemIndult : 'a súgó nem kínálta fel'}`); continue; }
+    if (elindult !== true) {
+      const sor = `${t}: NEM indult el — ${elindult && elindult.nemIndult ? elindult.nemIndult : 'a súgó nem kínálta fel'}`;
+      jelentes.push(sor); nemTeljes.push(sor); continue;
+    }
     const r = await walkTour(anna.page, t);
-    jelentes.push(r.bajok.length ? `${t}: ${r.bajok.join(' · ')}` : `${t}: ${r.lepes}/${r.lepes} OK`);
+    const sor = walkReport(t, r);
+    jelentes.push(sor);
+    if (walkOutcome(r) !== WALK_OK) nemTeljes.push(sor);
     if (await anna.page.getByTestId('tour-exit').count()) await anna.page.getByTestId('tour-exit').click();
   }
-  expect(jelentes.filter((x) => !/OK$/.test(x)).join(' | ') || 'mind rendben',
+  expect(nemTeljes.join(' | ') || 'mind rendben',
     `a belépett útmutatók végigvihetők — mérve: ${jelentes.join(' | ')}`).toBe('mind rendben');
 });
 
@@ -110,5 +125,42 @@ test('R166-U3 — 390 px szélességben is végigvihető (a keskeny nézet nem m
   expect(elindult === true ? 'elindult' : `NEM indult el — ${elindult && elindult.nemIndult ? elindult.nemIndult : 'a súgó nem kínálta fel'}`,
     'a keskeny nézetben is felkínálja a súgó, és el is indul').toBe('elindult');
   const r = await walkTour(c.page, t);
-  expect(r.bajok.join(' · ') || 'nincs', `390 px: ${t} végigvihető`).toBe('nincs');
+  expect(walkOutcome(r) === WALK_OK ? 'végigvihető' : walkReport(t, r),
+    `390 px: ${t} VÉGIG bejárható — a verdikt a mérésből (KUKA-443)`).toBe('végigvihető');
+});
+
+/**
+ * R166-U5 — A VERDIKT-OLVASÓ ELLENPRÓBÁJA (R176, külső review P2 · `KUKA-443`).
+ *
+ * MIÉRT PRÓBA, NEM FORRÁS-PIN (`KUKA-207`): a hamis `OK`-ot nem a forrás ALAKJA okozta, hanem az,
+ * hogy a jelentés-sor a REGISZTER számát írta ki a MÉRÉS száma helyett. Ezt csak úgy lehet
+ * igazolni, hogy a próba MEGHÍVJA a verdikt-olvasót — ugyanazt a fájlt, amit a három bejárás is
+ * használ. A böngészőre itt nincs szükség: a hiba a verdiktben volt, nem a lapon.
+ *
+ * ÉS A HATÓKÖR KIMONDVA (`KUKA-216`): a lelet MA lappangó — a pótolt tizenkettő közül egy lépés sem
+ * deklarál `task`-ot —, tehát ez a próba a CSAPDÁT zárja be, nem egy mai hamis zöldet szüntet meg.
+ */
+test('R166-U5 — a task-on megálló bejárás NEM olvasható „végig bejárt"-ként (a verdikt a mérésből jön)', async () => {
+  const teljes = { bajok: [], lepes: 3, elert: 3, taskStop: null };
+  const taskon = { bajok: [], lepes: 5, elert: 2, taskStop: 's2 (invite.created)' };
+  const szakadt = { bajok: ['s2: NEVEZETT megszakítás — a cél nem látható'], lepes: 5, elert: 2, taskStop: null };
+  const csonka = { bajok: [], lepes: 5, elert: 2, taskStop: null };   // kevesebb lépés, NEVEZETT ok nélkül
+
+  expect(walkOutcome(teljes), 'a végigvitt bejárás OK').toBe(WALK_OK);
+  expect(walkOutcome(taskon), 'a task-on megálló bejárás NEM OK').not.toBe(WALK_OK);
+  expect(walkOutcome(szakadt), 'a nevezetten megszakadt bejárás NEM OK').not.toBe(WALK_OK);
+  expect(walkOutcome(csonka), 'a nevezett ok NÉLKÜL csonka bejárás sem OK').not.toBe(WALK_OK);
+
+  // A JELENTÉS-SOR SEM MONDHAT TÖBBET, MINT AMIT MÉRT: a régi alak itt `5/5 OK`-ot írt volna.
+  const sorTaskon = walkReport('tour.proba', taskon);
+  expect(sorTaskon.includes('5/5'), `a task-on megálló sor NEM írhat 5/5-öt — mérve: „${sorTaskon}”`).toBe(false);
+  expect(/ OK$/.test(sorTaskon), `a task-on megálló sor NEM végződhet OK-ra — mérve: „${sorTaskon}”`).toBe(false);
+  expect(sorTaskon.includes('2/5'), `a sor a MÉRT 2/5-öt írja — mérve: „${sorTaskon}”`).toBe(true);
+  expect(walkReport('tour.proba', teljes), 'a végigvitt sor a mért számot írja').toBe('tour.proba: 3/3 OK');
+
+  // ÉS A MAI HATÓKÖR MÉRVE: ezért állíthatja a fenti két bejárás a TELJES végigvitelt.
+  const taskosak = UJ_UTMUTATOK.filter((t) => TOURS[t]
+    && TOURS[t].steps.some((l) => l.task !== null && l.task !== undefined));
+  expect(taskosak.join(' · ') || 'egyik sem',
+    'a pótolt tizenkettő közül MA egyik sem vár a felhasználó műveletére — a lelet lappangó volt').toBe('egyik sem');
 });
