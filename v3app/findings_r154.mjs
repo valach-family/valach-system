@@ -2086,6 +2086,38 @@ try {
         { regiszter_szam_a_lapokon: /\}\/\$\{r\.lepes\}/.test(utmAs) || /\}\/\$\{r\.lepes\}/.test(mkAs),
           elo_tanu: /R166-U5/.test(utmAs) });
 
+      /**
+       * (as38) A BEJÁRÁS A HASZNÁLHATÓSÁGOT MÉRI, NEM A BUBORÉKOT (R186 §1 · `KUKA-444` · `445` · `446`).
+       *
+       * A LELET (SAJÁT, az R186 §1 által KÉRT ellenpróba mérte ki): a bejáró egy lépést KÉT jelből
+       * ítélt meg (lépés-cím · `tour-blocked`), a lépés CÉLJÁT soha nem kérdezte meg. A `targetPending`
+       * állapotú lépés ezért teljesítésnek olvasódott — és az UTOLSÓ lépésnél nincs „Tovább", ami a
+       * várakozást felfedte volna. MÉRVE: a `tour.logout` utolsó lépése így kapott `2/2 OK`-ot a
+       * KÖTELEZŐ kapuban, és egy feladat UTÁNI, láthatatlan cél mellett a mérés `6/6 OK`-ot adott.
+       *
+       * A JEL HÁROM DOLGOT KÉR: (1) a bejáró KÉRDEZZE MEG a cél láthatóságát, a `done` lépés
+       * kimondott kivételével; (2) az elérés MÉRT számlálóból jöjjön, ne a regiszter hosszából;
+       * (3) a feltárás a LÁTHATÓSÁGHOZ legyen kötve, ne a létezéshez. Az ÉLŐ tanú az `R166-U6`
+       * (pozitív pár) és az `R166-U7` (ellenpróba) — mert a hamis zöldet a VISELKEDÉS mutatta meg,
+       * nem a forrás alakja (`KUKA-207`).
+       */
+      const jaro186 = readFileSync(join(ROOT, 'tests/e2e/tourWalk.mjs'), 'utf8');
+      const utm186 = readFileSync(join(ROOT, 'tests/e2e/v3app-r166-utmutatok.spec.mjs'), 'utf8');
+      step('(as38) R186/§1: a bejárás a lépés CÉLJÁNAK LÁTHATÓSÁGÁT kérdezi (a `done` kimondott kivételével), az elérés MÉRT számlálóból jön, és a feltárás is a láthatósághoz kötött (RÉGEN: cím + megszakítás, a cél megkérdezése nélkül — a `tour.logout` 2/2 OK-ot kapott)',
+        /const celLathatoMost = await page\.getByTestId\(steps\[i\]\.target\)\.first\(\)\.isVisible\(\)/.test(jaro186)
+        && /if \(!celLathato2 && lepesAllapot !== 'done'\) \{/.test(jaro186)
+        && /let elert = 0;/.test(jaro186)
+        && /const celLathato = await page\.getByTestId\(steps\[i\]\.target\)\.first\(\)\.isVisible\(\)\.catch\(\(\) => false\);/.test(jaro186)
+        && /if \(feltaro && !celLathato/.test(jaro186)
+        && !/elert: steps\.length, taskStop: null/.test(jaro186)
+        && !/if \(feltaro && await page\.getByTestId\(steps\[i\]\.target\)\.count\(\) === 0/.test(jaro186)
+        && /R166-U6/.test(utm186) && /R166-U7/.test(utm186),
+        { cel_lathatosag: /const celLathatoMost = /.test(jaro186),
+          mert_szamlalo: /let elert = 0;/.test(jaro186),
+          regiszter_hossz_elertkent: /elert: steps\.length, taskStop: null/.test(jaro186),
+          feltaras_a_letezeshez: /if \(feltaro && await page\.getByTestId\(steps\[i\]\.target\)\.count\(\) === 0/.test(jaro186),
+          elo_tanuk: /R166-U6/.test(utm186) && /R166-U7/.test(utm186) });
+
       step('(as28) R176/P2: az induló adat UGYANAZT az írásmentes plafon-döntést kérdezi, amit a lista és az írás-út — és EGYSZER, nem soronként',
         /const plafon = delegationCeilingOf\(\{ store, subjectId, bookId, at \}\);/.test(srvAs)
         && /&& plafonRoles\.includes\(r\.offered_role\)/.test(srvAs)

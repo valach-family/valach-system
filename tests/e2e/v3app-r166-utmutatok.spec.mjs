@@ -17,7 +17,7 @@
 // AMIT EZ A LAP NEM MÉR: a két szereplős történeteket (azok a `proof:demo-walk` és az R112 lapja),
 // és a jogosultsági mag döntéseit.
 import { test, expect } from '@playwright/test';
-import { World, createWorkspaceUI, gotoPage } from './helpers.mjs';
+import { World, createWorkspaceUI, gotoPage, withResponse } from './helpers.mjs';
 import { TOURS } from '../../v3app/knowledge/features.mjs';
 import { dictFor } from '../../v3app/public/i18n/dict.mjs';
 import { UJ_UTMUTATOK } from './r166Tours.mjs';
@@ -158,9 +158,130 @@ test('R166-U5 — a task-on megálló bejárás NEM olvasható „végig bejárt
   expect(sorTaskon.includes('2/5'), `a sor a MÉRT 2/5-öt írja — mérve: „${sorTaskon}”`).toBe(true);
   expect(walkReport('tour.proba', teljes), 'a végigvitt sor a mért számot írja').toBe('tour.proba: 3/3 OK');
 
+  /**
+   * ÉS A FELADAT UTÁNI HIBA SEM OLVASHATÓ TELJESNEK (R186 §1).
+   *
+   * Ez a verdikt-olvasó SZERZŐDÉSE arra az esetre, amit a `perform`-os bejárás nyitott meg: a
+   * feladat IGAZOLTAN elvégződött (`elvegzett`), a mérés viszont egy KÉSŐBBI lépésen bukott. Az
+   * ÉLŐ tanú erre az `R166-U7` (a böngészőben, vezérelt hibával) — ez itt a szerződés.
+   */
+  const feladatUtan = { bajok: ['s6: a buborék „”, a csomag szerint „Levél”'], lepes: 6, elert: 5,
+    taskStop: null, elvegzett: ['s5 (invite.created)'] };
+  expect(walkOutcome(feladatUtan), 'a feladat UTÁNI hiba NEM OK').not.toBe(WALK_OK);
+  const sorFeladatUtan = walkReport('tour.proba', feladatUtan);
+  expect(sorFeladatUtan.includes('6/6'),
+    `a feladat utáni hibánál a sor NEM írhat 6/6-ot — mérve: „${sorFeladatUtan}”`).toBe(false);
+
   // ÉS A MAI HATÓKÖR MÉRVE: ezért állíthatja a fenti két bejárás a TELJES végigvitelt.
   const taskosak = UJ_UTMUTATOK.filter((t) => TOURS[t]
     && TOURS[t].steps.some((l) => l.task !== null && l.task !== undefined));
   expect(taskosak.join(' · ') || 'egyik sem',
     'a pótolt tizenkettő közül MA egyik sem vár a felhasználó műveletére — a lelet lappangó volt').toBe('egyik sem');
+});
+
+
+/**
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ * R166-U6 · U7 — A FELADAT UTÁNI LÉPÉSEK MÉRÉSE, ÉS AZ ELLENPRÓBA RÁ (R186 §1)
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * AMIT AZ R186 §1 KÉRT, ÉS AMI EDDIG NEM VOLT MEG. Az `R166-U5` azt bizonyítja, hogy a `task`-on
+ * MEGÁLLÓ bejárás nem olvasható teljesnek. Azt NEM bizonyítja, hogy egy feladat UTÁNI hibát a
+ * teljes bejárást állító mérés elkapna — mert a bejáró a feladatot EL SEM TUDTA VÉGEZNI, tehát a
+ * feladat utáni lépésekről semmit nem mért. Az R186 §1 szó szerint ezt a kettőt kéri:
+ * *„a teljes bejárásként számolt történetnél valódi művelet után MINDEN későbbi lépést is mérj"*,
+ * és *„célzott ellenpróba bizonyítsa, hogy az ELSŐ FELADAT UTÁNI hibát is észleli"* a mérés.
+ *
+ * EZ A KETTŐ EGY PÁR, ÉS CSAK EGYÜTT BIZONYÍT (`KUKA-051` · `KUKA-089`: az őr tüzelését MÉRNI kell).
+ *   · U6 (POZITÍV): a bejárás a `tour.invite` ötödik lépésén VALÓDI meghívót állít ki, a lap
+ *     igazolja a feladatot, és a mérés a HATODIK lépésig megy — `6/6`, nevezett művelettel.
+ *   · U7 (ELLENPRÓBA): ugyanaz a bejárás, ugyanazzal a valódi művelettel, de a feladat UTÁNI lépés
+ *     célját VEZÉRELTEN elvesszük. A mérésnek PIROSAT kell adnia — ha zöldet adna, akkor a
+ *     „teljes bejárás" állítás egy nem mért lépést takarna (`KUKA-206` · `KUKA-216`).
+ *
+ * MIÉRT A `tour.invite`-on. Ez a legrövidebb útmutató, amiben a feladat UTÁN is van lépés
+ * (`s5: invite-submit · task: invite.created` → `s6: invite-mail-open`), tehát pontosan az a
+ * szerkezet, amit a lelet megnevez — és a művelete valódi HTTP-n megy (`POST /api/invites`).
+ */
+
+/** A VALÓDI MŰVELET az `s5`-ön: a néző kitölti és elküldi a meghívást. A siker a SZERVER válasza. */
+function meghivoKiallitasa(email) {
+  return async ({ page }) => {
+    await page.getByTestId('invite-email').fill(email);
+    await page.getByTestId('invite-role').selectOption('user');
+    await page.getByTestId('invite-scope').selectOption('keszlet');
+    const r = await withResponse(page, { path: '/api/invites' },
+      () => page.getByTestId('invite-submit').click());
+    // A MŰVELET BUKÁSA NEVEZETT TÉNY, nem időtúllépés (`KUKA-215`): a bejáró ezt `bajok`-ként kapja.
+    expect(r.body && r.body.ok, `a meghívó kiállítása a szerveren sikerült — kapott: ${JSON.stringify(r.body)}`).toBe(true);
+  };
+}
+
+test('R166-U6 — a bejárás ELVÉGZI a feladatot, és a feladat UTÁNI lépést is MÉRI (6/6, nevezett művelettel)', async () => {
+  if (await anna.page.getByTestId('tour-exit').count()) await anna.page.getByTestId('tour-exit').click();
+  await closeModals(anna.page);
+  await gotoPage(anna.page, 'overview');
+  const t = 'tour.invite';
+  const elindult = await startTourViaHelp(anna.page, t);
+  expect(elindult === true ? 'elindult' : `NEM indult el — ${elindult && elindult.nemIndult ? elindult.nemIndult : 'a súgó nem kínálta fel'}`,
+    'a meghívás útmutatója a valódi úton elindul').toBe('elindult');
+
+  const r = await walkTour(anna.page, t, { perform: { s5: meghivoKiallitasa('u6.cimzett@pelda.hu') } });
+  const sor = walkReport(t, r);
+
+  // 1. A VERDIKT TELJES — és a szám a MÉRÉSBŐL jön, nem a regiszterből.
+  expect(walkOutcome(r) === WALK_OK ? 'teljes' : sor,
+    `a feladat elvégzése után a bejárás VÉGIG megy — mérve: ${sor}`).toBe('teljes');
+  expect(r.elert, 'a mérés a HATODIK lépésig jutott').toBe(TOURS[t].steps.length);
+
+  // 2. ÉS A SOR KIMONDJA, HOGY VALÓDI MŰVELET TÖRTÉNT — különben a „6/6 OK" nem volna visszakereshető.
+  expect((r.elvegzett || []).join(' · '), 'az elvégzett valódi művelet nevezetten látszik').toBe('s5 (invite.created)');
+  expect(sor.includes('elvégezve: s5 (invite.created)'), `a jelentés-sor megnevezi a műveletet — mérve: „${sor}”`).toBe(true);
+
+  if (await anna.page.getByTestId('tour-exit').count()) await anna.page.getByTestId('tour-exit').click();
+});
+
+test('R166-U7 — ELLENPRÓBA: az ELSŐ FELADAT UTÁNI hibát a teljes bejárást állító mérés ÉSZLELI', async () => {
+  if (await anna.page.getByTestId('tour-exit').count()) await anna.page.getByTestId('tour-exit').click();
+  await closeModals(anna.page);
+  await gotoPage(anna.page, 'overview');
+  const t = 'tour.invite';
+  const elindult = await startTourViaHelp(anna.page, t);
+  expect(elindult === true ? 'elindult' : 'NEM indult el', 'az ellenpróba ugyanazon az úton indul').toBe('elindult');
+
+  /**
+   * A VEZÉRELT HIBA: a feladat UTÁNI lépés célját elvesszük — a művelet UTÁN, tehát a hiba
+   * bizonyítottan az ELSŐ FELADAT UTÁN keletkezik (`KUKA-207`: a viselkedést mérjük, nem a forrást).
+   * Ez nem a termék hibája: ez a MÉRŐESZKÖZ ellenpróbája, a próba saját, vezérelt állapotán.
+   */
+  const muveletUtanElvesszukACelt = async (ctx) => {
+    await meghivoKiallitasa('u7.cimzett@pelda.hu')(ctx);
+    await ctx.page.getByTestId('invite-mail-open').first().waitFor({ state: 'visible', timeout: 8000 });
+    /**
+     * A HIBA TARTÓS, ÉS EZ SZÁNDÉKOS. Egy `el.remove()` csak a MAI rajzolást érintené: a lap
+     * újrarajzolása (vagy a bejáró feltáró-kattintása) visszahozná a vezérlőt, és az ellenpróba a
+     * SAJÁT törlését mérné, nem a mérőeszközt (`KUKA-127`). A stíluslap a RAJZOLÁSOKON ÁT megmarad,
+     * tehát a lépés célja az ellenpróba végéig LÁTHATATLAN — pontosan az az állapot, amire a motor
+     * `isShown` döntése szól: a vezérlő OTT VAN, de a néző nem látja.
+     */
+    await ctx.page.addStyleTag({ content: '[data-testid="invite-mail-open"] { display: none !important; }' });
+    await expect(ctx.page.getByTestId('invite-mail-open').first()).toBeHidden();
+  };
+
+  const r = await walkTour(anna.page, t, { perform: { s5: muveletUtanElvesszukACelt } });
+  const sor = walkReport(t, r);
+
+  // 1. A MÉRÉS NEM MONDHATJA TELJESNEK — ez az ellenpróba lényege.
+  expect(walkOutcome(r), `a feladat UTÁNI hiba mellett a verdikt NEM lehet OK — mérve: ${sor}`).not.toBe(WALK_OK);
+  // 2. ÉS A SZÁM SEM MONDHAT 6/6-OT (a régi alak a `break` után is a regiszter hosszát adta vissza).
+  expect(sor.includes('6/6'), `a megszakadt bejárás NEM írhat 6/6-ot — mérve: „${sor}”`).toBe(false);
+  // 3. A FELADAT VISZONT IGAZOLTAN ELVÉGZŐDÖTT — tehát a hiba tényleg a feladat UTÁN van,
+  //    nem a feladat elvégezhetetlensége (`KUKA-049`: a nem tudott nem „nem történt meg").
+  expect((r.elvegzett || []).join(' · '), 'a feladat az ellenpróbában is elvégződött').toBe('s5 (invite.created)');
+  // 4. ÉS A HATODIK LÉPÉS NEVEZETTEN LÁTSZIK a bajok között — nem csendes kihagyásként.
+  expect((r.bajok || []).join(' · ').includes('s6'),
+    `a hatodik lépés NEVEZETTEN bukik — mérve: ${(r.bajok || []).join(' · ') || '(nincs baj)'}`
+    + ` · napló: ${(r.naplo || []).join(' | ')}`).toBe(true);
+
+  if (await anna.page.getByTestId('tour-exit').count()) await anna.page.getByTestId('tour-exit').click();
 });

@@ -79,6 +79,36 @@ test('R166-MK1 — minta NÉLKÜL a kiszolgáló EGY mintához kötött útmutat
     `minta nélkül NEM kínálhatók fel — a kiszolgáló ${kinalt.length} útmutatót kínált`).toBe('egy sem');
 });
 
+/**
+ * A FELTÁRÁS, AMIT A REGISZTER NEM TUD MEGNEVEZNI (R186 §1 — SAJÁT LELET, MÉRVE).
+ *
+ * A LELET, AHOGY ELŐJÖTT. Az R186 §1 ellenpróbájához megszigorítottam a bejárót: egy lépés csak
+ * akkor teljes, ha a CÉLJA LÁTHATÓ (`tourWalk.mjs`). Ettől a `tour.grant` és a
+ * `tour.scopeLifecycle` HARMADIK lépése pirosra váltott — a cél (`member-scope-row-keszlet` ·
+ * `member-scope-row-dokumentumok`) nem volt a képernyőn. A régi, lazább mérés ezt `TASK-IG`-nek
+ * könyvelte, amit ez az őr TOLERÁL: a hiány tehát ELFEDVE állt.
+ *
+ * ÉS AMIT A MÉRÉS KIMONDOTT: nem a FELKÍNÁLÁS hibás. Egy egytagú vállalkozásban megmértem — a
+ * tagok lapja kirajzolja a SAJÁT sort is, a sor `member-open-<alany>` gombja ott van, és a
+ * megnyitása után a cél LÁTHATÓ (mérve: `nyitas UTAN = 1 · lathato = true`). Az útmutató tehát
+ * végigvihető; a BEJÁRÓM nem jutott el odáig, mert a lépés deklarált feltárója a `members-list`
+ * TÁBLA, a célt viszont a SOR gombja tárja fel — és azt a regiszter szándékosan nem nevezi meg
+ * lépés-célnak, mert minden fióknál más (`KUKA-225`).
+ *
+ * EZÉRT A HÍVÓ ADJA ODA, nem a bejáró találja ki (`KUKA-003`: útmutató-függő tudás nem lakhat egy
+ * általános járóban), és nem is lazítjuk vissza az őrt (`KUKA-091`). A művelet az, amit a NÉZŐ is
+ * tesz: megnyitja az első tag hozzáférés-paneljét.
+ */
+const megnyitElsoTagPaneljet = async ({ page }) => {
+  const gomb = page.locator('[data-testid^="member-open-"]').first();
+  await gomb.waitFor({ state: 'visible', timeout: 8000 });
+  await gomb.click();
+};
+const FELTARAS = Object.freeze({
+  'tour.grant': { s3: megnyitElsoTagPaneljet },
+  'tour.scopeLifecycle': { s3: megnyitElsoTagPaneljet, s4: megnyitElsoTagPaneljet },
+});
+
 test('R166-MK2 — ÁLTALÁNOS ŐR: minta nélkül MINDEN felkínált útmutató VÉGIGVIHETŐ (a viselkedés mérve, nem a forrás)', async () => {
   const kinalt = await anna.page.evaluate(async () => {
     const r = await fetch('/api/assistant/status', { headers: { accept: 'application/json' } });
@@ -101,7 +131,7 @@ test('R166-MK2 — ÁLTALÁNOS ŐR: minta nélkül MINDEN felkínált útmutató
       jelentes.push(`${t}: nem indult a súgóból — ${elindult && elindult.nemIndult ? elindult.nemIndult : 'a súgó nem kínálta fel'}`);
       continue;
     }
-    const r = await walkTour(anna.page, t);
+    const r = await walkTour(anna.page, t, { reveal: FELTARAS[t] || {} });
     /**
      * HÁROM KIMENET, ÉS CSAK AZ EGYIK BUKÁS (`KUKA-216`):
      *   · végigvihető                → `OK`

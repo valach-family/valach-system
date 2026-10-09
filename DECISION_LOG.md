@@ -16,6 +16,44 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3238 — A BEJÁRÁS A HASZNÁLHATÓSÁGOT MÉRI, NEM A BUBORÉKOT (R186 §1)
+
+Az R186 §1 két dolgot kért: hogy a teljes bejárásként számolt történetnél a VALÓDI művelet után
+minden későbbi lépést is mérjünk, és hogy CÉLZOTT ELLENPRÓBA bizonyítsa: az első feladat UTÁNI
+hibát a mérés észleli. A bejáró ezért megkapta a valódi művelet elvégzésének útját (`perform`) — a
+továbblépés FELTÉTELE a lap saját igazolása (`data-state="done"`, amit kizárólag a szerver által
+nyugtázott `taskDone` ad meg), tehát egy lefutott, de nem teljesült művelet NEVEZETT bukás, nem
+csendes továbblépés.
+
+**ÉS AZ ELLENPRÓBA MEGÍRÁSA HÁROM VALÓDI MÉRÉSI HIBÁT BUKTATOTT KI** — ez a döntés lényege, nem a
+képesség. (1) A bejáró egy lépést KÉT jelből ítélt meg (lépés-cím · nevezett megszakítás), a lépés
+CÉLJÁT soha nem kérdezte meg; a `targetPending` állapotú lépés ezért teljesítésnek olvasódott, és az
+UTOLSÓ lépésnél nincs „Tovább”, ami a várakozást felfedte volna. MÉRVE: a feladat utáni, vezérelten
+láthatatlan cél mellett a mérés `6/6 OK`-ot adott, a `tour.logout` utolsó lépése pedig `2/2 OK`-ot
+kapott a KÖTELEZŐ kapuban, miközben a `logout` a csukott profil-lenyílóban állt (`KUKA-444`).
+(2) A feltáró vezérlőt a LÉTEZÉSHEZ kötöttem, nem a láthatósághoz — ugyanaz a lecke, amit a modul
+feje a kattintó ágon már kivezetett (`KUKA-237`), egy sorral arrébb változatlanul (`KUKA-445`).
+(3) A megszakadt bejárás is a regiszter teljes lépésszámát adta vissza elértként (`KUKA-446`).
+
+**A JAVÍTÁS IRÁNYA NEM AZ ŐR LAZÍTÁSA** (`KUKA-091`): a lépés akkor teljes, ha a CÉLJA LÁTHATÓ, és a
+kérdést ugyanúgy tesszük fel, ahogy a motor (`targetOf` → `isShown`). A kimondott kivétel az
+igazoltan elvégzett lépés. Ahol a feltárást a regiszter SZÁNDÉKOSAN nem tudja megnevezni
+(`member-open-<alany>` — minden fióknál más, `KUKA-225`), ott a HÍVÓ adja oda (`reveal`), nem az
+általános járó találja ki (`KUKA-003`). MÉRVE egy egytagú vállalkozásban: a tagok lapja a SAJÁT sort
+is kirajzolja, és a sor megnyitása után a cél látható — tehát a `tour.grant` és a
+`tour.scopeLifecycle` FELKÍNÁLÁSA helyes volt, csak a bejáróm nem jutott el odáig; a régi, lazább
+mérés ezt `TASK-IG`-nek könyvelte, amit a minta-kapu őre tolerál, vagyis a hiány ELFEDVE állt.
+
+**Amit ez NEM állít:** a korábban jelentett kapu-zöldek nem mind voltak túlállítva — a `tour.logout`
+hamis zöldje MÉRT eset, a többi útmutatóé nem változott. És ez a döntés a MÉRŐT javítja, nem a
+terméket: a `tour.logout` felülete, a felkínálás és a jogosultsági döntések érintetlenek.
+
+Gépi jel: `verify:browser-gate` (`R166-U6` a pozitív pár: a bejárás elvégzi a feladatot és a feladat
+UTÁNI lépést is méri, `6/6` · `R166-U7` az ELLENPRÓBA: a feladat utáni, vezérelten láthatatlan cél
+PIROSAT ad · `R166-U2` a `tour.logout` valódi végigjárása) · `verify:app-findings-r154` (as38).
+
+---
+
 ## D-VS-3237 — A BEJÁRÁS VERDIKTJE EGY OTTHONBÓL JÖN, ÉS A MÉRT SZÁMOT ÍRJA KI (R176, külső P2)
 
 A közös útmutató-bejáró a felhasználó műveletére váró lépésen szándékosan megáll, és a megállást
