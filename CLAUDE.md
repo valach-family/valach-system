@@ -117,6 +117,13 @@ ma a gépi jelük) → **`npm run verify:kuka`** (a söprés része; visszacsús
   (mérve, R158: 422 „17 agent check still pending"), ezért a kör-üzenet `--type NOTE`. Egy körhöz EGY
   üzenet és EGY lap fér (a board 409/400-cal utasítja el a másodikat), **tehát a PARANCS-körhöz a
   válasz-lap nem tölthető fel: a REPORT ÚJ kört kap** (mérve, R158 → R159) — teszt-kört nem gyártunk.
+- **A CHATGPT-NEK SZÓLÓ ÜZENET A VÁLASZ VÉGÉN IS OTT VAN — MINDIG** (operátori kérés 2026-10-09). A
+  boardra feltett kör-üzenet (`vs_board_round.mjs reply`) nem elég: az operátor a CHATBEN is látni
+  akarja, **a kör végén, önálló szakaszban** (`ÜZENET A CHATGPT-V3-NAK`). Ami benne van: a mért
+  állapot egy sorban · ami DÖNTÉST kér tőle vagy az operátortól · ami a következő körre átadva.
+  Ugyanaz a szerződés, mint a boardon: **ÖNMAGÁBAN ÉRTHETŐ** (a chatgpt-v3 nem látja ezt a chatet),
+  és a board-kör száma meg van nevezve, hogy a kettő összeköthető legyen. Gépi jel: nincs
+  (szervezési szabály) — a hiánya az operátornak látszik, ezért itt áll, nem egy külön lapon.
 - **A KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3) — a tényleges felhatalmazás szerint (R67 F67-04):** az
   MCP-hídon olvassa a boardot, lapot tölt fel, és **az OPERÁTOR felhatalmazásával PARANCS-KÖRT ír**
   (SPEC/ANALYSIS; mérve: az R65 és az R67 `COMMAND` kör, `chatgpt-v3` forrással). A felhatalmazás az
