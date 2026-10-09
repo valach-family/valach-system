@@ -16,6 +16,29 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3256 — A NYILVÁNOSSÁGBA MENŐ TISZTÍTÓT A BEMENET MINDEN ALAKJÁRA MEGMÉRJÜK (R186 §5)
+
+A fogyasztás-export út-tisztítója a **relatív** utat normalizálta (a `join` ezt magától megteszi), az
+**abszolút** utat viszont szó szerint adta a határ-ellenőrzésnek. Egy `<repó>/../customer/…` alak így
+**átment** a repó-határ kapuján, és a kiírt út a rejtett tartalék helyett egy repón **kívüli**,
+telepítési vagy **ügyfél**-könyvtár nevét vitte — abba a leltárba, ami a **repóba** kerül.
+
+**A DÖNTÉS:** a könyvtár-határ **kanonizált** úton dől el (`resolve` a tartalmazás-ellenőrzés
+**előtt**), **mindkét** bemeneti ágon. Egy tisztító, ami csak az egyik bemenetre igaz, **nem tisztító**
+(`KUKA-003` · `KUKA-039`).
+
+**ÉS A MÉRÉS A BEMENET FAJTÁIT KÉRDEZI, nem a kimenet alakját:** a `q9` sor egy repó- **és**
+HOME-határon kívülre mutató, **nem kanonikus** abszolút úttal futtatja a szerszámot, és azt méri, hogy
+a **könyvtárnév nem szivárog ki**; a `q10` ellenpár a forrásban rögzíti a sorrendet.
+
+**A KORLÁT KIMONDVA** (`KUKA-216`): ez **lexikális** kanonizálás, nem symlink-feloldás. Egy repón
+**belüli**, kifelé mutató jelképes lánc ezzel **nem** derül ki — a `realpath` fájlrendszer-hozzáférést
+és nem létező útra kivétel-kezelést kíván, ezért **nevezett, külön tétel**.
+
+Gépi jel: `npm run verify:app-findings-r154` (`q9` · `q10`) · `npm run verify:kuka`.
+
+---
+
 ## D-VS-3255 — A HATÁSKÖR EGY NEVEZETT VERDIKT, ÉS MINDEN VEZÉRLŐ EBBŐL DÖNT (R186 §5)
 
 A `KUKA-469` a **bemutató** felkínálását kötötte a végrehajtható hatásköréhez. A **közönséges**

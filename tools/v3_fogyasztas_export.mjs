@@ -47,7 +47,26 @@ const bytes = (s) => Buffer.byteLength(typeof s === 'string' ? s : JSON.stringif
 const belul = (abs, dir) => abs === dir || abs.startsWith(dir.endsWith('/') ? dir : `${dir}/`);
 const safePath = (p, kivul = '(repón kívüli út — nem exportált)') => {
   if (typeof p !== 'string') return null;
-  const abs = p.startsWith('/') ? p : join(ROOT, p);
+  /**
+   * AZ ABSZOLÚT UTAT IS KANONIZÁLNI KELL A HATÁR-ELLENŐRZÉS ELŐTT (`KUKA-474` · külső review, P2).
+   *
+   * A LELET: a RELATÍV út a `join(ROOT, p)`-ben normálizálódott (a `..` szakaszok eltűntek), az
+   * ABSZOLÚT út viszont SZÓ SZERINT ment tovább. Egy `/<repó>/../customer/private.txt` alak tehát
+   * átment a `belul(abs, ROOT)` kapun — a szöveges előtag stimmelt —, és az export a REJTETT
+   * tartalék helyett a `../customer/private.txt` utat írta ki: vagyis egy repÓN KÍVÜLI,
+   * telepítési vagy ÜGYFÉL-könyvtár neve került a „tartalom nélküli" leltárba és a
+   * diagnosztikába. Ugyanaz az osztály, mint a `belul` saját javításánál (`KUKA-239`): a
+   * szöveg-előtag nem könyvtár-tartalmazás.
+   *
+   * A VÁLASZ: a határ-ellenőrzés KANONIZÁLT úton dönt (`resolve`), tehát a `..` és `.`
+   * szakaszok ELŐBB eltűnnek — mindkét ágon, mert egy tisztító, ami csak az egyik bemenetre igaz,
+   * nem tisztító (`KUKA-003` · `KUKA-039`).
+   *
+   * AMIT EZ NEM ÁLLÍT (`KUKA-216`): ez LEXIKÁLIS kanonizálás, nem symlink-feloldás. Egy repón
+   * BELÜLI jelképes lánc, ami kifelé mutat, ezzel NEM derül ki — a valós út feloldása (`realpath`)
+   * fájlrendszer-hozzáférést és nem létező útra kivétel-kezelést kíván: NEVEZETT, külön tétel.
+   */
+  const abs = resolve(p.startsWith('/') ? p : join(ROOT, p));
   if (belul(abs, ROOT) && abs !== ROOT) return abs.slice(ROOT.length + 1);
   if (belul(abs, homedir())) return `~${abs.slice(homedir().length)}`;
   return kivul;

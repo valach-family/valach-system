@@ -17541,6 +17541,34 @@ Object.freeze({
     ]),
   }),
 
+  Object.freeze({
+    id: 'KUKA-474',
+    date: '2026-10-09',
+    title: 'A KÖNYVTÁR-HATÁRT NEM KANONIZÁLT ÚTON ELLENŐRIZTÜK',
+    what: 'A fogyasztás-export út-tisztítója (`safePath`) a RELATÍV utat a `join(ROOT, p)`-vel normalizálta (a `..` szakaszok eltűntek), az ABSZOLÚT utat viszont SZÓ SZERINT adta tovább a határ-ellenőrzésnek: `const abs = p.startsWith(\'/\') ? p : join(ROOT, p);`.',
+    why_wrong: 'Egy `<repó>/../customer/private.txt` alak így ÁTMENT a `belul(abs, ROOT)` kapun — a szöveges előtag stimmelt —, és az export a REJTETT tartalék helyett a `../customer/private.txt` utat írta ki. A „tartalom nélküli" fogyasztás-leltárba és a hiba-ágak diagnosztikájába tehát bekerülhetett egy repón KÍVÜLI, telepítési vagy ÜGYFÉL-könyvtár NEVE — és ez a leltár a REPÓBA kerül, vagyis a nyilvánosságba. Ugyanaz az osztály, mint a `belul` saját javításánál (`KUKA-239`): a szöveg-előtag nem könyvtár-tartalmazás — csak most a bemeneti oldalon.',
+    replaced_by: 'A határ-ellenőrzés KANONIZÁLT úton dönt: `const abs = resolve(p.startsWith(\'/\') ? p : join(ROOT, p));` — a `..` és `.` szakaszok ELŐBB eltűnnek, MINDKÉT bemeneti ágon.',
+    replacement: 'EGY TISZTÍTÓ, AMI CSAK AZ EGYIK BEMENETRE IGAZ, NEM TISZTÍTÓ (`KUKA-003` · `KUKA-039`). A normalizálás a határ-ellenőrzés ELŐFELTÉTELE, nem a hívó dolga.',
+    decision: 'D-VS-3256',
+    found_by: 'KÜLSŐ REVIEW (Codex, P2 — `tools/v3_fogyasztas_export.mjs#L50`, a `d42ee64` fejen): „Normalize absolute paths before checking export boundaries".',
+    lesson: 'AMI A NYILVÁNOSSÁGBA MEGY, ANNAK A TISZTÍTÓJÁT A BEMENET MINDEN ALAKJÁRA MEG KELL MÉRNI. A relatív ág normalizálása „véletlenül" helyes volt (a `join` normalizál), ezért a hiba csak az abszolút ágon látszott. ÉS UGYANEZ IGAZ A MÉRÉSRE: az első alakom azt a bemenetet vizsgálta, amit a szerszám már kanonizált — egy mérő is lehet fél őr, és akkor a zöldje semmit nem állít.',
+    guard_note: 'gépi jel: `npm run verify:app-findings-r154` — `q9`: az ÁTIRAT TARTALMÁBÓL jövő, nem kanonikus abszolút út könyvtárneve NEM kerül be az exportba (MÉRVE: a kivezetett alakon 1 találat a kimeneti JSON-ban, a maival 0) · `q10` ELLENPÁR: a kanonizálás a forrásban a határ-ellenőrzés ELŐTT áll, és a kivezetett alak nincs meg. ÉS A MÉRÉS ELSŐ ALAKJA HAMIS ZŐLD VOLT (SAJÁT LELET, kimondva): a `--transcript` paraméterrel próbálkozott, azt viszont a szerszám MÁR kanonizálja (`resolve(explicitFile)`) — a sor ezért a KIVEZETETT alakon is zöld maradt (`KUKA-215` · `KUKA-239`). A sérülő bemenet az átirat TARTALMA. KIMONDOTT KORLÁT (`KUKA-216`): ez LEXIKÁLIS kanonizálás, nem symlink-feloldás — egy repón BELÜLI, kifelé mutató jelképes lánc ezzel NEM derül ki; a `realpath` fájlrendszer-hozzáférést és nem létező útra kivétel-kezelést kíván, ezért NEVEZETT, külön tétel.',
+    home: 'v3',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_fogyasztas_export.mjs']),
+        pattern: "const abs = resolve\\(p\\.startsWith\\('/'\\) \\? p : join\\(ROOT, p\\)\\);",
+        why: 'a határ-ellenőrzés KANONIZÁLT úton dönt, mindkét bemeneti ágon' }),
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r154.mjs']),
+        pattern: 'ugyfel-titok-proba',
+        why: 'és a mérés a KIMENETET kérdezi: kiszivárog-e a könyvtárnév' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_fogyasztas_export.mjs']),
+        pattern: "const abs = p\\.startsWith\\('/'\\) \\? p : join\\(ROOT, p\\);",
+        why: 'a KIVEZETETT alak: az abszolút út kanonizálás NÉLKÜL ment a határ-ellenőrzésbe' }),
+    ]),
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

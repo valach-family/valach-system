@@ -1217,6 +1217,54 @@ try {
       const kivalasztottDir = futtat(['--projects', utak[1].dir]);
       step('(q8) a KIVÁLASZTOTT projekt-könyvtár is kiút (RÉGEN: `NINCS ÁTIRAT` — a tanács nem működött)',
         kivalasztottDir.kod === 0, { kilepes: kivalasztottDir.kod, hiba: kivalasztottDir.hiba.slice(0, 80) });
+      /**
+       * (q9–q10) A HATÁR-ELLENŐRZÉS KANONIZÁLT ÚTON DÖNT (`KUKA-474` · külső review, Codex, P2).
+       *
+       * A LELET: a RELATÍV út a `join(ROOT, p)`-ben normalizálódott, az ABSZOLÚT viszont szó szerint
+       * ment tovább — tehát egy `<repó>/../../ügyfél/x.txt` alak ÁTMENT a repó-határ kapuján (a
+       * szöveges előtag stimmelt), és a könyvtárnév BEKERÜLT az exportba — abba a leltárba, ami a
+       * REPÓBA megy.
+       *
+       * ÉS A MÉRÉS A VALÓDI BEMENETI UTAT KÉRDEZI (SAJÁT LELET a mérésen): az ELSŐ alakom a
+       * `--transcript` paraméterrel próbálkozott, azt viszont a szerszám MÁR kanonizálja
+       * (`resolve(explicitFile)`) — a sor ezért a KIVEZETETT alakon is zöld maradt, vagyis HAMIS
+       * ZÖLD volt (`KUKA-215` · `KUKA-239`). A sérülő bemenet az ÁTIRAT TARTALMA: egy
+       * szerszám-esemény `file_path` mezője. A mérés mostantól ezt állítja elő, és a KIMENETI
+       * fájlban keresi a könyvtárnevet. MÉRVE a kivezetett alakon: 1 találat; a maival: 0.
+       */
+      const q9sess = 'ffffffff-0000-4000-8000-00000000074a';
+      const q9dir = mkdtempSync(join(tmpdir(), 'vs-kanon-'));
+      let q9talalat = null; let q9kod = null;
+      try {
+        const kulso = `${ROOT}/../../ugyfel-titok-proba/private.txt`;
+        const sorok = [
+          { type: 'assistant', timestamp: '2026-01-01T00:10:00.000Z', message: { id: 'msg_q9', model: 'claude-opus-5',
+            usage: { input_tokens: 10, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 5 },
+            content: [{ type: 'tool_use', name: 'Read', input: { file_path: kulso } }] } },
+          { type: 'assistant', timestamp: '2026-01-01T00:11:00.000Z', message: { id: 'msg_q9b', model: 'claude-opus-5',
+            usage: { input_tokens: 12, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 5 },
+            content: [{ type: 'text', text: 'ok' }] } },
+        ];
+        const atirat = join(q9dir, `${q9sess}.jsonl`);
+        writeFileSync(atirat, `${sorok.map((x) => JSON.stringify(x)).join('\n')}\n`);
+        try {
+          execFileSync(process.execPath, [join(ROOT, 'tools/v3_fogyasztas_export.mjs'),
+            '--session', q9sess, '--from', '2026-01-01T00:00:00Z', '--to', '2026-01-02T00:00:00Z',
+            '--out', join(q9dir, 'ki'), '--transcript', atirat], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+          q9kod = 0;
+        } catch (e) { q9kod = e.status ?? -1; }
+        const kimenet = existsSync(join(q9dir, 'ki.json')) ? readFileSync(join(q9dir, 'ki.json'), 'utf8') : '';
+        q9talalat = (kimenet.match(/ugyfel-titok-proba/g) || []).length;
+      } finally { rmSync(q9dir, { recursive: true, force: true }); }
+      step('(q9) `KUKA-474` ÉLŐ TANÚ: az ÁTIRAT TARTALMÁBÓL jövő, NEM KANONIKUS abszolút út (`<repó>/../../ügyfél/…`) könyvtárneve NEM kerül be az exportba — MÉRVE a kivezetett alakon: 1 találat, a maival: 0',
+        q9kod === 0 && q9talalat === 0,
+        { kilepes: q9kod, talalat_a_kimenetben: q9talalat });
+      const expSrc2 = readFileSync(join(ROOT, 'tools/v3_fogyasztas_export.mjs'), 'utf8');
+      step('(q10) `KUKA-474` ELLENPÁR: a kanonizálás a FORRÁSBAN is a határ-ellenőrzés ELŐTT áll, és a kivezetett, szó szerinti alak nincs meg — a tisztító MINDKÉT bemeneti ágra érvényes',
+        /const abs = resolve\(p\.startsWith\('\/'\) \? p : join\(ROOT, p\)\);/.test(expSrc2)
+          && !/const abs = p\.startsWith\('\/'\) \? p : join\(ROOT, p\);/.test(expSrc2),
+        { kanonizal: /const abs = resolve\(/.test(expSrc2),
+          kivezetett_alak: /const abs = p\.startsWith\('\/'\) \? p : join\(ROOT, p\);/.test(expSrc2) });
     } finally { rmSync(tmp3, { recursive: true, force: true }); }
   }
 
