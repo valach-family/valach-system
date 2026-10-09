@@ -442,6 +442,33 @@ javítva volt, **tizenkettő** ebben a körben épült meg. Ehhez jön **négy s
 megméréséből (`KUKA-465` · `466` és a `467`/`468` mérésekor a csonk-sorrend). **A lelet-szám
 csökkenése nem bizonyítja a hibák hiányát** — a `2d1b445` után a `05f90bd`-re is kértem review-t.
 
+### ÉS A ZÁRÓ FEJEKRE MÉG NÉGY P2 JÖTT — A FELKÍNÁLÁS UGYANAZON LECKÉJE, NÉGY HELYEN
+
+A Codex a **hatodik** és **hetedik** fejen is mért (`5ada0fd` → `0cdd0f2`), és **négy** további P2-t
+adott. Mind a négy **valódi**, mind a négy **az én kódom** ebből a körből, és három közülük
+**ugyanazt** a leckét mondja: *a felkínálás a VÉGIGVIHETŐSÉG állítása, tehát a feltétele a
+LEGSZŰKEBB későbbi kapu — nem a legközelebbi réteg.*
+
+| | a lelet | mi tört volna el | mi váltja |
+|---|---|---|---|
+| **`KUKA-469`** (`D-VS-3251`) | a romboló történetek előfeltétele a **delegálási plafont** kérdezte | a plafon azt méri, mit adhat **tovább** a kezelő; a történetek **első** feladat-lépése viszont **megvonás**, és ahhoz `alter_right` hatáskör kell, amit a tagság **nem** ad. **MÉRVE:** a delegált `admin` plafonja érvényes (`admin`+`user`, `keszlet`), a hatásköre nincs, és a megvonása **403 `authority_not_established`** — a mag saját üzenete szerint *„a tagság — akár admin — ehhez nem elég: a hatáskör MŰVELETENKÉNT adott"* | a felkínálás **ugyanazt** a feloldót kérdezi, amit az írás-út (`executableRightAt`, `operation: 'alter_right'`), **egyszer** (`KUKA-436`) — és hatáskör nélkül **nincs cél**: egy kapu, négy mezőre |
+| **`KUKA-470`** (`D-VS-3252`) | a **meghiúsult** kilépés „saját kezdeményezés" jelet hagyott maga után | ha közben egy **másik fül** kicseréli a kiszolgált személyt, a következő frissítés a változást **sajátnak** látja, és a lap **némán** átveszi az új nézetet — a „más ember lépett be" figyelmeztetés nem jelenik meg. Egy **múló hálózati hiba** után tehát más ember adata látszana a saját műveletem folytatásaként | a hiba-ág a jelölőt **visszaveszi** (ami nem történt meg, azt nem kezdeményeztük); a nemzedék-szám emelése marad (`KUKA-230`). **ÉLŐ böngésző-tanú:** `R186-T4` |
+| **`KUKA-471`** (`D-VS-3253`) | az **újbóli meghívás** felkínálása a cím **létét** kérdezte | a **beváltás** bizonyított csatornát kíván. Importált vagy cserélt címnél a sor műveletét **engedve** rajzoltuk, az írás-út **ki is állította** a meghívót — a címzett **soha nem tudta beváltani**, a kezelő pedig azt látta, hogy elküldte. Ez a `KUKA-454`/`455` **harmadik** előfordulása, a **közönséges** úton: klasszikus **fél őr** (`KUKA-039`) | a feloldó a beváltás **saját** feltételét kérdezi, és a nemleges válasz **nevezett**, mindhárom nyelven a **teendővel** (`KUKA-201` · `KUKA-465`) |
+| **`KUKA-472`** (`D-VS-3254`) | a sor a tag **mai** szerepét mérte, a megmért szerep-**készletet** eldobtuk | a panel **minden** ismert szerepet felkínált: egy delegált kezelőnél a plafonon túli választás `outside_basis_roles`-szal bukik — a `tour.reentry` közben **a megvonás után**, tehát **kárt hagyva**. `KUKA-041`: a hamis gomb és a némán letiltott gomb ugyanaz a hiba két irányból | a sor hordozza a **megmért** készletet (`reinvite_roles`), és a panel **csak ebből** választ; készlet nélkül a tag **mai** szerepe az egyetlen választható (`KUKA-049`) |
+
+**ÉS A MEGMÉRÉS KÉT SAJÁT MÉRÉSI HIBÁT IS KIHOZOTT, KIMONDVA:** (1) az első fixtúrám a
+**regisztrációs** levelet váltotta be a meghívó helyett — a fejlesztői levél-fogadó a **legfrissebbet
+adja előre**, tehát a „vedd az utolsót" alak a **legrégebbit** vette; a meghívót mostantól a
+**hivatkozása** azonosítja, nem a sorrend. (2) Az első alakom a `story_data` **belső** tényét kérdezte
+a válaszból, ami ott **nincs** — a mérés ezért a **HATÁRON** áll: a **felkínált listát** és az írás-út
+válaszát méri, vagyis azt, amit a felhasználó lát (`KUKA-215` · `KUKA-239`).
+
+**ÉS AMIT A `KUKA-471` JAVÍTÁSA KÖLTÖTT, AZ IS MÉRÉS.** A javítás a **magot** érintette
+(`v3ref/delegation.mjs`), ezért a korábbi fejen (`05f90bd`) futó **külső lánc** bizonyítéka a mai
+magra **nem érvényes**. Azt a futást **leállítottam** — nem hagytam zöldnek látszani —, és a lánc a
+**záró fejen** indult újra, utána a mag-battéria. Ez a `KUKA-200`/`KUKA-206` szabálya a saját
+munkámon: *ami nem a mai forráson futott, az nem a mai forrás bizonyítéka.*
+
 ---
 
 ## 7. NYITOTT LELETEK ÉS MÉRÉSI HIÁNYOK — nevezetten
@@ -453,7 +480,7 @@ csökkenése nem bizonyítja a hibák hiányát** — a `2d1b445` után a `05f90
 | **`personal.ownMatters`** lefedési rés | **NYITOTT, nevesített fejlesztési rés** — a `verify:lefedes` `LT` sora szándékosan piros; pótolható **0**, osztályozatlan **0** |
 | **a `tour.grant`/`tour.scopeLifecycle` buborék-mondata** | **MÉRT MEGFIGYELÉS, nem javítva.** A lépés deklarált feltárója a tag-TÁBLA, a célt viszont a SOR hozzáférés-gombja tárja fel; a bemutató „nyisd meg a kiemelt gombbal" mondata emiatt pontatlan. A történet **végigvihető** (mérve), a regiszter pedig szándékosan nem nevez per-fiók azonosítót (`KUKA-225`). Más terület: **külön backlog** (R186 §5) |
 | **élő AI · PG18 · felhős mentés** | **KÜLÖN NYITOTT TÉTELEK** — ez a csomag nem állít róluk semmit |
-| **a külső review TIZENNÉGY P2-je** (NÉGY fejen) | **MIND KEZELVE** — kettő már a felmerülés előtt javítva volt (`KUKA-453` · `e614a39`), **tizenkettő ebben a körben épült meg** (`KUKA-454`…`456` · `458`…`464` · `467` · `468`), mindegyikhez ÉLŐ mérés és ELLENPÁR. **A szálak github-oldali lezárását nem végeztem el**, és a válaszolt szál nem elfogadás. **A lelet-szám csökkenése nem bizonyítja a hibák hiányát** |
+| **a külső review TIZENNYOLC P2-je** (HAT fejen) | **MIND KEZELVE** — kettő már a felmerülés előtt javítva volt (`KUKA-453` · `e614a39`), **tizenhat ebben a körben épült meg** (`KUKA-454`…`456` · `458`…`464` · `467`…`472`), mindegyikhez ÉLŐ mérés és ELLENPÁR. **A szálak github-oldali lezárását nem végeztem el**, és a válaszolt szál nem elfogadás. **A lelet-szám csökkenése nem bizonyítja a hibák hiányát** |
 | **a saját méréseimből jött leletek** (`KUKA-465` · `KUKA-466` · a csonk-sorrend a `468` mérésekor) | **MIND JAVÍTVA ÉS MÉRVE** (`D-VS-3247` · `D-VS-3248` · `D-VS-3250`). A `KUKA-466` a `verify:app-findings-r154` **ingadozásából** jött (hatból egy bukás): hamis „megtelt" 503 egy ÜRES táron, MÉRVE 40-ből 3; javítás után 80-ból 0. **A jele determinisztikus**, mert a két első alakja hamis zöld lett volna (6. szakasz) |
 | **a mai fej független elfogadása** | `REVIEW_ALLAPOT` |
 
