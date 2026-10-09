@@ -381,6 +381,34 @@ bizonyítottan tüzel**: a kivezetett alakokkal a `verify:kuka` **10 FAIL**-t ad
 hibák hiányát** (R186 §5). Öt P2 jött a `8fc1f40`-re, és a mai fej **nem fedett** — a review-t a
 záró fejre külön kértem.
 
+### ÉS A JAVÍTÁSOK MEGMÉRÉSE KÉT TOVÁBBI SAJÁT LELETET ADOTT (`KUKA-465` · `KUKA-466`)
+
+A tizenkét P2 javítása után a kötelező kapu **PIROS** lett (`FAIL — 3 mért hiba`), és az ok megint
+nem a termék volt, hanem **a saját javításom fél-kész állapota**. A nyomon haladva két lelet jött ki
+— mindkettő olyan, amit külső fél nem jelzett.
+
+| | mi volt | mért következmény | mi váltja |
+|---|---|---|---|
+| **`KUKA-465`** (`D-VS-3247`) | a `KUKA-458` javítása a munkatárs-lista nemleges válaszának NEVÉT az **írás-út** saját feloldójáról kezdte venni (helyesen) — a mag **belső** ok-kódjai így egy **felhasználói** szöveg-rekeszbe kerültek | a `reasonText` a nem ismert kulcsot **NÉMÁN** az általános mondatra ejti: **öt** ok (`reentry_undecidable_clock` · `reentry_time_undecidable` · `delegation_ceiling_empty` · `parent_limit_undecidable` · `role_not_recognised`) „valami nem sikerült"-et adott volna az indok ÉS a teendő helyett. Ez a `KUKA-238` alakja az ÚJ rekeszen, és a `KUKA-201` elvesztése | mind az öt — és a túl rövid `role_not_delegable` — **valódi mondatot** kapott **mindhárom** bekapcsolt nyelven, a **teendővel** együtt. A jel **KÉT IRÁNYÚ**: `as64` minden deklarált okra megkívánja a valódi mondatot minden nyelven, `as65` a mag **három feloldójának FORRÁSÁBÓL** szedi az okokat, és pirosra vált, ha olyan jön, ami a lefordított listán kívül van — egy JÖVŐBELI új ok tehát **nevezetten** bukik |
+| **`KUKA-466`** (`D-VS-3248`) | a süti NÉLKÜLI, állapotot KÉRŐ kérés útján a munkamenet-sor a tár **saját** `Date.now()`-jával született, a felvétel **tényét** viszont a hívó egy **korábban** leolvasott pillanatra kérdezte meg | átforduló millisekundumnál a kor **negatív** lett, és az ugyanebben a csomagban hozott — helyes — `KUKA-464` óra-védelme **a frissen született sorra** tüzelt: a tár eldobta (`evicted_idle`), a hívó pedig **„a munkamenet-tár megtelt" 503**-at adott egy **ÜRES** táron. A felhasználó teendője ebből hamis lett, és a meghívó-folytatás elveszett. **MÉRVE: 40 független próbából 3 (7,5%)** | a felvétel és az ellenőrzése **EGY időt kap** (`KUKA-314`: EGY DÖNTÉS — EGY IDŐ): a `newSession` harmadik paramétere a hívó pillanata, és azt adja tovább a tárnak. A javítás után **80 körből 0**. A `KUKA-464` védelme **változatlanul szigorú** — ellenpróbával: a JÖVŐBELI bélyegű sor továbbra is lejárt (`as67`) |
+
+**AHOGY A `KUKA-466` ELŐKERÜLT, AZ A LÉNYEG:** a `verify:app-findings-r154` **ingadozott** — a `(t3)`
+sor **hatból egyszer** bukott. Ha ezt „flake"-ként zárom le, egy éles, felhasználót érintő hiba marad
+a kódban. **Az ingadozó próba egy MÉRÉS, nem zaj** (a `KUKA-414` rokona). A gyökér-okot a
+kiszolgálót **újraindító**, 40 körös ellenpróba adta meg, és a javítást 80 kör igazolta.
+
+**ÉS KIMONDOM, HOGY A JEL KÉT ELSŐ ALAKJA HAMIS ZÖLD LETT VOLNA** (`KUKA-215` · `KUKA-239` · R186 §1):
+· 200 kérés a battéria **közös** kiszolgálóján 183 darab 503-at mért — de azok **valódiak** voltak (a
+közös plafon 40 munkamenet), vagyis a mérés a **plafont** igazolta volna; · 200, majd **5000** kérés
+saját, nagy plafonú kiszolgálón a **hibás** alakon is zöld maradt: a hamis 503 esélye meleg kódúton
+**MÉRVE 0,02%** kérésenként, tehát 200 ismétlés felderítő ereje ~4%. Egy ilyen sor **nem tanú.** A
+mai jel ezért **determinisztikus**: a kiszolgáló ebben a folyamatban fut, tehát a fali óra leolvasása
+mérhetővé tehető — **léptetett** órával (minden leolvasás +5 ms) a döntés biztosan két pillanatra
+esne. A kivezetett alakon ez a sor **503**-at mér, a mai alakon **200**-at (`as68`/`as69`).
+
+**A KÉT TILTÓ-MINTA TÜZEL:** a kivezetett alakkal a `verify:kuka` **5 FAIL**-t ad (a `KUKA-466` két
+tiltója, két pozitívja és a `KUKA-316` sorrend-pinje), visszaállítás után **1123/1123**.
+
 ---
 
 ## 7. NYITOTT LELETEK ÉS MÉRÉSI HIÁNYOK — nevezetten
@@ -393,6 +421,7 @@ záró fejre külön kértem.
 | **a `tour.grant`/`tour.scopeLifecycle` buborék-mondata** | **MÉRT MEGFIGYELÉS, nem javítva.** A lépés deklarált feltárója a tag-TÁBLA, a célt viszont a SOR hozzáférés-gombja tárja fel; a bemutató „nyisd meg a kiemelt gombbal" mondata emiatt pontatlan. A történet **végigvihető** (mérve), a regiszter pedig szándékosan nem nevez per-fiók azonosítót (`KUKA-225`). Más terület: **külön backlog** (R186 §5) |
 | **élő AI · PG18 · felhős mentés** | **KÜLÖN NYITOTT TÉTELEK** — ez a csomag nem állít róluk semmit |
 | **a külső review TIZENKÉT P2-je** (három fejen) | **MIND KEZELVE** — kettő már a felmerülés előtt javítva volt (`KUKA-453` · `e614a39`), **tíz ebben a körben épült meg** (`KUKA-454`…`456` · `458`…`464` · `D-VS-3243` · `3245` · `3246`), mindegyikhez ÉLŐ mérés és ELLENPÁR. **A szálak github-oldali lezárását nem végeztem el**, és a válaszolt szál nem elfogadás. **A lelet-szám csökkenése nem bizonyítja a hibák hiányát** |
+| **a saját méréseimből jött KÉT új lelet** (`KUKA-465` · `KUKA-466`) | **MIND A KETTŐ JAVÍTVA ÉS MÉRVE** (`D-VS-3247` · `D-VS-3248`). A `KUKA-466` a `verify:app-findings-r154` **ingadozásából** jött (hatból egy bukás): a hamis „megtelt" 503 üres táron, MÉRVE 40-ből 3; javítás után 80-ból 0. **A jel determinisztikus**, mert a két első alakja hamis zöld lett volna (6. szakasz) |
 | **a mai fej független elfogadása** | `REVIEW_ALLAPOT` |
 
 **A nyitott review-szálakat nem zártam le**, és nem is zárom: az R186 §5 kimondja, hogy a nyitott
