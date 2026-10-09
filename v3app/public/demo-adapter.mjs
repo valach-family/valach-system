@@ -221,18 +221,32 @@ function install() {
    * a TELJES tokenhez kötött, és a bemutató állapota nem jogosultság (KUKA-227) — ez szintetikus
    * próbavilág, se HTTP-, se tároló-bizonyíték.
    */
-  const valasztottMeghivo = () => S.invites
+  /**
+   * ÉS A VÁLASZTÁS SZABÁLYA UGYANAZ, MINT A KISZOLGÁLÓÉ (`KUKA-468` — SAJÁT LELET).
+   *
+   * A csonk eddig a LEGKORÁBBAN lejárót választotta, a kiszolgáló viszont a `KUKA-461` óta a
+   * LEGFRISSEBBEN kiadottat (`expires_at DESC, token`). A bemutató-világban MINDEN meghívónak
+   * UGYANAZ a fix lejárata, tehát a holtversenyt a token dönti el — és a 13. lépésen kiadott
+   * ÚJ meghívó tokenje tetszőleges helyre kerülhet. Ezért a csonk (1) a KÉRT célt részesíti
+   * előnyben, ha az alkalmas, és (2) egyébként a kiszolgáló SORRENDJÉT futtatja — a lap és a
+   * próba UGYANAZT a szabályt méri (`KUKA-227` · `KUKA-207`).
+   */
+  const alkalmasMeghivok = () => S.invites
     .filter((i) => i.state === 'pending' && Date.parse(i.expires_at) > S.now && Boolean(S.subjects[i.who]))
-    .sort((a, b) => (Date.parse(a.expires_at) - Date.parse(b.expires_at)) || a.token.localeCompare(b.token))[0] || null;
+    .sort((a, b) => (Date.parse(b.expires_at) - Date.parse(a.expires_at)) || a.token.localeCompare(b.token));
+  const valasztottMeghivo = (kertRef = null) => {
+    const lista = alkalmasMeghivok();
+    return (kertRef ? lista.find((i) => i.ref === kertRef) : null) || lista[0] || null;
+  };
 
   const valasztottTag = () => Object.keys(S.memberships)
     .filter((k) => k !== S.actor && (S.memberships[k] || {}).effective === true && S.subjects[k])
     .map((k) => S.subjects[k].id)
     .sort((a, b) => a.localeCompare(b))[0] || null;
 
-  const storyKotes = (kell) => {
+  const storyKotes = (kell, kertRef = null) => {
     if (kell === 'pending_invite') {
-      const m = valasztottMeghivo();
+      const m = valasztottMeghivo(kertRef);
       return m ? { kind: 'invite', ref: m.ref, actor: S.subjects[m.who].id } : null;
     }
     if (kell === 'other_member') {
@@ -242,8 +256,8 @@ function install() {
     return null;
   };
 
-  const kotottBemutatok = (tours) => (Array.isArray(tours) ? tours : []).map((t) => (
-    t && t.requires_story_data ? { ...t, story: storyKotes(t.requires_story_data) } : t
+  const kotottBemutatok = (tours, kertRef = null) => (Array.isArray(tours) ? tours : []).map((t) => (
+    t && t.requires_story_data ? { ...t, story: storyKotes(t.requires_story_data, kertRef) } : t
   ));
 
   /** A NÉZET MEGERŐSÍTÉSE — ugyanaz a kötés, amit az `app.js` küld (KTX-03). A mező csak SZŰKÍT. */
@@ -608,9 +622,10 @@ function install() {
     // bemutató-csomag ezért a VALÓDI szerver válaszát viszi, a két történetre szűkítve — a lépések,
     // a célelemek (`target`) és a szövegek bájtra a termék saját adatai (KUKA-016: az alakot a
     // fogyasztótól vesszük, nem emlékezetből).
-    'GET /api/assistant/status': () => J(200, { ...ASSISTANT.status,
-      tours: kotottBemutatok(ASSISTANT.status && ASSISTANT.status.tours),
-      resumable_tours: kotottBemutatok(ASSISTANT.status && ASSISTANT.status.resumable_tours),
+    // A KÉRT CÉL A CSONKON IS ÁTMEGY (`KUKA-468`): a lap ugyanazt a paramétert küldi, mint élesben.
+    'GET /api/assistant/status': (_b, q) => J(200, { ...ASSISTANT.status,
+      tours: kotottBemutatok(ASSISTANT.status && ASSISTANT.status.tours, q && q.get('story_ref')),
+      resumable_tours: kotottBemutatok(ASSISTANT.status && ASSISTANT.status.resumable_tours, q && q.get('story_ref')),
       ...served() }),
     'GET /api/assistant/knowledge': () => J(200, { ...ASSISTANT.knowledge, ...served() }),
     'POST /api/assistant/ask': () => J(503, { ok: false, reason: 'assistant_unavailable',

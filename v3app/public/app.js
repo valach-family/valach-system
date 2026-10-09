@@ -2198,8 +2198,12 @@ import { inviteNextKey } from './inviteText.mjs';
    * EGY KÉRÉS, EGY HELYEN, ÉS CSAK A SZÜKSÉGES ÚTON: a többi feladat-nyugta változatlanul egyetlen
    * hálózati kérés nélkül fut le.
    */
-  async function authoritativeStory(tourId, v) {
-    const q = readQuery({ lang: currentLang() }, v);
+  async function authoritativeStory(tourId, v, kertRef = null) {
+    // A KÉRT CÉLT MEGNEVEZZÜK (`KUKA-468`): a kötést arra a meghívóra kérjük, amit a kiszolgáló
+    // VÁLASZA éppen visszaadott — különben két egyformán lejáró meghívó mellett a globális
+    // sorrend MÁS sorra kötne, és a helyes művelet után a lépés függőben maradna. A DÖNTÉS
+    // továbbra is a kiszolgálóé: alkalmatlan vagy nem létező név mellett a mai választ adja.
+    const q = readQuery({ lang: currentLang(), ...(kertRef ? { story_ref: kertRef } : {}) }, v);
     const r = await api('GET', `/api/assistant/status${q}`);
     if (!r || r.ok !== true) return null;
     const lista = [...(r.tours || []), ...(r.resumable_tours || [])];
@@ -2210,7 +2214,9 @@ import { inviteNextKey } from './inviteText.mjs';
     const run = state.tour;
     if (!run || !Array.isArray(run.steps)) return false;
     const step = run.steps[run.at];
-    return Boolean(step && step.task === taskId && step.story_rebind === true);
+    // A REKESZ-NYILATKOZATOT A MOTOR FELOLDÓJA ÍTÉLI MEG (`KUKA-467`): a `true` és a nevezett
+    // rekesz EGYARÁNT átkötés — egy `=== true` itt a nevezett rekeszt némán kihagyta volna.
+    return Boolean(step && step.task === taskId && tourMod.storySlotOf(step.story_rebind) !== null);
   }
   function tourTaskDone(taskId, { ref = null, auth = null } = {}) {
     if (!state.tour) return;
@@ -3404,7 +3410,8 @@ import { inviteNextKey } from './inviteText.mjs';
     // jön, és innentől az a történet célja — az elfogadásnak (`s17`) ERRE kell szólnia.
     // AZ ÁTKÖTÉS A KISZOLGÁLÓ SAJÁT CÉL-KÖTÉSÉHEZ VAN KÖTVE (R186 §5): a friss kötést CSAK akkor
     // kérjük el, ha a lépés átkötést deklarál — különben egyetlen kérés sem indul.
-    const ujKotes = tourStepNeedsRebind('invite.created') ? await authoritativeStory(state.tour.id, v) : null;
+    const ujKotes = tourStepNeedsRebind('invite.created')
+      ? await authoritativeStory(state.tour.id, v, r.ref ?? null) : null;
     tourTaskDone('invite.created', { ref: r.ref ?? null, auth: ujKotes });
     show(byTest('invite-mail-row'), true);
     if (state.page === 'members' && state.membersTab === 'invites') await loadInvites();

@@ -888,7 +888,7 @@
       "switch_axis": null,
       "appears_after": "members-tab-invites",
       "switch_to": null,
-      "story_bound": true,
+      "story_bound": "ref",
       "story_ref": false,
       "story_rebind": false
      },
@@ -1020,7 +1020,7 @@
       "switch_to": null,
       "story_bound": false,
       "story_ref": false,
-      "story_rebind": true
+      "story_rebind": "ref"
      },
      {
       "id": "s14",
@@ -1070,7 +1070,7 @@
       "switch_axis": null,
       "appears_after": "mailbox",
       "switch_to": null,
-      "story_bound": true,
+      "story_bound": "ref",
       "story_ref": false,
       "story_rebind": false
      },
@@ -1224,7 +1224,7 @@
       "switch_axis": null,
       "appears_after": "members-list",
       "switch_to": null,
-      "story_bound": true,
+      "story_bound": "ref",
       "story_ref": false,
       "story_rebind": false
      },
@@ -1237,9 +1237,9 @@
       "switch_axis": null,
       "appears_after": "members-list",
       "switch_to": null,
-      "story_bound": true,
+      "story_bound": "ref",
       "story_ref": false,
-      "story_rebind": false
+      "story_rebind": "invite_ref"
      },
      {
       "id": "s5",
@@ -1289,7 +1289,7 @@
       "switch_axis": null,
       "appears_after": "mailbox",
       "switch_to": null,
-      "story_bound": false,
+      "story_bound": "invite_ref",
       "story_ref": false,
       "story_rebind": false
      },
@@ -1380,7 +1380,7 @@
       "switch_axis": null,
       "appears_after": "members-list",
       "switch_to": null,
-      "story_bound": true,
+      "story_bound": "ref",
       "story_ref": false,
       "story_rebind": false
      },
@@ -2688,7 +2688,7 @@
       "switch_axis": null,
       "appears_after": "members-tab-invites",
       "switch_to": null,
-      "story_bound": true,
+      "story_bound": "ref",
       "story_ref": false,
       "story_rebind": false
      },
@@ -2820,7 +2820,7 @@
       "switch_to": null,
       "story_bound": false,
       "story_ref": false,
-      "story_rebind": true
+      "story_rebind": "ref"
      },
      {
       "id": "s14",
@@ -2870,7 +2870,7 @@
       "switch_axis": null,
       "appears_after": "mailbox",
       "switch_to": null,
-      "story_bound": true,
+      "story_bound": "ref",
       "story_ref": false,
       "story_rebind": false
      },
@@ -3024,7 +3024,7 @@
       "switch_axis": null,
       "appears_after": "members-list",
       "switch_to": null,
-      "story_bound": true,
+      "story_bound": "ref",
       "story_ref": false,
       "story_rebind": false
      },
@@ -3037,9 +3037,9 @@
       "switch_axis": null,
       "appears_after": "members-list",
       "switch_to": null,
-      "story_bound": true,
+      "story_bound": "ref",
       "story_ref": false,
-      "story_rebind": false
+      "story_rebind": "invite_ref"
      },
      {
       "id": "s5",
@@ -3089,7 +3089,7 @@
       "switch_axis": null,
       "appears_after": "mailbox",
       "switch_to": null,
-      "story_bound": false,
+      "story_bound": "invite_ref",
       "story_ref": false,
       "story_rebind": false
      },
@@ -3180,7 +3180,7 @@
       "switch_axis": null,
       "appears_after": "members-list",
       "switch_to": null,
-      "story_bound": true,
+      "story_bound": "ref",
       "story_ref": false,
       "story_rebind": false
      },

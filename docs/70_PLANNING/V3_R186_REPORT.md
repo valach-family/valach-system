@@ -409,6 +409,39 @@ esne. A kivezetett alakon ez a sor **503**-at mér, a mai alakon **200**-at (`as
 **A KÉT TILTÓ-MINTA TÜZEL:** a kivezetett alakkal a `verify:kuka` **5 FAIL**-t ad (a `KUKA-466` két
 tiltója, két pozitívja és a `KUKA-316` sorrend-pinje), visszaállítás után **1123/1123**.
 
+### ÉS A KÜLSŐ REVIEW KÉT ÚJ P2-T ADOTT A `2d1b445` FEJRE — MIND A KETTŐ A §2 SAJÁT KÖTÉSÉRŐL
+
+A Codex a **negyedik** fejen mért, és a két lelet **ugyanazt** mondja két helyen: a **nevezett
+cél-kötés a HTTP-határon veszett el**. Mind a kettő **valódi**, mind a kettő **az én kódom** ebből a
+körből, és mind a kettő a **legitim utat** zárta el.
+
+| | mi volt | mi tört volna el | mi váltja |
+|---|---|---|---|
+| **`KUKA-467`** (`D-VS-3249`) · „Preserve named story slots in tour payloads" | a `KUKA-460` bevezette, hogy a kötés-nyilatkozat **rekeszt** nevezhet meg (`STORY_SLOTS`), a payload szerializálója viszont `=== true`-val mérte | a `'invite_ref'` **szöveg** `false`-ként érkezett a böngészőbe: a `tour.reentry` s4-e **nem** őrizte meg az általa kiállított ÚJ meghívó jelölőjét, az s8-a pedig **bármely** beváltott meghívót elfogadott — pontosan az a kereszt-meghívós teljesítés, amit a nevezett rekesz megelőzni hivatott. **MÉRT bizonyíték:** a rögzített bemutató-csomagban a javítás előtt **tíz** `story_bound: true` és **két** `story_rebind: true` állt, nevezett rekesz NÉLKÜL | a rekesz-feloldó **exportált** (`storySlotOf`), és a **motor, a lap ÉS a határ** ugyanezt futtatja; a nyilatkozat **normalizált** alakja megy ki, a nem ismert nyilatkozat `false` (`KUKA-236`) |
+| **`KUKA-468`** (`D-VS-3250`) · „Bind replacement tours by the returned invitation ref" | az átkötést a kiszolgáló saját cél-kötése hitelesíti (`KUKA-456`), a kiszolgáló viszont a könyv **globális** sorrendjéből választott (`KUKA-461`), és a lap a hitelesítőt **megnevezés nélkül** kérte el | a lejárat a **kiadás** pillanatából, fix ablakkal számol — két meghívó lejárata **egyenlő lehet** (a bemutató-világban **mindig** az), és a holtversenyt a token dönti el: a kiszolgáló a **helyes művelet után is más sorra kötött**, a `taskDone` pedig a nem egyező `auth.ref` miatt elutasította a **tényleges** lépést. Ugyanez áll, ha közben egy **harmadik** alkalmas meghívó áll ki | a kérés **megnevezheti** a célt (`story_ref`, a ZÁRT mező-listán), és a kiszolgáló **arra** köt — **de csak az alkalmasak közül**, ugyanazon a szűrőn; nem alkalmas vagy nem létező megnevezés mellett a válasz **betűre** a mai alapértelmezés, tehát nincs új megkülönböztetés (`KUKA-084`) |
+
+**ÉS A `KUKA-468` MÉRÉSE EGY SAJÁT LELETET IS ADOTT:** a bemutató **csonkja más szabályt futtatott** —
+a leg**korábban** lejárót választotta, miközben a kiszolgáló a leg**frissebbet**. A lap és a próba így
+**más rendszert** mért volna (`KUKA-227` · `KUKA-207`); a csonk ma ugyanazt a sorrendet futtatja, és a
+kért célt is előnyben részesíti.
+
+**AMIÉRT EZ A KETTŐ FÁJ A LEGJOBBAN:** a motor saját mércéi (`as54`/`as55`) **zöldek** voltak, mert a
+`taskDone`-t **közvetlenül** hívták — a lap mégis `false`-ot kapott. **A határ zöldje nem a felület
+zöldje** (`KUKA-227`), és a hatókör nélküli mérés a szomszéd sort igazolja (`KUKA-239`). Ezért az új
+jel a **HATÁRT** kérdezi: `as70` (a nevezett rekesz a válaszban), `as71` (a határ és a motor **minden
+bemutató minden lépésén** egyezik), `as72` (a **rögzített** csomag is a rekesz NEVÉT viszi, és a `true`
+alak ujjlenyomata nem állhat benne), `as73`/`as74` (a megnevezett cél előnyt kap · a nem létező
+megnevezés válasza **betűre** az alapértelmezés).
+
+**A TIZ TILTÓ-/POZITÍV IRÁNY BIZONYÍTOTTAN TÜZEL:** a kivezetett alakokkal a `verify:kuka` **10
+FAIL**-t ad (három fájlban), visszaállítás után **1136/1136**.
+
+**ÉS A SZÁMOK A MAI FEJEN:** a külső review eddig **tizennégy P2-t** adott erre a körre **négy fejen**
+(`8fc1f40` → `e95e066` → `5faeb5a`/`defddc1` → `2d1b445`), ebből **kettő** már a felmerülés előtt
+javítva volt, **tizenkettő** ebben a körben épült meg. Ehhez jön **négy saját lelet** a javítások
+megméréséből (`KUKA-465` · `466` és a `467`/`468` mérésekor a csonk-sorrend). **A lelet-szám
+csökkenése nem bizonyítja a hibák hiányát** — a `2d1b445` után a `05f90bd`-re is kértem review-t.
+
 ---
 
 ## 7. NYITOTT LELETEK ÉS MÉRÉSI HIÁNYOK — nevezetten
@@ -420,8 +453,8 @@ tiltója, két pozitívja és a `KUKA-316` sorrend-pinje), visszaállítás utá
 | **`personal.ownMatters`** lefedési rés | **NYITOTT, nevesített fejlesztési rés** — a `verify:lefedes` `LT` sora szándékosan piros; pótolható **0**, osztályozatlan **0** |
 | **a `tour.grant`/`tour.scopeLifecycle` buborék-mondata** | **MÉRT MEGFIGYELÉS, nem javítva.** A lépés deklarált feltárója a tag-TÁBLA, a célt viszont a SOR hozzáférés-gombja tárja fel; a bemutató „nyisd meg a kiemelt gombbal" mondata emiatt pontatlan. A történet **végigvihető** (mérve), a regiszter pedig szándékosan nem nevez per-fiók azonosítót (`KUKA-225`). Más terület: **külön backlog** (R186 §5) |
 | **élő AI · PG18 · felhős mentés** | **KÜLÖN NYITOTT TÉTELEK** — ez a csomag nem állít róluk semmit |
-| **a külső review TIZENKÉT P2-je** (három fejen) | **MIND KEZELVE** — kettő már a felmerülés előtt javítva volt (`KUKA-453` · `e614a39`), **tíz ebben a körben épült meg** (`KUKA-454`…`456` · `458`…`464` · `D-VS-3243` · `3245` · `3246`), mindegyikhez ÉLŐ mérés és ELLENPÁR. **A szálak github-oldali lezárását nem végeztem el**, és a válaszolt szál nem elfogadás. **A lelet-szám csökkenése nem bizonyítja a hibák hiányát** |
-| **a saját méréseimből jött KÉT új lelet** (`KUKA-465` · `KUKA-466`) | **MIND A KETTŐ JAVÍTVA ÉS MÉRVE** (`D-VS-3247` · `D-VS-3248`). A `KUKA-466` a `verify:app-findings-r154` **ingadozásából** jött (hatból egy bukás): a hamis „megtelt" 503 üres táron, MÉRVE 40-ből 3; javítás után 80-ból 0. **A jel determinisztikus**, mert a két első alakja hamis zöld lett volna (6. szakasz) |
+| **a külső review TIZENNÉGY P2-je** (NÉGY fejen) | **MIND KEZELVE** — kettő már a felmerülés előtt javítva volt (`KUKA-453` · `e614a39`), **tizenkettő ebben a körben épült meg** (`KUKA-454`…`456` · `458`…`464` · `467` · `468`), mindegyikhez ÉLŐ mérés és ELLENPÁR. **A szálak github-oldali lezárását nem végeztem el**, és a válaszolt szál nem elfogadás. **A lelet-szám csökkenése nem bizonyítja a hibák hiányát** |
+| **a saját méréseimből jött leletek** (`KUKA-465` · `KUKA-466` · a csonk-sorrend a `468` mérésekor) | **MIND JAVÍTVA ÉS MÉRVE** (`D-VS-3247` · `D-VS-3248` · `D-VS-3250`). A `KUKA-466` a `verify:app-findings-r154` **ingadozásából** jött (hatból egy bukás): hamis „megtelt" 503 egy ÜRES táron, MÉRVE 40-ből 3; javítás után 80-ból 0. **A jele determinisztikus**, mert a két első alakja hamis zöld lett volna (6. szakasz) |
 | **a mai fej független elfogadása** | `REVIEW_ALLAPOT` |
 
 **A nyitott review-szálakat nem zártam le**, és nem is zárom: az R186 §5 kimondja, hogy a nyitott

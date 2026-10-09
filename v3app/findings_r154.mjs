@@ -40,6 +40,8 @@ import { validateRequest } from './httpSchema.mjs';
 import { adaptiveUnitPlan } from '../v3ref/external-checks/batteryUnits.mjs';
 import { allowedToursFor, availabilityOf, allowedActionsFor } from './assistant/policy.mjs';
 import { TOURS } from './knowledge/features.mjs';
+// A REKESZ-FELOLDO: a HATAR es a MOTOR ugyanezt futtatja (`KUKA-467`).
+import { storySlotOf } from './public/tour.mjs';
 import { PERSONAL_SCREENS, ALWAYS_AVAILABLE_SCREENS } from './knowledge/features.mjs';
 import { NAV_PERSONAL } from './public/texts.mjs';
 import { request as httpReq } from 'node:http';
@@ -1699,8 +1701,10 @@ try {
       // A PIN A `KUKA-436` UTÁN A KAPUS ALAKRA MUTAT: a jelentés változatlan (a kiszolgáló méri a
       // tényt a tárból), a feloldó viszont megkapta a „csak ha a kapuk használhatják" feltételt.
       const kapuMert = /story_data: storyDataFacts\(bookId, session\.subject_id, clock\.now\(\),/.test(srvAs)
-        && /\{ tortenetKapu: demoJel && devSurface === true \}\)/.test(srvAs)
-        && /function storyDataFacts\(bookId, subjectId, at, \{ tortenetKapu = true \} = \{\}\)/.test(srvAs);
+        // A `KUKA-468` óta a feloldó a KÉRT célt is megkapja (`kertRef`) — a jelentés változatlan:
+        // a tényt a KISZOLGÁLÓ méri a tárból, és a kapu-feltétel is a helyén áll.
+        && /\{ tortenetKapu: demoJel && devSurface === true, kertRef: opts\.storyRef \?\? null \}\)/.test(srvAs)
+        && /function storyDataFacts\(bookId, subjectId, at, \{ tortenetKapu = true, kertRef = null \} = \{\}\)/.test(srvAs);
       const zartKeszlet = /TOUR_STORY_DATA = Object\.freeze\(\['pending_invite', 'other_member', 'own_personal_book'\]\)/.test(polAs)
         && /if \(!TOUR_STORY_DATA\.includes\(t\.requires_story_data\)\) return false;/.test(polAs);
       step('(as9) R176 §1: a két szereplős történet INDULÓ adata MÉRT tény a tárból (függő meghívás ÉS másik tag), zárt készlettel — nem feltevés és nem kézi névsor',
@@ -2490,6 +2494,87 @@ try {
         }
       }
 
+      /**
+       * ══ (as70–as74) A KÜLSŐ REVIEW KÉT ÚJ P2-JE — A HATÁRON MÉRVE (R186 §5) ════════════════
+       *
+       * Mind a kettő UGYANAZT mondja: a NEVEZETT cél-kötés a HTTP-határon veszett el. Az egyik a
+       * rekesz NEVÉT írta booleánra (`KUKA-467`), a másik a cél VÁLASZTÁSÁT hagyta a könyv
+       * globális sorrendjén (`KUKA-468`). A mérés ezért a HATÁRT kérdezi, nem a motort — a motor
+       * saját sorai (`as54`/`as55`) zöldek voltak, miközben a lap `false`-ot kapott (`KUKA-227`).
+       */
+      {
+        // ── (as70) A NEVEZETT REKESZ ÁTMEGY A HATÁRON ───────────────────────────────────────
+        const st186 = await anna.get('/api/assistant/status?lang=hu&surface=app');
+        const mind186 = [...(st186.body.tours || []), ...(st186.body.resumable_tours || [])];
+        const visszateres = mind186.find((t) => t && t.id === 'tour.reentry') || null;
+        const lepes = (id) => ((visszateres && visszateres.steps) || []).find((s) => s && s.id === id) || null;
+        const s4 = lepes('s4'); const s8 = lepes('s8');
+        step('(as70) `KUKA-467` (külső review P2) a HATÁRON: a `tour.reentry` nevezett rekeszei SZÖVEGKÉNT mennek ki — a `=== true` szerializálás `false`-ot adott, és a nevezett rekesz NÉMÁN kikapcsolt',
+          Boolean(s4 && s8) && s4.story_rebind === 'invite_ref' && s8.story_bound === 'invite_ref',
+          { s4_rebind: s4 ? s4.story_rebind : 'nincs s4', s8_bound: s8 ? s8.story_bound : 'nincs s8' });
+
+        // (as71) ÉS A HATÁR PONTOSAN A MOTOR FELOLDÓJÁT KÖVETI — MINDEN bemutató MINDEN lépésén.
+        // Ez az ELLENPÁR a „javítsuk ki ezt az egy lépést" alakra: a két oldal EGY szabályt futtat.
+        const eltero = [];
+        for (const t of mind186) {
+          const def = TOURS[t.id] || null;
+          if (!def || !Array.isArray(def.steps)) continue;
+          for (const st of (t.steps || [])) {
+            const d = def.steps.find((x) => x && x.id === st.id) || null;
+            if (!d) continue;
+            for (const mezo of ['story_bound', 'story_rebind']) {
+              const vart = storySlotOf(d[mezo]) ?? false;
+              if (st[mezo] !== vart) eltero.push(`${t.id}/${st.id}/${mezo}: ${JSON.stringify(st[mezo])}≠${JSON.stringify(vart)}`);
+            }
+          }
+        }
+        step('(as71) `KUKA-467` ELLENPÁR: a HATÁR és a MOTOR UGYANAZT a feloldót futtatja — MINDEN bemutató MINDEN lépésének két rekesz-nyilatkozata a `storySlotOf` értékével egyezik',
+          eltero.length === 0 && mind186.length > 0,
+          { bemutato: mind186.length, eltero: eltero.length ? eltero.slice(0, 3).join(' · ') : 'nincs' });
+
+        // (as72) ÉS A RÖGZÍTETT BEMUTATÓ-CSOMAG IS A NEVEZETT REKESZT VISZI (a demó a csonkból él).
+        const csomag = readFileSync(join(ROOT, 'v3app/public/demo-assistant.json'), 'utf8');
+        step('(as72) `KUKA-467`: a RÖGZÍTETT bemutató-csomag is a nevezett rekeszt hordozza — a demó-felület ugyanazt a nyilatkozatot kapja, mint az élő (`KUKA-227`)',
+          csomag.includes('"story_bound": "invite_ref"') && csomag.includes('"story_rebind": "invite_ref"')
+            // ÉS A KIVEZETETT ALAK UJJLENYOMATA NINCS BENNE: a `true` booleán a nevezett rekeszt
+            // elvesztette volna — a csomag ma a rekesz NEVÉT viszi, tehát `true` nem is állhat benne.
+            && !csomag.includes('"story_bound": true') && !csomag.includes('"story_rebind": true'),
+          { bound_invite_ref: csomag.split('"story_bound": "invite_ref"').length - 1,
+            rebind_invite_ref: csomag.split('"story_rebind": "invite_ref"').length - 1,
+            ref_rekesz: csomag.split('"story_bound": "ref"').length - 1 });
+      }
+      {
+        // ── (as73–as74) A KÉRT CÉL ELŐNYT KAP — DE CSAK AZ ALKALMASAK KÖZÜL ──────────────────
+        //
+        // A FIXTÚRA: a fiókkezelőnek KÉT alkalmas, függő meghívója van (mindkettő igazolt című,
+        // levéllel). A kiszolgáló determinisztikus választása a LEGFRISSEBBEN kiadott (`KUKA-461`).
+        // A 13. lépés viszont a MAGA által kiállítottra köt — ezért a kérés MEGNEVEZI a célt.
+        const kc = await fiok('u-kertcel');
+        await kc.post('/api/workspaces', { name: 'U186 Kert Cel Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '82345678-1-42' } });
+        await fiok('u-kc-egy'); await fiok('u-kc-ketto');
+        const m1 = await kc.post('/api/invites', { email: 'u-kc-egy@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+        const m2 = await kc.post('/api/invites', { email: 'u-kc-ketto@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+        const kotes = async (kertRef) => {
+          const q = `/api/assistant/status?lang=hu&surface=app${kertRef ? `&story_ref=${encodeURIComponent(kertRef)}` : ''}`;
+          const r = await kc.get(q);
+          const lista = [...(r.body.tours || []), ...(r.body.resumable_tours || [])];
+          const t = lista.find((x) => x && x.id === 'tour.inviteRevoke') || null;
+          return { status: r.status, ref: t && t.story ? (t.story.ref ?? null) : null };
+        };
+        const alap = await kotes(null);
+        const kertElso = await kotes(m1.body.ref);
+        const kertMasodik = await kotes(m2.body.ref);
+        const kitalalt = await kotes('0123456789');
+        step('(as73) `KUKA-468` (külső review P2) ÉLŐ TANÚ: a kérés MEGNEVEZHETI a célt, és a kiszolgáló ARRA köt — a globális sorrend (`expires_at DESC, token`) nem dönt a helyes művelet helyett',
+          alap.ref === m2.body.ref && kertElso.ref === m1.body.ref && kertMasodik.ref === m2.body.ref
+            && m1.body.ref !== m2.body.ref,
+          { alap: alap.ref, kert_elso: kertElso.ref, kert_masodik: kertMasodik.ref,
+            elso: m1.body.ref, masodik: m2.body.ref });
+        step('(as74) `KUKA-468` ELLENPÁR: a NEM létező (vagy nem alkalmas) megnevezés NEM ad új megkülönböztetést — a válasz BETŰRE a mai alapértelmezés, tehát a mező nem felhatalmazás és nem oracle (`KUKA-084`)',
+          kitalalt.status === 200 && kitalalt.ref === alap.ref,
+          { kitalalt_ref: kitalalt.ref, alap_ref: alap.ref, status: kitalalt.status });
+      }
+
       {
         // ── (as42–as43) A SZŰK SZEREP-PLAFON, ÉLŐBEN (`KUKA-431`/`437` forrás-pinjének élő párja) ──
         const sz = await fiok('u-szukplafon');
@@ -2726,7 +2811,9 @@ try {
       const ketSzereplo = readFileSync(join(ROOT, 'tests/e2e/v3app-r176-ket-szereplo.spec.mjs'), 'utf8');
       const feat186 = readFileSync(join(ROOT, 'v3app/knowledge/features.mjs'), 'utf8');
       step('(as39) R186/§2: a kiszolgáló KIVÁLASZTJA a történet célját és átadja a stabil hivatkozását, a kapu a VÁRT résztvevőhöz mér, és a kötött lépés csak a VÁLASZTOTT célon teljesül (RÉGEN: logikai tény azonosság nélkül, és „bárki más" elfogadva)',
-        /const valasztottMeghivo = rows\.find\(alkalmasMeghivo\) \|\| null;/.test(srvAs)
+        // A `KUKA-468` óta a választás a KÉRT célt részesíti előnyben (az alkalmasak közül), és
+        // egyébként a determinisztikus sorrend első alkalmasát adja — a kiválasztás ténye változatlan.
+        /const valasztottMeghivo = kertSor \|\| rows\.find\(alkalmasMeghivo\) \|\| null;/.test(srvAs)
         && /pending_invite_ref: valasztottMeghivo \? shortRef\(valasztottMeghivo\.token\) : null,/.test(srvAs)
         && /story: storyBindingOf\(id, who\),/.test(srvAs)
         && !/const pendingInvite = rows\.some\(/.test(srvAs)

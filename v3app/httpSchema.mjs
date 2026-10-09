@@ -290,9 +290,12 @@ export const ENDPOINT_SCHEMAS = frozen({
   // A `surface` A BETÖLTÖTT FELÜLET NEVE (R164/3). A kérés csak MEGNEVEZ, nem állít képességet: a
   // szereplő-váltó vezérlő létét a kiszolgáló a lap fájljából MÉRI, és nem ismert névre ÜRES
   // készletet ad (fail-closed). Ezért elég `nonempty_string` — a zárt lista a kiszolgálóban áll.
+  // A `story_ref` A KÉRT CÉL MEGNEVEZÉSE (`KUKA-468`): a történet saját választási lépése ezzel
+  // kéri a kötést az ÉPPEN kiadott meghívóra, a globális sorrend találgatása helyett. A mező a
+  // ZÁRT listán áll (`KUKA-236`), és jogot NEM ad: a kiszolgáló alkalmassági szűrője változatlan.
   'GET /api/assistant/status': frozen({
     version: '1', mutates: false, body: frozen({ fields: frozen({}) }),
-    query: frozen({ fields: frozen({ ...readContextQuery.fields, lang: frozen({ type: 'nonempty_string', required: false, max_length: 32, confirm_only: true }), surface: frozen({ type: 'nonempty_string', required: false, max_length: 32, confirm_only: true }) }) }),
+    query: frozen({ fields: frozen({ ...readContextQuery.fields, lang: frozen({ type: 'nonempty_string', required: false, max_length: 32, confirm_only: true }), surface: frozen({ type: 'nonempty_string', required: false, max_length: 32, confirm_only: true }), story_ref: frozen({ type: 'nonempty_string', required: false, max_length: 64, confirm_only: true }) }) }),
   }),
   // A TUDÁS-INDEX (és egy funkció célzott lekérése). A teljes kézikönyvet SOHA nem adjuk ki egyben:
   // a `feature` paraméter EGY funkció szerződését kéri (R89 §3: célzottan lekérhető tartalom).

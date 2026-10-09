@@ -685,11 +685,23 @@ export function back(run) {
  * rekeszt. Ami nincs a készletben, az NEM rekesz — és a hívó fail-closed zár (`KUKA-236`).
  */
 export const STORY_SLOTS = Object.freeze(['ref', 'invite_ref']);
-function rekeszOf(decl) {
+/**
+ * A REKESZ FELOLDÓJA EGY HELYEN — ÉS A HATÁRON IS EZ DÖNT (`KUKA-467` · `D-VS-3249`).
+ *
+ * A LELET (külső review, Codex, P2): a nyilatkozat REKESZT nevezhet meg (`STORY_SLOTS`), a
+ * HTTP-határ szerializálója viszont `=== true`-val mérte — tehát a `'invite_ref'` SZÖVEG a
+ * böngszőbe `false`-ként érkezett, és a nevezett rekesz NÉMÁN kikapcsolt. Ezért a feloldó
+ * EXPORTÁLT: a motor, a lap ÉS a határ UGYANEZT kérdezi (`KUKA-003` · `KUKA-039` · `KUKA-227`).
+ *
+ * A KÉSZLET ZÁRT (`KUKA-236`): a `true` a `ref` rekeszt jelenti (visszamenős alak), egy ismert
+ * rekesz-név önmagát, minden más — kitalált név, tömb, szám — `null`, és a hívói oldalon ZÁR.
+ */
+export function storySlotOf(decl) {
   if (decl === true) return 'ref';
   if (typeof decl === 'string' && STORY_SLOTS.includes(decl)) return decl;
   return null;
 }
+const rekeszOf = storySlotOf;
 
 export function taskDone(run, taskId, { ref = null, auth = null } = {}) {
   if (!run) return false;

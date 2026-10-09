@@ -60,6 +60,8 @@ import { validateRequest, schemaForEndpoint, isGated, endpointsWithoutSchema, CO
 // amiket a böngésző — egy fogalom, egy otthon (KUKA-018 · KUKA-207: a próba ugyanazt hívja).
 import { FEATURES, TOURS, ACTIONS } from './knowledge/features.mjs';
 import { dictFor } from './public/i18n/dict.mjs';
+// A REKESZ-FELOLDÓ A HATÁRON IS UGYANAZ (`KUKA-467`): a nyilatkozatot nem ítjuk át booleánra.
+import { storySlotOf } from './public/tour.mjs';
 import { enabledLanguages, normalizeLanguage, dirOf, allLanguages, resolveLanguage } from './public/i18n/languages.mjs';
 import {
   LIMITS as AST_LIMITS, checkQuestion, injectionFindings, visibleFeaturesFor, allowedActionsFor,
@@ -1777,11 +1779,23 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
        * egy itt át NEM vitt mező `undefined` lenne, és a SAJÁT történetünket állítaná meg.
        */
       switch_to: st.switch_to ?? null,
-      story_bound: st.story_bound === true,
+      /**
+       * A NEVEZETT REKESZ ÁTMEGY A HATÁRON (`KUKA-467` · külső review, Codex, P2).
+       *
+       * A LELET: ez a két sor `=== true`-t mért, tehát a `'invite_ref'` SZÖVEG `false`-ként
+       * érkezett a böngszőbe — a `tour.reentry` s4-e nem őrizte meg az ÚJ meghívó jelölőjét, az
+       * s8-a pedig BÁRMELY beváltott meghívót elfogadott: pontosan az a kereszt-meghívós
+       * teljesítés, amit a nevezett rekesz megelőzni hivatott (`KUKA-460`).
+       *
+       * A VÁLASZ: a határ a MOTOR feloldóját kérdezi (`storySlotOf`), tehát a nyilatkozat
+       * NORMALIZÁLT alakja megy ki (`'ref'` · `'invite_ref'`), és a nem ismert nyilatkozat
+       * `false` — zárt készlet, néma feloldás nélkül (`KUKA-236`).
+       */
+      story_bound: storySlotOf(st.story_bound) ?? false,
       // A LEVÉL-LÉPÉS A VÁLASZTOTT MEGHÍVÓ KÉPERNYŐJÉT KÉRI (`story_ref`), a történet SAJÁT
       // választási lépése pedig ÁTKÖTI a célt az általa létrehozott meghívóra (`story_rebind`).
       story_ref: st.story_ref === true,
-      story_rebind: st.story_rebind === true,
+      story_rebind: storySlotOf(st.story_rebind) ?? false,
     })),
     text: (dictFor(lang).TOUR || {})[id] || null,
     /**
@@ -1862,7 +1876,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     pending_invite: false, pending_invite_ref: null, pending_invite_actor: null,
     other_member: false, other_member_id: null,
   });
-  function storyDataFacts(bookId, subjectId, at, { tortenetKapu = true } = {}) {
+  function storyDataFacts(bookId, subjectId, at, { tortenetKapu = true, kertRef = null } = {}) {
     if (!bookId) {
       const kor = subjectId ? (personalSpaceOf({ store, subjectId }) || null) : null;
       return Object.freeze({ ...URES_TORTENET_ADAT,
@@ -1998,7 +2012,28 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       && !inviteRevocationAt({ store, token: r.token, nowIso: at }).revoked
       && mailbox.some((m) => String(m.link || '').includes(r.token))
       && cimzettBizonyitott(r);
-    const valasztottMeghivo = rows.find(alkalmasMeghivo) || null;
+    /**
+     * A KÉRT CÉL ELŐNYT KAP — DE CSAK AZ ALKALMASAK KÖZÜL (`KUKA-468` · külső review, Codex, P2).
+     *
+     * A LELET: a 13. lépés ÁTKÖTÉSE a kiszolgáló saját választásához kötött (`KUKA-456`), a
+     * választás viszont a KÖNYV GLOBÁLIS állapotából történt („a legfrissebben kiadott alkalmas"
+     * — `KUKA-461`). Két egyformán lejáró meghívó mellett (a lejárat a kiadás pillanatából,
+     * MILLISZEKUNDUM felbontással számol, és a bemutató-világban FIX) a holtversenyt a token
+     * dönti el — tehát a kiszolgáló a HELYES művelet után is MÁS sorra köthet, a `taskDone`
+     * pedig a nem egyező `auth.ref` miatt elutasítja a ténylegesen elvégzett lépést. Ugyanez áll,
+     * ha közben EGY HARMADIK alkalmas meghívó áll ki. Ez a `KUKA-394` osztálya ötödször: a saját
+     * kapum zárja el a legitim utat.
+     *
+     * A VÁLASZ: a kérés MEGNEVEZHETI, melyik célra kéri a kötést (`story_ref`) — és ez NEM
+     * felhatalmazás: a megnevezett sor UGYANAZON az alkalmassági szűrőn megy át, a könyv a
+     * kérés saját nézetéből jön, és a nem alkalmas (vagy nem létező) név esetén a válasz
+     * BETŰRE a mai: a determinisztikus sorrend első alkalmasa. Tehát nincs új megkülönböztetés
+     * (`KUKA-084`), és nincs néma feloldás sem.
+     */
+    const kertSor = kertRef
+      ? (rows.find((r) => shortRef(r.token) === kertRef && alkalmasMeghivo(r)) || null)
+      : null;
+    const valasztottMeghivo = kertSor || rows.find(alkalmasMeghivo) || null;
     const pendingInvite = Boolean(valasztottMeghivo);
     /**
      * A TAGSÁG TÉNYÉT A KANONIKUS FELOLDÓ DÖNTI EL (R176, külső review P2 — `KUKA-421`).
@@ -2178,7 +2213,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
        * `KUKA-018`: egy fogalomnak egy otthona van).
        */
       story_data: storyDataFacts(bookId, session.subject_id, clock.now(),
-        { tortenetKapu: demoJel && devSurface === true }),
+        { tortenetKapu: demoJel && devSurface === true, kertRef: opts.storyRef ?? null }),
 
       book_id: bookId,
       member: Boolean(ws),
@@ -3165,7 +3200,8 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       const ctx = readContextGate(query, session, cur.book_id);
       if (!ctx.ok) return { status: ctx.status, body: ctx.body };
       const lang = normalizeLanguage(query.lang);
-      const who = requesterContext(session, cur, { surface: query.surface });
+      // A KÉRT CÉL (`KUKA-468`): a kérés megnevezheti, melyik alkalmas meghívóra kéri a kötést.
+      const who = requesterContext(session, cur, { surface: query.surface, storyRef: query.story_ref });
       const prov = providerStatus(process.env);
       return { status: 200, body: {
         ok: true, ...ctx.served, lang, dir: dirOf(lang),

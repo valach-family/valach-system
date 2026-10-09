@@ -16,6 +16,54 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3250 — AMIT MEG TUDUNK NEVEZNI, AZT NE TALÁLGASSUK: A KÉRT CÉL ELŐNYT KAP (R186 §5)
+
+A `KUKA-456` óta az átkötést a **kiszolgáló saját cél-kötése** hitelesíti — ez helyes. A kiszolgáló
+viszont a könyv **globális** állapotából választott („a legfrissebben kiadott alkalmas"), a lap pedig
+a hitelesítőt **megnevezés nélkül** kérte el. A meghívó lejárata a kiadás pillanatából, fix ablakkal
+számol, tehát **két meghívó lejárata egyenlő lehet** (a bemutató-világban mindig az), és a
+holtversenyt a token dönti el: a kiszolgáló a **helyes művelet után is más sorra kötött**, a
+`taskDone` pedig a nem egyező `auth.ref` miatt elutasította a **tényleges** lépést.
+
+**A DÖNTÉS:** a kérés **megnevezheti** a célt (`story_ref`), és a kiszolgáló **arra** köt — **de csak
+az alkalmasak közül**. A megnevezett sor ugyanazon az alkalmassági szűrőn megy át, a könyv a kérés
+saját nézetéből jön, és nem alkalmas (vagy nem létező) megnevezés mellett a válasz **betűre a mai
+alapértelmezés**. A megnevezés tehát **nem felhatalmazás**, és nem is oracle (`KUKA-084`): a mező a
+ZÁRT mező-listán áll (`KUKA-236`), a kiszolgáló ellenőrzései változatlanok.
+
+**A SZABÁLY, AMIT EBBŐL RÖGZÍTÜNK:** a **determinisztikus sorrend nem azonosítás**. Egy reprodukálható
+rendezés attól még nem a MI sorunkat adja: amint a kapu azonosságot kér, a célt **meg kell nevezni**.
+
+**ÉS A CSONK UGYANAZT A SZABÁLYT FUTTATJA** (saját lelet a javítás mérésekor): a bemutató-adapter a
+legKORÁBBAN lejárót választotta, miközben a kiszolgáló a legfrissebbet — a lap és a próba így **más
+rendszert** mért volna (`KUKA-227` · `KUKA-207`).
+
+Gépi jel: `npm run verify:app-findings-r154` (`as73` · `as74` ellenpár) · `npm run verify:kuka` ·
+ÉLŐ tanú: `npm run verify:browser-gate` (`proof:demo-walk` · `R176-K1`/`K2`).
+
+---
+
+## D-VS-3249 — A NEVEZETT ÉRTÉK A HATÁRON IS NEVEZETT: EGY FELOLDÓ, MINDEN FOGYASZTÓRA (R186 §5)
+
+A `KUKA-460` bevezette, hogy a kötés-nyilatkozat **rekeszt** nevezhet meg (`STORY_SLOTS`). A
+HTTP-határ szerializálója viszont `=== true`-val mérte, tehát a `'invite_ref'` **szöveg** `false`-ként
+érkezett a böngészőbe — a nevezett rekesz **némán kikapcsolt**, és a fail-closed kapuk nem zártak,
+hanem **kinyíltak** (a kötés egyszerűen eltűnt).
+
+**A DÖNTÉS:** a rekesz-feloldó **egy helyen** áll és **exportált** (`storySlotOf`), és a **motor, a
+lap ÉS a HTTP-határ ugyanezt futtatja** (`KUKA-003` · `KUKA-039` · az `AVL-01` alakja). A határ a
+nyilatkozat **normalizált** alakját adja ki (`'ref'` · `'invite_ref'`), a nem ismert nyilatkozat
+`false` — zárt készlet, néma feloldás nélkül (`KUKA-236`).
+
+**ÉS A MÉRÉS A HATÁRT KÉRDEZI, nem a motort.** A motor saját sorai (`as54`/`as55`) zöldek voltak,
+mert a `taskDone`-t közvetlenül hívták — a lap mégis `false`-ot kapott. Ezért a mai jel a HATÁRON
+mér (`as70`), a két oldal egyezését **minden bemutató minden lépésén** összeveti (`as71`), és a
+**rögzített** bemutató-csomagot is ellenőrzi (`as72`) — a `true` alak ujjlenyomata ma nem állhat benne.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as70` · `as71` · `as72`) · `npm run verify:kuka`.
+
+---
+
 ## D-VS-3248 — EGY DÖNTÉS: EGY IDŐ — A FELVÉTEL ÉS A FELVÉTEL ELLENŐRZÉSE (R186 §5, SAJÁT LELET)
 
 Az ugyanebben a csomagban hozott `KUKA-464` helyes: a NEGATÍV kor is LEJÁRT, különben egy visszalépő
