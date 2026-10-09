@@ -73,6 +73,25 @@ a tagok lapja a SAJÁT sort is kirajzolja, és a sor megnyitása után a cél l�
 (`nyitas UTAN = 1 · lathato = true`). A bejáróm nem jutott el odáig; a régi, lazább mérés ezt
 `TASK-IG`-nek könyvelte, amit a minta-kapu őre **tolerál** — vagyis a hiány **elfedve** állt.
 
+**A JAVÍTOTT MÉRÉSŰ BEJÁRÁS EREDMÉNYE — A ZÖLD KAPU FUTÁSÁBÓL, SZÓ SZERINT** (15 felkínált
+útmutató; a sorok mostantól zöld futáson is kiíródnak — korábban csak bukáskor látszottak):
+
+| útmutató | eredmény | útmutató | eredmény |
+|---|---|---|---|
+| `tour.shell` | **5/5 OK** | `tour.verify` | **2/2 OK** |
+| `tour.stock` | **4/4 OK** | `tour.logout` | **2/2 OK** |
+| `tour.language` | **2/2 OK** | `tour.personalAccount` | **2/2 OK** |
+| `tour.help` | **4/4 OK** | `tour.assistant` | **4/4 OK** |
+| `tour.outbox` | **3/3 OK** | `tour.accountSettings` | **3/3 OK** |
+| `tour.invite` | TASK-IG 5/6 (`s5 invite.created`) | `tour.grant` | TASK-IG 3/3 (`s3 grant.saved`) |
+| `tour.addBusiness` | TASK-IG 5/5 (`s5 workspace.created`) | `tour.scopeLifecycle` | TASK-IG 3/4 (`s3 grant.saved`) |
+| `tour.plan` | TASK-IG 3/3 (`s3 plan.saved`) | | |
+
+**KILENC útmutató TELJESEN bejárva, HAT a felhasználó műveletére vár** (`TASK-IG`) — és ez MÉRT
+tény, nem bukás (`KUKA-216`): a bejáró nem hoz létre meghívót vagy jogot a felhasználó helyett, tehát
+a lépésen TÚL nem tud mérni. Ahol a valódi műveletet megadjuk neki (`perform`), ott átmegy rajta és a
+feladat UTÁNI lépéseket is méri — ezt az `R166-U6`/`U7` pár bizonyítja.
+
 **ÉLŐ TANÚK:** `R166-U6` (pozitív pár: a bejárás elvégzi a feladatot, és a feladat UTÁNI lépést is
 méri — `6/6`, nevezett művelettel) · `R166-U7` (**ellenpróba**: a feladat utáni, vezérelten
 láthatatlan cél PIROSAT ad; a javítás előtt `6/6 OK`-ot adott) · `R166-U2` (a `tour.logout` valódi
