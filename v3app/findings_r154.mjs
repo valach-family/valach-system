@@ -2779,6 +2779,57 @@ try {
             puszta_ok_kivezetve: !/if \(r\.ok\) tourTaskDone\('member\.revoked'/.test(lapAs),
             ket_kapu: /if \(!szerepek\.length \|\| !korok\.length\) \{/.test(lapAs),
             kitalalt_tartalek_kivezetve: !/data-testid="invite-scope">\$\{\(state\.scopeMeta\.grantable\.length/.test(lapAs) });
+        // ── (as90–as93) A KÖTELEZŐ KAPU KÉT SAJÁT LELETE A ZÁRÓ FEJEN (`KUKA-477` · `KUKA-478`) ──
+        //
+        // MIÉRT ITT. A `KUKA-472`/`475`/`476` javításai a LAPON új válasz-mezőket kezdtek olvasni.
+        // A bemutató lap UGYANAZT az `app.js`-t futtatja, a HTTP-határ mögött viszont a
+        // `demo-adapter.mjs` csonkja áll — és a csonk a RÉGI választ adta, ezért KÉT bemutató-
+        // történet beragadt (mérve: `proof:demo-walk`, két szélesség). A másik lelet ugyanennek a
+        // kapunak a harmadik állapota: a NEM MÉRT készlet üres készletnek számított.
+        //
+        // A MÉRÉS HATÓKÖRE KIMONDVA (`KUKA-216` · `KUKA-207`): a csonk NEM hívható meg innen (a
+        // modul a böngésző `fetch`-ét cseréli le, és csak bemutató-lapon telepszik), ezért az
+        // as90/as91 a csonk FORRÁSÁT méri a lap által olvasott mezőkre — a VISELKEDÉSI tanú a
+        // kötelező kapu `proof:demo-walk` lánca, és ezt a bejegyzés jele is így nevezi meg.
+        const csonk = readFileSync(join(ROOT, 'v3app/public/demo-adapter.mjs'), 'utf8');
+        const kell = ['grantable_roles', 'blocked_roles', 'rights_alterable', 'reinvite_roles'];
+        const hianyzo = kell.filter((k) => !new RegExp(`${k}:`).test(csonk));
+        step('(as90) `KUKA-477`: a bemutató CSONKJA kiadja mind a négy mezőt, amit a lap a lista válaszából olvas (`grantable_roles` · `blocked_roles` · `rights_alterable` · `reinvite_roles`) — a kiszolgáló ugyanezeket adja (as86–as87 élőben), tehát a lap a csonkon NEM más szerződést lát',
+          hianyzo.length === 0,
+          { hianyzo: hianyzo.join(',') || 'nincs', mert: kell.length });
+        step('(as91) `KUKA-477`: a csonk MEGVONÁSA a mag TELJES verdiktjét adja (`ok` · `changed` · `reason` · `effective_at`), és az IDEMPOTENS ismétlés `changed: false`-ot ad `revocation_already_effective` okkal — a kivezetett, csak időpontot adó alak nincs meg',
+          /revocation: \{ ok: true, changed: !mar,/.test(csonk)
+            && /revocation_already_effective/.test(csonk)
+            && !/revocation: \{ at \}, delegation:/.test(csonk),
+          { teljes_verdikt: /revocation: \{ ok: true, changed: !mar,/.test(csonk),
+            idempotens_ag: /revocation_already_effective/.test(csonk),
+            kivezetett_alak: /revocation: \{ at \}, delegation:/.test(csonk) });
+        step('(as92) `KUKA-478`: a lap kimondja, hogy MÉRT-E (`measured`), a meghívó-panel pedig ELŐBB MÉR, UTÁNA RAJZOL (a futó mérést megvárja) — a szinkron, mérés nélküli alak KIVEZETVE',
+          /rule: null, measured: false \}/.test(lapAs)
+            && /measured: true,/.test(lapAs)
+            && /async function invitePanel\(\) \{/.test(lapAs)
+            && /if \(membersLoad\) await membersLoad;/.test(lapAs)
+            && !/^  function invitePanel\(\) \{$/m.test(lapAs)
+            && !/state\.scopeMeta\.grantable : \['keszlet'\]/.test(lapAs),
+          { nem_mert_jelolo: /rule: null, measured: false \}/.test(lapAs),
+            meres_pillanata: /measured: true,/.test(lapAs),
+            elobb_mer: /if \(membersLoad\) await membersLoad;/.test(lapAs),
+            szinkron_alak_kivezetve: !/^  function invitePanel\(\) \{$/m.test(lapAs),
+            reinvite_tartalek_kivezetve: !/state\.scopeMeta\.grantable : \['keszlet'\]/.test(lapAs) });
+        // (as93) ÉS A KAPU ELŐFELTÉTELE IS MÉRT TÉNY, ÉLŐBEN: egy FRISS tulajdonosnak a kiszolgáló
+        // NEM üres készleteket ad, tehát a meghívó-űrlapnak KI KELL nyílnia — a `KUKA-478` leletében
+        // éppen ez a legitim út volt elzárva (a lap a nem mért állapotot nemleges válasznak vette).
+        const friss = await fiok('u-friss-tulaj');
+        await friss.post('/api/workspaces', { name: 'U186 Friss Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '12345680-1-42' } });
+        const fTagok = (await friss.get('/api/members')).body;
+        const fHiv = await friss.post('/api/invites', { email: 'u-friss-cel@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+        step('(as93) `KUKA-478` ELLENPÁR, ÉLŐBEN: egy FRISS tulajdonos két készlete NEM üres (szerep ÉS adatkör), és az ÍRÁS-ÚT be is fogadja a meghívást — tehát a felkínálás itt nem „üres plafon", hanem a MÉRÉS hiánya volt a hiba',
+          Array.isArray(fTagok.grantable_roles) && fTagok.grantable_roles.length > 0
+            && Array.isArray(fTagok.grantable_scopes) && fTagok.grantable_scopes.length > 0
+            && fHiv.status === 201 && fHiv.body.ok === true,
+          { szerepek: (fTagok.grantable_roles || []).join(','),
+            adatkorok: (fTagok.grantable_scopes || []).length,
+            iras_ut: `${fHiv.status}/${fHiv.body.ok}` });
       }
       }
       {

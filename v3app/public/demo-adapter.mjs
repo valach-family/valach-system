@@ -324,6 +324,16 @@ function install() {
         scopes,
         removed_at: m.removed_at,
         reinvitable: !m.effective,
+        /**
+         * ÉS A MAI KISZOLGÁLÓ KÉT TOVÁBBI MEZŐT IS KIAD — A CSONK IS (`KUKA-477`).
+         *
+         * `rights_alterable` (`KUKA-473`): a megvonás-gombok VÉGREHAJTHATÓ hatáskört kívánnak. A
+         * bemutató szereplője a könyv tulajdonosa, tehát a verdikt IGAZ — és KIMONDVA áll, nem
+         * „hiányzik, tehát nem hamis" alakban (a lap csak a kimondott `false`-ot zárja).
+         * `reinvite_roles` (`KUKA-472`): az újrahívás szerep-választéka a MEGMÉRT készletből jön.
+         */
+        rights_alterable: true,
+        reinvite_roles: m.effective ? null : [...KNOWN_ROLES],
       };
     });
   }
@@ -332,6 +342,10 @@ function install() {
     ok: true, book_id: S.book, ...served(), members: memberRows(),
     known_scopes: [...KNOWN_SCOPES], known_roles: [...KNOWN_ROLES],
     grantable_scopes: ['arak', 'beszallitok', 'dokumentumok', 'keszlet'],
+    // A SZEREP-PLAFON IS A KISZOLGÁLÓTÓL JÖN (`KUKA-472` · `KUKA-476`): a meghívó-űrlap EBBŐL
+    // rajzol, és ÜRES készletnél NEM nyílik ki. A bemutató szereplője tulajdonos, tehát a
+    // készlet a két ismert szerep — ugyanúgy RENDEZETTEN, ahogy a kiszolgáló adja.
+    grantable_roles: [...KNOWN_ROLES].sort(), blocked_roles: [],
     blocked_scopes: [], grantable_reason: 'within_delegation_basis', startup_rule_version: 'v2',
   });
 
@@ -520,10 +534,21 @@ function install() {
       const who = Object.keys(S.subjects).find((k) => S.subjects[k].id === (b && b.subject_id));
       if (!who || !S.memberships[who]) return J(404, { ok: false, reason: 'not_a_member' });
       const at = tick();
+      /**
+       * A VÁLASZ A MAG TELJES VERDIKTJÉT ADJA — A CSONK IS (`KUKA-475` · `KUKA-477`).
+       *
+       * A megvonás ÜZLETILEG IDEMPOTENS: a mag `ok: true` mellett `changed: false`-ot ad, ha a
+       * tagság MÁR megszűnt, és a lap EBBŐL zárja a bemutató lépését (nem a puszta `ok`-ból). A
+       * csonk eddig csak az időpontot adta, ezért a bemutatóban a lépés SOHA nem lett „elvégezve"
+       * — a `reentry` történet a harmadik lépésen pörgött (mérve: `proof:demo-walk`).
+       */
+      const mar = S.memberships[who].effective === false;
       S.memberships[who].effective = false;
-      S.memberships[who].removed_at = at;
-      return J(200, { ok: true, reason: null, message: 'a tagság megszűnt',
-        revocation: { at }, delegation: { closed: true }, ...served() });
+      S.memberships[who].removed_at = mar ? S.memberships[who].removed_at : at;
+      return J(200, { ok: true, reason: mar ? 'revocation_already_effective' : 'revocation_recorded',
+        message: mar ? null : 'a tagság megszűnt',
+        revocation: { ok: true, changed: !mar, reason: mar ? 'revocation_already_effective' : 'revocation_recorded', effective_at: at, at },
+        delegation: { closed: true }, ...served() });
     },
 
     // ÚJRA MEGHÍVÁS — AJÁNLATOT ad, nem tagságot. A tagságot a címzett elfogadása hozza létre.

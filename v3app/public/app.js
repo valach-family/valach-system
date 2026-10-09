@@ -51,7 +51,10 @@ import { inviteNextKey } from './inviteText.mjs';
     membersTab: 'members', invites: null, processState: '',
     // R121 — MIT TUD MA EZ A FIÓK. A négy adatkör neve, a MA megadható halmaz és a plafon oka a
     // szerver /api/members válaszából jön: a felület nem tartja saját listát (KUKA-039).
-    scopeMeta: { known: [], grantable: [], blocked: [], reason: null, rule: null },
+    // ÉS A `measured` JELÖLŐ KIMONDJA, HOGY MÉRTÜNK-E (`KUKA-478`): üres tömb kétféle állapotot
+    // jelentett (nincs mit felkínálni VS még nem kérdeztük meg), és a felkínálás-kapu a MÁSODIKAT
+    // is nemleges válasznak vette. A nem mért állapotból nem következik nemleges válasz.
+    scopeMeta: { known: [], grantable: [], blocked: [], reason: null, rule: null, measured: false },
     samples: { document: null, documentFull: null, supplier: null },
     // A MEGKEZDETT KITÖLTÉS ÁLLAPOT, NEM CSAK DOM (FRM-01, R83/F83-02): a munkalap-váltás
     // újrarajzol, és az újrarajzolt űrlap üres volt — a lap „megőrizte a munkát" látszatával.
@@ -980,7 +983,7 @@ import { inviteNextKey } from './inviteText.mjs';
     closeHelp();
     state.members = [];
     state.panels = { stock: null, price: null, members: null };
-    state.scopeMeta = { known: [], grantable: [], blocked: [], reason: null, rule: null };
+    state.scopeMeta = { known: [], grantable: [], blocked: [], reason: null, rule: null, measured: false };
     state.samples = { document: null, documentFull: null, supplier: null };
     state.access = { stock: { state: 'unknown' } };
     state.invites = null;
@@ -1231,6 +1234,13 @@ import { inviteNextKey } from './inviteText.mjs';
     tourRecheck();
   }
 
+  /**
+   * A FUTÓ LISTA-MÉRÉS FOGANTYÚJA (`KUKA-478`): a `loadPageData()` nem várja meg a betöltést
+   * (helyesen: a rajzolás és a lekérés két külön döntés — `KUKA-209`), a meghívó-űrlap viszont
+   * a MÉRT készletre zár. Ezért a futó mérést MEGVÁRJUK, és nem indítunk másodikat.
+   */
+  let membersLoad = null;
+
   async function loadMembers() {
     const v = view();
     const gen = state.generation;
@@ -1249,6 +1259,9 @@ import { inviteNextKey } from './inviteText.mjs';
       roles: Array.isArray(r.grantable_roles) ? r.grantable_roles : [],
       blockedRoles: Array.isArray(r.blocked_roles) ? r.blocked_roles : [],
       reason: r.grantable_reason ?? null, rule: r.startup_rule_version ?? null,
+      // INNENTŐL MÉRT ÁLLAPOT (`KUKA-478`): a két készlet a KISZOLGÁLÓ válaszából áll, tehát az
+      // ürességük MÉRT tény — nem „még nem kérdeztük meg".
+      measured: true,
     };
     const cell = (m, k) => (m.effective
       ? (m.scopes && m.scopes[k] && m.scopes[k].granted ? `<span class="badge ok">${esc(UI.canView)}</span>` : `<span class="badge wait">${esc(UI.notAllowed)}</span>`)
@@ -1390,7 +1403,22 @@ import { inviteNextKey } from './inviteText.mjs';
       <button type="button" class="x" data-action="panel-close" aria-label="${esc(UI.close)}">×</button></div>`;
   }
 
-  function invitePanel() {
+  async function invitePanel() {
+    /**
+     * ELŐBB A MÉRÉS, UTÁNA A RAJZOLÁS (`KUKA-478` · `KUKA-209`).
+     *
+     * A LELET, MÉRVE (kötelező böngészős kapu, `R89-07`): a segéd „készítsd elő a meghívást"
+     * folytatása a munkatárs-oldalra VISZ és UGYANABBAN a pillanatban megnyitja az űrlapot — a
+     * lista válasza viszont csak KÉSŐBB érkezik meg. A készlet-kapuk (`KUKA-472` · `KUKA-476`)
+     * ezért egy FRISS tulajdonosnak is azt mondták, hogy nincs mit felkínálni: a nem mért
+     * állapotot nemleges válasznak vették. A mérés a lista SAJÁT betöltőjével történik, tehát a
+     * lap és a próba ugyanazt futtatja (`KUKA-207`), és a nemleges válasz CSAK mért üres
+     * készletre áll (`KUKA-049`: a „nem tudom" nem „jó lesz", de nem is „nem").
+     */
+    if (!(state.scopeMeta && state.scopeMeta.measured) && state.page === 'members') {
+      if (membersLoad) await membersLoad;          // a MÁR FUTÓ mérést megvárjuk
+      if (!(state.scopeMeta && state.scopeMeta.measured)) await loadMembers();
+    }
     /**
      * A SZEREP-VÁLASZTÉK A MEGMÉRT PLAFONBÓL JÖN (`KUKA-472` · `D-VS-3254`).
      *
@@ -1556,8 +1584,14 @@ import { inviteNextKey } from './inviteText.mjs';
     if (!m) return;
     state.reinviteOperationId = newOperationId();
     const kit = m.email || m.subject_id;
-    const korok = (state.scopeMeta && state.scopeMeta.grantable && state.scopeMeta.grantable.length)
-      ? state.scopeMeta.grantable : ['keszlet'];
+    /**
+     * ÉS AZ ADATKÖR-KÉSZLET ITT SEM TALÁLHATÓ KI (`KUKA-476` osztálya, saját lelet a `KUKA-478`
+     * megmérésekor): a régi alak üres készletnél egy BEÉGETETT `['keszlet']`-re esett, vagyis
+     * felkínált egy adatkört, amit az írás-út `outside_basis_scopes`-szal utasít el. A panel
+     * CSAK a mért készletből rajzol; mért üres készletnél a NEVEZETT mondat áll az űrlap helyén.
+     */
+    const korok = (state.scopeMeta && Array.isArray(state.scopeMeta.grantable) ? state.scopeMeta.grantable : [])
+      .filter((k) => typeof k === 'string' && k);
     /**
      * A SZEREP-VÁLASZTÉK A KISZOLGÁLÓ MEGMÉRT KÉSZLETÉBŐL JÖN (`KUKA-472` · külső review, P2).
      *
@@ -1572,6 +1606,11 @@ import { inviteNextKey } from './inviteText.mjs';
       ? m.reinvite_roles.filter((r) => typeof r === 'string' && r)
       : [m.role || 'user'];
     const valasztott = szerepek.includes(m.role || 'user') ? (m.role || 'user') : szerepek[0];
+    if (!szerepek.length || !korok.length) {
+      openPanel(panelHead(UI.reinviteTitle, tpl('reinviteConfirmLead', { ki: kit }))
+        + `<p class="notice" data-testid="reinvite-blocked-empty">${esc(reasonText((state.scopeMeta && state.scopeMeta.reason) || 'delegation_ceiling_empty'))}</p>`);
+      return;
+    }
     openPanel(panelHead(UI.reinviteTitle, tpl('reinviteConfirmLead', { ki: kit }))
       + `<form class="form" data-testid="reinvite-form">
         <label>${esc(UI.role)}<select name="role" data-testid="reinvite-role">
@@ -2855,7 +2894,7 @@ import { inviteNextKey } from './inviteText.mjs';
     if (STOCK_PAGES.includes(state.page)) loadStock({ sync: false });
     if (state.page === 'stock') loadPrice({ sync: false });
     if (state.page === 'members' && isAdmin()) {
-      if (state.membersTab === 'invites') loadInvites(); else loadMembers();
+      if (state.membersTab === 'invites') loadInvites(); else membersLoad = loadMembers();
     }
     if (state.page === 'documents' || state.page === 'partners') loadSamples(state.page);
   }
@@ -2929,7 +2968,7 @@ import { inviteNextKey } from './inviteText.mjs';
       case 'nav-close': setNavOpen(false); break;
       case 'mail-open': closePanel(); await mailPanel(); break;
       case 'mail-refresh': await mailPanel(); break;
-      case 'invite-open': invitePanel(); break;
+      case 'invite-open': await invitePanel(); break;
       // A FÜL-VÁLTÁS IS DOM-VÁLTOZÁS, TEHÁT A FUTÓ ÚTMUTATÓT ÚJRA KELL ÉRTÉKELNI (R132, saját lelet).
       // A `tourRecheck` eddig CSAK panel- és súgó-nyitásra/zárásra futott. Mérve: egy olyan lépés,
       // aminek a célja a fül-váltással jelenik meg, ÖRÖKRE „még nem érhető el" állapotban maradt — és
@@ -3021,7 +3060,8 @@ import { inviteNextKey } from './inviteText.mjs';
         if (!allowed) { formResult('chat-result', reasonText('action_not_allowed'), 'bad'); break; }
         closeHelp();
         if (allowed.page) go(allowed.page);
-        if (allowed.panel === 'invite') invitePanel();
+        // A SEGÉD FOLYTATÁSA: a lap-váltás UTÁN a panel MÉR, ha még nem mértünk (`KUKA-478`).
+        if (allowed.panel === 'invite') await invitePanel();
         if (allowed.panel === 'mailbox') await mailPanel();
         if (allowed.focus) { const f = byTest(allowed.focus); if (f && typeof f.focus === 'function') f.focus(); }
         break;

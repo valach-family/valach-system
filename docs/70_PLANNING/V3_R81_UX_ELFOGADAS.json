@@ -4,10 +4,10 @@
   "lane": "Claude-v3",
   "source": "tests/e2e/v3app-r81-ux.spec.mjs",
   "command": "npm run proof:core-ux",
-  "generated_at": "2026-10-09T18:02:09.603Z",
+  "generated_at": "2026-10-09T21:33:13.600Z",
   "package_version": "3.0.0-alpha",
-  "base_url": "http://127.0.0.1:40185",
-  "db_path": "var/tmp/v3_v3.0.0-alpha_20261009_175446_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
+  "base_url": "http://127.0.0.1:39249",
+  "db_path": "var/tmp/v3_v3.0.0-alpha_20261009_212519_v3app_e2e.sqlite (a futás végén törölve — var/tmp)",
   "what_this_is": "Az R81 terv 22 elfogadási feltétele a MEGÚJÍTOTT v3app felületen, valódi böngészőből (Playwright · Chromium), feltételenként KÉT rekeszben: amit a lap mutatott (browser) és amit a szerver válaszolt / a tároló őrzött (server).",
   "verdict_vocabulary": {
     "bizonyitva": "a feltétel minden állítása a böngésző- és/vagy a szerver-rekeszből áll össze",
@@ -207,7 +207,7 @@
         "A hiba A MEZŐNÉL áll („Add meg az adóazonosítót. Csak szóköz vagy kötőjel nem elegendő.\"), a mező jelölve (aria-invalid=true), és az űrlap tetején rövid összegzés („A vállalkozást még nem hoztuk létre. Javítsd a jelölt mezőt.\"). A „Vállalkozás neve\" mező értéke MEGMARADT, az aktív fiók nem változott („Személyes fiók\")."
       ],
       "server": [
-        "A szerver ÍRÁS ELŐTT utasít el: HTTP 400, reason=tax_id_value_required, field=business.tax_id, wrote=false. ADATBÁZIS: a könyvek és tagságok száma VÁLTOZATLAN (190/231) — félkész fiók nem maradt hátra. A mező javítása után UGYANAZ a gomb HTTP 201-et ad."
+        "A szerver ÍRÁS ELŐTT utasít el: HTTP 400, reason=tax_id_value_required, field=business.tax_id, wrote=false. ADATBÁZIS: a könyvek és tagságok száma VÁLTOZATLAN (192/233) — félkész fiók nem maradt hátra. A mező javítása után UGYANAZ a gomb HTTP 201-et ad."
       ],
       "verdict": "bizonyitva",
       "note": "A hiba a mezőhöz kötött, a többi kitöltés megmarad, és a sikertelen művelet nyomot sem hagy."

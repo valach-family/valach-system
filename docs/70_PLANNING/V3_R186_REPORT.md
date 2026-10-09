@@ -19,14 +19,20 @@ darabolásunk — és a javítás után mind az öt **tartalmi verdiktet** ad. A
 állapítható meg**: két jelölt magyarázatot mérve kizártam, feltételezett javítást nem építettem, a
 tétel **nyitott** — a rögzítés viszont megerősödött, hogy a következő előfordulás döntsön.
 
+**És a kötelező böngészős kapu a ZÁRÓ fejen is dolgozott:** két olyan hibát fogott meg, amit a
+javításaim okoztak — a bemutató két története beragadt, és egy FRISS tulajdonos elől elzárult a
+meghívás űrlapja. Mind a kettő javítva és megmérve (`KUKA-477` · `KUKA-478`). **Amit a mag és a
+határ zöldje nem mutat meg, azt a felületen kell megmérni.**
+
 És a befejezési rend maga **négy további saját hibát** hozott ki, mind a négyet méréssel: egy
 **örökölt**, körökön át piros mércét (amit a jelentések válogatott lánc-listája fedett el), a
 bemutató cél-kötését (egy **eldobható** mérő-világ azonosítóit szolgálta ki), a rögzítő
 „megmondja, elavult-e" ígéretét (minden futásnál pirosat adott), és **két saját mércémet**,
 amelyek a §2 ELŐTTI szabályt mondták. A kötelező kapu tehát pontosan azt tette, amiért kötelező.
 
-És a külső ellenőrző fél három fejen **tizenkét P2-t** adott; **tíz ebben a körben épült meg**, és
-**kétszer a saját, egy körrel korábbi javításom volt a hibás**. A gyökér-ok egy: **a felkínálás
+És a külső ellenőrző fél a csomag alatt **kilenc fejen** mért, és **huszonkét P2-t** adott; **húsz
+ebben a körben épült meg** (kettő már korábban javítva volt), és **többször a saját, egy körrel
+korábbi javításom volt a hibás**. A gyökér-ok egy: **a felkínálás
 feltétele a LEGSZŰKEBB KÉSŐBBI kapu, nem a legközelebbi** — amit a felület ajánl, azt az írás-útnak
 el is kell fogadnia, és ugyanabból a feloldóból. Négy leletnél a megszakadás a
 **visszafordíthatatlan** lépés UTÁN jött volna: azok nem „nem megy végig" fajta hibák, hanem
@@ -218,6 +224,14 @@ hatókör:  full — MINDEN nyilvántartott program lefutott — ez a lánc telj
 RESULT:  17/19 program MEGFELEL · 2 ENV-KIHAGYÁS (nevezett helyettessel)   · kilépés 0 · 5239 s
 ```
 
+**ÉS AZ ELSŐ KÉRDÉS A BIZONYÍTÉKRÓL: MELYIK FORRÁSON SZÜLETETT?** A fenti verdikt a lánc **16:45-ös**
+futásából való, és a fájl maga mondja ki, hogy a forrás **nem volt tiszta**:
+`source: {"commit":"1e4faa79…+uncommitted","clean":false,"dirty_files":["case-manifest.mjs","run-all.mjs"]}`.
+Azóta a lánc BEMENETE is változott (mérve: `v3ref/delegation.mjs` · `external-checks/case-manifest.mjs` ·
+`external-checks/run-all.mjs`), mert a `KUKA-471` javítása a magban történt. **Ezért ezt a verdiktet a
+MAI fej bizonyítékának NEM nevezem** (`KUKA-121` · `126` · `200`): azt mondja el, hogy a §3
+darabolás-javítása után a lánc teljes hatókörön lefut — nem azt, hogy a záró kódon lefut.
+
 **AMI MEGVÁLTOZOTT, ÉS MIÉRT.** Az R176-ban a lánc **12 ZÖLD / 7 PIROS** volt, és a két eredeti
 program kihagyása **nem állhatott**, mert a saját deklarált helyetteseik (`r57a` · `r59a`) is pirosak
 voltak. A §3 bontás-javítása óta a helyettesek **zöldek**, és a lánc saját szabálya szerint
@@ -235,6 +249,31 @@ két kihagyás **nem egyenrangú**, és a lánc ezt is kimondja:
   helyettes** tartja.
 
 Tehát: **a 19/19 ZÖLD ma sem állítható**, és nem is állítom.
+
+**ÉS AMI A ZÁRÓ MAGON ÁLL — RÉSZLEGES FUTÁS, NEM ZÖLD ÉS NEM KIHAGYÁS.** A záró kódon (`abe54a0`, és a
+lánc bemenete **mérve változatlan** onnan a jelentés fejéig: `git diff abe54a0..HEAD -- v3ref` a
+bizonyíték-mappán kívül ÜRES) **újraindítottam** a láncot 20:09:50-kor. A kör zárásakor **tizennégy**
+program végzett, **mind zöld**, mindegyik bizonyítéka a záró maghoz kötve (`source_commit: abe54a0…`) —
+összesen **136 zöld eset**:
+
+| a záró magon LEFUTOTT (14) | eset | a záró magon NEM FUTOTT (5) |
+|---|---|---|
+| `r16core` 7/7 · `r92authz` 2/2 · `r88core` 5/5 · `r85core` 4/4 | 18 | `r53` |
+| `r77` 39/39 · `r75` 7/7 · `r69` 5/5 · `r67` 8/8 · `r61` 8/8 | 67 | `r55` |
+| `r79core` 18/18 · `r79` 4/4 (18,6 perc) | 22 | `r57` (az eredeti, env-kihagyott) |
+| `r81core` 15/15 (9,5 perc) · `r83core` 7/7 (9,5 perc) | 22 | `r57a` (a helyettese) |
+| `r59a` 7/7 (18,7 perc) | 7 | `r59` (az eredeti, env-kihagyott) |
+
+**A LÁNC ÖSSZVERDIKTJE A ZÁRÓ MAGON EZÉRT NEM LÉTEZIK**, és nem is pótolom: az összegző fájlt a futtató
+csak a **végén** írja, a futást pedig az operátor zárási kérésére **én állítottam le** — nem a gép, nem
+időtúllépés. A lánc állapota a záró magon tehát **„NEM FUTOTT VÉGIG — NEM IGAZOLT"**: se nem zöld, se
+nem „részben zöld", és **nem** kihagyás (`KUKA-206` · `KUKA-200`). Ami ebből mégis mért tény: a
+`KUKA-471` javítását tartalmazó mag ellen **tizennégy külső program** futott zöldre, köztük a §3-ban
+javított három leghosszabb (`r79` · `r81core` · `r83core`) és az `r59a` helyettes. **Ami hiányzik: az
+`r57a` helyettes és az `r53` · `r55` program a záró magon** — tehát a két eredeti program ENV-kihagyása
+a záró magon **nem** áll (a kihagyást a zöld helyettes tartja, és az `r57a` ma nincs megmérve). A
+teljes lánc egyetlen, megszakítás nélküli futása a nyitott tételek között áll (7. szakasz).
+
 
 ---
 
@@ -488,9 +527,55 @@ is kiadja, és az űrlap abból rajzol (`as86`/`as87`).
 `file_path` mezője); a mai mérés ezt állítja elő, és a **kimeneti JSON-ban** keresi a könyvtárnevet —
 **mérve: a kivezetett alakon 1 találat, a maival 0**, és az ellenpróba a battérián **2 FAIL**-t ad.
 
-**ÖSSZESEN:** a külső review a csomag alatt **NYOLC fejen** mért, és **húsz P2-t** adott; kettő már a
-felmerülés előtt javítva volt, **tizennyolc ebben a körben épült meg** — és ehhez jön **nyolc saját
-lelet** a javítások megméréséből (köztük **három olyan, ahol a SAJÁT MÉRÉSEM volt a hibás**).
+### ÉS A KILENCEDIK FEJRE MÉG KETTŐ — AZ IDEMPOTENS NYUGTA ÉS A KITALÁLT TARTALÉK
+
+A Codex a `2812c58` fejen **két** P2-t adott, és mind a kettő **valódi**, mind a kettő **az én kódom
+ebből a körből**, és mind a kettő **ugyanarról** szól: *a rendszer két külön tényt ad (megtörtént-e ·
+mi az állapot), a lap pedig csak az egyiket olvasta.*
+
+| | a lelet | mi tört volna el | mi váltja |
+|---|---|---|---|
+| **`KUKA-475`** (`D-VS-3257`) · „Do not complete the revoke task when nothing changed" | a megvonás **üzletileg idempotens**: ha egy **másik fül** a lap betöltése után már megvonta a tagot, a mag `ok: true` **és** `changed: false`-ot ad (`revocation_already_effective`). A lap a puszta `ok`-ra zárta a bemutató lépését | a lap azt mondta ki, hogy **EZ** a kérés szüntette meg a hozzáférést — **meg sem történt átmenetre** állított teljesítést, és a bemutató lépése „elvégezve" jelet kapott. A szomszéd utak (adatkör-megadás · meghívó-visszavonás) **már** ezt a szabályt követték (`KUKA-129`), tehát fél őr volt | az átmenet a mag **teljes verdiktjéből** jön (`r.revocation.changed`), és változatlan állapotnál **nevezett nyugta** áll, mindhárom nyelven, a teendővel |
+| **`KUKA-476`** (`D-VS-3257`) · „Block the invite form when no scope is delegable" | a meghívó-űrlap adatkör-választéka **üres plafon** mellett egy **beégetett** `keszlet`/`arak` tartalékra esett | visszaállította pontosan azt a **hamis gombot**, amit a plafon-mérés (`KUKA-472`) megszüntetett: a delegált kezelő olyan adatkört kínált volna fel, amit az írás-út `outside_basis_scopes`-szal utasít el | az űrlap **mindkét** megmért készletre zár (szerep **és** adatkör), és üres készletnél a **nevezett mondat** áll az űrlap helyén — „nem tudom" ≠ „jó lesz" (`KUKA-049`) |
+
+**ÉS AMIT MAGAMRÓL RÖGZÍTEK, MERT A JELENTÉS NÉLKÜLE HAMIS:** a `KUKA-476` beégetett tartalékát a
+`KUKA-472` javításakor **láttam**, és nem javítottam — a plafon-készletet a panelen bevezettem, az
+űrlap tartalék-ágát viszont ott hagytam. **Amit egy javítás közben észreveszek, de nem javítok, azt
+nevezzem meg** (`D-VS-3257`), különben a következő review-körre marad, ahogy most történt.
+
+### ÉS A KÖTELEZŐ KAPU A ZÁRÓ FEJEN KÉT SAJÁT LELETET FOGOTT MEG (`KUKA-477` · `KUKA-478`)
+
+A kapu a záró fejen **PIROS** lett — `FAIL, 4 mért hiba` —, és mind a két oka **a saját javításaim
+következménye** volt: nem a termék régi hibája, nem a gép, és nem „ingadozó próba". A `D-VS-3245`
+óta épített szabály (*a felkínálás a VÉGIGVIHETŐSÉG állítása*) **új hiba-osztályt is nyitott**: ahol
+eddig mindig volt gomb, ott most a felkínálás FELTÉTELE dönt — és a feltételnek **minden
+kiszolgálón** és **minden időpillanatban** mérhetőnek kell lennie. A kettő pontosan ezt a két hiányt
+mondja ki.
+
+| | a lelet | mi tört el, MÉRVE | mi váltja |
+|---|---|---|---|
+| **`KUKA-477`** (`D-VS-3258`) | a lap új válasz-mezőket kezdett olvasni (`grantable_roles` az űrlaphoz, `revocation.changed` a nyugtához), a **bemutató csonkja** viszont a RÉGI választ adta | a bemutató lap UGYANAZT az `app.js`-t futtatja, csak a HTTP-határ mögött a csonk áll: a `tour.inviteRevoke` a **13.**, a `tour.reentry` a **3.** lépésén BERAGADT — **mind a két szélességen** (1280 px és 390 px), tehát a bemutató két legfontosabb története nem volt végigvihető | a csonk a MAI szerződést adja: `grantable_roles` · `blocked_roles` · `rights_alterable` · `reinvite_roles`, és a megvonás a mag **teljes** verdiktjét, az **idempotens** ismétléssel (`changed: false`) együtt |
+| **`KUKA-478`** (`D-VS-3258`) | a készlet-kapuk a `scopeMeta` két tömbjére zárnak, a **kezdő** alak viszont ÜRES tömböket tartalmazott — ugyanazt, amit egy **mért** üres plafon ad | a segéd „készítsd elő a meghívást" folytatása a lap-váltással EGY pillanatban nyitotta a panelt, a lista válasza pedig csak a rajzolás UTÁN érkezett: egy **friss tulajdonos** — akinek a kiszolgáló két szerepet és négy adatkört ad (`as93`, élőben) — azt a mondatot kapta, hogy **nincs mit felkínálni**. A nem mért állapotból nemleges válasz lett | a `scopeMeta` kimondja, hogy **mértünk-e**, a panel **előbb mér, utána rajzol** (a futó mérést megvárja, másodikat nem indít), és az újrahívás űrlapjának kitalált `['keszlet']` tartaléka is **kivezetve** |
+
+**ÉS HÁROM PRÓBA-OLDALI JAVÍTÁS IS KELLETT — KIMONDVA, MERT A MÉRÉS IS MÉRÉS ALATT ÁLL** (`KUKA-237`
+· `KUKA-239`): (a) az `R134-B2` a felfüggesztést a **tárolóban** oldotta fel (fixtúra: HTTP-út nincs
+rá), a sor „újrahívható" jelzője viszont az R186 §5 óta a kiszolgáló **mért** verdiktje — a lapnak
+tehát **újra be kell kérnie** a listát, és ezt most a **fülváltás** valódi vezérlőjével teszi; (b) az
+`R186-T4` a profilmenüből indított kilépés után a lap gombjára kattintott, miközben a **nyitott
+lenyíló rátakart** (a Playwright ezt nevezetten ki is írta) — a próba most **becsukja a menüt, ahogy
+a felhasználó**; (c) a `proof:demo-walk` két beragadása a csonk hibája volt, nem a bejáróé — a bejáró
+**pontosan azt mondta**, ahol megállt (`s13/invite-open` · `s3/members-list`), és ez a §1-ben épített
+„nem mondhat teljesítést részleges futásra" szabály **haszna**. **Egyik próba-javítás sem lazít a
+mérésen**: a mért VISELKEDÉS ugyanaz maradt.
+
+**AMIT EZ A SZAKASZ A KAPURÓL ÁLLÍT:** a kötelező böngészős kapu **két, élő felhasználói utat elzáró
+hibát** fogott meg, amit se a mag-mércék, se a rövid láncok, se a külső review **nem** jeleztek — a
+mag és a határ zöld volt mind a kettőnél. **A HATÁR ZÖLDJE NEM A FELÜLET ZÖLDJE** (`KUKA-227`).
+
+**ÖSSZESEN:** a külső review a csomag alatt **KILENC fejen** mért, és **huszonkét P2-t** adott; kettő
+már a felmerülés előtt javítva volt, **húsz ebben a körben épült meg** — és ehhez jön **tíz saját
+lelet** a javítások megméréséből (köztük **három olyan, ahol a SAJÁT MÉRÉSEM volt a hibás**, és
+**kettő, amit a KÖTELEZŐ KAPU fogott meg a záró fejen**).
 
 ---
 
@@ -503,9 +588,10 @@ lelet** a javítások megméréséből (köztük **három olyan, ahol a SAJÁT M
 | **`personal.ownMatters`** lefedési rés | **NYITOTT, nevesített fejlesztési rés** — a `verify:lefedes` `LT` sora szándékosan piros; pótolható **0**, osztályozatlan **0** |
 | **a `tour.grant`/`tour.scopeLifecycle` buborék-mondata** | **MÉRT MEGFIGYELÉS, nem javítva.** A lépés deklarált feltárója a tag-TÁBLA, a célt viszont a SOR hozzáférés-gombja tárja fel; a bemutató „nyisd meg a kiemelt gombbal" mondata emiatt pontatlan. A történet **végigvihető** (mérve), a regiszter pedig szándékosan nem nevez per-fiók azonosítót (`KUKA-225`). Más terület: **külön backlog** (R186 §5) |
 | **az út-tisztító symlink-korlátja** (`KUKA-474`) | **NEVEZETT, NYITOTT TÉTEL.** A könyvtár-határ ma **lexikális** kanonizáláson dől el (`resolve`), tehát egy repón **belüli**, kifelé mutató **jelképes lánc** ezzel NEM derül ki. A `realpath` fájlrendszer-hozzáférést és nem létező útra kivétel-kezelést kíván — külön tétel, nem ebben a csomagban |
+| **a bemutató csonkjának SÉMA-PARITÁSA** (`KUKA-477`) | **NEVEZETT, NYITOTT TÉTEL.** A csonk ma azt adja, amit a lap megkérdez — a kiszolgáló válaszának TELJES sémájához nincs gépi paritás-őr, és az `as90`/`as91` a csonk FORRÁSÁT méri (a modul a böngésző `fetch`-ét cseréli, innen nem hívható meg). A VISELKEDÉSI tanú a kötelező kapu `proof:demo-walk` lánca, ami CSAK a két bemutató-történet útját kattintja végig: egy harmadik úton ugyanez a hiba ma is átmenne |
 | **élő AI · PG18 · felhős mentés** | **KÜLÖN NYITOTT TÉTELEK** — ez a csomag nem állít róluk semmit |
-| **a külső review HÚSZ P2-je** (NYOLC fejen) | **MIND KEZELVE** — kettő már a felmerülés előtt javítva volt (`KUKA-453` · `e614a39`), **tizennyolc ebben a körben épült meg** (`KUKA-454`…`456` · `458`…`464` · `467`…`474`), mindegyikhez ÉLŐ mérés és ELLENPÁR. **A szálak github-oldali lezárását nem végeztem el**, és a válaszolt szál nem elfogadás. **A lelet-szám csökkenése nem bizonyítja a hibák hiányát** |
-| **a saját méréseimből jött leletek** (`KUKA-465` · `KUKA-466` · a csonk-sorrend a `468` mérésekor) | **MIND JAVÍTVA ÉS MÉRVE** (`D-VS-3247` · `D-VS-3248` · `D-VS-3250`). A `KUKA-466` a `verify:app-findings-r154` **ingadozásából** jött (hatból egy bukás): hamis „megtelt" 503 egy ÜRES táron, MÉRVE 40-ből 3; javítás után 80-ból 0. **A jele determinisztikus**, mert a két első alakja hamis zöld lett volna (6. szakasz) |
+| **a külső review HUSZONKÉT P2-je** (KILENC fejen) | **MIND KEZELVE** — kettő már a felmerülés előtt javítva volt (`KUKA-453` · `e614a39`), **húsz ebben a körben épült meg** (`KUKA-454`…`456` · `458`…`464` · `467`…`476`), mindegyikhez ÉLŐ mérés és ELLENPÁR. **A szálak github-oldali lezárását nem végeztem el**, és a válaszolt szál nem elfogadás. **A lelet-szám csökkenése nem bizonyítja a hibák hiányát** |
+| **a saját méréseimből jött leletek** (`KUKA-465` · `KUKA-466` · `KUKA-477` · `KUKA-478` · a csonk-sorrend a `468` mérésekor) | **MIND JAVÍTVA ÉS MÉRVE** (`D-VS-3247` · `D-VS-3248` · `D-VS-3250`). A `KUKA-466` a `verify:app-findings-r154` **ingadozásából** jött (hatból egy bukás): hamis „megtelt" 503 egy ÜRES táron, MÉRVE 40-ből 3; javítás után 80-ból 0. **A jele determinisztikus**, mert a két első alakja hamis zöld lett volna (6. szakasz) |
 | **a mai fej független elfogadása** | `REVIEW_ALLAPOT` |
 
 **A nyitott review-szálakat nem zártam le**, és nem is zárom: az R186 §5 kimondja, hogy a nyitott

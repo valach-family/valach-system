@@ -230,6 +230,20 @@ test.describe('R134 — a véglegesítési kapuk, az egyszeri ajánlat és a nye
     dbW.store.run('UPDATE membership_suspension SET lifted_at = ?, lifted_by = ? WHERE subject_id = ?',
       new Date().toISOString(), anna.subjectId, bela.subjectId);
     dbW.close();
+    /**
+     * ÉS A LAPNAK ÚJRA MEG KELL MÉRNIE — EZ A SOR A LELET MIATT VAN ITT (`KUKA-458` · `KUKA-209`).
+     *
+     * A felfüggesztés feloldása a TÁROLÓBAN történt (fixtúra: HTTP-út nincs rá, és ezt a próba
+     * fentebb ki is mondja). A sor „újrahívható" jelzője azonban az R186 §5 óta a KISZOLGÁLÓ mért
+     * verdiktje, és a lap magától nem kérdez újra: a képernyőn tehát a FELFÜGGESZTETT állapot
+     * mondata állt, a gomb pedig — helyesen — nem is létezett. A felhasználó útja ugyanez: a
+     * listát újra be kell kérni. Itt a FÜLVÁLTÁS a valódi vezérlő (a mérés viselkedést mér, nem
+     * DOM-ot állít — `KUKA-237`), és ezzel a mérés a MAI szerződést méri, nem a tavalyit.
+     */
+    await anna.page.getByTestId('members-tab-invites').click();
+    await expect(anna.page.getByTestId('invites-list')).toBeVisible();
+    await anna.page.getByTestId('members-tab-members').click();
+    await expect(anna.page.getByTestId(`member-${bela.subjectId}`)).toBeVisible();
     const siker = await reinviteUI(anna.page, bela.subjectId);
     expect(siker.body.ok).toBe(true);
     expect(siker.body.requires_acceptance).toBe(true);

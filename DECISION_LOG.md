@@ -16,6 +16,53 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3258 — A SZERZŐDÉS-BŐVÍTÉS MINDEN KISZOLGÁLÓRA SZÓL, ÉS A NEM MÉRT NEM „NEM" (R186 §5)
+
+A kötelező böngészős kapu a **záró fejen** PIROS lett, és mind a két oka **a saját javításaim
+következménye** volt — nem a terméké, és nem a gépé. A kapu tehát pontosan azt tette, amiért
+kötelező (`D-VS-497`).
+
+**(1) A BEMUTATÓ CSONKJA IS KISZOLGÁLÓ** (`KUKA-477`). A `KUKA-472`/`475`/`476` javításai a LAPON új
+válasz-mezőket kezdtek olvasni: a meghívó-űrlap a `grantable_roles` készletből rajzol, a megvonás
+nyugtája a `revocation.changed` átmenetből zár. A bemutató lap UGYANAZT az `app.js`-t futtatja, csak
+a HTTP-határ mögött a `demo-adapter.mjs` csonkja áll — és a csonk a RÉGI választ adta. Következmény,
+MÉRVE: a `tour.inviteRevoke` a 13. lépésén, a `tour.reentry` a 3. lépésén **beragadt**, mind a két
+szélességen. Mostantól a csonk a mai szerződést adja (`grantable_roles` · `blocked_roles` ·
+`rights_alterable` · `reinvite_roles` · teljes `revocation` verdikt, az idempotens ismétléssel).
+**A SZABÁLY:** amikor a lap új mezőt kezd olvasni, a kérdés nem „a kiszolgáló adja-e", hanem
+**„MINDEN kiszolgáló adja-e"** — a bemutató a felhasználó ELSŐ élménye, és a határ zöldje nem a
+felület zöldje (`KUKA-227` · `KUKA-207`).
+
+**(2) A NEM MÉRT KÉSZLET NEM ÜRES KÉSZLET** (`KUKA-478`). A készlet-kapuk a `scopeMeta` két
+tömbjére zárnak, a kezdő alak viszont ÜRES tömböket tartalmazott — ugyanazt, amit egy MÉRT üres
+plafon ad. A segéd „készítsd elő a meghívást" folytatása pedig a lap-váltással EGY pillanatban
+nyitotta a panelt, tehát a lista válasza csak a rajzolás UTÁN érkezett meg. Egy **friss
+tulajdonos** — akinek a kiszolgáló két szerepet és négy adatkört ad (mérve) — azt a mondatot kapta,
+hogy nincs mit felkínálni. Mostantól a `scopeMeta` kimondja, hogy **mértünk-e**, és a panel **előbb
+mér, utána rajzol** (a futó mérést megvárja, másodikat nem indít). **A SZABÁLY:** egy mért készletre
+zárt kapunak **három** állapota van — mért és üres · mért és nem üres · **még nem mért** —, és a
+harmadikra nem nemleges válasz jár, hanem **mérés** (`KUKA-049` · `KUKA-209`).
+
+**ÉS AMIT EZ A KÉT LELET EGYÜTT MOND:** a „felkínálás = végigvihetőség" szabály bevezetése
+(`D-VS-3245`/`3246`/`3251`) **új hiba-osztályt is nyitott**: ahol eddig mindig volt gomb, ott most a
+felkínálás FELTÉTELE dönt — és a feltétel **minden** kiszolgálón és **minden** időpillanatban
+mérhető kell legyen. A két lelet nem a szabály ellen szól; a szabály **hatókörét** mondja ki.
+
+**HÁROM PRÓBA-OLDALI JAVÍTÁS IS KELLETT, ÉS EZT KIMONDOM** (`KUKA-237`): (a) az `R134-B2` a
+felfüggesztést a TÁROLÓBAN oldotta fel (fixtúra, HTTP-út nincs rá), a sor „újrahívható" jelzője
+viszont az R186 §5 óta a kiszolgáló MÉRT verdiktje — a lapnak tehát újra be kell kérnie a listát, és
+ezt most a FÜLVÁLTÁS valódi vezérlőjével teszi. (b) Az `R186-T4` a profilmenüből indított kilépés
+után a lap gombjára kattintott, miközben a nyitott lenyíló RÁTAKART — a próba most becsukja a menüt,
+ahogy a felhasználó. **Egyik sem termék-hiba**, és egyik javítás sem lazít a mérésen: a mért
+VISELKEDÉS ugyanaz maradt.
+
+**AMIT EZ A DÖNTÉS NEM ÁLLÍT:** nem állítja, hogy a bemutató csonkja ezzel teljesen szerződés-hű
+(ma is csak azt adja, amit a lap megkérdez — a teljes séma-paritás nevesített, nyitott tétel), és
+nem állítja, hogy a kapu minden ilyen eltérést elfog: a két történeten kívüli utakat a bejáró nem
+kattintja végig.
+
+---
+
 ## D-VS-3257 — AZ IDEMPOTENS MŰVELET KÉT TÉNYT AD, ÉS A TARTALÉK-ÉRTÉK IS ÁLLÍTÁS (R186 §5)
 
 Két lelet, egy munkarendi tanulság-pár.

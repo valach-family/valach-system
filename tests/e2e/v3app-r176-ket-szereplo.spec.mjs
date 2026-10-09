@@ -1053,6 +1053,18 @@ test('R186-T4 — MEGHIÚSULT KILÉPÉS után a MÁSIK FÜL személy-váltása N
   expect(belepes.status, 'a másik fül belépése sikerül — innentől a munkamenet MÁS emberé').toBe(200);
 
   // ── (3) AZ ELSŐ FÜL KÖVETKEZŐ MŰVELETE FRISSÍT — ÉS A VÁLTÁS NEM NÉMA ─────────────────────
+  /**
+   * ELŐBB A NYITOTT PROFIL-LENYÍLÓ BECSUKÁSA — A FELHASZNÁLÓ ÚTJÁN (`KUKA-011` · `KUKA-237`).
+   *
+   * A kilépést a profilmenüből indítottuk, és a meghiúsult kilépés után a lenyíló NYITVA marad
+   * (helyesen: a lap belépve maradt, tehát a menü sem záródik be). A nyitott lenyíló viszont a
+   * fejlécből RÁTAKAR a lap műveletére — a Playwright ezt nevezetten ki is mondta: „a
+   * Kijelentkezés gomb fogja el a pointer-eseményt". A valódi felhasználó ugyanezt teszi: a
+   * menüt a SAJÁT vezérlőjével csukja be, és utána nyúl a lap gombjához (ugyanez a lépés áll a
+   * `gotoPage` segédben is, a saját mért leletünk óta).
+   */
+  await p.getByTestId('profile').locator('summary').click();
+  await expect(p.getByTestId('profile')).toHaveJSProperty('open', false);
   await p.getByTestId('data-stock-btn').click();
   await expect(p.getByTestId('global-notice'),
     'a lap KIMONDJA, hogy más ember lépett be (RÉGEN: a meghiúsult kilépés jelölője miatt NÉMÁN átvette az új nézetet)')
