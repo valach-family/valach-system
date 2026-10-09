@@ -2353,6 +2353,144 @@ try {
       }
 
       {
+        /**
+         * ══ (as64–as65) A LISTA-SOR INDOKA A SZÓTÁRBAN ÁLL — MIND A HÁROM NYELVEN ════════════
+         *
+         * SAJÁT LELET, a `KUKA-458` javítás MEG MÉRÉSE KÖZBEN: azzal, hogy a lista-sor indoka
+         * mostantól az ÍRÁS-ÚT kódjaiból jön, a mag BELSŐ ok-kódjai egy FELHASZNÁLÓI szöveg-rekeszbe
+         * kerültek — és a `reasonText` a nem ismert kulcsot NÉMÁN az általános mondatra ejti
+         * (`KUKA-238`). Öt ok így általános szöveget kapott volna az indok és a TEENDŐ helyett.
+         *
+         * A JEL KÉT IRÁNYÚ: (as64) minden deklarált ok VALÓDI mondatot ad minden bekapcsolt nyelven,
+         * és (as65) a MAG három feloldója nem ad olyan okot, ami a deklarált listán kívül van — tehát
+         * egy JÖVŐBELI új ok nevezetten pirosra vált, nem némán általános szövegre esik.
+         */
+        const UJRAHIVAS_OKOK = [
+          'reentry_blocked_suspension', 'reentry_blocked_ban',
+          'reentry_blocked_open_review_circle', 'reentry_blocked_retroactive_invalidity',
+          'reentry_undecidable_clock', 'reentry_time_undecidable',
+          'reentry_not_after_revocation', 'reentry_target_has_no_address',
+          'outside_basis_roles', 'outside_basis_scopes',
+          'delegation_ceiling_empty', 'parent_limit_undecidable',
+          'role_not_delegable', 'role_not_recognised',
+        ];
+        const nyelvekU = enabledLanguages().map((l) => l.code);
+        const hianyU = [];
+        for (const kod of nyelvekU) {
+          const d = dictFor(kod);
+          for (const ok of UJRAHIVAS_OKOK) {
+            const sz = d && d.REASON ? d.REASON[ok] : undefined;
+            const gen = d && d.REASON ? d.REASON.generic : undefined;
+            if (typeof sz !== 'string' || sz.length < 40 || sz === gen) hianyU.push(`${kod}/${ok}`);
+          }
+        }
+        step('(as64) R186/§5 (SAJÁT LELET a `KUKA-458` mérése közben): a munkatárs-lista `reinvite_reason` MINDEN lehetséges oka VALÓDI mondatot ad MINDEN bekapcsolt nyelven — nem esik némán az általános tartalékra (`KUKA-238`)',
+          hianyU.length === 0 && nyelvekU.length >= 3,
+          { nyelvek: nyelvekU.join(','), okok: UJRAHIVAS_OKOK.length,
+            hianyzo: hianyU.length ? hianyU.join(' · ') : 'nincs' });
+
+        // (as65) ÉS A MAG NEM AD OLYAN OKOT, AMI A LISTÁN KÍVÜL VAN — a három feloldó forrásából
+        // szedve, nem emlékezetből (`KUKA-033`). A `reentry_admissible` és a `closed_period` SIKER-ok,
+        // nem elutasítás, ezért a listán nincs rajta — és ezt a szűrő KIMONDJA.
+        const SIKER_OKOK = ['reentry_admissible', 'closed_period'];
+        const magSzovegek = [
+          readFileSync(join(ROOT, 'v3ref/reentryGate.mjs'), 'utf8'),
+          readFileSync(join(ROOT, 'v3ref/delegation.mjs'), 'utf8').slice(
+            readFileSync(join(ROOT, 'v3ref/delegation.mjs'), 'utf8').indexOf('export function delegationCeilingOf'),
+            readFileSync(join(ROOT, 'v3ref/delegation.mjs'), 'utf8').indexOf('export function deriveDelegationBasis')),
+          readFileSync(join(ROOT, 'v3ref/delegation.mjs'), 'utf8').slice(
+            readFileSync(join(ROOT, 'v3ref/delegation.mjs'), 'utf8').indexOf('export function reinviteFeasibility'),
+            readFileSync(join(ROOT, 'v3ref/delegation.mjs'), 'utf8').indexOf('export function addressOfSubject')),
+        ].join('\n');
+        const magOkok = [...new Set([...magSzovegek.matchAll(/reason: '([a-z_]+)'/g)].map((m) => m[1]))]
+          .filter((o) => !SIKER_OKOK.includes(o))
+          .filter((o) => !o.startsWith('reentry_target_'))      // a lezárt-időszak ága: a lista NÉLKÜLE is kimondja
+          .filter((o) => o !== 'subject_and_book_required')      // bemenet-hiány: a lista-úton nem érhető el
+          .sort();
+        const idegen = magOkok.filter((o) => !UJRAHIVAS_OKOK.includes(o));
+        step('(as65) R186/§5 ELLENPÁR: a MAG három feloldója nem ad olyan elutasítási okot, ami a lefordított listán kívül van — egy JÖVŐBELI új ok nevezetten pirosra vált',
+          magOkok.length > 0 && idegen.length === 0,
+          { a_magban: magOkok.join(','), listan_kivul: idegen.length ? idegen.join(',') : 'nincs' });
+      }
+
+      // ── (as66–as68) A FELVÉTEL ÉS AZ ELLENŐRZÉSE EGY IDŐT KAP (`KUKA-466` — SAJÁT LELET) ────────
+      //
+      // A LELET A `verify:app-findings-r154` INGADOZÁSÁBÓL jött: a `(t3)` sor hatból egyszer bukott.
+      // A bejárás megmérte, hogy nem a próba hibája: a `POST /api/invites/pending` a KÉRÉS ELEJÉN
+      // leolvasott pillanatra kérdezte meg a tárat a FRISSEN beszúrt sorról, a sor viszont a `set`
+      // SAJÁT `Date.now()`-jával született. Átfordult millisekundumnál a kor NEGATÍV lett, a
+      // `KUKA-464` óra-védelme a saját születésére tüzelt, és ÜRES táron „megtelt" 503 ment ki.
+      // MÉRVE a javítás ELŐTT: 40 független próbából 3 (7,5%), a javítás UTÁN: 80-ból 0.
+      {
+        // (as66) A MECHANIZMUS, DETERMINISZTIKUSAN: a tár egy T-ben felvett sort T−1-re LEJÁRTNAK
+        // ítél, és EL IS DOBJA. Ez a `KUKA-464` helyes viselkedése — tehát a felvétel ellenőrzése
+        // NEM kérdezhet korábbi pillanatra.
+        const stM = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 100, warn: () => {} });
+        stM.set('ido-elore', { subject_id: null }, 1_000_000);
+        const korabbra = stM.has('ido-elore', 999_999);
+        const utana = stM.has('ido-elore', 1_000_000);
+        step('(as66) `KUKA-466` MECHANIZMUS: a T-ben felvett munkamenet-sort a tár T−1-re LEJÁRTNAK ítéli és eldobja — a felvétel ellenőrzése ezért NEM kérdezhet korábbi pillanatra',
+          korabbra === false && utana === false,
+          { korabbra, ugyanaz_utana_mar_nincs: utana });
+        // (as67) ÉS A VÉDELEM VÁLTOZATLANUL SZIGORÚ: egy JÖVŐBELI bélyeg (visszalépő fali óra) sora
+        // továbbra is LEJÁRT — a javítás nem lazította a `KUKA-464`-et, csak egy időt ad a döntésnek.
+        const stV = makeSessionStore({ idleMs: 10 ** 9, maxSessions: 100, warn: () => {} });
+        stV.set('jovobol', { subject_id: 'x' }, 5_000_000);
+        const visszalepett = stV.has('jovobol', 4_000_000);
+        step('(as67) ELLENPÁR: a `KUKA-464` óra-védelme VÁLTOZATLAN — egy JÖVŐBELI bélyegű (visszalépő fali óra) sor továbbra is LEJÁRT, nem „még érvényes"',
+          visszalepett === false, { visszalepett });
+      }
+      {
+        // (as68–as69) A `KUKA-466` ÉLŐ, DETERMINISZTIKUS TANÚJA — ÉS MIÉRT NEM AZ ISMÉTLÉS.
+        //
+        // AZ ELSŐ KÉT ALAKOM HAMIS ZÖLD VOLT, ÉS EZT KIMONDOM (`KUKA-215` · `KUKA-239`):
+        //  · 200 kérés a battéria KÖZÖS kiszolgálóján → 183 darab 503-at mért, de azok VALÓDIAK
+        //    voltak (a közös plafon 40 munkamenet), vagyis a mérés a plafont igazolta volna;
+        //  · 200, majd 5000 kérés SAJÁT, nagy plafonú kiszolgálón → a HIBÁS alakon is zöld maradt:
+        //    a hamis 503 esélye meleg kódúton MÉRVE 0,02% kérésenként (5000-ből 1), tehát 200
+        //    ismétlés felderítő ereje ~4%. Egy ilyen sor NEM tanú.
+        //
+        // AMI VISZONT DETERMINISZTIKUS: a kiszolgáló EBBEN a folyamatban fut, tehát a fali óra
+        // leolvasása MÉRHETŐVÉ tehető. A csonk minden leolvasásnál 5 ms-ot lép előre — ez pontosan
+        // az a helyzet, amit a valóságban a millisekundum átfordulása ad, csak biztosan. A HIBÁS
+        // alakon a frissen felvett sor bélyege a kérdezett pillanat UTÁN van, a `KUKA-464` védelme
+        // a saját születésére tüzel, és ÜRES táron „megtelt" 503 megy ki.
+        const elozoCap = process.env.VS_APP_SESSION_MAX;
+        process.env.VS_APP_SESSION_MAX = '5000';
+        const DB466 = resolve(ROOT, 'var/tmp/v3app_r186_kuka466.sqlite');
+        for (const p of [DB466, DB466 + '-wal', DB466 + '-shm']) { try { rmSync(p, { force: true }); } catch { /* nem volt */ } }
+        const k466 = await startServer({ port: 0, dbPath: DB466 });
+        const igaziNow = Date.now;
+        try {
+          const b466 = `http://127.0.0.1:${k466.server.address().port}`;
+          const iras = async (token) => {
+            const r = await fetch(`${b466}/api/invites/pending`, { method: 'POST',
+              headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
+            const t = await r.json().catch(() => ({}));
+            return { status: r.status, reason: t.reason || null };
+          };
+          // (as68) VALÓDI ÓRÁVAL: a süti nélküli folytatás-írás sikerül (alapállás).
+          const rendes = await iras('kuka466-rendes');
+          // (as69) LÉPTETETT ÓRÁVAL: MINDEN `Date.now()` 5 ms-mal előrébb — a felvétel és az
+          // ellenőrzése így BIZTOSAN két külön pillanatra esne, ha nem EGY időt kapna.
+          let lepes = 0;
+          Date.now = () => igaziNow.call(Date) + (lepes++) * 5;
+          const leptetett = await iras('kuka466-leptetett');
+          Date.now = igaziNow;
+          const tarMeret = k466.sessions.size;
+          step('(as68) `KUKA-466` alapállás: süti NÉLKÜLI folytatás-írás ÜRES táron SIKERÜL (a 200-as válasz a hasonlítás alapja)',
+            rendes.status === 200, { status: rendes.status, reason: rendes.reason || 'nincs' });
+          step('(as69) `KUKA-466` ÉLŐ TANÚ (SAJÁT LELET, determinisztikus): LÉPTETETT fali órával is 200 jön — a frissen felvett munkamenet nem eshet a SAJÁT születésére (a KIVEZETETT alakon MÉRVE: 503 `at_capacity` egy 2 soros táron)',
+            leptetett.status === 200 && leptetett.reason === null && tarMeret <= 5000,
+            { status: leptetett.status, reason: leptetett.reason || 'nincs', ora_leolvasas: lepes, tar: tarMeret });
+        } finally {
+          Date.now = igaziNow;
+          await new Promise((r) => k466.server.close(r));
+          if (elozoCap === undefined) delete process.env.VS_APP_SESSION_MAX; else process.env.VS_APP_SESSION_MAX = elozoCap;
+        }
+      }
+
+      {
         // ── (as42–as43) A SZŰK SZEREP-PLAFON, ÉLŐBEN (`KUKA-431`/`437` forrás-pinjének élő párja) ──
         const sz = await fiok('u-szukplafon');
         const ws = await sz.post('/api/workspaces', { name: 'U186 Szuk Plafon Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '52345678-1-42' } });

@@ -16,6 +16,66 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3248 — EGY DÖNTÉS: EGY IDŐ — A FELVÉTEL ÉS A FELVÉTEL ELLENŐRZÉSE (R186 §5, SAJÁT LELET)
+
+Az ugyanebben a csomagban hozott `KUKA-464` helyes: a NEGATÍV kor is LEJÁRT, különben egy visszalépő
+fali óra egy valójában tétlen munkamenetet érvényesnek mutat. A felvétel útja viszont KÉT idő-leolvasást
+használt — a sor a tár saját `Date.now()`-jával született, a felvétel tényét a hívó egy KORÁBBAN
+leolvasott pillanatra kérdezte meg —, és átforduló millisekundumnál az ÚJ őr a FRISSEN született sorra
+tüzelt: a tár eldobta, a hívó pedig „a munkamenet-tár megtelt" 503-at adott egy ÜRES táron.
+
+**A DÖNTÉS:** a felvétel és a felvétel ELLENŐRZÉSE **egyetlen döntés, tehát egyetlen pillanatra esik**.
+A `newSession` harmadik paramétere a hívó ideje, és azt adja tovább a tárnak; a hívó ugyanezzel kérdez.
+Ez a `KUKA-314` szabályának kiterjesztése: nem „egy KÉRÉS — egy idő", hanem **egy DÖNTÉS — egy idő**.
+A `KUKA-464` óra-védelmét NEM lazítjuk (ellenpróba: a JÖVŐBELI bélyegű sor továbbra is lejárt).
+
+**ÉS AMIT EBBŐL A MUNKARENDRE RÖGZÍTÜNK: az ingadozó próba egy MÉRÉS, nem zaj.** A leletet a
+`verify:app-findings-r154` hatból egyszer bukó `(t3)` sora adta. Ha azt „flake"-ként zárom le, egy
+éles, felhasználót érintő hiba marad a kódban. A gyökér-okot kiszolgálót ÚJRAINDÍTÓ, 40 körös
+ellenpróbával mértem meg (7,5%), és a javítás után 80 körrel ellenőriztem (0%).
+
+**A JEL ÉLŐ ÉS DETERMINISZTIKUS, mert az ismétlés itt HAMIS ZÖLD lett volna** (`KUKA-215` · `KUKA-239`):
+200 kérés a battéria közös kiszolgálóján VALÓDI `at_capacity`-t mért (a közös plafon 40 munkamenet), és
+200 — majd 5000 — kérés saját, nagy plafonú kiszolgálón a HIBÁS alakon is zöld maradt (meleg kódúton a
+hamis 503 esélye MÉRVE 0,02% kérésenként). A kiszolgáló viszont EBBEN a folyamatban fut, tehát a fali
+óra leolvasása mérhetővé tehető: a LÉPTETETT óra (minden leolvasás +5 ms) biztosan két pillanatra tolná
+a döntést — a kivezetett alakon 503, a mai alakon 200.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as66` · `as67` · `as68` · `as69`) · `npm run verify:kuka`
+(a kivezetett forrás-alak tiltott).
+
+---
+
+## D-VS-3247 — AMIKOR EGY BELSŐ KÓD FELHASZNÁLÓI REKESZBE KERÜL, A SZÓTÁR IS A JAVÍTÁS RÉSZE (R186 §5)
+
+A `KUKA-458` javítása helyes irányú volt: a munkatárs-lista mostantól az ÍRÁS-ÚT saját feloldóját
+kérdezi, és a nemleges válasz NEVE is onnan jön — így a sor a VALÓDI okot mondhatja. A javítás
+viszont **félig kész** volt: a mag BELSŐ ok-kódjai egy FELHASZNÁLÓI szöveg-rekeszbe kerültek, és a
+`reasonText` a nem ismert kulcsot NÉMÁN az általános mondatra ejti (`KUKA-238`).
+
+**A DÖNTÉS:** ahol egy belső ok-kód felhasználói szövegre fordul, ott a **szótár is a javítás része** —
+mind a bekapcsolt nyelveken, és a mondat a **TEENDŐT** is megnevezi (`KUKA-201`). Öt ok kapott így
+valódi mondatot (`reentry_undecidable_clock` · `reentry_time_undecidable` ·
+`delegation_ceiling_empty` · `parent_limit_undecidable` · `role_not_recognised`).
+
+**ÉS A JEL KÉT IRÁNYÚ, mert a hiányt forrás-minta nem tudja mérni:** az `as64` minden deklarált okra
+megkívánja a valódi mondatot minden nyelven; az `as65` a MAG három feloldójának **forrásából** szedi
+az okokat, és pirosra vált, ha olyan jön, ami a lefordított listán kívül van. Egy jövőbeli új ok tehát
+**nevezetten** bukik, nem némán esik általánosra.
+
+**ÉS AMI EBBŐL A FELÜLETEN MEGVÁLTOZOTT, KIMONDVA.** A `KUKA-458` óta egy felfüggesztett tagnál az
+„Újra meghívás" gomb **meg sem jelenik**: a sor helyette a NEVEZETT elakadás-mondatot rajzolja ki, a
+mag saját ok-kódjával, a felhasználó nyelvén. Ez **nem** a teendő elrejtése: a mondat ugyanazt az okot
+ÉS ugyanazt a folytatást viszi, csak nem kell hozzá megnyomni egy gombot, ami biztosan nemet mond. Az
+`R134-B2` próba ezt a mai viselkedést méri (a gomb hiányát és a német mondatot), a HTTP-elutasítás
+tartalmát (`reason` + `next_step`) pedig **közvetlen** végpont-hívással — tehát a nemleges válasz
+tartalma változatlanul mérve van (`KUKA-215`).
+
+Gépi jel: `npm run verify:app-findings-r154` (`as64` · `as65`) · `npm run verify:i18n` ·
+ÉLŐ tanú: `npm run verify:browser-gate` (`R134-B2`).
+
+---
+
 ## D-VS-3246 — AZ ÚJ KAPU A LEGITIM UTAT IS MEGMÉRI, ÉS AZ ÉRTELMEZHETETLEN A BIZTONSÁGOSABB IRÁNYBA DŐL (R186 §5)
 
 A külső ellenőrző fél (chatgpt-codex) az `5faeb5a` és a `defddc1` fejen NÉGY további P2-t adott. Az

@@ -1460,7 +1460,22 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       transient: true, presented: Boolean(presented) };
   }
 
-  function newSession(subjectId = null, token = null) {
+  /**
+   * A FELVÉTEL ÉS A FELVÉTEL ELLENŐRZÉSE UGYANAZT AZ IDŐT KAPJA (`KUKA-466` · `D-VS-3248`).
+   *
+   * A LELET, ÉS MIÉRT FÁJT. A `KUKA-464` (ugyanez a csomag) helyesen mondta ki, hogy a NEGATÍV kor is
+   * LEJÁRT — különben egy visszalépő fali óra egy valójában tétlen munkamenetet érvényesnek mutat. A
+   * felvétel útja viszont KÉT idő-leolvasást használt: a sor a `set` SAJÁT `Date.now()`-jával született,
+   * a felvétel tényét pedig a hívó egy KORÁBBAN leolvasott pillanatra kérdezte meg. Ha a két leolvasás
+   * között átfordult a millisekundum, a kor NEGATÍV lett — a frissen született sort a tár LEJÁRTNAK
+   * ítélte, EL IS DOBTA (`evicted_idle`), a hívó pedig „a munkamenet-tár megtelt" 503-at adott egy
+   * ÜRES táron. MÉRVE élő HTTP-n: 40 próbából 3 (7,5%).
+   *
+   * A VÁLASZ A HÁZ SAJÁT SZABÁLYA, NEM A VÉDELEM LAZÍTÁSA (`KUKA-314`: EGY DÖNTÉS — EGY IDŐ). A
+   * felvétel és az ellenőrzése EGY döntés, tehát EGY időt kap: a hívó átadja, és a `set` ezt kapja. A
+   * `KUKA-464` óra-védelme változatlanul szigorú — csak nem a saját születésére tüzel.
+   */
+  function newSession(subjectId = null, token = null, now = Date.now()) {
     const s = { id: hex(32), subject_id: subjectId ?? null, current_book_id: null, created_at: clock.now() };
     /**
      * A SORREND: BESZÚRÁS, AZTÁN PIN (F154-29). A `set` a plafont AZONNAL érvényesíti, és ha a sort nem
@@ -1470,7 +1485,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      * A FELVÉTEL TÉNYÉT A HÍVÓ A TÁRBÓL KÉRDEZI MEG (`sessions.has`), nem egy mezőből: egy bélyeg
      * elavulhat, a tár viszont a tény kanonikus otthona (KUKA-305 tanulsága, bélyeg nélkül).
      */
-    sessions.set(s.id, s);
+    sessions.set(s.id, s, now);
     if (token) sessions.pin(s.id, token);
     return s;
   }
@@ -3843,7 +3858,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
         materializeWhy = 'session_gone';
         return null;
       }
-      const fresh = newSession(null, pinToken);
+      // A FELVÉTEL ÉS AZ ELLENŐRZÉSE EGY IDŐT KAP (`KUKA-466`): különben a két `Date.now()` között
+      // átforduló millisekundum NEGATÍV kort ad, a `KUKA-464` óra-védelme a frissen született sorra
+      // tüzel, és ÜRES táron is „megtelt" 503 megy ki. MÉRVE: 40 próbából 3 (7,5%).
+      const fresh = newSession(null, pinToken, hasznalatkor);
       if (!sessions.has(fresh.id, hasznalatkor)) { materializeWhy = 'at_capacity'; return null; }
       session = fresh;
       setCookie = sessionCookie(fresh.id, { secure: IS_DEPLOYED || isHttpsRequest(req) });
