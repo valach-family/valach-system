@@ -2051,6 +2051,91 @@ try {
           van(feloldva) === true, { feloldas_utan: van(feloldva) });
       }
 
+      /**
+       * ══ (as44–as49) A KÜLSŐ REVIEW HÁROM LELETE A §2 FELÖTT (R186 §5) ═══════════════════
+       *
+       * Mind a három UGYANAZT a hibát mondja más helyen: a FELKÍNÁLÁS ÉS AZ ÁTKÖTÉS KÖZELÍTŐ
+       * FELTÉTELT HASZNÁLT, nem azt, amit a fogyasztó út ténylegesen kér — és a megszakadás mindhárom
+       * esetben a történet KÖZEPÉN jött, kettőnél a VISSZAFORDÍTHATATLAN lépés UTÁN.
+       */
+      {
+        // ── (as44–as45) A MEGHÍVOTT CSATORNÁJA BIZONYÍTOTT, nem csak „azonosítható" ──────────
+        const cs = await fiok('u-csatorna');
+        await cs.post('/api/workspaces', { name: 'U186 Csatorna Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '72345678-1-42' } });
+        // A MEGHÍVOTT REGISZTRÁL, DE A CÍMÉT NEM IGAZOLJA — ez PONTOSAN a lelet állapota: a
+        // `subjectByEmail` ad alanyt, `channel_proof` sor viszont nincs. Ezért itt SZÁNDÉKOSAN nem a
+        // `fiok()` fut (az igazolja a címet), hanem csak a regisztráció.
+        const nyers = new Client(b9);
+        await nyers.post('/api/register', { email: 'u-nemigazolt@pelda.hu', password: PW, lang: 'hu' });
+        const megL = (await nyers.get('/dev/mailbox')).body.mails.filter((x) => x.to === 'u-nemigazolt@pelda.hu')[0];
+        await cs.post('/api/invites', { email: 'u-nemigazolt@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+        const vanV = (r) => ((r && r.ids) || []).includes('tour.inviteRevoke');
+        const igazolasElott = await turak(cs, 'app');
+        step('(as44) R186/§5 (külső review P2): a REGISZTRÁLT, de a címét NEM IGAZOLT meghívott mellett a visszavonás-történet NEM felkínált — a megfigyelés `needs_invitee_identity`-t adna, jelölő nélkül, és a levél-lépés `story_ref` kapuja ÁLLÍTANA MEG a történetet',
+          vanV(igazolasElott) === false, { felkinalva_igazolas_elott: vanV(igazolasElott) });
+
+        // ELLENPÁR: a CÍM IGAZOLÁSA után a felkínálás VISSZAJÖN — tehát a szűkítés nem vitt el jó esetet.
+        const megU = new URL(megL.link);
+        await nyers.get(megU.pathname + megU.search);
+        const igazolasUtan = await turak(cs, 'app');
+        step('(as45) R186/§5 ELLENPÁR: a cím IGAZOLÁSA után a felkínálás VISSZAJÖN — a kapu a BIZONYÍTOTT CSATORNÁT méri, nem az alany létét',
+          vanV(igazolasUtan) === true, { felkinalva_igazolas_utan: vanV(igazolasUtan) });
+      }
+
+      {
+        // ── (as46–as47) AZ ÚJBÓLI MEGHÍVÁSNAK PONTOSAN EGY TÁROLT CÍM KELL ───────────────
+        const cm = await fiok('u-ketcim');
+        const ws = await cm.post('/api/workspaces', { name: 'U186 Ket Cim Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '82345678-1-42' } });
+        const konyv = ws.body && (ws.body.book_id || (ws.body.workspace && ws.body.workspace.book_id));
+        const tag = await fiok('u-kc-tag');
+        const mv = await cm.post('/api/invites', { email: 'u-kc-tag@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+        await tag.post('/api/invites/redeem', { token: mv.body.token });
+        const tagAlany = ((await cm.get('/api/members')).body.members || [])
+          .find((x) => x.email === 'u-kc-tag@pelda.hu');
+        const vanR = (r) => ((r && r.ids) || []).includes('tour.reentry');
+        const egyCim = await turak(cm, 'app');
+
+        // A FIXTÚRA: a tagnak MÁSODIK ÉLŐ e-mail azonossága lesz. A HTTP-határon erre nincs út, és
+        // nem is építünk — az R186 §4 engedélye szerint a fixtúra a teszt SAJÁT tárolójába megy, a
+        // VIZSGÁLT művelet pedig a VALÓDI kiszolgálótól kérdezett felkínálás.
+        u.store.run(`INSERT INTO external_id (subject_id, namespace, issuer, jurisdiction, value_raw, value_norm, cardinality, valid_from, valid_to)
+                     VALUES (?,?,?,?,?,?,?,?,NULL)`,
+          tagAlany && tagAlany.subject_id, 'email', 'self_asserted', 'HU',
+          'u-kc-tag+masodik@pelda.hu', 'u-kc-tag+masodik@pelda.hu', 'one_to_many', '2020-01-01T00:00:00.000Z');
+        const ketCim = await turak(cm, 'app');
+        step('(as46) R186/§5 (külső review P2): KÉT ÉLŐ cím mellett a visszatérés-történet NEM felkínált — az újbóli meghívás PONTOSAN EGY tárolt címet kíván (`reentry_target_has_no_address`), és a megszakadás a MEGVONÓ lépés UTÁN jött volna',
+          vanR(egyCim) === true && vanR(ketCim) === false,
+          { egy_cimmel: vanR(egyCim), ket_cimmel: vanR(ketCim) });
+
+        // ELLENPÁR: a második cím LEZÁRÁSA után a felkínálás VISSZAJÖN.
+        u.store.run("UPDATE external_id SET valid_to = ? WHERE subject_id = ? AND value_norm = ?",
+          '2020-06-01T00:00:00.000Z', tagAlany && tagAlany.subject_id, 'u-kc-tag+masodik@pelda.hu');
+        const ujraEgy = await turak(cm, 'app');
+        step('(as47) R186/§5 ELLENPÁR: a második cím LEZÁRÁSA után a felkínálás VISSZAJÖN — a kapu a CÍM EGYEDISÉGÉT méri, nem a tag létét',
+          vanR(ujraEgy) === true, { lezaras_utan: vanR(ujraEgy), konyv_megvan: Boolean(konyv) });
+      }
+
+      {
+        // ── (as48–as49) AZ ÁTKÖTÉS A CÉL MINDKÉT FELÉT KÉRI ────────────────────────
+        const futas = (actor, ref) => ({ at: 0,
+          steps: [{ id: 's13', task: 'invite.created', story_rebind: true, state: 'pending' }],
+          view: { book: 'b1', subject: 'u1' }, story: { kind: 'invite', ref, actor }, role: null });
+        const jo = futas('u-bela', 'regi-ref');
+        const joOk = tour.taskDone(jo, 'invite.created', { ref: 'uj-ref', auth: { kind: 'invite', ref: 'uj-ref', actor: 'u-bela' } });
+        const mas = futas('u-bela', 'regi-ref');
+        const masOk = tour.taskDone(mas, 'invite.created', { ref: 'uj-ref', auth: { kind: 'invite', ref: 'uj-ref', actor: 'u-harmadik' } });
+        const nincs = futas('u-bela', 'regi-ref');
+        const nincsOk = tour.taskDone(nincs, 'invite.created', { ref: 'uj-ref' });
+        step('(as48) R186/§5 (külső review P2): az átkötés CSAK akkor teljesít, ha a kiszolgáló saját cél-kötése UGYANEZT a meghívót ÉS UGYANEZT az embert adja (RÉGEN: a jelölő átkötődött, a VÁRT RÉSZTVEVŐ a RÉGI maradt — a történet KÉT emberre hasadt)',
+          joOk === true && jo.story.ref === 'uj-ref' && jo.story.actor === 'u-bela' && jo.steps[0].state === 'done'
+          && masOk === false && mas.story.ref === 'regi-ref' && mas.steps[0].state !== 'done',
+          { legitim_atkotes: joOk, legitim_uj_ref: jo.story.ref, legitim_resztvevo: jo.story.actor,
+            mas_emberre_szolo: masOk, mas_utan_ref: mas.story.ref, mas_utan_allapot: mas.steps[0].state });
+        step('(as49) R186/§5 ELLENPÁR: kiszolgálói cél-kötés NÉLKÜL az átkötés ZÁR (fail-closed) — a „nem tudom" nem eshet némán „jó lesz"-re',
+          nincsOk === false && nincs.story.ref === 'regi-ref' && nincs.steps[0].state !== 'done',
+          { kotes_nelkul: nincsOk, ref_valtozatlan: nincs.story.ref, allapot: nincs.steps[0].state });
+      }
+
       {
         // ── (as42–as43) A SZŰK SZEREP-PLAFON, ÉLŐBEN (`KUKA-431`/`437` forrás-pinjének élő párja) ──
         const sz = await fiok('u-szukplafon');

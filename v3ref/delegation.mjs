@@ -540,7 +540,20 @@ export function reinviteMember({
 }
 
 /** A SZEMÉLY TÁROLT CÍME — a kliens NEM adhatja meg (spec §3). Több élő címnél fail-closed. */
-function addressOfSubject(store, subjectId) {
+/**
+ * A SZEMÉLY EGYETLEN TÁROLT CÍME — ÍRÁS-MENTES FELOLDÓ, ÉS MOSTANTÓL MEGKÉRDEZHETŐ (R186 §5).
+ *
+ * MIÉRT EXPORT. A `reinviteMember` ezzel dönti el, van-e cím, amire az új meghívás szólhat: HA
+ * nincs pontosan EGY élő e-mail azonossága a személynek, az újbóli meghívás `reentry_target_has_no_address`
+ * okkal elutasít. A felkínálás viszont eddig ezt a feltételt NEM kérdezte meg, tehát a bemutató
+ * egy olyan tagra is felkínálódott, akit a NEGYEDIK lépésen már nem lehet újra meghívni — MIKÖZBEN
+ * a HARMADIK lépés a tagságát MÁR megszüntette (külső review, Codex, R186 — P2).
+ *
+ * Ami nem változik: a feltétel és a döntés egyetlen helyen áll (`KUKA-003` · `KUKA-039`), és a
+ * feloldó most sem ír — csak elolvasható lett (`KUKA-207`: amit próba nem tud MEGHÍVNI, azt
+ * bizalomból hisszük).
+ */
+export function addressOfSubject(store, subjectId) {
   const rows = store.all(
     `SELECT value_raw FROM external_id
        WHERE subject_id = ? AND namespace = 'email' AND (valid_to IS NULL OR valid_to = '')

@@ -48,6 +48,11 @@ import { membershipAsOf, membershipPeriodsOf, closedMembershipPeriodOf } from '.
 // A VISSZATÉRÉSI KIZÁRÁSOK ÍRÁSMENTES FELOLDÓJA (`KUKA-442`): a történet-indí­tó adat UGYANEZT
 // kérdezi, amit az írás-út (`reinviteMember`) — egy fogalom, egy otthon (`KUKA-003`).
 import { reentryExclusionsAt } from '../v3ref/reentryGate.mjs';
+// A FELKÍNÁLÁS AZ ÍRÁS-ÚT FELTÉTELEIT KÉRDEZI, NEM A SAJÁT KÖZELÍTÉSÉT (R186 §5, külső review P2):
+// a meghívó megfigyelése BIZONYÍTOTT csatornát kíván (`hasProvenChannel`), az újbóli meghívás pedig
+// EGYETLEN tárolt címet (`addressOfSubject`) — mindkettő írás-mentes feloldó (KUKA-003 · KUKA-039).
+import { hasProvenChannel } from '../v3ref/invite.mjs';
+import { addressOfSubject } from '../v3ref/delegation.mjs';
 import { readScopeGrantAt } from '../v3ref/scopeGrant.mjs';
 import { representationCheck } from '../v3ref/representation.mjs';
 import { validateRequest, schemaForEndpoint, isGated, endpointsWithoutSchema, CONTEXT_FIELD, CONTEXT_SUBJECT_FIELD } from './httpSchema.mjs';
@@ -1912,12 +1917,30 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      * címzettje még nem azonosítható alanyként, NEM alkalmas cél: a váltás-kapu nem tudná mihez
      * mérni a belépőt, és a történet a saját fail-closed kapujában állna meg (`KUKA-394`).
      */
+    /**
+     * …ÉS AZ „AZONOSÍTHATÓ" NEM ELÉG: A CSATORNÁT BIZONYÍTANI KELL (R186 §5, külső review P2).
+     *
+     * A LELET, SZÓ SZERINT MÉRVE A MAGON: a `subjectByEmail` AKKOR IS ad alanyt, ha az ember
+     * regisztrált, de a MEGHÍVOTT címét még nem igazolta — a megfigyelés viszont
+     * `hasProvenChannel`-t kér, és enélkül `needs_invitee_identity`-t ad. Ekkor a válasz jelölőt
+     * SEM visz (ez a határ szándékos, `KUKA-084`), tehát a levél-lépés `story_ref` kapuja
+     * `storyTargetMismatch`-csel megállítja a történetet — a bemutató a saját fail-closed kapujában
+     * akad el, egy LEGITIM állapot mellett (`KUKA-394`).
+     *
+     * NYOLCADSZOR UGYANAZ A LECKE: a felkínálás a VÉGIGVIHETŐSÉG állítása, és a feltételt nem
+     * közelítjük, hanem UGYANAZT a feloldót kérdezzük, amit a fogyasztó út (`KUKA-417` · `421` ·
+     * `429` · `430` · `431` · `437` · `442`).
+     */
+    const cimzettBizonyitott = (r) => {
+      const cimzett = meghivoCimzettje(r);
+      return Boolean(cimzett) && hasProvenChannel(store, cimzett, r.invitee_namespace, r.invitee_value);
+    };
     const alkalmasMeghivo = (r) => !r.redeemed_at
       && Date.parse(r.expires_at) > Date.parse(at)
       && plafonRoles.includes(r.offered_role)
       && !inviteRevocationAt({ store, token: r.token, nowIso: at }).revoked
       && mailbox.some((m) => String(m.link || '').includes(r.token))
-      && Boolean(meghivoCimzettje(r));
+      && cimzettBizonyitott(r);
     const valasztottMeghivo = rows.find(alkalmasMeghivo) || null;
     const pendingInvite = Boolean(valasztottMeghivo);
     /**
@@ -1972,7 +1995,18 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
         const t = membershipAsOf({ store, subjectId: m.subject_id, bookId, validAt: at, knownAt: at });
         if (!(t && t.effective === true)) return false;
         const ujra = reentryExclusionsAt({ store, subjectId: m.subject_id, bookId, closed: null, nowIso: at });
-        return ujra.ok === true;
+        if (ujra.ok !== true) return false;
+        /**
+         * ÉS AZ ÚJBÓLI MEGHÍVÁSNAK CÍME IS KELL — PONTOSAN EGY (R186 §5, külső review P2).
+         *
+         * A LELET: a `reinviteMember` a CÍMET a személy tárolt tényéből veszi, és pontosan EGY élő
+         * e-mail azonosságot kíván (`addressOfSubject`; nulla és kettő is `null`-t ad) — különben
+         * `reentry_target_has_no_address`. A felkínálás ezt nem kérdezte, tehát egy lezárt című vagy
+         * két élő címmel bíró tagra is felkínálódott a történet. ÉS EZ A ROSSZABB FAJTA: a
+         * megszakadás a HARMADIK, MEGVONÓ lépés UTÁN jön — a tagság már megszűnt, az újbóli
+         * meghívás pedig nem indul el.
+         */
+        return Boolean(addressOfSubject(store, m.subject_id));
       }) || null;
     const otherMember = Boolean(alkalmasTag);
     /**

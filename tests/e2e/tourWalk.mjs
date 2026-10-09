@@ -43,6 +43,21 @@ export async function startTourViaHelp(page, tourId) {
   if (await page.getByTestId('tour-exit').count()) await page.getByTestId('tour-exit').click();
   await closeModals(page);
   await closeHelp(page);
+  /**
+   * EGY MINTAVÉTEL NEM MÉRÉS — ÉS EZ A MÉRÉS HIBÁJA VOLT, NEM A TERMÉKÉ (R186 §5).
+   *
+   * A LELET, MÉRVE: a kötelező kapu `R176-K3` sora PIROS lett egy olyan futásban, ami a külső
+   * ellenőrző lánccal EGYIDőBEN ment (4 vCPU, telített gép): a verdikt „NEM indult" volt, 4,2 s
+   * alatt. UGYANAZ a próba csendes gépen 36,3 s alatt ZÖLD. Az ok nem a termék: a súgó sorai a
+   * `/api/assistant/status` és a `/api/assistant/knowledge` VÁLASZÁBÓL rajzolódnak ki, tehát a panel
+   * megnyitása után még nincsenek ott — a `count() === 0` egyetlen mintavétele pedig ebből azt
+   * állította, hogy „a súgó nem kínálja fel". Ez a `KUKA-445` osztálya a MÉRÉS oldalán, és a saját
+   * `vezess` leletének párja: egy pillanatkép nem dönthet egy FOLYAMATRÓL.
+   *
+   * ÉS AMIT EZ NEM TESZ: nem lazít. Ha a sor VALÓBAN nem jön ki, a várakozás lejár, és a verdikt
+   * ugyanaz a `false` — csak már MÉRT tény mögötte áll, nem egy időzítési véletlen.
+   */
+  await page.getByTestId('help-open').first().waitFor({ state: 'attached', timeout: 8000 }).catch(() => {});
   if (await page.getByTestId('help-open').count() === 0) return false;
   await page.getByTestId('help-open').click();
   await expect(page.getByTestId('help-close')).toBeVisible();
@@ -50,9 +65,12 @@ export async function startTourViaHelp(page, tourId) {
   // A FELHASZNÁLÓ ÚTJA: a súgó-sort előbb KI KELL NYITNI — az útmutató gombja a sor alatt áll,
   // tehát a zárt sor mellett nem létezik (a `appears_after` elve a súgóban is érvényes).
   const sor = page.getByTestId(`help-guide-${featureId}`);
+  // A SOROK A KISZOLGÁLÓ VÁLASZÁBÓL JÖNNEK (lásd a fenti leletet): VÁRUNK, és csak utána mondjuk ki.
+  await sor.first().waitFor({ state: 'attached', timeout: 8000 }).catch(() => {});
   if (await sor.count() === 0) return false;          // a súgó ebben a nézetben nem kínálja fel
   await sor.getByRole('button').first().click();
   const gomb = page.getByTestId(`help-tour-${featureId}`);
+  await gomb.first().waitFor({ state: 'attached', timeout: 8000 }).catch(() => {});
   if (await gomb.count() === 0) return false;         // nincs útmutatója ebben a nézetben
   await gomb.click();
   // A LAP MAGA CSUKJA BE A SÚGÓT (`startTour` → `closeHelp`) — a próba NE nyomjon rá még egy Esc-et,

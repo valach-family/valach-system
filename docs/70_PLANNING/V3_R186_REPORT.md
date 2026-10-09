@@ -165,7 +165,8 @@ baj. Az R186 §3 engedélyezte **120 perces** keret ezért **tartalék**, nem a 
 21,1 perc. A 15 000 ms-os külső egység-korlát és a 12 000 ms-os saját költségvetés **változatlan**,
 és egyetlen program szövegéhez sem nyúltam.
 
-**A KÉT EREDETI PROGRAM PIROS MARAD, NEVEZETT OKKAL** — és ezen a kereten nem is múlik:
+**A KÉT EREDETI PROGRAM NEM FUT VÉGIG — ÉS A LÁNC EZT NEVEZETT KÖRNYEZETI KIHAGYÁSNAK MINŐSÍTI,
+ZÖLD HELYETTESSEL** (nem zöldnek és nem is „részben zöldnek" — `KUKA-206`). A kereten ez nem múlik:
 
 - **`r57`: 4/9.** Zöld: `T03 · T04 · E01 · E04`. **Három** eset a program **pre-basis
   fixtúra-világán** bukik (`T01 · T02 · T05` → `invite_without_basis` · `no_declared_basis`: a
@@ -183,7 +184,31 @@ kivonással állította elő (`present − failed`), a **hiányzó** eset viszon
 szám mostantól az eset-szemléből jön; a verdikt nem mozdult. Mért pár: régi alak `2/9`, mai `4/9`,
 ugyanazzal az ELTÉRÉS verdikttel. Döntés: `D-VS-3240` · `KUKA-450` · `451`.
 
-**A TELJES LÁNC ÁLLAPOTA:** `LANC_ALLAPOT`
+**A TELJES LÁNC ÁLLAPOTA — A LÁNC SAJÁT VERDIKTJÉVEL, SZÓ SZERINT:**
+
+```
+verdict: {"ok":true,"complete_evidence":false,"green":17,"env_skipped":2,"of":19}
+hatókör:  full — MINDEN nyilvántartott program lefutott — ez a lánc teljes bizonyítéka
+RESULT:  17/19 program MEGFELEL · 2 ENV-KIHAGYÁS (nevezett helyettessel)   · kilépés 0 · 5239 s
+```
+
+**AMI MEGVÁLTOZOTT, ÉS MIÉRT.** Az R176-ban a lánc **12 ZÖLD / 7 PIROS** volt, és a két eredeti
+program kihagyása **nem állhatott**, mert a saját deklarált helyetteseik (`r57a` · `r59a`) is pirosak
+voltak. A §3 bontás-javítása óta a helyettesek **zöldek**, és a lánc saját szabálya szerint
+**ettől** áll a kihagyás: *„a kihagyás CSAK addig áll, amíg a helyettes ZÖLD, ÉS amíg a program
+MINDEN kudarcos esete bizonyítottan időtúllépés"* — a helyettesítés **nem felmentés** (`KUKA-041`).
+
+**ÉS AMIT A LÁNC MAGA MOND KI, ÉN PEDIG NEM ÍROK FELÜL:** `complete_evidence: false`. Továbbá a
+két kihagyás **nem egyenrangú**, és a lánc ezt is kimondja:
+
+- **`r57`** — **esetenkénti bizonyíték van**: a két bukott eset (`E02` · `E03`) időtúllépést mond,
+  és bármely más kudarc-fajta VALÓDI eset-hibára vitte volna (`otherBad` · `unexplained`).
+- **`r59`** — **esetenkénti bizonyíték NINCS**, mert a program eredmény-fájl nélkül állt meg. A
+  lánc a KORLÁTOT kiírja: a két jel (a program hibaüzenete és a mért futásidő) **ugyanannak az
+  eseménynek a következménye, tehát NEM független tanú** — a kihagyást itt **kizárólag a zöld
+  helyettes** tartja.
+
+Tehát: **a 19/19 ZÖLD ma sem állítható**, és nem is állítom.
 
 ---
 
@@ -252,6 +277,35 @@ zöld, amit a `KUKA-227` tilt. Ezért a bemutató a kötést a **saját** állap
 szabállyal, amit a szerver mér (`storyBindingOf` ⇄ `storyKotes`), és **mindkét** listára
 (`tours` · `resumable_tours`) — mert a lap a definíciót a másodikból is feloldhatja (`tourDefOf`).
 
+### ÉS A KÜLSŐ REVIEW ÖT ÚJ P2-T ADOTT A §2 FELÖTT — HÁROM ÉLŐ JAVÍTÁS (`D-VS-3243`)
+
+A Codex a `8fc1f40` fejen öt P2-t adott. **Kettő már javítva volt** (a bemutató-csomag cél-kötése —
+ugyanaz, amit a kapu is megfogott, `KUKA-453`; és a tutor-verifier második argumentuma — `e614a39`);
+mindkettőre válasz ment a szálra, a mért ténnyel. **HÁROM valódi lelet maradt, és mind a három
+UGYANAZT mondja más helyen:** a felkínálás és az átkötés **közelítő** feltételt használt, nem azt,
+amit a fogyasztó út ténylegesen kér.
+
+| | mi volt | mi tört volna el | mi váltja |
+|---|---|---|---|
+| **`KUKA-454`** | a meghívó-jelölt feltétele: a címzett **azonosítható** (`subjectByEmail`) | a `subjectByEmail` AKKOR IS ad alanyt, ha az ember regisztrált, de a **meghívott címét nem igazolta** — a megfigyelés ilyenkor `needs_invitee_identity`-t ad, jelölő nélkül, és a levél-lépés `story_ref` kapuja **megállítja** a történetet — egy LEGITIM állapot mellett (`KUKA-394`) | a jelölt a megfigyelés SAJÁT feltételét kapja: **bizonyított csatorna** (`hasProvenChannel`) |
+| **`KUKA-455`** | a visszatérés-jelölt feltétele: hatályos tagság + a kizárások rendben | az újbóli meghívás a címet a személy tárolt tényéből veszi, és **PONTOSAN EGY** élő e-mail azonosságot kíván. Nulla vagy kettő mellett a történet felkínálódott, és a **MEGVONÓ lépés UTÁN** akadt el: a tagság már megszűnt. **Ez a három közül a legdrágább** — nem „nem megy végig", hanem **kárt hagy** | a jelölt az ÍRÁS-ÚT SAJÁT cím-feltételét kapja (`addressOfSubject` — a magban maradt, csak **megkérdezhető** lett) |
+| **`KUKA-456`** | az átkötés a cél **jelölőjét** mozdította | ha a kezelő a 13. lépésen **más ember** címét írja be, a lépés `done` lett, a **várt résztvevő** viszont a régi maradt: a 14. lépés attól kért belépést, aki az ÚJ meghívót nem válthatja be, az új címzettet pedig a váltás-kapu elutasítja — a történet **két emberre hasadt**, és a két fél-igazság **egymást fedte** | az átkötés a **kiszolgáló saját cél-kötéséhez** kötött, és **mindkét** felet igazolja (`auth.ref === ref` ÉS `auth.actor === run.story.actor`); bármelyik hiányában **nincs teljesítés** |
+
+**A JAVÍTÁS HATÁRA KIMONDVA.** A hiányzó adatot NEM a legközelebbi válaszból kérem el: a
+meghívó-kiállítás válasza **alany-azonosítót nem kap**, mert az egy arbitráris címre adott
+**fiók-létet eláruló** jel lenne (`KUKA-084`). Amit kell, attól kérdezem meg, aki a **döntést**
+hozta (`/api/assistant/status` → `story`), és **csak akkor**, ha a lépés átkötést deklarál — a többi
+feladat-nyugta egyetlen hálózati kérés nélkül fut le.
+
+**ÉLŐ MÉRÉS MIND A HÁROMRA, ELLENPÁRRAL** (`verify:app-findings-r154`): `as44`/`as45` (nem igazolt
+cím → nincs felkínálás; igazolás után → van) · `as46`/`as47` (két élő cím → nincs; a második
+lezárása után → van) · `as48`/`as49` (a legitim átkötés teljesít; a más emberre szóló NEM, és a
+lépés `pending` marad; kiszolgálói kötés nélkül ZÁR).
+
+**ÉS EGY MONDAT, AMI NÉLKÜL EZ A SZAKASZ HAMIS LENNE:** a lelet-szám **csökkenése nem bizonyítja a
+hibák hiányát** (R186 §5). Öt P2 jött a `8fc1f40`-re, és a mai fej **nem fedett** — a review-t a
+záró fejre külön kértem.
+
 ---
 
 ## 7. NYITOTT LELETEK ÉS MÉRÉSI HIÁNYOK — nevezetten
@@ -259,10 +313,11 @@ szabállyal, amit a szerver mér (`storyBindingOf` ⇄ `storyKotes`), és **mind
 | tétel | állapot |
 |---|---|
 | **`R112-I3`** újrarajzolási hiba | **NYITOTT.** Két jelölt mechanizmus mérve kizárva; a mechanizmus nem állapítható meg. Feltételezett javítás nincs; a rögzítés megerősítve (5. szakasz) |
-| **`r57` · `r59`** (az eredeti külső programok) | **PIROS, nevezett okkal.** `r57`: 4/9 — három eset a program pre-basis fixtúra-világán, kettő a programon BELÜLI 15 000 ms-os korláton. `r59`: nincs részletes eredmény. A deklarált helyettesek (`r57a` · `r59a`) ugyanazokat az eseteket mérik, és zöldek |
+| **`r57` · `r59`** (az eredeti külső programok) | **NEVEZETT KÖRNYEZETI KIHAGYÁS, zöld helyettessel — NEM zöld, és nem is „részben zöld" (`KUKA-206`). A lánc `complete_evidence` jelzője `false`.** `r57`: 4/9 — három eset a program pre-basis fixtúra-világán, kettő a programon BELÜLI 15 000 ms-os korláton. `r59`: nincs részletes eredmény. A deklarált helyettesek (`r57a` · `r59a`) ugyanazokat az eseteket mérik, és zöldek |
 | **`personal.ownMatters`** lefedési rés | **NYITOTT, nevesített fejlesztési rés** — a `verify:lefedes` `LT` sora szándékosan piros; pótolható **0**, osztályozatlan **0** |
 | **a `tour.grant`/`tour.scopeLifecycle` buborék-mondata** | **MÉRT MEGFIGYELÉS, nem javítva.** A lépés deklarált feltárója a tag-TÁBLA, a célt viszont a SOR hozzáférés-gombja tárja fel; a bemutató „nyisd meg a kiemelt gombbal" mondata emiatt pontatlan. A történet **végigvihető** (mérve), a regiszter pedig szándékosan nem nevez per-fiók azonosítót (`KUKA-225`). Más terület: **külön backlog** (R186 §5) |
 | **élő AI · PG18 · felhős mentés** | **KÜLÖN NYITOTT TÉTELEK** — ez a csomag nem állít róluk semmit |
+| **a `8fc1f40` fej öt külső P2-je** | **MIND JAVÍTVA** — kettő már a felmerülés előtt (`KUKA-453` · `e614a39`), három ebben a körben (`KUKA-454` · `455` · `456` · `D-VS-3243`), mindháromhoz élő mérés és ellenpár. **A szálak github-oldali lezárását nem végeztem el**, és a válaszolt szál nem elfogadás |
 | **a mai fej független elfogadása** | `REVIEW_ALLAPOT` |
 
 **A nyitott review-szálakat nem zártam le**, és nem is zárom: az R186 §5 kimondja, hogy a nyitott

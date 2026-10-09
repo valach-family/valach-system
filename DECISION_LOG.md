@@ -16,6 +16,59 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3244 — A „FLAKE" NEM GYÖKÉR-OK: A BUKOTT KAPU-SORT ÖSSZEMÉRJÜK, NEM MINŐSÍTJÜK (R186 §5)
+
+A kötelező kapu `R176-K3` sora PIROS lett egy olyan futásban, ami a külső ellenőrző lánccal
+EGYIDŐBEN ment. **A döntés: ilyenkor sem „ingadozó próbát" írunk, hanem ÖSSZEMÉRJÜK** — ugyanaz a
+próba csendes gépen, majd a javítás után ismét TERHELT gépen.
+
+A mérés az okot is megnevezte, és az **a MÉRÉSBEN** volt, nem a termékben: a bemutató-indító próba
+egyetlen mintavételből (`count() === 0`) mondta ki, hogy „a súgó nem kínálja fel" — a súgó sorai
+viszont a kiszolgáló válaszából rajzolódnak ki. Mért hármas: terhelt gép + régi alak → **PIROS,
+4,2 s** · csendes gép + régi alak → **ZÖLD, 36,3 s** · terhelt gép + mai alak → **ZÖLD, 37,9 s**
+(`KUKA-457`).
+
+**ÉS AMI EBBŐL SZERVEZÉSI TANULSÁG:** a kötelező böngésző-kapu és a külső lánc EGYIDEJŰ futtatása
+nem ingyenes — a kapu a söprés 900 s-os türelmét is túllépte (903 s). A kapu ezért **ÖNÁLLÓAN,
+csendes gépen** fut, és a söprésben a „nem fejeződött be" NEM piros és NEM zöld: a verdiktet a külön
+futás adja (`KUKA-206`).
+
+Gépi jel: `npm run verify:kuka` (`KUKA-457`) · ÉLŐ tanú: `npm run verify:browser-gate`.
+
+---
+
+## D-VS-3243 — A FELKÍNÁLÁS ÉS AZ ÁTKÖTÉS A FOGYASZTÓ ÚT SAJÁT FELTÉTELÉT KÉRDEZI (R186 §5)
+
+A külső ellenőrző fél (chatgpt-codex) a `8fc1f40` fejen ÖT P2-t adott. Kettő már javítva volt
+(a bemutató-csomag cél-kötése — `KUKA-453` · a tutor-verifier — `e614a39`), három pedig UGYANAZT a
+hibát mondta három helyen: **a felkínálás és az átkötés KÖZELÍTŐ feltételt használt**, nem azt,
+amit a fogyasztó út ténylegesen kér.
+
+**A DÖNTÉS — EGY SZABÁLY, HÁROM HELYEN.** Ahol a felkínálás vagy az átkötés azt állítja, hogy egy
+út végigvihető, ott a feltétel NEM a mi közelítésünk, hanem a későbbi fogyasztó út SAJÁT,
+írás-mentes feloldója — ugyanaz a feloldó, nem egy másolat (`KUKA-003` · `KUKA-039` · `KUKA-207`):
+
+1. **A meghívó-jelölt** (`KUKA-454`): nem „azonosítható címzett", hanem **BIZONYÍTOTT CSATORNA**
+   (`hasProvenChannel`) — ezt kéri a megfigyelés, és a jelölő is ehhez kötött.
+2. **A visszatérés-jelölt** (`KUKA-455`): PONTOSAN EGY tárolt cím (`addressOfSubject`) — ezt kéri az
+   újbóli meghívás. A feloldó a magban maradt, csak MEGKÉRDEZHETŐ lett (`export`).
+3. **Az átkötés** (`KUKA-456`): a cél MINDKÉT felét igazolja, a KISZOLGÁLÓ saját kötéséből
+   (`auth.ref === ref` ÉS `auth.actor === run.story.actor`), különben NINCS teljesítés.
+
+**ÉS AMIT EZ A DÖNTÉS NEVEZETTEN NEM TESZ.** A hiányzó adatot NEM a legközelebbi válaszból kéri el:
+a meghívó-kiállítás válasza alany-azonosítót NEM kap, mert az fiók-létet eláruló jel lenne
+(`KUKA-084`). Ami kell, azt attól kérdezzük, aki a DÖNTÉST hozta — és csak akkor, ha a lépés
+átkötést deklarál.
+
+**A SÚLYOSSÁGI SORREND KIMONDVA:** a három közül a `KUKA-455` a legdrágább, mert ott a
+megszakadás a VISSZAFORDÍTHATATLAN (megvonó) lépés UTÁN jön: a bemutató nem „nem megy végig",
+hanem kárt hagy maga után.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as44`–`as49`: három élő mérés + három ellenpár) ·
+`npm run verify:kuka` (a három kivezetett alak tiltva) · ÉLŐ tanú: `npm run verify:browser-gate`.
+
+---
+
 ## D-VS-3242 — A BEMUTATÓ A CÉL-KÖTÉST A SAJÁT VILÁGÁBÓL SZÁMOLJA (R186 §5)
 
 A bemutató-lap háttere egy böngésző-oldali adapter, ami a végigvezetések listáját a VALÓDI

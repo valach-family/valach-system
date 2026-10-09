@@ -677,7 +677,7 @@ export function back(run) {
  * ÉS AMIT EZ NEM VÁLLAL: nem jogosultság. A visszavonást a szerver a saját plafon-ellenőrzésével
  * engedi vagy tiltja, tőlünk függetlenül (`KUKA-227`); ez itt a BEMUTATÓ elszámolása.
  */
-export function taskDone(run, taskId, { ref = null } = {}) {
+export function taskDone(run, taskId, { ref = null, auth = null } = {}) {
   if (!run) return false;
   const step = run.steps[run.at];
   if (!step || step.task !== taskId) return false;
@@ -695,10 +695,35 @@ export function taskDone(run, taskId, { ref = null } = {}) {
    * a történet ELŐREHALADÁSÁVAL mozog, de MINDIG egy nevezett, IGAZOLT művelet eredményére — soha
    * nem „bármire" (`KUKA-231`: csak igazolt siker után).
    */
-  step.state = 'done';
-  if (step.story_rebind === true && run.story && typeof ref === 'string' && ref) {
+  /**
+   * …ÉS AZ ÁTKÖTÉS A CÉL MINDKÉT FELÉT KÉRI (R186 §5, külső review P2).
+   *
+   * A LELET: az átkötés csak a JELÖLŐT mozdította. Ha a kezelő a 13. lépésen MÁS ember címét írja
+   * be, a kiállítás sikeres, a lépés `done` lett, a futás viszont a RÉGI várt résztvevőnél maradt:
+   * a 14. lépés attól az embertől kért belépést, aki az ÚJ meghívót nem válthatja be, az ÚJ
+   * címzettet pedig a váltás-kapu elutasítja. A történet tehát KÉT emberre hasadt — és a lépés
+   * mégis teljesítésnek látszott.
+   *
+   * A VÁLASZ: az átkötés a KISZOLGÁLÓ saját válaszához van kötve (`auth` — a friss
+   * `/api/assistant/status` cél-kötése). Két dolgot kell igazolnia: hogy a kiszolgáló UGYANEZT a
+   * most kiállított meghívót választotta (`auth.ref === ref`), és hogy az UGYANARRA az emberre
+   * szól, akit a történet eddig követett (`auth.actor === run.story.actor`). Ha bármelyik nem áll,
+   * NINCS átkötés és NINCS teljesítés: a lépés `pending` marad, és a bemutató nevezetten megáll
+   * (`KUKA-012` · `KUKA-049`) — nem „jó lesz"-re esik.
+   *
+   * ÉS AMIT EZ NEM TESZ: új mezőt NEM kér a kiállítás válaszából, tehát NEM lesz belőle fiók-létet
+   * eláruló jel (`KUKA-084`). A cél-kötést a bemutató-kapu amúgy is csak a két átívelő történetnél
+   * számolja ki, demó-jel és fejlesztői levélfogadó mellett.
+   */
+  if (step.story_rebind === true) {
+    if (!run.story) return false;
+    if (typeof ref !== 'string' || !ref) return false;
+    const h = auth && typeof auth === 'object' ? auth : null;
+    if (!h || String(h.ref ?? '') !== String(ref)) return false;
+    if (String(h.actor ?? '') !== String(run.story.actor ?? '')) return false;
     run.story = { ...run.story, ref };
   }
+  step.state = 'done';
   return true;
 }
 

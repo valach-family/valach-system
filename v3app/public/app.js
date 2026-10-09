@@ -2178,9 +2178,35 @@ import { inviteNextKey } from './inviteText.mjs';
    * A `ref` A TÖRTÉNET CÉLJÁNAK JELÖLŐJE (R186 §2): a történethez kötött lépés CSAK a VÁLASZTOTT
    * célon teljesül (`taskDone` → `story_bound`). Ami nem kötött lépés, annál a `ref` érdektelen.
    */
-  function tourTaskDone(taskId, { ref = null } = {}) {
+  /**
+   * A KISZOLGÁLÓ FRISS CÉL-KÖTÉSE — CSAK AKKOR KÉRDEZZÜK MEG, HA A LÉPÉS ÁTKÖTÉST DEKLARÁL
+   * (R186 §5, külső review P2).
+   *
+   * A kiállítás válasza a jelölőt adja, az EMBERT nem — és nem is adhatja (egy ÚJ mező a válaszban
+   * fiók-létet eláruló jel lenne, `KUKA-084`). A cél-kötést viszont a kiszolgáló amúgy is kiszámolja
+   * a két átívelő történetre (`/api/assistant/status` → `story`), tehát ONNAN kérjük el: az átkötés
+   * így a kiszolgáló SAJÁT választásán áll, nem a lap feltevésén (`KUKA-016`).
+   *
+   * EGY KÉRÉS, EGY HELYEN, ÉS CSAK A SZÜKSÉGES ÚTON: a többi feladat-nyugta változatlanul egyetlen
+   * hálózati kérés nélkül fut le.
+   */
+  async function authoritativeStory(tourId, v) {
+    const q = readQuery({ lang: currentLang() }, v);
+    const r = await api('GET', `/api/assistant/status${q}`);
+    if (!r || r.ok !== true) return null;
+    const lista = [...(r.tours || []), ...(r.resumable_tours || [])];
+    const def = lista.find((t) => t && t.id === tourId) || null;
+    return def && def.story && typeof def.story === 'object' ? def.story : null;
+  }
+  function tourStepNeedsRebind(taskId) {
+    const run = state.tour;
+    if (!run || !Array.isArray(run.steps)) return false;
+    const step = run.steps[run.at];
+    return Boolean(step && step.task === taskId && step.story_rebind === true);
+  }
+  function tourTaskDone(taskId, { ref = null, auth = null } = {}) {
     if (!state.tour) return;
-    if (!tourMod.taskDone(state.tour, taskId, { ref })) return;
+    if (!tourMod.taskDone(state.tour, taskId, { ref, auth })) return;
     /**
      * A VISSZAKÖTÉSI ENGEDÉLY ITT SZÜLETIK, ÉS CSAK A NÉZETET MOZDÍTÓ FELADATHOZ (`KUKA-435`).
      *
@@ -3368,7 +3394,10 @@ import { inviteNextKey } from './inviteText.mjs';
     // gomb megnyomása önmagában nem siker (TUR-01 · KUKA-129).
     // A TÖRTÉNET SAJÁT VÁLASZTÁSI LÉPÉSE (R186 §2): az ÚJ meghívó jelölője a SZERVER válaszából
     // jön, és innentől az a történet célja — az elfogadásnak (`s17`) ERRE kell szólnia.
-    tourTaskDone('invite.created', { ref: r.ref ?? null });
+    // AZ ÁTKÖTÉS A KISZOLGÁLÓ SAJÁT CÉL-KÖTÉSÉHEZ VAN KÖTVE (R186 §5): a friss kötést CSAK akkor
+    // kérjük el, ha a lépés átkötést deklarál — különben egyetlen kérés sem indul.
+    const ujKotes = tourStepNeedsRebind('invite.created') ? await authoritativeStory(state.tour.id, v) : null;
+    tourTaskDone('invite.created', { ref: r.ref ?? null, auth: ujKotes });
     show(byTest('invite-mail-row'), true);
     if (state.page === 'members' && state.membersTab === 'invites') await loadInvites();
   }
