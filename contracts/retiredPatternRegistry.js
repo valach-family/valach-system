@@ -16862,6 +16862,31 @@ Object.freeze({
     ]),
   }),
 
+  Object.freeze({
+    id: 'KUKA-452',
+    date: '2026-10-09',
+    title: 'EGY MÉRCE PIROSAN ÁLLT KÖRÖKÖN ÁT, MERT A JELENTÉS VÁLOGATOTT LÁNCOKAT IDÉZETT, NEM A SÖPRÉST',
+    what: 'A `verify:app-findings-r144` `(a3)` sora azt állította, hogy a `shell.assistant` funkció NINCS bemutatóval fedve („a hiány NEVEZETT"), és ehhez a feloldótól `how: \'none\'`-t várt. Az R166 §3 viszont megépítette a `tour.assistant` útmutatót (a pótolt tizenkettő egyike), és a funkció DEKLARÁLJA is (`tour: \'tour.assistant\'`) — a feloldó azóta helyesen `own`-t ad, négy lépéssel, „forrásból ellenőrzött" bizonyítékkal, nulla problémával.',
+    why_wrong: 'Az ÁLLÍTÁS avult el, nem a rendszer romlott el (`KUKA-050`) — a mérce viszont ettől PIROS lett, és ÚGY MARADT. MÉRVE KÉT FEJEN: az átvett `167a70a` fejen ugyanez a sor bukik (29/30), tehát a piros NEM ennek a csomagnak a következménye: körökön át állt, és egyetlen kör-jelentés sem mondta ki. AZ OK NEM FIGYELMETLENSÉG, HANEM A JELENTÉS ALAKJA: a körök „célzott regressziót" idéztek — egy KÉZZEL VÁLOGATOTT lánc-listát (`verify:kuka` · `app-findings-r154` · `selfcheck` · `i18n` · `tutor` · `assistant` · `decision-numbers` · `doc-html`) —, és ami a listán kívül esett, az a jelentésben nem létezett. A `CLAUDE.md` pontosan ezt tiltja: *„Kör vége előtt TELJES söprés … A cél-verifier zöldje NEM elég."*',
+    replaced_by: 'A SOR A DEKLARÁCIÓT KÉRI, NEM A HIÁNYT: `how === \'own\'` ÉS a megnevezett útmutató (`tour.assistant`), nem üres lépés-listával és nulla problémával. Amit a sor VALÓBAN őrzött — hogy a minősítés a funkció SAJÁT, deklarált útmutatójából jöjjön, ne egy véletlen horgony-egyezésből (a súgógomb kiemeléséből) — ezzel megmarad, és az `(a1)` sor mind a három funkción külön is méri.',
+    replacement: 'A KIVEZETÉS NEM A MÉRCE TÖRLÉSE: az állítást a MÉRT valósághoz igazítottuk, a hatókörét nem szűkítettük. Egy elavult állítás törlése ugyanis ugyanazt a vakfoltot hagyná, amit a piros takart.',
+    decision: 'D-VS-3241',
+    found_by: 'SAJÁT LELET — az R186 §5 befejezési rendje közben, amikor a kötelező kapu ELŐTT végigfuttattam MINDEN rövid `verify:*` láncot, nem csak a jelentésben idézetteket. A két fejen való összemérés (`167a70a` vs. a mai) mondta ki, hogy örökölt.',
+    lesson: 'A VÁLOGATOTT LÁNC-LISTA NEM SÖPRÉS. Ha egy kör a „célzott regresszió" nevében kézzel felsorolt láncokat idéz, akkor a listán kívüli piros NEM azért tűnik el, mert zöld lett, hanem azért, mert senki nem nézte meg — és minél több kör idézi ugyanazt a listát, annál biztosabban marad láthatatlan. ÉS: egy mérce, ami egy HIÁNYT állít, a hiány pótlásakor NÉMÁN hamissá válik; az ilyen sor karbantartása a pótlás részé (`KUKA-045` rokona a mérés oldalán).',
+    guard_note: 'gépi jel: `npm run verify:app-findings-r144` (30/30; a régi alakkal 29/30, nevezetten az `(a3)` soron) · és a kör-végi `npm run verify:sweep`, ami MINDEN `verify:*` láncot futtat — ez a bejegyzés arról szól, hogy a jelentés ne a válogatást idézze.',
+    home: 'v3',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r144.mjs']),
+        pattern: "sass\\.how === 'own' && sass\\.tour === 'tour\\.assistant'",
+        why: 'a mérce a DEKLARÁLT fedést kéri, és nem egy elavult hiányt állít' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/findings_r144.mjs']),
+        pattern: "sass\\.how === 'none', \\{ how: sass\\.how \\}",
+        why: 'az elavult állítás: a funkciónak az R166 §3 óta VAN saját útmutatója, a sor mégis hiányt várt' }),
+    ]),
+  }),
+
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

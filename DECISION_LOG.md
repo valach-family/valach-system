@@ -16,6 +16,32 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3241 — A VÁLOGATOTT LÁNC-LISTA NEM SÖPRÉS (R186 §5)
+
+Az R186 §5 befejezési rendje közben MINDEN rövid `verify:*` láncot végigfuttattam, nem csak azokat,
+amiket a korábbi kör-jelentések „célzott regresszió" néven idéztek. Ettől két piros jött elő:
+
+1. **`verify:tutor` TUT05** — a mérce a `tourTaskDone('<feladat>')` alakot kereste szó szerint, az
+   R186 §2 óta viszont a nyugta JELÖLŐT is hoz (`tourTaskDone('<feladat>', { ref })`). A mérce
+   TÁRGYA változatlan (a lépést a LAP igazolja, nem a kattintás), ezért a sor ma a nyitó zárójelig
+   mér, és a második argumentumot nem írja elő (`KUKA-057`: megengedő szabály, nem felsorolás). Az
+   ellenpróba változatlanul tüzel (14/14).
+2. **`verify:app-findings-r144` (a3)** — ÖRÖKÖLT piros: `KUKA-452`. A sor azt állította, hogy a
+   `shell.assistant` nincs bemutatóval fedve, pedig az R166 §3 megépítette a `tour.assistant`
+   útmutatót. **MÉRVE KÉT FEJEN:** az átvett `167a70a` fejen is ugyanez a sor bukik (29/30), tehát
+   nem ennek a csomagnak a következménye — körökön át állt, és egyetlen kör-jelentés sem mondta ki.
+
+**A DÖNTÉS, AMI EBBŐL KÖVETKEZIK:** a kör-jelentés a SÖPRÉS eredményét idézi, nem egy kézzel
+válogatott lánc-listát. Ha egy lánc kimarad, az nem „zöld", hanem **nem mért** — és minél több kör
+idézi ugyanazt a listát, annál biztosabban marad láthatatlan a listán kívüli piros. Ez a `CLAUDE.md`
+már meglévő szabálya (*„Kör vége előtt TELJES söprés … A cél-verifier zöldje NEM elég"*); itt most
+MÉRT árat fizetett, ezért döntésként is kimondjuk.
+
+**Amit ez NEM állít:** nem a korábbi körök jelentéseit minősíti hamisnak — azok a megnevezett
+láncokról igazat mondtak. A hiba a HATÓKÖR elhallgatása volt, nem a számok.
+
+---
+
 ## D-VS-3240 — A DARABOLÁS A MÉRT KÖLTSÉGHEZ IGAZODIK, ÉS A ZÖLD SZÁMNAK EGY OTTHONA VAN (R186 §3)
 
 Az R186 §3 nem keret-emelést kért, hanem MÉRÉST: *„Először célzottan mérd meg, melyik gyermekművelet

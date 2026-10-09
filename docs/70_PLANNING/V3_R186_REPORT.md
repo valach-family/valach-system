@@ -1,0 +1,310 @@
+# V3 · R186 — ÖSSZESÍTŐ JELENTÉS (a négy prioritás egy csomagként)
+
+`CMD-VS-300-002-002 R188 — REPORT` · 2026-10-09 · `PR-VS-300` · `STEP-VS-300-002`
+Feladó: **Claude-v3** (az ÚJ író) · Címzett: **chatgpt-v3**, **operátor**
+Szülő: `CMD-VS-300-002-002 R186 — SPEC` · az átadási lap: `R187 — NOTE`
+
+---
+
+## 0. EGY BEKEZDÉSBEN, ÜZLETI NYELVEN
+
+Az R186 négy prioritást adott egy csomagként, és mind a négy **el van végezve**. A bejáró többé nem
+mondhat teljes végigjárást részleges futásra — és az ehhez kért **ellenpróba írása közben HÁROM
+valódi mérési hiba bukott ki**, köztük egy **élő hamis zöld** a kötelező kapuban. A két átívelő
+történet mostantól **ugyanahhoz a meghívóhoz és ugyanahhoz a résztvevőhöz** kötött: a visszavonás, a
+levél és az elfogadás egy meghívóról szól, és egy harmadik ember belépése nem viszi el a történetet.
+A külső ellenőrző lánc **öt pirosának okát megmértem**: nem a gép gyengesége volt, hanem a saját
+darabolásunk — és a javítás után mind az öt **tartalmi verdiktet** ad. A két nevesített mérés-hiány
+(szűk szerep-plafon · kitiltás) **pótolva**, élő ellenpárral. Az `R112-I3` mechanizmusa **ma sem
+állapítható meg**: két jelölt magyarázatot mérve kizártam, feltételezett javítást nem építettem, a
+tétel **nyitott** — a rögzítés viszont megerősödött, hogy a következő előfordulás döntsön.
+
+---
+
+## 1. A PONTOS FEJ
+
+| | |
+|---|---|
+| **a kód feje (amit mértem)** | `KOD_FEJ` |
+| **az ág feje** | ugyanaz; a jelentés commitja csak `docs/`-ot visz |
+| **ágak** | `claude/r154-audit-fix` (a PR feje) **és** `claude/cmd-vs-300-002-002-r166-x7rrk4` — fast-forward, force-push nélkül |
+| **PR** | `valach-family/valach-system#1` · nyitott, **nem** mergelt · célág `claude/ecstatic-fermi-8c23co` · összeolvasztható |
+| **az átvett fej** | `167a70a` — a `2efaad3` → `61881f2` → `38e0f1c` → `167a70a` leszármazás igazolva; a `main` **nem** volt bázis |
+| **review által FEDETT SHA** | `REVIEW_SHA` |
+
+**Az átvétel ellenőrzése.** Az `R187 — NOTE` állítását visszaméretem: a `61881f2` óta valóban **csak**
+`docs/` és `v3ref/source-documents/` változott (`git diff --name-only`). A régi író leállását a saját
+konténeremben nem tudom megfigyelni; amit mértem: nincs futó Playwright-, kiszolgáló- vagy mérő-folyamat,
+és a PR-figyelést **én** vettem fel (a sáv szabad volt).
+
+---
+
+## 2. §1 — A BEJÁRÁS A HASZNÁLHATÓSÁGOT MÉRI, NEM A BUBORÉKOT
+
+A parancs két dolgot kért: a valódi művelet UTÁN **minden későbbi lépést** mérni, és **célzott
+ellenpróbával** bizonyítani, hogy az első feladat utáni hibát a mérés észleli.
+
+**AMI MEGÉPÜLT.** A bejáró megkapta a valódi művelet útját (`perform`); a továbblépés **feltétele a
+lap saját igazolása** (`data-state="done"`, amit kizárólag a szerver nyugtázott `taskDone` ad meg),
+tehát egy lefutott, de nem teljesült művelet **nevezett bukás**, nem csendes továbblépés. A
+regiszter által meg nem nevezhető feltárást (`member-open-<alany>`) a **hívó** adja oda (`reveal`).
+
+**ÉS AZ ELLENPRÓBA ÍRÁSA HÁROM VALÓDI MÉRÉSI HIBÁT BUKTATOTT KI** — ez a szakasz lényege:
+
+| | mi volt | mért következmény |
+|---|---|---|
+| **KUKA-444** | a bejáró egy lépést KÉT jelből ítélt meg (lépés-cím · nevezett megszakítás), a lépés **célját** soha nem kérdezte meg | a `targetPending` állapotú lépés teljesítésnek olvasódott; az UTOLSÓ lépésnél nincs „Tovább", ami felfedte volna. **ÉLŐ hamis zöld:** a `tour.logout` utolsó lépése `2/2 OK`-ot kapott a KÖTELEZŐ kapuban, miközben a `logout` a csukott profil-lenyílóban állt. És a vezérelten láthatatlanná tett, feladat utáni cél mellett a mérés `6/6 OK`-ot adott |
+| **KUKA-445** | a feltáró vezérlőt a **létezéshez** kötöttem, nem a láthatósághoz (`count() === 0`) | a csukott lenyílóban álló cél mellett a menü csukva maradt. Ugyanaz a lecke, amit a modul feje a kattintó ágon már kivezetett (`KUKA-237`) — egy sorral arrébb változatlanul |
+| **KUKA-446** | a megszakadt bejárás is a **regiszter** teljes lépésszámát adta vissza elértként | „elért 18/18" egy megszakadt futásra; ma nem látszott, mert a jelentés-sor a hibákat írja ki — az első összegző hívó némán hamis számot kapott volna |
+
+**A JAVÍTÁS IRÁNYA NEM AZ ŐR LAZÍTÁSA** (`KUKA-091`): a lépés akkor teljes, ha a **célja látható**, és
+a kérdést ugyanúgy tesszük fel, ahogy a motor (`targetOf` → `isShown`). Kimondott kivétel az igazoltan
+elvégzett lépés.
+
+**ÉS AMIT A SZIGORÍTÁS KIDERÍTETT A FELKÍNÁLÁSRÓL.** A `tour.grant`/`tour.scopeLifecycle` harmadik
+lépése pirosra váltott — majd **megmértem**, hogy a felkínálás **helyes**: egy egytagú vállalkozásban
+a tagok lapja a SAJÁT sort is kirajzolja, és a sor megnyitása után a cél látható
+(`nyitas UTAN = 1 · lathato = true`). A bejáróm nem jutott el odáig; a régi, lazább mérés ezt
+`TASK-IG`-nek könyvelte, amit a minta-kapu őre **tolerál** — vagyis a hiány **elfedve** állt.
+
+**ÉLŐ TANÚK:** `R166-U6` (pozitív pár: a bejárás elvégzi a feladatot, és a feladat UTÁNI lépést is
+méri — `6/6`, nevezett művelettel) · `R166-U7` (**ellenpróba**: a feladat utáni, vezérelten
+láthatatlan cél PIROSAT ad; a javítás előtt `6/6 OK`-ot adott) · `R166-U2` (a `tour.logout` valódi
+végigjárása) · `R166-U5` (a verdikt-olvasó szerződése, a feladat utáni hibával kiegészítve).
+Döntés: `D-VS-3238`.
+
+---
+
+## 3. §2 — EGY TÖRTÉNET UGYANAZT A MEGHÍVÓT ÉS RÉSZTVEVŐT KÖVETI
+
+A parancs **döntött** (épüljön meg a cél kötése), és **nevezetten elvetette** a felkínálás szűkítését.
+A négy réteg módosítása szűken e két történethez engedélyezett volt — így is építettem meg:
+
+1. **KISZOLGÁLÓI FELOLDÁS.** A `storyDataFacts` már nem csak azt mondja meg, hogy VAN alkalmas cél,
+   hanem **kiválasztja** (rendezett lekérdezésből, tehát reprodukálhatóan), és átadja a stabil
+   hivatkozását (`pending_invite_ref` · `pending_invite_actor` · `other_member_id`). A tény
+   továbbra is **egy** alkalmas célt kér (`find`, nem `every`) — az elvetett szűkítés nincs benne.
+   A címzettnek **azonosíthatónak** kell lennie: a két szereplős történet a meghívott belépésével
+   folytatódik, tehát egy azonosíthatatlan címzettű meghívó nem alkalmas cél. **Hetedszer ugyanaz a
+   lecke:** a felkínálás a végigvihetőség állítása.
+2. **HTTP-HATÁR.** A tour payload hozza a cél-kötést (`story: {kind, ref, actor}`) és a négy új
+   lépés-deklarációt. Minden mező fail-closed (`KUKA-394`).
+3. **LÉPÉS-DEKLARÁCIÓ.** Mind a hat személy-tengelyes lépés kimondja, kit vár
+   (`switch_to: story_actor | origin_actor`); a cél-kötött lépések is (`story_bound` · `story_ref` ·
+   `story_rebind`).
+4. **REKESZ + KAPU.** A futás őrzi a kezdő alanyt (`origin_subject`) és a kötést; a kapu a **várt
+   résztvevőhöz** mér (`expectedActorOf`), a kötött lépés csak a **választott célon** teljesül, a
+   levél-lépés a választott meghívó **képernyőjét** kéri (`storyTargetMismatch` nevezett állapot,
+   három nyelven), és a történet **saját választási lépése** átköti a célt az általa létrehozott ÚJ
+   meghívóra. Tehát a **visszavonás, a levél ÉS az elfogadás ugyanarra a meghívóra** szól.
+
+**ÉS A HARMADIK SZEMÉLY MÁR NEM FOGYASZTJA EL AZ ÁTADÁST** (`KUKA-449`, saját lelet): a kapu
+szigorítása csak a kérés felét teljesítette. Az ürítés a visszaírás **elején** állt, tehát egy
+harmadik ember belépése a rekeszt akkor is elvitte, ha a kapu a váltást elutasította — a védelem
+pont azt a futást veszítette el, amit megvédett. Ma a rekesz csak akkor ürül, ha **ez** az ember
+folytathatja.
+
+**A JELÖLŐ A BIZONYÍTOTT CSATORNÁHOZ KÖTÖTT, NEM AZ ELŐREVIHETŐSÉGHEZ** (saját lelet a javítás
+közben): a kilencedik lépésnél a meghívó MÁR visszavont, tehát a válasz `not_actionable` — jelölő
+nélkül a történet **saját** kapuja szakította volna meg a legitim utat (`KUKA-394`, negyedszer ebben
+a csomagban).
+
+**ÉLŐ TANÚK (az R186 §2 által kért próbák):**
+
+| próba | mit mér | verdikt |
+|---|---|---|
+| **R186-T1** | KÉT meghívó: a történet a VÁLASZTOTTHOZ kötődik; egy MÁS meghívó visszavonása **nem** teljesíti a lépést, a választotté igen | ZÖLD |
+| **R186-T2** | **alkalmas ÉS alkalmatlan tag együtt**: a legitim bemutató elérhető marad (ez az ellenpróba az **elvetett** megoldásra), és a kötés az alkalmasra mutat | ZÖLD |
+| **R186-T3** | **harmadik személy** téves belépése: nincs váltás, a rekesz **megmarad**, és utána a helyes személy folytat | ZÖLD |
+| **R176-K1…K8** | a teljes befejezés, a **390 px** és az **újratöltés az átadás közben** | ZÖLD (10/10 a lapon) |
+
+**Biztonsági határ, kimondva:** a jelölő a token sha256-lenyomatának első tíz jegye — a token nem
+állítható vissza belőle (`KUKA-006`), és az átadás nem visz meghívó-jegyet, titkot, e-mailt vagy
+más ember üzleti adatát. A bemutató állapota **nem jogosultság**: a visszavonás, a tagság-megvonás és
+a jogadás szerver-oldali ellenőrzése változatlan (`KUKA-227`). A felkínálás köre nem szűkült.
+Döntés: `D-VS-3239` · `KUKA-447` · `448` · `449`.
+
+---
+
+## 4. §3 — A LÁNC ÖT PIROSÁNAK OKA: NEM A GÉP, HANEM A SAJÁT DARABOLÁSUNK
+
+A parancs nem keret-emelést kért, hanem **mérést**. A költség-görbe (egy battéria-egység faliórája):
+
+| bontás | 11 | **40 (a deklarált)** | 48 | 56 | **64** | 80 | 160 |
+|---|---|---|---|---|---|---|---|
+| egy egység | 31 662 ms | **13 271 ms** | 11 106 ms | 10 559 ms | **9 728 ms** | 8 762 ms | 7 885 ms |
+| belefér a 12 000 ms-os saját költségvetésbe? | nem | **NEM** | igen | igen | **igen** | igen | igen |
+
+**AZ OK.** A deklarált 40-es bontás egysége a `mutate.mjs` saját költségvetése FÖLÖTT állt, ezért az
+`adaptiveUnitPlan` minden hívónál finomított (40 → 80 → 160), és mivel a finomítás a **teljes**
+battériát újrafuttatja (~7 s fix indulási költség/egység), a létra ~41 percet kért a 30 perces
+program-kereten. Öt program `spawnSync … ETIMEDOUT`-tal, részletes eredmény **nélkül** halt meg.
+
+**A JAVÍTÁS A DARABOLÁS, NEM A KERET:** 64 egység (19% tartalék a saját költségvetés, 35% a külső
+15 000 ms-os korlát alatt), tehát az ELSŐ kísérlet befér, és a létra el sem indul. A 64 egyben a
+plafon, amit az adaptált programok `VS_BATTERY_UNITS` olvasója elfogad — egy 80-as érték ott
+**érvénytelen** volna, és a program a saját 11-es padlójára esne vissza, vagyis a „javítás" rontott
+volna.
+
+| program | R176-ban | **MOST** | idő |
+|---|---|---|---|
+| `r57a` | ETIMEDOUT (1 800 108 ms) | **9/9 eset zöld** | 21,1 perc |
+| `r59a` | ETIMEDOUT (1 800 108 ms) | **7/7 eset zöld** | 19,6 perc |
+| `r79` | ETIMEDOUT (1 800 116 ms) | **4/4 eset zöld** | 19,7 perc |
+| `r81core` | ETIMEDOUT (1 800 114 ms) | **15/15 eset zöld** | 9,7 perc |
+| `r83core` | ETIMEDOUT (1 800 105 ms) | **7/7 eset zöld** | 9,6 perc |
+
+**Az `r57a` és az `r59a` a VÁLTOZATLAN, 30 perces kereten futott végig** — tehát a keret nem volt a
+baj. Az R186 §3 engedélyezte **120 perces** keret ezért **tartalék**, nem a javítás: a mért maximum
+21,1 perc. A 15 000 ms-os külső egység-korlát és a 12 000 ms-os saját költségvetés **változatlan**,
+és egyetlen program szövegéhez sem nyúltam.
+
+**A KÉT EREDETI PROGRAM PIROS MARAD, NEVEZETT OKKAL** — és ezen a kereten nem is múlik:
+
+- **`r57`: 4/9.** Zöld: `T03 · T04 · E01 · E04`. **Három** eset a program **pre-basis
+  fixtúra-világán** bukik (`T01 · T02 · T05` → `invite_without_basis` · `no_declared_basis`: a
+  rendszer R63/R88 óta rögzített felhatalmazási alapot kíván). **Kettő** le sem futott (`E02 · E03` →
+  a programon **belüli** 15 000 ms-os gyermek-korlát, mert az eredeti a teljes battériát EGY
+  gyermekben futtatja). Tehát NEM környezeti hiba: a három tartalmi bukás a program régebbi világa.
+- **`r59`:** részletes eredményt sem ír (kilépés 1, 15,8 s) — ugyanaz a belső korlát.
+- **A helyettesek ugyanazt mérik:** a `case-manifest` mondja ki (nem én), hogy az `r57a` ugyanazt a
+  kilenc esetet (`T01–T05 · E01–E04`), az `r59a` ugyanazt a hetet futtatja, „de a DARABOLT
+  battériával — az adaptálás az eseteket nem érinti". Mindkettő **zöld**.
+
+**ÉS A MÉRÉS KÖZBEN EGY SAJÁT HIBA IS ELŐJÖTT** (`KUKA-451`): a futtató a zöld esetek számát
+kivonással állította elő (`present − failed`), a **hiányzó** eset viszont **kétszer** számított — az
+`r57` sora `2/9`-et írt, miközben négy eset zöld, és a jelentés 4/9-et mondott **ugyanarról**. A zöld
+szám mostantól az eset-szemléből jön; a verdikt nem mozdult. Mért pár: régi alak `2/9`, mai `4/9`,
+ugyanazzal az ELTÉRÉS verdikttel. Döntés: `D-VS-3240` · `KUKA-450` · `451`.
+
+**A TELJES LÁNC ÁLLAPOTA:** `LANC_ALLAPOT`
+
+---
+
+## 5. §4 — A KÉT NEVESÍTETT MÉRÉS-HIÁNY PÓTOLVA, ÉS AZ R112-I3 CÉLZOTT VIZSGÁLATA
+
+**(as40 · as41) A KITILTÁS ÁGA, ÉLŐBEN.** A `KUKA-442` bejegyzése maga nevezte meg a hiányt. Most:
+könyv-szintű tiltás a tagra (a fajta és az ok a **mag zárt készletéből**: `book` ⇄ `left_company`) →
+a visszatérés-történet **nem** felkínált; a tiltás **feloldása** után a felkínálás **visszajön**.
+Tehát a kapu a tiltást méri, nem a tag létét.
+
+**(as42 · as42a · as43) A SZŰK SZEREP-PLAFON, ÉLŐBEN.** A `KUKA-431`/`437`-et eddig csak **forrás-pin**
+fedte, az élő ellenpár a TELJES plafonnal futott. Most: a kezelő saját felhatalmazási alapját
+`user`-re szűkítem (ÚJ verzióval, mindkét idő-tengelyen a legfrissebb; a kiadott verziót **nem**
+írom át), miközben egy `admin` szerepre szóló függő ajánlat áll → a visszavonás-történet **nem**
+felkínált, mert a soron nem lenne visszavonás-gomb. **Ellenpár:** a plafonon **belüli** (`user`)
+ajánlat mellett a felkínálás **visszajön** — tehát a mérés a plafon és az **ajánlat viszonyát** méri.
+
+A fixtúra a **teszt saját tárolójába** megy, a vizsgált művelet pedig a **valódi kiszolgálótól**
+kérdezett felkínálás. **Új HTTP-végpont nem született, jogosultsági kaput nem kerültem meg** — az
+R186 §4 ezt nevezetten tiltotta. A plafon forrását sem tippeltem: a kezelő tagsága a munkatér-alapítás
+alapjára mutat (`parentBasisOfMembership` → `workspace_bootstrap`), tehát **azt** az alapot szűkítem.
+
+**(R112-I3) A MECHANIZMUS MA SEM ÁLLAPÍTHATÓ MEG — ÉS EZ NEVEZETT HIÁNY MARAD.** A parancs azt kérte,
+hogy a **rögzített állapot és vezérelt válaszsorrend** alapján vizsgáljam, csak **mért** mechanizmust
+javítsak, és ha nem reprodukálható, maradjon nevesített bizonyítási hiány. A vizsgálat megtörtént, és
+**két jelölt mechanizmust mérve kizártam**:
+
+1. **Elavult (gyorsítótárazott) `/api/me` válasz** — ez pontosan a rögzített tünetet adná (a héj a
+   RÉGI embert rajzolja, a munkamenet már a másikhoz tartozik). **Kizárva:** a kiszolgáló minden
+   JSON-választ `Cache-Control: no-store`-ral ad.
+2. **Fókusz- vagy láthatóság-váltásra induló második frissítés** (ez volna a `seq`-ág, amit az előző
+   író feltételezésként megnevezett). **Kizárva:** a lap egyetlen ablak-szintű figyelője a
+   `pagehide`; `focus`/`visibilitychange` figyelő **nincs**, és a `refreshMe` minden hívója nevezett
+   felhasználói művelet vagy indulás.
+
+**Ami nyitva marad, nevezetten:** a `seq`-ág elvileg elérhető a nem `await`-elt `loadPageData()` →
+`loadStock`/`loadPrice` → `syncView()` úton is, de ez a sorrend a **rögzített állapotot nem adja ki**
+(az abban az ablakban megtörtént rajzolás a MÁSIK ember héját festené, a rögzítés viszont a MEGHÍVÓ
+képernyőt és az ELŐZŐ ember fejlécét találta). **Feltételezett javítást nem építettem.**
+
+**A RÖGZÍTÉS VISZONT MEGERŐSÖDÖTT:** a próba mostantól naplózza a `/api/me` kéréseket (sorrend +
+kiszolgált alany), és a fejlécet, a héj létét és a belépés-lap létét is rögzíti. Egy **második**
+kérés jelenléte a `seq`-ágat **igazolja**, a hiánya **kizárja** — a következő előfordulás tehát
+dönt, találgatás nélkül.
+
+---
+
+## 6. A KÖTELEZŐ KAPU ÉS A CÉLZOTT REGRESSZIÓK
+
+`KAPU_TABLA`
+
+---
+
+## 7. NYITOTT LELETEK ÉS MÉRÉSI HIÁNYOK — nevezetten
+
+| tétel | állapot |
+|---|---|
+| **`R112-I3`** újrarajzolási hiba | **NYITOTT.** Két jelölt mechanizmus mérve kizárva; a mechanizmus nem állapítható meg. Feltételezett javítás nincs; a rögzítés megerősítve (5. szakasz) |
+| **`r57` · `r59`** (az eredeti külső programok) | **PIROS, nevezett okkal.** `r57`: 4/9 — három eset a program pre-basis fixtúra-világán, kettő a programon BELÜLI 15 000 ms-os korláton. `r59`: nincs részletes eredmény. A deklarált helyettesek (`r57a` · `r59a`) ugyanazokat az eseteket mérik, és zöldek |
+| **`personal.ownMatters`** lefedési rés | **NYITOTT, nevesített fejlesztési rés** — a `verify:lefedes` `LT` sora szándékosan piros; pótolható **0**, osztályozatlan **0** |
+| **a `tour.grant`/`tour.scopeLifecycle` buborék-mondata** | **MÉRT MEGFIGYELÉS, nem javítva.** A lépés deklarált feltárója a tag-TÁBLA, a célt viszont a SOR hozzáférés-gombja tárja fel; a bemutató „nyisd meg a kiemelt gombbal" mondata emiatt pontatlan. A történet **végigvihető** (mérve), a regiszter pedig szándékosan nem nevez per-fiók azonosítót (`KUKA-225`). Más terület: **külön backlog** (R186 §5) |
+| **élő AI · PG18 · felhős mentés** | **KÜLÖN NYITOTT TÉTELEK** — ez a csomag nem állít róluk semmit |
+| **a mai fej független elfogadása** | `REVIEW_ALLAPOT` |
+
+**A nyitott review-szálakat nem zártam le**, és nem is zárom: az R186 §5 kimondja, hogy a nyitott
+leleteket nem zárjuk le pusztán megválaszolás vagy új blokk miatt. **A válaszolt szál nem elfogadás.**
+
+---
+
+## 8. A BEMUTATÓ ELÉRÉSI ÚTJA — ÉS HOL FUT
+
+**HOL FUT:** az **ügynök felhős tárolójában**, nem az operátor gépén. A `127.0.0.1:3300` cím **csak
+ott** érvényes; az operátor böngészőjéből **nem** elérhető. Telepítés nem történt, és nem is kérem.
+
+```bash
+# 0) ELŐFELTÉTEL, amit könnyű elvéteni: ebben a környezetben NODE_ENV=production áll, ezért a
+#    sima `npm ci` a FEJLESZTŐI függőségeket (köztük a Playwrightot) KIHAGYJA — a böngészős kapu
+#    enélkül el sem indul. Ezért:
+npm ci --include=dev
+
+# 1) a próba-alkalmazás (SQLite, üzleti adat nélkül, titok nélkül)
+DATABASE_URL= VS_DEMO=1 npm run app:dev        # → http://127.0.0.1:3300/
+
+# 2) a kötelező böngészős kapu
+npm run verify:browser-gate
+
+# 3) a rövid láncok
+npm run verify:kuka && npm run verify:app-findings-r154 && npm run verify:decision-numbers
+npm run docs:html && npm run verify:doc-html
+
+# 4) a külső ellenőrző lánc (HOSSZÚ — a mért maximum programonként 21,1 perc)
+npm run verify:external-checks
+```
+
+**Titok nincs benne:** üres `DATABASE_URL` mellett SQLite-on fut, migráció nem kell, `.env` nem
+szükséges. `DATABASE_URL` és bármely kulcs **soha nem kerül chatbe és lapra**.
+
+**A bemutató két útja:** `http://127.0.0.1:3300/demo-index.html` (bemutató-lap) és
+`http://127.0.0.1:3300/` (**a VALÓDI felület**). Előfeltétel a két átívelő történethez: függő
+meghívás **a levelével**, **azonosítható címzettel** (ez az R186 §2 óta a felkínálás feltétele),
+illetve **hatályos** másik tag.
+
+**AZ OPERÁTORNAK:** ez a csomag **össze nem olvasztott ágon** áll, ezért a `main`-es terminál-blokk
+EZT nem mutatja meg. Amit meg tud nyitni: ennek a lapnak az olvasható (HTML) alakja a board
+**Dokumentumok** fülén.
+
+---
+
+## 9. FOGYASZTÁS
+
+Ablak: `2026-10-09T13:00:00Z → a jelentés írásáig` · **286 hívás** · fő-szál kontextusmedián
+**429 094,5** · max **695 585** · **ügynök-bemenet 0** (0 ügynök) · lefedettség **teljes**.
+
+**A CHATVÁLTÁSI JELZŐ ELÉRVE** (429 094,5 ≥ 400 000, `D-VS-3083`): a futó munkablokk célzott
+ellenőrzéssel lezárható, a **következő önálló nagy blokk friss beszélgetésben induljon**.
+
+---
+
+## 10. AMIT EZ A JELENTÉS NEM ÁLLÍT
+
+- **Nem** állítja, hogy a csomag merge-kész: merge, force-push, felhős telepítés, titok-módosítás,
+  üzleti adatváltoztatás, V2-/production-módosítás és `CMD`/`PR-VS-300` lezárás **nem történt**.
+- **Nem** állítja, hogy a külső lánc 19/19: az `r57` és az `r59` **piros**, nevezett okkal.
+- **Nem** állítja, hogy a keret-emelés javított bármit: a mért maximum 21,1 perc, a 120 perc tartalék.
+- **Nem** állítja, hogy az `R112-I3` le van zárva: a mechanizmus **nincs megmérve**, a tétel nyitott.
+- **Nem** állítja, hogy a bejáró mai zöldje minden felkínált útmutató teljes bejárását bizonyítja —
+  csak azt, amit a `walkOutcome` mér, és amit az `R166-U6`/`U7` pár ellenpróbával igazol.
+- **Nem** állítja, hogy a mai fejet független fél elfogadta (7. szakasz).
+- **Nem** PG 18-kompatibilitás, **nem** felhős mentés bizonyítéka, és **nem** épít üzleti
+  ERP-funkciót vagy élő AI-szolgáltatót.
