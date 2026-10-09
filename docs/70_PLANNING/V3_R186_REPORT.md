@@ -469,6 +469,29 @@ magra **nem érvényes**. Azt a futást **leállítottam** — nem hagytam zöld
 **záró fejen** indult újra, utána a mag-battéria. Ez a `KUKA-200`/`KUKA-206` szabálya a saját
 munkámon: *ami nem a mai forráson futott, az nem a mai forrás bizonyítéka.*
 
+### ÉS MÉG KÉT KÖR JÖTT A ZÁRÓ FEJEKRE — EGY OSZTÁLY-LELET ÉS EGY TITOK-HIGIÉNIAI
+
+| | a lelet | mi tört volna el | mi váltja |
+|---|---|---|---|
+| **`KUKA-473`** (`D-VS-3255`) · „Gate revoke buttons on executable authority" | a **négy** megvonás-művelet jelzője a plafont és az állapotot mérte, a **végrehajtható hatáskört** nem | mind a négy írás-út `alter_right` hatáskört kíván, amit a tagság **akár `admin` szerepben sem** ad meg (a mag saját üzenete mondja ki). Egy delegált kezelő tehát **négy** olyan gombot látott, ami rá nézve biztosan nemet mond — a `tour.reentry`-nél a megszakadás **a megvonás után** jött volna. **MÉRVE:** a plafon érvényes (`admin`+`user`), a hatáskör nincs, a megvonás **403** | a hatáskör **egy nevezett verdikt**, és minden fogyasztója ebből dönt: a kiszolgáló **egyszer** kérdezi (`KUKA-436`), a meghívó-lista `revocable` és a tag-lista `rights_alterable` mezője ezt viszi, a lap **mindkét** megvonás-gombot ebből rajzolja, és a mag feloldója a hatáskört **első kapuként** kérdezi |
+| **`KUKA-474`** (`D-VS-3256`) · „Normalize absolute paths before checking export boundaries" | a fogyasztás-export út-tisztítója a **relatív** utat normalizálta, az **abszolútat** szó szerint adta a határ-ellenőrzésnek | egy `<repó>/../customer/…` alak **átment** a repó-határ kapuján, és a kiírt út egy repón **kívüli**, telepítési vagy **ügyfél**-könyvtár nevét vitte — **abba a leltárba, ami a repóba kerül**, tehát a nyilvánosságba | a határ **kanonizált** úton dől el (`resolve` a tartalmazás-ellenőrzés előtt), **mindkét** bemeneti ágon |
+
+**A `KUKA-473` HATÓKÖRÉT A HIBA-OSZTÁLY ADTA** (`KUKA-418`): a külső fél **egy** jelzőt nevezett meg, a
+mérés viszont **mind a négy** írás-utat megkérdezte. Ugyanebből a végigkérdezésből jött egy **saját
+lelet** is: az **új meghívás** űrlapján az adatkör-választék már a plafonból jött, a **szerep**-választék
+viszont **beégetve** két opciót rajzolt — ma a kiszolgáló a `grantable_roles`/`blocked_roles` készletet
+is kiadja, és az űrlap abból rajzol (`as86`/`as87`).
+
+**ÉS A `KUKA-474` MÉRÉSÉNEK ELSŐ ALAKJA HAMIS ZÖLD VOLT — kimondva** (`KUKA-215` · `KUKA-239`): a
+`--transcript` paramétert vizsgálta, azt viszont a szerszám **már kanonizálja**, tehát a sor a
+**kivezetett** alakon is zöld maradt. A sérülő bemenet az **átirat tartalma** (egy szerszám-esemény
+`file_path` mezője); a mai mérés ezt állítja elő, és a **kimeneti JSON-ban** keresi a könyvtárnevet —
+**mérve: a kivezetett alakon 1 találat, a maival 0**, és az ellenpróba a battérián **2 FAIL**-t ad.
+
+**ÖSSZESEN:** a külső review a csomag alatt **NYOLC fejen** mért, és **húsz P2-t** adott; kettő már a
+felmerülés előtt javítva volt, **tizennyolc ebben a körben épült meg** — és ehhez jön **nyolc saját
+lelet** a javítások megméréséből (köztük **három olyan, ahol a SAJÁT MÉRÉSEM volt a hibás**).
+
 ---
 
 ## 7. NYITOTT LELETEK ÉS MÉRÉSI HIÁNYOK — nevezetten
@@ -479,8 +502,9 @@ munkámon: *ami nem a mai forráson futott, az nem a mai forrás bizonyítéka.*
 | **`r57` · `r59`** (az eredeti külső programok) | **NEVEZETT KÖRNYEZETI KIHAGYÁS, zöld helyettessel — NEM zöld, és nem is „részben zöld" (`KUKA-206`). A lánc `complete_evidence` jelzője `false`.** `r57`: 4/9 — három eset a program pre-basis fixtúra-világán, kettő a programon BELÜLI 15 000 ms-os korláton. `r59`: nincs részletes eredmény. A deklarált helyettesek (`r57a` · `r59a`) ugyanazokat az eseteket mérik, és zöldek |
 | **`personal.ownMatters`** lefedési rés | **NYITOTT, nevesített fejlesztési rés** — a `verify:lefedes` `LT` sora szándékosan piros; pótolható **0**, osztályozatlan **0** |
 | **a `tour.grant`/`tour.scopeLifecycle` buborék-mondata** | **MÉRT MEGFIGYELÉS, nem javítva.** A lépés deklarált feltárója a tag-TÁBLA, a célt viszont a SOR hozzáférés-gombja tárja fel; a bemutató „nyisd meg a kiemelt gombbal" mondata emiatt pontatlan. A történet **végigvihető** (mérve), a regiszter pedig szándékosan nem nevez per-fiók azonosítót (`KUKA-225`). Más terület: **külön backlog** (R186 §5) |
+| **az út-tisztító symlink-korlátja** (`KUKA-474`) | **NEVEZETT, NYITOTT TÉTEL.** A könyvtár-határ ma **lexikális** kanonizáláson dől el (`resolve`), tehát egy repón **belüli**, kifelé mutató **jelképes lánc** ezzel NEM derül ki. A `realpath` fájlrendszer-hozzáférést és nem létező útra kivétel-kezelést kíván — külön tétel, nem ebben a csomagban |
 | **élő AI · PG18 · felhős mentés** | **KÜLÖN NYITOTT TÉTELEK** — ez a csomag nem állít róluk semmit |
-| **a külső review TIZENNYOLC P2-je** (HAT fejen) | **MIND KEZELVE** — kettő már a felmerülés előtt javítva volt (`KUKA-453` · `e614a39`), **tizenhat ebben a körben épült meg** (`KUKA-454`…`456` · `458`…`464` · `467`…`472`), mindegyikhez ÉLŐ mérés és ELLENPÁR. **A szálak github-oldali lezárását nem végeztem el**, és a válaszolt szál nem elfogadás. **A lelet-szám csökkenése nem bizonyítja a hibák hiányát** |
+| **a külső review HÚSZ P2-je** (NYOLC fejen) | **MIND KEZELVE** — kettő már a felmerülés előtt javítva volt (`KUKA-453` · `e614a39`), **tizennyolc ebben a körben épült meg** (`KUKA-454`…`456` · `458`…`464` · `467`…`474`), mindegyikhez ÉLŐ mérés és ELLENPÁR. **A szálak github-oldali lezárását nem végeztem el**, és a válaszolt szál nem elfogadás. **A lelet-szám csökkenése nem bizonyítja a hibák hiányát** |
 | **a saját méréseimből jött leletek** (`KUKA-465` · `KUKA-466` · a csonk-sorrend a `468` mérésekor) | **MIND JAVÍTVA ÉS MÉRVE** (`D-VS-3247` · `D-VS-3248` · `D-VS-3250`). A `KUKA-466` a `verify:app-findings-r154` **ingadozásából** jött (hatból egy bukás): hamis „megtelt" 503 egy ÜRES táron, MÉRVE 40-ből 3; javítás után 80-ból 0. **A jele determinisztikus**, mert a két első alakja hamis zöld lett volna (6. szakasz) |
 | **a mai fej független elfogadása** | `REVIEW_ALLAPOT` |
 
