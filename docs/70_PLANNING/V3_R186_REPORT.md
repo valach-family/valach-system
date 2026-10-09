@@ -429,9 +429,18 @@ npm run verify:external-checks
 szükséges. `DATABASE_URL` és bármely kulcs **soha nem kerül chatbe és lapra**.
 
 **A bemutató két útja:** `http://127.0.0.1:3300/demo-index.html` (bemutató-lap) és
-`http://127.0.0.1:3300/` (**a VALÓDI felület**). Előfeltétel a két átívelő történethez: függő
-meghívás **a levelével**, **azonosítható címzettel** (ez az R186 §2 óta a felkínálás feltétele),
-illetve **hatályos** másik tag.
+`http://127.0.0.1:3300/` (**a VALÓDI felület**).
+
+**AZ ELŐFELTÉTELEK — ÉS EZEK A KÖR SORÁN SZIGORODTAK.** A felkínálás a VÉGIGVIHETŐSÉG állítása,
+tehát minden későbbi írás-feltétel ide is tartozik:
+
+| történet | mi kell hozzá |
+|---|---|
+| **1 · Meghívás visszavonása** | függő meghívás **a levelével** a fejlesztői levél-fogadóban · a címzettnek **fiókja** van **ÉS** a meghívott címét **igazolta** (`KUKA-454`) · az ajánlott szerep a kezelő **plafonján belül** van |
+| **2 · Munkatárs visszatérése** | **hatályos** másik tag · **pontosan egy** tárolt címe van (`KUKA-455`), és az **bizonyított** (`KUKA-462`) · nincs rá élő felfüggesztés vagy kitiltás · a tag **mai szerepe** és a történet **adatköre** (`keszlet`) a kezelő **plafonján belül** van (`KUKA-459`) |
+
+Ha bármelyik nem áll, a bemutató **nem felkínált** — és ez SZÁNDÉKOS: inkább ne ajánljuk fel, mint
+hogy a VISSZAFORDÍTHATATLAN lépés UTÁN akadjon el.
 
 **AZ OPERÁTORNAK:** ez a csomag **össze nem olvasztott ágon** áll, ezért a `main`-es terminál-blokk
 EZT nem mutatja meg. Amit meg tud nyitni: ennek a lapnak az olvasható (HTML) alakja a board
