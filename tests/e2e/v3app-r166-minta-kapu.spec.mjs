@@ -147,6 +147,15 @@ test('R166-MK2 — ÁLTALÁNOS ŐR: minta nélkül MINDEN felkínált útmutató
     if (walkOutcome(r) === WALK_OK) teljes.push(sor);
     if (await anna.page.getByTestId('tour-exit').count()) await anna.page.getByTestId('tour-exit').click();
   }
+  /**
+   * A MÉRÉS EREDMÉNYE AKKOR IS LÁTSZIK, HA ZÖLD (R186 §5).
+   *
+   * A sorok eddig CSAK az állítás hiba-szövegében éltek, tehát egy zöld futás a bejárás
+   * EREDMÉNYÉT nem mutatta meg — a kör-jelentésnek viszont pontosan ez kell („a javított
+   * mérésű bejárás eredményei"). Egy jel, ami csak bukáskor beszél, a zöldről semmit nem mond.
+   */
+  // eslint-disable-next-line no-console
+  console.log(`[R166-MK] a felkínált útmutatók bejárása (${jelentes.length} db): ${jelentes.join(' | ')}`);
   expect(megszakadt.join(' | ') || 'egy sem szakadt meg',
     `minta nélkül minden felkínált útmutató végigvihető a felhasználó műveletét NEM igénylő lépéseken — mérve: ${jelentes.join(' | ')}`).toBe('egy sem szakadt meg');
 
