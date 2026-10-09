@@ -462,11 +462,23 @@ ellenőrzéssel lezárható, a **következő önálló nagy blokk friss beszélg
 
 - **Nem** állítja, hogy a csomag merge-kész: merge, force-push, felhős telepítés, titok-módosítás,
   üzleti adatváltoztatás, V2-/production-módosítás és `CMD`/`PR-VS-300` lezárás **nem történt**.
-- **Nem** állítja, hogy a külső lánc 19/19: az `r57` és az `r59` **piros**, nevezett okkal.
+- **Nem** állítja, hogy a külső lánc 19/19: az `r57` és az `r59` **nevezett környezeti kihagyás**,
+  zöld helyettessel — a lánc saját `complete_evidence` jelzője `false`, és az `r59`-nél
+  **esetenkénti bizonyíték sincs**.
 - **Nem** állítja, hogy a keret-emelés javított bármit: a mért maximum 21,1 perc, a 120 perc tartalék.
 - **Nem** állítja, hogy az `R112-I3` le van zárva: a mechanizmus **nincs megmérve**, a tétel nyitott.
 - **Nem** állítja, hogy a bejáró mai zöldje minden felkínált útmutató teljes bejárását bizonyítja —
   csak azt, amit a `walkOutcome` mér, és amit az `R166-U6`/`U7` pár ellenpróbával igazol.
-- **Nem** állítja, hogy a mai fejet független fél elfogadta (7. szakasz).
+- **Nem** állítja, hogy a mai fejet független fél elfogadta (7. szakasz). És **nem** állítja, hogy
+  a tizenkét P2 javításával a hibák elfogytak: **a lelet-szám csökkenése nem bizonyítja a hibák
+  hiányát** (R186 §5) — három egymás utáni review-kör pontosan ezt mutatta meg, hiszen minden
+  kör az előző javítását buktatta meg. A későbbi fejeken a Codex néhány futása **saját oldali
+  hibával** (⚠️ Failed) állt le — az NEM lelet és NEM is elfogadás; a záró fejre a review-t
+  külön kértem.
+- **Nem** állítja, hogy a bemutató minden állapotból végigvihető: a felkínálás feltételei a kör
+  során **szigorodtak** (8. szakasz), és ahol nem állnak, ott a bemutató **nem felkínált** —
+  szándékosan.
+- **Nem** állítja, hogy a `KUKA-464` a FALI ÓRA kérdését egészében megoldotta: a monoton órára
+  váltás **nevezett, külön tétel** — a mai javítás a KÁRT zárja el.
 - **Nem** PG 18-kompatibilitás, **nem** felhős mentés bizonyítéka, és **nem** épít üzleti
   ERP-funkciót vagy élő AI-szolgáltatót.
