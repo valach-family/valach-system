@@ -16,6 +16,36 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3242 — A BEMUTATÓ A CÉL-KÖTÉST A SAJÁT VILÁGÁBÓL SZÁMOLJA (R186 §5)
+
+A bemutató-lap háttere egy böngésző-oldali adapter, ami a végigvezetések listáját a VALÓDI
+szerverről RÖGZÍTETT csomagból adja (`demo-assistant.json`) — az alakot a fogyasztótól vesszük,
+nem emlékezetből (`KUKA-016`). Az R186 §2 óta ez a válasz a történet CÉL-KÖTÉSÉT is viszi
+(`story: {kind, ref, actor}`), és ezzel a rögzítés ALAKJA mellé egy VILÁG-KÖTÖTT ÉRTÉK is beköltözött.
+
+**A DÖNTÉS:** a rögzített csomag a SZERZŐDÉS ALAKJÁT viszi, a VILÁGHOZ KÖTÖTT AZONOSÍTÓKAT NEM —
+azokat minden kiszolgáló a SAJÁT állapotából adja meg, ugyanazzal a szabállyal, amit a szerver mér.
+A bemutató tehát a cel-kotést a `storyKotes` feloldoval számolja (a legkorábban lejáró, FIÓKKAL
+RENDELKEZŐ címzettű függő meghívó · a kérőn KÍVÜLI élő tag), és MINDKÉT listára (`tours` ·
+`resumable_tours`), mert a lap a definíciót a másodikból is feloldhatja.
+
+**MIÉRT NEM A KÖTÉS GYENGÍTÉSE A VÁLASZ.** A két átívelő történet kapui fail-closed zárnak
+(`KUKA-394`), tehát egy nem létező célra szóló kötés mellett a bemutató MEGÁLL — mérve a kivezetett
+alakkal: `proof:demo-walk --only inviteRevoke` PIROS, a megszakadás helye `s4/pending·blokkolt`. A
+bemutató felületenél a kötés KIKAPCSOLÁSA azt jelentette volna, hogy a bemutató ZOLD marad, miközben
+a termék saját őrét nem viszi végig — pontosan az a hamis zöld, amit a `KUKA-227` tilt.
+
+**ÉS EGY MÁSODIK KÁR IS MÉRVE LETT:** a rögzítő `--check` ága azt ígérte, hogy megmondja, elavult-e a
+csomag — de MINDEN futásnál ELAVULT-at mondott, változatlan forrás mellett is, mert a csomagban
+három világ-kötött azonosító-fajta állt (`served_book_id` · `served_subject_id` · a két lista
+cél-kötése). Két egymás utáni rögzítés TIZENKÉT soron tért el; a javítás után a két csomag
+bájtra azonos (`NAPRAKÉSZ`). Egy jel, ami mindig pirosat ad, nem jel (`KUKA-050`).
+
+Gépi jel: `npm run verify:kuka` (`KUKA-453` — a két kivezetett alak tiltva) · ÉLŐ tanú:
+`npm run verify:browser-gate` → `proof:demo-walk` · és `npm run demo:knowledge -- --check`.
+
+---
+
 ## D-VS-3241 — A VÁLOGATOTT LÁNC-LISTA NEM SÖPRÉS (R186 §5)
 
 Az R186 §5 befejezési rendje közben MINDEN rövid `verify:*` láncot végigfuttattam, nem csak azokat,

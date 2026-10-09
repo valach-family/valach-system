@@ -567,13 +567,25 @@ async function handoverProbes() {
     // a tengelyen állnak — és külön mérjük a ROSSZ tengelyt, illetve a nyilatkozat nélküli esetet.
     // R176 (`KUKA-441`): a FIÓK-tengelyen a CÉL is kötött — a futás KEZDŐ könyve. A szintetikus
     // futásban a cél `b2`, tehát az `origin_book` is az; a cél-feltételt a (h1i)–(h1j) méri.
-    const run = (view, tengely, origin = 'b2') => ({ at: 0,
-      steps: [{ id: 's', switch_actor: true, switch_axis: tengely, task: 'actor.switched' }],
-      view, origin_book: origin, role: null });
+    // R186 §2: A SZEMÉLY-TENGELYEN A CÉL IS KÖTÖTT — a lépés kimondja, KIT vár (`switch_to`), és a
+    // várt résztvevőt a futás cél-kötése adja (`story.actor`). A nyilatkozat NÉLKÜLI futás tehát
+    // fail-closed ZÁR, és ezt a (h1b3) külön méri — nem a többi eset melléktermékeként.
+    const run = (view, tengely, origin = 'b2', vart = null) => ({ at: 0,
+      steps: [{ id: 's', switch_actor: true, switch_axis: tengely,
+        switch_to: vart ? 'story_actor' : null, task: 'actor.switched' }],
+      view, origin_book: origin,
+      story: vart ? { kind: 'invite', ref: 'ref-proba', actor: vart } : null,
+      role: null });
     return {
       masFiok: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'book'), { view: { book: 'b2', subject: 'u1' }, role: null }),
-      masEmber: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'subject'), { view: { book: 'b1', subject: 'u2' }, role: null }),
-      rosszTengely: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'subject'), { view: { book: 'b2', subject: 'u1' }, role: null }),
+      masEmber: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'subject', 'b2', 'u2'), { view: { book: 'b1', subject: 'u2' }, role: null }),
+      // R186 §2 ELLENPÁR: a VÁRT résztvevő `u2` — egy HARMADIK ember (`u3`) belépése NEM váltás,
+      // tehát nem is fogyaszthatja el az átadást. Ez a parancs kifejezett kérése volt.
+      harmadikEmber: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'subject', 'b2', 'u2'), { view: { book: 'b1', subject: 'u3' }, role: null }),
+      // R186 §2 ELLENPÁR: várt résztvevő NÉLKÜL a személy-tengely ZÁR — a „nem tudom" nem eshet
+      // némán „jó lesz"-re (`KUKA-049` · `KUKA-236`).
+      vartNelkul: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'subject'), { view: { book: 'b1', subject: 'u2' }, role: null }),
+      rosszTengely: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'subject', 'b2', 'u2'), { view: { book: 'b2', subject: 'u1' }, role: null }),
       nyilatkozatNelkul: mod.actorSwitchReady({ at: 0,
         steps: [{ id: 's', switch_actor: true, task: 'actor.switched' }], view: { book: 'b1', subject: 'u1' }, role: null },
       { view: { book: 'b2', subject: 'u2' }, role: null }),
@@ -583,7 +595,7 @@ async function handoverProbes() {
       // R176 (`KUKA-432`): a FIÓK-tengelyen a pár NEM MOZGÓ fele (az alany) is kötve van — különben
       // a kilépés + MÁS EMBER belépése is „teljesített"-nek számít, hiszen az ÚJ ember könyve is más.
       fiokMindkettoMas: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'book'), { view: { book: 'b2', subject: 'u2' }, role: null }),
-      alanyMindkettoMas: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'subject'), { view: { book: 'b2', subject: 'u2' }, role: null }),
+      alanyMindkettoMas: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'subject', 'b2', 'u2'), { view: { book: 'b2', subject: 'u2' }, role: null }),
       // R176 (`KUKA-433`): a KILÉPÉS mint átadási határ — csak a SZEMÉLY-tengelyen.
       hatarKilepesSzemely: mod.handoverBoundaryOk({ switch_actor: true, switch_axis: 'subject' }, { kilepes: true }),
       hatarKilepesFiok: mod.handoverBoundaryOk({ switch_actor: true, switch_axis: 'book' }, { kilepes: true }),
@@ -598,12 +610,16 @@ async function handoverProbes() {
     pair.rosszTengely === false, `kapott=${pair.rosszTengely}`);
   A('(h1e) R176 — nyilatkozat nélkül a kapu ZÁR (fail-closed)',
     pair.nyilatkozatNelkul === false, `kapott=${pair.nyilatkozatNelkul}`);
-  A('(h1b) MÁS ember nézete is váltás', pair.masEmber === true, `kapott=${pair.masEmber}`);
+  A('(h1b) R186 §2 — MÁS ember nézete váltás, DE CSAK A VÁRT résztvevőé', pair.masEmber === true, `kapott=${pair.masEmber}`);
+  A('(h1b2) R186 §2 ELLENPÁR: egy HARMADIK ember belépése NEM váltás — az átadást nem fogyaszthatja el',
+    pair.harmadikEmber === false, `kapott=${pair.harmadikEmber}`);
+  A('(h1b3) R186 §2 ELLENPÁR: várt résztvevő NÉLKÜL a személy-tengely ZÁR (fail-closed)',
+    pair.vartNelkul === false, `kapott=${pair.vartNelkul}`);
   A('(h1c) ELLENPÁR: ha az átadás a FIÓKOT elveszti, a megtörtént váltás MÉRHETETLEN',
     pair.elvesztettFiok === false, `kapott=${pair.elvesztettFiok}`);
   A('(h1f) R176 — a FIÓK-tengelyen a MÁSIK EMBER belépése NEM teljesítés, akkor sem, ha a könyv is más lett',
     pair.fiokMindkettoMas === false, `kapott=${pair.fiokMindkettoMas}`);
-  A('(h1g) R176 ELLENPÁR: a két tengely NEM tükrös — a SZEMÉLY-váltás ugyanezt az átmenetet JOGGAL elfogadja',
+  A('(h1g) R176 ELLENPÁR: a két tengely NEM tükrös — a SZEMÉLY-váltás ugyanezt az átmenetet a VÁRT résztvevőtől JOGGAL elfogadja',
     pair.alanyMindkettoMas === true, `kapott=${pair.alanyMindkettoMas}`);
   A('(h1h) R176 — a KILÉPÉS átadási határa CSAK a személy-tengely; a fiók-tengelyes kilépés nem ad át, a FIÓKVÁLTÁS viszont igen',
     pair.hatarKilepesSzemely === true && pair.hatarKilepesFiok === false && pair.hatarFiokvaltas === true,

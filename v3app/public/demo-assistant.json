@@ -1,8 +1,8 @@
 {
  "status": {
   "ok": true,
-  "served_book_id": "ws_0c024fdb",
-  "served_subject_id": "sub_ee1e03aa3f17e644",
+  "served_book_id": null,
+  "served_subject_id": null,
   "lang": "hu",
   "dir": "ltr",
   "surface": "demo",
@@ -256,7 +256,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -265,7 +269,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -274,7 +282,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -283,7 +295,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s5",
@@ -292,7 +308,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -318,7 +338,8 @@
       "title": "A Súgó",
       "body": "Innen nyílik a súgó: kérdezhetsz, leírást olvashatsz, kereshetsz a gyakori kérdésekben, vagy megnézheted az oldaltérképet."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.invite",
@@ -342,7 +363,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -351,7 +376,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -360,7 +389,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "invite-open"
+      "appears_after": "invite-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -369,7 +402,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "invite-open"
+      "appears_after": "invite-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s5",
@@ -378,7 +415,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "invite-open"
+      "appears_after": "invite-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s6",
@@ -387,7 +428,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "invite-submit"
+      "appears_after": "invite-submit",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -417,7 +462,8 @@
       "title": "A levél megnyitása",
       "body": "A próbafelületen a levél a Próbaüzenetek panelen nyílik meg. Valódi levelet nem küldtünk."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.addBusiness",
@@ -441,7 +487,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -450,7 +500,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -459,7 +513,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "ws-kind-business"
+      "appears_after": "ws-kind-business",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -468,7 +526,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "ws-kind-business"
+      "appears_after": "ws-kind-business",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s5",
@@ -477,7 +539,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -503,7 +569,8 @@
       "title": "A létrehozás",
       "body": "Nyomd meg az „Új fiók hozzáadása” gombot. Ez a lépés csak tényleges létrehozás után halad tovább."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.stock",
@@ -527,7 +594,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -536,7 +607,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -545,7 +620,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -554,7 +633,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -576,7 +659,8 @@
       "title": "Az árak",
       "body": "Az árak két feltételhez kötöttek: csomag és engedély. A lap megmondja, melyik hiányzik."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.grant",
@@ -600,7 +684,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -609,7 +697,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -618,7 +710,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "members-list"
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -636,7 +732,8 @@
       "title": "Az adatkör engedélyezése",
       "body": "Válaszd ki az adatkört, és nyomd meg a „Megtekintés engedélyezése” gombot. Ez a lépés csak tényleges mentés után halad tovább."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.scopeLifecycle",
@@ -660,7 +757,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -669,7 +770,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -678,7 +783,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "members-list"
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -687,7 +796,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "members-list"
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -709,7 +822,8 @@
       "title": "És a visszavonás",
       "body": "Ugyanabban a sorban a „Hozzáférés visszavonása” gomb csak ezt az egy hozzáférést veszi el — a tagság és a többi adat megmarad."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.inviteRevoke",
@@ -733,7 +847,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -742,7 +860,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -751,7 +873,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "members-tab-invites"
+      "appears_after": "members-tab-invites",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -760,7 +886,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "members-tab-invites"
+      "appears_after": "members-tab-invites",
+      "switch_to": null,
+      "story_bound": true,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s5",
@@ -769,7 +899,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "members-tab-invites"
+      "appears_after": "members-tab-invites",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s6",
@@ -778,7 +912,11 @@
       "role": null,
       "switch_actor": true,
       "switch_axis": "subject",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": "story_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s7",
@@ -787,7 +925,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s8",
@@ -796,7 +938,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "demo-mail-open"
+      "appears_after": "demo-mail-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s9",
@@ -805,7 +951,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "mailbox"
+      "appears_after": "mailbox",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": true,
+      "story_rebind": false
      },
      {
       "id": "s10",
@@ -814,7 +964,11 @@
       "role": "admin",
       "switch_actor": true,
       "switch_axis": "subject",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": "origin_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s10b",
@@ -823,7 +977,11 @@
       "role": "admin",
       "switch_actor": true,
       "switch_axis": "book",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s11",
@@ -832,7 +990,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s12",
@@ -841,7 +1003,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s13",
@@ -850,7 +1016,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "invite-open"
+      "appears_after": "invite-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": true
      },
      {
       "id": "s14",
@@ -859,7 +1029,11 @@
       "role": null,
       "switch_actor": true,
       "switch_axis": "subject",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": "story_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s15",
@@ -868,7 +1042,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s16",
@@ -877,7 +1055,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "demo-mail-open"
+      "appears_after": "demo-mail-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s17",
@@ -886,7 +1068,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "mailbox"
+      "appears_after": "mailbox",
+      "switch_to": null,
+      "story_bound": true,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s18",
@@ -895,7 +1081,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -977,6 +1167,11 @@
       "title": "Nézd meg az eredményt",
       "body": "A fiókváltóban ott a cég: Béla mostantól tag. A régi, visszavont meghívó ettől nem éledt fel — ez egy új meghívás eredménye."
      }
+    },
+    "story": {
+     "kind": "invite",
+     "ref": null,
+     "actor": null
     }
    },
    {
@@ -1001,7 +1196,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -1010,7 +1209,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -1019,7 +1222,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "members-list"
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": true,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -1028,7 +1235,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "members-list"
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": true,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s5",
@@ -1037,7 +1248,11 @@
       "role": null,
       "switch_actor": true,
       "switch_axis": "subject",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": "story_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s6",
@@ -1046,7 +1261,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s7",
@@ -1055,7 +1274,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "demo-mail-open"
+      "appears_after": "demo-mail-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s8",
@@ -1064,7 +1287,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "mailbox"
+      "appears_after": "mailbox",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s9",
@@ -1073,7 +1300,11 @@
       "role": null,
       "switch_actor": true,
       "switch_axis": "book",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s10",
@@ -1082,7 +1313,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s11",
@@ -1091,7 +1326,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s12",
@@ -1100,7 +1339,11 @@
       "role": "admin",
       "switch_actor": true,
       "switch_axis": "subject",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": "origin_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s12b",
@@ -1109,7 +1352,11 @@
       "role": "admin",
       "switch_actor": true,
       "switch_axis": "book",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s13",
@@ -1118,7 +1365,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s14",
@@ -1127,7 +1378,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "members-list"
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": true,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s15",
@@ -1136,7 +1391,11 @@
       "role": null,
       "switch_actor": true,
       "switch_axis": "subject",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": "story_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s15b",
@@ -1145,7 +1404,11 @@
       "role": null,
       "switch_actor": true,
       "switch_axis": "book",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s16",
@@ -1154,7 +1417,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s17",
@@ -1163,7 +1430,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s18",
@@ -1172,7 +1443,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1258,6 +1533,11 @@
       "title": "Az ár viszont nem",
       "body": "Az árak külön adatkör, és azt nem adtuk meg. A képernyő kimondja a hiányt — nem üres mezőt mutat."
      }
+    },
+    "story": {
+     "kind": "member",
+     "ref": null,
+     "actor": null
     }
    },
    {
@@ -1282,7 +1562,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -1291,7 +1575,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -1300,7 +1588,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1318,7 +1610,8 @@
       "title": "A mentés",
       "body": "Nyomd meg a „Csomag mentése” gombot. Ez a lépés csak tényleges mentés után halad tovább."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.language",
@@ -1342,7 +1635,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -1351,7 +1648,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1365,7 +1666,8 @@
       "title": "A nyelv kiválasztása",
       "body": "A választás azonnal érvényes a felületre, a súgóra, a gyakori kérdésekre és a segédre. Országot, adózási rendet és pénznemet nem állít."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.help",
@@ -1389,7 +1691,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -1398,7 +1704,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "help-open"
+      "appears_after": "help-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -1407,7 +1717,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "help-open"
+      "appears_after": "help-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -1416,7 +1730,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "help-open"
+      "appears_after": "help-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1438,7 +1756,8 @@
       "title": "Oldaltérkép",
       "body": "Megmutatja, mely menüpontok érhetők el neked ebben a fiókban — a listát a rendszer a jogosultságaid alapján állítja össze."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.warehouses",
@@ -1462,7 +1781,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -1471,7 +1794,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -1480,7 +1807,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1498,7 +1829,8 @@
       "title": "A kereső",
       "body": "Szűkítheted a listát. Csak a megjelenített sorokra hat — a fiókban semmi nem változik."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.processes",
@@ -1522,7 +1854,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -1531,7 +1867,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -1540,7 +1880,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1558,7 +1902,8 @@
       "title": "A kereső és a szűrő",
       "body": "Szűkítheted a listát szövegre vagy állapotra. A fiókban semmi nem változik tőle."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.verify",
@@ -1582,7 +1927,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -1591,7 +1940,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "demo-mail-open"
+      "appears_after": "demo-mail-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1605,7 +1958,8 @@
       "title": "A megerősítő levél",
       "body": "Nyisd meg a legutóbbi levelet, és kattints a benne lévő hivatkozásra. A cím ettől lesz megerősítve; belépni csak utána lehet."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.logout",
@@ -1629,7 +1983,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -1638,7 +1996,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "profile"
+      "appears_after": "profile",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1652,7 +2014,8 @@
       "title": "Kilépés",
       "body": "A profil-menüben találod. A kilépés után a böngészőben nem marad a fiókodhoz tartozó adat — a következő belépő nem a te nézetedet látja."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.personalAccount",
@@ -1666,7 +2029,7 @@
     "requires_dev_mailbox": false,
     "requires_stock_access": false,
     "requires_demo_fixture": false,
-    "requires_story_data": null,
+    "requires_story_data": "own_personal_book",
     "requires_invite": false,
     "steps": [
      {
@@ -1676,7 +2039,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -1685,7 +2052,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1699,7 +2070,8 @@
       "title": "A fiókválasztó",
       "body": "Itt váltasz a személyes fiókod és a vállalkozások között, és itt tudsz újat létrehozni. A tagság és a megtekintési engedély két külön állapot."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.documents",
@@ -1723,7 +2095,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -1732,7 +2108,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -1741,7 +2121,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1759,7 +2143,8 @@
       "title": "A teljes minta",
       "body": "A részletes alak a sorokat is megnyitja. A valódi bizonylatok megtekintéséhez a fiókkezelő külön engedélyt ad."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.partners",
@@ -1783,7 +2168,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -1792,7 +2181,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1806,7 +2199,8 @@
       "title": "A minta-beszállító",
       "body": "A szakasz jelölve van: ez minta. A valódi partner-adatokhoz a fiókkezelő ad engedélyt."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.assistant",
@@ -1830,7 +2224,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -1839,7 +2237,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "help-open"
+      "appears_after": "help-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -1848,7 +2250,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "help-tab-ask"
+      "appears_after": "help-tab-ask",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -1857,7 +2263,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "help-tab-ask"
+      "appears_after": "help-tab-ask",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1879,7 +2289,8 @@
       "title": "Küldés",
       "body": "A válasz csak az átadott tudásra hivatkozhat. Ha nincs rá forrás, a segéd ezt kimondja, és nem talál ki választ."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.products",
@@ -1903,7 +2314,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -1912,7 +2327,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -1921,7 +2340,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1939,7 +2362,8 @@
       "title": "A kereső",
       "body": "Szűkítheted a listát. Csak a megjelenített sorokra hat — a fiókban semmi nem változik tőle."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.stockcard",
@@ -1963,7 +2387,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -1972,7 +2400,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1986,7 +2418,8 @@
       "title": "A karton",
       "body": "Egy termék mozgásai időrendben. Ha a készlet-adatkör nincs kiadva, a lap ezt kimondja, és nem mutat sorokat."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.movements",
@@ -2010,7 +2443,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -2019,7 +2456,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -2033,7 +2474,8 @@
       "title": "A mozgás-tábla",
       "body": "Bevét és kiadás időrendben. Engedély nélkül a lap kimondja, hogy nincs mit mutatnia — nem üres táblát ad."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.outbox",
@@ -2057,7 +2499,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -2066,7 +2512,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -2075,7 +2525,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "demo-mail-open"
+      "appears_after": "demo-mail-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -2093,7 +2547,8 @@
       "title": "A levél-fogadó",
       "body": "A meghívó- és megerősítő levelek itt jelennek meg. A bennük lévő hivatkozást te nyitod meg."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.accountSettings",
@@ -2117,7 +2572,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -2126,7 +2585,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -2135,7 +2598,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -2153,7 +2620,8 @@
       "title": "A kimondott határ",
       "body": "A vállalkozási adatról kiírjuk: megadott adat, nem ellenőrzött — hatóságnál nem igazoltuk."
      }
-    }
+    },
+    "story": null
    }
   ],
   "resumable_tours": [
@@ -2179,7 +2647,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -2188,7 +2660,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -2197,7 +2673,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "members-tab-invites"
+      "appears_after": "members-tab-invites",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -2206,7 +2686,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "members-tab-invites"
+      "appears_after": "members-tab-invites",
+      "switch_to": null,
+      "story_bound": true,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s5",
@@ -2215,7 +2699,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "members-tab-invites"
+      "appears_after": "members-tab-invites",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s6",
@@ -2224,7 +2712,11 @@
       "role": null,
       "switch_actor": true,
       "switch_axis": "subject",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": "story_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s7",
@@ -2233,7 +2725,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s8",
@@ -2242,7 +2738,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "demo-mail-open"
+      "appears_after": "demo-mail-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s9",
@@ -2251,7 +2751,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "mailbox"
+      "appears_after": "mailbox",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": true,
+      "story_rebind": false
      },
      {
       "id": "s10",
@@ -2260,7 +2764,11 @@
       "role": "admin",
       "switch_actor": true,
       "switch_axis": "subject",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": "origin_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s10b",
@@ -2269,7 +2777,11 @@
       "role": "admin",
       "switch_actor": true,
       "switch_axis": "book",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s11",
@@ -2278,7 +2790,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s12",
@@ -2287,7 +2803,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s13",
@@ -2296,7 +2816,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "invite-open"
+      "appears_after": "invite-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": true
      },
      {
       "id": "s14",
@@ -2305,7 +2829,11 @@
       "role": null,
       "switch_actor": true,
       "switch_axis": "subject",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": "story_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s15",
@@ -2314,7 +2842,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s16",
@@ -2323,7 +2855,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "demo-mail-open"
+      "appears_after": "demo-mail-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s17",
@@ -2332,7 +2868,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "mailbox"
+      "appears_after": "mailbox",
+      "switch_to": null,
+      "story_bound": true,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s18",
@@ -2341,7 +2881,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -2423,6 +2967,11 @@
       "title": "Nézd meg az eredményt",
       "body": "A fiókváltóban ott a cég: Béla mostantól tag. A régi, visszavont meghívó ettől nem éledt fel — ez egy új meghívás eredménye."
      }
+    },
+    "story": {
+     "kind": "invite",
+     "ref": null,
+     "actor": null
     }
    },
    {
@@ -2447,7 +2996,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -2456,7 +3009,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -2465,7 +3022,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "members-list"
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": true,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -2474,7 +3035,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "members-list"
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": true,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s5",
@@ -2483,7 +3048,11 @@
       "role": null,
       "switch_actor": true,
       "switch_axis": "subject",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": "story_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s6",
@@ -2492,7 +3061,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s7",
@@ -2501,7 +3074,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "demo-mail-open"
+      "appears_after": "demo-mail-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s8",
@@ -2510,7 +3087,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "mailbox"
+      "appears_after": "mailbox",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s9",
@@ -2519,7 +3100,11 @@
       "role": null,
       "switch_actor": true,
       "switch_axis": "book",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s10",
@@ -2528,7 +3113,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s11",
@@ -2537,7 +3126,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s12",
@@ -2546,7 +3139,11 @@
       "role": "admin",
       "switch_actor": true,
       "switch_axis": "subject",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": "origin_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s12b",
@@ -2555,7 +3152,11 @@
       "role": "admin",
       "switch_actor": true,
       "switch_axis": "book",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s13",
@@ -2564,7 +3165,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s14",
@@ -2573,7 +3178,11 @@
       "role": "admin",
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": "members-list"
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": true,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s15",
@@ -2582,7 +3191,11 @@
       "role": null,
       "switch_actor": true,
       "switch_axis": "subject",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": "story_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s15b",
@@ -2591,7 +3204,11 @@
       "role": null,
       "switch_actor": true,
       "switch_axis": "book",
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s16",
@@ -2600,7 +3217,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s17",
@@ -2609,7 +3230,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s18",
@@ -2618,7 +3243,11 @@
       "role": null,
       "switch_actor": false,
       "switch_axis": null,
-      "appears_after": null
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -2704,6 +3333,11 @@
       "title": "Az ár viszont nem",
       "body": "Az árak külön adatkör, és azt nem adtuk meg. A képernyő kimondja a hiányt — nem üres mezőt mutat."
      }
+    },
+    "story": {
+     "kind": "member",
+     "ref": null,
+     "actor": null
     }
    }
   ],
@@ -2717,8 +3351,8 @@
  },
  "knowledge": {
   "ok": true,
-  "served_book_id": "ws_0c024fdb",
-  "served_subject_id": "sub_ee1e03aa3f17e644",
+  "served_book_id": null,
+  "served_subject_id": null,
   "lang": "hu",
   "population": 37,
   "visible_count": 36,
