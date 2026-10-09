@@ -121,7 +121,7 @@ export const REASON = Object.freeze({
   parent_limit_undecidable: 'The limit of your own authority cannot be determined right now, so you cannot issue a re-invitation. Ask the main account manager to grant the authority again.',
   role_not_recognised: 'The requested role is not among the roles this system knows, so the re-invitation does not start. Choose one of the offered roles.',
   scope_not_delegable: 'You cannot pass on this data area.',
-  authority_not_established: 'You cannot carry out this change.',
+  authority_not_established: 'You cannot carry out this change: altering rights needs a separate authority, and membership — even in a manager role — does not grant it. Ask the main account holder to do it, or to grant you that authority.',
   outside_basis_operations: 'This operation is outside the scope of your authority.',
   context_mismatch: 'We did not save the change, because you switched to another account in the meantime.',
   tax_id_value_required: 'Enter the tax identifier. Spaces or hyphens alone are not enough.',

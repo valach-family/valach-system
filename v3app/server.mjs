@@ -2645,6 +2645,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       const gate = adminGate(session, cur.book_id);
       if (!gate.ok) return { status: gate.status, body: { ok: false, reason: gate.reason, message: gate.message } };
       const at = clock.now();
+      // A VÉGREHAJTHATÓ HATÁSKÖR EGYSZER, A LISTA ELŐTT (`KUKA-473` · `KUKA-436`): a tagság-
+      // megvonás és az újbóli meghívás is `alter_right`-ot kíván, és ezt NEM soronként kérdezzük.
+      const tagJog = executableRightAt({ store, subjectId: session.subject_id, bookId: cur.book_id, operation: 'alter_right', nowIso: at });
+      const tagMegvonasJog = tagJog && tagJog.ok === true;
       const rows = store.all('SELECT subject_id, role FROM membership WHERE book_id = ? ORDER BY granted_at, subject_id', cur.book_id);
       const members = rows.map((row) => {
         const m = membershipAsOf({ store, subjectId: row.subject_id, bookId: cur.book_id, validAt: at, knownAt: at });
@@ -2693,6 +2697,26 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
         return {
           subject_id: row.subject_id, email: emailOf(row.subject_id), role: row.role,
           effective: m.effective === true, effective_reason: m.reason, scopes,
+          /**
+           * EGY NEVEZETT VERDIKT, KÉT FOGYASZTÓ (`KUKA-473` · az `AVL-01` alakja).
+           *
+           * A LELET OSZTÁLYA UGYANAZ, mint a meghívó-listánál: a lap eddig a `effective` tényből
+           * rajzolta a „céges hozzáférés megvonása" gombot, a `revokeMembership` viszont
+           * `alter_right` hatáskört kíván — tehát egy delegált `admin` kezelő olyan gombot
+           * látott, ami rá nézve biztosan nemet mond (`KUKA-041`).
+           */
+          /**
+           * A LELET OSZTÁLYA UGYANAZ, mint a meghívó-listánál: a lap eddig a `effective` tényből
+           * rajzolta a „céges hozzáférés megvonása" és az adatkör-megvonás gombját, a
+           * `revokeMembership` és a `revokeScopeFromMember` viszont `alter_right` hatáskört kíván
+           * — tehát egy delegált `admin` kezelő olyan gombokat látott, amik rá nézve biztosan
+           * nemet mondanak (`KUKA-041`).
+           *
+           * EZ A MEZŐ A TISZTA VERDIKT, nem egy művelet neve: „ez a kezelő megváltoztathatja a
+           * jogokat ebben a könyvben". KÉT fogyasztója van (tagság-megvonás és adatkör-megvonás),
+           * és MINDKETTő ebből dönt — egy kérdés, egy válasz (`KUKA-233` · `KUKA-003`).
+           */
+          rights_alterable: tagMegvonasJog,
           period_count: Array.isArray(periods.periods) ? periods.periods.length : 0,
           current_period: m.effective === true ? (m.period_grant_event_id ?? null) : null,
           reinvitable: ujrahivas.ok === true,
@@ -2807,6 +2831,9 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       // A SZEREP-PLAFON EGYSZER, ÍRÁS NÉLKÜL — a `revocable` jelző ebből is dönt (lentebb, KUKA-431).
       const plafon = delegationCeilingOf({ store, subjectId: session.subject_id, bookId: cur.book_id, at });
       const plafonRoles = plafon && plafon.ok && Array.isArray(plafon.roles) ? plafon.roles : [];
+      // ÉS A VÉGREHAJTHATÓ HATÁSKÖR IS EGYSZER (`KUKA-473`): a megvonás `alter_right`-ot kíván.
+      const megvonasJog = executableRightAt({ store, subjectId: session.subject_id, bookId: cur.book_id, operation: 'alter_right', nowIso: at });
+      const jogAMegvonasra = megvonasJog && megvonasJog.ok === true;
       const rows = store.all(
         `SELECT token, invitee_namespace, invitee_value, offered_role, issuer_subject, expires_at, redeemed_at
            FROM invite WHERE book_id = ? ORDER BY expires_at DESC`, cur.book_id);
@@ -2847,7 +2874,9 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
            * olyan műveletet hirdetett, ami nem létezik. A plafont UGYANAZZAL az írásmentes
            * feloldóval kérdezzük, amit a visszavonás használ (`KUKA-003`: egy fogalom, egy otthon).
            */
-          revocable: state === 'pending' && plafonRoles.includes(r.offered_role),
+          // A HATÁSKÖR IS A JELZŐ FELTÉTELE (`KUKA-473`): a `revokeInvite` `alter_right`-ot kíván,
+          // amit a tagság — akár `admin` — NEM ad. A plafon és a hatáskör KÉT KÜLÖN kérdés.
+          revocable: state === 'pending' && plafonRoles.includes(r.offered_role) && jogAMegvonasra,
           // ÉS AZ ÚJBÓLI BELÉPÉSI AJÁNLAT TÉNYE IS LÁTSZIK: a kezelőnek tudnia kell, hogy ez a sor
           // egy VISSZAHÍVÁS, nem egy első meghívás.
           reentry: reentryOfferFor({ store, token: r.token }).present,

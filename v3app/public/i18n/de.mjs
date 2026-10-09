@@ -117,7 +117,7 @@ export const REASON = Object.freeze({
   parent_limit_undecidable: 'Die Grenze deiner eigenen Befugnis ist derzeit nicht feststellbar, daher kannst du keine erneute Einladung ausstellen. Bitte die Hauptkontoverwaltung, die Befugnis erneut zu erteilen.',
   role_not_recognised: 'Die angefragte Rolle gehört nicht zu den dem System bekannten Rollen, daher startet die erneute Einladung nicht. Wähle eine der angebotenen Rollen.',
   scope_not_delegable: 'Diesen Datenbereich kannst du nicht weitergeben.',
-  authority_not_established: 'Diese Änderung kannst du nicht durchführen.',
+  authority_not_established: 'Diese Änderung kannst du nicht durchführen: das Ändern von Rechten erfordert eine eigene Befugnis, die die Mitgliedschaft — auch in einer Verwalterrolle — nicht verleiht. Bitte die Hauptkontoverwaltung darum oder lass dir diese Befugnis erteilen.',
   outside_basis_operations: 'Dieser Vorgang liegt außerhalb deiner Befugnis.',
   context_mismatch: 'Wir haben die Änderung nicht gespeichert, weil du zwischenzeitlich zu einem anderen Konto gewechselt hast.',
   tax_id_value_required: 'Gib die Steuerkennung an. Nur Leerzeichen oder Bindestriche genügen nicht.',

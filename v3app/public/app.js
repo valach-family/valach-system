@@ -1426,8 +1426,12 @@ import { inviteNextKey } from './inviteText.mjs';
         : tiltott
         ? `<span class="badge gray" data-testid="member-scope-blocked-${esc(k)}">${esc(UI.scopeBlocked)}</span>`
         : (van
-          ? `<button type="button" class="danger" data-action="scope-revoke" data-subject="${esc(id)}" data-scope="${esc(k)}"
-               data-testid="member-scope-revoke-${esc(id)}-${esc(k)}">${esc(UI.scopeRevoke)}</button>`
+          ? (m.rights_alterable === false
+          // A MEGVONÁS `alter_right` HATÁSKÖRT KÍVÁN (`KUKA-473`): hatáskör nélkül a NEVEZETT
+          // mondat áll a gomb helyett — az ÁLLAPOT továbbra is látszik, csak nem nyúlhat hozzá.
+          ? `<span class="badge gray" data-testid="member-scope-revoke-blocked-${esc(k)}">${esc(reasonText('authority_not_established'))}</span>`
+          : `<button type="button" class="danger" data-action="scope-revoke" data-subject="${esc(id)}" data-scope="${esc(k)}"
+               data-testid="member-scope-revoke-${esc(id)}-${esc(k)}">${esc(UI.scopeRevoke)}</button>`)
           : `<button type="button" data-action="scope-grant" data-subject="${esc(id)}" data-scope="${esc(k)}"
                data-testid="member-scope-grant-${esc(id)}-${esc(k)}">${esc(UI.scopeGrant)}</button>`);
       return `<div class="splitline" data-testid="member-scope-row-${esc(k)}"><div><strong>${esc(SCOPE[k] || k)}</strong>
@@ -1444,8 +1448,13 @@ import { inviteNextKey } from './inviteText.mjs';
       ${m.effective ? `<p class="muted" style="font-size:13px">${esc(tpl('scopeOnlyHere', { nev: accountName() }))}</p>
       <div class="divider"></div><h3>${esc(UI.accountAccess)}</h3>
       <p class="muted">${esc(STATE.revokeSectionLead)}</p>
-      <button type="button" class="danger" data-action="revoke-start" data-subject="${esc(id)}"
-        data-tour-anchor="member-revoke" data-testid="member-revoke-${esc(id)}">${esc(UI.revokeBusinessAccess)}</button>` : ''}
+      ${/* A GOMB CSAK AKKOR, HA A KISZOLGÁLÓ SZERINT VÉGREHAJTHATÓ (`KUKA-473`): a megvonás
+            `alter_right` hatáskört kíván, amit a tagság — akár `admin` — nem ad. Hatáskör nélkül a
+            NEVEZETT mondat áll a gomb helyén, tehát a kezelő tudja, mi a teendő (`KUKA-201`). */''}
+      ${m.rights_alterable === false
+        ? `<p class="notice" data-testid="member-revoke-blocked">${esc(reasonText('authority_not_established'))}</p>`
+        : `<button type="button" class="danger" data-action="revoke-start" data-subject="${esc(id)}"
+        data-tour-anchor="member-revoke" data-testid="member-revoke-${esc(id)}">${esc(UI.revokeBusinessAccess)}</button>`}` : ''}
       ${
         // R132 §3/§6 — AZ ÚJBÓLI BELÉPÉS HARMADIK, KÜLÖN MEGNEVEZETT MŰVELET. A gomb CSAK akkor
         // jelenik meg, ha a SZERVER szerint ma ajánlható (`reinvitable`) — a négy határ

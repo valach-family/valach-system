@@ -41,7 +41,7 @@ import { recordAuthorityBasis, basisAsOf, revokeAuthorityBasis, INVITE_ISSUE_OPE
 import { issueInviteUnderBasis, grantBasisFor } from './basisLimit.mjs';
 import { grantReadScope, revokeReadScope, readScopeGrantAt } from './scopeGrant.mjs';
 import { scopeGrantLiveAt } from './releaseScope.mjs';
-import { effectuate, atomicOutcome, refuseAndRollBack } from './authority.mjs';
+import { effectuate, atomicOutcome, refuseAndRollBack, executableRightAt } from './authority.mjs';
 import { KNOWN_DATA_SCOPES } from './resultScope.mjs';
 
 const frozen = (o) => Object.freeze(o);
@@ -566,6 +566,23 @@ export function reinviteMember({
  */
 export function reinviteFeasibility({ store, deciderSubjectId, bookId, targetSubjectId, offeredRole, scope, at }) {
   if (!targetSubjectId || !bookId) return frozen({ ok: false, reason: 'subject_and_book_required' });
+  /**
+   * A HATÁSKÖR AZ ELSŐ KAPU — UGYANOTT, AHOL AZ ÍRÁS-ÚTON (`KUKA-473` · külső review, Codex, P2).
+   *
+   * A LELET: a `reinviteMember` a teljes műveletét `effectuate(... operation: 'alter_right')`-be
+   * zárja, tehát a hatáskör a LEGELSŐ döntés. Ez a feloldó viszont a tagság-, idő-, plafon- és
+   * cím-feltételeket mérte, a hatáskört NEM — tehát egy `admin` szerepű, érvényes plafonú
+   * DELEGÁLT kezelőnél a sor „újrahívható" lett, az írás-út viszont
+   * `authority_not_established`-del utasít el. UGYANAZ A LECKE, MINT A `KUKA-469`-BEN, csak a
+   * KÖZÖNSÉGES úton (`KUKA-039`: fél őr).
+   *
+   * A SORREND SZÁNDÉKOS: a hatáskör ELŐBB, mint a többi feltétel — pontosan ahogy az írás-úton,
+   * különben a sor egy KÉSŐBBI kapu nevét mondaná akkor is, amikor már az első zár.
+   */
+  const jog = executableRightAt({ store, subjectId: deciderSubjectId, bookId, operation: 'alter_right', nowIso: at });
+  if (!jog || jog.ok !== true) {
+    return frozen({ ok: false, reason: (jog && jog.reason) || 'authority_not_established' });
+  }
   const closed = closedMembershipPeriodOf({ store, subjectId: targetSubjectId, bookId, at });
   if (closed.ok !== true) return frozen({ ok: false, reason: `reentry_target_${closed.reason}` });
   const excl = reentryExclusionsAt({ store, subjectId: targetSubjectId, bookId, closed, nowIso: at });

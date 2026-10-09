@@ -141,7 +141,7 @@ export const REASON = Object.freeze({
   parent_limit_undecidable: 'A te felhatalmazásod korlátja most nem állapítható meg, ezért újbóli meghívást nem adhatsz ki. Kérd meg a fő fiókkezelőt, hogy újra adja meg a felhatalmazást.',
   role_not_recognised: 'A kért szerep nem szerepel a rendszer ismert szerepei között, ezért az újbóli meghívás nem indul el. Válassz a felajánlott szerepek közül.',
   scope_not_delegable: 'Ezt az adatkört nem adhatod tovább.',
-  authority_not_established: 'Ezt a módosítást nem végezheted el.',
+  authority_not_established: 'Ezt a módosítást nem végezheted el: a jogok megváltoztatásához külön hatáskör kell, és azt a tagság — akár kezelői szerepben is — nem adja meg. Kérd meg erre a főfiókkezelőt, vagy kérj hatáskört tőle.',
   outside_basis_operations: 'Ez a művelet nincs a felhatalmazásod körében.',
   context_mismatch: 'A módosítást nem mentettük, mert közben másik fiókra váltottál.',
   tax_id_value_required: 'Add meg az adóazonosítót. Csak szóköz vagy kötőjel nem elegendő.',

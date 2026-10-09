@@ -2376,7 +2376,7 @@ try {
           'reentry_blocked_open_review_circle', 'reentry_blocked_retroactive_invalidity',
           'reentry_undecidable_clock', 'reentry_time_undecidable',
           'reentry_not_after_revocation', 'reentry_target_has_no_address',
-          'reentry_target_channel_unproven',
+          'reentry_target_channel_unproven', 'authority_not_established',
           'outside_basis_roles', 'outside_basis_scopes',
           'delegation_ceiling_empty', 'parent_limit_undecidable',
           'role_not_delegable', 'role_not_recognised',
@@ -2628,6 +2628,52 @@ try {
         step('(as76) `KUKA-469` ELLENPÁR: UGYANABBAN a könyvben a TULAJDONOSNAK (van `alter_right`) a visszavonás-történet VÁLTOZATLANUL felkínált — a kapu a HATÁSKÖRT méri, nem a tagságot vagy a plafont',
           kinaltOw.includes('tour.inviteRevoke'),
           { felkinalva: kinaltOw.includes('tour.inviteRevoke'), tulaj_listaja: kinaltOw.length });
+      {
+        // ── (as81–as84) A MEGVONÁS-GOMBOK JELZŐI IS A HATÁSKÖRT KÉRDEZIK (`KUKA-473`) ─────────
+        //
+        // A `KUKA-469` a BEMUTATÓ felkínálását kötötte a végrehajtható hatáskörhöz. A KÖZÖNSÉGES
+        // felület három gombja ugyanezt a hatáskört kívánja (`revokeInvite` · `revokeMembership` ·
+        // `reinviteMember`), a jelzőik viszont csak a plafont és az állapotot mérték — tehát a
+        // delegált `admin` kezelő olyan gombokat látott, amik rá nézve biztosan nemet mondanak.
+        // A FIXTÚRA: ugyanaz a delegált kezelő, akit a `KUKA-469` mérése már felállított.
+        const listaDel = await del.get('/api/invites/waiting');
+        const sorokDel = ((listaDel.body || {}).invites) || [];
+        const listaOw = await ow.get('/api/invites/waiting');
+        const sorokOw = ((listaOw.body || {}).invites) || [];
+        step('(as81) `KUKA-473` (külső review P2): a MEGHÍVÓ-lista `revocable` jelzője a végrehajtható hatáskört is kérdezi — a delegált kezelőnél EGYETLEN függő sor sem visszavonható, pedig a plafonja érvényes',
+          sorokDel.length > 0 && sorokDel.every((r) => r.revocable === false),
+          { delegalt_sorok: sorokDel.length,
+            visszavonhato: sorokDel.filter((r) => r.revocable === true).length });
+        step('(as82) `KUKA-473` ELLENPÁR: a TULAJDONOSNÁL ugyanaz a függő sor VISSZAVONHATÓ — a jelző a HATÁSKÖRT méri, nem a sor állapotát',
+          sorokOw.some((r) => r.state === 'pending' && r.revocable === true),
+          { tulaj_sorok: sorokOw.length,
+            visszavonhato: sorokOw.filter((r) => r.revocable === true).length });
+        // ── (as83–as84) A TAG-LISTA KÉT JELZŐJE ────────────────────────────────────────────────
+        const tagokDel = await del.get('/api/members');
+        const tagokOw = await ow.get('/api/members');
+        const sorDel = ((tagokDel.body || {}).members) || [];
+        const sorOw = ((tagokOw.body || {}).members) || [];
+        step('(as83) `KUKA-473`: a TAG-lista EGY NEVEZETT VERDIKTET visz (`rights_alterable`), és a delegált kezelőnél az minden soron HAMIS — a lap ezért sem a tagság-megvonás, sem az adatkör-megvonás gombját nem rajzolja ki, hanem a NEVEZETT mondatot',
+          sorDel.length > 0 && sorDel.filter((m) => m.effective === true).length > 0
+            && sorDel.filter((m) => m.effective === true).every((m) => m.rights_alterable === false),
+          { delegalt_tagok: sorDel.length,
+            hatalyos: sorDel.filter((m) => m.effective === true).length,
+            megvonhato: sorDel.filter((m) => m.rights_alterable === true).length });
+        // (as85) ÉS A MÁSIK FOGYASZTÓ ÍRÁS-ÚTJA IS MÉRVE: az adatkör-megvonás UGYANAZT a hatáskört
+        // kívánja (`revokeScopeFromMember`), tehát a jelző és az írás-út ugyanazt mondja.
+        const sajatTag = sorDel.filter((m) => m.effective === true)[0] || null;
+        const korMegvonas = sajatTag
+          ? await del.post('/api/members/scope/revoke', { subject_id: sajatTag.subject_id, scope: 'keszlet' })
+          : { status: 0, body: {} };
+        step('(as85) `KUKA-473`: az ADATKÖR-megvonás írás-útja ugyanezt a hatáskört kéri — a delegált kezelő közvetlen hívása is `authority_not_established`, tehát a jelző nem szigúrabb és nem engedőbb az írás-útnál',
+          Boolean(sajatTag) && korMegvonas.status === 403
+            && (korMegvonas.body || {}).reason === 'authority_not_established',
+          { tag: Boolean(sajatTag), iras_ut: `${korMegvonas.status}/${(korMegvonas.body || {}).reason || ''}` });
+        step('(as84) `KUKA-473` ELLENPÁR: a TULAJDONOSNÁL a hatályos tag MEGVONHATÓ, és az újbóli meghívás feloldója is az ő hatáskörén megy át — a szigorítás nem vitt el jó esetet',
+          sorOw.some((m) => m.effective === true && m.rights_alterable === true),
+          { tulaj_tagok: sorOw.length,
+            megvonhato: sorOw.filter((m) => m.rights_alterable === true).length });
+      }
       }
       {
         // ── (as77–as80) A KÖZÖNSÉGES ÚT KÉT LELETE (`KUKA-471` · `KUKA-472`) ─────────────────
@@ -3013,7 +3059,8 @@ try {
        * el jó esetet.
        */
       const plafonHivas = /const plafon = delegationCeilingOf\(\{ store, subjectId: session\.subject_id, bookId: cur\.book_id, at \}\);/.test(srvAs);
-      const jelzoKeplet = /revocable: state === 'pending' && plafonRoles\.includes\(r\.offered_role\),/.test(srvAs);
+      // A `KUKA-473` óta a képlet a VÉGREHAJTHATÓ HATÁSKÖRT is kérdezi — a plafon-fele változatlan.
+      const jelzoKeplet = /revocable: state === 'pending' && plafonRoles\.includes\(r\.offered_role\) && jogAMegvonasra,/.test(srvAs);
       const fuggoSorok = (((await anna.get('/api/invites/waiting')).body || {}).invites || []);
       const sajatFuggo = fuggoSorok.filter((i) => i.state === 'pending');
       step('(as16) R176/P2: a `revocable` jelző a szerep-plafont IS kérdezi (forrás), és a TELJES plafonú kezelő függő meghívója változatlanul visszavonható (élő ellenpár)',

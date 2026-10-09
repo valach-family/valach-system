@@ -16,6 +16,29 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3255 — A HATÁSKÖR EGY NEVEZETT VERDIKT, ÉS MINDEN VEZÉRLŐ EBBŐL DÖNT (R186 §5)
+
+A `KUKA-469` a **bemutató** felkínálását kötötte a végrehajtható hatásköréhez. A **közönséges**
+felület négy megvonás-műveletének jelzője viszont változatlan maradt — pedig **mind a négy** írás-út
+`alter_right` hatáskört kíván, amit a tagság **akár `admin` szerepben sem** ad meg.
+
+**A DÖNTÉS:** a „megváltoztathatja-e a jogokat ebben a könyvben" **nem művelet-név, hanem tiszta
+verdikt**, és **minden** fogyasztója ebből dönt: a kiszolgáló **egyszer** kérdezi kérésenként
+(`KUKA-436`), a meghívó-lista `revocable` és a tag-lista `rights_alterable` mezője ezt viszi, a lap
+**mindkét** megvonás-gombot ebből rajzolja — hatáskör nélkül a **nevezett mondat** áll a gomb helyén,
+a teendővel együtt (`KUKA-201` · `KUKA-465`) —, és a mag `reinviteFeasibility` feloldója a hatáskört
+**első kapuként** kérdezi, pontosan ott, ahol az írás-út is.
+
+**ÉS A HATÓKÖRT A HIBA-OSZTÁLY ADTA, NEM A LELET HELYE** (`KUKA-418`): a külső fél **egy** jelzőt
+nevezett meg, a mérés viszont **mind a négy** írás-utat megkérdezte — a tagság-megvonás, az
+adatkör-megvonás és az újbóli meghívás ugyanezzel a hiánnyal állt. Ez a kör **negyedszer** mérte meg
+ugyanezt a leckét a saját javításaimon.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as81`…`as85`, három ellenpárral) · `npm run verify:i18n`
+· `npm run verify:kuka`.
+
+---
+
 ## D-VS-3254 — AMIT A KISZOLGÁLÓ MEGMÉRT, AZT A LAP NE TALÁLJA KI ÚJRA (R186 §5)
 
 A munkatárs-lista „újrahívható" jelzője **egy** szerepre (a tag mai szerepére) szólt, a panel viszont
