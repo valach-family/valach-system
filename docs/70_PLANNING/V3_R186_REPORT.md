@@ -19,6 +19,12 @@ darabolásunk — és a javítás után mind az öt **tartalmi verdiktet** ad. A
 állapítható meg**: két jelölt magyarázatot mérve kizártam, feltételezett javítást nem építettem, a
 tétel **nyitott** — a rögzítés viszont megerősödött, hogy a következő előfordulás döntsön.
 
+És a befejezési rend maga **négy további saját hibát** hozott ki, mind a négyet méréssel: egy
+**örökölt**, körökön át piros mércét (amit a jelentések válogatott lánc-listája fedett el), a
+bemutató cél-kötését (egy **eldobható** mérő-világ azonosítóit szolgálta ki), a rögzítő
+„megmondja, elavult-e" ígéretét (minden futásnál pirosat adott), és **két saját mércémet**,
+amelyek a §2 ELŐTTI szabályt mondták. A kötelező kapu tehát pontosan azt tette, amiért kötelező.
+
 ---
 
 ## 1. A PONTOS FEJ
@@ -228,6 +234,23 @@ dönt, találgatás nélkül.
 ## 6. A KÖTELEZŐ KAPU ÉS A CÉLZOTT REGRESSZIÓK
 
 `KAPU_TABLA`
+
+### ÉS AMIT A KÖTELEZŐ KAPU TALÁLT — HÁROM SAJÁT HIBA A §2 FÖLÖTT
+
+A §2 szigorítása után a kapu `proof:demo-walk` ága **nem** volt zöld, és ez a szakasz a lényeg:
+a kapu pontosan azt fogta meg, amiért kötelező.
+
+| | mi volt | mért következmény |
+|---|---|---|
+| **a bemutató cél-kötése** (`KUKA-453` · `D-VS-3242`) | a bemutató-adapter a RÖGZÍTETT csomag `story.ref`/`story.actor` mezőit **változatlanul** szolgálta ki — azok viszont a rögzítést készítő ELDOBHATÓ mérő-világ azonosítói | a kiszolgált kötés **nem létező célra** szólt, a történet kapui pedig fail-closed zárnak: a bemutató **már az első műveletnél megáll**. Mérve a kivezetett alakkal: `proof:demo-walk --only inviteRevoke` **PIROS** (ZÖLD=27 · PIROS=4), a megszakadás helye `s4/pending·blokkolt` **mindkét** képernyő-méretben |
+| **a rögzítő `--check` ága** (ugyanaz a bejegyzés) | a csomag három világ-kötött azonosító-fajtát vitt (`served_book_id` · `served_subject_id` · a **két** lista cél-kötése) | a `--check` ígérete („megmondja, elavult-e") **hamis** volt: változatlan forrás mellett is `ELAVULT`. Mérve: két egymás utáni rögzítés **tizenkét** soron tért el; a javítás után a két csomag **bájtra azonos** (`NAPRAKÉSZ`) |
+| **a saját váltás-mércéim** (`KUKA-441` · `KUKA-448` osztálya) | a `proof:demo-walk` két állítása a RÉGI szabályt mondta: „MÁS ember nézete **is** váltás" | a §2 után ez **hamis**: a személy-tengely a **VÁRT** résztvevőt kéri. A két állítás **PIROS** lett — nem a termék, hanem a **mércém** avult el. Átírva a mai szabályra, és **két új ellenpárral** kiegészítve: a harmadik ember belépése `false`, nyilatkozat nélkül `false` |
+
+**A JAVÍTÁS IRÁNYA ITT SEM A LAZÍTÁS.** A bemutató-felület **kivehetése** a kötés alól azt jelentette
+volna, hogy a bemutató zöld marad, miközben a termék saját őrét nem viszi végig — pontosan az a hamis
+zöld, amit a `KUKA-227` tilt. Ezért a bemutató a kötést a **saját** állapotából számolja, azzal a
+szabállyal, amit a szerver mér (`storyBindingOf` ⇄ `storyKotes`), és **mindkét** listára
+(`tours` · `resumable_tours`) — mert a lap a definíciót a másodikból is feloldhatja (`tourDefOf`).
 
 ---
 
