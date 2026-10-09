@@ -16,6 +16,101 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3240 — A DARABOLÁS A MÉRT KÖLTSÉGHEZ IGAZODIK, ÉS A ZÖLD SZÁMNAK EGY OTTHONA VAN (R186 §3)
+
+Az R186 §3 nem keret-emelést kért, hanem MÉRÉST: *„Először célzottan mérd meg, melyik gyermekművelet
+tart ennyi ideig … Az ETIMEDOUT önmagában nem bizonyítja, hogy csak a gép gyenge."* A mérés egyetlen
+battéria-egység ismételt futtatása volt, és a költség-görbe ezt adta (egy egység faliórája):
+11 egység → 31 662 ms · **40 (a deklarált) → 13 271 ms** · 48 → 11 106 · 56 → 10 559 ·
+**64 → 9 728** · 80 → 8 762 · 160 → 7 885 ms.
+
+**AZ OK, KIMONDVA:** a deklarált 40-es bontás egysége a `mutate.mjs` SAJÁT, 12 000 ms-os
+költségvetése FÖLÖTT állt, ezért minden hívónál megszólalt a `unit_over_budget` jel, és az
+`adaptiveUnitPlan` finomított: 40 → 80 → 160 egység. A finomítás viszont a TELJES battériát
+futtatja újra (egységenként ~7 s fix indulási költség), tehát a létra ~41 percet kért a 30 perces
+program-kereten — és ÖT külső ellenőrző program `spawnSync … ETIMEDOUT`-tal, részletes eredmény
+NÉLKÜL halt meg. A lánc hét pirosából hat tehát IDŐ-okból keletkezett, TARTALMI verdikt nélkül, és
+**nem a gép gyengeségéből** (`KUKA-450`).
+
+**A JAVÍTÁS A DARABOLÁS, NEM A KERET:** 64 egység (mérve 9 728 ms, 19% tartalékkal a saját
+költségvetés és 35%-kal a külső 15 000 ms-os korlát alatt), tehát az ELSŐ kísérlet befér, és a
+finomító létra el sem indul. A 64 egyben a plafon, amit az adaptált külső programok elfogadnak —
+egy 80-as érték ott érvénytelen volna, és a program a saját 11-es padlójára esne vissza, vagyis a
+„javítás" rontott volna. MÉRT EREDMÉNY, VÁLTOZATLAN KORLÁTOKKAL: `r57a` 9/9 (21,1 perc) ·
+`r59a` 7/7 (19,6 perc) · `r79` 4/4 (19,7 perc) · `r81core` 15/15 (9,7 perc) · `r83core` 7/7
+(9,6 perc) — mind TARTALMI verdikttel, az `r57a` és az `r59a` még a VÁLTOZATLAN, 30 perces kereten.
+
+**AZ R186 §3 ENGEDÉLYEZTE 120 PERCES KERET EZÉRT TARTALÉK, NEM A JAVÍTÁS** — a mért maximum 21,1
+perc. Kimondva, mert a parancs is kimondta: *„Ez plafon, nem futásidő-becslés."* A 15 000 ms-os
+külső egység-korlát és a 12 000 ms-os saját költségvetés VÁLTOZATLAN (`KUKA-091`), és egyetlen
+program szövegéhez sem nyúltunk (`KUKA-054`).
+
+**A KÉT EREDETI PROGRAM (`r57` · `r59`) PIROS MARAD, NEVEZETT OKKAL** — és ezen a kereten nem is
+múlik: az `r57` kilenc esetéből NÉGY zöld (`T03 · T04 · E01 · E04`), HÁROM a program **pre-basis
+fixtúra-világán** bukik (`T01 · T02 · T05` → `invite_without_basis` · `no_declared_basis`: a
+rendszer R63/R88 óta rögzített felhatalmazási alapot kíván), KETTŐ pedig le sem futott
+(`E02 · E03` → a programon BELÜLI 15 000 ms-os gyermek-korlát, mert az eredeti a teljes battériát
+EGY gyermekben futtatja). Az `r59` részletes eredményt sem ír (kilépés 1, 15,8 s) — ugyanaz a belső
+korlát. A deklarált helyettesek UGYANAZT a kilenc, illetve hét esetet mérik (a `case-manifest`
+mondja ki, nem én), és zöldek — ez az R186 §3 által kért igazolás arra, hogy a helyettes az
+eredeti követelményt is méri.
+
+**ÉS A MÉRÉS KÖZBEN EGY SAJÁT HIBA IS ELŐJÖTT** (`KUKA-451`): a futtató a zöld esetek számát
+kivonással állította elő (`present − failed`), a hiányzó eset viszont KÉTSZER számított — az `r57`
+sora `2/9`-et írt, miközben négy eset zöld, és a jelentés 4/9-et mondott ugyanarról. A zöld szám
+mostantól az eset-szemléből jön (`auditCases` → `green`), a futtató csak kiírja; a verdikt nem
+mozdult. Mért pár: a régi alakkal `2/9`, a maival `4/9`, UGYANAZZAL az ELTÉRÉS verdikttel.
+
+Gépi jel: `npm run verify:unit-admission` (UAD08) · `npm run verify:external-checks`.
+
+---
+
+## D-VS-3239 — A TÖRTÉNET CÉLJÁNAK ÉS RÉSZTVEVŐJÉNEK KÖTÉSE (R186 §2)
+
+Az R186 §2 **döntött**: épüljön meg a történet konkrét céljának kötése — és **nevezetten elvetette**
+a felkínálás szűkítését (*„A kizárólag MINDEN tag alkalmas esetben történő felkínálást nem fogadom
+el végleges megoldásként: egy nem érintett, alkalmatlan tag ne tegye elérhetetlenné a legitim
+bemutatót."*). A négy réteg módosítása szűken e két történethez engedélyezett volt.
+
+**A LELET HÁROM FELE, EGY JAVÍTÁSKÉNT.** A `storyDataFacts` LOGIKAI tényt adott: van olyan függő
+meghívó, ami visszavonható, a plafonon belül van és levele is megérkezett — MELYIK, azt nem. A
+`tour.inviteRevoke` lépései az ÁLTALÁNOS meghívó-táblára mutattak, a visszavonás BÁRMELYIK sikerre
+készre könyvelte a feladatot, a levél-fogadó MINDEN levelet kilistázott. Két függő meghívó mellett a
+néző az egyiket vonta vissza, a bemutató a MÁSIK, még élő levelet nyitotta meg — és azt állította
+róla, hogy a visszavont meghívó. A visszatérés-történet ugyanígy futhatott egy MÁSIK, nem alkalmas
+tagon. A személy-váltó lépés pedig BÁRMELY másik belépett embert elfogadta (`KUKA-447` · `KUKA-448`).
+
+**A NÉGY RÉTEG.** (1) A kiszolgáló KIVÁLASZTJA a célt rendezett lekérdezésből, és átadja a stabil
+hivatkozását (`pending_invite_ref` · `pending_invite_actor` · `other_member_id`); a tény továbbra is
+EGY alkalmas célt kér (`find`, nem `every`), a címzettnek viszont azonosíthatónak kell lennie —
+hetedszer ugyanaz a lecke, a felkínálás a végigvihetőség állítása. (2) A HTTP-határ hozza a
+cél-kötést (`story: {kind, ref, actor}`) és a négy új lépés-deklarációt. (3) A lépés-regiszter
+KIMONDJA, kit vár a váltás (`switch_to`) és mi kötött a célhoz (`story_bound` · `story_ref` ·
+`story_rebind`). (4) A futás őrzi a kezdő alanyt és a kötést; a kapu a VÁRT résztvevőhöz mér, a
+kötött lépés csak a választott célon teljesül, a levél-lépés a választott meghívó KÉPERNYŐJÉT kéri
+(`storyTargetMismatch` nevezett állapot, három nyelven), és a történet saját választási lépése
+átköti a célt az általa létrehozott ÚJ meghívóra — tehát a **visszavonás, a levél ÉS az elfogadás
+ugyanarra a meghívóra** szól. Minden réteg fail-closed.
+
+**ÉS A HARMADIK SZEMÉLY MÁR NEM FOGYASZTJA EL AZ ÁTADÁST** (`KUKA-449`, saját lelet): a kapu
+szigorítása csak a kérés felét teljesítette. Az ürítés a visszaírás ELEJÉN állt, tehát egy harmadik
+ember belépése a rekeszt akkor is elvitte, ha a kapu a váltást elutasította — a védelem pont azt a
+futást veszítette el, amit megvédett. Ma a rekesz csak akkor ürül, ha EZ az ember folytathatja.
+
+**AMIT EZ NEM ÁLLÍT.** Nem jogosultsági javítás: a visszavonás, a tagság-megvonás és a jogadás
+szerver-oldali ellenőrzése VÁLTOZATLAN, a bemutató állapota nem jogosultság. A hivatkozás a token
+sha256-lenyomatának első tíz jegye — a token nem állítható vissza belőle, és az átadás nem visz
+meghívó-jegyet, titkot, e-mailt vagy üzleti adatot. A felkínálás köre nem szűkült.
+
+Gépi jel: `verify:browser-gate` — `R186-T1` (két meghívó: egy MÁS meghívó visszavonása NEM
+teljesíti a lépést, a választotté igen) · `R186-T2` (alkalmas ÉS alkalmatlan tag együtt: a legitim
+bemutató elérhető marad — ez az ellenpróba az ELVETETT megoldásra) · `R186-T3` (harmadik személy
+téves belépése: nincs váltás, a rekesz megmarad, és utána a helyes személy folytat) ·
+`R176-K1…K8` (a teljes befejezés, a 390 px és az újratöltés az átadás közben) ·
+`verify:app-findings-r154` (as39).
+
+---
+
 ## D-VS-3238 — A BEJÁRÁS A HASZNÁLHATÓSÁGOT MÉRI, NEM A BUBORÉKOT (R186 §1)
 
 Az R186 §1 két dolgot kért: hogy a teljes bejárásként számolt történetnél a VALÓDI művelet után

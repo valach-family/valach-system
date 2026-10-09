@@ -883,7 +883,7 @@ export const TOURS = Object.freeze({
       Object.freeze({ id: 's6', target: 'actor-switch', task: 'actor.switched', switch_actor: true, switch_axis: 'subject', switch_to: 'story_actor' }),
       Object.freeze({ id: 's7', target: 'demo-mail-open', task: null }),
       Object.freeze({ id: 's8', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
-      Object.freeze({ id: 's9', target: 'invite-observe', task: null, appears_after: 'mailbox' }),
+      Object.freeze({ id: 's9', target: 'invite-observe', task: null, appears_after: 'mailbox', story_ref: true }),
       Object.freeze({ id: 's10', target: 'actor-switch', task: 'actor.switched', role: 'admin', switch_actor: true, switch_axis: 'subject', switch_to: 'origin_actor' }),
       /**
        * A HIÁNYZÓ LÉPÉS — A VISSZATÉRŐ FIÓKKEZELŐNEK A CÉGRE IS ÁT KELL VÁLTANIA (R176 §1, MÉRVE).
@@ -903,11 +903,11 @@ export const TOURS = Object.freeze({
       Object.freeze({ id: 's10b', target: 'account-switcher', task: 'actor.switched', role: 'admin', switch_actor: true, switch_axis: 'book' }),
       Object.freeze({ id: 's11', target: 'nav-members', task: null, role: 'admin' }),
       Object.freeze({ id: 's12', target: 'invite-open', task: null, role: 'admin' }),
-      Object.freeze({ id: 's13', target: 'invite-submit', task: 'invite.created', appears_after: 'invite-open', role: 'admin' }),
+      Object.freeze({ id: 's13', target: 'invite-submit', task: 'invite.created', appears_after: 'invite-open', role: 'admin', story_rebind: true }),
       Object.freeze({ id: 's14', target: 'actor-switch', task: 'actor.switched', switch_actor: true, switch_axis: 'subject', switch_to: 'story_actor' }),
       Object.freeze({ id: 's15', target: 'demo-mail-open', task: null }),
       Object.freeze({ id: 's16', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
-      Object.freeze({ id: 's17', target: 'invite-actions', task: 'invite.redeemed', appears_after: 'mailbox' }),
+      Object.freeze({ id: 's17', target: 'invite-actions', task: 'invite.redeemed', appears_after: 'mailbox', story_bound: true }),
       Object.freeze({ id: 's18', target: 'account-switcher', task: null }),
     ]),
   }),

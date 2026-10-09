@@ -671,7 +671,31 @@ export function auditCases(program, cases) {
   }
   if (failed.length) problems.push(`[${program.id}] ELBUKOTT eset: ${[...new Set(failed)].join(' · ')}`);
 
-  return { ok: problems.length === 0, problems, present, missing, unknown, duplicate, failed };
+  /**
+   * A ZÖLD ESETEK SZÁMÁNAK EGY OTTHONA VAN (R186 §3 — SAJÁT LELET, MÉRVE · `KUKA-003`).
+   *
+   * A LELET. A futtató a zöld esetek számát MAGA számolta ki, kivonással:
+   * `audit.present.length - audit.failed.length`. A két halmaz viszont NEM ugyanabból épül: a
+   * `present` csak az ÉRVÉNYES ALAKÚ eseteket tartja (a `pass` logikai értékkel), a `failed`
+   * ellenben a NYERS lista minden nem-zöld sorát — beleértve azokat, amelyeknek `test_error`-juk
+   * van, és épp ezért NEM kerültek be a `present`-be. A HIÁNYZÓ eset tehát KÉTSZER számított:
+   * egyszer azzal, hogy nincs a `present`-ben, egyszer azzal, hogy benne van a `failed`-ben.
+   *
+   * MÉRVE az `r57`-en: 7 érvényes alakú eset, 5 nem-zöld sor (`T01 · T02 · T05` tartalmi bukás,
+   * `E02 · E03` időtúllépés, részeredmény nélkül) → a futtató `2/9`-et írt, miközben NÉGY eset
+   * `pass: true` (`T03 · T04 · E01 · E04`). A jelentés 4/9-et mondott, a futtató 2/9-et —
+   * UGYANARRÓL az állapotról két szám (`KUKA-104`: két csatorna, két igazság).
+   *
+   * A VERDIKT NEM MOZDUL: a program továbbra is ELTÉRÉS (hiányzó ÉS bukott esetek), és egyetlen
+   * állítás, korlát vagy eset sem változott. Csak a KIÍRT SZÁM lett az, ami mérhető — és onnan
+   * jön, ahol az eset-szemle amúgy is lakik (`KUKA-009`: a verifier HÍVJA a döntést).
+   */
+  const green = (Array.isArray(cases) ? cases : [])
+    .filter((c) => c && typeof c === 'object' && c.pass === true && !c.test_error)
+    .map((c) => c.id)
+    .filter((id) => want.includes(id));
+  return { ok: problems.length === 0, problems, present, missing, unknown, duplicate, failed,
+    green: [...new Set(green)] };
 }
 
 /**

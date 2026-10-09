@@ -1739,6 +1739,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
        */
       switch_to: st.switch_to ?? null,
       story_bound: st.story_bound === true,
+      // A LEVÉL-LÉPÉS A VÁLASZTOTT MEGHÍVÓ KÉPERNYŐJÉT KÉRI (`story_ref`), a történet SAJÁT
+      // választási lépése pedig ÁTKÖTI a célt az általa létrehozott meghívóra (`story_rebind`).
+      story_ref: st.story_ref === true,
+      story_rebind: st.story_rebind === true,
     })),
     text: (dictFor(lang).TOUR || {})[id] || null,
     /**
@@ -1954,7 +1958,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      * viszont nem kötötte magát AHHOZ a taghoz, tehát a néző egy MÁSIK, nem alkalmas tagon is
      * elvégezhette a megvonást, és a negyedik lépésen elakadt.
      *
-     * AZ R186 §2 A KÉSZEN ÁLLT, EGY-FELTÉTELES JAVÍTÁST (`masok.every(...)`) NEVEZETTEN ELVETETTE.
+     * AZ R186 §2 A KÉSZEN ÁLLT, EGY-FELTÉTELES JAVÍTÁST NEVEZETTEN ELVETETTE (azt, amelyik MINDEN
+     * másik hatályos tagtól alkalmasságot kért volna — a tiltott alakot a `KUKA-447` mintája
+     * nevezi meg; itt SZÁNDÉKOSAN nem írjuk le másodszor, mert a tiltó-minta a FORRÁS-SZÖVEGET
+     * számolja, és egy megjegyzés is kielégítené — ez a `KUKA-436` mért leckéje).
      * Ezért itt is a CÉL KÖTÉSE áll: a kiszolgáló kiválasztja az ELSŐ alkalmas tagot (rendezetten,
      * tehát reprodukálhatóan), és a hivatkozását átadja — a felkínálás pedig továbbra is EGY
      * alkalmas tagot kér, nem mindet.
@@ -2551,7 +2558,18 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       pushMail({ to: String(input.email).trim(), subject: SRV_I.mailInviteSubject.replace('{fiok}', fiokNev),
         link: `http://${host}/?invite=${token}&lang=${encodeURIComponent(lang)}`,
         body: SRV_I.mailInviteBody.replace(/\{fiok\}/g, fiokNev) });
-      return { status: 201, body: { ok: true, token, ceiling: r.ceiling, basis_id: r.basis_id, basis_version: r.basis_version, expires_at: expiresAt, ...ctx.served } };
+      /**
+       * A JELÖLŐ IS VISSZAMEGY (R186 §2) — ebből köti át a történet a célját az ÚJ meghívóra.
+       *
+       * MÉRT INDOK: a `tour.inviteRevoke` 13. lépése ÚJ meghívót állít ki, és onnantól AZ a történet
+       * célja (`story_rebind`); az elfogadásnak (`s17`) ERRE kell szólnia. A jelölőt a SZERVER adja,
+       * nem a böngésző számolja ki (`KUKA-227`: a határ zöldje nem a felület zöldje).
+       *
+       * ÉS EZ NEM ÚJ KITETTSÉG: ez a válasz a TELJES tokent is visszaadja (a fejlesztői/bemutató út
+       * ebből építi a levél-hivatkozást), tehát a lenyomat mellette nem ad új ismeretet. A lista-sor
+       * jelölője UGYANEZ az érték (`KUKA-018`: egy fogalomnak egy otthona van).
+       */
+      return { status: 201, body: { ok: true, token, ref: shortRef(token), ceiling: r.ceiling, basis_id: r.basis_id, basis_version: r.basis_version, expires_at: expiresAt, ...ctx.served } };
     },
 
     /**
@@ -2641,11 +2659,35 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     'GET /api/invites/observe': ({ session, url }) => {
       const token = url.searchParams.get('token') || '';
       const r = observeInvite({ store, token, viewerSubjectId: session.subject_id, clock });
-      const proven = r.status === 'redeem_as_existing' || r.status === 'redeem_as_new';
-      if (!proven) return { status: 200, body: { ...r } };
+      /**
+       * A JELÖLŐ A BIZONYÍTOTT CSATORNÁHOZ KÖTÖTT, NEM AZ ELŐREVIHETŐSÉGHEZ (R186 §2 — MÉRVE).
+       *
+       * MIRE KELL: a történet a VÁLASZTOTT meghívóhoz van kötve, és a levél-lépésnek (`s9`), illetve
+       * az elfogadásnak (`s17`) UGYANARRA a meghívóra kell szólnia — enélkül a bemutató egy MÁSIK,
+       * még élő levelet nyithat meg, és azt állítja róla, hogy a visszavont meghívó (a jelentés
+       * 7.5/c pontja).
+       *
+       * A LELET, SAJÁT, A JAVÍTÁS KÖZBEN: a jelölőt először a két ELŐREVIHETŐ állapothoz kötöttem
+       * (`redeem_as_existing` · `redeem_as_new`). A visszavonás-története viszont pontosan arról
+       * szól, hogy a címzett hivatkozása ELHAL: a kilencedik lépésnél a meghívó MÁR visszavont,
+       * tehát a válasz `not_actionable` — jelölő nélkül a történet SAJÁT kapuja szakította volna meg
+       * a LEGITIM utat (`KUKA-394`). A kötés tehát nem azon áll, hogy a meghívás beváltható-e,
+       * hanem azon, hogy a KÉRŐ bizonyította-e a címzetti csatornát.
+       *
+       * ÉS A HATÁR VÁLTOZATLAN (`KUKA-084`): a NEM bizonyított néző — és az ISMERETLEN token —
+       * válasza bájt-azonos marad, tehát a jelölő nem ad új megkülönböztetést. A jelölő a token
+       * sha256-lenyomatának első tíz jegye, amiből a token nem állítható vissza (`KUKA-006`), és a
+       * beváltást a szerver változatlanul a TELJES tokenhez köti (`KUKA-227`).
+       */
+      const provenChannel = r.status !== 'needs_invitee_identity';
+      if (!provenChannel) return { status: 200, body: { ...r } };
       const inv = store.get('SELECT book_id, offered_role, issuer_subject FROM invite WHERE token = ?', token);
       if (!inv) return { status: 200, body: { ...r } };
-      return { status: 200, body: { ...r,
+      const jelolt = { ...r, ref: shortRef(token) };
+      // A FIÓK NEVE ÉS A KIADÓ csak az ELŐREVIHETŐ állapotban megy ki — ezen a kötés nem változtat.
+      const vihet = r.status === 'redeem_as_existing' || r.status === 'redeem_as_new';
+      if (!vihet) return { status: 200, body: jelolt };
+      return { status: 200, body: { ...jelolt,
         account: { name: bookNameOf(inv.book_id) ?? null, role: inv.offered_role },
         invited_by: emailOf(inv.issuer_subject) ?? null } };
     },

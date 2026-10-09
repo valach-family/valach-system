@@ -2513,7 +2513,7 @@ import { inviteNextKey } from './inviteText.mjs';
       <div class="cardhead"><h1>${esc(UI.inviteGenericTitle)}</h1>${helpDot('invite.accept')}</div>
       ${acc ? `<p class="lead" data-testid="invite-account-name"><strong>${esc(acc.name)}</strong></p>
         <p class="helpbox" data-testid="invite-account">${esc(UI.inviteRoleLine)}: <strong>${esc(ROLE[acc.role] || acc.role)}</strong>${o.invited_by ? ` · ${esc(UI.inviteInvitedByLine)}: <strong>${esc(o.invited_by)}</strong>` : ''}</p>` : ''}
-      <p class="muted" data-testid="invite-observe">${esc(lead)}</p>
+      <p class="muted" data-testid="invite-observe" data-ref="${esc(o.ref || '')}">${esc(lead)}</p>
       <p class="helpbox" data-testid="invite-what-happens">${esc(UI.inviteWhatHappens)}</p>
       <p class="helpbox" data-testid="invite-identity">${identity}${hint ? ` · ${esc(UI.inviteAddressLine)}: <strong>${esc(hint)}</strong>` : ''}</p>
       <div class="buttonrow" data-testid="invite-actions">${actions}</div>
@@ -3366,7 +3366,9 @@ import { inviteNextKey } from './inviteText.mjs';
     formResult('invite-result', tpl('inviteReady', { mikor: whenText(r.expires_at) }), 'ok');
     // A BEMUTATÓ FELADAT-LÉPÉSE ITT LESZ IGAZOLT: a szerver TÉNYLEGESEN létrehozta a meghívót. A
     // gomb megnyomása önmagában nem siker (TUR-01 · KUKA-129).
-    tourTaskDone('invite.created');
+    // A TÖRTÉNET SAJÁT VÁLASZTÁSI LÉPÉSE (R186 §2): az ÚJ meghívó jelölője a SZERVER válaszából
+    // jön, és innentől az a történet célja — az elfogadásnak (`s17`) ERRE kell szólnia.
+    tourTaskDone('invite.created', { ref: r.ref ?? null });
     show(byTest('invite-mail-row'), true);
     if (state.page === 'members' && state.membersTab === 'invites') await loadInvites();
   }
@@ -3476,7 +3478,9 @@ import { inviteNextKey } from './inviteText.mjs';
     // `ok` válasza UTÁN és a képernyő elhagyása ELŐTT megy ki — a „Tovább"/„Befejezés" gomb tehát
     // nem fogadja el a meghívást a felhasználó helyett (KUKA-231), és egy elutasított beváltás nem
     // zárja le a bemutatót sikeresen (KUKA-163 alakja a bemutatón).
-    tourTaskDone('invite.redeemed');
+    // AZ ELFOGADÁS IS A TÖRTÉNET CÉLJÁRA SZÓL (R186 §2): a jelölő a megfigyelt meghívó
+    // képernyőjéről jön, amit a szerver adott a bizonyított címzettnek — nem a böngésző számolja.
+    tourTaskDone('invite.redeemed', { ref: (state.invite && state.invite.ref) || null });
     // ÉS A LEZÁRÁS IS ITT, A FIÓKVÁLTÁS ELŐTT (F111-01): a tagság létrejötte önmagában NEM bizonyítja
     // a bemutató befejezését — az összegzés a szerver igazolt válaszából születik, a váltás előtt.
     //

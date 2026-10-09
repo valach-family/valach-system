@@ -360,7 +360,9 @@ for (const p of selected) {
   }
   console.log(`            mit mér:   ${p.what}`);
   console.log(`            elvárt:    ${p.cases.length} eset (${p.cases.join(' · ')}) — forrás: ${p.cases_source}`);
-  console.log(`            eredmény:  ${cases ? `${audit.present.length - audit.failed.length}/${p.cases.length} eset zöld` : 'NINCS részletes eredmény'}`
+  // A ZÖLD SZÁM A SZEMLÉBŐL JÖN, NEM ITT SZÜLETIK KIVONÁSSAL (R186 §3 · `KUKA-003` · `KUKA-009`):
+  // a korábbi `present - failed` a HIÁNYZÓ esetet kétszer számolta be (lásd az `auditCases` fejét).
+  console.log(`            eredmény:  ${cases ? `${audit.green.length}/${p.cases.length} eset zöld` : 'NINCS részletes eredmény'}`
     + ` · részletes fájl: ${artifact.present ? `megvan (kötés: ${artifact.pin ? `${artifact.pin.slice(0, 12)}…` : 'NINCS'})` : 'HIÁNYZIK'}`
     + ` · kilépés ${q.status} · ${ms} ms`);
   for (const w of audit.problems) console.log(`            ELTÉRÉS:   ${w}`);

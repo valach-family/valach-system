@@ -401,6 +401,27 @@ export function checkRun(run, { view, role }) {
     if (navIntentFulfilled(run)) return { ok: true, why: null, pending: null };
     return { ok: false, why: 'targetMissing' };
   }
+  /**
+   * ÉS A TÖRTÉNET CÉLJÁHOZ KÖTÖTT KÉPERNYŐ A VÁLASZTOTT MEGHÍVÓT MUTATJA (R186 §2).
+   *
+   * A LELET HARMADIK FELE (külső review, Codex, R176 — P2 · a jelentés 7.5/c pontja): a levél-fogadó
+   * MINDEN levelet kilistáz. Két függő meghívó mellett a néző az EGYIKET vonja vissza, a bemutató
+   * viszont a MÁSIK, még ÉLŐ levelet nyithatja meg — és azt állítja róla, hogy a visszavont meghívó.
+   * A visszavonás kötése (`story_bound`) ezt NEM fogja meg: ott a MŰVELET szól egy célra, itt a
+   * KÉPERNYŐ.
+   *
+   * A LÉPÉS KIMONDJA (`story_ref`), hogy a célnak a történet meghívóját kell hordoznia, és a
+   * jelölőt a LAP írja ki arról a képernyőről, amit a szerver a bizonyított címzettnek adott
+   * (`data-ref`). Eltérésnél NEVEZETT megszakítás — nem csendes továbbmenés (`KUKA-012`).
+   *
+   * FAIL-CLOSED, ÉS KIMONDOTTAN: ha nincs cél-kötés, vagy a képernyő nem hordoz jelölőt, a kapu
+   * ZÁR. A „nem tudom" nem eshet némán „jó lesz"-re (`KUKA-049` · `KUKA-236`).
+   */
+  if (step.story_ref === true) {
+    const kell = (run.story && run.story.ref) || null;
+    const kint = targetOf(run).getAttribute('data-ref') || null;
+    if (!kell || !kint || String(kint) !== String(kell)) return { ok: false, why: 'storyTargetMismatch' };
+  }
   return { ok: true, why: null, pending: null };
 }
 
@@ -665,7 +686,19 @@ export function taskDone(run, taskId, { ref = null } = {}) {
     if (!kell) return false;
     if (String(ref ?? '') !== String(kell)) return false;
   }
+  /**
+   * ÉS A TÖRTÉNET SAJÁT VÁLASZTÁSI LÉPÉSE ÁTKÖTI A CÉLT (R186 §2).
+   *
+   * Az R186 §2 ezt nevezetten megengedi: *„Indításkor VAGY a történet saját, egyértelmű választási
+   * lépésében azonosítsd az alkalmas célt."* A visszavonás-történet a 13. lépésen ÚJ meghívót állít
+   * ki — innentől az a történet célja, és az elfogadásnak (`s17`) ERRE kell szólnia. A kötés tehát
+   * a történet ELŐREHALADÁSÁVAL mozog, de MINDIG egy nevezett, IGAZOLT művelet eredményére — soha
+   * nem „bármire" (`KUKA-231`: csak igazolt siker után).
+   */
   step.state = 'done';
+  if (step.story_rebind === true && run.story && typeof ref === 'string' && ref) {
+    run.story = { ...run.story, ref };
+  }
   return true;
 }
 
@@ -786,7 +819,16 @@ export function tourHtml(run, { blocked, pending } = {}) {
   const total = run.steps.length;
   const last = run.at + 1 >= total;
   const stateWord = { pending: TOURUI.pending, done: TOURUI.done, skipped: TOURUI.skipped };
-  return `<div class="tourhead"><small data-testid="tour-progress">${esc(run.text && run.text.title ? run.text.title : run.id)} · ${esc(String(n))}/${esc(String(total))}</small>
+  /**
+   * A CÉL-KÖTÉS A KIMENETBEN IS LÁTSZIK (R186 §2 · `KUKA-131`).
+   *
+   * MIÉRT: a történet cél-kötése (`run.story`) a futás belsejében él, tehát egy mérés CSAK a
+   * következményeit látta (a lépés teljesül-e), az OKÁT nem. Egy eltérésnél így nem volt
+   * megállapítható, hogy a KÉPERNYŐ mutat más meghívót, vagy a KÖTÉS csúszott el. A nyersanyagot
+   * ezért kiírjuk: a jelölő NEM titok (egyirányú lenyomat, jogot nem ad — `KUKA-006`), és nélküle a
+   * verdikt nem ellenőrizhető.
+   */
+  return `<div class="tourhead" data-story-ref="${esc((run.story && run.story.ref) || '')}"><small data-testid="tour-progress">${esc(run.text && run.text.title ? run.text.title : run.id)} · ${esc(String(n))}/${esc(String(total))}</small>
       <button type="button" class="x" data-action="tour-exit" aria-label="${esc(TOURUI.exit)}" data-testid="tour-exit">×</button></div>
     <h3 data-testid="tour-step-title">${esc(title)}</h3>
     <p data-testid="tour-step-body">${esc(body)}</p>

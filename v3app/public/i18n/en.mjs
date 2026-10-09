@@ -568,6 +568,7 @@ export const TOURUI = Object.freeze({
   stepList: 'Steps of the guide',
   simulationNote: 'The guide does not save, does not invite anybody and does not delete anything. You do those yourself on the normal screens.',
   targetMissing: 'This step cannot continue: the element named in the guide is not visible on this screen.',
+  storyTargetMismatch: 'This step refers to the invitation in the story, but this screen shows a different one. Open the letter of the invitation you revoked in the guide — or restart the guide.',
   targetMissingNext: 'You can close or restart the guide. The description stays readable on the Help → Topics tab.',
   targetPending: 'This step is not available yet: open it first with the highlighted button. The guide does not press it for you.',
   targetPendingDone: 'You have completed this step. Its details are inside the closed panel — reopen it with the highlighted button, or move on.',

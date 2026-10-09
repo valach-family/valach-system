@@ -626,6 +626,7 @@ export const TOURUI = Object.freeze({
   stepList: 'Az útmutató lépései',
   simulationNote: 'Az útmutató nem ment, nem hív meg senkit és nem töröl semmit. Ezeket te végzed el a rendes felületen.',
   targetMissing: 'Ez a lépés most nem folytatható: az útmutatóban megnevezett elem nem látható ezen a képernyőn.',
+  storyTargetMismatch: 'Ez a lépés a történet saját meghívására szól, ez a képernyő viszont egy másikat mutat. Nyisd meg annak a meghívásnak a levelét, amelyiket az útmutatóban visszavontad — vagy indítsd újra az útmutatót.',
   targetMissingNext: 'Az útmutatót bezárhatod vagy újraindíthatod. A leírás a Súgó → Leírások fülön továbbra is elolvasható.',
   // FELTÁRÁSRA VÁRÁS: a cél még nem jelent meg (panel · választás), a felhasználó nyitja meg.
   targetPending: 'Ez a lépés még nem érhető el: előbb nyisd meg a kiemelt gombbal. Az útmutató nem nyomja meg helyetted.',

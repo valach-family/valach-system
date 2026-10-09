@@ -564,6 +564,7 @@ export const TOURUI = Object.freeze({
   stepList: 'Schritte der Anleitung',
   simulationNote: 'Die Anleitung speichert nicht, lädt niemanden ein und löscht nichts. Das erledigst du selbst auf den normalen Bildschirmen.',
   targetMissing: 'Dieser Schritt kann nicht fortgesetzt werden: das in der Anleitung genannte Element ist auf diesem Bildschirm nicht sichtbar.',
+  storyTargetMismatch: 'Dieser Schritt bezieht sich auf die Einladung der Geschichte, dieser Bildschirm zeigt jedoch eine andere. Öffnen Sie die E-Mail der Einladung, die Sie in der Anleitung zurückgezogen haben — oder starten Sie die Anleitung neu.',
   targetMissingNext: 'Du kannst die Anleitung schließen oder neu starten. Die Beschreibung bleibt im Reiter Hilfe → Themen lesbar.',
   targetPending: 'Dieser Schritt ist noch nicht verfügbar: öffne ihn zuerst mit der hervorgehobenen Schaltfläche. Die Anleitung drückt sie nicht für dich.',
   targetPendingDone: 'Diesen Schritt hast du erledigt. Seine Details liegen im geschlossenen Bereich — öffne ihn erneut mit der hervorgehobenen Schaltfläche, oder gehe weiter.',

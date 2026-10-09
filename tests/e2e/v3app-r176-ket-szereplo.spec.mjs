@@ -373,6 +373,36 @@ async function vezess(page, tourId, akciok, { lepesHatar = 4000, megallAt = null
       // A KÖVETKEZŐ lépés célját megvárjuk, mielőtt továbblépünk (`KUKA-121`): a kiértékelés
       // különben a RÉGI lapon futna. A lejárat NEM bukás — az útmutató maga mondja ki a bajt.
       await page.getByTestId(steps[i + 1].target).first().waitFor({ state: 'visible', timeout: lepesHatar }).catch(() => {});
+      /**
+       * A HIÁNYZÓ „TOVÁBB" NEVEZETT TÉNY, NEM IDŐTÚLLÉPÉS (R186 — SAJÁT LELET · `KUKA-215`).
+       *
+       * A LELET: ha a bemutató MEGSZAKAD, a lezáró lap elviszi a lépés-listát és a „Tovább"-ot. A
+       * driver eddig ilyenkor 15 másodpercet várt egy sosem megjelenő gombra, és `locator.click:
+       * Timeout`-tal bukott — a jelentés tehát a MÉRŐ türelméről beszélt, nem arról, hogy MELYIK
+       * lépésen és MIÉRT állt meg a történet. A megszakítás OKA (`tour-aborted` → `data-why`) ott
+       * van a lapon; csak meg kell kérdezni.
+       */
+      /**
+       * …DE ELŐBB MEGVÁRJUK (SAJÁT LELET A JAVÍTÁSON · `KUKA-121`, MÁSODSZOR EBBEN A KÖRBEN).
+       *
+       * Az első alakom AZONNAL megkérdezte, hogy ott van-e a „Tovább" — és ezzel a SAJÁT
+       * türelmetlenségét mérte: a panel a feladat igazolása után ÚJRARAJZOLÓDIK, tehát a gomb egy
+       * renderrel később jelenik meg. MÉRVE: ugyanaz a kód kétszer futtatva egyszer az `s10b`-n,
+       * egyszer az `s17`-en „állt meg" — vagyis a jelzés a mérőről szólt, nem a rendszerről. A
+       * régi, `click()`-es alak VÉLETLENÜL volt helyes: a kattintás maga várt a megjelenésre.
+       */
+      await page.getByTestId('tour-next').waitFor({ state: 'visible', timeout: lepesHatar }).catch(() => {});
+      if (await page.getByTestId('tour-next').count() === 0) {
+        const miert = await page.getByTestId('tour-aborted').count()
+          ? await page.getByTestId('tour-aborted').getAttribute('data-why')
+          : null;
+        const panelSzoveg = await page.getByTestId('tour').count()
+          ? ((await page.getByTestId('tour').textContent()) || '').trim().replace(/\s+/g, ' ').slice(0, 160)
+          : '(nincs panel)';
+        return { elert: i + 1, lepes: steps.length, naplo,
+          baj: `${st.id}: NINCS „Tovább" — ${miert ? `NEVEZETT megszakítás: ${miert}` : 'a panel nem kínál továbblépést'}`
+            + ` [panel: ${panelSzoveg}]` };
+      }
       await page.getByTestId('tour-next').click();
     }
     await page.getByTestId('tour-step-title').waitFor({ state: 'visible', timeout: lepesHatar }).catch(() => {});

@@ -1524,6 +1524,18 @@ try {
       // A FIÓKKEZELŐ: saját cég, és egy FÜGGŐ meghívó, amit vissza lehetne vonni.
       const anna = await fiok('u-anna');
       await anna.post('/api/workspaces', { name: 'U158 Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '12345678-1-42' } });
+      /**
+       * A MEGHÍVOTTNAK FIÓKJA IS VAN — ÉS EZ NEM KÉNYELEM (R186 §2 · `KUKA-447`).
+       *
+       * A LELET, MÉRVE: ez a fixtúra egy olyan címre adott ki meghívót, amihez SEMMILYEN fiók nem
+       * tartozott, és mégis elvárta, hogy a KÉT SZEREPLŐS történet felkínálódjon. A történet
+       * viszont a MEGHÍVOTT belépésével folytatódik (a `s6` lépés az ő nézetére vált), tehát egy
+       * azonosíthatatlan címzettel NEM végigvihető — a felkínálás olyan utat állított, ami nincs.
+       * Ez ugyanaz a lecke HETEDSZER (`KUKA-417` · `421` · `429` · `430` · `431` · `437` · `442`):
+       * a felkínálás a VÉGIGVIHETŐSÉG állítása. A fixtúra ezért a VALÓDI bemutató-világot mintázza:
+       * a meghívottnak van fiókja, amivel be tud lépni.
+       */
+      await fiok('u-cili');
       const megh = await anna.post('/api/invites', { email: 'u-cili@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
       const jelolo = String(megh.body.token || '').slice(0, 8);
       /**
@@ -1614,9 +1626,9 @@ try {
 
       step('(as3) R176 §1: a HATÁR viszi a mezőt, és a két lista UGYANABBÓL a leképezőből jön (egy otthon)',
         annaT.volt_e_mezo && belaT.volt_e_mezo
-          && (srvAs.match(/\.map\(\(id\) => tourPayloadOf\(id, lang\)\)/g) || []).length === 2
+          && (srvAs.match(/\.map\(\(id\) => tourPayloadOf\(id, lang, who\)\)/g) || []).length === 2
           && (srvAs.match(/function tourPayloadOf\(/g) || []).length === 1,
-        { lekepezo_hivasok: (srvAs.match(/\.map\(\(id\) => tourPayloadOf\(id, lang\)\)/g) || []).length,
+        { lekepezo_hivasok: (srvAs.match(/\.map\(\(id\) => tourPayloadOf\(id, lang, who\)\)/g) || []).length,
           lekepezo_definicio: (srvAs.match(/function tourPayloadOf\(/g) || []).length });
 
       // (as4) A TOLERÁLT OKOK ZÁRT LISTÁJA — nem „minden más is jó" (KUKA-236 szelleme).
@@ -1740,24 +1752,48 @@ try {
       const tour = await import('./public/tour.mjs');
       // A SZINTETIKUS FUTÁS KEZDŐ KÖNYVE A CÉL (`KUKA-441`): itt a fiók-váltás célja a `mas`
       // könyv, tehát az `origin_book` is az — a CÉL deriválását az (as31)–(as33) méri külön.
+      /**
+       * A SZINTETIKUS FUTÁS MA A TÖRTÉNET CÉL-KÖTÉSÉT IS HORDOZZA (R186 §2 · `KUKA-448`): a
+       * személy-tengelyes kapu nem „bárki más"-t fogad el, hanem a VÁRT résztvevőt — tehát a
+       * mérésnek is meg kell mondania, kit vár a lépés (`switch_to`) és kit jelent az (`story.actor`,
+       * illetve `origin_subject`). A fiók-tengely mérése VÁLTOZATLAN.
+       */
       const futas = (lepes) => ({ id: 't', version: '2.0.0', at: 0, role: 'admin',
-        view: { subject: 'anna', book: 'ceg' }, origin_book: 'mas', steps: [{ ...lepes, state: 'pending' }] });
+        view: { subject: 'anna', book: 'ceg' }, origin_book: 'mas', origin_subject: 'anna',
+        story: { kind: 'invite', ref: 'r1', actor: 'bela' }, steps: [{ ...lepes, state: 'pending' }] });
       const keszE = (r, v) => tour.actorSwitchReady(r, { view: v, role: 'admin' });
-      const alanyL = futas({ id: 's1', target: 'actor-switch', switch_actor: true, switch_axis: 'subject' });
+      const alanyL = futas({ id: 's1', target: 'actor-switch', switch_actor: true, switch_axis: 'subject', switch_to: 'story_actor' });
       const fiokL = futas({ id: 's1', target: 'account-switcher', switch_actor: true, switch_axis: 'book' });
       const nincsL = futas({ id: 's1', target: 'actor-switch', switch_actor: true });
+      // ÉS A SZEMÉLY-TENGELY NYILATKOZAT NÉLKÜLI ALAKJA IS MÉRT (fail-closed, `KUKA-448`).
+      const alanyNincsKit = futas({ id: 's1', target: 'actor-switch', switch_actor: true, switch_axis: 'subject' });
       const m = {
         alany_csak_fiok: keszE(alanyL, { subject: 'anna', book: 'mas' }),
         alany_jo: keszE(alanyL, { subject: 'bela', book: 'bela-sajat' }),
         fiok_csak_alany: keszE(fiokL, { subject: 'bela', book: 'ceg' }),
         fiok_jo: keszE(fiokL, { subject: 'anna', book: 'mas' }),
         nyilatkozat_nelkul: keszE(nincsL, { subject: 'bela', book: 'mas' }),
+        // A HARMADIK SZEMÉLY NEM TELJESÍTI A VÁLTÁST (R186 §2 — ez a lelet lényege).
+        alany_harmadik: keszE(alanyL, { subject: 'cecil', book: 'cecil-sajat' }),
+        // …ÉS A LÉPÉS NYILATKOZATA NÉLKÜL A SZEMÉLY-TENGELY IS ZÁR.
+        alany_kit_nelkul: keszE(alanyNincsKit, { subject: 'bela', book: 'bela-sajat' }),
       };
       step('(as12) R176/P2: a váltás-lépés a DEKLARÁLT tengelyt kéri — a MÁSIK tengely változása NEM teljesíti (RÉGEN: a „vagy" alak miatt bármelyik változás elég volt)',
         m.alany_csak_fiok === false && m.fiok_csak_alany === false, m);
       step('(as13) R176/P2 ELLENPÁR: a HELYES tengely változása viszont teljesíti, és nyilatkozat nélkül a kapu ZÁR (fail-closed)',
         m.alany_jo === true && m.fiok_jo === true && m.nyilatkozat_nelkul === false
         && tour.SWITCH_AXES.join(',') === 'subject,book', m);
+      /**
+       * (as13b) …ÉS A SZEMÉLY-TENGELYEN A VÁRT RÉSZTVEVŐ IS KELL (R186 §2 · `KUKA-448`).
+       *
+       * A LELET: a kapu eddig BÁRMELY másik belépett embert elfogadta, pedig a két átívelő történet
+       * a MEGNEVEZETT résztvevőt kéri. Három mérés egy helyen: a VÁRT résztvevő teljesít, a
+       * HARMADIK ember NEM, és a lépés nyilatkozata nélkül a kapu ZÁR — a „nem tudom" nem eshet
+       * némán „bárki jó"-ra (`KUKA-049`).
+       */
+      step('(as13b) R186/§2: a SZEMÉLY-tengelyen a HARMADIK ember NEM teljesíti a váltást, és nyilatkozat nélkül a kapu ZÁR (RÉGEN: „más lett" elég volt)',
+        m.alany_harmadik === false && m.alany_kit_nelkul === false && m.alany_jo === true
+        && tour.SWITCH_TO.join(',') === 'story_actor,origin_actor', m);
       // ÉS MINDEN VÁLTÁS-LÉPÉS DEKLARÁLJA A TENGELYÉT — különben a kapu a saját történetünket zárná.
       const tengelyNelkul = Object.values(TOURS).flatMap((t) => t.steps
         .filter((x) => x.switch_actor === true && !tour.SWITCH_AXES.includes(x.switch_axis))
@@ -1910,9 +1946,12 @@ try {
       step('(as27) R176/P2: a drága induló adatot KIZÁRÓLAG demó-jelhez ÉS fejlesztői felülethez kötött történet kérdezi — tehát a kihagyás nem ad mérhető különbséget, csak kevesebb munkát',
         demoNelkul.length === 0
         && /if \(!tortenetKapu\) \{/.test(srvAs)
-        && /\.some\(\(m\) => \{/.test(srvAs),
+        // A TAGOK KÉRDÉSE MA `find`-dal megy (R186 §2: a kiszolgáló KIVÁLASZTJA a célt, nem csak a
+        // létezését mondja meg) — a KORAI KILÉPÉS változatlanul megvan, tehát a drága soronkénti
+        // feloldó az ELSŐ alkalmas tagnál megáll. A mérce tárgya ez, nem a metódus NEVE.
+        && /\.find\(\(m\) => \{/.test(srvAs),
         { demo_nelkul_draga_tenyt_ker: demoNelkul.join(' · ') || 'egy sincs',
-          korai_kilepes: /\.some\(\(m\) => \{/.test(srvAs) });
+          korai_kilepes: /\.find\(\(m\) => \{/.test(srvAs) });
 
       /**
        * (as28) A FELKÍNÁLÁS A VISSZAVONHATÓSÁGOT IS MEGKÍVÁNJA (`KUKA-437`).
@@ -2117,6 +2156,44 @@ try {
           regiszter_hossz_elertkent: /elert: steps\.length, taskStop: null/.test(jaro186),
           feltaras_a_letezeshez: /if \(feltaro && await page\.getByTestId\(steps\[i\]\.target\)\.count\(\) === 0/.test(jaro186),
           elo_tanuk: /R166-U6/.test(utm186) && /R166-U7/.test(utm186) });
+
+      /**
+       * (as39) A TÖRTÉNET CÉLJA ÉS RÉSZTVEVŐJE KÖTÖTT (R186 §2 · `KUKA-447` · `448` · `449`).
+       *
+       * A LELET (külső review, Codex, R176 — P2, a 7.5/a–c pontok): a történet bizonyította, hogy VAN
+       * alkalmas cél, az AZONOSSÁGÁT viszont eldobta — a visszavonás, a levél és az elfogadás külön
+       * meghívóra szólhatott —, a személy-váltó lépés pedig BÁRMELY másik embert elfogadta.
+       *
+       * A JEL NÉGY RÉTEGET MÉR: (1) a kiszolgáló KIVÁLASZTJA a célt és átadja a hivatkozását;
+       * (2) a HATÁR átviszi (`story` + a négy lépés-deklaráció — `KUKA-394`); (3) a kapu a VÁRT
+       * résztvevőhöz mér (`expectedActorOf`), fail-closed; (4) a kötött lépés csak a választott
+       * célon teljesül. Az ÉLŐ tanú az `R186-T1`/`T2`/`T3` (a VISELKEDÉS — `KUKA-207`).
+       */
+      const jaro186b = readFileSync(join(ROOT, 'v3app/public/tour.mjs'), 'utf8');
+      const ketSzereplo = readFileSync(join(ROOT, 'tests/e2e/v3app-r176-ket-szereplo.spec.mjs'), 'utf8');
+      const feat186 = readFileSync(join(ROOT, 'v3app/knowledge/features.mjs'), 'utf8');
+      step('(as39) R186/§2: a kiszolgáló KIVÁLASZTJA a történet célját és átadja a stabil hivatkozását, a kapu a VÁRT résztvevőhöz mér, és a kötött lépés csak a VÁLASZTOTT célon teljesül (RÉGEN: logikai tény azonosság nélkül, és „bárki más" elfogadva)',
+        /const valasztottMeghivo = rows\.find\(alkalmasMeghivo\) \|\| null;/.test(srvAs)
+        && /pending_invite_ref: valasztottMeghivo \? shortRef\(valasztottMeghivo\.token\) : null,/.test(srvAs)
+        && /story: storyBindingOf\(id, who\),/.test(srvAs)
+        && !/const pendingInvite = rows\.some\(/.test(srvAs)
+        && !/masok\.every\(/.test(srvAs)
+        && /export const SWITCH_TO = Object\.freeze\(\['story_actor', 'origin_actor'\]\);/.test(jaro186b)
+        && /export function expectedActorOf\(run\)/.test(jaro186b)
+        && /const vart = expectedActorOf\(run\);/.test(jaro186b)
+        && !/if \(tengely === 'subject'\) return \(view\.subject \?\? null\) !== run\.view\.subject;/.test(jaro186b)
+        && /if \(step\.story_bound === true\) \{/.test(jaro186b)
+        && /if \(step\.story_ref === true\) \{/.test(jaro186b)
+        && /const vartResztvevo = tourMod\.expectedActorOf\(run\);/.test(appAs)
+        && !/clearTourHandover\(\);\n    run\.steps\.forEach/.test(appAs)
+        && /switch_to: 'origin_actor'/.test(feat186) && /story_bound: true/.test(feat186)
+        && /R186-T1/.test(ketSzereplo) && /R186-T2/.test(ketSzereplo) && /R186-T3/.test(ketSzereplo),
+        { cel_kivalasztva: /const valasztottMeghivo = /.test(srvAs),
+          letezes_teny_regi_alak: /const pendingInvite = rows\.some\(/.test(srvAs),
+          elvetett_szukites: /masok\.every\(/.test(srvAs),
+          barki_mas_elfogadva: /if \(tengely === 'subject'\) return \(view\.subject \?\? null\) !== run\.view\.subject;/.test(jaro186b),
+          rekesz_urites_az_elejen: /clearTourHandover\(\);\n    run\.steps\.forEach/.test(appAs),
+          elo_tanuk: /R186-T1/.test(ketSzereplo) && /R186-T2/.test(ketSzereplo) && /R186-T3/.test(ketSzereplo) });
 
       step('(as28) R176/P2: az induló adat UGYANAZT az írásmentes plafon-döntést kérdezi, amit a lista és az írás-út — és EGYSZER, nem soronként',
         /const plafon = delegationCeilingOf\(\{ store, subjectId, bookId, at \}\);/.test(srvAs)
