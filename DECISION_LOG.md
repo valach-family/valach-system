@@ -16,6 +16,53 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3252 — AMI NEM TÖRTÉNT MEG, AZT NEM IS KEZDEMÉNYEZTÜK (R186 §5)
+
+A kilépés a művelet **előkészítésekor** beállítja a „saját kezdeményezés" jelét, és azt csak a
+következő frissítés törli. A meghiúsult kilépés ága — helyesen — belépve hagyja a felhasználót és
+visszatér, a jelölő viszont **bent maradt**. Ha közben egy **másik fül** kicseréli a kiszolgált
+személyt, a következő frissítés a változást **sajátnak** látja, és a lap **némán** átveszi az új
+nézetet: a „más ember lépett be" figyelmeztetés nem jelenik meg.
+
+**A DÖNTÉS:** a meghiúsult ág a jelölőt **visszaveszi**. A „saját kezdeményezés" jele a **megtörtént**
+műveletre szól, nem a megkísérteltre — amit a kiszolgáló nem igazolt, az a nézet-változás okaként sem
+számít. A **nemzedék-szám** emelése marad: a késői válasz továbbra sem rajzolhat (`KUKA-230`).
+
+**A SZABÁLY, AMIT EBBŐL RÖGZÍTÜNK:** egy **hiba-ág bevezetése a félbehagyott állapotot is örökli**. A
+„nem igazolt kimenet" helyes kezelése (a felhasználó marad, ahol van) nem elég: a művelet
+előkészítésekor beállított jelzéseket is vissza kell venni, különben a következő, **független**
+esemény hordozza a félbehagyott művelet okozatiságát.
+
+Gépi jel: `npm run verify:kuka` · **ÉLŐ TANÚ:** `npm run verify:browser-gate` → `R186-T4` (a kilépés
+500-ra cserélve, a másik fül MÁS embert léptet be, és az első fül következő művelete után a
+figyelmeztetésnek MEG KELL jelennie).
+
+---
+
+## D-VS-3251 — A PLAFON NEM HATÁSKÖR: A FELKÍNÁLÁS MINDEN LEGSZŰKEBB KAPUN ÁTMEGY (R186 §5)
+
+A két romboló történet előfeltétele a delegálási plafont kérdezte (`delegationCeilingOf`), a történet
+**első feladat-lépése** viszont MEGVONÁS — és a `revokeInvite`/`revokeMembership` **`alter_right`**
+hatáskört kíván, amit a tagság nem ad. Egy delegált `admin` kezelő így olyan bemutatót kapott, amit
+az írás-út `authority_not_established`-del utasít el.
+
+**A DÖNTÉS:** a felkínálás **ugyanazt a feloldót** kérdezi, amit az írás-út (`executableRightAt`,
+`operation: 'alter_right'`), **ugyanazokkal a bemenetekkel** (a kiszolgáló az írás-úton sem ad
+`credentials`-t), és **egyszer**, nem soronként (`KUKA-436`). Hatáskör nélkül **nincs cél**: a jelölő
+és a várt résztvevő is `null` — egy kapu, négy mezőre (`KUKA-003`).
+
+**ÉS AMIT EBBŐL A SZABÁLYBÓL RÖGZÍTÜNK:** a felkínálás feltétele a **legszűkebb későbbi kapu**, és a
+„legszűkebb" **nem** a legközelebbi réteg. A plafon és a hatáskör **két külön kérdés**. Ez a lecke
+ebben a körben **kilencedszer** jött elő (`KUKA-417` · `421` · `429` · `430` · `431` · `437` · `442` ·
+`454` · `455`), ezért a szabályt mondjuk ki, nem az esetet javítjuk.
+
+**A HATÓKÖR KIMONDVA:** a `tour.personalAccount` **szándékosan** kimarad — az nem megvonással
+kezdődő történet, tehát nem kér `alter_right`-ot.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as75` · `as76` ellenpár) · `npm run verify:kuka`.
+
+---
+
 ## D-VS-3250 — AMIT MEG TUDUNK NEVEZNI, AZT NE TALÁLGASSUK: A KÉRT CÉL ELŐNYT KAP (R186 §5)
 
 A `KUKA-456` óta az átkötést a **kiszolgáló saját cél-kötése** hitelesíti — ez helyes. A kiszolgáló

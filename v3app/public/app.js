@@ -3251,6 +3251,20 @@ import { inviteNextKey } from './inviteText.mjs';
     const r = await api('POST', '/api/logout', {});
     const v = requestOutcome(r);
     if (v !== 'ok') {
+      /**
+       * ÉS A SAJÁT KEZDEMÉNYEZÉS JELE IS ELSZÁLL A MEGHIÚSULT KILÉPÉSSEL (`KUKA-470` · külső review,
+       * Codex, P2). A LELET: a `newContext('logout')` a függvény ELEJÉN beállítja a
+       * `state.selfInitiated`-et, és azt CSAK a következő `refreshMe` törli. Ha a kilépés
+       * meghiúsul, a jelölő BENT MARAD — és ha közben egy MÁSIK fül kicseréli a kiszolgált
+       * személyt vagy fiókot, a következő frissítés `foreign`-ot HAMISRA számolja, és a lap
+       * NÉMÁN átveszi az új nézetet: nem jelenik meg sem a „más ember lépett be", sem a
+       * „másik fiókra váltottak" figyelmeztetés (`KUKA-204` · `KUKA-208` · `KUKA-217`).
+       *
+       * A VÁLASZ A LEGSZŰKEBB IGAZ ÁLLÍTÁS: ami nem történt meg, azt nem kezdeményeztük. A
+       * nemzedék-szám emelése MARAD (a későn beérkező válasz nem rajzolhat — `KUKA-230`), a
+       * SAJÁT-kezdeményezés jele viszont elszáll, tehát a következő nézet-változás KIMONDJA magát.
+       */
+      state.selfInitiated = false;
       state.signOutNotDone = v === 'uncertain' ? UI.signOutUncertain : refusalText(r);
       render();
       return;

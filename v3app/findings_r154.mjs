@@ -2574,6 +2574,49 @@ try {
           kitalalt.status === 200 && kitalalt.ref === alap.ref,
           { kitalalt_ref: kitalalt.ref, alap_ref: alap.ref, status: kitalalt.status });
       }
+      {
+        // ── (as75–as76) A VÉGREHAJTHATÓ HATÁSKÖR A FELKÍNÁLÁS FELTÉTELE (`KUKA-469`) ──────────
+        //
+        // A FIXTÚRA A LELET SAJÁT ÁLLAPOTA: egy DELEGÁLT `admin` kezelő. Van tagsága, van érvényes
+        // plafonja, ki tud állítani meghívót — `alter_right` hatásköre viszont NINCS, mert azt a
+        // tagság nem adja. A két történet első feladat-lépése MEGVONÁS, tehát a felkínálás eddig
+        // olyan műveletet hirdetett, amit az írás-út `authority_not_established`-del utasít el.
+        const ow = await fiok('u-jog-tulaj');
+        const wsJ = await ow.post('/api/workspaces', { name: 'U186 Jog Kft', plan: 'starter', business: { jurisdiction: 'HU', tax_id: '92345678-1-42' } });
+        const konyvJ = wsJ.body && (wsJ.body.book_id || (wsJ.body.workspace && wsJ.body.workspace.book_id));
+        const del = await fiok('u-jog-admin');
+        const meghDel = await ow.post('/api/invites', { email: 'u-jog-admin@pelda.hu', role: 'admin', scope: 'keszlet', lang: 'hu' });
+        const levDel = (await del.get('/dev/mailbox')).body.mails.filter((x) => x.to === 'u-jog-admin@pelda.hu').pop();
+        const jegyDel = new URL(levDel.link).searchParams.get('invite');
+        await del.post('/api/invites/redeem', { token: jegyDel });
+        await del.post('/api/session/workspace', { book_id: konyvJ });
+        // A DELEGÁLT KEZELŐ KIÁLLÍT EGY MEGHÍVÓT — bizonyított csatornájú címzettnek, hogy a
+        // történet MINDEN MÁS előfeltétele teljesüljön: csak a hatáskör hiányozzon.
+        await fiok('u-jog-cimzett');
+        const kiadta = await del.post('/api/invites', { email: 'u-jog-cimzett@pelda.hu', role: 'user', scope: 'keszlet', lang: 'hu' });
+        const jogDel = await del.get('/api/assistant/status?lang=hu&surface=app');
+        const tenyDel = (jogDel.body.story_data) || {};
+        const kinaltDel = (jogDel.body.tours || []).map((t) => t.id);
+        // ÉS A MEGVONÁS ÍRÁS-ÚTJA KÖZVETLENÜL IS MÉRVE: ugyanazt mondja, amit a kapu.
+        const megvonas = await del.post('/api/invites/revoke', { ref: (kiadta.body && kiadta.body.ref) || 'nincs' });
+        step('(as75) `KUKA-469` (külső review P2): a DELEGÁLT `admin` kezelőnek — érvényes plafonnal, saját kiállított meghívóval, de `alter_right` hatáskör NÉLKÜL — a romboló történet NEM felkínált, mert az első feladat-lépése MEGVONÁS',
+          kiadta.status === 201 && tenyDel.pending_invite === false && tenyDel.pending_invite_ref === null
+            && !kinaltDel.includes('tour.inviteRevoke')
+            && megvonas.status === 403 && (megvonas.body || {}).reason === 'authority_not_established',
+          { meghivo_kiadva: kiadta.status, felkinalva: kinaltDel.includes('tour.inviteRevoke'),
+            teny: tenyDel.pending_invite, jelolo: tenyDel.pending_invite_ref,
+            iras_ut: `${megvonas.status}/${(megvonas.body || {}).reason || ''}` });
+        // (as76) ELLENPÁR: UGYANABBAN a könyvben a TULAJDONOSNAK — akinek VAN `alter_right`-ja —
+        // a történet felkínálódik. A szigorítás tehát nem vitt el jó esetet (`KUKA-394`).
+        const jogOw = await ow.get('/api/assistant/status?lang=hu&surface=app');
+        const tenyOw = (jogOw.body.story_data) || {};
+        const kinaltOw = (jogOw.body.tours || []).map((t) => t.id);
+        step('(as76) `KUKA-469` ELLENPÁR: UGYANABBAN a könyvben a TULAJDONOSNAK (van `alter_right`) a történet VÁLTOZATLANUL felkínált — a kapu a HATÁSKÖRT méri, nem a tagságot',
+          tenyOw.pending_invite === true && typeof tenyOw.pending_invite_ref === 'string'
+            && tenyOw.pending_invite_ref.length > 0 && kinaltOw.includes('tour.inviteRevoke'),
+          { felkinalva: kinaltOw.includes('tour.inviteRevoke'), teny: tenyOw.pending_invite,
+            jelolo: tenyOw.pending_invite_ref });
+      }
 
       {
         // ── (as42–as43) A SZŰK SZEREP-PLAFON, ÉLŐBEN (`KUKA-431`/`437` forrás-pinjének élő párja) ──

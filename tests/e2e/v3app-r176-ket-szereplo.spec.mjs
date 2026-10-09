@@ -23,7 +23,7 @@
 import { test, expect } from '@playwright/test';
 import {
   World, PASSWORD, createWorkspaceUI, inviteUI, loginUI, gotoPage, withResponse,
-  openInviteUI, switchUI, Db, revokeUI, grantScopeUI, openMemberPanel,
+  openInviteUI, switchUI, Db, revokeUI, grantScopeUI, openMemberPanel, openProfile,
 } from './helpers.mjs';
 import { TOURS } from '../../v3app/knowledge/features.mjs';
 import { dictFor } from '../../v3app/public/i18n/dict.mjs';
@@ -1013,4 +1013,50 @@ test('R186-T3 — HARMADIK SZEMÉLY téves belépése: NEM teljesíti a váltás
   await expect(p.getByTestId('tour')).toBeVisible();
   await expect(p.locator('[data-testid="tour-step-s6"][data-state="done"]')).toHaveCount(1);
   expect(await lepesAllapot(p, 's6'), 'a HELYES személynél a váltás teljesül').toBe('done');
+});
+
+/**
+ * R186-T4 — A MEGHIÚSULT KILÉPÉS NEM HAGYHAT MAGA UTÁN „SAJÁT KEZDEMÉNYEZÉS" JELET
+ * (`KUKA-470` · `D-VS-3252` — külső review, Codex, P2)
+ *
+ * A LELET. A kilépés a függvény ELEJÉN új nézet-nemzedéket nyit (`newContext('logout')`), és ezzel
+ * beállítja a SAJÁT-kezdeményezés jelét; azt viszont CSAK a következő frissítés törli. Ha a kilépés
+ * meghiúsul — hálózati hiba, értelmezhetetlen válasz, kiszolgálói hiba —, a lap BELÉPVE marad (ez a
+ * helyes, `KUKA-422`), a jelölő viszont BENT MARAD. Ha közben egy MÁSIK FÜL kicseréli a kiszolgált
+ * személyt, a következő frissítés „idegen" helyett SAJÁT változásnak látja, és a lap NÉMÁN átveszi
+ * az új nézetet: sem a „más ember lépett be", sem a „másik fiókra váltottak" mondat nem jelenik meg
+ * (`KUKA-204` · `KUKA-208` · `KUKA-217`).
+ *
+ * A MÉRÉS A VISELKEDÉST MÉRI: a kilépés HIBÁRA fut (a válasz 500-ra cserélve), a másik fül
+ * ugyanazzal a süti-tárcával MÁS embert léptet be, és az első fül következő művelete frissít.
+ */
+test('R186-T4 — MEGHIÚSULT KILÉPÉS után a MÁSIK FÜL személy-váltása NEM lehet néma', async () => {
+  const t = await world.person('tomi');
+  const p = t.page;
+  await createWorkspaceUI(p, { name: 'R186 Nema Valtas Kft', business: { jurisdiction: 'HU', tax_id: '72345672-2-42' } });
+  await closeModals(p);
+  await gotoPage(p, 'stock');
+
+  // ── (1) A KILÉPÉS HIBÁRA FUT — a lap BELÉPVE marad, és KIMONDJA, hogy nem igazolt ──────────
+  await p.route('**/api/logout', (route) => route.fulfill({ status: 500,
+    contentType: 'application/json', body: JSON.stringify({ ok: false, reason: 'server_error' }) }));
+  await openProfile(p);
+  await p.getByTestId('logout').click();
+  await expect(p.getByTestId('signout-not-done'),
+    'a meghiúsult kilépést a lap KIMONDJA (KUKA-422 · KUKA-215)').toBeVisible();
+  await expect(p.getByTestId('header-subject'),
+    'és a felhasználó BELÉPVE marad — a nem igazolt kimenet nem „kiléptünk"').toContainText('@');
+  await p.unroute('**/api/logout');
+
+  // ── (2) EGY MÁSIK FÜL (UGYANAZ A SÜTI-TÁRCA) MÁS EMBERT LÉPTET BE ─────────────────────────
+  const belepes = await t.api.post('/api/login', { email: bela.email, password: PASSWORD });
+  expect(belepes.status, 'a másik fül belépése sikerül — innentől a munkamenet MÁS emberé').toBe(200);
+
+  // ── (3) AZ ELSŐ FÜL KÖVETKEZŐ MŰVELETE FRISSÍT — ÉS A VÁLTÁS NEM NÉMA ─────────────────────
+  await p.getByTestId('data-stock-btn').click();
+  await expect(p.getByTestId('global-notice'),
+    'a lap KIMONDJA, hogy más ember lépett be (RÉGEN: a meghiúsult kilépés jelölője miatt NÉMÁN átvette az új nézetet)')
+    .toContainText(HU.UI.otherPersonHere);
+  await expect(p.getByTestId('header-subject'),
+    'és a fejléc is az ÚJ embert mutatja — kevert kép nem keletkezik').toContainText(bela.email);
 });

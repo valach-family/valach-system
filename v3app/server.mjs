@@ -53,6 +53,8 @@ import { reentryExclusionsAt } from '../v3ref/reentryGate.mjs';
 // EGYETLEN tárolt címet (`addressOfSubject`) — mindkettő írás-mentes feloldó (KUKA-003 · KUKA-039).
 import { hasProvenChannel } from '../v3ref/invite.mjs';
 import { addressOfSubject, reinviteFeasibility } from '../v3ref/delegation.mjs';
+// A VEGREHAJTHATO HATASKOR ugyanabbol a feloldobol, amit az IRAS-UT kerdez (`KUKA-469`).
+import { executableRightAt } from '../v3ref/authority.mjs';
 import { readScopeGrantAt } from '../v3ref/scopeGrant.mjs';
 import { representationCheck } from '../v3ref/representation.mjs';
 import { validateRequest, schemaForEndpoint, isGated, endpointsWithoutSchema, CONTEXT_FIELD, CONTEXT_SUBJECT_FIELD } from './httpSchema.mjs';
@@ -1930,6 +1932,24 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      * `KUKA-429` · `KUKA-430` · `KUKA-431`). A döntés UGYANAZ az írásmentes feloldó, amit a lista
      * és az írás-út is kérdez (`delegationCeilingOf`), és EGYSZER kérdezzük meg, nem soronként.
      */
+    /**
+     * ÉS A VÉGREHAJTHATÓ HATÁSKÖR IS A FELKÍNÁLÁS FELTÉTELE (`KUKA-469` · külső review, Codex, P2).
+     *
+     * A LELET: a plafon (`delegationCeilingOf`) a DELEGÁLÁS alapját méri — milyen szerepet és milyen
+     * adatkört adhat tovább a kezelő. A két TÖRTÉNET első feladat-lépése viszont MEGVONÁS
+     * (`revokeInvite` · `revokeMembership`), és MINDKETTő **`alter_right`** hatáskört kíván: egy
+     * `admin` szerepű, érvényes plafonú delegált kezelő tehát megkaphatta a felkínálást, és az
+     * első művelet `authority_not_established`-del utasította volna el — a történet a saját
+     * első lépésén áll meg.
+     *
+     * KILENCEDSZER UGYANAZ A LECKE (`KUKA-417` · `421` · `429` · `430` · `431` · `437` · `442` ·
+     * `454` · `455`): a felkínálás a VÉGIGVIHETŐSÉG állítása, és a feltétele a LEGSZŰKEBB
+     * későbbi kapu — UGYANABBÓL a feloldóból, amit az írás-út kérdez (`executableRightAt`,
+     * `operation: 'alter_right'`), és UGYANAZOKKAL a bemenetekkel (a kiszolgáló az írás-úton sem
+     * ad `credentials`-t). EGYSZER kérdezzük meg, nem soronként (`KUKA-436`).
+     */
+    const vegrehajthatoJog = executableRightAt({ store, subjectId, bookId, operation: 'alter_right', nowIso: at });
+    const jogAVegrehajtasra = vegrehajthatoJog && vegrehajthatoJog.ok === true;
     const plafon = delegationCeilingOf({ store, subjectId, bookId, at });
     const plafonRoles = plafon && plafon.ok && Array.isArray(plafon.roles) ? plafon.roles : [];
     const plafonScopes = plafon && plafon.ok && Array.isArray(plafon.scopes) ? plafon.scopes : [];
@@ -2136,16 +2156,23 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      * `ensurePersonal` nem hoz létre személyes kört (`provenEmailOf` nélkül `null`), tehát a
      * fiókválasztóban nincs mit választani — az útmutató olyat állított, ami nem igaz.
      */
+    /**
+     * A KÉT ROMBOLÓ TÖRTÉNET JELÖLTJE EGY KAPUN MEGY ÁT (`KUKA-469`): hatáskör nélkül NINCS cél,
+     * tehát a jelölő és a várt résztvevő is `null` — egy helyen, négy mezőre (`KUKA-003`).
+     * A `own_personal_book` SZÁNDÉKOSAN kimarad: az nem megvonással kezdődő történet.
+     */
+    const celMeghivo = jogAVegrehajtasra ? valasztottMeghivo : null;
+    const celTag = jogAVegrehajtasra ? alkalmasTag : null;
     return Object.freeze({
-      pending_invite: pendingInvite,
+      pending_invite: Boolean(celMeghivo),
       // A VÁLASZTOTT CÉL STABIL HIVATKOZÁSA — ugyanaz a jelölő, amit a meghívó-lista sora visel
       // (`KUKA-018`: egy fogalomnak egy otthona van), tehát a felület és a történet UGYANARRA mutat.
-      pending_invite_ref: valasztottMeghivo ? shortRef(valasztottMeghivo.token) : null,
+      pending_invite_ref: celMeghivo ? shortRef(celMeghivo.token) : null,
       // ÉS A TÖRTÉNETBEN VÁRT RÉSZTVEVŐ — a személyváltás kapuja EHHEZ mér (R186 §2). Alany-azonosító,
       // nem e-mail és nem üzleti adat; a kiadó pedig az a kezelő, aki a meghívót maga állította ki.
-      pending_invite_actor: valasztottMeghivo ? meghivoCimzettje(valasztottMeghivo) : null,
-      other_member: otherMember,
-      other_member_id: alkalmasTag ? alkalmasTag.subject_id : null,
+      pending_invite_actor: celMeghivo ? meghivoCimzettje(celMeghivo) : null,
+      other_member: Boolean(celTag),
+      other_member_id: celTag ? celTag.subject_id : null,
       own_personal_book: Boolean(sajatKorElore && sajatKorElore.book_id),
     });
   }
