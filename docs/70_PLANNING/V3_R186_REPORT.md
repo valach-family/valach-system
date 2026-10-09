@@ -44,12 +44,12 @@ el is kell fogadnia, és ugyanabból a feloldóból. Négy leletnél a megszakad
 
 | | |
 |---|---|
-| **a kód feje (amit mértem)** | `KOD_FEJ` |
-| **az ág feje** | ugyanaz; a jelentés commitja csak `docs/`-ot visz |
+| **a kód feje (amit mértem)** | **`5cf442b`** — a termék-kód utolsó változása (a `KUKA-477`…`478` javítása). A jelentés commitjai ezen TÚL csak `docs/`-ot és eredmény-fájlokat visznek |
+| **az ág feje** | `3bb87e2` + a jelentés commitja — a `5cf442b` fölött CSAK `docs/`, a söprés eredmény-fájljai és a fogyasztás-leltár |
 | **ágak** | `claude/r154-audit-fix` (a PR feje) **és** `claude/cmd-vs-300-002-002-r166-x7rrk4` — fast-forward, force-push nélkül |
 | **PR** | `valach-family/valach-system#1` · nyitott, **nem** mergelt · célág `claude/ecstatic-fermi-8c23co` · összeolvasztható |
 | **az átvett fej** | `167a70a` — a `2efaad3` → `61881f2` → `38e0f1c` → `167a70a` leszármazás igazolva; a `main` **nem** volt bázis |
-| **review által FEDETT SHA** | `REVIEW_SHA` |
+| **review által FEDETT SHA** | **`011aa32`** — a kód- ÉS a biztonsági review is LEZÁRULT ezen a fejen, **új lelet nélkül**. **DE A MAI FEJ NEM EZ:** a `011aa32` után a **kötelező kapu két leletének javítása** is bekerült (`KUKA-477`…`478`, a `5cf442b` commit), tehát **a mai termék-kód NEM fedett** — ezt nem hallgatom el. A csomag alatt a külső fél **KILENC fejen** mért, és **huszonkét P2-t** adott; mind kezelve (7. szakasz). **A nulla lelet nem bizonyítja a hibák hiányát** — a `verify:lefedes` nevesített rése, a külső lánc záró magon **nem teljes** futása és a 7. szakasz nyitott tételei változatlanul állnak |
 
 **Az átvétel ellenőrzése.** Az `R187 — NOTE` állítását visszaméretem: a `61881f2` óta valóban **csak**
 `docs/` és `v3ref/source-documents/` változott (`git diff --name-only`). A régi író leállását a saját
@@ -323,7 +323,30 @@ dönt, találgatás nélkül.
 
 ## 6. A KÖTELEZŐ KAPU ÉS A CÉLZOTT REGRESSZIÓK
 
-`KAPU_TABLA`
+| lánc | verdikt |
+|---|---|
+| **`verify:browser-gate`** — KÖTELEZŐ, **önálló** futás csendes gépen | **ZÖLD — minden verdikt teljesült** — **154 helyzet teljesült / 0 bukott / 0 ingadozó / 0 kihagyott** · 26 próba-fájl · `test:e2e + proof:core-ux` 528 s · `proof:demo-walk` 478 s · kilépés 0. *(A söprés 900 s-os türelme ALATTA van a kapu mért ~17 perces futásának, ezért a söprésben „NEM IGAZOLT kihagyás"-ként szerepel, a verdiktjét pedig EZ az önálló futás adja — `KUKA-200`.)* |
+| **`verify:v3ref`** (a mag mutációs battériája, a söprésben, a ZÁRÓ forráson) | **253 mutáció · 253 elkapva · 0 túlélte · 0 rossz próba · 0 mérőhiba · 0 elavult horgony** — verdikt `complete`, `source.clean: true` (2026-10-09T22:40:59.029Z) |
+| **`verify:kuka`** | **1177/1177 PASS** (469 bejegyzés · a `vs`-padló 92 **változatlan** · 5 bejegyzés kimondva jel nélkül) |
+| **`verify:app-findings-r154`** (a kör saját lelet-battériája) | **406/406 PASS** — a záró négy mércével: `as90`…`as93` |
+| rövid `verify:*` láncok, egyenként a ZÁRÓ fejen | `i18n` **49/49 PASS · ellenpróba 6/6** · `tutor` **94/94 PASS · ellenpróba 14/14** · `assistant` **55/55 PASS · ellenpróba 6/6** · `app-selfcheck` **57/57 PASS** · `decision-numbers` **4/4 PASS** · `fogyasztas-meres` **18/18 ellenpróba ZÖLD** |
+| **`verify:lefedes`** | **17 ZÖLD / 1 PIROS** — pótolható **0** · osztályozatlan **0**; az `LT` **szándékosan** piros (a nevesített `personal.ownMatters` rés) |
+| **`verify:external-checks`** (a külső ellenőrző lánc) | **NEM FUTOTT VÉGIG A ZÁRÓ MAGON — NEM IGAZOLT**: se nem zöld, se nem kihagyás. 14/19 program végzett, **mind zöld**, **136 zöld eset**, a bizonyítékuk a záró maghoz kötve; az összegző verdiktet a futtató csak a VÉGÉN írja, a futást pedig a zárási kérésre **én** állítottam le. Ami nem futott: `r53` · `r55` · `r57` · `r57a` · `r59` (4. szakasz) |
+
+**ÉS A ZÁRÓ SÖPRÉS, SZÓ SZERINT:**
+
+```
+SÖPRÉS (39 verifier + 2 NEM IGAZOLT kihagyás, 616s): 38 zöld · 0 env-kihagyás · 1 piros
+NEM FUTOTT — NEM IGAZOLT — verify:external-checks: zöld bizonyíték tiszta forráson: a bizonyíték NEM tiszta forráson készült (1e4faa791de8967976b08717a99c6e13cce56ef5+uncommitted). Az összverdikt ettől NEM zöld; a lánc futtatása: npm run verify:external-checks
+NEM FUTOTT — NEM IGAZOLT — verify:browser-gate: nevezett lánc: csak nevezett lánc hagyható ki (verify:external-checks · verify:v3ref). Az összverdikt ettől NEM zöld; a lánc futtatása: npm run verify:browser-gate
+ÖSSZVERDIKT: NEM ZÖLD — 2 lánc nem futott és nem igazolt (verify:external-checks, verify:browser-gate)
+PIROS: verify:lefedes
+```
+
+**AMIT A SÖPRÉS KIHAGYOTT, AZT KÜLÖN FUTTATTAM VAGY NEVEZETTEN HIÁNYZIK** (`KUKA-200` · `KUKA-206`):
+a **kötelező kapu** verdiktje a tábla ELSŐ sora (önálló futás, saját napló, **ZÖLD**), a **külső lánc**
+pedig a záró magon **nem futott végig** — a söprés is pontosan ezt írja. **Az összverdikt ezért NEM
+zöld**, és nem is nevezem annak; a mag mutációs battériája viszont a **záró forráson** futott le.
 
 ### ÉS AMIT A KÖTELEZŐ KAPU TALÁLT — HÁROM SAJÁT HIBA A §2 FÖLÖTT
 
@@ -588,12 +611,12 @@ lelet** a javítások megméréséből (köztük **három olyan, ahol a SAJÁT M
 | **`personal.ownMatters`** lefedési rés | **NYITOTT, nevesített fejlesztési rés** — a `verify:lefedes` `LT` sora szándékosan piros; pótolható **0**, osztályozatlan **0** |
 | **a `tour.grant`/`tour.scopeLifecycle` buborék-mondata** | **MÉRT MEGFIGYELÉS, nem javítva.** A lépés deklarált feltárója a tag-TÁBLA, a célt viszont a SOR hozzáférés-gombja tárja fel; a bemutató „nyisd meg a kiemelt gombbal" mondata emiatt pontatlan. A történet **végigvihető** (mérve), a regiszter pedig szándékosan nem nevez per-fiók azonosítót (`KUKA-225`). Más terület: **külön backlog** (R186 §5) |
 | **az út-tisztító symlink-korlátja** (`KUKA-474`) | **NEVEZETT, NYITOTT TÉTEL.** A könyvtár-határ ma **lexikális** kanonizáláson dől el (`resolve`), tehát egy repón **belüli**, kifelé mutató **jelképes lánc** ezzel NEM derül ki. A `realpath` fájlrendszer-hozzáférést és nem létező útra kivétel-kezelést kíván — külön tétel, nem ebben a csomagban |
-| **`R176-K3` MÉRT INGADOZÁSA** (a váltás határán újratöltés) | **NYITOTT, MECHANIZMUS NÉLKÜL — és NEM minősítem „ingadozó próbának” sem.** A próba a személy-váltás UTÁN azonnal újratölti a lapot, és azt méri, hogy a bemutató haladása megmarad. MÉRVE: a teljes próba-sorozat **négy futásából háromban ZÖLD** (31,0 · 31,3 · 31,3 s), egyben PIROS — és a `tour` ott 15 s után is REJTETT volt, a próba 22,8 s-nál állt le, tehát a bemutató **nem későn jelent meg, hanem egyáltalán nem**. Önállóan futtatva **kétszer ZÖLD**. A futtató **egy** munkással megy (`workers: 1`), tehát párhuzamos terhelés nem magyarázza, és a piros futás a többinél **rövidebb** volt (455 s vs 504–542 s). **A gyökér-ok nincs megmérve**, ezért feltételezett javítást **nem** építettem (az R186 §3 szabálya: a mechanizmus mérése nélkül nincs javítás). A hiba-osztály ismert (`KUKA-426` · `KUKA-438`: a névtelen résben az újratöltés elvihette az átadást), ezért a következő kör egyik tétele egy **célzott, ismételt mérés** erre az egy lépésre |
+| **`R176-K3` MÉRT INGADOZÁSA** (a váltás határán újratöltés) | **NYITOTT, MECHANIZMUS NÉLKÜL — és NEM minősítem „ingadozó próbának” sem.** A próba a személy-váltás UTÁN azonnal újratölti a lapot, és azt méri, hogy a bemutató haladása megmarad. MÉRVE: a teljes próba-sorozat **öt futásából négyben ZÖLD** (31,0 · 31,3 · 31,3 s, és a ZÁRÓ, zöld kapu-futásban is), egyben PIROS — és a `tour` ott 15 s után is REJTETT volt, a próba 22,8 s-nál állt le, tehát a bemutató **nem későn jelent meg, hanem egyáltalán nem**. Önállóan futtatva **kétszer ZÖLD**, és a **záró, kötelező kapu teljes sorozatában is ZÖLD** (154/154). A futtató **egy** munkással megy (`workers: 1`), tehát párhuzamos terhelés nem magyarázza, és a piros futás a többinél **rövidebb** volt (455 s vs 504–542 s). **A gyökér-ok nincs megmérve**, ezért feltételezett javítást **nem** építettem (az R186 §3 szabálya: a mechanizmus mérése nélkül nincs javítás). A hiba-osztály ismert (`KUKA-426` · `KUKA-438`: a névtelen résben az újratöltés elvihette az átadást), ezért a következő kör egyik tétele egy **célzott, ismételt mérés** erre az egy lépésre |
 | **a bemutató csonkjának SÉMA-PARITÁSA** (`KUKA-477`) | **NEVEZETT, NYITOTT TÉTEL.** A csonk ma azt adja, amit a lap megkérdez — a kiszolgáló válaszának TELJES sémájához nincs gépi paritás-őr, és az `as90`/`as91` a csonk FORRÁSÁT méri (a modul a böngésző `fetch`-ét cseréli, innen nem hívható meg). A VISELKEDÉSI tanú a kötelező kapu `proof:demo-walk` lánca, ami CSAK a két bemutató-történet útját kattintja végig: egy harmadik úton ugyanez a hiba ma is átmenne |
 | **élő AI · PG18 · felhős mentés** | **KÜLÖN NYITOTT TÉTELEK** — ez a csomag nem állít róluk semmit |
 | **a külső review HUSZONKÉT P2-je** (KILENC fejen) | **MIND KEZELVE** — kettő már a felmerülés előtt javítva volt (`KUKA-453` · `e614a39`), **húsz ebben a körben épült meg** (`KUKA-454`…`456` · `458`…`464` · `467`…`476`), mindegyikhez ÉLŐ mérés és ELLENPÁR. **A szálak github-oldali lezárását nem végeztem el**, és a válaszolt szál nem elfogadás. **A lelet-szám csökkenése nem bizonyítja a hibák hiányát** |
 | **a saját méréseimből jött leletek** (`KUKA-465` · `KUKA-466` · `KUKA-477` · `KUKA-478` · a csonk-sorrend a `468` mérésekor) | **MIND JAVÍTVA ÉS MÉRVE** (`D-VS-3247` · `D-VS-3248` · `D-VS-3250`). A `KUKA-466` a `verify:app-findings-r154` **ingadozásából** jött (hatból egy bukás): hamis „megtelt" 503 egy ÜRES táron, MÉRVE 40-ből 3; javítás után 80-ból 0. **A jele determinisztikus**, mert a két első alakja hamis zöld lett volna (6. szakasz) |
-| **a mai fej független elfogadása** | `REVIEW_ALLAPOT` |
+| **a mai fej független elfogadása** | **RÉSZBEN FEDETT, ÚJ LELET NÉLKÜL** — a `011aa32` fejen a kód- és a biztonsági review is lezárult, és új leletet egyik sem adott; a korábbi fejeken adott huszonkét P2 MIND kezelve, mindegyikhez élő mérés és ellenpár. **A mai fej (`5cf442b`) független elfogadása NINCS MEG**, mert a kapu két leletének javítása a review UTÁN készült. **A szálak github-oldali lezárását nem végeztem el**, és a válaszolt szál nem elfogadás |
 
 **A nyitott review-szálakat nem zártam le**, és nem is zárom: az R186 §5 kimondja, hogy a nyitott
 leleteket nem zárjuk le pusztán megválaszolás vagy új blokk miatt. **A válaszolt szál nem elfogadás.**
@@ -650,11 +673,30 @@ EZT nem mutatja meg. Amit meg tud nyitni: ennek a lapnak az olvasható (HTML) al
 
 ## 9. FOGYASZTÁS
 
-Ablak: `2026-10-09T13:00:00Z → a jelentés írásáig` · **286 hívás** · fő-szál kontextusmedián
-**429 094,5** · max **695 585** · **ügynök-bemenet 0** (0 ügynök) · lefedettség **teljes**.
+**A TELJES CSOMAG, MÉRVE** (`tools/v3_fogyasztas_meres.mjs`, tartalom nélküli leltár:
+`docs/70_PLANNING/V3_R186_FOGYASZTAS_LELTAR.json`):
 
-**A CHATVÁLTÁSI JELZŐ ELÉRVE** (429 094,5 ≥ 400 000, `D-VS-3083`): a futó munkablokk célzott
-ellenőrzéssel lezárható, a **következő önálló nagy blokk friss beszélgetésben induljon**.
+| | |
+|---|---|
+| ablak | `2026-10-09T13:00:00Z` → `2026-10-09T23:05:12Z` (az R186 SPEC-től a záró jelentésig) |
+| hívás | **1302** · lefedettség **teljes** (1 átirat, minden modell-válasz usage-dzsal) |
+| fő-szál kontextus | medián **409 684,5** · max **783 971** · 400 ezer fölött **670** hívás |
+| ügynök-bemenet | **0** (0 ügynök) — ebben a csomagban egyetlen al-ügynököt sem indítottam |
+| sáv (`D-VS-3083`) | **VÁLTÁS** (409 684,5 ≥ 400 000) |
+
+**A SÁVOT A MÉRŐ MONDJA KI, ÉS ÉN KÖVETEM:** a futó munkablokk **célzott ellenőrzéssel lezárható**, a
+**következő önálló nagy blokk friss beszélgetésben induljon**. A lezárás címén nem nyitottam új
+feltárást és nem építettem új funkciót — a `KUKA-477`/`478` javítása **nem** új funkció, hanem a
+**kötelező kapu** pirosának megszüntetése, ami a csomag befejezési rendjéhez tartozik. **És kimondom:
+ez a beszélgetés tömörítéssel folytatódott (háromszor), ami az `R114` szerint NEM friss beszélgetés.**
+
+**ÉS AMIT A BONTÁS MEGMUTAT — EZ A CSOMAG TANULSÁGA A FOGYASZTÁSRÓL IS:** a fő szál **ébresztései**
+szerint a hívások nagy része **nem** operátori kérésre indult: `user` 2× → 340 hívás · `compaction`
+3× → 374 hívás · `hook` 8× → 27 hívás · `notification` 31× → **561 hívás**. A `notification` a
+**háttérben futó mérések** (böngészős kapu, söprés, külső lánc) befejezését jelző ébresztés: a hosszú
+láncok tehát nemcsak faliórát, hanem **hívást is** fogyasztanak, mert minden befejezés visszahozza a
+teljes kontextust. **Amit ez NEM állít:** nem szolgáltatói limit, nem kimért optimum, és
+megtakarítási ígéret sem — egyenlőtlen feltételek mellett megtakarítást nem állítunk.
 
 ---
 
@@ -666,11 +708,20 @@ ellenőrzéssel lezárható, a **következő önálló nagy blokk friss beszélg
   zöld helyettessel — a lánc saját `complete_evidence` jelzője `false`, és az `r59`-nél
   **esetenkénti bizonyíték sincs**.
 - **Nem** állítja, hogy a keret-emelés javított bármit: a mért maximum 21,1 perc, a 120 perc tartalék.
+- **Nem** állítja, hogy a külső lánc a MAI fejen bármit igazol: a záró magon **14/19 program**
+  végzett (mind zöld, 136 zöld eset), az összegző verdikt **nem létezik**, és a futást a zárási
+  kérésre **én** állítottam le. A „nem futott" nem „részben" (`KUKA-206`), és az `r57`/`r59`
+  ENV-kihagyása a záró magon **nem áll**, mert az `r57a` helyettes ma nincs megmérve.
+- **Nem** állítja, hogy a kötelező kapu zöldje a termék egészét igazolja: a kapu a **26 próba-fájl**
+  154 helyzetét és a **két** bemutató-történet végigvihetőségét méri — egy harmadik úton ugyanaz a
+  hiba-osztály ma is átmenne (ezért a `KUKA-477` séma-paritása **nyitott** tétel).
+- **Nem** állítja, hogy az `R176-K3` ingadozása meg van értve: **öt futásból négyben zöld, egyben
+  piros**, a gyökér-ok **nincs megmérve**, és feltételezett javítást **nem** építettem (7. szakasz).
 - **Nem** állítja, hogy az `R112-I3` le van zárva: a mechanizmus **nincs megmérve**, a tétel nyitott.
 - **Nem** állítja, hogy a bejáró mai zöldje minden felkínált útmutató teljes bejárását bizonyítja —
   csak azt, amit a `walkOutcome` mér, és amit az `R166-U6`/`U7` pár ellenpróbával igazol.
 - **Nem** állítja, hogy a mai fejet független fél elfogadta (7. szakasz). És **nem** állítja, hogy
-  a tizenkét P2 javításával a hibák elfogytak: **a lelet-szám csökkenése nem bizonyítja a hibák
+  a huszonkét P2 javításával a hibák elfogytak: **a lelet-szám csökkenése nem bizonyítja a hibák
   hiányát** (R186 §5) — három egymás utáni review-kör pontosan ezt mutatta meg, hiszen minden
   kör az előző javítását buktatta meg. A későbbi fejeken a Codex néhány futása **saját oldali
   hibával** (⚠️ Failed) állt le — az NEM lelet és NEM is elfogadás; a záró fejre a review-t

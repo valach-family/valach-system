@@ -1,23 +1,20 @@
 {
  "tool": "FGY-01/3",
- "tool_commit": "38e0f1ce0ad15339bb70d99f2420540b75a2650d",
+ "tool_commit": "3bb87e27b2bfa442aa9f5c864dc042bc14b44b4b",
  "tool_file": "./tools/v3_fogyasztas_meres.mjs",
  "tool_file_sha256": "b3d09180a58477060c45983733472a5050fb8dd22bf1ef8ad2da6a7a3996a2fc",
  "tool_dirty": false,
- "generated_at": "2026-10-09T08:16:22.060Z",
- "session": "6a5edcfc-c08a-50a9-a983-e177baa37c0b",
- "snapshot_closed_at": "2026-10-09T08:16:22.060Z",
+ "generated_at": "2026-10-09T23:05:13.556Z",
+ "session": "8a866103-a67d-5b51-bf4c-5a10dfb2dd4d",
+ "snapshot_closed_at": "2026-10-09T23:05:13.556Z",
  "runtime_versions": [
-  "2.1.292",
-  "2.1.293",
-  "2.1.294",
   "2.1.295"
  ],
  "window": {
-  "label": "R176 vege → R186 atadas",
-  "from": "2026-10-08T00:00:00Z",
-  "to": "2026-10-09T08:20:00Z",
-  "to_effective": "2026-10-09T08:20:00Z"
+  "label": "R186 csomag (R186 SPEC -> R188 REPORT)",
+  "from": "2026-10-09T13:00:00Z",
+  "to": "2026-10-09T23:05:12Z",
+  "to_effective": "2026-10-09T23:05:12Z"
  },
  "coverage": {
   "files": 1,
@@ -27,68 +24,68 @@
   "invalid_timestamp_calls": 0,
   "cross_file_duplicate_ids": 0,
   "incomplete_usage_calls": 0,
-  "synthetic_records": 1,
-  "calls_total": 2083,
-  "calls_in_window": 1082,
+  "synthetic_records": 0,
+  "calls_total": 1303,
+  "calls_in_window": 1302,
   "complete": true,
   "note": "teljes: minden megtalált átirat beolvasva, minden modell-válasz usage-dzsal, azonos azonosító csak egy fájlban"
  },
  "whole_session": {
-  "calls": 2083,
-  "synthetic_records": 1,
+  "calls": 1303,
+  "synthetic_records": 0,
   "incomplete_usage_calls": 0,
   "totals_kind": "teljes",
-  "first_call": "2026-10-07T13:44:32.540Z",
-  "last_call": "2026-10-09T08:16:20.856Z",
+  "first_call": "2026-10-09T13:35:43.291Z",
+  "last_call": "2026-10-09T23:05:12.274Z",
   "totals": {
-   "input": 4166,
-   "cache_write": 5757891,
-   "cache_read": 873638645,
-   "output": 1960864
+   "input": 2606,
+   "cache_write": 2516100,
+   "cache_read": 548197915,
+   "output": 1316361
   },
   "by_kind": {
    "main": {
-    "calls": 2083,
-    "input": 4166,
-    "cache_write": 5757891,
-    "cache_read": 873638645,
-    "output": 1960864
+    "calls": 1303,
+    "input": 2606,
+    "cache_write": 2516100,
+    "cache_read": 548197915,
+    "output": 1316361
    }
   },
   "by_model": {
    "claude-opus-5": {
-    "calls": 2083,
-    "input": 4166,
-    "cache_write": 5757891,
-    "cache_read": 873638645,
-    "output": 1960864
+    "calls": 1303,
+    "input": 2606,
+    "cache_write": 2516100,
+    "cache_read": 548197915,
+    "output": 1316361
    }
   },
   "main_context": {
-   "median": 400281,
-   "max": 784112,
-   "calls_over_400k": 1042
+   "median": 409623,
+   "max": 783971,
+   "calls_over_400k": 670
   },
   "main_wakeups": {
    "user": {
-    "wakeups": 5,
-    "calls": 496,
-    "input_with_cache": 242106520
-   },
-   "notification": {
-    "wakeups": 38,
-    "calls": 1032,
-    "input_with_cache": 496611665
+    "wakeups": 2,
+    "calls": 340,
+    "input_with_cache": 159862070
    },
    "compaction": {
-    "wakeups": 5,
-    "calls": 486,
-    "input_with_cache": 108130328
+    "wakeups": 3,
+    "calls": 375,
+    "input_with_cache": 77772319
    },
    "hook": {
-    "wakeups": 7,
-    "calls": 69,
-    "input_with_cache": 32552189
+    "wakeups": 8,
+    "calls": 27,
+    "input_with_cache": 12796835
+   },
+   "notification": {
+    "wakeups": 31,
+    "calls": 561,
+    "input_with_cache": 300285397
    }
   },
   "agent_input_total": 0,
@@ -97,7 +94,7 @@
    "main_context_median": {
     "warn_limit": 300000,
     "switch_limit": 400000,
-    "value": 400281,
+    "value": 409623,
     "band": "valtas",
     "exceeded": true
    },
@@ -109,56 +106,61 @@
   }
  },
  "window_summary": {
-  "calls": 1082,
+  "calls": 1302,
   "synthetic_records": 0,
   "incomplete_usage_calls": 0,
   "totals_kind": "teljes",
-  "first_call": "2026-10-08T00:08:50.311Z",
-  "last_call": "2026-10-09T08:16:20.856Z",
+  "first_call": "2026-10-09T13:35:43.291Z",
+  "last_call": "2026-10-09T23:05:02.913Z",
   "totals": {
-   "input": 2164,
-   "cache_write": 3281970,
-   "cache_read": 477532134,
-   "output": 1100316
+   "input": 2604,
+   "cache_write": 2514063,
+   "cache_read": 547822740,
+   "output": 1315987
   },
   "by_kind": {
    "main": {
-    "calls": 1082,
-    "input": 2164,
-    "cache_write": 3281970,
-    "cache_read": 477532134,
-    "output": 1100316
+    "calls": 1302,
+    "input": 2604,
+    "cache_write": 2514063,
+    "cache_read": 547822740,
+    "output": 1315987
    }
   },
   "by_model": {
    "claude-opus-5": {
-    "calls": 1082,
-    "input": 2164,
-    "cache_write": 3281970,
-    "cache_read": 477532134,
-    "output": 1100316
+    "calls": 1302,
+    "input": 2604,
+    "cache_write": 2514063,
+    "cache_read": 547822740,
+    "output": 1315987
    }
   },
   "main_context": {
-   "median": 441452.5,
-   "max": 782838,
-   "calls_over_400k": 606
+   "median": 409684.5,
+   "max": 783971,
+   "calls_over_400k": 670
   },
   "main_wakeups": {
-   "notification": {
-    "wakeups": 22,
-    "calls": 703,
-    "input_with_cache": 319020321
-   },
    "user": {
-    "wakeups": 3,
-    "calls": 157,
-    "input_with_cache": 105321902
+    "wakeups": 2,
+    "calls": 340,
+    "input_with_cache": 159862070
    },
    "compaction": {
     "wakeups": 3,
-    "calls": 222,
-    "input_with_cache": 56474045
+    "calls": 374,
+    "input_with_cache": 77395105
+   },
+   "hook": {
+    "wakeups": 8,
+    "calls": 27,
+    "input_with_cache": 12796835
+   },
+   "notification": {
+    "wakeups": 31,
+    "calls": 561,
+    "input_with_cache": 300285397
    }
   },
   "agent_input_total": 0,
@@ -167,7 +169,7 @@
    "main_context_median": {
     "warn_limit": 300000,
     "switch_limit": 400000,
-    "value": 441452.5,
+    "value": 409684.5,
     "band": "valtas",
     "exceeded": true
    },
@@ -181,11 +183,11 @@
  "thresholds_decidable": true,
  "input_manifest": [
   {
-   "path": "~/.claude/projects/-home-user-valach-system/6a5edcfc-c08a-50a9-a983-e177baa37c0b.jsonl",
-   "bytes": 35869372,
-   "sha256": "c80839b8cb309a8dd014793de445474925e6407059498f8197127f568fe133f0",
+   "path": "~/.claude/projects/-home-user-valach-system/8a866103-a67d-5b51-bf4c-5a10dfb2dd4d.jsonl",
+   "bytes": 21232877,
+   "sha256": "06c1c8afc3517c5967f45e6ea5dd4f3094122cc525a58bdd462ee12d5185d3a7",
    "kind": "main"
   }
  ],
- "reproduce": "node tools/v3_fogyasztas_meres.mjs --session 6a5edcfc-c08a-50a9-a983-e177baa37c0b --from 2026-10-08T00:00:00Z --to 2026-10-09T08:20:00Z --label \"R176 vege → R186 atadas\" --projects ~/.claude/projects"
+ "reproduce": "node tools/v3_fogyasztas_meres.mjs --session 8a866103-a67d-5b51-bf4c-5a10dfb2dd4d --from 2026-10-09T13:00:00Z --to 2026-10-09T23:05:12Z --label \"R186 csomag (R186 SPEC -> R188 REPORT)\" --projects ~/.claude/projects"
 }
