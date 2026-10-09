@@ -25,6 +25,13 @@ bemutató cél-kötését (egy **eldobható** mérő-világ azonosítóit szolg�
 „megmondja, elavult-e" ígéretét (minden futásnál pirosat adott), és **két saját mércémet**,
 amelyek a §2 ELŐTTI szabályt mondták. A kötelező kapu tehát pontosan azt tette, amiért kötelező.
 
+És a külső ellenőrző fél három fejen **tizenkét P2-t** adott; **tíz ebben a körben épült meg**, és
+**kétszer a saját, egy körrel korábbi javításom volt a hibás**. A gyökér-ok egy: **a felkínálás
+feltétele a LEGSZŰKEBB KÉSŐBBI kapu, nem a legközelebbi** — amit a felület ajánl, azt az írás-útnak
+el is kell fogadnia, és ugyanabból a feloldóból. Négy leletnél a megszakadás a
+**visszafordíthatatlan** lépés UTÁN jött volna: azok nem „nem megy végig" fajta hibák, hanem
+**kárt hagynak maga után**.
+
 ---
 
 ## 1. A PONTOS FEJ
@@ -296,7 +303,7 @@ zöld, amit a `KUKA-227` tilt. Ezért a bemutató a kötést a **saját** állap
 szabállyal, amit a szerver mér (`storyBindingOf` ⇄ `storyKotes`), és **mindkét** listára
 (`tours` · `resumable_tours`) — mert a lap a definíciót a másodikból is feloldhatja (`tourDefOf`).
 
-### ÉS A KÜLSŐ REVIEW ÖT ÚJ P2-T ADOTT A §2 FELÖTT — HÁROM ÉLŐ JAVÍTÁS (`D-VS-3243`)
+### A KÜLSŐ REVIEW ELSŐ HÁRMASA A §2 FELÖTT (`D-VS-3243`)
 
 A Codex a `8fc1f40` fejen öt P2-t adott. **Kettő már javítva volt** (a bemutató-csomag cél-kötése —
 ugyanaz, amit a kapu is megfogott, `KUKA-453`; és a tutor-verifier második argumentuma — `e614a39`);
@@ -321,6 +328,55 @@ cím → nincs felkínálás; igazolás után → van) · `as46`/`as47` (két é
 lezárása után → van) · `as48`/`as49` (a legitim átkötés teljesít; a más emberre szóló NEM, és a
 lépés `pending` marad; kiszolgálói kötés nélkül ZÁR).
 
+### ÉS A KÜLSŐ REVIEW ÖSSZESEN TIZENKÉT P2-T ADOTT — MINDEGYIK KEZELVE
+
+A Codex **három fejen** mért (`8fc1f40` → `e95e066` → `5faeb5a`/`defddc1`), és összesen **tizenkét
+P2-t** adott. Kettő már javítva volt a felmerülés előtt, **tíz pedig ebben a körben épült meg** — mind
+a tízet átolvastam a kódban, és **mind valódi**. A sorrend nem véletlen: minden kör a MEGELŐZŐ kör
+javítását mérte meg, és **kétszer a saját javításom volt a hibás**.
+
+| # | fej | a lelet | mi váltja |
+|---|---|---|---|
+| 1 | `8fc1f40` | a bemutató-csomag cél-kötése (`KUKA-453`) | **már javítva** volt — a kötelező kapu is megfogta |
+| 2 | `8fc1f40` | a tutor-verifier második argumentuma | **már javítva** (`e614a39`) |
+| 3 | `8fc1f40` | a meghívó-jelölt „azonosítható", nem **bizonyított** csatornájú | `KUKA-454` |
+| 4 | `8fc1f40` | a visszatérés-jelöltnek nincs **pontosan egy** tárolt címe | `KUKA-455` |
+| 5 | `8fc1f40` | az átkötés a cél **egyik** felét mozdítja | `KUKA-456` |
+| 6 | `e95e066` | a lista **engedélyezett** gombot rajzol, amit az írás-út elutasít | `KUKA-458` |
+| 7 | `e95e066` | a visszatérés-történet a **plafont** nem kérdezi | `KUKA-459` |
+| 8 | `e95e066` | az elfogadás **bármely** meghívót elfogad | `KUKA-460` |
+| 9 | `5faeb5a` | **a saját 5. javításom** elzárja a legitim utat két függő meghívó mellett | `KUKA-461` |
+| 10 | `defddc1` | a visszatérés-jelölt címe **nem bizonyított** | `KUKA-462` |
+| 11 | `defddc1` | a meghívó-képernyő **zsákutca**, ha munkamenet sosem volt | `KUKA-463` |
+| 12 | `defddc1` | **BIZTONSÁGI:** a visszafelé lépő óra **megújít** egy lejárt munkamenetet | `KUKA-464` |
+
+**A GYÖKÉR-OK EGY, ÉS EZÉRT A DÖNTÉS A SZABÁLYT TERJESZTI KI, NEM ESETEKET JAVÍT** (`D-VS-3245` ·
+`D-VS-3246`):
+
+1. **A FELKÍNÁLÁS FELTÉTELE A LEGSZŰKEBB KÉSŐBBI KAPU, NEM A LEGKÖZELEBBI.** Amit a felület ajánl —
+   gombbal vagy bemutatóval —, annak MINDEN későbbi előfeltétele a felkínálás feltétele, és
+   UGYANABBÓL a feloldóból: `reinviteFeasibility` a magban, a nemleges válasz NEVE is az írás-útról.
+2. **AMI A TÖRTÉNET TARTALMÁN ÁLL, AZT A TÖRTÉNET DEKLARÁLJA** (`story_scope`) — nyilatkozat nélkül ZÁR.
+3. **EGY TÖRTÉNETNEK TÖBB CÉLJA IS LEHET:** a szereplő és az általa kiállított jegy két fogalom,
+   tehát két rekesz (`STORY_SLOTS`), zárt készletből.
+4. **EGY ÚJ KAPU A LEGITIM UTAT IS MEGMÉRI.** Amint a kapu AZONOSSÁGOT kér, a rendezés DÖNTÉSSÉ vált —
+   és a régi, ártalmatlan sorrend némán elzárta a helyes műveletet.
+5. **AZ ÉRTELMEZHETETLEN A BIZTONSÁGOSABB IRÁNYBA DŐL** — a negatív kor nem „nagyon friss".
+
+**A SORREND-KÁR, AMIT KÜLÖN IS KIMONDOK:** a 4., 7., 9. és 10. leletnél a megszakadás a
+**visszafordíthatatlan** lépés UTÁN jött volna (a tagság már megszűnt, illetve nem kívánt tagság
+keletkezhetett). Ezek nem „a bemutató nem megy végig" fajta hibák, hanem **kárt hagynak maga után**.
+
+**ÉS AMIT A JAVÍTÁSOK A SAJÁT MÉRCÉIMBŐL HOZTAK KI** — öt mércém avult el a szigorításoktól, és
+mindegyiket a mai szabályhoz igazítottam, hatókör-szűkítés nélkül: `(af2)` (az új elutasítási oknak
+MINDEN bekapcsolt nyelven valódi mondat kell — `KUKA-238`), `(as39)` és a `KUKA-447` pozitív mintája
+(a kötés-nyilatkozat alakja), `(as28)` (a plafon HARMADIK fogyasztója), és a `KUKA-331` pozitív
+mintája (az átmeneti munkamenet új alakja).
+
+**TIZENNÉGY ÚJ ÉLŐ MÉRCE, HÉT ELLENPÁRRAL** (`as50`–`as63`), és **mind a hét új tiltó-minta
+bizonyítottan tüzel**: a kivezetett alakokkal a `verify:kuka` **10 FAIL**-t ad, visszaállítás után
+**1116/1116**.
+
 **ÉS EGY MONDAT, AMI NÉLKÜL EZ A SZAKASZ HAMIS LENNE:** a lelet-szám **csökkenése nem bizonyítja a
 hibák hiányát** (R186 §5). Öt P2 jött a `8fc1f40`-re, és a mai fej **nem fedett** — a review-t a
 záró fejre külön kértem.
@@ -336,7 +392,7 @@ záró fejre külön kértem.
 | **`personal.ownMatters`** lefedési rés | **NYITOTT, nevesített fejlesztési rés** — a `verify:lefedes` `LT` sora szándékosan piros; pótolható **0**, osztályozatlan **0** |
 | **a `tour.grant`/`tour.scopeLifecycle` buborék-mondata** | **MÉRT MEGFIGYELÉS, nem javítva.** A lépés deklarált feltárója a tag-TÁBLA, a célt viszont a SOR hozzáférés-gombja tárja fel; a bemutató „nyisd meg a kiemelt gombbal" mondata emiatt pontatlan. A történet **végigvihető** (mérve), a regiszter pedig szándékosan nem nevez per-fiók azonosítót (`KUKA-225`). Más terület: **külön backlog** (R186 §5) |
 | **élő AI · PG18 · felhős mentés** | **KÜLÖN NYITOTT TÉTELEK** — ez a csomag nem állít róluk semmit |
-| **a `8fc1f40` fej öt külső P2-je** | **MIND JAVÍTVA** — kettő már a felmerülés előtt (`KUKA-453` · `e614a39`), három ebben a körben (`KUKA-454` · `455` · `456` · `D-VS-3243`), mindháromhoz élő mérés és ellenpár. **A szálak github-oldali lezárását nem végeztem el**, és a válaszolt szál nem elfogadás |
+| **a külső review TIZENKÉT P2-je** (három fejen) | **MIND KEZELVE** — kettő már a felmerülés előtt javítva volt (`KUKA-453` · `e614a39`), **tíz ebben a körben épült meg** (`KUKA-454`…`456` · `458`…`464` · `D-VS-3243` · `3245` · `3246`), mindegyikhez ÉLŐ mérés és ELLENPÁR. **A szálak github-oldali lezárását nem végeztem el**, és a válaszolt szál nem elfogadás. **A lelet-szám csökkenése nem bizonyítja a hibák hiányát** |
 | **a mai fej független elfogadása** | `REVIEW_ALLAPOT` |
 
 **A nyitott review-szálakat nem zártam le**, és nem is zárom: az R186 §5 kimondja, hogy a nyitott
