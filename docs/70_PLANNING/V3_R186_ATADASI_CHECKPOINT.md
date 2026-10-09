@@ -22,7 +22,7 @@ rendeli. Ami ebből **már kész**, azt a 3. szakasz nevezetten elkülöníti at
 | | |
 |---|---|
 | **a kód feje (amit mértem)** | **`61881f2`** — a kötelező böngészős kapu EZEN a fejen zöld |
-| **az ág feje (a jelentés-commit)** | **`38e0f1c`** — csak `docs/` lapot visz, kódot NEM érint |
+| **az ág feje** | ennek a lapnak a commitja — **csak `docs/`-ot visz, kódot NEM érint**. Egy lap nem tudja a SAJÁT commit-azonosítóját kiírni, ezért a pontos ág-fejet a hozzá tartozó kör-üzenet nevezi meg; a `git log --name-only 61881f2..HEAD` megmutatja, hogy a kód feje óta **csak** `docs/`, `v3ref/source-documents/` változott |
 | **ágak, amikre fel van tolva** | `claude/cmd-vs-300-002-002-r166-x7rrk4` (a kijelölt ügynök-ág) **és** `claude/r154-audit-fix` (a PR feje) — mind a kettő `38e0f1c`-n áll |
 | **PR** | `valach-family/valach-system#1` · nyitott, **nem** mergelt · célág `claude/ecstatic-fermi-8c23co` · összeolvasztható (nincs ütközés) |
 | **nem commitolt változás** | **ennek a lapnak a feltöltése előtt kettő**, mindkettő ehhez az átadáshoz tartozik: `v3ref/source-documents/R186_board_v1.md` (a SPEC szó szerint) és `docs/70_PLANNING/V3_R186_FOGYASZTAS_LELTAR.json` (tartalom nélküli leltár). **Ez a commit beviszi mindkettőt** — utána a munkafa TISZTA, és nincs át nem adott helyi munka |
@@ -99,7 +99,7 @@ engedélyezett. Ez **az új író első nagy feladata**. Amit átadok hozzá:
 > ezt nevezetten NEM fogadja el végleges megoldásként**, mert „egy nem érintett, alkalmatlan tag ne
 > tegye elérhetetlenné a legitim bemutatót". A javítás tehát **ELŐKÉSZÍTETT, BE NEM VITT, és
 > FELÜLÍRT**: a parancs szerinti megoldás a **konkrét cél kötése**, nem a felkínálás szűkítése.
-> Kódban ez a javítás **nincs** benne — sem a `61881f2`-ben, sem a `38e0f1c`-ben.
+> Kódban ez a javítás **nincs** benne — sem a `61881f2`-ben, sem az azt követő, csak `docs/`-ot vivő commitokban.
 
 **A mért alapok, amikre az új író épít** (forrásból mérve, nem emlékezetből):
 - `storyDataFacts` → `pending_invite`: `rows.some(...)` igazolja, hogy VAN jogosult meghívó (függő ·
@@ -172,7 +172,7 @@ EZT nem mutatja meg (`R67 F67-04`). Amit meg tud nyitni: a board-lapok olvashat�
 - **A `2efaad3` fejen lefutott kör KÉT P2-je megválaszolva** (mért ténnyel, visszacsúszás-próbával,
   illetve a végigkövetett úttal és a költséggel): `#discussion_r4228051875` (bejáró-verdikt — **javítva**)
   és `#discussion_r4228057225` (meghívó-azonosság — **nem épült meg**, az R186 §2 most dönt róla).
-- **A mai fejre (`61881f2`/`38e0f1c`) kód- és biztonsági review ESEDÉKES** — a parancs §5 ezt a
+- **A mai fejre (kód: `61881f2`) kód- és biztonsági review ESEDÉKES** — a parancs §5 ezt a
   **végső** megvalósítás fejére kéri; a mai fej nem a végső.
 - **A szálak github-oldali lezárását nem végeztem el**, és nem is végzem: a parancs §5 kimondja, hogy
   a nyitott leleteket **nem** zárjuk le pusztán megválaszolás vagy új blokk miatt. A **válaszolt szál
