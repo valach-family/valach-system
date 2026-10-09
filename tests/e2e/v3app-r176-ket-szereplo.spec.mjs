@@ -713,7 +713,19 @@ test('R176-K7 — AZ ÁTADÁS HÁROM ŐRE: csak DEKLARÁLT határon születik, V
   await p.reload();
   await expect(p.getByTestId('app')).toBeVisible();
   await expect(p.getByTestId('tour-step-title')).toHaveCount(0);
-  expect((await rekesz()) || 'üres', 'a VERZIÓ-eltérés miatt elvetett rekesz el is megy (KUKA-425)').toBe('üres');
+  /**
+   * A KIÜRÜLÉSRE VÁRUNK, NEM EGY PILLANATOT MÉRÜNK (SAJÁT LELET az R186-os körben · `KUKA-121`).
+   *
+   * MÉRVE: ez az állítás EGYSZER pirosra ment, majd változatlan bemenettel kétszer zöld lett. Az ok
+   * a visszaállás NEVEZETT, MÚLÓ ága (`KUKA-215`): az újratöltés megszakíthatja a futó
+   * `/api/assistant/status` kérést, és akkor a rekesz SZÁNDÉKOSAN megmarad — egy múló hiba ne vigye
+   * el a haladást. A kiürülés tehát a KÖVETKEZŐ, sikeres betöltéskor történik meg, vagyis
+   * aszinkron. A próba eddig a reload utáni ELSŐ pillanatot mérte, és ezzel a saját
+   * türelmetlenségét — nem a szabályt. Most a FELTÉTELRE várunk, korlátos ideig; a szabály
+   * (verzió-eltérés ⇒ a rekesz elmegy) VÁLTOZATLAN, csak a mérés lett türelmes.
+   */
+  await expect.poll(async () => (await rekesz()) || 'üres',
+    { message: 'a VERZIÓ-eltérés miatt elvetett rekesz el is megy (KUKA-425)', timeout: 10_000 }).toBe('üres');
 
   // ── (3) MÚLÓ HIBA: a rekesz MEGMARAD, és egy későbbi, sikeres betöltés visszaállítja ───────
   await p.evaluate(([k, csomag]) => { try { sessionStorage.setItem(k, csomag); } catch { /* a tár nem írható */ } },
@@ -799,4 +811,176 @@ test('R176-K8 — ÚJRATÖLTÉS A KÉT SZEREPLŐ KÖZÖTT, NÉVTELEN ÁLLAPOTBAN
     .toBe('megmaradt');
   expect(r.baj || 'eljutott', `a második ember FOLYTATJA a történetet — mérve: ${r.naplo.join('→')}`).toBe('eljutott');
   await expect(p.getByTestId('tour-step-title')).toHaveText(HU.TOUR['tour.inviteRevoke'].s7.title);
+});
+
+/**
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ * R186-T1 · T2 · T3 — A TÖRTÉNET UGYANAZT A MEGHÍVÓT ÉS RÉSZTVEVŐT KÖVETI (R186 §2)
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * AZ R186 §2 NEVEZETTEN EZEKET A PRÓBÁKAT KÉRTE: *„Valódi HTTP/tároló/böngésző próbák: több
+ * meghívó eltérő levélállapottal; alkalmas és alkalmatlan tag együtt; harmadik személy téves
+ * belépése, majd a helyes személy; 390 px és újratöltés az átadás közben. A helyes történet teljes
+ * befejezése is legyen meg."* Az utolsó kettőt a `R176-K1`/`K2`/`K3` MA is méri (és most a
+ * cél-kötéssel együtt zöld) — ez a három lap a HIÁNYZÓ hármat teszi hozzá.
+ *
+ * MINDHÁROM A VALÓDI FELÜLETEN ÉS VALÓDI HTTP-N megy: a cél-kötést a KISZOLGÁLÓ adja
+ * (`/api/assistant/status` → `tours[].story`), a műveletek a néző útján történnek.
+ */
+
+/** A felkínált útmutató SZERVER-OLDALI cél-kötése — ebből dolgozik a lap (AST-01). */
+async function kotesOf(page, tourId) {
+  return page.evaluate(async (id) => {
+    const r = await fetch('/api/assistant/status', { headers: { accept: 'application/json' } });
+    const j = await r.json();
+    const t = (j.tours || []).find((x) => x.id === id) || null;
+    return t ? (t.story || null) : null;
+  }, tourId);
+}
+
+/** Egy lépés állapota a futó bemutató panelén — a LAP SAJÁT állapotából, nem tippből. */
+async function lepesAllapot(page, lepesId) {
+  const el = page.locator(`[data-testid="tour-step-${lepesId}"]`);
+  if (!await el.count()) return '(nincs panel)';
+  return (await el.first().getAttribute('data-state')) || '(nincs állapot)';
+}
+
+test('R186-T1 — KÉT meghívó: a történet a VÁLASZTOTTHOZ kötődik, és egy MÁS meghívó visszavonása NEM teljesíti a lépést', async () => {
+  const p = anna.page;
+  await closeModals(p);
+  if (await p.getByTestId('tour-exit').count()) await p.getByTestId('tour-exit').click();
+  const ws = await createWorkspaceUI(p, { name: 'R186 Kötés Kft', business: { jurisdiction: 'HU', tax_id: '10779224-2-44' } });
+  const daniel = await world.person('daniel');
+  const edit = await world.person('edit');
+  await closeModals(p);
+  // KÉT FÜGGŐ MEGHÍVÓ, mindkettőnek MEGÉRKEZETT a levele — a sorrend a kiállításé.
+  await inviteUI(p, { email: daniel.email, role: 'user', scope: 'keszlet' });
+  await inviteUI(p, { email: edit.email, role: 'user', scope: 'keszlet' });
+  await closeModals(p);
+
+  // 1. A KISZOLGÁLÓ KIVÁLASZT EGY CÉLT, ÉS A HIVATKOZÁSÁT ÁTADJA (R186 §2).
+  const kotes = await kotesOf(p, 'tour.inviteRevoke');
+  expect(kotes && kotes.kind, `a felkínált történet cél-kötést hoz — mérve: ${JSON.stringify(kotes)}`).toBe('invite');
+  await gotoPage(p, 'members');
+  await p.getByTestId('members-tab-invites').click();
+  const danielRef = await inviteRowRef(p, daniel.email);
+  const editRef = await inviteRowRef(p, edit.email);
+  expect(danielRef === editRef, 'a két meghívó jelölője KÜLÖNBÖZŐ').toBe(false);
+  expect([danielRef, editRef].includes(kotes.ref),
+    `a kötés a KÉT valódi meghívó egyikére mutat — kötés: ${kotes.ref} · Dániel: ${danielRef} · Edit: ${editRef}`).toBe(true);
+  // ÉS A VÁRT RÉSZTVEVŐ A VÁLASZTOTT MEGHÍVÓ CÍMZETTJE — nem „valaki más".
+  const vartEmail = kotes.ref === danielRef ? daniel : edit;
+  const masEmail = kotes.ref === danielRef ? edit : daniel;
+  const masRef = kotes.ref === danielRef ? editRef : danielRef;
+  expect(kotes.actor, 'a várt résztvevő a VÁLASZTOTT meghívó címzettje').toBe(vartEmail.subjectId);
+
+  // 2. A TÖRTÉNET ELINDUL, ÉS MEGÁLLUNK A VISSZAVONÁS LÉPÉSÉN.
+  await gotoPage(p, 'overview');
+  expect(await startTourViaHelp(p, 'tour.inviteRevoke')).toBe(true);
+  const r = await vezess(p, 'tour.inviteRevoke', {}, { megallAt: 's4' });
+  expect(r.baj || 'rendben', `a történet eljut a visszavonás lépéséig — mérve: ${r.naplo.join('→')}`).toBe('rendben');
+
+  // 3. A MÁS MEGHÍVÓ VISSZAVONÁSA NEM TELJESÍTI A LÉPÉST — ez az ELLENPRÓBA (R186 §2).
+  await p.getByTestId(`invite-revoke-${masRef}`).click();
+  await expect(p.getByTestId('invite-revoke-confirm')).toBeVisible();
+  const masValasz = await withResponse(p, { path: '/api/invites/revoke' }, () => p.getByTestId('invite-revoke-confirm').click());
+  expect(masValasz.body && masValasz.body.changed, `a MÁS meghívó visszavonása a szerveren sikerült (${masEmail.email})`).toBe(true);
+  expect(await lepesAllapot(p, 's4'),
+    'a MÁS meghívó visszavonása NEM teljesíti a történet lépését (RÉGEN: bármelyik sikeres visszavonás készre könyvelte)').not.toBe('done');
+
+  // 4. A VÁLASZTOTT MEGHÍVÓ VISSZAVONÁSA VISZONT TELJESÍTI — a pozitív pár.
+  await p.getByTestId(`invite-revoke-${kotes.ref}`).click();
+  await expect(p.getByTestId('invite-revoke-confirm')).toBeVisible();
+  const joValasz = await withResponse(p, { path: '/api/invites/revoke' }, () => p.getByTestId('invite-revoke-confirm').click());
+  expect(joValasz.body && joValasz.body.changed, 'a VÁLASZTOTT meghívó visszavonása is sikerült').toBe(true);
+  await expect(p.locator('[data-testid="tour-step-s4"][data-state="done"]')).toHaveCount(1);
+
+  if (await p.getByTestId('tour-exit').count()) await p.getByTestId('tour-exit').click();
+  expect(Boolean(ws.bookId), 'a próba saját vállalkozásban mért').toBe(true);
+});
+
+test('R186-T2 — ALKALMAS és ALKALMATLAN tag EGYÜTT: a legitim bemutató elérhető marad, és a kötés az ALKALMASRA mutat', async () => {
+  const p = anna.page;
+  await closeModals(p);
+  if (await p.getByTestId('tour-exit').count()) await p.getByTestId('tour-exit').click();
+  await createWorkspaceUI(p, { name: 'R186 Vegyes Kft', business: { jurisdiction: 'HU', tax_id: '12345676-2-42' } });
+  const felix = await world.person('felix');
+  const gabor = await world.person('gabor');
+  // KÉT VALÓDI TAG — mindkettő a felületen lép be és fogad el.
+  for (const ki of [felix, gabor]) {
+    await closeModals(p);
+    const inv = await inviteUI(p, { email: ki.email, role: 'user', scope: 'keszlet' });
+    await openInviteUI(ki.page, inv.link);
+    await withResponse(ki.page, { path: '/api/invites/redeem' }, () => ki.page.getByTestId('invite-redeem').click());
+  }
+  // …ÉS AZ EGYIKET ALKALMATLANNÁ TESSZÜK: a tagsága megszűnik, tehát nem hatályos tag.
+  await gotoPage(p, 'members');
+  const megvonas = await revokeUI(p, gabor.subjectId);
+  expect(megvonas.body && megvonas.body.ok, 'Gábor tagsága a valódi felületen megszűnt').toBe(true);
+
+  /**
+   * EZ AZ ELLENPRÓBA AZ R186 §2 ÁLTAL ELVETETT MEGOLDÁSRA. A készen állt, EGY-FELTÉTELES javítás
+   * (`masok.length > 0 && masok.every(...)`) MINDEN másik hatályos tagtól alkalmasságot kért volna
+   * — ettől EGY nem érintett, alkalmatlan tag elérhetetlenné tette volna a legitim bemutatót.
+   * A parancs ezt nevezetten nem fogadta el; itt MÉRJÜK, hogy ma nem így van.
+   */
+  const kotes = await kotesOf(p, 'tour.reentry');
+  expect(kotes && kotes.kind,
+    `alkalmatlan tag MELLETT is felkínált a visszatérés-történet, cél-kötéssel — mérve: ${JSON.stringify(kotes)}`).toBe('member');
+  expect(kotes.ref, 'és a kötés az ALKALMAS tagra mutat, nem az alkalmatlanra').toBe(felix.subjectId);
+  expect(kotes.actor, 'a várt résztvevő ugyanaz az alkalmas tag').toBe(felix.subjectId);
+});
+
+test('R186-T3 — HARMADIK SZEMÉLY téves belépése: NEM teljesíti a váltást, NEM fogyasztja el az átadást, és a HELYES személy folytatni tudja', async () => {
+  const p = anna.page;
+  await closeModals(p);
+  if (await p.getByTestId('tour-exit').count()) await p.getByTestId('tour-exit').click();
+  await createWorkspaceUI(p, { name: 'R186 Harmadik Kft', business: { jurisdiction: 'HU', tax_id: '82345671-2-42' } });
+  const helyes = await world.person('helga');
+  const harmadik = await world.person('harold');
+  await closeModals(p);
+  await inviteUI(p, { email: helyes.email, role: 'user', scope: 'keszlet' });
+  await closeModals(p);
+
+  const kotes = await kotesOf(p, 'tour.inviteRevoke');
+  expect(kotes && kotes.actor, 'a várt résztvevő a meghívott').toBe(helyes.subjectId);
+
+  await gotoPage(p, 'overview');
+  expect(await startTourViaHelp(p, 'tour.inviteRevoke')).toBe(true);
+  // A VISSZAVONÁS MEGTÖRTÉNIK, és a történet a VÁLTÁS lépéséig jut — ott megállunk.
+  const r = await vezess(p, 'tour.inviteRevoke', {
+    s4: async () => {
+      const ref = await inviteRowRef(p, helyes.email);
+      await p.getByTestId(`invite-revoke-${ref}`).click();
+      await expect(p.getByTestId('invite-revoke-confirm')).toBeVisible();
+      await withResponse(p, { path: '/api/invites/revoke' }, () => p.getByTestId('invite-revoke-confirm').click());
+    },
+  }, { megallAt: 's6' });
+  expect(r.baj || 'rendben', `a történet eljut a váltás lépéséig — mérve: ${r.naplo.join('→')}`).toBe('rendben');
+
+  // ── A HARMADIK SZEMÉLY LÉP BE UGYANABBAN A FÜLBEN ──────────────────────────────────────────
+  await valtsSzereplot(p, harmadik, { valtasLepes: true });
+
+  /**
+   * 1. A VÁLTÁS NEM TELJESÜLT — a harmadik ember nem a történetben várt résztvevő.
+   *
+   * ÉS A KÉRDÉST LÁTHATÓSÁGRA TESSZÜK FEL, NEM LÉTEZÉSRE (SAJÁT LELET ezen a próbán): a panel
+   * ELEME a lapon marad, a lap csak ELREJTI (`show(box, false)`), tehát a `count()` 1-et ad egy
+   * olyan panelre, amit a néző nem lát. Ez pontosan a `KUKA-445` leckéje — most a SAJÁT mérésemen.
+   */
+  await expect(p.getByTestId('tour'),
+    'a harmadik ember NEM kapja meg a történetet (RÉGEN: a futás az ő fiókjához kötődött át)').toBeHidden();
+  expect(await p.getByTestId('tour-step-title').isVisible().catch(() => false),
+    'és nincs futó lépés sem a harmadik ember képernyőjén').toBe(false);
+  // 2. ÉS AZ ÁTADÁST SEM FOGYASZTOTTA EL — a rekesz a SZÁNT résztvevőnek megmarad.
+  const rekesz = await p.evaluate(() => sessionStorage.getItem('vs3.tour.handover'));
+  expect(Boolean(rekesz),
+    'az átadás MEGMARAD a harmadik ember belépése után (RÉGEN: a visszaállás elvitte, és a szánt résztvevő már nem tudta folytatni)').toBe(true);
+
+  // ── ÉS MOST A HELYES SZEMÉLY ───────────────────────────────────────────────────────────────
+  await valtsSzereplot(p, helyes, { atadasMeres: true });
+  // 3. A FUTÁS VISSZAÁLL, és a váltás-lépés IGAZOLTAN teljesül.
+  await expect(p.getByTestId('tour')).toBeVisible();
+  await expect(p.locator('[data-testid="tour-step-s6"][data-state="done"]')).toHaveCount(1);
+  expect(await lepesAllapot(p, 's6'), 'a HELYES személynél a váltás teljesül').toBe('done');
 });

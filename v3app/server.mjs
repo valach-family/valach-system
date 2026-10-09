@@ -1685,7 +1685,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
    * viszi: a lap mindkettőből ugyanúgy épít futást. Ha a leképezés két példányban állna, egy újonnan
    * átvitt mező az egyikből kimaradna — és a böngészőben `undefined` lenne (a `KUKA-394` tanulsága).
    */
-  function tourPayloadOf(id, lang) {
+  function tourPayloadOf(id, lang, who) {
     return {
     id, version: TOURS[id].version, feature: TOURS[id].feature, page: TOURS[id].page ?? null,
     requires_role: TOURS[id].requires_role ?? null,
@@ -1731,10 +1731,56 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       // MI TÁRJA FEL a célt (panel · választás · navigáció). A lap ebből tudja, hogy a
       // hiányzó cél VÁRAKOZÁS-e vagy valódi megszakítás (TUR-01 · KUKA-228).
       appears_after: st.appears_after ?? null,
+      /**
+       * KIT VÁR A VÁLTÁS, ÉS A TÖRTÉNET CÉLJÁHOZ KÖTÖTT-E A LÉPÉS (R186 §2 · `KUKA-394`).
+       *
+       * Mind a kettő a böngészőben hajt fail-closed kaput (`actorSwitchReady` · `taskDone`), tehát
+       * egy itt át NEM vitt mező `undefined` lenne, és a SAJÁT történetünket állítaná meg.
+       */
+      switch_to: st.switch_to ?? null,
+      story_bound: st.story_bound === true,
     })),
     text: (dictFor(lang).TOUR || {})[id] || null,
-    text: (dictFor(lang).TOUR || {})[id] || null,
+    /**
+     * A TÖRTÉNET VÁLASZTOTT CÉLJA — A SZERVER ADJA, A LAP NEM TALÁLJA KI (R186 §2 · AST-01).
+     *
+     * Ez a `story_data` KÉT új mezőjének a kérő-specifikus, történet-specifikus alakja: a
+     * választott meghívó stabil jelölője (`ref`) és a történetben VÁRT résztvevő (`actor`). A lap
+     * ebből köti a futást a célhoz — és egy itt át NEM vitt mező a böngészőben `undefined`, tehát
+     * a kapuk fail-closed módon zárnak (`KUKA-394`).
+     *
+     * CSAK A TÖRTÉNET-KÖTÖTT BEMUTATÓKNÁL áll, és csak ha a kapu amúgy is nyitva van — a többi
+     * útmutató payloadja VÁLTOZATLAN (`null`), tehát ez nem új általános munkafolyamat-rendszer
+     * (az R186 §2 ezt nevezetten nem kéri).
+     */
+    story: storyBindingOf(id, who),
     };
+  }
+
+  /**
+   * A TÖRTÉNET CÉL-KÖTÉSE — a `story_data` mért tényeiből, történetre szabva (R186 §2).
+   *
+   * A HATÁR KIMONDVA: nem e-mail, nem meghívó-jegy, nem üzleti adat. A `ref` a token sha256
+   * lenyomatának első tíz jegye (`shortRef`), amiből a token nem állítható vissza; az `actor` egy
+   * alany-azonosító. Jogot egyik sem ad: a bemutató állapota nem jogosultság, a szerver saját
+   * ellenőrzése minden műveleten változatlanul lefut (`KUKA-227`).
+   */
+  function storyBindingOf(id, who) {
+    const kell = TOURS[id].requires_story_data ?? null;
+    if (!kell) return null;
+    const sd = (who && who.story_data) || null;
+    if (!sd) return null;
+    if (kell === 'pending_invite') {
+      if (sd.pending_invite !== true) return null;
+      return { kind: 'invite', ref: sd.pending_invite_ref ?? null, actor: sd.pending_invite_actor ?? null };
+    }
+    if (kell === 'other_member') {
+      if (sd.other_member !== true) return null;
+      // A VÁLASZTOTT TAG EGYBEN A VÁRT RÉSZTVEVŐ: őt vonjuk meg, őt hívjuk újra, és ő lép be.
+      return { kind: 'member', ref: sd.other_member_id ?? null, actor: sd.other_member_id ?? null };
+    }
+    // ZÁRT KÉSZLET: egy kitalált nyilatkozat NEM esik némán kötésre (`KUKA-236`).
+    return null;
   }
 
   /**
@@ -1761,18 +1807,45 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
    * továbbra is ZÁR (`KUKA-236`); a `false` tény a kapura NÉZVE ugyanaz, mint a számolás
    * eredményeként kapott `false`.
    */
+  /**
+   * A TÖRTÉNET INDULÓ ADATÁNAK EGY ALAKJA VAN — a hiány is ezt a mezőkészletet adja (R186 §2).
+   *
+   * MIÉRT EGY HELYEN (`KUKA-394` mért leckéje): a `story_data` mezői a böngészőben FAIL-CLOSED
+   * kapukat hajtanak. Egy át nem vitt mező ott `undefined`, és a kapu a SAJÁT történetünket
+   * állítaná meg. Ha a három korai visszatérés külön-külön gépelné a mezőket, az ÚJ mező
+   * (a választott cél hivatkozása) pontosan abból az ágból maradna ki, amelyikre senki nem gondol.
+   */
+  const URES_TORTENET_ADAT = Object.freeze({
+    pending_invite: false, pending_invite_ref: null, pending_invite_actor: null,
+    other_member: false, other_member_id: null,
+  });
   function storyDataFacts(bookId, subjectId, at, { tortenetKapu = true } = {}) {
     if (!bookId) {
       const kor = subjectId ? (personalSpaceOf({ store, subjectId }) || null) : null;
-      return Object.freeze({ pending_invite: false, other_member: false,
+      return Object.freeze({ ...URES_TORTENET_ADAT,
         own_personal_book: Boolean(kor && kor.book_id) });
     }
     const sajatKorElore = subjectId ? (personalSpaceOf({ store, subjectId }) || null) : null;
     if (!tortenetKapu) {
-      return Object.freeze({ pending_invite: false, other_member: false,
+      return Object.freeze({ ...URES_TORTENET_ADAT,
         own_personal_book: Boolean(sajatKorElore && sajatKorElore.book_id) });
     }
-    const rows = store.all('SELECT token, redeemed_at, expires_at, offered_role FROM invite WHERE book_id = ?', bookId);
+    /**
+     * A SORREND KIMONDOTT, MERT A VÁLASZTÁS MOST MÁR SZÁMÍT (R186 §2).
+     *
+     * Eddig csak a LÉTEZÉS kellett (`some`), tehát a sorrend érdektelen volt. Mostantól a kiszolgáló
+     * KIVÁLASZTJA a célt, és a történet ehhez kötődik — ha a sorrend a tár hangulatára volna bízva,
+     * két egyformán jogosult meghívó mellett UGYANAZ a kérés MÁS célt adhatna vissza, és a
+     * böngésző-próba nem volna reprodukálható (`KUKA-127`: a mérés ne a saját véletlenét mérje).
+     *
+     * A RENDEZŐ KULCS MÉRT, NEM KITALÁLT: a `invite` táblának NINCS `created_at` oszlopa (mérve:
+     * `v3ref/store.mjs` — token · book_id · invitee_* · offered_role · issuer_subject · expires_at ·
+     * redeemed_at), ezért a lejárat rendez (azonos élettartam mellett ez a kiállítás sorrendje), és
+     * a token a DÖNTŐ a holtversenyre. A választás így a LEGRÉGEBBI jogosult meghívó — az, amelyik a
+     * listában is elöl áll.
+     */
+    const rows = store.all('SELECT token, redeemed_at, expires_at, offered_role, invitee_namespace, invitee_value'
+      + ' FROM invite WHERE book_id = ? ORDER BY expires_at, token', bookId);
     /**
      * ÉS A FELKÍNÁLÁS A VISSZAVONHATÓSÁGOT IS MEGKÍVÁNJA (R176, külső review P2 · `KUKA-437`).
      *
@@ -1798,11 +1871,51 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      * A felkínálás a VÉGIGVIHETŐSÉGRŐL szól (`KUKA-417` · `KUKA-421` ugyanaz a lecke, egy réteggel
      * kijjebb), ezért a tény mostantól a LEVELET is megkívánja — a jegy a levél hivatkozásában áll.
      */
-    const pendingInvite = rows.some((r) => !r.redeemed_at
+    /**
+     * ════════════════════════════════════════════════════════════════════════════════════════════
+     * A TÖRTÉNET CÉLJÁT A KISZOLGÁLÓ VÁLASZTJA KI, ÉS A HIVATKOZÁSÁT IS ÁTADJA (R186 §2)
+     * ════════════════════════════════════════════════════════════════════════════════════════════
+     *
+     * A LELET (külső review, Codex, R176 — P2 · a jelentés 7.5/c pontja): a `pending_invite` tény
+     * azt bizonyította, hogy VAN visszavonható, plafonon belüli, levéllel bíró függő meghívó — az
+     * AZONOSSÁGÁT viszont eldobta. A `tour.inviteRevoke` három lépése (s3–s5) az ÁLTALÁNOS
+     * `invites-table`-re mutat, a `doRevokeInvite` BÁRMELYIK sikeres visszavonásra készre
+     * könyvelte az `invite.revoked` feladatot, a levél-fogadó pedig MINDEN levelet kilistáz. KÉT
+     * függő meghívó mellett tehát a néző az EGYIKET vonja vissza, a bemutató viszont a MÁSIK, még
+     * ÉLŐ levelet nyitja meg — és azt állítja róla, hogy a visszavont meghívó.
+     *
+     * AZ R186 §2 DÖNTÖTT: *„Indításkor vagy a történet saját, egyértelmű választási lépésében
+     * azonosítsd az alkalmas célt, őrizd meg annak stabil hivatkozását."* Ez a kiválasztás.
+     *
+     * ÉS AMIT AZ R186 §2 NEVEZETTEN ELVETETT: a felkínálás SZŰKÍTÉSÉT („csak ha MINDEN másik tag
+     * alkalmas"). Ezért a tény továbbra is EGY alkalmas célt kér (`find`, nem `every`): *„egy nem
+     * érintett, alkalmatlan tag ne tegye elérhetetlenné a legitim bemutatót."*
+     *
+     * A JEGY NEM MEGY KI: a hivatkozás a token sha256-lenyomatának első tíz jegye (`shortRef`),
+     * amiből a token NEM állítható vissza — a beváltás a TELJES tokenhez kötött. Tehát a bemutató
+     * állapota nem jegy, és nem is jogosultság: a szerver saját ellenőrzése minden műveleten
+     * változatlanul lefut (`KUKA-227`).
+     */
+    const meghivoCimzettje = (r) => (r.invitee_namespace === 'email'
+      ? (subjectByEmail(store, r.invitee_value) || null)
+      : null);
+    /**
+     * …ÉS A CÍMZETTNEK AZONOSÍTHATÓNAK KELL LENNIE (HETEDSZER UGYANAZ A LECKE).
+     *
+     * A felkínálás a VÉGIGVIHETŐSÉG állítása (`KUKA-417` · `421` · `429` · `430` · `431` · `437` ·
+     * `442`). A két szereplős történet a MEGHÍVOTT belépésével folytatódik, és az R186 §2 kimondja,
+     * hogy a személyváltás CSAK a várt résztvevőnél teljesülhet. Egy olyan meghívó tehát, aminek a
+     * címzettje még nem azonosítható alanyként, NEM alkalmas cél: a váltás-kapu nem tudná mihez
+     * mérni a belépőt, és a történet a saját fail-closed kapujában állna meg (`KUKA-394`).
+     */
+    const alkalmasMeghivo = (r) => !r.redeemed_at
       && Date.parse(r.expires_at) > Date.parse(at)
       && plafonRoles.includes(r.offered_role)
       && !inviteRevocationAt({ store, token: r.token, nowIso: at }).revoked
-      && mailbox.some((m) => String(m.link || '').includes(r.token)));
+      && mailbox.some((m) => String(m.link || '').includes(r.token))
+      && Boolean(meghivoCimzettje(r));
+    const valasztottMeghivo = rows.find(alkalmasMeghivo) || null;
+    const pendingInvite = Boolean(valasztottMeghivo);
     /**
      * A TAGSÁG TÉNYÉT A KANONIKUS FELOLDÓ DÖNTI EL (R176, külső review P2 — `KUKA-421`).
      *
@@ -1833,14 +1946,28 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      * ÖTÖDSZÖR UGYANAZ A LECKE: a felkínálás a VÉGIGVIHETŐSÉG állítása (`KUKA-417` · `421` ·
      * `429` · `430` · `431` · `437`).
      */
-    const otherMember = store.all('SELECT subject_id FROM membership WHERE book_id = ?', bookId)
+    /**
+     * ÉS A VISSZATÉRÉS-TÖRTÉNET IS A VÁLASZTOTT TAGOT KÖVETI (R186 §2).
+     *
+     * A LELET (külső review, Codex, R176 — P2 · a jelentés 7.5/b pontja): a `.some()` azt
+     * bizonyította, hogy VALAMELYIK másik hatályos tag alkalmas az újbóli meghívásra — a bemutató
+     * viszont nem kötötte magát AHHOZ a taghoz, tehát a néző egy MÁSIK, nem alkalmas tagon is
+     * elvégezhette a megvonást, és a negyedik lépésen elakadt.
+     *
+     * AZ R186 §2 A KÉSZEN ÁLLT, EGY-FELTÉTELES JAVÍTÁST (`masok.every(...)`) NEVEZETTEN ELVETETTE.
+     * Ezért itt is a CÉL KÖTÉSE áll: a kiszolgáló kiválasztja az ELSŐ alkalmas tagot (rendezetten,
+     * tehát reprodukálhatóan), és a hivatkozását átadja — a felkínálás pedig továbbra is EGY
+     * alkalmas tagot kér, nem mindet.
+     */
+    const alkalmasTag = store.all('SELECT subject_id FROM membership WHERE book_id = ? ORDER BY subject_id', bookId)
       .filter((m) => m.subject_id !== subjectId)
-      .some((m) => {
+      .find((m) => {
         const t = membershipAsOf({ store, subjectId: m.subject_id, bookId, validAt: at, knownAt: at });
         if (!(t && t.effective === true)) return false;
         const ujra = reentryExclusionsAt({ store, subjectId: m.subject_id, bookId, closed: null, nowIso: at });
         return ujra.ok === true;
-      });
+      }) || null;
+    const otherMember = Boolean(alkalmasTag);
     /**
      * ÉS A SAJÁT SZEMÉLYES KÖR LÉTE IS INDULÓ ADAT (R176, külső review P2 — `KUKA-430`).
      *
@@ -1849,8 +1976,18 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
      * `ensurePersonal` nem hoz létre személyes kört (`provenEmailOf` nélkül `null`), tehát a
      * fiókválasztóban nincs mit választani — az útmutató olyat állított, ami nem igaz.
      */
-    return Object.freeze({ pending_invite: pendingInvite, other_member: otherMember,
-      own_personal_book: Boolean(sajatKorElore && sajatKorElore.book_id) });
+    return Object.freeze({
+      pending_invite: pendingInvite,
+      // A VÁLASZTOTT CÉL STABIL HIVATKOZÁSA — ugyanaz a jelölő, amit a meghívó-lista sora visel
+      // (`KUKA-018`: egy fogalomnak egy otthona van), tehát a felület és a történet UGYANARRA mutat.
+      pending_invite_ref: valasztottMeghivo ? shortRef(valasztottMeghivo.token) : null,
+      // ÉS A TÖRTÉNETBEN VÁRT RÉSZTVEVŐ — a személyváltás kapuja EHHEZ mér (R186 §2). Alany-azonosító,
+      // nem e-mail és nem üzleti adat; a kiadó pedig az a kezelő, aki a meghívót maga állította ki.
+      pending_invite_actor: valasztottMeghivo ? meghivoCimzettje(valasztottMeghivo) : null,
+      other_member: otherMember,
+      other_member_id: alkalmasTag ? alkalmasTag.subject_id : null,
+      own_personal_book: Boolean(sajatKorElore && sajatKorElore.book_id),
+    });
   }
 
   function requesterContext(session, cur, opts = {}) {
@@ -2854,7 +2991,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
         actions: allowedActionsFor(who).map((id) => ({ id, ...ACTIONS[id], writes: ACTIONS[id].writes === true })),
         // A BEMUTATÓK TELJES ALAKJA — a lépések stabil felületi pontokra mutatnak, és a SZÖVEG a
         // nyelvcsomagból jön. Egy otthon: a lépés-lista a `features.mjs`-ben él, a lap onnan kapja.
-        tours: allowedToursFor(who).map((id) => tourPayloadOf(id, lang)),
+        tours: allowedToursFor(who).map((id) => tourPayloadOf(id, lang, who)),
         /**
          * …ÉS A VÁLTÁS UTÁN FOLYTATHATÓK, UGYANEBBEN AZ ALAKBAN (R176 §1 — a parancs nevesített
          * hibája: „a meghívó elfogadása utáni folytatásvesztés").
@@ -2869,7 +3006,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
          * visszaállításához — a súgó továbbra is a `tours`-t kínálja fel, és a lépések saját `role`
          * őre futás közben változatlanul érvényes (`rightLost`).
          */
-        resumable_tours: resumableToursFor(who).map((id) => tourPayloadOf(id, lang)),
+        resumable_tours: resumableToursFor(who).map((id) => tourPayloadOf(id, lang, who)),
         // MODELLHÍVÁS NÉLKÜL MŰKÖDŐ RÉSZEK — kimondva, hogy a felület ne állítson mást (R89 §6).
         no_model_call: ['help', 'faq', 'sitemap', 'tour', 'guide_search'],
       } };

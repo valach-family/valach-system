@@ -1559,7 +1559,9 @@ import { inviteNextKey } from './inviteText.mjs';
         : tpl('inviteRevokeUnchanged', { miert: reasonText(r.reason) });
       formResult('members-result', mondat, r.changed ? 'ok' : 'warn');
       toast(mondat);
-      if (r.changed) tourTaskDone('invite.revoked');   // IGAZOLT változás után (TUR-01 · KUKA-231)
+      // A JELÖLŐ A SZERVER VÁLASZÁBÓL JÖN (`r.ref`), nem a kattintott gombból: így a nyugta arról a
+      // meghívóról szól, amit a szerver TÉNYLEGESEN visszavont (R186 §2 · `KUKA-227`).
+      if (r.changed) tourTaskDone('invite.revoked', { ref: r.ref ?? ref });   // IGAZOLT változás után (TUR-01 · KUKA-231)
     } else {
       formResult('members-result', refusalText(r), 'bad');
     }
@@ -1594,7 +1596,7 @@ import { inviteNextKey } from './inviteText.mjs';
     const mondat = r.replayed === true ? tpl('reinviteReplayed', { ki: who }) : tpl('reinviteSent', { ki: who });
     formResult('members-result', mondat, 'ok');
     toast(mondat);
-    tourTaskDone('reinvite.sent');
+    tourTaskDone('reinvite.sent', { ref: id });   // a VÁLASZTOTT tagra szól (R186 §2)
   }
 
   /**
@@ -1939,6 +1941,23 @@ import { inviteNextKey } from './inviteText.mjs';
         // megállítaná a saját történetünket (`KUKA-394` mért leckéje).
         origin_book: run.origin_book ?? null,
         /**
+         * A TÖRTÉNET CÉL-KÖTÉSE ÉS A KEZDŐ ALANY IS ÁTMEGY (R186 §2) — ugyanaz az indok, mint az
+         * `origin_book`-nál (`KUKA-441`), és ugyanaz a fail-closed következmény (`KUKA-394`).
+         *
+         * MIÉRT KELL ÁTVINNI: a visszaállás a SZERVER MAI válaszából épít (AST-01), a váltás után
+         * viszont a MÁSIK ember ül a fülnél — az ő nézetében a `story_data` joggal üres (nem kezelő,
+         * és nem tagja a cégnek), tehát a `def.story` `null`. A cél-kötést ezért a rekesz hordozza;
+         * enélkül a személy-tengelyes kapu a SAJÁT történetünket állítaná meg.
+         *
+         * ÉS AMI NEM MEGY ÁT: meghívó-JEGY, titok, e-mail, üzleti adat. A `ref` a token
+         * sha256-lenyomatának első tíz jegye (a token nem állítható vissza belőle), az `actor` és az
+         * `origin_subject` alany-azonosító — a rekesz a `from_subject`-et eddig is hordozta. Jogot
+         * egyik sem ad: a szerver saját ellenőrzése minden műveleten változatlanul lefut
+         * (`KUKA-227`), a bemutató állapota nem jogosultság.
+         */
+        story: run.story ? { kind: run.story.kind ?? null, ref: run.story.ref ?? null, actor: run.story.actor ?? null } : null,
+        origin_subject: run.origin_subject ?? null,
+        /**
          * A NÉZET PÁR — ÉS AZ ÁTADÁS IS PÁRT TÁROL (R142 — F142-05, MÉRVE).
          *
          * Az `actorSwitchReady` már kimondta, hogy a váltás kétfajta lehet: MÁS EMBER nézete VAGY
@@ -2045,7 +2064,6 @@ import { inviteNextKey } from './inviteText.mjs';
       clearTourHandover();
       state.tour = null; state.tourAborted = 'notAvailable'; renderTour(); return;
     }
-    clearTourHandover();
     run.steps.forEach((st, i) => { if (tourMod.STEP_STATES.includes(h.states[i])) st.state = h.states[i]; });
     run.at = h.at;
     /**
@@ -2063,6 +2081,50 @@ import { inviteNextKey } from './inviteText.mjs';
      * nevezetten megállunk, mint hogy egy IDEGEN céget vegyünk át (`KUKA-236`).
      */
     run.origin_book = typeof h.origin_book === 'string' && h.origin_book ? h.origin_book : null;
+    /**
+     * ÉS A CÉL-KÖTÉS + A KEZDŐ ALANY IS VISSZAÁLL (R186 §2) — a rekeszből, mert a MAI válasz a
+     * váltás UTÁNI nézőnek szól, és abban joggal nincs cél-kötés.
+     *
+     * A REKESZ TARTALMA NEM BIZALMI FORRÁS (a böngésző tárából jön, `KUKA-236`): csak NEVEZETT
+     * alakot veszünk át (zárt `kind`-készlet, sztring `ref`/`actor`), minden mást `null`-ra
+     * állítunk — és akkor a rá épülő kapuk ZÁRNAK. Inkább nevezetten megállunk, mint hogy egy
+     * IDEGEN célt vagy résztvevőt vegyünk át.
+     */
+    const sz = h.story && typeof h.story === 'object' ? h.story : null;
+    const szKind = sz && (sz.kind === 'invite' || sz.kind === 'member') ? sz.kind : null;
+    run.story = szKind
+      ? {
+        kind: szKind,
+        ref: typeof sz.ref === 'string' && sz.ref ? sz.ref : null,
+        actor: typeof sz.actor === 'string' && sz.actor ? sz.actor : null,
+      }
+      : null;
+    run.origin_subject = typeof h.origin_subject === 'string' && h.origin_subject ? h.origin_subject : null;
+    /**
+     * ÉS A HARMADIK SZEMÉLY NEM FOGYASZTJA EL AZ ÁTADÁST (R186 §2 — SAJÁT LELET, MÉRVE).
+     *
+     * A LELET. A személy-tengelyes kapu megszigorítása (`actorSwitchReady` → `expectedActorOf`)
+     * csak a MÁSODIK felét oldja meg annak, amit az R186 §2 kér: *„harmadik személy belépése ne
+     * fogyassza el az átadást ÉS ne jelezzen sikeres váltást."* A „ne jelezzen" kész — a „ne
+     * fogyassza el" NEM volt: az ürítés (`clearTourHandover`) a visszaírás ELEJÉN állt, tehát egy
+     * HARMADIK ember belépése a rekeszt akkor is elvitte, ha a kapu a váltást elutasította. A
+     * SZÁNT résztvevő ezután már nem tudta folytatni: a történet némán elveszett.
+     *
+     * A SZABÁLY UGYANAZ, AMIT EZ A FÜGGVÉNY MÁR KIMOND (`KUKA-426`): a rekesz csak a SIKERES
+     * visszaállás után ürül. A „sikeres" mostantól azt is jelenti, hogy EZ az ember folytathatja.
+     * Nem írunk megszakítást sem: a harmadik ember nem indította ezt a történetet, neki nincs mit
+     * mondani róla (`KUKA-201` · `KUKA-416`).
+     *
+     * A HATÁR KIMONDVA: csak akkor döntünk így, ha a lépés NYILATKOZIK a várt résztvevőről ÉS
+     * tudjuk, ki van bent. NÉVTELEN állapotban (újratöltés a két szereplő között) a kérdés nem
+     * tehető fel — ott a rekesz a korábbi szabály szerint MARAD, és a futás visszaáll (`R176-K8`).
+     */
+    const vartResztvevo = tourMod.expectedActorOf(run);
+    const mostAlany = (state.me && state.me.subject_id) || null;
+    if (vartResztvevo && mostAlany && mostAlany !== vartResztvevo) {
+      state.tour = null; state.tourAborted = null; renderTour(); return;
+    }
+    clearTourHandover();
     // A FUTÁS MÉG A RÉGI NÉZŐHÖZ TARTOZIK: így a váltás TÉNYE mérhető marad (`actorSwitchReady`).
     // MINDKÉT FELE (F142-05): a fiókot is a váltás ELŐTTI értékre állítjuk vissza, különben az
     // ugyanazon ember két fiókja közti váltás mérhetetlen lenne (a `newTourRun` a MAI nézetből
@@ -2112,9 +2174,13 @@ import { inviteNextKey } from './inviteText.mjs';
    * Minden más úton a váltás ugyanúgy megállítja a bemutatót, mint eddig. A `rebindView` ugyanaz az
    * egy feloldó, amit a váltás-lépés is használ (`KUKA-003`).
    */
-  function tourTaskDone(taskId) {
+  /**
+   * A `ref` A TÖRTÉNET CÉLJÁNAK JELÖLŐJE (R186 §2): a történethez kötött lépés CSAK a VÁLASZTOTT
+   * célon teljesül (`taskDone` → `story_bound`). Ami nem kötött lépés, annál a `ref` érdektelen.
+   */
+  function tourTaskDone(taskId, { ref = null } = {}) {
     if (!state.tour) return;
-    if (!tourMod.taskDone(state.tour, taskId)) return;
+    if (!tourMod.taskDone(state.tour, taskId, { ref })) return;
     /**
      * A VISSZAKÖTÉSI ENGEDÉLY ITT SZÜLETIK, ÉS CSAK A NÉZETET MOZDÍTÓ FELADATHOZ (`KUKA-435`).
      *
@@ -3324,7 +3390,9 @@ import { inviteNextKey } from './inviteText.mjs';
       const mondat = r.changed === false
         ? tpl('scopeGrantUnchanged', { ki: who, mit })
         : tpl('memberCanSee', { ki: who, mit });
-      if (r.changed !== false) tourTaskDone('grant.saved');   // IGAZOLT változás után (TUR-01 · F91-01)
+      // A JOGADÁS IS A VÁLASZTOTT TAGRA SZÓL (R186 §2): a `tour.reentry` s14 lépése történethez
+      // kötött, tehát a nyugta hozza, KINEK adtuk meg — egy másik tagon a lépés nem teljesül.
+      if (r.changed !== false) tourTaskDone('grant.saved', { ref: id });   // IGAZOLT változás után (TUR-01 · F91-01)
       formResult('members-result', mondat, r.changed === false ? 'warn' : 'ok');
       toast(mondat);
     } else {
@@ -3376,7 +3444,7 @@ import { inviteNextKey } from './inviteText.mjs';
     const who = m ? (m.email || id) : id;
     // A BEMUTATÓ LÉPÉSE A SZERVER IGAZOLT VÁLASZÁRA ZÁRUL (TUR-01 · KUKA-231): a „Tovább" gomb nem
     // szünteti meg senki tagságát a felhasználó helyett.
-    if (r.ok) tourTaskDone('member.revoked');
+    if (r.ok) tourTaskDone('member.revoked', { ref: id });   // a VÁLASZTOTT tagra szól (R186 §2)
     formResult('members-result', r.ok ? tpl('memberRevoked', { ki: who, nev: accountName() }) : refusalText(r), r.ok ? 'ok' : 'bad');
     await loadMembers();
   }

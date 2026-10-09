@@ -71,7 +71,38 @@ export const EXTERNAL_CAP_MS = 15_000;
 // A statisztika, amit ez megmutatott: az egység költsége NEM a mutáció-szám lineáris függvénye —
 // van egy ~4 s-os fix indulási költség (a teljes próbafutás), ezért a „mutáció / N" osztó önmagában
 // sosem lehet a szabály (KUKA-045).
-export const DECLARED_UNITS = 40;
+/**
+ * R186 (253 mutáció, 4 vCPU): HATODSZOR avult el — ÉS EZÚTTAL A LÁNC HÉT PIROSÁNAK OKA VOLT.
+ *
+ * A LELET, MÉRVE EZEN A GÉPEN. A deklarált NEGYVENES bontás egysége **13 271 ms**-ot kért, tehát a
+ * `mutate.mjs` SAJÁT költségvetése (12 000 ms) FÖLÖTT állt — a `unit_over_budget` gépi jellel. Ettől
+ * az `adaptiveUnitPlan` minden hívónál FINOMÍTOTT, és a finomítás a TELJES battériát futtatja újra:
+ * 40 egység (8,8 perc) → 80 egység (11,7 perc) → 160 egység (21 perc) = **41 perc** — a 30 perces
+ * program-kereten TÚL. A lánc öt `spawnSync … ETIMEDOUT`-ja tehát NEM a gép gyengeségéből jött,
+ * hanem ebből az elavult számból: a védelem költsége nőtt azzá, ami ellen védett (`KUKA-290`).
+ *
+ * A MÉRT KÖLTSÉG-GÖRBE (egy egység faliórája, `--unit=1/n`): 11 → 31 662 ms · 40 → 13 271 ms ·
+ * 48 → 11 106 ms · 56 → 10 559 ms · 64 → **9 728 ms** · 80 → 8 762 ms · 160 → 7 885 ms.
+ *
+ * AMIT EZ A GÖRBE KIMOND, ÉS AMI A DARABOLÁS HATÁRA: az egység költsége egy ~7 s-os FIX indulási
+ * költségből (teljes alapvonal + mind a nyolc hazugság-ellenpróba, MINDEN egységben) és egy
+ * mutációnkénti részből áll. Ezért a FINOMABB bontás egységenként olcsóbb, ÖSSZESSÉGÉBEN viszont
+ * DRÁGÁBB (64 egység → 10,4 perc · 160 egység → 21 perc egy passzra). A darabolás tehát nem
+ * ingyenes tartalék: a per-egység korlátot tartja, a TELJES keretet pedig fogyasztja.
+ *
+ * A VÁLASZTÁS 64, ÉS AZ OKA KIMONDOTT. (1) MÉRVE belefér: 9 728 ms a saját költségvetés alatt
+ * (19% tartalék) és a külső 15 000 ms-os korlát alatt (35% tartalék), tehát az első kísérlet FÉR,
+ * és a finomító létra el sem indul. (2) 64 egyben a PLAFON, amit az adaptált külső programok
+ * (`r57a` · `r59a`) a `VS_BATTERY_UNITS` olvasójukban elfogadnak (`v <= 64`) — egy 80-as érték ott
+ * ÉRVÉNYTELEN volna, és a program a SAJÁT 11-es padlójára esne vissza (31 662 ms/egység), vagyis a
+ * „javítás" rontott volna. A programok szövegéhez ezért NEM nyúlunk (`KUKA-054`).
+ *
+ * AMIT EZ NEM ÁLLÍT: nem lazítás. A 15 000 ms-os külső korlát és a 12 000 ms-os saját költségvetés
+ * VÁLTOZATLAN (`KUKA-091`: a javítás iránya nem az őr lazítása); csak a DARABOLÁS igazodik a mért
+ * költséghez. És a kézi szám továbbra is kézi: a jel a `mutate.mjs` nem-nulla kilépése és az
+ * `adaptiveUnitPlan` naplója, nem ez a bekezdés (`KUKA-045`).
+ */
+export const DECLARED_UNITS = 64;
 
 /** A futásidejű darabszám: környezetből felülírható, különben a deklarált érték. */
 export function batteryUnits(env = process.env) {

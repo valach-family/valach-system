@@ -232,7 +232,29 @@ for (const p of selected) {
    * AMIT EZ NEM ÁLLÍT: nem „gyorsabb lett". A lánc EZÉRT hosszú, és ezért nem fut a söprésben
    * (KUKA-307). A mért keret: két battéria-pass (~16 perc) + a programok saját munkája.
    */
-  const PROGRAM_BUDGET_MS = 1_800_000;
+  /**
+   * A KERET AZ R186 §3 ÁLTAL ENGEDÉLYEZETT PLAFONON ÁLL — ÉS KIMONDOTTAN NEM EZ VOLT A BAJ.
+   *
+   * AZ R186 §3 ENGEDÉLYE: *„konkrétan engedélyezek legfeljebb 120 percet programonként a meglévő
+   * futtatón, kizárólag szervezési keretként. Ez plafon, nem futásidő-becslés."* Ezért 120 perc.
+   *
+   * ÉS AMIT A MÉRÉS KIMONDOTT, MIELŐTT EZT A SZÁMOT HOZZÁNYÚLTAM (ez a §3 lényege): a lánc öt
+   * `spawnSync … ETIMEDOUT`-ja NEM a keretből és NEM a gép gyengeségéből jött, hanem a SAJÁT
+   * darabolásunkból. A deklarált 40-es bontás egysége ezen a gépen 13 271 ms-ot kért — a
+   * `mutate.mjs` saját 12 000 ms-os költségvetése FÖLÖTT —, ezért az `adaptiveUnitPlan` minden
+   * hívónál finomított, és a finomítás a TELJES battériát futtatja újra: 40 → 80 → 160 egység,
+   * összesen ~41 perc. A bontás mért-jóra állítása után (`batteryUnits.mjs`: 64 egység, 9 728 ms)
+   * az `r57a` a VÁLTOZATLAN, 30 perces kereten **9/9 eset zölddel, 21,1 perc alatt** lefutott.
+   *
+   * A KERET EMELÉSE TEHÁT NEM A JAVÍTÁS, HANEM TARTALÉK a KÉT battéria-passzt futtató programoknak
+   * (`r81core` · `r83core`): egy passz MÉRVE 10,4 perc (64 egység), kettő 21 perc, és efölé jön a
+   * program saját munkája. A plafon azért a megengedett maximum, mert egy ALACSONYABB keret csak
+   * újabb vak, tartalom nélküli időtúllépést termelne — amit a §3 nevezetten tilt.
+   *
+   * AMIT EZ NEM LAZÍT: a külső fél 15 000 ms-os EGYSÉG-korlátja és a `mutate.mjs` 12 000 ms-os saját
+   * költségvetése VÁLTOZATLAN (`KUKA-091`), és egyetlen program szövegéhez sem nyúltunk (`KUKA-054`).
+   */
+  const PROGRAM_BUDGET_MS = 7_200_000;
   const q = spawnSync(process.execPath, [join(dir, p.file)], {
     cwd: dir, encoding: 'utf8', timeout: PROGRAM_BUDGET_MS, maxBuffer: 64 * 1024 * 1024,
     env: { ...process.env, VS_BATTERY_UNITS: String(batteryUnits()) },

@@ -62,6 +62,27 @@ export function newTourRun({ def, view, role }) {
      * kötődik át: a fiók-váltó kapu ehhez mér.
      */
     origin_book: view.book ?? null,
+    /**
+     * ÉS A KEZDŐ ALANY IS MEGMARAD (R186 §2) — ugyanaz az indok, mint az `origin_book`-nál.
+     *
+     * A `view.subject` a futás közben ÁTKÖTŐDIK (`rebindView`), tehát nem mondja meg, KI indította
+     * a történetet. A VISSZATÉRŐ váltás-lépések célja viszont pontosan ő: a kezelő, aki a meghívást
+     * visszavonta, majd a levél megtekintése után visszajön. Ez a mező ezért a KEZDŐ alanyt őrzi,
+     * és SOHA nem kötődik át — a személy-tengelyes kapu ehhez mér, ha a lépés `origin_actor`-t kér.
+     */
+    origin_subject: view.subject ?? null,
+    /**
+     * A TÖRTÉNET CÉL-KÖTÉSE — a SZERVER választotta ki, a lap csak hordozza (R186 §2 · AST-01).
+     *
+     * `{ kind: 'invite' | 'member', ref, actor }`. A `ref` a választott meghívó stabil jelölője
+     * (a token sha256-lenyomatának első tíz jegye — a token NEM állítható vissza belőle), illetve a
+     * választott tag azonosítója; az `actor` a történetben VÁRT résztvevő. Jogot egyik sem ad: a
+     * bemutató állapota nem jogosultság, a szerver saját ellenőrzése minden műveleten lefut
+     * (`KUKA-227`). Nyilatkozat nélkül `null`, és akkor a rá épülő kapuk ZÁRNAK (`KUKA-236`).
+     */
+    story: def.story && typeof def.story === 'object'
+      ? { kind: def.story.kind ?? null, ref: def.story.ref ?? null, actor: def.story.actor ?? null }
+      : null,
     role: role ?? null,
     endedBy: null,
   };
@@ -395,6 +416,42 @@ export function checkRun(run, { view, role }) {
 export const SWITCH_AXES = Object.freeze(['subject', 'book']);
 
 /**
+ * KIT VÁR A SZEMÉLY-TENGELYES VÁLTÁS — ZÁRT KÉSZLET (R186 §2 · `KUKA-236`).
+ *
+ * A LELET (külső review, Codex, R176 — P2 · a jelentés 7.5/a pontja): a személy-váltó lépésen a
+ * kapu BÁRMELY másik belépett embert elfogadta, pedig a két átívelő történet a MEGNEVEZETT
+ * résztvevőt kéri. Ha ugyanabban a fülben egy HARMADIK fiókkal lépnek be, a visszaállás ELHASZNÁLJA
+ * az átadást, az `actor.switched` elvégzettnek könyvelődik, a futás ahhoz a fiókhoz kötődik, és
+ * később a meghívás-feladatnál elakad — a SZÁNT résztvevő pedig már nem tudja folytatni.
+ *
+ * A `actorSwitchReady` SAJÁT megjegyzése ezt előre ki is mondta: *„AMIT EZ NEM ÁLLÍT: hogy a
+ * SZEMÉLY-tengelyre is deriválható a cél. A következő SZEREPLŐ kilétét ma semmi nem deklarálja."*
+ * Az R186 §2 döntött: épüljön meg. A deklaráció ezért a LÉPÉSÉ, zárt készletből:
+ *   · `story_actor`  — a történetben VÁRT résztvevő (a választott meghívó címzettje, illetve a
+ *                      választott tag). A futás a szerver cél-kötéséből tudja (`run.story.actor`).
+ *   · `origin_actor` — AKI a történetet INDÍTOTTA (a kezelő, aki visszajön). `run.origin_subject`.
+ * Új érték új, MÉRT szabályt kíván — addig a kapu ZÁR.
+ */
+export const SWITCH_TO = Object.freeze(['story_actor', 'origin_actor']);
+
+/**
+ * KI A VÁRT RÉSZTVEVŐ EZEN A LÉPÉSEN — `null`, ha a lépés nem nyilatkozik vagy nem tudható.
+ *
+ * FAIL-CLOSED, ÉS EZ KIMONDOTT: ha a lépés `switch_to`-t deklarál, de a futás nem tudja, kit
+ * jelent (nincs cél-kötés, vagy a kezdő alany ismeretlen), akkor `null` — és a hívó kapu ZÁR.
+ * Enélkül a „nem tudom" némán „bárki jó"-ra esne vissza, ami pont a lelet (`KUKA-049`).
+ */
+export function expectedActorOf(run) {
+  if (!run) return null;
+  const step = run.steps[run.at];
+  if (!step) return null;
+  const kit = step.switch_to ?? null;
+  if (!SWITCH_TO.includes(kit)) return null;
+  if (kit === 'origin_actor') return run.origin_subject ?? null;
+  return (run.story && run.story.actor) || null;
+}
+
+/**
  * A KILÉPÉS MINT ÁTADÁSI HATÁR — EGY FELOLDÓ, MÉRHETŐEN (R176, külső review P2 · `KUKA-433`).
  *
  * Ez a döntés eddig a lap belső `saveTourHandover`-ében, zárt függvényben állt — tehát próba nem
@@ -482,7 +539,25 @@ export function actorSwitchReady(run, { view, role }) {
    */
   const tengely = step.switch_axis ?? null;
   if (!SWITCH_AXES.includes(tengely)) return false;
-  if (tengely === 'subject') return (view.subject ?? null) !== run.view.subject;
+  /**
+   * A SZEMÉLY-TENGELY: A VÁLTÁS TÉNYE KEVÉS — A VÁRT RÉSZTVEVŐ KELL (R186 §2).
+   *
+   * A korábbi alak annyit kért, hogy az alany MÁS legyen. Egy HARMADIK ember belépése tehát
+   * teljesítette a váltást: elhasználta az átadást, az `actor.switched` elvégzettnek könyvelődött,
+   * a futás ahhoz a fiókhoz kötődött át (`rebindView`), és a történet később, a meghívás-feladatnál
+   * akadt el — a SZÁNT résztvevő pedig már nem tudta folytatni.
+   *
+   * MOSTANTÓL a lépés KIMONDJA, kit vár (`switch_to`), és a kapu AHHOZ mér. FAIL-CLOSED: ha nem
+   * nyilatkozik, vagy a várt résztvevő nem tudható, a kapu ZÁR (`expectedActorOf` → `null`) — a
+   * „nem tudom" nem eshet némán „bárki jó"-ra (`KUKA-049`).
+   */
+  if (tengely === 'subject') {
+    const most = view.subject ?? null;
+    if (most === run.view.subject) return false;   // a váltás TÉNYE: az alany MÁS lett
+    const vart = expectedActorOf(run);
+    if (!vart) return false;                       // nyilatkozat vagy ismeret nélkül ZÁRUNK
+    return most === vart;                          // és pontosan a VÁRT résztvevő lépett be
+  }
   /**
    * …ÉS A FIÓK-TENGELYEN A CÉL SEM BÁRMI (R176, külső review P2 · `KUKA-441`).
    *
@@ -497,8 +572,12 @@ export function actorSwitchReady(run, { view, role }) {
    * kezdő könyvet külön őrzi (`origin_book`), és a kapu AHHOZ mér. Nyilatkozat nélkül (ha a
    * kezdő könyv ismeretlen) a kapu ZÁR (`KUKA-236`).
    *
-   * AMIT EZ NEM ÁLLÍT: hogy a SZEMÉLY-tengelyre is deriválható a cél. A következő SZEREPLŐ
-   * kilétét ma semmi nem deklarálja (a lelet párja NEVEZETTEN nyitva van, a jelentés 7.5 pontja).
+   * A PÁRJA MA MÁR ZÁRVA (R186 §2 — a szöveg a valóságot követi, `KUKA-050`). Ez a bekezdés
+   * korábban azt mondta, hogy „a SZEMÉLY-tengelyre nem deriválható a cél, a következő szereplő
+   * kilétét ma semmi nem deklarálja". Az R186 §2 ezt megépíttette: a lépés `switch_to`-t
+   * deklarál, a szerver a cél-kötésben átadja a várt résztvevőt, és a személy-tengelyes ág AHHOZ
+   * mér (lásd fentebb). A két tengely tehát ma UGYANAZON az elven áll: a váltás a pár egyik felét
+   * mozgatja egy NEVEZETT célra, a másikat helyben tartja.
    */
   if ((view.subject ?? null) !== run.view.subject) return false;
   const cel = run.origin_book ?? null;
@@ -561,10 +640,31 @@ export function back(run) {
  * A FELADAT IGAZOLÁSA. Az `app.js` hívja, a SZERVER válasza után — nem a kattintás után. Ha a futó
  * lépés épp erre a feladatra vár, `done` lesz; különben nem történik semmi (nem „előre" igazolunk).
  */
-export function taskDone(run, taskId) {
+/**
+ * …ÉS A TÖRTÉNETHEZ KÖTÖTT LÉPÉS CSAK A VÁLASZTOTT CÉLON TELJESÜL (R186 §2).
+ *
+ * A LELET (külső review, Codex, R176 — P2 · a jelentés 7.5/c pontja): a `doRevokeInvite`
+ * BÁRMELYIK sikeres visszavonásra készre könyvelte az `invite.revoked` feladatot. KÉT függő
+ * meghívó mellett tehát a néző az EGYIKET vonta vissza, a bemutató viszont a MÁSIK, még ÉLŐ levelet
+ * nyitotta meg — és azt állította róla, hogy a visszavont meghívó. Az R186 §2: *„A visszavonás, a
+ * levél és az elfogadás ugyanarra a megfelelő meghívóra vonatkozzon."*
+ *
+ * A LÉPÉS KIMONDJA, hogy a történet céljához kötött (`story_bound`), és akkor a nyugtának a
+ * VÁLASZTOTT cél jelölőjét kell hoznia. FAIL-CLOSED: cél-kötés nélkül (`run.story.ref` hiányzik) a
+ * lépés NEM teljesül — a „nem tudom" nem eshet némán „bármi jó"-ra (`KUKA-049` · `KUKA-236`).
+ *
+ * ÉS AMIT EZ NEM VÁLLAL: nem jogosultság. A visszavonást a szerver a saját plafon-ellenőrzésével
+ * engedi vagy tiltja, tőlünk függetlenül (`KUKA-227`); ez itt a BEMUTATÓ elszámolása.
+ */
+export function taskDone(run, taskId, { ref = null } = {}) {
   if (!run) return false;
   const step = run.steps[run.at];
   if (!step || step.task !== taskId) return false;
+  if (step.story_bound === true) {
+    const kell = (run.story && run.story.ref) || null;
+    if (!kell) return false;
+    if (String(ref ?? '') !== String(kell)) return false;
+  }
   step.state = 'done';
   return true;
 }

@@ -878,13 +878,13 @@ export const TOURS = Object.freeze({
       Object.freeze({ id: 's1', target: 'nav-members', task: null, role: 'admin' }),
       Object.freeze({ id: 's2', target: 'members-tab-invites', task: null, role: 'admin' }),
       Object.freeze({ id: 's3', target: 'invites-table', task: null, appears_after: 'members-tab-invites', role: 'admin' }),
-      Object.freeze({ id: 's4', target: 'invites-table', task: 'invite.revoked', appears_after: 'members-tab-invites', role: 'admin' }),
+      Object.freeze({ id: 's4', target: 'invites-table', task: 'invite.revoked', appears_after: 'members-tab-invites', role: 'admin', story_bound: true }),
       Object.freeze({ id: 's5', target: 'invites-table', task: null, appears_after: 'members-tab-invites', role: 'admin' }),
-      Object.freeze({ id: 's6', target: 'actor-switch', task: 'actor.switched', switch_actor: true, switch_axis: 'subject' }),
+      Object.freeze({ id: 's6', target: 'actor-switch', task: 'actor.switched', switch_actor: true, switch_axis: 'subject', switch_to: 'story_actor' }),
       Object.freeze({ id: 's7', target: 'demo-mail-open', task: null }),
       Object.freeze({ id: 's8', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
       Object.freeze({ id: 's9', target: 'invite-observe', task: null, appears_after: 'mailbox' }),
-      Object.freeze({ id: 's10', target: 'actor-switch', task: 'actor.switched', role: 'admin', switch_actor: true, switch_axis: 'subject' }),
+      Object.freeze({ id: 's10', target: 'actor-switch', task: 'actor.switched', role: 'admin', switch_actor: true, switch_axis: 'subject', switch_to: 'origin_actor' }),
       /**
        * A HIÁNYZÓ LÉPÉS — A VISSZATÉRŐ FIÓKKEZELŐNEK A CÉGRE IS ÁT KELL VÁLTANIA (R176 §1, MÉRVE).
        *
@@ -904,7 +904,7 @@ export const TOURS = Object.freeze({
       Object.freeze({ id: 's11', target: 'nav-members', task: null, role: 'admin' }),
       Object.freeze({ id: 's12', target: 'invite-open', task: null, role: 'admin' }),
       Object.freeze({ id: 's13', target: 'invite-submit', task: 'invite.created', appears_after: 'invite-open', role: 'admin' }),
-      Object.freeze({ id: 's14', target: 'actor-switch', task: 'actor.switched', switch_actor: true, switch_axis: 'subject' }),
+      Object.freeze({ id: 's14', target: 'actor-switch', task: 'actor.switched', switch_actor: true, switch_axis: 'subject', switch_to: 'story_actor' }),
       Object.freeze({ id: 's15', target: 'demo-mail-open', task: null }),
       Object.freeze({ id: 's16', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
       Object.freeze({ id: 's17', target: 'invite-actions', task: 'invite.redeemed', appears_after: 'mailbox' }),
@@ -952,16 +952,16 @@ export const TOURS = Object.freeze({
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'nav-members', task: null, role: 'admin' }),
       Object.freeze({ id: 's2', target: 'members-list', task: null, role: 'admin' }),
-      Object.freeze({ id: 's3', target: 'member-revoke', task: 'member.revoked', appears_after: 'members-list', role: 'admin' }),
-      Object.freeze({ id: 's4', target: 'reinvite-form', task: 'reinvite.sent', appears_after: 'members-list', role: 'admin' }),
-      Object.freeze({ id: 's5', target: 'actor-switch', task: 'actor.switched', switch_actor: true, switch_axis: 'subject' }),
+      Object.freeze({ id: 's3', target: 'member-revoke', task: 'member.revoked', appears_after: 'members-list', role: 'admin', story_bound: true }),
+      Object.freeze({ id: 's4', target: 'reinvite-form', task: 'reinvite.sent', appears_after: 'members-list', role: 'admin', story_bound: true }),
+      Object.freeze({ id: 's5', target: 'actor-switch', task: 'actor.switched', switch_actor: true, switch_axis: 'subject', switch_to: 'story_actor' }),
       Object.freeze({ id: 's6', target: 'demo-mail-open', task: null }),
       Object.freeze({ id: 's7', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
       Object.freeze({ id: 's8', target: 'invite-actions', task: 'invite.redeemed', appears_after: 'mailbox' }),
       Object.freeze({ id: 's9', target: 'account-switcher', task: 'actor.switched', switch_actor: true, switch_axis: 'book' }),
       Object.freeze({ id: 's10', target: 'nav-stock', task: null }),
       Object.freeze({ id: 's11', target: 'data-stock', task: null }),
-      Object.freeze({ id: 's12', target: 'actor-switch', task: 'actor.switched', role: 'admin', switch_actor: true, switch_axis: 'subject' }),
+      Object.freeze({ id: 's12', target: 'actor-switch', task: 'actor.switched', role: 'admin', switch_actor: true, switch_axis: 'subject', switch_to: 'origin_actor' }),
       /**
        * A VISSZAVÁLTÁS UTÁN A SZEMÉLYES KÖRBEN ÁLLUNK (R176 — ugyanaz a hiány, mint a `s10b`-nél).
        *
@@ -972,8 +972,8 @@ export const TOURS = Object.freeze({
        */
       Object.freeze({ id: 's12b', target: 'account-switcher', task: 'actor.switched', role: 'admin', switch_actor: true, switch_axis: 'book' }),
       Object.freeze({ id: 's13', target: 'nav-members', task: null, role: 'admin' }),
-      Object.freeze({ id: 's14', target: 'member-scope-row-keszlet', task: 'grant.saved', appears_after: 'members-list', role: 'admin' }),
-      Object.freeze({ id: 's15', target: 'actor-switch', task: 'actor.switched', switch_actor: true, switch_axis: 'subject' }),
+      Object.freeze({ id: 's14', target: 'member-scope-row-keszlet', task: 'grant.saved', appears_after: 'members-list', role: 'admin', story_bound: true }),
+      Object.freeze({ id: 's15', target: 'actor-switch', task: 'actor.switched', switch_actor: true, switch_axis: 'subject', switch_to: 'story_actor' }),
       Object.freeze({ id: 's15b', target: 'account-switcher', task: 'actor.switched', switch_actor: true, switch_axis: 'book' }),
       Object.freeze({ id: 's16', target: 'nav-stock', task: null }),
       Object.freeze({ id: 's17', target: 'data-stock-btn', task: null }),
