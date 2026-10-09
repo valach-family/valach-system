@@ -2673,6 +2673,28 @@ try {
           sorOw.some((m) => m.effective === true && m.rights_alterable === true),
           { tulaj_tagok: sorOw.length,
             megvonhato: sorOw.filter((m) => m.rights_alterable === true).length });
+        // ── (as86–as87) ÉS AZ ÚJ MEGHÍVÁS ŰRLAPJA IS A MEGMÉRT PLAFONBÓL RAJZOL (`KUKA-472`) ──
+        const tagokDel2 = (tagokDel.body) || {};
+        const tagokOw2 = (tagokOw.body) || {};
+        const panelAs2 = readFileSync(join(ROOT, 'v3app/public/app.js'), 'utf8');
+        step('(as86) `KUKA-472` MÁSODIK FOGYASZTÓ: a tag-lista válasza a MEGMÉRT szerep-plafont is kiadja (`grantable_roles` + `blocked_roles`), és a meghívó-űrlap EBBŐL rajzol — a két beégetett opció KIVEZETVE',
+          Array.isArray(tagokOw2.grantable_roles) && tagokOw2.grantable_roles.length > 0
+            && Array.isArray(tagokOw2.blocked_roles)
+            && Array.isArray(tagokDel2.grantable_roles)
+            && /data-testid="invite-role">\$\{szerepek\.map\(/.test(panelAs2)
+            && !/data-testid="invite-role"><option value="user">/.test(panelAs2),
+          { tulaj_plafon: (tagokOw2.grantable_roles || []).join(','),
+            delegalt_plafon: (tagokDel2.grantable_roles || []).join(','),
+            urlap_a_keszletbol: /data-testid="invite-role">\$\{szerepek\.map\(/.test(panelAs2),
+            beegetett_kivezetve: !/data-testid="invite-role"><option value="user">/.test(panelAs2) });
+        step('(as87) `KUKA-472` ELLENPÁR: a kiadott szerep-plafon a FELOLDÓ kimenete (nem a kód listája), és a tiltott szerepek halmaza a KETTŐ KÜLÖNBSÉGE — tehát a felület nem tud a plafonon túli szerepet felkínálni',
+          Array.isArray(tagokOw2.known_roles)
+            && (tagokOw2.known_roles || []).every((r) => (tagokOw2.grantable_roles || []).includes(r)
+              || (tagokOw2.blocked_roles || []).includes(r))
+            && (tagokOw2.grantable_roles || []).every((r) => !(tagokOw2.blocked_roles || []).includes(r)),
+          { ismert: (tagokOw2.known_roles || []).join(','),
+            kiadhato: (tagokOw2.grantable_roles || []).join(','),
+            tiltott: (tagokOw2.blocked_roles || []).join(',') });
       }
       }
       {

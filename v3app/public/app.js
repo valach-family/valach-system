@@ -1245,6 +1245,9 @@ import { inviteNextKey } from './inviteText.mjs';
       known: Array.isArray(r.known_scopes) ? r.known_scopes : [],
       grantable: Array.isArray(r.grantable_scopes) ? r.grantable_scopes : [],
       blocked: Array.isArray(r.blocked_scopes) ? r.blocked_scopes : [],
+      // A SZEREP-PLAFON IS A KISZOLGÁLÓTÓL JÖN (`KUKA-472`): a meghívó-űrlap EBBŐL rajzol.
+      roles: Array.isArray(r.grantable_roles) ? r.grantable_roles : [],
+      blockedRoles: Array.isArray(r.blocked_roles) ? r.blocked_roles : [],
       reason: r.grantable_reason ?? null, rule: r.startup_rule_version ?? null,
     };
     const cell = (m, k) => (m.effective
@@ -1388,10 +1391,25 @@ import { inviteNextKey } from './inviteText.mjs';
   }
 
   function invitePanel() {
+    /**
+     * A SZEREP-VÁLASZTÉK A MEGMÉRT PLAFONBÓL JÖN (`KUKA-472` · `D-VS-3254`).
+     *
+     * A LELET: az adatkör-választék már a plafonból jött, a SZEREP-választék viszont BEÉGETVE
+     * két opciót rajzolt — egy delegált kezelő, akinek a plafonja `admin`-t nem enged, felkínálva
+     * látta, és a kiadás nevezetten bukott volna. ÜRES plafonnál NINCS mit felkínálni: ilyenkor a
+     * NEVEZETT mondat áll az űrlap helyén, teendővel (`KUKA-201` · `KUKA-041`).
+     */
+    const szerepek = (state.scopeMeta && Array.isArray(state.scopeMeta.roles) ? state.scopeMeta.roles : [])
+      .filter((r) => typeof r === 'string' && r);
+    if (!szerepek.length) {
+      openPanel(panelHead(UI.inviteTitle, UI.inviteLead)
+        + `<p class="notice" data-testid="invite-blocked">${esc(reasonText((state.scopeMeta && state.scopeMeta.reason) || 'generic'))}</p>`);
+      return;
+    }
     openPanel(panelHead(UI.inviteTitle, UI.inviteLead)
       + `<form class="form" data-testid="invite-form">
         <label>${esc(UI.email)}<input type="email" name="email" required data-testid="invite-email" autocomplete="off" placeholder="pelda@example.test"></label>
-        <label>${esc(UI.role)}<select name="role" data-testid="invite-role"><option value="user">${esc(ROLE.user)}</option><option value="admin">${esc(ROLE.admin)}</option></select>
+        <label>${esc(UI.role)}<select name="role" data-testid="invite-role">${szerepek.map((r) => `<option value="${esc(r)}">${esc(ROLE[r] || r)}</option>`).join('')}</select>
           <small>${esc(STATE.inviteRoleHelp)}</small></label>
         <label>${esc(STATE.inviteScopeQuestion)}<select name="scope" data-testid="invite-scope">${(state.scopeMeta.grantable.length ? state.scopeMeta.grantable : ['keszlet', 'arak']).map((k) => `<option value="${esc(k)}">${esc(SCOPE[k] || k)}</option>`).join('')}</select>
           <small>${esc(STATE.inviteScopeHelp)}</small></label>

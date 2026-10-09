@@ -2765,6 +2765,17 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
         known_scopes: [...KNOWN_DATA_SCOPES], known_roles: [...KNOWN_ROLES],
         grantable_scopes: grantable,
         blocked_scopes: blocked,
+        /**
+         * ÉS A MEGMÉRT SZEREP-PLAFON IS KIMEGY (`KUKA-472` második fogyasztója · `D-VS-3254`).
+         *
+         * A LELET UGYANAZ, mint az újbóli meghívás paneljénél, csak az ÚJ meghívás űrlapján: az
+         * adatkör-választék a plafonból jött (`grantable_scopes`), a SZEREP-választék viszont
+         * BEÉGETVE két opciót rajzolt — tehát egy delegált kezelő, akinek a plafonja `admin`-t
+         * nem enged, felkínálva látta, és a kiadás `outside_basis_roles`-szal bukott volna
+         * (`KUKA-041`). A plafon mérése már itt volt — csak a SZEREP-fele nem ment ki.
+         */
+        grantable_roles: basis.ok && Array.isArray(basis.roles) ? [...basis.roles].sort() : [],
+        blocked_roles: KNOWN_ROLES.filter((r) => !(basis.ok && Array.isArray(basis.roles) ? basis.roles : []).includes(r)),
         grantable_reason: basis.ok ? 'within_delegation_basis' : basis.reason,
         // A SZABÁLYVERZIÓ NEVEZVE: ebből tudja a felület megmondani, MIÉRT szűkebb a plafon —
         // "ez a munkakörnyezet még a régi, kétkörös indulási szabállyal született".
